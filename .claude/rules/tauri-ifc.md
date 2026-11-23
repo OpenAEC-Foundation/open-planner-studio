@@ -437,22 +437,26 @@ tabblad hem onthoudt (fixronde 2 van #1019; knownbug 1908). Op de desktop wijzig
 geschreven. Alleen paden: een handle uit de opslaankiezer van de browser is al leeggemaakt (1899), dus daar vergelijkt de
 controle niets en maken Opslaan als en Exporteren het bestand af (knownbug 1893). Openen gaat met de flag aan naar het tabblad dat een
 bestand al open heeft (`openDocumentFor.ts`, knownbug 1957). Regel: de PR voegt geen enkel wachtmoment toe aan de
-openactie. Het asynchrone deel (`startOpenLookup`: `dev`/`ino` vóór het lexicale pad, de identiteit van het gevraagde
-pad één keer, een aantoonbaar ontbrekend tabbladpad telt niet en valt niet terug op de padtekst; `isSameEntry` voor
-handles, alleen bij dezelfde `handle.name`) start bij het begin van het lezen en niets wacht erop. Het staat bij de
-aanroeper die het doel kent: `openFile` (desktop: `pickOpenPath`, toets, `readOpenedPath`; browser: de synchrone haak
-`beforeRead` van `openFileDialogWeb`), `openRecentFile`, `openDroppedFiles` (de haak van `DroppedFile.read`: browser
-in `webDroppedFile`, desktop via `desktopDroppedFiles`) en `planner_import_schedule`. Op de desktop wacht het lezen
-zoals main op de schrijfrij (`whenProjectFileWritesIdle` in `tauriBackend.ts`); `planner_import_schedule` leest via
-`realFs` buiten die rij om, ook zoals main (knownbug 2060). Met de flag uit gaat elke route langs de lijn van main. De
-keuze voor de flag ligt per openactie vast vóór het lezen (`OpenOpenedFileOptions.readOptions`). Na het parsen beslist
-`existingDocument` synchroon, in de stap van het activeren: is de toets al binnen, het tabblad van de toets als het nog
-open is en nog hetzelfde bestand heeft; anders, of voor een tabblad dat het bestand ná de start kreeg, hetzelfde pad als
-tekst, dezelfde handle of hetzelfde site-id. Een late uitkomst doet niets meer: dan een eigen tabblad, zoals main
-(knownbug 2062). Geen herlezing en geen schrijfteller in deze routes. De site vergelijkt alleen het id, synchroon. Een startbestand (#1091) houdt de toets en herlezing van main
+openactie, ook niet aan de native kant (besluit D, review #1121 ronde 6). De desktop kijkt bij het openen niet naar de
+schijf: geen `stat`, geen `fileIdentityFs` in een openroute; Openen, Recent, slepen en `planner_import_schedule` lezen
+regel voor regel zoals main, en de beslissing vergelijkt alleen dezelfde letterlijke padtekst (geen normalisatie; een
+link, hardlink of anders geschreven pad geeft een tweede tabblad, zoals main: knownbug 2063). Op de desktop wacht het
+lezen zoals main op de schrijfrij (`whenProjectFileWritesIdle` in `tauriBackend.ts`); `planner_import_schedule` leest
+via `realFs` buiten die rij om, ook zoals main (knownbug 2060). Alleen de browser heeft een asynchroon deel
+(`startOpenLookup`: `gevraagd.isSameEntry(tabblad)` voor elk tabblad met een handle en zonder site-id, alle tegelijk
+gestart; een treffer telt zodra hij binnen is, "geen" pas als alle binnen zijn, een fout telt als anders). Het start
+synchroon vlak vóór het lezen en niets wacht erop: de haak `beforeRead` van `openFileDialogWeb`, die van
+`DroppedFile.read` in `webDroppedFile`, en in `openRecentFile` vóór de vraag om leesrechten. De keuze voor "staat al
+open" ligt per openactie bij het begin vast (`OpenOpenedFileOptions.oneTab`, ook als de flag uit staat: zo'n openactie
+wisselt nooit) en geldt alleen voor een formaat met opslagdoel (`readFormatForFile(naam).canBeSaveTarget`); de leeskeuze
+met de flag aan ook (`OpenOpenedFileOptions.readOptions`). Met de flag uit gaat elke route langs de lijn van main. Na het
+parsen beslist `existingDocument` synchroon, in de stap van het activeren: is de browsertoets al binnen, het tabblad van
+de toets als het nog open is en nog hetzelfde bestand heeft; anders, of voor een tabblad dat het bestand ná de start
+kreeg, dezelfde padtekst, hetzelfde handle-object of hetzelfde site-id. Een late uitkomst doet niets meer: dan een eigen
+tabblad, zoals main (knownbug 2062). Geen herlezing en geen schrijfteller in deze routes. De site vergelijkt alleen het id, synchroon. Een startbestand (#1091) houdt de toets en herlezing van main
 (`openLaunchFiles`); met de flag aan komen daar de melding en Recent bij. Een tweede tabblad op hetzelfde bestand kan er
-nog zijn (crashherstel, de flag pas later aan, de lexicale grenzen van knownbug 2040, kruisende openacties in de browser
-of via een link: knownbug 2041; een late toets: 2062), dus de doelbewaking blijft nodig. Opslaan als op de site maakt altijd een
+nog zijn (crashherstel, de flag pas later aan, een ander pad naar hetzelfde bestand: knownbug 2063, kruisende openacties
+in de browser: knownbug 2041; een late toets: 2062), dus de doelbewaking blijft nodig. Opslaan als op de site maakt altijd een
 nieuw sitebestand (geen `id`), dus daar is geen bestaand doel om te vergelijken. Het eigen bestand van het document
 blijft een gewoon doel. Proeven: `check-ifc-own-file-replace.ts` (#1022, knownbug 1907, de bibliotheek),
 `check-ifc-foreign-target.ts` (#1022 browser), `cases-doc-file.ts` en `cases-headless-server.ts` (`planner_export_ifc`).

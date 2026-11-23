@@ -478,7 +478,7 @@ export const fileTools: McpToolDef[] = [
     description:
       'Open a schedule file (.ifc, .xml from P6 or MS Project, .csv, .xer, .mpp) inside the home folder in a ' +
       'new active tab (an empty, unchanged active tab is reused); nothing is merged. In the app, with the experimental ' +
-      'setting "Open IFC with a building model" on, a file that is already open in a tab may switch to that tab instead and ' +
+      'setting "Open IFC with a building model" on, an IFC path that is already open in a tab (the exact same path text) switches to that tab instead and ' +
       'return it with `alreadyOpen: true`; that tab keeps its own content. Tell the user what is lost: CSV has no calendar (dates can ' +
       'shift), resources or assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP has no baselines or custom fields. ' +
       'Also pass on `notice`. Use `documents` in the response (one file can open several). Ids are per ' +

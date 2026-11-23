@@ -3,26 +3,23 @@
 // de app gaat naar dat tabblad, met één melding, en dat tabblad houdt al zijn werk (taken, gewijzigd-stand, ongedaan
 // maken). Met de flag uit: een tweede tabblad, zoals main.
 //
-//  A. `openDocumentFor` (de toets, die gelijk op loopt met het lezen): pad (lexicaal, ook Windows; `dev`/`ino` via een link), handle
-//     (`isSameEntry`, ook een ander object voor hetzelfde bestand; een fout telt als anders), `null`; een tabblad met een
-//     handle telt niet voor een pad en omgekeerd; een betrouwbare `dev`/`ino` gaat voor op het lexicale pad
-//     (`maplink/../a.ifc`); de identiteit van het gevraagde pad één keer (A18); in de browser alleen `isSameEntry` voor
-//     dezelfde bestandsnaam (A19, A19b). `existingDocument` zonder toets: de site
-//     op id, een pad alleen als dezelfde tekst (A17). Met de flag uit roept geen openroute de toets aan (B6, C4: main).
+//  A. De identiteit (besluit D, review #1121 ronde 6): de desktop alleen de letterlijke padtekst, synchroon (A1–A5,
+//     A11, A17: een link, een andere schrijfwijze of hoofdletters tellen niet), de site het id (A9), de browser
+//     `startOpenLookup` met `gevraagd.isSameEntry(tabblad)` (A6–A8, A9c, A12), alle vergelijkingen tegelijk gestart (A19,
+//     A19b). Met de flag uit roept geen openroute de toets aan (B6, C4: main).
 //  B. Desktop, op echte bestanden (plugin-fs-JS met nep-IPC naar Node-fs): Bestand → Openen (`openFile()` met de
-//     kiezer), via een link, Recent, slepen; twee keer hetzelfde bestand in één neerzetting; een kopie met dezelfde
-//     inhoud is een ander bestand; CSV opent opnieuw (vraag P2); het tabblad dat tijdens het wachten van een
-//     neerzetting sluit, laat het bestand gewoon openen. Met de flag uit: telkens een tweede tabblad.
+//     kiezer), Recent, slepen; via een link een eigen tabblad (2063); twee keer hetzelfde bestand in één neerzetting; een
+//     kopie met dezelfde inhoud is een ander bestand; CSV opent opnieuw (vraag P2); het tabblad dat tijdens het wachten
+//     van een neerzetting sluit, laat het bestand gewoon openen. Met de flag uit: telkens een tweede tabblad.
 //  C. Browser (nep-FSA-handles): Openen (`showOpenFilePicker`, telkens een nieuw handle-object), Recent, slepen
-//     (`droppedFilesFromDataTransfer`), een `isSameEntry` die gooit, Firefox zonder handle. Met de flag uit: twee
-//     tabbladen.
-//  P, R, T. Review #1121: de regel van ronde 5 (de PR voegt geen wachtmoment toe aan de openactie): een vastgehouden
-//     toets houdt Openen, Recent, slepen en MCP niet op en een late uitkomst doet niets (P1, desktop en browser), MCP en
-//     een lopende opslag zoals main (P2), F2 tijdens Openen en Recent (P3); een verdwenen alias (B11). *Opslaan als* na
-//     het parsen (R2, R4), MCP en Openen tegelijk (R5), drie openacties tegelijk (R6), de flag die tijdens het lezen
-//     uitgaat (R7), en per route lezen → parsen → activeren zoals main, met de toets gestart vóór het activeren (T1
-//     desktop en MCP, T2 browser; het startbestand lezen → toets → parsen → activeren zoals main; met de flag uit geen
-//     toets en één lezing, zoals main).
+//     (`droppedFilesFromDataTransfer`), een `isSameEntry` die gooit, Firefox zonder handle, CSV zonder toets (C5). Met
+//     de flag uit: twee tabbladen. P1 browser: een vastgehouden `isSameEntry` houdt de openactie niet op.
+//  D, P, R, T. Review #1121: geen `stat` en dezelfde bestandsaanroepen als main per desktoproute (D1, T1), een
+//     vastgehouden `stat` van een ander tabblad houdt het openen niet op (D3), een link die tijdens het lezen van doel
+//     verandert (D2, MCP: alles blijft bij wat gelezen is), MCP en een lopende opslag zoals main (P2), F2 tijdens Openen
+//     en Recent (P3), de flag die tijdens het lezen aangaat (P4), CSV via een hardlink of met dezelfde padtekst (P5), een
+//     verdwenen alias (B11), *Opslaan als* na het parsen (R2, R4), MCP en Openen tegelijk (R5), drie openacties
+//     tegelijk (R6), de flag die tijdens het lezen uitgaat (R7). Het startbestand houdt de toets van main (T1, B10).
 // De site staat in `check-site-storage.ts` (G16, G17, G18), `planner_import_schedule` ook in `tests/mcp/cases-doc-file.ts` en
 // `cases-headless-server.ts`.
 //
