@@ -4,11 +4,13 @@
  * 150 mb, later kunnen we dat nog uitbouwen". Een hogere grens later is deze ene regel.
  *
  * Dit is niet de technische grens van de bytes-route (`IFC_FOREIGN_SCAN_MAX_BYTES` in `foreign/foreignScan.ts`, 300 MiB):
- * die blijft voor de scanner, de doelscan, het crashherstel en headless. Deze grens geldt alleen bij openen door de
- * planner of een assistent (Bestand → Openen, Recent, slepen en het startbestand, de dev-link, de site,
- * `planner_import_schedule`); elk van die routes roept `refuseModelAboveOpenLimit` aan na het lezen. Het crashherstel
- * niet: dat leest zijn eigen, gecontroleerde bron zoals main. Een planning zonder gebouwmodel en zonder vreemde gegevens
- * heeft deze grens niet.
+ * die blijft voor de scanner, de doelscan, het crashherstel en headless. Deze grens geldt bij openen in de app:
+ * `openOpenedFile` toetst haar altijd (Bestand → Openen, Recent, slepen en het startbestand, de dev-link, en elke nieuwe
+ * aanroeper); alleen het crashherstel valt erbuiten, met de benoemde optie `restoringVerifiedIfcSource` voor zijn eigen,
+ * gecontroleerde bron. De site en `planner_import_schedule` in de app parsen buiten `openOpenedFile` en roepen
+ * `refuseModelAboveOpenLimit` zelf aan; de headless MCP-server niet (zijn bestandslaag zet `enforcesModelOpenLimit` niet),
+ * zodat headless gelijk blijft aan main. Een planning zonder gebouwmodel en zonder vreemde gegevens heeft deze grens
+ * niet, en ook een IFC2X3-bestand niet: dat opent via de schematerugval zonder bron (§4.11).
  */
 import { isMultiDocumentImport, type OpenedImport } from '@/services/importTypes';
 
@@ -24,9 +26,11 @@ export class IfcModelOpenTooLargeError extends Error {
 }
 
 let lowered = Infinity;
-/** Proefnaad: alleen lager dan de productgrens, nooit hoger; zonder waarde weer de productgrens. Zo toetsen de proeven de
- *  grens zonder bestand van 150 MiB. Geen productieaanroeper. */
+/** Proefnaad: alleen lager dan de productgrens, nooit hoger; zonder waarde weer de productgrens. Alleen een eindig getal
+ *  (geen `NaN` of `Infinity`, die de vergelijking zouden uitschakelen). Zo toetsen de proeven de grens zonder bestand van
+ *  150 MiB. Geen productieaanroeper. */
 export function lowerModelOpenLimitForTests(bytes?: number): void {
+  if (bytes !== undefined && !Number.isFinite(bytes)) throw new RangeError(`lowerModelOpenLimitForTests: ${bytes} is geen eindig getal`);
   lowered = bytes ?? Infinity;
 }
 

@@ -108,6 +108,8 @@ function installFakeFs(): McpFileFs {
   aliases = new Map<string, string>();
   readFileCalls.length = 0;
   const fs: McpFileFs = {
+    // Zoals `realFs` van de app: de productgrens voor het openen van een model geldt (#804).
+    enforcesModelOpenLimit: true,
     homeDir: async () => HOME,
     exists: async (p) => files.has(aliases.get(p) ?? p) || binFiles.has(aliases.get(p) ?? p),
     stat: async (p) => {

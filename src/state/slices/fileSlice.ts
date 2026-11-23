@@ -568,9 +568,10 @@ export interface OpenOpenedFileOptions {
   /** Is wat gelezen is intussen mogelijk verouderd? In dezelfde synchrone stap, na `existingDocument`: `true` ⇒ niets
    *  activeren; de aanroeper leest opnieuw (een startbestand, #1091). */
   stale?: () => boolean;
-  /** De productgrens voor het openen van een model geldt (`refuseModelAboveOpenLimit`): elke route waarmee de planner
-   *  een bestand opent, zet dit. Het crashherstel niet: dat leest zijn eigen, gecontroleerde bron zoals main. */
-  modelOpenLimit?: boolean;
+  /** Alleen het crashherstel, voor zijn eigen bron na de controle op lengte en SHA-256 (`recoveryDocumentWithSource`):
+   *  de productgrens voor het openen van een model (`refuseModelAboveOpenLimit`) geldt dan niet, zodat herstel gelijk
+   *  blijft aan main. Elke andere aanroeper laat dit weg en krijgt de grens. */
+  restoringVerifiedIfcSource?: boolean;
 }
 
 export interface FileSlice {
@@ -2423,7 +2424,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         for (const notice of openFailureNotices(err)) get().notify(notice);
         return;
       }
-      if (opened) await get().openOpenedFile(opened, labels, { modelOpenLimit: true });
+      if (opened) await get().openOpenedFile(opened, labels);
     },
 
     openOpenedFile: async (opened, labels, options) => {
@@ -2431,7 +2432,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // Knownbug 1131 stap 5: wat het afhandelen van een onafgeronde vervanging vóór het lezen deed.
         for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
-        if (options?.modelOpenLimit) refuseModelAboveOpenLimit(parsed);
+        if (!options?.restoringVerifiedIfcSource) refuseModelAboveOpenLimit(parsed);
         // De laatste controle en het activeren gebeuren in één synchrone stap: niets (een klik, een
         // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.
         if (options?.waitWhile) {
@@ -3181,7 +3182,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
         // Zelfde open-semantiek als openFile: tabblad, opslagdoel (`saveTargetFor`), gekoppeld laden en het
         // verversen van Recent komen uit de ene gedeelde actie, ook voor de meervoudige XER-vorm.
-        await get().openOpenedFile(opened, labels, { modelOpenLimit: true });
+        await get().openOpenedFile(opened, labels);
       } catch (err) {
         console.error('Failed to open recent file:', err);
         for (const notice of openFailureNotices(err)) get().notify(notice);

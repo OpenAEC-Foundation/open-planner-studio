@@ -77,6 +77,11 @@ const eq = (label: string, got: unknown, want: unknown) => {
 eq('de productgrens: 150 MiB', IFC_MODEL_OPEN_MAX_BYTES, 157_286_400);
 eq('de technische grens van de bytes-route: 300 MiB, zoals main', IFC_FOREIGN_SCAN_MAX_BYTES, 300 * 1024 * 1024);
 lowerModelOpenLimitForTests(GRENS);
+for (const bad of [Number.NaN, Infinity]) {
+  let threw = false;
+  try { lowerModelOpenLimitForTests(bad); } catch { threw = true; }
+  eq(`de proefnaad weigert ${bad}`, threw, true);
+}
 
 const enc = new TextEncoder(), dec = new TextDecoder();
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
@@ -104,7 +109,7 @@ if (mode === 'web') {
   // ── 1. Openen met de productgrens ─────────────────────────────────────────────────────────────────────────────────
   const open = async (bytes: Uint8Array, name = 'bestand.ifc') => {
     const store = newStore();
-    await store.getState().openOpenedFile({ name, content: '', bytes, ref: null }, {}, { modelOpenLimit: true });
+    await store.getState().openOpenedFile({ name, content: '', bytes, ref: null }, {});
     return store;
   };
   const atLimit = pad(model, GRENS);
@@ -201,10 +206,48 @@ if (mode === 'web') {
     useAppStore.setState(s => { s.ui.notifications = []; });
   }
   {
-    // Zonder de keuze voor de productgrens (zoals het crashherstel `openOpenedFile` gebruikt) opent het model.
-    const store = newStore();
-    await store.getState().openOpenedFile({ name: 'model.ifc', content: '', bytes: over, ref: null }, {});
-    eq('zonder modelOpenLimit (de herstellezing): het model opent met zijn bron', store.getState().ifcSource?.sha256 ?? null, sha(over));
+    // De grens geldt standaard in `openOpenedFile`: een nieuwe aanroeper zonder optie weigert. Alleen de benoemde
+    // uitzondering van het herstel (`restoringVerifiedIfcSource`) opent hetzelfde model.
+    const plainCall = newStore();
+    await plainCall.getState().openOpenedFile({ name: 'model.ifc', content: '', bytes: over, ref: null }, {});
+    eq('openOpenedFile zonder optie: geweigerd', [plainCall.getState().ifcSource?.sha256 ?? null, notices(plainCall)], [null, TOO_LARGE]);
+    const restoring = newStore();
+    await restoring.getState().openOpenedFile({ name: 'model.ifc', content: '', bytes: over, ref: null }, {}, { restoringVerifiedIfcSource: true });
+    eq('openOpenedFile met restoringVerifiedIfcSource: opent met zijn bron', restoring.getState().ifcSource?.sha256 ?? null, sha(over));
+  }
+  {
+    // Met de flag uit: precies main. Een model weigert de lezer om het gebouwmodel (niet om de grootte), en een planning
+    // boven de productgrens opent en slaat bytegelijk op aan dezelfde planning zonder de openactie (zonder de controle).
+    const flagOff = () => {
+      const { store } = createAppStoreContext();
+      return store;
+    };
+    const refusedOff = flagOff();
+    await refusedOff.getState().openOpenedFile({ name: 'model.ifc', content: dec.decode(over), ref: null }, {});
+    eq('flag uit, model: de modelweigering van main', [refusedOff.getState().ifcSource?.sha256 ?? null, refusedOff.getState().ui.notifications.map(n => n.messageKey),
+      String(refusedOff.getState().ui.notifications[0]?.detail ?? '').includes('building model')], [null, ['notifications.openFailed'], true]);
+    const { parseOpenedFile } = await import('@/services/formatRegistry');
+    const planText = dec.decode(pad(plan, GRENS + 1));
+    const viaOpen = flagOff();
+    await viaOpen.getState().openOpenedFile({ name: 'planning.ifc', content: planText, ref: null }, {});
+    const direct = flagOff();
+    direct.getState().openAsDocument(await parseOpenedFile({ name: 'planning.ifc', text: planText }), { name: 'planning.ifc', ref: null });
+    const saved = async (store: ReturnType<typeof flagOff>) => {
+      let out = '';
+      Reflect.set(window, 'showOpenFilePicker', async () => []);
+      Reflect.set(window, 'showSaveFilePicker', async () => ({
+        kind: 'file', name: 'uit.ifc', getFile: async () => new File([], 'uit.ifc'), queryPermission: async () => 'granted',
+        createWritable: async () => ({
+          write: async (chunk: string | Uint8Array | Blob) => { out += typeof chunk === 'string' ? chunk : chunk instanceof Blob ? await chunk.text() : dec.decode(chunk); },
+          close: async () => {},
+        }),
+      }));
+      await store.getState().saveFileAs();
+      return out;
+    };
+    const a = await saved(viaOpen), b = await saved(direct);
+    eq('flag uit, planning boven de productgrens: opent zonder melding', [viaOpen.getState().tasks.length > 0, notices(viaOpen)], [true, []]);
+    eq('flag uit, planning: opslaan bytegelijk aan dezelfde planning zonder de controle', [a.length > 0, sha(enc.encode(a)) === sha(enc.encode(b))], [true, true]);
   }
 }
 
@@ -296,8 +339,7 @@ if (mode === 'web') {
   const app = newStore();
   const before = enc.encode(model);
   files.set('onderbroken.ifc', before);
-  await app.getState().openOpenedFile({ name: 'onderbroken.ifc', content: '', bytes: before, ref: { kind: 'handle', handle: handleOf('onderbroken.ifc') } },
-    {}, { modelOpenLimit: true });
+  await app.getState().openOpenedFile({ name: 'onderbroken.ifc', content: '', bytes: before, ref: { kind: 'handle', handle: handleOf('onderbroken.ifc') } }, {});
   const edit = `Planning uit herstel ${'a'.repeat(GRENS * 2)}`;
   app.getState().updateTask(app.getState().tasks[0].id, { name: edit });
   const output = await prepareIfcOutput(app.getState(), buildWriteIFCInput(app.getState(), 'merge'));

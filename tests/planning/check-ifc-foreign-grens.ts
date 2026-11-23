@@ -8,8 +8,8 @@
 // `useRecoveryRestore.ts` `reactHookDouble.ts` in plaats van `react` en `react-i18next` (elk precies één keer, anders
 // faalt de check).
 //
-// Mutatiebewijs: de controle uit `openOpenedFile` halen ⇒ deel 1 en 2 rood; de controle ook zonder `modelOpenLimit`
-// laten gelden ⇒ het herstel (deel 3) rood, in de browser en op de desktop.
+// Mutatiebewijs: de controle uit `openOpenedFile` halen ⇒ deel 1 en 2 rood; de uitzondering van het herstel
+// (`restoringVerifiedIfcSource`) weghalen ⇒ het herstel (deel 3) rood, in de browser en op de desktop.
 //
 // Draait via run.sh (esbuild-bundel), één keer, buiten de tijdzone-matrix: de bundel twee keer, `web` en `desktop` (met
 // een eigen tijdelijke map als appData). Exit 0 = alles groen.
