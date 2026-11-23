@@ -8,9 +8,9 @@ kandidaten en hun minuten lopen, staat in `nextCandidateFor` en `candidateAxis`;
 `docs/superpowers/specs/2026-10-20-alleen-uren-design.md`, §3.11. De vertraging gaat ook als minuten naar de solver
 (`delayMinutes`, ADR 0017), omdat een overgeslagen korte werkdag minder werktijd is dan een volle.
 
-Die as heeft een bekende grens: de solver past de vertraging toe vóór de statusdatumvloer van een niet-gestarte taak
-(`forwardPass`), terwijl de nivelleerder toetst vanaf de start na die vloer. Valt de statusdatum na de vroege start,
-dan kunnen de getoetste kandidaat en de toegepaste start uiteenlopen (knownbug 1983, issue #1161).
+Wanneer de statusdatum de vroegste start opschuift, zoekt de nivelleerder vanaf die latere start. Bij een gevonden
+verschuiving meet hij de te schrijven vertraging vanaf het startanker vóór de statusdatumvloer. Daarmee bereikt de
+solver de getoetste kandidaat via dezelfde rekenregel die ook bestaande IFC-vertragingen toepast (#1161).
 
 ## Gevolgen
 
