@@ -16,9 +16,9 @@ bridge and automatic updates.
   or to its own summary (ancestor); a relation on a summary without any leaf tasks is flagged as
   *no effect*.
 - **External project links** — use anchor dates from another project file, an optionally enabled open document, or a project on the hosting site. Review changed anchors before accepting a new source version, inspect their origin and find projects that depend on your schedule. See [External relations to another project](docs://howto-externe-relaties).
-- **Dependency editing** — add several predecessors or successors together, step through the dependency chain, and return to previously visited tasks. Dissolve reconnects neighbouring tasks when removing an activity; summary handling is configurable. See [Adding relations](docs://howto-relaties-leggen).
+- **Dependency editing** — link selected tasks in the order of the list with Ctrl+F2, assign predecessors or successors from the right-click menu, add several together, and see predecessors and successors as separate lists. Step through the dependency chain and return to previously visited tasks. Dissolve reconnects neighbouring tasks when removing an activity; summary handling is configurable. See [Adding relations](docs://howto-relaties-leggen).
 - **Constraints** — start/finish constraints (such as Start No Earlier Than) for permits, deliveries and fixed dates.
-- **Milestones** — start, finish and mandatory inspection milestones.
+- **Milestones** — start, finish and mandatory inspection milestones. A series of milestones directly below each other collapses into one row; milestones on the same day share one diamond.
 - **Baselines & progress** — capture baselines and track progress against them. Compare the active baseline and two earlier baselines together in the Gantt and in print.
 - **Calculation profiles** — one scheduling engine, three schools: Primavera P6, Microsoft Project and
   Open Planner Studio. A profile is a named set of conventions (per project, switchable, with custom
@@ -29,7 +29,7 @@ bridge and automatic updates.
 ## Calendars
 
 - **Work calendars** — configurable working days, start and finish times, breaks, holidays, the construction industry's collective holiday, and inspection moments.
-- **Holiday generator** — national and regional sets, including United States federal holidays with observed dates. Check the generated set against the project's actual working arrangements.
+- **Holiday generator** — national and regional sets, including United States federal holidays with observed dates and Bolivia. Check the generated set against the project's actual working arrangements.
 - **Resource calendars** — per-resource availability.
 - **Days and hours** — hour planning is always available. Mix day and hour measures, including fractional days, on one time axis in minutes. Tasks can follow each other within a work day; the calendar and scheduling profile determine how the measure is counted.
 
@@ -45,7 +45,8 @@ bridge and automatic updates.
   work, fixed work, fixed units — the MS Project task types and P6 duration types) decides which
   corner of work = remaining duration × units moves when you edit another; remaining work per
   assignment is editable in hours. Choose the project default in Project settings; an explicit
-  choice also controls the corresponding field visibility. See [Choosing a task type](docs://howto-werkregel-kiezen) in the manual.
+  choice also controls the corresponding field visibility. When the hours of other resources on a
+  task change, a notice lists them, with Undo. See [Choosing a task type](docs://howto-werkregel-kiezen) in the manual.
 - **Histogram & leveling** — a resource histogram plus automatic leveling options, including
   leveling priority per task and leveling within slack only.
 - **Occupancy overview** — for multiple open projects drawing from the same library, a
@@ -57,10 +58,12 @@ bridge and automatic updates.
 - **Interactive Gantt chart** — a Canvas timeline paired with an accessible DOM task grid: drag & drop (including reordering or
   reparenting tasks by dragging their row vertically), zoom, a compressed working-days axis, week
   numbers and day names in the header, dependency arrows and hit-testing.
-- **Open by dropping files** — drop supported planning files into the window to use the normal guarded file-open route.
+- **Open by dropping files** — drop supported planning files into the window to use the normal guarded file-open route. On the desktop, a file passed at start-up or to a running app opens the same way.
 - **Table view** — a spreadsheet-style editor over the same model: one click selects a cell; use
-  F2, Enter or typing to edit it. Arrow keys and Tab/Shift+Tab navigate cells, while Alt+Left and
-  Alt+Right outdent and indent tasks.
+  F2, Enter or typing to edit it, and double-click a drop-down cell to open its list. Arrow keys and
+  Tab/Shift+Tab navigate cells, while Alt+Left and Alt+Right outdent and indent tasks.
+- **Date picker** — date fields and date cells open the app's own calendar with week numbers and keyboard control; typing a date keeps working. See [Entering a date](docs://howto-datum-invoeren).
+- **Work-category colours** — colour bars by work category; each custom category gets its own free colour in the Gantt, print and legend.
 - **Table columns** — automatic content-based sizing, remembered manual widths and a Calendar days column alongside working durations.
 - **Context menus** — right-click tasks for quick actions.
 - **Office-style ribbon** — tabs for Start, Planning, Resources, View, Settings, Table, IFC,
@@ -76,7 +79,9 @@ bridge and automatic updates.
   building model in another IFC tool. Opening an IFC that contains building-model objects is
   refused by default. Experimental building-model support can retain foreign content through guarded
   Save As and export to new destinations, with source-aware recovery. The feature is disabled by
-  default, and replacing an existing local model file remains blocked.
+  default. With it on, Save writes over the document's own file, Save As on the desktop can replace a
+  confirmed existing file, AutoSave runs on its own rhythm, and files with a building model open up
+  to 150 MB.
 - **Import/export** — CSV, Microsoft Project XML and Primavera P6 XML adapters, experimental
   Primavera P6 XER export, and read-only opening of native Microsoft Project `.mpp` files. P6 XML
   and XER export show explicit loss notices; save the editable project as IFC. An imported original
@@ -118,6 +123,8 @@ bridge and automatic updates.
 - **Desktop & browser** — Windows, macOS and Linux desktop builds (Tauri 2) plus a full-featured browser version.
 - **Site hosting** — integrated file versions and preferences, live host language and theme changes, and planning tools for the hosting site’s assistant.
 - **macOS integration** — native window controls and translated menus share the app's document and pending-input guards. See [macOS window and menu bar](docs://ref-macos).
+- **Searchable settings** — one settings panel with search, eight groups, preview pictures and a reset button for every changed setting. See [Settings](docs://ref-instellingen).
+- **Background saving** — the IFC file is computed in the background and the status bar shows *Saving…*, *Saved* with the time, or *Unsaved*; closing waits for a running save.
 - **System-aware appearance** — optionally follow the operating system or browser light/dark colour scheme, including live changes while the app remains open; High Contrast stays an explicit choice.
 - **Auto-save & crash recovery** — recovery snapshots are written about every ten seconds and can
   restore open work after an unexpected close. For an existing saved IFC file, you can separately

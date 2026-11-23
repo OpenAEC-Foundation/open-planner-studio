@@ -9,7 +9,8 @@ import { DEFAULT_PRIORITY } from '@/services/ifc/ifcConstants';
 import { parseSheetPercent } from '@/services/progressImport/sheetValues';
 import { LAG_UNIT_SUFFIXES, parseLagInput } from '@/utils/lagFormat';
 import type { ImportResult } from '@/services/importTypes';
-import type { CustomTaskType } from '@/types/taskType';
+import type { CustomTaskTypeDraft } from '@/types/taskType';
+import { withTaskTypeColors } from '@/services/taskTypes/customTaskTypeColors';
 import { buildRecordedTime, type RecordedTime } from '@/engine/scheduler/recordedDates';
 
 /** Een gevulde datumcel die de bestaande CSV-datumparser niet herkent: de hele import weigeren.
@@ -375,9 +376,9 @@ export function readCSV(content: string): ImportResult {
   // Een niet-IFC-classificatie uit CSV is geen reden om gegevens naar CONSTRUCTION te degraderen.
   // Hij wordt uitsluitend in dit geïmporteerde project een USERDEFINED-type, nooit automatisch
   // onderdeel van de persoonlijke app-brede lijst.
-  const customById = new Map<string, CustomTaskType>();
+  const customById = new Map<string, CustomTaskTypeDraft>();
   const customIdByName = new Map<string, string>();
-  const registerCustomType = (type: CustomTaskType): CustomTaskType | undefined => {
+  const registerCustomType = (type: CustomTaskTypeDraft): CustomTaskTypeDraft | undefined => {
     const existingById = customById.get(type.id);
     if (existingById) return existingById.name.localeCompare(
       type.name, undefined, { sensitivity: 'accent' },
@@ -540,7 +541,7 @@ export function readCSV(content: string): ImportResult {
     sequences,
     resources: [],
     assignments: [],
-    customTaskTypes: [...customById.values()],
+    customTaskTypes: withTaskTypeColors([...customById.values()]),
     // Rekenprofielen: CSV ⇒ OPS (defaultOptionsFor('ops') is leeg).
     suggestedProfileId: 'ops',
     ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'csv' as const } : {}),

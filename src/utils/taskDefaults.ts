@@ -660,6 +660,7 @@ export function writeLevelingResult(
  *  Retourneert `true` als er MSP-sturing verloren ging. Welke bewerking de trigger raakt, beslist de
  *  aanroeper (`setTaskCalendar` wist bijvoorbeeld alleen laag 3). */
 export function invalidateForTimeBaseChange(task: Task): boolean {
+  if (task.time.progressBeforeRecalculation) task.time.progressBeforeRecalculation = undefined;
   const clearedWindow = clearTimephasedWindow(task);
   const clearedWalks = timephasedDurationWalksHaveFrozenWork(task) && clearTimephasedDurationWalks(task);
   return clearedWindow || clearedWalks;
@@ -671,6 +672,7 @@ export function invalidateForTimeBaseChange(task: Task): boolean {
  *  uitvoer). Retourneert `true` als er MSP-sturing verloren ging — alleen daarvoor meldt de
  *  aanroeper. */
 export function invalidateForAssignmentChange(task: Task): boolean {
+  if (task.time.progressBeforeRecalculation) task.time.progressBeforeRecalculation = undefined;
   const clearedWindow = clearTimephasedWindow(task);
   const clearedWalks = clearTimephasedDurationWalks(task);
   clearLevelingGaps(task);

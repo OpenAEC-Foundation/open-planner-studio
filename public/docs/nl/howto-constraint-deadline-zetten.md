@@ -20,7 +20,7 @@ Je stelt een constraint en een deadline in het paneel *Eigenschappen* in.
 
 De velden staan ook in het venster *Taak bewerken*, dat je opent met een rechtsklik op de taak en *Bewerken...*; je bevestigt met *Opslaan*.
 
-In de tabel gaat het via kolommen. Klik op de **+** in de tabelkop en kies onder *Beperkingen* de kolommen *Constrainttype*, *Constraintdatum* en *Deadline* (er zijn ook *Harde constraint*, *Type secundaire constraint* en *Datum secundaire constraint*). Dubbelklik op een cel om hem te bewerken: het type kies je uit een lijst, een datum typ je met streepjes, bijvoorbeeld 21-06-2027. *Harde constraint* is alleen te wijzigen bij MSO en MFO.
+In de tabel gaat het via kolommen. Klik op de **+** in de tabelkop en kies onder *Beperkingen* de kolommen *Constrainttype*, *Constraintdatum* en *Deadline* (er zijn ook *Harde constraint*, *Type secundaire constraint* en *Datum secundaire constraint*). Klik op een cel en druk op Enter, of begin te typen. Het type kies je uit een lijst, die je ook met een dubbelklik op de cel opent; een datum typ je met streepjes, bijvoorbeeld 21-06-2027. *Harde constraint* is alleen te wijzigen bij MSO en MFO.
 
 Heeft de taak een voorganger, dan is er een kortere weg voor *Start niet eerder dan*: typ gewoon een nieuwe startdatum in het veld *Start* (in het paneel *Eigenschappen*, in *Taak bewerken* of in de tabel), of verschuif de balk in de Gantt. De app maakt er dan zelf een constraint *Start niet eerder dan (SNET)* van en meldt dat.
 

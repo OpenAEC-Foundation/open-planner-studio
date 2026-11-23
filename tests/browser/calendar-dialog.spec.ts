@@ -523,14 +523,64 @@ test('kalenderdialoog: na Continu krijgt een dag die weer aan gaat 00:00–24:00
 
 // Nieuwe route: eerder gegenereerde feestdagen uitbreiden na wijziging van de projectperiode.
 test('generatiehint noemt het doeljaar inclusief buffer, niet een verzonnen projecteinde', async ({ page, ops: _ops }) => {
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setProject({ startDate: '2026-01-01' });
+    s.setUI({ activeRibbonTab: 'planning' });
+  });
+  await page.locator('[data-ops-ribbon-item="calendar"]').first().click();
+  const boliviaDialog = page.locator('[data-ops-calendar-dialog]');
+  await boliviaDialog.getByRole('button', { name: 'Generate holidays…', exact: true }).click();
+  await boliviaDialog.getByLabel('Country', { exact: true }).click();
+  await page.getByRole('option', { name: 'Bolivia', exact: true }).click();
+  await boliviaDialog.getByLabel('Region', { exact: true }).click();
+  await page.getByRole('option', { name: 'Potosí', exact: true }).click();
+  await boliviaDialog.getByRole('button', { name: 'Generate', exact: true }).click();
+  await boliviaDialog.getByRole('button', { name: 'Add holiday', exact: true }).click();
+  await boliviaDialog.locator('[data-ops-holiday-row]').last().locator('input').first().fill('Rain delay');
+  await boliviaDialog.locator('[data-ops-cal-apply]').click();
+  await expect(boliviaDialog).toBeHidden();
+  const bolivia = await page.evaluate(() => window.__OPS__!.store.getState().calendar);
+  expect(bolivia.generation).toMatchObject({ ruleSetId: 'BO', region: 'P' });
+  expect(bolivia.holidays).toContainEqual(expect.objectContaining({
+    name: 'Gesta Libertaria de Potosí', startDate: '2026-11-10', endDate: '2026-11-10',
+  }));
+  expect(bolivia.holidays.some(h => h.startDate === '2026-09-24')).toBe(false);
+
+  await page.evaluate(() => window.__OPS__!.store.getState().setProject({ endDate: '2031-12-31' }));
+  await page.locator('[data-ops-ribbon-item="calendar"]').first().click();
+  const regenerateBolivia = boliviaDialog.getByRole('button', { name: 'Regenerate', exact: true });
+  await regenerateBolivia.click();
+  const replace = page.getByRole('button', { name: 'Replace holidays', exact: true });
+  await expect(replace).toBeVisible();
+  await page.getByText('Your list of days off differs from the previously generated list.', { exact: false }).click();
+  await expect.poll(() => page.evaluate(() => document.activeElement?.tagName)).toBe('BODY');
+  await page.keyboard.press('Enter');
+  await expect(replace).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(replace).toBeHidden();
+  await expect(regenerateBolivia).toBeVisible();
+  await expect(boliviaDialog.locator('[data-ops-holiday-row]').last().locator('input').first()).toHaveValue('Rain delay');
+  await boliviaDialog.locator('[data-ops-cal-apply]').click();
+  await expect(boliviaDialog).toBeHidden();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().calendar.holidays.some(h => h.name === 'Rain delay'))).toBe(true);
+  await page.locator('[data-ops-ribbon-item="calendar"]').first().click();
+  await regenerateBolivia.click();
+  await replace.focus();
+  await page.keyboard.press('Enter');
+  await expect(regenerateBolivia).toBeHidden();
+  await boliviaDialog.locator('[data-ops-cal-apply]').click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().calendar.generation?.generatedToYear)).toBe(2032);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().calendar.holidays.some(h => h.name === 'Rain delay'))).toBe(false);
+
   for (const endDate of ['2029-12-31', '']) {
-    await page.evaluate(endDate => {
+    await page.evaluate(async endDate => {
+      const modulePath = '/src/engine/calendar/generateCalendarHolidays.ts';
+      const { materializeHolidays } = await import(/* @vite-ignore */ modulePath) as typeof import('@/engine/calendar/generateCalendarHolidays');
       const s = window.__OPS__!.store.getState();
       s.setProject({ startDate: '2026-01-01', endDate });
       window.__OPS__!.store.setState({ cpmResult: null });
-      s.setCalendar({ ...s.calendar, generation: {
-        ruleSetId: 'NL', generatedFromYear: 2025, generatedToYear: 2028,
-      } });
+      s.setCalendar({ ...s.calendar, ...materializeHolidays({ country: 'NL', bouwvak: 'geen' }, 2025, 2028) });
       s.setUI({ showCalendarDialog: true });
     }, endDate);
     const dialog = page.locator('[data-ops-calendar-dialog]');
