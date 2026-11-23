@@ -128,12 +128,15 @@ function resetHistory(): void {
  *    volgt uit de voltooiing.
  *  - `time.actualStart`/`time.actualFinish` worden ook AFGELEID als het blad ze niet geeft (een
  *    percentage > 0 zet een start, 100 % een einde) — zelfde invariant, zelfde velden.
+ *  - `time.progressBeforeRecalculation`: tijdelijke momentopname van de eerdere voortgang voor
+ *    een latere afmelding vóór F5, via `rememberProgressBeforeRecalculation`.
  *  - `splitGaps`: alleen nivelleerpauzes (`source: 'leveling'`) vallen weg (`clearLevelingGaps` in
  *    `planTaskCellEdits`, taskEditPlan.ts) — een voortgangsboeking maakt de nivellering ongeldig.
  */
 const TOEGESTANE_TAAKPADEN = new Set([
   'time.completion', 'time.actualStart', 'time.actualFinish',
   'status', 'time.remainingTime', 'time.remainingMinutes',
+  'time.progressBeforeRecalculation',
 ]);
 /**
  * Toewijzingsvelden die mogen veranderen: `settleProgressWork` (`src/engine/work/workRuleApply.ts`)
@@ -240,6 +243,16 @@ let partA: {
   ok('A2 de taak zonder voortgang (wel andere naam/start/duur in het blad) is onaangeroerd', !taskPaths.has(tNone.id));
 
   const get = (id: string) => S().tasks.find(t => t.id === id)!;
+  const beforeTasks = before.tasks as Record<string, Task>;
+  for (const id of [tPct.id, tFull.id]) {
+    const { status, time, splitGaps } = beforeTasks[id];
+    const { completion, actualStart, actualFinish, remainingTime, remainingMinutes } = time;
+    eq('A2 een gedeeltelijke boeking bewaart de voortgang van vóór de import voor een latere afmelding',
+      plain(get(id).time.progressBeforeRecalculation),
+      plain({ status, completion, actualStart, actualFinish, remainingTime, remainingMinutes, splitGaps }));
+  }
+  eq('A2 een direct afgemelde taak heeft geen tijdelijke momentopname',
+    get(tDates.id).time.progressBeforeRecalculation, undefined);
   eq('A3 naam blijft die van het document', get(tPct.id).name, before.tasks && (before.tasks as Record<string, Task>)[tPct.id].name);
   eq('A3 percentage 40 geschreven', get(tPct.id).time.completion, 0.4);
   eq('A3 status afgeleid (STARTED)', get(tPct.id).status, 'STARTED');

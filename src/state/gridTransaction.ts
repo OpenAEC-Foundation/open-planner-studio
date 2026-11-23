@@ -1,3 +1,4 @@
+import type { PlannedProgressDates } from '@/engine/taskMutationRules';
 import { constraintDateField, DayClockCache, normalizeTaskDateInput, normalizeTaskDates, taskDateContext, type TaskDateField } from './migrations/minuteModel';
 import { workdayBoundaryLabel } from '@/engine/calendar/workdayRules';
 import { normalizeActualDate } from '@/engine/taskMutationRules';
@@ -36,11 +37,11 @@ import {
   captureProgressWork, settleProgressWork, type RecomputedRemainingWork,
 } from '@/engine/work/workRuleApply';
 import { remainingWorkRecomputedNotice } from './remainingWorkNotice';
-import { contourKeepsWork, taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/utils/taskDefaults';
+import { contourKeepsWork, taskCalendarHoursPerDay, taskTriggerChanges, taskWorkMinutesOf } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import { sameValue } from '@/utils/sameValue';
 import { actualStartQuestionFor, hasRecordedProgress } from '@/engine/progressEntry';
-import { progressPlacementForBatch, progressPlannedStarts } from './progressPlannedStart';
+import { progressPlacementForBatch, progressPlannedDates } from './progressPlannedDates';
 import { statusDateSetTodayNotice } from './progressEntryNotice';
 import {
   applyRelationMutationPlan,
@@ -563,13 +564,14 @@ function applyCellEdits(
   // Bepaalt een voorganger de start van deze taak? Lui en per transactie gedeeld (zie
   // `prepareGridMutation`), want alleen een getypte start heeft het nodig.
   startDrivenByPredecessor: (taskId: string) => boolean,
-  plannedStart: (task: Task) => string | undefined,
+  plannedDates: (task: Task) => PlannedProgressDates | undefined,
   // De toewijzingen van deze taak (uit de callerindex, O(1)), voor de
   // werkdriehoek bij een duurbewerking.
   assignmentsForTask: readonly AppState['assignments'][number][] = [],
   // Met `GridMutationOptions.progressEntry`: de statusdatum waarmee de cellen gepland worden als het
   // project er nog geen heeft — vandaag. De draft zelf krijgt hem pas als de uitkomst hem houdt.
   statusDateOverride?: string,
+  deferDurationCompletion?: boolean,
 ): GridResult<{
   timephasedGuidanceLost: boolean;
   skippedReadOnlyCount: number;
@@ -644,6 +646,7 @@ function applyCellEdits(
     : task;
   const environment: TaskEditPlanEnvironment = {
     ...buildTaskEditPlanEnvironment(state, taskForCalendar),
+    deferDurationCompletion,
     ...(statusDateOverride ? { statusDate: statusDateOverride } : {}),
     ...(validatedEdits.some(edit => TYPED_START_COLUMN_IDS.has(String(edit.columnId)))
       ? { startDrivenByPredecessor: startDrivenByPredecessor(task.id) }
@@ -830,7 +833,11 @@ function applyCellEdits(
   let progressStart: string | undefined;
   const planned = planTaskCellEdits(current, remainingEdits, {
     ...environment,
-    plannedStart: edited => (progressStart = plannedStart(edited)),
+    plannedDates: edited => {
+      const dates = plannedDates(edited);
+      progressStart = dates?.earlyStart;
+      return dates;
+    },
   });
   if (!planned.ok) return planned;
   if (planned.value.changed) {
@@ -870,21 +877,16 @@ function applyCellEdits(
 }
 
 /** Bepaal starts met de nieuwe plaatsing en de voortgang van eerdere taken in de relatiegraaf. */
-function plannedStartsForGrid(
+function plannedDatesForGrid(
   state: Readonly<AppState>,
   writes: readonly GridWriteIntent[],
   skipReadOnlyCells: boolean,
   today: string | undefined,
-): (task: Task) => string | undefined {
+): (task: Task) => PlannedProgressDates | undefined {
   const placementWrites = writes.filter(write => write.kind !== 'cell-edit'
     || write.route === 'task-schedule' || write.route === 'task-constraint'
     || write.route === 'task-milestone' || write.route === 'task-hammock'
     || String(write.columnId) === 'task.workRule');
-  const placement = placementWrites.length > 0
-    ? prepareGridWrites(state, [{ kind: 'paste', writes: placementWrites, allowSkippingReadOnlyCells: skipReadOnlyCells }])
-    : undefined;
-  const placed = placement?.ok ? placement.value.isolated : state;
-  const base = progressPlannedStarts(placed);
   const progressByTask = new Map<string, CellEditIntent[]>();
   for (const write of writes) {
     if (write.kind !== 'cell-edit' || write.route !== 'task-progress') continue;
@@ -892,31 +894,40 @@ function plannedStartsForGrid(
     if (group) group.push(write);
     else progressByTask.set(write.taskId, [write]);
   }
+  const placement = placementWrites.length > 0 ? prepareGridWrites(state, [{
+    kind: 'paste', writes: placementWrites, allowSkippingReadOnlyCells: skipReadOnlyCells,
+  }], undefined, progressByTask) : undefined;
+  const placed = placement?.ok ? placement.value.isolated : state;
+  const base = progressPlannedDates(placed);
   const statusDate = placed.project.statusDate || today;
   const batch = progressPlacementForBatch(placed, new Set(progressByTask.keys()), statusDate);
   if (!batch) return base;
 
-  const starts = new Map<string, string | undefined>();
+  const dates = new Map<string, PlannedProgressDates | undefined>();
   const tasksById = new Map(placed.tasks.map(task => [task.id, task]));
+  const originalById = placed === state ? tasksById : new Map(state.tasks.map(task => [task.id, task]));
   for (const id of batch.order) {
     const edits = progressByTask.get(id)!;
     const before = tasksById.get(id)!;
+    const original = originalById.get(id);
+    const beforeDuration = original && original !== before && taskTriggerChanges(original, before).timeBase
+      ? original.time : undefined;
     const environment = buildTaskEditPlanEnvironment(placed, before);
     const plan = planTaskCellEdits(before, edits, {
       ...environment,
       statusDate,
-      plannedStart: task => {
-        const start = batch.plannedStart(task);
-        starts.set(id, start);
-        return start;
+      plannedDates: task => {
+        const placement = batch.plannedDates(task);
+        dates.set(id, placement);
+        return placement;
       },
-    });
+    }, beforeDuration);
     if (!plan.ok || !plan.value.changed) continue;
     const after = plan.value.task;
-    if (today && progressStartQuestion(before, after, edits, statusDate, placed, starts.get(id))) continue;
+    if (today && progressStartQuestion(before, after, edits, statusDate, placed, dates.get(id)?.earlyStart)) continue;
     batch.accept(before, after);
   }
-  return task => starts.has(task.id) ? starts.get(task.id) : base(task);
+  return task => dates.has(task.id) ? dates.get(task.id) : base(task);
 }
 
 function progressStartQuestion(
@@ -935,6 +946,7 @@ function prepareGridWrites(
   state: Readonly<AppState>,
   intents: readonly GridIntent[],
   options?: GridMutationOptions,
+  progressAfterPlacement?: ReadonlyMap<string, readonly CellEditIntent[]>,
 ): GridResult<Omit<PreparedGridMutation, 'derivedAfter' | 'before' | 'after'> & { isolated: AppState }, readonly CellValidationError[]> {
   const flattened = flattenIntents(intents);
   const normalized = normalizeWrites(flattened);
@@ -966,9 +978,9 @@ function prepareGridWrites(
     0,
   );
 
-  let lookup: ((task: Task) => string | undefined) | undefined;
-  const plannedStart = (task: Task): string | undefined => {
-    lookup ??= plannedStartsForGrid(state, orderedWrites, skipReadOnlyCells, today);
+  let lookup: ((task: Task) => PlannedProgressDates | undefined) | undefined;
+  const plannedDates = (task: Task): PlannedProgressDates | undefined => {
+    lookup ??= plannedDatesForGrid(state, orderedWrites, skipReadOnlyCells, today);
     return lookup(task);
   };
 
@@ -1033,9 +1045,10 @@ function prepareGridWrites(
         appliedCellTaskIds.add(write.taskId);
         const taskWrites = cellWritesByTaskId.get(write.taskId) ?? [write];
         const applied = applyCellEdits(
-          draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells, startDrivenByPredecessor, plannedStart,
+          draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells, startDrivenByPredecessor, plannedDates,
           draftAssignmentsByTaskId.get(write.taskId) ?? [],
           plansStatusDateToday ? today : undefined,
+          progressAfterPlacement?.has(write.taskId),
         );
         if (!applied.ok) errors.push(...applied.errors);
         else {
