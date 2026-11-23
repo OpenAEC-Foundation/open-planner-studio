@@ -553,6 +553,58 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       writeFileSync(kantoor, kantoorIfc);
     }
 
+    // Samenloop met #1127 (knownbug 2043): een model dat al in een tabblad open staat en intussen boven de productgrens
+    // valt (hier: de grens verlaagd tot onder zijn grootte). De groottecontrole volgt direct op het parsen, vóór de
+    // synchrone tabbeslissing: opnieuw openen geeft de groottemelding, geen wissel en geen tweede tabblad.
+    {
+      const { readFileSync } = await import('node:fs');
+      const { lowerModelOpenLimitForTests } = await import('@/services/ifc/modelOpenLimit');
+      const modelBytes = readFileSync('tests/fixtures/ifc-foreign/eigen-plus-model.ifc');
+      const groot = join(dir, 'model-groot.ifc');
+      writeFileSync(groot, modelBytes);
+      const app = newApp(true);
+      const st = app.store;
+      const T = () => st.getState();
+      dialogAnswer = groot;
+      await T().openFile(labels);
+      const modelTab = T().activeDocumentId;
+      eq('2043 voorwaarde: het model is open, met zijn bron', [T().filePath, !!T().ifcSource?.foreign], [groot, true]);
+      T().newDocument();
+      dialogAnswer = school;
+      await T().openFile(labels);
+      const schoolTab = T().activeDocumentId;
+      const getFs = fileToolDeps.getFs;
+      fileToolDeps.getFs = async () => ({ ...await realFs(), homeDir: async () => dir });
+      lowerModelOpenLimitForTests(modelBytes.length - 1);
+      try {
+        for (const route of ['openen', 'recent', 'slepen', 'MCP'] as const) {
+          T().switchDocument(schoolTab);
+          clearNotices(st);
+          const count = T().documents.length;
+          let mcpError: string | null = null;
+          if (route === 'MCP') {
+            const r = await getTool('planner_import_schedule')!.handler({ path: groot }, mcpContext(app, schoolTab)) as { ok: boolean; code?: string; error?: string };
+            mcpError = r.ok ? null : `${r.code}: ${r.error ?? ''}`;
+          } else {
+            await openVia(st, route, groot);
+          }
+          eq(`2043 ${route}: model boven de grens dat al open staat; de groottemelding, geen wissel, geen tweede tabblad`, [
+            T().activeDocumentId === schoolTab, T().documents.length === count,
+            T().getOpenDocumentPayloads().some(d => d.id === modelTab && d.payload.filePath === groot),
+            route === 'MCP' ? /^VALIDATION: .*IFC open refused/.test(mcpError ?? '') : notices(st).some(n => n[1] === 'notifications.ifcForeignOpenTooLarge'),
+            notices(st).filter(n => n[1] === ALREADY_OPEN).length,
+          ], [true, true, true, true, 0]);
+        }
+      } finally {
+        lowerModelOpenLimitForTests();
+        fileToolDeps.getFs = getFs;
+      }
+      // Recent is één gedeelde lijst van tien (met de vaste klok van deze batterij zonder volgorde): haal het model eruit,
+      // zodat de proeven hierna dezelfde lijst zien als zonder dit blok.
+      const { removeRecent } = await import('@/services/fileAccess/recentFiles');
+      for (const e of T().recentFiles.filter(e => e.ref.kind === 'path' && e.ref.path === groot)) await removeRecent(e.id);
+    }
+
     // Review #1121 ronde 4 (VERVOLG): de flag gaat uit terwijl de toets loopt. De leeskeuze ligt vóór de toets vast, dus
     // de IFC opent zoals bij een stabiele flag: Kantoor, zonder `openFailed`.
     for (const route of ['openen', 'recent', 'slepen'] as const) {

@@ -3539,7 +3539,9 @@ en noem het in je rapport of PR-tekst.
      technische grens van 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`) terug met model en planning, zoals main
      (`check-ifc-foreign-grens.ts` deel 3), mits de bron beschikbaar, passend (lengte en SHA-256) en leesbaar is. Er gaat
      niets verloren: het bestand bevat model en planning. Met één bestand, één tabblad (PR #1121) geeft heropenen van
-     zo'n al open, inmiddels gegroeid model de groottemelding, en het huidige tabblad blijft actief. Richting: vóór het
+     zo'n al open, inmiddels gegroeid model de groottemelding, en het huidige tabblad blijft actief: de groottecontrole
+     volgt direct op het parsen, vóór de tabbeslissing (proef "2043" in `check-one-file-one-tab.ts`, Openen, Recent,
+     slepen en MCP, met een verlaagde grens). Richting: vóór het
      schrijven de uitvoer tegen de productgrens houden. — B (code gelezen; niet met een bestand van 150 MiB nagespeeld)
 
 2049. **VERVOLG, zo op main: een bestaand IFC-bestand zonder gebouwmodel van meer dan 300 MiB is voor de doelscan
