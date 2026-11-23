@@ -3458,14 +3458,14 @@ en noem het in je rapport of PR-tekst.
 
 1127. **Ontwerp #804 noemt twee versies en twee groottewaarden.** Het ontwerpbestand
      `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md` heet v20, maar §4.9 noemt
-     de tijdelijke terugval "v21, fase 1a". §4.13 noemt voorlopig 150 MB; `IFC_BYTES_ROUTE_MAX_BYTES`
-     in `ifcBytesRoute.ts` is 300 MiB. PR 2 van fase 1c beveiligt die terugval zonder de grens te veranderen.
-     VERVOLG (docs): versieverwijzing en gemeten grootteafspraak in het ontwerp gelijkzetten; geen nieuwe
-     grens zonder meting. De meting van 21 november 2026 in de desktopapp staat bij 1936. — B
+     de tijdelijke terugval "v21, fase 1a". De grootte is gelijkgezet (21 november 2026): §4.13 noemt twee getallen, de
+     productgrens van 150 MiB voor het openen van een model (`IFC_MODEL_OPEN_MAX_BYTES`) en de technische grens van de
+     bytes-route van 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`, de meting van fase 0); meting en besluit bij 1936. VERVOLG
+     (docs): de versieverwijzing in het ontwerp gelijkzetten. — B
 
-1936. **Opslaan van een groot gebouwmodel vraagt op de desktop veel geheugen: bij 157 MB een piek van 3,70 GB, net
-     onder de maat van 4 GB (#804, flag aan).** Gemeten op 21 november 2026 in de desktopapp op Linux (WebKitGTK),
-     featureflag `ifcForeignContent` aan, met een geheugenplafond van 4 GB op de app. Telkens één duur gewijzigd en dan
+1936. **Opslaan van een groot gebouwmodel vraagt op de desktop veel geheugen: bij 157 MB een piek van 3,44 tot 3,69 GB
+     over drie opslagen, onder de maat van 4 GB, en de piek loopt per opslag nog op (#804, flag aan).** Gemeten op
+     21 november 2026 in de desktopapp op Linux (WebKitGTK), featureflag `ifcForeignContent` aan, met een geheugenplafond van 4 GB op de app. Telkens één duur gewijzigd en dan
      Ctrl+S, met modellen uit de generator van `scripts/proef/meet-scanner.mjs`. Stand na de drie ingrepen van #1100 en
      #1103, build van main `cbc998123`: 52 MB in 14,0 s met een piek van 1,81 GB; 157 MB in 33,6 s, geslaagd, met een
      piek van 3,70 GB. Bij 157 MB loopt het rekenen tot 3,13 GB; bij het schrijven van het tijdelijke bestand komt er
@@ -3476,17 +3476,26 @@ en noem het in je rapport of PR-tekst.
      minder (CI-run 44895156035, het werk van de opslagworker, met wijziging): 150 MiB in 9,18 s met 1.228 MB, 300 MiB
      in 16,97 s met 2.239 MB (vóór de ingrepen 17,35 s en 1.708 MB, en 33,23 s en 3.155 MB). De cijfers uit Node zeggen
      dus niet of een model in de desktopapp past. Openen is het probleem niet: 157 MB opent in 12,4 s met een piek van
-     1,68 GB. De grens voor openen staat op 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`, zie 1127); een planner kan dus nog
-     steeds een model openen dat hij daarna niet kan opslaan. Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB,
-     en 300 MiB vraagt ruim 6 GB. Met de flag uit bestaat dit niet: openen van een bestand met een gebouwmodel wordt
+     1,68 GB. Stand na #1111 (de opslagworker stopt na een opslag met gebouwmodel), gemeten op 21 november 2026 in de
+     desktopapp op Linux (WebKitGTK), main `2d585a295`, hetzelfde model van 157 MB (157.290.012 bytes), drie keer een
+     duur gewijzigd en Ctrl+S met telkens 30 s rust: piek van de hele app 3,44 / 3,54 / 3,69 GB (vóór #1111, run W:
+     3,45 / 3,93 / 3,87 GB); dertig seconden na de opslag staat de app op 0,86 / 0,67 / 0,68 GB (vóór #1111 bleef
+     2,5 GB staan); duur 34,6 / 33,3 / 33,5 s. Het schrijven gebeurt nu op ongeveer 1,0 GB; de piek ligt aan het eind
+     van het rekenen. Het Rust-proces springt bij het schrijven nog tot 635 MB (dat haalt het geparkeerde #1110 weg),
+     maar telt niet meer mee voor de piek. Bij de derde opslag is er 0,31 GB over tot de maat van 4 GB. **Open punt:**
+     de piek loopt per opslag nog op (ongeveer 0,1 tot 0,15 GB), hoewel elke opslag een verse worker heeft en de rust
+     niet oploopt; niet verklaard. Het proefmodel is 3,6 KB groter dan 150 MiB. Openen van een model boven 150 MiB weigert
+     sinds 21 november 2026 (de productgrens `IFC_MODEL_OPEN_MAX_BYTES`, besluit van de eigenaar, zie 1127); de technische
+     grens van de bytes-route blijft 300 MiB, en de uitvoer van opslaan heeft geen grens (2043).
+     Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB, en 300 MiB vraagt ruim 6 GB. Met de flag uit bestaat dit niet: openen van een bestand met een gebouwmodel wordt
      geweigerd, op main en in v2026.47.0 gelijk (157 MB en 87 MB gemeten), en een bestand van 87 MB zonder gebouwmodel
-     slaat op beide in 0,7 s op. Niet gemeten: 300 MiB op de desktop, een tweede Ctrl+S, Automatisch opslaan, of de
-     3,0 GB later vrijkomt, het model van 87 MB na de ingrepen, een model uit een modelleerprogramma, Windows en macOS.
+     slaat op beide in 0,7 s op. Niet gemeten: een vierde en latere opslag, Automatisch opslaan, Windows en macOS, 300 MiB
+     op de desktop, het model van 87 MB na de ingrepen en een model uit een modelleerprogramma.
      Besluit technisch beslisser (21 november 2026): de maat voor haalbaar is hoogstens 4 GB voor de desktopapp bij de
-     grens; dit punt is een voorwaarde voor het standaard aanzetten van de featureflag. Open: hoe groot een model moet
-     kunnen zijn (keuze van de eigenaar), en daarmee of de grens omlaag gaat of de opslag nog zuiniger moet. Zie ook
+     grens; dit punt is een voorwaarde voor het standaard aanzetten van de featureflag. Keuze van de eigenaar
+     (21 november 2026): "tot 150 mb, later kunnen we dat nog uitbouwen". Zie ook
      1021 (de merge scant de bron opnieuw; de eis van 10 november is niet gehaald), 1950 (de buffers van de scanner)
-     en 1922 (het ritme van Automatisch opslaan: een ronde duurt bij 52 MB nu 14,0 s). — B (meting, desktop Linux)
+     en het ritme van Automatisch opslaan (een ronde duurt bij 52 MB nu 14,0 s). — B (meting, desktop Linux)
 
 2024. **Na een opslag van een groot gebouwmodel staat de desktopapp ongeveer één bestand hoger, ook met een gestopte
      opslagworker (#804, flag aan).** Gemeten op 21 november 2026 in de desktopapp op Linux bij 157 MB (run V van de
@@ -3510,14 +3519,54 @@ en noem het in je rapport of PR-tekst.
 2025. **Na een eerdere modelmerge kan een gewoon verzoek met de flag uit trager zijn dan op main, en daarna de rest van
      de sessie op de hoofdthread rekenen (#804, knownbug 1936).** De opslagworker stopt na elk antwoord op een merge,
      ook na een weigering (`ifcSaveWorker.ts`). Kwam er in een sessie eerst met de flag aan een modelmerge en staat de
-     flag daarna uit, dan start het volgende gewone verzoek (een planning zonder gebouwmodel, Ctrl+S of
-     Automatisch opslaan) een verse worker; main hergebruikte de gestarte. Start die verse niet, dan rekent de hoofdthread
+     flag daarna uit, dan kan na een antwoord van een mergeworker het volgende gewone verzoek (een planning zonder
+     gebouwmodel, Ctrl+S of Automatisch opslaan) een verse worker starten, zolang de gewone route nog beschikbaar is
+     (geen eerdere terugval in die sessie, `unavailable`); main hergebruikte de gestarte. Start die verse niet, dan rekent de hoofdthread
      zoals op main, en ook bij alle volgende gewone verzoeken in die sessie (`unavailable`). Blijft hij stil, dan komt
      er tot 10 s wachttijd bij (de starttijd). Bestandsinhoud en meldingen zijn gelijk aan main. Met de flag de hele
      sessie uit gebeurt dit niet. Bron: review ronde 2 van #1111, met `tests/planning/check-save-worker.ts` (het blok
      "een latere startfout", geval "na een merge") en een storeproef van de reviewer met Ctrl+S en Automatisch opslaan
      (op main één worker, op de PR twee). Richting, als het nodig blijkt: de worker van gewone verzoeken los houden van
      die van de merge, zodat een gewoon verzoek zijn gestarte worker houdt zoals op main. — B (proef in Node)
+
+2043. **Een opgeslagen model kan boven de productgrens van 150 MiB uitkomen en opent daarna niet meer (#804, flag aan).**
+     Opslaan (merge), *Opslaan als* en *Exporteren* van een document met een gebouwmodel kennen geen grens op de
+     uitvoer (`writeIfcMerge` in `mergeWriter.ts`). De productgrens `IFC_MODEL_OPEN_MAX_BYTES` (`modelOpenLimit.ts`)
+     geldt alleen bij openen. Groeit een open model door de planning (taken, relaties, toewijzingen) tot boven 150 MiB,
+     dan gaat opslaan goed: de app schrijft het bestand, en een volgende Ctrl+S in dezelfde sessie lukt ook (de opslag
+     neemt de nieuwe bytes als bron over). Opnieuw openen weigert het daarna, met de melding "Dit IFC-bestand is groter
+     dan 150 MB …"; met de flag uit weigert openen het om het gebouwmodel, zoals main. Het crashherstel geeft het tot de
+     technische grens van 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`) terug met model en planning, zoals main
+     (`check-ifc-foreign-grens.ts` deel 3), mits de bron beschikbaar, passend (lengte en SHA-256) en leesbaar is. Er gaat
+     niets verloren: het bestand bevat model en planning. Met één bestand, één tabblad (PR #1121) geeft heropenen van
+     zo'n al open, inmiddels gegroeid model de groottemelding, en het huidige tabblad blijft actief. Richting: vóór het
+     schrijven de uitvoer tegen de productgrens houden. — B (code gelezen; niet met een bestand van 150 MiB nagespeeld)
+
+2049. **VERVOLG, zo op main: een bestaand IFC-bestand zonder gebouwmodel van meer dan 300 MiB is voor de doelscan
+     onleesbaar (#804, flag aan).** De doelscan deelt een bestand van meer dan `IFC_FOREIGN_SCAN_MAX_BYTES` (300 MiB,
+     de technische grens) niet in en geeft `unreadable`; de doelcontrole weigert het dan als doel van Ctrl+S, *Exporteren*
+     of Automatisch opslaan, ook als het een planning zonder model is. Routevoorwaarde: de browser-Blob
+     (`scanForeignTargetBlob`) en Node (headless, `readChecked`) stoppen al op de grootte; een gestroomde scan (desktop,
+     site: `scanForeignTargetSource`, `scanForeignTargetBytesAsync`) kan eerder `model` teruggeven als hij een model
+     herkent. Geen gevolg van PR #1127; de reviewer van #1127 bevestigde het op main en op de PR met een verlaagde
+     technische grens. — B (proef van de reviewer)
+
+2058. **VERVOLG, zo op main: het crashherstel laat een gevonden bron die om een andere reden niet opent stil vallen
+     (#804, flag aan).** `readRecoveryDocument` vangt een bronfout intern af (bijvoorbeeld een bron met de vastgelegde
+     hash en lengte maar zonder STEP-sluitmarkering, een scannerweigering of een leesfout). De planner krijgt dan alleen
+     de planning uit de snapshot, zonder melding; de hook ziet een geslaagd resultaat. Er blijft een bronmarkering op het
+     resultaat die later een schrijfactie kan blokkeren. Geen gevolg van PR #1127; de reviewer van #1127 bevestigde het
+     op main en op de PR. — B (proef van de reviewer)
+
+2059. **VERVOLG, zo op main: het crashherstel leest en hasht de bron al vóór de herstelvraag (#804, flag aan).**
+     `useRecoveryRestore` wacht per snapshot op de bronlezing voordat hij de vraag *Niet-opgeslagen werk herstellen*
+     toont. Een afgevangen leesfout laat de hook doorgaan; stopt de webview tijdens die lezing, dan kan de volgende start
+     weer in dezelfde verwerking belanden, en is *Verwerpen* niet bereikbaar. Geen gevolg van PR #1127. Bevestigd via de
+     code en de echte herstelcallback (reviewer van #1127); een processtop is niet opgewekt. — B (code en proef van de
+     reviewer; geen processtop nagespeeld)
+
+
+
 
 1950. **De scanner houdt voor `outArg` circa 2,32 keer de benodigde bufferruimte vast (#804).** `scanStep`
      (`src/services/ifc/foreign/stepScanner.ts`, rond regel 666–667) begint de buffers `refRaw` en `outArg` op drie keer
@@ -4435,13 +4484,6 @@ en noem het in je rapport of PR-tekst.
       onderbroken vervanging." (`ownFileReplace.ts`, `recoveryPendingSource.ts`.) Besluit technisch beslisser: VERVOLG,
       het treedt alleen op na een schrijffout tijdens het opruimen. — B (proef van de reviewer)
 
-1922. **VERVOLG (review #1033): de tijdgrenzen van Automatisch opslaan met een gebouwmodel kunnen botsen.**
-      De ondergrens (de volgende ronde niet vóór tien keer de duur van de vorige, na haar begin) gaat vóór de bovengrens
-      van 5 minuten (`modelAutoSaveRhythm.ts`). Begint op 30 s een ronde van 40 s en volgt op 40 s een nieuwe wijziging,
-      dan is de volgende ronde pas op 430 s aan de beurt, 90 s na de grens van vijf minuten voor die wijziging. De
-      belofte "het bestand loopt nooit meer dan 5 minuten achter" geldt dan niet. De afweging tussen tijdgrens en
-      belasting ligt bij de eigenaar; het ritme is bewust niet veranderd. — B (rekenproef van de reviewer)
-
 1923. **VERVOLG (review #1033): ook een desktopopenactie en `planner_export_ifc` laten een ronde van Automatisch opslaan
       wijken.** Een desktopopenactie breekt de ronde af via het bestaande wachten op de rij (`readOpenedTauriPath` →
       `whenProjectFileWritesIdle`); `planner_export_ifc` doet dat bij toegang tot de rij, na zijn eigen voorbereiding.
@@ -4499,7 +4541,8 @@ en noem het in je rapport of PR-tekst.
       niet. De volgende gewone schrijfactie kan de modelronde nog steeds weer afbreken." (`roundEnded` in
       `modelAutoSaveRhythm.ts`.) Sinds fixronde 3 wijkt een ronde alleen nog voor een handmatige actie (Ctrl+S, Opslaan
       als, een export, een tabblad of de app sluiten), niet meer voor een gewone tik; de verlenging geldt dan na zo'n
-      actie. Hoort bij 1922. — B (proef van de reviewer)
+      actie. Hoorde bij 1922; dat punt is weg: de eigenaar koos op 21 november 2026 dat de rem (opslaan hoogstens een
+      tiende van de tijd) vóór de grens van 5 minuten gaat, zoals gebouwd. — B (proef van de reviewer)
 
 1937. **VERVOLG (review #1033, ronde 4): een gewone tik die nog wacht, gaat vóór Ctrl+S.** "De modelworker begon op 32
       s, de gewone tik kwam op 40 s in de rij, en Ctrl+S op een ander tabblad liet de modelworker op 43 s meteen wijken.
