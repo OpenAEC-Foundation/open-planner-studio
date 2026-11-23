@@ -922,15 +922,16 @@ export class CPMSolver {
     earlyStart: Date | undefined,
   ): { ls: Date; lf: Date } {
     const ls = this.shiftByLevelingDelay(cal, task, late.ls, -1);
-    const lf = this.shiftByLevelingDelay(cal, task, late.lf, -1);
     const usesFinish = relation === 'FINISH_FINISH' || relation === 'START_FINISH';
     const levelingCrossesStatusFloor = usesFinish && (task.levelingDelay ?? 0) > 0 && (task.levelingDelayMinutes ?? 0) > 0
       && !task.levelingDelayElapsed && !isZeroDurationMilestone(task)
       && this.countsInWorkdays(task) && this.statusFloorAnchors.has(task.id)
       && this.dataDate && earlyStart && earlyStart > this.dataDate;
-    if (!levelingCrossesStatusFloor) return { ls, lf };
+    if (!levelingCrossesStatusFloor) return { ls, lf: this.shiftByLevelingDelay(cal, task, late.lf, -1) };
     const durationFinish = this.finishFromStart(cal, ls, task);
-    return { ls, lf: relation === 'START_FINISH' && lf > durationFinish ? lf : durationFinish };
+    if (relation === 'FINISH_FINISH') return { ls, lf: durationFinish };
+    const finishLimitFromStart = cal.nextWorkInstant(durationFinish);
+    return { ls, lf: finishLimitFromStart < late.lf ? finishLimitFromStart : late.lf };
   }
 
   private resolveLagMinutes(seq: Sequence, predTask: Task, predEng: CalendarEngine): number {
