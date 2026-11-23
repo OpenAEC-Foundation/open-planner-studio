@@ -3376,9 +3376,9 @@ en noem het in je rapport of PR-tekst.
      ander programma gaat zo verloren of geldt elke week. Staat ook als "(nog)" in `docs/ifc-round-trip.md`. Gezien in de
      code. — B
 1963. **Corrupte JSON in een OPS-pset valt bij het lezen stil weg, zonder melding.** De lege `catch` in
-     `extractTaskTypeMeta`, `extractSequenceMeta`, `extractStructure` (structuurdefinities en bibliotheekpool),
+     `readTaskTypeDefinitions`, `extractSequenceMeta`, `extractStructure` (structuurdefinities en bibliotheekpool),
      `extractResourceMeta`, `extractCalendarLibraryOrigin`, `extractBaselines`, `extractSchedulingProfile` en
-     `extractSchedulingOptions` (`ifcReader.ts:1414` tot `:3005`) laat de waarde weg. Bij het XER-archief komt er wel
+     `extractSchedulingOptions` (`ifcReader.ts`) laat de waarde weg. Bij het XER-archief komt er wel
      een melding ("openen met melding"). Vermoed, niet nagegaan: de volgende opslag schrijft de weggevallen gegevens
      (bijvoorbeeld baselines) niet meer, zodat het verlies blijvend wordt. Gezien in de code. — S
 2030. **VERVOLG (#1091, desktop): een startbestand buiten de thuismap opent niet.** De webview leest de paden uit de
