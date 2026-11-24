@@ -115,8 +115,12 @@ if (mode === 'web') {
   const atLimit = pad(model, GRENS);
   const over = pad(model, GRENS + 1);
   const opened = await open(atLimit);
-  eq('openen, model precies op de productgrens: opent met zijn bron', [opened.getState().ifcSource?.sha256 ?? null, notices(opened)],
-    [sha(atLimit), []]);
+  const atLimitScan = scanForeign(atLimit);
+  const atLimitObjects = atLimitScan.ok ? atLimitScan.counts.C + atLimitScan.counts.A + atLimitScan.counts.V : -1;
+  eq('openen, model precies op de productgrens: opent met zijn bron en de telmelding met gebouwmodel',
+    [opened.getState().ifcSource?.sha256 ?? null, notices(opened)],
+    [sha(atLimit), [['notifications.ifcForeignOpenedWithModel', { count: atLimitObjects }]]]);
+  eq('openen, model precies op de productgrens: de scan ziet een gebouwmodel', atLimitScan.ok && atLimitScan.buildingModel, true);
   const refused = await open(over);
   eq('openen, model één byte boven de productgrens: geweigerd met de groottemelding',
     [refused.getState().ifcSource?.sha256 ?? null, refused.getState().filePath, notices(refused)], [null, null, TOO_LARGE]);
