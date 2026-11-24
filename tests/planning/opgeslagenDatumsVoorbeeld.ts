@@ -28,7 +28,7 @@ export interface RecordedExampleOptions {
   progress?: number;
 }
 
-export async function recordedExample({ edit = () => {}, wall = true, progress }: RecordedExampleOptions = {}): Promise<Uint8Array> {
+export async function recordedExample({ edit = () => {}, wall = true, progress }: RecordedExampleOptions = {}): Promise<Uint8Array<ArrayBuffer>> {
   const { buildWriteIFCInput } = await loadStore();
   const example = new Uint8Array(readFileSync(join(root, 'public/examples/showcase-verbouwing-eengezinswoning.ifc')));
   const { store } = await openInStore(example, 'voorbeeld.ifc');

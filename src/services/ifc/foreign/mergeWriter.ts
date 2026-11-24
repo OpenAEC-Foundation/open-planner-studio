@@ -66,7 +66,8 @@ import { planningIdentities, planningIdentityInput } from './planningIdentity';
 import { sameValue } from '@/utils/sameValue';
 import { freeze } from 'immer';
 import { openMergePlanning, slotReading } from '@/state/ifcMergePlanning';
-import { IFC_TASKTIME_SLOTS, TASK_SLOT } from '../ifcTaskSlots';
+import { IFC_TASKTIME_SLOTS, TASK_SLOT, TASKTIME_SLOT } from '../ifcTaskSlots';
+import { taskTimeSlotMeaning } from './taskTimeMeaning';
 import { psetOwners, validateMergeOutput } from './mergeValidation';
 import {
   SECOND_FORMS, indexView, linesView, ownGroupMembers, ownGroupTrees, restoredOwnGroupDifference, restoredOwnSlots, type RestoredOwnSlots,
@@ -876,6 +877,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     const own: OwnOutputCheck = {
       stepIds, writtenAt, sourceRowGuid: rowGuid, skip: new Set([...restored.skip, ...unmapped]),
       slots: restored.slots.filter(s => !unmapped.has(s.group)).map(s => ({ ...s, id: remap.get(s.id)! })),
+      sourceTokens: new Map(edits.map(e => [`${remap.get(e.id) ?? e.id}#${e.arg}`, e.token])),
+      taskTimes: writtenTaskTimes(input, candidate, stepIds),
     };
     observe?.(own);
     const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own);
@@ -948,6 +951,8 @@ export interface OwnOutputCheck extends RestoredOwnSlots {
   readonly writtenAt: Date;
   /** De GlobalId die de lezer in de bron voor een weesrij aannam (`assumedRowGuid` op de lezing van de bron). */
   readonly sourceRowGuid: (taskId: string) => string | undefined;
+  readonly sourceTokens?: ReadonlyMap<string, string>;
+  readonly taskTimes?: ReadonlyMap<string, readonly string[]>;
 }
 
 /** Alleen voor proeven: de volledige uitvoercontrole van `prepareIfcWrite` op gegeven uitvoerbytes (ook een gemuteerde
@@ -1038,28 +1043,48 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
  * precies de bronwaarde (PR A, `restoredOwnGroupDifference`); de rest van zijn groep gewoon. Groepen in `own.skip` toetst
  * (c) helemaal niet: daar was zo'n slot niet eenduidig aan te wijzen.
  */
+function writtenTaskTimes(input: WriteIFCInput, lines: readonly OutLine[], stepIds: Readonly<Record<string, number>>): Map<string, readonly string[]> {
+  const byId = new Map(lines.map(line => [line.id, line]));
+  const argsOf = (line: OutLine | undefined) => line && ('text' in line && typeof line.text === 'string' ? parseOutLine(line.text)?.args : line.args);
+  const out = new Map<string, readonly string[]>();
+  for (const task of input.tasks) {
+    const step = stepIds[`task:${task.id}`];
+    const args = step === undefined ? undefined : argsOf(byId.get(refOf(argsOf(byId.get(step))?.[TASK_SLOT.taskTime])));
+    if (args) out.set(task.id, args);
+  }
+  return out;
+}
+
 function taskTimeLineProblem(bytes: Uint8Array, out: StepIndex, outCls: Classification, parsed: WriteIFCInput, input: WriteIFCInput,
   own: OwnOutputCheck): string | undefined {
-  const reread: WriteIFCInput = { ...parsed, withheldTaskTimeFields: input.withheldTaskTimeFields };
   const ids = mergeIdPlan(out, outCls, own.stepIds, parsed.calendar.id, bytes);
-  const rewritten = new Map<number, OutLine>();
+  const reread: WriteIFCInput = { ...parsed, withheldTaskTimeFields: input.withheldTaskTimeFields };
+  const lines = new Map<number, OutLine>();
   for (const text of writeIfcMergeLines(reread, sourceFormPlan(ids.plan, parsed, parsed, out, own.stepIds), own.writtenAt).lines) {
     const line = parseOutLine(text);
-    if (line) rewritten.set(line.id, line);
+    if (line) lines.set(line.id, line);
   }
+  const present = (token: string | undefined) => !!token && token !== '$';
   for (const task of input.tasks) {
     const step = own.stepIds[`task:${task.id}`];
-    const chunk = step === undefined ? -1 : out.chunkOf(String(step));
+    if (step === undefined) continue;
+    const chunk = out.chunkOf(String(step));
     const time = chunk < 0 ? -1 : out.refAt(chunk, TASK_SLOT.taskTime);
     const written = time < 0 ? undefined : out.argTokens(time);
-    const expected = step === undefined ? undefined : rewritten.get(refOf(rewritten.get(step)?.args[TASK_SLOT.taskTime]))?.args;
-    if (!written && !expected) continue;
-    if (!written || !expected || written.length !== expected.length) {
-      return `taak ${task.id}: de taaktijd in de uitvoer (${written?.length ?? 'geen'} argumenten) is niet wat de writer schrijft uit wat de lezer erin leest (${expected?.length ?? 'geen'})`;
+    const mine = own.taskTimes?.get(task.id);
+    const reading = lines.get(refOf(lines.get(step)?.args[TASK_SLOT.taskTime]))?.args;
+    if (own.taskTimes && !written !== !mine) {
+      return `taak ${task.id}: ${written ? 'de writer schreef geen taaktijd, de uitvoer heeft er een' : 'de uitvoer mist de taaktijd die de writer schreef'}`;
     }
-    const k = written.findIndex((token, i) => token !== expected[i]);
-    if (k >= 0) {
-      return `taak ${task.id}.time, IFCTASKTIME argument ${k} (${IFC_TASKTIME_SLOTS[k]?.key ?? '?'}): in de uitvoer ${written[k]}, na lezen en opnieuw schrijven ${expected[k]}`;
+    if (!written) continue;
+    for (let k = TASKTIME_SLOT.durationType; k < Math.max(written.length, mine?.length ?? 0); k++) {
+      const where = `taak ${task.id}.time, IFCTASKTIME argument ${k} (${IFC_TASKTIME_SLOTS[k]?.key ?? '?'})`;
+      if (mine && written[k] !== mine[k]) return `${where}: in de uitvoer ${written[k] ?? 'niets'}, de writer schreef ${mine[k] ?? 'niets'}`;
+      if (!present(written[k]) || own.sourceTokens?.has(`${out.id(time)}#${k}`)) continue;
+      const meaning = (token: string | undefined) => taskTimeSlotMeaning(k, token, parsed.calendar.hoursPerDay);
+      if (meaning(written[k]) !== meaning(reading?.[k])) {
+        return `${where}: in de uitvoer ${written[k]}, na lezen en opnieuw schrijven ${reading?.[k] ?? 'niets'}`;
+      }
     }
   }
   return undefined;

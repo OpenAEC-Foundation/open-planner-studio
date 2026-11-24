@@ -202,6 +202,9 @@ await check('2231 de drie XER-kandidaten van de review: de geldige opslag slaagt
     const app = (await opened(bytes)).getState().tasks.find(t => t.name === name)!;
     assert.equal(app.time.earlyStart, '2026-06-02T08:00', `${label}: het bronarchief geeft de app de datum uit de XER`);
     assert.equal(await verdict(bytes, input, source, own), expected, label);
+    const asWritten = taskTimeArgs(dec.decode(bytes), name).args;
+    const writer: OwnOutputCheck = { ...own, taskTimes: new Map(own.taskTimes).set(recorded.id, asWritten) };
+    assert.equal(await verdict(bytes, input, source, writer), expected, `${label}, ook als de writer het zelf zo schreef`);
   }
 });
 
@@ -213,7 +216,20 @@ type ProbedSlot = typeof PROBED_SLOTS[number];
 const DATE_SLOTS: ReadonlySet<ProbedSlot> = new Set<ProbedSlot>([
   'scheduleStart', 'scheduleFinish', 'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'statusTime', 'actualStart', 'actualFinish',
 ]);
-const ACCEPTED_COPIES: Readonly<Record<string, string>> = {};
+type Route = 'bytes' | 'writer';
+const ROUTES: readonly Route[] = ['bytes', 'writer'];
+const KNOWNBUG_2361 = 'een leeg slot dat de writer zelf verkeerd schreef en dat de lezer tot dezelfde waarde afleidt, ziet alleen de vergelijking met de regels van de writer (knownbug 2361)';
+const NAMED_EXCEPTIONS: Readonly<Record<Route, Readonly<Record<string, string>>>> = {
+  bytes: {},
+  writer: {
+    'durationType | $': `de lezer leest een leeg duurtype als WORKTIME (de leesregel van durationType in IFC_TASKTIME_SLOTS); ${KNOWNBUG_2361}`,
+    'scheduleStart | $': `de lezer vult een lege geplande start in (resolveMissingScheduleDates in ifcReader.ts); ${KNOWNBUG_2361}`,
+    'statusTime | $': `de lezer leest StatusTime niet: de statusdatum komt uit OPS_ProjectSettings (geen leesregel voor statusTime); ${KNOWNBUG_2361}`,
+    'remainingTime | $': `zonder rest in het bestand leidt de lezer de rest af, een voltooide taak krijgt rest 0 (applyRemainingDuration in importNormalize.ts); ${KNOWNBUG_2361}`,
+    'actualFinish | $': `een taak met gereedheid 1 zonder werkelijk einde krijgt het einde uit de statusdatum (normalizeImportedProgress, defaultImportedActualFinish); ${KNOWNBUG_2361}`,
+    'completion | $': `een werkelijk einde maakt de gereedheid 1 (normalizeImportedProgress in importNormalize.ts); ${KNOWNBUG_2361}`,
+  },
+};
 
 function nextDay(token: string): string {
   const m = /^'(\d{4})-(\d{2})-(\d{2})(.*)'$/.exec(token);
@@ -229,7 +245,8 @@ function otherValue(slot: ProbedSlot, token: string, args: readonly string[]): s
   return token === "'P0Y0M23D'" ? "'P0Y0M24D'" : "'P0Y0M23D'";
 }
 
-const probed = { copies: 0, refused: 0, accepted: [] as string[] };
+const probed = Object.fromEntries(ROUTES.map(route => [route, { copies: 0, refused: 0, named: [] as string[], accepted: [] as string[] }])) as
+  Record<Route, { copies: number; refused: number; named: string[]; accepted: string[] }>;
 for (const { name: stand, make, task: named } of STANDS) {
   await check(`2231 ${stand}: elk tijdslot dat de merge schrijft of bewust weglaat, telt na openen, ongeacht een bron met voorrang`, async () => {
     const store = await opened(await make());
@@ -249,16 +266,28 @@ for (const { name: stand, make, task: named } of STANDS) {
     const text = dec.decode(good), deviations: string[] = [];
     for (const id of tasks.values()) {
       const task = input.tasks.find(t => t.id === id)!, { args } = taskTimeArgs(text, task.name);
+      assert.deepEqual(own.taskTimes?.get(id), args, `de writer schreef de taaktijd van ${task.name} zoals ze in de uitvoer staat`);
       for (const slot of PROBED_SLOTS) {
-        const token = args[TASKTIME_SLOT[slot]];
+        const at = TASKTIME_SLOT[slot], token = args[at];
         const copies = token !== '$' ? [otherValue(slot, token, args), '$'] : withheld(id).includes(slot) ? [otherValue(slot, token, args)] : [];
         for (const copy of copies) {
-          const label = `${stand} | ${task.name} | ${slot} | ${copy === '$' ? '$' : `${token} → ${copy}`}`;
-          const result = await verdict(withSlot(text, task.name, TASKTIME_SLOT[slot], copy), input, source, own);
-          probed.copies++;
-          if (result === 'planning-na-openen') probed.refused++;
-          if (result === 'aanvaard') probed.accepted.push(label);
-          if (result !== 'planning-na-openen' && ACCEPTED_COPIES[label] !== result) deviations.push(`${label}: ${result}`);
+          const bytes = withSlot(text, task.name, at, copy);
+          const asWritten = [...args];
+          asWritten[at] = copy;
+          const owns: Record<Route, OwnOutputCheck> = { bytes: own, writer: { ...own, taskTimes: new Map(own.taskTimes).set(id, asWritten) } };
+          for (const route of ROUTES) {
+            const label = `${route} | ${stand} | ${task.name} | ${slot} | ${copy === '$' ? '$' : `${token} → ${copy}`}`;
+            const exception = NAMED_EXCEPTIONS[route][`${slot} | ${copy === '$' ? '$' : 'waarde'}`];
+            const result = await verdict(bytes, input, source, owns[route]);
+            const tally = probed[route];
+            tally.copies++;
+            if (result === 'planning-na-openen') tally.refused++;
+            else if (result === 'aanvaard' && exception) tally.named.push(`${label}: ${exception}`);
+            else {
+              if (result === 'aanvaard') tally.accepted.push(label);
+              deviations.push(`${label}: ${result}`);
+            }
+          }
         }
       }
     }
@@ -266,7 +295,11 @@ for (const { name: stand, make, task: named } of STANDS) {
   });
 }
 
-console.log(`Eigenschapsproef: ${probed.copies} kopieën, ${probed.refused} geweigerd met planning-na-openen, ${probed.accepted.length} aanvaard.`);
-for (const label of probed.accepted) console.log(`AANVAARD ${label}`);
+for (const route of ROUTES) {
+  const tally = probed[route];
+  console.log(`Eigenschapsproef (${route}): ${tally.copies} kopieën, ${tally.refused} geweigerd met planning-na-openen, ${tally.named.length} benoemde uitzondering, ${tally.accepted.length} aanvaard zonder uitzondering.`);
+  for (const label of tally.named) console.log(`UITZONDERING ${label}`);
+  for (const label of tally.accepted) console.log(`AANVAARD ${label}`);
+}
 console.log(`Opgeslagen datums bij de merge: ${passed} geslaagd, ${failed} mislukt.`);
 if (failed) process.exitCode = 1;
