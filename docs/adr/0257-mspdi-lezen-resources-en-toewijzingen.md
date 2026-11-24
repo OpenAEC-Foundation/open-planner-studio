@@ -7,14 +7,12 @@ is er niets om uit te kiezen. Een kostenresource wordt zo ook LABOR, omdat `Reso
 
 ## Gevolgen
 
-- De afleiding van het werk van een toewijzing (duur × inzet, `taskWorkMinutes`) rekent met dezelfde uren per dag als
-  de writer `<Work>` schreef: de werktijd per dag als de projectkop `OPS_DayMeasureDurations` definieert, anders de
-  opgeslagen uren per dag van de taakkalender (`effHpdByTaskId`, ADR 0251). `importedWorkFields` bewaart `<Work>`,
-  `<ActualWork>` en `<RemainingWork>` alleen als ze iets zeggen wat die afleiding niet al zegt. Met een andere dag zou
-  een dagtaak van 5 d op een kalender met 8 u per dag en blokken van 10 u haar werk als vastgelegd werk terugkrijgen.
-  Niet getoetst in een rondgang van een toewijzing.
+- De afleiding waarmee `importedWorkFields` het werk van een toewijzing vergelijkt, rekent met dezelfde uren per dag
+  als de writer `<Work>` schreef (`effHpdByTaskId`, dezelfde keuze als in ADR 0251). Met een andere dag zou de lezer
+  het werk als afwijkend vastleggen, en groeide het niet meer mee met de duur. `check-urenperdag-heropenen.ts` §8: een
+  dagtaak van 5 dagen bij 8 opgeslagen uren per dag en blokken van 10,5 uur komt terug zonder vastgelegd werk, en na
+  10 dagen schrijft de tweede export 105 uur. Welke werkvelden de lezer bewaart, beslist `importedWorkFields`.
 - `<TimephasedData>` met `Type` 1 (rest) of 2 (verricht werk) wordt een contour op de taakas
-  (`absoluteItemsToContourPeriods`, regel `contour`). Alleen data die iets zegt, wordt een contour: er moet werk in
-  zitten, en er moet meer dan één periode zijn of `WorkContour` 8 (`MSPDI_WORKCONTOUR_CONTOURED`). `WorkContour` 8
-  zonder bruikbare `<TimephasedData>` geeft geen contour. `attachContours` zet de contouren en de werkonderbrekingen
-  die daaruit volgen op de taken (`splitGapsFromContours`, ADR 0004).
+  (`absoluteItemsToContourPeriods`, regel `contour`), alleen als er werk in zit en de data meer zegt dan één vlakke
+  periode: meer dan één periode, of `WorkContour` 8 (`MSPDI_WORKCONTOUR_CONTOURED`). `attachContours` zet de contouren
+  en de werkonderbrekingen die daaruit volgen op de taken (`splitGapsFromContours`, ADR 0004).

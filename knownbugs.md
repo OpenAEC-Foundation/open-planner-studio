@@ -3892,19 +3892,22 @@ en noem het in je rapport of PR-tekst.
      schreef de merge twee properties met dezelfde naam (review 1 van #1181). Een ongebruikte sleutel slaat zo'n naam wel
      over. Gemeten in `check-ifc-foreign-ongebruikte-sleutels.ts` (blokken "grens" en "review 1, vangnet"). — B
 
-2010. **Een taakduur met dagen vóór de `T` uit een MSPDI-bestand telt elke dag als 1440 minuten werktijd.**
-      `mspDurationMinutes` (`src/services/msproject/mspdiReader.ts`) rekent een dagcomponent als 1440 minuten, ook voor
-      een taak in werktijd. Nagespeeld met een script op een kalender van 8 uur per dag, taak zonder OPS-markering:
-      `<Duration>PT16H0M0S</Duration>` geeft 960 minuten (2 dagen), `P2D` en `P2DT0H0M0S` geven allebei 2880 minuten
-      (6 dagen). Dezelfde functie leest ook `<RemainingDuration>` en het werk van een toewijzing. Of MS Project zelf een
-      duur met `D` schrijft, is niet nagegaan. — B
+2010. **De MSPDI-lezer telt een dag vóór de `T` in een taakduur als 1440 minuten, ook in werktijd; wat een schrijver
+      daarmee bedoelt, is niet nagegaan.** `mspDurationMinutes` (`src/services/msproject/mspdiReader.ts`) rekent een
+      dagcomponent als 1440 minuten. Nagespeeld met een script op een kalender van 8 uur per dag, taak zonder
+      OPS-markering: `<Duration>PT16H0M0S</Duration>` geeft 960 minuten (2 dagen), `P2D` en `P2DT0H0M0S` geven allebei
+      2880 minuten (6 dagen); de review van #1200 zag hetzelfde. Dezelfde functie leest ook `<RemainingDuration>` en het
+      werk van een toewijzing. Of een schrijver met `P2D` twee werkdagen of 48 uur bedoelt, en of zo'n schrijver bestaat,
+      is niet nagegaan; daarvan hangt af of 2880 minuten klopt. — B
 
 2011. **Een veld dat op een MSPDI-taak ontbreekt, kan de lezer uit een genest element halen.** `getElementText` in
       `src/services/msproject/mspdiReader.ts` neemt het eerste element met die naam ergens onder de taak
-      (`descendantText`), ook binnen `<PredecessorLink>` of `<Baseline>`. Nagespeeld met een script: een taak zonder
-      `<Type>` met een `<PredecessorLink>` met `<Type>2</Type>` krijgt `mspTaskType` `FIXED_WORK`, en een taak zonder
-      `<Duration>` met een `<Baseline>` met `<Duration>PT40H0M0S</Duration>` krijgt 2400 minuten. Welke andere velden
-      zo kunnen verschuiven, is niet nagegaan. — B
+      (`descendantText`), ook binnen `<PredecessorLink>` of `<Baseline>`. Nagespeeld met een script via `readMSPDI`, en
+      in de review van #1200 ook via `parseOpenedFile`: een taak zonder `<Type>` met een `<PredecessorLink>` met
+      `<Type>2</Type>` krijgt `mspTaskType` `FIXED_WORK`, en een taak zonder `<Duration>` met een `<Baseline>` met
+      `<Duration>PT40H0M0S</Duration>` krijgt 2400 minuten. Volgens die review maakt het MSPDI-schema `<Type>` en
+      `<Duration>` op een taak optioneel, dus geldige XML van een andere schrijver kan dit raken; of MS Project zelf die
+      velden weglaat, is niet nagegaan. Welke andere velden zo kunnen verschuiven, ook niet. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
