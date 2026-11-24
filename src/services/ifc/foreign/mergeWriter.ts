@@ -432,7 +432,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 
   // ── 2–6. De regels van de writer voor een domein, met de bewaarde en gemengde relaties en de vreemde leden. De merge
   // doet dit voor het bewerkte domein (O1) en voor het domein zoals de lezer het las (O0, de verliesbewaking). ──
-  function buildLines(input: WriteIFCInput, caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void, written: ReturnType<typeof writeIfcMergeLines>) {
+  function buildLines(input: WriteIFCInput, caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void,
+    written: Omit<ReturnType<typeof writeIfcMergeLines>, 'lines'> & { readonly lines: readonly string[] }) {
     // ── 2. Het domein ──
     const comparison = planningIdentityInput(input);
     const sourceIds = planningIdentities(source.opened ?? pristine);

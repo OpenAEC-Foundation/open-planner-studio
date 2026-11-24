@@ -29,8 +29,8 @@ export interface JsonMemberContext {
 }
 
 export interface JsonMembers {
-  readonly read: string[];
-  readonly written: string[];
+  readonly read: readonly string[];
+  readonly written: readonly string[];
   readonly expected: ReadonlyMap<string, string>;
   readonly carried: ReadonlySet<string>;
 }
@@ -312,9 +312,9 @@ export function withJsonTexts(written: WriterLines, sources: readonly JsonSource
 
 export function jsonMembers(read: WriterLines, written: WriterLines, sources: readonly JsonSourceProperty[],
   ctx: JsonMemberContext): JsonMembers {
-  const readOut = [...read.lines], writtenOut = [...written.lines];
   const expected = new Map<string, string>(), carried = new Set<string>();
-  if (sources.length === 0) return { read: readOut, written: writtenOut, expected, carried };
+  if (sources.length === 0) return { read: read.lines, written: written.lines, expected, carried };
+  const readOut = [...read.lines], writtenOut = [...written.lines];
   const isWindows = (s: JsonSourceProperty) => `${s.pset}\u0000${s.property}` === WINDOWS_PROPERTY;
   const owners = new Set(sources.map(s => s.owner));
   const readAt = lineIndex(read), writtenAt = lineIndex(written);
