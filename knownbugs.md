@@ -2528,12 +2528,19 @@ en noem het in je rapport of PR-tekst.
      (`/tmp/fase1b-v2-scope/echte-invoer/resultaten.json` op aia09-mp50, 11 november 2026). — B
 
 
-1570. **VERVOLG (#804, gemaakt geval): id-afleiding bij een `-dup-N`-object na crashherstel nog beproeven.**
-     PR 9a gebruikt de gewone bytes-route, zonder `idExceptions`: de echte keten met een in de app
-     toegevoegde resource, Opslaan als, verder bewerken, crashherstel en opnieuw Opslaan als behoudt
-     de GlobalId en het vreemde deel. Een geconstrueerd dubbel-GlobalId-geval (`-dup-N`) is niet
-     in die herstelketen gemeten. Alleen dit gemaakte geval blijft vervolg; geen claim van verlies
-     of van herstel van zulke id-uitzonderingen. — S
+2236. **VERVOLG (#804 fase 2, PR 11): main weigert de opslag na het verwijderen van de eerste houder van een gedeelde GlobalId.**
+     Gemeten in `check-recovery-gedeelde-globalids.ts` (deel 3): een bron met vier paren gedeelde GlobalIds in het eigen
+     deel; na het verwijderen van de eerste resource van een paar weigert de merge met `niet-gedragen`, in de sessie en
+     na herstel gelijk. Een ongewijzigde planning slaat letterlijk op (deel 1 en 6). Meer is niet gemeten. Ontwerp §4.3
+     wil dat de writer de tweede houder een nieuwe GlobalId geeft. Komt die opslag er, dan leidt de lezer uit de nieuwe
+     bron een ander id af dan het document draagt, en is het lijstje per bronversie uit §4.14 nodig (`idExceptions`, met
+     `pendingIdExceptions` in stap 0). Het eerste element van zo'n paar is het id waaronder het herstelde document het
+     object draagt: na PR 11 het id van de sessie bij een gedeelde GlobalId, en het van de GlobalId afgeleide id bij een
+     in de app gemaakte resource (proef 2 in `check-recovery-ifc-source.ts`). — B
+2237. **VERVOLG (#804, 9c): een MCP-backup draagt de koppeling van PR 11 niet.** De backup schrijft de planning met
+     dezelfde writer als de herstelsnapshot (`backupService.ts`), maar zonder `snapshotIdentities`: een object met een
+     gedeelde GlobalId komt bij terugzetten terug met het id van zijn nieuwe GlobalId, zoals op main. Wat de planner
+     daarvan merkt, is niet gemeten. 9c (knownbug 1575) kan de koppeling van `recoveryIdentity.ts` meenemen. — S
 1575. **VERVOLG (#804, 9c): een MCP-backup op het open document terugzetten met de actuele gebouwmodelbron.**
      §4.12/E31 blijft een eigen onderdeel 9c op de eindlijst, niet verplicht vóór de flag standaard aan mag.
      De backup bevat planning en een bronkenmerk, geen gebouwmodelbytes. De kleine stap 9d zet bij het openen
@@ -3936,7 +3943,40 @@ en noem het in je rapport of PR-tekst.
      Route in een proef van de reviewer (GPT-6.2-Sol, review van #1170): gedeeltelijk herstel (`holdWeb` houdt de hele
      generatie vast, ook de herstelde versie), doorwerken aan dat document, en bij de volgende herstelvraag uitstellen; daarna
      kwamen de oude IFC-bytes terug. `check-recovery-web-hold.ts` toetst bij een dubbel document alleen dat het één keer
-     verschijnt, niet welke versie. — B
+     verschijnt, niet welke versie. Ook gezien in een tussenversie van `check-recovery-identiteit-reeksen.ts` (#1198, reeks 17:
+     twee keer `holdRecoveryForLater` met hetzelfde open document); de definitieve proef eist het eigen herstel daarom
+     alleen bij de laatst geschreven versie. — B
+
+2314. **Bekende grens (#804, flag aan): de toets van het crashherstel bewijst alleen wat de writer schrijft.** Het herstel
+     aanvaardt een koppeling van identiteiten (`snapshotIdentities`) alleen als het herstelde document, opnieuw
+     geschreven, byte voor byte de gelezen snapshot oplevert (`rewritesSnapshot`, `src/state/readRecoveryDocument.ts`).
+     Velden die de writer niet schrijft of zelf afleidt, ziet die vergelijking niet: `Task.parentId` (de writer nest via
+     `childIds`), `Task.resourceIds` (afgeleid uit de toewijzingen), de toewijzings-id's (ontstaan bij elke lezing) en
+     een bewaarde GlobalId die de writer toch afleidt. De proef verschuift ze met de hand: van 313 verschuivingen
+     aanvaardt de toets er 51 (`check-recovery-gedeelde-globalids.ts`, deel 13). De hernoeming van vandaag schrijft geen van deze
+     velden, dus er is geen aangetoonde route naar verlies. Gaat de hernoeming later meer velden aanpassen, dan hoort
+     daar eerst een gerichte proef via de gewone herstelroute bij. Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B
+     (proef 13 en de code)
+2315. **Bekende grens (#804, flag aan): het crashherstel valt in drie gevallen terug op het herstel van main, terwijl de
+     koppeling bruikbaar was.** Het document blijft heel; alleen een object met een gedeelde GlobalId (een
+     `-dup-N`-object) krijgt dan de identiteit die main bij herstel geeft, zoals vóór #1198. (1) Na het toevoegen en
+     toewijzen van een resourcekalender: de lezer zet kalenders met toewijzingen vóór kalenders zonder, en leest de
+     nieuwe kalender terug als `rescal-ifc-…` waar de sessie `cal-…` gebruikte; de writer gebruikt dat id in
+     hulp-GlobalIds, dus de bytes verschillen en de hele tabel vervalt. (2) Een snapshot in de stand "Datums zoals
+     opgeslagen" (rekenslots als `$`, of `recordedSourceFormat`): de toets bouwt de schrijfinvoer vóór de stap die die
+     stand activeert (langs de code gevolgd, niet gedraaid). (3) Een snapshot waarvan `FILE_NAME` en
+     `IFCOWNERHISTORY` aan weerszijden van een secondegrens zijn geschreven: de writer leest de klok twee keer en de
+     toets gebruikt de seconde uit de kop voor beide. Richting: één tijdstip voor beide velden bij het schrijven van
+     een snapshot; voor (1) en (2) een vergelijking die objecten en hun verbindingen bewaakt in plaats van bytes.
+     Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B (proef van de reviewer voor 1 en 3; 2 uit de code)
+2316. **Bekende grens (#804, flag aan): een beschadigde lijst identiteiten zonder één rij wordt deels toegepast.** De
+     toets van het crashherstel verwerpt elke rij die het herstelde document oplevert en die niet in de lijst staat,
+     maar eist niet dat de lijst volledig is (een verwijderde houder laat terecht een rij minder achter). Met één
+     taakrij met de hand uit acht geldige rijen gehaald, bij dezelfde IFC en SHA-256, aanvaardt de toets de overige
+     zeven; de taak zonder rij houdt de GlobalId uit de snapshot, zoals op main. De gewone schrijfroute laat geen rij
+     weg (de writer telt de oorspronkelijke houders en neemt elke uitgegeven rij mee met haar upsert). Richting: een
+     integriteitscontrole over de lijst zelf. Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B (proef van de
+     reviewer)
 
 2209. **VERVOLG (#1182): de verliescontrole kent de oude lay-outs los van de slottabellen.** `alignment` in
      `src/services/ifc/foreign/lossCheck.ts` legt zelf vast hoe een regel in een oude eigen lay-out op de uitvoer past
@@ -5282,6 +5322,17 @@ en noem het in je rapport of PR-tekst.
       plek; een handmatige actie gaat alleen voor op wat nog niet begon; geen vastgehouden rij tijdens de
       schrijftoestemming), met de proeven van alle drie de rondes als bewaking. Of die regel dan houdt, is niet
       bewezen. — S
+
+2254. **VERVOLG (#804 fase 2, PR 11, testdubbel): de IndexedDB-dubbel draait een afgebroken transactie niet terug.**
+     In `tests/planning/fakeRecoveryIndexedDb.ts` past `put` een record meteen toe, en `abort` roept alleen `onabort`
+     aan. Een echte IndexedDB schrijft bij een fout in dezelfde transactie niets. Faalt in de dubbel de manifestschrijf
+     ná de snapshotrecords, dan staan die records er toch: een gemengde toestand die in de browser niet kan bestaan. Een
+     browserproef met een schrijffout halverwege een ronde kan daardoor onterecht rood worden (een toestand die A nooit
+     maakt), of groen terwijl ze alleen laat zien dat de leestoets die gemengde toestand afwijst, niet dat de opslag
+     klopt. `check-recovery-identiteit-reeksen.ts` bootst het terugdraaien zelf na (een kopie van de opslag bij het begin
+     van elke schrijftransactie); deel 9 van `check-recovery-gedeelde-globalids.ts` laat de fout afgaan bij de eerste
+     put, vóór er iets veranderd is. Fouten die alleen bij echte asynchrone verzoeken, commit of herstart zichtbaar
+     worden, dekt de dubbel niet. — B
 
 ## Wensen en open taken (geen bug)
 
