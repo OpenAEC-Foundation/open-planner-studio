@@ -435,7 +435,7 @@ for (const edit of ['eigen anker', 'andere brontaak', 'ander anker in dezelfde b
   const afterEdit = [current(a), current(peer)];
   const historyAfterEdit = historySize();
   finishRead({
-    projectId: 'installateur', tasks: [sourceTask('2027-03-10T16:00'), { ...sourceTask('2027-03-11T16:00'), id: 'b2' }],
+    projectId: 'installateur', projectName: 'Installateur', tasks: [sourceTask('2027-03-10T16:00'), { ...sourceTask('2027-03-11T16:00'), id: 'b2' }],
     version: 'v2',
   });
   if (edit === 'losse taak') {
