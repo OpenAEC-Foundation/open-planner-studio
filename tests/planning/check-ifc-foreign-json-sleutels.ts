@@ -9,11 +9,12 @@ import type { IfcSource, PreparedIfcWrite } from '@/services/ifc/foreign/ifcSour
 import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
-import { JSON_PROPERTIES, jsonPropertyShape, type JsonShape } from '@/services/ifc/jsonRegister';
+import { JSON_PROPERTIES, jsonPropertyShape, membersHaveIdentity, type JsonShape } from '@/services/ifc/jsonRegister';
 import {
   hasUnknownMembers, jsonExtrasFromIndex, jsonExtrasIndex, jsonMembersProblem, scanJsonExtras,
 } from '@/services/ifc/foreign/jsonExtrasSource';
-import { jsonMembers, mergedJsonText } from '@/services/ifc/foreign/jsonMembers';
+import { jsonMembers, mergedJsonText, withJsonTexts } from '@/services/ifc/foreign/jsonMembers';
+import { windowCases, type MainCase } from './ifcJsonSleutelsMain';
 import { parseJsonTree, sameJsonValue, type JsonNode } from '@/services/ifc/jsonTokens';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import { ifcStr } from '@/services/ifc/ifcPsets';
@@ -135,9 +136,25 @@ const patchAt = (s: string, json: string, next: string) => {
   for (const p of JSON_PROPERTIES) collect(p.shape, `${p.pset}.${p.property}`);
   const lists = shapes.filter(s => s.shape.soort === 'lijst' || s.shape.soort === 'kaart');
   const without = lists.filter(({ shape }) => shape.soort === 'lijst'
-    ? shape.identiteit !== 'herkomstmerk' && !(typeof shape.identiteit === 'object' && shape.identiteit.veld)
-    : shape.soort === 'kaart' && shape.identiteit !== 'sleutel' && shape.identiteit !== 'toewijzing');
-  ok(`register: elke lijst en kaart heeft een identiteit (${without.map(s => s.where).join(', ')})`, without.length === 0 && lists.length > 10);
+    ? shape.identiteit !== 'volgorde' && !(typeof shape.identiteit === 'object' && shape.identiteit.veld)
+    : shape.soort === 'kaart' && shape.identiteit !== 'sleutel' && shape.identiteit !== 'volgorde');
+  ok(`register: elke lijst en kaart heeft een ingevulde identiteit (${without.map(s => s.where).join(', ')})`, without.length === 0 && lists.length > 10);
+  const ordered = lists.filter(({ shape }) => (shape.soort === 'lijst' || shape.soort === 'kaart') && shape.identiteit === 'volgorde').map(s => s.where);
+  const notCarried = JSON_PROPERTIES.filter(p => !membersHaveIdentity(p.shape)).map(p => `${p.pset}.${p.property}`);
+  ok(`register: een eigenschap is niet per lid te dragen precies als er ergens leden op volgorde aan iets anders hangen (${notCarried.join(', ')} | ${ordered.join(', ')})`,
+    notCarried.length > 0 && notCarried.every(p => ordered.some(w => w.startsWith(p))) && ordered.every(w => notCarried.some(p => w.startsWith(p))));
+  const q = (v: string) => v.replace(/'/g, "''");
+  for (const p of JSON_PROPERTIES) {
+    const root = p.shape.soort === 'lijst' ? '[{"vendorX":1}]' : p.shape.soort === 'object' ? '{"vendorX":1}' : '{"vendorX":{"vendorY":1}}';
+    const bytes = new TextEncoder().encode(['ISO-10303-21;', 'HEADER;', "FILE_DESCRIPTION((''),'2;1');", "FILE_SCHEMA(('IFC4X3_ADD2'));", 'ENDSEC;', 'DATA;',
+      "#1=IFCTASK('1111111111111111111111',$,$,$,$,$,$,$,$,$,$,$,$);", `#2=IFCPROPERTYSINGLEVALUE('${q(p.property)}',$,IFCTEXT('${q(root)}'),$);`,
+      `#3=IFCPROPERTYSET('2222222222222222222222',$,'${q(p.pset)}',$,(#2));`, "#4=IFCRELDEFINESBYPROPERTIES('3333333333333333333333',$,$,$,(#1),#3);",
+      'ENDSEC;', 'END-ISO-10303-21;', ''].join('\n'));
+    const found = scanJsonExtras(scanStep(bytes), () => true).length;
+    const expected = membersHaveIdentity(p.shape) && p.shape.soort === 'object' ? 1 : 0;
+    ok(`register, ${p.pset}.${p.property}: ${membersHaveIdentity(p.shape) ? 'leden met eigen identiteit' : 'leden op volgorde, niet per lid gedragen'}, de scanner indexeert een onbekend hoofdlid ${expected ? 'wel' : 'niet'} (${found})`,
+      found === expected);
+  }
   const names = JSON_PROPERTIES.map(p => `${p.pset}.${p.property}`);
   ok('register: elke JSON-property staat er één keer in', new Set(names).size === names.length);
 }
@@ -262,7 +279,7 @@ function richDomain(): Domain {
   const shape = jsonPropertyShape('OPS_StructureMeta', 'structure')!;
   const source = `{"vendorCoordinationId":"VC-1","activityCodeTypes":[{"id":"a","name":"Zone","values":[],"vendorX":${big}},`
     + '{"id":"d","name":"D1","values":[]},{"id":"d","name":"D2","values":[],"vendorY":1}],"customFieldDefs":[]}';
-  const unknown = (json: string) => hasUnknownMembers(parseJsonTree(json)!, shape, () => false);
+  const unknown = (json: string) => hasUnknownMembers(parseJsonTree(json)!, shape);
   ok('aanwezigheid: een onbekende sleutel bovenin, en een bij id a, wel; een bij het dubbele id d niet',
     unknown(source) && unknown('{"activityCodeTypes":[{"id":"a","name":"Zone","values":[],"vendorX":1}],"customFieldDefs":[]}')
     && !unknown('{"activityCodeTypes":[{"id":"d","name":"D1","values":[]},{"id":"d","name":"D2","values":[],"vendorY":1}],"customFieldDefs":[]}')
@@ -294,10 +311,10 @@ function richDomain(): Domain {
   const merged = (s: string, r: string, w: string) => { const x = mergedJsonText(series, s, r, w); return 'refused' in x ? 'geweigerd' : x.text; };
   ok('per lid: een reeks met dezelfde lengte per plaats, met een andere lengte weigert',
     merged('[1.0,2,3e0]', '[1,2,3]', '[1,5,3]') === '[1.0,5,3e0]' && merged('[1.0,2]', '[1,2]', '[1,2,3]') === 'geweigerd');
-  const windowShape = (jsonPropertyShape('OPS_Timephased', 'Windows') as Extract<JsonShape, { soort: 'kaart' }>).waarde;
-  const win = mergedJsonText(windowShape, '{"plannedWorkMinutes":48e1,"costAmount":5.0,"vendorW":"w"}', '{"plannedWorkMinutes":480,"costAmount":5}',
+  const plain = { soort: 'object', sleutels: { plannedWorkMinutes: { soort: 'waarde' }, costAmount: { soort: 'waarde' } } } as const;
+  const win = mergedJsonText(plain, '{"plannedWorkMinutes":48e1,"costAmount":5.0,"vendorW":"w"}', '{"plannedWorkMinutes":480,"costAmount":5}',
     '{"plannedWorkMinutes":480,"costAmount":6}');
-  ok(`per lid: in een gewijzigd venster houdt een ongewijzigd getal zijn spelling (${show(win)})`,
+  ok(`per lid: in een gewijzigd object houdt een ongewijzigd getal zijn spelling (${show(win)})`,
     'text' in win && win.text === '{"plannedWorkMinutes":48e1,"costAmount":6,"vendorW":"w"}');
 }
 
@@ -324,14 +341,7 @@ function richDomain(): Domain {
       rows.push(`{"taskId":"t${i}","start":"2026-01-01"${form === 'bron' ? `,"vendorRow":${i}` : ''}}`);
     }
     property(ws, 'OPS_Baselines', 'Baselines', `[{"id":"b1","name":"${form === 'nu' ? 'B2' : 'B'}","tasks":[${rows.join(',')}]}]`, 'b');
-    const window = (i: number) => `{"plannedWorkMinutes":${form === 'nu' ? 960 : form === 'bron' ? '480.0' : 480}${form === 'bron' ? `,"vendorW":"w${i}"` : ''}}`;
-    const keys = Array.from({ length: n }, (_, i) => `R${String(i).padStart(21, '0')}#0`);
-    const big = owner('task:big', 'task_big', k => `#${k}=IFCTASK('${'B'.repeat(22)}',$,$,$,$,$,$,$,$,$,$,$,$);`);
-    const resources = keys.map(k => { const r = id++; lines.push(`#${r}=IFCCREWRESOURCE('${k.split('#')[0]}',$,$,$,$,$,$,$,$,$,$);`); return r; });
-    lines.push(`#${id++}=IFCRELASSIGNSTOPROCESS('${'Z'.repeat(22)}',$,$,$,(${resources.map(r => `#${r}`).join(',')}),$,#${big},$);`);
-    keys.forEach((k, i) => { const a = id++; idMap.set(`_asgn_big_a${i}`, a); lines.push(`#${a}=IFCPROPERTYSINGLEVALUE('${k}',$,IFCTEXT('1|UNIFORM'),$);`); });
-    property(big, 'OPS_Timephased', 'Windows', `{${keys.map((k, i) => `"${k}":${window(i)}`).join(',')}}`, 'w');
-    return { lines, stepIds, idMap, index: scanStep(step(lines)), keys };
+    return { lines, stepIds, idMap, index: scanStep(step(lines)) };
   };
   const ARRAY_METHODS = ['filter', 'find', 'findIndex', 'some', 'every', 'map', 'forEach', 'flatMap', 'indexOf', 'includes', 'reduce'] as const;
   const counted = (f: () => void): number => {
@@ -352,35 +362,34 @@ function richDomain(): Domain {
     const src = synthetic(n, 'bron'), read0 = synthetic(n, 'lezing'), now = synthetic(n, 'nu');
     const plain = synthetic(n, 'lezing');
     const own = () => true;
-    const binding = new Map(src.keys.map((k, i) => [k, `a${i}`]));
     const work: Record<string, number> = {};
     let found = scanJsonExtras(src.index, own);
     work['openen zonder vreemde sleutels'] = counted(() => { if (scanJsonExtras(plain.index, own).length > 0) throw new Error('vreemde sleutels zonder sleutels'); });
     work['openen'] = counted(() => { found = scanJsonExtras(src.index, own); });
-    const bigStep = src.stepIds['task:big'];
-    const entries = jsonExtrasIndex(found, (owner, key) => owner === bigStep ? binding.get(key) : undefined);
+    const entries = jsonExtrasIndex(found);
     let sources = jsonExtrasFromIndex(src.index, entries, src.stepIds, 'c');
     work['een uitleesronde'] = counted(() => { sources = jsonExtrasFromIndex(src.index, entries, src.stepIds, 'c'); });
-    const assignments = src.keys.map((_, i) => ({ id: `a${i}`, taskId: 'big' }));
-    const ctx = { exists: () => true, assignments: { read: assignments, written: assignments } };
+    const ctx = { exists: () => true };
     let merged = jsonMembers(read0, now, sources, ctx);
     work['per lid samenvoegen'] = counted(() => { merged = jsonMembers(read0, now, sources, ctx); });
     const output = synthetic(n, 'nu');
     const written = step(merged.written);
     let problem: string | undefined;
+    work['de eigen uitvoer zonder JSON-index'] = counted(() => { if (withJsonTexts(plain, []) !== plain.lines) throw new Error('kopie zonder index'); });
     work['eindcontrole'] = counted(() => { problem = jsonMembersProblem(merged.expected, { index: scanStep(written), stepIds: output.stepIds, projectCalendarId: 'c' }); });
     const out = new TextDecoder().decode(written);
     ok(`kosten bij ${n}: alle vreemde sleutels gevonden, per lid samengevoegd en gecontroleerd (${found.length}, ${sources.length}, ${problem})`,
-      found.length === n + 2 && sources.length === n + 2 && problem === undefined
-      && (out.match(/vendorN/g) ?? []).length === n && out.includes(`"vendorRow":${n - 1}`) && (out.match(/vendorW/g) ?? []).length === n
-      && (out.match(/480\.0/g) ?? []).length === 0);
+      found.length === n + 1 && sources.length === n + 1 && problem === undefined
+      && (out.match(/vendorN/g) ?? []).length === n && out.includes(`"vendorRow":${n - 1}`));
     return work;
   };
   const small = round(1000), large = round(10000);
   for (const step of Object.keys(small)) {
     const ratio = large[step] / Math.max(small[step], 1);
-    ok(`kosten: ${step} groeit lineair in het werk, 10.000 tegen 1.000 taken en vensters ${large[step]} tegen ${small[step]} (verhouding ${ratio.toFixed(1)}, grens 13)`, ratio < 13);
+    ok(`kosten: ${step} groeit lineair in het werk, 10.000 tegen 1.000 taken ${large[step]} tegen ${small[step]} (verhouding ${ratio.toFixed(1)}, grens 13)`, ratio < 13);
   }
+  ok(`kosten: de eigen uitvoer zonder JSON-index kopieert niets (${small['de eigen uitvoer zonder JSON-index']}, ${large['de eigen uitvoer zonder JSON-index']})`,
+    small['de eigen uitvoer zonder JSON-index'] === 0 && large['de eigen uitvoer zonder JSON-index'] === 0);
 }
 
 const eigen = text(await settle(read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
@@ -435,11 +444,8 @@ if (base) {
     && memberOf(jsonIn(withExtras, 'OPS_TaskTypes', 'TaskTypes'), ['definitions', ['id', 'tt-a'], 'vendorRef']) === '"opaque-aa"');
   {
     const opened = await openForeign(withExtras);
-    const bound = (step: number) => opened.assignments.find(a => a.taskId === taskOf(opened).id && a.resourceId === resOf(opened, step).id)?.id;
-    ok(`bron: de index noemt de JSON-eigenschappen met onbekende sleutels en elke vensterkaart, met de binding van elk venster (${show(opened.ifcSource?.jsonExtras)})`,
-      opened.ifcSource?.jsonExtras?.length === 4
-      && opened.ifcSource.jsonExtras.some(e => e.windows?.length === 2 && e.windows.some(w => w.key === `${R110}#1` && w.assignmentId === bound(110))
-        && e.windows.some(w => w.key === `${R109}#0` && w.assignmentId === bound(109))));
+    ok(`bron: de index noemt de JSON-eigenschappen met onbekende sleutels, zonder de vensterkaart (${show(opened.ifcSource?.jsonExtras)})`,
+      opened.ifcSource?.jsonExtras?.length === 3 && opened.ifcSource.jsonExtras.every(e => Object.keys(e).join() === 'propertyStepId'));
   }
 
   type Want = { fase: boolean; baseline: boolean; window: readonly [string, string] | undefined };
@@ -551,9 +557,9 @@ if (base) {
     const a = asgn(d, o, 110);
     d.assignments = d.assignments.map(x => x === a ? { ...x, resourceId: resOf(o, 111).id } : x);
   });
-  await scenario('toewijzing: een tweede toewijzing van dezelfde resource erbij, vendorW blijft bij de eerste', (d, o) => {
+  await likeMain('toewijzing: een tweede toewijzing van dezelfde resource erbij', (d, o) => {
     d.assignments = [...d.assignments, { ...asgn(d, o, 110), id: 'asgn-tweede' }];
-  }, all);
+  });
   await refuses('toewijzing: de toewijzing van #110 wissen (zoals main, nooit raden)', (d, o) => {
     d.assignments = d.assignments.filter(a => a !== asgn(d, o, 110));
   }, /^(uitvoer-controle|niet-gedragen): .*Windows/);
@@ -694,9 +700,8 @@ if (base) {
         const b65 = start.assignments.find(x => x.taskId === t65.id && x.resourceId === a63.resourceId)!;
         const third = start.tasks.find(t => t.id !== a63.taskId && t.id !== t65.id && !t.isMilestone && t.childIds.length === 0
           && !start.assignments.some(x => x.taskId === t.id && x.resourceId === a63.resourceId))!;
-        ok(`${label}: de bron heeft beide markeringen en beide bindingen`, text(swapBytes).includes('proef-63') && text(swapBytes).includes('proef-65')
-          && (start.ifcSource?.jsonExtras ?? []).flatMap(e => e.windows ?? []).some(w => w.assignmentId === a63.id)
-          && (start.ifcSource?.jsonExtras ?? []).flatMap(e => e.windows ?? []).some(w => w.assignmentId === b65.id));
+        ok(`${label}: de bron heeft beide markeringen, en de vensterkaart staat niet in de index`, text(swapBytes).includes('proef-63') && text(swapBytes).includes('proef-65')
+          && (start.ifcSource?.jsonExtras ?? []).length === 0 && !!a63 && !!b65);
         const swapped = await storeEdit(cloneDomain(start), st => {
           if (!st.moveAssignment(a63.id, third.id)) throw new Error('omwisselen: stap 1');
         }).then(d => storeEdit(d, st => { if (!st.moveAssignment(b65.id, a63.taskId)) throw new Error('omwisselen: stap 2'); }))
@@ -731,16 +736,9 @@ if (base) {
         const start = await openForeign(patched);
         costId = start.assignments.find(x => x.taskId === taskOf(start).id && x.costAmount === 50)!.id;
         const edited = await storeEdit(cloneDomain(start), st => st.setAssignmentCost(costId, 75));
-        const verdict = await refusal(edited, start.ifcSource!);
-        const out = verdict === 'schreef' ? await prepareIfcWrite(edited, start.ifcSource!) : undefined;
-        const windows = out && jsonIn(out.bytes, 'OPS_Timephased', 'Windows', TASK_GUID);
-        if (!vendor) {
-          ok(`kosten 50 → 75 naast 480.0, zonder vreemde sleutel (ronde 2, blokkade 2): weigert zoals main, of houdt 480.0 (${verdict.slice(0, 160)} ${windows ?? ''})`,
-            verdict === 'schreef' ? windows?.includes('"plannedWorkMinutes":480.0') === true : /^niet-gedragen: .*Windows/.test(verdict));
-        } else {
-          ok(`kosten 50 → 75 naast 480.0, met een vreemde sleutel in de kaart: schrijft 75 en houdt 480.0 en de sleutel (${verdict.slice(0, 160)} ${windows ?? ''})`,
-            windows !== undefined && windows.includes('"plannedWorkMinutes":480.0') && windows.includes('"costAmount":75') && windows.includes('"vendorW":"w"'));
-        }
+        const pr = await outcomeOf(edited, start.ifcSource!), main = await outcomeOf(edited, mainRoute(start.ifcSource!));
+        ok(`kosten 50 → 75 naast 480.0, ${vendor ? 'met' : 'zonder'} een vreemde sleutel in de vensterkaart: de weigering van main (${pr.verdict.slice(0, 160)} | main: ${main.verdict.slice(0, 120)})`,
+          pr.verdict === main.verdict && /^niet-gedragen: .*Windows/.test(main.verdict));
       }
     }
   }
@@ -787,147 +785,52 @@ if (base) {
   const on = (d: Domain, o: Opened, task: string, step: number) => d.assignments.find(a => a.taskId === task && a.resourceId === resOf(o, step).id)!;
   const thirdOf = (d: Domain, o: Opened) => d.tasks.find(t => t.id !== t63(o) && t.id !== t65(o) && !t.isMilestone && !t.isSummary
     && t.childIds.length === 0 && !d.assignments.some(a => a.taskId === t.id && a.resourceId === resOf(o, 110).id))!;
-  const costOf = (d: Domain, o: Opened) => d.assignments.find(a => a.taskId === t63(o) && a.costAmount === 50)!;
   const opened = await openForeign(base);
-  const grownDomain = await storeEdit(cloneDomain(opened), st => {
-    const cost = st.addResource({ name: 'Leges', type: 'COST', description: '', maxUnits: 1 } as never);
-    st.assignResource(t63(opened), cost, 1, undefined, 50);
-  });
+  const grownDomain = cloneDomain(opened);
   grownDomain.assignments = [...grownDomain.assignments,
     { ...on(grownDomain, opened, t63(opened), 110), id: 'asgn-110-op-65', taskId: t65(opened), plannedWorkMinutes: 240 }];
   grownDomain.tasks = grownDomain.tasks.map(t => t.id === t63(opened) ? { ...t, notes: [{ id: 'n1', text: 'eerste', done: false }] } : t);
-  const grown = await save('regel 1: bron met een kostentoewijzing en een notitie op #63 en #110 op #65', grownDomain, opened.ifcSource!);
+  const grown = await save('vaste reeks: bron met een notitie op #63 en #110 op #65', grownDomain, opened.ifcSource!);
   if (grown) {
     const g = text(grown.bytes);
-    const w63 = jsonIn(grown.bytes, 'OPS_Timephased', 'Windows', TASK_GUID)!, w65 = jsonIn(grown.bytes, 'OPS_Timephased', 'Windows', TASK_65_GUID)!;
-    const costKey = rawKeys(w63).find(k => !k.startsWith(`${R109}#`) && !k.startsWith(`${R110}#`) && !k.startsWith(`${R111}#`))!;
-    const k65 = rawKeys(w65).find(k => k.startsWith(`${R110}#`))!;
-    const marked63 = w63.replace(/^\{/, '{"vendorMapNote":"m",').replace(`"${R110}#1":{`, `"${R110}#1":{"vendorW":"w-110",`)
-      .replace(`"${costKey}":{`, `"${costKey}":{"vendorC":"c",`).replace(`"${R109}#0":{"plannedWorkMinutes":480}`, `"${R109}#0":{"plannedWorkMinutes":480.0}`);
-    const F1text = patchAt(patchAt(g, w63, marked63), w65, w65.replace(`"${k65}":{`, `"${k65}":{"vendorV":"v-65",`));
-    const F1 = latin1(F1text);
-    ok('regel 1: de bron heeft de markeringen, 480.0 als buurveld en een binding voor elk venster met een markering',
-      text(F1).includes('vendorW') && text(F1).includes('vendorV') && text(F1).includes('vendorC') && text(F1).includes('"plannedWorkMinutes":480.0'));
-    const kept = (bytes: Uint8Array, neighbour = true) => {
-      const a = jsonIn(bytes, 'OPS_Timephased', 'Windows', TASK_GUID), b = jsonIn(bytes, 'OPS_Timephased', 'Windows', TASK_65_GUID);
-      return rawKeys(a ?? '')[0] === 'vendorMapNote' && memberOf(a, [`${R110}#1`, 'vendorW']) === '"w-110"' && memberOf(a, [costKey, 'vendorC']) === '"c"'
-        && memberOf(b, [k65, 'vendorV']) === '"v-65"' && (!neighbour || memberOf(a, [`${R109}#0`, 'plannedWorkMinutes']) === '480.0')
-        && text(bytes).split('vendorW').length === 2 && text(bytes).split('vendorV').length === 2 && text(bytes).split('vendorC').length === 2;
-    };
+    const w63 = jsonIn(grown.bytes, 'OPS_Timephased', 'Windows', TASK_GUID)!;
+    const notes63 = jsonIn(grown.bytes, 'OPS_TaskNotes', 'Notes', TASK_GUID)!;
+    const marked63 = w63.replace(`"${R110}#1":{`, `"${R110}#1":{"vendorW":"w-110",`).replace(`"${R109}#0":{"plannedWorkMinutes":480}`, `"${R109}#0":{"plannedWorkMinutes":480.0}`);
+    const F1 = latin1(patchAt(patchAt(g, w63, marked63), notes63, notes63.replace('"done":false}', '"done":false,"\\u0076endorN":48e1}')));
+    const noteOf = (bytes: Uint8Array) => jsonIn(bytes, 'OPS_TaskNotes', 'Notes', TASK_GUID);
+    const mapOf = (bytes: Uint8Array) => jsonIn(bytes, 'OPS_Timephased', 'Windows', TASK_GUID);
+    ok('vaste reeks: de bron heeft een notitie met een onbekend lid en een vensterkaart met een markering naast 480.0',
+      noteOf(F1)?.includes('"\\u0076endorN":48e1') === true && mapOf(F1) === marked63);
     type Step = (d: Domain, o: Opened) => Domain | Promise<Domain>;
     const work = (minutes: number): Step => (d, o) => {
       const a = on(d, o, t63(o), 110);
-      d.assignments = d.assignments.map(x => x === a ? { ...x, plannedWorkMinutes: minutes } : x);
-      return d;
+      return { ...d, assignments: d.assignments.map(x => x === a ? { ...x, plannedWorkMinutes: minutes } : x) };
     };
-    const swap: Step = (d, o) => {
-      const a = on(d, o, t63(o), 110), b = on(d, o, t65(o), 110), third = thirdOf(d, o);
-      return storeEdit(d, st => { if (!st.moveAssignment(a.id, third.id)) throw new Error('omwisselen 1'); })
-        .then(x => storeEdit(x, st => { if (!st.moveAssignment(b.id, t63(o))) throw new Error('omwisselen 2'); }))
-        .then(x => storeEdit(x, st => { if (!st.moveAssignment(a.id, t65(o))) throw new Error('omwisselen 3'); }));
-    };
-    const newResourceElsewhere: Step = (d, o) => storeEdit(d, st => {
-      const id = st.addResource({ name: 'Nieuw elders', type: 'LABOR', description: '', maxUnits: 1 } as never);
-      st.assignResource(thirdOf(d, o).id, id, 1);
-    });
-    const changing: readonly [string, Step][] = [
-      ['verplaatsen', (d, o) => storeEdit(d, st => { if (!st.moveAssignment(on(d, o, t63(o), 110).id, thirdOf(d, o).id)) throw new Error('verplaatsen'); })],
-      ['omwisselen via een derde taak', swap],
-      ['wissen en opnieuw maken', (d, o) => {
-        const a = on(d, o, t63(o), 110);
-        return storeEdit(d, st => { st.unassignResource(a.id); st.assignResource(a.taskId, a.resourceId, a.unitsPerDay); });
-      }],
-      ['van resource wisselen', (d, o) => {
-        const a = on(d, o, t63(o), 110);
-        d.assignments = d.assignments.map(x => x === a ? { ...x, resourceId: resOf(o, 111).id } : x);
-        return d;
-      }],
-      ['de taak wissen', (d, o) => storeEdit(d, st => { st.deleteTask(t63(o)); })],
-    ];
-    for (const [label, edit] of changing) {
-      const o = await openForeign(F1);
-      const d = await edit(cloneDomain(o), o);
-      const pr = await outcomeOf(d, o.ifcSource!), main = await outcomeOf(d, mainRoute(o.ifcSource!));
-      ok(`regel 1, ${label}: de uitkomst van main, met de melding van main (${pr.verdict.slice(0, 200)} | main: ${main.verdict.slice(0, 200)})`,
-        pr.verdict === main.verdict && (pr.verdict === 'schreef' ? sameBytes(pr.prepared?.bytes, main.prepared?.bytes) : !pr.verdict.startsWith('fout')));
-      if (label === 'de taak wissen') {
-        ok(`regel 1, ${label}: main schrijft, en de markeringen van de taak gaan met haar weg, zoals op main`,
-          main.verdict === 'schreef' && !text(main.prepared!.bytes).includes('vendorW') && text(main.prepared!.bytes).includes('vendorV'));
-      } else {
-        ok(`regel 1, ${label}: main weigert, dus er komt niets op schijf (${main.verdict.slice(0, 120)})`, main.verdict !== 'schreef' && !main.verdict.startsWith('fout'));
-      }
-    }
-    const keeping: readonly [string, Step, boolean][] = [
-      ['kosten', (d, o) => storeEdit(d, st => st.setAssignmentCost(costOf(d, o).id, 75)), true],
-      ['werk', work(960), true],
-      ['een ander venster', (d, o) => {
-        const a = on(d, o, t63(o), 109);
-        d.assignments = d.assignments.map(x => x === a ? { ...x, plannedWorkMinutes: 720 } : x);
-        return d;
-      }, false],
-      ['een andere taak', (d, o) => { const t = thirdOf(d, o); d.tasks = d.tasks.map(x => x === t ? { ...x, name: `${x.name} (proef)` } : x); return d; }, true],
-      ['een nieuwe resource elders', newResourceElsewhere, true],
-      ['de projectbeschrijving', d => { d.project.description = `${d.project.description} (proef regel 1)`; return d; }, true],
-    ];
-    for (const [label, edit, neighbour] of keeping) {
-      const o = await openForeign(F1);
-      const d = await edit(cloneDomain(o), o);
-      const pr = await outcomeOf(d, o.ifcSource!);
-      ok(`regel 1, ${label}: gedragen, elke markering op haar plek${neighbour ? ' en 480.0 ongemoeid' : ''} (${pr.verdict.slice(0, 200)} | ${pr.prepared ? jsonIn(pr.prepared.bytes, 'OPS_Timephased', 'Windows', TASK_GUID) : ''})`,
-        pr.verdict === 'schreef' && kept(pr.prepared!.bytes, neighbour));
-      if (!pr.prepared) continue;
-      const again = await outcomeOf(await work(1200)(structuredClone(d), o), pr.prepared.source);
-      ok(`regel 1, ${label}, daarna het venster met de markering wijzigen en nog eens opslaan: gedragen (${again.verdict.slice(0, 200)})`,
-        again.verdict === 'schreef' && kept(again.prepared!.bytes, neighbour)
-        && memberOf(jsonIn(again.prepared!.bytes, 'OPS_Timephased', 'Windows', TASK_GUID), [`${R110}#1`, 'plannedWorkMinutes']) === '1200');
-    }
-    {
-      const o = await openForeign(F1);
-      const d = await work(960)(await newResourceElsewhere(cloneDomain(o), o), o);
-      const pr = await outcomeOf(d, o.ifcSource!);
-      ok(`nieuwe resource (ronde 3, blokkade 2): een resource erbij op een andere taak en in dezelfde opslag het venster met de markering wijzigen: gedragen (${pr.verdict.slice(0, 200)})`,
-        pr.verdict === 'schreef' && kept(pr.prepared!.bytes));
-    }
-
-    const mixed = latin1(patchAt(F1text, marked63, marked63.replace(/\}$/, `,"${R110}#99":{"vendorOpaque":"ongebonden"}}`)));
-    {
-      const o = await openForeign(mixed);
-      const d = await swap(cloneDomain(o), o);
-      const pr = await outcomeOf(d, o.ifcSource!), main = await outcomeOf(d, mainRoute(o.ifcSource!));
-      ok(`gemengde kaart (ronde 3, vervolg): een gebonden venster en een venster met alleen onbekende sleutels, omwisselen: de weigering van main (${pr.verdict.slice(0, 160)} | main: ${main.verdict.slice(0, 160)})`,
-        pr.verdict === main.verdict && main.verdict !== 'schreef' && !main.verdict.startsWith('fout'));
-    }
-    {
-      const o = await openForeign(mixed);
-      const pr = await outcomeOf(await work(960)(cloneDomain(o), o), o.ifcSource!);
-      const a = pr.prepared && jsonIn(pr.prepared.bytes, 'OPS_Timephased', 'Windows', TASK_GUID);
-      ok(`gemengde kaart (ronde 3, vervolg): zonder omwisselen, het gebonden venster gewijzigd: gedragen, beide vensters met hun brontokens (${pr.verdict.slice(0, 160)} | ${a})`,
-        pr.verdict === 'schreef' && kept(pr.prepared!.bytes) && memberOf(a, [`${R110}#99`]) === '{"vendorOpaque":"ongebonden"}'
-        && memberOf(a, [`${R110}#1`, 'plannedWorkMinutes']) === '960');
-    }
-
+    const toggle: Step = (d, o) => storeEdit(d, st => { st.updateTask(t63(o), { notes: st.tasks.find(t => t.id === t63(o))!.notes!.map(n => ({ ...n, done: !n.done })) }); });
+    const moved: Step = (d, o) => storeEdit(d, st => { if (!st.moveAssignment(on(d, o, t63(o), 110).id, thirdOf(d, o).id)) throw new Error('verplaatsen'); });
+    const kept = (bytes: Uint8Array) => mapOf(bytes) === marked63 && noteOf(bytes)?.includes('"\\u0076endorN":48e1') === true;
     {
       const o = await openForeign(F1);
       const at = async (edit: Step) => { const d = await edit(cloneDomain(o), o); return { d, pr: await outcomeOf(d, o.ifcSource!), main: await outcomeOf(d, mainRoute(o.ifcSource!)) }; };
-      const moved = await at(changing[0][1]), swapped = await at(swap), worked = await at(work(960));
-      ok(`vaste reeks: vanaf dezelfde stand weigeren verplaatsen en omwisselen zoals main (${moved.pr.verdict.slice(0, 100)} | ${swapped.pr.verdict.slice(0, 100)})`,
-        moved.pr.verdict === moved.main.verdict && moved.main.verdict !== 'schreef' && swapped.pr.verdict === swapped.main.verdict && swapped.main.verdict !== 'schreef');
-      ok(`vaste reeks: vanaf dezelfde stand schrijft het werk naast 480.0, waar main weigert (${worked.pr.verdict.slice(0, 100)} | main: ${worked.main.verdict.slice(0, 100)})`,
-        worked.pr.verdict === 'schreef' && kept(worked.pr.prepared!.bytes) && /^niet-gedragen: .*Windows/.test(worked.main.verdict));
-      if (worked.pr.prepared) {
-        const first = worked.pr.prepared;
-        const second = await outcomeOf(worked.d, first.source);
+      const move = await at(moved), worked = await at(work(960)), toggled = await at(toggle);
+      ok(`vaste reeks: vanaf dezelfde stand weigeren verplaatsen en het werk in de vensterkaart zoals main (${move.pr.verdict.slice(0, 100)} | ${worked.pr.verdict.slice(0, 100)})`,
+        move.pr.verdict === move.main.verdict && move.main.verdict !== 'schreef' && worked.pr.verdict === worked.main.verdict && /^niet-gedragen: .*Windows/.test(worked.main.verdict));
+      ok(`vaste reeks: vanaf dezelfde stand schrijft de notitie afvinken, en houdt de vensterkaart byte-gelijk (${toggled.pr.verdict.slice(0, 100)} | main: ${toggled.main.verdict.slice(0, 100)})`,
+        toggled.pr.verdict === 'schreef' && mapOf(toggled.pr.prepared!.bytes) === marked63
+        && noteOf(toggled.pr.prepared!.bytes) === notes63.replace('"done":false}', '"done":true,"\\u0076endorN":48e1}'));
+      if (toggled.pr.prepared) {
+        const first = toggled.pr.prepared;
+        const second = await outcomeOf(toggled.d, first.source);
         ok('vaste reeks: twee keer opslaan geeft dezelfde bytes', second.verdict === 'schreef' && sameBytes(second.prepared!.bytes, first.bytes));
         const re = await openForeign(first.bytes);
-        ok('vaste reeks: na heropenen elke markering op haar plek, 480.0 en de nieuwe 960',
-          kept(first.bytes) && memberOf(jsonIn(first.bytes, 'OPS_Timephased', 'Windows', TASK_GUID), [`${R110}#1`, 'plannedWorkMinutes']) === '960'
-          && (re.ifcSource?.jsonExtras ?? []).some(e => (e.windows ?? []).some(w => w.key === `${R110}#1`)));
-        const later = await outcomeOf(await work(1200)(cloneDomain(re), re), re.ifcSource!);
-        ok(`vaste reeks: na heropenen het venster weer wijzigen: gedragen (${later.verdict.slice(0, 160)})`, later.verdict === 'schreef' && kept(later.prepared!.bytes));
+        ok('vaste reeks: na heropenen staan de vensterkaart en het onbekende lid van de notitie er byte-gelijk', mapOf(first.bytes) === marked63
+          && (re.ifcSource?.jsonExtras ?? []).length === 1);
+        const later = await outcomeOf(await toggle(cloneDomain(re), re), re.ifcSource!);
+        ok(`vaste reeks: na heropenen de notitie weer afvinken: gedragen (${later.verdict.slice(0, 160)})`, later.verdict === 'schreef' && kept(later.prepared!.bytes));
         if (later.prepared) {
           const disk = later.prepared.bytes;
           const handle = { kind: 'file', name: 'reeks.ifc', queryPermission: async () => 'granted', getFile: async () => new File([new Uint8Array(disk).buffer], 'reeks.ifc') };
-          const session = await work(1500)(cloneDomain(re), re);
+          const session = await toggle(cloneDomain(re), re);
           const doc: LoadedRecoveryDoc = {
             id: 'doc-reeks', ifc: writeIFC(session), filePath: null, isDirty: true, datesAsRecorded: false, mtime: null,
             ifcSource: { foreign: true, sha256: later.prepared.sha256, byteLength: disk.length, handle: handle as unknown as FileSystemFileHandle },
@@ -938,17 +841,13 @@ if (base) {
             const { fileHandle: _handle, ...withoutHandle } = recovered;
             const { store, buildWriteIFCInput } = await storeWith(withoutHandle as unknown as WriteIFCInput);
             const restored = buildWriteIFCInput(store.getState(), 'merge') as unknown as Domain;
-            for (const [label, edit] of [
-              ['alleen de projectbeschrijving', (d: Domain) => { d.project.description = `${d.project.description} (na herstel)`; return d; }],
-              ['het venster met de markering', (d: Domain) => {
-                const a = d.assignments.find(x => x.taskId === d.tasks.find(t => recovered.ifcSource!.stepIds[`task:${t.id}`] === 63)?.id
-                  && d.resources.find(r => r.id === x.resourceId && recovered.ifcSource!.stepIds[`res:${r.id}`] === 110));
-                if (!a) throw new Error('vaste reeks: na herstel geen toewijzing van #110 op #63');
-                d.assignments = d.assignments.map(x => x === a ? { ...x, plannedWorkMinutes: 1800 } : x);
-                return d;
-              }],
-            ] as const) {
-              const d = edit(structuredClone(restored));
+            const t = restored.tasks.find(x => recovered.ifcSource!.stepIds[`task:${x.id}`] === 63);
+            const a = restored.assignments.find(x => x.taskId === t?.id && restored.resources.find(r => r.id === x.resourceId && recovered.ifcSource!.stepIds[`res:${r.id}`] === 110));
+            if (!t || !a) throw new Error('vaste reeks: na herstel geen toewijzing van #110 op #63');
+            const desc = structuredClone(restored);
+            desc.project.description = `${desc.project.description} (na herstel)`;
+            const windowEdit = { ...structuredClone(restored), assignments: restored.assignments.map(x => x === a ? { ...x, plannedWorkMinutes: 1800 } : x) };
+            for (const [label, d] of [['alleen de projectbeschrijving', desc], ['het werk in de vensterkaart', windowEdit]] as const) {
               const pr = await outcomeOf(d, recovered.ifcSource), main = await outcomeOf(d, mainRoute(recovered.ifcSource));
               ok(`vaste reeks: na herstel, ${label}: de uitkomst van main (${pr.verdict.slice(0, 160)} | main: ${main.verdict.slice(0, 160)})`,
                 pr.verdict === main.verdict && !pr.verdict.startsWith('fout') && (pr.verdict !== 'schreef' || sameBytes(pr.prepared?.bytes, main.prepared?.bytes)));
@@ -963,24 +862,21 @@ if (base) {
     const DUPS = '"vDup":1,"vDup":2';
     const bl = jsonIn(grown.bytes, 'OPS_Baselines', 'Baselines')!;
     const rowTask = (JSON.parse(bl) as { tasks: { taskId: string }[] }[])[0].tasks[1].taskId;
-    const notes63 = jsonIn(grown.bytes, 'OPS_TaskNotes', 'Notes', TASK_GUID)!;
     const structure = jsonIn(grown.bytes, 'OPS_StructureMeta', 'structure')!;
     type Place = { label: string; pset: string; property: string; owner?: string; json: string; put: (json: string, x: string) => string; change: Step; inChanged: boolean };
     const places: readonly Place[] = [
       { label: 'een notitie', pset: 'OPS_TaskNotes', property: 'Notes', owner: TASK_GUID, json: notes63, put: (j, x) => j.replace('"done":false}', `"done":false,${x}}`),
-        change: (d, o) => storeEdit(d, st => { st.updateTask(t63(o), { notes: st.tasks.find(t => t.id === t63(o))!.notes!.map(n => ({ ...n, done: true })) }); }), inChanged: true },
-      { label: 'een venster', pset: 'OPS_Timephased', property: 'Windows', owner: TASK_GUID, json: w63, put: (j, x) => j.replace(`"${R110}#1":{`, `"${R110}#1":{${x},`),
-        change: work(960), inChanged: true },
+        change: toggle, inChanged: true },
       { label: 'een regel van een lijst', pset: 'OPS_Baselines', property: 'Baselines', json: bl, put: (j, x) => j.replace(`{"taskId":"${rowTask}",`, `{"taskId":"${rowTask}",${x},`),
-        change: d => { d.baselines = d.baselines!.map((b, k) => k === 0 ? { ...b, tasks: b.tasks.map(r => r.taskId === rowTask ? { ...r, duration: (r.duration ?? 0) + 60 } : r) } : b); return d; }, inChanged: true },
+        change: d => ({ ...d, baselines: d.baselines!.map((b, k) => k === 0 ? { ...b, tasks: b.tasks.map(r => r.taskId === rowTask ? { ...r, duration: (r.duration ?? 0) + 60 } : r) } : b) }), inChanged: true },
       { label: 'een genest onbekend object', pset: 'OPS_StructureMeta', property: 'structure', json: structure, put: (j, x) => j.replace(/\}$/, `,"vendorNest":{${x}}}`),
-        change: d => { d.activityCodeTypes = d.activityCodeTypes!.map(t => t.id === 'act-zone' ? { ...t, name: 'Zone (proef)' } : t); return d; }, inChanged: false },
+        change: d => ({ ...d, activityCodeTypes: d.activityCodeTypes!.map(t => t.id === 'act-zone' ? { ...t, name: 'Zone (proef)' } : t) }), inChanged: false },
     ];
     for (const place of places) {
       for (const [variant, x] of [['lastige sleutels en getallen', TRICKY], ['dubbele sleutels', DUPS]] as const) {
         const src = latin1(patchAt(g, place.json, place.put(place.json, x)));
         const propertyIn = (bytes: Uint8Array) => jsonIn(bytes, place.pset, place.property, place.owner);
-        const label = `lastige leden (ronde 3, blokkade 1), ${variant} in ${place.label}`;
+        const label = `lastige leden, ${variant} in ${place.label}`;
         ok(`${label}: de proefbewerking zette ze erin`, propertyIn(src)?.includes(x) === true);
         const o = await openForeign(src);
         const unchanged = await outcomeOf(cloneDomain(o), o.ifcSource!), mainUnchanged = await outcomeOf(cloneDomain(o), mainRoute(o.ifcSource!));
@@ -1006,6 +902,22 @@ if (base) {
       }
     }
   }
+}
+
+{
+  const recording = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/json-sleutels-main.json'), 'utf8')) as { commit: string; cases: MainCase[] };
+  const raw = read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc');
+  const pr = await windowCases(raw, reseed), fast = await windowCases(raw, reseed, mainRoute);
+  ok(`vensterkaart: even veel gevallen als de opname van main op ${recording.commit.slice(0, 9)} (${pr.length}, ${recording.cases.length})`,
+    pr.length === recording.cases.length && pr.length > 30);
+  pr.forEach((p, k) => {
+    const r = recording.cases[k], f = fast[k];
+    ok(`${p.label}: de uitkomst van main op ${recording.commit.slice(0, 9)}, bron en uitvoer gelijk (${p.verdict.slice(0, 140)} | main: ${r?.verdict.slice(0, 140)})`,
+      !!r && r.label === p.label && r.input === p.input && r.verdict === p.verdict && r.output === p.output);
+    ok(`${p.label}: gelijk aan dezelfde merge zonder JSON-index`, f.verdict === p.verdict && f.output === p.output);
+    if (p.mapEdit === true) ok(`${p.label}: de vensterkaart verandert, dus opslaan weigert (${p.verdict.slice(0, 120)})`, /^niet-gedragen: .*Windows/.test(p.verdict));
+    if (p.mapEdit === false) ok(`${p.label}: de vensterkaart verandert niet, opslaan slaagt en de kaart is byte-gelijk`, p.verdict === 'schreef' && p.mapUnchanged === true);
+  });
 }
 
 if (base) {

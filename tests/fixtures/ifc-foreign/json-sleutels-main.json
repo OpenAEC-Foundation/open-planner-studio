@@ -1,0 +1,252 @@
+{
+ "commit": "f41c21bb4182c4bc0934f6491ed05fc609246c35",
+ "cases": [
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster onder een toewijzing: een nieuwe toewijzing van dezelfde resource",
+   "input": "31eebaeaafdefe2941f58f7f916694127458ca51a02675f037eb2cb7e1c3048c",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster onder een toewijzing: een nieuwe toewijzing van een andere resource",
+   "input": "31eebaeaafdefe2941f58f7f916694127458ca51a02675f037eb2cb7e1c3048c",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster onder een toewijzing: kosten",
+   "input": "31eebaeaafdefe2941f58f7f916694127458ca51a02675f037eb2cb7e1c3048c",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster onder een toewijzing: werk",
+   "input": "31eebaeaafdefe2941f58f7f916694127458ca51a02675f037eb2cb7e1c3048c",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster onder een toewijzing: verplaatsen",
+   "input": "31eebaeaafdefe2941f58f7f916694127458ca51a02675f037eb2cb7e1c3048c",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster onder een toewijzing: omwisselen via een derde taak",
+   "input": "31eebaeaafdefe2941f58f7f916694127458ca51a02675f037eb2cb7e1c3048c",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster onder een toewijzing: wissen en opnieuw maken",
+   "input": "31eebaeaafdefe2941f58f7f916694127458ca51a02675f037eb2cb7e1c3048c",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster onder een toewijzing: van resource wisselen",
+   "input": "31eebaeaafdefe2941f58f7f916694127458ca51a02675f037eb2cb7e1c3048c",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster onder een toewijzing: een andere taak",
+   "input": "31eebaeaafdefe2941f58f7f916694127458ca51a02675f037eb2cb7e1c3048c",
+   "verdict": "schreef",
+   "mapEdit": false,
+   "output": "484017a404415c06ad7e532630ea075abcabb57bdf588def36efeb2ae4896fe1",
+   "mapUnchanged": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster onder een toewijzing: de projectbeschrijving",
+   "input": "31eebaeaafdefe2941f58f7f916694127458ca51a02675f037eb2cb7e1c3048c",
+   "verdict": "schreef",
+   "mapEdit": false,
+   "output": "df31f4fb7c5197241bdaba4b9f34e7196419f00257e237feb3f0c000c5c49952",
+   "mapUnchanged": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster onder een toewijzing: een notitie",
+   "input": "31eebaeaafdefe2941f58f7f916694127458ca51a02675f037eb2cb7e1c3048c",
+   "verdict": "schreef",
+   "mapEdit": false,
+   "output": "0f68a65a38381f81b9f8d98e9c8a5baa4b2cf15ba33a7b5a5ac99ed5c0af121b",
+   "mapUnchanged": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster zonder toewijzing: een nieuwe toewijzing van dezelfde resource",
+   "input": "34c4f21ce420d98512ba114715c55f6af9d2ca4e162c1f6eb94019707a419235",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster zonder toewijzing: een nieuwe toewijzing van een andere resource",
+   "input": "34c4f21ce420d98512ba114715c55f6af9d2ca4e162c1f6eb94019707a419235",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster zonder toewijzing: kosten",
+   "input": "34c4f21ce420d98512ba114715c55f6af9d2ca4e162c1f6eb94019707a419235",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster zonder toewijzing: werk",
+   "input": "34c4f21ce420d98512ba114715c55f6af9d2ca4e162c1f6eb94019707a419235",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster zonder toewijzing: verplaatsen",
+   "input": "34c4f21ce420d98512ba114715c55f6af9d2ca4e162c1f6eb94019707a419235",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster zonder toewijzing: omwisselen via een derde taak",
+   "input": "34c4f21ce420d98512ba114715c55f6af9d2ca4e162c1f6eb94019707a419235",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster zonder toewijzing: wissen en opnieuw maken",
+   "input": "34c4f21ce420d98512ba114715c55f6af9d2ca4e162c1f6eb94019707a419235",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster zonder toewijzing: van resource wisselen",
+   "input": "34c4f21ce420d98512ba114715c55f6af9d2ca4e162c1f6eb94019707a419235",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster zonder toewijzing: een andere taak",
+   "input": "34c4f21ce420d98512ba114715c55f6af9d2ca4e162c1f6eb94019707a419235",
+   "verdict": "schreef",
+   "mapEdit": false,
+   "output": "8e50c37eaa0ac3feedda0ea4af2bc18d6eebf100aa4846e440caa97a1c376224",
+   "mapUnchanged": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster zonder toewijzing: de projectbeschrijving",
+   "input": "34c4f21ce420d98512ba114715c55f6af9d2ca4e162c1f6eb94019707a419235",
+   "verdict": "schreef",
+   "mapEdit": false,
+   "output": "9465e185f7ee6c230e06ac68228ecfcc909c545e5148b34085fd363913a4a9e8",
+   "mapUnchanged": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel in een venster zonder toewijzing: een notitie",
+   "input": "34c4f21ce420d98512ba114715c55f6af9d2ca4e162c1f6eb94019707a419235",
+   "verdict": "schreef",
+   "mapEdit": false,
+   "output": "a4df93c0935f8f35be28a26658fa4becadd4c09097f960f9c1a7b10b313db564",
+   "mapUnchanged": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel als hoofdlid: een nieuwe toewijzing van dezelfde resource",
+   "input": "dc0224281a7cd5293027934aa7542f64acff99db1eec0ee4c046a2fc18842d3d",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"vendorMapNote\":\"m\",\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"p → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel als hoofdlid: een nieuwe toewijzing van een andere resource",
+   "input": "dc0224281a7cd5293027934aa7542f64acff99db1eec0ee4c046a2fc18842d3d",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"vendorMapNote\":\"m\",\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"p → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel als hoofdlid: kosten",
+   "input": "dc0224281a7cd5293027934aa7542f64acff99db1eec0ee4c046a2fc18842d3d",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"vendorMapNote\":\"m\",\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"p → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel als hoofdlid: werk",
+   "input": "dc0224281a7cd5293027934aa7542f64acff99db1eec0ee4c046a2fc18842d3d",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"vendorMapNote\":\"m\",\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"p → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel als hoofdlid: verplaatsen",
+   "input": "dc0224281a7cd5293027934aa7542f64acff99db1eec0ee4c046a2fc18842d3d",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"vendorMapNote\":\"m\",\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"p → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel als hoofdlid: omwisselen via een derde taak",
+   "input": "dc0224281a7cd5293027934aa7542f64acff99db1eec0ee4c046a2fc18842d3d",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"vendorMapNote\":\"m\",\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"p → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel als hoofdlid: wissen en opnieuw maken",
+   "input": "dc0224281a7cd5293027934aa7542f64acff99db1eec0ee4c046a2fc18842d3d",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"vendorMapNote\":\"m\",\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"p → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel als hoofdlid: van resource wisselen",
+   "input": "dc0224281a7cd5293027934aa7542f64acff99db1eec0ee4c046a2fc18842d3d",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"vendorMapNote\":\"m\",\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"p → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4",
+   "mapEdit": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel als hoofdlid: een andere taak",
+   "input": "dc0224281a7cd5293027934aa7542f64acff99db1eec0ee4c046a2fc18842d3d",
+   "verdict": "schreef",
+   "mapEdit": false,
+   "output": "5ba73cf7109199014e408c1e55000d52d975b0280939c764448ee30cf8d10571",
+   "mapUnchanged": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel als hoofdlid: de projectbeschrijving",
+   "input": "dc0224281a7cd5293027934aa7542f64acff99db1eec0ee4c046a2fc18842d3d",
+   "verdict": "schreef",
+   "mapEdit": false,
+   "output": "3133de1733008998933863b8227ad09b22cd698bcd5d4eeda9941378fadba7e6",
+   "mapUnchanged": true
+  },
+  {
+   "label": "vensterkaart, onbekende sleutel als hoofdlid: een notitie",
+   "input": "dc0224281a7cd5293027934aa7542f64acff99db1eec0ee4c046a2fc18842d3d",
+   "verdict": "schreef",
+   "mapEdit": false,
+   "output": "45c61197b828c1b86dd59fd4d30cd96aec2ca08368c54fde4e04e6ff3765f00a",
+   "mapUnchanged": true
+  },
+  {
+   "label": "ronde 4, blokkade 1: B#0 zonder toewijzing, dan B toewijzen met 480 minuten",
+   "input": "aef6381fb7b91eee03245df56afb4616f4c206f36ff2268e601da2b0fe16d9e4",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"vendorMapNote\":\"m\",\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"p → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4"
+  },
+  {
+   "label": "ronde 4, blokkade 2: B#99 als enige onbekende lid, ongewijzigd",
+   "input": "a2bd0409b78876576b5ba8a628d661885791ed4fa83083ff4a9e6462ccd63702",
+   "verdict": "schreef",
+   "output": "cff9ce11ea0429f6705572038f62bca68925f716f9920b4115741319332565cd",
+   "mapUnchanged": true
+  },
+  {
+   "label": "ronde 4, blokkade 2: B#99 als enige onbekende lid, het werk van A gewijzigd",
+   "input": "a2bd0409b78876576b5ba8a628d661885791ed4fa83083ff4a9e6462ccd63702",
+   "verdict": "niet-gedragen: IFCPROPERTYSINGLEVALUE #700 (Windows), argument 2 na de bewerking: IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4 → IFCTEXT('{\"3LKE2mEiGfOR4VMIq3h_xv#0\":{\"plannedWorkMinutes\":4"
+  },
+  {
+   "label": "ronde 4, vervolg: de kostentoewijzing wissen en gelijk opnieuw maken, en de projectbeschrijving",
+   "input": "182bad13a400297c707322247effbdd6700d269eebfbcc9083b4da7aba30bc26",
+   "verdict": "schreef",
+   "output": "2fa41b8c3d734f86d8d9a36fb1f99324a230ed107c310ed1215b8a419dfab7a3",
+   "mapUnchanged": true
+  },
+  {
+   "label": "ronde 4, vervolg: daarna een tweede gewijzigde opslag zonder heropenen",
+   "input": "2fa41b8c3d734f86d8d9a36fb1f99324a230ed107c310ed1215b8a419dfab7a3",
+   "verdict": "schreef",
+   "output": "2d154a6c452ee9c2d5be1529de0e46d62943f9a439cec1a319a83db02a0b12fc",
+   "mapUnchanged": true
+  }
+ ]
+}
