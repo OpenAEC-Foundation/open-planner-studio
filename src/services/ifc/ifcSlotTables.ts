@@ -19,6 +19,7 @@ export interface IfcSlotTable {
   positions(args: readonly string[]): SlotPositions<string>;
   readonly appliesTo?: (args: readonly string[]) => boolean;
   readonly legacyArity?: number;
+  readonly domainOf?: (entity: string) => string | undefined;
 }
 
 export const IFC_SLOT_TABLES: readonly IfcSlotTable[] = [
@@ -42,7 +43,7 @@ export const IFC_SLOT_TABLES: readonly IfcSlotTable[] = [
   },
   {
     naam: 'resources', entities: Object.keys(IFC_TO_RESOURCE_TYPE), slots: IFC_RESOURCE_SLOTS, positions: resourceSlots,
-    legacyArity: LEGACY_OPS_RESOURCE_ARITY,
+    legacyArity: LEGACY_OPS_RESOURCE_ARITY, domainOf: entity => IFC_TO_RESOURCE_TYPE[entity],
   },
   { naam: 'IfcRelSequence', entities: ['IFCRELSEQUENCE'], slots: IFC_SEQUENCE_SLOTS, positions: () => SEQUENCE_SLOT },
   { naam: 'IfcLagTime', entities: ['IFCLAGTIME'], slots: IFC_LAG_TIME_SLOTS, positions: lagTimeSlots },
@@ -107,4 +108,29 @@ export function schemaArgsOf(table: IfcSlotTable, args: readonly string[]): numb
 
 export function inSchemaLayout(table: IfcSlotTable, args: readonly string[]): boolean {
   return args.length === table.slots.length && inSchemaPlaces(table, table.positions(args));
+}
+
+export function sameDomainEntity(table: IfcSlotTable, a: string, b: string): boolean {
+  return a === b || (table.domainOf !== undefined && table.domainOf(a) !== undefined && table.domainOf(a) === table.domainOf(b));
+}
+
+export interface RelationRoles {
+  readonly relating: number;
+  readonly related: number;
+  readonly members: boolean;
+}
+
+const ROLES_BY_ENTITY: ReadonlyMap<string, RelationRoles> = (() => {
+  const roles = new Map<string, RelationRoles>();
+  for (const table of IFC_SLOT_TABLES) {
+    const relating = table.slots.findIndex(slot => slot.rol === 'relating');
+    const related = table.slots.findIndex(slot => slot.rol === 'lid' || slot.rol === 'leden');
+    if (relating < 0 || related < 0) continue;
+    for (const entity of table.entities) roles.set(entity, { relating, related, members: table.slots[related].rol === 'leden' });
+  }
+  return roles;
+})();
+
+export function relationRoles(entity: string): RelationRoles | undefined {
+  return ROLES_BY_ENTITY.get(entity);
 }

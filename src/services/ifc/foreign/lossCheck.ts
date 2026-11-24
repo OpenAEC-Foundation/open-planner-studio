@@ -99,7 +99,7 @@ import { PER_TASK_PSET_BY_NAME, PROP, PSET, asciiJson, ifcJson } from '../ifcPse
 import { WORK_CALENDAR_ARITY, workCalendarSlots, workControlSlots } from '../ifcWorkControlSlots';
 import { lagValueSlot } from '../ifcLagTimeSlots';
 import { LAG_TIME_SLOT } from '../ifcSequenceSlots';
-import { knownLayout, schemaArgsOf, slotTableOf } from '../ifcSlotTables';
+import { knownLayout, relationRoles, schemaArgsOf, slotTableOf } from '../ifcSlotTables';
 import { decodeStepText, stepTextIsValid } from '../stepText';
 import { hasOwnOrigin, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { durationForm, type DurationSlot } from './durationForms';
@@ -278,24 +278,11 @@ const NAME_ONLY: ReadonlySet<string> = new Set(['IFCPROPERTYSINGLEVALUE', 'IFCPR
  *  ook als de writer de blokken anders ordent (de vergelijking ziet dan de andere volgorde). */
 const CONTENT_PAIR: ReadonlySet<string> = new Set(['IFCTIMEPERIOD']);
 
-/**
- * Per relatietype de slots van de relating en van de leden (RelatedObjects; bij `IfcRelDefinesByProperties` zijn de
- * eigenaren de leden en is de pset de relating). Eén tabel voor het paren (`relKeySource`), de structuur (`structural`) en
- * de uitleg in O1 (fixronde 5, VERVOLG van Sol). `members`: welke leden erin staan, volgt uit het domeinobject van de
- * relating (`explainMembers`, `explainRelation`). Een `IfcRelSequence` is zelf een domeinobject (`seq:`): beide slots volgen
- * uit zijn velden (`SEQ_SLOT_FIELDS`).
- */
-const RELATION_SLOTS: Readonly<Record<string, { readonly relating: number; readonly related: number; readonly members: boolean }>> = {
-  IFCRELNESTS: { relating: 4, related: 5, members: true },
-  IFCRELAGGREGATES: { relating: 4, related: 5, members: true },
-  IFCRELDECLARES: { relating: 4, related: 5, members: true },
-  IFCRELASSIGNSTOCONTROL: { relating: 6, related: 4, members: true },
-  IFCRELASSIGNSTOPROCESS: { relating: 6, related: 4, members: true },
-  IFCRELDEFINESBYPROPERTIES: { relating: 5, related: 4, members: true },
-  IFCRELSEQUENCE: { relating: 4, related: 5, members: false },
-};
 /** De relatie met leden die uit het domein van haar relating volgen, of `undefined`. */
-const memberRelation = (type: string) => (RELATION_SLOTS[type]?.members ? RELATION_SLOTS[type] : undefined);
+const memberRelation = (type: string) => {
+  const roles = relationRoles(type);
+  return roles?.members ? roles : undefined;
+};
 
 const LINE = /^#(\d+)=([A-Z0-9_]+)\(([\s\S]*)\);$/;
 
@@ -565,7 +552,7 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
       if (pset < 0 || owners.some(o => o === undefined)) return undefined;
       return `${t}|${index.type(pset)}|${index.name(pset) ?? ''}|${(owners as number[]).sort((x, y) => x - y).join(',')}`;
     }
-    const pos = RELATION_SLOTS[t]?.relating;
+    const pos = relationRoles(t)?.relating;
     if (pos === undefined) return undefined;
     const relating = outIdOf(index.refAt(r, pos));
     return relating === undefined ? undefined : `${t}|${relating}`;
@@ -578,7 +565,7 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
       const name = pset.type === 'IFCPROPERTYSET' ? outDecode(pset.args[2]) : '';
       return `${line.type}|${pset.type}|${name}|${owners.join(',')}`;
     }
-    const pos = RELATION_SLOTS[line.type]?.relating;
+    const pos = relationRoles(line.type)?.relating;
     return pos === undefined ? undefined : `${line.type}|${refOf(line.args[pos])}`;
   };
   const outRels = new Map<string, number[]>();
@@ -1151,7 +1138,7 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
 function structural(type: string, outArg: number, line: OutLine): boolean {
   if (isRootLine(line) && (outArg === 0 || outArg === 1)) return true;
   if (type === 'IFCPROPERTYSET' && outArg === 4) return true;
-  const rel = RELATION_SLOTS[type];
+  const rel = relationRoles(type);
   if (type.startsWith('IFCREL')) return rel ? outArg === rel.relating || outArg === rel.related : outArg >= 4;
   return false;
 }

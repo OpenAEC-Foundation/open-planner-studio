@@ -42,6 +42,7 @@ import { ifcGuid, ifcObjectSeed, writeIFCWithChoices, writeIfcMergeLines, type S
 import { ACTIVITY_CODE_ID_SUFFIX, PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { workCalendarSlots } from '../ifcWorkControlSlots';
+import { relationRoles } from '../ifcSlotTables';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
 import { assumedRowGuid, orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged, withOrphanRowGuids } from './sourceForm';
@@ -174,13 +175,8 @@ const PROCESS = 'IFCRELASSIGNSTOPROCESS';
 const DEFINES = 'IFCRELDEFINESBYPROPERTIES';
 
 /** Argumentposities van relating en related per structureel relatietype. */
-const REL_ARGS: Readonly<Record<string, { relating: number; related: number }>> = {
-  [NESTS]: { relating: 4, related: 5 },
-  [AGGREGATES]: { relating: 4, related: 5 },
-  [DECLARES]: { relating: 4, related: 5 },
-  [CONTROL]: { relating: 6, related: 4 },
-  [PROCESS]: { relating: 6, related: 4 },
-};
+const MIXED_RELATIONS: ReadonlySet<string> = new Set([NESTS, AGGREGATES, DECLARES, CONTROL, PROCESS]);
+const relArgs = (type: string) => (MIXED_RELATIONS.has(type) ? relationRoles(type) : undefined);
 /** Typen waarvan het lid maar in één relatie mag staan (inverse SET [0:1]): `Nests`, `Decomposes`, `HasContext`. */
 const SINGLE_MEMBERSHIP: ReadonlySet<string> = new Set([NESTS, AGGREGATES, DECLARES]);
 
@@ -479,7 +475,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     for (let r = 0; r < n; r++) {
       if (!index.isEntity(r) || isP(r)) continue;
       const type = index.type(r);
-      const pos = REL_ARGS[type];
+      const pos = relArgs(type);
       if (!pos) continue;
       const relating = index.refAt(r, pos.relating);
       const members = index.refsAt(r, pos.related).filter(x => x >= 0 && inD[x]);
@@ -580,7 +576,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     }
 
     for (const line of lines) {
-      const pos = REL_ARGS[line.type];
+      const pos = relArgs(line.type);
       if (!pos) continue;
       const relating = refOf(line.args[pos.relating]);
       const before = refList(line.args[pos.related]);

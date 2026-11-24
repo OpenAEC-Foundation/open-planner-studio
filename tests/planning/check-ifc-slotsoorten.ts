@@ -1,7 +1,9 @@
 import { IFC_TO_RESOURCE_TYPE } from '@/services/ifc/ifcConstants';
 import { lagValueSlot } from '@/services/ifc/ifcLagTimeSlots';
 import { ABSENT_SLOT, SLOT_SOORTEN, type SlotSoort } from '@/services/ifc/ifcSlotSoort';
-import { IFC_SLOT_TABLES, inSchemaLayout, knownLayout, schemaArgsOf, slotTableOf, type IfcSlotTable } from '@/services/ifc/ifcSlotTables';
+import {
+  IFC_SLOT_TABLES, inSchemaLayout, knownLayout, relationRoles, sameDomainEntity, schemaArgsOf, slotTableOf, type IfcSlotTable,
+} from '@/services/ifc/ifcSlotTables';
 import { isBaselineWorkControl } from '@/services/ifc/ifcWorkControlSlots';
 import { IFC_SCHEMA_TABLES, type IfcSchemaTable } from './ifcSchemaTable';
 
@@ -103,6 +105,48 @@ for (const [schemaId, schema] of Object.entries(IFC_SCHEMA_TABLES)) {
         if (slot.bronverwijzing) constantReferenceSlots.add(`${table.naam}.${slot.key}`);
       });
     }
+  }
+}
+const RELATION_ROLES_BEFORE_REGISTER: Record<string, { relating: number; related: number; members: boolean }> = {
+  IFCRELNESTS: { relating: 4, related: 5, members: true },
+  IFCRELAGGREGATES: { relating: 4, related: 5, members: true },
+  IFCRELDECLARES: { relating: 4, related: 5, members: true },
+  IFCRELASSIGNSTOCONTROL: { relating: 6, related: 4, members: true },
+  IFCRELASSIGNSTOPROCESS: { relating: 6, related: 4, members: true },
+  IFCRELDEFINESBYPROPERTIES: { relating: 5, related: 4, members: true },
+  IFCRELSEQUENCE: { relating: 4, related: 5, members: false },
+};
+for (const [schemaId, schema] of Object.entries(IFC_SCHEMA_TABLES)) {
+  for (const table of IFC_SLOT_TABLES) {
+    const marked = table.slots.filter(slot => slot.rol !== undefined);
+    for (const type of table.entities) {
+      const roles = relationRoles(type);
+      if (!type.startsWith('IFCREL')) {
+        ok(`${table.naam}: geen relatierollen buiten een relatie`, roles === undefined && marked.length === 0);
+        continue;
+      }
+      const attributes = schema.attributes[type];
+      ok(`${schemaId} ${type}: precies één relating en één related`,
+        roles !== undefined && marked.length === 2 && marked.filter(slot => slot.rol === 'relating').length === 1);
+      if (!roles || !attributes) continue;
+      const [relating, related] = [attributes[roles.relating], attributes[roles.related]];
+      ok(`${schemaId} ${type}: de relating is het Relating-attribuut van het schema`, relating.startsWith('Relating'));
+      ok(`${schemaId} ${type}: de related is het Related-attribuut van het schema`, related.startsWith('Related'));
+      eq(`${schemaId} ${type}: leden precies als het schema daar een verzameling heeft`,
+        roles.members, /^(SET|LIST)\d/.test(related.slice(related.indexOf(':') + 1)));
+    }
+  }
+}
+for (const [type, want] of Object.entries(RELATION_ROLES_BEFORE_REGISTER)) {
+  eq(`${type}: dezelfde relatieposities als de tabellen vóór het register`, relationRoles(type), want);
+}
+const resources = tableNamed('resources');
+ok('resources: product en materieel zijn één domeintype (de lezer leest beide als materieel)',
+  sameDomainEntity(resources, 'IFCCONSTRUCTIONPRODUCTRESOURCE', 'IFCCONSTRUCTIONEQUIPMENTRESOURCE'));
+for (const entity of resources.entities) {
+  for (const other of resources.entities) {
+    eq(`resources: ${entity} en ${other} delen een domeintype precies als de lezer ze hetzelfde type geeft`,
+      sameDomainEntity(resources, entity, other), IFC_TO_RESOURCE_TYPE[entity] === IFC_TO_RESOURCE_TYPE[other]);
   }
 }
 for (const name of DESIGN_CONSTANT_REFERENCE_SLOTS) {
