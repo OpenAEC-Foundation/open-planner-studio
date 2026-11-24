@@ -210,10 +210,10 @@ anders niet (`IfcRelSequence` is D, stap 1):
       `taskId` (`src/types/baseline.ts`); codetypen, codewaarden en eigen velden aan `id` (`src/types/structure.ts`);
     - een object onder een sleutel uit de data: aan het domeinobject achter die sleutel. In `Windows` van
       `OPS_Timephased` is de sleutel `<resource-GlobalId>#<index>`, en de index volgt de lijst van toewijzingen
-      (`ifcWriter.ts:1935`). Bij openen legt de app per sleutel vast welke toewijzing de lezer eraan koppelde. De
-      onbekende sleutels blijven onder dezelfde taak en dezelfde sleutel, als de writer daar nu dezelfde toewijzing
-      schrijft. Verplaatst, omgewisseld, gewist of met een andere sleutel (een andere resource, een toewijzing ervoor
-      erbij of weg) weigert opslaan zoals main; ze schuiven bewust niet mee (knownbug 2218);
+      (`ifcWriter.ts:1935`). De lezer koppelt de vensters per resource op volgorde aan de toewijzingen, dus een venster
+      heeft geen eigen identiteit. Zo'n eigenschap (ook `Splits`, de contouren en `DurationWalks`) draagt geen onbekende
+      leden over een wijziging heen: ongewijzigd blijft ze byte-gelijk, gewijzigd weigert opslaan zoals main (besluit van
+      de technisch eigenaar, 24 november 2026; knownbug 2218). Bewaren vraagt eerst het herkomstmerk hieronder;
     - een item in een lijst zonder sleutelveld (bijvoorbeeld `Splits` in `OPS_TaskSplits`, `ifcPsets.ts:556-580`, of de
       periodes van een contour), en een item waarvan het sleutelveld in de bron twee keer voorkomt: aan een
       **herkomstmerk** (Sol en Terra, review #839, ronde 3: gelijke waarden zijn geen identiteit; een duurwijziging
