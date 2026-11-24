@@ -1716,7 +1716,7 @@ test('export_ifc in de app met een gebouwmodel over een bestaande naam: alleen m
     const inTab = await exportRpc(second, true, makeCtx());
     assert(!inTab.ok && inTab.code === 'VALIDATION' && inTab.error.includes('another open document'), 'het bestand van een ander tabblad blijft geweigerd');
     assertEq(hash(new Uint8Array(readFileSync(second))), hash(plain), 'het bestand van het andere tabblad bytegelijk');
-    assertEq([helpers(), records()], [[], []]);
+    assertEq([helpers(), records()], [[], []], 'na alles geen hulpbestand en geen herstelrecord');
   } finally {
     ipc.faults.beforeOpen = null; ipc.dispose(); fileToolDeps.getFs = previousGetFs;
     useAppStore.setState(s => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument();
