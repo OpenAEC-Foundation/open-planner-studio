@@ -121,6 +121,7 @@ const MODEL_KEYS = [SAVE_BLOCKED, SOURCE_MISSING, TARGET_SAVE, TARGET_EXPORT, TA
 
 /** Een nep-FSA-handle met echte `isSameEntry` (zelfde object), `getFile` en `createWritable`. Functies erin: een
  *  `structuredClone` van iets wat de handle bevat, faalt (zo bewijst de test dat hij niet in Worker of manifest komt). */
+class FileHandleLike {}
 function fakeHandle(name: string, initial: Uint8Array, opts: { streamChunk?: number } = {}) {
   let data = initial;
   let streamed = 0;
@@ -161,6 +162,7 @@ function fakeHandle(name: string, initial: Uint8Array, opts: { streamChunk?: num
     queryPermission: async () => { permissionQueries++; return 'granted' as const; },
     requestPermission: async () => 'granted' as const,
   };
+  Object.setPrototypeOf(handle, FileHandleLike.prototype);
   return {
     handle: handle as unknown as FileSystemFileHandle, writes, writables: () => writables, text: () => dec(data),
     /** Een ander programma vervangt het bestand. */
