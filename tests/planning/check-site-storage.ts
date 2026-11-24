@@ -893,6 +893,32 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
       shown, S().documents.some((d) => d.id === tabY), S().siteFileId, S().siteFileVersion === latest, changedOnDiskShown(S()),
     ], [[true, true], false, 'y', true, false]);
   }
+  for (const work of [false, true]) {
+    const endState = () => JSON.stringify([
+      S().getOpenDocumentPayloads().filter((d) => d.payload.siteFileId === 'y')
+        .map((d) => [d.payload.siteFileVersion === site.latest(site.files.get('y')!).version, d.payload.isDirty, d.payload.tasks.map((t) => t.name)]),
+      changedOnDiskShown(S()), S().siteFileId,
+    ]);
+    const route = async (knop: boolean) => {
+      const tabY = S().getOpenDocumentPayloads().find((d) => d.payload.siteFileId === 'y')!.id;
+      S().switchDocument(tabB);
+      site.otherUserSaves('y');
+      await S().openFromSite('y');
+      if (work) S().addTask({ name: 'Werk op de site' });
+      if (knop) await S().loadNewVersion();
+      else S().requestCloseDocument(tabY);
+      if (S().ui.pendingCloseDocId === tabY) {
+        if (knop) await S().loadNewVersionAfterDiscard();
+        else await S().closeDocumentAfterSaves(tabY);
+        S().setUI({ pendingCloseDocId: null });
+      }
+      if (!knop) await S().openFromSite('y');
+      return endState();
+    };
+    const knop = await route(true);
+    const kruisje = await route(false);
+    eq(`G22 (#1201) de knop op de site eindigt als kruisje, dan Recent (${work ? 'met' : 'zonder'} niet-opgeslagen werk)`, knop, kruisje);
+  }
   setSiteOpenAsker(async () => ({ kind: 'site', id: 'y', version: 'v1', copyName: 'Eén (versie v1)' }));
   const countCopy = S().documents.length;
   await S().openFile();
