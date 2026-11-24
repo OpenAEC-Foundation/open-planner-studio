@@ -97,10 +97,10 @@ import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerEx
 import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementSettled } from '@/services/fileAccess/writeCoordinator';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
-  changeSaving, clearChangedOnDisk, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
+  changeSaving, clearChangedOnDisk, documentContentOf, hasChangedOnDisk, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
   sameDocumentContent, stampSaved, type DocumentContentRef,
 } from '../documentSaveState';
-import { saveQuestionOpen } from '@/state/blockingDialogs';
+import { isBlockingDialogOpen, saveQuestionOpen } from '@/state/blockingDialogs';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { tightAnchorsIfSaved } from '../dependentCandidates';
 import { askDependentAnchors } from '../dependentAnchorQuestion';
@@ -417,6 +417,9 @@ export interface FileSlice {
   openFromSite: (id: string, labels?: ImportLabels) => Promise<boolean>;
   markChangedOnDisk: (documentId: string) => void;
   forgetChangedOnDisk: (documentId: string) => void;
+  loadNewVersion: (labels?: ImportLabels) => Promise<void>;
+  loadNewVersionAfterDiscard: () => Promise<boolean>;
+  dropNewVersion: () => void;
   parseExternalSource: (filePath: string, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
   externalSourceVersion: (filePath: string) => Promise<string | undefined>;
   checkExternalSources: (labels?: ImportLabels) => Promise<void>;
@@ -1086,6 +1089,73 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return null;
     }
     return { name, content: content ?? '', ...(bytes ? { bytes } : {}), ref };
+  };
+
+  interface PreparedNewVersion {
+    readonly documentId: string;
+    readonly ref: FileRef;
+    readonly name: string;
+    readonly content: string;
+    readonly parsed: OpenedImport;
+    readonly siteFileVersion: string | null;
+  }
+  let preparedNewVersion: PreparedNewVersion | null = null;
+  let newVersionReading = false;
+
+  const waitForSavesBeforeNewVersion = async () => {
+    for (let saving = get().waitForSavesBeforeClose(); saving; saving = get().waitForSavesBeforeClose()) await saving;
+  };
+
+  const newVersionStillApplies = (documentId: string, ref: FileRef): boolean => {
+    const s = get();
+    const fields = s.activeDocumentId === documentId ? s : s.documents.find((d) => d.id === documentId)?.payload;
+    const now = fields ? saveTargetRef(fields) : null;
+    return ifcForeignContentEnabled(s.ui.featureFlags) && hasChangedOnDisk(s, documentId) && !!now && sameFileRef(now, ref);
+  };
+
+  const readNewVersion = async (ref: FileRef, labels?: ImportLabels): Promise<Omit<PreparedNewVersion, 'documentId' | 'ref'> | null> => {
+    let opened: OpenedFile;
+    let siteFileVersion: string | null = null;
+    try {
+      if (ref.kind === 'site') {
+        const site = await openSiteFile(ref.id, { binaryExtensions: binaryExtensions(formatReadOptions()) });
+        if (site.readOnly || !site.ref || !readFormatForFile(site.name).canBeSaveTarget) {
+          get().notify(site.readOnly
+            ? { severity: 'info', sticky: true, messageKey: 'notifications.siteFileReadOnly', params: { name: site.name } }
+            : { severity: 'error', messageKey: 'notifications.openFailed', detail: site.name });
+          return null;
+        }
+        opened = site;
+        siteFileVersion = site.version;
+      } else {
+        const read = await readLocalRef(ref, ref.kind === 'handle' ? ref.handle.name : basename(ref.path), formatReadOptions());
+        if (!read) return null;
+        opened = read;
+      }
+    } catch (err) {
+      console.error('Failed to open file:', err);
+      if (ref.kind === 'site') get().notify(importFailureNotice(err, siteErrorMessage(err)));
+      else for (const notice of openFailureNotices(err)) get().notify(notice);
+      return null;
+    }
+    try {
+      for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
+      const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
+      refuseModelAboveOpenLimit(parsed);
+      return { name: opened.name, content: opened.content, parsed, siteFileVersion };
+    } catch (err) {
+      console.error('Failed to open file:', err);
+      get().notify(importFailureNotice(err, saveErrorDetail(err)));
+      return null;
+    }
+  };
+
+  const openPreparedNewVersion = (prepared: PreparedNewVersion): Promise<void> => {
+    get().openAsDocument(prepared.parsed, {
+      name: prepared.name, ref: prepared.ref, ...(prepared.ref.kind === 'site' ? { siteFileVersion: prepared.siteFileVersion } : {}),
+    });
+    offerFormatNotice(prepared.name, prepared.content);
+    return pushRecent(prepared.ref, prepared.name).catch((err: unknown) => { console.error('Failed to update recent files:', err); });
   };
 
   const openRecentSiteFile = async (entry: RecentEntry, labels?: ImportLabels) => {
@@ -2483,6 +2553,47 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     forgetChangedOnDisk: (documentId) => {
       set((s) => { clearChangedOnDisk(s, documentId); });
+    },
+
+    loadNewVersion: async (labels) => {
+      const start = get();
+      const documentId = start.activeDocumentId;
+      const ref = saveTargetRef(start);
+      if (newVersionReading || !ref || isBlockingDialogOpen(start.ui) || !newVersionStillApplies(documentId, ref)) return;
+      newVersionReading = true;
+      try {
+        await waitForSavesBeforeNewVersion();
+        if (!newVersionStillApplies(documentId, ref)) return;
+        const read = await readNewVersion(ref, labels);
+        if (!read) return;
+        await waitForSavesBeforeNewVersion();
+        if (!newVersionStillApplies(documentId, ref) || isBlockingDialogOpen(get().ui)) return;
+        const prepared: PreparedNewVersion = { documentId, ref, ...read };
+        get().requestCloseDocument(documentId);
+        if (!get().documents.some((d) => d.id === documentId)) {
+          await openPreparedNewVersion(prepared);
+        } else if (get().ui.pendingCloseDocId === documentId) {
+          preparedNewVersion = prepared;
+          get().setUI({ pendingCloseLoadsNewVersion: true });
+        }
+      } finally {
+        newVersionReading = false;
+      }
+    },
+
+    loadNewVersionAfterDiscard: async () => {
+      await waitForSavesBeforeNewVersion();
+      const prepared = preparedNewVersion;
+      preparedNewVersion = null;
+      const ui = get().ui;
+      if (!prepared || !ui.pendingCloseLoadsNewVersion || ui.pendingCloseDocId !== prepared.documentId) return false;
+      if (!newVersionStillApplies(prepared.documentId, prepared.ref) || !get().closeDocument(prepared.documentId)) return false;
+      await openPreparedNewVersion(prepared);
+      return true;
+    },
+
+    dropNewVersion: () => {
+      preparedNewVersion = null;
     },
 
     openFromSite: async (id, labels) => {

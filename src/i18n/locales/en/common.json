@@ -779,8 +779,10 @@
     "confirmClose": "This document has unsaved changes. Close anyway?",
     "closeTitle": "Unsaved changes",
     "closeBody": "'{{name}}' has changes that haven't been saved yet.",
+    "closeBodyNewVersion": "'{{name}}' has changes that have not been saved yet. Choose Don't save to discard them and load the new version. To keep them, choose Cancel and then Save As.",
     "dontSave": "Don't save",
-    "changedOnDisk": "{{name}} was changed outside this tab. This tab still shows the earlier version. Close this tab and open the file again to see the new version.",
+    "changedOnDisk": "{{name}} was changed outside this tab. This tab still shows the earlier version.",
+    "changedOnDiskLoad": "Load new version",
     "stillSaving": "Still saving…"
   },
   "feedback": {

@@ -22,6 +22,7 @@ import {
 export function CloseDocumentDialog() {
   const { t } = useTranslation('common');
   const pendingId = useAppStore((s) => s.ui.pendingCloseDocId);
+  const loadsNewVersion = useAppStore((s) => s.ui.pendingCloseLoadsNewVersion);
   const activeId = useAppStore((s) => s.activeDocumentId);
   const documents = useAppStore((s) => s.documents);
   const project = useAppStore((s) => s.project);
@@ -31,6 +32,8 @@ export function CloseDocumentDialog() {
   const closeDocumentAfterSaves = useAppStore((s) => s.closeDocumentAfterSaves);
   const switchDocument = useAppStore((s) => s.switchDocument);
   const saveFileForDocument = useAppStore((s) => s.saveFileForDocument);
+  const loadNewVersionAfterDiscard = useAppStore((s) => s.loadNewVersionAfterDiscard);
+  const dropNewVersion = useAppStore((s) => s.dropNewVersion);
   const openerRef = useRef<HTMLElement | null>(null);
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
   const actionGateRef = useRef<CloseDocumentActionGate | null>(null);
@@ -66,9 +69,12 @@ export function CloseDocumentDialog() {
     pendingId,
     getActiveDocumentId: () => useAppStore.getState().activeDocumentId,
     switchDocument,
-    closeDocument: closeDocumentAfterSaves,
+    closeDocument: loadsNewVersion ? () => loadNewVersionAfterDiscard() : closeDocumentAfterSaves,
     saveFile: () => saveFileForDocument(pendingId),
-    clearPending: () => { setUI({ pendingCloseDocId: null }); },
+    clearPending: () => {
+      if (loadsNewVersion) dropNewVersion();
+      setUI({ pendingCloseDocId: null });
+    },
     restoreOpenerFocus,
     onSavePendingChange: (pending) => { setUI({ closeQuestionSaving: pending }); },
   });
@@ -76,7 +82,7 @@ export function CloseDocumentDialog() {
   return (
     <CloseDocumentDialogControl
       title={t('documents.closeTitle')}
-      body={t('documents.closeBody', { name })}
+      body={loadsNewVersion ? t('documents.closeBodyNewVersion', { name }) : t('documents.closeBody', { name })}
       cancelLabel={t('cancel')}
       discardLabel={t('documents.dontSave')}
       saveLabel={t('save')}
@@ -84,7 +90,7 @@ export function CloseDocumentDialog() {
       cancelButtonRef={cancelButtonRef}
       onCancel={actions.cancel}
       onDiscard={() => { void actions.discard(); }}
-      onSave={() => { void actions.save(); }}
+      onSave={loadsNewVersion ? undefined : () => { void actions.save(); }}
     />
   );
 }

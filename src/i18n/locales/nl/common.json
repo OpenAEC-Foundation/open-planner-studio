@@ -779,8 +779,10 @@
     "confirmClose": "Dit document heeft niet-opgeslagen wijzigingen. Toch sluiten?",
     "closeTitle": "Niet-opgeslagen wijzigingen",
     "closeBody": "'{{name}}' heeft wijzigingen die nog niet zijn opgeslagen.",
+    "closeBodyNewVersion": "'{{name}}' heeft wijzigingen die nog niet zijn opgeslagen. Kies Niet opslaan om ze weg te gooien en de nieuwe versie te laden. Wil je ze bewaren, kies dan Annuleren en daarna Opslaan als.",
     "dontSave": "Niet opslaan",
-    "changedOnDisk": "{{name}} is buiten dit tabblad gewijzigd. Dit tabblad toont nog de eerdere versie. Sluit dit tabblad en open het bestand opnieuw om de nieuwe versie te zien.",
+    "changedOnDisk": "{{name}} is buiten dit tabblad gewijzigd. Dit tabblad toont nog de eerdere versie.",
+    "changedOnDiskLoad": "Nieuwe versie laden",
     "stillSaving": "Wordt nog opgeslagen…"
   },
   "feedback": {
