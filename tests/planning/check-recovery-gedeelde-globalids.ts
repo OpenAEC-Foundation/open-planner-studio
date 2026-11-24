@@ -532,7 +532,7 @@ const lists = Object.entries(valid).filter(([key, value]) => key !== 'ifcSource'
 const listOfId = new Map<string, string>();
 for (const [key, list] of lists) for (const item of list) listOfId.set(item.id as string, key);
 const variants: [string, (doc: Plain) => void][] = [];
-for (const [key, list] of lists) list.forEach((item, i) => {
+for (const [key, list] of lists) list.forEach((_item, i) => {
   const other = list[(i + 1) % list.length].id;
   variants.push([`${key}[${i}].id wordt ${String(other)}`, doc => { (doc[key] as Plain[])[i].id = other; }]);
   variants.push([`${key}[${i}] weg`, doc => { (doc[key] as Plain[]).splice(i, 1); }]);
