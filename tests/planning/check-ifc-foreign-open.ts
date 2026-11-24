@@ -177,9 +177,9 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
       // Knownbug 1131 stap 2: Ctrl+S via de handle weigert niet meer vóór de merge. Deze proef registreert geen
       // herstelronde, dus de komende versie ligt niet vast in het herstelmanifest en de app schrijft niet (1764).
       eq(`${label}: na openen de telmelding met gebouwmodel, zonder herstelronde geen vervanging van het modeldoel`,
-        store.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null, n.numberParams ?? null]),
-        [[OPENED_WITH_MODEL_KEY, { count: foreignObjectsOf(enc.encode(text)) }, { objects: foreignObjectsOf(enc.encode(text)) }],
-          ['notifications.ifcForeignReplaceNotRecorded', null, null]]);
+        store.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null, n.numberParams ?? null, n.detailLines ?? null]),
+        [[OPENED_WITH_MODEL_KEY, { count: foreignObjectsOf(enc.encode(text)) }, { objects: foreignObjectsOf(enc.encode(text)) }, null],
+          ['notifications.ifcForeignReplaceNotRecorded', null, null, null]]);
       eq(`${label}: volledige bron inclusief wand intact`, data, text);
     }
     // Ctrl+S bevestigt ook de bestaande minutenomzetting; vergelijk met de daardoor vastgelegde toestand.

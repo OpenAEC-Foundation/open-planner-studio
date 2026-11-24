@@ -118,8 +118,8 @@ if (mode === 'web') {
   const atLimitScan = scanForeign(atLimit);
   const atLimitObjects = atLimitScan.ok ? atLimitScan.counts.C + atLimitScan.counts.A + atLimitScan.counts.V : -1;
   eq('openen, model precies op de productgrens: opent met zijn bron en de telmelding met gebouwmodel',
-    [opened.getState().ifcSource?.sha256 ?? null, notices(opened)],
-    [sha(atLimit), [['notifications.ifcForeignOpenedWithModel', { count: atLimitObjects }]]]);
+    [opened.getState().ifcSource?.sha256 ?? null, opened.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null, n.numberParams ?? null, n.detailLines ?? null])],
+    [sha(atLimit), [['notifications.ifcForeignOpenedWithModel', { count: atLimitObjects }, { objects: atLimitObjects }, null]]]);
   eq('openen, model precies op de productgrens: de scan ziet een gebouwmodel', atLimitScan.ok && atLimitScan.buildingModel, true);
   const refused = await open(over);
   eq('openen, model één byte boven de productgrens: geweigerd met de groottemelding',
