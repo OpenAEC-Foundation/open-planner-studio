@@ -7,7 +7,7 @@
 // planning zonder model naar een ander doel: Opslaan als bij een ontbrekende bron (PR 9e), en Exporteren → IFC
 // zonder gebouwmodel en de export met bibliotheek (PR 13).
 // Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
-import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
+import { hasBuildingModel, hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
 import { isForeignSourceTarget, sameEntry, sameLocalFile, samePath, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
@@ -159,6 +159,30 @@ export const EXPORT_TARGET_OPEN_DOCUMENT_NOTICE: NotifyInput = refusalNotice({
   dedupeKey: 'export-target-open-document',
 });
 
+export const IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE = {
+  severity: 'error', messageKey: 'notifications.ifcExportChangedWhileWaiting', dedupeKey: 'ifc-export-changed',
+} as const;
+
+export const EXPORT_TARGET_OWN_FILE_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportTargetOwnFile', dedupeKey: 'export-target-own-file',
+});
+export const EXPORT_REPLACE_NEW_TARGET_ONLY_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportReplaceNewTargetOnly', dedupeKey: 'export-replace-new-target-only',
+});
+export const EXPORT_REPLACE_TARGET_CHANGED_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportReplaceTargetChanged', dedupeKey: 'export-replace-target-changed',
+});
+export const EXPORT_REPLACE_TARGET_GONE_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportReplaceTargetGone', dedupeKey: 'export-replace-target-gone',
+});
+export const EXPORT_REPLACE_NOT_RECORDED_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportReplaceNotRecorded', dedupeKey: 'export-replace-not-recorded',
+});
+
+export function exportNewTargetWriteNotice(error: unknown): NotifyInput | null {
+  return error instanceof ByteWriteError && error.reason === 'create-new' ? EXPORT_REPLACE_NEW_TARGET_ONLY_NOTICE : newTargetWriteNotice(error);
+}
+
 /** De weigering bij een export: "Kies een ander bestand om naar te exporteren." */
 export const IFC_FOREIGN_TARGET_EXPORT_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignTargetExport',
@@ -305,7 +329,8 @@ export interface WriteTargetDeps {
    *  gegevens van een ander programma. De schrijfroute vervangt daarna alleen die gelezen versie (`replaceOwnFileBytes`,
    *  fixronde 2 van #1071). Elke andere route (Ctrl+S met een opslagdoel, export, AutoSave, MCP, dev-bridge) geeft dit
    *  niet. Regel 1 en 3 en een onleesbaar doel blijven weigeren. */
-  chosenTarget?: PickedSaveTarget;
+  chosenTarget?: Pick<PickedSaveTarget, 'path' | 'current'>;
+  protectModelTargets?: boolean;
 }
 
 /**
@@ -340,8 +365,21 @@ export async function refusedWriteTarget(
   s: WriteTargetState,
   target: FileRef,
   deps: WriteTargetDeps,
-  ownVersion?: { readonly documentId: string; readonly baseVersion?: string | null; readonly source: IfcSource },
-): Promise<'open-source' | 'open-document' | 'building-model' | 'foreign-content' | 'unreadable-target' | null> {
+  ownVersion?: OwnTargetVersion,
+): Promise<WriteTargetRefusal | null> {
+  const identity = await refusedTargetIdentity(s, target, deps, ownVersion);
+  return identity === 'check-content' ? refusedTargetContent(target, deps) : identity;
+}
+
+export type WriteTargetRefusal = 'open-source' | 'open-document' | 'building-model' | 'foreign-content' | 'unreadable-target';
+type OwnTargetVersion = { readonly documentId: string; readonly baseVersion?: string | null; readonly source: IfcSource };
+
+export async function refusedTargetIdentity(
+  s: WriteTargetState,
+  target: FileRef,
+  deps: Omit<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets'>,
+  ownVersion?: OwnTargetVersion,
+): Promise<WriteTargetRefusal | null | 'check-content'> {
   const own = ownVersion && s.getOpenDocumentPayloads().find(d => d.id === ownVersion.documentId)?.payload;
   const ownSource = !!own && own.ifcSource === ownVersion.source && hasForeignContent(own.ifcSource)
     && ifcForeignContentEnabled(s.ui.featureFlags)
@@ -372,10 +410,23 @@ export async function refusedWriteTarget(
     return 'open-document';
   }
   if (!deps.protectExistingTargets && !flagOn) return null;
+  return 'check-content';
+}
+
+export async function refusedTargetContent(
+  target: FileRef, deps: Pick<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets'>,
+): Promise<WriteTargetRefusal | null> {
   const refusal = await targetRefusal(target, deps.readers());
   if (refusal === 'unreadable') return 'unreadable-target';
   if (refusal === null) return null;
   const chosen = deps.chosenTarget;
-  if (target.kind === 'path' && chosen?.path === target.path && chosen.current instanceof Uint8Array) return null;
+  if (target.kind === 'path' && chosen?.path === target.path && chosen.current instanceof Uint8Array
+    && !(refusal === 'model' && deps.protectModelTargets)) return null;
   return refusal === 'model' ? 'building-model' : 'foreign-content';
+}
+
+export function exportTargetPermission(
+  source: IfcSource | null | undefined, chosenTarget: Pick<PickedSaveTarget, 'path' | 'current'>,
+): Required<Pick<WriteTargetDeps, 'chosenTarget' | 'protectModelTargets'>> {
+  return { chosenTarget, protectModelTargets: !hasBuildingModel(source) };
 }

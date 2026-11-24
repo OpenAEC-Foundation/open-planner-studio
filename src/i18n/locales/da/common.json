@@ -360,7 +360,6 @@
     "reportFontMissing": "Din egen skrifttype {{name}} findes ikke længere på denne enhed. Rapporten bruger igen Inter.",
     "layoutsNotSaved": "Layouts kunne ikke gemmes. Intet er ændret. Prøv igen.",
     "ifcForeignOpenSchema": "Denne IFC-fil indeholder data fra et andet program og har et ukendt eller manglende skema. Åbningen er stoppet for at forhindre datatab ved gemning.",
-    "ifcForeignOpenTooLarge": "Denne IFC-fil er større end {{limit}} MB. En IFC-fil med en bygningsmodel eller med data fra et andet program kan åbnes med op til {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Denne IFC-fil kan ikke klassificeres sikkert. Åbningen er stoppet for at forhindre datatab ved gemning.",
     "ifc2x3PlanningOnly": "IFC2X3 er åbnet som tidsplan. Data fra andre programmer tages ikke med ved gemning.",
     "ifcForeignReplaceBlocked": "Ikke gemt. Det er den fil, du har åben. Brug Gem for at opdatere den, eller Gem som med et nyt navn for en kopi.",
