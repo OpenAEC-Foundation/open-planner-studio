@@ -1563,6 +1563,41 @@ en noem het in je rapport of PR-tekst.
       (`MAX_CALENDARS`, `mppCalendars.ts`). Nagespeeld met een script via `readP6XMLDocuments`: een bestand met 1200
       Resource-kalenders met verschillende geldige `ObjectId`'s zonder verwijzing geeft 1200 bibliotheekkalenders. — B
 
+2318. **Een maandelijkse of jaarlijkse herhaling kan een datum na haar einddatum opleveren.**
+      De vier generatoren `getMonthlyAbsoluteDates`, `getMonthlyRelativeDates`, `getYearlyAbsoluteDates` en
+      `getYearlyRelativeDates` (`src/services/calendarRecurrence.ts`, via `expandRecurrence`) toetsen de einddatum
+      (`moreDates`) op de eerste van de maand en voegen daarna de dag in die maand toe; de twee relatieve stoppen pas na
+      het toevoegen. `getYearlyAbsoluteDates` schuift bovendien een datum vóór het begin nog een jaar op. Nagespeeld
+      met een script via `expandRecurrence`: jaarlijks op 1 januari (`relative: false`, `dayNumber` 1, `monthNumber` 1),
+      begin 2020-06-01, einde 2020-12-31, `occurrences` 0, geeft `2021-01-01`. Dezelfde opzet als eerste maandag van
+      januari (`relative: true`) geeft niets. Nagespeeld via `readMSPDI` en `CalendarEngine`, zonder jaaropschuiving:
+      een maandelijkse en een jaarlijkse uitzondering op de 31e met einde 15 januari maken 31 januari vrij; een
+      maandelijkse en een jaarlijkse op de derde vrijdag met einde 3 januari maken 17 januari vrij. Het weggehaalde
+      commentaar noemde dit overgenomen gedrag van MPXJ; of MPXJ en MS Project zo'n datum opleveren, is niet
+      nagegaan. — B
+
+2319. **Als het gedeelde budget voor uitzonderingsdagen opraakt, kan juist de uitzondering met de hoogste voorrang
+      wegvallen.** `buildContributions` stopt bij een leeg budget in de volgorde van het bestand, en
+      `resolveContributions`
+      vult de kaart per datum in de volgorde van de voorrang (ADR 0291) tot het budget op is; wat dan nog komt, telt
+      niet mee. In `mergeInherited` gaan de dagen van de basiskalender vóór de eigen uitzonderingen in dat budget.
+      Nagespeeld met een script, steeds met een wekelijkse herhaling op alle dagen van 2020-01-01 tot 2020-01-10 en
+      daarna in het bestand een werkende uitzondering op 2020-01-05: met budget 100 is 5 januari werkend en het vrije
+      bereik gesplitst; met budget 10 is 1 tot en met 10 januari één vrij bereik en is er geen werkende uitzondering;
+      met budget 5 is alleen 1 tot en met 5 januari vrij. Staat de werkende uitzondering in het bestand vóór de
+      herhaling, dan blijft met budget 10 5 januari werkend en valt 10 januari weg: welke wegvalt, volgt de volgorde
+      van het bestand. Twee uitzonderingen op dezelfde datum kosten elk een plaats in het budget. Via `mergeInherited` met een basis die 1 tot en met
+      10 januari vrij heeft en dezelfde werkende uitzondering als eigen uitzondering: met budget 100 werkend, met
+      budget 10 vrij. Het budget is 100.000 dagen (`MAX_TOTAL_HOLIDAY_SLOTS`, ADR 0293); of een echt bestand het
+      bereikt, is niet nagegaan. — B
+
+2320. **Een onbekend herhalingstype leest de MSPDI-lezer als gewoon bereik, de `.mpp`-lezer slaat het record over.**
+      `RECURRENCE_TYPES` (`src/services/calendarRecurrence.ts`) kent de waarden 1 tot en met 7 (0 is geen herhaling).
+      Voor een waarde buiten 0 tot en met 7 geeft `readMspdiRecurringData` (`mspdiReader.ts`) `null`, en `readRawMspdiExceptions` houdt het record dan als
+      niet-herhalend bereik van `FromDate` tot `ToDate`, en slaat het zonder `ToDate` over; `readRawExceptions` (`mppCalendars.ts`) zet bij `null`
+      `contributesNothing` en neemt het record niet op. Gelezen in de code, niet nagespeeld. Welke van de twee MS
+      Project volgt, is niet nagegaan. — S
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
@@ -3880,21 +3915,38 @@ en noem het in je rapport of PR-tekst.
      `getFile()` en lezen. Gevonden door de review van #1174 (Sol, ronde 1). — S (niet nagespeeld met een echte
      Chromium-handle)
 
-2244. **VERVOLG (#804, featureflag aan): opslaan na een wijziging van een bestand met een gebouwmodel en veel taken
-     duurt lang, en de tijd groeit sneller dan het aantal taken.** Het gaat om de gewijzigde merge: een bestand met een
-     gebouwmodel openen, een taak wijzigen en opslaan. Gemeten in Node op aia09-mp50 (24 november 2026, wandkloktijd,
-     één run per regel, op main van die dag) met `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` waaraan gewone taken
-     zijn toegevoegd: bij 1.000 taken (1,2 MB) 7,0 s, bij 5.000 taken (5,8 MB) 55,8 s, bij 10.000 taken (11,9 MB)
-     147,6 s. Openen van dat laatste bestand kost 4,3 s. Met één onbekende JSON-sleutel per taaknotitie: 5,8 s bij 1.000
-     en 183,1 s bij 5.000 taken. De metingen bij 1.000 en 5.000 taken liepen terwijl de machine zwaar belast was (load
-     20 tot 36); die bij 10.000 taken bij een load rond 3. Een eerdere run van 10.000 taken onder zware belasting kwam
-     op 513,8 s. Niets hiervan is in rust of in CPU-tijd gemeten, en niet in de app zelf (de opslag-Worker). Welke stap
-     sneller groeit dan het aantal taken, is nog niet uitgezocht. Er gaat niets verloren; de opslag slaagt. Met de
-     flag uit, en bij een planning zonder gebouwmodel of gegevens van een ander programma, loopt deze route niet.
-     Besluit technisch beslisser (24 november 2026): dit hoort bij de voorwaarden voordat de flag standaard aan mag;
-     opslaan na een wijziging mag bij 10.000 taken niet meer dan enkele seconden kosten, en een kwadratische stap is
-     een bug, geen grens. Gezien door de bouwer van #1188 bij het meten van die PR. — S (gemeten door de bouwer,
-     meetlogs `opslag-main-1k.log`, `opslag-main-5k.log` en `opslag-main-10k-rustig.log` van #1188; niet nagemeten)
+2244. **VERVOLG (#804, featureflag aan): opslaan na een wijziging van een bestand met een gebouwmodel kost bij veel
+     taken nog ongeveer 20 tot 25 keer een gewone opslag.** Het gaat om de gewijzigde merge: een bestand met een
+     gebouwmodel openen, een taak wijzigen en opslaan. Gemeten in Node op aia09-mp50 (24 november 2026, CPU van de
+     hoofdthread, onder het gedeelde slot) met `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` plus gewone taken en
+     één gewijzigde taaknaam, bij 1.000 / 2.000 / 5.000 / 10.000 taken: vóór #1210 6,9 / 13,3 / 46,0 / 136,8 s, na #1210
+     5,6 / 10,2 / 23,8 / 47,0 s. De gewone writer schrijft dezelfde planning in 0,18 / 0,39 / 0,91 / 1,9 tot 2,5 s.
+     #1210 haalde de stappen weg die sneller groeiden dan het aantal taken (een opzoeking door alle taken of door een
+     hele lijst per taak of per lid); in de gemeten gevallen (een naamswijziging bij 1.000 tot 10.000 taken, veel
+     feestdagen in één kalender, lags in uren, gemengde toewijzingen met twee leden per relatie) groeit het werk
+     sindsdien ongeveer lineair, en de uitvoer is byte voor byte die van main.
+     Wat overblijft is lineair werk dat vaak gebeurt: de merge schrijft, leest en vergelijkt de hele planning ongeveer
+     twintig keer (vijf keer de merge-writer, vier keer de canon-writer, drie keer de lezer, zes keer paren, drie keer
+     vergelijken en twee keer openen in een store). Besluit technisch beslisser (24 november 2026): dit hoort bij de
+     voorwaarden voordat de flag standaard aan mag; opslaan na een wijziging mag bij 10.000 taken niet meer dan enkele
+     seconden kosten. Die voorwaarde blijft open tot het aantal volledige rondes omlaag is; dat is een ontwerpstap, geen
+     losse bug. Er gaat niets verloren; de opslag slaagt. Met de flag uit, en bij een planning zonder gebouwmodel of
+     gegevens van een ander programma, loopt deze route niet. Alleen gelezen, niet gemeten, met hetzelfde patroon: in
+     `mergeWriter.ts` `parent.childIds.filter(id => !s.includes(id))` bij een gemengde `IfcRelNests` onder een eigen
+     taak en `lines.find` per vreemd lid van een eigen template; in `lossCheck.ts` `candidates.filter` en
+     `candidates.find` in `pairRelations` per relatie met dezelfde sleutel, en `[...p1.out.values()].find` in
+     `bareKeyInWriterForm` per teruggezette kale sleutel in `OPS_Assignments`. Uit de review van #1210 (ronde 1),
+     nog open: (a) één gemengde `IfcRelAssignsToProcess` met veel verschillende resources op één taak blijft
+     kwadratisch (`count(s, id)` en `count(domainRes, id)` per id en de volgordetoets met `s.includes(id)` in
+     `mergeWriter.ts`: 1.000.000 vergelijkingen bij 1.000 resources, 4.000.000 bij 2.000; stond zo op main);
+     (b) de IFC-lezer bouwt sinds #1210 bij `lagCalendar = projectDefault` een takenindex die hij niet gebruikt, ook
+     met de flag uit (één taakvergelijking op main, 2.000 indexeringen bij 2.000 taken; dezelfde leesuitkomst, de
+     doorlooptijd is niet gemeten), en `sourceFormWhereUnchanged` indexeert ook als er geen geconverteerde velden zijn;
+     (c) `src/utils/firstById.ts` doet hetzelfde als de private functie in `taskTree.ts`, die kan vervallen;
+     (d) de werkproef `check-ifc-foreign-werk.ts` telt voor `includes`, `indexOf` en `shift` de hele lijstlengte, dus
+     haar verhoudingen zijn een schatting van lijstwerk, geen telling van bezochte elementen. — S (gemeten in #1210
+     met de meetscripts van de meting van knownbug 2244, mediaan van twee runs per grootte; niet in de app of in de
+     opslag-Worker gemeten)
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
