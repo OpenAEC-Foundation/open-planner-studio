@@ -10,23 +10,44 @@ import { openIfc, openIfcBytes, PlannerCoreError } from '@openaec/open-planner-c
 for (const method of ['log', 'info', 'warn', 'error', 'debug', 'trace']) console[method] = () => {};
 
 parentPort.on('message', async ({ text, bytes, output }) => {
+  let summary;
   try {
-    const asBytes = bytes !== undefined;
-    const doc = asBytes ? await openIfcBytes(bytes) : await openIfc(text);
-    const summary = doc.schedule();
-    if (output !== 'ifc') {
-      parentPort.postMessage({ ok: true, summary });
-    } else if (summary.foreignContent === null) {
-      parentPort.postMessage({ ok: true, ifc: doc.toIfc() });
-    } else {
-      const ifcBytes = await doc.toIfcBytes();
-      parentPort.postMessage({ ok: true, ifcBytes }, [ifcBytes.buffer]);
-    }
+    const doc = await openIfc(text ?? Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('utf8'));
+    summary = doc.schedule();
+    parentPort.postMessage(output === 'ifc' ? { ok: true, ifc: doc.toIfc() } : { ok: true, summary });
   } catch (err) {
     if (err instanceof PlannerCoreError) {
-      parentPort.postMessage({ ok: false, code: err.code, message: err.message, details: { ...err.details } });
+      const preserved = keepsForeignContent(err, bytes, output) ? await preservedOrWhyNot(bytes, summary) : {};
+      if (preserved.ifcBytes) return parentPort.postMessage({ ok: true, ifcBytes: preserved.ifcBytes }, [preserved.ifcBytes.buffer]);
+      const message = preserved.whyNot ? `${err.message} The preserved bytes are not returned: ${preserved.whyNot}.` : err.message;
+      parentPort.postMessage({ ok: false, code: err.code, message, details: { ...err.details } });
     } else {
       parentPort.postMessage({ ok: false, code: 'INTERNAL', message: 'Internal error during the calculation' });
     }
   }
 });
+
+function keepsForeignContent(err, bytes, output) {
+  return bytes !== undefined && output === 'ifc' && err.code === 'IFC_WRITE_FAILED' && err.details?.reason === 'foreign';
+}
+
+async function preservedOrWhyNot(bytes, textSummary) {
+  try {
+    const doc = await openIfcBytes(bytes);
+    const summary = doc.schedule();
+    if (summary.foreignContent === null) return {};
+    const differences = scheduleDifferences(textSummary, summary);
+    if (differences.length > 0) return { whyNot: `the bytes route reads this file differently (${differences.join(', ')})` };
+    return { ifcBytes: await doc.toIfcBytes() };
+  } catch (err) {
+    return { whyNot: err instanceof PlannerCoreError ? err.message : 'the bytes route failed' };
+  }
+}
+
+function scheduleDifferences(text, bytes) {
+  const differs = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
+  return Object.keys(text).filter(key => key !== 'foreignContent' && differs(text[key], bytes[key]))
+    .flatMap(key => key === 'project' || key === 'counts'
+      ? Object.keys(text[key]).filter(field => differs(text[key][field], bytes[key][field])).map(field => `${key}.${field}`)
+      : [key]);
+}
