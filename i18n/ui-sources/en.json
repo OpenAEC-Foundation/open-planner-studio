@@ -74,6 +74,7 @@
     "notifications.siteSaveConflictCopy": "5836d3d37e819170",
     "notifications.siteFileGone": "f59781ed870e16e9",
     "notifications.siteFileReadOnly": "a55ad2671ee37874",
+    "notifications.newVersionSiteReadOnly": "82064ffe302de67c",
     "notifications.savedViaDownload": "3da03862324d48ea",
     "notifications.browserCannotOverwrite": "17ccc154801612c6",
     "notifications.browserSavesAsDownload": "49c461150023618e",

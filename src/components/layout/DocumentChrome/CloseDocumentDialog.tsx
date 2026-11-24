@@ -22,7 +22,7 @@ import {
 export function CloseDocumentDialog() {
   const { t } = useTranslation('common');
   const pendingId = useAppStore((s) => s.ui.pendingCloseDocId);
-  const loadsNewVersion = useAppStore((s) => s.ui.pendingCloseLoadsNewVersion);
+  const loadsNewVersion = useAppStore((s) => s.ui.pendingCloseNewVersion !== null);
   const activeId = useAppStore((s) => s.activeDocumentId);
   const documents = useAppStore((s) => s.documents);
   const project = useAppStore((s) => s.project);
@@ -33,7 +33,6 @@ export function CloseDocumentDialog() {
   const switchDocument = useAppStore((s) => s.switchDocument);
   const saveFileForDocument = useAppStore((s) => s.saveFileForDocument);
   const loadNewVersionAfterDiscard = useAppStore((s) => s.loadNewVersionAfterDiscard);
-  const dropNewVersion = useAppStore((s) => s.dropNewVersion);
   const openerRef = useRef<HTMLElement | null>(null);
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
   const actionGateRef = useRef<CloseDocumentActionGate | null>(null);
@@ -71,10 +70,7 @@ export function CloseDocumentDialog() {
     switchDocument,
     closeDocument: loadsNewVersion ? () => loadNewVersionAfterDiscard() : closeDocumentAfterSaves,
     saveFile: () => saveFileForDocument(pendingId),
-    clearPending: () => {
-      if (loadsNewVersion) dropNewVersion();
-      setUI({ pendingCloseDocId: null });
-    },
+    clearPending: () => { setUI({ pendingCloseDocId: null }); },
     restoreOpenerFocus,
     onSavePendingChange: (pending) => { setUI({ closeQuestionSaving: pending }); },
   });
