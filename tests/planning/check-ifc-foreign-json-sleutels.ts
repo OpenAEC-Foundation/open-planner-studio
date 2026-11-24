@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import { cloneDomain, mergeProblems, openForeign, settle, type Domain, type Opened } from './ifcMergeKern';
-import { storeEdit } from './ifcAppRoute';
+import { storeEdit, storeWith } from './ifcAppRoute';
 import { MergeNeedsPhase2Error, prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import type { IfcSource, PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
@@ -11,11 +11,14 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { JSON_PROPERTIES, jsonPropertyShape, type JsonShape } from '@/services/ifc/jsonRegister';
 import {
-  jsonExtrasFromIndex, jsonExtrasIndex, jsonMembersProblem, scanJsonExtras, unknownJsonMembers, withJsonInOutputForm,
+  hasUnknownMembers, jsonExtrasFromIndex, jsonExtrasIndex, jsonMembersProblem, scanJsonExtras,
 } from '@/services/ifc/foreign/jsonExtrasSource';
 import { jsonMembers, mergedJsonText } from '@/services/ifc/foreign/jsonMembers';
 import { parseJsonTree, sameJsonValue, type JsonNode } from '@/services/ifc/jsonTokens';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
+import { ifcStr } from '@/services/ifc/ifcPsets';
+import { readRecoveryDocument } from '@/state/readRecoveryDocument';
+import type { LoadedRecoveryDoc } from '@/services/recovery/recoveryStore';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const reseed = installDeterminism();
@@ -104,6 +107,22 @@ async function refusal(domain: Domain, source: IfcSource): Promise<string> {
     return e.cases.map(c => `${c.kind}: ${c.detail}`).join(' | ');
   }
 }
+
+type Outcome = { readonly verdict: string; readonly prepared?: PreparedIfcWrite };
+async function outcomeOf(domain: Domain, source: IfcSource): Promise<Outcome> {
+  try { return { verdict: 'schreef', prepared: await prepareIfcWrite(domain, source) }; }
+  catch (e) {
+    if (e instanceof MergeNeedsPhase2Error) return { verdict: e.cases.map(c => `${c.kind}: ${c.detail}`).join(' | ') };
+    return { verdict: `fout: ${String(e).slice(0, 200)}` };
+  }
+}
+const mainRoute = (source: IfcSource): IfcSource => ({ ...source, jsonExtras: undefined });
+const sameBytes = (a: Uint8Array | undefined, b: Uint8Array | undefined) => !!a && !!b && a.length === b.length && a.every((x, k) => x === b[k]);
+const patchAt = (s: string, json: string, next: string) => {
+  const from = `IFCTEXT(${ifcStr(json)})`;
+  if (s.split(from).length !== 2) throw new Error(`patchAt: ${s.split(from).length - 1} keer`);
+  return s.replace(from, () => `IFCTEXT(${ifcStr(next)})`);
+};
 
 {
   const shapes: { where: string; shape: JsonShape }[] = [];
@@ -243,13 +262,13 @@ function richDomain(): Domain {
   const shape = jsonPropertyShape('OPS_StructureMeta', 'structure')!;
   const source = `{"vendorCoordinationId":"VC-1","activityCodeTypes":[{"id":"a","name":"Zone","values":[],"vendorX":${big}},`
     + '{"id":"d","name":"D1","values":[]},{"id":"d","name":"D2","values":[],"vendorY":1}],"customFieldDefs":[]}';
-  const found = unknownJsonMembers(source, shape, () => false)!;
-  ok(`extractie: de bovenste sleutel en de sleutel bij id a, niet bij het dubbele id d (${show(found)})`, show(found) === show([
-    { path: [], members: [{ key: '"vendorCoordinationId"', value: '"VC-1"' }] },
-    { path: [{ sleutel: 'activityCodeTypes' }, { veld: 'id', waarde: 'a' }], members: [{ key: '"vendorX"', value: big }] },
-  ]));
+  const unknown = (json: string) => hasUnknownMembers(parseJsonTree(json)!, shape, () => false);
+  ok('aanwezigheid: een onbekende sleutel bovenin, en een bij id a, wel; een bij het dubbele id d niet',
+    unknown(source) && unknown('{"activityCodeTypes":[{"id":"a","name":"Zone","values":[],"vendorX":1}],"customFieldDefs":[]}')
+    && !unknown('{"activityCodeTypes":[{"id":"d","name":"D1","values":[]},{"id":"d","name":"D2","values":[],"vendorY":1}],"customFieldDefs":[]}')
+    && !unknown('{"activityCodeTypes":[{"id":"a","name":"Zone","values":[]}],"customFieldDefs":[]}'));
   const merge = (source: string, read: string | undefined, written: string | undefined, exists?: () => boolean | undefined) => {
-    const r = mergedJsonText(shape, source, read, written, exists);
+    const r = mergedJsonText(shape, source, read, written, { where: exists });
     return 'refused' in r ? `geweigerd: ${r.refused}` : r.text;
   };
   const lid = '{"vendorFront":"F","activityCodeTypes":[{"id":"a","name":"Zone","values":[],"vendorX":' + big
@@ -308,19 +327,12 @@ function richDomain(): Domain {
     const window = (i: number) => `{"plannedWorkMinutes":${form === 'nu' ? 960 : form === 'bron' ? '480.0' : 480}${form === 'bron' ? `,"vendorW":"w${i}"` : ''}}`;
     const keys = Array.from({ length: n }, (_, i) => `R${String(i).padStart(21, '0')}#0`);
     const big = owner('task:big', 'task_big', k => `#${k}=IFCTASK('${'B'.repeat(22)}',$,$,$,$,$,$,$,$,$,$,$,$);`);
-    const big2 = owner('task:big2', 'task_big2', k => `#${k}=IFCTASK('${'C'.repeat(22)}',$,$,$,$,$,$,$,$,$,$,$,$);`);
     const resources = keys.map(k => { const r = id++; lines.push(`#${r}=IFCCREWRESOURCE('${k.split('#')[0]}',$,$,$,$,$,$,$,$,$,$);`); return r; });
     lines.push(`#${id++}=IFCRELASSIGNSTOPROCESS('${'Z'.repeat(22)}',$,$,$,(${resources.map(r => `#${r}`).join(',')}),$,#${big},$);`);
-    const stays = (i: number) => form !== 'nu' || i % 2 === 0;
-    property(big, 'OPS_Timephased', 'Windows', `{${keys.flatMap((k, i) => stays(i) ? [`"${k}":${window(i)}`] : []).join(',')}}`, 'w');
-    if (form === 'nu') property(big2, 'OPS_Timephased', 'Windows', `{${keys.flatMap((k, i) => stays(i) ? [] : [`"${k}":${window(i)}`]).join(',')}}`, 'x');
+    keys.forEach((k, i) => { const a = id++; idMap.set(`_asgn_big_a${i}`, a); lines.push(`#${a}=IFCPROPERTYSINGLEVALUE('${k}',$,IFCTEXT('1|UNIFORM'),$);`); });
+    property(big, 'OPS_Timephased', 'Windows', `{${keys.map((k, i) => `"${k}":${window(i)}`).join(',')}}`, 'w');
     return { lines, stepIds, idMap, index: scanStep(step(lines)), keys };
   };
-  const domainOf = (n: number) => ({
-    tasks: Array.from({ length: n }, (_, i) => ({ id: `t${i}`, notes: [{ id: `n${i}`, text: 'test2', done: false }] })),
-    resources: [], sequences: [], assignments: [], calendar: { id: 'c' }, resourceCalendars: [], project: {},
-    baselines: [{ id: 'b1', name: 'B2', tasks: Array.from({ length: n }, (_, i) => ({ taskId: `t${i}`, start: '2026-01-01' })) }],
-  }) as unknown as WriteIFCInput;
   const ARRAY_METHODS = ['filter', 'find', 'findIndex', 'some', 'every', 'map', 'forEach', 'flatMap', 'indexOf', 'includes', 'reduce'] as const;
   const counted = (f: () => void): number => {
     let work = 0;
@@ -339,7 +351,6 @@ function richDomain(): Domain {
   const round = (n: number) => {
     const src = synthetic(n, 'bron'), read0 = synthetic(n, 'lezing'), now = synthetic(n, 'nu');
     const plain = synthetic(n, 'lezing');
-    const domain = domainOf(n);
     const own = () => true;
     const binding = new Map(src.keys.map((k, i) => [k, `a${i}`]));
     const work: Record<string, number> = {};
@@ -350,15 +361,10 @@ function richDomain(): Domain {
     const entries = jsonExtrasIndex(found, (owner, key) => owner === bigStep ? binding.get(key) : undefined);
     let sources = jsonExtrasFromIndex(src.index, entries, src.stepIds, 'c');
     work['een uitleesronde'] = counted(() => { sources = jsonExtrasFromIndex(src.index, entries, src.stepIds, 'c'); });
-    const place = (id: string) => {
-      const i = Number(id.slice(1));
-      return { owner: i % 2 === 0 ? 'task_big' : 'task_big2', key: src.keys[i] };
-    };
-    const ctx = { place, readKey: (_owner: string, key: string) => key, exists: () => true };
+    const assignments = src.keys.map((_, i) => ({ id: `a${i}`, taskId: 'big' }));
+    const ctx = { exists: () => true, assignments: { read: assignments, written: assignments } };
     let merged = jsonMembers(read0, now, sources, ctx);
     work['per lid samenvoegen'] = counted(() => { merged = jsonMembers(read0, now, sources, ctx); });
-    const texts = sources.map(x => ({ ...x, text: merged.expected.get(`${x.owner}\u0000${x.pset}\u0000${x.property}`) ?? x.text }));
-    work['de planning in de vorm van de uitvoer'] = counted(() => { withJsonInOutputForm(domain, texts); });
     const output = synthetic(n, 'nu');
     const written = step(merged.written);
     let problem: string | undefined;
@@ -488,6 +494,16 @@ if (base) {
     ok(`${label}: weigert (${verdict.slice(0, 260)})`, pattern.test(verdict));
   };
   const asgn = (d: Domain, o: Opened, step: number) => d.assignments.find(a => a.taskId === taskOf(o).id && a.resourceId === resOf(o, step).id)!;
+  const likeMain = async (label: string, edit: Edit, source = withExtras) => {
+    const opened = await openForeign(source);
+    let domain = cloneDomain(opened);
+    domain.project.description = `${domain.project.description} (proef zoals main)`;
+    const edited = await edit(domain, opened);
+    if (edited) domain = edited;
+    const pr = await outcomeOf(domain, opened.ifcSource!), main = await outcomeOf(domain, mainRoute(opened.ifcSource!));
+    ok(`${label}: de weigering van main, met de melding van main (${pr.verdict.slice(0, 200)} | main: ${main.verdict.slice(0, 120)})`,
+      pr.verdict === main.verdict && main.verdict !== 'schreef' && !main.verdict.startsWith('fout'));
+  };
 
   await scenario('alleen herschrijven', () => {}, all);
   await scenario('de omschrijving van een codewaarde van een ander codetype', d => {
@@ -524,17 +540,17 @@ if (base) {
     d.baselines = d.baselines!.map(b => b.id === baselineId ? { ...b, tasks: [...b.tasks].reverse().map(t => ({ taskId: t.taskId, start: t.start, finish: t.finish, duration: t.duration, isMilestone: t.isMilestone, ...(t.milestoneKind ? { milestoneKind: t.milestoneKind } : {}) })) } : b);
   }, all);
 
-  await scenario('toewijzing: de eerste toewijzing van #63 weg, vendorW schuift mee naar de nieuwe sleutel', (d, o) => {
+  await likeMain('toewijzing: de eerste toewijzing van #63 weg, zodat de sleutel van #110 verandert', (d, o) => {
     d.assignments = d.assignments.filter(a => a !== asgn(d, o, 109));
-  }, { ...all, window: [TASK_GUID, `${R110}#0`] });
-  await scenario('toewijzing: Verplaats naar… taak #65, vendorW gaat mee met de toewijzing', async (d, o) => {
+  });
+  await likeMain('toewijzing: Verplaats naar… taak #65', async (d, o) => {
     const id = asgn(d, o, 110).id;
     return storeEdit(d, st => { st.moveAssignment(id, o.tasks.find(t => o.ifcSource!.stepIds[`task:${t.id}`] === 65)!.id); });
-  }, { ...all, window: [TASK_65_GUID, `${R110}#0`] });
-  await scenario('toewijzing: een andere resource met behoud van de toewijzing, vendorW blijft bij de toewijzing', (d, o) => {
+  });
+  await likeMain('toewijzing: een andere resource met behoud van de toewijzing', (d, o) => {
     const a = asgn(d, o, 110);
     d.assignments = d.assignments.map(x => x === a ? { ...x, resourceId: resOf(o, 111).id } : x);
-  }, { ...all, window: [TASK_GUID, `${R111}#1`] });
+  });
   await scenario('toewijzing: een tweede toewijzing van dezelfde resource erbij, vendorW blijft bij de eerste', (d, o) => {
     d.assignments = [...d.assignments, { ...asgn(d, o, 110), id: 'asgn-tweede' }];
   }, all);
@@ -685,12 +701,15 @@ if (base) {
           if (!st.moveAssignment(a63.id, third.id)) throw new Error('omwisselen: stap 1');
         }).then(d => storeEdit(d, st => { if (!st.moveAssignment(b65.id, a63.taskId)) throw new Error('omwisselen: stap 2'); }))
           .then(d => storeEdit(d, st => { if (!st.moveAssignment(a63.id, t65.id)) throw new Error('omwisselen: stap 3'); }));
-        const verdict = await refusal(swapped, start.ifcSource!);
-        const out = verdict === 'schreef' ? await prepareIfcWrite(swapped, start.ifcSource!) : undefined;
-        const w63 = out && jsonIn(out.bytes, 'OPS_Timephased', 'Windows', TASK_GUID), w65 = out && jsonIn(out.bytes, 'OPS_Timephased', 'Windows', TASK_65_GUID);
-        const follows = w65?.includes('proef-63') === true && w63?.includes('proef-65') === true && !w63.includes('proef-63') && !w65.includes('proef-65');
-        ok(`${label} (ronde 2, blokkade 1): ${split ? 'elke markering volgt haar toewijzing, of het opslaan weigert zoals main bij elke wijziging' : 'elke markering volgt haar toewijzing'} (${verdict.slice(0, 160)} | ${w63} | ${w65})`,
-          split ? (verdict === 'schreef' ? follows : /^(niet-eenduidig|niet-gedragen|uitvoer-controle):/.test(verdict)) : follows);
+        const pr = await outcomeOf(swapped, start.ifcSource!), main = await outcomeOf(swapped, mainRoute(start.ifcSource!));
+        ok(`${label}, twee toewijzingen met gelijke vensterdata: de uitkomst van main (${pr.verdict.slice(0, 160)} | main: ${main.verdict.slice(0, 160)})`,
+          pr.verdict === main.verdict && !pr.verdict.startsWith('fout') && (pr.verdict !== 'schreef' || sameBytes(pr.prepared?.bytes, main.prepared?.bytes)));
+        const moved = cloneDomain(swapped);
+        moved.project.description = `${moved.project.description} (proef omwisselen)`;
+        const prMoved = await outcomeOf(moved, start.ifcSource!), mainMoved = await outcomeOf(moved, mainRoute(start.ifcSource!));
+        ok(`${label}, en een wijziging elders: de uitkomst van main (${prMoved.verdict.slice(0, 160)} | main: ${mainMoved.verdict.slice(0, 160)})`,
+          prMoved.verdict === mainMoved.verdict && !prMoved.verdict.startsWith('fout')
+          && (prMoved.verdict !== 'schreef' || sameBytes(prMoved.prepared?.bytes, mainMoved.prepared?.bytes)));
       }
     }
   }
@@ -759,6 +778,227 @@ if (base) {
       memberOf(jsonIn(prepared.bytes, 'OPS_StructureMeta', 'structure'), ['vendorOpaque']) === '{"code":1,"code":2}');
     if (prepared) ok(`een letterlijk teken in een onbekend token, ${label}: geschreven zoals in de bron, niet als escape (${memberOf(jsonIn(prepared.bytes, 'OPS_StructureMeta', 'structure'), ['vendorText'])})`,
       memberOf(jsonIn(prepared.bytes, 'OPS_StructureMeta', 'structure'), ['vendorText']) === '"\u00e9"');
+  }
+}
+
+if (base) {
+  const t63 = (o: Opened) => taskOf(o).id;
+  const t65 = (o: Opened) => o.tasks.find(t => o.ifcSource!.stepIds[`task:${t.id}`] === 65)!.id;
+  const on = (d: Domain, o: Opened, task: string, step: number) => d.assignments.find(a => a.taskId === task && a.resourceId === resOf(o, step).id)!;
+  const thirdOf = (d: Domain, o: Opened) => d.tasks.find(t => t.id !== t63(o) && t.id !== t65(o) && !t.isMilestone && !t.isSummary
+    && t.childIds.length === 0 && !d.assignments.some(a => a.taskId === t.id && a.resourceId === resOf(o, 110).id))!;
+  const costOf = (d: Domain, o: Opened) => d.assignments.find(a => a.taskId === t63(o) && a.costAmount === 50)!;
+  const opened = await openForeign(base);
+  const grownDomain = await storeEdit(cloneDomain(opened), st => {
+    const cost = st.addResource({ name: 'Leges', type: 'COST', description: '', maxUnits: 1 } as never);
+    st.assignResource(t63(opened), cost, 1, undefined, 50);
+  });
+  grownDomain.assignments = [...grownDomain.assignments,
+    { ...on(grownDomain, opened, t63(opened), 110), id: 'asgn-110-op-65', taskId: t65(opened), plannedWorkMinutes: 240 }];
+  grownDomain.tasks = grownDomain.tasks.map(t => t.id === t63(opened) ? { ...t, notes: [{ id: 'n1', text: 'eerste', done: false }] } : t);
+  const grown = await save('regel 1: bron met een kostentoewijzing en een notitie op #63 en #110 op #65', grownDomain, opened.ifcSource!);
+  if (grown) {
+    const g = text(grown.bytes);
+    const w63 = jsonIn(grown.bytes, 'OPS_Timephased', 'Windows', TASK_GUID)!, w65 = jsonIn(grown.bytes, 'OPS_Timephased', 'Windows', TASK_65_GUID)!;
+    const costKey = rawKeys(w63).find(k => !k.startsWith(`${R109}#`) && !k.startsWith(`${R110}#`) && !k.startsWith(`${R111}#`))!;
+    const k65 = rawKeys(w65).find(k => k.startsWith(`${R110}#`))!;
+    const marked63 = w63.replace(/^\{/, '{"vendorMapNote":"m",').replace(`"${R110}#1":{`, `"${R110}#1":{"vendorW":"w-110",`)
+      .replace(`"${costKey}":{`, `"${costKey}":{"vendorC":"c",`).replace(`"${R109}#0":{"plannedWorkMinutes":480}`, `"${R109}#0":{"plannedWorkMinutes":480.0}`);
+    const F1text = patchAt(patchAt(g, w63, marked63), w65, w65.replace(`"${k65}":{`, `"${k65}":{"vendorV":"v-65",`));
+    const F1 = latin1(F1text);
+    ok('regel 1: de bron heeft de markeringen, 480.0 als buurveld en een binding voor elk venster met een markering',
+      text(F1).includes('vendorW') && text(F1).includes('vendorV') && text(F1).includes('vendorC') && text(F1).includes('"plannedWorkMinutes":480.0'));
+    const kept = (bytes: Uint8Array, neighbour = true) => {
+      const a = jsonIn(bytes, 'OPS_Timephased', 'Windows', TASK_GUID), b = jsonIn(bytes, 'OPS_Timephased', 'Windows', TASK_65_GUID);
+      return rawKeys(a ?? '')[0] === 'vendorMapNote' && memberOf(a, [`${R110}#1`, 'vendorW']) === '"w-110"' && memberOf(a, [costKey, 'vendorC']) === '"c"'
+        && memberOf(b, [k65, 'vendorV']) === '"v-65"' && (!neighbour || memberOf(a, [`${R109}#0`, 'plannedWorkMinutes']) === '480.0')
+        && text(bytes).split('vendorW').length === 2 && text(bytes).split('vendorV').length === 2 && text(bytes).split('vendorC').length === 2;
+    };
+    type Step = (d: Domain, o: Opened) => Domain | Promise<Domain>;
+    const work = (minutes: number): Step => (d, o) => {
+      const a = on(d, o, t63(o), 110);
+      d.assignments = d.assignments.map(x => x === a ? { ...x, plannedWorkMinutes: minutes } : x);
+      return d;
+    };
+    const swap: Step = (d, o) => {
+      const a = on(d, o, t63(o), 110), b = on(d, o, t65(o), 110), third = thirdOf(d, o);
+      return storeEdit(d, st => { if (!st.moveAssignment(a.id, third.id)) throw new Error('omwisselen 1'); })
+        .then(x => storeEdit(x, st => { if (!st.moveAssignment(b.id, t63(o))) throw new Error('omwisselen 2'); }))
+        .then(x => storeEdit(x, st => { if (!st.moveAssignment(a.id, t65(o))) throw new Error('omwisselen 3'); }));
+    };
+    const newResourceElsewhere: Step = (d, o) => storeEdit(d, st => {
+      const id = st.addResource({ name: 'Nieuw elders', type: 'LABOR', description: '', maxUnits: 1 } as never);
+      st.assignResource(thirdOf(d, o).id, id, 1);
+    });
+    const changing: readonly [string, Step][] = [
+      ['verplaatsen', (d, o) => storeEdit(d, st => { if (!st.moveAssignment(on(d, o, t63(o), 110).id, thirdOf(d, o).id)) throw new Error('verplaatsen'); })],
+      ['omwisselen via een derde taak', swap],
+      ['wissen en opnieuw maken', (d, o) => {
+        const a = on(d, o, t63(o), 110);
+        return storeEdit(d, st => { st.unassignResource(a.id); st.assignResource(a.taskId, a.resourceId, a.unitsPerDay); });
+      }],
+      ['van resource wisselen', (d, o) => {
+        const a = on(d, o, t63(o), 110);
+        d.assignments = d.assignments.map(x => x === a ? { ...x, resourceId: resOf(o, 111).id } : x);
+        return d;
+      }],
+      ['de taak wissen', (d, o) => storeEdit(d, st => { st.deleteTask(t63(o)); })],
+    ];
+    for (const [label, edit] of changing) {
+      const o = await openForeign(F1);
+      const d = await edit(cloneDomain(o), o);
+      const pr = await outcomeOf(d, o.ifcSource!), main = await outcomeOf(d, mainRoute(o.ifcSource!));
+      ok(`regel 1, ${label}: de uitkomst van main, met de melding van main (${pr.verdict.slice(0, 200)} | main: ${main.verdict.slice(0, 200)})`,
+        pr.verdict === main.verdict && (pr.verdict === 'schreef' ? sameBytes(pr.prepared?.bytes, main.prepared?.bytes) : !pr.verdict.startsWith('fout')));
+      ok(`regel 1, ${label}: main weigert, dus er komt niets op schijf (${main.verdict.slice(0, 120)})`, main.verdict !== 'schreef' && !main.verdict.startsWith('fout'));
+    }
+    const keeping: readonly [string, Step, boolean][] = [
+      ['kosten', (d, o) => storeEdit(d, st => st.setAssignmentCost(costOf(d, o).id, 75)), true],
+      ['werk', work(960), true],
+      ['een ander venster', (d, o) => {
+        const a = on(d, o, t63(o), 109);
+        d.assignments = d.assignments.map(x => x === a ? { ...x, plannedWorkMinutes: 720 } : x);
+        return d;
+      }, false],
+      ['een andere taak', (d, o) => { const t = thirdOf(d, o); d.tasks = d.tasks.map(x => x === t ? { ...x, name: `${x.name} (proef)` } : x); return d; }, true],
+      ['een nieuwe resource elders', newResourceElsewhere, true],
+      ['de projectbeschrijving', d => { d.project.description = `${d.project.description} (proef regel 1)`; return d; }, true],
+    ];
+    for (const [label, edit, neighbour] of keeping) {
+      const o = await openForeign(F1);
+      const d = await edit(cloneDomain(o), o);
+      const pr = await outcomeOf(d, o.ifcSource!);
+      ok(`regel 1, ${label}: gedragen, elke markering op haar plek${neighbour ? ' en 480.0 ongemoeid' : ''} (${pr.verdict.slice(0, 200)} | ${pr.prepared ? jsonIn(pr.prepared.bytes, 'OPS_Timephased', 'Windows', TASK_GUID) : ''})`,
+        pr.verdict === 'schreef' && kept(pr.prepared!.bytes, neighbour));
+      if (!pr.prepared) continue;
+      const again = await outcomeOf(await work(1200)(structuredClone(d), o), pr.prepared.source);
+      ok(`regel 1, ${label}, daarna het venster met de markering wijzigen en nog eens opslaan: gedragen (${again.verdict.slice(0, 200)})`,
+        again.verdict === 'schreef' && kept(again.prepared!.bytes, neighbour)
+        && memberOf(jsonIn(again.prepared!.bytes, 'OPS_Timephased', 'Windows', TASK_GUID), [`${R110}#1`, 'plannedWorkMinutes']) === '1200');
+    }
+    {
+      const o = await openForeign(F1);
+      const d = await work(960)(await newResourceElsewhere(cloneDomain(o), o), o);
+      const pr = await outcomeOf(d, o.ifcSource!);
+      ok(`nieuwe resource (ronde 3, blokkade 2): een resource erbij op een andere taak en in dezelfde opslag het venster met de markering wijzigen: gedragen (${pr.verdict.slice(0, 200)})`,
+        pr.verdict === 'schreef' && kept(pr.prepared!.bytes));
+    }
+
+    const mixed = latin1(patchAt(F1text, marked63, marked63.replace(/\}$/, `,"${R110}#99":{"vendorOpaque":"ongebonden"}}`)));
+    {
+      const o = await openForeign(mixed);
+      const d = await swap(cloneDomain(o), o);
+      const pr = await outcomeOf(d, o.ifcSource!), main = await outcomeOf(d, mainRoute(o.ifcSource!));
+      ok(`gemengde kaart (ronde 3, vervolg): een gebonden venster en een venster met alleen onbekende sleutels, omwisselen: de weigering van main (${pr.verdict.slice(0, 160)} | main: ${main.verdict.slice(0, 160)})`,
+        pr.verdict === main.verdict && main.verdict !== 'schreef' && !main.verdict.startsWith('fout'));
+    }
+    {
+      const o = await openForeign(mixed);
+      const pr = await outcomeOf(await work(960)(cloneDomain(o), o), o.ifcSource!);
+      const a = pr.prepared && jsonIn(pr.prepared.bytes, 'OPS_Timephased', 'Windows', TASK_GUID);
+      ok(`gemengde kaart (ronde 3, vervolg): zonder omwisselen, het gebonden venster gewijzigd: gedragen, beide vensters met hun brontokens (${pr.verdict.slice(0, 160)} | ${a})`,
+        pr.verdict === 'schreef' && kept(pr.prepared!.bytes) && memberOf(a, [`${R110}#99`]) === '{"vendorOpaque":"ongebonden"}'
+        && memberOf(a, [`${R110}#1`, 'plannedWorkMinutes']) === '960');
+    }
+
+    {
+      const o = await openForeign(F1);
+      const at = async (edit: Step) => { const d = await edit(cloneDomain(o), o); return { d, pr: await outcomeOf(d, o.ifcSource!), main: await outcomeOf(d, mainRoute(o.ifcSource!)) }; };
+      const moved = await at(changing[0][1]), swapped = await at(swap), worked = await at(work(960));
+      ok(`vaste reeks: vanaf dezelfde stand weigeren verplaatsen en omwisselen zoals main (${moved.pr.verdict.slice(0, 100)} | ${swapped.pr.verdict.slice(0, 100)})`,
+        moved.pr.verdict === moved.main.verdict && moved.main.verdict !== 'schreef' && swapped.pr.verdict === swapped.main.verdict && swapped.main.verdict !== 'schreef');
+      ok(`vaste reeks: vanaf dezelfde stand schrijft het werk naast 480.0, waar main weigert (${worked.pr.verdict.slice(0, 100)} | main: ${worked.main.verdict.slice(0, 100)})`,
+        worked.pr.verdict === 'schreef' && kept(worked.pr.prepared!.bytes) && /^niet-gedragen: .*Windows/.test(worked.main.verdict));
+      if (worked.pr.prepared) {
+        const first = worked.pr.prepared;
+        const second = await outcomeOf(worked.d, first.source);
+        ok('vaste reeks: twee keer opslaan geeft dezelfde bytes', second.verdict === 'schreef' && sameBytes(second.prepared!.bytes, first.bytes));
+        const re = await openForeign(first.bytes);
+        ok('vaste reeks: na heropenen elke markering op haar plek, 480.0 en de nieuwe 960',
+          kept(first.bytes) && memberOf(jsonIn(first.bytes, 'OPS_Timephased', 'Windows', TASK_GUID), [`${R110}#1`, 'plannedWorkMinutes']) === '960'
+          && (re.ifcSource?.jsonExtras ?? []).some(e => (e.windows ?? []).some(w => w.key === `${R110}#1`)));
+        const later = await outcomeOf(await work(1200)(cloneDomain(re), re), re.ifcSource!);
+        ok(`vaste reeks: na heropenen het venster weer wijzigen: gedragen (${later.verdict.slice(0, 160)})`, later.verdict === 'schreef' && kept(later.prepared!.bytes));
+        if (later.prepared) {
+          const disk = later.prepared.bytes;
+          const handle = { kind: 'file', name: 'reeks.ifc', queryPermission: async () => 'granted', getFile: async () => new File([new Uint8Array(disk).buffer], 'reeks.ifc') };
+          const session = await work(1500)(cloneDomain(re), re);
+          const doc: LoadedRecoveryDoc = {
+            id: 'doc-reeks', ifc: writeIFC(session), filePath: null, isDirty: true, datesAsRecorded: false, mtime: null,
+            ifcSource: { foreign: true, sha256: later.prepared.sha256, byteLength: disk.length, handle: handle as unknown as FileSystemFileHandle },
+          };
+          const recovered = await readRecoveryDocument(doc, new Map(), true);
+          ok('vaste reeks: herstel via de productie-ingang las de bron via de handle', recovered.sourceRestored === true && !!recovered.ifcSource?.foreign);
+          if (recovered.ifcSource) {
+            const { store, buildWriteIFCInput } = await storeWith(recovered as unknown as WriteIFCInput);
+            const restored = buildWriteIFCInput(store.getState(), 'merge') as unknown as Domain;
+            for (const [label, edit] of [
+              ['alleen de projectbeschrijving', (d: Domain) => { d.project.description = `${d.project.description} (na herstel)`; return d; }],
+              ['het venster met de markering', (d: Domain) => {
+                const a = d.assignments.find(x => x.taskId === d.tasks.find(t => recovered.ifcSource!.stepIds[`task:${t.id}`] === 63)?.id
+                  && d.resources.find(r => r.id === x.resourceId && recovered.ifcSource!.stepIds[`res:${r.id}`] === 110));
+                if (!a) throw new Error('vaste reeks: na herstel geen toewijzing van #110 op #63');
+                d.assignments = d.assignments.map(x => x === a ? { ...x, plannedWorkMinutes: 1800 } : x);
+                return d;
+              }],
+            ] as const) {
+              const d = edit(structuredClone(restored));
+              const pr = await outcomeOf(d, recovered.ifcSource), main = await outcomeOf(d, mainRoute(recovered.ifcSource));
+              ok(`vaste reeks: na herstel, ${label}: de uitkomst van main (${pr.verdict.slice(0, 160)} | main: ${main.verdict.slice(0, 160)})`,
+                pr.verdict === main.verdict && !pr.verdict.startsWith('fout') && (pr.verdict !== 'schreef' || sameBytes(pr.prepared?.bytes, main.prepared?.bytes)));
+            }
+          }
+        }
+      }
+    }
+
+    const TRICKY = String.raw`"__proto__":{},"constructor":1,"toString":"x","hasOwnProperty":false,"10":"tien","2":"twee","":"leeg","vx":"v","vZero":-0,"vA":480.0,"vB":48e1,"vC":1E2`;
+    const TRICKY_PAIRS = TRICKY.match(/"(?:[^"\\]|\\.)*":(?:\{\}|"[^"]*"|[^,]+)/g)!;
+    const DUPS = '"vDup":1,"vDup":2';
+    const bl = jsonIn(grown.bytes, 'OPS_Baselines', 'Baselines')!;
+    const rowTask = (JSON.parse(bl) as { tasks: { taskId: string }[] }[])[0].tasks[1].taskId;
+    const notes63 = jsonIn(grown.bytes, 'OPS_TaskNotes', 'Notes', TASK_GUID)!;
+    const structure = jsonIn(grown.bytes, 'OPS_StructureMeta', 'structure')!;
+    type Place = { label: string; pset: string; property: string; owner?: string; json: string; put: (json: string, x: string) => string; change: Step; inChanged: boolean };
+    const places: readonly Place[] = [
+      { label: 'een notitie', pset: 'OPS_TaskNotes', property: 'Notes', owner: TASK_GUID, json: notes63, put: (j, x) => j.replace('"done":false}', `"done":false,${x}}`),
+        change: (d, o) => storeEdit(d, st => { st.updateTask(t63(o), { notes: st.tasks.find(t => t.id === t63(o))!.notes!.map(n => ({ ...n, done: true })) }); }), inChanged: true },
+      { label: 'een venster', pset: 'OPS_Timephased', property: 'Windows', owner: TASK_GUID, json: w63, put: (j, x) => j.replace(`"${R110}#1":{`, `"${R110}#1":{${x},`),
+        change: work(960), inChanged: true },
+      { label: 'een regel van een lijst', pset: 'OPS_Baselines', property: 'Baselines', json: bl, put: (j, x) => j.replace(`{"taskId":"${rowTask}",`, `{"taskId":"${rowTask}",${x},`),
+        change: d => { d.baselines = d.baselines!.map((b, k) => k === 0 ? { ...b, tasks: b.tasks.map(r => r.taskId === rowTask ? { ...r, duration: (r.duration ?? 0) + 60 } : r) } : b); return d; }, inChanged: true },
+      { label: 'een genest onbekend object', pset: 'OPS_StructureMeta', property: 'structure', json: structure, put: (j, x) => j.replace(/\}$/, `,"vendorNest":{${x}}}`),
+        change: d => { d.activityCodeTypes = d.activityCodeTypes!.map(t => t.id === 'act-zone' ? { ...t, name: 'Zone (proef)' } : t); return d; }, inChanged: false },
+    ];
+    for (const place of places) {
+      for (const [variant, x] of [['lastige sleutels en getallen', TRICKY], ['dubbele sleutels', DUPS]] as const) {
+        const src = latin1(patchAt(g, place.json, place.put(place.json, x)));
+        const propertyIn = (bytes: Uint8Array) => jsonIn(bytes, place.pset, place.property, place.owner);
+        const label = `lastige leden (ronde 3, blokkade 1), ${variant} in ${place.label}`;
+        ok(`${label}: de proefbewerking zette ze erin`, propertyIn(src)?.includes(x) === true);
+        const o = await openForeign(src);
+        const unchanged = await outcomeOf(cloneDomain(o), o.ifcSource!), mainUnchanged = await outcomeOf(cloneDomain(o), mainRoute(o.ifcSource!));
+        ok(`${label}: ongewijzigd opslaan geeft de bronbytes, zoals main (${unchanged.verdict.slice(0, 160)} | main: ${mainUnchanged.verdict.slice(0, 80)})`,
+          sameBytes(unchanged.prepared?.bytes, src) && sameBytes(mainUnchanged.prepared?.bytes, src));
+        const elsewhere = cloneDomain(o);
+        elsewhere.project.description = `${elsewhere.project.description} (proef lastige leden)`;
+        const other = await outcomeOf(elsewhere, o.ifcSource!);
+        ok(`${label}: een wijziging elders laat de eigenschap byte-gelijk (${other.verdict.slice(0, 160)})`,
+          other.verdict === 'schreef' && propertyIn(other.prepared!.bytes) === propertyIn(src));
+        const changed = await place.change(cloneDomain(o), o);
+        const pr = await outcomeOf(changed, o.ifcSource!), main = await outcomeOf(changed, mainRoute(o.ifcSource!));
+        const out = pr.prepared && propertyIn(pr.prepared.bytes);
+        if (variant === 'dubbele sleutels' && place.inChanged) {
+          ok(`${label}: een wijziging in hetzelfde object weigert zoals main (${pr.verdict.slice(0, 160)} | main: ${main.verdict.slice(0, 160)})`,
+            pr.verdict === main.verdict && main.verdict !== 'schreef' && !main.verdict.startsWith('fout'));
+        } else {
+          const pairs = variant === 'dubbele sleutels' ? [DUPS] : TRICKY_PAIRS;
+          const missing = pairs.filter(p => !out?.includes(p));
+          ok(`${label}: een wijziging in hetzelfde object houdt elk ruw paar (${pr.verdict.slice(0, 160)}; ontbreekt: ${missing.join(' ')})`,
+            pr.verdict === 'schreef' && missing.length === 0);
+        }
+      }
+    }
   }
 }
 
