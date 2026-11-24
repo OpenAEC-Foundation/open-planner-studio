@@ -1408,6 +1408,17 @@ en noem het in je rapport of PR-tekst.
       dan zichtbaar A (WBS 1.2) vóór X (WBS 1.1). Sleep A en X samen onder een andere fase: daar staat X vóór A, omdat
       `moveTasksToEdit` de groep op `flattenOrder` sorteert. Bron: proef van de reviewer in de store, bij de opruiming
       van het commentaar in `taskSlice.ts`. Zie ADR 0150 en 0151. — B
+2006. **De status- of voortgangslijn ligt op het papier en in het raster boven de labels bij de balken, in de vector-PDF eronder.**
+    `renderReport` (`src/services/print/printPreview.ts`) tekent de lijn na de labels (`drawStatusReferenceLine`). De
+    SVG-opname van het papier (`SvgRecordingDraw2D`) en het canvas van de rasterexport (`CanvasDraw2D`) houden de volgorde
+    van de aanroepen aan, dus daar ligt de lijn boven de tekst. `paginateVector.ts` zet alle vormen in één Form-XObject en
+    de tekst daarna per blad, dus in de vector-PDF staat een label boven de lijn. Waar de lijn door een taaknaam loopt,
+    verschilt de vector-PDF van het papier. Gezien in de code van alle drie de routes en door een tweede controle in de code bevestigd;
+    zie ADR 0232. — B
+2007. **De bovengrens van de curvekolom is niet nagemeten voor alle 28 talen.** `COL.curve.w` (98 px, in
+    `src/services/print/printPreview.ts`) is volgens het weggehaalde commentaar de breedte waarop de langste curvenaam
+    van veertien talen past; de app heeft er nu 28. `measureCurveColumnWidth` begrenst de kolom op die breedte, dus een
+    langere vertaalde curvenaam wordt in de cel afgekapt. Niet gemeten. — S
 
 ## Kalenders
 
