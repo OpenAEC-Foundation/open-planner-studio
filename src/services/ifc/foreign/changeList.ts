@@ -1,4 +1,3 @@
-import { ifcObjectSeed } from '../ifcWriter';
 import type { UnusedKeysOfTask } from './ifcSource';
 
 export const SINGLE_REFERENCES = 0;
@@ -47,18 +46,39 @@ export interface DomainObjectIds {
   readonly resourceCalendars?: readonly { readonly id: string }[];
 }
 
-const DELETABLE_KINDS = ['task', 'res', 'seq', 'cal'] as const;
+type DeletableKind = 'task' | 'res' | 'seq' | 'cal';
+
+interface SourceSeed {
+  readonly kind: string;
+  readonly id: string;
+  readonly stepId: number;
+}
+
+const parsedSeeds = new WeakMap<Readonly<Record<string, number>>, readonly SourceSeed[]>();
+
+function seedsOf(stepIds: Readonly<Record<string, number>>): readonly SourceSeed[] {
+  let seeds = parsedSeeds.get(stepIds);
+  if (!seeds) {
+    seeds = Object.entries(stepIds).map(([seed, stepId]) => {
+      const at = seed.indexOf(':');
+      return { kind: seed.slice(0, at), id: seed.slice(at + 1), stepId };
+    });
+    parsedSeeds.set(stepIds, seeds);
+  }
+  return seeds;
+}
+
+const idsOf = (objects: readonly { readonly id: string }[]) => new Set(objects.map(object => object.id));
 
 export function goneStepIds(stepIds: Readonly<Record<string, number>>, domain: DomainObjectIds): Set<number> {
-  const present = new Set<string>([ifcObjectSeed('cal', domain.calendar.id)]);
-  for (const task of domain.tasks) present.add(ifcObjectSeed('task', task.id));
-  for (const resource of domain.resources) present.add(ifcObjectSeed('res', resource.id));
-  for (const sequence of domain.sequences) present.add(ifcObjectSeed('seq', sequence.id));
-  for (const calendar of domain.resourceCalendars ?? []) present.add(ifcObjectSeed('cal', calendar.id));
-  const deletable = DELETABLE_KINDS.map(kind => ifcObjectSeed(kind, ''));
+  const present = new Map<string, ReadonlySet<string>>([
+    ['task', idsOf(domain.tasks)], ['res', idsOf(domain.resources)], ['seq', idsOf(domain.sequences)],
+    ['cal', idsOf([domain.calendar, ...(domain.resourceCalendars ?? [])])],
+  ] satisfies [DeletableKind, ReadonlySet<string>][]);
   const kept = new Set<number>(), missing = new Set<number>();
-  for (const [seed, stepId] of Object.entries(stepIds)) {
-    if (!deletable.some(prefix => seed.startsWith(prefix)) || present.has(seed)) kept.add(stepId);
+  for (const { kind, id, stepId } of seedsOf(stepIds)) {
+    const ids = present.get(kind);
+    if (!ids || ids.has(id)) kept.add(stepId);
     else missing.add(stepId);
   }
   for (const stepId of kept) missing.delete(stepId);
