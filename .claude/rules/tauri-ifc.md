@@ -482,10 +482,9 @@ flag aan, een document met een vreemd deel (`preparedExport`). Opslaan als en de
 `placeOnDesktop` (`fileSlice.ts`, geeft `SaveOutcome | null`): de kiezer met de doelwaarneming, de doelcontrole met die
 waarneming, pas daarna de bytes, en dan de vervanging, de exclusieve aanmaak of de weigering zoals hierboven. De route
 geeft de doelcontrole, de late controle, het document voor het manifest, de commit en de meldingen mee. De export:
-- **Bevestiging.** `pickSaveTargetTauri` noteert de tijd vlak vóór het venster en zet `olderThanPicker` als de wijzigings-
-  en aanmaaktijd van het gelezen bestand (uit dezelfde `lstat`, geen extra aanroep) daarvóór liggen. Alleen dan vervangt de
-  export; anders telt het als een vrije naam (exclusieve aanmaak, `exportReplaceNewTargetOnly`). Opslaan als negeert dit
-  veld (knownbug 1890); de grenzen staan in knownbug 2208.
+- **Bevestiging.** Dezelfde waarneming als Opslaan als: de versie die `pickSaveTarget` direct na de keuze leest, is de
+  bevestigde (maat a van Trias, fixronde 2 van #1179; geen tijdstempels). Stond er toen niets, dan de exclusieve aanmaak
+  (een later verschenen bestand blijft staan, `exportReplaceNewTargetOnly`). De grens vóór die lezing: knownbug 2208.
 - **P1.** `exportTargetPermission(bron, waarneming)` (`ifcForeignGuard.ts`) is de ene exportregel voor de toestemming:
   `chosenTarget` plus `protectModelTargets` als de uitvoer geen gebouwmodel draagt (`hasBuildingModel`). Dan blijft een
   doel met een gebouwmodel geweigerd, ook bevestigd; een doel met alleen gegevens van een ander programma niet.
@@ -499,6 +498,11 @@ geeft de doelcontrole, de late controle, het document voor het manifest, de comm
   `planning-changed` (de aanroeper meldt `ifcExportChangedWhileWaiting`); lukt het terugzetten niet, dan
   `previous-stranded` en blijven het record en de hulpnaam. Zonder haak (Ctrl+S, Opslaan als, Automatisch opslaan) loopt
   de route aanroep voor aanroep als voorheen (proef: de reeksen aanroepen in `check-ifc-own-file-replace.ts`).
+- **De vlag tot de plaatsing** (`replaceAllowed`, alleen de export, los van de haak): direct na de haak, in dezelfde
+  synchrone stap. Staat `ifcForeignContent` uit, dan dezelfde terugzetstap, uitkomst `replace-withdrawn` (de melding van
+  main bij de flag uit, `ifcForeignSaveBlocked`). `tauriOwnFileReplaceFs` laadt `invoke` vooraf
+  (`placeFileExclusiveWith`), zodat haak, vlag en de aanroep van de definitieve plaatsing geen `await` scheidt; wat
+  overblijft is knownbug 2247.
 - Het eigen bestand van het document blijft geweigerd; bij de IFC-exports van de planning (`exportTargetChecks`: ook
   zonder gebouwmodel en het planningsbestand van de export met bibliotheek) met `exportTargetOwnFile`, dat naar Opslaan
   verwijst. Andere formaten en de afzonderlijke bibliotheekuitvoer houden hun zin.

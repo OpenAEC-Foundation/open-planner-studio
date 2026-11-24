@@ -1231,6 +1231,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         documentId: null,
         sha256: () => prepared.sha256,
         planningChanged: () => exportPlanningChanged(state),
+        replaceAllowed: () => ifcForeignContentEnabled(get().ui.featureFlags),
         commit: () => {},
         notices: exportReplaceNotices,
         failed: err => {
@@ -1251,6 +1252,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       readonly documentId: string | null;
       readonly sha256: (bytes: Uint8Array) => string | Promise<string>;
       readonly planningChanged?: () => boolean;
+      readonly replaceAllowed?: () => boolean;
       readonly commit: (path: string, written: TargetFingerprint) => void;
       readonly notices: (result: OwnPathReplaceResult, path: string) => NotifyInput[];
       readonly failed: (error: unknown) => NotifyInput;
@@ -1279,23 +1281,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return typeof data === 'string' ? new TextEncoder().encode(data) : data;
   };
 
-  /**
-   * De vervanging van een ANDER bestaand bestand bij *Opslaan als* (`saveAsOnDesktop`): dezelfde als Ctrl+S
-   * (`replaceOwnPathWithRecovery`, §4.10 stap 0–6), binnen dezelfde `runProjectFileWrite` van de opslag; alleen de verwachte
-   * inhoud is anders: de app opende dit bestand niet, dus het is wat de bestandskiezer vastlegde (`current`; zijn sha256
-   * is `vorigeSha256` in het herstelrecord). Staat er vlak vóór het opzijzetten iets anders (stap 2), dan stopt de opslag
-   * met de melding van Ctrl+S en blijft het doel zoals het is; schreef een ander programma daarna nog (stap 5), dan blijft
-   * die versie als kopie. Ook voor een document zonder vreemd deel (fixronde 2 van #1071): dan zonder de manifeststap
-   * (`documentId: null`), want zo'n document heeft geen bron in het herstelmanifest; het herstelrecord dekt de hulpnamen.
-   * `stopBeforeWrite` is de doelcontrole van de kiezer, opnieuw na de eerste herstelronde: document, open tabbladen en
-   * bronnen; de scan van `current` doet ze niet nog eens. Na een geslaagde vervanging is het document hetzelfde als na
-   * Opslaan als naar een nieuwe naam (nieuw pad; bij de merge de geschreven bytes als bron). Waar de vervanging niet kan
-   * (`save-as-only`: een map waar het tijdelijke bestand niet mag ontstaan, een link, een bestandssysteem zonder exclusieve
-   * stap) blijft de melding van een nieuwe naam. Geen terugval op een routine die het bestand overschrijft. De identiteit
-   * van de documentinhoud (#1020) toetst deze route twee keer: `stopBeforeWrite` (vóór het eigen tijdelijke bestand) en de
-   * commit met de inhoud van de momentopname (`snapshotContent`), zodat een intussen geladen ander project geen pad of bron
-   * krijgt. `null`: niet vervangen; anders vervangen, met de uitkomst van de commit (`committed`: het document is schoon).
-   */
   const replaceExistingPath = async (
     placement: DesktopPlacement, bytes: Uint8Array, path: string, current: Uint8Array, stopBeforeWrite: () => Promise<boolean>,
   ): Promise<boolean> => {
@@ -1308,6 +1293,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         source: { bytes: current, sha256: await precomputeSha256(current) }, stopBeforeWrite,
         refuseBeforePlace: placement.refuseBeforePlace,
         ...(replacement.planningChanged ? { planningChanged: replacement.planningChanged } : {}),
+        ...(replacement.replaceAllowed ? { replaceAllowed: replacement.replaceAllowed } : {}),
         commit: () => replacement.commit(path, { sha256: prepared.sha256, byteLength: bytes.byteLength }),
       });
       for (const notice of replacement.notices(result, path)) get().notify(notice);

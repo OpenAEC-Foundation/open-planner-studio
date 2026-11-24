@@ -3855,26 +3855,6 @@ en noem het in je rapport of PR-tekst.
      kwamen de oude IFC-bytes terug. `check-recovery-web-hold.ts` toetst bij een dubbel document alleen dat het één keer
      verschijnt, niet welke versie. — B
 
-2207. **VERVOLG (#804, tekst): na een crash tijdens Exporteren → IFC over een bestaande naam heet de bewaarde export
-     "niet opgeslagen planning".** De export vervangt een bestaand bestand langs dezelfde vervanging als Opslaan als
-     (`replaceOwnPathWithRecovery` met `documentId: null`). Crasht de app tussen het aanmaken van het tijdelijke bestand
-     en het plaatsen, dan zet de volgende start de vorige versie terug en bewaart de onvoltooide export als
-     `<naam> (niet opgeslagen planning <datum tijd>).ifc` (`settleReplaceRemnants`, `ifcForeignReplaceUnsavedCopy`). Er
-     gaat niets verloren en de planning in de app was niet opgeslagen, maar het woord past niet bij een export. Het
-     herstelrecord weet niet of het een export was; een eigen naam vraagt een veld in het record. Voorlopige keuze P5 van
-     de bouwopdracht van #1179; proef: de crashgevallen van Exporteren in `check-ifc-own-file-replace.ts`. — B
-
-2208. **VERVOLG (#804): of de planner een bestaand exportdoel in het venster bevestigde, leidt de app af uit de
-     tijdstempels.** plugin-dialog geeft alleen het pad terug, niet of het venster om vervangen vroeg. Exporteren → IFC
-     vervangt daarom alleen een gewoon bestand waarvan de wijzigings- en aanmaaktijd (`lstat`: `mtime`, `birthtime`) vóór
-     het openen van het venster liggen (`olderThanPicker` in `pickSaveTargetTauri`); anders de exclusieve aanmaak, die een
-     bestaande naam weigert. Grenzen: zonder aanmaaktijd (sommige netwerkschijven) telt alleen de wijzigingstijd, dus een
-     bestand dat met een oude wijzigingstijd na de keuze op de naam komt (bijvoorbeeld van een synchronisatieprogramma),
-     geldt als bevestigd; een klok die op een netwerkschijf achterloopt, kan hetzelfde doen; een bestand dat terwijl het
-     venster openstond gewijzigd werd, weigert de export (de veilige kant). Opslaan als gebruikt dit niet (knownbug 1890).
-     Niet gemeten op Windows of macOS. Proef: "Exporteren → IFC naar een vrije naam waar na de keuze een bestand
-     verschijnt" in `check-ifc-own-file-replace.ts`. — B
-
 2209. **VERVOLG (#1182): de verliescontrole kent de oude lay-outs los van de slottabellen.** `alignment` in
      `src/services/ifc/foreign/lossCheck.ts` legt zelf vast hoe een regel in een oude eigen lay-out op de uitvoer past
      (`IfcTask` met 12 argumenten, resources met 9 via `OLD_RESOURCE_TYPES` en `RESOURCE_ARITY`, werkplan en kalender
@@ -6058,6 +6038,45 @@ en noem het in je rapport of PR-tekst.
      knownbugs 1795 en 1799). Technisch vervolg: nagaan of de native kiezer de bevestiging en de oorspronkelijke
      doelidentiteit kan teruggeven. Een extra vraag van de app zelf is een productkeuze: de eigenaar koos één
      bevestiging. Gevonden door de review van #1019 (Sol, ronde 1). — S
+
+2207. **VERVOLG (#804, tekst): na een crash tijdens Exporteren → IFC over een bestaande naam heet de bewaarde export
+     "niet opgeslagen planning".** De export vervangt een bestaand bestand langs dezelfde vervanging als Opslaan als
+     (`replaceOwnPathWithRecovery` met `documentId: null`). Crasht de app tussen het aanmaken van het tijdelijke bestand
+     en het plaatsen, dan zet de volgende start de vorige versie terug en bewaart de onvoltooide export als
+     `<naam> (niet opgeslagen planning <datum tijd>).ifc` (`settleReplaceRemnants`, `ifcForeignReplaceUnsavedCopy`). Er
+     gaat niets verloren en de planning in de app was niet opgeslagen, maar het woord past niet bij een export. Het
+     herstelrecord weet niet of het een export was; een eigen naam vraagt een veld in het record. Voorlopige keuze P5 van
+     de bouwopdracht van #1179; proef: de crashgevallen van Exporteren in `check-ifc-own-file-replace.ts`. — B
+
+2208. **VERVOLG (#804, grens): een bestand dat een ander programma op de gekozen naam zet tussen de bevestiging in het
+     venster en de lezing direct erna, kan Exporteren → IFC vervangen.** De kiezer (plugin-dialog) geeft alleen een pad
+     terug, niet wat de planner in het venster bevestigde. De export bindt het doel daarom aan de versie die de app direct
+     na de terugkeer van de kiezer leest (`pickSaveTarget`: `lstat`, een gewoon bestand helemaal gelezen), zoals Opslaan
+     als (1890); tijdstempels tellen niet mee (fixronde 2 van #1179). Stond er bij die lezing niets, dan blijft het de
+     exclusieve aanmaak van main: een bestand dat daarna verschijnt, blijft staan, met `exportReplaceNewTargetOnly`. Wat
+     binnen één stap moet gebeuren: een ander programma zet tussen de bevestiging en die lezing (de terugkeer van de
+     dialoog over IPC) een gewoon bestand op de naam, bijvoorbeeld een synchronisatieprogramma dat een bestaand bestand in
+     dezelfde map naar die naam hernoemt. Dan geldt dat bestand als bevestigd: de export vervangt het langs de vervanging
+     van Opslaan als, en stap 5 wist het als het onderweg niet veranderde. Niet slechter dan main: Opslaan als doet in
+     hetzelfde venster hetzelfde (1890), en de gewone export van main over een bestaande naam (`saveDataDialog` →
+     `writeUserFileTauri` → `replaceUserFile` in `atomicWrite.ts`) hernoemt over wat er op dat moment staat, zonder
+     vergelijking, ook over een bestand dat pas na de lezing kwam. Niet gemeten op Windows of macOS. Proeven: "Grens
+     (knownbug 2208)" en "… waar na de lezing direct na de keuze een bestand verschijnt" in
+     `check-ifc-own-file-replace.ts`. — B
+
+2247. **VERVOLG (#804, grens): een bewerking terwijl de definitieve plaatsing van Exporteren → IFC al onderweg is, komt
+     niet meer in dat exportbestand.** Na het opzijzetten van het doel vraagt de export of de planning sinds de opdracht
+     veranderde (de haak `planningChanged`) en of de flag nog aan staat (`replaceAllowed`), en roept in dezelfde
+     synchrone stap `place_file_exclusive` aan: `tauriOwnFileReplaceFs` laadt de Tauri-aanroep vooraf, zodat er geen
+     `await` tussen zit (fixronde 2 van #1179). Wat binnen één stap moet gebeuren: de planner bewerkt een taak terwijl die
+     opdracht onderweg is (IPC en de hernoeming in het commando). Dan staat op het doel de planning van het moment van de
+     opdracht, wist stap 5 de vorige versie die de planner bevestigde, en blijft de bewerking in het document, dat
+     gewijzigd blijft. Er gaat geen planning verloren. Niet slechter dan main: de gewone export van main controleert vlak
+     vóór de hernoeming en roept die in dezelfde stap aan (`refuseBeforePlace` in `replaceUserFile`, `atomicWrite.ts`),
+     met hetzelfde venster; Opslaan als controleert alleen vóór het opzijzetten (`refuseBeforePlace`) en plaatst daarna
+     zonder nieuwe controle, een groter venster. Proeven: "De laatste controles vóór de definitieve plaatsing …" en "Grens
+     (knownbug 2247)" in `check-ifc-own-file-replace.ts`, en de bewerking tijdens de definitieve plaatsing in de
+     grenzentoets van `cases-doc-file.ts`. — B
 
 1893. **Browser: Opslaan als over het bestand van een ander tabblad maakt dat bestand af; daarna wijzen beide tabbladen ernaar (OPS #1022).**
      Op de desktop weigert *Opslaan als* sinds #1022 een bestand dat in een ander tabblad open staat (de doelcontrole

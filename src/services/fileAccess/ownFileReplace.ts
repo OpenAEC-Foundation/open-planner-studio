@@ -26,7 +26,7 @@ import { createOwnTemp, isForbiddenPathError, tauriUserFileFs, userFileDir, user
 import { missingTarget } from './fileIdentity';
 import type { RefuseBeforePlace } from './index';
 import { sourceTargetContentOfPathTauri } from './tauriBackend';
-import { placeFileExclusive, type PlaceFileOutcome } from './placeFileExclusive';
+import { placeFileExclusive, placeFileExclusiveWith, type PlaceFileOutcome } from './placeFileExclusive';
 import type { SourceTargetContent } from './sourceTargetContent';
 import type { ReplaceRecord } from './replaceRecords';
 
@@ -123,7 +123,8 @@ export type OwnFileReplaceOutcome =
   | { code: 'target-taken'; target: string; temp: string; previous: string }
   /** Stap 4 faalde om een andere reden en ook het terugzetten van de vorige versie lukte niet: die staat in `previous`. */
   | { code: 'previous-stranded'; previous: string; detail: string }
-  | { code: 'planning-changed' };
+  | { code: 'planning-changed' }
+  | { code: 'replace-withdrawn' };
 
 export interface OwnFileReplaceInput {
   /** Het doel: het eigen bestand van het document. */
@@ -141,6 +142,7 @@ export interface OwnFileReplaceInput {
   /** Knownbug 1896: vlak vóór stap 3, het opzijzetten van het doel. `true` = stoppen (uitkomst `stopped`). */
   refuseBeforePlace: RefuseBeforePlace;
   planningChanged?: () => boolean;
+  replaceAllowed?: () => boolean;
 }
 
 /** Is het doel een link (symbolisch, of een harde link met meer namen)? Dan vervangt de app niet (§4.10). Een doel dat
@@ -190,13 +192,15 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
     return { code: 'failed', detail: describePlace(aside) };
   }
 
-  if (input.planningChanged?.()) {
+  const putBack = async (outcome: OwnFileReplaceOutcome, cause?: PlaceFileOutcome): Promise<OwnFileReplaceOutcome> => {
     const back = await fs.place(previous, path);
     if (back.code === 'source-changed') return { code: 'unknown' };
     await removeOwnTemp();
-    if (!placedOk(back)) return { code: 'previous-stranded', previous, detail: describePlace(back) };
-    return { code: 'planning-changed' };
-  }
+    if (!placedOk(back)) return { code: 'previous-stranded', previous, detail: [...(cause ? [cause] : []), back].map(describePlace).join('; ') };
+    return outcome;
+  };
+  if (input.planningChanged?.()) return putBack({ code: 'planning-changed' });
+  if (input.replaceAllowed?.() === false) return putBack({ code: 'replace-withdrawn' });
 
   // Stap 4.
   const placed = await fs.place(temp, path);
@@ -204,11 +208,7 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
     if (placed.code === 'source-changed') return { code: 'unknown' };
     if (placed.code === 'target-exists') return { code: 'target-taken', target: path, temp, previous };
     // Een andere reden: de vorige versie exclusief terug op het doel.
-    const back = await fs.place(previous, path);
-    if (back.code === 'source-changed') return { code: 'unknown' };
-    await removeOwnTemp();
-    if (!placedOk(back)) return { code: 'previous-stranded', previous, detail: `${describePlace(placed)}; ${describePlace(back)}` };
-    return { code: 'failed', detail: describePlace(placed) };
+    return putBack({ code: 'failed', detail: describePlace(placed) }, placed);
   }
 
   // Stap 5. Een aangetroffen symlink niet volgen of verwijderen. Dit is geen atomaire
@@ -339,8 +339,9 @@ export async function settleReplaceRemnants(
 /** De vervanging op plugin-fs en `place_file_exclusive`; bytes als rauwe body (zie `atomicWrite.ts`). */
 export async function tauriOwnFileReplaceFs(): Promise<OwnFileReplaceFs> {
   const fs = await import('@tauri-apps/plugin-fs');
+  const { invoke } = await import('@tauri-apps/api/core');
   const { lstat, createNew, remove } = tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o));
-  return { lstat, createNew, remove, place: placeFileExclusive, content: sourceTargetContentOfPathTauri };
+  return { lstat, createNew, remove, place: (from, to) => placeFileExclusiveWith(invoke, from, to), content: sourceTargetContentOfPathTauri };
 }
 
 /** Het opruimen op plugin-fs: een ontbrekend bestand is `null`, een link wordt niet gelezen. */

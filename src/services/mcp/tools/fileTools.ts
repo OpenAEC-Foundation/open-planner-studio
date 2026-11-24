@@ -120,6 +120,7 @@ function replaceError(ctx: McpContext, path: string, result: OwnPathReplaceResul
     case 'stopped': return stopped ?? toolError(ctx, 'VALIDATION', 'The document changed during the export. Nothing was written. Retry the export.');
     case 'planning-changed': return toolError(ctx, 'VALIDATION', `The document changed during the export. '${path}' was not replaced; ` +
       'the file is as it was. Retry the export.');
+    case 'replace-withdrawn': return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
     case 'target-changed': return toolError(ctx, 'VALIDATION', `'${path}' changed after the app read it (another program wrote, ` +
       'moved or removed it). Nothing was replaced. Export again with overwrite: true if you still mean to replace it.');
     case 'save-as-only': return toolError(ctx, 'VALIDATION', NOT_SAFELY_REPLACEABLE(path));
@@ -179,7 +180,7 @@ export interface McpFileFs extends FileIdentityFs {
 export interface UserFileReplace {
   observe(path: string): Promise<PickedSaveTarget['current']>;
   replace(path: string, prepared: { bytes: Uint8Array; sha256: string }, expected: Uint8Array, guards: {
-    stopBeforeWrite: () => Promise<boolean>; refuseBeforePlace: RefuseBeforePlace; planningChanged: () => boolean;
+    stopBeforeWrite: () => Promise<boolean>; refuseBeforePlace: RefuseBeforePlace; planningChanged: () => boolean; replaceAllowed: () => boolean;
   }): Promise<OwnPathReplaceResult>;
 }
 
@@ -454,8 +455,10 @@ export const fileTools: McpToolDef[] = [
         identityFs: async () => fs, openDocumentsExcept: checked.activeDocumentId, protectExistingTargets: fs.protectExistingTargets,
       };
       const identity = await refusedTargetIdentity(checked, ref, identityDeps);
+      const live = ctx.app.store.getState();
       const replacing = !refused && identity === 'check-content' && existed && overwrite && hasForeignContent(checked.ifcSource)
-        && !ifcFullWriteBlocked(ctx.app.store.getState()) ? fs.replaceUserBytes : undefined;
+        && live.activeDocumentId === checked.activeDocumentId && live.ifcSource === checked.ifcSource && !ifcFullWriteBlocked(live)
+        ? fs.replaceUserBytes : undefined;
       const observed = replacing ? await replacing.observe(path) : undefined;
       const targetDeps: WriteTargetDeps = {
         ...identityDeps,
@@ -531,6 +534,7 @@ export const fileTools: McpToolDef[] = [
                 const now = ctx.app.store.getState();
                 return now.activeDocumentId !== state.activeDocumentId || !sameIFCSource(state, now) || now.ifcSource !== state.ifcSource;
               },
+              replaceAllowed: () => ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags),
             });
             const failure = replaceError(ctx, path, result, stopped);
             if (failure) return failure;
