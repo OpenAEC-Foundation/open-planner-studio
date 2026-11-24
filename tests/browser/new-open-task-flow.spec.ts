@@ -226,7 +226,7 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
   expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.name))).toEqual(kantoorWork);
 
   const question = page.locator('[data-ops-close-dialog]');
-  const closeKantoor = page.locator('.ops-tab-group').filter({ has: kantoor }).locator('.ops-tab-close');
+  const closeKantoor = page.locator('.ops-tab-group').filter({ has: page.locator('[role="tab"]', { hasText: 'kantoor' }) }).locator('.ops-tab-close');
   await closeKantoor.click();
   await expect(question).toBeVisible();
   await expect(question.locator('[data-ops-close-choice]')).toHaveCount(3);
