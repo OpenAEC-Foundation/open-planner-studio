@@ -338,7 +338,7 @@ export function readMSPDI(content: string): ImportResult {
     const calId = effCalIdOfUid(getElementInt(te, 'CalendarUID', -1));
     const cal = calById.get(calId);
     if (!cal) continue;
-    const durMin = mspDurationMinutes(directChildText(te, 'Duration'));
+    const durMin = mspDurationMinutes(getElementText(te, 'Duration'));
     const durSignal = durMin != null && isSubDayMinutes(durMin, cal.hoursPerDay);
     const dateSignal = literalCalIds
       ? literalCalIds.has(calId)
