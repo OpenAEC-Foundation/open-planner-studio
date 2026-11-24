@@ -252,9 +252,10 @@ async function runRoute(route: Route, c: Case) {
   });
   backstageAsked = 0;
   const unregisterBegin = c.begin === 'backstage' ? registerDraft() : null;
+  let reads = 0;
   internals.invoke = async (command, args, options) => {
     const result = await baseInvoke(command, args, options);
-    if (kantoorRead(command, args)) await takeHold();
+    if (kantoorRead(command, args)) { reads++; await takeHold(); }
     return result;
   };
   try {
@@ -294,6 +295,7 @@ async function runRoute(route: Route, c: Case) {
       active: [T().filePath ?? T().fileHandle?.name ?? null, T().tasks.map(t => t.name)],
       question: asked > 0,
       backstageAsked: backstageAsked > 0,
+      reads,
       lost,
       errors: [...new Set(errors(st))].sort(),
     };
@@ -306,13 +308,34 @@ async function runRoute(route: Route, c: Case) {
   }
 }
 
-const exceptions: Record<string, string> = {
-  'pad schoon opslaanAls nietOpslaan': 'regel 3: Opslaan als tijdens het lezen; de lezing hoort bij het oude doel en vervalt',
-  'pad werk opslaanAls nietOpslaan': 'regel 3: Opslaan als tijdens het lezen; de lezing hoort bij het oude doel en vervalt',
-  'pad verouderd opslagLateRecent nietOpslaan': 'regel 3: de eigen opslag laat de lezing vervallen, dus de knop sluit niets; de strook die de late Recent zette is 2048, op main net zo',
-  'pad werk export nietOpslaan': 'regel 3: een export over het eigen bestand tijdens het lezen; de lezing vervalt en het tabblad houdt zijn werk (het kruisje zou daarna vragen en weggooien)',
-  'pad schoon sluiten nietOpslaan': 'het tabblad is tijdens het lezen gesloten: er is niets te vervangen, dus de knop opent niets',
-  'pad schoon flagUit nietOpslaan': 'met de flag uit bestaat de knop niet en wist de app het versieverschil; de lezing vervalt (een al gestarte lezing parst met de actuele flag en meldt dan openFailed, zoals Recent in dezelfde race)',
+type End = Awaited<ReturnType<typeof runRoute>>;
+const activeIs = (file: string, tasks: string[]) => (end: End) =>
+  end.active[0] === join(dir, file) && JSON.stringify(end.active[1]) === JSON.stringify(tasks);
+const exceptions: Record<string, { reason: string; knop: (end: End) => boolean }> = {
+  'pad schoon opslaanAls nietOpslaan': {
+    reason: 'regel 3: Opslaan als tijdens het lezen; de lezing hoort bij het oude doel en vervalt',
+    knop: activeIs('kantoor-ander.ifc', ['Fundering']),
+  },
+  'pad werk opslaanAls nietOpslaan': {
+    reason: 'regel 3: Opslaan als tijdens het lezen; de lezing hoort bij het oude doel en vervalt',
+    knop: activeIs('kantoor-ander.ifc', ['Fundering', 'Eigen werk']),
+  },
+  'pad verouderd opslagLateRecent nietOpslaan': {
+    reason: 'regel 3: de eigen opslag laat de lezing vervallen, dus de knop sluit niets en het eigen werk blijft in beeld; de strook die de late Recent zette is 2048, op main net zo',
+    knop: activeIs('kantoor.ifc', ['Fundering', 'Intussen zelf opgeslagen']),
+  },
+  'pad werk export nietOpslaan': {
+    reason: 'regel 3: een export over het eigen bestand tijdens het lezen; de lezing vervalt en het tabblad houdt zijn werk (het kruisje zou daarna vragen en weggooien)',
+    knop: activeIs('kantoor.ifc', ['Fundering', 'Eigen werk']),
+  },
+  'pad schoon sluiten nietOpslaan': {
+    reason: 'het tabblad is tijdens het lezen gesloten: er is niets te vervangen, dus de knop opent niets',
+    knop: (end) => !end.tabs.some(tab => tab.includes('kantoor.ifc')),
+  },
+  'pad schoon flagUit nietOpslaan': {
+    reason: 'met de flag uit bestaat de knop niet en wist de app het versieverschil; de lezing vervalt (een al gestarte lezing parst met de actuele flag en meldt dan openFailed, zoals Recent in dezelfde race)',
+    knop: activeIs('kantoor.ifc', ['Fundering']),
+  },
 };
 
 const cases: Case[] = [];
@@ -354,16 +377,17 @@ try {
     const id = `${c.platform} ${c.begin} ${c.during} ${c.answer}`;
     const knop = await runRoute('knop', c);
     const kruisje = await runRoute('kruisje', c);
-    const { question: _k, ...knopRest } = knop;
-    const { question: _r, ...kruisjeRest } = kruisje;
+    const { question: _k, reads: _kr, ...knopRest } = knop;
+    const { question: _r, reads: _rr, ...kruisjeRest } = kruisje;
     const same = JSON.stringify(knopRest) === JSON.stringify(kruisjeRest);
-    if (!same) console.log(`VERSCHIL ${id}${exceptions[id] ? ` (uitzondering: ${exceptions[id]})` : ''}\n  knop    ${JSON.stringify(knopRest)}\n  kruisje ${JSON.stringify(kruisjeRest)}`);
+    if (!same) console.log(`VERSCHIL ${id}${exceptions[id] ? ` (uitzondering: ${exceptions[id].reason})` : ''}\n  knop    ${JSON.stringify(knopRest)}\n  kruisje ${JSON.stringify(kruisjeRest)}`);
     if (exceptions[id]) {
-      eq(`M ${id}: uitzondering, en geen werk stil weg`, [same, knop.lost], [false, []]);
+      eq(`M ${id}: uitzondering met de afgesproken uitkomst, en geen werk stil weg`, [exceptions[id].knop(knop), knop.lost], [true, []]);
     } else {
       eq(`M ${id}: de knop eindigt als kruisje, dan Recent`, knopRest, kruisjeRest);
       eq(`M ${id}: een vraag bij de knop alleen als het kruisje er een gaf`, knop.question, kruisje.question);
     }
+    if (c.begin === 'backstage') eq(`M ${id}: met een niet-toegepaste invoer leest de knop niets, net als Recent achter de Backstage-vraag`, [knop.reads, kruisje.reads], [0, 0]);
   }
 } finally {
   ipc.dispose();
