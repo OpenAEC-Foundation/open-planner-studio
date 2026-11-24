@@ -53,6 +53,31 @@ richtingen:
 Ontbreekt `read`, dan wordt het slot bij het lezen bewust genegeerd (bijvoorbeeld `Name`, dat we uit
 de taak zelf afleiden). Dat is een keuze die je opschrijft, geen omissie.
 
+Zo'n tabel heeft elk type dat de lezer tot planning maakt (#804 fase 2, ontwerp §4.5): `IfcTask` en
+`IfcTaskTime` in `ifcTaskSlots.ts`; het werkplan, het live werkschema, het baselineschema en de werkkalender
+in `ifcWorkControlSlots.ts`; de resources in `ifcResourceSlots.ts`; `IfcRelSequence` en `IfcLagTime` in
+`ifcSequenceSlots.ts`. Het register `IFC_SLOT_TABLES` (`ifcSlotTables.ts`) noemt ze allemaal. De writer schrijft
+elke regel van zo'n type met `writeSlots` uit de tabel. De lezer leest de slots op naam (`TASK_SLOT`,
+`CALENDAR_SLOT`, `SEQUENCE_SLOT`, …); bij een type met een oude eigen lay-out kiest een functie de plekken op de
+argumenten (`taskSlots`, `workControlSlots`, `workCalendarSlots`, `resourceSlots`, `lagTimeSlots`). Een slot dat
+in een lay-out ontbreekt, staat daar op `-1`.
+
+Elk slot heeft een **soort** (`ifcSlotSoort.ts`):
+
+- `domein`: de lezer maakt er een domeinveld van (de naam van een taak, de duur, het type relatie);
+- `afgeleid`: de writer rekent het uit andere gegevens (`StatusTime`, de start en het einde van het werkplan);
+- `constant`: de writer schrijft een vaste waarde en de lezer leest het slot niet (`LongDescription`, `Creators`);
+- `verwijzing`: een verwijzing die de writer zelf legt (`TaskTime`, `WorkingTimes`, de taken van een relatie).
+
+Wijkt de soort af bij een stuk van een ander programma, dan staat die in `soortVreemd` (de owner history is
+dan constant). `bronverwijzing` zet een constant slot op de vaste lijst slots waarin een `#`-token uit de bron
+mag blijven staan. `volgt` bindt een afhankelijk slot aan het slot waar het bij hoort (`ObjectType` bij een
+`USERDEFINED`-type). De soorten veranderen nu nog niets aan lezen of schrijven: `sourceSlots` (fase 2, PR 2) kiest
+er per slot mee tussen de bronwaarde en de eigen waarde. `check-ifc-slotsoorten.ts` eist dat elk slot een soort
+heeft, dat de slots de attributen van het schema volgen (in IFC4X3_ADD2, IFC4X3 en IFC4), dat de vaste lijst
+precies de constante slots bevat die volgens het schema een verwijzing kunnen dragen, en de plekken in de oude
+lay-outs.
+
 ### 2. Een `OPS_`-pset per taak
 
 Voor domeindata waar IFC geen slot voor heeft — constraints en deadlines, externe links, hammock,
@@ -530,7 +555,12 @@ regel:
   enumeratie op 13 = IFC2X3. Alleen een stringliteral telt als tijd; in IFC2X3 staan daar verwijzingen.
 - IfcWorkCalendar: 9 = het schema; 8 = de oude OPS-indeling; 9 met een lijst op Identification = zo'n
   oud bestand na `MergeProjects`.
-- Resources leest de lezer alleen op GlobalId, Name en Description; daar maakt de indeling niets uit.
+- Resources leest de lezer op GlobalId, Name en Description, en op ObjectType met PredefinedType (de
+  kostenresource), altijd op de plekken van het schema (`RESOURCE_SLOT`). De oude OPS-indeling met 9
+  argumenten (`resourceSlots`, PredefinedType op 8) gebruikt de lezer niet: een kostenresource bestaat pas
+  sinds #815 (november 2026), na die indeling (`4f5008614`, oktober 2026).
+- IfcLagTime: de oude OPS-indeling heeft de waarde en het type duur verwisseld (`lagTimeSlots`, met
+  `lagValueSlot` in `ifcLagTimeSlots.ts`).
 
 `check-ifc-schema-reader.ts` bewijst dat een bestand in de oude OPS-indeling gelijk leest aan hetzelfde
 bestand in het schema, `check-ifc-legacy-arity.ts` doet dat met een echt bestand van de oude writer (ook
@@ -654,11 +684,12 @@ eigen besluit.
 
 | onderwerp | bestand |
 |---|---|
-| native slots (write + read per slot) | `src/services/ifc/ifcTaskSlots.ts` |
+| native slots (write + read per slot) | `src/services/ifc/ifcTaskSlots.ts`, `ifcWorkControlSlots.ts`, `ifcResourceSlots.ts`, `ifcSequenceSlots.ts` |
+| slotsoorten en het register van de slottabellen | `src/services/ifc/ifcSlotSoort.ts`, `ifcSlotTables.ts`, `tests/planning/check-ifc-slotsoorten.ts` |
 | per-taak-psets (write + apply per descriptor) | `src/services/ifc/ifcPsets.ts` |
 | schrijven | `src/services/ifc/ifcWriter.ts` |
 | lezen | `src/services/ifc/ifcReader.ts` |
-| plekken per indeling (schema, oud, MergeProjects, IFC2X3) | `src/services/ifc/ifcWorkControlSlots.ts` |
+| plekken per indeling (schema, oud, MergeProjects, IFC2X3) | `src/services/ifc/ifcWorkControlSlots.ts`; voor taak, resources en `IfcLagTime`: `taskSlots`, `resourceSlots`, `lagTimeSlots` in hun eigen tabelbestand |
 | schemageldigheid: de poort, de toets per bestand, de tabel, de bronnen | `tests/planning/check-ifc-schema.ts`, `ifcSchemaCheck.ts`, `ifcSchemaTable.ts`, `ifcSchemaFixture.ts` |
 | de poort, de fixture, de canon-tabellen en de `KNOWN_GAPS`-asserties (blok 3) | `tests/planning/check-ifc-roundtrip.ts` |
 | werkblokken per weekdag (B7): groepen, geen terugvalweek, byte-identiek aan main, de lezer in beide indelingen | `tests/planning/check-ifc-werktijd-per-dag.ts` |

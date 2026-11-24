@@ -551,6 +551,12 @@
       "leveling": "nivellering",
       "unitDays": "werkdagen",
       "unitHours": "uren"
+    },
+    "elementLinks": {
+      "linked_one": "Gekoppeld aan {{count}} bouwdeel",
+      "linked_other": "Gekoppeld aan {{count}} bouwdelen",
+      "notFound_one": "{{count}} daarvan niet gevonden in dit bestand",
+      "notFound_other": "{{count}} daarvan niet gevonden in dit bestand"
     }
   },
   "relations": {
