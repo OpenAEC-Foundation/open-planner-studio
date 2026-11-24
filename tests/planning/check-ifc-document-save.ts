@@ -37,7 +37,7 @@ import { installDeterminism } from './ifcPariteitKern';
 import { canon, firstDiff, mergeProblems, openForeign, shownAfterOpen } from './ifcMergeKern';
 import { InProcessWorker } from './inProcessSaveWorker';
 import { createExtensionApi } from '@/extensions/extensionApi';
-import { FOREIGN_CHANGES_WRITTEN_NOTICE_KEY } from '@/state/foreignChangesWrittenNotice';
+import type { NotifyInput } from '@/state/slices/types';
 import { FOREIGN_LINKS_NOTICE_KEY } from '@/state/foreignLinksNotice';
 import { createAppQuitController } from '@/services/appQuit/appQuitController';
 import { appQuitDependencies } from '@/services/appQuit/appQuitDependencies';
@@ -4245,7 +4245,16 @@ await check('stap 8, fixronde 2: het ritme geldt bij de beurt; een al gekozen mo
   } finally { timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
 });
 
-const writtenNotices = (store: Store) => store.getState().ui.notifications.filter(n => n.dedupeKey === FOREIGN_CHANGES_WRITTEN_NOTICE_KEY);
+const COUNT_KEYS: readonly string[] = ['notifications.foreignChangesWritten', 'notifications.foreignChangesDownloaded'];
+const writtenNotices = (store: Store) => store.getState().ui.notifications.filter(n => COUNT_KEYS.includes(n.messageKey));
+function recordCounts(store: Store): string[] {
+  const calls: string[] = [], notify = store.getState().notify;
+  store.setState({ notify: (n: NotifyInput) => {
+    if (COUNT_KEYS.includes(n.messageKey)) calls.push(`${n.messageKey === COUNT_KEYS[1] ? 'download ' : ''}${n.params?.file}:${n.params?.count}`);
+    notify(n);
+  } });
+  return calls;
+}
 const deleteNotices = (store: Store) => store.getState().ui.notifications.filter(n => n.dedupeKey === FOREIGN_LINKS_NOTICE_KEY);
 const taskNamed = (store: Store, name: string) => store.getState().tasks.find(t => t.name === name)!.id;
 const writtenCount = async (store: Store) =>
@@ -4278,10 +4287,6 @@ type WriteRoute = {
   readonly dispose: () => Promise<void>;
 };
 let routeFiles = 0;
-const reportLines = (store: Store) => {
-  const notice = writtenNotices(store)[0];
-  return notice ? [notice.params, ...(notice.detailLines ?? []).map(l => l.params)].map(p => `${p?.file}:${p?.count}`) : [];
-};
 const preparedWrite = (store: Store) => prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
 const onDesktop = async (write: (store: Store, ipc: ReturnType<typeof desktop>, target: (path?: string) => string) => Promise<boolean | void>,
   exported = false): Promise<WriteRoute> => {
@@ -4292,7 +4297,7 @@ const onDesktop = async (write: (store: Store, ipc: ReturnType<typeof desktop>, 
   const target = (chosen?: string) => { if (chosen) { last = chosen; ipc.choose(chosen); } return last; };
   return {
     store, write: () => write(store, ipc, target), written: async () => existsSync(last) ? new Uint8Array(readFileSync(last)) : undefined,
-    file: () => basename(last),
+    file: () => last,
     ...(exported ? { prepare: async () => {
       if (store.getState().scheduleStale) store.getState().runCPM();
       return (await prepareIfcOutput(store.getState(), buildExportIFCInput(store.getState(), 'merge'))).prepared!;
@@ -4303,7 +4308,7 @@ const onDesktop = async (write: (store: Store, ipc: ReturnType<typeof desktop>, 
 const onHandle = async (write: (store: Store) => Promise<boolean | void>, fail = false): Promise<WriteRoute> => {
   const { store, name } = await openHandle(LINKED), unregister = recoveryRounds(store);
   if (fail) handleFaults.set(name, { writeErrorAt: 0 });
-  return { store, write: () => write(store), written: async () => fileOf(name), file: () => basename(store.getState().filePath!),
+  return { store, write: () => write(store), written: async () => fileOf(name), file: () => store.getState().filePath!,
     dispose: async () => { handleFaults.delete(name); unregister(); await clearRecovery(); } };
 };
 const downloaded = async (browser: ReturnType<typeof browserDownload>) => {
@@ -4326,13 +4331,13 @@ const onSite = async (): Promise<WriteRoute> => {
   let version = 1;
   win.openaecHost = { storage: {
     list: async () => [], versions: async () => [], open: async () => ({ data: new Blob([LINKED.buffer]), name: 'site-bron.ifc', version: 'v1' }),
-    save: async (request: { id?: string; data: Blob }) => { requests.push(request); return { id: request.id ?? 'site', name: 'site-bron.ifc', version: `v${++version}` }; },
+    save: async (request: { id?: string; data: Blob }) => { requests.push(request); return { id: request.id ?? 'site', name: 'site-hernoemd.ifc', version: `v${++version}` }; },
   } };
   const store = await openAt({ kind: 'site', id: 'site' }, LINKED);
   store.setState(s => { s.siteFileVersion = 'v1'; });
   return { store, write: () => store.getState().saveFile(),
     written: async () => { const last = requests.at(-1); return last ? new Uint8Array(await last.data.arrayBuffer()) : undefined; },
-    file: () => basename(store.getState().filePath!), dispose: async () => { delete win.openaecHost; resetSiteAskers(); } };
+    file: () => 'site-hernoemd.ifc', dispose: async () => { delete win.openaecHost; resetSiteAskers(); } };
 };
 const closePromptSave = (store: Store) => {
   const id = store.getState().activeDocumentId;
@@ -4362,12 +4367,12 @@ const WRITE_ROUTES: readonly [string, () => Promise<WriteRoute>, boolean?][] = [
   ['Ctrl+S, de schrijfactie mislukt', () => onHandle(store => ctrlS(store), true), true],
 ];
 
-await check('fixronde 2 van #1199: elke schrijfroute meldt per geslaagde schrijfactie het aantal van haar lijst, met de bestandsnaam; een lege of mislukte niets', async () => {
+await check('fixronde 3 van #1199: elke schrijfroute meldt per geslaagde schrijfactie één eigen telling met de naam uit de schrijfuitkomst; een lege of mislukte niets', async () => {
   for (const [name, open, fails = false] of WRITE_ROUTES) {
     const route = await open();
     try {
       clearNotices(route.store);
-      const lines: string[] = [];
+      const lines: string[] = [], calls = recordCounts(route.store), download = name.includes('download');
       for (const remove of [false, true]) {
         if (remove) route.store.getState().deleteTask(taskNamed(route.store, 'Set up site')); else longer(route.store);
         const expected = await (route.prepare ?? (() => preparedWrite(route.store)))();
@@ -4383,8 +4388,8 @@ await check('fixronde 2 van #1199: elke schrijfroute meldt per geslaagde schrijf
             + (after ? firstDiff(new TextDecoder().decode(expected.bytes), new TextDecoder().decode(after)) : 'geen bestand'));
         }
         if (typeof outcome === 'boolean' && !name.includes('download')) assert.equal(outcome, !fails, `${name}: de uitkomst van de schrijfactie`);
-        if (wrote && count > 0) lines.push(`${route.file()}:${count}`);
-        assert.deepEqual(reportLines(route.store), lines, `${name}: na ${remove ? 'het wissen' : 'een langere duur'}`);
+        if (wrote && count > 0) lines.push(`${download ? 'download ' : ''}${route.file()}:${count}`);
+        assert.deepEqual(calls, lines, `${name}: na ${remove ? 'het wissen' : 'een langere duur'}`);
       }
       if (fails) assert(route.store.getState().ui.notifications.some(n => n.severity === 'error'), `${name}: de fout zelf staat er`);
     } finally { await route.dispose(); }
@@ -4474,7 +4479,7 @@ for (const via of ['Ctrl+S', 'Automatisch opslaan'] as const) {
       const writing: Promise<unknown> = auto ? auto.round() : ctrlS(store);
       await mergeArrives(sw, 1);
       assert.equal(knobOf(store), undefined, 'de schrijfactie heeft haar momentopname: geen knop');
-      assert.equal(deleteNotices(store).length, 1, 'de melding zelf blijft staan');
+      assert.equal(deleteNotices(store).length, 0, 'zolang de schrijfactie vastlegt, staat de wismelding er niet');
       await finishMerge(sw);
       const outcome = await writing;
       if (!auto) assert.equal(outcome, false, 'de schrijfactie mislukt');
@@ -4551,15 +4556,14 @@ const expectedFor = async (store: Store, id: string) => {
 };
 
 for (const [seed, count] of [[11, 2], [12, 3], [13, 5]] as const) {
-  await check(`fixronde 2 van #1199, regel A: willekeurige schrijfacties over ${count} documenten (zaad ${seed}): precies de niet-lege geslaagde lijsten, elk met naam en aantal, tot ze gezien zijn`, async () => {
+  await check(`fixronde 2 van #1199, regel A: willekeurige schrijfacties over ${count} documenten (zaad ${seed}): per geslaagde niet-lege schrijfactie precies één melding met naam en aantal`, async () => {
     const { store, docs, unregister } = await linkedDocuments(count), next = rng(seed), browser = browserDownload();
     const auto = modelAutoSave(store);
-    const lines: string[] = [];
+    const lines: string[] = [], calls = recordCounts(store);
     const log: string[] = [];
-    let most = 0;
-    const record = async (doc: { id: string; name: string }, expected: PreparedIfcWrite | null, written: Uint8Array | undefined) => {
+    const record = async (doc: { id: string; name: string }, expected: PreparedIfcWrite | null, written: Uint8Array | undefined, download = false) => {
       const n = expected?.foreignChanges?.length ?? 0;
-      if (expected && written && hash(written) === expected.sha256 && n > 0) lines.push(`${doc.name}:${n}`);
+      if (expected && written && hash(written) === expected.sha256 && n > 0) lines.push(`${download ? 'download ' : ''}${doc.name}:${n}`);
     };
     try {
       for (let step = 0; step < 28; step++) {
@@ -4583,36 +4587,57 @@ for (const [seed, count] of [[11, 2], [12, 3], [13, 5]] as const) {
           const expected = await expectedFor(store, doc.id), before = browser.downloads.length;
           await store.getState().saveFileAs();
           const blob = browser.downloads.length > before ? browser.downloads.at(-1)! : undefined;
-          await record(doc, expected, blob ? new Uint8Array(await blob.arrayBuffer()) : undefined);
+          await record(doc, expected, blob ? new Uint8Array(await blob.arrayBuffer()) : undefined, true);
         } else {
-          const notice = writtenNotices(store)[0];
+          const notice = writtenNotices(store)[next(Math.max(1, writtenNotices(store).length))];
           if (notice) store.getState().dismissNotification(notice.id);
-          lines.length = 0;
         }
-        assert.deepEqual(reportLines(store), lines, `na ${log.join(' ')}`);
-        most = Math.max(most, lines.length);
+        assert.deepEqual(calls, lines, `na ${log.join(' ')}`);
       }
-      assert(most >= 2, `de reeks liet hoogstens ${most} telling(en) tegelijk zien: ${log.join(' ')}`);
+      assert(lines.length >= 2, `de reeks had ${lines.length} geslaagde niet-lege schrijfactie(s): ${log.join(' ')}`);
     } finally { browser.dispose(); unregister(); await clearRecovery(); }
   });
 }
 
-await check('fixronde 2 van #1199, regel A: vier en meer geschreven bestanden en een volle meldingenstapel: geen telling verdwijnt', async () => {
-  const { store, docs, unregister } = await linkedDocuments(5);
+await check('fixronde 3 van #1199: een telling sluiten sluit alleen die telling, ook als er net een tweede bij kwam', async () => {
+  const { store, docs, unregister } = await linkedDocuments(2);
   try {
-    const auto = modelAutoSave(store);
-    for (const doc of docs) { store.getState().switchDocument(doc.id); store.getState().deleteTask(taskNamed(store, 'Set up site')); }
-    await auto.round();
-    for (let k = 0; k < 4; k++) store.getState().notify({ severity: 'error', messageKey: 'notifications.saveFailed', dedupeKey: `vol-${k}` });
-    for (let k = 0; k < 4; k++) store.getState().notify({ severity: 'info', messageKey: 'notifications.saveFailed', sticky: true, dedupeKey: `blijvend-${k}` });
-    assert.deepEqual(reportLines(store).map(l => l.split(':')[0]), docs.map(d => d.name), 'elk bestand met zijn eigen regel');
-    assert(store.getState().ui.notifications.length <= 3, 'de stapel blijft binnen zijn grens');
-    store.getState().switchDocument(docs[0]!.id); longer(store); await ctrlS(store);
-    assert.equal(reportLines(store).length, docs.length, 'een tweede schrijfactie naar hetzelfde bestand met een lege lijst laat de telling staan');
-    store.getState().closeDocument(docs[1]!.id);
-    assert.equal(reportLines(store).length, docs.length, 'het tabblad sluiten laat de telling staan');
+    store.getState().switchDocument(docs[0]!.id); deleteLinked(store); await ctrlS(store);
+    const [first] = writtenNotices(store);
+    assert(first, 'de eerste telling');
+    store.getState().switchDocument(docs[1]!.id); deleteLinked(store); await ctrlS(store);
+    assert.equal(writtenNotices(store).length, 2, 'twee eigen meldingen');
+    store.getState().dismissNotification(first.id);
+    assert.deepEqual(writtenNotices(store).map(n => n.params?.file), [docs[1]!.name], 'de tweede staat er nog');
   } finally { unregister(); await clearRecovery(); }
 });
+
+const MAIN_STACKS: readonly [string, NotifyInput[]][] = [
+  ['drie fouten', [1, 2, 3].map(k => ({ severity: 'error', messageKey: 'notifications.saveFailed', dedupeKey: `fout-${k}` }))],
+  ['drie blijvende meldingen', [1, 2, 3].map(k => ({ severity: 'info', sticky: true, messageKey: 'notifications.siteFileReadOnly', params: { name: `b${k}` }, dedupeKey: `blijvend-${k}` }))],
+  ['een weigering, een fout en een gewone melding', [
+    { severity: 'error', refusal: true, messageKey: 'notifications.saveFailed', dedupeKey: 'weigering' },
+    { severity: 'error', messageKey: 'notifications.saveFailed', dedupeKey: 'fout' },
+    { severity: 'info', messageKey: 'notifications.siteFileReadOnly', params: { name: 'g' }, dedupeKey: 'gewoon' },
+  ]],
+];
+for (const [label, existing] of MAIN_STACKS) {
+  await check(`fixronde 3 van #1199: de stapel met ${label} en een telling doet wat main doet met een vierde blijvende melding`, async () => {
+    const { store, unregister } = await linkedDocuments(1);
+    try {
+      deleteLinked(store);
+      clearNotices(store);
+      for (const n of existing) store.getState().notify(n);
+      await ctrlS(store);
+      const { createAppStoreContext } = await loadStore(), reference = createAppStoreContext().store;
+      for (const n of existing) reference.getState().notify(n);
+      reference.getState().notify({ severity: 'info', sticky: true, messageKey: 'notifications.siteSaveConflictCopy', params: { name: 'kopie.ifc', original: 'bron.ifc' } });
+      const shape = (list: readonly { dedupeKey?: string }[]) => list.map(n => n.dedupeKey ?? 'nieuw');
+      assert.deepEqual(shape(store.getState().ui.notifications), shape(reference.getState().ui.notifications));
+      assert.equal(writtenNotices(store).length, shape(reference.getState().ui.notifications).includes('nieuw') ? 1 : 0);
+    } finally { unregister(); await clearRecovery(); }
+  });
+}
 
 async function quitting(context: Awaited<ReturnType<typeof linkedDocuments>>['context']) {
   let destroyed = false;
@@ -4633,60 +4658,20 @@ async function quitting(context: Awaited<ReturnType<typeof linkedDocuments>>['co
   return { controller, destroyed: () => destroyed, answerSave, dispose: stop };
 }
 
-await check('fixronde 2 van #1199, afsluiten: de sluitvraag met Opslaan bij een niet-lege lijst sluit pas als de telling gezien is', async () => {
+await check('fixronde 3 van #1199, afsluiten: met een openstaande telling sluit het venster zoals op main', async () => {
   const { context, store, docs, unregister } = await linkedDocuments(2);
-  const quit = await quitting(context);
+  const quit = await quitting(context), calls = recordCounts(store);
   try {
     for (const doc of docs) { store.getState().switchDocument(doc.id); store.getState().deleteTask(taskNamed(store, 'Set up site')); }
     clearNotices(store);
     quit.controller.requestQuit();
     await quit.answerSave();
     await someTurns();
-    assert.equal(quit.destroyed(), false, 'na het eerste document: de vraag voor het tweede');
     await quit.answerSave();
     await someTurns();
-    assert.deepEqual(reportLines(store).map(l => l.split(':')[0]), docs.map(d => d.name), 'beide tellingen met naam');
-    assert.equal(quit.destroyed(), false, 'het venster blijft open tot de telling gezien is');
-    assert.equal(quit.controller.active, true);
-    store.getState().dismissNotification(writtenNotices(store)[0]!.id);
-    await someTurns();
-    assert.equal(quit.destroyed(), true, 'na het sluiten van de telling gaat het venster dicht');
+    assert.equal(calls.length, 2, 'beide opslagen meldden hun telling');
+    assert.equal(quit.destroyed(), true, 'het venster gaat dicht zoals op main');
   } finally { quit.dispose(); unregister(); await clearRecovery(); }
-});
-
-await check('fixronde 2 van #1199, afsluiten tijdens een lopende geslaagde opslag: wachten op de telling; doorwerken breekt het afsluiten af', async () => {
-  for (const workOn of [false, true]) {
-    const sw = saveWorker('manual');
-    const { createAppStoreContext } = await loadStore(), context = createAppStoreContext({ ifcSaveCompute: sw.compute });
-    const { store } = context, name = `telling-${++handleCount}.ifc`;
-    store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
-    handleFiles.set(name, LINKED);
-    await store.getState().openOpenedFile({ name, content: '', bytes: LINKED,
-      ref: { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle } });
-    const unregister = recoveryRounds(store), quit = await quitting(context);
-    try {
-      store.getState().deleteTask(taskNamed(store, 'Set up site'));
-      clearNotices(store);
-      const writing = ctrlS(store);
-      await mergeArrives(sw, 1);
-      quit.controller.requestQuit();
-      await finishMerge(sw);
-      assert.equal(await writing, true);
-      await someTurns();
-      assert.equal(reportLines(store).length, 1, 'de telling staat er');
-      assert.equal(quit.destroyed(), false, 'het venster wacht op de telling');
-      if (workOn) {
-        longer(store);
-        await someTurns();
-        assert.equal(quit.controller.active, false, 'doorwerken: het afsluiten gaat niet door');
-        assert.equal(store.getState().ui.pendingCloseDocId, null, 'en geen sluitvraag');
-      } else {
-        store.getState().dismissNotification(writtenNotices(store)[0]!.id);
-        await someTurns();
-        assert.equal(quit.destroyed(), true);
-      }
-    } finally { quit.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
-  }
 });
 
 async function plainDocument(flag: boolean) {
@@ -4698,7 +4683,7 @@ async function plainDocument(flag: boolean) {
   return { context, store: context.store, unregister: recoveryRounds(context.store) };
 }
 
-await check('fixronde 2 van #1199, afsluiten: een lege lijst, de flag uit of een document zonder vreemd deel sluit direct, zoals main', async () => {
+await check('fixronde 3 van #1199, afsluiten: een lege lijst, de flag uit of een document zonder vreemd deel sluit direct, zoals main', async () => {
   for (const variant of ['lege lijst', 'flag uit', 'zonder vreemd deel'] as const) {
     const { context, store, unregister } = variant === 'lege lijst' ? await linkedDocuments(1) : await plainDocument(variant === 'zonder vreemd deel');
     const quit = await quitting(context);
@@ -4709,7 +4694,7 @@ await check('fixronde 2 van #1199, afsluiten: een lege lijst, de flag uit of een
       quit.controller.requestQuit();
       await quit.answerSave();
       await someTurns();
-      assert.deepEqual(reportLines(store), [], `${variant}: geen telling`);
+      assert.deepEqual(writtenNotices(store), [], `${variant}: geen telling`);
       assert.equal(quit.destroyed(), true, `${variant}: het venster gaat direct dicht`);
     } finally { quit.dispose(); unregister(); await clearRecovery(); }
   }
@@ -4727,8 +4712,28 @@ await check('fixronde 2 van #1199: de extensieroute laadt dezelfde taak met een 
     assert.equal(await ctrlS(store), false, 'Ctrl+S weigert');
     assert.equal(hash(fileOf(name)), hash(LINKED), 'het bestand bytegelijk');
     assert(store.getState().ui.notifications.some(n => n.severity === 'error'), 'met een weigering');
-    assert.deepEqual(reportLines(store), [], 'en zonder telling');
+    assert.deepEqual(writtenNotices(store), [], 'en zonder telling');
   } finally { unregister(); await clearRecovery(); }
+});
+
+await check('fixronde 3 van #1199: zonder vreemd deel, of met de flag uit, legt Ctrl+S en Opslaan als niets vast en meldt niets', async () => {
+  for (const [label, source, flag, written] of [['zonder vreemd deel', plainBytes(), true, 2], ['zonder vreemd deel, flag uit', plainBytes(), false, 2], ['met vreemd deel, flag uit', LINKED, false, 0]] as const) {
+    const browser = browserDownload(), { store } = await openInStore(source);
+    if (!flag) store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    let captured = false;
+    const stop = store.subscribe(s => { if (s.documents.some(d => d.saveState?.capturing)) captured = true; });
+    const calls = recordCounts(store);
+    try {
+      store.getState().deleteTask(store.getState().tasks.find(t => !t.childIds.length)!.id);
+      await ctrlS(store);
+      longer(store);
+      await store.getState().saveFileAs();
+      assert.equal(browser.downloads.length, written, `${label}: geschreven zoals op main`);
+      assert.equal(captured, false, `${label}: geen vastlegging`);
+      assert.deepEqual(calls, [], `${label}: geen telling`);
+      assert.deepEqual(writtenNotices(store), [], `${label}: geen melding`);
+    } finally { stop(); browser.dispose(); }
+  }
 });
 
 rmSync(dir, { recursive: true, force: true });
