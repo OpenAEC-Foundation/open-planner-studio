@@ -1782,6 +1782,33 @@ en noem het in je rapport of PR-tekst.
      dit pad de gewone workersessie en `scanForeign` geven. Gezien in de code door de reviewer van #1180
      (GPT-6.2-Sol, ronde 2). — B (code)
 
+2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
+     `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
+     callback van `run` `notifyLevelingDelayRounded` aan. Die zet het document via `claimOnce`
+     (`src/state/timephasedLossNotice.ts`) in een registratie op moduleniveau. `rollback` zet daarna
+     `ui.notifications` terug, maar die registratie niet, dus een latere wissing van zulke vertraging voor hetzelfde
+     document kan in deze sessie zonder melding blijven. Gezien in een proef via de MCP-dispatcher: met 90 minuten
+     geïmporteerde nivelleervertraging wiste een `planner_batch` eerst de nivellering en las daarna een onbekende taak;
+     de batch gaf `NOT_FOUND` en zette de 90 minuten terug, en een losse `planner_clear_leveling` wiste daarna de
+     vertraging bij één taak zonder melding. In de code van `rollback` en `claimOnce` nagegaan. — B
+2009. **Een teruggedraaide MCP-transactie kan de werkregels zichtbaar laten.** Draftmethoden zetten
+     `taskTypesVisible` op `true`, onder meer `draft.setTaskWorkRule` met een regel, `draft.setAssignmentWork` en
+     `draft.addTask` met een `workRule` (`src/state/runtime/createMcpTransactions.ts`). Dat veld heeft in
+     `DOCUMENT_FIELDS` (`src/state/documentContract.ts`) de rol `snapshot: 'none'`, en `restoreDocument` in `run` zet
+     het niet terug. Na `rollback` blijft het dus `true`, en `taskTypesUnlocked` (`src/state/taskTypesVisibility.ts`)
+     ontsluit daarmee de werkregelvelden en -kolommen, ook als de geweigerde transactie verder niets achterliet. In de
+     code nagegaan, ook in een tweede, onafhankelijke controle van de code; niet nagespeeld in de app. — B (code)
+
+2300. **Na een geweigerde `planner_batch` kunnen de berekende datums anders zijn dan vóór de aanroep.** Een batch met
+     een lees- of nivelleerstap kan een verouderde planning doorrekenen in `beforeTransaction`
+     (`src/services/mcp/tools/batchTool.ts`), dat `runMutateTool` (`src/services/mcp/tools/runtime.ts`) aanroept vóór
+     `run` zijn momentopname neemt. Mislukt daarna een stap, dan zet `rollback`
+     (`src/state/runtime/createMcpTransactions.ts`) de toestand van ná die berekening terug: de mutaties van de batch
+     zijn weg, de berekening blijft. Gezien in een proef via de MCP-dispatcher: met automatisch berekenen uit was een
+     taak verlengd zonder te rekenen; een batch hernoemde die taak en probeerde daarna een taak met een onbekend id te
+     lezen. De batch gaf `NOT_FOUND` en de oude naam kwam terug, terwijl de berekende start van de opvolger van 11 naar
+     16 maart ging. Zie ADR 0240. — B
+
 ## Bestanden en herstel
 
 36. **Herstelvenster na een gewone herlaad** in de browser, ook als alles was opgeslagen. — S
