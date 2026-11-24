@@ -360,7 +360,6 @@
     "reportFontMissing": "Az Ön saját betűtípusa, „{{name}}”, már nincs meg ezen az eszközön. A jelentés ismét az Inter betűtípust használja.",
     "layoutsNotSaved": "Az elrendezéseket nem lehetett menteni. Semmi nem változott. Próbálja újra.",
     "ifcForeignOpenSchema": "Ez az IFC-fájl más alkalmazás adatait tartalmazza, és ismeretlen vagy hiányzó sémával rendelkezik. A megnyitás le lett állítva, hogy megelőzze az adatvesztést mentéskor.",
-    "ifcForeignOpenTooLarge": "Ez az IFC-fájl nagyobb, mint {{limit}} MB. Az épületmodellt vagy más program adatait tartalmazó IFC-fájl legfeljebb {{limit}} MB méretig nyitható meg.",
     "ifcForeignOpenUnsafe": "Ez az IFC-fájl nem sorolható be biztonságosan. A megnyitás le lett állítva, hogy megelőzze az adatvesztést mentéskor.",
     "ifc2x3PlanningOnly": "Az IFC2X3 ütemezésként lett megnyitva. Más program adatai nem kerülnek bele mentéskor.",
     "ifcForeignReplaceBlocked": "Nem lett mentve. Ez a megnyitott fájl. A frissítéshez használja a „Mentés” parancsot, másolathoz pedig a „Mentés másként” parancsot új névvel.",

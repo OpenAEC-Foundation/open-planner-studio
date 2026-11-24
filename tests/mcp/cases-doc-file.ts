@@ -26,7 +26,7 @@ import { replaceRecordId } from '@/services/fileAccess/replaceRecords';
 import { mergeProblems, openForeign } from '../planning/ifcMergeKern';
 import { createHash } from 'node:crypto';
 import { scanForeignTargetBytes } from '@/services/ifc/foreign/targetForeignScan';
-import { lowerModelOpenLimitForTests } from '@/services/ifc/modelOpenLimit';
+import { lowerForeignOpenWarnBytesForTests } from '@/services/ifc/foreignOpenSize';
 import { fileURLToPath } from 'node:url';
 import { writeUserTextFileTauri, USER_FILE_TMP_SUFFIX } from '@/services/fileAccess/atomicWrite';
 import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
@@ -1354,12 +1354,7 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
   }
 });
 
-// #804, PR #1127 (route A): de productgrens voor het openen van een model (`IFC_MODEL_OPEN_MAX_BYTES`, 150 MiB) geldt ook
-// voor `planner_import_schedule` in de app. Op de echte bestandslaag van de app (`realFs`, via de plugin-fs-client en de
-// nagebootste IPC), niet de fake: zo valt het op als `realFs` de markering `enforcesModelOpenLimit` verliest (review van
-// #1127, ronde 5). De proefnaad verlaagt de grens tot de grootte van het bestand: precies op de grens opent het model,
-// één byte eronder weigert de tool met VALIDATION en blijft de store zoals hij was.
-test('import_schedule in de app: een model boven de productgrens weigert, op de grens opent het (#804, #1127)', async () => {
+test('import_schedule in de app, op de echte bestandslaag (realFs): een model boven de drempel opent met de waarschuwing in notice, op de drempel zonder (#804)', async () => {
   const root = mkdtempSync(join(tmpdir(), 'ops-mcp-grens-'));
   const ipc = installNodeFileIpc();
   const previousGetFs = fileToolDeps.getFs;
@@ -1371,17 +1366,22 @@ test('import_schedule in de app: een model boven de productgrens weigert, op de 
     fileToolDeps.getFs = async () => fs;
     const model = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
     const path = join(root, 'groot-model.ifc'); writeFileSync(path, model);
-    lowerModelOpenLimitForTests(model.length - 1);
-    const refused = await callErr('planner_import_schedule', { path });
-    assertEq(refused.code, 'VALIDATION', 'boven de productgrens ⇒ validatiefout');
-    assert(refused.error.includes(`${model.length} bytes is above the limit of ${model.length - 1} bytes`) && refused.error.includes('building model'),
-      `de Engelse fout noemt de grootte en de grens (${refused.error})`);
-    assertEq(S().ifcSource, null, 'geen document met het model geopend');
-    lowerModelOpenLimitForTests(model.length);
-    await callOk('planner_import_schedule', { path });
-    assertEq(S().ifcSource?.foreign, true, 'precies op de grens opent het model met zijn bron');
+    const warning = 'This file is larger than 150 MB. Saving can fail because memory runs out. Recent changes can then be lost. Tell the user.';
+    lowerForeignOpenWarnBytesForTests(model.length - 1);
+    const large = await callOk('planner_import_schedule', { path }) as { notice?: string; alreadyOpen?: boolean };
+    assertEq([S().ifcSource?.foreign, S().filePath, large.alreadyOpen ?? false], [true, path, false], 'boven de drempel opent het model met zijn bron');
+    assert((large.notice ?? '').includes(warning), `boven de drempel staat de waarschuwing in notice (${large.notice})`);
+    assertEq(S().ui.notifications.filter(n => n.messageKey === 'notifications.ifcForeignOpenLarge').map(n => n.sticky ?? false), [true],
+      'de app toont de planner dezelfde waarschuwing zonder timer');
+    resetToSingleEmptyDocument();
+    useAppStore.setState((s) => { s.ui.notifications = []; });
+    lowerForeignOpenWarnBytesForTests(model.length);
+    const atLimit = await callOk('planner_import_schedule', { path }) as { notice?: string };
+    assertEq(S().ifcSource?.foreign, true, 'precies op de drempel opent het model met zijn bron');
+    assert(!(atLimit.notice ?? '').includes('larger than'), `precies op de drempel geen waarschuwing (${atLimit.notice})`);
+    assertEq(S().ui.notifications.filter(n => n.messageKey === 'notifications.ifcForeignOpenLarge').length, 0, 'precies op de drempel geen melding');
   } finally {
-    lowerModelOpenLimitForTests();
+    lowerForeignOpenWarnBytesForTests();
     ipc.dispose(); fileToolDeps.getFs = previousGetFs;
     useAppStore.setState((s) => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument();
     rmSync(root, { recursive: true, force: true });
