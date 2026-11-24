@@ -26,8 +26,10 @@ sessiegeschiedenis en de meldingen laat het dan staan.
   geen eigen stap.
 - `rollback` (na een fout in de callback, een thenable als uitkomst of een `cpmResult.error` na de eindberekening) zet
   de momentopname, `viewRows`, `resourceLoadResult`, `isDirty`, `importPristine`, de sessiegeschiedenis en
-  `ui.notifications` terug. Andere toestand buiten de momentopname zet het niet terug (knownbug 2008 en 2009).
-  `importPristine`, omdat een geweigerde AI-actie geen bewerking is: `cases-recorded-dates.ts`, "mislukte
+  `ui.notifications` terug. De momentopname komt terug via `restoreSnapshot`, dat het IFC-schema en de open schemavraag
+  van de live state houdt (`project.ifcSchema`, `ifcSchemaUnconfirmed`); `rollback` beëindigt ook het samenvoegen van
+  undo-stappen (`resetUndoCoalescing`). Andere toestand buiten de momentopname zet het niet terug (knownbug 2008 en
+  2009). `importPristine`, omdat een geweigerde AI-actie geen bewerking is: `cases-recorded-dates.ts`, "mislukte
   MCP-transactie herstelt …" (een verse import in *datums zoals opgeslagen*, een callback die een taak toevoegt en dan
   gooit; de toets eist modus, vlag en `isDirty` van vóór de aanroep). De meldingen, omdat `runCPM` een solverfout zelf
   meldt (`scheduleFailedNotice`) en die melding bij de teruggedraaide poging hoort; omdat `run` synchroon is, komt er
