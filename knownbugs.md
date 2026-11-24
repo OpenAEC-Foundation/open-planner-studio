@@ -699,6 +699,42 @@ en noem het in je rapport of PR-tekst.
      machinevraag van de opvolger mee uit de voorlopige dinsdagboeking en laat die conflictmelding staan. Toets
      de lokale pinmelding op de proefbezetting met behoud van de afzonderlijke pooltoets. — S
 
+2306. **Een mijlpaal met duur en een expliciete mijlpaalsoort krijgt als opvolger de grensregels van een
+     nulduurmijlpaal.** `relationBoundaryFlags` (`src/engine/scheduler/relationMath.ts`) leest voor de voorganger de
+     duur (`scheduleDuration <= 0`), maar voor de opvolger `isMilestone` met `milestoneKind`. Een proef door de solver:
+     een START-mijlpaal van 1 uur kreeg na een FF-relatie een venster van 10:00 tot 11:00; met dezelfde duur en een
+     automatische soort was het 09:00 tot 10:00. Haar eigen FS-opvolger volgde in beide gevallen haar echte finish. In
+     de code is dat de FF-tak van `forwardHour`, die bij `succIsStartMs` de start op de geëiste finish zet (strikt
+     erna, of bij een voorganger in de dagenmaat midden in een werkblok op dat moment zelf), zonder de duur af te
+     trekken. De combinatie kan ontstaan via IFC (`ifcPsets.ts` schrijft en
+     leest `MilestoneKind` voor elke taak met `isMilestone`, zonder duurtoets; zie ook 1042), via MCP (`taskFields.ts`
+     zet `milestoneKind` zonder duurtoets) en via de MSPDI-lezer met een expliciete OPS-markering
+     (`explicitOpsMilestoneKind` in `mspdiReader.ts`, zonder duurtoets). Elders plant de solver een mijlpaal met duur
+     als duurtaak (`isZeroDurationMilestone`). — B
+
+2307. **Een opvolger in kalendertijd na FS met een lag in werktijd komt op het volgende werkmoment van haar eigen
+     kalender.** Bij SS, FF en SF slaat `forwardHour` (`src/engine/scheduler/relationMath.ts`) voor een opvolger in
+     kalendertijd de normalisatie op haar kalender over (ADR 0273); bij FS gaat de grens door
+     `finishStartLaggedStart` naar `se.nextWorkInstant`. `msp-42-z11-punt2-elapsed-opvolger-uitgesloten` in
+     `cases-msp-pariteit.json` legt bij lag 0 maandag 08:00 vast. Een proef door de solver met 30 werkminuten lag op
+     een 24-uurslagkalender gaf na de lag vrijdag 17:30; daarna zette de kalender van de opvolger haar op zaterdag
+     08:00. Die tweede stap wijkt af van ADR 0016: een kalendertijdtaak snapt niet naar werktijd waar het om haar eigen
+     planning gaat. Of FS zonder lag ook de eerste normalisatie op de lagkalender hoort over te slaan, is open. Zie ook
+     155 (lag in kalendertijd). — B
+
+2308. **Een SF-relatie naar een hammock krijgt geen finishvloer, en de hammock kan vóór de SF-eis eindigen.**
+     `hammockEarlyFinish` (`src/engine/scheduler/CPMSolver.ts`) zet de SF-grens met `forwardConstraint` om naar een
+     start en die met `finishFromStart` naar een finish, zonder `forwardFinishFloor`. Een proef door de solver met
+     dezelfde SF-driver als `msp-35-z10-sf-weekendgrens`: de gewone taak eindigt maandag 08:00, dezelfde taak als
+     hammock vrijdag 17:00. Dat schendt de finishgrens van de driver, die volgens ADR 0023 ook voor een hammock geldt
+     (haar vroege finish is het maximum van de grenzen uit haar FF- en SF-voorgangers). — B
+
+2309. **Een lopende opvolger van een SF-relatie krijgt de SF-finishvloer niet.** De voortgangstak van `forwardPass`
+     (`src/engine/scheduler/CPMSolver.ts`, `isPinnedInProgress`) gebruikt de relatiegrens voor het restwerk, maar legt
+     de vroege finish vast zonder de al berekende `sfFinishFloor`. Een proef door de solver, met behoud van
+     relatielogica, een statusdatum op donderdag 13:00 en acht uur restwerk: de SF-relatie verschoof de finish van
+     vrijdag 12:00 naar vrijdag 17:00, terwijl de SF-eis op maandag 13:00 lag. Zie ADR 0275. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -2492,12 +2528,19 @@ en noem het in je rapport of PR-tekst.
      (`/tmp/fase1b-v2-scope/echte-invoer/resultaten.json` op aia09-mp50, 11 november 2026). — B
 
 
-1570. **VERVOLG (#804, gemaakt geval): id-afleiding bij een `-dup-N`-object na crashherstel nog beproeven.**
-     PR 9a gebruikt de gewone bytes-route, zonder `idExceptions`: de echte keten met een in de app
-     toegevoegde resource, Opslaan als, verder bewerken, crashherstel en opnieuw Opslaan als behoudt
-     de GlobalId en het vreemde deel. Een geconstrueerd dubbel-GlobalId-geval (`-dup-N`) is niet
-     in die herstelketen gemeten. Alleen dit gemaakte geval blijft vervolg; geen claim van verlies
-     of van herstel van zulke id-uitzonderingen. — S
+2236. **VERVOLG (#804 fase 2, PR 11): main weigert de opslag na het verwijderen van de eerste houder van een gedeelde GlobalId.**
+     Gemeten in `check-recovery-gedeelde-globalids.ts` (deel 3): een bron met vier paren gedeelde GlobalIds in het eigen
+     deel; na het verwijderen van de eerste resource van een paar weigert de merge met `niet-gedragen`, in de sessie en
+     na herstel gelijk. Een ongewijzigde planning slaat letterlijk op (deel 1 en 6). Meer is niet gemeten. Ontwerp §4.3
+     wil dat de writer de tweede houder een nieuwe GlobalId geeft. Komt die opslag er, dan leidt de lezer uit de nieuwe
+     bron een ander id af dan het document draagt, en is het lijstje per bronversie uit §4.14 nodig (`idExceptions`, met
+     `pendingIdExceptions` in stap 0). Het eerste element van zo'n paar is het id waaronder het herstelde document het
+     object draagt: na PR 11 het id van de sessie bij een gedeelde GlobalId, en het van de GlobalId afgeleide id bij een
+     in de app gemaakte resource (proef 2 in `check-recovery-ifc-source.ts`). — B
+2237. **VERVOLG (#804, 9c): een MCP-backup draagt de koppeling van PR 11 niet.** De backup schrijft de planning met
+     dezelfde writer als de herstelsnapshot (`backupService.ts`), maar zonder `snapshotIdentities`: een object met een
+     gedeelde GlobalId komt bij terugzetten terug met het id van zijn nieuwe GlobalId, zoals op main. Wat de planner
+     daarvan merkt, is niet gemeten. 9c (knownbug 1575) kan de koppeling van `recoveryIdentity.ts` meenemen. — S
 1575. **VERVOLG (#804, 9c): een MCP-backup op het open document terugzetten met de actuele gebouwmodelbron.**
      §4.12/E31 blijft een eigen onderdeel 9c op de eindlijst, niet verplicht vóór de flag standaard aan mag.
      De backup bevat planning en een bronkenmerk, geen gebouwmodelbytes. De kleine stap 9d zet bij het openen
@@ -3900,7 +3943,40 @@ en noem het in je rapport of PR-tekst.
      Route in een proef van de reviewer (GPT-6.2-Sol, review van #1170): gedeeltelijk herstel (`holdWeb` houdt de hele
      generatie vast, ook de herstelde versie), doorwerken aan dat document, en bij de volgende herstelvraag uitstellen; daarna
      kwamen de oude IFC-bytes terug. `check-recovery-web-hold.ts` toetst bij een dubbel document alleen dat het één keer
-     verschijnt, niet welke versie. — B
+     verschijnt, niet welke versie. Ook gezien in een tussenversie van `check-recovery-identiteit-reeksen.ts` (#1198, reeks 17:
+     twee keer `holdRecoveryForLater` met hetzelfde open document); de definitieve proef eist het eigen herstel daarom
+     alleen bij de laatst geschreven versie. — B
+
+2314. **Bekende grens (#804, flag aan): de toets van het crashherstel bewijst alleen wat de writer schrijft.** Het herstel
+     aanvaardt een koppeling van identiteiten (`snapshotIdentities`) alleen als het herstelde document, opnieuw
+     geschreven, byte voor byte de gelezen snapshot oplevert (`rewritesSnapshot`, `src/state/readRecoveryDocument.ts`).
+     Velden die de writer niet schrijft of zelf afleidt, ziet die vergelijking niet: `Task.parentId` (de writer nest via
+     `childIds`), `Task.resourceIds` (afgeleid uit de toewijzingen), de toewijzings-id's (ontstaan bij elke lezing) en
+     een bewaarde GlobalId die de writer toch afleidt. De proef verschuift ze met de hand: van 313 verschuivingen
+     aanvaardt de toets er 51 (`check-recovery-gedeelde-globalids.ts`, deel 13). De hernoeming van vandaag schrijft geen van deze
+     velden, dus er is geen aangetoonde route naar verlies. Gaat de hernoeming later meer velden aanpassen, dan hoort
+     daar eerst een gerichte proef via de gewone herstelroute bij. Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B
+     (proef 13 en de code)
+2315. **Bekende grens (#804, flag aan): het crashherstel valt in drie gevallen terug op het herstel van main, terwijl de
+     koppeling bruikbaar was.** Het document blijft heel; alleen een object met een gedeelde GlobalId (een
+     `-dup-N`-object) krijgt dan de identiteit die main bij herstel geeft, zoals vóór #1198. (1) Na het toevoegen en
+     toewijzen van een resourcekalender: de lezer zet kalenders met toewijzingen vóór kalenders zonder, en leest de
+     nieuwe kalender terug als `rescal-ifc-…` waar de sessie `cal-…` gebruikte; de writer gebruikt dat id in
+     hulp-GlobalIds, dus de bytes verschillen en de hele tabel vervalt. (2) Een snapshot in de stand "Datums zoals
+     opgeslagen" (rekenslots als `$`, of `recordedSourceFormat`): de toets bouwt de schrijfinvoer vóór de stap die die
+     stand activeert (langs de code gevolgd, niet gedraaid). (3) Een snapshot waarvan `FILE_NAME` en
+     `IFCOWNERHISTORY` aan weerszijden van een secondegrens zijn geschreven: de writer leest de klok twee keer en de
+     toets gebruikt de seconde uit de kop voor beide. Richting: één tijdstip voor beide velden bij het schrijven van
+     een snapshot; voor (1) en (2) een vergelijking die objecten en hun verbindingen bewaakt in plaats van bytes.
+     Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B (proef van de reviewer voor 1 en 3; 2 uit de code)
+2316. **Bekende grens (#804, flag aan): een beschadigde lijst identiteiten zonder één rij wordt deels toegepast.** De
+     toets van het crashherstel verwerpt elke rij die het herstelde document oplevert en die niet in de lijst staat,
+     maar eist niet dat de lijst volledig is (een verwijderde houder laat terecht een rij minder achter). Met één
+     taakrij met de hand uit acht geldige rijen gehaald, bij dezelfde IFC en SHA-256, aanvaardt de toets de overige
+     zeven; de taak zonder rij houdt de GlobalId uit de snapshot, zoals op main. De gewone schrijfroute laat geen rij
+     weg (de writer telt de oorspronkelijke houders en neemt elke uitgegeven rij mee met haar upsert). Richting: een
+     integriteitscontrole over de lijst zelf. Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B (proef van de
+     reviewer)
 
 2209. **VERVOLG (#1182): de verliescontrole kent de oude lay-outs los van de slottabellen.** `alignment` in
      `src/services/ifc/foreign/lossCheck.ts` legt zelf vast hoe een regel in een oude eigen lay-out op de uitvoer past
@@ -4187,6 +4263,54 @@ en noem het in je rapport of PR-tekst.
      weer in dezelfde verwerking belanden, en is *Verwerpen* niet bereikbaar. Geen gevolg van PR #1127. Bevestigd via de
      code en de echte herstelcallback (reviewer van #1127); een processtop is niet opgewekt. — B (code en proef van de
      reviewer; geen processtop nagespeeld)
+
+2212. **Ctrl+S naar een bestaand IFC met een UTF-8-BOM weigert met de flag aan (#804).** Sinds fixronde 1 van #1184 opent
+     een IFC met een BOM vóór de kop met de flag `ifcForeignContent` aan (de scanner en de oude-kopherkenning van de
+     C/A/V-scan slaan een BOM op byte 0 over); main weigerde het openen. De doelcontrole houdt bewust de uitkomst van main:
+     een bestaand doel dat met een BOM begint en geen model heeft, is 'unreadable' (`targetForeignScan.ts`, `targetOf`),
+     want anders zou de gewone schrijver (zonder BOM) een bestand overschrijven dat main liet staan (review van #1184
+     ronde 2). Daardoor weigert Ctrl+S van een geopend gewoon document met BOM naar zijn eigen bestand
+     (`documentTargetCheck` → `refusedWriteTarget`, regel 2, melding "onleesbaar doel"); Opslaan als naar een nieuwe naam
+     gaat wel. Met de flag uit verandert er niets. Richting: het eigen bestand van het document met dezelfde lengte en
+     SHA-256 als de geopende bron als doel toelaten, en de BOM bij de gewone schrijver bewaren. Voorwaarde voor standaard
+     aan. — B (code en de proef van de doelcontrole, `check-ifc-foreign-target.ts` 9c; Ctrl+S zelf niet nagespeeld)
+
+2231. **VERVOLG, zo op main: opslaan weigert in "datums zoals opgeslagen" met `planning-na-openen` (#804, flag aan).**
+     Reproductie (review van #1184 ronde 2): het eigen IFC-voorbeeld, met de gewone writer geschreven met MSPDI-herkomst
+     (`OPS_ImportProvenance.SourceFormat`), één wand erbij, en opgeslagen vroege datums van `Set up site` die afwijken van
+     de berekening. Met de flag aan opent de app alle 20 taken in "datums zoals opgeslagen"; Ctrl+S zonder bewerking geeft
+     `notifications.ifcForeignMergeRefused` en schrijft nul bytes. De gedeelde schrijfroute geeft `planning-na-openen`, met
+     een verschil in `earlyStart` van `2027-05-06T07:00` naar `2027-05-07T07:00`. Gelijk op main en op de PR, met en
+     zonder `importPristine`; zonder datumafwijking geeft de merge de bron byte-gelijk terug. Plekken:
+     `src/state/documentActivation.ts` (`recordedDatesSource`), `src/state/ifcSaveInput.ts` (`buildWriteIFCInput`),
+     `src/state/ifcMergePlanning.ts` (`openMergePlanning`), `src/services/ifc/foreign/mergeWriter.ts` (de controle na
+     openen), `src/state/slices/fileSlice.ts` (`prepareAppIfcWrite`). Richting van de reviewer: geef de twee kanten van de
+     heropening gelijkwaardige informatie over de opgeslagen datums en behoud de vergelijking. Geen voorkomend exemplaar
+     in het onbewerkte corpus. Review van #1184 ronde 2 (GPT-6.2-Sol, xhigh). — B (proef van de reviewer)
+
+2219. **VERVOLG (review van #1184): de geheugenpiek van `openIfcBytes` bij een groot IFC is niet gemeten (#804).**
+     `openIfcBytes` (`src/core/index.ts`) maakt eerst een eigen kopie van zijn invoer (het publieke pakket moet een
+     buffer bezitten die de afnemer niet meer wijzigt). Daarna houdt het tegelijk het werkgeheugen van de scanner, de
+     indeling en de lezer vast, en bij `toIfcBytes()` dat van de merge en de uitvoer; de kern kopieert de uitvoer alleen als
+     de merge de bronbuffer zelf teruggeeft. Bewaart de bytes-route niets, dan leest de tekstroute dezelfde bytes daarna
+     nog eens (zie de vervolglijst van #1184). De scan stopt bij 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`). Niet gemeten:
+     piek en herstel bij een groot model. De HTTP-API gebruikt `openIfcBytes` niet. Review van #1184 ronde 1 (GPT-6.2-Sol,
+     xhigh). — S
+2252. **De headless kern: `openIfcBytes` kan een bestand met vreemde inhoud anders lezen dan `openIfc` (#804).**
+     Bewaart de bytes-route een vreemd deel, dan leest `openIfcBytes` (`src/core/index.ts`) het bestand volgens de regels
+     van de app voor zulke bestanden (de app met de flag `ifcForeignContent` aan); `openIfc` volgt de tekstroute van main.
+     Voor dezelfde bytes kan dat een andere planning geven. Vier voorbeelden uit de reviews van #1184:
+     (1) `examples/01-grachtenpand-amsterdam.ifc` met een leeg eigen werkschema, een baseline en één losse taak: de
+     tekstlezer leest 52 taken en einde `2028-01-12T16:00`, de bytes-route één taak en `2027-03-05T16:00`, omdat de regel
+     voor een leeg eigen werkschema de baselineboom uitsluit; (2) de woningfixture uit
+     `tests/planning/fixtures/projectnaam-in-settings/` met een externe pset aan het project: de tekstlezer neemt de
+     projectnaam uit `IfcProject`, de bytes-route uit `OPS_ProjectSettings`; (3) dezelfde woning met de naam gelijk en
+     een andere `ProjectDescription` in `OPS_ProjectSettings`; (4) het voorbeeld met een tweede `OPS_ProjectSettings` aan
+     een vreemde pset: de tekstlezer leest haar `CreatedAt`, de bytes-lezer niet. De HTTP-API gebruikt alleen de
+     tekstroute, dus daar speelt dit niet; een latere terugval naar de bytes-route in de API moet er wel rekening mee
+     houden. Richting: de lezing van de bytes-route en de tekstlezer voor bestanden met vreemde inhoud gelijktrekken.
+     Review van #1184 ronde 4, 5 en 6 (GPT-6.2-Sol, xhigh). — B
+2258. **Een IFC met meer dan 4 KiB witruimte of commentaar na `END-ISO-10303-21;` wordt als afgekapt geweigerd (zo op main).** De lezer zoekt de sluitmarkering alleen in de laatste 4096 tekens (`TERMINATOR_PROBE` in `src/services/ifc/ifcReader.ts`). Staat daarna meer witruimte of commentaar, dan meldt hij "afgekapt" (reden `truncated`; via de headless API 422 `IFC_READ_FAILED`), terwijl het bestand volledig is. Gevonden bij #1184 met een bestand met 5000 spaties na de sluitmarkering; op main is het gedrag hetzelfde. Richting: van achteren af witruimte en commentaar overslaan vóór de toets op de sluitmarkering, zonder het hele bestand te doorzoeken. — B
 
 
 
@@ -5221,6 +5345,17 @@ en noem het in je rapport of PR-tekst.
       plek; een handmatige actie gaat alleen voor op wat nog niet begon; geen vastgehouden rij tijdens de
       schrijftoestemming), met de proeven van alle drie de rondes als bewaking. Of die regel dan houdt, is niet
       bewezen. — S
+
+2254. **VERVOLG (#804 fase 2, PR 11, testdubbel): de IndexedDB-dubbel draait een afgebroken transactie niet terug.**
+     In `tests/planning/fakeRecoveryIndexedDb.ts` past `put` een record meteen toe, en `abort` roept alleen `onabort`
+     aan. Een echte IndexedDB schrijft bij een fout in dezelfde transactie niets. Faalt in de dubbel de manifestschrijf
+     ná de snapshotrecords, dan staan die records er toch: een gemengde toestand die in de browser niet kan bestaan. Een
+     browserproef met een schrijffout halverwege een ronde kan daardoor onterecht rood worden (een toestand die A nooit
+     maakt), of groen terwijl ze alleen laat zien dat de leestoets die gemengde toestand afwijst, niet dat de opslag
+     klopt. `check-recovery-identiteit-reeksen.ts` bootst het terugdraaien zelf na (een kopie van de opslag bij het begin
+     van elke schrijftransactie); deel 9 van `check-recovery-gedeelde-globalids.ts` laat de fout afgaan bij de eerste
+     put, vóór er iets veranderd is. Fouten die alleen bij echte asynchrone verzoeken, commit of herstart zichtbaar
+     worden, dekt de dubbel niet. — B
 
 ## Wensen en open taken (geen bug)
 

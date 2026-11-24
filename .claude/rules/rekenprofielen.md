@@ -4,6 +4,7 @@ paths:
   - "src/engine/scheduler/solveInput.ts"
   - "src/engine/scheduler/CPMSolver.ts"
   - "src/engine/scheduler/CalendarEngine.ts"
+  - "src/engine/scheduler/relationMath.ts"
   - "src/engine/scheduler/p6*"
   - "src/services/ifc/schedulingProfileMigration.ts"
   - "src/services/schedulingProfiles/**"
@@ -70,7 +71,7 @@ zijsporen (0019), late kant, driving en vrije speling (0020), constraints en har
 P6: voltooid werk (0027), lopende taken (0028), relatie- en mijlpaalgrenzen (0029), ALAP (0030), de SF-finishvloer
 (0031). Besluiten in de kalenderrekenkern (`CalendarEngine.ts`): werkdagen rekenkundig tellen (0220), een werkende
 uitzondering wint van een feestdag (0221), een werkblok hoort bij zijn begindag (0222), werkminuten heen en terug als
-elkaars spiegel (0223) en de lopers van de dagenmaat (0224). Besluiten bij de typen in `src/types/project.ts`: nivelleerinstellingen als data (0180), projectopties uit het
+elkaars spiegel (0223) en de lopers van de dagenmaat (0224). Besluiten in de relatiewiskunde (`relationMath.ts`): een ingang per richting (0270), mijlpaalgrenzen (0271), FS zonder lag tussen twee kalenders (0272), kalendertijd (0273), een taak in de dagenmaat op een relatiegrens (0274) en de SF-finishvloer alleen voor SF (0275). Besluiten bij de typen in `src/types/project.ts`: nivelleerinstellingen als data (0180), projectopties uit het
 P6-bronbestand (0181), het bewijs achter de conventies (0182) en het rekenprofiel en zijn typen (0183).
 
 ### Het nivelleringsfundament (projectoptie `leveling`)
