@@ -3383,8 +3383,11 @@ en noem het in je rapport of PR-tekst.
      complexe instantie zonder modeltype krijgt dus de zin "alleen de planning" bij een export, en na een download bij
      geweigerde schrijftoestemming blijft het document gewijzigd. Dat is de veilige kant; Open Planner Studio schrijft zelf
      geen complexe instanties. Richting: de index geeft de deeltypen van een complexe instantie, met de eigen tokenlezer
-     van de scanner (geen tweede lezer). — S (code gelezen; de drie varianten met een wand staan als proef in
-     `check-ifc-document-save.ts`)
+     van de scanner (geen tweede lezer). Gevolg bij openen (#1197): de telmelding mag daar niet stellig "een gebouwmodel"
+     zeggen. De scan geeft daarom `buildingModelUncertain` mee als alleen een complexe instantie het model maakt, en
+     dan krijgt de planner de algemene tekst ("IFC-gegevens buiten de planning"); de veilige kant bij export en download
+     blijft. Proef: `check-ifc-foreign-open-notice.ts` (een eigen planning met één complexe eenheid). — S (code gelezen; de
+     drie varianten met een wand staan als proef in `check-ifc-document-save.ts`)
 
 1846. **VERVOLG (meldingen): een ververste melding houdt haar oude plek en kan direct daarna uit de stapel vallen.**
      Browser. De store vouwt een herhaalde melding samen op haar oude plek (`notify` in `uiSlice.ts`, stap 1: de positie
@@ -5198,6 +5201,13 @@ en noem het in je rapport of PR-tekst.
       plek; een handmatige actie gaat alleen voor op wat nog niet begon; geen vastgehouden rij tijdens de
       schrijftoestemming), met de proeven van alle drie de rondes als bewaking. Of die regel dan houdt, is niet
       bewezen. — S
+
+2239. **Haperende browserproef: het slepen van een mijlpaal in `gantt-drag-undo.spec.ts`.** Browser (CI). In *Gantt bodydrag
+      wijzigt de datum en Ctrl+Z herstelt exact één handeling* wacht de proef na het slepen van de ruit 5 s op een andere
+      startdatum (`tests/browser/gantt-drag-undo.spec.ts:106`) en kreeg ze die één keer niet. Gezien in run 45400160281
+      (browserjobs van PR #1197 op `25326fb05`, 24 november 2026): deel 3 van 4 rood op die stap, dezelfde job opnieuw
+      gestart op dezelfde commit groen. De proef zet haar project neer met `seedProject` en opent geen bestand, dus de
+      wijziging van die PR raakt haar niet. Oorzaak niet onderzocht. — B (twee runs op dezelfde commit)
 
 ## Wensen en open taken (geen bug)
 
