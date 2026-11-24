@@ -739,6 +739,65 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
   ok('18 de regel is gepind op het hele corpus', pinned === corpus.length * forms.length && pinned >= 130, String(pinned));
 }
 
+{
+  const example = readFileSync(join(root, 'examples/01-grachtenpand-amsterdam.ifc'), 'utf8');
+  const foreignDir = join(root, 'tests/fixtures/ifc-foreign');
+  const modelText = readFileSync(join(foreignDir, 'eigen-plus-model.ifc'), 'utf8');
+  const END = 'END-ISO-10303-21;';
+  const looseTaskOutsideBaseline = (() => {
+    const lines = example.split('\n');
+    const schedule = lines.find(l => l.startsWith('#47=IFCWORKSCHEDULE('))!;
+    const task = lines.find(l => l.startsWith('#52=IFCTASK('))!;
+    const added = [
+      schedule.replace(/^#47=IFCWORKSCHEDULE\('[^']*'/, "#99010=IFCWORKSCHEDULE('1SolR4BaselineSchema01'").replace('.PLANNED.);', '.BASELINE.);'),
+      task.replace(/^#52=IFCTASK\('[^']*',#6,'[^']*',\$,\$,'[^']*'/, "#99011=IFCTASK('1SolR4LooseTask0000001',#6,'Loose task',$,$,'99'"),
+    ];
+    const moved = lines.map(l => l.startsWith('#158=IFCRELNESTS(') ? l.replace(',#47,(', ',#99010,(')
+      : l.startsWith('#312=IFCRELASSIGNSTOCONTROL(') ? l.replace(',$,#47);', ',$,#99010);') : l).join('\n');
+    return moved.replace(`ENDSEC;\n${END}`, `${added.join('\n')}\nENDSEC;\n${END}`);
+  })();
+  const otherReadErrors: Array<[string, string, string]> = [
+    ['leeg', '', 'INVALID_INPUT'],
+    ['alleen witruimte', '  \n\t ', 'INVALID_INPUT'],
+    ['geen STEP-kop', 'dit is geen IFC', 'INVALID_INPUT'],
+    ['NUL vóór de kop', `\u0000${example}`, 'INVALID_INPUT'],
+    ['alleen de kop', 'ISO-10303-21;\n', 'IFC_READ_FAILED'],
+    ['afgekapt voorbeeld', example.slice(0, example.lastIndexOf(END)), 'IFC_READ_FAILED'],
+    ['afgekapt model', modelText.slice(0, modelText.lastIndexOf(END)), 'IFC_READ_FAILED'],
+    ['5000 spaties na de sluitmarkering', example + ' '.repeat(5000), 'IFC_READ_FAILED'],
+    ['geen DATA-sectie', "ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('IFC4X3_ADD2'));\nENDSEC;\nEND-ISO-10303-21;\n", 'IFC_READ_FAILED'],
+    ['nul taken', 'ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\nENDSEC;\nEND-ISO-10303-21;\n', 'NO_TASKS'],
+    ['ongeldige duur', example.replace("'P0Y0M5D'", "'P0Y0M5X'"), 'IFC_READ_FAILED'],
+    ['ongeldige duur buiten de planning die de bytes-route leest', looseTaskOutsideBaseline.replace("'P0Y0M23D'", "'P0Y0M23X'"), 'IFC_READ_FAILED'],
+  ];
+  const refusalOf = async (text: string): Promise<PlannerCoreError | string> => {
+    try { await openIfc(text); return 'opende'; } catch (e) { return e instanceof PlannerCoreError ? e : `ander fouttype: ${String(e)}`; }
+  };
+  for (const [name, text, code] of otherReadErrors) {
+    const e = await refusalOf(text);
+    ok(`19 ${name}: ${code} zonder readRefusal`, e instanceof PlannerCoreError && e.code === code && !('readRefusal' in e),
+      e instanceof PlannerCoreError ? `${e.code} readRefusal=${String(e.readRefusal)}` : e);
+  }
+  const outside = await openIfcBytes(encoded(otherReadErrors[otherReadErrors.length - 1][1]));
+  ok('19 fixture: de bytes-route leest de ongeldige duur buiten haar planning wel, met een vreemd deel',
+    outside.schedule().foreignContent !== null && outside.schedule().counts.tasks === 1);
+  const modelRefusals: Array<[string, string]> = [
+    ...readdirSync(foreignDir).filter(f => f.endsWith('.ifc')).sort().map(f => [f, readFileSync(join(foreignDir, f), 'utf8')] as [string, string]),
+    ['een model met een ongeldige duur', modelText.replace(/'P\d+D'/, "'P5X'")],
+  ];
+  ok('19 fixture: elf modelbestanden en een model met een ongeldige duur', modelRefusals.length === 12, String(modelRefusals.length));
+  for (const [name, text] of modelRefusals) {
+    const e = await refusalOf(text);
+    ok(`19 ${name}: de weigering van de gebouwmodel-poort draagt readRefusal 'building-model', met lege details zoals main`,
+      e instanceof PlannerCoreError && e.code === 'IFC_READ_FAILED' && e.readRefusal === 'building-model'
+        && JSON.stringify(e.details) === '{}' && Object.keys(e).includes('readRefusal'),
+      e instanceof PlannerCoreError ? `${e.code} readRefusal=${String(e.readRefusal)} details=${JSON.stringify(e.details)}` : e);
+  }
+  const plainError = new PlannerCoreError('INVALID_INPUT', 'x');
+  ok('19 een PlannerCoreError zonder readRefusal heeft de eigenschap niet', !('readRefusal' in plainError) && JSON.stringify(Object.keys(plainError).sort()) === JSON.stringify(['code', 'details', 'name']),
+    JSON.stringify(Object.keys(plainError)));
+}
+
 if (diffs.length === 0) {
   console.log(`OK: headless kern — ${checks} checks groen (${files.length} voorbeeldbestanden)`);
 } else {

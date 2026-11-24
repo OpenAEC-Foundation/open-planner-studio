@@ -29,6 +29,7 @@ const OLD_TAGS = join(here, '..', '..', 'tests', 'planning', 'fixtures', 'oude-t
 const PROJECT_NAME_IN_SETTINGS = join(here, '..', '..', 'tests', 'planning', 'fixtures', 'projectnaam-in-settings', 'showcase-verbouwing-eengezinswoning.ifc');
 const SCHEDULE_READ_OTHERWISE = 'het voorbeeld met een leeg eigen werkschema, een baseline en een losse taak';
 const NAME_READ_OTHERWISE = 'de woning met een externe pset aan het project';
+const DURATION_OUTSIDE_PLANNING = 'een ongeldige duur buiten de planning die de bytes-route leest';
 // Dezelfde verwachte uitkomst als scripts/verify-core-package.mjs.
 const EXPECTED = { name: 'New-Build Canal House, Amsterdam', start: '2027-03-01', finish: '2028-01-12T16:00', tasks: 51 };
 
@@ -60,6 +61,9 @@ const BYTES = { 'Content-Type': 'application/octet-stream' };
 const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 const EXTERN_PSET = "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n"
   + "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;";
+const MODEL_REFUSAL = 'Could not read IFC: This IFC file contains building model objects.';
+const BONSAI_WALL_A_TIME = "#109=IFCTASKTIME($,$,$,$,'P5D','2026-02-02T09:00:00','2026-02-06T17:00:00',$,$,";
+const BONSAI_WALL_A_STALE = "#109=IFCTASKTIME($,$,$,$,'P5D','2026-02-02T09:00:00','2026-02-06T17:00:00','2026-03-02T09:00:00','2026-03-06T17:00:00',";
 const ISO_TIME = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?/g;
 const EPOCH_SECONDS = /\b\d{10}\b/g;
 const refusalOf = (r) => `${r.status} ${r.json?.error?.code}:${r.json?.error?.details?.reason}`;
@@ -87,9 +91,27 @@ function withoutWriteTime(text, from, to) {
     .replace(EPOCH_SECONDS, n => now(Number(n) * 1000) ? 'SCHRIJFTIJD' : n);
 }
 const sameAnswer = (a, b) => a.status === b.status && a.headers.get('content-type') === b.headers.get('content-type') && a.text === b.text;
+const refusedAsModel = (r) => r.status === 422 && r.json?.error?.code === 'IFC_READ_FAILED' && r.json.error.message.startsWith(MODEL_REFUSAL);
+async function modelOutcome(body, asText, asBytes) {
+  const ifcText = await call('/v1/schedule?output=ifc', { method: 'POST', body, headers: IFC });
+  const ifcBytes = await call('/v1/schedule?output=ifc', { method: 'POST', body, headers: BYTES });
+  if (!sameAnswer(ifcText, asText)) return { broken: `output=ifc als tekst wijkt af van de samenvatting als tekst: ${refusalOf(ifcText)}` };
+  if (sameAnswer(asBytes, asText)) {
+    return sameAnswer(ifcBytes, ifcText) ? {} : { broken: `de bytes-route las niet, maar output=ifc wijkt af van main: ${refusalOf(ifcBytes)}` };
+  }
+  if (asBytes.status !== 200 || !asBytes.json?.foreignContent) return { broken: `samenvatting van een model: ${asBytes.status} ${asBytes.text.slice(0, 160)}` };
+  if (sameAnswer(ifcBytes, ifcText)) return { modelSummaryOnly: true };
+  if (ifcBytes.status !== 200 || ifcBytes.headers.get('content-type') !== 'application/octet-stream') {
+    return { broken: `output=ifc van een model: ${refusalOf(ifcBytes)} ${ifcBytes.headers.get('content-type')}` };
+  }
+  const reread = await call('/v1/schedule', { method: 'POST', body: ifcBytes.bytes, headers: BYTES });
+  if (!sameAnswer(reread, asBytes)) return { broken: `de bewaarde bytes dragen een andere planning dan de samenvatting: ${reread.text.slice(0, 160)}` };
+  return { keptModel: true, sameAsSource: ifcBytes.bytes.equals(body) };
+}
 async function outcomeAsBytes(body) {
   const asText = await call('/v1/schedule', { method: 'POST', body, headers: IFC });
   const asBytes = await call('/v1/schedule', { method: 'POST', body, headers: BYTES });
+  if (refusedAsModel(asText)) return modelOutcome(body, asText, asBytes);
   if (!sameAnswer(asBytes, asText)) {
     return { broken: `samenvatting: tekst ${asText.status} ${asText.text.slice(0, 120)}, bytes ${asBytes.status} ${asBytes.text.slice(0, 120)}` };
   }
@@ -169,8 +191,9 @@ try {
   const legacyPlanning = Buffer.from(example.replace(/FILE_SCHEMA\(.*?\);/, "FILE_SCHEMA(('IFC2X3'));"));
   const legacyWithPset = Buffer.from(legacyPlanning.toString('utf8').replace('ENDSEC;\nEND-ISO-10303-21;', EXTERN_PSET));
   const scheduleReadOtherwise = emptyOwnSchedule(example, true);
+  const eigenPlusModel = readFileSync(join(FOREIGN_FIXTURES, 'eigen-plus-model.ifc'), 'utf8');
   const nameReadOtherwise = projectPset(readFileSync(PROJECT_NAME_IN_SETTINGS, 'utf8'));
-  const ifcFiles = (dir, prefix = '') => readdirSync(dir).filter(f => f.endsWith('.ifc')).map(f => [`${prefix}${f}`, readFileSync(join(dir, f))]);
+  const ifcFiles = (dir, prefix = '') => readdirSync(dir).filter(f => f.endsWith('.ifc')).sort().map(f => [`${prefix}${f}`, readFileSync(join(dir, f))]);
   const corpus = [
     ...EXAMPLE_DIRS.flatMap(dir => ifcFiles(dir)),
     ...ifcFiles(OLD_TAGS, 'oude-tags/'),
@@ -195,19 +218,61 @@ try {
   ];
   const kept = [];
   const refusedWithDifference = [];
+  const keptModels = [];
+  const changedModels = [];
+  const modelSummaryOnly = [];
   for (const [label, body] of cases) {
     const outcome = await outcomeAsBytes(body);
-    ok(`${label}: als bytes het antwoord van main, of de bewaarde bytes waar main het schrijven weigerde`, !outcome.broken, outcome.broken);
+    ok(`${label}: als bytes het antwoord van main, behalve waar main een gebouwmodel of het schrijven met foreign weigerde`, !outcome.broken, outcome.broken);
     if (outcome.kept) kept.push(label);
     if (outcome.refusedWithDifference) refusedWithDifference.push(label);
+    if (outcome.keptModel) keptModels.push(label);
+    if (outcome.keptModel && !outcome.sameAsSource) changedModels.push(label);
+    if (outcome.modelSummaryOnly) modelSummaryOnly.push(label);
   }
-  const expectKept = ['oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc', 'oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc', 'het voorbeeld met een externe pset']
-    .flatMap(name => forms.map(([form]) => `${name}, ${form}`));
-  ok('alleen bij de twee oude woongebouw-bestanden en het voorbeeld met een externe pset komen bewaarde bytes terug, in elke vorm',
-    JSON.stringify(kept) === JSON.stringify(expectKept), kept.join(' | '));
-  const expectRefused = [SCHEDULE_READ_OTHERWISE, NAME_READ_OTHERWISE].flatMap(name => forms.map(([form]) => `${name}, ${form}`));
+  const inEveryForm = names => names.flatMap(name => forms.map(([form]) => `${name}, ${form}`)).sort();
+  const sameList = (seen, expected) => JSON.stringify([...seen].sort()) === JSON.stringify(expected);
+  const expectKept = inEveryForm(['oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc', 'oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc', 'het voorbeeld met een externe pset']);
+  ok('alleen bij de twee oude woongebouw-bestanden en het voorbeeld met een externe pset komen bewaarde bytes terug waar main het schrijven weigerde, in elke vorm',
+    sameList(kept, expectKept), kept.join(' | '));
   ok('alleen bij de twee bestanden die de bytes-route anders leest blijft de weigering van main, met het verschil erbij, in elke vorm',
-    JSON.stringify(refusedWithDifference) === JSON.stringify(expectRefused), refusedWithDifference.join(' | '));
+    sameList(refusedWithDifference, inEveryForm([SCHEDULE_READ_OTHERWISE, NAME_READ_OTHERWISE])), refusedWithDifference.join(' | '));
+  const expectKeptModels = inEveryForm(['bonsai-4d.ifc', 'crlf-commentaar.ifc', 'dubbele-globalids.ifc', 'eigen-plus-model.ifc', 'latin1.ifc',
+    'oud-eigen-0.1-plus-model.ifc', 'twee-werkplannen.ifc'].map(file => `ifc-foreign/${file}`));
+  ok('zeven van de elf modelbestanden komen als bytes met samenvatting en bewaarde bytes terug, in elke vorm; de andere vier krijgen de 422 van main',
+    sameList(keptModels, expectKeptModels), keptModels.join(' | '));
+  ok('de bewaarde modelbestanden komen byte voor byte als de bron terug: er valt niets te herrekenen', changedModels.length === 0, changedModels.join(' | '));
+  ok('geen modelbestand uit de lus geeft alleen een samenvatting', modelSummaryOnly.length === 0, modelSummaryOnly.join(' | '));
+
+  const readErrors = [
+    ['een lege body', Buffer.alloc(0)],
+    ['alleen witruimte', Buffer.from('  \n\t ')],
+    ['geen STEP-kop', Buffer.from('dit is geen IFC')],
+    ['een NUL vóór de kop', Buffer.concat([Buffer.from([0]), exampleBytes])],
+    ['alleen de kop', Buffer.from('ISO-10303-21;\n')],
+    ['een afgekapt voorbeeld', Buffer.from(example.slice(0, example.lastIndexOf('END-ISO-10303-21;')))],
+    ['een afgekapt model', Buffer.from(eigenPlusModel.slice(0, eigenPlusModel.lastIndexOf('END-ISO-10303-21;')))],
+    ['5000 spaties na de sluitmarkering', Buffer.from(example + ' '.repeat(5000))],
+    ['geen DATA-sectie', Buffer.from("ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('IFC4X3_ADD2'));\nENDSEC;\nEND-ISO-10303-21;\n")],
+    ['nul taken', Buffer.from('ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\nENDSEC;\nEND-ISO-10303-21;\n')],
+    ['een ongeldige duur', Buffer.from(example.replace("'P0Y0M5D'", "'P0Y0M5X'"))],
+    [DURATION_OUTSIDE_PLANNING, Buffer.from(scheduleReadOtherwise.toString('utf8').replace("'P0Y0M23D'", "'P0Y0M23X'"))],
+  ];
+  for (const [label, body] of readErrors) {
+    for (const path of ['/v1/schedule', '/v1/schedule?output=ifc']) {
+      const asText = await call(path, { method: 'POST', body, headers: IFC });
+      const asBytes = await call(path, { method: 'POST', body, headers: BYTES });
+      ok(`leesfout ${label}, ${path}: als bytes dezelfde status, code, melding en details als als tekst`,
+        asText.status >= 400 && !refusedAsModel(asText) && sameAnswer(asBytes, asText),
+        `tekst ${asText.status} ${asText.text.slice(0, 120)}, bytes ${asBytes.status} ${asBytes.text.slice(0, 120)}`);
+    }
+  }
+
+  const bonsai = readFileSync(join(FOREIGN_FIXTURES, 'bonsai-4d.ifc'), 'utf8');
+  const staleBonsai = Buffer.from(bonsai.replace(BONSAI_WALL_A_TIME, BONSAI_WALL_A_STALE));
+  ok('fixture: een Bonsai-planning met een vroege start die de berekening niet geeft', !staleBonsai.equals(Buffer.from(bonsai)));
+  ok('de Bonsai-planning met een vroege start: als bytes een samenvatting, maar output=ifc blijft de 422 van main omdat de merge weigert',
+    (await outcomeAsBytes(staleBonsai)).modelSummaryOnly === true);
 
   for (const [label, body, expect, fields] of [
     [SCHEDULE_READ_OTHERWISE, scheduleReadOtherwise, s => s?.counts?.tasks === 52 && s?.project?.finish === '2028-01-12T16:00',
