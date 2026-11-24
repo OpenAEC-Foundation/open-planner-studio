@@ -17,11 +17,11 @@ kalenderdialoog toont. De vormen die de lezer daarbij onderscheidt, toetst `chec
   `SCALAR_DAY_ORDER`), niet in bestandsvolgorde: de eigen writer zet maandag eerst, en dan koos een rondgang een
   andere dag. Ze komt uit de standaardweek en niet uit het eerste `<WorkingTime>` van de kalender, omdat dat van een
   uitzondering of een tijdelijke werkweek kan zijn.
-- Twee gelijke blokken op elke werkdag (`opsDayWithBreak`) zijn alleen in een bestand van OPS (`opsFile`, ADR 0250)
-  een dagkalender met pauze: de writer schrijft de effectieve blokken van een dagkalender. Een bestand van MS Project
-  met 08:00–12:00 en 13:00–17:00 blijft een uurkalender, zoals de `.mpp`-lezer hem leest (§1). De pauzevelden komen
-  er alleen bij als `seedScalarBands` zonder die velden andere blokken geeft: de standaard 07:00–16:00 met 8 uur komt
-  zonder velden terug, een pauze om 12:30 met (§4).
+- Op elke werkdag dezelfde twee blokken met een pauze ertussen, binnen de dag (`opsDayWithBreak`), zijn alleen in een
+  bestand van OPS (`opsFile`, ADR 0250) een dagkalender met pauze: de writer schrijft de effectieve blokken van een
+  dagkalender. Een bestand van MS Project met 08:00–12:00 en 13:00–17:00 blijft een uurkalender, zoals de `.mpp`-lezer
+  hem leest (§1). De pauzevelden komen er alleen bij als `seedScalarBands` zonder die velden andere blokken geeft: de
+  standaard 07:00–16:00 met 8 uur komt zonder velden terug, een pauze om 12:30 met (§4).
 - `hourShape` maakt de blokken afwijkend (`registerCalendarBands`) als `canonicalizeBands` een afwijking van de
   enkelvoudige werkdag ziet en het geen dagkalender met pauze is, of als `sharedWeekBlocks` `verschilt` geeft: één
   werkdag voor de hele week kan verschillende blokken per werkdag niet dragen (§1, "Weekend kort").

@@ -28,18 +28,18 @@ cyclus eindigt of langer is dan `MAX_BASE_CHAIN_DEPTH`, erft niets en krijgt ook
   bibliotheekkalenders, dus een taak of resource die naar de projectkalender wijst, krijgt geen `calendarId`.
 - `MAX_MSPDI_CALENDARS` (1024, dezelfde grens als `MAX_CALENDARS` van `.mpp`) begrenst het aantal
   bibliotheekkalenders, in documentvolgorde. Zonder grens kon een klein tekstbestand duizenden volledige kalenders in
-  de state, de undo en elke opslag zetten; het corpus heeft 9 tot 13 kalenders per bestand (meting uit het
-  weggehaalde commentaar). `check-adapters-hours.ts` toetst 1200 kalenders. Een taak of resource die naar een
-  kalender boven de grens wijst, staat niet in `calUidToId` en krijgt geen `calendarId`.
+  de state, de undo en elke opslag zetten; het corpus heeft 9 tot 13 kalenders per bestand (meting uit het weggehaalde
+  commentaar). `check-adapters-hours.ts` toetst 1200 kalenders. Een taak of resource die naar een kalender boven de
+  grens wijst, staat niet in `calUidToId` en krijgt geen `calendarId`.
 - `readMspdiRecurringData` vertaalt `<Type>`, `<Period>`, `<DaysOfWeek>`, `<MonthItem>`, `<MonthPosition>`,
-  `<MonthDay>` en `<Month>` naar een `RecurrenceSpec`, met de codetabellen `RECURRENCE_TYPES` en `RELATIVE_MAP` van
-  de `.mpp`-kant. Dat dit `MSPDIReader.readRecurringData` van MPXJ volgt, komt uit het weggehaalde commentaar en is
-  niet in de repo nagegaan; alleen een jaarlijkse uitzondering op een vaste datum is getoetst
-  (`check-adapters-hours.ts`, T4). Een dagelijkse herhaling met `<Period>` 1 geeft `null` en wordt zo een gewoon
-  bereik van `FromDate` tot `ToDate`; zonder `ToDate` slaat `readRawMspdiExceptions` haar over.
+  `<MonthDay>` en `<Month>` naar een `RecurrenceSpec`, met de codetabellen `RECURRENCE_TYPES` en `RELATIVE_MAP` van de
+  `.mpp`-kant. Dat dit `MSPDIReader.readRecurringData` van MPXJ volgt, komt uit het weggehaalde commentaar en is niet
+  in de repo nagegaan; alleen een jaarlijkse uitzondering op een vaste datum is getoetst (`check-adapters-hours.ts`,
+  T4). Een dagelijkse herhaling met `<Period>` 1 geeft `null` en wordt zo een gewoon bereik van `FromDate` tot
+  `ToDate`; zonder `ToDate` slaat `readRawMspdiExceptions` haar over.
 - Een `<Exception>` zonder `FromDate` slaat `readRawMspdiExceptions` over. Een werkende uitzondering zonder
   `<WorkingTimes>` blijft werkend (`periodCount` is minstens 1); welke blokken ze dan krijgt, staat bij
   `WorkingException` in `types/calendar.ts` en in ADR 0221. Dat MPXJ een record zonder beide datums ook overslaat,
   komt uit het weggehaalde commentaar en is niet nagegaan.
-- De oude vorm van Project 2003 en eerder (`<WeekDay>` met `DayType` 0 en een `<TimePeriod>`, `readLegacyDayExceptions`)
-  leest de lezer alleen als `<Exceptions>` geen enkele uitzondering oplevert (13).
+- De oude vorm van Project 2003 en eerder (`<WeekDay>` met `DayType` 0 en een `<TimePeriod>`,
+  `readLegacyDayExceptions`) leest de lezer alleen als `<Exceptions>` geen enkele uitzondering oplevert (13).
