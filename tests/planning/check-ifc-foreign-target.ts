@@ -1861,6 +1861,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       ['geen Worker', () => null],
     ] as const;
     const csv = enc.encode('Naam;Duur\nFundering;5\n');
+    const startsWithBom = (bytes: Uint8Array) => bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
     const cases: Array<{ name: string; bytes: Uint8Array; want?: Scan }> = [
       { name: 'eigen planning', bytes: showcase, want: 'no-model' },
       { name: 'vreemde inhoud', bytes: externalPset, want: 'foreign' },
@@ -1879,7 +1880,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
     for (const c of cases) {
       const sync = scanForeignTargetBytes(c.bytes);
       eq(`9c ${c.name}: synchrone uitkomst`, sync, c.want);
-      const classifies = scanTargetBytes(c.bytes) === 'no-model';
+      const classifies = scanTargetBytes(c.bytes) === 'no-model' && !startsWithBom(c.bytes);
       for (const [mode, createWorker] of modes) {
         // Korte grenzen alleen waar de modus erop wacht; 9d toetst de productiewaarde van de starttimer.
         const opts: RunOptions = { createWorker, startTimeoutMs: mode === 'stil' || mode === 'laat' ? 20 : 2_000,
@@ -1925,7 +1926,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       for (const c of cases) {
         const refusal = (scan: Scan) => (scan === 'model' || scan === 'foreign' || scan === 'unreadable' ? scan : null);
         const want = refusal(scanForeignTargetBytes(c.bytes));
-        const classifies = scanTargetBytes(c.bytes) === 'no-model';
+        const classifies = scanTargetBytes(c.bytes) === 'no-model' && !startsWithBom(c.bytes);
         globalThis.Worker = class { constructor() { return fakeScanWorker('ok', stats); } } as unknown as typeof Worker;
         const workers = stats.workers;
         const classify = stats.classify;

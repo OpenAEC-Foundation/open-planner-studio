@@ -17,8 +17,8 @@ import { utf8BomLength } from './stepScanner';
 export type TargetForeignScan = TargetModelScan | 'foreign';
 
 /** De indeling naar een doeluitkomst: een weigering van de scanner is 'unreadable', een C, A of V is 'foreign'. */
-function targetOf(scan: ForeignScanOutcome, bytes: Uint8Array): TargetForeignScan {
-  if (!scan.ok || utf8BomLength(bytes) > 0) return 'unreadable';
+function targetOf(scan: ForeignScanOutcome): TargetForeignScan {
+  if (!scan.ok) return 'unreadable';
   const { C, A, V } = scan.counts;
   return C + A + V > 0 ? 'foreign' : 'no-model';
 }
@@ -28,7 +28,7 @@ function targetOf(scan: ForeignScanOutcome, bytes: Uint8Array): TargetForeignSca
 export function scanForeignTargetBytes(bytes: Uint8Array): TargetForeignScan {
   const model = scanTargetBytes(bytes);
   if (model !== 'no-model') return model;
-  return bytes.length > IFC_FOREIGN_SCAN_MAX_BYTES ? 'unreadable' : targetOf(scanForeign(bytes), bytes);
+  return bytes.length > IFC_FOREIGN_SCAN_MAX_BYTES || utf8BomLength(bytes) > 0 ? 'unreadable' : targetOf(scanForeign(bytes));
 }
 
 /** De hele bron vanaf het begin; `null` boven de grens van 300 MiB (zonder verder te lezen). */
@@ -59,7 +59,7 @@ async function scanSource(
   const model = await driveTargetScan(source, push);
   if (model !== 'no-model') return model;
   const bytes = await readWhole(source);
-  return bytes ? targetOf(await classify(bytes), bytes) : 'unreadable';
+  return bytes && utf8BomLength(bytes) === 0 ? targetOf(await classify(bytes)) : 'unreadable';
 }
 
 /**
