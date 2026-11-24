@@ -28,8 +28,10 @@ import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
 import { indexOfStepDataSection, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
 import { stepFileGrammar } from './stepFileGrammar';
-import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
+import { CALENDAR_SLOT, WORK_CONTROL_SLOT, workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
 import { LAG_SLOT, lagValueSlot } from './ifcLagTimeSlots';
+import { SEQUENCE_SLOT, lagTimeSlots } from './ifcSequenceSlots';
+import { RESOURCE_SLOT } from './ifcResourceSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
 import { parseForeignSourceFingerprint, parseForeignSourceTarget, type ForeignSourceRecord } from './foreign/foreignSourceMark';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
@@ -45,7 +47,7 @@ import {
   wholeFloatDays, type DayMeasureRecord, type ExactMinutesRecord,
 } from './dayMeasureIo';
 import {
-  IFC_TASKTIME_SLOTS, ALL_RECORDED_SLOT_KEYS, TASK_SLOT, TASKTIME_SLOT, IFC_TASK_STATUS_RUNNING,
+  IFC_TASKTIME_SLOTS, ALL_RECORDED_SLOT_KEYS, TASK_SLOT, TASKTIME_SLOT, IFC_TASK_STATUS_RUNNING, taskSlots,
   type RecordedFieldKey, type TaskTimeReadHelpers,
 } from './ifcTaskSlots';
 import { normalizeImportedProgress, reconstructResourceIds } from '@/services/importNormalize';
@@ -182,8 +184,8 @@ export function readIFC(
   );
   const projectCalendarEntityForGuid = entities.find(e => e.type === 'IFCWORKCALENDAR');
   if (projectCalendarEntityForGuid) {
-    calendarIdByGuid.set(stripQuotes(projectCalendarEntityForGuid.args[0] || ''), calendar.id);
-    const projectCalendarGuid = ifcSlotText(projectCalendarEntityForGuid.args[0]);
+    calendarIdByGuid.set(stripQuotes(projectCalendarEntityForGuid.args[CALENDAR_SLOT.globalId] || ''), calendar.id);
+    const projectCalendarGuid = ifcSlotText(projectCalendarEntityForGuid.args[CALENDAR_SLOT.globalId]);
     if (projectCalendarGuid) guidLog[ifcObjectSeed('cal', calendar.id)] = projectCalendarGuid;
   }
   applyHourModeIFC(tasks, calendar, resourceCalendars, taskTimeEntities);
@@ -310,10 +312,10 @@ function collectIfcGlobalIds(
   const projectGuid = proj ? ifcSlotText(proj.args[0]) : '';
   if (projectGuid) out[ifcObjectSeed('proj', projectId)] = projectGuid;
   const plan = entities.find(e => e.type === 'IFCWORKPLAN');
-  const planGuid = plan ? ifcSlotText(plan.args[0]) : '';
+  const planGuid = plan ? ifcSlotText(plan.args[WORK_CONTROL_SLOT.globalId]) : '';
   if (planGuid) out[ifcObjectSeed('wp', projectId)] = planGuid;
   const schedule = entities.find(e => e.type === 'IFCWORKSCHEDULE' && !isBaselineSchedule(e));
-  const scheduleGuid = schedule ? ifcSlotText(schedule.args[0]) : '';
+  const scheduleGuid = schedule ? ifcSlotText(schedule.args[WORK_CONTROL_SLOT.globalId]) : '';
   if (scheduleGuid) out[ifcObjectSeed('ws', projectId)] = scheduleGuid;
   return Object.keys(out).length > 0 ? out : undefined;
 }
@@ -1053,7 +1055,7 @@ function extractProject(
       ? `proj-ifc-${projectGlobalId}`
       : `proj-ifc-step-${proj?.id ?? wp?.id ?? 'missing'}`,
     name: proj ? ifcSlotText(proj.args[2]) : (labels.importedProject || DEFAULT_IMPORTED_PROJECT_NAME),
-    description: ifcSlotText(wp?.args[3]) || ifcSlotText(proj?.args[3]),
+    description: ifcSlotText(wp?.args[wpSlots.description]) || ifcSlotText(proj?.args[3]),
     startDate: ifcSlotText(wpStart) ? parseDateFromIFC(wpStart) : '',
     endDate: ifcSlotText(wpFinish) ? parseDateFromIFC(wpFinish) : '',
     calendarId: 'cal-default',
@@ -1323,25 +1325,20 @@ function extractTasks(
     const id = stableIfcTaskId(te, persistedIds, usedIds);
     taskStepIdMap.set(te.id, id);
 
-    const legacy12 = te.args.length === 12;
-    const shift = legacy12 ? 1 : 0;
-    const isMilestoneIdx = TASK_SLOT.isMilestone - shift;
-    const priorityIdx = TASK_SLOT.priority - shift;
-    const taskTimeIdx = TASK_SLOT.taskTime - shift;
-    const predefinedTypeIdx = TASK_SLOT.predefinedType - shift;
+    const slots = taskSlots(te.args);
 
-    const taskTimeRef = parseRef(te.args[taskTimeIdx] || '');
+    const taskTimeRef = parseRef(te.args[slots.taskTime] || '');
     const ttEntity = taskTimeRef ? entityMap.get(taskTimeRef) : undefined;
     const time = ttEntity ? parseTaskTime(ttEntity, hoursPerDay) : createDefaultTaskTime(localTodayIso(), 5);
     if (ttEntity) taskTimeEntities.set(id, ttEntity);
     recordedFields[id] = ttEntity ? recordedSlotsOf(ttEntity) : [];
 
-    if (ifcSlotText(te.args[TASK_SLOT.status]) === IFC_TASK_STATUS_RUNNING) runningStatusIds.add(id);
+    if (ifcSlotText(te.args[slots.status]) === IFC_TASK_STATUS_RUNNING) runningStatusIds.add(id);
 
-    const isMilestone = te.args[isMilestoneIdx]?.includes('T') || false;
+    const isMilestone = te.args[slots.isMilestone]?.includes('T') || false;
     if (isMilestone) time.scheduleDuration = 0;
 
-    const priorityRaw = (te.args[priorityIdx] || '').trim();
+    const priorityRaw = (te.args[slots.priority] || '').trim();
     let priority = DEFAULT_PRIORITY;
     if (priorityRaw && priorityRaw !== '$') {
       const p = parseInt(priorityRaw, 10);
@@ -1350,10 +1347,10 @@ function extractTasks(
 
     tasks.push({
       id,
-      name: ifcSlotText(te.args[TASK_SLOT.name]) || 'Naamloze taak',
-      description: ifcSlotText(te.args[TASK_SLOT.description]),
-      wbsCode: ifcSlotText(te.args[TASK_SLOT.identification]),
-      taskType: te.args[predefinedTypeIdx] ? parseTaskType(te.args[predefinedTypeIdx]) : 'CONSTRUCTION',
+      name: ifcSlotText(te.args[slots.name]) || 'Naamloze taak',
+      description: ifcSlotText(te.args[slots.description]),
+      wbsCode: ifcSlotText(te.args[slots.identification]),
+      taskType: te.args[slots.predefinedType] ? parseTaskType(te.args[slots.predefinedType]) : 'CONSTRUCTION',
       customTaskTypeId: undefined,
       status: 'NOT_STARTED',
       isMilestone,
@@ -1499,8 +1496,8 @@ function extractSequences(
   const usedIds = new Set<string>();
 
   for (const se of seqEntities) {
-    const predRef = parseRef(se.args[4] || '');
-    const succRef = parseRef(se.args[5] || '');
+    const predRef = parseRef(se.args[SEQUENCE_SLOT.relatingProcess] || '');
+    const succRef = parseRef(se.args[SEQUENCE_SLOT.relatedProcess] || '');
     if (!predRef || !succRef) continue;
 
     const predId = taskStepIdMap.get(predRef);
@@ -1511,12 +1508,12 @@ function extractSequences(
     let lagUnit: Sequence['lagUnit'];
     let lagPercent: number | undefined;
     let lagMinutes: number | undefined;
-    const lagRef = parseRef(se.args[6] || '');
+    const lagRef = parseRef(se.args[SEQUENCE_SLOT.timeLag] || '');
     if (lagRef) {
       const lagEntity = entityMap.get(lagRef);
       if (lagEntity && lagEntity.type === 'IFCLAGTIME') {
         const lagValue = lagValueSlot(lagEntity.args);
-        const durType = (lagEntity.args[lagValue.kind === LAG_SLOT.oud ? 3 : 4] || '').trim();
+        const durType = (lagEntity.args[lagTimeSlots(lagEntity.args).durationType] || '').trim();
         if (lagValue.kind === LAG_SLOT.ratio) {
           lagPercent = Math.round(parseFloat(lagValue.text) * 100 * 1e6) / 1e6;
         } else {
@@ -1533,12 +1530,12 @@ function extractSequences(
         if (/ELAPSEDTIME/i.test(durType)) lagUnit = 'ELAPSEDTIME';
       }
     }
-    const dayRecord = dayMeasureLags.get(stripQuotes(se.args[0] || ''));
+    const dayRecord = dayMeasureLags.get(stripQuotes(se.args[SEQUENCE_SLOT.globalId] || ''));
     if (dayRecord && lagMinutes !== undefined && lagPercent === undefined && lagMinutes === dayRecord[1]) {
       lagDays = dayRecord[0];
       lagMinutes = undefined;
     }
-    const exactRecord = exactMinuteLags.get(stripQuotes(se.args[0] || ''));
+    const exactRecord = exactMinuteLags.get(stripQuotes(se.args[SEQUENCE_SLOT.globalId] || ''));
     if (exactRecord && lagMinutes !== undefined && lagPercent === undefined && lagMinutes === exactRecord[1]) {
       lagMinutes = exactRecord[0];
     }
@@ -1547,13 +1544,13 @@ function extractSequences(
       id: stableIdFromGuid('seq', 'seq', se, usedIds, guidLog, stepLog),
       predecessorId: predId,
       successorId: succId,
-      type: parseSequenceType(se.args[7] || ''),
+      type: parseSequenceType(se.args[SEQUENCE_SLOT.sequenceType] || ''),
       lagDays,
     };
     if (lagUnit) seq.lagUnit = lagUnit;
     if (lagPercent !== undefined) seq.lagPercent = lagPercent;
     if (lagMinutes !== undefined) seq.lagMinutes = lagMinutes;
-    if (p6BoundarySequenceGuids.has(stripQuotes(se.args[0] || ''))) {
+    if (p6BoundarySequenceGuids.has(stripQuotes(se.args[SEQUENCE_SLOT.globalId] || ''))) {
       seq.p6StartAtPredecessorFinishBoundary = true;
     }
     sequences.push(seq);
@@ -1872,20 +1869,20 @@ function extractResources(
     const mappedType = IFC_TO_RESOURCE_TYPE[e.type];
     if (!mappedType) continue;
     const resType: ResourceType = mappedType === 'MATERIAL'
-      && ifcSlotText(e.args[4]) === COST_RESOURCE_OBJECT_TYPE
-      && (e.args[10] ?? '').trim().toUpperCase() === '.USERDEFINED.'
+      && ifcSlotText(e.args[RESOURCE_SLOT.objectType]) === COST_RESOURCE_OBJECT_TYPE
+      && (e.args[RESOURCE_SLOT.predefinedType] ?? '').trim().toUpperCase() === '.USERDEFINED.'
       ? 'COST'
       : mappedType;
 
     const id = stableIdFromGuid('res', 'res', e, usedIds, guidLog);
     resourceStepIdMap.set(e.id, id);
-    resourceGuidMap.set(stripQuotes(e.args[0] || ''), id);
+    resourceGuidMap.set(stripQuotes(e.args[RESOURCE_SLOT.globalId] || ''), id);
 
     resources.push({
       id,
-      name: ifcSlotText(e.args[2]) || 'Resource',
+      name: ifcSlotText(e.args[RESOURCE_SLOT.name]) || 'Resource',
       type: resType,
-      description: ifcSlotText(e.args[3]),
+      description: ifcSlotText(e.args[RESOURCE_SLOT.description]),
       maxUnits: 1,
     });
   }
@@ -2266,12 +2263,12 @@ function buildCalendarFromEntity(
   entities: StepEntity[],
 ): WorkCalendar {
   const calendar = createDefaultCalendar();
-  calendar.name = ifcSlotText(cal.args[2]) || calendar.name;
-  calendar.description = ifcSlotText(cal.args[3]);
+  const calSlots = workCalendarSlots(cal.args);
+  calendar.name = ifcSlotText(cal.args[calSlots.name]) || calendar.name;
+  calendar.description = ifcSlotText(cal.args[calSlots.description]);
   Object.assign(calendar, extractCalendarSimpleBreak(cal.id, entities, entityMap));
   const hourMeta = extractCalendarHourMeta(cal.id, entities, entityMap);
 
-  const calSlots = workCalendarSlots(cal.args);
   const workTimeRefs = parseRefs(cal.args[calSlots.workingTimes] || '');
   const recurrences: StepEntity[] = [];
   const datedRecurrences: StepEntity[] = [];
@@ -2530,7 +2527,7 @@ function extractCalendarLibrary(
       cal.id = stableIdFromGuid('cal', 'rescal', controlEntity, usedIds, guidLog, stepLog);
       calByStepId.set(controlRef, cal);
       calendars.push(cal);
-      idByGuid.set(stripQuotes(controlEntity.args[0] || ''), cal.id);
+      idByGuid.set(stripQuotes(controlEntity.args[CALENDAR_SLOT.globalId] || ''), cal.id);
     }
 
     const relatedRefs = parseRefs(ce.args[4] || '');
@@ -2557,7 +2554,7 @@ function extractCalendarLibrary(
     cal.id = stableIdFromGuid('cal', 'rescal', ce, usedIds, guidLog, stepLog);
     calByStepId.set(ce.id, cal);
     calendars.push(cal);
-    idByGuid.set(stripQuotes(ce.args[0] || ''), cal.id);
+    idByGuid.set(stripQuotes(ce.args[CALENDAR_SLOT.globalId] || ''), cal.id);
   }
 
   return { calendars, idByGuid };
@@ -2698,7 +2695,7 @@ function extractAssignments(
       if (!resId) continue;
 
       const resEntity = entityMap.get(resRef);
-      const resGuid = resEntity ? stripQuotes(resEntity.args[0] || '') : '';
+      const resGuid = resEntity ? stripQuotes(resEntity.args[RESOURCE_SLOT.globalId] || '') : '';
       const meta = taskMeta?.queues.get(resGuid)?.shift() ?? taskMeta?.legacy.get(resGuid);
       const window = windowsByTask.get(taskRef)?.get(resGuid)?.shift();
 

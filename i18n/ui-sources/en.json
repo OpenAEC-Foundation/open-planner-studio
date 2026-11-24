@@ -2140,6 +2140,8 @@
     "properties.splits.leveling": "4a12196801f94550",
     "properties.splits.unitDays": "799ad58c57ee7ef4",
     "properties.splits.unitHours": "ccdf99cd5a620f3b",
+    "properties.elementLinks.linked": "5ae666f990eb2cdf",
+    "properties.elementLinks.notFound": "95bd922e743a6b5c",
     "relations.predecessor": "9b37bb8f74b5d1a6",
     "relations.successor": "eadb0e3d4a012aac",
     "relations.type": "188730c91fc270e6",
