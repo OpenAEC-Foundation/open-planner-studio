@@ -3910,6 +3910,18 @@ en noem het in je rapport of PR-tekst.
       `<Duration>PT40H0M0S</Duration>` krijgt 2400 minuten. Volgens die review maakt het MSPDI-schema `<Type>` en
       `<Duration>` op een taak optioneel, dus geldige XML van een andere schrijver kan dit raken; of MS Project zelf die
       velden weglaat, is niet nagegaan. Welke andere velden zo kunnen verschuiven, ook niet. — B
+2249. **VERVOLG (#1199): de melding bij het wissen komt alleen bij taken en resources.** `notifyForeignLinksDropped`
+      (`src/state/foreignLinksNotice.ts`) hangt aan `deleteTask`, `deleteTasksBulk`, `dissolveTasksBulk`,
+      `removeResource` en Opnieuw van zo'n stap. Wist de planner een relatie (`removeSequence`) of een kalender (de
+      kalenderdialoog), of wist hij via MCP, het IFC-paneel of een extensie, dan hoort hij pas na het opslaan hoeveel
+      gegevens van een ander programma zijn aangepast of verwijderd (`notifyForeignChangesWritten`). Gezien in de code;
+      `check-ifc-document-save.ts` toetst voor die routes alleen de melding na het opslaan. Richting: dezelfde aanroep in
+      `removeSequence` en `commitCalendarLibrary`. — S
+2250. **VERVOLG (#1199): Ctrl+Z na het opslaan brengt de taak terug, niet de koppeling van het andere programma.** Na
+      het opslaan is `ifcSource` de uitvoer zonder de vervallen stukken, en undo zet de bron niet terug (documentveld
+      zonder momentopname). De melding na het opslaan zegt dat de gegevens zijn aangepast of verwijderd, maar niet dat
+      Ctrl+Z ze niet terugbrengt. Richting: PR 7 van #804 (`detached`, de soort *teruggezet*) bewaart de oude bytes van
+      de wijzigingslijst en kan ze bij undo terugzetten. Afgeleid uit de code, niet nagespeeld. — S
 
 ## Rondleiding, Help en extensie-gidsen
 

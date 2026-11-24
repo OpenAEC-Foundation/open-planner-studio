@@ -310,6 +310,8 @@ await check('controle 1: niets vervalt of wijzigt zonder op de lijst te staan, e
   const problems = (bytes: Uint8Array, list: readonly ForeignChange[]) => validateMergeOutput(index, cls, source.bytes, bytes, { changes: list }).problems;
   assert.deepEqual(problems(prepared.bytes, changes), []);
   assert.notDeepEqual(problems(prepared.bytes, changes.filter(c => c.id !== 9001)), [], 'een vervallen stuk dat niet op de lijst staat');
+  const still9001 = encode(withLines(decode(prepared.bytes), [lineOf(source.bytes, 9001)!]));
+  assert.notDeepEqual(problems(still9001, changes.filter(c => c.id !== 9001)), [], 'een stuk dat volgens de regel vervalt, blijft staan');
   assert.notDeepEqual(problems(prepared.bytes, changes.filter(c => c.id !== 9003)), [], 'een gewijzigd stuk dat niet op de lijst staat');
   const asDropped = changes.map(c => c.id === 9003 ? { kind: 'vervallen' as const, id: c.id, oldBytes: c.oldBytes } : c);
   assert.notDeepEqual(problems(prepared.bytes, asDropped), [], 'een lijst die van de regel afwijkt');
