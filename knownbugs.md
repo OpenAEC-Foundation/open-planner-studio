@@ -6587,12 +6587,13 @@ en noem het in je rapport of PR-tekst.
 2293. **VERVOLG (review #1193 ronde 1): een uitzondering buiten `scratch-failed` kan de melding over verloren minuten alsnog opmaken.** `applyDistribution` (`src/state/slices/librarySlice.ts`) zet de vastgelegde meldingsclaims alleen terug bij `scratch-failed`. Gooit het laden van een tweede tijdelijke payload (`src/state/runtime/scratchDocument.ts`) of het schrijven naar de echte store een uitzondering, dan blijft de claim van het eerste document bezet terwijl het zijn minuten nog heeft. Geen route met een gewoon bestand gevonden. Richting: de melding pas claimen nadat het document echt is bijgewerkt; dan kan ook de snapshot voor tijdgefaseerde sturing weg, die `applyLeveling` niet raakt. ADR 0175 verwijst nog naar het verwijderde punt 1992. Review #1193 ronde 1 (GPT-6.2-Sol, xhigh). — S
 2294. **VERVOLG (review #1193 ronde 1, test): de proef kan een dubbele melding missen.** `tests/library/check-distribution-loss-notice.ts` telt alleen de lengte van de meldingenlijst, maar `notify` verhoogt bij dezelfde `dedupeKey` de teller op de bestaande melding (`src/state/slices/uiSlice.ts`). Richting: de eerste melding sluiten vóór de tweede schrijfronde en daarna nul meldingen verwachten. Review #1193 ronde 1 (GPT-6.2-Sol, xhigh). — S (test)
 
-2350. **De meetproef van IFCX ligt op aia09-mp50 voor opslaan rond haar grens, ook met de code van vóór fixronde 5.**
-     `tests/planning/check-ifcx-meting.ts` eist dat opslaan als IFCX bij 10.000 taken hoogstens vier keer opslaan als
-     IFC kost, op dezelfde machine in dezelfde run (besluit van de technisch eigenaar, #1183). Op aia09-mp50 gaf
-     dezelfde proef op 24 november 3,68 en 4,17 voor de head van vóór fixronde 5 (`b7acccdd6`), en 3,74, 3,86 en 4,13
-     daarna; in de CI 2,34 (oud) en 2,53, 3,16 en 2,77 (nieuw). De STEP-rondgang zelf (`writeIFC` en dan `readIFC`) kost
-     ongeveer twee keer opslaan als IFC, het IFCX-deel ongeveer één keer, en dezelfde aanroep verschilt tussen rondes tot
-     10 %. Een gerichte run van de proef op aia kan zo rood zijn zonder dat er iets slechter werd; de CI is de grens.
-     Voorstel: het IFCX-deel verder versnellen (de waardetoets en het teruglezen), of de kleinste waarde van de rondes
-     vergelijken in plaats van de mediaan. — B
+2350. **De meetproef van IFCX: de CI is de poort, en de verhouding mag niet ongemerkt verder stijgen.**
+     `tests/planning/check-ifcx-meting.ts` eist bij 10.000 taken dat opslaan als IFCX hoogstens vier keer opslaan als IFC
+     kost en openen als IFCX hoogstens vier keer openen als IFC, met de mediaan van vijf rondes en de volgorde STEP–IFCX
+     en IFCX–STEP om en om, in de alleenloop van de planningspool (besluit van de technisch eigenaar, #1183). De grens is
+     vier en de CI is de poort; een run op aia09-mp50 is een melding en geen bewijs (daar lag opslaan op 24 november rond
+     3,7 tot 4,2, ook met de code van vóór fixronde 5). In de CI steeg opslaan van 2,34 (vóór fixronde 5) naar ongeveer 3
+     (2,53 tot 3,28; met R4 3,12). Sinds R4 (fixronde 6) doet openen weer ongeveer een STEP-rondgang en kost het in de
+     CI 3,72 keer openen als IFC, dicht bij de grens. Beide verhoudingen staan als eigen regel `IFCX-verhouding …` in de
+     CI-log. Het IFCX-deel sneller maken (de waardetoets, het teruglezen, de vergelijking van R4) is een voorwaarde vóór
+     "IFCX standaard aan". — B

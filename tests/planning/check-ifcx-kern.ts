@@ -1486,6 +1486,13 @@ test('ronde 6: een dagtaak met een tweede duur of restduur, een project op het l
   assertAsStep(back, emptyGlobalIds);
 });
 
+test('een schrijfweigering om een waarde buiten haar domein noemt het object (vervolg ronde 6)', () => {
+  const refusal = writeRefusal(withCalendar(calendar => ({ ...calendar, generation: { ruleSetId: 'XX' as never, generatedFromYear: 2027, generatedToYear: 2028 } })));
+  assert.equal(refusal.code, 'invalid', refusal.message);
+  assert.match(refusal.message, /^kalender \S+: openaec::ops::calendar: /);
+  assert.deepEqual(refusal.fields, ['openaec::ops::calendar.generation.ruleSetId']);
+});
+
 test('R4 is één functie: writeIfcx en de toets in readIfcx roepen allebei ownFileFor aan; alleen ownFile.ts roept de rondgang en de projectie aan', () => {
   const dir = join(root, 'src/services/ifc/ifcx');
   const sources = readdirSync(dir).filter(name => name.endsWith('.ts')).map(name => [name, readFileSync(join(dir, name), 'utf8')] as const);

@@ -532,17 +532,22 @@ tegenover openen als IFC (de bytes decoderen en `readIFC`). De absolute CPU-tijd
 bij de meting op Windows en macOS vóór "IFCX standaard aan". Met `OPS_IFCX_MEASURE=1` geeft de meting ook de tabel per
 stuk.
 
-CPU-tijd in één proces (`process.cpuUsage`), mediaan van vijf, 10.000 taken. Op aia09-mp50 (AMD Ryzen 7 3700U), 24
-november, oude en nieuwe code om en om in dezelfde meetproef (belasting 3,5 tot 11):
+Sinds fixronde 6 wisselt de volgorde STEP–IFCX en IFCX–STEP per ronde, draait de proef in de alleenloop van de
+planningspool (zoals de andere poorten met `OPS_RELAX_PERF=0`), en staan beide verhoudingen als eigen regel
+`IFCX-verhouding opslaan: …` en `IFCX-verhouding openen: …` in de uitvoer. De CI is de poort; een run op aia09-mp50 is
+een melding, geen bewijs (besluit van de technisch eigenaar). Het IFCX-deel sneller maken is een voorwaarde vóór "IFCX
+standaard aan" (knownbug 2350).
 
-| | Opslaan als IFC | Opslaan als IFCX | Verhouding | Openen als IFC | Openen als IFCX | Verhouding |
+CPU-tijd in één proces (`process.cpuUsage`), mediaan van vijf, 10.000 taken, in de CI:
+
+| Head | Opslaan als IFC | Opslaan als IFCX | Verhouding | Openen als IFC | Openen als IFCX | Verhouding |
 |---|---|---|---|---|---|---|
-| vóór fixronde 5 (`b7acccdd6`, lezer met STEP-rondgang) | 1.224 / 1.050 ms | 4.503 / 4.384 ms | 3,68 / 4,17 | 1.165 / 1.250 ms | 4.392 / 4.370 ms | 3,77 / 3,50 |
-| na fixronde 5 | 1.110 / 1.034 ms | 4.156 / 4.277 ms | 3,74 / 4,13 | 1.236 / 1.310 ms | 1.089 / 1.152 ms | 0,88 / 0,88 |
+| vóór fixronde 5 (`b7acccdd6`) | 1.345 ms | 3.154 ms | 2,34 | niet gemeten | | |
+| fixronde 5 (`847669d4c`, lezer zonder rondgang) | 898 ms | 2.946 ms | 3,28 | 856 ms | 954 ms | 1,11 |
+| fixronde 6 (`e732f3324`, R4) | 720 ms | 2.243 ms | 3,12 | 600 ms | 2.232 ms | 3,72 |
 
-Openen als IFCX kost nu minder dan openen als IFC: de lezer leest JSON en rekent één projectie na, zonder STEP-rondgang.
-Opslaan ligt op aia rond de grens, vóór en na deze ronde: de STEP-rondgang zelf (`writeIFC` plus `readIFC`) is daar al
-ruim 2,3 keer opslaan als IFC. In de CI meet dezelfde proef ruim lager (zie de PR); daar is ze de harde grens.
+Met R4 kost openen weer ongeveer een STEP-rondgang: de lezer zet de gelezen planning door dezelfde schrijffunctie als
+opslaan. Het verwachte niveau was rond 3,5 keer openen als IFC (besluit van de technisch eigenaar).
 
 ## Uitbreiden (F3-2 en F3-3)
 
@@ -565,7 +570,9 @@ hij draagt (`modelKeys`) en de domeinvelden per object (`objectKeys`). Daaruit v
   F3-2: een kostenresource met een toewijzing. Voor F3-3: een geval per nieuwe betekenis.
 
 Geen eigen normalisatie, geen tabel van dubbele voorstellingen en geen uitzondering in de zelfcontrole: de precieze
-kant draagt wat STEP teruggeeft, en wat bij openen hoort, doet de laadgrens.
+kant draagt wat STEP teruggeeft, en wat bij openen hoort, doet de laadgrens. Een nieuw attribuut hoeft aan de leeskant
+geen eigen toets: de schrijffunctie is de toets (R4). De eigenschapsproef van R4 loopt over elk geregistreerd veld en
+faalt bij een veld of vorm zonder uitgevoerde mutatie, en bij een vorm zonder geldige proefwaarde (`FORM_SAMPLES`).
 
 De proef is `tests/planning/check-ifcx-kern.ts`; de voorbeeldbestanden in `tests/fixtures/ifcx/eigen/` maak je opnieuw
 met `OPS_IFCX_FIXTURES_WRITE=1 bash tests/planning/run.sh check-ifcx-kern.ts`. De meting is
