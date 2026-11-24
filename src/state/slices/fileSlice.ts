@@ -75,7 +75,7 @@ import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { ensureUniqueImportIds } from '@/services/importNormalize';
 import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload, type TargetFingerprint } from '../documentContract';
-import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, openedOwnTargetWithBom, stillWrittenKnownTarget, writtenKnownTarget, type KnownTargetState } from '../knownTargetGuard';
+import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, knownBomVersion, stillWrittenKnownTarget, writtenKnownTarget, type KnownTargetState } from '../knownTargetGuard';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
@@ -582,9 +582,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  `WriteTargetDeps.chosenTarget`): het gekozen pad en zijn gelezen versie. */
   const documentTargetCheck = (
     snapshot: AppState, write?: IfcOutput, ownTarget = false,
-    { readers = writeTargetReaders, openDocumentsExcept, chosenTarget, missingSourceSaveAs, leaveContentToKnownTarget = false }: {
+    { readers = writeTargetReaders, openDocumentsExcept, chosenTarget, missingSourceSaveAs, leaveContentToKnownTarget = false, bomVersion = null }: {
       readers?: () => TargetReaders; openDocumentsExcept?: string; chosenTarget?: PickedSaveTarget; missingSourceSaveAs?: boolean;
-      leaveContentToKnownTarget?: boolean;
+      leaveContentToKnownTarget?: boolean; bomVersion?: TargetFingerprint | null;
     } = {},
   ): SaveTargetCheck => async target => {
     if (write && refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs)) return true;
@@ -593,10 +593,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const ownVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
       ? { documentId: snapshot.activeDocumentId, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! }
       : ownLocal ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
-    const bomOwn = ownTarget && target.kind !== 'site' && !hasForeignContent(snapshot.ifcSource);
+    const ownBom = ownTarget && bomVersion && target.kind !== 'site' ? bomVersion : null;
     const deps = {
       identityFs: fileIdentityFs, readers, openDocumentsExcept, ...(chosenTarget ? { chosenTarget } : {}),
-      ...(bomOwn ? { openedOwnTargetWithBom: (own: FileRef) => openedOwnTargetWithBom(knownTargetOf(snapshot.activeDocumentId), own, snapshot.ifcSource) } : {}),
+      ...(ownBom ? { ownBomVersion: { stillKnown: () => guardedKnownTarget(knownTargetOf(snapshot.activeDocumentId), target) === ownBom } } : {}),
     };
     const reason = leaveContentToKnownTarget ? contentLeftToKnownTarget(await refusedTargetIdentity(get(), target, deps, ownVersion))
       : await refusedWriteTarget(get(), target, deps, ownVersion);
@@ -1385,7 +1385,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, 'merge'));
       if (!write || refuseChangedDocumentWrite(state, write)) return false;
       const ownWritten = ref && !handleRefused && !write.prepared ? writtenKnownTarget(knownTargetOf(documentId), ref) : null;
-      if (ref && await documentTargetCheck(state, write, true, { leaveContentToKnownTarget: !!ownWritten })(ref)) return false;
+      const bomVersion = ref && !handleRefused && !write.prepared ? knownBomVersion(knownTargetOf(documentId), ref) : null;
+      if (ref && await documentTargetCheck(state, write, true, { leaveContentToKnownTarget: !!ownWritten, bomVersion })(ref)) return false;
       if (ownHandle && write.prepared) return await replaceOwnHandle(documentId, state, write.prepared, write, ownHandle, failureNoticeKey);
       if (ownPath) return write.prepared ? await replaceOwnPath(documentId, state, write.prepared, write, ownPath, failureNoticeKey) : false;
       if (ref?.kind === 'site' && siteStorageAvailable()) {
@@ -1412,16 +1413,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (ref && !handleRefused && !(write.prepared && ref.kind === 'handle')) {
         try {
           const stable = !!ownWritten && await stillWrittenKnownTarget(ownWritten, ref);
-          if (!stable && ownWritten && await documentTargetCheck(state, write, true)(ref)) return false;
-          const known = stable || write.prepared ? null : guardedKnownTarget(knownTargetOf(documentId), ref);
+          if (!stable && ownWritten && await documentTargetCheck(state, write, true, { bomVersion })(ref)) return false;
+          const known = stable || write.prepared ? null : bomVersion ?? guardedKnownTarget(knownTargetOf(documentId), ref);
           if (known && await refuseChangedKnownTarget(documentId, ref, known)) return false;
           if (refuseChangedDocumentWrite(state, write)) return false;
           const last = lastWriteCheck(state, write);
-          const output = !write.prepared && (stable ? ownWritten : known)?.utf8Bom ? withUtf8Bom(write) : write;
-          const hashing = writtenFingerprint(state.ui.featureFlags, output);
-          const saved = output.prepared
-            ? await saveNewBytesToRef(ref, output.prepared.bytes, last.refuse)
-            : await saveToRef(ref, writerData(output), last.refuse, ref.kind === 'handle');
+          const data = write.prepared ? write.prepared.bytes : bomVersion ? withUtf8Bom(writerData(write)) : writerData(write);
+          const hashing = writtenFingerprint(state.ui.featureFlags, write, bomVersion ? data : undefined);
+          const saved = write.prepared
+            ? await saveNewBytesToRef(ref, write.prepared.bytes, last.refuse)
+            : await saveToRef(ref, data, last.refuse, ref.kind === 'handle');
           if (last.refused()) return false;
           if (saved) {
             const fingerprint = hashing instanceof Promise ? await hashing : hashing;

@@ -1,8 +1,5 @@
 import { knownTargetContent, type FileRef } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
-import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
-import { utf8BomLength } from '@/services/ifc/foreign/stepScanner';
-import { scanForeignTargetBytesAsync } from '@/services/ifc/foreign/targetForeignScan';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import type { TargetFingerprint } from './documentContract';
 import type { WriteTargetRefusal } from './ifcForeignGuard';
@@ -31,14 +28,9 @@ export async function stillWrittenKnownTarget(written: TargetFingerprint, ref: F
   return ref.kind !== 'site' && await knownTargetContent(ref, written) === 'same';
 }
 
-export async function openedOwnTargetWithBom(
-  state: KnownTargetState, ref: FileRef, source: IfcSource | null | undefined,
-): Promise<boolean> {
+export function knownBomVersion(state: KnownTargetState, ref: FileRef): TargetFingerprint | null {
   const known = guardedKnownTarget(state, ref);
-  if (known?.origin !== 'opened' || !known.utf8Bom || !source || ref.kind === 'site') return false;
-  if (source.sha256 !== known.sha256 || source.bytes.byteLength !== known.byteLength) return false;
-  if (await knownTargetContent(ref, known) !== 'same') return false;
-  return await scanForeignTargetBytesAsync(source.bytes.subarray(utf8BomLength(source.bytes))) === 'no-model';
+  return known?.utf8Bom ? known : null;
 }
 
 export async function changedKnownTarget(

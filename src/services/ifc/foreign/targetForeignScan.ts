@@ -15,6 +15,7 @@ import { driveTargetScan, scanTargetBytes, targetScanPush, type TargetModelScan,
 import { utf8BomLength } from './stepScanner';
 
 export type TargetForeignScan = TargetModelScan | 'foreign';
+export type TargetScanOptions = ForeignScanRunOptions & { readonly allowBom?: boolean };
 
 /** De indeling naar een doeluitkomst: een weigering van de scanner is 'unreadable', een C, A of V is 'foreign'. */
 function targetOf(scan: ForeignScanOutcome): TargetForeignScan {
@@ -55,11 +56,12 @@ async function scanSource(
   source: Pick<TargetSource, 'next' | 'seek'>,
   push: (chunk: Uint8Array | null) => TargetScanStep | Promise<TargetScanStep>,
   classify: (bytes: Uint8Array) => Promise<ForeignScanOutcome> | ForeignScanOutcome,
+  allowBom: boolean,
 ): Promise<TargetForeignScan> {
   const model = await driveTargetScan(source, push);
   if (model !== 'no-model') return model;
   const bytes = await readWhole(source);
-  return bytes && utf8BomLength(bytes) === 0 ? targetOf(await classify(bytes)) : 'unreadable';
+  return bytes && (allowBom || utf8BomLength(bytes) === 0) ? targetOf(await classify(bytes)) : 'unreadable';
 }
 
 /**
@@ -68,16 +70,16 @@ async function scanSource(
  * uitkomst in elk geval die van de synchrone weg (een echte fout gooit daar opnieuw). Een fout van de Worker is nooit
  * 'no-model'. Sluit de bron ook bij fouten of een te groot doel.
  */
-export async function scanForeignTargetSource(source: TargetSource, opts: ForeignScanRunOptions = {}): Promise<TargetForeignScan> {
+export async function scanForeignTargetSource(source: TargetSource, opts: TargetScanOptions = {}): Promise<TargetForeignScan> {
   try {
     let read = false;
     const tracked = { next: () => { read = true; return source.next(); }, seek: (n: number) => source.seek(n) };
     const onMain = async () => {
       if (read) await source.seek(0);
-      return scanSource(source, targetScanPush(), scanForeign);
+      return scanSource(source, targetScanPush(), scanForeign, opts.allowBom === true);
     };
     try {
-      return await withScanWorker(opts, session => scanSource(tracked, session.step, session.outcome), onMain);
+      return await withScanWorker(opts, session => scanSource(tracked, session.step, session.outcome, opts.allowBom === true), onMain);
     } catch (error) {
       if (!(error instanceof ForeignScanFailure)) throw error;
       return await onMain();
@@ -101,7 +103,7 @@ export function scanForeignTargetBytesAsync(bytes: Uint8Array, opts: ForeignScan
 }
 
 /** FSA-bestand; een lege, door de kiezer aangemaakte file blijft een normaal nieuw doel. */
-export async function scanForeignTargetBlob(blob: Blob, opts: ForeignScanRunOptions = {}): Promise<TargetForeignScan> {
+export async function scanForeignTargetBlob(blob: Blob, opts: TargetScanOptions = {}): Promise<TargetForeignScan> {
   if (blob.size > IFC_FOREIGN_SCAN_MAX_BYTES) return 'unreadable';
   let reader = blob.stream().getReader();
   const cancel = async () => { try { await reader.cancel(); } catch { /* al dicht */ } };

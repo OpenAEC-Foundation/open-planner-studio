@@ -25,7 +25,7 @@ import {
 } from '@/services/fileAccess/writeCoordinator';
 import { pendingReplaceFor, tauriReplaceRecords } from '@/services/fileAccess/replaceRecords';
 import { tightAnchorsIfSaved } from '@/state/dependentCandidates';
-import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, openedOwnTargetWithBom, stillWrittenKnownTarget, writtenKnownTarget, type KnownTargetState } from '@/state/knownTargetGuard';
+import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, knownBomVersion, stillWrittenKnownTarget, writtenKnownTarget, type KnownTargetState } from '@/state/knownTargetGuard';
 import {
   ifcFullWriteBlocked, ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_SAVE_WORKER_FAILED_NOTICE,
   IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedTargetIdentity, refusedWriteTarget, type WriteTargetDeps,
@@ -377,9 +377,10 @@ export function createFileAutoSaveController(deps: {
       // rekenen, vlak vóór het schrijven, zoals Ctrl+S: een gebouwmodel dat tijdens het rekenen op het doel verscheen,
       // wordt niet overschreven. Eén doelscan; daarna beslist alleen nog de synchrone inhoudscontrole hieronder.
       const ownWritten = writtenKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
-      const ownDeps: WriteTargetDeps = {
-        ...targetDeps, openedOwnTargetWithBom: own => openedOwnTargetWithBom(knownTargetOf(candidate.id), own, current.ifcSource),
-      };
+      const bomVersion = knownBomVersion(knownTargetOf(candidate.id), candidate.ref!);
+      const ownDeps: WriteTargetDeps = bomVersion ? {
+        ...targetDeps, ownBomVersion: { stillKnown: () => guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!) === bomVersion },
+      } : targetDeps;
       let reason = ownWritten ? contentLeftToKnownTarget(await refusedTargetIdentity(getState(), candidate.ref!, targetDeps))
         : await refusedWriteTarget(getState(), candidate.ref!, ownDeps);
       const stable = !reason && !!ownWritten && await stillWrittenKnownTarget(ownWritten, candidate.ref!);
@@ -393,7 +394,7 @@ export function createFileAutoSaveController(deps: {
         }
         return 'refused';
       }
-      const known = stable ? null : guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
+      const known = stable ? null : bomVersion ?? guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
       if (known && await changedKnownTarget(() => knownTargetOf(candidate.id), known, candidate.ref!)) {
         stopFor(candidate.id, candidate.ref!, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE, known);
         return 'refused';
@@ -403,11 +404,11 @@ export function createFileAutoSaveController(deps: {
       let replaced = false;
       const contentReplaced = () => (replaced = !sameDocumentContent(getState(), document));
       if (contentReplaced()) return 'stale';
-      const data = (stable ? ownWritten : known)?.utf8Bom ? withUtf8Bom(output) : output;
-      const hashing = writtenFingerprint(ui.featureFlags, data);
+      const data = bomVersion ? withUtf8Bom(output.bytes ?? output.content) : output.bytes ?? output.content;
+      const hashing = writtenFingerprint(ui.featureFlags, output, bomVersion ? data : undefined);
       let written: Awaited<ReturnType<typeof saveToRefWithoutPrompt>>;
       try {
-        written = await saveToRefWithoutPrompt(candidate.ref!, data.bytes ?? data.content, contentReplaced);
+        written = await saveToRefWithoutPrompt(candidate.ref!, data, contentReplaced);
       } catch (error) {
         if (candidate.ref?.kind === 'path') getState().forgetKnownTargetFingerprint(candidate.id);
         throw error;

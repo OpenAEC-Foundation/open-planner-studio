@@ -1942,16 +1942,13 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       }
     } finally { globalThis.Worker = originalWorker; }
     const { refusedTargetContent } = await import('@/state/ifcForeignGuard');
+    const asHandle = (bytes: Uint8Array) => ({ kind: 'handle', handle: fakeHandle('doel.ifc', bytes).handle } as const);
     for (const c of cases) {
-      const target = { kind: 'handle', handle: fakeHandle('doel.ifc', c.bytes).handle } as const;
-      const plain = await refusedTargetContent(target, { readers: () => ({}) });
-      const asked: boolean[] = [];
-      const own = (answer: boolean) => async () => { asked.push(answer); return answer; };
-      const allowed = await refusedTargetContent(target, { readers: () => ({}), openedOwnTargetWithBom: own(true) });
-      const refused = await refusedTargetContent(target, { readers: () => ({}), openedOwnTargetWithBom: own(false) });
-      const unreadable = plain === 'unreadable-target';
-      eq(`9c ${c.name}: knownbug 2212, alleen een onleesbaar doel vraagt de uitzondering voor het eigen geopende bestand met BOM`,
-        [allowed, refused, asked], unreadable ? [null, 'unreadable-target', [true, false]] : [plain, plain, []]);
+      const withoutBom = await refusedTargetContent(asHandle(startsWithBom(c.bytes) ? c.bytes.subarray(3) : c.bytes), { readers: () => ({}) });
+      const own = await refusedTargetContent(asHandle(c.bytes), { readers: () => ({}), ownBomVersion: { stillKnown: () => true } });
+      const gone = await refusedTargetContent(asHandle(c.bytes), { readers: () => ({}), ownBomVersion: { stillKnown: () => false } });
+      eq(`9c ${c.name}: knownbug 2212, het eigen bestand met een bekende BOM-versie scant zoals hetzelfde bestand zonder BOM; vervalt die versie tijdens de scan, dan weigert de doelcontrole`,
+        [own, gone], [withoutBom, 'unreadable-target']);
     }
   }
   // 9d. Fixronde 1 van #985 (Sol): een Worker die niet start, houdt de opslag niet twee minuten op. De runner wacht kort

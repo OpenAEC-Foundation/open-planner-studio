@@ -61,10 +61,10 @@ async function openPathChunksTauri(path: string): Promise<PathChunksTauri | null
  * mislukte entiteit, of de tweede lezing vanaf het regel-verankerde `DATA;`, spoelt terug).
  * `null` uitsluitend bij bewezen ontbreken. Een bestaand of onzeker doel met een leesfout is 'unreadable'.
  */
-export async function scanTargetPathTauri(path: string): Promise<TargetForeignScan | null> {
+export async function scanTargetPathTauri(path: string, allowBom = false): Promise<TargetForeignScan | null> {
   const chunks = await openPathChunksTauri(path);
   if (chunks === null || chunks === 'unreadable') return chunks;
-  return scanForeignTargetSource(chunks);
+  return scanForeignTargetSource(chunks, { allowBom });
 }
 
 /**
