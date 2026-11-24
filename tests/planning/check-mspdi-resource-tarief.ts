@@ -50,6 +50,12 @@ const byName = (r: ImportResult, name: string) => r.resources.find(x => x.name =
   eq('5 een B-rij van 150 vóór een A-rij van 120 geeft 150 (documentvolgorde, als op main)', byName(r, 'B voor A')?.costPerHour, 150);
 }
 
+{
+  const bRowZonderTarief = `<Rate><RateTable>1</RateTable><RatesFrom>2026-01-01T00:00:00</RatesFrom><RatesTo>2026-12-31T23:59:59</RatesTo></Rate>`;
+  const r = read(`${resource(1, 'B zonder tarief voor A', `<Rates>${bRowZonderTarief}${rateRow('120', 0)}</Rates>`)}`);
+  eq('6 een B-rij zonder StandardRate verbergt een latere A-rij niet: 120', byName(r, 'B zonder tarief voor A')?.costPerHour, 120);
+}
+
 if (failures.length) {
   console.error(`XX mspdi-resource-tarief: ${failures.length}/${checks}\n${failures.join('\n')}`);
   process.exit(1);
