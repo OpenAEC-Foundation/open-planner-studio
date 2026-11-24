@@ -14,7 +14,7 @@ import re, sys, os, glob
 from collections import defaultdict, Counter
 AS_JSON = '--json' in sys.argv[1:]
 if AS_JSON: sys.argv.remove('--json')
-t = open(sys.argv[1], encoding='utf-8', errors='replace').read()
+t = open(sys.argv[1], encoding='utf-8-sig', errors='replace').read()
 ents, pos = {}, {}
 def fout(msg):
     sys.exit(f"{sys.argv[1]}: {msg}; ongeschikte of onvolledige invoer")
