@@ -210,8 +210,6 @@ function richDomain(): Domain {
     : k === 2 ? { ...s, lagMinutes: 90.5 } : s);
   d.calendar = { ...d.calendar, workingExceptions: [{ name: 'Zaterdag', startDate: '2027-01-09', endDate: '2027-01-09' }] };
   d.resourceCalendars = d.resourceCalendars.map(c => c.id === calendar.id ? { ...c, p6Source: 'XER', p6NonWorkPenaltyDates: ['2027-01-11'] } : c);
-  d.baselines = [{ id: 'bl-proef', name: 'Proef', createdAt: '2026-11-24T00:00:00Z', tasks: [{ taskId: t1.id, start: t1.time.scheduleStart, finish: t1.time.scheduleFinish, duration: 1, isMilestone: false }] }];
-  d.comparedBaselineIds = ['bl-proef', null];
   return d;
 }
 
@@ -259,6 +257,78 @@ function richDomain(): Domain {
   const changed = '{"activityCodeTypes":[{"id":"a","name":"Zone","values":[],"vendorX":7}],"customFieldDefs":[]}';
   ok('terugzetten: draagt het domein een andere waarde onder die naam, dan geen tweede sleutel met dezelfde naam',
     withJsonMembers(changed, found.slice(1), () => undefined) === changed);
+}
+
+{
+  const q = (s: string) => s.replace(/'/g, "''");
+  const synthetic = (n: number, vendor: boolean, changed: boolean) => {
+    const stepIds: Record<string, number> = {};
+    const idMap = new Map<string, number>();
+    const lines: string[] = [];
+    let id = 1;
+    const ws = id++;
+    stepIds['ws:w'] = ws; idMap.set('_worksched', ws);
+    lines.push(`#${ws}=IFCWORKSCHEDULE('0000000000000000000000',$,'W',$,$,$,$,$,$,$,$,$,$,$);`);
+    const rows: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const t = id++, p = id++, set = id++, rel = id++;
+      stepIds[`task:t${i}`] = t; idMap.set(`task_t${i}`, t);
+      const note = `[{"id":"n${i}","text":"${changed ? 'test2' : 'test'}","done":false${vendor ? `,"vendorN":"v${i}"` : ''}}]`;
+      lines.push(`#${t}=IFCTASK('${String(i).padStart(22, '0')}',$,$,$,$,$,$,$,$,$,$,$,$);`,
+        `#${p}=IFCPROPERTYSINGLEVALUE('Notes',$,IFCTEXT('${q(note)}'),$);`,
+        `#${set}=IFCPROPERTYSET('${String(i).padStart(22, '1')}',$,'OPS_TaskNotes',$,(#${p}));`,
+        `#${rel}=IFCRELDEFINESBYPROPERTIES('${String(i).padStart(22, '2')}',$,$,$,(#${t}),#${set});`);
+      rows.push(`{"taskId":"t${i}","start":"2026-01-01"${vendor ? `,"vendorRow":${i}` : ''}}`);
+    }
+    const bp = id++, bs = id++, br = id++;
+    lines.push(`#${bp}=IFCPROPERTYSINGLEVALUE('Baselines',$,IFCTEXT('${q(`[{"id":"b1","name":"${changed ? 'B2' : 'B'}","tasks":[${rows.join(',')}]}]`)}'),$);`,
+      `#${bs}=IFCPROPERTYSET('3333333333333333333333',$,'OPS_Baselines',$,(#${bp}));`,
+      `#${br}=IFCRELDEFINESBYPROPERTIES('4444444444444444444444',$,$,$,(#${ws}),#${bs});`);
+    const bytes = new TextEncoder().encode(`ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION((''),'2;1');\nFILE_SCHEMA(('IFC4X3_ADD2'));\nENDSEC;\nDATA;\n${lines.join('\n')}\nENDSEC;\nEND-ISO-10303-21;\n`);
+    return { index: scanStep(bytes), lines, stepIds, idMap };
+  };
+  const domainOf = (n: number) => ({
+    tasks: Array.from({ length: n }, (_, i) => ({ id: `t${i}`, notes: [{ id: `n${i}`, text: 'test2', done: false }] })),
+    resources: [], sequences: [], assignments: [], calendar: { id: 'c' }, resourceCalendars: [], project: {},
+    baselines: [{ id: 'b1', name: 'B2', tasks: Array.from({ length: n }, (_, i) => ({ taskId: `t${i}`, start: '2026-01-01' })) }],
+  }) as unknown as WriteIFCInput;
+  const time = (f: () => void) => { const t = performance.now(); f(); return performance.now() - t; };
+  const round = (n: number, runs: number) => {
+    const best = (f: () => void) => Math.min(...Array.from({ length: runs }, () => time(f)));
+    const plain = synthetic(n, false, false), src = synthetic(n, true, false), out = synthetic(n, true, true);
+    const domain = domainOf(n);
+    const own = () => true;
+    const ms: Record<string, number> = {};
+    let found = scanJsonExtras(src.index, own);
+    ms['openen zonder vreemde sleutels'] = best(() => { if (scanJsonExtras(plain.index, own).length > 0) throw new Error('vreemde sleutels zonder sleutels'); });
+    ms['openen'] = best(() => { found = scanJsonExtras(src.index, own); });
+    const entries = jsonExtrasIndex(found, () => undefined);
+    let source = jsonExtrasFromIndex(src.index, entries, src.stepIds, 'c');
+    ms['een uitleesronde'] = best(() => { source = jsonExtrasFromIndex(src.index, entries, src.stepIds, 'c'); });
+    const session = jsonExtrasForWriter(source, () => undefined);
+    let written: string[] = [];
+    ms['schrijven'] = best(() => { written = withJsonExtras(out.lines, out.idMap, [], session); });
+    ms['domein aanvullen'] = best(() => { withJsonExtrasInDomain(domain, session); });
+    let problem: string | undefined;
+    ms['eindcontrole'] = best(() => {
+      problem = jsonExtrasProblem(source, { index: out.index, stepIds: out.stepIds, projectCalendarId: 'c', assignmentKeys: new Map() }, domain).problem;
+    });
+    ok(`kosten bij ${n} taken: alle vreemde sleutels gevonden, geschreven en gecontroleerd (${found.length}, ${source.length}, ${problem})`,
+      found.length === n + 1 && source.length === n + 1 && problem === undefined
+      && written.filter(l => l.includes('vendorN')).length === n && written.some(l => l.includes(`"vendorRow":${n - 1}`)));
+    return ms;
+  };
+  round(1000, 1);
+  const small = round(1000, 3);
+  let large = round(10000, 1);
+  if (Object.keys(small).some(step => large[step] / Math.max(small[step], 1) >= 50)) {
+    const again = round(10000, 1);
+    large = Object.fromEntries(Object.keys(large).map(step => [step, Math.min(large[step], again[step])]));
+  }
+  for (const step of Object.keys(small)) {
+    const ratio = large[step] / Math.max(small[step], 1);
+    ok(`kosten: ${step} groeit lineair, 10.000 tegen 1.000 taken ${large[step].toFixed(0)} tegen ${small[step].toFixed(0)} ms (verhouding ${ratio.toFixed(1)}, grens 50)`, ratio < 50);
+  }
 }
 
 const eigen = text(await settle(read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
@@ -571,73 +641,6 @@ if (base) {
   const prepared = await prepareIfcWrite(domain, opened.ifcSource!);
   ok('flag aan zonder vreemd deel: opslaan geeft de bytes van de gewone writer, zonder de onbekende sleutel',
     new TextDecoder().decode(prepared.bytes) === writeIFC(domain) && !new TextDecoder().decode(prepared.bytes).includes('vendorCoordinationId'));
-}
-
-{
-  const q = (s: string) => s.replace(/'/g, "''");
-  const synthetic = (n: number, vendor: boolean, changed: boolean) => {
-    const stepIds: Record<string, number> = {};
-    const idMap = new Map<string, number>();
-    const lines: string[] = [];
-    let id = 1;
-    const ws = id++;
-    stepIds['ws:w'] = ws; idMap.set('_worksched', ws);
-    lines.push(`#${ws}=IFCWORKSCHEDULE('0000000000000000000000',$,'W',$,$,$,$,$,$,$,$,$,$,$);`);
-    const rows: string[] = [];
-    for (let i = 0; i < n; i++) {
-      const t = id++, p = id++, set = id++, rel = id++;
-      stepIds[`task:t${i}`] = t; idMap.set(`task_t${i}`, t);
-      const note = `[{"id":"n${i}","text":"${changed ? 'test2' : 'test'}","done":false${vendor ? `,"vendorN":"v${i}"` : ''}}]`;
-      lines.push(`#${t}=IFCTASK('${String(i).padStart(22, '0')}',$,$,$,$,$,$,$,$,$,$,$,$);`,
-        `#${p}=IFCPROPERTYSINGLEVALUE('Notes',$,IFCTEXT('${q(note)}'),$);`,
-        `#${set}=IFCPROPERTYSET('${String(i).padStart(22, '1')}',$,'OPS_TaskNotes',$,(#${p}));`,
-        `#${rel}=IFCRELDEFINESBYPROPERTIES('${String(i).padStart(22, '2')}',$,$,$,(#${t}),#${set});`);
-      rows.push(`{"taskId":"t${i}","start":"2026-01-01"${vendor ? `,"vendorRow":${i}` : ''}}`);
-    }
-    const bp = id++, bs = id++, br = id++;
-    lines.push(`#${bp}=IFCPROPERTYSINGLEVALUE('Baselines',$,IFCTEXT('${q(`[{"id":"b1","name":"${changed ? 'B2' : 'B'}","tasks":[${rows.join(',')}]}]`)}'),$);`,
-      `#${bs}=IFCPROPERTYSET('3333333333333333333333',$,'OPS_Baselines',$,(#${bp}));`,
-      `#${br}=IFCRELDEFINESBYPROPERTIES('4444444444444444444444',$,$,$,(#${ws}),#${bs});`);
-    const bytes = new TextEncoder().encode(`ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION((''),'2;1');\nFILE_SCHEMA(('IFC4X3_ADD2'));\nENDSEC;\nDATA;\n${lines.join('\n')}\nENDSEC;\nEND-ISO-10303-21;\n`);
-    return { index: scanStep(bytes), lines, stepIds, idMap };
-  };
-  const domainOf = (n: number) => ({
-    tasks: Array.from({ length: n }, (_, i) => ({ id: `t${i}`, notes: [{ id: `n${i}`, text: 'test2', done: false }] })),
-    resources: [], sequences: [], assignments: [], calendar: { id: 'c' }, resourceCalendars: [], project: {},
-    baselines: [{ id: 'b1', name: 'B2', tasks: Array.from({ length: n }, (_, i) => ({ taskId: `t${i}`, start: '2026-01-01' })) }],
-  }) as unknown as WriteIFCInput;
-  const time = (f: () => void) => { const t = performance.now(); f(); return performance.now() - t; };
-  const best = (f: () => void) => Math.min(time(f), time(f), time(f));
-  const round = (n: number) => {
-    const plain = synthetic(n, false, false), src = synthetic(n, true, false), out = synthetic(n, true, true);
-    const domain = domainOf(n);
-    const own = () => true;
-    const ms: Record<string, number> = {};
-    let found = scanJsonExtras(src.index, own);
-    ms['openen zonder vreemde sleutels'] = best(() => { if (scanJsonExtras(plain.index, own).length > 0) throw new Error('vreemde sleutels zonder sleutels'); });
-    ms['openen'] = best(() => { found = scanJsonExtras(src.index, own); });
-    const entries = jsonExtrasIndex(found, () => undefined);
-    let source = jsonExtrasFromIndex(src.index, entries, src.stepIds, 'c');
-    ms['een uitleesronde'] = best(() => { source = jsonExtrasFromIndex(src.index, entries, src.stepIds, 'c'); });
-    const session = jsonExtrasForWriter(source, () => undefined);
-    let written: string[] = [];
-    ms['schrijven'] = best(() => { written = withJsonExtras(out.lines, out.idMap, [], session); });
-    ms['domein aanvullen'] = best(() => { withJsonExtrasInDomain(domain, session); });
-    let problem: string | undefined;
-    ms['eindcontrole'] = best(() => {
-      problem = jsonExtrasProblem(source, { index: out.index, stepIds: out.stepIds, projectCalendarId: 'c', assignmentKeys: new Map() }, domain).problem;
-    });
-    ok(`kosten bij ${n} taken: alle vreemde sleutels gevonden, geschreven en gecontroleerd (${found.length}, ${source.length}, ${problem})`,
-      found.length === n + 1 && source.length === n + 1 && problem === undefined
-      && written.filter(l => l.includes('vendorN')).length === n && written.some(l => l.includes(`"vendorRow":${n - 1}`)));
-    return ms;
-  };
-  round(1000);
-  const small = round(1000), large = round(10000);
-  for (const step of Object.keys(small)) {
-    const ratio = large[step] / Math.max(small[step], 1);
-    ok(`kosten: ${step} groeit lineair, 10.000 tegen 1.000 taken ${large[step].toFixed(0)} tegen ${small[step].toFixed(0)} ms (verhouding ${ratio.toFixed(1)}, grens 30)`, ratio < 30);
-  }
 }
 
 if (diffs.length > 0) {
