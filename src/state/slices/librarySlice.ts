@@ -846,7 +846,9 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       const pool = current(draftPool);
       const anyApplicable = links.some((link) => link.kind === 'resource'
         ? pool.resources.some((r) => r.id === link.poolId)
-        : pool.calendars.some((c) => c.id === link.poolId));
+          && s.resources.some((r) => r.id === link.projectId)
+        : pool.calendars.some((c) => c.id === link.poolId)
+          && s.calendars.some((c) => c.id === link.projectId));
       if (!anyApplicable) return;
       runtime.beginUndoable(s);
       let calendarLinked = false;
