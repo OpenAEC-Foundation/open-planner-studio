@@ -121,6 +121,36 @@ await check('een stuk dat zijn laatste verwijzing naar de planning kwijtraakt: d
   assert.equal((await save(opened)).foreignChanges, undefined, 'een volgende opslag lukt');
 });
 
+const MIXED = await (async () => {
+  const base = decode(await settle(encode(text('tests/fixtures/ifc-foreign/council/r6sol-twee-werkplannen.ifc'))));
+  return withLines(base.replace(/^(#59=IFCRELASSIGNSTOCONTROL\(.*)\(#57\),\$,#54\);/m, '$1(#57,#909),$$,#54);'), [
+    "#908=IFCTASKTIME('Kind Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M2D','2026-09-01T07:00:00','2026-09-02T07:00:00','2026-09-01T07:00:00','2026-09-02T07:00:00','2026-09-01T07:00:00','2026-09-02T07:00:00','P0Y0M0D','P0Y0M0D',.F.,$,$,$,$,$,$);",
+    "#909=IFCTASK('3kindTaak0000000000000',#6,'Kind',$,$,'1.1',$,$,$,.F.,$,#908,.CONSTRUCTION.);",
+    "#910=IFCEVENT('0vreemdEvent0000000000',#903,'Gebeurtenis',$,$,$,$,.NOTDEFINED.,.NOTDEFINED.,$,$);",
+    "#911=IFCRELNESTS('0gemengdNest0000000000',#903,$,$,#57,(#909,#910));",
+  ]);
+})();
+
+await check('een gemengde relatie (§4.6): het eigen lid gaat eruit, of de relatie vervalt met haar ouder', async () => {
+  const child = await openInStore(encode(MIXED));
+  const source = child.store.getState().ifcSource!;
+  child.store.getState().deleteTask(taskId(child, 'Kind'));
+  const withoutChild = await save(child);
+  assert.deepEqual(listed(withoutChild.foreignChanges), ['gewijzigd #911']);
+  assert.equal(lineOf(withoutChild.bytes, 911), "#911=IFCRELNESTS('0gemengdNest0000000000',#903,$,$,#57,(#910));");
+  assert.deepEqual(mergeProblems(source.bytes, withoutChild.bytes, withoutChild.foreignChanges), []);
+  const reopened = await openForeign(withoutChild.bytes);
+  const parent = reopened.tasks.find(t => t.name === 'Externe bronactiviteit')!;
+  assert.deepEqual(parent.childIds, [], 'na heropenen heeft de ouder geen kind meer');
+
+  const both = await openInStore(encode(MIXED));
+  both.store.getState().deleteTask(taskId(both, 'Externe bronactiviteit'));
+  const withoutParent = await save(both);
+  assert(listed(withoutParent.foreignChanges).includes('vervallen #911'), listed(withoutParent.foreignChanges).join(', '));
+  assert.equal(lineOf(withoutParent.bytes, 910), lineOf(source.bytes, 910), 'de gebeurtenis blijft (regel 4)');
+  assert.deepEqual(mergeProblems(source.bytes, withoutParent.bytes, withoutParent.foreignChanges), []);
+});
+
 function ruleOn(content: string, goneIds: readonly number[]) {
   const bytes = encode(content), index = scanForeignStep(bytes), cls = classify(index);
   const outcome = applyForeignRule(foreignReferences(index, cls.classes, bytes, cls.selection.inD), new Set(goneIds));
