@@ -17,6 +17,7 @@ installDeterminism();
 await loadStore();
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const plainBytes = () => new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
+const modelBytes = () => new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
 const otherPlainBytes = () => new Uint8Array(readFileSync(join(root, 'public/examples/10-villa-wassenaar.ifc')));
 const dir = mkdtempSync(join(tmpdir(), 'ops-bewaakte-opslag-'));
 const sha = (data: Uint8Array) => createHash('sha256').update(data).digest('hex');
@@ -37,7 +38,13 @@ async function check(name: string, action: () => Promise<void>) {
 
 const CHANGED = 'notifications.ifcForeignTargetChanged';
 const AUTOSAVE_CHANGED = 'notifications.ifcForeignAutoSaveTargetChanged';
-const known = (store: Store) => store.getState().knownTargetFingerprint;
+const known = (store: Store) => {
+  const fingerprint = store.getState().knownTargetFingerprint;
+  return fingerprint && { sha256: fingerprint.sha256, byteLength: fingerprint.byteLength };
+};
+const origin = (store: Store) => store.getState().knownTargetFingerprint?.origin ?? null;
+const FOREIGN_TARGET = 'notifications.ifcForeignTargetSave';
+const UNREADABLE_TARGET = 'notifications.ifcUnreadableTargetSave';
 let added = 0;
 const edit = (store: Store) => {
   const name = `Toegevoegd voor de bewaakte opslag ${++added}`;
@@ -66,6 +73,7 @@ const sameSizeOtherContent = (data: Uint8Array): Uint8Array => {
 };
 
 const handleFiles = new Map<string, Uint8Array>();
+const handleReads = new Map<string, number>();
 class FakeHandle {
   readonly kind = 'file';
   constructor(readonly name: string) {}
@@ -73,6 +81,7 @@ class FakeHandle {
   async queryPermission() { return 'granted'; }
   async requestPermission() { return 'granted'; }
   async getFile() {
+    handleReads.set(this.name, (handleReads.get(this.name) ?? 0) + 1);
     const data = handleFiles.get(this.name);
     if (!data) throw new DOMException('weg', 'NotFoundError');
     return new File([new Uint8Array(data).buffer], this.name);
@@ -198,21 +207,24 @@ await check('onbekende versie (null): niet bewaken; Ctrl+S schrijft over een gew
   } finally { ipc.dispose(); }
 });
 
-await check('met de flag uit: Ctrl+S en Automatisch opslaan schrijven over een gewijzigd bestand zoals main, ook als het tabblad een versie kent', async () => {
+await check('met de flag uit: Ctrl+S en Automatisch opslaan schrijven over een gewijzigd bestand zoals main, ook als het tabblad een versie kent, en lezen het doel niet', async () => {
   const ipc = desktop();
   try {
+    let read = ipc.bytesRead();
     const off = fileAt('flag-uit.ifc', plainBytes());
     const { store: offStore } = await openAt({ kind: 'path', path: off }, plainBytes(), undefined, false);
     edit(offStore);
     writeFileSync(off, otherPlainBytes());
     assert.equal(await ctrlS(offStore), true);
     assert.notDeepEqual(onDisk(off), print(otherPlainBytes()));
+    assert.equal(ipc.bytesRead(), read, 'Ctrl+S met de flag uit las geen byte van het doel');
     const later = fileAt('flag-later-uit.ifc', plainBytes());
     const { store } = await openAt({ kind: 'path', path: later }, plainBytes());
     assert.notEqual(known(store), null);
     store.setState(s => { s.ui.featureFlags = {}; });
     edit(store);
     writeFileSync(later, otherPlainBytes());
+    read = ipc.bytesRead();
     assert.equal(await ctrlS(store), true, 'Ctrl+S');
     assert.notDeepEqual(onDisk(later), print(otherPlainBytes()));
     edit(store);
@@ -220,6 +232,7 @@ await check('met de flag uit: Ctrl+S en Automatisch opslaan schrijven over een g
     await autoSave(store).flush();
     assert.equal(store.getState().isDirty, false, 'Automatisch opslaan');
     assert.notDeepEqual(onDisk(later), print(otherPlainBytes()));
+    assert.equal(ipc.bytesRead(), read, 'met de flag uit lazen Ctrl+S en de ronde geen byte van het doel, ook met een bekende versie');
     assert.deepEqual([...errors(offStore), ...errors(store)], []);
   } finally { ipc.dispose(); }
 });
@@ -416,6 +429,7 @@ await check('volgorde 1, de export met de resourcebibliotheek schrijft beide del
 
 await check('volgorde 2, Automatisch opslaan schrijft en de export wacht in de schrijfrij en schrijft daarna over het eigen pad: Ctrl+S op die versie slaagt, na een externe wijziging van dezelfde grootte weigert hij weer', async () => {
   const ipc = desktop(), path = fileAt('volgorde-2.ifc', plainBytes());
+  const started: Promise<unknown>[] = [];
   let armed = false, reached!: () => void, release!: () => void;
   const atGate = new Promise<void>(resolve => { reached = resolve; });
   const gate = new Promise<void>(resolve => { release = resolve; });
@@ -429,10 +443,12 @@ await check('volgorde 2, Automatisch opslaan schrijft en de export wacht in de s
     edit(store);
     armed = true;
     const round = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute: held }).flush();
+    started.push(round);
     await atGate;
     edit(store);
     ipc.choose(path);
     const exported = store.getState().exportAs('ifc');
+    started.push(exported);
     for (let i = 0; i < 50 && ipc.picks() === 0; i++) await new Promise(resolve => setTimeout(resolve, 5));
     assert.equal(ipc.picks(), 0, 'de export wacht in de rij achter Automatisch opslaan');
     release();
@@ -451,7 +467,11 @@ await check('volgorde 2, Automatisch opslaan schrijft en de export wacht in de s
     assert.equal(await ctrlS(store), false);
     assert.deepEqual(onDisk(path), print(foreign));
     assert.deepEqual(errors(store), [CHANGED]);
-  } finally { release(); ipc.dispose(); }
+  } finally {
+    release();
+    await Promise.allSettled(started);
+    ipc.dispose();
+  }
 });
 
 async function stoppedAutoSave(name: string, failRead = false) {
@@ -475,7 +495,7 @@ const roundWritesLaterWork = async (stopped: Awaited<ReturnType<typeof stoppedAu
   return holds(path, later) && !store.getState().isDirty;
 };
 
-await check('stop van de bewaking × geen eigen opslag: de stop blijft, ook na een geweigerde Ctrl+S en een bestand dat weer klopt', async () => {
+await check('stop van de bewaking × geen eigen opslag: de stop blijft, ook na een geweigerde Ctrl+S en een bestand dat weer klopt; wordt alleen de versie onbekend, dan vervalt hij', async () => {
   const stopped = await stoppedAutoSave('stop-blijft.ifc');
   try {
     const { store, path, foreign } = stopped;
@@ -484,6 +504,10 @@ await check('stop van de bewaking × geen eigen opslag: de stop blijft, ook na e
     assert.deepEqual(onDisk(path), print(foreign));
     writeFileSync(path, plainBytes());
     assert.equal(await roundWritesLaterWork(stopped), false, 'de planner sloeg niet zelf op');
+    assert.equal(notices(store, AUTOSAVE_CHANGED), 1);
+    store.getState().forgetKnownTargetFingerprint(store.getState().activeDocumentId);
+    assert.equal(store.getState().ui.featureFlags.ifcForeignContent, true, 'de flag blijft aan');
+    assert.equal(await roundWritesLaterWork(stopped), true, 'de versie werd onbekend: de stop vervalt en de ronde schrijft');
     assert.equal(notices(store, AUTOSAVE_CHANGED), 1);
   } finally { stopped.ipc.dispose(); }
 });
@@ -625,7 +649,7 @@ await check('de flag gaat uit terwijl de vergelijking loopt: Automatisch opslaan
 function flagProbe(on: boolean) {
   const flags = {};
   let yielded = true;
-  const writtenReads: boolean[] = [];
+  const targetCheckReads: boolean[] = [];
   let guardReads = 0;
   Object.defineProperty(flags, 'ifcForeignContent', {
     enumerable: true,
@@ -635,14 +659,14 @@ function flagProbe(on: boolean) {
         guardReads++;
         yielded = false;
         queueMicrotask(() => { yielded = true; });
-      } else if (/\bwrittenFingerprint\d*\b/.test(stack)) writtenReads.push(yielded);
+      } else if (/\brefusedWriteTarget\d*\b/.test(stack)) targetCheckReads.push(yielded);
       return on;
     },
   });
-  return { flags, guardReads: () => guardReads, writtenAfterYield: () => writtenReads.at(-1) };
+  return { flags, guardReads: () => guardReads, targetCheckAfterYield: () => targetCheckReads.at(-1) };
 }
 
-await check('geldt de bewaking niet (flag uit), dan wacht Ctrl+S en Automatisch opslaan nergens op tussen die toets en het schrijven, zoals main', async () => {
+await check('geldt de bewaking niet (flag uit), dan wacht Ctrl+S en Automatisch opslaan nergens op tussen die toets en de doelcontrole, zoals main', async () => {
   const limit = Error.stackTraceLimit;
   Error.stackTraceLimit = 50;
   const ipc = desktop();
@@ -656,7 +680,7 @@ await check('geldt de bewaking niet (flag uit), dan wacht Ctrl+S en Automatisch 
       edit(store);
       assert.equal(await ctrlS(store), true);
       assert(probe.guardReads() > 0, 'Ctrl+S las de flag in de toets');
-      assert.equal(probe.writtenAfterYield(), on, `Ctrl+S, flag ${on ? 'aan: wel' : 'uit: geen'} wachtstap tussen toets en schrijven`);
+      assert.equal(probe.targetCheckAfterYield(), on, `Ctrl+S, flag ${on ? 'aan: wel' : 'uit: geen'} wachtstap tussen toets en doelcontrole`);
       const autoPath = fileAt(`volgorde-auto-${on}.ifc`, plainBytes());
       const { store: auto } = await openAt({ kind: 'path', path: autoPath }, plainBytes());
       const controller = autoSave(auto);
@@ -666,9 +690,237 @@ await check('geldt de bewaking niet (flag uit), dan wacht Ctrl+S en Automatisch 
       await controller.flush();
       assert.equal(auto.getState().isDirty, false);
       assert(autoProbe.guardReads() > 0, 'de ronde las de flag in de toets');
-      assert.equal(autoProbe.writtenAfterYield(), on, `Automatisch opslaan, flag ${on ? 'aan: wel' : 'uit: geen'} wachtstap tussen toets en schrijven`);
+      assert.equal(autoProbe.targetCheckAfterYield(), on, `Automatisch opslaan, flag ${on ? 'aan: wel' : 'uit: geen'} wachtstap tussen toets en doelcontrole`);
     }
   } finally { ipc.dispose(); Error.stackTraceLimit = limit; }
+});
+
+const newErrors = (store: Store) => {
+  const before = errors(store).length;
+  return () => errors(store).slice(before);
+};
+const twoDataSections = (data: Uint8Array): Uint8Array => {
+  const lines = new TextDecoder().decode(data).split('\n');
+  const half = lines.findIndex((line, i) => i > lines.length / 2 && line.startsWith('#') && line.includes('IFCPROPERTYSET('));
+  assert(half > 0, 'de proef vond een eigenschappenset halverwege');
+  return new TextEncoder().encode([...lines.slice(0, half), 'ENDSEC;', 'DATA;', ...lines.slice(half)].join('\n'));
+};
+const wallOfSameSize = (data: Uint8Array): Uint8Array => {
+  const text = new TextDecoder().decode(data);
+  const line = text.split('\n').find(l => /^#\d+=IFC[A-Z]+\(/.test(l) && /^[\x20-\x7e]+$/.test(l) && l.length > 80);
+  assert(line, 'de proef vond een lange regel');
+  const head = `${/^#\d+/.exec(line)![0]}=IFCWALL('0YvctVUKr0kugbFTf53O9L',$,'`, tail = `',$,$,$,$,$,$);`;
+  const changed = new TextEncoder().encode(text.replace(line, head + 'x'.repeat(line.length - head.length - tail.length) + tail));
+  assert.equal(changed.byteLength, data.byteLength, 'even groot');
+  return changed;
+};
+
+await check('2203 A: staat op het eigen pad of de eigen handle de versie die het tabblad zelf schreef, dan lezen Ctrl+S en de ronde het doel één keer', async () => {
+  const ipc = desktop(), path = fileAt('eigen-versie.ifc', plainBytes());
+  try {
+    const { store } = await openAt({ kind: 'path', path }, plainBytes());
+    edit(store);
+    assert.equal(await ctrlS(store), true);
+    assert.equal(origin(store), 'written');
+    for (const route of ['Ctrl+S', 'Automatisch opslaan'] as const) {
+      const size = readFileSync(path).byteLength, read = ipc.bytesRead();
+      const saved = edit(store);
+      if (route === 'Ctrl+S') assert.equal(await ctrlS(store), true);
+      else await autoSave(store).flush();
+      assert.equal(ipc.bytesRead() - read, size, `${route}: precies één lezing van het doel`);
+      assert(holds(path, saved), route);
+      assert.equal(origin(store), 'written', route);
+    }
+    assert.deepEqual(errors(store), []);
+  } finally { ipc.dispose(); }
+  const handle = newHandle(plainBytes());
+  const { store } = await openAt(handleRef(handle), plainBytes());
+  edit(store);
+  assert.equal(await ctrlS(store), true);
+  for (const route of ['Ctrl+S', 'Automatisch opslaan'] as const) {
+    const reads = handleReads.get(handle.name) ?? 0;
+    const saved = edit(store);
+    if (route === 'Ctrl+S') assert.equal(await ctrlS(store), true);
+    else await autoSave(store).flush();
+    assert.equal((handleReads.get(handle.name) ?? 0) - reads, 1, `${route}: één getFile op de eigen handle`);
+    assert(new TextDecoder().decode(handleFiles.get(handle.name)!).includes(`'${saved}'`), route);
+  }
+  assert.deepEqual(errors(store), []);
+});
+
+await check('2203 B: de eerste Ctrl+S na openen leest het doel één keer en schrijft; een geopende versie wordt op die bytes gescand', async () => {
+  const ipc = desktop(), path = fileAt('geopend.ifc', plainBytes());
+  try {
+    const { store } = await openAt({ kind: 'path', path }, plainBytes());
+    assert.equal(origin(store), 'opened');
+    const read = ipc.bytesRead(), saved = edit(store);
+    assert.equal(await ctrlS(store), true);
+    assert.equal(ipc.bytesRead() - read, plainBytes().byteLength, 'één lezing, geen tweede en derde');
+    assert(holds(path, saved));
+    assert.equal(origin(store), 'written');
+    assert.deepEqual(errors(store), []);
+  } finally { ipc.dispose(); }
+  const handle = newHandle(plainBytes());
+  const { store } = await openAt(handleRef(handle), plainBytes());
+  const reads = handleReads.get(handle.name) ?? 0;
+  edit(store);
+  assert.equal(await ctrlS(store), true);
+  assert.equal((handleReads.get(handle.name) ?? 0) - reads, 1, 'één getFile op de eigen handle');
+});
+
+await check('2203 A en B: of er gescand wordt, hangt alleen aan de herkomst en de inhoud uit die ene lezing (een toestand die de app zelf niet maakt: een gebouwmodel met een passende vingerafdruk)', async () => {
+  for (const kind of ['pad', 'handle'] as const) {
+    for (const from of ['written', 'opened'] as const) {
+      const ipc = desktop(), model = modelBytes();
+      try {
+        let store: Store, onTarget: () => Uint8Array, reads: () => number;
+        if (kind === 'pad') {
+          const path = fileAt(`herkomst-${from}.ifc`, plainBytes());
+          ({ store } = await openAt({ kind: 'path', path }, plainBytes()));
+          writeFileSync(path, model);
+          onTarget = () => new Uint8Array(readFileSync(path));
+          const start = ipc.bytesRead();
+          reads = () => ipc.bytesRead() - start;
+        } else {
+          const handle = newHandle(plainBytes());
+          ({ store } = await openAt(handleRef(handle), plainBytes()));
+          handleFiles.set(handle.name, model);
+          onTarget = () => handleFiles.get(handle.name)!;
+          const start = handleReads.get(handle.name) ?? 0;
+          reads = () => (handleReads.get(handle.name) ?? 0) - start;
+        }
+        store.setState(s => { s.knownTargetFingerprint = { ...print(model), origin: from }; });
+        const fresh = newErrors(store);
+        edit(store);
+        const saved = await ctrlS(store);
+        assert.equal(reads(), kind === 'pad' ? model.byteLength : 1, `${kind}, ${from}: één lezing`);
+        if (from === 'written') {
+          assert.equal(saved, true, `${kind}: zelf geschreven, dus geen scan`);
+          assert.notDeepEqual(print(onTarget()), print(model));
+        } else {
+          assert.equal(saved, false, `${kind}: geopend, dus de scan van die bytes weigert het gebouwmodel`);
+          assert.deepEqual(fresh(), [FOREIGN_TARGET]);
+          assert.deepEqual(print(onTarget()), print(model));
+        }
+      } finally { ipc.dispose(); }
+    }
+  }
+});
+
+await check('2203 C: een geopend bestand met twee datasecties (openen neemt het aan, de doelscan niet): Ctrl+S scant de gelezen bytes en weigert, zoals voor deze PR', async () => {
+  const ipc = desktop(), split = twoDataSections(plainBytes()), path = fileAt('twee-datasecties.ifc', split);
+  try {
+    const { store } = await openAt({ kind: 'path', path }, split);
+    assert.equal(origin(store), 'opened', 'het bestand opende via de bytes-route');
+    const fresh = newErrors(store), read = ipc.bytesRead();
+    edit(store);
+    assert.equal(await ctrlS(store), false);
+    assert.deepEqual(fresh(), [UNREADABLE_TARGET]);
+    assert.equal(ipc.bytesRead() - read, split.byteLength, 'één lezing');
+    assert.deepEqual(onDisk(path), print(split));
+    assert.equal(store.getState().isDirty, true);
+  } finally { ipc.dispose(); }
+});
+
+await check('2203 D: is de zelf geschreven versie vervangen door een even groot bestand met een muur, dan weigeren Ctrl+S en de ronde met "gewijzigd", zonder scan', async () => {
+  const ipc = desktop(), path = fileAt('muur.ifc', plainBytes());
+  try {
+    const { store } = await openAt({ kind: 'path', path }, plainBytes());
+    edit(store);
+    assert.equal(await ctrlS(store), true);
+    assert.equal(origin(store), 'written');
+    const wall = wallOfSameSize(new Uint8Array(readFileSync(path)));
+    writeFileSync(path, wall);
+    edit(store);
+    const read = ipc.bytesRead();
+    assert.equal(await ctrlS(store), false);
+    assert.deepEqual(errors(store), [CHANGED]);
+    assert.equal(ipc.bytesRead() - read, wall.byteLength, 'alleen de lezing van de vergelijking');
+    assert.deepEqual(onDisk(path), print(wall));
+    await autoSave(store).flush();
+    assert.deepEqual(onDisk(path), print(wall));
+    assert.equal(notices(store, AUTOSAVE_CHANGED), 1);
+  } finally { ipc.dispose(); }
+});
+
+await check('2203 E: kent het tabblad de versie niet, dan scant Ctrl+S het doel zoals voorheen en weigert een gebouwmodel', async () => {
+  const ipc = desktop(), path = fileAt('onbekend-model.ifc', plainBytes());
+  try {
+    const { store } = await openAt({ kind: 'path', path }, plainBytes());
+    store.getState().setFilePath(path);
+    assert.equal(known(store), null);
+    writeFileSync(path, modelBytes());
+    edit(store);
+    assert.equal(await ctrlS(store), false);
+    assert.deepEqual(errors(store), [FOREIGN_TARGET]);
+    assert.deepEqual(onDisk(path), print(modelBytes()));
+  } finally { ipc.dispose(); }
+  const handle = newHandle(plainBytes());
+  const { store } = await openAt(handleRef(handle), plainBytes());
+  store.setState(s => { s.knownTargetFingerprint = null; });
+  handleFiles.set(handle.name, modelBytes());
+  edit(store);
+  assert.equal(await ctrlS(store), false);
+  assert.deepEqual(errors(store), [FOREIGN_TARGET]);
+  assert.deepEqual(onHandle(handle), print(modelBytes()));
+});
+
+await check('2203 G: ook op een zelf geschreven versie weigert Ctrl+S de bron van een ander tabblad met een gebouwmodel', async () => {
+  const ipc = desktop(), path = fileAt('bron-van-ander.ifc', modelBytes()), plainPath = fileAt('gewoon-naast-model.ifc', plainBytes());
+  try {
+    const { store } = await openAt({ kind: 'path', path: plainPath }, plainBytes());
+    const plain = store.getState().activeDocumentId;
+    edit(store);
+    await store.getState().openOpenedFile({ name: basename(path), content: '', bytes: modelBytes(), ref: { kind: 'path', path } });
+    assert.notEqual(store.getState().activeDocumentId, plain, 'het model staat in een eigen tabblad');
+    store.getState().switchDocument(plain);
+    store.setState(s => { s.filePath = path; s.knownTargetFingerprint = { ...onDisk(path), origin: 'written' }; });
+    const fresh = newErrors(store);
+    edit(store);
+    assert.equal(await ctrlS(store), false);
+    assert.deepEqual(fresh(), [FOREIGN_TARGET]);
+    assert.deepEqual(onDisk(path), print(modelBytes()));
+  } finally { ipc.dispose(); }
+});
+
+await check('2203, Opslaan als over een bestand met een gebouwmodel (bevestigd in de kiezer): daarna staat de eigen planning op het doel en slaat Ctrl+S de scan terecht over', async () => {
+  const ipc = desktop(), own = fileAt('als-over-model-eigen.ifc', plainBytes()), model = fileAt('als-over-model.ifc', modelBytes());
+  try {
+    const { store } = await openAt({ kind: 'path', path: own }, plainBytes());
+    edit(store);
+    ipc.choose(model);
+    await store.getState().saveFileAs();
+    assert.equal(store.getState().filePath, model);
+    assert.equal(store.getState().isDirty, false);
+    assert.equal(origin(store), 'written');
+    assert(!readFileSync(model, 'utf8').includes('IFCWALL'), 'het gebouwmodel is vervangen door de planning');
+    const size = readFileSync(model).byteLength, read = ipc.bytesRead(), saved = edit(store);
+    assert.equal(await ctrlS(store), true);
+    assert.equal(ipc.bytesRead() - read, size, 'één lezing van de eigen versie');
+    assert(holds(model, saved));
+  } finally { ipc.dispose(); }
+});
+
+await check('2203 en knownbug 2065: schreef een ander tabblad (met een gebouwmodel) via de browserkiezer over de eigen handle, dan weigert Ctrl+S met "gewijzigd" en slaat niets over', async () => {
+  const own = newHandle(plainBytes()), source = newHandle(modelBytes());
+  const { store } = await openAt(handleRef(own), plainBytes());
+  const plain = store.getState().activeDocumentId;
+  edit(store);
+  assert.equal(await ctrlS(store), true);
+  assert.equal(origin(store), 'written');
+  await store.getState().openOpenedFile({ name: source.name, content: '', bytes: modelBytes(), ref: handleRef(source) });
+  assert.notEqual(store.getState().activeDocumentId, plain);
+  const picker = ownHandlePicker(own, 1);
+  try {
+    assert((await store.getState().exportAs('ifc')).ok, 'de browserkiezer vergelijkt de gekozen handle niet (knownbug 1899)');
+  } finally { picker.dispose(); }
+  assert(new TextDecoder().decode(handleFiles.get(own.name)!).includes('IFCWALL'), 'het gebouwmodel van het andere tabblad staat op de eigen handle');
+  store.getState().switchDocument(plain);
+  const fresh = newErrors(store), onOwn = onHandle(own);
+  edit(store);
+  assert.equal(await ctrlS(store), false);
+  assert.deepEqual(fresh(), [CHANGED]);
+  assert.deepEqual(onHandle(own), onOwn);
 });
 
 rmSync(dir, { recursive: true, force: true });

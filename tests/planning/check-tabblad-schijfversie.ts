@@ -52,10 +52,15 @@ async function check(name: string, action: () => Promise<void>) {
   }
 }
 
-const known = (store: Store, id = store.getState().activeDocumentId) => {
+const fingerprintOf = (store: Store, id = store.getState().activeDocumentId) => {
   const s = store.getState();
   return id === s.activeDocumentId ? s.knownTargetFingerprint : s.documents.find(d => d.id === id)!.payload!.knownTargetFingerprint;
 };
+const known = (store: Store, id?: string) => {
+  const fingerprint = fingerprintOf(store, id);
+  return fingerprint && { sha256: fingerprint.sha256, byteLength: fingerprint.byteLength };
+};
+const origin = (store: Store, id?: string) => fingerprintOf(store, id)?.origin ?? null;
 let added = 0;
 const edit = (store: Store) => {
   store.getState().addTask({ name: `Toegevoegd voor de schijfversie ${++added}` });
@@ -189,12 +194,14 @@ await check('openen van een eigen pad of handle: het veld is de SHA-256 van de g
     const path = fileAt('open-pad.ifc', plainBytes());
     const { store } = await openAt({ kind: 'path', path }, plainBytes());
     assert.deepEqual(known(store), onDisk(path));
+    assert.equal(origin(store), 'opened', 'openen: de bytes kwamen van het doel');
     const source = store.getState().ifcSource!;
     assert.deepEqual(known(store), { sha256: source.sha256, byteLength: source.bytes.byteLength }, 'de hash en de bytes van de bron, geen tweede berekening');
   } finally { ipc.dispose(); }
   const handle = newHandle(modelBytes);
   const { store } = await openAt(handleRef(handle), modelBytes);
   assert.deepEqual(known(store), onHandle(handle));
+  assert.equal(origin(store), 'opened');
 });
 
 await check('onbekend bij openen zonder eigen bestand, van de site, met de flag uit, in een kopie, na laden in hetzelfde tabblad en na herstel', async () => {
@@ -217,11 +224,13 @@ await check('onbekend bij openen zonder eigen bestand, van de site, met de flag 
     assert.deepEqual(known(store, copy), null, 'een kopie heeft geen eigen bestand');
     assert.deepEqual(known(store, original), onDisk(own), 'het origineel houdt zijn hash');
     store.getState().switchDocument(original);
+    assert.equal(origin(store), 'opened', 'een tabbladwissel houdt de herkomst');
     const changedText = new TextDecoder().decode(plainBytes()).replace("'Zuidas Office Building'", "'Zuidas, gewijzigd'");
     const changed = await readIfcFromText(changedText, undefined, { ifcBytes: true });
     assert(changed.ifcSource && changed.ifcSource.sha256 !== onDisk(own).sha256, 'een bron met andere bytes dan het eigen bestand');
     store.getState().applyProjectEdit(changed);
     assert.deepEqual(known(store), onDisk(own), 'IFC toepassen schrijft het eigen bestand niet: de hash blijft');
+    assert.equal(origin(store), 'opened', 'IFC toepassen: de herkomst blijft');
     store.getState().loadState(changed);
     assert.equal(store.getState().filePath, own);
     assert.deepEqual(known(store), null, 'laden in hetzelfde tabblad: wat geladen is, kwam niet van het eigen bestand');
@@ -246,6 +255,7 @@ for (const route of ['opslagworker', 'hoofdthread', 'worker start niet'] as cons
         assert.equal(await ctrlS(store), true, `ronde ${round}`);
         assert.notEqual(onDisk(path).byteLength, before, `ronde ${round}: de grootte veranderde`);
         assert.deepEqual(known(store), onDisk(path), `ronde ${round}`);
+        assert.equal(origin(store), 'written', `ronde ${round}: zelf geschreven`);
       }
       assert.notDeepEqual(known(store), opened);
       if (sw) {
@@ -280,6 +290,7 @@ await check('rij 8, Ctrl+S die eindigt terwijl het tabblad slaapt: de hash komt 
     assert.equal(await saved, true);
     assert.notEqual(onDisk(path).byteLength, before, 'de grootte veranderde');
     assert.deepEqual(known(store, sleeping), onDisk(path), 'het slapende tabblad kent de nieuwe versie');
+    assert.equal(origin(store, sleeping), 'written');
     assert.deepEqual(known(store, other), null, 'de kopie heeft geen eigen bestand');
     assert.deepEqual(errors(store), []);
   } finally { ipc.dispose(); }
@@ -295,6 +306,7 @@ await check('rij 8, Ctrl+S van een gewone planning via de eigen handle, met en z
       assert.equal(await ctrlS(store), true);
       assert.notDeepEqual(onHandle(handle), opened);
       assert.deepEqual(known(store), onHandle(handle));
+      assert.equal(origin(store), 'written');
     } finally { sw?.dispose(); }
   }
 });
@@ -310,6 +322,7 @@ await check('rij 3, Ctrl+S met een gebouwmodel op het eigen pad: de hash van de 
       assert.notDeepEqual(onDisk(path), print(modelBytes));
       assert.deepEqual(known(store), onDisk(path));
       assert.equal(known(store)!.sha256, store.getState().ifcSource!.sha256);
+      assert.equal(origin(store), 'written', 'de merge is zelf geschreven');
     } finally { unregister(); await clearRecovery(); }
   } finally { ipc.dispose(); }
 });
@@ -323,6 +336,7 @@ await check('rij 2, Ctrl+S met een gebouwmodel via de eigen handle: de hash van 
     assert.equal(await ctrlS(store), true);
     assert.notDeepEqual(onHandle(handle), print(modelBytes));
     assert.deepEqual(known(store), onHandle(handle));
+    assert.equal(origin(store), 'written');
   } finally { unregister(); await clearRecovery(); }
 });
 
@@ -336,18 +350,21 @@ await check('rij 4 en 5, Opslaan als op de desktop (nieuwe naam, bestaand bestan
     await store.getState().saveFileAs();
     assert.equal(store.getState().filePath, fresh);
     assert.deepEqual(known(store), onDisk(fresh), 'rij 4: de nieuwe naam');
+    assert.equal(origin(store), 'written', 'rij 4');
     assert.notDeepEqual(known(store), opened);
     edit(store);
     const existing = fileAt('als-bestaand.ifc', otherPlainBytes()); ipc.choose(existing);
     await store.getState().saveFileAs();
     assert.equal(store.getState().filePath, existing);
     assert.deepEqual(known(store), onDisk(existing), 'rij 5: over een bestaand bestand');
+    assert.equal(origin(store), 'written', 'rij 5');
     edit(store);
     store.setState(s => { s.filePath = null; });
     const viaCtrlS = join(dir, 'als-ctrl-s.ifc'); ipc.choose(viaCtrlS);
     assert.equal(await ctrlS(store), true);
     assert.equal(store.getState().filePath, viaCtrlS);
     assert.deepEqual(known(store), onDisk(viaCtrlS), 'rij 4: de bestandskiezer van Ctrl+S');
+    assert.equal(origin(store), 'written', 'rij 4, Ctrl+S');
     assert.deepEqual(errors(store), []);
   } finally { ipc.dispose(); sw.dispose(); }
 });
@@ -361,6 +378,7 @@ await check('rij 4, Opslaan als met een gebouwmodel naar een nieuwe naam: de has
     await store.getState().saveFileAs();
     assert.equal(store.getState().filePath, fresh);
     assert.deepEqual(known(store), onDisk(fresh));
+    assert.equal(origin(store), 'written');
     assert.deepEqual(onDisk(own), print(modelBytes), 'het origineel bleef staan');
   } finally { ipc.dispose(); }
 });
@@ -381,7 +399,7 @@ for (const kind of ['nieuw', 'versie', 'conflictkopie'] as const) {
       const handle = newHandle(modelBytes);
       const { store } = kind === 'nieuw' ? await openAt(handleRef(handle), modelBytes) : await openAt({ kind: 'site', id: 'bron' }, modelBytes);
       if (kind === 'nieuw') assert.deepEqual(known(store), onHandle(handle));
-      else store.setState(s => { s.siteFileVersion = 'v1'; s.knownTargetFingerprint = print(modelBytes); });
+      else store.setState(s => { s.siteFileVersion = 'v1'; s.knownTargetFingerprint = { ...print(modelBytes), origin: 'opened' }; });
       edit(store);
       if (kind === 'nieuw') await store.getState().saveFileAs();
       else assert.equal(await ctrlS(store), true);
@@ -396,7 +414,7 @@ await check('rij 9 en 11, een gebouwmodel dat als download eindigt (Ctrl+S zonde
   const browser = browserDownload();
   try {
     const { store } = await openInStore(modelBytes);
-    store.setState(s => { s.knownTargetFingerprint = print(modelBytes); });
+    store.setState(s => { s.knownTargetFingerprint = { ...print(modelBytes), origin: 'opened' }; });
     edit(store);
     await ctrlS(store);
     assert.equal(browser.downloads.length, 1, 'rij 9: een download');
@@ -422,10 +440,12 @@ await check('rij 10 en 12, de bestandskiezer van de browser: de hash van de geko
       assert.equal(await ctrlS(store), true);
       assert.equal(picker.picked.length, 1);
       assert.deepEqual(known(store), onHandle(picker.picked[0]!), 'rij 10');
+      assert.equal(origin(store), 'written', 'rij 10');
       edit(store);
       await store.getState().saveFileAs();
       assert.equal(picker.picked.length, 2);
       assert.deepEqual(known(store), onHandle(picker.picked[1]!), 'rij 12');
+      assert.equal(origin(store), 'written', 'rij 12');
       assert.deepEqual(errors(store), []);
     } finally { picker.dispose(); sw?.dispose(); }
   }
@@ -442,7 +462,7 @@ await check('rij 10 en 12, een gewone planning die als download eindigt: onbeken
     assert.equal(store.getState().fileHandle, null);
     assert.deepEqual(known(store), null, 'rij 12');
     edit(store);
-    store.setState(s => { s.knownTargetFingerprint = onHandle(handle); });
+    store.setState(s => { s.knownTargetFingerprint = { ...onHandle(handle), origin: 'written' }; });
     await ctrlS(store);
     assert.equal(browser.downloads.length, 2, 'rij 10: een download');
     assert.deepEqual(known(store), null, 'rij 10');
@@ -464,6 +484,7 @@ for (const route of ['opslagworker', 'hoofdthread'] as const) {
         assert.equal(store.getState().isDirty, false, `ronde ${round} schreef`);
         assert.notEqual(onDisk(path).byteLength, before, `ronde ${round}: de grootte veranderde`);
         assert.deepEqual(known(store), onDisk(path), `ronde ${round}`);
+        assert.equal(origin(store), 'written', `ronde ${round}: zelf geschreven`);
       }
       assert.notDeepEqual(known(store), opened);
       if (sw) assert.deepEqual(sw.jobs().map(job => job.kind === 'writer' && job.hashBytes), [true, true]);
@@ -487,6 +508,7 @@ await check('rij 13, Automatisch opslaan met een gebouwmodel naar het eigen pad:
       assert.equal(store.getState().isDirty, false, 'de ronde schreef');
       assert.notDeepEqual(onDisk(path), print(modelBytes));
       assert.deepEqual(known(store), onDisk(path));
+      assert.equal(origin(store), 'written');
     } finally { unregister(); await clearRecovery(); }
   } finally { ipc.dispose(); }
 });
@@ -500,11 +522,13 @@ await check('A2, Exporteren → IFC en de export met de resourcebibliotheek over
     ipc.choose(join(dir, 'export-ander.ifc'));
     assert((await store.getState().exportAs('ifc')).ok);
     assert.deepEqual(known(store), opened, 'een ander bestand: het eigen bestand is niet veranderd');
+    assert.equal(origin(store), 'opened', 'een ander bestand: de herkomst blijft');
     assert.deepEqual(onDisk(own), opened);
     ipc.choose(own);
     assert((await store.getState().exportAs('ifc')).ok);
     assert.notDeepEqual(onDisk(own), opened, 'de export schreef het eigen bestand');
     assert.deepEqual(known(store), onDisk(own), 'Exporteren → IFC');
+    assert.equal(origin(store), 'written', 'Exporteren → IFC over het eigen bestand is een eigen schrijfactie');
     assert.equal(await ctrlS(store), true);
     assert.deepEqual(known(store), onDisk(own));
     const companyId = store.getState().seedDemoLibrary();
@@ -518,6 +542,7 @@ await check('A2, Exporteren → IFC en de export met de resourcebibliotheek over
     assert(existsSync(library));
     assert.notDeepEqual(onDisk(own), beforePool, 'de export schreef het eigen bestand');
     assert.deepEqual(known(store), onDisk(own), 'export met de resourcebibliotheek');
+    assert.equal(origin(store), 'written', 'export met de resourcebibliotheek');
     assert.equal(await ctrlS(store), true);
     const saved = known(store);
     const loose = join(dir, 'bibliotheek-los.ifc');
@@ -553,6 +578,7 @@ await check('A2, planner_export_ifc met overwrite over het eigen bestand: de vin
     assert.equal((await run(own)).ok, true);
     assert.notDeepEqual(onDisk(own), opened, 'de export schreef het eigen bestand');
     assert.deepEqual(known(context.store), onDisk(own));
+    assert.equal(origin(context.store), 'written', 'planner_export_ifc');
   } finally { fileToolDeps.getFs = previous; ipc.dispose(); }
 });
 
@@ -575,6 +601,7 @@ await check('ronde 1: de resourcebibliotheek over de eigen handle in de browser 
     assert.equal(answers.length, 0, 'de kiezer gaf de eigen handle');
     assert.equal(text(own).includes('IFCTASK('), false, 'nu staat de bibliotheek, zonder taken, op de eigen handle');
     assert.deepEqual(known(store), onHandle(own), 'Bestand → Bibliotheek');
+    assert.equal(origin(store), 'written', 'Bestand → Bibliotheek');
     edit(store);
     assert.equal(await ctrlS(store), true);
     assert.deepEqual(known(store), onHandle(own));
@@ -747,7 +774,7 @@ for (const platform of ['linux', 'windows'] as const) {
             store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
             edit(store);
             assert.equal(await ctrlS(store), true, `${label}: opslaan vooraf`);
-            if (!flag) store.setState(s => { s.knownTargetFingerprint = onDisk(own); });
+            if (!flag) store.setState(s => { s.knownTargetFingerprint = { ...onDisk(own), origin: 'written' }; });
             const before = known(store), onDiskBefore = onDisk(own);
             assert.deepEqual(before, onDiskBefore, `${label}: vooraf kent het tabblad zijn bestand`);
             edit(store);
@@ -1044,7 +1071,7 @@ for (const flag of [false, true] as const) {
           store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
           edit(store);
           assert.equal(await ctrlS(store), true);
-          if (!flag) store.setState(s => { s.knownTargetFingerprint = onDisk(own); });
+          if (!flag) store.setState(s => { s.knownTargetFingerprint = { ...onDisk(own), origin: 'written' }; });
           const before = known(store);
           edit(store);
           const chosen = target === 'ander' ? other : null;

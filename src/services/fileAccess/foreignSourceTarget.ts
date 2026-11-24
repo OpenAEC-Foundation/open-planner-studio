@@ -65,6 +65,7 @@ function targetContent(handle: FileSystemFileHandle): (mark: ForeignSourceMark) 
 export interface TargetReaders {
   /** Een bestaand pad als stroom lezen (Tauri); `null` = bewezen ontbrekend nieuw pad; leesfouten geven unreadable. */
   scanPath?: (path: string) => Promise<TargetForeignScan | null>;
+  scanHandle?: (handle: FileSystemFileHandle) => Promise<TargetForeignScan>;
   /** Een bestand op de site lezen; `null` = niet leesbaar, dus weigeren. */
   readSite?: (id: string) => Promise<Uint8Array | null>;
 }
@@ -80,7 +81,7 @@ export async function targetRefusal(target: FileRef, readers: TargetReaders = {}
   try {
     switch (target.kind) {
       case 'handle':
-        return refusal(await scanForeignTargetBlob(await target.handle.getFile()));
+        return refusal(await (readers.scanHandle ? readers.scanHandle(target.handle) : scanForeignTargetBlob(await target.handle.getFile())));
       case 'path':
         return readers.scanPath ? refusal(await readers.scanPath(target.path)) : 'unreadable';
       case 'site': {

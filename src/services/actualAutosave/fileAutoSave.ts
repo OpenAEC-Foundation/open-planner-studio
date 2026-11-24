@@ -25,7 +25,7 @@ import {
 } from '@/services/fileAccess/writeCoordinator';
 import { pendingReplaceFor, tauriReplaceRecords } from '@/services/fileAccess/replaceRecords';
 import { tightAnchorsIfSaved } from '@/state/dependentCandidates';
-import { changedKnownTarget, guardedKnownTarget, type KnownTargetState } from '@/state/knownTargetGuard';
+import { checkKnownTarget, guardedKnownTarget, type KnownTargetState } from '@/state/knownTargetGuard';
 import {
   ifcFullWriteBlocked, ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_SAVE_WORKER_FAILED_NOTICE,
   IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedWriteTarget, type WriteTargetDeps,
@@ -376,7 +376,13 @@ export function createFileAutoSaveController(deps: {
       // #804 fixronde 2: dezelfde doelcontrole als Opslaan, onder dezelfde lock. Fixronde 1 van #1027 (review Sol): ná het
       // rekenen, vlak vóór het schrijven, zoals Ctrl+S: een gebouwmodel dat tijdens het rekenen op het doel verscheen,
       // wordt niet overschreven. Eén doelscan; daarna beslist alleen nog de synchrone inhoudscontrole hieronder.
-      const reason = await refusedWriteTarget(getState(), candidate.ref!, targetDeps);
+      const known = guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
+      const checked = known ? await checkKnownTarget(() => knownTargetOf(candidate.id), known, candidate.ref!, targetDeps.readers) : null;
+      if (checked?.change) {
+        stopFor(candidate.id, candidate.ref!, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE, known);
+        return 'refused';
+      }
+      const reason = await refusedWriteTarget(getState(), candidate.ref!, checked ? { ...targetDeps, readers: checked.readers } : targetDeps);
       if (reason) {
         refusedTarget.set(candidate.id, { ref: candidate.ref!, source: current.ifcSource, known: null });
         if (!targetNotified.has(candidate.id)) {
@@ -384,11 +390,6 @@ export function createFileAutoSaveController(deps: {
           getState().notify(reason === 'unreadable-target'
             ? IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE : IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE);
         }
-        return 'refused';
-      }
-      const known = guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
-      if (known && await changedKnownTarget(() => knownTargetOf(candidate.id), known, candidate.ref!)) {
-        stopFor(candidate.id, candidate.ref!, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE, known);
         return 'refused';
       }
       rememberLiteralCalendarsWritten(current, output.literalCalendarIds);

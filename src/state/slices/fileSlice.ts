@@ -71,7 +71,7 @@ import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { ensureUniqueImportIds } from '@/services/importNormalize';
 import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload, type TargetFingerprint } from '../documentContract';
-import { changedKnownTarget, guardedKnownTarget, type KnownTargetState } from '../knownTargetGuard';
+import { checkKnownTarget, guardedKnownTarget, type KnownTargetState } from '../knownTargetGuard';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
@@ -913,8 +913,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       target.foreignSourceMark = foreignSourceMarkFor(prepared.source, target);
     };
     const literalIds = prepared?.literalCalendarIds ?? literalCalendarIdsWritten(savedSource);
-    const fingerprint = !ifcForeignContentEnabled(get().ui.featureFlags) ? null
-      : prepared ? { sha256: prepared.sha256, byteLength: prepared.bytes.byteLength } : written;
+    const fingerprint: TargetFingerprint | null = !ifcForeignContentEnabled(get().ui.featureFlags) ? null
+      : prepared ? { sha256: prepared.sha256, byteLength: prepared.bytes.byteLength, origin: 'written' } : written;
     const applyKnownTarget = (target: Pick<AppState, keyof SaveDestination | 'knownTargetFingerprint'>) => {
       target.knownTargetFingerprint = onOwnFile(target, fingerprint);
     };
@@ -1111,10 +1111,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const app = get();
     return { featureFlags: app.ui.featureFlags, known: saveSourceForDocument(app, documentId)?.knownTargetFingerprint ?? null };
   };
-  const refuseChangedKnownTarget = async (documentId: string, ref: FileRef, known: TargetFingerprint): Promise<boolean> => {
-    const change = await changedKnownTarget(() => knownTargetOf(documentId), known, ref);
-    if (change) get().notify(ownTargetContentNotice(change));
-    return change !== null;
+  const knownTargetReaders = async (documentId: string, ref: FileRef, known: TargetFingerprint): Promise<(() => TargetReaders) | null> => {
+    const checked = await checkKnownTarget(() => knownTargetOf(documentId), known, ref, writeTargetReaders);
+    if (checked.change) get().notify(ownTargetContentNotice(checked.change));
+    return checked.change ? null : checked.readers;
   };
 
   const replaceOwnHandle = async (
@@ -1256,7 +1256,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         commit: () => {
           committed = commitSavedDocument(snapshotContent(state), state,
             localDestination({ ref: { kind: 'path', path }, name: basename(path) }), write.prepared ?? undefined, missingSourceSaveAs,
-            { sha256: replacement.sha256, byteLength: replacement.bytes.byteLength });
+            { sha256: replacement.sha256, byteLength: replacement.bytes.byteLength, origin: 'written' });
         },
       });
       for (const notice of result.code === 'save-as-only' ? [IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE] : ownPathReplaceNotices(result, path)) {
@@ -1321,7 +1321,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, 'merge'));
       if (!write || refuseChangedDocumentWrite(state, write)) return false;
-      if (ref && await documentTargetCheck(state, write, true)(ref)) return false;
+      const known = ref && !handleRefused && !write.prepared ? guardedKnownTarget(knownTargetOf(documentId), ref) : null;
+      const readers = ref && known ? await knownTargetReaders(documentId, ref, known) : writeTargetReaders;
+      if (!readers) return false;
+      if (ref && await documentTargetCheck(state, write, true, { readers })(ref)) return false;
       if (ownHandle && write.prepared) return await replaceOwnHandle(documentId, state, write.prepared, write, ownHandle, failureNoticeKey);
       if (ownPath) return write.prepared ? await replaceOwnPath(documentId, state, write.prepared, write, ownPath, failureNoticeKey) : false;
       if (ref?.kind === 'site' && siteStorageAvailable()) {
@@ -1347,8 +1350,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       if (ref && !handleRefused && !(write.prepared && ref.kind === 'handle')) {
         try {
-          const known = write.prepared ? null : guardedKnownTarget(knownTargetOf(documentId), ref);
-          if (known && await refuseChangedKnownTarget(documentId, ref, known)) return false;
           if (refuseChangedDocumentWrite(state, write)) return false;
           const last = lastWriteCheck(state, write);
           const hashing = writtenFingerprint(state.ui.featureFlags, write);
@@ -1562,7 +1563,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       payload.knownTargetFingerprint = editing ? current.knownTargetFingerprint
         : inheritsTarget || !ownSource || !ifcForeignContentEnabled(current.ui.featureFlags) ? null
-          : onOwnFile(payload, { sha256: ownSource.sha256, byteLength: ownSource.bytes.byteLength });
+          : onOwnFile(payload, { sha256: ownSource.sha256, byteLength: ownSource.bytes.byteLength, origin: 'opened' });
       if (!opts.linkedOpen && !editing) {
         payload.project = { ...payload.project, companyId: undefined, companyName: undefined };
         stripLibraryOrigins(payload);
@@ -2035,7 +2036,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           const target = documentFields(s);
           const now = target ? saveTargetRef(target) : null;
           if (!target || !now || !sameFileRef(now, own) || !sameDocumentContent(s, content)) return;
-          target.knownTargetFingerprint = { sha256, byteLength: bytes.byteLength };
+          target.knownTargetFingerprint = { sha256, byteLength: bytes.byteLength, origin: 'written' };
         });
       })();
     },
