@@ -59,6 +59,7 @@ import { createBaselineOldDayCheck } from '@/engine/baselineOldDay';
 import { endOfListPosition, insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import { COLUMNS_RIBBON_TOGGLE_SELECTOR } from './ColumnChooser';
 import { withTransaction } from '@/state/batchTransaction';
+import { mountedPendingTextEdits } from '@/state/pendingTextEdits';
 import { requestRelationAssign } from '@/state/relationActions';
 import {
   appendGhostRow,
@@ -710,6 +711,9 @@ export function TaskGridSurface({
     setSurfaceError(null);
     return true;
   }, [editing]);
+  const finishEditingRef = useRef(finishEditing);
+  finishEditingRef.current = finishEditing;
+  useEffect(() => mountedPendingTextEdits.register({ settle: () => finishEditingRef.current() }), []);
 
   const applySelection = useCallback((next: GridSelectionState, anchor?: SelectionAnchor) => {
     setSelection(next);

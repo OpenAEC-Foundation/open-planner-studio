@@ -22,6 +22,7 @@ export interface PendingTextEditEntry {
   commit?: () => void;
   /** Geef de eigen rekenblokkade van deze tekstbewerking vrij (fase 2). */
   release?: () => void;
+  settle?: () => boolean;
 }
 
 export interface PendingTextEdits {
@@ -29,6 +30,7 @@ export interface PendingTextEdits {
   register: (entry: PendingTextEditEntry) => () => void;
   /** Rond alle open invoer af: eerst alle commits, dan alle vrijgaven. */
   finish: () => void;
+  settle: () => boolean;
 }
 
 export function createPendingTextEdits(): PendingTextEdits {
@@ -42,6 +44,13 @@ export function createPendingTextEdits(): PendingTextEdits {
       const all = [...entries];
       for (const e of all) e.commit?.();
       for (const e of all) e.release?.();
+    },
+    settle: () => {
+      for (const e of [...entries]) if (e.settle && !e.settle()) return false;
+      const all = [...entries];
+      for (const e of all) e.commit?.();
+      for (const e of all) e.release?.();
+      return true;
     },
   };
 }

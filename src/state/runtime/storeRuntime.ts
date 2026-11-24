@@ -82,6 +82,7 @@ export interface StoreRuntime {
   /** Rond open tekstinvoer van deze context af (commit, dan de eigen rekenblokkade vrij). Elke
    *  actie die de actieve documentpayload vastlegt of vervangt, roept dit EERST aan. */
   finishPendingTextEdits(): void;
+  settlePendingTextEdits(): boolean;
   /** Zie `StoreRuntimeOptions.ifcSaveCompute`; `undefined` = deze thread. */
   readonly ifcSaveCompute: IfcOutputCompute | undefined;
   /**
@@ -314,6 +315,9 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
 
     finishPendingTextEdits() {
       pendingTextEdits.finish();
+    },
+    settlePendingTextEdits() {
+      return pendingTextEdits.settle();
     },
     ifcSaveCompute: opts?.ifcSaveCompute,
     resetUndoCoalescing() {
