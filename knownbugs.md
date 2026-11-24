@@ -1744,12 +1744,6 @@ en noem het in je rapport of PR-tekst.
      schuift. Onder het MS Project-profiel staat conventie A23 `unstartedIgnoresStatusDate` aan
      (`src/engine/scheduler/conventions/registry.ts`) en schuift het niet; `statusDateEffect.shifted` meldt dan
      terecht `false`. Gezien in de review van #1083 (GPT-6.2-Sol, proef met statusdatum 1 juni). — B
-1992. **Een mislukte verdeling kan de afrondingsmelding van de herpoging opmaken.** In de verdeelroute
-     (`applyDistribution` in `src/state/slices/librarySlice.ts`, de eenmalige melding in
-     `src/state/timephasedLossNotice.ts`) kwam in de proef een slapend document met een vertraging in minuten als
-     eerste aan de beurt, en liet een tweede slapend document de schrijfronde afbreken. Bij de geslaagde herpoging
-     gingen de minuten verloren zonder melding; in dezelfde proef zonder eerdere afbreking meldde de app het verlies
-     wel. Proef van de reviewer (GPT-6.2-Sol, review van #1164). — B
 2211. **Een taak met heel veel gekoppelde bouwdelen kan `planner_get_task` op de site te groot maken.** Sinds #804
      fase 2 geeft `planner_get_task` (`elementLinkFields` in `src/services/mcp/tools/readTools.ts`) bij een IFC-bestand
      met een gebouwmodel elke koppeling taak↔bouwdeel mee, ongeveer 60 tekens per koppeling, zonder `limit`. De
@@ -1798,6 +1792,16 @@ en noem het in je rapport of PR-tekst.
      het niet terug. Na `rollback` blijft het dus `true`, en `taskTypesUnlocked` (`src/state/taskTypesVisibility.ts`)
      ontsluit daarmee de werkregelvelden en -kolommen, ook als de geweigerde transactie verder niets achterliet. In de
      code nagegaan, ook in een tweede, onafhankelijke controle van de code; niet nagespeeld in de app. — B (code)
+
+2300. **Na een geweigerde `planner_batch` kunnen de berekende datums anders zijn dan vóór de aanroep.** Een batch met
+     een lees- of nivelleerstap kan een verouderde planning doorrekenen in `beforeTransaction`
+     (`src/services/mcp/tools/batchTool.ts`), dat `runMutateTool` (`src/services/mcp/tools/runtime.ts`) aanroept vóór
+     `run` zijn momentopname neemt. Mislukt daarna een stap, dan zet `rollback`
+     (`src/state/runtime/createMcpTransactions.ts`) de toestand van ná die berekening terug: de mutaties van de batch
+     zijn weg, de berekening blijft. Gezien in een proef via de MCP-dispatcher: met automatisch berekenen uit was een
+     taak verlengd zonder te rekenen; een batch hernoemde die taak en probeerde daarna een taak met een onbekend id te
+     lezen. De batch gaf `NOT_FOUND` en de oude naam kwam terug, terwijl de berekende start van de opvolger van 11 naar
+     16 maart ging. Zie ADR 0240. — B
 
 ## Bestanden en herstel
 
@@ -6206,3 +6210,5 @@ en noem het in je rapport of PR-tekst.
 2290. **VERVOLG (review #1187 ronde 1, tekst): de help stuurt de planner voor papier en richting nog naar een ander rapport.** Sinds #1187 hebben *Milestone overview* en *Variance* zelf een kaart *Report options*. De handleiding (`public/docs/nl/howto-rapport-maken-en-afdrukken.md` en de Engelse versie) en `public/docs/nl/ref-rapporttypes.md` zeggen nog dat je papier kiest bij bijvoorbeeld de Gantt-afdruk en daarna teruggaat. Richting: die omweg schrappen en de drie opties beschrijven waar ze nu staan. Review #1187 ronde 1 (GPT-6.2-Sol, xhigh). — S (tekst)
 2291. **VERVOLG (review #1187 ronde 1, test): de browsertest bedient de nieuwe velden niet.** `tests/browser/table-reports.spec.ts` kiest A2 staand bij Look-ahead en controleert bij de twee nieuwe rapporten alleen of de velden zichtbaar zijn en wat de PDF-maten zijn. Een kapotte wijzigingsactie in de nieuwe kaart blijft dan groen. Richting: in de kaart van elk van de twee rapporten papier, richting en een ander lettertype kiezen en de uitvoer controleren. Ook kan `body = null` voor `milestones` en `variance` de lege tak van `progressCurve` delen. Review #1187 ronde 1 (GPT-6.2-Sol, xhigh). — S (test)
 2292. **VERVOLG (review #1191 ronde 1): dezelfde koppeling opnieuw aanroepen zet een schoon document op *Niet opgeslagen*.** `linkRecognizedItems` (`src/state/slices/librarySlice.ts`) vervangt het item ook als alle waarden en de herkomststempel al gelijk zijn, dus `finishMutation` zet `isDirty` en er komt een extra undo-stap. Het afwijkingenscherm biedt een koppeling na de eerste keer niet meer aan, dus dit vraagt een rechtstreekse aanroep (bijvoorbeeld via MCP). Richting: het bijgewerkte item, met stempel, vergelijken vóór de toewijzing, en bij nul echte wijzigingen ook de herberekening van resourcebelasting en rijen overslaan. Review #1191 ronde 1 (GPT-6.2-Sol, xhigh). — S
+2293. **VERVOLG (review #1193 ronde 1): een uitzondering buiten `scratch-failed` kan de melding over verloren minuten alsnog opmaken.** `applyDistribution` (`src/state/slices/librarySlice.ts`) zet de vastgelegde meldingsclaims alleen terug bij `scratch-failed`. Gooit het laden van een tweede tijdelijke payload (`src/state/runtime/scratchDocument.ts`) of het schrijven naar de echte store een uitzondering, dan blijft de claim van het eerste document bezet terwijl het zijn minuten nog heeft. Geen route met een gewoon bestand gevonden. Richting: de melding pas claimen nadat het document echt is bijgewerkt; dan kan ook de snapshot voor tijdgefaseerde sturing weg, die `applyLeveling` niet raakt. ADR 0175 verwijst nog naar het verwijderde punt 1992. Review #1193 ronde 1 (GPT-6.2-Sol, xhigh). — S
+2294. **VERVOLG (review #1193 ronde 1, test): de proef kan een dubbele melding missen.** `tests/library/check-distribution-loss-notice.ts` telt alleen de lengte van de meldingenlijst, maar `notify` verhoogt bij dezelfde `dedupeKey` de teller op de bestaande melding (`src/state/slices/uiSlice.ts`). Richting: de eerste melding sluiten vóór de tweede schrijfronde en daarna nul meldingen verwachten. Review #1193 ronde 1 (GPT-6.2-Sol, xhigh). — S (test)
