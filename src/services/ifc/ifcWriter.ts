@@ -24,11 +24,10 @@ import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes';
 import type { ForeignSourceRecord } from './foreign/foreignSourceMark';
 import { unusedAssignmentKeyNames, type UnusedAssignmentKey } from './assignmentKeys';
-import { withJsonExtras, type JsonExtras } from './jsonExtras';
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
-import { ACTIVITY_CODE_ID_SUFFIX, PSET, PROP, PER_TASK_PSETS, XER_ARCHIVE_CHUNK, xerArchiveChunkName, OPS_APP_VERSION, ifcStr, ifcJson, asciiJson, ifcTypedReal, stepReal, ifcDateValue } from './ifcPsets';
+import { ACTIVITY_CODE_ID_SUFFIX, PSET, PROP, PER_TASK_PSETS, WINDOW_FIELDS, XER_ARCHIVE_CHUNK, xerArchiveChunkName, OPS_APP_VERSION, ifcStr, ifcJson, asciiJson, ifcTypedReal, stepReal, ifcDateValue, type WindowField } from './ifcPsets';
 import { ifcSchemaQuestionFor } from './ifcSchemaQuestion';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { shownFinish, shownStart } from '@/utils/taskDates';
@@ -182,7 +181,6 @@ export interface WriterMergeIds {
   readonly sourceBaselineHeadGuids?: ReadonlyMap<string, string>;
   readonly unusedAssignmentKeys?: ReadonlyMap<string, readonly UnusedAssignmentKey[]>;
   readonly foreignAssignmentKeyNames?: ReadonlyMap<string, readonly string[]>;
-  readonly jsonExtras?: readonly JsonExtras[];
 }
 
 export interface SourceTaskTime {
@@ -266,7 +264,7 @@ export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds, 
   lines: string[]; idMap: ReadonlyMap<string, number>; literalCalendarIds: readonly string[];
 } {
   const { lines, idMap, literalCalendarIds } = writeIfcParts(input, merge, writtenAt);
-  return { lines: withJsonExtras(lines, idMap, input.assignments, merge.jsonExtras ?? []), idMap, literalCalendarIds };
+  return { lines, idMap, literalCalendarIds };
 }
 
 function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds, comparisonDate?: Date): {
@@ -1517,27 +1515,15 @@ function writeTimephasedMeta(
   for (const task of tasks) {
     const list = byTask.get(task.id);
     if (!list) continue;
-    const windows: Record<string, {
-      workWindowStart?: string; workWindowFinish?: string; curveValues?: number[];
-      plannedWorkMinutes?: number; actualWorkMinutes?: number; remainingWorkMinutes?: number;
-      plannedUnitsPerDay?: number; costAmount?: number;
-    }> = {};
+    const windows: Record<string, Partial<Pick<ResourceAssignment, WindowField>>> = {};
     list.forEach((a, index) => {
-      if (a.workWindowStart === undefined && a.workWindowFinish === undefined && a.curveValues === undefined
-        && a.plannedWorkMinutes === undefined && a.actualWorkMinutes === undefined && a.remainingWorkMinutes === undefined
-        && a.plannedUnitsPerDay === undefined && a.costAmount === undefined) return;
-      const resGuid = objectGuid(ctx, 'res', a.resourceId);
-      const propName = `${resGuid}#${index}`;
-      windows[propName] = {
-        ...(a.workWindowStart !== undefined ? { workWindowStart: a.workWindowStart } : {}),
-        ...(a.workWindowFinish !== undefined ? { workWindowFinish: a.workWindowFinish } : {}),
-        ...(a.curveValues !== undefined ? { curveValues: [...a.curveValues] } : {}),
-        ...(a.plannedWorkMinutes !== undefined ? { plannedWorkMinutes: a.plannedWorkMinutes } : {}),
-        ...(a.actualWorkMinutes !== undefined ? { actualWorkMinutes: a.actualWorkMinutes } : {}),
-        ...(a.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: a.remainingWorkMinutes } : {}),
-        ...(a.plannedUnitsPerDay !== undefined ? { plannedUnitsPerDay: a.plannedUnitsPerDay } : {}),
-        ...(a.costAmount !== undefined ? { costAmount: a.costAmount } : {}),
-      };
+      const window: Partial<Pick<ResourceAssignment, WindowField>> = {};
+      for (const field of WINDOW_FIELDS) {
+        const v = a[field];
+        if (v !== undefined) Object.assign(window, { [field]: Array.isArray(v) ? [...v] : v });
+      }
+      if (Object.keys(window).length === 0) return;
+      windows[`${objectGuid(ctx, 'res', a.resourceId)}#${index}`] = window;
     });
     if (Object.keys(windows).length === 0) continue;
     const propId = addLine(ctx, `_ps_tp_${task.id}`,

@@ -1,7 +1,7 @@
 import { stepStringEnd, skipStepComment, unescapeStepQuotes } from './stepLexical';
 import { parseIfcDuration } from './isoDuration';
 import { ifcCalendarBandLayout, parseIfcClock } from './ifcClock';
-import { ACTIVITY_CODE_ID_SUFFIX, milestoneWasAtDayEnd } from './ifcPsets';
+import { ACTIVITY_CODE_ID_SUFFIX, milestoneWasAtDayEnd, type WindowField } from './ifcPsets';
 import { isAssignmentKeyName } from './assignmentKeys';
 import { calendarExceptionKey, calendarExceptionKeyFromClocks } from './calendarExceptionKey';
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
@@ -2569,16 +2569,7 @@ interface AssignmentMeta {
   curve?: ResourceCurve;
 }
 
-interface WindowMeta {
-  workWindowStart?: string;
-  workWindowFinish?: string;
-  curveValues?: number[];
-  plannedWorkMinutes?: number;
-  actualWorkMinutes?: number;
-  remainingWorkMinutes?: number;
-  plannedUnitsPerDay?: number;
-  costAmount?: number;
-}
+type WindowMeta = Partial<Pick<ResourceAssignment, WindowField>>;
 
 function workMinutesOf(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined;

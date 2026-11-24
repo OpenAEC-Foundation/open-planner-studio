@@ -139,6 +139,12 @@ function propNames<const N extends string>(...names: N[]): { readonly [K in N]: 
  * (GlobalId-sleutels), `OPS_CustomFields` en `OPS_ActivityCodes` (namen uit `OPS_StructureMeta` of de templates) en
  * `OPS_XerSourceArchive` (`ByteChunk000000`, `DiagnosticsChunk000000`).
  */
+export const WINDOW_FIELDS = [
+  'workWindowStart', 'workWindowFinish', 'curveValues', 'plannedWorkMinutes', 'actualWorkMinutes', 'remainingWorkMinutes',
+  'plannedUnitsPerDay', 'costAmount',
+] as const;
+export type WindowField = (typeof WINDOW_FIELDS)[number];
+
 export const PROP = {
   TaskIdentity: propNames('InternalTaskId'),
   Constraints: propNames('ConstraintType', 'ConstraintDate', 'Hard', 'ConstraintType2', 'ConstraintDate2', 'Deadline'),

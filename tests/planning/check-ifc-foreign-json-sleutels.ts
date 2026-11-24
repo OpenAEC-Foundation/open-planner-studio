@@ -10,10 +10,10 @@ import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { JSON_PROPERTIES, jsonPropertyShape, type JsonShape } from '@/services/ifc/jsonRegister';
-import { unknownJsonMembers, withJsonExtras, withJsonMembers } from '@/services/ifc/jsonExtras';
 import {
-  jsonExtrasForWriter, jsonExtrasFromIndex, jsonExtrasIndex, jsonExtrasProblem, scanJsonExtras, withJsonExtrasInDomain,
+  jsonExtrasFromIndex, jsonExtrasIndex, jsonMembersProblem, scanJsonExtras, unknownJsonMembers, withJsonInOutputForm,
 } from '@/services/ifc/foreign/jsonExtrasSource';
+import { jsonMembers, mergedJsonText } from '@/services/ifc/foreign/jsonMembers';
 import { parseJsonTree, sameJsonValue, type JsonNode } from '@/services/ifc/jsonTokens';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 
@@ -65,6 +65,8 @@ function patchJson(s: string, property: string, edit: (json: string) => string):
   if (hits !== 1) throw new Error(`patchJson: ${hits} keer ${property}`);
   return out;
 }
+
+const rawKeys = (json: string): string[] => { const root = parseJsonTree(json); return root?.kind === 'object' ? root.members.map(m => m.key) : []; };
 
 function memberOf(json: string | undefined, path: readonly (string | [string, string])[]): string | undefined {
   if (json === undefined) return undefined;
@@ -246,88 +248,127 @@ function richDomain(): Domain {
     { path: [], members: [{ key: '"vendorCoordinationId"', value: '"VC-1"' }] },
     { path: [{ sleutel: 'activityCodeTypes' }, { veld: 'id', waarde: 'a' }], members: [{ key: '"vendorX"', value: big }] },
   ]));
-  const writer = '{"activityCodeTypes":[{"id":"b","name":"Fase","values":[]},{"id":"a","name":"Zone 2","values":[]}],"customFieldDefs":[]}';
-  const back = withJsonMembers(writer, found, () => undefined);
-  ok(`terugzetten: in hetzelfde object, na de bekende sleutels (${back})`, back
-    === `{"activityCodeTypes":[{"id":"b","name":"Fase","values":[]},{"id":"a","name":"Zone 2","values":[],"vendorX":${big}}],"customFieldDefs":[],"vendorCoordinationId":"VC-1"}`);
-  ok('terugzetten: zonder onbekende sleutels blijft de tekst van de writer', withJsonMembers(writer, [], () => undefined) === writer);
-  const carried = '{"activityCodeTypes":[{"id":"a","name":"Zone","values":[],"vendorX":1.2345678901234568e+29}],"customFieldDefs":[]}';
-  ok('terugzetten: draagt het domein de sleutel onveranderd, dan komt het brontoken terug',
-    withJsonMembers(carried, found.slice(1), () => undefined).includes(`"vendorX":${big}`));
-  const changed = '{"activityCodeTypes":[{"id":"a","name":"Zone","values":[],"vendorX":7}],"customFieldDefs":[]}';
-  ok('terugzetten: draagt het domein een andere waarde onder die naam, dan geen tweede sleutel met dezelfde naam',
-    withJsonMembers(changed, found.slice(1), () => undefined) === changed);
+  const merge = (source: string, read: string | undefined, written: string | undefined, exists?: () => boolean | undefined) => {
+    const r = mergedJsonText(shape, source, read, written, exists);
+    return 'refused' in r ? `geweigerd: ${r.refused}` : r.text;
+  };
+  const lid = '{"vendorFront":"F","activityCodeTypes":[{"id":"a","name":"Zone","values":[],"vendorX":' + big
+    + '},{"id":"b","name":"Fase","values":[{"id":"v","code":"V1","\\u0063olor":"#ABC"}]}],"customFieldDefs":[] ,"vendorTail":{"code":1,"code":2}}';
+  const read = '{"activityCodeTypes":[{"id":"a","name":"Zone","values":[]},{"id":"b","name":"Fase","values":[{"id":"v","code":"V1","color":"#ABC"}]}],"customFieldDefs":[]}';
+  ok('per lid: niets gewijzigd, dan de bron zelf, met witruimte en al', merge(lid, read, read) === lid);
+  const renamed = read.replace('"name":"Fase"', '"name":"Fase 2"');
+  ok(`per lid: één naam gewijzigd, de rest houdt de tokens van de bron, ook sleutel en plaats van de onbekende paren (${merge(lid, read, renamed)})`,
+    merge(lid, read, renamed) === lid.replace('"name":"Fase"', '"name":"Fase 2"').replace(',"customFieldDefs":[] ,', ',"customFieldDefs":[],'));
+  const reordered = '{"activityCodeTypes":[{"id":"b","name":"Fase","values":[{"id":"v","code":"V1","color":"#ABC"}]},{"id":"a","name":"Zone","values":[]}],"customFieldDefs":[]}';
+  ok(`per lid: de planner wisselde de volgorde, dan die van de writer met de tokens van de bron (${merge(lid, read, reordered)})`,
+    merge(lid, read, reordered) === `{"vendorFront":"F","activityCodeTypes":[{"id":"b","name":"Fase","values":[{"id":"v","code":"V1","\\u0063olor":"#ABC"}]},{"id":"a","name":"Zone","values":[],"vendorX":${big}}],"customFieldDefs":[],"vendorTail":{"code":1,"code":2}}`);
+  const withoutA = '{"activityCodeTypes":[{"id":"b","name":"Fase","values":[{"id":"v","code":"V1","color":"#ABC"}]}],"customFieldDefs":[]}';
+  ok('per lid: een item met onbekende sleutels weg terwijl het nog bestaat, weigert', String(merge(lid, read, withoutA, () => true)).startsWith('geweigerd'));
+  ok('per lid: een item met onbekende sleutels weg, en ook weg uit de planning, valt mee weg',
+    merge(lid, read, withoutA, () => false) === `{"vendorFront":"F","activityCodeTypes":[{"id":"b","name":"Fase","values":[{"id":"v","code":"V1","\\u0063olor":"#ABC"}]}],"customFieldDefs":[],"vendorTail":{"code":1,"code":2}}`);
+  ok('per lid: een item zonder iets extra weg, ook zonder bewijs', mergedJsonText(shape, read, read, withoutA).hasOwnProperty('text'));
+  const clash = renamed.replace('"name":"Zone"', '"name":"Zone","vendorX":7');
+  ok('per lid: de planning draagt een onbekende naam met een andere waarde, weigert', String(merge(lid, read, clash)).startsWith('geweigerd'));
+  const twice = '{"activityCodeTypes":[{"id":"a","name":"Zone","values":[]},{"id":"a","name":"Zone","values":[]}],"customFieldDefs":[]}';
+  ok('per lid: dubbel id ongewijzigd, dan de bron; gewijzigd, weigert', merge(twice, twice, twice) === twice && String(merge(twice, twice, renamed)).startsWith('geweigerd'));
+  const series = { soort: 'reeks' } as const;
+  const merged = (s: string, r: string, w: string) => { const x = mergedJsonText(series, s, r, w); return 'refused' in x ? 'geweigerd' : x.text; };
+  ok('per lid: een reeks met dezelfde lengte per plaats, met een andere lengte weigert',
+    merged('[1.0,2,3e0]', '[1,2,3]', '[1,5,3]') === '[1.0,5,3e0]' && merged('[1.0,2]', '[1,2]', '[1,2,3]') === 'geweigerd');
 }
 
 {
   const q = (s: string) => s.replace(/'/g, "''");
-  const synthetic = (n: number, vendor: boolean, changed: boolean) => {
+  const step = (lines: string[]) => new TextEncoder().encode(`ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION((''),'2;1');\nFILE_SCHEMA(('IFC4X3_ADD2'));\nENDSEC;\nDATA;\n${lines.join('\n')}\nENDSEC;\nEND-ISO-10303-21;\n`);
+  const synthetic = (n: number, form: 'bron' | 'lezing' | 'nu') => {
     const stepIds: Record<string, number> = {};
     const idMap = new Map<string, number>();
     const lines: string[] = [];
     let id = 1;
-    const ws = id++;
-    stepIds['ws:w'] = ws; idMap.set('_worksched', ws);
-    lines.push(`#${ws}=IFCWORKSCHEDULE('0000000000000000000000',$,'W',$,$,$,$,$,$,$,$,$,$,$);`);
+    const owner = (seed: string, key: string, line: (k: number) => string) => { const k = id++; stepIds[seed] = k; idMap.set(key, k); lines.push(line(k)); return k; };
+    const property = (ownerId: number, pset: string, name: string, json: string, guid: string) => {
+      const p = id++, set = id++, rel = id++;
+      lines.push(`#${p}=IFCPROPERTYSINGLEVALUE('${name}',$,IFCTEXT('${q(json)}'),$);`,
+        `#${set}=IFCPROPERTYSET('${guid.padStart(22, '1')}',$,'${pset}',$,(#${p}));`,
+        `#${rel}=IFCRELDEFINESBYPROPERTIES('${guid.padStart(22, '2')}',$,$,$,(#${ownerId}),#${set});`);
+    };
+    const ws = owner('ws:w', '_worksched', k => `#${k}=IFCWORKSCHEDULE('0000000000000000000000',$,'W',$,$,$,$,$,$,$,$,$,$,$);`);
     const rows: string[] = [];
     for (let i = 0; i < n; i++) {
-      const t = id++, p = id++, set = id++, rel = id++;
-      stepIds[`task:t${i}`] = t; idMap.set(`task_t${i}`, t);
-      const note = `[{"id":"n${i}","text":"${changed ? 'test2' : 'test'}","done":false${vendor ? `,"vendorN":"v${i}"` : ''}}]`;
-      lines.push(`#${t}=IFCTASK('${String(i).padStart(22, '0')}',$,$,$,$,$,$,$,$,$,$,$,$);`,
-        `#${p}=IFCPROPERTYSINGLEVALUE('Notes',$,IFCTEXT('${q(note)}'),$);`,
-        `#${set}=IFCPROPERTYSET('${String(i).padStart(22, '1')}',$,'OPS_TaskNotes',$,(#${p}));`,
-        `#${rel}=IFCRELDEFINESBYPROPERTIES('${String(i).padStart(22, '2')}',$,$,$,(#${t}),#${set});`);
-      rows.push(`{"taskId":"t${i}","start":"2026-01-01"${vendor ? `,"vendorRow":${i}` : ''}}`);
+      const t = owner(`task:t${i}`, `task_t${i}`, k => `#${k}=IFCTASK('${String(i).padStart(22, '0')}',$,$,$,$,$,$,$,$,$,$,$,$);`);
+      property(t, 'OPS_TaskNotes', 'Notes', `[{"id":"n${i}","text":"${form === 'nu' ? 'test2' : 'test'}","done":false${form === 'bron' ? `,"vendorN":"v${i}"` : ''}}]`, `n${i}`);
+      rows.push(`{"taskId":"t${i}","start":"2026-01-01"${form === 'bron' ? `,"vendorRow":${i}` : ''}}`);
     }
-    const bp = id++, bs = id++, br = id++;
-    lines.push(`#${bp}=IFCPROPERTYSINGLEVALUE('Baselines',$,IFCTEXT('${q(`[{"id":"b1","name":"${changed ? 'B2' : 'B'}","tasks":[${rows.join(',')}]}]`)}'),$);`,
-      `#${bs}=IFCPROPERTYSET('3333333333333333333333',$,'OPS_Baselines',$,(#${bp}));`,
-      `#${br}=IFCRELDEFINESBYPROPERTIES('4444444444444444444444',$,$,$,(#${ws}),#${bs});`);
-    const bytes = new TextEncoder().encode(`ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION((''),'2;1');\nFILE_SCHEMA(('IFC4X3_ADD2'));\nENDSEC;\nDATA;\n${lines.join('\n')}\nENDSEC;\nEND-ISO-10303-21;\n`);
-    return { index: scanStep(bytes), lines, stepIds, idMap };
+    property(ws, 'OPS_Baselines', 'Baselines', `[{"id":"b1","name":"${form === 'nu' ? 'B2' : 'B'}","tasks":[${rows.join(',')}]}]`, 'b');
+    const window = (i: number) => `{"plannedWorkMinutes":${form === 'nu' ? 960 : form === 'bron' ? '480.0' : 480}${form === 'bron' ? `,"vendorW":"w${i}"` : ''}}`;
+    const keys = Array.from({ length: n }, (_, i) => `R${String(i).padStart(21, '0')}#0`);
+    const big = owner('task:big', 'task_big', k => `#${k}=IFCTASK('${'B'.repeat(22)}',$,$,$,$,$,$,$,$,$,$,$,$);`);
+    const big2 = owner('task:big2', 'task_big2', k => `#${k}=IFCTASK('${'C'.repeat(22)}',$,$,$,$,$,$,$,$,$,$,$,$);`);
+    const resources = keys.map(k => { const r = id++; lines.push(`#${r}=IFCCREWRESOURCE('${k.split('#')[0]}',$,$,$,$,$,$,$,$,$,$);`); return r; });
+    lines.push(`#${id++}=IFCRELASSIGNSTOPROCESS('${'Z'.repeat(22)}',$,$,$,(${resources.map(r => `#${r}`).join(',')}),$,#${big},$);`);
+    const stays = (i: number) => form !== 'nu' || i % 2 === 0;
+    property(big, 'OPS_Timephased', 'Windows', `{${keys.flatMap((k, i) => stays(i) ? [`"${k}":${window(i)}`] : []).join(',')}}`, 'w');
+    if (form === 'nu') property(big2, 'OPS_Timephased', 'Windows', `{${keys.flatMap((k, i) => stays(i) ? [] : [`"${k}":${window(i)}`]).join(',')}}`, 'x');
+    return { lines, stepIds, idMap, index: scanStep(step(lines)), keys };
   };
   const domainOf = (n: number) => ({
     tasks: Array.from({ length: n }, (_, i) => ({ id: `t${i}`, notes: [{ id: `n${i}`, text: 'test2', done: false }] })),
     resources: [], sequences: [], assignments: [], calendar: { id: 'c' }, resourceCalendars: [], project: {},
     baselines: [{ id: 'b1', name: 'B2', tasks: Array.from({ length: n }, (_, i) => ({ taskId: `t${i}`, start: '2026-01-01' })) }],
   }) as unknown as WriteIFCInput;
-  const time = (f: () => void) => { const t = performance.now(); f(); return performance.now() - t; };
-  const round = (n: number, runs: number) => {
-    const best = (f: () => void) => Math.min(...Array.from({ length: runs }, () => time(f)));
-    const plain = synthetic(n, false, false), src = synthetic(n, true, false), out = synthetic(n, true, true);
+  const ARRAY_METHODS = ['filter', 'find', 'findIndex', 'some', 'every', 'map', 'forEach', 'flatMap', 'indexOf', 'includes', 'reduce'] as const;
+  const counted = (f: () => void): number => {
+    let work = 0;
+    const proto = Array.prototype as unknown as Record<string, (...a: unknown[]) => unknown>;
+    const saved = ARRAY_METHODS.map(name => [name, proto[name]] as const);
+    const map = Map.prototype as unknown as Record<string, (...a: unknown[]) => unknown>;
+    const mapSaved = (['get', 'has', 'set'] as const).map(name => [name, map[name]] as const);
+    for (const [name, fn] of saved) proto[name] = function (this: unknown[], ...a: unknown[]) { work += this.length; return fn.apply(this, a); };
+    for (const [name, fn] of mapSaved) map[name] = function (this: Map<unknown, unknown>, ...a: unknown[]) { work += 1; return fn.apply(this, a); };
+    try { f(); } finally {
+      for (const [name, fn] of saved) proto[name] = fn;
+      for (const [name, fn] of mapSaved) map[name] = fn;
+    }
+    return work;
+  };
+  const round = (n: number) => {
+    const src = synthetic(n, 'bron'), read0 = synthetic(n, 'lezing'), now = synthetic(n, 'nu');
+    const plain = synthetic(n, 'lezing');
     const domain = domainOf(n);
     const own = () => true;
-    const ms: Record<string, number> = {};
+    const binding = new Map(src.keys.map((k, i) => [k, `a${i}`]));
+    const work: Record<string, number> = {};
     let found = scanJsonExtras(src.index, own);
-    ms['openen zonder vreemde sleutels'] = best(() => { if (scanJsonExtras(plain.index, own).length > 0) throw new Error('vreemde sleutels zonder sleutels'); });
-    ms['openen'] = best(() => { found = scanJsonExtras(src.index, own); });
-    const entries = jsonExtrasIndex(found, () => undefined);
-    let source = jsonExtrasFromIndex(src.index, entries, src.stepIds, 'c');
-    ms['een uitleesronde'] = best(() => { source = jsonExtrasFromIndex(src.index, entries, src.stepIds, 'c'); });
-    const session = jsonExtrasForWriter(source, () => undefined);
-    let written: string[] = [];
-    ms['schrijven'] = best(() => { written = withJsonExtras(out.lines, out.idMap, [], session); });
-    ms['domein aanvullen'] = best(() => { withJsonExtrasInDomain(domain, session); });
+    work['openen zonder vreemde sleutels'] = counted(() => { if (scanJsonExtras(plain.index, own).length > 0) throw new Error('vreemde sleutels zonder sleutels'); });
+    work['openen'] = counted(() => { found = scanJsonExtras(src.index, own); });
+    const bigStep = src.stepIds['task:big'];
+    const entries = jsonExtrasIndex(found, (owner, key) => owner === bigStep ? binding.get(key) : undefined);
+    let sources = jsonExtrasFromIndex(src.index, entries, src.stepIds, 'c');
+    work['een uitleesronde'] = counted(() => { sources = jsonExtrasFromIndex(src.index, entries, src.stepIds, 'c'); });
+    const place = (id: string) => {
+      const i = Number(id.slice(1));
+      return { owner: i % 2 === 0 ? 'task_big' : 'task_big2', key: src.keys[i] };
+    };
+    const ctx = { place, readKey: (_owner: string, key: string) => key, exists: () => true };
+    let merged = jsonMembers(read0, now, sources, ctx);
+    work['per lid samenvoegen'] = counted(() => { merged = jsonMembers(read0, now, sources, ctx); });
+    const texts = sources.map(x => ({ ...x, text: merged.expected.get(`${x.owner}\u0000${x.pset}\u0000${x.property}`) ?? x.text }));
+    work['de planning in de vorm van de uitvoer'] = counted(() => { withJsonInOutputForm(domain, texts); });
+    const output = synthetic(n, 'nu');
+    const written = step(merged.written);
     let problem: string | undefined;
-    ms['eindcontrole'] = best(() => {
-      problem = jsonExtrasProblem(source, { index: out.index, stepIds: out.stepIds, projectCalendarId: 'c', assignmentKeys: new Map() }, domain).problem;
-    });
-    ok(`kosten bij ${n} taken: alle vreemde sleutels gevonden, geschreven en gecontroleerd (${found.length}, ${source.length}, ${problem})`,
-      found.length === n + 1 && source.length === n + 1 && problem === undefined
-      && written.filter(l => l.includes('vendorN')).length === n && written.some(l => l.includes(`"vendorRow":${n - 1}`)));
-    return ms;
+    work['eindcontrole'] = counted(() => { problem = jsonMembersProblem(merged.expected, { index: scanStep(written), stepIds: output.stepIds, projectCalendarId: 'c' }); });
+    const out = new TextDecoder().decode(written);
+    ok(`kosten bij ${n}: alle vreemde sleutels gevonden, per lid samengevoegd en gecontroleerd (${found.length}, ${sources.length}, ${problem})`,
+      found.length === n + 2 && sources.length === n + 2 && problem === undefined
+      && (out.match(/vendorN/g) ?? []).length === n && out.includes(`"vendorRow":${n - 1}`) && (out.match(/vendorW/g) ?? []).length === n
+      && (out.match(/480\.0/g) ?? []).length === 0);
+    return work;
   };
-  round(1000, 1);
-  const small = round(1000, 3);
-  let large = round(10000, 1);
-  if (Object.keys(small).some(step => large[step] / Math.max(small[step], 1) >= 50)) {
-    const again = round(10000, 1);
-    large = Object.fromEntries(Object.keys(large).map(step => [step, Math.min(large[step], again[step])]));
-  }
+  const small = round(1000), large = round(10000);
   for (const step of Object.keys(small)) {
     const ratio = large[step] / Math.max(small[step], 1);
-    ok(`kosten: ${step} groeit lineair, 10.000 tegen 1.000 taken ${large[step].toFixed(0)} tegen ${small[step].toFixed(0)} ms (verhouding ${ratio.toFixed(1)}, grens 50)`, ratio < 50);
+    ok(`kosten: ${step} groeit lineair in het werk, 10.000 tegen 1.000 taken en vensters ${large[step]} tegen ${small[step]} (verhouding ${ratio.toFixed(1)}, grens 13)`, ratio < 13);
   }
 }
 
@@ -383,10 +424,11 @@ if (base) {
     && memberOf(jsonIn(withExtras, 'OPS_TaskTypes', 'TaskTypes'), ['definitions', ['id', 'tt-a'], 'vendorRef']) === '"opaque-aa"');
   {
     const opened = await openForeign(withExtras);
-    ok(`bron: de index op de bron noemt de vier JSON-eigenschappen met onbekende sleutels, met de binding van het venster (${show(opened.ifcSource?.jsonExtras)})`,
+    const bound = (step: number) => opened.assignments.find(a => a.taskId === taskOf(opened).id && a.resourceId === resOf(opened, step).id)?.id;
+    ok(`bron: de index noemt de JSON-eigenschappen met onbekende sleutels en elke vensterkaart, met de binding van elk venster (${show(opened.ifcSource?.jsonExtras)})`,
       opened.ifcSource?.jsonExtras?.length === 4
-      && opened.ifcSource.jsonExtras.some(e => e.windows?.length === 1 && e.windows[0].key === `${R110}#1`
-        && e.windows[0].assignmentId === opened.assignments.find(a => a.taskId === taskOf(opened).id && a.resourceId === resOf(opened, 110).id)?.id));
+      && opened.ifcSource.jsonExtras.some(e => e.windows?.length === 2 && e.windows.some(w => w.key === `${R110}#1` && w.assignmentId === bound(110))
+        && e.windows.some(w => w.key === `${R109}#0` && w.assignmentId === bound(109))));
   }
 
   type Want = { fase: boolean; baseline: boolean; window: readonly [string, string] | undefined };
@@ -529,7 +571,7 @@ if (base) {
 
   await refuses('taaktype: het laatste gebruik van type A weg, terwijl A in de catalogus blijft (zoals main)', d => {
     d.tasks = d.tasks.map(t => t.customTaskTypeId === 'tt-a' ? { ...t, customTaskTypeId: 'tt-b' } : t);
-  }, /^uitvoer-controle: _project OPS_TaskTypes\.TaskTypes .*bestaat nog in de planning/);
+  }, /^niet-gedragen: IFCPROPERTYSINGLEVALUE #\d+ \(TaskTypes\)/);
   {
     const opened = await openForeign(withExtras);
     const domain = cloneDomain(opened);
@@ -539,16 +581,22 @@ if (base) {
     if (prepared) ok('taaktype: type A uit de catalogus gewist: vendorRef vervalt met de definitie', !text(prepared.bytes).includes('opaque-aa'));
   }
 
-  await refuses('botsing: het domein draagt een andere waarde onder de naam van een vreemde sleutel (nooit twee keer dezelfde naam)', d => {
-    d.activityCodeTypes = d.activityCodeTypes!.map(t => t.id === 'act-fase' ? { ...t, vendorX: 7 } as typeof t : t);
-  }, /^uitvoer-controle: .*vendorX/);
+  {
+    const opened = await openForeign(withExtras);
+    const domain = cloneDomain(opened);
+    domain.activityCodeTypes = domain.activityCodeTypes!.map(t => t.id === 'act-fase' ? { ...t, vendorX: 7 } as typeof t : t);
+    const prepared = await save('de planning wijzigde de waarde van een gedragen vreemde sleutel', domain, opened.ifcSource!);
+    const structure = prepared && jsonIn(prepared.bytes, 'OPS_StructureMeta', 'structure');
+    if (prepared) ok(`de planning wijzigde de waarde van een gedragen vreemde sleutel: één keer, met de nieuwe waarde (${structure})`,
+      memberOf(structure, ['activityCodeTypes', ['id', 'act-fase'], 'vendorX']) === '7' && (structure!.match(/vendorX/g) ?? []).length === 1);
+  }
   await refuses('geen plek: zonder codetypen en velden schrijft de writer geen OPS_StructureMeta', d => {
     d.activityCodeTypes = [];
     d.customFieldDefs = [];
   }, /./);
   await refuses('geen plek: zonder vensterdata schrijft de writer geen Windows voor #63', (d, o) => {
     d.assignments = d.assignments.map(a => a.taskId === taskOf(o).id ? { ...a, plannedWorkMinutes: undefined } : a);
-  }, /^uitvoer-controle: task_.* OPS_Timephased\.Windows/);
+  }, /^niet-gedragen: IFCPROPERTYSINGLEVALUE #\d+ \(Windows\)/);
 
   const front = latin1(patchJson(baseText, 'structure', j => j.replace(/^\{/, '{"vendorFront":"F",')));
   {
@@ -556,12 +604,18 @@ if (base) {
     const domain = cloneDomain(opened);
     domain.activityCodeTypes = domain.activityCodeTypes!.map(t => t.id === 'act-zone' ? { ...t, values: t.values.map(v => ({ ...v, description: 'Kelder' })) } : t);
     const prepared = await save('grens: een onbekende sleutel vooraan, de omschrijving van een codewaarde', domain, opened.ifcSource!);
-    if (prepared) ok('grens: een onbekende sleutel vooraan, de omschrijving van een codewaarde: de sleutel blijft, na de bekende sleutels',
-      memberOf(jsonIn(prepared.bytes, 'OPS_StructureMeta', 'structure'), ['vendorFront']) === '"F"');
+    if (prepared) ok('een onbekende sleutel vooraan, de omschrijving van een codewaarde: de sleutel blijft vooraan, zoals in de bron',
+      jsonIn(prepared.bytes, 'OPS_StructureMeta', 'structure')?.startsWith('{"vendorFront":"F",') === true);
   }
-  await refuses('grens (knownbug 2218): een onbekende sleutel vooraan en een codetype hernoemen, zoals main', d => {
-    d.activityCodeTypes = d.activityCodeTypes!.map(t => t.id === 'act-zone' ? { ...t, name: 'Zone (nieuw)' } : t);
-  }, /^niet-gedragen: IFCPROPERTYSETTEMPLATE/, front);
+  {
+    const opened = await openForeign(front);
+    const domain = cloneDomain(opened);
+    domain.activityCodeTypes = domain.activityCodeTypes!.map(t => t.id === 'act-zone' ? { ...t, name: 'Zone (nieuw)' } : t);
+    const prepared = await save('een onbekende sleutel vooraan en een codetype hernoemen', domain, opened.ifcSource!);
+    const structure = prepared && jsonIn(prepared.bytes, 'OPS_StructureMeta', 'structure');
+    if (prepared) ok(`een onbekende sleutel vooraan en een codetype hernoemen: de sleutel blijft vooraan, de nieuwe naam staat erin (${structure})`,
+      structure!.startsWith('{"vendorFront":"F",') && memberOf(structure, ['activityCodeTypes', ['id', 'act-zone'], 'name']) === '"Zone (nieuw)"');
+  }
 
   const minusZero = latin1(patchJson(baseText, 'Windows', j => j.replace(`"${R109}#0":{"plannedWorkMinutes":480}`, `"${R109}#0":{"plannedWorkMinutes":-0}`)));
   {
@@ -583,6 +637,107 @@ if (base) {
     const windows = prepared && jsonIn(prepared.bytes, 'OPS_Timephased', 'Windows', TASK_GUID);
     ok(`-0: een ander venster in dezelfde eigenschap gewijzigd: weigert, of het venster van #109 houdt -0 (${verdict.slice(0, 160)} ${windows ?? ''})`,
       verdict === 'schreef' ? windows?.includes(`"${R109}#0":{"plannedWorkMinutes":-0}`) === true : /Windows/.test(verdict));
+  }
+
+  {
+    const opened = await openForeign(base);
+    const domain = cloneDomain(opened);
+    const a = asgn(domain, opened, 110);
+    const task65 = domain.tasks.find(t => opened.ifcSource!.stepIds[`task:${t.id}`] === 65)!;
+    domain.assignments = [...domain.assignments, { ...a, id: 'asgn-op-65', taskId: task65.id }];
+    const grown = await save('omwisselen: bron met #110 op #63 en #65', domain, opened.ifcSource!);
+    if (grown) {
+      let swapText = text(grown.bytes);
+      for (const [guid, mark] of [[TASK_GUID, 'proef-63'], [TASK_65_GUID, 'proef-65']] as const) {
+        const json = jsonIn(grown.bytes, 'OPS_Timephased', 'Windows', guid)!;
+        const key = rawKeys(json).find(k => k.startsWith(`${R110}#`))!;
+        const step = (v: string) => v.replace(/'/g, "''");
+        swapText = swapText.replace(`IFCTEXT('${step(json)}')`, `IFCTEXT('${step(json.replace(`"${key}":{`, `"${key}":{"vendorOpaque":"${mark}",`))}')`);
+      }
+      for (const split of [true, false]) {
+        let extra = '';
+        const original = swapText;
+        if (split) swapText = swapText.replace(/^(#\d+)=IFCRELASSIGNSTOPROCESS\('([^']+)',(#\d+),\$,\$,\(([^)]*)\),\$,#(63|65),\$\);$/gm,
+          (line, id: string, guid: string, history: string, members: string, task: string) => {
+            const list = members.split(',');
+            if (!list.includes('#110') || list.length < 2) return line;
+            extra += `\n#300${task}=IFCRELASSIGNSTOPROCESS('${task === '63' ? '2zzzzzzzzzzzzzzzzzzzzz' : '2yyyyyyyyyyyyyyyyyyyyy'}',${history},$,$,(#110),$,#${task},$);`;
+            return `${id}=IFCRELASSIGNSTOPROCESS('${guid}',${history},$,$,(${list.filter(m => m !== '#110').join(',')}),$,#${task},$);`;
+          });
+        const swapBytes = latin1(swapText.replace(/\nENDSEC;\nEND-ISO-10303-21;/, `${extra}\nENDSEC;\nEND-ISO-10303-21;`));
+        swapText = original;
+        const label = split ? 'omwisselen met gesplitste relaties' : 'omwisselen';
+        const start = await openForeign(swapBytes);
+        const a63 = start.assignments.find(x => x.taskId === taskOf(start).id && x.resourceId === resOf(start, 110).id)!;
+        const t65 = start.tasks.find(t => start.ifcSource!.stepIds[`task:${t.id}`] === 65)!;
+        const b65 = start.assignments.find(x => x.taskId === t65.id && x.resourceId === a63.resourceId)!;
+        const third = start.tasks.find(t => t.id !== a63.taskId && t.id !== t65.id && !t.isMilestone && t.childIds.length === 0
+          && !start.assignments.some(x => x.taskId === t.id && x.resourceId === a63.resourceId))!;
+        ok(`${label}: de bron heeft beide markeringen en beide bindingen`, text(swapBytes).includes('proef-63') && text(swapBytes).includes('proef-65')
+          && (start.ifcSource?.jsonExtras ?? []).flatMap(e => e.windows ?? []).some(w => w.assignmentId === a63.id)
+          && (start.ifcSource?.jsonExtras ?? []).flatMap(e => e.windows ?? []).some(w => w.assignmentId === b65.id));
+        const swapped = await storeEdit(cloneDomain(start), st => {
+          if (!st.moveAssignment(a63.id, third.id)) throw new Error('omwisselen: stap 1');
+        }).then(d => storeEdit(d, st => { if (!st.moveAssignment(b65.id, a63.taskId)) throw new Error('omwisselen: stap 2'); }))
+          .then(d => storeEdit(d, st => { if (!st.moveAssignment(a63.id, t65.id)) throw new Error('omwisselen: stap 3'); }));
+        const verdict = await refusal(swapped, start.ifcSource!);
+        const out = verdict === 'schreef' ? await prepareIfcWrite(swapped, start.ifcSource!) : undefined;
+        const w63 = out && jsonIn(out.bytes, 'OPS_Timephased', 'Windows', TASK_GUID), w65 = out && jsonIn(out.bytes, 'OPS_Timephased', 'Windows', TASK_65_GUID);
+        const follows = w65?.includes('proef-63') === true && w63?.includes('proef-65') === true && !w63.includes('proef-63') && !w65.includes('proef-65');
+        ok(`${label} (ronde 2, blokkade 1): ${split ? 'elke markering volgt haar toewijzing, of het opslaan weigert zoals main bij elke wijziging' : 'elke markering volgt haar toewijzing'} (${verdict.slice(0, 160)} | ${w63} | ${w65})`,
+          split ? (verdict === 'schreef' ? follows : /^(niet-eenduidig|niet-gedragen|uitvoer-controle):/.test(verdict)) : follows);
+      }
+    }
+  }
+  {
+    const opened = await openForeign(base);
+    const t63 = taskOf(opened).id;
+    let costId = '';
+    const withCost = await storeEdit(cloneDomain(opened), st => {
+      const res = st.addResource({ name: 'Leges', type: 'COST', description: '', maxUnits: 1 } as never);
+      st.assignResource(t63, res, 1, undefined, 50);
+    });
+    const grown = await save('kosten: bron met een kostentoewijzing op #63', withCost, opened.ifcSource!);
+    if (grown) {
+      for (const vendor of [false, true]) {
+        const patched = latin1(patchJson(text(grown.bytes), 'Windows', j => {
+          const next = j.replace(`"${R109}#0":{"plannedWorkMinutes":480}`, `"${R109}#0":{"plannedWorkMinutes":480.0}`);
+          return vendor ? next.replace(`"${R110}#1":{`, `"${R110}#1":{"vendorW":"w",`) : next;
+        }));
+        const start = await openForeign(patched);
+        costId = start.assignments.find(x => x.taskId === taskOf(start).id && x.costAmount === 50)!.id;
+        const edited = await storeEdit(cloneDomain(start), st => st.setAssignmentCost(costId, 75));
+        const verdict = await refusal(edited, start.ifcSource!);
+        const out = verdict === 'schreef' ? await prepareIfcWrite(edited, start.ifcSource!) : undefined;
+        const windows = out && jsonIn(out.bytes, 'OPS_Timephased', 'Windows', TASK_GUID);
+        if (!vendor) {
+          ok(`kosten 50 → 75 naast 480.0, zonder vreemde sleutel (ronde 2, blokkade 2): weigert zoals main, of houdt 480.0 (${verdict.slice(0, 160)} ${windows ?? ''})`,
+            verdict === 'schreef' ? windows?.includes('"plannedWorkMinutes":480.0') === true : /^niet-gedragen: .*Windows/.test(verdict));
+        } else {
+          ok(`kosten 50 → 75 naast 480.0, met een vreemde sleutel in de kaart: schrijft 75 en houdt 480.0 en de sleutel (${verdict.slice(0, 160)} ${windows ?? ''})`,
+            windows !== undefined && windows.includes('"plannedWorkMinutes":480.0') && windows.includes('"costAmount":75') && windows.includes('"vendorW":"w"'));
+        }
+      }
+    }
+  }
+  {
+    const opened = await openForeign(base);
+    const t63 = taskOf(opened).id;
+    const noted = cloneDomain(opened);
+    noted.tasks = noted.tasks.map(t => t.id === t63 ? { ...t, notes: [{ id: 'n1', text: 'eerste', done: false }] } : t);
+    const grown = await save('notitie: bron met een notitie op #63', noted, opened.ifcSource!);
+    if (grown) {
+      const patched = latin1(patchJson(text(grown.bytes), 'Notes', j => j.replace('[{"id":"n1"', '[{"\\\\u0076endorFlag":true,"id":"n1"')));
+      ok('notitie: de proefbewerking zette de sleutel als escape vooraan', text(patched).includes('"\\\\u0076endorFlag"'));
+      const start = await openForeign(patched);
+      const edited = await storeEdit(cloneDomain(start), st => {
+        const id = taskOf(start).id;
+        st.updateTask(id, { notes: st.tasks.find(t => t.id === id)!.notes!.map(n => ({ ...n, done: true })) });
+      });
+      const out = await save('notitie afvinken met een vreemde sleutel als escape', edited, start.ifcSource!);
+      const notes = out && jsonIn(out.bytes, 'OPS_TaskNotes', 'Notes', TASK_GUID);
+      if (out) ok(`notitie afvinken (ronde 2, vervolg): het sleuteltoken en zijn plaats blijven (${notes})`, notes === '[{"\\u0076endorFlag":true,"id":"n1","text":"eerste","done":true}]');
+    }
   }
 
   const opaque = latin1(patchJson(baseText, 'structure', j => j.replace(/\}$/, ',"vendorOpaque":{"code":1,"code":2},"vendorText":"\\X2\\00E9\\X0\\"}')));

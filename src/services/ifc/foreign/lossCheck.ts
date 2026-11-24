@@ -105,7 +105,6 @@ import { PER_TASK_PSET_BY_NAME, PROP, PSET, asciiJson, ifcJson } from '../ifcPse
 import { WORK_CALENDAR_ARITY, WORK_CONTROL_ARITY, workCalendarSlots, workControlSlots } from '../ifcWorkControlSlots';
 import { lagValueSlot } from '../ifcLagTimeSlots';
 import { decodeStepText, stepTextIsValid } from '../stepText';
-import { sameJsonValue } from '../jsonTokens';
 import { hasOwnOrigin, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { durationForm, type DurationSlot } from './durationForms';
 import { parseIfcDuration } from '../isoDuration';
@@ -155,7 +154,7 @@ export interface LossDiff {
  * lezer alleen de datum leest). Een tekst die de lezer helemaal niet draagt (O0 leeg, zoals `Status 'ON HOLD'`), is een
  * `tekst`: wijzigt de planner dat veld, dan geldt zijn waarde.
  */
-export type SlotKind = 'enumeratie' | 'duur' | 'tekst' | 'samengesteld' | 'getal' | 'verwijzing' | 'lijst' | 'json' | 'json-gedragen' | 'leeg';
+export type SlotKind = 'enumeratie' | 'duur' | 'tekst' | 'samengesteld' | 'getal' | 'verwijzing' | 'lijst' | 'json' | 'leeg';
 /** Properties waarvan de waarde een lijst STEP-ids van de writer is (`ifcWriter.ts`, `writeCalendarGenerationMeta`). */
 const ID_LIST_PROPS: ReadonlySet<string> = new Set([PROP.Calendar.WorkingExceptionIds]);
 /** Is dit slot de waarde van zo'n property? */
@@ -240,6 +239,7 @@ export interface LossCheckInput {
    * pset meebewegen.
    */
   readonly secondFormsUnchanged?: ReadonlySet<string>;
+  readonly memberCarried?: ReadonlySet<number>;
 }
 
 /** Het domein zoals de lezer het uit de bron leest: dezelfde bytes, dezelfde opties en dezelfde ingang als de bytes-route
@@ -465,7 +465,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     const ctx = o1Context(input, p1b, changed, carried);
     const differences = compareOutput(input, p1b, input.owner1);
     for (const d of differences) {
-      if (ownGroupCarries(d.chunk) || (!lost.has(d.chunk) && following.some(f => f.follows(ctx, d)))) continue;
+      if (ownGroupCarries(d.chunk) || input.memberCarried?.has(d.chunk) || (!lost.has(d.chunk) && following.some(f => f.follows(ctx, d)))) continue;
       const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
       if (why === undefined) say(d, true); else input.explainedO1?.(d, why);
     }
@@ -473,7 +473,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     // Ook zonder slotverschil moet de volledige verwachte wijziging aanwezig zijn.
     const different = new Set(differences.map(d => d.chunk));
     for (const [chunk, scopes] of ctx.scopes) {
-      if (different.has(chunk) || scopes.size !== 1 || ownGroupCarries(chunk)) continue;
+      if (different.has(chunk) || scopes.size !== 1 || ownGroupCarries(chunk) || input.memberCarried?.has(chunk)) continue;
       const scope = [...scopes][0];
       const codes = index.type(chunk) === 'IFCPROPERTYSETTEMPLATE' && index.name(chunk) === PSET.ActivityCodes;
       if (!codes && (index.type(chunk) !== 'IFCPROPERTYSINGLEVALUE'
@@ -1196,13 +1196,12 @@ function slotKind(type: string, outArg: number, token: string, outToken: string,
   const read = innerText(outToken, x => decodeStepText(unquote(x)));
   const source = innerText(t, text);
   const part = composite || (read !== undefined && read !== '' && source !== undefined && source !== read && source.includes(read));
-  const json = (): SlotKind => source !== undefined && read !== undefined && sameJsonValue(source, read) ? 'json-gedragen' : 'json';
-  if (t.startsWith("'")) return DURATION_SLOTS[type]?.includes(outArg) ? 'duur' : isJson(t) ? json() : part ? 'samengesteld' : 'tekst';
+  if (t.startsWith("'")) return DURATION_SLOTS[type]?.includes(outArg) ? 'duur' : isJson(t) ? 'json' : part ? 'samengesteld' : 'tekst';
   const typed = /^([A-Za-z0-9_]+)\s*\(([\s\S]*)\)$/.exec(t);
   if (typed) {
     const inner = typed[2].trim();
     if (typed[1].toUpperCase() === 'IFCDURATION') return 'duur';
-    if (inner.startsWith("'")) return isJson(inner) ? json() : part ? 'samengesteld' : 'tekst';
+    if (inner.startsWith("'")) return isJson(inner) ? 'json' : part ? 'samengesteld' : 'tekst';
     return inner.startsWith('.') ? 'enumeratie' : 'getal';
   }
   return /^[+-]?\d/.test(t) ? 'getal' : 'enumeratie';

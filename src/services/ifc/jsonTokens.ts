@@ -103,7 +103,7 @@ function decimalKey(token: string): string {
   return `${m[1]}${digits}e${exponent}`;
 }
 
-function sameNode(a: string, x: JsonNode, b: string, y: JsonNode): boolean {
+export function sameNode(a: string, x: JsonNode, b: string, y: JsonNode): boolean {
   if (x.kind !== y.kind) return false;
   if (x.kind === 'string' && y.kind === 'string') return x.value === y.value;
   if (x.kind === 'number') return decimalKey(jsonSlice(a, x)) === decimalKey(jsonSlice(b, y));
