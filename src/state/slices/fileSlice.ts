@@ -2167,6 +2167,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           const now = target ? saveTargetRef(target) : null;
           if (!target || !now || !sameFileRef(now, own) || !sameDocumentContent(s, content)) return;
           target.knownTargetFingerprint = { sha256, byteLength: bytes.byteLength };
+          clearChangedOnDisk(s, documentId);
         });
       })();
     },

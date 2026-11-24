@@ -348,7 +348,10 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       }
       if (updates.featureFlags && ifcForeignContentEnabled(s.ui.featureFlags) && !ifcForeignContentEnabled(updates.featureFlags)) {
         s.knownTargetFingerprint = null;
-        for (const document of s.documents) if (document.payload) document.payload.knownTargetFingerprint = null;
+        for (const document of s.documents) {
+          if (document.payload) document.payload.knownTargetFingerprint = null;
+          delete document.changedOnDisk;
+        }
       }
       const helpWasOpen = s.ui.activeRibbonTab === 'file' && s.ui.backstageSection === 'help';
       Object.assign(s.ui, updates);

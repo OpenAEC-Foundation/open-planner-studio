@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, mkdtempSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
@@ -1537,6 +1537,28 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           eq('K8 (Sol, ronde 9): herladen houdt Automatisch opslaan op hetzelfde doel', [
             T().activeDocumentId === a, T().tasks.map(t => t.name), T().autoSaveToFile, marked(st, a),
           ], [true, ['Extern opgeslagen werk'], true, false]);
+        }
+
+        {
+          const { st, T, a } = await changedTab(false);
+          const before = marked(st, a);
+          saveAnswer = kantoor;
+          const exported = (await T().exportAs('ifc')).ok;
+          eq('K9 (#1168): een export over het eigen bestand ⇒ het tabblad kent de nieuwe versie en de strook is weg', [
+            before, exported, T().activeDocumentId === a, marked(st, a), shown(st), readFileSync(kantoor, 'utf8').includes('Extern opgeslagen werk'),
+          ], [true, true, true, false, false, false]);
+          await T().loadNewVersion(labels);
+          eq('K9 (#1168): na die export laadt de knop niets', [T().tasks.map(t => t.name), T().ui.reloadVersion], [['Fundering'], null]);
+        }
+
+        {
+          const { st, T, a } = await changedTab(false);
+          const before = marked(st, a);
+          T().setUI({ featureFlags: {} });
+          T().setUI({ featureFlags: { ifcForeignContent: true } });
+          eq('K10 (#1168): de flag uit en weer aan ⇒ het tabblad kent geen versie meer en de strook komt niet terug', [
+            before, T().activeDocumentId === a, T().knownTargetFingerprint, marked(st, a), shown(st),
+          ], [true, true, null, false, false]);
         }
 
         {
