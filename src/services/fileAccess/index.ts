@@ -259,6 +259,7 @@ export function saveNewBytesDialog(
 export interface PickedSaveTarget {
   path: string;
   current: Uint8Array | 'unreadable' | null;
+  olderThanPicker: boolean;
 }
 
 /** Desktop: de bestandskiezer van Opslaan als, zonder te schrijven; `null` = geannuleerd. De aanroeper kiest zelf
