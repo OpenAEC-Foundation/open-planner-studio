@@ -50,7 +50,7 @@ import {
   taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine,
 } from './lossCheck';
 import { elementLinksByTask, scanElementLinks } from './elementLinks';
-import { scanSourceSlots, writtenForeignOrigin } from './sourceSlots';
+import { foreignOriginAmong, scanSourceSlots } from './sourceSlots';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource, PreparedIfcWrite, UnusedKeysOfTask } from './ifcSource';
@@ -887,7 +887,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       if (id >= 0) classes[k] = written.has(id) ? 1 : cls.classes[index.chunkOf(String(id))];
     }
     const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c)));
-    const next = await writtenSource(input, actual.bytes, actual.index, actual.scan, stepIds, classes, members, actual.unusedKeys);
+    const next = await writtenSource(input, actual.bytes, actual.index, actual.scan, stepIds, classes, members, actual.unusedKeys,
+      candidate.map(line => actual.index.chunkOf(String(line.id))));
     // Alleen de nieuwe buffer blijft via het resultaat vastgehouden; de oude bron kan na commit weg.
     return { bytes: actual.bytes, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds };
   }
@@ -927,7 +928,7 @@ function writerStepIds(input: WriteIFCInput, idMap: ReadonlyMap<string, number>,
 /** De scanner levert grenzen; eigendom, leden en sessie-identiteit komen van het schrijfplan. */
 async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, index: StepIndex, scan: ForeignScanResult,
   stepIds: Readonly<Record<string, number>>, classes: Uint8Array, foreignMembers: readonly number[],
-  unusedKeys?: readonly UnusedKeysOfTask[]): Promise<IfcSource> {
+  unusedKeys?: readonly UnusedKeysOfTask[], writtenChunks: readonly number[] = []): Promise<IfcSource> {
   const schemaName = readFileSchemaName(new TextDecoder().decode(bytes.subarray(0, scan.chunkStarts[1])));
   if (!schemaName) throw new Error('mergeWriter: de geschreven kop mist het schema');
   const foreignObjectCount = classes.reduce((count, c) => count + (c > 1 ? 1 : 0), 0);
@@ -936,7 +937,7 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, index: Ste
     chunkStarts: scan.chunkStarts, chunkIds: scan.chunkIds, classes, stepIds, foreignMembers,
     elementLinks: elementLinksByTask(scanElementLinks(index), stepIds),
     ...(unusedKeys && foreignObjectCount > 0 ? { unusedKeys } : {}),
-    ...(foreignObjectCount > 0 ? { sourceSlots: scanSourceSlots(index, writtenForeignOrigin(index, classes)) } : {}),
+    ...(foreignObjectCount > 0 ? { sourceSlots: scanSourceSlots(index, foreignOriginAmong(index, writtenChunks)) } : {}),
     foreign: foreignObjectCount > 0, foreignObjectCount, buildingModel: scan.buildingModel, lineEnding: scan.lineEnding, opened: input,
   };
 }

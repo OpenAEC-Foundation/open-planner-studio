@@ -8,7 +8,7 @@ import { foreignScanFrom, scanForeign, scanForeignToOpen } from '@/services/ifc/
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
-import { isSourceSlots, scanSourceSlots, writtenForeignOrigin, type SourcePieceSlots, type SourceSlots } from '@/services/ifc/foreign/sourceSlots';
+import { foreignOriginAmong, isSourceSlots, scanSourceSlots, type SourcePieceSlots, type SourceSlots } from '@/services/ifc/foreign/sourceSlots';
 import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import { slotTableOf } from '@/services/ifc/ifcSlotTables';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -18,6 +18,8 @@ import type { IfcSaveJob } from '@/state/prepareIfcOutput';
 import { recoveryInputFromParsed } from '@/state/documentContract';
 import { recoveryDocumentWithSource } from '@/state/readRecoveryDocument';
 import { fakeScanWorker, fakeScanWorkerStats } from './fakeScanWorker';
+import { createForeignScanHandler, type ForeignScanWorkerRequest, type ForeignScanWorkerResponse } from '@/services/ifc/foreign/foreignScanHandler';
+import type { ForeignScanWorker } from '@/services/ifc/foreign/foreignScanRunner';
 import { cloneDomain, openForeign } from './ifcMergeKern';
 import { lengthen, lengthenedTask, loadStore, openInStore, recalculated } from './ifcAppRoute';
 import { installDeterminism } from './ifcPariteitKern';
@@ -123,7 +125,9 @@ await check('elk corpusbestand met een vreemd deel: precies de D- en R-stukken v
     foreignFiles++;
     const index = scanForeignStep(bytes);
     assert.deepEqual(source.sourceSlots, expectedSlots(index), `${file}: sourceSlots`);
-    assert.deepEqual(scanSourceSlots(index, writtenForeignOrigin(index, classify(index).classes)), source.sourceSlots,
+    const classes = classify(index).classes;
+    const pChunks = Array.from({ length: index.count }, (_, c) => c).filter(c => classes[c] === 1);
+    assert.deepEqual(scanSourceSlots(index, foreignOriginAmong(index, pChunks)), source.sourceSlots,
       `${file}: dezelfde stukken als de writer na opslaan zou aanwijzen`);
     if (source.sourceSlots!.size > 0) withSlots++;
   }
@@ -202,6 +206,50 @@ await check('de scanworker: sourceSlots komen gekloond en gelijk terug, een kapo
   assert.equal(isSourceSlots(new Map([[first[0], { ...first[1], owned: { ...first[1], owned: first[1] } }]])), false, 'twee lagen eigendom');
 });
 
+function editingScanWorker(edit: (outcome: Record<string, unknown>) => void, seen: { edited: number }): ForeignScanWorker {
+  const worker = { onmessage: null, onerror: null, onmessageerror: null, terminate: () => {} } as unknown as ForeignScanWorker;
+  const handle = createForeignScanHandler((response, transfer) => {
+    const data = structuredClone(response, { transfer }) as ForeignScanWorkerResponse;
+    if ('outcome' in data && data.outcome.ok) { edit(data.outcome as unknown as Record<string, unknown>); seen.edited++; }
+    setTimeout(() => (worker.onmessage as unknown as ((e: { data: unknown }) => void) | null)?.({ data }), 0);
+  });
+  (worker as { postMessage: (request: ForeignScanWorkerRequest) => void }).postMessage = request => {
+    const copy = structuredClone(request);
+    setTimeout(() => handle(copy), 0);
+  };
+  return worker;
+}
+
+await check('de scanworker: een vreemde bron zonder kaart, of een kaart zonder vreemd deel, is een transportfout', async () => {
+  const here = await readIfcBytesDetailed(bytesOf(BONSAI), {}, { createWorker: () => null });
+  const stripped = { edited: 0 };
+  const withoutMap = await readIfcBytesDetailed(bytesOf(BONSAI), {}, {
+    createWorker: () => editingScanWorker(outcome => { delete outcome.sourceSlots; }, stripped),
+  });
+  assert.equal(stripped.edited, 1, 'de Worker antwoordde zonder kaart');
+  assert.deepEqual(withoutMap.result.ifcSource!.sourceSlots, here.result.ifcSource!.sourceSlots, 'de terugval op deze thread vulde de kaart');
+  const added = { edited: 0 };
+  const plain = await readIfcBytesDetailed(bytesOf(PLAIN), {}, {
+    createWorker: () => editingScanWorker(outcome => { outcome.sourceSlots = new Map(); }, added),
+  });
+  assert.equal(added.edited, 1, 'de Worker antwoordde met een kaart bij een eigen bestand');
+  assert.equal('sourceSlots' in plain.result.ifcSource!, false, 'de terugval: geen kaart zonder vreemd deel');
+});
+
+await check('owned volgt de verwijzing zoals de lezer haar leest: direct, met het id zoals het er staat', async () => {
+  const longer = BONSAI.replace("#110=IFCTASKTIME($,$,$,$,'P5D',", "#110=IFCTASKTIME($,$,$,$,'P17D',");
+  assert.notEqual(longer, BONSAI);
+  for (const [vorm, token, read] of [['direct', '#110', true], ['als lijst', '(#110)', false], ['met een voorloopnul', '#0110', false]] as const) {
+    const src = longer.replace(",'1.2',$,$,$,.F.,$,#110,.NOTDEFINED.);", `,'1.2',$,$,$,.F.,$,${token},.NOTDEFINED.);`);
+    assert(token === '#110' || src !== longer, `${vorm}: de bron is aangepast`);
+    const opened = await readIfcBytesDetailed(bytesOf(src), {}, { createWorker: () => null });
+    const task = opened.result.tasks.find(t => t.name === 'Wand B bouwen');
+    assert.equal(task?.time.scheduleDuration === 17, read, `${vorm}: de lezer leest de taaktijd ${read ? 'wel' : 'niet'}`);
+    const owned = pieceAt(slotsOf(opened.result.ifcSource), 108).owned;
+    assert.equal(owned?.slots.get('scheduleDuration'), read ? "'P17D'" : undefined, `${vorm}: owned volgt de lezer`);
+  }
+});
+
 await check('de opslagworker: de bron reist met haar sourceSlots heen en terug (resultFits, outputFromResult)', async () => {
   const opened = await openForeign(bytesOf(BONSAI));
   const unchangedJob = structuredClone<IfcSaveJob>({ kind: 'merge', input: { ...cloneDomain(opened), writeMode: 'merge' }, source: opened.ifcSource! });
@@ -227,6 +275,16 @@ await check('de opslagworker: de bron reist met haar sourceSlots heen en terug (
   assert.deepEqual(outputFromResult(job, structuredClone(withSlots)).prepared?.source.sourceSlots, opened.ifcSource!.sourceSlots);
   const asObject = { ...result, prepared: { ...result.prepared, source: { ...result.prepared.source, sourceSlots: Object.fromEntries(opened.ifcSource!.sourceSlots!) } } };
   assert.equal(resultFits(job, asObject), false, 'sourceSlots als gewoon object: het antwoord past niet');
+  const { sourceSlots: _dropped, ...withoutMap } = result.prepared.source;
+  assert.equal(result.prepared.source.foreign, true, 'de nieuwe bron heeft een vreemd deel');
+  assert.equal(resultFits(job, { ...result, prepared: { ...result.prepared, source: withoutMap } }), false,
+    'een vreemde bron zonder kaart: het antwoord past niet');
+  assert.equal(resultFits(job, { ...result, prepared: { ...result.prepared, source: { ...result.prepared.source, sourceSlots: new Map() } } }), true,
+    'een lege kaart is geldig');
+  assert.equal(resultFits(job, { ...result, prepared: { ...result.prepared, source: { ...withoutMap, foreign: false } } }), true,
+    'een bron zonder vreemd deel zonder kaart past');
+  assert.equal(resultFits(job, { ...result, prepared: { ...result.prepared, source: { ...result.prepared.source, foreign: false } } }), false,
+    'een bron zonder vreemd deel met een kaart past niet');
 });
 
 await check('de bron na opslaan komt van de writer en is gelijk aan heropenen', async () => {

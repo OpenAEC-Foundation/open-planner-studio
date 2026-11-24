@@ -102,7 +102,7 @@ export function resultFits(job: IfcSaveJob, result: unknown): result is IfcSaveR
     && source.bytes === bytes && source.sha256 === sha256 && typeof source.schemaName === 'string'
     && source.chunkStarts instanceof Uint32Array && source.chunkIds instanceof Int32Array && source.classes instanceof Uint8Array
     && isRecord(source.stepIds) && Array.isArray(source.foreignMembers) && isElementLinkMap(source.elementLinks)
-    && (source.sourceSlots === undefined || isSourceSlots(source.sourceSlots))
+    && (source.foreign === true ? isSourceSlots(source.sourceSlots) : source.sourceSlots === undefined)
     && typeof source.foreign === 'boolean'
     && typeof source.foreignObjectCount === 'number' && typeof source.buildingModel === 'boolean'
     && (source.lineEnding === '\n' || source.lineEnding === '\r\n') && (source.opened === undefined || isRecord(source.opened));

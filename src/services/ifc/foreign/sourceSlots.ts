@@ -16,29 +16,30 @@ const OWNED_BY_TABLE: ReadonlyMap<string, { readonly slot: string; readonly tabl
   ['IfcRelSequence', { slot: 'timeLag', table: 'IfcLagTime' }],
 ]);
 
-interface ReadPiece {
-  readonly piece: SourcePieceSlots;
-  readonly positions: readonly string[];
-}
-
-function readPiece(index: StepIndex, chunk: number): ReadPiece | undefined {
+function pieceAt(index: StepIndex, chunk: number): SourcePieceSlots | undefined {
   if (chunk < 0 || !index.isEntity(chunk) || index.literalText(chunk)) return undefined;
   const args = index.argTokens(chunk);
   if (!args) return undefined;
   const entity = index.type(chunk);
   const table = slotTableOf(entity, args);
   if (!table || !inSchemaLayout(table, args)) return undefined;
-  const positions = table.slots.map(slot => slot.key);
-  return { piece: { entity, table: table.naam, slots: new Map(positions.map((key, k) => [key, args[k]])) }, positions };
+  const slots = new Map<string, string>();
+  table.slots.forEach((slot, k) => { slots.set(slot.key, args[k]); });
+  return { entity, table: table.naam, slots };
+}
+
+function directReference(index: StepIndex, token: string | undefined): number {
+  const id = /^#(\w+)$/.exec((token ?? '').trim())?.[1];
+  const chunk = id === undefined ? -1 : index.chunkOf(id);
+  return chunk >= 0 && index.id(chunk) === id ? chunk : -1;
 }
 
 function slotsOf(index: StepIndex, chunk: number): SourcePieceSlots | undefined {
-  const read = readPiece(index, chunk);
-  if (!read) return undefined;
-  const owner = OWNED_BY_TABLE.get(read.piece.table);
-  if (!owner) return read.piece;
-  const owned = readPiece(index, index.refAt(chunk, read.positions.indexOf(owner.slot)))?.piece;
-  return owned?.table === owner.table ? { ...read.piece, owned } : read.piece;
+  const piece = pieceAt(index, chunk);
+  const owner = piece && OWNED_BY_TABLE.get(piece.table);
+  if (!piece || !owner) return piece;
+  const owned = pieceAt(index, directReference(index, piece.slots.get(owner.slot)));
+  return owned?.table === owner.table ? { ...piece, owned } : piece;
 }
 
 export function scanSourceSlots(index: StepIndex, pieces: Iterable<number>): Map<number, SourcePieceSlots> {
@@ -50,22 +51,24 @@ export function scanSourceSlots(index: StepIndex, pieces: Iterable<number>): Map
   return out;
 }
 
-export function* writtenForeignOrigin(index: StepIndex, written: Uint8Array): Generator<number> {
-  for (let chunk = 0; chunk < index.count; chunk++) {
-    if (written[chunk] === 1 && index.isEntity(chunk) && slotTablesHaveOwnerHistory(index.type(chunk))
-      && !hasOwnOrigin(index, chunk)) yield chunk;
+export function* foreignOriginAmong(index: StepIndex, written: Iterable<number>): Generator<number> {
+  for (const chunk of written) {
+    if (chunk >= 0 && index.isEntity(chunk) && slotTablesHaveOwnerHistory(index.type(chunk)) && !hasOwnOrigin(index, chunk)) yield chunk;
   }
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 function isPieceSlots(value: unknown, mayOwn: boolean): boolean {
-  return isRecord(value) && typeof value.entity === 'string' && typeof value.table === 'string'
-    && value.slots instanceof Map && [...value.slots].every(([key, token]) => typeof key === 'string' && typeof token === 'string')
-    && (value.owned === undefined || (mayOwn && isPieceSlots(value.owned, false)));
+  if (!isRecord(value) || typeof value.entity !== 'string' || typeof value.table !== 'string' || !(value.slots instanceof Map)) return false;
+  for (const [key, token] of value.slots) if (typeof key !== 'string' || typeof token !== 'string') return false;
+  return value.owned === undefined || (mayOwn && isPieceSlots(value.owned, false));
 }
 
 export function isSourceSlots(value: unknown): value is SourceSlots {
-  return value instanceof Map
-    && [...value].every(([stepId, piece]) => Number.isSafeInteger(stepId) && stepId > 0 && isPieceSlots(piece, true));
+  if (!(value instanceof Map)) return false;
+  for (const [stepId, piece] of value) {
+    if (!Number.isSafeInteger(stepId) || stepId <= 0 || !isPieceSlots(piece, true)) return false;
+  }
+  return true;
 }
