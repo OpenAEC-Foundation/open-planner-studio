@@ -368,6 +368,8 @@ tellen niet mee. Mogelijke entiteitsbeginnen, commentaar en quote/veldgrenzen (o
 main-route en worden niet gemaskeerd of overgeslagen. De stroom houdt alleen de nog onbesliste kop vast. Alle andere bestanden houden de sectiezoekregel van main (1061). De aparte, ruimere
 herkenning in `targetModelScan.ts` is weg; een kapotte huidige kop is geen oude kop en weigert als doel. Een geldig
 bestand volgt de gewone grammatica. IFC schrijven met een vreemd deel gebruikt uitsluitend de voorbereide document- en volledige exportroutes; bestaande lokale doelen blijven geblokkeerd.
+Een UTF-8-BOM op byte 0 slaat de scanner (`stepScanner.ts`) over: hij hoort bij het kopstuk, dat de merge byte-gelijk
+terugschrijft (fixronde 1 van #1184). Elders buiten tekst blijft een BOM een scanfout.
 Proeven: `check-ifc-foreign-classify.ts`, `-open.ts`, `-target.ts`, `check-ifc-target-model-scan.ts` en de herleestoets.
 
 ### Opslaan als bij ontbrekend gebouwmodel (#804, PR 9e)
