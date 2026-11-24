@@ -1137,7 +1137,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     try {
       for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
       const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
-      refuseModelAboveOpenLimit(parsed);
       return { name: opened.name, content: opened.content, parsed, siteFileVersion };
     } catch (err) {
       console.error('Failed to open file:', err);
