@@ -3783,14 +3783,17 @@ en noem het in je rapport of PR-tekst.
      het schrijven: hetzelfde gat als hier beschreven, niet groter. —
      S (code gelezen, niet nagespeeld)
 
-2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): de eerste opslag na openen en een opslag zonder
-     bekende versie lezen het eigen bestand nog drie keer.** Sinds PR #1194 vervalt de doelscan als op het eigen pad of
+2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): de eerste opslag na openen leest het eigen bestand
+     nog drie keer, een opslag zonder bekende versie twee keer.** Sinds PR #1194 vervalt de doelscan als op het eigen pad of
      de eigen handle de versie staat die het tabblad zelf schreef (`origin: 'written'`, `writtenKnownTarget` in
      `src/state/knownTargetGuard.ts`): dan blijven de broncontrole en één lezing met de vergelijking, als laatste stap
      vóór het schrijven. De eerste opslag na openen (`origin: 'opened'`) en een tabblad dat zijn versie niet kent (`null`:
      na crashherstel, een mislukte schrijfactie, laden in hetzelfde tabblad) houden bewust de volgorde van main: de
-     doelscan als stroom (modelscan en indeling) en daarna de toets. De scanner van openen neemt meer aan dan de doelscan
-     (twee datasecties, proef 2203 C in `check-bewaakte-opslag.ts`), en de toets moet de laatste lezing blijven (review
+     doelscan als stroom (modelscan en indeling) en, alleen met een bekende versie, daarna de toets: drie lezingen na
+     openen, twee zonder bekende versie. "Eén lezing" bij een zelf geschreven versie geldt voor de vergelijking van het
+     eigen doel; een bronkenmerk zonder browserhandle (uit herstel) kan in de broncontrole zelf nog een lezing vragen.
+     De scanner van openen neemt meer aan dan de doelscan (twee datasecties, proef 2203 C in `check-bewaakte-opslag.ts`),
+     en de toets moet de laatste lezing blijven (review
      Sol, ronde 1 van #1194). Ook een zelf geschreven versie die niet meer op het doel staat, krijgt die route van main.
      Gemeten in Node 24 op aia09-mp50: zie de PR voor de getallen per opslag. In de app (Tauri-IPC, WebKit, `getFile()`,
      een netwerkschijf, de Worker) niet gemeten. Richting: de scan bij openen in de achtergrond op `ifcSource.bytes`

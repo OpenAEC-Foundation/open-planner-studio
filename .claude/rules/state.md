@@ -118,8 +118,10 @@ telt een weigering alleen als `guardedKnownTarget` nog dezelfde versie geeft (de
 onleesbaar: niet schrijven, de melding van een gebouwmodel (`ownTargetContentNotice`; Automatisch opslaan
 `MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE` en `stopFor` met die versie). De toets is de laatste inhoudstoets vóór het
 schrijven, ná de broncontrole en ná elke doelscan (fixronde 1 van #1194).
-**Een zelf geschreven versie** (`origin: 'written'`, `writtenKnownTarget`; knownbug 2203): dan laat de doelcontrole alleen
-de doelscan weg (`scanLeftToKnownTarget`); de broncontrole (regel 1) loopt wel. Regel 3 geldt voor deze twee routes niet,
+**Een zelf geschreven versie** (`origin: 'written'`, `writtenKnownTarget`; knownbug 2203): eigen schrijfuitvoer die op het
+doel staat, ook als een export haar op een andere naam schreef en het doel bytegelijk is (`settleFingerprintAfterExport`
+vergelijkt de inhoud, geen pad). Dan laat de doelcontrole alleen de doelscan weg (`refusedTargetIdentity` met
+`contentLeftToKnownTarget`, de splitsing van #1179); de broncontrole (regel 1) loopt wel. Regel 3 geldt voor deze twee routes niet,
 ook niet op main. Op de plek van de toets volgt één lezing met de vergelijking (`stillWrittenKnownTarget`). Gelijk:
 schrijven. Anders de route van main: de doelcontrole met haar stroomscan, daarna `changedKnownTarget`, met dezelfde
 meldingen en dezelfde stop; een verschil uit de eerste lezing telt niet mee. Dat de scan mag vervallen: op het doel
