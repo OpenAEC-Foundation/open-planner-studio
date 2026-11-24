@@ -8,6 +8,7 @@ import {
   dragCarriesFiles, droppedFilesFromDataTransfer, droppedFilesFromPaths, type DroppedFile,
 } from '@/services/fileAccess/fileDrop';
 import { tauriOpenIO } from '@/services/fileAccess/tauriOpenPath';
+import type { FormatReadOptions } from '@/services/formatRegistry';
 import { openDroppedFiles } from '@/state/fileDrop';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
@@ -22,9 +23,9 @@ export const FILE_DRAG_IDLE_MS = 1500;
 /** Dezelfde poort als Ctrl+O (`useKeyboardShortcuts`): geen documentwissel zolang een dialoog of
  *  vraag openstaat (ook de site-, schema-, start- en samenvattingsvraag, zie `blockingDialogs.ts`) of
  *  Backstage → Projectinfo een niet-toegepaste draft bewaakt. */
-function openDropped(files: DroppedFile[]): void {
+function openDropped(files: DroppedFile[], readOptions: FormatReadOptions): void {
   void openDroppedFiles(
-    useAppStore, files, buildImportLabels((key) => i18n.t(key, { ns: 'common' })), isDocumentLeaveBlocked,
+    useAppStore, files, buildImportLabels((key) => i18n.t(key, { ns: 'common' })), isDocumentLeaveBlocked, { readOptions },
   );
 }
 
@@ -59,7 +60,8 @@ export function useFileDrop(): boolean {
             setActive(false);
           } else if (payload.type === 'drop') {
             setActive(false);
-            openDropped(droppedFilesFromPaths(payload.paths, io, dropReadOptions()));
+            const readOptions = dropReadOptions();
+            openDropped(droppedFilesFromPaths(payload.paths, io, readOptions), readOptions);
           }
         });
         if (disposed) stop();
@@ -108,7 +110,8 @@ export function useFileDrop(): boolean {
       event.preventDefault();
       hide();
       // Synchroon: na dit event zijn de bestanden en de handles niet meer te vragen.
-      openDropped(droppedFilesFromDataTransfer(event.dataTransfer, dropReadOptions()));
+      const readOptions = dropReadOptions();
+      openDropped(droppedFilesFromDataTransfer(event.dataTransfer, readOptions), readOptions);
     };
     window.addEventListener('dragenter', onDragEnter);
     window.addEventListener('dragover', onDragOver);

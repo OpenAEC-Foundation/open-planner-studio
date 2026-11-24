@@ -1087,6 +1087,102 @@ test('import_schedule: niet-pristine tabblad ⇒ NIEUW document + drift-anker ve
   assertEq(ctx.expectedDocId, data.documentId, 'het drift-anker verzet mee (anders zet de import zichzelf klem)');
 });
 
+test('import_schedule (#804, knownbug 1957): een pad dat al open is ⇒ met de flag het bestaande document, met de flag uit een nieuw', async () => {
+  const fs = installFakeFs();
+  resetToSingleEmptyDocument();
+  loadSmallProject('Kantoor');
+  const path = `${HOME}/kantoor.ifc`;
+  const link = `${HOME}/link-naar-kantoor.ifc`;
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
+  files.set(path, ifc);
+  files.set(link, ifc);
+  aliases.set(link, path);
+  try {
+    useAppStore.setState((s) => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    S().newDocument();
+    const ctx = makeCtx({ expectedDocId: S().activeDocumentId });
+    const first = await callOk('planner_import_schedule', { path }, ctx);
+    const kantoorId = first.documentId as string;
+    assertEq(first.alreadyOpen, undefined, 'de eerste import is gewoon een import');
+    assertEq(S().knownTargetFingerprint, null, 'buiten de desktopapp is een pad geen opslagdoel: het tabblad kent zijn versie niet');
+    const known = { sha256: S().ifcSource!.sha256, byteLength: S().ifcSource!.bytes.byteLength };
+    useAppStore.setState((st) => { st.knownTargetFingerprint = known; });
+    S().addTask({ name: 'Onopgeslagen werk' });
+    const work = { tasks: S().tasks.map(t => t.name), isDirty: S().isDirty };
+    const masterId = S().newDocument();
+    loadSmallProject('Ander project');
+    const docsBefore = S().documents.length;
+    const history = [S().historyEvents, S().nextHistorySequence];
+    {
+      const label = 'hetzelfde pad';
+      S().switchDocument(masterId);
+      const ctx2 = makeCtx({ expectedDocId: masterId });
+      const again = await callOk('planner_import_schedule', { path }, ctx2);
+      assertEq(S().documents.length, docsBefore, `${label}: geen nieuw document`);
+      assertEq([S().activeDocumentId, again.documentId], [kantoorId, kantoorId], `${label}: het open document is actief en teruggegeven`);
+      assertEq([again.alreadyOpen, again.documentsOpened, again.reusedActiveTab], [true, 0, false], `${label}: alreadyOpen, niets geopend`);
+      assertEq(again.documents?.map((d: { documentId: string }) => d.documentId), [kantoorId], `${label}: de inventaris noemt het open document`);
+      assert(typeof again.notice === 'string' && again.notice.includes('already open') && again.notice.includes('unsaved changes'),
+        `${label}: een korte Engelse tekst voor de AI`);
+      assertEq({ tasks: S().tasks.map(t => t.name), isDirty: S().isDirty }, work, `${label}: het document houdt zijn werk`);
+      assert(S().historyEvents === history[0] && S().nextHistorySequence === history[1], `${label}: ongedaan maken onveranderd`);
+      assertEq(ctx2.expectedDocId, kantoorId, `${label}: het drift-anker wijst naar het open document`);
+      assertEq([again.changedOnDisk, S().documents.some(d => d.changedOnDisk)], [undefined, false],
+        `${label}: dezelfde versie, geen melding`);
+    }
+
+    const stat = fs.stat;
+    let stats = 0;
+    fs.stat = async (p) => { stats++; return stat(p); };
+    S().switchDocument(masterId);
+    const viaLink = await callOk('planner_import_schedule', { path: link }, makeCtx({ expectedDocId: masterId }));
+    assertEq([S().documents.length, stats, 'alreadyOpen' in viaLink], [docsBefore + 1, 0, false],
+      'een link: een eigen document, geen stat, geen alreadyOpen');
+    assertEq(S().getOpenDocumentPayloads().find(d => d.id === kantoorId)?.payload.filePath, path, 'een link: Kantoor onaangeroerd');
+    S().closeDocument(viaLink.documentId as string);
+    fs.stat = stat;
+
+    const elsewhere = `${HOME}/kantoor-nieuwe-naam.ifc`;
+    const readFile = fs.readFile;
+    fs.readFile = async (p) => {
+      fs.readFile = readFile;
+      S().switchDocument(kantoorId);
+      useAppStore.setState((st) => { st.filePath = elsewhere; });
+      S().switchDocument(masterId);
+      return readFile(p);
+    };
+    S().switchDocument(masterId);
+    const moved = await callOk('planner_import_schedule', { path }, makeCtx({ expectedDocId: masterId }));
+    assertEq(S().documents.length, docsBefore + 1, 'ander bestand tijdens het lezen: een nieuw document');
+    assert(moved.documentId !== kantoorId && !('alreadyOpen' in moved), 'een ander document, zonder alreadyOpen');
+    assertEq([S().filePath, S().tasks.some(t => t.name === 'Onopgeslagen werk')], [path, false], 'de inhoud van het gevraagde bestand');
+    assertEq(S().getOpenDocumentPayloads().find(d => d.id === kantoorId)?.payload.filePath, elsewhere, 'het oude tabblad houdt zijn nieuwe naam');
+    S().closeDocument(moved.documentId as string);
+
+    S().switchDocument(masterId);
+    fs.readFile = async (p) => {
+      fs.readFile = readFile;
+      useAppStore.setState((st) => { st.filePath = path; st.knownTargetFingerprint = known; });
+      return readFile(p);
+    };
+    const saved = await callOk('planner_import_schedule', { path }, makeCtx({ expectedDocId: masterId }));
+    assertEq([S().documents.length, saved.documentId, saved.alreadyOpen], [docsBefore, masterId, true],
+      'Opslaan als tijdens het lezen: het tabblad dat nu op het pad staat, geen tweede');
+    assertEq(S().getOpenDocumentPayloads().filter(d => d.payload.filePath === path).length, 1, 'één tabblad op het pad');
+    useAppStore.setState((st) => { st.filePath = null; });
+
+    useAppStore.setState((s) => { s.ui.featureFlags = {}; });
+    S().switchDocument(masterId);
+    const off = await callOk('planner_import_schedule', { path }, makeCtx({ expectedDocId: masterId }));
+    assertEq(S().documents.length, docsBefore + 1, 'flag uit: een nieuw document');
+    assertEq(S().filePath, path, 'flag uit: het gevraagde pad');
+    assert(off.documentId !== kantoorId && !('alreadyOpen' in off), 'flag uit: een ander document, zonder alreadyOpen');
+    assertEq(S().tasks.some(t => t.name === 'Onopgeslagen werk'), false, 'flag uit: de inhoud van het bestand');
+  } finally {
+    useAppStore.setState((s) => { s.ui.featureFlags = {}; });
+  }
+});
+
 test('import_schedule: IFC neemt het bronpad over als opslagdoel, CSV NIET (Ctrl+S mag de bron niet overschrijven)', async () => {
   installFakeFs();
   resetToSingleEmptyDocument();
