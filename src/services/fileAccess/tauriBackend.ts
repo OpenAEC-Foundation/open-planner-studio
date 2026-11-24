@@ -121,6 +121,10 @@ export class ReadAfterSettleError extends Error {
  * `sourceTargetContent`), dus de schrijfrij wacht nooit op zichzelf. */
 export async function readOpenedTauriPath(path: string, asBytes: boolean, io: TauriOpenIO): Promise<OpenedFile> {
   await whenProjectFileWritesIdle();
+  return readOpenedTauriPathInWriteTurn(path, asBytes, io);
+}
+
+export async function readOpenedTauriPathInWriteTurn(path: string, asBytes: boolean, io: TauriOpenIO): Promise<OpenedFile> {
   const remnants = await io.settle(path);
   const replaceRemnants = remnants.length > 0 ? { replaceRemnants: remnants } : {};
   try {
