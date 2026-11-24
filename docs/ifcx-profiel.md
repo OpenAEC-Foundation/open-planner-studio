@@ -346,6 +346,15 @@ vóór de gedeelde. Zo wijst de melding naar wat het bestand zelf zegt, en niet 
 `remainingMinutes` naast een restduur in dagen laat STEP bijvoorbeeld de hele kalender letterlijk schrijven, maar de
 melding noemt `time.remainingMinutes` van de taak.
 
+**Eerst één snelle doorgang.** Vóór die drie rondes kijkt de lezer in één doorgang of het bestand precies het eigen
+bestand is (`sameFile` in `ifcxReader.ts`): de vier kopvelden, en de schema's en de data als JSON, met dezelfde
+sleutels, even lange lijsten en elke waarde gelijk (`===`). Pas als die doorgang een verschil ziet, volgen de
+waardetoets van de schrijver op de attributen en de drie rondes. De doorgang vergelijkt dezelfde paren als de rondes en
+is strenger, dus ziet zij geen verschil, dan vinden de rondes er ook geen. Is het bestand precies het eigen bestand, dan
+geeft de waardetoets van de schrijver op elke waarde dezelfde uitkomst als de waardetoets van de lezer op het bestand,
+en die slaagde al. De kop toetst de schrijver altijd. Oordeel en melding zijn daardoor dezelfde als zonder snelle
+doorgang: voor de 48 bestanden en 2089 mutaties van de kernproef byte voor byte vastgelegd tegen de head ervóór.
+
 **Waarom via de laadgrens.** De STEP-rondgang op haar eigen uitkomst is niet altijd een vast punt: de D7-mijlpaal
 verliest `AtDayEnd` en een oude planning krijgt een `TimeModel`, omdat de STEP-writer de planning na de laadgrens
 verwacht. Met de route van de app (openen, dan opslaan) is ze dat wel, voor alle voorbeelden en gevallen van de
