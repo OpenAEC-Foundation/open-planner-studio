@@ -11,7 +11,7 @@ import { generateId } from '@/utils/id';
 import { parseInstant, parseDate, localTodayIso } from '@/utils/dateUtils';
 import { normalizeImportedProgress, deriveImportedWorkRules, rebuildImportedHierarchy, reconstructResourceIds } from '@/services/importNormalize';
 import { emptyMissingScheduleDates, isoDatePrefixOrToday, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
-import { childElementNames, childElements, descendantText, directChildText, startsWithNames, toInt, toFloat } from '@/services/xmlDom';
+import { childElementNames, childElements, directChildText, startsWithNames, toInt, toFloat } from '@/services/xmlDom';
 import { hasMsProjectImportLoss, type ImportResult } from '@/services/importTypes';
 import { scanMspdiImportLoss } from '@/services/msproject/mspdiImportLoss';
 import type { CustomTaskTypeDraft } from '@/types/taskType';
@@ -143,7 +143,7 @@ function taskDurationUnit(te: Element, opsMarkerFieldId: string | null): 'days' 
 const MAX_MSPDI_CALENDARS = 1_024;
 
 function getElementText(parent: Element, tagName: string): string {
-  return descendantText(parent, tagName);
+  return directChildText(parent, tagName);
 }
 
 function isXmlTrue(text: string): boolean {

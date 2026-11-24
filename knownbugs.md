@@ -3902,15 +3902,6 @@ en noem het in je rapport of PR-tekst.
       werk van een toewijzing. Of een schrijver met `P2D` twee werkdagen of 48 uur bedoelt, en of zo'n schrijver bestaat,
       is niet nagegaan; daarvan hangt af of 2880 minuten klopt. — B
 
-2011. **Een veld dat op een MSPDI-taak ontbreekt, kan de lezer uit een genest element halen.** `getElementText` in
-      `src/services/msproject/mspdiReader.ts` neemt het eerste element met die naam ergens onder de taak
-      (`descendantText`), ook binnen `<PredecessorLink>` of `<Baseline>`. Nagespeeld met een script via `readMSPDI`, en
-      in de review van #1200 ook via `parseOpenedFile`: een taak zonder `<Type>` met een `<PredecessorLink>` met
-      `<Type>2</Type>` krijgt `mspTaskType` `FIXED_WORK`, en een taak zonder `<Duration>` met een `<Baseline>` met
-      `<Duration>PT40H0M0S</Duration>` krijgt 2400 minuten. Volgens die review maakt het MSPDI-schema `<Type>` en
-      `<Duration>` op een taak optioneel, dus geldige XML van een andere schrijver kan dit raken; of MS Project zelf die
-      velden weglaat, is niet nagegaan. Welke andere velden zo kunnen verschuiven, ook niet. — B
-
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
