@@ -29,7 +29,7 @@ import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
 import { indexOfStepDataSection, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
 import { stepFileGrammar } from './stepFileGrammar';
-import { CALENDAR_SLOT, WORK_CONTROL_SLOT, workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
+import { CALENDAR_SLOT, WORK_CONTROL_SLOT, isBaselineWorkControl, workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
 import { LAG_SLOT, lagValueSlot } from './ifcLagTimeSlots';
 import { SEQUENCE_SLOT, lagTimeSlots } from './ifcSequenceSlots';
 import { RESOURCE_SLOT } from './ifcResourceSlots';
@@ -316,7 +316,7 @@ function collectIfcGlobalIds(
   const plan = entities.find(e => e.type === 'IFCWORKPLAN');
   const planGuid = plan ? ifcSlotText(plan.args[WORK_CONTROL_SLOT.globalId]) : '';
   if (planGuid) out[ifcObjectSeed('wp', projectId)] = planGuid;
-  const schedule = entities.find(e => e.type === 'IFCWORKSCHEDULE' && !isBaselineSchedule(e));
+  const schedule = entities.find(e => e.type === 'IFCWORKSCHEDULE' && !isBaselineWorkControl(e.args));
   const scheduleGuid = schedule ? ifcSlotText(schedule.args[WORK_CONTROL_SLOT.globalId]) : '';
   if (scheduleGuid) out[ifcObjectSeed('ws', projectId)] = scheduleGuid;
   return Object.keys(out).length > 0 ? out : undefined;
@@ -357,7 +357,7 @@ function collectIfcStepIds(
   if (proj) out[ifcObjectSeed('proj', projectId)] = proj.id;
   const plan = entities.find(e => e.type === 'IFCWORKPLAN');
   if (plan) out[ifcObjectSeed('wp', projectId)] = plan.id;
-  const schedule = entities.find(e => e.type === 'IFCWORKSCHEDULE' && !isBaselineSchedule(e));
+  const schedule = entities.find(e => e.type === 'IFCWORKSCHEDULE' && !isBaselineWorkControl(e.args));
   if (schedule) out[ifcObjectSeed('ws', projectId)] = schedule.id;
   return out;
 }
@@ -877,9 +877,6 @@ export function readFileSchema(content: string): IfcSchemaId | undefined {
   return isIfcSchemaId(name) ? name : undefined;
 }
 
-function isBaselineSchedule(e: StepEntity): boolean {
-  return (e.args[workControlSlots(e.args).predefinedType] || '').includes('BASELINE');
-}
 
 function splitArgs(argsStr: string, literalStrings = true): string[] {
   const args: string[] = [];
@@ -1571,14 +1568,14 @@ function extractSequenceMeta(
     if (entity.type === 'IFCRELNESTS') {
       const scheduleId = parseRef(entity.args[4] || '');
       const schedule = scheduleId ? entityMap.get(scheduleId) : undefined;
-      if (schedule?.type === 'IFCWORKSCHEDULE' && !isBaselineSchedule(schedule)
+      if (schedule?.type === 'IFCWORKSCHEDULE' && !isBaselineWorkControl(schedule.args)
         && parseRefs(entity.args[5] || '').some(id => liveTaskStepIds.has(id))) {
         relevantScheduleIds.add(scheduleId!);
       }
     } else if (entity.type === 'IFCRELASSIGNSTOCONTROL') {
       const scheduleId = parseRef(entity.args[6] || '');
       const schedule = scheduleId ? entityMap.get(scheduleId) : undefined;
-      if (schedule?.type === 'IFCWORKSCHEDULE' && !isBaselineSchedule(schedule)
+      if (schedule?.type === 'IFCWORKSCHEDULE' && !isBaselineWorkControl(schedule.args)
         && parseRefs(entity.args[4] || '').some(id => liveTaskStepIds.has(id))) {
         relevantScheduleIds.add(scheduleId!);
       }
@@ -2778,7 +2775,7 @@ function collectBaselineTaskStepIds(entities: StepEntity[]): Set<string> {
   const baselineSchedIds = new Set<string>();
   const liveSchedIds = new Set<string>();
   for (const e of entities) {
-    if (e.type === 'IFCWORKSCHEDULE') (isBaselineSchedule(e) ? baselineSchedIds : liveSchedIds).add(e.id);
+    if (e.type === 'IFCWORKSCHEDULE') (isBaselineWorkControl(e.args) ? baselineSchedIds : liveSchedIds).add(e.id);
   }
   const taskStepIds = new Set<string>();
   if (baselineSchedIds.size === 0 || liveSchedIds.size === 0) return taskStepIds;

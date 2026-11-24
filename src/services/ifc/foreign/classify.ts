@@ -20,7 +20,7 @@
 import type { StepIndex } from './stepScanner';
 import { ACTIVITY_CODE_ID_SUFFIX, OWN_PSET_PROPERTY_NAMES, OWN_TEMPLATE_NAMES, PER_TASK_PSETS, PSET, isXerArchiveChunkName } from '../ifcPsets';
 import { IFC_TO_RESOURCE_TYPE } from '../ifcConstants';
-import { workControlSlots } from '../ifcWorkControlSlots';
+import { isBaselineWorkControl } from '../ifcWorkControlSlots';
 import { ifcDateTime, WRITER_ENTITY_TYPES } from '../ifcWriter';
 import { isAssignmentKeyName } from '../assignmentKeys';
 
@@ -119,7 +119,7 @@ export function hasOwnOrigin(index: StepIndex, i: number): boolean {
 function isBaselineSchedule(index: StepIndex, i: number): boolean {
   const wc = index.workControl(i);
   if (!wc) return false;
-  return (wc.slotTokens[workControlSlots(wc.slotTokens).predefinedType] ?? '').includes('BASELINE');
+  return isBaselineWorkControl(wc.slotTokens);
 }
 
 /**

@@ -102,8 +102,10 @@ import { scalarHourFromClock } from '@/services/subdayIo';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { WriteIFCInput } from '../ifcWriter';
 import { PER_TASK_PSET_BY_NAME, PROP, PSET, asciiJson, ifcJson } from '../ifcPsets';
-import { WORK_CALENDAR_ARITY, WORK_CONTROL_ARITY, workCalendarSlots, workControlSlots } from '../ifcWorkControlSlots';
+import { WORK_CALENDAR_ARITY, workCalendarSlots, workControlSlots } from '../ifcWorkControlSlots';
 import { lagValueSlot } from '../ifcLagTimeSlots';
+import { LAG_TIME_SLOT } from '../ifcSequenceSlots';
+import { schemaArgsOf, slotTableOf } from '../ifcSlotTables';
 import { decodeStepText, stepTextIsValid } from '../stepText';
 import { hasOwnOrigin, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { durationForm, type DurationSlot } from './durationForms';
@@ -303,45 +305,19 @@ const memberRelation = (type: string) => (RELATION_SLOTS[type]?.members ? RELATI
 
 const LINE = /^#(\d+)=([A-Z0-9_]+)\(([\s\S]*)\);$/;
 
-/** De resources die OPS schrijft (`RESOURCE_TYPE_TO_IFC`), met hun argumentaantal in het schema (11) en in de oude
- *  lay-out van OPS tot `4f5008614` (9). */
-const OLD_RESOURCE_TYPES: ReadonlySet<string> = new Set(['IFCLABORRESOURCE', 'IFCCONSTRUCTIONEQUIPMENTRESOURCE',
-  'IFCCONSTRUCTIONMATERIALRESOURCE', 'IFCSUBCONTRACTRESOURCE', 'IFCCREWRESOURCE']);
-const RESOURCE_ARITY = 11;
-const OLD_RESOURCE_ARITY = 9;
-
 /** `#12=TYPE(args);` → een `OutLine`. */
 export function parseOutLine(text: string): OutLine | undefined {
   const m = LINE.exec(text);
   return m ? { id: Number(m[1]), type: m[2], args: splitStepArgs(m[3]) } : undefined;
 }
 
-/**
- * Bron-slot → uitvoer-slot (-1: de uitvoer heeft dat slot niet), voor de oude eigen lay-outs die de lezer kent
- * (`ifcWorkControlSlots.ts`, `IfcTask` met 12 argumenten, een resource met 9): de normalisatie `lay-out`. Zelfde aantal: per positie.
- * `undefined`: een ander aantal zonder bekende lay-out.
- */
+const isMovedLagSlot = (type: string, sourceArg: number, outArg: number) => type === 'IFCLAGTIME' && sourceArg !== outArg;
+
+const durationInner = (token: string) => /^IFCDURATION\s*\(\s*('[\s\S]*')\s*\)$/i.exec(token.trim())?.[1] ?? token;
+
 function alignment(type: string, src: readonly string[], outLength: number): number[] | undefined {
-  if (type === 'IFCWORKPLAN' || type === 'IFCWORKSCHEDULE') {
-    if (outLength !== WORK_CONTROL_ARITY) return undefined;
-    const slots = workControlSlots(src);
-    return src.map((_, k) => k === slots.startTime ? 11 : k === slots.finishTime ? 12 : k === slots.predefinedType ? 13 : k <= 10 ? k : -1);
-  }
-  if (type === 'IFCWORKCALENDAR') {
-    if (outLength !== WORK_CALENDAR_ARITY) return undefined;
-    const slots = workCalendarSlots(src);
-    return src.map((_, k) => k === slots.workingTimes ? 6 : k === slots.exceptionTimes ? 7 : k === slots.predefinedType ? 8 : k <= 4 ? k : -1);
-  }
-  if (type === 'IFCTASK' && src.length === 12 && outLength === 13) {
-    // Zonder WorkMethod (8): de vier slots erna staan één plek eerder (`IFC_TASK_SLOTS`).
-    return src.map((_, k) => (k < 8 ? k : k + 1));
-  }
-  if (OLD_RESOURCE_TYPES.has(type) && src.length === OLD_RESOURCE_ARITY && outLength === RESOURCE_ARITY) {
-    // Fixronde 7 van #867 (was knownbug 1024): OPS tot `4f5008614` (v2026.9.0 en ouder) schreef een resource met 9
-    // argumenten, zonder BaseCosts en BaseQuantity: `(GlobalId,OwnerHistory,Name,Description,$,$,$,$,.USERDEFINED.)`.
-    // De eerste acht staan op hun plek in het schema; PredefinedType (8) staat in het schema op 10.
-    return src.map((_, k) => (k < 8 ? k : 10));
-  }
+  const table = slotTableOf(type, src);
+  if (table) return outLength === table.slots.length ? schemaArgsOf(table, src) : undefined;
   if (src.length === outLength) return src.map((_, k) => k);
   return undefined;
 }
@@ -1084,6 +1060,7 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
       const ok = type === 'IFCPROPERTYSET' && k2 === 4 ? sameMembers(s, at, bt)
         : isIdListSlot(index, s, type, k2) ? sameIdList(s, at, bt)
         : isTaskTypesSlot(s, type, k2) ? sameTaskTypes(s, at, bt)
+        : isMovedLagSlot(type, k, k2) && k2 === LAG_TIME_SLOT.lagValue ? same(s, at, durationInner(bt), true)
         : same(s, at, bt, DURATION_SLOTS[type]?.includes(k2) === true);
       if (!ok) push({ chunk: s, arg: k, source: at, out: bt, outArg: k2 });
     }
@@ -1230,7 +1207,8 @@ function planRestores(input: LossCheckInput, p0: Pairing, diffs: readonly LossDi
     // Revit heeft), krijgt geen bronwaarde: de waarden van twee stukken passen niet in één regel.
     const copy = input.cls.classes[d.chunk] !== 1 && o !== Number(index.id(d.chunk)) && holders.get(o!) === 1;
     if (d.whole || d.slotless === 'bron' || d.outArg === undefined || !line || d.ambiguous
-      || (input.cls.classes[d.chunk] !== 1 && !copy) || structural(line.type, d.outArg, line)) continue;
+      || (input.cls.classes[d.chunk] !== 1 && !copy) || structural(line.type, d.outArg, line)
+      || isMovedLagSlot(line.type, d.arg, d.outArg)) continue;
     const token = d.slotless === 'uitvoer' ? '$' : d.source;
     // Oude letterlijke codering (§4.9): alleen tekst die in beide coderingen hetzelfde leest (ASCII zonder `\`).
     if (index.literalText(d.chunk) && token.includes("'") && !/^[\x20-\x5b\x5d-\x7e]*$/.test(token)) continue;
@@ -1511,11 +1489,8 @@ function sourceScopes(input: LossCheckInput): Map<number, Set<string>> {
       add(i, `${root}|self`);
       // Het slot zoals de writer het schrijft (een oude lay-out: `alignment`).
       const a = index.argTokens(i) ?? [];
-      const type = index.type(i);
-      const arity = type === 'IFCWORKCALENDAR' ? WORK_CALENDAR_ARITY
-        : type === 'IFCWORKPLAN' || type === 'IFCWORKSCHEDULE' ? WORK_CONTROL_ARITY
-        : type === 'IFCTASK' && a.length === 12 ? 13 : a.length;
-      const map = alignment(type, a, arity);
+      const table = slotTableOf(index.type(i), a);
+      const map = table ? schemaArgsOf(table, a) : undefined;
       for (let k = index.outStart(i); k < index.outEnd(i); k++) {
         const t = index.outTarget(k);
         const arg = index.outArg(k);

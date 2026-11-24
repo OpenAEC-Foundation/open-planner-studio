@@ -757,6 +757,53 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   }
 }
 
+{
+  const villa = walled(`${OLD}/v2026.43.0-10-villa-wassenaar.ifc`);
+  const schemaLag = "#178=IFCLAGTIME('Lag',.PREDICTED.,$,IFCDURATION('P3D'),.WORKTIME.);";
+  ok('oude lagvorm: de villa heeft een lag van drie dagen in de vorm van het schema', villa.includes(schemaLag));
+  const src = villa.replace(schemaLag, "#178=IFCLAGTIME('Lag',.PREDICTED.,$,.WORKTIME.,'P0Y0M3D');");
+  const relation = /#(\d+)=IFCRELSEQUENCE\([^;]*,#178,/.exec(src)?.[1] ?? '';
+  ok('oude lagvorm: de relatie met die lag gevonden', relation !== '');
+  const lagTokens = (out: string) => {
+    const index = scanStep(latin1(out));
+    const rel = index.chunkOf(relation);
+    const lag = rel < 0 ? -1 : index.refAt(rel, 6);
+    return lag < 0 ? undefined : index.argTokens(lag);
+  };
+  const lagIs = (value: string) => (out: string) => {
+    const got = JSON.stringify(lagTokens(out));
+    const want = JSON.stringify(["'Lag'", '.PREDICTED.', '$', value, '.WORKTIME.']);
+    return got === want ? undefined : `lag ${got}, verwacht ${want}`;
+  };
+  const describeProject = (d: Domain) => { d.project.description = `${d.project.description} (lagproef)`; };
+  await proof('oude lagvorm', 'een andere bewerking: de lag op de plek van zijn slotnaam, met dezelfde waarde', src, 'schrijft',
+    describeProject, lagIs("IFCDURATION('P3D')"));
+  const sequenceOf = (d: Domain, o: Opened) => {
+    const id = Object.entries(o.ifcSource!.stepIds).find(([key, stepId]) => key.startsWith('seq:') && String(stepId) === relation)?.[0].slice(4);
+    return d.sequences.find(s => s.id === id)!;
+  };
+  await proof('oude lagvorm', 'de planner verlengt de lag tot vijf dagen', src, 'schrijft', (d, o) => {
+    const sequence = sequenceOf(d, o);
+    if (sequence.lagMinutes !== undefined) sequence.lagMinutes = (sequence.lagMinutes / 3) * 5;
+    else sequence.lagDays = 5;
+  }, lagIs("IFCDURATION('P5D')"));
+
+  const calendar = /#35=IFCWORKCALENDAR\(([^;]*)\);/.exec(villa);
+  ok('kalender: de villa heeft de projectkalender als #35', calendar !== null);
+  if (calendar) {
+    const args = splitArgs(calendar[1]);
+    ok('kalender: in de vorm van het schema, zonder Identification', args.length === 9 && args[5] === '$');
+    const identified = villa.replace(calendar[0], `#35=IFCWORKCALENDAR(${args.map((a, k) => (k === 5 ? "'KAL-1'" : a)).join(',')});`);
+    const identification = (out: string) => {
+      const index = scanStep(latin1(out));
+      const got = index.argTokens(index.chunkOf('35'))?.[5];
+      return got === "'KAL-1'" ? undefined : `Identification ${got}`;
+    };
+    await proof('kalender', 'een Identification van de bron blijft op haar slot bij een andere bewerking', identified, 'schrijft',
+      describeProject, identification);
+  }
+}
+
 console.log('| proef | uitkomst |');
 console.log('|---|---|');
 for (const r of rows) console.log(r);
