@@ -491,19 +491,17 @@ export function ReportPanel() {
           </div>
         </ReportOptionsCard>
 
-        {tableSpec && (
-          <TableReportOptionsBlock
-            reportType={reportType}
-            options={tableOptions}
-            onChange={patchTableOptions}
-            paperSize={paperSize}
-            orientation={orientation}
-            onPaperSize={setPaperSize}
-            onOrientation={setOrientation}
-            fontFamily={reportFontFamily}
-            onFontFamily={setReportFontFamily}
-          />
-        )}
+        <TableReportOptionsBlock
+          reportType={reportType}
+          options={tableOptions}
+          onChange={patchTableOptions}
+          paperSize={paperSize}
+          orientation={orientation}
+          onPaperSize={setPaperSize}
+          onOrientation={setOrientation}
+          fontFamily={reportFontFamily}
+          onFontFamily={setReportFontFamily}
+        />
 
         {/* Alleen de exportknop hoort bij dit formulier: Enter in rapportinvoer exporteert niet. */}
         <form
