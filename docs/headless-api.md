@@ -20,6 +20,7 @@ geslaagde smoke-test tegen een echte deployment (stap 7 hieronder).
 | `headless/server/worker.mjs` | de rekenworker (één thread) |
 | `headless/server/openapi.yaml` | het contract (OpenAPI 3.1) |
 | `headless/server/smoke.mjs` | de smoke-test: `node smoke.mjs <baseUrl> <token>` |
+| `headless/server/smoke-corpus.mjs`, `main-reference.mjs`, `main-reference.json` | het corpus van de smoke-test, het script dat de antwoorden van main vastlegt, en die antwoorden (zie *Vergelijking met main*) |
 | `headless/server/server-test.mjs`, `fixtures/log-marker.ifc` | de servertest: randgevallen (onleesbaar verzoek, capaciteit, logs, uploadtijd, SIGTERM) |
 | `headless/server/Dockerfile`, `.dockerignore` (root) | de container |
 | `deploy/aws/ecs-fargate.yaml` | de AWS-definitie (CloudFormation) |
@@ -241,7 +242,8 @@ breaker zet een mislukte deploy terug.
 `.github/workflows/headless-api.yml` draait op elke push naar `main` en op een PR die `src/`, de
 kernbouw, `headless/`, `deploy/aws/`, de lockfile of de workflow raakt:
 
-- **local**: `npm run build:core`, server starten, weigeren zonder token (exit 78), smoke-test,
+- **local**: `npm run build:core`, server starten, weigeren zonder token (exit 78), smoke-test (ook de vergelijking met main
+  hieronder),
   servertest (`server-test.mjs`: `GET //[` → 400 zonder crash, 30 uploads boven de grens → meteen 503
   en RSS begrensd, tweede verzoek tijdens een berekening → meteen 503, merkteken uit het IFC niet in
   de logs, 408 bij een te trage body, SIGTERM tijdens een upload), logs zonder token of IFC-inhoud,
@@ -250,6 +252,41 @@ kernbouw, `headless/`, `deploy/aws/`, de lockfile of de workflow raakt:
   en zonder capabilities starten, wachten op `healthy`, smoke-test, logs controleren, netjes stoppen
   op `SIGTERM`;
 - **cfn-lint**: `cfn-lint deploy/aws/ecs-fargate.yaml`.
+
+### Vergelijking met main
+
+De smoke-test vergelijkt elk antwoord met het antwoord dat de code van main op hetzelfde verzoek geeft, zonder
+uitzonderingen. Zo bewijst hij dat wijzigingen in de kern (bijv. `openIfcBytes`, [headless-kern.md](headless-kern.md))
+geen HTTP-antwoord raken. Het corpus staat in `headless/server/smoke-corpus.mjs`: alle voorbeelden, de
+oude-tags-bestanden, IFC2X3, de bestanden in `tests/fixtures/ifc-foreign/`, bestanden die de bytes-route van de kern
+anders leest, een opgeslagen `CreatedAt` in STEP-escapes, voorloopbytes en een lijst leesfouten. Per geval stuurt hij
+de body als `application/x-step` en als `application/octet-stream`, voor een geslaagd voorbeeld en een modelbestand ook
+als `application/ifc`, `model/ifc` en `text/plain`, bij de standaardaanroep, `?output=summary` en `?output=ifc`.
+Status, mediatype, `Retry-After` en de volledige body moeten gelijk zijn aan main.
+
+Bij IFC-tekst maskeert hij alleen waarden die uit de klok van het schrijven kunnen komen, en alleen op entiteitsregels.
+Wat uit de klok komt, volgt uit de herkomst van het veld in het ingestuurde bestand. De tijd in `FILE_NAME`, de
+aanmaakdatum van `IfcOwnerHistory`, het werkplan en het lopende werkschema zijn altijd de klok. De aanmaakdatum van een
+baselinewerkschema blijft staan als elke baseline in `OPS_Baselines` een `createdAt` heeft. `CreatedAt` en `ModifiedAt`
+blijven staan als het bestand ze met een waarde in `OPS_ProjectSettings` heeft (de tekst gedecodeerd zoals de lezer
+dat doet, dus ook in STEP-escapes). Opgeslagen datums tellen zo mee.
+
+De antwoorden van main staan in `headless/server/main-reference.json`: per geval status, mediatype en `Retry-After`,
+bij een fout de volledige body, en bij een geslaagd antwoord de SHA-256 van de body (bij IFC na het maskeren). Opnieuw
+maken, als main bewust een antwoord verandert of het corpus of het masker wijzigt:
+
+```bash
+M=$(git rev-parse origin/main); D=$(mktemp -d)
+git archive "$M" | tar -x -C "$D" && ln -s "$PWD/node_modules" "$D/node_modules"
+(cd "$D" && node scripts/build-core.mjs --out "$D/dist-core")
+mkdir -p "$D/headless/server/node_modules/@openaec" && ln -s "$D/dist-core" "$D/headless/server/node_modules/@openaec/open-planner-core"
+PORT=3871 HOST=127.0.0.1 OPS_API_TOKEN="$TOKEN" OPS_API_MAX_BODY_BYTES=5242880 node "$D/headless/server/server.mjs" &
+until curl -sf http://127.0.0.1:3871/healthz >/dev/null; do sleep 1; done
+node headless/server/main-reference.mjs http://127.0.0.1:3871 "$TOKEN" "$M" headless/server/main-reference.json
+```
+
+`main-reference.mjs` stuurt het corpus van deze branch naar de server van main en weigert te schrijven als main zelf
+per ingang of bij herhaling verschillend antwoordt. De huidige referentie is gemaakt op main `5b3c1756e`.
 
 ## Wat er nog niet is
 

@@ -880,7 +880,6 @@ if (WITH_PYTHON) {
     ['ENDSEC', h => h.replace('ENDSEC;', 'ENDSEC ;')],
     ['DATA', h => h.replace('\nDATA;\n', '\nDATA ;\n')],
     ['CRLF', h => h.replace(/\n/g, '\r\n')],
-    ['BOM', h => '\ufeff' + h],
   ];
   for (const [label, mutate] of headerMutations) {
     const rejected = scanForeign(enc.encode(mutate(badHeader) + body));
@@ -894,6 +893,17 @@ if (WITH_PYTHON) {
     const strict = scanOrError(good);
     const got = scanForeign(good);
     if (!(strict instanceof StepScanError)) eq(`oude kop ${label}: goede kop onveranderd`, got, foreignScanFrom(strict, classify(strict), good));
+  }
+  {
+    const plain = enc.encode(badHeader + body);
+    const withBom = new Uint8Array([0xef, 0xbb, 0xbf, ...plain]);
+    const [without, withIt] = [scanForeign(plain), scanForeign(withBom)];
+    ok('oude kop met BOM: de C/A/V-scan herkent de oude kop na de BOM, met dezelfde indeling als zonder BOM',
+      without.ok && withIt.ok && JSON.stringify(without.counts) === JSON.stringify(withIt.counts));
+    const text = '\ufeff' + badHeader + body;
+    eq('oude kop met BOM: de tekstherkenning zelf is ongewijzigd', recognizeOldOwnHeader(text), null);
+    eq('oude kop met BOM: lezer precies main', indexOfStepDataSection(text), mainDataStart(text));
+    eq('oude kop met BOM: het doel blijft onleesbaar', scanTargetBytes(enc.encode(text)), 'unreadable');
   }
   // Elk vast teken afzonderlijk: ook interpunctie/whitespace is deel van het gemeten sjabloon.
   const variableParts = ["O'Hara DATA; Fase 1", 'Auteur', 'Bedrijf', '2026-01-15T12:00:00'];
