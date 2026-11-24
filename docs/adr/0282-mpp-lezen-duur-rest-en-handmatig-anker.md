@@ -9,6 +9,10 @@ taakkalender, na de promotie van ADR 0283.
 
 ## Gevolgen
 
+- Een breuk van een minuut blijft staan; volgens het weggehaalde commentaar gaat zo'n duur als `ExactMinutes`-record
+  mee naar IFC en XML (T14). De lag van een relatie in werktijd krijgt altijd `lagMinutes`, ook 0, zoals bij MSPDI
+  (`mppLagToSequenceFields` in `mppEntities.ts`). De constraintcodes vertaalt `mspCodeToConstraint` van de MSPDI-lezer,
+  de voortgang `normalizeImportedProgress`, net als bij MSPDI.
 - De eenheid van de duur komt uit `ACTUAL_DURATION_UNITS` (`TaskFieldId.DurationUnits`). Is die een kalendertijdeenheid
   (`getDurationTimeUnits` begint met `elapsed`), dan is de taak `ELAPSEDTIME`; ontbreekt het veld, dan `WORKTIME`. Een
   kalendertijdduur staat in een `.mpp` al in klokminuten (volgens het weggehaalde commentaar de vaste dag van 24 uur

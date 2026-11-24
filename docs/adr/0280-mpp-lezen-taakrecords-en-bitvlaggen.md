@@ -5,8 +5,8 @@ Microsoft beschrijft dat formaat niet; de structuur komt uit MPXJ (`github.com/j
 regel `mpp` zegt. Het weggehaalde commentaar noemde als bronnen `MPP14Reader.java`, `FieldMap14.java`, `PropsKey.java`
 en `TaskField.java`; die bronnen zijn niet in de repo nagegaan. De veld-id's en offsets staan als constanten in
 `fieldMap14.ts` (`TaskFieldId`, `AssignmentFieldId` en de standaardtabellen), de recordgroottes als constanten in
-`mppReader.ts` en `mppEntities.ts`. De lezer leest taken zo voorzichtig dat een ontbrekend of kort veld alleen dat
-veld kost, en hij weigert hard waar zonder een veld geen betrouwbare taak overblijft.
+`mppReader.ts` en `mppEntities.ts`. Een veld dat in de veldkaart ontbreekt of buiten een te kort record valt, geeft
+voor dat veld een lege of vaste waarde; alleen waar zonder een veld geen betrouwbare taak overblijft, weigert de lezer.
 
 ## Gevolgen
 
@@ -35,6 +35,10 @@ veld kost, en hij weigert hard waar zonder een veld geen betrouwbare taak overbl
   (`check-mpp-import.ts`, `[Z14b type]` toetst het ontbrekende geval). Dat Vast werk de terugval van MPXJ
   `TaskTypeHelper` is en dat waarde 3 in een `.mpp` niet voorkomt, komt uit het weggehaalde commentaar.
 - Een percentage voltooid buiten 0 tot en met 100 wordt 0 (`readPercentComplete`).
+- De `.mpp.xml`-bestanden die in het corpus als ground truth dienen, zijn een andere revisie van het document dan de
+  `.mpp`-bestanden (hernummerde unique-id's, verplaatste taken, een andere projectstart; ook genoemd in de kop van
+  `check-mpp-relations.ts`). Een lezer kan dat verschil niet overbruggen; `check-mpp-import.ts` houdt daarom per veld
+  een budget voor afwijkingen.
 - Elke tekst die deze lezer uit var-data of de Props haalt, gaat door `getUnicodeString` met `MAX_VAR_TEXT_BYTES`
   (de reden staat bij die constante in `limits.ts`).
 
