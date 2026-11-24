@@ -18,8 +18,8 @@ regel `mpp` zegt. De veld-id's en offsets staan in de veldkaart `fieldMap14.ts`,
   vaste waarde.
 - `Fixed2Meta` en `Fixed2Data` mogen ontbreken, net als `TBkndRsc/Fixed2Meta` in `mppEntities.ts`, en een fout bij het
   ontleden van hun bytes vangt `readTasks`; een fout van de container bij het ophalen van de stroom vangt hij niet.
-  Ontbreekt een van de twee of mislukt het ontleden, dan is de taak `AUTO_SCHEDULED` en blijven het handmatige anker en de handmatige duur leeg. De itemgrootte van
-  `Fixed2Meta` kiest `FixedMeta.withHeuristicItemSize` uit 92 tot en met 96, die van `FixedMeta` is 47; volgens het
+  Ontbreekt een van de twee of mislukt het ontleden, dan is de taak `AUTO_SCHEDULED` en blijven het handmatige anker
+  en de handmatige duur leeg. De itemgrootte van `Fixed2Meta` kiest `FixedMeta.withHeuristicItemSize` uit 92 tot en met 96, die van `FixedMeta` is 47; volgens het
   weggehaalde commentaar de getallen van `MPP14Reader.java`.
 - De bit voor mijlpaal, manier van plannen en `EFFORT_DRIVEN` hangt af van de versie uit `detectApplicationVersion`
   (`isLegacyBitFlagVersion`): tot en met 14 (Project 2010) en een onbekende versie de tabel van 2010, daarboven die
