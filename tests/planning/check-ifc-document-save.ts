@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdtempSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname, basename } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { buildExportIFCInput, buildWriteIFCInput } from '@/state/ifcSaveInput';
