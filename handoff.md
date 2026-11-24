@@ -496,6 +496,13 @@ Geen uitzondering in de writer. Bewijs en alle nieuwe gevallen:
 `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.
 De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
 
+## Voorwaarde voor IFCX standaard aan (fase 3, 24 november 2026)
+
+Besluit van de technisch eigenaar bij #1183 (F3-1), letterlijk: "Zet als voorwaarde bij "IFCX standaard aan": opnieuw
+meten op Windows en macOS, en als het daar boven de grens komt, eerst de STEP-lezer sneller maken. Dat helpt dan ook
+gewoon opslaan als IFC." De grens: `writeIfcx` met rondgang en zelfcontrole bij 10.000 taken hoogstens vier keer opslaan
+als IFC op main en hoogstens 4 s CPU-tijd (`tests/planning/check-ifcx-meting.ts`, `docs/ifcx-profiel.md`, *Metingen*).
+
 ## Teksten voor de planner (te beoordelen vóór de flag aan mag)
 
 - `notifications.ifcForeignAutoSaveTargetChanged` — Automatisch opslaan bij een gebouwmodel stopt: op het eigen bestand staat niet meer de versie die de app opende of het laatst schreef (#804 stap 8). Eén keer per document per sessie; daarna geen nieuwe poging tot de planner zelf opslaat of een ander bestand kiest.
