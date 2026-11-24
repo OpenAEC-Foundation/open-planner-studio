@@ -42,6 +42,8 @@ function must(label, r) {
 // deze waarden dan aan; de app-gelijkheid zelf bewaakt check-headless-core.ts.
 const EXAMPLE = join(root, 'examples', '01-grachtenpand-amsterdam.ifc');
 const EXPECTED = { name: 'New-Build Canal House, Amsterdam', start: '2027-03-01', finish: '2028-01-12T16:00', tasks: 51 };
+const MODEL = join(root, 'tests', 'fixtures', 'ifc-foreign', 'eigen-plus-model.ifc');
+const MODEL_FOREIGN = { format: 'ifc', schema: 'IFC4X3_ADD2', objectCount: 90 };
 
 try {
   const appPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
@@ -117,15 +119,37 @@ try {
   const bad = run(process.execPath, ['index.mjs', badFile], consumer);
   ok('7 ongeldige invoer ⇒ exit 1 met code INVALID_INPUT', bad.status === 1 && bad.stderr.startsWith('INVALID_INPUT:'), bad.out);
 
+  const modelOut = join(work, 'met-model.ifc');
+  const model = run(process.execPath, ['index.mjs', MODEL, '--bytes', '--json', '--out', modelOut], consumer);
+  ok('7a een modelbestand opent met --bytes (exit 0)', model.status === 0, model.out.slice(0, 500));
+  if (model.status === 0) {
+    const s = JSON.parse(model.stdout);
+    ok('7b foreignContent noemt het bewaarde gebouwmodel', JSON.stringify(s.foreignContent) === JSON.stringify(MODEL_FOREIGN),
+      JSON.stringify(s.foreignContent));
+    ok('7c het modelbestand komt byte-gelijk terug uit toIfcBytes()',
+      existsSync(modelOut) && readFileSync(modelOut).equals(readFileSync(MODEL)));
+  }
+  const modelAsText = run(process.execPath, ['index.mjs', MODEL], consumer);
+  ok('7d hetzelfde modelbestand als tekst ⇒ exit 1 met code IFC_READ_FAILED, zoals op main',
+    modelAsText.status === 1 && modelAsText.stderr.startsWith('IFC_READ_FAILED:'), modelAsText.out.slice(0, 300));
+
   // 3. De typedeclaraties werken voor een TypeScript-consument (NodeNext, strict).
   writeFileSync(join(consumer, 'types-check.ts'), `
-import { openIfc, PlannerCoreError, VERSION, type CoreErrorCode, type ScheduleSummary } from '@openaec/open-planner-core';
+import {
+  openIfc, openIfcBytes, PlannerCoreError, VERSION, type CoreErrorCode, type ForeignContentSummary, type ScheduleSummary,
+} from '@openaec/open-planner-core';
 export async function use(text: string): Promise<string> {
   const doc = await openIfc(text);
   const s: ScheduleSummary = doc.schedule();
   const finish: string = s.project.finish;
   const ifc: string = doc.toIfc();
   return \`\${VERSION} \${finish} \${ifc.length} \${s.tasks[0]?.totalFloat ?? 0}\`;
+}
+export async function useBytes(bytes: Uint8Array): Promise<number> {
+  const doc = await openIfcBytes(bytes);
+  const foreign: ForeignContentSummary | null = doc.schedule().foreignContent;
+  const written: Uint8Array = await doc.toIfcBytes();
+  return written.length + (foreign?.objectCount ?? 0);
 }
 export function codeOf(e: unknown): CoreErrorCode | null {
   return e instanceof PlannerCoreError ? e.code : null;

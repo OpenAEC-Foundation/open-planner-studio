@@ -6,21 +6,22 @@
 //
 // Exitcodes: 0 = doorgerekend, 1 = fout van de kern (code op stderr), 2 = verkeerd gebruik.
 import { readFileSync, writeFileSync } from 'node:fs';
-import { openIfc, PlannerCoreError, VERSION } from '@openaec/open-planner-core';
+import { openIfc, openIfcBytes, PlannerCoreError, VERSION } from '@openaec/open-planner-core';
 
 const args = process.argv.slice(2);
 const file = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--out');
 const outIdx = args.indexOf('--out');
 const out = outIdx >= 0 ? args[outIdx + 1] : undefined;
+const asBytes = args.includes('--bytes');
 if (!file || (outIdx >= 0 && !out)) {
-  console.error('usage: node index.mjs <project.ifc> [--json] [--out <recalculated.ifc>]');
+  console.error('usage: node index.mjs <project.ifc> [--bytes] [--json] [--out <recalculated.ifc>]');
   process.exit(2);
 }
 
 try {
-  const doc = await openIfc(readFileSync(file, 'utf8'));
+  const doc = asBytes ? await openIfcBytes(readFileSync(file)) : await openIfc(readFileSync(file, 'utf8'));
   const summary = doc.schedule();
-  if (out) writeFileSync(out, doc.toIfc());
+  if (out) writeFileSync(out, asBytes ? await doc.toIfcBytes() : doc.toIfc());
 
   if (args.includes('--json')) {
     console.log(JSON.stringify(summary, null, 2));
@@ -29,6 +30,9 @@ try {
     console.log(`open-planner-core ${VERSION}`);
     console.log(`${project.name}: ${project.start} → ${project.finish} (${project.durationWorkdays} workdays, profile ${project.schedulingProfile})`);
     console.log(`${counts.tasks} tasks, ${counts.relations} relations, ${counts.criticalTasks} critical, ${warnings.length} warning type(s)`);
+    if (summary.foreignContent) {
+      console.log(`kept besides the schedule: ${summary.foreignContent.objectCount} objects (${summary.foreignContent.schema})`);
+    }
     for (const t of summary.tasks.filter((t) => t.critical && !t.summary).slice(0, 10)) {
       console.log(`  ${t.wbs.padEnd(8)} ${t.start} → ${t.finish}  ${t.name}`);
     }

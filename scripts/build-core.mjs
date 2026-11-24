@@ -109,7 +109,7 @@ ${notices.sections}`);
 const pkg = {
   name: CORE_PACKAGE_NAME,
   version: appPkg.version,
-  description: 'Headless core of Open Planner Studio: open an IFC schedule, calculate it like the app, summarise it as JSON and write it back to IFC.',
+  description: 'Headless core of Open Planner Studio: open an IFC schedule (as text, or as bytes with a building model), calculate it like the app, summarise it as JSON and write it back to IFC.',
   license: appPkg.license,
   repository: { type: 'git', url: 'https://github.com/OpenAEC-Foundation/open-planner-studio' },
   type: 'module',
@@ -132,11 +132,15 @@ Headless core of [Open Planner Studio](https://github.com/OpenAEC-Foundation/ope
 No React, no DOM, no desktop shell. Node ${pkg.engines.node}, ESM only.
 
 \`\`\`js
-import { openIfc, PlannerCoreError } from '${CORE_PACKAGE_NAME}';
+import { openIfc, openIfcBytes, PlannerCoreError } from '${CORE_PACKAGE_NAME}';
 
 const doc = await openIfc(ifcText);   // PlannerDocument
 const summary = doc.schedule();       // calculate like the app (F5) → JSON summary
 const ifc = doc.toIfc();              // IFC text with the calculated dates
+
+const withModel = await openIfcBytes(ifcBytes);  // keeps a building model and data of other programs
+withModel.schedule().foreignContent;              // { format, schema, objectCount } | null
+const bytes = await withModel.toIfcBytes();       // everything besides the schedule byte for byte as it was
 \`\`\`
 
 Errors are always \`PlannerCoreError\` with a fixed \`code\`: \`INVALID_INPUT\`, \`IFC_READ_FAILED\`,
