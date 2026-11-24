@@ -82,19 +82,21 @@ export function identityProblems(model: PlanningModel, globalIdOf: GlobalIdOfObj
     }
     idsByKind.set(spec.kind, ids);
   }
-  const owners = new Map<string, string>();
+  const owners = new Map<string, { readonly spec: IdentityKind; readonly id: string }>();
   for (const [spec, objects] of objectsByKind) {
     for (const object of objects) {
       const globalId = globalIdOf(spec.kind, object.id);
       const owner = owners.get(globalId);
-      const self = `${spec.area} ${object.id}`;
-      if (owner !== undefined && owner !== self) {
-        problems.push({ field: `${spec.area}.globalId`, detail: `${self} heeft dezelfde GlobalId ${globalId} als ${owner}` });
+      if (owner !== undefined && (owner.spec.area !== spec.area || owner.id !== object.id)) {
+        problems.push({
+          field: `${spec.area}.globalId`,
+          detail: `${spec.area} ${object.id} heeft dezelfde GlobalId ${globalId} als ${owner.spec.area} ${owner.id}`,
+        });
       }
-      owners.set(globalId, self);
+      owners.set(globalId, { spec, id: object.id });
       for (const reference of object.references) {
         if (!idsByKind.get(reference.kind)?.has(reference.id)) {
-          problems.push({ field: `${spec.area}.${reference.field}`, detail: `${self} verwijst met ${reference.field} naar ${reference.id}, dat niet bestaat` });
+          problems.push({ field: `${spec.area}.${reference.field}`, detail: `${spec.area} ${object.id} verwijst met ${reference.field} naar ${reference.id}, dat niet bestaat` });
         }
       }
     }

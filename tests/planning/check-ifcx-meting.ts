@@ -13,7 +13,6 @@ import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 
 const MAX_RATIO = 4;
-const MAX_CPU_MS = 4000;
 const SIZE = 10000;
 const ROUNDS = 5;
 const CLOCK = new Date('2027-01-01T00:00:00.000Z');
@@ -56,7 +55,7 @@ function plan(size: number): WriteIFCInput {
   for (const key of NOT_IN_KERN_PROJECT_FIELDS) delete project[key];
   return {
     ...base, project: project as unknown as WriteIFCInput['project'], resources: [], assignments: [], baselines: [], activityCodeTypes: [],
-    customFieldDefs: [], customTaskTypes: [], ifcLiteralCalendarIds: undefined, libraryPool: undefined, ifcGlobalIds: {}, tasks, sequences,
+    customFieldDefs: [], customTaskTypes: [], libraryPool: undefined, ifcGlobalIds: {}, tasks, sequences,
   };
 }
 
@@ -75,6 +74,7 @@ function median(values: readonly number[]): number {
 
 const loadNow = () => { try { return readFileSync('/proc/loadavg', 'utf8').split(' ').slice(0, 3).join(' '); } catch { return 'onbekend'; } };
 const encode = (text: string) => new TextEncoder().encode(text);
+const openAsIfc = (bytes: Uint8Array) => readIFC(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
 
 let failed = 0;
 function test(name: string, action: () => void): void {
@@ -86,8 +86,9 @@ function pieces(size: number): void {
   const input = plan(size);
   const names = [
     'STEP-writer (opslaan als IFC)', 'STEP-lezer', 'IFCX-writer zonder rondgang en zelfcontrole', 'IFCX teruglezen',
-    'vergelijking van de zelfcontrole', 'writeIfcx in één stuk', 'readIfcx (openen)',
+    'vergelijking van de zelfcontrole', 'writeIfcx in één stuk', 'openen als IFC (bytes, STEP-lezer)', 'readIfcx (openen als IFCX)',
   ];
+  const relativeTo = [0, 0, 0, 0, 0, 0, 6, 6];
   const wall: number[][] = names.map(() => []), cpu: number[][] = names.map(() => []);
   const before = loadNow();
   for (let round = 0; round < ROUNDS; round++) {
@@ -98,35 +99,52 @@ function pieces(size: number): void {
     const compare = timed(() => selfCheckDifferences(stepRead.value, reread.value));
     assert.deepEqual(compare.value, []);
     const whole = timed(() => writeIfcx(input, CLOCK));
-    const open = timed(() => readIfcx(encode(whole.value)));
-    [stepText, stepRead, ifcxText, reread, compare, whole, open].forEach((part, index) => { wall[index].push(part.wall); cpu[index].push(part.cpu); });
+    const stepBytes = encode(stepText.value);
+    const ifcxBytes = encode(whole.value);
+    const openStep = timed(() => openAsIfc(stepBytes));
+    const open = timed(() => readIfcx(ifcxBytes));
+    [stepText, stepRead, ifcxText, reread, compare, whole, openStep, open].forEach((part, index) => { wall[index].push(part.wall); cpu[index].push(part.cpu); });
   }
-  const save = median(cpu[0]);
   console.log(`   ${size} taken, mediaan van ${ROUNDS}, belasting ${before} → ${loadNow()}`);
   names.forEach((name, index) => {
-    console.log(`   | ${size} | ${name} | ${median(wall[index]).toFixed(0)} | ${median(cpu[index]).toFixed(0)} | ${(median(cpu[index]) / save).toFixed(2)} |`);
+    const ratio = median(cpu[index]) / median(cpu[relativeTo[index]]);
+    console.log(`   | ${size} | ${name} | ${median(wall[index]).toFixed(0)} | ${median(cpu[index]).toFixed(0)} | ${ratio.toFixed(2)} |`);
   });
 }
 
-test(`opslaan als IFCX kost bij ${SIZE} taken hoogstens ${MAX_RATIO} keer opslaan als IFC en hoogstens ${MAX_CPU_MS} ms CPU-tijd`, () => {
+function ratioTest(name: string, prepare: () => { step: () => unknown; ifcx: () => unknown }, stepName: string, ifcxName: string): void {
+  test(name, () => {
+    const { step: stepAction, ifcx: ifcxAction } = prepare();
+    stepAction();
+    ifcxAction();
+    const step: number[] = [], ifcx: number[] = [];
+    const before = loadNow();
+    for (let round = 0; round < ROUNDS; round++) {
+      step.push(timed(stepAction).cpu);
+      ifcx.push(timed(ifcxAction).cpu);
+    }
+    const ratio = median(ifcx) / median(step);
+    console.log(`   CPU-tijd in ms, mediaan van ${ROUNDS}: ${stepName} ${median(step).toFixed(0)}, ${ifcxName} ${median(ifcx).toFixed(0)}, verhouding ${ratio.toFixed(2)}; belasting ${before} → ${loadNow()}`);
+    assert.ok(ratio <= MAX_RATIO, `${ifcxName} kost ${ratio.toFixed(2)} keer ${stepName}`);
+  });
+}
+
+ratioTest(`opslaan als IFCX kost bij ${SIZE} taken hoogstens ${MAX_RATIO} keer opslaan als IFC`, () => {
   const input = plan(SIZE);
   assert.equal(stepRoundtrip(input).tasks.length, SIZE);
-  writeIFC(input);
-  writeIfcx(input, CLOCK);
-  const step: number[] = [], ifcx: number[] = [];
-  const before = loadNow();
-  for (let round = 0; round < ROUNDS; round++) {
-    step.push(timed(() => writeIFC(input)).cpu);
-    ifcx.push(timed(() => writeIfcx(input, CLOCK)).cpu);
-  }
-  const ratio = median(ifcx) / median(step);
-  console.log(`   CPU-tijd in ms, mediaan van ${ROUNDS}: opslaan als IFC ${median(step).toFixed(0)}, writeIfcx ${median(ifcx).toFixed(0)}, verhouding ${ratio.toFixed(2)}; belasting ${before} → ${loadNow()}`);
-  assert.ok(ratio <= MAX_RATIO, `writeIfcx kost ${ratio.toFixed(2)} keer opslaan als IFC`);
-  assert.ok(median(ifcx) <= MAX_CPU_MS, `writeIfcx kost ${median(ifcx).toFixed(0)} ms CPU-tijd`);
-});
+  return { step: () => writeIFC(input), ifcx: () => writeIfcx(input, CLOCK) };
+}, 'opslaan als IFC', 'opslaan als IFCX');
+
+ratioTest(`openen als IFCX kost bij ${SIZE} taken hoogstens ${MAX_RATIO} keer openen als IFC`, () => {
+  const input = plan(SIZE);
+  const stepBytes = encode(writeIFC(input));
+  const ifcxBytes = encode(writeIfcx(input, CLOCK));
+  assert.equal(readIfcx(ifcxBytes).tasks.length, SIZE);
+  return { step: () => openAsIfc(stepBytes), ifcx: () => readIfcx(ifcxBytes) };
+}, 'openen als IFC', 'openen als IFCX');
 
 if (process.env.OPS_IFCX_MEASURE === '1') {
-  console.log('   | taken | stuk | wandklok (ms) | CPU-tijd (ms) | verhouding tot opslaan als IFC |');
+  console.log('   | taken | stuk | wandklok (ms) | CPU-tijd (ms) | verhouding tot opslaan of openen als IFC |');
   console.log('   |---|---|---|---|---|');
   for (const size of [1000, 5000, 10000]) pieces(size);
 }

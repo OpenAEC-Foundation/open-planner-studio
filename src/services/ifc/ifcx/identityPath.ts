@@ -37,11 +37,12 @@ export function compactGlobalIdToUuid(globalId: string): string {
 
 export function uuidToCompactGlobalId(uuid: string): string {
   if (!UUID_FORM.test(uuid)) throw new Error(`Geen UUID: ${uuid}`);
-  const hex = uuid.replace(/-/g, '');
   let out = '';
   let buffer = 0, bits = 0, width = 2;
-  for (let i = 0; i < 32; i++) {
-    buffer = (buffer << 4) | parseInt(hex[i], 16);
+  for (let i = 0; i < uuid.length; i++) {
+    const code = uuid.charCodeAt(i);
+    if (code === 45) continue;
+    buffer = (buffer << 4) | (code <= 57 ? code - 48 : code - 87);
     bits += 4;
     while (bits >= width) {
       bits -= width;
@@ -60,14 +61,17 @@ export function pathOfGlobalId(globalId: string): string {
   return `${TEXT_PATH_PREFIX}${hex}`;
 }
 
-export function globalIdOfPath(path: string): string | undefined {
-  if (UUID_FORM.test(path)) return uuidToCompactGlobalId(path);
+function textOfPath(path: string): string | undefined {
   if (!TEXT_PATH_FORM.test(path)) return undefined;
   let text = '';
   for (let i = TEXT_PATH_PREFIX.length; i < path.length; i += 4) text += String.fromCharCode(parseInt(path.slice(i, i + 4), 16));
   return isCompactGlobalId(text) ? undefined : text;
 }
 
+export function globalIdOfPath(path: string): string | undefined {
+  return UUID_FORM.test(path) ? uuidToCompactGlobalId(path) : textOfPath(path);
+}
+
 export function isIdentityPath(path: string): boolean {
-  return globalIdOfPath(path) !== undefined;
+  return UUID_FORM.test(path) || textOfPath(path) !== undefined;
 }

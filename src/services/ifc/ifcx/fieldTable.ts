@@ -151,32 +151,32 @@ function within(problem: Problem | undefined, step: string): Problem | undefined
 }
 
 function problemOf(spec: IfcxValue, value: unknown): Problem | undefined {
-  const found = () => JSON.stringify(value);
+  const found = JSON.stringify;
   switch (spec.dataType) {
     case 'String':
     case 'DateTime':
-      if (typeof value !== 'string') return invalidValue(`verwacht tekst, gevonden ${found()}`);
-      if (!spec.form.pattern.test(value) || spec.form.accepts?.(value) === false) return invalidValue(`verwacht de vorm ${spec.form.name}, gevonden ${found()}`);
+      if (typeof value !== 'string') return invalidValue(`verwacht tekst, gevonden ${found(value)}`);
+      if (!spec.form.pattern.test(value) || spec.form.accepts?.(value) === false) return invalidValue(`verwacht de vorm ${spec.form.name}, gevonden ${found(value)}`);
       return;
     case 'Reference':
-      return typeof value === 'string' && isIdentityPath(value) ? undefined : invalidValue(`verwacht een pad, gevonden ${found()}`);
+      return typeof value === 'string' && isIdentityPath(value) ? undefined : invalidValue(`verwacht een pad, gevonden ${found(value)}`);
     case 'Boolean':
-      return typeof value === 'boolean' ? undefined : invalidValue(`verwacht waar of onwaar, gevonden ${found()}`);
+      return typeof value === 'boolean' ? undefined : invalidValue(`verwacht waar of onwaar, gevonden ${found(value)}`);
     case 'Real':
-      if (typeof value !== 'number' || !Number.isFinite(value)) return invalidValue(`verwacht een eindig getal, gevonden ${found()}`);
+      if (typeof value !== 'number' || !Number.isFinite(value)) return invalidValue(`verwacht een eindig getal, gevonden ${found(value)}`);
       if (spec.min !== undefined && value < spec.min) return invalidValue(`kleiner dan ${spec.min}`);
       if (spec.max !== undefined && value > spec.max) return invalidValue(`groter dan ${spec.max}`);
       return;
     case 'Integer':
-      if (typeof value !== 'number' || !Number.isSafeInteger(value)) return invalidValue(`verwacht een geheel getal, gevonden ${found()}`);
+      if (typeof value !== 'number' || !Number.isSafeInteger(value)) return invalidValue(`verwacht een geheel getal, gevonden ${found(value)}`);
       if (spec.min !== undefined && value < spec.min) return invalidValue(`kleiner dan ${spec.min}`);
       if (spec.max !== undefined && value > spec.max) return invalidValue(`groter dan ${spec.max}`);
       return;
     case 'Enum':
       return typeof value === 'string' && spec.options.includes(value) ? undefined
-        : invalidValue(`verwacht een van ${spec.options.join(', ')}, gevonden ${found()}`);
+        : invalidValue(`verwacht een van ${spec.options.join(', ')}, gevonden ${found(value)}`);
     case 'Array': {
-      if (!Array.isArray(value)) return invalidValue(`verwacht een lijst, gevonden ${found()}`);
+      if (!Array.isArray(value)) return invalidValue(`verwacht een lijst, gevonden ${found(value)}`);
       for (let i = 0; i < value.length; i++) {
         const problem = within(problemOf(spec.item, value[i]), `[${i}]`);
         if (problem) return problem;
@@ -184,7 +184,7 @@ function problemOf(spec: IfcxValue, value: unknown): Problem | undefined {
       return;
     }
     case 'Object': {
-      if (!isPlainObject(value)) return invalidValue(`verwacht een object, gevonden ${found()}`);
+      if (!isPlainObject(value)) return invalidValue(`verwacht een object, gevonden ${found(value)}`);
       for (const key in value) {
         if (!hasKey(spec.members, key)) return { kind: 'unknown-field', path: [key], detail: 'onbekend veld' };
       }

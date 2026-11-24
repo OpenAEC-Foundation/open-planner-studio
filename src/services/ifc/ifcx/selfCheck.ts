@@ -34,8 +34,24 @@ function differencesIn(left: unknown, right: unknown, path: string, out: string[
   if (!Object.is(a, b) && !(a === 0 && b === 0)) out.push(`${path}: ${describe(a)} → ${describe(b)}`);
 }
 
+function same(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  const a = comparable(left), b = comparable(right);
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (!same(a[i], b[i])) return false;
+    return true;
+  }
+  if (isPlainObject(a) && isPlainObject(b)) {
+    for (const key in a) if (!same(a[key], b[key])) return false;
+    for (const key in b) if (!(key in a) && b[key] !== undefined) return false;
+    return true;
+  }
+  return Object.is(a, b);
+}
+
 export function selfCheckDifferences(planning: ImportResult, reread: ImportResult, limit = 5): string[] {
   const out: string[] = [];
-  differencesIn(planning, reread, '', out, limit);
+  if (!same(planning, reread)) differencesIn(planning, reread, '', out, limit);
   return out;
 }
