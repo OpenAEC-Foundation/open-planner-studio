@@ -35,6 +35,7 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     // meldingen voor een onleesbaar doel uit #870: die geeft alleen de doelcontrole met de flag aan
     // (`refusedWriteTarget` in src/state/ifcForeignGuard.ts).
     texts: [
+      'common:documents.changedOnDisk',
       'common:ifcExportWithoutModel.*',
       'common:ifcMissingSourceSaveAs.*',
       'common:notifications.exportPlanOnly',
