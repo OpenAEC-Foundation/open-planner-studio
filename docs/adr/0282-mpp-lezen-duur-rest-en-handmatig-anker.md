@@ -2,8 +2,9 @@
 
 MS Project bewaart een duur in tienden van een minuut. `readTasks` levert `SCHEDULED_DURATION` als `durationMinutes`
 (de tienden gedeeld door 10, zonder afronding) en geeft elke taak de urenmaat (`durationUnit: 'hours'`, spec
-alleen-uren §3.10, T15; review #591 ronde 1 punt 3). De lezer leest geen eigen tekstvelden en dus geen OPS-markering
-voor de dagenmaat (knownbug 301; volgens het weggehaalde commentaar droeg ook geen van de 661 `.mpp`-bestanden van het
+alleen-uren §3.10, T15; review #591 ronde 1 punt 3). `readTasks` neemt eigen tekstvelden niet over en decodeert dus geen
+OPS-markering voor de dagenmaat; `scanMppImportLoss` (`mppImportLoss.ts`) leest hun bytes alleen voor de telling van
+wat bij import wegvalt (knownbug 301; volgens het weggehaalde commentaar droeg ook geen van de 661 `.mpp`-bestanden van het
 corpus een `OPS_`-veld). `scheduleDuration` rekent `hourTaskScheduleDuration` uit op de effectieve taakkalender, na
 de promotie van ADR 0283.
 
@@ -39,6 +40,9 @@ de promotie van ADR 0283.
 - Een start of einde die uit geen van beide velden komt, vult `resolveMissingScheduleDates` (`importDates.ts`), met de
   projectstart uit de Props als anker; heeft het bestand geen projectstart, dan zet `readMPP` de projectstart op het
   anker dat die functie teruggeeft.
-- De lag van een relatie levert `mppLagToSequenceFields` (`mppEntities.ts`). In werktijd is dat altijd `lagMinutes`, ook 0, zoals bij MSPDI; een bronwaarde -1, ook de
-  terugval als het record te kort is voor de lag, geeft alleen `lagDays: 0`. De constraintcodes vertaalt
+- De lag van een relatie levert `mppLagToSequenceFields` (`mppEntities.ts`). Een lag in
+  werktijd is altijd `lagMinutes`, ook 0, zoals bij MSPDI. Een lag in procenten is `lagPercent`, bij verstreken
+  procenten met `lagUnit: 'ELAPSEDTIME'`; een lag in verstreken dagen is `lagDays` met die `lagUnit`, en een andere
+  verstreken eenheid `lagMinutes` met die `lagUnit`. Een
+  bronwaarde -1, ook de terugval als het record te kort is voor de lag, geeft alleen `lagDays: 0`. De constraintcodes vertaalt
   `mspCodeToConstraint` van de MSPDI-lezer.

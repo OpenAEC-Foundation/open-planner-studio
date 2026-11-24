@@ -31,7 +31,7 @@ rekent. Alleen bladtaken met een start en toewijzingen met een koppeling (ADR 02
   haar werk gedeeld door haar inzet (`assignmentRemainingMinutes`, regel 2 van de werkdriehoek), afgerond op een tiende
   minuut. Ontbreekt bij een van hen werk of inzet, is een inzet niet groter dan 0, of stuurt niemand, dan levert de lezer voor
   de taak geen wandeling. Het anker is de vroegste `START` van alle kandidaten, ook van die de duur niet sturen.
-  `check-mpp-walk-units.ts` toetst vier bytefixtures: twee werkresources op 12,5 %, een werk- naast een
+  `check-mpp-walk-units.ts` toetst vier gevallen in één bytefixture: twee werkresources op 12,5 %, een werk- naast een
   kostenresource, materiaal naast een werkresource, en een inzet van 0 (geen wandeling). Bron: MS Project
   "Duration = Work / Units" en "assigning material resources or cost resources to a task doesn't affect task
   scheduling" (support.microsoft.com, "How Project schedules tasks: Behind the scenes", geciteerd in het weggehaalde
