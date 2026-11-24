@@ -136,7 +136,7 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
       return resultMsg(id, {});
 
     case 'tools/list':
-      return resultMsg(id, { tools: getTools().map(toolListEntry) });
+      return resultMsg(id, { tools: getTools().map(def => toolListEntry(def, ctx)) });
 
     case 'tools/call': {
       const name: unknown = msg.params?.name;
