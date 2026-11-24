@@ -10,18 +10,24 @@ info:
     recalculated IFC file. The API stores nothing: every request stands alone.
 
     Every request is first handled by the text route: the body is decoded as UTF-8, opened,
-    calculated and written. Only when `output=ifc` is then refused with 500
-    `IFC_WRITE_FAILED` and `details.reason` `foreign`, and the request was
-    `application/octet-stream`, the API reads the same bytes again as they are. If that route keeps
-    the content besides the schedule and reads the same schedule (the same summary after the
-    calculation), `output=ifc` returns the recalculated file as `application/octet-stream`, with that
-    content and the header (also a UTF-8 byte order mark) byte for byte as they were; without changes
-    to the schedule the whole file comes back. Otherwise the answer stays the refusal of the text route,
-    with the same status, code and `details`, and `message` says why the bytes are not returned. The bytes
-    route reads a file with foreign content by the rules of the app for such files, and that can give
-    a different schedule than the text route; then the API refuses as the text route does, and `message` names
-    the fields of the summary that differ. A file with a building model is refused when it is read
-    (422 `IFC_READ_FAILED`), also as `application/octet-stream`.
+    calculated and written. Only where that route refuses because of foreign content, and the
+    request was `application/octet-stream`, does the API read the same bytes again as they are; if
+    that route cannot help either, the answer stays the one of the text route:
+
+    - When reading: a file with a building model (422 `IFC_READ_FAILED`). If the bytes route keeps
+      the model, the summary and, with `output=ifc`, the preserved file come from that one reading.
+      No other read error opens the bytes route.
+    - When writing: `output=ifc` refused with 500 `IFC_WRITE_FAILED` and `details.reason`
+      `foreign`. If the bytes route keeps the foreign content and reads the same schedule (the same
+      summary after the calculation), the preserved file comes back. Otherwise the answer stays the
+      refusal of the text route, with the same status, code and `details`, and `message` says why
+      the bytes are not returned. The bytes route reads a file with foreign content by the rules of
+      the app for such files, and that can give a different schedule than the text route; then
+      `message` names the fields of the summary that differ.
+
+    A preserved file comes back as `application/octet-stream`, with the foreign content and the
+    header (also a UTF-8 byte order mark) byte for byte as they were; without changes to the
+    schedule the whole file comes back.
 
     Every path that is not listed answers 404 `NOT_FOUND`.
 
@@ -76,7 +82,7 @@ paths:
         - name: output
           in: query
           required: false
-          description: '`summary` (default) gives the JSON summary; `ifc` gives the recalculated IFC file as text (`application/x-step`), or as bytes (`application/octet-stream`) only where the text route refused to write it because of foreign content and the request was `application/octet-stream` (see the description above).'
+          description: '`summary` (default) gives the JSON summary; `ifc` gives the recalculated IFC file as text (`application/x-step`), or as bytes (`application/octet-stream`) only where the text route refused the file because of foreign content and the request was `application/octet-stream` (see the description above).'
           schema:
             type: string
             enum: [summary, ifc]
@@ -89,7 +95,7 @@ paths:
             pattern: '^[A-Za-z0-9._-]{1,64}$'
       requestBody:
         required: true
-        description: The IFC file, as text (UTF-8) or as bytes (`application/octet-stream`, which can keep the data of other programs where the text route refuses to write them). Maximum size is `limits.maxBodyBytes` from `/healthz` (default 20 MiB).
+        description: The IFC file, as text (UTF-8) or as bytes (`application/octet-stream`, which can keep a building model and the data of other programs where the text route refuses them). Maximum size is `limits.maxBodyBytes` from `/healthz` (default 20 MiB).
         content:
           application/x-step:
             schema:
@@ -128,8 +134,9 @@ paths:
                 format: binary
                 description: |
                   The recalculated IFC file as bytes (when `output=ifc`, the request was
-                  `application/octet-stream`, the text route refused to write it with `foreign`, and the bytes route
-                  keeps the foreign content and reads the same schedule). The foreign content and the
+                  `application/octet-stream`, the text route refused the file because of a building model
+                  or refused to write it with `foreign`, and the bytes route keeps the foreign content; in
+                  the second case only when it reads the same schedule). The foreign content and the
                   header come back byte for byte; without changes to the schedule the whole file does.
         '400':
           description: '`INVALID_INPUT` (the body, as text or as bytes, does not start with `ISO-10303-21;` after an optional byte order mark and white space) or `BAD_REQUEST` (unknown `output`, or a request target that is not a valid URL).'
@@ -171,7 +178,9 @@ paths:
         '422':
           description: |
             The file is IFC but cannot be planned: `IFC_READ_FAILED`, `NO_TASKS`, or `SCHEDULE_FAILED`
-            (for example a loop in the relations; `details.taskIds` lists the tasks of the loop).
+            (for example a loop in the relations; `details.taskIds` lists the tasks of the loop). A file
+            with a building model gives `IFC_READ_FAILED` on the text route; send it as
+            `application/octet-stream` to open it.
           content:
             application/json:
               schema:
@@ -369,9 +378,27 @@ components:
                   decimal).
         foreignContent:
           description: |
-            Always `null` in this API: the summary always comes from the text route. The
-            field belongs to the summary format of the core package, where `openIfcBytes` fills it.
-          type: 'null'
+            What the document keeps besides the schedule and writes back unchanged. Not `null` only
+            after an `application/octet-stream` request with a building model that the bytes route
+            keeps: then the summary comes from that reading. `null` for every other request, whose
+            summary comes from the text route, also for a file with foreign content.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/ForeignContent'
+    ForeignContent:
+      type: object
+      required: [format, schema, objectCount]
+      properties:
+        format:
+          type: string
+          const: ifc
+          description: The file format of the kept content (ISO-10303-21).
+        schema:
+          type: string
+          description: The IFC schema from the file header, for example `IFC4X3_ADD2` or `IFC4`.
+        objectCount:
+          type: integer
+          description: The number of entities that are not part of the schedule.
     TaskSummary:
       type: object
       required: [id, name, wbs, parentId, summary, milestone, start, finish, lateStart, lateFinish, totalFloat, critical]
