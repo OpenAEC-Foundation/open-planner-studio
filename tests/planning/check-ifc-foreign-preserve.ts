@@ -504,9 +504,15 @@ await expectRefusal('vreemde herkomst (bonsai-4d)', read('tests/fixtures/ifc-for
     `#259=IFCPROPERTYSINGLEVALUE('ExactFloat',$,IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[0,0],"vendorCoordinationId":7}'),$);`)));
   if (json) ok('onbekende JSON-sleutel: blijft staan', text(json.out).includes('"FreeFloat":[0,0],"vendorCoordinationId":7}'));
 }
-await expectRefusal('twee sleutels voor dezelfde resource', enc.encode(withLines(
-  replaceLine(eigen, '#154=', "#154=IFCPROPERTYSET('26EUCC2ORYjlLXgzsMT4U9',#6,'OPS_Assignments',$,(#152,#153,#9001));"),
-  ["#9001=IFCPROPERTYSINGLEVALUE('3LKE2mEiGfOR4VMIq3h_xv#5',$,IFCTEXT('1|UNIFORM'),$);"])), 'niet-gedragen');
+{
+  const twoKeys = await roundTrip('twee sleutels voor dezelfde resource', enc.encode(withLines(
+    replaceLine(eigen, '#154=', "#154=IFCPROPERTYSET('26EUCC2ORYjlLXgzsMT4U9',#6,'OPS_Assignments',$,(#152,#153,#9001));"),
+    ["#9001=IFCPROPERTYSINGLEVALUE('3LKE2mEiGfOR4VMIq3h_xv#5',$,IFCTEXT('1|UNIFORM'),$);"])), rewrite);
+  if (twoKeys) {
+    ok('twee sleutels voor dezelfde resource: de ongebruikte sleutel blijft staan (fase 2, check-ifc-foreign-ongebruikte-sleutels.ts)',
+      /^#\d+=IFCPROPERTYSINGLEVALUE\('3LKE2mEiGfOR4VMIq3h_xv#5',\$,IFCTEXT\('1\|UNIFORM'\),\$\);$/m.test(text(twoKeys.out)));
+  }
+}
 await expectRefusal('taak wissen met een wand eraan', enc.encode(r4), 'verwijderd', (d) => {
   d.tasks = []; d.assignments = []; d.sequences = [];
 });

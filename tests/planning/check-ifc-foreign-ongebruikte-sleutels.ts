@@ -181,9 +181,9 @@ if (kept) {
   };
   const out = text(kept.bytes);
   const lineId = (name: string) => {
-    const m = new RegExp(`^#(\\d+)=IFCPROPERTYSINGLEVALUE\\('${name.replace(/\$/g, '\\$')}',`, 'm').exec(out);
-    if (!m) throw new Error(`geen property ${name}`);
-    return Number(m[1]);
+    const line = out.split(/\r?\n/).find(l => l.includes(`=IFCPROPERTYSINGLEVALUE('${name}',`));
+    if (!line) throw new Error(`geen property ${name}`);
+    return Number(/^#(\d+)=/.exec(line)![1]);
   };
   const psetWith = (id: number) => {
     const m = new RegExp(`^(#\\d+=IFCPROPERTYSET\\(.*'OPS_Assignments',\\$,\\()([^)]*#${id}\\b[^)]*)(\\)\\);)$`, 'm').exec(out);
@@ -218,7 +218,7 @@ if (kept) {
   const maxId = Math.max(...[...ownText.matchAll(/^#(\d+)=/gm)].map(m => Number(m[1])));
   const ids = [maxId + 1, maxId + 2, maxId + 3];
   const lines = UNUSED_LINES.map((l, k) => l.replace(/^#\d+=/, `#${ids[k]}=`)).join('\n');
-  const withKeys = ownText.replace(psetLine, (m, headArgs: string, members: string) =>
+  const withKeys = ownText.replace(psetLine, (_line, headArgs: string, members: string) =>
     `#${index.id(pset)}=IFCPROPERTYSET(${headArgs}(${members},${ids.map(id => `#${id}`).join(',')}));\n${lines}`);
   ok('flag uit: de proefbewerking zette de drie sleutels in de pset', withKeys !== ownText && assignmentKeysOf(latin1(withKeys), TASK_GUID).length === 5);
   reseed(7);
