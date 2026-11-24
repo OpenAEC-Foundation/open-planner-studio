@@ -2,9 +2,7 @@
 
 De headless API is een kleine HTTP-server boven de headless kern (`@openaec/open-planner-core`,
 zie [headless-kern.md](headless-kern.md)). De server ontvangt een IFC-planning, rekent die door zoals
-de app en geeft een JSON-samenvatting of de herberekende IFC terug. Een bestand dat main weigerde vanwege vreemde
-inhoud (een gebouwmodel, of gegevens van een ander programma die main niet kon terugschrijven), opent en komt als bytes
-(`application/octet-stream`) met die inhoud terug. De server bewaart niets.
+de app en geeft een JSON-samenvatting of de herberekende IFC terug. De server bewaart niets.
 
 Dit document hoort bij issue #429 (ecosystem readiness) en het gedeelde contract in
 OpenAEC-style-book#12.
@@ -35,47 +33,11 @@ Het volledige contract staat in `headless/server/openapi.yaml`.
 | route | auth | wat |
 |---|---|---|
 | `GET /healthz` | nee | `200 {"status":"ok","version":"2026.9.0","limits":{…},"busy":false,"uploads":0}` |
-| `POST /v1/schedule` | ja | Het IFC-bestand in de body. Uit: de JSON-samenvatting (`?output=summary`, standaard) of de herberekende IFC (`?output=ifc`). |
+| `POST /v1/schedule` | ja | IFC-tekst in de body. Uit: de JSON-samenvatting (`?output=summary`, standaard) of de herberekende IFC (`?output=ifc`, `Content-Type: application/x-step`). |
 
 - Body-types: `application/x-step`, `application/ifc`, `model/ifc`, `text/plain` of
   `application/octet-stream`. Een ander type geeft 415.
-- `application/octet-stream` krijgt eerst precies het antwoord van main: de worker decodeert de body als UTF-8, zoals
-  main, opent hem met `openIfc`, rekent door en maakt de gevraagde uitvoer. De bytes-route komt alleen in beeld waar main
-  weigert vanwege vreemde inhoud, en kan de bytes-route het ook niet, dan blijft het antwoord dat van main:
-  - **bij het lezen**: de weigering van de gebouwmodel-poort (422 `IFC_READ_FAILED`, in de kern herkend aan
-    `readRefusal: 'building-model'`), en alleen die. De worker opent dezelfde bytes met `openIfcBytes` (*Twee routes* in
-    [headless-kern.md](headless-kern.md)). Bewaart die route het vreemde deel, dan komen de samenvatting en, met
-    `?output=ifc`, de bewaarde bytes uit die ene lezing. Geen andere leesfout opent de bytes-route.
-  - **bij het schrijven**: `?output=ifc` weigert met 500 `IFC_WRITE_FAILED` en `details.reason` `foreign`. De worker
-    opent dezelfde bytes met `openIfcBytes`. Bewaart die route een vreemd deel en lezen beide routes dezelfde planning,
-    dan komen de bewaarde bytes terug. Dezelfde planning is: dezelfde samenvatting na het doorrekenen (op
-    `foreignContent` na) én dezelfde schrijfinvoer volgens de gedeelde `planningCanon` (`planningDifference` in de kern;
-    die ziet ook relaties, resources, toewijzingen, ingevoerde duur en projectvelden). De bytes-route leest zo'n bestand
-    volgens de regels van de app voor bestanden met vreemde inhoud, en dat kan een andere planning geven dan de
-    tekstlezer; dan blijft het de weigering van main (knownbug 2252).
-
-  Het antwoord van main is de uitkomst, tenzij de bytes-route slaagt. Zodra de tekstroute een van deze twee weigeringen
-  geeft, stuurt de worker dat complete antwoord eerst naar de server; pas daarna begint de bytes-route. Op één plek
-  (`Calculator` in `server.mjs`) wint alleen een geslaagd antwoord van de bytes-route; elke andere afloop (een fout,
-  een andere planning, het verstrijken van de rekentijd, een worker die stopt of crasht) geeft byte voor byte de
-  bewaarde weigering van main. Een afnemer kan daardoor bij zo'n bestand langer op die weigering wachten dan op main,
-  tot hoogstens de rekentijd (`OPS_API_TIMEOUT_MS`, standaard 60 s); de inhoud is dezelfde (knownbug 2259). Zolang de
-  tekstroute nog geen antwoord gaf, geldt alles zoals op main, ook 503 `TIMEOUT`.
-
-  Bewaarde bytes komen terug als `application/octet-stream` (`toIfcBytes()`): het vreemde deel en de kop, ook een
-  UTF-8-BOM, blijven byte voor byte staan; verandert de planning niet, dan komt het hele bestand byte-gelijk terug. Van
-  de elf modelbestanden in `tests/fixtures/ifc-foreign/` komen er zo zeven terug; de andere vier zijn modellen zonder
-  planning (geen enkele taak) en houden de 422 van main. Weigert de samenvoeging bij
-  een gebouwmodel (`merge-needs-phase2`), dan geeft `?output=ifc` de 422 van main, terwijl de samenvatting wel komt. De
-  server leest de body in één eigen buffer en geeft die aan de rekenworker over; de worker geeft bewaarde bytes ook over
-  in plaats van te kopiëren (knownbug 2219: de geheugenpiek bij grote bestanden is niet gemeten).
-- De andere types zijn de tekstroute van main (`openIfc`, UTF-8): die weigert een bestand met een gebouwmodel (422
-  `IFC_READ_FAILED`) en schrijft geen bestand met vreemde inhoud (500 `IFC_WRITE_FAILED`), en `?output=ifc` geeft
-  `Content-Type: application/x-step; charset=utf-8`.
-- De samenvatting is byte voor byte die van main: `ScheduleSummary` van de kern (`formatVersion: 1`) zonder het veld
-  `foreignContent`. Alleen bij een gebouwmodel dat de bytes-route opent, komt de samenvatting van die lezing en staat
-  `foreignContent` erbij: wat er naast de planning bewaard blijft. De samenvatting doet geen schrijfcontrole (die geeft
-  pas `?output=ifc`).
+- De samenvatting heeft dezelfde vorm als `ScheduleSummary` van de kern (`formatVersion: 1`).
 - Elk antwoord heeft een header `X-Request-Id`. Stuur zelf een `X-Request-Id`
   (1–64 tekens `A-Z a-z 0-9 . _ -`) om een verzoek in de logs terug te vinden.
 
@@ -98,7 +60,7 @@ Een fout heeft altijd deze vorm. `code` is vast; `message` is Engels en voor men
 | 413 | `PAYLOAD_TOO_LARGE` | body groter dan de grens |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | verkeerd `Content-Type` |
 | 422 | `IFC_READ_FAILED`, `NO_TASKS`, `SCHEDULE_FAILED` | IFC, maar niet te plannen (bijv. een kring) |
-| 500 | `IFC_WRITE_FAILED`, `INTERNAL` | fout in de server, of het schrijven werd vóór uitvoer geweigerd: `details.reason` is `foreign` (of een andere scanuitkomst); het antwoord is dat van main, ook als bewaarde bytes niet terugkwamen |
+| 500 | `IFC_WRITE_FAILED`, `INTERNAL` | fout in de server |
 | 503 | `BUSY`, `TIMEOUT` | er loopt al een berekening of er komen al te veel bodies binnen (beslist vóór de body), of de berekening duurde te lang (met `Retry-After`) |
 
 De volgorde van de controles is: pad (404), methode (405), token (401), `output` (400), type (415),
@@ -129,7 +91,7 @@ wordt alleen gelogd.
 | `HOST` | `127.0.0.1` (container: `0.0.0.0`) | adres om op te luisteren |
 | `PORT` | `8080` | poort |
 | `OPS_API_MAX_BODY_BYTES` | `20971520` (20 MiB) | maximale body; meer geeft 413 |
-| `OPS_API_TIMEOUT_MS` | `60000` (max `85000`) | maximale rekentijd per verzoek; meer geeft 503 `TIMEOUT`, of de bewaarde weigering van main als de tekstroute al weigerde (knownbug 2259) |
+| `OPS_API_TIMEOUT_MS` | `60000` (max `85000`) | maximale rekentijd per verzoek; meer geeft 503 `TIMEOUT` |
 | `OPS_API_UPLOAD_TIMEOUT_MS` | `30000` (max `30000`) | maximale tijd om de body te ontvangen; meer geeft 408 `UPLOAD_TIMEOUT` |
 | `OPS_API_MAX_UPLOADS` | `2` | bodies die tegelijk binnenkomen; meer geeft meteen 503 `BUSY` |
 
@@ -291,31 +253,27 @@ kernbouw, `headless/`, `deploy/aws/`, de lockfile of de workflow raakt:
   op `SIGTERM`;
 - **cfn-lint**: `cfn-lint deploy/aws/ecs-fargate.yaml`.
 
-
 ### Vergelijking met main
 
-De smoke-test vergelijkt elk antwoord met het antwoord dat de code van main op hetzelfde verzoek geeft. Het corpus staat
-in `headless/server/smoke-corpus.mjs`: alle voorbeelden, de oude-tags-bestanden, IFC2X3, de bestanden in
-`tests/fixtures/ifc-foreign/`, de gevallen die de bytes-route anders leest, voorloopbytes en een lijst leesfouten, elk
-met een verwachte uitkomst bij elk bestand waar main weigert vanwege vreemde inhoud (ontbreekt die, dan is de smoke
-rood). Per geval stuurt hij de body als `application/x-step` en als `application/octet-stream`, voor een geslaagd
-voorbeeld en een modelbestand ook als `application/ifc`, `model/ifc` en `text/plain`, bij de standaardaanroep,
-`?output=summary` en `?output=ifc`. Status, mediatype en de volledige body moeten gelijk zijn aan main. Bij IFC-tekst
-zijn alleen klokwaarden gemaskeerd, en alleen op entiteitsregels: de tijd in `FILE_NAME` en de aanmaakdatum van
-`IfcOwnerHistory` altijd (schrijfklok), de aanmaakdatum van een werkplan of werkschema en `CreatedAt`/`ModifiedAt` van
-een property alleen als die waarde niet in het ingestuurde bestand staat. Opgeslagen datums tellen dus mee. Alleen
-een octet-stream-antwoord mag afwijken, en alleen waar main weigerde vanwege vreemde inhoud: de volledige 422 van de
-gebouwmodel-poort, of de 500 `IFC_WRITE_FAILED` met `details.reason` `foreign`. Dat volgt uit het vastgelegde
-antwoord van main zelf; de verwachte uitkomst per geval pint daarbinnen wat er terugkomt. Wat de referentie niet ziet,
-het verloop bij een vastlopende bytes-route, toetst `server-test.mjs` (sectie 7): voor beide weigeringen en elke
-afloop (de bytes-route gooit, hangt tot de deadline, de worker stopt, de worker crasht) het antwoord uit
-`main-reference.json`, bij een geslaagde bytes-route het geslaagde antwoord, zonder antwoord van de tekstroute
-503 `TIMEOUT` zoals main, tijdens een hangende bytes-route 503 `BUSY` voor een tweede verzoek, en na elke afloop een
-vrije rekenplek. De naad is een tijdelijke kopie van de server met een testpakket als kern.
+De smoke-test vergelijkt elk antwoord met het antwoord dat de code van main op hetzelfde verzoek geeft, zonder
+uitzonderingen. Zo bewijst hij dat wijzigingen in de kern (bijv. `openIfcBytes`, [headless-kern.md](headless-kern.md))
+geen HTTP-antwoord raken. Het corpus staat in `headless/server/smoke-corpus.mjs`: alle voorbeelden, de
+oude-tags-bestanden, IFC2X3, de bestanden in `tests/fixtures/ifc-foreign/`, bestanden die de bytes-route van de kern
+anders leest, een opgeslagen `CreatedAt` in STEP-escapes, voorloopbytes en een lijst leesfouten. Per geval stuurt hij
+de body als `application/x-step` en als `application/octet-stream`, voor een geslaagd voorbeeld en een modelbestand ook
+als `application/ifc`, `model/ifc` en `text/plain`, bij de standaardaanroep, `?output=summary` en `?output=ifc`.
+Status, mediatype, `Retry-After` en de volledige body moeten gelijk zijn aan main.
 
-De antwoorden van main staan in `headless/server/main-reference.json`: per geval status en mediatype, bij een fout de
-volledige body, en bij een geslaagd antwoord de SHA-256 van de body (bij IFC na het maskeren). Opnieuw maken, als main
-bewust een antwoord verandert of het corpus groeit:
+Bij IFC-tekst maskeert hij alleen waarden die uit de klok van het schrijven kunnen komen, en alleen op entiteitsregels.
+Wat uit de klok komt, volgt uit de herkomst van het veld in het ingestuurde bestand. De tijd in `FILE_NAME`, de
+aanmaakdatum van `IfcOwnerHistory`, het werkplan en het lopende werkschema zijn altijd de klok. De aanmaakdatum van een
+baselinewerkschema blijft staan als elke baseline in `OPS_Baselines` een `createdAt` heeft. `CreatedAt` en `ModifiedAt`
+blijven staan als het bestand ze met een waarde in `OPS_ProjectSettings` heeft (de tekst gedecodeerd zoals de lezer
+dat doet, dus ook in STEP-escapes). Opgeslagen datums tellen zo mee.
+
+De antwoorden van main staan in `headless/server/main-reference.json`: per geval status, mediatype en `Retry-After`,
+bij een fout de volledige body, en bij een geslaagd antwoord de SHA-256 van de body (bij IFC na het maskeren). Opnieuw
+maken, als main bewust een antwoord verandert of het corpus of het masker wijzigt:
 
 ```bash
 M=$(git rev-parse origin/main); D=$(mktemp -d)
@@ -323,11 +281,13 @@ git archive "$M" | tar -x -C "$D" && ln -s "$PWD/node_modules" "$D/node_modules"
 (cd "$D" && node scripts/build-core.mjs --out "$D/dist-core")
 mkdir -p "$D/headless/server/node_modules/@openaec" && ln -s "$D/dist-core" "$D/headless/server/node_modules/@openaec/open-planner-core"
 PORT=3871 HOST=127.0.0.1 OPS_API_TOKEN="$TOKEN" OPS_API_MAX_BODY_BYTES=5242880 node "$D/headless/server/server.mjs" &
+until curl -sf http://127.0.0.1:3871/healthz >/dev/null; do sleep 1; done
 node headless/server/main-reference.mjs http://127.0.0.1:3871 "$TOKEN" "$M" headless/server/main-reference.json
 ```
 
 `main-reference.mjs` stuurt het corpus van deze branch naar de server van main en weigert te schrijven als main zelf
 per ingang of bij herhaling verschillend antwoordt. De huidige referentie is gemaakt op main `5b3c1756e`.
+
 ## Wat er nog niet is
 
 - Een deployment in AWS (geen account). Daarom ook geen bewijs uit de bedoelde runtime.

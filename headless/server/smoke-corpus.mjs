@@ -8,11 +8,10 @@ const at = (...parts) => join(root, ...parts);
 const END = 'END-ISO-10303-21;';
 const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 
-export const EXAMPLE = at('examples', '01-grachtenpand-amsterdam.ifc');
+const EXAMPLE = at('examples', '01-grachtenpand-amsterdam.ifc');
 export const REQUESTS = [['/v1/schedule', 'summary'], ['/v1/schedule?output=summary', 'summary'], ['/v1/schedule?output=ifc', 'ifc']];
 export const TEXT_TYPES = ['application/x-step', 'application/ifc', 'model/ifc', 'text/plain'];
 export const BYTES_TYPE = 'application/octet-stream';
-export const MODEL_REFUSAL_BODY = JSON.stringify({ error: { code: 'IFC_READ_FAILED', message: 'Could not read IFC: This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.' } });
 export const FORMS = [
   ['kaal', b => b],
   ['met BOM', b => Buffer.concat([UTF8_BOM, b])],
@@ -23,25 +22,8 @@ const EXTERN_PSET = "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behou
   + "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;";
 const BONSAI_WALL_A_TIME = "#109=IFCTASKTIME($,$,$,$,'P5D','2026-02-02T09:00:00','2026-02-06T17:00:00',$,$,";
 const BONSAI_WALL_A_STALE = "#109=IFCTASKTIME($,$,$,$,'P5D','2026-02-02T09:00:00','2026-02-06T17:00:00','2026-03-02T09:00:00','2026-03-06T17:00:00',";
-const MAIN = { kind: 'main' };
-const MODEL_KEPT = { kind: 'model', sameAsSource: true };
-const KEPT = { kind: 'kept' };
-const EXPECTED = {
-  'oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc': KEPT,
-  'oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc': KEPT,
-  'ifc-foreign/bonsai-4d.ifc': MODEL_KEPT,
-  'ifc-foreign/complexe-instanties.ifc': MAIN,
-  'ifc-foreign/crlf-commentaar.ifc': MODEL_KEPT,
-  'ifc-foreign/dubbele-globalids.ifc': MODEL_KEPT,
-  'ifc-foreign/eigen-plus-model.ifc': MODEL_KEPT,
-  'ifc-foreign/latin1.ifc': MODEL_KEPT,
-  'ifc-foreign/model-ifc2x3.ifc': MAIN,
-  'ifc-foreign/model-ifc4.ifc': MAIN,
-  'ifc-foreign/model-ifc4x3.ifc': MAIN,
-  'ifc-foreign/oud-eigen-0.1-plus-model.ifc': MODEL_KEPT,
-  'ifc-foreign/twee-werkplannen.ifc': MODEL_KEPT,
-};
-const ALL_TYPES = ['het voorbeeld 01-grachtenpand-amsterdam.ifc in elk mediatype', 'ifc-foreign/eigen-plus-model.ifc in elk mediatype'];
+const STORED_CREATED_AT = "IFCTEXT('2026-10-26T11:31:14.496Z')";
+const STORED_CREATED_AT_ESCAPED = "IFCTEXT('\\X2\\0032\\X0\\026-10-26T11:31:14.496Z')";
 
 function emptyOwnSchedule(source, looseTask) {
   const lines = source.split('\n');
@@ -78,6 +60,11 @@ function secondSettingsOnForeignPset(source) {
     "#99042=IFCRELDEFINESBYPROPERTIES('1SolR6TweedeSettingsR1',#6,$,$,(#99002),#99041);", 'ENDSEC;', END].join('\n'));
 }
 
+function escapedCreatedAt(source) {
+  if (!source.includes(STORED_CREATED_AT)) throw new Error('het voorbeeld heeft geen opgeslagen CreatedAt meer');
+  return source.replace(STORED_CREATED_AT, STORED_CREATED_AT_ESCAPED);
+}
+
 function compactXerEnvelope(source) {
   const emptySha = createHash('sha256').update(Buffer.alloc(0)).digest('hex');
   return source.replace("#5=IFCAPPLICATION(#4,'0.1',", "#5=IFCAPPLICATION(#4,'0.2',")
@@ -102,15 +89,16 @@ export function corpusCases() {
     ...ifcFiles(at('public', 'examples'), 'public/'),
     ...ifcFiles(at('tests', 'planning', 'fixtures', 'oude-tags'), 'oude-tags/'),
     ['een IFC2X3-planning', Buffer.from(legacyPlanning)],
-    ['een IFC2X3-planning met een externe pset', Buffer.from(legacyPlanning.replace(`ENDSEC;\n${END}`, EXTERN_PSET)), MAIN],
-    ['het voorbeeld met een leeg eigen werkschema', Buffer.from(emptyOwnSchedule(example, false)), MAIN],
-    ['het voorbeeld met een externe pset', Buffer.from(example.replace(`ENDSEC;\n${END}`, EXTERN_PSET)), KEPT],
+    ['een IFC2X3-planning met een externe pset', Buffer.from(legacyPlanning.replace(`ENDSEC;\n${END}`, EXTERN_PSET))],
+    ['het voorbeeld met een leeg eigen werkschema', Buffer.from(emptyOwnSchedule(example, false))],
+    ['het voorbeeld met een externe pset', Buffer.from(example.replace(`ENDSEC;\n${END}`, EXTERN_PSET))],
     ...ifcFiles(at('tests', 'fixtures', 'ifc-foreign'), 'ifc-foreign/'),
-    ['het voorbeeld met een leeg eigen werkschema, een baseline en een losse taak', Buffer.from(readOtherwise), MAIN],
-    ['de woning met een externe pset aan het project', Buffer.from(projectPset(woning)), MAIN],
-    ['de woning met een andere beschrijving in OPS_ProjectSettings', Buffer.from(describedInSettings(woning)), MAIN],
-    ['het voorbeeld met een tweede OPS_ProjectSettings aan een vreemde pset', Buffer.from(secondSettingsOnForeignPset(example)), MAIN],
-  ].map(([name, body, expect]) => [name, body, expect ?? EXPECTED[name]]);
+    ['het voorbeeld met een leeg eigen werkschema, een baseline en een losse taak', Buffer.from(readOtherwise)],
+    ['de woning met een externe pset aan het project', Buffer.from(projectPset(woning))],
+    ['de woning met een andere beschrijving in OPS_ProjectSettings', Buffer.from(describedInSettings(woning))],
+    ['het voorbeeld met een tweede OPS_ProjectSettings aan een vreemde pset', Buffer.from(secondSettingsOnForeignPset(example))],
+    ['het voorbeeld met een opgeslagen CreatedAt in STEP-escapes', Buffer.from(escapedCreatedAt(example))],
+  ];
   const special = [
     ['het voorbeeld met een dubbele BOM', Buffer.concat([UTF8_BOM, UTF8_BOM, exampleBytes])],
     ['het voorbeeld met een BOM na een spatie', Buffer.concat([Buffer.from(' '), UTF8_BOM, exampleBytes])],
@@ -129,15 +117,14 @@ export function corpusCases() {
     ['leesfout: een ongeldige duur buiten de planning die de bytes-route leest', Buffer.from(readOtherwise.replace("'P0Y0M23D'", "'P0Y0M23X'"))],
     ['leesfout: een compacte XER-envelop die de lezer zonder reconstructor bereikt',
       Buffer.from(compactXerEnvelope(readFileSync(at('tests', 'planning', 'fixtures', 'xer-archief-herschreven.ifc'), 'utf8')))],
-    ['de Bonsai-planning met een vroege start die de berekening niet geeft', Buffer.from(bonsai.replace(BONSAI_WALL_A_TIME, BONSAI_WALL_A_STALE)),
-      { kind: 'model-summary' }],
-    [ALL_TYPES[0], exampleBytes, undefined, true],
-    [ALL_TYPES[1], Buffer.from(model), MODEL_KEPT, true],
+    ['de Bonsai-planning met een vroege start die de berekening niet geeft', Buffer.from(bonsai.replace(BONSAI_WALL_A_TIME, BONSAI_WALL_A_STALE))],
+    ['het voorbeeld 01-grachtenpand-amsterdam.ifc in elk mediatype', exampleBytes, TEXT_TYPES],
+    ['ifc-foreign/eigen-plus-model.ifc in elk mediatype', Buffer.from(model), TEXT_TYPES],
   ];
   return [
-    ...sources.flatMap(([name, body, expect]) => FORMS.map(([form, shape]) => ({ label: `${name}, ${form}`, body: shape(body), expect }))),
-    ...special.map(([label, body, expect, allTypes]) => ({ label, body, expect, textTypes: allTypes ? TEXT_TYPES : TEXT_TYPES.slice(0, 1) })),
-  ].map(c => ({ textTypes: TEXT_TYPES.slice(0, 1), ...c }));
+    ...sources.flatMap(([name, body]) => FORMS.map(([form, shape]) => ({ label: `${name}, ${form}`, body: shape(body), textTypes: TEXT_TYPES.slice(0, 1) }))),
+    ...special.map(([label, body, textTypes]) => ({ label, body, textTypes: textTypes ?? TEXT_TYPES.slice(0, 1) })),
+  ];
 }
 
 function stepArguments(text, open) {
@@ -162,19 +149,64 @@ function stepArguments(text, open) {
   return { args, end: text.length };
 }
 
-function maskArgument(line, entity, index, unlessIn) {
+function maskArgument(line, entity, index) {
   const head = line.match(new RegExp(`^#\\d+=${entity}\\(`));
   if (!head) return line;
   const start = head[0].length - 1;
   const { args, end } = stepArguments(line, start);
-  if (args.length <= index || (unlessIn !== undefined && unlessIn.includes(args[index]))) return line;
+  if (args.length <= index) return line;
   args[index] = 'SCHRIJFTIJD';
   return `${line.slice(0, start + 1)}${args.join(',')}${line.slice(end)}`;
 }
 
-const CLOCK_PROPERTY = /^(#\d+=IFCPROPERTYSINGLEVALUE\('(?:CreatedAt|ModifiedAt)',\$,IFCTEXT\()('[^']*')(\),\$\);)$/;
+function stepText(raw) {
+  return raw.replace(/''|\\\\|\\X2\\((?:[0-9A-F]{4})*)\\X0\\|\\X4\\((?:[0-9A-F]{8})*)\\X0\\|\\X\\([0-9A-F]{2})|\\S\\([\s\S])/gi,
+    (m, x2, x4, x, s) => m === "''" ? "'" : m === '\\\\' ? '\\'
+      : x2 !== undefined ? String.fromCharCode(...(x2.match(/.{4}/g) ?? []).map(h => parseInt(h, 16)))
+      : x4 !== undefined ? String.fromCodePoint(...(x4.match(/.{8}/g) ?? []).map(h => parseInt(h, 16)))
+      : x !== undefined ? String.fromCharCode(parseInt(x, 16))
+      : String.fromCharCode(s.charCodeAt(0) + 128));
+}
+
+function opsTexts(source, pset, name) {
+  const lines = new Map();
+  for (const line of source.split(/\r?\n/)) {
+    const m = line.match(/^#(\d+)=([A-Z0-9_]+)\(/);
+    if (m) lines.set(`#${m[1]}`, { type: m[2], args: stepArguments(line, m[0].length - 1).args });
+  }
+  const texts = [];
+  for (const { type, args } of lines.values()) {
+    if (type !== 'IFCPROPERTYSET' || args[2] !== `'${pset}'`) continue;
+    for (const member of (args[4] ?? '').replace(/^\(|\)$/g, '').split(',')) {
+      const prop = lines.get(member.trim());
+      const value = prop?.type === 'IFCPROPERTYSINGLEVALUE' && prop.args[0] === `'${name}'` && prop.args[2]?.match(/^IFCTEXT\('((?:[^']|'')*)'\)$/);
+      if (value) texts.push(stepText(value[1]));
+    }
+  }
+  return texts;
+}
+
+function storedClockFields(source) {
+  const baselines = opsTexts(source, 'OPS_Baselines', 'Baselines');
+  const everyBaselineDated = baselines.length > 0 && baselines.every(text => {
+    try {
+      const list = JSON.parse(text);
+      return Array.isArray(list) && list.every(b => typeof b?.createdAt === 'string' && b.createdAt !== '');
+    } catch {
+      return false;
+    }
+  });
+  return {
+    CreatedAt: opsTexts(source, 'OPS_ProjectSettings', 'CreatedAt').some(v => v !== ''),
+    ModifiedAt: opsTexts(source, 'OPS_ProjectSettings', 'ModifiedAt').some(v => v !== ''),
+    baseline: everyBaselineDated,
+  };
+}
+
+const CLOCK_PROPERTY = /^(#\d+=IFCPROPERTYSINGLEVALUE\('(CreatedAt|ModifiedAt)',\$,IFCTEXT\()('[^']*')(\),\$\);)$/;
 
 export function withoutWriteFields(text, source) {
+  const stored = storedClockFields(source);
   return text.split('\n').map(line => {
     if (line.startsWith('FILE_NAME(')) {
       const { args, end } = stepArguments(line, 'FILE_NAME'.length);
@@ -183,9 +215,10 @@ export function withoutWriteFields(text, source) {
     }
     const owner = line.match(/^#\d+=IFCOWNERHISTORY\(/);
     if (owner) return maskArgument(line, 'IFCOWNERHISTORY', stepArguments(line, owner[0].length - 1).args.length - 1);
-    if (/^#\d+=IFCWORK(PLAN|SCHEDULE)\(/.test(line)) return maskArgument(maskArgument(line, 'IFCWORKPLAN', 6, source), 'IFCWORKSCHEDULE', 6, source);
+    if (/^#\d+=IFCWORKPLAN\(/.test(line)) return maskArgument(line, 'IFCWORKPLAN', 6);
+    if (/^#\d+=IFCWORKSCHEDULE\(/.test(line)) return line.includes('.BASELINE.') && stored.baseline ? line : maskArgument(line, 'IFCWORKSCHEDULE', 6);
     const clock = line.match(CLOCK_PROPERTY);
-    return clock && !source.includes(clock[2]) ? `${clock[1]}SCHRIJFTIJD${clock[3]}` : line;
+    return clock && !stored[clock[2]] ? `${clock[1]}SCHRIJFTIJD${clock[4]}` : line;
   }).join('\n');
 }
 

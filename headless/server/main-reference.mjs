@@ -12,7 +12,8 @@ const base = baseArg.replace(/\/+$/, '');
 async function answer(path, body, type, kind) {
   const res = await fetch(`${base}${path}`, { method: 'POST', body, headers: { Authorization: `Bearer ${token}`, 'Content-Type': type } });
   const text = Buffer.from(await res.arrayBuffer()).toString('utf8');
-  const record = { status: res.status, type: res.headers.get('content-type') };
+  const retryAfter = res.headers.get('retry-after');
+  const record = { status: res.status, type: res.headers.get('content-type'), ...(retryAfter === null ? {} : { retryAfter }) };
   return res.status === 200 ? { ...record, sha256: answerDigest(text, kind, res.status, body) } : { ...record, body: text };
 }
 
