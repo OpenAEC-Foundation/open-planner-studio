@@ -317,7 +317,7 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
   }
   // Vond de lus hierboven niets, dan staat elk niet-P-stuk byte-gelijk op zijn plek: dan telt alleen het verschil.
   const counting = problems.length === 0 && !options.full ? 'verschil' : 'volledig';
-  problems.push(...changeListProblems(source, sourceBytes, index, bytes, listed, gone));
+  for (const problem of changeListProblems(source, sourceBytes, index, bytes, listed, gone)) problems.push(problem);
   for (const member of sourceClasses.foreignMembers) {
     const id = source.id(member), expected = bindings(source, id), shown = bindings(index, id);
     for (const key of [...expected.keys()]) if (gone.has(Number(JSON.parse(key)[0]))) expected.delete(key);
