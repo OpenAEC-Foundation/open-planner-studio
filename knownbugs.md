@@ -3962,7 +3962,9 @@ en noem het in je rapport of PR-tekst.
      app op 3,0 GB staan. Vóór de ingrepen (main `1830e5e67`): 52 MB in 24,5 s met 2,08 GB; een model van 87 MB met
      vooral losse punten in 22,4 s met 2,52 GB (zonder wijziging 16,8 s en 1,97 GB); bij 157 MB stond het proces na 51
      s op 4,09 GB en stopte de kernel de webview, vóór er iets geschreven was (het bestand bleef byte-gelijk en
-     crashherstel zette de wijziging terug). In Node kost dezelfde opslag veel minder (CI-run 44895156035, het werk
+     crashherstel zette de wijziging terug). Dat is één gemeten geval, op Linux, tijdens het rekenen; het zegt niet wat
+     er gebeurt als het geheugen opraakt terwijl de app schrijft. Voor de vensters tijdens het schrijven en plaatsen zie
+     1890, 1899, 2207, 2208, 2247 en 2248. In Node kost dezelfde opslag veel minder (CI-run 44895156035, het werk
      van de opslagworker, met wijziging): 150 MiB in 9,18 s met 1.228 MB, 300 MiB in 16,97 s met 2.239 MB (vóór de
      ingrepen 17,35 s en 1.708 MB, en 33,23 s en 3.155 MB). De cijfers uit Node zeggen dus niet of een model in de
      desktopapp past. Openen is het probleem niet: 157 MB opent in 12,4 s met een piek van 1,68 GB. Stand na #1111 (de
@@ -3990,8 +3992,9 @@ en noem het in je rapport of PR-tekst.
      dat ene proces. De getallen in GB van de meting na #1111 zijn zulke cgroup-standen gedeeld door duizend (3.438 MB
      staat er als 3,44 GB). Openen van een model boven 150 MiB weigerde van 21 tot 24 november 2026. Sinds het besluit
      van de eigenaar van 24 november ("zo laten, kunnen we niet maken dat het toch kan en dan gewoon hier een warning van
-     maken dat het heel gevaarlijk is?") opent het meteen, met een waarschuwing die blijft staan tot de planner haar
-     wegklikt (de drempel `IFC_FOREIGN_OPEN_WARN_BYTES`, PR #1203). De app waarschuwt daar dus in plaats van te weigeren,
+     maken dat het heel gevaarlijk is?") opent het meteen, met een waarschuwing zonder timer die zegt dat opslaan kan
+     mislukken en recente wijzigingen dan verloren kunnen gaan (de drempel `IFC_FOREIGN_OPEN_WARN_BYTES`, PR #1203; dat
+     de melding kan verdwijnen zonder klik staat bij 2253). De app waarschuwt daar dus in plaats van te weigeren,
      terwijl het geheugen daar niet bewezen is: op de desktop is boven 150 MiB alleen dat proefmodel van 157 MB gemeten,
      3,6 KB boven de drempel; een groter model is nergens op de desktop gemeten. De technische grens van de bytes-route
      blijft 300 MiB, en de uitvoer van opslaan heeft geen grens. Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB,
@@ -4037,6 +4040,16 @@ en noem het in je rapport of PR-tekst.
      "een latere startfout", geval "na een merge") en een storeproef van de reviewer met Ctrl+S en Automatisch opslaan
      (op main één worker, op de PR twee). Richting, als het nodig blijkt: de worker van gewone verzoeken los houden van
      die van de merge, zodat een gewoon verzoek zijn gestarte worker houdt zoals op main. — B (proef in Node)
+
+2253. **VERVOLG (#804, flag aan): de waarschuwing bij een groot gebouwmodel kan verdwijnen zonder klik.** De melding
+     `notifications.ifcForeignOpenLarge` (boven 150 MiB, PR #1203) heeft geen timer (`STICKY_OPEN_NOTICE_KEYS`), maar
+     de stapel houdt hoogstens drie meldingen: bij vier grote bestanden in één sleepactie verdringt de vierde melding de
+     eerste. En staat de grootteregel onder een samengevoegde openingsmelding (bijvoorbeeld bij een onbruikbaar
+     XER-bronarchief, met een vaste `dedupeKey`), dan kan een volgende opening die melding vervangen, en daarmee de
+     grootteregel van het eerdere bestand. Gevolgen van de bestaande stapel en samenvouwing; de gids noemt de melding
+     daarom "zonder timer". De eigenaar koos voor "De waarschuwing blijft staan tot je haar wegklikt": dit punt gaat ook
+     naar hem. Bron: review van #1203, ronde 1 (Sol). — B (code gelezen: `notify` en `MAX_NOTIFICATIONS` = 3 in
+     `uiSlice.ts`; niet nagespeeld)
 
 2048. **VERVOLG (#1121, flag aan): de melding "buiten dit tabblad gewijzigd" kan ook komen als de lezing ouder is dan
      wat het tabblad net opsloeg.** Begint een openactie te lezen vlak voordat het tabblad met hetzelfde bestand opslaat

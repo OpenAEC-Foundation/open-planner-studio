@@ -915,9 +915,11 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     Besluit van de eigenaar van 24 november 2026: "zo laten, kunnen we niet maken dat het toch kan en dan gewoon hier een
     warning van maken dat het heel gevaarlijk is?", met de vorm "Het bestand opent meteen. De waarschuwing blijft staan
     tot je haar wegklikt." Een bestand dat volgens de leesroute een gebouwmodel of vreemde gegevens heeft en groter is
-    dan 150 MiB, opent dus gewoon, met een blijvende openingsmelding die zegt dat opslaan kan mislukken doordat het
-    geheugen opraakt en dat het bestand op schijf dan blijft zoals het was. De toets gebruikt wat de leesroute al weet;
-    geen tweede scan. Een planning zonder gebouwmodel en zonder vreemde gegevens krijgt de waarschuwing niet, en een
+    dan 150 MiB, opent dus gewoon, met een openingsmelding zonder timer die zegt dat opslaan kan mislukken doordat het
+    geheugen opraakt en dat recente wijzigingen dan verloren kunnen gaan. Dat het bestand op schijf gelijk blijft, belooft
+    ze niet: dat is alleen gemeten voor een stop tijdens het rekenen, vóór het schrijven (knownbug 1936). Zonder timer is
+    niet hetzelfde als staan tot je haar wegklikt: de stapel van drie kan haar verdringen (knownbug 2253). De toets
+    gebruikt wat de leesroute al weet; geen tweede scan. Een planning zonder gebouwmodel en zonder vreemde gegevens krijgt de waarschuwing niet, en een
     IFC2X3-bestand zonder gebouwmodel evenmin: dat opent via de schematerugval zonder `ifcSource`, met de bestaande
     verliesmelding (§4.11). Elke route die in de app een nieuw document opent, toont haar, en `planner_import_schedule`
     in de app zet haar ook in zijn antwoord. Niet bij het crashherstel (dat opent zijn bron in een eigen context), de

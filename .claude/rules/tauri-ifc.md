@@ -347,12 +347,16 @@ bronidentieke bytes en de gewone/download-/site-uitvoer zonder vaste vergelijkin
 
 Twee getallen, elk op één plek:
 - **De drempel voor de waarschuwing** `IFC_FOREIGN_OPEN_WARN_BYTES` (`src/services/ifc/foreignOpenSize.ts`): 150 MiB
-  (binair). Besluit van de eigenaar, 24 november 2026: boven deze grootte opent een bestand met een gebouwmodel of
-  vreemde gegevens gewoon, met een waarschuwing die blijft staan tot de planner haar wegklikt (van 21 tot 24 november
-  weigerde openen hier). Eén toets, `opensLargeForeignSource`: de bron van een gelezen document heeft `ifcSource.foreign`
-  en is groter dan de drempel (`>`); geen tweede scan. De melding `notifications.ifcForeignOpenLarge` loopt mee in de
+  (binair, `IFC_FOREIGN_OPEN_WARN_MIB`). Besluit van de eigenaar, 24 november 2026: boven deze grootte opent een bestand
+  met een gebouwmodel of vreemde gegevens gewoon, met een waarschuwing zonder timer (van 21 tot 24 november weigerde
+  openen hier). Eén toets, `opensLargeForeignSource`: de bron van een gelezen document heeft `ifcSource.foreign` en is
+  groter dan de drempel (`>`); geen tweede scan. De proefnaad `lowerForeignOpenWarnBytesForTests` verlaagt alleen die
+  vergelijking; het getal in de tekst is altijd `IFC_FOREIGN_OPEN_WARN_MIB`. De tekst belooft niet dat het bestand op
+  schijf gelijk blijft als opslaan mislukt (review van #1203, ronde 1): ze zegt dat recente wijzigingen verloren kunnen
+  gaan. De melding `notifications.ifcForeignOpenLarge` loopt mee in de
   keten van openingsmeldingen (`withLargeForeignOpenNotice` in `applyOpenedImport`; ADR 0071: een regel onder een
-  bestaande openingsmelding, anders een eigen melding) en blijft staan via `STICKY_OPEN_NOTICE_KEYS`. Het kanaal kent
+  bestaande openingsmelding, anders een eigen melding) en heeft geen timer via `STICKY_OPEN_NOTICE_KEYS`; de stapel van
+  drie en de samenvouwing kunnen haar wel verdringen (knownbug 2253). Het kanaal kent
   geen aparte ernst voor een waarschuwing; zoals de andere verlieswaarschuwingen is ze `info` met `sticky`. Zo krijgt
   elke route die een nieuw document opent haar: Bestand → Openen, Recent, slepen en het startbestand, de dev-link, de
   site en `planner_import_schedule` in de app. Een wissel naar een tabblad waarin het bestand al open staat, opent niets
