@@ -3,9 +3,9 @@ import { castDraft } from 'immer';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
+import { MergeNeedsPhase2Error, prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { validateMergeOutput } from '@/services/ifc/foreign/mergeValidation';
-import { applyForeignRule, foreignChangeCount, goneStepIds, newForeignChangeCount, type ForeignChange } from '@/services/ifc/foreign/changeList';
+import { applyForeignRule, foreignChangeCount, goneStepIds, newForeignChangeCount, type ForeignChange, type ForeignReferences } from '@/services/ifc/foreign/changeList';
 import { foreignChangeList, foreignReferences } from '@/services/ifc/foreign/foreignReferences';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
@@ -15,6 +15,9 @@ import { FOREIGN_LINKS_NOTICE_KEY, foreignLinksDroppedSince } from '@/state/fore
 import { cloneDomain, mergeProblems, openForeign, settle, shownAfterOpen } from './ifcMergeKern';
 import { loadStore, openInStore } from './ifcAppRoute';
 import { installDeterminism } from './ifcPariteitKern';
+import { arrayAndCollectionOperations } from './operationCount';
+import { loadExtensionProject } from '@/extensions/retainActiveDocument';
+import { toExtAssignment, toExtCalendar, toExtProject, toExtResource, toExtSequence, toExtTask } from '@/extensions/extMappers';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 installDeterminism();
@@ -322,6 +325,80 @@ await check('controle 1: niets vervalt of wijzigt zonder op de lijst te staan, e
   const tampered = changes.map(c => c.id === 9003 && c.kind === 'gewijzigd' ? { ...c, newBytes: encode(decode(c.newBytes).replace('(#53)', '(#53,#55)')) } : c);
   const tamperedOutput = decode(prepared.bytes).replace('(#53),$,#354)', '(#53,#55),$,#354)');
   assert.notDeepEqual(problems(encode(tamperedOutput), tampered), [], 'een gewijzigd stuk met een ander lid dan de regel geeft');
+  const trailing = changes.map(c => c.id === 9003 && c.kind === 'gewijzigd' ? { ...c, newBytes: encode(decode(c.newBytes).replace('(#53)', '(#53,)')) } : c);
+  const trailingOutput = decode(prepared.bytes).replace('(#53),$,#354)', '(#53,),$,#354)');
+  assert.notDeepEqual(problems(encode(trailingOutput), trailing), [], 'een slotkomma in een gewijzigd stuk');
+});
+
+await check('een getypeerde lijst: het lid gaat eruit, en controle 1 keurt de juiste uitvoer goed', async () => {
+  const opened = await openInStore(encode(withLines(text('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'), [
+    `#9030=IFCRELDEFINESBYPROPERTIES('${guid('1GetypeerdeLijst')}',$,$,$,(#393),IFCPROPERTYSETDEFINITIONSET((#51,#53)));`,
+  ])));
+  const source = opened.store.getState().ifcSource!;
+  opened.store.getState().deleteTask(taskId(opened, 'Set up site'));
+  const prepared = await save(opened);
+  assert.deepEqual(listed(prepared.foreignChanges), ['gewijzigd #9030']);
+  assert.equal(lineOf(prepared.bytes, 9030), `#9030=IFCRELDEFINESBYPROPERTIES('${guid('1GetypeerdeLijst')}',$,$,$,(#393),IFCPROPERTYSETDEFINITIONSET((#53)));`);
+  assert.deepEqual(mergeProblems(source.bytes, prepared.bytes, prepared.foreignChanges), []);
+});
+
+await check('de extensieroute laadt dezelfde taak met een nieuw id terug: het opslaan weigert, zoals op main', async () => {
+  const opened = await openInStore(encode(withLines(text('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'),
+    [`#9001=IFCRELASSIGNSTOPRODUCT('${guid('1RegelTweeLijst')}',$,$,$,(#51),$,#393);`])));
+  const state = opened.store.getState(), oldId = taskId(opened, 'Set up site');
+  const ext = { project: toExtProject(state.project), calendar: toExtCalendar(state.calendar), tasks: state.tasks.map(t => toExtTask(t)),
+    sequences: state.sequences.map(toExtSequence), resources: state.resources.map(toExtResource), assignments: state.assignments.map(toExtAssignment) };
+  loadExtensionProject(opened.store, JSON.parse(JSON.stringify(ext).split(`"${oldId}"`).join('"taak-met-nieuw-id"')));
+  assert.equal(opened.store.getState().ifcSource, state.ifcSource, 'de bron blijft gekoppeld');
+  assert(!opened.store.getState().tasks.some(t => t.id === oldId) && opened.store.getState().tasks.some(t => t.id === 'taak-met-nieuw-id'));
+  let refusal: unknown;
+  try { await save(opened); } catch (error) { refusal = error; }
+  assert(refusal instanceof MergeNeedsPhase2Error, 'het opslaan weigert');
+  assert(refusal.cases.some(c => c.kind === 'niet-gedragen'), refusal.cases.map(c => c.kind).join(', '));
+});
+
+await check('flag aan zonder vreemd deel: geen grafiek bij openen en geen melding', async () => {
+  const own = encode(text('public/examples/03-kantoorgebouw-zuidas.ifc'));
+  const scan = scanForeignToOpen(own);
+  assert(scan.ok && scan.foreignReferences === undefined, 'zonder vreemd deel bouwt het openen geen grafiek');
+  const opened = await openInStore(own);
+  assert.equal(opened.store.getState().ifcSource?.foreignReferences, undefined);
+});
+
+function wideReferences(members: number): ForeignReferences {
+  return { stepIds: Int32Array.of(9_000_000), groupStart: Int32Array.of(0, 1), groupSize: Int32Array.of(members),
+    targetStart: Int32Array.of(0, members), targets: Int32Array.from({ length: members }, (_, k) => k + 1) };
+}
+
+await check('een brede lijst: de helft wissen is lineair werk', async () => {
+  const work = (members: number) => arrayAndCollectionOperations(() => {
+    const outcome = applyForeignRule(wideReferences(members), new Set(Array.from({ length: members / 2 }, (_, k) => k + 1)));
+    assert.equal(outcome.trimmed.get(9_000_000)?.size, members / 2);
+    assert.equal(outcome.dropped.size, 0);
+  }).operations;
+  const small = work(10_000), large = work(20_000);
+  console.log(`   werk bij een lijst van 10.000 met 5.000 gewist: ${small}; 20.000 met 10.000 gewist: ${large}`);
+  assert(large / small < 2.5, `twee keer zo breed geeft ${(large / small).toFixed(2)} keer zoveel werk; lineair is 2, kwadratisch 4`);
+});
+
+await check('een relatie met 150.000 leden: de grafiek bouwt zonder de argumentgrens', async () => {
+  const members = 150_000;
+  const lines = ['ISO-10303-21;', 'HEADER;', "FILE_DESCRIPTION((''),'2;1');", "FILE_NAME('','',(''),(''),'','','');", "FILE_SCHEMA(('IFC4X3_ADD2'));", 'ENDSEC;', 'DATA;'];
+  for (let k = 1; k <= members; k++) lines.push(`#${k}=IFCTASK('${guid(`3T${k.toString(36)}`)}',$,'t',$,$,$,$,$,$,.F.,$,$,$);`);
+  lines.push(`#${members + 1}=IFCWALL('${guid('2Wand')}',$,'Wand',$,$,$,$,$,$);`);
+  lines.push(`#${members + 2}=IFCRELASSIGNSTOPRODUCT('${guid('2Rel')}',$,$,$,(${Array.from({ length: members }, (_, k) => `#${k + 1}`).join(',')}),$,#${members + 1});`);
+  lines.push('ENDSEC;', 'END-ISO-10303-21;');
+  const bytes = encode(lines.join('\n')), index = scanForeignStep(bytes);
+  const classes = new Uint8Array(index.count), inD = new Uint8Array(index.count);
+  for (let i = 0; i < index.count; i++) {
+    if (!index.isEntity(i)) continue;
+    const task = index.type(i) === 'IFCTASK';
+    classes[i] = task ? 1 : index.type(i) === 'IFCWALL' ? 4 : 3;
+    inD[i] = task ? 1 : 0;
+  }
+  const references = foreignReferences(index, classes, bytes, inD);
+  assert.equal(references.targets.length, members);
+  assert.deepEqual([...references.groupSize], [members]);
 });
 
 await check('een vreemd lid in een eigen pset van een verwijderde taak blijft als los stuk staan (§4.2 stap 3)', async () => {

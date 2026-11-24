@@ -36,6 +36,8 @@ import { installDeterminism } from './ifcPariteitKern';
 import { canon, firstDiff, mergeProblems, openForeign, shownAfterOpen } from './ifcMergeKern';
 import { InProcessWorker } from './inProcessSaveWorker';
 import { createExtensionApi } from '@/extensions/extensionApi';
+import { FOREIGN_CHANGES_WRITTEN_NOTICE_KEY } from '@/state/foreignChangesWrittenNotice';
+import { FOREIGN_LINKS_NOTICE_KEY } from '@/state/foreignLinksNotice';
 
 const reseed = installDeterminism();
 await loadStore();
@@ -4209,6 +4211,137 @@ await check('stap 8, fixronde 2: het ritme geldt bij de beurt; een al gekozen mo
     assert.notEqual(hash(fileOf(secondName)), hash(bytes), 'op 78 s het tweede model');
     assert.deepEqual(autoErrors(store), []);
   } finally { timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+const writtenNotices = (store: Store) => store.getState().ui.notifications.filter(n => n.dedupeKey === FOREIGN_CHANGES_WRITTEN_NOTICE_KEY);
+const deleteNotices = (store: Store) => store.getState().ui.notifications.filter(n => n.dedupeKey === FOREIGN_LINKS_NOTICE_KEY);
+const taskNamed = (store: Store, name: string) => store.getState().tasks.find(t => t.name === name)!.id;
+const writtenCount = async (store: Store) =>
+  (await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!)).foreignChanges?.length ?? 0;
+const LINKED = await (async () => {
+  const { store } = await openInStore(bytes);
+  const second = { ...structuredClone(store.getState().calendar), id: 'cal-tweede', name: 'Tweede kalender' };
+  store.getState().commitCalendarLibrary([...store.getState().calendars, second], store.getState().project.calendarId);
+  const written = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+  const calendar = written.source.stepIds['cal:cal-tweede'];
+  assert(calendar !== undefined, 'de tweede kalender staat in de geschreven bron');
+  const content = new TextDecoder().decode(written.bytes), end = content.lastIndexOf('ENDSEC;');
+  return new TextEncoder().encode(content.slice(0, end) + [
+    "#990001=IFCRELASSIGNSTOPRODUCT('1KoppelingRoute00000001',$,$,$,(#51),$,#393);",
+    "#990002=IFCRELASSIGNSTOPRODUCT('1KoppelingRoute00000002',$,$,$,(#53),$,#354);",
+    "#990003=IFCRELASSIGNSTOPRODUCT('1KoppelingRoute00000003',$,$,$,(#110),$,#393);",
+    "#990004=IFCRELASSIGNSTOPRODUCT('1KoppelingRoute00000004',$,$,$,(#92),$,#354);",
+    "#990005=IFCPROPERTYSINGLEVALUE('Opmerking',$,IFCLABEL('kalender'),$);",
+    "#990006=IFCPROPERTYSET('1KoppelingRoute00000006',$,'Pset_Kalender',$,(#990005));",
+    `#990007=IFCRELDEFINESBYPROPERTIES('1KoppelingRoute00000007',$,$,$,(#${calendar}),#990006);`,
+  ].join('\n') + '\n' + content.slice(end));
+})();
+
+type WriteRoute = { readonly store: Store; readonly write: () => Promise<unknown>; readonly dispose: () => Promise<void> };
+let routeFiles = 0;
+const onDesktop = async (write: (store: Store, ipc: ReturnType<typeof desktop>) => Promise<unknown>): Promise<WriteRoute> => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-route-appdata-')), ipc = desktop(appData);
+  const path = join(dir, `route-${++routeFiles}.ifc`); writeFileSync(path, LINKED);
+  const store = await openAt({ kind: 'path', path }, LINKED), unregister = recoveryRounds(store);
+  return { store, write: () => write(store, ipc), dispose: async () => { unregister(); await clearRecovery(); ipc.dispose(); rmSync(appData, { recursive: true, force: true }); } };
+};
+const onHandle = async (write: (store: Store) => Promise<unknown>): Promise<WriteRoute> => {
+  const { store } = await openHandle(LINKED), unregister = recoveryRounds(store);
+  return { store, write: () => write(store), dispose: async () => { unregister(); await clearRecovery(); } };
+};
+const onDownload = async (write: (store: Store) => Promise<unknown>): Promise<WriteRoute> => {
+  const browser = browserDownload(), { store } = await openInStore(LINKED);
+  return { store, write: () => write(store), dispose: async () => { browser.dispose(); } };
+};
+const WRITE_ROUTES: readonly [string, () => Promise<WriteRoute>][] = [
+  ['Ctrl+S, bestand op de desktop', () => onDesktop(store => ctrlS(store))],
+  ['Opslaan als, desktop', () => onDesktop((store, ipc) => { ipc.choose(join(dir, `als-${++routeFiles}.ifc`)); return store.getState().saveFileAs(); })],
+  ['Exporteren als IFC, desktop', () => onDesktop((store, ipc) => { ipc.choose(join(dir, `export-${++routeFiles}.ifc`)); return store.getState().exportAs('ifc'); })],
+  ['Ctrl+S, browser met handle', () => onHandle(store => ctrlS(store))],
+  ['Automatisch opslaan, browser met handle', () => onHandle(store => modelAutoSave(store).round())],
+  ['Opslaan als, download', () => onDownload(store => store.getState().saveFileAs())],
+  ['Ctrl+S, download', () => onDownload(store => ctrlS(store))],
+];
+
+await check('fixronde 1 van #1199: elke schrijfroute meldt het aantal van de geschreven wijzigingslijst, een lege lijst niets', async () => {
+  for (const [name, open] of WRITE_ROUTES) {
+    const route = await open();
+    try {
+      longer(route.store); clearNotices(route.store);
+      await route.write();
+      assert.deepEqual(writtenNotices(route.store), [], `${name}: een lege lijst geeft geen melding`);
+      route.store.getState().deleteTask(taskNamed(route.store, 'Set up site'));
+      const expected = await writtenCount(route.store);
+      assert.equal(expected, 1, `${name}: één koppeling vervalt`);
+      clearNotices(route.store);
+      await route.write();
+      assert.deepEqual(writtenNotices(route.store).map(n => n.params?.count), [expected], `${name}: de melding met het aantal van de lijst`);
+    } finally { await route.dispose(); }
+  }
+});
+
+const DISAPPEARANCES: readonly [string, (store: Store) => void][] = [
+  ['taak wissen', store => store.getState().deleteTask(taskNamed(store, 'Set up site'))],
+  ['meer taken wissen', store => store.getState().deleteTasksBulk([taskNamed(store, 'Set up site'), taskNamed(store, 'Demolish existing extension')])],
+  ['taak opheffen', store => store.getState().dissolveTasksBulk([taskNamed(store, 'Set up site')])],
+  ['resource wissen', store => store.getState().removeResource(store.getState().resources.find(r => r.name === 'Bricklayers')!.id)],
+  ['Opnieuw na Ctrl+Z', store => { store.getState().deleteTask(taskNamed(store, 'Set up site')); store.getState().undo(); store.getState().redo(); }],
+  ['relatie wissen', store => store.getState().removeSequence(Object.entries(store.getState().ifcSource!.stepIds).find(([, id]) => id === 92)![0].slice('seq:'.length))],
+  ['kalenderdialoog', store => {
+    store.getState().commitCalendarLibrary(store.getState().calendars.filter(c => c.id !== 'cal-tweede'), store.getState().project.calendarId);
+  }],
+];
+
+await check('fixronde 1 van #1199: elke manier van verdwijnen geeft na Ctrl+S de melding met het aantal van de lijst', async () => {
+  for (const [name, disappear] of DISAPPEARANCES) {
+    const route = await onHandle(store => ctrlS(store));
+    try {
+      disappear(route.store);
+      const expected = await writtenCount(route.store);
+      assert(expected > 0, `${name}: er vervalt iets`);
+      if (name === 'Opnieuw na Ctrl+Z') assert.equal(deleteNotices(route.store)[0]?.params?.count, expected, `${name}: ook de melding bij het wissen`);
+      clearNotices(route.store);
+      assert.equal(await route.write(), true, `${name}: Ctrl+S schrijft`);
+      assert.deepEqual(writtenNotices(route.store).map(n => n.params?.count), [expected], `${name}: de melding na het opslaan`);
+    } finally { await route.dispose(); }
+  }
+  const { store } = await openHandle(LINKED), unregister = recoveryRounds(store);
+  try {
+    const id = store.getState().activeDocumentId;
+    store.getState().deleteTask(taskNamed(store, 'Set up site'));
+    await flushRecoveryNow();
+    const restored = await restoreFrom(await loadRecovery());
+    unregister();
+    restored.getState().switchDocument(id);
+    const restoredRounds = recoveryRounds(restored);
+    try {
+      const expected = await writtenCount(restored);
+      assert.equal(expected, 1, 'herstelset: de onopgeslagen wisactie');
+      clearNotices(restored);
+      assert.equal(await ctrlS(restored), true, 'herstelset: Ctrl+S schrijft');
+      assert.deepEqual(writtenNotices(restored).map(n => n.params?.count), [expected], 'herstelset: de melding na het opslaan');
+    } finally { restoredRounds(); }
+  } finally { unregister(); await clearRecovery(); }
+});
+
+await check('fixronde 1 van #1199: de knop Ongedaan maken verdwijnt met de bron; Automatisch opslaan meldt één keer', async () => {
+  const route = await onHandle(store => ctrlS(store));
+  try {
+    route.store.getState().deleteTask(taskNamed(route.store, 'Set up site'));
+    assert.equal(deleteNotices(route.store)[0]?.action?.kind, 'undoHistoryEvent', 'vóór het opslaan staat de knop er');
+    assert.equal(await route.write(), true);
+    assert.deepEqual(deleteNotices(route.store), [], 'na het opslaan is de knop weg');
+  } finally { await route.dispose(); }
+  const auto = await onHandle(async () => undefined);
+  try {
+    const rounds = modelAutoSave(auto.store);
+    auto.store.getState().deleteTask(taskNamed(auto.store, 'Set up site'));
+    clearNotices(auto.store); await rounds.round();
+    assert.deepEqual(writtenNotices(auto.store).map(n => n.params?.count), [1], 'de ronde die laat vervallen meldt');
+    longer(auto.store); clearNotices(auto.store); await rounds.round();
+    assert.equal(auto.store.getState().isDirty, false, 'de volgende ronde schreef');
+    assert.deepEqual(writtenNotices(auto.store), [], 'de volgende ronde meldt niets: de bron is de uitvoer');
+  } finally { await auto.dispose(); }
 });
 
 rmSync(dir, { recursive: true, force: true });

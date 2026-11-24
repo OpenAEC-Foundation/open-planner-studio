@@ -140,7 +140,8 @@ async function proof(group: string, label: string, src: string, want: string, ed
   const pass = want === 'schrijft' ? r.ok : !r.ok && r.kinds.includes(want);
   ok(`${name}: verwacht ${want}, kreeg ${got}${first ? ` — ${first.slice(0, 200)}` : ''}`, pass);
   if (!pass || !r.ok) return;
-  const problems = mergeProblems(latin1(src), r.bytes, r.changes);
+  const removesObjects = d.tasks.length < o.tasks.length || d.resources.length < o.resources.length || d.sequences.length < o.sequences.length;
+  const problems = mergeProblems(latin1(src), r.bytes, removesObjects ? r.changes : []);
   ok(`${name}: invarianten (${problems.slice(0, 2).join(' | ')})`, problems.length === 0);
   const same = sameAs(await shownAfterOpen(d), await openForeign(r.bytes));
   ok(`${name}: ${same}`, same === undefined);
