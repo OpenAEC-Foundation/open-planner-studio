@@ -167,6 +167,7 @@ async function runSequence(route: 'browser' | 'desktop', steps: readonly string[
     };
     for (const [i, step] of steps.entries()) {
       const label = `${route} reeks ${n} stap ${i + 1} (${steps.slice(0, i + 1).join(' → ')})`;
+      if (['verschuif', 'terug', 'opnieuw'].includes(step) && live.getState().activeDocumentId !== modelId) live.getState().switchDocument(modelId);
       if (step === 'verschuif') {
         const pair = duplicates.find(p => present(p.kind, p.first) && present(p.kind, p.second));
         const s = live.getState();

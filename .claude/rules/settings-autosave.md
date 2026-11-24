@@ -79,19 +79,24 @@ via `flushRecoveryNow` tot de gepersisteerde basis van `runRecoveryTick` het noe
 slagen eerst de nieuwe bron en wist dan het veld; na mislukken alleen wissen. Herstel aanvaardt een bron met `sha256`
 of `pendingSha256` en neemt de gevonden versie. Een oudere app negeert het veld. Ctrl+S via de browserhandle roept
 het aan (stap 2, `tauri-ifc.md`); zonder vastgelegd manifest schrijft hij niet (1764).
-#804 fase 2, PR 11 (fixronde 1 van #1198): de herstelsnapshot is precies die van main. Wat de writer in een
-herstelsnapshot met de vingerafdruk van een vreemd deel werkelijk uitgaf, legt `writeRecoverySnapshot`
-(`recoverySnapshotInput.ts`, ook in de Worker) vast als `snapshotIdentities`: per taak, resource, bibliotheekkalender en
-relatie waarvan de bewaarde GlobalId in `ifcGlobalIds` gedeeld wordt (een `-dup-N`-object en zijn partner) een rij
-`[zaad, GlobalId van de sessie, geschreven GlobalId]` (`recoveryIdentity.ts`; `writeIFCWithChoices` geeft de uitgegeven
-GlobalIds terug). Het veld staat in de manifestregel naast `ifcSource` (v5, optioneel), alleen als het document een
-bronverwijzing heeft (flag aan, vreemd deel, bron niet ontbrekend); een mislukte bronkopie haalt alleen `ifcSource` weg. De
-opslaglaag kopieert het veld zonder het te lezen. `readRecoveryDocument` past het met de flag aan één keer toe, direct na
-het lezen van de snapshot en ook als de bron ontbreekt: eerst de vormtoets (dezelfde als de writer gebruikt), dan elke
-geschreven GlobalId precies één keer in de gelezen snapshot, taken op hun eigen id, en na hernoemen geen dubbel id per soort;
-klopt iets niet, dan blijft het herstel dat van main. Main en deze app met de flag uit lezen de set zoals main (gemeten met
-de lezer van main). Proef: `check-recovery-gedeelde-globalids.ts`. Het lijstje per bronversie uit ontwerp §4.14
-(`idExceptions`) bestaat nog niet: knownbug 2236.
+#804 fase 2, PR 11 (#1198): de herstelsnapshot is precies die van main. Vindt de tracker een document geschikt (een
+bronverwijzing: flag aan, vreemd deel, bron niet ontbrekend), dan vraagt hij de Worker om een koppeling; `writeRecoverySnapshot`
+(`recoverySnapshotInput.ts`) legt dan vast wat de writer werkelijk uitgaf, als `snapshotIdentities` = `{ sha256, rows }`:
+de sha256 van precies deze snapshottekst, en per taak, resource, bibliotheekkalender en relatie waarvan de bewaarde GlobalId
+in `ifcGlobalIds` gedeeld wordt (een `-dup-N`-object en zijn partner) een rij `[zaad, GlobalId van de sessie, geschreven
+GlobalId]` (`recoveryIdentity.ts`; `writeIFCWithChoices` geeft de uitgegeven GlobalIds terug). Is geen GlobalId gedeeld,
+dan stopt het vóór het opsommen van objecten. De koppeling ontstaat alleen bij de IFC-upsert die haar maakte en gaat alleen
+met die IFC het manifest in; een ronde die de snapshot hergebruikt, neemt de gecommitteerde koppeling over
+(`RecoveryDeltaTracker`: `upserted` → `committed` in `commit`). Was de bewaarde snapshot gemaakt zonder koppeling (flag
+uit) en is het document weer geschikt, dan serialiseert de tracker haar eenmaal opnieuw. Het veld staat in de manifestregel
+naast `ifcSource` (v5, optioneel); een mislukte bronkopie haalt alleen `ifcSource` weg, en de opslaglaag kopieert het veld
+zonder het te lezen. `readRecoveryDocument` past het met de flag aan één keer toe, direct na het lezen van de snapshot en ook
+als de bron ontbreekt: de vormtoets leest elke positie van elke rij, de sha256 moet die van de gelezen snapshot zijn, elke
+geschreven GlobalId staat precies één keer in die snapshot, taken houden hun eigen id, en na hernoemen is er geen dubbel id
+per soort; klopt iets niet, dan blijft het herstel dat van main. Main en deze app met de flag uit lezen de set zoals main.
+Proeven: `check-recovery-gedeelde-globalids.ts` en de eigenschapsproef `check-recovery-identiteit-reeksen.ts` (reeksen
+van stappen op één tracker, browser en desktop). Het lijstje per bronversie uit ontwerp §4.14 (`idExceptions`) bestaat
+nog niet: knownbug 2236.
 PR 11a sluit de voorbereide documentwrites aan. Site-AutoSave blijft uit. Met de flag uit, of als de bron ontbreekt,
 blijft bestands-AutoSave bij een vreemd deel geweigerd (`ifcSaveBlocked`, geen kandidaat), met de bestaande ene
 melding per document per sessie.

@@ -31,10 +31,12 @@ installDeterminism();
 await loadStore();
 let failCopy = false;
 let webFault: ((store: string, value: { id: string }) => boolean) | null = null;
+let docRecordPuts = 0;
 const db = installFakeRecoveryIndexedDb({
   onPut: (store, value) => {
     if (store === 'sources' && failCopy) throw new DOMException('quotum', 'QuotaExceededError');
     if (webFault?.(store, value)) throw new DOMException('snapshotquotum', 'QuotaExceededError');
+    if (store === 'records' && value.id.includes('::doc::')) docRecordPuts++;
   },
 });
 installSessionStorage();
@@ -324,6 +326,9 @@ async function failedRoundThenUndo(route: 'browser' | 'desktop') {
     const round = () => runRecoveryTick(tracker, live.getState().activeDocumentId,
       live.getState().getOpenDocumentPayloads().map(({ id: docId, payload }) => recoverySourceDocument(docId, payload, true)), undefined, undefined, () => {});
     const stored = async () => (await loadRecovery()).docs.find(d => d.id === id)!;
+    const snapshotWrites = () => appData
+      ? (JSON.parse(readFileSync(join(appData, readdirSync(appData).find(n => n.endsWith('.documents.json'))!), 'utf8')) as { documents: { id: string; ifc: string }[] }).documents.find(d => d.id === id)!.ifc
+      : String(docRecordPuts);
     const firstId = resourceId(live, SCAFFOLDERS)!, secondId = resourceId(live, CRANE)!;
     assert.equal(await round(), true, `${route}: snapshot A`);
     const a = await stored();
@@ -339,9 +344,13 @@ async function failedRoundThenUndo(route: 'browser' | 'desktop') {
     assert.deepEqual([afterFailure.ifc, afterFailure.snapshotIdentities], [a.ifc, a.snapshotIdentities], `${route}: na de mislukte ronde staat A er nog`);
     live.getState().undo();
     assert.deepEqual([resourceId(live, SCAFFOLDERS), resourceId(live, CRANE)], [firstId, secondId], `${route}: Ctrl+Z zet de eerste resource terug`);
-    assert.equal(await round(), false, `${route}: na Ctrl+Z valt er niets te schrijven`);
+    const beforeReuse = snapshotWrites();
+    await round();
+    const afterUndo = await stored();
+    assert.deepEqual([afterUndo.ifc, afterUndo.snapshotIdentities], [a.ifc, a.snapshotIdentities], `${route}: na Ctrl+Z staat A er met de koppeling van A`);
     live.getState().switchDocument(otherId);
     assert.equal(await round(), true, `${route}: een ronde met alleen een manifestwijziging`);
+    assert.equal(snapshotWrites(), beforeReuse, `${route}: de rondes na Ctrl+Z schreven geen nieuwe snapshot`);
     const reused = await stored();
     assert.equal(reused.ifc, a.ifc, `${route}: de manifestronde hergebruikt snapshot A`);
     assert.deepEqual(reused.snapshotIdentities, a.snapshotIdentities, `${route}: de bewaarde koppeling is die van A`);
@@ -398,7 +407,8 @@ const manifestRecord = structuredClone(records.get(manifestKey)) as { documents:
 const mainBack = await restore(withoutField(malformedInitial), true, null);
 const notices = (store: Store) => store.getState().ui.notifications.map(n => [n.messageKey, n.severity]);
 const documentIdentities = (store: Store, docId: string) => { store.getState().switchDocument(docId); return JSON.stringify(identities(store)); };
-const mainModel = documentIdentities(mainBack, malformedId), mainOther = documentIdentities(mainBack, malformedOther);
+const mainOther = documentIdentities(mainBack, malformedOther), mainModel = documentIdentities(mainBack, malformedId);
+malformedStore.getState().switchDocument(malformedId);
 assert.notEqual(resourceId(mainBack, CRANE), resourceId(malformedStore, CRANE), 'zonder koppeling geeft main de tweede resource een ander id');
 for (const [label, value] of forms) {
   const changed = structuredClone(manifestRecord);

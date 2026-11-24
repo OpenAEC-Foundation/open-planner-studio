@@ -31,9 +31,8 @@ function objectIds(planning: Planning): ReadonlyMap<Kind, readonly string[]> {
   ]);
 }
 
-function filledText(list: object, position: number): string | null {
-  if (!hasOwn(list, position)) return null;
-  const value = (list as Record<number, unknown>)[position];
+function filledText(row: readonly unknown[], position: number): string | null {
+  const value = row[position];
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
@@ -41,7 +40,6 @@ export function recoveryIdentityRows(raw: unknown): RecoveryIdentityRow[] | null
   if (!Array.isArray(raw) || raw.length === 0) return null;
   const rows: RecoveryIdentityRow[] = [], seeds = new Set<string>(), written = new Set<string>();
   for (let index = 0; index < raw.length; index++) {
-    if (!hasOwn(raw, index)) return null;
     const row: unknown = raw[index];
     if (!Array.isArray(row) || row.length !== 3) return null;
     const seed = filledText(row, 0), sessionGlobalId = filledText(row, 1), writtenGlobalId = filledText(row, 2);
