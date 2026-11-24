@@ -1,4 +1,4 @@
-// Bron: MPXJ, © Jon Iles e.a. (LGPL-2.1, https://github.com/joniles/mpxj).
+// Bron: afgeleid van de MPXJ-broncode (https://github.com/joniles/mpxj, © Jon Iles e.a., LGPL-2.1), geport naar TypeScript.
 import type { Project } from '@/types/project';
 import type {
   Task, TaskConstraint, TaskSplitGap, MspTaskType, TaskTimephasedContour, TimephasedContourPeriod,
