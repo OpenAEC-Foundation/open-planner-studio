@@ -166,7 +166,8 @@ const STATUS_OF = {
   BUSY: 503,
   TIMEOUT: 503,
 };
-const ACCEPTED_TYPES = new Set(['application/x-step', 'application/ifc', 'model/ifc', 'text/plain', 'application/octet-stream']);
+const BYTES_TYPE = 'application/octet-stream';
+const ACCEPTED_TYPES = new Set(['application/x-step', 'application/ifc', 'model/ifc', 'text/plain', BYTES_TYPE]);
 const REQUEST_ID = /^[A-Za-z0-9._-]{1,64}$/;
 
 export function createApiServer(config) {
@@ -266,7 +267,7 @@ export function createApiServer(config) {
           if (size > config.maxBodyBytes) return done({ error: 'PAYLOAD_TOO_LARGE' });
           parts.push(chunk);
         };
-        const onEnd = () => done({ text: Buffer.concat(parts).toString('utf8') });
+        const onEnd = () => done({ data: Buffer.concat(parts) });
         const onClose = () => done({ error: 'ABORTED' });
         const timer = setTimeout(() => done({ error: 'UPLOAD_TIMEOUT' }), config.uploadTimeoutMs);
         req.on('data', onData);
@@ -285,7 +286,7 @@ export function createApiServer(config) {
     // Intussen kan een andere upload de berekening hebben gekregen.
     if (calculator.busy) return fail('BUSY', 'The server is busy; try again later', {}, { 'Retry-After': '5' });
 
-    const result = await calculator.run({ text: body.text, output });
+    const result = await calculator.run(type === BYTES_TYPE ? { bytes: body.data, output } : { text: body.data.toString('utf8'), output });
     if (res.destroyed) return;
     if (!result.ok) {
       return fail(result.code in STATUS_OF ? result.code : 'INTERNAL', result.message,
@@ -293,12 +294,15 @@ export function createApiServer(config) {
         result.code === 'TIMEOUT' ? { 'Retry-After': '30' } : {});
     }
     if (output === 'ifc') {
+      const ifc = result.ifcBytes === undefined
+        ? result.ifc
+        : Buffer.from(result.ifcBytes.buffer, result.ifcBytes.byteOffset, result.ifcBytes.byteLength);
       res.writeHead(200, {
-        'Content-Type': 'application/x-step; charset=utf-8',
-        'Content-Length': Buffer.byteLength(result.ifc),
+        'Content-Type': result.ifcBytes === undefined ? 'application/x-step; charset=utf-8' : BYTES_TYPE,
+        'Content-Length': Buffer.byteLength(ifc),
         'Content-Disposition': 'attachment; filename="schedule.ifc"',
       });
-      return res.end(result.ifc);
+      return res.end(ifc);
     }
     return sendJson(200, result.summary);
   }

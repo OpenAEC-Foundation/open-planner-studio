@@ -23,6 +23,11 @@ if (!baseArg || !token) {
 const base = baseArg.replace(/\/+$/, '');
 const here = dirname(fileURLToPath(import.meta.url));
 const EXAMPLE = join(here, '..', '..', 'examples', '01-grachtenpand-amsterdam.ifc');
+const FOREIGN_FIXTURES = join(here, '..', '..', 'tests', 'fixtures', 'ifc-foreign');
+const MODEL_FILES = [
+  { file: 'eigen-plus-model.ifc', schema: 'IFC4X3_ADD2', objectCount: 90 },
+  { file: 'latin1.ifc', schema: 'IFC4', objectCount: 155 },
+];
 // Dezelfde verwachte uitkomst als scripts/verify-core-package.mjs.
 const EXPECTED = { name: 'New-Build Canal House, Amsterdam', start: '2027-03-01', finish: '2028-01-12T16:00', tasks: 51 };
 
@@ -42,13 +47,15 @@ async function call(path, { method = 'GET', body, headers = {}, auth = true } = 
   if (auth === true) h.Authorization = `Bearer ${token}`;
   else if (typeof auth === 'string') h.Authorization = auth;
   const res = await fetch(`${base}${path}`, { method, body, headers: h });
-  const text = await res.text();
+  const bytes = Buffer.from(await res.arrayBuffer());
+  const text = bytes.toString('utf8');
   let json = null;
   try { json = JSON.parse(text); } catch { /* geen JSON */ }
-  return { status: res.status, headers: res.headers, text, json };
+  return { status: res.status, headers: res.headers, bytes, text, json };
 }
 const isError = (r, code) => r.json?.error?.code === code && typeof r.json.error.message === 'string';
 const IFC = { 'Content-Type': 'application/x-step' };
+const BYTES = { 'Content-Type': 'application/octet-stream' };
 
 try {
   // 1. Health, zonder token.
@@ -99,6 +106,31 @@ try {
     && (ifc.headers.get('content-type') ?? '').startsWith('application/x-step'), `${ifc.status} ${ifc.text.slice(0, 80)}`);
   const again = await call('/v1/schedule', { method: 'POST', body: ifc.text, headers: IFC });
   ok('herberekende IFC geeft hetzelfde einde', again.status === 200 && again.json?.project?.finish === EXPECTED.finish, String(again.json?.project?.finish));
+
+  const exampleBytes = readFileSync(EXAMPLE);
+  const bytesSummary = await call('/v1/schedule', { method: 'POST', body: exampleBytes, headers: BYTES });
+  ok('voorbeeld als bytes → dezelfde samenvatting als als tekst, zonder vreemd deel',
+    bytesSummary.status === 200 && bytesSummary.json?.foreignContent === null
+      && JSON.stringify(bytesSummary.json?.tasks) === JSON.stringify(s?.tasks), `${bytesSummary.status} ${bytesSummary.text.slice(0, 200)}`);
+  const bytesIfc = await call('/v1/schedule?output=ifc', { method: 'POST', body: exampleBytes, headers: BYTES });
+  ok('voorbeeld als bytes, output=ifc → 200 met application/octet-stream', bytesIfc.status === 200
+    && bytesIfc.headers.get('content-type') === 'application/octet-stream' && bytesIfc.text.startsWith('ISO-10303-21;'),
+    `${bytesIfc.status} ${bytesIfc.headers.get('content-type')}`);
+  for (const model of MODEL_FILES) {
+    const source = readFileSync(join(FOREIGN_FIXTURES, model.file));
+    const asText = await call('/v1/schedule', { method: 'POST', body: source, headers: IFC });
+    ok(`${model.file} als IFC-tekst → 422 IFC_READ_FAILED: de tekstroute weigert een gebouwmodel, zoals op main`,
+      asText.status === 422 && isError(asText, 'IFC_READ_FAILED'), `${asText.status} ${asText.text.slice(0, 200)}`);
+    const modelSummary = await call('/v1/schedule', { method: 'POST', body: source, headers: BYTES });
+    const foreign = modelSummary.json?.foreignContent;
+    ok(`${model.file} als bytes → 200 met het bewaarde vreemde deel in foreignContent`, modelSummary.status === 200
+      && foreign?.format === 'ifc' && foreign?.schema === model.schema && foreign?.objectCount === model.objectCount,
+      `${modelSummary.status} ${JSON.stringify(foreign) ?? modelSummary.text.slice(0, 200)}`);
+    const modelIfc = await call('/v1/schedule?output=ifc', { method: 'POST', body: source, headers: BYTES });
+    ok(`${model.file} als bytes, output=ifc → het bestand komt byte-gelijk terug`, modelIfc.status === 200
+      && modelIfc.headers.get('content-type') === 'application/octet-stream' && modelIfc.bytes.equals(source),
+      `${modelIfc.status} ${modelIfc.bytes.length} ≠ ${source.length} bytes`);
+  }
 
   // 6. Ongeldige invoer.
   const notIfc = await call('/v1/schedule', { method: 'POST', body: 'dit is geen IFC', headers: { 'Content-Type': 'text/plain' } });
