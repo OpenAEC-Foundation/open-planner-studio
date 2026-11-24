@@ -268,12 +268,13 @@ let base: Uint8Array | undefined;
   ];
   const task = taskOf(opened);
   for (const a of domain.assignments.filter(x => x.taskId === task.id)) a.plannedWorkMinutes = 480;
+  domain.tasks = domain.tasks.map(t => t.id === task.id ? { ...t, splitGaps: [{ afterMinutes: 480, gapMinutes: 480 }] } : t);
   const prepared = await save('basis: codetypen en vensters toevoegen', domain, opened.ifcSource!);
   if (prepared) base = prepared.bytes;
 }
-ok('basis: het opgeslagen bestand heeft OPS_StructureMeta, OPS_Baselines en de vensters van #63',
+ok('basis: het opgeslagen bestand heeft OPS_StructureMeta, OPS_Baselines, de vensters en de onderbreking van #63',
   !!base && jsonIn(base, 'OPS_StructureMeta', 'structure') !== undefined && jsonIn(base, 'OPS_Baselines', 'Baselines') !== undefined
-  && jsonIn(base, 'OPS_Timephased', 'Windows', TASK_GUID) !== undefined);
+  && jsonIn(base, 'OPS_Timephased', 'Windows', TASK_GUID) !== undefined && jsonIn(base, 'OPS_TaskSplits', 'Splits', TASK_GUID) !== undefined);
 
 if (base) {
   const baseText = text(base);
@@ -409,6 +410,28 @@ if (base) {
     const verdict = await refusal(domain, opened.ifcSource!);
     ok(`nieuwe toewijzing van dezelfde resource: geen eenduidige plek voor vendorW, opslaan stopt (${verdict})`,
       /^uitvoer-controle: .*Windows/.test(verdict));
+  }
+}
+
+if (base) {
+  const splits = latin1(patchJson(text(base), 'Splits', j => j.replace('{"afterMinutes":480,', '{"vendorReason":"R1","afterMinutes":480,')));
+  const reason = (bytes: Uint8Array) => jsonIn(bytes, 'OPS_TaskSplits', 'Splits', TASK_GUID);
+  ok(`grens (knownbug 2218), Splits: de proefbewerking zette vendorReason in de onderbreking (${reason(splits)})`, !!reason(splits)?.includes('vendorReason'));
+  {
+    const opened = await openForeign(splits);
+    const domain = cloneDomain(opened);
+    domain.project.description = `${domain.project.description} (proef Splits)`;
+    const prepared = await save('grens (knownbug 2218), Splits: een andere bewerking', domain, opened.ifcSource!);
+    if (prepared) ok(`grens (knownbug 2218), Splits: zonder bewerking van de onderbreking blijft de bron staan (${reason(prepared.bytes)})`,
+      reason(prepared.bytes) === reason(splits));
+  }
+  {
+    const opened = await openForeign(splits);
+    const domain = cloneDomain(opened);
+    domain.tasks = domain.tasks.map(t => t.id === taskOf(opened).id ? { ...t, splitGaps: [{ afterMinutes: 480, gapMinutes: 960 }] } : t);
+    const verdict = await refusal(domain, opened.ifcSource!);
+    ok(`grens (knownbug 2218), Splits: een lijst zonder sleutelveld heeft nog geen identiteit, een bewerking weigert zoals op main (${verdict.slice(0, 200)})`,
+      /^niet-gedragen: IFCPROPERTYSINGLEVALUE #\d+ \(Splits\)/.test(verdict));
   }
 }
 

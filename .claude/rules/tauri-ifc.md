@@ -306,6 +306,32 @@ lijst uit die herlezing. Een gewiste taak neemt haar sleutels mee; melding en `d
 deel schrijft de gewone writer ze niet, zoals op main; een paar bronvormen weigeren nog (knownbug 2210). Proef:
 `check-ifc-foreign-ongebruikte-sleutels.ts`.
 
+### Onbekende JSON-sleutels (#804 fase 2, PR 4)
+
+Het register `JSON_PROPERTIES` (`src/services/ifc/jsonRegister.ts`) noemt elke JSON-eigenschap die de writer schrijft,
+met per object de sleutels die de app kent en per lijst of kaart de identiteit: een sleutelveld (`id`, `taskId`, …), een
+sleutel uit de data (`sleutel`: de sleutel zelf, zoals een GlobalId; `toewijzing`: in `Windows` de toewijzing van die
+resource aan de taak, alleen als er precies één is) of `herkomstmerk` (lijst zonder sleutelveld, nog niet gedragen, PR 5).
+`doorgegeven` is een object dat de lezer heel in het domein zet (kalenders en resources van `OPS_Library`).
+`check-ifc-foreign-json-sleutels.ts` faalt als de writer JSON schrijft die niet in het register staat, een sleutel die het
+register niet kent, of een lijst of kaart zonder identiteit.
+
+Alleen de merge gebruikt het. `jsonExtrasOf` (`foreign/jsonExtrasSource.ts`) leest bij elke opslag uit de bronbytes, per
+eigenaar (de sleutel van de writer: `task_<id>`, `_project`, `_worksched`, …), pset, property en pad, de onbekende
+sleutels als ruw JSON-token. Er is geen veld op `ifcSource`: een bron zonder vreemd deel gaat langs de gewone writer en
+krijgt niets. `writeIfcMergeLines` zet ze terug met `withJsonExtras` (`jsonExtras.ts`): in hetzelfde object, na de
+bekende sleutels, in bronvolgorde. Draagt het domein dezelfde naam met de waarde die de lezer van het brontoken maakte,
+dan komt het brontoken op die plek terug (een groot getal blijft byte-gelijk); met een andere waarde blijft die van het
+domein en weigert de uitvoercontrole, zodat een naam nooit twee keer in één object staat. Waar de lezer het object met al
+zijn sleutels overneemt (codetypen en velden, baselines en hun regels, notities, externe koppelingen,
+bibliotheekherkomst), zet `withJsonExtrasInDomain` een weggevallen onbekende sleutel eerst terug in het domein; anders
+leest de uitvoer terug tot een andere planning dan het domein. In de verliescontrole is de JSON-tekst van een
+registereigenschap met dezelfde waarde (sleutelvolgorde, getalnotatie, tekstcodering) een normalisatie (`same` in
+`compareOutput`), net als `getal` en `tekst`. `jsonExtrasProblem` in `checkedBytes` eist per bestaande eigenaar dat elk
+object met onbekende sleutels in de uitvoer eenduidig staat, met dezelfde naam en waarde per sleutel; anders
+`uitvoer-controle`. Een item met sleutelveld dat er niet meer is, en een toewijzing die niet meer bestaat, nemen hun
+sleutels mee (melding en `detached`: PR 6 en 7). Grenzen: knownbug 2218.
+
 ### Vergelijkingsklok (#804 fase 1c)
 
 `planningCanon` gebruikt alleen `writeIFCForComparison`: één vaste datum via de interne schrijfkern,
