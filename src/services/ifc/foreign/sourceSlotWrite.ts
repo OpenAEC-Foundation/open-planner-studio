@@ -31,9 +31,9 @@ export function writerAlwaysWrites(table: IfcSlotTable, k: number): boolean {
 }
 
 export function sourceSlotArgs(table: IfcSlotTable, piece: SourcePieceSlots, written: readonly string[],
-  before: readonly string[] = written): string[] {
+  before: readonly string[] = written, fieldChanged: (k: number) => boolean = () => false): string[] {
   const source = table.slots.map(slot => piece.slots.get(slot.key)?.trim());
-  const unchanged = (k: number) => written[k].trim() === before[k].trim();
+  const unchanged = (k: number) => written[k].trim() === before[k].trim() && !fieldChanged(k);
   const usable = (k: number) => source[k] !== undefined && (table.slots[k].bronverwijzing === true || !hasReference(source[k]!));
   const ownRule = (k: number) => {
     const soort = soortVreemd(table, k);

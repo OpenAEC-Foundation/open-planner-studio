@@ -100,6 +100,7 @@ import { WORK_CALENDAR_ARITY, workCalendarSlots, workControlSlots } from '../ifc
 import { lagValueSlot } from '../ifcLagTimeSlots';
 import { LAG_TIME_SLOT } from '../ifcSequenceSlots';
 import { knownLayout, relationRoles, schemaArgsOf, slotTableNamed, slotTableOf, type IfcSlotTable } from '../ifcSlotTables';
+import { IFC_TO_RESOURCE_TYPE } from '../ifcConstants';
 import { decodeStepText, stepTextIsValid } from '../stepText';
 import { hasOwnOrigin, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { durationForm, type DurationSlot } from './durationForms';
@@ -1619,6 +1620,7 @@ const SEQ_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
 };
 /** Een resource (`writeResource`): naam, omschrijving, en bij een kostenresource het type. */
 const RES_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = { 2: ['name'], 3: ['description'], 4: ['type'], 10: ['type'] };
+const LAG_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = { 3: LAG_FIELDS, 4: LAG_FIELDS };
 /** `OPS_Resource` (`writeResourceMeta`): property → veld. */
 const RES_PROP_FIELDS: Readonly<Record<string, readonly string[]>> = {
   [PROP.Resource.MaxUnits]: ['maxUnits'], [PROP.Resource.CostPerHour]: ['costPerHour'],
@@ -1633,6 +1635,18 @@ const EXCEPTION_FIELDS = ['holidays', 'workingExceptions'];
 const CAL_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   2: ['name'], 3: ['description'], 4: ['shift'], 6: WEEK_FIELDS, 7: EXCEPTION_FIELDS, 8: ['shift'],
 };
+const SLOT_FIELDS_BY_TYPE: ReadonlyMap<string, Readonly<Record<number, readonly string[]>>> = new Map([
+  ['IFCTASK', TASK_SLOT_FIELDS], ['IFCTASKTIME', TASKTIME_SLOT_FIELDS], ['IFCRELSEQUENCE', SEQ_SLOT_FIELDS],
+  ['IFCLAGTIME', LAG_SLOT_FIELDS], ['IFCWORKCALENDAR', CAL_SLOT_FIELDS],
+  ...Object.keys(IFC_TO_RESOURCE_TYPE).map(type => [type, RES_SLOT_FIELDS] as const),
+]);
+
+export function slotFieldChanged(type: string, arg: number, object: string, changed: ReadonlySet<string>): boolean {
+  if (changed.has(`${object}#@`) || changed.has(`${object}#*`)) return true;
+  return (SLOT_FIELDS_BY_TYPE.get(type)?.[arg] ?? [])
+    .some(field => (field.startsWith('@') ? changed.has(field.slice(1)) : changed.has(`${object}#${field}`)));
+}
+
 /** `OPS_Calendar` (`writeCalendarGenerationMeta`): property → velden. `LiteralTimes` staat er niet in: een kalender die
  *  bij het openen letterlijk was, blijft letterlijk (#872, `ifcLiteralCalendarIds`; knownbug 1026 is daarmee opgelost);
  *  voor een andere kalender kiest de writer het op grond van alle taken (`minuteModelWriteView`). Geen bewerking van de

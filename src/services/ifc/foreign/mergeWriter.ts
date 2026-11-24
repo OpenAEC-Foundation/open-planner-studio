@@ -47,7 +47,7 @@ import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
 import { assumedRowGuid, orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged, withOrphanRowGuids } from './sourceForm';
 import {
-  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, taskField,
+  changedScopes, dateTimeTexts, decimalKey, slotFieldChanged, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, taskField,
   taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine,
 } from './lossCheck';
 import { elementLinksByTask, scanElementLinks } from './elementLinks';
@@ -439,7 +439,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // doet dit voor het bewerkte domein (O1) en voor het domein zoals de lezer het las (O0, de verliesbewaking). ──
   const keptD = new Set(keep.values());
   function buildLines(input: WriteIFCInput, caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void,
-    before?: ReadonlyMap<number, WrittenPiece>) {
+    before?: ReadonlyMap<number, WrittenPiece>, changed: ReadonlySet<string> = new Set()) {
     // ── 2. Het domein ──
     const comparison = planningIdentityInput(input);
     const sourceIds = planningIdentities(source.opened ?? pristine);
@@ -461,13 +461,15 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     const scheduleOut = outIdOf('_worksched');
 
     const raw = new Map<number, WrittenPiece>();
-    const fromSource = (line: OwnLine, piece: SourcePieceSlots, prior: readonly string[] | undefined): readonly string[] | undefined => {
+    const fromSource = (line: OwnLine, piece: SourcePieceSlots, prior: readonly string[] | undefined, object: string | undefined)
+      : readonly string[] | undefined => {
       const table = slotTableOf(line.type, line.args);
       if (!table || table.naam !== piece.table || line.args.length !== table.slots.length) return undefined;
       if (before && prior?.length !== line.args.length) return undefined;
-      const writtenArgs = line.args;
+      const writtenArgs = line.args, type = line.type;
       line.type = sourceEntity(table, piece, line.type);
-      setArgs(line, sourceSlotArgs(table, piece, writtenArgs, prior));
+      setArgs(line, sourceSlotArgs(table, piece, writtenArgs, prior,
+        k => object !== undefined && slotFieldChanged(type, k, object, changed)));
       return writtenArgs;
     };
     for (const line of lines) {
@@ -476,10 +478,12 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       const prior = before?.get(line.id);
       const owner = OWNED_BY_TABLE.get(piece.table);
       const ownedRef = owner && piece.owned ? refOf(line.args[slotTableNamed(piece.table)!.slots.findIndex(slot => slot.key === owner.slot)]) : -1;
-      const args = fromSource(line, piece, prior?.args);
+      const d = bySource.get(line.id);
+      const object = !before ? undefined : d ? `${d.kind}:${d.id}` : '';
+      const args = fromSource(line, piece, prior?.args, object);
       if (!args) continue;
       const ownedLine = byId.get(ownedRef);
-      const owned = ownedLine && !ownedLine.drop ? fromSource(ownedLine, piece.owned!, prior?.owned) : undefined;
+      const owned = ownedLine && !ownedLine.drop ? fromSource(ownedLine, piece.owned!, prior?.owned, object) : undefined;
       raw.set(line.id, { args, ...(owned ? { owned } : {}) });
     }
     /** De baseline-koppen die met hun bron-id in de uitvoer staan (`baselineHeads`). */
@@ -856,7 +860,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   let newlyLiteral = new Set<string>();
   let form = sourceFormWhereUnchanged(input, source.opened, pristine);
   let pending: Parameters<typeof caseAt>[] = [];
-  let built = buildLines(form.input, (...a) => { pending.push(a); }, built0.raw);
+  const plannerChanged = changedScopes(input, (source.opened ?? pristine) as unknown as ImportResult).keys;
+  let built = buildLines(form.input, (...a) => { pending.push(a); }, built0.raw, plannerChanged);
   for (let round = 0; ; round++) {
     const next = new Set([...newlyLiteral, ...built.literalCalendarIds.filter(id => !literal0.has(domainIds.get(id) ?? id))]);
     if (next.size === newlyLiteral.size) break;
@@ -864,7 +869,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     newlyLiteral = next;
     form = sourceFormWhereUnchanged(input, source.opened, pristine, newlyLiteral);
     pending = [];
-    built = buildLines(form.input, (...a) => { pending.push(a); }, built0.raw);
+    built = buildLines(form.input, (...a) => { pending.push(a); }, built0.raw, plannerChanged);
   }
   for (const a of pending) caseAt(...a);
   const domain = form.input;
@@ -915,7 +920,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     owner0: built0.owner, owner1: owner, objects1: objects, literalCalendarIds: newlyLiteral,
     // Fixronde 1 van #886: "de planner wijzigde dit" tegenover wat de app na het openen liet zien, met de invoer van de
     // planner (niet `domain`, waarin de bronvorm al staat).
-    ...(source.opened ? { plannerChanged: changedScopes(input, source.opened as unknown as ImportResult).keys } : {}),
+    ...(source.opened ? { plannerChanged } : {}),
     // De andere toets (PR 12b) alleen met wat de app na het openen liet zien: zonder kan (a′) niet getoetst worden.
     ...(source.opened ? openedOwnGroups(index, cls, plan, pristine, source.opened, source.stepIds, writtenAt) : {}),
   };
