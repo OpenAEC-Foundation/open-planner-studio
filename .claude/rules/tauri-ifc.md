@@ -166,14 +166,18 @@ past de merge één regel toe (`applyForeignRule` in `foreign/changeList.ts`): e
 die leeg wordt of een enkele verwijzing laat het stuk vervallen, herhaald tot niets meer verandert; wat een vervallen stuk
 aanwees, blijft staan. Welke objecten verdwenen, zegt `goneStepIds` (de sleutels van `ifcSource.stepIds` tegen het
 domein). De verwijzingen komen uit `foreignReferences` (`foreign/foreignReferences.ts`): bij openen in de scanworker
-(`ifcSource.foreignReferences`) en na elk opslaan uit de uitvoer. `PreparedIfcWrite.foreignChanges` is de lijst: per stuk
-het id, de oude bytes en de nieuwe bytes of *vervallen*, plus de ongebruikte sleutels van een verwijderde taak. Controle 1
-(`validateMergeOutput`) eist dat de uitvoer daarmee klopt, dat de lijst uit de regel volgt voor de D-stukken die in de
-uitvoer ontbreken, en dat een gewijzigd stuk alleen leden uit zijn lijsten mist. Een vreemd lid van een eigen pset van een
-verwijderd object blijft als los stuk staan en staat niet op de lijst (§4.2 stap 3). Bij het wissen van een taak of
-resource meldt `state/foreignLinksNotice.ts` met dezelfde regel hoeveel er bij opslaan verandert, met *Ongedaan maken*.
-Weigeren blijft: een verwijzing naar een R-stuk (`verwijzing-naar-p`, het krijgt een nieuw id) en naar een D-stuk dat de
-planning niet kent (`verwijderd`). De melding na opslaan staat nog niet aan (de opslagcommit in `fileSlice.ts`).
+(`ifcSource.foreignReferences`, alleen als de indeling C-, A- of V-stukken heeft) en na elk opslaan uit de uitvoer.
+`PreparedIfcWrite.foreignChanges` is de lijst: per stuk het id, de oude bytes en de nieuwe bytes of *vervallen*, plus de
+ongebruikte sleutels van een verwijderde taak. Controle 1 (`validateMergeOutput`) eist dat de uitvoer daarmee klopt en
+rekent de lijst na met een eigen lezer (`foreign/stepValue.ts`), los van de regel en de lexer van de merge: elk vervallen
+stuk moet vanuit de ontbrekende D-stukken te verklaren zijn, een gewijzigd stuk is precies de bron zonder de leden naar
+verwijderde stukken. Een vreemd lid van een eigen pset van een verwijderd object blijft als los stuk staan en staat niet
+op de lijst (§4.2 stap 3). Bij het wissen van een taak of resource, en bij Opnieuw van zo'n stap, meldt
+`state/foreignLinksNotice.ts` met dezelfde regel hoeveel er bij opslaan verandert, met *Ongedaan maken*; de knop gaat weg
+zodra de bron van het document vervangen is (na opslaan). Na het schrijven meldt `state/foreignChangesWrittenNotice.ts`
+het aantal van de geschreven lijst, op elke schrijfroute: `commitSavedDocument` (ook AutoSave), de downloadtakken van
+Ctrl+S en Opslaan als, de IFC-export en `planner_export_ifc` (in het antwoord). Weigeren blijft: een verwijzing naar een
+R-stuk (`verwijzing-naar-p`, het krijgt een nieuw id) en naar een D-stuk dat de planning niet kent (`verwijderd`).
 
 **De opslagworker** (#804 stap 4 tot en met 6, `src/services/ifc/saveWorker/`) rekent wat `prepareIfcOutput` rekent (de
 gewone writer of `prepareIfcWrite`) in een Web Worker. De gewone writer hergebruikt hem; na elk antwoord op een merge (een

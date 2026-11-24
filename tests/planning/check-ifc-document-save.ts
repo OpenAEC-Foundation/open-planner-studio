@@ -4253,6 +4253,11 @@ const onDownload = async (write: (store: Store) => Promise<unknown>): Promise<Wr
   const browser = browserDownload(), { store } = await openInStore(LINKED);
   return { store, write: () => write(store), dispose: async () => { browser.dispose(); } };
 };
+const onRefusedHandle = async (write: (store: Store) => Promise<unknown>): Promise<WriteRoute> => {
+  const browser = browserDownload(), { store, name } = await openHandle(LINKED), unregister = recoveryRounds(store);
+  handleFaults.set(name, { permission: 'denied' });
+  return { store, write: () => write(store), dispose: async () => { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); } };
+};
 const WRITE_ROUTES: readonly [string, () => Promise<WriteRoute>][] = [
   ['Ctrl+S, bestand op de desktop', () => onDesktop(store => ctrlS(store))],
   ['Opslaan als, desktop', () => onDesktop((store, ipc) => { ipc.choose(join(dir, `als-${++routeFiles}.ifc`)); return store.getState().saveFileAs(); })],
@@ -4261,6 +4266,7 @@ const WRITE_ROUTES: readonly [string, () => Promise<WriteRoute>][] = [
   ['Automatisch opslaan, browser met handle', () => onHandle(store => modelAutoSave(store).round())],
   ['Opslaan als, download', () => onDownload(store => store.getState().saveFileAs())],
   ['Ctrl+S, download', () => onDownload(store => ctrlS(store))],
+  ['Ctrl+S, handle geweigerd: kopie als download', () => onRefusedHandle(store => ctrlS(store))],
 ];
 
 await check('fixronde 1 van #1199: elke schrijfroute meldt het aantal van de geschreven wijzigingslijst, een lege lijst niets', async () => {

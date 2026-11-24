@@ -452,6 +452,7 @@ export const fileTools: McpToolDef[] = [
         return null;
       }, () => toolError(ctx, 'VALIDATION', 'The app is closing or installing an update. Nothing was written.'));
       if (writeError) return writeError;
+      const foreignDataChanged = writtenForeignChangeCount(output.prepared);
       return {
         ok: true,
         envelope: buildEnvelope(ctx),
@@ -465,9 +466,9 @@ export const fileTools: McpToolDef[] = [
           tasks: state.tasks.length,
           /** Werkelijke uitkomst: stond er al een bestand op dit pad dat nu vervangen is? */
           overwritten: existed,
-          ...(writtenForeignChangeCount(output.prepared) > 0 ? {
-            foreignDataChanged: writtenForeignChangeCount(output.prepared),
-            foreignDataNotice: `${writtenForeignChangeCount(output.prepared)} item(s) from other programs were linked to deleted tasks or resources. `
+          ...(foreignDataChanged > 0 ? {
+            foreignDataChanged,
+            foreignDataNotice: `${foreignDataChanged} item(s) from other programs were linked to deleted tasks or resources. `
               + 'They were adjusted or removed in this file.',
           } : {}),
           /** Het schema in de kop van het geschreven bestand (issue #292). */
