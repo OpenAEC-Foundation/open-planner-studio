@@ -5202,8 +5202,21 @@ en noem het in je rapport of PR-tekst.
       geen verlies; het besluit: "Wachttijd tegen stil verlies wint verlies." Volgorde: eerst 1893 en 1957, daarna dit
       punt opnieuw. Uitgangspunt is dan de regel van fixronde 1 van #1093 (een write die al om de rij vroeg houdt zijn
       plek; een handmatige actie gaat alleen voor op wat nog niet begon; geen vastgehouden rij tijdens de
-      schrijftoestemming), met de proeven van alle drie de rondes als bewaking. Of die regel dan houdt, is niet
-      bewezen. — S
+      schrijftoestemming), met de proeven van alle drie de rondes als bewaking.
+      Stand 24 november 2026, nagegaan op main `5b3c1756e` (na #1121, #1168, #1174 en #1194): die regel houdt niet. Twee
+      tabbladen op één bestand ontstaan nog als het eerste tabblad zijn versie niet kent (geopend met de flag uit, uit
+      crashherstel, na een mislukte opslag op de desktop, een bestand boven de grens van de scanner); het tweede openen
+      kent zijn versie wel. Rekent er een model en wacht de tik van het onbekende tabblad, dan schrijft main eerst de tik
+      en weigert de bewaakte opslag (#1174) de Ctrl+S van het andere tabblad met een melding. Met de regel van fixronde 1
+      komt Ctrl+S eerst en zet de tik zijn versie er stil overheen; beide tabbladen staan als opgeslagen. Na het live
+      uitzetten van de flag tijdens het rekenen (de vingerafdrukken vervallen dan) gebeurt dat in beide richtingen. De
+      proef van 16 varianten (desktop en browser, flag aan en live uit, tik in het ene of het andere tabblad, met en
+      zonder een bewerking na de tik): 12 met een stil verlies dat main niet heeft; de head van fixronde 2 heeft er 6
+      (alle met een bewerking na de tik, het geval van ronde 3). De andere drie blokkades (ronde 1 twee keer, de
+      schrijftoestemming van ronde 3) houden met de regel van fixronde 1 de uitkomst van main. Van 1937 en 1938 is op main
+      niets afgevangen: beide nog gemeten. Een vierde regel is aan de technisch eigenaar. Proef en logs:
+      `rapporten/hervat-1093-stap1/` in de sessiemap van #804 op aia09-mp50 (`probe-rand.ts`, `vergelijk-rand.txt`). — B
+      (proef)
 
 ## Wensen en open taken (geen bug)
 
