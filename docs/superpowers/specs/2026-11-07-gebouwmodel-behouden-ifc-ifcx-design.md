@@ -991,10 +991,15 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 - Na openen, in de statusbalk: "Dit bestand bevat ook een gebouwmodel en gegevens van andere programma's
   (12.345 objecten). Bij opslaan blijven die ongewijzigd." Gebouwd in PR #1197 als melding bij openen (de statusbalk
   heeft geen plek voor een blijvend bestandsfeit; §11 punt 11 is de opslagstand), met de voorlopige tekst "Dit bestand
-  bevat ook een gebouwmodel en andere IFC-gegevens buiten de planning (12.345 onderdelen). Bij opslaan blijven die
-  ongewijzigd." Reden: het getal telt alles buiten de eigen planning (C, A en V, §4.8), ook relaties en eigenschappen,
-  en ook in een eigen bestand van een oudere versie (een los `IfcProject`); het zegt wat bewaard blijft, niet wie het
-  maakte. Zonder (zeker) gebouwmodel valt "een gebouwmodel en" weg. De eigenaar beoordeelt de woorden.
+  bevat ook een gebouwmodel en andere IFC-gegevens buiten de planning (12.345 onderdelen)." Reden: het getal telt alles
+  buiten de eigen planning (C, A en V, §4.8), ook relaties en eigenschappen, en ook in een eigen bestand van een oudere
+  versie (een los `IfcProject`); het zegt wat er staat, niet wie het maakte. Zonder (zeker) gebouwmodel valt "een
+  gebouwmodel en" weg. De tweede zin ("Bij opslaan blijven die ongewijzigd.") vervalt: een melding die iets belooft,
+  moet langs elke opslagroute waar zijn, en zodra opslaan verwijderde koppelingen mag verwerken (#1199) is ze dat niet
+  meer. De regels nemen nooit een plek in die main gebruikt: toont de app bij het openen al een melding over hetzelfde
+  bestand, dan staan ze onderaan die melding, anders als eigen gewone melding (5 seconden, niet blijvend, alleen als
+  er plek is in de stapel). Ook de werkplanregel maakt geen melding blijvend; het is informatie, geen waarschuwing over
+  verlies. De eigenaar beoordeelt de woorden.
 - Bij openen, als de overname van planning uit een ander programma iets niet meeneemt: de lijst uit §4.5.
 - Na opslaan, alleen als de wijzigingslijst niet leeg is: de melding uit §4.7.
 - Handleiding: `howto-ifc-schema-kiezen` ("Voeg samen als laatste stap") en `docs/ifc-round-trip.md` herschrijven. Nieuwe
