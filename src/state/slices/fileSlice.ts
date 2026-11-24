@@ -387,7 +387,6 @@ export interface OpenOpenedFileOptions {
   /** Is wat gelezen is intussen mogelijk verouderd? In dezelfde synchrone stap, na `existingDocument`: `true` ⇒ niets
    *  activeren; de aanroeper leest opnieuw (een startbestand, #1091). */
   stale?: () => boolean;
-  readOptions?: FormatReadOptions;
   lookup?: OpenLookup | null;
   /** Alleen het crashherstel, voor zijn eigen bron na de controle op lengte en SHA-256 (`recoveryDocumentWithSource`):
    *  de productgrens voor het openen van een model (`refuseModelAboveOpenLimit`) geldt dan niet, zodat herstel gelijk
@@ -1808,14 +1807,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         for (const notice of openFailureNotices(err)) get().notify(notice);
         return;
       }
-      if (opened) await get().openOpenedFile(opened, labels, readOptions.ifcBytes ? { readOptions, lookup: found.lookup } : undefined);
+      if (opened) await get().openOpenedFile(opened, labels, { lookup: found.lookup });
     },
 
     openOpenedFile: async (opened, labels, options) => {
       try {
         for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
-        const readOptions = options?.readOptions ?? formatReadOptions();
-        const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, readOptions);
+        const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
         if (!options?.restoringVerifiedIfcSource) refuseModelAboveOpenLimit(parsed);
         if (options?.waitWhile) {
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
@@ -2472,7 +2470,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           ? startOpenLookup(get(), entry.ref) : null;
         const opened = await readLocalRef(entry.ref, entry.name, readOptions);
         if (!opened) return;
-        await get().openOpenedFile(opened, labels, readOptions.ifcBytes ? { readOptions, lookup } : undefined);
+        await get().openOpenedFile(opened, labels, { lookup });
       } catch (err) {
         console.error('Failed to open recent file:', err);
         for (const notice of openFailureNotices(err)) get().notify(notice);

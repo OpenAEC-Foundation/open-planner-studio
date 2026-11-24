@@ -853,10 +853,10 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         if (route === 'recent') await T().openRecentFile('r', labels);
         else await openVia(st, route);
       } finally { internals.invoke = outer; }
-      eq(`R7 ${route}: flag uit tijdens het lezen; Kantoor opent, geen openFailed`, [
+      eq(`R7 ${route} (Sol, ronde 10): flag uit tijdens het lezen ⇒ zoals main parst de app met de actuele flag: openFailed, School blijft`, [
         flipped, T().project.name, T().tasks.map(t => t.name), T().filePath,
         notices(st).filter(n => n[0] === 'error').map(n => n[1]),
-      ], [true, 'Kantoor', ['Fundering'], kantoor, []]);
+      ], [true, 'School', ['Dak'], school, ['notifications.openFailed']]);
     }
 
     {
@@ -1324,7 +1324,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           }
         }
 
-        for (const route of ['recent', 'MCP'] as const) {
+        for (const route of ['openen', 'recent', 'slepen', 'MCP'] as const) {
           const { app, st, T, a, count } = await setup();
           writeFileSync(kantoor, changedIfc);
           const outer = internals.invoke;
@@ -1350,9 +1350,16 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
             internals.invoke = outer;
             fileToolDeps.getFs = getFsOuter;
           }
-          eq(`R9-4 ${route} (Sol, ronde 9): de flag gaat uit tussen het lezen en de tabkeuze ⇒ een tweede tabblad met het bestand, zoals main`, [
-            flipped, T().activeDocumentId !== a, T().documents.length - count, T().tasks.map(t => t.name), tab(st, a)?.tasks, marked(st, a),
-          ], [true, true, 1, ['Extern opgeslagen werk'], ['Fundering', 'Eigen werk'], false]);
+          if (route === 'MCP') {
+            eq('R9-4 MCP (Sol, ronde 9): de flag gaat uit tussen het lezen en de tabkeuze ⇒ een tweede tabblad met het bestand, zoals main', [
+              flipped, T().activeDocumentId !== a, T().documents.length - count, T().tasks.map(t => t.name), tab(st, a)?.tasks, marked(st, a),
+            ], [true, true, 1, ['Extern opgeslagen werk'], ['Fundering', 'Eigen werk'], false]);
+          } else {
+            eq(`R10-4 ${route} (Sol, ronde 10): de flag gaat uit tussen het lezen en het parsen ⇒ zoals main een leesfout, geen tabblad erbij en geen wissel`, [
+              flipped, T().activeDocumentId !== a, T().documents.length - count, T().tasks.map(t => t.name), tab(st, a)?.tasks, marked(st, a),
+              T().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey),
+            ], [true, true, 0, ['Dak'], ['Fundering', 'Eigen werk'], false, ['notifications.openFailed']]);
+          }
         }
 
         {

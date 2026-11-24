@@ -82,8 +82,7 @@ export async function openDroppedFiles(
     }
     // `openOpenedFile` meldt een leesfout van het formaat zelf en gooit niet.
     await store.getState().openOpenedFile(opened, labels, {
-      waitWhile, existingDocument: file.existingDocument, stale: file.stale,
-      ...(readOptions?.ifcBytes ? { readOptions, lookup } : {}),
+      waitWhile, existingDocument: file.existingDocument, stale: file.stale, lookup,
     });
   }
 }
