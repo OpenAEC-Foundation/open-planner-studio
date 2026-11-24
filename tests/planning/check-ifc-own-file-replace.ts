@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { documentContentOf } from '@/state/documentSaveState';
 import { createHash } from 'node:crypto';
 import {
-  existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync,
+  existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -3339,22 +3339,6 @@ await check('de haak van de export: Ctrl+S en Opslaan als houden aan de bestands
   } finally { await tidy(c); }
 });
 
-const BEFORE_PICKER = new Date(2026, 10, 17, 13, 0).getTime();
-const existedBeforePicker = new Set<string>();
-{
-  const invoke = internal.invoke;
-  internal.invoke = async (command, ...args) => {
-    const result = await invoke(command, ...args);
-    const path = (args[0] as { path?: string } | undefined)?.path;
-    if (command !== 'plugin:fs|lstat' || !path || !existedBeforePicker.has(path) || typeof result !== 'object' || result === null) return result;
-    return { ...result, mtime: BEFORE_PICKER, birthtime: BEFORE_PICKER };
-  };
-}
-const existedTarget = (c: Case, content: Uint8Array = plain, name = 'ander.ifc'): OtherTarget => {
-  const target = otherFile(c, content, name);
-  existedBeforePicker.add(target.path);
-  return target;
-};
 const exportOf = async (c: Case) => {
   const s = c.store.getState();
   return prepareIfcWrite(buildExportIFCInput(s, 'merge'), s.ifcSource!);
@@ -3386,11 +3370,10 @@ for (const [label, prepare] of [
     await exportTo(c.store, path);
     assert.deepEqual(errorKeys(c), [], 'de eerste export naar een nieuwe naam slaagt');
     renameTask(c, 'Stand van deze vrijdag');
-    existedBeforePicker.add(path);
     return { path, content: new Uint8Array(readFileSync(path)) };
   }],
-  ['een modelbestand van een ander programma', async (c: Case) => existedTarget(c, otherWithModel)],
-  ['een gewone planning', async (c: Case) => existedTarget(c)],
+  ['een modelbestand van een ander programma', async (c: Case) => otherFile(c, otherWithModel)],
+  ['een gewone planning', async (c: Case) => otherFile(c)],
 ] as const) {
   await check(`Exporteren → IFC over ${label}: vervangen langs de vervanging van Opslaan als, het document blijft zoals het was`, async () => {
     const c = await opened();
@@ -3426,7 +3409,7 @@ for (const [label, prepare] of [
 await check('Exporteren → IFC over een bestaande naam die na de keuze verandert: niet vervangen, de zin van de export', async () => {
   const c = await opened();
   try {
-    const target = existedTarget(c);
+    const target = otherFile(c);
     clearNotices(c);
     const before = exportedFrom(c), from = ipc.calls.length;
     ipc.faults.beforeOpen = p => { if (isTempPath(p)) { writeFileSync(target.path, changedPlain); ipc.faults.beforeOpen = null; } };
@@ -3444,7 +3427,7 @@ await check('Exporteren → IFC over een modelbestand dat tijdens de eindvergeli
   const c = await opened();
   const invoke = internal.invoke;
   try {
-    const target = existedTarget(c, otherWithModel), next = new Uint8Array([...otherWithModel, 10]);
+    const target = otherFile(c, otherWithModel), next = new Uint8Array([...otherWithModel, 10]);
     clearNotices(c);
     const before = exportedFrom(c), expected = await exportOf(c);
     let rid: unknown, arrived = false;
@@ -3504,7 +3487,7 @@ for (const [label, during] of [
   await check(`Exporteren → IFC over een bestaande naam, ${label} na het herstelrecord: ${label === 'een bewerking' ? 'gestopt, het doel bytegelijk' : 'precies de export van het eerste tabblad'}`, async () => {
     const c = await opened();
     try {
-      const target = existedTarget(c);
+      const target = otherFile(c);
       clearNotices(c);
       const expected = await exportOf(c), from = ipc.calls.length;
       const hook = onceRecordWritten(() => during(c));
@@ -3529,10 +3512,9 @@ for (const via of ['een symbolische link', 'een harde link'] as const) {
   await check(`Exporteren → IFC over ${via} naar een gewone planning: niet vervangen, de zin van een nieuwe naam in exportwoorden`, async () => {
     const c = await opened();
     try {
-      const target = existedTarget(c);
+      const target = otherFile(c);
       const link = join(c.dir, 'link.ifc');
       if (via === 'een symbolische link') symlinkSync(target.path, link); else linkSync(target.path, link);
-      existedBeforePicker.add(link);
       clearNotices(c);
       const before = exportedFrom(c), from = ipc.calls.length;
       await exportTo(c.store, link);
@@ -3550,7 +3532,7 @@ for (const via of ['een symbolische link', 'een harde link'] as const) {
 for (const [label, content, fails] of [['zonder DATA-sectie', withoutData, false], ['dat niet te lezen is (leesfout)', plain, true]] as const) {
   await check(`Exporteren → IFC met een gebouwmodel over een bestand ${label}: blijft geweigerd`, async () => {
     const c = await opened();
-    const target = existedTarget(c, content);
+    const target = otherFile(c, content);
     const restore = fails ? readFailsOn(target.path) : () => {};
     try {
       clearNotices(c);
@@ -3603,7 +3585,7 @@ for (const [label, crashesAt, expected] of [
   await check(`Exporteren → IFC over een nooit geopende bestaande naam, crash ${label}: na afhandelen een volledig bestand, de oude inhoud terug te vinden`, async () => {
     const c = await opened();
     try {
-      const target = existedTarget(c), exported = await exportOf(c);
+      const target = otherFile(c), exported = await exportOf(c);
       const record = await exportCrashingAt(c, target, crashesAt);
       assert.equal(record.pendingSha256, exported.sha256, 'de komende versie is de export');
       await manifestStillOwnSource(c);
@@ -3625,7 +3607,7 @@ await check('P1: Exporteren → IFC van een planning met alleen gegevens van een
   const c = await opened(externalPset);
   try {
     assert.equal(c.store.getState().ifcSource?.buildingModel, false, 'de bron heeft geen gebouwmodel');
-    const target = existedTarget(c, otherWithModel);
+    const target = otherFile(c, otherWithModel);
     clearNotices(c);
     const before = exportedFrom(c), from = ipc.calls.length;
     await exportTo(c.store, target.path);
@@ -3637,22 +3619,27 @@ await check('P1: Exporteren → IFC van een planning met alleen gegevens van een
   } finally { await tidy(c); }
 });
 
-async function exportToAppearing(store: Case['store'], path: string, content: Uint8Array): Promise<void> {
+async function pickAppearing(store: Case['store'], path: string, content: Uint8Array, when: 'voor' | 'na', saveAs = false): Promise<void> {
   const invoke = internal.invoke;
-  internal.invoke = (command, ...args) => {
-    if (command !== 'plugin:dialog|save') return invoke(command, ...args);
-    writeFileSync(path, content);
-    return Promise.resolve(path);
+  internal.invoke = async (command, ...args) => {
+    if (command === 'plugin:dialog|save') {
+      if (when === 'voor') writeFileSync(path, content);
+      return path;
+    }
+    if (when === 'na' && command === 'plugin:fs|lstat' && (args[0] as { path?: string } | undefined)?.path === path && !existsSync(path)) {
+      try { return await invoke(command, ...args); } finally { writeFileSync(path, content); }
+    }
+    return invoke(command, ...args);
   };
-  try { await store.getState().exportAs('ifc'); } finally { internal.invoke = invoke; }
+  try { if (saveAs) await store.getState().saveFileAs(); else await store.getState().exportAs('ifc'); } finally { internal.invoke = invoke; }
 }
-await check('Exporteren → IFC naar een vrije naam waar na de keuze een bestand verschijnt: niet vervangen, het bestand bytegelijk', async () => {
+await check('Exporteren → IFC naar een vrije naam waar na de lezing direct na de keuze een bestand verschijnt: niet vervangen, het bestand bytegelijk', async () => {
   const c = await opened();
   try {
     const path = join(c.dir, 'nieuw.ifc');
     clearNotices(c);
     const before = exportedFrom(c), from = ipc.calls.length;
-    await exportToAppearing(c.store, path, plain);
+    await pickAppearing(c.store, path, plain, 'na');
     assert.deepEqual(errorKeys(c), ['notifications.exportReplaceNewTargetOnly']);
     assert.equal(fileHash(c, 'nieuw.ifc'), hash(plain), 'het verschenen bestand bytegelijk');
     assert.deepEqual(files(c), ['model.ifc', 'nieuw.ifc'], 'geen hulpbestand');
@@ -3663,12 +3650,58 @@ await check('Exporteren → IFC naar een vrije naam waar na de keuze een bestand
   } finally { await tidy(c); }
 });
 
+for (const saveAs of [false, true]) {
+  await check(`Grens (knownbug 2208): een bestand dat na de bevestiging en vóór de lezing op de gekozen naam verschijnt, ${saveAs
+    ? 'Opslaan als vervangt het (knownbug 1890)' : 'Exporteren → IFC vervangt het, zoals Opslaan als'}`, async () => {
+    const c = await opened();
+    try {
+      const path = join(c.dir, 'nieuw.ifc');
+      clearNotices(c);
+      const before = exportedFrom(c), expected = await exportOf(c);
+      await pickAppearing(c.store, path, plain, 'voor', saveAs);
+      assert.deepEqual(errorKeys(c), [], 'geen melding');
+      assert.notEqual(fileHash(c, 'nieuw.ifc'), hash(plain), 'het verschenen bestand is vervangen');
+      assert.deepEqual(files(c), ['model.ifc', 'nieuw.ifc'], 'geen hulpbestand, geen kopie');
+      assert.deepEqual(recordsOnDisk(), []);
+      if (saveAs) assert.equal(c.store.getState().filePath, path, 'het document heeft de nieuwe naam');
+      else {
+        assert.equal(fileHash(c, 'nieuw.ifc'), expected.sha256, 'precies de export');
+        exportLeftDocument(c, before);
+      }
+    } finally { await tidy(c); }
+  });
+}
+
+await check('Exporteren → IFC over een bestaande naam die een ander programma bewaart terwijl het venster open staat: de versie bij de keuze wordt vervangen', async () => {
+  const c = await opened();
+  const invoke = internal.invoke;
+  try {
+    const target = otherFile(c), lastWeek = new Date(2026, 10, 10, 9, 0), later = new Date(Date.now() + 60_000);
+    utimesSync(target.path, lastWeek, lastWeek);
+    clearNotices(c);
+    const before = exportedFrom(c), expected = await exportOf(c);
+    internal.invoke = (command, ...args) => {
+      if (command !== 'plugin:dialog|save') return invoke(command, ...args);
+      writeFileSync(target.path, changedPlain);
+      utimesSync(target.path, later, later);
+      return Promise.resolve(target.path);
+    };
+    await c.store.getState().exportAs('ifc');
+    internal.invoke = invoke;
+    assert.deepEqual(errorKeys(c), [], 'geen melding');
+    assert.equal(fileHash(c, 'ander.ifc'), expected.sha256, 'de export staat op de gekozen naam');
+    noHelpers(c.dir);
+    assert.deepEqual(recordsOnDisk(), []);
+    exportLeftDocument(c, before);
+  } finally { internal.invoke = invoke; await tidy(c); }
+});
+
 for (const restored of [true, false]) {
   await check(`Exporteren → IFC over een bestaande naam, een bewerking terwijl het doel opzij gaat: ${restored
     ? 'niet vervangen, het doel bytegelijk terug, geen hulpbestand, geen record' : 'terugzetten mislukt: het record en de vorige versie blijven'}`, async () => {
     const c = await opened();
     try {
-      const target = existedTarget(c);
+      const target = otherFile(c);
       clearNotices(c);
       const before = exportedFrom(c);
       const answers: Parameters<typeof placeCalls>[0] = {
@@ -3691,6 +3724,62 @@ for (const restored of [true, false]) {
     } finally { await tidy(c); }
   });
 }
+
+await check('De laatste controles vóór de definitieve plaatsing en de aanroep van die plaatsing vallen in dezelfde synchrone stap', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c);
+    let late = false, lateAtPlace: boolean | undefined, asked = 0;
+    placeCalls({ 2: () => { lateAtPlace = late; return undefined; } });
+    const result = await runProjectFileWrite(() => replaceOwnPathWithRecovery({
+      documentId: null, path: target.path, prepared: c.prepared, source: { bytes: target.content, sha256: hash(target.content) },
+      commit: () => {}, stopBeforeWrite: async () => false, refuseBeforePlace: () => false, now: NOW,
+      planningChanged: () => { asked++; queueMicrotask(() => { late = true; }); return false; },
+      replaceAllowed: () => { asked++; queueMicrotask(() => { late = true; }); return true; },
+    }), () => { throw new Error('de schrijfpoort is dicht'); });
+    assert.equal(lateAtPlace, false, 'geen microtaak tussen de controles en de aanroep van de plaatsing');
+    assert.equal(asked, 2, 'beide controles gevraagd');
+    assert.equal(result.code, 'replaced');
+    assert.equal(fileHash(c, 'ander.ifc'), c.prepared.sha256);
+    noHelpers(c.dir);
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
+
+await check('Grens (knownbug 2247): Exporteren → IFC over een bestaande naam, een bewerking terwijl de definitieve plaatsing onderweg is: de planning van de opdracht staat op het doel, de bewerking blijft in het document', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c);
+    clearNotices(c);
+    const before = exportedFrom(c), expected = await exportOf(c);
+    placeCalls({ 2: (_from, _to, real) => { const answer = real(); renameTask(c, 'Tijdens de definitieve plaatsing'); return answer; } });
+    await exportTo(c.store, target.path);
+    assert.deepEqual(errorKeys(c), [], 'geen melding');
+    assert.equal(fileHash(c, 'ander.ifc'), expected.sha256, 'precies de export van de planning bij de opdracht');
+    assert(!latin1(target.path).includes('Tijdens de definitieve plaatsing'), 'de latere bewerking staat niet in het exportbestand');
+    assert(c.store.getState().tasks.some(t => t.name === 'Tijdens de definitieve plaatsing'), 'de bewerking staat in het document');
+    assert.deepEqual([c.store.getState().filePath, c.store.getState().isDirty], [before.path, true], 'het document houdt zijn pad en blijft gewijzigd');
+    noHelpers(c.dir);
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
+
+await check('Exporteren → IFC over een bestaande naam, de flag uit terwijl het doel opzij gaat: niet vervangen, het doel bytegelijk terug, de zin van main', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c);
+    clearNotices(c);
+    const before = exportedFrom(c);
+    placeCalls({ 1: (_from, _to, real) => { const answer = real(); c.store.getState().setUI({ featureFlags: {} }); return answer; } });
+    await exportTo(c.store, target.path);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignSaveBlocked']);
+    assert.deepEqual(disk(c), { 'ander.ifc': hash(plain), 'model.ifc': hash(bytes) }, 'het doel bytegelijk terug, geen hulpbestand');
+    assert.deepEqual(recordsOnDisk(), [], 'het record is weg');
+    const now = exportedFrom(c);
+    assert(now.source === before.source && now.mark === before.mark && now.literal === before.literal, 'bron, kenmerk en kalenderkeuzes intact');
+    assert.deepEqual([now.path, now.dirty], [c.path, true], 'het document houdt zijn pad en blijft gewijzigd');
+  } finally { await tidy(c); }
+});
 
 ipc.dispose();
 rmSync(work, { recursive: true, force: true });

@@ -527,13 +527,6 @@ await check('IFC-export bestaand: de planning op die naam vervangen, het documen
   const { store } = await openInStore(bytes);
   longer(store); const before = preserved(store), literal = store.getState().ifcLiteralCalendarIds, ipc = desktop(appData);
   ipc.choose(target);
-  const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
-  const inner = win.__TAURI_INTERNALS__.invoke, beforePicker = Date.UTC(2026, 10, 9, 11, 0, 0);
-  win.__TAURI_INTERNALS__.invoke = async (...args) => {
-    const result = await inner(...args);
-    return args[0] === 'plugin:fs|lstat' && (args[1] as { path?: string } | undefined)?.path === target && typeof result === 'object' && result !== null
-      ? { ...result, mtime: beforePicker, birthtime: beforePicker } : result;
-  };
   try {
     clearNotices(store);
     const expected = await prepareIfcWrite(buildExportIFCInput(store.getState(), 'merge'), before.source!);

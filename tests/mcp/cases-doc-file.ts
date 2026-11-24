@@ -1781,6 +1781,7 @@ test('export_ifc in de app: de grenzen van de vervanging (fixronde 1 van #1179)'
 
     const tab = join(root, 'tweede.ifc'); writeFileSync(tab, plain);
     await callOk('planner_import_schedule', { path: tab }, makeCtx());
+    const plainId = S().activeDocumentId;
     S().switchDocument(id);
     from = ipc.calls.length;
     const inTab = await exportRpc(tab, true, makeCtx());
@@ -1796,6 +1797,23 @@ test('export_ifc in de app: de grenzen van de vervanging (fixronde 1 van #1179)'
     assert(!off.ok && off.code === 'VALIDATION' && off.error.includes('cannot save or export it as IFC yet'), 'flag uit tijdens het verzoek: geweigerd');
     assertEq(read(from, target), [], 'flag uit tijdens het verzoek: geen lstat en geen lezing van het doel');
     assertEq(fileHash(target), hash(otherModel), 'flag uit: het doel bytegelijk');
+
+    writeFileSync(target, plain);
+    const stat = fs.stat;
+    let armed = false, switched = false;
+    fs.exists = async p => { const answer = await exists(p); armed = true; return answer; };
+    fs.stat = async p => {
+      const answer = await stat(p);
+      if (armed && !switched) { switched = true; S().switchDocument(plainId); S().setUI({ featureFlags: {} }); }
+      return answer;
+    };
+    from = ipc.calls.length;
+    const late = await exportRpc(target, true, makeCtx());
+    fs.exists = exists; fs.stat = stat; S().switchDocument(id); flagOn(true);
+    assert(switched, 'de wissel naar een gewoon tabblad en de flag uit kwamen tijdens de identiteitstoets');
+    assert(!late.ok, 'een wissel tijdens de identiteitstoets: geweigerd');
+    assertEq(read(from, target).filter(command => command !== 'plugin:fs|open'), [], 'geen lstat en geen volledige lezing van het doel');
+    assertEq([fileHash(target), helpers(), records()], [hash(plain), [], []], 'het doel bytegelijk');
 
     for (const restored of [true, false]) {
       writeFileSync(target, plain);
@@ -1818,6 +1836,30 @@ test('export_ifc in de app: de grenzen van de vervanging (fixronde 1 van #1179)'
         for (const name of records()) rmSync(join(appData, name));
       }
     }
+
+    writeFileSync(target, plain);
+    let placed = 0;
+    ipc.faults.place = (_from, _to, real) => { if (++placed !== 1) return undefined; const answer = real(); S().setUI({ featureFlags: {} }); return answer; };
+    const withdrawn = await exportRpc(target, true, makeCtx());
+    ipc.faults.place = null; flagOn(true);
+    assert(!withdrawn.ok && withdrawn.code === 'VALIDATION' && withdrawn.error.includes('cannot save or export it as IFC yet'),
+      'de flag uit tijdens het opzijzetten: de weigering van main');
+    assertEq([fileHash(target), helpers(), records()], [hash(plain), [], []], 'het doel bytegelijk terug, geen hulpbestand, geen record');
+
+    const named = S().tasks.find(t => t.id === task.id)!.name;
+    placed = 0;
+    ipc.faults.place = (_from, _to, real) => {
+      if (++placed !== 2) return undefined;
+      const answer = real(); S().updateTask(task.id, { name: 'Tijdens de definitieve plaatsing' }); return answer;
+    };
+    const during = await exportRpc(target, true, makeCtx());
+    ipc.faults.place = null;
+    assert(during.ok, `een bewerking terwijl de definitieve plaatsing onderweg is: vervangen (grens 2247): ${during.ok ? '' : during.error}`);
+    const exportedTasks = (await openForeign(new Uint8Array(readFileSync(target)))).tasks;
+    assert(exportedTasks.some(t => t.name === named) && !exportedTasks.some(t => t.name === 'Tijdens de definitieve plaatsing'),
+      'het exportbestand heeft de planning van de opdracht');
+    assert(S().tasks.some(t => t.name === 'Tijdens de definitieve plaatsing') && S().isDirty, 'de bewerking staat in het document');
+    assertEq([helpers(), records()], [[], []], 'geen hulpbestand, geen record');
   } finally {
     ipc.faults.place = null; ipc.dispose(); fileToolDeps.getFs = previousGetFs;
     useAppStore.setState(s => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument();

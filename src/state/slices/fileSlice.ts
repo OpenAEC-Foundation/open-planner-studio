@@ -1225,7 +1225,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const exportOnDesktop = (state: AppState, name: string, filters: FileFilter[], prepared: PreparedIfcWrite): Promise<SaveOutcome | null> =>
     placeOnDesktop({
       name, filters, bytes: () => prepared.bytes,
-      confirmedTarget: picked => picked.current instanceof Uint8Array && !picked.olderThanPicker ? { ...picked, current: null } : picked,
       targetCheck: picked => exportTargetChecks(state, exportTargetPermission(state.ifcSource, picked)).refuseTarget,
       refuseBeforePlace: () => refuseChangedExport(state),
       replacement: {
@@ -1246,7 +1245,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     readonly name: string;
     readonly filters: FileFilter[];
     readonly bytes: () => Uint8Array;
-    readonly confirmedTarget?: (picked: PickedSaveTarget) => PickedSaveTarget;
     readonly targetCheck: (picked: PickedSaveTarget) => SaveTargetCheck;
     readonly refuseBeforePlace: RefuseBeforePlace;
     readonly replacement: {
@@ -1261,9 +1259,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   const placeOnDesktop = async (placement: DesktopPlacement): Promise<SaveOutcome | null> => {
-    const chosen = await pickSaveTarget(placement.name, placement.filters);
-    if (!chosen) return null;
-    const picked = placement.confirmedTarget ? placement.confirmedTarget(chosen) : chosen;
+    const picked = await pickSaveTarget(placement.name, placement.filters);
+    if (!picked) return null;
     const ref = { kind: 'path', path: picked.path } as const, outcome = { ref, name: basename(picked.path) };
     const check = placement.targetCheck(picked);
     if (await check(ref)) return null;
