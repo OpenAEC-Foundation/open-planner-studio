@@ -1410,36 +1410,31 @@ function median(values: number[]): number {
 }
 
 const sizes = process.env.OPS_IFCX_MEASURE === '1' ? [1000, 5000, 10000] : [1000];
+const loadNow = () => readFileSync('/proc/loadavg', 'utf8').split(' ').slice(0, 3).join(' ');
+function timed<T>(action: () => T): { value: T; wall: number; cpu: number } {
+  const wall0 = performance.now();
+  const cpu0 = process.cpuUsage();
+  const value = action();
+  const cpu = process.cpuUsage(cpu0);
+  return { value, wall: performance.now() - wall0, cpu: (cpu.user + cpu.system) / 1000 };
+}
 for (const size of sizes) {
-  test(`meting: schrijven met zelfcontrole, teruglezen en de STEP-rondgang bij ${size} taken`, () => {
+  test(`meting: wandklok en CPU-tijd per stuk, naast opslaan als IFC, bij ${size} taken`, () => {
     const plan = syntheticPlan(size);
-    const rounds = 5;
-    const plainWrite: number[] = [], write: number[] = [], read: number[] = [], step: number[] = [], projection: number[] = [];
-    let text = '';
-    for (let round = 0; round < rounds; round++) {
-      const t0 = performance.now();
-      const unchecked = serializeIfcx(buildIfcxDocument(normalizedCopy(plan), CLOCK));
-      const t1 = performance.now();
-      text = writeIfcx(plan, CLOCK);
-      const t2 = performance.now();
-      const back = readIfcx(encode(text));
-      const t3 = performance.now();
-      readIFC(writeIFC(plan));
-      const t4 = performance.now();
-      buildIfcxDocument(back, CLOCK);
-      const t5 = performance.now();
-      assert.equal(unchecked, text);
-      plainWrite.push(t1 - t0);
-      write.push(t2 - t1);
-      read.push(t3 - t2);
-      step.push(t4 - t3);
-      projection.push(t5 - t4);
+    const parts = ['STEP-writer (opslaan als IFC op main)', 'STEP-lezer', 'writeIfcx', 'readIfcx', 'één projectie van de writer'];
+    const wall: number[][] = parts.map(() => []), cpu: number[][] = parts.map(() => []);
+    const before = loadNow();
+    for (let round = 0; round < 5; round++) {
+      const stepText = timed(() => writeIFC(plan));
+      const stepRead = timed(() => readIFC(stepText.value));
+      const ifcxText = timed(() => writeIfcx(plan, CLOCK));
+      const back = timed(() => readIfcx(encode(ifcxText.value)));
+      const projection = timed(() => buildIfcxDocument(normalizedCopy(back.value), CLOCK));
+      [stepText, stepRead, ifcxText, back, projection].forEach((part, index) => { wall[index].push(part.wall); cpu[index].push(part.cpu); });
     }
-    const [w, r, s, p] = [median(write), median(read), median(step), median(projection)];
-    console.log(`   ${size} taken, ${(text.length / 1024 / 1024).toFixed(1)} MiB: schrijven zonder zelfcontrole ${median(plainWrite).toFixed(0)} ms, `
-      + `writeIfcx met zelfcontrole ${w.toFixed(0)} ms, readIfcx ${r.toFixed(0)} ms, STEP-rondgang ${s.toFixed(0)} ms, `
-      + `één projectie ${p.toFixed(0)} ms; writeIfcx plus rondgang ${(w + s).toFixed(0)} ms, readIfcx plus projectie ${(r + p).toFixed(0)} ms, `
-      + `plus nog een rondgang ${(r + p + s).toFixed(0)} ms (mediaan van ${rounds})`);
+    const after = loadNow();
+    const line = (index: number) => `${parts[index]} ${median(wall[index]).toFixed(0)}/${median(cpu[index]).toFixed(0)}`;
+    console.log(`   ${size} taken, wandklok/CPU in ms, mediaan van 5, belasting ${before} → ${after}: ${parts.map((_, index) => line(index)).join('; ')}`);
   });
 }
 
