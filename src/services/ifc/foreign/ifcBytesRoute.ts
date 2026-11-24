@@ -104,8 +104,10 @@ export async function readIfcBytesDetailed(
     return currentRoute(bytes, labels, opts, { kind: 'schema', schemaName }, scan);
   }
 
+  const { C, A, V } = scan.counts;
+  const foreignObjectCount = C + A + V;
   const stepIdsOut: Record<string, string> = {};
-  const unusedAssignmentKeysOut = new Map<string, string[]>();
+  const unusedAssignmentKeysOut = foreignObjectCount > 0 ? new Map<string, string[]>() : undefined;
   // Knownbug 1151: de modelweigering draait ook hier, op de tekst van de lezer (zonder V). Ziet de grammatica daar een
   // modeltype dat de scanner niet als V telde (bijv. een wand na `*⏎/`, voor de scanner commentaar), dan weigert
   // openen zoals zonder flag. Anders zou opslaan in een later fase dat stuk herschrijven en de wand wissen.
@@ -115,11 +117,9 @@ export async function readIfcBytesDetailed(
   const mismatch = selectionMismatch(scan, stepIdsOut, result.project.id);
   if (mismatch) return currentRoute(bytes, labels, opts, { kind: 'selectie', field: mismatch }, scan);
 
-  const { C, A, V } = scan.counts;
-  const foreignObjectCount = C + A + V;
   const stepIds: Record<string, number> = {};
   for (const [key, id] of Object.entries(stepIdsOut)) stepIds[key] = Number(id);
-  const unusedKeys = unusedKeysFromRead(unusedAssignmentKeysOut);
+  const unusedKeys = unusedAssignmentKeysOut && unusedKeysFromRead(unusedAssignmentKeysOut);
   const ifcSource: IfcSource = {
     bytes,
     sha256: await precomputeSha256(bytes),

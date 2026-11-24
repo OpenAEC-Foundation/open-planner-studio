@@ -2708,7 +2708,7 @@ function extractAssignments(
       const resEntity = entityMap.get(resRef);
       const resGuid = resEntity ? stripQuotes(resEntity.args[RESOURCE_SLOT.globalId] || '') : '';
       const meta = taskMeta?.queues.get(resGuid)?.shift() ?? taskMeta?.legacy.get(resGuid);
-      if (meta) usedMeta.add(meta);
+      if (meta && keysByTask) usedMeta.add(meta);
       const window = windowsByTask.get(taskRef)?.get(resGuid)?.shift();
 
       assignments.push({

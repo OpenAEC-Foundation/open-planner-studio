@@ -9,9 +9,10 @@ export function isAssignmentKeyName(name: string): boolean {
   return /^[0-9A-Za-z_$]{22}(#\d+)?$/.test(name);
 }
 
-export function unusedAssignmentKeyNames(ownNames: readonly string[], unusedNames: readonly string[]): string[] {
+export function unusedAssignmentKeyNames(ownNames: readonly string[], unusedNames: readonly string[],
+  foreignMemberNames: readonly string[] = []): string[] {
   const firstFreeNumber = ownNames.length;
-  const taken = new Set(ownNames);
+  const taken = new Set([...ownNames, ...foreignMemberNames]);
   const names: (string | undefined)[] = unusedNames.map(name => {
     const numbered = NUMBERED_KEY.exec(name);
     if (!numbered) return name;

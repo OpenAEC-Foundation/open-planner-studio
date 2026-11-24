@@ -52,7 +52,9 @@ import {
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource, PreparedIfcWrite, UnusedKeysOfTask } from './ifcSource';
-import { unusedKeysForWriter, unusedKeysFromRead, unusedKeysProblem } from './unusedKeys';
+import {
+  duplicateAssignmentKeyProblem, foreignAssignmentKeyNamesForWriter, unusedKeysForWriter, unusedKeysFromRead, unusedKeysProblem,
+} from './unusedKeys';
 import { readFileSchemaName } from '../ifcReader';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { scanForeignStep } from './oldOwnHeader';
@@ -383,7 +385,10 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   for (const i of cls.foreignOrigin) caseAt('vreemde-herkomst', i, `${label(i)} heeft de owner history van een ander programma`);
   const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
   const { keep, bySource, reserved, baselineHeads, projects } = ids;
-  const plan: WriterMergeIds = { ...ids.plan, unusedAssignmentKeys: unusedKeysForWriter(source, index) };
+  const plan: WriterMergeIds = {
+    ...ids.plan, unusedAssignmentKeys: unusedKeysForWriter(source, index),
+    foreignAssignmentKeyNames: foreignAssignmentKeyNamesForWriter(source, index),
+  };
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
   // Een verstopt stuk vóór een P-stuk (#886): het commentaar ervóór gaat met het P-stuk weg.
   for (let i = 0; i < n; i++) {
@@ -926,7 +931,8 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, scan: Fore
   const foreignObjectCount = classes.reduce((count, c) => count + (c > 1 ? 1 : 0), 0);
   return {
     bytes, sha256: await precomputeSha256(bytes), schemaName,
-    chunkStarts: scan.chunkStarts, chunkIds: scan.chunkIds, classes, stepIds, foreignMembers, ...(unusedKeys ? { unusedKeys } : {}),
+    chunkStarts: scan.chunkStarts, chunkIds: scan.chunkIds, classes, stepIds, foreignMembers,
+    ...(unusedKeys && foreignObjectCount > 0 ? { unusedKeys } : {}),
     foreign: foreignObjectCount > 0, foreignObjectCount, buildingModel: scan.buildingModel, lineEnding: scan.lineEnding, opened: input,
   };
 }
@@ -981,7 +987,9 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
     throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `uitvoer scannen of heropenen: ${String(e)}` }]);
   }
   const unusedKeys = unusedKeysFromRead(writtenUnusedKeys);
-  const unusedProblem = own && unusedKeysProblem(source, index, input.tasks.map(t => t.id), unusedKeys, actual.index, own.stepIds);
+  const taskIds = input.tasks.map(t => t.id);
+  const unusedProblem = own && (unusedKeysProblem(source, index, taskIds, unusedKeys, actual.index, own.stepIds)
+    ?? duplicateAssignmentKeyProblem(source, index, taskIds, actual.index, own.stepIds));
   if (unusedProblem) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: unusedProblem }]);
   if (probe) {
     for (const [side, probeOpened] of [['uitvoer', shown], ['domein', wanted]] as const) {
