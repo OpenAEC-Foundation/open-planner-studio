@@ -100,8 +100,8 @@ const notices = (store: Store | typeof useAppStore) => store.getState().ui.notif
 const LARGE_KEY = 'notifications.ifcForeignOpenLarge';
 const LARGE = [[LARGE_KEY, { limit: 0 }, true]];
 const warnings = (store: Store | typeof useAppStore) => store.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null, n.sticky ?? false]);
-const TECHNICAL_MODEL = [null, 0, [['notifications.openFailed', 'error', false, true]]];
-const TECHNICAL_PSET = [null, 0, [['notifications.ifcForeignOpenUnsafe', 'error', false, false]]];
+const TECHNICAL_MODEL = [null, 0, [['notifications.openFailed', 'error', false, true, false]]];
+const TECHNICAL_PSET = [null, 0, [['notifications.ifcForeignOpenUnsafe', 'error', false, false, true]]];
 const largeWarnings = (store: Store | typeof useAppStore) => warnings(store).filter(n => n[0] === LARGE_KEY);
 
 if (mode === 'web') {
@@ -215,7 +215,7 @@ if (mode === 'web') {
       const store = newStore();
       await store.getState().openOpenedFile({ name: 'model.ifc', content: '', bytes: new FakeLength(bytes), ref: null }, {});
       const s = store.getState();
-      return [s.ifcSource?.sha256 ?? null, s.tasks.length, s.ui.notifications.map(n => [n.messageKey, n.severity, n.sticky ?? false, /building model/.test(String(n.detail ?? ''))])];
+      return [s.ifcSource?.sha256 ?? null, s.tasks.length, s.ui.notifications.map(n => [n.messageKey, n.severity, n.sticky ?? false, /building model/.test(String(n.detail ?? '')), /te-groot/.test(String(n.detail ?? ''))])];
     };
     eq('boven de technische grens, model: dezelfde weigering en melding als main', await aboveTechnical(over), TECHNICAL_MODEL);
     eq('boven de technische grens, vreemde pset: dezelfde weigering en melding als main', await aboveTechnical(psetBytes), TECHNICAL_PSET);
