@@ -1788,7 +1788,12 @@ await opgelosteWeigering('1586 taaktypedefinitie hernoemen (alleen domeininvoer)
     const after = regelsVan(written.output).find(l => l.type === original.type && l.args[0] === original.args[0])!;
     eq('7d onbekend definitieveld letterlijk behouden', jsonVan(after).definitions[0].onbekend, 'bewaar-mij');
   }
-  await blijvendeWeigering('7d onbekend definitieveld bij typegroei', bytes, d => applyEdit(fixedCatalogEdits(d)[1], d));
+  const grown = await kaartRonde('7d onbekend definitieveld bij typegroei', bytes, d => applyEdit(fixedCatalogEdits(d)[1], d));
+  if (grown) {
+    const after = regelsVan(grown.output).find(l => l.type === original.type && l.args[0] === original.args[0])!;
+    const kept = (jsonVan(after).definitions as { id: string; onbekend?: string }[]).find(x => x.id === value.definitions[0].id);
+    eq('7d onbekend definitieveld bij typegroei: blijft bij zijn definitie', kept?.onbekend, 'bewaar-mij');
+  }
   const unused = jsonVan(original); unused.definitions.push({ id: 'ongebruikt', name: 'Ongebruikt bron-type' });
   const unusedLine = vervangJson([original], original, unused)[0];
   const unusedBytes = latin1(text(catalogusBron).replace(lineOf(catalogusBron, String(original.id)), `#${unusedLine.id}=${unusedLine.type}(${unusedLine.args.join(',')});`));
