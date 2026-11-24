@@ -8,8 +8,9 @@ velden zoals de XER-lezer: `p6ActivityType` uit `<Type>` (`P6_XML_ACTIVITY_TYPE`
 `p6ProjectId` (het `ObjectId` van het project, zonder dat `1`), `p6TaskId` (het `ObjectId` van de activiteit),
 `p6ExplicitTargetWindow` als beide geplande datums leesbaar zijn, `p6CompletePctType` uit het label van
 `<PercentCompleteType>` (onbekend wordt `CP_Drtn`, zonder label geen veld), `p6ExpectedFinish` en bij Level of Effort
-`isHammock`. `check-p6xml-xer-parity.ts` opent dezelfde planning via XER en via P6 XML en eist dezelfde opties,
-datums, speling en kritiek (P1 tot en met P4), ook na een rondgang door de P6 XML-writer (R).
+`isHammock`. `check-p6xml-xer-parity.ts` opent dezelfde planning via XER en via P6 XML: P1, P3 en P4 vergelijken de
+opties, P2 de datums, speling en kritiek na het rekenen, en R de P6-velden en datums na een rondgang door de P6
+XML-writer.
 
 ## Gevolgen
 
@@ -20,20 +21,21 @@ datums, speling en kritiek (P1 tot en met P4), ook na een rondgang door de P6 XM
   verwisselen en waren eerder verwisseld. De paren zijn nagegaan tegen MPXJ en geteld in het corpus
   (`docs/superpowers/plans/2026-09-24-e2-p6xml-durationtype.md`); dat de XER-datamap van Oracle dezelfde paren noemt,
   komt uit het weggehaalde commentaar en is niet nagegaan. `check-xer-p6xml-parity.ts` 4 pint de vier paren.
-- Een leeg of onbekend label geeft geen `p6DurationType` op de activiteit, een onbekend label met een waarschuwing in
-  de console; de activiteit krijgt dan het label van het project (`ActivityDefaultDurationType`), zoals een
-  XER-activiteit `PROJECT.def_duration_type` erft (`check-xer-p6xml-parity.ts` 5 en 6). Het type wordt via
-  `deriveImportedWorkRules` de werkregel.
+- Bij een leeg of onbekend label (een onbekend label met een waarschuwing in de console) levert de lezer de
+  projectstandaard `ActivityDefaultDurationType` als `p6DurationType`, als die een geldig label is
+  (`check-xer-p6xml-parity.ts` 5 en 6); zonder geldige projectstandaard ontbreekt het veld. `deriveImportedWorkRules`
+  maakt er daarna de werkregel van: in een bestand dat niet van OPS komt, levert een activiteit met een onbekend label
+  bij de projectstandaard `Fixed Units` dus `DT_FixedQty` en de werkregel `FIXED_WORK`.
 - In een export van OPS wordt de projectstandaard een eigen `project.defaultWorkRule` als hij niet de standaardregel
   van OPS is; zonder die standaard kreeg een taak die erft de standaardregel van OPS in plaats van die van het
   project. Een taak zonder eigen geldig `<DurationType>`, bij een geldige projectstandaard, verliest daar na
-  `deriveImportedWorkRules` haar werkregel, zodat ze weer erft: de writer laat dat element weg voor een taak die erft
-  (review Sol #781 r2, `check-p6xml-xer-parity.ts` R7). Een taak uit een bestand van P6 houdt de regel van de
-  projectstandaard als eigen regel.
+  `deriveImportedWorkRules` haar werkregel, zodat ze weer erft; `p6DurationType` blijft. De writer laat dat element
+  weg voor een taak die erft (review Sol #781 r2, `check-p6xml-xer-parity.ts` R7). Een taak uit een bestand van P6
+  houdt de regel van de projectstandaard als eigen regel.
 - `<PrimaryConstraintType>` en `<SecondaryConstraintType>` lezen als label van P6 of als `CS_*`-token van oudere eigen
   exports (`p6ConstraintFromCodeOrLabel`, alleen eigen sleutels van de tabel); `Mandatory Start` en `Mandatory Finish`
   worden `MSO` en `MFO` met `hard`. Een onbekende waarde geeft geen constraint en een waarschuwing in de console. De
-  secundaire constraint is nooit hard (`check-p6xml-constraint-labels.ts` 1); dat P6 een secundaire constraint altijd
-  zacht rekent, komt uit het weggehaalde commentaar en is niet nagegaan.
+  lezer zet de secundaire constraint nooit hard (`check-p6xml-constraint-labels.ts` 1); dat P6 een secundaire
+  constraint altijd zacht rekent, komt uit het weggehaalde commentaar en is niet nagegaan.
 - Een mijlpaal is een `<Type>` met `Milestone`; met `Finish` erin wordt de soort `FINISH`, anders `START`, omdat P6
   beide soorten kent (`check-p6xml-nested.ts` 6f).
