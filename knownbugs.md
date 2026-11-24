@@ -1799,6 +1799,16 @@ en noem het in je rapport of PR-tekst.
      ontsluit daarmee de werkregelvelden en -kolommen, ook als de geweigerde transactie verder niets achterliet. In de
      code nagegaan, ook in een tweede, onafhankelijke controle van de code; niet nagespeeld in de app. — B (code)
 
+2300. **Na een geweigerde `planner_batch` kunnen de berekende datums anders zijn dan vóór de aanroep.** Een batch met
+     een lees- of nivelleerstap kan een verouderde planning doorrekenen in `beforeTransaction`
+     (`src/services/mcp/tools/batchTool.ts`), dat `runMutateTool` (`src/services/mcp/tools/runtime.ts`) aanroept vóór
+     `run` zijn momentopname neemt. Mislukt daarna een stap, dan zet `rollback`
+     (`src/state/runtime/createMcpTransactions.ts`) de toestand van ná die berekening terug: de mutaties van de batch
+     zijn weg, de berekening blijft. Gezien in een proef via de MCP-dispatcher: met automatisch berekenen uit was een
+     taak verlengd zonder te rekenen; een batch hernoemde die taak en las daarna een verwijderde taak. De batch gaf
+     `NOT_FOUND` en de oude naam kwam terug, terwijl de berekende start van de opvolger van 11 naar 16 maart ging. De
+     volgorde in `runMutateTool` is in de code nagegaan. Zie ADR 0240. — B
+
 ## Bestanden en herstel
 
 36. **Herstelvenster na een gewone herlaad** in de browser, ook als alles was opgeslagen. — S
