@@ -1744,14 +1744,6 @@ en noem het in je rapport of PR-tekst.
      schuift. Onder het MS Project-profiel staat conventie A23 `unstartedIgnoresStatusDate` aan
      (`src/engine/scheduler/conventions/registry.ts`) en schuift het niet; `statusDateEffect.shifted` meldt dan
      terecht `false`. Gezien in de review van #1083 (GPT-6.2-Sol, proef met statusdatum 1 juni). — B
-1991. **Koppelen zonder bestaand projectitem zet het document op *Niet opgeslagen*.** `linkRecognizedItems`
-     (`src/state/slices/librarySlice.ts`) toetst vóór `beginUndoable` alleen of het poolitem van een link nog
-     bestaat, niet het projectitem. Bestaat het projectitem niet meer, dan verandert er niets, maar `finishMutation`
-     loopt wel en zet `isDirty`. Gezien met een proef op de echte store: een link met een onbekend `projectId` en een
-     bestaand `poolId` geeft `isDirty: true`, geen undo-event en geen nieuwe resource. Op een schoon heropend
-     IFC-bestand wist dezelfde route ook `importPristine` (`markDocumentEdited` in `src/state/documentEdited.ts`), en na
-     schrijven en teruglezen bleef die vlag weg (proef van de reviewer, GPT-6.2-Sol, review van #1164). Hoe vaak het
-     afwijkingenscherm zo'n link stuurt, is niet nagegaan. — B
 1992. **Een mislukte verdeling kan de afrondingsmelding van de herpoging opmaken.** In de verdeelroute
      (`applyDistribution` in `src/state/slices/librarySlice.ts`, de eenmalige melding in
      `src/state/timephasedLossNotice.ts`) kwam in de proef een slapend document met een vertraging in minuten als
@@ -6164,3 +6156,4 @@ en noem het in je rapport of PR-tekst.
      `encodeText` in `embedReportFont.ts` weg. Review #1074 ronde 3 (GPT-6.2-Sol, xhigh). — B (code)
 2290. **VERVOLG (review #1187 ronde 1, tekst): de help stuurt de planner voor papier en richting nog naar een ander rapport.** Sinds #1187 hebben *Milestone overview* en *Variance* zelf een kaart *Report options*. De handleiding (`public/docs/nl/howto-rapport-maken-en-afdrukken.md` en de Engelse versie) en `public/docs/nl/ref-rapporttypes.md` zeggen nog dat je papier kiest bij bijvoorbeeld de Gantt-afdruk en daarna teruggaat. Richting: die omweg schrappen en de drie opties beschrijven waar ze nu staan. Review #1187 ronde 1 (GPT-6.2-Sol, xhigh). — S (tekst)
 2291. **VERVOLG (review #1187 ronde 1, test): de browsertest bedient de nieuwe velden niet.** `tests/browser/table-reports.spec.ts` kiest A2 staand bij Look-ahead en controleert bij de twee nieuwe rapporten alleen of de velden zichtbaar zijn en wat de PDF-maten zijn. Een kapotte wijzigingsactie in de nieuwe kaart blijft dan groen. Richting: in de kaart van elk van de twee rapporten papier, richting en een ander lettertype kiezen en de uitvoer controleren. Ook kan `body = null` voor `milestones` en `variance` de lege tak van `progressCurve` delen. Review #1187 ronde 1 (GPT-6.2-Sol, xhigh). — S (test)
+2292. **VERVOLG (review #1191 ronde 1): dezelfde koppeling opnieuw aanroepen zet een schoon document op *Niet opgeslagen*.** `linkRecognizedItems` (`src/state/slices/librarySlice.ts`) vervangt het item ook als alle waarden en de herkomststempel al gelijk zijn, dus `finishMutation` zet `isDirty` en er komt een extra undo-stap. Het afwijkingenscherm biedt een koppeling na de eerste keer niet meer aan, dus dit vraagt een rechtstreekse aanroep (bijvoorbeeld via MCP). Richting: het bijgewerkte item, met stempel, vergelijken vóór de toewijzing, en bij nul echte wijzigingen ook de herberekening van resourcebelasting en rijen overslaan. Review #1191 ronde 1 (GPT-6.2-Sol, xhigh). — S
