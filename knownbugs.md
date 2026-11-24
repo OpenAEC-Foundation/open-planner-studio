@@ -4298,6 +4298,18 @@ en noem het in je rapport of PR-tekst.
      rekenslots van de uitvoer ook buiten de modus vergelijken met die van de momentopname, na dezelfde normalisatie als
      bij openen. — B (nagebootst)
 
+2361. **Bekende grens (#804, flag aan): een leeg slot dat de writer zelf verkeerd laat en dat de lezer tot dezelfde waarde
+     afleidt, ziet de controle in een echte opslag niet.** De toets op de taaktijden (`taskTimeLineProblem` in
+     `src/services/ifc/foreign/mergeWriter.ts`, sinds #1216) vergelijkt de uitvoer letterlijk met de regels die de merge
+     schreef; een fout in de writer zelf staat in beide. Is de waarde gevuld, dan zien de lezing (deel 2) en de vergelijking
+     na heropenen haar. Is het slot leeg, dan vult de lezer het in, en komt hij op de waarde die de planner zag, dan ziet
+     niets het: het duurtype (de lezer leest `$` als `WORKTIME`), de geplande start (`resolveMissingScheduleDates`), de
+     statustijd (de lezer leest haar niet), de rest (`applyRemainingDuration`), het werkelijke einde en de gereedheid van
+     een voltooide taak (`normalizeImportedProgress`). Voor de app gaat er niets verloren; een IFC-lezer die `IFCTASKTIME`
+     leest, mist het slot. Nagebootst in de eigenschapsproef van `check-ifc-foreign-opgeslagen-datums.ts` (de route
+     `writer`, 30 benoemde uitzonderingen). Richting: de aanwezigheid per slot toetsen tegen het domein van de merge (de
+     momentopname met de bronvormregels), zonder de writer. — B (nagebootst)
+
 2219. **VERVOLG (review van #1184): de geheugenpiek van `openIfcBytes` bij een groot IFC is niet gemeten (#804).**
      `openIfcBytes` (`src/core/index.ts`) maakt eerst een eigen kopie van zijn invoer (het publieke pakket moet een
      buffer bezitten die de afnemer niet meer wijzigt). Daarna houdt het tegelijk het werkgeheugen van de scanner, de

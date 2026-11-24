@@ -261,17 +261,23 @@ Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren.
 **De toets op de taaktijden** (knownbug 2231, fixronde 1 van #1216): de controle na openen ziet wat er in het geschreven
 bestand staat; geen bron buiten het slot kan een geschreven datum of een ontbrekend slot voor haar verbergen. Alleen voor
 uitvoer die de writer zelf schreef (met `own`; de bronbytes zelf terug, stuk 1, niet), direct na de ongewijzigde
-vergelijking na heropenen, met dezelfde soort `planning-na-openen`. (1) `taskTimeLineProblem` (`mergeWriter.ts`): de
-`IFCTASKTIME` van elke taak van de momentopname staat in de uitvoer precies zoals de writer haar schrijft uit wat de lezer
-erin leest (`parsed`, in de bronvorm van de uitvoer, zoals (c)), met de slots die de momentopname bewust weglaat
-(`withheldTaskTimeFields`). Zo verbergt geen afleiding in de lezer een slot: de voortgangsregels
-(`normalizeImportedProgress`, `applyRemainingDuration`), een leeg slot dat de lezer invult (`resolveMissingScheduleDates`,
-`fillEmptyComputedDateSlots`), de statustijd die de lezer uit `OPS_ProjectSettings` neemt; en een slot dat de momentopname
-weglaat, mag niet gevuld zijn. (2) `slotReading` (`ifcMergePlanning.ts`): heeft de lezing een bron met voorrang op de
-slots (nu alleen de datums uit het XER-bronarchief), dan opent de controle de uitvoer ook zonder die bron en vergelijkt
-ze met het domein. Grens: buiten "datums zoals opgeslagen" herberekent het laden de rekenslots, dus een andere waarde daar
-ziet de controle niet (knownbug 2360). Proef: `check-ifc-foreign-opgeslagen-datums.ts` (de eigenschapsproef: per stand
-en per tijdslot een kopie met een andere waarde en met `$`).
+vergelijking na heropenen, met dezelfde soort `planning-na-openen`. Drie delen, in `taskTimeLineProblem` en `checkedBytes`
+(`mergeWriter.ts`): (1) elk slot van de `IFCTASKTIME` van elke taak staat letterlijk zoals de merge het schreef
+(`own.taskTimes`: de momentopname met de bronvormregels en de bronwaarden van (b)); in een echte opslag ziet dit alleen een
+verschil tussen de geschreven regels en de bytes. (2) Elk gevuld slot betekent wat de lezer van de taak maakt: de writer
+schrijft de taaktijd opnieuw uit `parsed` (in de bronvorm van de uitvoer, zoals (c), met de slots die de momentopname
+weglaat), en per slot vergelijkt `taskTimeSlotMeaning` (`foreign/taskTimeMeaning.ts`, de leesregel van het slot uit
+`IFC_TASKTIME_SLOTS`, datum op de minuut, duur in dagen zoals de lezer rekent, aanwezigheid waar de lezer die bijhoudt)
+de twee; een bronwaarde van (b) (`own.sourceTokens`) telt hier niet. Zo verbergt geen afleiding in de lezer een geschreven
+waarde: de voortgangsregels (`normalizeImportedProgress`, `applyRemainingDuration`), de statustijd die de lezer uit
+`OPS_ProjectSettings` neemt, een weggelaten slot dat gevuld is. (3) `slotReading` (`ifcMergePlanning.ts`): heeft de
+lezing een bron met voorrang op de slots (nu alleen de datums uit het XER-bronarchief, `recordedTimes`), dan opent de
+controle de uitvoer ook zonder die bron en vergelijkt ze met het domein. Delen (2) en (3) zien ook een fout die de writer
+zelf maakte. Grenzen: buiten "datums zoals opgeslagen" herberekent het laden de rekenslots, dus een andere waarde daar ziet
+de controle niet (knownbug 2360); een leeg slot dat de writer zelf verkeerd liet en dat de lezer tot dezelfde waarde
+afleidt, ziet alleen (1) (knownbug 2361). Proef: `check-ifc-foreign-opgeslagen-datums.ts` (de eigenschapsproef: per
+stand en per tijdslot een kopie met een andere waarde en met `$`, eens alleen in de bytes en eens zoals de writer het
+schreef).
 
 De andere toets in de verliescontrole (PR 12b, `ownGroups` in `LossCheckInput`, `openedOwnGroups` in `mergeWriter.ts`):
 een verschil in O1 in een eigen groep op projectniveau (dezelfde indeling, op de bronregels) hoeft geen bewerking te
