@@ -114,8 +114,9 @@ grootte is veranderd; dezelfde grootte is lezen en SHA-256 (`knownTargetContent`
 telt een weigering alleen als `guardedKnownTarget` nog dezelfde versie geeft (de flag ging niet uit). Veranderd of
 onleesbaar: niet schrijven, de melding van een gebouwmodel (`ownTargetContentNotice`; Automatisch opslaan
 `MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE` en `stopFor` met die versie). Die stop vervalt zodra `guardedKnownTarget` een
-andere waarde geeft: een vastgelegde eigen opslag (een nieuw object, ook als er intussen nieuw werk is), de flag uit of
-een onbekende versie; daarnaast de bestaande voorwaarden (niet gewijzigd, ander doel). Geen wijzigingstijd: lezen en
+andere waarde geeft: een vastgelegde eigen opslag of een export die het eigen doel schreef (`settleFingerprintAfterExport`;
+een nieuw object, ook als er intussen nieuw werk is), de flag uit (`setUI` wist het veld) of een onbekende versie;
+daarnaast de bestaande voorwaarden (niet gewijzigd, ander doel). De volgende ronde vergelijkt dan opnieuw. Geen wijzigingstijd: lezen en
 hashen van 11,8 MB kostte in Node 24 ms (knownbug 2203 voor de doelscan ernaast). Opslaan als en exports bewaakt ze
 niet. Proef: `check-bewaakte-opslag.ts`; het gat tussen toets en plaatsen: knownbug 2069.
 Bronvervanging is geen undo-event en telt niet als inhoudsverschil (`sameIFCSource`, ook voor de recoverydelta).
