@@ -3840,6 +3840,29 @@ en noem het in je rapport of PR-tekst.
      STEP-lezer doet. Proef: `check-ifcx-kern.ts`, "een verzameltaak met een kind dat niet bestaat of haar ouder niet
      noemt wordt geweigerd (2222)". — B
 
+2223. **IFCX: de vastgepinde schema's van IFC5-development en hun eigen voorbeeld Hello Wall spreken elkaar tegen.**
+     Open Planner Studio schrijft in de kop `ifcxVersion: "ifcx_alpha"` en `dataVersion: "1.0.0"`, en kale UUID's als
+     pad (`src/services/ifc/ifcx/ifcxWriter.ts`, docs/ifcx-profiel.md). Op commit `1a63082` van
+     buildingSMART/IFC5-development heeft de TypeSpec-kop die twee velden (`schema/ifcx.tsp`, regels 7–24), net als het
+     voorbeeld Hello Wall (`examples/Hello Wall/hello-wall.ifcx`, regels 1–12). Het gegenereerde OpenAPI-bestand
+     (`schema/out/@typespec/openapi3/openapi.yaml`, regels 64–79) eist in de kop `version` in plaats daarvan. Het
+     padpatroon `</[A-Za-z0-9_/.:]+>` staat in beide weergaven (`ifcx.tsp` en `openapi.yaml`, regels 168–170) en
+     verwerpt een kale UUID, zowel die van Open Planner Studio als die van Hello Wall (regels 95–99). De functie
+     `Validate` in `src/ifcx-core/schema/schema-validation.ts` (regels 124–151) toetst alleen attribuutwaarden tegen
+     hun schema, niet de kop of de paden. Zelf nagelezen op die commit, na de review van #1183 ronde 2 (GPT-6.2-Sol).
+     Gevolg: een letterlijke toets van het bestand tegen `openapi.yaml` of het padpatroon breekt af op de kop of op
+     elk pad, ook bij Hello Wall. Voorstel: in F3-6 vastleggen welke ingang echt valideert (de functie `Validate`, de
+     TypeSpec of het OpenAPI-bestand), en Hello Wall als controle voor dat referentiecontract gebruiken. — B
+
+2224. **IFCX: een voltooide taak die eindigt vóór haar werkelijke start, kan niet als IFCX worden opgeslagen.** De regel
+     `venster` in `CONSISTENCY_RULES` (`src/services/ifc/ifcx/consistency.ts`) eist dat het venster dat telt niet eindigt
+     vóór zijn start; bij een voltooide taak zijn dat de werkelijke start en het werkelijke einde. Staat `actualFinish`
+     vóór `actualStart`, dan weigert de writer met `inconsistent` en veld `task.time`; STEP slaat zo'n taak op. Er gaat
+     niets verloren, maar opslaan als IFCX lukt dan niet. Hoe vaak dit voorkomt, is niet nagegaan; de invoer van
+     voortgang in de app en een import uit P6 of MS Project zijn de plekken om te kijken. Voorstel: de invoer van een
+     werkelijk einde vóór de werkelijke start weigeren, of in F3-4 bij opslaan als IFCX de taak noemen. Proef:
+     `check-ifcx-kern.ts`, "bekende grens 2224". — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
