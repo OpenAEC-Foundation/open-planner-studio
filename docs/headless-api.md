@@ -313,7 +313,7 @@ node headless/server/main-reference.mjs http://127.0.0.1:3871 "$TOKEN" "$M" head
 ```
 
 `main-reference.mjs` stuurt het corpus van deze branch naar de server van main en weigert te schrijven als main zelf
-per ingang of bij herhaling verschillend antwoordt. De huidige referentie is gemaakt op main `36a2159cb`.
+per ingang of bij herhaling verschillend antwoordt. De huidige referentie is gemaakt op main `654ba0471`.
 ## Wat er nog niet is
 
 - Een deployment in AWS (geen account). Daarom ook geen bewijs uit de bedoelde runtime.

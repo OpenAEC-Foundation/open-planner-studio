@@ -1,5 +1,5 @@
 {
-  "main": "36a2159cb5a417f020d3b4228ea9e6468063b5b1",
+  "main": "654ba0471de58313a942ca56914bb71d784194cb",
   "cases": {
     "01-grachtenpand-amsterdam.ifc, kaal": {"summary":{"status":200,"type":"application/json; charset=utf-8","sha256":"126983aca312332008c87039dfb6b8ed5d3a1a9645c1e114bbf0959f226b4ae8"},"ifc":{"status":200,"type":"application/x-step; charset=utf-8","sha256":"6269fec28903fa254dfcceb10bcd12191f486542fb554d33966ef5930e0cbcb8"}},
     "01-grachtenpand-amsterdam.ifc, met BOM": {"summary":{"status":200,"type":"application/json; charset=utf-8","sha256":"126983aca312332008c87039dfb6b8ed5d3a1a9645c1e114bbf0959f226b4ae8"},"ifc":{"status":200,"type":"application/x-step; charset=utf-8","sha256":"6269fec28903fa254dfcceb10bcd12191f486542fb554d33966ef5930e0cbcb8"}},
