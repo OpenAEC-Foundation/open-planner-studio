@@ -1763,6 +1763,21 @@ en noem het in je rapport of PR-tekst.
      product is: het paneel en `planner_get_task` tellen dat bouwdeel niet. Knownbug 1845 is het omgekeerde geval in de
      herkenning van een gebouwmodel (daar telt zo'n instantie altijd mee). Richting: de deeltypen uit de index gebruiken
      zodra die ze levert. Gezien in de code door de reviewer van #1180 (GPT-6.2-Sol, ronde 1). — B
+2215. **Een verwijzing met voorloopnullen laat een aanwezig bouwdeel als ontbrekend tellen.** Flag aan, IFC met een
+     gebouwmodel waarin een ander programma een verwijzing als `#00000000393` schrijft (meer dan tien cijfers). De
+     scanner lost die numeriek op naar `#393`, maar `elementLinks.ts` leest het label opnieuw als tekst en geeft het
+     aan `chunkOf`, dat meer dan tien cijfers weigert. Bij `IfcRelAssignsToProduct` krijgt de koppeling daardoor
+     `found: false` met `#00000000393` als doel; in een `IfcRelAssignsToProcess` valt het lid uit de telling. Het
+     paneel en `planner_get_task` tellen dus verkeerd; de bronregel zelf blijft bij opslaan behouden. Richting: voor
+     bestaande doelen de door de index opgeloste verwijzing gebruiken en het ruwe label alleen lezen voor een doel dat
+     echt ontbreekt. Gezien in de code door de reviewer van #1180 (GPT-6.2-Sol, ronde 2). — B
+2230. **De terugval boven de scangrens loopt ook de koppelingen af, voor alleen een telling.** Flag aan, een groot
+     eigen bestand dat de tekstlezer passeert terwijl de bytes-route terugvalt wegens de grootte. `currentRoute` in
+     `src/services/ifc/foreign/ifcBytesRoute.ts` vraagt dan zonder `knownScan` om `runForeignScan`, en die vraagt de
+     openvariant, die ook de regels voor gekoppelde bouwdelen afloopt. De terugval leest daarvan alleen `ok` en de
+     aantallen C, A en V. Dat is extra werk bij het openen van een groot bestand, geen fout in de uitkomst. Richting:
+     dit pad de gewone workersessie en `scanForeign` geven. Gezien in de code door de reviewer van #1180
+     (GPT-6.2-Sol, ronde 2). — B (code)
 
 ## Bestanden en herstel
 
