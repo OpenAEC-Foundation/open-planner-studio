@@ -22,6 +22,7 @@ import { readFileSchemaName } from '../ifcReader';
 import { ifcObjectSeed } from '../ifcWriter';
 import { readerBytes, readerOptions, type ForeignScanResult, type ForeignScanOutcome } from './foreignScan';
 import { runForeignScan, type ForeignScanRunOptions } from './foreignScanRunner';
+import { elementLinksByTask } from './elementLinks';
 import type { IfcSource } from './ifcSource';
 import type { StepScanReason } from './stepScanner';
 import { unusedKeysFromRead } from './unusedKeys';
@@ -129,6 +130,7 @@ export async function readIfcBytesDetailed(
     classes: scan.classes,
     stepIds,
     foreignMembers: Array.from(scan.foreignMembers),
+    elementLinks: elementLinksByTask(scan.stepElementLinks, stepIds),
     ...(unusedKeys ? { unusedKeys } : {}),
     foreign: foreignObjectCount > 0,
     foreignObjectCount,

@@ -1747,6 +1747,37 @@ en noem het in je rapport of PR-tekst.
      eerste aan de beurt, en liet een tweede slapend document de schrijfronde afbreken. Bij de geslaagde herpoging
      gingen de minuten verloren zonder melding; in dezelfde proef zonder eerdere afbreking meldde de app het verlies
      wel. Proef van de reviewer (GPT-6.2-Sol, review van #1164). — B
+2211. **Een taak met heel veel gekoppelde bouwdelen kan `planner_get_task` op de site te groot maken.** Sinds #804
+     fase 2 geeft `planner_get_task` (`elementLinkFields` in `src/services/mcp/tools/readTools.ts`) bij een IFC-bestand
+     met een gebouwmodel elke koppeling taak↔bouwdeel mee, ongeveer 60 tekens per koppeling, zonder `limit`. De
+     assistent van de site weigert een leesantwoord boven 30.000 tekens (`siteAppTools.ts`), en `planner_get_task` heeft
+     daar geen uitweg (`narrowHint`). Een taak met enkele honderden koppelingen zou dus geweigerd worden. Afgeleid uit
+     de grootte van een regel; niet gemeten met een echt model, en niet nagegaan of de flag `ifcForeignContent` op de
+     site gebruikt wordt. Richting: de lijst optioneel pagineren, of alleen `elements` en `notFound` geven boven een
+     grens. — S
+2216. **Een aanwezig bouwdeel dat een complexe instantie is, telt niet mee bij de gekoppelde bouwdelen.** Flag aan, IFC met
+     een gebouwmodel. De scanner geeft een complexe instantie (`#1=(IFCA() IFCB());`) het type `(COMPLEX)`
+     (`scanStep` in `src/services/ifc/foreign/stepScanner.ts`, rond regel 720), en `elementTarget` in
+     `src/services/ifc/foreign/elementLinks.ts` telt alleen een doel met een type uit `IFC_BUILDING_MODEL_TYPES`. Een
+     koppeling naar zo'n instantie valt daarom helemaal weg, ook bij `IfcRelAssignsToProduct`, waar het doel altijd een
+     product is: het paneel en `planner_get_task` tellen dat bouwdeel niet. Knownbug 1845 is het omgekeerde geval in de
+     herkenning van een gebouwmodel (daar telt zo'n instantie altijd mee). Richting: de deeltypen uit de index gebruiken
+     zodra die ze levert. Gezien in de code door de reviewer van #1180 (GPT-6.2-Sol, ronde 1). — B
+2215. **Een verwijzing met voorloopnullen laat een aanwezig bouwdeel als ontbrekend tellen.** Flag aan, IFC met een
+     gebouwmodel waarin een ander programma een verwijzing als `#00000000393` schrijft (meer dan tien cijfers). De
+     scanner lost die numeriek op naar `#393`, maar `elementLinks.ts` leest het label opnieuw als tekst en geeft het
+     aan `chunkOf`, dat meer dan tien cijfers weigert. Bij `IfcRelAssignsToProduct` krijgt de koppeling daardoor
+     `found: false` met `#00000000393` als doel; in een `IfcRelAssignsToProcess` valt het lid uit de telling. Het
+     paneel en `planner_get_task` tellen dus verkeerd; de bronregel zelf blijft bij opslaan behouden. Richting: voor
+     bestaande doelen de door de index opgeloste verwijzing gebruiken en het ruwe label alleen lezen voor een doel dat
+     echt ontbreekt. Gezien in de code door de reviewer van #1180 (GPT-6.2-Sol, ronde 2). — B
+2230. **De terugval boven de scangrens loopt ook de koppelingen af, voor alleen een telling.** Flag aan, een groot
+     eigen bestand dat de tekstlezer passeert terwijl de bytes-route terugvalt wegens de grootte. `currentRoute` in
+     `src/services/ifc/foreign/ifcBytesRoute.ts` vraagt dan zonder `knownScan` om `runForeignScan`, en die vraagt de
+     openvariant, die ook de regels voor gekoppelde bouwdelen afloopt. De terugval leest daarvan alleen `ok` en de
+     aantallen C, A en V. Dat is extra werk bij het openen van een groot bestand, geen fout in de uitkomst. Richting:
+     dit pad de gewone workersessie en `scanForeign` geven. Gezien in de code door de reviewer van #1180
+     (GPT-6.2-Sol, ronde 2). — B (code)
 
 ## Bestanden en herstel
 
@@ -3667,6 +3698,51 @@ en noem het in je rapport of PR-tekst.
      Recent, slepen en MCP, de startroute zelf niet. Richting: alleen wisselen als de gelezen versie overeenkomt met
      de versie die het tabblad van zijn bestand kent. — B (code gelezen, ook door de reviewer van #1153; niet
      nagespeeld)
+
+2065. **VERVOLG (#804, de versie op het eigen doel): het tabblad merkt niet elke schrijfactie van de app op zijn bestand.**
+     `knownTargetFingerprint` volgt de opslag en de exports van het tabblad zelf. Twee schrijvers van de app ziet het
+     niet: in de browser kan Opslaan als of een export uit een ander tabblad over de handle van dit tabblad schrijven
+     (de opslaankiezer wordt daar niet vergeleken, knownbug 1899), en een rapport (PDF) dat de planner over het eigen
+     `.ifc`-bestand opslaat. Het veld beschrijft dan de laatste opslag van het tabblad zelf, niet wat er op schijf staat,
+     zoals bij een wijziging buiten de app. Een tabblad uit crashherstel krijgt altijd `null`, ook als het herstel de bron
+     van het eigen pad las. Wie het veld gaat lezen (de bewaking van Ctrl+S en Automatisch opslaan), krijgt in deze
+     gevallen "het bestand is veranderd" of "onbekend". — B (code gelezen, `check-tabblad-schijfversie.ts`; de twee
+     schrijvers niet nagespeeld)
+
+2066. **VERVOLG (#804, de versie op het eigen doel): na een mislukte of onzekere schrijfactie kan het veld een
+     versie noemen die niet meer op schijf staat.** Ctrl+S en Automatisch opslaan maken `knownTargetFingerprint`
+     onbekend als hun schrijfactie naar het eigen pad een fout geeft (de directe terugval van `replaceUserFile` in
+     `atomicWrite.ts` kan het doel al afgekapt hebben), en ook als de vervanging met herstel van een gebouwmodel
+     `unknown`, `previous-stranded` of `target-taken` geeft. Na een geslaagde export vergelijkt
+     `settleFingerprintAfterExport` het eigen doel met de geschreven bytes. Drie gevallen laten het veld staan.
+     Een export die mislukt nadat hij het eigen bestand al raakte: op het eigen doel staat dan iets wat de export niet
+     (helemaal) schreef. De vingerafdruk blijft staan, de komende bewaking weigert dan Ctrl+S met haar melding, en er
+     gaat niets verloren. Opslaan als over een bestaand bestand (`replaceExistingPath`) met een onzekere uitkomst: het
+     gekozen pad kan het eigen bestand zijn, maar de route kijkt daar niet naar. En in de browser de opslaankiezer uit
+     knownbug 1899: die kan de eigen handle al leeggemaakt hebben als de schrijfactie daarna mislukt. — S (code
+     gelezen, niet nagespeeld)
+
+2200. **VERVOLG (#804, de versie op het eigen doel): bij openen kan de vingerafdruk van opnieuw gecodeerde tekst
+     komen.** Openen, Recent en een browser-drop kiezen vóór het lezen of een `.ifc` als tekst of als bytes binnenkomt
+     (`useFileDrop.ts`, de opendialoog en Recent in `fileSlice.ts`). `openOpenedFile` vraagt de flag daarna opnieuw op.
+     Gaat de flag `ifcForeignContent` daartussen aan, dan komt het bestand als tekst binnen. `File.text()` en het lezen
+     als tekst laten een UTF-8-BOM weg en vervangen ongeldige bytes, en `readIfcFromText` codeert de tekst opnieuw.
+     `applyLoadedProject` koppelt de hash en grootte van die nieuwe bytes aan het doel; met een BOM is de grootte drie
+     bytes te klein. Herstel: `openOpenedFile` geeft door of de bytes van het doel zelf kwamen (`opened.bytes`), en
+     `applyLoadedProject` zet bij tekst `null`. Dat raakt de openroute, waar de volgende stap (openen wisselt) bouwt.
+     De omgekeerde volgorde is gedicht: gaat de flag uit tussen het lezen en het activeren, dan blijft het veld
+     `null`. — B (code gelezen in de reviews van #1168, niet nagespeeld)
+2217. **VERVOLG (#804, de versie op het eigen doel): een lopende nacontrole kan een gewiste vingerafdruk terugzetten.**
+     De planner zet de flag `ifcForeignContent` uit precies terwijl een export het eigen bestand terugleest of de
+     nieuwe vingerafdruk berekent (`settleFingerprintAfterExport` in `src/state/slices/fileSlice.ts`). `setUI` wist de
+     vingerafdruk van elk tabblad (`src/state/slices/uiSlice.ts`), waarna de export haar alsnog vastlegt als document
+     en doel gelijk bleven. Exporteert de planner daarna met de flag uit opnieuw over het eigen bestand en zet hij de
+     flag later weer aan, dan kan de bewaking van Ctrl+S en Automatisch opslaan de volgende opslag op die teruggezette
+     waarde weigeren. Uitweg voor de planner: Opslaan als. Richting: bij het vastleggen opnieuw toetsen dat er nog een
+     vingerafdruk is. Gezien in de code door de reviewer van #1168 (GPT-6.2-Sol, ronde 5); het vraagt dat het
+     uitzetten precies tijdens de nacontrole valt. — B (code)
+
+
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
