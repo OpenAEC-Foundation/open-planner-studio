@@ -113,7 +113,7 @@ downloadt een Blob, ook met FSA (1130). De sitefuncties `saveNewSiteFileBytes` e
 behoudt de conflictkopie van de host. De aanroeper houdt de buffer ongewijzigd tot voltooiing.
 PR 11a sluit de documentroutes aan: nieuwe lokale naam, download en siteversie met basis.
 PR 11b sluit IFC-export en app-MCP aan op dezelfde `state/prepareIfcOutput.ts`, zonder documentcommit.
-De MCP-naad `writeNewUserBytes` gebruikt dezelfde exclusieve byte-ingang; headless biedt haar nog niet, net zo min als `replaceUserBytes` (de vervanging van een bestaande naam, zie `mcp.md`). Bestaande tekst-/PDF-routes
+De MCP-naad `writeNewUserBytes` gebruikt dezelfde exclusieve byte-ingang; headless levert haar zelf (`nodeFs.ts`: eigen halffabricaat, `fsync`, `link` naar de nieuwe naam), maar niet `replaceUserBytes` (de vervanging van een bestaande naam, zie `mcp.md`). Bestaande tekst-/PDF-routes
 veranderen niet. Bestaande vreemde lokale doelen en de bronhash horen bij fase 2 (1131).
 
 The application's persistence model is IFC 4.3 (buildingSMART). Loading a project = parsing IFC via `src/services/ifc/ifcReader`; saving = serializing the entire app state via `ifcWriter`. There is no separate JSON project format. When adding new domain data (tasks, sequences, resources, assignments, calendar), it must round-trip through the IFC layer or it will be lost on save/reload. CSV/MS Project/P6 services in `src/services/` are import/export adapters, not the source of truth. The other `src/services/` areas — `fileAccess/` (Tauri↔web bestands-I/O + handle-backed recents), `recovery/` (auto-save/restore, Tauri fs + web IndexedDB), `actualAutosave/` (opt-in, promptvrije writes to an existing project file), `benchmark/` (ingebouwde benchmark-tool via Instellingen), `print/` (printvoorbeeld), `pdf/` (vector-PDF-export via `pdf-lib`; Arabic and Persian stay vector, while CJK rasterizes only without an optional `pdf-fonts` extension), `updater/`, `feedback/` (feedbackdialoog + screenshot-annotator), `mcp/` (AI-assistent, zie `.claude/rules/mcp.md`) and `debug/appLog` (log-bus achter de DebugTerminal) — are app plumbing with no IFC impact. `library/` is de uitzondering: bibliotheekdata is app-globaal, maar herkomststempels round-trippen wél door het project-IFC (zie *Resourcebibliotheken*).
@@ -397,7 +397,7 @@ grens; een bestand dat door opslaan boven de drempel komt, opent daarna met de w
 `check-ifc-foreign-grens.ts` (de drempel verlaagd met de proefnaad `lowerForeignOpenWarnBytesForTests`, door de echte
 routes en de echte herstelvraag; boven de technische grens met een nagebootste lengte), `check-one-file-one-tab.ts` (een
 al open model boven de drempel), `tests/mcp/cases-doc-file.ts` (de app) en `tests/mcp/cases-headless-server.ts`
-(headless zoals main).
+(headless zonder waarschuwing).
 
 ### Auteur en bedrijf (#804 fase 1c)
 

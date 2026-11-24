@@ -345,7 +345,12 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   atomic save with no direct-write fallback), content checks of existing write targets independent of the app flag
   (`scanForeign` C/A/V; unreadable targets refused, historical own headers use the shared recognition), no replacing of an existing file while the desktop app runs (`appLock.ts`
   reads `open-files*.json` from the app's data folders or `--discovery-dir` on every write), its own XML parser as `DOMParser` (`xmlDom.ts`, for MSPDI/P6 XML) and
-  MCP backups in its own data folder. It reuses the
+  MCP backups in its own data folder. IFC follows the core's `openIfcBytes` rule (#804, knownbug 1136): the host sets
+  `ifcForeignContent` in its own store plus `fileToolDeps.mainRouteUnlessForeign`, so `planner_import_schedule` keeps the
+  bytes route only when it preserves a building model or data from another program, and every other file takes main's
+  text route with the same answers and written bytes (`tests/mcp/cases-headless-pariteit.ts`, with `OPS_MAIN_WORKTREE`).
+  `planner_export_ifc` of such a document merges and writes only to a new name (`McpFileFs.writeNewUserBytes`: own temp
+  file, `fsync`, then `link`; an existing name is refused, knownbug 2240). It reuses the
   dispatcher, registry, `runtime.ts`, the tools and `requestHandler.ts` unchanged; host functions go through seams
   (`fileToolDeps`, `McpFileFs.confine`, `guideToolDeps`, `createAppBackupService` overrides). Code it bundles imports
   no value from `appStore.ts` (`verify:store-boundaries`); `npm run build:mcp-server` fails on React, Tauri, the

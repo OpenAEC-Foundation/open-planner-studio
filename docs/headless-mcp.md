@@ -93,10 +93,10 @@ Claude Code: `claude mcp add --transport http open-planner http://127.0.0.1:3878
   in het antwoord en staat er in de app een strook boven dat tabblad. Kent het
   tabblad zijn versie niet, dan opent het pad als nieuw document, zoals main. Een CSV, XER, MS Project- of P6 XML-bestand opent altijd als nieuw document. Is
   dat tabblad gesloten of heeft het intussen een ander bestand, dan opent het pad als nieuw document. De
-  import leest buiten de schrijfrij van de app om, zoals main (knownbug 2060). De headless server zet geen flags, dus daar opent een tweede import van hetzelfde
-  pad een tweede document (knownbug 2042).
+  import leest buiten de schrijfrij van de app om, zoals main (knownbug 2060). De headless server wisselt niet naar een
+  open tabblad: een tweede import van hetzelfde pad opent een tweede document, zoals main (knownbug 2042).
 - **Opslaan.** Er is geen opslagcommando en geen automatisch opslaan. De agent schrijft het actieve
-  document met `planner_export_ifc`; `overwrite: true` vervangt alleen een doel zonder gebouwmodel of gegevens van een ander programma, en nooit het bestand van een ander open document (knownbug 1907). Wat niet
+  document met `planner_export_ifc`; `overwrite: true` vervangt alleen een doel zonder gebouwmodel of gegevens van een ander programma, en nooit het bestand van een ander open document (knownbug 1907). Een document dat een gebouwmodel of gegevens van een ander programma bewaart, schrijft alleen naar een nieuwe naam (zie *Gegevens van een ander programma*). Wat niet
   geëxporteerd is, is weg als de server stopt.
 - **Paden.** In de toolbeschrijvingen staat "home folder". In de headless server is dat de werkmap:
   `~/plan.ifc` is `<werkmap>/plan.ifc`. Een absoluut pad moet in de werkmap liggen. Een relatief pad
@@ -161,7 +161,8 @@ weigert; alleen bewezen ontbreken is een nieuw doel. De indeling gebruikt `scanF
 300 MiB-grens; er is geen kleinere grens uit het ontwerp overgenomen. De gemeten oude eigen kop gebruikt de
 gedeelde herkenning; de ongewijzigde v2026.7.12-fixtures met een apostrof of DATA; in de naam blijven gewone doelen.
 De zestien gemaakte kopvormen die de bestaande scanner niet ondersteunt, weigeren veilig (knownbug 1134).
-De headless server leest IFC als tekst; gegevens van een ander programma zonder gebouwmodel (bijvoorbeeld een externe pset) komen bij `planner_export_ifc` naar een nieuwe naam nu nog niet mee; de bron blijft ongewijzigd (knownbug 1136). Richting voor fase 2, vóór de flag eraf gaat: export naar een nieuwe naam weigert bij ongedragen vreemde invoer. De app met de flag aan exporteert volledige bytes; dit is nog geen belofte voor de headless tekstserver.
+Gegevens van een ander programma gaan sinds #804 fase 2 (PR 10b) niet meer stil verloren; zie *Gegevens van een ander
+programma* hieronder.
 
 Lokaal kan `OPS_HEADLESS_SOURCE_ONLY=1 bash tests/mcp/run.sh cases-headless-server.ts` de bron-/HTTP-proeven uitvoeren
 zonder de zelfstandige bundel te bouwen. Zonder die variabele blijft deel B volledig onderdeel van CI.
@@ -247,6 +248,11 @@ geen rollback na de `rename`. Windows houdt alleen de bestands-fsync; deze POSIX
 daar niet uitgevoerd. Dit is geen bewijs tegen echte stroomuitval of weigerende opslaghardware, en
 synchroniseert niet de hele keten van eventueel nieuw aangemaakte bovenmappen.
 Een link naar een bestand binnen de werkmap blijft een link: het echte doel wordt vervangen.
+Een nieuwe naam voor bytes (`writeNewUserBytes`, alleen een document met een vreemd deel) gaat langs dezelfde poorten,
+hetzelfde slot en hetzelfde halffabricaat met `fsync`, maar plaatst exclusief: `link` van het halffabricaat naar de nieuwe
+naam (bestaat die al, ook als hij pas na de controle verscheen, dan `create-new` en blijft dat bestand staan), een controle
+dat op de naam het eigen bestand staat, dan `unlink` van het halffabricaat en de `fsync` van de map. Een bestandssysteem
+zonder harde links weigert; er is geen terugval op direct schrijven.
 Mislukt schrijven of `rename` (volle schijf, afgebroken proces), dan geeft de tool een fout en blijft
 het origineel byte-gelijk. De server probeert het halffabricaat op te ruimen, in dezelfde map en alleen
 als de naam nog naar het eigen bestand wijst. Is die map verdwenen of stopt het proces hard (zoals bij
@@ -254,6 +260,30 @@ een crash), dan kan een halffabricaat (`.<willekeurig>.ops-save.tmp`) blijven st
 in de app is er geen terugval op direct schrijven (die terugval in `replaceUserFile` blijft voor de
 desktop-app ongewijzigd). De bestaande controle tegen een stille schemawissel via bestandsaliassen
 (#519) werkt ook hier: de server levert `dev`/`ino` van het doel.
+
+**Gegevens van een ander programma (#804, fase 2 PR 10b).** De server schrijft nooit een bestand waaruit een gebouwmodel
+of gegevens van een ander programma stil verdwenen zijn: hij bewaart ze, of hij weigert met een fout. Hij volgt de regel
+van de headless kern (`openIfcBytes`, [headless-kern.md](headless-kern.md)):
+
+- `planner_import_schedule` leest een IFC één keer als bytes en probeert de bytes-route van de app
+  (`parseOpenedFile` met `ifcBytes`, de scanner zonder Worker). Bewaart die een vreemd deel (`hasForeignContent`), dan
+  opent het document met die bron, ook een bestand met een gebouwmodel dat main weigert (knownbug 110). In elk ander
+  geval (geen vreemd deel, een fout, IFC2X3, een kopvorm die de scanner weigert) leest hij dezelfde bytes via precies de
+  tekstroute van main: UTF-8 met de BOM erin, zoals `Buffer.toString`. Een bestand zonder vreemd deel geeft dus op elk
+  tool dezelfde antwoorden en dezelfde geschreven bytes als main.
+- `planner_export_ifc` van een document met een vreemd deel gebruikt de merge (`prepareIfcOutput`, zoals Ctrl+S in de app)
+  en schrijft naar een nieuwe naam via `McpFileFs.writeNewUserBytes` (`nodeFs.ts`, zie *Opslaan is altijd atomair*). Kan de merge het
+  vreemde deel bij deze wijziging niet bewaren, dan weigert de export met `VALIDATION` (de reden `merge-needs-phase2`
+  staat in de fout) en schrijft hij niets. Een bestaande naam weigert hij, ook met `overwrite: true` en ook de bron zelf:
+  de server heeft geen veilige vervanging van zo'n bestand (`replaceUserBytes` bestaat alleen in de app; knownbug 2240).
+- Daarvoor zet de host de flag `ifcForeignContent` in zijn eigen store, zoals de kern in de context van elk document, en
+  `fileToolDeps.mainRouteUnlessForeign`. Dat tweede houdt drie dingen van de app met de flag buiten de headless server:
+  de tooltekst van `planner_export_ifc` (die van main), het wisselen naar een open tabblad (knownbug 2042) en het lezen
+  van externe bronnen als bytes in `planner_refresh_external_links` (dat blijft de tekstroute van main).
+- Een IFC zonder vreemd deel gaat zo twee keer door de lezer: eerst de bytes-route, dan de tekstroute van main. Van
+  schijf lezen gebeurt één keer (knownbug 2241).
+- De MCP-backup van zo'n document bevat de planning en het bronkenmerk, geen modelbytes, zoals in de app (`mcp.md`). Wie
+  die backup opent, krijgt een document zonder bron dat geen IFC schrijft.
 
 **Importformaten.** Node heeft geen `DOMParser`. De MSPDI- en P6-XML-lezers van de app gebruiken hem;
 de server zet daarom een eigen kleine XML-parser als `DOMParser` (`headless/mcp-server/src/xmlDom.ts`),
@@ -312,6 +342,8 @@ naden die de app al had of die er voor deze server bij kwamen:
 | naad | app | headless |
 |---|---|---|
 | `fileToolDeps.getFs` (`fileTools.ts`) | Tauri plugin-fs, scope `$HOME` | `nodeFs.ts`, scope = werkmap |
+| `fileToolDeps.mainRouteUnlessForeign` (nieuw) | `false` | `true`: bytes alleen voor een vreemd deel, anders de route van main |
+| `McpFileFs.writeNewUserBytes` | `place_file_exclusive` | `link` naar de nieuwe naam in `nodeFs.ts` |
 | `McpFileFs.confine` (optioneel, nieuw) | ontbreekt: de Tauri-capability is de harde grens | `realpath`-controle |
 | `globalThis.DOMParser` | de browser of webview | `xmlDom.ts` |
 | `guideToolDeps.fetchImpl` (nieuw) | ontbreekt: `fetch` op de eigen bundel | ingebedde teksten |
@@ -347,6 +379,8 @@ werkmap uit het installatievenster, als de desktop-app niet draait. Uitleg: `doc
 |---|---|
 | `tests/mcp/cases-headless-server.ts` (deel A) | De host achter `http.ts` doorstaat dezelfde controles als de bridge (`externalClient.ts`): sessies, 400/404, token, Origin, alleen lezen, pauze, documentanker. Verder: de MCP-backup en de opties. Het slot (A1): de echte `createAppLock` in `createNodeFileFs` met een tijdelijke registermap: open bestand geweigerd en byte-gelijk, lezen mag, ander bestand vrij, symlink en andere schrijfwijze geweigerd, dood pid vrij, onbruikbaar register (met levend pid, zonder pid, onleesbare map) weigert alles, `.tmp` genegeerd, `open-files.<slug>.json` telt, doel en registerpad allebei niet bestaand en gelijk geweigerd, dode link in het register geweigerd. |
 | `tests/mcp/cases-headless-server.ts` (deel B) | Bouwt `server.mjs`, kopieert de uitvoer naar een lege map buiten de repo en start hem daar. Over stdio met de officiële SDK-client: `tools/list` = de registry, gids en skills ingebed, een voorbeeld openen → taken en relaties toevoegen → rekenen → opslaan → opnieuw openen → vergelijken, de backup, en de padbeveiliging (buiten de werkmap, `..`, symlinks, dode link, relatief pad), en het slot met `OPS_MCP_DISCOVERY_DIR` op een tijdelijke map (`planner_export_ifc` met `overwrite: true` op een open bestand geweigerd en byte-gelijk, lezen mag, symlink, dev-register, `.tmp`, dood pid, onbruikbaar register). Over HTTP: `tools/list`, fout token, Origin, ontbrekende en onbekende sessie-id, en de startweigeringen. |
+| `tests/mcp/cases-headless-server.ts` (vreemd deel) | Deel A: een externe pset gaat mee naar een nieuwe naam met de wijziging, over de bron, de kopie en een gewoon bestand weigert de export bytegelijk; een gebouwmodel komt bytegelijk terug; een Bonsai-wijziging die de merge niet draagt weigert met `merge-needs-phase2` zonder bestand; `writeNewUserBytes` direct (nieuwe naam, bestaand doel, een doel dat vlak vóór de plaatsing verschijnt, schrijf- en plaatsingsfout). Deel B: dezelfde export met de gebouwde server. |
+| `tests/mcp/cases-headless-pariteit.ts` | Alleen met `OPS_MAIN_WORKTREE` (een werkmap van main met `node_modules`; anders slaat hij over). Bouwt de server van main en van deze werkmap en speelt over stdio met een vaste klok en een vaste `Math.random` dezelfde reeks af (openen, taken, een taak wijzigen, rekenen, exporteren naar een nieuwe naam, opslaan, heropenen) op alle voorbeelden, met een BOM, een los byte, de kopvormen uit ISO 10303-21, namen met een apostrof en een IFC2X3-model: dezelfde antwoorden (gegenereerde id's één-op-één hernoemd) en dezelfde geschreven bytes. |
 | `cases-externe-client.ts` | Ongewijzigd; draait nu via `http.ts`. |
 
 ## Niet getest

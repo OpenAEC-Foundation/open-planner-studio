@@ -297,4 +297,8 @@ vervangt ze met `overwrite: true` een bestaand bestand: het heeft precies de exp
 `cases-doc-file.ts` toetst via de dispatcher import, duuractie, export en volledige heropening, bronidentiteit,
 bestaande/eigen doelen, flag uit na openen, ontbrekende bron en Latin-1 zonder tekstrondgang, en op echte bestanden het
 vervangen met en zonder `overwrite`, een doel dat na het lezen verandert, links, het eigen bestand en een ander tabblad.
-De headless server blijft tekst schrijven; de beperking en richting staan bij knownbug 1136 in `docs/headless-mcp.md`.
+De headless server (#804, fase 2 PR 10b) leest een IFC met een vreemd deel als bytes en exporteert het met de merge naar
+een nieuwe naam (`writeNewUserBytes` in `nodeFs.ts`: eigen halffabricaat, `fsync`, `link`); een bestaande naam weigert hij.
+Een bestand zonder vreemd deel loopt daar precies de route van main. Uitleg en proeven: *Gegevens van een ander
+programma* in `docs/headless-mcp.md`, `cases-headless-server.ts` en, tegen een werkmap van main,
+`cases-headless-pariteit.ts`.

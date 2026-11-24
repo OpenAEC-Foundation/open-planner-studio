@@ -6234,16 +6234,6 @@ en noem het in je rapport of PR-tekst.
      lezerreparatie in #915; vlag uit blijft main. Hoort bij 1054/1061. Uit de bouw van #804 fase 1c PR 4,
      na de nieuwe werkwijze van de eigenaar (13 november 2026, GPT-6.1-Sol via Codex). — B
 
-1136. **VERVOLG, bestaand op main: de headless MCP-server bewaart gegevens van een ander programma niet bij export
-     naar een nieuwe naam.** De headless server leest IFC als tekst (de keuze voor de bytes-route in
-     `src/services/mcp/tools/fileTools.ts` hangt aan de appflag, en die staat headless uit). Een bestand zonder
-     gebouwmodel maar met een externe pset (de villa-fixture met `ExternPset`) opent; export over de bron wordt sinds
-     #915 geweigerd (`VALIDATION`, bron byte voor byte gelijk), maar `planner_export_ifc` naar een nieuwe naam geeft
-     `ok: true` en een bestand zonder `ExternPset`; `ifcSource` en het bronkenmerk blijven leeg. De bron zelf blijft
-     heel. Main doet hetzelfde, en de app met de flag uit ook (1133). De getypeerde weigering van de kern
-     (`toIfc()`, `IFC_WRITE_FAILED`) geldt hier niet. Richting (Trias, 14 november 2026): headless export naar een nieuwe naam weigert bij ongedragen vreemde invoer. Hoort bij fase 2 (besluit T3: volledige bytes voor headless, kern en HTTP), vóór de flag eraf gaat. Gevonden door de
-     review van #915 (Sol), met een proef via de echte headless host en dispatcher. — B
-
 1588. **VERVOLG, gemaakte bron: een opgeslagen maar ongebruikt eigen taaktype laat ook ander werk weigeren.**
      Voeg in een kopie van de opgeslagen beginstand van PR 7d aan `TaskTypes.definitions` een extra
      `{ id, name }` toe zonder taakkoppeling. Open de bytes en wijzig alleen de projectbeschrijving.
@@ -6589,10 +6579,11 @@ en noem het in je rapport of PR-tekst.
      `isSameEntry` van de tweede startte vóór het tabblad van de eerste bestond: dan komen er twee tabbladen, zoals main
      altijd doet. Via een ander pad op de desktop: 2063. Alleen in de code gelezen voor de browser. — S
 
-2042. **De headless MCP-server heeft geen featureflag: `planner_import_schedule` opent daar een bestand dat al open is opnieuw.**
-     De toets "staat al open" (knownbug 1957) staat achter de flag `ifcForeignContent`, en de headless server zet geen
-     flags (`headless/mcp-server/`). Dezelfde code draait daar, dus `planner_import_schedule` op een pad dat al open is
-     geeft daar een tweede document, zoals main. Gaat de flag standaard aan, dan geldt het daar ook; de proef
+2042. **De headless MCP-server wisselt niet naar een open tabblad: `planner_import_schedule` opent daar een bestand dat al open is opnieuw.**
+     De toets "staat al open" (knownbug 1957) hangt aan `appForeignContentRoute` in `src/services/mcp/tools/fileTools.ts`:
+     de flag `ifcForeignContent` aan en geen headless host. De headless server zet de flag in zijn eigen store (#804,
+     fase 2 PR 10b) maar ook `fileToolDeps.mainRouteUnlessForeign`, dus `planner_import_schedule` op een pad dat al open
+     is geeft daar een tweede document, zoals main. Gaat de flag standaard aan, beslis dan of headless meegaat; de proef
      "B stdio … opslaan, heropenen, vergelijken" in `tests/mcp/cases-headless-server.ts` heropent hetzelfde pad om de
      round-trip te toetsen en moet dan een eigen manier krijgen (een tweede pad of een nieuw document). In de code
      gelezen. — B (code)
@@ -6729,3 +6720,19 @@ en noem het in je rapport of PR-tekst.
 2292. **VERVOLG (review #1191 ronde 1): dezelfde koppeling opnieuw aanroepen zet een schoon document op *Niet opgeslagen*.** `linkRecognizedItems` (`src/state/slices/librarySlice.ts`) vervangt het item ook als alle waarden en de herkomststempel al gelijk zijn, dus `finishMutation` zet `isDirty` en er komt een extra undo-stap. Het afwijkingenscherm biedt een koppeling na de eerste keer niet meer aan, dus dit vraagt een rechtstreekse aanroep (bijvoorbeeld via MCP). Richting: het bijgewerkte item, met stempel, vergelijken vóór de toewijzing, en bij nul echte wijzigingen ook de herberekening van resourcebelasting en rijen overslaan. Review #1191 ronde 1 (GPT-6.2-Sol, xhigh). — S
 2293. **VERVOLG (review #1193 ronde 1): een uitzondering buiten `scratch-failed` kan de melding over verloren minuten alsnog opmaken.** `applyDistribution` (`src/state/slices/librarySlice.ts`) zet de vastgelegde meldingsclaims alleen terug bij `scratch-failed`. Gooit het laden van een tweede tijdelijke payload (`src/state/runtime/scratchDocument.ts`) of het schrijven naar de echte store een uitzondering, dan blijft de claim van het eerste document bezet terwijl het zijn minuten nog heeft. Geen route met een gewoon bestand gevonden. Richting: de melding pas claimen nadat het document echt is bijgewerkt; dan kan ook de snapshot voor tijdgefaseerde sturing weg, die `applyLeveling` niet raakt. ADR 0175 verwijst nog naar het verwijderde punt 1992. Review #1193 ronde 1 (GPT-6.2-Sol, xhigh). — S
 2294. **VERVOLG (review #1193 ronde 1, test): de proef kan een dubbele melding missen.** `tests/library/check-distribution-loss-notice.ts` telt alleen de lengte van de meldingenlijst, maar `notify` verhoogt bij dezelfde `dedupeKey` de teller op de bestaande melding (`src/state/slices/uiSlice.ts`). Richting: de eerste melding sluiten vóór de tweede schrijfronde en daarna nul meldingen verwachten. Review #1193 ronde 1 (GPT-6.2-Sol, xhigh). — S (test)
+2240. **VERVOLG (#804 fase 2 PR 10b): de headless MCP-server schrijft een document met een vreemd deel alleen naar een nieuwe naam.**
+     `planner_export_ifc` over een bestaande naam weigert voor zo'n document, ook met `overwrite: true` en ook over de eigen
+     bron (`src/services/mcp/tools/fileTools.ts`: zonder `McpFileFs.replaceUserBytes` geeft de export "requires a new
+     file name", en de eigen bron geeft `'open-source'`). Een planner die headless een bestand met een gebouwmodel of een
+     externe pset bijwerkt, kan het bestand dus niet ter plekke opslaan; de bron blijft heel en de nieuwe versie komt
+     onder een andere naam. De tekst bij de eigen bron zegt "ask the user to save in the app", wat headless niet helpt:
+     de wijzigingen staan in het geheugen van de server. Richting: een Node-variant van de vervanging met herstelrecord
+     (`replaceOwnPathWithRecovery`) in `nodeFs.ts`, of een eigen headless tekst. Geproefd in
+     `tests/mcp/cases-headless-server.ts` ("A knownbug 1136"). — B
+2241. **VERVOLG (#804 fase 2 PR 10b, snelheid): headless leest een IFC zonder vreemd deel twee keer door de lezer.**
+     `planner_import_schedule` op de headless server probeert eerst de bytes-route (scanner en lezer) en leest dezelfde
+     bytes daarna via de tekstroute van main (`keptForeignContent` in `src/services/mcp/tools/fileTools.ts`). Van schijf
+     leest hij één keer. De kern doet hetzelfde (`openIfcBytes`). Op de voorbeelden geven beide routes dezelfde uitkomst
+     (`tests/mcp/cases-headless-pariteit.ts`, ook met de bytes-route voor elk bestand), maar bewezen voor elk bestand is
+     dat niet. Niet gemeten op een groot bestand. Richting: meten; is het verschil groot, dan eerst alleen de scanner
+     (`runForeignScan`) en pas bij C/A/V de bytes-route, met de pariteitsproef als vangnet. — B (code)
