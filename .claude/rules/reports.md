@@ -196,3 +196,9 @@ spatie, '/'; Noto Sans Coptic heeft ze niet), in Helvetica (`pageNumberFont` en 
 bron; daarom leidt `tests/planning/run.sh` die ene import (`#binary-trie`) naar de browservariant. Proef:
 `check-custom-report-font.ts` deel G (echt Noto Sans Coptic in `tests/planning/fixtures/fonts/` en Carlito: tekst,
 `/W`, de plaats van elke glyph en het paginanummer met zijn letter uit de PDF teruggelezen).
+
+**Besluiten van de Gantt-afdruk** (`src/services/print/printPreview.ts`): `docs/adr/0230-printlaag-een-renderer-gevoed-door-de-aanroeper.md`,
+`0231-rapportlettergrootte-schaalt-relatief.md`, `0232-afdruk-tekenvolgorde-tekst-boven-vormen.md`,
+`0233-afdruk-tabelkolommen-op-papier.md`, `0234-afdruk-tijdas-en-schaal.md`, `0235-afdruk-relatielijnen.md`,
+`0236-afdruk-bladgrenzen-voet-en-legenda.md`, `0237-afdruk-datums-bij-balken-en-mijlpalenreeks.md` en
+`0238-afdruk-grote-planningen.md`.
