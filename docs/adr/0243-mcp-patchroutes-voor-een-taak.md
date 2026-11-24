@@ -1,33 +1,28 @@
-# Twee patchroutes voor een taak in de MCP-draft, met de volgorde van updateTask
+# Twee patchroutes voor een taak in de draft, en de route van planner_update_tasks
 
-De draft heeft twee manieren om een taak te wijzigen. `draft.patchTaskFields` is de route van
-`planner_update_tasks` (`taskTools.ts`), na de allowlist van `services/mcp/tools/taskFields.ts`. Zijn tijddeel is
-geen genest object maar een vaste set sleutels (`timePatch`: `scheduleDuration`, `durationUnit`, `durationMinutes`,
-`durationType`, `clearDurationMinutes`), dus een aanroeper kan via die route geen hele `time`-tak meegeven: de route
-kopieert de bestaande tijd en zet alleen die sleutels (ADR 0212). `draft.updateTaskFields` voegt een `Partial<Task>`
-samen met `mergeTaskUpdate` (ADR 0212); geen code in `src/` of `headless/` roept haar aan, alleen tests in
-`tests/mcp/`.
+De publieke tool `planner_update_tasks` (`taskTools.ts`) haalt `fields` door de allowlist van `parseTaskFields`
+(`services/mcp/tools/taskFields.ts`, via `resolveFieldsPatch`). Die weigert de tak `time` zelf, omdat die de berekende
+datums, de speling en de werkelijke datums zou wissen (`REJECT_HINTS`), en zet een duur om in losse duursleutels. De
+tool schrijft daarmee via `draft.patchTaskFields`, en een `workRule` daarna apart via `draft.setTaskWorkRule`, zodat een
+duur in hetzelfde item onder de oude werkregel wordt verwerkt. Toets: `cases-work-rule.ts`, "workRule + duration in één
+call …" (een taak met één toewijzing krijgt `duration: 8` en `FIXED_WORK`; de toets eist inzet 1 en daarna restwerk van
+8 dagen).
 
-Beide houden op deze punten de volgorde van `taskSlice.updateTask` aan (ADR 0153): de urenbron van vast werk vóór de
-no-op-toets, de patch genormaliseerd naar de vergeleken taak (`normalizeTaskPatch`), zodat de gevolgregels en het
-schrijven dezelfde waarden zien als die toets, de weigering van een te korte duur vóór de eerste mutatie, de
-kalenderwissel vóór de momentopname van de werkdriehoek, `hourInputFinishBasis` vóór de kalenderwissel en
-`reconcileHourInputFinish` na `clearLevelingGaps`. Een andere volgorde in de draft kan dezelfde bewerking via de
-bridge een andere taak laten opleveren dan in het paneel, dat via `updateTask` schrijft. Bekende verschillen en
-grenzen van deze routes: knownbug 2001 en 2002.
+In de interne laag zijn er twee routes. `draft.patchTaskFields` zet de losse duursleutels op een kopie van de tijd
+(`patchTime`), of op een meegegeven `top.time`, die de tool niet geeft. `draft.updateTaskFields` voegt een
+`Partial<Task>` samen met `mergeTaskUpdate` (ADR 0212); geen code in `src/` of `headless/` roept haar aan, alleen tests
+in `tests/mcp/`. Wat ze met `taskSlice.updateTask` gemeen hebben, doen ze in de volgorde van ADR 0153; de toetsen vooraf
+op een onleesbare start en op `milestoneRefusal` hebben ze niet, en `patchTaskFields` mist de stap voor voortgangswerk
+(`captureProgressWork`). Een andere volgorde in de draft kan dezelfde bewerking via de bridge een andere taak laten
+opleveren dan in het paneel, dat via `updateTask` schrijft. Bekende verschillen en grenzen: knownbug 2001 en 2002.
 
 ## Gevolgen
 
-- `clearDurationMinutes` bestaat omdat bij een urentaak `durationMinutes` de bron van de duur is (`durationDaysOf`):
-  een achtergebleven minutenwaarde zou een zojuist gezette duur in dagen stil overschrijven. Het haalt de sleutel weg
-  met `delete` en zet hem niet op `undefined`, zodat het taakobject voor IFC schoon blijft (zoals bij
-  `draft.updateResource`, ADR 0101).
-- Geeft een aanroeper `top.time` mee, dan vervangt `patchTaskFields` de hele tak, met `timePatch` erover.
-  `planner_update_tasks` geeft geen `top.time` mee (ADR 0212).
-- Waar `updateTask` een te korte duur weigert met een melding, geven de draftroutes een uitkomst terug
-  (`McpDurationProgressOutcome` met `refused`); `planner_update_tasks` maakt er een weigering per item van. Ook een
-  meegeschoven voortgang komt terug (`progress`), in het antwoord van `planner_update_tasks` als `progressAdjusted`.
-- Alleen `patchTaskFields` geeft `deferCompletion` door aan `settleEditedDuration`; `planner_update_tasks` zet het
-  als hetzelfde item ook een voortgangsblok draagt.
-- In *datums zoals opgeslagen* beslist `recordedDateRuleChange` (`state/recordedDateEditGate.ts`) wat een
-  regelwissel met de modus doet, waar `updateTask` dat zelf via `keepsRecordedMode` en `finishMutation` doet.
+- `parseTaskFields` zet `clearDurationMinutes` bij een duur in dagen en bij `isMilestone: true`. `patchTime` verwijdert
+  `durationMinutes` dan, zodat de minutenbron van de urenmaat niet achterblijft, zoals `mergeTaskTime` bij een wissel
+  naar dagenmaat (ADR 0212). Het verwijdert de sleutel met `delete` en zet hem niet op `undefined`, zodat het taakobject
+  voor IFC schoon blijft, zoals bij `draft.updateResource` (ADR 0101).
+- Een te korte duur geeft in de draft geen melding maar `refused` terug (ADR 0241); een meegeschoven voortgang komt
+  terug als `progress` en staat in het antwoord van `planner_update_tasks` als `progressAdjusted`.
+- Alleen `draft.patchTaskFields` neemt `deferCompletion` aan; `planner_update_tasks` geeft het mee als hetzelfde item
+  ook een voortgangsblok draagt.

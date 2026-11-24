@@ -1,24 +1,22 @@
-# Taken in bulk aanmaken via de draft: eerst alles toetsen, dan van boven naar beneden
+# Taken in bulk aanmaken via de draft: vier controles vooraf, dan van boven naar beneden
 
-`planner_add_tasks` maakt een geneste takenboom in één aanroep (`draft.addTasks` in `createMcpTransactions.ts`). Een
-item verwijst naar zijn ouder met een bestaand taak-id of met de `tempId` van een ander item in dezelfde aanroep, en
-het antwoord geeft voor elk item de `tempId` met het echte id. Alles wat de hele aanroep zou laten mislukken, toetst
-`draft.addTasks` vóór de eerste `draft.addTask`: een dubbele `tempId`, een ouder die geen bestaand id en geen `tempId`
-is, een mijlpaal met een meegegeven `time.scheduleDuration` boven 0, en een kring in de `tempId`-ouders. De
-transactie zou een latere fout ook terugdraaien (ADR 0240), maar zo noemt de fout het item dat hem veroorzaakt.
-Daarna worden de items in een topologische volgorde aangemaakt, ouders vóór kinderen, zodat de volgorde van de invoer
-vrij is.
+`planner_add_tasks` maakt via `draft.addTasks` een geneste takenboom in één aanroep. Een item wijst zijn ouder aan met
+een bestaand taak-id of met de `tempId` van een ander item, en het antwoord geeft per `tempId` het echte id (`created`).
+Vóór de eerste `draft.addTask` weigert `draft.addTasks` vier gevallen: een dubbele `tempId`, een ouder die geen bestaand
+id en geen `tempId` is, een mijlpaal met een meegegeven `time.scheduleDuration` boven 0, en een kring in de
+`tempId`-ouders. Zo noemt de fout het item dat haar veroorzaakt. Andere weigeringen komen pas na het aanmaken; ook dan
+draait `run` alles terug (ADR 0240). De items worden aangemaakt met ouders vóór kinderen, zodat de volgorde van de
+invoer vrij is.
 
 ## Gevolgen
 
-- `position` is de plek tussen de broers en zussen. Een waarde buiten bereik wordt stil geklemd: negatief wordt 0,
-  te groot wordt achteraan. De beschrijving in het schema van `planner_add_tasks` (`taskTools.ts`, "clamped") leunt
-  daarop. De posities worden na het aanmaken toegepast, in de volgorde van de invoer. Onder een ouder werken ze zowel
-  `childIds` als de volgorde van de rauwe takenlijst bij, op het hoogste niveau de rauwe lijst (ADR 0150).
-- Een bestaande taak die vóór de aanroep geen kinderen had en ze nu krijgt, loopt door de gedeelde regel
-  `planPhaseTransitions` (`state/structuralTransition.ts`, ADR 0152). Dat gebeurt pas na het aanmaken en de posities, want de
-  regel kiest de eerste nieuwe subtaak in de eindvolgorde. De MCP-draft stelt de vraag van ADR 0152 niet: hij roept
-  `planPhaseTransitions` aan met de standaardkeuze `'move'`. Een weigering gooit en draait de aanroep terug. Wat er
-  verplaatst is, gaat niet als melding naar de app maar via `phaseReport` naar het antwoord (`phaseTransitions`).
-  `draft.moveTask` (`planner_move_task`) toetst met dezelfde regel vóór het verhangen, voert de overgang daarna
-  uit en geeft het verslag als terugkeerwaarde.
+- `position` klemt stil en is geen fout; de schemabeschrijving van `planner_add_tasks` (`taskTools.ts`, "clamped") leunt
+  daarop. De posities gelden na het aanmaken, in de volgorde van de invoer, op de plekken van ADR 0150.
+- Een bestaande taak die in de aanroep haar eerste kinderen krijgt, gaat pas na het aanmaken en de posities door
+  `planPhaseTransitions` (`state/structuralTransition.ts`), want die kiest de eerste geschikte bladtaak in de
+  eindvolgorde. De draft stelt de vraag van ADR 0152 niet en neemt de standaardkeuze `'move'`. Een weigering daar gooit;
+  het verslag van een geslaagde overgang gaat via `phaseReport` naar het antwoord (`phaseTransitions`), niet als melding
+  in de app. `draft.moveTask` gebruikt dezelfde regel voor de nieuwe ouder. Toetsen in `cases-structural-transition.ts`:
+  "add_tasks met parentId …" (een mijlpaal en een gewone taak onder een taak met een toewijzing; de toewijzing gaat naar
+  de gewone taak en het antwoord noemt dat) en "add_tasks met alleen een mijlpaal …" (de aanroep faalt met `VALIDATION`
+  en er is niets gewijzigd).

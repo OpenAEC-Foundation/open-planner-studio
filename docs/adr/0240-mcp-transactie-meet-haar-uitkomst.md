@@ -1,33 +1,41 @@
-# Een MCP-transactie beslist op haar uitkomst en draait als geheel terug
+# Een MCP-transactie beslist op haar uitkomst en draait bij een fout terug
 
-Elke wijzigende `planner_*`-tool en elke `planner_batch` loopt door `run` in `createMcpTransactions.ts`: één
-momentopname vooraf, de callback, één eindberekening en één undo-stap (`docs/mcp-verificatie.md`). Of er iets
-veranderd is, meet `run` zelf na de callback en vóór de eindberekening, met `documentDataChanged` op twee
-momentopnamen. Die meting staat in `run` en niet in de draftprimitieven, omdat ook toolcode buiten de draft schrijft:
-het voortgangsblok van `planner_update_tasks` (`taskTools.ts`) muteert met een eigen `store.setState` zonder
-`markDocumentEdited`. Dezelfde meting beslist over de eindberekening en over de undo-stap. `runCPM` alleen is
-nooit een wijziging.
+Een tool die via `runMutateTool` (`services/mcp/tools/runtime.ts`) wijzigt, ook `planner_batch`, voert haar mutatie uit
+in `run` van `createMcpTransactions.ts`. Andere routes lopen er niet door: `planner_undo` en `planner_redo` roepen de
+store direct aan, en een handler die zonder transactie antwoordt (`okDirectGuarded`, ADR 0100) ook niet. `run` neemt
+vooraf één momentopname en meet na de callback met `documentDataChanged` of de projectdata veranderden. Die meting staat
+in `run` en niet in de draft, omdat ook toolcode buiten de draft schrijft, zoals het voortgangsblok van
+`planner_update_tasks` (`taskTools.ts`). Ze beslist over de eindberekening en over de undo-stap. Zonder datawijziging
+zet `run` het document terug en maakt het geen undo-stap, want een nieuwe stap wist de redo van dat document
+(`appendSessionHistoryEvent`); de sessiegeschiedenis en de meldingen laat het dan staan.
 
 ## Gevolgen
 
-- Zonder datawijziging zet `run` het document terug op de stand van vóór de callback (`restoreDocument`: de
-  momentopname, `viewRows`, `resourceLoadResult`, `isDirty` en `importPristine`) en maakt het geen undo-stap. Een
-  nieuwe stap zou de redo van dat document wissen (`appendSessionHistoryEvent`). De sessiegeschiedenis en de
-  meldingen houdt `run` dan zoals ze zijn. Toets: `tests/mcp/cases-undo-noop.ts`.
-- De eindberekening (`runCPM({ withinEvent: true })`, `recomputeViewRows`, `recomputeResourceLoad`) draait binnen
-  de lease. Daar doet `beginUndoable` niets, dus maakt ook het verlaten van *datums zoals opgeslagen* in `runCPM`
-  geen tweede undo-stap. Met `keepsRecordedDates(context)` draait de eindberekening niet.
-- Een fout in de callback, een callback die een thenable teruggeeft en een `cpmResult.error` na de eindberekening
-  draaien alles terug (`rollback`), ook de sessiegeschiedenis. `rollback` zet ook `importPristine` terug: een
-  geweigerde AI-actie is geen bewerking (`cases-recorded-dates.ts`, de mislukte transactie). En het zet
-  `ui.notifications` terug op de referentie van vóór de callback: `runCPM` meldt een solverfout zelf
-  (`scheduleFailedNotice`), en die melding hoort bij de teruggedraaide poging. Meldingen zijn app-globaal en staan
-  niet in de documentmomentopname. Omdat `run` synchroon is, komt er in dat venster geen melding van buiten de
-  callback tussen. Toets: `cases-transaction.ts`, het geval met `cpmResult.error` na de eind-runCPM.
-- De lease (`runtime.enterMcpTransaction`) wordt vóór de momentopname genomen, buiten de `try`. Een geneste `run`,
-  ook van een tweede factory op dezelfde context, krijgt zijn weigering dus niet in een eigen `{ ok: false }`, maar
-  als throw in de buitenste callback, die daardoor helemaal terugdraait. De `finally` sluit alleen de lease die deze
-  aanroep nam. Toetsen: `cases-transaction.ts`, de gevallen met een nested run en een tweede factory.
-- De meldingen over verloren MS Project-sturing en over herschreven restwerk komen hoogstens één keer per
-  geslaagde transactie met een datawijziging, na de eindberekening, uit wat de lease verzamelde. Het antwoord noemt ze ook
-  (`timephasedGuidanceLost`, `remainingWorkRecomputed`).
+- De meting staat vóór de eindberekening, zodat die berekening op zich geen wijziging maakt. Toets:
+  `cases-undo-noop.ts`, "no-op op een verouderde planning" (een verouderde planning, `planner_update_tasks` met de
+  bestaande naam; de toets eist geen undo-stap, hetzelfde `cpmResult`-object en een ongewijzigde `scheduleStale`). Een
+  berekening binnen de callback telt wel mee, want de taken staan met hun berekende datums als `data` in de momentopname
+  (`DOCUMENT_FIELDS`). Dat geldt ook voor `recomputeMidBatch` in `batchTool.ts`, dat binnen een batch na een mutatie
+  rekent, onder meer vóór een leesstap. Een leestool binnen `run` rekent daarom niet zelf bij (`freshenScheduleForRead`
+  met `isActive()`): `run` zou die berekening als datawijziging meten, met een undo-stap en `isDirty`.
+- De eindberekening draait alleen bij een datawijziging en niet met `keepsRecordedDates(context)`. Ze draait binnen de
+  lease, waar `beginUndoable` de undo-stap overslaat; zo maakt het verlaten van *datums zoals opgeslagen* in `runCPM`
+  geen eigen stap.
+- `rollback` (na een fout in de callback, een thenable als uitkomst of een `cpmResult.error` na de eindberekening) zet
+  de momentopname, `viewRows`, `resourceLoadResult`, `isDirty`, `importPristine`, de sessiegeschiedenis en
+  `ui.notifications` terug. Andere toestand buiten de momentopname zet het niet terug (knownbug 2008 en 2009).
+  `importPristine`, omdat een geweigerde AI-actie geen bewerking is: `cases-recorded-dates.ts`, "mislukte MCP-transactie
+  herstelt …" (een verse import in *datums zoals opgeslagen*, een callback die een taak toevoegt en dan gooit; de toets
+  eist modus, vlag en `isDirty` van vóór de aanroep). De meldingen, omdat `runCPM` een solverfout zelf meldt
+  (`scheduleFailedNotice`) en die melding bij de teruggedraaide poging hoort; omdat `run` synchroon is, komt er in die
+  tijd geen melding van buiten de callback bij. Toets: `cases-transaction.ts`, "cpmResult.error na de eind-runCPM …"
+  (een callback die een taak toevoegt en een kring in de relaties maakt; de toets eist de momentopname en de meldingen
+  van vóór de aanroep).
+- De lease (`runtime.enterMcpTransaction`) geldt per storecontext en wordt vóór de momentopname genomen, buiten de
+  `try`. Een tweede `run` op dezelfde context binnen een lopende `run` gooit daardoor in de buitenste callback; laat die
+  callback de fout door, dan draait de buitenste `run` helemaal terug. Een `run` op een andere context mag. Toets:
+  `cases-transaction.ts`, "nested run op hetzelfde factoryobject …" (een buitenste `run` op context B voegt een taak toe
+  en start een tweede `run` op B; de toets eist een fout met "re-entrant" en de momentopname en de undo-stapels van vóór
+  de aanroep).
+- De meldingen over verloren MS Project-sturing en over herschreven restwerk komen hoogstens één keer per geslaagde
+  `run` met een datawijziging, na de eindberekening.
