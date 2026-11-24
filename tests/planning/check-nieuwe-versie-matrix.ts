@@ -297,11 +297,11 @@ async function runRoute(route: Route, c: Case) {
       opening = clicked;
     }
     if (reading && closed()) {
-      await reading.reached;
+      if (!await Promise.race([reading.reached.then(() => true), until(() => false)])) holds.length = 0;
       await duringAction(w, c, created);
       settled = settledAfter(w);
-      reading.release();
     }
+    reading?.release();
     if (opening) await opening;
     else if (closed()) await until(settled);
     holds.length = 0;
