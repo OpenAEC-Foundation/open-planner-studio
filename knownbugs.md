@@ -3866,6 +3866,16 @@ en noem het in je rapport of PR-tekst.
      code en de echte herstelcallback (reviewer van #1127); een processtop is niet opgewekt. — B (code en proef van de
      reviewer; geen processtop nagespeeld)
 
+2212. **Een IFC met een UTF-8-BOM vóór de kop opent niet via de bytes-route (#804, flag aan).** Met de flag
+     `ifcForeignContent` aan weigert Bestand → Openen een eigen voorbeeld met de drie bytes `EF BB BF` vooraan
+     (`IfcForeignOpenError`, "unsafe scanner fallback"); met de flag uit opent hetzelfde bestand met al zijn taken, zoals
+     main. De scanner (`stepScanner.ts`) ziet vóór `ISO-10303-21;` geen BOM en geeft `geen-kop`; de terugval in
+     `ifcBytesRoute.ts` (`currentRoute`) leest de tekst dan wel (de `TextDecoder` haalt de BOM weg), maar weigert omdat
+     de scan niet slaagde. Witruimte vóór de kop opent wel. De headless kern (`openIfcBytes`) doet hetzelfde als de app;
+     `check-headless-core.ts` (12h) houdt kern en app gelijk, ook na een herstel. Richting: de scanner een BOM vooraan
+     laten overslaan, en de merge die bytes laten behouden. Gevonden bij #804 fase 2, PR 10a. — B (proef: een eigen
+     voorbeeld met BOM in een store met de flag aan en uit)
+
 
 
 

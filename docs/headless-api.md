@@ -2,7 +2,8 @@
 
 De headless API is een kleine HTTP-server boven de headless kern (`@openaec/open-planner-core`,
 zie [headless-kern.md](headless-kern.md)). De server ontvangt een IFC-planning, rekent die door zoals
-de app en geeft een JSON-samenvatting of de herberekende IFC terug. De server bewaart niets.
+de app en geeft een JSON-samenvatting of de herberekende IFC terug. Als bytes gestuurd
+(`application/octet-stream`) blijven een gebouwmodel en de gegevens van andere programma's bewaard. De server bewaart niets.
 
 Dit document hoort bij issue #429 (ecosystem readiness) en het gedeelde contract in
 OpenAEC-style-book#12.
@@ -32,11 +33,19 @@ Het volledige contract staat in `headless/server/openapi.yaml`.
 | route | auth | wat |
 |---|---|---|
 | `GET /healthz` | nee | `200 {"status":"ok","version":"2026.9.0","limits":{…},"busy":false,"uploads":0}` |
-| `POST /v1/schedule` | ja | IFC-tekst in de body. Uit: de JSON-samenvatting (`?output=summary`, standaard) of de herberekende IFC (`?output=ifc`, `Content-Type: application/x-step`). |
+| `POST /v1/schedule` | ja | Het IFC-bestand in de body. Uit: de JSON-samenvatting (`?output=summary`, standaard) of de herberekende IFC (`?output=ifc`). |
 
 - Body-types: `application/x-step`, `application/ifc`, `model/ifc`, `text/plain` of
   `application/octet-stream`. Een ander type geeft 415.
-- De samenvatting heeft dezelfde vorm als `ScheduleSummary` van de kern (`formatVersion: 1`).
+- `application/octet-stream` is de bytes-route (`openIfcBytes`): de server leest de body zonder tekstdecodering, en met
+  `?output=ifc` komt de herberekende IFC terug als `application/octet-stream` (`toIfcBytes()`). Een gebouwmodel en de
+  gegevens van andere programma's blijven byte voor byte staan; verandert de planning niet, dan komt het hele bestand
+  byte-gelijk terug. De andere types zijn de tekstroute van main (`openIfc`, UTF-8): die weigert een bestand met een
+  gebouwmodel (422 `IFC_READ_FAILED`) en schrijft geen bestand met vreemde inhoud (500 `IFC_WRITE_FAILED`), en
+  `?output=ifc` geeft `Content-Type: application/x-step; charset=utf-8`. Zie *Twee routes* in
+  [headless-kern.md](headless-kern.md).
+- De samenvatting heeft dezelfde vorm als `ScheduleSummary` van de kern (`formatVersion: 1`), met `foreignContent`
+  (`null` op de tekstroute).
 - Elk antwoord heeft een header `X-Request-Id`. Stuur zelf een `X-Request-Id`
   (1–64 tekens `A-Z a-z 0-9 . _ -`) om een verzoek in de logs terug te vinden.
 
@@ -59,7 +68,7 @@ Een fout heeft altijd deze vorm. `code` is vast; `message` is Engels en voor men
 | 413 | `PAYLOAD_TOO_LARGE` | body groter dan de grens |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | verkeerd `Content-Type` |
 | 422 | `IFC_READ_FAILED`, `NO_TASKS`, `SCHEDULE_FAILED` | IFC, maar niet te plannen (bijv. een kring) |
-| 500 | `IFC_WRITE_FAILED`, `INTERNAL` | fout in de server |
+| 500 | `IFC_WRITE_FAILED`, `INTERNAL` | fout in de server, of het schrijven werd vóór uitvoer geweigerd: `details.reason` is `foreign` (of een andere scanuitkomst) op de tekstroute, `merge-needs-phase2` op de bytes-route |
 | 503 | `BUSY`, `TIMEOUT` | er loopt al een berekening of er komen al te veel bodies binnen (beslist vóór de body), of de berekening duurde te lang (met `Retry-After`) |
 
 De volgorde van de controles is: pad (404), methode (405), token (401), `output` (400), type (415),
@@ -241,7 +250,8 @@ breaker zet een mislukte deploy terug.
 `.github/workflows/headless-api.yml` draait op elke push naar `main` en op een PR die `src/`, de
 kernbouw, `headless/`, `deploy/aws/`, de lockfile of de workflow raakt:
 
-- **local**: `npm run build:core`, server starten, weigeren zonder token (exit 78), smoke-test,
+- **local**: `npm run build:core`, server starten, weigeren zonder token (exit 78), smoke-test (ook het voorbeeld en
+  twee modelbestanden uit `tests/fixtures/ifc-foreign/` als bytes: byte-gelijk terug, en als tekst 422),
   servertest (`server-test.mjs`: `GET //[` → 400 zonder crash, 30 uploads boven de grens → meteen 503
   en RSS begrensd, tweede verzoek tijdens een berekening → meteen 503, merkteken uit het IFC niet in
   de logs, 408 bij een te trage body, SIGTERM tijdens een upload), logs zonder token of IFC-inhoud,

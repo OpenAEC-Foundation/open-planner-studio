@@ -324,7 +324,10 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `src/utils/settingsRegistry.ts`. Undo/redo is snapshot-based (`beginUndoable` → mutation → `finishUndoable`).
 - **Headless core.** `src/core/` (`index.ts` + `api.ts`) is the public API of the package
   `@openaec/open-planner-core` (`npm run build:core`, not published): open IFC text, `schedule()` like F5,
-  JSON summary, `toIfc()`, one error type with a fixed `code`. It builds its own context per document from
+  JSON summary, `toIfc()`, one error type with a fixed `code`. `openIfcBytes`/`toIfcBytes()` are the bytes route of
+  the app with the flag `ifcForeignContent` on (set in the document's own context): a building model and foreign
+  content come back byte for byte, `foreignContent` in the summary; `openIfc(text)`/`toIfc()` stay the text route
+  of main (`docs/headless-kern.md`, *Twee routes*). The HTTP API reads and returns `application/octet-stream` as bytes. It builds its own context per document from
   `appStoreFactory.ts` and imports no value from `appStore.ts` (`verify:store-boundaries`); the build fails if
   React, Tauri, the singleton or the i18n UI config end up in the bundle. `api.ts` imports nothing and is the
   contract: a change there is a contract change (`docs/headless-kern.md`). Guards: `check-headless-core.ts`
