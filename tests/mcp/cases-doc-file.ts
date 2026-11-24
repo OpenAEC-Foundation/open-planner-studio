@@ -1366,13 +1366,13 @@ test('import_schedule in de app, op de echte bestandslaag (realFs): een model bo
     fileToolDeps.getFs = async () => fs;
     const model = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
     const path = join(root, 'groot-model.ifc'); writeFileSync(path, model);
-    const warning = 'This file is larger than 0 MB. Saving can fail because memory runs out; the file on disk then stays as it was. Tell the user.';
+    const warning = 'This file is larger than 150 MB. Saving can fail because memory runs out. Recent changes can then be lost. Tell the user.';
     lowerForeignOpenWarnBytesForTests(model.length - 1);
     const large = await callOk('planner_import_schedule', { path }) as { notice?: string; alreadyOpen?: boolean };
     assertEq([S().ifcSource?.foreign, S().filePath, large.alreadyOpen ?? false], [true, path, false], 'boven de drempel opent het model met zijn bron');
     assert((large.notice ?? '').includes(warning), `boven de drempel staat de waarschuwing in notice (${large.notice})`);
     assertEq(S().ui.notifications.filter(n => n.messageKey === 'notifications.ifcForeignOpenLarge').map(n => n.sticky ?? false), [true],
-      'de app toont de planner dezelfde blijvende waarschuwing');
+      'de app toont de planner dezelfde waarschuwing zonder timer');
     resetToSingleEmptyDocument();
     useAppStore.setState((s) => { s.ui.notifications = []; });
     lowerForeignOpenWarnBytesForTests(model.length);

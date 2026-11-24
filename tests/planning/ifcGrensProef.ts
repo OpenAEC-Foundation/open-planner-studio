@@ -98,7 +98,7 @@ const newStore = () => {
 type Store = ReturnType<typeof newStore>;
 const notices = (store: Store | typeof useAppStore) => store.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null]);
 const LARGE_KEY = 'notifications.ifcForeignOpenLarge';
-const LARGE = [[LARGE_KEY, { limit: 0 }, true]];
+const LARGE = [[LARGE_KEY, { limit: 150 }, true]];
 const warnings = (store: Store | typeof useAppStore) => store.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null, n.sticky ?? false]);
 const TECHNICAL_MODEL = [null, 0, [['notifications.openFailed', 'error', false, true, false]]];
 const TECHNICAL_PSET = [null, 0, [['notifications.ifcForeignOpenUnsafe', 'error', false, false, true]]];
@@ -120,11 +120,11 @@ if (mode === 'web') {
   eq('openen, model precies op de drempel: opent met zijn bron, zonder waarschuwing', [opened.getState().ifcSource?.sha256 ?? null, notices(opened)],
     [sha(atLimit), []]);
   const large = await open(over);
-  eq('openen, model één byte boven de drempel: opent met zijn bron en de blijvende waarschuwing',
+  eq('openen, model één byte boven de drempel: opent met zijn bron en de waarschuwing zonder timer, met 150 MB in de tekst',
     [large.getState().ifcSource?.sha256 ?? null, large.getState().tasks.length > 0, warnings(large)], [sha(over), true, LARGE]);
   const psetBytes = pad(withPset(plan), GRENS + 1);
   const pset = await open(psetBytes);
-  eq('openen, vreemde pset boven de drempel: opent met zijn bron en de blijvende waarschuwing', [pset.getState().ifcSource?.sha256 ?? null, warnings(pset)], [sha(psetBytes), LARGE]);
+  eq('openen, vreemde pset boven de drempel: opent met zijn bron en de waarschuwing zonder timer', [pset.getState().ifcSource?.sha256 ?? null, warnings(pset)], [sha(psetBytes), LARGE]);
 
   const literal = String.raw`Planning \X2\00E9\X0\ deel`;
   const mixedText = plan.replace("'Start of refurbishment'", `'${literal}'`)

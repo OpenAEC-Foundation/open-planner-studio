@@ -38,7 +38,7 @@ import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
 import { detectXmlFlavor, parseOpenedFile, readFormatForFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
-import { foreignOpenWarnMiB, opensLargeForeignSource } from '@/services/ifc/foreignOpenSize';
+import { IFC_FOREIGN_OPEN_WARN_MIB, opensLargeForeignSource } from '@/services/ifc/foreignOpenSize';
 import { buildExportIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
 import { exportHitsOwnFile } from '@/state/savedLiteralCalendars';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
@@ -741,8 +741,8 @@ export const fileTools: McpToolDef[] = [
       }
       if (opened) {
         if (fs.warnsLargeForeignSource && opensLargeForeignSource(parsed)) {
-          notices.push(`This file is larger than ${foreignOpenWarnMiB()} MB. Saving can fail because memory runs out; ` +
-            'the file on disk then stays as it was. Tell the user.');
+          notices.push(`This file is larger than ${IFC_FOREIGN_OPEN_WARN_MIB} MB. Saving can fail because memory runs out. ` +
+            'Recent changes can then be lost. Tell the user.');
         }
         if (format === 'CSV') {
           notices.push('CSV contains no calendar (the document now runs on the DEFAULT calendar — dates may differ) and no resources/assignments.');
