@@ -36,6 +36,7 @@ import { FileTextDecodingError } from '../fileTextError';
 import { isTauri } from '@/utils/platform';
 import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
+import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
 import { detectXmlFlavor, parseOpenedFile, readFormatForFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
 import { refuseModelAboveOpenLimit } from '@/services/ifc/modelOpenLimit';
 import { buildExportIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
@@ -51,10 +52,16 @@ import type { McpContext, McpToolAnnotations, McpToolDef, McpToolResult } from '
 import { writeUserTextFileTauri, writeNewUserBytesTauri } from '@/services/fileAccess/atomicWrite';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
-import { saveTargetRef, type FileRef } from '@/services/fileAccess';
-import { scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
+import { saveTargetRef, type FileRef, type PickedSaveTarget, type RefuseBeforePlace } from '@/services/fileAccess';
+import { observeRegularFileTauri, scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
+import { replaceOwnPathWithRecovery, type OwnPathReplaceResult } from '@/state/ownFileReplace';
+import { precomputeSha256 } from '@/services/xerSourceArchive';
+import { capturedTargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import type { TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
-import { ifcFullWriteBlocked, refusedWriteTarget } from '@/state/ifcForeignGuard';
+import {
+  exportTargetPermission, ifcFullWriteBlocked, refusedTargetContent, refusedTargetIdentity, refusedWriteTarget,
+  type WriteTargetDeps, type WriteTargetRefusal,
+} from '@/state/ifcForeignGuard';
 import { openTabFor, readVersionOf, switchToOpenDocument } from '@/state/openDocumentFor';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
@@ -80,6 +87,65 @@ const BUILDING_MODEL_TARGET_REFUSAL = (path: string) => `'${path}' already conta
  *  kan niet zien of er een gebouwmodel in staat, dus schrijft hij er niet over (flag `ifcForeignContent` aan). */
 const UNREADABLE_TARGET_REFUSAL = (path: string) => `'${path}' is an IFC/STEP file the app cannot read reliably; it may ` +
   'contain a building model. Writing here could replace that model with only the schedule. Export to another path.';
+
+const exportIfcDescription = (replaces: boolean) =>
+  'Write the ACTIVE document to `path` as IFC (complete, the native format), inside the home folder. ' +
+  (replaces ? 'Replaces an existing file only with `overwrite: true`; the replaced file is then gone.'
+    : 'Replaces a file only with `overwrite: true`; documents with preserved foreign content require a new file name.') +
+  ' Returns characters for text or byteLength for bytes. An export, not "save as": the document stays unsaved. Tell ' +
+  `the user the path; pass on \`schemaNotice\`${replaces ? ' and `replaceNotice`' : ''}. Writing over the source file of an ` +
+  'unwritable schema (e.g. IFC2X3), or over a file not provably different from it, is refused: choose a new file name or ' +
+  'let the user save in the app. The file of another open document is refused too, even with `overwrite: true`.';
+
+const OWN_FILE_TARGET_REFUSAL = (path: string) => `'${path}' is the file of the active document itself. An export does not ` +
+  "update a document's own file: ask the user to save in the app, or export to another path.";
+
+const TARGET_CHANGED = (path: string) => `'${path}' changed after the app read it (another program wrote, moved or removed it). ` +
+  'Nothing was replaced. Export again with overwrite: true if you still mean to replace it.';
+
+const NOT_SAFELY_REPLACEABLE = (path: string) => `'${path}' cannot be replaced safely here (a link, or a file system without ` +
+  'a safe replacement). Nothing was written. Export to a new file name.';
+
+function writeTargetError(ctx: McpContext, path: string, reason: WriteTargetRefusal | null): McpToolResult | null {
+  switch (reason) {
+    case null: return null;
+    case 'open-source': return toolError(ctx, 'VALIDATION', ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags)
+      ? OWN_FILE_TARGET_REFUSAL(path) : FOREIGN_SOURCE_TARGET_REFUSAL(path));
+    case 'open-document': return toolError(ctx, 'VALIDATION', OPEN_DOCUMENT_TARGET_REFUSAL(path));
+    case 'foreign-content': return toolError(ctx, 'VALIDATION', `'${path}' already contains data from other programs. Export to another path.`);
+    case 'building-model': return toolError(ctx, 'VALIDATION', BUILDING_MODEL_TARGET_REFUSAL(path));
+    case 'unreadable-target': return toolError(ctx, 'VALIDATION', UNREADABLE_TARGET_REFUSAL(path));
+  }
+}
+
+function replaceError(ctx: McpContext, path: string, result: OwnPathReplaceResult, stopped: McpToolResult | null): McpToolResult | null {
+  switch (result.code) {
+    case 'replaced': return null;
+    case 'stopped': return stopped ?? toolError(ctx, 'VALIDATION', 'The document changed during the export. Nothing was written. Retry the export.');
+    case 'planning-changed': return toolError(ctx, 'VALIDATION', `The document changed during the export. '${path}' was not replaced; ` +
+      'the file is as it was. Retry the export.');
+    case 'replace-withdrawn': return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
+    case 'target-changed': return toolError(ctx, 'VALIDATION', TARGET_CHANGED(path));
+    case 'save-as-only': return toolError(ctx, 'VALIDATION', NOT_SAFELY_REPLACEABLE(path));
+    case 'not-recorded': return toolError(ctx, 'INTERNAL', `'${path}' cannot be replaced safely right now, because crash recovery ` +
+      'could not be updated. Nothing was written. Export to a new file name.');
+    case 'failed': return toolError(ctx, 'INTERNAL', `Replacing '${path}' failed: ${result.detail}. The file is as it was.`);
+    case 'unknown': return toolError(ctx, 'INTERNAL', `The app does not know whether '${path}' was written correctly: something ` +
+      'changed in the folder during the write. Nothing was restored or cleaned up. Check the file, or export again to a new file name.');
+    case 'target-taken': return toolError(ctx, 'INTERNAL', `While replacing '${path}', another program put a new file there. There ` +
+      `are now three files: that new file at '${result.target}', the export in '${result.temp}' and the previous version in '${result.previous}'.`);
+    case 'previous-stranded': return toolError(ctx, 'INTERNAL', `Replacing '${path}' failed, and the previous version could not be ` +
+      `put back. It is now in '${result.previous}'.`);
+  }
+}
+
+function replacedNotice(path: string, result: Extract<OwnPathReplaceResult, { code: 'replaced' }>): string | undefined {
+  const lines = [
+    ...(result.otherVersion ? [`Another program changed '${path}' while the app replaced it. That version was kept as '${result.otherVersion}'.`] : []),
+    ...(result.leftOver ? [`A file from the replacement was left at '${result.leftOver}'. Check whether it is still needed.`] : []),
+  ];
+  return lines.length > 0 ? lines.join(' ') : undefined;
+}
 
 // --- fs-naad -------------------------------------------------------------------------------------
 
@@ -111,6 +177,14 @@ export interface McpFileFs extends FileIdentityFs {
    * model of vreemd deel?); `null` = bewezen ontbrekend. Zonder lezer weigert een inhoudscontrole veilig.
    */
   scanTarget?(path: string): Promise<TargetForeignScan | null>;
+  readonly replaceUserBytes?: UserFileReplace;
+}
+
+export interface UserFileReplace {
+  observe(path: string): Promise<PickedSaveTarget['current'] | 'missing'>;
+  replace(path: string, prepared: { bytes: Uint8Array; sha256: string }, expected: Uint8Array, guards: {
+    stopBeforeWrite: () => Promise<boolean>; refuseBeforePlace: RefuseBeforePlace; planningChanged: () => boolean; replaceAllowed: () => boolean;
+  }): Promise<OwnPathReplaceResult>;
 }
 
 /** Echte (Tauri-)fs; dynamisch geïmporteerd binnen een `isTauri()`-tak — spiegel van
@@ -132,6 +206,13 @@ export async function realFs(): Promise<McpFileFs> {
     readTextFile: (p) => readTextFile(p),
     readFile: (p) => readFile(p),
     scanTarget: (p) => scanTargetPathTauri(p),
+    replaceUserBytes: {
+      observe: observeRegularFileTauri,
+      replace: async (p, prepared, expected, guards) => replaceOwnPathWithRecovery({
+        documentId: null, path: p, prepared, source: { bytes: expected, sha256: await precomputeSha256(expected) },
+        commit: () => {}, ...guards,
+      }),
+    },
     writeNewUserBytes: async (p, bytes) => {
       const dir = p.replace(/\\/g, '/').replace(/\/[^/]*$/, '');
       if (dir) await mkdir(dir, { recursive: true });
@@ -300,12 +381,8 @@ async function refuseSilentSchemaChange(ctx: McpContext, fs: McpFileFs, path: st
 export const fileTools: McpToolDef[] = [
   {
     name: 'planner_export_ifc',
-    description:
-      'Write the ACTIVE document to `path` as IFC (complete, the native format), inside the home folder. ' +
-      'Replaces a file only with `overwrite: true`; documents with preserved foreign content require a new file name. Returns characters for text or byteLength for bytes. An export, not "save as": the document stays unsaved. Tell ' +
-      'the user the path; pass on `schemaNotice`. Writing over the source file of an unwritable schema (e.g. IFC2X3), or over a file ' +
-      'not provably different from it, is refused: choose a new file name or let the user save in the app. ' +
-      'The file of another open document is refused too, even with `overwrite: true`.',
+    description: exportIfcDescription(false),
+    describe: ctx => exportIfcDescription(ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags)),
     kind: 'other',
     batchable: false, // export_ifc/import_schedule zijn uitgesloten van batch
     inputSchema: {
@@ -375,11 +452,24 @@ export const fileTools: McpToolDef[] = [
       // na crashherstel, via het kenmerk). Pad of bestandsidentiteit, zoals de schemacontrole hierboven. Fixronde 2: met
       // de flag aan ook niet over een bestaand bestand met een gebouwmodel (dezelfde doelcontrole als Opslaan als).
       // Knownbug 1907: ook niet over het bestand van een ander open document, in de app en headless.
-      const foreignTarget = await refusedWriteTarget(checked, { kind: 'path', path }, {
-        identityFs: async () => fs, openDocumentsExcept: checked.activeDocumentId,
-        protectExistingTargets: fs.protectExistingTargets,
-        readers: () => (fs.scanTarget ? { scanPath: (p: string) => fs.scanTarget!(p) } : {}),
-      });
+      const ref = { kind: 'path', path } as const;
+      const pathReaders = () => (fs.scanTarget ? { scanPath: (p: string) => fs.scanTarget!(p) } : {});
+      const identityDeps = {
+        identityFs: async () => fs, openDocumentsExcept: checked.activeDocumentId, protectExistingTargets: fs.protectExistingTargets,
+      };
+      const identity = await refusedTargetIdentity(checked, ref, identityDeps);
+      const live = ctx.app.store.getState();
+      const replacing = !refused && identity === 'check-content' && existed && overwrite && hasForeignContent(checked.ifcSource)
+        && live.activeDocumentId === checked.activeDocumentId && live.ifcSource === checked.ifcSource && !ifcFullWriteBlocked(live)
+        ? fs.replaceUserBytes : undefined;
+      const observed = replacing ? await replacing.observe(path) : undefined;
+      if (observed === 'missing') return toolError(ctx, 'VALIDATION', TARGET_CHANGED(path));
+      const targetDeps: WriteTargetDeps = {
+        ...identityDeps,
+        readers: observed === undefined ? pathReaders : capturedTargetReaders(observed, pathReaders),
+        ...(observed === undefined ? {} : exportTargetPermission(checked.ifcSource, { path, current: observed })),
+      };
+      const foreignTarget = identity === 'check-content' ? await refusedTargetContent(ref, targetDeps) : identity;
       // Identiteit opvragen is ook async: pauze, dialoog en documentdrift winnen nog steeds.
       const identityBlocked = postAwaitGuards(ctx) ?? guardNonTransactional(ctx);
       if (identityBlocked) return identityBlocked;
@@ -391,12 +481,8 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'VALIDATION', 'The document save target or IFC schema changed during the file identity check. Retry the export.');
       }
       if (refused) return refused;
-      if (foreignTarget === 'open-source') return toolError(ctx, 'VALIDATION', FOREIGN_SOURCE_TARGET_REFUSAL(path));
-      if (foreignTarget === 'open-document') return toolError(ctx, 'VALIDATION', OPEN_DOCUMENT_TARGET_REFUSAL(path));
-      if (foreignTarget === 'foreign-content') return toolError(ctx, 'VALIDATION',
-        `'${path}' already contains data from other programs. Export to another path.`);
-      if (foreignTarget === 'building-model') return toolError(ctx, 'VALIDATION', BUILDING_MODEL_TARGET_REFUSAL(path));
-      if (foreignTarget === 'unreadable-target') return toolError(ctx, 'VALIDATION', UNREADABLE_TARGET_REFUSAL(path));
+      const targetError = writeTargetError(ctx, path, foreignTarget);
+      if (targetError) return targetError;
       if (ifcFullWriteBlocked(state)) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
       // Gedeelde state→writer-invoer (dezelfde bron als opslaan/auto-save), zodat deze route nooit
       // stil velden kan laten vallen. Een export: zonder een open schemavraag die niet bij de kop past.
@@ -410,7 +496,10 @@ export const fileTools: McpToolDef[] = [
           'Undo the last change or export the schedule to another format.');
         throw error;
       }
-      if (output.prepared && (existed || !fs.writeNewUserBytes)) return toolError(ctx, 'VALIDATION',
+      const replacement = output.prepared && existed && replacing && observed instanceof Uint8Array
+        ? { replacing, prepared: output.prepared, expected: observed } : null;
+      if (output.prepared && existed && replacing && !replacement) return toolError(ctx, 'VALIDATION', NOT_SAFELY_REPLACEABLE(path));
+      if (output.prepared && !replacement && (existed || !fs.writeNewUserBytes)) return toolError(ctx, 'VALIDATION',
         existed ? 'IFC export with a building model or data from other programs requires a new file name, even with overwrite: true.'
           : 'This file host cannot create an exclusive new byte file. Nothing was written.');
       const ifcSchema = projectIfcSchema(input.project);
@@ -418,25 +507,48 @@ export const fileTools: McpToolDef[] = [
       // Knownbug 1026 (review #872 ronde 3 en 4, Terra): een export over het eigen bestand legt de letterlijke kalenders
       // vast, zoals Opslaan; een aantoonbaar ander bestand niet (`exportHitsOwnFile`). Schrijven en vastleggen staan onder
       // dezelfde lock als Opslaan en AutoSave, zodat AutoSave er niet tussendoor de ankertekst schrijft.
-      const writeError = await runProjectFileWrite(async () => {
-        // Review #872 ronde 5 (Terra): wachten op de lock is ook een await. Pauze, alleen-lezen, dialoog en documentdrift
-        // winnen; en is het document intussen veranderd (een opslag in de wachtrij), dan zou deze tekst oud zijn.
-        const waitBlocked = postAwaitGuards(ctx) ?? guardNonTransactional(ctx);
-        if (waitBlocked) return waitBlocked;
+      let replaceNotice: string | undefined;
+      const changedWhileWaiting = (): McpToolResult | null => {
+        const blocked = postAwaitGuards(ctx) ?? guardNonTransactional(ctx);
+        if (blocked) return blocked;
         const now = ctx.app.store.getState();
         if (now.activeDocumentId !== state.activeDocumentId || !sameIFCSource(state, now)
           || (output.prepared && now.ifcSource !== state.ifcSource)
           || now.filePath !== state.filePath || now.fileHandle !== state.fileHandle || now.siteFileId !== state.siteFileId) {
           return toolError(ctx, 'VALIDATION', 'The document changed while the export waited for another save. Nothing was written. Retry the export.');
         }
-        if (ifcFullWriteBlocked(now)) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
+        return ifcFullWriteBlocked(now) ? toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL) : null;
+      };
+      const writeError = await runProjectFileWrite(async () => {
+        // Review #872 ronde 5 (Terra): wachten op de lock is ook een await. Pauze, alleen-lezen, dialoog en documentdrift
+        // winnen; en is het document intussen veranderd (een opslag in de wachtrij), dan zou deze tekst oud zijn.
+        const waitBlocked = changedWhileWaiting();
+        if (waitBlocked) return waitBlocked;
         try {
-          if (output.prepared) await fs.writeNewUserBytes!(path, output.prepared.bytes);
+          if (replacement) {
+            let stopped: McpToolResult | null = null;
+            const result = await replacement.replacing.replace(path, replacement.prepared, replacement.expected, {
+              stopBeforeWrite: async () => {
+                const reason = await refusedWriteTarget(ctx.app.store.getState(), ref, targetDeps);
+                stopped = writeTargetError(ctx, path, reason) ?? changedWhileWaiting();
+                return stopped !== null;
+              },
+              refuseBeforePlace: () => (stopped = changedWhileWaiting()) !== null,
+              planningChanged: () => {
+                const now = ctx.app.store.getState();
+                return now.activeDocumentId !== state.activeDocumentId || !sameIFCSource(state, now) || now.ifcSource !== state.ifcSource;
+              },
+              replaceAllowed: () => ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags),
+            });
+            const failure = replaceError(ctx, path, result, stopped);
+            if (failure) return failure;
+            if (result.code === 'replaced') replaceNotice = replacedNotice(path, result);
+          } else if (output.prepared) await fs.writeNewUserBytes!(path, output.prepared.bytes);
           else await fs.writeTextFile(path, output.content);
         } catch (e) {
           // Knownbug 1131 stap 4: de nieuwe naam bestond intussen, of de plaatsing liet een onbekende stand achter.
           if (e instanceof ByteWriteError && e.reason === 'create-new') return toolError(ctx, 'VALIDATION',
-            `'${path}' exists now; IFC export with a building model or data from other programs requires a new file name. Nothing was written there.`);
+            `'${path}' exists now; it did not exist when the export checked it. Nothing was written there. Check that file, and export again with overwrite: true if you mean to replace it.`);
           if (e instanceof ByteWriteError && e.reason === 'source-changed') return toolError(ctx, 'INTERNAL',
             `The app does not know whether '${path}' was written correctly: something changed in the folder during the write. ` +
             'Nothing was restored or cleaned up. Check the file, or export again to a new file name.');
@@ -464,6 +576,7 @@ export const fileTools: McpToolDef[] = [
           tasks: state.tasks.length,
           /** Werkelijke uitkomst: stond er al een bestand op dit pad dat nu vervangen is? */
           overwritten: existed,
+          ...(replaceNotice ? { replaceNotice } : {}),
           /** Het schema in de kop van het geschreven bestand (issue #292). */
           ifcSchema,
           // Alleen als het document als een ander schema geopend was dan dit bestand nu heeft.
