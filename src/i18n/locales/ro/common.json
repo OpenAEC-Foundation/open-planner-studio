@@ -460,7 +460,6 @@
     "reportFontMissing": "Fontul propriu {{name}} nu mai este pe acest dispozitiv. Raportul folosește din nou Inter.",
     "layoutsNotSaved": "Aspectele nu au putut fi salvate. Nu s-a schimbat nimic. Încercați din nou.",
     "ifcForeignOpenSchema": "Acest fișier IFC conține date de la o altă aplicație și are o schemă necunoscută sau lipsă. Deschiderea s-a oprit ca să nu se piardă date la salvare.",
-    "ifcForeignOpenTooLarge": "Acest fișier IFC depășește {{limit}} MB. Un fișier IFC cu un model al clădirii sau cu date ale unui alt program poate fi deschis până la {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Acest fișier IFC nu poate fi clasificat în siguranță. Deschiderea s-a oprit ca să nu se piardă date la salvare.",
     "ifc2x3PlanningOnly": "IFC2X3 a fost deschis ca planificare. Datele de la alte aplicații nu sunt incluse la salvare.",
     "ifcForeignReplaceBlocked": "Nu s-a salvat. Acesta este fișierul pe care îl aveți deschis. Folosiți „Salvare” pentru a-l actualiza sau „Salvare ca” cu un nume nou pentru o copie.",
