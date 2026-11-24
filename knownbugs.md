@@ -1747,6 +1747,37 @@ en noem het in je rapport of PR-tekst.
      eerste aan de beurt, en liet een tweede slapend document de schrijfronde afbreken. Bij de geslaagde herpoging
      gingen de minuten verloren zonder melding; in dezelfde proef zonder eerdere afbreking meldde de app het verlies
      wel. Proef van de reviewer (GPT-6.2-Sol, review van #1164). — B
+2211. **Een taak met heel veel gekoppelde bouwdelen kan `planner_get_task` op de site te groot maken.** Sinds #804
+     fase 2 geeft `planner_get_task` (`elementLinkFields` in `src/services/mcp/tools/readTools.ts`) bij een IFC-bestand
+     met een gebouwmodel elke koppeling taak↔bouwdeel mee, ongeveer 60 tekens per koppeling, zonder `limit`. De
+     assistent van de site weigert een leesantwoord boven 30.000 tekens (`siteAppTools.ts`), en `planner_get_task` heeft
+     daar geen uitweg (`narrowHint`). Een taak met enkele honderden koppelingen zou dus geweigerd worden. Afgeleid uit
+     de grootte van een regel; niet gemeten met een echt model, en niet nagegaan of de flag `ifcForeignContent` op de
+     site gebruikt wordt. Richting: de lijst optioneel pagineren, of alleen `elements` en `notFound` geven boven een
+     grens. — S
+2216. **Een aanwezig bouwdeel dat een complexe instantie is, telt niet mee bij de gekoppelde bouwdelen.** Flag aan, IFC met
+     een gebouwmodel. De scanner geeft een complexe instantie (`#1=(IFCA() IFCB());`) het type `(COMPLEX)`
+     (`scanStep` in `src/services/ifc/foreign/stepScanner.ts`, rond regel 720), en `elementTarget` in
+     `src/services/ifc/foreign/elementLinks.ts` telt alleen een doel met een type uit `IFC_BUILDING_MODEL_TYPES`. Een
+     koppeling naar zo'n instantie valt daarom helemaal weg, ook bij `IfcRelAssignsToProduct`, waar het doel altijd een
+     product is: het paneel en `planner_get_task` tellen dat bouwdeel niet. Knownbug 1845 is het omgekeerde geval in de
+     herkenning van een gebouwmodel (daar telt zo'n instantie altijd mee). Richting: de deeltypen uit de index gebruiken
+     zodra die ze levert. Gezien in de code door de reviewer van #1180 (GPT-6.2-Sol, ronde 1). — B
+2215. **Een verwijzing met voorloopnullen laat een aanwezig bouwdeel als ontbrekend tellen.** Flag aan, IFC met een
+     gebouwmodel waarin een ander programma een verwijzing als `#00000000393` schrijft (meer dan tien cijfers). De
+     scanner lost die numeriek op naar `#393`, maar `elementLinks.ts` leest het label opnieuw als tekst en geeft het
+     aan `chunkOf`, dat meer dan tien cijfers weigert. Bij `IfcRelAssignsToProduct` krijgt de koppeling daardoor
+     `found: false` met `#00000000393` als doel; in een `IfcRelAssignsToProcess` valt het lid uit de telling. Het
+     paneel en `planner_get_task` tellen dus verkeerd; de bronregel zelf blijft bij opslaan behouden. Richting: voor
+     bestaande doelen de door de index opgeloste verwijzing gebruiken en het ruwe label alleen lezen voor een doel dat
+     echt ontbreekt. Gezien in de code door de reviewer van #1180 (GPT-6.2-Sol, ronde 2). — B
+2230. **De terugval boven de scangrens loopt ook de koppelingen af, voor alleen een telling.** Flag aan, een groot
+     eigen bestand dat de tekstlezer passeert terwijl de bytes-route terugvalt wegens de grootte. `currentRoute` in
+     `src/services/ifc/foreign/ifcBytesRoute.ts` vraagt dan zonder `knownScan` om `runForeignScan`, en die vraagt de
+     openvariant, die ook de regels voor gekoppelde bouwdelen afloopt. De terugval leest daarvan alleen `ok` en de
+     aantallen C, A en V. Dat is extra werk bij het openen van een groot bestand, geen fout in de uitkomst. Richting:
+     dit pad de gewone workersessie en `scanForeign` geven. Gezien in de code door de reviewer van #1180
+     (GPT-6.2-Sol, ronde 2). — B (code)
 
 ## Bestanden en herstel
 

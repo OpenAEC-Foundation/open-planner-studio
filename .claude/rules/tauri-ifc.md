@@ -293,6 +293,26 @@ projectgroepen (taken, relaties, kalenders, resources). De oude verklaringen (li
 is PR B van stap 5 deel 2, geparkeerd (knownbug 1953). Proef:
 `check-ifc-foreign-eigen-toets.ts`; de verliescontrole los op een nagebootste fout in O1: `lossProbe` in `ifcMergeKern.ts`.
 
+### Koppelingen taak↔bouwdeel (#804 fase 2, `elementLinks`)
+
+`ifcSource.elementLinks` (ontwerp §4.6) is een afgeleide, alleen-lezen weergave per taak-id: `{ direction, target, found }[]`,
+geen domein- en geen documentveld, als `Map` (veilig voor elke taak-id, ook na het klonen in een Worker).
+`foreign/elementLinks.ts` leest de koppelingen uit een `StepIndex` (`scanElementLinks`), alleen op twee plekken: bij openen
+(`scanForeignToOpen`, in de Worker via een verzoek met `open: true`) en voor de bron die de writer teruggeeft
+(`writtenSource` in `mergeWriter.ts`, uit de index die daar al is). `scanForeign` en `foreignScanFrom` (doelcontrole, ook
+headless, en de interne scans van de merge) verzamelen ze niet. `IfcRelAssignsToProcess` met een `IfcTask` als relating
+geeft `input` naar elk lid met een modeltype (`IFC_BUILDING_MODEL_TYPES`); een ontbrekend lid telt daar niet, want het kan
+ook een resource zijn. `IfcRelAssignsToProduct` geeft `output` aan elk `IfcTask`-lid; staat het doel daar niet in het
+bestand, dan is het `found: false` met `target` = `#<id>`. Een bestaand doel zonder modeltype (een resource, een
+kostenpost) is geen koppeling; een complexe instantie ook niet (knownbug 2216). De scan levert ze op STEP-id;
+`elementLinksByTask` deelt ze in één keer in (één `Set` op taak, richting en doel, in de volgorde van de bron) met de kaart
+domein-id → `#id`: bij openen die van de lezer (`ifcBytesRoute.ts`), na een merge die van de writer (§4.8), nooit met
+domein-ids van een nieuwe indeling. De opslagworker eist die vorm (`resultFits`). Niet via `parseSTEP` van de lezer: de doelen zijn V en staan niet in de
+tekst die de lezer krijgt. De app schrijft niets aan de koppelingen; de A-stukken blijven bytegelijk. Het taakpaneel
+(`TaskElementLinksNotice`) en `planner_get_task` lezen ze alleen met de flag aan, via `state/taskElementLinks.ts`; een
+bouwdeel dat zowel invoer als uitvoer is, telt één keer. IFCX (§6.4) hoort bij fase 3 en 4. Proeven:
+`check-ifc-element-links.ts`, `tests/mcp/cases-element-links.ts` en de stap met `bonsai-4d.ifc` in `settings-tabs.spec.ts`.
+
 ### Vergelijkingsklok (#804 fase 1c)
 
 `planningCanon` gebruikt alleen `writeIFCForComparison`: één vaste datum via de interne schrijfkern,
