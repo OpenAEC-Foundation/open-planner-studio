@@ -22,6 +22,7 @@ geslaagde smoke-test tegen een echte deployment (stap 7 hieronder).
 | `headless/server/worker.mjs` | de rekenworker (één thread) |
 | `headless/server/openapi.yaml` | het contract (OpenAPI 3.1) |
 | `headless/server/smoke.mjs` | de smoke-test: `node smoke.mjs <baseUrl> <token>` |
+| `headless/server/smoke-corpus.mjs`, `main-reference.mjs`, `main-reference.json` | het corpus van de smoke-test, het script dat de antwoorden van main vastlegt, en die antwoorden (zie *Vergelijking met main*) |
 | `headless/server/server-test.mjs`, `fixtures/log-marker.ifc` | de servertest: randgevallen (onleesbaar verzoek, capaciteit, logs, uploadtijd, SIGTERM) |
 | `headless/server/Dockerfile`, `.dockerignore` (root) | de container |
 | `deploy/aws/ecs-fargate.yaml` | de AWS-definitie (CloudFormation) |
@@ -46,11 +47,14 @@ Het volledige contract staat in `headless/server/openapi.yaml`.
     [headless-kern.md](headless-kern.md)). Bewaart die route het vreemde deel, dan komen de samenvatting en, met
     `?output=ifc`, de bewaarde bytes uit die ene lezing. Geen andere leesfout opent de bytes-route.
   - **bij het schrijven**: `?output=ifc` weigert met 500 `IFC_WRITE_FAILED` en `details.reason` `foreign`. De worker
-    opent dezelfde bytes met `openIfcBytes`; bewaart die route een vreemd deel en geeft ze na het doorrekenen dezelfde
-    samenvatting als de tekstlezer (op `foreignContent` na), dan komen de bewaarde bytes terug. Anders blijft het de
-    weigering van main, met dezelfde status, code en `details`, en zegt `message` waarom. De bytes-route leest zo'n
-    bestand volgens de regels van de app voor bestanden met vreemde inhoud, en dat kan een andere planning geven dan de
-    tekstlezer; dan weigert de server zoals main, en `message` noemt de velden die verschillen (knownbug 2252).
+    opent dezelfde bytes met `openIfcBytes`. Bewaart die route een vreemd deel en lezen beide routes dezelfde planning,
+    dan komen de bewaarde bytes terug. Dezelfde planning is: dezelfde samenvatting na het doorrekenen (op
+    `foreignContent` na) én dezelfde schrijfinvoer volgens de gedeelde `planningCanon` (`planningDifference` in de kern;
+    die ziet ook relaties, resources, toewijzingen, ingevoerde duur en projectvelden). Anders blijft het de weigering van
+    main, met dezelfde status, code en `details`. De bytes-route leest zo'n bestand volgens de regels van de app voor
+    bestanden met vreemde inhoud, en dat kan een andere planning geven dan de tekstlezer; alleen dan zegt `message` iets
+    extra's: de velden die verschillen (knownbug 2252). Kan de bytes-route het om een andere reden niet, dan is ook de
+    melding die van main.
 
   Bewaarde bytes komen terug als `application/octet-stream` (`toIfcBytes()`): het vreemde deel en de kop, ook een
   UTF-8-BOM, blijven byte voor byte staan; verandert de planning niet, dan komt het hele bestand byte-gelijk terug. Van
@@ -62,10 +66,10 @@ Het volledige contract staat in `headless/server/openapi.yaml`.
 - De andere types zijn de tekstroute van main (`openIfc`, UTF-8): die weigert een bestand met een gebouwmodel (422
   `IFC_READ_FAILED`) en schrijft geen bestand met vreemde inhoud (500 `IFC_WRITE_FAILED`), en `?output=ifc` geeft
   `Content-Type: application/x-step; charset=utf-8`.
-- De samenvatting heeft dezelfde vorm als `ScheduleSummary` van de kern (`formatVersion: 1`). Ze komt van de
-  tekstlezer, zoals op main, behalve bij een gebouwmodel dat de bytes-route bewaart: dan komt ze van die lezing en zegt
-  `foreignContent` wat er naast de planning bewaard blijft. Anders is `foreignContent` `null`. De samenvatting doet geen
-  schrijfcontrole (die geeft pas `?output=ifc`).
+- De samenvatting is byte voor byte die van main: `ScheduleSummary` van de kern (`formatVersion: 1`) zonder het veld
+  `foreignContent`. Alleen bij een gebouwmodel dat de bytes-route opent, komt de samenvatting van die lezing en staat
+  `foreignContent` erbij: wat er naast de planning bewaard blijft. De samenvatting doet geen schrijfcontrole (die geeft
+  pas `?output=ifc`).
 - Elk antwoord heeft een header `X-Request-Id`. Stuur zelf een `X-Request-Id`
   (1–64 tekens `A-Z a-z 0-9 . _ -`) om een verzoek in de logs terug te vinden.
 
@@ -270,13 +274,8 @@ breaker zet een mislukte deploy terug.
 `.github/workflows/headless-api.yml` draait op elke push naar `main` en op een PR die `src/`, de
 kernbouw, `headless/`, `deploy/aws/`, de lockfile of de workflow raakt:
 
-- **local**: `npm run build:core`, server starten, weigeren zonder token (exit 78), smoke-test (ook een lus over alle
-  voorbeelden, de oude-tags-bestanden, een IFC2X3-planning met en zonder externe pset, de bestanden in
-  `tests/fixtures/ifc-foreign/` en twee bestanden die de bytes-route anders leest, kaal, met BOM en met BOM en een
-  spatie: als bytes hetzelfde antwoord als dezelfde bytes als tekst, ook de hele IFC op de schrijftijd na; alleen waar
-  main een gebouwmodel weigerde, de samenvatting en de bewaarde bytes uit één lezing (zeven van de elf modelbestanden),
-  en waar main het schrijven weigerde met `foreign`, de bewaarde bytes met dezelfde planning als de samenvatting, of
-  dezelfde weigering met het verschil in de melding; elke andere leesfout geeft als bytes het antwoord van de tekst),
+- **local**: `npm run build:core`, server starten, weigeren zonder token (exit 78), smoke-test (ook de vergelijking met main
+  hieronder),
   servertest (`server-test.mjs`: `GET //[` → 400 zonder crash, 30 uploads boven de grens → meteen 503
   en RSS begrensd, tweede verzoek tijdens een berekening → meteen 503, merkteken uit het IFC niet in
   de logs, 408 bij een te trage body, SIGTERM tijdens een upload), logs zonder token of IFC-inhoud,
@@ -286,6 +285,35 @@ kernbouw, `headless/`, `deploy/aws/`, de lockfile of de workflow raakt:
   op `SIGTERM`;
 - **cfn-lint**: `cfn-lint deploy/aws/ecs-fargate.yaml`.
 
+
+### Vergelijking met main
+
+De smoke-test vergelijkt elk antwoord met het antwoord dat de code van main op hetzelfde verzoek geeft. Het corpus staat
+in `headless/server/smoke-corpus.mjs`: alle voorbeelden, de oude-tags-bestanden, IFC2X3, de bestanden in
+`tests/fixtures/ifc-foreign/`, de gevallen die de bytes-route anders leest, voorloopbytes en een lijst leesfouten, elk
+met één verwachte uitkomst. Per geval stuurt hij de body als `application/x-step` en als `application/octet-stream`,
+bij de standaardaanroep, `?output=summary` en `?output=ifc`. Status, mediatype en de volledige body moeten gelijk zijn
+aan main; bij IFC-tekst met de bekende schrijfvelden gemaskeerd (de tijd in `FILE_NAME`, de aanmaakdatum van
+`IfcOwnerHistory` en van elk werkplan en werkschema, en `CreatedAt`/`ModifiedAt` in `OPS_ProjectSettings`). Alleen een
+octet-stream-antwoord mag afwijken, en alleen waar main weigerde vanwege vreemde inhoud: de 422 van de
+gebouwmodel-poort, of de 500 `IFC_WRITE_FAILED` met `details.reason` `foreign`. Dat volgt uit het vastgelegde antwoord
+van main zelf, niet uit een lijst bestandsnamen; de verwachte uitkomst per geval pint daarbinnen wat er terugkomt.
+
+De antwoorden van main staan in `headless/server/main-reference.json`: per geval status en mediatype, bij een fout de
+volledige body, en bij een geslaagd antwoord de SHA-256 van de body (bij IFC na het maskeren). Opnieuw maken, als main
+bewust een antwoord verandert of het corpus groeit:
+
+```bash
+M=$(git rev-parse origin/main); D=$(mktemp -d)
+git archive "$M" | tar -x -C "$D" && ln -s "$PWD/node_modules" "$D/node_modules"
+(cd "$D" && node scripts/build-core.mjs --out "$D/dist-core")
+mkdir -p "$D/headless/server/node_modules/@openaec" && ln -s "$D/dist-core" "$D/headless/server/node_modules/@openaec/open-planner-core"
+PORT=3871 HOST=127.0.0.1 OPS_API_TOKEN="$TOKEN" OPS_API_MAX_BODY_BYTES=5242880 node "$D/headless/server/server.mjs" &
+node headless/server/main-reference.mjs http://127.0.0.1:3871 "$TOKEN" "$M" headless/server/main-reference.json
+```
+
+`main-reference.mjs` stuurt het corpus van deze branch naar de server van main en weigert te schrijven als main zelf
+per ingang of bij herhaling verschillend antwoordt. De huidige referentie is gemaakt op main `36a2159cb`.
 ## Wat er nog niet is
 
 - Een deployment in AWS (geen account). Daarom ook geen bewijs uit de bedoelde runtime.

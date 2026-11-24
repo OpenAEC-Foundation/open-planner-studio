@@ -19,11 +19,12 @@ info:
       No other read error opens the bytes route.
     - When writing: `output=ifc` refused with 500 `IFC_WRITE_FAILED` and `details.reason`
       `foreign`. If the bytes route keeps the foreign content and reads the same schedule (the same
-      summary after the calculation), the preserved file comes back. Otherwise the answer stays the
-      refusal of the text route, with the same status, code and `details`, and `message` says why
-      the bytes are not returned. The bytes route reads a file with foreign content by the rules of
-      the app for such files, and that can give a different schedule than the text route; then
-      `message` names the fields of the summary that differ.
+      summary after the calculation, and the same stored planning: tasks, relations, calendars,
+      resources, assignments and project fields), the preserved file comes back. Otherwise the
+      answer stays the refusal of the text route, with the same status, code and `details`. The
+      bytes route reads a file with foreign content by the rules of the app for such files, and
+      that can give a different schedule than the text route; only then does `message` add the
+      fields that differ.
 
     A preserved file comes back as `application/octet-stream`, with the foreign content and the
     header (also a UTF-8 byte order mark) byte for byte as they were; without changes to the
@@ -113,7 +114,7 @@ paths:
             schema:
               type: string
               format: binary
-              description: The file as bytes, read without text decoding.
+              description: The file as bytes. The API decodes it as UTF-8 like the other types; only where the text route refuses the file because of foreign content does it read the bytes themselves.
       responses:
         '200':
           description: The schedule is calculated.
@@ -189,9 +190,9 @@ paths:
           description: |
             `IFC_WRITE_FAILED` or `INTERNAL`. With `IFC_WRITE_FAILED`, `details.reason` says why when it
             is known: `foreign` (the file has foreign content that the text route does not
-            keep), `model` or `unreadable` (other scan results). After an `application/octet-stream`
-            request with `foreign`, `message` also says why the preserved bytes are not returned, for
-            example the fields of the summary that the bytes route reads differently.
+            keep), `model` or `unreadable` (other scan results). Only when an `application/octet-stream`
+            request with `foreign` is refused because the bytes route reads a different schedule,
+            `message` also names the fields that differ; otherwise it is the message of the text route.
           content:
             application/json:
               schema:
@@ -294,7 +295,7 @@ components:
           description: Request bodies being received now.
     ScheduleSummary:
       type: object
-      required: [formatVersion, project, counts, tasks, criticalPath, warnings, foreignContent]
+      required: [formatVersion, project, counts, tasks, criticalPath, warnings]
       properties:
         formatVersion:
           type: integer
@@ -378,13 +379,11 @@ components:
                   decimal).
         foreignContent:
           description: |
-            What the document keeps besides the schedule and writes back unchanged. Not `null` only
-            after an `application/octet-stream` request with a building model that the bytes route
-            keeps: then the summary comes from that reading. `null` for every other request, whose
-            summary comes from the text route, also for a file with foreign content.
-          oneOf:
-            - type: 'null'
-            - $ref: '#/components/schemas/ForeignContent'
+            Only present after an `application/octet-stream` request with a building model that the
+            bytes route opens: what the document keeps besides the schedule and writes back unchanged.
+            The summary then comes from that reading. Every other summary comes from the text route
+            and has no `foreignContent`.
+          $ref: '#/components/schemas/ForeignContent'
     ForeignContent:
       type: object
       required: [format, schema, objectCount]

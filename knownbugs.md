@@ -4093,20 +4093,23 @@ en noem het in je rapport of PR-tekst.
      512 MiB (`OPS_API_MAX_BODY_BYTES`), de scan stopt bij 300 MiB. De Fargate-template begint op 2 GiB, de containerproef
      in de CI op 1 GiB met kleine bestanden. Niet gemeten: piek en herstel bij een groot model onder de verhoogde limiet.
      Review van #1184 ronde 1 (GPT-6.2-Sol, xhigh). — S
-2252. **Grens van de headless API: bij een bestand dat de bytes-route anders leest dan de tekstlezer, geeft `output=ifc` de weigering in plaats van de bewaarde bytes (#804).**
+2252. **Grens van de headless API: bij een bestand waarvan de twee lezingen niet dezelfde planning geven, geeft `output=ifc` de weigering in plaats van de bewaarde bytes (#804).**
      De server geeft op `POST /v1/schedule` eerst het antwoord van de tekstroute (`headless/server/worker.mjs`). Weigert
      `?output=ifc` met `IFC_WRITE_FAILED` en `foreign`, dan opent hij dezelfde bytes met `openIfcBytes`, en geeft de
-     bewaarde bytes alleen terug als de samenvatting na het doorrekenen gelijk is aan die van de tekstlezer. De bytes-route
-     leest een bestand met vreemde inhoud volgens de regels van de app voor zulke bestanden, en dat kan een andere planning
-     geven; dan blijft het de weigering, met de velden die verschillen in `message`. Twee voorbeelden uit de review, beide in
-     de smoke-test (`headless/server/smoke.mjs`): (1) `examples/01-grachtenpand-amsterdam.ifc` met een leeg eigen
-     werkschema, een baseline en één losse taak: de tekstlezer leest 52 taken en einde `2028-01-12T16:00`, de bytes-route
-     één taak en `2027-03-05T16:00`, omdat de regel voor een leeg eigen werkschema de baselineboom uitsluit; (2) de
-     woningfixture uit `tests/planning/fixtures/projectnaam-in-settings/` met een externe pset aan het project: de
-     tekstlezer neemt de projectnaam uit `IfcProject`, de bytes-route uit `OPS_ProjectSettings`. `openIfcBytes` in de kern
-     geeft voor zulke bestanden de lezing van de bytes-route. Richting: de lezing van de bytes-route en de tekstlezer voor
-     bestanden met vreemde inhoud gelijktrekken, zodat de API ook daar de bewaarde bytes kan geven. Review van #1184
-     ronde 4 (GPT-6.2-Sol, xhigh). — B
+     bewaarde bytes alleen terug als beide lezingen dezelfde planning geven: dezelfde samenvatting na het doorrekenen en
+     dezelfde schrijfinvoer volgens de gedeelde `planningCanon` (`planningDifference` in `src/core/index.ts`; die ziet ook
+     relaties, resources, toewijzingen, ingevoerde duur en projectvelden). De bytes-route leest een bestand met vreemde
+     inhoud volgens de regels van de app voor zulke bestanden, en dat kan een andere planning geven; dan blijft het de
+     weigering van main, met de velden die verschillen in `message`. Drie voorbeelden uit de reviews, alle in de smoke-test
+     (`headless/server/smoke-corpus.mjs`): (1) `examples/01-grachtenpand-amsterdam.ifc` met een leeg eigen werkschema,
+     een baseline en één losse taak: de tekstlezer leest 52 taken en einde `2028-01-12T16:00`, de bytes-route één taak en
+     `2027-03-05T16:00`, omdat de regel voor een leeg eigen werkschema de baselineboom uitsluit; (2) de woningfixture uit
+     `tests/planning/fixtures/projectnaam-in-settings/` met een externe pset aan het project: de tekstlezer neemt de
+     projectnaam uit `IfcProject`, de bytes-route uit `OPS_ProjectSettings`; (3) dezelfde woning met de naam gelijk en
+     een andere `ProjectDescription` in `OPS_ProjectSettings`: de samenvatting is gelijk, de planning niet
+     (`planning.project.description`). `openIfcBytes` in de kern geeft voor zulke bestanden de lezing van de bytes-route.
+     Richting: de lezing van de bytes-route en de tekstlezer voor bestanden met vreemde inhoud gelijktrekken, zodat de
+     API ook daar de bewaarde bytes kan geven. Review van #1184 ronde 4 en 5 (GPT-6.2-Sol, xhigh). — B
 2258. **Een IFC met meer dan 4 KiB witruimte of commentaar na `END-ISO-10303-21;` wordt als afgekapt geweigerd (zo op main).** De lezer zoekt de sluitmarkering alleen in de laatste 4096 tekens (`TERMINATOR_PROBE` in `src/services/ifc/ifcReader.ts`). Staat daarna meer witruimte of commentaar, dan meldt hij "afgekapt" (reden `truncated`; via de headless API 422 `IFC_READ_FAILED`), terwijl het bestand volledig is. Gevonden bij #1184 met een bestand met 5000 spaties na de sluitmarkering; op main is het gedrag hetzelfde, en het octet-stream-antwoord van #1184 volgt daar main. Richting: van achteren af witruimte en commentaar overslaan vóór de toets op de sluitmarkering, zonder het hele bestand te doorzoeken. — B
 
 
