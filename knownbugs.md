@@ -704,8 +704,9 @@ en noem het in je rapport of PR-tekst.
      duur (`scheduleDuration <= 0`), maar voor de opvolger `isMilestone` met `milestoneKind`. Een proef door de solver:
      een START-mijlpaal van 1 uur kreeg na een FF-relatie een venster van 10:00 tot 11:00; met dezelfde duur en een
      automatische soort was het 09:00 tot 10:00. Haar eigen FS-opvolger volgde in beide gevallen haar echte finish. In
-     de code is dat de FF-tak van `forwardHour`, die bij `succIsStartMs` het moment strikt na de geëiste finish als
-     start teruggeeft, zonder de duur af te trekken. De combinatie kan ontstaan via IFC (`ifcPsets.ts` schrijft en
+     de code is dat de FF-tak van `forwardHour`, die bij `succIsStartMs` de start op de geëiste finish zet (strikt
+     erna, of bij een voorganger in de dagenmaat midden in een werkblok op dat moment zelf), zonder de duur af te
+     trekken. De combinatie kan ontstaan via IFC (`ifcPsets.ts` schrijft en
      leest `MilestoneKind` voor elke taak met `isMilestone`, zonder duurtoets; zie ook 1042), via MCP (`taskFields.ts`
      zet `milestoneKind` zonder duurtoets) en via de MSPDI-lezer met een expliciete OPS-markering
      (`explicitOpsMilestoneKind` in `mspdiReader.ts`, zonder duurtoets). Elders plant de solver een mijlpaal met duur
@@ -727,6 +728,12 @@ en noem het in je rapport of PR-tekst.
      dezelfde SF-driver als `msp-35-z10-sf-weekendgrens`: de gewone taak eindigt maandag 08:00, dezelfde taak als
      hammock vrijdag 17:00. Dat schendt de finishgrens van de driver, die volgens ADR 0023 ook voor een hammock geldt
      (haar vroege finish is het maximum van de grenzen uit haar FF- en SF-voorgangers). — B
+
+2309. **Een lopende opvolger van een SF-relatie krijgt de SF-finishvloer niet.** De voortgangstak van `forwardPass`
+     (`src/engine/scheduler/CPMSolver.ts`, `isPinnedInProgress`) gebruikt de relatiegrens voor het restwerk, maar legt
+     de vroege finish vast zonder de al berekende `sfFinishFloor`. Een proef door de solver, met behoud van
+     relatielogica, een statusdatum op donderdag 13:00 en acht uur restwerk: de SF-relatie verschoof de finish van
+     vrijdag 12:00 naar vrijdag 17:00, terwijl de SF-eis op maandag 13:00 lag. Zie ADR 0275. — B
 
 ## Tabel, invoer en bediening
 
