@@ -1509,6 +1509,24 @@ en noem het in je rapport of PR-tekst.
       geeft donderdag. Of elke aanroeper (onder meer `CPMSolver.ts`, `ResourceLeveler.ts`, `useBarDrag.ts`,
       `splitWalk.ts`, `barDragMath.ts`) een werkdag meegeeft, is niet nagegaan. — B
 
+2301. **Een P6 XML-bestand zonder OPS-markering waarvan elke eindtijd op een veelvoud van vijf minuten valt, leest met
+      exacte eindtijden, ook als de schrijver de laatste minuut bedoelde.** `p6FinishUsesLastMinute`
+      (`src/services/p6/p6xmlReader.ts`, ADR 0262) telt alleen een minuut bij elke eindtijd op bij een export van OPS
+      met `<StandardWorkHours>`, of als minstens één eindtijd van een werkblok (behalve 23:59) niet op een veelvoud van
+      vijf minuten valt. Nagespeeld met een script via `readP6XMLDocuments`, met een blok vanaf 08:00: zonder
+      OPS-markering geeft `<Finish>16:00:00</Finish>` een blok tot 16:00 en `<Finish>15:59:00</Finish>` ook; met de
+      OPS-markering en `<StandardWorkHours>` geeft `<Finish>16:00:00</Finish>` een blok tot 16:01. Bedoelt de schrijver
+      met `16:00:00` een blok tot 16:01, dan komt dat blok in het eerste geval een minuut korter binnen. Of een programma
+      zulke bestanden schrijft, is niet nagegaan. — B
+
+2302. **De P6 XML-lezer begrenst het aantal bibliotheekkalenders niet.** `readP6XmlProject`
+      (`src/services/p6/p6xmlReader.ts`) leest elke `<Calendar>` met `<Type>Resource</Type>` als bibliotheekkalender, ook
+      als geen activiteit of resource ernaar verwijst; alleen de projectkalender, een kalender zonder geldig `ObjectId` en
+      een kalender met hetzelfde `ObjectId` als een eerdere slaat hij over. De MSPDI-lezer stopt bij 1024
+      bibliotheekkalenders (`MAX_MSPDI_CALENDARS`); de `.mpp`-lezer stopt bij 1024 unieke ruwe kalenderrecords
+      (`MAX_CALENDARS`, `mppCalendars.ts`). Nagespeeld met een script via `readP6XMLDocuments`: een bestand met 1200
+      Resource-kalenders met verschillende geldige `ObjectId`'s zonder verwijzing geeft 1200 bibliotheekkalenders. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
@@ -3778,20 +3796,27 @@ en noem het in je rapport of PR-tekst.
      ander programma het bestand in die tijd (op de desktop ongeveer zo lang als het schrijven van het tijdelijke
      bestand duurt), dan overschrijft de app die versie zonder melding, zoals main dat altijd doet. Een document met een
      gebouwmodel heeft daar de vervanging met een tweede vergelijking vlak vóór het plaatsen
-     (`replaceOwnPathWithRecovery`); die route is voor een gewone planning bewust niet overgenomen (opdracht #804). —
+     (`replaceOwnPathWithRecovery`); die route is voor een gewone planning bewust niet overgenomen (opdracht #804). Bij
+     een versie die het tabblad zelf schreef (PR #1194) vervalt de doelscan, maar de toets blijft de laatste lezing vóór
+     het schrijven: hetzelfde gat als hier beschreven, niet groter. —
      S (code gelezen, niet nagespeeld)
 
-2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): met de featureflag aan leest de bestaande
-     doelscan vóór elke Ctrl+S en elke ronde het hele eigen bestand, en daarna leest de toets van de bekende versie het
-     nog eens.** `refusedWriteTarget` in `src/state/ifcForeignGuard.ts` laat `targetRefusal`
-     (`src/services/fileAccess/foreignSourceTarget.ts`) het doel ook bij een gewone planning helemaal indelen; daarna
-     leest `changedKnownTarget` (`src/state/knownTargetGuard.ts`) het bij gelijke grootte opnieuw en rekent de SHA-256.
-     Gemeten in Node op aia09-mp50 (23 november 2026, mediaan van 15): voor een planning van 10.000 taken (11.821.500
-     bytes) kost de doelscan alleen al in het geheugen 1.732 ms, de toets 23,5 ms; voor het grootste voorbeeld (481.752
-     bytes) 74 ms tegen 2 ms. In de app (lezen via de Tauri-plugin of `getFile()`, en op een netwerkschijf) is het niet
-     gemeten. Richting: scan en hash in één lezing. Besluit technisch beslisser (23 november 2026): dit hoort bij de
-     voorwaarden voordat de flag standaard aan mag. — B (gemeten in Node, meetlog
-     `bewaakte-opslag-logs/07-meting.log` van #1174)
+2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): de eerste opslag na openen leest het eigen bestand
+     nog drie keer, een opslag zonder bekende versie twee keer.** Sinds PR #1194 vervalt de doelscan als op het eigen pad of
+     de eigen handle de versie staat die het tabblad zelf schreef (`origin: 'written'`, `writtenKnownTarget` in
+     `src/state/knownTargetGuard.ts`): dan blijven de broncontrole en één lezing met de vergelijking, als laatste stap
+     vóór het schrijven. De eerste opslag na openen (`origin: 'opened'`) en een tabblad dat zijn versie niet kent (`null`:
+     na crashherstel, een mislukte schrijfactie, laden in hetzelfde tabblad) houden bewust de volgorde van main: de
+     doelscan als stroom (modelscan en indeling) en, alleen met een bekende versie, daarna de toets: drie lezingen na
+     openen, twee zonder bekende versie. "Eén lezing" bij een zelf geschreven versie geldt voor de vergelijking van het
+     eigen doel; een bronkenmerk zonder browserhandle (uit herstel) kan in de broncontrole zelf nog een lezing vragen.
+     De scanner van openen neemt meer aan dan de doelscan (twee datasecties, proef 2203 C in `check-bewaakte-opslag.ts`),
+     en de toets moet de laatste lezing blijven (review
+     Sol, ronde 1 van #1194). Ook een zelf geschreven versie die niet meer op het doel staat, krijgt die route van main.
+     Gemeten in Node 24 op aia09-mp50: zie de PR voor de getallen per opslag. In de app (Tauri-IPC, WebKit, `getFile()`,
+     een netwerkschijf, de Worker) niet gemeten. Richting: de scan bij openen in de achtergrond op `ifcSource.bytes`
+     laten draaien en de uitkomst bij de vingerafdruk bewaren, met een laatste toets vóór het schrijven. — B (gemeten in
+     Node, meetlogs `doelscan-logs/` van #1194)
 
 2206. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan in de browser): een aanraking tijdens het lezen van
      de eigen handle kan een onterechte weigering geven.** `knownTargetContentOfHandle` in
@@ -3802,6 +3827,22 @@ en noem het in je rapport of PR-tekst.
      veranderden. Er gaat niets verloren; opnieuw opslaan lukt. Richting: bij `NotReadableError` één keer opnieuw
      `getFile()` en lezen. Gevonden door de review van #1174 (Sol, ronde 1). — S (niet nagespeeld met een echte
      Chromium-handle)
+
+2244. **VERVOLG (#804, featureflag aan): opslaan na een wijziging van een bestand met een gebouwmodel en veel taken
+     duurt lang, en de tijd groeit sneller dan het aantal taken.** Het gaat om de gewijzigde merge: een bestand met een
+     gebouwmodel openen, een taak wijzigen en opslaan. Gemeten in Node op aia09-mp50 (24 november 2026, wandkloktijd,
+     één run per regel, op main van die dag) met `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` waaraan gewone taken
+     zijn toegevoegd: bij 1.000 taken (1,2 MB) 7,0 s, bij 5.000 taken (5,8 MB) 55,8 s, bij 10.000 taken (11,9 MB)
+     147,6 s. Openen van dat laatste bestand kost 4,3 s. Met één onbekende JSON-sleutel per taaknotitie: 5,8 s bij 1.000
+     en 183,1 s bij 5.000 taken. De metingen bij 1.000 en 5.000 taken liepen terwijl de machine zwaar belast was (load
+     20 tot 36); die bij 10.000 taken bij een load rond 3. Een eerdere run van 10.000 taken onder zware belasting kwam
+     op 513,8 s. Niets hiervan is in rust of in CPU-tijd gemeten, en niet in de app zelf (de opslag-Worker). Welke stap
+     sneller groeit dan het aantal taken, is nog niet uitgezocht. Er gaat niets verloren; de opslag slaagt. Met de
+     flag uit, en bij een planning zonder gebouwmodel of gegevens van een ander programma, loopt deze route niet.
+     Besluit technisch beslisser (24 november 2026): dit hoort bij de voorwaarden voordat de flag standaard aan mag;
+     opslaan na een wijziging mag bij 10.000 taken niet meer dan enkele seconden kosten, en een kwadratische stap is
+     een bug, geen grens. Gezien door de bouwer van #1188 bij het meten van die PR. — S (gemeten door de bouwer,
+     meetlogs `opslag-main-1k.log`, `opslag-main-5k.log` en `opslag-main-10k-rustig.log` van #1188; niet nagemeten)
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
@@ -3904,6 +3945,33 @@ en noem het in je rapport of PR-tekst.
       `<Duration>` op een taak optioneel, dus geldige XML van een andere schrijver kan dit raken; of MS Project zelf die
       velden weglaat, is niet nagegaan. Welke andere velden zo kunnen verschuiven, ook niet. — B
 
+2303. **De P6 XML-lezer rekent de eenheden van een materiaaltoewijzing om alsof het uren zijn.** In de toewijzingslezer
+      van `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) worden `PlannedUnits`, `ActualUnits` en `RemainingUnits`
+      voor elke soort resource keer 60 genomen en aan `importedWorkFields` gegeven; wijken ze af van de afgeleide, dan
+      komen ze in `plannedWorkMinutes`, `actualWorkMinutes` en `remainingWorkMinutes`, velden in werkminuten
+      (`src/types/resource.ts`). De XER-lezer geeft een materiaaltoewijzing geen werkvelden (`xerResourceAssignments.ts`).
+      Nagespeeld met een script via `readP6XMLDocuments`: een materiaal `Beton` (eenheid `m3`) op een taak van 480
+      minuten met `PlannedUnitsPerTime` 1.25 en `PlannedUnits`/`RemainingUnits` 3 geeft `plannedWorkMinutes` 180 en
+      `remainingWorkMinutes` 180; met 10 geeft het geen werkvelden, omdat 600 minuten gelijk is aan de afleiding. Open
+      vraag: of `PlannedUnits` van een materiaal in P6 XML uren zijn of de eigen eenheid van het materiaal; Oracle P6 Help
+      beschrijft materiaal met een eigen eenheid (https://docs.oracle.com/cd/F88966_01/p6help/en/33987.htm, aangedragen
+      in de review en niet zelf gelezen). Welke berekening die velden daarna voor materiaal gebruikt, is niet nagegaan.
+      — B
+
+2304. **De projectstart uit P6 XML houdt geen tijd, ook niet op een uurkalender.** `readP6XmlProject`
+      (`src/services/p6/p6xmlReader.ts`) leest `PlannedStartDate` van het project op een uurkalender met zijn tijd
+      (`xmlTaskDate`), maar zet `project.startDate` daarna op het anker dat `resolveMissingScheduleDates`
+      (`src/services/importDates.ts`) teruggeeft, en dat is het datumdeel. Nagespeeld met een script via
+      `readP6XMLDocuments`: een bestand met een projectkalender in twee blokken per dag en `PlannedStartDate`
+      `2026-11-23T09:00:00` geeft een uurkalender, `project.startDate` `2026-11-23` en een taakstart `2026-11-23T09:00`.
+      De eerste lezing met tijd verandert zo niets aan wat de lezer levert (ADR 0264). — B
+
+2305. **Na een P6 XML met `SequenceNumber` volgt `childIds` van een WBS-taak een andere volgorde dan de takenlijst.**
+      `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) sorteert de WBS-taken op `SequenceNumber`, maar vult
+      `childIds` van de ouder in de documentvolgorde. Nagespeeld met een script via `readP6XMLDocuments`: onder WBS `R`
+      staan in het bestand eerst `A` (`SequenceNumber` 2) en dan `B` (`SequenceNumber` 1); de takenlijst geeft `R, B, A`,
+      `childIds` van `R` geeft `A, B`. Welke delen van de app de volgorde uit `childIds` halen, is niet nagegaan. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
@@ -3948,7 +4016,7 @@ en noem het in je rapport of PR-tekst.
 1127. **Ontwerp #804 noemt twee versies en twee groottewaarden.** Het ontwerpbestand
      `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md` heet v20, maar §4.9 noemt
      de tijdelijke terugval "v21, fase 1a". De grootte is gelijkgezet (21 november 2026): §4.13 noemt twee getallen, de
-     productgrens van 150 MiB voor het openen van een model (`IFC_MODEL_OPEN_MAX_BYTES`) en de technische grens van de
+     drempel van 150 MiB voor de waarschuwing bij openen (`IFC_FOREIGN_OPEN_WARN_BYTES`) en de technische grens van de
      bytes-route van 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`, de meting van fase 0); meting en besluit bij 1936. VERVOLG
      (docs): de versieverwijzing in het ontwerp gelijkzetten. — B
 
@@ -3962,7 +4030,9 @@ en noem het in je rapport of PR-tekst.
      app op 3,0 GB staan. Vóór de ingrepen (main `1830e5e67`): 52 MB in 24,5 s met 2,08 GB; een model van 87 MB met
      vooral losse punten in 22,4 s met 2,52 GB (zonder wijziging 16,8 s en 1,97 GB); bij 157 MB stond het proces na 51
      s op 4,09 GB en stopte de kernel de webview, vóór er iets geschreven was (het bestand bleef byte-gelijk en
-     crashherstel zette de wijziging terug). In Node kost dezelfde opslag veel minder (CI-run 44895156035, het werk
+     crashherstel zette de wijziging terug). Dat is één gemeten geval, op Linux, tijdens het rekenen; het zegt niet wat
+     er gebeurt als het geheugen opraakt terwijl de app schrijft. Voor de vensters tijdens het schrijven en plaatsen zie
+     1890, 1899, 2207, 2208, 2247 en 2248. In Node kost dezelfde opslag veel minder (CI-run 44895156035, het werk
      van de opslagworker, met wijziging): 150 MiB in 9,18 s met 1.228 MB, 300 MiB in 16,97 s met 2.239 MB (vóór de
      ingrepen 17,35 s en 1.708 MB, en 33,23 s en 3.155 MB). De cijfers uit Node zeggen dus niet of een model in de
      desktopapp past. Openen is het probleem niet: 157 MB opent in 12,4 s met een piek van 1,68 GB. Stand na #1111 (de
@@ -3974,8 +4044,8 @@ en noem het in je rapport of PR-tekst.
      Rust-proces springt bij het schrijven nog tot 635 MB (dat haalt het geparkeerde #1110 weg), maar telt niet meer
      mee voor de piek. Bij de derde opslag (3.688 MB) is er 408 MB over tot het plafond van 4.096 MB. In die meting
      liep de piek per opslag nog op (ongeveer 0,1 tot 0,15 GB), hoewel elke opslag een verse worker heeft en de rust
-     niet oploopt; niet verklaard. Dat proefmodel is 3,6 KB groter dan 150 MiB en opent sinds de productgrens niet
-     meer. Stand op de release v2026.48.0 (main `e50c0f98a`), gemeten op 23 november 2026 in de desktopapp op Linux
+     niet oploopt; niet verklaard. Dat proefmodel is 3,6 KB groter dan 150 MiB; het opende van 21 tot 24 november 2026
+     niet en opent nu met de waarschuwing. Stand op de release v2026.48.0 (main `e50c0f98a`), gemeten op 23 november 2026 in de desktopapp op Linux
      (WebKitGTK) met het pakket van de release zelf (`.deb`), featureflag aan, Automatisch opslaan uit, een model uit
      dezelfde generator net onder de grens (157.184.144 bytes, 149,9 MiB), zes keer een duur gewijzigd en Ctrl+S met
      telkens 30 s rust: alle zes de opslagen slaagden. De afgelezen cgroup-piek van de hele app kwam bij de eerste
@@ -3988,9 +4058,14 @@ en noem het in je rapport of PR-tekst.
      kleiner) verschillen alle drie. Eén run, niet herhaald. De MB in de desktopmetingen van dit punt zijn binair
      (MiB) en afgekapt op hele eenheden: voor de hele app de standen van de cgroup, voor het Rust-proces de RSS van
      dat ene proces. De getallen in GB van de meting na #1111 zijn zulke cgroup-standen gedeeld door duizend (3.438 MB
-     staat er als 3,44 GB). Openen van een model boven 150 MiB weigert sinds 21 november 2026 (de productgrens
-     `IFC_MODEL_OPEN_MAX_BYTES`, besluit van de eigenaar, zie 1127); de technische grens van de bytes-route blijft 300
-     MiB, en de uitvoer van opslaan heeft geen grens (2043). Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB,
+     staat er als 3,44 GB). Openen van een model boven 150 MiB weigerde van 21 tot 24 november 2026. Sinds het besluit
+     van de eigenaar van 24 november ("zo laten, kunnen we niet maken dat het toch kan en dan gewoon hier een warning van
+     maken dat het heel gevaarlijk is?") opent het meteen, met een waarschuwing zonder timer die zegt dat opslaan kan
+     mislukken en recente wijzigingen dan verloren kunnen gaan (de drempel `IFC_FOREIGN_OPEN_WARN_BYTES`, PR #1203; dat
+     de melding kan verdwijnen zonder klik staat bij 2253). De app waarschuwt daar dus in plaats van te weigeren,
+     terwijl het geheugen daar niet bewezen is: op de desktop is boven 150 MiB alleen dat proefmodel van 157 MB gemeten,
+     3,6 KB boven de drempel; een groter model is nergens op de desktop gemeten. De technische grens van de bytes-route
+     blijft 300 MiB, en de uitvoer van opslaan heeft geen grens. Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB,
      en 300 MiB vraagt ruim 6 GB. Met de flag uit bestaat dit niet: openen van een bestand met een gebouwmodel wordt
      geweigerd, op main en in v2026.47.0 gelijk (157 MB en 87 MB gemeten), en een bestand van 87 MB zonder gebouwmodel
      slaat op beide in 0,7 s op. Niet gemeten: meer dan zes opslagen, Automatisch opslaan, Windows en macOS, 300 MiB
@@ -4034,20 +4109,15 @@ en noem het in je rapport of PR-tekst.
      (op main één worker, op de PR twee). Richting, als het nodig blijkt: de worker van gewone verzoeken los houden van
      die van de merge, zodat een gewoon verzoek zijn gestarte worker houdt zoals op main. — B (proef in Node)
 
-2043. **Een opgeslagen model kan boven de productgrens van 150 MiB uitkomen en opent daarna niet meer (#804, flag aan).**
-     Opslaan (merge), *Opslaan als* en *Exporteren* van een document met een gebouwmodel kennen geen grens op de
-     uitvoer (`writeIfcMerge` in `mergeWriter.ts`). De productgrens `IFC_MODEL_OPEN_MAX_BYTES` (`modelOpenLimit.ts`)
-     geldt alleen bij openen. Groeit een open model door de planning (taken, relaties, toewijzingen) tot boven 150 MiB,
-     dan gaat opslaan goed: de app schrijft het bestand, en een volgende Ctrl+S in dezelfde sessie lukt ook (de opslag
-     neemt de nieuwe bytes als bron over). Opnieuw openen weigert het daarna, met de melding "Dit IFC-bestand is groter
-     dan 150 MB …"; met de flag uit weigert openen het om het gebouwmodel, zoals main. Het crashherstel geeft het tot de
-     technische grens van 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`) terug met model en planning, zoals main
-     (`check-ifc-foreign-grens.ts` deel 3), mits de bron beschikbaar, passend (lengte en SHA-256) en leesbaar is. Er gaat
-     niets verloren: het bestand bevat model en planning. Met één bestand, één tabblad (PR #1121) geeft heropenen van
-     zo'n al open, inmiddels gegroeid model de groottemelding, en het huidige tabblad blijft actief: de groottecontrole
-     volgt direct op het parsen, vóór de tabbeslissing (proef "2043" in `check-one-file-one-tab.ts`, Openen, Recent,
-     slepen en MCP, met een verlaagde grens). Richting: vóór het
-     schrijven de uitvoer tegen de productgrens houden. — B (code gelezen; niet met een bestand van 150 MiB nagespeeld)
+2253. **VERVOLG (#804, flag aan): de waarschuwing bij een groot gebouwmodel kan verdwijnen zonder klik.** De melding
+     `notifications.ifcForeignOpenLarge` (boven 150 MiB, PR #1203) heeft geen timer (`STICKY_OPEN_NOTICE_KEYS`), maar
+     de stapel houdt hoogstens drie meldingen: bij vier grote bestanden in één sleepactie verdringt de vierde melding de
+     eerste. En staat de grootteregel onder een samengevoegde openingsmelding (bijvoorbeeld bij een onbruikbaar
+     XER-bronarchief, met een vaste `dedupeKey`), dan kan een volgende opening die melding vervangen, en daarmee de
+     grootteregel van het eerdere bestand. Gevolgen van de bestaande stapel en samenvouwing; de gids noemt de melding
+     daarom "zonder timer". De eigenaar koos voor "De waarschuwing blijft staan tot je haar wegklikt": dit punt gaat ook
+     naar hem. Bron: review van #1203, ronde 1 (Sol). — B (code gelezen: `notify` en `MAX_NOTIFICATIONS` = 3 in
+     `uiSlice.ts`; niet nagespeeld)
 
 2048. **VERVOLG (#1121, flag aan): de melding "buiten dit tabblad gewijzigd" kan ook komen als de lezing ouder is dan
      wat het tabblad net opsloeg.** Begint een openactie te lezen vlak voordat het tabblad met hetzelfde bestand opslaat

@@ -360,7 +360,6 @@
     "reportFontMissing": "Kendi yazı tipiniz {{name}} artık bu cihazda yok. Rapor yeniden Inter kullanıyor.",
     "layoutsNotSaved": "Düzenler kaydedilemedi. Hiçbir şey değişmedi. Lütfen yeniden deneyin.",
     "ifcForeignOpenSchema": "Bu IFC-dosyası başka bir programın verilerini içeriyor ve şeması bilinmiyor ya da eksik. Kaydederken veri kaybını önlemek için açma durduruldu.",
-    "ifcForeignOpenTooLarge": "Bu IFC dosyası {{limit}} MB'tan büyük. Yapı modeli veya başka bir programın verisini içeren bir IFC dosyası en fazla {{limit}} MB'a kadar açılabilir.",
     "ifcForeignOpenUnsafe": "Bu IFC-dosyası güvenli şekilde sınıflandırılamıyor. Kaydederken veri kaybını önlemek için açma durduruldu.",
     "ifc2x3PlanningOnly": "IFC2X3 planlama olarak açıldı. Kaydederken diğer programların verileri dahil edilmeyecek.",
     "ifcForeignReplaceBlocked": "Kaydedilmedi. Bu, açık olan dosyanız. Güncellemek için Kaydet'i, kopya için yeni bir adla Farklı kaydet'i kullanın.",

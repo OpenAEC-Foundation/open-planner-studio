@@ -11,8 +11,8 @@ bestand, omdat een getal anders bij elke rondgang verandert.
   (`dayMeasureMinutesPerDay`), als de projectkop `OPS_DayMeasureDurations` definieert (`workdayIsWorkTime`), en anders
   de opgeslagen uren per dag, zoals OPS tot en met F5a-1 schreef. `check-uren-f5a2-adapters.ts` (8) leest een bestand
   zonder die definitie met de opgeslagen 8 uur. Dezelfde dag (`dayMinutesPerDay`) geldt voor de baselineduur van een
-  taak die geen urentaak is. `workdayIsWorkTime` geldt ook voor het werk van een toewijzing, dat met de werktijd van de
-  taakkalender rekent, ook bij een kalendertijdtaak (ADR 0257).
+  taak die geen urentaak is. `workdayIsWorkTime` geldt ook voor het werk van een toewijzing dat uit een duur in dagen
+  wordt afgeleid: dat rekent met de werktijd van de taakkalender, ook bij een kalendertijdtaak (ADR 0257).
 - Een lagrecord uit `OPS_DayMeasureLags` telt alleen met twee elementen (een record met een eenheid hoort bij P6 XML,
   spec §3.3), alleen bij een werktijdformaat en alleen als zijn sleutel (`lagRecordKey`) één keer voorkomt bij die
   opvolger, omdat twee relaties met dezelfde voorganger en hetzelfde type het record dubbelzinnig maken. Daarna moeten
@@ -25,9 +25,9 @@ bestand, omdat een getal anders bij elke rondgang verandert.
   kalenderminuten, `check-uren-f5a-adapters.ts` een procentlag als -12,5 %.
 - Een onbekend relatietype wordt FS (`mspTypeToSequenceType`, ook gebruikt door de `.mpp`-lezer). Dat MPXJ dezelfde
   codes en dezelfde terugval heeft, komt uit het weggehaalde commentaar en is niet in de repo nagegaan.
-- Met de taakmarkering `days` leest de lezer een duur of rest van de vorm `PnD` rechtstreeks als n dagen (`wholeDays`),
-  buiten `mspDurationMinutes` om. Hoe `mspDurationMinutes` in elk ander geval een dagcomponent vóór de `T` telt, staat
-  in knownbug 2010.
+- Met de taakmarkering `days` geeft de lezer een duur of rest van de vorm `PnD` als n dagen door (`wholeDays`);
+  `readMeasure` neemt die dagen alleen als geen dagrecord voorgaat en het in de dagenmaat blijft. Hoe
+  `mspDurationMinutes` een dagcomponent vóór de `T` telt, staat in knownbug 2010.
 - De baselineduur rekent met dezelfde dag als de taakduur (`mspdiBaselineDays`). `check-dag-is-werktijd.ts` §8b leest
   `PT1870H0M0S` op een kalender met 8 uur per dag en blokken van 10 uur als 187 dagen. De baselinedatums lezen met
   dezelfde tijdregel als de taakdatums (`parseTaskDate`), zodat een urentaak haar tijd houdt zoals `saveBaseline` die
