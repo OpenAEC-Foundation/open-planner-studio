@@ -7,8 +7,9 @@ ruwe scan van elke taak (`RawTaskScan`) met haar effectieve kalender, dan de sig
 pas dan de taken. De promotie zet op de kalender `workTime` (de eigen blokken of blokken uit de enkelvoudige werkdag),
 `workDays` en de uren per dag; dat raakt ook wat daarna met die kalender rekent, zoals `scheduleDuration` (ADR 0282) en
 de speling in dagen (ADR 0285). Voor de datums van de taak geldt: op een gepromoveerde kalender houden ze hun tijd
-(`formatInstant(…, 'hour')`, op de minuut), anders alleen de datum. Duur, rest en lag zijn in elke stand minuten
-(ADR 0282).
+(`formatInstant(…, 'hour')`, op de minuut), anders alleen de datum. Duur en rest zijn in elke stand minuten; de
+lag volgt de regel van ADR 0282. Alleen een kalender uit de kalendersectie (`calendarByUniqueId`) kan promoveren: de
+standaardkalender die `readCalendars` teruggeeft bij een ontbrekende of onleesbare kalendersectie niet.
 
 ## Gevolgen
 
@@ -31,5 +32,6 @@ de speling in dagen (ADR 0285). Voor de datums van de taak geldt: op een gepromo
   behalve de projectkalender, dus ook de eigen kalenders van taken (`taskCalendar` zoekt daar).
 - `MINUTES_PER_DAY` uit de Props geldt alleen als hij groter is dan 0 en hoogstens 1440. Dan wordt hij de uren per dag
   van de projectkalender (`calendarHoursPerDayOverride`, in `readCalendars`), ook na de promotie, zoals
-  `<MinutesPerDay>` bij MSPDI. Anders blijven de uren per dag uit de blokken staan, en is de `hoursPerDay` van
+  `<MinutesPerDay>` bij MSPDI; alleen als die projectkalender in de kalendersectie is gevonden onder het unique-id dat
+  `readCalendars` als projectkalender aanwijst, dus niet bij een terugvalkalender. Anders blijven de uren per dag uit de blokken staan, en is de `hoursPerDay` van
   `parseProjectProperties` 8. Een corrupte waarde geeft zo geen absurde dag.
