@@ -509,7 +509,7 @@ for (const { label, edit, expect } of RELATION_EDITS) {
 
 if (fails.length > 0) {
   console.log(`XX  ifc-source-slot-write: ${fails.length} afwijking(en) van ${checks}`);
-  for (const f of fails.slice(0, 60)) console.log(`   - ${f}`);
+  for (const f of fails) console.log(`   - ${f}`);
   process.exit(1);
 }
 console.log(`OK  ifc-source-slot-write: ${checks} toetsen groen (${ruleSlots} slots in de regel, ${tested.size} van openen tot opslaan, ${Object.keys(EDITS).length} bewerkingen)`);

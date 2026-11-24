@@ -1775,6 +1775,18 @@ en noem het in je rapport of PR-tekst.
      aantallen C, A en V. Dat is extra werk bij het openen van een groot bestand, geen fout in de uitkomst. Richting:
      dit pad de gewone workersessie en `scanForeign` geven. Gezien in de code door de reviewer van #1180
      (GPT-6.2-Sol, ronde 2). — B (code)
+2232. **Een `LongDescription` (of een ander constant slot) van een ander programma in een bestand zonder vreemd deel gaat bij
+     opslaan verloren.** Flag aan, een eigen bestand waarin een ander programma een `LongDescription` op een taak zette
+     (zonder iets anders van zichzelf: dan is er geen vreemd deel). De gewone writer schrijft daar `$`, net als op main;
+     `ifcSource.sourceSlots` bestaat alleen bij een vreemd deel (`scanForeignToOpen` in
+     `src/services/ifc/foreign/foreignScan.ts`), en zonder vreemd deel loopt opslaan via `writeIFCWithChoices` in
+     `prepareIfcWrite` (`src/services/ifc/foreign/mergeWriter.ts`). Behoud vraagt de kaart ook zonder vreemd deel, plus de
+     schrijfregel op dat pad. Gemeten (#804 fase 2 PR 2 deel 2, `scanSourceSlots` over alle D- en R-stukken, heap na GC):
+     `showcase-appartementencomplex.ifc` (0,46 MiB, 1.630 stukken) 19 ms en 1,4 MiB; een gegenereerd eigen plan van
+     10.000 taken (11,3 MiB, 53.481 stukken) 366 ms en 50,2 MiB, bovenop de scan en indeling van 654 ms. Dat pad heeft nu
+     geen extra werk en is bytegelijk aan main; daarom bewust niet gebouwd. Richting: de kaart alleen voor stukken met een
+     niet-leeg constant slot, of de tokens bij opslaan uit `ifcSource.bytes` lezen zoals (b). Het verlies volgt uit de code
+     (de schrijffunctie van het slot is `() => '$'` in `ifcTaskSlots.ts`); de kosten zijn gemeten. — B (code)
 2233. **Een `IfcRelDeclares` of `IfcRelDefinesByProperties` van een ander programma draagt de merge niet.** Flag aan, een
      bestand waarin een ander programma de owner history van zo'n eigen relatie zette (de council-fixture
      `fix2-vendor-ops.ifc`: een applicatie met identifier `'/*vendor*/OPS'`, dus vreemde herkomst op elk stuk). De kaart
