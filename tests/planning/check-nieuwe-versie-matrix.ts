@@ -28,7 +28,7 @@ type Begin = 'schoon' | 'werk' | 'verouderd' | 'verouderdWerk' | 'backstage' | '
   | 'tweeStroken';
 type Before = 'niets' | 'opslagLoopt';
 type During = 'niets' | 'typen' | 'ctrlS' | 'opslaanAls' | 'recent' | 'slepen' | 'flagUit' | 'dialoog' | 'backstage'
-  | 'nieuwereVersie' | 'handleB' | 'venster' | 'exporteren' | 'tabSluiten' | 'recentAnder' | 'knopAnder';
+  | 'nieuwereVersie' | 'handleB' | 'venster' | 'exporteren' | 'tabSluiten' | 'recentAnder' | 'knopAnder' | 'tweeOpslagen';
 type Answer = 'nietOpslaan' | 'annuleren' | 'escape';
 type Moment = 'vraag' | 'lezen';
 interface Case { platform: Platform; begin: Begin; before: Before; during: During; moment: Moment; answer: Answer }
@@ -189,6 +189,16 @@ async function duringAction(w: World, c: Case, route: Route, created: Created[])
       T().addTask({ name: 'Opgeslagen in school' });
       created.push({ name: 'Opgeslagen in school', doc: b });
       await T().saveFile();
+      return;
+    case 'tweeOpslagen':
+      T().switchDocument(b);
+      T().addTask({ name: 'Eerst opgeslagen' });
+      created.push({ name: 'Eerst opgeslagen', doc: b });
+      await T().saveFile();
+      T().addTask({ name: 'Daarna opgeslagen als' });
+      created.push({ name: 'Daarna opgeslagen als', doc: b });
+      dialog.save = other;
+      await T().saveFileAs();
       return;
     case 'exporteren':
       dialog.save = T().filePath ?? kantoor;
@@ -353,7 +363,7 @@ async function runRoute(route: Route, c: Case) {
     const ordered = [...T().getOpenDocumentPayloads()].sort((x, y) =>
       String(x.payload.filePath ?? handleIds.get(x.payload.fileHandle ?? {}) ?? '').localeCompare(String(y.payload.filePath ?? handleIds.get(y.payload.fileHandle ?? {}) ?? ''))
       || x.payload.tasks.map(t => t.name).join().localeCompare(y.payload.tasks.map(t => t.name).join()));
-    for (const path of [kantoor, schoolPath]) { try { version(sha(readFileSync(path))); } catch { } }
+    for (const path of [kantoor, schoolPath, other]) { try { version(sha(readFileSync(path))); } catch { } }
     const tabs = ordered.map(({ id, payload }) => {
       const ref = payload.fileHandle ? `handle:${handleIds.get(payload.fileHandle) ?? '?'}` : payload.filePath ? `pad:${basename(payload.filePath)}` : null;
       const disk = payload.fileHandle ? (payload.fileHandle as unknown as FakeHandle).bytes
@@ -381,7 +391,7 @@ async function runRoute(route: Route, c: Case) {
       lost,
       notices: T().ui.notifications.map(n => n.messageKey).sort(),
       reads: readsOfKantoor,
-      disk: [kantoor, schoolPath].map(path => { try { return version(sha(readFileSync(path))); } catch { return null; } }),
+      disk: [kantoor, schoolPath, other].map(path => { try { return version(sha(readFileSync(path))); } catch { return null; } }),
       injective,
     };
   } finally {
@@ -420,6 +430,8 @@ add('pad', 'tweeStroken');
 add('pad', 'tweeStroken', 'knopAnder');
 add('pad', 'tweeStroken', 'recentAnder');
 add('pad', 'tweede', 'ctrlS');
+add('pad', 'schoon', 'tweeOpslagen');
+add('pad', 'werk', 'tweeOpslagen');
 add('pad', 'schoon', 'niets', ['nietOpslaan'], 'opslagLoopt');
 add('handle', 'schoon');
 add('handle', 'werk', 'niets', ['nietOpslaan', 'annuleren']);
