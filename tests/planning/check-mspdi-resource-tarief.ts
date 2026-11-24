@@ -36,7 +36,7 @@ const byName = (r: ImportResult, name: string) => r.resources.find(x => x.name =
 }
 
 {
-  const r = read(`${resource(1, 'Meerdere A-rijen', `<Rates>${rateRow('120')}${rateRow('120')}</Rates>`)}`);
+  const r = read(`${resource(1, 'Meerdere A-rijen', `<Rates>${rateRow('120')}${rateRow('130')}</Rates>`)}`);
   eq('3 meerdere tabel-A-rijen geven 120 (eerste in documentvolgorde)', byName(r, 'Meerdere A-rijen')?.costPerHour, 120);
 }
 
