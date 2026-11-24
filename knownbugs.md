@@ -3693,17 +3693,24 @@ en noem het in je rapport of PR-tekst.
      review van #1116 (Sol, ronde 4 tot en met 7). — S (review)
 
 2064. **VERVOLG, zo op main (desktop, ook met de featureflag uit): een startbestand dat al open staat en buiten de app
-     is vervangen, wisselt naar het oude tabblad; een volgende Ctrl+S overschrijft de nieuwere versie.** Staat
+     is vervangen, wisselt naar het oude tabblad; met de featureflag uit overschrijft een volgende Ctrl+S de nieuwere
+     versie.** Staat
      `kantoor.ifc` open en vervangt een ander programma (of een collega via een gedeelde map) het bestand op hetzelfde
      pad door een nieuwere versie, en opent de planner het daarna via een dubbelklik, *Openen met* of een tweede
      start, dan leest de startroute de nieuwe versie wel (`src/state/launchFiles.ts`, `read`, rond regel 100–118),
      maar `existingDocument` kiest het open tabblad met hetzelfde bestand (identiteit of padtekst) en `openOpenedFile`
      wisselt daarheen (`src/state/slices/fileSlice.ts`, `switchDocument(existing)`). De zojuist gelezen inhoud
-     vervalt, zonder melding; het tabblad toont de oude stand. Bij een gewone planning (zonder vreemd deel) vergelijkt
-     Ctrl+S de versie op schijf niet met de versie van het tabblad: de opslag vervangt de nieuwere versie en het
-     extern opgeslagen werk is weg. Met de featureflag aan kan de doelscan een onleesbaar doel of een doel met vreemde
-     inhoud weigeren; een leesbare gewone planning komt erdoor, ook als zij intussen veranderd is. De herlezing van de
-     startroute (`stale`, knownbug 2036) telt alleen schrijfbeurten van de app zelf, geen wijziging van buiten. Via
+     vervalt, zonder melding; het tabblad toont de oude stand. Met de featureflag uit vergelijkt Ctrl+S bij een gewone
+     planning (zonder vreemd deel) de versie op schijf niet met de versie van het tabblad: de opslag vervangt de
+     nieuwere versie en het extern opgeslagen werk is weg. Met de flag aan weigeren Ctrl+S en Automatisch opslaan dat
+     sinds #1174 met de bestaande melding ("Het bestand is intussen door een ander programma gewijzigd"), zolang het
+     tabblad de versie van zijn bestand kent (`knownTargetFingerprint`, `check-bewaakte-opslag.ts`); na een export over
+     het eigen bestand kent het de geschreven versie. Wat daarvan overblijft: kent het tabblad die versie niet (`null`: na
+     een mislukte schrijfactie naar het eigen pad, na crashherstel, na laden in hetzelfde tabblad), dan schrijft Ctrl+S
+     eroverheen zoals main; bij twee tabbladen op hetzelfde bestand (1957) en bij de schrijvers die het tabblad niet ziet
+     (2065) weigert de volgende opslag met dezelfde melding, ook als de app zelf de schrijver was; en het gat tussen toets
+     en schrijven (2069). Het wisselen hierboven blijft. De herlezing van de startroute (`stale`, knownbug 2036) telt
+     alleen schrijfbeurten van de app zelf, geen wijziging van buiten. Via
      Bestand → Openen, Recent en slepen opent main in dit geval een tweede tabblad met de nieuwe versie. Zelfde
      familie als 1957. Dezelfde volgorde blokkeerde PR #1121 in reviewronde 7; daar is zij nagespeeld voor Openen,
      Recent, slepen en MCP, de startroute zelf niet. Richting: alleen wisselen als de gelezen versie overeenkomt met
@@ -3754,6 +3761,39 @@ en noem het in je rapport of PR-tekst.
      uitzetten precies tijdens de nacontrole valt. — B (code)
 
 
+2069. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan bij een gewone planning): tussen de toets en het
+     schrijven kan het bestand nog veranderen.** Met de featureflag `ifcForeignContent` vergelijkt de app het eigen pad of
+     de eigen handle vóór het schrijven met de versie die het tabblad kent (`changedKnownTarget` in
+     `src/state/knownTargetGuard.ts`, aangeroepen in `writeActiveDocument` in `fileSlice.ts` en in de gewone ronde van
+     `fileAutoSave.ts`). Daarna volgen zonder nieuwe lezing de inhoudscontrole van het document, op de desktop het
+     tijdelijke bestand en de `rename` (`replaceUserFile`), in de browser `createWritable()` en `close()`. Schrijft een
+     ander programma het bestand in die tijd (op de desktop ongeveer zo lang als het schrijven van het tijdelijke
+     bestand duurt), dan overschrijft de app die versie zonder melding, zoals main dat altijd doet. Een document met een
+     gebouwmodel heeft daar de vervanging met een tweede vergelijking vlak vóór het plaatsen
+     (`replaceOwnPathWithRecovery`); die route is voor een gewone planning bewust niet overgenomen (opdracht #804). —
+     S (code gelezen, niet nagespeeld)
+
+2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): met de featureflag aan leest de bestaande
+     doelscan vóór elke Ctrl+S en elke ronde het hele eigen bestand, en daarna leest de toets van de bekende versie het
+     nog eens.** `refusedWriteTarget` in `src/state/ifcForeignGuard.ts` laat `targetRefusal`
+     (`src/services/fileAccess/foreignSourceTarget.ts`) het doel ook bij een gewone planning helemaal indelen; daarna
+     leest `changedKnownTarget` (`src/state/knownTargetGuard.ts`) het bij gelijke grootte opnieuw en rekent de SHA-256.
+     Gemeten in Node op aia09-mp50 (23 november 2026, mediaan van 15): voor een planning van 10.000 taken (11.821.500
+     bytes) kost de doelscan alleen al in het geheugen 1.732 ms, de toets 23,5 ms; voor het grootste voorbeeld (481.752
+     bytes) 74 ms tegen 2 ms. In de app (lezen via de Tauri-plugin of `getFile()`, en op een netwerkschijf) is het niet
+     gemeten. Richting: scan en hash in één lezing. Besluit technisch beslisser (23 november 2026): dit hoort bij de
+     voorwaarden voordat de flag standaard aan mag. — B (gemeten in Node, meetlog
+     `bewaakte-opslag-logs/07-meting.log` van #1174)
+
+2206. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan in de browser): een aanraking tijdens het lezen van
+     de eigen handle kan een onterechte weigering geven.** `knownTargetContentOfHandle` in
+     `src/services/fileAccess/knownTargetContent.ts` haalt één `File` op met `getFile()` en leest daarna de grootte en de
+     bytes (`arrayBuffer()`). Verandert het bestand tussen die twee stappen, ook alleen de wijzigingstijd, dan kan
+     Chromium het al opgehaalde `File` onleesbaar maken (`NotReadableError`). De toets geeft dan `unreadable`: Ctrl+S
+     weigert met "verplaatst, verwijderd of niet meer te lezen" en Automatisch opslaan stopt, ook als de bytes niet
+     veranderden. Er gaat niets verloren; opnieuw opslaan lukt. Richting: bij `NotReadableError` één keer opnieuw
+     `getFile()` en lezen. Gevonden door de review van #1174 (Sol, ronde 1). — S (niet nagespeeld met een echte
+     Chromium-handle)
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
