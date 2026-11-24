@@ -3796,20 +3796,27 @@ en noem het in je rapport of PR-tekst.
      ander programma het bestand in die tijd (op de desktop ongeveer zo lang als het schrijven van het tijdelijke
      bestand duurt), dan overschrijft de app die versie zonder melding, zoals main dat altijd doet. Een document met een
      gebouwmodel heeft daar de vervanging met een tweede vergelijking vlak vóór het plaatsen
-     (`replaceOwnPathWithRecovery`); die route is voor een gewone planning bewust niet overgenomen (opdracht #804). —
+     (`replaceOwnPathWithRecovery`); die route is voor een gewone planning bewust niet overgenomen (opdracht #804). Bij
+     een versie die het tabblad zelf schreef (PR #1194) vervalt de doelscan, maar de toets blijft de laatste lezing vóór
+     het schrijven: hetzelfde gat als hier beschreven, niet groter. —
      S (code gelezen, niet nagespeeld)
 
-2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): met de featureflag aan leest de bestaande
-     doelscan vóór elke Ctrl+S en elke ronde het hele eigen bestand, en daarna leest de toets van de bekende versie het
-     nog eens.** `refusedWriteTarget` in `src/state/ifcForeignGuard.ts` laat `targetRefusal`
-     (`src/services/fileAccess/foreignSourceTarget.ts`) het doel ook bij een gewone planning helemaal indelen; daarna
-     leest `changedKnownTarget` (`src/state/knownTargetGuard.ts`) het bij gelijke grootte opnieuw en rekent de SHA-256.
-     Gemeten in Node op aia09-mp50 (23 november 2026, mediaan van 15): voor een planning van 10.000 taken (11.821.500
-     bytes) kost de doelscan alleen al in het geheugen 1.732 ms, de toets 23,5 ms; voor het grootste voorbeeld (481.752
-     bytes) 74 ms tegen 2 ms. In de app (lezen via de Tauri-plugin of `getFile()`, en op een netwerkschijf) is het niet
-     gemeten. Richting: scan en hash in één lezing. Besluit technisch beslisser (23 november 2026): dit hoort bij de
-     voorwaarden voordat de flag standaard aan mag. — B (gemeten in Node, meetlog
-     `bewaakte-opslag-logs/07-meting.log` van #1174)
+2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): de eerste opslag na openen leest het eigen bestand
+     nog drie keer, een opslag zonder bekende versie twee keer.** Sinds PR #1194 vervalt de doelscan als op het eigen pad of
+     de eigen handle de versie staat die het tabblad zelf schreef (`origin: 'written'`, `writtenKnownTarget` in
+     `src/state/knownTargetGuard.ts`): dan blijven de broncontrole en één lezing met de vergelijking, als laatste stap
+     vóór het schrijven. De eerste opslag na openen (`origin: 'opened'`) en een tabblad dat zijn versie niet kent (`null`:
+     na crashherstel, een mislukte schrijfactie, laden in hetzelfde tabblad) houden bewust de volgorde van main: de
+     doelscan als stroom (modelscan en indeling) en, alleen met een bekende versie, daarna de toets: drie lezingen na
+     openen, twee zonder bekende versie. "Eén lezing" bij een zelf geschreven versie geldt voor de vergelijking van het
+     eigen doel; een bronkenmerk zonder browserhandle (uit herstel) kan in de broncontrole zelf nog een lezing vragen.
+     De scanner van openen neemt meer aan dan de doelscan (twee datasecties, proef 2203 C in `check-bewaakte-opslag.ts`),
+     en de toets moet de laatste lezing blijven (review
+     Sol, ronde 1 van #1194). Ook een zelf geschreven versie die niet meer op het doel staat, krijgt die route van main.
+     Gemeten in Node 24 op aia09-mp50: zie de PR voor de getallen per opslag. In de app (Tauri-IPC, WebKit, `getFile()`,
+     een netwerkschijf, de Worker) niet gemeten. Richting: de scan bij openen in de achtergrond op `ifcSource.bytes`
+     laten draaien en de uitkomst bij de vingerafdruk bewaren, met een laatste toets vóór het schrijven. — B (gemeten in
+     Node, meetlogs `doelscan-logs/` van #1194)
 
 2206. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan in de browser): een aanraking tijdens het lezen van
      de eigen handle kan een onterechte weigering geven.** `knownTargetContentOfHandle` in
