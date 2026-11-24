@@ -2,6 +2,7 @@
 paths:
   - "src/services/mpp/**"
   - "src/services/formatRegistry.ts"
+  - "src/services/msproject/mspdiReader.ts"
   - "tests/planning/check-mpp-*"
   - "src/state/timephasedLossNotice.ts"
   - "src/components/task-sections/TaskTimephasedNotice.tsx"
@@ -35,3 +36,11 @@ eigenschappenpaneel (`TaskTimephasedNotice.tsx`); beide linken via `openHelpArti
 `public/docs/{nl,en}/howto-mpp-openen.md` voor het gebruikersperspectief en de overige
 `tests/planning/check-mpp-*.ts`-batterijen (import/relations/calendars/summary-relations) voor de
 rest van de regressiedekking.
+
+### De MSPDI-lezer (`mspdiReader.ts`)
+
+Besluiten van de lezer van MS Project XML: `docs/adr/0250-mspdi-lezen-ops-markeringen.md`,
+`0251-mspdi-lezen-duur-rest-lag-en-baseline.md`, `0252-mspdi-lezen-uurkalender-en-tijd-van-een-datum.md`,
+`0253-mspdi-lezen-werkweek-en-werkdag.md`, `0254-mspdi-lezen-uitzonderingen-en-basiskalenders.md`,
+`0255-mspdi-lezen-rekenuitvoer-van-ms-project.md`, `0256-mspdi-lezen-soort-mijlpaal.md` en
+`0257-mspdi-lezen-resources-en-toewijzingen.md`.
