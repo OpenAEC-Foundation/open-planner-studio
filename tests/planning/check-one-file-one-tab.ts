@@ -1424,11 +1424,13 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
             const waiting = [phase(st), reads - readsAtClick];
             release.open();
             await saving;
+            const finished = await Promise.race([loading.then(() => true), new Promise<boolean>(r => setTimeout(() => r(false), 2000))]);
+            if (!finished) T().cancelReload();
             await loading;
             eq('R9-3 (Sol, ronde 9): Ctrl+S schrijft al als de knop wordt ingedrukt ⇒ het herladen wacht in de rij; daarna klopt het tabblad met de schijf, geen strook', [
-              waiting, T().activeDocumentId === a, T().tasks.map(t => t.name), T().isDirty,
+              finished, waiting, T().activeDocumentId === a, T().tasks.map(t => t.name), T().isDirty,
               readFileSync(kantoor, 'utf8').includes('Eigen werk'), T().knownTargetFingerprint?.sha256 === onDisk(), marked(st, a), T().ui.reloadVersion,
-            ], [['reading', 0], true, ['Fundering', 'Eigen werk'], false, true, true, false, null]);
+            ], [true, ['reading', 0], true, ['Fundering', 'Eigen werk'], false, true, true, false, null]);
           } finally {
             release.open();
             internals.invoke = outer;
