@@ -12,6 +12,7 @@ import { loadStore } from './ifcAppRoute';
 import { installNodeFileIpc } from './nodeFileIpc';
 import { installDeterminism } from './ifcPariteitKern';
 import { InProcessWorker } from './inProcessSaveWorker';
+import { fakeScanWorker } from './fakeScanWorker';
 
 installDeterminism();
 await loadStore();
@@ -74,10 +75,16 @@ const sameSizeOtherContent = (data: Uint8Array): Uint8Array => {
 
 const handleFiles = new Map<string, Uint8Array>();
 const handleReads = new Map<string, number>();
+let onSameEntry: (() => void) | null = null;
 class FakeHandle {
   readonly kind = 'file';
   constructor(readonly name: string) {}
-  async isSameEntry(other: unknown) { return other instanceof FakeHandle && other.name === this.name; }
+  async isSameEntry(other: unknown) {
+    const during = onSameEntry;
+    onSameEntry = null;
+    during?.();
+    return other instanceof FakeHandle && other.name === this.name;
+  }
   async queryPermission() { return 'granted'; }
   async requestPermission() { return 'granted'; }
   async getFile() {
@@ -654,7 +661,7 @@ await check('de flag gaat uit terwijl de vergelijking loopt: Automatisch opslaan
 function flagProbe(on: boolean) {
   const flags = {};
   let yielded = true;
-  const targetCheckReads: boolean[] = [];
+  const writtenReads: boolean[] = [];
   let guardReads = 0;
   Object.defineProperty(flags, 'ifcForeignContent', {
     enumerable: true,
@@ -664,14 +671,14 @@ function flagProbe(on: boolean) {
         guardReads++;
         yielded = false;
         queueMicrotask(() => { yielded = true; });
-      } else if (/\brefusedWriteTarget\d*\b/.test(stack)) targetCheckReads.push(yielded);
+      } else if (/\bwrittenFingerprint\d*\b/.test(stack)) writtenReads.push(yielded);
       return on;
     },
   });
-  return { flags, guardReads: () => guardReads, targetCheckAfterYield: () => targetCheckReads.at(-1) };
+  return { flags, guardReads: () => guardReads, writtenAfterYield: () => writtenReads.at(-1) };
 }
 
-await check('geldt de bewaking niet (flag uit), dan wacht Ctrl+S en Automatisch opslaan nergens op tussen die toets en de doelcontrole, zoals main', async () => {
+await check('geldt de bewaking niet (flag uit), dan wacht Ctrl+S en Automatisch opslaan nergens op tussen die toets en het schrijven, zoals main', async () => {
   const limit = Error.stackTraceLimit;
   Error.stackTraceLimit = 50;
   const ipc = desktop();
@@ -685,7 +692,7 @@ await check('geldt de bewaking niet (flag uit), dan wacht Ctrl+S en Automatisch 
       edit(store);
       assert.equal(await ctrlS(store), true);
       assert(probe.guardReads() > 0, 'Ctrl+S las de flag in de toets');
-      assert.equal(probe.targetCheckAfterYield(), on, `Ctrl+S, flag ${on ? 'aan: wel' : 'uit: geen'} wachtstap tussen toets en doelcontrole`);
+      assert.equal(probe.writtenAfterYield(), on, `Ctrl+S, flag ${on ? 'aan: wel' : 'uit: geen'} wachtstap tussen toets en schrijven`);
       const autoPath = fileAt(`volgorde-auto-${on}.ifc`, plainBytes());
       const { store: auto } = await openAt({ kind: 'path', path: autoPath }, plainBytes());
       const controller = autoSave(auto);
@@ -695,7 +702,7 @@ await check('geldt de bewaking niet (flag uit), dan wacht Ctrl+S en Automatisch 
       await controller.flush();
       assert.equal(auto.getState().isDirty, false);
       assert(autoProbe.guardReads() > 0, 'de ronde las de flag in de toets');
-      assert.equal(autoProbe.targetCheckAfterYield(), on, `Automatisch opslaan, flag ${on ? 'aan: wel' : 'uit: geen'} wachtstap tussen toets en doelcontrole`);
+      assert.equal(autoProbe.writtenAfterYield(), on, `Automatisch opslaan, flag ${on ? 'aan: wel' : 'uit: geen'} wachtstap tussen toets en schrijven`);
     }
   } finally { ipc.dispose(); Error.stackTraceLimit = limit; }
 });
@@ -753,14 +760,14 @@ await check('2203 A: staat op het eigen pad of de eigen handle de versie die het
   assert.deepEqual(errors(store), []);
 });
 
-await check('2203 B: de eerste Ctrl+S na openen leest het doel één keer en schrijft; een geopende versie wordt op die bytes gescand', async () => {
+await check('2203 B: de eerste Ctrl+S na openen loopt zoals main: eerst de doelscan als stroom, dan de toets van de bekende versie, en schrijft', async () => {
   const ipc = desktop(), path = fileAt('geopend.ifc', plainBytes());
   try {
     const { store } = await openAt({ kind: 'path', path }, plainBytes());
     assert.equal(origin(store), 'opened');
     const read = ipc.bytesRead(), saved = edit(store);
     assert.equal(await ctrlS(store), true);
-    assert.equal(ipc.bytesRead() - read, plainBytes().byteLength, 'één lezing, geen tweede en derde');
+    assert.equal(ipc.bytesRead() - read, 3 * plainBytes().byteLength, 'de modelscan, de indeling en de toets, zoals main');
     assert(holds(path, saved));
     assert.equal(origin(store), 'written');
     assert.deepEqual(errors(store), []);
@@ -770,10 +777,10 @@ await check('2203 B: de eerste Ctrl+S na openen leest het doel één keer en sch
   const reads = handleReads.get(handle.name) ?? 0;
   edit(store);
   assert.equal(await ctrlS(store), true);
-  assert.equal((handleReads.get(handle.name) ?? 0) - reads, 1, 'één getFile op de eigen handle');
+  assert.equal((handleReads.get(handle.name) ?? 0) - reads, 2, 'de doelscan en de toets, zoals main');
 });
 
-await check('2203 A en B: of er gescand wordt, hangt alleen aan de herkomst en de inhoud uit die ene lezing (een toestand die de app zelf niet maakt: een gebouwmodel met een passende vingerafdruk)', async () => {
+await check('2203 A en B: of er gescand wordt, hangt alleen aan de herkomst en de laatste toets (een toestand die de app zelf niet maakt: een gebouwmodel met een passende vingerafdruk)', async () => {
   for (const kind of ['pad', 'handle'] as const) {
     for (const from of ['written', 'opened'] as const) {
       const ipc = kind === 'pad' ? desktop() : null, model = modelBytes();
@@ -798,8 +805,8 @@ await check('2203 A en B: of er gescand wordt, hangt alleen aan de herkomst en d
         const fresh = newErrors(store);
         edit(store);
         const saved = await ctrlS(store);
-        assert.equal(reads(), kind === 'pad' ? model.byteLength : 1, `${kind}, ${from}: één lezing`);
         if (from === 'written') {
+          assert.equal(reads(), kind === 'pad' ? model.byteLength : 1, `${kind}: alleen de toets, één lezing`);
           assert.equal(saved, true, `${kind}: zelf geschreven, dus geen scan`);
           assert.notDeepEqual(print(onTarget()), print(model));
         } else {
@@ -812,16 +819,15 @@ await check('2203 A en B: of er gescand wordt, hangt alleen aan de herkomst en d
   }
 });
 
-await check('2203 C: een geopend bestand met twee datasecties (openen neemt het aan, de doelscan niet): Ctrl+S scant de gelezen bytes en weigert, zoals voor deze PR', async () => {
+await check('2203 C: een geopend bestand met twee datasecties (openen neemt het aan, de doelscan niet): Ctrl+S scant zoals main en weigert', async () => {
   const ipc = desktop(), split = twoDataSections(plainBytes()), path = fileAt('twee-datasecties.ifc', split);
   try {
     const { store } = await openAt({ kind: 'path', path }, split);
     assert.equal(origin(store), 'opened', 'het bestand opende via de bytes-route');
-    const fresh = newErrors(store), read = ipc.bytesRead();
+    const fresh = newErrors(store);
     edit(store);
     assert.equal(await ctrlS(store), false);
     assert.deepEqual(fresh(), [UNREADABLE_TARGET]);
-    assert.equal(ipc.bytesRead() - read, split.byteLength, 'één lezing');
     assert.deepEqual(onDisk(path), print(split));
     assert.equal(store.getState().isDirty, true);
   } finally { ipc.dispose(); }
@@ -927,6 +933,130 @@ await check('2203 en knownbug 2065: schreef een ander tabblad via de browserkiez
   assert.deepEqual(fresh(), [CHANGED]);
   assert.deepEqual(onHandle(own), onOwn);
 });
+
+function duringClassification(action: () => void) {
+  const original = globalThis.Worker;
+  let fired = 0;
+  globalThis.Worker = class {
+    constructor(url: unknown) {
+      if (!String(url).includes('foreignScan')) throw new Error(`onverwachte Worker in de proef: ${String(url)}`);
+      const worker = fakeScanWorker('ok') as unknown as { postMessage: (message: unknown) => void };
+      const post = worker.postMessage;
+      worker.postMessage = (message) => {
+        if (fired === 0 && typeof message === 'object' && message !== null && 'bytes' in message) { fired++; action(); }
+        post(message);
+      };
+      return worker;
+    }
+  } as unknown as typeof Worker;
+  return { fired: () => fired, dispose: () => { globalThis.Worker = original; } };
+}
+const save = async (store: Store, action: 'Ctrl+S' | 'Automatisch opslaan') => {
+  if (action === 'Ctrl+S') return ctrlS(store);
+  await autoSave(store).flush();
+  return !store.getState().isDirty;
+};
+const ACTIONS = ['Ctrl+S', 'Automatisch opslaan'] as const;
+const label = (text: string) => text.replace(/[ +]/g, '-');
+
+for (const kind of ['pad', 'handle'] as const) {
+  for (const action of ACTIONS) {
+    await check(`fixronde 1 (Sol): een gebouwmodel dat tijdens de indeling van de eerste opslag na openen op het doel verschijnt, blijft staan, zoals op main (${kind}, ${action})`, async () => {
+      const ipc = kind === 'pad' ? desktop() : null, model = modelBytes();
+      let hook: ReturnType<typeof duringClassification> | null = null;
+      try {
+        let store: Store, onTarget: () => Uint8Array, place: () => void;
+        if (kind === 'pad') {
+          const path = fileAt(`indeling-${label(action)}.ifc`, plainBytes());
+          ({ store } = await openAt({ kind: 'path', path }, plainBytes()));
+          onTarget = () => new Uint8Array(readFileSync(path));
+          place = () => writeFileSync(path, model);
+        } else {
+          const handle = newHandle(plainBytes());
+          ({ store } = await openAt(handleRef(handle), plainBytes()));
+          onTarget = () => handleFiles.get(handle.name)!;
+          place = () => { handleFiles.set(handle.name, model); };
+        }
+        assert.equal(origin(store), 'opened');
+        edit(store);
+        hook = duringClassification(place);
+        assert.equal(await save(store, action), false);
+        assert.equal(hook.fired(), 1, 'het model verscheen tijdens de indeling');
+        assert.deepEqual(print(onTarget()), print(model), 'de externe bytes staan er nog');
+        assert.equal(store.getState().isDirty, true);
+        assert.deepEqual(errors(store), [action === 'Ctrl+S' ? CHANGED : AUTOSAVE_CHANGED]);
+      } finally { hook?.dispose(); ipc?.dispose(); }
+    });
+  }
+}
+
+for (const action of ACTIONS) {
+  await check(`fixronde 1 (Sol): een gebouwmodel dat op de eigen handle verschijnt terwijl de app de bron van een ander tabblad vergelijkt, blijft staan, ook op een zelf geschreven versie, zoals op main (${action})`, async () => {
+    const own = newHandle(plainBytes()), source = newHandle(modelBytes()), model = modelBytes();
+    const { store } = await openAt(handleRef(own), plainBytes());
+    const plain = store.getState().activeDocumentId;
+    await store.getState().openOpenedFile({ name: source.name, content: '', bytes: modelBytes(), ref: handleRef(source) });
+    assert.notEqual(store.getState().activeDocumentId, plain, 'het model staat in een eigen tabblad');
+    store.getState().switchDocument(plain);
+    edit(store);
+    assert.equal(await ctrlS(store), true);
+    assert.equal(origin(store), 'written');
+    const fresh = newErrors(store);
+    edit(store);
+    let fired = 0;
+    onSameEntry = () => { fired++; handleFiles.set(own.name, model); };
+    try { assert.equal(await save(store, action), false); } finally { onSameEntry = null; }
+    assert.equal(fired, 1, 'het model verscheen tijdens de vergelijking van de handles');
+    assert.deepEqual(onHandle(own), print(model));
+    assert.equal(store.getState().isDirty, true);
+    assert.deepEqual(fresh(), [action === 'Ctrl+S' ? FOREIGN_TARGET : 'notifications.ifcForeignTargetAutoSave']);
+  });
+}
+
+for (const from of ['opened', 'written'] as const) {
+  for (const action of ACTIONS) {
+    await check(`fixronde 1 (Sol): het eigen bestand is weg en vóór de doelscan verschijnt een andere planning op die naam: de app weigert met "gewijzigd", zoals op main (${from}, ${action})`, async () => {
+      const ipc = desktop(), path = fileAt(`weg-en-terug-${from}-${label(action)}.ifc`, plainBytes());
+      try {
+        const { store } = await openAt({ kind: 'path', path }, plainBytes());
+        if (from === 'written') { edit(store); assert.equal(await ctrlS(store), true); }
+        assert.equal(origin(store), from);
+        edit(store);
+        rmSync(path);
+        let fired = 0;
+        ipc.once(/^plugin:fs\|open$/, () => { fired++; writeFileSync(path, otherPlainBytes()); });
+        assert.equal(await save(store, action), false);
+        assert.equal(fired, 1, 'de andere planning verscheen vlak vóór de doelscan');
+        assert.deepEqual(onDisk(path), print(otherPlainBytes()));
+        assert.equal(store.getState().isDirty, true);
+        assert.deepEqual(errors(store), [action === 'Ctrl+S' ? CHANGED : AUTOSAVE_CHANGED]);
+      } finally { ipc.dispose(); }
+    });
+  }
+}
+
+for (const from of ['opened', 'written'] as const) {
+  for (const action of ACTIONS) {
+    await check(`fixronde 1 (Sol): stond er even een andere planning van dezelfde grootte en zet een ander programma de bekende versie tijdens de indeling terug, dan schrijft de app, zoals main (${from}, ${action})`, async () => {
+      const ipc = desktop(), path = fileAt(`teruggezet-${from}-${label(action)}.ifc`, plainBytes());
+      let hook: ReturnType<typeof duringClassification> | null = null;
+      try {
+        const { store } = await openAt({ kind: 'path', path }, plainBytes());
+        if (from === 'written') { edit(store); assert.equal(await ctrlS(store), true); }
+        assert.equal(origin(store), from);
+        const knownBytes = new Uint8Array(readFileSync(path));
+        writeFileSync(path, sameSizeChange(knownBytes));
+        const saved = edit(store);
+        hook = duringClassification(() => writeFileSync(path, knownBytes));
+        assert.equal(await save(store, action), true);
+        assert.equal(hook.fired(), 1, 'de bekende versie kwam tijdens de indeling terug');
+        assert(holds(path, saved));
+        assert.deepEqual(errors(store), []);
+        assert.equal(origin(store), 'written');
+      } finally { hook?.dispose(); ipc.dispose(); }
+    });
+  }
+}
 
 rmSync(dir, { recursive: true, force: true });
 console.log(`Bewaakte opslag: ${passed} geslaagd, ${failed} mislukt.`);
