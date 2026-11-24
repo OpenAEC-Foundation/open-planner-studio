@@ -139,4 +139,8 @@ een proefkopie (0151), de vraag bij een nieuwe samenvattingstaak (0152), een taa
 tijd en de velden van een nieuwe taak (0211), een tijdpatch samenvoegen (0212), een bewerking laat afgeleide sturing
 los (0213), de gevolgen van een duurwijziging (0214) en MSP-herkomst in bewerkregels (0215).
 
+**Besluiten in `runtime/createMcpTransactions.ts`** staan in `docs/adr/`: een MCP-transactie beslist op haar uitkomst
+en draait als geheel terug (0240), de draftprimitieven (0241), taken in bulk aanmaken (0242) en de twee patchroutes
+voor een taak (0243).
+
 **De WBS-nummering van een geladen bestand** (`Project.wbsAutoNumber`): `docs/adr/0185-wbs-nummering-van-een-geladen-bestand.md`.
