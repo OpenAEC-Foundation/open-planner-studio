@@ -780,6 +780,7 @@
     "closeTitle": "Unsaved changes",
     "closeBody": "'{{name}}' has changes that haven't been saved yet.",
     "dontSave": "Don't save",
+    "changedOnDiskReading": "Reading the new version…",
     "changedOnDiskDiscard": "Discard changes and load",
     "changedOnDiskQuestion": "You have changes that have not been saved. If you load the new version, they will be lost. Choose Save As to keep them in a new file first.",
     "changedOnDiskLoad": "Load new version",

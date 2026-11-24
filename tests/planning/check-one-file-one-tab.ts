@@ -16,6 +16,7 @@ const { createAppStoreContext } = await import('@/state/appStoreFactory');
 const { startOpenLookup, openTabFor, changedOnDiskShown } = await import('@/state/openDocumentFor');
 const { hasChangedOnDisk } = await import('@/state/documentSaveState');
 const { isBlockingDialogOpen } = await import('@/state/blockingDialogs');
+const { isGlobalShortcutFrozen } = await import('@/hooks/keyboard/shortcutRegistry');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
 const { writeCSV } = await import('@/services/csv/csvWriter');
@@ -1275,8 +1276,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         };
         return { reached: reached.wait, release: release.open, reads: () => reads, stop: () => { internals.invoke = outer; } };
       };
-      const { SHORTCUTS } = await import('@/hooks/keyboard/shortcutRegistry');
-      const escape = SHORTCUTS.find(shortcut => shortcut.id === 'edit.deselect')!;
       const changedTab = async (dirty: boolean) => {
         const ctx = await setup(true, dirty);
         writeFileSync(kantoor, changedIfc);
@@ -1347,7 +1346,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           const before = [T().activeDocumentId === a, shown(st), T().isDirty];
           await T().loadNewVersion(labels);
           const after = [T().activeDocumentId === a, T().documents.length, T().filePath, T().isDirty,
-            T().knownTargetFingerprint?.sha256 === onDisk(), T().ui.pendingReloadDocId, marked(st, a), shown(st)];
+            T().knownTargetFingerprint?.sha256 === onDisk(), T().ui.reloadVersion, marked(st, a), shown(st)];
           T().undo();
           eq('K1 schoon tabblad: de knop vult hetzelfde tabblad met de nieuwe versie, zonder vraag; lege geschiedenis, de strook weg', [
             ...before, ...after, T().tasks.map(t => t.name),
@@ -1357,20 +1356,28 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           eq('K1 daarna opnieuw openen ⇒ naar het tabblad, geen strook', [T().activeDocumentId === a, notices(st)], [true, []]);
         }
 
+        const until = async (cond: () => boolean) => {
+          for (let i = 0; i < 400 && !cond(); i++) await new Promise<void>(r => setTimeout(r, 5));
+          return cond();
+        };
+        const phase = (st: Store) => st.getState().ui.reloadVersion?.phase ?? null;
+
         for (const choice of ['annuleren', 'weggooien'] as const) {
           const { st, T, a } = await changedTab(true);
-          await T().loadNewVersion(labels);
-          const asked = [T().ui.pendingReloadDocId === a, T().tasks.map(t => t.name), isBlockingDialogOpen(T().ui)];
+          const loading = T().loadNewVersion(labels);
+          await until(() => phase(st) === 'question');
+          const asked = [T().ui.reloadVersion?.documentId === a, T().tasks.map(t => t.name), isBlockingDialogOpen(T().ui), isGlobalShortcutFrozen(T().ui)];
           if (choice === 'annuleren') T().cancelReload();
           else T().confirmReload();
+          await loading;
           const want = {
             annuleren: [['Fundering', 'Eigen werk'], true, true, true],
             weggooien: [['Extern opgeslagen werk'], false, false, false],
           }[choice];
-          eq(`K2 gewijzigd tabblad, ${choice}: pas na het lezen de vraag; daarna ${choice === 'annuleren' ? 'alles zoals het was' : 'dit tabblad met wat op schijf staat'}`, [
-            asked, T().activeDocumentId === a, T().tasks.map(t => t.name), T().isDirty, marked(st, a), shown(st), T().ui.pendingReloadDocId,
-            readFileSync(kantoor, 'utf8').includes('Eigen werk'),
-          ], [[true, ['Fundering', 'Eigen werk'], true], true, ...want, null, false]);
+          eq(`K2 gewijzigd tabblad, ${choice}: pas na het lezen de vraag, de app bevroren; daarna ${choice === 'annuleren' ? 'alles zoals het was' : 'dit tabblad met wat op schijf staat'}`, [
+            asked, T().activeDocumentId === a, T().tasks.map(t => t.name), T().isDirty, marked(st, a), shown(st), T().ui.reloadVersion,
+            isGlobalShortcutFrozen(T().ui), readFileSync(kantoor, 'utf8').includes('Eigen werk'),
+          ], [[true, ['Fundering', 'Eigen werk'], true, true], true, ...want, null, false, false]);
           if (choice === 'annuleren') {
             eq('K2 annuleren: een akkoord daarna doet niets', [T().confirmReload(), T().tasks.map(t => t.name)], [false, ['Fundering', 'Eigen werk']]);
           }
@@ -1381,35 +1388,147 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           const hold = holdRead();
           const loading = T().loadNewVersion(labels);
           await hold.reached;
-          T().addTask({ name: 'Tijdens het lezen' });
-          const second = T().loadNewVersion(labels);
+          const reading = [phase(st), isGlobalShortcutFrozen(T().ui), isBlockingDialogOpen(T().ui)];
+          await T().loadNewVersion(labels);
+          T().cancelReload();
           hold.release();
-          await Promise.all([loading, second]);
+          await loading;
           hold.stop();
-          const asked = [T().ui.pendingReloadDocId === a, T().tasks.map(t => t.name), hold.reads()];
-          escape.run(T());
-          T().addTask({ name: 'Na Escape' });
-          eq('R8-1a (Sol, ronde 8): gewijzigd tabblad, doorwerken tijdens het lezen, Escape, doorwerken: zonder akkoord verdwijnt niets', [
-            asked, T().ui.pendingReloadDocId, T().confirmReload(), T().tasks.map(t => t.name), T().isDirty, marked(st, a),
-            readFileSync(kantoor, 'utf8').includes('Extern opgeslagen werk'),
-          ], [[true, ['Fundering', 'Eigen werk', 'Tijdens het lezen'], 1], null, false,
-            ['Fundering', 'Eigen werk', 'Tijdens het lezen', 'Na Escape'], true, true, true]);
+          eq('R8-1a: tijdens het lezen is de app bevroren, een tweede klik leest niet opnieuw, annuleren tijdens het lezen laadt niets', [
+            reading, hold.reads(), T().activeDocumentId === a, T().tasks.map(t => t.name), T().isDirty, marked(st, a), T().ui.reloadVersion,
+            T().confirmReload(),
+          ], [['reading', true, true], 1, true, ['Fundering', 'Eigen werk'], true, true, null, false]);
+        }
+
+        {
+          const { st, T, a } = await changedTab(true);
+          let held = false, reads = 0;
+          const placed = gate(), release = gate();
+          const outer = internals.invoke;
+          internals.invoke = async (command, args, options) => {
+            if (command === 'plugin:fs|rename' && !held) { held = true; placed.open(); await release.wait; }
+            if (/^plugin:fs\|read_(text_)?file$/.test(command) && (args as { path?: string } | undefined)?.path === kantoor) reads++;
+            return outer(command, args, options);
+          };
+          try {
+            const saving = T().saveFile();
+            await placed.wait;
+            const readsAtClick = reads;
+            const loading = T().loadNewVersion(labels);
+            await new Promise<void>(r => setTimeout(r, 60));
+            const waiting = [phase(st), reads - readsAtClick];
+            release.open();
+            await saving;
+            await loading;
+            eq('R9-3 (Sol, ronde 9): Ctrl+S schrijft al als de knop wordt ingedrukt ⇒ het herladen wacht in de rij; daarna klopt het tabblad met de schijf, geen strook', [
+              waiting, T().activeDocumentId === a, T().tasks.map(t => t.name), T().isDirty,
+              readFileSync(kantoor, 'utf8').includes('Eigen werk'), T().knownTargetFingerprint?.sha256 === onDisk(), marked(st, a), T().ui.reloadVersion,
+            ], [['reading', 0], true, ['Fundering', 'Eigen werk'], false, true, true, false, null]);
+          } finally {
+            release.open();
+            internals.invoke = outer;
+          }
+        }
+
+        {
+          const { createPendingTextEdits } = await import('@/state/pendingTextEdits');
+          for (const valid of [true, false]) {
+            writeFileSync(kantoor, kantoorIfc);
+            const edits = createPendingTextEdits();
+            reseed(0x1957);
+            const app = createAppStoreContext({ pendingTextEdits: edits });
+            app.store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+            const st = app.store;
+            const T = () => st.getState();
+            await openVia(st, 'openen', kantoor);
+            const a = T().activeDocumentId;
+            T().newDocument();
+            await openVia(st, 'openen', school);
+            writeFileSync(kantoor, changedIfc);
+            await openVia(st, 'openen', kantoor);
+            const taskId = T().tasks[0].id;
+            let open = true;
+            const unregister = edits.register({
+              settle: () => {
+                if (!valid) return false;
+                T().updateTask(taskId, { name: 'Getypte naam' });
+                open = false;
+                return true;
+              },
+            });
+            const hold = holdRead();
+            const loading = T().loadNewVersion(labels);
+            if (valid) await until(() => phase(st) === 'question');
+            const seen = [phase(st), T().tasks.map(t => t.name), open, hold.reads()];
+            if (valid) T().cancelReload();
+            await loading;
+            hold.stop();
+            unregister();
+            eq(valid
+              ? 'R9-1 (Sol, ronde 9): een open naamcel met getypte tekst ⇒ eerst afgerond; het tabblad is dan gewijzigd, dus de vraag; de naam blijft'
+              : 'R9-1b (technisch beslisser): een ongeldige waarde in een open cel ⇒ het herladen begint niet; de cel blijft open, er is niets gelezen of vervangen', [
+              seen, T().activeDocumentId === a, T().tasks.map(t => t.name), marked(st, a),
+            ], valid
+              ? [['question', ['Getypte naam'], false, 1], true, ['Getypte naam'], true]
+              : [[null, ['Fundering'], true, 0], true, ['Fundering'], true]);
+          }
+        }
+
+        for (const route of ['recent', 'MCP'] as const) {
+          const { app, st, T, a, count } = await setup();
+          writeFileSync(kantoor, changedIfc);
+          const outer = internals.invoke;
+          let flipped = false;
+          internals.invoke = async (command, args, options) => {
+            const result = await outer(command, args, options);
+            if (!flipped && /^plugin:fs\|read_(text_)?file$/.test(command) && (args as { path?: string } | undefined)?.path === kantoor) {
+              flipped = true;
+              st.setState(s => { s.ui.featureFlags = {}; });
+            }
+            return result;
+          };
+          const getFsOuter = fileToolDeps.getFs;
+          const fs = await realFs();
+          fileToolDeps.getFs = async () => ({ ...fs, homeDir: async () => dir, readFile: async (path: string) => {
+            const bytes = await fs.readFile(path);
+            if (path === kantoor && !flipped) { flipped = true; st.setState(s => { s.ui.featureFlags = {}; }); }
+            return bytes;
+          } });
+          try {
+            await reopen(app, route);
+          } finally {
+            internals.invoke = outer;
+            fileToolDeps.getFs = getFsOuter;
+          }
+          eq(`R9-4 ${route} (Sol, ronde 9): de flag gaat uit tussen het lezen en de tabkeuze ⇒ een tweede tabblad met het bestand, zoals main`, [
+            flipped, T().activeDocumentId !== a, T().documents.length - count, T().tasks.map(t => t.name), tab(st, a)?.tasks, marked(st, a),
+          ], [true, true, 1, ['Extern opgeslagen werk'], ['Fundering', 'Eigen werk'], false]);
         }
 
         {
           const { st, T, a } = await changedTab(false);
-          const hold = holdRead();
-          const loading = T().loadNewVersion(labels);
-          await hold.reached;
-          T().addTask({ name: 'Opgeslagen tijdens het lezen' });
-          await T().saveFile();
-          hold.release();
-          await loading;
-          hold.stop();
-          eq('R8-1b (Sol, ronde 8): schoon tabblad, bewerkt en opgeslagen tijdens het lezen ⇒ de knop breekt af; de taak blijft, ook op schijf', [
-            T().activeDocumentId === a, T().tasks.map(t => t.name), T().isDirty, T().ui.pendingReloadDocId,
-            readFileSync(kantoor, 'utf8').includes('Opgeslagen tijdens het lezen'), marked(st, a),
-          ], [true, ['Fundering', 'Opgeslagen tijdens het lezen'], false, null, true, false]);
+          writeFileSync(kantoor, kantoorIfc);
+          await T().loadNewVersion(labels);
+          eq('K7 (Sol, ronde 9): de herlezing vindt de versie die het tabblad kent ⇒ niets geladen, de strook weg', [
+            T().activeDocumentId === a, T().tasks.map(t => t.name), marked(st, a), T().ui.reloadVersion,
+          ], [true, ['Fundering'], false, null]);
+          writeFileSync(kantoor, changedIfc);
+          T().switchDocument(T().documents.find(d => d.id !== a)!.id);
+          await openVia(st, 'openen', kantoor);
+          const markedAgain = marked(st, a);
+          writeFileSync(kantoor, kantoorIfc);
+          T().switchDocument(T().documents.find(d => d.id !== a)!.id);
+          await openVia(st, 'openen', kantoor);
+          eq('K7 (Sol, ronde 9): een heropening met bewezen dezelfde versie wist een eerdere strook', [markedAgain, marked(st, a)], [true, false]);
+        }
+
+        {
+          const { st, T, a } = await changedTab(false);
+          T().setAutoSaveToFile(true);
+          await T().loadNewVersion(labels);
+          eq('K8 (Sol, ronde 9): herladen houdt Automatisch opslaan op hetzelfde doel', [
+            T().activeDocumentId === a, T().tasks.map(t => t.name), T().autoSaveToFile, marked(st, a),
+          ], [true, ['Extern opgeslagen werk'], true, false]);
         }
 
         {
@@ -1427,7 +1546,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           T().setUI({ showTaskDialog: true, editingTaskId: T().tasks[0].id });
           await T().loadNewVersion(labels);
           eq('R8-2 (Sol, ronde 8): de strook van Kantoor is in School niet zichtbaar en niet bedienbaar; een open taakdialoog blijft', [
-            inSchool, afterSchool, T().ui.showTaskDialog, T().ui.pendingReloadDocId, T().tasks.map(t => t.name), marked(st, a),
+            inSchool, afterSchool, T().ui.showTaskDialog, T().ui.reloadVersion, T().tasks.map(t => t.name), marked(st, a),
           ], [[false, true], [true, true, true], true, null, ['Fundering', 'Eigen werk'], true]);
           T().setUI({ showTaskDialog: false, editingTaskId: null });
         }
@@ -1449,7 +1568,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           await T().loadNewVersion(labels);
           eq('K3 mislukt lezen (bestand weg): het tabblad blijft zoals het was, met de gewone foutmelding; de strook blijft', [
             T().activeDocumentId === a, T().tasks.map(t => t.name), T().isDirty, notices(st).filter(n => n[0] === 'error').length - errorsBefore,
-            shown(st), T().ui.pendingReloadDocId,
+            shown(st), T().ui.reloadVersion,
           ], [true, ['Fundering', 'Eigen werk'], true, 1, true, null]);
           writeFileSync(kantoor, kantoorIfc);
         }

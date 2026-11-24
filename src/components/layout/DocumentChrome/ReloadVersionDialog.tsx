@@ -1,31 +1,41 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
-import { CloseDocumentDialogControl } from './CloseDocumentDialogControl';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 
 export function ReloadVersionDialog() {
   const { t } = useTranslation('common');
-  const pendingId = useAppStore((s) => s.ui.pendingReloadDocId);
+  const phase = useAppStore((s) => s.ui.reloadVersion?.phase ?? null);
   const confirmReload = useAppStore((s) => s.confirmReload);
   const cancelReload = useAppStore((s) => s.cancelReload);
-  const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (pendingId) cancelButtonRef.current?.focus();
-  }, [pendingId]);
-
-  if (!pendingId) return null;
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const initialFocus = useCallback(() => cancelRef.current, []);
+  if (!phase) return null;
+  const question = phase === 'question';
   return (
-    <CloseDocumentDialogControl
-      title={t('documents.closeTitle')}
-      body={t('documents.changedOnDiskQuestion')}
-      cancelLabel={t('cancel')}
-      discardLabel={t('documents.changedOnDiskDiscard')}
-      busy={false}
-      cancelButtonRef={cancelButtonRef}
+    <Dialog
+      initialFocus={initialFocus}
       onCancel={cancelReload}
-      onDiscard={() => { confirmReload(); }}
-      dialogProps={{ 'data-ops-reload-dialog': '' }}
-    />
+      focusedButtonOwnsEnter
+      overlayClassName="bg-black/60 z-[80]"
+      stopBackdropPropagation
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[440px] flex flex-col overflow-hidden"
+      panelProps={{ 'data-ops-reload-dialog': phase }}
+    >
+      <DialogHeader title={question ? t('documents.closeTitle') : t('documents.changedOnDiskLoad')} onClose={cancelReload} />
+      <div className="p-4 flex flex-col gap-4 text-small leading-4">
+        <p className="text-text-secondary">{question ? t('documents.changedOnDiskQuestion') : t('documents.changedOnDiskReading')}</p>
+        <div className="flex justify-end gap-2">
+          <button ref={cancelRef} type="button" className="btn btn--sm btn--secondary" data-ops-close-choice="cancel" onClick={cancelReload}>
+            {t('cancel')}
+          </button>
+          {question && (
+            <button type="button" className="btn btn--sm btn--danger" data-ops-close-choice="discard" onClick={() => { confirmReload(); }}>
+              {t('documents.changedOnDiskDiscard')}
+            </button>
+          )}
+        </div>
+      </div>
+    </Dialog>
   );
 }

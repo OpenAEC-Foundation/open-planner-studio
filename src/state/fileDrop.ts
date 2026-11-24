@@ -67,10 +67,9 @@ export async function openDroppedFiles(
   }
   const waitWhile = () => isBlocked() || store.getState().ui.pendingFormatNotice !== null;
   const readOptions = options.readOptions;
-  const oneTab = !!readOptions?.ifcBytes;
   for (const file of openable) {
     let lookup: OpenLookup | null = null;
-    const beforeRead = oneTab && readFormatForFile(file.name).canBeSaveTarget
+    const beforeRead = readOptions?.ifcBytes && readFormatForFile(file.name).canBeSaveTarget
       ? (ref: HandleRef) => { lookup = startOpenLookup(store.getState(), ref); }
       : undefined;
     let opened;
@@ -84,7 +83,7 @@ export async function openDroppedFiles(
     // `openOpenedFile` meldt een leesfout van het formaat zelf en gooit niet.
     await store.getState().openOpenedFile(opened, labels, {
       waitWhile, existingDocument: file.existingDocument, stale: file.stale,
-      ...(readOptions ? { oneTab, ...(oneTab ? { readOptions, lookup } : {}) } : {}),
+      ...(readOptions?.ifcBytes ? { readOptions, lookup } : {}),
     });
   }
 }

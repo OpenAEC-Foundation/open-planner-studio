@@ -806,7 +806,7 @@ export interface UIState {
   ribbonWheelSwitchesTabs: boolean; // persisted — muiswiel boven de lint-tabs wisselt van tab (#688)
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
-  pendingReloadDocId: string | null;
+  reloadVersion: { readonly documentId: string; readonly phase: 'reading' | 'question' } | null;
   /** Session — *Opslaan* in de sluitvraag loopt (fixronde 1 van #1008). De knoppen van de sluitvraag én Escape
    *  (`edit.deselect`) lezen deze ene vlag: tijdens die opslag verbergt niets de vraag. Alleen via de sluitvraag
    *  (`onSavePendingChange` van `createCloseDocumentDialogActions`). */

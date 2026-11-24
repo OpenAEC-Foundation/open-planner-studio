@@ -93,7 +93,7 @@ export function isShortcutBlockedByDialog(): boolean {
  */
 export function isGlobalShortcutFrozen(ui: UIState = useAppStore.getState().ui): boolean {
   return ui.pendingActualStartQuestion !== null || ui.pendingPhaseAssignmentQuestion !== null || ui.pendingPlanOnlyQuestion !== null
-    || ui.savingBeforeClose || ui.appClosing;
+    || ui.reloadVersion !== null || ui.savingBeforeClose || ui.appClosing;
 }
 
 /**
@@ -318,7 +318,7 @@ export const SHORTCUTS: ShortcutDef[] = [
       store.deselectAll();
       store.setUI({
         showTaskDialog: false, editingTaskId: null, showDependencyMode: false, showSplitMode: false,
-        showProjectOverview: false, pendingCloseDocId: null, pendingReloadDocId: null, traceMode: 'off',
+        showProjectOverview: false, pendingCloseDocId: null, traceMode: 'off',
       });
     },
   },

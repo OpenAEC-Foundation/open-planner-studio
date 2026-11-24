@@ -39,6 +39,7 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
       'common:documents.changedOnDiskDiscard',
       'common:documents.changedOnDiskLoad',
       'common:documents.changedOnDiskQuestion',
+      'common:documents.changedOnDiskReading',
       'common:ifcExportWithoutModel.*',
       'common:ifcMissingSourceSaveAs.*',
       'common:notifications.exportPlanOnly',

@@ -44,7 +44,7 @@ function holds(ref: FileRef, id: string, payload: TabFile, lookup: OpenLookup | 
   return !payload.fileHandle && payload.filePath === ref.path;
 }
 
-function sameVersion(tab: TabFile, read: ReadVersion | null): boolean | null {
+export function versionMatches(tab: TabFile, read: ReadVersion | null): boolean | null {
   if (read === null) return null;
   if (read.kind === 'site') return tab.siteFileVersion ? tab.siteFileVersion === read.version : null;
   const known = tab.knownTargetFingerprint;
@@ -55,27 +55,30 @@ function sameVersion(tab: TabFile, read: ReadVersion | null): boolean | null {
 export interface OpenTab {
   readonly id: string;
   readonly changedOnDisk: boolean;
+  readonly provenSame: boolean;
 }
 
 export function openTabFor(s: Tabs, ref: FileRef, lookup: OpenLookup | null, read: ReadVersion | null): OpenTab | null {
   let changed: string | null = null;
   for (const { id, payload } of s.getOpenDocumentPayloads()) {
     if (!holds(ref, id, payload, lookup)) continue;
-    const same = sameVersion(payload, read);
-    if (same) return { id, changedOnDisk: false };
+    const same = versionMatches(payload, read);
+    if (same) return { id, changedOnDisk: false, provenSame: true };
     if (same === false) changed ??= id;
   }
-  return changed === null ? null : { id: changed, changedOnDisk: true };
+  return changed === null ? null : { id: changed, changedOnDisk: true, provenSame: false };
 }
 
 export function launchTabFor(s: Tabs, id: string, read: ReadVersion | null): OpenTab {
   const payload = s.getOpenDocumentPayloads().find(document => document.id === id)?.payload;
-  return { id, changedOnDisk: !!payload && sameVersion(payload, read) === false };
+  const same = payload ? versionMatches(payload, read) : null;
+  return { id, changedOnDisk: same === false, provenSame: same === true };
 }
 
-export function switchToOpenDocument(s: Pick<AppState, 'switchDocument' | 'markChangedOnDisk'>, tab: OpenTab): void {
+export function switchToOpenDocument(s: Pick<AppState, 'switchDocument' | 'markChangedOnDisk' | 'forgetChangedOnDisk'>, tab: OpenTab): void {
   s.switchDocument(tab.id);
   if (tab.changedOnDisk) s.markChangedOnDisk(tab.id);
+  else if (tab.provenSame) s.forgetChangedOnDisk(tab.id);
 }
 
 export function changedOnDiskShown(s: Pick<AppState, 'ui' | 'documents' | 'activeDocumentId'>): boolean {

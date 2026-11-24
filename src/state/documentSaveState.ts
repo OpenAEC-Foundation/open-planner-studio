@@ -78,6 +78,11 @@ export function markChangedOnDisk(s: Registry, documentId: string): void {
   if (entry) entry.changedOnDisk = true;
 }
 
+export function clearChangedOnDisk(s: Registry, documentId: string): void {
+  const entry = s.documents.find(document => document.id === documentId);
+  if (entry) delete entry.changedOnDisk;
+}
+
 export function hasChangedOnDisk(s: Readonly<Registry>, documentId: string): boolean {
   return s.documents.find(document => document.id === documentId)?.changedOnDisk === true;
 }

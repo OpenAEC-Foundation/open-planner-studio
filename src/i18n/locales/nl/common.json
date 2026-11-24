@@ -780,6 +780,7 @@
     "closeTitle": "Niet-opgeslagen wijzigingen",
     "closeBody": "'{{name}}' heeft wijzigingen die nog niet zijn opgeslagen.",
     "dontSave": "Niet opslaan",
+    "changedOnDiskReading": "De nieuwe versie wordt gelezen…",
     "changedOnDiskDiscard": "Wijzigingen weggooien en laden",
     "changedOnDiskQuestion": "Je hebt wijzigingen die niet zijn opgeslagen. Als je de nieuwe versie laadt, gaan ze verloren. Kies Opslaan als om ze eerst in een nieuw bestand te bewaren.",
     "changedOnDiskLoad": "Nieuwe versie laden",

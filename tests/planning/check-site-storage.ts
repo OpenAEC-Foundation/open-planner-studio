@@ -849,10 +849,12 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
       site.storage.open = open;
       useAppStore.setState((st) => { st.ui.featureFlags = { ifcForeignContent: true }; });
     }
-    eq('G18 flag uit tijdens het lezen van de site: naar het open tabblad, dezelfde versie, geen melding', [
-      flipped, S().activeDocumentId, S().documents.length,
+    eq('G18 / R9-4 site (Sol, ronde 9): de flag gaat uit tijdens het lezen ⇒ een tweede tabblad, zoals main', [
+      flipped, S().activeDocumentId !== tabOriginal, S().documents.length - count,
       S().documents.filter((d) => d.changedOnDisk).length,
-    ], [true, tabOriginal, count, 0]);
+    ], [true, true, 1, 0]);
+    S().closeDocument(S().activeDocumentId);
+    S().switchDocument(tabOriginal);
   }
   {
     const tabLoad = S().activeDocumentId;
@@ -862,10 +864,12 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
     useAppStore.setState((st) => { st.ui.notifications = []; });
     await S().openFromSite('y');
     const shown = [S().activeDocumentId === tabLoad, changedOnDiskShown(S())];
-    await S().loadNewVersion();
-    const asked = S().ui.pendingReloadDocId === tabLoad;
+    const loading = S().loadNewVersion();
+    for (let i = 0; i < 400 && S().ui.reloadVersion?.phase !== 'question'; i++) await new Promise<void>((r) => setTimeout(r, 5));
+    const asked = S().ui.reloadVersion?.documentId === tabLoad;
     const latest = site.latest(site.files.get('y')!).version;
     const loaded = S().confirmReload();
+    await loading;
     eq('G19 Nieuwe versie laden op de site: de strook, de vraag; weggooien ⇒ dit tabblad met de nieuwste versie als basis', [
       shown, asked, loaded, S().activeDocumentId === tabLoad, S().tasks.some((t) => t.name === 'Werk vóór het laden'), S().isDirty,
       S().siteFileId, S().siteFileVersion === latest, changedOnDiskShown(S()),

@@ -245,6 +245,70 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
   expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
   await expect(kantoor).toHaveAttribute('aria-selected', 'true');
   await expect(tabs).toHaveCount(tabsBefore + 1);
+
+  const writeKantoor = (text: string) => page.evaluate(async (t) => {
+    const handle = await (await navigator.storage.getDirectory()).getFileHandle('kantoor.ifc');
+    const writable = await handle.createWritable();
+    await writable.write(t);
+    await writable.close();
+  }, text);
+  const readKantoor = () => page.evaluate(async () => (await (await (await navigator.storage.getDirectory()).getFileHandle('kantoor.ifc')).getFile()).text());
+  const reopenKantoor = async () => {
+    await page.locator('[data-ops-tabstrip] [role="tab"]', { hasText: 'gesleept' }).click();
+    await openButton.click();
+    await expect(kantoor).toHaveAttribute('aria-selected', 'true');
+    await expect(strip).toBeVisible();
+  };
+  const firstTaskId = await page.evaluate(() => window.__OPS__!.store.getState().tasks.find(t => !t.isSummary)!.id);
+  const cell = (column: string) => page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${firstTaskId}"][data-grid-column-id="${column}"]`);
+  await writeKantoor(`${planning}\n\n`);
+  await reopenKantoor();
+  await cell('task.name').click();
+  await page.keyboard.press('Enter');
+  await cell('task.name').locator('input[data-task-editor-kind]').fill('Getypte naam');
+  await strip.locator('[data-ops-changed-on-disk-load]').click();
+  const asking = page.locator('[data-ops-reload-dialog="question"]');
+  await expect(asking).toBeVisible();
+  expect(await page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(t => t.id === id)?.name, firstTaskId)).toBe('Getypte naam');
+  const onDisk = await readKantoor();
+  await page.evaluate(() => {
+    const w = window as unknown as { cpmChanges: number };
+    w.cpmChanges = 0;
+    window.__OPS__!.store.subscribe((next, previous) => { if (next.cpmResult !== previous.cpmResult) w.cpmChanges++; });
+  });
+  await page.keyboard.press('Control+s');
+  await page.keyboard.press('F5');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('Tab');
+  await expect(asking).toBeVisible();
+  expect(await page.evaluate(() => !!document.activeElement?.closest('[data-ops-reload-dialog]'))).toBe(true);
+  expect(await page.evaluate(() => (window as unknown as { cpmChanges: number }).cpmChanges)).toBe(0);
+  expect(await readKantoor()).toBe(onDisk);
+  await page.keyboard.press('Escape');
+  await expect(asking).toBeHidden();
+  await expect(strip).toBeVisible();
+  expect(await page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(t => t.id === id)?.name, firstTaskId)).toBe('Getypte naam');
+
+  await cell('task.time.scheduleDuration').click();
+  await page.keyboard.press('Enter');
+  const durationInput = cell('task.time.scheduleDuration').locator('input[data-task-editor-kind]');
+  await durationInput.fill('geen duur');
+  await strip.locator('[data-ops-changed-on-disk-load]').click();
+  await expect(page.locator('[data-ops-reload-dialog]')).toHaveCount(0);
+  await expect(durationInput).toHaveValue('geen duur');
+  await expect(strip).toBeVisible();
+  await durationInput.press('Escape');
+
+  await page.evaluate((id) => window.__OPS__!.store.getState().setUI({ showTaskDialog: true, editingTaskId: id }), firstTaskId);
+  const taskDialog = page.locator('[data-ops-task-dialog]');
+  await expect(taskDialog.locator('input:focus')).toHaveCount(1);
+  await taskDialog.locator('input:focus').fill('Naam in de taakdialoog');
+  await strip.locator('[data-ops-changed-on-disk-load]').dispatchEvent('click');
+  await expect(page.locator('[data-ops-reload-dialog]')).toHaveCount(0);
+  await expect(taskDialog).toBeVisible();
+  await expect(taskDialog.locator('input:focus')).toHaveValue('Naam in de taakdialoog');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(taskDialog).toBeHidden();
   await page.evaluate(() => window.__OPS__!.store.setState((s) => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; }));
 });
 
