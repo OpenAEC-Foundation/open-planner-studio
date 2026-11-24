@@ -5,11 +5,11 @@ import { ifcObjectSeed } from '../ifcWriter';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { hourRemainingDays } from '@/engine/taskMutationRules';
 import { hourTaskScheduleDuration } from '@/utils/taskDuration';
-import { checkValue, readFields } from './fieldTable';
+import { checkValue, hasKey, readFields } from './fieldTable';
 import { globalIdOfPath } from './identityPath';
 import { childrenInPlace } from './childOrder';
 import { hourDurationIsDerived, objectLabels, type IfcxDocument } from './projection';
-import { ownFileFor, savedAfterOpening } from './ownFile';
+import { ownFileFor, savedAfterOpening, type OwnFile } from './ownFile';
 import { selfCheckDifferences } from './selfCheck';
 import { HEADER_VALUE } from './ownAttributes';
 import { NODE_SHAPES, type NodeKind } from './nodes';
@@ -175,9 +175,31 @@ function fieldDifference(inFile: unknown, wanted: unknown, field: string, kind: 
   return inFile === wanted || differenceKind(inFile, wanted) !== kind ? undefined : { field, inFile, wanted };
 }
 
-const preciseFirst = (names: readonly string[]) => [...names.filter(name => name.startsWith(OPS_NAMESPACE)), ...names.filter(name => !name.startsWith(OPS_NAMESPACE))];
-
 type Entry = { readonly path: string; readonly attributes: Readonly<Record<string, unknown>> };
+
+function sameValue(inFile: unknown, wanted: unknown): boolean {
+  if (Array.isArray(wanted)) {
+    if (!Array.isArray(inFile) || inFile.length !== wanted.length) return false;
+    for (let i = 0; i < wanted.length; i++) if (!sameValue(inFile[i], wanted[i])) return false;
+    return true;
+  }
+  if (isPlainObject(wanted)) {
+    if (!isPlainObject(inFile)) return false;
+    const keys = Object.keys(wanted);
+    if (keys.length !== Object.keys(inFile).length) return false;
+    for (const key of keys) if (!hasKey(inFile, key) || !sameValue(inFile[key], wanted[key])) return false;
+    return true;
+  }
+  return inFile === wanted;
+}
+
+function sameFile(document: Record<string, unknown>, own: IfcxDocument): boolean {
+  const header = document.header as Record<string, unknown>;
+  return (['id', 'ifcxVersion', 'dataVersion', 'author'] as const).every(key => header[key] === own.header[key])
+    && sameValue(document.schemas, own.schemas) && sameValue(document.data, own.data);
+}
+
+const preciseFirst = (names: readonly string[]) => [...names.filter(name => name.startsWith(OPS_NAMESPACE)), ...names.filter(name => !name.startsWith(OPS_NAMESPACE))];
 
 interface Located {
   readonly place: IfcxErrorPlace;
@@ -222,16 +244,25 @@ function firstDifference(document: Record<string, unknown>, own: IfcxDocument, k
   return undefined;
 }
 
-function assertOwnFile(document: Record<string, unknown>, read: IfcxImportResult): void {
-  let own;
+function writerRefusal<T>(action: () => T): T {
   try {
-    own = ownFileFor(savedAfterOpening(read), new Date(0));
+    return action();
   } catch (error) {
     if (!(error instanceof IfcxWriteRefusedError)) throw error;
     throw invalid(`De eigen schrijver schrijft deze planning niet: ${error.message}`, { field: error.fields[0] });
   }
-  const difference = firstDifference(document, own.document, 'extra') ?? firstDifference(document, own.document, 'changed')
+}
+
+function differenceFrom(document: Record<string, unknown>, own: OwnFile): Located | undefined {
+  if (sameFile(document, own.document)) return undefined;
+  writerRefusal(own.assertAttributeValues);
+  return firstDifference(document, own.document, 'extra') ?? firstDifference(document, own.document, 'changed')
     ?? firstDifference(document, own.document, 'missing');
+}
+
+function assertOwnFile(document: Record<string, unknown>, read: IfcxImportResult): void {
+  const own = writerRefusal(() => ownFileFor(savedAfterOpening(read), new Date(0), 'deferred'));
+  const difference = differenceFrom(document, own);
   if (difference) {
     const labels = objectLabels(read, (kind, id) => read.ifcGlobalIds![ifcObjectSeed(kind, id)]);
     throw invalid(difference.detail(path => labels.get(path) ?? path), difference.place);

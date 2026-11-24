@@ -16,7 +16,10 @@ import { composeIfcxDocument, globalIdsOf, objectLabels, type IfcxDocument } fro
 export interface OwnFile {
   readonly planning: ImportResult;
   readonly document: IfcxDocument;
+  readonly assertAttributeValues: () => void;
 }
+
+type Composed = Omit<OwnFile, 'planning'>;
 
 function refused(code: 'unsupported' | 'inconsistent' | 'invalid', details: readonly string[], fields: readonly string[]): IfcxWriteRefusedError {
   return new IfcxWriteRefusedError(code, details.join('; '), [...new Set(fields)]);
@@ -28,9 +31,7 @@ function messageOf(error: unknown): string {
 
 const isSharedAttribute = (name: string) => name.startsWith(PLANNING_NAMESPACE);
 
-function invalidValuesIn(document: IfcxDocument, objectAt: () => Map<string, string>): IfcxWriteRefusedError | undefined {
-  const header = checkValue(HEADER_VALUE, document.header);
-  if (header) return refused('invalid', [`Ongeldige kop: ${header.kind === 'invalid' ? header.detail : 'onbekend veld'}`], [`header.${header.field}`]);
+function invalidAttributesIn(document: IfcxDocument, objectAt: () => Map<string, string>): IfcxWriteRefusedError | undefined {
   for (const entry of document.data) {
     const attributes = Object.entries(entry.attributes) as [IfcxAttributeName, Record<string, unknown>][];
     for (const [name, value] of [...attributes.filter(([name]) => !isSharedAttribute(name)), ...attributes.filter(([name]) => isSharedAttribute(name))]) {
@@ -51,7 +52,7 @@ function asReopened(planning: ImportResult): ImportResult {
   return { ...planning, ifcGlobalIds, recordedFields };
 }
 
-export function documentFor(planning: PlanningModel, writtenAt: Date, globalIdOf: GlobalIdOfObject = globalIdsOf(planning)): IfcxDocument {
+function composedFor(planning: PlanningModel, writtenAt: Date, globalIdOf: GlobalIdOfObject): Composed {
   if (Number.isNaN(writtenAt.getTime())) throw refused('invalid', ['Het moment van schrijven is geen geldige datum'], ['header.timestamp']);
   let document: IfcxDocument;
   try {
@@ -60,13 +61,23 @@ export function documentFor(planning: PlanningModel, writtenAt: Date, globalIdOf
     if (error instanceof IfcxWriteRefusedError) throw error;
     throw refused('invalid', [`De planning heeft een vorm die de writer niet kan schrijven: ${messageOf(error)}`], ['planning']);
   }
+  const header = checkValue(HEADER_VALUE, document.header);
+  if (header) throw refused('invalid', [`Ongeldige kop: ${header.kind === 'invalid' ? header.detail : 'onbekend veld'}`], [`header.${header.field}`]);
   let labels: Map<string, string> | undefined;
-  const invalid = invalidValuesIn(document, () => (labels ??= objectLabels(planning, globalIdOf)));
-  if (invalid) throw invalid;
-  return document;
+  const assertAttributeValues = () => {
+    const invalid = invalidAttributesIn(document, () => (labels ??= objectLabels(planning, globalIdOf)));
+    if (invalid) throw invalid;
+  };
+  return { document, assertAttributeValues };
 }
 
-export function ownFileFor(given: WriteIFCInput, writtenAt: Date): OwnFile {
+export function documentFor(planning: PlanningModel, writtenAt: Date, globalIdOf: GlobalIdOfObject = globalIdsOf(planning)): IfcxDocument {
+  const composed = composedFor(planning, writtenAt, globalIdOf);
+  composed.assertAttributeValues();
+  return composed.document;
+}
+
+export function ownFileFor(given: WriteIFCInput, writtenAt: Date, attributeValues: 'checked' | 'deferred' = 'checked'): OwnFile {
   const identity = identityProblems(given, globalIdsOf(given));
   if (identity.length > 0) throw refused('inconsistent', identity.map(item => item.detail), identity.map(item => item.field));
   let planning: ImportResult;
@@ -80,7 +91,9 @@ export function ownFileFor(given: WriteIFCInput, writtenAt: Date): OwnFile {
     const named = unsupported.map(item => (item.objects.length > 0 ? `${item.field} (${item.objects.join(', ')})` : item.field));
     throw new IfcxWriteRefusedError('unsupported', `IFCX draagt deze gegevens nog niet: ${named.join(', ')}`, unsupported.map(item => item.field));
   }
-  return { planning, document: documentFor(planning, writtenAt) };
+  const composed = composedFor(planning, writtenAt, globalIdsOf(planning));
+  if (attributeValues === 'checked') composed.assertAttributeValues();
+  return { planning, ...composed };
 }
 
 export function savedAfterOpening(read: ImportResult): WriteIFCInput {
