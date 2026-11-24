@@ -554,9 +554,13 @@ CPU-tijd in één proces (`process.cpuUsage`), mediaan van vijf, 10.000 taken, i
 | vóór fixronde 5 (`b7acccdd6`) | 1.345 ms | 3.154 ms | 2,34 | niet gemeten | | |
 | fixronde 5 (`847669d4c`, lezer zonder rondgang) | 898 ms | 2.946 ms | 3,28 | 856 ms | 954 ms | 1,11 |
 | fixronde 6 (`e732f3324`, R4) | 720 ms | 2.243 ms | 3,12 | 600 ms | 2.232 ms | 3,72 |
+| fixronde 6 (`9894f6236`, R4 met main) | 609 ms | 2.045 ms | 3,36 | 502 ms | 2.138 ms | 4,26 |
 
 Met R4 kost openen weer ongeveer een STEP-rondgang: de lezer zet de gelezen planning door dezelfde schrijffunctie als
-opslaan. Het verwachte niveau was rond 3,5 keer openen als IFC (besluit van de technisch eigenaar).
+opslaan. Het verwachte niveau was rond 3,5 keer openen als IFC (besluit van de technisch eigenaar). De snelle doorgang
+van R4 haalt de drie rondes en de waardetoets van de schrijver uit het gewone geval: op aia09-mp50 ging openen daarmee
+van 3,35 naar 2,8 tot 2,9 keer openen als IFC (een melding; de CI-meting staat in #1183). De STEP-rondgang zelf kost
+ongeveer twee keer openen als IFC.
 
 ## Uitbreiden (F3-2 en F3-3)
 

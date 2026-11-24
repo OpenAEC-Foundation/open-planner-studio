@@ -6730,7 +6730,9 @@ en noem het in je rapport of PR-tekst.
      en IFCX–STEP om en om, in de alleenloop van de planningspool (besluit van de technisch eigenaar, #1183). De grens is
      vier en de CI is de poort; een run op aia09-mp50 is een melding en geen bewijs (daar lag opslaan op 24 november rond
      3,7 tot 4,2, ook met de code van vóór fixronde 5). In de CI steeg opslaan van 2,34 (vóór fixronde 5) naar ongeveer 3
-     (2,53 tot 3,28; met R4 3,12). Sinds R4 (fixronde 6) doet openen weer ongeveer een STEP-rondgang en kost het in de
-     CI 3,72 keer openen als IFC, dicht bij de grens. Beide verhoudingen staan als eigen regel `IFCX-verhouding …` in de
-     CI-log. Het IFCX-deel sneller maken (de waardetoets, het teruglezen, de vergelijking van R4) is een voorwaarde vóór
-     "IFCX standaard aan". — B
+     (2,53 tot 3,28; met R4 3,12). Sinds R4 (fixronde 6) doet openen weer ongeveer een STEP-rondgang en kostte het in de
+     CI 3,72 en daarna 4,26 keer openen als IFC (`9894f6236`, rood). Sinds de snelle doorgang van R4 (één doorgang die
+     alleen vaststelt óf het bestand afwijkt; de drie rondes en de waardetoets van de schrijver alleen bij een verschil)
+     kost openen op aia09-mp50 2,8 tot 2,9 keer openen als IFC, tegen 3,35 ervóór. De STEP-rondgang zelf kost ongeveer
+     twee keer openen als IFC. Beide verhoudingen staan als eigen regel `IFCX-verhouding …` in de CI-log. Het IFCX-deel
+     sneller maken (de waardetoets, het teruglezen, de rondgang) is een voorwaarde vóór "IFCX standaard aan". — B
