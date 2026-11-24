@@ -618,7 +618,7 @@ await expectRefusal('de gedeelde kalender wijzigen', await settle(read('tests/fi
   ]));
   const r = await roundTrip('een kostenpost wijst naar een taak', src);
   if (r) ok('kostenpost: de taak blijft ook in het D-schema', relationsOf(r.out, 'IFCRELASSIGNSTOCONTROL', 6, 4).some(x => x.relating === '54' && x.related.includes('57')));
-  await expectDeletion('kostenpost: de taak wissen', src, (d) => { d.tasks = []; d.assignments = []; d.sequences = []; }, ['908'], ['907']);
+  await expectDeletion('kostenpost: de taak wissen', src, (d) => { d.tasks = []; d.assignments = []; d.sequences = []; }, ['905', '908'], ['904', '907']);
 }
 {
   // Een gemengde IfcRelNests: de eigen taak #57 met als leden een eigen kind (#909) en een vreemde gebeurtenis (#910).

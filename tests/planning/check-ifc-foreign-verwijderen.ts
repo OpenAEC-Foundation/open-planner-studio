@@ -168,6 +168,8 @@ await check('de telling bij het wissen: per stap wat er bij komt of verandert', 
   assert.equal(newForeignChangeCount(none, first), 1);
   assert.equal(newForeignChangeCount(first, both), 7, 'het gewijzigde stuk vervalt nu, en telt dus weer mee');
   assert.equal(foreignChangeCount(both), 7);
+  const { outcome: second } = ruleOn(EIGEN, [51]);
+  assert.equal(newForeignChangeCount(second, both), 1, 'na het wissen van de eerste taak telt de tweede alleen wat erbij komt');
 });
 
 await check('verwijderen en Ctrl+Z vóór het opslaan: er vervalt niets', async () => {
@@ -257,9 +259,29 @@ await check('controle 1: niets vervalt of wijzigt zonder op de lijst te staan, e
   assert.notDeepEqual(problems(encode(withOld), changes), [], 'de uitvoer heeft niet de nieuwe bytes van de lijst');
   const wallGone = decode(prepared.bytes).replace(`${lineOf(prepared.bytes, 393)!}\n`, '');
   assert.notDeepEqual(problems(encode(wallGone), changes), [], 'een stuk vervalt zonder op de lijst te staan');
+  const without9003 = decode(prepared.bytes).replace(`${lineOf(prepared.bytes, 9003)!}\n`, '');
+  assert.notDeepEqual(problems(encode(without9003), asDropped), [], 'een stuk vervalt dat volgens de regel alleen een lid kwijt was');
+  const brokenList = changes.map(c => c.id === 9003 && c.kind === 'gewijzigd' ? { ...c, newBytes: encode(decode(c.newBytes).replace('(#53)', '(,#53)')) } : c);
+  const brokenOutput = decode(prepared.bytes).replace('(#53),$,#354)', '(,#53),$,#354)');
+  assert.notDeepEqual(problems(encode(brokenOutput), brokenList), [], 'een kapotte lijst in een gewijzigd stuk');
   const tampered = changes.map(c => c.id === 9003 && c.kind === 'gewijzigd' ? { ...c, newBytes: encode(decode(c.newBytes).replace('(#53)', '(#53,#55)')) } : c);
   const tamperedOutput = decode(prepared.bytes).replace('(#53),$,#354)', '(#53,#55),$,#354)');
   assert.notDeepEqual(problems(encode(tamperedOutput), tampered), [], 'een gewijzigd stuk met een ander lid dan de regel geeft');
+});
+
+await check('een vreemd lid in een eigen pset van een verwijderde taak blijft als los stuk staan (§4.2 stap 3)', async () => {
+  const bytes = await settle(encode(text('tests/fixtures/ifc-foreign/council/r7sol-vreemd-lid-bij-notitie.ifc')
+    .replace("IFCTEXT('[]')", `IFCTEXT('[{"id":"n1","text":"Bouwhek plaatsen","done":false}]')`)));
+  const opened = await openInStore(bytes);
+  const source = opened.store.getState().ifcSource!;
+  assert(lineOf(source.bytes, 9100)?.includes('VendorSecretNote'));
+  opened.store.getState().deleteTask(taskId(opened, 'Set up site'));
+  assert.equal(notices(opened).length, 0, 'een vreemd lid vervalt niet en telt dus niet mee');
+  const prepared = await save(opened);
+  assert.equal(prepared.foreignChanges, undefined);
+  assert.equal(lineOf(prepared.bytes, 9100), lineOf(source.bytes, 9100), 'het lid staat er nog, byte-gelijk');
+  assert(!/OPS_TaskNotes',\$,\([^)]*#9100\)/.test(decode(prepared.bytes)), 'geen pset meer voor de verwijderde taak');
+  assert.deepEqual(mergeProblems(source.bytes, prepared.bytes), []);
 });
 
 await check('de verwijzingen bij openen zijn dezelfde als die de merge uit de bron haalt', async () => {

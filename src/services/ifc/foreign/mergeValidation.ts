@@ -4,7 +4,7 @@
  */
 import { classify, type Classification } from './classify';
 import { isRootLine, refsOutsideText } from './lossCheck';
-import type { StepIndex } from './stepScanner';
+import { splitStepArgs, type StepIndex } from './stepScanner';
 import { scanForeignStep } from './oldOwnHeader';
 import { applyForeignRule, type ForeignChange } from './changeList';
 import { foreignChangeList, foreignReferences } from './foreignReferences';
@@ -66,13 +66,20 @@ function goneFromOutput(source: StepIndex, sourceClasses: Classification, index:
   return gone;
 }
 
-const referencesOf = (index: StepIndex, chunk: number) => (index.argTokens(chunk) ?? []).flatMap(arg => refsOutsideText(arg));
+function withoutRemovedMembers(token: string, removed: ReadonlySet<number>): string {
+  const t = token.trim();
+  if (!t.startsWith('(') || !t.endsWith(')')) return t;
+  const members = splitStepArgs(t.slice(1, -1)).map(member => member.trim())
+    .filter(member => !/^#\d+$/.test(member) || !removed.has(Number(member.slice(1))))
+    .map(member => withoutRemovedMembers(member, removed));
+  return `(${members.join(',')})`;
+}
 
 function trimmedProblem(source: StepIndex, before: number, index: StepIndex, after: number, removed: ReadonlySet<number>): string | undefined {
-  const want = referencesOf(source, before).filter(id => !removed.has(id)).join(','), got = referencesOf(index, after).join(',');
-  if (index.type(after) === source.type(before) && index.argCount(after) === source.argCount(before)
-    && index.globalId(after) === source.globalId(before) && want === got) return undefined;
-  return `gewijzigd niet-P-stuk #${source.id(before)}: in de uitvoer niet hetzelfde stuk zonder de verwijzingen naar verwijderde stukken`;
+  const want = (source.argTokens(before) ?? []).map(arg => withoutRemovedMembers(arg, removed));
+  const got = (index.argTokens(after) ?? []).map(arg => withoutRemovedMembers(arg, new Set()));
+  if (index.type(after) === source.type(before) && want.join('\u0000') === got.join('\u0000')) return undefined;
+  return `gewijzigd niet-P-stuk #${source.id(before)}: in de uitvoer niet hetzelfde stuk met alleen de leden naar verwijderde stukken eruit`;
 }
 
 function ruleProblem(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array, gone: ReadonlySet<number>,
