@@ -3765,8 +3765,13 @@ en noem het in je rapport of PR-tekst.
      schrijven kan het bestand nog veranderen.** Met de featureflag `ifcForeignContent` vergelijkt de app het eigen pad of
      de eigen handle vóór het schrijven met de versie die het tabblad kent (`changedKnownTarget` in
      `src/state/knownTargetGuard.ts`, aangeroepen in `writeActiveDocument` in `fileSlice.ts` en in de gewone ronde van
-     `fileAutoSave.ts`). Daarna volgen zonder nieuwe lezing de inhoudscontrole van het document, op de desktop het
-     tijdelijke bestand en de `rename` (`replaceUserFile`), in de browser `createWritable()` en `close()`. Schrijft een
+     `fileAutoSave.ts`). Daarna volgen zonder nieuwe lezing de doelcontrole (regel 1 en 3 van `refusedWriteTarget`, en
+     bij de eerste opslag na openen de doelscan van de gelezen bytes, knownbug 2203), de inhoudscontrole van het
+     document, op de desktop het tijdelijke bestand en de `rename` (`replaceUserFile`), in de browser `createWritable()`
+     en `close()`. Sinds PR #1194 staat de toets vóór de doelcontrole, zodat die dezelfde bytes gebruikt; in #1174 stond
+     hij erna. Bij de eerste opslag na openen duurt het gat daardoor ook zo lang als de scan (zie 2203 voor de tijd).
+     Bij elke volgende opslag vervalt die scan; dan zit er alleen regel 1 en 3 tussen, zonder bestandsaanroep als geen
+     ander tabblad een bron met een vreemd deel open heeft, ongeveer zoals in #1174. Schrijft een
      ander programma het bestand in die tijd (op de desktop ongeveer zo lang als het schrijven van het tijdelijke
      bestand duurt), dan overschrijft de app die versie zonder melding, zoals main dat altijd doet. Een document met een
      gebouwmodel heeft daar de vervanging met een tweede vergelijking vlak vóór het plaatsen
