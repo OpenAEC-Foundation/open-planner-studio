@@ -47,7 +47,7 @@ import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
 import { assumedRowGuid, orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged, withOrphanRowGuids } from './sourceForm';
 import {
-  changedScopes, dateTimeTexts, decimalKey, slotFieldChanged, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, refsOutsideText, taskField,
+  changedScopes, dateTimeTexts, decimalKey, slotFieldChanged, slotHasFields, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, refsOutsideText, taskField,
   taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine, type SlotEdit,
 } from './lossCheck';
 import { elementLinksByTask, scanElementLinks } from './elementLinks';
@@ -494,7 +494,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       const writtenArgs = line.args, type = line.type;
       line.type = sourceEntity(table, piece, line.type);
       setArgs(line, sourceSlotArgs(table, piece, writtenArgs, prior,
-        k => object !== undefined && slotFieldChanged(type, k, object, changed), carried));
+        k => (object === undefined ? false : slotFieldChanged(type, k, object, changed) || (slotHasFields(type, k) ? false : undefined)), carried));
       line.args.forEach((token, arg) => {
         if (token === writtenArgs[arg]) return;
         chosen.push({ id: line.id, arg, token });

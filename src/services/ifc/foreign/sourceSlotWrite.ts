@@ -38,10 +38,13 @@ export function keepsTarget(table: IfcSlotTable, k: number, token: string | unde
 }
 
 export function sourceSlotArgs(table: IfcSlotTable, piece: SourcePieceSlots, written: readonly string[],
-  before: readonly string[] = written, fieldChanged: (k: number) => boolean = () => false,
+  before: readonly string[] = written, fieldChanged: (k: number) => boolean | undefined = () => undefined,
   carried: (id: number) => boolean = () => true): string[] {
   const source = table.slots.map(slot => piece.slots.get(slot.key)?.trim());
-  const unchanged = (k: number) => written[k].trim() === before[k].trim() && !fieldChanged(k);
+  const unchanged = (k: number) => {
+    const field = fieldChanged(k);
+    return field === undefined ? written[k].trim() === before[k].trim() : !field;
+  };
   const usable = (k: number) => source[k] !== undefined && (table.slots[k].bronverwijzing === true || !hasReference(source[k]!));
   const ownRule = (k: number) => {
     if (keepsTarget(table, k, source[k], carried)) return !fieldChanged(k);

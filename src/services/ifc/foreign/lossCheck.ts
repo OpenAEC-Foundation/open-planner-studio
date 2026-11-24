@@ -1674,6 +1674,10 @@ const SLOT_FIELDS_BY_TYPE: ReadonlyMap<string, Readonly<Record<number, readonly 
   ...Object.keys(IFC_TO_RESOURCE_TYPE).map(type => [type, RES_SLOT_FIELDS] as const),
 ]);
 
+export function slotHasFields(type: string, arg: number): boolean {
+  return (SLOT_FIELDS_BY_TYPE.get(type)?.[arg]?.length ?? 0) > 0;
+}
+
 export function slotFieldChanged(type: string, arg: number, object: string, changed: ReadonlySet<string>): boolean {
   if (changed.has(`${object}#@`) || changed.has(`${object}#*`)) return true;
   return (SLOT_FIELDS_BY_TYPE.get(type)?.[arg] ?? [])

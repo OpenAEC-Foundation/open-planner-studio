@@ -296,7 +296,7 @@ export function restoredOwnSlots(view: OwnLinesView, edits: readonly Pick<SlotEd
     const inPlace = e.arg === NAME_ARG[line.type] || ((isBaselineHead(line) || line.type === 'IFCTASK') && e.arg === 0);
     const partial = 'partial' in e && e.partial === true;
     if (!partial && at !== undefined && more.length === 0 && holders.get(at) === 1 && !inPlace
-      && (fromMap ? outside(e.token) : plain(e.token)) && plain(line.args[e.arg])) {
+      && (fromMap ? outside(e.token) : plain(e.token) && plain(line.args[e.arg]))) {
       slots.push({ group, place: `${at}#${e.arg}`, id: e.id, token: e.token });
     } else skip.add(group);
   }

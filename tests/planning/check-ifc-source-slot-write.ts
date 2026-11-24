@@ -3,15 +3,21 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { classify } from '@/services/ifc/foreign/classify';
 import { refsOutsideText } from '@/services/ifc/foreign/lossCheck';
+import { MergeNeedsPhase2Error, prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
+import { BASELINE_HEADS, type RestoredOwnSlots } from '@/services/ifc/foreign/ownGroups';
 import { mappedChunks, type SourcePieceSlots } from '@/services/ifc/foreign/sourceSlots';
 import { sourceSlotArgs, writerAlwaysWrites } from '@/services/ifc/foreign/sourceSlotWrite';
 import type { StepIndex } from '@/services/ifc/foreign/stepScanner';
 import { IFC_SLOT_TABLES, slotTableNamed, slotTableOf, type IfcSlotTable } from '@/services/ifc/ifcSlotTables';
+import { createIfcSaveWorker } from '@/services/ifc/saveWorker/ifcSaveWorker';
+import { documentContentOf } from '@/state/documentSaveState';
+import { computeIfcOutputHere, prepareIfcOutput, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { cloneDomain, doubleMemberships, lossProbe, mergeProblems, openForeign, sameBytes, tryMerge, type Domain, type Opened } from './ifcMergeKern';
 import type { OutLine } from '@/services/ifc/foreign/lossCheck';
-import { lengthen, recalculated, storeEdit } from './ifcAppRoute';
+import { lengthen, loadStore, openInStore, recalculated, storeEdit } from './ifcAppRoute';
 import { installDeterminism } from './ifcPariteitKern';
+import { InProcessWorker } from './inProcessSaveWorker';
 import { IFC_SCHEMA_TABLES } from './ifcSchemaTable';
 import { localTodayIso } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
@@ -133,6 +139,9 @@ function bonsaiPlanning(file: string): Fixture {
       else if (kind === 'domein' && table.naam === 'IfcTask' && slot.key === 'status') next = "'Bonsai: in uitvoering'";
       else if (kind === 'domein' && codeOf(index.type(chunk), k) === 'S' && args[k].trim() !== '$') next = otherForm(args[k].trim());
       else if (kind === 'domein' && /^'P0Y0M\d+D'$/.test(args[k].trim())) next = `'P${args[k].trim().slice(6)}`;
+      else if (kind === 'domein' && /^'\d{4}-\d\d-\d\dT\d\d:\d\d:00'$/.test(args[k].trim())) next = `${args[k].trim().slice(0, -4)}'`;
+      else if (kind === 'domein' && args[k].trim() === '.WORKTIME.') next = '.NOTDEFINED.';
+      else if (kind === 'domein' && table.naam === 'IfcTask' && slot.key === 'priority' && args[k].trim() === '$') next = '500';
       if (next === undefined || next === args[k].trim()) return;
       args[k] = next;
       distinct.add(at);
@@ -202,6 +211,44 @@ function counterparts(out: Uint8Array): (chunk: number) => number {
   return self;
 }
 
+function lostReferences(before: Uint8Array, after: Uint8Array): string[] {
+  const a = scanForeignStep(before), b = scanForeignStep(after), classes = classify(a).classes;
+  const guid = (index: Index, c: number) => {
+    const t = index.argTokens(c)?.[0]?.trim();
+    return t && /^'[0-9A-Za-z_$]{22}'$/.test(t) ? t : undefined;
+  };
+  const guids = new Set<string>();
+  for (let c = 0; c < b.count; c++) { const g = b.isEntity(c) ? guid(b, c) : undefined; if (g) guids.add(g); }
+  const present = (c: number) => {
+    const g = guid(a, c);
+    if (g) return guids.has(g);
+    const o = b.chunkOf(a.id(c));
+    return o >= 0 && b.type(o) === a.type(c);
+  };
+  const lost: string[] = [];
+  for (let t = 0; t < a.count; t++) {
+    if (!a.isEntity(t) || classes[t] === 1 || a.inEnd(t) === a.inStart(t)) continue;
+    const o = b.chunkOf(a.id(t));
+    if (o < 0 || b.type(o) !== a.type(t) || b.inEnd(o) > b.inStart(o)) continue;
+    const referrers = Array.from({ length: a.inEnd(t) - a.inStart(t) }, (_, k) => a.inSource(a.inStart(t) + k));
+    if (referrers.some(r => r >= 0 && present(r))) lost.push(`${a.type(t)} #${a.id(t)}`);
+  }
+  return lost;
+}
+
+function sourceTokenDifferences(out: Uint8Array): string[] {
+  const outIndex = scanForeignStep(out), counterpart = counterparts(out), diffs: string[] = [];
+  for (const [chunk, piece] of pieces) {
+    const table = slotTableNamed(piece.table)!, o = counterpart(chunk);
+    if (o < 0) continue;
+    const before = argsAt(sourceIndex, chunk), after = argsAt(outIndex, o);
+    table.slots.forEach((slot, k) => {
+      if (!slot.rol && !writerAlwaysWrites(table, k) && after[k] !== before[k]) diffs.push(`${table.naam}.${slot.key}@${sourceIndex.id(chunk)}`);
+    });
+  }
+  return diffs;
+}
+
 const innocent = (d: Domain) => storeEdit(d, s => { s.setProject({ name: `${d.project.name} (elders gewijzigd)` }); });
 const first = await tryMerge(await innocent(cloneDomain(opened)), source);
 dump('bron.ifc', sourceBytes);
@@ -209,6 +256,8 @@ if (first.ok) dump('na-onschuldige-wijziging.ifc', first.bytes);
 ok(`na een onschuldige wijziging elders schrijft de merge${first.ok ? '' : ` (${first.error.cases.slice(0, 3).map(c => `${c.kind}: ${c.detail}`).join(' | ')})`}`, first.ok);
 const tested = new Set<string>();
 if (first.ok) {
+  eq('na een onschuldige wijziging elders: elk slot van Bonsai houdt zijn brontoken', sourceTokenDifferences(first.bytes), []);
+  eq('na een onschuldige wijziging elders: geen stuk van Bonsai verliest zijn laatste verwijzing', lostReferences(sourceBytes, first.bytes), []);
   const outIndex = scanForeignStep(first.bytes);
   const counterpart = counterparts(first.bytes);
   for (const [chunk, piece] of pieces) {
@@ -314,6 +363,7 @@ const EDITS: Readonly<Record<string, DomainEdit>> = {
   'IfcTask.isMilestone': {
     pick: d => stepOf(opened, `task:${d.tasks.find(t => t.isMilestone)!.id}`),
     edit: async (d: Domain) => recalculated(await storeEdit(d, s => { s.updateTask(d.tasks.find(t => t.isMilestone)!.id, { isMilestone: false }); })),
+    refusal: 'bronvorm-leest-anders',
   },
   'IfcTask.predefinedType': { pick: taskStep, edit: sync(d => { leaves(d)[0].taskType = 'DEMOLITION'; }) },
   'IfcTaskTime.scheduleDuration': { pick: taskStep, owned: true, edit: lengthened },
@@ -326,7 +376,9 @@ const EDITS: Readonly<Record<string, DomainEdit>> = {
   'IfcTaskTime.freeFloat': { pick: floatStep, owned: true, edit: beyondFloat },
   'IfcTaskTime.isCritical': { pick: floatStep, owned: true, edit: beyondFloat },
   'IfcTaskTime.lateFinish': { pick: taskStep, owned: true, edit: beyondFloat },
-  'IfcTaskTime.durationType': { pick: taskStep, owned: true, edit: async d => { leaves(d)[0].time.durationType = 'ELAPSEDTIME'; return recalculated(d); } },
+  'IfcTaskTime.durationType': {
+    pick: taskStep, owned: true, edit: async d => { leaves(d)[0].time.durationType = 'ELAPSEDTIME'; return recalculated(d); }, refusal: 'bronvorm-leest-anders',
+  },
   'IfcTaskTime.actualStart': { pick: taskStep, owned: true, edit: progress(0.5) },
   'IfcTaskTime.remainingTime': { pick: taskStep, owned: true, edit: progress(0.5) },
   'IfcTaskTime.completion': { pick: taskStep, owned: true, edit: progress(0.5) },
@@ -388,24 +440,131 @@ for (const [at, entry] of Object.entries(EDITS)) {
   if (o < 0) { ok(`${at}: het stuk staat in de uitvoer`, false); continue; }
   const was = argsAt(sourceIndex, chunk)[k], now = argsAt(outIndex, o)[k];
   ok(`${at}: de nieuwe waarde van de writer, niet het brontoken (${was} → ${now})`, now !== was);
+  eq(`${at}: geen stuk van Bonsai verliest zijn laatste verwijzing`, lostReferences(sourceBytes, result.bytes), []);
 }
 
-if (first.ok) {
-  const reread = await openForeign(first.bytes);
-  const again = await tryMerge(cloneDomain(reread), reread.ifcSource!);
-  ok('tweemaal opslaan zonder wijziging: bytegelijk', again.ok && sameBytes(again.bytes, first.bytes));
-  const renamed = await storeEdit(cloneDomain(reread), s => { s.updateTask(leaves(reread)[0].id, { name: 'Tweede ronde' }); });
-  const second = await tryMerge(renamed, reread.ifcSource!);
-  ok(`tweemaal opslaan met een wijziging ertussen: schrijft${second.ok ? '' : ` (${second.error.cases.slice(0, 2).map(c => c.detail).join(' | ')})`}`, second.ok);
-  if (second.ok) {
-    dump('tweede-opslag.ifc', second.bytes);
-    const map = counterparts(second.bytes), outIndex = scanForeignStep(second.bytes);
+interface SingleEdit {
+  readonly object: (d: Domain) => number; readonly edit: (d: Domain) => Domain | Promise<Domain>; readonly slots: readonly string[]; readonly refusal?: string;
+}
+const PROGRESS_SLOTS = ['IfcTask.status', 'IfcTaskTime.completion', 'IfcTaskTime.actualStart', 'IfcTaskTime.actualFinish', 'IfcTaskTime.actualDuration', 'IfcTaskTime.remainingTime'];
+const ownedChunk = (chunk: number) => sourceIndex.refAt(chunk, sourceIndex.type(chunk) === 'IFCTASK' ? 11 : 6);
+const firstLeaf = (d: Domain) => leaves(d)[0];
+const plainLag = (d: Domain) => d.sequences.find(r => r.lagDays && r.lagMinutes === undefined && r.lagPercent === undefined)!;
+const resourceStep0 = (d: Domain) => stepOf(opened, `res:${d.resources[0].id}`);
+const calendarStep = () => stepOf(opened, `cal:${opened.calendar.id}`);
+const sequenceStep = (d: Domain) => stepOf(opened, `seq:${d.sequences[0].id}`);
+const lagStep = (d: Domain) => stepOf(opened, `seq:${plainLag(d).id}`);
+const time = (f: (t: Task['time']) => void) => sync(d => { f(firstLeaf(d).time); });
+const SINGLE: Readonly<Record<string, SingleEdit>> = {
+  name: { object: taskStep, edit: sync(d => { firstLeaf(d).name = 'Hernoemd'; }), slots: ['IfcTask.name'] },
+  description: { object: taskStep, edit: sync(d => { firstLeaf(d).description = 'Nieuwe omschrijving'; }), slots: ['IfcTask.description'] },
+  wbsCode: { object: taskStep, edit: sync(d => { firstLeaf(d).wbsCode = '9.9'; }), slots: ['IfcTask.identification'] },
+  priority: { object: taskStep, edit: sync(d => { firstLeaf(d).priority = 700; }), slots: ['IfcTask.priority'] },
+  taskType: { object: taskStep, edit: sync(d => { firstLeaf(d).taskType = 'DEMOLITION'; }), slots: ['IfcTask.predefinedType', 'IfcTask.objectType'] },
+  isMilestone: {
+    object: d => stepOf(opened, `task:${d.tasks.find(t => t.isMilestone)!.id}`),
+    edit: sync(d => { d.tasks.find(t => t.isMilestone)!.isMilestone = false; }), slots: ['IfcTask.isMilestone'], refusal: 'bronvorm-leest-anders',
+  },
+  'time.scheduleDuration': { object: taskStep, edit: time(t => { t.scheduleDuration += 1; }), slots: ['IfcTaskTime.scheduleDuration'] },
+  'time.scheduleStart': { object: taskStep, edit: time(t => { t.scheduleStart = dayLater(t.scheduleStart); }), slots: ['IfcTaskTime.scheduleStart'] },
+  'time.scheduleFinish': { object: taskStep, edit: time(t => { t.scheduleFinish = dayLater(t.scheduleFinish); }), slots: ['IfcTaskTime.scheduleFinish'] },
+  'time.earlyStart': { object: taskStep, edit: time(t => { t.earlyStart = dayLater(t.earlyStart); }), slots: ['IfcTaskTime.earlyStart'] },
+  'time.earlyFinish': { object: taskStep, edit: time(t => { t.earlyFinish = dayLater(t.earlyFinish); }), slots: ['IfcTaskTime.earlyFinish'] },
+  'time.lateStart': { object: taskStep, edit: time(t => { t.lateStart = dayLater(t.lateStart); }), slots: ['IfcTaskTime.lateStart'] },
+  'time.lateFinish': { object: taskStep, edit: time(t => { t.lateFinish = dayLater(t.lateFinish); }), slots: ['IfcTaskTime.lateFinish'] },
+  'time.totalFloat': { object: taskStep, edit: time(t => { t.totalFloat = (t.totalFloat ?? 0) + 1; }), slots: ['IfcTaskTime.totalFloat'] },
+  'time.freeFloat': { object: taskStep, edit: time(t => { t.freeFloat = (t.freeFloat ?? 0) + 1; }), slots: ['IfcTaskTime.freeFloat'] },
+  'time.isCritical': { object: taskStep, edit: time(t => { t.isCritical = !t.isCritical; }), slots: ['IfcTaskTime.isCritical'] },
+  'time.durationType': {
+    object: taskStep, edit: time(t => { t.durationType = 'ELAPSEDTIME'; }), refusal: 'bronvorm-leest-anders',
+    slots: ['IfcTaskTime.durationType', 'IfcTaskTime.scheduleDuration', 'IfcTaskTime.actualDuration', 'IfcTaskTime.remainingTime'],
+  },
+  'voortgang 50 %': { object: taskStep, edit: progress(0.5), slots: PROGRESS_SLOTS },
+  'voortgang 100 %': { object: taskStep, edit: progress(1), slots: PROGRESS_SLOTS },
+  'time.actualDuration': { object: taskStep, edit: time(t => { t.actualDuration = 1; }), slots: ['IfcTaskTime.actualDuration'] },
+  'time.remainingTime': { object: taskStep, edit: time(t => { t.remainingTime = 2; }), slots: ['IfcTaskTime.remainingTime'] },
+  'project.description': { object: () => stepOf(opened, `wp:${opened.project.id}`), edit: sync(d => { d.project.description = 'Andere omschrijving'; }), slots: ['IfcWorkPlan.description'] },
+  'calendar.name': { object: calendarStep, edit: sync(d => { d.calendar.name = 'Andere kalender'; }), slots: ['IfcWorkCalendar.name'] },
+  'calendar.description': { object: calendarStep, edit: sync(d => { d.calendar.description = 'Andere omschrijving'; }), slots: ['IfcWorkCalendar.description'] },
+  'calendar.shift': { object: calendarStep, edit: sync(d => { d.calendar.shift = 'SECOND'; }), slots: ['IfcWorkCalendar.predefinedType', 'IfcWorkCalendar.objectType'] },
+  'resource.name': { object: resourceStep0, edit: sync(d => { d.resources[0].name = 'Andere ploeg'; }), slots: ['resources.name'] },
+  'resource.description': { object: resourceStep0, edit: sync(d => { d.resources[0].description = 'Andere omschrijving'; }), slots: ['resources.description'] },
+  'sequence.type': {
+    object: sequenceStep, edit: sync(d => { d.sequences[0].type = 'START_START'; }),
+    slots: ['IfcRelSequence.sequenceType', 'IfcRelSequence.userDefinedSequenceType'],
+  },
+  'sequence.lagDays': { object: lagStep, edit: sync(d => { plainLag(d).lagDays += 3; }), slots: ['IfcLagTime.lagValue'] },
+  'sequence.lagUnit': { object: lagStep, edit: sync(d => { plainLag(d).lagUnit = 'ELAPSEDTIME'; }), slots: ['IfcLagTime.durationType', 'IfcLagTime.lagValue'] },
+};
+const NOT_SINGLE: Readonly<Record<string, string>> = {
+  'resources.predefinedType': 'een ander type geeft een andere entiteit; de merge weigert dat (entiteittype)',
+};
+for (const table of IFC_SLOT_TABLES) {
+  if (NOT_CARRIED.has(table.naam)) continue;
+  table.slots.forEach((slot, k) => {
+    const at = `${table.naam}.${slot.key}`;
+    const group = groupOf(table, k);
+    if (soort(table, k) !== 'domein' || (group && group[0] !== k)) return;
+    ok(`${at}: een bewerking van één veld die dit slot raakt, of de reden waarom niet`,
+      Object.values(SINGLE).some(e => e.slots.includes(at)) || at in NOT_EDITABLE || at in NOT_SINGLE);
+  });
+}
+for (const [field, entry] of Object.entries(SINGLE)) {
+  const edited = await entry.edit(cloneDomain(opened));
+  const result = await tryMerge(edited, source);
+  if (entry.refusal) { ok(`${field} gewijzigd: weigert met ${entry.refusal} (${result.ok ? 'schrijft' : result.kinds.join(', ')})`, !result.ok && result.kinds.includes(entry.refusal)); continue; }
+  if (!result.ok) { ok(`${field} gewijzigd: schrijft (${result.error.cases.slice(0, 2).map(c => `${c.kind}: ${c.detail}`).join(' | ')})`, false); continue; }
+  const object = sourceIndex.chunkOf(String(entry.object(cloneDomain(opened))));
+  const allowed = new Set(entry.slots.map(at => {
+    const chunk = at.startsWith('IfcTaskTime.') || at.startsWith('IfcLagTime.') ? ownedChunk(object) : object;
+    return `${at}@${sourceIndex.id(chunk)}`;
+  }));
+  eq(`${field} gewijzigd: alleen de slots van dat veld krijgen de waarde van de writer`, sourceTokenDifferences(result.bytes).filter(d => !allowed.has(d)), []);
+  eq(`${field} gewijzigd: invarianten`, mergeProblems(sourceBytes, result.bytes), []);
+  eq(`${field} gewijzigd: geen stuk van Bonsai verliest zijn laatste verwijzing`, lostReferences(sourceBytes, result.bytes), []);
+}
+
+const { buildWriteIFCInput } = await loadStore();
+const ROUTES: readonly (readonly [string, IfcOutputCompute])[] = [
+  ['op de hoofdthread', computeIfcOutputHere],
+  ['via de opslagworker', createIfcSaveWorker({ createWorker: () => new InProcessWorker('auto') }).compute],
+];
+for (const [route, compute] of ROUTES) {
+  const { store } = await openInStore(sourceBytes);
+  const commit = async (): Promise<Uint8Array | string> => {
+    const state = store.getState();
+    try {
+      const prepared = (await prepareIfcOutput(state, buildWriteIFCInput(state, 'merge'), undefined, compute)).prepared!;
+      store.getState().commitSavedDocument(documentContentOf(state, state.activeDocumentId!)!, state, undefined, prepared);
+      return store.getState().ifcSource === prepared.source ? prepared.bytes : 'de opslag zette haar bron niet op het document';
+    } catch (e) {
+      return e instanceof MergeNeedsPhase2Error ? e.cases.slice(0, 2).map(c => `${c.kind}: ${c.detail}`).join(' | ') : String(e);
+    }
+  };
+  const leaf = store.getState().tasks.find(t => t.childIds.length === 0 && !t.isMilestone)!;
+  store.getState().updateTask(leaf.id, { name: 'Eerste ronde' });
+  const once = await commit();
+  const twice = await commit();
+  store.getState().updateTask(leaf.id, { name: 'Tweede ronde' });
+  const second = await commit();
+  store.getState().updateTask(leaf.id, { name: 'Derde ronde' });
+  const third = await commit();
+  for (const [what, out] of [['de eerste opslag', once], ['de tweede opslag zonder wijziging', twice],
+    ['de tweede opslag met een wijziging', second], ['de derde opslag met een wijziging', third]] as const) {
+    ok(`${route}: ${what} schrijft${typeof out === 'string' ? ` (${out})` : ''}`, typeof out !== 'string');
+  }
+  ok(`${route}: tweemaal opslaan zonder wijziging: bytegelijk`, once instanceof Uint8Array && twice instanceof Uint8Array && sameBytes(once, twice));
+  for (const [what, out] of [['de tweede opslag', second], ['de derde opslag', third]] as const) {
+    if (!(out instanceof Uint8Array)) continue;
+    if (route === ROUTES[0][0]) dump(what === 'de tweede opslag' ? 'tweede-opslag.ifc' : 'derde-opslag.ifc', out);
+    eq(`${route}: na ${what} verliest geen stuk van Bonsai zijn laatste verwijzing`, lostReferences(sourceBytes, out), []);
+    const map = counterparts(out), outIndex = scanForeignStep(out);
     for (const [chunk, piece] of pieces) {
       const table = slotTableNamed(piece.table)!, o = map(chunk);
-      if (o < 0) { ok(`${piece.table} #${sourceIndex.id(chunk)}: staat na de tweede opslag nog in de uitvoer`, false); continue; }
+      if (o < 0) { ok(`${route}: ${piece.table} #${sourceIndex.id(chunk)} staat na ${what} nog in de uitvoer`, false); continue; }
       table.slots.forEach((slot, k) => {
         if (soort(table, k) !== 'constant' || groupOf(table, k)) return;
-        eq(`${piece.table} #${sourceIndex.id(chunk)}.${slot.key}: na de tweede opslag nog het token van Bonsai`, argsAt(outIndex, o)[k], argsAt(sourceIndex, chunk)[k]);
+        eq(`${route}: ${piece.table} #${sourceIndex.id(chunk)}.${slot.key} na ${what} nog het token van Bonsai`, argsAt(outIndex, o)[k], argsAt(sourceIndex, chunk)[k]);
       });
     }
   }
@@ -473,6 +632,7 @@ for (const [n, { label, edit, expect }] of RELATION_EDITS.entries()) {
   dump(`relatie-${n + 1}.ifc`, result.bytes);
   eq(`${label}: invarianten`, mergeProblems(sourceBytes, result.bytes), []);
   eq(`${label}: geen lid dubbel`, doubleMemberships(result.bytes).filter(k => !doubleMemberships(sourceBytes).includes(k)), []);
+  eq(`${label}: geen stuk van Bonsai verliest zijn laatste verwijzing`, lostReferences(sourceBytes, result.bytes), []);
   const index = scanForeignStep(result.bytes), counterpart = counterparts(result.bytes);
   for (const [chunk, piece] of relationPieces) {
     const table = slotTableNamed(piece.table)!;
@@ -485,9 +645,115 @@ for (const [n, { label, edit, expect }] of RELATION_EDITS.entries()) {
   for (const [what, holds] of expect(result.bytes, d)) ok(`${label}: ${what}`, holds);
 }
 
+let restored: RestoredOwnSlots | undefined;
+await prepareIfcWrite(await innocent(cloneDomain(opened)), source, undefined, r => { restored = r; }).catch(() => undefined);
+ok('een baselinekop met de owner history van Bonsai: controle (c) vergelijkt de groep van de baselinekoppen gewoon',
+  restored !== undefined && !restored.skip.has(BASELINE_HEADS));
+
+const B4D = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc'), 'utf8');
+const encode = (text: string) => new TextEncoder().encode(text);
+const atEnd = (text: string, extra: string) => text.replace(/ENDSEC;(\s*END-ISO-10303-21;)/, `${extra}\nENDSEC;$1`);
+type StoreEdit = Parameters<typeof storeEdit>[1];
+const rename = (from: string, to: string): StoreEdit => s => { s.updateTask(s.tasks.find(t => t.name === from)!.id, { name: to }); };
+async function saveOn(bytes: Uint8Array, edit: StoreEdit) {
+  const o = await openForeign(bytes);
+  return { o, result: await tryMerge(await storeEdit(cloneDomain(o), edit), o.ifcSource!) };
+}
+const outArgs = (out: Uint8Array, id: number) => { const index = scanForeignStep(out); return argsAt(index, index.chunkOf(String(id))); };
+const typeIn = (out: Uint8Array, id: number) => { const index = scanForeignStep(out); const c = index.chunkOf(String(id)); return c < 0 ? '' : index.type(c); };
+const unreferenced = (bytes: Uint8Array, type: string) => {
+  const index = scanForeignStep(bytes), ids: string[] = [];
+  for (let c = 0; c < index.count; c++) if (index.isEntity(c) && index.type(c) === type && index.inEnd(c) === index.inStart(c)) ids.push(index.id(c));
+  return ids;
+};
+const refusal = (r: Awaited<ReturnType<typeof tryMerge>>) => (r.ok ? 'schrijft' : r.error.cases.slice(0, 2).map(c => `${c.kind} #${c.sourceId}: ${c.detail}`).join(' | '));
+
+const RECURRING = atEnd(B4D.replace(/^#110=IFCTASKTIME\((.*)\);$/m, '#110=IFCTASKTIMERECURRING($1,#8001);'), '#8001=IFCRECURRENCEPATTERN(.DAILY.,$,$,$,2,$,$,$);');
+for (const [label, text] of [['een gewone taaktijd', B4D], ['een terugkerende taaktijd', RECURRING]] as const) {
+  const bytes = encode(text);
+  for (const [what, edit] of [['een andere taak hernoemd', rename('Wand A bouwen', 'Wand A (review)')], ['de taak zelf hernoemd', rename('Wand B bouwen', 'Wand B (review)')]] as const) {
+    const { result } = await saveOn(bytes, edit);
+    ok(`${label}, ${what}: schrijft (${refusal(result)})`, result.ok);
+    if (!result.ok) continue;
+    eq(`${label}, ${what}: #108 wijst nog naar #110`, outArgs(result.bytes, 108)[11], '#110');
+    eq(`${label}, ${what}: #110 houdt zijn entiteittype`, typeIn(result.bytes, 110), typeIn(bytes, 110));
+    eq(`${label}, ${what}: elke taaktijd in de uitvoer heeft een verwijzing`, unreferenced(result.bytes, 'IFCTASKTIME'), []);
+    eq(`${label}, ${what}: geen stuk van Bonsai verliest zijn laatste verwijzing`, lostReferences(bytes, result.bytes), []);
+  }
+}
+{
+  const o = await openForeign(encode(RECURRING));
+  const result = await tryMerge(await lengthen(cloneDomain(o), o.tasks.find(t => t.name === 'Wand B bouwen')!.id), o.ifcSource!);
+  ok(`een terugkerende taaktijd, de duur van die taak zelf langer: getypeerd geweigerd op #108 (${refusal(result)})`,
+    !result.ok && result.error.cases.some(c => c.kind === 'niet-gedragen' && c.sourceId === 108));
+}
+
+const WITH_LAG = atEnd(B4D.replace(/(,#104,#108),\$,(\.FINISH_START\.,\$\);)/, '$1,#8010,$2'),
+  "#8010=IFCLAGTIME('Bonsai lag',.MEASURED.,$,IFCDURATION('P2D'),.NOTDEFINED.);");
+for (const [what, change, want] of [
+  ['de lagwaarde van twee naar drie dagen', { lagDays: 3 }, ["'Bonsai lag'", '.MEASURED.', '$', "IFCDURATION('P3D')", '.NOTDEFINED.']],
+  ['de lageenheid naar verstreken tijd', { lagUnit: 'ELAPSEDTIME' as const }, ["'Bonsai lag'", '.MEASURED.', '$', "IFCDURATION('P2D')", '.ELAPSEDTIME.']],
+] as const) {
+  const { result } = await saveOn(encode(WITH_LAG), s => { s.updateSequence(s.sequences.find(q => q.lagDays === 2)!.id, change); });
+  ok(`een lag van Bonsai, ${what}: schrijft (${refusal(result)})`, result.ok);
+  if (result.ok) eq(`een lag van Bonsai, ${what}: alleen het slot van dat veld verandert`, outArgs(result.bytes, Number(outArgs(result.bytes, 112)[6].slice(1))), [...want]);
+}
+
+const TWO_ASSIGNMENTS = B4D.replace(/^(#120=.*?)\(#118,#30\)/m, '$1(#118)')
+  .replace(/(#118=IFCLABORRESOURCE\(.*\);)/, "$1\n#8001=IFCLABORRESOURCE('2RAmjWsPoBqSfsFswNCJJX',#117,'Andere ploeg',$,$,$,$,$,$,$,.NOTDEFINED.);")
+  .replace(/(#120=IFCRELASSIGNSTOPROCESS\(.*\);)/, "$1\n#8002=IFCRELASSIGNSTOPROCESS('1rmDhv9f7mdZ0AEONco1oi',#119,'Bonsai tweede',$,(#8001),$,#104,#121);");
+const assignmentsOf104 = (out: Uint8Array) => {
+  const index = scanForeignStep(out), found: string[] = [];
+  for (let c = 0; c < index.count; c++) {
+    if (index.isEntity(c) && index.type(c) === 'IFCRELASSIGNSTOPROCESS' && index.id(index.refAt(c, 6)) === '104') found.push(`${argsAt(index, c)[0]} ${argsAt(index, c)[4]}`);
+  }
+  return found.sort();
+};
+for (const [removed, left] of [
+  [['Metselploeg'], ["'1rmDhv9f7mdZ0AEONco1oi' (#8001)"]],
+  [['Andere ploeg'], ["'3rmDhv9f7mdZ0AEONco1oi' (#118)"]],
+  [['Metselploeg', 'Andere ploeg'], []],
+] as const) {
+  const { result } = await saveOn(encode(TWO_ASSIGNMENTS), s => {
+    const task = s.tasks.find(t => t.name === 'Wand A bouwen')!;
+    for (const name of removed) {
+      const resource = s.resources.find(r => r.name === name)!;
+      s.unassignResource(s.assignments.find(a => a.taskId === task.id && a.resourceId === resource.id)!.id);
+    }
+  });
+  ok(`twee toewijzingen van Bonsai, ${removed.join(' en ')} weg: schrijft (${refusal(result)})`, result.ok);
+  if (!result.ok) continue;
+  eq(`twee toewijzingen van Bonsai, ${removed.join(' en ')} weg: de overgebleven relatie op haar GlobalId`, assignmentsOf104(result.bytes), [...left]);
+  eq(`twee toewijzingen van Bonsai, ${removed.join(' en ')} weg: geen stuk van Bonsai verliest zijn laatste verwijzing`, lostReferences(encode(TWO_ASSIGNMENTS), result.bytes), []);
+}
+
+const PADDED = B4D.replace(/#107(?!\d)/g, '#00107');
+{
+  const { result } = await saveOn(encode(PADDED), rename('Wand A bouwen', 'Wand A (review)'));
+  ok(`een owner history met voorloopnullen: schrijft (${refusal(result)})`, result.ok);
+  if (result.ok) {
+    const text = new TextDecoder().decode(result.bytes);
+    eq('een owner history met voorloopnullen: elke verwijzing houdt haar token', [(text.match(/#107(?!\d)/g) ?? []).length, (text.match(/#00107(?!\d)/g) ?? []).length],
+      [0, (PADDED.match(/#00107(?!\d)/g) ?? []).length]);
+    eq('een owner history met voorloopnullen: de hulpstukken houden hun id', outArgs(result.bytes, 108)[11], '#110');
+  }
+}
+
+const withLongDescription = (text: string) => B4D.replace(/^#108=IFCTASK\(((?:[^,]*,){6})[^,]*,/m, (_m, head: string) => `#108=IFCTASK(${head}${text},`);
+{
+  const latin = Uint8Array.from(withLongDescription("'Café bouw'"), ch => ch.charCodeAt(0));
+  const { result } = await saveOn(latin, rename('Wand A bouwen', 'Wand A (review)'));
+  ok(`een rauwe Latin-1-byte in een slot van Bonsai: getypeerd geweigerd op #108 (${refusal(result)})`,
+    !result.ok && result.error.cases.some(c => c.kind === 'vreemde-herkomst' && c.sourceId === 108));
+  const utf8 = encode(withLongDescription("'Café bouw'"));
+  const { result: valid } = await saveOn(utf8, rename('Wand A bouwen', 'Wand A (review)'));
+  ok(`dezelfde tekst in UTF-8: schrijft (${refusal(valid)})`, valid.ok);
+  if (valid.ok) eq('dezelfde tekst in UTF-8: de bytes blijven', outArgs(valid.bytes, 108)[6], "'Café bouw'");
+}
+
 if (fails.length > 0) {
   console.log(`XX  ifc-source-slot-write: ${fails.length} afwijking(en) van ${checks}`);
   for (const f of fails) console.log(`   - ${f}`);
   process.exit(1);
 }
-console.log(`OK  ifc-source-slot-write: ${checks} toetsen groen (${ruleSlots} slots in de regel, ${tested.size} van openen tot opslaan, ${Object.keys(EDITS).length} bewerkingen)`);
+console.log(`OK  ifc-source-slot-write: ${checks} toetsen groen (${ruleSlots} slots in de regel, ${tested.size} van openen tot opslaan, ${Object.keys(EDITS).length} bewerkingen, ${Object.keys(SINGLE).length} van één veld)`);

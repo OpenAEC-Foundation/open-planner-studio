@@ -1855,7 +1855,12 @@ en noem het in je rapport of PR-tekst.
      `time.scheduleFinish: "2027-05-07T07:00" na herlezen in plaats van "2027-05-07T16:00"` (ook `earlyFinish` en
      `lateFinish`). Het einde in de vorm van de bron (`sourceFormWhereUnchanged`, `src/services/ifc/foreign/sourceForm.ts`)
      leest na heropenen anders dan wat de planner zag. Geen verlies (de merge weigert), wel een opslag die niet lukt.
-     Nagespeeld met een proef (#804 fase 2 PR 2 deel 2). — B
+     Nagespeeld met een proef (#804 fase 2 PR 2 deel 2). Dezelfde wortel bij taken van een ander programma (fixronde 1
+     van #1205): wordt de projectkalender bij een opslag letterlijk (een mijlpaal, of een taak met verstreken duur), dan
+     houdt elk ongewijzigd datumslot van zo'n taak zijn brontoken (regel A), en een einde als `'2027-05-12T07:00'` leest
+     in een letterlijke kalender als 07:00 in plaats van 16:00. De merge weigert dan met `bronvorm-leest-anders`; vóór de
+     fixronde schreef hij alle datums van die taken in de vorm van de writer, ook waar de planner niets wijzigde. De
+     pinproef `check-ifc-source-slot-write.ts` legt beide weigeringen vast. — B
 
 2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
      `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
