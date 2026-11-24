@@ -83,7 +83,7 @@ de geschreven momentopname. `markAutoSaveVersionSaved` verwijst naar dezelfde co
 
 **De versie op het eigen doel** (#804, knownbug 1957 en 2064; gelezen door `openTabFor` bij het openen):
 `knownTargetFingerprint` (`DOCUMENT_FIELDS`, `snapshot: 'none'`, buiten `IFC_SAVE_KEYS`/`IFC_DIRTY_KEYS` en het
-herstelmanifest) is `{ sha256, byteLength, origin }` van de bytes waarvan de app weet dat ze op het eigen pad of de eigen
+herstelmanifest) is `{ sha256, byteLength, origin, utf8Bom }` van de bytes waarvan de app weet dat ze op het eigen pad of de eigen
 handle staan, of `null` (onbekend). Hash en grootte komen van dezelfde bytes en worden altijd samen gezet; de grootte laat
 een latere bewaking een ander bestand zonder lezen herkennen. `origin` zegt waar de bytes vandaan komen: `'opened'` als
 openen ze van het doel las, `'written'` als de app ze zelf schreef (elke `commitSavedDocument`, ook de merge, en
@@ -133,7 +133,9 @@ document met een vreemd deel komt hier niet langs: zijn opslag vergelijkt de bro
 vingerafdruk (Opslaan als met ontbrekende bron zet een nieuwe, van de geschreven planning, op het nieuwe doel; IFC
 toepassen staat dicht). Een geopende versie (`'opened'`) en een onbekende houden de volgorde en de stroomscan van main:
 de scanner van openen aanvaardt meer dan de doelscan (twee datasecties, `stepScanner.ts`), en bij twijfel weigert de app
-(besluit Trias, 10 november 2026).
+(besluit Trias, 10 november 2026). Uitzondering voor een geopende versie met een UTF-8-BOM: zie *Oude eigen kop, scan
+en datasectie* in `tauri-ifc.md` (knownbug 2212); `utf8Bom` zegt of de bekende bytes met een BOM beginnen, en Ctrl+S en
+Automatisch opslaan zetten de BOM terug vóór de gewone uitvoer als de bevestigde versie er een had.
 De stop van Automatisch opslaan vervalt zodra `guardedKnownTarget` een
 andere waarde geeft: een vastgelegde eigen opslag of een export die het eigen doel schreef (`settleFingerprintAfterExport`;
 een nieuw object, ook als er intussen nieuw werk is), de flag uit (`setUI` wist het veld) of een onbekende versie;
