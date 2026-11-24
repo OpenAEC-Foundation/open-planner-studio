@@ -527,6 +527,13 @@ await check('IFC-export bestaand: de planning op die naam vervangen, het documen
   const { store } = await openInStore(bytes);
   longer(store); const before = preserved(store), literal = store.getState().ifcLiteralCalendarIds, ipc = desktop(appData);
   ipc.choose(target);
+  const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
+  const inner = win.__TAURI_INTERNALS__.invoke, beforePicker = Date.UTC(2026, 10, 9, 11, 0, 0);
+  win.__TAURI_INTERNALS__.invoke = async (...args) => {
+    const result = await inner(...args);
+    return args[0] === 'plugin:fs|lstat' && (args[1] as { path?: string } | undefined)?.path === target && typeof result === 'object' && result !== null
+      ? { ...result, mtime: beforePicker, birthtime: beforePicker } : result;
+  };
   try {
     clearNotices(store);
     const expected = await prepareIfcWrite(buildExportIFCInput(store.getState(), 'merge'), before.source!);
@@ -855,7 +862,8 @@ for (const kind of ['eigen-bron', 'andere-bron', 'bestaand-model'] as const) for
       assert.equal(hash(new Uint8Array(readFileSync(target))), oldHash, 'het bestand met gebouwmodel blijft heel');
       assert.equal(writeCalls(ipc), 0); unchanged(store, before);
       // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad.
-      assertNotice(store, kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab' : 'notifications.ifcForeignTargetExport');
+      assertNotice(store, kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab'
+        : kind === 'eigen-bron' ? 'notifications.exportTargetOwnFile' : 'notifications.ifcForeignTargetExport');
     } finally { ipc.dispose(); resetPlanOnlyAsker(); }
   });
 }

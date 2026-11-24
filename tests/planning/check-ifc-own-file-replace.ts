@@ -3206,6 +3206,155 @@ await check('stap 8: een ronde van Automatisch opslaan terwijl een ander program
   } finally { await tidy(c); }
 });
 
+function edgeCalls(from: number, dir: string, own: string, target: string): string[] {
+  const label = (path: string | undefined) => path === undefined ? '-' : path === target ? 'doel' : path === own ? 'eigen'
+    : isTempPath(path) ? 'tijdelijk' : path.includes('.ops-vorige-') ? 'vorige'
+      : path.startsWith(appData) ? `herstel/${basename(path).replace(/[0-9a-z]{8,}/g, '<id>').replace(/-\d+-[0-9a-z]+\.ifc/g, '-<n>.ifc')}`
+        : path.startsWith(dir) ? basename(path) : path;
+  return ipc.calls.slice(from).filter(call => call.command.startsWith('plugin:fs|') || call.command === 'place_file_exclusive')
+    .map(call => `${call.command} ${label(call.path)}`);
+}
+const EDGE_CTRL_S: string[] = [
+  'plugin:fs|lstat doel',
+  'plugin:fs|write_text_file herstel/<id>.test.replace.<id>.json.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|exists herstel/<id>.test.<id>.json',
+  'plugin:fs|read_text_file herstel/<id>.test.<id>.json',
+  'plugin:fs|mkdir herstel/appdata',
+  'plugin:fs|read_dir herstel/appdata',
+  'plugin:fs|write_text_file herstel/<id>.test.<id>.json.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|write_file tijdelijk',
+  'plugin:fs|stat doel',
+  'plugin:fs|open doel',
+  'plugin:fs|read -',
+  'plugin:fs|read -',
+  'place_file_exclusive vorige',
+  'place_file_exclusive doel',
+  'plugin:fs|lstat vorige',
+  'plugin:fs|stat vorige',
+  'plugin:fs|open vorige',
+  'plugin:fs|read -',
+  'plugin:fs|read -',
+  'plugin:fs|remove vorige',
+  'plugin:fs|exists herstel/<id>.test.<id>.json',
+  'plugin:fs|read_text_file herstel/<id>.test.<id>.json',
+  'plugin:fs|mkdir herstel/appdata',
+  'plugin:fs|write_text_file herstel/<id>.test.<id>.doc-<id>.<id>-<n>.ifc.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|read_dir herstel/appdata',
+  'plugin:fs|write_text_file herstel/<id>.test.<id>.json.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|remove herstel/<id>.test.<id>.doc-<id>.<id>-<n>.ifc',
+  'plugin:fs|lstat tijdelijk',
+  'plugin:fs|lstat vorige',
+  'plugin:fs|remove herstel/<id>.test.replace.<id>.json',
+];
+const EDGE_SAVE_AS_MODEL: string[] = [
+  'plugin:fs|lstat doel',
+  'plugin:fs|read_file doel',
+  'plugin:fs|stat doel',
+  'plugin:fs|stat eigen',
+  'plugin:fs|lstat doel',
+  'plugin:fs|write_text_file herstel/<id>.test.replace.<id>.json.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|exists herstel/<id>.test.<id>.json',
+  'plugin:fs|read_text_file herstel/<id>.test.<id>.json',
+  'plugin:fs|mkdir herstel/appdata',
+  'plugin:fs|write_text_file herstel/<id>.test.<id>.doc-<id>.<id>-<n>.ifc.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|read_dir herstel/appdata',
+  'plugin:fs|write_text_file herstel/<id>.test.<id>.json.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|remove herstel/<id>.test.<id>.doc-<id>.<id>-<n>.ifc',
+  'plugin:fs|stat doel',
+  'plugin:fs|stat eigen',
+  'plugin:fs|write_file tijdelijk',
+  'plugin:fs|stat doel',
+  'plugin:fs|open doel',
+  'plugin:fs|read -',
+  'plugin:fs|read -',
+  'place_file_exclusive vorige',
+  'place_file_exclusive doel',
+  'plugin:fs|lstat vorige',
+  'plugin:fs|stat vorige',
+  'plugin:fs|open vorige',
+  'plugin:fs|read -',
+  'plugin:fs|read -',
+  'plugin:fs|remove vorige',
+  'plugin:fs|exists herstel/<id>.test.<id>.json',
+  'plugin:fs|read_text_file herstel/<id>.test.<id>.json',
+  'plugin:fs|mkdir herstel/appdata',
+  'plugin:fs|write_text_file herstel/<id>.test.<id>.doc-<id>.<id>-<n>.ifc.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|read_dir herstel/appdata',
+  'plugin:fs|write_text_file herstel/<id>.test.<id>.json.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|remove herstel/<id>.test.<id>.doc-<id>.<id>-<n>.ifc',
+  'plugin:fs|lstat tijdelijk',
+  'plugin:fs|lstat vorige',
+  'plugin:fs|remove herstel/<id>.test.replace.<id>.json',
+];
+const EDGE_SAVE_AS_PLAIN: string[] = [
+  'plugin:fs|lstat doel',
+  'plugin:fs|read_file doel',
+  'plugin:fs|lstat doel',
+  'plugin:fs|write_text_file herstel/<id>.test.replace.<id>.json.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|write_file tijdelijk',
+  'plugin:fs|stat doel',
+  'plugin:fs|open doel',
+  'plugin:fs|read -',
+  'plugin:fs|read -',
+  'place_file_exclusive vorige',
+  'place_file_exclusive doel',
+  'plugin:fs|lstat vorige',
+  'plugin:fs|stat vorige',
+  'plugin:fs|open vorige',
+  'plugin:fs|read -',
+  'plugin:fs|read -',
+  'plugin:fs|remove vorige',
+  'plugin:fs|lstat tijdelijk',
+  'plugin:fs|lstat vorige',
+  'plugin:fs|remove herstel/<id>.test.replace.<id>.json',
+];
+await check('de haak van de export: Ctrl+S en Opslaan als houden aan de bestandsrand precies hun aanroepen', async () => {
+  const c = await opened();
+  try {
+    let from = ipc.calls.length;
+    assert.equal(await c.store.getState().saveFileForDocument(c.id), true);
+    const ctrlS = edgeCalls(from, c.dir, c.path, c.path);
+    renameTask(c, 'Daarna Opslaan als');
+    const target = otherFile(c);
+    from = ipc.calls.length;
+    await saveAsTo(c.store, target.path);
+    const saveAs = edgeCalls(from, c.dir, c.path, target.path);
+    const p = await plainWithTarget(true, plain);
+    from = ipc.calls.length;
+    await saveAsTo(p.store, p.target);
+    const plainSaveAs = edgeCalls(from, p.dir, p.path, p.target);
+    assert.deepEqual(ctrlS, EDGE_CTRL_S, 'Ctrl+S');
+    assert.deepEqual(saveAs, EDGE_SAVE_AS_MODEL, 'Opslaan als met een gebouwmodel over een bestaande naam');
+    assert.deepEqual(plainSaveAs, EDGE_SAVE_AS_PLAIN, 'Opslaan als van een gewone planning over een bestaande naam');
+  } finally { await tidy(c); }
+});
+
+const BEFORE_PICKER = new Date(2026, 10, 17, 13, 0).getTime();
+const existedBeforePicker = new Set<string>();
+{
+  const invoke = internal.invoke;
+  internal.invoke = async (command, ...args) => {
+    const result = await invoke(command, ...args);
+    const path = (args[0] as { path?: string } | undefined)?.path;
+    if (command !== 'plugin:fs|lstat' || !path || !existedBeforePicker.has(path) || typeof result !== 'object' || result === null) return result;
+    return { ...result, mtime: BEFORE_PICKER, birthtime: BEFORE_PICKER };
+  };
+}
+const existedTarget = (c: Case, content: Uint8Array = plain, name = 'ander.ifc'): OtherTarget => {
+  const target = otherFile(c, content, name);
+  existedBeforePicker.add(target.path);
+  return target;
+};
 const exportOf = async (c: Case) => {
   const s = c.store.getState();
   return prepareIfcWrite(buildExportIFCInput(s, 'merge'), s.ifcSource!);
@@ -3237,10 +3386,11 @@ for (const [label, prepare] of [
     await exportTo(c.store, path);
     assert.deepEqual(errorKeys(c), [], 'de eerste export naar een nieuwe naam slaagt');
     renameTask(c, 'Stand van deze vrijdag');
+    existedBeforePicker.add(path);
     return { path, content: new Uint8Array(readFileSync(path)) };
   }],
-  ['een modelbestand van een ander programma', async (c: Case) => otherFile(c, otherWithModel)],
-  ['een gewone planning', async (c: Case) => otherFile(c)],
+  ['een modelbestand van een ander programma', async (c: Case) => existedTarget(c, otherWithModel)],
+  ['een gewone planning', async (c: Case) => existedTarget(c)],
 ] as const) {
   await check(`Exporteren → IFC over ${label}: vervangen langs de vervanging van Opslaan als, het document blijft zoals het was`, async () => {
     const c = await opened();
@@ -3276,7 +3426,7 @@ for (const [label, prepare] of [
 await check('Exporteren → IFC over een bestaande naam die na de keuze verandert: niet vervangen, de zin van de export', async () => {
   const c = await opened();
   try {
-    const target = otherFile(c);
+    const target = existedTarget(c);
     clearNotices(c);
     const before = exportedFrom(c), from = ipc.calls.length;
     ipc.faults.beforeOpen = p => { if (isTempPath(p)) { writeFileSync(target.path, changedPlain); ipc.faults.beforeOpen = null; } };
@@ -3294,7 +3444,7 @@ await check('Exporteren → IFC over een modelbestand dat tijdens de eindvergeli
   const c = await opened();
   const invoke = internal.invoke;
   try {
-    const target = otherFile(c, otherWithModel), next = new Uint8Array([...otherWithModel, 10]);
+    const target = existedTarget(c, otherWithModel), next = new Uint8Array([...otherWithModel, 10]);
     clearNotices(c);
     const before = exportedFrom(c), expected = await exportOf(c);
     let rid: unknown, arrived = false;
@@ -3354,7 +3504,7 @@ for (const [label, during] of [
   await check(`Exporteren → IFC over een bestaande naam, ${label} na het herstelrecord: ${label === 'een bewerking' ? 'gestopt, het doel bytegelijk' : 'precies de export van het eerste tabblad'}`, async () => {
     const c = await opened();
     try {
-      const target = otherFile(c);
+      const target = existedTarget(c);
       clearNotices(c);
       const expected = await exportOf(c), from = ipc.calls.length;
       const hook = onceRecordWritten(() => during(c));
@@ -3379,9 +3529,10 @@ for (const via of ['een symbolische link', 'een harde link'] as const) {
   await check(`Exporteren → IFC over ${via} naar een gewone planning: niet vervangen, de zin van een nieuwe naam in exportwoorden`, async () => {
     const c = await opened();
     try {
-      const target = otherFile(c);
+      const target = existedTarget(c);
       const link = join(c.dir, 'link.ifc');
       if (via === 'een symbolische link') symlinkSync(target.path, link); else linkSync(target.path, link);
+      existedBeforePicker.add(link);
       clearNotices(c);
       const before = exportedFrom(c), from = ipc.calls.length;
       await exportTo(c.store, link);
@@ -3399,7 +3550,7 @@ for (const via of ['een symbolische link', 'een harde link'] as const) {
 for (const [label, content, fails] of [['zonder DATA-sectie', withoutData, false], ['dat niet te lezen is (leesfout)', plain, true]] as const) {
   await check(`Exporteren → IFC met een gebouwmodel over een bestand ${label}: blijft geweigerd`, async () => {
     const c = await opened();
-    const target = otherFile(c, content);
+    const target = existedTarget(c, content);
     const restore = fails ? readFailsOn(target.path) : () => {};
     try {
       clearNotices(c);
@@ -3452,7 +3603,7 @@ for (const [label, crashesAt, expected] of [
   await check(`Exporteren → IFC over een nooit geopende bestaande naam, crash ${label}: na afhandelen een volledig bestand, de oude inhoud terug te vinden`, async () => {
     const c = await opened();
     try {
-      const target = otherFile(c), exported = await exportOf(c);
+      const target = existedTarget(c), exported = await exportOf(c);
       const record = await exportCrashingAt(c, target, crashesAt);
       assert.equal(record.pendingSha256, exported.sha256, 'de komende versie is de export');
       await manifestStillOwnSource(c);
@@ -3466,6 +3617,76 @@ for (const [label, crashesAt, expected] of [
       assert.deepEqual(recordsOnDisk().length, kept ? 1 : 0, kept ? 'het record blijft zolang de vorige versie er staat' : 'het record is weg');
       assert.deepEqual(notices.map(n => n.messageKey), kept ? ['notifications.ifcForeignReplaceLeftOver']
         : after[SAVE_AS_UNSAVED_COPY] ? ['notifications.ifcForeignReplaceUnsavedCopy'] : []);
+    } finally { await tidy(c); }
+  });
+}
+
+await check('P1: Exporteren → IFC van een planning met alleen gegevens van een ander programma over een modelbestand: geweigerd, het model bytegelijk', async () => {
+  const c = await opened(externalPset);
+  try {
+    assert.equal(c.store.getState().ifcSource?.buildingModel, false, 'de bron heeft geen gebouwmodel');
+    const target = existedTarget(c, otherWithModel);
+    clearNotices(c);
+    const before = exportedFrom(c), from = ipc.calls.length;
+    await exportTo(c.store, target.path);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetExport']);
+    assert.equal(fileHash(c, 'ander.ifc'), hash(otherWithModel), 'het gebouwmodel bytegelijk');
+    exportLeftDocument(c, before);
+    assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties');
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
+
+async function exportToAppearing(store: Case['store'], path: string, content: Uint8Array): Promise<void> {
+  const invoke = internal.invoke;
+  internal.invoke = (command, ...args) => {
+    if (command !== 'plugin:dialog|save') return invoke(command, ...args);
+    writeFileSync(path, content);
+    return Promise.resolve(path);
+  };
+  try { await store.getState().exportAs('ifc'); } finally { internal.invoke = invoke; }
+}
+await check('Exporteren → IFC naar een vrije naam waar na de keuze een bestand verschijnt: niet vervangen, het bestand bytegelijk', async () => {
+  const c = await opened();
+  try {
+    const path = join(c.dir, 'nieuw.ifc');
+    clearNotices(c);
+    const before = exportedFrom(c), from = ipc.calls.length;
+    await exportToAppearing(c.store, path, plain);
+    assert.deepEqual(errorKeys(c), ['notifications.exportReplaceNewTargetOnly']);
+    assert.equal(fileHash(c, 'nieuw.ifc'), hash(plain), 'het verschenen bestand bytegelijk');
+    assert.deepEqual(files(c), ['model.ifc', 'nieuw.ifc'], 'geen hulpbestand');
+    exportLeftDocument(c, before);
+    assert.deepEqual(projectWriteFiles(c, from).filter(call => !isTempPath(call.path!)), [], 'nooit een schrijfactie op het doel');
+    assert.deepEqual(placesSince(from).map(call => call.path), [path], 'alleen de exclusieve aanmaak, geen opzijzetten');
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
+
+for (const restored of [true, false]) {
+  await check(`Exporteren → IFC over een bestaande naam, een bewerking terwijl het doel opzij gaat: ${restored
+    ? 'niet vervangen, het doel bytegelijk terug, geen hulpbestand, geen record' : 'terugzetten mislukt: het record en de vorige versie blijven'}`, async () => {
+    const c = await opened();
+    try {
+      const target = existedTarget(c);
+      clearNotices(c);
+      const before = exportedFrom(c);
+      placeCalls({
+        1: (_from, _to, real) => { const answer = real(); renameTask(c, 'Tijdens het opzijzetten'); return answer; },
+        ...(restored ? {} : { 2: () => reject('io', { message: 'nog gedeeld' }) }),
+      });
+      await exportTo(c.store, target.path);
+      const records = recordsOnDisk();
+      if (restored) {
+        assert.deepEqual(errorKeys(c), ['notifications.ifcExportChangedWhileWaiting']);
+        assert.deepEqual(disk(c), { 'ander.ifc': hash(plain), 'model.ifc': hash(bytes) }, 'het doel bytegelijk terug, geen hulpbestand');
+        assert.deepEqual(records, [], 'het record is weg');
+      } else {
+        assert.deepEqual(errorKeys(c), ['notifications.exportReplacePreviousStranded']);
+        assert.equal(records.length, 1, 'het record blijft');
+        assert.deepEqual(disk(c), { [previousName(records[0].id)]: hash(plain), 'model.ifc': hash(bytes) }, 'de vorige versie staat onder haar hulpnaam');
+      }
+      exportLeftDocument(c, before);
     } finally { await tidy(c); }
   });
 }

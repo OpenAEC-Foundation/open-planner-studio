@@ -1724,4 +1724,105 @@ test('export_ifc in de app met een gebouwmodel over een bestaande naam: alleen m
   }
 });
 
+const MAIN_EXPORT_IFC_DESCRIPTION =
+  'Write the ACTIVE document to `path` as IFC (complete, the native format), inside the home folder. ' +
+  'Replaces a file only with `overwrite: true`; documents with preserved foreign content require a new file name. Returns characters for text or byteLength for bytes. An export, not "save as": the document stays unsaved. Tell ' +
+  'the user the path; pass on `schemaNotice`. Writing over the source file of an unwritable schema (e.g. IFC2X3), or over a file ' +
+  'not provably different from it, is refused: choose a new file name or let the user save in the app. ' +
+  'The file of another open document is refused too, even with `overwrite: true`.';
+
+test('export_ifc in de app: de grenzen van de vervanging (fixronde 1 van #1179)', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'ops-mcp-grenzen-'));
+  const appData = mkdtempSync(join(tmpdir(), 'ops-mcp-grenzen-appdata-'));
+  const ipc = installNodeFileIpc({ appDataDir: appData });
+  const previousGetFs = fileToolDeps.getFs;
+  const hash = (b: Uint8Array) => createHash('sha256').update(b).digest('hex');
+  const flagOn = (on: boolean) => useAppStore.setState(s => { s.ui.featureFlags = on ? { ifcForeignContent: true } : {}; });
+  flagOn(true);
+  try {
+    const fs: McpFileFs = { ...(await realFs()), homeDir: async () => root, readFile: async p => new Uint8Array(readFileSync(p)) };
+    fileToolDeps.getFs = async () => fs;
+    const bytes = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
+    const plain = new Uint8Array(readFileSync(join(MCP_ROOT, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
+    const otherModel = new Uint8Array(bytes); otherModel[Buffer.from(otherModel).indexOf("FILE_NAME('") + 11] ^= 1;
+    const pset = new Uint8Array(Buffer.from(Buffer.from(plain).toString('latin1').replace(/ENDSEC;\nEND-ISO-10303-21;\n?$/,
+      "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n"
+      + "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;\n"), 'latin1'));
+    const helpers = () => readdirSync(root).filter(name => name.includes('.ops-'));
+    const records = () => readdirSync(appData).filter(name => replaceRecordId(name) !== null);
+    const read = (from: number, path: string) => ipc.calls.slice(from)
+      .filter(call => call.path === path && ['plugin:fs|lstat', 'plugin:fs|read_file', 'plugin:fs|open'].includes(call.command)).map(call => call.command);
+    const fileHash = (path: string) => hash(new Uint8Array(readFileSync(path)));
+
+    const listed = async () => (JSON.parse(await handleMcpMessage(JSON.stringify({ jsonrpc: '2.0', id: 1179, method: 'tools/list' }), makeCtx()))
+      .result.tools as { name: string; description: string }[]).find(tool => tool.name === 'planner_export_ifc')!.description;
+    flagOn(false);
+    assertEq(await listed(), MAIN_EXPORT_IFC_DESCRIPTION, 'flag uit: de tooltekst van main');
+    flagOn(true);
+    const replacing = await listed();
+    assert(replacing.includes('the replaced file is then gone') && replacing.includes('`replaceNotice`'), 'flag aan: de tekst van de vervanging');
+
+    const psetPath = join(root, 'pset.ifc'); writeFileSync(psetPath, pset);
+    const psetCtx = makeCtx(); await callOk('planner_import_schedule', { path: psetPath }, psetCtx);
+    assert(S().ifcSource?.foreign === true && S().ifcSource?.buildingModel === false, 'een planning met alleen een vreemde eigenschappenset');
+    const modelTarget = join(root, 'model-van-ander.ifc'); writeFileSync(modelTarget, otherModel);
+    const p1 = await exportRpc(modelTarget, true, psetCtx);
+    assert(!p1.ok && p1.code === 'VALIDATION' && p1.error.includes('already contains a building model'), 'P1: het modeldoel blijft geweigerd');
+    assertEq([fileHash(modelTarget), helpers(), records()], [hash(otherModel), [], []], 'P1: het gebouwmodel bytegelijk');
+
+    const original = join(root, 'Kantoor Zuidas.ifc'); writeFileSync(original, bytes);
+    const ctx = makeCtx(); await callOk('planner_import_schedule', { path: original }, ctx);
+    const id = S().activeDocumentId, task = S().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+    S().updateTask(task.id, { name: 'Stand van deze vrijdag' }); S().runCPM();
+    let from = ipc.calls.length;
+    const own = await exportRpc(original, true, makeCtx());
+    assert(!own.ok && own.code === 'VALIDATION' && own.error.includes('file of the active document itself'), 'het eigen bestand geweigerd');
+    assertEq(read(from, original).filter(command => command !== 'plugin:fs|lstat'), [], 'het eigen bestand niet gelezen vóór de weigering');
+
+    const tab = join(root, 'tweede.ifc'); writeFileSync(tab, plain);
+    await callOk('planner_import_schedule', { path: tab }, makeCtx());
+    S().switchDocument(id);
+    from = ipc.calls.length;
+    const inTab = await exportRpc(tab, true, makeCtx());
+    assert(!inTab.ok && inTab.code === 'VALIDATION' && inTab.error.includes('another open document'), 'het bestand van een ander tabblad geweigerd');
+    assertEq(read(from, tab).filter(command => command !== 'plugin:fs|lstat'), [], 'het bestand van het andere tabblad niet gelezen');
+
+    const target = join(root, 'stand.ifc'); writeFileSync(target, otherModel);
+    const exists = fs.exists;
+    fs.exists = async p => { const answer = await exists(p); flagOn(false); return answer; };
+    from = ipc.calls.length;
+    const off = await exportRpc(target, true, makeCtx());
+    fs.exists = exists; flagOn(true);
+    assert(!off.ok && off.code === 'VALIDATION' && off.error.includes('cannot save or export it as IFC yet'), 'flag uit tijdens het verzoek: geweigerd');
+    assertEq(read(from, target), [], 'flag uit tijdens het verzoek: geen lstat en geen lezing van het doel');
+    assertEq(fileHash(target), hash(otherModel), 'flag uit: het doel bytegelijk');
+
+    for (const restored of [true, false]) {
+      writeFileSync(target, plain);
+      let places = 0;
+      ipc.faults.place = (_from, _to, real) => {
+        places++;
+        if (places === 1) { const answer = real(); S().updateTask(task.id, { name: `Tijdens het opzijzetten ${restored}` }); return answer; }
+        return places === 2 && !restored ? { reject: { code: 'io', message: 'nog gedeeld' } } : undefined;
+      };
+      const raced = await exportRpc(target, true, makeCtx());
+      ipc.faults.place = null;
+      if (restored) {
+        assert(!raced.ok && raced.code === 'VALIDATION' && raced.error.includes('changed during the export'), 'een bewerking tijdens het opzijzetten: VALIDATION');
+        assertEq([fileHash(target), helpers(), records()], [hash(plain), [], []], 'het doel bytegelijk terug, geen hulpbestand, geen record');
+      } else {
+        assert(!raced.ok && raced.code === 'INTERNAL' && raced.error.includes('could not be put back'), 'terugzetten mislukt: INTERNAL');
+        assertEq([existsSync(target), helpers().length, records().length], [false, 1, 1], 'het record en de vorige versie blijven');
+        assertEq(hash(new Uint8Array(readFileSync(join(root, helpers()[0])))), hash(plain), 'de vorige versie onder haar hulpnaam');
+        for (const name of helpers()) rmSync(join(root, name));
+        for (const name of records()) rmSync(join(appData, name));
+      }
+    }
+  } finally {
+    ipc.faults.place = null; ipc.dispose(); fileToolDeps.getFs = previousGetFs;
+    useAppStore.setState(s => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument();
+    rmSync(root, { recursive: true, force: true }); rmSync(appData, { recursive: true, force: true });
+  }
+});
+
 await run();
