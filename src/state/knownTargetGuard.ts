@@ -4,7 +4,7 @@ import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import type { TargetFingerprint } from './documentContract';
 
 type FeatureFlags = Parameters<typeof ifcForeignContentEnabled>[0];
-export type KnownTargetChange = Extract<SourceTargetContent, 'changed' | 'unreadable'>;
+type KnownTargetChange = Extract<SourceTargetContent, 'changed' | 'unreadable'>;
 export interface KnownTargetState {
   readonly featureFlags: FeatureFlags;
   readonly known: TargetFingerprint | null;
