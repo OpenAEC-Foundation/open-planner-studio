@@ -374,10 +374,7 @@ export function jsonExtrasProblem(before: readonly SourceJsonExtras[], output: J
           if (assignmentId !== undefined) windows.push({ ownerStepId: place.ownerStepId, key: step.venster, assignmentId });
           continue;
         }
-        if (!assignment) {
-          if (!d.owners.has(e.owner)) continue;
-          return { problem: `${describe(e, o)}: de toewijzing met onbekende JSON-sleutels is niet aantoonbaar dezelfde als in de bron`, windows };
-        }
+        if (!assignment) continue;
         const target = at(`task_${assignment.taskId}`, e.pset, e.property);
         const key = output.assignmentKeys.get(assignment.id);
         const found = target && key !== undefined ? follow(d.fields, tree(target), [{ sleutel: key }, ...o.path.slice(1)]) : 'onzeker';

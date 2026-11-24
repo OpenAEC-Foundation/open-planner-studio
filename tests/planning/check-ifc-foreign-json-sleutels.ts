@@ -503,6 +503,17 @@ if (base) {
     if (prepared) ok(`-0: het ongewijzigde venster houdt -0 (${jsonIn(prepared.bytes, 'OPS_Timephased', 'Windows', TASK_GUID)})`,
       jsonIn(prepared.bytes, 'OPS_Timephased', 'Windows', TASK_GUID)?.includes('"plannedWorkMinutes":-0') === true);
   }
+  {
+    const opened = await openForeign(minusZero);
+    const domain = cloneDomain(opened);
+    const a = asgn(domain, opened, 110);
+    domain.assignments = domain.assignments.map(x => x === a ? { ...x, plannedWorkMinutes: 960 } : x);
+    const verdict = await refusal(domain, opened.ifcSource!);
+    const prepared = verdict === 'schreef' ? await prepareIfcWrite(domain, opened.ifcSource!) : undefined;
+    const windows = prepared && jsonIn(prepared.bytes, 'OPS_Timephased', 'Windows', TASK_GUID);
+    ok(`-0: een ander venster in dezelfde eigenschap gewijzigd: weigert, of het venster van #109 houdt -0 (${verdict.slice(0, 160)} ${windows ?? ''})`,
+      verdict === 'schreef' ? windows?.includes(`"${R109}#0":{"plannedWorkMinutes":-0}`) === true : /Windows/.test(verdict));
+  }
 
   const opaque = latin1(patchJson(baseText, 'structure', j => j.replace(/\}$/, ',"vendorOpaque":{"code":1,"code":2},"vendorText":"\\X2\\00E9\\X0\\"}')));
   for (const [label, edit] of [
