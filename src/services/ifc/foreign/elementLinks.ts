@@ -14,7 +14,7 @@ export interface StepElementLink extends ElementLink {
   readonly taskStepId: number;
 }
 
-export type TaskElementLinks = Readonly<Record<string, readonly ElementLink[]>>;
+export type TaskElementLinks = ReadonlyMap<string, readonly ElementLink[]>;
 
 const RELATED_OBJECTS_ARG = 4;
 const RELATING_ARG = 6;
@@ -73,12 +73,17 @@ export function elementLinksByTask(links: readonly StepElementLink[], stepIds: R
   for (const [seed, stepId] of Object.entries(stepIds)) {
     if (seed.startsWith(TASK_SEED_PREFIX)) taskIdByStepId.set(stepId, seed.slice(TASK_SEED_PREFIX.length));
   }
-  const byTask: Record<string, ElementLink[]> = {};
+  const byTask = new Map<string, ElementLink[]>();
+  const seen = new Set<string>();
   for (const { taskStepId: stepId, direction, target, found } of links) {
     const taskId = taskIdByStepId.get(stepId);
     if (taskId === undefined) continue;
-    const list = byTask[taskId] ??= [];
-    if (!list.some(link => link.direction === direction && link.target === target)) list.push({ direction, target, found });
+    const key = `${stepId}:${direction}:${target}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const list = byTask.get(taskId);
+    if (list) list.push({ direction, target, found });
+    else byTask.set(taskId, [{ direction, target, found }]);
   }
   return byTask;
 }

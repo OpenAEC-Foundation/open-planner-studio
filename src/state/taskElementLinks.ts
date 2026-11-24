@@ -14,7 +14,7 @@ export interface ElementLinkCounts {
 
 export function taskElementLinks(state: ElementLinkState, taskId: string): readonly ElementLink[] | undefined {
   if (!ifcForeignContentEnabled(state.ui.featureFlags)) return undefined;
-  return state.ifcSource?.elementLinks[taskId];
+  return state.ifcSource?.elementLinks.get(taskId);
 }
 
 export function elementLinkCounts(links: readonly ElementLink[]): ElementLinkCounts {
