@@ -54,6 +54,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { MINUTE_MODEL_TIME_MODEL, migrateToMinuteModel, TIME_FIELDS } from '@/state/migrations/minuteModel';
 import { inferWbsAutoNumberOnOpen } from '@/utils/wbs';
 import { sameValue } from '@/utils/sameValue';
+import { firstById } from '@/utils/firstById';
 import { ifcObjectSeed, type WriteIFCInput } from '../ifcWriter';
 import { planningIdentities } from './planningIdentity';
 
@@ -102,12 +103,6 @@ const TASK_DATE_KEYS: ReadonlySet<string> = new Set(['deadline', 'constraint', '
 const TIME_DATE_KEYS: ReadonlySet<string> = new Set<string>(TIME_FIELDS);
 const isDateLeaf = (leaf: SourceFormLeaf) => leaf.kind === 'task'
   && (leaf.sub === undefined ? TASK_DATE_KEYS.has(leaf.field) : TIME_DATE_KEYS.has(leaf.sub));
-
-function firstById<T extends { id: string }>(list: readonly T[] | undefined): Map<string, T> {
-  const out = new Map<string, T>();
-  for (const x of list ?? []) if (!out.has(x.id)) out.set(x.id, x);
-  return out;
-}
 
 /** De waarde van een veld, of `found: false` als het object ontbreekt. */
 function leafValues(planning: { tasks: readonly Task[]; baselines?: readonly Baseline[]; calendars?: readonly WorkCalendar[] }):

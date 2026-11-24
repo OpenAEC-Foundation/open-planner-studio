@@ -110,6 +110,7 @@ import { durationForm, type DurationSlot } from './durationForms';
 import { parseIfcDuration } from '../isoDuration';
 import { taskMinutesPerDay } from '../dayMeasureIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
+import { firstById } from '@/utils/firstById';
 import { foreignScanFrom, readerBytes, readerOptions, type ForeignScanResult } from './foreignScan';
 import type { IfcSource } from './ifcSource';
 import { planningIdentities, planningIdentityInput } from './planningIdentity';
@@ -369,7 +370,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   // Gedragen (fixronde 1 van #886): een slot is volledig gedragen als de writer op de lezing van de bron (O0) dezelfde
   // waarde teruggeeft als de bron. Zonder (b) is dat zo (O0 is dan gelijk aan de bron); met (b) alleen bij een datum, tijd of duur
   // met dezelfde betekenis in een andere vorm (`sameMeaning`). Wat niet gedragen is, krijgt nooit de waarde van de writer.
-  const pristineTasks = firstTaskById(input.pristine.tasks);
+  const pristineTasks = firstById(input.pristine.tasks);
   const notCarried = new Set(restores.filter(r => !sameMeaning(index, r, p0.out.get(p0.pairedOut.get(r.chunk)![0])!.args[r.outArg], taskTimeMinutesPerDay(input, r.chunk, pristineTasks)))
     .map(r => `${r.chunk}:${r.outArg}`));
   const carried = (chunk: number, outArg: number) => !notCarried.has(`${chunk}:${outArg}`);
@@ -891,12 +892,6 @@ function shiftingLists(input: LossCheckInput): { readonly list: number; readonly
     if (members.length > 0) lists.push({ list: c, members, outArg: 4, keyArgs: [0] });
   }
   return lists;
-}
-
-function firstTaskById(tasks: readonly Task[]): Map<string, Task> {
-  const out = new Map<string, Task>();
-  for (const t of tasks) if (!out.has(t.id)) out.set(t.id, t);
-  return out;
 }
 
 function firstPositions(list: readonly number[]): Map<number, number> {
@@ -1740,7 +1735,7 @@ function o1Context(input: LossCheckInput, p: Pairing, changed: ChangedScopes, ca
   return {
     input, p, scopes: sourceScopes(input), changed, ownPerson: refOf(pao?.args[0]), ownOrg: refOf(pao?.args[1]),
     tasks0: new Map(input.pristine.tasks.map(t => [t.id, t])), tasks1: new Map(input.domain.tasks.map(t => [t.id, t])),
-    tasksAtOpen: firstTaskById((input.opened ?? input.pristine).tasks),
+    tasksAtOpen: firstById((input.opened ?? input.pristine).tasks),
     carried, plannerChanged: input.plannerChanged ?? changed.keys,
   };
 }

@@ -7,6 +7,7 @@
  */
 import { writeIFCForComparison, type WriteIFCInput } from '../ifcWriter';
 import { planningIdentityInput } from './planningIdentity';
+import { firstById } from '@/utils/firstById';
 import { orphanRowsWithoutId } from './sourceForm';
 
 /** Alleen de bibliotheek is op id geordend. Een array blijft een array: dubbele ids verdwijnen niet. */
@@ -42,8 +43,7 @@ export function planningDifference(a: WriteIFCInput, b: WriteIFCInput): string {
     }
     return `${path}: ${JSON.stringify(x)} → ${JSON.stringify(y)}`;
   }
-  const others = new Map<string, WriteIFCInput['tasks'][number]>();
-  for (const t of b.tasks) if (!others.has(t.id)) others.set(t.id, t);
+  const others = firstById(b.tasks);
   for (const task of a.tasks) {
     const other = others.get(task.id);
     const diff = first(task, other, `taak ${task.id}`);
