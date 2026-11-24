@@ -313,6 +313,26 @@ tekst die de lezer krijgt. De app schrijft niets aan de koppelingen; de A-stukke
 bouwdeel dat zowel invoer als uitvoer is, telt één keer. IFCX (§6.4) hoort bij fase 3 en 4. Proeven:
 `check-ifc-element-links.ts`, `tests/mcp/cases-element-links.ts` en de stap met `bonsai-4d.ifc` in `settings-tabs.spec.ts`.
 
+### Ongebruikte sleutels in `OPS_Assignments` (#804 fase 2, PR 3)
+
+Een sleutel in GlobalId-vorm (`isAssignmentKeyName` in `src/services/ifc/assignmentKeys.ts`, ook de herkenner achter
+`isOwnAssignmentKey` in `classify.ts`) die de lezer aan geen toewijzing koppelt, is ongebruikt: meer `#n`-sleutels dan
+toewijzingen van die resource, een kale sleutel naast genoeg `#n`-sleutels, of een waarde die geen tekst is.
+`extractAssignments` meldt ze via `unusedAssignmentKeysOut`. De bytes-route vraagt daar alleen om bij een vreemd deel
+(`C + A + V > 0`) en zet ze dan in `ifcSource.unusedKeys` (taak-`#id` met de property-`#id`'s, in psetvolgorde); een eigen
+bestand krijgt hetzelfde leesresultaat als op main. Alleen de merge schrijft ze terug: `unusedKeysForWriter`
+(`foreign/unusedKeys.ts`) leest naam en waardetoken uit de bron, en `writeAssignmentMeta` schrijft ze na de eigen sleutels,
+met de namen van `unusedAssignmentKeyNames`: een `#n` onder de nummers die de writer zelf schrijft, schuift naar het
+eerste vrije nummer erboven, zodat de wachtrij van de lezer niet verschuift; een kale sleutel houdt haar naam. Dat vrije
+nummer slaat ook de namen van de vreemde leden van dezelfde pset over (`foreignAssignmentKeyNamesForWriter`), want een
+pset met twee properties met dezelfde naam is ongeldige IFC. Heeft de taak geen toewijzingen meer, dan krijgt ze een pset
+met alleen deze sleutels. In `checkedBytes` eist `unusedKeysProblem` per bestaande taak in de herlezing van de uitvoer
+dezelfde waarden onder de namen die de regel geeft, en weigert `duplicateAssignmentKeyProblem` elke naam die in
+`OPS_Assignments` vaker voorkomt dan in de bron, ook een eigen sleutel naast een vreemd lid (beide `uitvoer-controle`).
+De nieuwe bron neemt de lijst uit die herlezing. Een gewiste taak neemt haar sleutels mee; melding en `detached` volgen
+in PR 6 en 7. Zonder vreemd deel schrijft de gewone writer ze niet, zoals op main; een paar bronvormen weigeren nog
+(knownbug 2210). Proef: `check-ifc-foreign-ongebruikte-sleutels.ts`.
+
 ### Vergelijkingsklok (#804 fase 1c)
 
 `planningCanon` gebruikt alleen `writeIFCForComparison`: één vaste datum via de interne schrijfkern,
