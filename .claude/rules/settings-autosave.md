@@ -79,18 +79,19 @@ via `flushRecoveryNow` tot de gepersisteerde basis van `runRecoveryTick` het noe
 slagen eerst de nieuwe bron en wist dan het veld; na mislukken alleen wissen. Herstel aanvaardt een bron met `sha256`
 of `pendingSha256` en neemt de gevonden versie. Een oudere app negeert het veld. Ctrl+S via de browserhandle roept
 het aan (stap 2, `tauri-ifc.md`); zonder vastgelegd manifest schrijft hij niet (1764).
-#804 fase 2, PR 11: `ifcSource.sharedGlobalIds` (optioneel, v5) noemt de zaden (`soort:id`) van taken, resources,
-bibliotheekkalenders en relaties waarvan de bewaarde GlobalId in `ifcGlobalIds` gedeeld wordt (een `-dup-N`-object en
-zijn partner), met die GlobalId (`recoverySharedGlobalIds.ts`). De herstelsnapshot schrijft ze zonder bewaarde GlobalId,
-dus met `ifcGuid128(zaad)`, de GlobalId die ook `mappedResourceId` en `planningIdentities` verwachten; `readRecoveryDocument`
-geeft ze vóór het bronherstel hun id en GlobalId uit de sessie terug (`withSharedGlobalIdsRestored`, hernoemen via
-`withRenamedPlanningIds`). Zonder dat kreeg zo'n object na herstel het id van zijn nieuwe GlobalId, vond de bronkaart het
-niet meer en weigerde opslaan (`verwijderd`). Alleen met de flag aan en een vreemd deel; anders zijn manifest en snapshot
-die van main, en elke ronde geeft hetzelfde object (geen nieuwe snapshot per ronde). Het veld hoort bij de snapshot, niet
-bij een bronversie: tijdens een vervanging blijft het gelijk, welke versie het herstel ook vindt. Een oudere app negeert
-het veld; bij zo'n document weigert opslaan na zijn herstel dan, zoals al vóór PR 11. Proef:
-`check-recovery-gedeelde-globalids.ts`. Het lijstje per bronversie uit ontwerp §4.14 (`idExceptions`) bestaat nog niet:
-knownbug 2236.
+#804 fase 2, PR 11 (fixronde 1 van #1198): de herstelsnapshot is precies die van main. Wat de writer in een
+herstelsnapshot met de vingerafdruk van een vreemd deel werkelijk uitgaf, legt `writeRecoverySnapshot`
+(`recoverySnapshotInput.ts`, ook in de Worker) vast als `snapshotIdentities`: per taak, resource, bibliotheekkalender en
+relatie waarvan de bewaarde GlobalId in `ifcGlobalIds` gedeeld wordt (een `-dup-N`-object en zijn partner) een rij
+`[zaad, GlobalId van de sessie, geschreven GlobalId]` (`recoveryIdentity.ts`; `writeIFCWithChoices` geeft de uitgegeven
+GlobalIds terug). Het veld staat in de manifestregel naast `ifcSource` (v5, optioneel), alleen als het document een
+bronverwijzing heeft (flag aan, vreemd deel, bron niet ontbrekend); een mislukte bronkopie haalt alleen `ifcSource` weg. De
+opslaglaag kopieert het veld zonder het te lezen. `readRecoveryDocument` past het met de flag aan één keer toe, direct na
+het lezen van de snapshot en ook als de bron ontbreekt: eerst de vormtoets (dezelfde als de writer gebruikt), dan elke
+geschreven GlobalId precies één keer in de gelezen snapshot, taken op hun eigen id, en na hernoemen geen dubbel id per soort;
+klopt iets niet, dan blijft het herstel dat van main. Main en deze app met de flag uit lezen de set zoals main (gemeten met
+de lezer van main). Proef: `check-recovery-gedeelde-globalids.ts`. Het lijstje per bronversie uit ontwerp §4.14
+(`idExceptions`) bestaat nog niet: knownbug 2236.
 PR 11a sluit de voorbereide documentwrites aan. Site-AutoSave blijft uit. Met de flag uit, of als de bron ontbreekt,
 blijft bestands-AutoSave bij een vreemd deel geweigerd (`ifcSaveBlocked`, geen kandidaat), met de bestaande ene
 melding per document per sessie.

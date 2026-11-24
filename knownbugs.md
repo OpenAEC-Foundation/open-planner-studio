@@ -2480,26 +2480,19 @@ en noem het in je rapport of PR-tekst.
      (`/tmp/fase1b-v2-scope/echte-invoer/resultaten.json` op aia09-mp50, 11 november 2026). — B
 
 
-1570. **VERVOLG (#804, gemaakt geval): id-afleiding bij een `-dup-N`-object na crashherstel nog beproeven.**
-     PR 9a gebruikt de gewone bytes-route, zonder `idExceptions`: de echte keten met een in de app
-     toegevoegde resource, Opslaan als, verder bewerken, crashherstel en opnieuw Opslaan als behoudt
-     de GlobalId en het vreemde deel. Een geconstrueerd dubbel-GlobalId-geval (`-dup-N`) is niet
-     in die herstelketen gemeten. Alleen dit gemaakte geval blijft vervolg; geen claim van verlies
-     of van herstel van zulke id-uitzonderingen. — S
-2236. **VERVOLG (#804 fase 2, PR 11): een bewerkt document met een gedeelde GlobalId in het eigen deel kan niet worden opgeslagen.**
-     Delen twee eigen objecten een GlobalId (de lezer geeft de tweede een `-dup-N`-id), dan geeft de merge die tweede bij
-     elke opslag die niet de bron letterlijk teruggeeft een nieuwe GlobalId (`issueGuid`), ook als de eerste houder
-     verwijderd is, en de verliesbewaking weigert dat als `niet-gedragen`. Alleen een ongewijzigde planning slaat op.
-     Gemeten in `check-recovery-gedeelde-globalids.ts` (deel 2). Ontwerp §4.3 wil die nieuwe GlobalId wel. Gaat dit open,
-     dan is ook het lijstje per bronversie uit §4.14 nodig (`idExceptions`, met `pendingIdExceptions` in stap 0): de lezer
-     leidt dan uit de nieuwe bron een ander id af dan het document draagt. Het eerste element van zo'n paar is het id
-     waaronder het herstelde document het object draagt: sinds PR 11 het id van de sessie bij een gedeelde GlobalId
-     (`sharedGlobalIds`), en het van de GlobalId afgeleide id bij een in de app gemaakte resource (proef 2 in
-     `check-recovery-ifc-source.ts`). — B
-2237. **VERVOLG (#804, 9c): een MCP-backup geeft een object met een gedeelde GlobalId een ander id.** De backup schrijft
-     de planning zonder de weglating van `recoverySharedGlobalIds.ts`, zoals de herstelsnapshot vóór PR 11: zo'n object
-     komt terug met het id van zijn nieuwe GlobalId. Zolang een backup de bron niet opnieuw koppelt (knownbug 1575),
-     merkt de planner dat niet; 9c moet dezelfde weglating en terugzetting gebruiken. — S
+2236. **VERVOLG (#804 fase 2, PR 11): main weigert de opslag na het verwijderen van de eerste houder van een gedeelde GlobalId.**
+     Gemeten in `check-recovery-gedeelde-globalids.ts` (deel 3): een bron met vier paren gedeelde GlobalIds in het eigen
+     deel; na het verwijderen van de eerste resource van een paar weigert de merge met `niet-gedragen`, in de sessie en
+     na herstel gelijk. Een ongewijzigde planning slaat letterlijk op (deel 1 en 6). Meer is niet gemeten. Ontwerp §4.3
+     wil dat de writer de tweede houder een nieuwe GlobalId geeft. Komt die opslag er, dan leidt de lezer uit de nieuwe
+     bron een ander id af dan het document draagt, en is het lijstje per bronversie uit §4.14 nodig (`idExceptions`, met
+     `pendingIdExceptions` in stap 0). Het eerste element van zo'n paar is het id waaronder het herstelde document het
+     object draagt: na PR 11 het id van de sessie bij een gedeelde GlobalId, en het van de GlobalId afgeleide id bij een
+     in de app gemaakte resource (proef 2 in `check-recovery-ifc-source.ts`). — B
+2237. **VERVOLG (#804, 9c): een MCP-backup draagt de koppeling van PR 11 niet.** De backup schrijft de planning met
+     dezelfde writer als de herstelsnapshot (`backupService.ts`), maar zonder `snapshotIdentities`: een object met een
+     gedeelde GlobalId komt bij terugzetten terug met het id van zijn nieuwe GlobalId, zoals op main. Wat de planner
+     daarvan merkt, is niet gemeten. 9c (knownbug 1575) kan de koppeling van `recoveryIdentity.ts` meenemen. — S
 1575. **VERVOLG (#804, 9c): een MCP-backup op het open document terugzetten met de actuele gebouwmodelbron.**
      §4.12/E31 blijft een eigen onderdeel 9c op de eindlijst, niet verplicht vóór de flag standaard aan mag.
      De backup bevat planning en een bronkenmerk, geen gebouwmodelbytes. De kleine stap 9d zet bij het openen
