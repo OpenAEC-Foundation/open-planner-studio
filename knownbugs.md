@@ -3915,6 +3915,15 @@ en noem het in je rapport of PR-tekst.
       zonder momentopname). De melding na het opslaan zegt dat de gegevens zijn aangepast of verwijderd, maar niet dat
       Ctrl+Z ze niet terugbrengt. Richting: PR 7 van #804 (`detached`, de soort *teruggezet*) bewaart de oude bytes van
       de wijzigingslijst en kan ze bij undo terugzetten. Afgeleid uit de code, niet nagespeeld. — S
+2251. **Veel taken wissen in een bestand met een gebouwmodel, en dan opslaan, weigert met `planning-na-openen`.** Met
+      de flag *IFC met gebouwmodel openen* aan: een gegenereerde planning van 10.000 taken
+      (`generateBenchmarkProject(10_000, { seed: 0x5eed })` via `writeIFC`, met één `IfcWall` erbij en geen koppeling),
+      5.000 bladtaken wissen met `deleteTasksBulk` en dan `prepareIfcWrite`: de merge weigert met
+      `planning-na-openen`, `taak bm-top-16.time.lateStart: "2028-07-04T07:00" → "2030-11-26T07:00"`. Eén bladtaak
+      wissen schrijft wel. Nagespeeld met een script op main `ee9281b5d` en op de branch van #1199, met dezelfde
+      uitkomst; het komt dus niet uit #1199. Op die branch weigert het ook na `runCPM` (F5), met een koppeling erbij; of
+      main na F5 ook weigert, is niet nagegaan. Vermoeden: de geschreven late datum van een samenvattingstaak en wat het
+      heropenen ervan maakt, lopen uiteen als veel kinderen weg zijn. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
