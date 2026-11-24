@@ -315,6 +315,14 @@ const isMovedLagSlot = (type: string, sourceArg: number, outArg: number) => type
 
 const durationInner = (token: string) => /^IFCDURATION\s*\(\s*('[\s\S]*')\s*\)$/i.exec(token.trim())?.[1] ?? token;
 
+const SIGNED_DAYS = /^(-?)P(?:0Y0M)?(-?)(\d+(?:\.\d+)?(?:e[-+]\d+)?)D$/;
+
+function signedLagDays(text: string): string | undefined {
+  const m = SIGNED_DAYS.exec(text);
+  const days = m && !(m[1] && m[2]) ? decimalKey(m[3]) : undefined;
+  return days === undefined ? undefined : `${m![1] || m![2]}${days}`;
+}
+
 function alignment(type: string, src: readonly string[], outLength: number): number[] | undefined {
   const table = slotTableOf(type, src);
   if (table) return outLength === table.slots.length ? schemaArgsOf(table, src) : undefined;
@@ -1023,6 +1031,14 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
     });
   };
 
+  const sameOldLagValue = (s: number, a: string, b: string): boolean => {
+    const source = index.tokenText(s, a);
+    const refusedBeforeWriting = durationForm(source, 'lag-oud') === undefined;
+    const written = durationInner(b);
+    return refusedBeforeWriting
+      || (written !== b && signedLagDays(source) !== undefined && signedLagDays(source) === signedLagDays(outDecode(written)));
+  };
+
   /** De werksoortkleur (#856): een definitie in `OPS_TaskTypes` zonder `color` (een bron van vóór het veld) krijgt bij
    *  openen een vaste kleur, en de writer schrijft die. Dat telt als dezelfde waarde als de bron met precies die kleur
    *  erbij, en alleen dat (`taskTypesWithOpenedColors`): de uitvoer moet teken voor teken de bron zijn met de ingevoegde
@@ -1060,7 +1076,7 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
       const ok = type === 'IFCPROPERTYSET' && k2 === 4 ? sameMembers(s, at, bt)
         : isIdListSlot(index, s, type, k2) ? sameIdList(s, at, bt)
         : isTaskTypesSlot(s, type, k2) ? sameTaskTypes(s, at, bt)
-        : isMovedLagSlot(type, k, k2) && k2 === LAG_TIME_SLOT.lagValue ? same(s, at, durationInner(bt), true)
+        : isMovedLagSlot(type, k, k2) && k2 === LAG_TIME_SLOT.lagValue ? sameOldLagValue(s, at, bt)
         : same(s, at, bt, DURATION_SLOTS[type]?.includes(k2) === true);
       if (!ok) push({ chunk: s, arg: k, source: at, out: bt, outArg: k2 });
     }

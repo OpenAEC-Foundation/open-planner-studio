@@ -46,7 +46,6 @@ const pieceAt = (slots: SourceSlots, stepId: number): SourcePieceSlots => {
   assert(piece, `sourceSlots heeft #${stepId}`);
   return piece;
 };
-const tokens = (piece: SourcePieceSlots) => Object.fromEntries(piece.slots);
 const withLine = (content: string, line: string) => {
   const end = content.lastIndexOf('ENDSEC;');
   return `${content.slice(0, end)}${line}\n${content.slice(end)}`;
