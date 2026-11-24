@@ -3835,7 +3835,9 @@ en noem het in je rapport of PR-tekst.
      één gewijzigde taaknaam, bij 1.000 / 2.000 / 5.000 / 10.000 taken: vóór #1210 6,9 / 13,3 / 46,0 / 136,8 s, na #1210
      5,6 / 10,2 / 23,8 / 47,0 s. De gewone writer schrijft dezelfde planning in 0,18 / 0,39 / 0,91 / 1,9 tot 2,5 s.
      #1210 haalde de stappen weg die sneller groeiden dan het aantal taken (een opzoeking door alle taken of door een
-     hele lijst per taak of per lid); sindsdien groeit elke stap lineair en is de uitvoer byte voor byte die van main.
+     hele lijst per taak of per lid); in de gemeten gevallen (een naamswijziging bij 1.000 tot 10.000 taken, veel
+     feestdagen in één kalender, lags in uren, gemengde toewijzingen met twee leden per relatie) groeit het werk
+     sindsdien ongeveer lineair, en de uitvoer is byte voor byte die van main.
      Wat overblijft is lineair werk dat vaak gebeurt: de merge schrijft, leest en vergelijkt de hele planning ongeveer
      twintig keer (vijf keer de merge-writer, vier keer de canon-writer, drie keer de lezer, zes keer paren, drie keer
      vergelijken en twee keer openen in een store). Besluit technisch beslisser (24 november 2026): dit hoort bij de
@@ -3846,8 +3848,18 @@ en noem het in je rapport of PR-tekst.
      `mergeWriter.ts` `parent.childIds.filter(id => !s.includes(id))` bij een gemengde `IfcRelNests` onder een eigen
      taak en `lines.find` per vreemd lid van een eigen template; in `lossCheck.ts` `candidates.filter` en
      `candidates.find` in `pairRelations` per relatie met dezelfde sleutel, en `[...p1.out.values()].find` in
-     `bareKeyInWriterForm` per teruggezette kale sleutel in `OPS_Assignments`. — S (gemeten in #1210 met de meetscripts
-     van de meting van knownbug 2244, mediaan van twee runs per grootte; niet in de app of in de opslag-Worker gemeten)
+     `bareKeyInWriterForm` per teruggezette kale sleutel in `OPS_Assignments`. Uit de review van #1210 (ronde 1),
+     nog open: (a) één gemengde `IfcRelAssignsToProcess` met veel verschillende resources op één taak blijft
+     kwadratisch (`count(s, id)` en `count(domainRes, id)` per id en de volgordetoets met `s.includes(id)` in
+     `mergeWriter.ts`: 1.000.000 vergelijkingen bij 1.000 resources, 4.000.000 bij 2.000; stond zo op main);
+     (b) de IFC-lezer bouwt sinds #1210 bij `lagCalendar = projectDefault` een takenindex die hij niet gebruikt, ook
+     met de flag uit (één taakvergelijking op main, 2.000 indexeringen bij 2.000 taken; dezelfde leesuitkomst, de
+     doorlooptijd is niet gemeten), en `sourceFormWhereUnchanged` indexeert ook als er geen geconverteerde velden zijn;
+     (c) `src/utils/firstById.ts` doet hetzelfde als de private functie in `taskTree.ts`, die kan vervallen;
+     (d) de werkproef `check-ifc-foreign-werk.ts` telt voor `includes`, `indexOf` en `shift` de hele lijstlengte, dus
+     haar verhoudingen zijn een schatting van lijstwerk, geen telling van bezochte elementen. — S (gemeten in #1210
+     met de meetscripts van de meting van knownbug 2244, mediaan van twee runs per grootte; niet in de app of in de
+     opslag-Worker gemeten)
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
