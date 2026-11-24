@@ -138,7 +138,6 @@ const modules: Record<string, unknown> = {
   '@/services/actualAutosave/fileAutoSaveTimers': await import('@/services/actualAutosave/fileAutoSaveTimers'),
   '@/state/textEntryActivity': await import('@/state/textEntryActivity'),
   '@/state/recoveryManifestNotice': await import('@/state/recoveryManifestNotice'),
-  '@/state/foreignChangesWrittenNotice': await import('@/state/foreignChangesWrittenNotice'),
   '@/services/appQuit/appQuitController': await import('@/services/appQuit/appQuitController'),
   '@/services/appQuit/appQuitDependencies': await import('@/services/appQuit/appQuitDependencies'),
   '@/services/mcp/discoveryFiles': await import('@/services/mcp/discoveryFiles'),
