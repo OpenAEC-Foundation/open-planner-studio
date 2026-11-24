@@ -23,7 +23,7 @@ rekent. Alleen bladtaken met een start en toewijzingen met een koppeling (ADR 02
   volgens `calendarDiffersIncludingExceptions` afwijkt van de taakkalender, en zonder filter op het soort resource
   (knownbug 440). Die vergelijker kijkt naar de weekblokken (`workTime.byWeekday`; zonder `workTime` aan een van beide
   kanten wijkt niets af) en naar de datumbereiken van feestdagen en werkende uitzonderingen, niet naar de werktijden
-  binnen een werkende uitzondering (knownbug 2314). Volgens het weggehaalde commentaar wijkt zo een resource met een
+  binnen een werkende uitzondering (knownbug 2317). Volgens het weggehaalde commentaar wijkt zo een resource met een
   extra vrije dag af, zoals in `mpp14timephased2.mpp` en de bestanden `timephased-budget*.mpp`. Een grens bij een
   bewerkte duur: knownbug 2313.
 - Meer kandidaten: geen kalenderverschil nodig. Alleen toewijzingen die de duur sturen wandelen mee

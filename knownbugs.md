@@ -4074,7 +4074,7 @@ en noem het in je rapport of PR-tekst.
       `mpp14timephasedsegments(manual).mpp` ("Task Seven", "Task Eight"). Het corpus heeft geen uitkomst van MS Project
       voor een bewerkte duur. — B
 
-2314. **Een resourcekalender die alleen in de werktijden van een werkende uitzondering afwijkt, geeft een `.mpp`-taak
+2317. **Een resourcekalender die alleen in de werktijden van een werkende uitzondering afwijkt, geeft een `.mpp`-taak
       met één toewijzing geen wandeling.** `calendarDiffersIncludingExceptions` (`src/services/mpp/mppReader.ts`)
       vergelijkt de weekblokken en de datumbereiken van feestdagen en werkende uitzonderingen, niet de blokken binnen
       een werkende uitzondering. In een proef met één werkresource, dezelfde uitzonderingsdatum en een latere start
