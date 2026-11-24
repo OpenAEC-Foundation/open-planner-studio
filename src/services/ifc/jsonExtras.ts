@@ -1,11 +1,12 @@
-import { asciiJson, ifcStr } from './ifcPsets';
+import { ifcStr } from './ifcPsets';
 import { decodeStepText } from './stepText';
-import { jsonPropertyShape, type JsonShape } from './jsonRegister';
+import { jsonPropertyShape, WINDOWS_PROPERTY, type JsonShape } from './jsonRegister';
 import { jsonSlice, parseJsonTree, type JsonMemberNode, type JsonNode } from './jsonTokens';
 
 export type JsonStep =
   | { readonly sleutel: string }
   | { readonly veld: string; readonly waarde: string }
+  | { readonly venster: string }
   | { readonly toewijzing: string };
 
 export interface JsonExtraMember {
@@ -31,7 +32,7 @@ export interface WriterAssignment {
   readonly resourceId: string;
 }
 
-const DATA_KEY = /^(.+)#(\d+)$/;
+export const WINDOW_KEY = /^(.+)#(\d+)$/;
 const has = (keys: object, key: string) => Object.prototype.hasOwnProperty.call(keys, key);
 
 type ObjectNode = Extract<JsonNode, { kind: 'object' }>;
@@ -60,18 +61,8 @@ function itemsByField(node: Extract<JsonNode, { kind: 'array' }>, field: string)
   return out;
 }
 
-export function sameJsonStep(a: JsonStep, b: JsonStep): boolean {
-  if ('sleutel' in a) return 'sleutel' in b && a.sleutel === b.sleutel;
-  if ('veld' in a) return 'veld' in b && a.veld === b.veld && a.waarde === b.waarde;
-  return 'toewijzing' in b && a.toewijzing === b.toewijzing;
-}
-
-export function sameJsonPath(a: readonly JsonStep[], b: readonly JsonStep[]): boolean {
-  return a.length === b.length && a.every((step, k) => sameJsonStep(step, b[k]));
-}
-
 export function unknownJsonMembers(
-  text: string, shape: JsonShape, resourceOfKey: (key: string) => string | undefined,
+  text: string, shape: JsonShape, windowKnown: (key: string) => boolean,
 ): JsonExtrasObject[] | undefined {
   const root = parseJsonTree(text);
   if (!root) return undefined;
@@ -90,14 +81,9 @@ export function unknownJsonMembers(
         for (const m of node.members) walk(m.value, at.waarde, [...path, { sleutel: m.key }]);
         return;
       }
-      const extra = node.members.filter(m => !DATA_KEY.test(m.key));
+      const extra = node.members.filter(m => !WINDOW_KEY.test(m.key));
       if (extra.length > 0) found.push({ path, members: extra.map(raw) });
-      const guids = node.members.map(m => DATA_KEY.exec(m.key)?.[1]);
-      for (const [k, m] of node.members.entries()) {
-        const guid = guids[k];
-        const resource = guid !== undefined && guids.filter(g => g === guid).length === 1 ? resourceOfKey(m.key) : undefined;
-        if (resource !== undefined) walk(m.value, at.waarde, [...path, { toewijzing: resource }]);
-      }
+      for (const m of node.members) if (WINDOW_KEY.test(m.key) && windowKnown(m.key)) walk(m.value, at.waarde, [...path, { venster: m.key }]);
     }
   };
   walk(root, shape, []);
@@ -123,7 +109,7 @@ function sameAsParsed(written: string, raw: string): boolean {
 }
 
 export function withJsonMembers(
-  text: string, objects: readonly JsonExtrasObject[], keyOfAssignment: (resourceId: string) => string | undefined,
+  text: string, objects: readonly JsonExtrasObject[], keyOfAssignment: (assignmentId: string) => string | undefined,
 ): string {
   const root = parseJsonTree(text);
   if (!root) return text;
@@ -138,6 +124,8 @@ export function withJsonMembers(
       if (!node) break;
       if ('veld' in step) {
         node = node.kind === 'array' ? itemsByField(node, step.veld).get(step.waarde) : undefined;
+      } else if ('venster' in step) {
+        node = undefined;
       } else {
         const key = 'sleutel' in step ? step.sleutel : keyOfAssignment(step.toewijzing);
         const parent: JsonNode = node;
@@ -186,7 +174,6 @@ export function withJsonMembers(
 }
 
 const LINE = /^#(\d+)=([A-Z0-9_]+)\(([\s\S]*)\);$/;
-const DEFINES = /^IFCRELDEFINESBYPROPERTIES$/;
 const REL_TAIL = /,\(([^()]*)\),#(\d+)$/;
 const PSET_HEAD = /^'(?:[^']|'')*',(?:\$|#\d+),'((?:[^']|'')*)',(?:\$|'(?:[^']|'')*'),\(([^()]*)\)$/;
 const TEXT_VALUE = /^'((?:[^']|'')*)',\$,IFCTEXT\('((?:[^']|'')*)'\),\$$/;
@@ -194,35 +181,66 @@ const PROPERTY_NAME = /^'((?:[^']|'')*)',/;
 
 const stepString = (body: string) => decodeStepText(body.replace(/''/g, "'"));
 const refs = (list: string) => list.split(',').map(r => Number(r.trim().slice(1))).filter(Number.isFinite);
+const placeKey = (owner: string, pset: string) => `${owner}\u0000${pset}`;
+
+function rehomedWindows(extras: readonly JsonExtras[], assignments: ReadonlyMap<string, WriterAssignment>): JsonExtras[] {
+  const out: JsonExtras[] = [];
+  const moved = new Map<string, JsonExtrasObject[]>();
+  for (const e of extras) {
+    if (`${e.pset}\u0000${e.property}` !== WINDOWS_PROPERTY) { out.push(e); continue; }
+    const stay: JsonExtrasObject[] = [];
+    for (const o of e.objects) {
+      const step = o.path[0];
+      if (!step || !('toewijzing' in step)) { stay.push(o); continue; }
+      const assignment = assignments.get(step.toewijzing);
+      if (!assignment) continue;
+      const owner = `task_${assignment.taskId}`;
+      moved.set(owner, [...(moved.get(owner) ?? []), o]);
+    }
+    if (stay.length > 0) out.push({ ...e, objects: stay });
+  }
+  const [pset, property] = WINDOWS_PROPERTY.split('\u0000');
+  for (const [owner, objects] of moved) out.push({ owner, pset, property, objects });
+  return out;
+}
 
 export function withJsonExtras(
   lines: string[], idMap: ReadonlyMap<string, number>, assignments: readonly WriterAssignment[],
   extras: readonly JsonExtras[],
 ): string[] {
   if (extras.length === 0) return lines;
+  const byAssignment = new Map(assignments.map(a => [a.id, a]));
+  const placed = new Map<string, JsonExtras[]>();
+  for (const e of rehomedWindows(extras, byAssignment)) placed.set(placeKey(e.owner, e.pset), [...(placed.get(placeKey(e.owner, e.pset)) ?? []), e]);
   const out = [...lines];
   const at = new Map<number, number>();
   out.forEach((line, k) => { const m = /^#(\d+)=/.exec(line); if (m) at.set(Number(m[1]), k); });
   const ownerOf = new Map<number, string>();
-  for (const e of extras) {
-    const id = idMap.get(e.owner);
-    if (id !== undefined) ownerOf.set(id, e.owner);
+  for (const e of placed.values()) {
+    const id = idMap.get(e[0].owner);
+    if (id !== undefined) ownerOf.set(id, e[0].owner);
   }
   const lineOf = (id: number) => { const k = at.get(id); return k === undefined ? undefined : LINE.exec(out[k]) ?? undefined; };
+  const keyOfAssignment = (assignmentId: string): string | undefined => {
+    const a = byAssignment.get(assignmentId);
+    const line = a ? lineOf(idMap.get(`_asgn_${a.taskId}_${a.id}`) ?? -1) : undefined;
+    const named = line ? PROPERTY_NAME.exec(line[3]) : null;
+    return named ? stepString(named[1]) : undefined;
+  };
   for (const line of lines) {
+    if (!line.includes('=IFCRELDEFINESBYPROPERTIES(')) continue;
     const rel = LINE.exec(line);
-    if (!rel || !DEFINES.test(rel[2])) continue;
-    const tail = REL_TAIL.exec(rel[3]);
+    const tail = rel ? REL_TAIL.exec(rel[3]) : null;
     if (!tail) continue;
-    const owners = refs(tail[1]).map(id => ownerOf.get(id)).filter((o): o is string => o !== undefined);
-    if (owners.length !== 1 || refs(tail[1]).length !== 1) continue;
-    const owner = owners[0];
+    const related = refs(tail[1]);
+    const owner = related.length === 1 ? ownerOf.get(related[0]) : undefined;
+    if (owner === undefined) continue;
     const pset = lineOf(Number(tail[2]));
     const head = pset && pset[2] === 'IFCPROPERTYSET' ? PSET_HEAD.exec(pset[3]) : null;
     if (!head) continue;
     const psetName = stepString(head[1]);
-    const wanted = extras.filter(e => e.owner === owner && e.pset === psetName);
-    if (wanted.length === 0) continue;
+    const wanted = placed.get(placeKey(owner, psetName));
+    if (!wanted) continue;
     for (const propId of refs(head[2])) {
       const k = at.get(propId);
       const prop = k === undefined ? null : LINE.exec(out[k]);
@@ -231,18 +249,10 @@ export function withJsonExtras(
       const name = stepString(value[1]);
       const these = wanted.filter(e => e.property === name);
       if (these.length === 0 || !jsonPropertyShape(psetName, name)) continue;
-      const taskId = owner.startsWith('task_') ? owner.slice('task_'.length) : undefined;
-      const keyOfAssignment = (resourceId: string): string | undefined => {
-        const mine = taskId === undefined ? [] : assignments.filter(a => a.taskId === taskId && a.resourceId === resourceId);
-        if (mine.length !== 1) return undefined;
-        const asgn = lineOf(idMap.get(`_asgn_${taskId}_${mine[0].id}`) ?? -1);
-        const named = asgn ? PROPERTY_NAME.exec(asgn[3]) : null;
-        return named ? stepString(named[1]) : undefined;
-      };
       const json = stepString(value[2]);
       const next = withJsonMembers(json, these.flatMap(e => e.objects), keyOfAssignment);
       if (next === json) continue;
-      out[k!] = `#${prop![1]}=IFCPROPERTYSINGLEVALUE('${value[1]}',$,IFCTEXT(${ifcStr(asciiJson(next))}),$);`;
+      out[k!] = `#${prop![1]}=IFCPROPERTYSINGLEVALUE('${value[1]}',$,IFCTEXT(${ifcStr(next)}),$);`;
     }
   }
   return out;

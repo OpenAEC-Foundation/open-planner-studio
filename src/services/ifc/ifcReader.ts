@@ -89,6 +89,7 @@ export interface IfcReadOptions {
   planningTaskStepIds?: ReadonlySet<string>;
   stepIdsOut?: Record<string, string>;
   unusedAssignmentKeysOut?: Map<string, string[]>;
+  windowAssignmentsOut?: Map<string, Map<string, string>>;
   projectDataInSettings?: boolean;
 }
 
@@ -195,7 +196,8 @@ export function readIFC(
     if (cal.ifcTimePeriods?.[0]) cal.ifcTimePeriods[0].layout = ifcCalendarBandLayout(cal);
   }
   fillEmptyComputedDateSlots(tasks, taskTimeEntities, recordedFields);
-  const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap, options.unusedAssignmentKeysOut);
+  const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap, options.unusedAssignmentKeysOut,
+    options.windowAssignmentsOut);
   normalizeCostResources(resources, assignments);
   reconstructResourceIds(tasks, assignments);
   const libraryPoolOut: { value: import('@/types/library').CompanyPool | undefined } = { value: undefined };
@@ -2593,9 +2595,11 @@ function extractAssignments(
   taskStepIdMap: Map<string, string>,
   resourceStepIdMap: Map<string, string>,
   unusedKeysOut?: Map<string, string[]>,
+  windowAssignmentsOut?: Map<string, Map<string, string>>,
 ): ResourceAssignment[] {
   const metaByTask = new Map<string, TaskAssignmentMeta>();
   const windowsByTask = new Map<string, Map<string, WindowMeta[]>>();
+  const windowKeyOf = windowAssignmentsOut ? new Map<WindowMeta, string>() : undefined;
   const unusedRead = unusedKeysOut
     ? { out: unusedKeysOut, keysByTask: new Map<string, { prop: StepEntity; meta?: AssignmentMeta }[]>(), usedMeta: new Set<AssignmentMeta>() }
     : undefined;
@@ -2633,6 +2637,7 @@ function extractAssignments(
           ...(costAmount !== undefined ? { costAmount } : {}),
         };
         if (Object.keys(meta).length === 0) continue;
+        windowKeyOf?.set(meta, key);
         indexed.push({ guid: m[1], index: parseInt(m[2], 10), meta });
       }
       indexed.sort((a, b) => a.index - b.index);
@@ -2711,9 +2716,15 @@ function extractAssignments(
       const meta = taskMeta?.queues.get(resGuid)?.shift() ?? taskMeta?.legacy.get(resGuid);
       if (meta) unusedRead?.usedMeta.add(meta);
       const window = windowsByTask.get(taskRef)?.get(resGuid)?.shift();
+      const id = generateId('asgn');
+      const windowKey = window && windowKeyOf?.get(window);
+      if (windowKey !== undefined) {
+        const linked = windowAssignmentsOut!.get(taskRef) ?? new Map<string, string>();
+        windowAssignmentsOut!.set(taskRef, linked.set(windowKey, id));
+      }
 
       assignments.push({
-        id: generateId('asgn'),
+        id,
         taskId,
         resourceId: resId,
         unitsPerDay: meta?.unitsPerDay ?? 1,

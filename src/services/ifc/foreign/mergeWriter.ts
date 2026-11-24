@@ -52,11 +52,15 @@ import {
 import { elementLinksByTask, scanElementLinks } from './elementLinks';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
-import type { IfcSource, PreparedIfcWrite, UnusedKeysOfTask } from './ifcSource';
+import type { IfcSource, JsonExtrasOfProperty, PreparedIfcWrite, UnusedKeysOfTask } from './ifcSource';
 import {
   duplicateAssignmentKeyProblem, foreignAssignmentKeyNamesForWriter, unusedKeysForWriter, unusedKeysFromRead, unusedKeysProblem,
 } from './unusedKeys';
-import { jsonExtrasOf, jsonExtrasProblem, withJsonExtrasInDomain, writerKeyOfSeed } from './jsonExtrasSource';
+import {
+  jsonExtrasForWriter, jsonExtrasFromIndex, jsonExtrasNext, jsonExtrasProblem, scanJsonExtras, withJsonExtrasInDomain, writerKeyOfSeed,
+  type SourceJsonExtras, type StepJsonExtras,
+} from './jsonExtrasSource';
+import type { JsonExtras } from '../jsonExtras';
 import { readFileSchemaName } from '../ifcReader';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { scanForeignStep } from './oldOwnHeader';
@@ -356,12 +360,12 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   const index = scanForeignStep(source.bytes);
   const cls = classify(index);
   assertSameSource(index, cls, source);
-  const jsonExtras = jsonExtrasOf({ index, own: c => cls.classes[c] === 1, stepIds: source.stepIds, projectCalendarId: input.calendar.id });
-  input = freeze(withJsonExtrasInDomain(input, jsonExtras), true);
+  const sourceJson = jsonExtrasFromIndex(index, source.jsonExtras, source.stepIds, input.calendar.id);
+  const json = { source: sourceJson, session: jsonExtrasForWriter(sourceJson, (e, key) => e.windows.get(key)) };
   // Stuk 1: de canon is dezelfde maat als de verliesbewaking. Ook teruggedraaide bewerkingen
   // mogen de bron letterlijk teruggeven; dit staat vóór herkomst-/project-/verstopt-stukregels.
   if (source.opened && planningCanon(input) === planningCanon(source.opened)) {
-    await checkedBytes(source.bytes, input, source, index, cls, source.opened, probe);
+    await checkedBytes(source.bytes, input, source, index, cls, source.opened, probe, undefined, json);
     return { bytes: source.bytes, sha256: source.sha256, source,
       literalCalendarIds: input.ifcLiteralCalendarIds ?? [] };
   }
@@ -385,7 +389,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   const { keep, bySource, reserved, baselineHeads, projects } = ids;
   const plan: WriterMergeIds = {
     ...ids.plan, unusedAssignmentKeys: unusedKeysForWriter(source, index),
-    foreignAssignmentKeyNames: foreignAssignmentKeyNamesForWriter(source, index), jsonExtras,
+    foreignAssignmentKeyNames: foreignAssignmentKeyNamesForWriter(source, index),
   };
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
   // Een verstopt stuk vóór een P-stuk (#886): het commentaar ervóór gaat met het P-stuk weg.
@@ -429,7 +433,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 
   // ── 2–6. De regels van de writer voor een domein, met de bewaarde en gemengde relaties en de vreemde leden. De merge
   // doet dit voor het bewerkte domein (O1) en voor het domein zoals de lezer het las (O0, de verliesbewaking). ──
-  function buildLines(input: WriteIFCInput, caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void) {
+  function buildLines(input: WriteIFCInput, caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void, jsonExtras: readonly JsonExtras[]) {
     // ── 2. Het domein ──
     const comparison = planningIdentityInput(input);
     const sourceIds = planningIdentities(source.opened ?? pristine);
@@ -440,7 +444,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 
     // ── 3. De writer ──
     // Wat de planner niet wijzigde, in de vorm van de bron (fixronde 7, `SourceTaskTime`).
-    const written = writeIfcMergeLines(withOrphanRowGuids(input, rowGuid), sourceFormPlan(plan, pristine, input, index, source.stepIds), writtenAt);
+    const written = writeIfcMergeLines(withOrphanRowGuids(input, rowGuid), sourceFormPlan({ ...plan, jsonExtras }, pristine, input, index, source.stepIds), writtenAt);
     const lines = written.lines.map(parseLine);
     const byId = new Map<number, OwnLine>();
     for (const line of lines) {
@@ -715,7 +719,11 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // Het domein zoals de lezer het uit de bron las (O0 hieronder), al vóór O1: de writer vergelijkt de taken ermee
   // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
   const scan = foreignScanFrom(index, cls, source.bytes);
-  const pristine = await pristineFromScan(scan, source.bytes, (source.opened ?? input).project);
+  const pristineWindows = new Map<string, Map<string, string>>();
+  const pristine = await pristineFromScan(scan, source.bytes, (source.opened ?? input).project, undefined, pristineWindows);
+  const sessionAssignments = new Set(input.assignments.map(a => a.id));
+  const pristineJson = jsonExtrasForWriter(sourceJson, (e, key) => sessionAssignments.has(e.windows.get(key) ?? '')
+    ? pristineWindows.get(String(e.ownerStepId))?.get(key) : undefined);
   // De GlobalId van een weesrij zoals de lezer hem in de bron aannam (PR 12e, was knownbug 1702): de writer houdt hem, in O0
   // en O1 (`buildLines`), in de andere toets (`openedOwnGroups`) en in de verwachting van (c) (`OwnOutputCheck.sourceRowGuid`).
   const rowGuid = assumedRowGuid(pristine);
@@ -723,7 +731,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // de lezing van de bron (#886). Wat alleen het openen veranderde, schrijft de merge in de vorm van de bron
   // (`sourceForm.ts`); de verliesbewaking blijft met de bron vergelijken.
   // O0: het domein zoals de lezer het uit de bron las (de verliesbewaking hieronder).
-  const built0 = buildLines(pristine, () => {});
+  const built0 = buildLines(pristine, () => {}, pristineJson);
   const pristineIds = planningIdentities(pristine).calendar, domainIds = planningIdentities(input).calendar;
   const literal0 = new Set(built0.literalCalendarIds.map(id => pristineIds.get(id) ?? id));
   // Was knownbug 1102 (besluit van Trias, 10 november 2026): een kalender die bij deze opslag letterlijk wordt (letterlijk in O1,
@@ -733,7 +741,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   let newlyLiteral = new Set<string>();
   let form = sourceFormWhereUnchanged(input, source.opened, pristine);
   let pending: Parameters<typeof caseAt>[] = [];
-  let built = buildLines(form.input, (...a) => { pending.push(a); });
+  let built = buildLines(form.input, (...a) => { pending.push(a); }, json.session);
   for (let round = 0; ; round++) {
     const next = new Set([...newlyLiteral, ...built.literalCalendarIds.filter(id => !literal0.has(domainIds.get(id) ?? id))]);
     if (next.size === newlyLiteral.size) break;
@@ -741,7 +749,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     newlyLiteral = next;
     form = sourceFormWhereUnchanged(input, source.opened, pristine, newlyLiteral);
     pending = [];
-    built = buildLines(form.input, (...a) => { pending.push(a); });
+    built = buildLines(form.input, (...a) => { pending.push(a); }, json.session);
   }
   for (const a of pending) caseAt(...a);
   const domain = form.input;
@@ -793,7 +801,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // planner (niet `domain`, waarin de bronvorm al staat).
     ...(source.opened ? { plannerChanged: changedScopes(input, source.opened as unknown as ImportResult).keys } : {}),
     // De andere toets (PR 12b) alleen met wat de app na het openen liet zien: zonder kan (a′) niet getoetst worden.
-    ...(source.opened ? openedOwnGroups(index, cls, plan, pristine, source.opened, source.stepIds, writtenAt) : {}),
+    ...(source.opened ? openedOwnGroups(index, cls, { ...plan, jsonExtras: json.session }, pristine, source.opened, source.stepIds, writtenAt) : {}),
   };
   const { edits } = lossCheck(lossInput, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
   // Waar (b) een bronwaarde terugzette, schrijft de writer het slot niet uit het domein. (c) toetst zo'n slot apart (de regel
@@ -825,7 +833,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // De herleestoets van de vorm van de bron (#886): wat de omzetting bij openen maakte, moet na herlezen en
   // dezelfde omzetting weer geven wat de planner zag.
   if (cases.length === 0 && form.checked.length > 0) {
-    const problems = sourceFormProblems(form.checked, input, await read(lines.filter(l => !l.drop).map(l => l.text)));
+    const problems = sourceFormProblems(form.checked, withJsonExtrasInDomain(input, json.session), await read(lines.filter(l => !l.drop).map(l => l.text)));
     if (problems.length > 0) {
       caseAt('bronvorm-leest-anders', -1, `${problems.length} veld(en) in de vorm van de bron lezen na openen anders: ${problems.slice(0, 3).join('; ')}`);
     }
@@ -869,12 +877,19 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // De regel van elk slot van (b) in de uitvoer, door dezelfde hernummering. Een regel buiten de kaart: (c) slaat zijn groep
     // over, zoals vóór PR A.
     const unmapped = new Set(restored.slots.filter(s => !remap.has(s.id)).map(s => s.group));
+    const outById = new Map(candidate.map(line => [line.id, line]));
+    const assignmentKeys = new Map<string, string>();
+    for (const a of input.assignments) {
+      const id = built.idMap.get(`_asgn_${a.taskId}_${a.id}`);
+      const line = id === undefined ? undefined : outById.get(remap.get(id) ?? id);
+      if (line && 'args' in line) assignmentKeys.set(a.id, unquote(line.args[0]));
+    }
     const own: OwnOutputCheck = {
-      stepIds, writtenAt, sourceRowGuid: rowGuid, skip: new Set([...restored.skip, ...unmapped]),
+      stepIds, writtenAt, sourceRowGuid: rowGuid, skip: new Set([...restored.skip, ...unmapped]), assignmentKeys,
       slots: restored.slots.filter(s => !unmapped.has(s.group)).map(s => ({ ...s, id: remap.get(s.id)! })),
     };
     observe?.(own);
-    const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own);
+    const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own, json);
     const written = new Set(candidate.map(line => line.id));
     // Een gewone lus: `Uint8Array.from` met een functie maakt bij een groot model miljoenen tijdelijke waarden (#804).
     const ids = actual.scan.chunkIds, classes = new Uint8Array(ids.length);
@@ -883,7 +898,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       if (id >= 0) classes[k] = written.has(id) ? 1 : cls.classes[index.chunkOf(String(id))];
     }
     const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c)));
-    const next = await writtenSource(input, actual.bytes, actual.index, actual.scan, stepIds, classes, members, actual.unusedKeys);
+    const next = await writtenSource(input, actual.bytes, actual.index, actual.scan, stepIds, classes, members, actual.unusedKeys, actual.jsonExtras);
     // Alleen de nieuwe buffer blijft via het resultaat vastgehouden; de oude bron kan na commit weg.
     return { bytes: actual.bytes, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds };
   }
@@ -923,7 +938,7 @@ function writerStepIds(input: WriteIFCInput, idMap: ReadonlyMap<string, number>,
 /** De scanner levert grenzen; eigendom, leden en sessie-identiteit komen van het schrijfplan. */
 async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, index: StepIndex, scan: ForeignScanResult,
   stepIds: Readonly<Record<string, number>>, classes: Uint8Array, foreignMembers: readonly number[],
-  unusedKeys?: readonly UnusedKeysOfTask[]): Promise<IfcSource> {
+  unusedKeys?: readonly UnusedKeysOfTask[], jsonExtras?: readonly JsonExtrasOfProperty[]): Promise<IfcSource> {
   const schemaName = readFileSchemaName(new TextDecoder().decode(bytes.subarray(0, scan.chunkStarts[1])));
   if (!schemaName) throw new Error('mergeWriter: de geschreven kop mist het schema');
   const foreignObjectCount = classes.reduce((count, c) => count + (c > 1 ? 1 : 0), 0);
@@ -932,6 +947,7 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, index: Ste
     chunkStarts: scan.chunkStarts, chunkIds: scan.chunkIds, classes, stepIds, foreignMembers,
     elementLinks: elementLinksByTask(scanElementLinks(index), stepIds),
     ...(unusedKeys && foreignObjectCount > 0 ? { unusedKeys } : {}),
+    ...(jsonExtras && foreignObjectCount > 0 ? { jsonExtras } : {}),
     foreign: foreignObjectCount > 0, foreignObjectCount, buildingModel: scan.buildingModel, lineEnding: scan.lineEnding, opened: input,
   };
 }
@@ -944,6 +960,7 @@ export interface OwnOutputCheck extends RestoredOwnSlots {
   readonly writtenAt: Date;
   /** De GlobalId die de lezer in de bron voor een weesrij aannam (`assumedRowGuid` op de lezing van de bron). */
   readonly sourceRowGuid: (taskId: string) => string | undefined;
+  readonly assignmentKeys?: ReadonlyMap<string, string>;
 }
 
 /** Alleen voor proeven: de volledige uitvoercontrole van `prepareIfcWrite` op gegeven uitvoerbytes (ook een gemuteerde
@@ -954,7 +971,9 @@ export async function checkMergeOutput(bytes: Uint8Array, input: WriteIFCInput, 
   assertSameSource(index, cls, source);
   // Zoals bij opslaan: de GlobalId van een weesrij uit de lezing van de bron.
   const checked = own && { ...own, sourceRowGuid: assumedRowGuid(await pristineDomain(index, cls, source)) };
-  await checkedBytes(bytes, freeze(structuredClone(input), true), source, index, cls, source.opened ?? input, undefined, checked);
+  const sourceJson = jsonExtrasFromIndex(index, source.jsonExtras, source.stepIds, input.calendar.id);
+  const json = { source: sourceJson, session: jsonExtrasForWriter(sourceJson, (e, key) => e.windows.get(key)) };
+  await checkedBytes(bytes, freeze(structuredClone(input), true), source, index, cls, source.opened ?? input, undefined, checked, json);
 }
 
 /** Eén buffer uit de stukken van `assemble`: de enige kopie van de hele uitvoer. */
@@ -967,7 +986,8 @@ function concatParts(parts: readonly Uint8Array[]): Uint8Array {
 
 /** De vaste uitvoercontrole van #918, ook voor ongewijzigd teruggegeven bronbytes. */
 async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: IfcSource,
-  index: StepIndex, cls: Classification, opened: WriteIFCInput, probe?: OpenMergePlanning, own?: OwnOutputCheck) {
+  index: StepIndex, cls: Classification, opened: WriteIFCInput, probe?: OpenMergePlanning, own?: OwnOutputCheck,
+  json: { readonly source: readonly SourceJsonExtras[]; readonly session: readonly JsonExtras[] } = { source: [], session: [] }) {
   let actual: ReturnType<typeof validateMergeOutput>;
   let shown: WriteIFCInput, wanted: WriteIFCInput;
   let parsed: WriteIFCInput;
@@ -980,7 +1000,7 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
     parsed = await pristineFromScan(outputScan, bytes, opened.project, writtenUnusedKeys) as WriteIFCInput;
     // ImportResult draagt ook TimeModel en opgeslagen datums: de echte openactie beslist daarover.
     shown = openMergePlanning(freeze(structuredClone(parsed), true), 'uitvoer');
-    wanted = openMergePlanning(input, 'domein');
+    wanted = openMergePlanning(withJsonExtrasInDomain(input, json.session), 'domein');
   } catch (e) {
     if (e instanceof MergeNeedsPhase2Error) throw e;
     throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `uitvoer scannen of heropenen: ${String(e)}` }]);
@@ -990,10 +1010,11 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   const unusedProblem = own && (unusedKeysProblem(source, index, taskIds, unusedKeys, actual.index, own.stepIds)
     ?? duplicateAssignmentKeyProblem(source, index, taskIds, actual.index, own.stepIds));
   if (unusedProblem) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: unusedProblem }]);
-  const outputJson = { index: actual.index, own: (c: number) => actual.classification.classes[c] === 1, projectCalendarId: input.calendar.id };
-  const jsonProblem = own && jsonExtrasProblem(jsonExtrasOf({ index, own: c => cls.classes[c] === 1, stepIds: source.stepIds, projectCalendarId: input.calendar.id }),
-    { ...outputJson, stepIds: own.stepIds }, input.assignments);
-  if (jsonProblem) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: jsonProblem }]);
+  const outputJson = source.foreign ? scanJsonExtras(actual.index, c => actual.classification.classes[c] === 1) : [];
+  const jsonCheck = own && jsonExtrasProblem(json.source, {
+    index: actual.index, stepIds: own.stepIds, projectCalendarId: input.calendar.id, assignmentKeys: own.assignmentKeys ?? new Map(),
+  }, input);
+  if (jsonCheck && jsonCheck.problem) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: jsonCheck.problem }]);
   if (probe) {
     for (const [side, probeOpened] of [['uitvoer', shown], ['domein', wanted]] as const) {
       const copy = freeze(structuredClone(probeOpened), true);
@@ -1017,9 +1038,9 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   const numberProblem = unchangedPlanningNumberProblem(input, opened, wanted, shown);
   if (numberProblem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: numberProblem }]);
   // (c), als laatste: wat hiervoor al weigerde, houdt zijn soort.
-  const problem = own ? ownOutputProblem(bytes, actual.index, actual.classification, index, cls, parsed, input, own) : undefined;
+  const problem = own ? ownOutputProblem(bytes, actual.index, actual.classification, index, cls, parsed, input, own, outputJson) : undefined;
   if (problem) throw new MergeNeedsPhase2Error([{ kind: 'eigen-uitvoer', detail: problem }]);
-  return { bytes, index: actual.index, scan: outputScan, unusedKeys };
+  return { bytes, index: actual.index, scan: outputScan, unusedKeys, jsonExtras: jsonExtrasNext(outputJson, jsonCheck ? jsonCheck.windows : []) };
 }
 
 /**
@@ -1033,10 +1054,10 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
  * (c) helemaal niet: daar was zo'n slot niet eenduidig aan te wijzen.
  */
 function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classification, sourceIndex: StepIndex, sourceCls: Classification,
-  parsed: WriteIFCInput, input: WriteIFCInput, own: OwnOutputCheck): string | undefined {
+  parsed: WriteIFCInput, input: WriteIFCInput, own: OwnOutputCheck, outputJson: readonly StepJsonExtras[]): string | undefined {
   const output = indexView(out, i => { const original = sourceIndex.chunkOf(out.id(i)); return original < 0 || sourceCls.classes[original] === 1; });
   const ids = mergeIdPlan(out, outCls, own.stepIds, parsed.calendar.id, bytes);
-  const jsonExtras = jsonExtrasOf({ index: out, own: c => outCls.classes[c] === 1, stepIds: own.stepIds, projectCalendarId: parsed.calendar.id });
+  const jsonExtras = jsonExtrasForWriter(jsonExtrasFromIndex(out, outputJson, own.stepIds, parsed.calendar.id), () => undefined);
   // Een weesrij krijgt in de herlezing de GlobalId die de writer uit het domein had (PR 12e, was knownbug 1706), niet die uit de
   // uitvoer zelf: zo ziet (c) een verkeerde waarde in `TaskGuids`, net als een sleutel zonder rij.
   const domainGuids = withOrphanRowGuids(input, own.sourceRowGuid).ifcGlobalIds ?? {};

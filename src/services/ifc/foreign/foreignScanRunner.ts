@@ -59,7 +59,8 @@ function defaultCreateWorker(): ForeignScanWorker | null {
 type Body<T> = T extends unknown ? Omit<T, 'id'> : never;
 
 const hasElementLinks = (outcome: ForeignScanOutcome): outcome is OpenedForeignScanOutcome =>
-  !outcome.ok || ('stepElementLinks' in outcome && Array.isArray(outcome.stepElementLinks));
+  !outcome.ok || ('stepElementLinks' in outcome && Array.isArray(outcome.stepElementLinks)
+    && 'stepJsonExtras' in outcome && Array.isArray(outcome.stepJsonExtras));
 
 /**
  * `work` met één Worker; zonder Worker of bij een fout van het transport `fallback` (na het stoppen van de Worker). Een

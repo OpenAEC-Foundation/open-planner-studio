@@ -129,3 +129,5 @@ export function jsonPropertyShape(pset: string, property: string): JsonShape | u
 }
 
 export const JSON_PROPERTY_PSETS: ReadonlySet<string> = new Set(JSON_PROPERTIES.map(p => p.pset));
+
+export const WINDOWS_PROPERTY = `${PSET.Timephased}\u0000${PROP.Timephased.Windows}`;

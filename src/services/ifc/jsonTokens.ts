@@ -98,7 +98,7 @@ function decimalKey(token: string): string {
   const m = /^(-?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(token)!;
   let digits = (m[2] + (m[3] ?? '')).replace(/^0+/, '');
   let exponent = BigInt(m[4] ?? '0') - BigInt((m[3] ?? '').length);
-  if (digits === '') return '0';
+  if (digits === '') return `${m[1]}0`;
   while (digits.endsWith('0')) { digits = digits.slice(0, -1); exponent += 1n; }
   return `${m[1]}${digits}e${exponent}`;
 }

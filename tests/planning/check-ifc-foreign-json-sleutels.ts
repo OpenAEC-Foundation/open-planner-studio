@@ -231,7 +231,7 @@ function richDomain(): Domain {
   const shape = jsonPropertyShape('OPS_StructureMeta', 'structure')!;
   const source = `{"vendorCoordinationId":"VC-1","activityCodeTypes":[{"id":"a","name":"Zone","values":[],"vendorX":${big}},`
     + '{"id":"d","name":"D1","values":[]},{"id":"d","name":"D2","values":[],"vendorY":1}],"customFieldDefs":[]}';
-  const found = unknownJsonMembers(source, shape, () => undefined)!;
+  const found = unknownJsonMembers(source, shape, () => false)!;
   ok(`extractie: de bovenste sleutel en de sleutel bij id a, niet bij het dubbele id d (${show(found)})`, show(found) === show([
     { path: [], members: [{ key: '"vendorCoordinationId"', value: '"VC-1"' }] },
     { path: [{ sleutel: 'activityCodeTypes' }, { veld: 'id', waarde: 'a' }], members: [{ key: '"vendorX"', value: big }] },
@@ -251,7 +251,10 @@ function richDomain(): Domain {
 
 const eigen = text(await settle(read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
 const TASK_GUID = '06AdBvh4v8lXgXlHO1$rfO';
+const R109 = '3LKE2mEiGfOR4VMIq3h_xv';
 const R110 = '34SuBObt1dKPNSent0osWG';
+const R111 = '1XVcwxvomwVx$qDRoCxjQu';
+const TASK_65_GUID = '2kDzoebYmR6NjQ7T17ccu7';
 const BIG = '98765432109876543210987654321';
 
 const taskOf = (o: Opened) => o.tasks.find(t => o.ifcSource!.stepIds[`task:${t.id}`] === 63)!;
@@ -268,6 +271,12 @@ let base: Uint8Array | undefined;
   const task = taskOf(opened);
   for (const a of domain.assignments.filter(x => x.taskId === task.id)) a.plannedWorkMinutes = 480;
   domain.tasks = domain.tasks.map(t => t.id === task.id ? { ...t, splitGaps: [{ afterMinutes: 480, gapMinutes: 480 }] } : t);
+  domain.customTaskTypes = [{ id: 'tt-a', name: 'Type A', color: '#112233' }, { id: 'tt-b', name: 'Type B', color: '#445566' }];
+  const typed = domain.tasks.filter(t => !t.isSummary && t.id !== task.id).slice(0, 3);
+  domain.tasks = domain.tasks.map(t => {
+    const k = typed.indexOf(t);
+    return k < 0 ? t : { ...t, taskType: 'USERDEFINED', customTaskTypeId: k < 2 ? 'tt-a' : 'tt-b' };
+  });
   const prepared = await save('basis: codetypen en vensters toevoegen', domain, opened.ifcSource!);
   if (prepared) base = prepared.bytes;
 }
@@ -279,23 +288,32 @@ if (base) {
   const baseText = text(base);
   const baselines = JSON.parse(jsonIn(base, 'OPS_Baselines', 'Baselines')!) as { id: string; tasks: { taskId: string }[] }[];
   const baselineId = baselines[0].id, rowTask = baselines[0].tasks[1].taskId;
-  let s = patchJson(baseText, 'structure', j => j.replace(/^\{/, '{"vendorCoordinationId":"VC-0042",')
+  let s = patchJson(baseText, 'structure', j => j.replace(/\}$/, ',"vendorCoordinationId":"VC-0042"}')
     .replace('"id":"act-fase","name":"Fase",', `"id":"act-fase","vendorX":${BIG},"name":"Fase",`));
   s = patchJson(s, 'Baselines', j => j.replace(`"id":"${baselineId}",`, `"id":"${baselineId}","vendorBaselineRef":"BR-9",`)
     .replace(`{"taskId":"${rowTask}",`, `{"taskId":"${rowTask}","vendorRow":{"x":[1,2]},`));
   s = patchJson(s, 'Windows', j => j.replace(`"${R110}#1":{`, `"vendorMapNote":"m","${R110}#1":{"vendorW":"w-110",`));
+  s = patchJson(s, 'TaskTypes', j => j.replace('"id":"tt-a","name":"Type A","color":"#112233"}', '"id":"tt-a","name":"Type A","color":"#112233","vendorRef":"opaque-aa"}'));
   const withExtras = latin1(s);
-  ok('bron: de proefbewerking zette de vijf onbekende sleutels erin', s !== baseText
+  ok('bron: de proefbewerking zette de onbekende sleutels erin', s !== baseText
     && memberOf(jsonIn(withExtras, 'OPS_StructureMeta', 'structure'), ['vendorCoordinationId']) === '"VC-0042"'
-    && memberOf(jsonIn(withExtras, 'OPS_Timephased', 'Windows', TASK_GUID), [`${R110}#1`, 'vendorW']) === '"w-110"');
+    && memberOf(jsonIn(withExtras, 'OPS_Timephased', 'Windows', TASK_GUID), [`${R110}#1`, 'vendorW']) === '"w-110"'
+    && memberOf(jsonIn(withExtras, 'OPS_TaskTypes', 'TaskTypes'), ['definitions', ['id', 'tt-a'], 'vendorRef']) === '"opaque-aa"');
+  {
+    const opened = await openForeign(withExtras);
+    ok(`bron: de index op de bron noemt de vier JSON-eigenschappen met onbekende sleutels, met de binding van het venster (${show(opened.ifcSource?.jsonExtras)})`,
+      opened.ifcSource?.jsonExtras?.length === 4
+      && opened.ifcSource.jsonExtras.some(e => e.windows?.length === 1 && e.windows[0].key === `${R110}#1`
+        && e.windows[0].assignmentId === opened.assignments.find(a => a.taskId === taskOf(opened).id && a.resourceId === resOf(opened, 110).id)?.id));
+  }
 
-  type Want = { fase: boolean; baseline: boolean; window: string | undefined };
-  const all: Want = { fase: true, baseline: true, window: `${R110}#1` };
+  type Want = { fase: boolean; baseline: boolean; window: readonly [string, string] | undefined };
+  const all: Want = { fase: true, baseline: true, window: [TASK_GUID, `${R110}#1`] };
   const expectExtras = (label: string, bytes: Uint8Array, want: Want) => {
     const structure = jsonIn(bytes, 'OPS_StructureMeta', 'structure');
     const bl = jsonIn(bytes, 'OPS_Baselines', 'Baselines');
     const windows = jsonIn(bytes, 'OPS_Timephased', 'Windows', TASK_GUID);
-    ok(`${label}: vendorCoordinationId bovenin OPS_StructureMeta (${structure?.slice(0, 120)})`,
+    ok(`${label}: vendorCoordinationId in OPS_StructureMeta (${structure?.slice(-120)})`,
       memberOf(structure, ['vendorCoordinationId']) === '"VC-0042"');
     ok(`${label}: vendorX ${want.fase ? 'bij' : 'niet meer, met'} codetype act-fase, byte-gelijk`,
       want.fase ? memberOf(structure, ['activityCodeTypes', ['id', 'act-fase'], 'vendorX']) === BIG : !structure?.includes('vendorX'));
@@ -304,21 +322,24 @@ if (base) {
     ok(`${label}: vendorRow ${want.baseline ? 'bij' : 'niet meer, met'} de baselineregel van ${rowTask}`, want.baseline
       ? memberOf(bl, [['id', baselineId], 'tasks', ['taskId', rowTask], 'vendorRow']) === '{"x":[1,2]}'
       : !bl?.includes('vendorRow'));
-    ok(`${label}: vendorMapNote bovenin Windows (${windows})`, memberOf(windows, ['vendorMapNote']) === '"m"');
-    ok(`${label}: vendorW bij de toewijzing van #110 onder ${want.window} (${windows})`,
-      want.window === undefined ? !windows?.includes('vendorW') : memberOf(windows, [want.window, 'vendorW']) === '"w-110"');
+    ok(`${label}: vendorMapNote bovenin Windows van #63 (${windows})`, memberOf(windows, ['vendorMapNote']) === '"m"');
+    const target = want.window && jsonIn(bytes, 'OPS_Timephased', 'Windows', want.window[0]);
+    ok(`${label}: vendorW bij de toewijzing van #110 onder ${want.window?.join(' ')} (${target})`,
+      want.window === undefined ? !text(bytes).includes('vendorW') : memberOf(target, [want.window[1], 'vendorW']) === '"w-110"'
+        && text(bytes).split('vendorW').length === 2);
+    ok(`${label}: vendorRef bij taaktype A`, memberOf(jsonIn(bytes, 'OPS_TaskTypes', 'TaskTypes'), ['definitions', ['id', 'tt-a'], 'vendorRef']) === '"opaque-aa"');
   };
 
   type Edit = (d: Domain, o: Opened) => void | Domain | Promise<void | Domain>;
-  const scenario = async (label: string, edit: Edit, want: Want) => {
-    const opened = await openForeign(withExtras);
+  const scenario = async (label: string, edit: Edit, want: Want, source = withExtras) => {
+    const opened = await openForeign(source);
     let domain = cloneDomain(opened);
     domain.project.description = `${domain.project.description} (proef JSON-sleutels)`;
     const edited = await edit(domain, opened);
     if (edited) domain = edited;
     const prepared = await save(label, domain, opened.ifcSource!);
     if (!prepared) return undefined;
-    const problems = mergeProblems(withExtras, prepared.bytes);
+    const problems = mergeProblems(source, prepared.bytes);
     ok(`${label}: de invarianten van de merge (${problems.slice(0, 2).join(' | ')})`, problems.length === 0);
     expectExtras(label, prepared.bytes, want);
     const again = await openForeign(prepared.bytes);
@@ -328,6 +349,16 @@ if (base) {
     if (second) expectExtras(`${label}, tweede opslag`, second.bytes, want);
     return { prepared, domain };
   };
+  const refuses = async (label: string, edit: Edit, pattern: RegExp, source = withExtras) => {
+    const opened = await openForeign(source);
+    let domain = cloneDomain(opened);
+    domain.project.description = `${domain.project.description} (proef weigering)`;
+    const edited = await edit(domain, opened);
+    if (edited) domain = edited;
+    const verdict = await refusal(domain, opened.ifcSource!);
+    ok(`${label}: weigert (${verdict.slice(0, 260)})`, pattern.test(verdict));
+  };
+  const asgn = (d: Domain, o: Opened, step: number) => d.assignments.find(a => a.taskId === taskOf(o).id && a.resourceId === resOf(o, step).id)!;
 
   await scenario('alleen herschrijven', () => {}, all);
   await scenario('de omschrijving van een codewaarde van een ander codetype', d => {
@@ -341,6 +372,15 @@ if (base) {
   await scenario('via de store: de omschrijving van een codewaarde', async d => storeEdit(d, st => {
     st.updateActivityCodeValue('act-fase', 'acv-f1', { description: 'Afbouw' });
   }), all);
+  await scenario('een ander codetype hernoemen', d => {
+    d.activityCodeTypes = d.activityCodeTypes!.map(t => t.id === 'act-zone' ? { ...t, name: 'Zone (nieuw)' } : t);
+  }, all);
+  await scenario('via de store: een ander codetype hernoemen', async d => storeEdit(d, st => {
+    st.renameActivityCodeType('act-zone', 'Zone (store)');
+  }), all);
+  await scenario('via de store: het codetype met de vreemde sleutel wissen', async d => storeEdit(d, st => {
+    st.removeActivityCodeType('act-fase');
+  }), { ...all, fase: false });
   await scenario('via de store: de baseline met de vreemde sleutels hernoemen', async d => storeEdit(d, st => {
     st.renameBaseline(baselineId, 'Baseline plan (hernoemd)');
   }), all);
@@ -354,61 +394,117 @@ if (base) {
   await scenario('de baselineregels in een andere volgorde, met de regels opnieuw opgebouwd', d => {
     d.baselines = d.baselines!.map(b => b.id === baselineId ? { ...b, tasks: [...b.tasks].reverse().map(t => ({ taskId: t.taskId, start: t.start, finish: t.finish, duration: t.duration, isMilestone: t.isMilestone, ...(t.milestoneKind ? { milestoneKind: t.milestoneKind } : {}) })) } : b);
   }, all);
-  await scenario('de eerste toewijzing van #63 weg: vendorW schuift mee naar de nieuwe sleutel', (d, o) => {
-    d.assignments = d.assignments.filter(a => !(a.taskId === taskOf(o).id && a.resourceId === resOf(o, 109).id));
-  }, { ...all, window: `${R110}#0` });
-  await scenario('de toewijzing van #110 weg: vendorW vervalt met haar toewijzing', (d, o) => {
-    d.assignments = d.assignments.filter(a => !(a.taskId === taskOf(o).id && a.resourceId === resOf(o, 110).id));
-  }, { ...all, window: undefined });
 
-  await scenario('een ander codetype hernoemen', d => {
-    d.activityCodeTypes = d.activityCodeTypes!.map(t => t.id === 'act-zone' ? { ...t, name: 'Zone (nieuw)' } : t);
+  await scenario('toewijzing: de eerste toewijzing van #63 weg, vendorW schuift mee naar de nieuwe sleutel', (d, o) => {
+    d.assignments = d.assignments.filter(a => a !== asgn(d, o, 109));
+  }, { ...all, window: [TASK_GUID, `${R110}#0`] });
+  await scenario('toewijzing: Verplaats naar… taak #65, vendorW gaat mee met de toewijzing', async (d, o) => {
+    const id = asgn(d, o, 110).id;
+    return storeEdit(d, st => { st.moveAssignment(id, o.tasks.find(t => o.ifcSource!.stepIds[`task:${t.id}`] === 65)!.id); });
+  }, { ...all, window: [TASK_65_GUID, `${R110}#0`] });
+  await scenario('toewijzing: een andere resource met behoud van de toewijzing, vendorW blijft bij de toewijzing', (d, o) => {
+    const a = asgn(d, o, 110);
+    d.assignments = d.assignments.map(x => x === a ? { ...x, resourceId: resOf(o, 111).id } : x);
+  }, { ...all, window: [TASK_GUID, `${R111}#1`] });
+  await scenario('toewijzing: een tweede toewijzing van dezelfde resource erbij, vendorW blijft bij de eerste', (d, o) => {
+    d.assignments = [...d.assignments, { ...asgn(d, o, 110), id: 'asgn-tweede' }];
   }, all);
-  await scenario('via de store: een ander codetype hernoemen', async d => storeEdit(d, st => {
-    st.renameActivityCodeType('act-zone', 'Zone (store)');
-  }), all);
-  await scenario('via de store: het codetype met de vreemde sleutel wissen', async d => storeEdit(d, st => {
-    st.removeActivityCodeType('act-fase');
-  }), { ...all, fase: false });
+  await refuses('toewijzing: de toewijzing van #110 wissen (zoals main, nooit raden)', (d, o) => {
+    d.assignments = d.assignments.filter(a => a !== asgn(d, o, 110));
+  }, /^(uitvoer-controle|niet-gedragen): .*Windows/);
+  await refuses('toewijzing: via de store wissen en dezelfde resource opnieuw toewijzen (zoals main, nooit raden)', async (d, o) => {
+    const a = asgn(d, o, 110);
+    return storeEdit(d, st => { st.unassignResource(a.id); st.assignResource(a.taskId, a.resourceId, a.unitsPerDay); });
+  }, /^(uitvoer-controle|niet-gedragen): .*Windows/);
+  {
+    const opened = await openForeign(withExtras);
+    const domain = cloneDomain(opened);
+    domain.project.description = `${domain.project.description} (proef zelfde data)`;
+    const a = asgn(domain, opened, 110);
+    domain.assignments = [...domain.assignments.filter(x => x !== a), { ...a, id: 'asgn-opnieuw' }];
+    const verdict = await refusal(domain, opened.ifcSource!);
+    const prepared = verdict === 'schreef' ? await prepareIfcWrite(domain, opened.ifcSource!) : undefined;
+    ok(`toewijzing: een vervangende toewijzing met exact dezelfde vensterdata: weigert, of laat het venster byte-gelijk staan zoals main (${verdict.slice(0, 160)})`,
+      verdict === 'schreef'
+        ? jsonIn(prepared!.bytes, 'OPS_Timephased', 'Windows', TASK_GUID) === jsonIn(withExtras, 'OPS_Timephased', 'Windows', TASK_GUID)
+        : /Windows/.test(verdict));
+  }
+  await refuses('toewijzing: een ander toewijzings-id (zoals na herstel) en een bewerking van het venster', (d, o) => {
+    const a = asgn(d, o, 110);
+    d.assignments = d.assignments.map(x => x === a ? { ...x, id: 'asgn-na-herstel', plannedWorkMinutes: 960 } : x);
+  }, /^(uitvoer-controle|niet-gedragen): .*Windows/);
+  {
+    const opened = await openForeign(withExtras);
+    const domain = cloneDomain(opened);
+    domain.project.description = `${domain.project.description} (proef ander id)`;
+    const a = asgn(domain, opened, 110);
+    domain.assignments = domain.assignments.map(x => x === a ? { ...x, id: 'asgn-na-herstel' } : x);
+    const verdict = await refusal(domain, opened.ifcSource!);
+    const prepared = verdict === 'schreef' ? await prepareIfcWrite(domain, opened.ifcSource!) : undefined;
+    const windows = prepared && jsonIn(prepared.bytes, 'OPS_Timephased', 'Windows', TASK_GUID);
+    ok(`toewijzing: een ander toewijzings-id zonder bewerking van het venster: weigert, of laat het venster byte-gelijk (${verdict.slice(0, 160)})`,
+      verdict === 'schreef' ? windows === jsonIn(withExtras, 'OPS_Timephased', 'Windows', TASK_GUID) : /Windows/.test(verdict));
+  }
 
+  await refuses('taaktype: het laatste gebruik van type A weg, terwijl A in de catalogus blijft (zoals main)', d => {
+    d.tasks = d.tasks.map(t => t.customTaskTypeId === 'tt-a' ? { ...t, customTaskTypeId: 'tt-b' } : t);
+  }, /^uitvoer-controle: _project OPS_TaskTypes\.TaskTypes .*bestaat nog in de planning/);
   {
     const opened = await openForeign(withExtras);
     const domain = cloneDomain(opened);
-    domain.project.description = `${domain.project.description} (proef botsing)`;
-    domain.activityCodeTypes = domain.activityCodeTypes!.map(t => t.id === 'act-fase' ? { ...t, vendorX: 7 } as typeof t : t);
-    const verdict = await refusal(domain, opened.ifcSource!);
-    ok(`botsing: het domein draagt een andere waarde onder de naam van een vreemde sleutel: weigeren, niet twee keer dezelfde naam (${verdict})`,
-      /^uitvoer-controle: .*vendorX/.test(verdict));
+    domain.tasks = domain.tasks.map(t => t.customTaskTypeId === 'tt-a' ? { ...t, customTaskTypeId: 'tt-b' } : t);
+    domain.customTaskTypes = domain.customTaskTypes!.filter(t => t.id !== 'tt-a');
+    const prepared = await save('taaktype: type A uit de catalogus gewist', domain, opened.ifcSource!);
+    if (prepared) ok('taaktype: type A uit de catalogus gewist: vendorRef vervalt met de definitie', !text(prepared.bytes).includes('opaque-aa'));
   }
+
+  await refuses('botsing: het domein draagt een andere waarde onder de naam van een vreemde sleutel (nooit twee keer dezelfde naam)', d => {
+    d.activityCodeTypes = d.activityCodeTypes!.map(t => t.id === 'act-fase' ? { ...t, vendorX: 7 } as typeof t : t);
+  }, /^uitvoer-controle: .*vendorX/);
+  await refuses('geen plek: zonder codetypen en velden schrijft de writer geen OPS_StructureMeta', d => {
+    d.activityCodeTypes = [];
+    d.customFieldDefs = [];
+  }, /./);
+  await refuses('geen plek: zonder vensterdata schrijft de writer geen Windows voor #63', (d, o) => {
+    d.assignments = d.assignments.map(a => a.taskId === taskOf(o).id ? { ...a, plannedWorkMinutes: undefined } : a);
+  }, /^uitvoer-controle: task_.* OPS_Timephased\.Windows/);
+
+  const front = latin1(patchJson(baseText, 'structure', j => j.replace(/^\{/, '{"vendorFront":"F",')));
   {
-    const opened = await openForeign(withExtras);
+    const opened = await openForeign(front);
     const domain = cloneDomain(opened);
-    domain.project.description = `${domain.project.description} (proef geen plek)`;
-    domain.activityCodeTypes = [];
-    domain.customFieldDefs = [];
-    const verdict = await refusal(domain, opened.ifcSource!);
-    ok(`geen plek: zonder codetypen en velden schrijft de writer geen OPS_StructureMeta, dan stopt opslaan (${verdict.slice(0, 200)})`,
-      verdict !== 'schreef');
+    domain.activityCodeTypes = domain.activityCodeTypes!.map(t => t.id === 'act-zone' ? { ...t, values: t.values.map(v => ({ ...v, description: 'Kelder' })) } : t);
+    const prepared = await save('grens: een onbekende sleutel vooraan, de omschrijving van een codewaarde', domain, opened.ifcSource!);
+    if (prepared) ok('grens: een onbekende sleutel vooraan, de omschrijving van een codewaarde: de sleutel blijft, na de bekende sleutels',
+      memberOf(jsonIn(prepared.bytes, 'OPS_StructureMeta', 'structure'), ['vendorFront']) === '"F"');
   }
+  await refuses('grens (knownbug 2218): een onbekende sleutel vooraan en een codetype hernoemen, zoals main', d => {
+    d.activityCodeTypes = d.activityCodeTypes!.map(t => t.id === 'act-zone' ? { ...t, name: 'Zone (nieuw)' } : t);
+  }, /^niet-gedragen: IFCPROPERTYSETTEMPLATE/, front);
+
+  const minusZero = latin1(patchJson(baseText, 'Windows', j => j.replace(`"${R109}#0":{"plannedWorkMinutes":480}`, `"${R109}#0":{"plannedWorkMinutes":-0}`)));
   {
-    const opened = await openForeign(withExtras);
+    ok('-0: de proefbewerking zette -0 in het venster van #109', text(minusZero).includes('"plannedWorkMinutes":-0'));
+    const opened = await openForeign(minusZero);
     const domain = cloneDomain(opened);
-    domain.project.description = `${domain.project.description} (proef geen vensters)`;
-    const task = taskOf(opened);
-    domain.assignments = domain.assignments.map(a => a.taskId === task.id ? { ...a, plannedWorkMinutes: undefined } : a);
-    const verdict = await refusal(domain, opened.ifcSource!);
-    ok(`geen plek: zonder vensterdata schrijft de writer geen Windows voor #63, dan stopt opslaan op de onbekende sleutels (${verdict})`,
-      /^uitvoer-controle: task_.* OPS_Timephased\.Windows .*niet eenduidig/.test(verdict));
+    domain.project.description = `${domain.project.description} (proef -0)`;
+    const prepared = await save('-0: alleen de projectbeschrijving', domain, opened.ifcSource!);
+    if (prepared) ok(`-0: het ongewijzigde venster houdt -0 (${jsonIn(prepared.bytes, 'OPS_Timephased', 'Windows', TASK_GUID)})`,
+      jsonIn(prepared.bytes, 'OPS_Timephased', 'Windows', TASK_GUID)?.includes('"plannedWorkMinutes":-0') === true);
   }
-  {
-    const opened = await openForeign(withExtras);
+
+  const opaque = latin1(patchJson(baseText, 'structure', j => j.replace(/\}$/, ',"vendorOpaque":{"code":1,"code":2}}')));
+  for (const [label, edit] of [
+    ['alleen de projectbeschrijving', (_d: Domain) => {}],
+    ['een ander codetype hernoemen', (d: Domain) => { d.activityCodeTypes = d.activityCodeTypes!.map(t => t.id === 'act-zone' ? { ...t, name: 'Zone (nieuw)' } : t); }],
+  ] as const) {
+    const opened = await openForeign(opaque);
     const domain = cloneDomain(opened);
-    domain.project.description = `${domain.project.description} (proef nieuwe toewijzing)`;
-    const task = taskOf(opened), r110 = resOf(opened, 110);
-    domain.assignments = [...domain.assignments, { ...domain.assignments.find(a => a.taskId === task.id && a.resourceId === r110.id)!, id: 'asgn-dubbel' }];
-    const verdict = await refusal(domain, opened.ifcSource!);
-    ok(`nieuwe toewijzing van dezelfde resource: geen eenduidige plek voor vendorW, opslaan stopt (${verdict})`,
-      /^uitvoer-controle: .*Windows/.test(verdict));
+    domain.project.description = `${domain.project.description} (proef dubbele sleutels)`;
+    edit(domain);
+    const prepared = await save(`dubbele sleutels in een onbekend token, ${label}`, domain, opened.ifcSource!);
+    if (prepared) ok(`dubbele sleutels in een onbekend token, ${label}: het token komt byte-gelijk terug`,
+      memberOf(jsonIn(prepared.bytes, 'OPS_StructureMeta', 'structure'), ['vendorOpaque']) === '{"code":1,"code":2}');
   }
 }
 
