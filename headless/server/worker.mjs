@@ -18,16 +18,16 @@ parentPort.on('message', async ({ text, bytes, output }) => {
     parentPort.postMessage(output === 'ifc' ? { ok: true, ifc: doc.toIfc() } : { ok: true, summary: withoutForeignContent(summary) });
   } catch (err) {
     if (err instanceof PlannerCoreError) {
-      const fallback = bytes === undefined ? null
-        : err.readRefusal === 'building-model' ? await viaBytesRoute(bytes, output)
-        : output === 'ifc' && err.code === 'IFC_WRITE_FAILED' && err.details.reason === 'foreign' ? await viaBytesRoute(bytes, output, { doc, summary })
-        : null;
-      if (fallback?.summary) return parentPort.postMessage({ ok: true, summary: fallback.summary });
-      if (fallback?.ifcBytes) return parentPort.postMessage({ ok: true, ifcBytes: fallback.ifcBytes }, [fallback.ifcBytes.buffer]);
-      const message = fallback?.differences
-        ? `${err.message} The preserved bytes are not returned: the bytes route reads this file differently (${fallback.differences.join(', ')}).`
-        : err.message;
-      parentPort.postMessage({ ok: false, code: err.code, message, details: { ...err.details } });
+      const mainAnswer = { ok: false, code: err.code, message: err.message, details: { ...err.details } };
+      const refusedModel = err.readRefusal === 'building-model';
+      const refusedForeign = output === 'ifc' && err.code === 'IFC_WRITE_FAILED' && err.details.reason === 'foreign';
+      if (bytes !== undefined && (refusedModel || refusedForeign)) {
+        parentPort.postMessage({ ...mainAnswer, provisional: true });
+        const preserved = await viaBytesRoute(bytes, output, refusedModel ? null : { doc, summary });
+        if (preserved?.summary) return parentPort.postMessage({ ok: true, summary: preserved.summary });
+        if (preserved?.ifcBytes) return parentPort.postMessage({ ok: true, ifcBytes: preserved.ifcBytes }, [preserved.ifcBytes.buffer]);
+      }
+      parentPort.postMessage(mainAnswer);
     } else {
       parentPort.postMessage({ ok: false, code: 'INTERNAL', message: 'Internal error during the calculation' });
     }
@@ -43,20 +43,13 @@ async function viaBytesRoute(bytes, output, textReading) {
     const doc = await openIfcBytes(bytes);
     const summary = doc.schedule();
     if (summary.foreignContent === null) return null;
-    if (textReading) {
-      const differences = [...scheduleDifferences(textReading.summary, summary), planningDifference(textReading.doc, doc)].filter(Boolean);
-      if (differences.length > 0) return { differences };
-    }
+    if (textReading && (!sameSummary(textReading.summary, summary) || planningDifference(textReading.doc, doc) !== null)) return null;
     return output === 'ifc' ? { ifcBytes: await doc.toIfcBytes() } : { summary };
   } catch {
     return null;
   }
 }
 
-function scheduleDifferences(text, bytes) {
-  const differs = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
-  return Object.keys(text).filter(key => key !== 'foreignContent' && differs(text[key], bytes[key]))
-    .flatMap(key => key === 'project' || key === 'counts'
-      ? Object.keys(text[key]).filter(field => differs(text[key][field], bytes[key][field])).map(field => `${key}.${field}`)
-      : [key]);
+function sameSummary(text, bytes) {
+  return JSON.stringify({ ...text, foreignContent: null }) === JSON.stringify({ ...bytes, foreignContent: null });
 }

@@ -110,6 +110,7 @@ class Calculator {
     const worker = this.worker;
     return new Promise((resolve) => {
       let settled = false;
+      let kept = null;
       const finish = (result) => {
         if (settled) return;
         settled = true;
@@ -118,9 +119,12 @@ class Calculator {
         worker.off('error', onError);
         worker.off('exit', onExit);
         this.busy = false;
-        resolve(result);
+        resolve(result.ok || kept === null ? result : kept);
       };
-      const onMessage = (msg) => finish(msg);
+      const onMessage = (msg) => {
+        if (msg.provisional) kept = msg;
+        else finish(msg);
+      };
       const onError = () => {
         this.worker = null;
         finish({ ok: false, code: 'INTERNAL', message: 'The calculation worker failed' });
