@@ -560,7 +560,6 @@
     "reportFontMissing": "Twoja czcionka {{name}} nie jest już dostępna na tym urządzeniu. Raport znów używa czcionki Inter.",
     "layoutsNotSaved": "Nie udało się zapisać układów. Nic nie zostało zmienione. Spróbuj ponownie.",
     "ifcForeignOpenSchema": "Ten plik IFC zawiera dane z innego programu i ma nieznany lub brakujący schemat. Otwieranie zostało zatrzymane, aby zapobiec utracie danych przy zapisie.",
-    "ifcForeignOpenTooLarge": "Ten plik IFC jest większy niż {{limit}} MB. Plik IFC z modelem budynku lub z danymi z innego programu można otworzyć do {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Nie można bezpiecznie sklasyfikować tego pliku IFC. Otwieranie zostało zatrzymane, aby zapobiec utracie danych przy zapisie.",
     "ifc2x3PlanningOnly": "IFC2X3 został otwarty jako harmonogram. Dane z innych programów nie zostaną uwzględnione przy zapisie.",
     "ifcForeignReplaceBlocked": "Nie zapisano. To jest plik, który masz otwarty. Użyj „Zapisz”, aby go zaktualizować, albo „Zapisz jako” z nową nazwą, aby zapisać kopię.",

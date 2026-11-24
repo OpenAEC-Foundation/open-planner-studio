@@ -560,7 +560,6 @@
     "reportFontMissing": "Vlastné písmo {{name}} už na tomto zariadení nie je. Zostava znova používa Inter.",
     "layoutsNotSaved": "Rozloženia sa nepodarilo uložiť. Nič sa nezmenilo. Skúste to znova.",
     "ifcForeignOpenSchema": "Tento súbor IFC obsahuje údaje z iného programu a má neznámu alebo chýbajúcu schému. Otváranie bolo zastavené, aby sa pri ukladaní nestratili údaje.",
-    "ifcForeignOpenTooLarge": "Tento súbor IFC je väčší ako {{limit}} MB. Súbor IFC so stavebným modelom alebo s údajmi z iného programu možno otvoriť do {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Tento súbor IFC sa nedá bezpečne zaradiť. Otváranie bolo zastavené, aby sa pri ukladaní nestratili údaje.",
     "ifc2x3PlanningOnly": "IFC2X3 bolo otvorené ako plán. Údaje z iných programov sa pri ukladaní nezahrnú.",
     "ifcForeignReplaceBlocked": "Neuložené. Toto je súbor, ktorý máte otvorený. Na jeho aktualizáciu použite „Uložiť“, alebo na kópiu „Uložiť ako“ s novým názvom.",

@@ -460,7 +460,6 @@
     "reportFontMissing": "La fuente propia {{name}} ya no está en este dispositivo. El informe vuelve a usar Inter.",
     "layoutsNotSaved": "No se pudieron guardar los diseños. No se ha cambiado nada. Inténtelo de nuevo.",
     "ifcForeignOpenSchema": "Este archivo IFC contiene datos de otra aplicación y tiene un esquema desconocido o que falta. Se ha detenido la apertura para evitar la pérdida de datos al guardar.",
-    "ifcForeignOpenTooLarge": "Este archivo IFC es mayor de {{limit}} MB. Un archivo IFC con un modelo de edificio o con datos de otro programa puede abrirse hasta {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Este archivo IFC no se puede clasificar con seguridad. Se ha detenido la apertura para evitar la pérdida de datos al guardar.",
     "ifc2x3PlanningOnly": "IFC2X3 se ha abierto como planificación. Los datos de otros programas no se incluirán al guardar.",
     "ifcForeignReplaceBlocked": "No se ha guardado. Este es el archivo que tiene abierto. Use «Guardar» para actualizarlo, o «Guardar como» con un nombre nuevo para hacer una copia.",
