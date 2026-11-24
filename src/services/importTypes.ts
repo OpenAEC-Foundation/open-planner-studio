@@ -344,6 +344,7 @@ export interface ImportResult {
   /** Alleen de IFC-bytes-route (#804 fase 1a, flag `ifcForeignContent`): de bron met indeling (§4.8). Afwezig op de
    *  route zonder flag, bij een ander formaat en als de bytes-route terugvalt op de huidige route (afwijking 7). */
   ifcSource?: IfcSource;
+  ifcPlanningTakeover?: IfcPlanningTakeover;
   /** IFC2X3 zonder model via de bytes-route: §4.11 staat alleen planning toe, met verliesmelding bij openen. */
   ifcLegacySchemaLoss?: true;
   /** Alleen `readIFC` op een herstel-IFC of MCP-backup (#804 fase 1a, fixronde 1 en 3): de pset
@@ -409,6 +410,10 @@ export interface XerArchiveIssue {
  * krijgt hier de extra informatie welke tab na het openen actief hoort te zijn. Zo blijven alle
  * enkelvoudige readers en hun bestaande laadpaden structureel ongewijzigd.
  */
+export interface IfcPlanningTakeover {
+  readonly workPlans: number;
+}
+
 /** Waarom een P6 XML-bestand geen leesbare activiteit had (openingsmelding). */
 export type P6XmlEmptyReason = 'no-object-ids' | 'xer-columns' | 'no-activities';
 

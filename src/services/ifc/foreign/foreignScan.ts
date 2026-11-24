@@ -22,6 +22,7 @@ export interface ForeignScanSelection {
   readonly workPlan: number;
   /** Het eerste werkschema dat geen baseline is (het schema dat de lezer kiest), of -1. */
   readonly liveSchedule: number;
+  readonly workPlanCount: number;
   readonly tasks: Int32Array;
   readonly resources: Int32Array;
   readonly calendars: Int32Array;
@@ -137,6 +138,7 @@ export function foreignScanFrom(index: StepIndex, cls: Classification, bytes: Ui
     selection: {
       workPlan: sel.workPlan,
       liveSchedule: sel.liveSchedules.length > 0 ? sel.liveSchedules[0] : -1,
+      workPlanCount: sel.workPlans.length,
       tasks: Int32Array.from(sel.tasks),
       resources: Int32Array.from(sel.resources),
       calendars: Int32Array.from(sel.calendars),

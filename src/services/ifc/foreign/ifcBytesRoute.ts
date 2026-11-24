@@ -137,7 +137,8 @@ export async function readIfcBytesDetailed(
     buildingModel: scan.buildingModel,
     lineEnding: scan.lineEnding,
   };
-  return { result: { ...result, ifcSource } };
+  const ifcPlanningTakeover = { workPlans: scan.selection.workPlanCount };
+  return { result: { ...result, ifcSource, ifcPlanningTakeover } };
 }
 
 /**
