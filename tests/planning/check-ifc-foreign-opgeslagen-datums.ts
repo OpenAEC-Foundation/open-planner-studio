@@ -6,8 +6,9 @@ import { checkMergeOutput, MergeNeedsPhase2Error, prepareIfcWrite } from '@/serv
 import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { readP6XML } from '@/services/p6/p6xmlReader';
+import { readXER } from '@/services/xer/xerReader';
 import { prepareIfcOutput } from '@/state/prepareIfcOutput';
-import type { ImportResult } from '@/services/importTypes';
+import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { MSPDI_FIXTURE, P6XML_FIXTURE } from '../fixtures/recordedTimesFormats';
 import { loadStore, openInStore } from './ifcAppRoute';
 import { installDeterminism } from './ifcPariteitKern';
@@ -79,6 +80,17 @@ async function importedThenSaved(parsed: ImportResult): Promise<Uint8Array> {
   return withWall(writeIFC(buildWriteIFCInput(store.getState(), 'merge')));
 }
 
+function xerWithEarlyDates(): ImportResult {
+  const text = readFileSync(join(root, 'tests/browser/fixtures/xer/zonder-bijzonderheden.xer'), 'utf8')
+    .replace('\ttarget_start_date\ttarget_end_date\r\n', '\ttarget_start_date\ttarget_end_date\tearly_start_date\tearly_end_date\r\n')
+    .replace('\t2026-06-01 08:00\t2026-06-12 16:00\r\n', '\t2026-06-01 08:00\t2026-06-12 16:00\t2026-06-02 08:00\t2026-06-15 16:00\r\n');
+  assert(text.includes('early_start_date') && text.includes('2026-06-15 16:00'), 'de proef zette vroege datums in de XER');
+  const read = readXER(enc.encode(text));
+  const result = isMultiDocumentImport(read) ? read.results[0] : read;
+  assert(result.xerSourceArchive, 'de XER-planning heeft een bronarchief');
+  return result;
+}
+
 const STANDS: ReadonlyArray<readonly [string, () => Promise<Uint8Array>]> = [
   ['MSPDI-herkomst (de reproductie van de review)', () => recordedExample()],
   ['MSPDI-herkomst, ongewijzigd sinds import', () => recordedExample(input => { input.importPristine = true; })],
@@ -86,6 +98,8 @@ const STANDS: ReadonlyArray<readonly [string, () => Promise<Uint8Array>]> = [
   ['rekenprofiel MS Project', () => recordedExample(input => { input.project = { ...input.project, schedulingProfile: { baseId: 'msproject', id: 'msproject', name: 'MS Project', overrides: {} } }; })],
   ['echte MSPDI-import, opgeslagen als IFC', () => importedThenSaved(readMSPDI(MSPDI_FIXTURE))],
   ['echte P6 XML-import, opgeslagen als IFC', () => importedThenSaved(readP6XML(P6XML_FIXTURE))],
+  ['echte XER-import met bronarchief, opgeslagen als IFC', () => importedThenSaved(xerWithEarlyDates())],
+  ['oud document (minuteModelPending)', () => recordedExample(input => { input.minuteModelPending = true; })],
 ];
 
 for (const [stand, make] of STANDS) {
