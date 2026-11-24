@@ -95,6 +95,30 @@ await check('regels 1 tot en met 4 in één opslag, en wat niet op de lijst staa
   const again = await prepareIfcWrite(cloneDomain(reopened), reopened.ifcSource!);
   assert.equal(again.foreignChanges, undefined, 'een tweede opslag zonder bewerking heeft geen wijzigingslijst');
   assert.deepEqual(again.bytes, prepared.bytes, 'een tweede opslag zonder bewerking verandert niets');
+  assert.deepEqual(prepared.source.foreignReferences, reopened.ifcSource!.foreignReferences, 'de nieuwe bron kent dezelfde verwijzingen als heropenen');
+  assert.deepEqual([...prepared.source.classes], [...reopened.ifcSource!.classes], 'de nieuwe bron heeft dezelfde klassen als heropenen');
+  opened.store.setState(s => { s.ifcSource = prepared.source; });
+  opened.store.getState().setProject({ description: 'na het wissen' });
+  const next = await save(opened);
+  assert.equal(next.foreignChanges, undefined, 'een volgende opslag met een bewerking op de nieuwe bron');
+  assert.deepEqual(mergeProblems(prepared.bytes, next.bytes), []);
+});
+
+await check('een stuk dat zijn laatste verwijzing naar de planning kwijtraakt: de nieuwe bron deelt het in zoals heropenen', async () => {
+  const opened = await openInStore(encode(withLines(text('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'),
+    [`#9003=IFCRELASSIGNSTOPRODUCT('${guid('1LaatsteVerwijzing')}',$,$,$,(#51,#393),$,#354);`])));
+  const source = opened.store.getState().ifcSource!;
+  const sourceIndex = scanForeignStep(source.bytes);
+  assert.equal(source.classes[sourceIndex.chunkOf('9003')], 3, 'in de bron: A');
+  opened.store.getState().deleteTask(taskId(opened, 'Set up site'));
+  const prepared = await save(opened);
+  assert.deepEqual(listed(prepared.foreignChanges), ['gewijzigd #9003']);
+  const outputIndex = scanForeignStep(prepared.bytes), outputClasses = classify(outputIndex).classes;
+  assert.equal(prepared.source.classes[outputIndex.chunkOf('9003')], 4, 'na opslaan: V');
+  assert.deepEqual([...prepared.source.classes], [...outputClasses]);
+  opened.store.setState(s => { s.ifcSource = prepared.source; });
+  opened.store.getState().setProject({ description: 'na het wissen' });
+  assert.equal((await save(opened)).foreignChanges, undefined, 'een volgende opslag lukt');
 });
 
 function ruleOn(content: string, goneIds: readonly number[]) {

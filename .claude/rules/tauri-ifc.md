@@ -159,7 +159,21 @@ schrijfinvoer, en de letterlijke kalender-ids. De bestaande uitvoercontrole leve
 de bron krijgt geen domein-ids uit herindeling. Bij ongewijzigde vreemde invoer gaan de bronbytes
 door dezelfde controle en komt dezelfde bron terug. Zonder vreemd deel blijven de bytes van de
 gewone writer. De uitvoer ís de nieuwe bronbuffer; het resultaat houdt daardoor niet ook de oude buffer vast. PR 8b legt na geslaagde opslag de bron vast, PR 9 herstelt
-haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6. Pool en planOnly alleen na de vraag "alleen de planning" (PR 13, zie `state.md`); paneel en dev-bridge blijven geblokkeerd. AutoSave schrijft sinds #804 stap 8 (flag aan, bron aanwezig) via dezelfde vervanging van het eigen bestand als Ctrl+S (`replaceOwnHandleWithRecovery`, `replaceOwnPathWithRecovery`, met de grens van de voorrang op `stopBeforeWrite`); zie `settings-autosave.md`. Een IFC-export (ook met bibliotheek) houdt voorrang vanaf het rekenen (`prepareExportIfcWrite` → `claimProjectFileWrite`).
+haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek (`outputIndex`) is nog ongebruikt. Pool en planOnly alleen na de vraag "alleen de planning" (PR 13, zie `state.md`); paneel en dev-bridge blijven geblokkeerd. AutoSave schrijft sinds #804 stap 8 (flag aan, bron aanwezig) via dezelfde vervanging van het eigen bestand als Ctrl+S (`replaceOwnHandleWithRecovery`, `replaceOwnPathWithRecovery`, met de grens van de voorrang op `stopBeforeWrite`); zie `settings-autosave.md`. Een IFC-export (ook met bibliotheek) houdt voorrang vanaf het rekenen (`prepareExportIfcWrite` → `claimProjectFileWrite`).
+
+**Wijzigingslijst** (#804 fase 2, ontwerp §4.7). Wijst een niet-P-stuk naar een D-stuk dat de planner verwijderde, dan
+past de merge één regel toe (`applyForeignRule` in `foreign/changeList.ts`): een lid van een lijst gaat eruit, een lijst
+die leeg wordt of een enkele verwijzing laat het stuk vervallen, herhaald tot niets meer verandert; wat een vervallen stuk
+aanwees, blijft staan. Welke objecten verdwenen, zegt `goneStepIds` (de sleutels van `ifcSource.stepIds` tegen het
+domein). De verwijzingen komen uit `foreignReferences` (`foreign/foreignReferences.ts`): bij openen in de scanworker
+(`ifcSource.foreignReferences`) en na elk opslaan uit de uitvoer. `PreparedIfcWrite.foreignChanges` is de lijst: per stuk
+het id, de oude bytes en de nieuwe bytes of *vervallen*, plus de ongebruikte sleutels van een verwijderde taak. Controle 1
+(`validateMergeOutput`) eist dat de uitvoer daarmee klopt, dat de lijst uit de regel volgt voor de D-stukken die in de
+uitvoer ontbreken, en dat een gewijzigd stuk alleen leden uit zijn lijsten mist. Een vreemd lid van een eigen pset van een
+verwijderd object blijft als los stuk staan en staat niet op de lijst (§4.2 stap 3). Bij het wissen van een taak of
+resource meldt `state/foreignLinksNotice.ts` met dezelfde regel hoeveel er bij opslaan verandert, met *Ongedaan maken*.
+Weigeren blijft: een verwijzing naar een R-stuk (`verwijzing-naar-p`, het krijgt een nieuw id) en naar een D-stuk dat de
+planning niet kent (`verwijderd`). De melding na opslaan staat nog niet aan (de opslagcommit in `fileSlice.ts`).
 
 **De opslagworker** (#804 stap 4 tot en met 6, `src/services/ifc/saveWorker/`) rekent wat `prepareIfcOutput` rekent (de
 gewone writer of `prepareIfcWrite`) in een Web Worker. De gewone writer hergebruikt hem; na elk antwoord op een merge (een
