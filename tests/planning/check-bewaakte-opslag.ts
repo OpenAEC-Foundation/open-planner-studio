@@ -5,7 +5,7 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { createIfcSaveWorker } from '@/services/ifc/saveWorker/ifcSaveWorker';
-import type { IfcOutputCompute } from '@/state/prepareIfcOutput';
+import { computeIfcOutputHere, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import type { FileRef } from '@/services/fileAccess';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { loadStore } from './ifcAppRoute';
@@ -49,6 +49,13 @@ const holds = (path: string, name: string) => readFileSync(path, 'utf8').include
 const notices = (store: Store, key: string) => store.getState().ui.notifications.filter(n => n.messageKey === key).length;
 const ctrlS = (store: Store) => store.getState().saveFileForDocument(store.getState().activeDocumentId);
 const errors = (store: Store) => store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey);
+const sameSizeChange = (data: Uint8Array): Uint8Array => {
+  const bytes = new Uint8Array(data);
+  const at = new TextDecoder().decode(bytes).indexOf("FILE_NAME('") + "FILE_NAME('".length;
+  assert(at > "FILE_NAME('".length && /[A-Za-z0-9]/.test(String.fromCharCode(bytes[at])), 'de proef vond de bestandsnaam in de kop');
+  bytes[at] = bytes[at] === 0x78 ? 0x79 : 0x78;
+  return bytes;
+};
 const sameSizeOtherContent = (data: Uint8Array): Uint8Array => {
   const text = new TextDecoder().decode(data);
   const changed = text.replace("'Zuidas Office Building'", "'Zuidas Office Buildinx'");
@@ -92,17 +99,17 @@ function desktop() {
   const ipc = installNodeFileIpc({ appDataDir: mkdtempSync(join(dir, 'appdata-')) });
   const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
   const invoke = win.__TAURI_INTERNALS__.invoke;
-  let answer: string | null = null;
+  let answer: string | null = null, picks = 0;
   let before: ((command: string) => void) | undefined;
   win.__TAURI_INTERNALS__.invoke = async (...args) => {
-    if (args[0] === 'plugin:dialog|save') return answer;
+    if (args[0] === 'plugin:dialog|save') { picks++; return answer; }
     before?.(String(args[0]));
     return invoke(...args);
   };
   const once = (command: RegExp, action: () => void) => {
     before = seen => { if (!command.test(seen)) return; before = undefined; action(); };
   };
-  return { ...ipc, choose: (path: string | null) => { answer = path; }, once };
+  return { ...ipc, choose: (path: string | null) => { answer = path; }, once, picks: () => picks };
 }
 
 function saveWorker() {
@@ -343,7 +350,18 @@ await check('twee tabbladen op hetzelfde pad (knownbug 1957): de opslag van het 
   } finally { ipc.dispose(); }
 });
 
-await check('de uitwegen blijven zoals main: Opslaan als over het gewijzigde eigen bestand en een export erover schrijven; daarna is de versie onbekend of nieuw', async () => {
+function ownHandlePicker(own: FakeHandle, count: number) {
+  const win = window as unknown as Record<string, unknown>, answers = Array.from({ length: count }, () => own);
+  win.showOpenFilePicker = () => { throw new Error('niet gebruikt'); };
+  win.showSaveFilePicker = async () => answers.shift()!;
+  return { left: () => answers.length, dispose: () => { delete win.showOpenFilePicker; delete win.showSaveFilePicker; } };
+}
+const withLibrary = (store: Store) => {
+  const companyId = store.getState().seedDemoLibrary();
+  store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
+};
+
+await check('de uitwegen blijven zoals main: Opslaan als over het gewijzigde eigen bestand en een export erover schrijven; daarna kent het tabblad de versie op schijf', async () => {
   const ipc = desktop(), path = fileAt('uitweg.ifc', plainBytes());
   try {
     const { store } = await openAt({ kind: 'path', path }, plainBytes());
@@ -359,12 +377,81 @@ await check('de uitwegen blijven zoals main: Opslaan als over het gewijzigde eig
     ipc.choose(path);
     assert((await store.getState().exportAs('ifc')).ok, 'de export wordt niet bewaakt');
     assert.notDeepEqual(onDisk(path), print(otherPlainBytes()));
-    assert.equal(known(store), null);
-    writeFileSync(path, otherPlainBytes());
-    assert.equal(await ctrlS(store), true, 'na een export over het eigen bestand: onbekend, dus niet bewaakt');
-    assert.deepEqual(known(store), onDisk(path));
+    assert.deepEqual(known(store), onDisk(path), 'de vingerafdruk is die van de geschreven export');
+    const saved = edit(store);
+    assert.equal(await ctrlS(store), true, 'Ctrl+S op de eigen versie slaagt');
+    assert(holds(path, saved));
+    edit(store);
+    const foreign = sameSizeChange(readFileSync(path));
+    writeFileSync(path, foreign);
+    assert.equal(await ctrlS(store), false, 'na een externe wijziging van dezelfde grootte weigert Ctrl+S weer');
+    assert.deepEqual(onDisk(path), print(foreign));
     assert.deepEqual(errors(store), [CHANGED]);
   } finally { ipc.dispose(); }
+});
+
+await check('volgorde 1, de export met de resourcebibliotheek schrijft beide delen over de eigen handle: Ctrl+S op die versie slaagt, na een externe wijziging van dezelfde grootte weigert hij weer', async () => {
+  const own = newHandle(plainBytes()), picker = ownHandlePicker(own, 2);
+  try {
+    const { store } = await openAt(handleRef(own), plainBytes());
+    withLibrary(store);
+    edit(store);
+    assert.equal(await ctrlS(store), true);
+    edit(store);
+    const pooled = await store.getState().exportProjectWithPool();
+    assert(pooled.ok && !pooled.cancelled);
+    assert.equal(picker.left(), 0, 'beide delen kozen de eigen handle');
+    assert.deepEqual(known(store), onHandle(own), 'de vingerafdruk is die van het laatste deel op de eigen handle');
+    const saved = edit(store);
+    assert.equal(await ctrlS(store), true, 'Ctrl+S op de eigen versie slaagt');
+    assert(new TextDecoder().decode(handleFiles.get(own.name)!).includes(`'${saved}'`));
+    edit(store);
+    const foreign = sameSizeChange(handleFiles.get(own.name)!);
+    handleFiles.set(own.name, foreign);
+    assert.equal(await ctrlS(store), false);
+    assert.deepEqual(onHandle(own), print(foreign));
+    assert.deepEqual(errors(store), [CHANGED]);
+  } finally { picker.dispose(); }
+});
+
+await check('volgorde 2, Automatisch opslaan schrijft en de export wacht in de schrijfrij en schrijft daarna over het eigen pad: Ctrl+S op die versie slaagt, na een externe wijziging van dezelfde grootte weigert hij weer', async () => {
+  const ipc = desktop(), path = fileAt('volgorde-2.ifc', plainBytes());
+  let armed = false, reached!: () => void, release!: () => void;
+  const atGate = new Promise<void>(resolve => { reached = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const held: IfcOutputCompute = async job => {
+    if (armed) { armed = false; reached(); await gate; }
+    return computeIfcOutputHere(job);
+  };
+  try {
+    const { store } = await openAt({ kind: 'path', path }, plainBytes());
+    store.getState().setAutoSaveToFile(true);
+    edit(store);
+    armed = true;
+    const round = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute: held }).flush();
+    await atGate;
+    edit(store);
+    ipc.choose(path);
+    const exported = store.getState().exportAs('ifc');
+    for (let i = 0; i < 50 && ipc.picks() === 0; i++) await new Promise(resolve => setTimeout(resolve, 5));
+    assert.equal(ipc.picks(), 0, 'de export wacht in de rij achter Automatisch opslaan');
+    release();
+    await round;
+    const afterRound = known(store);
+    assert.deepEqual(afterRound, onDisk(path));
+    assert((await exported).ok);
+    assert.notDeepEqual(onDisk(path), afterRound, 'de export schreef andere bytes over het eigen pad');
+    assert.deepEqual(known(store), onDisk(path));
+    const saved = edit(store);
+    assert.equal(await ctrlS(store), true, 'Ctrl+S op de eigen versie slaagt');
+    assert(holds(path, saved));
+    edit(store);
+    const foreign = sameSizeChange(readFileSync(path));
+    writeFileSync(path, foreign);
+    assert.equal(await ctrlS(store), false);
+    assert.deepEqual(onDisk(path), print(foreign));
+    assert.deepEqual(errors(store), [CHANGED]);
+  } finally { release(); ipc.dispose(); }
 });
 
 async function stoppedAutoSave(name: string, failRead = false) {
@@ -442,14 +529,59 @@ await check('stop van de bewaking × de flag gaat uit: de stop vervalt en de ron
   } finally { stopped.ipc.dispose(); }
 });
 
-await check('stop van de bewaking × de versie wordt onbekend (export over het eigen bestand): de stop vervalt en de ronde schrijft zoals main', async () => {
+await check('stop van de bewaking × een eigen export over het eigen pad: de stop vervalt, de volgende ronde schrijft het resterende werk, en een volgende externe wijziging stopt weer', async () => {
   const stopped = await stoppedAutoSave('stop-export.ifc');
   try {
     const { store, path, ipc } = stopped;
     ipc.choose(path);
     assert((await store.getState().exportAs('ifc')).ok);
-    assert.equal(known(store), null);
-    writeFileSync(path, otherPlainBytes());
+    assert.deepEqual(known(store), onDisk(path), 'de eigen export legde een nieuwe bekende versie vast');
+    assert.equal(store.getState().isDirty, true);
+    assert.equal(await roundWritesLaterWork(stopped), true);
+    assert.deepEqual(known(store), onDisk(path));
+    const foreign = sameSizeChange(readFileSync(path));
+    writeFileSync(path, foreign);
+    assert.equal(await roundWritesLaterWork(stopped), false, 'opnieuw gestopt');
+    assert.deepEqual(onDisk(path), print(foreign));
+    assert.equal(notices(store, AUTOSAVE_CHANGED), 1, 'één melding per document per sessie');
+  } finally { stopped.ipc.dispose(); }
+});
+
+await check('stop van de bewaking × volgorde 1, de export met de resourcebibliotheek over de eigen handle: de stop vervalt, de volgende ronde schrijft het resterende werk, en een volgende externe wijziging stopt weer', async () => {
+  const own = newHandle(plainBytes()), picker = ownHandlePicker(own, 2);
+  try {
+    const { store } = await openAt(handleRef(own), plainBytes());
+    withLibrary(store);
+    const controller = autoSave(store);
+    edit(store);
+    const first = sameSizeOtherContent(plainBytes());
+    handleFiles.set(own.name, first);
+    await controller.flush();
+    assert.equal(store.getState().isDirty, true, 'gestopt');
+    assert.deepEqual(onHandle(own), print(first));
+    const pooled = await store.getState().exportProjectWithPool();
+    assert(pooled.ok && !pooled.cancelled);
+    assert.equal(picker.left(), 0);
+    assert.deepEqual(known(store), onHandle(own));
+    const later = edit(store);
+    await controller.flush();
+    assert.equal(store.getState().isDirty, false, 'de stop verviel');
+    assert(new TextDecoder().decode(handleFiles.get(own.name)!).includes(`'${later}'`), 'de ronde schreef het resterende werk');
+    const foreign = sameSizeChange(handleFiles.get(own.name)!);
+    handleFiles.set(own.name, foreign);
+    edit(store);
+    await controller.flush();
+    assert.equal(store.getState().isDirty, true, 'opnieuw gestopt');
+    assert.deepEqual(onHandle(own), print(foreign));
+    assert.equal(notices(store, AUTOSAVE_CHANGED), 1);
+  } finally { picker.dispose(); }
+});
+
+await check('stop van de bewaking × de instelling gaat uit via setUI: de stop vervalt en de ronde schrijft zoals main', async () => {
+  const stopped = await stoppedAutoSave('stop-setui.ifc');
+  try {
+    stopped.store.getState().setUI({ featureFlags: {} });
+    assert.equal(known(stopped.store), null, 'setUI wist de vingerafdruk');
     assert.equal(await roundWritesLaterWork(stopped), true);
   } finally { stopped.ipc.dispose(); }
 });
