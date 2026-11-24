@@ -4058,8 +4058,9 @@ en noem het in je rapport of PR-tekst.
 
 2312. **Zonder `RESUME` begint het restwerk van een `.mpp`-toewijzing direct na haar verrichte werk.**
       `computeShiftedAssignmentPeriods` (`src/services/mpp/mppReader.ts`) schuift de resterende periodes van een
-      toewijzing waarvoor de decoder minstens één werkelijke periode oplevert naar haar `RESUME`, en zonder `RESUME` of op een
-      kalender zonder werktijd naar het einde van haar laatste verschoven werkelijke periode. Dat geldt voor splits en contouren. In een proef met een taakstart om 08:00 en een
+      toewijzing waarvoor de decoder minstens één werkelijke periode oplevert naar haar `RESUME` als `CalendarEngine.isHourMode`
+      waar is, en zonder `RESUME` of bij een onware `isHourMode` naar het einde van haar laatste verschoven werkelijke
+      periode. Dat geldt voor splits en contouren. In een proef met een taakstart om 08:00 en een
       toewijzingsstart om 09:00 begon het restwerk zonder `RESUME` op taakminuut 180, en met een hervatting op de
       volgende werkdag op minuut 480. Volgens het weggehaalde commentaar heeft die terugval geen steun in MPXJ
       (`AssignmentField.RESUME` heeft daar geen standaardplek in de veldkaart). Wat MS Project bij een ontbrekend
