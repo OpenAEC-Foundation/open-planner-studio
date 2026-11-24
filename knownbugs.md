@@ -1563,22 +1563,30 @@ en noem het in je rapport of PR-tekst.
       (`MAX_CALENDARS`, `mppCalendars.ts`). Nagespeeld met een script via `readP6XMLDocuments`: een bestand met 1200
       Resource-kalenders met verschillende geldige `ObjectId`'s zonder verwijzing geeft 1200 bibliotheekkalenders. — B
 
-2318. **Een jaarlijkse herhaling op een vaste datum kan een datum na haar einddatum opleveren.**
-      `getYearlyAbsoluteDates` (`src/services/calendarRecurrence.ts`, via `expandRecurrence`) toetst de einddatum op de
-      eerste van de maand van het lopende jaar, en schuift een datum vóór het begin daarna nog een jaar op. Nagespeeld
+2318. **Een maandelijkse of jaarlijkse herhaling kan een datum na haar einddatum opleveren.**
+      De vier generatoren `getMonthlyAbsoluteDates`, `getMonthlyRelativeDates`, `getYearlyAbsoluteDates` en
+      `getYearlyRelativeDates` (`src/services/calendarRecurrence.ts`, via `expandRecurrence`) toetsen de einddatum
+      (`moreDates`) op de eerste van de maand en voegen daarna de dag in die maand toe; de twee relatieve stoppen pas na
+      het toevoegen. `getYearlyAbsoluteDates` schuift bovendien een datum vóór het begin nog een jaar op. Nagespeeld
       met een script via `expandRecurrence`: jaarlijks op 1 januari (`relative: false`, `dayNumber` 1, `monthNumber` 1),
       begin 2020-06-01, einde 2020-12-31, `occurrences` 0, geeft `2021-01-01`. Dezelfde opzet als eerste maandag van
-      januari (`relative: true`) geeft niets. Het weggehaalde commentaar noemde dit overgenomen gedrag van MPXJ; of MPXJ
-      en MS Project zo'n datum opleveren, is niet nagegaan. — B
+      januari (`relative: true`) geeft niets. Nagespeeld via `readMSPDI` en `CalendarEngine`, zonder jaaropschuiving:
+      een maandelijkse en een jaarlijkse uitzondering op de 31e met einde 15 januari maken 31 januari vrij; een
+      maandelijkse en een jaarlijkse op de derde vrijdag met einde 3 januari maken 17 januari vrij. Het weggehaalde
+      commentaar noemde dit overgenomen gedrag van MPXJ; of MPXJ en MS Project zo'n datum opleveren, is niet
+      nagegaan. — B
 
-2319. **Als het gedeelde budget voor uitzonderingsdagen opraakt, valt juist de uitzondering met de hoogste voorrang
-      weg.** `buildContributions` stopt bij een leeg budget in de volgorde van het bestand, en `resolveContributions`
+2319. **Als het gedeelde budget voor uitzonderingsdagen opraakt, kan juist de uitzondering met de hoogste voorrang
+      wegvallen.** `buildContributions` stopt bij een leeg budget in de volgorde van het bestand, en
+      `resolveContributions`
       vult de kaart per datum in de volgorde van de voorrang (ADR 0291) tot het budget op is; wat dan nog komt, telt
       niet mee. In `mergeInherited` gaan de dagen van de basiskalender vóór de eigen uitzonderingen in dat budget.
       Nagespeeld met een script, steeds met een wekelijkse herhaling op alle dagen van 2020-01-01 tot 2020-01-10 en
       daarna in het bestand een werkende uitzondering op 2020-01-05: met budget 100 is 5 januari werkend en het vrije
       bereik gesplitst; met budget 10 is 1 tot en met 10 januari één vrij bereik en is er geen werkende uitzondering;
-      met budget 5 is alleen 1 tot en met 5 januari vrij. Via `mergeInherited` met een basis die 1 tot en met
+      met budget 5 is alleen 1 tot en met 5 januari vrij. Staat de werkende uitzondering in het bestand vóór de
+      herhaling, dan blijft met budget 10 5 januari werkend en valt 10 januari weg: welke wegvalt, volgt de volgorde
+      van het bestand. Twee uitzonderingen op dezelfde datum kosten elk een plaats in het budget. Via `mergeInherited` met een basis die 1 tot en met
       10 januari vrij heeft en dezelfde werkende uitzondering als eigen uitzondering: met budget 100 werkend, met
       budget 10 vrij. Het budget is 100.000 dagen (`MAX_TOTAL_HOLIDAY_SLOTS`, ADR 0293); of een echt bestand het
       bereikt, is niet nagegaan. — B
@@ -1586,7 +1594,7 @@ en noem het in je rapport of PR-tekst.
 2320. **Een onbekend herhalingstype leest de MSPDI-lezer als gewoon bereik, de `.mpp`-lezer slaat het record over.**
       `RECURRENCE_TYPES` (`src/services/calendarRecurrence.ts`) kent de waarden 1 tot en met 7 (0 is geen herhaling).
       Voor een waarde buiten 0 tot en met 7 geeft `readMspdiRecurringData` (`mspdiReader.ts`) `null`, en `readRawMspdiExceptions` houdt het record dan als
-      niet-herhalend bereik van `FromDate` tot `ToDate`; `readRawExceptions` (`mppCalendars.ts`) zet bij `null`
+      niet-herhalend bereik van `FromDate` tot `ToDate`, en slaat het zonder `ToDate` over; `readRawExceptions` (`mppCalendars.ts`) zet bij `null`
       `contributesNothing` en neemt het record niet op. Gelezen in de code, niet nagespeeld. Welke van de twee MS
       Project volgt, is niet nagegaan. — S
 
