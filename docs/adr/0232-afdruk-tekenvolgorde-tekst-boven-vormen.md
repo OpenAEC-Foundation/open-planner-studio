@@ -17,8 +17,9 @@ vlak ligt in de PDF onder de tekst.
   het raster ligt ze daardoor ook boven de labels, in de vector-PDF eronder (knownbug 2006).
 - Een label rechts begint `BAR_LABEL_GAP` (`DEP_STUB` + 8) voorbij de rechterrand die de aanroeper meegeeft: met datums
   bij de balken het balkeinde (ADR 0237), zonder datums kan dat het einde van een zichtbare spelingsband zijn. Die
-  afstand houdt het label voorbij de knik van een uitgaande relatie. Die afstand schaalt niet met de lettergrootte,
-  want de knik schaalt ook niet (ADR 0231).
+  afstand is gekozen om ruimte te laten voor de knik van een uitgaande relatie; label en relatie kunnen een ander
+  anker hebben, dus het is geen vaste marge tussen die twee. Ze schaalt niet met de lettergrootte, want de knik schaalt
+  ook niet (ADR 0231).
 - Een label heeft geen halo (een vlak in de papierkleur erachter). Boven de lijnen staat het al door de volgorde, en een
   halo stanst per label een wit blok uit de weekend- en feestdagarcering en de dagrasterlijnen.
 - Het label bij de vandaaglijn en bij de status- of voortgangslijn staat in de onderste regel van de tijdschaalkop en
