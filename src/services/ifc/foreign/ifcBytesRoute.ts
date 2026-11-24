@@ -137,7 +137,7 @@ export async function readIfcBytesDetailed(
     buildingModel: scan.buildingModel,
     lineEnding: scan.lineEnding,
   };
-  return { result: { ...result, ifcSource, ifcWorkPlanCount: scan.selection.workPlanCount } };
+  return { result: { ...result, ifcSource, ifcWorkPlanCount: scan.selection.workPlanCount, ...(scan.buildingModelUncertain ? { ifcBuildingModelUncertain: true as const } : {}) } };
 }
 
 /**

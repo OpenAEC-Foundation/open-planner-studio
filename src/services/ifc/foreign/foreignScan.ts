@@ -57,6 +57,7 @@ export interface ForeignScanResult {
   readonly lineEnding: '\r\n' | '\n';
   /** Heeft de bron een gebouwmodel (`hasBuildingModelEntity`)? */
   readonly buildingModel: boolean;
+  readonly buildingModelUncertain: boolean;
 }
 
 export interface OpenedForeignScan extends ForeignScanResult {
@@ -124,6 +125,7 @@ export function foreignScanFrom(index: StepIndex, cls: Classification, bytes: Ui
   // Elk byte valt in precies één stuk (§4.1; de poort eist dat), dus het laatste stuk eindigt op de lengte van de bron.
   chunkStarts[n] = bytes.length;
   const sel = cls.selection;
+  const buildingModel = hasBuildingModelEntity(index);
   return {
     ok: true,
     chunkStarts,
@@ -145,7 +147,8 @@ export function foreignScanFrom(index: StepIndex, cls: Classification, bytes: Ui
     counts: { ...cls.counts },
     foreignMembers: Int32Array.from(cls.foreignMembers),
     lineEnding: index.lineEnding,
-    buildingModel: hasBuildingModelEntity(index),
+    buildingModel,
+    buildingModelUncertain: buildingModel && !hasModelTypeEntity(index),
   };
 }
 
@@ -162,6 +165,13 @@ function hasBuildingModelEntity(index: StepIndex): boolean {
     if (!index.isEntity(i)) continue;
     const type = index.type(i);
     if (type === COMPLEX_TYPE || IFC_BUILDING_MODEL_TYPES.has(type)) return true;
+  }
+  return false;
+}
+
+function hasModelTypeEntity(index: StepIndex): boolean {
+  for (let i = 0; i < index.count; i++) {
+    if (index.isEntity(i) && IFC_BUILDING_MODEL_TYPES.has(index.type(i))) return true;
   }
   return false;
 }

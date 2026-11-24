@@ -89,6 +89,7 @@ import {
 } from '@/engine/externalLinks';
 import { externalAnchorChanges } from '@/engine/externalRefreshPreview';
 import { readExternalSiteSource, readExternalSource, readExternalSourceFile, type ExternalSourceRead } from '../externalSource';
+import { withLargeForeignOpenNotice } from '@/state/largeForeignOpenNotice';
 import { fileFromHandleWeb, pickFilesWeb } from '@/services/fileAccess/webBackend';
 import { loadExternalSourceHandles, rememberExternalSourceHandle } from '@/services/fileAccess/externalSourceHandles';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
@@ -1761,7 +1762,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
       }
 
-      const notice = withOpenNoticeSticky(withXerArchiveIssueNotice(
+      const notice = withLargeForeignOpenNotice(withXerArchiveIssueNotice(
         withRecordedDatesNotice(
           withSchedulingProfileNotice(
             results,
@@ -1773,8 +1774,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           freshShownTotal,
         ),
         results.map(result => result.xerArchiveIssue),
-      ));
-      const opened = openedFileNotice(notice, taskTypesUnlockedDocs > 0, parsed);
+      ), parsed);
+      const opened = openedFileNotice(notice, taskTypesUnlockedDocs > 0, results);
       if (opened) get().notify(opened);
 
       if (results.some(result => result.ifcLegacySchemaLoss)) {

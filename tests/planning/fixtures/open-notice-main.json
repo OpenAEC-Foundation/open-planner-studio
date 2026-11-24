@@ -1,0 +1,840 @@
+{
+ "basis": "5b3c1756e7f1a0ec1127b8381b22b60e9341d459",
+ "cases": {
+  "geen melding, vreemd deel": [
+   []
+  ],
+  "geen melding, vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.ifcForeignOpenLarge",
+     "params": {
+      "limit": 150
+     },
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "geen melding, geen vreemd deel": [
+   []
+  ],
+  "geen melding, geen vreemd deel, drempel laag": [
+   []
+  ],
+  "geen melding, taaktypen, vreemd deel": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.taskTypesUnlocked",
+     "dedupeKey": "task-types-unlocked",
+     "helpArticleId": "howto-werkregel-kiezen",
+     "count": 1
+    }
+   ]
+  ],
+  "geen melding, taaktypen, vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.ifcForeignOpenLarge",
+     "params": {
+      "limit": 150
+     },
+     "sticky": true,
+     "detailLines": [
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "count": 1
+    }
+   ]
+  ],
+  "geen melding, taaktypen, geen vreemd deel": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.taskTypesUnlocked",
+     "dedupeKey": "task-types-unlocked",
+     "helpArticleId": "howto-werkregel-kiezen",
+     "count": 1
+    }
+   ]
+  ],
+  "geen melding, taaktypen, geen vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.taskTypesUnlocked",
+     "dedupeKey": "task-types-unlocked",
+     "helpArticleId": "howto-werkregel-kiezen",
+     "count": 1
+    }
+   ]
+  ],
+  "onbruikbaar XER-archief, vreemd deel": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.xerArchiveUnusable",
+     "detailLines": [
+      {
+       "messageKey": "notifications.xerArchiveReasonBytesMissing"
+      },
+      {
+       "messageKey": "notifications.xerArchiveUnusableConsequence"
+      }
+     ],
+     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
+     "helpArticleId": "howto-xer-openen",
+     "dedupeKey": "xer-archive-unusable",
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "onbruikbaar XER-archief, vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.xerArchiveUnusable",
+     "detailLines": [
+      {
+       "messageKey": "notifications.xerArchiveReasonBytesMissing"
+      },
+      {
+       "messageKey": "notifications.xerArchiveUnusableConsequence"
+      },
+      {
+       "messageKey": "notifications.ifcForeignOpenLarge",
+       "params": {
+        "limit": 150
+       }
+      }
+     ],
+     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
+     "helpArticleId": "howto-xer-openen",
+     "dedupeKey": "xer-archive-unusable",
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "onbruikbaar XER-archief, geen vreemd deel": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.xerArchiveUnusable",
+     "detailLines": [
+      {
+       "messageKey": "notifications.xerArchiveReasonBytesMissing"
+      },
+      {
+       "messageKey": "notifications.xerArchiveUnusableConsequence"
+      }
+     ],
+     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
+     "helpArticleId": "howto-xer-openen",
+     "dedupeKey": "xer-archive-unusable",
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "onbruikbaar XER-archief, geen vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.xerArchiveUnusable",
+     "detailLines": [
+      {
+       "messageKey": "notifications.xerArchiveReasonBytesMissing"
+      },
+      {
+       "messageKey": "notifications.xerArchiveUnusableConsequence"
+      }
+     ],
+     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
+     "helpArticleId": "howto-xer-openen",
+     "dedupeKey": "xer-archive-unusable",
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "onbruikbaar XER-archief, taaktypen, vreemd deel": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.xerArchiveUnusable",
+     "detailLines": [
+      {
+       "messageKey": "notifications.xerArchiveReasonBytesMissing"
+      },
+      {
+       "messageKey": "notifications.xerArchiveUnusableConsequence"
+      },
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
+     "helpArticleId": "howto-xer-openen",
+     "dedupeKey": "xer-archive-unusable",
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "onbruikbaar XER-archief, taaktypen, vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.xerArchiveUnusable",
+     "detailLines": [
+      {
+       "messageKey": "notifications.xerArchiveReasonBytesMissing"
+      },
+      {
+       "messageKey": "notifications.xerArchiveUnusableConsequence"
+      },
+      {
+       "messageKey": "notifications.ifcForeignOpenLarge",
+       "params": {
+        "limit": 150
+       }
+      },
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
+     "helpArticleId": "howto-xer-openen",
+     "dedupeKey": "xer-archive-unusable",
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "onbruikbaar XER-archief, taaktypen, geen vreemd deel": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.xerArchiveUnusable",
+     "detailLines": [
+      {
+       "messageKey": "notifications.xerArchiveReasonBytesMissing"
+      },
+      {
+       "messageKey": "notifications.xerArchiveUnusableConsequence"
+      },
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
+     "helpArticleId": "howto-xer-openen",
+     "dedupeKey": "xer-archive-unusable",
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "onbruikbaar XER-archief, taaktypen, geen vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.xerArchiveUnusable",
+     "detailLines": [
+      {
+       "messageKey": "notifications.xerArchiveReasonBytesMissing"
+      },
+      {
+       "messageKey": "notifications.xerArchiveUnusableConsequence"
+      },
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
+     "helpArticleId": "howto-xer-openen",
+     "dedupeKey": "xer-archive-unusable",
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "opgenomen datums, vreemd deel": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.importDatesAsRecorded",
+     "params": {
+      "count": 20
+     },
+     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
+     "count": 1
+    }
+   ]
+  ],
+  "opgenomen datums, vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.importDatesAsRecorded",
+     "params": {
+      "count": 20
+     },
+     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
+     "detailLines": [
+      {
+       "messageKey": "notifications.ifcForeignOpenLarge",
+       "params": {
+        "limit": 150
+       }
+      }
+     ],
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "opgenomen datums, geen vreemd deel": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.importDatesAsRecorded",
+     "params": {
+      "count": 20
+     },
+     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
+     "count": 1
+    }
+   ]
+  ],
+  "opgenomen datums, geen vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.importDatesAsRecorded",
+     "params": {
+      "count": 20
+     },
+     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
+     "count": 1
+    }
+   ]
+  ],
+  "opgenomen datums, taaktypen, vreemd deel": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.importDatesAsRecorded",
+     "params": {
+      "count": 20
+     },
+     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
+     "detailLines": [
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "count": 1
+    }
+   ]
+  ],
+  "opgenomen datums, taaktypen, vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.importDatesAsRecorded",
+     "params": {
+      "count": 20
+     },
+     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
+     "detailLines": [
+      {
+       "messageKey": "notifications.ifcForeignOpenLarge",
+       "params": {
+        "limit": 150
+       }
+      },
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "opgenomen datums, taaktypen, geen vreemd deel": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.importDatesAsRecorded",
+     "params": {
+      "count": 20
+     },
+     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
+     "detailLines": [
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "count": 1
+    }
+   ]
+  ],
+  "opgenomen datums, taaktypen, geen vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.importDatesAsRecorded",
+     "params": {
+      "count": 20
+     },
+     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
+     "detailLines": [
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "count": 1
+    }
+   ]
+  ],
+  "rekenprofiel, vreemd deel": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.schedulingProfileApplied",
+     "params": {
+      "profile": "Primavera P6"
+     },
+     "helpArticleId": "uitleg-rekenprofielen",
+     "action": {
+      "kind": "openBackstageSection",
+      "section": "project-info",
+      "labelKey": "notifications.actions.openProjectInfo"
+     },
+     "dedupeKey": "scheduling-profile-applied:document-1",
+     "count": 1
+    }
+   ]
+  ],
+  "rekenprofiel, vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.schedulingProfileApplied",
+     "params": {
+      "profile": "Primavera P6"
+     },
+     "helpArticleId": "uitleg-rekenprofielen",
+     "action": {
+      "kind": "openBackstageSection",
+      "section": "project-info",
+      "labelKey": "notifications.actions.openProjectInfo"
+     },
+     "dedupeKey": "scheduling-profile-applied:document-1",
+     "detailLines": [
+      {
+       "messageKey": "notifications.ifcForeignOpenLarge",
+       "params": {
+        "limit": 150
+       }
+      }
+     ],
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "rekenprofiel, geen vreemd deel": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.schedulingProfileApplied",
+     "params": {
+      "profile": "Primavera P6"
+     },
+     "helpArticleId": "uitleg-rekenprofielen",
+     "action": {
+      "kind": "openBackstageSection",
+      "section": "project-info",
+      "labelKey": "notifications.actions.openProjectInfo"
+     },
+     "dedupeKey": "scheduling-profile-applied:document-1",
+     "count": 1
+    }
+   ]
+  ],
+  "rekenprofiel, geen vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.schedulingProfileApplied",
+     "params": {
+      "profile": "Primavera P6"
+     },
+     "helpArticleId": "uitleg-rekenprofielen",
+     "action": {
+      "kind": "openBackstageSection",
+      "section": "project-info",
+      "labelKey": "notifications.actions.openProjectInfo"
+     },
+     "dedupeKey": "scheduling-profile-applied:document-1",
+     "count": 1
+    }
+   ]
+  ],
+  "rekenprofiel, taaktypen, vreemd deel": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.schedulingProfileApplied",
+     "params": {
+      "profile": "Primavera P6"
+     },
+     "helpArticleId": "uitleg-rekenprofielen",
+     "action": {
+      "kind": "openBackstageSection",
+      "section": "project-info",
+      "labelKey": "notifications.actions.openProjectInfo"
+     },
+     "dedupeKey": "scheduling-profile-applied:document-1",
+     "detailLines": [
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "count": 1
+    }
+   ]
+  ],
+  "rekenprofiel, taaktypen, vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.schedulingProfileApplied",
+     "params": {
+      "profile": "Primavera P6"
+     },
+     "helpArticleId": "uitleg-rekenprofielen",
+     "action": {
+      "kind": "openBackstageSection",
+      "section": "project-info",
+      "labelKey": "notifications.actions.openProjectInfo"
+     },
+     "dedupeKey": "scheduling-profile-applied:document-1",
+     "detailLines": [
+      {
+       "messageKey": "notifications.ifcForeignOpenLarge",
+       "params": {
+        "limit": 150
+       }
+      },
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "rekenprofiel, taaktypen, geen vreemd deel": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.schedulingProfileApplied",
+     "params": {
+      "profile": "Primavera P6"
+     },
+     "helpArticleId": "uitleg-rekenprofielen",
+     "action": {
+      "kind": "openBackstageSection",
+      "section": "project-info",
+      "labelKey": "notifications.actions.openProjectInfo"
+     },
+     "dedupeKey": "scheduling-profile-applied:document-1",
+     "detailLines": [
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "count": 1
+    }
+   ]
+  ],
+  "rekenprofiel, taaktypen, geen vreemd deel, drempel laag": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.schedulingProfileApplied",
+     "params": {
+      "profile": "Primavera P6"
+     },
+     "helpArticleId": "uitleg-rekenprofielen",
+     "action": {
+      "kind": "openBackstageSection",
+      "section": "project-info",
+      "labelKey": "notifications.actions.openProjectInfo"
+     },
+     "dedupeKey": "scheduling-profile-applied:document-1",
+     "detailLines": [
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "count": 1
+    }
+   ]
+  ],
+  "eigen bestand uit v2026.7.2": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.minuteModelConverted",
+     "params": {
+      "count": 37,
+      "document": "Nieuwbouw Woongebouw Parkzicht"
+     },
+     "numberParams": {
+      "days": 14
+     },
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "eigen bestand met los project": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.minuteModelConverted",
+     "params": {
+      "count": 37,
+      "document": "Nieuwbouw Woongebouw Parkzicht"
+     },
+     "numberParams": {
+      "days": 14
+     },
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "Bonsai-planning met model": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.minuteModelConverted",
+     "params": {
+      "count": 2,
+      "document": "Proj"
+     },
+     "numberParams": {
+      "days": 0
+     },
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "eigen planning met een complexe eenheid": [
+   []
+  ],
+  "reeks: groot met taaktypen, dan klein met taaktypen": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.ifcForeignOpenLarge",
+     "params": {
+      "limit": 150
+     },
+     "sticky": true,
+     "detailLines": [
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "count": 1
+    }
+   ],
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.ifcForeignOpenLarge",
+     "params": {
+      "limit": 150
+     },
+     "sticky": true,
+     "detailLines": [
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "count": 1
+    },
+    {
+     "severity": "info",
+     "messageKey": "notifications.taskTypesUnlocked",
+     "dedupeKey": "task-types-unlocked",
+     "helpArticleId": "howto-werkregel-kiezen",
+     "count": 1
+    }
+   ]
+  ],
+  "reeks: klein, dan groot": [
+   [],
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.ifcForeignOpenLarge",
+     "params": {
+      "limit": 150
+     },
+     "sticky": true,
+     "count": 1
+    }
+   ]
+  ],
+  "reeks: twee keer groot": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.ifcForeignOpenLarge",
+     "params": {
+      "limit": 150
+     },
+     "sticky": true,
+     "detailLines": [
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "count": 1
+    }
+   ],
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.ifcForeignOpenLarge",
+     "params": {
+      "limit": 150
+     },
+     "sticky": true,
+     "detailLines": [
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "count": 1
+    },
+    {
+     "severity": "info",
+     "messageKey": "notifications.ifcForeignOpenLarge",
+     "params": {
+      "limit": 150
+     },
+     "sticky": true,
+     "detailLines": [
+      {
+       "messageKey": "notifications.taskTypesUnlockedDetail",
+       "helpArticleId": "howto-werkregel-kiezen",
+       "linkKey": "notifications.workRulesReadMore"
+      }
+     ],
+     "count": 1
+    }
+   ]
+  ],
+  "reeks: twee werkplannen met taaktypen, dan een eigen planning met taaktypen": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.taskTypesUnlocked",
+     "dedupeKey": "task-types-unlocked",
+     "helpArticleId": "howto-werkregel-kiezen",
+     "count": 1
+    }
+   ],
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.taskTypesUnlocked",
+     "dedupeKey": "task-types-unlocked",
+     "helpArticleId": "howto-werkregel-kiezen",
+     "count": 2
+    }
+   ]
+  ],
+  "reeks: taaktypen en model, dezelfde soort met een ander aantal, dan een eigen planning": [
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.taskTypesUnlocked",
+     "dedupeKey": "task-types-unlocked",
+     "helpArticleId": "howto-werkregel-kiezen",
+     "count": 1
+    }
+   ],
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.taskTypesUnlocked",
+     "dedupeKey": "task-types-unlocked",
+     "helpArticleId": "howto-werkregel-kiezen",
+     "count": 2
+    }
+   ],
+   [
+    {
+     "severity": "info",
+     "messageKey": "notifications.taskTypesUnlocked",
+     "dedupeKey": "task-types-unlocked",
+     "helpArticleId": "howto-werkregel-kiezen",
+     "count": 3
+    }
+   ]
+  ]
+ }
+}

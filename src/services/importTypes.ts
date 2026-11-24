@@ -345,6 +345,7 @@ export interface ImportResult {
    *  route zonder flag, bij een ander formaat en als de bytes-route terugvalt op de huidige route (afwijking 7). */
   ifcSource?: IfcSource;
   ifcWorkPlanCount?: number;
+  ifcBuildingModelUncertain?: true;
   /** IFC2X3 zonder model via de bytes-route: §4.11 staat alleen planning toe, met verliesmelding bij openen. */
   ifcLegacySchemaLoss?: true;
   /** Alleen `readIFC` op een herstel-IFC of MCP-backup (#804 fase 1a, fixronde 1 en 3): de pset
