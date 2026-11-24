@@ -360,7 +360,6 @@
     "reportFontMissing": "Ditt eget typsnitt ”{{name}}” finns inte längre på den här enheten. Rapporten använder Inter igen.",
     "layoutsNotSaved": "Layouter kunde inte sparas. Ingenting har ändrats. Försök igen.",
     "ifcForeignOpenSchema": "Den här IFC-filen innehåller data från ett annat program och har ett okänt eller saknat schema. Öppnandet har stoppats för att förhindra dataförlust när filen sparas.",
-    "ifcForeignOpenTooLarge": "Den här IFC-filen är större än {{limit}} MB. En IFC-fil med en byggnadsmodell eller med data från ett annat program kan öppnas upp till {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Den här IFC-filen kan inte klassificeras säkert. Öppnandet har stoppats för att förhindra dataförlust när filen sparas.",
     "ifc2x3PlanningOnly": "IFC2X3 öppnades som tidsplan. Data från andra program tas inte med vid sparning.",
     "ifcForeignReplaceBlocked": "Inte sparad. Det här är filen du har öppen. Använd Spara för att uppdatera den, eller Spara som med ett nytt namn för en kopia.",

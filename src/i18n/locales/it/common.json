@@ -460,7 +460,6 @@
     "reportFontMissing": "Il tuo carattere {{name}} non è più su questo dispositivo. Il report usa di nuovo Inter.",
     "layoutsNotSaved": "I layout non si sono potuti salvare. Non è cambiato nulla. Riprova.",
     "ifcForeignOpenSchema": "Questo file IFC contiene dati di un'altra applicazione e ha uno schema sconosciuto o mancante. L'apertura è stata interrotta per evitare la perdita di dati al salvataggio.",
-    "ifcForeignOpenTooLarge": "Questo file IFC è più grande di {{limit}} MB. Un file IFC con un modello dell'edificio o con dati di un'altra applicazione può essere aperto fino a {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Questo file IFC non può essere classificato in modo sicuro. L'apertura è stata interrotta per evitare la perdita di dati al salvataggio.",
     "ifc2x3PlanningOnly": "IFC2X3 è stato aperto come pianificazione. I dati di altri programmi non verranno inclusi al salvataggio.",
     "ifcForeignReplaceBlocked": "Non salvato. Questo è il file che hai aperto. Usa «Salva» per aggiornarlo, oppure «Salva come» con un nuovo nome per una copia.",
