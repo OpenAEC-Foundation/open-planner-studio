@@ -210,7 +210,7 @@ function richDomain(): Domain {
     : k === 2 ? { ...s, lagMinutes: 90.5 } : s);
   d.calendar = { ...d.calendar, workingExceptions: [{ name: 'Zaterdag', startDate: '2027-01-09', endDate: '2027-01-09' }] };
   d.resourceCalendars = d.resourceCalendars.map(c => c.id === calendar.id ? { ...c, p6Source: 'XER', p6NonWorkPenaltyDates: ['2027-01-11'] } : c);
-  d.baselines = [{ id: 'bl-proef', name: 'Proef', createdAt: '2026-11-24T00:00:00Z', tasks: [{ taskId: t1.id, start: t1.time.scheduleStart, finish: t1.time.scheduleFinish, duration: 1 }] }];
+  d.baselines = [{ id: 'bl-proef', name: 'Proef', createdAt: '2026-11-24T00:00:00Z', tasks: [{ taskId: t1.id, start: t1.time.scheduleStart, finish: t1.time.scheduleFinish, duration: 1, isMilestone: false }] }];
   d.comparedBaselineIds = ['bl-proef', null];
   return d;
 }
