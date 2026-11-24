@@ -20,8 +20,8 @@ Daarom zet ze zo'n finish op het vorige blokeinde: grensregel N1, geval (c), in 
   `cases-lag-advanced.json`). Een eis die de opvolger al als eindmoment kan halen, blijft staan.
 - Voorwaarts gebruikt de FF-tak deze regels voor een opvolger in de dagenmaat (`finishFinishRequirement`, en
   `previousBlockEndIfSame` niet als de voorganger `predEndsBeginOfDay` heeft). Achterwaarts gebruikt FF met een lag
-  in werktijd `previousBlockEndIfSame` voor een voorganger in de dagenmaat. Een urentaak volgt die regel niet; onder P6 zet B2
-  (`p6BackwardLagFinishBoundary`, ADR 0029) een grens op het vorige blokeinde.
+  in werktijd `previousBlockEndIfSame` voor een voorganger in de dagenmaat. Een voorganger in de urenmaat volgt die
+  regel niet; onder P6 regelt B2 (`p6BackwardLagFinishBoundary`, ADR 0029) daar de grens op een blokeinde.
 - SF volgt in elk profiel het urenpad: de opvolger eindigt op het startmoment van de voorganger (technische keuze T8,
   spec §4.5 rij 1). Voor een opvolger in de dagenmaat schuift dat startmoment niet door `predStartsNextDay`
   (`sfReqFinishHour`), en telt de opvolger haar duur terug vanaf `prevWorkInstant` van de eis, zodat de dag die op

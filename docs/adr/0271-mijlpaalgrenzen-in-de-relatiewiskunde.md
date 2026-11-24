@@ -29,13 +29,12 @@ A15 (`p6ZeroDurationSuccessorAtFinish`, ADR 0029) een nulduurmijlpaal op de fini
 - FS met een echte lag naar een eindmijlpaal (`finishStartLaggedStart`): de grens is het eindmoment op of vóór het
   moment na de lag (`snapOnOrBefore` op de opvolgerkalender) als dat het moment zelf is, of als het volgende
   werkmoment van de opvolgerkalender na dat eindmoment het moment na de lag is en de lagkalender ertussen geen
-  werkminuut heeft; anders het volgende
-  werkmoment van de opvolger. `nextWorkInstant` alleen zou een blokeinde overslaan. De functie is gedeeld met de
-  externe voorganger (`externalForwardBound`, review van #808; ADR 0022).
+  werkminuut heeft; anders het volgende werkmoment van de opvolger. `nextWorkInstant` alleen zou een blokeinde
+  overslaan. De functie is gedeeld met de externe voorganger (`externalForwardBound`, review van #808; ADR 0022).
 - FF naar een startmijlpaal, met een voorganger zonder `predEndsBeginOfDay`, geeft het moment strikt na de geëiste
   finish. Uitzondering: telt de voorganger in de dagenmaat, is de lag geen kalendertijd en ligt de geëiste finish
-  midden in een werkblok van de opvolger (`isInsideBlock`), dan staat de mijlpaal op dat moment. Voor een urentaak
-  blijft "strikt na", omdat de bredere correctie drie C7-controles rood maakte (knownbug 230). Achterwaarts
+  midden in een werkblok van de opvolger (`isInsideBlock`), dan staat de mijlpaal op dat moment. Voor een voorganger
+  in de urenmaat blijft "strikt na", omdat de bredere correctie drie C7-controles rood maakte (knownbug 230). Achterwaarts
   spiegelt `backwardHour` dat. C7 (`p6FinishFinishStartMilestoneLateFinish`) zet `succIsStartMs` voor FF uit
   (ADR 0029).
 - Achterwaarts bij FS houdt een voorganger met `predEndsBeginOfDay` of een eindmijlpaal als opvolger bij lag 0 de

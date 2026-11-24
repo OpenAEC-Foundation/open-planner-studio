@@ -8,8 +8,8 @@ voorganger, en pas daarna op de kalender van de opvolger. Werkt de opvolger op e
 `forwardHour` normaliseert de grens daarom direct op de kalender van de opvolger (`se.nextWorkInstant`) als
 `calendarsAgreeOnSharedWorkdayBands` zegt dat de twee kalenders op de landingsdag dezelfde werkblokken hebben. De
 landingsdag is de kalenderdag van de rauwe voorgangerfinish. Verschillen de blokken op die dag, dan blijft de
-voorganger eerst: dan kan de opvolgerkalender een moment als werktijd lezen dat voor de voorganger al voorbij is
-(`msp-04-m2-guard1-alleen-crosscalendar` en `msp-39` in `cases-msp-pariteit.json`).
+voorganger eerst, zoals `msp-04-m2-guard1-alleen-crosscalendar` en `msp-39` in `cases-msp-pariteit.json` verwachten:
+met andere blokgrenzen kan het moment van de voorgangerfinish binnen een blok van de opvolger vallen.
 
 ## Gevolgen
 
