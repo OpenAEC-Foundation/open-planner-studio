@@ -277,3 +277,64 @@ test('table reports: resourcebelasting groepeert per resource en aggregeert per 
   await expect(rows).toHaveCount(1);
   await expect(report).toContainText(/(Period|Periode): /);
 });
+
+test('table reports: mijlpalen en afwijkingen tonen rapportopties en de export gebruikt ze (#1052)', async ({ page, ops: _ops }) => {
+  await seedProject(page, [
+    { name: 'Fundering', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'Casco', start: '2026-09-21', finish: '2026-10-16', durationDays: 20 },
+  ], 'Rapportopties');
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const zero = { durationUnit: 'days', scheduleDuration: 0 } as const;
+    s.addTask({ name: 'Oplevering', isMilestone: true, time: zero as never });
+    s.saveBaseline('Baseline 1');
+    const casco = s.tasks.find(t => t.name === 'Casco')!;
+    s.updateTask(casco.id, { time: { ...casco.time, scheduleDuration: 40 } });
+    s.setStatusDate('2026-09-14');
+    s.runCPM();
+  });
+
+  await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
+  const typePicker = page.getByLabel(/^(Report type|Rapporttype)$/).first();
+  const options = page.locator('[data-ops-report-options]');
+  for (const optionName of [/^(Milestone overview|Mijlpalen-overzicht)$/, /^Variance$/]) {
+    await typePicker.click();
+    await page.getByRole('option', { name: optionName }).click();
+    await expect(options).toBeVisible();
+    await expect(options.getByLabel(/^(Paper:|Papier:)$/)).toBeVisible();
+    await expect(options.getByLabel(/^(Orientation:|Oriëntatie:)$/)).toBeVisible();
+    await expect(options.getByLabel(/^(Font:|Lettertype:)$/)).toBeVisible();
+  }
+
+  const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}'));
+  await typePicker.click();
+  await page.getByRole('option', { name: /^(Milestone overview|Mijlpalen-overzicht)$/ }).click();
+  const paper = options.getByLabel(/^(Paper:|Papier:)$/);
+  await paper.click();
+  await page.getByRole('option', { name: 'A4', exact: true }).click();
+  const orientation = options.getByLabel(/^(Orientation:|Oriëntatie:)$/);
+  await orientation.click();
+  await page.getByRole('option', { name: /^(Portrait|Staand)$/ }).click();
+  await expect.poll(async () => (await saved()).paperSize).toBe('A4');
+  await expect.poll(async () => (await saved()).orientation).toBe('portrait');
+
+  for (const [optionName, suffix] of [
+    [/^(Milestone overview|Mijlpalen-overzicht)$/, 'milestones'],
+    [/^Variance$/, 'variance'],
+  ] as const) {
+    await typePicker.click();
+    await page.getByRole('option', { name: optionName }).click();
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('form#report-pdf-export button[type="submit"]').click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe(`Rapportopties-${suffix}.pdf`);
+    const pdfPath = await download.path();
+    expect(pdfPath).not.toBeNull();
+    const pdf = await PDFDocument.load(await readFile(pdfPath!));
+    expect(pdf.getPageCount()).toBeGreaterThan(0);
+    for (const pdfPage of pdf.getPages()) {
+      expect(pdfPage.getWidth()).toBeCloseTo(595.28, 1);
+      expect(pdfPage.getHeight()).toBeCloseTo(841.89, 1);
+    }
+  }
+});
