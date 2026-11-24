@@ -210,9 +210,27 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
         await expect(page.locator('[data-ops-report-kpi]')).toHaveCount(4);
         await expect(page.locator('[data-ops-report-chart] svg[role="img"]')).toBeVisible();
       }
+      if (reportExport.table === false) {
+        const opts = page.locator('[data-ops-report-options]');
+        await expect(opts).toBeVisible();
+        await expect(opts.locator('#report-opt-paper')).toBeVisible();
+        await expect(opts.locator('#report-opt-orientation')).toBeVisible();
+        await expect(opts.locator('#report-opt-font')).toBeVisible();
+      }
       const nextDownload = page.waitForEvent('download');
       await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
-      expect((await nextDownload).suggestedFilename()).toBe(`Tabelrapporten-${reportExport[locale.code]}.pdf`);
+      const download = await nextDownload;
+      expect(download.suggestedFilename()).toBe(`Tabelrapporten-${reportExport[locale.code]}.pdf`);
+      if (reportExport.table === false) {
+        const pdfPath = await download.path();
+        expect(pdfPath).not.toBeNull();
+        const pdf = await PDFDocument.load(await readFile(pdfPath!));
+        expect(pdf.getPageCount()).toBeGreaterThan(0);
+        for (const pdfPage of pdf.getPages()) {
+          expect(pdfPage.getWidth()).toBeCloseTo(1190.55, 1);
+          expect(pdfPage.getHeight()).toBeCloseTo(1683.78, 1);
+        }
+      }
     }
   }
 
