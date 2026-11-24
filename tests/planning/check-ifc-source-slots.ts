@@ -152,6 +152,8 @@ await check('zonder vreemd deel geen sourceSlots; met alleen eigen stukken een l
   const plainSource = plain.store.getState().ifcSource!;
   assert.equal(plainSource.foreign, false);
   assert.equal('sourceSlots' in plainSource, false, 'een eigen bestand: geen nieuw veld op de bron');
+  const plainScan = scanForeignToOpen(bytesOf(PLAIN));
+  assert(plainScan.ok && !('sourceSlots' in plainScan), 'een eigen bestand: de scan verzamelt niets');
   const own = await openInStore(bytesOf(OWN));
   assert.equal(own.store.getState().ifcSource!.foreign, true);
   assert.deepEqual(own.store.getState().ifcSource!.sourceSlots, new Map(), 'eigen planning met model: alles eigen herkomst');
