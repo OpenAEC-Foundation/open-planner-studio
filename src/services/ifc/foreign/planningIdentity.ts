@@ -53,12 +53,24 @@ export function planningIdentities(input: ImportResult) {
  */
 export function planningIdentityInput<T extends ImportResult>(input: T): T {
   const ids = planningIdentities(input);
-  const resource = (id: string) => ids.resource.get(id) ?? id;
-  const calendar = (id: string) => ids.calendar.get(id) ?? id;
+  return withRenamedPlanningIds(input, {
+    resource: id => ids.resource.get(id) ?? id,
+    calendar: id => ids.calendar.get(id) ?? id,
+    ifcGlobalIds: ids.guids,
+  });
+}
+
+export interface PlanningIdRenames {
+  readonly resource: (id: string) => string;
+  readonly calendar: (id: string) => string;
+  readonly ifcGlobalIds: Readonly<Record<string, string>>;
+}
+
+export function withRenamedPlanningIds<T extends ImportResult>(input: T, { resource, calendar, ifcGlobalIds }: PlanningIdRenames): T {
   const leveling = input.project.schedulingOptions?.leveling;
   return {
     ...input,
-    ifcGlobalIds: ids.guids,
+    ifcGlobalIds,
     resources: input.resources.map(r => ({ ...r, id: resource(r.id),
       ...(r.parentId !== undefined ? { parentId: resource(r.parentId) } : {}),
       ...(r.calendarId !== undefined ? { calendarId: calendar(r.calendarId) } : {}),

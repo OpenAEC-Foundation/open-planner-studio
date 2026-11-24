@@ -1,4 +1,5 @@
 import type { RecoveryIfcSource } from '@/services/recovery/recoveryIfcSource';
+import type { RecoverySnapshotIdentities } from '@/services/recovery/recoveryIdentity';
 // Recovery-bestanden leven in de gedeelde appDataDir (app-id org.openaec.planner),
 // dus concurrent dev-builds van verschillende worktrees zouden elkaar overschrijven.
 // In een dev-build isoleert de worktree-slug (gezet door scripts/tauri-dev.mjs) ze;
@@ -147,6 +148,7 @@ export interface RecoveryManifestDoc {
   foreignSource?: { filePath?: string | null; siteFileId?: string | null };
   /** #804 1c: bronvingerafdruk en eventueel browserhandle; oudere v5-lezers negeren dit. */
   ifcSource?: RecoveryIfcSource;
+  snapshotIdentities?: RecoverySnapshotIdentities;
 }
 
 export interface RecoveryManifest {
