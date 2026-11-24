@@ -643,6 +643,14 @@ en noem het in je rapport of PR-tekst.
      `CEILING_UNREACHABLE`, terwijl alleen het poolgrootboek die kandidaat afwees; met 60 dagen schoof de taak één
      werkdag en verdween het tekort. Een resourcekalender die op 20 juli weer opengaat, gaf bij een scan vanaf 1 juni
      `CALENDAR_MISMATCH`, terwijl dezelfde taak op 20 juli paste. Zie ook 1982. — B
+2321. **Na het wissen van een nivelleerpauze kan een splitgat uit een import op een latere plek blijven staan.**
+     `scatterSlot` (`src/engine/scheduler/ResourceLeveler.ts`) telt een ingevoegde pauze op bij de `afterMinutes` van
+     elk later gat, ook van een gat zonder `source: 'leveling'`. `clearLevelingGaps` (`src/utils/taskDefaults.ts`)
+     haalt daarna alleen de gaten met `source: 'leveling'` weg en zet de andere niet terug. Nagespeeld met een
+     zelfgemaakt IFC door de echte lezer en schrijver, met `allowSplits` en een uitloopplafond: de nivelleerder voegde
+     een pauze in vóór een bestaand importgat, waardoor dat van 960 naar 1440 minuten ging; na toepassen, de
+     nivellering wissen, opslaan en heropenen stond er nog 1440, en de taak werkte op woensdag in plaats van
+     donderdag. De nivelleerdialoog en MCP bieden `allowSplits` samen met een uitloopplafond niet aan. — B
 1993. **De gewone ALAP-stap met de duur van een niet-gestarte taak is niet tegen het P6-corpus gemeten.**
      `placeUnstartedAlap` (`src/engine/scheduler/CPMSolver.ts`) plaatst een niet-gestarte ALAP-taak sinds de aanval
      na #600 met haar duur tot de grens van haar opvolgers, niet meer in hele werkdagen. Onder het P6-profiel volgt
