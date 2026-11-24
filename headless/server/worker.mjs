@@ -15,7 +15,7 @@ parentPort.on('message', async ({ text, bytes, output }) => {
   try {
     doc = await openIfc(text ?? Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('utf8'));
     summary = doc.schedule();
-    parentPort.postMessage(output === 'ifc' ? { ok: true, ifc: doc.toIfc() } : { ok: true, summary: withoutForeignContent(summary) });
+    parentPort.postMessage(output === 'ifc' ? { ok: true, ifc: doc.toIfc() } : { ok: true, summary });
   } catch (err) {
     if (err instanceof PlannerCoreError) {
       const fallback = bytes === undefined ? null
