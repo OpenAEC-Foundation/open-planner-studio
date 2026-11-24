@@ -66,7 +66,7 @@ import { taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { buildRecordedTime, leafRecordedTimes, recordedFloatDays, type RecordedTime } from '@/engine/scheduler/recordedDates';
 
 function taskDurationType(te: Element): 'WORKTIME' | 'ELAPSEDTIME' {
-  const format = Number.parseInt(getTaskElementText(te, 'DurationFormat'), 10);
+  const format = Number.parseInt(getElementText(te, 'DurationFormat'), 10);
   return [4, 6, 8, 10, 12].includes(format) ? 'ELAPSEDTIME' : 'WORKTIME';
 }
 
@@ -156,24 +156,6 @@ function getElementInt(parent: Element, tagName: string, fallback = 0): number {
 
 function getElementFloat(parent: Element, tagName: string, fallback = 0): number {
   return toFloat(getElementText(parent, tagName), fallback);
-}
-
-function getTaskElementText(te: Element, tagName: string): string {
-  return directChildText(te, tagName);
-}
-
-function getTaskElementInt(te: Element, tagName: string, fallback = 0): number {
-  return toInt(getTaskElementText(te, tagName), fallback);
-}
-
-function hasBaselineTimeSignal(te: Element): boolean {
-  const baselineEls = te.getElementsByTagName('Baseline');
-  for (let i = 0; i < baselineEls.length; i++) {
-    const bEl = baselineEls[i];
-    if (bEl.parentElement !== te) continue;
-    if (xmlTimeSignal(getElementText(bEl, 'Start')) || xmlTimeSignal(getElementText(bEl, 'Finish'))) return true;
-  }
-  return false;
 }
 
 function readAvailabilityPeriods(resEl: Element): MspdiAvailabilityPeriod[] {
@@ -272,8 +254,8 @@ export function readMSPDI(content: string): ImportResult {
   const allTasks = root.getElementsByTagName('Task');
   for (let i = 0; i < allTasks.length && !summaryTask; i++) {
     const te = allTasks[i];
-    if (te.parentElement?.tagName === 'Tasks' && getTaskElementInt(te, 'UID', -1) === 0
-      && getTaskElementInt(te, 'OutlineLevel', 1) === 0) summaryTask = te;
+    if (te.parentElement?.tagName === 'Tasks' && getElementInt(te, 'UID', -1) === 0
+      && getElementInt(te, 'OutlineLevel', 1) === 0) summaryTask = te;
   }
   const lagCalendarOption = summaryTask
     ? parseLagCalendarOption(opsTaskFieldText(summaryTask, OPS_LAG_CALENDAR_FIELD_ID,
@@ -353,15 +335,14 @@ export function readMSPDI(content: string): ImportResult {
   for (let i = 0; i < taskElements.length; i++) {
     const te = taskElements[i];
     if (te.parentElement?.tagName !== 'Tasks') continue;
-    const calId = effCalIdOfUid(getTaskElementInt(te, 'CalendarUID', -1));
+    const calId = effCalIdOfUid(getElementInt(te, 'CalendarUID', -1));
     const cal = calById.get(calId);
     if (!cal) continue;
-    const durMin = mspDurationMinutes(getTaskElementText(te, 'Duration'));
+    const durMin = mspDurationMinutes(directChildText(te, 'Duration'));
     const durSignal = durMin != null && isSubDayMinutes(durMin, cal.hoursPerDay);
     const dateSignal = literalCalIds
       ? literalCalIds.has(calId)
-      : ['Start', 'Finish', 'ActualStart', 'ActualFinish'].some(field => xmlTimeSignal(getTaskElementText(te, field)))
-        || hasBaselineTimeSignal(te);
+      : ['Start', 'Finish', 'ActualStart', 'ActualFinish'].some(field => xmlTimeSignal(getElementText(te, field)));
     if (durSignal || dateSignal) cSignalCalIds.add(calId);
   }
   const hourModeCalIds = promoteHourCalendars(calById, id => cSignalCalIds.has(id), false);
@@ -377,20 +358,20 @@ export function readMSPDI(content: string): ImportResult {
     const te = taskElements[i];
     if (te.parentElement?.tagName !== 'Tasks') continue;
 
-    const uid = getTaskElementInt(te, 'UID', -1);
+    const uid = getElementInt(te, 'UID', -1);
     if (uid < 0) continue;
 
-    const outlineLevel = getTaskElementInt(te, 'OutlineLevel', 1);
+    const outlineLevel = getElementInt(te, 'OutlineLevel', 1);
     if (uid === 0 && outlineLevel === 0) continue;
 
     const id = generateId('task');
     uidToId.set(uid, id);
-    if (isXmlTrue(getTaskElementText(te, 'ExternalTask'))) externalTaskUids.add(uid);
+    if (isXmlTrue(getElementText(te, 'ExternalTask'))) externalTaskUids.add(uid);
 
-    const name = getTaskElementText(te, 'Name') || 'Task';
-    const wbs = getTaskElementText(te, 'WBS') || `${uid}`;
+    const name = getElementText(te, 'Name') || 'Task';
+    const wbs = getElementText(te, 'WBS') || `${uid}`;
     uidToWbs.set(uid, wbs);
-    const taskCalUid = getTaskElementInt(te, 'CalendarUID', -1);
+    const taskCalUid = getElementInt(te, 'CalendarUID', -1);
     const taskCalendarId = calUidToId.get(taskCalUid);
     const effCalId = effCalIdOfUid(taskCalUid);
     const isHour = hourModeCalIds.has(effCalId);
@@ -398,12 +379,12 @@ export function readMSPDI(content: string): ImportResult {
     const effHpd = effCal.hoursPerDay;
     effHpdByTaskId.set(id, workdayIsWorkTime ? effHoursPerDay(effCal) : effHpd);
     effCalByTaskId.set(id, effCal);
-    const mspTaskType = mspTaskTypeFromCode(getTaskElementInt(te, 'Type', -1));
-    const effortDrivenRaw = getTaskElementText(te, 'EffortDriven').trim().toLowerCase();
+    const mspTaskType = mspTaskTypeFromCode(toInt(directChildText(te, 'Type'), -1));
+    const effortDrivenRaw = getElementText(te, 'EffortDriven').trim().toLowerCase();
     const effortDriven = mspTaskType !== undefined && (effortDrivenRaw === '1' || effortDrivenRaw === 'true');
 
-    const durationStr = getTaskElementText(te, 'Duration');
-    const remainingRaw = getTaskElementText(te, 'RemainingDuration');
+    const durationStr = directChildText(te, 'Duration');
+    const remainingRaw = getElementText(te, 'RemainingDuration');
     const markerUnit = taskDurationUnit(te, durationUnitMarkerFieldId);
     const dayMinutesPerDay = workdayIsWorkTime
       ? dayMeasureMinutesPerDay(effCal, taskDurationType(te) === 'ELAPSEDTIME') : effHpd * 60;
@@ -429,8 +410,8 @@ export function readMSPDI(content: string): ImportResult {
     const durationUnit = measure.durationUnit;
     const durationMinutes = measure.durationMinutes;
     const duration = measure.scheduleDuration;
-    const startRaw = getTaskElementText(te, 'Start');
-    const finishRaw = getTaskElementText(te, 'Finish');
+    const startRaw = getElementText(te, 'Start');
+    const finishRaw = getElementText(te, 'Finish');
     const parseTaskDate = (raw: string): string | undefined => xmlTaskDate(raw, timeRule, isHour);
     const sourceStart = parseTaskDate(startRaw);
     const sourceFinish = parseTaskDate(finishRaw);
@@ -445,21 +426,21 @@ export function readMSPDI(content: string): ImportResult {
         const tenths = Number.parseFloat(raw);
         return Number.isFinite(tenths) ? recordedFloatDays(tenths / 10, effHoursPerDay(effCal) * 60) : undefined;
       };
-      const criticalRaw = getTaskElementText(te, 'Critical');
-      const earlyStartRaw = getTaskElementText(te, 'EarlyStart');
-      const earlyFinishRaw = getTaskElementText(te, 'EarlyFinish');
+      const criticalRaw = getElementText(te, 'Critical');
+      const earlyStartRaw = getElementText(te, 'EarlyStart');
+      const earlyFinishRaw = getElementText(te, 'EarlyFinish');
       const recorded = buildRecordedTime({
         start: parseTaskDate(earlyStartRaw) ?? sourceStart,
         finish: parseTaskDate(earlyFinishRaw) ?? sourceFinish,
-        lateStart: parseTaskDate(getTaskElementText(te, 'LateStart')),
-        lateFinish: parseTaskDate(getTaskElementText(te, 'LateFinish')),
-        totalFloat: slackDays(getTaskElementText(te, 'TotalSlack')),
-        freeFloat: slackDays(getTaskElementText(te, 'FreeSlack')),
+        lateStart: parseTaskDate(getElementText(te, 'LateStart')),
+        lateFinish: parseTaskDate(getElementText(te, 'LateFinish')),
+        totalFloat: slackDays(getElementText(te, 'TotalSlack')),
+        freeFloat: slackDays(getElementText(te, 'FreeSlack')),
         isCritical: criticalRaw === '1' ? true : criticalRaw === '0' ? false : undefined,
       });
       if (recorded) recordedTimes[id] = recorded;
     }
-    const isMilestone = getTaskElementInt(te, 'Milestone') === 1;
+    const isMilestone = getElementInt(te, 'Milestone') === 1;
     const effCalForMilestone = calById.get(effCalId);
     const opsMilestoneKind = isMilestone ? explicitOpsMilestoneKind(te, opsMilestoneKindMarkerEnabled) : undefined;
     const milestoneKind = opsMilestoneKind !== undefined
@@ -467,27 +448,27 @@ export function readMSPDI(content: string): ImportResult {
       : isMilestone && isHour && durationMinutes === 0 && effCalForMilestone
         ? milestoneKindAt(effCalForMilestone, parseInstant(finish || start))
         : undefined;
-    const percentComplete = getTaskElementInt(te, 'PercentComplete');
-    const priority = getTaskElementInt(te, 'Priority', 500);
-    const description = getTaskElementText(te, 'Notes');
+    const percentComplete = getElementInt(te, 'PercentComplete');
+    const priority = getElementInt(te, 'Priority', 500);
+    const description = getElementText(te, 'Notes');
     const customTaskType = readOpsCustomTaskType(te);
     if (customTaskType?.name && !customTaskTypes.has(customTaskType.id)) {
       customTaskTypes.set(customTaskType.id, { id: customTaskType.id, name: customTaskType.name });
     }
 
-    const actualStartRaw = getTaskElementText(te, 'ActualStart');
-    const actualFinishRaw = getTaskElementText(te, 'ActualFinish');
+    const actualStartRaw = getElementText(te, 'ActualStart');
+    const actualFinishRaw = getElementText(te, 'ActualFinish');
     const actualStart = parseTaskDate(actualStartRaw);
     const actualFinish = parseTaskDate(actualFinishRaw);
     const remainingMinutes = measure.remainingMinutes;
     const remainingTime = measure.remainingTime;
 
     let constraint: TaskConstraint | undefined;
-    const cTypeRaw = getTaskElementText(te, 'ConstraintType');
+    const cTypeRaw = getElementText(te, 'ConstraintType');
     if (cTypeRaw) {
       const mapped = mspCodeToConstraint(parseInt(cTypeRaw, 10));
       if (mapped) {
-        const cdate = parseTaskDate(getTaskElementText(te, 'ConstraintDate'));
+        const cdate = parseTaskDate(getElementText(te, 'ConstraintDate'));
         constraint = {
           type: mapped.type,
           ...(mapped.hard ? { hard: true } : {}),
@@ -495,7 +476,7 @@ export function readMSPDI(content: string): ImportResult {
         };
       }
     }
-    const deadline = parseTaskDate(getTaskElementText(te, 'Deadline'));
+    const deadline = parseTaskDate(getElementText(te, 'Deadline'));
 
     const baselineEls = te.getElementsByTagName('Baseline');
     for (let b = 0; b < baselineEls.length; b++) {
@@ -555,7 +536,7 @@ export function readMSPDI(content: string): ImportResult {
       ...(mspTaskType ? { mspTaskType } : {}),
       ...(effortDriven ? { effortDriven: true } : {}),
     });
-    outlineLevels.push(getTaskElementText(te, 'OutlineLevel') ? outlineLevel : undefined);
+    outlineLevels.push(getElementText(te, 'OutlineLevel') ? outlineLevel : undefined);
     if (!actualFinish && ((remainingMinutes ?? 0) > 0 || (remainingTime ?? 0) > 0)) runningAtFullIds.add(id);
 
     const lagRecords = dayMeasureLagsEnabled
