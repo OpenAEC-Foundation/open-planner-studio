@@ -1729,6 +1729,14 @@ en noem het in je rapport of PR-tekst.
      de grootte van een regel; niet gemeten met een echt model, en niet nagegaan of de flag `ifcForeignContent` op de
      site gebruikt wordt. Richting: de lijst optioneel pagineren, of alleen `elements` en `notFound` geven boven een
      grens. — S
+2216. **Een aanwezig bouwdeel dat een complexe instantie is, telt niet mee bij de gekoppelde bouwdelen.** Flag aan, IFC met
+     een gebouwmodel. De scanner geeft een complexe instantie (`#1=(IFCA() IFCB());`) het type `(COMPLEX)`
+     (`scanStep` in `src/services/ifc/foreign/stepScanner.ts`, rond regel 720), en `elementTarget` in
+     `src/services/ifc/foreign/elementLinks.ts` telt alleen een doel met een type uit `IFC_BUILDING_MODEL_TYPES`. Een
+     koppeling naar zo'n instantie valt daarom helemaal weg, ook bij `IfcRelAssignsToProduct`, waar het doel altijd een
+     product is: het paneel en `planner_get_task` tellen dat bouwdeel niet. Knownbug 1845 is het omgekeerde geval in de
+     herkenning van een gebouwmodel (daar telt zo'n instantie altijd mee). Richting: de deeltypen uit de index gebruiken
+     zodra die ze levert. Gezien in de code door de reviewer van #1180 (GPT-6.2-Sol, ronde 1). — B
 
 ## Bestanden en herstel
 
