@@ -3,6 +3,8 @@ import {
   unknownJsonMembers, type JsonExtras, type JsonExtrasObject, type JsonStep, type WriterAssignment,
 } from '../jsonExtras';
 import { parseJsonTree, jsonSlice, sameJsonValue, type JsonNode } from '../jsonTokens';
+import { PROP, PSET } from '../ifcPsets';
+import type { WriteIFCInput } from '../ifcWriter';
 import type { StepIndex } from './stepScanner';
 
 const DEFINES = 'IFCRELDEFINESBYPROPERTIES';
@@ -182,4 +184,82 @@ export function jsonExtrasProblem(
     }
   }
   return undefined;
+}
+
+type Mirror = {
+  readonly get: (input: WriteIFCInput, owner: string) => unknown;
+  readonly set: (input: WriteIFCInput, owner: string, value: unknown) => WriteIFCInput;
+};
+
+const ownerId = (owner: string, prefix: string) => owner.startsWith(prefix) ? owner.slice(prefix.length) : undefined;
+const onTask = (field: 'notes' | 'externalLinks'): Mirror => ({
+  get: (input, owner) => input.tasks.find(t => t.id === ownerId(owner, 'task_'))?.[field],
+  set: (input, owner, value) => ({ ...input, tasks: input.tasks.map(t => t.id === ownerId(owner, 'task_') ? { ...t, [field]: value } : t) }),
+});
+const calendarOf = (input: WriteIFCInput, owner: string) =>
+  owner === '_calendar' ? input.calendar.id : ownerId(owner, 'calendar_');
+
+const MIRRORS: Readonly<Record<string, Mirror>> = {
+  [`${PSET.StructureMeta}\u0000${PROP.StructureMeta.structure}`]: {
+    get: (input, owner) => owner === '_project'
+      ? { activityCodeTypes: input.activityCodeTypes, customFieldDefs: input.customFieldDefs } : undefined,
+    set: (input, _owner, value) => {
+      const v = value as Pick<WriteIFCInput, 'activityCodeTypes' | 'customFieldDefs'>;
+      return { ...input, activityCodeTypes: v.activityCodeTypes, customFieldDefs: v.customFieldDefs };
+    },
+  },
+  [`${PSET.Baselines}\u0000${PROP.Baselines.Baselines}`]: {
+    get: (input, owner) => owner === '_worksched' ? input.baselines : undefined,
+    set: (input, _owner, value) => ({ ...input, baselines: value as WriteIFCInput['baselines'] }),
+  },
+  [`${PSET.TaskNotes}\u0000${PROP.TaskNotes.Notes}`]: onTask('notes'),
+  [`${PSET.ExternalLink}\u0000${PROP.ExternalLink.Links}`]: onTask('externalLinks'),
+  [`${PSET.Resource}\u0000${PROP.Resource.LibraryOrigin}`]: {
+    get: (input, owner) => input.resources.find(r => r.id === ownerId(owner, 'res_'))?.libraryOrigin,
+    set: (input, owner, value) => ({ ...input, resources: input.resources.map(r => r.id === ownerId(owner, 'res_')
+      ? { ...r, libraryOrigin: value as typeof r.libraryOrigin } : r) }),
+  },
+  [`${PSET.Calendar}\u0000${PROP.Calendar.LibraryOrigin}`]: {
+    get: (input, owner) => [input.calendar, ...(input.resourceCalendars ?? [])].find(c => c.id === calendarOf(input, owner))?.libraryOrigin,
+    set: (input, owner, value) => {
+      const id = calendarOf(input, owner);
+      const put = <C extends { id: string }>(c: C) => c.id === id ? { ...c, libraryOrigin: value } : c;
+      return { ...input, calendar: put(input.calendar), ...(input.resourceCalendars ? { resourceCalendars: input.resourceCalendars.map(put) } : {}) };
+    },
+  },
+};
+
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+
+function domainObject(root: unknown, path: readonly JsonStep[]): Record<string, unknown> | undefined {
+  let node: unknown = root;
+  for (const step of path) {
+    if ('veld' in step) {
+      const hits = Array.isArray(node) ? node.filter(item => isRecord(item) && item[step.veld] === step.waarde) : [];
+      node = hits.length === 1 ? hits[0] : undefined;
+    } else if ('sleutel' in step) {
+      node = isRecord(node) ? node[step.sleutel] : undefined;
+    } else {
+      return undefined;
+    }
+  }
+  return isRecord(node) ? node : undefined;
+}
+
+export function withJsonExtrasInDomain(input: WriteIFCInput, extras: readonly JsonExtras[]): WriteIFCInput {
+  let out = input;
+  for (const e of extras) {
+    const mirror = MIRRORS[`${e.pset}\u0000${e.property}`];
+    const value = mirror?.get(out, e.owner);
+    if (value === undefined) continue;
+    const missing = e.objects.flatMap(o => {
+      const target = domainObject(value, o.path);
+      return target ? o.members.filter(m => !(JSON.parse(m.key) in target)).map(m => ({ path: o.path, member: m })) : [];
+    });
+    if (missing.length === 0) continue;
+    const copy = structuredClone(value);
+    for (const { path, member } of missing) domainObject(copy, path)![JSON.parse(member.key) as string] = JSON.parse(member.value);
+    out = mirror.set(out, e.owner, copy);
+  }
+  return out;
 }

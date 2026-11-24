@@ -53,7 +53,7 @@ import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource, PreparedIfcWrite, UnusedKeysOfTask } from './ifcSource';
 import { unusedKeysForWriter, unusedKeysFromRead, unusedKeysProblem } from './unusedKeys';
-import { jsonExtrasOf, jsonExtrasProblem, writerKeyOfSeed } from './jsonExtrasSource';
+import { jsonExtrasOf, jsonExtrasProblem, withJsonExtrasInDomain, writerKeyOfSeed } from './jsonExtrasSource';
 import { readFileSchemaName } from '../ifcReader';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { scanForeignStep } from './oldOwnHeader';
@@ -353,6 +353,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   const index = scanForeignStep(source.bytes);
   const cls = classify(index);
   assertSameSource(index, cls, source);
+  const jsonExtras = jsonExtrasOf({ index, own: c => cls.classes[c] === 1, stepIds: source.stepIds, projectCalendarId: input.calendar.id });
+  input = freeze(withJsonExtrasInDomain(input, jsonExtras), true);
   // Stuk 1: de canon is dezelfde maat als de verliesbewaking. Ook teruggedraaide bewerkingen
   // mogen de bron letterlijk teruggeven; dit staat vóór herkomst-/project-/verstopt-stukregels.
   if (source.opened && planningCanon(input) === planningCanon(source.opened)) {
@@ -378,8 +380,6 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   for (const i of cls.foreignOrigin) caseAt('vreemde-herkomst', i, `${label(i)} heeft de owner history van een ander programma`);
   const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
   const { keep, bySource, reserved, baselineHeads, projects } = ids;
-  const sourceJson = { index, own: isP, stepIds: source.stepIds, projectCalendarId: input.calendar.id };
-  const jsonExtras = jsonExtrasOf(sourceJson);
   const plan: WriterMergeIds = { ...ids.plan, unusedAssignmentKeys: unusedKeysForWriter(source, index), jsonExtras };
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
   // Een verstopt stuk vóór een P-stuk (#886): het commentaar ervóór gaat met het P-stuk weg.

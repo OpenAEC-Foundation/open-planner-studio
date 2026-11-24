@@ -106,6 +106,7 @@ import { WORK_CALENDAR_ARITY, WORK_CONTROL_ARITY, workCalendarSlots, workControl
 import { lagValueSlot } from '../ifcLagTimeSlots';
 import { decodeStepText, stepTextIsValid } from '../stepText';
 import { sameJsonValue } from '../jsonTokens';
+import { jsonPropertyShape } from '../jsonRegister';
 import { hasOwnOrigin, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { durationForm, type DurationSlot } from './durationForms';
 import { parseIfcDuration } from '../isoDuration';
@@ -155,7 +156,7 @@ export interface LossDiff {
  * lezer alleen de datum leest). Een tekst die de lezer helemaal niet draagt (O0 leeg, zoals `Status 'ON HOLD'`), is een
  * `tekst`: wijzigt de planner dat veld, dan geldt zijn waarde.
  */
-export type SlotKind = 'enumeratie' | 'duur' | 'tekst' | 'samengesteld' | 'getal' | 'verwijzing' | 'lijst' | 'json' | 'json-gedragen' | 'leeg';
+export type SlotKind = 'enumeratie' | 'duur' | 'tekst' | 'samengesteld' | 'getal' | 'verwijzing' | 'lijst' | 'json' | 'leeg';
 /** Properties waarvan de waarde een lijst STEP-ids van de writer is (`ifcWriter.ts`, `writeCalendarGenerationMeta`). */
 const ID_LIST_PROPS: ReadonlySet<string> = new Set([PROP.Calendar.WorkingExceptionIds]);
 /** Is dit slot de waarde van zo'n property? */
@@ -984,6 +985,8 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
   /** De uitvoer-ids die een verwijzing naar bronstuk `t` mag hebben: zijn tegenhanger, en voor een stuk dat niet P is ook
    *  zijn eigen id. */
   const allowed = (t: number): readonly number[] => (t < 0 ? [] : !isP(t) ? [sid(t), ...(pairedOut.get(t) ?? [])] : pairedOut.get(t) ?? []);
+  const jsonProperty = (s: number) => index.type(s) === 'IFCPROPERTYSINGLEVALUE'
+    && jsonPropertyShape(psetNameOf(index, s), index.name(s) ?? '') !== undefined;
   /** Is bron-token `a` (van stuk `s`) dezelfde waarde als uitvoer-token `b`? */
   const same = (s: number, a: string, b: string, duration: boolean): boolean => {
     a = a.trim();
@@ -1003,7 +1006,7 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
       if (!index.literalText(s) && !stepTextIsValid(unquote(a))) return a === b;
       const x = index.tokenText(s, a);
       const y = outDecode(b);
-      return x === y || (duration && sameDuration(x, y));
+      return x === y || (duration && sameDuration(x, y)) || (jsonProperty(s) && sameJsonValue(x, y));
     }
     const ta = /^([A-Za-z0-9_]+)\s*\(([\s\S]*)\)$/.exec(a);
     const tb = /^([A-Za-z0-9_]+)\s*\(([\s\S]*)\)$/.exec(b);
@@ -1196,13 +1199,12 @@ function slotKind(type: string, outArg: number, token: string, outToken: string,
   const read = innerText(outToken, x => decodeStepText(unquote(x)));
   const source = innerText(t, text);
   const part = composite || (read !== undefined && read !== '' && source !== undefined && source !== read && source.includes(read));
-  const json = (): SlotKind => source !== undefined && read !== undefined && sameJsonValue(source, read) ? 'json-gedragen' : 'json';
-  if (t.startsWith("'")) return DURATION_SLOTS[type]?.includes(outArg) ? 'duur' : isJson(t) ? json() : part ? 'samengesteld' : 'tekst';
+  if (t.startsWith("'")) return DURATION_SLOTS[type]?.includes(outArg) ? 'duur' : isJson(t) ? 'json' : part ? 'samengesteld' : 'tekst';
   const typed = /^([A-Za-z0-9_]+)\s*\(([\s\S]*)\)$/.exec(t);
   if (typed) {
     const inner = typed[2].trim();
     if (typed[1].toUpperCase() === 'IFCDURATION') return 'duur';
-    if (inner.startsWith("'")) return isJson(inner) ? json() : part ? 'samengesteld' : 'tekst';
+    if (inner.startsWith("'")) return isJson(inner) ? 'json' : part ? 'samengesteld' : 'tekst';
     return inner.startsWith('.') ? 'enumeratie' : 'getal';
   }
   return /^[+-]?\d/.test(t) ? 'getal' : 'enumeratie';
