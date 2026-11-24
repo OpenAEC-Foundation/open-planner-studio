@@ -1,7 +1,5 @@
 /**
- * Gedeelde DOM-lees-primitieven voor de XML-readers (MSPDI, P6).
- *
- *   - `directChildText`: alleen de DIRECTE kinderen van `parent`, zodat geneste elementen met
+ *   - `directChildText` (P6): alleen de DIRECTE kinderen van `parent`, zodat geneste elementen met
  *     dezelfde tag (bv. een Relationship-subboom) niet per ongeluk worden opgepikt.
  *
  * De numerieke wrappers (`toInt`/`toFloat`) delen de `parseInt/parseFloat`+`isNaN`-fallback-conventie.
