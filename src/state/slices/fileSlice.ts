@@ -2,7 +2,7 @@ import { normalizeTaskDates } from '../migrations/minuteModel';
 import { exportHitsOwnFile, literalCalendarIdsWritten, mergeLiteralCalendarIds, rememberLiteralCalendarsWritten } from '../savedLiteralCalendars';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
-import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
+import { claimTaskTypesNotice, notifyTaskTypesUnlocked } from '../taskTypesNotice';
 import { taskTypesNeedNotice } from '../taskTypesVisibility';
 import { ifcObjectSeed } from '@/services/ifc/ifcWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
@@ -33,7 +33,7 @@ import { askSiteOpen, askSiteSave, type SiteOpenChoice } from '@/services/fileAc
 import { withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
 import { P6XmlImportError } from '@/services/p6/p6xmlErrors';
 import { withOpenNoticeSticky } from '@/state/openNoticeSticky';
-import { withIfcForeignOpenNotice } from '@/state/ifcForeignOpenNotice';
+import { openedFileNotice } from '@/state/ifcForeignOpenNotice';
 import { clearRefusals, refusalNotice } from '@/state/refusalNotice';
 import {
   EXPORT_LOSS_HELP_ARTICLE_ID, P6XML_IMPORT_HELP_ARTICLE_ID, RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID,
@@ -1765,7 +1765,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
       }
 
-      const notice = withOpenNoticeSticky(withIfcForeignOpenNotice(withXerArchiveIssueNotice(
+      const notice = withOpenNoticeSticky(withXerArchiveIssueNotice(
         withRecordedDatesNotice(
           withSchedulingProfileNotice(
             results,
@@ -1777,14 +1777,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           freshShownTotal,
         ),
         results.map(result => result.xerArchiveIssue),
-      ), results));
-      if (notice && taskTypesUnlockedDocs > 0) {
-        get().notify({ ...notice, detailLines: [...(notice.detailLines ?? []), TASK_TYPES_DETAIL_LINE] });
-      } else if (notice) {
-        get().notify(notice);
-      } else if (taskTypesUnlockedDocs > 0) {
-        notifyTaskTypesUnlockedClaimed(get().notify);
-      }
+      ));
+      const opened = openedFileNotice(notice, taskTypesUnlockedDocs > 0, results);
+      if (opened) get().notify(opened);
 
       if (results.some(result => result.ifcLegacySchemaLoss)) {
         get().notify({ severity: 'info', sticky: true, messageKey: 'notifications.ifc2x3PlanningOnly' });

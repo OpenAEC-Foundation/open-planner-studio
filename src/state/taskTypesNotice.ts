@@ -62,10 +62,18 @@ export function notifyTaskTypesUnlocked(notify: (n: NotifyInput) => void, docId:
 /** Dezelfde melding zonder sessie-gate — voor een aanroeper die de claim zelf al deed
  *  (`applyOpenedImport`, dat per geopend document claimt en één keer per bestand meldt). */
 export function notifyTaskTypesUnlockedClaimed(notify: (n: NotifyInput) => void): void {
-  notify({
-    severity: 'info',
-    messageKey: 'notifications.taskTypesUnlocked',
-    dedupeKey: 'task-types-unlocked',
-    helpArticleId: TASK_TYPES_HELP_ARTICLE_ID,
-  });
+  notify(TASK_TYPES_UNLOCKED_NOTICE);
+}
+
+export const TASK_TYPES_UNLOCKED_NOTICE: NotifyInput = {
+  severity: 'info',
+  messageKey: 'notifications.taskTypesUnlocked',
+  dedupeKey: 'task-types-unlocked',
+  helpArticleId: TASK_TYPES_HELP_ARTICLE_ID,
+  detailLines: [],
+};
+
+export function withTaskTypesUnlockedNotice(notice: NotifyInput | undefined, unlocked: boolean): NotifyInput | undefined {
+  if (!unlocked) return notice;
+  return notice ? { ...notice, detailLines: [...(notice.detailLines ?? []), TASK_TYPES_DETAIL_LINE] } : TASK_TYPES_UNLOCKED_NOTICE;
 }

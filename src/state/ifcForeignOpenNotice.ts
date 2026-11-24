@@ -1,6 +1,8 @@
 import type { ImportResult } from '@/services/importTypes';
 import { hasBuildingModel, hasForeignContent } from '@/services/ifc/foreign/ifcSource';
 import type { NotificationDetailLine, NotifyInput } from './slices/types';
+import { withOpenNoticeSticky } from './openNoticeSticky';
+import { withTaskTypesUnlockedNotice } from './taskTypesNotice';
 
 function foreignContentLines(result: ImportResult): NotificationDetailLine[] {
   const source = result.ifcSource;
@@ -25,4 +27,12 @@ export function withIfcForeignOpenNotice(
   if (notice) return { ...notice, detailLines: [...(notice.detailLines ?? []), ...lines] };
   const [head, ...rest] = lines;
   return { severity: 'info', ...head, ...(rest.length > 0 ? { detailLines: rest } : {}) };
+}
+
+export function openedFileNotice(
+  fileNotice: NotifyInput | undefined,
+  taskTypesUnlocked: boolean,
+  results: readonly ImportResult[],
+): NotifyInput | undefined {
+  return withOpenNoticeSticky(withIfcForeignOpenNotice(withTaskTypesUnlockedNotice(fileNotice, taskTypesUnlocked), results));
 }

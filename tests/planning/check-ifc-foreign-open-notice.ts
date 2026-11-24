@@ -19,8 +19,16 @@ const { classify } = await import('@/services/ifc/foreign/classify');
 const { formatReportNumber } = await import('@/utils/reportNumber');
 const { withIfcForeignOpenNotice } = await import('@/state/ifcForeignOpenNotice');
 const { STICKY_OPEN_NOTICE_KEYS, withOpenNoticeSticky } = await import('@/state/openNoticeSticky');
+const { createAppStoreContext } = await import('@/state/appStoreFactory');
+const { openedFileNotice } = await import('@/state/ifcForeignOpenNotice');
+const { withXerArchiveIssueNotice } = await import('@/state/xerArchiveIssueNotice');
+const { withSchedulingProfileNotice } = await import('@/state/schedulingProfileNotice');
+const { withRecordedDatesNotice } = await import('@/state/slices/fileSlice');
+const { __resetTaskTypesNoticeForTests } = await import('@/state/taskTypesNotice');
+const { scanForeign } = await import('@/services/ifc/foreign/foreignScan');
 type ImportResult = import('@/services/importTypes').ImportResult;
 type NotifyInput = import('@/state/slices/types').NotifyInput;
+type NotificationDetailLine = import('@/state/slices/types').NotificationDetailLine;
 
 let checks = 0;
 const diffs: string[] = [];
@@ -130,6 +138,86 @@ for (const [lng, common] of [['nl', nlCommon], ['en', enCommon]] as const) {
     [text(OTHER_DATA, 1).includes('(1 object)'), text(WITH_MODEL, 12345).includes(lng === 'nl' ? '(12345 objecten)' : '(12345 objects)')],
     [true, true]);
   eq(`${lng}: de werkplanregel toont het aantal`, inst.t(WORK_PLANS, { plans: formatReportNumber(2, lng) }).includes('2'), true);
+}
+
+const TASK_TYPES_HEAD = { dedupeKey: 'task-types-unlocked', helpArticleId: 'howto-werkregel-kiezen', messageKey: 'notifications.taskTypesUnlocked', severity: 'info' };
+const withDefaultWorkRule = (text: string) => {
+  const out = text
+    .replace("#182=IFCPROPERTYSINGLEVALUE('IfcSchemaConfirmed',$,IFCBOOLEAN(.T.),$);",
+      "#182=IFCPROPERTYSINGLEVALUE('IfcSchemaConfirmed',$,IFCBOOLEAN(.T.),$);\n#99101=IFCPROPERTYSINGLEVALUE('DefaultWorkRule',$,IFCLABEL('FIXED_WORK'),$);")
+    .replace("'OPS_ProjectSettings',$,(#175,#176,#177,#178,#179,#180,#181,#182));", "'OPS_ProjectSettings',$,(#175,#176,#177,#178,#179,#180,#181,#182,#99101));");
+  if (out.split('#99101').length !== 3) throw new Error('projectstandaard niet ingevoegd');
+  return out;
+};
+const withForeignPset = (text: string) => text.replace(/ENDSEC;\s*END-ISO-10303-21;\s*$/,
+  "#99102=IFCPROPERTYSINGLEVALUE('ExternKenmerk',$,IFCLABEL('blijft'),$);\n#99103=IFCPROPERTYSET('0123456789012345678901',$,'ExternPakket',$,(#99102));\nENDSEC;\nEND-ISO-10303-21;\n");
+const enc = new TextEncoder();
+const objectsOf = (bytes: Uint8Array) => { const scan = scanForeign(bytes); return scan.ok ? scan.counts.C + scan.counts.A + scan.counts.V : -1; };
+const sortedKeys = (value: unknown): unknown => Array.isArray(value) ? value.map(sortedKeys)
+  : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, sortedKeys(v)]))
+    : value;
+const storeNotices = (store: ReturnType<typeof createAppStoreContext>['store']) =>
+  sortedKeys(store.getState().ui.notifications.map(({ id: _id, ...rest }) => JSON.parse(JSON.stringify(rest)) as unknown));
+const countLine = (objects: number) => ({ messageKey: WITH_MODEL, params: { count: objects }, numberParams: { objects } });
+{
+  __resetTaskTypesNoticeForTests();
+  const store = createAppStoreContext().store;
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; s.ui.showTaskTypes = false; });
+  const first = enc.encode(withDefaultWorkRule(readFileSync(join(FOREIGN, 'eigen-plus-model.ifc'), 'utf8')));
+  await store.getState().openOpenedFile({ name: 'met-werkregel.ifc', content: '', bytes: first, ref: null }, {});
+  eq('taaktypen en model: de projectstandaard is gelezen en de taaktypen zijn ontsloten',
+    [store.getState().project.defaultWorkRule, store.getState().taskTypesVisible], ['FIXED_WORK', true]);
+  eq('taaktypen en model: de kop, ernst, gidslink en deduplicatie van de taaktypemelding zoals main, de telregel eronder',
+    storeNotices(store), sortedKeys([{ ...TASK_TYPES_HEAD, count: 1, detailLines: [countLine(objectsOf(first))] }]));
+
+  const second = enc.encode(withForeignPset(withDefaultWorkRule(readFileSync(join(FOREIGN, 'eigen-plus-model.ifc'), 'utf8'))));
+  eq('tweede bestand van dezelfde soort: een ander aantal', objectsOf(second) !== objectsOf(first) && objectsOf(second) > 0, true);
+  await store.getState().openOpenedFile({ name: 'met-werkregel-en-pset.ifc', content: '', bytes: second, ref: null }, {});
+  eq('tweede opening van dezelfde soort: één melding, de deduplicatie telt, alleen de telregel van de tweede opening',
+    storeNotices(store), sortedKeys([{ ...TASK_TYPES_HEAD, count: 2, detailLines: [countLine(objectsOf(second))] }]));
+
+  const own = enc.encode(withDefaultWorkRule(readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8')));
+  await store.getState().openOpenedFile({ name: 'eigen-met-werkregel.ifc', content: '', bytes: own, ref: null }, {});
+  eq('daarna een eigen bestand met taaktypen zonder vreemd deel: dezelfde melding, geen telregel van een eerder bestand',
+    storeNotices(store), sortedKeys([{ ...TASK_TYPES_HEAD, count: 3, detailLines: [] }]));
+}
+
+{
+  const MAIN_TASK_TYPES_DETAIL: NotificationDetailLine = { messageKey: 'notifications.taskTypesUnlockedDetail', helpArticleId: 'howto-werkregel-kiezen', linkKey: 'notifications.workRulesReadMore' };
+  const mainShown = (notice: NotifyInput | undefined, unlocked: boolean): NotifyInput | undefined =>
+    notice && unlocked ? { ...notice, detailLines: [...(notice.detailLines ?? []), MAIN_TASK_TYPES_DETAIL] }
+      : notice ?? (unlocked ? { severity: 'info', messageKey: 'notifications.taskTypesUnlocked', dedupeKey: 'task-types-unlocked', helpArticleId: 'howto-werkregel-kiezen' } : undefined);
+  const head = (n: NotifyInput | undefined) => n && sortedKeys({
+    messageKey: n.messageKey, severity: n.severity, helpArticleId: n.helpArticleId ?? null, dedupeKey: n.dedupeKey ?? null,
+    params: n.params ?? null, numberParams: n.numberParams ?? null, action: n.action ?? null, detail: n.detail ?? null,
+  });
+  const lineKeys = (n: NotifyInput | undefined) => (n?.detailLines ?? []).map(line => line.messageKey);
+  const foreign = await open('twee-werkplannen.ifc', true);
+  const plain = await open('council/fix2-data-in-kop.ifc', true);
+  const kinds: Array<[string, NotifyInput | undefined]> = [
+    ['geen melding van main', undefined],
+    ['XER-archief', withOpenNoticeSticky(withXerArchiveIssueNotice(undefined, [{ code: 'hash-mismatch', detail: 'proef' }]))],
+    ['opgenomen datums', withOpenNoticeSticky(withRecordedDatesNotice(undefined, 3))],
+    ['rekenprofiel', withOpenNoticeSticky(withSchedulingProfileNotice([{ ...foreign[0], suggestedProfileId: 'p6' }], undefined, 'doc-proef'))],
+  ];
+  for (const [kind, fileNotice] of kinds) {
+    for (const unlocked of [false, true]) {
+      const label = `${kind}${unlocked ? ' met taaktypen' : ''}`;
+      const main = mainShown(fileNotice, unlocked);
+      const got = openedFileNotice(fileNotice, unlocked, foreign);
+      if (main) {
+        eq(`${label}, met een vreemd deel: kop, ernst, gidslink, deduplicatie, actie en parameters zoals main`, head(got), head(main));
+        eq(`${label}, met een vreemd deel: eerst de regels van main, daarna de telregel en de werkplanregel`,
+          lineKeys(got), [...lineKeys(main), WITH_MODEL, WORK_PLANS]);
+      } else {
+        eq(`${label}, met een vreemd deel: zonder melding van main is de telmelding de kop`, [got?.messageKey, lineKeys(got)], [WITH_MODEL, [WORK_PLANS]]);
+      }
+      eq(`${label}, met een vreemd deel: de werkplanregel maakt de melding blijvend`, got?.sticky, true);
+      const same = openedFileNotice(fileNotice, unlocked, plain);
+      eq(`${label}, zonder vreemd deel: precies wat main toont (een lege lijst regels telt als geen regels)`,
+        sortedKeys(same && { ...same, detailLines: same.detailLines ?? [] }), sortedKeys(main && { ...main, detailLines: main.detailLines ?? [] }));
+    }
+  }
 }
 
 if (diffs.length > 0) {
