@@ -476,17 +476,22 @@ await check('volgorde 2, Automatisch opslaan schrijft en de export wacht in de s
 
 async function stoppedAutoSave(name: string, failRead = false) {
   const ipc = desktop(), path = fileAt(name, plainBytes());
-  const { store } = await openAt({ kind: 'path', path }, plainBytes());
-  const controller = autoSave(store);
-  edit(store);
-  const foreign = sameSizeOtherContent(plainBytes());
-  writeFileSync(path, foreign);
-  if (failRead) ipc.once(/^plugin:fs\|read_file$/, () => { throw new Error('leesfout voor de proef'); });
-  await controller.flush();
-  assert.equal(store.getState().isDirty, true, 'gestopt: niets geschreven');
-  assert.deepEqual(onDisk(path), print(foreign));
-  assert.equal(notices(store, AUTOSAVE_CHANGED), 1);
-  return { ipc, path, store, controller, foreign };
+  try {
+    const { store } = await openAt({ kind: 'path', path }, plainBytes());
+    const controller = autoSave(store);
+    edit(store);
+    const foreign = sameSizeOtherContent(plainBytes());
+    writeFileSync(path, foreign);
+    if (failRead) ipc.once(/^plugin:fs\|read_file$/, () => { throw new Error('leesfout voor de proef'); });
+    await controller.flush();
+    assert.equal(store.getState().isDirty, true, 'gestopt: niets geschreven');
+    assert.deepEqual(onDisk(path), print(foreign));
+    assert.equal(notices(store, AUTOSAVE_CHANGED), 1);
+    return { ipc, path, store, controller, foreign };
+  } catch (error) {
+    ipc.dispose();
+    throw error;
+  }
 }
 const roundWritesLaterWork = async (stopped: Awaited<ReturnType<typeof stoppedAutoSave>>) => {
   const { store, controller, path } = stopped;
