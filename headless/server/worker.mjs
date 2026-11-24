@@ -34,7 +34,7 @@ function keepsForeignContent(err, bytes, output) {
 }
 
 function refusedBuildingModel(err, bytes) {
-  return bytes !== undefined && err.code === 'IFC_READ_FAILED';
+  return bytes !== undefined && err.readRefusal === 'building-model';
 }
 
 async function readByBytesRoute(bytes, output) {
