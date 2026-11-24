@@ -3966,21 +3966,25 @@ en noem het in je rapport of PR-tekst.
 
 2218. **VERVOLG (#804 fase 2, PR 4): onbekende JSON-sleutels blijven nog niet bij elke bewerking staan.** De merge
      (vreemd deel, flag `ifcForeignContent` aan) beslist per lid (`.claude/rules/tauri-ifc.md`, *Onbekende
-     JSON-sleutels*). Waar dat niet kan, geldt de weigering van main. Grenzen: (1) een item in een lijst zonder
-     sleutelveld (`Splits`, de contouren en hun periodes, `DurationWalks`) of met een sleutelveld dat twee keer voorkomt,
-     een doorgegeven lijst (`OPS_Library`) en een reeks die een andere lengte krijgt: een bewerking weigert met
-     `niet-gedragen` (herkomstmerk, PR 5). (2) Een object met onbekende sleutels dat in de planning nog bestaat maar niet
-     meer in de uitvoer staat (alle codetypen gewist, geen vensterdata meer bij een toewijzing, het laatste gebruik van
-     een taaktype weg terwijl het type in de catalogus blijft): de weigering van main, in plaats van de vraag
-     *Annuleren*/*Opslaan zonder deze gegevens* uit ontwerp §4.2 (PR 5). (3) Een venster in `OPS_Timephased.Windows` hoort
-     bij de toewijzing die de lezer bij het openen aan zijn sleutel gaf. Is die binding er niet (na herstel, bij twee
-     toewijzingen van dezelfde resource op één taak, na verwijderen en opnieuw toewijzen, een venster zonder veld dat de
-     app kent), dan weigert een gewijzigde vensterkaart zoals main; een ongewijzigde blijft byte-gelijk. (4) Een
-     eigenschap zonder onbekende sleutels blijft bij main: ongewijzigd komt ze byte-gelijk terug, gewijzigd met een
-     spelling die de writer niet schrijft (`480.0`) weigert ze. Per lid beslissen kost dan bij elke opslag werk aan elke
-     JSON-eigenschap van het bestand. (5) Knownbug 1553 blijft: de lezer zet oude `task-…`-ids in baselineregels om, dus
-     de JSON leest niet terug tot de bron. Zonder vreemd deel verandert er niets: de gewone writer laat onbekende
-     sleutels weg, zoals op main. Gemeten in `check-ifc-foreign-json-sleutels.ts`. — B
+     JSON-sleutels*). Waar dat niet kan, geldt voor die eigenschap de weigering van main. **Benoemde grens:** een
+     toewijzing verplaatsen of omwisselen, wissen en opnieuw maken, van resource wisselen (zodat haar sleutel
+     verandert), of na een crash herstellen met een gewijzigde vensterkaart, terwijl een ander programma eigen sleutels in
+     haar venster in `OPS_Timephased.Windows` heeft gezet: opslaan weigert zoals main. Er gaat niets stil verloren. Het
+     venster bewaren over een verplaatsing heen is bewust niet gebouwd (besluit van de technisch eigenaar, 24 november
+     2026). Omwisselen van twee toewijzingen met dezelfde vensterdata geeft, net als op main, de bronbytes terug: de
+     markering blijft dan bij de taak. Verder: (1) een item in een lijst zonder sleutelveld (`Splits`, de contouren en
+     hun periodes, `DurationWalks`) of met een sleutelveld dat twee keer voorkomt, een object met een dubbele sleutel dat
+     zelf verandert, een doorgegeven lijst (`OPS_Library`) en een reeks die een andere lengte krijgt: een bewerking
+     weigert met `niet-gedragen` (herkomstmerk, PR 5). (2) Een object met onbekende sleutels dat in de planning nog
+     bestaat maar niet meer in de uitvoer staat (alle codetypen gewist, geen vensterdata meer bij een toewijzing, het
+     laatste gebruik van een taaktype weg terwijl het type in de catalogus blijft): de weigering van main, in plaats van
+     de vraag *Annuleren*/*Opslaan zonder deze gegevens* uit ontwerp §4.2 (PR 5). (3) Een venster met alleen sleutels die
+     de app niet kent, onder een toewijzing die bestaat, of bij twee toewijzingen van dezelfde resource op één taak: geen
+     binding, dus een gewijzigde vensterkaart weigert zoals main; een ongewijzigde blijft byte-gelijk. (4) Een eigenschap
+     zonder onbekende sleutels blijft bij main: gewijzigd met een spelling die de writer niet schrijft (`480.0`) weigert
+     ze. (5) Knownbug 1553 blijft: de lezer zet oude `task-…`-ids in baselineregels om, dus de JSON leest niet terug tot de
+     bron. Zonder vreemd deel verandert er niets: de gewone writer laat onbekende sleutels weg, zoals op main. Gemeten in
+     `check-ifc-foreign-json-sleutels.ts`. — B
 
 2010. **De MSPDI-lezer telt een dag vóór de `T` in een taakduur als 1440 minuten, ook in werktijd; wat een schrijver
       daarmee bedoelt, is niet nagegaan.** `mspDurationMinutes` (`src/services/msproject/mspdiReader.ts`) rekent een

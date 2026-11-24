@@ -343,22 +343,26 @@ wat de lezer heel overneemt. Een rij met `domain` zegt waar de planning die waar
 staan één keer in `WINDOW_FIELDS` (`ifcPsets.ts`): het register, de writer en het type van de lezer gebruiken die lijst.
 `check-ifc-foreign-json-sleutels.ts` eist dat elke rij geschreven wordt en faalt op JSON buiten het register.
 
-Alleen de merge gebruikt het. `ifcSource.jsonExtras` is een kleine index: de JSON-eigenschappen met onbekende sleutels,
-en zodra één vensterkaart er een heeft, elke vensterkaart met per venster het toewijzings-id van de lezer. De waarden
-blijven in de bronbytes. Gevuld bij het openen (alleen met een vreemd deel) en na elke opslag.
+Alleen de merge gebruikt het. `ifcSource.jsonExtras` is een kleine index: de JSON-eigenschappen met onbekende leden,
+voor `Windows` met per venster het toewijzings-id dat de lezer gaf. De waarden blijven in de bronbytes. Gevuld bij het
+openen (alleen met een vreemd deel) en na elke opslag; na een opslag hoort een venster bij de toewijzing die de writer
+onder zijn sleutel schreef, net als na heropenen.
 
-De beslissing valt per lid, in één functie (`memberText` in `foreign/jsonMembers.ts`, via `mergedJsonText` en
-`jsonMembers`), met de bron (S), wat de writer uit de lezing van de bron schrijft (Z) en wat hij nu schrijft (W): een
-lid dat de planner niet wijzigde (Z en W gelijk) houdt zijn brontokens, sleutel en waarde; een gewijzigd lid krijgt de
-waarde van de writer; een onbekend lid blijft staan; een lid dat wegvalt terwijl het iets droeg wat de writer niet
-schrijft, valt alleen weg als het ook uit de planning weg is. Een venster staat onder de taak en sleutel van zijn
-toewijzing nu (`windowPlaces`, dezelfde functie in het gelijkheidspad `windowsInPlace` en in de merge). Kan de functie
-een eigenschap niet per lid beslissen (geen identiteit, geen binding, de toewijzing bestaat niet meer, een andere
-lengte van een reeks), dan blijft voor die eigenschap de verliesbewaking van main gelden. O0 krijgt voor een beslist
-lid de bron zelf, O1 de uitkomst; de verliesbewaking laat die stukken aan de functie (`memberCarried`). Het
-gelijkheidspad geeft de bronbytes alleen terug als elk gebonden venster nog op zijn plek staat. De eindcontrole
-(`jsonMembersProblem`) eist dat de uitvoer per eigenschap de tekst van de functie heeft. De planning voor de
-vergelijking na heropenen krijgt de sleutelvolgorde van de uitvoer (`withJsonInOutputForm`). Grenzen: knownbug 2218.
+Per eigenschap zijn er twee uitkomsten: gedragen per lid, of de verliesbewaking van main. De beslissing valt in één
+functie (`memberText` in `foreign/jsonMembers.ts`, via `mergedJsonText` en `jsonMembers`), met de bron (S), wat de
+writer uit de lezing van de bron schrijft (Z) en wat hij nu schrijft (W): een lid dat de planner niet wijzigde (Z en W
+gelijk) houdt zijn brontokens, sleutel en waarde; een gewijzigd lid krijgt de waarde van de writer; een onbekend lid
+blijft staan; een lid dat wegvalt terwijl het iets droeg wat de writer niet schrijft, valt alleen weg als het ook uit de
+planning weg is. Een onbekend lid gaat nergens door een JS-object: vergelijken en ordenen gebeurt op de tokens van
+`parseJsonTree`. Er is geen verhuizing: een venster blijft in zijn eigen kaart onder zijn eigen sleutel, en alleen als de
+toewijzing die de writer daar nu schrijft dezelfde is als bij het openen (`windowIdentity`, op de geschreven sleutels van
+`OPS_Assignments`). Een venstersleutel waar voor en na geen toewijzing onder staat, blijft als onbekend lid staan. Kan de
+functie een eigenschap niet per lid beslissen (geen identiteit, een venster dat verplaatst, omgewisseld, gewist of van
+resource gewisseld is, een andere lengte van een reeks), dan geldt voor die eigenschap main, en alleen voor die
+eigenschap. O0 krijgt voor een beslist lid de bron zelf, O1 de uitkomst; de verliesbewaking laat die stukken aan de
+functie (`memberCarried`). De eindcontrole (`jsonMembersProblem`) eist dat de uitvoer per eigenschap de tekst van de
+functie heeft; de planningcontrole na heropenen vergelijkt van die eigenschappen alleen de bekende leden
+(`withoutUnknownMembers`). Grenzen: knownbug 2218.
 
 ### Vergelijkingsklok (#804 fase 1c)
 
