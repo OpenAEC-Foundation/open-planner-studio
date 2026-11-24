@@ -76,10 +76,35 @@ niets vast op een vervangen inhoud (het bestand houdt de opgeslagen inhoud, de n
 van Automatisch opslaan onthoudt `content`) volgen dezelfde identiteit. Sessiegegeven op de documentregistratie, niet in
 `DOCUMENT_FIELDS`: het hoort bij het open tabblad, niet bij het bestand, en hoeft geen undo, herstel of opslag te overleven.
 
-Na geslaagde I/O gebruikt de opslagroute `commitSavedDocument(ref, savedSource, destination?, prepared?)`.
+Na geslaagde I/O gebruikt de opslagroute `commitSavedDocument(ref, savedSource, destination?, prepared?, missingSourceSaveAs?, written?)`.
 Met `PreparedIfcWrite` worden doel, `ifcSource` en letterlijke kalenderkeuzes samen vastgelegd, voor actief of slapend
 document. De inhoudsvergelijking gebeurt vóór de Immer-producer: tussentijds werk blijft dirty, maar de bron volgt
 de geschreven momentopname. `markAutoSaveVersionSaved` verwijst naar dezelfde commit. Exports gebruiken hem niet.
+
+**De versie op het eigen doel** (#804, bouwsteen voor knownbug 1957 en 2064; nog door niemand gelezen):
+`knownTargetFingerprint` (`DOCUMENT_FIELDS`, `snapshot: 'none'`, buiten `IFC_SAVE_KEYS`/`IFC_DIRTY_KEYS` en het
+herstelmanifest) is `{ sha256, byteLength }` van de bytes waarvan de app weet dat ze op het eigen pad of de eigen handle
+staan, of `null` (onbekend). Hash en grootte komen van dezelfde bytes en worden altijd samen gezet; de grootte laat een
+latere bewaking een ander bestand zonder lezen herkennen. Alleen met de flag `ifcForeignContent`. Openen neemt hash en
+grootte van `ifcSource` (geen extra hashwerk), alleen als de flag bij het activeren aan staat; IFC toepassen houdt het veld; laden in hetzelfde tabblad (`loadState`),
+een kopie, herstel, `setFilePath`, de site en een document zonder eigen pad of handle geven `null`. Elke
+`commitSavedDocument` zet het opnieuw: met `prepared` uit de merge, anders uit `written` (de opslagworker rekent de hash
+als de job `hashBytes` draagt, zie `tauri-ifc.md`; zonder worker start `precomputeSha256` vóór het schrijven en wacht de
+route er ná het bevestigde schrijven op, nooit tussen de laatste controle en het plaatsen). Zonder bekende bytes, na een
+download, op de site en met de flag uit: `null`. Na een geschreven export
+(Exporteren → IFC, beide delen van de export met de resourcebibliotheek, Bestand → Bibliotheek, `planner_export_ifc`)
+roept de route `settleFingerprintAfterExport(documentId, written)` aan, binnen dezelfde beurt van de schrijfrij
+(`runProjectFileWrite`). Alleen met de flag aan; ze neemt niets mee van vóór de beurt behalve het document-id en de
+geschreven bytes. Ze leest het actuele eigen doel en de actuele vingerafdruk van dat document; heeft het document er
+een en een eigen pad of handle, dan vergelijkt ze dat doel met de geschreven bytes (`sourceTargetContent`: eerst de
+grootte, bij gelijke grootte byte voor byte). Gelijk: de vingerafdruk wordt die van de geschreven bytes, zonder
+vergelijking met een oude waarde, als de documentinhoud en het eigen doel tijdens de nacontrole niet veranderden;
+anders blijft ze. Er wordt geen pad vergeleken. Met de flag uit of bij annuleren gebeurt niets, ook geen `stat`. De
+letterlijke kalenders houden `exportHitsOwnFile`. De flag uitzetten (`setUI`) wist de vingerafdruk van elk tabblad.
+Een geweigerde opslag laat het veld staan.
+Een mislukte schrijfactie naar het eigen pad (Ctrl+S, Automatisch opslaan) en een onzekere vervanging met herstel
+(`unknown`, `previous-stranded`, `target-taken`) maken het `null`; een rekenfout vóór het schrijven niet.
+Proef: `check-tabblad-schijfversie.ts` (de A2-tabel); grenzen: knownbug 2065, 2066 en 2200.
 Bronvervanging is geen undo-event en telt niet als inhoudsverschil (`sameIFCSource`, ook voor de recoverydelta).
 `sameIFCSource` vergelijkt per referentie, met één uitzondering: een andere werksoortcatalogus telt alleen als de door
 taken gebruikte definities verschillen (`savedCustomTaskTypes`, dezelfde selectie als `writeTaskTypeMeta`). Zo is de stille

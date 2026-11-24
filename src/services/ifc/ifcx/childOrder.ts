@@ -51,3 +51,19 @@ function longestIncreasingRun(values: readonly number[]): Set<number> {
   for (let i = tails.length ? tails[tails.length - 1] : -1; i >= 0; i = previous[i]) keep.add(i);
   return keep;
 }
+
+export function taskInParentCycle(tasks: readonly { readonly id: string; readonly parentId: string | null | undefined }[]): string | undefined {
+  const parentOf = new Map(tasks.map(task => [task.id, task.parentId ?? null]));
+  const done = new Set<string>();
+  for (const task of tasks) {
+    const chain = new Set<string>();
+    let id: string | null = task.id;
+    while (id !== null && !done.has(id)) {
+      if (chain.has(id)) return id;
+      chain.add(id);
+      id = parentOf.get(id) ?? null;
+    }
+    for (const seen of chain) done.add(seen);
+  }
+  return undefined;
+}

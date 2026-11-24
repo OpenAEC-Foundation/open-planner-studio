@@ -1747,6 +1747,37 @@ en noem het in je rapport of PR-tekst.
      eerste aan de beurt, en liet een tweede slapend document de schrijfronde afbreken. Bij de geslaagde herpoging
      gingen de minuten verloren zonder melding; in dezelfde proef zonder eerdere afbreking meldde de app het verlies
      wel. Proef van de reviewer (GPT-6.2-Sol, review van #1164). — B
+2211. **Een taak met heel veel gekoppelde bouwdelen kan `planner_get_task` op de site te groot maken.** Sinds #804
+     fase 2 geeft `planner_get_task` (`elementLinkFields` in `src/services/mcp/tools/readTools.ts`) bij een IFC-bestand
+     met een gebouwmodel elke koppeling taak↔bouwdeel mee, ongeveer 60 tekens per koppeling, zonder `limit`. De
+     assistent van de site weigert een leesantwoord boven 30.000 tekens (`siteAppTools.ts`), en `planner_get_task` heeft
+     daar geen uitweg (`narrowHint`). Een taak met enkele honderden koppelingen zou dus geweigerd worden. Afgeleid uit
+     de grootte van een regel; niet gemeten met een echt model, en niet nagegaan of de flag `ifcForeignContent` op de
+     site gebruikt wordt. Richting: de lijst optioneel pagineren, of alleen `elements` en `notFound` geven boven een
+     grens. — S
+2216. **Een aanwezig bouwdeel dat een complexe instantie is, telt niet mee bij de gekoppelde bouwdelen.** Flag aan, IFC met
+     een gebouwmodel. De scanner geeft een complexe instantie (`#1=(IFCA() IFCB());`) het type `(COMPLEX)`
+     (`scanStep` in `src/services/ifc/foreign/stepScanner.ts`, rond regel 720), en `elementTarget` in
+     `src/services/ifc/foreign/elementLinks.ts` telt alleen een doel met een type uit `IFC_BUILDING_MODEL_TYPES`. Een
+     koppeling naar zo'n instantie valt daarom helemaal weg, ook bij `IfcRelAssignsToProduct`, waar het doel altijd een
+     product is: het paneel en `planner_get_task` tellen dat bouwdeel niet. Knownbug 1845 is het omgekeerde geval in de
+     herkenning van een gebouwmodel (daar telt zo'n instantie altijd mee). Richting: de deeltypen uit de index gebruiken
+     zodra die ze levert. Gezien in de code door de reviewer van #1180 (GPT-6.2-Sol, ronde 1). — B
+2215. **Een verwijzing met voorloopnullen laat een aanwezig bouwdeel als ontbrekend tellen.** Flag aan, IFC met een
+     gebouwmodel waarin een ander programma een verwijzing als `#00000000393` schrijft (meer dan tien cijfers). De
+     scanner lost die numeriek op naar `#393`, maar `elementLinks.ts` leest het label opnieuw als tekst en geeft het
+     aan `chunkOf`, dat meer dan tien cijfers weigert. Bij `IfcRelAssignsToProduct` krijgt de koppeling daardoor
+     `found: false` met `#00000000393` als doel; in een `IfcRelAssignsToProcess` valt het lid uit de telling. Het
+     paneel en `planner_get_task` tellen dus verkeerd; de bronregel zelf blijft bij opslaan behouden. Richting: voor
+     bestaande doelen de door de index opgeloste verwijzing gebruiken en het ruwe label alleen lezen voor een doel dat
+     echt ontbreekt. Gezien in de code door de reviewer van #1180 (GPT-6.2-Sol, ronde 2). — B
+2230. **De terugval boven de scangrens loopt ook de koppelingen af, voor alleen een telling.** Flag aan, een groot
+     eigen bestand dat de tekstlezer passeert terwijl de bytes-route terugvalt wegens de grootte. `currentRoute` in
+     `src/services/ifc/foreign/ifcBytesRoute.ts` vraagt dan zonder `knownScan` om `runForeignScan`, en die vraagt de
+     openvariant, die ook de regels voor gekoppelde bouwdelen afloopt. De terugval leest daarvan alleen `ok` en de
+     aantallen C, A en V. Dat is extra werk bij het openen van een groot bestand, geen fout in de uitkomst. Richting:
+     dit pad de gewone workersessie en `scanForeign` geven. Gezien in de code door de reviewer van #1180
+     (GPT-6.2-Sol, ronde 2). — B (code)
 
 ## Bestanden en herstel
 
@@ -3667,6 +3698,51 @@ en noem het in je rapport of PR-tekst.
      Recent, slepen en MCP, de startroute zelf niet. Richting: alleen wisselen als de gelezen versie overeenkomt met
      de versie die het tabblad van zijn bestand kent. — B (code gelezen, ook door de reviewer van #1153; niet
      nagespeeld)
+
+2065. **VERVOLG (#804, de versie op het eigen doel): het tabblad merkt niet elke schrijfactie van de app op zijn bestand.**
+     `knownTargetFingerprint` volgt de opslag en de exports van het tabblad zelf. Twee schrijvers van de app ziet het
+     niet: in de browser kan Opslaan als of een export uit een ander tabblad over de handle van dit tabblad schrijven
+     (de opslaankiezer wordt daar niet vergeleken, knownbug 1899), en een rapport (PDF) dat de planner over het eigen
+     `.ifc`-bestand opslaat. Het veld beschrijft dan de laatste opslag van het tabblad zelf, niet wat er op schijf staat,
+     zoals bij een wijziging buiten de app. Een tabblad uit crashherstel krijgt altijd `null`, ook als het herstel de bron
+     van het eigen pad las. Wie het veld gaat lezen (de bewaking van Ctrl+S en Automatisch opslaan), krijgt in deze
+     gevallen "het bestand is veranderd" of "onbekend". — B (code gelezen, `check-tabblad-schijfversie.ts`; de twee
+     schrijvers niet nagespeeld)
+
+2066. **VERVOLG (#804, de versie op het eigen doel): na een mislukte of onzekere schrijfactie kan het veld een
+     versie noemen die niet meer op schijf staat.** Ctrl+S en Automatisch opslaan maken `knownTargetFingerprint`
+     onbekend als hun schrijfactie naar het eigen pad een fout geeft (de directe terugval van `replaceUserFile` in
+     `atomicWrite.ts` kan het doel al afgekapt hebben), en ook als de vervanging met herstel van een gebouwmodel
+     `unknown`, `previous-stranded` of `target-taken` geeft. Na een geslaagde export vergelijkt
+     `settleFingerprintAfterExport` het eigen doel met de geschreven bytes. Drie gevallen laten het veld staan.
+     Een export die mislukt nadat hij het eigen bestand al raakte: op het eigen doel staat dan iets wat de export niet
+     (helemaal) schreef. De vingerafdruk blijft staan, de komende bewaking weigert dan Ctrl+S met haar melding, en er
+     gaat niets verloren. Opslaan als over een bestaand bestand (`replaceExistingPath`) met een onzekere uitkomst: het
+     gekozen pad kan het eigen bestand zijn, maar de route kijkt daar niet naar. En in de browser de opslaankiezer uit
+     knownbug 1899: die kan de eigen handle al leeggemaakt hebben als de schrijfactie daarna mislukt. — S (code
+     gelezen, niet nagespeeld)
+
+2200. **VERVOLG (#804, de versie op het eigen doel): bij openen kan de vingerafdruk van opnieuw gecodeerde tekst
+     komen.** Openen, Recent en een browser-drop kiezen vóór het lezen of een `.ifc` als tekst of als bytes binnenkomt
+     (`useFileDrop.ts`, de opendialoog en Recent in `fileSlice.ts`). `openOpenedFile` vraagt de flag daarna opnieuw op.
+     Gaat de flag `ifcForeignContent` daartussen aan, dan komt het bestand als tekst binnen. `File.text()` en het lezen
+     als tekst laten een UTF-8-BOM weg en vervangen ongeldige bytes, en `readIfcFromText` codeert de tekst opnieuw.
+     `applyLoadedProject` koppelt de hash en grootte van die nieuwe bytes aan het doel; met een BOM is de grootte drie
+     bytes te klein. Herstel: `openOpenedFile` geeft door of de bytes van het doel zelf kwamen (`opened.bytes`), en
+     `applyLoadedProject` zet bij tekst `null`. Dat raakt de openroute, waar de volgende stap (openen wisselt) bouwt.
+     De omgekeerde volgorde is gedicht: gaat de flag uit tussen het lezen en het activeren, dan blijft het veld
+     `null`. — B (code gelezen in de reviews van #1168, niet nagespeeld)
+2217. **VERVOLG (#804, de versie op het eigen doel): een lopende nacontrole kan een gewiste vingerafdruk terugzetten.**
+     De planner zet de flag `ifcForeignContent` uit precies terwijl een export het eigen bestand terugleest of de
+     nieuwe vingerafdruk berekent (`settleFingerprintAfterExport` in `src/state/slices/fileSlice.ts`). `setUI` wist de
+     vingerafdruk van elk tabblad (`src/state/slices/uiSlice.ts`), waarna de export haar alsnog vastlegt als document
+     en doel gelijk bleven. Exporteert de planner daarna met de flag uit opnieuw over het eigen bestand en zet hij de
+     flag later weer aan, dan kan de bewaking van Ctrl+S en Automatisch opslaan de volgende opslag op die teruggezette
+     waarde weigeren. Uitweg voor de planner: Opslaan als. Richting: bij het vastleggen opnieuw toetsen dat er nog een
+     vingerafdruk is. Gezien in de code door de reviewer van #1168 (GPT-6.2-Sol, ronde 5); het vraagt dat het
+     uitzetten precies tijdens de nacontrole valt. — B (code)
+
+
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
@@ -3726,6 +3802,16 @@ en noem het in je rapport of PR-tekst.
      kwamen de oude IFC-bytes terug. `check-recovery-web-hold.ts` toetst bij een dubbel document alleen dat het één keer
      verschijnt, niet welke versie. — B
 
+2209. **VERVOLG (#1182): de verliescontrole kent de oude lay-outs los van de slottabellen.** `alignment` in
+     `src/services/ifc/foreign/lossCheck.ts` legt zelf vast hoe een regel in een oude eigen lay-out op de uitvoer past
+     (`IfcTask` met 12 argumenten, resources met 9 via `OLD_RESOURCE_TYPES` en `RESOURCE_ARITY`, werkplan en kalender
+     via `workControlSlots` en `workCalendarSlots`), en noemt het argumentaantal per type nog eens bij de `slot:`-wortels.
+     Sinds #1182 staan die lay-outs in de slottabellen (`taskSlots`, `resourceSlots`, `lagTimeSlots`, `IFC_SLOT_TABLES`
+     in `ifcSlotTables.ts`). Eén verschil: bij een `IfcLagTime` in de oude OPS-indeling (waarde en type duur verwisseld)
+     paart `alignment` per positie, de tabel verwisselt de twee. Of de verliescontrole daardoor een verkeerd slot
+     vergelijkt, is niet nagegaan; de lagwaarde zelf vergelijkt `durationTexts` via `lagValueSlot`. Voorstel: fase 2
+     PR 2 (`sourceSlots`), die `lossCheck.ts` toch aanpast, leidt `alignment` af uit `IFC_SLOT_TABLES`. — S
+
 2220. **IFCX: bij een dubbele sleutel in een eigen bestand wint stil de laatste.** `readIfcxText` in
      `src/services/ifc/ifcx/ifcxReader.ts` leest met `JSON.parse` (keuze T1 van #804 fase 3). Staat in één object twee
      keer dezelfde sleutel, dan neemt `JSON.parse` zonder melding de laatste waarde. De eigen writer schrijft nooit een
@@ -3733,41 +3819,26 @@ en noem het in je rapport of PR-tekst.
      de tokenizer op bytes van fase 4 (ontwerp §6.1) weigert een dubbele sleutel met de code `invalid`. Proef:
      `check-ifcx-kern.ts`, "bekende grens 2220". — B
 
-2221. **IFCX: een veranderde gedeelde datum verschuift een gestarte taak niet zichtbaar.** `applySharedSpan` in
-     `src/services/ifc/ifcx/ifcxReader.ts` past de leesregel van ontwerp §5.3 toe: wijkt `start` of `endExclusive` af
-     van de projectie van de precieze datums, dan zet hij de geplande, vroege en late datums op 00:00 van de gedeelde
-     datum en maakt hij de taak handmatig. Een taak met een werkelijke start toont die werkelijke start (`shownStart` in
-     `src/utils/taskDates.ts`), dus daar blijft de getoonde start gelijk, terwijl `ifcxSharedDatesApplied` haar wel
-     meetelt; de werkelijke datums zelf veranderen niet. Alleen een bestand dat een ander programma veranderde, raakt
-     dit. Voorstel: in fase 4 afspreken wat een gedeelde datum op een gestarte taak betekent. — S (uit de code
-     afgeleid)
+2221. **IFCX: een gedeelde startdatum die een ander programma veranderde, laat de lezer stil liggen bij een gestarte
+     taak.** `applySharedSpan` in `src/services/ifc/ifcx/ifcxReader.ts` past de leesregel van ontwerp §5.3 toe, maar de
+     start van een taak met een werkelijke start (`startIsActual`) en het einde van een voltooide taak
+     (`isPinnedComplete`) blijven een feit. Wijkt alleen zo'n datum af, dan verandert de lezer niets en telt de taak
+     niet mee in `ifcxSharedDatesApplied`; de volgende opslag schrijft weer de eigen projectie, zonder dat iemand het
+     verschil zag. Gezien door de reviewer (GPT-6.2-Sol, review van #1183 ronde 1) vóór de fix: gedeelde start naar
+     2 juni, `actualStart` 1 juni 07:00; toen werd `scheduleStart` 2 juni 00:00 en telde de taak mee terwijl de getoonde
+     start 1 juni 07:00 bleef. Voorstel: in fase 4 bepalen hoe de melding bij openen een gedeelde datum toont die met
+     een werkelijke datum botst. Proef: `check-ifcx-kern.ts`, "de werkelijke start van een gestarte taak blijft staan".
+     — B
 
-2222. **IFCX: een taak in de `childIds` van een ouder die zelf geen `parentId` naar die ouder heeft, kan niet als IFCX
-     worden opgeslagen.** De IFCX-writer (`src/services/ifc/ifcx/ifcxWriter.ts`) schrijft de boom als `parent` per taak
-     en leidt `childIds` bij lezen daaruit af. Spreken `childIds` en `parentId` elkaar tegen, dan geeft de herlezing een
-     andere planning en weigert de zelfcontrole (`self-check`). STEP slaat zo'n boom op en herstelt hem bij openen
-     (`extractNesting` in `ifcReader.ts` zet `parentId` uit de nesting). Er gaat niets verloren, maar opslaan als IFCX
-     lukt dan niet. Voorstel: de boom vóór het schrijven gelijktrekken, zoals de STEP-lezer doet, of de oorzaak vinden
-     die zo'n boom maakt (zie ook 1980 en 1981). Proef: `check-ifcx-kern.ts`, "bekende grens 2222". — B
-
-2225. **IFCX: een baseline met haar velden in een andere volgorde dan de app ze maakt, kan niet als IFCX worden
-     opgeslagen.** De lezer (`baselineOf` in `src/services/ifc/ifcx/fields/baselineFields.ts`) bouwt een baseline en
-     haar rijen op in de volgorde van het type, zoals `saveBaseline`, `baselineTasksFromSource` en de lezers van P6 en
-     MSPDI ze maken; hetzelfde geldt voor `libraryOrigin` van een resource en voor `timephasedContours`. De STEP-writer
-     schrijft die objecten als JSON in de volgorde van het document (`writeBaselineMeta` in `ifcWriter.ts`), dus
-     `planningCanon` ziet een andere volgorde als een andere planning en de zelfcontrole weigert (`self-check`). Er gaat
-     niets verloren. Geen producent in de app maakt zo'n volgorde; alleen een oud of met de hand veranderd bestand kan
-     dat. Voorstel: de nieuwe zelfcontrole van F3-1, die het teruggelezen model direct naast de invoer legt, vergelijkt
-     objecten zonder op de volgorde van hun velden te letten. Proef: `check-ifcx-resources.ts`, "bekende grens 2225". — B
-
-2226. **IFCX: twee objecten met dezelfde bewaarde GlobalId laten de zelfcontrole weigeren.** Hebben een resource en een
-     bibliotheekkalender in `ifcGlobalIds` dezelfde GlobalId, dan geeft de STEP-writer hem aan de resource (die komt
-     eerst) en de kalender een nieuwe; de IFCX-writer doet hetzelfde (`stepGlobalIds.ts`). `planningIdentities` in
-     `src/services/ifc/foreign/planningIdentity.ts` noemt de kalender voor de vergelijking naar de GlobalId uit
-     `ifcGlobalIds` en niet naar de GlobalId die de writer uitgaf, dus de herlezing (met de uitgegeven GlobalId) heeft een
-     ander id en de zelfcontrole weigert. Er gaat niets verloren. Alleen een document met een dubbele GlobalId raakt dit.
-     Voorstel: de vergelijking gebruikt de uitgegeven GlobalId, of de nieuwe zelfcontrole van F3-1 legt de vastgelegde
-     regel voor `ifcGlobalIds` vast. Proef: `check-ifcx-resources.ts`, "bekende grens 2226". — B
+2222. **IFCX: een boom waarin `childIds` en `parentId` elkaar tegenspreken, kan niet als IFCX worden opgeslagen.** De
+     IFCX-writer schrijft de boom als `parent` per taak en leidt `childIds` bij lezen daaruit af. Noemt een ouder een
+     kind dat niet bestaat of haar niet als ouder noemt, dan weigert `inconsistentContent`
+     (`src/services/ifc/ifcx/consistency.ts`) met code `inconsistent` en veld `task.childIds`. STEP slaat zo'n boom
+     op: een kind dat niet bestaat filtert de STEP-writer weg (`writeWBSNesting`), en bij openen zet `extractNesting`
+     in `ifcReader.ts` `parentId` uit de nesting. Er gaat bij IFCX niets verloren, maar opslaan lukt dan niet. Voorstel:
+     de oorzaak vinden die zo'n boom maakt (zie ook 1980 en 1981), of de boom vóór het schrijven gelijktrekken zoals de
+     STEP-lezer doet. Proef: `check-ifcx-kern.ts`, "een verzameltaak met een kind dat niet bestaat of haar ouder niet
+     noemt wordt geweigerd (2222)". — B
 
 ## Rondleiding, Help en extensie-gidsen
 

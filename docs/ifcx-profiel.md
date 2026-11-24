@@ -54,7 +54,9 @@ toewijzingen en baselines. De overige velden komen in F3-3. Wat het profiel nog 
 - Een GlobalId zonder geldige 128-bitsvorm (22 tekens, eerste teken `0`–`3`; de oude `ifcGuid` geeft dat niet altijd)
   krijgt als pad een UUID v5 van de GlobalId, en de GlobalId zelf staat in het veld `globalId` van het
   `openaec::ops::`-attribuut van dat object. De namespace is `fd4e93a2-de83-56ee-929c-defaa450b626`, de UUID v5 van
-  `urn:openaec:planner` in de URL-namespace van RFC 4122.
+  `urn:openaec:planner` in de URL-namespace van RFC 4122. Werkplan en werkschema hebben zo'n veld niet: heeft hun
+  GlobalId geen 128-bitsvorm, dan weigert de writer met `unsupported` en de sleutel `ifcGlobalIds.wp` of
+  `ifcGlobalIds.ws`.
 - Het interne id van een object staat in het veld `id` van zijn `openaec::ops::`-attribuut als het afwijkt van het
   pad. Voor de projectkalender is de afleiding `cal-default`, voor het project de UUID uit de kop.
 - Verwijzingen tussen objecten (`parent`, `calendar`, `relatingProcess`, `relatedProcess`, `workplan`, `crew`,
@@ -84,7 +86,8 @@ writer gebruiken daarvoor dezelfde afleiding (ontwerp §5.2):
 
 ## Attributen
 
-Vormen: *tekst*, *datum* (`YYYY-MM-DD`), *moment* (lokale tijd zonder zone, `YYYY-MM-DD[THH:MM[:SS[.sss]]]`, of leeg),
+Vormen: *tekst*, *datum* (een bestaande dag, `YYYY-MM-DD`), *moment* (een bestaand moment in lokale tijd zonder zone,
+`YYYY-MM-DD[THH:MM[:SS[.sss]]]` met uren 00–23 en minuten en seconden 00–59, of leeg),
 *getal*, *geheel getal*, *ja/nee*, *keuze*, *pad*. Een veld zonder "verplicht" mag ontbreken. Een leeg tekstveld dat in
 het domein verplicht is (zoals een lege omschrijving) schrijft de app niet; de lezer maakt er weer een lege tekst van.
 
@@ -121,11 +124,17 @@ opslag als STEP), `ifcSchemaUnconfirmed`, `wbsAutoNumber` (ja/nee), `defaultTask
 | `predefinedType` | keuze `FIRSTSHIFT`, `SECONDSHIFT`, `THIRDSHIFT`, `USERDEFINED` | de ploeg (`IfcWorkCalendarTypeEnum`) |
 | `exceptionTimes` | lijst van `{ name, start, end }`, datums | vrije dagen; `end` is de laatste vrije dag en ontbreekt als de app geen einddatum heeft (één dag) |
 
-`openaec::ops::calendar`: `id`, `globalId`, `workDays` (lijst van gehele getallen 1–7, maandag is 1, verplicht),
+`openaec::ops::calendar`: `id`, `globalId`, `libraryPlace` (geheel getal vanaf 0, alleen op de projectkalender: haar
+plaats in de kalenderbibliotheek), `workDays` (lijst van gehele getallen 1–7, maandag is 1, verplicht),
 `workStartHour`, `workEndHour`, `hoursPerDay` (getallen, verplicht), `simpleBreakStartMinute`,
 `simpleBreakDurationMinutes`, `workTime` (`{ byWeekday: { "1": [{ start, end }], …, "7": [ … ] } }`, minuten vanaf
 middernacht), `workingExceptions` (lijst van `{ name, startDate, endDate, bands }`), `generation`
 (`{ ruleSetId, region, breakChoice, generatedFromYear, generatedToYear }`, waarmee de feestdagen zijn gemaakt).
+
+De app houdt de projectkalender twee keer bij: als `calendar` en als entry met hetzelfde id in de kalenderbibliotheek
+(`syncProjectCalendar`). IFCX schrijft haar één keer; `libraryPlace` zegt waar de entry in de bibliotheek staat, en de
+lezer zet daar dezelfde kalender terug. Heeft de entry een andere inhoud dan de projectkalender, dan weigert de writer
+met `inconsistent`.
 
 ### Taak
 
@@ -236,7 +245,8 @@ plaats in de vergelijking), `taskIds` (lijst van `{ task, id, globalId }` voor d
 
 De lezer bouwt een baseline en haar rijen op met de velden in de volgorde van het type (`id`, `sourceProjectId`,
 `name`, `createdAt`, `tasks`, `projectEnd`, `projectDuration`; een rij `taskId`, `sourceTaskId`, `sourceTaskCode`,
-`start`, `finish`, `duration`, `isMilestone`, `milestoneKind`), zoals de app ze maakt. Grens: knownbug 2225.
+`start`, `finish`, `duration`, `isMilestone`, `milestoneKind`), zoals de app ze maakt. De zelfcontrole let niet op
+de volgorde van velden in een object, dus een baseline met een andere volgorde wordt gewoon opgeslagen.
 
 ## Lag
 
@@ -263,12 +273,17 @@ einde van de taak (`shownStart` en `shownFinish` in `src/utils/taskDates.ts`):
   (1 juni 07:00–16:00 geeft 1 juni tot 2 juni; een einde op 3 juni 00:00 geeft 3 juni);
 - een mijlpaal, of een taak waarvan het einde niet na de start ligt, krijgt `endExclusive` = startdatum plus één dag.
 
+**Het venster.** `start` en `endExclusive` staan er samen of geen van beide, `endExclusive` ligt na `start`, en bij
+een mijlpaal is het venster precies één dag. Anders weigert de lezer met `invalid`.
+
 **Leesregel.** De precieze tijden in `openaec::ops::task.time` gelden alleen als hun projectie gelijk is aan `start` en
-`endExclusive`. Wijkt een van de twee af, dan heeft een ander programma de datum veranderd en wint de gedeelde datum:
-de lezer zet de geplande, vroege en late start op 00:00 van de gedeelde start als die afwijkt, en het geplande, vroege
-en late einde op 00:00 van `endExclusive` als dat afwijkt (bij een mijlpaal op de start). Hij maakt de taak handmatig
-gepland en telt haar in `ifcxSharedDatesApplied`. Voor een eigen bestand dat niemand veranderde, verandert openen
-dus geen datum. Grens: knownbug 2221.
+`endExclusive`. De lezer vergelijkt beide met één projectie van de taak zoals ze in het bestand staat. Wijkt een van de
+twee af, dan heeft een ander programma de datum veranderd en wint de gedeelde datum: een afwijkende start zet de
+geplande, vroege en late start op 00:00 van die datum, een afwijkend einde het geplande, vroege en late einde op 00:00
+van `endExclusive` (bij een mijlpaal op de start). De taak wordt handmatig gepland en telt mee in
+`ifcxSharedDatesApplied`. Twee dingen blijven een feit: de start van een taak met een werkelijke start en het einde
+van een voltooide taak. Wijkt alleen zo'n datum af, dan verandert er niets en telt de taak niet mee (knownbug 2221).
+Voor een eigen bestand dat niemand veranderde, verandert openen dus geen datum.
 
 ## Volgorde onder een ouder
 
@@ -276,7 +291,8 @@ De taken staan in de volgorde van de takenlijst. De kinderen van een ouder komen
 entries, behalve kinderen met een `place`: die komen op die plaats, en de andere vullen de open plaatsen in de volgorde
 van hun entries; een `place` buiten de lijst komt achteraan. De writer geeft alleen een `place` aan de kinderen buiten
 een langste reeks die in de takenlijst en onder de ouder in dezelfde volgorde staat (`childOrder.ts`). Een boom waarin
-`childIds` en `parentId` elkaar tegenspreken, gaat zo niet over: knownbug 2222.
+`childIds` en `parentId` elkaar tegenspreken, weigert de writer met `inconsistent` (knownbug 2222); een kring in de
+ouders weigeren writer en lezer.
 
 ## Wat de writer weigert
 
@@ -285,14 +301,22 @@ een langste reeks die in de takenlijst en onder de ouder in dezelfde volgorde st
 - met code `unsupported` en de veldnamen in `fields`, als het document iets heeft wat dit profiel nog niet draagt:
   codes, eigen velden, gebruikte taaktypes, de bibliotheek, het P6-bronarchief, de modus "datums zoals opgeslagen",
   letterlijke kalenders, een openstaande omzetting naar het minutenmodel, en elk veld van project, kalender, taak,
-  relatie, resource, toewijzing, baseline of baselinerij dat geen veldgroep draagt (`unsupportedContent.ts`). Ook een
-  taak onder een ouder die niet bestaat, een relatie naar een taak die niet bestaat, een toewijzing aan een taak of van
-  een resource die niet bestaat, een ploeg of resourcekalender die niet bestaat, twee resources, toewijzingen of
-  baselines met hetzelfde id, een actieve baseline die niet bestaat, en een vergelijking die de app zelf zou wissen
-  (een baseline die niet bestaat, de actieve, of twee keer dezelfde). STEP laat de meeste van die gevallen stil
-  vallen; IFCX weigert ze vooraf (`ifcxResourceWriter.ts`);
-- met code `self-check`, als de herlezing van de uitvoer niet lukt of een andere `planningCanon` geeft
-  (`src/services/ifc/foreign/planningCanon.ts`): de eigen controle na elke opslag (keuze T4).
+  relatie, resource, toewijzing, baseline of baselinerij dat geen veldgroep draagt (`unsupportedContent.ts`), en een
+  werkplan of werkschema zonder GlobalId van 128 bits;
+- met code `inconsistent` en de veldnamen in `fields`, als het document zichzelf tegenspreekt (`consistency.ts`): twee
+  taken, relaties of bibliotheekkalenders met hetzelfde id (`task.id`, `sequence.id`, `calendar.id`), een ouder die niet
+  bestaat of een kring in de ouders (`task.parentId`), kinderen die niet kloppen met de taken die de ouder noemen, ook
+  een kind dat niet bestaat (`task.childIds`), een relatie van of naar een taak die niet bestaat
+  (`sequence.predecessorId`, `sequence.successorId`), of een bibliotheekentry van de projectkalender met een andere
+  inhoud (`resourceCalendars`). Voor resources, toewijzingen en baselines (`resourceInconsistencies` in
+  `ifcxResourceWriter.ts`): twee resources, toewijzingen of baselines met hetzelfde id (`resource.id`,
+  `assignment.id`, `baseline.id`), een ploeg of resourcekalender die niet bestaat (`resource.parentId`,
+  `resource.calendarId`), een toewijzing aan een taak of van een resource die niet bestaat (`assignment.taskId`,
+  `assignment.resourceId`), een actieve baseline die niet bestaat (`activeBaselineId`), en een vergelijking die de app
+  zelf zou wissen: een baseline die niet bestaat, de actieve of twee keer dezelfde (`comparedBaselineIds`). STEP laat
+  de meeste van die gevallen bij schrijven of lezen stil vallen;
+- met code `self-check`, als de eigen controle na het schrijven een verschil vindt; `fields` noemt de paden van de
+  eerste verschillen (zie *Zelfcontrole*).
 
 ## Wat de lezer weigert
 
@@ -306,12 +330,19 @@ een langste reeks die in de takenlijst en onder de ouder in dezelfde volgorde st
   kop- of entryveld, `imports`, `children` of `inherits`, een attribuut van een ander, een onbekend veld in een
   `openaec::planning::`-attribuut, een pad dat geen UUID is, twee bijdragen van één attribuut op één pad, een pad
   waarvan de attributen samen geen planningsobject vormen, of niet precies één eigen werkplan;
-- `invalid`: een bekend veld met een ongeldige waarde of vorm, een verplicht veld dat ontbreekt, een verwijzing naar
-  een pad van de verkeerde soort, niet precies één werkschema, twee resources, toewijzingen of baselines met hetzelfde
-  id, een kostenresource die geen `IfcConstructionMaterialResource` is, een baselinerij die naar een object wijst dat
-  geen taak is, een eigen id in `taskIds` voor een taak die bestaat, een verwijderde baselinetaak met het id van een
-  taak die bestaat, twee actieve baselines, twee baselines op één vergelijkingsplaats, of de actieve baseline in de
-  vergelijking.
+- `invalid`: een kop zonder `dataVersion`, `author` of `timestamp`, een bestand zonder `imports` of `schemas`, een
+  eigen schema dat afwijkt van het profiel of ontbreekt voor een attribuut dat in het bestand staat, een bekend veld
+  met een ongeldige waarde of vorm (ook een dag of kloktijd die niet bestaat), een verplicht veld dat ontbreekt, een
+  verwijzing naar een pad van de verkeerde soort, twee objecten van één soort met hetzelfde interne id, een kring in
+  de ouders, een gedeeld venster dat niet klopt, een `libraryPlace` die niet klopt, of niet precies één werkschema.
+  Voor resources en baselines ook: een kostenresource die geen `IfcConstructionMaterialResource` is, een baselinerij
+  die naar een object wijst dat geen taak is, een eigen id in `taskIds` voor een taak die bestaat of twee keer voor één
+  pad, een verwijderde baselinetaak met het id van een taak die bestaat of met twee paden, twee actieve baselines, twee
+  baselines op één vergelijkingsplaats, of de actieve baseline in de vergelijking.
+
+De lezer eist dus in de kop `id`, `ifcxVersion`, `dataVersion`, `author` en `timestamp` (alle tekst), `imports` als
+lege lijst en `schemas` als object. Elk schema in `schemas` moet een eigen attribuutnaam hebben (anders `foreign`, of
+`newer-profile` voor een onbekende `openaec::ops::`-naam) en precies de definitie van het profiel.
 
 `classifyIfcx` gebruikt dezelfde regel: `own` als de lezer het bestand leest, `foreign` bij `foreign`, `not-ifcx` bij
 `not-ifcx`, en `unreadable` bij de andere codes. De lezer leest met `JSON.parse` (keuze T1); een dubbele sleutel ziet
@@ -319,16 +350,46 @@ hij niet (knownbug 2220).
 
 ## Controle van de schema's
 
-`ifcxSchemaProblems` (`schemaCheck.ts`) toetst een bestand tegen de schema's die erin staan, op dezelfde manier als de
-validator van IFC5-development maar strenger: een onbekend veld, een getal dat geen geheel getal is en `null` gelden als
-fout, en de eigen schema's moeten gelijk zijn aan die van het profiel. De controle met de echte validator van
-IFC5-development en met ifcx-explorer draait in een eigen workflow (F3-6).
+`schemaCheck.ts` is de ene plek voor twee controles die de lezer gebruikt: elke attribuutwaarde tegen de veldtabel
+(een onbekend veld, een verkeerd type, een getal dat geen geheel getal is en `null` gelden als fout), en elke definitie
+in `schemas` tegen die van het profiel. `ifcxSchemaProblems` geeft dezelfde controles als lijst, voor proeven en
+gereedschap. De controle met de echte validator van IFC5-development en met ifcx-explorer draait in een eigen workflow
+(F3-6).
+
+## Zelfcontrole
+
+Na het schrijven leest `writeIfcx` zijn eigen uitvoer terug en legt het teruggelezen model rechtstreeks naast de invoer
+(`selfCheck.ts`, besluit van de technisch beslisser over keuze T4). De vergelijking is algemeen: elk veld van de invoer
+en van het teruggelezen model telt mee, op elk niveau, met de volgorde van lijsten. Een veld dat niemand in een
+veldgroep zette, geeft dus een verschil en een weigering. Alleen de regels in `SELF_CHECK_RULES` normaliseren of laten
+iets weg, elk met een reden in de lijst zelf:
+
+| Regel | Wat | Waarom |
+|---|---|---|
+| `leeg-is-afwezig` | overal | een lege lijst, een leeg object, `null` en een niet gezet veld betekenen hetzelfde; de voorcontrole volgt dezelfde regel |
+| `schrijfroute` | `writeMode` | de keuze van de schrijfroute is geen planningsgegeven |
+| `leesmeta` | `timeModel`, `recordedFields`, `recordedTimesOrigin` en de andere meldingen van een lezer | wat een lezer bij openen meegeeft; de STEP-writer leest het niet |
+| `bronidentiteit` | `ifcSource` | de bron van een STEP-document met een vreemd deel; de codec schrijft alleen de planning |
+| `archiefopslag` | `xerSourceArchiveStorage` | heeft zonder bronarchief geen effect |
+| `nee-is-afwezig` | `minuteModelPending`, `importPristine` | onwaar betekent hetzelfde als niet gezet; waar weigert de voorcontrole |
+| `globalids` | `ifcGlobalIds` | de invoer telt met de GlobalIds die de STEP-writer zou geven, zonder die van verdwenen objecten |
+| `gebruikte-taaktypes` | `customTaskTypes` | alleen gebruikte taaktypes worden opgeslagen, zoals in STEP |
+| `geen-vergelijking` | `comparedBaselineIds` | `[null, null]` betekent: geen vergelijking |
+
+Elke regel heeft in `check-ifcx-kern.ts` een geval dat zonder die regel een verschil geeft, en de proef eist dat de
+lijst en die gevallen dezelfde regels noemen. De STEP-pariteit (`planningCanon` gelijk en dezelfde STEP-uitvoer) staat
+alleen nog in de proeven. Waar de controle draait (Ctrl+S en Opslaan als, niet Automatisch opslaan, in de Worker), kiest
+de app (F3-4).
 
 ## Uitbreiden (F3-2 en F3-3)
 
 Een nieuw gebied krijgt een eigen bestand in `src/services/ifc/ifcx/fields/` met zijn velden (sleutel, vorm, schrijven
 en lezen samen) en de domeinvelden die het draagt (`carries`), en één regel in de lijst van groepen in
-`fieldGroups.ts`. Het schema in het bestand, de controle van de lezer en de voorcontrole van de writer volgen daar
-vanzelf uit. Een nieuw soort object vraagt ook een node in de writer en in `NODE_SHAPES` van `ifcxReader.ts`; resources,
-toewijzingen en baselines hebben hun eigen writer en lezer (`ifcxResourceWriter.ts`, `ifcxResourceReader.ts`). De proeven zijn `tests/planning/check-ifcx-kern.ts` en `check-ifcx-resources.ts`; de voorbeeldbestanden in
+`fieldGroups.ts`. Het schema in het bestand, de controle van de lezer, de voorcontrole van de writer en de zelfcontrole
+volgen daar vanzelf uit; voor de zelfcontrole hoeft een nieuwe groep niets te doen. Heeft een veld een andere maar
+gelijkwaardige vorm na het teruglezen, of is het afgeleide metadata, dan komt er een regel in `SELF_CHECK_RULES` met een
+reden, en een geval in `SELF_CHECK_WITNESSES` in de proef. Een nieuw soort object vraagt ook een node in de writer en
+in `NODE_SHAPES` van `ifcxReader.ts`; resources, toewijzingen en baselines hebben hun eigen writer en lezer
+(`ifcxResourceWriter.ts`, `ifcxResourceReader.ts`). De proeven zijn `tests/planning/check-ifcx-kern.ts` en
+`check-ifcx-resources.ts`; de voorbeeldbestanden in
 `tests/fixtures/ifcx/eigen/` maak je opnieuw met `OPS_IFCX_FIXTURES_WRITE=1 bash tests/planning/run.sh check-ifcx-kern.ts`.

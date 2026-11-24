@@ -367,6 +367,13 @@ test('een resource krijgt bij een gedeelde bewaarde GlobalId voorrang op een bib
   const calendarPaths = document.data.filter(entry => 'openaec::planning::calendar' in entry.attributes).map(entry => entry.path);
   assert.equal(resourcePaths[2], compactGlobalIdToUuid(equipment));
   assert.equal(calendarPaths[1], compactGlobalIdToUuid(library));
+  const text = writeIfcx(input, CLOCK);
+  const back = readIfcx(encode(text));
+  assertSameDomain(back, input);
+  assert.equal(back.ifcGlobalIds!['res:r-eq'], shared);
+  assert.equal(back.ifcGlobalIds!['cal:libcal'], library, 'de herlezing houdt de GlobalId die de writer uitgaf');
+  assert.equal(writeIFCForComparison(back), stepText);
+  assert.equal(writeIfcx(back, CLOCK), text);
 });
 
 function appPlan(): ImportResult {
@@ -390,9 +397,7 @@ function appPlan(): ImportResult {
   S().deleteTask(afbouw);
   const input = buildWriteIFCInput(S(), 'planOnly');
   assert.ok(input.baselines!.some(b => b.tasks.some(row => row.taskId === afbouw)), 'de baseline houdt de verwijderde taak');
-  const libraryCalendars = (input.resourceCalendars ?? []).filter(calendar => calendar.id !== input.calendar.id);
-  assert.deepEqual((input.resourceCalendars ?? []).filter(calendar => calendar.id === input.calendar.id), [input.calendar]);
-  return { ...withoutF3_3(input), resourceCalendars: libraryCalendars };
+  return withoutF3_3(input);
 }
 
 test('een planning uit de app zelf, met ploeg, kosten, twee baselines en een verwijderde taak', () => {
@@ -405,7 +410,23 @@ test('een planning uit de app zelf, met ploeg, kosten, twee baselines en een ver
   assert.ok(entriesWith(document, 'openaec::ops::task').every(entry => entry.attributes['openaec::ops::task'].resourceIds === undefined));
 });
 
-const WRITE_REFUSALS: readonly { name: string; change: (plan: ImportResult) => ImportResult; fields: string[] }[] = [
+for (const [name, full] of fullExamples) {
+  test(`${name}: geopend en opgeslagen via de store, zoals de app het doet`, () => {
+    const { store } = createAppStoreContext();
+    store.getState().applyLoadedProject(withoutF3_3(full), { filePath: null, recompute: false });
+    const input = withoutF3_3(buildWriteIFCInput(store.getState(), 'planOnly'));
+    assert.equal(input.resources.length, full.resources.length);
+    assert.equal(input.assignments.length, full.assignments.length);
+    assert.equal((input.baselines ?? []).length, (full.baselines ?? []).length);
+    const back = readIfcx(encode(writeIfcx(input, CLOCK)));
+    assertSameDomain(back, input);
+    assert.equal(planningCanon(back), planningCanon(input));
+  });
+}
+
+const WRITE_REFUSALS: readonly {
+  name: string; change: (plan: ImportResult) => ImportResult; code?: 'unsupported'; fields: string[];
+}[] = [
   { name: 'een toewijzing aan een taak die niet bestaat', fields: ['assignment.taskId'],
     change: p => ({ ...p, assignments: [...p.assignments, { id: 'los', taskId: 'weg', resourceId: 'r-mem', unitsPerDay: 1 }] }) },
   { name: 'een toewijzing van een resource die niet bestaat', fields: ['assignment.resourceId'],
@@ -426,7 +447,7 @@ const WRITE_REFUSALS: readonly { name: string; change: (plan: ImportResult) => I
     change: p => ({ ...p, comparedBaselineIds: ['bl-1', null] }) },
   { name: 'een vergelijking met een baseline die niet bestaat', fields: ['comparedBaselineIds'],
     change: p => ({ ...p, comparedBaselineIds: [null, 'weg'] }) },
-  { name: 'een onbekend veld op een resource, toewijzing, baseline of baselinetaak',
+  { name: 'een onbekend veld op een resource, toewijzing, baseline of baselinetaak', code: 'unsupported',
     fields: ['assignment.extra', 'baseline.extra', 'baseline.tasks.extra', 'resource.extra'],
     change: p => ({
       ...p, resources: p.resources.map((r, i) => i === 0 ? { ...r, extra: 1 } as Resource : r),
@@ -436,9 +457,9 @@ const WRITE_REFUSALS: readonly { name: string; change: (plan: ImportResult) => I
 ];
 
 for (const refusal of WRITE_REFUSALS) {
-  test(`de writer weigert ${refusal.name}`, () => {
+  test(`de writer weigert ${refusal.name} met code ${refusal.code ?? 'inconsistent'}`, () => {
     const error = writeRefusal(refusal.change(fullPlan()));
-    assert.equal(error.code, 'unsupported', error.message);
+    assert.equal(error.code, refusal.code ?? 'inconsistent', error.message);
     assert.deepEqual([...error.fields].sort(), refusal.fields);
   });
 }
@@ -510,18 +531,13 @@ for (const refusal of READ_REFUSALS) {
   });
 }
 
-test('bekende grens 2225: een baseline met de velden in een andere volgorde weigert de zelfcontrole', () => {
+test('een baseline met de velden in een andere volgorde komt terug in de volgorde van het type', () => {
   const plan = fullPlan();
   const [{ id, name, ...rest }, ...others] = plan.baselines!;
-  const refusal = writeRefusal({ ...plan, baselines: [{ name, id, ...rest }, ...others] });
-  assert.equal(refusal.code, 'self-check');
-});
-
-test('bekende grens 2226: een resource en een kalender met dezelfde bewaarde GlobalId weigert de zelfcontrole', () => {
-  const plan = fullPlan();
-  const shared = ifcGuid128('gedeeld');
-  const refusal = writeRefusal({ ...plan, ifcGlobalIds: { ...plan.ifcGlobalIds, 'res:r-eq': shared, 'cal:libcal': shared } });
-  assert.equal(refusal.code, 'self-check');
+  const input = { ...plan, baselines: [{ name, id, ...rest }, ...others] };
+  const back = readIfcx(encode(writeIfcx(input, CLOCK)));
+  assert.deepEqual(back.baselines, input.baselines);
+  assert.deepEqual(Object.keys(back.baselines![0]), ['id', 'name', 'createdAt', 'tasks', 'projectEnd', 'projectDuration']);
 });
 
 function withFixedAssignmentIds(plan: ImportResult): ImportResult {

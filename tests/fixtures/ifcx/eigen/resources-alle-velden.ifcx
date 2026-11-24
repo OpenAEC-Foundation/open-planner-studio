@@ -480,6 +480,10 @@
               "dataType": "String",
               "optional": true
             },
+            "libraryPlace": {
+              "dataType": "Integer",
+              "optional": true
+            },
             "workDays": {
               "dataType": "Array",
               "arrayRestrictions": {
