@@ -35,16 +35,7 @@ export const IDENTITY_KINDS: readonly IdentityKind[] = [
   { kind: 'wp', area: 'workplan', objects: model => [{ id: model.project.id, references: [] }] },
   { kind: 'ws', area: 'schedule', objects: model => [{ id: model.project.id, references: [] }] },
   { kind: 'cal', area: 'calendar', objects: model => calendarsWithIdentity(model).map(calendar => ({ id: calendar.id, references: [] })) },
-  {
-    kind: 'task', area: 'task',
-    objects: model => model.tasks.map(task => ({
-      id: task.id,
-      references: [
-        ...(task.parentId !== null && task.parentId !== undefined ? [{ field: 'parentId', kind: 'task' as const, id: task.parentId }] : []),
-        ...(task.childIds ?? []).map(id => ({ field: 'childIds', kind: 'task' as const, id })),
-      ],
-    })),
-  },
+  { kind: 'task', area: 'task', objects: model => model.tasks.map(task => ({ id: task.id, references: [] })) },
   {
     kind: 'seq', area: 'sequence',
     objects: model => model.sequences.map(sequence => ({
@@ -102,8 +93,10 @@ export function identityProblems(model: PlanningModel, globalIdOf: GlobalIdOfObj
     }
   }
   const parentOf = new Map<string, string>();
+  const tasks = idsByKind.get('task')!;
   for (const task of model.tasks) {
     for (const child of new Set(task.childIds ?? [])) {
+      if (!tasks.has(child)) continue;
       const first = parentOf.get(child);
       if (first === undefined) parentOf.set(child, task.id);
       else problems.push({ field: 'task.childIds', detail: `Taak ${child} staat in de kinderlijst van twee ouders: ${first} en ${task.id}` });

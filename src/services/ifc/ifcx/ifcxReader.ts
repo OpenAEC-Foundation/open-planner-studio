@@ -120,7 +120,9 @@ function nodesOf(data: readonly unknown[]): IfcxNode[] {
 function assertProfileVersion(nodes: readonly IfcxNode[]): void {
   for (const node of nodes) {
     const document = node.attributes.get(ATTRIBUTE.document);
+    if (document === undefined) continue;
     const version = isPlainObject(document) ? document.formatVersion : undefined;
+    if (typeof version !== 'string') throw invalid('Het bestand noemt geen profielversie', { path: node.path, attribute: ATTRIBUTE.document, field: 'formatVersion' });
     const major = typeof version === 'string' ? /^(\d+)\./.exec(version)?.[1] : undefined;
     if (major !== undefined && Number(major) > OPS_PROFILE_MAJOR) {
       throw new IfcxReadError('newer-profile', `Profielversie ${version} is nieuwer dan deze app kent`, { path: node.path, attribute: ATTRIBUTE.document });
@@ -258,13 +260,6 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   const projectCalendar = calendarTargets.find(target => target.isProjectCalendar)!.calendar;
   project.calendarId = projectCalendar.id;
   const resourceCalendars: WorkCalendar[] = calendarTargets.filter(target => !target.isProjectCalendar).map(target => target.calendar);
-  for (const target of calendarTargets) {
-    if (target.libraryPlace === undefined) continue;
-    if (!target.isProjectCalendar || target.libraryPlace > resourceCalendars.length) {
-      throw invalid('Een plaats in de bibliotheek die niet klopt', { path: target.path, attribute: ATTRIBUTE.opsCalendar, field: 'libraryPlace' });
-    }
-    resourceCalendars.splice(target.libraryPlace, 0, projectCalendar);
-  }
 
   const taskTargets: TaskReadTarget[] = of('task').map(node => {
     const target: TaskReadTarget = { task: emptyTask(), path: node.path };

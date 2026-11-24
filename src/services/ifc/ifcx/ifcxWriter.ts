@@ -8,7 +8,7 @@ import { unsupportedContent } from './unsupportedContent';
 import { stepRoundtrip } from './stepRoundtrip';
 import { selfCheckDifferences } from './selfCheck';
 import { IfcxWriteRefusedError } from './ifcxErrors';
-import type { IfcxAttributeName } from './profile';
+import { PLANNING_NAMESPACE, type IfcxAttributeName } from './profile';
 import { readIfcxText } from './ifcxReader';
 import { composeIfcxDocument, globalIdsOf, type IfcxDocument } from './projection';
 
@@ -18,11 +18,14 @@ function refused(code: 'unsupported' | 'inconsistent' | 'invalid', details: read
   return new IfcxWriteRefusedError(code, details.join('; '), [...new Set(fields)]);
 }
 
+const isSharedAttribute = (name: string) => name.startsWith(PLANNING_NAMESPACE);
+
 function invalidValuesIn(document: IfcxDocument): IfcxWriteRefusedError | undefined {
   const header = checkValue(HEADER_VALUE, document.header);
   if (header) return refused('invalid', [`Ongeldige kop: ${header.kind === 'invalid' ? header.detail : 'onbekend veld'}`], [`header.${header.field}`]);
   for (const entry of document.data) {
-    for (const [name, value] of Object.entries(entry.attributes) as [IfcxAttributeName, Record<string, unknown>][]) {
+    const attributes = Object.entries(entry.attributes) as [IfcxAttributeName, Record<string, unknown>][];
+    for (const [name, value] of [...attributes.filter(([name]) => !isSharedAttribute(name)), ...attributes.filter(([name]) => isSharedAttribute(name))]) {
       const problem = attributeValueProblem(entry.path, name, value);
       if (problem) return refused('invalid', [`${name}: ${problem.detail}`], [`${name}.${problem.place.field ?? ''}`]);
     }

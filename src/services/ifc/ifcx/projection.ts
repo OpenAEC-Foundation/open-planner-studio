@@ -3,7 +3,6 @@ import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { writeFields } from './fieldTable';
 import { identityOfGlobalId, type IfcxIdentity } from './globalIdUuid';
-import { libraryCalendarsWrittenByStep } from './stepGlobalIds';
 import { intendedGlobalIds, type GlobalIdOfObject, type PlanningModel } from './identity';
 import { placesNeededForOrder } from './childOrder';
 import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from './fieldGroups';
@@ -67,13 +66,9 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
   const scheduleIdentity = identityOfGlobalId(globalIdOf('ws', project.id));
   const headerAuthor = project.author || DEFAULT_HEADER_AUTHOR;
 
-  const libraryPlace = (input.resourceCalendars ?? []).findIndex(calendar => calendar.id === input.calendar.id);
-  const calendars: { calendar: WorkCalendar; isProjectCalendar: boolean; identity: IfcxIdentity; libraryPlace?: number }[] = [
-    {
-      calendar: input.calendar, isProjectCalendar: true, identity: identityOfGlobalId(globalIdOf('cal', input.calendar.id)),
-      ...(libraryPlace >= 0 ? { libraryPlace } : {}),
-    },
-    ...libraryCalendarsWrittenByStep(input).filter(calendar => calendar.id !== input.calendar.id).map(calendar => ({
+  const calendars: { calendar: WorkCalendar; isProjectCalendar: boolean; identity: IfcxIdentity }[] = [
+    { calendar: input.calendar, isProjectCalendar: true, identity: identityOfGlobalId(globalIdOf('cal', input.calendar.id)) },
+    ...(input.resourceCalendars ?? []).map(calendar => ({
       calendar, isProjectCalendar: false, identity: identityOfGlobalId(globalIdOf('cal', calendar.id)),
     })),
   ];

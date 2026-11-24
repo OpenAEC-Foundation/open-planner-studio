@@ -27,7 +27,6 @@ export interface TaskReadTarget {
 }
 
 type TaskField = IfcxField<TaskWriteSource, TaskReadTarget>;
-const TASK_STATUSES = ['NOT_STARTED', 'STARTED', 'COMPLETED'] as const satisfies readonly TaskStatus[];
 type TimeField = IfcxField<TaskTime, TaskTime>;
 
 export function derivedTaskStatus(time: Pick<TaskTime, 'actualStart' | 'actualFinish' | 'completion'>): TaskStatus {
@@ -59,9 +58,6 @@ export const TASK_TIME_FIELDS: readonly TimeField[] = [
   timeField('totalFloatMinutes', REAL, true),
   timeField('freeFloatMinutes', REAL, true),
   timeField('isCritical', BOOLEAN),
-  timeField('interferingFloat', REAL, true),
-  timeField('isNearCritical', BOOLEAN, true),
-  timeField('floatPath', REAL, true),
   timeField('actualStart', LOCAL_MOMENT_OR_EMPTY, true),
   timeField('actualFinish', LOCAL_MOMENT_OR_EMPTY, true),
   timeField('actualDuration', REAL, true),
@@ -200,12 +196,10 @@ export const TASK_OPS_FIELDS: readonly TaskField[] = [
   {
     key: 'time', value: objectOf(membersOf(TASK_TIME_FIELDS)),
     write: s => writeFields(TASK_TIME_FIELDS, s.task.time),
-    read: (v, t) => readFields(TASK_TIME_FIELDS, v as Record<string, unknown>, t.task.time),
-  },
-  {
-    key: 'status', value: enumOf(TASK_STATUSES), optional: true,
-    write: s => (s.task.status !== derivedTaskStatus(s.task.time) ? s.task.status : undefined),
-    read: (v, t) => { t.task.status = (v as TaskStatus | undefined) ?? derivedTaskStatus(t.task.time); },
+    read: (v, t) => {
+      readFields(TASK_TIME_FIELDS, v as Record<string, unknown>, t.task.time);
+      t.task.status = derivedTaskStatus(t.task.time);
+    },
   },
 
   {
@@ -232,11 +226,6 @@ export const TASK_OPS_FIELDS: readonly TaskField[] = [
     key: 'calendar', value: REFERENCE, optional: true,
     write: s => s.calendarPath,
     read: (v, t) => { t.calendarPath = v as string | undefined; },
-  },
-  {
-    key: 'calendarId', value: NON_EMPTY_TEXT, optional: true,
-    write: s => (s.task.calendarId !== undefined && s.calendarPath === undefined ? s.task.calendarId : undefined),
-    read: (v, t) => setOptional(t.task, 'calendarId', v as string | undefined),
   },
 ];
 
