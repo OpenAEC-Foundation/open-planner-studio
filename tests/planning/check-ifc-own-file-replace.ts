@@ -3212,12 +3212,17 @@ const exportOf = async (c: Case) => {
 };
 const exportedFrom = (c: Case) => {
   const s = c.store.getState();
-  return { source: s.ifcSource, mark: s.foreignSourceMark, literal: s.ifcLiteralCalendarIds, path: s.filePath, dirty: s.isDirty };
+  return {
+    source: s.ifcSource, mark: s.foreignSourceMark, literal: s.ifcLiteralCalendarIds, path: s.filePath, dirty: s.isDirty,
+    known: s.knownTargetFingerprint,
+  };
 };
 function exportLeftDocument(c: Case, before: ReturnType<typeof exportedFrom>) {
   const now = exportedFrom(c);
   assert(now.source === before.source && now.mark === before.mark && now.literal === before.literal,
     'de export laat bron, kenmerk en kalenderkeuzes staan');
+  assert(before.known !== null, 'het eigen bestand had een bekende versie');
+  assert.deepEqual(now.known, before.known, 'de bekende versie van het eigen bestand blijft staan');
   assert.deepEqual([now.path, now.dirty, now.mark?.filePath], [c.path, true, c.path], 'het document houdt zijn pad en blijft gewijzigd');
 }
 async function manifestStillOwnSource(c: Case) {
