@@ -4043,19 +4043,40 @@ en noem het in je rapport of PR-tekst.
      wat het tabblad net opsloeg.** Begint een openactie te lezen vlak voordat het tabblad met hetzelfde bestand opslaat
      (1909, 1837), dan krijgt ze de oude bytes terwijl het tabblad de nieuwe versie kent. De vergelijking ziet een
      verschil en de app wisselt met de strook. De tekst klopt dan niet. Verloren gaat er niets: het tabblad houdt zijn
-     inhoud, en zijn eigen versie staat op schijf. Proeven: B7 in `check-one-file-one-tab.ts`, "1837: een al begonnen lezing" in
+     inhoud, en zijn eigen versie staat op schijf. Een volgende Ctrl+S schrijft gewoon, want op schijf staat de versie
+     die het tabblad kent. *Nieuwe versie laden* (#1201) leest dan de eigen versie, ziet dat die gelijk is aan wat het
+     tabblad kent, en haalt alleen de strook weg. Proeven: B7 in `check-one-file-one-tab.ts`, "1837: een al begonnen lezing" in
      `check-ifc-own-file-replace.ts`. Richting: het verschil alleen melden als de lezing na de laatste eigen opslag
      begon. — B (proef)
 2245. **VERVOLG (#1121, flag aan): een oudere lezing kan een nieuwere strook wissen.** Het tabblad kent versie A. Twee
      openacties van hetzelfde bestand lopen door elkaar, en tussen hun lezingen slaat een ander programma versie B op.
      Rondt de tweede eerst af, dan zet zij de strook (B verschilt van A). Rondt daarna de eerste af, met A, dan is die
      lezing gelijk aan wat het tabblad kent en wist zij de strook, terwijl B op schijf staat. Op de site geldt hetzelfde
-     voor twee opvragingen via Recent. Er gaat geen werk verloren: het tabblad houdt zijn inhoud, en Ctrl+S weigert
-     daarna met de bestaande melding van de bewaakte opslag (#1174) zolang het tabblad zijn versie kent. Zeldzaam: twee
+     voor twee opvragingen via Recent. Er gaat geen werk verloren: het tabblad houdt zijn inhoud. Lokaal weigert Ctrl+S
+     daarna met de bestaande melding van de bewaakte opslag (#1174), zolang het tabblad zijn versie kent. Op de site
+     geldt de siteconflictroute: Ctrl+S stuurt de oude basisversie mee, en de site weigert met een conflictmelding of
+     bewaart de eigen wijzigingen met een melding in een conflictkopie (`siteHost.ts`). Zeldzaam: twee
      overlappende openacties en een externe opslag ertussen. Gevonden in ronde 10 van de review van #1121 (Sol).
      Richting: een volgnummer per openactie, genomen vóór het lezen; een gelijke lezing wist de strook alleen als geen
      latere openactie voor hetzelfde doel een verschil meldde. Dat raakt alle zes openroutes, dus een eigen PR. — B (code
      gelezen, niet nagespeeld)
+
+2246. **Bekende grens (#1201, flag aan): verandert het bestand opnieuw terwijl de vraag van *Nieuwe versie laden*
+     openstaat, dan opent de app een versie die net niet de nieuwste is.** De knop leest de nieuwe versie vóór de vraag
+     (*Niet opslaan* of *Annuleren*). Slaat een ander programma intussen nog een versie op, dan opent *Niet opslaan* de
+     gelezen versie. De vingerafdruk van het nieuwe tabblad komt van de gelezen bytes, dus bij het volgende openen komt
+     de strook terug en weigert Ctrl+S met de bestaande melding van de bewaakte opslag (#1174); er gaat niets ongemerkt
+     verloren. Op main gebeurt hetzelfde met het kruisje en daarna Recent, als het bestand tussen die twee verandert.
+     Besluit van Trias, 24 november 2026: bekende grens, niet oplossen. — B (code)
+
+2255. **Haperende proef, buiten #1121: `check-ifc-document-save.ts` "stap 8, fixronde 5: ingetrokken schrijftoestemming
+     bij de beurt geeft de melding van main; daarna één versie (flag aan)" faalde één keer in de tijdzone
+     `Pacific/Auckland`.** De wachtvoorwaarde "de tik met ingetrokken toestemming" (`turnUntil`, hooguit 2000
+     `setImmediate`-rondes) liep af; de tweede poging op dezelfde commit was groen in alle tijdzones. Het blok en de
+     opslagcontroller zijn gelijk aan main; een reproduceerbare fout op main is niet vastgesteld (Sol, ronde 11 van
+     #1121). [Rode poging](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/45341081050/job/138264617560)
+     · [Groene poging](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/45341081050/job/138273222201)
+     — S
 
 2205. **VERVOLG (#1121): de beschrijving van `planner_import_schedule` noemt de route "naar het open tabblad" ook als de
      featureflag uit staat.** De toolbeschrijving is één vaste tekst in `src/services/mcp/tools/fileTools.ts`; ze zegt
