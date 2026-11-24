@@ -2493,6 +2493,15 @@ en noem het in je rapport of PR-tekst.
      dezelfde writer als de herstelsnapshot (`backupService.ts`), maar zonder `snapshotIdentities`: een object met een
      gedeelde GlobalId komt bij terugzetten terug met het id van zijn nieuwe GlobalId, zoals op main. Wat de planner
      daarvan merkt, is niet gemeten. 9c (knownbug 1575) kan de koppeling van `recoveryIdentity.ts` meenemen. — S
+2238. **VERVOLG (gemaakt geval): na twee keer vasthouden herstelt de browser de oudste versie van een document.**
+     `loadWeb` (`recoveryStore.ts`) leest eerst de huidige sessie en dan de vastgehouden generaties in de volgorde
+     waarin ze werden vastgehouden, de oudste eerst; een document-id dat al gezien is, slaat hij over. Staat hetzelfde
+     document in twee vastgehouden generaties en heeft de huidige sessie nog geen manifest, dan komt de oudste versie
+     terug. Gemeten in een tussenversie van `check-recovery-identiteit-reeksen.ts` (browser, reeks 17: twee keer
+     `holdRecoveryForLater` met hetzelfde open document, het herstel las de snapshot van vóór de eerste rotatie). In de
+     app vraagt dit een herstel waarin een ander document mislukte (vasthouden met de herstelde documenten open), een
+     crash, uitstellen en opnieuw laden vóór de eerste ronde. Hetzelfde op main; buiten de koppeling van PR 11. De
+     desktop (`holdTauri`) is niet beproefd. — B
 1575. **VERVOLG (#804, 9c): een MCP-backup op het open document terugzetten met de actuele gebouwmodelbron.**
      §4.12/E31 blijft een eigen onderdeel 9c op de eindlijst, niet verplicht vóór de flag standaard aan mag.
      De backup bevat planning en een bronkenmerk, geen gebouwmodelbytes. De kleine stap 9d zet bij het openen

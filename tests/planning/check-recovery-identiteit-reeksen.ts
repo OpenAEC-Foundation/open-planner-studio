@@ -52,11 +52,10 @@ function prng(seed: number) {
   };
 }
 
-function sequences(kinds: readonly string[], first: readonly string[], seed: number, length: number, minimum: number) {
+function sequences(kinds: readonly string[], fixed: readonly (readonly string[])[], seed: number, length: number, minimum: number) {
   const random = prng(seed), covered = new Set<string>(), out: string[][] = [];
   const cover = (steps: readonly string[]) => { for (let i = 1; i < steps.length; i++) covered.add(`${steps[i - 1]}>${steps[i]}`); };
-  out.push([...first]);
-  cover(first);
+  for (const steps of fixed) { out.push([...steps]); cover(steps); }
   while (covered.size < kinds.length ** 2 || out.length < minimum) {
     const steps: string[] = [];
     for (let i = 0; i < length; i++) {
@@ -148,7 +147,8 @@ async function runSequence(route: 'browser' | 'desktop', steps: readonly string[
       .filter(id => id.endsWith('-dup-2')).map(id => ({ kind, first: id.slice(0, -'-dup-2'.length), second: id })));
     assert.equal(duplicates.length, 3, 'een paar per soort: resource, kalender en relatie');
     const tracker = new RecoveryDeltaTracker();
-    let flag = true, diskFlag: boolean | null = null;
+    let flag = true, latest = null as { ifc: string; field: string; flag: boolean } | null;
+    const fieldText = (field: unknown) => JSON.stringify(field ?? null);
     const present = (kind: 'res' | 'cal' | 'seq', id: string) => {
       const s = live.getState();
       return (kind === 'res' ? s.resources : kind === 'cal' ? s.calendars : s.sequences).some(o => o.id === id);
@@ -156,8 +156,10 @@ async function runSequence(route: 'browser' | 'desktop', steps: readonly string[
     const round = async () => {
       const docs = live.getState().getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, flag));
       try {
-        const wrote = await runRecoveryTick(tracker, live.getState().activeDocumentId, docs, undefined, () => true, () => {});
-        if (wrote) diskFlag = flag;
+        if (await runRecoveryTick(tracker, live.getState().activeDocumentId, docs, undefined, () => true, () => {})) {
+          const written = (await loadRecovery()).docs.find(d => d.id === modelId);
+          latest = written ? { ifc: written.ifc, field: fieldText(written.snapshotIdentities), flag } : null;
+        }
         return 'geslaagd';
       } catch (error) {
         assert.match(String(error), /schijffout|QuotaExceeded|quotum/, `${route} reeks ${n}: alleen de ingebrachte schrijffout`);
@@ -190,7 +192,7 @@ async function runSequence(route: 'browser' | 'desktop', steps: readonly string[
         tracker.forgetPersisted();
       } else if (step === 'opruimen') {
         await tracker.runExclusive(async () => { try { await clearOwnRecovery(); } finally { tracker.forgetPersisted(); } });
-        if (ipc) diskFlag = null;
+        if (ipc) latest = null;
       } else if (step === 'flag') {
         flag = !flag;
         live.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; });
@@ -214,7 +216,8 @@ async function runSequence(route: 'browser' | 'desktop', steps: readonly string[
       if (wrong.length === 0) { verdicts.eigen++; continue; }
       const main = await readRecoveryDocument({ ...planOnly, snapshotIdentities: undefined }, loaded.archives, flag);
       assert.deepEqual(planning(read), planning(main), `${label}: een herstel dat niet het eigen is, is precies dat van main (${wrong.join('; ')})`);
-      assert(!(flag && diskFlag === true), `${label}: na een geslaagde ronde met de flag aan herstelt elk object zijn eigen id (${wrong.join('; ')})`);
+      const newest = latest !== null && latest.ifc === stored.ifc && latest.field === fieldText(stored.snapshotIdentities);
+      assert(!(flag && newest && latest?.flag), `${label}: de laatst geschreven versie, geschreven met de flag aan, herstelt elk object zijn eigen id (${wrong.join('; ')})`);
       verdicts.main++;
     }
   } finally {
@@ -223,11 +226,17 @@ async function runSequence(route: 'browser' | 'desktop', steps: readonly string[
   }
 }
 
-const web = sequences(WEB_KINDS, ['ronde', 'verschuif', 'mislukt:snapshot', 'terug', 'tab'], 804, 12, 12);
+const web = sequences(WEB_KINDS, [
+  ['ronde', 'verschuif', 'mislukt:snapshot', 'terug', 'tab'],
+  ['flag', 'ronde', 'flag', 'ronde'],
+], 804, 12, 12);
 for (const [n, steps] of web.list.entries()) await runSequence('browser', steps, n);
 const webSteps = web.list.reduce((sum, steps) => sum + steps.length, 0);
 console.log(`BROWSER: ${web.list.length} reeksen, ${webSteps} stappen, ${web.pairs} van ${WEB_KINDS.length ** 2} paren van opeenvolgende stappen.`);
-const disk = sequences(DESKTOP_KINDS, ['ronde', 'verschuif', 'mislukt:manifest-openen', 'terug', 'tab'], 1198, 12, 12);
+const disk = sequences(DESKTOP_KINDS, [
+  ['ronde', 'verschuif', 'mislukt:manifest-openen', 'terug', 'tab'],
+  ['flag', 'ronde', 'flag', 'ronde'],
+], 1198, 12, 12);
 for (const [n, steps] of disk.list.entries()) await runSequence('desktop', steps, n);
 const diskSteps = disk.list.reduce((sum, steps) => sum + steps.length, 0);
 console.log(`DESKTOP: ${disk.list.length} reeksen, ${diskSteps} stappen, ${disk.pairs} van ${DESKTOP_KINDS.length ** 2} paren van opeenvolgende stappen.`);
