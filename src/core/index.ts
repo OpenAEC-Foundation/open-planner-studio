@@ -11,7 +11,8 @@ import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { readIfcBytes } from '@/services/ifc/foreign/ifcBytesRoute';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
-import { planningCanon, planningDifference as firstPlanningDifference } from '@/services/ifc/foreign/planningCanon';
+import { utf8BomLength } from '@/services/ifc/foreign/stepScanner';
+import { planningCanon, planningDifferencePath } from '@/services/ifc/foreign/planningCanon';
 import { planningIdentityInput } from '@/services/ifc/foreign/planningIdentity';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -55,7 +56,6 @@ export class PlannerCoreError extends Error {
 /** Een STEP-bestand begint (na een eventuele BOM en witruimte) met deze kop. */
 const STEP_HEADER = 'ISO-10303-21;';
 const STEP_HEADER_BYTES = new TextEncoder().encode(STEP_HEADER);
-const UTF8_BOM = [0xef, 0xbb, 0xbf] as const;
 const ASCII_WHITESPACE: ReadonlySet<number> = new Set([0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x20]);
 
 const BYTES_ROUTE_FLAGS: FeatureFlagValues = { ifcForeignContent: true };
@@ -77,7 +77,8 @@ export async function openIfc(text: string): Promise<PlannerDocument> {
   if (!body.startsWith(STEP_HEADER)) {
     throw new PlannerCoreError('INVALID_INPUT', `IFC input must start with "${STEP_HEADER}"`);
   }
-  const opened = openParsed(await readOrFail(() => readIFCWithXerReconstruction(body)));
+  const clock = new Date().toISOString();
+  const opened = openParsed(await readOrFail(() => readIFCWithXerReconstruction(body, {}, { projectTimestampFallback: { createdAt: clock, modifiedAt: clock } })), clock);
   // T3: deze tekst-API bewaart nog geen vreemde bytes. Rekenen mag, verliesgevende IFC-uitvoer niet.
   const inputScan = scanForeignTargetBytes(new TextEncoder().encode(body));
   const refusal = plainWriteRefusal(inputScan);
@@ -103,10 +104,11 @@ export async function openIfcBytes(bytes: Uint8Array): Promise<PlannerDocument> 
 async function documentKeepingForeignContent(bytes: Uint8Array): Promise<PlannerDocument | null> {
   if (!startsWithStepHeader(bytes)) return null;
   let opened: OpenedCoreDocument;
+  const clock = new Date().toISOString();
   try {
-    const parsed = await readIfcBytes(bytes, {}, { createWorker: () => null });
+    const parsed = await readIfcBytes(bytes, {}, { createWorker: () => null, projectTimestampFallback: { createdAt: clock, modifiedAt: clock } });
     if (!hasForeignContent(parsed.ifcSource)) return null;
-    opened = openParsed(parsed, BYTES_ROUTE_FLAGS);
+    opened = openParsed(parsed, clock, BYTES_ROUTE_FLAGS);
   } catch {
     return null;
   }
@@ -125,11 +127,9 @@ async function documentKeepingForeignContent(bytes: Uint8Array): Promise<Planner
       }
       throw new PlannerCoreError('IFC_WRITE_FAILED', `Could not write IFC: ${errorText(err)}`);
     }
-    if (output.prepared) {
-      const keptSource = output.prepared.bytes === s.ifcSource?.bytes;
-      return keptSource ? output.prepared.bytes.slice() : output.prepared.bytes;
-    }
-    return output.bytes ?? new TextEncoder().encode(output.content);
+    if (!output.prepared) throw new PlannerCoreError('IFC_WRITE_FAILED', 'Could not write IFC: the foreign content was not merged');
+    const keptSource = output.prepared.bytes === s.ifcSource?.bytes;
+    return keptSource ? output.prepared.bytes.slice() : output.prepared.bytes;
   };
   return plannerDocument(opened, { toIfc, toIfcBytes });
 }
@@ -143,7 +143,7 @@ function writeRefused(reason: IfcWriteRefusalReason, message: string): PlannerCo
 }
 
 function startsWithStepHeader(bytes: Uint8Array): boolean {
-  let at = UTF8_BOM.every((b, i) => bytes[i] === b) ? UTF8_BOM.length : 0;
+  let at = utf8BomLength(bytes);
   while (at < bytes.length && ASCII_WHITESPACE.has(bytes[at])) at++;
   return STEP_HEADER_BYTES.every((b, i) => bytes[at + i] === b);
 }
@@ -160,9 +160,10 @@ async function readOrFail(read: () => Promise<ImportResult>): Promise<ImportResu
 interface OpenedCoreDocument {
   readonly state: () => AppState;
   readonly importWarnings: readonly ScheduleWarning[];
+  readonly clock: string;
 }
 
-function openParsed(parsed: ImportResult, featureFlags?: FeatureFlagValues): OpenedCoreDocument {
+function openParsed(parsed: ImportResult, clock: string, featureFlags?: FeatureFlagValues): OpenedCoreDocument {
   if (parsed.tasks.length === 0) {
     throw new PlannerCoreError('NO_TASKS', 'The IFC file contains no tasks');
   }
@@ -189,7 +190,7 @@ function openParsed(parsed: ImportResult, featureFlags?: FeatureFlagValues): Ope
     importWarnings.push({ code: 'MINUTE_MODEL_CONVERTED', ids: [...conversion.shifted],
       maxShiftWorkdays: conversion.maxWorkdays });
   }
-  return { state: () => ctx.store.getState(), importWarnings };
+  return { state: () => ctx.store.getState(), importWarnings, clock };
 }
 
 function plainIfc(s: AppState): string {
@@ -200,20 +201,25 @@ function plainIfc(s: AppState): string {
   }
 }
 
-const documentStates = new WeakMap<PlannerDocument, () => AppState>();
+const openedDocuments = new WeakMap<PlannerDocument, OpenedCoreDocument>();
+const PROJECT_CLOCK_FIELDS = ['createdAt', 'modifiedAt'] as const;
 
 export function planningDifference(a: PlannerDocument, b: PlannerDocument): string | null {
-  const stateOfA = documentStates.get(a);
-  const stateOfB = documentStates.get(b);
-  if (!stateOfA || !stateOfB) {
+  const openedA = openedDocuments.get(a);
+  const openedB = openedDocuments.get(b);
+  if (!openedA || !openedB) {
     throw new PlannerCoreError('INVALID_INPUT', 'planningDifference compares two documents opened by this package');
   }
-  const inputA = buildWriteIFCInput(stateOfA(), 'merge');
-  const writtenB = buildWriteIFCInput(stateOfB(), 'merge');
-  const inputB = { ...writtenB, project: { ...writtenB.project, createdAt: inputA.project.createdAt, modifiedAt: inputA.project.modifiedAt } };
+  const inputA = buildWriteIFCInput(openedA.state(), 'merge');
+  const writtenB = buildWriteIFCInput(openedB.state(), 'merge');
+  const projectB = { ...writtenB.project };
+  for (const field of PROJECT_CLOCK_FIELDS) {
+    if (inputA.project[field] === openedA.clock && projectB[field] === openedB.clock) projectB[field] = inputA.project[field];
+  }
+  const inputB = { ...writtenB, project: projectB };
   if (planningCanon(inputA) === planningCanon(inputB)) return null;
-  const named = (input: typeof inputA) => ({ ...planningIdentityInput(input), assignments: input.assignments.map(a => ({ ...a, id: '' })) });
-  return firstPlanningDifference(named(inputA), named(inputB)).split(':')[0];
+  const named = (input: typeof inputA) => ({ ...planningIdentityInput(input), assignments: input.assignments.map(x => ({ ...x, id: '' })) });
+  return planningDifferencePath(named(inputA), named(inputB));
 }
 
 function plannerDocument(
@@ -250,7 +256,7 @@ function plannerDocument(
     toIfc: output.toIfc,
     toIfcBytes: output.toIfcBytes,
   };
-  documentStates.set(document, state);
+  openedDocuments.set(document, opened);
   return document;
 }
 

@@ -58,7 +58,7 @@ export class IfcForeignOpenError extends Error {
 }
 
 /** De Worker-keuze voor tests, en de herstelnaad voor een XER-archiefverwijzing (crashherstel, zoals de huidige route). */
-export type IfcBytesRouteOptions = ForeignScanRunOptions & Pick<IfcReadWithXerOptions, 'resolveXerArchiveReference'> & {
+export type IfcBytesRouteOptions = ForeignScanRunOptions & Pick<IfcReadWithXerOptions, 'resolveXerArchiveReference' | 'projectTimestampFallback'> & {
   /** Proefnaad binnen de bestaande leesopties: alleen lager dan de productiegrens, nooit hoger. */
   maxBytes?: number;
 };
@@ -87,7 +87,10 @@ async function currentRoute(
 
 /** Alleen de herstelnaad gaat naar de lezer; de Worker-keuze niet. */
 function xerOptions(opts: IfcBytesRouteOptions): IfcReadWithXerOptions {
-  return opts.resolveXerArchiveReference ? { resolveXerArchiveReference: opts.resolveXerArchiveReference } : {};
+  return {
+    ...(opts.resolveXerArchiveReference ? { resolveXerArchiveReference: opts.resolveXerArchiveReference } : {}),
+    ...(opts.projectTimestampFallback ? { projectTimestampFallback: opts.projectTimestampFallback } : {}),
+  };
 }
 
 export async function readIfcBytesDetailed(

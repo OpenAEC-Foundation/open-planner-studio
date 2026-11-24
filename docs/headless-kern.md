@@ -85,10 +85,12 @@ Daarom is de keuze van de ingang hier de flag:
   met hun ingevoerde en berekende tijden, relaties, kalenders, resources, toewijzingen, baselines, de projectvelden
   (naam, beschrijving, en de rest van `OPS_ProjectSettings` en het werkplan) en de overige psets van de schrijver. Ze
   ziet niet: de bestandskop, de schrijfklok (owner history en aanmaakdatums zonder eigen waarde; de vergelijking zet
-  die vast), en `createdAt`/`modifiedAt` van het project. Die twee staan alleen in
-  `OPS_ProjectSettings`, die beide lezers hetzelfde lezen; ontbreken ze in het bestand, dan zet elk openen de klok van
-  dat moment (`ifcReader.ts`), en dat is geen opgeslagen planning (zo doet de herleestoets van de samenvoeging het ook,
-  `projectTimestampFallback`). De HTTP-API doet eerst precies wat main doet, en neemt de bytes-route alleen waar main
+  die vast), en `createdAt`/`modifiedAt` van het project als die niet in het bestand staan. Dan zet het openen de klok
+  van dat moment; de kern geeft die als `projectTimestampFallback` aan de lezer en weet zo per document welke waarde uit
+  de klok kwam (zo doet de herleestoets van de samenvoeging het ook). Alleen als beide waarden uit de klok komen, telt
+  het verschil niet; een opgeslagen `createdAt` of `modifiedAt` loopt gewoon door de canon. Een tweede
+  `OPS_ProjectSettings` aan een vreemde pset, die de tekstlezer wel en de bytes-lezer niet leest, geeft zo
+  `planning.project.createdAt`. De HTTP-API doet eerst precies wat main doet, en neemt de bytes-route alleen waar main
   weigert vanwege vreemde inhoud: bij het lezen (de gebouwmodel-poort, herkend aan `readRefusal`) of bij het schrijven
   (`foreign`, en dan alleen als beide routes dezelfde samenvatting en dezelfde planning geven;
   [headless-api.md](headless-api.md)).

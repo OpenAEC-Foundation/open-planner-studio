@@ -855,6 +855,30 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
     a.schedule();
     ok('20 twee openingen van hetzelfde bestand: dezelfde planning', planningDifference(a, b) === null, String(planningDifference(a, b)));
   }
+  {
+    const withoutStamps = example.split('\n').filter(l => !l.includes("IFCPROPERTYSINGLEVALUE('CreatedAt'") && !l.includes("IFCPROPERTYSINGLEVALUE('ModifiedAt'")).join('\n');
+    const a = await openIfc(withoutStamps);
+    await new Promise(r => setTimeout(r, 5));
+    const b = await openIfc(withoutStamps);
+    ok('20 zonder CreatedAt en ModifiedAt in het bestand: de klokwaarden van twee openingen tellen niet', planningDifference(a, b) === null,
+      String(planningDifference(a, b)));
+    const stamped = example.replace("IFCTEXT('2026-10-26T11:31:14.496Z')", "IFCTEXT('2001-01-01T00:00:00.000Z')");
+    ok('20 fixture: het voorbeeld heeft een opgeslagen CreatedAt', stamped !== example);
+    const c = await openIfc(example);
+    const d = await openIfc(stamped);
+    ok('20 een andere opgeslagen CreatedAt: dezelfde samenvatting, maar planning.project.createdAt',
+      sameSummary(c.schedule(), d.schedule()) && planningDifference(c, d) === 'planning.project.createdAt', String(planningDifference(c, d)));
+    const secondSettings = example.replace(`ENDSEC;\n${END}`, [
+      "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);",
+      "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));",
+      "#99040=IFCPROPERTYSINGLEVALUE('CreatedAt',$,IFCTEXT('2001-01-01T00:00:00.000Z'),$);",
+      "#99041=IFCPROPERTYSET('1SolR6TweedeSettings01',#6,'OPS_ProjectSettings',$,(#99040));",
+      "#99042=IFCRELDEFINESBYPROPERTIES('1SolR6TweedeSettingsR1',#6,$,$,(#99002),#99041);", 'ENDSEC;', END].join('\n'));
+    const r = await bothRoutes(secondSettings);
+    ok('20 een tweede OPS_ProjectSettings aan een vreemde pset: de tekstlezer leest haar CreatedAt, de bytes-lezer niet',
+      r.bytes.foreignContent !== null && planningDifference(r.viaText, r.viaBytes) === 'planning.project.createdAt',
+      String(planningDifference(r.viaText, r.viaBytes)));
+  }
   const foreignDocument = { openWarnings: [], schedule: () => { throw new Error('x'); }, toIfc: () => '', toIfcBytes: async () => new Uint8Array() };
   let refused = '';
   try { planningDifference(await openIfc(original), foreignDocument); } catch (e) { refused = e instanceof PlannerCoreError ? e.code : String(e); }
