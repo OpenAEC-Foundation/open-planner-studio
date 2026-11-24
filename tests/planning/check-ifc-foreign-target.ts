@@ -1862,6 +1862,9 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       { name: 'gebouwmodel', bytes: modelIfc4, want: 'model' },
       { name: 'kapotte kop (Terra)', bytes: enc.encode(terraFile(dec(modelIfc4))), want: 'unreadable' },
       { name: 'leeg bestand', bytes: new Uint8Array(0), want: 'not-ifc' },
+      { name: 'eigen planning met UTF-8-BOM, onleesbaar zoals main', bytes: new Uint8Array([0xef, 0xbb, 0xbf, ...showcase]), want: 'unreadable' },
+      { name: 'UTF-8-BOM, witruimte en commentaar vóór de kop, onleesbaar zoals main',
+        bytes: new Uint8Array([0xef, 0xbb, 0xbf, ...enc.encode(`\n  /* kop */ ${dec(showcase)}`)]), want: 'unreadable' },
       { name: 'CSV', bytes: csv, want: 'not-ifc' },
       // De STEP-scanner van de indeling weigert, de modelscan niet: 'unreadable' uit de indeling zelf.
       ...dataKopBestanden(dec(showcase), 'scannerWeigert').slice(0, 2)

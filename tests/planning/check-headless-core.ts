@@ -598,6 +598,50 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
   }
 }
 
+{
+  const oldOps = readFileSync(join(root, 'tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc'));
+  const own = readFileSync(files[0]);
+  const nbsp = encoded('\u00a0');
+  const leads: Array<[string, Uint8Array]> = [
+    ['oude OPS-export uit v2026.7.12 met BOM', new Uint8Array([...UTF8_BOM, ...oldOps])],
+    ['dubbele BOM', new Uint8Array([...UTF8_BOM, ...UTF8_BOM, ...own])],
+    ['BOM na een spatie', new Uint8Array([0x20, ...UTF8_BOM, ...own])],
+    ['U+00A0 na een BOM', new Uint8Array([...UTF8_BOM, ...nbsp, ...own])],
+  ];
+  for (const [label, bytes] of leads) {
+    const asMain = await openIfc(Buffer.from(bytes).toString('utf8'));
+    const mainSummary = asMain.schedule();
+    let doc: Awaited<ReturnType<typeof openIfcBytes>> | undefined;
+    try { doc = await openIfcBytes(bytes); } catch (e) { ok(`17 ${label}: openIfcBytes leest wat main las`, false, String(e)); }
+    if (!doc) continue;
+    const summary = doc.schedule();
+    ok(`17 ${label}: openIfcBytes geeft dezelfde samenvatting als main`,
+      JSON.stringify(summary) === JSON.stringify(mainSummary), firstDiff(datesOf(summary), datesOf(mainSummary)));
+    const mainIfc = await atOneWriteTime(() => asMain.toIfc());
+    ok(`17 ${label}: toIfcBytes() schrijft byte voor byte wat main schreef`,
+      sameBytes(await atOneWriteTime(() => doc!.toIfcBytes()), encoded(mainIfc)));
+  }
+  const withPset = utf8(own).replace('ENDSEC;\nEND-ISO-10303-21;',
+    "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
+    "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;");
+  const doubleBomPset = new Uint8Array([...UTF8_BOM, ...UTF8_BOM, ...encoded(withPset)]);
+  const refusedWrite = async (write: () => unknown) => {
+    try { await write(); return 'schreef een bestand'; } catch (e) {
+      return e instanceof PlannerCoreError ? `${e.code}:${String(e.details.reason)}` : String(e);
+    }
+  };
+  const fallbackDoc = await openIfcBytes(doubleBomPset);
+  ok('17a dubbele BOM met externe pset: de terugval leest de planning', fallbackDoc.schedule().counts.tasks > 0);
+  eqText('17b en schrijven weigert zoals main, met reason foreign', await refusedWrite(() => fallbackDoc.toIfcBytes()), 'IFC_WRITE_FAILED:foreign');
+
+  const { app, failure } = await openInAppWithFlag('oude-kop-bom.ifc', leads[0][1]);
+  const viaText = (await openIfc(Buffer.from(leads[0][1]).toString('utf8'))).schedule();
+  const appDiff = firstDiff(datesOf(viaText), appDatesOf(app.store.getState().tasks));
+  ok('17c de app met de flag aan opent de oude OPS-export met BOM, met dezelfde 20 taken en datums',
+    failure === undefined && app.store.getState().tasks.length === 20 && appDiff === '',
+    failure === undefined ? appDiff : String(failure));
+}
+
 if (diffs.length === 0) {
   console.log(`OK: headless kern — ${checks} checks groen (${files.length} voorbeeldbestanden)`);
 } else {

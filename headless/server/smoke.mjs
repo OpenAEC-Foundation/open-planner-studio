@@ -24,6 +24,7 @@ const base = baseArg.replace(/\/+$/, '');
 const here = dirname(fileURLToPath(import.meta.url));
 const EXAMPLE = join(here, '..', '..', 'examples', '01-grachtenpand-amsterdam.ifc');
 const FOREIGN_FIXTURES = join(here, '..', '..', 'tests', 'fixtures', 'ifc-foreign');
+const OLD_OPS_EXPORT = join(here, '..', '..', 'tests', 'planning', 'fixtures', 'oude-tags', 'v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc');
 const MODEL_FILES = [
   { file: 'eigen-plus-model.ifc', schema: 'IFC4X3_ADD2', objectCount: 90 },
   { file: 'latin1.ifc', schema: 'IFC4', objectCount: 155 },
@@ -141,6 +142,22 @@ try {
   const bomUpload = await call('/v1/schedule', { method: 'POST', body: Buffer.concat([UTF8_BOM, exampleBytes]), headers: BYTES });
   ok('voorbeeld met UTF-8-BOM als bytes → 200 met dezelfde taken, zoals op main', bomUpload.status === 200
     && JSON.stringify(bomUpload.json?.tasks) === JSON.stringify(s?.tasks), `${bomUpload.status} ${bomUpload.text.slice(0, 200)}`);
+  const leads = [
+    ['de oude OPS-export uit v2026.7.12 met BOM', Buffer.concat([UTF8_BOM, readFileSync(OLD_OPS_EXPORT)])],
+    ['een dubbele BOM', Buffer.concat([UTF8_BOM, UTF8_BOM, exampleBytes])],
+    ['een BOM na een spatie', Buffer.concat([Buffer.from(' '), UTF8_BOM, exampleBytes])],
+    ['U+00A0 na een BOM', Buffer.concat([UTF8_BOM, Buffer.from('\u00a0'), exampleBytes])],
+  ];
+  for (const [label, body] of leads) {
+    const mainRoute = await call('/v1/schedule', { method: 'POST', body, headers: IFC });
+    const viaBytes = await call('/v1/schedule', { method: 'POST', body, headers: BYTES });
+    ok(`${label} als bytes → dezelfde status en taken als als tekst, zoals op main`, mainRoute.status === 200
+      && viaBytes.status === mainRoute.status && JSON.stringify(viaBytes.json?.tasks) === JSON.stringify(mainRoute.json?.tasks),
+      `tekst ${mainRoute.status}, bytes ${viaBytes.status} ${viaBytes.text.slice(0, 160)}`);
+    const ifcViaBytes = await call('/v1/schedule?output=ifc', { method: 'POST', body, headers: BYTES });
+    ok(`${label} als bytes, output=ifc → 200 met IFC, zoals op main`, ifcViaBytes.status === 200
+      && ifcViaBytes.text.startsWith('ISO-10303-21;'), `${ifcViaBytes.status} ${ifcViaBytes.text.slice(0, 160)}`);
+  }
   const legacy = Buffer.from(example.replace(/FILE_SCHEMA\(.*?\);/, "FILE_SCHEMA(('IFC2X3'));").replace('ENDSEC;\nEND-ISO-10303-21;', EXTERN_PSET));
   const legacySummary = await call('/v1/schedule', { method: 'POST', body: legacy, headers: BYTES });
   ok('IFC2X3 met een externe pset als bytes → 200, zonder bewaard vreemd deel', legacySummary.status === 200
