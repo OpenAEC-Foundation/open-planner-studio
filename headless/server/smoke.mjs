@@ -14,7 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { answerDigest, corpusCases, EXAMPLE, MODEL_REFUSAL, REQUESTS } from './smoke-corpus.mjs';
+import { answerDigest, BYTES_TYPE, corpusCases, EXAMPLE, MODEL_REFUSAL_BODY, REQUESTS } from './smoke-corpus.mjs';
 
 const [baseArg, token] = process.argv.slice(2);
 if (!baseArg || !token) {
@@ -50,32 +50,34 @@ async function call(path, { method = 'GET', body, headers = {}, auth = true } = 
 }
 const isError = (r, code) => r.json?.error?.code === code && typeof r.json.error.message === 'string';
 const IFC = { 'Content-Type': 'application/x-step' };
-const BYTES = { 'Content-Type': 'application/octet-stream' };
+const BYTES = { 'Content-Type': BYTES_TYPE };
 const reference = JSON.parse(readFileSync(join(here, 'main-reference.json'), 'utf8'));
 const describe = (r) => `${r.status} ${r.headers.get('content-type')}${r.status === 200 ? '' : ` ${r.text.slice(0, 160)}`}`;
 const describeMain = (m) => `${m.status} ${m.type}${m.body === undefined ? '' : ` ${m.body.slice(0, 160)}`}`;
 function mainError(m) {
   try { return JSON.parse(m.body ?? '').error ?? null; } catch { return null; }
 }
-function sameAsMain(r, main, kind) {
+function sameAsMain(r, main, kind, source) {
   if (r.status !== main.status || r.headers.get('content-type') !== main.type) return false;
-  return main.body !== undefined ? r.text === main.body : answerDigest(r.text, kind, r.status) === main.sha256;
+  return main.body !== undefined ? r.text === main.body : answerDigest(r.text, kind, r.status, source) === main.sha256;
 }
-const mainRefusedModel = (m) => m.status === 422 && mainError(m)?.code === 'IFC_READ_FAILED' && mainError(m).message.startsWith(MODEL_REFUSAL);
+const mainRefusedModel = (m) => m.status === 422 && m.body === MODEL_REFUSAL_BODY;
 const mainRefusedForeign = (m) => m.status === 500 && mainError(m)?.code === 'IFC_WRITE_FAILED' && mainError(m).details?.reason === 'foreign';
 const EXPECTATION = {
   main: 'elk antwoord is dat van main',
   model: 'main weigert het gebouwmodel; als bytes een samenvatting en de bron byte voor byte terug',
   'model-summary': 'main weigert het gebouwmodel; als bytes een samenvatting, en bij output=ifc het antwoord van main',
   kept: 'main weigert het schrijven met foreign; als bytes de bewaarde bytes, met de planning van main',
-  refused: 'main weigert het schrijven met foreign; als bytes dezelfde weigering, met het verschil in de melding',
 };
 
 async function bytesProblems(c, record) {
   const problems = [];
   const answers = [];
   for (const [path, kind] of REQUESTS) answers.push([path, kind, await call(path, { method: 'POST', body: c.body, headers: BYTES })]);
-  const expect = c.expect.kind;
+  const expect = c.expect?.kind ?? 'main';
+  if (!c.expect && (mainRefusedModel(record.summary) || mainRefusedForeign(record.ifc))) {
+    problems.push('main weigert hier vanwege vreemde inhoud, maar het geval heeft geen verwachte uitkomst');
+  }
   const [summary, summaryAgain] = answers.filter(([, kind]) => kind === 'summary').map(([, , r]) => r);
   if (summary.text !== summaryAgain.text) problems.push('bytes: de standaardaanroep en output=summary geven een ander antwoord');
   for (const [path, kind, r] of answers) {
@@ -83,9 +85,9 @@ async function bytesProblems(c, record) {
     const fail = (why) => problems.push(`bytes ${path}: ${why} (main ${describeMain(main)})`);
     const modelSummary = (expect === 'model' || expect === 'model-summary') && kind === 'summary';
     const keptOnRead = expect === 'model' && kind === 'ifc';
-    const writeCase = (expect === 'kept' || expect === 'refused') && kind === 'ifc';
+    const writeCase = expect === 'kept' && kind === 'ifc';
     if (!modelSummary && !keptOnRead && !writeCase) {
-      if (!sameAsMain(r, main, kind)) fail(`${describe(r)} ≠ main`);
+      if (!sameAsMain(r, main, kind, c.body)) fail(`${describe(r)} ≠ main`);
     } else if ((modelSummary || keptOnRead) && !mainRefusedModel(main)) {
       fail('main weigerde hier geen gebouwmodel');
     } else if (writeCase && !mainRefusedForeign(main)) {
@@ -99,17 +101,8 @@ async function bytesProblems(c, record) {
       }
       if (c.expect.sameAsSource && !r.bytes.equals(c.body)) fail('de bewaarde bytes zijn niet de bron');
       const again = await call('/v1/schedule', { method: 'POST', body: r.bytes, headers: keptOnRead ? BYTES : IFC });
-      if (keptOnRead ? again.text !== summary.text : !sameAsMain(again, record.summary, 'summary')) {
+      if (keptOnRead ? again.text !== summary.text : !sameAsMain(again, record.summary, 'summary', c.body)) {
         fail(`opnieuw ingestuurd geven de bewaarde bytes een andere samenvatting: ${describe(again)}`);
-      }
-    } else {
-      const ours = r.json?.error;
-      const theirs = mainError(main);
-      if (r.status !== main.status || ours?.code !== theirs.code || JSON.stringify(ours?.details) !== JSON.stringify(theirs.details)) {
-        fail(`een andere weigering: ${describe(r)}`);
-      } else if (!ours.message.startsWith(theirs.message) || ours.message === theirs.message
-        || !c.expect.fields.every(field => ours.message.includes(field))) {
-        fail(`de melding noemt ${c.expect.fields.join(' en ')} niet: ${ours.message}`);
       }
     }
   }
@@ -175,12 +168,14 @@ try {
     const record = reference.cases[c.label];
     if (!record) continue;
     const problems = [];
-    for (const [path, kind] of REQUESTS) {
-      const r = await call(path, { method: 'POST', body: c.body, headers: IFC });
-      if (!sameAsMain(r, record[kind], kind)) problems.push(`tekst ${path}: ${describe(r)} ≠ main ${describeMain(record[kind])}`);
+    for (const type of c.textTypes) {
+      for (const [path, kind] of REQUESTS) {
+        const r = await call(path, { method: 'POST', body: c.body, headers: { 'Content-Type': type } });
+        if (!sameAsMain(r, record[kind], kind, c.body)) problems.push(`${type} ${path}: ${describe(r)} ≠ main ${describeMain(record[kind])}`);
+      }
     }
     problems.push(...await bytesProblems(c, record));
-    ok(`${c.label}: ${EXPECTATION[c.expect.kind]}`, problems.length === 0, problems.join('; '));
+    ok(`${c.label}: ${EXPECTATION[c.expect?.kind ?? 'main']}`, problems.length === 0, problems.join('; '));
   }
 
   // 6. Ongeldige invoer.

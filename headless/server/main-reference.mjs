@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { writeFileSync } from 'node:fs';
-import { answerDigest, corpusCases, REQUESTS } from './smoke-corpus.mjs';
+import { answerDigest, BYTES_TYPE, corpusCases, REQUESTS } from './smoke-corpus.mjs';
 
 const [baseArg, token, mainCommit, outFile] = process.argv.slice(2);
 if (!baseArg || !token || !mainCommit || !outFile) {
@@ -8,21 +8,20 @@ if (!baseArg || !token || !mainCommit || !outFile) {
   process.exit(2);
 }
 const base = baseArg.replace(/\/+$/, '');
-const TYPES = { text: 'application/x-step', bytes: 'application/octet-stream' };
 
 async function answer(path, body, type, kind) {
   const res = await fetch(`${base}${path}`, { method: 'POST', body, headers: { Authorization: `Bearer ${token}`, 'Content-Type': type } });
   const text = Buffer.from(await res.arrayBuffer()).toString('utf8');
   const record = { status: res.status, type: res.headers.get('content-type') };
-  return res.status === 200 ? { ...record, sha256: answerDigest(text, kind, res.status) } : { ...record, body: text };
+  return res.status === 200 ? { ...record, sha256: answerDigest(text, kind, res.status, body) } : { ...record, body: text };
 }
 
 const cases = {};
 let unequal = 0;
-for (const { label, body } of corpusCases()) {
+for (const { label, body, textTypes } of corpusCases()) {
   const record = {};
   for (const [path, kind] of REQUESTS) {
-    for (const type of Object.values(TYPES)) {
+    for (const type of [...textTypes, BYTES_TYPE]) {
       const seen = await answer(path, body, type, kind);
       if (!record[kind]) record[kind] = seen;
       else if (JSON.stringify(record[kind]) !== JSON.stringify(seen)) {
