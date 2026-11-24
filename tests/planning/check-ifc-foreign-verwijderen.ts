@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { castDraft } from 'immer';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -97,7 +98,7 @@ await check('regels 1 tot en met 4 in één opslag, en wat niet op de lijst staa
   assert.deepEqual(again.bytes, prepared.bytes, 'een tweede opslag zonder bewerking verandert niets');
   assert.deepEqual(prepared.source.foreignReferences, reopened.ifcSource!.foreignReferences, 'de nieuwe bron kent dezelfde verwijzingen als heropenen');
   assert.deepEqual([...prepared.source.classes], [...reopened.ifcSource!.classes], 'de nieuwe bron heeft dezelfde klassen als heropenen');
-  opened.store.setState(s => { s.ifcSource = prepared.source; });
+  opened.store.setState(s => { s.ifcSource = castDraft(prepared.source); });
   opened.store.getState().setProject({ description: 'na het wissen' });
   const next = await save(opened);
   assert.equal(next.foreignChanges, undefined, 'een volgende opslag met een bewerking op de nieuwe bron');
@@ -116,7 +117,7 @@ await check('een stuk dat zijn laatste verwijzing naar de planning kwijtraakt: d
   const outputIndex = scanForeignStep(prepared.bytes), outputClasses = classify(outputIndex).classes;
   assert.equal(prepared.source.classes[outputIndex.chunkOf('9003')], 4, 'na opslaan: V');
   assert.deepEqual([...prepared.source.classes], [...outputClasses]);
-  opened.store.setState(s => { s.ifcSource = prepared.source; });
+  opened.store.setState(s => { s.ifcSource = castDraft(prepared.source); });
   opened.store.getState().setProject({ description: 'na het wissen' });
   assert.equal((await save(opened)).foreignChanges, undefined, 'een volgende opslag lukt');
 });
