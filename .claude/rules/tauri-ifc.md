@@ -174,17 +174,16 @@ stuk moet vanuit de ontbrekende D-stukken te verklaren zijn, een gewijzigd stuk 
 verwijderde stukken. Een vreemd lid van een eigen pset van een verwijderd object blijft als los stuk staan en staat niet
 op de lijst (§4.2 stap 3). Bij het wissen van een taak of resource, en bij Opnieuw van zo'n stap, meldt
 `state/foreignLinksNotice.ts` met dezelfde regel hoeveel er bij opslaan verandert, met *Ongedaan maken* (regel B). Een
-bronvervangende schrijfactie legt het document vast vanaf haar momentopname (`captureDocumentWrite`, de teller
-`capturing` in `documentSaveState.ts`; Ctrl+S en Opslaan als in `fileSlice.ts`, Automatisch opslaan in
-`fileAutoSave.ts`); zolang dat duurt, verbergt `watchNotice` de knop, en na een mislukte schrijfactie met dezelfde bron
-en stap zet hij hem terug. Na de commit is de bron vervangen en gaat de melding weg; de flag uitzetten ook. Regel A: na
-het schrijven zet `state/foreignChangesWrittenNotice.ts` per geslaagde schrijfactie met een niet-lege lijst een regel
-met de bestandsnaam en het aantal in één blijvende melding (`keepInStack`: een volle stapel duwt haar niet weg), op elke
-schrijfroute: `commitSavedDocument` (ook AutoSave en de site), de downloadtakken van Ctrl+S en Opslaan als, de
-IFC-export en `planner_export_ifc` (in het antwoord). Zolang die melding open is, wacht het afsluiten van de desktop
-(`writeReportOpen` in `appQuitController.ts`, dezelfde `step` als de sluitvraag; doorwerken breekt het afsluiten af) en
-waarschuwt `beforeunload` in de browser. Weigeren blijft: een verwijzing naar een R-stuk (`verwijzing-naar-p`, het
-krijgt een nieuw id) en naar een D-stuk dat de planning niet kent (`verwijderd`).
+bronvervangende schrijfactie van een document met een vreemd deel legt het document vast vanaf haar momentopname
+(`captureDocumentWrite`, de teller `capturing` in `documentSaveState.ts`; Ctrl+S en Opslaan als in `fileSlice.ts`,
+Automatisch opslaan in `fileAutoSave.ts`); zolang dat duurt, haalt `watchNotice` de wismelding weg, en na een mislukte
+schrijfactie met dezelfde bron en stap zet hij haar terug. Na de commit is de bron vervangen en blijft ze weg; de flag
+uitzetten ook. Regel A: na het schrijven meldt `state/foreignChangesWrittenNotice.ts` per geslaagde schrijfactie met een
+niet-lege lijst één eigen gewone melding (info, blijvend, geen `dedupeKey`) met de naam van het geschreven bestand en het
+aantal, op elke schrijfroute: `commitSavedDocument` (ook AutoSave en de site), de downloadtakken van Ctrl+S en Opslaan
+als (een eigen zin: "in de download"), de IFC-export en `planner_export_ifc` (in het antwoord). Die melding deelt de
+grenzen van de stapel van main; wat ze niet kan, staat in knownbug 2357. Weigeren blijft: een verwijzing naar een R-stuk
+(`verwijzing-naar-p`, het krijgt een nieuw id) en naar een D-stuk dat de planning niet kent (`verwijderd`).
 
 **De opslagworker** (#804 stap 4 tot en met 6, `src/services/ifc/saveWorker/`) rekent wat `prepareIfcOutput` rekent (de
 gewone writer of `prepareIfcWrite`) in een Web Worker. De gewone writer hergebruikt hem; na elk antwoord op een merge (een
