@@ -494,8 +494,10 @@ const appDatesOf = (tasks: readonly Task[]): Dates => Object.fromEntries(tasks.m
 
 const modelFixture = new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
 const modelLines = (() => {
-  const showcase = new Set(readFileSync(join(root, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8').split('\n'));
-  return utf8(modelFixture).split('\n').filter(line => !showcase.has(line));
+  const idOf = (line: string) => Number(/^#(\d+)=/.exec(line)?.[1] ?? NaN);
+  const own = readFileSync(join(root, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8').split('\n');
+  const highestOwnId = Math.max(...own.map(idOf).filter(Number.isFinite));
+  return utf8(modelFixture).split('\n').filter(line => idOf(line) > highestOwnId);
 })();
 function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
   const lines = new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes).split('\n');
@@ -509,7 +511,8 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
 }
 {
   const withBom = new Uint8Array([...UTF8_BOM, ...modelFixture]);
-  ok('15 fixture: het model heeft regels buiten de eigen planning', modelLines.length > 50, String(modelLines.length));
+  ok('15 fixture: het andere programma voegde 77 entiteiten toe, met ids boven die van het eigen voorbeeld',
+    modelLines.length === 77 && modelLines.some(line => line.includes('IFCWALL')), String(modelLines.length));
   let doc: Awaited<ReturnType<typeof openIfcBytes>> | undefined;
   try { doc = await openIfcBytes(withBom); } catch (e) { ok('15a een modelbestand met BOM opent via de bytesroute', false, String(e)); }
   if (doc) {
