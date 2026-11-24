@@ -3,7 +3,7 @@
 `relationMath.ts` rekent de grens uit die één relatie (FS, SS, FF of SF) oplegt; `CPMSolver.ts` roept het aan.
 `forwardConstraint` geeft de vroegste start die de relatie de opvolger toestaat, `backwardConstraint` de laatste
 finish die ze de voorganger toestaat. Het zijn ondergrenzen en bovengrenzen per relatie, geen gelijkheden: in
-`forwardPass` begint de vroege start op de projectstart en neemt ze het maximum over de voorgangers. De
+`forwardPass` neemt de vroege start het maximum over de voorgangers, met de projectstart als vloer (ADR 0011). De
 kalenderprimitieven die de module gebruikt (`RelationDeps`) zijn methoden van `CPMSolver`, die de solver injecteert
 (`relDeps`). Ze delen daar hun lag- en snapregels met de rest van de solver; door ze te injecteren bestaan ze één
 keer en blijft de module zonder eigen kopie. Elke taak loopt over hetzelfde pad op de tijdas in minuten, ook een taak

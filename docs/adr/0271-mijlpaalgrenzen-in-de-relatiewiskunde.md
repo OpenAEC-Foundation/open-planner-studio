@@ -2,44 +2,40 @@
 
 Een mijlpaal zonder duur heeft één moment, en dat moment kan op een blokeinde liggen. De normalisatie voor een start
 (`[begin, einde)`, ADR 0014) zou zo'n moment naar het volgende blokbegin duwen. `relationBoundaryFlags` legt daarom
-per relatie vast welke kant een grens is, en beide richtingen lezen die ene uitkomst. `predEndsBeginOfDay`: de
-voorganger heeft geen duur (`scheduleDuration <= 0`) en is geen mijlpaal van soort `FINISH`; haar finish bezet geen
-werktijd. `predStartsNextDay`: de voorganger heeft geen duur en is een mijlpaal van soort `FINISH`; haar start is een
-eindgrens. `succIsFinishMs` en `succIsStartMs`: de opvolger is een mijlpaal van soort `FINISH` of `START`, of onder
-A15 (`p6ZeroDurationSuccessorAtFinish`, ADR 0029) een nulduurmijlpaal op de finishgrens, die dan als `FINISH` telt.
+per relatie vast welke kant een grens is, en beide richtingen lezen die ene uitkomst. De voorgangervlaggen
+(`predEndsBeginOfDay`, `predStartsNextDay`) lezen de duur (`scheduleDuration <= 0`) en niet `isMilestone`, omdat een
+mijlpaal met duur een echte finish heeft. De opvolgervlaggen (`succIsFinishMs`, `succIsStartMs`) lezen de
+expliciete `milestoneKind` van een mijlpaal, of onder A15 de finishgrens (`p6ZeroDurationSuccessorAtFinish`,
+ADR 0029); zie knownbug 2306.
 
 ## Gevolgen
 
-- De voorgangervlaggen lezen de duur en niet `isMilestone`: een mijlpaal met duur heeft een echte finish. De
-  opvolgervlaggen lezen wel `isMilestone` met `milestoneKind` (knownbug 2306).
-- Een nulduurmijlpaal zonder soort telt na een FF- of SF-relatie als eindmijlpaal (`forwardHour`,
-  `finishFinishRequirement`): een mijlpaal zonder soort volgt de bindende relatiekant (spec alleen uren, §4.3).
-- `predStartsNextDay` zet een grens die aan de start van de voorganger hangt, SS en SF, strikt voorbij dat moment
-  (`snapStrictAfter`, achterwaarts `snapStrictBefore`); voorwaarts bij SF niet voor een opvolger in de dagenmaat
-  (ADR 0274). Zie knownbug 153.
-- Een eindmijlpaal als opvolger zonder lag in werktijd krijgt als grens het rauwe moment van de voorganger, de finish
-  bij FS en FF en bij SF het startmoment uit `sfReqFinishHour` (met de regel voor `predStartsNextDay` hierboven), niet
-  het volgende blokbegin. "Zonder lag" betekent dat de verschoven waarde gelijk is aan een kale normalisatie op de
-  lagkalender (`lagIsZero` in de FS-tak, `zeroLag` in `finishFinishRequirement`). Bij een lag in kalendertijd geldt
-  dit alleen voor FS, bij nul klokminuten (ADR 0273). Een echte lag telt wel (`msp-02` in
-  `cases-msp-pariteit.json`), en zonder mijlpaal blijft het volgende werkmoment de grens (`msp-01b`). Bij FS geldt
-  dit ook als de voorganger `predEndsBeginOfDay` heeft, omdat een voorganger zonder duur op de statusdatumvloer een
-  anker op een blokeinde van zijn eigen kalender kan krijgen (`msp-06b`). Het weggehaalde commentaar noemde dit
-  pariteit met MS Project; een bestand van MS Project dat het laat zien, is niet nagegaan.
-- FS met een echte lag naar een eindmijlpaal (`finishStartLaggedStart`): de grens is het eindmoment op of vóór het
-  moment na de lag (`snapOnOrBefore` op de opvolgerkalender) als dat het moment zelf is, of als het volgende
-  werkmoment van de opvolgerkalender na dat eindmoment het moment na de lag is en de lagkalender ertussen geen
-  werkminuut heeft; anders het volgende werkmoment van de opvolger. `nextWorkInstant` alleen zou een blokeinde
-  overslaan. De functie is gedeeld met de externe voorganger (`externalForwardBound`, review van #808; ADR 0022).
-- FF naar een startmijlpaal, met een voorganger zonder `predEndsBeginOfDay`, geeft het moment strikt na de geëiste
-  finish. Uitzondering: telt de voorganger in de dagenmaat, is de lag geen kalendertijd en ligt de geëiste finish
-  midden in een werkblok van de opvolger (`isInsideBlock`), dan staat de mijlpaal op dat moment. Voor een voorganger
-  in de urenmaat blijft "strikt na", omdat de bredere correctie drie C7-controles rood maakte (knownbug 230). Achterwaarts
-  spiegelt `backwardHour` dat. C7 (`p6FinishFinishStartMilestoneLateFinish`) zet `succIsStartMs` voor FF uit
-  (ADR 0029).
-- Achterwaarts bij FS houdt een voorganger met `predEndsBeginOfDay` of een eindmijlpaal als opvolger bij lag 0 de
-  ongenormaliseerde late start van de opvolger als grens; een lag telt altijd mee, anders verschillen voorwaarts en
-  achterwaarts en daarmee speling en kritiek pad. Bij `predEndsBeginOfDay` slaat de tak ook `prevWorkInstant` over: de
-  finish van zo'n voorganger is een dagbeginanker, en `prevWorkInstant` zou het naar het vorige blokeinde zetten, op de
-  werkas dezelfde plek maar een andere datum (`rr-fs-pred-startms` in `cases-hours-relations.json`). Bij een
-  eindmijlpaal als opvolger blijft `prevWorkInstant`, omdat de voorganger een echte finish heeft.
+- Een expliciete eindmijlpaal als opvolger krijgt bij FS, FF en SF met een lag in werktijd van 0 de kant van de
+  voorganger als grens (bij SF met de regel voor `predStartsNextDay` hieronder), niet het volgende blokbegin; bij FS
+  ook met een lag in kalendertijd van 0 minuten. Een nulduurmijlpaal zonder soort krijgt die regel alleen in de FF-tak
+  (`finishFinishRequirement`); `sfReqFinishHour` leest de expliciete vlag. Of de solver zo'n moment daarna laat staan,
+  beslist `snapSuccessorEarlyStart` (ADR 0014). Bij FS geldt de regel ook als de voorganger `predEndsBeginOfDay`
+  heeft, omdat een voorganger zonder duur op de statusdatumvloer op een blokeinde van zijn eigen kalender kan staan
+  (`msp-06b` in `cases-msp-pariteit.json`). Het weggehaalde commentaar noemde dit pariteit met MS Project; een
+  bestand van MS Project dat het laat zien, is niet nagegaan.
+- FS met een echte lag naar een eindmijlpaal (`finishStartLaggedStart`) mag op een eindmoment van de opvolgerkalender
+  landen in plaats van op het volgende blokbegin, als de opvolgerkalender en de lagkalender het als dezelfde grens
+  lezen; `nextWorkInstant` alleen zou een blokeinde overslaan. De functie is gedeeld met de externe voorganger
+  (`externalForwardBound`, review van #808; ADR 0022).
+- `predStartsNextDay` zet bij SS en SF de grens strikt voorbij de start van de voorganger (`snapStrictAfter`,
+  achterwaarts `snapStrictBefore`); voorwaarts bij SF niet voor een opvolger in de dagenmaat (ADR 0274). Zie
+  knownbug 153.
+- FF naar een startmijlpaal, bij een voorganger zonder `predEndsBeginOfDay`, geeft het moment strikt na de geëiste
+  finish (`snapStrictAfter`). Uitzondering in `forwardHour` en spiegelbeeldig in
+  `backwardHour`: telt de voorganger in de dagenmaat en is de lag geen kalendertijd, dan blijft een moment midden in
+  een werkblok (`isInsideBlock`) staan. Voor een voorganger in de urenmaat blijft "strikt na", omdat de bredere
+  correctie drie C7-controles rood maakte (knownbug 230). C7 (`p6FinishFinishStartMilestoneLateFinish`) zet
+  `succIsStartMs` voor FF uit (ADR 0029).
+- Achterwaarts bij FS met een lag in werktijd kiest `backwardHour` eerst een doel en normaliseert dat daarna. Het
+  doel is de late start van de opvolger min de lag; bij lag 0 met een voorganger met `predEndsBeginOfDay` of een
+  expliciete eindmijlpaal als opvolger is het de ongenormaliseerde late start. Een lag telt dus altijd mee: de vlaggen
+  slaan alleen de normalisatie over, anders zouden voorwaarts en achterwaarts uiteenlopen. De normalisatie is
+  `prevWorkInstant`, behalve bij een voorganger met `predEndsBeginOfDay` en bij een voorganger in kalendertijd
+  (ADR 0273). Een dagbeginanker zou `prevWorkInstant` naar het vorige blokeinde zetten, op de werkas dezelfde plek maar
+  een andere datum (`rr-fs-pred-startms` in `cases-hours-relations.json`). Een lag in kalendertijd heeft een eigen
+  tak.

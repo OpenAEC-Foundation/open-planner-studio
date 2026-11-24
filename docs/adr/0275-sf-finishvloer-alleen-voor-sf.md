@@ -1,17 +1,19 @@
 # De SF-finishvloer geldt alleen voor SF en niet op elk pad
 
-Aanvulling op ADR 0031. `forwardFinishFloor` geeft alleen voor SF een vloer en voor de andere relatietypen `null`.
-SF eist de finish op de start van de voorganger; zonder lag is dat een blokbegin, en daar komt terugtellen over de
-duur en weer vooruittellen uit op het blokeinde vóór het vrije gat in plaats van op de eis (`msp-35-z10-sf-weekendgrens`
-in `cases-msp-pariteit.json`, naar `mpp14relations.mpp`, "Task 5"). Het weggehaalde commentaar gaf als reden om FF
-geen vloer te geven dat de finish van de voorganger een eindmoment is, waar die twee stappen wel op de eis uitkomen;
-knownbug 231 beschrijft een FF-geval met een werkelijke finish buiten werktijd waarin de opvolger toch vóór de
-voorganger eindigt.
+Aanvulling op ADR 0031. SF eist dat de opvolger niet vóór de start van de voorganger plus lag eindigt. De solver
+herberekent de vroege finish als start plus duur. In `mpp14relations.mpp`, "Task 5", komt die herberekening op het
+blokeinde vóór een weekend uit, terwijl de eis na het weekend ligt (`msp-35-z10-sf-weekendgrens` in
+`cases-msp-pariteit.json`). Daarvoor bestaat de vloer. `forwardFinishFloor` geeft hem alleen voor SF en voor de andere
+relatietypen `null`. Het weggehaalde commentaar gaf als reden om FF geen vloer te geven dat de finish van de
+voorganger een eindmoment is, waar terug- en vooruittellen wel op de eis uitkomen; knownbug 231 beschrijft een
+FF-geval met een werkelijke finish buiten werktijd waarin de opvolger toch vóór de voorganger eindigt.
 
 ## Gevolgen
 
-- Een voltooide of lopende taak (`isPinnedComplete`, `isPinnedInProgress`) komt in `forwardPass` niet bij de vloer:
-  die takken ronden eerder af, omdat zo'n taak op haar werkelijke datums staat. Een harde finishpin wint (ADR 0031).
+- `forwardPass` rekent de vloer uit in de lus over de voorgangers, maar past hem alleen toe in de gewone tak, bij het
+  vastleggen van de vroege finish, en niet bij een harde finishpin (ADR 0031). De voortgangstakken
+  (`isPinnedComplete`, `isPinnedInProgress`) leggen de vroege finish vast zonder de vloer; bij een lopende taak kan de
+  relatiegrens het restwerk daar nog wel verschuiven.
 - `hammockEarlyFinish` gebruikt `forwardConstraint` en `finishFromStart`, zonder de vloer (knownbug 2308). Ook de
   ALAP-wacht en een externe SF-voorganger rekenen zonder de vloer (knownbugs 378 en 846).
 - `forwardFinishFloor` is een eigen functie naast `forwardConstraint`, niet een rijker retourtype, zodat de
