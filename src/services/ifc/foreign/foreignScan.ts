@@ -64,7 +64,7 @@ export interface ForeignScanResult {
 
 export interface OpenedForeignScan extends ForeignScanResult {
   readonly stepElementLinks: readonly StepElementLink[];
-  readonly foreignReferences: ForeignReferences;
+  readonly foreignReferences?: ForeignReferences;
 }
 
 /** De scanner weigerde de invoer (ongeschikte of onvolledige STEP); de bytes-route valt dan terug (afwijking 7). */
@@ -90,9 +90,11 @@ export function scanForeignToOpen(bytes: Uint8Array): OpenedForeignScanOutcome {
   const index = indexOrRefusal(bytes);
   if (!(index instanceof StepIndex)) return index;
   const cls = classify(index);
+  const scan = foreignScanFrom(index, cls, bytes);
+  const foreign = scan.counts.C + scan.counts.A + scan.counts.V > 0;
   return {
-    ...foreignScanFrom(index, cls, bytes), stepElementLinks: scanElementLinks(index),
-    foreignReferences: foreignReferences(index, cls.classes, bytes, cls.selection.inD),
+    ...scan, stepElementLinks: scanElementLinks(index),
+    ...(foreign ? { foreignReferences: foreignReferences(index, cls.classes, bytes, cls.selection.inD) } : {}),
   };
 }
 

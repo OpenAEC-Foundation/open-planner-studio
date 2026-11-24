@@ -10,6 +10,11 @@ export interface ForeignReferences {
   readonly targets: Int32Array;
 }
 
+export const emptyForeignReferences = (): ForeignReferences => ({
+  stepIds: new Int32Array(0), groupStart: Int32Array.of(0), groupSize: new Int32Array(0),
+  targetStart: Int32Array.of(0), targets: new Int32Array(0),
+});
+
 export interface ChangedForeignPiece {
   readonly kind: 'gewijzigd';
   readonly id: number;
@@ -85,54 +90,63 @@ export function goneStepIds(stepIds: Readonly<Record<string, number>>, domain: D
   return missing;
 }
 
-function referrersOf(references: ForeignReferences): Map<number, number[]> {
-  const { stepIds, groupStart, targetStart, targets } = references;
-  const referrers = new Map<number, number[]>();
+interface ReferenceIndex {
+  readonly groupsOfTarget: ReadonlyMap<number, readonly number[]>;
+  readonly pieceOfGroup: Int32Array;
+}
+
+const referenceIndexes = new WeakMap<ForeignReferences, ReferenceIndex>();
+
+function referenceIndex(references: ForeignReferences): ReferenceIndex {
+  const cached = referenceIndexes.get(references);
+  if (cached) return cached;
+  const { stepIds, groupStart, groupSize, targetStart, targets } = references;
+  const groupsOfTarget = new Map<number, number[]>(), pieceOfGroup = new Int32Array(groupSize.length);
   for (let piece = 0; piece < stepIds.length; piece++) {
-    for (let k = targetStart[groupStart[piece]]; k < targetStart[groupStart[piece + 1]]; k++) {
-      const list = referrers.get(targets[k]);
-      if (!list) referrers.set(targets[k], [piece]);
-      else if (list[list.length - 1] !== piece) list.push(piece);
+    for (let group = groupStart[piece]; group < groupStart[piece + 1]; group++) {
+      pieceOfGroup[group] = piece;
+      for (let k = targetStart[group]; k < targetStart[group + 1]; k++) {
+        const groups = groupsOfTarget.get(targets[k]);
+        if (groups) groups.push(group);
+        else groupsOfTarget.set(targets[k], [group]);
+      }
     }
   }
-  return referrers;
+  const index = { groupsOfTarget, pieceOfGroup };
+  referenceIndexes.set(references, index);
+  return index;
 }
+
+export const NOTHING_GONE: ForeignRuleOutcome = { gone: new Set(), dropped: new Set(), trimmed: new Map(), droppedUnusedKeys: [] };
 
 export function applyForeignRule(references: ForeignReferences, gone: ReadonlySet<number>,
   unusedKeys: readonly UnusedKeysOfTask[] = []): ForeignRuleOutcome {
+  if (gone.size === 0) return NOTHING_GONE;
   const { stepIds, groupStart, groupSize, targetStart, targets } = references;
-  const referrers = gone.size > 0 ? referrersOf(references) : new Map<number, number[]>();
-  const removed = new Set(gone);
-  const dropped = new Set<number>();
-  const touched = new Set<number>();
-  const queue: number[] = [];
-  const reach = (target: number) => {
-    for (const piece of referrers.get(target) ?? []) { touched.add(piece); queue.push(piece); }
-  };
-  const falls = (piece: number): boolean => {
-    for (let group = groupStart[piece]; group < groupStart[piece + 1]; group++) {
-      let lost = 0;
-      for (let k = targetStart[group]; k < targetStart[group + 1]; k++) if (removed.has(targets[k])) lost++;
-      if (lost > 0 && (groupSize[group] === SINGLE_REFERENCES || lost >= groupSize[group])) return true;
-    }
-    return false;
-  };
-  for (const target of gone) reach(target);
+  const { groupsOfTarget, pieceOfGroup } = referenceIndex(references);
+  const lost = new Int32Array(groupSize.length), droppedPiece = new Uint8Array(stepIds.length);
+  const removed = new Set(gone), dropped = new Set<number>(), touched = new Set<number>();
+  const queue = [...gone];
   while (queue.length > 0) {
-    const piece = queue.pop()!;
-    if (dropped.has(stepIds[piece]) || !falls(piece)) continue;
-    dropped.add(stepIds[piece]);
-    removed.add(stepIds[piece]);
-    reach(stepIds[piece]);
+    for (const group of groupsOfTarget.get(queue.pop()!) ?? []) {
+      const piece = pieceOfGroup[group];
+      touched.add(piece);
+      lost[group]++;
+      if (droppedPiece[piece] === 1 || (groupSize[group] !== SINGLE_REFERENCES && lost[group] < groupSize[group])) continue;
+      droppedPiece[piece] = 1;
+      dropped.add(stepIds[piece]);
+      removed.add(stepIds[piece]);
+      queue.push(stepIds[piece]);
+    }
   }
   const trimmed = new Map<number, Set<number>>();
   for (const piece of [...touched].sort((a, b) => a - b)) {
-    if (dropped.has(stepIds[piece])) continue;
-    const lost = new Set<number>();
+    if (droppedPiece[piece] === 1) continue;
+    const lostTargets = new Set<number>();
     for (let k = targetStart[groupStart[piece]]; k < targetStart[groupStart[piece + 1]]; k++) {
-      if (removed.has(targets[k])) lost.add(targets[k]);
+      if (removed.has(targets[k])) lostTargets.add(targets[k]);
     }
-    if (lost.size > 0) trimmed.set(stepIds[piece], lost);
+    trimmed.set(stepIds[piece], lostTargets);
   }
   const droppedUnusedKeys = unusedKeys.filter(keys => gone.has(keys.taskStepId))
     .flatMap(keys => keys.propertyStepIds.map(propertyStepId => ({ taskStepId: keys.taskStepId, propertyStepId })));

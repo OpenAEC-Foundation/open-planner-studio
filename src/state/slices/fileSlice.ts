@@ -49,6 +49,7 @@ import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
 import { hasBuildingModel, hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
+import { notifyForeignChangesWritten } from '../foreignChangesWrittenNotice';
 import { castDraft } from 'immer';
 import {
   documentSaveCompute, prepareIfcOutput, planOnlyQuestionApplies, writtenFingerprint, IfcWriteBlockedError,
@@ -894,6 +895,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     missingSourceSaveAs = false,
     written: TargetFingerprint | null = null,
   ): boolean => {
+    notifyForeignChangesWritten(get().notify, prepared);
     if (!sameDocumentContent(get(), document)) return false;
     const documentId = document.id;
     const currentSource = saveSourceForDocument(get(), documentId);
@@ -1418,9 +1420,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return false;
       if (write.prepared && outcome.viaDownload && ref?.kind === 'handle' && hasBuildingModel(state.ifcSource)) {
         get().notify(downloadCopyNotice(outcome.name));
+        notifyForeignChangesWritten(get().notify, write.prepared);
         return false;
       }
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
+      if (write.prepared && outcome.viaDownload) notifyForeignChangesWritten(get().notify, write.prepared);
       const saved = write.prepared && outcome.viaDownload
         ? commitSavedDocument(snapshotContent(state), state)
         : commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, false, fingerprint);
@@ -1493,8 +1497,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const outcome = await documentSaveDialog(state, write, defaultName, missingSourceSaveAs);
       if (!outcome) return;
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
-      if (write.prepared && outcome.viaDownload) commitSavedDocument(snapshotContent(state), state);
-      else commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, missingSourceSaveAs, fingerprint);
+      if (write.prepared && outcome.viaDownload) {
+        notifyForeignChangesWritten(get().notify, write.prepared);
+        commitSavedDocument(snapshotContent(state), state);
+      } else commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, missingSourceSaveAs, fingerprint);
       if (!sameDocumentContent(get(), snapshotContent(state))) return;
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
@@ -2008,6 +2014,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           return null;
         }
         if (written) await recordOwnFileExport(state, written, preparedExport || planOnly ? [] : exportedLiteral, payload);
+        if (written) notifyForeignChangesWritten(get().notify, preparedExport);
         if (written && ext === 'ifc' && exportContentReplaced(state)) return null;
         return written;
       };

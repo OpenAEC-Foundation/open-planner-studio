@@ -67,13 +67,13 @@ function noticeData(state: AppState): unknown[] {
  *  wijziging die dat breekt (een nieuwere stap, Ctrl+Z, een ander document, een bibliotheekverversing) haalt
  *  haar definitief weg, dus ook Ctrl+Z van wat daarna kwam brengt haar niet terug (review #1120 ronde 4
  *  en 5). Zo kloppen haar cijfers zolang ze er staat, en zet haar knop alleen haar eigen stap terug. */
-export function watchNotice(store: NoticeStore, eventId: string): void {
+export function watchNotice(store: NoticeStore, eventId: string, stillValid: (state: AppState) => boolean = () => true): void {
   const data = noticeData(store.getState());
   const stop = store.subscribe((s) => {
     const notice = s.ui.notifications.find((n) => n.action?.kind === 'undoHistoryEvent' && n.action.eventId === eventId);
     if (!notice) { stop(); return; } // tijd om, kruisje of vervangen
     if (selectUndoHistoryEvent(s.historyEvents, s.activeDocumentId)?.id === eventId
-      && noticeData(s).every((value, i) => value === data[i])) return;
+      && noticeData(s).every((value, i) => value === data[i]) && stillValid(s)) return;
     stop();
     s.dismissNotification(notice.id);
   });

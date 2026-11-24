@@ -67,7 +67,7 @@ import { sameValue } from '@/utils/sameValue';
 import { freeze } from 'immer';
 import { openMergePlanning } from '@/state/ifcMergePlanning';
 import { psetOwners, validateMergeOutput } from './mergeValidation';
-import { applyForeignRule, goneStepIds, type ForeignChange, type ForeignReferences, type ForeignRuleOutcome } from './changeList';
+import { applyForeignRule, emptyForeignReferences, goneStepIds, NOTHING_GONE, type ForeignChange, type ForeignReferences, type ForeignRuleOutcome } from './changeList';
 import { foreignChangeList, foreignReferences } from './foreignReferences';
 import {
   SECOND_FORMS, indexView, linesView, ownGroupMembers, ownGroupTrees, restoredOwnGroupDifference, restoredOwnSlots, type RestoredOwnSlots,
@@ -222,7 +222,6 @@ function refList(token: string | undefined): number[] {
 
 const formatRefs = (ids: readonly number[]) => `(${ids.map(id => `#${id}`).join(',')})`;
 
-const NOTHING_REMOVED: ForeignRuleOutcome = { gone: new Set(), dropped: new Set(), trimmed: new Map(), droppedUnusedKeys: [] };
 
 function editedPieces(index: StepIndex, changes: readonly ForeignChange[]): ReadonlyMap<number, Uint8Array | null> {
   const edits = new Map<number, Uint8Array | null>();
@@ -404,8 +403,9 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     foreignAssignmentKeyNames: foreignAssignmentKeyNamesForWriter(source, index),
   };
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
-  const references = foreignReferences(index, cls.classes, source.bytes, cls.selection.inD);
-  const rule = applyForeignRule(references, goneStepIds(source.stepIds, input), source.unusedKeys);
+  const gone = goneStepIds(source.stepIds, input);
+  const references = gone.size > 0 ? foreignReferences(index, cls.classes, source.bytes, cls.selection.inD) : emptyForeignReferences();
+  const rule = applyForeignRule(references, gone, source.unusedKeys);
   const changes = foreignChangeList(rule, index, source.bytes);
   const pieceEdits = editedPieces(index, changes);
   // Een verstopt stuk vóór een P-stuk (#886): het commentaar ervóór gaat met het P-stuk weg.
@@ -743,7 +743,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // de lezing van de bron (#886). Wat alleen het openen veranderde, schrijft de merge in de vorm van de bron
   // (`sourceForm.ts`); de verliesbewaking blijft met de bron vergelijken.
   // O0: het domein zoals de lezer het uit de bron las (de verliesbewaking hieronder).
-  const built0 = buildLines(pristine, () => {}, NOTHING_REMOVED);
+  const built0 = buildLines(pristine, () => {}, NOTHING_GONE);
   const pristineIds = planningIdentities(pristine).calendar, domainIds = planningIdentities(input).calendar;
   const literal0 = new Set(built0.literalCalendarIds.map(id => pristineIds.get(id) ?? id));
   // Was knownbug 1102 (besluit van Trias, 10 november 2026): een kalender die bij deze opslag letterlijk wordt (letterlijk in O1,

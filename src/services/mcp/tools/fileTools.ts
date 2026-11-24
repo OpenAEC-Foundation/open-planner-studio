@@ -57,6 +57,7 @@ import type { TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan
 import { ifcFullWriteBlocked, refusedWriteTarget } from '@/state/ifcForeignGuard';
 import { openTabFor, readVersionOf, switchToOpenDocument } from '@/state/openDocumentFor';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { writtenForeignChangeCount } from '@/state/foreignChangesWrittenNotice';
 
 /** #804: IFC-uitvoer blijft geweigerd met ontbrekende bronbytes of de flag uit (`state/ifcForeignGuard.ts`). */
 const FOREIGN_CONTENT_REFUSAL = 'The active document contains a building model or data from other programs. The app cannot ' +
@@ -464,6 +465,11 @@ export const fileTools: McpToolDef[] = [
           tasks: state.tasks.length,
           /** Werkelijke uitkomst: stond er al een bestand op dit pad dat nu vervangen is? */
           overwritten: existed,
+          ...(writtenForeignChangeCount(output.prepared) > 0 ? {
+            foreignDataChanged: writtenForeignChangeCount(output.prepared),
+            foreignDataNotice: `${writtenForeignChangeCount(output.prepared)} item(s) from other programs were linked to deleted tasks or resources. `
+              + 'They were adjusted or removed in this file.',
+          } : {}),
           /** Het schema in de kop van het geschreven bestand (issue #292). */
           ifcSchema,
           // Alleen als het document als een ander schema geopend was dan dit bestand nu heeft.

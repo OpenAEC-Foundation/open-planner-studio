@@ -60,7 +60,7 @@ type Body<T> = T extends unknown ? Omit<T, 'id'> : never;
 
 const hasElementLinks = (outcome: ForeignScanOutcome): outcome is OpenedForeignScanOutcome =>
   !outcome.ok || ('stepElementLinks' in outcome && Array.isArray(outcome.stepElementLinks)
-    && 'foreignReferences' in outcome && (outcome as OpenedForeignScan).foreignReferences?.targets instanceof Int32Array);
+    && ((outcome as OpenedForeignScan).foreignReferences === undefined || (outcome as OpenedForeignScan).foreignReferences!.targets instanceof Int32Array));
 
 /**
  * `work` met één Worker; zonder Worker of bij een fout van het transport `fallback` (na het stoppen van de Worker). Een

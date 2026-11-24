@@ -17,6 +17,7 @@ import type { AppSlice, AppSliceFactory } from './types';
 import { overlaysToUi } from '../layoutView';
 import { persistOverlays } from '../overlaySettings';
 import { clearRefusals, refusalNotice } from '@/state/refusalNotice';
+import { notifyForeignLinksDropped } from '../foreignLinksNotice';
 
 export interface HistorySessionMark {
   sequence: number;
@@ -141,7 +142,7 @@ function applyHistoryEvent(
   }
 }
 
-export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (set, get) => ({
+export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (set, get, store) => ({
   historyEvents: [],
   nextHistorySequence: 1,
 
@@ -155,7 +156,12 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
 
   undo: () => applyHistoryEvent(runtime, set, get, 'undo'),
   undoHistoryEvent: (eventId) => applyHistoryEvent(runtime, set, get, 'undo', eventId),
-  redo: () => applyHistoryEvent(runtime, set, get, 'redo'),
+  redo: () => {
+    const before = get();
+    const redone = selectRedoHistoryEvent(before.historyEvents, before.activeDocumentId);
+    applyHistoryEvent(runtime, set, get, 'redo');
+    if (redone) notifyForeignLinksDropped(store, before, redone.sequence);
+  },
 
   historyMark: () => {
     runtime.resetUndoCoalescing();

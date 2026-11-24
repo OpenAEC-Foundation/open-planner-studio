@@ -235,6 +235,7 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignSaveBlocked'
   | 'notifications.ifcForeignSourceMissing'
   | 'notifications.foreignLinksDropped'
+  | 'notifications.foreignChangesWritten'
   | 'notifications.ifcSourceCopyFailed'
   | 'notifications.ifcForeignReplaceBlocked'
   // Knownbug 1131 stap 2: Ctrl+S op het eigen bestand achter een handle.

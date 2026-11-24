@@ -4,10 +4,10 @@
  */
 import { classify, type Classification } from './classify';
 import { isRootLine, refsOutsideText } from './lossCheck';
-import { splitStepArgs, type StepIndex } from './stepScanner';
+import type { StepIndex } from './stepScanner';
 import { scanForeignStep } from './oldOwnHeader';
-import { applyForeignRule, type ForeignChange } from './changeList';
-import { foreignChangeList, foreignReferences } from './foreignReferences';
+import type { ForeignChange } from './changeList';
+import { entityValue, losesItsPlace, serializeStepValue, withoutRemovedMembers } from './stepValue';
 
 /** De eigenaren van een pset via IfcRelDefinesByProperties, als stuknummers. */
 export function psetOwners(index: StepIndex, pset: number): number[] {
@@ -66,35 +66,35 @@ function goneFromOutput(source: StepIndex, sourceClasses: Classification, index:
   return gone;
 }
 
-function withoutRemovedMembers(token: string, removed: ReadonlySet<number>): string {
-  const t = token.trim();
-  if (!t.startsWith('(') || !t.endsWith(')')) return t;
-  const members = splitStepArgs(t.slice(1, -1)).map(member => member.trim())
-    .filter(member => !/^#\d+$/.test(member) || !removed.has(Number(member.slice(1))))
-    .map(member => withoutRemovedMembers(member, removed));
-  return `(${members.join(',')})`;
-}
-
-function trimmedProblem(source: StepIndex, before: number, index: StepIndex, after: number, removed: ReadonlySet<number>): string | undefined {
-  const want = (source.argTokens(before) ?? []).map(arg => withoutRemovedMembers(arg, removed));
-  const got = (index.argTokens(after) ?? []).map(arg => withoutRemovedMembers(arg, new Set()));
-  if (index.type(after) === source.type(before) && want.join('\u0000') === got.join('\u0000')) return undefined;
-  return `gewijzigd niet-P-stuk #${source.id(before)}: in de uitvoer niet hetzelfde stuk met alleen de leden naar verwijderde stukken eruit`;
-}
-
-function ruleProblem(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array, gone: ReadonlySet<number>,
-  listed: ReadonlyMap<number, ForeignChange>): string | undefined {
-  const references = foreignReferences(source, sourceClasses.classes, sourceBytes, sourceClasses.selection.inD);
-  const expected = foreignChangeList(applyForeignRule(references, gone), source, sourceBytes);
-  const given = new Map([...listed.values()].map(change => [change.id, change]));
-  if (expected.length !== given.size) return `de wijzigingslijst noemt ${given.size} vreemde stukken, de regel van §4.7 geeft er ${expected.length}`;
-  for (const want of expected) {
-    const got = given.get(want.id);
-    const same = got?.kind === want.kind && (want.kind !== 'gewijzigd' || (got.kind === 'gewijzigd'
-      && equalBytes(want.newBytes, got.newBytes, 0, got.newBytes.length)));
-    if (!same) return `#${want.id}: de wijzigingslijst wijkt af van de regel van §4.7`;
+function changeListProblems(source: StepIndex, sourceBytes: Uint8Array, index: StepIndex, bytes: Uint8Array,
+  listed: ReadonlyMap<number, ForeignChange>, gone: ReadonlySet<number>): string[] {
+  const problems: string[] = [];
+  const removed = new Set(gone);
+  const valueOf = (ix: StepIndex, b: Uint8Array, chunk: number) => chunk < 0 ? undefined : entityValue(b, ix.entityStart(chunk), ix.end(chunk));
+  let pending = [...listed].filter(([, change]) => change.kind === 'vervallen')
+    .map(([chunk, change]) => ({ id: change.id, value: valueOf(source, sourceBytes, chunk) }));
+  for (let progress = true; progress && pending.length > 0;) {
+    progress = false;
+    pending = pending.filter(piece => {
+      if (!piece.value || !losesItsPlace(piece.value, removed)) return true;
+      removed.add(piece.id);
+      progress = true;
+      return false;
+    });
   }
-  return undefined;
+  for (const piece of pending) problems.push(`wijzigingslijst: #${piece.id} vervalt, maar geen verwijderd stuk laat het vervallen`);
+  for (const [chunk, change] of listed) {
+    if (change.kind !== 'gewijzigd') continue;
+    const before = valueOf(source, sourceBytes, chunk), after = valueOf(index, bytes, index.chunkOf(String(change.id)));
+    const want = before && serializeStepValue(withoutRemovedMembers(before, removed));
+    if (!before || !after) problems.push(`wijzigingslijst: gewijzigd stuk #${change.id} is niet te lezen`);
+    else if (losesItsPlace(before, removed)) problems.push(`wijzigingslijst: #${change.id} staat als gewijzigd op de lijst, maar vervalt volgens §4.7`);
+    else if (want === serializeStepValue(before)) problems.push(`wijzigingslijst: #${change.id} staat als gewijzigd op de lijst, maar verliest geen lid`);
+    else if (want !== serializeStepValue(after)) {
+      problems.push(`gewijzigd niet-P-stuk #${change.id}: in de uitvoer niet hetzelfde stuk met alleen de leden naar verwijderde stukken eruit`);
+    }
+  }
+  return problems;
 }
 
 /** Een vreemd lid blijft aan hetzelfde object en dezelfde psetnaam, ook als de pset een nieuw id kreeg. */
@@ -286,8 +286,6 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
   const index = scanForeignStep(bytes), classification = classify(index), problems: string[] = [];
   const { listed, rewritten } = listedPieces(source, sourceClasses, sourceBytes, options.changes ?? [], problems);
   const gone = goneFromOutput(source, sourceClasses, index);
-  const removed = new Set(gone);
-  for (const change of listed.values()) if (change.kind === 'vervallen') removed.add(change.id);
   // De stuknummers van de niet-P-stukken van bron en uitvoer, als `Int32Array`: bij een groot model zijn het er miljoenen
   // (#804).
   const preservedAll = new Int32Array(source.count);
@@ -312,9 +310,6 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
     } else if (change?.kind === 'gewijzigd') {
       if (!equalBytes(change.newBytes, bytes, index.start(after), index.end(after))) {
         problems.push(`niet-P-stuk op plek ${j}: #${source.id(before)} heeft niet de nieuwe bytes van de wijzigingslijst`);
-      } else {
-        const problem = trimmedProblem(source, before, index, after, removed);
-        if (problem) problems.push(problem);
       }
     } else if (!equalChunks(source, sourceBytes, before, index, bytes, after)) {
       problems.push(`niet-P-stuk op plek ${j}: #${source.id(before)} ontbreekt, is gewijzigd of verplaatst`);
@@ -322,8 +317,7 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
   }
   // Vond de lus hierboven niets, dan staat elk niet-P-stuk byte-gelijk op zijn plek: dan telt alleen het verschil.
   const counting = problems.length === 0 && !options.full ? 'verschil' : 'volledig';
-  const fromRule = ruleProblem(source, sourceClasses, sourceBytes, gone, listed);
-  if (fromRule) problems.push(fromRule);
+  problems.push(...changeListProblems(source, sourceBytes, index, bytes, listed, gone));
   for (const member of sourceClasses.foreignMembers) {
     const id = source.id(member), expected = bindings(source, id), shown = bindings(index, id);
     for (const key of [...expected.keys()]) if (gone.has(Number(JSON.parse(key)[0]))) expected.delete(key);

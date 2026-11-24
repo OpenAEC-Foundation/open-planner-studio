@@ -42,7 +42,7 @@ function entityReferences(bytes: Uint8Array, entityStart: number, end: number): 
     if (frame.tokens === 0) return;
     const pureRef = frame.list && frame.tokens === 1 && frame.refs.length === 1;
     if (frame.list) frame.elements.push({ start: frame.start, end: frame.end, ref: pureRef ? frame.refs[0] : -1 });
-    if (!pureRef) single.push(...frame.refs);
+    if (!pureRef) for (const ref of frame.refs) single.push(ref);
     frame.tokens = 0;
     frame.refs = [];
   };
@@ -121,7 +121,7 @@ export function foreignReferences(index: StepIndex, classes: ArrayLike<number>, 
   const stepIds: number[] = [], groupStart = [0], groupSize: number[] = [], targetStart = [0], targets: number[] = [];
   const group = (size: number, ids: readonly number[]) => {
     groupSize.push(size);
-    targets.push(...ids);
+    for (const id of ids) targets.push(id);
     targetStart.push(targets.length);
   };
   for (const piece of pieces) {

@@ -388,6 +388,8 @@
     "ifcForeignSourceMissing": "File not saved. The building model or data from another program could not be found. Use Save As to save only the schedule in a new file. Open the original IFC file to work with the complete file again.",
     "foreignLinksDropped_one": "{{count}} item from another program was linked to what you deleted. It will be adjusted or removed when you save.",
     "foreignLinksDropped_other": "{{count}} items from other programs were linked to what you deleted. They will be adjusted or removed when you save.",
+    "foreignChangesWritten_one": "{{count}} item from another program was linked to a deleted task or resource. It has been adjusted or removed.",
+    "foreignChangesWritten_other": "{{count}} items from other programs were linked to deleted tasks or resources. They have been adjusted or removed.",
     "taskTypeRenameNameTaken": "In this project the name stays “{{oldName}}”: another work category in this project is already called “{{takenName}}”.",
     "otherWork": {
       "durationDays_one": "The task now takes {{days}} day.",
