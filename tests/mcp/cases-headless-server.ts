@@ -33,6 +33,7 @@ import { createNodeFileFs, isInside, ScopeEscapeError, WorkingDirectoryRestoreEr
 import { XmlDomParser } from '../../headless/mcp-server/src/xmlDom';
 import { decodeXmlBytes } from '../../headless/mcp-server/src/xmlEncoding';
 import { FileTextDecodingError } from '@/services/mcp/fileTextError';
+import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import { createAppStoreContext } from '@/state/appStoreFactory';
 import { parseOpenedFile } from '@/services/formatRegistry';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
@@ -337,6 +338,39 @@ test('knownbug 216: lange geldige doelnamen blijven schrijfbaar en fouten houden
     assertEq(readFileSync(target, 'utf8'), 'NIEUW LANG DOEL', 'nieuw lang doel aangemaakt');
     unlinkSync(target);
   }
+});
+
+test('A2 nieuwe naam als bytes: exclusief en atomair, ook als het doel vlak voor de plaatsing verschijnt', async () => {
+  mkdirSync(fsRoot, { recursive: true });
+  const bytes = new Uint8Array([0xef, 0xbb, 0xbf, ...Buffer.from('ISO-10303-21;\n'), 0xe9, 0x0a]);
+  const createNew = async (promise: Promise<void>, label: string) => {
+    let caught: unknown = null;
+    try { await promise; } catch (e) { caught = e; }
+    assert(caught instanceof ByteWriteError && caught.reason === 'create-new', `${label}: verwacht create-new, kreeg ${String(caught)}`);
+  };
+  const fs = await createNodeFileFs(fsRoot);
+  const fresh = join(fsRoot, 'nieuw', 'bytes.ifc');
+  await fs.writeNewUserBytes!(fresh, bytes);
+  assert(readFileSync(fresh).equals(Buffer.from(bytes)), 'de bytes staan ongewijzigd op de nieuwe naam');
+  assertEq([lstatSync(fresh).nlink, tmpFiles(join(fsRoot, 'nieuw'))], [1, []], 'één naam, geen halffabricaat');
+  const existing = join(fsRoot, 'bestaand-bytes.ifc');
+  writeFileSync(existing, ORIGINAL);
+  await createNew(fs.writeNewUserBytes!(existing, bytes), 'bestaand doel');
+  assertEq(readFileSync(existing, 'utf8'), ORIGINAL, 'bestaand doel: byte-gelijk');
+  const late = join(fsRoot, 'laat.ifc');
+  const racing = await createNodeFileFs(fsRoot, undefined, {
+    afterCheck: (phase) => { if (phase === 'commit') writeFileSync(late, 'VAN EEN ANDER'); },
+  });
+  await createNew(racing.writeNewUserBytes!(late, bytes), 'doel verschijnt vlak voor de plaatsing');
+  assertEq([readFileSync(late, 'utf8'), tmpFiles(fsRoot)], ['VAN EEN ANDER', []], 'het bestand van een ander blijft staan, geen halffabricaat');
+  for (const phase of ['write', 'rename'] as const) {
+    const target = join(fsRoot, `fout-${phase}.ifc`);
+    const failing = await createNodeFileFs(fsRoot, undefined, { fault: (p) => { if (p === phase) throw new Error(`nagebootste ${p}-fout`); } });
+    await expectReject(failing.writeNewUserBytes!(target, bytes), `${phase}-fout`);
+    assertEq([existsSync(target), tmpFiles(fsRoot)], [false, []], `${phase}-fout: niets geschreven, halffabricaat opgeruimd`);
+  }
+  for (const name of ['laat.ifc', 'bestaand-bytes.ifc']) unlinkSync(join(fsRoot, name));
+  rmSync(join(fsRoot, 'nieuw'), { recursive: true });
 });
 
 test('A2 (215): doelmap synchroniseren na rename, met expliciete fout als het bestand al vervangen is', async () => {
