@@ -95,7 +95,7 @@ function applyHistoryEvent(
   get: Parameters<AppSlice<HistorySlice>>[1],
   direction: 'undo' | 'redo',
   eventId?: string,
-): void {
+): SessionHistoryEvent | null {
   runtime.resetUndoCoalescing();
   const current = get();
   const event = eventId !== undefined
@@ -104,13 +104,15 @@ function applyHistoryEvent(
     : direction === 'undo'
       ? selectUndoHistoryEvent(current.historyEvents, current.activeDocumentId)
       : selectRedoHistoryEvent(current.historyEvents, current.activeDocumentId);
-  if (!event) return;
+  if (!event) return null;
 
   const side = direction === 'undo' ? 'before' : 'after';
   const targets = materializeHistoryEventTargets(current, event, side);
+  let applied = false;
   set((state) => {
     const stored = state.historyEvents.find(item => item.id === event.id);
     if (!stored || stored.state !== (direction === 'undo' ? 'applied' : 'undone')) return;
+    applied = true;
     // Eigenaarsbesluit 2026-10-19 5b: na elke undo- en redo-stap verdwijnen de weigeringen (rode
     // meldingen met `refusal` en de strook). Alleen als er echt een stap is gezet; een Ctrl+Z zonder
     // iets terug te draaien laat ze staan. Hier, aan het BEGIN van dezelfde `set`: alles wat ná de
@@ -140,6 +142,7 @@ function applyHistoryEvent(
   for (const target of targets) {
     if (target.kind === 'document-view' && target.overlays) persistOverlays(target.overlays);
   }
+  return applied ? event : null;
 }
 
 export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (set, get, store) => ({
@@ -154,12 +157,11 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
     if (recorded) persistGridWhenNeeded(get(), recorded);
   },
 
-  undo: () => applyHistoryEvent(runtime, set, get, 'undo'),
-  undoHistoryEvent: (eventId) => applyHistoryEvent(runtime, set, get, 'undo', eventId),
+  undo: () => { applyHistoryEvent(runtime, set, get, 'undo'); },
+  undoHistoryEvent: (eventId) => { applyHistoryEvent(runtime, set, get, 'undo', eventId); },
   redo: () => {
     const before = get();
-    const redone = selectRedoHistoryEvent(before.historyEvents, before.activeDocumentId);
-    applyHistoryEvent(runtime, set, get, 'redo');
+    const redone = applyHistoryEvent(runtime, set, get, 'redo');
     if (redone) notifyForeignLinksDropped(store, before, redone.sequence);
   },
 

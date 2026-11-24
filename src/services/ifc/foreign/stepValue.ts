@@ -34,7 +34,7 @@ function parseItems(text: string, at: number, separated: boolean): readonly [Ste
   if (text[i] === ')') return [items, i + 1];
   for (;;) {
     const item = parseItem(text, i);
-    if (!item) return undefined;
+    if (!item || item[1] <= i) return undefined;
     items.push(item[0]);
     i = item[1];
     if (text[i] === ')') return [items, i + 1];
@@ -62,7 +62,7 @@ function parseItem(text: string, at: number): Parsed {
     }
     i++;
   }
-  return [{ kind: 'atom', text: text.slice(at, i) }, i];
+  return i > at ? [{ kind: 'atom', text: text.slice(at, i) }, i] : undefined;
 }
 
 export function entityValue(bytes: Uint8Array, entityStart: number, end: number): StepValue | undefined {
@@ -87,6 +87,13 @@ export function serializeStepValue(value: StepValue): string {
 
 const memberRef = (value: StepValue) => value.kind === 'atom' && /^#\d+$/.test(value.text) ? Number(value.text.slice(1)) : undefined;
 const looseRefs = (text: string) => text.startsWith(QUOTE) ? [] : [...text.matchAll(/#(\d+)/g)].map(m => Number(m[1]));
+
+export function stepValueRefs(value: StepValue): number[] {
+  if (value.kind === 'atom') return looseRefs(value.text);
+  const refs: number[] = [];
+  for (const item of value.items) for (const ref of stepValueRefs(item)) refs.push(ref);
+  return refs;
+}
 
 export function losesItsPlace(value: StepValue, removed: ReadonlySet<number>): boolean {
   if (value.kind === 'atom') return looseRefs(value.text).some(id => removed.has(id));

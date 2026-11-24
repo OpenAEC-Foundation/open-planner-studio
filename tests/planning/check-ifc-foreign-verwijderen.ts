@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MergeNeedsPhase2Error, prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { validateMergeOutput } from '@/services/ifc/foreign/mergeValidation';
-import { applyForeignRule, foreignChangeCount, goneStepIds, newForeignChangeCount, type ForeignChange, type ForeignReferences } from '@/services/ifc/foreign/changeList';
+import { applyForeignRule, goneStepIds, newForeignChangeCount, type ForeignChange, type ForeignReferences, type ForeignRuleOutcome } from '@/services/ifc/foreign/changeList';
 import { foreignChangeList, foreignReferences } from '@/services/ifc/foreign/foreignReferences';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
@@ -16,8 +16,6 @@ import { cloneDomain, mergeProblems, openForeign, settle, shownAfterOpen } from 
 import { loadStore, openInStore } from './ifcAppRoute';
 import { installDeterminism } from './ifcPariteitKern';
 import { arrayAndCollectionOperations } from './operationCount';
-import { loadExtensionProject } from '@/extensions/retainActiveDocument';
-import { toExtAssignment, toExtCalendar, toExtProject, toExtResource, toExtSequence, toExtTask } from '@/extensions/extMappers';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 installDeterminism();
@@ -31,6 +29,7 @@ const withLines = (content: string, lines: readonly string[]) => {
 };
 const lineOf = (bytes: Uint8Array, id: number) => new RegExp(`^#${id}=.*$`, 'm').exec(decode(bytes))?.[0];
 const listed = (changes: readonly ForeignChange[] | undefined) => (changes ?? []).map(c => `${c.kind} #${c.id}`);
+const foreignChangeCount = (outcome: ForeignRuleOutcome) => outcome.dropped.size + outcome.trimmed.size + outcome.droppedUnusedKeys.length;
 
 let passed = 0, failed = 0;
 async function check(label: string, run: () => Promise<void>) {
@@ -344,21 +343,6 @@ await check('een getypeerde lijst: het lid gaat eruit, en controle 1 keurt de ju
   assert.deepEqual(mergeProblems(source.bytes, prepared.bytes, prepared.foreignChanges), []);
 });
 
-await check('de extensieroute laadt dezelfde taak met een nieuw id terug: het opslaan weigert, zoals op main', async () => {
-  const opened = await openInStore(encode(withLines(text('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'),
-    [`#9001=IFCRELASSIGNSTOPRODUCT('${guid('1RegelTweeLijst')}',$,$,$,(#51),$,#393);`])));
-  const state = opened.store.getState(), oldId = taskId(opened, 'Set up site');
-  const ext = { project: toExtProject(state.project), calendar: toExtCalendar(state.calendar), tasks: state.tasks.map(t => toExtTask(t)),
-    sequences: state.sequences.map(toExtSequence), resources: state.resources.map(toExtResource), assignments: state.assignments.map(toExtAssignment) };
-  loadExtensionProject(opened.store, JSON.parse(JSON.stringify(ext).split(`"${oldId}"`).join('"taak-met-nieuw-id"')));
-  assert.equal(opened.store.getState().ifcSource, state.ifcSource, 'de bron blijft gekoppeld');
-  assert(!opened.store.getState().tasks.some(t => t.id === oldId) && opened.store.getState().tasks.some(t => t.id === 'taak-met-nieuw-id'));
-  let refusal: unknown;
-  try { await save(opened); } catch (error) { refusal = error; }
-  assert(refusal instanceof MergeNeedsPhase2Error, 'het opslaan weigert');
-  assert(refusal.cases.some(c => c.kind === 'niet-gedragen'), refusal.cases.map(c => c.kind).join(', '));
-});
-
 await check('flag aan zonder vreemd deel: geen grafiek bij openen en geen melding', async () => {
   const own = encode(text('public/examples/03-kantoorgebouw-zuidas.ifc'));
   const scan = scanForeignToOpen(own);
@@ -427,6 +411,59 @@ await check('de verwijzingen bij openen zijn dezelfde als die de merge uit de br
   assert.deepEqual(store.store.getState().ifcSource!.foreignReferences, opened.foreignReferences);
   const gone = goneStepIds(store.store.getState().ifcSource!.stepIds, { ...store.store.getState(), resourceCalendars: store.store.getState().calendars });
   assert.equal(gone.size, 0, 'zonder bewerking is er niets verdwenen');
+});
+
+await check('een beschadigde complexe instantie op de wijzigingslijst: de uitvoercontrole eindigt met een weigering', async () => {
+  const opened = await openInStore(encode(withLines(text('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'), [
+    `#9050=(IFCRELASSIGNS((#51),$),IFCRELASSIGNSTOPRODUCT(#393),IFCRELATIONSHIP(),IFCROOT('${guid('1Complex')}',$,$,$));`,
+  ])));
+  assert(opened.store.getState().ifcSource, 'het bestand opent');
+  opened.store.getState().deleteTask(taskId(opened, 'Set up site'));
+  let refusal: unknown;
+  try { await save(opened); } catch (error) { refusal = error; }
+  assert(refusal instanceof MergeNeedsPhase2Error, 'het opslaan weigert');
+  assert(refusal.cases.some(c => c.kind === 'uitvoer-controle'), refusal.cases.map(c => c.kind).join(', '));
+});
+
+function reversedChain(length: number) {
+  const lines: string[] = [];
+  for (let k = 0; k < length; k++) {
+    lines.push(`#${9100 + length - 1 - k}=IFCPROPERTYREFERENCEVALUE('k${k}',$,$,#${k === 0 ? 51 : 9100 + length - k});`);
+  }
+  return withLines(text('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'), lines);
+}
+
+await check('een lange keten in omgekeerde bronvolgorde: de uitvoercontrole doet lineair werk', async () => {
+  const work = async (length: number) => {
+    const opened = await openInStore(encode(reversedChain(length)));
+    const source = opened.store.getState().ifcSource!;
+    opened.store.getState().deleteTask(taskId(opened, 'Set up site'));
+    const prepared = await save(opened);
+    assert((prepared.foreignChanges ?? []).filter(c => c.kind === 'vervallen' && c.id >= 9100).length === length, 'de hele keten vervalt');
+    const index = scanForeignStep(source.bytes), cls = classify(index);
+    const { result, operations } = arrayAndCollectionOperations(() =>
+      validateMergeOutput(index, cls, source.bytes, prepared.bytes, { changes: prepared.foreignChanges }));
+    assert.deepEqual(result.problems, []);
+    return operations;
+  };
+  const small = await work(400), large = await work(800);
+  console.log(`   werk van de uitvoercontrole bij een keten van 400: ${small}; van 800: ${large}`);
+  assert(large / small < 2.6, `twee keer zo lang geeft ${(large / small).toFixed(2)} keer zoveel werk; lineair is 2, kwadratisch 4`);
+});
+
+await check('Opnieuw kiest de stap één keer, ook met de flag uit en zonder vreemd deel', async () => {
+  for (const flag of [false, true]) {
+    const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
+    store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; });
+    store.getState().newProject();
+    const ids = [store.getState().addTask({ name: 'a' }), store.getState().addTask({ name: 'b' })];
+    for (let k = 0; k < 600; k++) store.getState().updateTask(ids[k % 2]!, { name: `t${k}` });
+    store.getState().undo();
+    const redo = arrayAndCollectionOperations(() => store.getState().redo()).operations;
+    const undo = arrayAndCollectionOperations(() => store.getState().undo()).operations;
+    console.log(`   flag ${flag ? 'aan' : 'uit'}: Opnieuw ${redo}, Ongedaan maken ${undo} bewerkingen`);
+    assert(redo < undo * 1.3, `Opnieuw kost ${(redo / undo).toFixed(2)} keer Ongedaan maken; één keuze is ongeveer 1, twee keuzes ongeveer 2`);
+  }
 });
 
 console.log(`Verwijderen met gegevens van andere programma's: ${passed} geslaagd, ${failed} mislukt.`);

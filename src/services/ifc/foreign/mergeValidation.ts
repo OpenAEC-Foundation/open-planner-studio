@@ -7,7 +7,7 @@ import { isRootLine, refsOutsideText } from './lossCheck';
 import type { StepIndex } from './stepScanner';
 import { scanForeignStep } from './oldOwnHeader';
 import type { ForeignChange } from './changeList';
-import { entityValue, losesItsPlace, serializeStepValue, withoutRemovedMembers } from './stepValue';
+import { entityValue, losesItsPlace, serializeStepValue, stepValueRefs, withoutRemovedMembers } from './stepValue';
 
 /** De eigenaren van een pset via IfcRelDefinesByProperties, als stuknummers. */
 export function psetOwners(index: StepIndex, pset: number): number[] {
@@ -71,18 +71,29 @@ function changeListProblems(source: StepIndex, sourceBytes: Uint8Array, index: S
   const problems: string[] = [];
   const removed = new Set(gone);
   const valueOf = (ix: StepIndex, b: Uint8Array, chunk: number) => chunk < 0 ? undefined : entityValue(b, ix.entityStart(chunk), ix.end(chunk));
-  let pending = [...listed].filter(([, change]) => change.kind === 'vervallen')
+  const pending = [...listed].filter(([, change]) => change.kind === 'vervallen')
     .map(([chunk, change]) => ({ id: change.id, value: valueOf(source, sourceBytes, chunk) }));
-  for (let progress = true; progress && pending.length > 0;) {
-    progress = false;
-    pending = pending.filter(piece => {
-      if (!piece.value || !losesItsPlace(piece.value, removed)) return true;
-      removed.add(piece.id);
-      progress = true;
-      return false;
-    });
+  const referrers = new Map<number, typeof pending>();
+  for (const piece of pending) {
+    for (const ref of new Set(piece.value ? stepValueRefs(piece.value) : [])) {
+      const list = referrers.get(ref);
+      if (list) list.push(piece); else referrers.set(ref, [piece]);
+    }
   }
-  for (const piece of pending) problems.push(`wijzigingslijst: #${piece.id} vervalt, maar geen verwijderd stuk laat het vervallen`);
+  const justified = new Set<number>();
+  for (let round = pending; round.length > 0;) {
+    const next = new Set<(typeof pending)[number]>();
+    for (const piece of round) {
+      if (justified.has(piece.id) || !piece.value || !losesItsPlace(piece.value, removed)) continue;
+      justified.add(piece.id);
+      removed.add(piece.id);
+      for (const referrer of referrers.get(piece.id) ?? []) if (!justified.has(referrer.id)) next.add(referrer);
+    }
+    round = [...next];
+  }
+  for (const piece of pending) {
+    if (!justified.has(piece.id)) problems.push(`wijzigingslijst: #${piece.id} vervalt, maar geen verwijderd stuk laat het vervallen`);
+  }
   for (const [chunk, change] of listed) {
     if (change.kind !== 'gewijzigd') continue;
     const before = valueOf(source, sourceBytes, chunk), after = valueOf(index, bytes, index.chunkOf(String(change.id)));
