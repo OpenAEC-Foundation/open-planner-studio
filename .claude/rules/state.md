@@ -93,11 +93,15 @@ als de job `hashBytes` draagt, zie `tauri-ifc.md`; zonder worker start `precompu
 route er ná het bevestigde schrijven op, nooit tussen de laatste controle en het plaatsen). Zonder bekende bytes, na een
 download, op de site en met de flag uit: `null`. Na een geschreven export
 (Exporteren → IFC, beide delen van de export met de resourcebibliotheek, Bestand → Bibliotheek, `planner_export_ifc`)
-roept de route `settleFingerprintAfterExport(snapshot, written)` aan (via `recordOwnFileExport` of direct). Alleen met de
-flag aan en een bekende vingerafdruk vergelijkt die het eigen doel met de geschreven bytes (`sourceTargetContent`:
-eerst de grootte, bij gelijke grootte byte voor byte). Gelijk: de vingerafdruk wordt die van de geschreven bytes, als
-ze intussen niet veranderde; anders blijft ze. Er wordt geen pad vergeleken. Met de flag uit of bij annuleren gebeurt
-niets, ook geen `stat`. De letterlijke kalenders houden `exportHitsOwnFile`. Een geweigerde opslag laat het veld staan.
+roept de route `settleFingerprintAfterExport(documentId, written)` aan, binnen dezelfde beurt van de schrijfrij
+(`runProjectFileWrite`). Alleen met de flag aan; ze neemt niets mee van vóór de beurt behalve het document-id en de
+geschreven bytes. Ze leest het actuele eigen doel en de actuele vingerafdruk van dat document; heeft het document er
+een en een eigen pad of handle, dan vergelijkt ze dat doel met de geschreven bytes (`sourceTargetContent`: eerst de
+grootte, bij gelijke grootte byte voor byte). Gelijk: de vingerafdruk wordt die van de geschreven bytes, zonder
+vergelijking met een oude waarde, als de documentinhoud en het eigen doel tijdens de nacontrole niet veranderden;
+anders blijft ze. Er wordt geen pad vergeleken. Met de flag uit of bij annuleren gebeurt niets, ook geen `stat`. De
+letterlijke kalenders houden `exportHitsOwnFile`. De flag uitzetten (`setUI`) wist de vingerafdruk van elk tabblad.
+Een geweigerde opslag laat het veld staan.
 Een mislukte schrijfactie naar het eigen pad (Ctrl+S, Automatisch opslaan) en een onzekere vervanging met herstel
 (`unknown`, `previous-stranded`, `target-taken`) maken het `null`; een rekenfout vóór het schrijven niet.
 Proef: `check-tabblad-schijfversie.ts` (de A2-tabel); grenzen: knownbug 2065, 2066 en 2200.
