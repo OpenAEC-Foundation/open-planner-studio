@@ -129,3 +129,22 @@ export function notifyLevelingDelayRounded(
     'notifications.levelingDelayRoundedToWorkdays', `leveling-delay-rounded-${docId}`,
   );
 }
+
+export interface TimephasedLossNoticeClaimSnapshot {
+  readonly timephasedDocIds: ReadonlySet<string>;
+  readonly levelingDelayDocIds: ReadonlySet<string>;
+}
+
+export function snapshotTimephasedLossNoticeClaims(): TimephasedLossNoticeClaimSnapshot {
+  return {
+    timephasedDocIds: new Set(notifiedDocIds),
+    levelingDelayDocIds: new Set(notifiedLevelingDelayDocIds),
+  };
+}
+
+export function restoreTimephasedLossNoticeClaims(snapshot: TimephasedLossNoticeClaimSnapshot): void {
+  notifiedDocIds.clear();
+  for (const docId of snapshot.timephasedDocIds) notifiedDocIds.add(docId);
+  notifiedLevelingDelayDocIds.clear();
+  for (const docId of snapshot.levelingDelayDocIds) notifiedLevelingDelayDocIds.add(docId);
+}
