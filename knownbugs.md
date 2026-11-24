@@ -1744,12 +1744,6 @@ en noem het in je rapport of PR-tekst.
      schuift. Onder het MS Project-profiel staat conventie A23 `unstartedIgnoresStatusDate` aan
      (`src/engine/scheduler/conventions/registry.ts`) en schuift het niet; `statusDateEffect.shifted` meldt dan
      terecht `false`. Gezien in de review van #1083 (GPT-6.2-Sol, proef met statusdatum 1 juni). — B
-1992. **Een mislukte verdeling kan de afrondingsmelding van de herpoging opmaken.** In de verdeelroute
-     (`applyDistribution` in `src/state/slices/librarySlice.ts`, de eenmalige melding in
-     `src/state/timephasedLossNotice.ts`) kwam in de proef een slapend document met een vertraging in minuten als
-     eerste aan de beurt, en liet een tweede slapend document de schrijfronde afbreken. Bij de geslaagde herpoging
-     gingen de minuten verloren zonder melding; in dezelfde proef zonder eerdere afbreking meldde de app het verlies
-     wel. Proef van de reviewer (GPT-6.2-Sol, review van #1164). — B
 2211. **Een taak met heel veel gekoppelde bouwdelen kan `planner_get_task` op de site te groot maken.** Sinds #804
      fase 2 geeft `planner_get_task` (`elementLinkFields` in `src/services/mcp/tools/readTools.ts`) bij een IFC-bestand
      met een gebouwmodel elke koppeling taak↔bouwdeel mee, ongeveer 60 tekens per koppeling, zonder `limit`. De
