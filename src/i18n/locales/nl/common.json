@@ -93,7 +93,6 @@
     "siteSaveConflictCopy": "'{{original}}' is op de site intussen door iemand anders gewijzigd. Je werk staat daarom in een kopie: '{{name}}'. Opslaan schrijft vanaf nu naar die kopie.",
     "siteFileGone": "'{{name}}' staat niet meer op de site. Het bestand is uit Recent gehaald.",
     "siteFileReadOnly": "'{{name}}' is alleen-lezen op de site. Je kunt het bekijken en bewerken, maar Opslaan maakt een nieuw bestand op de site.",
-    "newVersionSiteReadOnly": "'{{name}}' is op de site nu alleen-lezen. De nieuwe versie is niet geladen en dit tabblad blijft zoals het was. Open het bestand via Recent om een kopie te openen.",
     "savedViaDownload": "Opgeslagen als download: '{{name}}' staat nu in je downloadmap. Deze omgeving staat de app niet toe rechtstreeks naar de gekozen locatie te schrijven.",
     "browserCannotOverwrite": "Deze browser laat de app niet terugschrijven naar '{{name}}'. Daarom vraagt de app bij elke keer opslaan opnieuw waar het bestand moet komen. In Chrome, Edge of de desktop-app gebeurt dit niet.",
     "browserSavesAsDownload": "Opgeslagen als download: '{{name}}' staat in je downloadmap. Deze browser laat de app niet naar een eigen plek schrijven, dus elke keer opslaan maakt een nieuwe download. In Chrome, Edge of de desktop-app werkt Opslaan hetzelfde bestand gewoon bij.",

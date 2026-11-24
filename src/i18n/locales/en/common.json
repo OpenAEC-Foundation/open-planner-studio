@@ -93,7 +93,6 @@
     "siteSaveConflictCopy": "'{{original}}' was changed on the site by someone else in the meantime. Your work is therefore saved in a copy: '{{name}}'. From now on, Save writes to that copy.",
     "siteFileGone": "'{{name}}' is no longer on the site. The file was removed from Recent.",
     "siteFileReadOnly": "'{{name}}' is read-only on the site. You can view and edit it, but Save creates a new file on the site.",
-    "newVersionSiteReadOnly": "'{{name}}' is now read-only on the site. The new version was not loaded and this tab stays as it was. Open the file from Recent to open a copy.",
     "savedViaDownload": "Saved as a download: '{{name}}' is now in your downloads folder. This environment does not let the app write directly to the location you picked.",
     "browserCannotOverwrite": "This browser does not let the app write back to '{{name}}'. That is why the app asks again where to put the file every time you save. This does not happen in Chrome, Edge or the desktop app.",
     "browserSavesAsDownload": "Saved as a download: '{{name}}' is in your downloads folder. This browser does not let the app write to a place of its own, so every save creates a new download. In Chrome, Edge or the desktop app, Save simply updates the same file.",

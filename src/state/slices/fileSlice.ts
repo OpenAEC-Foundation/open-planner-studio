@@ -100,7 +100,7 @@ import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerEx
 import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementSettled } from '@/services/fileAccess/writeCoordinator';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
-  changeSaving, clearChangedOnDisk, documentContentOf, hasChangedOnDisk, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
+  changeSaving, clearChangedOnDisk, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
   sameDocumentContent, stampSaved, type DocumentContentRef,
 } from '../documentSaveState';
 import { isBlockingDialogOpen, saveQuestionOpen } from '@/state/blockingDialogs';
@@ -110,8 +110,7 @@ import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
-import { launchTabFor, openTabFor, readVersionOf, startOpenLookup, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
-import { PreparedNewVersion, type DocumentLeaveGate, type NewVersionBasis } from '../preparedNewVersion';
+import { changedOnDiskShown, launchTabFor, openTabFor, readVersionOf, startOpenLookup, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -391,6 +390,11 @@ export interface OpenOpenedFileOptions {
   lookup?: OpenLookup | null;
 }
 
+export interface DocumentLeaveGate {
+  blocked(): boolean;
+  leave(proceed: () => void): void;
+}
+
 export interface FileSlice {
   openFile: (labels?: ImportLabels) => Promise<void>;
   openOpenedFile: (
@@ -413,9 +417,9 @@ export interface FileSlice {
   openRecentFile: (id: string, labels?: ImportLabels) => Promise<void>;
   openFromSite: (id: string, labels?: ImportLabels) => Promise<boolean>;
   markChangedOnDisk: (documentId: string) => void;
-  forgetChangedOnDisk: (documentId: string) => void;
   loadNewVersion: (labels?: ImportLabels, gate?: DocumentLeaveGate) => Promise<void>;
-  loadNewVersionAfterDiscard: () => Promise<boolean>;
+  loadNewVersionAfterDiscard: (documentId: string, labels?: ImportLabels) => Promise<boolean>;
+  forgetChangedOnDisk: (documentId: string) => void;
   parseExternalSource: (filePath: string, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
   externalSourceVersion: (filePath: string) => Promise<string | undefined>;
   checkExternalSources: (labels?: ImportLabels) => Promise<void>;
@@ -1039,20 +1043,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return saved;
   };
 
-  const placeOpenedFile = (
-    name: string, content: string | undefined, ref: FileRef | null, parsed: OpenedImport, lookup: OpenLookup | null,
-    siteFileVersion?: string | null,
-  ) => {
-    const existing = ref && ifcForeignContentEnabled(get().ui.featureFlags) && readFormatForFile(name).canBeSaveTarget
-      ? openTabFor(get(), ref, lookup, readVersionOf(ref, parsed, siteFileVersion)) : null;
-    if (existing !== null) {
-      switchToOpenDocument(get(), existing);
-      return;
-    }
-    get().openAsDocument(parsed, { name, ref, ...(siteFileVersion !== undefined ? { siteFileVersion } : {}) });
-    offerFormatNotice(name, content);
-  };
-
   const openSiteChoice = async (choice: Extract<SiteOpenChoice, { kind: 'site' }>, labels?: ImportLabels) => {
     const readOptions = formatReadOptions();
     const opened = await openSiteFile(choice.id, { binaryExtensions: binaryExtensions(readOptions), version: choice.version });
@@ -1065,7 +1055,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return;
     }
     if (choice.version === undefined) {
-      placeOpenedFile(opened.name, opened.content, opened.ref, parsed, null, opened.version);
+      const existing = opened.ref && ifcForeignContentEnabled(get().ui.featureFlags) && readFormatForFile(opened.name).canBeSaveTarget
+        ? openTabFor(get(), opened.ref, null, readVersionOf(opened.ref, parsed, opened.version)) : null;
+      if (existing !== null) {
+        switchToOpenDocument(get(), existing);
+        await pushRecent(opened.ref, opened.name);
+        return;
+      }
+      get().openAsDocument(parsed, { name: opened.name, ref: opened.ref, siteFileVersion: opened.version });
+      offerFormatNotice(opened.name, opened.content);
       await pushRecent(opened.ref, opened.name);
       return;
     }
@@ -1089,73 +1087,47 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return { name, content: content ?? '', ...(bytes ? { bytes } : {}), ref };
   };
 
-  let newVersionReading = false;
-
-  const waitForSavesBeforeNewVersion = async () => {
-    for (let saving = get().waitForSavesBeforeClose(); saving; saving = get().waitForSavesBeforeClose()) await saving;
-  };
-
-  const newVersionBasis = (documentId: string): NewVersionBasis | null => {
-    const s = get();
-    const fields = s.activeDocumentId === documentId ? s : s.documents.find((d) => d.id === documentId)?.payload;
-    const ref = fields ? saveTargetRef(fields) : null;
-    if (!fields || !ref) return null;
-    const known = fields.knownTargetFingerprint;
-    return { ref, known: ref.kind === 'site' ? fields.siteFileVersion : known ? `${known.sha256}:${known.byteLength}` : null };
-  };
-
-  const newVersionHolds = (documentId: string, basis: NewVersionBasis): boolean => {
-    const now = newVersionBasis(documentId);
-    return !!now && hasChangedOnDisk(get(), documentId) && sameFileRef(now.ref, basis.ref) && now.known === basis.known;
-  };
-
-  const readNewVersion = async (ref: FileRef, labels?: ImportLabels) => {
-    let opened: OpenedFile;
-    let siteFileVersion: string | null = null;
-    try {
-      if (ref.kind === 'site') {
-        const site = await openSiteFile(ref.id, { binaryExtensions: binaryExtensions(formatReadOptions()) });
-        if (site.readOnly || !readFormatForFile(site.name).canBeSaveTarget) {
-          get().notify(site.readOnly
-            ? { severity: 'info', sticky: true, messageKey: 'notifications.newVersionSiteReadOnly', params: { name: site.name } }
-            : { severity: 'error', messageKey: 'notifications.openFailed', detail: site.name });
-          return null;
-        }
-        opened = site;
-        siteFileVersion = site.version;
-      } else {
-        const read = await readLocalRef(ref, ref.kind === 'handle' ? ref.handle.name : basename(ref.path), formatReadOptions());
-        if (!read) return null;
-        opened = read;
-      }
-    } catch (err) {
-      console.error('Failed to open file:', err);
-      if (ref.kind === 'site') get().notify(importFailureNotice(err, siteErrorMessage(err)));
-      else for (const notice of openFailureNotices(err)) get().notify(notice);
-      return null;
+  const openRecentEntry = async (entry: RecentEntry, labels?: ImportLabels) => {
+    if (entry.ref.kind === 'site') {
+      await openRecentSiteFile(entry, labels);
+      return;
     }
     try {
-      for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
-      const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
-      return { name: opened.name, content: opened.content, parsed, siteFileVersion };
+      const readOptions = formatReadOptions();
+      const lookup = readOptions.ifcBytes && entry.ref.kind === 'handle' && readFormatForFile(entry.name).canBeSaveTarget
+        ? startOpenLookup(get(), entry.ref) : null;
+      const opened = await readLocalRef(entry.ref, entry.name, readOptions);
+      if (!opened) return;
+      await get().openOpenedFile(opened, labels, { lookup });
     } catch (err) {
-      console.error('Failed to open file:', err);
-      get().notify(importFailureNotice(err, saveErrorDetail(err)));
-      return null;
+      console.error('Failed to open recent file:', err);
+      for (const notice of openFailureNotices(err)) get().notify(notice);
     }
   };
 
-  const applyNewVersion = async (prepared: PreparedNewVersion) => {
-    await waitForSavesBeforeNewVersion();
-    if (!newVersionHolds(prepared.documentId, prepared.basis)) return;
-    get().requestCloseDocument(prepared.documentId);
-    if (!get().documents.some((d) => d.id === prepared.documentId)) placeNewVersion(prepared);
-    else if (get().ui.pendingCloseDocId === prepared.documentId) get().setUI({ pendingCloseNewVersion: prepared });
+  let newVersionRunning = false;
+
+  const reopenRecentEntry = (entry: RecentEntry, labels?: ImportLabels) => {
+    if (get().ui.activeRibbonTab === 'file') get().setUI({ activeRibbonTab: 'start' });
+    return openRecentEntry(entry, labels);
   };
 
-  const placeNewVersion = (prepared: PreparedNewVersion) => {
-    placeOpenedFile(prepared.name, prepared.content, prepared.basis.ref, prepared.parsed, prepared.lookup, prepared.siteFileVersion);
-    void pushRecent(prepared.basis.ref, prepared.name).catch((err: unknown) => { console.error('Failed to update recent files:', err); });
+  const closeThenReopen = async (labels?: ImportLabels) => {
+    const state = get();
+    const documentId = state.activeDocumentId;
+    const ref = saveTargetRef(state);
+    if (!ref) return;
+    const entry = state.recentFiles.find((e) => sameFileRef(e.ref, ref))
+      ?? { id: '', ref, name: ref.kind === 'handle' ? ref.handle.name : ref.kind === 'path' ? basename(ref.path) : state.filePath ?? '', addedAt: 0 };
+    newVersionRunning = true;
+    try {
+      for (let saving = get().waitForSavesBeforeClose(); saving; saving = get().waitForSavesBeforeClose()) await saving;
+      get().requestCloseDocument(documentId);
+      if (!get().documents.some((d) => d.id === documentId)) await reopenRecentEntry(entry, labels);
+      else if (get().ui.pendingCloseDocId === documentId) get().setUI({ pendingCloseReopen: entry });
+    } finally {
+      newVersionRunning = false;
+    }
   };
 
   const openRecentSiteFile = async (entry: RecentEntry, labels?: ImportLabels) => {
@@ -1937,13 +1909,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             switchToOpenDocument(get(), launchTabFor(get(), launched, read));
             return;
           }
-          if (options.stale?.()) return;
-          get().openAsDocument(parsed, { name: opened.name, ref: opened.ref });
-          offerFormatNotice(opened.name, opened.content);
-        } else {
-          if (options?.stale?.()) return;
-          placeOpenedFile(opened.name, opened.content, opened.ref, parsed, options?.lookup ?? null);
+        } else if (oneTab && opened.ref && readFormatForFile(opened.name).canBeSaveTarget) {
+          const existing = openTabFor(get(), opened.ref, options?.lookup ?? null, read);
+          if (existing !== null) {
+            switchToOpenDocument(get(), existing);
+            await pushRecent(opened.ref, opened.name);
+            return;
+          }
         }
+        if (options?.stale?.()) return;
+
+        get().openAsDocument(parsed, { name: opened.name, ref: opened.ref });
+        offerFormatNotice(opened.name, opened.content);
 
         await pushRecent(opened.ref, opened.name);
       } catch (err) {
@@ -2566,22 +2543,21 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     openRecentFile: async (id: string, labels) => {
       const entry = get().recentFiles.find((e) => e.id === id);
-      if (!entry) return;
-      if (entry.ref.kind === 'site') {
-        await openRecentSiteFile(entry, labels);
-        return;
-      }
-      try {
-        const readOptions = formatReadOptions();
-        const lookup = readOptions.ifcBytes && entry.ref.kind === 'handle' && readFormatForFile(entry.name).canBeSaveTarget
-          ? startOpenLookup(get(), entry.ref) : null;
-        const opened = await readLocalRef(entry.ref, entry.name, readOptions);
-        if (!opened) return;
-        await get().openOpenedFile(opened, labels, { lookup });
-      } catch (err) {
-        console.error('Failed to open recent file:', err);
-        for (const notice of openFailureNotices(err)) get().notify(notice);
-      }
+      if (entry) await openRecentEntry(entry, labels);
+    },
+
+    loadNewVersion: async (labels, gate = { blocked: () => isBlockingDialogOpen(get().ui), leave: (proceed) => proceed() }) => {
+      if (newVersionRunning || gate.blocked() || !changedOnDiskShown(get())) return;
+      let run: Promise<void> | null = null;
+      gate.leave(() => { run = closeThenReopen(labels); });
+      if (run) await run;
+    },
+
+    loadNewVersionAfterDiscard: async (documentId, labels) => {
+      const entry = get().ui.pendingCloseReopen;
+      const closed = await get().closeDocumentAfterSaves(documentId);
+      if (closed && entry) void reopenRecentEntry(entry, labels);
+      return closed;
     },
 
     markChangedOnDisk: (documentId) => {
@@ -2590,43 +2566,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     forgetChangedOnDisk: (documentId) => {
       set((s) => { clearChangedOnDisk(s, documentId); });
-    },
-
-    loadNewVersion: (labels, gate = { blocked: () => isBlockingDialogOpen(get().ui), leave: (proceed) => proceed() }) => {
-      let run: Promise<void> | null = null;
-      gate.leave(() => {
-        run = (async () => {
-          const documentId = get().activeDocumentId;
-          const basis = newVersionBasis(documentId);
-          if (newVersionReading || !basis || !newVersionHolds(documentId, basis)) return;
-          newVersionReading = true;
-          try {
-            await waitForSavesBeforeNewVersion();
-            if (!newVersionHolds(documentId, basis)) return;
-            const lookup = basis.ref.kind === 'handle' && formatReadOptions().ifcBytes && readFormatForFile(basis.ref.handle.name).canBeSaveTarget
-              ? startOpenLookup(get(), basis.ref) : null;
-            const read = await readNewVersion(basis.ref, labels);
-            if (!read) return;
-            while (gate.blocked()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
-            const prepared = new PreparedNewVersion(documentId, basis, read.name, read.content, read.parsed, read.siteFileVersion, lookup);
-            let applying: Promise<void> | null = null;
-            gate.leave(() => { applying = applyNewVersion(prepared); });
-            if (applying) await applying;
-          } finally {
-            newVersionReading = false;
-          }
-        })();
-      });
-      return run ?? Promise.resolve();
-    },
-
-    loadNewVersionAfterDiscard: async () => {
-      await waitForSavesBeforeNewVersion();
-      const { pendingCloseNewVersion: prepared, pendingCloseDocId } = get().ui;
-      if (!prepared || pendingCloseDocId !== prepared.documentId || !newVersionHolds(prepared.documentId, prepared.basis)) return false;
-      if (!get().closeDocument(prepared.documentId)) return false;
-      placeNewVersion(prepared);
-      return true;
     },
 
     openFromSite: async (id, labels) => {

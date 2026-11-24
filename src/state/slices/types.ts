@@ -42,7 +42,7 @@ import type { XerWriteLossCode } from '@/services/xerWriteTypes';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
 import type { ExternalSourceLocator } from '@/engine/externalLinks';
 import type { DependentLink, TightAnchor } from '@/engine/dependentProjects';
-import type { PreparedNewVersion } from '@/state/preparedNewVersion';
+import type { RecentEntry } from '@/services/fileAccess/recentFiles';
 
 /** Eén detailregel van de XER-exportmelding: een verliessoort van de writer, of `sourceDetails`
  *  (XER-broninformatie die geen writer terugschrijft, uit `detectXerExportLoss`), of een definitie
@@ -298,7 +298,6 @@ export type NotificationMessageKey =
   | 'notifications.siteFileGone'
   // De site gaf de nieuwste versie als alleen-lezen (#818): geopend zonder opslagdoel. Parameter `name`.
   | 'notifications.siteFileReadOnly'
-  | 'notifications.newVersionSiteReadOnly'
   | 'notifications.librarySaveFailed'
   | 'notifications.savedViaDownload'
   // Opslaan in een browser die niet terugschrijft — zie `browserSaveNotice.ts` (één keer per sessie).
@@ -816,7 +815,7 @@ export interface UIState {
   ribbonWheelSwitchesTabs: boolean; // persisted — muiswiel boven de lint-tabs wisselt van tab (#688)
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
-  pendingCloseNewVersion: PreparedNewVersion | null;
+  pendingCloseReopen: RecentEntry | null;
   /** Session — *Opslaan* in de sluitvraag loopt (fixronde 1 van #1008). De knoppen van de sluitvraag én Escape
    *  (`edit.deselect`) lezen deze ene vlag: tijdens die opslag verbergt niets de vraag. Alleen via de sluitvraag
    *  (`onSavePendingChange` van `createCloseDocumentDialogActions`). */

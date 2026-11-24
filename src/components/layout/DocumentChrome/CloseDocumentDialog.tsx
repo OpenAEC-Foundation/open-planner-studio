@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
+import { buildImportLabels } from '@/i18n/importLabels';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import { documentTitle } from '@/utils/documents';
 import { CloseDocumentDialogControl } from './CloseDocumentDialogControl';
@@ -22,7 +23,7 @@ import {
 export function CloseDocumentDialog() {
   const { t } = useTranslation('common');
   const pendingId = useAppStore((s) => s.ui.pendingCloseDocId);
-  const loadsNewVersion = useAppStore((s) => s.ui.pendingCloseNewVersion !== null);
+  const loadsNewVersion = useAppStore((s) => s.ui.pendingCloseReopen !== null);
   const activeId = useAppStore((s) => s.activeDocumentId);
   const documents = useAppStore((s) => s.documents);
   const project = useAppStore((s) => s.project);
@@ -68,7 +69,7 @@ export function CloseDocumentDialog() {
     pendingId,
     getActiveDocumentId: () => useAppStore.getState().activeDocumentId,
     switchDocument,
-    closeDocument: loadsNewVersion ? () => loadNewVersionAfterDiscard() : closeDocumentAfterSaves,
+    closeDocument: loadsNewVersion ? (id) => loadNewVersionAfterDiscard(id, buildImportLabels(t)) : closeDocumentAfterSaves,
     saveFile: () => saveFileForDocument(pendingId),
     clearPending: () => { setUI({ pendingCloseDocId: null }); },
     restoreOpenerFocus,

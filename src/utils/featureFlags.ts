@@ -38,7 +38,6 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
       'common:documents.changedOnDisk',
       'common:documents.changedOnDiskLoad',
       'common:documents.closeBodyNewVersion',
-      'common:notifications.newVersionSiteReadOnly',
       'common:ifcExportWithoutModel.*',
       'common:ifcMissingSourceSaveAs.*',
       'common:notifications.exportPlanOnly',
