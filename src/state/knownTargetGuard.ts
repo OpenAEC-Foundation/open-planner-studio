@@ -1,9 +1,8 @@
 import { knownTargetContent, type FileRef } from '@/services/fileAccess';
-import type { TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
-import type { TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import type { TargetFingerprint } from './documentContract';
+import type { WriteTargetRefusal } from './ifcForeignGuard';
 
 type FeatureFlags = Parameters<typeof ifcForeignContentEnabled>[0];
 type KnownTargetChange = Extract<SourceTargetContent, 'changed' | 'unreadable'>;
@@ -21,10 +20,8 @@ export function writtenKnownTarget(state: KnownTargetState, ref: FileRef): Targe
   return known?.origin === 'written' ? known : null;
 }
 
-const leftToKnownTarget = async (): Promise<TargetForeignScan> => 'no-model';
-
-export function scanLeftToKnownTarget(readers: () => TargetReaders): () => TargetReaders {
-  return () => ({ ...readers(), scanPath: leftToKnownTarget, scanHandle: leftToKnownTarget });
+export function contentLeftToKnownTarget(identity: WriteTargetRefusal | null | 'check-content'): WriteTargetRefusal | null {
+  return identity === 'check-content' ? null : identity;
 }
 
 export async function stillWrittenKnownTarget(written: TargetFingerprint, ref: FileRef): Promise<boolean> {

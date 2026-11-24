@@ -25,10 +25,10 @@ import {
 } from '@/services/fileAccess/writeCoordinator';
 import { pendingReplaceFor, tauriReplaceRecords } from '@/services/fileAccess/replaceRecords';
 import { tightAnchorsIfSaved } from '@/state/dependentCandidates';
-import { changedKnownTarget, guardedKnownTarget, scanLeftToKnownTarget, stillWrittenKnownTarget, writtenKnownTarget, type KnownTargetState } from '@/state/knownTargetGuard';
+import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, stillWrittenKnownTarget, writtenKnownTarget, type KnownTargetState } from '@/state/knownTargetGuard';
 import {
   ifcFullWriteBlocked, ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_SAVE_WORKER_FAILED_NOTICE,
-  IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedWriteTarget, type WriteTargetDeps,
+  IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedTargetIdentity, refusedWriteTarget, type WriteTargetDeps,
 } from '@/state/ifcForeignGuard';
 import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
@@ -377,8 +377,8 @@ export function createFileAutoSaveController(deps: {
       // rekenen, vlak vóór het schrijven, zoals Ctrl+S: een gebouwmodel dat tijdens het rekenen op het doel verscheen,
       // wordt niet overschreven. Eén doelscan; daarna beslist alleen nog de synchrone inhoudscontrole hieronder.
       const ownWritten = writtenKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
-      let reason = await refusedWriteTarget(getState(), candidate.ref!,
-        ownWritten ? { ...targetDeps, readers: scanLeftToKnownTarget(targetDeps.readers) } : targetDeps);
+      let reason = ownWritten ? contentLeftToKnownTarget(await refusedTargetIdentity(getState(), candidate.ref!, targetDeps))
+        : await refusedWriteTarget(getState(), candidate.ref!, targetDeps);
       const stable = !reason && !!ownWritten && await stillWrittenKnownTarget(ownWritten, candidate.ref!);
       if (!reason && ownWritten && !stable) reason = await refusedWriteTarget(getState(), candidate.ref!, targetDeps);
       if (reason) {
