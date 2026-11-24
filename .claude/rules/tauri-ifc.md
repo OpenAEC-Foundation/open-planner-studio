@@ -343,26 +343,33 @@ geen vergelijkingsdatum mee. Projectdatums en bestaande baseline-aanmaakdatums b
 ontbrekende datums met de echte klok vullen. `check-ifc-foreign-klok.ts` bewaakt beide klokgrenzen,
 bronidentieke bytes en de gewone/download-/site-uitvoer zonder vaste vergelijkingsdatum.
 
-### Twee grenzen: de productgrens en de technische grens (#804, knownbug 1936)
+### Twee grenzen: de drempel voor de waarschuwing en de technische grens (#804, knownbug 1936)
 
-Twee getallen, elk op één plek (besluit van de technisch beslisser, 21 november 2026, route A):
-- **De productgrens** `IFC_MODEL_OPEN_MAX_BYTES` (`src/services/ifc/modelOpenLimit.ts`): 150 MiB (binair, besluit van de
-  eigenaar). Eén controle, `refuseModelAboveOpenLimit`: openen weigert een gelezen document waarvan de bron een
-  gebouwmodel of vreemde gegevens heeft (`ifcSource.foreign`, de uitkomst van de scan) en groter is dan de grens (`>`),
-  met `IfcModelOpenTooLargeError` en de melding `ifcForeignOpenTooLarge`. `openOpenedFile` toetst altijd (Bestand →
-  Openen, Recent, slepen en het startbestand, de dev-link): een nieuwe openroute hoeft niets te doen. Alleen het
-  crashherstel valt erbuiten, met `restoringVerifiedIfcSource: true` in `readRecoveryDocument.ts` voor zijn eigen, op
-  lengte en SHA-256 gecontroleerde bron. De site (`openSiteChoice`) en `planner_import_schedule` parsen buiten
-  `openOpenedFile` en toetsen zelf; die tool alleen in de app (`McpFileFs.enforcesModelOpenLimit`, gezet door `realFs`),
-  niet in de headless server, die gelijk blijft aan main. Een IFC2X3-bestand zonder gebouwmodel opent via de
-  schematerugval zonder bron en valt er niet onder (ontwerp §4.11).
+Twee getallen, elk op één plek:
+- **De drempel voor de waarschuwing** `IFC_FOREIGN_OPEN_WARN_BYTES` (`src/services/ifc/foreignOpenSize.ts`): 150 MiB
+  (binair). Besluit van de eigenaar, 24 november 2026: boven deze grootte opent een bestand met een gebouwmodel of
+  vreemde gegevens gewoon, met een waarschuwing die blijft staan tot de planner haar wegklikt (van 21 tot 24 november
+  weigerde openen hier). Eén toets, `opensLargeForeignSource`: de bron van een gelezen document heeft `ifcSource.foreign`
+  en is groter dan de drempel (`>`); geen tweede scan. De melding `notifications.ifcForeignOpenLarge` loopt mee in de
+  keten van openingsmeldingen (`withLargeForeignOpenNotice` in `applyOpenedImport`; ADR 0071: een regel onder een
+  bestaande openingsmelding, anders een eigen melding) en blijft staan via `STICKY_OPEN_NOTICE_KEYS`. Het kanaal kent
+  geen aparte ernst voor een waarschuwing; zoals de andere verlieswaarschuwingen is ze `info` met `sticky`. Zo krijgt
+  elke route die een nieuw document opent haar: Bestand → Openen, Recent, slepen en het startbestand, de dev-link, de
+  site en `planner_import_schedule` in de app. Een wissel naar een tabblad waarin het bestand al open staat, opent niets
+  en waarschuwt niet. Het crashherstel opent zijn bron in een eigen storecontext (`recoveryDocumentWithSource`), net als
+  de kern, de mergecontrole en de headless MCP-server: hun melding bereikt het scherm niet. `planner_import_schedule`
+  zet de waarschuwing in de app ook in `notice` (`McpFileFs.warnsLargeForeignSource`, gezet door `realFs`); de headless
+  server niet, die gelijk blijft aan main. Met de flag uit is er geen `ifcSource` en dus geen waarschuwing.
 - **De technische grens** `IFC_FOREIGN_SCAN_MAX_BYTES` (`foreignScan.ts`, ook `IFC_BYTES_ROUTE_MAX_BYTES`): 300 MiB, zoals
-  main. Bytes-route, scanner, doelscan, crashherstel en headless gebruiken alleen deze, ongewijzigd.
+  main. Bytes-route, scanner, doelscan, crashherstel en headless gebruiken alleen deze, ongewijzigd. Daarboven weigert
+  openen een bestand met een gebouwmodel of vreemde gegevens, met de melding van main.
 
-Een planning zonder gebouwmodel en zonder vreemde gegevens heeft de productgrens niet. De uitvoer van opslaan heeft geen
-grens (knownbug 2043). Bewaakt in `check-ifc-foreign-grens.ts` (de productgrens verlaagd met de proefnaad
-`lowerModelOpenLimitForTests`, door de echte routes en de echte herstelvraag), `tests/mcp/cases-doc-file.ts` (de app)
-en `tests/mcp/cases-headless-server.ts` (headless zoals main).
+Een planning zonder gebouwmodel en zonder vreemde gegevens krijgt de waarschuwing niet. De uitvoer van opslaan heeft geen
+grens; een bestand dat door opslaan boven de drempel komt, opent daarna met de waarschuwing. Bewaakt in
+`check-ifc-foreign-grens.ts` (de drempel verlaagd met de proefnaad `lowerForeignOpenWarnBytesForTests`, door de echte
+routes en de echte herstelvraag; boven de technische grens met een nagebootste lengte), `check-one-file-one-tab.ts` (een
+al open model boven de drempel), `tests/mcp/cases-doc-file.ts` (de app) en `tests/mcp/cases-headless-server.ts`
+(headless zoals main).
 
 ### Auteur en bedrijf (#804 fase 1c)
 

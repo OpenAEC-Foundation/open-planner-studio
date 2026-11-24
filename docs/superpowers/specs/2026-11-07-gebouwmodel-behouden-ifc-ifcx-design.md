@@ -906,15 +906,19 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 - Bronbytes één keer in het geheugen (§4.8). Uitvoer = verwijzingen naar de bron plus de P-stukken.
 - De Tauri-app draait op WebKit (JavaScriptCore) op Linux en macOS en op WebView2 (V8) op Windows; de browserbuild op V8.
 - Twee grenzen, elk op één plek (besluit van de technisch beslisser, 21 november 2026, route A; knownbug 1936):
-  - **De productgrens**: 150 MiB (binair, 157.286.400 bytes), `IFC_MODEL_OPEN_MAX_BYTES` in `modelOpenLimit.ts`. Besluit
-    van de eigenaar: "tot 150 mb, later kunnen we dat nog uitbouwen, zorg dat de architectuur flexibel genoeg is om dat
-    alsnog te doen later." Openen weigert een bestand dat volgens de leesroute een gebouwmodel of vreemde gegevens heeft
-    en groter is dan 150 MiB, met een melding die de grens noemt. Dat gebeurt na het lezen: een model tussen 150 en
-    300 MiB wordt eerst gescand en dan geweigerd. Een planning zonder gebouwmodel en zonder vreemde gegevens heeft deze
-    grens niet, en een IFC2X3-bestand zonder gebouwmodel evenmin: dat opent via de schematerugval zonder `ifcSource`,
-    met de bestaande verliesmelding (§4.11). Alleen bij openen in de app: `openOpenedFile` toetst altijd, het
-    crashherstel valt erbuiten met een benoemde optie voor zijn eigen, gecontroleerde bron, en de site en
-    `planner_import_schedule` in de app toetsen zelf. Niet bij het crashherstel, de doelscan, opslaan of headless.
+  - **De drempel voor de waarschuwing**: 150 MiB (binair, 157.286.400 bytes), `IFC_FOREIGN_OPEN_WARN_BYTES` in
+    `foreignOpenSize.ts`. Eerste besluit van de eigenaar (21 november 2026): "tot 150 mb, later kunnen we dat nog
+    uitbouwen, zorg dat de architectuur flexibel genoeg is om dat alsnog te doen later." Openen weigerde toen daarboven.
+    Besluit van de eigenaar van 24 november 2026: "zo laten, kunnen we niet maken dat het toch kan en dan gewoon hier een
+    warning van maken dat het heel gevaarlijk is?", met de vorm "Het bestand opent meteen. De waarschuwing blijft staan
+    tot je haar wegklikt." Een bestand dat volgens de leesroute een gebouwmodel of vreemde gegevens heeft en groter is
+    dan 150 MiB, opent dus gewoon, met een blijvende openingsmelding die zegt dat opslaan kan mislukken doordat het
+    geheugen opraakt en dat het bestand op schijf dan blijft zoals het was. De toets gebruikt wat de leesroute al weet;
+    geen tweede scan. Een planning zonder gebouwmodel en zonder vreemde gegevens krijgt de waarschuwing niet, en een
+    IFC2X3-bestand zonder gebouwmodel evenmin: dat opent via de schematerugval zonder `ifcSource`, met de bestaande
+    verliesmelding (§4.11). Elke route die in de app een nieuw document opent, toont haar, en `planner_import_schedule`
+    in de app zet haar ook in zijn antwoord. Niet bij het crashherstel (dat opent zijn bron in een eigen context), de
+    doelscan, opslaan of headless.
   - **De technische grens van de bytes-route**: 300 MiB, `IFC_FOREIGN_SCAN_MAX_BYTES` in `foreignScan.ts` (de meting van
     fase 0). Daarboven de terugval `te-groot` (§4.9 punt 6). De doelscan, het crashherstel en headless gebruiken alleen
     deze grens.

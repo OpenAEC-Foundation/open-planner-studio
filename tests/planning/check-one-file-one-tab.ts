@@ -794,7 +794,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       dialogAnswer = groot;
       await T().openFile(labels);
       const modelTab = T().activeDocumentId;
-      eq('2043 voorwaarde: het model is open, met zijn bron', [T().filePath, !!T().ifcSource?.foreign], [groot, true]);
+      eq('al open model boven de drempel, voorwaarde: het model is open, met zijn bron', [T().filePath, !!T().ifcSource?.foreign], [groot, true]);
       T().newDocument();
       dialogAnswer = school;
       await T().openFile(labels);
@@ -817,7 +817,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           } else {
             await openVia(st, route, groot);
           }
-          eq(`2043 ${route}: model boven de drempel dat al open staat; naar dat tabblad, geen tweede tabblad, geen waarschuwing`, [
+          eq(`al open model boven de drempel, ${route}: naar dat tabblad, geen tweede tabblad, geen waarschuwing`, [
             T().activeDocumentId === modelTab, T().documents.length === count,
             T().getOpenDocumentPayloads().some(d => d.id === modelTab && d.payload.filePath === groot),
             route === 'MCP' ? mcpAnswer : null,
