@@ -4,7 +4,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readIFC } from '@/services/ifc/ifcReader';
-import { ifcGuid, ifcGuid128, ifcObjectSeed, writeIFCForComparison, type WriteIFCInput } from '@/services/ifc/ifcWriter';
+import { ifcGuid, ifcGuid128, ifcObjectSeed, writeIFC, writeIFCForComparison, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { planningCanon, planningDifference } from '@/services/ifc/foreign/planningCanon';
 import { planProgressEntry } from '@/engine/progressEntry';
 import {
@@ -1411,10 +1411,10 @@ function median(values: number[]): number {
 
 const sizes = process.env.OPS_IFCX_MEASURE === '1' ? [1000, 5000, 10000] : [1000];
 for (const size of sizes) {
-  test(`meting: schrijven met zelfcontrole en teruglezen bij ${size} taken`, () => {
+  test(`meting: schrijven met zelfcontrole, teruglezen en de STEP-rondgang bij ${size} taken`, () => {
     const plan = syntheticPlan(size);
-    const rounds = size > 1000 ? 3 : 5;
-    const plainWrite: number[] = [], write: number[] = [], read: number[] = [], canon: number[] = [];
+    const rounds = 5;
+    const plainWrite: number[] = [], write: number[] = [], read: number[] = [], step: number[] = [], projection: number[] = [];
     let text = '';
     for (let round = 0; round < rounds; round++) {
       const t0 = performance.now();
@@ -1424,17 +1424,22 @@ for (const size of sizes) {
       const t2 = performance.now();
       const back = readIfcx(encode(text));
       const t3 = performance.now();
-      planningCanon(back);
+      readIFC(writeIFC(plan));
       const t4 = performance.now();
+      buildIfcxDocument(back, CLOCK);
+      const t5 = performance.now();
       assert.equal(unchecked, text);
       plainWrite.push(t1 - t0);
       write.push(t2 - t1);
       read.push(t3 - t2);
-      canon.push(t4 - t3);
+      step.push(t4 - t3);
+      projection.push(t5 - t4);
     }
+    const [w, r, s, p] = [median(write), median(read), median(step), median(projection)];
     console.log(`   ${size} taken, ${(text.length / 1024 / 1024).toFixed(1)} MiB: schrijven zonder zelfcontrole ${median(plainWrite).toFixed(0)} ms, `
-      + `writeIfcx met zelfcontrole ${median(write).toFixed(0)} ms, readIfcx ${median(read).toFixed(0)} ms, `
-      + `één planningCanon ${median(canon).toFixed(0)} ms (mediaan van ${rounds})`);
+      + `writeIfcx met zelfcontrole ${w.toFixed(0)} ms, readIfcx ${r.toFixed(0)} ms, STEP-rondgang ${s.toFixed(0)} ms, `
+      + `één projectie ${p.toFixed(0)} ms; writeIfcx plus rondgang ${(w + s).toFixed(0)} ms, readIfcx plus projectie ${(r + p).toFixed(0)} ms, `
+      + `plus nog een rondgang ${(r + p + s).toFixed(0)} ms (mediaan van ${rounds})`);
   });
 }
 
