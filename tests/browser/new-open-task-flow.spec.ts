@@ -259,10 +259,19 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
     await expect(kantoor).toHaveAttribute('aria-selected', 'true');
     await expect(strip).toBeVisible();
   };
-  const firstTaskId = await page.evaluate(() => window.__OPS__!.store.getState().tasks.find(t => !t.isSummary)!.id);
-  const cell = (column: string) => page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${firstTaskId}"][data-grid-column-id="${column}"]`);
   await writeKantoor(`${planning}\n\n`);
   await reopenKantoor();
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'table' }));
+  const nameCells = page.locator('[data-task-grid-surface-id="full-task-grid"] [data-grid-column-id="task.name"][data-grid-row-key]');
+  await expect(nameCells.first()).toBeVisible();
+  const firstTaskId = await page.evaluate(() => {
+    const tasks = window.__OPS__!.store.getState().tasks;
+    const keys = [...document.querySelectorAll('[data-task-grid-surface-id="full-task-grid"] [data-grid-column-id="task.name"][data-grid-row-key]')]
+      .map(e => e.getAttribute('data-grid-row-key'));
+    return keys.find(k => tasks.some(t => t.id === k && !t.isSummary && t.childIds.length === 0)) ?? null;
+  });
+  expect(firstTaskId).not.toBeNull();
+  const cell = (column: string) => page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${firstTaskId}"][data-grid-column-id="${column}"]`);
   await cell('task.name').click();
   await page.keyboard.press('Enter');
   await cell('task.name').locator('input[data-task-editor-kind]').fill('Getypte naam');
