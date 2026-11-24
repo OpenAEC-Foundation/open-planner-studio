@@ -4080,14 +4080,29 @@ en noem het in je rapport of PR-tekst.
 
 2219. **VERVOLG (review van #1184): de geheugenpiek van de headless API bij een groot IFC als bytes is niet gemeten (#804).**
      Een verzoek met `application/octet-stream` houdt tegelijk: de binnengekomen stukken en één eigen buffer van de body
-     (`ownedBody` in `headless/server/server.mjs`; de stukken vallen daarna weg), de kopie die `openIfcBytes`
+     (`ownedBody` in `headless/server/server.mjs`; de stukken vallen daarna weg) en de tekst die de worker er, zoals main,
+     van maakt. Weigert de tekstroute het schrijven met `foreign`, dan komen daar de kopie die `openIfcBytes`
      (`src/core/index.ts`) van zijn invoer maakt (het publieke pakket moet een buffer bezitten die de afnemer niet meer
-     wijzigt), het werkgeheugen van de scanner, de indeling en de merge, en de uitvoer. De server geeft de body aan de
+     wijzigt), het werkgeheugen van de scanner, de indeling en de merge, en de uitvoer bij. De server geeft de body aan de
      rekenworker over en de worker de uitvoer terug (`postMessage` met overdracht); de kern kopieert de uitvoer alleen als
      de merge de bronbuffer zelf teruggeeft. Standaard is de body hooguit 20 MiB, met twee uploads tegelijk; de grens kan tot
      512 MiB (`OPS_API_MAX_BODY_BYTES`), de scan stopt bij 300 MiB. De Fargate-template begint op 2 GiB, de containerproef
      in de CI op 1 GiB met kleine bestanden. Niet gemeten: piek en herstel bij een groot model onder de verhoogde limiet.
      Review van #1184 ronde 1 (GPT-6.2-Sol, xhigh). — S
+2252. **Grens van de headless API: bij een bestand dat de bytes-route anders leest dan de tekstlezer, geeft `output=ifc` de weigering in plaats van de bewaarde bytes (#804).**
+     De server geeft op `POST /v1/schedule` eerst het antwoord van de tekstroute (`headless/server/worker.mjs`). Weigert
+     `?output=ifc` met `IFC_WRITE_FAILED` en `foreign`, dan opent hij dezelfde bytes met `openIfcBytes`, en geeft de
+     bewaarde bytes alleen terug als de samenvatting na het doorrekenen gelijk is aan die van de tekstlezer. De bytes-route
+     leest een bestand met vreemde inhoud volgens de regels van de app voor zulke bestanden, en dat kan een andere planning
+     geven; dan blijft het de weigering, met de velden die verschillen in `message`. Twee voorbeelden uit de review, beide in
+     de smoke-test (`headless/server/smoke.mjs`): (1) `examples/01-grachtenpand-amsterdam.ifc` met een leeg eigen
+     werkschema, een baseline en één losse taak: de tekstlezer leest 52 taken en einde `2028-01-12T16:00`, de bytes-route
+     één taak en `2027-03-05T16:00`, omdat de regel voor een leeg eigen werkschema de baselineboom uitsluit; (2) de
+     woningfixture uit `tests/planning/fixtures/projectnaam-in-settings/` met een externe pset aan het project: de
+     tekstlezer neemt de projectnaam uit `IfcProject`, de bytes-route uit `OPS_ProjectSettings`. `openIfcBytes` in de kern
+     geeft voor zulke bestanden de lezing van de bytes-route. Richting: de lezing van de bytes-route en de tekstlezer voor
+     bestanden met vreemde inhoud gelijktrekken, zodat de API ook daar de bewaarde bytes kan geven. Review van #1184
+     ronde 4 (GPT-6.2-Sol, xhigh). — B
 
 
 

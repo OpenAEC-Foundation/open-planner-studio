@@ -2,8 +2,9 @@
 
 De headless API is een kleine HTTP-server boven de headless kern (`@openaec/open-planner-core`,
 zie [headless-kern.md](headless-kern.md)). De server ontvangt een IFC-planning, rekent die door zoals
-de app en geeft een JSON-samenvatting of de herberekende IFC terug. Als bytes gestuurd
-(`application/octet-stream`) blijven een gebouwmodel en de gegevens van andere programma's bewaard. De server bewaart niets.
+de app en geeft een JSON-samenvatting of de herberekende IFC terug. Een bestand dat main niet kon terugschrijven omdat
+er gegevens van een ander programma in staan, komt als bytes (`application/octet-stream`) met die gegevens terug, als de
+planning erin hetzelfde gelezen wordt. Een gebouwmodel weigert de API, zoals main. De server bewaart niets.
 
 Dit document hoort bij issue #429 (ecosystem readiness) en het gedeelde contract in
 OpenAEC-style-book#12.
@@ -37,24 +38,25 @@ Het volledige contract staat in `headless/server/openapi.yaml`.
 
 - Body-types: `application/x-step`, `application/ifc`, `model/ifc`, `text/plain` of
   `application/octet-stream`. Een ander type geeft 415.
-- `application/octet-stream` gaat naar `openIfcBytes`, met de regel van *Twee routes* in
-  [headless-kern.md](headless-kern.md): de bytes-route alleen waar main niet kon schrijven. De server leest de body
-  zonder tekstdecodering. Bewaart de bytes-route een vreemd deel (een gebouwmodel, gegevens van andere programma's;
-  `foreignContent` is niet `null`), dan komt de herberekende IFC met `?output=ifc` terug als `application/octet-stream`
-  (`toIfcBytes()`): het vreemde deel en de kop, ook een UTF-8-BOM, blijven byte voor byte staan; verandert de planning
-  niet, dan komt het hele bestand byte-gelijk terug. Elk ander octet-stream-verzoek loopt precies de tekstroute van main
-  en krijgt het antwoord van main voor datzelfde verzoek: dezelfde samenvatting, dezelfde status en fout, en bij
-  `?output=ifc` dezelfde IFC als `application/x-step; charset=utf-8` (`toIfc()`). Een IFC2X3-bestand hoort daarbij: een
-  planning zonder iets ernaast schrijft, een planning met bijv. een externe pset geeft 500 `IFC_WRITE_FAILED` met
-  `details.reason` `foreign`, zoals main. De server leest de body in één eigen buffer en geeft die aan de rekenworker
-  over; de worker geeft de uitvoer ook over in plaats van te kopiëren (knownbug 2219: de geheugenpiek bij grote
-  bestanden is niet gemeten).
+- `application/octet-stream` krijgt eerst precies het antwoord van main: de worker decodeert de body als UTF-8, zoals
+  main, opent hem met `openIfc`, rekent door en maakt de gevraagde uitvoer. Alleen als `?output=ifc` dan weigert met
+  500 `IFC_WRITE_FAILED` en `details.reason` `foreign`, opent de worker dezelfde bytes met `openIfcBytes` (*Twee routes*
+  in [headless-kern.md](headless-kern.md)). Bewaart die route een vreemd deel en geeft ze na het doorrekenen dezelfde
+  samenvatting (op `foreignContent` na), dan komt de IFC terug als `application/octet-stream` (`toIfcBytes()`): het
+  vreemde deel en de kop, ook een UTF-8-BOM, blijven byte voor byte staan; verandert de planning niet, dan komt het hele
+  bestand byte-gelijk terug. Anders blijft het antwoord de weigering van main, met dezelfde status, code en `details`;
+  `message` zegt dan waarom de bytes niet terugkomen. De bytes-route leest zo'n bestand volgens de regels van de app
+  voor bestanden met vreemde inhoud, en dat kan een andere planning geven dan de tekstlezer; dan weigert de server zoals
+  main, en `message` noemt de velden van de samenvatting die verschillen (knownbug 2252). Een bestand met een
+  gebouwmodel weigert de tekstlezer al bij het lezen (422 `IFC_READ_FAILED`), en dat blijft ook als bytes het antwoord.
+  De server leest de body in één eigen buffer en geeft die aan de rekenworker over; de worker geeft bewaarde bytes ook
+  over in plaats van te kopiëren (knownbug 2219: de geheugenpiek bij grote bestanden is niet gemeten).
 - De andere types zijn de tekstroute van main (`openIfc`, UTF-8): die weigert een bestand met een gebouwmodel (422
   `IFC_READ_FAILED`) en schrijft geen bestand met vreemde inhoud (500 `IFC_WRITE_FAILED`), en `?output=ifc` geeft
   `Content-Type: application/x-step; charset=utf-8`.
-- De samenvatting heeft dezelfde vorm als `ScheduleSummary` van de kern (`formatVersion: 1`), met `foreignContent`:
-  wat de kern naast de planning bewaart. `null` bij elk verzoek dat de tekstroute loopt, ook een IFC2X3-bestand met meer
-  dan de planning; de samenvatting doet geen schrijfcontrole (die geeft pas `?output=ifc`).
+- De samenvatting heeft dezelfde vorm als `ScheduleSummary` van de kern (`formatVersion: 1`). Ze komt altijd van de
+  tekstlezer, zoals op main, dus `foreignContent` is hier altijd `null`; het veld hoort bij het samenvattingsformaat
+  van de kern, waar `openIfcBytes` het vult. De samenvatting doet geen schrijfcontrole (die geeft pas `?output=ifc`).
 - Elk antwoord heeft een header `X-Request-Id`. Stuur zelf een `X-Request-Id`
   (1–64 tekens `A-Z a-z 0-9 . _ -`) om een verzoek in de logs terug te vinden.
 
@@ -77,7 +79,7 @@ Een fout heeft altijd deze vorm. `code` is vast; `message` is Engels en voor men
 | 413 | `PAYLOAD_TOO_LARGE` | body groter dan de grens |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | verkeerd `Content-Type` |
 | 422 | `IFC_READ_FAILED`, `NO_TASKS`, `SCHEDULE_FAILED` | IFC, maar niet te plannen (bijv. een kring) |
-| 500 | `IFC_WRITE_FAILED`, `INTERNAL` | fout in de server, of het schrijven werd vóór uitvoer geweigerd: `details.reason` is `foreign` (of een andere scanuitkomst) op de tekstroute, `merge-needs-phase2` bij een bewaard vreemd deel |
+| 500 | `IFC_WRITE_FAILED`, `INTERNAL` | fout in de server, of het schrijven werd vóór uitvoer geweigerd: `details.reason` is `foreign` (of een andere scanuitkomst), zoals main; kwamen bewaarde bytes niet terug, dan zegt `message` waarom |
 | 503 | `BUSY`, `TIMEOUT` | er loopt al een berekening of er komen al te veel bodies binnen (beslist vóór de body), of de berekening duurde te lang (met `Retry-After`) |
 
 De volgorde van de controles is: pad (404), methode (405), token (401), `output` (400), type (415),
@@ -259,11 +261,12 @@ breaker zet een mislukte deploy terug.
 `.github/workflows/headless-api.yml` draait op elke push naar `main` en op een PR die `src/`, de
 kernbouw, `headless/`, `deploy/aws/`, de lockfile of de workflow raakt:
 
-- **local**: `npm run build:core`, server starten, weigeren zonder token (exit 78), smoke-test (ook het voorbeeld en
-  twee modelbestanden uit `tests/fixtures/ifc-foreign/` als bytes: byte-gelijk terug, en als tekst 422; het voorbeeld
-  kaal en met BOM, de oude eigen export met BOM, een dubbele BOM, een BOM na een spatie, U+00A0 na een BOM en een
-  IFC2X3-planning met en zonder externe pset als bytes, met dezelfde status, samenvatting, antwoordtype en fout als
-  dezelfde bytes als tekst; een geweigerde merge als JSON-fout),
+- **local**: `npm run build:core`, server starten, weigeren zonder token (exit 78), smoke-test (ook een lus over alle
+  voorbeelden, de oude-tags-bestanden, een IFC2X3-planning met en zonder externe pset, de bestanden in
+  `tests/fixtures/ifc-foreign/` en twee bestanden die de bytes-route anders leest, kaal, met BOM en met BOM en een
+  spatie: als bytes hetzelfde antwoord als dezelfde bytes als tekst, ook de hele IFC op de schrijftijd na; alleen waar
+  main het schrijven weigerde met `foreign`, de bewaarde bytes met dezelfde planning als de samenvatting, of dezelfde
+  weigering met het verschil in de melding),
   servertest (`server-test.mjs`: `GET //[` → 400 zonder crash, 30 uploads boven de grens → meteen 503
   en RSS begrensd, tweede verzoek tijdens een berekening → meteen 503, merkteken uit het IFC niet in
   de logs, 408 bij een te trage body, SIGTERM tijdens een upload), logs zonder token of IFC-inhoud,

@@ -328,7 +328,9 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   the flag `ifcForeignContent` on (set in the document's own context) only when it keeps foreign content, which main
   could not write: then `toIfcBytes()` returns that content byte for byte and `foreignContent` is set. Every other input
   runs exactly the text route of main (`openIfc(text)`/`toIfc()`, unchanged; `docs/headless-kern.md`, *Twee routes*).
-  The HTTP API sends `application/octet-stream` to `openIfcBytes` and returns bytes only for such a document. It builds its own context per document from
+  The HTTP API answers every request as main does; only when `output=ifc` is refused with `foreign` for an
+  `application/octet-stream` body does it try `openIfcBytes`, and returns those bytes only if both routes give the
+  same summary (`docs/headless-api.md`, knownbug 2252). The core builds its own context per document from
   `appStoreFactory.ts` and imports no value from `appStore.ts` (`verify:store-boundaries`); the build fails if
   React, Tauri, the singleton or the i18n UI config end up in the bundle. `api.ts` imports nothing and is the
   contract: a change there is a contract change (`docs/headless-kern.md`). Guards: `check-headless-core.ts`

@@ -75,8 +75,11 @@ Daarom is de keuze van de ingang hier de flag:
   geval (de bytes-route kan niet lezen; ze leest maar er is geen vreemd deel; de IFC2X3-terugval; nul taken; welke fout
   dan ook) opent dezelfde kopie via precies de tekstroute van main: decoderen als UTF-8 met de BOM erin (zoals
   `Buffer.toString` op main), dan `openIfc`. Dat document is in alles een tekstdocument van main: dezelfde samenvatting,
-  dezelfde schrijfcontroles (ook de vreemdedeelscan vóór uitvoer), dezelfde bytes en dezelfde fouten. Een verzoek dat
-  main volledig afhandelde, krijgt zo de uitkomst van main; niets wordt strenger dan main.
+  dezelfde schrijfcontroles (ook de vreemdedeelscan vóór uitvoer), dezelfde bytes en dezelfde fouten. Een bestand
+  zonder vreemd deel krijgt zo de uitkomst van main; niets wordt strenger dan main. Een bestand mét een vreemd deel
+  leest de bytes-route volgens de regels van de app voor zulke bestanden, en dat kan een andere planning geven dan
+  `openIfc` voor dezelfde bytes (knownbug 2252). De HTTP-API neemt daarom de samenvatting altijd van `openIfc` en geeft
+  bewaarde bytes alleen terug als beide routes dezelfde samenvatting geven ([headless-api.md](headless-api.md)).
 - Welk soort document het is, zegt `foreignContent` in de samenvatting: niet `null` is een document dat een vreemd deel
   bewaart, `null` een tekstdocument. Schrijf een tekstdocument met `toIfc()` (zoals main; `toIfcBytes()` geeft er de
   UTF-8 van). Schrijf een document met een vreemd deel met `toIfcBytes()`: dat beslist en schrijft zoals Ctrl+S
