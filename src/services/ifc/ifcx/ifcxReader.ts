@@ -16,6 +16,7 @@ import { emptyCalendar, type CalendarReadTarget } from './fields/calendarFields'
 import { emptyTask, type TaskReadTarget } from './fields/taskFields';
 import { emptySequence, type SequenceReadTarget } from './fields/sequenceFields';
 import { isOwnAttributeName, OWN_ATTRIBUTE_VALUES } from './ownAttributes';
+import { readResourceNodes } from './ifcxResourceReader';
 import { IfcxReadError, type IfcxErrorPlace } from './ifcxErrors';
 import {
   ATTRIBUTE, IFCX_VERSION, OPS_NAMESPACE, OPS_PROFILE_MAJOR, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
@@ -32,7 +33,7 @@ interface IfcxNode {
   readonly attributes: Attributes;
 }
 
-type NodeKind = 'workplan' | 'schedule' | 'calendar' | 'task' | 'sequence';
+type NodeKind = 'workplan' | 'schedule' | 'calendar' | 'task' | 'sequence' | 'resource' | 'assignment' | 'baseline';
 
 const NODE_SHAPES: readonly { kind: NodeKind; required: readonly IfcxAttributeName[]; optional: readonly IfcxAttributeName[] }[] = [
   { kind: 'workplan', required: [ATTRIBUTE.workplan, ATTRIBUTE.document], optional: [] },
@@ -40,6 +41,9 @@ const NODE_SHAPES: readonly { kind: NodeKind; required: readonly IfcxAttributeNa
   { kind: 'calendar', required: [ATTRIBUTE.calendar, ATTRIBUTE.opsCalendar], optional: [] },
   { kind: 'task', required: [ATTRIBUTE.activity, ATTRIBUTE.opsTask], optional: [] },
   { kind: 'sequence', required: [ATTRIBUTE.sequence], optional: [ATTRIBUTE.opsSequence] },
+  { kind: 'resource', required: [ATTRIBUTE.resource], optional: [ATTRIBUTE.opsResource] },
+  { kind: 'assignment', required: [ATTRIBUTE.assignment], optional: [ATTRIBUTE.opsAssignment] },
+  { kind: 'baseline', required: [ATTRIBUTE.baseline], optional: [ATTRIBUTE.opsBaseline] },
 ];
 
 const TOP_LEVEL_KEYS = new Set(['header', 'imports', 'schemas', 'data']);
@@ -263,6 +267,10 @@ export function readIfcxText(text: string): IfcxImportResult {
     return target;
   });
 
+  const planned = readResourceNodes({
+    projectId: project.id, nodes: of, reference, kindAt: path => kindAt.get(path), calendarIdAt, taskTargets,
+  });
+
   const tasks = taskTargets.map(target => target.task);
   const sequences: Sequence[] = sequenceTargets.map(target => target.sequence);
   const resourceCalendars: WorkCalendar[] = calendarTargets.filter(target => !target.isProjectCalendar).map(target => target.calendar);
@@ -281,12 +289,13 @@ export function readIfcxText(text: string): IfcxImportResult {
     const globalId = globalIdOfIdentity(node.path, undefined);
     if (globalId !== ifcGuid128(seed)) ifcGlobalIds[seed] = globalId;
   }
+  Object.assign(ifcGlobalIds, planned.globalIds);
 
   return {
-    project, calendar: projectCalendar, tasks, sequences, resources: [], assignments: [],
+    project, calendar: projectCalendar, tasks, sequences, resources: planned.resources, assignments: planned.assignments,
     timeModel: MINUTE_MODEL_TIME_MODEL,
     activityCodeTypes: [], customFieldDefs: [], customTaskTypes: [], resourceCalendars,
-    baselines: [], activeBaselineId: null, comparedBaselineIds: [null, null],
+    baselines: planned.baselines, activeBaselineId: planned.activeBaselineId, comparedBaselineIds: planned.comparedBaselineIds,
     recordedFields: recordedFieldsOf(tasks), recordedTimesOrigin: 'ifc-own',
     ifcGlobalIds,
     ...(sharedDatesApplied > 0 ? { ifcxSharedDatesApplied: sharedDatesApplied } : {}),

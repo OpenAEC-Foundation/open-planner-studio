@@ -3750,6 +3750,25 @@ en noem het in je rapport of PR-tekst.
      lukt dan niet. Voorstel: de boom vóór het schrijven gelijktrekken, zoals de STEP-lezer doet, of de oorzaak vinden
      die zo'n boom maakt (zie ook 1980 en 1981). Proef: `check-ifcx-kern.ts`, "bekende grens 2222". — B
 
+2225. **IFCX: een baseline met haar velden in een andere volgorde dan de app ze maakt, kan niet als IFCX worden
+     opgeslagen.** De lezer (`baselineOf` in `src/services/ifc/ifcx/fields/baselineFields.ts`) bouwt een baseline en
+     haar rijen op in de volgorde van het type, zoals `saveBaseline`, `baselineTasksFromSource` en de lezers van P6 en
+     MSPDI ze maken; hetzelfde geldt voor `libraryOrigin` van een resource en voor `timephasedContours`. De STEP-writer
+     schrijft die objecten als JSON in de volgorde van het document (`writeBaselineMeta` in `ifcWriter.ts`), dus
+     `planningCanon` ziet een andere volgorde als een andere planning en de zelfcontrole weigert (`self-check`). Er gaat
+     niets verloren. Geen producent in de app maakt zo'n volgorde; alleen een oud of met de hand veranderd bestand kan
+     dat. Voorstel: de nieuwe zelfcontrole van F3-1, die het teruggelezen model direct naast de invoer legt, vergelijkt
+     objecten zonder op de volgorde van hun velden te letten. Proef: `check-ifcx-resources.ts`, "bekende grens 2225". — B
+
+2226. **IFCX: twee objecten met dezelfde bewaarde GlobalId laten de zelfcontrole weigeren.** Hebben een resource en een
+     bibliotheekkalender in `ifcGlobalIds` dezelfde GlobalId, dan geeft de STEP-writer hem aan de resource (die komt
+     eerst) en de kalender een nieuwe; de IFCX-writer doet hetzelfde (`stepGlobalIds.ts`). `planningIdentities` in
+     `src/services/ifc/foreign/planningIdentity.ts` noemt de kalender voor de vergelijking naar de GlobalId uit
+     `ifcGlobalIds` en niet naar de GlobalId die de writer uitgaf, dus de herlezing (met de uitgegeven GlobalId) heeft een
+     ander id en de zelfcontrole weigert. Er gaat niets verloren. Alleen een document met een dubbele GlobalId raakt dit.
+     Voorstel: de vergelijking gebruikt de uitgegeven GlobalId, of de nieuwe zelfcontrole van F3-1 legt de vastgelegde
+     regel voor `ifcGlobalIds` vast. Proef: `check-ifcx-resources.ts`, "bekende grens 2226". — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat

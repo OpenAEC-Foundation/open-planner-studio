@@ -13,8 +13,8 @@ veranderen; vanaf het moment dat de flag eraf gaat of een ander programma het pr
 een nieuwe naam (ontwerp §5.3). Wat een planner met de flag aan in die tijd als IFCX opslaat, kan een latere versie
 van de app weigeren.
 
-Deze versie (fase 3, F3-1) draagt project, werkplan, werkschema, kalenders, taken en relaties. Resources,
-toewijzingen en baselines komen in F3-2, de overige velden in F3-3. Wat de kern nog niet draagt, weigert de writer
+Deze versie (fase 3, F3-1 en F3-2) draagt project, werkplan, werkschema, kalenders, taken, relaties, resources,
+toewijzingen en baselines. De overige velden komen in F3-3. Wat het profiel nog niet draagt, weigert de writer
 (zie *Wat de writer weigert*).
 
 ## Het bestand
@@ -36,22 +36,30 @@ toewijzingen en baselines komen in F3-2, de overige velden in F3-3. Wat de kern 
   schrijven en lezen (`fieldGroups.ts`, `ownAttributes.ts`): een veld heeft één beschrijving met schema, controle,
   schrijven en lezen samen.
 - **`data`**: één entry per object, in deze volgorde: werkplan, werkschema, projectkalender, de andere kalenders,
-  taken (in de volgorde van de takenlijst), relaties. Elke entry staat op één regel.
+  taken (in de volgorde van de takenlijst), relaties, resources, toewijzingen, baselines. Elke lijst houdt de volgorde
+  van het document. Elke entry staat op één regel.
 
 ## Paden en identiteit
 
 - Het pad van een object is de UUID van zijn GlobalId: dezelfde 128 bits, in kleine letters met streepjes en zonder
   voorloop-`/`. De GlobalId is die van de STEP-writer: een bewaarde GlobalId (`ifcGlobalIds`), anders `ifcGuid128`
-  van `ifcObjectSeed` (`stepGlobalIds.ts`, in dezelfde volgorde als `ifcWriter.ts`). Zo houdt IFC → IFCX → IFC
-  dezelfde GlobalIds. De lezer vult `ifcGlobalIds` terug voor project, kalenders, taken en relaties, en voor werkplan
-  en werkschema alleen als hun GlobalId afwijkt van wat de writer zou afleiden.
+  van `ifcObjectSeed` (`stepGlobalIds.ts`, met dezelfde regel bij een botsing en in dezelfde volgorde als
+  `ifcWriter.ts`: project, projectkalender, werkplan, werkschema, baselines, taken, relaties, resources, de andere
+  kalenders, de taken in baselines). Zo houdt IFC → IFCX → IFC dezelfde GlobalIds. Een baseline heeft de GlobalId
+  van haar werkschema in STEP (sleutel `baseline_ws_<id>`, afgeleid van `<project-id>/baseline_ws_<id>`). Een
+  toewijzing heeft in STEP geen eigen GlobalId; zij krijgt er een uit `<project-id>/ifcx_assignment_<id>`, als
+  laatste uitgegeven. De lezer vult `ifcGlobalIds` terug voor project, kalenders, taken, relaties en resources, en
+  voor werkplan, werkschema, baselines en verwijderde baselinetaken alleen als hun GlobalId afwijkt van wat de writer
+  zou afleiden.
 - Een GlobalId zonder geldige 128-bitsvorm (22 tekens, eerste teken `0`–`3`; de oude `ifcGuid` geeft dat niet altijd)
   krijgt als pad een UUID v5 van de GlobalId, en de GlobalId zelf staat in het veld `globalId` van het
   `openaec::ops::`-attribuut van dat object. De namespace is `fd4e93a2-de83-56ee-929c-defaa450b626`, de UUID v5 van
   `urn:openaec:planner` in de URL-namespace van RFC 4122.
 - Het interne id van een object staat in het veld `id` van zijn `openaec::ops::`-attribuut als het afwijkt van het
   pad. Voor de projectkalender is de afleiding `cal-default`, voor het project de UUID uit de kop.
-- Verwijzingen tussen objecten (`parent`, `calendar`, `relatingProcess`, `relatedProcess`, `workplan`) zijn paden.
+- Verwijzingen tussen objecten (`parent`, `calendar`, `relatingProcess`, `relatedProcess`, `workplan`, `crew`,
+  `relatedResource`) zijn paden naar een object dat bestaat. Een baseline verwijst met gewone tekst naar haar taken
+  (`task` in een rij), ook naar een taak die verwijderd is (ontwerp §5.2).
 
 ## Eén regel voor `openaec::ops::`
 
@@ -67,6 +75,12 @@ writer gebruiken daarvoor dezelfde afleiding (ontwerp §5.2):
 | `openaec::ops::document.startDate`, `endDate` | de datum in `start` en `finish` van het werkplan |
 | `openaec::ops::document.author` | `author` uit de kop |
 | `openaec::ops::document.calendarId` | het id van de projectkalender |
+| `openaec::ops::task.resourceIds` | de resources van de toewijzingen van de taak, in volgorde, zonder dubbele (`resourceIdsByTask`) |
+| `openaec::ops::resource.type` | het soort uit `subtype`; alleen een kostenresource heeft hier `COST` |
+| `openaec::ops::assignment.plannedWorkMinutes`, `actualWorkMinutes`, `remainingWorkMinutes` | de minuten in `scheduleWork`, `actualWork`, `remainingWork` |
+| `openaec::ops::baseline.projectEnd` | de datum in `finish` van de baseline |
+| `openaec::ops::baseline.taskIds` | het id van de taak op het pad van een rij, of het pad zelf als die taak er niet meer is |
+| `openaec::ops::baseline.active`, `comparedSlot` | geen actieve baseline en geen vergelijking |
 
 ## Attributen
 
@@ -134,7 +148,11 @@ middernacht), `workingExceptions` (lijst van `{ name, startDate, endDate, bands 
 
 `openaec::ops::task`: `id`, `globalId`, `place` (geheel getal vanaf 0), `time` (verplicht, hieronder), `status`
 (keuze `NOT_STARTED`, `STARTED`, `COMPLETED`), `milestoneKind` (keuze `START`, `FINISH`), `mandatory`, `isSummary`,
-`manuallyScheduled` (ja/nee), `calendarId` (alleen als de eigen kalender niet als pad te schrijven is).
+`manuallyScheduled` (ja/nee), `calendarId` (alleen als de eigen kalender niet als pad te schrijven is),
+`resourceIds` (lijst van ids, alleen als hij afwijkt van de toewijzingen), `timephasedContours` (lijst van
+`{ resourceUid, resourceId, periods: [{ afterMinutes, minutes, workMinutes, kind }] }`, de ruwe werkverdeling per
+toewijzing; `resourceUid` ontbreekt als het domein `null` heeft, `kind` is `actual` of `remaining`; `resourceId` is
+tekst, want de contour mag een resource noemen die er niet meer is).
 
 `time` draagt de precieze tijden zoals de app ze heeft: `durationUnit` (keuze `days`, `hours`), `scheduleDuration`
 (werkdagen), `durationMinutes`, de momenten `scheduleStart`, `scheduleFinish`, `resume`, `stop`, `earlyStart`,
@@ -158,6 +176,67 @@ middernacht), `workingExceptions` (lijst van `{ name, startDate, endDate, bands 
 | `lagDurationType` | keuze `WORKTIME`, `ELAPSEDTIME` | of de lag in werktijd of kalendertijd telt; ontbreekt als de app geen eenheid vastlegde |
 
 `openaec::ops::sequence`: `id`, `globalId`, `lagDays`, `lagMinutes`, `lagPercent`.
+
+### Resource
+
+`openaec::planning::resource`:
+
+| Veld | Vorm | Betekenis |
+|---|---|---|
+| `name` | tekst, verplicht | naam |
+| `description` | tekst | omschrijving |
+| `subtype` | keuze `IfcLaborResource`, `IfcConstructionEquipmentResource`, `IfcConstructionMaterialResource`, `IfcSubContractResource`, `IfcCrewResource`, verplicht | de IFC-klasse; een kostenresource is `IfcConstructionMaterialResource`, zoals in STEP |
+| `crew` | pad | de ploeg (een andere resource) waar de resource bij hoort |
+| `calendar` | pad | de kalender van de resource; ontbreekt als zij de projectkalender volgt zonder eigen keuze |
+| `maxUnits` | getal | capaciteit per werkdag (1 is 100 %); ontbreekt bij 1 |
+| `costPerHour` | getal | tarief per uur |
+| `unitOfMeasure` | tekst | eenheid van materiaal |
+
+`openaec::ops::resource`: `id`, `globalId`, `type` (keuze `COST`, alleen bij een kostenresource), `availability` (het
+oude veld voor capaciteit), `availabilitySteps` (lijst van `{ from, maxUnits }`, `from` een datum, in de volgorde van
+het document), `color`, `libraryOrigin` (`{ companyId, libraryItemId, poolVersion, syncedHash }`).
+
+### Toewijzing
+
+`openaec::planning::assignment`:
+
+| Veld | Vorm | Betekenis |
+|---|---|---|
+| `relatingProcess` | pad, verplicht | de taak |
+| `relatedResource` | pad, verplicht | de resource |
+| `unitsPerDay` | getal, verplicht | inzet per werkdag (1 is 100 %); bij een P6-toewijzing met restwerk het resterende tempo |
+| `plannedUnitsPerDay` | getal | het begrote tempo, als het afwijkt (P6) |
+| `scheduleContour` | keuze `UNIFORM`, `FRONT_LOADED`, `BACK_LOADED`, `BELL`, `EARLY_PEAK`, `LATE_PEAK`, `DOUBLE_PEAK`, `TURTLE` | de verdeelcurve (`ScheduleContour` van `IfcResourceTime`); ontbreekt als de app geen curve vastlegde |
+| `scheduleWork`, `actualWork`, `remainingWork` | ISO 8601-duur `PT<minuten>M` | begroot, verricht en resterend werk (`IfcResourceTime`) |
+| `costAmount` | getal | het begrote bedrag van een kostentoewijzing |
+
+`openaec::ops::assignment`: `id`, `plannedWorkMinutes`, `actualWorkMinutes`, `remainingWorkMinutes` (alleen als de
+minuten niet als ISO-duur te schrijven zijn: negatief of in e-notatie), `curveValues` (21 getallen, de precieze curve),
+`workWindowStart` en `workWindowFinish` (momenten, het tijdvenster van de toewijzing).
+
+### Baseline
+
+`openaec::planning::baseline`:
+
+| Veld | Vorm | Betekenis |
+|---|---|---|
+| `name` | tekst, verplicht | naam |
+| `creationDate` | tekst | het moment van vastleggen |
+| `finish` | datum | de datum van het projecteinde in de baseline |
+| `tasks` | lijst, verplicht | de rijen, in de volgorde van het document |
+
+Een rij: `task` (UUID als tekst, het pad van de taak, ook als die taak verwijderd is; ontbreekt als de rij geen taak
+noemt), `start` en `finish` (momenten of leeg), `duration` (werkdagen, verplicht), `isMilestone` (ontbreekt bij nee),
+`milestoneKind`, `sourceTaskId` en `sourceTaskCode` (de taak in het bronproject van een P6-baseline).
+
+`openaec::ops::baseline`: `id`, `globalId`, `sourceProjectId`, `projectEnd` (als het meer is dan een datum),
+`projectDuration` (werkdagen, ontbreekt bij 0), `active` (ja, bij de actieve baseline), `comparedSlot` (1 of 2, de
+plaats in de vergelijking), `taskIds` (lijst van `{ task, id, globalId }` voor de rijen van een verwijderde taak:
+`id` als het interne id afwijkt van het pad, `globalId` als de GlobalId geen 128-bitsvorm heeft).
+
+De lezer bouwt een baseline en haar rijen op met de velden in de volgorde van het type (`id`, `sourceProjectId`,
+`name`, `createdAt`, `tasks`, `projectEnd`, `projectDuration`; een rij `taskId`, `sourceTaskId`, `sourceTaskCode`,
+`start`, `finish`, `duration`, `isMilestone`, `milestoneKind`), zoals de app ze maakt. Grens: knownbug 2225.
 
 ## Lag
 
@@ -204,10 +283,14 @@ een langste reeks die in de takenlijst en onder de ouder in dezelfde volgorde st
 `writeIfcx` schrijft niets en gooit een `IfcxWriteRefusedError`:
 
 - met code `unsupported` en de veldnamen in `fields`, als het document iets heeft wat dit profiel nog niet draagt:
-  resources, toewijzingen, baselines, codes, eigen velden, gebruikte taaktypes, de bibliotheek, het P6-bronarchief, de
-  modus "datums zoals opgeslagen", letterlijke kalenders, een openstaande omzetting naar het minutenmodel, en elk veld
-  van project, kalender, taak of relatie dat geen veldgroep draagt (`unsupportedContent.ts`). Ook een taak onder een
-  ouder die niet bestaat en een relatie naar een taak die niet bestaat;
+  codes, eigen velden, gebruikte taaktypes, de bibliotheek, het P6-bronarchief, de modus "datums zoals opgeslagen",
+  letterlijke kalenders, een openstaande omzetting naar het minutenmodel, en elk veld van project, kalender, taak,
+  relatie, resource, toewijzing, baseline of baselinerij dat geen veldgroep draagt (`unsupportedContent.ts`). Ook een
+  taak onder een ouder die niet bestaat, een relatie naar een taak die niet bestaat, een toewijzing aan een taak of van
+  een resource die niet bestaat, een ploeg of resourcekalender die niet bestaat, twee resources, toewijzingen of
+  baselines met hetzelfde id, een actieve baseline die niet bestaat, en een vergelijking die de app zelf zou wissen
+  (een baseline die niet bestaat, de actieve, of twee keer dezelfde). STEP laat de meeste van die gevallen stil
+  vallen; IFCX weigert ze vooraf (`ifcxResourceWriter.ts`);
 - met code `self-check`, als de herlezing van de uitvoer niet lukt of een andere `planningCanon` geeft
   (`src/services/ifc/foreign/planningCanon.ts`): de eigen controle na elke opslag (keuze T4).
 
@@ -224,7 +307,11 @@ een langste reeks die in de takenlijst en onder de ouder in dezelfde volgorde st
   `openaec::planning::`-attribuut, een pad dat geen UUID is, twee bijdragen van één attribuut op één pad, een pad
   waarvan de attributen samen geen planningsobject vormen, of niet precies één eigen werkplan;
 - `invalid`: een bekend veld met een ongeldige waarde of vorm, een verplicht veld dat ontbreekt, een verwijzing naar
-  een pad van de verkeerde soort, of niet precies één werkschema.
+  een pad van de verkeerde soort, niet precies één werkschema, twee resources, toewijzingen of baselines met hetzelfde
+  id, een kostenresource die geen `IfcConstructionMaterialResource` is, een baselinerij die naar een object wijst dat
+  geen taak is, een eigen id in `taskIds` voor een taak die bestaat, een verwijderde baselinetaak met het id van een
+  taak die bestaat, twee actieve baselines, twee baselines op één vergelijkingsplaats, of de actieve baseline in de
+  vergelijking.
 
 `classifyIfcx` gebruikt dezelfde regel: `own` als de lezer het bestand leest, `foreign` bij `foreign`, `not-ifcx` bij
 `not-ifcx`, en `unreadable` bij de andere codes. De lezer leest met `JSON.parse` (keuze T1); een dubbele sleutel ziet
@@ -242,6 +329,6 @@ IFC5-development en met ifcx-explorer draait in een eigen workflow (F3-6).
 Een nieuw gebied krijgt een eigen bestand in `src/services/ifc/ifcx/fields/` met zijn velden (sleutel, vorm, schrijven
 en lezen samen) en de domeinvelden die het draagt (`carries`), en één regel in de lijst van groepen in
 `fieldGroups.ts`. Het schema in het bestand, de controle van de lezer en de voorcontrole van de writer volgen daar
-vanzelf uit. Een nieuw soort object (resource, toewijzing, baseline) vraagt ook een node in `ifcxWriter.ts` en
-`ifcxReader.ts` (`NODE_SHAPES`). De proef is `tests/planning/check-ifcx-kern.ts`; de voorbeeldbestanden in
+vanzelf uit. Een nieuw soort object vraagt ook een node in de writer en in `NODE_SHAPES` van `ifcxReader.ts`; resources,
+toewijzingen en baselines hebben hun eigen writer en lezer (`ifcxResourceWriter.ts`, `ifcxResourceReader.ts`). De proeven zijn `tests/planning/check-ifcx-kern.ts` en `check-ifcx-resources.ts`; de voorbeeldbestanden in
 `tests/fixtures/ifcx/eigen/` maak je opnieuw met `OPS_IFCX_FIXTURES_WRITE=1 bash tests/planning/run.sh check-ifcx-kern.ts`.

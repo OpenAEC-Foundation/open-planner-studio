@@ -1,6 +1,9 @@
 import type { WriteIFCInput } from '../ifcWriter';
 import { savedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
-import { CALENDAR_GROUPS, carriedKeys, DOCUMENT_GROUPS, SEQUENCE_GROUPS, TASK_GROUPS } from './fieldGroups';
+import {
+  ASSIGNMENT_GROUPS, BASELINE_GROUPS, CALENDAR_GROUPS, carriedKeys, DOCUMENT_GROUPS, RESOURCE_GROUPS, SEQUENCE_GROUPS, TASK_GROUPS,
+} from './fieldGroups';
+import { BASELINE_TASK_KEYS_CARRIED } from './fields/baselineFields';
 
 function carriesValue(value: unknown): boolean {
   if (value === undefined || value === null) return false;
@@ -14,15 +17,13 @@ function uncarriedKeys(object: object, carried: ReadonlySet<PropertyKey>): strin
 }
 
 const STEP_WRITER_INPUT_NOT_CARRIED = [
-  'resources', 'assignments', 'activityCodeTypes', 'customFieldDefs', 'baselines', 'libraryPool', 'xerSourceArchive', 'xer',
+  'activityCodeTypes', 'customFieldDefs', 'libraryPool', 'xerSourceArchive', 'xer',
   'xerSourceProjectId', 'recordedSourceFormat', 'recoveryForeignSource', 'withheldTaskTimeFields', 'ifcLiteralCalendarIds',
 ] as const satisfies readonly (keyof WriteIFCInput)[];
 
 export function unsupportedContent(input: WriteIFCInput): string[] {
   const found = new Set<string>();
   for (const key of STEP_WRITER_INPUT_NOT_CARRIED) if (carriesValue(input[key])) found.add(key);
-  if (input.activeBaselineId !== undefined && input.activeBaselineId !== null) found.add('activeBaselineId');
-  if (input.comparedBaselineIds?.some(id => id !== null)) found.add('comparedBaselineIds');
   if (savedCustomTaskTypes(input.tasks, input.customTaskTypes ?? []).length > 0) found.add('customTaskTypes');
   if (input.importPristine === true) found.add('importPristine');
   if (input.minuteModelPending === true) found.add('minuteModelPending');
@@ -42,6 +43,20 @@ export function unsupportedContent(input: WriteIFCInput): string[] {
   const sequenceCarried = carriedKeys(SEQUENCE_GROUPS);
   for (const sequence of input.sequences) {
     for (const key of uncarriedKeys(sequence, sequenceCarried)) found.add(`sequence.${key}`);
+  }
+  const resourceCarried = carriedKeys(RESOURCE_GROUPS);
+  for (const resource of input.resources) {
+    for (const key of uncarriedKeys(resource, resourceCarried)) found.add(`resource.${key}`);
+  }
+  const assignmentCarried = carriedKeys(ASSIGNMENT_GROUPS);
+  for (const assignment of input.assignments) {
+    for (const key of uncarriedKeys(assignment, assignmentCarried)) found.add(`assignment.${key}`);
+  }
+  const baselineCarried = carriedKeys(BASELINE_GROUPS);
+  const rowCarried = new Set<PropertyKey>(BASELINE_TASK_KEYS_CARRIED);
+  for (const baseline of input.baselines ?? []) {
+    for (const key of uncarriedKeys(baseline, baselineCarried)) found.add(`baseline.${key}`);
+    for (const row of baseline.tasks) for (const key of uncarriedKeys(row, rowCarried)) found.add(`baseline.tasks.${key}`);
   }
   return [...found];
 }

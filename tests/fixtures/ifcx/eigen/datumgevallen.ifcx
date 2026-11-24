@@ -705,6 +705,66 @@
             "calendarId": {
               "dataType": "String",
               "optional": true
+            },
+            "resourceIds": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "String"
+                }
+              }
+            },
+            "timephasedContours": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "resourceUid": {
+                        "dataType": "Integer",
+                        "optional": true
+                      },
+                      "resourceId": {
+                        "dataType": "String",
+                        "optional": true
+                      },
+                      "periods": {
+                        "dataType": "Array",
+                        "arrayRestrictions": {
+                          "value": {
+                            "dataType": "Object",
+                            "objectRestrictions": {
+                              "values": {
+                                "afterMinutes": {
+                                  "dataType": "Real"
+                                },
+                                "minutes": {
+                                  "dataType": "Real"
+                                },
+                                "workMinutes": {
+                                  "dataType": "Real"
+                                },
+                                "kind": {
+                                  "dataType": "Enum",
+                                  "enumRestrictions": {
+                                    "options": [
+                                      "actual",
+                                      "remaining"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }

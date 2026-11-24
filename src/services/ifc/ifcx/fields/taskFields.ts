@@ -14,6 +14,7 @@ export interface TaskWriteSource {
   readonly calendarPath?: string;
   readonly place?: number;
   readonly span: SharedSpan;
+  readonly assignedResourceIds: readonly string[];
 }
 
 export interface TaskReadTarget {
@@ -24,6 +25,7 @@ export interface TaskReadTarget {
   calendarPath?: string;
   place?: number;
   span: { start?: string; endExclusive?: string };
+  resourceIdsOverride?: string[];
 }
 
 type TaskField = IfcxField<TaskWriteSource, TaskReadTarget>;

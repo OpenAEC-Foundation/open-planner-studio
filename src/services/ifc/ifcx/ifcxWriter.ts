@@ -17,6 +17,8 @@ import {
   ATTRIBUTE, DEFAULT_HEADER_AUTHOR, IFCX_DATA_VERSION, IFCX_VERSION, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
 } from './profile';
 import { readIfcxText } from './ifcxReader';
+import { resourceEntries } from './ifcxResourceWriter';
+import { resourceIdsByTask } from '@/services/importNormalize';
 
 export interface IfcxHeader {
   readonly id: string;
@@ -91,6 +93,7 @@ export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDo
   const taskPathById = new Map<string, string>();
   input.tasks.forEach((task, index) => { if (!taskPathById.has(task.id)) taskPathById.set(task.id, taskIdentities[index].path); });
   const places = childPlaces(input.tasks, taskPathById);
+  const assignedResourceIds = resourceIdsByTask(input.assignments);
 
   const data: IfcxEntry[] = [];
   const documentSource = {
@@ -122,6 +125,7 @@ export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDo
     const place = places.get(task.id);
     const source = {
       task, identity: taskIdentities[index], span: projectSpan(shownStart(task), shownFinish(task)),
+      assignedResourceIds: assignedResourceIds.get(task.id) ?? [],
       ...(parentPath !== undefined ? { parentPath } : {}),
       ...(calendarPath !== undefined ? { calendarPath } : {}),
       ...(place !== undefined ? { place } : {}),
@@ -143,6 +147,10 @@ export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDo
       [ATTRIBUTE.sequence, writeFields(SEQUENCE_AREA.planning, source)],
       [ATTRIBUTE.opsSequence, writeFields(SEQUENCE_AREA.ops, source)],
     ]) });
+  }
+
+  for (const entry of resourceEntries(input, { globalIdOf, taskPathById, calendarPathById })) {
+    data.push({ path: entry.path, attributes: attributesOf(entry.attributes) });
   }
 
   const used = new Set<string>(data.flatMap(entry => Object.keys(entry.attributes)));
