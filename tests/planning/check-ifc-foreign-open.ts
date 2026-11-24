@@ -36,7 +36,7 @@ const { createAppStoreContext } = await import('@/state/appStoreFactory');
 const { FEATURE_FLAGS, ifcForeignContentEnabled } = await import('@/utils/featureFlags');
 const { binaryExtensions, readsAsBytes } = await import('@/services/formatRegistry');
 const { readIfcBytesDetailed, readIfcBytes } = await import('@/services/ifc/foreign/ifcBytesRoute');
-const { scanForeign } = await import('@/services/ifc/foreign/foreignScan');
+const { scanForeign, scanForeignToOpen } = await import('@/services/ifc/foreign/foreignScan');
 const { scanStep } = await import('@/services/ifc/foreign/stepScanner');
 const { classify, classOf } = await import('@/services/ifc/foreign/classify');
 const { readIFC } = await import('@/services/ifc/ifcReader');
@@ -670,8 +670,8 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
         onerror = null;
         onmessageerror = null;
         terminate() {}
-        postMessage(msg: { id: number; bytes: Uint8Array }) {
-          const outcome = scanForeign(msg.bytes);
+        postMessage(msg: { id: number; bytes: Uint8Array; open?: true }) {
+          const outcome = msg.open ? scanForeignToOpen(msg.bytes) : scanForeign(msg.bytes);
           if (!outcome.ok) throw new Error(outcome.message);
           const data = { id: msg.id, outcome: { ...outcome, selection: { ...outcome.selection, resources: Int32Array.of(-1) } } };
           // Eerst de startbevestiging, zoals `foreignScan.worker.ts`; anders valt de runner na de starttijd terug.
