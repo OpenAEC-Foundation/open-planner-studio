@@ -17,7 +17,9 @@ parentPort.on('message', async ({ text, bytes, output }) => {
     parentPort.postMessage(output === 'ifc' ? { ok: true, ifc: doc.toIfc() } : { ok: true, summary });
   } catch (err) {
     if (err instanceof PlannerCoreError) {
-      const preserved = keepsForeignContent(err, bytes, output) ? await preservedOrWhyNot(bytes, summary) : {};
+      const preserved = keepsForeignContent(err, bytes, output) ? await preservedOrWhyNot(bytes, summary)
+        : refusedBuildingModel(err, bytes) ? await readByBytesRoute(bytes, output) : {};
+      if (preserved.summary) return parentPort.postMessage({ ok: true, summary: preserved.summary });
       if (preserved.ifcBytes) return parentPort.postMessage({ ok: true, ifcBytes: preserved.ifcBytes }, [preserved.ifcBytes.buffer]);
       const message = preserved.whyNot ? `${err.message} The preserved bytes are not returned: ${preserved.whyNot}.` : err.message;
       parentPort.postMessage({ ok: false, code: err.code, message, details: { ...err.details } });
@@ -29,6 +31,21 @@ parentPort.on('message', async ({ text, bytes, output }) => {
 
 function keepsForeignContent(err, bytes, output) {
   return bytes !== undefined && output === 'ifc' && err.code === 'IFC_WRITE_FAILED' && err.details?.reason === 'foreign';
+}
+
+function refusedBuildingModel(err, bytes) {
+  return bytes !== undefined && err.readRefusal === 'building-model';
+}
+
+async function readByBytesRoute(bytes, output) {
+  try {
+    const doc = await openIfcBytes(bytes);
+    const summary = doc.schedule();
+    if (summary.foreignContent === null) return {};
+    return output === 'ifc' ? { ifcBytes: await doc.toIfcBytes() } : { summary };
+  } catch {
+    return {};
+  }
 }
 
 async function preservedOrWhyNot(bytes, textSummary) {
