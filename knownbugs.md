@@ -4107,6 +4107,7 @@ en noem het in je rapport of PR-tekst.
      geeft voor zulke bestanden de lezing van de bytes-route. Richting: de lezing van de bytes-route en de tekstlezer voor
      bestanden met vreemde inhoud gelijktrekken, zodat de API ook daar de bewaarde bytes kan geven. Review van #1184
      ronde 4 (GPT-6.2-Sol, xhigh). — B
+2258. **Een IFC met meer dan 4 KiB witruimte of commentaar na `END-ISO-10303-21;` wordt als afgekapt geweigerd (zo op main).** De lezer zoekt de sluitmarkering alleen in de laatste 4096 tekens (`TERMINATOR_PROBE` in `src/services/ifc/ifcReader.ts`). Staat daarna meer witruimte of commentaar, dan meldt hij "afgekapt" (reden `truncated`; via de headless API 422 `IFC_READ_FAILED`), terwijl het bestand volledig is. Gevonden bij #1184 met een bestand met 5000 spaties na de sluitmarkering; op main is het gedrag hetzelfde, en het octet-stream-antwoord van #1184 volgt daar main. Richting: van achteren af witruimte en commentaar overslaan vóór de toets op de sluitmarkering, zonder het hele bestand te doorzoeken. — B
 
 
 
