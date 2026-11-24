@@ -288,8 +288,10 @@ export async function openFileDialogWeb(filters: FileFilter[], opts?: OpenDialog
   if (hasFSA() && !platformRefusesReads && !featurePolicyBlocksFSA()) {
     try {
       const [handle] = await window.showOpenFilePicker!({ multiple: false, types: toAcceptTypes(filters) });
+      const ref = { kind: 'handle', handle } as const;
+      opts?.beforeRead?.(ref);
       // `await` binnen de try: een weigering tijdens het lezen moet de catch hieronder bereiken.
-      return await openedFromFile(await handle.getFile(), { kind: 'handle', handle }, opts);
+      return await openedFromFile(await handle.getFile(), ref, opts);
     } catch (err) {
       // Annuleren blijft `null` — geen tweede picker via de input-terugval.
       if (isAbort(err)) return null;
