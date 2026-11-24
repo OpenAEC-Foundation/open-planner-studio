@@ -1,8 +1,9 @@
-import type { ImportResult } from '@/services/importTypes';
+import { isMultiDocumentImport, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { hasBuildingModel, hasForeignContent } from '@/services/ifc/foreign/ifcSource';
 import type { NotificationDetailLine, NotifyInput } from './slices/types';
 import { withOpenNoticeSticky } from './openNoticeSticky';
 import { withTaskTypesUnlockedNotice } from './taskTypesNotice';
+import { withLargeForeignOpenNotice } from './largeForeignOpenNotice';
 
 function foreignContentLines(result: ImportResult): NotificationDetailLine[] {
   const source = result.ifcSource;
@@ -32,7 +33,9 @@ export function withIfcForeignOpenNotice(
 export function openedFileNotice(
   fileNotice: NotifyInput | undefined,
   taskTypesUnlocked: boolean,
-  results: readonly ImportResult[],
+  parsed: OpenedImport,
 ): NotifyInput | undefined {
-  return withOpenNoticeSticky(withIfcForeignOpenNotice(withTaskTypesUnlockedNotice(fileNotice, taskTypesUnlocked), results));
+  const results = isMultiDocumentImport(parsed) ? parsed.results : [parsed];
+  const established = withLargeForeignOpenNotice(withTaskTypesUnlockedNotice(fileNotice, taskTypesUnlocked), parsed);
+  return withOpenNoticeSticky(withIfcForeignOpenNotice(established, results));
 }

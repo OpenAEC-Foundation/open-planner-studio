@@ -1,9 +1,3 @@
-// De proef achter `check-ifc-foreign-grens.ts` (#804, fixronde 3 van #1127, route A). Twee getallen, elk op één plek:
-// de productgrens voor het openen van een model (`IFC_MODEL_OPEN_MAX_BYTES`, 150 MiB) en de technische grens van de
-// bytes-route (`IFC_FOREIGN_SCAN_MAX_BYTES`, 300 MiB, zoals main). De proef verlaagt alleen de productgrens, met de
-// proefnaad, tot `GRENS` (64 KiB); de technische grens blijft die van main. Zo ligt een bestand van `GRENS + 1` bytes
-// tussen de twee grenzen, zonder bestand van 150 MiB.
-//
 // `node grens.mjs web`: browser (nagebootste IndexedDB), delen 1 tot 4. `node grens.mjs desktop <map>`: nagebootste
 // Tauri-IPC op die map, deel 3 voor een bron op schijf. De bundel vervangt `react` en `react-i18next` in
 // `useRecoveryRestore.ts` door `reactHookDouble.ts`: het herstel loopt door de echte callback van de herstelvraag.
@@ -63,7 +57,7 @@ const { serializeRecoverySnapshot } = await import('@/services/recovery/recovery
 const { saveTargetRef } = await import('@/services/fileAccess');
 const { openDroppedFiles } = await import('@/state/fileDrop');
 const { IFC_FOREIGN_SCAN_MAX_BYTES, scanForeign } = await import('@/services/ifc/foreign/foreignScan');
-const { IFC_MODEL_OPEN_MAX_BYTES, lowerModelOpenLimitForTests } = await import('@/services/ifc/modelOpenLimit');
+const { IFC_FOREIGN_OPEN_WARN_BYTES, lowerForeignOpenWarnBytesForTests } = await import('@/services/ifc/foreignOpenSize');
 
 let checks = 0;
 const diffs: string[] = [];
@@ -74,12 +68,12 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 
 // ── 0. Twee getallen, elk op één plek ─────────────────────────────────────────────────────────────────────────────
-eq('de productgrens: 150 MiB', IFC_MODEL_OPEN_MAX_BYTES, 157_286_400);
+eq('de drempel voor de waarschuwing: 150 MiB', IFC_FOREIGN_OPEN_WARN_BYTES, 157_286_400);
 eq('de technische grens van de bytes-route: 300 MiB, zoals main', IFC_FOREIGN_SCAN_MAX_BYTES, 300 * 1024 * 1024);
-lowerModelOpenLimitForTests(GRENS);
+lowerForeignOpenWarnBytesForTests(GRENS);
 for (const bad of [Number.NaN, Infinity]) {
   let threw = false;
-  try { lowerModelOpenLimitForTests(bad); } catch { threw = true; }
+  try { lowerForeignOpenWarnBytesForTests(bad); } catch { threw = true; }
   eq(`de proefnaad weigert ${bad}`, threw, true);
 }
 
@@ -103,34 +97,44 @@ const newStore = () => {
 };
 type Store = ReturnType<typeof newStore>;
 const notices = (store: Store | typeof useAppStore) => store.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null]);
-const TOO_LARGE = [['notifications.ifcForeignOpenTooLarge', { limit: 0 }]];
+const LARGE_KEY = 'notifications.ifcForeignOpenLarge';
+const LARGE = [[LARGE_KEY, { limit: 150 }, true]];
+const warnings = (store: Store | typeof useAppStore) => store.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null, n.sticky ?? false]);
+const TECHNICAL_MODEL = [null, 0, [['notifications.openFailed', 'error', false, true, false]]];
+const TECHNICAL_PSET = [null, 0, [['notifications.ifcForeignOpenUnsafe', 'error', false, false, true]]];
+const largeWarnings = (store: Store | typeof useAppStore) => warnings(store).filter(n => n[0] === LARGE_KEY);
+const WITH_MODEL_KEY = 'notifications.ifcForeignOpenedWithModel';
+const full = (store: Store | typeof useAppStore) => store.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null, n.numberParams ?? null, n.detailLines ?? null]);
+const objectsOf = (bytes: Uint8Array) => { const scan = scanForeign(bytes); return scan.ok ? scan.counts.C + scan.counts.A + scan.counts.V : -1; };
+const modelOf = (bytes: Uint8Array) => { const scan = scanForeign(bytes); return scan.ok && scan.buildingModel; };
 
 if (mode === 'web') {
-  // ── 1. Openen met de productgrens ─────────────────────────────────────────────────────────────────────────────────
   const open = async (bytes: Uint8Array, name = 'bestand.ifc') => {
     const store = newStore();
     await store.getState().openOpenedFile({ name, content: '', bytes, ref: null }, {});
     return store;
   };
+  const below = pad(model, GRENS - 1);
   const atLimit = pad(model, GRENS);
   const over = pad(model, GRENS + 1);
+  const underLimit = await open(below);
+  eq('openen, model één byte onder de drempel: opent met zijn bron, zonder waarschuwing, met alleen de telmelding met gebouwmodel',
+    [underLimit.getState().ifcSource?.sha256 ?? null, full(underLimit)], [sha(below), [[WITH_MODEL_KEY, { count: objectsOf(below) }, { objects: objectsOf(below) }, null]]]);
   const opened = await open(atLimit);
-  const atLimitScan = scanForeign(atLimit);
-  const atLimitObjects = atLimitScan.ok ? atLimitScan.counts.C + atLimitScan.counts.A + atLimitScan.counts.V : -1;
-  eq('openen, model precies op de productgrens: opent met zijn bron en de telmelding met gebouwmodel',
-    [opened.getState().ifcSource?.sha256 ?? null, opened.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null, n.numberParams ?? null, n.detailLines ?? null])],
-    [sha(atLimit), [['notifications.ifcForeignOpenedWithModel', { count: atLimitObjects }, { objects: atLimitObjects }, null]]]);
-  eq('openen, model precies op de productgrens: de scan ziet een gebouwmodel', atLimitScan.ok && atLimitScan.buildingModel, true);
-  const refused = await open(over);
-  eq('openen, model één byte boven de productgrens: geweigerd met de groottemelding',
-    [refused.getState().ifcSource?.sha256 ?? null, refused.getState().filePath, notices(refused)], [null, null, TOO_LARGE]);
-  const pset = await open(pad(withPset(plan), GRENS + 1));
-  eq('openen, vreemde pset boven de productgrens: geweigerd met de groottemelding', [pset.getState().ifcSource?.sha256 ?? null, notices(pset)], [null, TOO_LARGE]);
+  eq('openen, model precies op de drempel: opent met zijn bron en alleen de telmelding met gebouwmodel', [opened.getState().ifcSource?.sha256 ?? null, full(opened)],
+    [sha(atLimit), [[WITH_MODEL_KEY, { count: objectsOf(atLimit) }, { objects: objectsOf(atLimit) }, null]]]);
+  const large = await open(over);
+  eq('openen, model één byte boven de drempel: opent met zijn bron en de waarschuwing zonder timer, met 150 MB in de tekst',
+    [large.getState().ifcSource?.sha256 ?? null, large.getState().tasks.length > 0, warnings(large)], [sha(over), true, LARGE]);
+  eq('openen, model één byte boven de drempel: de waarschuwing is de kop, de telregel met gebouwmodel staat eronder', full(large),
+    [[LARGE_KEY, { limit: 150 }, null, [{ messageKey: WITH_MODEL_KEY, params: { count: objectsOf(over) }, numberParams: { objects: objectsOf(over) } }]]]);
+  const psetBytes = pad(withPset(plan), GRENS + 1);
+  const pset = await open(psetBytes);
+  eq('openen, vreemde pset boven de drempel: opent met zijn bron en de waarschuwing zonder timer', [pset.getState().ifcSource?.sha256 ?? null, warnings(pset)], [sha(psetBytes), LARGE]);
+  eq('openen, vreemde pset boven de drempel: de waarschuwing is de kop, de telregel zonder gebouwmodel staat eronder', full(pset),
+    [[LARGE_KEY, { limit: 150 }, null, [{ messageKey: 'notifications.ifcForeignOpenedOtherData', params: { count: objectsOf(psetBytes) }, numberParams: { objects: objectsOf(psetBytes) } }]]]);
+  eq('openen: de scan ziet bij het model een gebouwmodel en bij de vreemde pset niet', [modelOf(atLimit), modelOf(psetBytes)], [true, false]);
 
-  // Het geval van de reviewer (ronde 3): een planning zonder model met een taak van OPS 0.1 met de letterlijke naam
-  // `Planning \X2\00E9\X0\ deel` naast taken van OPS 0.2, boven de productgrens en onder de technische. Main opent haar
-  // via de bytes-route met de codering per stuk en houdt de letterlijke naam; hier precies zo, ook na Opslaan als en
-  // heropenen.
   const literal = String.raw`Planning \X2\00E9\X0\ deel`;
   const mixedText = plan.replace("'Start of refurbishment'", `'${literal}'`)
     .replace(/(#47=IFCTASK\('[^']+',)#6,/, '$1#9002,')
@@ -142,7 +146,7 @@ if (mode === 'web') {
   eq('gemengd: alleen eigen stukken (P)', scan.ok ? scan.counts.C + scan.counts.A + scan.counts.V : 'scanfout', 0);
   const plain = await open(mixed, 'gemengd.ifc');
   const names = (store: Store) => store.getState().tasks.map(t => t.name);
-  eq('gemengd boven de productgrens: opent met bron, de letterlijke naam van OPS 0.1 blijft (zoals main)',
+  eq('gemengd boven de drempel: opent met bron en zonder waarschuwing, de letterlijke naam van OPS 0.1 blijft (zoals main)',
     [plain.getState().ifcSource?.sha256 ?? null, plain.getState().tasks.length, names(plain).filter(n => n === literal).length, notices(plain)],
     [sha(mixed), 20, 1, []]);
   let written = '';
@@ -163,26 +167,25 @@ if (mode === 'web') {
   eq('gemengd: na Opslaan als en heropenen dezelfde taaknamen', names(reopened), names(plain));
   eq('gemengd: de heropende kopie draagt de letterlijke naam', [written.length > 0, names(reopened).includes(literal)], [true, true]);
 
-  // ── 2. Per openroute: de controle zit erin ───────────────────────────────────────────────────────────────────────
   files.set('model.ifc', over);
   {
     const store = newStore();
     Reflect.set(window, 'showOpenFilePicker', async () => [handleOf('model.ifc')]);
     await store.getState().openFile({});
-    eq('route Bestand → Openen: geweigerd', [store.getState().ifcSource?.sha256 ?? null, notices(store)], [null, TOO_LARGE]);
+    eq('route Bestand → Openen: opent met de waarschuwing', [store.getState().ifcSource?.sha256 ?? null, warnings(store)], [sha(over), LARGE]);
     Reflect.deleteProperty(window, 'showOpenFilePicker');
   }
   {
     const store = newStore();
     store.setState(s => { s.recentFiles = [{ id: 'r1', name: 'model.ifc', ref: { kind: 'handle', handle: handleOf('model.ifc') }, addedAt: 0 }]; });
     await store.getState().openRecentFile('r1', {});
-    eq('route Recent: geweigerd', [store.getState().ifcSource?.sha256 ?? null, notices(store)], [null, TOO_LARGE]);
+    eq('route Recent: opent met de waarschuwing', [store.getState().ifcSource?.sha256 ?? null, warnings(store)], [sha(over), LARGE]);
   }
   {
     // Slepen; het startbestand gaat door dezelfde functie (`openLaunchFiles` → `openDroppedFiles`).
     const store = newStore();
     await openDroppedFiles(store, [{ name: 'model.ifc', read: async () => ({ name: 'model.ifc', content: '', bytes: over, ref: null }) }], {}, () => false);
-    eq('route slepen en startbestand: geweigerd', [store.getState().ifcSource?.sha256 ?? null, notices(store)], [null, TOO_LARGE]);
+    eq('route slepen en startbestand: opent met de waarschuwing', [store.getState().ifcSource?.sha256 ?? null, warnings(store)], [sha(over), LARGE]);
   }
   {
     const store = newStore();
@@ -192,7 +195,7 @@ if (mode === 'web') {
       open: async (id: string) => ({ file: { id, name: 'model.ifc', version: 'v1' }, data: over }),
     } });
     await store.getState().openFromSite('site-model', {});
-    eq('route site: geweigerd', [store.getState().ifcSource?.sha256 ?? null, notices(store)], [null, TOO_LARGE]);
+    eq('route site: opent met de waarschuwing', [store.getState().ifcSource?.sha256 ?? null, warnings(store)], [sha(over), LARGE]);
     Reflect.deleteProperty(window, 'openaecHost');
   }
   {
@@ -206,19 +209,27 @@ if (mode === 'web') {
     try {
       await openDevLinkOnce();
     } finally { globalThis.fetch = realFetch; }
-    eq('route dev-link: geweigerd', [useAppStore.getState().ifcSource?.sha256 ?? null, notices(useAppStore)], [null, TOO_LARGE]);
+    eq('route dev-link: opent met de waarschuwing', [useAppStore.getState().ifcSource?.sha256 ?? null, warnings(useAppStore)], [sha(over), LARGE]);
+    useAppStore.getState().closeDocument(useAppStore.getState().activeDocumentId);
     useAppStore.setState(s => { s.ui.notifications = []; });
   }
   {
-    // De grens geldt standaard in `openOpenedFile`: een nieuwe aanroeper zonder optie weigert. De benoemde uitzondering
-    // van het herstel (`restoringVerifiedIfcSource`) toetst deel 3, via de echte herstelvraag.
     const plainCall = newStore();
     await plainCall.getState().openOpenedFile({ name: 'model.ifc', content: '', bytes: over, ref: null }, {});
-    eq('openOpenedFile zonder optie: geweigerd', [plainCall.getState().ifcSource?.sha256 ?? null, notices(plainCall)], [null, TOO_LARGE]);
+    eq('openOpenedFile: een nieuwe aanroeper krijgt de waarschuwing', [plainCall.getState().ifcSource?.sha256 ?? null, warnings(plainCall)], [sha(over), LARGE]);
   }
   {
-    // Met de flag uit: precies main. Een model weigert de lezer om het gebouwmodel (niet om de grootte), en een planning
-    // boven de productgrens opent en slaat bytegelijk op aan dezelfde planning zonder de openactie (zonder de controle).
+    class FakeLength extends Uint8Array { get length() { return IFC_FOREIGN_SCAN_MAX_BYTES + 1; } }
+    const aboveTechnical = async (bytes: Uint8Array) => {
+      const store = newStore();
+      await store.getState().openOpenedFile({ name: 'model.ifc', content: '', bytes: new FakeLength(bytes), ref: null }, {});
+      const s = store.getState();
+      return [s.ifcSource?.sha256 ?? null, s.tasks.length, s.ui.notifications.map(n => [n.messageKey, n.severity, n.sticky ?? false, /building model/.test(String(n.detail ?? '')), /te-groot/.test(String(n.detail ?? ''))])];
+    };
+    eq('boven de technische grens, model: dezelfde weigering en melding als main', await aboveTechnical(over), TECHNICAL_MODEL);
+    eq('boven de technische grens, vreemde pset: dezelfde weigering en melding als main', await aboveTechnical(psetBytes), TECHNICAL_PSET);
+  }
+  {
     const flagOff = () => {
       const { store } = createAppStoreContext();
       return store;
@@ -247,12 +258,11 @@ if (mode === 'web') {
       return out;
     };
     const a = await saved(viaOpen), b = await saved(direct);
-    eq('flag uit, planning boven de productgrens: opent zonder melding', [viaOpen.getState().tasks.length > 0, notices(viaOpen)], [true, []]);
-    eq('flag uit, planning: opslaan bytegelijk aan dezelfde planning zonder de controle', [a.length > 0, sha(enc.encode(a)) === sha(enc.encode(b))], [true, true]);
+    eq('flag uit, planning boven de drempel: opent zonder melding', [viaOpen.getState().tasks.length > 0, viaOpen.getState().ifcSource ?? null, notices(viaOpen)], [true, null, []]);
+    eq('flag uit, planning: opslaan via de openroute bytegelijk aan dezelfde planning via openAsDocument', [a.length > 0, sha(enc.encode(a)) === sha(enc.encode(b))], [true, true]);
   }
 }
 
-// ── 3. Herstel is main: een modelbron tussen de productgrens en de technische grens komt volledig terug ─────────────
 // Door de echte herstelactie: de hook `useRecoveryRestore`, de herstelvraag en zijn callback `onRestore`.
 const snapshotText = (taskName: string) => {
   const app = newStore();
@@ -299,6 +309,7 @@ for (const label of cases) {
   const first = await restoreViaDialog();
   const doc = (s: typeof first.state) => [s.ifcSource?.sha256 ?? null, s.ifcSource?.buildingModel ?? false, s.tasks[0]?.name ?? null];
   eq(`herstel ${label}: model en planning terug`, doc(first.state), [reference.sha256, true, 'Voor de crash']);
+  eq(`herstel ${label}: geen waarschuwing`, largeWarnings(useAppStore), []);
   eq(`herstel ${label}: het opslagdoel`, saveTargetRef(first.state)?.kind ?? null,
     mode === 'desktop' ? 'path' : label === 'met handle' ? 'handle' : siteFileId ? 'site' : null);
   eq(`herstel ${label}: opgeruimd na Herstellen`, (await loadRecovery()).docs.length, 0);
@@ -320,6 +331,7 @@ for (const label of cases) {
   }
   const second = await restoreViaDialog();
   eq(`herstel ${label}: tweede Herstellen, model en de bewerkte planning`, [doc(second.state), second.ids], [[reference.sha256, true, 'Na eerste Herstellen'], [id]]);
+  eq(`herstel ${label}: tweede Herstellen zonder waarschuwing`, largeWarnings(useAppStore), []);
   eq(`herstel ${label}: opgeruimd na het tweede Herstellen`,
     [(await loadRecovery()).docs.length, mode === 'web' ? db.store('sources', SOURCE_COPY_DB).size : 0], [0, 0]);
   if (mode === 'desktop') eq(`herstel ${label}: het bestand op schijf ongewijzigd`, sha(readFileSync(diskPath)), reference.sha256);
@@ -327,10 +339,6 @@ for (const label of cases) {
 
 if (mode === 'web') {
   // ── 4. Een onderbroken opslag: dezelfde uitkomst als main ─────────────────────────────────────────────────────────
-  // Het geval van de reviewer (ronde 3): openen via een handle, één taak wijzigen tot een uitvoer boven de productgrens,
-  // de normale herstelronde legt `pendingSha256` vast, en het crashmoment ligt tussen schrijven en broncommit. Het
-  // herstelpad is byte-gelijk aan main (de technische grens van 300 MiB): main herstelt de geschreven versie op haar
-  // hash; een derde versie met dezelfde lengte niet. De productgrens speelt bij herstel geen rol.
   const { prepareIfcOutput } = await import('@/state/prepareIfcOutput');
   const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
   const { registerRecoveryFlush } = await import('@/services/recovery/recoveryFlush');
@@ -378,10 +386,10 @@ if (mode === 'web') {
   }
 }
 
-lowerModelOpenLimitForTests();
+lowerForeignOpenWarnBytesForTests();
 if (diffs.length) {
   console.log(`XX  ifc-foreign-grens (${mode}): ${diffs.length} afwijking(en) van ${checks}`);
   for (const d of diffs) console.log(`   - ${d}`);
   process.exit(1);
 }
-console.log(`OK  ifc-foreign-grens (${mode}): alle checks groen (${checks}; productgrens verlaagd tot ${GRENS} bytes)`);
+console.log(`OK  ifc-foreign-grens (${mode}): alle checks groen (${checks}; drempel verlaagd tot ${GRENS} bytes)`);

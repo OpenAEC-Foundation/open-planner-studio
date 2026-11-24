@@ -260,7 +260,6 @@
     "reportFontMissing": "你自己的字体 {{name}} 在这台设备上已不存在。报表再次使用 Inter。",
     "layoutsNotSaved": "无法保存布局。未更改任何内容。请再试一次。",
     "ifcForeignOpenSchema": "此 IFC 文件包含其他应用程序的数据，且架构未知或缺失。为避免保存时丢失数据，已停止打开。",
-    "ifcForeignOpenTooLarge": "此 IFC 文件大于 {{limit}} MB。包含建筑模型或来自其他程序数据的 IFC 文件最大可打开 {{limit}} MB。",
     "ifcForeignOpenUnsafe": "此 IFC 文件无法安全归类。为避免保存时丢失数据，已停止打开。",
     "ifc2x3PlanningOnly": "IFC2X3 已作为计划打开。保存时不会包含其他程序的数据。",
     "ifcForeignReplaceBlocked": "未保存。这是你打开的文件。请使用“保存”来更新它，或使用“另存为”并输入新名称来保存副本。",

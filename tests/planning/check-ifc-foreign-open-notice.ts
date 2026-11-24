@@ -24,6 +24,8 @@ const { openedFileNotice } = await import('@/state/ifcForeignOpenNotice');
 const { withXerArchiveIssueNotice } = await import('@/state/xerArchiveIssueNotice');
 const { withSchedulingProfileNotice } = await import('@/state/schedulingProfileNotice');
 const { withRecordedDatesNotice } = await import('@/state/slices/fileSlice');
+const { withLargeForeignOpenNotice } = await import('@/state/largeForeignOpenNotice');
+const { lowerForeignOpenWarnBytesForTests } = await import('@/services/ifc/foreignOpenSize');
 const { __resetTaskTypesNoticeForTests } = await import('@/state/taskTypesNotice');
 const { scanForeign } = await import('@/services/ifc/foreign/foreignScan');
 type ImportResult = import('@/services/importTypes').ImportResult;
@@ -213,22 +215,35 @@ const countLine = (objects: number) => ({ messageKey: WITH_MODEL, params: { coun
   ];
   for (const [kind, fileNotice] of kinds) {
     for (const unlocked of [false, true]) {
-      const label = `${kind}${unlocked ? ' met taaktypen' : ''}`;
-      const main = mainShown(fileNotice, unlocked);
-      const got = openedFileNotice(fileNotice, unlocked, foreign);
-      if (main) {
-        eq(`${label}, met een vreemd deel: kop, ernst, gidslink, deduplicatie, actie en parameters zoals main`, head(got), head(main));
-        eq(`${label}, met een vreemd deel: eerst de regels van main, daarna de telregel en de werkplanregel`,
-          lineKeys(got), [...lineKeys(main), WITH_MODEL, WORK_PLANS]);
-      } else {
-        eq(`${label}, met een vreemd deel: zonder melding van main is de telmelding de kop`, [got?.messageKey, lineKeys(got)], [WITH_MODEL, [WORK_PLANS]]);
+      for (const large of [false, true]) {
+        lowerForeignOpenWarnBytesForTests(large ? 1 : undefined);
+        const label = `${kind}${unlocked ? ' met taaktypen' : ''}${large ? ', groot bestand' : ''}`;
+        const main = mainShown(fileNotice, unlocked);
+        const established = large ? withLargeForeignOpenNotice(main, foreign[0]) : main;
+        const got = openedFileNotice(fileNotice, unlocked, foreign[0]);
+        if (established) {
+          eq(`${label}, met een vreemd deel: kop, ernst, gidslink, deduplicatie, actie en parameters zoals main`, head(got), head(established));
+          eq(`${label}, met een vreemd deel: eerst de regels van main${large ? ' en de grootteregel' : ''}, daarna de telregel en de werkplanregel`,
+            lineKeys(got), [...lineKeys(established), WITH_MODEL, WORK_PLANS]);
+        } else {
+          eq(`${label}, met een vreemd deel: zonder melding van main is de telmelding de kop`, [got?.messageKey, lineKeys(got)], [WITH_MODEL, [WORK_PLANS]]);
+        }
+        eq(`${label}, met een vreemd deel: de werkplanregel maakt de melding blijvend`, got?.sticky, true);
+        const same = openedFileNotice(fileNotice, unlocked, plain[0]);
+        eq(`${label}, zonder vreemd deel: precies wat main toont (een lege lijst regels telt als geen regels)`,
+          sortedKeys(same && { ...same, detailLines: same.detailLines ?? [] }), sortedKeys(main && { ...main, detailLines: main.detailLines ?? [] }));
       }
-      eq(`${label}, met een vreemd deel: de werkplanregel maakt de melding blijvend`, got?.sticky, true);
-      const same = openedFileNotice(fileNotice, unlocked, plain);
-      eq(`${label}, zonder vreemd deel: precies wat main toont (een lege lijst regels telt als geen regels)`,
-        sortedKeys(same && { ...same, detailLines: same.detailLines ?? [] }), sortedKeys(main && { ...main, detailLines: main.detailLines ?? [] }));
+      lowerForeignOpenWarnBytesForTests();
     }
   }
+  lowerForeignOpenWarnBytesForTests(1);
+  eq('groot bestand met een vreemd deel, zonder andere melding: de groottemelding is de kop, daarna de telregel en de werkplanregel',
+    [openedFileNotice(undefined, false, foreign[0])?.messageKey, lineKeys(openedFileNotice(undefined, false, foreign[0]))],
+    ['notifications.ifcForeignOpenLarge', [WITH_MODEL, WORK_PLANS]]);
+  eq('groot bestand met een vreemd deel en taaktypen: de taaktypemelding is de kop, daarna de grootteregel, de telregel en de werkplanregel',
+    [openedFileNotice(undefined, true, foreign[0])?.messageKey, lineKeys(openedFileNotice(undefined, true, foreign[0]))],
+    ['notifications.taskTypesUnlocked', ['notifications.ifcForeignOpenLarge', WITH_MODEL, WORK_PLANS]]);
+  lowerForeignOpenWarnBytesForTests();
 }
 
 if (diffs.length > 0) {

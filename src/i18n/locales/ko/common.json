@@ -260,7 +260,6 @@
     "reportFontMissing": "사용자 글꼴 {{name}}은(는) 이 기기에 더 이상 없습니다. 보고서는 다시 Inter를 사용합니다.",
     "layoutsNotSaved": "레이아웃을 저장할 수 없습니다. 아무것도 바뀌지 않았습니다. 다시 시도하세요.",
     "ifcForeignOpenSchema": "이 IFC 파일에는 다른 애플리케이션의 데이터가 들어 있고 스키마가 알 수 없거나 없습니다. 저장할 때 데이터가 손실되지 않도록 열기를 중지했습니다.",
-    "ifcForeignOpenTooLarge": "이 IFC 파일은 {{limit}} MB보다 큽니다. 건물 모델이나 다른 프로그램의 데이터가 들어 있는 IFC 파일은 최대 {{limit}} MB까지 열 수 있습니다.",
     "ifcForeignOpenUnsafe": "이 IFC 파일은 안전하게 분류할 수 없습니다. 저장할 때 데이터가 손실되지 않도록 열기를 중지했습니다.",
     "ifc2x3PlanningOnly": "IFC2X3은 일정으로 열렸습니다. 다른 프로그램의 데이터는 저장할 때 포함되지 않습니다.",
     "ifcForeignReplaceBlocked": "저장되지 않았습니다. 지금 열려 있는 파일입니다. 파일을 갱신하려면 “저장”을, 복사본을 만들려면 새 이름으로 “다른 이름으로 저장”을 사용하세요.",

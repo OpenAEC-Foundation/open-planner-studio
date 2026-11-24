@@ -52,6 +52,7 @@ export const STICKY_OPEN_NOTICE_KEYS: ReadonlySet<string> = new Set<Notification
   // IFC: een onbruikbaar XER-bronarchief is weggelaten (als regel of als eigen melding).
   'notifications.xerArchiveUnusableLine',
   'notifications.xerArchiveUnusable',
+  'notifications.ifcForeignOpenLarge',
   'notifications.ifcForeignWorkPlansMerged',
   // Alle formaten: dubbele id's hernummerd, relaties die niet meerekenen.
   'notifications.duplicateIdsRenamed',

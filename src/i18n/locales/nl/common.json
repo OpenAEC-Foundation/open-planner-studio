@@ -361,7 +361,7 @@
     "reportFontMissing": "Het eigen lettertype {{name}} is niet meer op dit apparaat. Het rapport gebruikt weer Inter.",
     "layoutsNotSaved": "De layouts konden niet worden opgeslagen. Er is niets veranderd. Probeer het opnieuw.",
     "ifcForeignOpenSchema": "Dit IFC-bestand bevat gegevens van een ander programma en heeft een onbekend of ontbrekend schema. Openen is gestopt om gegevensverlies bij opslaan te voorkomen.",
-    "ifcForeignOpenTooLarge": "Dit IFC-bestand is groter dan {{limit}} MB. Een IFC-bestand met een gebouwmodel of met gegevens van een ander programma kan tot {{limit}} MB worden geopend.",
+    "ifcForeignOpenLarge": "Dit bestand is groter dan {{limit}} MB. Opslaan kan mislukken doordat het geheugen opraakt. Recente wijzigingen kunnen dan verloren gaan.",
     "ifcForeignOpenUnsafe": "Dit IFC-bestand kan niet veilig worden ingedeeld. Openen is gestopt om gegevensverlies bij opslaan te voorkomen.",
     "ifc2x3PlanningOnly": "IFC2X3 is geopend als planning. Gegevens van andere programma’s worden niet meegenomen bij opslaan.",
     "ifcForeignOpenedWithModel_one": "Dit bestand bevat ook een gebouwmodel en gegevens van andere programma's ({{objects}} object). Bij opslaan blijven die ongewijzigd.",
