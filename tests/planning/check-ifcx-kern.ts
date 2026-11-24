@@ -43,7 +43,7 @@ const NOT_IN_KERN_PROJECT_FIELDS = [
 ];
 
 function without<T extends object>(object: T, keys: readonly string[]): T {
-  const copy: Record<string, unknown> = { ...object };
+  const copy = { ...object } as Record<string, unknown>;
   for (const key of keys) delete copy[key];
   return copy as T;
 }
