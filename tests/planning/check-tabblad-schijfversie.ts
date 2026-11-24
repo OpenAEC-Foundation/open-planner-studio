@@ -1231,6 +1231,53 @@ await check('de flag uitzetten via de instelling wist de vingerafdruk van elk ta
   } finally { ipc.dispose(); }
 });
 
+await check('2203 na #1179: Opslaan als over een bestaand bestand en Exporteren → IFC over een bestaand bestand leggen de herkomst juist vast; een gebouwmodel dat daarna op het eigen doel verschijnt, blijft staan', async () => {
+  const ipc = desktop();
+  try {
+    const own = fileAt('na-1179-eigen.ifc', plainBytes()), existing = fileAt('na-1179-bestaand.ifc', otherPlainBytes());
+    const { store } = await openAt({ kind: 'path', path: own }, plainBytes());
+    edit(store);
+    ipc.choose(existing);
+    await store.getState().saveFileAs();
+    assert.equal(store.getState().filePath, existing);
+    assert.equal(origin(store), 'written', 'de gedeelde desktopvervanging legt een eigen schrijfactie vast');
+    assert.deepEqual(known(store), onDisk(existing));
+    const size = readFileSync(existing).byteLength, read = ipc.bytesRead();
+    edit(store);
+    assert.equal(await ctrlS(store), true);
+    assert.equal(ipc.bytesRead() - read, size, 'de volgende Ctrl+S leest het doel alleen voor de toets');
+    writeFileSync(existing, modelBytes);
+    const before = errors(store).length;
+    edit(store);
+    assert.equal(await ctrlS(store), false, 'een gebouwmodel op het eigen doel wordt niet overschreven');
+    assert.deepEqual(onDisk(existing), print(modelBytes));
+    assert.deepEqual(errors(store).slice(before), ['notifications.ifcForeignTargetSave']);
+  } finally { ipc.dispose(); }
+  const modelIpc = desktop();
+  try {
+    const modelPath = fileAt('na-1179-model.ifc', modelBytes), exportTarget = fileAt('na-1179-exportdoel.ifc', plainBytes());
+    const { store } = await openAt({ kind: 'path', path: modelPath }, modelBytes);
+    const unregister = recoveryRounds(store);
+    try {
+      const opened = known(store);
+      edit(store);
+      modelIpc.choose(exportTarget);
+      assert((await store.getState().exportAs('ifc')).ok);
+      assert(readFileSync(exportTarget, 'latin1').includes('IFCWALL'), 'Exporteren → IFC verving het bestaande bestand (#1179)');
+      assert.deepEqual(known(store), opened, 'een export naar een ander bestand laat de versie van het eigen doel staan');
+      assert.equal(origin(store), 'opened');
+      assert.equal(await ctrlS(store), true);
+      assert.equal(origin(store), 'written');
+      assert.deepEqual(known(store), onDisk(modelPath));
+      writeFileSync(modelPath, modelBytes);
+      edit(store);
+      assert.equal(await ctrlS(store), false, 'een andere modelversie op het eigen doel wordt niet overschreven');
+      assert.deepEqual(onDisk(modelPath), print(modelBytes));
+      assert.equal(store.getState().isDirty, true);
+    } finally { unregister(); await clearRecovery(); }
+  } finally { modelIpc.dispose(); }
+});
+
 rmSync(dir, { recursive: true, force: true });
 console.log(`Tabblad kent de schijfversie: ${passed} geslaagd, ${failed} mislukt.`);
 if (failed) process.exitCode = 1;

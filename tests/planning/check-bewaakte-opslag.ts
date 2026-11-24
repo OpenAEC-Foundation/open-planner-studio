@@ -833,7 +833,7 @@ await check('2203 C: een geopend bestand met twee datasecties (openen neemt het 
   } finally { ipc.dispose(); }
 });
 
-await check('2203 D: is de zelf geschreven versie vervangen door een even groot bestand met een muur, dan weigeren Ctrl+S en de ronde zoals voor deze PR: de doelscan van het bestand ziet de muur', async () => {
+await check('2203 D: is de zelf geschreven versie vervangen door een even groot bestand met een muur, dan weigeren Ctrl+S en de ronde zoals voor deze PR: de doelscan van het bestand ziet de muur (pad en handle, één tabblad)', async () => {
   const ipc = desktop(), path = fileAt('muur.ifc', plainBytes());
   try {
     const { store } = await openAt({ kind: 'path', path }, plainBytes());
@@ -852,6 +852,23 @@ await check('2203 D: is de zelf geschreven versie vervangen door een even groot 
     assert.equal(notices(store, 'notifications.ifcForeignTargetAutoSave'), 1);
     assert.equal(notices(store, AUTOSAVE_CHANGED), 0);
   } finally { ipc.dispose(); }
+  const handle = newHandle(plainBytes());
+  const { store } = await openAt(handleRef(handle), plainBytes());
+  edit(store);
+  assert.equal(await ctrlS(store), true);
+  assert.equal(origin(store), 'written');
+  const wall = wallOfSameSize(handleFiles.get(handle.name)!);
+  handleFiles.set(handle.name, wall);
+  for (const action of ['Ctrl+S', 'Automatisch opslaan'] as const) {
+    const reads = handleReads.get(handle.name) ?? 0, fresh = newErrors(store);
+    edit(store);
+    if (action === 'Ctrl+S') assert.equal(await ctrlS(store), false);
+    else await autoSave(store).flush();
+    assert.equal(store.getState().isDirty, true, action);
+    assert.equal((handleReads.get(handle.name) ?? 0) - reads, 2, `${action}: de toets en daarna de doelscan`);
+    assert.deepEqual(onHandle(handle), print(wall), action);
+    assert.deepEqual(fresh(), [action === 'Ctrl+S' ? FOREIGN_TARGET : 'notifications.ifcForeignTargetAutoSave'], action);
+  }
 });
 
 await check('2203 E: kent het tabblad de versie niet, dan scant Ctrl+S het doel zoals voorheen en weigert een gebouwmodel', async () => {
