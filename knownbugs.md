@@ -2505,15 +2505,6 @@ en noem het in je rapport of PR-tekst.
      dezelfde writer als de herstelsnapshot (`backupService.ts`), maar zonder `snapshotIdentities`: een object met een
      gedeelde GlobalId komt bij terugzetten terug met het id van zijn nieuwe GlobalId, zoals op main. Wat de planner
      daarvan merkt, is niet gemeten. 9c (knownbug 1575) kan de koppeling van `recoveryIdentity.ts` meenemen. — S
-2238. **VERVOLG (gemaakt geval): na twee keer vasthouden herstelt de browser de oudste versie van een document.**
-     `loadWeb` (`recoveryStore.ts`) leest eerst de huidige sessie en dan de vastgehouden generaties in de volgorde
-     waarin ze werden vastgehouden, de oudste eerst; een document-id dat al gezien is, slaat hij over. Staat hetzelfde
-     document in twee vastgehouden generaties en heeft de huidige sessie nog geen manifest, dan komt de oudste versie
-     terug. Gemeten in een tussenversie van `check-recovery-identiteit-reeksen.ts` (browser, reeks 17: twee keer
-     `holdRecoveryForLater` met hetzelfde open document, het herstel las de snapshot van vóór de eerste rotatie). In de
-     app vraagt dit een herstel waarin een ander document mislukte (vasthouden met de herstelde documenten open), een
-     crash, uitstellen en opnieuw laden vóór de eerste ronde. Hetzelfde op main; buiten de koppeling van PR 11. De
-     desktop (`holdTauri`) is niet beproefd. — B
 1575. **VERVOLG (#804, 9c): een MCP-backup op het open document terugzetten met de actuele gebouwmodelbron.**
      §4.12/E31 blijft een eigen onderdeel 9c op de eindlijst, niet verplicht vóór de flag standaard aan mag.
      De backup bevat planning en een bronkenmerk, geen gebouwmodelbytes. De kleine stap 9d zet bij het openen
@@ -3916,7 +3907,9 @@ en noem het in je rapport of PR-tekst.
      Route in een proef van de reviewer (GPT-6.2-Sol, review van #1170): gedeeltelijk herstel (`holdWeb` houdt de hele
      generatie vast, ook de herstelde versie), doorwerken aan dat document, en bij de volgende herstelvraag uitstellen; daarna
      kwamen de oude IFC-bytes terug. `check-recovery-web-hold.ts` toetst bij een dubbel document alleen dat het één keer
-     verschijnt, niet welke versie. — B
+     verschijnt, niet welke versie. Ook gezien in een tussenversie van `check-recovery-identiteit-reeksen.ts` (#1198, reeks 17:
+     twee keer `holdRecoveryForLater` met hetzelfde open document); de definitieve proef eist het eigen herstel daarom
+     alleen bij de laatst geschreven versie. — B
 
 2209. **VERVOLG (#1182): de verliescontrole kent de oude lay-outs los van de slottabellen.** `alignment` in
      `src/services/ifc/foreign/lossCheck.ts` legt zelf vast hoe een regel in een oude eigen lay-out op de uitvoer past
@@ -5214,6 +5207,17 @@ en noem het in je rapport of PR-tekst.
       plek; een handmatige actie gaat alleen voor op wat nog niet begon; geen vastgehouden rij tijdens de
       schrijftoestemming), met de proeven van alle drie de rondes als bewaking. Of die regel dan houdt, is niet
       bewezen. — S
+
+2254. **VERVOLG (#804 fase 2, PR 11, testdubbel): de IndexedDB-dubbel draait een afgebroken transactie niet terug.**
+     In `tests/planning/fakeRecoveryIndexedDb.ts` past `put` een record meteen toe, en `abort` roept alleen `onabort`
+     aan. Een echte IndexedDB schrijft bij een fout in dezelfde transactie niets. Faalt in de dubbel de manifestschrijf
+     ná de snapshotrecords, dan staan die records er toch: een gemengde toestand die in de browser niet kan bestaan. Een
+     browserproef met een schrijffout halverwege een ronde kan daardoor onterecht rood worden (een toestand die A nooit
+     maakt), of groen terwijl ze alleen laat zien dat de leestoets die gemengde toestand afwijst, niet dat de opslag
+     klopt. `check-recovery-identiteit-reeksen.ts` bootst het terugdraaien zelf na (een kopie van de opslag bij het begin
+     van elke schrijftransactie); deel 9 van `check-recovery-gedeelde-globalids.ts` laat de fout afgaan bij de eerste
+     put, vóór er iets veranderd is. Fouten die alleen bij echte asynchrone verzoeken, commit of herstart zichtbaar
+     worden, dekt de dubbel niet. — B
 
 ## Wensen en open taken (geen bug)
 

@@ -88,12 +88,17 @@ GlobalId]` (`recoveryIdentity.ts`; `writeIFCWithChoices` geeft de uitgegeven Glo
 dan stopt het vóór het opsommen van objecten. De koppeling ontstaat alleen bij de IFC-upsert die haar maakte en gaat alleen
 met die IFC het manifest in; een ronde die de snapshot hergebruikt, neemt de gecommitteerde koppeling over
 (`RecoveryDeltaTracker`: `upserted` → `committed` in `commit`). Was de bewaarde snapshot gemaakt zonder koppeling (flag
-uit) en is het document weer geschikt, dan serialiseert de tracker haar eenmaal opnieuw. Het veld staat in de manifestregel
+uit) en is het document weer geschikt, dan serialiseert de tracker haar eenmaal opnieuw, alleen als de bewaarde versie gedeelde
+GlobalIds heeft (anders alleen het manifest, zoals main). Het veld staat in de manifestregel
 naast `ifcSource` (v5, optioneel); een mislukte bronkopie haalt alleen `ifcSource` weg, en de opslaglaag kopieert het veld
 zonder het te lezen. `readRecoveryDocument` past het met de flag aan één keer toe, direct na het lezen van de snapshot en ook
-als de bron ontbreekt: de vormtoets leest elke positie van elke rij, de sha256 moet die van de gelezen snapshot zijn, elke
-geschreven GlobalId staat precies één keer in die snapshot, taken houden hun eigen id, en na hernoemen is er geen dubbel id
-per soort; klopt iets niet, dan blijft het herstel dat van main. Main en deze app met de flag uit lezen de set zoals main.
+als de bron ontbreekt: de vormtoets leest elke positie van elke rij, de sha256 moet die van de gelezen snapshot zijn (bij de
+bytes-route die van `read.ifcSource`), en elke geschreven GlobalId staat precies één keer in die snapshot. Daarna aanvaardt
+`rewritesSnapshot` het toegepaste document alleen als het, geactiveerd zoals bij herstel (`prepareLoadedPayload` zonder
+herberekening, dus ook `syncProjectCalendar`) en opnieuw geschreven met de schrijftijd uit de kop van de snapshot, byte voor
+byte die snapshot geeft, de writer voor elke rij de geschreven GlobalId uitgeeft, en het document geen rij oplevert die niet in
+de koppeling staat; anders is het herstel dat van main. De toets ziet alleen wat de planningswriter schrijft: toewijzings-id's
+en `parentId`/`resourceIds` van een taak niet (proef 13). Main en deze app met de flag uit lezen de set zoals main.
 Proeven: `check-recovery-gedeelde-globalids.ts` en de eigenschapsproef `check-recovery-identiteit-reeksen.ts` (reeksen
 van stappen op één tracker, browser en desktop). Het lijstje per bronversie uit ontwerp §4.14 (`idExceptions`) bestaat
 nog niet: knownbug 2236.

@@ -9,20 +9,24 @@ import { mergeProblems } from './ifcMergeKern';
 import {
   CRANE, SCAFFOLDERS, THIRD, desktop, freshStore, hash, mergeKinds, openAt, pinMain, renameFirstTask, resourceId,
   resourceLine, restore, root, sameIdentities, saveAs, sharedGlobalIdSource, tick, withField, withoutField,
-  installSessionStorage, recoveryDocuments, identities, type Loaded, type Store,
+  installSessionStorage, recoveryDocuments, identities, entities, type Loaded, type Store,
 } from './recoveryIdentityFixture';
 import { RecoveryDeltaTracker, persistedRecoveryState } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
-import { loadRecovery, clearRecovery } from '@/services/recovery/recoveryStore';
+import { loadRecovery, clearRecovery, type LoadedRecoveryDoc } from '@/services/recovery/recoveryStore';
 import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
 import { hasPendingIfcSource } from '@/services/recovery/recoveryPendingSource';
 import { replaceRecordId, settlePendingReplaces } from '@/services/fileAccess/replaceRecords';
 import { recoverySourceDocument } from '@/state/recoverySourceDocument';
-import { readRecoveryDocument } from '@/state/readRecoveryDocument';
+import { readRecoveryDocument, rewritesSnapshot } from '@/state/readRecoveryDocument';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { planningCanon } from '@/services/ifc/foreign/planningCanon';
 import { recoverySnapshotInput, writeRecoverySnapshot, type RecoverySnapshotInput } from '@/services/recovery/recoverySnapshotInput';
 import { recoveryIdentityRows, withRecoveryIdentities } from '@/services/recovery/recoveryIdentity';
+import { readIfcFromText } from '@/services/formatRegistry';
+import { payloadFromInput, recoveryInputFromParsed, type RecoveryDocInput } from '@/state/documentContract';
+import { prepareLoadedPayload } from '@/state/documentActivation';
+import { isDeepStrictEqual } from 'node:util';
 import { ifcGuid128, writeIFC } from '@/services/ifc/ifcWriter';
 import { createRecoverySnapshotSerializer, type RecoveryWorker } from '@/services/recovery/recoverySnapshotSerializer';
 import type { RecoveryWorkerRequest, RecoveryWorkerResponse } from '@/services/recovery/recoverySnapshot.worker';
@@ -263,6 +267,12 @@ async function sameManifestAsMain(store: Store, enabled: boolean, label: string)
   assert.equal(JSON.stringify(prepared.documents), main, `${label}: de manifestregels zijn die van main`);
   assert.equal(JSON.stringify(prepared.upserts.map(({ ifc: _ifc, ...metadata }) => metadata)), main, `${label}: de upserts dragen de metadata van main`);
 }
+async function snapshotReads(doc: LoadedRecoveryDoc, archives: ReadonlyMap<string, Uint8Array>, enabled: boolean) {
+  let reads = 0;
+  const counted = new Proxy(doc, { get: (target, key, receiver) => { if (key === 'ifc') reads++; return Reflect.get(target, key, receiver); } });
+  await readRecoveryDocument(counted, archives, enabled);
+  return reads;
+}
 const payloadOf = (store: Store) => store.getState().getOpenDocumentPayloads().find(d => d.id === store.getState().activeDocumentId)!.payload;
 
 const offStore = await openAt(source, join(dir, 'flag-uit.ifc'));
@@ -280,6 +290,10 @@ assert.equal(offCounts.identities, undefined);
 const offRead = await readRecoveryDocument(offLoaded.docs[0], offLoaded.archives, false);
 const offWithRows = await readRecoveryDocument({ ...offLoaded.docs[0], snapshotIdentities: envelope(offLoaded.docs[0].ifc, rows) }, offLoaded.archives, false);
 assert.deepEqual([offWithRows.resources, offWithRows.ifcGlobalIds], [offRead.resources, offRead.ifcGlobalIds], 'flag uit: het herstel leest de koppeling niet');
+for (const [label, doc, enabled] of [
+  ['flag uit', offLoaded.docs[0], false],
+  ['flag uit met een koppeling in het manifest', { ...offLoaded.docs[0], snapshotIdentities: envelope(offLoaded.docs[0].ifc, rows) }, false],
+] as const) assert.equal(await snapshotReads(doc, offLoaded.archives, enabled), 1, `${label}: het herstel schrijft niets opnieuw`);
 await clearRecovery();
 const plain = await openAt(new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc'))), join(dir, 'gewoon.ifc'));
 assert.equal(plain.getState().ifcSource?.foreign, false, 'het voorbeeld heeft geen vreemd deel');
@@ -299,10 +313,35 @@ const ownSnapshot = recoverySnapshotInput(payloadOf(own), true), ownMain = mainW
 assert.equal(ownCounts.counts.lists, ownMain.lists, 'zonder gedeelde GlobalId: de Worker somt geen objecten op');
 assert.equal(ownCounts.counts.keys, ownMain.keys + 1, 'zonder gedeelde GlobalId: alleen één telling van de bewaarde GlobalIds');
 assert.equal(ownCounts.identities, undefined);
+assert.equal(await snapshotReads(ownDoc, new Map(), true), 1, 'zonder gedeelde GlobalId: het herstel schrijft niets opnieuw');
+assert(await snapshotReads({ ...crashedDoc, ifcSource: undefined }, crashed.archives, true) > 1, 'met een koppeling draait de toets wel (de telling werkt)');
+await clearRecovery();
+async function generationAfterReflag(data: Uint8Array, label: string) {
+  const appDataReflag = join(dir, `appdata-${label}`);
+  mkdirSync(appDataReflag);
+  const ipcReflag = desktop(appDataReflag);
+  try {
+    const store = await openAt(data, join(dir, `${label}.ifc`)), tracker = new RecoveryDeltaTracker();
+    const round = (enabled: boolean) => runRecoveryTick(tracker, store.getState().activeDocumentId,
+      store.getState().getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, enabled)), transport.serialize);
+    const generation = () => (JSON.parse(readFileSync(join(appDataReflag, readdirSync(appDataReflag).find(n => n.endsWith('.documents.json'))!), 'utf8')) as {
+      documents: { ifc: string; snapshotIdentities?: unknown }[] }).documents[0];
+    assert.equal(await round(false), true, `${label}: ronde met de flag uit`);
+    const before = generation();
+    assert.equal(await round(true), true, `${label}: ronde na het weer aanzetten`);
+    return { before, after: generation() };
+  } finally { ipcReflag.dispose(); await clearRecovery(); }
+}
+const reflagOwn = await generationAfterReflag(model, 'flag-weer-aan-zonder-gedeeld');
+assert.equal(reflagOwn.after.ifc, reflagOwn.before.ifc, 'zonder gedeelde GlobalId: na het weer aanzetten alleen het manifest, zoals main');
+assert.equal(reflagOwn.after.snapshotIdentities, undefined);
+const reflagShared = await generationAfterReflag(source, 'flag-weer-aan-gedeeld');
+assert.notEqual(reflagShared.after.ifc, reflagShared.before.ifc, 'met gedeelde GlobalIds: na het weer aanzetten één nieuwe snapshot');
+assert(reflagShared.after.snapshotIdentities, 'met gedeelde GlobalIds: die snapshot draagt haar koppeling');
 const sharedSnapshot = recoverySnapshotInput(payloadOf(opened), true), sharedCounts = workerCounts(sharedSnapshot);
 assert(sharedCounts.counts.lists > mainWriterCounts(sharedSnapshot).lists && sharedCounts.identities, 'met gedeelde GlobalIds somt de Worker wel op (de telling werkt)');
 await clearRecovery();
-console.log('PROEF 7 GROEN: met de flag uit, zonder vreemd deel en zonder gedeelde GlobalId geen nieuw veld, manifestregels en snapshot van main; de Worker somt dan geen objecten op.');
+console.log('PROEF 7 GROEN: met de flag uit, zonder vreemd deel en zonder gedeelde GlobalId geen nieuw veld, manifestregels en snapshot van main; de Worker somt dan geen objecten op, het herstel schrijft niets opnieuw, en weer aanzetten schrijft alleen het manifest.');
 
 const snapshotInput = recoverySnapshotInput(opened.getState().getOpenDocumentPayloads().find(d => d.id === sessionId)!.payload, true);
 const direct = writeRecoverySnapshot(snapshotInput), cloned = structuredClone(writeRecoverySnapshot(structuredClone(snapshotInput)));
@@ -432,3 +471,90 @@ assert.deepEqual(mixedRead.resources, aRead.resources, 'de koppeling van B op de
 const forced = withRecoveryIdentities(aRead, solBrowser.b.identities!.rows);
 assert.equal(forced.resources.find(r => r.name === SCAFFOLDERS)!.id, solBrowser.secondId, 'zonder de sha256-toets kreeg de eerste resource hier het id van de tweede');
 console.log('PROEF 11 GROEN: de koppeling van B op de bytes van A wordt niet toegepast; zonder de sha256-toets kreeg de eerste resource het id van de tweede.');
+
+const [projectCalendar, firstCalendar, secondCalendar] = entities(source, 'IFCWORKCALENDAR');
+assert.equal(firstCalendar.guid, secondCalendar.guid, 'de bron heeft een kalenderpaar');
+const calendarLine = (guid: string) => `#${projectCalendar.stepId}=IFCWORKCALENDAR('${guid}',`;
+const calendarText = Buffer.from(source).toString('latin1');
+assert(calendarText.includes(calendarLine(projectCalendar.guid)));
+const calendarSource = new Uint8Array(Buffer.from(calendarText.replace(calendarLine(projectCalendar.guid), calendarLine(firstCalendar.guid)), 'latin1'));
+async function calendarSwitch(route: 'browser' | 'desktop') {
+  const appData = route === 'desktop' ? join(dir, 'appdata-kalender') : null;
+  if (appData) mkdirSync(appData);
+  const ipc = appData ? desktop(appData) : null;
+  try {
+    const live = await openAt(calendarSource, appData ? join(dir, 'kalender.ifc') : null);
+    const state = live.getState();
+    assert(state.ifcSource?.foreign, `${route}: de bron heeft een vreemd deel`);
+    assert(state.commitCalendarLibrary([...state.calendars], state.calendars.find(c => c.name === 'Ploeg B')!.id), `${route}: Toepassen in de kalenderdialoog`);
+    live.getState().runCPM({ withinEvent: true });
+    const names = (store: Store) => [store.getState().calendar.name, store.getState().calendars.map(c => c.name).sort()];
+    const before = names(live);
+    assert.equal(before[0], 'Ploeg B', `${route}: Ploeg B is de projectkalender`);
+    assert.equal(before[1].length, 3, `${route}: drie kalenders`);
+    const loaded = await tick(live, `${route}: kalenderwissel`, true, route === 'desktop');
+    assert(loaded.docs[0].snapshotIdentities?.rows.some(([seed]) => seed.startsWith('cal:')), `${route}: de koppeling noemt de kalenders`);
+    const back = await restore(loaded, true, appData), main = await restore(withoutField(loaded), true, appData);
+    assert.deepEqual(names(back), before, `${route}: na herstel is Ploeg B de projectkalender en blijven alle drie de kalenders`);
+    sameIdentities(back, main, `${route}: de toets laat de koppeling vallen, het herstel is dat van main`);
+    assert.deepEqual(back.getState().ui.notifications.map(n => n.messageKey), main.getState().ui.notifications.map(n => n.messageKey), `${route}: de meldingen van main`);
+  } finally {
+    ipc?.dispose();
+    await clearRecovery();
+  }
+}
+await calendarSwitch('desktop');
+await calendarSwitch('browser');
+console.log('PROEF 12 GROEN: een andere projectkalender kiezen bij een gedeelde kalender-GlobalId: na herstel blijft Ploeg B de projectkalender en blijven alle drie de kalenders (desktop en browser), via het herstel van main.');
+
+type Plain = Record<string, unknown>;
+const loopDoc = crashedDoc, loopIfc = loopDoc.ifc;
+const loopRead = await readIfcFromText(loopIfc, undefined, { ifcBytes: true, resolveXerArchiveReference: sha => crashed.archives.get(sha) });
+const valid = recoveryInputFromParsed(withRecoveryIdentities(loopRead, rows), {
+  id: loopDoc.id, filePath: loopDoc.filePath, siteFileId: loopDoc.siteFileId ?? null, siteFileVersion: loopDoc.siteFileVersion ?? null,
+  foreignSource: loopDoc.foreignSource ?? null, isDirty: loopDoc.isDirty, datesAsRecorded: loopDoc.datesAsRecorded,
+});
+assert(rewritesSnapshot(valid, loopIfc, rows), 'de geldige koppeling: het herstelde document schrijft precies de snapshot terug');
+const lists = Object.entries(valid).filter(([key, value]) => key !== 'ifcSource' && Array.isArray(value) && value.length > 1
+  && value.every(item => item !== null && typeof item === 'object' && typeof (item as Plain).id === 'string')) as [string, Plain[]][];
+const listOfId = new Map<string, string>();
+for (const [key, list] of lists) for (const item of list) listOfId.set(item.id as string, key);
+const variants: [string, (doc: Plain) => void][] = [];
+for (const [key, list] of lists) list.forEach((item, i) => {
+  const other = list[(i + 1) % list.length].id;
+  variants.push([`${key}[${i}].id wordt ${String(other)}`, doc => { (doc[key] as Plain[])[i].id = other; }]);
+  variants.push([`${key}[${i}] weg`, doc => { (doc[key] as Plain[]).splice(i, 1); }]);
+});
+const setPath = (doc: Plain, path: readonly (string | number)[], value: string) => {
+  let at = doc as Record<string | number, unknown>;
+  for (const step of path.slice(0, -1)) at = at[step] as Record<string | number, unknown>;
+  at[path.at(-1)!] = value;
+};
+const walk = (value: unknown, path: (string | number)[]) => {
+  if (typeof value === 'string') {
+    const key = listOfId.get(value);
+    if (!key || (path.length === 3 && path[2] === 'id' && listOfId.get(value) === path[0])) return;
+    const other = (valid as unknown as Plain)[key] as Plain[];
+    const target = other.map(o => o.id as string).find(id => id !== value)!;
+    variants.push([`${path.join('.')} wijst naar ${target}`, doc => setPath(doc, path, target)]);
+    return;
+  }
+  if (value === null || typeof value !== 'object' || ArrayBuffer.isView(value) || value instanceof Map || value instanceof Set) return;
+  for (const [k, v] of Object.entries(value)) walk(v, [...path, Array.isArray(value) ? Number(k) : k]);
+};
+for (const [key, value] of Object.entries(valid)) if (key !== 'ifcSource' && key !== 'ifcGlobalIds') walk(value, [key]);
+const activated = (doc: RecoveryDocInput) => prepareLoadedPayload(payloadFromInput(doc), { recompute: false });
+const validActivated = activated(valid);
+const accepted: string[] = [], normalized: string[] = [];
+for (const [label, change] of variants) {
+  const doc = structuredClone(valid) as unknown as Plain;
+  change(doc);
+  if (!rewritesSnapshot(doc as unknown as RecoveryDocInput, loopIfc, rows)) continue;
+  (isDeepStrictEqual(activated(doc as unknown as RecoveryDocInput), validActivated) ? normalized : accepted).push(label);
+}
+const unwritten = [/^assignments\[\d+\]\.id wordt /, /^tasks\.\d+\.parentId wijst /, /^tasks\.\d+\.resourceIds\.\d+ wijst /];
+assert.deepEqual(accepted.filter(label => !unwritten.some(pattern => pattern.test(label))), [],
+  `elke verschuiving die de planningswriter kan zien, geeft het herstel van main (${accepted.length} van ${variants.length} aanvaard)`);
+assert(unwritten.every(pattern => accepted.some(label => pattern.test(label))), 'de grens van de toets is nog dezelfde: werk deze proef en de PR-tekst bij');
+assert.deepEqual(normalized, [], 'geen verschuiving wordt door het activeren rechtgezet');
+console.log(`PROEF 13 GROEN: ${variants.length - accepted.length} van ${variants.length} verschuivingen na een geldige koppeling (een id naar een bestaand id en een object weg in ${lists.map(([key]) => key).join(', ')}, en elke verwijzing naar een ander object) laten de koppeling vallen; de ${accepted.length} andere zitten in velden die de planningswriter niet schrijft (toewijzings-id, parentId en resourceIds van een taak).`);

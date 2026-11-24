@@ -12,7 +12,6 @@ export interface RecoverySnapshotIdentities {
 
 const KINDS = ['task', 'res', 'cal', 'seq'] as const;
 type Kind = typeof KINDS[number];
-const KEEPS_ID: ReadonlySet<string> = new Set<Kind>(['task']);
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 const isKind = (kind: string): kind is Kind => (KINDS as readonly string[]).includes(kind);
 const kindOf = (seed: string) => seed.slice(0, Math.max(seed.indexOf(':'), 0));
@@ -61,17 +60,21 @@ export function recoverySnapshotIdentities(raw: unknown): RecoverySnapshotIdenti
   return rows ? { sha256, rows } : null;
 }
 
-export async function recoveryIdentitiesForSnapshot(ifc: string, raw: unknown): Promise<readonly RecoveryIdentityRow[] | null> {
+export async function recoveryIdentitiesForSnapshot(
+  ifc: string, raw: unknown, knownSha256?: string,
+): Promise<readonly RecoveryIdentityRow[] | null> {
   const identities = recoverySnapshotIdentities(raw);
   if (!identities) return null;
-  return await precomputeSha256(new TextEncoder().encode(ifc)) === identities.sha256 ? identities.rows : null;
+  const sha256 = knownSha256 ?? await precomputeSha256(new TextEncoder().encode(ifc));
+  return sha256 === identities.sha256 ? identities.rows : null;
 }
 
-export function snapshotIdentities(
-  input: WriteIFCInput, issuedGlobalIds: ReadonlyMap<string, string>, ifc: string,
-): RecoverySnapshotIdentities | undefined {
-  const kept = input.ifcGlobalIds;
-  if (!kept) return undefined;
+export function snapshotWrittenAt(ifc: string): Date | null {
+  const stamp = /^FILE_NAME\('(?:[^']|'')*','(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})'/m.exec(ifc)?.[1];
+  return stamp ? new Date(`${stamp}Z`) : null;
+}
+
+function globalIdHolders(kept: Readonly<Record<string, string>>): Map<string, number> | null {
   const holders = new Map<string, number>();
   let shared = false;
   for (const globalId of Object.values(kept)) {
@@ -79,7 +82,16 @@ export function snapshotIdentities(
     holders.set(globalId, count);
     if (count === 2) shared = true;
   }
-  if (!shared) return undefined;
+  return shared ? holders : null;
+}
+
+export const hasSharedGlobalIds = (kept: Readonly<Record<string, string>> | null | undefined): boolean =>
+  !!kept && globalIdHolders(kept) !== null;
+
+function identityRows(input: WriteIFCInput, issuedGlobalIds: ReadonlyMap<string, string>): RecoveryIdentityRow[] {
+  const holders = input.ifcGlobalIds ? globalIdHolders(input.ifcGlobalIds) : null;
+  if (!holders) return [];
+  const kept = input.ifcGlobalIds!;
   const rows: RecoveryIdentityRow[] = [];
   for (const [kind, ids] of objectIds(input)) {
     for (const id of ids) {
@@ -88,7 +100,23 @@ export function snapshotIdentities(
       rows.push([seed, sessionGlobalId, written]);
     }
   }
-  return recoveryIdentityRows(rows) ? { sha256: textSha256(ifc), rows } : undefined;
+  return rows;
+}
+
+export function snapshotIdentities(
+  input: WriteIFCInput, issuedGlobalIds: ReadonlyMap<string, string>, ifc: string,
+): RecoverySnapshotIdentities | undefined {
+  const rows = identityRows(input, issuedGlobalIds);
+  return rows.length > 0 && recoveryIdentityRows(rows) ? { sha256: textSha256(ifc), rows } : undefined;
+}
+
+export function reproducesIdentities(
+  rows: readonly RecoveryIdentityRow[], input: WriteIFCInput, issuedGlobalIds: ReadonlyMap<string, string>,
+): boolean {
+  const kept = input.ifcGlobalIds ?? {};
+  const coupled = new Set(rows.map(row => JSON.stringify(row)));
+  return rows.every(([seed, sessionGlobalId, written]) => issuedGlobalIds.get(seed) === written && ownValue(kept, seed) === sessionGlobalId)
+    && identityRows(input, issuedGlobalIds).every(row => coupled.has(JSON.stringify(row)));
 }
 
 export function withRecoveryIdentities<T extends ImportResult>(parsed: T, rows: readonly RecoveryIdentityRow[]): T {
@@ -108,18 +136,10 @@ export function withRecoveryIdentities<T extends ImportResult>(parsed: T, rows: 
   for (const [seed, sessionGlobalId, written] of rows) {
     const kind = kindOf(seed) as Kind, sessionId = seed.slice(kind.length + 1);
     const found = byWritten.get(kind)!.get(written);
-    if (found?.length !== 1 || (KEEPS_ID.has(kind) && found[0] !== sessionId)) return parsed;
+    if (found?.length !== 1) return parsed;
     renames.get(kind)!.set(found[0], sessionId);
     removedSeeds.add(`${kind}:${found[0]}`);
     restoredGlobalIds.set(seed, sessionGlobalId);
-  }
-  for (const [kind, list] of ids) {
-    const rename = renames.get(kind)!, finalIds = new Set<string>();
-    for (const id of list) {
-      const next = rename.get(id) ?? id;
-      if (finalIds.has(next)) return parsed;
-      finalIds.add(next);
-    }
   }
   const nextGlobalIds = new Map(Object.entries(globalIds).filter(([seed]) => !removedSeeds.has(seed)));
   for (const [seed, globalId] of restoredGlobalIds) nextGlobalIds.set(seed, globalId);

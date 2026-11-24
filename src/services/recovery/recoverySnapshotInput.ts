@@ -38,7 +38,9 @@ export function serializeRecoveryInput(snapshot: RecoverySnapshotInput): string 
   return writeRecoverySnapshot(snapshot).ifc;
 }
 
-export function writeRecoverySnapshot({ input, archive, identities: tracked }: RecoverySnapshotInput): RecoverySnapshot {
+export function writeRecoverySnapshotParts({ input, archive }: RecoverySnapshotInput, writtenAt?: Date): {
+  input: WriteIFCInput; ifc: string; issuedGlobalIds: ReadonlyMap<string, string>;
+} {
   // De referentietak van de writer leest alleen deze velden en de geldigheid van de selector.
   // Bewust een smalle adapter: het volledige archief (bytes, readModel, diagnostics) wordt nooit
   // gekloond. Pariteitstests bewaken dat deze tak geen andere archiefvelden gaat gebruiken.
@@ -47,9 +49,14 @@ export function writeRecoverySnapshot({ input, archive, identities: tracked }: R
     diagnostics: { documentViews: archive.selectorValid && input.xerSourceProjectId
       ? { [input.xerSourceProjectId]: true } : {} },
   } as unknown as XerSourceArchive : undefined;
-  const written = writeIFCWithChoices({ ...input, xerSourceArchive: reference });
-  const identities = tracked ? snapshotIdentities(input, written.issuedGlobalIds, written.content) : undefined;
-  return { ifc: written.content, ...(identities ? { identities } : {}) };
+  const written = writeIFCWithChoices({ ...input, xerSourceArchive: reference }, writtenAt);
+  return { input, ifc: written.content, issuedGlobalIds: written.issuedGlobalIds };
+}
+
+export function writeRecoverySnapshot(snapshot: RecoverySnapshotInput): RecoverySnapshot {
+  const { input, ifc, issuedGlobalIds } = writeRecoverySnapshotParts(snapshot);
+  const identities = snapshot.identities ? snapshotIdentities(input, issuedGlobalIds, ifc) : undefined;
+  return { ifc, ...(identities ? { identities } : {}) };
 }
 
 /** Dezelfde writer en referentie-invoer voor headless, fallback en worker. */

@@ -11,7 +11,8 @@ import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
 import { clearOwnRecovery, clearRecovery, holdRecoveryForLater, loadRecovery } from '@/services/recovery/recoveryStore';
 import { recoverySourceDocument } from '@/state/recoverySourceDocument';
 import { readRecoveryDocument } from '@/state/readRecoveryDocument';
-import type { RecoveryDocInput } from '@/state/documentContract';
+import { payloadFromInput, type DocumentPayload, type RecoveryDocInput } from '@/state/documentContract';
+import { prepareLoadedPayload } from '@/state/documentActivation';
 
 installDeterminism();
 await loadStore();
@@ -82,6 +83,16 @@ function planning(read: RecoveryDocInput) {
   };
 }
 
+function objectsOf(payload: DocumentPayload) {
+  return JSON.stringify({
+    projectCalendar: payload.calendar.name,
+    calendars: payload.calendars.map(c => c.name).sort(),
+    resources: payload.resources.map(r => r.name).sort(),
+    sequences: payload.sequences.map(q => `${q.predecessorId}>${q.successorId}`).sort(),
+    tasks: payload.tasks.map(t => t.id).sort(),
+  });
+}
+
 interface Own { res: Map<string, string>; cal: Map<string, string>; seq: Map<string, string>; globalIds: Record<string, string> }
 function ownIdentities(store: Store): Own {
   const s = store.getState();
@@ -148,6 +159,8 @@ async function runSequence(route: 'browser' | 'desktop', steps: readonly string[
     assert.equal(duplicates.length, 3, 'een paar per soort: resource, kalender en relatie');
     const tracker = new RecoveryDeltaTracker();
     let flag = true, latest = null as { ifc: string; field: string; flag: boolean } | null;
+    const expected = new Map<string, string>();
+    const modelPayload = () => live.getState().getOpenDocumentPayloads().find(d => d.id === modelId)!.payload;
     const fieldText = (field: unknown) => JSON.stringify(field ?? null);
     const present = (kind: 'res' | 'cal' | 'seq', id: string) => {
       const s = live.getState();
@@ -158,7 +171,9 @@ async function runSequence(route: 'browser' | 'desktop', steps: readonly string[
       try {
         if (await runRecoveryTick(tracker, live.getState().activeDocumentId, docs, undefined, () => true, () => {})) {
           const written = (await loadRecovery()).docs.find(d => d.id === modelId);
-          latest = written ? { ifc: written.ifc, field: fieldText(written.snapshotIdentities), flag } : null;
+          assert(written, `${route} reeks ${n}: na een geslaagde ronde staat het document op schijf`);
+          latest = { ifc: written.ifc, field: fieldText(written.snapshotIdentities), flag };
+          expected.set(written.ifc, objectsOf(modelPayload()));
         }
         return 'geslaagd';
       } catch (error) {
@@ -206,12 +221,21 @@ async function runSequence(route: 'browser' | 'desktop', steps: readonly string[
 
       const loaded = await loadRecovery();
       const stored = loaded.docs.find(d => d.id === modelId);
-      if (!stored) { verdicts.leeg++; continue; }
+      if (!stored) {
+        assert.equal(latest, null, `${label}: na een bewezen commit is het document er nog`);
+        verdicts.leeg++;
+        continue;
+      }
       if (stored.snapshotIdentities !== undefined) {
         assert.equal(stored.snapshotIdentities.sha256, hash(Buffer.from(stored.ifc)), `${label}: de bewaarde koppeling hoort bij de bewaarde snapshot`);
       }
       const { ifcSource: _source, sourceCopyDocumentKey: _copy, ...planOnly } = stored;
       const read = await readRecoveryDocument(planOnly, loaded.archives, flag);
+      const objects = expected.get(stored.ifc);
+      if (objects !== undefined) {
+        assert.equal(objectsOf(prepareLoadedPayload(payloadFromInput(read), { recompute: false })), objects,
+          `${label}: na herstel zijn de projectkalender en alle objecten van de bewaarde versie er`);
+      }
       const wrong = foreignIds(read, own);
       if (wrong.length === 0) { verdicts.eigen++; continue; }
       const main = await readRecoveryDocument({ ...planOnly, snapshotIdentities: undefined }, loaded.archives, flag);
@@ -226,17 +250,12 @@ async function runSequence(route: 'browser' | 'desktop', steps: readonly string[
   }
 }
 
-const web = sequences(WEB_KINDS, [
-  ['ronde', 'verschuif', 'mislukt:snapshot', 'terug', 'tab'],
-  ['flag', 'ronde', 'flag', 'ronde'],
-], 804, 12, 12);
+const afterFailure = (kinds: readonly string[]) => kinds.filter(k => k.startsWith('mislukt:')).map(k => ['ronde', 'verschuif', k, 'terug', 'tab']);
+const web = sequences(WEB_KINDS, [...afterFailure(WEB_KINDS), ['flag', 'ronde', 'flag', 'ronde']], 804, 12, 12);
 for (const [n, steps] of web.list.entries()) await runSequence('browser', steps, n);
 const webSteps = web.list.reduce((sum, steps) => sum + steps.length, 0);
 console.log(`BROWSER: ${web.list.length} reeksen, ${webSteps} stappen, ${web.pairs} van ${WEB_KINDS.length ** 2} paren van opeenvolgende stappen.`);
-const disk = sequences(DESKTOP_KINDS, [
-  ['ronde', 'verschuif', 'mislukt:manifest-openen', 'terug', 'tab'],
-  ['flag', 'ronde', 'flag', 'ronde'],
-], 1198, 12, 12);
+const disk = sequences(DESKTOP_KINDS, [...afterFailure(DESKTOP_KINDS), ['flag', 'ronde', 'flag', 'ronde']], 1198, 12, 12);
 for (const [n, steps] of disk.list.entries()) await runSequence('desktop', steps, n);
 const diskSteps = disk.list.reduce((sum, steps) => sum + steps.length, 0);
 console.log(`DESKTOP: ${disk.list.length} reeksen, ${diskSteps} stappen, ${disk.pairs} van ${DESKTOP_KINDS.length ** 2} paren van opeenvolgende stappen.`);

@@ -9,7 +9,7 @@ import {
 } from './recoveryStore';
 import { decodeXerSourceArchive } from '@/services/xerSourceArchive';
 import type { RecoverySnapshot } from './recoverySnapshotInput';
-import type { RecoverySnapshotIdentities } from './recoveryIdentity';
+import { hasSharedGlobalIds, type RecoverySnapshotIdentities } from './recoveryIdentity';
 
 /** Eén open document, precies zoals de auto-save het aan de recoverylaag aanbiedt. */
 export interface RecoverySourceDocument extends RecoveryDocMetadata {
@@ -205,7 +205,8 @@ export class RecoveryDeltaTracker {
   private delta(activeDocumentId: string | null, documents: readonly RecoverySourceDocument[]): RecoveryDelta {
     const delta = planRecoveryDelta(activeDocumentId, documents, this.persisted);
     const changed = new Set(delta.changedDocuments);
-    const untracked = documents.filter(d => !changed.has(d) && d.ifcSource !== undefined && this.committed.get(d.id)?.tracked === false);
+    const untracked = documents.filter(d => !changed.has(d) && d.ifcSource !== undefined && this.committed.get(d.id)?.tracked === false
+      && hasSharedGlobalIds(d.source.ifcGlobalIds));
     if (untracked.length === 0) return delta;
     for (const document of untracked) changed.add(document);
     return { changedDocuments: documents.filter(d => changed.has(d)), manifestChanged: delta.manifestChanged, needsPersist: true };

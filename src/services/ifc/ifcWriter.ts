@@ -255,10 +255,10 @@ export function writeIFCForComparison(input: WriteIFCInput): string {
   return writeIfcParts(input, undefined, new Date('1970-01-01T00:00:00.000Z')).text;
 }
 
-export function writeIFCWithChoices(input: WriteIFCInput): {
+export function writeIFCWithChoices(input: WriteIFCInput, writtenAt?: Date): {
   content: string; literalCalendarIds: string[]; issuedGlobalIds: ReadonlyMap<string, string>;
 } {
-  const { text, literalCalendarIds, issuedGlobalIds } = writeIfcParts(input);
+  const { text, literalCalendarIds, issuedGlobalIds } = writeIfcParts(input, undefined, writtenAt);
   return { content: text, literalCalendarIds, issuedGlobalIds };
 }
 
