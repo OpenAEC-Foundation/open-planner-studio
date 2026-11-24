@@ -110,12 +110,11 @@ export async function readIfcBytesDetailed(
   const foreignObjectCount = C + A + V;
   const stepIdsOut: Record<string, string> = {};
   const unusedAssignmentKeysOut = foreignObjectCount > 0 ? new Map<string, string[]>() : undefined;
-  const windowAssignmentsOut = scan.stepJsonExtras.some(e => e.windowKeys) ? new Map<string, Map<string, string>>() : undefined;
   // Knownbug 1151: de modelweigering draait ook hier, op de tekst van de lezer (zonder V). Ziet de grammatica daar een
   // modeltype dat de scanner niet als V telde (bijv. een wand na `*⏎/`, voor de scanner commentaar), dan weigert
   // openen zoals zonder flag. Anders zou opslaan in een later fase dat stuk herschrijven en de wand wissen.
   const result = await readIFCWithXerReconstruction(readerText, labels, {
-    ...xerOptions(opts), ...readerOptions(scan), stepIdsOut, unusedAssignmentKeysOut, windowAssignmentsOut,
+    ...xerOptions(opts), ...readerOptions(scan), stepIdsOut, unusedAssignmentKeysOut,
   });
   const mismatch = selectionMismatch(scan, stepIdsOut, result.project.id);
   if (mismatch) return currentRoute(bytes, labels, opts, { kind: 'selectie', field: mismatch }, scan);
@@ -123,8 +122,7 @@ export async function readIfcBytesDetailed(
   const stepIds: Record<string, number> = {};
   for (const [key, id] of Object.entries(stepIdsOut)) stepIds[key] = Number(id);
   const unusedKeys = unusedAssignmentKeysOut && unusedKeysFromRead(unusedAssignmentKeysOut);
-  const jsonExtras = foreignObjectCount > 0
-    ? jsonExtrasIndex(scan.stepJsonExtras, (owner, key) => windowAssignmentsOut?.get(String(owner))?.get(key)) : undefined;
+  const jsonExtras = foreignObjectCount > 0 ? jsonExtrasIndex(scan.stepJsonExtras) : undefined;
   const ifcSource: IfcSource = {
     bytes,
     sha256: await precomputeSha256(bytes),

@@ -1,4 +1,4 @@
-import { PROP, PSET, WINDOW_FIELDS } from './ifcPsets';
+import { PROP, PSET } from './ifcPsets';
 import {
   DAY_MEASURE_DURATION_KEYS, DAY_MEASURE_DURATIONS_PROP, DAY_MEASURE_LAGS_PROP, EXACT_FLOAT_KEYS, EXACT_FLOAT_PROP,
   EXACT_MINUTE_LAGS_PROP, EXACT_MINUTES_KEYS, EXACT_MINUTES_PROP,
@@ -7,8 +7,8 @@ import { SCHEDULING_OPTION_KEYS } from './schedulingOptionsRead';
 import { CONVENTION_KEYS } from '@/engine/scheduler/conventions/registry';
 import type { WriteIFCInput } from './ifcWriter';
 
-export type JsonListIdentity = { readonly veld: string } | 'herkomstmerk';
-export type JsonMapIdentity = 'sleutel' | 'toewijzing';
+export type JsonListIdentity = { readonly veld: string } | 'volgorde';
+export type JsonMapIdentity = 'sleutel' | 'volgorde';
 
 export type JsonShape =
   | { readonly soort: 'waarde' }
@@ -43,7 +43,7 @@ const each = (shape: JsonShape, names: readonly string[]) => Object.fromEntries(
 const values = (...names: readonly string[]): JsonShape => object(each(value, names));
 const records = (...names: readonly string[]): JsonShape => object(each(series, names));
 const byField = (veld: string, item: JsonShape): JsonShape => ({ soort: 'lijst', identiteit: { veld }, item });
-const byOrigin = (item: JsonShape): JsonShape => ({ soort: 'lijst', identiteit: 'herkomstmerk', item });
+const byPosition = (item: JsonShape): JsonShape => ({ soort: 'lijst', identiteit: 'volgorde', item });
 const keyed = (identiteit: JsonMapIdentity, waarde: JsonShape): JsonShape => ({ soort: 'kaart', identiteit, waarde });
 
 const libraryOrigin = values('companyId', 'libraryItemId', 'poolVersion', 'syncedHash');
@@ -146,11 +146,15 @@ export const JSON_PROPERTIES: readonly JsonProperty[] = [
   },
   {
     pset: PSET.Timephased, property: PROP.Timephased.Windows,
-    shape: keyed('toewijzing', object(Object.fromEntries(WINDOW_FIELDS.map(name => [name, name === 'curveValues' ? series : value])))),
+    shape: keyed('volgorde', object({
+      ...each(value, ['workWindowStart', 'workWindowFinish', 'plannedWorkMinutes', 'actualWorkMinutes', 'remainingWorkMinutes',
+        'plannedUnitsPerDay', 'costAmount']),
+      curveValues: series,
+    })),
   },
   {
     pset: PSET.DurationWalks, property: PROP.DurationWalks.DurationWalks,
-    shape: byOrigin(values('anchor', 'resourceCalendarGuid', 'workMinutes')),
+    shape: byPosition(values('anchor', 'resourceCalendarGuid', 'workMinutes')),
   },
   {
     pset: PSET.ExternalLink, property: PROP.ExternalLink.Links,
@@ -163,11 +167,11 @@ export const JSON_PROPERTIES: readonly JsonProperty[] = [
   },
   { pset: PSET.TaskNotes, property: PROP.TaskNotes.Notes, shape: byField('id', values('id', 'text', 'done')), domain: onTask('notes') },
   { pset: PSET.Analysis, property: EXACT_FLOAT_PROP, shape: records(...EXACT_FLOAT_KEYS) },
-  { pset: PSET.Splits, property: PROP.Splits.Splits, shape: byOrigin(values('afterMinutes', 'gapMinutes', 'source')) },
+  { pset: PSET.Splits, property: PROP.Splits.Splits, shape: byPosition(values('afterMinutes', 'gapMinutes', 'source')) },
   {
     pset: PSET.Contours, property: PROP.Contours.Contours,
-    shape: byOrigin(object({
-      resourceUid: value, resourceId: value, periods: byOrigin(values('afterMinutes', 'minutes', 'workMinutes', 'kind')),
+    shape: byPosition(object({
+      resourceUid: value, resourceId: value, periods: byPosition(values('afterMinutes', 'minutes', 'workMinutes', 'kind')),
     })),
   },
   { pset: PSET.WorkRule, property: DAY_MEASURE_DURATIONS_PROP, shape: records(...DAY_MEASURE_DURATION_KEYS) },
@@ -184,6 +188,11 @@ export function jsonPropertyDomain(pset: string, property: string): JsonDomain |
   return BY_NAME.get(`${pset}\u0000${property}`)?.domain;
 }
 
-export const JSON_PROPERTY_PSETS: ReadonlySet<string> = new Set(JSON_PROPERTIES.map(p => p.pset));
+export function membersHaveIdentity(shape: JsonShape): boolean {
+  if (shape.soort === 'object') return Object.values(shape.sleutels).every(membersHaveIdentity);
+  if (shape.soort === 'lijst') return shape.identiteit !== 'volgorde' && membersHaveIdentity(shape.item);
+  if (shape.soort === 'kaart') return shape.identiteit !== 'volgorde' && membersHaveIdentity(shape.waarde);
+  return true;
+}
 
-export const WINDOWS_PROPERTY = `${PSET.Timephased}\u0000${PROP.Timephased.Windows}`;
+export const JSON_PROPERTY_PSETS: ReadonlySet<string> = new Set(JSON_PROPERTIES.map(p => p.pset));

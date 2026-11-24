@@ -1,7 +1,7 @@
 import { stepStringEnd, skipStepComment, unescapeStepQuotes } from './stepLexical';
 import { parseIfcDuration } from './isoDuration';
 import { ifcCalendarBandLayout, parseIfcClock } from './ifcClock';
-import { ACTIVITY_CODE_ID_SUFFIX, milestoneWasAtDayEnd, type WindowField } from './ifcPsets';
+import { ACTIVITY_CODE_ID_SUFFIX, milestoneWasAtDayEnd } from './ifcPsets';
 import { isAssignmentKeyName } from './assignmentKeys';
 import { calendarExceptionKey, calendarExceptionKeyFromClocks } from './calendarExceptionKey';
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
@@ -89,7 +89,6 @@ export interface IfcReadOptions {
   planningTaskStepIds?: ReadonlySet<string>;
   stepIdsOut?: Record<string, string>;
   unusedAssignmentKeysOut?: Map<string, string[]>;
-  windowAssignmentsOut?: Map<string, Map<string, string>>;
   projectDataInSettings?: boolean;
 }
 
@@ -196,8 +195,7 @@ export function readIFC(
     if (cal.ifcTimePeriods?.[0]) cal.ifcTimePeriods[0].layout = ifcCalendarBandLayout(cal);
   }
   fillEmptyComputedDateSlots(tasks, taskTimeEntities, recordedFields);
-  const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap, options.unusedAssignmentKeysOut,
-    options.windowAssignmentsOut);
+  const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap, options.unusedAssignmentKeysOut);
   normalizeCostResources(resources, assignments);
   reconstructResourceIds(tasks, assignments);
   const libraryPoolOut: { value: import('@/types/library').CompanyPool | undefined } = { value: undefined };
@@ -2569,7 +2567,16 @@ interface AssignmentMeta {
   curve?: ResourceCurve;
 }
 
-type WindowMeta = Partial<Pick<ResourceAssignment, WindowField>>;
+interface WindowMeta {
+  workWindowStart?: string;
+  workWindowFinish?: string;
+  curveValues?: number[];
+  plannedWorkMinutes?: number;
+  actualWorkMinutes?: number;
+  remainingWorkMinutes?: number;
+  plannedUnitsPerDay?: number;
+  costAmount?: number;
+}
 
 function workMinutesOf(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined;
@@ -2586,14 +2593,11 @@ function extractAssignments(
   taskStepIdMap: Map<string, string>,
   resourceStepIdMap: Map<string, string>,
   unusedKeysOut?: Map<string, string[]>,
-  windowAssignmentsOut?: Map<string, Map<string, string>>,
 ): ResourceAssignment[] {
   const metaByTask = new Map<string, TaskAssignmentMeta>();
   const windowsByTask = new Map<string, Map<string, WindowMeta[]>>();
-  const windowKeyOf = windowAssignmentsOut ? new Map<WindowMeta, string>() : undefined;
-  const unusedRead = unusedKeysOut
-    ? { out: unusedKeysOut, keysByTask: new Map<string, { prop: StepEntity; meta?: AssignmentMeta }[]>(), usedMeta: new Set<AssignmentMeta>() }
-    : undefined;
+  const keysByTask = unusedKeysOut ? new Map<string, { prop: StepEntity; meta?: AssignmentMeta }[]>() : undefined;
+  const usedMeta = new Set<AssignmentMeta>();
   for (const { pset, name: psetName, objectRefs } of propertySetRelations(entities, entityMap)) {
 
     if (psetName === PSET.Timephased) {
@@ -2628,7 +2632,6 @@ function extractAssignments(
           ...(costAmount !== undefined ? { costAmount } : {}),
         };
         if (Object.keys(meta).length === 0) continue;
-        windowKeyOf?.set(meta, key);
         indexed.push({ guid: m[1], index: parseInt(m[2], 10), meta });
       }
       indexed.sort((a, b) => a.index - b.index);
@@ -2657,8 +2660,8 @@ function extractAssignments(
         metaByTask.set(objRef, taskMeta);
       }
       const indexed: { guid: string; index: number; meta: AssignmentMeta }[] = [];
-      let taskKeys = unusedRead?.keysByTask.get(objRef);
-      if (unusedRead && !taskKeys) unusedRead.keysByTask.set(objRef, taskKeys = []);
+      let taskKeys = keysByTask?.get(objRef);
+      if (keysByTask && !taskKeys) keysByTask.set(objRef, taskKeys = []);
       for (const prop of props) {
         const propName = stripQuotes(prop.args[0] || '');
         const value = parseTypedValue(prop.args[2] || '');
@@ -2705,17 +2708,11 @@ function extractAssignments(
       const resEntity = entityMap.get(resRef);
       const resGuid = resEntity ? stripQuotes(resEntity.args[RESOURCE_SLOT.globalId] || '') : '';
       const meta = taskMeta?.queues.get(resGuid)?.shift() ?? taskMeta?.legacy.get(resGuid);
-      if (meta) unusedRead?.usedMeta.add(meta);
+      if (meta && keysByTask) usedMeta.add(meta);
       const window = windowsByTask.get(taskRef)?.get(resGuid)?.shift();
-      const id = generateId('asgn');
-      const windowKey = window && windowKeyOf?.get(window);
-      if (windowKey !== undefined) {
-        const linked = windowAssignmentsOut!.get(taskRef) ?? new Map<string, string>();
-        windowAssignmentsOut!.set(taskRef, linked.set(windowKey, id));
-      }
 
       assignments.push({
-        id,
+        id: generateId('asgn'),
         taskId,
         resourceId: resId,
         unitsPerDay: meta?.unitsPerDay ?? 1,
@@ -2732,14 +2729,12 @@ function extractAssignments(
     }
   }
 
-  if (unusedRead) {
-    for (const [taskRef, keys] of unusedRead.keysByTask) {
-      if (!taskStepIdMap.has(taskRef)) continue;
-      const unused = keys
-        .filter(({ prop, meta }) => !(meta && unusedRead.usedMeta.has(meta)) && isAssignmentKeyName(stripQuotes(prop.args[0] || '')))
-        .map(({ prop }) => prop.id);
-      if (unused.length > 0) unusedRead.out.set(taskRef, unused);
-    }
+  for (const [taskRef, keys] of keysByTask ?? []) {
+    if (!taskStepIdMap.has(taskRef)) continue;
+    const unused = keys
+      .filter(({ prop, meta }) => !(meta && usedMeta.has(meta)) && isAssignmentKeyName(stripQuotes(prop.args[0] || '')))
+      .map(({ prop }) => prop.id);
+    if (unused.length > 0) unusedKeysOut!.set(taskRef, unused);
   }
   return assignments;
 }

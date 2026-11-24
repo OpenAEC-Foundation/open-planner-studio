@@ -31,7 +31,6 @@ export interface PreparedIfcWrite {
 
 export interface JsonExtrasOfProperty {
   readonly propertyStepId: number;
-  readonly windows?: readonly { readonly key: string; readonly assignmentId: string }[];
 }
 
 export interface UnusedKeysOfTask {

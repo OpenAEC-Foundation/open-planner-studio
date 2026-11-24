@@ -39,7 +39,7 @@
  * Voorbereiding 1c: alleen tests gebruiken deze ingang. De opslagblokkade blijft dicht tot PR 11.
  */
 import { ifcGuid, ifcObjectSeed, writeIFCWithChoices, writeIfcMergeLines, type SourceTaskTime, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
-import { ACTIVITY_CODE_ID_SUFFIX, PROP, PSET, ifcStr } from '../ifcPsets';
+import { ACTIVITY_CODE_ID_SUFFIX, PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { workCalendarSlots } from '../ifcWorkControlSlots';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
@@ -744,8 +744,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     form = sourceFormWhereUnchanged(input, source.opened, pristine, newlyLiteral);
     written1 = write(form.input);
   }
-  const json = jsonMembers(written0, written1, sources,
-    { exists: jsonObjectExists(input), assignments: { read: pristine.assignments, written: form.input.assignments } });
+  const json = jsonMembers(written0, written1, sources, { exists: jsonObjectExists(input) });
   const built0 = buildLines(pristine, () => {}, { ...written0, lines: json.read });
   const pending: Parameters<typeof caseAt>[] = [];
   const built = buildLines(form.input, (...a) => { pending.push(a); }, { ...written1, lines: json.written });
@@ -877,17 +876,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // De regel van elk slot van (b) in de uitvoer, door dezelfde hernummering. Een regel buiten de kaart: (c) slaat zijn groep
     // over, zoals vóór PR A.
     const unmapped = new Set(restored.slots.filter(s => !remap.has(s.id)).map(s => s.group));
-    const assignmentKeys = new Map<string, string>();
-    if (sources.some(s => s.pset === PSET.Timephased && s.property === PROP.Timephased.Windows)) {
-      const outById = new Map(candidate.map(line => [line.id, line]));
-      for (const a of input.assignments) {
-        const id = built.idMap.get(`_asgn_${a.taskId}_${a.id}`);
-        const line = id === undefined ? undefined : outById.get(remap.get(id) ?? id);
-        if (line && 'args' in line) assignmentKeys.set(a.id, unquote(line.args[0]));
-      }
-    }
     const own: OwnOutputCheck = {
-      stepIds, writtenAt, sourceRowGuid: rowGuid, skip: new Set([...restored.skip, ...unmapped]), assignmentKeys, expectedJson: json.expected,
+      stepIds, writtenAt, sourceRowGuid: rowGuid, skip: new Set([...restored.skip, ...unmapped]), expectedJson: json.expected,
       slots: restored.slots.filter(s => !unmapped.has(s.group)).map(s => ({ ...s, id: remap.get(s.id)! })),
     };
     observe?.(own);
@@ -918,16 +908,6 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 }
 
 const projectLevel = <T extends { readonly owner: string }>(sources: readonly T[]) => sources.filter(s => s.owner === '_project' || s.owner === '_worksched');
-
-function outputWindows(input: WriteIFCInput, own?: OwnOutputCheck): (ownerStepId: number, key: string) => string | undefined {
-  if (!own?.assignmentKeys?.size) return () => undefined;
-  const bound = new Map<string, string>();
-  for (const a of input.assignments) {
-    const step = own.stepIds[`task:${a.taskId}`], key = own.assignmentKeys.get(a.id);
-    if (step !== undefined && key !== undefined) bound.set(`${step}\u0000${key}`, a.id);
-  }
-  return (step, key) => bound.get(`${step}\u0000${key}`);
-}
 
 /** De domeinsleutels van deze sessie, uit de daadwerkelijke writerkaart en haar hernummering. */
 function writerStepIds(input: WriteIFCInput, idMap: ReadonlyMap<string, number>, remap = (id: number) => id): Record<string, number> {
@@ -974,7 +954,6 @@ export interface OwnOutputCheck extends RestoredOwnSlots {
   readonly writtenAt: Date;
   /** De GlobalId die de lezer in de bron voor een weesrij aannam (`assumedRowGuid` op de lezing van de bron). */
   readonly sourceRowGuid: (taskId: string) => string | undefined;
-  readonly assignmentKeys?: ReadonlyMap<string, string>;
   readonly expectedJson?: ReadonlyMap<string, string>;
 }
 
@@ -1052,7 +1031,7 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   // (c), als laatste: wat hiervoor al weigerde, houdt zijn soort.
   const problem = own ? ownOutputProblem(bytes, actual.index, actual.classification, index, cls, parsed, input, own, outputJson) : undefined;
   if (problem) throw new MergeNeedsPhase2Error([{ kind: 'eigen-uitvoer', detail: problem }]);
-  return { bytes, index: actual.index, scan: outputScan, unusedKeys, jsonExtras: jsonExtrasIndex(outputJson, outputWindows(input, own)) };
+  return { bytes, index: actual.index, scan: outputScan, unusedKeys, jsonExtras: jsonExtrasIndex(outputJson) };
 }
 
 /**
@@ -1069,7 +1048,7 @@ function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classificat
   parsed: WriteIFCInput, input: WriteIFCInput, own: OwnOutputCheck, outputJson: readonly StepJsonExtras[]): string | undefined {
   const output = indexView(out, i => { const original = sourceIndex.chunkOf(out.id(i)); return original < 0 || sourceCls.classes[original] === 1; });
   const ids = mergeIdPlan(out, outCls, own.stepIds, parsed.calendar.id, bytes);
-  const outSources = jsonExtrasFromIndex(out, jsonExtrasIndex(outputJson, () => undefined), own.stepIds, parsed.calendar.id);
+  const outSources = jsonExtrasFromIndex(out, outputJson, own.stepIds, parsed.calendar.id);
   // Een weesrij krijgt in de herlezing de GlobalId die de writer uit het domein had (PR 12e, was knownbug 1706), niet die uit de
   // uitvoer zelf: zo ziet (c) een verkeerde waarde in `TaskGuids`, net als een sleutel zonder rij.
   const domainGuids = withOrphanRowGuids(input, own.sourceRowGuid).ifcGlobalIds ?? {};

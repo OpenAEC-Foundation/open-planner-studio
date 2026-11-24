@@ -1,13 +1,11 @@
-import { JSON_PROPERTY_PSETS, jsonPropertyDomain, jsonPropertyShape, WINDOWS_PROPERTY, type JsonDomainView, type JsonShape } from '../jsonRegister';
+import { JSON_PROPERTY_PSETS, jsonPropertyDomain, jsonPropertyShape, membersHaveIdentity, type JsonDomainView, type JsonShape } from '../jsonRegister';
 import { parseJsonTree, type JsonNode } from '../jsonTokens';
 import type { WriteIFCInput } from '../ifcWriter';
 import type { JsonExtrasOfProperty } from './ifcSource';
 import type { StepIndex } from './stepScanner';
-import { WINDOW_KEY, type JsonPathStep, type JsonSourceProperty } from './jsonMembers';
+import type { JsonPathStep, JsonSourceProperty } from './jsonMembers';
 
 const DEFINES = 'IFCRELDEFINESBYPROPERTIES';
-const ASSIGNS_TO_PROCESS = 'IFCRELASSIGNSTOPROCESS';
-const RELATING_PROCESS_ARG = 6;
 const propertyKey = (pset: string, property: string) => `${pset}\u0000${property}`;
 const has = (keys: object, key: string) => Object.prototype.hasOwnProperty.call(keys, key);
 
@@ -38,18 +36,15 @@ function itemsByField(node: Extract<JsonNode, { kind: 'array' }>, field: string)
   return out;
 }
 
-export function hasUnknownMembers(root: JsonNode, shape: JsonShape, windowKnown: (key: string) => boolean): boolean {
+export function hasUnknownMembers(root: JsonNode, shape: JsonShape): boolean {
   const walk = (node: JsonNode, at: JsonShape): boolean => {
     if (at.soort === 'object' && node.kind === 'object' && uniqueKeys(node)) {
       return node.members.some(m => !has(at.sleutels, m.key) || walk(m.value, at.sleutels[m.key]));
     }
-    if (at.soort === 'lijst' && node.kind === 'array' && at.identiteit !== 'herkomstmerk') {
+    if (at.soort === 'lijst' && node.kind === 'array' && at.identiteit !== 'volgorde') {
       return [...itemsByField(node, at.identiteit.veld).values()].some(item => walk(item, at.item));
     }
-    if (at.soort === 'kaart' && node.kind === 'object' && uniqueKeys(node)) {
-      if (at.identiteit === 'sleutel') return node.members.some(m => walk(m.value, at.waarde));
-      return node.members.some(m => !WINDOW_KEY.test(m.key) || (windowKnown(m.key) && walk(m.value, at.waarde)));
-    }
+    if (at.soort === 'kaart' && node.kind === 'object' && uniqueKeys(node)) return node.members.some(m => walk(m.value, at.waarde));
     return false;
   };
   return walk(root, shape);
@@ -57,8 +52,6 @@ export function hasUnknownMembers(root: JsonNode, shape: JsonShape, windowKnown:
 
 export interface StepJsonExtras {
   readonly propertyStepId: number;
-  readonly ownerStepId: number;
-  readonly windowKeys?: readonly string[];
 }
 
 function singleIn(index: StepIndex, chunk: number, type: string, arg: number): number {
@@ -70,24 +63,6 @@ function singleIn(index: StepIndex, chunk: number, type: string, arg: number): n
     found = from;
   }
   return found;
-}
-
-function windowKeysOfTask(index: StepIndex, task: number): (key: string) => boolean {
-  const count = new Map<number, number>();
-  for (let k = index.inStart(task); k < index.inEnd(task); k++) {
-    const rel = index.inSource(k);
-    if (index.type(rel) !== ASSIGNS_TO_PROCESS || index.inArg(k) !== RELATING_PROCESS_ARG) continue;
-    for (const r of index.refsAt(rel, 4)) if (r >= 0) count.set(r, (count.get(r) ?? 0) + 1);
-  }
-  const byGuid = new Map<string, number[]>();
-  for (const r of count.keys()) {
-    const list = byGuid.get(index.globalId(r));
-    if (list) list.push(r); else byGuid.set(index.globalId(r), [r]);
-  }
-  return key => {
-    const resources = byGuid.get(WINDOW_KEY.exec(key)?.[1] ?? '\u0000') ?? [];
-    return resources.length === 1 && count.get(resources[0]) === 1;
-  };
 }
 
 export function scanJsonExtras(index: StepIndex, own: (chunk: number) => boolean): StepJsonExtras[] {
@@ -113,34 +88,22 @@ export function scanJsonExtras(index: StepIndex, own: (chunk: number) => boolean
     for (const { property } of props) names.set(property, (names.get(property) ?? 0) + 1);
     for (const { p, property } of props) {
       const shape = jsonPropertyShape(name, property);
-      if (!shape || !own(p) || names.get(property) !== 1) continue;
+      if (!shape || !membersHaveIdentity(shape) || !own(p) || names.get(property) !== 1) continue;
       const text = index.propertyText(p);
       if (text === undefined || !/^\s*[[{]/.test(text)) continue;
-      const isWindows = propertyKey(name, property) === WINDOWS_PROPERTY;
-      const known = isWindows ? windowKeysOfTask(index, owner) : () => false;
       const root = parseJsonTree(text);
-      if (!root || !hasUnknownMembers(root, shape, known)) continue;
-      const windowKeys = isWindows && root.kind === 'object' ? root.members.map(m => m.key).filter(k => WINDOW_KEY.test(k) && known(k)) : [];
-      out.push({ propertyStepId: Number(index.id(p)), ownerStepId: Number(index.id(owner)), ...(windowKeys.length > 0 ? { windowKeys } : {}) });
+      if (!root || !hasUnknownMembers(root, shape)) continue;
+      out.push({ propertyStepId: Number(index.id(p)) });
     }
   }
   return out;
 }
 
-export function jsonExtrasIndex(found: readonly StepJsonExtras[], windowAssignments: (ownerStepId: number, key: string) => string | undefined,
-): JsonExtrasOfProperty[] | undefined {
-  const out = found.map(f => {
-    const windows = (f.windowKeys ?? []).flatMap(key => {
-      const assignmentId = windowAssignments(f.ownerStepId, key);
-      return assignmentId === undefined ? [] : [{ key, assignmentId }];
-    });
-    return { propertyStepId: f.propertyStepId, ...(windows.length > 0 ? { windows } : {}) };
-  });
-  return out.length > 0 ? out : undefined;
+export function jsonExtrasIndex(found: readonly StepJsonExtras[]): readonly JsonExtrasOfProperty[] | undefined {
+  return found.length > 0 ? found : undefined;
 }
 
 export interface SourceJsonExtras extends JsonSourceProperty {
-  readonly ownerStepId: number;
   readonly propertyStepId: number;
 }
 
@@ -160,14 +123,12 @@ export function jsonExtrasFromIndex(index: StepIndex, entries: readonly JsonExtr
     const rel = pset < 0 ? -1 : singleIn(index, pset, DEFINES, 5);
     const related = rel < 0 ? [] : index.refsAt(rel, 4);
     if (related.length !== 1 || related[0] < 0) continue;
-    const ownerStepId = Number(index.id(related[0]));
-    const owner = ownerKey.get(ownerStepId) ?? (index.type(related[0]) === 'IFCPROJECT' ? '_project' : undefined);
+    const owner = ownerKey.get(Number(index.id(related[0]))) ?? (index.type(related[0]) === 'IFCPROJECT' ? '_project' : undefined);
     const psetName = index.name(pset) ?? '', property = index.name(p) ?? '';
     const shape = jsonPropertyShape(psetName, property);
     const text = index.propertyText(p);
     if (!owner || !shape || text === undefined) continue;
-    const windows = new Map((entry.windows ?? []).map(w => [w.key, w.assignmentId]));
-    out.push({ owner, ownerStepId, propertyStepId: entry.propertyStepId, pset: psetName, property, text, windows });
+    out.push({ owner, propertyStepId: entry.propertyStepId, pset: psetName, property, text });
   }
   return out;
 }

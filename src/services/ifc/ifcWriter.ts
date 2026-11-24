@@ -27,7 +27,7 @@ import { unusedAssignmentKeyNames, type UnusedAssignmentKey } from './assignment
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
-import { ACTIVITY_CODE_ID_SUFFIX, PSET, PROP, PER_TASK_PSETS, WINDOW_FIELDS, XER_ARCHIVE_CHUNK, xerArchiveChunkName, OPS_APP_VERSION, ifcStr, ifcJson, asciiJson, ifcTypedReal, stepReal, ifcDateValue, type WindowField } from './ifcPsets';
+import { ACTIVITY_CODE_ID_SUFFIX, PSET, PROP, PER_TASK_PSETS, XER_ARCHIVE_CHUNK, xerArchiveChunkName, OPS_APP_VERSION, ifcStr, ifcJson, asciiJson, ifcTypedReal, stepReal, ifcDateValue } from './ifcPsets';
 import { ifcSchemaQuestionFor } from './ifcSchemaQuestion';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { shownFinish, shownStart } from '@/utils/taskDates';
@@ -1484,10 +1484,10 @@ function writeAssignmentMeta(
 ): void {
   const byTask = writtenAssignmentsByTask(ctx, assignments);
   for (const task of tasks) {
-    const list = byTask.get(task.id);
-    const unused = ctx.merge?.unusedAssignmentKeys?.get(task.id);
-    if (!list?.length && !unused?.length) continue;
-    const props = (list ?? []).map((a, index) => {
+    const list = byTask.get(task.id) ?? [];
+    const unused = ctx.merge?.unusedAssignmentKeys?.get(task.id) ?? [];
+    if (list.length === 0 && unused.length === 0) continue;
+    const props = list.map((a, index) => {
       const resGuid = objectGuid(ctx, 'res', a.resourceId);
       const propName = `${resGuid}#${index}`;
       const val = `${a.unitsPerDay}|${a.curve ?? 'UNIFORM'}`;
@@ -1495,8 +1495,8 @@ function writeAssignmentMeta(
         `IFCPROPERTYSINGLEVALUE(${ifcStr(propName)},$,IFCTEXT(${ifcStr(val)}),$)`);
       return `#${propId}`;
     });
-    if (unused?.length) {
-      const ownNames = (list ?? []).map((a, index) => `${objectGuid(ctx, 'res', a.resourceId)}#${index}`);
+    if (unused.length > 0) {
+      const ownNames = list.map((a, index) => `${objectGuid(ctx, 'res', a.resourceId)}#${index}`);
       const unusedNames = unusedAssignmentKeyNames(ownNames, unused.map(key => key.name),
         ctx.merge?.foreignAssignmentKeyNames?.get(task.id) ?? []);
       unused.forEach((key, k) => {
@@ -1520,15 +1520,27 @@ function writeTimephasedMeta(
   for (const task of tasks) {
     const list = byTask.get(task.id);
     if (!list) continue;
-    const windows: Record<string, Partial<Pick<ResourceAssignment, WindowField>>> = {};
+    const windows: Record<string, {
+      workWindowStart?: string; workWindowFinish?: string; curveValues?: number[];
+      plannedWorkMinutes?: number; actualWorkMinutes?: number; remainingWorkMinutes?: number;
+      plannedUnitsPerDay?: number; costAmount?: number;
+    }> = {};
     list.forEach((a, index) => {
-      const window: Partial<Pick<ResourceAssignment, WindowField>> = {};
-      for (const field of WINDOW_FIELDS) {
-        const v = a[field];
-        if (v !== undefined) Object.assign(window, { [field]: Array.isArray(v) ? [...v] : v });
-      }
-      if (Object.keys(window).length === 0) return;
-      windows[`${objectGuid(ctx, 'res', a.resourceId)}#${index}`] = window;
+      if (a.workWindowStart === undefined && a.workWindowFinish === undefined && a.curveValues === undefined
+        && a.plannedWorkMinutes === undefined && a.actualWorkMinutes === undefined && a.remainingWorkMinutes === undefined
+        && a.plannedUnitsPerDay === undefined && a.costAmount === undefined) return;
+      const resGuid = objectGuid(ctx, 'res', a.resourceId);
+      const propName = `${resGuid}#${index}`;
+      windows[propName] = {
+        ...(a.workWindowStart !== undefined ? { workWindowStart: a.workWindowStart } : {}),
+        ...(a.workWindowFinish !== undefined ? { workWindowFinish: a.workWindowFinish } : {}),
+        ...(a.curveValues !== undefined ? { curveValues: [...a.curveValues] } : {}),
+        ...(a.plannedWorkMinutes !== undefined ? { plannedWorkMinutes: a.plannedWorkMinutes } : {}),
+        ...(a.actualWorkMinutes !== undefined ? { actualWorkMinutes: a.actualWorkMinutes } : {}),
+        ...(a.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: a.remainingWorkMinutes } : {}),
+        ...(a.plannedUnitsPerDay !== undefined ? { plannedUnitsPerDay: a.plannedUnitsPerDay } : {}),
+        ...(a.costAmount !== undefined ? { costAmount: a.costAmount } : {}),
+      };
     });
     if (Object.keys(windows).length === 0) continue;
     const propId = addLine(ctx, `_ps_tp_${task.id}`,
