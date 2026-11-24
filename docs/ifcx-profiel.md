@@ -127,7 +127,7 @@ het pad geeft de tekst terug. Tussen de twee vormen botst niets: een pad begint 
 nooit allebei. En elke GlobalId heeft precies één vorm, omdat de tweede vorm geen compacte GlobalId aanneemt. De
 oude afbeelding (een UUID v5 van de tekst) gaf een tekst en de compacte GlobalId van diezelfde UUID hetzelfde pad; een
 andere namespace verschuift die botsing alleen. Een proef toetst de afbeelding zelf op ruim 7.500 GlobalIds, waaronder
-elk paar dat onder de oude afbeelding botste.
+ruim 1.500 paren die onder de oude afbeelding botsten.
 
 - Het interne id van een object staat in het veld `id` van zijn `openaec::ops::`-attribuut als het afwijkt van het
   pad.
