@@ -198,6 +198,19 @@
   opacity: 0.56;
 }
 
+[data-ops-row-dragging="true"],
+[data-ops-row-dragging="true"] *,
+.task-grid-core[data-grid-row-dragging="true"],
+.task-grid-core[data-grid-row-dragging="true"] * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+[data-ops-row-dragging="true"] .task-grid-data-row,
+.task-grid-core[data-grid-row-dragging="true"] .task-grid-data-row {
+  cursor: grabbing;
+}
+
 .task-grid-data-row[data-grid-row-selected="true"]::before,
 .task-grid-data-row[data-grid-drop-zone]::before {
   content: "";

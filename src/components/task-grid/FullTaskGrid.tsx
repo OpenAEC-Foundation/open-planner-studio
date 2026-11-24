@@ -1233,6 +1233,7 @@ export function TaskGridSurface({
         scrollTop={view.scrollY}
         scrollLeft={surfacePreferences.scrollX}
         mode={editing?.documentId === activeDocumentId ? 'edit' : 'select'}
+        rowDragging={dragState !== null}
         textDirection={textDirection}
         getCell={getCell}
         onScrollTopChange={top => setScroll(view.scrollX, top)}

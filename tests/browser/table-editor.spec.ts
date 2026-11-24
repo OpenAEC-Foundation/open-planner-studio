@@ -318,9 +318,12 @@ test('table surface: rowdrag Escape annuleert zonder mutatie', async ({ page, op
   await page.mouse.down();
   await page.mouse.move(target.x, target.y);
   await expect(targetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
+  await expect(page.locator('html')).toHaveAttribute('data-ops-row-dragging', 'true');
   await page.keyboard.press('Escape');
   await page.mouse.up();
 
+  await expect(page.locator('html')).not.toHaveAttribute('data-ops-row-dragging', 'true');
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
   const after = await state(page);
   expect(after.tasks.map(task => task.id)).toEqual(before.tasks.map(task => task.id));
   expect(after.undoDepth).toBe(before.undoDepth);
@@ -333,15 +336,26 @@ test('table surface: ingebedde en volledige DOM-grid leveren dezelfde zichtbare 
     { name: 'Gedeeld C', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
   ]);
   const before = await state(page);
-  const source = await rowPoint(taskRow(page, firstId, 'gantt-task-grid'));
+  const ganttGrid = page.locator('[data-task-grid-surface-id="gantt-task-grid"] [role="grid"]');
+  const secondGanttLabel = taskRow(page, secondId, 'gantt-task-grid').locator('.full-task-grid-name-label');
+  const sourceLabel = taskRow(page, firstId, 'gantt-task-grid').locator('.full-task-grid-name-label');
+  const sourceBounds = await sourceLabel.boundingBox();
+  expect(sourceBounds).not.toBeNull();
+  const source = { x: sourceBounds!.x + 12, y: sourceBounds!.y + sourceBounds!.height / 2 };
   const targetRow = taskRow(page, thirdId, 'gantt-task-grid');
-  const target = await rowPoint(targetRow, 'after');
+  const target = { x: source.x, y: (await rowPoint(targetRow, 'after')).y };
 
   await page.mouse.move(source.x, source.y);
   await page.mouse.down();
-  await page.mouse.move(target.x, target.y, { steps: 4 });
+  await page.mouse.move(target.x, target.y, { steps: 12 });
   await expect(targetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
+  await expect(ganttGrid).toHaveAttribute('data-grid-row-dragging', 'true');
+  await expect(secondGanttLabel).toHaveCSS('user-select', 'none');
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
   await page.mouse.up();
+  await expect(ganttGrid).not.toHaveAttribute('data-grid-row-dragging', 'true');
+  await expect(secondGanttLabel).not.toHaveCSS('user-select', 'none');
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
   await expect.poll(() => state(page).then(snapshot => snapshot.tasks.map(task => task.id)))
     .toEqual([secondId, thirdId, firstId]);
   const embeddedResult = await state(page);
@@ -351,12 +365,25 @@ test('table surface: ingebedde en volledige DOM-grid leveren dezelfde zichtbare 
     .toEqual([firstId, secondId, thirdId]);
 
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
-  const domSource = await rowPoint(taskRow(page, firstId));
-  const domTarget = await rowPoint(taskRow(page, thirdId), 'after');
+  const tableGrid = page.locator('[data-task-grid-surface-id="full-task-grid"] [role="grid"]');
+  const secondTableLabel = taskRow(page, secondId).locator('.full-task-grid-name-label');
+  const domSourceLabel = taskRow(page, firstId).locator('.full-task-grid-name-label');
+  const domSourceBounds = await domSourceLabel.boundingBox();
+  expect(domSourceBounds).not.toBeNull();
+  const domSource = { x: domSourceBounds!.x + 12, y: domSourceBounds!.y + domSourceBounds!.height / 2 };
+  const domTargetRow = taskRow(page, thirdId);
+  const domTarget = { x: domSource.x, y: (await rowPoint(domTargetRow, 'after')).y };
   await page.mouse.move(domSource.x, domSource.y);
   await page.mouse.down();
-  await page.mouse.move(domTarget.x, domTarget.y, { steps: 4 });
+  await page.mouse.move(domTarget.x, domTarget.y, { steps: 12 });
+  await expect(domTargetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
+  await expect(tableGrid).toHaveAttribute('data-grid-row-dragging', 'true');
+  await expect(secondTableLabel).toHaveCSS('user-select', 'none');
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
   await page.mouse.up();
+  await expect(tableGrid).not.toHaveAttribute('data-grid-row-dragging', 'true');
+  await expect(secondTableLabel).not.toHaveCSS('user-select', 'none');
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
   await expect.poll(() => state(page).then(snapshot => snapshot.tasks.map(task => task.id)))
     .toEqual([secondId, thirdId, firstId]);
   const domResult = await state(page);

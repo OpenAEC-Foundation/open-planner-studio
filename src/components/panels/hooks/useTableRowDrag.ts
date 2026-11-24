@@ -88,6 +88,25 @@ function probeRowInRoot(root: HTMLElement | null, clientY: number): Element | nu
   return null;
 }
 
+function clearNonEmptySelection(): void {
+  const selection = document.getSelection();
+  if (selection && !selection.isCollapsed) selection.removeAllRanges();
+}
+
+function lockRowDragSelection(): () => void {
+  const root = document.documentElement;
+  root.dataset.opsRowDragging = 'true';
+  const preventSelectStart = (event: Event) => {
+    event.preventDefault();
+  };
+  window.addEventListener('selectstart', preventSelectStart, true);
+  document.getSelection()?.removeAllRanges();
+  return () => {
+    delete root.dataset.opsRowDragging;
+    window.removeEventListener('selectstart', preventSelectStart, true);
+  };
+}
+
 export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, moveTasksTo, enabled, onBlocked, justDraggedRef, probeRootRef }: UseTableRowDragOptions) {
   const [candidate, setCandidate] = useState<TableRowDragCandidate | null>(null);
   const [dragState, setDragState] = useState<TableRowDragState | null>(null);
@@ -110,6 +129,23 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
   // bereikbaar is en niet meelift op de cleanup van de sleep-effect (die loopt al bij elke
   // dragState-wijziging, dus óók direct ná de drop — dan mogen de listeners juist blijven staan).
   const justDraggedClearRef = useRef<(() => void) | null>(null);
+  const selectionLockRef = useRef<(() => void) | null>(null);
+  const blockedDragReleaseRef = useRef<(() => void) | null>(null);
+
+  const releaseSelectionLock = useCallback((): void => {
+    selectionLockRef.current?.();
+    selectionLockRef.current = null;
+  }, []);
+
+  const releaseBlockedDrag = useCallback((): void => {
+    blockedDragReleaseRef.current?.();
+    blockedDragReleaseRef.current = null;
+    releaseSelectionLock();
+  }, [releaseSelectionLock]);
+
+  const acquireSelectionLock = useCallback((): void => {
+    if (!selectionLockRef.current) selectionLockRef.current = lockRowDragSelection();
+  }, []);
 
   /** Meet de rij onder de cursor via het DOM en vertaalt hem naar rijindex + zone + droptarget.
    *  Geen rij-element onder de cursor (of een groepsrij, die het attribuut niet draagt) ⇒ null. */
@@ -159,13 +195,15 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       const dx = e.clientX - currentCandidate.startClientX;
       if (!shouldPromoteToRowDrag(dx, dy, ROW_DRAG_THRESHOLD)) return;
       setCandidate(null);
-      // Vangnet bij het promoveren tot een echte sleep: is er tóch al een tekstselectie over de
-      // rijen ontstaan (de `user-select: none` op de rijen komt pas na de render van de
-      // kandidaatfase), wis die dan — anders sleep je met een half blauwgeverfde tabel.
-      document.getSelection()?.removeAllRanges();
+      acquireSelectionLock();
       const currentOptions = optionsRef.current;
       if (!currentOptions.enabled) {
-        // Buiten pure boommodus is de structuur op slot: uitleggen en verder niets doen.
+        blockedDragReleaseRef.current?.();
+        blockedDragReleaseRef.current = listenWindowDrag({
+          onMove: clearNonEmptySelection,
+          onUp: releaseBlockedDrag,
+          onDocumentSwitch: releaseBlockedDrag,
+        });
         currentOptions.onBlocked?.();
         return;
       }
@@ -182,7 +220,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
     const handleMouseUp = () => setCandidate(null);
 
     return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onDocumentSwitch: handleMouseUp });
-  }, [candidateActive, candidateRef, optionsRef, computeHover]);
+  }, [candidateActive, candidateRef, optionsRef, computeHover, acquireSelectionLock, releaseBlockedDrag]);
 
   // Opruimen van de "net-gesleept"-vlag, met een EXTRA vangnet dat een canvas niet nodig zou
   // hebben: een canvas is één blijvend element, dus daar volgt na de mouseup altijd een click.
@@ -209,17 +247,21 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
   // vlak ná een drop komt die actie nooit — daarom hier expliciet. Bewust een APART effect met een
   // lege dependency-array: het mag alléén bij unmount lopen, niet bij elke dragState-wijziging.
   useEffect(() => () => {
+    blockedDragReleaseRef.current?.();
+    blockedDragReleaseRef.current = null;
+    releaseSelectionLock();
     const clear = justDraggedClearRef.current;
     if (!clear) return;
     window.removeEventListener('click', clear);
     window.removeEventListener('mousedown', clear);
     justDraggedClearRef.current = null;
-  }, []);
+  }, [releaseSelectionLock]);
 
   // Gepromoveerde fase: doelrij+zone continu herberekenen (GEEN mutatie) zodat de indicator het
   // actuele doel toont. mouseup is de enige plek waar `moveTaskTo` wordt aangeroepen.
   useEffect(() => {
     if (!dragActive) return;
+    acquireSelectionLock();
 
     // Eén hoverberekening per animatieframe, met de LAATSTE muispositie: per mousemove (60–120 Hz)
     // mat hij het DOM, zocht de siblings in alle rijen en zette hij state, waardoor het hele raster
@@ -251,6 +293,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragStateRef.current) return;
+      clearNonEmptySelection();
       pending = { x: e.clientX, y: e.clientY };
       if (!frame) frame = requestAnimationFrame(applyPending);
     };
@@ -308,11 +351,17 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
     return () => {
       if (frame) cancelAnimationFrame(frame);
       stopListening();
+      releaseSelectionLock();
     };
-  }, [dragActive, dragStateRef, optionsRef, computeHover, armJustDraggedClear]);
+  }, [dragActive, dragStateRef, optionsRef, computeHover, armJustDraggedClear, acquireSelectionLock, releaseSelectionLock]);
+
+  const startRowDrag = useCallback((next: TableRowDragCandidate) => {
+    releaseBlockedDrag();
+    setCandidate(next);
+  }, [releaseBlockedDrag]);
 
   return {
-    startRowDrag: setCandidate,
+    startRowDrag,
     dragState,
     active: !!candidate || !!dragState,
   };

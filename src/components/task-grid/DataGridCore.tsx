@@ -43,6 +43,7 @@ export interface DataGridCoreProps {
   scrollLeft?: number;
   overscan?: number;
   mode?: 'select' | 'edit';
+  rowDragging?: boolean;
   textDirection?: 'ltr' | 'rtl';
   getCell: (row: DataGridDataRowModel, column: DataGridColumnModel) => DataGridCellModel;
   labels: DataGridLabels;
@@ -231,6 +232,7 @@ export function DataGridCore({
   scrollLeft = 0,
   overscan,
   mode = 'select',
+  rowDragging = false,
   textDirection = 'ltr',
   getCell,
   labels,
@@ -551,6 +553,7 @@ export function DataGridCore({
         className="task-grid-core"
         dir="ltr"
         data-grid-sticky-enabled={pinned.stickyEnabled ? 'true' : 'false'}
+        data-grid-row-dragging={rowDragging ? 'true' : undefined}
         // `scrollPaddingBottom`: schuift de browser zelf een cel in beeld (focus), dan eindigt die
         // boven de eindstrook en dus boven de zwevende horizontale balk (`minimalScrollTopForRow`).
         style={{
