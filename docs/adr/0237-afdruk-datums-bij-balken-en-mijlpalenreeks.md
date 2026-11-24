@@ -21,5 +21,5 @@ dat laatste vond ik geen toets.
   suggereren. De naam staat achter de einddatum en gaat met datums aan nooit naar links (daar staat de begindatum); past
   hij rechts niet, dan wordt hij afgekapt. Past de einddatum rechts niet, dan vervalt hij en begint de naam direct
   achter de balk; past daar ook geen afgekorte naam, dan staat er geen naam (`drawBarLabelWithDates`). Zonder datums kan
-  een naam die rechts niet past naar links (`drawBarLabel`). De datums staan in de gedempte tekstkleur, één punt kleiner
-  dan de naam.
+  een naam die rechts niet past naar links (`drawBarLabel`). De datums staan in de gedempte tekstkleur op 8 px bij
+  100%, de naam op 9 px.

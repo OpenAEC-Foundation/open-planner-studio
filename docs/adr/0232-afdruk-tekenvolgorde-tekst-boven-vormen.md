@@ -15,9 +15,10 @@ vlak ligt in de PDF onder de tekst.
   verticaal door de rij van een derde, en de tekst gaat dan boven de lijn. De status- of voortgangslijn komt als
   laatste, omdat ze een referentielijn is die balken, relatielijnen en labels niet mogen bedekken. Op het papier en in
   het raster ligt ze daardoor ook boven de labels, in de vector-PDF eronder (knownbug 2006).
-- Rechts van de balk begint een label (met datums bij de balken: de einddatum) op `BAR_LABEL_GAP` (`DEP_STUB` + 8),
-  voorbij de knik van de eigen uitgaande relatie. Die afstand schaalt niet met de lettergrootte, want de knik schaalt
-  ook niet (ADR 0231).
+- Een label rechts begint `BAR_LABEL_GAP` (`DEP_STUB` + 8) voorbij de rechterrand die de aanroeper meegeeft: met datums
+  bij de balken het balkeinde (ADR 0237), zonder datums kan dat het einde van een zichtbare spelingsband zijn. Die
+  afstand houdt het label voorbij de knik van een uitgaande relatie. Die afstand schaalt niet met de lettergrootte,
+  want de knik schaalt ook niet (ADR 0231).
 - Een label heeft geen halo (een vlak in de papierkleur erachter). Boven de lijnen staat het al door de volgorde, en een
   halo stanst per label een wit blok uit de weekend- en feestdagarcering en de dagrasterlijnen.
 - Het label bij de vandaaglijn en bij de status- of voortgangslijn staat in de onderste regel van de tijdschaalkop en

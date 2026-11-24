@@ -4,11 +4,10 @@ De Gantt-afdruk heeft een instelling Lettergrootte (`PrintOptions.reportFontScal
 `REPORT_FONT_SCALES`). Bij *Passend maken* zou dezelfde factor voor alle bronmaten op papier niets veranderen: de
 pagineerder zet de bronbreedte op de paginabreedte (`computeTileLayout` in `tileLayout.ts`), dus een bron die k keer zo
 groot is, komt k keer zo klein op papier. Daarom schaalt `makeMetrics` alleen de tekstzones: de lettergroottes, de
-rijhoogte, de projectkop, de tijdschaalkop, de voet en de kolombreedtes van de tabel. De breedte per dag schaalt niet
-met de factor. Bij *Vaste schaal* blijft ze `customZoom`; bij *Passend maken* volgt ze uit de ruimte naast de tabel, en
-die wordt kleiner als de tabel groeit (ADR 0234). Bij *Vaste schaal*, en bij *Passend maken* zolang de tabel minstens 1
-px van de paginabreedte overlaat, staat de bron op 0,75 pt per px (ADR 0234): dan worden tekst en tabel op papier groter
-en passen er minder rijen op een blad.
+rijhoogte, de projectkop, de tijdschaalkop, de voet en de kolombreedtes van de tabel. De breedte per dag
+vermenigvuldigt `makeMetrics` niet met de factor. Waar de breedte per dag vandaan komt, op welke schaal de bron op
+papier komt en welke kolommen de tabel houdt, staat in ADR 0234 en 0233; in het resourcediagram kan een grotere letter
+de tabel daardoor ook smaller maken (de toewijzingskolommen vallen weg).
 
 ## Gevolgen
 

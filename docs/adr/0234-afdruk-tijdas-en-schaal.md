@@ -9,19 +9,22 @@ die vragen niet op een tweede plek. `check-print-screen-parity.ts` toetst de ged
 de bron, dat de afdruk de kalender gebruikt; `check-print-bar-moments.ts` legt balken, fasebalk, relatiepijl en mijlpaal
 van het scherm en de afdruk naast elkaar.
 
-De twee schaalstanden. Bij *Vaste schaal* (pagineermodus `actual`) zet de pagineerder de bron altijd op 0,75 pt per
-logische px en kiest de planner de breedte per dag (`customZoom`). Bij *Passend maken* (`fit-width`) geeft
-`renderReport` de tijdas de ruimte naast de tabel: over N paginabreedtes (`timelineColumns`) `N ×
-(printableWidthLogicalPx − tableWidth)` px, minstens N px, en de breedte per dag volgt daaruit. Zolang er naast de tabel
-minstens 1 px overblijft, komt de pagineerder daarmee op dezelfde 0,75 uit en heeft de tabel op elk papierformaat
-dezelfde maat als bij *Vaste schaal*; alleen de tijdas krijgt meer of minder pixels per dag. Laat de tabel minder dan 1
-px over (een grote lettergrootte, een brede naamkolom, klein of staand papier), dan krijgt de tijdas die minimale
-breedte en verkleint de pagineerder de hele bron, tabel inbegrepen. De schaal van beide standen staat in
-`computeTileLayout` (`tileLayout.ts`). Een vaste ondergrens voor de breedte per dag zou bij *Passend maken* een
-meerjarenplanning ook te breed maken, met dezelfde verkleining. `check-print-report.ts` (sectie 5) toetst met een
-planning van vijf jaar en de standaardtabel dat *Passend maken* op A4 tot en met A1 (ook over vier paginabreedtes) op
-0,75 blijft met een tabel van dezelfde maat, en dat *Vaste schaal* dezelfde maat geeft; het geval met een te brede tabel
-toetst ze niet.
+De twee schaalstanden. Bij *Vaste schaal* (pagineermodus `actual`) zet de pagineerder de bron op 0,75 pt per logische
+px en kiest de planner de breedte per dag (`customZoom`). Bij *Passend maken* (`fit-width`) geeft `renderReport` de
+tijdas de ruimte naast de tabel (`availableChartWidth`: over N paginabreedtes uit `timelineColumns` `N ×
+(printableWidthLogicalPx − tableWidth)` px, minstens N px), en de breedte per dag is die ruimte, min de stroken voor de
+datums bij de balken als die getekend worden (ADR 0237), gedeeld door het aantal dagen op de as. Blijft er naast de
+tabel minstens 1 px over, dan komt de pagineerder bij *Passend maken* op dezelfde 0,75 pt per px uit als bij *Vaste
+schaal*; laat de tabel minder over (een grote lettergrootte, een brede naamkolom, klein of staand papier), dan krijgt
+de tijdas die minimale breedte en verkleint de pagineerder de hele bron, tabel inbegrepen. De 0,75 gaat over de schaal,
+niet over de breedte van de tabel: in het resourcediagram vallen de twee toewijzingskolommen weg als de tabel te weinig
+voor de tijdas overlaat (ADR 0233), dus dezelfde instellingen kunnen daar op een ander papier of bij een andere
+lettergrootte een andere tabelbreedte geven. De schaal van beide standen staat in `computeTileLayout`
+(`tileLayout.ts`). Een vaste ondergrens voor de breedte per dag zou bij *Passend maken* een meerjarenplanning ook te
+breed maken, met dezelfde verkleining. `check-print-report.ts` (sectie 5) toetst met een planning van vijf jaar en de
+standaardtabel dat *Passend maken* op A4 tot en met A1 (ook over vier paginabreedtes) op 0,75 blijft met een tabel van
+dezelfde maat, en dat *Vaste schaal* dezelfde maat geeft; het geval met een te brede tabel en het geval waarin kolommen
+wegvallen toetst die sectie niet.
 
 ## Gevolgen
 
@@ -34,7 +37,7 @@ toetst ze niet.
   vooraan en twee weken achteraan. Met een tijdvak is de as precies het tijdvak (regel `reports`).
 - Op de werkdagas vervangen weekbanden de weekendarcering, zoals op het scherm (`check-print-compress-week-banding.ts`).
   Een tijdvak zonder werkdag valt op de werkdagas voor dat tijdvak terug op de kalenderas, want anders zou de as naar de
-  eerste werkdag buiten het tijdvak schuiven (`check-print-report.ts`, het weekendvenster).
+  eerste werkdag buiten het tijdvak schuiven.
 - De status- en de voortgangslijn tekenen met het streepjespatroon en de kleur van de vandaaglijn: op papier zijn het
   dezelfde soort referentielijn. De voortgangslijn is naar het voorbeeld van `GanttRenderer.drawProgressLine`: alleen
   een bladtaak die geen mijlpaal is stulpt uit naar haar voortgang, en de vergelijking met de statusdatum gaat per dag,
@@ -43,10 +46,10 @@ toetst ze niet.
   speling meer te bewaken.
 - Van een onderbroken balk komen de buitenranden uit `taskBarSpan` en liggen de grenzen ertussen op hun moment, zodat
   ook een pauze korter dan een dag te zien is.
-- Een balk in kleurvakken (`computeBarColors`, één keer per taak) krijgt in elk werkblok van een onderbroken taak
-  dezelfde kleurverhouding: kleurkeuze en onderbreking staan los van elkaar. De voortgangsgrens loopt over de hele taak.
-  `check-split-bar-render.ts` (deel B) bewaakt de werkblokken en die voortgangsgrens, niet de kleurverhouding per
-  werkblok.
+- Een taakbalk in kleurvakken (`computeBarColors`, één keer per taak) verdeelt in elk werkblok van een onderbroken taak
+  dezelfde kleurgewichten, per werkblok op pixels afgerond: kleurkeuze en onderbreking staan los van elkaar. De
+  voortgangsgrens loopt over de hele taak. `check-split-bar-render.ts` (deel B) bewaakt de werkblokken en die
+  voortgangsgrens, niet de kleurverdeling per werkblok.
 - Met een tijdvak verdeelt de afdruk de kleurvakken per werkblok over de ongeknipte tijdas en knipt ze daarna op het
   chartgebied, zodat een afgekapte balk de kleuren van zijn zichtbare stuk toont (een grens daarvan: knownbug 1862). Een
   fase die het tijdvak overschrijdt, krijgt aan de afgekapte kant geen haakje, want dat zou daar een begin of einde
