@@ -850,7 +850,12 @@ if (base) {
       const pr = await outcomeOf(d, o.ifcSource!), main = await outcomeOf(d, mainRoute(o.ifcSource!));
       ok(`regel 1, ${label}: de uitkomst van main, met de melding van main (${pr.verdict.slice(0, 200)} | main: ${main.verdict.slice(0, 200)})`,
         pr.verdict === main.verdict && (pr.verdict === 'schreef' ? sameBytes(pr.prepared?.bytes, main.prepared?.bytes) : !pr.verdict.startsWith('fout')));
-      ok(`regel 1, ${label}: main weigert, dus er komt niets op schijf (${main.verdict.slice(0, 120)})`, main.verdict !== 'schreef' && !main.verdict.startsWith('fout'));
+      if (label === 'de taak wissen') {
+        ok(`regel 1, ${label}: main schrijft, en de markeringen van de taak gaan met haar weg, zoals op main`,
+          main.verdict === 'schreef' && !text(main.prepared!.bytes).includes('vendorW') && text(main.prepared!.bytes).includes('vendorV'));
+      } else {
+        ok(`regel 1, ${label}: main weigert, dus er komt niets op schijf (${main.verdict.slice(0, 120)})`, main.verdict !== 'schreef' && !main.verdict.startsWith('fout'));
+      }
     }
     const keeping: readonly [string, Step, boolean][] = [
       ['kosten', (d, o) => storeEdit(d, st => st.setAssignmentCost(costOf(d, o).id, 75)), true],
@@ -930,7 +935,8 @@ if (base) {
           const recovered = await readRecoveryDocument(doc, new Map(), true);
           ok('vaste reeks: herstel via de productie-ingang las de bron via de handle', recovered.sourceRestored === true && !!recovered.ifcSource?.foreign);
           if (recovered.ifcSource) {
-            const { store, buildWriteIFCInput } = await storeWith(recovered as unknown as WriteIFCInput);
+            const { fileHandle: _handle, ...withoutHandle } = recovered;
+            const { store, buildWriteIFCInput } = await storeWith(withoutHandle as unknown as WriteIFCInput);
             const restored = buildWriteIFCInput(store.getState(), 'merge') as unknown as Domain;
             for (const [label, edit] of [
               ['alleen de projectbeschrijving', (d: Domain) => { d.project.description = `${d.project.description} (na herstel)`; return d; }],
