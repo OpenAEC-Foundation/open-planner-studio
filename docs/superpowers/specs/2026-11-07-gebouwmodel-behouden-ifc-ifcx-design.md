@@ -926,11 +926,11 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     fase 0). Daarboven de terugval `te-groot` (§4.9 punt 6). De doelscan, het crashherstel en headless gebruiken alleen
     deze grens.
   Waarom twee: opslaan van een model van 157 MB piekte in de desktopapp op Linux na #1111 op 3,44 / 3,54 / 3,69 GB over
-  drie opslagen, bij een maat van 4 GB (meting van 21 november 2026 op main `2d585a295`, knownbug 1936); de eigenaar wil
-  een model tot 150 MB. Eén
+  drie opslagen, bij een maat van 4 GB (meting van 21 november 2026 op main `2d585a295`, knownbug 1936); de eigenaar wilde
+  op 21 november een model tot 150 MB, en sinds 24 november daarboven een waarschuwing in plaats van een weigering. Eén
   verlaagde technische grens schoof ook de terugval voor een planning zonder model, het herstel en de doelscan naar
   150 MiB, en daar verloor de app wat main bewaart (review van #1127, ronde 1 tot 3). De uitvoer van opslaan heeft geen
-  grens (knownbug 2043).
+  grens; een bestand dat door opslaan boven de drempel komt, opent daarna met de waarschuwing.
 
 ### 4.14 Herstel en een ontbrekende bron
 
