@@ -770,11 +770,11 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
     const lag = rel < 0 ? -1 : index.refAt(rel, 6);
     return lag < 0 ? undefined : index.argTokens(lag);
   };
-  const lagIs = (value: string) => (out: string) => {
+  const lagTokensAre = (...want: string[]) => (out: string) => {
     const got = JSON.stringify(lagTokens(out));
-    const want = JSON.stringify(["'Lag'", '.PREDICTED.', '$', value, '.WORKTIME.']);
-    return got === want ? undefined : `lag ${got}, verwacht ${want}`;
+    return got === JSON.stringify(want) ? undefined : `lag ${got}, verwacht ${JSON.stringify(want)}`;
   };
+  const lagIs = (value: string) => lagTokensAre("'Lag'", '.PREDICTED.', '$', value, '.WORKTIME.');
   const describeProject = (d: Domain) => { d.project.description = `${d.project.description} (lagproef)`; };
   await proof('oude lagvorm', 'een andere bewerking: de lag op de plek van zijn slotnaam, met dezelfde waarde', src, 'schrijft',
     describeProject, lagIs("IFCDURATION('P3D')"));
@@ -787,6 +787,28 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
     if (sequence.lagMinutes !== undefined) sequence.lagMinutes = (sequence.lagMinutes / 3) * 5;
     else sequence.lagDays = 5;
   }, lagIs("IFCDURATION('P5D')"));
+
+  const precise = "'P0Y0M0.10000000000000001D'";
+  await proof('oude lagvorm', 'extra precisie die de writer niet exact schrijft, een taak hernoemd: de lag blijft zoals in de bron',
+    villa.replace(schemaLag, `#178=IFCLAGTIME('Lag',.PREDICTED.,$,.WORKTIME.,${precise});`), 'schrijft', renameOther(''),
+    lagTokensAre("'Lag'", '.PREDICTED.', '$', '.WORKTIME.', precise));
+
+  const withArgs = (src: string, id: number, change: (args: string[]) => string[]) => {
+    const line = new RegExp(`^#${id}=(IFC[A-Z0-9_]+)\\((.*)\\);$`, 'm').exec(src);
+    if (!line) throw new Error(`geen #${id}`);
+    return src.replace(line[0], `#${id}=${line[1]}(${change(splitArgs(line[2])).join(',')});`);
+  };
+  const argCount = (id: string, want: number) => (out: string) => {
+    const index = scanStep(latin1(out));
+    const got = index.argTokens(index.chunkOf(id))?.length;
+    return got === want ? undefined : `#${id} heeft ${got} argumenten`;
+  };
+  await proof('afwijkend aantal', 'een werkplan met 13 argumenten, een taak hernoemd', withArgs(villa, 39, a => a.slice(0, -1)), 'schrijft',
+    renameOther(''), argCount('39', 14));
+  await proof('afwijkend aantal', 'een werkschema met 13 argumenten, een taak hernoemd', withArgs(villa, 40, a => a.slice(0, -1)), 'schrijft',
+    renameOther(''), argCount('40', 14));
+  await proof('afwijkend aantal', 'een kalender met 10 argumenten, een taak hernoemd', withArgs(villa, 35, a => [...a, '$']), 'schrijft',
+    renameOther(''), argCount('35', 9));
 
   const calendar = /#35=IFCWORKCALENDAR\(([^;]*)\);/.exec(villa);
   ok('kalender: de villa heeft de projectkalender als #35', calendar !== null);

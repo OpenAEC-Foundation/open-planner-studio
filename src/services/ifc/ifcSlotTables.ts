@@ -81,10 +81,12 @@ export function slotTableOf(entity: string, args: readonly string[]): IfcSlotTab
 const inSchemaPlaces = (table: IfcSlotTable, positions: SlotPositions<string>) =>
   table.slots.every((slot, index) => positions[slot.key] === index);
 
-export function schemaArgsOf(table: IfcSlotTable, args: readonly string[]): number[] | undefined {
+export function knownLayout(table: IfcSlotTable, args: readonly string[]): boolean {
+  return args.length === table.slots.length || !inSchemaPlaces(table, table.positions(args));
+}
+
+export function schemaArgsOf(table: IfcSlotTable, args: readonly string[]): number[] {
   const positions = table.positions(args);
-  const schemaPlaces = inSchemaPlaces(table, positions);
-  if (schemaPlaces && args.length !== table.slots.length) return undefined;
   const schemaArg = args.map(() => ABSENT_SLOT);
   table.slots.forEach((slot, index) => {
     const at = positions[slot.key];

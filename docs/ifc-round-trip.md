@@ -66,12 +66,21 @@ argumenten (`taskSlots`, `workControlSlots`, `workCalendarSlots`, `resourceSlots
 in een lay-out ontbreekt, staat daar op `-1`, ook `PredefinedType` van een werkplan of werkschema na `MergeProjects`.
 Per bronregel geeft `slotTableOf` precies één tabel: een werkschema is de baselinetabel als `isBaselineWorkControl`
 (`ifcWorkControlSlots.ts`, dezelfde herkenning als de lezer en de indeling) ja zegt, anders de livetabel.
-`schemaArgsOf` geeft per bronargument de plek in het schema, of niets bij een aantal argumenten dat geen bekende
-lay-out is. De verliescontrole van de merge (`alignment` in `foreign/lossCheck.ts`) gebruikt alleen dat, dus ook de
-oude `IfcLagTime` met verwisselde argumenten vergelijkt zij op slotnaam: de oude tekstduur tegen de `IFCDURATION`
-van de writer, beide als dagen met teken (de oude vorm kent alleen dagvormen, `lag-oud` in `foreign/durationForms.ts`),
-en zij zet die oude vorm niet terug. Een oude vorm die niet op die lijst staat, weigert de duurcontrole al vóór het
-schrijven (`duur-deels-gelezen`).
+`schemaArgsOf` geeft per bronargument de plek in het schema volgens de plekken die de lay-out van de regel kiest;
+`knownLayout` zegt of dat aantal argumenten een bekende lay-out is (het aantal van het schema, of een oude vorm die de
+plekkiezer herkent: een werkplan of werkschema met 15 of meer argumenten, of 14 met tekst op `PredefinedType`, een
+kalender met 8 of minder, of 9 met een lijst op `Identification`, een taak met 12, een resource met 9, de oude
+`IfcLagTime`). De verliescontrole van de merge (`alignment` in `foreign/lossCheck.ts`) gebruikt die plekken. Een
+werkplan, werkschema of kalender vergelijkt zij bij elk aantal argumenten op die plekken (13 en 10 ook, zoals vóór het
+register); een ander type met een onbekend aantal geeft `aantal`. De bronkaart neemt alleen regels in de lay-out van
+het schema op (`inSchemaLayout`).
+
+De oude `IfcLagTime` met verwisselde argumenten vergelijkt zij op slotnaam als de writer de waarde exact zo schrijft:
+de oude tekstduur en de `IFCDURATION` van de writer als dagen met teken (de oude vorm kent alleen dagvormen, `lag-oud`
+in `foreign/durationForms.ts`), en hetzelfde type duur. Dan komt de lag in de vorm van het schema. Schrijft de writer
+de waarde niet exact (`'P0Y0M0.10000000000000001D'` wordt `P0.1D`), dan vergelijkt zij op positie, zoals vóór het
+register, en zet (b) het brontoken terug zolang de planner de lag niet wijzigde: de regel blijft zoals in de bron. Een
+oude vorm die niet op de lijst staat, weigert de duurcontrole al vóór het schrijven (`duur-deels-gelezen`).
 
 Elk slot heeft een **soort** (`ifcSlotSoort.ts`):
 

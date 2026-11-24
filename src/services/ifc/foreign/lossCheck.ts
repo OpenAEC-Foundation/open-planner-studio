@@ -105,7 +105,7 @@ import { PER_TASK_PSET_BY_NAME, PROP, PSET, asciiJson, ifcJson } from '../ifcPse
 import { WORK_CALENDAR_ARITY, workCalendarSlots, workControlSlots } from '../ifcWorkControlSlots';
 import { lagValueSlot } from '../ifcLagTimeSlots';
 import { LAG_TIME_SLOT } from '../ifcSequenceSlots';
-import { schemaArgsOf, slotTableOf } from '../ifcSlotTables';
+import { knownLayout, schemaArgsOf, slotTableOf } from '../ifcSlotTables';
 import { decodeStepText, stepTextIsValid } from '../stepText';
 import { hasOwnOrigin, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { durationForm, type DurationSlot } from './durationForms';
@@ -323,11 +323,13 @@ function signedLagDays(text: string): string | undefined {
   return days === undefined ? undefined : `${m![1] || m![2]}${days}`;
 }
 
+const ANY_SOURCE_ARITY: ReadonlySet<string> = new Set(['IFCWORKPLAN', 'IFCWORKSCHEDULE', 'IFCWORKCALENDAR']);
+
 function alignment(type: string, src: readonly string[], outLength: number): number[] | undefined {
   const table = slotTableOf(type, src);
-  if (table) return outLength === table.slots.length ? schemaArgsOf(table, src) : undefined;
-  if (src.length === outLength) return src.map((_, k) => k);
-  return undefined;
+  if (!table) return src.length === outLength ? src.map((_, k) => k) : undefined;
+  if (outLength !== table.slots.length || !(knownLayout(table, src) || ANY_SOURCE_ARITY.has(type))) return undefined;
+  return schemaArgsOf(table, src);
 }
 
 /**
@@ -1033,10 +1035,16 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
 
   const sameOldLagValue = (s: number, a: string, b: string): boolean => {
     const source = index.tokenText(s, a);
-    const refusedBeforeWriting = durationForm(source, 'lag-oud') === undefined;
     const written = durationInner(b);
-    return refusedBeforeWriting
-      || (written !== b && signedLagDays(source) !== undefined && signedLagDays(source) === signedLagDays(outDecode(written)));
+    return durationForm(source, 'lag-oud') !== undefined && written !== b
+      && signedLagDays(source) !== undefined && signedLagDays(source) === signedLagDays(outDecode(written));
+  };
+  const lagAlignment = (s: number, a: readonly string[], b: readonly string[]): number[] | undefined => {
+    const byName = alignment('IFCLAGTIME', a, b.length);
+    if (!byName || byName.every((k2, k) => k2 === k)) return byName;
+    const exact = sameOldLagValue(s, a[byName.indexOf(LAG_TIME_SLOT.lagValue)], b[LAG_TIME_SLOT.lagValue])
+      && same(s, a[byName.indexOf(LAG_TIME_SLOT.durationType)], b[LAG_TIME_SLOT.durationType], false);
+    return exact ? byName : a.map((_, k) => k);
   };
 
   /** De werksoortkleur (#856): een definitie in `OPS_TaskTypes` zonder `color` (een bron van vóór het veld) krijgt bij
@@ -1058,7 +1066,7 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
     if (line.type !== type) { push({ chunk: s, arg: -1, source: type, out: line.type, whole: 'type' }); continue; }
     const a = index.argTokens(s) ?? [];
     const b = line.args;
-    const map = alignment(type, a, b.length);
+    const map = type === 'IFCLAGTIME' ? lagAlignment(s, a, b) : alignment(type, a, b.length);
     if (!map) { push({ chunk: s, arg: -1, source: String(a.length), out: String(b.length), whole: 'aantal' }); continue; }
     const covered = new Set<number>();
     for (let k = 0; k < a.length; k++) {
@@ -1223,8 +1231,7 @@ function planRestores(input: LossCheckInput, p0: Pairing, diffs: readonly LossDi
     // Revit heeft), krijgt geen bronwaarde: de waarden van twee stukken passen niet in één regel.
     const copy = input.cls.classes[d.chunk] !== 1 && o !== Number(index.id(d.chunk)) && holders.get(o!) === 1;
     if (d.whole || d.slotless === 'bron' || d.outArg === undefined || !line || d.ambiguous
-      || (input.cls.classes[d.chunk] !== 1 && !copy) || structural(line.type, d.outArg, line)
-      || isMovedLagSlot(line.type, d.arg, d.outArg)) continue;
+      || (input.cls.classes[d.chunk] !== 1 && !copy) || structural(line.type, d.outArg, line)) continue;
     const token = d.slotless === 'uitvoer' ? '$' : d.source;
     // Oude letterlijke codering (§4.9): alleen tekst die in beide coderingen hetzelfde leest (ASCII zonder `\`).
     if (index.literalText(d.chunk) && token.includes("'") && !/^[\x20-\x5b\x5d-\x7e]*$/.test(token)) continue;
@@ -1506,7 +1513,7 @@ function sourceScopes(input: LossCheckInput): Map<number, Set<string>> {
       // Het slot zoals de writer het schrijft (een oude lay-out: `alignment`).
       const a = index.argTokens(i) ?? [];
       const table = slotTableOf(index.type(i), a);
-      const map = table ? schemaArgsOf(table, a) : undefined;
+      const map = table ? alignment(index.type(i), a, table.slots.length) : undefined;
       for (let k = index.outStart(i); k < index.outEnd(i); k++) {
         const t = index.outTarget(k);
         const arg = index.outArg(k);

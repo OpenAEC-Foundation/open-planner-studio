@@ -1,7 +1,7 @@
 import { IFC_TO_RESOURCE_TYPE } from '@/services/ifc/ifcConstants';
 import { lagValueSlot } from '@/services/ifc/ifcLagTimeSlots';
 import { ABSENT_SLOT, SLOT_SOORTEN, type SlotSoort } from '@/services/ifc/ifcSlotSoort';
-import { IFC_SLOT_TABLES, inSchemaLayout, schemaArgsOf, slotTableOf, type IfcSlotTable } from '@/services/ifc/ifcSlotTables';
+import { IFC_SLOT_TABLES, inSchemaLayout, knownLayout, schemaArgsOf, slotTableOf, type IfcSlotTable } from '@/services/ifc/ifcSlotTables';
 import { isBaselineWorkControl } from '@/services/ifc/ifcWorkControlSlots';
 import { IFC_SCHEMA_TABLES, type IfcSchemaTable } from './ifcSchemaTable';
 
@@ -168,28 +168,43 @@ for (const type of PLANNING_ENTITY_TYPES) {
   ok(`${type}: precies één tabel zonder keuze op de argumenten`, tables.length === 1 && tables[0].appliesTo === undefined);
 }
 
-const SCHEMA_ARGS_CASES: { naam: string; vorm: string; type: string; args: string[]; want: number[] | undefined; schema: boolean }[] = [
-  { naam: 'IfcTask', vorm: 'schema', type: 'IFCTASK', args: dollars(13), want: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], schema: true },
-  { naam: 'IfcTask', vorm: 'oude OPS, 12 argumenten', type: 'IFCTASK', args: dollars(12), want: [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12], schema: false },
-  { naam: 'IfcTask', vorm: '14 argumenten, geen bekende lay-out', type: 'IFCTASK', args: dollars(14), want: undefined, schema: false },
+const SCHEMA_ARGS_CASES: { naam: string; vorm: string; type: string; args: string[]; want: number[]; known: boolean; schema: boolean }[] = [
+  { naam: 'IfcTask', vorm: 'schema', type: 'IFCTASK', args: dollars(13), want: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], known: true, schema: true },
+  { naam: 'IfcTask', vorm: 'oude OPS, 12 argumenten', type: 'IFCTASK', args: dollars(12), want: [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
+    known: true, schema: false },
+  { naam: 'IfcTask', vorm: '14 argumenten', type: 'IFCTASK', args: dollars(14), want: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, -1],
+    known: false, schema: false },
   { naam: 'IfcWorkPlan', vorm: 'oude OPS, 15 argumenten', type: 'IFCWORKPLAN', args: withAt(dollars(15), 14, '.PLANNED.'),
-    want: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1, 11, 12, 13], schema: false },
+    want: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1, 11, 12, 13], known: true, schema: false },
+  { naam: 'IfcWorkPlan', vorm: '16 argumenten, de oude OPS-plekken', type: 'IFCWORKPLAN', args: withAt(dollars(16), 14, '.PLANNED.'),
+    want: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1, 11, 12, 13, -1], known: true, schema: false },
+  { naam: 'IfcWorkPlan', vorm: '13 argumenten', type: 'IFCWORKPLAN', args: dollars(13), want: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    known: false, schema: false },
   { naam: 'IfcWorkSchedule', vorm: 'na MergeProjects', type: 'IFCWORKSCHEDULE', args: withAt(dollars(14), 13, "'2026-01-01T00:00:00'"),
-    want: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1, 11, 12], schema: false },
+    want: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1, 11, 12], known: true, schema: false },
   { naam: 'IfcWorkCalendar', vorm: 'schema, Identification op zijn plek', type: 'IFCWORKCALENDAR', args: dollars(9),
-    want: [0, 1, 2, 3, 4, 5, 6, 7, 8], schema: true },
+    want: [0, 1, 2, 3, 4, 5, 6, 7, 8], known: true, schema: true },
   { naam: 'IfcWorkCalendar', vorm: 'oude OPS, 8 argumenten', type: 'IFCWORKCALENDAR', args: dollars(8),
-    want: [0, 1, 2, 3, 4, 6, 7, 8], schema: false },
+    want: [0, 1, 2, 3, 4, 6, 7, 8], known: true, schema: false },
+  { naam: 'IfcWorkCalendar', vorm: '7 argumenten, de oude OPS-plekken', type: 'IFCWORKCALENDAR', args: dollars(7),
+    want: [0, 1, 2, 3, 4, 6, 7], known: true, schema: false },
+  { naam: 'IfcWorkCalendar', vorm: '10 argumenten', type: 'IFCWORKCALENDAR', args: dollars(10), want: [0, 1, 2, 3, 4, 5, 6, 7, 8, -1],
+    known: false, schema: false },
   { naam: 'resources', vorm: 'oude OPS, 9 argumenten', type: 'IFCLABORRESOURCE', args: dollars(9),
-    want: [0, 1, 2, 3, 4, 5, 6, 7, 10], schema: false },
-  { naam: 'IfcLagTime', vorm: 'schema', type: 'IFCLAGTIME', args: LAG_SCHEMA_ARGS, want: [0, 1, 2, 3, 4], schema: true },
-  { naam: 'IfcLagTime', vorm: 'oude OPS, verwisseld', type: 'IFCLAGTIME', args: LAG_OLD_OPS_ARGS, want: [0, 1, 2, 4, 3], schema: false },
-  { naam: 'IfcRelAssignsToProcess', vorm: 'schema', type: 'IFCRELASSIGNSTOPROCESS', args: dollars(8), want: [0, 1, 2, 3, 4, 5, 6, 7], schema: true },
-  { naam: 'IfcRelAssignsToProcess', vorm: '7 argumenten', type: 'IFCRELASSIGNSTOPROCESS', args: dollars(7), want: undefined, schema: false },
+    want: [0, 1, 2, 3, 4, 5, 6, 7, 10], known: true, schema: false },
+  { naam: 'resources', vorm: '10 argumenten', type: 'IFCLABORRESOURCE', args: dollars(10), want: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    known: false, schema: false },
+  { naam: 'IfcLagTime', vorm: 'schema', type: 'IFCLAGTIME', args: LAG_SCHEMA_ARGS, want: [0, 1, 2, 3, 4], known: true, schema: true },
+  { naam: 'IfcLagTime', vorm: 'oude OPS, verwisseld', type: 'IFCLAGTIME', args: LAG_OLD_OPS_ARGS, want: [0, 1, 2, 4, 3], known: true, schema: false },
+  { naam: 'IfcRelAssignsToProcess', vorm: 'schema', type: 'IFCRELASSIGNSTOPROCESS', args: dollars(8), want: [0, 1, 2, 3, 4, 5, 6, 7],
+    known: true, schema: true },
+  { naam: 'IfcRelAssignsToProcess', vorm: '7 argumenten', type: 'IFCRELASSIGNSTOPROCESS', args: dollars(7), want: [0, 1, 2, 3, 4, 5, 6],
+    known: false, schema: false },
 ];
 for (const c of SCHEMA_ARGS_CASES) {
   const table = slotTableOf(c.type, c.args)!;
   eq(`${c.naam} (${c.vorm}): de plek in het schema per bronargument`, schemaArgsOf(table, c.args), c.want);
+  eq(`${c.naam} (${c.vorm}): een bekende lay-out`, knownLayout(table, c.args), c.known);
   eq(`${c.naam} (${c.vorm}): in de lay-out van het schema`, inSchemaLayout(table, c.args), c.schema);
 }
 
