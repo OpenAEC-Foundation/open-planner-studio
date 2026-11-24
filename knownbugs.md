@@ -4251,15 +4251,6 @@ en noem het in je rapport of PR-tekst.
      latere openactie voor hetzelfde doel een verschil meldde. Dat raakt alle zes openroutes, dus een eigen PR. — B (code
      gelezen, niet nagespeeld)
 
-2255. **Haperende proef, buiten #1121: `check-ifc-document-save.ts` "stap 8, fixronde 5: ingetrokken schrijftoestemming
-     bij de beurt geeft de melding van main; daarna één versie (flag aan)" faalde één keer in de tijdzone
-     `Pacific/Auckland`.** De wachtvoorwaarde "de tik met ingetrokken toestemming" (`turnUntil`, hooguit 2000
-     `setImmediate`-rondes) liep af; de tweede poging op dezelfde commit was groen in alle tijdzones. Het blok en de
-     opslagcontroller zijn gelijk aan main; een reproduceerbare fout op main is niet vastgesteld (Sol, ronde 11 van
-     #1121). [Rode poging](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/45341081050/job/138264617560)
-     · [Groene poging](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/45341081050/job/138273222201)
-     — S
-
 2205. **VERVOLG (#1121): de beschrijving van `planner_import_schedule` noemt de route "naar het open tabblad" ook als de
      featureflag uit staat.** De toolbeschrijving is één vaste tekst in `src/services/mcp/tools/fileTools.ts`; ze zegt
      dat het werkt "with the experimental setting … on", maar een client met de flag uit leest dezelfde tekst. Het
