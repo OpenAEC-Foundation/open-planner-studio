@@ -572,6 +572,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # #804 F3-1: opslaan als IFCX tegen opslaan als IFC op dezelfde 10.000 taken, in CPU-tijd en in één proces (besluit van
+  # de technisch eigenaar, 24 november 2026). Een meting, geen tijdzonetest: één keer, buiten de matrix.
+  IFCXMETING="$DIR/.ifcx-meting.mjs"
+  if bundle_check "$DIR/check-ifcx-meting.ts" "$IFCXMETING"; then
+    TZ=Europe/Amsterdam node "$IFCXMETING" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # #804, knownbug 1936: de telling op het verschil tegen de volledige telling, op ruim 3000 gemuteerde uitvoeren. Rekent
   # niet met datums: één keer, buiten de matrix, met dezelfde vaste tijdzone als de andere checks van #804 hierboven.
   IFCFOREIGNTELLINGVERSCHIL="$DIR/.ifc-foreign-telling-verschil.mjs"
