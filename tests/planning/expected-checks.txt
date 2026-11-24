@@ -354,6 +354,7 @@ check-recorded-times-formats.ts matrix
 check-recovery-content.ts matrix
 check-recovery-delta.ts matrix
 check-recovery-gedeelde-globalids.ts matrix
+check-recovery-identiteit-reeksen.ts los
 check-recovery-ifc-source.ts matrix
 check-recovery-integrity.ts matrix
 check-recovery-isolation.ts matrix

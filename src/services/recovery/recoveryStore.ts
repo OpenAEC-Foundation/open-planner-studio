@@ -1,6 +1,6 @@
 import { cleanupRecoverySourceCopies, sourceCopyReferenceKey, writeRecoverySourceCopy, type RecoverySourceCopy } from './recoverySourceCopies';
 import { ifcSourceMetaFields, type RecoveryIfcSource } from './recoveryIfcSource';
-import { snapshotIdentityFields, type RecoveryIdentityRow } from './recoveryIdentity';
+import { snapshotIdentityFields, type RecoverySnapshotIdentities } from './recoveryIdentity';
 import { isTauri } from '@/utils/platform';
 import { IndexedDbUpgradeBlockedError, openDbStores } from '@/utils/idb';
 import {
@@ -24,7 +24,7 @@ export interface RecoveryDocContent {
   siteFileVersion?: string | null;
   foreignSource?: ForeignSourceTarget | null;
   ifcSource?: RecoveryIfcSource;
-  snapshotIdentities?: readonly RecoveryIdentityRow[];
+  snapshotIdentities?: RecoverySnapshotIdentities;
 }
 
 export function recoverySiteMeta(record: object | null | undefined): {
@@ -57,7 +57,7 @@ export interface RecoveryDocMetadata {
   siteFileVersion?: string | null;
   foreignSource?: ForeignSourceTarget | null;
   ifcSource?: RecoveryIfcSource;
-  snapshotIdentities?: readonly RecoveryIdentityRow[];
+  snapshotIdentities?: RecoverySnapshotIdentities;
 }
 
 export type RecoveryArchiveSupplier = () => Uint8Array;

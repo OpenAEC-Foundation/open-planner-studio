@@ -24,7 +24,7 @@ export async function runRecoveryTick(
   tracker: RecoveryDeltaTracker,
   activeDocumentId: string | null,
   documents: readonly RecoverySourceDocument[],
-  serialize: (source: IFCSaveSource) => Promise<string | RecoverySnapshot> = async source => writeRecoverySnapshot(recoverySnapshotInput(source)),
+  serialize: (source: IFCSaveSource, identities: boolean) => Promise<string | RecoverySnapshot> = async (source, identities) => writeRecoverySnapshot(recoverySnapshotInput(source, identities)),
   enabled: () => boolean = () => true,
   onSourceCopyFailure?: (documentId: string) => void,
 ): Promise<boolean> {

@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, existsSync, readdirSync, cpSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, readdirSync, cpSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createHash } from 'node:crypto';
+import { join } from 'node:path';
 import { loadStore } from './ifcAppRoute';
 import { installDeterminism } from './ifcPariteitKern';
-import { installNodeFileIpc } from './nodeFileIpc';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
-import { mergeProblems, tryMerge } from './ifcMergeKern';
-import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
-import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
+import { mergeProblems } from './ifcMergeKern';
+import {
+  CRANE, SCAFFOLDERS, THIRD, desktop, freshStore, hash, mergeKinds, openAt, pinMain, renameFirstTask, resourceId,
+  resourceLine, restore, root, sameIdentities, saveAs, sharedGlobalIdSource, tick, withField, withoutField,
+  installSessionStorage, recoveryDocuments, identities, type Loaded, type Store,
+} from './recoveryIdentityFixture';
+import { RecoveryDeltaTracker, persistedRecoveryState } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
 import { loadRecovery, clearRecovery } from '@/services/recovery/recoveryStore';
 import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
@@ -20,192 +21,49 @@ import { recoverySourceDocument } from '@/state/recoverySourceDocument';
 import { readRecoveryDocument } from '@/state/readRecoveryDocument';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { planningCanon } from '@/services/ifc/foreign/planningCanon';
-import { recoverySnapshotInput, writeRecoverySnapshot } from '@/services/recovery/recoverySnapshotInput';
-import { recoveryIdentityRows, type RecoveryIdentityRow } from '@/services/recovery/recoveryIdentity';
+import { recoverySnapshotInput, writeRecoverySnapshot, type RecoverySnapshotInput } from '@/services/recovery/recoverySnapshotInput';
+import { recoveryIdentityRows, withRecoveryIdentities } from '@/services/recovery/recoveryIdentity';
 import { ifcGuid128, writeIFC } from '@/services/ifc/ifcWriter';
+import { createRecoverySnapshotSerializer, type RecoveryWorker } from '@/services/recovery/recoverySnapshotSerializer';
+import type { RecoveryWorkerRequest, RecoveryWorkerResponse } from '@/services/recovery/recoverySnapshot.worker';
 
 installDeterminism();
 await loadStore();
 let failCopy = false;
-installFakeRecoveryIndexedDb({
-  onPut: store => { if (store === 'sources' && failCopy) throw new DOMException('quotum', 'QuotaExceededError'); },
+let webFault: ((store: string, value: { id: string }) => boolean) | null = null;
+const db = installFakeRecoveryIndexedDb({
+  onPut: (store, value) => {
+    if (store === 'sources' && failCopy) throw new DOMException('quotum', 'QuotaExceededError');
+    if (webFault?.(store, value)) throw new DOMException('snapshotquotum', 'QuotaExceededError');
+  },
 });
-const session = new Map<string, string>();
-Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: {
-  getItem: (k: string) => session.get(k) ?? null, setItem: (k: string, v: string) => session.set(k, v),
-  removeItem: (k: string) => session.delete(k),
-} });
+installSessionStorage();
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const dir = mkdtempSync(join(tmpdir(), 'ops-gedeelde-globalids-'));
-const hash = (data: Uint8Array) => createHash('sha256').update(data).digest('hex');
-const SCAFFOLDERS = 'Steigerbouwers', CRANE = 'Kraanmachinisten', THIRD = 'Derde ploeg';
+const envelope = <T,>(ifc: string, rows: T) => ({ sha256: hash(Buffer.from(ifc)), rows });
 
-type Store = ReturnType<Awaited<ReturnType<typeof loadStore>>['createAppStoreContext']>['store'];
-type Loaded = Awaited<ReturnType<typeof loadRecovery>>;
-function desktop(appDataDir?: string) {
-  const ipc = installNodeFileIpc(appDataDir ? { appDataDir } : {});
-  const internals = (window as unknown as { __TAURI_INTERNALS__: { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__;
-  const invoke = internals.invoke;
-  let target: string | null = null;
-  internals.invoke = async (c, a, o) => c === 'plugin:dialog|save' ? target
-    : c === 'plugin:fs|read_file' ? new Uint8Array(readFileSync((a as { path: string }).path)) : invoke(c, a, o);
-  return { ...ipc, choose: (p: string) => { target = p; } };
-}
-async function freshStore(): Promise<Store> {
-  const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
-  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
-  return store;
-}
-async function openAt(data: Uint8Array, path: string | null): Promise<Store> {
-  if (path) writeFileSync(path, data);
-  const store = await freshStore();
-  await store.getState().openOpenedFile({ name: 'bron.ifc', content: '', bytes: data, ref: path ? { kind: 'path', path } : null });
-  return store;
-}
-async function saveAs(store: Store, name: string): Promise<Uint8Array> {
-  const ipc = desktop(), target = join(dir, name); ipc.choose(target);
-  try { await store.getState().saveFileAs(); } finally { ipc.dispose(); }
-  assert(existsSync(target), `bestand geschreven: ${name} (${store.getState().ui.notifications.map(n => n.messageKey).join(', ')})`);
-  return new Uint8Array(readFileSync(target));
-}
-function pinMain(loaded: Loaded, store: Store, label: string, enabled = true) {
-  let pinned = 0;
-  for (const { id, payload } of store.getState().getOpenDocumentPayloads()) {
-    const doc = loaded.docs.find(d => d.id === id);
-    if (!doc) continue;
-    const mainSource = enabled && payload.ifcSource && !payload.ifcSource.foreign && payload.foreignSourceMark?.sourceMissing === undefined
-      ? { ...payload, foreignSourceMark: null } : payload;
-    const mark = mainSource.foreignSourceMark;
-    const mainSnapshot = writeIFC({ ...buildWriteIFCInput(mainSource, 'planOnly'), xerSourceArchiveStorage: 'recovery-reference',
-      ...(mark ? { recoveryForeignSource: { sha256: mark.sha256, byteLength: mark.byteLength } } : {}) });
-    assert.equal(doc.ifc, mainSnapshot, `${label}: de snapshot is precies die van main`);
-    pinned++;
+type WorkerScope = { onmessage: ((event: { data: RecoveryWorkerRequest }) => void) | null; postMessage: (data: RecoveryWorkerResponse) => void };
+const workerScope: WorkerScope = { onmessage: null, postMessage: () => undefined };
+Object.defineProperty(globalThis, 'self', { configurable: true, value: workerScope });
+await import('@/services/recovery/recoverySnapshot.worker');
+const workerHandler = workerScope.onmessage!;
+const workerRequests: RecoveryWorkerRequest[] = [];
+class RealHandlerWorker implements RecoveryWorker {
+  onmessage: Worker['onmessage'] = null;
+  onerror: Worker['onerror'] = null;
+  onmessageerror: Worker['onmessageerror'] = null;
+  postMessage(message: RecoveryWorkerRequest) {
+    const data = structuredClone(message);
+    workerRequests.push(data);
+    queueMicrotask(() => {
+      workerScope.postMessage = response => this.onmessage?.call(this as unknown as Worker, { data: structuredClone(response) } as MessageEvent<RecoveryWorkerResponse>);
+      workerHandler({ data });
+    });
   }
-  assert(pinned > 0, `${label}: er is een snapshot vergeleken`);
+  terminate() { }
 }
-async function tick(store: Store, label: string, enabled = true, onDesktop = true) {
-  const capture = onDesktop ? desktop() : null;
-  let docs;
-  try { docs = store.getState().getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, enabled)); }
-  finally { capture?.dispose(); }
-  await runRecoveryTick(new RecoveryDeltaTracker(), store.getState().activeDocumentId, docs, undefined, undefined, () => {});
-  const loaded = await loadRecovery();
-  pinMain(loaded, store, label, enabled);
-  return loaded;
-}
-async function restore(loaded: Loaded, enabled = true, appDataDir?: string | null): Promise<Store> {
-  const store = await freshStore();
-  const ipc = appDataDir === null ? null : desktop(appDataDir);
-  try {
-    const inputs = [];
-    for (const doc of loaded.docs) inputs.push(await readRecoveryDocument(doc, loaded.archives, enabled));
-    assert.equal(store.getState().restoreDocuments(inputs, loaded.activeDocumentId).skippedIds.length, 0);
-  } finally { ipc?.dispose(); }
-  return store;
-}
-const withoutField = (loaded: Loaded): Loaded => ({ ...loaded, docs: loaded.docs.map(({ snapshotIdentities: _rows, ...doc }) => doc) });
-const withRows = (loaded: Loaded, id: string, rows: unknown): Loaded => ({
-  ...loaded, docs: loaded.docs.map(doc => doc.id === id ? { ...doc, snapshotIdentities: rows as readonly RecoveryIdentityRow[] } : doc),
-});
-
-function resourceLine(data: Uint8Array, name: string) {
-  const index = scanForeignStep(data);
-  for (let c = 0; c < index.count; c++) {
-    if (!index.isEntity(c) || !index.type(c).endsWith('RESOURCE')) continue;
-    if (index.argTokens(c)![2] === `'${name}'`) return { stepId: index.id(c), type: index.type(c), guid: index.globalId(c) };
-  }
-  return null;
-}
-const byText = (a: unknown, b: unknown) => JSON.stringify(a) < JSON.stringify(b) ? -1 : 1;
-function identities(store: Store, withSource = true) {
-  const s = store.getState();
-  const live = new Map<string, ReadonlySet<string>>([
-    ['task', new Set(s.tasks.map(t => t.id))], ['res', new Set(s.resources.map(r => r.id))],
-    ['cal', new Set([s.calendar.id, ...s.calendars.map(c => c.id)])], ['seq', new Set(s.sequences.map(q => q.id))],
-  ]);
-  const isLive = (seed: string) => {
-    const at = seed.indexOf(':'), ids = live.get(seed.slice(0, at));
-    return !ids || ids.has(seed.slice(at + 1));
-  };
-  return {
-    resources: s.resources.map(r => [r.id, r.name, r.calendarId ?? null]).sort(byText),
-    calendars: s.calendars.map(c => [c.id, c.name]).sort(byText),
-    sequences: s.sequences.map(q => [q.id, q.predecessorId, q.successorId]).sort(byText),
-    tasks: s.tasks.map(t => [t.id, t.name, t.calendarId ?? null, [...t.resourceIds].sort()]).sort(byText),
-    assignments: s.assignments.map(a => [a.taskId, a.resourceId]).sort(byText),
-    globalIds: Object.entries(s.ifcGlobalIds ?? {}).filter(([seed]) => isLive(seed)).sort(byText),
-    stepIds: withSource ? Object.entries(s.ifcSource?.stepIds ?? {}).sort(byText) : [],
-  };
-}
-const sameIdentities = (actual: Store, expected: Store, label: string, withSource = true) =>
-  assert.deepEqual(identities(actual, withSource), identities(expected, withSource), label);
-const resourceId = (store: Store, name: string) => store.getState().resources.find(r => r.name === name)?.id;
-const renameFirstTask = (store: Store, name: string) => {
-  const task = store.getState().tasks.find(t => !t.isMilestone && t.childIds.length === 0)!;
-  const previous = task.name;
-  store.getState().updateTask(task.id, { name });
-  return previous;
-};
-const mergeKinds = async (store: Store) => {
-  const outcome = await tryMerge(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
-  return outcome.ok ? 'ok' : outcome.kinds.join(',');
-};
-function entities(data: Uint8Array, type: string) {
-  const index = scanForeignStep(data), out: { stepId: string; type: string; guid: string; name: string }[] = [];
-  for (let c = 0; c < index.count; c++) {
-    if (index.isEntity(c) && index.type(c) === type) out.push({ stepId: index.id(c), type, guid: index.globalId(c), name: index.argTokens(c)![2] });
-  }
-  return out;
-}
-
-const model = new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
-const builder = await openAt(model, join(dir, 'bouw.ifc'));
-for (const name of [SCAFFOLDERS, CRANE, THIRD]) builder.getState().addResource({ name, type: 'LABOR', description: '', maxUnits: 1, costPerHour: 0 });
-const { id: _projectCalendar, ...calendarBody } = builder.getState().calendar; void _projectCalendar;
-builder.getState().addCalendar({ ...calendarBody, name: 'Ploeg A' });
-const crewB = builder.getState().addCalendar({ ...calendarBody, name: 'Ploeg B' });
-const craneAtBuild = resourceId(builder, CRANE)!;
-builder.getState().updateResource(craneAtBuild, { calendarId: crewB });
-const assignedTask = builder.getState().tasks.find(t => !t.isMilestone && t.childIds.length === 0 && t.resourceIds.length === 0)!;
-builder.getState().assignResource(assignedTask.id, craneAtBuild, 1);
-assert(builder.getState().assignments.some(a => a.resourceId === craneAtBuild), 'de tweede resource is toegewezen');
-const built = await saveAs(builder, 'bouw-opgeslagen.ifc');
-const builtText = Buffer.from(built).toString('latin1');
-const occurrences = (guid: string) => builtText.split(guid).length - 1;
-const scaffolders = resourceLine(built, SCAFFOLDERS)!, crane = resourceLine(built, CRANE)!, third = resourceLine(built, THIRD)!;
-const calendars = entities(built, 'IFCWORKCALENDAR'), calendarA = calendars.find(c => c.name === "'Ploeg A'")!, calendarB = calendars.find(c => c.name === "'Ploeg B'")!;
-const [sequenceA, sequenceB] = entities(built, 'IFCRELSEQUENCE').filter(e => occurrences(e.guid) === 1);
-const [taskA, taskB] = entities(built, 'IFCTASK').filter(e => occurrences(e.guid) === 1);
-const pairs = [[scaffolders, crane], [calendarA, calendarB], [sequenceA, sequenceB], [taskA, taskB]] as const;
-for (const [first, second] of pairs) assert(first && second && occurrences(first.guid) === 1, 'de bouwbron heeft van elke soort een paar');
-assert(occurrences(crane.guid) > 1, 'de tweede resource heeft een verwijzing (de toewijzing)');
-const H = ifcGuid128(`res:res-ifc-${scaffolders.guid}`);
-const index = scanForeignStep(built);
-let highest = 0, foreignApplication = '';
-for (let c = 0; c < index.count; c++) {
-  if (!index.isEntity(c)) continue;
-  highest = Math.max(highest, Number(index.id(c)));
-  if (index.type(c) === 'IFCAPPLICATION' && index.argTokens(c)![2] === "'Corpus modelleur'") foreignApplication = `#${index.id(c)}`;
-}
-let history = '';
-for (let c = 0; c < index.count && !history; c++) {
-  if (index.isEntity(c) && index.type(c) === 'IFCOWNERHISTORY' && index.argTokens(c)![1] === foreignApplication) history = `#${index.id(c)}`;
-}
-assert(history, 'de fixture heeft een owner history van een ander programma');
-const [pset, prop, rel] = [highest + 1, highest + 2, highest + 3];
-const withForeignSet = (replacements: readonly (readonly [string, string])[]) => {
-  let out = builtText;
-  for (const [from, to] of replacements) out = out.split(from).join(to);
-  return Uint8Array.from(out.replace(/ENDSEC;\r?\nEND-ISO-10303-21;/, end => [
-    `#${pset}=IFCPROPERTYSET('1VreemdePsetOpKraanAaa',${history},'Vreemd_Planning',$,(#${prop}));`,
-    `#${prop}=IFCPROPERTYSINGLEVALUE('Opmerking',$,IFCLABEL('van een ander programma'),$);`,
-    `#${rel}=IFCRELDEFINESBYPROPERTIES('2VreemdeRelOpKraanAaaa',${history},$,$,(#${crane.stepId}),#${pset});`,
-    end,
-  ].join('\n')), c => c.charCodeAt(0));
-};
-const source = withForeignSet([...pairs.map(([first, second]) => [second.guid, first.guid] as const), [third.guid, H]]);
-assert.equal(resourceLine(source, THIRD)!.guid, H, 'de derde resource draagt H = ifcGuid128("res:res-ifc-" + G)');
+const transport = createRecoverySnapshotSerializer(() => new RealHandlerWorker());
+const { model, source, scaffolders, crane, calendarA, calendarB, H, withForeignSet } = await sharedGlobalIdSource(dir);
 
 const opened = await openAt(source, join(dir, 'sessie.ifc'));
 assert(opened.getState().ifcSource?.foreign, 'de bron heeft een vreemd deel');
@@ -225,8 +83,12 @@ renameFirstTask(opened, 'Nog een bewerking'); opened.getState().undo();
 assert(opened.getState().tasks.some(t => t.name === 'Bewerkt vóór de crash'), 'Ctrl+Z zette de tweede bewerking terug');
 const sessionId = opened.getState().activeDocumentId!;
 opened.getState().newDocument();
-const crashed = await tick(opened, 'deel 1');
-const rows = crashed.docs.find(d => d.id === sessionId)!.snapshotIdentities!;
+const crashed = await tick(opened, 'deel 1', true, true, transport.serialize);
+assert.deepEqual(workerRequests.map(r => r.snapshot.identities ?? false), [true, false],
+  'door de Worker: alleen het document met een vreemd deel vraagt om een koppeling');
+const crashedField = crashed.docs.find(d => d.id === sessionId)!.snapshotIdentities!;
+const rows = crashedField.rows;
+assert.equal(crashedField.sha256, hash(Buffer.from(crashed.docs.find(d => d.id === sessionId)!.ifc)), 'de koppeling noemt de sha256 van haar eigen snapshot');
 assert.deepEqual(rows.map(([seed]) => seed.split(':')[0]).sort(), ['cal', 'cal', 'res', 'res', 'seq', 'seq', 'task', 'task'],
   'de koppeling noemt elk object uit een gedeelde groep, ook van een tabblad op de achtergrond');
 assert(!rows.some(([seed]) => seed === `res:res-ifc-${H}`), 'de derde resource deelt geen GlobalId en staat niet in de koppeling');
@@ -241,12 +103,12 @@ assert.equal(await mergeKinds(recovered), await mergeKinds(opened), 'na herstel 
 renameFirstTask(opened, original); renameFirstTask(recovered, original);
 assert.equal(planningCanon(buildWriteIFCInput(recovered.getState(), 'merge')), planningCanon(recovered.getState().ifcSource!.opened!),
   'na herstel en terugdraaien is de planning die van de bron');
-const fromSession = await saveAs(opened, 'sessie-opslag.ifc'), fromRecovery = await saveAs(recovered, 'herstel-opslag.ifc');
+const fromSession = await saveAs(opened, join(dir, 'sessie-opslag.ifc')), fromRecovery = await saveAs(recovered, join(dir, 'herstel-opslag.ifc'));
 assert.equal(hash(fromRecovery), hash(fromSession), 'herstel schrijft dezelfde bytes als de sessie');
 assert.equal(hash(fromRecovery), hash(source), 'en dat is de bron zelf');
 assert.deepEqual(mergeProblems(source, fromRecovery), []);
 assert.deepEqual(resourceLine(fromRecovery, CRANE), { ...crane, guid: scaffolders.guid }, 'de tweede staat op haar #id met haar GlobalId');
-console.log('PROEF 1 GROEN: bewerken, Ctrl+Z, tabbladwissel, crash, herstel: ids, verwijzingen, GlobalIds en bronkaart als in de sessie; de derde resource met H blijft de derde.');
+console.log('PROEF 1 GROEN: bewerken, Ctrl+Z, tabbladwissel, crash via de Worker-handler en de serializer-client, herstel: ids, verwijzingen, GlobalIds en bronkaart als in de sessie; de derde resource met H blijft de derde.');
 
 const craneRow = rows.find(row => row[0] === `res:${craneId}`)!;
 const firstRow = rows.find(row => row[0] === `res:res-ifc-${scaffolders.guid}`)!;
@@ -262,7 +124,8 @@ const broken: readonly (readonly [string, unknown, boolean, Loaded])[] = [
 ];
 for (const [label, wrong, shapeOk, base] of broken) {
   assert.equal(recoveryIdentityRows(wrong) !== null, shapeOk, `${label}: de vormtoets`);
-  const tried = await restore(withRows(base, sessionId, wrong)), main = await restore(withoutField(base));
+  const baseIfc = base.docs.find(d => d.id === sessionId)!.ifc;
+  const tried = await restore(withField(base, sessionId, envelope(baseIfc, wrong))), main = await restore(withoutField(base));
   for (const store of [tried, main]) store.getState().switchDocument(sessionId);
   sameIdentities(tried, main, `${label}: niets half toegepast, het herstel van main`);
 }
@@ -286,7 +149,7 @@ const browserLoaded = await tick(browser, 'deel 4', true, false);
 failCopy = false;
 const browserDoc = browserLoaded.docs[0];
 assert.equal(browserDoc.ifcSource, undefined, 'de mislukte bronkopie haalde de bronverwijzing weg');
-assert(browserDoc.snapshotIdentities?.length, 'de koppeling bleef staan');
+assert(browserDoc.snapshotIdentities?.rows.length, 'de koppeling bleef staan');
 const browserBack = await restore(browserLoaded, true, null), browserMain = await restore(withoutField(browserLoaded), true, null);
 sameIdentities(browserBack, browser, 'quotaweigering: ids, verwijzingen en GlobalIds als in de sessie', false);
 assert.equal(resourceId(browserMain, SCAFFOLDERS), resourceId(browserBack, SCAFFOLDERS), 'quotaweigering: de eerste houder zoals op main');
@@ -298,7 +161,7 @@ const shortSource = withForeignSet([[scaffolders.guid, 'Kort'], [crane.guid, 'Ko
 const shortOpened = await openAt(shortSource, join(dir, 'kort.ifc'));
 assert.equal(resourceId(shortOpened, SCAFFOLDERS), 'res-ifc-Kort', 'de lezer neemt de korte GlobalId aan');
 const shortLoaded = await tick(shortOpened, 'deel 5');
-assert(shortLoaded.docs[0].snapshotIdentities?.some(([seed]) => seed === 'res:res-ifc-Kort'), 'de koppeling draagt de korte GlobalId');
+assert(shortLoaded.docs[0].snapshotIdentities?.rows.some(([seed]) => seed === 'res:res-ifc-Kort'), 'de koppeling draagt de korte GlobalId');
 const shortBack = await restore(shortLoaded), shortMain = await restore(withoutField(shortLoaded));
 sameIdentities(shortBack, shortOpened, 'korte GlobalId naast een geldig kalenderpaar: alles als in de sessie');
 assert.equal(resourceId(shortMain, SCAFFOLDERS), 'res-ifc-Kort', 'main houdt de eerste houder');
@@ -352,25 +215,68 @@ for (const [n, label] of crashes.entries()) {
   try {
     await settlePendingReplaces();
     const loaded = await loadRecovery();
-    assert(loaded.docs.find(d => d.id === replacingId)!.snapshotIdentities?.length, `${label}: het manifest op schijf draagt de koppeling`);
+    assert(loaded.docs.find(d => d.id === replacingId)!.snapshotIdentities?.rows.length, `${label}: het manifest op schijf draagt de koppeling`);
     pinMain(loaded, replacing, label);
     back = await restore(loaded, true, appData);
   } finally { start.dispose(); }
   assert.equal(hash(new Uint8Array(readFileSync(replacePath))), hash(source), `${label}: op het doel staat de bron`);
   sameIdentities(back!, replacing, `${label}: na de opstartroute`);
-  const first = await saveAs(back!, `vervang-herstel-${n}.ifc`);
+  const first = await saveAs(back!, join(dir, `vervang-herstel-${n}.ifc`));
   assert.equal(hash(first), hash(source), `${label}: de opslag na herstel is de bron, met de vreemde set op de tweede`);
-  const second = await saveAs(back!, `vervang-herstel-${n}-tweede.ifc`);
+  const second = await saveAs(back!, join(dir, `vervang-herstel-${n}-tweede.ifc`));
   assert.deepEqual(resourceLine(second, CRANE), resourceLine(first, CRANE), `${label}: een tweede opslag verandert de tweede niet`);
 }
 console.log('PROEF 6 GROEN: Ctrl+S op het eigen pad, crash na stap 0, na het plaatsen en vóór het opruimen; de opstartroute (afhandelen, laden, lezen) houdt de identiteit.');
 await clearRecovery();
 
+function enumerations(snapshot: RecoverySnapshotInput) {
+  assert.equal(snapshot.archive, undefined, 'de telling gebruikt een document zonder XER-archief');
+  const counts = { lists: 0, keys: 0 };
+  const watch = <T extends object>(list: T): T => new Proxy(list, {
+    get: (target, key, receiver) => { if (key === 'length') counts.lists++; return Reflect.get(target, key, receiver); },
+  });
+  const { input } = snapshot;
+  const watched = { ...input, tasks: watch(input.tasks), resources: watch(input.resources), sequences: watch(input.sequences),
+    ...(input.resourceCalendars ? { resourceCalendars: watch(input.resourceCalendars) } : {}),
+    ...(input.ifcGlobalIds ? { ifcGlobalIds: new Proxy(input.ifcGlobalIds, { ownKeys: target => { counts.keys++; return Reflect.ownKeys(target); } }) } : {}) };
+  return { counts, watched };
+}
+function mainWriterCounts(snapshot: RecoverySnapshotInput) {
+  const { counts, watched } = enumerations(snapshot);
+  writeIFC({ ...watched, xerSourceArchive: undefined });
+  return { ...counts };
+}
+function workerCounts(snapshot: RecoverySnapshotInput) {
+  const { counts, watched } = enumerations(snapshot);
+  let response: RecoveryWorkerResponse | undefined;
+  workerScope.postMessage = data => { response = data; };
+  workerHandler({ data: { id: -1, snapshot: { ...snapshot, input: watched } } });
+  assert(response && !('error' in response), 'de Worker antwoordt met een snapshot');
+  return { counts: { ...counts }, identities: response.identities };
+}
+async function sameManifestAsMain(store: Store, enabled: boolean, label: string) {
+  const docs = recoveryDocuments(store, enabled, true), active = store.getState().activeDocumentId;
+  const prepared = (await new RecoveryDeltaTracker().prepareAsync(active, docs, transport.serialize))!;
+  const main = JSON.stringify(persistedRecoveryState(active, docs).documents);
+  assert.equal(JSON.stringify(prepared.documents), main, `${label}: de manifestregels zijn die van main`);
+  assert.equal(JSON.stringify(prepared.upserts.map(({ ifc: _ifc, ...metadata }) => metadata)), main, `${label}: de upserts dragen de metadata van main`);
+}
+const payloadOf = (store: Store) => store.getState().getOpenDocumentPayloads().find(d => d.id === store.getState().activeDocumentId)!.payload;
+
 const offStore = await openAt(source, join(dir, 'flag-uit.ifc'));
-const offLoaded = await tick(offStore, 'flag uit', false);
+offStore.setState(s => { s.ui.featureFlags = { ifcForeignContent: false }; });
+const requestsBefore = workerRequests.length;
+const offLoaded = await tick(offStore, 'flag uit', false, true, transport.serialize);
+assert.equal(workerRequests.length, requestsBefore + 1, 'flag uit: één verzoek aan de Worker');
+assert.equal('identities' in workerRequests.at(-1)!.snapshot, false, 'flag uit: het verzoek vraagt geen koppeling');
 assert.equal(offLoaded.docs[0].snapshotIdentities, undefined, 'flag uit: het manifest is dat van main');
+await sameManifestAsMain(offStore, false, 'flag uit');
+const offSnapshot = recoverySnapshotInput(payloadOf(offStore));
+const offCounts = workerCounts(offSnapshot);
+assert.deepEqual(offCounts.counts, mainWriterCounts(offSnapshot), 'flag uit: de Worker somt niets meer op dan de writer van main');
+assert.equal(offCounts.identities, undefined);
 const offRead = await readRecoveryDocument(offLoaded.docs[0], offLoaded.archives, false);
-const offWithRows = await readRecoveryDocument({ ...offLoaded.docs[0], snapshotIdentities: rows }, offLoaded.archives, false);
+const offWithRows = await readRecoveryDocument({ ...offLoaded.docs[0], snapshotIdentities: envelope(offLoaded.docs[0].ifc, rows) }, offLoaded.archives, false);
 assert.deepEqual([offWithRows.resources, offWithRows.ifcGlobalIds], [offRead.resources, offRead.ifcGlobalIds], 'flag uit: het herstel leest de koppeling niet');
 await clearRecovery();
 const plain = await openAt(new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc'))), join(dir, 'gewoon.ifc'));
@@ -378,18 +284,141 @@ assert.equal(plain.getState().ifcSource?.foreign, false, 'het voorbeeld heeft ge
 const [firstSeed, secondSeed] = Object.keys(plain.getState().ifcGlobalIds ?? {}).filter(seed => seed.startsWith('res:'));
 assert(firstSeed && secondSeed, 'het voorbeeld heeft twee resources met een GlobalId');
 plain.setState(s => { s.ifcGlobalIds = { ...s.ifcGlobalIds!, [secondSeed]: s.ifcGlobalIds![firstSeed] }; });
-assert.equal((await tick(plain, 'zonder vreemd deel')).docs[0].snapshotIdentities, undefined, 'zonder vreemd deel: geen nieuw veld');
+assert.equal((await tick(plain, 'zonder vreemd deel', true, true, transport.serialize)).docs[0].snapshotIdentities, undefined, 'zonder vreemd deel: geen nieuw veld');
+assert.equal('identities' in workerRequests.at(-1)!.snapshot, false, 'zonder vreemd deel: het verzoek vraagt geen koppeling');
+await sameManifestAsMain(plain, true, 'zonder vreemd deel');
 await clearRecovery();
 const own = await openAt(model, join(dir, 'zonder-gedeeld.ifc'));
-const ownDoc = (await tick(own, 'zonder gedeelde GlobalId')).docs[0];
+const ownDoc = (await tick(own, 'zonder gedeelde GlobalId', true, true, transport.serialize)).docs[0];
 assert(ownDoc.ifcSource && ownDoc.snapshotIdentities === undefined, 'zonder gedeelde GlobalId: geen nieuw veld');
+assert.equal(workerRequests.at(-1)!.snapshot.identities, true, 'zonder gedeelde GlobalId: het document is geschikt');
+await sameManifestAsMain(own, true, 'zonder gedeelde GlobalId');
+const ownSnapshot = recoverySnapshotInput(payloadOf(own), true), ownMain = mainWriterCounts(ownSnapshot), ownCounts = workerCounts(ownSnapshot);
+assert.equal(ownCounts.counts.lists, ownMain.lists, 'zonder gedeelde GlobalId: de Worker somt geen objecten op');
+assert.equal(ownCounts.counts.keys, ownMain.keys + 1, 'zonder gedeelde GlobalId: alleen één telling van de bewaarde GlobalIds');
+assert.equal(ownCounts.identities, undefined);
+const sharedSnapshot = recoverySnapshotInput(payloadOf(opened), true), sharedCounts = workerCounts(sharedSnapshot);
+assert(sharedCounts.counts.lists > mainWriterCounts(sharedSnapshot).lists && sharedCounts.identities, 'met gedeelde GlobalIds somt de Worker wel op (de telling werkt)');
 await clearRecovery();
-console.log('PROEF 7 GROEN: met de flag uit, zonder vreemd deel en zonder gedeelde GlobalId geen nieuw veld; de snapshot is overal die van main.');
+console.log('PROEF 7 GROEN: met de flag uit, zonder vreemd deel en zonder gedeelde GlobalId geen nieuw veld, manifestregels en snapshot van main; de Worker somt dan geen objecten op.');
 
-const snapshotInput = recoverySnapshotInput(opened.getState().getOpenDocumentPayloads().find(d => d.id === sessionId)!.payload);
+const snapshotInput = recoverySnapshotInput(opened.getState().getOpenDocumentPayloads().find(d => d.id === sessionId)!.payload, true);
 const direct = writeRecoverySnapshot(snapshotInput), cloned = structuredClone(writeRecoverySnapshot(structuredClone(snapshotInput)));
-assert(direct.identities?.length, 'de herstelsnapshot heeft een koppeling');
+assert(direct.identities?.rows.length, 'de herstelsnapshot heeft een koppeling');
 assert.deepEqual(cloned, direct, 'door de Worker: dezelfde tekst en dezelfde koppeling');
 assert.deepEqual(JSON.parse(JSON.stringify(direct.identities)), direct.identities, 'door JSON (desktop): dezelfde koppeling');
 assert.equal(recoveryIdentityRows([['res:__proto__', 'G', 'W'], ['res:constructor', 'G', 'V']])?.length, 2, 'zaden als __proto__ en constructor zijn gewone sleutels');
 console.log('PROEF 8 GROEN: Worker en JSON geven dezelfde koppeling; vreemde zaden zijn gewone sleutels.');
+
+async function failedRoundThenUndo(route: 'browser' | 'desktop') {
+  const appData = route === 'desktop' ? join(dir, 'appdata-sol') : null;
+  if (appData) mkdirSync(appData);
+  const ipc = appData ? desktop(appData) : null;
+  try {
+    const live = await openAt(source, appData ? join(dir, 'sol-desktop.ifc') : null);
+    const id = live.getState().activeDocumentId!;
+    live.getState().newDocument();
+    const otherId = live.getState().activeDocumentId!;
+    live.getState().switchDocument(id);
+    const tracker = new RecoveryDeltaTracker();
+    const round = () => runRecoveryTick(tracker, live.getState().activeDocumentId,
+      live.getState().getOpenDocumentPayloads().map(({ id: docId, payload }) => recoverySourceDocument(docId, payload, true)), undefined, undefined, () => {});
+    const stored = async () => (await loadRecovery()).docs.find(d => d.id === id)!;
+    const firstId = resourceId(live, SCAFFOLDERS)!, secondId = resourceId(live, CRANE)!;
+    assert.equal(await round(), true, `${route}: snapshot A`);
+    const a = await stored();
+    assert(a.snapshotIdentities?.rows.some(([seed, , written]) => seed === `res:${firstId}` && written === scaffolders.guid), `${route}: in A schrijft de eerste resource G`);
+    live.getState().removeResource(firstId);
+    const b = writeRecoverySnapshot(recoverySnapshotInput(payloadOf(live), true));
+    assert(b.identities?.rows.some(([seed, , written]) => seed === `res:${secondId}` && written === scaffolders.guid), `${route}: in B krijgt de tweede resource G`);
+    if (ipc) ipc.faults.beforeOpen = path => { if (path.endsWith('.documents.json.tmp')) throw new Error('manifestruimte'); };
+    else webFault = (store, value) => store === 'records' && value.id.includes('::doc::');
+    try { await assert.rejects(round(), /manifestruimte|snapshotquotum/, `${route}: ronde B strandt`); }
+    finally { if (ipc) ipc.faults.beforeOpen = null; webFault = null; }
+    const afterFailure = await stored();
+    assert.deepEqual([afterFailure.ifc, afterFailure.snapshotIdentities], [a.ifc, a.snapshotIdentities], `${route}: na de mislukte ronde staat A er nog`);
+    live.getState().undo();
+    assert.deepEqual([resourceId(live, SCAFFOLDERS), resourceId(live, CRANE)], [firstId, secondId], `${route}: Ctrl+Z zet de eerste resource terug`);
+    assert.equal(await round(), false, `${route}: na Ctrl+Z valt er niets te schrijven`);
+    live.getState().switchDocument(otherId);
+    assert.equal(await round(), true, `${route}: een ronde met alleen een manifestwijziging`);
+    const reused = await stored();
+    assert.equal(reused.ifc, a.ifc, `${route}: de manifestronde hergebruikt snapshot A`);
+    assert.deepEqual(reused.snapshotIdentities, a.snapshotIdentities, `${route}: de bewaarde koppeling is die van A`);
+    const back = await restore(await loadRecovery(), true, appData);
+    for (const store of [back, live]) store.getState().switchDocument(id);
+    assert.deepEqual([resourceId(back, SCAFFOLDERS), resourceId(back, CRANE)], [firstId, secondId], `${route}: beide resources houden hun id`);
+    assert.deepEqual([back.getState().ifcSource!.stepIds[`res:${firstId}`], back.getState().ifcSource!.stepIds[`res:${secondId}`]],
+      [Number(scaffolders.stepId), Number(crane.stepId)], `${route}: beide resources houden hun bron-#id`);
+    sameIdentities(back, live, `${route}: na herstel als in de sessie`);
+    live.getState().redo();
+    assert.equal(resourceId(live, SCAFFOLDERS), undefined, `${route}: Opnieuw verwijdert de eerste resource weer`);
+    assert.equal(await round(), true, `${route}: snapshot B`);
+    const committedB = await stored();
+    assert.deepEqual([committedB.ifc, committedB.snapshotIdentities], [b.ifc, b.identities], `${route}: B staat er met de koppeling van B`);
+    const backB = await restore(await loadRecovery(), true, appData);
+    backB.getState().switchDocument(id);
+    assert.deepEqual([resourceId(backB, SCAFFOLDERS), resourceId(backB, CRANE), backB.getState().ifcSource!.stepIds[`res:${secondId}`]],
+      [undefined, secondId, Number(crane.stepId)], `${route}: na herstel van B houdt de tweede resource id en bron-#id`);
+    return { a, b, id, secondId };
+  } finally {
+    ipc?.dispose();
+    await clearRecovery();
+  }
+}
+const solBrowser = await failedRoundThenUndo('browser');
+await failedRoundThenUndo('desktop');
+console.log('PROEF 9 GROEN: snapshot A, ronde B strandt, Ctrl+Z, manifestronde: browser en desktop bewaren de koppeling van A en beide resources houden id en bron-#id; Opnieuw bewaart B met de koppeling van B.');
+
+const malformedStore = await openAt(source, null);
+const malformedId = malformedStore.getState().activeDocumentId!;
+malformedStore.getState().newDocument();
+const malformedOther = malformedStore.getState().activeDocumentId!;
+const malformedInitial = await tick(malformedStore, 'deel 10', true, false);
+const intact = malformedInitial.docs.find(d => d.id === malformedId)!.snapshotIdentities!;
+const [row, ...rest] = intact.rows;
+const hole = (at: number) => { const changed: unknown[] = [...row]; delete changed[at]; return changed; };
+const gap: unknown[] = [...intact.rows]; delete gap[0];
+const forms: readonly (readonly [string, unknown])[] = [
+  ['lege positie 0', { ...intact, rows: [hole(0), ...rest] }],
+  ['lege positie 1', { ...intact, rows: [hole(1), ...rest] }],
+  ['lege positie 2', { ...intact, rows: [hole(2), ...rest] }],
+  ['een rij als object', { ...intact, rows: [{ 0: row[0], 1: row[1], 2: row[2], length: 3 }, ...rest] }],
+  ['expliciet null in de rij', { ...intact, rows: [[row[0], null, row[2]], ...rest] }],
+  ['een rij null', { ...intact, rows: [null, ...rest] }],
+  ['een lege plek in de lijst', { ...intact, rows: gap }],
+  ['het veld als object zonder sha256', { version: 1, rows: [row] }],
+  ['het veld als lijst', intact.rows],
+  ['het veld null', null],
+  ['de sha256 van andere bytes', { ...intact, sha256: hash(Buffer.from('andere bytes')) }],
+];
+const records = db.store('records');
+const manifestKey = [...records.keys()].find(k => k.endsWith('::manifest'))!;
+const manifestRecord = structuredClone(records.get(manifestKey)) as { documents: { id: string; snapshotIdentities?: unknown }[] };
+const mainBack = await restore(withoutField(malformedInitial), true, null);
+const notices = (store: Store) => store.getState().ui.notifications.map(n => [n.messageKey, n.severity]);
+const documentIdentities = (store: Store, docId: string) => { store.getState().switchDocument(docId); return JSON.stringify(identities(store)); };
+const mainModel = documentIdentities(mainBack, malformedId), mainOther = documentIdentities(mainBack, malformedOther);
+assert.notEqual(resourceId(mainBack, CRANE), resourceId(malformedStore, CRANE), 'zonder koppeling geeft main de tweede resource een ander id');
+for (const [label, value] of forms) {
+  const changed = structuredClone(manifestRecord);
+  changed.documents.find(d => d.id === malformedId)!.snapshotIdentities = value;
+  records.set(manifestKey, changed);
+  const loaded = await loadRecovery();
+  assert.deepEqual([loaded.docs.length, loaded.activeDocumentId], [2, malformedInitial.activeDocumentId], `${label}: beide documenten en de actieve keuze`);
+  const tried = await restore(loaded, true, null);
+  assert.deepEqual(notices(tried), notices(mainBack), `${label}: de meldingen van main`);
+  assert.equal(documentIdentities(tried, malformedId), mainModel, `${label}: het herstel van main`);
+  assert.equal(documentIdentities(tried, malformedOther), mainOther, `${label}: het andere document ongemoeid`);
+}
+records.set(manifestKey, manifestRecord);
+await clearRecovery();
+console.log(`PROEF 10 GROEN: ${forms.length} beschadigde vormen (lege positie 0, 1 en 2, rij als object, null, lege plek, veldvormen, andere sha256) geven het herstel en de meldingen van main; het andere document blijft ongemoeid.`);
+
+const mixed = withField({ activeDocumentId: solBrowser.id, docs: [{ ...solBrowser.a, snapshotIdentities: undefined }], archives: new Map() }, solBrowser.id, solBrowser.b.identities);
+const mixedRead = await readRecoveryDocument(mixed.docs[0], mixed.archives, true);
+const aRead = await readRecoveryDocument({ ...solBrowser.a, snapshotIdentities: undefined }, mixed.archives, true);
+assert.deepEqual(mixedRead.resources, aRead.resources, 'de koppeling van B op de bytes van A: het herstel van main');
+const forced = withRecoveryIdentities(aRead, solBrowser.b.identities!.rows);
+assert.equal(forced.resources.find(r => r.name === SCAFFOLDERS)!.id, solBrowser.secondId, 'zonder de sha256-toets kreeg de eerste resource hier het id van de tweede');
+console.log('PROEF 11 GROEN: de koppeling van B op de bytes van A wordt niet toegepast; zonder de sha256-toets kreeg de eerste resource het id van de tweede.');

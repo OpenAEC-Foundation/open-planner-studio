@@ -19,9 +19,9 @@ export function createRecoverySnapshotSerializer(
   let tail: Promise<unknown> = Promise.resolve();
   let rejectActive: ((error: Error) => void) | null = null;
 
-  const serialize = (source: IFCSaveSource): Promise<RecoverySnapshot> => {
+  const serialize = (source: IFCSaveSource, identities = false): Promise<RecoverySnapshot> => {
     // Leg de invoer vóór de eerste await vast uit dezelfde immutable payload als de delta.
-    const snapshot = recoverySnapshotInput(source);
+    const snapshot = recoverySnapshotInput(source, identities);
     const run = tail.then(async () => {
       if (disposed) throw new Error('Crashherstel-serialisatie is gestopt.');
       if (!worker && !unavailable) {
