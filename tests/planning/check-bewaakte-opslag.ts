@@ -351,12 +351,12 @@ await check('Automatisch opslaan via de eigen handle: een ander programma schree
   assert.deepEqual(errors(store), [AUTOSAVE_CHANGED]);
 });
 
-await check('twee tabbladen op hetzelfde pad (knownbug 1957): de opslag van het tweede tabblad weigert in plaats van stil te overschrijven', async () => {
-  const ipc = desktop(), path = fileAt('twee-tabbladen.ifc', plainBytes());
+await check('twee tabbladen op hetzelfde bestand (knownbug 1957, via een anders geschreven pad: 2063): de opslag van het tweede tabblad weigert in plaats van stil te overschrijven', async () => {
+  const ipc = desktop(), path = fileAt('twee-tabbladen.ifc', plainBytes()), other = `${dir}/./twee-tabbladen.ifc`;
   try {
     const { store } = await openAt({ kind: 'path', path }, plainBytes());
     const first = store.getState().activeDocumentId;
-    await store.getState().openOpenedFile({ name: basename(path), content: '', bytes: plainBytes(), ref: { kind: 'path', path } });
+    await store.getState().openOpenedFile({ name: basename(other), content: '', bytes: plainBytes(), ref: { kind: 'path', path: other } });
     assert.notEqual(store.getState().activeDocumentId, first, 'een tweede tabblad, zoals main');
     edit(store);
     assert.equal(await ctrlS(store), true);
