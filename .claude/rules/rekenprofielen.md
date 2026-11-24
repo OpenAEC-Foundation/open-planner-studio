@@ -3,6 +3,7 @@ paths:
   - "src/engine/scheduler/conventions/**"
   - "src/engine/scheduler/solveInput.ts"
   - "src/engine/scheduler/CPMSolver.ts"
+  - "src/engine/scheduler/CalendarEngine.ts"
   - "src/engine/scheduler/p6*"
   - "src/services/ifc/schedulingProfileMigration.ts"
   - "src/services/schedulingProfiles/**"

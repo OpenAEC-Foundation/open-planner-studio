@@ -1,16 +1,18 @@
 # Werkminuten optellen en aftrekken zijn elkaars spiegel
 
-Een taak in de urenmaat telt haar duur vooruit met `addWorkMinutes` (`CPMSolver.addDurationChecked`) en terug met
-`subtractWorkMinutes` (`CPMSolver.subDuration`); een taak in de dagenmaat loopt via de lopers van ADR 0224, die door
-de afronding op hele minuten geen exacte spiegel zijn. We kozen ervoor dat de twee minutenwandelingen elkaars spiegel
-zijn: vanaf een werkmoment `t` komt `subtractWorkMinutes(addWorkMinutes(t, n), n)` op dezelfde plek op de werkas uit
-als `t`, met nul werkminuten ertussen. Die spiegel geldt alleen als de wandeling haar lengte kan afleggen. Is een vrij
-blok langer dan `MAX_SCAN`, dan stopt `addWorkMinutes` op het blokeinde vóór dat blok met een rest, en komt de
-terugwandeling eerder uit: in een proef gaf +481 min vanaf vr 08:00 (ma-vr 08:00–16:00, daarna ruim een jaar vrij) vr
-16:00, en −481 min daarvandaan do 15:59. Door de spiegel komt de late start van een urenmaattaak met een late finish
-gelijk aan haar vroege finish op haar vroege start uit; `check-kalender-ms-wandeling.ts`, deel (d), toetst dat voor de
-laatste taak van een `.mpp` van twee taken, met 512 en 512,2 min. Er is geen uitzondering per bronformaat in de
-wandeling: een vrij blok dat P6 in de kalenderdata afkapt, herstelt de XER-decoder (`xerCalendarData.ts`).
+Voor een taak in de urenmaat telt `CPMSolver.addDurationChecked` een duur vooruit met `addWorkMinutes` en
+`CPMSolver.subDuration` een duur terug met `subtractWorkMinutes`; een taak in de dagenmaat loopt via de lopers van ADR
+0224, die door de afronding op hele minuten geen exacte spiegel zijn. We kozen ervoor dat de twee minutenwandelingen
+elkaars spiegel zijn: vanaf een werkmoment `t` komt `subtractWorkMinutes(addWorkMinutes(t, n), n)` op dezelfde plek op
+de werkas uit als `t`, met nul werkminuten ertussen. Die spiegel geldt alleen als de wandeling haar lengte kan
+afleggen. Is een vrij blok langer dan `MAX_SCAN`, dan stopt `addWorkMinutes` op het blokeinde vóór dat blok met een
+rest, en komt de terugwandeling eerder uit: in een proef gaf +481 min vanaf vr 08:00 (ma-vr 08:00–16:00, daarna ruim
+een jaar vrij) vr 16:00, en −481 min daarvandaan do 15:59. De spiegel is een eigenschap van de twee kalenderfuncties,
+geen uitspraak over de vroege en late start van een taak: met welk einde en welke duur de solver ze aanroept, staat in
+`CPMSolver`. `check-kalender-ms-wandeling.ts`, deel (d), toetst voor de laatste taak van een `.mpp` van twee taken, met
+512 en 512,2 min, dat haar late start gelijk is aan haar vroege start en haar speling nul. Er is geen uitzondering per
+bronformaat in de wandeling: een vrij blok dat P6 in de kalenderdata afkapt, herstelt de XER-decoder
+(`xerCalendarData.ts`).
 
 ## Gevolgen
 
