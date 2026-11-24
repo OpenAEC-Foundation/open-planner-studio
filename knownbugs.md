@@ -710,7 +710,7 @@ en noem het in je rapport of PR-tekst.
      leest `MilestoneKind` voor elke taak met `isMilestone`, zonder duurtoets; zie ook 1042), via MCP (`taskFields.ts`
      zet `milestoneKind` zonder duurtoets) en via de MSPDI-lezer met een expliciete OPS-markering
      (`explicitOpsMilestoneKind` in `mspdiReader.ts`, zonder duurtoets). Elders plant de solver een mijlpaal met duur
-     als duurtaak (`isZeroDurationMilestone`). — B
+     als duurtaak (`isZeroDurationMilestone`). De volledige voorwaarden van die grensregels staan in ADR 0271. — B
 
 2307. **Een opvolger in kalendertijd na FS met een lag in werktijd komt op het volgende werkmoment van haar eigen
      kalender.** Bij SS, FF en SF slaat `forwardHour` (`src/engine/scheduler/relationMath.ts`) voor een opvolger in
@@ -4067,6 +4067,40 @@ en noem het in je rapport of PR-tekst.
       `childIds` van de ouder in de documentvolgorde. Nagespeeld met een script via `readP6XMLDocuments`: onder WBS `R`
       staan in het bestand eerst `A` (`SequenceNumber` 2) en dan `B` (`SequenceNumber` 1); de takenlijst geeft `R, B, A`,
       `childIds` van `R` geeft `A, B`. Welke delen van de app de volgorde uit `childIds` halen, is niet nagegaan. — B
+
+2310. **Een `.mpp`-kalender die op een half uur begint, wordt een uurkalender door een taak op dat halve uur.**
+      `mppAnchorClock` (`src/services/mpp/mppReader.ts`) maakt het anker uit `workStartHour` als heel uur, en
+      `mppCalendars.ts` zet dat bij één blok per dag op het hele uur eronder (`Math.floor`). In een proef kreeg een
+      kalender met één blok vanaf 07:30 bij `readMPP` ankeruur 7: een taak om 07:30 gaf in `readTasks` het signaal van
+      `hasNonAnchorTime`, de kalender werd een uurkalender en de taak hield 07:30. Met een blok vanaf 07:00 hield de
+      taak alleen de datum. De promotie bewaart hier de tijd uit het bestand; een nadeel voor de planner is niet
+      vastgesteld. — B
+
+2312. **Zonder `RESUME` begint het restwerk van een `.mpp`-toewijzing direct na haar verrichte werk.**
+      `computeShiftedAssignmentPeriods` (`src/services/mpp/mppReader.ts`) schuift de resterende periodes van een
+      toewijzing waarvoor de decoder minstens één werkelijke periode oplevert naar haar `RESUME` als `CalendarEngine.isHourMode`
+      waar is, en zonder `RESUME` of bij een onware `isHourMode` naar het einde van haar laatste verschoven werkelijke
+      periode. Dat geldt voor splits en contouren. In een proef met een taakstart om 08:00 en een
+      toewijzingsstart om 09:00 begon het restwerk zonder `RESUME` op taakminuut 180, en met een hervatting op de
+      volgende werkdag op minuut 480. Volgens het weggehaalde commentaar heeft die terugval geen steun in MPXJ
+      (`AssignmentField.RESUME` heeft daar geen standaardplek in de veldkaart). Wat MS Project bij een ontbrekend
+      `RESUME` doet, is niet getoetst. — B
+
+2313. **Een `.mpp`-taak wandelt ook over een resourcekalender waarvan feestdag en werkende uitzondering elkaar bij de
+      opgeslagen duur opheffen; of het einde na een duurwijziging klopt met MS Project, is onbekend.**
+      `calendarDiffersIncludingExceptions` (`src/services/mpp/mppReader.ts`) telt zo'n kalender als afwijkend (als beide kalenders `workTime` hebben), dus bij
+      één kandidaat levert `deriveTimephasedWindowsForTasks` een wandeling over de resourcekalender (ADR 0288). In een
+      proef met een vrije dinsdag en een werkende zaterdag gaf 4800 minuten op beide kalenders hetzelfde einde; bij 960
+      en 1920 minuten eindigde de resourcekalender één werkdag later. Volgens het weggehaalde commentaar gebeurt dat in
+      `mpp14timephasedsegments(manual).mpp` ("Task Seven", "Task Eight"). Het corpus heeft geen uitkomst van MS Project
+      voor een bewerkte duur. — B
+
+2317. **Een resourcekalender die alleen in de werktijden van een werkende uitzondering afwijkt, geeft een `.mpp`-taak
+      met één toewijzing geen wandeling.** `calendarDiffersIncludingExceptions` (`src/services/mpp/mppReader.ts`)
+      vergelijkt alleen als beide kalenders `workTime` hebben, en dan de weekblokken en de datumbereiken van feestdagen en
+      werkende uitzonderingen, niet de blokken binnen een werkende uitzondering. In een proef met één werkresource, dezelfde uitzonderingsdatum en een latere start
+      op die dag gaf de vergelijker `false`; dezelfde 120 werkminuten eindigden op de twee kalenders om 10:00 en 12:00.
+      De lezer levert dan voor die taak geen wandeling. Of MS Project daar over de resourcekalender plant, is niet nagegaan. — B
 
 ## Rondleiding, Help en extensie-gidsen
 

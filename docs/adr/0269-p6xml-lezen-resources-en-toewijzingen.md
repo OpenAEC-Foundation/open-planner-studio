@@ -18,7 +18,8 @@ het (`fileTools.ts`).
   (`plannedAssignmentRate`, die ook een resttempo van 0 neemt; review #361 punt 2). Materiaal krijgt het begrote tempo
   als `unitsPerDay`. Voor een andere resource kiest `importedAssignmentRate` (eigenaarsbesluit 2026-10-15): het
   resttempo als `unitsPerDay`, met het begrote als `plannedUnitsPerDay`, alleen bij restwerk boven 0 en een resttempo
-  boven 0 dat relatief meer dan `RATE_REL_EPS` afwijkt van het begrote; anders het begrote tempo. De lezer rekent die
+  boven 0 dat meer dan `RATE_REL_EPS` maal het grootste van de twee tempo's afwijkt van het begrote; anders het begrote
+  tempo. De lezer rekent die
   tempo's niet om.
 - De lezer neemt `PlannedUnits`, `ActualUnits` en `RemainingUnits` als uren en rekent ze `× 60` om naar minuten, voor
   elke soort resource, ook materiaal (knownbug 2303). Welke werkvelden hij daarmee bewaart, beslist

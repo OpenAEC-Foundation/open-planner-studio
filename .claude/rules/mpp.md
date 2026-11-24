@@ -44,3 +44,11 @@ Besluiten van de lezer van MS Project XML: `docs/adr/0250-mspdi-lezen-ops-marker
 `0253-mspdi-lezen-werkweek-en-werkdag.md`, `0254-mspdi-lezen-uitzonderingen-en-basiskalenders.md`,
 `0255-mspdi-lezen-rekenuitvoer-van-ms-project.md`, `0256-mspdi-lezen-soort-mijlpaal.md` en
 `0257-mspdi-lezen-resources-en-toewijzingen.md`.
+
+### De `.mpp`-lezer (`mppReader.ts`)
+
+Besluiten van `readMPP`: `docs/adr/0280-mpp-lezen-taakrecords-en-bitvlaggen.md`, `0281-mpp-lezen-hierarchie-en-wbs.md`,
+`0282-mpp-lezen-duur-rest-en-handmatig-anker.md`, `0283-mpp-lezen-uurkalender-en-tijd-van-een-datum.md`,
+`0284-mpp-lezen-projecteigenschappen-en-statusdatum.md`, `0285-mpp-lezen-rekenuitvoer-van-ms-project.md`,
+`0286-mpp-lezen-soort-mijlpaal.md`, `0287-mpp-lezen-toewijzingen-koppelen-splits-en-contouren.md`,
+`0288-mpp-lezen-tijdgefaseerd-venster-en-duurwandeling.md` en `0289-mpp-lezen-melding-over-de-planning-van-ms-project.md`.
