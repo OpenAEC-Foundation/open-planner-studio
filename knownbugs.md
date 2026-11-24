@@ -1509,6 +1509,24 @@ en noem het in je rapport of PR-tekst.
       geeft donderdag. Of elke aanroeper (onder meer `CPMSolver.ts`, `ResourceLeveler.ts`, `useBarDrag.ts`,
       `splitWalk.ts`, `barDragMath.ts`) een werkdag meegeeft, is niet nagegaan. — B
 
+2301. **Een P6 XML-bestand zonder OPS-markering waarvan elke eindtijd op een veelvoud van vijf minuten valt, leest met
+      exacte eindtijden, ook als de schrijver de laatste minuut bedoelde.** `p6FinishUsesLastMinute`
+      (`src/services/p6/p6xmlReader.ts`, ADR 0262) telt alleen een minuut bij elke eindtijd op bij een export van OPS
+      met `<StandardWorkHours>`, of als minstens één eindtijd van een werkblok (behalve 23:59) niet op een veelvoud van
+      vijf minuten valt. Nagespeeld met een script via `readP6XMLDocuments`, met een blok vanaf 08:00: zonder
+      OPS-markering geeft `<Finish>16:00:00</Finish>` een blok tot 16:00 en `<Finish>15:59:00</Finish>` ook; met de
+      OPS-markering en `<StandardWorkHours>` geeft `<Finish>16:00:00</Finish>` een blok tot 16:01. Bedoelt de schrijver
+      met `16:00:00` een blok tot 16:01, dan komt dat blok in het eerste geval een minuut korter binnen. Of een programma
+      zulke bestanden schrijft, is niet nagegaan. — B
+
+2302. **De P6 XML-lezer begrenst het aantal bibliotheekkalenders niet.** `readP6XmlProject`
+      (`src/services/p6/p6xmlReader.ts`) leest elke `<Calendar>` met `<Type>Resource</Type>` als bibliotheekkalender, ook
+      als geen activiteit of resource ernaar verwijst; alleen de projectkalender, een kalender zonder geldig `ObjectId` en
+      een kalender met hetzelfde `ObjectId` als een eerdere slaat hij over. De MSPDI-lezer stopt bij 1024
+      bibliotheekkalenders (`MAX_MSPDI_CALENDARS`); de `.mpp`-lezer stopt bij 1024 unieke ruwe kalenderrecords
+      (`MAX_CALENDARS`, `mppCalendars.ts`). Nagespeeld met een script via `readP6XMLDocuments`: een bestand met 1200
+      Resource-kalenders met verschillende geldige `ObjectId`'s zonder verwijzing geeft 1200 bibliotheekkalenders. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
@@ -3919,6 +3937,33 @@ en noem het in je rapport of PR-tekst.
       `<Duration>PT40H0M0S</Duration>` krijgt 2400 minuten. Volgens die review maakt het MSPDI-schema `<Type>` en
       `<Duration>` op een taak optioneel, dus geldige XML van een andere schrijver kan dit raken; of MS Project zelf die
       velden weglaat, is niet nagegaan. Welke andere velden zo kunnen verschuiven, ook niet. — B
+
+2303. **De P6 XML-lezer rekent de eenheden van een materiaaltoewijzing om alsof het uren zijn.** In de toewijzingslezer
+      van `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) worden `PlannedUnits`, `ActualUnits` en `RemainingUnits`
+      voor elke soort resource keer 60 genomen en aan `importedWorkFields` gegeven; wijken ze af van de afgeleide, dan
+      komen ze in `plannedWorkMinutes`, `actualWorkMinutes` en `remainingWorkMinutes`, velden in werkminuten
+      (`src/types/resource.ts`). De XER-lezer geeft een materiaaltoewijzing geen werkvelden (`xerResourceAssignments.ts`).
+      Nagespeeld met een script via `readP6XMLDocuments`: een materiaal `Beton` (eenheid `m3`) op een taak van 480
+      minuten met `PlannedUnitsPerTime` 1.25 en `PlannedUnits`/`RemainingUnits` 3 geeft `plannedWorkMinutes` 180 en
+      `remainingWorkMinutes` 180; met 10 geeft het geen werkvelden, omdat 600 minuten gelijk is aan de afleiding. Open
+      vraag: of `PlannedUnits` van een materiaal in P6 XML uren zijn of de eigen eenheid van het materiaal; Oracle P6 Help
+      beschrijft materiaal met een eigen eenheid (https://docs.oracle.com/cd/F88966_01/p6help/en/33987.htm, aangedragen
+      in de review en niet zelf gelezen). Welke berekening die velden daarna voor materiaal gebruikt, is niet nagegaan.
+      — B
+
+2304. **De projectstart uit P6 XML houdt geen tijd, ook niet op een uurkalender.** `readP6XmlProject`
+      (`src/services/p6/p6xmlReader.ts`) leest `PlannedStartDate` van het project op een uurkalender met zijn tijd
+      (`xmlTaskDate`), maar zet `project.startDate` daarna op het anker dat `resolveMissingScheduleDates`
+      (`src/services/importDates.ts`) teruggeeft, en dat is het datumdeel. Nagespeeld met een script via
+      `readP6XMLDocuments`: een bestand met een projectkalender in twee blokken per dag en `PlannedStartDate`
+      `2026-11-23T09:00:00` geeft een uurkalender, `project.startDate` `2026-11-23` en een taakstart `2026-11-23T09:00`.
+      De eerste lezing met tijd verandert zo niets aan wat de lezer levert (ADR 0264). — B
+
+2305. **Na een P6 XML met `SequenceNumber` volgt `childIds` van een WBS-taak een andere volgorde dan de takenlijst.**
+      `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) sorteert de WBS-taken op `SequenceNumber`, maar vult
+      `childIds` van de ouder in de documentvolgorde. Nagespeeld met een script via `readP6XMLDocuments`: onder WBS `R`
+      staan in het bestand eerst `A` (`SequenceNumber` 2) en dan `B` (`SequenceNumber` 1); de takenlijst geeft `R, B, A`,
+      `childIds` van `R` geeft `A, B`. Welke delen van de app de volgorde uit `childIds` halen, is niet nagegaan. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
