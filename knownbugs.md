@@ -4008,6 +4008,36 @@ en noem het in je rapport of PR-tekst.
       staan in het bestand eerst `A` (`SequenceNumber` 2) en dan `B` (`SequenceNumber` 1); de takenlijst geeft `R, B, A`,
       `childIds` van `R` geeft `A, B`. Welke delen van de app de volgorde uit `childIds` halen, is niet nagegaan. — B
 
+2310. **Een `.mpp`-kalender die op een half uur begint, kan elke taak erop een tijdsignaal geven.** `mppAnchorClock`
+      (`src/services/mpp/mppReader.ts`) maakt het anker uit `workStartHour` als heel uur, en `mppCalendars.ts` zet dat
+      bij één blok per dag op het hele uur eronder (`Math.floor`). Een kalender van 07:30 krijgt zo het anker 07:00, en
+      een taak die om 07:30 begint, geeft in `readTasks` het signaal van `hasNonAnchorTime`, waarna de kalender een
+      uurkalender wordt. Gelezen in de code, niet nagespeeld; het weggehaalde commentaar noemde het een bekende,
+      ongeteste rand. Open vraag: of zo'n kalender anders gelezen moet worden, want bij een kalender met meer blokken
+      gebeurt de promotie vaak al door de blokken. — S
+
+2311. **Op een `.mpp`-kalender zonder werkblokken schuift de lezer de periodes van een toewijzing niet naar haar
+      start.** `computeShiftedAssignmentPeriods` (`src/services/mpp/mppReader.ts`) verschuift alleen als
+      `CalendarEngine.isHourMode` waar is; op een taakkalender die geen uurkalender werd (ADR 0283) begint elke
+      toewijzing voor splits en contouren op de taakstart, ook als haar eigen `START` later ligt. Gelezen in de code; het
+      weggehaalde commentaar zei dat er voor een dagkalender geen gemeten formule is. Hoe vaak een toewijzing op zo'n
+      kalender later begint dan haar taak, is niet gemeten. — S
+
+2312. **Zonder `RESUME` begint het restwerk van een `.mpp`-toewijzing direct na het verrichte werk.**
+      `computeShiftedAssignmentPeriods` (`src/services/mpp/mppReader.ts`) schuift de resterende periodes bij verricht
+      werk naar `RESUME` op een uurkalender, en anders naar het einde van de verschoven werkelijke periodes. Volgens het
+      weggehaalde commentaar is dat een benadering zonder steun in MPXJ (`AssignmentField.RESUME` heeft daar geen
+      standaardplek in de veldkaart). Of MS Project het restwerk na een onderbreking later laat beginnen, is niet
+      nagegaan. — S
+
+2313. **Een `.mpp`-taak wandelt ook over een resourcekalender waarvan feestdag en werkende uitzondering elkaar bij de
+      opgeslagen duur opheffen; of het einde na een duurwijziging klopt met MS Project, is onbekend.**
+      `calendarDiffersIncludingExceptions` (`src/services/mpp/mppReader.ts`) telt zo'n kalender als afwijkend, dus de
+      taak krijgt een wandeling over de resourcekalender (ADR 0288). Volgens het weggehaalde commentaar is het einde in
+      `mpp14timephasedsegments(manual).mpp` ("Task Seven", "Task Eight") bij de opgeslagen duur van 4800 minuten gelijk,
+      en wijkt het bij een andere duur (960 of 1920 minuten) 1 tot 2 werkdagen af; het corpus heeft geen uitkomst van
+      MS Project voor een bewerkte duur. — S
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
