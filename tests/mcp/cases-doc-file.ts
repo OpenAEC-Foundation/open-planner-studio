@@ -1250,8 +1250,8 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
   };
   resetToSingleEmptyDocument();
   loadSmallProject('Met model');
-  const bonsai = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc')));
-  const bonsaiPath = `${HOME}/bonsai-4d.ifc`;
+  const bonsai = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/council/proef-bonsai-achtig.ifc')));
+  const bonsaiPath = `${HOME}/proef-bonsai-achtig.ifc`;
   setBinaryFile(bonsaiPath, bonsai);
   files.set(bonsaiPath, new TextDecoder().decode(bonsai));
   try {

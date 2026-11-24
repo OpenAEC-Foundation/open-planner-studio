@@ -373,8 +373,10 @@ kaart niet draagt: een oude lay-out, de oude letterlijke codering, een vorm buit
 Kosten: evenredig met het aantal stukken van een ander programma én met de gedecodeerde lengte van hun regels
 (`argTokens` decodeert en splitst de hele regel, ook een ledenlijst van 50.000). De reviewer van #1196 (GPT-6.2-Sol) mat
 bij 10.000 vreemde taken met taaktijden ongeveer 18,7 MiB extra V8-heap na GC, bij een IFC van 1,51 MiB; bij
-`fix2-vendor-ops.ifc` (369 stukken) ongeveer 335 KiB. De kaart reist gekloond naar en van de opslagworker. De piek op een
-groot model met veel vreemde planning is niet gemeten.
+`fix2-vendor-ops.ifc` (369 stukken) ongeveer 335 KiB. De kaart reist gekloond naar en van de opslagworker. Gemeten in
+deel 2 (aia09-mp50 onder zware belasting, dus ruwe tijden): 10.000 vreemde taken met taaktijden (2,09 MiB) openen 3,0 s,
+opslaan 27,3 s met een piek-RSS van 1.157 MiB; vóór de writer weigerde die opslag na 50,6 s met een piek van 686 MiB,
+vóór het herlezen van de uitvoer. `bonsai-4d.ifc` opslaan 141 ms.
 
 Voor een eigen stuk blijft (b) in de verliescontrole (`planRestores` in `lossCheck.ts`): die leest de bronwaarden bij
 elke merge opnieuw uit `ifcSource.bytes`; een stuk van de kaart heeft na de writer geen verschil meer in O0. Bij (b) geldt de waarde van

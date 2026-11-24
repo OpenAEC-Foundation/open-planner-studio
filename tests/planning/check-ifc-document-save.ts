@@ -395,7 +395,7 @@ for (const cause of ['flag-uit', 'sourceMissing'] as const) await check(`${cause
 });
 
 await check('mergeweigering vóór bestandskiezer: nul bytes en ongewijzigd document', async () => {
-  const unsupported = new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc')));
+  const unsupported = new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/council/proef-bonsai-achtig.ifc')));
   const { store } = await openInStore(unsupported);
   longer(store);
   const before = preserved(store), ipc = desktop(); ipc.choose(join(dir, 'weigering.ifc'));
@@ -630,7 +630,7 @@ await check('export mspdi met vijf meldingen: na afloop staat de zin er nog, pre
 });
 
 for (const cause of ['flag-uit', 'sourceMissing', 'mergeweigering'] as const) await check(`IFC-export ${cause}: nul bytes vóór kiezer`, async () => {
-  const data = cause === 'mergeweigering' ? new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc'))) : bytes;
+  const data = cause === 'mergeweigering' ? new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/council/proef-bonsai-achtig.ifc'))) : bytes;
   const { store } = await openInStore(data); longer(store);
   store.setState(s => {
     if (cause === 'flag-uit') s.ui.featureFlags = {};
