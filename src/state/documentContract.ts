@@ -155,6 +155,7 @@ export interface TargetFingerprint {
   readonly sha256: string;
   readonly byteLength: number;
   readonly origin: 'opened' | 'written';
+  readonly utf8Bom: boolean;
 }
 
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.

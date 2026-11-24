@@ -1106,7 +1106,7 @@ test('import_schedule (#804, knownbug 1957): een pad dat al open is ⇒ met de f
     const kantoorId = first.documentId as string;
     assertEq(first.alreadyOpen, undefined, 'de eerste import is gewoon een import');
     assertEq(S().knownTargetFingerprint, null, 'buiten de desktopapp is een pad geen opslagdoel: het tabblad kent zijn versie niet');
-    const known = { sha256: S().ifcSource!.sha256, byteLength: S().ifcSource!.bytes.byteLength, origin: 'opened' as const };
+    const known = { sha256: S().ifcSource!.sha256, byteLength: S().ifcSource!.bytes.byteLength, origin: 'opened' as const, utf8Bom: false };
     useAppStore.setState((st) => { st.knownTargetFingerprint = known; });
     S().addTask({ name: 'Onopgeslagen werk' });
     const work = { tasks: S().tasks.map(t => t.name), isDirty: S().isDirty };

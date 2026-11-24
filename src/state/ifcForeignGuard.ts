@@ -331,6 +331,7 @@ export interface WriteTargetDeps {
    *  niet. Regel 1 en 3 en een onleesbaar doel blijven weigeren. */
   chosenTarget?: Pick<PickedSaveTarget, 'path' | 'current'>;
   protectModelTargets?: boolean;
+  openedOwnTargetWithBom?: (target: FileRef) => Promise<boolean>;
 }
 
 /**
@@ -377,7 +378,7 @@ type OwnTargetVersion = { readonly documentId: string; readonly baseVersion?: st
 export async function refusedTargetIdentity(
   s: WriteTargetState,
   target: FileRef,
-  deps: Omit<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets'>,
+  deps: Omit<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets' | 'openedOwnTargetWithBom'>,
   ownVersion?: OwnTargetVersion,
 ): Promise<WriteTargetRefusal | null | 'check-content'> {
   const own = ownVersion && s.getOpenDocumentPayloads().find(d => d.id === ownVersion.documentId)?.payload;
@@ -414,10 +415,10 @@ export async function refusedTargetIdentity(
 }
 
 export async function refusedTargetContent(
-  target: FileRef, deps: Pick<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets'>,
+  target: FileRef, deps: Pick<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets' | 'openedOwnTargetWithBom'>,
 ): Promise<WriteTargetRefusal | null> {
   const refusal = await targetRefusal(target, deps.readers());
-  if (refusal === 'unreadable') return 'unreadable-target';
+  if (refusal === 'unreadable') return await deps.openedOwnTargetWithBom?.(target) ? null : 'unreadable-target';
   if (refusal === null) return null;
   const chosen = deps.chosenTarget;
   if (target.kind === 'path' && chosen?.path === target.path && chosen.current instanceof Uint8Array

@@ -399,7 +399,7 @@ for (const kind of ['nieuw', 'versie', 'conflictkopie'] as const) {
       const handle = newHandle(modelBytes);
       const { store } = kind === 'nieuw' ? await openAt(handleRef(handle), modelBytes) : await openAt({ kind: 'site', id: 'bron' }, modelBytes);
       if (kind === 'nieuw') assert.deepEqual(known(store), onHandle(handle));
-      else store.setState(s => { s.siteFileVersion = 'v1'; s.knownTargetFingerprint = { ...print(modelBytes), origin: 'opened' }; });
+      else store.setState(s => { s.siteFileVersion = 'v1'; s.knownTargetFingerprint = { ...print(modelBytes), origin: 'opened', utf8Bom: false }; });
       edit(store);
       if (kind === 'nieuw') await store.getState().saveFileAs();
       else assert.equal(await ctrlS(store), true);
@@ -414,7 +414,7 @@ await check('rij 9 en 11, een gebouwmodel dat als download eindigt (Ctrl+S zonde
   const browser = browserDownload();
   try {
     const { store } = await openInStore(modelBytes);
-    store.setState(s => { s.knownTargetFingerprint = { ...print(modelBytes), origin: 'opened' }; });
+    store.setState(s => { s.knownTargetFingerprint = { ...print(modelBytes), origin: 'opened', utf8Bom: false }; });
     edit(store);
     await ctrlS(store);
     assert.equal(browser.downloads.length, 1, 'rij 9: een download');
@@ -462,7 +462,7 @@ await check('rij 10 en 12, een gewone planning die als download eindigt: onbeken
     assert.equal(store.getState().fileHandle, null);
     assert.deepEqual(known(store), null, 'rij 12');
     edit(store);
-    store.setState(s => { s.knownTargetFingerprint = { ...onHandle(handle), origin: 'written' }; });
+    store.setState(s => { s.knownTargetFingerprint = { ...onHandle(handle), origin: 'written', utf8Bom: false }; });
     await ctrlS(store);
     assert.equal(browser.downloads.length, 2, 'rij 10: een download');
     assert.deepEqual(known(store), null, 'rij 10');
@@ -774,7 +774,7 @@ for (const platform of ['linux', 'windows'] as const) {
             store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
             edit(store);
             assert.equal(await ctrlS(store), true, `${label}: opslaan vooraf`);
-            if (!flag) store.setState(s => { s.knownTargetFingerprint = { ...onDisk(own), origin: 'written' }; });
+            if (!flag) store.setState(s => { s.knownTargetFingerprint = { ...onDisk(own), origin: 'written', utf8Bom: false }; });
             const before = known(store), onDiskBefore = onDisk(own);
             assert.deepEqual(before, onDiskBefore, `${label}: vooraf kent het tabblad zijn bestand`);
             edit(store);
@@ -1071,7 +1071,7 @@ for (const flag of [false, true] as const) {
           store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
           edit(store);
           assert.equal(await ctrlS(store), true);
-          if (!flag) store.setState(s => { s.knownTargetFingerprint = { ...onDisk(own), origin: 'written' }; });
+          if (!flag) store.setState(s => { s.knownTargetFingerprint = { ...onDisk(own), origin: 'written', utf8Bom: false }; });
           const before = known(store);
           edit(store);
           const chosen = target === 'ander' ? other : null;

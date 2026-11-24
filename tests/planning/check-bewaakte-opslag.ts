@@ -801,7 +801,7 @@ await check('2203 A en B: of er gescand wordt, hangt alleen aan de herkomst en d
           const start = handleReads.get(handle.name) ?? 0;
           reads = () => (handleReads.get(handle.name) ?? 0) - start;
         }
-        store.setState(s => { s.knownTargetFingerprint = { ...print(model), origin: from }; });
+        store.setState(s => { s.knownTargetFingerprint = { ...print(model), origin: from, utf8Bom: false }; });
         const fresh = newErrors(store);
         edit(store);
         const saved = await ctrlS(store);
@@ -902,7 +902,7 @@ await check('2203 G: ook op een zelf geschreven versie weigert Ctrl+S de bron va
     await store.getState().openOpenedFile({ name: basename(path), content: '', bytes: modelBytes(), ref: { kind: 'path', path } });
     assert.notEqual(store.getState().activeDocumentId, plain, 'het model staat in een eigen tabblad');
     store.getState().switchDocument(plain);
-    store.setState(s => { s.filePath = path; s.knownTargetFingerprint = { ...onDisk(path), origin: 'written' }; });
+    store.setState(s => { s.filePath = path; s.knownTargetFingerprint = { ...onDisk(path), origin: 'written', utf8Bom: false }; });
     const fresh = newErrors(store);
     edit(store);
     assert.equal(await ctrlS(store), false);
@@ -1074,6 +1074,193 @@ for (const from of ['opened', 'written'] as const) {
     });
   }
 }
+
+const BOM = [0xef, 0xbb, 0xbf] as const;
+const withBom = (data: Uint8Array) => new Uint8Array([...BOM, ...data]);
+const hasBom = (data: Uint8Array) => BOM.every((b, i) => data[i] === b);
+const UNREADABLE_EXPORT = 'notifications.ifcUnreadableTargetExport';
+const UNREADABLE_AUTOSAVE = 'notifications.ifcUnreadableTargetAutoSave';
+const KINDS = ['pad', 'handle'] as const;
+type Kind = typeof KINDS[number];
+let bomFiles = 0;
+const placed = (kind: Kind, data: Uint8Array) => {
+  const name = `bom-${++bomFiles}.ifc`;
+  if (kind === 'pad') {
+    const path = fileAt(name, data);
+    return { ref: { kind: 'path', path } as FileRef, bytes: () => new Uint8Array(readFileSync(path)), put: (next: Uint8Array) => writeFileSync(path, next) };
+  }
+  const handle = newHandle(data);
+  return { ref: handleRef(handle), bytes: () => handleFiles.get(handle.name)!, put: (next: Uint8Array) => { handleFiles.set(handle.name, next); } };
+};
+const onPlatform = async (kind: Kind, action: (files: ReturnType<typeof desktop> | null) => Promise<void>) => {
+  const ipc = kind === 'pad' ? desktop() : null;
+  try { await action(ipc); } finally { ipc?.dispose(); }
+};
+const rename = (store: Store, name: string) => {
+  const task = store.getState().tasks.find(t => !t.isSummary)!;
+  store.getState().updateTask(task.id, { name });
+};
+const planning = (store: Store) => {
+  const { project, tasks, sequences, resources, assignments } = store.getState();
+  return JSON.stringify({ name: project.name, tasks, sequences, resources, assignments: assignments.map(({ id: _id, ...rest }) => rest) });
+};
+const ownPlanning = await (async () => {
+  const handle = newHandle(plainBytes());
+  const { store } = await openAt(handleRef(handle), plainBytes());
+  assert.equal(await ctrlS(store), true);
+  const first = handleFiles.get(handle.name)!;
+  const again = newHandle(first);
+  const { store: reopened } = await openAt(handleRef(again), first);
+  assert.equal(await ctrlS(reopened), true);
+  assert.deepEqual(handleFiles.get(again.name), first, 'de schrijver geeft een ongewijzigde eigen planning byte voor byte terug');
+  assert(!hasBom(first));
+  return first;
+})();
+
+for (const kind of KINDS) {
+  await check(`2212 ${kind}: Ctrl+S zonder wijziging op het eigen bestand met een BOM schrijft de bron byte voor byte terug, ook de tweede keer`, () => onPlatform(kind, async () => {
+    const source = withBom(ownPlanning), own = placed(kind, source);
+    const { store } = await openAt(own.ref, source);
+    assert.equal(origin(store), 'opened');
+    for (const round of [1, 2]) {
+      assert.equal(await ctrlS(store), true, `Ctrl+S ${round}`);
+      assert.deepEqual(own.bytes(), source, `Ctrl+S ${round}: de bron byte voor byte`);
+      assert.deepEqual(known(store), print(own.bytes()), `Ctrl+S ${round}: de vingerafdruk klopt met het bestand`);
+      assert.equal(origin(store), 'written');
+    }
+    assert.deepEqual(errors(store), []);
+  }));
+
+  await check(`2212 ${kind}: Ctrl+S na een wijziging, tweemaal: de BOM gevolgd door wat main zonder BOM schrijft, en heropenen geeft dezelfde planning`, () => onPlatform(kind, async () => {
+    const own = placed(kind, withBom(ownPlanning)), twin = placed(kind, ownPlanning);
+    const { store } = await openAt(own.ref, withBom(ownPlanning));
+    const { store: main } = await openAt(twin.ref, ownPlanning);
+    for (const round of [1, 2]) {
+      for (const s of [store, main]) rename(s, `Hernoemd met BOM ${round}`);
+      assert.equal(await ctrlS(main), true, `ronde ${round}: zonder BOM`);
+      assert.equal(await ctrlS(store), true, `ronde ${round}: met BOM`);
+      assert.deepEqual(own.bytes(), withBom(twin.bytes()), `ronde ${round}`);
+      assert.deepEqual(known(store), print(own.bytes()), `ronde ${round}: de vingerafdruk klopt met het bestand`);
+      assert.equal(store.getState().isDirty, false);
+    }
+    assert.deepEqual(errors(store), []);
+    const again = placed(kind, own.bytes()), twinAgain = placed(kind, twin.bytes());
+    const { store: reopened } = await openAt(again.ref, own.bytes());
+    const { store: reopenedTwin } = await openAt(twinAgain.ref, twin.bytes());
+    const [withBomShown, withoutBomShown] = [planning(reopened), planning(reopenedTwin)];
+    const at = [...withBomShown].findIndex((c, i) => c !== withoutBomShown[i]);
+    assert.equal(at, -1, `heropend verschilt bij ${at}: ${withBomShown.slice(at - 120, at + 120)} | ${withoutBomShown.slice(at - 120, at + 120)}`);
+    assert.equal(withBomShown.length, withoutBomShown.length);
+    assert(planning(reopened).includes('Hernoemd met BOM 2'));
+  }));
+
+  await check(`2212 ${kind}: Automatisch opslaan naar het eigen bestand met een BOM houdt de BOM, en Ctrl+S daarna ook`, () => onPlatform(kind, async () => {
+    const own = placed(kind, withBom(ownPlanning)), twin = placed(kind, ownPlanning);
+    const { store } = await openAt(own.ref, withBom(ownPlanning));
+    const { store: main } = await openAt(twin.ref, ownPlanning);
+    const controllers = [autoSave(store), autoSave(main)];
+    for (const round of [1, 2]) {
+      for (const s of [store, main]) rename(s, `Automatisch met BOM ${round}`);
+      for (const c of controllers) await c.flush();
+      assert.equal(store.getState().isDirty, false, `ronde ${round}`);
+      assert.equal(main.getState().isDirty, false, `ronde ${round}: zonder BOM`);
+      assert.deepEqual(own.bytes(), withBom(twin.bytes()), `ronde ${round}`);
+      assert.deepEqual(known(store), print(own.bytes()), `ronde ${round}: de vingerafdruk klopt met het bestand`);
+    }
+    for (const s of [store, main]) rename(s, 'Ctrl+S na Automatisch opslaan');
+    assert.equal(await ctrlS(main), true);
+    assert.equal(await ctrlS(store), true);
+    assert.deepEqual(own.bytes(), withBom(twin.bytes()));
+    assert.deepEqual(errors(store), []);
+  }));
+
+  await check(`2212 ${kind}: schreef een ander programma het eigen bestand, dan weigert Ctrl+S: zonder BOM zoals de bewaking van #1174, met een BOM als onleesbaar doel zoals main; staat de geopende versie er weer, dan schrijft hij`, () => onPlatform(kind, async () => {
+    const source = withBom(ownPlanning), own = placed(kind, source);
+    const { store } = await openAt(own.ref, source);
+    rename(store, 'Na een wijziging door een ander programma');
+    for (const [other, notice] of [[otherPlainBytes(), CHANGED], [withBom(otherPlainBytes()), UNREADABLE_TARGET], [withBom(sameSizeOtherContent(plainBytes())), UNREADABLE_TARGET]] as const) {
+      own.put(other);
+      store.setState(s => { s.ui.notifications = []; });
+      assert.equal(await ctrlS(store), false);
+      assert.deepEqual(errors(store), [notice]);
+      assert.deepEqual(own.bytes(), other, 'het bestand van het andere programma staat er nog');
+      assert.equal(store.getState().isDirty, true);
+    }
+    own.put(source);
+    assert.equal(await ctrlS(store), true, 'de geopende versie staat er weer');
+    assert(hasBom(own.bytes()));
+    assert(new TextDecoder().decode(own.bytes()).includes('Na een wijziging door een ander programma'));
+  }));
+
+  await check(`2212 ${kind}: Automatisch opslaan schrijft niet over een eigen BOM-bestand dat een ander programma veranderde`, () => onPlatform(kind, async () => {
+    const own = placed(kind, withBom(ownPlanning));
+    const { store } = await openAt(own.ref, withBom(ownPlanning));
+    const controller = autoSave(store);
+    rename(store, 'Automatisch na een andere versie');
+    const other = withBom(otherPlainBytes());
+    own.put(other);
+    await controller.flush();
+    assert.equal(store.getState().isDirty, true);
+    assert.deepEqual(own.bytes(), other);
+    assert.deepEqual(errors(store), [UNREADABLE_AUTOSAVE]);
+  }));
+
+  await check(`2212 ${kind}: een eigen BOM-bestand met twee datasecties weigert Ctrl+S zoals zonder BOM (de doelscan blijft)`, () => onPlatform(kind, async () => {
+    const split = withBom(twoDataSections(ownPlanning)), own = placed(kind, split);
+    const { store } = await openAt(own.ref, split);
+    assert.equal(origin(store), 'opened');
+    rename(store, 'Twee datasecties');
+    assert.equal(await ctrlS(store), false);
+    assert.deepEqual(errors(store), [UNREADABLE_TARGET]);
+    assert.deepEqual(own.bytes(), split);
+  }));
+
+}
+
+await check('2212 pad: Opslaan als en Exporteren → IFC over een bestaand BOM-bestand weigeren zoals main, ook over het eigen bestand', async () => {
+  const ipc = desktop();
+  try {
+    const own = placed('pad', withBom(ownPlanning)), other = withBom(otherPlainBytes()), elsewhere = placed('pad', other);
+    const { store } = await openAt(own.ref, withBom(ownPlanning));
+    rename(store, 'Opslaan als over een BOM-bestand');
+    const ownPath = (own.ref as Extract<FileRef, { kind: 'path' }>).path;
+    for (const target of [elsewhere, own]) {
+      const path = (target.ref as Extract<FileRef, { kind: 'path' }>).path, before = target.bytes();
+      ipc.choose(path);
+      store.setState(s => { s.ui.notifications = []; });
+      await store.getState().saveFileAs();
+      assert.deepEqual(errors(store), [UNREADABLE_TARGET], `Opslaan als over ${basename(path)}`);
+      assert.deepEqual(target.bytes(), before);
+      assert.equal(store.getState().filePath, ownPath);
+      ipc.choose(path);
+      store.setState(s => { s.ui.notifications = []; });
+      assert.deepEqual(await store.getState().exportAs('ifc'), { ok: true, warnings: [], cancelled: true }, `export over ${basename(path)}`);
+      assert.deepEqual(errors(store), [UNREADABLE_EXPORT]);
+      assert.deepEqual(target.bytes(), before);
+    }
+    assert.equal(store.getState().isDirty, true);
+  } finally { ipc.dispose(); }
+});
+
+await check('2212 met de flag uit: Ctrl+S en Automatisch opslaan op een BOM-bestand doen wat main doet en lezen het doel niet', async () => {
+  const ipc = desktop();
+  try {
+    const own = placed('pad', withBom(ownPlanning)), twin = placed('pad', ownPlanning);
+    const { store } = await openAt(own.ref, withBom(ownPlanning), undefined, false);
+    const { store: main } = await openAt(twin.ref, ownPlanning, undefined, false);
+    const read = ipc.bytesRead();
+    for (const s of [store, main]) rename(s, 'Flag uit met BOM');
+    assert.equal(await ctrlS(main), true);
+    assert.equal(await ctrlS(store), true);
+    assert.deepEqual(own.bytes(), twin.bytes(), 'zoals main: de gewone schrijver zonder BOM');
+    for (const s of [store, main]) rename(s, 'Flag uit met BOM, automatisch');
+    for (const s of [store, main]) await autoSave(s).flush();
+    assert.equal(store.getState().isDirty, false);
+    assert.deepEqual(own.bytes(), twin.bytes());
+    assert.equal(ipc.bytesRead(), read, 'met de flag uit las de app geen byte van het doel');
+    assert.deepEqual(errors(store), []);
+  } finally { ipc.dispose(); }
+});
 
 rmSync(dir, { recursive: true, force: true });
 console.log(`Bewaakte opslag: ${passed} geslaagd, ${failed} mislukt.`);

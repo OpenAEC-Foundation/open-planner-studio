@@ -6,6 +6,7 @@ import { hasForeignContent, type IfcSource, type PreparedIfcWrite } from '@/serv
 import { spendPlanOnlyConfirmation, type PlanOnlyConfirmation, type PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
+import { utf8BomLength } from '@/services/ifc/foreign/stepScanner';
 import type { TargetFingerprint } from './documentContract';
 import { ifcFullWriteBlocked } from './ifcForeignGuard';
 import type { IFCSaveSource, IFCWriteInput } from './ifcSaveInput';
@@ -43,9 +44,21 @@ export function documentSaveCompute(featureFlags: FeatureFlags, compute: IfcOutp
 export function writtenFingerprint(featureFlags: FeatureFlags, output: IfcOutput, written?: Uint8Array): WrittenFingerprint {
   if (output.prepared || !ifcForeignContentEnabled(featureFlags)) return null;
   const bytes = written ?? output.bytes ?? new TextEncoder().encode(output.content);
-  const byteLength = bytes.byteLength;
-  return output.sha256 !== undefined ? { sha256: output.sha256, byteLength, origin: 'written' }
-    : precomputeSha256(bytes).then((sha256): TargetFingerprint => ({ sha256, byteLength, origin: 'written' }));
+  const byteLength = bytes.byteLength, utf8Bom = utf8BomLength(bytes) > 0;
+  return output.sha256 !== undefined ? { sha256: output.sha256, byteLength, origin: 'written', utf8Bom }
+    : precomputeSha256(bytes).then((sha256): TargetFingerprint => ({ sha256, byteLength, origin: 'written', utf8Bom }));
+}
+
+type WriterOutput = Extract<IfcOutput, { readonly content: string }>;
+const UTF8_BOM = Uint8Array.of(0xef, 0xbb, 0xbf);
+
+export function withUtf8Bom(output: WriterOutput): WriterOutput {
+  const content = `﻿${output.content}`;
+  if (!output.bytes) return { content, literalCalendarIds: output.literalCalendarIds };
+  const bytes = new Uint8Array(UTF8_BOM.length + output.bytes.byteLength);
+  bytes.set(UTF8_BOM);
+  bytes.set(output.bytes, UTF8_BOM.length);
+  return { content, bytes, literalCalendarIds: output.literalCalendarIds };
 }
 
 export class IfcWriteBlockedError extends Error {

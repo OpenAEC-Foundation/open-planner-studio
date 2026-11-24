@@ -14,7 +14,7 @@ import { rememberLiteralCalendarsWritten } from '@/state/savedLiteralCalendars';
 import { ifcSchemaBlocksSilentWrite } from '@/services/ifc/ifcSchemaQuestion';
 import { buildWriteIFCInput, sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { documentContentOf, sameDocumentContent, type DocumentContentRef } from '@/state/documentSaveState';
-import { computeIfcOutputHere, documentSaveCompute, prepareIfcOutput, writtenFingerprint, type IfcOutputCompute } from '@/state/prepareIfcOutput';
+import { computeIfcOutputHere, documentSaveCompute, prepareIfcOutput, withUtf8Bom, writtenFingerprint, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
   canWriteToRefWithoutPrompt, fileIdentityFs, sameFileRef, saveTargetRef, saveToRefWithoutPrompt, sourceTargetContent,
@@ -25,7 +25,7 @@ import {
 } from '@/services/fileAccess/writeCoordinator';
 import { pendingReplaceFor, tauriReplaceRecords } from '@/services/fileAccess/replaceRecords';
 import { tightAnchorsIfSaved } from '@/state/dependentCandidates';
-import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, stillWrittenKnownTarget, writtenKnownTarget, type KnownTargetState } from '@/state/knownTargetGuard';
+import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, openedOwnTargetWithBom, stillWrittenKnownTarget, writtenKnownTarget, type KnownTargetState } from '@/state/knownTargetGuard';
 import {
   ifcFullWriteBlocked, ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_SAVE_WORKER_FAILED_NOTICE,
   IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedTargetIdentity, refusedWriteTarget, type WriteTargetDeps,
@@ -377,10 +377,13 @@ export function createFileAutoSaveController(deps: {
       // rekenen, vlak vóór het schrijven, zoals Ctrl+S: een gebouwmodel dat tijdens het rekenen op het doel verscheen,
       // wordt niet overschreven. Eén doelscan; daarna beslist alleen nog de synchrone inhoudscontrole hieronder.
       const ownWritten = writtenKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
+      const ownDeps: WriteTargetDeps = {
+        ...targetDeps, openedOwnTargetWithBom: own => openedOwnTargetWithBom(knownTargetOf(candidate.id), own, current.ifcSource),
+      };
       let reason = ownWritten ? contentLeftToKnownTarget(await refusedTargetIdentity(getState(), candidate.ref!, targetDeps))
-        : await refusedWriteTarget(getState(), candidate.ref!, targetDeps);
+        : await refusedWriteTarget(getState(), candidate.ref!, ownDeps);
       const stable = !reason && !!ownWritten && await stillWrittenKnownTarget(ownWritten, candidate.ref!);
-      if (!reason && ownWritten && !stable) reason = await refusedWriteTarget(getState(), candidate.ref!, targetDeps);
+      if (!reason && ownWritten && !stable) reason = await refusedWriteTarget(getState(), candidate.ref!, ownDeps);
       if (reason) {
         refusedTarget.set(candidate.id, { ref: candidate.ref!, source: current.ifcSource, known: null });
         if (!targetNotified.has(candidate.id)) {
@@ -400,10 +403,11 @@ export function createFileAutoSaveController(deps: {
       let replaced = false;
       const contentReplaced = () => (replaced = !sameDocumentContent(getState(), document));
       if (contentReplaced()) return 'stale';
-      const hashing = writtenFingerprint(ui.featureFlags, output);
+      const data = (stable ? ownWritten : known)?.utf8Bom ? withUtf8Bom(output) : output;
+      const hashing = writtenFingerprint(ui.featureFlags, data);
       let written: Awaited<ReturnType<typeof saveToRefWithoutPrompt>>;
       try {
-        written = await saveToRefWithoutPrompt(candidate.ref!, output.bytes ?? output.content, contentReplaced);
+        written = await saveToRefWithoutPrompt(candidate.ref!, data.bytes ?? data.content, contentReplaced);
       } catch (error) {
         if (candidate.ref?.kind === 'path') getState().forgetKnownTargetFingerprint(candidate.id);
         throw error;
