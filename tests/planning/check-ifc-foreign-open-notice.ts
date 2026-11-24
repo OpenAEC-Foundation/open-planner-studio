@@ -61,6 +61,8 @@ const shape = (notice: NotifyInput | undefined) => notice && {
   lines: (notice.detailLines ?? []).map(line => [line.messageKey, line.params ?? null, line.numberParams ?? null]),
 };
 
+const lineKeysOf = (notice: NotifyInput | undefined) => (notice?.detailLines ?? []).map(line => line.messageKey);
+
 const independentCount = (file: string) => {
   const counts = classify(scanStep(new Uint8Array(readFileSync(join(FOREIGN, file))))).counts;
   return counts.C + counts.A + counts.V;
@@ -84,6 +86,15 @@ const WORK_PLANS = 'notifications.ifcForeignWorkPlansMerged';
   const count = independentCount('twee-werkplannen.ifc');
   eq('twee-werkplannen: de lezer zet de taken van het tweede werkplan in dezelfde planning',
     results[0].tasks.map(task => task.name), ['Ruwbouw', 'Wand A bouwen', 'Wand B bouwen', 'Inspectie']);
+  const baselineOnly = readFileSync(join(FOREIGN, 'twee-werkplannen.ifc'), 'utf8')
+    .replace("'Onderhoud',$,$,$,'2026-01-01T12:00:00',(#1),$,$,$,'2026-02-02T08:00:00',$,.NOTDEFINED.)",
+      "'Onderhoud',$,$,$,'2026-01-01T12:00:00',(#1),$,$,$,'2026-02-02T08:00:00',$,.BASELINE.)");
+  const baselineParsed = await parseOpenedFile({ name: 'twee-werkplannen-baseline.ifc', bytes: new TextEncoder().encode(baselineOnly) }, {}, { ifcBytes: true });
+  const baselineResults = isMultiDocumentImport(baselineParsed) ? baselineParsed.results : [baselineParsed];
+  eq('tweede werkplan met alleen een baseline: de baselinetaak komt niet in de planning, de werkplanregel staat er wel',
+    [baselineOnly.includes("'Onderhoud',$,$,$,'2026-01-01T12:00:00',(#1),$,$,$,'2026-02-02T08:00:00',$,.BASELINE.)"),
+      baselineResults[0].tasks.map(task => task.name), lineKeysOf(openNotice(baselineResults))],
+    [true, ['Ruwbouw', 'Wand A bouwen', 'Wand B bouwen'], [WORK_PLANS]]);
   eq('twee-werkplannen: telmelding met de regel over de werkplannen, en die blijft staan',
     shape(openNotice(results)),
     { messageKey: WITH_MODEL, params: { count }, numberParams: { objects: count }, sticky: true, lines: [[WORK_PLANS, null, { plans: 2 }]] });
@@ -121,7 +132,7 @@ const WORK_PLANS = 'notifications.ifcForeignWorkPlansMerged';
 {
   const results = await open('council/r5-prop.ifc', false);
   eq('flag uit, r5-prop: de gewone lezer, zonder bron en zonder overnameverslag (geen scan)',
-    results.map(r => [r.ifcSource ?? null, r.ifcPlanningTakeover ?? null]), [[null, null]]);
+    results.map(r => [r.ifcSource ?? null, r.ifcWorkPlanCount ?? null]), [[null, null]]);
   eq('flag uit, r5-prop: geen melding', openNotice(results), undefined);
   const refused = await open('bonsai-4d.ifc', false).then(() => 'geopend', (e: unknown) => (e as Error).message);
   eq('flag uit, bonsai-4d: openen weigert zoals op main, dus ook geen melding', refused.startsWith('This IFC file contains building model objects'), true);

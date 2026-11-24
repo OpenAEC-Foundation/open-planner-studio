@@ -13,7 +13,7 @@ function foreignContentLines(result: ImportResult): NotificationDetailLine[] {
     params: { count: objects },
     numberParams: { objects },
   }];
-  const workPlans = result.ifcPlanningTakeover?.workPlans ?? 0;
+  const workPlans = result.ifcWorkPlanCount ?? 0;
   if (workPlans > 1) lines.push({ messageKey: 'notifications.ifcForeignWorkPlansMerged', numberParams: { plans: workPlans } });
   return lines;
 }

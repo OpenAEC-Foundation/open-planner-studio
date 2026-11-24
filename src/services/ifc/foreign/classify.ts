@@ -35,7 +35,7 @@ const V = 4;
 export interface PlanningSelection {
   /** Het werkplan dat de lezer kiest: het eerste `IfcWorkPlan` in het bestand, of -1. */
   readonly workPlan: number;
-  readonly workPlans: readonly number[];
+  readonly workPlanCount: number;
   /** Alle werkschema's die geen baseline zijn. */
   readonly liveSchedules: readonly number[];
   /** De eigen baselinekoppen (`BASELINE`-schema's die bij een item in `OPS_Baselines` horen). */
@@ -143,7 +143,7 @@ export function selectPlanning(index: StepIndex): PlanningSelection {
   const n = index.count;
   const inD = new Uint8Array(n);
   let workPlan = -1;
-  const workPlans: number[] = [];
+  let workPlanCount = 0;
   const schedules: number[] = [];
   const baseline = new Uint8Array(n);
   const live = new Uint8Array(n);
@@ -157,7 +157,7 @@ export function selectPlanning(index: StepIndex): PlanningSelection {
       schedules.push(i);
       if (isBaselineSchedule(index, i)) baseline[i] = 1; else live[i] = 1;
     } else if (t === 'IFCWORKPLAN') {
-      workPlans.push(i);
+      workPlanCount++;
       if (workPlan < 0) workPlan = i;
     } else if (t === 'IFCTASK') allTasks.push(i);
     else if (t === 'IFCWORKCALENDAR') calendars.push(i);
@@ -273,7 +273,7 @@ export function selectPlanning(index: StepIndex): PlanningSelection {
       && index.type(pred) === 'IFCTASK' && index.type(succ) === 'IFCTASK') sequences.push(i);
   }
   for (const s of sequences) inD[s] = 1;
-  return { workPlan, workPlans, liveSchedules, ownBaselines, tasks, resources, calendars, sequences, inD };
+  return { workPlan, workPlanCount, liveSchedules, ownBaselines, tasks, resources, calendars, sequences, inD };
 }
 
 /** Namen van de codetypen en velden uit `OPS_StructureMeta`, met terugval op de templates (`extractStructure`). */
