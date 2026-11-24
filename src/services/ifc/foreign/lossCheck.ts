@@ -113,7 +113,7 @@ import { planningIdentities, planningIdentityInput } from './planningIdentity';
 import { splitStepArgs, type StepIndex } from './stepScanner';
 import type { MergePhase2Kind } from './mergeWriter';
 import { mappedChunks, type SourceSlots } from './sourceSlots';
-import { writerAlwaysWrites } from './sourceSlotWrite';
+import { keepsTarget, writerAlwaysWrites } from './sourceSlotWrite';
 
 /** Een regel van de writer, ontleed. */
 export interface OutLine { readonly id: number; readonly type: string; readonly args: readonly string[] }
@@ -585,6 +585,18 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
   const byGuidPair = new Uint8Array(n);
   /** Sleutel → de bronrelaties met die sleutel (voor de eenduidigheid, na het paren). */
   const relKeyOf = new Map<number, string>();
+  let relGuids: Map<string, number> | undefined;
+  const guidIsIdentity = (r: number, guid: string | undefined) => {
+    if (guid === undefined || input.sourceSlots?.has(sid(r)) !== true) return false;
+    if (!relGuids) {
+      relGuids = new Map();
+      for (let c = 0; c < n; c++) {
+        const g = index.isEntity(c) && isP(c) && cls.inR[c] ? index.globalId(c) : undefined;
+        if (g !== undefined) relGuids.set(g, (relGuids.get(g) ?? 0) + 1);
+      }
+    }
+    return relGuids.get(guid) === 1;
+  };
   const pairRelations = () => {
     for (let r = 0; r < n; r++) {
       if (relDone[r] || !index.isEntity(r) || !isP(r) || !cls.inR[r] || fixed.has(sid(r))) continue;
@@ -599,6 +611,7 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
       const guid = index.globalId(r);
       const byGuid = candidates.filter(o => unquote(out.get(o)!.args[0]) === guid);
       if (byGuid.length === 1) { byGuidPair[r] = 1; pair(r, byGuid[0]); continue; }
+      if (guidIsIdentity(r, guid)) continue;
       const free = candidates.find(o => !usedOut.has(o));
       pair(r, free ?? candidates[0]);
     }
@@ -773,7 +786,7 @@ export function preserveAuxiliaryIdentities(input: LossCheckInput, lines: readon
   const remap = (id: number) => ids.get(id) ?? id;
   let changed = false;
   const kept = lines.map(line => {
-    const args = line.args.map(token => replaceRefsOutsideText(token, id => `#${remap(id)}`));
+    const args = line.args.map(token => replaceRefsOutsideText(token, id => (ids.has(id) ? `#${ids.get(id)}` : undefined)));
     if (guids.has(line.id)) args[0] = guids.get(line.id)!;
     // Deze bestaande native property bewaart STEP-ids als JSON-tekst, niet als #verwijzingen.
     if (line.type === 'IFCPROPERTYSINGLEVALUE' && ID_LIST_PROPS.has(decodeStepText(unquote(line.args[0])))) {
@@ -914,6 +927,27 @@ function deletedExceptionItems(input: LossCheckInput, p1: Pairing, changed: Chan
   return out;
 }
 
+const MAPPED_TABLES = new WeakMap<LossCheckInput, ReadonlyMap<number, IfcSlotTable>>();
+
+function mappedTables(input: LossCheckInput): ReadonlyMap<number, IfcSlotTable> {
+  const known = MAPPED_TABLES.get(input);
+  if (known) return known;
+  const tables = new Map<number, IfcSlotTable>();
+  for (const [chunk, piece] of input.sourceSlots ? mappedChunks(input.index, input.sourceSlots) : []) {
+    const table = slotTableNamed(piece.table);
+    if (table) tables.set(chunk, table);
+  }
+  MAPPED_TABLES.set(input, tables);
+  return tables;
+}
+
+const carriedTarget = (input: LossCheckInput) => (id: number) => input.cls.classes[input.index.chunkOf(String(id))] === 1;
+
+function releasesKeptTarget(input: LossCheckInput, d: LossDiff): boolean {
+  const table = d.whole || d.outArg === undefined ? undefined : mappedTables(input).get(d.chunk);
+  return table !== undefined && keepsTarget(table, d.outArg!, d.source, carriedTarget(input));
+}
+
 /** Vergelijk elk paar veld voor veld, en meld de P-stukken zonder tegenhanger. `ownerOut`: de eigen owner history van de
  *  writer in deze uitvoer (de schrijfvelden). */
 function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | undefined): LossDiff[] {
@@ -947,14 +981,11 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
     return true;
   };
 
-  const mapped = new Map<number, IfcSlotTable>();
-  for (const [chunk, piece] of input.sourceSlots ? mappedChunks(index, input.sourceSlots) : []) {
-    const table = slotTableNamed(piece.table);
-    if (table) mapped.set(chunk, table);
-  }
-  const writersSlot = (s: number, k2: number, length: number) => {
+  const mapped = mappedTables(input);
+  const writersSlot = (s: number, k2: number, length: number, token: string) => {
     const table = mapped.get(s);
-    return table !== undefined && table.slots.length === length && writerAlwaysWrites(table, k2);
+    return table !== undefined && table.slots.length === length && writerAlwaysWrites(table, k2)
+      && !keepsTarget(table, k2, token, carriedTarget(input));
   };
 
   // ── Vergelijken ──
@@ -1073,7 +1104,7 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
         continue;
       }
       covered.add(k2);
-      if (saveField(s, o, type, k2) || writersSlot(s, k2, b.length)) continue;
+      if (saveField(s, o, type, k2) || writersSlot(s, k2, b.length, at)) continue;
       const bt = b[k2].trim();
       if (k2 === 0 && isGuidToken(at) && isGuidToken(bt) && isRootLine(line) && ownAuxGuid(s)) continue;
       const ok = type === 'IFCPROPERTYSET' && k2 === 4 ? sameMembers(s, at, bt)
@@ -1266,7 +1297,7 @@ function mapToken(input: LossCheckInput, token: string, p: Pairing): string | un
   const out = replaceRefsOutsideText(token, id => {
     const c = input.index.chunkOf(String(id));
     if (c < 0) { ok = false; return `#${id}`; }
-    if (input.cls.classes[c] !== 1) return `#${id}`;
+    if (input.cls.classes[c] !== 1) return undefined;
     const o = p.pairedOut.get(c)?.[0];
     if (o === undefined || p.ambiguous[c]) { ok = false; return `#${id}`; }
     return `#${o}`;
@@ -1307,7 +1338,7 @@ export function refsOutsideText(token: string): number[] {
   return out;
 }
 /** Vervang elke `#id` buiten tekst (`'…'`, met `''` als aanhalingsteken erin). `f` krijgt het id en geeft de vervanging. */
-export function replaceRefsOutsideText(token: string, f: (id: number) => string): string {
+export function replaceRefsOutsideText(token: string, f: (id: number) => string | undefined): string {
   let res = '';
   let i = 0;
   while (i < token.length) {
@@ -1325,7 +1356,7 @@ export function replaceRefsOutsideText(token: string, f: (id: number) => string)
     }
     if (c === '#') {
       const m = /^#(\d+)/.exec(token.slice(i));
-      if (m) { res += f(Number(m[1])); i += m[0].length; continue; }
+      if (m) { res += f(Number(m[1])) ?? m[0]; i += m[0].length; continue; }
     }
     res += c;
     i++;
@@ -1560,19 +1591,6 @@ const PROJECT_SETTINGS_FIELDS: Readonly<Record<string, readonly string[]>> = {
   [PROP.ProjectSettings.Organization]: ['company'],
 };
 
-/**
- * Per veld (fixronde 4, plek 3): de velden van het domeinobject die de writer in elk slot schrijft. Een verschil in een
- * slot zonder veld hier (een constante, de GlobalId, een verwijzing naar een hulpstuk) verklaart geen bewerking.
- * `IfcTask`: `IFC_TASK_SLOTS` (`ifcTaskSlots.ts`); `IfcTaskTime`: `IFC_TASKTIME_SLOTS` (de naam is die van de taak, de
- * rest komt uit de delen van `task.time` in `TASKTIME_SLOT_FIELDS`; StatusTime ook uit de statusdatum van het project).
- * Dezelfde tabellen zeggen of de planner het veld van een slot wijzigde (fixronde 5, plek 6): dan vervalt de bronwaarde.
- */
-const TASK_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
-  2: ['name'], 3: ['description'], 4: ['customTaskTypeId', 'taskType'], 5: ['wbsCode'],
-  // Status: `'STARTED'` bij een lopende taak op 100 % (`isRunningAtFullCompletion` in `ifcTaskSlots.ts`).
-  7: ['status', 'time.completion', 'time.actualFinish', 'isSummary', 'childIds'], 9: ['isMilestone'],
-  10: ['priority'], 12: ['customTaskTypeId', 'taskType'],
-};
 /** Per slot van `IfcTaskTime` de velden van de taak waar de writer het uit schrijft (`IFC_TASKTIME_SLOTS` en `writeTask` in
  *  `ifcWriter.ts`; fixronde 5, VERVOLG van Terra). Een datum hangt ook af van de eenheid van de taak (de formatter,
  *  `taskDateTimeFormatter`); een duur ook van het type, de eenheid en de kalender van de taak (minuten per dag, `PT…` of
@@ -1607,6 +1625,21 @@ const TASKTIME_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
 export function taskTimeSlotFields(...slots: number[]): string[] {
   return [...new Set(slots.flatMap(slot => TASKTIME_SLOT_FIELDS[slot] ?? []).filter(f => !f.startsWith('@')))];
 }
+/**
+ * Per veld (fixronde 4, plek 3): de velden van het domeinobject die de writer in elk slot schrijft. Een verschil in een
+ * slot zonder veld hier (een constante, de GlobalId, een verwijzing naar een hulpstuk) verklaart geen bewerking.
+ * `IfcTask`: `IFC_TASK_SLOTS` (`ifcTaskSlots.ts`); `IfcTaskTime`: `IFC_TASKTIME_SLOTS` (de naam is die van de taak, de
+ * rest komt uit de delen van `task.time` in `TASKTIME_SLOT_FIELDS`; StatusTime ook uit de statusdatum van het project).
+ * Dezelfde tabellen zeggen of de planner het veld van een slot wijzigde (fixronde 5, plek 6): dan vervalt de bronwaarde.
+ */
+const TASK_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
+  2: ['name'], 3: ['description'], 4: ['customTaskTypeId', 'taskType'], 5: ['wbsCode'],
+  // Status: `'STARTED'` bij een lopende taak op 100 % (`isRunningAtFullCompletion` in `ifcTaskSlots.ts`).
+  7: ['status', 'time.completion', 'time.actualFinish', 'isSummary', 'childIds'], 9: ['isMilestone'],
+  10: ['priority'],
+  11: [...new Set(slotTableNamed('IfcTaskTime')!.slots.flatMap((slot, k) => (slot.soort === 'domein' ? TASKTIME_SLOT_FIELDS[k] ?? [] : [])))],
+  12: ['customTaskTypeId', 'taskType'],
+};
 /** De waarde van een veld van een taak op zijn pad uit `taskTimeSlotFields`. */
 export function taskField(task: unknown, path: string): unknown {
   const t = task as Record<string, unknown>;
@@ -1620,7 +1653,7 @@ const SEQ_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
 };
 /** Een resource (`writeResource`): naam, omschrijving, en bij een kostenresource het type. */
 const RES_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = { 2: ['name'], 3: ['description'], 4: ['type'], 10: ['type'] };
-const LAG_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = { 3: LAG_FIELDS, 4: LAG_FIELDS };
+const LAG_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = { 3: LAG_FIELDS, 4: ['lagUnit'] };
 /** `OPS_Resource` (`writeResourceMeta`): property → veld. */
 const RES_PROP_FIELDS: Readonly<Record<string, readonly string[]>> = {
   [PROP.Resource.MaxUnits]: ['maxUnits'], [PROP.Resource.CostPerHour]: ['costPerHour'],
@@ -1735,7 +1768,7 @@ const OWNER_CHAIN: ReadonlySet<string> = new Set(['IFCOWNERHISTORY', 'IFCPERSONA
  */
 function explainO1(ctx: O1Context, d: LossDiff): string | undefined {
   const { input } = ctx;
-  if (d.whole === 'nieuw') return undefined;
+  if (d.whole === 'nieuw' || releasesKeptTarget(input, d)) return undefined;
   const type = input.index.type(d.chunk);
   const arg = d.whole ? -1 : (d.outArg ?? d.arg);
   if (d.whole === 'gedeeld' || d.slotless) return undefined;
@@ -2062,7 +2095,7 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   }
   if (kind === 'seq') {
     if (way === 'self') return type === 'IFCRELSEQUENCE' && !d.whole ? any(SEQ_SLOT_FIELDS[arg]) : undefined;
-    if (type === 'IFCLAGTIME' && way === 'slot:6') return any(LAG_FIELDS);
+    if (type === 'IFCLAGTIME' && way === 'slot:6') return any(d.whole ? SEQ_SLOT_FIELDS[6] : LAG_SLOT_FIELDS[arg]);
     return undefined;
   }
   if (kind === 'res') {

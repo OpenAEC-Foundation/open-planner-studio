@@ -4,7 +4,9 @@ import type { SourcePieceSlots } from './sourceSlots';
 
 const soortVreemd = (table: IfcSlotTable, k: number): SlotSoort => table.slots[k].soortVreemd ?? table.slots[k].soort;
 
-const hasReference = (token: string) => /#\d/.test(token.replace(/'(?:[^']|'')*'/g, "''"));
+const references = (token: string) => (token.replace(/'(?:[^']|'')*'/g, "''").match(/#\d+/g) ?? []).map(ref => Number(ref.slice(1)));
+
+const hasReference = (token: string) => references(token).length > 0;
 
 const GROUPS = new WeakMap<IfcSlotTable, ReadonlyMap<number, readonly number[]>>();
 
@@ -30,12 +32,19 @@ export function writerAlwaysWrites(table: IfcSlotTable, k: number): boolean {
   return (soort === 'afgeleid' || soort === 'verwijzing') && table.slots[k].rol === undefined && !groupsOf(table).has(k);
 }
 
+export function keepsTarget(table: IfcSlotTable, k: number, token: string | undefined, carried: (id: number) => boolean): boolean {
+  return token !== undefined && soortVreemd(table, k) === 'verwijzing' && writerAlwaysWrites(table, k)
+    && references(token).some(id => !carried(id));
+}
+
 export function sourceSlotArgs(table: IfcSlotTable, piece: SourcePieceSlots, written: readonly string[],
-  before: readonly string[] = written, fieldChanged: (k: number) => boolean = () => false): string[] {
+  before: readonly string[] = written, fieldChanged: (k: number) => boolean = () => false,
+  carried: (id: number) => boolean = () => true): string[] {
   const source = table.slots.map(slot => piece.slots.get(slot.key)?.trim());
   const unchanged = (k: number) => written[k].trim() === before[k].trim() && !fieldChanged(k);
   const usable = (k: number) => source[k] !== undefined && (table.slots[k].bronverwijzing === true || !hasReference(source[k]!));
   const ownRule = (k: number) => {
+    if (keepsTarget(table, k, source[k], carried)) return !fieldChanged(k);
     const soort = soortVreemd(table, k);
     return usable(k) && (soort === 'constant' || (soort === 'domein' && unchanged(k)));
   };

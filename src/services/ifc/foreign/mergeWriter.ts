@@ -47,12 +47,12 @@ import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
 import { assumedRowGuid, orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged, withOrphanRowGuids } from './sourceForm';
 import {
-  changedScopes, dateTimeTexts, decimalKey, slotFieldChanged, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, taskField,
+  changedScopes, dateTimeTexts, decimalKey, slotFieldChanged, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, refsOutsideText, taskField,
   taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine, type SlotEdit,
 } from './lossCheck';
 import { elementLinksByTask, scanElementLinks } from './elementLinks';
 import { foreignOriginAmong, OWNED_BY_TABLE, scanSourceSlots, type SourcePieceSlots } from './sourceSlots';
-import { sourceEntity, sourceSlotArgs } from './sourceSlotWrite';
+import { keepsTarget, sourceEntity, sourceSlotArgs } from './sourceSlotWrite';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource, PreparedIfcWrite, UnusedKeysOfTask } from './ifcSource';
@@ -219,7 +219,25 @@ function refList(token: string | undefined): number[] {
 
 const formatRefs = (ids: readonly number[]) => `(${ids.map(id => `#${id}`).join(',')})`;
 
-interface WrittenPiece { readonly args: readonly string[]; readonly owned?: readonly string[]; readonly ownedId?: number }
+interface WrittenPiece { readonly args: readonly string[]; readonly owned?: readonly string[] }
+
+function dropReleased(lines: readonly OwnLine[], byId: ReadonlyMap<number, OwnLine>, released: readonly number[],
+  reserved: ReadonlySet<number>): void {
+  if (released.length === 0) return;
+  const referrers = new Map<number, number>();
+  for (const line of lines) if (!line.drop) for (const id of refsInText(line.text)) referrers.set(id, (referrers.get(id) ?? 0) + 1);
+  const stack = [...released];
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    const line = byId.get(id);
+    if (!line || line.drop || reserved.has(id) || (referrers.get(id) ?? 0) > 0) continue;
+    line.drop = true;
+    for (const target of refsInText(line.text)) {
+      referrers.set(target, (referrers.get(target) ?? 1) - 1);
+      stack.push(target);
+    }
+  }
+}
 
 /** Een multiset van ids. */
 class Bag {
@@ -465,6 +483,9 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     for (const [key, id] of written.idMap) if (key.startsWith('_baseline_ws_') && reserved.has(id)) keptHeads.add(id);
 
     const raw = new Map<number, WrittenPiece>();
+    const chosen: Pick<SlotEdit, 'id' | 'arg' | 'token'>[] = [];
+    const released: number[] = [];
+    const carried = (id: number) => isP(index.chunkOf(String(id)));
     const fromSource = (line: OwnLine, piece: SourcePieceSlots, prior: readonly string[] | undefined, object: string | undefined)
       : readonly string[] | undefined => {
       const table = slotTableOf(line.type, line.args);
@@ -473,7 +494,12 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       const writtenArgs = line.args, type = line.type;
       line.type = sourceEntity(table, piece, line.type);
       setArgs(line, sourceSlotArgs(table, piece, writtenArgs, prior,
-        k => object !== undefined && slotFieldChanged(type, k, object, changed)));
+        k => object !== undefined && slotFieldChanged(type, k, object, changed), carried));
+      line.args.forEach((token, arg) => {
+        if (token === writtenArgs[arg]) return;
+        chosen.push({ id: line.id, arg, token });
+        if (keepsTarget(table, arg, token, carried)) released.push(...refsOutsideText(writtenArgs[arg]));
+      });
       return writtenArgs;
     };
     for (const line of lines) {
@@ -488,8 +514,9 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       if (!args) continue;
       const ownedLine = byId.get(ownedRef);
       const owned = ownedLine && !ownedLine.drop ? fromSource(ownedLine, piece.owned!, prior?.owned, object) : undefined;
-      raw.set(line.id, { args, ...(owned ? { owned, ownedId: ownedRef } : {}) });
+      if (!before) raw.set(line.id, { args, ...(owned ? { owned } : {}) });
     }
+    dropReleased(lines, byId, released, reserved);
 
     // ── 4. Bewaarde en gemengde relaties ──
     /** Leden die in geen eigen relatie van dit type mogen staan (SET [0:1]). */
@@ -838,7 +865,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       if (m) objects.set(id, m[1] === 'calendar' ? `cal:${m[2]}` : m[1] === '_baseline_ws' ? 'baselines' : `${m[1]}:${m[2]}`);
       else if (key === '_calendar') objects.set(id, `cal:${input.calendar.id}`);
     }
-    return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds, objects, idMap: written.idMap, literalCalendarIds: written.literalCalendarIds, raw };
+    return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds, objects, idMap: written.idMap, literalCalendarIds: written.literalCalendarIds, raw, chosen };
   }
   // Het domein zoals de lezer het uit de bron las (O0 hieronder), al vóór O1: de writer vergelijkt de taken ermee
   // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
@@ -927,13 +954,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // en de bronwaarde), en de rest van de groep gewoon; is het slot niet eenduidig aan te wijzen, dan slaat (c) de hele groep
   // over (`restoredOwnSlots`, op O1 vóór de bewerkingen). Een verwijzing naar een stuk dat de writer niet schrijft (het
   // `IfcProject` van een ander programma), leest het type uit de bron.
-  const fromMap: Pick<SlotEdit, 'id' | 'arg' | 'token'>[] = [];
-  for (const [id, piece] of built.raw) {
-    for (const [lineId, written] of [[id, piece.args], [piece.ownedId ?? -1, piece.owned ?? []]] as const) {
-      byId.get(lineId)?.args.forEach((token, arg) => { if (token !== written[arg]) fromMap.push({ id: lineId, arg, token }); });
-    }
-  }
-  const restored = restoredOwnSlots(linesView(lines.filter(l => !l.drop), id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; }), [...edits, ...fromMap]);
+  const chosen = built.chosen.filter(e => byId.get(e.id)?.drop === false);
+  const restored = restoredOwnSlots(linesView(lines.filter(l => !l.drop), id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; }), edits, chosen);
   const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds);
   if (cases.length === 0 && edits.length > 0) {
     const plain = lines.filter(l => !l.drop).map(l => l.text);
@@ -1002,6 +1024,13 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // De regel van elk slot van (b) in de uitvoer, door dezelfde hernummering. Een regel buiten de kaart: (c) slaat zijn groep
     // over, zoals vóór PR A.
     const unmapped = new Set(restored.slots.filter(s => !remap.has(s.id)).map(s => s.group));
+    const renumbered = new Map(candidate.map(line => [line.id, line]));
+    for (const e of chosen) {
+      if (refsOutsideText(e.token).length === 0) continue;
+      const line = renumbered.get(remap.get(e.id) ?? -1);
+      if (line?.args[e.arg]?.trim() === e.token.trim()) continue;
+      throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `#${line?.id ?? e.id} argument ${e.arg} draagt na het hernummeren niet meer de bronwaarde ${e.token.trim()}` }]);
+    }
     const own: OwnOutputCheck = {
       stepIds, writtenAt, sourceRowGuid: rowGuid, skip: new Set([...restored.skip, ...unmapped]),
       slots: restored.slots.filter(s => !unmapped.has(s.group)).map(s => ({ ...s, id: remap.get(s.id)! })),
@@ -1009,11 +1038,12 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     observe?.(own);
     const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own);
     const written = new Set(candidate.map(line => line.id));
-    // Een gewone lus: `Uint8Array.from` met een functie maakt bij een groot model miljoenen tijdelijke waarden (#804).
-    const ids = actual.scan.chunkIds, classes = new Uint8Array(ids.length);
+    const ids = actual.scan.chunkIds, classes = actual.scan.classes;
     for (let k = 0; k < ids.length; k++) {
-      const id = ids[k];
-      if (id >= 0) classes[k] = written.has(id) ? 1 : cls.classes[index.chunkOf(String(id))];
+      if (ids[k] < 0 || (classes[k] === 1) === written.has(ids[k])) continue;
+      throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: classes[k] === 1
+        ? `#${ids[k]} is in de uitvoer een eigen stuk, maar de writer schreef het niet`
+        : `#${ids[k]} schreef de writer, maar in de uitvoer is het geen eigen stuk` }]);
     }
     const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c)));
     const next = await writtenSource(input, actual.bytes, actual.index, actual.scan, stepIds, classes, members, actual.unusedKeys,
