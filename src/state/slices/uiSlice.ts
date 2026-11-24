@@ -2,6 +2,7 @@ import type { UIState, AppSlice, AppNotification, NotifyInput } from './types';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
 import type { McpServerStatus } from '@/services/mcp/contracts';
 import { loadFeatureFlags, MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { detectSystemPrefersDark } from '@/utils/theme';
 import { DEFAULT_BAR_COLOR_SELECTION } from '@/types/barColor';
 import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
@@ -343,6 +344,10 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
         if (!dockFinal && !propsFinal && !warningsFinal && !shiftsFinal) {
           (updates as Partial<UIState>).showPropertiesPanel = true;
         }
+      }
+      if (updates.featureFlags && ifcForeignContentEnabled(s.ui.featureFlags) && !ifcForeignContentEnabled(updates.featureFlags)) {
+        s.knownTargetFingerprint = null;
+        for (const document of s.documents) if (document.payload) document.payload.knownTargetFingerprint = null;
       }
       const helpWasOpen = s.ui.activeRibbonTab === 'file' && s.ui.backstageSection === 'help';
       Object.assign(s.ui, updates);

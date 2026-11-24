@@ -40,7 +40,7 @@ import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
 import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
 import { refuseModelAboveOpenLimit } from '@/services/ifc/modelOpenLimit';
 import { buildExportIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
-import { exportHitsOwnFile, exportTargetMatch } from '@/state/savedLiteralCalendars';
+import { exportHitsOwnFile } from '@/state/savedLiteralCalendars';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { ifcSchemaBlocksSilentWrite, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { DEFAULT_IFC_SCHEMA, projectIfcSchema } from '@/types/project';
@@ -528,13 +528,10 @@ export const fileTools: McpToolDef[] = [
           const cause = e instanceof ByteWriteError && e.cause !== undefined ? e.cause : e;
           return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Writing to '${path}' failed: ${cause instanceof Error ? cause.message : String(cause)}`);
         }
-        const tracked = ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags);
-        if (!tracked) ctx.app.store.getState().forgetKnownTargetFingerprint(state.activeDocumentId);
-        const record = !output.prepared && output.literalCalendarIds.length > 0;
-        if (record || tracked) {
-          const match = await exportTargetMatch(saveTargetRef(state, true), { kind: 'path', path }, fs);
-          if (tracked && match === 'same') ctx.app.store.getState().forgetKnownTargetFingerprint(state.activeDocumentId);
-          if (record && exportHitsOwnFile(match)) ctx.app.store.getState().recordLiteralCalendarsWritten(state.activeDocumentId, output.literalCalendarIds);
+        const settling = ctx.app.store.getState().settleFingerprintAfterExport(state.activeDocumentId, output.prepared ? output.prepared.bytes : output.content);
+        if (settling) await settling;
+        if (!output.prepared && output.literalCalendarIds.length > 0 && await exportHitsOwnFile(saveTargetRef(state, true), { kind: 'path', path }, fs)) {
+          ctx.app.store.getState().recordLiteralCalendarsWritten(state.activeDocumentId, output.literalCalendarIds);
         }
         return null;
       }, () => toolError(ctx, 'VALIDATION', 'The app is closing or installing an update. Nothing was written.'));
