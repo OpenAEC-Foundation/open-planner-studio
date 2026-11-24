@@ -3659,8 +3659,8 @@ en noem het in je rapport of PR-tekst.
      `unknown`, `previous-stranded` of `target-taken` geeft. Na een geslaagde export vergelijkt
      `settleFingerprintAfterExport` het eigen doel met de geschreven bytes. Drie gevallen laten het veld staan.
      Een export die mislukt nadat hij het eigen bestand al raakte: op het eigen doel staat dan iets wat de export niet
-     (helemaal) schreef. De vingerafdruk blijft staan, de komende bewaking weigert de volgende Ctrl+S, en er gaat
-     niets verloren. Opslaan als over een bestaand bestand (`replaceExistingPath`) met een onzekere uitkomst: het
+     (helemaal) schreef. De vingerafdruk blijft staan, de komende bewaking weigert dan Ctrl+S met haar melding, en er
+     gaat niets verloren. Opslaan als over een bestaand bestand (`replaceExistingPath`) met een onzekere uitkomst: het
      gekozen pad kan het eigen bestand zijn, maar de route kijkt daar niet naar. En in de browser de opslaankiezer uit
      knownbug 1899: die kan de eigen handle al leeggemaakt hebben als de schrijfactie daarna mislukt. — S (code
      gelezen, niet nagespeeld)

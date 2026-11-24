@@ -1127,7 +1127,7 @@ await check('volgorde 2: Automatisch opslaan schrijft, de export wacht in de sch
     assert((await exported).ok);
     assert.notDeepEqual(onDisk(own), afterAutoSave, 'de export schreef andere bytes over het eigen pad');
     assert.deepEqual(known(store), onDisk(own), 'hash én grootte zijn die van de bytes die de export schreef');
-  } finally { ipc.dispose(); }
+  } finally { release(); ipc.dispose(); }
 });
 
 await check('de schrijfrij: elke exportroute schrijft het eigen doel en legt de vingerafdruk vast binnen de beurt van de rij', async () => {
