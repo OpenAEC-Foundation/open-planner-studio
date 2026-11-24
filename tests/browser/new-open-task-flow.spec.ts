@@ -230,6 +230,10 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
   await closeKantoor.click();
   await expect(question).toBeVisible();
   await expect(question.locator('[data-ops-close-choice]')).toHaveCount(3);
+  await loadButton.focus();
+  await page.keyboard.press('Enter');
+  await expect(question.locator('[data-ops-close-choice]')).toHaveCount(3);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.pendingCloseReopen)).toBeNull();
   await question.locator('[data-ops-close-choice="cancel"]').click();
   await expect(question).toBeHidden();
   await expect(strip).toBeVisible();
@@ -293,7 +297,19 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
   await expect(strip).toBeVisible();
   await expect(question).toHaveCount(0);
   await page.locator('[data-ops-project-info-discard]').click();
-  await page.locator('[data-ops-backstage-back]').click();
+  await loadButton.click();
+  await expect(strip).toHaveCount(0);
+  await expect(page.locator('.backstage-sidebar')).toBeHidden();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.activeRibbonTab)).toBe('start');
+  await expect(kantoor).toHaveAttribute('aria-selected', 'true');
+  await page.evaluate(async (text) => {
+    const handle = await (await navigator.storage.getDirectory()).getFileHandle('kantoor.ifc');
+    const writable = await handle.createWritable();
+    await writable.write(`${text}\n\n\n`);
+    await writable.close();
+  }, planning);
+  await page.locator('[data-ops-tabstrip] [role="tab"]', { hasText: 'gesleept' }).click();
+  await openButton.click();
   await expect(kantoor).toHaveAttribute('aria-selected', 'true');
   await expect(strip).toBeVisible();
   await openDraft();
