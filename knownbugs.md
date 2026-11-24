@@ -1805,9 +1805,9 @@ en noem het in je rapport of PR-tekst.
      `run` zijn momentopname neemt. Mislukt daarna een stap, dan zet `rollback`
      (`src/state/runtime/createMcpTransactions.ts`) de toestand van ná die berekening terug: de mutaties van de batch
      zijn weg, de berekening blijft. Gezien in een proef via de MCP-dispatcher: met automatisch berekenen uit was een
-     taak verlengd zonder te rekenen; een batch hernoemde die taak en las daarna een verwijderde taak. De batch gaf
-     `NOT_FOUND` en de oude naam kwam terug, terwijl de berekende start van de opvolger van 11 naar 16 maart ging. De
-     volgorde in `runMutateTool` is in de code nagegaan. Zie ADR 0240. — B
+     taak verlengd zonder te rekenen; een batch hernoemde die taak en probeerde daarna een taak met een onbekend id te
+     lezen. De batch gaf `NOT_FOUND` en de oude naam kwam terug, terwijl de berekende start van de opvolger van 11 naar
+     16 maart ging. Zie ADR 0240. — B
 
 ## Bestanden en herstel
 
