@@ -1782,6 +1782,23 @@ en noem het in je rapport of PR-tekst.
      dit pad de gewone workersessie en `scanForeign` geven. Gezien in de code door de reviewer van #1180
      (GPT-6.2-Sol, ronde 2). — B (code)
 
+2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
+     `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
+     callback van `run` `notifyLevelingDelayRounded` aan. Die zet het document via `claimOnce`
+     (`src/state/timephasedLossNotice.ts`) in een registratie op moduleniveau. `rollback` zet daarna
+     `ui.notifications` terug, maar die registratie niet, dus een latere wissing van zulke vertraging voor hetzelfde
+     document kan in deze sessie zonder melding blijven. Gezien in een proef via de MCP-dispatcher: met 90 minuten
+     geïmporteerde nivelleervertraging wiste een `planner_batch` eerst de nivellering en las daarna een onbekende taak;
+     de batch gaf `NOT_FOUND` en zette de 90 minuten terug, en een losse `planner_clear_leveling` wiste daarna de
+     vertraging bij één taak zonder melding. In de code van `rollback` en `claimOnce` nagegaan. — B
+2009. **Een teruggedraaide MCP-transactie kan de werkregels zichtbaar laten.** Draftmethoden zetten
+     `taskTypesVisible` op `true`, onder meer `draft.setTaskWorkRule` met een regel, `draft.setAssignmentWork` en
+     `draft.addTask` met een `workRule` (`src/state/runtime/createMcpTransactions.ts`). Dat veld heeft in
+     `DOCUMENT_FIELDS` (`src/state/documentContract.ts`) de rol `snapshot: 'none'`, en `restoreDocument` in `run` zet
+     het niet terug. Na `rollback` blijft het dus `true`, en `taskTypesUnlocked` (`src/state/taskTypesVisibility.ts`)
+     ontsluit daarmee de werkregelvelden en -kolommen, ook als de geweigerde transactie verder niets achterliet. In de
+     code nagegaan, ook in een tweede, onafhankelijke controle van de code; niet nagespeeld in de app. — B (code)
+
 ## Bestanden en herstel
 
 36. **Herstelvenster na een gewone herlaad** in de browser, ook als alles was opgeslagen. — S
