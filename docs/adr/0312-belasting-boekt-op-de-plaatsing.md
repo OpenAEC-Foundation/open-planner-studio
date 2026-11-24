@@ -11,7 +11,7 @@ die niet meer (knownbug 507). Een onleesbare start geeft een lege plaatsing, dus
 
 ## Gevolgen
 
-- De maat van de plaatsing komt uit het rekenprofiel van het project (`LoadOptions`), zoals bij de solver;
+- De maat van de plaatsing komt uit het rekenprofiel van het project (`LoadOptions`, spec §3.14), zoals bij de solver;
   `runCPM` geeft `input.schedulingOptions` mee en `recomputeResourceLoad` `effectiveSchedulingOptions(project)`
   (`scheduleSlice.ts`). Het argument is verplicht, ook in `HistogramInput.schedulingOptions`. Volgens het weggehaalde
   commentaar telde een P6- of MSP-project bij een stille terugval op het OPS-profiel als OPS: een dagtaak over een

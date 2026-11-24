@@ -5,7 +5,8 @@ vier bronnen en hun volgorde staan in de regel `contour`: een gekoppelde contour
 formule (ADR 0310). Dat exacte curvewaarden ook naast een vormnaam winnen en een contour zonder periodes niet telt,
 staat in ADR 0005. Hier ligt vast hoe vorm en totaal samengaan als een toewijzing `curveValues` en opgeslagen werk
 (`remainingWorkMinutes`) allebei draagt: de 21 waarden geven de vorm, het opgeslagen werk het totaal. Zonder werkveld
-is het totaal inzet maal duur. Won de curve ook voor het totaal, dan boekte ze inzet maal duur in plaats van het werk
+is het totaal inzet maal duur. Opgeslagen werk is het totaal zodat een toewijzing die de duur niet stuurt haar eigen
+werk boekt en niet inzet maal restduur. Won de curve ook voor het totaal, dan boekte ze inzet maal duur in plaats van het werk
 (bevinding 7 van de review van #170, volgens `check-work-rule-store.ts`; de gevallen g5 en g6 vergelijken de som en
 de vorm).
 
