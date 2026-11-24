@@ -1457,10 +1457,13 @@ await check('Ctrl+S met de flag uit (na het openen uitgezet): dezelfde weigering
 });
 
 const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
-const PLAIN_SAVE_CALLS: Record<'aan' | 'aan, zelf geschreven' | 'uit', string[]> = {
+const PLAIN_SAVE_CALLS: Record<'aan' | 'aan, onbekend' | 'aan, zelf geschreven' | 'uit', string[]> = {
   // Met de flag aan leest de doelcontrole eerst het bestaande doel (`refusedWriteTarget`), dan de gewone atomaire opslag.
   aan: ['plugin:fs|open <map>/model.ifc', 'plugin:fs|read ', 'plugin:fs|read ', 'plugin:fs|seek ', 'plugin:fs|read ',
     'plugin:fs|read ', 'plugin:resources|close ', 'plugin:fs|stat <map>/model.ifc', 'plugin:fs|read_file <map>/model.ifc',
+    'plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
+  'aan, onbekend': ['plugin:fs|open <map>/model.ifc', 'plugin:fs|read ', 'plugin:fs|read ', 'plugin:fs|seek ', 'plugin:fs|read ',
+    'plugin:fs|read ', 'plugin:resources|close ',
     'plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
   'aan, zelf geschreven': ['plugin:fs|stat <map>/model.ifc', 'plugin:fs|read_file <map>/model.ifc',
     'plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
@@ -1493,7 +1496,7 @@ for (const flag of [true, false]) {
     const fromUnknown = ipc.calls.length;
     await store.getState().saveFile();
     const seenUnknown = ipc.calls.slice(fromUnknown).map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
-    assert.deepEqual(seenUnknown, PLAIN_SAVE_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seenUnknown));
+    assert.deepEqual(seenUnknown, PLAIN_SAVE_CALLS[flag ? 'aan, onbekend' : 'uit'], JSON.stringify(seenUnknown));
     assert(readFileSync(path).toString('latin1').includes('Gewone opslag zonder bekende versie'));
     assert.equal(store.getState().knownTargetFingerprint?.origin ?? null, flag ? 'written' : null);
     const id = store.getState().activeDocumentId;
