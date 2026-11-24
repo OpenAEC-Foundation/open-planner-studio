@@ -79,6 +79,18 @@ via `flushRecoveryNow` tot de gepersisteerde basis van `runRecoveryTick` het noe
 slagen eerst de nieuwe bron en wist dan het veld; na mislukken alleen wissen. Herstel aanvaardt een bron met `sha256`
 of `pendingSha256` en neemt de gevonden versie. Een oudere app negeert het veld. Ctrl+S via de browserhandle roept
 het aan (stap 2, `tauri-ifc.md`); zonder vastgelegd manifest schrijft hij niet (1764).
+#804 fase 2, PR 11: `ifcSource.sharedGlobalIds` (optioneel, v5) noemt de zaden (`soort:id`) van taken, resources,
+bibliotheekkalenders en relaties waarvan de bewaarde GlobalId in `ifcGlobalIds` gedeeld wordt (een `-dup-N`-object en
+zijn partner), met die GlobalId (`recoverySharedGlobalIds.ts`). De herstelsnapshot schrijft ze zonder bewaarde GlobalId,
+dus met `ifcGuid128(zaad)`, de GlobalId die ook `mappedResourceId` en `planningIdentities` verwachten; `readRecoveryDocument`
+geeft ze vóór het bronherstel hun id en GlobalId uit de sessie terug (`withSharedGlobalIdsRestored`, hernoemen via
+`withRenamedPlanningIds`). Zonder dat kreeg zo'n object na herstel het id van zijn nieuwe GlobalId, vond de bronkaart het
+niet meer en weigerde opslaan (`verwijderd`). Alleen met de flag aan en een vreemd deel; anders zijn manifest en snapshot
+die van main, en elke ronde geeft hetzelfde object (geen nieuwe snapshot per ronde). Het veld hoort bij de snapshot, niet
+bij een bronversie: tijdens een vervanging blijft het gelijk, welke versie het herstel ook vindt. Een oudere app negeert
+het veld; bij zo'n document weigert opslaan na zijn herstel dan, zoals al vóór PR 11. Proef:
+`check-recovery-gedeelde-globalids.ts`. Het lijstje per bronversie uit ontwerp §4.14 (`idExceptions`) bestaat nog niet:
+knownbug 2236.
 PR 11a sluit de voorbereide documentwrites aan. Site-AutoSave blijft uit. Met de flag uit, of als de bron ontbreekt,
 blijft bestands-AutoSave bij een vreemd deel geweigerd (`ifcSaveBlocked`, geen kandidaat), met de bestaande ene
 melding per document per sessie.

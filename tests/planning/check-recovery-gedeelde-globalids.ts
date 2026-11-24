@@ -20,7 +20,12 @@ import { recoverySourceDocument } from '@/state/recoverySourceDocument';
 import { readRecoveryDocument } from '@/state/readRecoveryDocument';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { planningCanon } from '@/services/ifc/foreign/planningCanon';
-import { recoverySnapshotGlobalIds } from '@/services/recovery/recoverySharedGlobalIds';
+import { parseSharedGlobalIds, recoverySnapshotGlobalIds, withSharedGlobalIdsRestored } from '@/services/recovery/recoverySharedGlobalIds';
+import { recoverySnapshotInput, serializeRecoveryInput, serializeRecoverySnapshot } from '@/services/recovery/recoverySnapshotInput';
+import { ifcSourceMetaFields } from '@/services/recovery/recoveryIfcSource';
+import { sameIFCSource } from '@/state/ifcSaveInput';
+import { ifcGuid128 } from '@/services/ifc/ifcWriter';
+import { readIfcFromText } from '@/services/formatRegistry';
 
 installDeterminism();
 await loadStore();
@@ -262,3 +267,76 @@ for (const moment of crashes) {
 }
 console.log('PROEF 3 GROEN: Ctrl+S op het eigen pad, crash na stap 0, na het plaatsen en vóór het opruimen: herstel houdt de identiteit.');
 await clearRecovery();
+
+const activePayload = (store: Store) => store.getState().getOpenDocumentPayloads().find(d => d.id === store.getState().activeDocumentId)!;
+const gate = await openAt(source, join(dir, 'grens.ifc'));
+const { id: gateId, payload: gatePayload } = activePayload(gate);
+const off = recoverySourceDocument(gateId, gatePayload, false);
+assert.equal(off.ifcSource, undefined, 'flag uit: geen bronverwijzing en dus geen nieuw veld');
+assert.equal(off.source, gatePayload, 'flag uit: de snapshot krijgt de documentinhoud van main');
+const offLoaded = await tick(gate, false);
+const offDoc = offLoaded.docs.find(d => d.id === gateId)!;
+assert.equal(offDoc.ifcSource, undefined, 'flag uit: het manifest is dat van main');
+assert.equal(offDoc.ifc, serializeRecoverySnapshot(gatePayload), 'flag uit: de snapshot is die van main');
+await clearRecovery();
+const on = recoverySourceDocument(gateId, gatePayload, true);
+assert.deepEqual(on.ifcSource?.sharedGlobalIds, sharedIds);
+for (const [seed] of sharedIds) assert.equal(on.source.ifcGlobalIds?.[seed], undefined, `${seed} zonder bewaarde GlobalId in de snapshot`);
+assert.equal(Object.keys(on.source.ifcGlobalIds!).length, Object.keys(gatePayload.ifcGlobalIds!).length - sharedIds.length);
+const next = recoverySourceDocument(gateId, gatePayload, true);
+assert.equal(next.source.ifcGlobalIds, on.source.ifcGlobalIds, 'elke ronde hetzelfde object');
+assert(sameIFCSource(on.source, next.source), 'een volgende ronde ziet geen inhoudswijziging en schrijft geen nieuwe snapshot');
+
+const crashedDoc = crashed.docs.find(d => d.id === sessionId)!;
+const { sharedGlobalIds: _shared, ...bare } = crashedDoc.ifcSource!; void _shared;
+const offRead = await readRecoveryDocument(crashedDoc, crashed.archives, false);
+const bareRead = await readRecoveryDocument({ ...crashedDoc, ifcSource: bare }, crashed.archives, false);
+assert.deepEqual([offRead.resources, offRead.ifcGlobalIds], [bareRead.resources, bareRead.ifcGlobalIds], 'flag uit: het herstel leest het veld niet');
+const reader = desktop();
+const oldRead = await readRecoveryDocument({ ...crashedDoc, ifc: serializeRecoverySnapshot(gatePayload), ifcSource: bare }, crashed.archives, true)
+  .finally(() => reader.dispose());
+assert.equal(oldRead.resources.find(r => r.name === CRANE)!.id, `res-ifc-${ifcGuid128(`res:${craneId}`)}`,
+  'een herstelset van vóór deze wijziging herstelt zoals main: de tweede krijgt het id uit de snapshot');
+assert.equal(oldRead.resources.find(r => r.name === SCAFFOLDERS)!.id, `res-ifc-${scaffolders.guid}`);
+console.log('PROEF 4 GROEN: flag uit gelijk aan main (manifest, snapshot, lezing); een oude herstelset herstelt als main; elke ronde hetzelfde object.');
+
+const plain = await openAt(new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc'))), join(dir, 'gewoon.ifc'));
+assert.equal(plain.getState().ifcSource?.foreign, false, 'het voorbeeld heeft geen vreemd deel');
+const [firstSeed, secondSeed] = Object.keys(plain.getState().ifcGlobalIds ?? {}).filter(seed => seed.startsWith('res:'));
+assert(firstSeed && secondSeed, 'het voorbeeld heeft twee resources met een GlobalId');
+plain.setState(s => { s.ifcGlobalIds = { ...s.ifcGlobalIds!, [secondSeed]: s.ifcGlobalIds![firstSeed] }; });
+const { id: plainId, payload: plainPayload } = activePayload(plain);
+for (const enabled of [true, false]) {
+  const plainDoc = recoverySourceDocument(plainId, plainPayload, enabled);
+  assert.equal(plainDoc.ifcSource, undefined, 'zonder vreemd deel: geen nieuw veld');
+  assert.equal(plainDoc.source.ifcGlobalIds, plainPayload.ifcGlobalIds, 'zonder vreemd deel: de snapshot van main');
+}
+const own = await openAt(model, join(dir, 'zonder-gedeeld.ifc'));
+const { id: ownId, payload: ownPayload } = activePayload(own);
+const ownDoc = recoverySourceDocument(ownId, ownPayload, true);
+assert(ownDoc.ifcSource && !('sharedGlobalIds' in ownDoc.ifcSource), 'vreemd deel zonder gedeelde GlobalId: geen nieuw veld');
+assert.equal(ownDoc.source, ownPayload, 'vreemd deel zonder gedeelde GlobalId: de snapshot van main');
+console.log('PROEF 5 GROEN: zonder vreemd deel en zonder gedeelde GlobalId geen nieuw veld en dezelfde snapshot als main.');
+
+const snapshotInput = recoverySnapshotInput(on.source);
+assert.equal(serializeRecoveryInput(structuredClone(snapshotInput)), serializeRecoveryInput(snapshotInput), 'door de Worker: dezelfde snapshot');
+assert.deepEqual(ifcSourceMetaFields(JSON.parse(JSON.stringify({ ifcSource: on.ifcSource }))).ifcSource?.sharedGlobalIds, sharedIds, 'door JSON (desktop)');
+assert.deepEqual(ifcSourceMetaFields(structuredClone({ ifcSource: on.ifcSource })).ifcSource?.sharedGlobalIds, sharedIds, 'door structuredClone (browser)');
+const G = scaffolders.guid, H = crane.guid;
+const odd = recoverySnapshotGlobalIds({
+  'res:__proto__': G, 'res:constructor': G, 'seq:toString': H, 'task:hasOwnProperty': H, 'proj:p': G, 'cal:cal-default': H,
+})!;
+assert.deepEqual(odd.shared.map(([seed]) => seed).sort(), ['res:__proto__', 'res:constructor', 'seq:toString', 'task:hasOwnProperty']);
+assert.deepEqual(Object.entries(odd.snapshotGlobalIds), [['proj:p', G], ['cal:cal-default', H]]);
+assert.equal(Object.getPrototypeOf(odd.snapshotGlobalIds), Object.prototype);
+assert.deepEqual(parseSharedGlobalIds(JSON.parse(JSON.stringify(odd.shared))), odd.shared);
+for (const bad of [[['res:x', 'kort']], [['proj:p', G]], [['cal:cal-default', G]], [['res:x']], [['res:x', G, 'extra']], 'tekst', [], null]) {
+  assert.equal(parseSharedGlobalIds(bad), undefined, `ongeldig: ${JSON.stringify(bad)}`);
+}
+const parsedSnapshot = await readIfcFromText(crashedDoc.ifc);
+const odder = withSharedGlobalIdsRestored(parsedSnapshot, [['res:constructor', G], ['res:__proto__', H]]);
+assert.equal(Object.getOwnPropertyDescriptor(odder.ifcGlobalIds, 'res:__proto__')?.value, H);
+assert.equal(Object.getOwnPropertyDescriptor(odder.ifcGlobalIds, 'res:constructor')?.value, G);
+assert.equal(Object.getPrototypeOf(odder.ifcGlobalIds), Object.prototype);
+assert.deepEqual(odder.resources, parsedSnapshot.resources);
+console.log('PROEF 6 GROEN: Worker, JSON en structuredClone geven hetzelfde; sleutels als __proto__ en constructor breken niets.');
