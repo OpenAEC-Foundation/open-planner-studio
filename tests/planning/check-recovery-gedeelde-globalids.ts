@@ -22,7 +22,7 @@ import { readRecoveryDocument, rewritesSnapshot } from '@/state/readRecoveryDocu
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { planningCanon } from '@/services/ifc/foreign/planningCanon';
 import { recoverySnapshotInput, writeRecoverySnapshot, type RecoverySnapshotInput } from '@/services/recovery/recoverySnapshotInput';
-import { recoveryIdentityRows, withRecoveryIdentities } from '@/services/recovery/recoveryIdentity';
+import { recoveryIdentityRows, reproducesIdentities, withRecoveryIdentities } from '@/services/recovery/recoveryIdentity';
 import { readIfcFromText } from '@/services/formatRegistry';
 import { payloadFromInput, recoveryInputFromParsed, type RecoveryDocInput } from '@/state/documentContract';
 import { prepareLoadedPayload } from '@/state/documentActivation';
@@ -315,6 +315,12 @@ assert.equal(ownCounts.counts.keys, ownMain.keys + 1, 'zonder gedeelde GlobalId:
 assert.equal(ownCounts.identities, undefined);
 assert.equal(await snapshotReads(ownDoc, new Map(), true), 1, 'zonder gedeelde GlobalId: het herstel schrijft niets opnieuw');
 assert(await snapshotReads({ ...crashedDoc, ifcSource: undefined }, crashed.archives, true) > 1, 'met een koppeling draait de toets wel (de telling werkt)');
+const encode = TextEncoder.prototype.encode;
+let encodings = 0;
+TextEncoder.prototype.encode = function (this: TextEncoder, input?: string) { if (input === crashedDoc.ifc) encodings++; return encode.call(this, input); };
+try { await readRecoveryDocument({ ...crashedDoc, ifcSource: undefined }, crashed.archives, true); }
+finally { TextEncoder.prototype.encode = encode; }
+assert.equal(encodings, 1, 'met een koppeling codeert en hasht het herstel de snapshot één keer (de sha256 van de bytes-route)');
 await clearRecovery();
 async function generationAfterReflag(data: Uint8Array, label: string) {
   const appDataReflag = join(dir, `appdata-${label}`);
@@ -349,6 +355,12 @@ assert(direct.identities?.rows.length, 'de herstelsnapshot heeft een koppeling')
 assert.deepEqual(cloned, direct, 'door de Worker: dezelfde tekst en dezelfde koppeling');
 assert.deepEqual(JSON.parse(JSON.stringify(direct.identities)), direct.identities, 'door JSON (desktop): dezelfde koppeling');
 assert.equal(recoveryIdentityRows([['res:__proto__', 'G', 'W'], ['res:constructor', 'G', 'V']])?.length, 2, 'zaden als __proto__ en constructor zijn gewone sleutels');
+const pairInput = { ...snapshotInput.input, resources: [{ ...snapshotInput.input.resources[0], id: 'a' }, { ...snapshotInput.input.resources[0], id: 'b' }],
+  ifcGlobalIds: { 'res:a': 'G', 'res:b': 'G' } };
+const pairIssued = new Map([['res:a', 'G'], ['res:b', 'X']]);
+assert(reproducesIdentities([['res:a', 'G', 'G'], ['res:b', 'G', 'X']], pairInput, pairIssued), 'de volledige koppeling wordt teruggevonden');
+assert(!reproducesIdentities([['res:b', 'G', 'X']], pairInput, pairIssued), 'een rij die het document oplevert maar niet in de koppeling staat: niet aanvaard');
+assert(!reproducesIdentities([['res:a', 'G', 'G'], ['res:b', 'G', 'Y']], pairInput, pairIssued), 'een andere geschreven GlobalId: niet aanvaard');
 console.log('PROEF 8 GROEN: Worker en JSON geven dezelfde koppeling; vreemde zaden zijn gewone sleutels.');
 
 async function failedRoundThenUndo(route: 'browser' | 'desktop') {
@@ -543,6 +555,14 @@ const walk = (value: unknown, path: (string | number)[]) => {
   for (const [k, v] of Object.entries(value)) walk(v, [...path, Array.isArray(value) ? Number(k) : k]);
 };
 for (const [key, value] of Object.entries(valid)) if (key !== 'ifcSource' && key !== 'ifcGlobalIds') walk(value, [key]);
+const seeds = Object.keys(valid.ifcGlobalIds ?? {}).filter(seed => listOfId.has(seed.slice(seed.indexOf(':') + 1)));
+seeds.forEach((seed, i) => {
+  const other = seeds.map(next => valid.ifcGlobalIds![next]).find((value, j) => j > i && value !== valid.ifcGlobalIds![seed])
+    ?? valid.ifcGlobalIds![seeds.find(next => valid.ifcGlobalIds![next] !== valid.ifcGlobalIds![seed])!];
+  variants.push([`GlobalId van ${seed} wordt ${other}`, doc => { (doc.ifcGlobalIds as Record<string, string>)[seed] = other; }]);
+  const derived = valid.ifcGlobalIds![seed] === ifcGuid128(seed) ? ' (de afgeleide GlobalId)' : '';
+  variants.push([`GlobalId van ${seed} weg${derived}`, doc => { delete (doc.ifcGlobalIds as Record<string, string>)[seed]; }]);
+});
 const activated = (doc: RecoveryDocInput) => prepareLoadedPayload(payloadFromInput(doc), { recompute: false });
 const validActivated = activated(valid);
 const accepted: string[] = [], normalized: string[] = [];
@@ -552,9 +572,10 @@ for (const [label, change] of variants) {
   if (!rewritesSnapshot(doc as unknown as RecoveryDocInput, loopIfc, rows)) continue;
   (isDeepStrictEqual(activated(doc as unknown as RecoveryDocInput), validActivated) ? normalized : accepted).push(label);
 }
-const unwritten = [/^assignments\[\d+\]\.id wordt /, /^tasks\.\d+\.parentId wijst /, /^tasks\.\d+\.resourceIds\.\d+ wijst /];
+const unwritten = [/^assignments\[\d+\]\.id wordt /, /^tasks\.\d+\.parentId wijst /, /^tasks\.\d+\.resourceIds\.\d+ wijst /,
+  /^GlobalId van \S+ weg \(de afgeleide GlobalId\)$/];
 assert.deepEqual(accepted.filter(label => !unwritten.some(pattern => pattern.test(label))), [],
   `elke verschuiving die de planningswriter kan zien, geeft het herstel van main (${accepted.length} van ${variants.length} aanvaard)`);
 assert(unwritten.every(pattern => accepted.some(label => pattern.test(label))), 'de grens van de toets is nog dezelfde: werk deze proef en de PR-tekst bij');
 assert.deepEqual(normalized, [], 'geen verschuiving wordt door het activeren rechtgezet');
-console.log(`PROEF 13 GROEN: ${variants.length - accepted.length} van ${variants.length} verschuivingen na een geldige koppeling (een id naar een bestaand id en een object weg in ${lists.map(([key]) => key).join(', ')}, en elke verwijzing naar een ander object) laten de koppeling vallen; de ${accepted.length} andere zitten in velden die de planningswriter niet schrijft (toewijzings-id, parentId en resourceIds van een taak).`);
+console.log(`PROEF 13 GROEN: ${variants.length - accepted.length} van ${variants.length} verschuivingen na een geldige koppeling (een id naar een bestaand id en een object weg in ${lists.map(([key]) => key).join(', ')}, en elke verwijzing naar een ander object) laten de koppeling vallen; de ${accepted.length} andere zitten in velden die de planningswriter niet schrijft (toewijzings-id, parentId en resourceIds van een taak) of halen een bewaarde GlobalId weg die de writer zelf ook afleidt.`);
