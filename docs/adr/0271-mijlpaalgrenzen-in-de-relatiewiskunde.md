@@ -27,7 +27,7 @@ alleen onder A15; zie knownbug 2306.
   `cases-msp-pariteit.json` of `cases-hours-relations.json` wordt rood als die voorganger wordt uitgesloten, ook
   `msp-06b` niet. Het weggehaalde commentaar noemde dit pariteit met MS Project; een bestand van MS Project dat het
   laat zien, is niet nagegaan.
-- FS met een echte lag naar een eindmijlpaal (`finishStartLaggedStart`): de grens is het eindmoment op of vóór het
+- FS met een echte lag in werktijd naar een eindmijlpaal (`finishStartLaggedStart`): de grens is het eindmoment op of vóór het
   moment na de lag (`snapOnOrBefore` op de opvolgerkalender) als dat het moment zelf is, of als het volgende werkmoment
   van de opvolgerkalender na dat eindmoment het moment na de lag is en de lagkalender ertussen geen werkminuut heeft;
   anders het volgende werkmoment van de opvolger. `nextWorkInstant` alleen zou een blokeinde overslaan. De functie is
