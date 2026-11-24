@@ -22,22 +22,23 @@ die getallen ruim zijn, komt uit het weggehaalde commentaar, met de corpustellin
   vóór het begin wordt één dag; een niet-herhalend record zonder einde levert niets.
 - `MAX_RECURRENCE_DATES` (3660): het aantal datums dat één herhaling oplevert, in de lusvoorwaarde van elke generator.
   T3-hostile in `check-mpp-calendars.ts` (wekelijks op alle dagen, `occurrences` 65535, 165 jaar) toetst precies 3660
-  dagen. Het `.mpp`-corpus van `docs/superpowers/plans/2026-08-15-plan-mpp-datumgetrouwheid.md` (§1.1) telde 368
+  dagen. Het `.mpp`-corpus van `docs/superpowers/plans/2026-08-15-plan-mpp-datumgetrouwheid.md` (§1.2) telde 368
   niet-werkende herhalende records, waarvan 295 jaarlijks op een vaste datum. 3660 is ongeveer tien jaar dagelijks.
 - `MAX_RECURRENCE_ITERATIONS` (`MAX_RECURRENCE_DATES + 16`): het aantal doorlopen van de lus van een generator, ook
   als een doorloop niets toevoegt. De datumgrens alleen houdt een lus die nooit een datum toevoegt niet tegen: een
-  wekelijkse herhaling zonder aangevinkte dag en zonder einde, of een maandelijkse relatieve herhaling waarvan de datum
-  steeds vóór het begin valt. Een lus die per doorloop een datum toevoegt, haalt de datumgrens eerst.
-  `getMonthlyRelativeDates` stopt daarnaast zodra de maandcursor niet vooruitgaat. Een record dat niets oplevert, kost
-  geen budget, dus het aantal doorlopen telt per bestand op tot `MAX_CALENDAR_EXCEPTIONS` maal deze grens; met een
-  grens van 100.000 kostte dat 46,3 s volgens het weggehaalde commentaar. HOOG-1a en HOOG-1b in
-  `check-mpp-calendars.ts` toetsen dat beide gevallen 0 datums geven binnen 200 ms; MIDDEN-A toetst 2000 zulke
-  maandelijkse records op 0 datums binnen 5 s, en MIDDEN-A-regressie een wekelijkse herhaling op alle dagen van 2020
+  wekelijkse herhaling zonder aangevinkte dag en zonder einde. Een lus die per doorloop een datum toevoegt, haalt de
+  datumgrens eerst. `getMonthlyRelativeDates` stopt daarnaast zodra de maandcursor niet vooruitgaat (een eigen
+  controle, los van deze grens). Een record dat niets oplevert, kost geen budget, dus het aantal doorlopen telt per
+  kalender op tot `MAX_CALENDAR_EXCEPTIONS` maal deze grens, en over de kalenders van een bestand verder; met een
+  grens van 100.000 kostte dat 46,3 s volgens het weggehaalde commentaar. HOOG-1b in
+  `check-mpp-calendars.ts` toetst dat de wekelijkse herhaling 0 datums geeft binnen 200 ms; HOOG-1a toetst hetzelfde
+  voor een maandelijkse relatieve herhaling met een stilstaande cursor, en MIDDEN-A 2000 zulke maandelijkse records
+  op 0 datums binnen 5 s (beide blijven groen zonder deze grens in die tak, door de cursorcontrole), en MIDDEN-A-regressie een wekelijkse herhaling op alle dagen van 2020
   op 366 datums.
 - `MAX_TOTAL_HOLIDAY_SLOTS` (100.000): het gedeelde budget (`HolidayBudget`, nieuw vol via `newHolidayBudget`) voor
   alle uitgeschreven dagen van de kalenders die een lezer erop laat lopen, ook de overerving. De crawl-basislijn in
-  `check-mpp-calendars.ts` (`CRAWL_HOLIDAY_BASELINE`, alleen met corpus) telt 2968 eigen feestdagen over 49 bestanden
-  samen. Per kalender begrenzen
+  `check-mpp-calendars.ts` (`CRAWL_HOLIDAY_BASELINE`, alleen met corpus) is de ondergrens van 2968 feestdagreeksen die
+  de toets over 49 bestanden samen eist. Per kalender begrenzen
   alleen gaat niet, omdat veel kalenders elk binnen hun grenzen samen onbegrensd veel dagen kunnen vragen (ADR 0254
   voor MSPDI). `buildContributions` telt vanaf een momentopname van `budget.remaining` af en stopt de opbouw als die
   op is (het record dat loopt wordt afgekapt, de rest overgeslagen), zodat ook de piek in het geheugen begrensd is;

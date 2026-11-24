@@ -34,6 +34,6 @@ standaardkalender die `readCalendars` teruggeeft bij een ontbrekende of onleesba
   van de projectkalender (`calendarHoursPerDayOverride`, in `readCalendars`), ook na de promotie, zoals
   `<MinutesPerDay>` bij MSPDI; alleen als die projectkalender in de kalendersectie is gevonden onder het unique-id dat
   `readCalendars` als projectkalender aanwijst, dus niet bij een terugvalkalender; die houdt de uren per dag uit haar blokken. De `hoursPerDay` van
-  `parseProjectProperties` is bij een geldige waarde die waarde, ook als de kalender haar niet krijgt, en bij een
+  `parseProjectProperties` is bij een geldige waarde `MINUTES_PER_DAY / 60`, ook als de kalender haar niet krijgt, en bij een
   ongeldige of ontbrekende waarde 8; dan blijven ook de uren per dag uit de blokken staan. Een corrupte waarde geeft
   zo geen absurde dag.
