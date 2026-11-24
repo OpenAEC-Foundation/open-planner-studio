@@ -3804,6 +3804,17 @@ en noem het in je rapport of PR-tekst.
      herstelrecord weet niet of het een export was; een eigen naam vraagt een veld in het record. Voorlopige keuze P5 van
      de bouwopdracht van #1179; proef: de crashgevallen van Exporteren in `check-ifc-own-file-replace.ts`. — B
 
+2208. **VERVOLG (#804): of de planner een bestaand exportdoel in het venster bevestigde, leidt de app af uit de
+     tijdstempels.** plugin-dialog geeft alleen het pad terug, niet of het venster om vervangen vroeg. Exporteren → IFC
+     vervangt daarom alleen een gewoon bestand waarvan de wijzigings- en aanmaaktijd (`lstat`: `mtime`, `birthtime`) vóór
+     het openen van het venster liggen (`olderThanPicker` in `pickSaveTargetTauri`); anders de exclusieve aanmaak, die een
+     bestaande naam weigert. Grenzen: zonder aanmaaktijd (sommige netwerkschijven) telt alleen de wijzigingstijd, dus een
+     bestand dat met een oude wijzigingstijd na de keuze op de naam komt (bijvoorbeeld van een synchronisatieprogramma),
+     geldt als bevestigd; een klok die op een netwerkschijf achterloopt, kan hetzelfde doen; een bestand dat terwijl het
+     venster openstond gewijzigd werd, weigert de export (de veilige kant). Opslaan als gebruikt dit niet (knownbug 1890).
+     Niet gemeten op Windows of macOS. Proef: "Exporteren → IFC naar een vrije naam waar na de keuze een bestand
+     verschijnt" in `check-ifc-own-file-replace.ts`. — B
+
 2209. **VERVOLG (#1182): de verliescontrole kent de oude lay-outs los van de slottabellen.** `alignment` in
      `src/services/ifc/foreign/lossCheck.ts` legt zelf vast hoe een regel in een oude eigen lay-out op de uitvoer past
      (`IfcTask` met 12 argumenten, resources met 9 via `OLD_RESOURCE_TYPES` en `RESOURCE_ARITY`, werkplan en kalender

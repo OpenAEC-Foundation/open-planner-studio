@@ -116,11 +116,15 @@ test `tests/mcp/cases-discovery.ts` en de echte-app-run.
 de documentroute en Exporteren → IFC. Vreemde inhoud schrijft met de flag aan naar een nieuw doel via de optionele
 `McpFileFs.writeNewUserBytes` (Tauri: eigen tijdelijk bestand en `place_file_exclusive`, zie `tauri-ifc.md`; geen
 tekstrondgang). Een bestaande naam vervangt de export alleen met `overwrite: true` en alleen als de host
-`McpFileFs.replaceUserBytes` levert (alleen de app; #804, besluit van de eigenaar, 21 november 2026): `observe` legt vast
-wat er staat (`existingRegularFileTauri`, dezelfde als `pickSaveTarget`), de doelcontrole krijgt die waarneming als
-`chosenTarget` en scant die bytes (`capturedTargetReaders`), en `replace` vervangt alleen die versie via
-`replaceOwnPathWithRecovery` met `documentId: null`. Na het herstelrecord en vlak vóór het opzijzetten lopen de
-doelcontrole en de documentcontrole van de export opnieuw. Een link of een plek zonder veilige vervanging weigert; het
+`McpFileFs.replaceUserBytes` levert (alleen de app; #804, besluit van de eigenaar, 21 november 2026). Volgorde: eerst de
+schemacontrole en de identiteitsweigeringen (`refusedTargetIdentity`: eigen bron, ander open tabblad), dan, alleen met de
+flag nog aan, één volledige lezing (`observe`, `existingRegularFileTauri`, dezelfde als `pickSaveTarget`), en dan de
+inhoudscontrole op die bytes (`refusedTargetContent` met `exportTargetPermission`: een uitvoer zonder gebouwmodel vervangt
+geen modelbestand). `replace` vervangt alleen die versie via `replaceOwnPathWithRecovery` met `documentId: null`. Na het
+herstelrecord en vlak vóór het opzijzetten lopen de doelcontrole en de documentcontrole van de export opnieuw, en na het
+opzijzetten vraagt de haak `planningChanged` of de planning veranderde (dan terugzetten, `VALIDATION`). De tooltekst in
+`tools/list` hangt aan de flag (`McpToolDef.describe`, `toolListEntry(def, ctx)`): met de flag uit en headless precies de
+tekst van main. Een link of een plek zonder veilige vervanging weigert; het
 eigen bestand van het document weigert met een eigen tekst; een versie van een ander programma die bewaard bleef, staat in
 `replaceNotice`. Zonder de naad (headless) blijft de weigering van een bestaande naam. Een naam die pas tussen controle en
 schrijven ontstaat en `source-changed` krijgen elk een eigen antwoord. Het antwoord bevat

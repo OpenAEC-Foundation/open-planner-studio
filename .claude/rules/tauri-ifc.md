@@ -459,19 +459,35 @@ als het doel in deze sessie nooit geopend was. Proeven: `check-ifc-own-file-repl
 
 **Exporteren → IFC over een andere bestaande naam (#804, besluit van de eigenaar, 21 november 2026).** Alleen desktop,
 flag aan, een document met een vreemd deel (`preparedExport`). Opslaan als en deze export delen één functie,
-`placeOnDesktop` (`fileSlice.ts`): de kiezer met de doelwaarneming, de doelcontrole met die waarneming, en dan de
-vervanging, de exclusieve aanmaak of de weigering zoals hierboven. De route geeft de doelcontrole, de late controle,
-het document voor het manifest, de commit en de meldingen mee. De export: doelcontrole `exportTargetChecks(momentopname,
-waarneming)` (`foreignTargetCheck` met `chosenTarget` en één scan van de vastgelegde bytes, `capturedTargetReaders` in
-`foreignSourceTarget.ts`, daarna `refuseChangedExport`), late controle `refuseChangedExport`, `documentId: null` (alleen
-het herstelrecord, geen `pendingSha256` in het manifest) en een lege commit: bron, kenmerk, doel, dirty-vlag en
-kalenderkeuzes blijven staan; daarna Recent, zoals elke export. Het eigen bestand van het document blijft geweigerd
-(`exportTargetOwnFile`, verwijst naar Opslaan). Een planning zonder vreemd deel krijgt geen toestemming en blijft op
-`saveDataDialog`, zoals main. Een mislukte vervanging meldt met de exportzinnen van `exportReplaceNotices`
-(`state/ownFileReplace.ts`, "Niet geëxporteerd"); een link en `save-as-only` geven `exportReplaceNewTargetOnly`. Na een
-crash handelt het herstel de hulpnamen af zoals bij Opslaan als (de naam van de kopie: knownbug 2207). `planner_export_ifc`
-doet hetzelfde met `overwrite: true` via `McpFileFs.replaceUserBytes` (`mcp.md`). Proeven: de gevallen "Exporteren → IFC
-over …" in `check-ifc-own-file-replace.ts`, `check-ifc-document-save.ts`, `cases-doc-file.ts` en `run-real-app.ts`.
+`placeOnDesktop` (`fileSlice.ts`, geeft `SaveOutcome | null`): de kiezer met de doelwaarneming, de doelcontrole met die
+waarneming, pas daarna de bytes, en dan de vervanging, de exclusieve aanmaak of de weigering zoals hierboven. De route
+geeft de doelcontrole, de late controle, het document voor het manifest, de commit en de meldingen mee. De export:
+- **Bevestiging.** `pickSaveTargetTauri` noteert de tijd vlak vóór het venster en zet `olderThanPicker` als de wijzigings-
+  en aanmaaktijd van het gelezen bestand (uit dezelfde `lstat`, geen extra aanroep) daarvóór liggen. Alleen dan vervangt de
+  export; anders telt het als een vrije naam (exclusieve aanmaak, `exportReplaceNewTargetOnly`). Opslaan als negeert dit
+  veld (knownbug 1890); de grenzen staan in knownbug 2208.
+- **P1.** `exportTargetPermission(bron, waarneming)` (`ifcForeignGuard.ts`) is de ene exportregel voor de toestemming:
+  `chosenTarget` plus `protectModelTargets` als de uitvoer geen gebouwmodel draagt (`hasBuildingModel`). Dan blijft een
+  doel met een gebouwmodel geweigerd, ook bevestigd; een doel met alleen gegevens van een ander programma niet.
+- Doelcontrole `exportTargetChecks(momentopname, toestemming)` (`foreignTargetCheck` met één scan van de vastgelegde bytes,
+  `capturedTargetReaders` in `foreignSourceTarget.ts`, daarna `refuseChangedExport`), late controle `refuseChangedExport`,
+  `documentId: null` (alleen het herstelrecord, geen `pendingSha256` in het manifest) en een lege commit: bron, kenmerk,
+  doel, dirty-vlag en kalenderkeuzes blijven staan; daarna Recent, zoals elke export.
+- **De haak `planningChanged`** (alleen de export; `replaceOwnFileBytes`, na het opzijzetten van het doel en vóór de
+  plaatsing): vraagt alleen of de planning sinds de opdracht veranderde (`exportPlanningChanged`, zonder melding en zonder
+  vlag- of doelcontrole). Zo ja: het doel exclusief terug op zijn plek, het tijdelijke bestand weg, uitkomst
+  `planning-changed` (de aanroeper meldt `ifcExportChangedWhileWaiting`); lukt het terugzetten niet, dan
+  `previous-stranded` en blijven het record en de hulpnaam. Zonder haak (Ctrl+S, Opslaan als, Automatisch opslaan) loopt
+  de route aanroep voor aanroep als voorheen (proef: de reeksen aanroepen in `check-ifc-own-file-replace.ts`).
+- Het eigen bestand van het document blijft geweigerd; bij de IFC-exports van de planning (`exportTargetChecks`: ook
+  zonder gebouwmodel en het planningsbestand van de export met bibliotheek) met `exportTargetOwnFile`, dat naar Opslaan
+  verwijst. Andere formaten en de afzonderlijke bibliotheekuitvoer houden hun zin.
+Een planning zonder vreemd deel krijgt geen toestemming en blijft op `saveDataDialog`, zoals main. Een mislukte vervanging
+meldt met de exportzinnen van `exportReplaceNotices` (`state/ownFileReplace.ts`, "Niet geëxporteerd"); een link en
+`save-as-only` geven `exportReplaceNewTargetOnly`. Na een crash handelt het herstel de hulpnamen af zoals bij Opslaan als
+(de naam van de kopie: knownbug 2207). `planner_export_ifc` doet hetzelfde met `overwrite: true` via
+`McpFileFs.replaceUserBytes` (`mcp.md`). Proeven: de gevallen "Exporteren → IFC over …", P1 en de haak in
+`check-ifc-own-file-replace.ts`, `check-ifc-document-save.ts`, `cases-doc-file.ts` en `run-real-app.ts`.
 
 **Opslaan als en Exporteren over het bestand van een ander tabblad (#1022, knownbug 1907).** De doelcontrole direct na
 de bestandskiezer van een document (`documentSaveDialog` en `saveAsOnDesktop`: Opslaan als, en Ctrl+S zonder bruikbaar
