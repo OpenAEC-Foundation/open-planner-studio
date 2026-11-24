@@ -13,7 +13,6 @@ export type JsonNode =
 
 const MAX_JSON_DEPTH = 256;
 const NUMBER = /-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/y;
-const STRING_BODY = /"(?:[^"\\\u0000-\u001f]|\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4}))*"/y;
 
 class JsonSyntax extends Error {}
 
@@ -22,12 +21,17 @@ export function parseJsonTree(text: string): JsonNode | undefined {
   const space = () => { while (at < text.length && ' \t\n\r'.includes(text[at])) at++; };
   const fail = (): never => { throw new JsonSyntax(); };
   const string = (): { start: number; end: number; value: string } => {
-    STRING_BODY.lastIndex = at;
-    const m = STRING_BODY.exec(text);
-    if (!m) fail();
-    const start = at;
-    at += m![0].length;
-    return { start, end: at, value: JSON.parse(m![0]) as string };
+    const start = at++;
+    while (at < text.length) {
+      const c = text.charCodeAt(at);
+      if (c < 0x20) fail();
+      if (c === 0x5c) { at += 2; continue; }
+      at++;
+      if (c !== 0x22) continue;
+      try { return { start, end: at, value: JSON.parse(text.slice(start, at)) as string }; }
+      catch { return fail(); }
+    }
+    return fail();
   };
   const value = (depth: number): JsonNode => {
     if (depth > MAX_JSON_DEPTH) fail();
