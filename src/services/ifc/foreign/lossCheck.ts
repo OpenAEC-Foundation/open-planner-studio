@@ -1591,6 +1591,19 @@ const PROJECT_SETTINGS_FIELDS: Readonly<Record<string, readonly string[]>> = {
   [PROP.ProjectSettings.Organization]: ['company'],
 };
 
+/**
+ * Per veld (fixronde 4, plek 3): de velden van het domeinobject die de writer in elk slot schrijft. Een verschil in een
+ * slot zonder veld hier (een constante, de GlobalId, een verwijzing naar een hulpstuk) verklaart geen bewerking.
+ * `IfcTask`: `IFC_TASK_SLOTS` (`ifcTaskSlots.ts`); `IfcTaskTime`: `IFC_TASKTIME_SLOTS` (de naam is die van de taak, de
+ * rest komt uit de delen van `task.time` in `TASKTIME_SLOT_FIELDS`; StatusTime ook uit de statusdatum van het project).
+ * Dezelfde tabellen zeggen of de planner het veld van een slot wijzigde (fixronde 5, plek 6): dan vervalt de bronwaarde.
+ */
+const TASK_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
+  2: ['name'], 3: ['description'], 4: ['customTaskTypeId', 'taskType'], 5: ['wbsCode'],
+  // Status: `'STARTED'` bij een lopende taak op 100 % (`isRunningAtFullCompletion` in `ifcTaskSlots.ts`).
+  7: ['status', 'time.completion', 'time.actualFinish', 'isSummary', 'childIds'], 9: ['isMilestone'],
+  10: ['priority'], 12: ['customTaskTypeId', 'taskType'],
+};
 /** Per slot van `IfcTaskTime` de velden van de taak waar de writer het uit schrijft (`IFC_TASKTIME_SLOTS` en `writeTask` in
  *  `ifcWriter.ts`; fixronde 5, VERVOLG van Terra). Een datum hangt ook af van de eenheid van de taak (de formatter,
  *  `taskDateTimeFormatter`); een duur ook van het type, de eenheid en de kalender van de taak (minuten per dag, `PT…` of
@@ -1625,21 +1638,6 @@ const TASKTIME_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
 export function taskTimeSlotFields(...slots: number[]): string[] {
   return [...new Set(slots.flatMap(slot => TASKTIME_SLOT_FIELDS[slot] ?? []).filter(f => !f.startsWith('@')))];
 }
-/**
- * Per veld (fixronde 4, plek 3): de velden van het domeinobject die de writer in elk slot schrijft. Een verschil in een
- * slot zonder veld hier (een constante, de GlobalId, een verwijzing naar een hulpstuk) verklaart geen bewerking.
- * `IfcTask`: `IFC_TASK_SLOTS` (`ifcTaskSlots.ts`); `IfcTaskTime`: `IFC_TASKTIME_SLOTS` (de naam is die van de taak, de
- * rest komt uit de delen van `task.time` in `TASKTIME_SLOT_FIELDS`; StatusTime ook uit de statusdatum van het project).
- * Dezelfde tabellen zeggen of de planner het veld van een slot wijzigde (fixronde 5, plek 6): dan vervalt de bronwaarde.
- */
-const TASK_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
-  2: ['name'], 3: ['description'], 4: ['customTaskTypeId', 'taskType'], 5: ['wbsCode'],
-  // Status: `'STARTED'` bij een lopende taak op 100 % (`isRunningAtFullCompletion` in `ifcTaskSlots.ts`).
-  7: ['status', 'time.completion', 'time.actualFinish', 'isSummary', 'childIds'], 9: ['isMilestone'],
-  10: ['priority'],
-  11: [...new Set(slotTableNamed('IfcTaskTime')!.slots.flatMap((slot, k) => (slot.soort === 'domein' ? TASKTIME_SLOT_FIELDS[k] ?? [] : [])))],
-  12: ['customTaskTypeId', 'taskType'],
-};
 /** De waarde van een veld van een taak op zijn pad uit `taskTimeSlotFields`. */
 export function taskField(task: unknown, path: string): unknown {
   const t = task as Record<string, unknown>;
@@ -1668,8 +1666,9 @@ const EXCEPTION_FIELDS = ['holidays', 'workingExceptions'];
 const CAL_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   2: ['name'], 3: ['description'], 4: ['shift'], 6: WEEK_FIELDS, 7: EXCEPTION_FIELDS, 8: ['shift'],
 };
+const TASK_TIME_FIELDS = [...new Set(slotTableNamed('IfcTaskTime')!.slots.flatMap((slot, k) => (slot.soort === 'domein' ? TASKTIME_SLOT_FIELDS[k] ?? [] : [])))];
 const SLOT_FIELDS_BY_TYPE: ReadonlyMap<string, Readonly<Record<number, readonly string[]>>> = new Map([
-  ['IFCTASK', TASK_SLOT_FIELDS], ['IFCTASKTIME', TASKTIME_SLOT_FIELDS], ['IFCRELSEQUENCE', SEQ_SLOT_FIELDS],
+  ['IFCTASK', { ...TASK_SLOT_FIELDS, 11: TASK_TIME_FIELDS }], ['IFCTASKTIME', TASKTIME_SLOT_FIELDS], ['IFCRELSEQUENCE', SEQ_SLOT_FIELDS],
   ['IFCLAGTIME', LAG_SLOT_FIELDS], ['IFCWORKCALENDAR', CAL_SLOT_FIELDS],
   ...Object.keys(IFC_TO_RESOURCE_TYPE).map(type => [type, RES_SLOT_FIELDS] as const),
 ]);
@@ -2099,7 +2098,7 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   }
   if (kind === 'seq') {
     if (way === 'self') return type === 'IFCRELSEQUENCE' && !d.whole ? any(SEQ_SLOT_FIELDS[arg]) : undefined;
-    if (type === 'IFCLAGTIME' && way === 'slot:6') return any(d.whole ? SEQ_SLOT_FIELDS[6] : LAG_SLOT_FIELDS[arg]);
+    if (type === 'IFCLAGTIME' && way === 'slot:6') return any(d.whole || !mappedTables(input).has(d.chunk) ? LAG_FIELDS : LAG_SLOT_FIELDS[arg]);
     return undefined;
   }
   if (kind === 'res') {

@@ -19,7 +19,7 @@ export const OWNED_BY_TABLE: ReadonlyMap<string, { readonly slot: string; readon
 function pieceAt(index: StepIndex, chunk: number): SourcePieceSlots | undefined {
   if (chunk < 0 || !index.isEntity(chunk) || index.literalText(chunk)) return undefined;
   const args = index.argTokens(chunk);
-  if (!args || args.some(token => token.includes('�'))) return undefined;
+  if (!args || args.some(token => token.includes('\uFFFD'))) return undefined;
   const entity = index.type(chunk);
   const table = slotTableOf(entity, args);
   if (!table || !inSchemaLayout(table, args)) return undefined;

@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { classify } from '@/services/ifc/foreign/classify';
 import { refsOutsideText } from '@/services/ifc/foreign/lossCheck';
-import { MergeNeedsPhase2Error, prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
+import { checkMergeOutput, MergeNeedsPhase2Error, prepareIfcWrite, type OwnOutputCheck } from '@/services/ifc/foreign/mergeWriter';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { BASELINE_HEADS, type RestoredOwnSlots } from '@/services/ifc/foreign/ownGroups';
 import { mappedChunks, type SourcePieceSlots } from '@/services/ifc/foreign/sourceSlots';
@@ -529,8 +529,12 @@ const ROUTES: readonly (readonly [string, IfcOutputCompute])[] = [
   ['op de hoofdthread', computeIfcOutputHere],
   ['via de opslagworker', createIfcSaveWorker({ createWorker: () => new InProcessWorker('auto') }).compute],
 ];
-for (const [route, compute] of ROUTES) {
-  const { store } = await openInStore(sourceBytes);
+const SAVE_SOURCES: readonly (readonly [string, Uint8Array])[] = [
+  ['de pinbron', sourceBytes], ['bonsai-4d.ifc', new Uint8Array(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc')))],
+];
+for (const [route, compute] of ROUTES) for (const [label, bytes] of SAVE_SOURCES) {
+  const at = `${route}, ${label}`;
+  const { store } = await openInStore(bytes);
   const commit = async (): Promise<Uint8Array | string> => {
     const state = store.getState();
     try {
@@ -551,20 +555,22 @@ for (const [route, compute] of ROUTES) {
   const third = await commit();
   for (const [what, out] of [['de eerste opslag', once], ['de tweede opslag zonder wijziging', twice],
     ['de tweede opslag met een wijziging', second], ['de derde opslag met een wijziging', third]] as const) {
-    ok(`${route}: ${what} schrijft${typeof out === 'string' ? ` (${out})` : ''}`, typeof out !== 'string');
+    ok(`${at}: ${what} schrijft${typeof out === 'string' ? ` (${out})` : ''}`, typeof out !== 'string');
   }
-  ok(`${route}: tweemaal opslaan zonder wijziging: bytegelijk`, once instanceof Uint8Array && twice instanceof Uint8Array && sameBytes(once, twice));
+  ok(`${at}: tweemaal opslaan zonder wijziging: bytegelijk`, once instanceof Uint8Array && twice instanceof Uint8Array && sameBytes(once, twice));
   for (const [what, out] of [['de tweede opslag', second], ['de derde opslag', third]] as const) {
     if (!(out instanceof Uint8Array)) continue;
+    eq(`${at}: na ${what} verliest geen stuk van Bonsai zijn laatste verwijzing`, lostReferences(bytes, out), []);
+    eq(`${at}: na ${what} de invarianten tegenover de oorspronkelijke bron`, mergeProblems(bytes, out), []);
+    if (bytes !== sourceBytes) continue;
     if (route === ROUTES[0][0]) dump(what === 'de tweede opslag' ? 'tweede-opslag.ifc' : 'derde-opslag.ifc', out);
-    eq(`${route}: na ${what} verliest geen stuk van Bonsai zijn laatste verwijzing`, lostReferences(sourceBytes, out), []);
     const map = counterparts(out), outIndex = scanForeignStep(out);
     for (const [chunk, piece] of pieces) {
       const table = slotTableNamed(piece.table)!, o = map(chunk);
-      if (o < 0) { ok(`${route}: ${piece.table} #${sourceIndex.id(chunk)} staat na ${what} nog in de uitvoer`, false); continue; }
+      if (o < 0) { ok(`${at}: ${piece.table} #${sourceIndex.id(chunk)} staat na ${what} nog in de uitvoer`, false); continue; }
       table.slots.forEach((slot, k) => {
         if (soort(table, k) !== 'constant' || groupOf(table, k)) return;
-        eq(`${route}: ${piece.table} #${sourceIndex.id(chunk)}.${slot.key} na ${what} nog het token van Bonsai`, argsAt(outIndex, o)[k], argsAt(sourceIndex, chunk)[k]);
+        eq(`${at}: ${piece.table} #${sourceIndex.id(chunk)}.${slot.key} na ${what} nog het token van Bonsai`, argsAt(outIndex, o)[k], argsAt(sourceIndex, chunk)[k]);
       });
     }
   }
@@ -646,9 +652,21 @@ for (const [n, { label, edit, expect }] of RELATION_EDITS.entries()) {
 }
 
 let restored: RestoredOwnSlots | undefined;
-await prepareIfcWrite(await innocent(cloneDomain(opened)), source, undefined, r => { restored = r; }).catch(() => undefined);
+const innocentDomain = await innocent(cloneDomain(opened));
+const innocentOut = await prepareIfcWrite(innocentDomain, source, undefined, r => { restored = r; }).catch(() => undefined);
 ok('een baselinekop met de owner history van Bonsai: controle (c) vergelijkt de groep van de baselinekoppen gewoon',
   restored !== undefined && !restored.skip.has(BASELINE_HEADS));
+if (innocentOut && restored) {
+  const own = restored as OwnOutputCheck;
+  const text = new TextDecoder().decode(innocentOut.bytes);
+  const head = /^#\d+=IFCWORKSCHEDULE\('[^']*',#990005,.*\.BASELINE\.\);$/m.exec(text)?.[0] ?? '';
+  ok('de proef: een baselinekop van Bonsai met een eigen Purpose in de uitvoer', head.includes("'Bonsai purpose'"));
+  const broken = new TextEncoder().encode(text.replace(head, head.replace("'Bonsai purpose'", "'Iets anders'")));
+  const verdict = (bytes: Uint8Array) => checkMergeOutput(bytes, innocentDomain, source, own)
+    .then(() => 'geen melding', e => (e instanceof MergeNeedsPhase2Error ? e.cases.map(c => c.kind).join(', ') : String(e)));
+  eq('controle (c) op de echte uitvoer: geen melding', await verdict(innocentOut.bytes), 'geen melding');
+  eq('controle (c) ziet een gewijzigd slot van een baselinekop van Bonsai', await verdict(broken), 'eigen-uitvoer');
+}
 
 const B4D = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc'), 'utf8');
 const encode = (text: string) => new TextEncoder().encode(text);
@@ -697,6 +715,21 @@ for (const [what, change, want] of [
   const { result } = await saveOn(encode(WITH_LAG), s => { s.updateSequence(s.sequences.find(q => q.lagDays === 2)!.id, change); });
   ok(`een lag van Bonsai, ${what}: schrijft (${refusal(result)})`, result.ok);
   if (result.ok) eq(`een lag van Bonsai, ${what}: alleen het slot van dat veld verandert`, outArgs(result.bytes, Number(outArgs(result.bytes, 112)[6].slice(1))), [...want]);
+}
+
+const SHARED_LAG = atEnd(WITH_LAG, "#8013=IFCEVENT('2Bonsaigebeurtenis0001',#111,'Oplevering',$,$,$,$,.ENDEVENT.,.NOTDEFINED.,$,$);\n"
+  + "#8014=IFCRELSEQUENCE('3Bonsaigebeurtenisvolg',#111,$,$,#108,#8013,#8010,.FINISH_START.,$);");
+{
+  const { result } = await saveOn(encode(SHARED_LAG), rename('Wand A bouwen', 'Wand A (review)'));
+  ok(`een lag die Bonsai deelt met een reeks buiten de planning, een taak hernoemd: schrijft (${refusal(result)})`, result.ok);
+  if (result.ok) {
+    eq('een gedeelde lag: #112 wijst nog naar #8010', outArgs(result.bytes, 112)[6], '#8010');
+    eq('een gedeelde lag: elke lag in de uitvoer heeft een verwijzing', unreferenced(result.bytes, 'IFCLAGTIME'), []);
+    eq('een gedeelde lag: geen stuk van Bonsai verliest zijn laatste verwijzing', lostReferences(encode(SHARED_LAG), result.bytes), []);
+  }
+  const { result: changed } = await saveOn(encode(SHARED_LAG), s => { s.updateSequence(s.sequences.find(q => q.lagDays === 2)!.id, { lagDays: 3 }); });
+  ok(`een gedeelde lag, de lagwaarde gewijzigd: getypeerd geweigerd op #112 (${refusal(changed)})`,
+    !changed.ok && changed.error.cases.some(c => c.kind === 'niet-gedragen' && c.sourceId === 112));
 }
 
 const TWO_ASSIGNMENTS = B4D.replace(/^(#120=.*?)\(#118,#30\)/m, '$1(#118)')
