@@ -172,6 +172,22 @@ function readAvailabilityPeriods(resEl: Element): MspdiAvailabilityPeriod[] {
   return periods;
 }
 
+function tableARateCoveringProject(resEl: Element, projectStartRaw: string, projectFinishRaw: string): string {
+  const ratesEl = childElements(resEl, 'Rates')[0];
+  if (!ratesEl) return '';
+  const tableA = childElements(ratesEl, 'Rate')
+    .filter(rate => (directChildText(rate, 'RateTable') || '0') === '0');
+  if (tableA.length !== 1) return '';
+  const rate = tableA[0];
+  const endRaw = projectFinishRaw || projectStartRaw;
+  const times = [directChildText(rate, 'RatesFrom'), directChildText(rate, 'RatesTo'), projectStartRaw, endRaw]
+    .map(raw => parseInstant(raw).getTime());
+  if (times.some(t => Number.isNaN(t))) return '';
+  const [from, to, start, end] = times;
+  if (from > start || to < end) return '';
+  return directChildText(rate, 'StandardRate');
+}
+
 function parseMSPDate(s: string): string {
   return isoDatePrefixOrToday(s);
 }
@@ -266,6 +282,7 @@ export function readMSPDI(content: string): ImportResult {
     ? parseLiteralCalendars(opsTaskFieldText(summaryTask, OPS_LITERAL_CALENDARS_FIELD_ID, literalCalendarsEnabled))
     : null;
   const projectStartRaw = getElementText(root, 'StartDate');
+  const projectFinishRaw = getElementText(root, 'FinishDate');
   const missingDates = emptyMissingScheduleDates();
   const holidayBudget = newHolidayBudget();
   const { calendar, resourceCalendars, calUidToId, projectCalUid, projectFileHoursPerDay } = readCalendars(root, holidayBudget);
@@ -289,7 +306,8 @@ export function readMSPDI(content: string): ImportResult {
       const maxUnits = getElementFloat(resEl, 'MaxUnits', 1);
       const materialLabel = getElementText(resEl, 'MaterialLabel');
       const calUid = getElementInt(resEl, 'CalendarUID', -1);
-      const standardRate = getElementText(resEl, 'StandardRate');
+      const standardRate = getElementText(resEl, 'StandardRate')
+        || tableARateCoveringProject(resEl, projectStartRaw, projectFinishRaw);
 
       const availability = availabilityFromPeriods(maxUnits, readAvailabilityPeriods(resEl));
       const resource: Resource = {
