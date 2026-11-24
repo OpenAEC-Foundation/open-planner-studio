@@ -298,16 +298,16 @@ await check('Opslaan als met een tabbladwissel tijdens de bestandskiezer: het sl
 function browserDownload() {
   const win = window as unknown as Record<string, unknown>;
   const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
-  const create = URL.createObjectURL, revoke = URL.revokeObjectURL, downloads: Blob[] = [];
+  const create = URL.createObjectURL, revoke = URL.revokeObjectURL, downloads: Blob[] = [], names: string[] = [];
   URL.createObjectURL = blob => { assert(blob instanceof Blob); downloads.push(blob); return 'blob:document-test'; };
   URL.revokeObjectURL = () => {};
   Object.defineProperty(globalThis, 'document', { configurable: true, value: {
-    createElement: () => ({ href: '', download: '', click: () => {} }),
+    createElement: () => { const link = { href: '', download: '', click: () => { names.push(link.download); } }; return link; },
     // Het voortgangsblad laadt `@/i18n/config`, dat de taalrichting op het document zet.
     documentElement: {},
   } });
   win.showSaveFilePicker = () => { throw new Error('een vreemde browseropslag moet downloaden'); };
-  return { downloads, dispose: () => {
+  return { downloads, names, dispose: () => {
     URL.createObjectURL = create; URL.revokeObjectURL = revoke; delete win.showSaveFilePicker;
     if (previousDocument) Object.defineProperty(globalThis, 'document', previousDocument);
     else Reflect.deleteProperty(globalThis, 'document');
@@ -4293,7 +4293,10 @@ const onDesktop = async (write: (store: Store, ipc: ReturnType<typeof desktop>, 
   return {
     store, write: () => write(store, ipc, target), written: async () => existsSync(last) ? new Uint8Array(readFileSync(last)) : undefined,
     file: () => basename(last),
-    ...(exported ? { prepare: () => prepareIfcWrite(buildExportIFCInput(store.getState(), 'merge'), store.getState().ifcSource!) } : {}),
+    ...(exported ? { prepare: async () => {
+      if (store.getState().scheduleStale) store.getState().runCPM();
+      return (await prepareIfcOutput(store.getState(), buildExportIFCInput(store.getState(), 'merge'))).prepared!;
+    } } : {}),
     dispose: async () => { unregister(); await clearRecovery(); ipc.dispose(); rmSync(appData, { recursive: true, force: true }); },
   };
 };
@@ -4309,13 +4312,13 @@ const downloaded = async (browser: ReturnType<typeof browserDownload>) => {
 };
 const onDownload = async (write: (store: Store) => Promise<boolean | void>): Promise<WriteRoute> => {
   const browser = browserDownload(), { store } = await openInStore(LINKED);
-  return { store, write: () => write(store), written: () => downloaded(browser), file: () => basename(store.getState().filePath ?? 'bron.ifc'),
+  return { store, write: () => write(store), written: () => downloaded(browser), file: () => browser.names.at(-1) ?? '',
     dispose: async () => { browser.dispose(); } };
 };
 const onRefusedHandle = async (write: (store: Store) => Promise<boolean | void>): Promise<WriteRoute> => {
   const browser = browserDownload(), { store, name } = await openHandle(LINKED), unregister = recoveryRounds(store);
   handleFaults.set(name, { permission: 'denied' });
-  return { store, write: () => write(store), written: () => downloaded(browser), file: () => basename(store.getState().filePath!),
+  return { store, write: () => write(store), written: () => downloaded(browser), file: () => browser.names.at(-1) ?? '',
     dispose: async () => { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); } };
 };
 const onSite = async (): Promise<WriteRoute> => {
@@ -4373,8 +4376,12 @@ await check('fixronde 2 van #1199: elke schrijfroute meldt per geslaagde schrijf
         const outcome = await route.write();
         const after = await route.written();
         const wrote = after !== undefined && hash(after) === expected.sha256;
-        assert.equal(wrote, !fails, `${name}: ${fails ? 'de schrijfactie mislukt' : 'precies de voorbereide uitvoer staat op het doel'} `
-          + (after ? firstDiff(new TextDecoder().decode(expected.bytes), new TextDecoder().decode(after)) : 'geen bestand'));
+        if (wrote === fails) {
+          const again = await (route.prepare ?? (() => preparedWrite(route.store)))();
+          assert.fail(`${name}, ${remove ? 'na het wissen' : 'na een langere duur'}: ${fails ? 'de schrijfactie mislukt niet' : 'niet de voorbereide uitvoer'}; `
+            + `daarna voorbereid ${after && hash(after) === again.sha256 ? 'wel' : 'ook niet'} gelijk; `
+            + (after ? firstDiff(new TextDecoder().decode(expected.bytes), new TextDecoder().decode(after)) : 'geen bestand'));
+        }
         if (typeof outcome === 'boolean' && !name.includes('download')) assert.equal(outcome, !fails, `${name}: de uitkomst van de schrijfactie`);
         if (wrote && count > 0) lines.push(`${route.file()}:${count}`);
         assert.deepEqual(reportLines(route.store), lines, `${name}: na ${remove ? 'het wissen' : 'een langere duur'}`);
