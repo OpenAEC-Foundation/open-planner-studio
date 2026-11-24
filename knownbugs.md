@@ -699,6 +699,30 @@ en noem het in je rapport of PR-tekst.
      machinevraag van de opvolger mee uit de voorlopige dinsdagboeking en laat die conflictmelding staan. Toets
      de lokale pinmelding op de proefbezetting met behoud van de afzonderlijke pooltoets. — S
 
+2306. **Een mijlpaal met duur en een mijlpaalsoort telt in een relatie als opvolger wel als mijlpaal, als voorganger
+     niet.** `relationBoundaryFlags` (`src/engine/scheduler/relationMath.ts`) leest voor de voorganger de duur
+     (`scheduleDuration <= 0`) en voor de opvolger `isMilestone` met `milestoneKind`. Een taak met `isMilestone`, een
+     duur en een `milestoneKind` kan ontstaan via IFC (`ifcPsets.ts` schrijft en leest `MilestoneKind` voor elke taak
+     met `isMilestone`, zonder duurtoets; zie ook 1042) en via MCP (`taskFields.ts` zet `milestoneKind` zonder
+     duurtoets). Zo'n taak krijgt als opvolger dan de regels voor een eindmijlpaal of startmijlpaal (ADR 0271). Gezien
+     in de code, niet nagespeeld; welke lezing klopt, is open. — S
+
+2307. **Een opvolger in kalendertijd na FS met een lag in werktijd begint op het volgende werkmoment van haar
+     kalender.** Bij SS, FF en SF geeft `forwardHour` (`src/engine/scheduler/relationMath.ts`) een opvolger in
+     kalendertijd de grens zonder normalisatie naar werktijd (ADR 0273); bij FS gaat de grens door
+     `finishStartLaggedStart` naar `se.nextWorkInstant`. `msp-42-z11-punt2-elapsed-opvolger-uitgesloten` in
+     `cases-msp-pariteit.json` legt die uitkomst vast: E begint ma 08:00 na een voorganger die vr 17:00 eindigt,
+     terwijl de kalender van E ook op zaterdag werkt. Of FS hier het rauwe moment moet houden, is niet vastgesteld;
+     het weggehaalde commentaar noemde het een bekend gat. Zie ook 155 (lag in kalendertijd). — S
+
+2308. **Een SF-relatie naar een hammock krijgt geen finishvloer.** `hammockEarlyFinish`
+     (`src/engine/scheduler/CPMSolver.ts`) zet de SF-grens met `forwardConstraint` om naar een start en die met
+     `finishFromStart` naar een finish, zonder `forwardFinishFloor`. Bij een gewone taak houdt die vloer de finish
+     op de SF-eis als terugtellen en vooruittellen over een vrij gat niet op de eis uitkomen (ADR 0031,
+     `msp-35-z10-sf-weekendgrens`). Een hammock kan daardoor op het blokeinde vóór een weekend eindigen terwijl de eis
+     na het weekend ligt. Gezien in de code, niet nagespeeld; volgens het weggehaalde commentaar raakt geen
+     corpusbestand of case een SF-relatie naar een hammock. — S
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
