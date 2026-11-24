@@ -6,7 +6,7 @@
  * keuze van `selectPlanning` als stukindexen. Puur: geen store, DOM, bestandstoegang of Tauri. De Worker
  * (`foreignScan.worker.ts`) en de synchrone terugval (`foreignScanRunner.ts`) roepen dezelfde functie aan.
  */
-import { COMPLEX_TYPE, StepScanError, type StepIndex, type StepScanReason } from './stepScanner';
+import { COMPLEX_TYPE, StepIndex, StepScanError, type StepScanReason } from './stepScanner';
 import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
 import { scanForeignStep } from './oldOwnHeader';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
@@ -58,6 +58,9 @@ export interface ForeignScanResult {
   readonly lineEnding: '\r\n' | '\n';
   /** Heeft de bron een gebouwmodel (`hasBuildingModelEntity`)? */
   readonly buildingModel: boolean;
+}
+
+export interface OpenedForeignScan extends ForeignScanResult {
   readonly stepElementLinks: readonly StepElementLink[];
 }
 
@@ -69,17 +72,27 @@ export interface ForeignScanRefusal {
 }
 
 export type ForeignScanOutcome = ForeignScanResult | ForeignScanRefusal;
+export type OpenedForeignScanOutcome = OpenedForeignScan | ForeignScanRefusal;
 
-/** Scan en deel in. Een weigering van de scanner is een uitkomst, geen fout; elke andere fout gooit. */
-export function scanForeign(bytes: Uint8Array): ForeignScanOutcome {
-  let index;
+function indexOrRefusal(bytes: Uint8Array): StepIndex | ForeignScanRefusal {
   try {
-    index = scanForeignStep(bytes);
+    return scanForeignStep(bytes);
   } catch (err) {
     if (err instanceof StepScanError) return { ok: false, reason: err.reason, message: err.message };
     throw err;
   }
-  return foreignScanFrom(index, classify(index), bytes);
+}
+
+export function scanForeignToOpen(bytes: Uint8Array): OpenedForeignScanOutcome {
+  const index = indexOrRefusal(bytes);
+  if (!(index instanceof StepIndex)) return index;
+  return { ...foreignScanFrom(index, classify(index), bytes), stepElementLinks: scanElementLinks(index) };
+}
+
+/** Scan en deel in. Een weigering van de scanner is een uitkomst, geen fout; elke andere fout gooit. */
+export function scanForeign(bytes: Uint8Array): ForeignScanOutcome {
+  const index = indexOrRefusal(bytes);
+  return index instanceof StepIndex ? foreignScanFrom(index, classify(index), bytes) : index;
 }
 
 /** De overdraagbare uitkomst uit een index en een indeling die er al zijn (ook voor `mergeWriter.ts`, fase 1b). */
@@ -133,7 +146,6 @@ export function foreignScanFrom(index: StepIndex, cls: Classification, bytes: Ui
     foreignMembers: Int32Array.from(cls.foreignMembers),
     lineEnding: index.lineEnding,
     buildingModel: hasBuildingModelEntity(index),
-    stepElementLinks: scanElementLinks(index),
   };
 }
 
