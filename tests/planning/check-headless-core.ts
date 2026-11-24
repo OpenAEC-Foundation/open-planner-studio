@@ -23,6 +23,7 @@ import { createAppStoreContext } from '@/state/appStore';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { prepareIfcOutput } from '@/state/prepareIfcOutput';
 import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { taskDepths } from '@/utils/wbs';
@@ -68,6 +69,9 @@ async function atOneWriteTime<T>(write: () => T | Promise<T>): Promise<T> {
   }
   globalThis.Date = WriteTimeDate as unknown as DateConstructor;
   try { return await write(); } finally { globalThis.Date = RealDate; }
+}
+function eqText(label: string, actual: string, expected: string): void {
+  ok(label, actual === expected, `${actual} ≠ ${expected}`);
 }
 function firstLineDiff(a: string, b: string): string {
   const [left, right] = [a.split('\n'), b.split('\n')];
@@ -115,14 +119,15 @@ for (const file of files) {
   ok(`9a ${name}: zonder vreemd deel is foreignContent null op beide routes`,
     bytesSummary.foreignContent === null && summary.foreignContent === null, JSON.stringify(bytesSummary.foreignContent));
   const textIfc = await atOneWriteTime(() => doc.toIfc());
-  const bytesIfc = utf8(await atOneWriteTime(() => bytesDoc.toIfcBytes()));
-  ok(`9b ${name}: toIfcBytes() schrijft dezelfde IFC als toIfc() van de tekstroute`, bytesIfc === textIfc, firstLineDiff(bytesIfc, textIfc));
+  const bytesIfc = await atOneWriteTime(() => bytesDoc.toIfcBytes());
+  ok(`9b ${name}: toIfcBytes() schrijft byte voor byte dezelfde IFC als toIfc() van de tekstroute`,
+    sameBytes(bytesIfc, encoded(textIfc)), firstLineDiff(utf8(bytesIfc), textIfc));
   const bytesDocText = await atOneWriteTime(() => bytesDoc.toIfc());
   ok(`9c ${name}: toIfc() van een bytesdocument zonder vreemd deel = toIfc() van de tekstroute`,
     bytesDocText === textIfc, firstLineDiff(bytesDocText, textIfc));
-  const textDocBytes = utf8(await atOneWriteTime(() => doc.toIfcBytes()));
-  ok(`9d ${name}: toIfcBytes() van een tekstdocument = de UTF-8 van toIfc()`,
-    textDocBytes === textIfc, firstLineDiff(textDocBytes, textIfc));
+  const textDocBytes = await atOneWriteTime(() => doc.toIfcBytes());
+  ok(`9d ${name}: toIfcBytes() van een tekstdocument = byte voor byte de UTF-8 van toIfc()`,
+    sameBytes(textDocBytes, encoded(textIfc)), firstLineDiff(utf8(textDocBytes), textIfc));
 }
 
 // 3. Twee documenten tegelijk: los van elkaar.
@@ -445,20 +450,124 @@ const foreignFixture = (name: string): string => join(root, 'tests/fixtures/ifc-
   const own = readFileSync(files[0]);
   ok('12g witruimte vóór de kop opent op de bytesroute',
     await codeOf(() => openIfcBytes(new Uint8Array([0x0a, 0x20, ...own]))) === 'geen fout');
-  const withBom = new Uint8Array([0xef, 0xbb, 0xbf, ...own]);
+}
+
+const UTF8_BOM = [0xef, 0xbb, 0xbf];
+const startsWithBom = (bytes: Uint8Array): boolean => UTF8_BOM.every((b, i) => bytes[i] === b);
+async function openInAppWithFlag(name: string, bytes: Uint8Array) {
   const app = createAppStoreContext({ emitHostEvents: false });
   app.store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
   const realError = console.error;
-  console.error = () => {};
+  let failure: unknown;
+  console.error = (...args: unknown[]) => { failure = args[1]; };
   try {
-    await app.store.getState().openOpenedFile({ name: 'bom.ifc', content: '', bytes: new Uint8Array(withBom), ref: null });
+    await app.store.getState().openOpenedFile({ name, content: '', bytes: new Uint8Array(bytes), ref: null });
   } finally {
     console.error = realError;
   }
-  const appOpened = app.store.getState().tasks.length > 0;
-  const coreCode = await codeOf(() => openIfcBytes(withBom));
-  ok('12h een BOM vóór de kop: de bytesroute doet hetzelfde als de app met de flag aan (knownbug 2212)',
-    appOpened ? coreCode === 'geen fout' : coreCode === 'IFC_READ_FAILED', `app ${appOpened ? 'opent' : 'weigert'}, kern ${coreCode}`);
+  return { app, failure };
+}
+const appDatesOf = (tasks: readonly Task[]): Dates => Object.fromEntries(tasks.map(t => [t.id,
+  `${t.time.earlyStart}|${t.time.earlyFinish}|${t.time.lateStart}|${t.time.lateFinish}|${t.time.totalFloat}|${t.time.isCritical}`]));
+
+{
+  const own = readFileSync(files[0]);
+  const withBom = new Uint8Array([...UTF8_BOM, ...own]);
+  const viaText = await openIfc(new TextDecoder().decode(withBom));
+  const textSummary = viaText.schedule();
+  let viaBytes: Awaited<ReturnType<typeof openIfcBytes>> | undefined;
+  try { viaBytes = await openIfcBytes(withBom); } catch (e) { ok('12h een eigen voorbeeld met BOM opent via de bytesroute', false, String(e)); }
+  if (viaBytes) {
+    const bytesSummary = viaBytes.schedule();
+    ok('12h een eigen voorbeeld met BOM opent via de bytesroute met dezelfde samenvatting als via tekst',
+      JSON.stringify(bytesSummary) === JSON.stringify(textSummary), firstDiff(datesOf(bytesSummary), datesOf(textSummary)));
+    const textIfc = await atOneWriteTime(() => viaText.toIfc());
+    ok('12i zonder vreemd deel schrijft de bytesroute dezelfde IFC als de tekstroute (zonder BOM, zoals main)',
+      sameBytes(await atOneWriteTime(() => viaBytes!.toIfcBytes()), encoded(textIfc)));
+  }
+  const { app, failure } = await openInAppWithFlag('bom.ifc', withBom);
+  const appDiff = firstDiff(datesOf(textSummary), appDatesOf(app.store.getState().tasks));
+  ok('12j de app met de flag aan opent het voorbeeld met BOM, met dezelfde datums als de kern (was knownbug 2212)',
+    failure === undefined && app.store.getState().tasks.length === textSummary.counts.tasks && appDiff === '',
+    failure === undefined ? appDiff : String(failure));
+}
+
+const modelFixture = new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
+const modelLines = (() => {
+  const showcase = new Set(readFileSync(join(root, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8').split('\n'));
+  return utf8(modelFixture).split('\n').filter(line => !showcase.has(line));
+})();
+function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
+  const lines = new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes).split('\n');
+  let at = 0;
+  for (const line of modelLines) {
+    at = lines.indexOf(line, at);
+    if (at < 0) return false;
+    at++;
+  }
+  return true;
+}
+{
+  const withBom = new Uint8Array([...UTF8_BOM, ...modelFixture]);
+  ok('15 fixture: het model heeft regels buiten de eigen planning', modelLines.length > 50, String(modelLines.length));
+  let doc: Awaited<ReturnType<typeof openIfcBytes>> | undefined;
+  try { doc = await openIfcBytes(withBom); } catch (e) { ok('15a een modelbestand met BOM opent via de bytesroute', false, String(e)); }
+  if (doc) {
+    doc.schedule();
+    ok('15a een modelbestand met BOM komt na schedule() byte-gelijk terug, met de BOM', sameBytes(await doc.toIfcBytes(), withBom));
+  }
+  const { app, failure } = await openInAppWithFlag('bom-model.ifc', withBom);
+  ok('15b de app met de flag aan opent het modelbestand met BOM', failure === undefined && app.store.getState().ifcSource?.foreignObjectCount === 90,
+    String(failure));
+  const leaf = app.store.getState().tasks.find(t => t.childIds.length === 0 && !t.isMilestone);
+  const newName = `${leaf?.name ?? ''} (gewijzigd)`;
+  if (leaf) app.store.getState().updateTask(leaf.id, { name: newName });
+  let edited: Uint8Array | undefined;
+  try {
+    const output = await prepareIfcOutput(app.store.getState(), buildWriteIFCInput(app.store.getState(), 'merge'));
+    edited = output.prepared?.bytes;
+  } catch (e) { ok('15c de merge met een gewijzigde taaknaam slaagt', false, String(e)); }
+  if (edited) {
+    ok('15c de merge met een gewijzigde taaknaam slaagt en schrijft een ander bestand', !sameBytes(edited, withBom));
+    ok('15d na de merge met een gewijzigde planning staat de BOM er nog', startsWithBom(edited));
+    ok('15e de regels van het model staan byte-gelijk en in dezelfde volgorde', modelLinesKeptInOrder(edited));
+    const reopened = await openIfcBytes(edited);
+    const summary = reopened.schedule();
+    ok('15f de kern leest de gewijzigde naam en houdt het vreemde deel',
+      summary.tasks.some(t => t.name === newName) && summary.foreignContent?.objectCount === 90, JSON.stringify(summary.foreignContent));
+    ok('15g en geeft dat bestand na schedule() byte-gelijk terug', sameBytes(await reopened.toIfcBytes(), edited));
+  }
+}
+
+{
+  const own = readFileSync(files[0], 'utf8');
+  const asIfc2x3 = (text: string) => text.replace(/FILE_SCHEMA\(.*?\);/, "FILE_SCHEMA(('IFC2X3'));");
+  const withPset = own.replace('ENDSEC;\nEND-ISO-10303-21;',
+    "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
+    "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;");
+  const legacy = asIfc2x3(withPset);
+  ok('16 fixture: een IFC2X3-planning met de externe pset ExternPset, zonder model',
+    legacy.includes("FILE_SCHEMA(('IFC2X3'))") && legacy.includes('ExternPset') && !legacy.includes('IFCWALL('));
+  const doc = await openIfcBytes(encoded(legacy));
+  const summary = doc.schedule();
+  ok('16a de planning opent en rekent; de bytesroute bewaart van IFC2X3 niets naast de planning',
+    summary.counts.tasks > 0 && summary.foreignContent === null, JSON.stringify(summary.foreignContent));
+  const refusal = async (write: () => unknown) => {
+    try { await write(); return 'schreef een bestand'; } catch (e) {
+      return e instanceof PlannerCoreError ? `${e.code}:${String(e.details.reason)}` : String(e);
+    }
+  };
+  eqText('16b toIfcBytes() weigert vóór uitvoer met reason ifc2x3-planning-only',
+    await refusal(() => doc.toIfcBytes()), 'IFC_WRITE_FAILED:ifc2x3-planning-only');
+  eqText('16c toIfc() weigert vóór uitvoer met reason ifc2x3-planning-only',
+    await refusal(() => doc.toIfc()), 'IFC_WRITE_FAILED:ifc2x3-planning-only');
+  eqText('16d de tekstroute weigert hetzelfde bestand, zoals main',
+    await refusal(async () => (await openIfc(legacy)).toIfc()), 'IFC_WRITE_FAILED:foreign');
+  const plainLegacy = asIfc2x3(own);
+  const plainBytes = await openIfcBytes(encoded(plainLegacy));
+  const plainText = await openIfc(plainLegacy);
+  ok('16e een IFC2X3-planning zonder vreemde inhoud schrijft via bytes dezelfde IFC als de tekstroute, zoals main',
+    sameBytes(await atOneWriteTime(() => plainBytes.toIfcBytes()), encoded(await atOneWriteTime(() => plainText.toIfc()))));
 }
 
 {

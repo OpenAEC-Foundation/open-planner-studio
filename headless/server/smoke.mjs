@@ -56,6 +56,12 @@ async function call(path, { method = 'GET', body, headers = {}, auth = true } = 
 const isError = (r, code) => r.json?.error?.code === code && typeof r.json.error.message === 'string';
 const IFC = { 'Content-Type': 'application/x-step' };
 const BYTES = { 'Content-Type': 'application/octet-stream' };
+const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
+const EXTERN_PSET = "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n"
+  + "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;";
+const BONSAI_WALL_A_TIME = "#109=IFCTASKTIME($,$,$,$,'P5D','2026-02-02T09:00:00','2026-02-06T17:00:00',$,$,";
+const BONSAI_WALL_A_STALE = "#109=IFCTASKTIME($,$,$,$,'P5D','2026-02-02T09:00:00','2026-02-06T17:00:00','2026-03-02T09:00:00','2026-03-06T17:00:00',";
+const refusalOf = (r) => `${r.status} ${r.json?.error?.code}:${r.json?.error?.details?.reason}`;
 
 try {
   // 1. Health, zonder token.
@@ -131,6 +137,24 @@ try {
       && modelIfc.headers.get('content-type') === 'application/octet-stream' && modelIfc.bytes.equals(source),
       `${modelIfc.status} ${modelIfc.bytes.length} ≠ ${source.length} bytes`);
   }
+
+  const bomUpload = await call('/v1/schedule', { method: 'POST', body: Buffer.concat([UTF8_BOM, exampleBytes]), headers: BYTES });
+  ok('voorbeeld met UTF-8-BOM als bytes → 200 met dezelfde taken, zoals op main', bomUpload.status === 200
+    && JSON.stringify(bomUpload.json?.tasks) === JSON.stringify(s?.tasks), `${bomUpload.status} ${bomUpload.text.slice(0, 200)}`);
+  const legacy = Buffer.from(example.replace(/FILE_SCHEMA\(.*?\);/, "FILE_SCHEMA(('IFC2X3'));").replace('ENDSEC;\nEND-ISO-10303-21;', EXTERN_PSET));
+  const legacySummary = await call('/v1/schedule', { method: 'POST', body: legacy, headers: BYTES });
+  ok('IFC2X3 met een externe pset als bytes → 200, zonder bewaard vreemd deel', legacySummary.status === 200
+    && legacySummary.json?.foreignContent === null, `${legacySummary.status} ${legacySummary.text.slice(0, 200)}`);
+  const legacyIfc = await call('/v1/schedule?output=ifc', { method: 'POST', body: legacy, headers: BYTES });
+  ok('IFC2X3 met een externe pset als bytes, output=ifc → 500 IFC_WRITE_FAILED met reason ifc2x3-planning-only',
+    refusalOf(legacyIfc) === '500 IFC_WRITE_FAILED:ifc2x3-planning-only', refusalOf(legacyIfc));
+  const bonsai = readFileSync(join(FOREIGN_FIXTURES, 'bonsai-4d.ifc'), 'utf8');
+  const staleBonsai = Buffer.from(bonsai.replace(BONSAI_WALL_A_TIME, BONSAI_WALL_A_STALE));
+  ok('fixture: een Bonsai-planning met een vroege start die de berekening niet geeft', !staleBonsai.equals(Buffer.from(bonsai)));
+  const mergeRefused = await call('/v1/schedule?output=ifc', { method: 'POST', body: staleBonsai, headers: BYTES });
+  ok('Bonsai-planning als bytes, output=ifc → 500 IFC_WRITE_FAILED met reason merge-needs-phase2, als JSON',
+    refusalOf(mergeRefused) === '500 IFC_WRITE_FAILED:merge-needs-phase2'
+      && (mergeRefused.headers.get('content-type') ?? '').startsWith('application/json'), refusalOf(mergeRefused));
 
   // 6. Ongeldige invoer.
   const notIfc = await call('/v1/schedule', { method: 'POST', body: 'dit is geen IFC', headers: { 'Content-Type': 'text/plain' } });
