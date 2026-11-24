@@ -4212,19 +4212,6 @@ en noem het in je rapport of PR-tekst.
      SHA-256 als de geopende bron als doel toelaten, en de BOM bij de gewone schrijver bewaren. Voorwaarde voor standaard
      aan. — B (code en de proef van de doelcontrole, `check-ifc-foreign-target.ts` 9c; Ctrl+S zelf niet nagespeeld)
 
-2231. **VERVOLG, zo op main: opslaan weigert in "datums zoals opgeslagen" met `planning-na-openen` (#804, flag aan).**
-     Reproductie (review van #1184 ronde 2): het eigen IFC-voorbeeld, met de gewone writer geschreven met MSPDI-herkomst
-     (`OPS_ImportProvenance.SourceFormat`), één wand erbij, en opgeslagen vroege datums van `Set up site` die afwijken van
-     de berekening. Met de flag aan opent de app alle 20 taken in "datums zoals opgeslagen"; Ctrl+S zonder bewerking geeft
-     `notifications.ifcForeignMergeRefused` en schrijft nul bytes. De gedeelde schrijfroute geeft `planning-na-openen`, met
-     een verschil in `earlyStart` van `2027-05-06T07:00` naar `2027-05-07T07:00`. Gelijk op main en op de PR, met en
-     zonder `importPristine`; zonder datumafwijking geeft de merge de bron byte-gelijk terug. Plekken:
-     `src/state/documentActivation.ts` (`recordedDatesSource`), `src/state/ifcSaveInput.ts` (`buildWriteIFCInput`),
-     `src/state/ifcMergePlanning.ts` (`openMergePlanning`), `src/services/ifc/foreign/mergeWriter.ts` (de controle na
-     openen), `src/state/slices/fileSlice.ts` (`prepareAppIfcWrite`). Richting van de reviewer: geef de twee kanten van de
-     heropening gelijkwaardige informatie over de opgeslagen datums en behoud de vergelijking. Geen voorkomend exemplaar
-     in het onbewerkte corpus. Review van #1184 ronde 2 (GPT-6.2-Sol, xhigh). — B (proef van de reviewer)
-
 2219. **VERVOLG (review van #1184): de geheugenpiek van `openIfcBytes` bij een groot IFC is niet gemeten (#804).**
      `openIfcBytes` (`src/core/index.ts`) maakt eerst een eigen kopie van zijn invoer (het publieke pakket moet een
      buffer bezitten die de afnemer niet meer wijzigt). Daarna houdt het tegelijk het werkgeheugen van de scanner, de
