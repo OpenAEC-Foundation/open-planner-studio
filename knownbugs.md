@@ -3733,22 +3733,26 @@ en noem het in je rapport of PR-tekst.
      de tokenizer op bytes van fase 4 (ontwerp §6.1) weigert een dubbele sleutel met de code `invalid`. Proef:
      `check-ifcx-kern.ts`, "bekende grens 2220". — B
 
-2221. **IFCX: een veranderde gedeelde datum verschuift een gestarte taak niet zichtbaar.** `applySharedSpan` in
-     `src/services/ifc/ifcx/ifcxReader.ts` past de leesregel van ontwerp §5.3 toe: wijkt `start` of `endExclusive` af
-     van de projectie van de precieze datums, dan zet hij de geplande, vroege en late datums op 00:00 van de gedeelde
-     datum en maakt hij de taak handmatig. Een taak met een werkelijke start toont die werkelijke start (`shownStart` in
-     `src/utils/taskDates.ts`), dus daar blijft de getoonde start gelijk, terwijl `ifcxSharedDatesApplied` haar wel
-     meetelt; de werkelijke datums zelf veranderen niet. Alleen een bestand dat een ander programma veranderde, raakt
-     dit. Voorstel: in fase 4 afspreken wat een gedeelde datum op een gestarte taak betekent. — S (uit de code
-     afgeleid)
+2221. **IFCX: een gedeelde startdatum die een ander programma veranderde, laat de lezer stil liggen bij een gestarte
+     taak.** `applySharedSpan` in `src/services/ifc/ifcx/ifcxReader.ts` past de leesregel van ontwerp §5.3 toe, maar de
+     start van een taak met een werkelijke start (`startIsActual`) en het einde van een voltooide taak
+     (`isPinnedComplete`) blijven een feit. Wijkt alleen zo'n datum af, dan verandert de lezer niets en telt de taak
+     niet mee in `ifcxSharedDatesApplied`; de volgende opslag schrijft weer de eigen projectie, zonder dat iemand het
+     verschil zag. Gezien door de reviewer (GPT-6.2-Sol, review van #1183 ronde 1) vóór de fix: gedeelde start naar
+     2 juni, `actualStart` 1 juni 07:00; toen werd `scheduleStart` 2 juni 00:00 en telde de taak mee terwijl de getoonde
+     start 1 juni 07:00 bleef. Voorstel: in fase 4 bepalen hoe de melding bij openen een gedeelde datum toont die met
+     een werkelijke datum botst. Proef: `check-ifcx-kern.ts`, "de werkelijke start van een gestarte taak blijft staan".
+     — B
 
-2222. **IFCX: een taak in de `childIds` van een ouder die zelf geen `parentId` naar die ouder heeft, kan niet als IFCX
-     worden opgeslagen.** De IFCX-writer (`src/services/ifc/ifcx/ifcxWriter.ts`) schrijft de boom als `parent` per taak
-     en leidt `childIds` bij lezen daaruit af. Spreken `childIds` en `parentId` elkaar tegen, dan geeft de herlezing een
-     andere planning en weigert de zelfcontrole (`self-check`). STEP slaat zo'n boom op en herstelt hem bij openen
-     (`extractNesting` in `ifcReader.ts` zet `parentId` uit de nesting). Er gaat niets verloren, maar opslaan als IFCX
-     lukt dan niet. Voorstel: de boom vóór het schrijven gelijktrekken, zoals de STEP-lezer doet, of de oorzaak vinden
-     die zo'n boom maakt (zie ook 1980 en 1981). Proef: `check-ifcx-kern.ts`, "bekende grens 2222". — B
+2222. **IFCX: een boom waarin `childIds` en `parentId` elkaar tegenspreken, kan niet als IFCX worden opgeslagen.** De
+     IFCX-writer schrijft de boom als `parent` per taak en leidt `childIds` bij lezen daaruit af. Noemt een ouder een
+     kind dat niet bestaat of haar niet als ouder noemt, dan weigert `inconsistentContent`
+     (`src/services/ifc/ifcx/consistency.ts`) met code `inconsistent` en veld `task.childIds`. STEP slaat zo'n boom
+     op: een kind dat niet bestaat filtert de STEP-writer weg (`writeWBSNesting`), en bij openen zet `extractNesting`
+     in `ifcReader.ts` `parentId` uit de nesting. Er gaat bij IFCX niets verloren, maar opslaan lukt dan niet. Voorstel:
+     de oorzaak vinden die zo'n boom maakt (zie ook 1980 en 1981), of de boom vóór het schrijven gelijktrekken zoals de
+     STEP-lezer doet. Proef: `check-ifcx-kern.ts`, "een verzameltaak met een kind dat niet bestaat of haar ouder niet
+     noemt wordt geweigerd (2222)". — B
 
 ## Rondleiding, Help en extensie-gidsen
 
