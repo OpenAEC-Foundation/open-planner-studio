@@ -361,7 +361,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     await opening;
     eq('B7 1909: geen tweede tabblad met de oude inhoud', [S().documents.length, S().activeDocumentId], [countBefore, saver]);
     eq('B7 1909: het tabblad dat opsloeg, met zijn werk', tab(store, saver), { project: 'Opslaander', tasks: ['Nieuw werk'], isDirty: false, filePath: doel });
-    eq('B7 1909: de lezing is ouder dan wat het tabblad opsloeg; de melding met de knop', notices(store), [['tabblad', CHANGED]]);
+    eq('B7 1909: de lezing is ouder dan wat het tabblad opsloeg; de strook', notices(store), [['tabblad', CHANGED]]);
 
     for (const during of ['wachtende neerzetting'] as const) {
       const st = newStore(true);
