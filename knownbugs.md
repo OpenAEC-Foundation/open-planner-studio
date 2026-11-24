@@ -4141,14 +4141,6 @@ en noem het in je rapport of PR-tekst.
      latere openactie voor hetzelfde doel een verschil meldde. Dat raakt alle zes openroutes, dus een eigen PR. — B (code
      gelezen, niet nagespeeld)
 
-2246. **Bekende grens (#1201, flag aan): verandert het bestand opnieuw terwijl de vraag van *Nieuwe versie laden*
-     openstaat, dan opent de app een versie die net niet de nieuwste is.** De knop leest de nieuwe versie vóór de vraag
-     (*Niet opslaan* of *Annuleren*). Slaat een ander programma intussen nog een versie op, dan opent *Niet opslaan* de
-     gelezen versie. De vingerafdruk van het nieuwe tabblad komt van de gelezen bytes, dus bij het volgende openen komt
-     de strook terug en weigert Ctrl+S met de bestaande melding van de bewaakte opslag (#1174); er gaat niets ongemerkt
-     verloren. Op main gebeurt hetzelfde met het kruisje en daarna Recent, als het bestand tussen die twee verandert.
-     Besluit van Trias, 24 november 2026: bekende grens, niet oplossen. — B (code)
-
 2255. **Haperende proef, buiten #1121: `check-ifc-document-save.ts` "stap 8, fixronde 5: ingetrokken schrijftoestemming
      bij de beurt geeft de melding van main; daarna één versie (flag aan)" faalde één keer in de tijdzone
      `Pacific/Auckland`.** De wachtvoorwaarde "de tik met ingetrokken toestemming" (`turnUntil`, hooguit 2000
