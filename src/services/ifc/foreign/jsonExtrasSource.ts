@@ -1,9 +1,9 @@
 import { JSON_PROPERTY_PSETS, jsonPropertyDomain, jsonPropertyShape, WINDOWS_PROPERTY, type JsonDomainView, type JsonShape } from '../jsonRegister';
-import { parseJsonTree, jsonSlice, type JsonMemberNode, type JsonNode } from '../jsonTokens';
+import { parseJsonTree, type JsonNode } from '../jsonTokens';
 import type { WriteIFCInput } from '../ifcWriter';
 import type { JsonExtrasOfProperty } from './ifcSource';
 import type { StepIndex } from './stepScanner';
-import { WINDOW_KEY, windowPlaces, type JsonPathStep, type JsonSourceProperty } from './jsonMembers';
+import { WINDOW_KEY, type JsonPathStep, type JsonSourceProperty } from './jsonMembers';
 
 const DEFINES = 'IFCRELDEFINESBYPROPERTIES';
 const ASSIGNS_TO_PROCESS = 'IFCRELASSIGNSTOPROCESS';
@@ -23,11 +23,6 @@ export function writerKeyOfSeed(seed: string, projectCalendarId: string): string
               : kind === 'ws' ? '_worksched' : undefined;
 }
 
-export interface JsonExtrasObject {
-  readonly path: readonly JsonPathStep[];
-  readonly members: readonly { readonly key: string; readonly value: string }[];
-}
-
 function uniqueKeys(node: Extract<JsonNode, { kind: 'object' }>): boolean {
   return new Set(node.members.map(m => m.key)).size === node.members.length;
 }
@@ -43,31 +38,21 @@ function itemsByField(node: Extract<JsonNode, { kind: 'array' }>, field: string)
   return out;
 }
 
-export function unknownJsonMembers(text: string, shape: JsonShape, windowKnown: (key: string) => boolean): JsonExtrasObject[] | undefined {
-  const root = parseJsonTree(text);
-  if (!root) return undefined;
-  const found: JsonExtrasObject[] = [];
-  const raw = (m: JsonMemberNode) => ({ key: text.slice(m.keyStart, m.keyEnd), value: jsonSlice(text, m.value) });
-  const walk = (node: JsonNode, at: JsonShape, path: readonly JsonPathStep[]): void => {
+export function hasUnknownMembers(root: JsonNode, shape: JsonShape, windowKnown: (key: string) => boolean): boolean {
+  const walk = (node: JsonNode, at: JsonShape): boolean => {
     if (at.soort === 'object' && node.kind === 'object' && uniqueKeys(node)) {
-      const extra = node.members.filter(m => !has(at.sleutels, m.key));
-      if (extra.length > 0) found.push({ path, members: extra.map(raw) });
-      for (const m of node.members) if (has(at.sleutels, m.key)) walk(m.value, at.sleutels[m.key], [...path, { sleutel: m.key }]);
-    } else if (at.soort === 'lijst' && node.kind === 'array' && at.identiteit !== 'herkomstmerk') {
-      const veld = at.identiteit.veld;
-      for (const [waarde, item] of itemsByField(node, veld)) walk(item, at.item, [...path, { veld, waarde }]);
-    } else if (at.soort === 'kaart' && node.kind === 'object' && uniqueKeys(node)) {
-      if (at.identiteit === 'sleutel') {
-        for (const m of node.members) walk(m.value, at.waarde, [...path, { sleutel: m.key }]);
-        return;
-      }
-      const extra = node.members.filter(m => !WINDOW_KEY.test(m.key));
-      if (extra.length > 0) found.push({ path, members: extra.map(raw) });
-      for (const m of node.members) if (WINDOW_KEY.test(m.key) && windowKnown(m.key)) walk(m.value, at.waarde, [...path, { sleutel: m.key }]);
+      return node.members.some(m => !has(at.sleutels, m.key) || walk(m.value, at.sleutels[m.key]));
     }
+    if (at.soort === 'lijst' && node.kind === 'array' && at.identiteit !== 'herkomstmerk') {
+      return [...itemsByField(node, at.identiteit.veld).values()].some(item => walk(item, at.item));
+    }
+    if (at.soort === 'kaart' && node.kind === 'object' && uniqueKeys(node)) {
+      if (at.identiteit === 'sleutel') return node.members.some(m => walk(m.value, at.waarde));
+      return node.members.some(m => !WINDOW_KEY.test(m.key) || (windowKnown(m.key) && walk(m.value, at.waarde)));
+    }
+    return false;
   };
-  walk(root, shape, []);
-  return found;
+  return walk(root, shape);
 }
 
 export interface StepJsonExtras {
@@ -118,8 +103,7 @@ export function scanJsonExtras(index: StepIndex, own: (chunk: number) => boolean
     const list = psets.get(key);
     if (list) list.push({ owner: related[0], pset, name }); else psets.set(key, [{ owner: related[0], pset, name }]);
   }
-  const out: StepJsonExtras[] = [], windowMaps: StepJsonExtras[] = [];
-  let windowExtras = false;
+  const out: StepJsonExtras[] = [];
   for (const group of psets.values()) {
     if (group.length !== 1) continue;
     const { owner, pset, name } = group[0];
@@ -134,17 +118,13 @@ export function scanJsonExtras(index: StepIndex, own: (chunk: number) => boolean
       if (text === undefined || !/^\s*[[{]/.test(text)) continue;
       const isWindows = propertyKey(name, property) === WINDOWS_PROPERTY;
       const known = isWindows ? windowKeysOfTask(index, owner) : () => false;
-      const objects = unknownJsonMembers(text, shape, known);
-      if (!objects) continue;
-      const entry = { propertyStepId: Number(index.id(p)), ownerStepId: Number(index.id(owner)) };
-      if (!isWindows) { if (objects.length > 0) out.push(entry); continue; }
       const root = parseJsonTree(text);
-      const windowKeys = root?.kind === 'object' ? root.members.map(m => m.key).filter(k => WINDOW_KEY.test(k) && known(k)) : [];
-      windowMaps.push({ ...entry, ...(windowKeys.length > 0 ? { windowKeys } : {}) });
-      if (objects.length > 0) windowExtras = true;
+      if (!root || !hasUnknownMembers(root, shape, known)) continue;
+      const windowKeys = isWindows && root.kind === 'object' ? root.members.map(m => m.key).filter(k => WINDOW_KEY.test(k) && known(k)) : [];
+      out.push({ propertyStepId: Number(index.id(p)), ownerStepId: Number(index.id(owner)), ...(windowKeys.length > 0 ? { windowKeys } : {}) });
     }
   }
-  return windowExtras ? [...out, ...windowMaps] : out;
+  return out;
 }
 
 export function jsonExtrasIndex(found: readonly StepJsonExtras[], windowAssignments: (ownerStepId: number, key: string) => string | undefined,
@@ -190,15 +170,6 @@ export function jsonExtrasFromIndex(index: StepIndex, entries: readonly JsonExtr
     out.push({ owner, ownerStepId, propertyStepId: entry.propertyStepId, pset: psetName, property, text, windows });
   }
   return out;
-}
-
-export function windowsInPlace(sources: readonly JsonSourceProperty[], input: WriteIFCInput): boolean {
-  if (!sources.some(s => s.windows.size > 0)) return true;
-  const place = windowPlaces(input);
-  return sources.every(s => [...s.windows].every(([key, id]) => {
-    const p = place(id);
-    return p !== undefined && p.owner === s.owner && p.key === key;
-  }));
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -257,41 +228,31 @@ export function jsonObjectExists(input: WriteIFCInput): (owner: string, pset: st
   };
 }
 
-function arrangedLike(domain: unknown, output: unknown): unknown {
-  if (isRecord(domain) && isRecord(output)) {
-    const out: Record<string, unknown> = {};
-    for (const key of Object.keys(output)) out[key] = key in domain ? arrangedLike(domain[key], output[key]) : output[key];
-    for (const key of Object.keys(domain)) if (!(key in out)) out[key] = domain[key];
-    return out;
+function knownOnly(value: unknown, shape: JsonShape): unknown {
+  const sorted = (entries: [string, unknown][]) => Object.fromEntries(entries.sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
+  if (shape.soort === 'object' && isRecord(value)) {
+    return sorted(Object.entries(value).filter(([k]) => has(shape.sleutels, k)).map(([k, v]) => [k, knownOnly(v, shape.sleutels[k])]));
   }
-  if (Array.isArray(domain) && Array.isArray(output) && domain.length === output.length) return domain.map((v, k) => arrangedLike(v, output[k]));
-  return domain;
+  if (shape.soort === 'lijst' && Array.isArray(value)) return value.map(v => knownOnly(v, shape.item));
+  if (shape.soort === 'kaart' && isRecord(value)) return sorted(Object.entries(value).map(([k, v]) => [k, knownOnly(v, shape.waarde)]));
+  return value;
 }
 
-export interface JsonPropertyText {
-  readonly owner: string;
-  readonly pset: string;
-  readonly property: string;
-  readonly text: string;
-}
-
-export function withJsonInOutputForm(input: WriteIFCInput, texts: readonly JsonPropertyText[]): WriteIFCInput {
-  if (texts.length === 0) return input;
-  const d = domainView(input);
-  const values = new Map<string, Map<string, unknown>>();
-  for (const t of texts) {
-    const domain = jsonPropertyDomain(t.pset, t.property);
-    const value = domain?.set ? domain.get(d, t.owner) : undefined;
+export function withoutUnknownMembers(input: WriteIFCInput, properties: Iterable<string>): WriteIFCInput {
+  const view = domainView(input);
+  const byProperty = new Map<string, Map<string, unknown>>();
+  for (const key of properties) {
+    const [owner, pset, property] = key.split('\u0000');
+    const domain = jsonPropertyDomain(pset, property), shape = jsonPropertyShape(pset, property);
+    const value = domain?.set && shape ? domain.get(view, owner) : undefined;
     if (value === undefined) continue;
-    let output: unknown;
-    try { output = JSON.parse(t.text); } catch { continue; }
-    const key = propertyKey(t.pset, t.property);
-    values.set(key, (values.get(key) ?? new Map<string, unknown>()).set(t.owner, arrangedLike(value, output)));
+    const at = propertyKey(pset, property);
+    byProperty.set(at, (byProperty.get(at) ?? new Map<string, unknown>()).set(owner, knownOnly(value, shape!)));
   }
   let out = input;
-  for (const [key, byOwner] of values) {
-    const [pset, property] = key.split('\u0000');
-    out = jsonPropertyDomain(pset, property)!.set!(out, byOwner);
+  for (const [at, values] of byProperty) {
+    const [pset, property] = at.split('\u0000');
+    out = jsonPropertyDomain(pset, property)!.set!(out, values);
   }
   return out;
 }

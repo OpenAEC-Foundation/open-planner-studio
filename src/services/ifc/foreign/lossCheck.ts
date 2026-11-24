@@ -250,9 +250,9 @@ export function pristineDomain(index: StepIndex, cls: Classification, source: If
 /** Idem, met een scan die er al is. */
 export function pristineFromScan(scan: ForeignScanResult, bytes: Uint8Array,
   projectTimestampFallback?: Pick<WriteIFCInput['project'], 'createdAt' | 'modifiedAt'>,
-  unusedAssignmentKeysOut?: Map<string, string[]>, windowAssignmentsOut?: Map<string, Map<string, string>>): Promise<ImportResult> {
+  unusedAssignmentKeysOut?: Map<string, string[]>): Promise<ImportResult> {
   const text = new TextDecoder('utf-8').decode(readerBytes(bytes, scan));
-  return readIFCWithXerReconstruction(text, {}, { ...readerOptions(scan), projectTimestampFallback, unusedAssignmentKeysOut, windowAssignmentsOut });
+  return readIFCWithXerReconstruction(text, {}, { ...readerOptions(scan), projectTimestampFallback, unusedAssignmentKeysOut });
 }
 
 /**

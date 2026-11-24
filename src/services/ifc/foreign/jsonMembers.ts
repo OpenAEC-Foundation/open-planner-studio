@@ -1,8 +1,8 @@
 import { ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
-import { jsonPropertyShape, WINDOWS_PROPERTY, type JsonShape } from '../jsonRegister';
+import { jsonPropertyShape, WINDOWS_PROPERTY, type JsonMapIdentity, type JsonShape } from '../jsonRegister';
 import { jsonSlice, parseJsonTree, sameNode, type JsonMemberNode, type JsonNode } from '../jsonTokens';
-import type { WriteIFCInput } from '../ifcWriter';
+import type { ResourceAssignment } from '@/types/resource';
 
 export const WINDOW_KEY = /^(.+)#(\d+)$/;
 
@@ -21,15 +21,11 @@ export interface WriterLines {
   readonly idMap: ReadonlyMap<string, number>;
 }
 
-export interface WindowPlace {
-  readonly owner: string;
-  readonly key: string;
-}
+type Assignments = readonly Pick<ResourceAssignment, 'id' | 'taskId'>[];
 
 export interface JsonMemberContext {
-  readonly place: (assignmentId: string) => WindowPlace | undefined;
-  readonly readKey: (owner: string, key: string) => string | undefined;
   readonly exists: (owner: string, pset: string, property: string, path: readonly JsonPathStep[]) => boolean | undefined;
+  readonly assignments?: { readonly read: Assignments; readonly written: Assignments };
 }
 
 export interface JsonMembers {
@@ -40,20 +36,6 @@ export interface JsonMembers {
 }
 
 export const jsonPropertyKey = (owner: string, pset: string, property: string) => `${owner}\u0000${pset}\u0000${property}`;
-
-export function windowPlaces(input: Pick<WriteIFCInput, 'assignments' | 'resources' | 'ifcGlobalIds'>): (assignmentId: string) => WindowPlace | undefined {
-  const written = new Set(input.resources.map(r => r.id));
-  const places = new Map<string, WindowPlace>();
-  const counts = new Map<string, number>();
-  for (const a of input.assignments) {
-    if (!written.has(a.resourceId)) continue;
-    const index = counts.get(a.taskId) ?? 0;
-    counts.set(a.taskId, index + 1);
-    const guid = input.ifcGlobalIds?.[`res:${a.resourceId}`];
-    if (guid !== undefined) places.set(a.id, { owner: `task_${a.taskId}`, key: `${guid}#${index}` });
-  }
-  return id => places.get(id);
-}
 
 class Refused extends Error {}
 const refuse = (why: string): never => { throw new Refused(why); };
@@ -95,13 +77,21 @@ function byField(side: Side, field: string, what: string): Map<string, JsonNode>
   return out;
 }
 
-interface Member {
+export type WindowIdentity = 'gebonden' | 'vrij';
+
+export interface Member {
   readonly where: (path: readonly JsonPathStep[]) => boolean | undefined;
+  readonly window: (key: string) => WindowIdentity | undefined;
 }
 
 function memberText(shape: JsonShape, s: Side | undefined, z: Side | undefined, w: Side | undefined,
   path: readonly JsonPathStep[], m: Member): string | undefined {
   if (!s) return w ? slice(w) : undefined;
+  if (shape.soort === 'kaart' && shape.identiteit === 'toewijzing') {
+    for (const sm of byKey(s, 'bron').values()) {
+      if (WINDOW_KEY.test(sm.key) && m.window(sm.key) === undefined) refuse(`venster ${sm.key} staat niet aantoonbaar bij dezelfde toewijzing`);
+    }
+  }
   if (!w) return z ? undefined : slice(s);
   if (z && same(z, w)) return slice(s);
   switch (shape.soort) {
@@ -116,7 +106,7 @@ function memberText(shape: JsonShape, s: Side | undefined, z: Side | undefined, 
     case 'lijst':
       return shape.identiteit === 'herkomstmerk' ? refuse('een lijst zonder sleutelveld veranderde (herkomstmerk, PR 5)') : listText(shape.identiteit.veld, shape.item, s, z, w, path, m);
     case 'kaart':
-      return shape.identiteit === 'sleutel' ? mapText(shape.waarde, s, z, w, path, m) : refuse('een vensterkaart hoort bij haar eigenschap');
+      return mapText(shape.identiteit, shape.waarde, s, z, w, path, m);
   }
 }
 
@@ -190,11 +180,13 @@ function listText(field: string, item: JsonShape, s: Side, z: Side | undefined, 
   return `[${parts.join(',')}]`;
 }
 
-function mapText(value: JsonShape, s: Side, z: Side | undefined, w: Side, path: readonly JsonPathStep[], m: Member): string {
+function mapText(identity: JsonMapIdentity, value: JsonShape, s: Side, z: Side | undefined, w: Side, path: readonly JsonPathStep[], m: Member): string {
   const sMembers = byKey(s, 'bron'), wMembers = byKey(w, 'writer'), zMembers = z ? byKey(z, 'lezing') : undefined;
   const parts: string[] = [];
   for (const sm of sMembers.values()) {
     const wm = wMembers.get(sm.key), zm = zMembers?.get(sm.key);
+    if (identity === 'toewijzing' && (!WINDOW_KEY.test(sm.key) || m.window(sm.key) === 'vrij')) { parts.push(pair(s, sm)); continue; }
+    if (identity === 'toewijzing' && !zm) refuse(`venster ${sm.key}: geen lezing`);
     if (!wm && zm && jsonSlice(s.text, sm.value) !== jsonSlice(z!.text, zm.value)) refuse(`sleutel ${JSON.stringify(sm.key)} viel weg, met een waarde die de writer anders schrijft`);
     const v = memberText(value, at(s, sm.value), zm && at(z!, zm.value), wm && at(w, wm.value), [...path, { sleutel: sm.key }], m);
     if (v !== undefined) parts.push(`${s.text.slice(sm.keyStart, sm.keyEnd)}:${v}`);
@@ -230,7 +222,17 @@ interface Located {
   readonly text: string;
 }
 
-function locate(written: WriterLines, owners: ReadonlySet<string>): Map<string, Located> {
+function lineIndex(written: WriterLines): Map<number, number> {
+  const lineAt = new Map<number, number>();
+  written.lines.forEach((line, k) => { const m = /^#(\d+)=/.exec(line); if (m) lineAt.set(Number(m[1]), k); });
+  return lineAt;
+}
+
+const put = (lines: string[], loc: Located, text: string) => {
+  lines[loc.at] = `#${loc.id}=IFCPROPERTYSINGLEVALUE('${loc.nameRaw}',$,IFCTEXT(${ifcStr(text)}),$);`;
+};
+
+function locate(written: WriterLines, lineAt: ReadonlyMap<number, number>, owners: ReadonlySet<string>): Map<string, Located> {
   const out = new Map<string, Located>();
   if (owners.size === 0) return out;
   const ownerOf = new Map<number, string>();
@@ -238,8 +240,6 @@ function locate(written: WriterLines, owners: ReadonlySet<string>): Map<string, 
     const id = written.idMap.get(owner);
     if (id !== undefined) ownerOf.set(id, owner);
   }
-  const lineAt = new Map<number, number>();
-  written.lines.forEach((line, k) => { const m = /^#(\d+)=/.exec(line); if (m) lineAt.set(Number(m[1]), k); });
   const parse = (id: number) => { const k = lineAt.get(id); return k === undefined ? undefined : LINE.exec(written.lines[k]) ?? undefined; };
   for (const line of written.lines) {
     if (!line.includes('=IFCRELDEFINESBYPROPERTIES(')) continue;
@@ -264,73 +264,50 @@ function locate(written: WriterLines, owners: ReadonlySet<string>): Map<string, 
 }
 
 export function mergedJsonText(shape: JsonShape, source: string, read: string | undefined, written: string | undefined,
-  exists: (path: readonly JsonPathStep[]) => boolean | undefined = () => undefined): { readonly text: string | undefined } | { readonly refused: string } {
+  member: Partial<Member> = {}): { readonly text: string | undefined } | { readonly refused: string } {
+  const m: Member = { where: member.where ?? (() => undefined), window: member.window ?? (() => undefined) };
   try {
-    return { text: memberText(shape, parsed(source), parsed(read), written === undefined ? emptyOf(shape) : parsed(written), [], { where: exists }) };
+    return { text: memberText(shape, parsed(source), parsed(read), written === undefined ? emptyOf(shape) : parsed(written), [], m) };
   } catch (e) {
     if (e instanceof Refused) return { refused: e.message };
     throw e;
   }
 }
 
-interface WindowMap {
-  readonly side: Side;
-  readonly members: ReadonlyMap<string, JsonMemberNode>;
+const NAME = /^#\d+=IFCPROPERTYSINGLEVALUE\('((?:[^']|'')*)'/;
+
+function assignmentKeys(written: WriterLines, at: ReadonlyMap<number, number>, assignments: Assignments, tasks: ReadonlySet<string>) {
+  const byTask = new Map<string, Map<string, string>>();
+  for (const a of assignments) {
+    if (!tasks.has(a.taskId)) continue;
+    const id = written.idMap.get(`_asgn_${a.taskId}_${a.id}`);
+    const k = id === undefined ? undefined : at.get(id);
+    const name = k === undefined ? undefined : NAME.exec(written.lines[k])?.[1];
+    if (name === undefined) continue;
+    const keys = byTask.get(a.taskId) ?? new Map<string, string>();
+    byTask.set(a.taskId, keys.set(a.id, stepString(name)));
+  }
+  return byTask;
 }
 
-function windowMap(text: string | undefined, what: string): WindowMap | undefined {
-  const side = parsed(text);
-  return side && { side, members: byKey(side, what) };
-}
-
-interface WindowSource {
-  readonly property: JsonSourceProperty;
-  readonly map: WindowMap;
-  readonly read: WindowMap | undefined;
-  readonly keyOf: ReadonlyMap<string, string>;
-}
-
-function windowsText(owner: string, source: WindowSource | undefined, written: WindowMap | undefined,
-  arrivals: readonly { readonly assignmentId: string; readonly from: WindowSource; readonly key: string }[],
-  ctx: JsonMemberContext, windowShape: JsonShape, m: Member): string | undefined {
-  const parts: string[] = [];
-  const done = new Set<string>();
-  const windowAt = (from: WindowSource, key: string, keyToken: string | undefined, place: WindowPlace) => {
-    const zKey = ctx.readKey(from.property.owner, key);
-    const zm = zKey === undefined ? undefined : from.read?.members.get(zKey);
-    if (!zm) return refuse(`venster ${key}: geen lezing`);
-    const wm = written?.members.get(place.key);
-    const value = memberText(windowShape, at(from.map.side, from.map.members.get(key)!.value), at(from.read!.side, zm.value),
-      wm ? at(written!.side, wm.value) : EMPTY_OBJECT, [{ sleutel: key }], m);
-    done.add(place.key);
-    if (!wm && isEmpty(value)) return;
-    parts.push(`${keyToken ?? JSON.stringify(place.key)}:${value}`);
+function windowIdentity(bound: ReadonlyMap<string, string>, before: ReadonlyMap<string, string> | undefined,
+  now: ReadonlyMap<string, string> | undefined): (key: string) => WindowIdentity | undefined {
+  const was = new Set(before?.values()), is = new Set(now?.values());
+  return key => {
+    const id = bound.get(key);
+    if (id !== undefined) return now?.get(id) === key && was.has(key) ? 'gebonden' : undefined;
+    return was.has(key) || is.has(key) ? undefined : 'vrij';
   };
-  if (source) {
-    const s = source.map.side;
-    for (const sm of source.map.members.values()) {
-      if (!WINDOW_KEY.test(sm.key)) { parts.push(pair(s, sm)); continue; }
-      const id = source.property.windows.get(sm.key);
-      if (id === undefined) refuse(`venster ${sm.key} hoort niet aantoonbaar bij één toewijzing`);
-      const place = ctx.place(id!);
-      if (!place) {
-        const zKey = ctx.readKey(owner, sm.key);
-        const zm = zKey === undefined ? undefined : source.read?.members.get(zKey);
-        if (zm && jsonSlice(s.text, sm.value) === jsonSlice(source.read!.side.text, zm.value)) continue;
-        refuse(`venster ${sm.key}: de toewijzing bestaat niet meer`);
-      }
-      if (place!.owner !== owner) continue;
-      windowAt(source, sm.key, place!.key === sm.key ? s.text.slice(sm.keyStart, sm.keyEnd) : undefined, place!);
-    }
+}
+
+export function withJsonTexts(written: WriterLines, sources: readonly JsonSourceProperty[]): string[] {
+  const out = [...written.lines];
+  const at = locate(written, lineIndex(written), new Set(sources.map(s => s.owner)));
+  for (const s of sources) {
+    const loc = at.get(jsonPropertyKey(s.owner, s.pset, s.property));
+    if (loc) put(out, loc, s.text);
   }
-  const order = new Map([...(written?.members.keys() ?? [])].map((k, i) => [k, i]));
-  for (const a of [...arrivals].sort((x, y) => (order.get(x.key) ?? Infinity) - (order.get(y.key) ?? Infinity))) {
-    windowAt(a.from, a.from.keyOf.get(a.assignmentId)!, undefined, { owner, key: a.key });
-  }
-  if (written) for (const wm of written.members.values()) if (!done.has(wm.key)) parts.push(pair(written.side, wm));
-  if (!written) return parts.length === 0 ? undefined : refuse('vensters met onbekende sleutels hebben geen plek: de writer schrijft voor deze taak geen vensters');
-  const text = `{${parts.join(',')}}`;
-  return source && text === `{${[...source.map.members.values()].map(x => pair(source.map.side, x)).join(',')}}` ? slice(source.map.side) : text;
+  return out;
 }
 
 export function jsonMembers(read: WriterLines, written: WriterLines, sources: readonly JsonSourceProperty[],
@@ -339,84 +316,24 @@ export function jsonMembers(read: WriterLines, written: WriterLines, sources: re
   const expected = new Map<string, string>(), carried = new Set<string>();
   if (sources.length === 0) return { read: readOut, written: writtenOut, expected, carried };
   const isWindows = (s: JsonSourceProperty) => `${s.pset}\u0000${s.property}` === WINDOWS_PROPERTY;
-  const owners = new Set<string>(sources.map(s => s.owner));
-  const placesOf = new Map<string, { from: JsonSourceProperty; place: WindowPlace | undefined }>();
-  for (const s of sources) if (isWindows(s)) for (const [, id] of s.windows) placesOf.set(id, { from: s, place: ctx.place(id) });
-  for (const { place } of placesOf.values()) if (place) owners.add(place.owner);
-  const reads = locate(read, owners), writes = locate(written, owners);
-  const put = (lines: string[], loc: Located, text: string) => {
-    lines[loc.at] = `#${loc.id}=IFCPROPERTYSINGLEVALUE('${loc.nameRaw}',$,IFCTEXT(${ifcStr(text)}),$);`;
-  };
-
+  const owners = new Set(sources.map(s => s.owner));
+  const readAt = lineIndex(read), writtenAt = lineIndex(written);
+  const reads = locate(read, readAt, owners), writes = locate(written, writtenAt, owners);
+  const tasks = new Set(sources.filter(isWindows).map(s => s.owner.slice('task_'.length)));
+  const keys0 = assignmentKeys(read, readAt, ctx.assignments?.read ?? [], tasks);
+  const keys1 = assignmentKeys(written, writtenAt, ctx.assignments?.written ?? [], tasks);
   for (const s of sources) {
-    if (isWindows(s)) continue;
     const key = jsonPropertyKey(s.owner, s.pset, s.property);
     const r = reads.get(key), w = writes.get(key);
     if (!r) continue;
-    const merged = mergedJsonText(jsonPropertyShape(s.pset, s.property)!, s.text, r.text, w?.text, path => ctx.exists(s.owner, s.pset, s.property, path));
+    const task = s.owner.slice('task_'.length);
+    const window = isWindows(s) ? windowIdentity(s.windows, keys0.get(task), keys1.get(task)) : () => undefined;
+    const merged = mergedJsonText(jsonPropertyShape(s.pset, s.property)!, s.text, r.text, w?.text,
+      { where: path => ctx.exists(s.owner, s.pset, s.property, path), window });
     if ('refused' in merged || (!w && !isEmpty(merged.text))) continue;
     put(readOut, r, s.text);
     carried.add(key);
     if (w) { put(writtenOut, w, merged.text!); expected.set(key, merged.text!); }
-  }
-
-  const windowSources = sources.filter(isWindows);
-  if (windowSources.length === 0) return { read: readOut, written: writtenOut, expected, carried };
-  const [pset, property] = WINDOWS_PROPERTY.split('\u0000');
-  const windowShape = (jsonPropertyShape(pset, property) as Extract<JsonShape, { soort: 'kaart' }>).waarde;
-  const keyOf = (owner: string) => jsonPropertyKey(owner, pset, property);
-  const fallback = new Set<string>();
-  const bySource = new Map<string, WindowSource>();
-  for (const s of windowSources) {
-    try {
-      bySource.set(s.owner, { property: s, map: windowMap(s.text, 'bron')!, read: windowMap(reads.get(keyOf(s.owner))?.text, 'lezing'),
-        keyOf: new Map([...s.windows].map(([k, id]) => [id, k])) });
-      if (!reads.get(keyOf(s.owner))) fallback.add(s.owner);
-    } catch (e) {
-      if (!(e instanceof Refused)) throw e;
-      fallback.add(s.owner);
-    }
-  }
-  const writtenMaps = new Map<string, WindowMap | undefined>();
-  const writtenMap = (owner: string) => {
-    if (!writtenMaps.has(owner)) {
-      try { writtenMaps.set(owner, windowMap(writes.get(keyOf(owner))?.text, 'writer')); }
-      catch (e) { if (!(e instanceof Refused)) throw e; writtenMaps.set(owner, undefined); fallback.add(owner); }
-    }
-    return writtenMaps.get(owner);
-  };
-  const windowOwners = new Set<string>([...bySource.keys()]);
-  for (const { place } of placesOf.values()) if (place) windowOwners.add(place.owner);
-  const member: Member = { where: () => undefined };
-  const results = new Map<string, string | undefined>();
-  for (;;) {
-    results.clear();
-    const arrivals = new Map<string, { assignmentId: string; from: WindowSource; key: string }[]>();
-    for (const [assignmentId, p] of placesOf) {
-      const from = bySource.get(p.from.owner);
-      if (!p.place || p.place.owner === p.from.owner || !from || fallback.has(p.from.owner)) continue;
-      const list = arrivals.get(p.place.owner);
-      const entry = { assignmentId, from, key: p.place.key };
-      if (list) list.push(entry); else arrivals.set(p.place.owner, [entry]);
-    }
-    for (const owner of windowOwners) {
-      if (fallback.has(owner)) continue;
-      try {
-        results.set(owner, windowsText(owner, bySource.get(owner), writtenMap(owner), arrivals.get(owner) ?? [], ctx, windowShape, member));
-      } catch (e) {
-        if (!(e instanceof Refused)) throw e;
-        fallback.add(owner);
-      }
-    }
-    const before = fallback.size;
-    for (const { from, place } of placesOf.values()) if (place && place.owner !== from.owner && fallback.has(place.owner)) fallback.add(from.owner);
-    if (fallback.size === before) break;
-  }
-  for (const [owner, text] of results) {
-    if (fallback.has(owner)) continue;
-    const r = reads.get(keyOf(owner)), w = writes.get(keyOf(owner)), source = bySource.get(owner);
-    if (r && source) { put(readOut, r, source.property.text); carried.add(keyOf(owner)); }
-    if (w && text !== undefined) { put(writtenOut, w, text); expected.set(keyOf(owner), text); }
   }
   return { read: readOut, written: writtenOut, expected, carried };
 }
