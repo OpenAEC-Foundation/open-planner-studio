@@ -1472,6 +1472,32 @@ en noem het in je rapport of PR-tekst.
       generator uit die release. Richting voor toekomstige uitbreidingen: bied hergeneratie alleen aan voor
       een bekende set. — B
 
+2003. **`hoursPerDay` en de blokken van een werkende uitzondering zonder eigen blokken kunnen van elkaar afwijken.**
+      `modalBandHoursPerDay` telt elke weekdag met blokken mee, ook als die weekdag niet in `workDays` staat;
+      `computeStandardWorkdayBands` (`src/engine/scheduler/CalendarEngine.ts`) telt alleen weekdagen die in
+      `workDays` staan én blokken hebben. Op een kalender waarin die twee niet kloppen, kan de werktijd van een
+      werkende uitzondering zonder eigen blokken op een dag zonder weekdagblokken afwijken van `hoursPerDay`. Nagespeeld
+      met een script: `workDays` ma en di met 8 u, wo tot en met vr blokken van 10 u maar niet in `workDays`, plus een
+      werkende zaterdag zonder blokken: `hoursPerDay` is 10, de zaterdag krijgt 480 minuten. Met 8 u op alle vijf
+      weekdagen en verder dezelfde kalender is `hoursPerDay` 8 en krijgt de zaterdag ook 480 minuten. Of een lezer of
+      invoer zo'n kalender maakt, is niet nagegaan. — B
+
+2004. **Een datum in twee werkende uitzonderingen krijgt de blokken van de laatste met eigen blokken.**
+      `buildWorkingExceptions` (`src/engine/scheduler/CalendarEngine.ts`) overschrijft de blokken per datum alleen
+      voor een uitzondering met eigen blokken; een latere uitzondering zonder blokken laat de eerdere staan. Nagespeeld
+      met een script: eerst za 06:00–12:00, dan dezelfde zaterdag zonder blokken, geeft 360 werkminuten. De
+      kalendertool van MCP weigert zo'n overlap niet (`workingExceptionsReason` in
+      `src/services/mcp/tools/calendarResourceTools.ts` toetst alleen de vorm), en de P6 XML-lezer houdt twee
+      `HolidayOrException`-elementen met eigen blokken op dezelfde datum allebei als werkende uitzondering:
+      `mergeConsecutiveDays` in `src/services/p6/p6xmlReader.ts` voegt alleen aansluitende dagen samen (gelezen in de
+      code). — B
+
+2005. **`addWorkingDaysSigned` telt vanaf de volgende werkdag als de begindatum geen werkdag is.**
+      `addWorkingDaysSigned` (`src/engine/scheduler/CalendarEngine.ts`) zet de begindatum eerst met `nextWorkDay`
+      vooruit. Nagespeeld met een script op een ma-vr-kalender: −1 vanaf zaterdag geeft vrijdag, en −1 vanaf vrijdag
+      geeft donderdag. Of elke aanroeper (onder meer `CPMSolver.ts`, `ResourceLeveler.ts`, `useBarDrag.ts`,
+      `splitWalk.ts`, `barDragMath.ts`) een werkdag meegeeft, is niet nagegaan. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
