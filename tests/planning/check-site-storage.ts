@@ -849,10 +849,10 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
       site.storage.open = open;
       useAppStore.setState((st) => { st.ui.featureFlags = { ifcForeignContent: true }; });
     }
-    eq('G18 / R9-4 site (Sol, ronde 9): de flag gaat uit tijdens het lezen ⇒ een tweede tabblad, zoals main', [
-      flipped, S().activeDocumentId !== tabOriginal, S().documents.length - count,
+    eq('G18 / R9-4 site (Sol, ronde 9): de flag gaat uit tijdens het lezen ⇒ het bestand in het lege tabblad, niet naar het open tabblad, zoals main', [
+      flipped, S().activeDocumentId !== tabOriginal, S().documents.length - count, S().siteFileId,
       S().documents.filter((d) => d.changedOnDisk).length,
-    ], [true, true, 1, 0]);
+    ], [true, true, 0, 'y', 0]);
     S().closeDocument(S().activeDocumentId);
     S().switchDocument(tabOriginal);
   }
