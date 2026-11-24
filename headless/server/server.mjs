@@ -119,7 +119,7 @@ class Calculator {
         worker.off('error', onError);
         worker.off('exit', onExit);
         this.busy = false;
-        resolve(result.ok || kept === null ? result : kept);
+        resolve(result.ok || kept === null || result.code !== 'TIMEOUT' ? result : kept);
       };
       const onMessage = (msg) => {
         if (msg.provisional) kept = msg;

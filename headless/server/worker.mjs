@@ -22,6 +22,7 @@ parentPort.on('message', async ({ text, bytes, output }) => {
       const refusedModel = err.readRefusal === 'building-model';
       const refusedForeign = output === 'ifc' && err.code === 'IFC_WRITE_FAILED' && err.details.reason === 'foreign';
       if (bytes !== undefined && (refusedModel || refusedForeign)) {
+        parentPort.postMessage({ ...mainAnswer, provisional: true });
         const preserved = await viaBytesRoute(bytes, output, refusedModel ? null : { doc, summary });
         if (preserved?.summary) return parentPort.postMessage({ ok: true, summary: preserved.summary });
         if (preserved?.ifcBytes) return parentPort.postMessage({ ok: true, ifcBytes: preserved.ifcBytes }, [preserved.ifcBytes.buffer]);
