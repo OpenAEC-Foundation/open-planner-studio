@@ -1,6 +1,7 @@
-import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
+import { writeIFCWithChoices, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput, type IFCSaveSource } from '@/state/ifcSaveInput';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
+import { snapshotIdentityRows, type RecoveryIdentityRow } from './recoveryIdentity';
 
 /** Uitsluitend clonebare writer-invoer; nooit een documentpayload met handles of archiefbytes. */
 export interface RecoverySnapshotInput {
@@ -26,7 +27,16 @@ export function recoverySnapshotInput(source: IFCSaveSource): RecoverySnapshotIn
   };
 }
 
-export function serializeRecoveryInput({ input, archive }: RecoverySnapshotInput): string {
+export interface RecoverySnapshot {
+  readonly ifc: string;
+  readonly identities?: readonly RecoveryIdentityRow[];
+}
+
+export function serializeRecoveryInput(snapshot: RecoverySnapshotInput): string {
+  return writeRecoverySnapshot(snapshot).ifc;
+}
+
+export function writeRecoverySnapshot({ input, archive }: RecoverySnapshotInput): RecoverySnapshot {
   // De referentietak van de writer leest alleen deze velden en de geldigheid van de selector.
   // Bewust een smalle adapter: het volledige archief (bytes, readModel, diagnostics) wordt nooit
   // gekloond. Pariteitstests bewaken dat deze tak geen andere archiefvelden gaat gebruiken.
@@ -35,7 +45,9 @@ export function serializeRecoveryInput({ input, archive }: RecoverySnapshotInput
     diagnostics: { documentViews: archive.selectorValid && input.xerSourceProjectId
       ? { [input.xerSourceProjectId]: true } : {} },
   } as unknown as XerSourceArchive : undefined;
-  return writeIFC({ ...input, xerSourceArchive: reference });
+  const written = writeIFCWithChoices({ ...input, xerSourceArchive: reference });
+  const identities = snapshotIdentityRows(input, written.issuedGlobalIds);
+  return { ifc: written.content, ...(identities ? { identities } : {}) };
 }
 
 /** Dezelfde writer en referentie-invoer voor headless, fallback en worker. */

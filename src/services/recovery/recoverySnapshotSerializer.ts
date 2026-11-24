@@ -1,6 +1,6 @@
 import { IfcCalendarTimePrecisionError } from '@/services/ifc/ifcErrors';
 import type { IFCSaveSource } from '@/state/ifcSaveInput';
-import { recoverySnapshotInput, serializeRecoveryInput } from './recoverySnapshotInput';
+import { recoverySnapshotInput, writeRecoverySnapshot, type RecoverySnapshot } from './recoverySnapshotInput';
 import type { RecoveryWorkerRequest, RecoveryWorkerResponse } from './recoverySnapshot.worker';
 
 export type RecoveryWorker = Pick<Worker, 'postMessage' | 'terminate' | 'onmessage' | 'onerror' | 'onmessageerror'>;
@@ -19,7 +19,7 @@ export function createRecoverySnapshotSerializer(
   let tail: Promise<unknown> = Promise.resolve();
   let rejectActive: ((error: Error) => void) | null = null;
 
-  const serialize = (source: IFCSaveSource): Promise<string> => {
+  const serialize = (source: IFCSaveSource): Promise<RecoverySnapshot> => {
     // Leg de invoer vóór de eerste await vast uit dezelfde immutable payload als de delta.
     const snapshot = recoverySnapshotInput(source);
     const run = tail.then(async () => {
@@ -28,19 +28,19 @@ export function createRecoverySnapshotSerializer(
         try { worker = createWorker(); } catch { unavailable = true; }
         if (!worker) unavailable = true;
       }
-      if (!worker) return serializeRecoveryInput(snapshot);
+      if (!worker) return writeRecoverySnapshot(snapshot);
       const activeWorker = worker;
       const id = ++nextId;
       let timeout: ReturnType<typeof setTimeout> | undefined;
       try {
-        return await new Promise<string>((resolve, reject) => {
+        return await new Promise<RecoverySnapshot>((resolve, reject) => {
           rejectActive = reject;
           timeout = setTimeout(() => reject(new Error('Crashherstel-worker antwoordde niet binnen 60 seconden.')), 60_000);
           activeWorker.onmessage = ({ data }: MessageEvent<RecoveryWorkerResponse>) => {
             if (data.id !== id) return;
             if ('error' in data) reject(data.calendarTimeMinutes !== undefined
               ? new IfcCalendarTimePrecisionError(data.calendarTimeMinutes) : new RecoverySerializationError(data.error));
-            else resolve(data.ifc);
+            else resolve(data.identities ? { ifc: data.ifc, identities: data.identities } : { ifc: data.ifc });
           };
           activeWorker.onerror = (event) => { event.preventDefault(); reject(new Error(event.message)); };
           activeWorker.onmessageerror = () => reject(new Error('Crashherstel-worker kon het antwoord niet lezen.'));
@@ -56,7 +56,7 @@ export function createRecoverySnapshotSerializer(
         if (disposed) throw error;
         // Ook CSP/start-/clonefouten mogen crashherstel niet uitschakelen. De fallback schrijft
         // exact dezelfde vastgelegde versie.
-        return serializeRecoveryInput(snapshot);
+        return writeRecoverySnapshot(snapshot);
       } finally {
         clearTimeout(timeout);
         rejectActive = null;

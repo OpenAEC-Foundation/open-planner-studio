@@ -5,7 +5,7 @@ import type { ImportLabels } from '@/services/importTypes';
 import type { LoadedRecoveryDoc } from '@/services/recovery/recoveryStore';
 import type { RecoveryIfcSource } from '@/services/recovery/recoveryIfcSource';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
-import { withSharedGlobalIdsRestored } from '@/services/recovery/recoverySharedGlobalIds';
+import { withRecoveryIdentities } from '@/services/recovery/recoveryIdentity';
 import { isTauri } from '@/utils/platform';
 import { createAppStoreContext } from './appStoreFactory';
 import { recoveryInputFromParsed, type RecoveryDocInput } from './documentContract';
@@ -45,8 +45,7 @@ export async function readRecoveryDocument(
   const read = await readIfcFromText(document.ifc, labels, {
     ifcBytes: enabled, resolveXerArchiveReference: sha => archives.get(sha),
   });
-  const shared = enabled ? document.ifcSource?.sharedGlobalIds : undefined;
-  const parsed = shared ? withSharedGlobalIdsRestored(read, shared) : read;
+  const parsed = enabled && document.snapshotIdentities ? withRecoveryIdentities(read, document.snapshotIdentities) : read;
   const snapshot = recoveryInputFromParsed(parsed, {
     id: document.id, filePath: document.filePath, siteFileId: document.siteFileId ?? null,
     siteFileVersion: document.siteFileVersion ?? null, foreignSource: document.foreignSource ?? null,

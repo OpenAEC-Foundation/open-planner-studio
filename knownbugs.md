@@ -2480,6 +2480,12 @@ en noem het in je rapport of PR-tekst.
      (`/tmp/fase1b-v2-scope/echte-invoer/resultaten.json` op aia09-mp50, 11 november 2026). — B
 
 
+1570. **VERVOLG (#804, gemaakt geval): id-afleiding bij een `-dup-N`-object na crashherstel nog beproeven.**
+     PR 9a gebruikt de gewone bytes-route, zonder `idExceptions`: de echte keten met een in de app
+     toegevoegde resource, Opslaan als, verder bewerken, crashherstel en opnieuw Opslaan als behoudt
+     de GlobalId en het vreemde deel. Een geconstrueerd dubbel-GlobalId-geval (`-dup-N`) is niet
+     in die herstelketen gemeten. Alleen dit gemaakte geval blijft vervolg; geen claim van verlies
+     of van herstel van zulke id-uitzonderingen. — S
 2236. **VERVOLG (#804 fase 2, PR 11): een bewerkt document met een gedeelde GlobalId in het eigen deel kan niet worden opgeslagen.**
      Delen twee eigen objecten een GlobalId (de lezer geeft de tweede een `-dup-N`-id), dan geeft de merge die tweede bij
      elke opslag die niet de bron letterlijk teruggeeft een nieuwe GlobalId (`issueGuid`), ook als de eerste houder

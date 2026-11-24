@@ -255,9 +255,11 @@ export function writeIFCForComparison(input: WriteIFCInput): string {
   return writeIfcParts(input, undefined, new Date('1970-01-01T00:00:00.000Z')).text;
 }
 
-export function writeIFCWithChoices(input: WriteIFCInput): { content: string; literalCalendarIds: string[] } {
-  const { text, literalCalendarIds } = writeIfcParts(input);
-  return { content: text, literalCalendarIds };
+export function writeIFCWithChoices(input: WriteIFCInput): {
+  content: string; literalCalendarIds: string[]; issuedGlobalIds: ReadonlyMap<string, string>;
+} {
+  const { text, literalCalendarIds, issuedGlobalIds } = writeIfcParts(input);
+  return { content: text, literalCalendarIds, issuedGlobalIds };
 }
 
 export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds, writtenAt?: Date): {
@@ -269,6 +271,7 @@ export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds, 
 
 function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds, comparisonDate?: Date): {
   text: string; lines: string[]; idMap: ReadonlyMap<string, number>; literalCalendarIds: string[];
+  issuedGlobalIds: ReadonlyMap<string, string>;
 } {
   const {
     project, calendar, tasks: sourceTasks, sequences, resources, assignments,
@@ -477,11 +480,13 @@ function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds, comparisonD
   writeImportProvenanceMeta(ctx, workSchedId, importPristine === true, recordedSourceFormat, ownerHistId);
 
   const literalCalendarIds = [...new Set([calendar, ...resourceCalendars].map(cal => cal.id))].filter(id => writeView.literalCalendarIds.has(id));
-  if (merge) return { text: '', lines: ctx.lines, idMap: ctx.idMap, literalCalendarIds };
+  if (merge) return { text: '', lines: ctx.lines, idMap: ctx.idMap, literalCalendarIds, issuedGlobalIds: ctx.guids };
 
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
 
-  return { text: header + ctx.lines.join('\n') + footer, lines: ctx.lines, idMap: ctx.idMap, literalCalendarIds };
+  return {
+    text: header + ctx.lines.join('\n') + footer, lines: ctx.lines, idMap: ctx.idMap, literalCalendarIds, issuedGlobalIds: ctx.guids,
+  };
 }
 
 function writeXerSourceArchive(

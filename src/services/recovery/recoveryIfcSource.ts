@@ -1,9 +1,6 @@
 import type { ForeignSourceFingerprint } from '@/services/ifc/foreign/foreignSourceMark';
 import { parseForeignSourceFingerprint } from '@/services/ifc/foreign/foreignSourceMark';
 import type { IFCSaveSource } from '@/state/ifcSaveInput';
-import {
-  parseSharedGlobalIds, recoverySnapshotGlobalIds, sameSharedGlobalIds, type SharedGlobalId,
-} from './recoverySharedGlobalIds';
 
 /** Optionele documentmetadata binnen manifest v5. Oude lezers negeren dit veld.
  * Het pad/site-id staat uitsluitend in foreignSource; alleen de browserhandle mist daar nog.
@@ -16,7 +13,6 @@ export interface RecoveryIfcSource extends ForeignSourceFingerprint {
    * Het herstel aanvaardt dan ook een bron met deze sha256. Optioneel binnen v5 (besluit 16 november 2026, in plaats
    * van manifest 6): een oudere app negeert het veld en geeft na zo'n crash hoogstens "bron ontbreekt". */
   readonly pendingSha256?: string;
-  readonly sharedGlobalIds?: readonly SharedGlobalId[];
 }
 
 const SHA256_HEX = /^[0-9a-f]{64}$/;
@@ -27,11 +23,9 @@ export function recoveryIfcSourceFields(
   const current = source.ifcSource;
   if (!enabled || !current?.foreign || source.foreignSourceMark?.sourceMissing) return {};
   const handle = source.foreignSourceMark?.handle;
-  const shared = recoverySnapshotGlobalIds(source.ifcGlobalIds)?.shared;
   return { ifcSource: { sha256: current.sha256, byteLength: current.bytes.length, foreign: true,
     ...(handle ? { handle } : {}),
     ...(pendingSha256 ? { pendingSha256 } : {}),
-    ...(shared ? { sharedGlobalIds: shared } : {}),
   } };
 }
 
@@ -45,10 +39,8 @@ export function ifcSourceMetaFields(record: object | null | undefined): { ifcSou
   const handle = value.handle as FileSystemFileHandle | undefined;
   const pendingSha256 = typeof value.pendingSha256 === 'string' && SHA256_HEX.test(value.pendingSha256)
     ? value.pendingSha256 : undefined;
-  const sharedGlobalIds = parseSharedGlobalIds(value.sharedGlobalIds);
   return { ifcSource: { ...fingerprint, foreign: true, ...(handle?.kind === 'file' ? { handle } : {}),
     ...(pendingSha256 ? { pendingSha256 } : {}),
-    ...(sharedGlobalIds ? { sharedGlobalIds } : {}),
   } };
 }
 
@@ -56,6 +48,5 @@ export function sameRecoveryIfcSource(a: { ifcSource?: RecoveryIfcSource }, b: {
   return a.ifcSource?.sha256 === b.ifcSource?.sha256
     && a.ifcSource?.byteLength === b.ifcSource?.byteLength
     && a.ifcSource?.handle === b.ifcSource?.handle
-    && a.ifcSource?.pendingSha256 === b.ifcSource?.pendingSha256
-    && sameSharedGlobalIds(a.ifcSource?.sharedGlobalIds, b.ifcSource?.sharedGlobalIds);
+    && a.ifcSource?.pendingSha256 === b.ifcSource?.pendingSha256;
 }

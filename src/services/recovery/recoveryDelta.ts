@@ -8,6 +8,8 @@ import {
   type RecoveryArchiveSupplier, type RecoveryDocContent, type RecoveryDocMetadata, type RecoverySaveInput,
 } from './recoveryStore';
 import { decodeXerSourceArchive } from '@/services/xerSourceArchive';
+import type { RecoverySnapshot } from './recoverySnapshotInput';
+import { sameRecoveryIdentityRows, type RecoveryIdentityRow } from './recoveryIdentity';
 
 /** Eén open document, precies zoals de auto-save het aan de recoverylaag aanbiedt. */
 export interface RecoverySourceDocument extends RecoveryDocMetadata {
@@ -39,8 +41,12 @@ export interface RecoveryDelta {
  * Het site-doel staat er alleen in als er een is: zonder site heeft de metadata exact dezelfde
  * velden als vóór issue #309.
  */
-function metadataOf(document: RecoverySourceDocument): RecoveryDocMetadata {
+type IdentitiesOf = (documentId: string) => readonly RecoveryIdentityRow[] | undefined;
+const noIdentities: IdentitiesOf = () => undefined;
+
+function metadataOf(document: RecoverySourceDocument, identitiesOf: IdentitiesOf): RecoveryDocMetadata {
   const { id, filePath, isDirty, datesAsRecorded } = document;
+  const identities = document.ifcSource ? identitiesOf(id) ?? document.snapshotIdentities : undefined;
   const sha = document.source.xerSourceArchive?.sha256;
   return {
     id, filePath, isDirty, datesAsRecorded,
@@ -50,6 +56,7 @@ function metadataOf(document: RecoverySourceDocument): RecoveryDocMetadata {
     // zodat manifest en snapshot (de vingerafdruk) per constructie bij elkaar horen. Zonder kenmerk: weggelaten.
     ...foreignSourceMetaFields({ foreignSource: document.foreignSource !== undefined ? document.foreignSource : foreignSourceTargetOf(document.source.foreignSourceMark) }),
     ...ifcSourceMetaFields(document),
+    ...(identities ? { snapshotIdentities: identities } : {}),
   };
 }
 
@@ -81,7 +88,8 @@ function sameMetadata(a: readonly RecoveryDocMetadata[], b: readonly RecoveryDoc
       // versie) of een nieuw doel geeft zonder inhoudswijziging een manifest-only schrijfactie.
       && sameRecoverySiteMeta(value, other)
       && sameRecoveryForeignSource(value, other)
-      && sameRecoveryIfcSource(value, other);
+      && sameRecoveryIfcSource(value, other)
+      && sameRecoveryIdentityRows(value.snapshotIdentities, other.snapshotIdentities);
   });
 }
 
@@ -94,8 +102,9 @@ export function planRecoveryDelta(
   activeDocumentId: string | null,
   documents: readonly RecoverySourceDocument[],
   persisted: PersistedRecoveryState | null,
+  identitiesOf: IdentitiesOf = noIdentities,
 ): RecoveryDelta {
-  const metadata = documents.map(metadataOf);
+  const metadata = documents.map(document => metadataOf(document, identitiesOf));
   const changedDocuments = documents.filter((document) => {
     const previous = persisted?.sources.get(document.id);
     return previous === undefined || !sameIFCSource(previous, document.source);
@@ -115,13 +124,19 @@ export function planRecoveryDelta(
 export function persistedRecoveryState(
   activeDocumentId: string | null,
   documents: readonly RecoverySourceDocument[],
+  identitiesOf: IdentitiesOf = noIdentities,
 ): PersistedRecoveryState {
   return {
     activeDocumentId,
-    documents: documents.map(metadataOf),
+    documents: documents.map(document => metadataOf(document, identitiesOf)),
     sources: new Map(documents.map((document) => [document.id, comparisonSource(document.source)])),
     copyVersions: new Map(documents.flatMap(d => d.sourceCopy ? [[d.id, d.sourceCopy.siteFileVersion] as const] : [])),
   };
+}
+
+function snapshotOf(output: string | RecoverySnapshot): RecoverySnapshot {
+  return typeof output === 'string' ? { ifc: output }
+    : output.identities ? { ifc: output.ifc, identities: output.identities } : { ifc: output.ifc };
 }
 
 /** De vergelijkingscache heeft de bronbytes niet nodig (IFC_DIRTY_KEYS). */
@@ -137,7 +152,8 @@ function comparisonSource(source: IFCSaveSource): IFCSaveSource {
  */
 export class RecoveryDeltaTracker {
   private persisted: PersistedRecoveryState | null = null;
-  private readonly serialized = new Map<string, { source: IFCSaveSource; ifc: string }>();
+  private readonly serialized = new Map<string, { source: IFCSaveSource } & RecoverySnapshot>();
+  private readonly identitiesOf: IdentitiesOf = id => this.serialized.get(id)?.identities;
   private readonly skipped = new Set<string>();
   private tail: Promise<unknown> = Promise.resolve();
 
@@ -151,9 +167,9 @@ export class RecoveryDeltaTracker {
   async prepareAsync(
     activeDocumentId: string | null,
     documents: readonly RecoverySourceDocument[],
-    serialize: (source: IFCSaveSource) => Promise<string>,
+    serialize: (source: IFCSaveSource) => Promise<string | RecoverySnapshot>,
   ): Promise<RecoverySaveInput | null> {
-    const delta = planRecoveryDelta(activeDocumentId, documents, this.persisted);
+    const delta = planRecoveryDelta(activeDocumentId, documents, this.persisted, this.identitiesOf);
     if (!delta.needsPersist) return null;
     this.skipped.clear();
     // Eén worker houdt het geheugengebruik begrensd; andere documenten wachten op hun beurt.
@@ -161,8 +177,7 @@ export class RecoveryDeltaTracker {
       const cached = this.serialized.get(document.id);
       if (!cached || !sameIFCSource(cached.source, document.source)) {
         try {
-          const ifc = await serialize(document.source);
-          this.serialized.set(document.id, { source: comparisonSource(document.source), ifc });
+          this.serialized.set(document.id, { source: comparisonSource(document.source), ...snapshotOf(await serialize(document.source)) });
         } catch (error) {
           if (!(error instanceof IfcCalendarTimePrecisionError)) throw error;
           this.skipped.add(document.id);
@@ -206,22 +221,20 @@ export class RecoveryDeltaTracker {
   prepare(
     activeDocumentId: string | null,
     documents: readonly RecoverySourceDocument[],
-    serialize: (source: IFCSaveSource) => string,
+    serialize: (source: IFCSaveSource) => string | RecoverySnapshot,
   ): RecoverySaveInput | null {
-    const delta = planRecoveryDelta(activeDocumentId, documents, this.persisted);
+    const delta = planRecoveryDelta(activeDocumentId, documents, this.persisted, this.identitiesOf);
     if (!delta.needsPersist) return null;
     const upserts: RecoveryDocContent[] = delta.changedDocuments.map((document) => {
       const cached = this.serialized.get(document.id);
-      const ifc = cached && sameIFCSource(cached.source, document.source)
-        ? cached.ifc
-        : serialize(document.source);
-      this.serialized.set(document.id, { source: comparisonSource(document.source), ifc });
-      return { ...metadataOf(document), ifc };
+      const snapshot = cached && sameIFCSource(cached.source, document.source) ? cached : snapshotOf(serialize(document.source));
+      this.serialized.set(document.id, { source: comparisonSource(document.source), ...snapshotOf(snapshot) });
+      return { ...metadataOf(document, this.identitiesOf), ifc: snapshot.ifc };
     });
     const archives = archiveSuppliers(documents);
     return {
       activeDocumentId,
-      documents: documents.map(metadataOf),
+      documents: documents.map(document => metadataOf(document, this.identitiesOf)),
       upserts,
       ...(archives.size > 0 ? { archives } : {}),
       ifcSourceCopies: new Map(documents.flatMap(d => d.sourceCopy ? [[d.id, d.sourceCopy] as const] : [])),
@@ -230,7 +243,7 @@ export class RecoveryDeltaTracker {
 
   commit(activeDocumentId: string | null, documents: readonly RecoverySourceDocument[]): void {
     const retained = this.recoverableDocuments(documents);
-    this.persisted = persistedRecoveryState(this.recoverableActiveId(activeDocumentId, retained), retained);
+    this.persisted = persistedRecoveryState(this.recoverableActiveId(activeDocumentId, retained), retained, this.identitiesOf);
     const openIds = new Set(documents.map((document) => document.id));
     for (const id of this.serialized.keys()) if (!openIds.has(id)) this.serialized.delete(id);
   }
