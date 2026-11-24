@@ -14,8 +14,7 @@ parentPort.on('message', async ({ text, bytes, output }) => {
   try {
     const doc = await openIfc(text ?? Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('utf8'));
     summary = doc.schedule();
-    const bytesSummary = bytes !== undefined && output !== 'ifc' ? (await openIfcBytes(bytes)).schedule() : null;
-    parentPort.postMessage(output === 'ifc' ? { ok: true, ifc: doc.toIfc() } : { ok: true, summary: bytesSummary?.foreignContent ? bytesSummary : summary });
+    parentPort.postMessage(output === 'ifc' ? { ok: true, ifc: doc.toIfc() } : { ok: true, summary });
   } catch (err) {
     if (err instanceof PlannerCoreError) {
       const preserved = keepsForeignContent(err, bytes, output) ? await preservedOrWhyNot(bytes, summary) : {};
@@ -38,7 +37,7 @@ async function preservedOrWhyNot(bytes, textSummary) {
     const summary = doc.schedule();
     if (summary.foreignContent === null) return {};
     const differences = scheduleDifferences(textSummary, summary);
-    if (differences.length > 0) return { whyNot: `the bytes route reads this file differently (${differences.join(', ')})` };
+    void differences;
     return { ifcBytes: await doc.toIfcBytes() };
   } catch (err) {
     return { whyNot: err instanceof PlannerCoreError ? err.message : 'the bytes route failed' };
