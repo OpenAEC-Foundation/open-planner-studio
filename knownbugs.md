@@ -3701,6 +3701,15 @@ en noem het in je rapport of PR-tekst.
      `applyLoadedProject` zet bij tekst `null`. Dat raakt de openroute, waar de volgende stap (openen wisselt) bouwt.
      De omgekeerde volgorde is gedicht: gaat de flag uit tussen het lezen en het activeren, dan blijft het veld
      `null`. — B (code gelezen in de reviews van #1168, niet nagespeeld)
+2217. **VERVOLG (#804, de versie op het eigen doel): een lopende nacontrole kan een gewiste vingerafdruk terugzetten.**
+     De planner zet de flag `ifcForeignContent` uit precies terwijl een export het eigen bestand terugleest of de
+     nieuwe vingerafdruk berekent (`settleFingerprintAfterExport` in `src/state/slices/fileSlice.ts`). `setUI` wist de
+     vingerafdruk van elk tabblad (`src/state/slices/uiSlice.ts`), waarna de export haar alsnog vastlegt als document
+     en doel gelijk bleven. Exporteert de planner daarna met de flag uit opnieuw over het eigen bestand en zet hij de
+     flag later weer aan, dan kan de bewaking van Ctrl+S en Automatisch opslaan de volgende opslag op die teruggezette
+     waarde weigeren. Uitweg voor de planner: Opslaan als. Richting: bij het vastleggen opnieuw toetsen dat er nog een
+     vingerafdruk is. Gezien in de code door de reviewer van #1168 (GPT-6.2-Sol, ronde 5); het vraagt dat het
+     uitzetten precies tijdens de nacontrole valt. — B (code)
 
 
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
