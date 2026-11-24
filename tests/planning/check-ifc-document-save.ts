@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdtempSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname, basename } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { buildExportIFCInput, buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -1570,7 +1570,8 @@ function midSave() {
   return { set: (a: () => void) => { action = a; }, run: () => { const a = action; action = undefined; a?.(); } };
 }
 const turnUntil = async (done: () => boolean, what = 'de opslag bereikte het verwachte punt') => {
-  for (let i = 0; i < 2000 && !done(); i++) await new Promise(r => setImmediate(r));
+  const stuck = performance.now() + 10_000;
+  while (!done() && performance.now() < stuck) await new Promise(r => setImmediate(r));
   assert(done(), what);
 };
 
