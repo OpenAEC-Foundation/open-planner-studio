@@ -14,5 +14,5 @@ ontbreekt; de lezer vult er niets in (1c).
   kalender van de taak, zoals de XER-lezer (`readXerRecordedTimes`), omdat de werktijd rekent en toont
   (eigenaarsbesluit 2026-10-15, "een dag"); op een uurkalender is dat de werktijd van de blokken en niet de opgeslagen
   `HoursPerDay` (`check-urenperdag-heropenen.ts` §3: 105 uur speling op blokken van 10,5 uur is 10 dagen).
-- `IsCritical` telt als kritiek bij `true` of `1` en als niet kritiek bij `false` of `0`; bij elke andere waarde legt de
-  lezer geen kritiek vast. `check-recorded-times-formats.ts` 1b toetst `false`.
+- `IsCritical` telt als kritiek bij `true` of `1` en als niet kritiek bij `false` of `0`; bij elke andere waarde legt
+  de lezer geen kritiek vast. `check-recorded-times-formats.ts` 1b toetst `false`.

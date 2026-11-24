@@ -8,22 +8,21 @@ meerdere documenten, naar de lijn van de XER-lezer (`xerMultiProject.ts`).
 
 ## Gevolgen
 
-- Een veld (`getElementText`, `getElementInt`, `getElementFloat`) leest de lezer als direct kind
-  (`directChildText`), anders pakt hij een element met dezelfde naam uit een dieper object op. De
-  blokken van een kalender en de waarden van een curve zoekt hij wel in de diepte. De MSPDI-lezer zoekt ook
-  een veld in de diepte (`descendantText`).
+- Een veld (`getElementText`, `getElementInt`, `getElementFloat`) leest de lezer als direct kind (`directChildText`),
+  anders pakt hij een element met dezelfde naam uit een dieper object op. De blokken van een kalender en de waarden
+  van een curve zoekt hij wel in de diepte. De MSPDI-lezer zoekt ook een veld in de diepte (`descendantText`).
 - Een plat object met een `<ProjectObjectId>` van een ander project valt weg als het gekozen project een `ObjectId`
   heeft. Een plat object zonder `<ProjectObjectId>` van een soort uit `PROJECT_OBJECT_TAGS` hoort alleen bij een
-  project als het bestand precies één `<Project>` heeft, of geen (`ownsUnassigned`); in een bestand met meer
-  projecten hoort zo'n activiteit bij geen document en telt het verslag haar (`unassignedActivities`,
+  project als het bestand precies één `<Project>` heeft, of geen (`ownsUnassigned`); in een bestand met meer projecten
+  hoort zo'n activiteit bij geen document en telt het verslag haar (`unassignedActivities`,
   `check-p6xml-open-notice.ts` 8a tot en met 8c). Andere soorten zonder `<ProjectObjectId>` (kalenders, resources,
   UDF-typen, curves) horen bij elk project.
 - `readP6XMLDocuments` maakt van elk `<Project>` met minstens één `<Activity>` in zijn bereik een document. Actief is
   het document met de meeste bladtaken, bij gelijkspel het eerste (`check-p6xml-nested.ts` 10c, 10o en 13a). Leest de
-  lezer in de documenten die hij opent geen activiteit met een `ObjectId`, dan mislukt de import met `P6XmlImportError` en de
-  reden van `emptyReasonOf` (`no-activities`; `xer-columns` bij een activiteit met `task_code` of `task_name`;
-  anders `no-object-ids`), zoals een lege XER, in plaats van een leeg tabblad (`check-p6xml-open-notice.ts`).
-  `readP6XML`, dat alleen de toetsen gebruiken, geeft dan een leeg resultaat.
+  lezer in de documenten die hij opent geen activiteit met een `ObjectId`, dan mislukt de import met
+  `P6XmlImportError` en de reden van `emptyReasonOf` (`no-activities`; `xer-columns` bij een activiteit met
+  `task_code` of `task_name`; anders `no-object-ids`), zoals een lege XER, in plaats van een leeg tabblad
+  (`check-p6xml-open-notice.ts`). `readP6XML`, dat alleen de toetsen gebruiken, geeft dan een leeg resultaat.
 - Een `<BaselineProject>` wordt nooit een document. Hij wordt een baseline van het document van zijn
   `OriginalProjectObjectId` (`p6BaselineFrom`, met de gedeelde regel `baselineTasksFromSource`); de baseline uit
   `CurrentBaselineProjectObjectId` wordt de actieve (`check-p6xml-nested.ts` 10h tot en met 10l). Een

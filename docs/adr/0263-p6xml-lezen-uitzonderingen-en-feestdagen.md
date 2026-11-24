@@ -21,7 +21,7 @@ dag.
   NL-feestdagen van `createDefaultCalendar()` blijven alleen staan op een kalender waarvan de werkweek in het bestand
   geen werkdag oplevert en die zelf geen feestdag draagt (`readP6Calendar`, `check-p6xml-nested.ts` 5c). Een werkende
   uitzondering laat ze staan.
-- Staat een eendaagse feestdag op dezelfde datum als het begin van een werkende uitzondering, dan valt de feestdag weg,
-  zodat een datum niet in beide lijsten staat (`WorkCalendar.workingExceptions`). Een feestdag over meer dagen valt niet
-  weg; de motor laat de werkende uitzondering dan winnen (ADR 0221). Twee werkende uitzonderingen op dezelfde datum
-  blijven allebei staan (knownbug 2004).
+- Staat een eendaagse feestdag op dezelfde datum als het begin van een werkende uitzondering, dan valt de feestdag
+  weg, zodat een datum niet in beide lijsten staat (`WorkCalendar.workingExceptions`). Een feestdag over meer dagen
+  valt niet weg; de motor laat de werkende uitzondering dan winnen (ADR 0221). Twee werkende uitzonderingen op
+  dezelfde datum blijven allebei staan (knownbug 2004).

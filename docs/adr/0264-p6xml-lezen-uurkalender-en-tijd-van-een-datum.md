@@ -18,14 +18,14 @@ met (12)). Dezelfde regel geldt in de MSPDI-lezer (ADR 0252).
   datumsignaal een `PlannedStartDate`, `PlannedFinishDate`, `ActualStartDate` of `ActualFinishDate` waarvoor
   `xmlTimeSignal` waar is (`check-uren-f5b-adapters.ts` (10)).
 - Dat ook de werkelijke datums een signaal geven, komt uit review ronde 3 van PR #559: anders bleef de kalender
-  scalair, kapte de lezer bij `opsAnchor` een werkelijk einde om 11:00 af tot de datum en maakte de laadnormalisatie er
-  16:00 van. In een vreemd
-  bestand tellen de werkelijke datums van een activiteit met status `Not Started` niet mee (`actualDateRaw`, ADR 0266).
+  scalair, kapte de lezer bij `opsAnchor` een werkelijk einde om 11:00 af tot de datum en maakte de laadnormalisatie
+  er 16:00 van. In een vreemd bestand tellen de werkelijke datums van een activiteit met status `Not Started` niet mee
+  (`actualDateRaw`, ADR 0266).
 - Bij `opsAnchor` beslist de kalender over de tijd van een taakdatum, niet de duureenheid: `hourDates` is waar als de
   effectieve kalender van de taak een uurkalender is, zoals in de MSPDI-lezer, zodat een dagtaak op een uurkalender
   haar tijden houdt. Die keuze (`parseTaskDate`) geldt voor de geplande en werkelijke datums, de constraintdatums,
   `ExpectedFinishDate` en de vastgelegde rekenuitvoer (ADR 0268).
-- `PlannedStartDate` van het project houdt zijn tijd als de projectkalender een uurkalender is (`xmlTaskDate` met
-  een uurkalender), zoals de XER-lezer `PROJECT.plan_start_date` leest (issue #775): anders kreeg een startmijlpaal op
-  de projectstart een andere datum dan uit de XER van hetzelfde project. Op een dagkalender is de projectstart een
-  datum. `DataDate` wordt de statusdatum via `statusDateFromXml`.
+- `PlannedStartDate` van het project houdt zijn tijd als de projectkalender een uurkalender is (`xmlTaskDate` met een
+  uurkalender), zoals de XER-lezer `PROJECT.plan_start_date` leest (issue #775): anders kreeg een startmijlpaal op de
+  projectstart een andere datum dan uit de XER van hetzelfde project. Op een dagkalender is de projectstart een datum.
+  `DataDate` wordt de statusdatum via `statusDateFromXml`.
