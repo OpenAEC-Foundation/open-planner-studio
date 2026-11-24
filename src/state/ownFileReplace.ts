@@ -19,7 +19,7 @@ import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetCont
 import { replaceCopyLabel } from '@/i18n/replaceCopyName';
 import {
   EXPORT_REPLACE_NEW_TARGET_ONLY_NOTICE, EXPORT_REPLACE_NOT_RECORDED_NOTICE, EXPORT_REPLACE_TARGET_CHANGED_NOTICE,
-  EXPORT_REPLACE_TARGET_GONE_NOTICE, IFC_FOREIGN_PLACE_UNKNOWN_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
+  EXPORT_REPLACE_TARGET_GONE_NOTICE, IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE, IFC_FOREIGN_PLACE_UNKNOWN_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
   IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE,
 } from './ifcForeignGuard';
 import { refusalNotice } from './refusalNotice';
@@ -55,6 +55,7 @@ export interface OwnPathReplaceInput {
    *  `replaceOwnFileBytes`): hoort de opslag nog bij de inhoud van het document (`refuseChangedDocumentWrite`)? `true` =
    *  stoppen; het tijdelijke bestand en het record gaan langs het gewone opruimpad weg. Meldt zelf. */
   refuseBeforePlace: RefuseBeforePlace;
+  planningChanged?: () => boolean;
   fs?: OwnFileReplaceFs;
   records?: ReplaceRecordStore;
   now?: Date;
@@ -100,6 +101,7 @@ export async function replaceOwnPathWithRecovery(input: OwnPathReplaceInput): Pr
           path: input.path, id, bytes: input.prepared.bytes, source: input.source.bytes,
           ...(target.mode === undefined ? {} : { mode: target.mode }), label: replaceCopyLabel(input.now),
           refuseBeforePlace: input.refuseBeforePlace,
+          ...(input.planningChanged ? { planningChanged: input.planningChanged } : {}),
         });
         nothingWritten = outcome.code === 'save-as-only' && outcome.nothingWritten === true;
         return outcome.code === 'replaced';
@@ -174,6 +176,7 @@ export function ownPathReplaceNotices(result: OwnPathReplaceResult, path: string
     ];
     case 'not-recorded': return [IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE];
     case 'stopped': return []; // `stopBeforeWrite` meldde zelf
+    case 'planning-changed': return [IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE];
     case 'target-changed': return [result.content === 'changed' ? IFC_FOREIGN_TARGET_CHANGED_NOTICE : IFC_FOREIGN_TARGET_GONE_NOTICE];
     case 'save-as-only': return [refusalNotice({
       messageKey: 'notifications.ifcForeignReplaceSaveAsOnly', detail: result.why, dedupeKey: 'ifc-foreign-replace-save-as-only',
@@ -210,6 +213,7 @@ export function exportReplaceNotices(result: OwnPathReplaceResult, path: string)
     }];
     case 'replaced':
     case 'stopped':
+    case 'planning-changed':
     case 'unknown': return ownPathReplaceNotices(result, path);
   }
 }

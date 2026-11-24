@@ -122,7 +122,8 @@ export type OwnFileReplaceOutcome =
   /** Stap 4: er stond weer een bestand op het doel. Alle drie de bestanden blijven staan. */
   | { code: 'target-taken'; target: string; temp: string; previous: string }
   /** Stap 4 faalde om een andere reden en ook het terugzetten van de vorige versie lukte niet: die staat in `previous`. */
-  | { code: 'previous-stranded'; previous: string; detail: string };
+  | { code: 'previous-stranded'; previous: string; detail: string }
+  | { code: 'planning-changed' };
 
 export interface OwnFileReplaceInput {
   /** Het doel: het eigen bestand van het document. */
@@ -139,6 +140,7 @@ export interface OwnFileReplaceInput {
   label: ReplaceCopyLabel;
   /** Knownbug 1896: vlak vóór stap 3, het opzijzetten van het doel. `true` = stoppen (uitkomst `stopped`). */
   refuseBeforePlace: RefuseBeforePlace;
+  planningChanged?: () => boolean;
 }
 
 /** Is het doel een link (symbolisch, of een harde link met meer namen)? Dan vervangt de app niet (§4.10). Een doel dat
@@ -186,6 +188,14 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
     await removeOwnTemp();
     if (aside.code === 'unsupported' || aside.code === 'refused') return { code: 'save-as-only', why: describePlace(aside) };
     return { code: 'failed', detail: describePlace(aside) };
+  }
+
+  if (input.planningChanged?.()) {
+    const back = await fs.place(previous, path);
+    if (back.code === 'source-changed') return { code: 'unknown' };
+    await removeOwnTemp();
+    if (!placedOk(back)) return { code: 'previous-stranded', previous, detail: describePlace(back) };
+    return { code: 'planning-changed' };
   }
 
   // Stap 4.
