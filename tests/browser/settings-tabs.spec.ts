@@ -809,6 +809,12 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       await (await savedChooser).setFiles({ name: saved.name, mimeType: 'application/octet-stream', buffer: Buffer.from(saved.text) });
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId)).not.toBe(savedDocument);
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ifcSource?.foreign)).toBe(true);
+      const openNotice = page.locator('.ops-toast').filter({
+        has: page.locator('.ops-toast-message', { hasText: /gebouwmodel en gegevens van andere programma's|building model and data from other programs/ }),
+      });
+      await expect(openNotice, 'na openen via de bestandskiezer: één telmelding').toHaveCount(1);
+      await expect(openNotice.locator('.ops-toast-message')).toHaveText(new RegExp(`^(Dit bestand bevat ook een gebouwmodel en gegevens van andere programma's \\(${task.foreign.length} objecten\\)\\. Bij opslaan blijven die ongewijzigd\\.|This file also contains a building model and data from other programs \\(${task.foreign.length} objects\\)\\. Saving leaves them unchanged\\.)$`));
+      await expect(openNotice.locator('[data-ops-toast-detail]'), 'één werkplan: geen regel onder de telmelding').toHaveCount(0);
       await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)?.time.scheduleDuration, task.id)).toBe(task.duration + 1);
       expect(await page.evaluate(() => {
         const source = window.__OPS__!.store.getState().ifcSource!;
