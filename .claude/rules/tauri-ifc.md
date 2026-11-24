@@ -335,38 +335,30 @@ in PR 6 en 7. Zonder vreemd deel schrijft de gewone writer ze niet, zoals op mai
 
 ### Onbekende JSON-sleutels (#804 fase 2, PR 4)
 
-Het register `JSON_PROPERTIES` (`src/services/ifc/jsonRegister.ts`) noemt elke JSON-eigenschap die de writer schrijft,
-met per object de sleutels die de app kent en per lijst of kaart de identiteit: een sleutelveld (`id`, `taskId`, …), een
-sleutel uit de data (`sleutel`: de sleutel zelf, zoals een GlobalId; `toewijzing`: in `Windows` de toewijzing die de
-lezer bij het openen aan die sleutel gaf) of `herkomstmerk` (lijst zonder sleutelveld, nog niet gedragen, PR 5).
-`waarde` is een losse waarde, `reeks` een lijst van losse waarden zonder identiteit (id-lijsten, records als
-`[dagen, minuten]`), `doorgegeven` een object dat de lezer heel in het domein zet (kalenders en resources van
-`OPS_Library`). `check-ifc-foreign-json-sleutels.ts` eist dat elke registerrij in de proef geschreven wordt, en faalt
-op JSON die niet in het register staat, een onbekende sleutel van de writer, een lijst onder `waarde`, een lijst of kaart
-zonder identiteit en een sleutelveld met twee keer dezelfde waarde.
+Het register `JSON_PROPERTIES` (`src/services/ifc/jsonRegister.ts`) noemt elke JSON-eigenschap die de writer schrijft:
+per object de sleutels die de app kent, per lijst of kaart de identiteit (een sleutelveld; `sleutel`: de sleutel zelf;
+`toewijzing`: in `Windows` de toewijzing die de lezer bij het openen aan een venstersleutel gaf; `herkomstmerk`: nog
+geen identiteit, PR 5), `waarde` voor een losse waarde, `reeks` voor een lijst van losse waarden en `doorgegeven` voor
+wat de lezer heel overneemt. Een rij met `domain` zegt waar de planning die waarde draagt. De velden van een venster
+staan één keer in `WINDOW_FIELDS` (`ifcPsets.ts`): het register, de writer en het type van de lezer gebruiken die lijst.
+`check-ifc-foreign-json-sleutels.ts` eist dat elke rij geschreven wordt en faalt op JSON buiten het register.
 
-Alleen de merge gebruikt het. De bronbytes dragen de waarden; `ifcSource.jsonExtras` is de kleine index erop: per
-JSON-eigenschap met onbekende sleutels het STEP-id van de property, en voor `Windows` per venstersleutel het
-toewijzings-id dat de lezer gaf (`windowAssignmentsOut`). `scanForeignToOpen` vult hem bij het openen, alleen bij een
-vreemd deel; na een opslag komt hij uit de uitvoerscan en de bindingen die de eindcontrole vaststelde
-(`jsonExtrasNext`). Zonder index scant de opslag de uitvoer niet. `jsonExtrasFromIndex` (`foreign/jsonExtrasSource.ts`)
-leest per indexregel gericht de onbekende sleutels als ruw JSON-token, met de eigenaar als sleutel van de writer
-(`task_<id>`, `_project`, `_worksched`, …). `writeIfcMergeLines` zet ze terug met `withJsonExtras` (`jsonExtras.ts`): in
-hetzelfde object, na de bekende sleutels, in bronvolgorde, zonder `asciiJson`, dus zoals het token in de bron stond. Een
-venster gaat naar de taak waar zijn toewijzing nu staat, onder de sleutel die de writer die toewijzing geeft. Draagt het
-domein dezelfde naam met de waarde die de lezer van het brontoken maakte, dan komt het brontoken terug; met een andere
-waarde blijft die van het domein en weigert de eindcontrole.
+Alleen de merge gebruikt het. `ifcSource.jsonExtras` is een kleine index: de JSON-eigenschappen met onbekende sleutels,
+en zodra één vensterkaart er een heeft, elke vensterkaart met per venster het toewijzings-id van de lezer. De waarden
+blijven in de bronbytes. Gevuld bij het openen (alleen met een vreemd deel) en na elke opslag.
 
-`withJsonExtrasInDomain` vult alleen de planning aan waarmee de herlezing van de uitvoer wordt vergeleken, en alleen
-waar de lezer het object met al zijn sleutels overneemt (codetypen en velden, baselines, notities, externe koppelingen,
-bibliotheekherkomst). In de verliescontrole is een JSON-slot dat alleen als waarde gelijk is aan de bron `json-gedragen`:
-geen normalisatie in `same`, wel een terugzetting, zodat een ongewijzigd token byte-gelijk terugkomt (ook `-0` en
-dubbele sleutels). `sameJsonValue` houdt het teken van nul en noemt dubbele sleutels nooit gelijk. `jsonExtrasProblem`
-in `checkedBytes`: een eigenschap die byte-gelijk aan de bron is, is goed; anders staat elk object met onbekende
-sleutels eenduidig in de uitvoer, met per sleutel hetzelfde ruwe token. Een object geldt alleen als verdwenen als het in
-het huidige domein niet meer bestaat; bestaat het nog en ontbreekt het in de uitvoer, dan `uitvoer-controle`. Een
-venster waarvan de toewijzing niet meer bestaat, staat in O0 en O1 allebei niet (`pristineJson` in `mergeWriter.ts`):
-daarover beslist de verliescontrole, zoals op main. Grenzen: knownbug 2218.
+De beslissing valt per lid, in één functie (`memberText` in `foreign/jsonMembers.ts`, via `mergedJsonText` en
+`jsonMembers`), met de bron (S), wat de writer uit de lezing van de bron schrijft (Z) en wat hij nu schrijft (W): een
+lid dat de planner niet wijzigde (Z en W gelijk) houdt zijn brontokens, sleutel en waarde; een gewijzigd lid krijgt de
+waarde van de writer; een onbekend lid blijft staan; een lid dat wegvalt terwijl het iets droeg wat de writer niet
+schrijft, valt alleen weg als het ook uit de planning weg is. Een venster staat onder de taak en sleutel van zijn
+toewijzing nu (`windowPlaces`, dezelfde functie in het gelijkheidspad `windowsInPlace` en in de merge). Kan de functie
+een eigenschap niet per lid beslissen (geen identiteit, geen binding, de toewijzing bestaat niet meer, een andere
+lengte van een reeks), dan blijft voor die eigenschap de verliesbewaking van main gelden. O0 krijgt voor een beslist
+lid de bron zelf, O1 de uitkomst; de verliesbewaking laat die stukken aan de functie (`memberCarried`). Het
+gelijkheidspad geeft de bronbytes alleen terug als elk gebonden venster nog op zijn plek staat. De eindcontrole
+(`jsonMembersProblem`) eist dat de uitvoer per eigenschap de tekst van de functie heeft. De planning voor de
+vergelijking na heropenen krijgt de sleutelvolgorde van de uitvoer (`withJsonInOutputForm`). Grenzen: knownbug 2218.
 
 ### Vergelijkingsklok (#804 fase 1c)
 
