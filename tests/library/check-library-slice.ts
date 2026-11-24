@@ -1250,14 +1250,12 @@ for (const size of [1000, 5000]) {
   assert(useAppStore.getState().resources.find(r => r.id === projRes2)?.libraryOrigin?.libraryItemId === poolResId2, 'geldige link gaat gewoon door naast de verdwenen kandidaat');
 }
 
-// --- Knownbug 1991: een link zonder bestaand projectitem verandert niets ⇒ geen isDirty, importPristine blijft, geen undo-event ---
 {
   const iso = createAppStore();
   installRecognitionFixture(iso, createRecognitionFixture(4));
   iso.setState(s => { s.isDirty = false; s.importPristine = true; });
   const eventsBefore = iso.getState().historyEvents.filter(e => e.state === 'applied').length;
   const itemsBefore = JSON.stringify({ resources: iso.getState().resources, calendars: iso.getState().calendars });
-  // Alleen een bestaand poolitem, het projectitem bestaat niet meer (bv. na verwijderen in het project).
   iso.getState().linkRecognizedItems([
     { kind: 'resource', projectId: 'onbekend-projectitem', poolId: 'pool-r-0' },
     { kind: 'calendar', projectId: 'onbekende-kalender', poolId: 'pool-c-0' },
@@ -1270,7 +1268,6 @@ for (const size of [1000, 5000]) {
   assert(after.historyEvents.filter(e => e.state === 'applied').length === eventsBefore,
     'knownbug 1991: link zonder projectitem pusht geen undo-event');
 
-  // Positieve controle: een link mét bestaand projectitem blijft gewoon werken (undo-event + isDirty).
   iso.getState().linkRecognizedItems([{ kind: 'resource', projectId: 'project-r-0', poolId: 'pool-r-0' }]);
   const linked = iso.getState();
   assert(linked.resources.find(r => r.id === 'project-r-0')?.libraryOrigin?.libraryItemId === 'pool-r-0',
