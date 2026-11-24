@@ -44,8 +44,8 @@ export function writtenFingerprint(featureFlags: FeatureFlags, output: IfcOutput
   if (output.prepared || !ifcForeignContentEnabled(featureFlags)) return null;
   const bytes = written ?? output.bytes ?? new TextEncoder().encode(output.content);
   const byteLength = bytes.byteLength;
-  return output.sha256 !== undefined ? { sha256: output.sha256, byteLength }
-    : precomputeSha256(bytes).then(sha256 => ({ sha256, byteLength }));
+  return output.sha256 !== undefined ? { sha256: output.sha256, byteLength, origin: 'written' }
+    : precomputeSha256(bytes).then((sha256): TargetFingerprint => ({ sha256, byteLength, origin: 'written' }));
 }
 
 export class IfcWriteBlockedError extends Error {

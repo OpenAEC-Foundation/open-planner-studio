@@ -14,8 +14,6 @@ import { scanElementLinks, type StepElementLink } from './elementLinks';
 import type { ForeignReferences } from './changeList';
 import { foreignReferences } from './foreignReferences';
 
-/** De technische grens van de bytes-route en de doelindeling: 300 MiB (fase-0-meting). Niet de productgrens voor het
- *  openen van een model: die staat apart, in `../modelOpenLimit.ts` (`IFC_MODEL_OPEN_MAX_BYTES`, 150 MiB). */
 export const IFC_FOREIGN_SCAN_MAX_BYTES = 300 * 1024 * 1024;
 
 /** De keuze van de lezer (§4.2 stap 1) als stukindexen in bronvolgorde. */
