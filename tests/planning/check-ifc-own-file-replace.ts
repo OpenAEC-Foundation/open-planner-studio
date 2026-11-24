@@ -3671,10 +3671,11 @@ for (const restored of [true, false]) {
       const target = existedTarget(c);
       clearNotices(c);
       const before = exportedFrom(c);
-      placeCalls({
+      const answers: Parameters<typeof placeCalls>[0] = {
         1: (_from, _to, real) => { const answer = real(); renameTask(c, 'Tijdens het opzijzetten'); return answer; },
-        ...(restored ? {} : { 2: () => reject('io', { message: 'nog gedeeld' }) }),
-      });
+      };
+      if (!restored) answers[2] = () => reject('io', { message: 'nog gedeeld' });
+      placeCalls(answers);
       await exportTo(c.store, target.path);
       const records = recordsOnDisk();
       if (restored) {
