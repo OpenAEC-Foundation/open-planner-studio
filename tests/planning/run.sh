@@ -586,6 +586,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # #804 fase 2, PR 11: reeksen van stappen op één crashherstel-tracker (eigenschapsproef). Rekent niet met datums:
+  # één keer, buiten de matrix, met dezelfde vaste tijdzone als de andere checks van #804 hierboven.
+  RECOVERYREEKSEN="$DIR/.recovery-identiteit-reeksen.mjs"
+  if bundle_check "$DIR/check-recovery-identiteit-reeksen.ts" "$RECOVERYREEKSEN"; then
+    TZ=Europe/Amsterdam node "$RECOVERYREEKSEN" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.

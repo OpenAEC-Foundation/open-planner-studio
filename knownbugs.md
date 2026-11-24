@@ -2528,12 +2528,19 @@ en noem het in je rapport of PR-tekst.
      (`/tmp/fase1b-v2-scope/echte-invoer/resultaten.json` op aia09-mp50, 11 november 2026). — B
 
 
-1570. **VERVOLG (#804, gemaakt geval): id-afleiding bij een `-dup-N`-object na crashherstel nog beproeven.**
-     PR 9a gebruikt de gewone bytes-route, zonder `idExceptions`: de echte keten met een in de app
-     toegevoegde resource, Opslaan als, verder bewerken, crashherstel en opnieuw Opslaan als behoudt
-     de GlobalId en het vreemde deel. Een geconstrueerd dubbel-GlobalId-geval (`-dup-N`) is niet
-     in die herstelketen gemeten. Alleen dit gemaakte geval blijft vervolg; geen claim van verlies
-     of van herstel van zulke id-uitzonderingen. — S
+2236. **VERVOLG (#804 fase 2, PR 11): main weigert de opslag na het verwijderen van de eerste houder van een gedeelde GlobalId.**
+     Gemeten in `check-recovery-gedeelde-globalids.ts` (deel 3): een bron met vier paren gedeelde GlobalIds in het eigen
+     deel; na het verwijderen van de eerste resource van een paar weigert de merge met `niet-gedragen`, in de sessie en
+     na herstel gelijk. Een ongewijzigde planning slaat letterlijk op (deel 1 en 6). Meer is niet gemeten. Ontwerp §4.3
+     wil dat de writer de tweede houder een nieuwe GlobalId geeft. Komt die opslag er, dan leidt de lezer uit de nieuwe
+     bron een ander id af dan het document draagt, en is het lijstje per bronversie uit §4.14 nodig (`idExceptions`, met
+     `pendingIdExceptions` in stap 0). Het eerste element van zo'n paar is het id waaronder het herstelde document het
+     object draagt: na PR 11 het id van de sessie bij een gedeelde GlobalId, en het van de GlobalId afgeleide id bij een
+     in de app gemaakte resource (proef 2 in `check-recovery-ifc-source.ts`). — B
+2237. **VERVOLG (#804, 9c): een MCP-backup draagt de koppeling van PR 11 niet.** De backup schrijft de planning met
+     dezelfde writer als de herstelsnapshot (`backupService.ts`), maar zonder `snapshotIdentities`: een object met een
+     gedeelde GlobalId komt bij terugzetten terug met het id van zijn nieuwe GlobalId, zoals op main. Wat de planner
+     daarvan merkt, is niet gemeten. 9c (knownbug 1575) kan de koppeling van `recoveryIdentity.ts` meenemen. — S
 1575. **VERVOLG (#804, 9c): een MCP-backup op het open document terugzetten met de actuele gebouwmodelbron.**
      §4.12/E31 blijft een eigen onderdeel 9c op de eindlijst, niet verplicht vóór de flag standaard aan mag.
      De backup bevat planning en een bronkenmerk, geen gebouwmodelbytes. De kleine stap 9d zet bij het openen
@@ -3939,7 +3946,40 @@ en noem het in je rapport of PR-tekst.
      Route in een proef van de reviewer (GPT-6.2-Sol, review van #1170): gedeeltelijk herstel (`holdWeb` houdt de hele
      generatie vast, ook de herstelde versie), doorwerken aan dat document, en bij de volgende herstelvraag uitstellen; daarna
      kwamen de oude IFC-bytes terug. `check-recovery-web-hold.ts` toetst bij een dubbel document alleen dat het één keer
-     verschijnt, niet welke versie. — B
+     verschijnt, niet welke versie. Ook gezien in een tussenversie van `check-recovery-identiteit-reeksen.ts` (#1198, reeks 17:
+     twee keer `holdRecoveryForLater` met hetzelfde open document); de definitieve proef eist het eigen herstel daarom
+     alleen bij de laatst geschreven versie. — B
+
+2314. **Bekende grens (#804, flag aan): de toets van het crashherstel bewijst alleen wat de writer schrijft.** Het herstel
+     aanvaardt een koppeling van identiteiten (`snapshotIdentities`) alleen als het herstelde document, opnieuw
+     geschreven, byte voor byte de gelezen snapshot oplevert (`rewritesSnapshot`, `src/state/readRecoveryDocument.ts`).
+     Velden die de writer niet schrijft of zelf afleidt, ziet die vergelijking niet: `Task.parentId` (de writer nest via
+     `childIds`), `Task.resourceIds` (afgeleid uit de toewijzingen), de toewijzings-id's (ontstaan bij elke lezing) en
+     een bewaarde GlobalId die de writer toch afleidt. De proef verschuift ze met de hand: van 313 verschuivingen
+     aanvaardt de toets er 51 (`check-recovery-gedeelde-globalids.ts`, deel 13). De hernoeming van vandaag schrijft geen van deze
+     velden, dus er is geen aangetoonde route naar verlies. Gaat de hernoeming later meer velden aanpassen, dan hoort
+     daar eerst een gerichte proef via de gewone herstelroute bij. Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B
+     (proef 13 en de code)
+2315. **Bekende grens (#804, flag aan): het crashherstel valt in drie gevallen terug op het herstel van main, terwijl de
+     koppeling bruikbaar was.** Het document blijft heel; alleen een object met een gedeelde GlobalId (een
+     `-dup-N`-object) krijgt dan de identiteit die main bij herstel geeft, zoals vóór #1198. (1) Na het toevoegen en
+     toewijzen van een resourcekalender: de lezer zet kalenders met toewijzingen vóór kalenders zonder, en leest de
+     nieuwe kalender terug als `rescal-ifc-…` waar de sessie `cal-…` gebruikte; de writer gebruikt dat id in
+     hulp-GlobalIds, dus de bytes verschillen en de hele tabel vervalt. (2) Een snapshot in de stand "Datums zoals
+     opgeslagen" (rekenslots als `$`, of `recordedSourceFormat`): de toets bouwt de schrijfinvoer vóór de stap die die
+     stand activeert (langs de code gevolgd, niet gedraaid). (3) Een snapshot waarvan `FILE_NAME` en
+     `IFCOWNERHISTORY` aan weerszijden van een secondegrens zijn geschreven: de writer leest de klok twee keer en de
+     toets gebruikt de seconde uit de kop voor beide. Richting: één tijdstip voor beide velden bij het schrijven van
+     een snapshot; voor (1) en (2) een vergelijking die objecten en hun verbindingen bewaakt in plaats van bytes.
+     Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B (proef van de reviewer voor 1 en 3; 2 uit de code)
+2316. **Bekende grens (#804, flag aan): een beschadigde lijst identiteiten zonder één rij wordt deels toegepast.** De
+     toets van het crashherstel verwerpt elke rij die het herstelde document oplevert en die niet in de lijst staat,
+     maar eist niet dat de lijst volledig is (een verwijderde houder laat terecht een rij minder achter). Met één
+     taakrij met de hand uit acht geldige rijen gehaald, bij dezelfde IFC en SHA-256, aanvaardt de toets de overige
+     zeven; de taak zonder rij houdt de GlobalId uit de snapshot, zoals op main. De gewone schrijfroute laat geen rij
+     weg (de writer telt de oorspronkelijke houders en neemt elke uitgegeven rij mee met haar upsert). Richting: een
+     integriteitscontrole over de lijst zelf. Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B (proef van de
+     reviewer)
 
 2209. **VERVOLG (#1182): de verliescontrole kent de oude lay-outs los van de slottabellen.** `alignment` in
      `src/services/ifc/foreign/lossCheck.ts` legt zelf vast hoe een regel in een oude eigen lay-out op de uitvoer past
@@ -4010,6 +4050,39 @@ en noem het in je rapport of PR-tekst.
       `childIds` van de ouder in de documentvolgorde. Nagespeeld met een script via `readP6XMLDocuments`: onder WBS `R`
       staan in het bestand eerst `A` (`SequenceNumber` 2) en dan `B` (`SequenceNumber` 1); de takenlijst geeft `R, B, A`,
       `childIds` van `R` geeft `A, B`. Welke delen van de app de volgorde uit `childIds` halen, is niet nagegaan. — B
+
+2310. **Een `.mpp`-kalender die op een half uur begint, wordt een uurkalender door een taak op dat halve uur.**
+      `mppAnchorClock` (`src/services/mpp/mppReader.ts`) maakt het anker uit `workStartHour` als heel uur, en
+      `mppCalendars.ts` zet dat bij één blok per dag op het hele uur eronder (`Math.floor`). In een proef kreeg een
+      kalender met één blok vanaf 07:30 bij `readMPP` ankeruur 7: een taak om 07:30 gaf in `readTasks` het signaal van
+      `hasNonAnchorTime`, de kalender werd een uurkalender en de taak hield 07:30. Met een blok vanaf 07:00 hield de
+      taak alleen de datum. De promotie bewaart hier de tijd uit het bestand; een nadeel voor de planner is niet
+      vastgesteld. — B
+
+2312. **Zonder `RESUME` begint het restwerk van een `.mpp`-toewijzing direct na haar verrichte werk.**
+      `computeShiftedAssignmentPeriods` (`src/services/mpp/mppReader.ts`) schuift de resterende periodes van een
+      toewijzing met verricht werk naar haar `RESUME`, en zonder `RESUME` naar het einde van haar laatste verschoven
+      werkelijke periode. Dat geldt voor splits en contouren. In een proef met een taakstart om 08:00 en een
+      toewijzingsstart om 09:00 begon het restwerk zonder `RESUME` op taakminuut 180, en met een hervatting op de
+      volgende werkdag op minuut 480. Volgens het weggehaalde commentaar heeft die terugval geen steun in MPXJ
+      (`AssignmentField.RESUME` heeft daar geen standaardplek in de veldkaart). Wat MS Project bij een ontbrekend
+      `RESUME` doet, is niet getoetst. — B
+
+2313. **Een `.mpp`-taak wandelt ook over een resourcekalender waarvan feestdag en werkende uitzondering elkaar bij de
+      opgeslagen duur opheffen; of het einde na een duurwijziging klopt met MS Project, is onbekend.**
+      `calendarDiffersIncludingExceptions` (`src/services/mpp/mppReader.ts`) telt zo'n kalender als afwijkend, dus bij
+      één kandidaat levert `deriveTimephasedWindowsForTasks` een wandeling over de resourcekalender (ADR 0288). In een
+      proef met een vrije dinsdag en een werkende zaterdag gaf 4800 minuten op beide kalenders hetzelfde einde; bij 960
+      en 1920 minuten eindigde de resourcekalender één werkdag later. Volgens het weggehaalde commentaar gebeurt dat in
+      `mpp14timephasedsegments(manual).mpp` ("Task Seven", "Task Eight"). Het corpus heeft geen uitkomst van MS Project
+      voor een bewerkte duur. — B
+
+2317. **Een resourcekalender die alleen in de werktijden van een werkende uitzondering afwijkt, geeft een `.mpp`-taak
+      met één toewijzing geen wandeling.** `calendarDiffersIncludingExceptions` (`src/services/mpp/mppReader.ts`)
+      vergelijkt de weekblokken en de datumbereiken van feestdagen en werkende uitzonderingen, niet de blokken binnen
+      een werkende uitzondering. In een proef met één werkresource, dezelfde uitzonderingsdatum en een latere start
+      op die dag gaf de vergelijker `false`; dezelfde 120 werkminuten eindigden op de twee kalenders om 10:00 en 12:00.
+      De lezer levert dan voor die taak geen wandeling. Of MS Project daar over de resourcekalender plant, is niet nagegaan. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -5292,6 +5365,17 @@ en noem het in je rapport of PR-tekst.
       (browserjobs van PR #1197 op `25326fb05`, 24 november 2026): deel 3 van 4 rood op die stap, dezelfde job opnieuw
       gestart op dezelfde commit groen. De proef zet haar project neer met `seedProject` en opent geen bestand, dus de
       wijziging van die PR raakt haar niet. Oorzaak niet onderzocht. — B (twee runs op dezelfde commit)
+
+2254. **VERVOLG (#804 fase 2, PR 11, testdubbel): de IndexedDB-dubbel draait een afgebroken transactie niet terug.**
+     In `tests/planning/fakeRecoveryIndexedDb.ts` past `put` een record meteen toe, en `abort` roept alleen `onabort`
+     aan. Een echte IndexedDB schrijft bij een fout in dezelfde transactie niets. Faalt in de dubbel de manifestschrijf
+     ná de snapshotrecords, dan staan die records er toch: een gemengde toestand die in de browser niet kan bestaan. Een
+     browserproef met een schrijffout halverwege een ronde kan daardoor onterecht rood worden (een toestand die A nooit
+     maakt), of groen terwijl ze alleen laat zien dat de leestoets die gemengde toestand afwijst, niet dat de opslag
+     klopt. `check-recovery-identiteit-reeksen.ts` bootst het terugdraaien zelf na (een kopie van de opslag bij het begin
+     van elke schrijftransactie); deel 9 van `check-recovery-gedeelde-globalids.ts` laat de fout afgaan bij de eerste
+     put, vóór er iets veranderd is. Fouten die alleen bij echte asynchrone verzoeken, commit of herstart zichtbaar
+     worden, dekt de dubbel niet. — B
 
 ## Wensen en open taken (geen bug)
 

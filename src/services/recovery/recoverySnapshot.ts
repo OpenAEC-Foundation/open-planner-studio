@@ -1,5 +1,5 @@
 import type { IFCSaveSource } from '@/state/ifcSaveInput';
-import { serializeRecoverySnapshot } from './recoverySnapshotInput';
+import { recoverySnapshotInput, serializeRecoverySnapshot, writeRecoverySnapshot, type RecoverySnapshot } from './recoverySnapshotInput';
 import { saveRecovery } from './recoveryStore';
 import type { RecoveryDeltaTracker, RecoverySourceDocument } from './recoveryDelta';
 import { confirmRecordedPending } from './recoveryPendingSource';
@@ -24,7 +24,7 @@ export async function runRecoveryTick(
   tracker: RecoveryDeltaTracker,
   activeDocumentId: string | null,
   documents: readonly RecoverySourceDocument[],
-  serialize: (source: IFCSaveSource) => Promise<string> = async source => serializeRecoverySnapshot(source),
+  serialize: (source: IFCSaveSource, identities: boolean) => Promise<string | RecoverySnapshot> = async (source, identities) => writeRecoverySnapshot(recoverySnapshotInput(source, identities)),
   enabled: () => boolean = () => true,
   onSourceCopyFailure?: (documentId: string) => void,
 ): Promise<boolean> {
