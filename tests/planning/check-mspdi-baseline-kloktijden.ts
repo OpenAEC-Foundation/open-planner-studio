@@ -12,11 +12,6 @@ const eq = (label: string, actual: unknown, expected: unknown) => {
   }
 };
 
-// MSPDI-bestand met de oudere OPS_TaskDurationUnit-markering (FieldID 188743760), zonder
-// OPS_LiteralCalendars, één gewone 8-uurskalender (de standaardkalender), en een taak met een
-// eigen duur van 16 uur zónder eigen start-, eind- of werkelijke datums, met Baseline 0 van
-// 13:00 tot 15:00. Op main vond de zoektocht door de hele taak die baselinetijden, koos
-// daardoor de uurkalender en hield de baseline zijn kloktijden.
 const XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Project xmlns="http://schemas.microsoft.com/project"><Name>BaselineKloktijden</Name>
   <StartDate>2026-03-02T08:00:00</StartDate><MinutesPerDay>480</MinutesPerDay>
