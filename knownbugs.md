@@ -3971,8 +3971,8 @@ en noem het in je rapport of PR-tekst.
      verandert), of na een crash herstellen met een gewijzigde vensterkaart, terwijl een ander programma eigen sleutels in
      haar venster in `OPS_Timephased.Windows` heeft gezet: opslaan weigert zoals main. Er gaat niets stil verloren. Het
      venster bewaren over een verplaatsing heen is bewust niet gebouwd (besluit van de technisch eigenaar, 24 november
-     2026). Omwisselen van twee toewijzingen met dezelfde vensterdata geeft, net als op main, de bronbytes terug: de
-     markering blijft dan bij de taak. Verder: (1) een item in een lijst zonder sleutelveld (`Splits`, de contouren en
+     2026). Blijven na een omwisseling beide toewijzingen met dezelfde vensterdata onder dezelfde sleutel, dan is de
+     planning gelijk en geeft de PR, net als main, de bronbytes terug: de markering blijft dan bij de taak. Verder: (1) een item in een lijst zonder sleutelveld (`Splits`, de contouren en
      hun periodes, `DurationWalks`) of met een sleutelveld dat twee keer voorkomt, een object met een dubbele sleutel dat
      zelf verandert, een doorgegeven lijst (`OPS_Library`) en een reeks die een andere lengte krijgt: een bewerking
      weigert met `niet-gedragen` (herkomstmerk, PR 5). (2) Een object met onbekende sleutels dat in de planning nog
