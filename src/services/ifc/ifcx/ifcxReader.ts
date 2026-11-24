@@ -5,20 +5,21 @@ import type { Sequence } from '@/types/sequence';
 import { ALL_RECORDED_SLOT_KEYS, type RecordedFieldKey } from '../ifcTaskSlots';
 import { ifcGuid128, ifcObjectSeed } from '../ifcWriter';
 import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
-import { shownFinish, shownStart } from '@/utils/taskDates';
-import { checkValue, readFields } from './fieldTable';
+import { shownFinish, shownStart, startIsActual } from '@/utils/taskDates';
+import { isPinnedComplete } from '@/engine/scheduler/duration';
+import { readFields } from './fieldTable';
 import { globalIdOfIdentity, isUuidPath } from './globalIdUuid';
-import { childrenInPlace } from './childOrder';
-import { momentOfSharedDate, projectSpan } from './dateProjection';
+import { childrenInPlace, taskInParentCycle } from './childOrder';
+import { momentOfSharedDate, nextCalendarDate, projectSpan } from './dateProjection';
 import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from './fieldGroups';
 import { SCHEDULE_FIELDS, emptyProject, type DocumentReadTarget } from './fields/documentFields';
 import { emptyCalendar, type CalendarReadTarget } from './fields/calendarFields';
 import { emptyTask, type TaskReadTarget } from './fields/taskFields';
 import { emptySequence, type SequenceReadTarget } from './fields/sequenceFields';
-import { isOwnAttributeName, OWN_ATTRIBUTE_VALUES } from './ownAttributes';
+import { attributeValueProblem, schemaDefinitionProblems, type IfcxCheckProblem } from './schemaCheck';
 import { IfcxReadError, type IfcxErrorPlace } from './ifcxErrors';
 import {
-  ATTRIBUTE, IFCX_VERSION, OPS_NAMESPACE, OPS_PROFILE_MAJOR, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
+  ATTRIBUTE, IFCX_VERSION, OPS_PROFILE_MAJOR, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
 } from './profile';
 
 export type IfcxImportResult = ImportResult & { readonly ifcxSharedDatesApplied?: number };
@@ -84,13 +85,17 @@ function headerOf(document: Record<string, unknown>): { uuid: string; author: st
   }
   const uuid = header.id.slice(OWN_HEADER_ID_PREFIX.length);
   if (!isUuidPath(uuid)) throw invalid(`De kop draagt geen project-UUID: ${header.id}`, { field: 'header.id' });
-  if (typeof header.author !== 'string') throw invalid('De kop heeft geen auteur', { field: 'header.author' });
-  if (document.imports !== undefined) {
-    if (!Array.isArray(document.imports)) throw invalid('imports is geen lijst', { field: 'imports' });
-    if (document.imports.length > 0) throw foreign('Het bestand importeert andere bestanden');
+  for (const key of ['dataVersion', 'author', 'timestamp']) {
+    if (typeof header[key] !== 'string') throw invalid(`De kop heeft geen ${key}`, { field: `header.${key}` });
   }
-  if (document.schemas !== undefined && !isPlainObject(document.schemas)) throw invalid('schemas is geen object', { field: 'schemas' });
-  return { uuid, author: header.author };
+  if (!Array.isArray(document.imports)) throw invalid('Het bestand heeft geen lijst imports', { field: 'imports' });
+  if (document.imports.length > 0) throw foreign('Het bestand importeert andere bestanden');
+  if (!isPlainObject(document.schemas)) throw invalid('Het bestand heeft geen schemas', { field: 'schemas' });
+  return { uuid, author: header.author as string };
+}
+
+function thrown(problem: IfcxCheckProblem): IfcxReadError {
+  return new IfcxReadError(problem.code, problem.detail, problem.place);
 }
 
 function nodesOf(data: readonly unknown[]): IfcxNode[] {
@@ -105,13 +110,8 @@ function nodesOf(data: readonly unknown[]): IfcxNode[] {
     if (!isUuidPath(path)) throw foreign('Een pad dat geen UUID is', { path });
     const attributes = nodes.get(path) ?? new Map();
     for (const [name, value] of Object.entries(entry.attributes)) {
-      if (!isOwnAttributeName(name)) {
-        throw name.startsWith(OPS_NAMESPACE)
-          ? new IfcxReadError('newer-profile', 'Een attribuut van een nieuwere Open Planner Studio', { path, attribute: name })
-          : foreign('Een attribuut dat Open Planner Studio niet schrijft', { path, attribute: name });
-      }
-      if (attributes.has(name)) throw foreign('Twee bijdragen van hetzelfde attribuut op één pad', { path, attribute: name });
-      attributes.set(name, value as Record<string, unknown>);
+      if (attributes.has(name as IfcxAttributeName)) throw foreign('Twee bijdragen van hetzelfde attribuut op één pad', { path, attribute: name });
+      attributes.set(name as IfcxAttributeName, value as Record<string, unknown>);
     }
     nodes.set(path, attributes);
   }
@@ -132,14 +132,37 @@ function assertProfileVersion(nodes: readonly IfcxNode[]): void {
 function assertValues(nodes: readonly IfcxNode[]): void {
   for (const node of nodes) {
     for (const [name, value] of node.attributes) {
-      const problem = checkValue(OWN_ATTRIBUTE_VALUES.get(name)!, value);
-      if (!problem) continue;
-      const place = { path: node.path, attribute: name, field: problem.field };
-      if (problem.kind === 'invalid') throw invalid(`Ongeldige waarde: ${problem.detail}`, place);
-      throw name.startsWith(OPS_NAMESPACE)
-        ? new IfcxReadError('newer-profile', 'Een veld van een nieuwere Open Planner Studio', place)
-        : foreign('Een veld dat Open Planner Studio niet schrijft', place);
+      const problem = attributeValueProblem(node.path, name, value);
+      if (problem) throw thrown(problem);
     }
+  }
+}
+
+function assertSchemas(schemas: unknown, nodes: readonly IfcxNode[]): void {
+  const used = new Set<string>(nodes.flatMap(node => [...node.attributes.keys()]));
+  const [problem] = schemaDefinitionProblems(schemas, used);
+  if (problem) throw thrown(problem);
+}
+
+function assertUniqueIds<T extends { readonly path: string }>(targets: readonly T[], idOf: (target: T) => string, attribute: string): void {
+  const seen = new Set<string>();
+  for (const target of targets) {
+    const id = idOf(target);
+    if (seen.has(id)) throw invalid(`Twee objecten hebben het interne id ${id}`, { path: target.path, attribute, field: 'id' });
+    seen.add(id);
+  }
+}
+
+function assertSharedWindow(target: TaskReadTarget): void {
+  const { start, endExclusive } = target.span;
+  const place = { path: target.path, attribute: ATTRIBUTE.activity };
+  if ((start === undefined) !== (endExclusive === undefined)) {
+    throw invalid('start en endExclusive staan er samen of geen van beide', { ...place, field: start === undefined ? 'start' : 'endExclusive' });
+  }
+  if (start === undefined || endExclusive === undefined) return;
+  if (endExclusive <= start) throw invalid('endExclusive ligt niet na start', { ...place, field: 'endExclusive' });
+  if (target.task.isMilestone && endExclusive !== nextCalendarDate(start)) {
+    throw invalid('Een mijlpaal heeft een venster van precies één dag', { ...place, field: 'endExclusive' });
   }
 }
 
@@ -164,19 +187,21 @@ function recordedFieldsOf(tasks: readonly Task[]): Record<string, RecordedFieldK
 }
 
 function applySharedSpan(task: Task, span: TaskReadTarget['span']): boolean {
-  let changed = false;
-  if (span.start !== undefined && projectSpan(shownStart(task), shownFinish(task)).start !== span.start) {
+  if (span.start === undefined || span.endExclusive === undefined) return false;
+  const original = projectSpan(shownStart(task), shownFinish(task));
+  const startMoves = span.start !== original.start && !startIsActual(task);
+  const endMoves = span.endExclusive !== original.endExclusive && !isPinnedComplete(task.time);
+  if (!startMoves && !endMoves) return false;
+  if (startMoves) {
     const moment = momentOfSharedDate(span.start);
     task.time.scheduleStart = task.time.earlyStart = task.time.lateStart = moment;
-    changed = true;
   }
-  if (span.endExclusive !== undefined && projectSpan(shownStart(task), shownFinish(task)).endExclusive !== span.endExclusive) {
+  if (endMoves || (startMoves && task.isMilestone)) {
     const moment = task.isMilestone ? task.time.scheduleStart : momentOfSharedDate(span.endExclusive);
     task.time.scheduleFinish = task.time.earlyFinish = task.time.lateFinish = moment;
-    changed = true;
   }
-  if (changed) task.manuallyScheduled = true;
-  return changed;
+  task.manuallyScheduled = true;
+  return true;
 }
 
 export function readIfcxText(text: string): IfcxImportResult {
@@ -185,6 +210,7 @@ export function readIfcxText(text: string): IfcxImportResult {
   const nodes = nodesOf(document.data as unknown[]);
   assertProfileVersion(nodes);
   assertValues(nodes);
+  assertSchemas(document.schemas, nodes);
   const byKind = new Map<NodeKind, IfcxNode[]>();
   const kindAt = new Map<string, NodeKind>();
   for (const node of nodes) {
@@ -224,16 +250,27 @@ export function readIfcxText(text: string): IfcxImportResult {
     readFields(CALENDAR_AREA.ops, node.attributes.get(ATTRIBUTE.opsCalendar)!, target);
     return target;
   });
+  assertUniqueIds(calendarTargets, target => target.calendar.id, ATTRIBUTE.opsCalendar);
   const calendarIdAt = new Map(calendarTargets.map(target => [target.path, target.calendar.id]));
   const projectCalendar = calendarTargets.find(target => target.isProjectCalendar)!.calendar;
   project.calendarId = documentTarget.calendarIdOverride ?? projectCalendar.id;
+  const resourceCalendars: WorkCalendar[] = calendarTargets.filter(target => !target.isProjectCalendar).map(target => target.calendar);
+  for (const target of calendarTargets) {
+    if (target.libraryPlace === undefined) continue;
+    if (!target.isProjectCalendar || target.libraryPlace > resourceCalendars.length) {
+      throw invalid('Een plaats in de bibliotheek die niet klopt', { path: target.path, attribute: ATTRIBUTE.opsCalendar, field: 'libraryPlace' });
+    }
+    resourceCalendars.splice(target.libraryPlace, 0, projectCalendar);
+  }
 
   const taskTargets: TaskReadTarget[] = of('task').map(node => {
     const target: TaskReadTarget = { task: emptyTask(), path: node.path, span: {} };
     readFields(TASK_AREA.planning, node.attributes.get(ATTRIBUTE.activity)!, target);
     readFields(TASK_AREA.ops, node.attributes.get(ATTRIBUTE.opsTask)!, target);
+    assertSharedWindow(target);
     return target;
   });
+  assertUniqueIds(taskTargets, target => target.task.id, ATTRIBUTE.opsTask);
   const taskIdAt = new Map(taskTargets.map(target => [target.path, target.task.id]));
   const childrenOf = new Map<string, TaskReadTarget[]>();
   for (const target of taskTargets) {
@@ -246,6 +283,11 @@ export function readIfcxText(text: string): IfcxImportResult {
     }
     const calendarPath = reference(target.calendarPath, 'calendar', { ...place, field: 'calendar' });
     if (calendarPath !== undefined) target.task.calendarId = calendarIdAt.get(calendarPath)!;
+  }
+  const cycle = taskInParentCycle(taskTargets.map(target => target.task));
+  if (cycle !== undefined) {
+    const at = taskTargets.find(target => target.task.id === cycle)!;
+    throw invalid('Een taak is haar eigen voorouder', { path: at.path, attribute: ATTRIBUTE.activity, field: 'parent' });
   }
   for (const target of taskTargets) {
     target.task.childIds = childrenInPlace(childrenOf.get(target.path) ?? [], child => child.place).map(child => child.task.id);
@@ -262,10 +304,10 @@ export function readIfcxText(text: string): IfcxImportResult {
     target.sequence.successorId = taskIdAt.get(reference(target.successorPath, 'task', { ...place, field: 'relatedProcess' })!)!;
     return target;
   });
+  assertUniqueIds(sequenceTargets, target => target.sequence.id, ATTRIBUTE.opsSequence);
 
   const tasks = taskTargets.map(target => target.task);
   const sequences: Sequence[] = sequenceTargets.map(target => target.sequence);
-  const resourceCalendars: WorkCalendar[] = calendarTargets.filter(target => !target.isProjectCalendar).map(target => target.calendar);
   const ifcGlobalIds: Record<string, string> = {
     [ifcObjectSeed('proj', project.id)]: globalIdOfIdentity(header.uuid, documentTarget.projectGlobalIdOutsidePath),
   };

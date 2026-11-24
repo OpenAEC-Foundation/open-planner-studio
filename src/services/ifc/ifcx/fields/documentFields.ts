@@ -3,6 +3,7 @@ import {
   BOOLEAN, CALENDAR_DATE, enumOf, REFERENCE, TEXT, VERSION_TEXT, type IfcxField,
 } from '../fieldTable';
 import { OPS_PROFILE_VERSION } from '../profile';
+import { existingDatePart } from '../dateProjection';
 
 export interface DocumentWriteSource {
   readonly project: Project;
@@ -28,7 +29,7 @@ export interface DocumentReadTarget {
 type DocumentField = IfcxField<DocumentWriteSource, DocumentReadTarget>;
 
 export function sharedProjectDate(entered: string): string | undefined {
-  return /^\d{4}-\d{2}-\d{2}/.test(entered) ? entered.slice(0, 10) : undefined;
+  return existingDatePart(entered);
 }
 
 function setOptional<K extends keyof Project>(project: Project, key: K, value: Project[K] | undefined): void {

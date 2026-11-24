@@ -1,5 +1,4 @@
 import type { WriteIFCInput } from '../ifcWriter';
-import { planningCanon, planningDifference } from '../foreign/planningCanon';
 import { shownFinish, shownStart } from '@/utils/taskDates';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
@@ -12,6 +11,8 @@ import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from './fieldG
 import { SCHEDULE_FIELDS } from './fields/documentFields';
 import { ownSchemas } from './ownAttributes';
 import { unsupportedContent } from './unsupportedContent';
+import { inconsistentContent } from './consistency';
+import { selfCheckDifferences } from './selfCheck';
 import { IfcxWriteRefusedError } from './ifcxErrors';
 import {
   ATTRIBUTE, DEFAULT_HEADER_AUTHOR, IFCX_DATA_VERSION, IFCX_VERSION, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
@@ -44,8 +45,8 @@ function attributesOf(pairs: readonly [IfcxAttributeName, Record<string, unknown
   return out;
 }
 
-function refused(detail: string, field: string): IfcxWriteRefusedError {
-  return new IfcxWriteRefusedError('unsupported', detail, [field]);
+function refused(code: 'unsupported' | 'inconsistent', details: readonly string[], fields: readonly string[]): IfcxWriteRefusedError {
+  return new IfcxWriteRefusedError(code, details.join('; '), [...new Set(fields)]);
 }
 
 function childPlaces(tasks: readonly Task[], taskPathById: ReadonlyMap<string, string>): Map<string, number> {
@@ -69,17 +70,27 @@ function childPlaces(tasks: readonly Task[], taskPathById: ReadonlyMap<string, s
 
 export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDocument {
   const { project } = input;
+  const inconsistencies = inconsistentContent(input);
+  if (inconsistencies.length > 0) {
+    throw refused('inconsistent', inconsistencies.map(item => item.detail), inconsistencies.map(item => item.field));
+  }
   const globalIdOf = stepGlobalIdsFor(input);
   const projectIdentity = identityOfGlobalId(globalIdOf('proj', project.id));
   const workplanIdentity = identityOfGlobalId(globalIdOf('wp', project.id));
   const scheduleIdentity = identityOfGlobalId(globalIdOf('ws', project.id));
-  if (workplanIdentity.globalIdOutsidePath !== undefined || scheduleIdentity.globalIdOutsidePath !== undefined) {
-    throw refused('Het werkplan of werkschema heeft geen GlobalId van 128 bits', 'ifcGlobalIds.wp');
+  for (const [kind, identity] of [['wp', workplanIdentity], ['ws', scheduleIdentity]] as const) {
+    if (identity.globalIdOutsidePath !== undefined) {
+      throw refused('unsupported', [`De GlobalId van het ${kind === 'wp' ? 'werkplan' : 'werkschema'} heeft geen 128-bitsvorm`], [`ifcGlobalIds.${kind}`]);
+    }
   }
   const headerAuthor = project.author || DEFAULT_HEADER_AUTHOR;
 
-  const calendars: { calendar: WorkCalendar; isProjectCalendar: boolean; identity: IfcxIdentity }[] = [
-    { calendar: input.calendar, isProjectCalendar: true, identity: identityOfGlobalId(globalIdOf('cal', input.calendar.id)) },
+  const libraryPlace = (input.resourceCalendars ?? []).findIndex(calendar => calendar.id === input.calendar.id);
+  const calendars: { calendar: WorkCalendar; isProjectCalendar: boolean; identity: IfcxIdentity; libraryPlace?: number }[] = [
+    {
+      calendar: input.calendar, isProjectCalendar: true, identity: identityOfGlobalId(globalIdOf('cal', input.calendar.id)),
+      ...(libraryPlace >= 0 ? { libraryPlace } : {}),
+    },
     ...libraryCalendarsWrittenByStep(input).filter(calendar => calendar.id !== input.calendar.id).map(calendar => ({
       calendar, isProjectCalendar: false, identity: identityOfGlobalId(globalIdOf('cal', calendar.id)),
     })),
@@ -115,9 +126,6 @@ export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDo
 
   input.tasks.forEach((task, index) => {
     const parentPath = task.parentId === null || task.parentId === undefined ? undefined : taskPathById.get(task.parentId);
-    if (task.parentId !== null && task.parentId !== undefined && parentPath === undefined) {
-      throw refused(`Taak ${task.id} hangt onder een taak die niet bestaat`, 'task.parentId');
-    }
     const calendarPath = task.calendarId === undefined ? undefined : calendarPathById.get(task.calendarId);
     const place = places.get(task.id);
     const source = {
@@ -133,12 +141,10 @@ export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDo
   });
 
   for (const sequence of input.sequences) {
-    const predecessorPath = taskPathById.get(sequence.predecessorId);
-    const successorPath = taskPathById.get(sequence.successorId);
-    if (predecessorPath === undefined || successorPath === undefined) {
-      throw refused(`Relatie ${sequence.id} wijst naar een taak die niet bestaat`, 'sequence.predecessorId');
-    }
-    const source = { sequence, identity: identityOfGlobalId(globalIdOf('seq', sequence.id)), predecessorPath, successorPath };
+    const source = {
+      sequence, identity: identityOfGlobalId(globalIdOf('seq', sequence.id)),
+      predecessorPath: taskPathById.get(sequence.predecessorId)!, successorPath: taskPathById.get(sequence.successorId)!,
+    };
     data.push({ path: source.identity.path, attributes: attributesOf([
       [ATTRIBUTE.sequence, writeFields(SEQUENCE_AREA.planning, source)],
       [ATTRIBUTE.opsSequence, writeFields(SEQUENCE_AREA.ops, source)],
@@ -191,8 +197,10 @@ export function writeIfcx(input: WriteIFCInput, writtenAt: Date = new Date()): s
   } catch (error) {
     throw new IfcxWriteRefusedError('self-check', `De IFCX-uitvoer leest niet terug: ${messageOf(error)}`);
   }
-  if (planningCanon(reread) !== planningCanon(input)) {
-    throw new IfcxWriteRefusedError('self-check', `De IFCX-uitvoer geeft een andere planning: ${planningDifference(input, reread)}`);
+  const differences = selfCheckDifferences(input, reread);
+  if (differences.length > 0) {
+    throw new IfcxWriteRefusedError('self-check', `De IFCX-uitvoer geeft een andere planning: ${differences.join('; ')}`,
+      differences.map(difference => difference.slice(0, difference.indexOf(': '))));
   }
   return text;
 }

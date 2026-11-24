@@ -1,13 +1,7 @@
 import type { WriteIFCInput } from '../ifcWriter';
 import { savedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
 import { CALENDAR_GROUPS, carriedKeys, DOCUMENT_GROUPS, SEQUENCE_GROUPS, TASK_GROUPS } from './fieldGroups';
-
-function carriesValue(value: unknown): boolean {
-  if (value === undefined || value === null) return false;
-  if (Array.isArray(value)) return value.length > 0;
-  if (typeof value === 'object') return Object.keys(value).length > 0;
-  return true;
-}
+import { carriesValue } from './fieldTable';
 
 function uncarriedKeys(object: object, carried: ReadonlySet<PropertyKey>): string[] {
   return Object.entries(object).filter(([key, value]) => !carried.has(key) && carriesValue(value)).map(([key]) => key);

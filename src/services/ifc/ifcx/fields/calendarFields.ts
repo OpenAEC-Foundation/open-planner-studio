@@ -9,6 +9,7 @@ export interface CalendarWriteSource {
   readonly calendar: WorkCalendar;
   readonly isProjectCalendar: boolean;
   readonly identity: IfcxIdentity;
+  readonly libraryPlace?: number;
 }
 
 export interface CalendarReadTarget {
@@ -16,6 +17,7 @@ export interface CalendarReadTarget {
   readonly isProjectCalendar: boolean;
   readonly path: string;
   globalIdOutsidePath?: string;
+  libraryPlace?: number;
 }
 
 type CalendarField = IfcxField<CalendarWriteSource, CalendarReadTarget>;
@@ -113,6 +115,11 @@ export const CALENDAR_OPS_FIELDS: readonly CalendarField[] = [
     key: 'globalId', value: TEXT, optional: true,
     write: s => s.identity.globalIdOutsidePath,
     read: (v, t) => { t.globalIdOutsidePath = v as string | undefined; },
+  },
+  {
+    key: 'libraryPlace', value: integer(0), optional: true,
+    write: s => s.libraryPlace,
+    read: (v, t) => { t.libraryPlace = v as number | undefined; },
   },
   {
     key: 'workDays', value: arrayOf(integer(1, 7)),

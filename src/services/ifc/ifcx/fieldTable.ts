@@ -1,3 +1,5 @@
+import { isExistingYmd, isStrictIsoDateTime } from '@/utils/dateUtils';
+
 export type IfcxValue =
   | { readonly dataType: 'String'; readonly form?: IfcxForm }
   | { readonly dataType: 'DateTime'; readonly form: IfcxForm }
@@ -12,6 +14,7 @@ export type IfcxValue =
 export interface IfcxForm {
   readonly name: string;
   readonly pattern: RegExp;
+  readonly accepts?: (value: string) => boolean;
 }
 
 export interface IfcxMember {
@@ -29,12 +32,21 @@ export const TEXT: IfcxValue = { dataType: 'String' };
 export const REAL: IfcxValue = { dataType: 'Real' };
 export const BOOLEAN: IfcxValue = { dataType: 'Boolean' };
 export const REFERENCE: IfcxValue = { dataType: 'Reference' };
+export function isExistingCalendarDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+    && isExistingYmd(Number(value.slice(0, 4)), Number(value.slice(5, 7)), Number(value.slice(8, 10)));
+}
+
 export const CALENDAR_DATE: IfcxValue = {
-  dataType: 'DateTime', form: { name: 'YYYY-MM-DD', pattern: /^\d{4}-\d{2}-\d{2}$/ },
+  dataType: 'DateTime', form: { name: 'een bestaande dag YYYY-MM-DD', pattern: /^\d{4}-\d{2}-\d{2}$/, accepts: isExistingCalendarDate },
 };
 export const LOCAL_MOMENT_OR_EMPTY: IfcxValue = {
   dataType: 'String',
-  form: { name: 'YYYY-MM-DD[THH:MM[:SS[.sss]]] of leeg', pattern: /^(\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?)?)?$/ },
+  form: {
+    name: 'een bestaand moment YYYY-MM-DD[THH:MM[:SS[.sss]]] zonder tijdzone, of leeg',
+    pattern: /^(\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?)?)?$/,
+    accepts: value => value === '' || isStrictIsoDateTime(value, { maxFractionDigits: 3 }),
+  },
 };
 export const VERSION_TEXT: IfcxValue = { dataType: 'String', form: { name: 'MAJOR.MINOR.PATCH', pattern: /^\d+\.\d+\.\d+$/ } };
 
@@ -93,6 +105,13 @@ export type IfcxValueProblem =
   | { readonly kind: 'unknown-field'; readonly field: string }
   | { readonly kind: 'invalid'; readonly field: string; readonly detail: string };
 
+export function carriesValue(value: unknown): boolean {
+  if (value === undefined || value === null) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') return Object.keys(value).length > 0;
+  return true;
+}
+
 export function hasKey(object: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(object, key);
 }
@@ -118,7 +137,7 @@ function problemOf(spec: IfcxValue, value: unknown): Problem | undefined {
     case 'String':
     case 'DateTime':
       if (typeof value !== 'string') return invalidValue(`verwacht tekst, gevonden ${found()}`);
-      if (spec.form && !spec.form.pattern.test(value)) return invalidValue(`verwacht de vorm ${spec.form.name}, gevonden ${found()}`);
+      if (spec.form && (!spec.form.pattern.test(value) || spec.form.accepts?.(value) === false)) return invalidValue(`verwacht de vorm ${spec.form.name}, gevonden ${found()}`);
       return;
     case 'Reference':
       return typeof value === 'string' ? undefined : invalidValue(`verwacht een pad, gevonden ${found()}`);

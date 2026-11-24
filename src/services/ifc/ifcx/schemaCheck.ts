@@ -1,82 +1,69 @@
-import { hasKey } from './fieldTable';
-import { isOwnAttributeName, ownSchemas } from './ownAttributes';
+import { checkValue, hasKey } from './fieldTable';
+import { isOwnAttributeName, OWN_ATTRIBUTE_VALUES, ownSchemas } from './ownAttributes';
+import type { IfcxErrorPlace, IfcxReadErrorCode } from './ifcxErrors';
+import { OPS_NAMESPACE } from './profile';
+
+export interface IfcxCheckProblem {
+  readonly code: IfcxReadErrorCode;
+  readonly detail: string;
+  readonly place: IfcxErrorPlace;
+}
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function problemIn(description: unknown, value: unknown, at: string): string | undefined {
-  if (!isPlainObject(description) || typeof description.dataType !== 'string') return `${at}: geen geldige schemabeschrijving`;
-  const expected = (what: string) => `${at}: verwacht ${what}, gevonden ${JSON.stringify(value)}`;
-  switch (description.dataType) {
-    case 'String':
-    case 'DateTime':
-    case 'Reference':
-      return typeof value === 'string' ? undefined : expected('tekst');
-    case 'Boolean':
-      return typeof value === 'boolean' ? undefined : expected('waar of onwaar');
-    case 'Real':
-      return typeof value === 'number' && Number.isFinite(value) ? undefined : expected('een getal');
-    case 'Integer':
-      return typeof value === 'number' && Number.isSafeInteger(value) ? undefined : expected('een geheel getal');
-    case 'Enum': {
-      const options = isPlainObject(description.enumRestrictions) ? description.enumRestrictions.options : undefined;
-      if (!Array.isArray(options)) return `${at}: Enum zonder opties`;
-      return typeof value === 'string' && options.includes(value) ? undefined : expected(`een van ${options.join(', ')}`);
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, item: unknown) => (isPlainObject(item)
+    ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item));
+}
+
+const OWN_SCHEMA_DEFINITIONS = ownSchemas(new Set(OWN_ATTRIBUTE_VALUES.keys()));
+
+function unknownAttribute(name: string, place: IfcxErrorPlace, what: string): IfcxCheckProblem {
+  return name.startsWith(OPS_NAMESPACE)
+    ? { code: 'newer-profile', detail: `${what} van een nieuwere Open Planner Studio`, place }
+    : { code: 'foreign', detail: `${what} dat Open Planner Studio niet schrijft`, place };
+}
+
+export function schemaDefinitionProblems(schemas: unknown, used: ReadonlySet<string>): IfcxCheckProblem[] {
+  if (!isPlainObject(schemas)) return [{ code: 'invalid', detail: 'Het bestand heeft geen schemas', place: { field: 'schemas' } }];
+  const problems: IfcxCheckProblem[] = [];
+  for (const name of Object.keys(schemas)) {
+    const place = { attribute: name, field: 'schemas' };
+    if (!isOwnAttributeName(name)) problems.push(unknownAttribute(name, place, 'Een schema'));
+    else if (canonicalJson(schemas[name]) !== canonicalJson(OWN_SCHEMA_DEFINITIONS[name])) {
+      problems.push({ code: 'invalid', detail: 'Het schema wijkt af van het profiel', place });
     }
-    case 'Array': {
-      if (!Array.isArray(value)) return expected('een lijst');
-      const item = isPlainObject(description.arrayRestrictions) ? description.arrayRestrictions.value : undefined;
-      if (item === undefined) return `${at}: Array zonder arrayRestrictions`;
-      for (let i = 0; i < value.length; i++) {
-        const problem = problemIn(item, value[i], `${at}[${i}]`);
-        if (problem) return problem;
-      }
-      return;
-    }
-    case 'Object': {
-      if (!isPlainObject(value)) return expected('een object');
-      const values = isPlainObject(description.objectRestrictions) ? description.objectRestrictions.values : undefined;
-      if (!isPlainObject(values)) return `${at}: Object zonder objectRestrictions`;
-      for (const key of Object.keys(value)) if (!hasKey(values, key)) return `${at}.${key}: veld staat niet in het schema`;
-      for (const [key, member] of Object.entries(values)) {
-        if (!hasKey(value, key)) {
-          if (isPlainObject(member) && member.optional === true) continue;
-          return `${at}.${key}: verplicht veld ontbreekt`;
-        }
-        const problem = problemIn(member, value[key], `${at}.${key}`);
-        if (problem) return problem;
-      }
-      return;
-    }
-    default:
-      return `${at}: onbekend dataType ${description.dataType}`;
   }
+  for (const name of used) {
+    if (!hasKey(schemas, name)) problems.push({ code: 'invalid', detail: 'Het schema ontbreekt', place: { attribute: name, field: 'schemas' } });
+  }
+  return problems;
+}
+
+export function attributeValueProblem(path: string, name: string, value: unknown): IfcxCheckProblem | undefined {
+  if (!isOwnAttributeName(name)) return unknownAttribute(name, { path, attribute: name }, 'Een attribuut');
+  const problem = checkValue(OWN_ATTRIBUTE_VALUES.get(name)!, value);
+  if (!problem) return undefined;
+  const place = { path, attribute: name, field: problem.field };
+  return problem.kind === 'invalid'
+    ? { code: 'invalid', detail: `Ongeldige waarde: ${problem.detail}`, place }
+    : unknownAttribute(name, place, 'Een veld');
 }
 
 export function ifcxSchemaProblems(document: unknown): string[] {
-  const problems: string[] = [];
-  if (!isPlainObject(document) || !isPlainObject(document.schemas) || !Array.isArray(document.data)) return ['geen IFCX-document met schemas en data'];
-  const schemas = document.schemas;
+  if (!isPlainObject(document) || !Array.isArray(document.data)) return ['geen IFCX-document met data'];
   const used = new Set<string>();
+  const problems: IfcxCheckProblem[] = [];
   for (const entry of document.data) {
     if (!isPlainObject(entry) || !isPlainObject(entry.attributes)) continue;
     for (const [name, value] of Object.entries(entry.attributes)) {
       used.add(name);
-      const schema = schemas[name];
-      if (!isPlainObject(schema)) {
-        problems.push(`${String(entry.path)} ${name}: geen schema`);
-        continue;
-      }
-      const problem = problemIn(schema.value, value, `${String(entry.path)} ${name}`);
+      const problem = attributeValueProblem(String(entry.path), name, value);
       if (problem) problems.push(problem);
     }
   }
-  const expected = ownSchemas(used);
-  for (const name of Object.keys(schemas)) {
-    if (!isOwnAttributeName(name)) continue;
-    if (JSON.stringify(schemas[name]) !== JSON.stringify(expected[name])) problems.push(`${name}: schema wijkt af van het profiel`);
-  }
-  for (const name of Object.keys(expected)) if (!(name in schemas)) problems.push(`${name}: schema ontbreekt`);
-  return problems;
+  problems.push(...schemaDefinitionProblems(document.schemas, used));
+  return problems.map(problem => `${[problem.place.path, problem.place.attribute, problem.place.field].filter(Boolean).join(' ')}: ${problem.detail}`);
 }

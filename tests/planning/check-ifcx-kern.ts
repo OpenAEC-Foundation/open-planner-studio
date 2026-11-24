@@ -10,6 +10,7 @@ import {
   classifyIfcx, readIfcx, writeIfcx, IfcxReadError, IfcxWriteRefusedError, type IfcxReadErrorCode,
 } from '@/services/ifc/ifcx';
 import { ifcxSchemaProblems } from '@/services/ifc/ifcx/schemaCheck';
+import { SELF_CHECK_RULES, selfCheckDifferences } from '@/services/ifc/ifcx/selfCheck';
 import { buildIfcxDocument, serializeIfcx } from '@/services/ifc/ifcx/ifcxWriter';
 import {
   compactGlobalIdToUuid, isCompactGlobalId, nameBasedUuid, uuidToCompactGlobalId,
@@ -488,14 +489,14 @@ test('de werkelijke start van een gestarte taak blijft staan; een veranderd eind
   assert.equal(onlyStart.tasks[0].manuallyScheduled, undefined);
 });
 
-const HEADER_AND_SCHEMA_REFUSALS: readonly { name: string; code: IfcxReadErrorCode; change: (document: ReturnType<typeof documentOf>) => void }[] = [
-  { name: 'een afwijkend schema voor een eigen attribuut', code: 'invalid', change: d => {
+const HEADER_AND_SCHEMA_REFUSALS: readonly { name: string; code: IfcxReadErrorCode; schema?: true; change: (document: ReturnType<typeof documentOf>) => void }[] = [
+  { name: 'een afwijkend schema voor een eigen attribuut', code: 'invalid', schema: true, change: d => {
     (d.schemas['openaec::planning::activity'] as { value: { dataType: string } }).value.dataType = 'String';
   } },
-  { name: 'een vreemd schema', code: 'foreign', change: d => { d.schemas['ander::maatvoering::veld'] = { value: { dataType: 'String' } }; } },
-  { name: 'een schema van een nieuwere Open Planner Studio', code: 'newer-profile', change: d => { d.schemas['openaec::ops::toekomst'] = { value: { dataType: 'String' } }; } },
-  { name: 'een ontbrekend schema', code: 'invalid', change: d => { delete d.schemas['openaec::ops::sequence']; } },
-  { name: 'ontbrekende schemas', code: 'invalid', change: d => { delete (d as Partial<typeof d>).schemas; } },
+  { name: 'een vreemd schema', code: 'foreign', schema: true, change: d => { d.schemas['ander::maatvoering::veld'] = { value: { dataType: 'String' } }; } },
+  { name: 'een schema van een nieuwere Open Planner Studio', code: 'newer-profile', schema: true, change: d => { d.schemas['openaec::ops::toekomst'] = { value: { dataType: 'String' } }; } },
+  { name: 'een ontbrekend schema', code: 'invalid', schema: true, change: d => { delete d.schemas['openaec::ops::sequence']; } },
+  { name: 'ontbrekende schemas', code: 'invalid', schema: true, change: d => { delete (d as Partial<typeof d>).schemas; } },
   { name: 'ontbrekende imports', code: 'invalid', change: d => { delete (d as Partial<typeof d>).imports; } },
   { name: 'een kop zonder timestamp', code: 'invalid', change: d => { delete d.header.timestamp; } },
   { name: 'een kop zonder dataVersion', code: 'invalid', change: d => { delete d.header.dataVersion; } },
@@ -507,7 +508,7 @@ for (const refusal of HEADER_AND_SCHEMA_REFUSALS) {
     refusal.change(document);
     const error = readError(JSON.stringify(document));
     assert.equal(error.code, refusal.code, error.message);
-    assert.ok(ifcxSchemaProblems(document).length > 0, 'ook de schemacontrole ziet het');
+    if (refusal.schema) assert.ok(ifcxSchemaProblems(document).length > 0, 'ook de schemacontrole ziet het');
   });
 }
 
@@ -616,6 +617,58 @@ test('werkplan en werkschema zonder GlobalId van 128 bits worden met hun eigen s
   const plan = datePlan();
   assert.deepEqual(writeRefusal({ ...plan, ifcGlobalIds: { [`wp:${plan.project.id}`]: 'oud' } }).fields, ['ifcGlobalIds.wp']);
   assert.deepEqual(writeRefusal({ ...plan, ifcGlobalIds: { [`ws:${plan.project.id}`]: 'oud' } }).fields, ['ifcGlobalIds.ws']);
+});
+
+test('de zelfcontrole weigert een veld dat ze niet kent, ook dieper in een object', () => {
+  const plan = datePlan();
+  const top = writeRefusal({ ...plan, toekomstigVeld: 1 } as WriteIFCInput);
+  assert.equal(top.code, 'self-check');
+  assert.deepEqual(top.fields, ['toekomstigVeld']);
+  const nested = writeRefusal({ ...plan, calendar: { ...plan.calendar,
+    holidays: plan.calendar.holidays.map((holiday, index) => index === 0 ? { ...holiday, bron: 'cao' } : holiday) } });
+  assert.equal(nested.code, 'self-check');
+  assert.deepEqual(nested.fields, ['calendar.holidays[0].bron']);
+});
+
+test('de zelfcontrole ziet het ontbrekende kind ook zonder de eigen weigering', () => {
+  const plan = datePlan();
+  const reread = readIfcx(encode(writeIfcx(plan, CLOCK)));
+  const withMissingChild = { ...plan, tasks: plan.tasks.map((task, index) => index === 0 ? { ...task, isSummary: true, childIds: ['bestaat-niet'] } : task) };
+  const differences = selfCheckDifferences(withMissingChild, reread);
+  assert.ok(differences.some(difference => difference.startsWith('tasks[0].childIds')), differences.join('; '));
+});
+
+test('de zelfcontrole ziet een waarde die bij het teruglezen stil verandert', () => {
+  const plan = datePlan();
+  const reread = readIfcx(encode(writeIfcx(plan, CLOCK)));
+  assert.deepEqual(selfCheckDifferences(plan, reread), []);
+  const shifted = { ...reread, tasks: reread.tasks.map((task, index) => index === 1 ? { ...task, priority: task.priority + 1 } : task) };
+  assert.deepEqual(selfCheckDifferences(plan, shifted).map(difference => difference.slice(0, difference.indexOf(': '))), ['tasks[1].priority']);
+  const reordered = { ...reread, sequences: [...reread.sequences].reverse() };
+  assert.ok(selfCheckDifferences(plan, reordered).length > 0, 'de volgorde telt mee');
+});
+
+const SELF_CHECK_WITNESSES: Readonly<Record<string, () => WriteIFCInput>> = {
+  'leeg-is-afwezig': () => { const plan = datePlan(); return { ...plan, tasks: plan.tasks.map((task, index) => index === 0 ? { ...task, notes: [] } : task) }; },
+  schrijfroute: () => ({ ...datePlan(), writeMode: 'planOnly' } as WriteIFCInput),
+  leesmeta: datePlan,
+  bronidentiteit: () => ({ ...datePlan(), ifcSource: { herkomst: 'proef' } } as unknown as WriteIFCInput),
+  archiefopslag: () => ({ ...datePlan(), xerSourceArchiveStorage: 'embedded' }),
+  'nee-is-afwezig': () => ({ ...datePlan(), minuteModelPending: false }),
+  globalids: datePlan,
+  'gebruikte-taaktypes': () => ({ ...datePlan(), customTaskTypes: [{ id: 'ongebruikt', name: 'Ongebruikt', color: '#123456' }] }),
+  'geen-vergelijking': datePlan,
+};
+
+test('de lijst uitzonderingen van de zelfcontrole heeft voor elke regel een geval', () => {
+  assert.deepEqual(SELF_CHECK_RULES.map(rule => rule.id).sort(), Object.keys(SELF_CHECK_WITNESSES).sort());
+  for (const rule of SELF_CHECK_RULES) {
+    assert.ok(rule.reason.length > 20, `${rule.id} heeft een reden`);
+    const input = SELF_CHECK_WITNESSES[rule.id]();
+    const reread = readIfcx(encode(writeIfcx(input, CLOCK)));
+    assert.deepEqual(selfCheckDifferences(input, reread), [], rule.id);
+    assert.ok(selfCheckDifferences(input, reread, SELF_CHECK_RULES.filter(other => other !== rule)).length > 0, `zonder ${rule.id} ziet de controle een verschil`);
+  }
 });
 
 const FIXTURES: readonly { file: string; input: () => ImportResult }[] = [
