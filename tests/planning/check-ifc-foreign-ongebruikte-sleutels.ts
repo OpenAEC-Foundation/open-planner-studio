@@ -10,6 +10,8 @@ import { scanStep } from '@/services/ifc/foreign/stepScanner';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { unusedAssignmentKeyNames } from '@/services/ifc/assignmentKeys';
+import { outputFromResult, resultFits, runIfcSaveJob } from '@/services/ifc/saveWorker/ifcSaveProtocol';
+import type { IfcSaveJob } from '@/state/prepareIfcOutput';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const reseed = installDeterminism();
@@ -153,6 +155,24 @@ await scenario('de toewijzing van #110 weg: de kale sleutel blijft ongebruikt',
 await scenario('alle toewijzingen van #63 weg: de pset houdt alleen de ongebruikte sleutels',
   (d, o) => { d.assignments = d.assignments.filter(a => a.taskId !== taskOf(o).id); },
   [extra(`${R109}#2`), bare, real(`${R109}#9`)], []);
+
+{
+  const opened = await openForeign(withUnused);
+  const input = { ...cloneDomain(opened), writeMode: 'merge' as const };
+  input.project.description = `${input.project.description} (proef opslagworker)`;
+  const job = structuredClone<IfcSaveJob>({ kind: 'merge', input, source: opened.ifcSource! });
+  ok(`opslagworker: de bron gaat heen met haar ongebruikte sleutels (${show(job.kind === 'merge' && job.source.unusedKeys)})`,
+    job.kind === 'merge' && show(job.source.unusedKeys) === show(opened.ifcSource!.unusedKeys));
+  const result: unknown = structuredClone(await runIfcSaveJob(job));
+  ok('opslagworker: het antwoord past (resultFits)', resultFits(job, result));
+  if (resultFits(job, result)) {
+    const back = outputFromResult(job, result).prepared?.source;
+    const direct = await save('opslagworker: dezelfde opslag op deze thread', structuredClone(input), opened.ifcSource!);
+    ok(`opslagworker: de nieuwe bron komt terug met haar ongebruikte sleutels (${show(back?.unusedKeys)})`,
+      back?.unusedKeys !== undefined && show(back.unusedKeys) === show(direct?.source.unusedKeys));
+    ok('opslagworker: de nieuwe bron houdt ook haar koppelingen met bouwdelen (elementLinks)', back?.elementLinks instanceof Map);
+  }
+}
 
 const R111 = '1XVcwxvomwVx$qDRoCxjQu';
 const withForeignMember = (name: string) => latin1(after(
