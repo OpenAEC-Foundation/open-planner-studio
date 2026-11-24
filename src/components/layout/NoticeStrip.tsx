@@ -5,8 +5,8 @@ import { Icon, type IconId } from '@/components/icons';
 interface NoticeStripProps {
   icon: IconId;
   text: ReactNode;
-  actionLabel: string;
-  onAction: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
   /** Een tweede, gewone knop naast de primaire (bv. *Later*). */
   secondaryAction?: { label: string; onAction: () => void; props?: Record<string, unknown> };
   /** Weglaten = geen kruisje: een MODUS mag niet wegklikbaar zijn zonder hem te verlaten. */
@@ -46,9 +46,11 @@ export function NoticeStrip({
     >
       <Icon id={icon} size={14} className={`shrink-0 ${error ? '' : 'text-text-secondary'}`} style={error ? { color: 'var(--error)' } : undefined} />
       <span className="flex-1">{text}</span>
-      <button onClick={() => onAction()} className="btn btn--sm btn--primary" {...actionProps}>
-        {actionLabel}
-      </button>
+      {onAction && (
+        <button onClick={() => onAction()} className="btn btn--sm btn--primary" {...actionProps}>
+          {actionLabel}
+        </button>
+      )}
       {secondaryAction && (
         <button onClick={() => secondaryAction.onAction()} className="btn btn--sm btn--secondary" {...secondaryAction.props}>
           {secondaryAction.label}

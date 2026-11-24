@@ -20,6 +20,7 @@ import nlCommon from '@/i18n/locales/nl/common.json';
 import enCommon from '@/i18n/locales/en/common.json';
 import { loadStore } from './ifcAppRoute';
 import { installNodeFileIpc, type PlaceAnswer } from './nodeFileIpc';
+import { openSecondTabOn } from './sameFileTabFixture';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { projectFileWriteTurns, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
@@ -1259,6 +1260,22 @@ const openViaDrop = async (c: Case) => {
 };
 const otherTab = (c: Case) => c.store.getState().getOpenDocumentPayloads()
   .find(d => d.id !== c.id && d.payload.foreignSourceMark?.filePath === c.path);
+const secondTab = (c: Case, content: Uint8Array = bytes) => openSecondTabOn(c.store, { kind: 'path', path: c.path },
+  () => c.store.getState().openOpenedFile({ name: basename(c.path), content: '', bytes: content, ref: { kind: 'path', path: `${c.path}.kopie` } }));
+const openedVersions = (c: Case) => {
+  const original = c.store.getState().openOpenedFile;
+  const versions: string[] = [];
+  c.store.setState({
+    openOpenedFile: (opened, ...rest) => {
+      if (opened.ref?.kind === 'path' && opened.ref.path === c.path) {
+        versions.push(hash(opened.bytes ?? new TextEncoder().encode(opened.content)));
+      }
+      return original(opened, ...rest);
+    },
+  });
+  return { versions, stop: () => c.store.setState({ openOpenedFile: original }) };
+};
+const changedOnDiskNotices = (c: Case) => c.store.getState().documents.filter(d => d.changedOnDisk).length;
 /** De herstelronde van `opened`, met `during` één keer in de eerste ronde binnen de vervanging (`pendingSha256` staat dan
  *  in het manifest; de controle na de herstelronde komt daarna). */
 function firstPendingRound(c: Case, during: () => void | Promise<void>) {
@@ -1279,7 +1296,7 @@ function firstPendingRound(c: Case, during: () => void | Promise<void>) {
 await check('een vooraf geopend tweede tabblad met hetzelfde bestand stopt Ctrl+S, met nul plaatsingen', async () => {
   const c = await opened();
   try {
-    await openViaDrop(c);
+    await secondTab(c);
     assert(otherTab(c), 'het tweede tabblad is open');
     c.store.getState().switchDocument(c.id);
     clearNotices(c);
@@ -1290,11 +1307,12 @@ await check('een vooraf geopend tweede tabblad met hetzelfde bestand stopt Ctrl+
   } finally { await tidy(c); }
 });
 
-await check('een tweede tabblad dat tijdens de eerste herstelronde opengaat, wacht tot de vervanging klaar is en leest de nieuwe versie', async () => {
+await check('een opening die tijdens de eerste herstelronde begint, wacht tot de vervanging klaar is en gaat dan naar het open tabblad', async () => {
   const c = await opened();
   let opening: Promise<void> | undefined;
   // Niet afwachten in de herstelronde: die loopt binnen de schrijfactie, en het openen wacht juist daarop.
   const round = firstPendingRound(c, () => { opening = openViaDrop(c); });
+  const read = openedVersions(c);
   try {
     clearNotices(c);
     const from = ipc.calls.length;
@@ -1304,16 +1322,16 @@ await check('een tweede tabblad dat tijdens de eerste herstelronde opengaat, wac
     const written = fileHash(c, 'model.ifc');
     assert.deepEqual({ result, changed: written !== hash(bytes), places: placesSince(from).length, errors: errorKeys(c) },
       { result: true, changed: true, places: 2, errors: [] }, 'de opslag slaagt');
-    const second = otherTab(c);
-    assert(second, 'het tweede tabblad is open');
-    assert.equal(second.payload.ifcSource?.sha256, written, 'het tweede tabblad las de nieuwe versie');
-  } finally { round.unregister(); await tidy(c); }
+    assert.deepEqual(read.versions, [written], 'het openen las de geschreven versie, pas na de vervanging');
+    assert.equal(otherTab(c), undefined, 'geen tweede tabblad');
+    assert.deepEqual([c.store.getState().activeDocumentId, changedOnDiskNotices(c)], [c.id, 0], 'naar het tabblad dat opsloeg, dezelfde versie, geen melding');
+  } finally { read.stop(); round.unregister(); await tidy(c); }
 });
 
 await check('een tweede tabblad dat er na de eerste herstelronde toch is: de vervanging stopt met nul plaatsingen en de melding van de doelbewaking', async () => {
   const c = await opened();
   // Rechtstreeks in de store (de openactie met bytes, zonder de leesroute), tussen de controle vóór en na de herstelronde.
-  const round = firstPendingRound(c, () => c.store.getState().openOpenedFile({ name: 'model.ifc', content: '', bytes, ref: { kind: 'path', path: c.path } }));
+  const round = firstPendingRound(c, async () => { await secondTab(c); });
   try {
     clearNotices(c);
     const from = ipc.calls.length;
@@ -1346,7 +1364,7 @@ const throughRecent = (c: Case) => {
   return c.store.getState().openRecentFile('review-recent');
 };
 for (const route of ['dialoog', 'Recent'] as const) {
-  await check(`${route}: opening tijdens herstel wacht en leest wat Ctrl+S schreef`, async () => {
+  await check(`${route}: opening tijdens herstel wacht tot Ctrl+S klaar is en gaat naar het open tabblad`, async () => {
     const c = await opened();
     const invoke = internal.invoke;
     internal.invoke = (command, ...args) => command === 'plugin:dialog|open' ? Promise.resolve(c.path) : invoke(command, ...args);
@@ -1356,15 +1374,19 @@ for (const route of ['dialoog', 'Recent'] as const) {
       await new Promise<void>(resolve => setImmediate(resolve));
       assert.equal(otherTab(c), undefined);
     });
+    const read = openedVersions(c);
     try {
       assert.equal(await c.store.getState().saveFileForDocument(c.id), true);
       assert.ok(opening && round.fired());
       await opening;
       const written = fileHash(c, 'model.ifc');
       assert.notEqual(written, hash(bytes));
-      assert.equal(otherTab(c)?.payload.ifcSource?.sha256, written);
+      assert.deepEqual(read.versions, [written], 'de opening las de geschreven versie, pas na de vervanging');
+      assert.equal(otherTab(c), undefined, 'geen tweede tabblad');
+      assert.deepEqual([c.store.getState().activeDocumentId, changedOnDiskNotices(c)], [c.id, 0], 'naar het tabblad dat opsloeg, dezelfde versie, geen melding');
       assert.deepEqual(errorKeys(c), []);
     } finally {
+      read.stop();
       internal.invoke = invoke;
       round.unregister();
       await tidy(c);
@@ -1372,7 +1394,7 @@ for (const route of ['dialoog', 'Recent'] as const) {
   });
 }
 
-await check('1837: een al begonnen lezing blijft oud, maar Ctrl+S weigert ook nadat het eerste tabblad dicht is', async () => {
+await check('1837: een al begonnen lezing gaat naar het open tabblad; een tabblad met de oude bron weigert Ctrl+S, ook nadat het eerste dicht is', async () => {
   const c = await opened();
   const read = deferredOpen(), release = deferredOpen();
   const invoke = internal.invoke;
@@ -1387,6 +1409,7 @@ await check('1837: een al begonnen lezing blijft oud, maar Ctrl+S weigert ook na
     }
     return invoke(command, ...args);
   };
+  const versions = openedVersions(c);
   const opening = throughRecent(c);
   try {
     await Promise.race([read.promise, opening.then(() => { throw new Error('de route heeft de verwachte leesrand niet geraakt'); })]);
@@ -1396,13 +1419,16 @@ await check('1837: een al begonnen lezing blijft oud, maar Ctrl+S weigert ook na
     assert.notEqual(written, hash(bytes));
     release.resolve();
     await opening;
-    const second = otherTab(c);
-    assert(second, 'het tweede tabblad ging open');
-    assert.equal(second.payload.ifcSource?.sha256, hash(bytes), 'het las de oude bron');
+    assert.deepEqual(versions.versions, [hash(bytes)], 'de lezing van vóór Ctrl+S kreeg de oude versie');
+    versions.stop();
+    assert.equal(otherTab(c), undefined, 'de oude bron kwam niet in een tabblad');
+    assert.deepEqual([c.store.getState().activeDocumentId, changedOnDiskNotices(c)], [c.id, 1], 'naar het tabblad dat opsloeg; de lezing was ouder, dus de melding met de knop');
+    const secondId = await secondTab(c, bytes);
+    assert.equal(otherTab(c)?.payload.ifcSource?.sha256, hash(bytes), 'het tabblad met de oude bron');
     c.store.getState().closeDocument(c.id);
     renameTask(c, 'Bewerking in het achterlopende tabblad');
     const from = ipc.calls.length;
-    assert.equal(await c.store.getState().saveFileForDocument(second.id), false);
+    assert.equal(await c.store.getState().saveFileForDocument(secondId), false);
     assert.equal(fileHash(c, 'model.ifc'), written);
     assert.equal(c.store.getState().isDirty, true);
     assert.equal(placesSince(from).length, 0);
@@ -1410,6 +1436,7 @@ await check('1837: een al begonnen lezing blijft oud, maar Ctrl+S weigert ook na
   } finally {
     release.resolve();
     await opening;
+    versions.stop();
     internal.invoke = invoke;
     await tidy(c);
   }
@@ -1430,15 +1457,15 @@ await check('Ctrl+S met de flag uit (na het openen uitgezet): dezelfde weigering
 });
 
 const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
-const MAIN_CALLS: Record<'aan' | 'uit', string[]> = {
+const PLAIN_SAVE_CALLS: Record<'aan' | 'uit', string[]> = {
   // Met de flag aan leest de doelcontrole eerst het bestaande doel (`refusedWriteTarget`), dan de gewone atomaire opslag.
   aan: ['plugin:fs|open <map>/model.ifc', 'plugin:fs|read ', 'plugin:fs|read ', 'plugin:fs|seek ', 'plugin:fs|read ',
-    'plugin:fs|read ', 'plugin:resources|close ', 'plugin:fs|lstat <map>/model.ifc',
-    'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
+    'plugin:fs|read ', 'plugin:resources|close ', 'plugin:fs|stat <map>/model.ifc', 'plugin:fs|read_file <map>/model.ifc',
+    'plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
   uit: ['plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
 };
 for (const flag of [true, false]) {
-  await check(`Ctrl+S zonder gebouwmodel, flag ${flag ? 'aan' : 'uit'}: dezelfde route en dezelfde aanroepen aan de bestandsrand als main`, async () => {
+  await check(`Ctrl+S zonder gebouwmodel, flag ${flag ? 'aan: de route van main, vooraf de doelscan en de toets van de bekende versie' : 'uit: dezelfde route en dezelfde aanroepen aan de bestandsrand als main'}`, async () => {
     const dir = join(work, `geval-${++cases}`);
     mkdirSync(dir);
     const path = join(dir, 'model.ifc');
@@ -1454,7 +1481,7 @@ for (const flag of [true, false]) {
     const from = ipc.calls.length;
     await store.getState().saveFile();
     const seen = ipc.calls.slice(from).map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
-    assert.deepEqual(seen, MAIN_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seen));
+    assert.deepEqual(seen, PLAIN_SAVE_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seen));
     assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
     assert.equal(store.getState().isDirty, false);
     assert(readFileSync(path).toString('latin1').includes('Gewone opslag'));
@@ -1477,7 +1504,7 @@ for (const flag of [true, false]) {
       onSavePendingChange: pending => store.getState().setUI({ closeQuestionSaving: pending }),
     }).save();
     const seenClose = ipc.calls.slice(fromClose).map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
-    assert.deepEqual(seenClose, MAIN_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seenClose));
+    assert.deepEqual(seenClose, PLAIN_SAVE_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seenClose));
     assert.equal(closed, true, 'het tabblad gaat dicht');
     assert.equal(store.getState().getOpenDocumentPayloads().some(d => d.id === id), false);
     assert(readFileSync(path).toString('latin1').includes('Gewone opslag in de sluitvraag'));

@@ -1,7 +1,7 @@
 import { isTauri } from '@/utils/platform';
 import {
   saveDataDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
-  fileIdentityFsTauri, scanTargetPathTauri, sourceTargetContentOfPathTauri,
+  fileIdentityFsTauri, scanTargetPathTauri, sourceTargetContentOfPathTauri, knownTargetContentOfPathTauri,
   saveNewBytesDialogTauri, saveNewBytesToRefTauri, pickSaveTargetTauri,
 } from './tauriBackend';
 import { openFileDialogTauri, readOpenedPathTauri } from './tauriOpenPath';
@@ -15,6 +15,8 @@ import {
 } from './webBackend';
 import { siteStorageAvailable } from './siteHost';
 import { sourceTargetContentOfHandle, type SourceTargetContent } from './sourceTargetContent';
+import { knownTargetContentOfHandle } from './knownTargetContent';
+import type { TargetFingerprint } from '@/state/documentContract';
 
 /** Bestandsfilter (naam + extensies zonder punt), zoals de bestaande dialoog-aanroepen. */
 export interface FileFilter {
@@ -83,6 +85,7 @@ export interface OpenedFile {
 export interface OpenDialogOpts {
   /** Extensies (zonder punt, lowercase) die als bytes gelezen moeten worden i.p.v. tekst. */
   binaryExtensions?: string[];
+  beforeRead?: (ref: Extract<FileRef, { kind: 'handle' }>) => void;
 }
 
 /** Extra sturing voor `saveFileDialog` — optioneel (o.a. de voortgangsblad-export).
@@ -197,6 +200,12 @@ export function sourceTargetContent(ref: LocalTargetRef, expected: Uint8Array): 
   if (ref.kind === 'handle') return sourceTargetContentOfHandle(ref.handle, expected);
   if (!isTauri()) return Promise.reject(new Error('Een pad is in de browser geen doel om te vergelijken.'));
   return sourceTargetContentOfPathTauri(ref.path, expected);
+}
+
+export function knownTargetContent(ref: LocalTargetRef, known: TargetFingerprint): Promise<SourceTargetContent> {
+  if (ref.kind === 'handle') return knownTargetContentOfHandle(ref.handle, known);
+  if (!isTauri()) return Promise.reject(new Error('Een pad is in de browser geen doel om te vergelijken.'));
+  return knownTargetContentOfPathTauri(ref.path, known);
 }
 
 /** Knownbug 1131 stap 2: het eigen bestand van een document met een gebouwmodel achter een bestandshandle (alleen de

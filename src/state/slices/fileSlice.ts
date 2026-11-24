@@ -71,6 +71,7 @@ import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { ensureUniqueImportIds } from '@/services/importNormalize';
 import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload, type TargetFingerprint } from '../documentContract';
+import { changedKnownTarget, guardedKnownTarget, type KnownTargetState } from '../knownTargetGuard';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
@@ -96,7 +97,8 @@ import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerEx
 import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementSettled } from '@/services/fileAccess/writeCoordinator';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
-  changeSaving, documentContentOf, replaceDocumentContent, sameDocumentContent, stampSaved, type DocumentContentRef,
+  changeSaving, clearChangedOnDisk, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
+  sameDocumentContent, stampSaved, type DocumentContentRef,
 } from '../documentSaveState';
 import { saveQuestionOpen } from '@/state/blockingDialogs';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
@@ -105,6 +107,7 @@ import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
+import { launchTabFor, openTabFor, readVersionOf, startOpenLookup, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -384,6 +387,7 @@ export interface OpenOpenedFileOptions {
   /** Is wat gelezen is intussen mogelijk verouderd? In dezelfde synchrone stap, na `existingDocument`: `true` ⇒ niets
    *  activeren; de aanroeper leest opnieuw (een startbestand, #1091). */
   stale?: () => boolean;
+  lookup?: OpenLookup | null;
   /** Alleen het crashherstel, voor zijn eigen bron na de controle op lengte en SHA-256 (`recoveryDocumentWithSource`):
    *  de productgrens voor het openen van een model (`refuseModelAboveOpenLimit`) geldt dan niet, zodat herstel gelijk
    *  blijft aan main. Elke andere aanroeper laat dit weg en krijgt de grens. */
@@ -411,6 +415,8 @@ export interface FileSlice {
   hydrateRecentFiles: () => Promise<void>;
   openRecentFile: (id: string, labels?: ImportLabels) => Promise<void>;
   openFromSite: (id: string, labels?: ImportLabels) => Promise<boolean>;
+  markChangedOnDisk: (documentId: string) => void;
+  forgetChangedOnDisk: (documentId: string) => void;
   parseExternalSource: (filePath: string, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
   externalSourceVersion: (filePath: string) => Promise<string | undefined>;
   checkExternalSources: (labels?: ImportLabels) => Promise<void>;
@@ -1050,6 +1056,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return;
     }
     if (choice.version === undefined) {
+      const existing = opened.ref && ifcForeignContentEnabled(get().ui.featureFlags) && readFormatForFile(opened.name).canBeSaveTarget
+        ? openTabFor(get(), opened.ref, null, readVersionOf(opened.ref, parsed, opened.version)) : null;
+      if (existing !== null) {
+        switchToOpenDocument(get(), existing);
+        await pushRecent(opened.ref, opened.name);
+        return;
+      }
       get().openAsDocument(parsed, { name: opened.name, ref: opened.ref, siteFileVersion: opened.version });
       offerFormatNotice(opened.name, opened.content);
       await pushRecent(opened.ref, opened.name);
@@ -1057,6 +1070,22 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
     get().openAsDocument(parsed, { name: siteVersionCopyName(opened.name, choice.version, choice.copyName), ref: null });
     offerFormatNotice(opened.name, opened.content);
+  };
+
+  const readLocalRef = async (
+    ref: Exclude<FileRef, { kind: 'site' }>, name: string, readOptions: FormatReadOptions,
+  ): Promise<OpenedFile | null> => {
+    const isBinary = readsAsBytes(name, readOptions);
+    if (ref.kind === 'path' && isTauri()) {
+      return { ...await readOpenedPath(ref.path, isBinary), name };
+    }
+    const content = isBinary ? null : await readFromRef(ref);
+    const bytes = isBinary ? await readBytesFromRef(ref) : null;
+    if (isBinary ? bytes === null : content === null) {
+      get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: name });
+      return null;
+    }
+    return { name, content: content ?? '', ...(bytes ? { bytes } : {}), ref };
   };
 
   const openRecentSiteFile = async (entry: RecentEntry, labels?: ImportLabels) => {
@@ -1105,6 +1134,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   const ownTargetContentNotice = (content: Exclude<SourceTargetContent, 'same'>): NotifyInput =>
     content === 'changed' ? IFC_FOREIGN_TARGET_CHANGED_NOTICE : IFC_FOREIGN_TARGET_GONE_NOTICE;
+
+  const knownTargetOf = (documentId: string): KnownTargetState => {
+    const app = get();
+    return { featureFlags: app.ui.featureFlags, known: saveSourceForDocument(app, documentId)?.knownTargetFingerprint ?? null };
+  };
+  const refuseChangedKnownTarget = async (documentId: string, ref: FileRef, known: TargetFingerprint): Promise<boolean> => {
+    const change = await changedKnownTarget(() => knownTargetOf(documentId), known, ref);
+    if (change) get().notify(ownTargetContentNotice(change));
+    return change !== null;
+  };
 
   const replaceOwnHandle = async (
     documentId: string, state: AppState, prepared: PreparedIfcWrite, write: IfcOutput,
@@ -1336,6 +1375,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       if (ref && !handleRefused && !(write.prepared && ref.kind === 'handle')) {
         try {
+          const known = write.prepared ? null : guardedKnownTarget(knownTargetOf(documentId), ref);
+          if (known && await refuseChangedKnownTarget(documentId, ref, known)) return false;
           if (refuseChangedDocumentWrite(state, write)) return false;
           const last = lastWriteCheck(state, write);
           const hashing = writtenFingerprint(state.ui.featureFlags, write);
@@ -1742,6 +1783,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     openFile: async (labels) => {
       if (siteQuestionOpen()) return;
       let opened: OpenedFile | null;
+      let readOptions: FormatReadOptions = {};
+      const found: { lookup: OpenLookup | null } = { lookup: null };
       try {
         if (siteStorageAvailable()) {
           const extensions = [...new Set(openDialogFilters().flatMap((filter) => filter.extensions))];
@@ -1752,13 +1795,19 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             return;
           }
         }
-        opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions(formatReadOptions()) });
+        readOptions = formatReadOptions();
+        opened = await openFileDialog(openDialogFilters(), {
+          binaryExtensions: binaryExtensions(readOptions),
+          ...(readOptions.ifcBytes ? { beforeRead: (ref: Extract<FileRef, { kind: 'handle' }>) => {
+            if (readFormatForFile(ref.handle.name).canBeSaveTarget) found.lookup = startOpenLookup(get(), ref);
+          } } : {}),
+        });
       } catch (err) {
         console.error('Failed to open file:', err);
         for (const notice of openFailureNotices(err)) get().notify(notice);
         return;
       }
-      if (opened) await get().openOpenedFile(opened, labels);
+      if (opened) await get().openOpenedFile(opened, labels, { lookup: found.lookup });
     },
 
     openOpenedFile: async (opened, labels, options) => {
@@ -1770,10 +1819,21 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
         }
         // In dezelfde synchrone stap: staat dit bestand nu al in een tabblad, dan dat tabblad (een startbestand, #1091).
-        const existing = options?.existingDocument?.() ?? null;
-        if (existing !== null) {
-          get().switchDocument(existing);
-          return;
+        const oneTab = ifcForeignContentEnabled(get().ui.featureFlags);
+        const read = oneTab && opened.ref ? readVersionOf(opened.ref, parsed) : null;
+        if (options?.existingDocument) {
+          const launched = options.existingDocument();
+          if (launched !== null) {
+            switchToOpenDocument(get(), launchTabFor(get(), launched, read));
+            return;
+          }
+        } else if (oneTab && opened.ref && readFormatForFile(opened.name).canBeSaveTarget) {
+          const existing = openTabFor(get(), opened.ref, options?.lookup ?? null, read);
+          if (existing !== null) {
+            switchToOpenDocument(get(), existing);
+            await pushRecent(opened.ref, opened.name);
+            return;
+          }
         }
         if (options?.stale?.()) return;
 
@@ -2023,6 +2083,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           const now = target ? saveTargetRef(target) : null;
           if (!target || !now || !sameFileRef(now, own) || !sameDocumentContent(s, content)) return;
           target.knownTargetFingerprint = { sha256, byteLength: bytes.byteLength };
+          clearChangedOnDisk(s, documentId);
         });
       })();
     },
@@ -2405,24 +2466,23 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       try {
         const readOptions = formatReadOptions();
-        const isBinary = readsAsBytes(entry.name, readOptions);
-        let opened: OpenedFile;
-        if (entry.ref.kind === 'path' && isTauri()) {
-          opened = { ...await readOpenedPath(entry.ref.path, isBinary), name: entry.name };
-        } else {
-          const content = isBinary ? null : await readFromRef(entry.ref);
-          const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
-          if (isBinary ? bytes === null : content === null) {
-            get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: entry.name });
-            return;
-          }
-          opened = { name: entry.name, content: content ?? '', ...(bytes ? { bytes } : {}), ref: entry.ref };
-        }
-        await get().openOpenedFile(opened, labels);
+        const lookup = readOptions.ifcBytes && entry.ref.kind === 'handle' && readFormatForFile(entry.name).canBeSaveTarget
+          ? startOpenLookup(get(), entry.ref) : null;
+        const opened = await readLocalRef(entry.ref, entry.name, readOptions);
+        if (!opened) return;
+        await get().openOpenedFile(opened, labels, { lookup });
       } catch (err) {
         console.error('Failed to open recent file:', err);
         for (const notice of openFailureNotices(err)) get().notify(notice);
       }
+    },
+
+    markChangedOnDisk: (documentId) => {
+      set((s) => { markChangedOnDiskIn(s, documentId); });
+    },
+
+    forgetChangedOnDisk: (documentId) => {
+      set((s) => { clearChangedOnDisk(s, documentId); });
     },
 
     openFromSite: async (id, labels) => {

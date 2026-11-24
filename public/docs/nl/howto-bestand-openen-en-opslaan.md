@@ -17,13 +17,15 @@ Je begint de dag met het project van gisteren, je krijgt een bestand van een col
 
 Een IFC-bestand geeft zijn bestandsnaam aan het tabblad. Een project uit een ander formaat krijgt zijn projectnaam.
 
+Staat de experimentele instelling *IFC met gebouwmodel openen* aan (zie [App-instellingen](docs://ref-instellingen)) en open je een IFC-bestand dat al in een tabblad open staat, dan komt er geen tweede tabblad: de app gaat naar dat tabblad. Dat tabblad houdt zijn inhoud, ook wijzigingen die je nog niet opsloeg. Is het bestand veranderd sinds dat tabblad het opende of opsloeg, bijvoorbeeld omdat een collega een nieuwe versie opsloeg, dan staat er boven dat tabblad een strook: *kantoor.ifc is buiten dit tabblad gewijzigd. Dit tabblad toont nog de eerdere versie. Sluit dit tabblad en open het bestand opnieuw om de nieuwe versie te zien.* De strook hoort bij dat tabblad en blijft staan tot je het tabblad opslaat, het als IFC over hetzelfde bestand exporteert of het sluit. Heeft het tabblad wijzigingen die je nog niet opsloeg en wil je die bewaren, kies dan eerst *Opslaan als*, zodat ze in een nieuw bestand komen. Vanzelf laadt de app nooit een nieuwe versie. Weet de app niet welke versie het tabblad heeft, bijvoorbeeld omdat je het opende terwijl de instelling uit stond, dan opent het bestand in een nieuw tabblad; alleen een dubbelklik gaat dan zoals altijd naar het open tabblad, zonder melding. In de desktop-app herkent de app hetzelfde bestand aan precies dezelfde padtekst: via een snelkoppeling of een anders geschreven pad krijgt het een eigen tabblad. In de browser moet de app het bestand op tijd herkennen; lukt dat niet, dan opent het in een nieuw tabblad. Dat geldt ook voor slepen, *Recent* en een dubbelklik. Een bestand in een ander formaat, zoals `.csv` of `.xer`, opent wel opnieuw in een eigen tabblad. Dat doet ook een bestand van je computer in browsers die alleen downloaden, zoals Firefox. Staat de instelling uit, dan opent ook een IFC-bestand dat al open staat in een nieuw tabblad; alleen een dubbelklik gaat dan naar het open tabblad, zonder melding.
+
 De app opent `.ifc`, `.csv`, `.xml` (MS Project XML of Primavera P6 XML), `.mpp` en `.xer`. Voor de laatste twee staan aparte stappen in [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen) en [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen).
 
 ### Een bestand naar de app slepen
 
 1. Sleep een of meer bestanden vanuit je bestandsbeheer of Finder naar het venster van de app.
 2. Tijdens het slepen ligt er een grijze laag over het venster, met *Laat los om te openen* en *Projectbestand of import*.
-3. Laat de muisknop los. Elk bestand opent zoals bij *Openen*: in een eigen tabblad, in de volgorde waarin je ze sleepte. Het laatste bestand is daarna het actieve tabblad. Was het huidige tabblad leeg en ongewijzigd, dan opent het eerste bestand daarin.
+3. Laat de muisknop los. Elk bestand opent zoals bij *Openen*: in een eigen tabblad, in de volgorde waarin je ze sleepte. Met de experimentele instelling hierboven gaat een IFC-bestand dat al open staat naar zijn tabblad. Het laatste bestand is daarna het actieve tabblad. Was het huidige tabblad leeg en ongewijzigd, dan opent het eerste bestand daarin.
 4. Verschijnt na een bestand de uitleg over zijn formaat, dan opent het volgende bestand pas als je die uitleg sluit met *Begrepen*. Zo krijgt elk bestand zijn eigen uitleg.
 
 Een project met wijzigingen blijft in zijn eigen tabblad staan; slepen vervangt niets. Een gesleept IFC-bestand werkt daarna als een geopend bestand: *Opslaan* schrijft ernaar, behalve in browsers die alleen downloaden, zoals Firefox.
@@ -34,7 +36,7 @@ Staat er een venster of vraag open, dan opent slepen niets. Open je een venster 
 
 ### Een bestand openen met een dubbelklik (desktopapp)
 
-De installer koppelt `.ifc` niet aan de app. Wil je een bestand met een dubbelklik openen, koppel het formaat dan zelf: op Windows met de rechtermuisknop op het bestand, *Openen met* en *Een andere app kiezen*. De app opent het bestand dan zoals bij *Openen*, in een eigen tabblad. Staat de app al open, dan opent het bestand in dat venster. Dat werkt ook vanaf de opdrachtregel, met het pad als argument.
+De installer koppelt `.ifc` niet aan de app. Wil je een bestand met een dubbelklik openen, koppel het formaat dan zelf: op Windows met de rechtermuisknop op het bestand, *Openen met* en *Een andere app kiezen*. De app opent het bestand dan zoals bij *Openen*, in een eigen tabblad. Staat de app al open, dan opent het bestand in dat venster. Staat het bestand daar al in een tabblad open, dan gaat de app naar dat tabblad. Dat werkt ook vanaf de opdrachtregel, met het pad als argument.
 
 Staat er bij het starten een venster open, zoals het welkomstvenster, dan opent het bestand zodra je dat venster sluit. Bestaat het bestand niet, of is het een formaat dat de app niet kent, dan zie je de gewone melding en blijft de app open. Een bestand buiten je thuismap kan de app op deze manier nog niet lezen; open het dan met *Openen*.
 
@@ -70,6 +72,8 @@ Klik op het kruisje van het tabblad, of kies *Bestand › Sluit project*. Heeft 
 ## Valkuilen en wat de app dan doet
 
 **Een geopend IFC-bestand is meteen het bestand van je project.** *Opslaan* overschrijft dat bestand, ook als het uit een ander programma komt. Wil je het origineel houden, kies dan eerst *Opslaan als*.
+
+**Wijzigde iemand anders het bestand intussen, dan schrijft Opslaan er niet overheen.** Dat geldt als de experimentele instelling *IFC met gebouwmodel openen* aan staat (zie [App-instellingen](docs://ref-instellingen)). Vervangt een collega of een ander programma je bestand terwijl het bij jou open staat, dan meldt *Opslaan*: *Niet opgeslagen. Het bestand is intussen door een ander programma gewijzigd. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.* Je project blijft *Niet opgeslagen*. Wil je de andere versie toch vervangen, kies dan *Opslaan als* en hetzelfde bestand. De app kijkt zolang dit tabblad de versie van het eigen bestand kent: na openen, na opslaan en na een export over dat bestand. Na een herstel na een crash, of als in de desktop-app het schrijven naar het bestand zelf mislukte, kent het tabblad die versie niet en schrijft *Opslaan* er de eerstvolgende keer gewoon overheen. Is het bestand van een planning zonder gebouwmodel verdwenen, dan schrijft *Opslaan* het in de desktop-app gewoon opnieuw. Zonder die instelling schrijft *Opslaan* altijd over het bestand heen.
 
 **Andere formaten worden nooit overschreven.** Een `.csv`, `.xml`, `.mpp` of `.xer` heeft na het openen geen bestand. *Opslaan* schrijft een nieuw IFC-bestand en laat het origineel ongemoeid.
 

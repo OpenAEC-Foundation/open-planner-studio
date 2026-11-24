@@ -13,6 +13,7 @@ import { markScheduleStale } from '../transaction';
 import { refreshProjectCalendarCache, syncProjectCalendar } from '../syncProjectCalendar';
 import { appLog } from '@/services/debug/appLog';
 import { runInScratchDocument } from '../runtime/scratchDocument';
+import { restoreTimephasedLossNoticeClaims, snapshotTimephasedLossNoticeClaims } from '../timephasedLossNotice';
 import {
   planDistributionWrites,
   type DistributionApplyRecord,
@@ -846,7 +847,9 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       const pool = current(draftPool);
       const anyApplicable = links.some((link) => link.kind === 'resource'
         ? pool.resources.some((r) => r.id === link.poolId)
-        : pool.calendars.some((c) => c.id === link.poolId));
+          && s.resources.some((r) => r.id === link.projectId)
+        : pool.calendars.some((c) => c.id === link.poolId)
+          && s.calendars.some((c) => c.id === link.projectId));
       if (!anyApplicable) return;
       runtime.beginUndoable(s);
       let calendarLinked = false;
@@ -1003,6 +1006,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
 
     const sleepingResults: { docId: string; before: DocumentPayload; after: DocumentPayload }[] = [];
     const pendingNotifications: NotifyInput[] = [];
+    const claimSnapshot = snapshotTimephasedLossNoticeClaims();
     for (const w of sleepingWrites) {
       const entry = state.documents.find((d) => d.id === w.docId);
       if (!entry?.payload) continue;
@@ -1012,6 +1016,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       pendingNotifications.push(...out.notifications);
       const cpmError = out.ok ? out.payload.cpmResult?.error : undefined;
       if (!out.ok || cpmError) {
+        restoreTimephasedLossNoticeClaims(claimSnapshot);
         return { ok: false, reason: 'scratch-failed', docId: w.docId, error: out.error ?? cpmError };
       }
       sleepingResults.push({ docId: w.docId, before: entry.payload, after: out.payload });

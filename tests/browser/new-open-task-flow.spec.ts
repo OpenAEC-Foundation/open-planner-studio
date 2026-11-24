@@ -171,6 +171,59 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
   expect(afterDrop.activeDocumentId).not.toBe(beforeDrop.activeDocumentId);
   expect(afterDrop.tasks.length).toBeGreaterThan(0);
   await expect(page.locator('[data-ops-tabstrip]')).toContainText('gesleept');
+
+  await page.evaluate(async (text) => {
+    window.__OPS__!.store.setState((s) => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: true }; });
+    const root = await navigator.storage.getDirectory();
+    const handle = await root.getFileHandle('kantoor.ifc', { create: true });
+    const writable = await handle.createWritable();
+    await writable.write(text);
+    await writable.close();
+    Object.defineProperty(document, 'featurePolicy', { configurable: true, value: undefined });
+    Object.defineProperty(window, 'showOpenFilePicker', {
+      configurable: true, writable: true,
+      value: async () => [await (await navigator.storage.getDirectory()).getFileHandle('kantoor.ifc')],
+    });
+  }, planning);
+  const openButton = page.locator('button.ribbon-btn').filter({ hasText: /^(Open|Openen)$/ });
+  const tabs = page.locator('[data-ops-tabstrip] [role="tab"]');
+  const tabsBefore = await tabs.count();
+  await openButton.click();
+  await expect(tabs).toHaveCount(tabsBefore + 1);
+  const kantoor = page.locator('[data-ops-tabstrip] [role="tab"]', { hasText: 'kantoor' });
+  await expect(kantoor).toHaveAttribute('aria-selected', 'true');
+  await page.evaluate(() => window.__OPS__!.store.getState().addTask({ name: 'Onopgeslagen in kantoor', manuallyScheduled: true }));
+  const kantoorWork = await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.name));
+  await page.locator('[data-ops-tabstrip] [role="tab"]', { hasText: 'gesleept' }).click();
+  await expect(kantoor).toHaveAttribute('aria-selected', 'false');
+  await openButton.click();
+  await expect(kantoor).toHaveAttribute('aria-selected', 'true');
+  await expect(tabs).toHaveCount(tabsBefore + 1);
+  const strip = page.locator('[data-ops-changed-on-disk]');
+  await expect(strip).toHaveCount(0);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.name))).toEqual(kantoorWork);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(true);
+
+  await page.evaluate(async (text) => {
+    const handle = await (await navigator.storage.getDirectory()).getFileHandle('kantoor.ifc');
+    const writable = await handle.createWritable();
+    await writable.write(`${text}\n`);
+    await writable.close();
+  }, planning);
+  await page.locator('[data-ops-tabstrip] [role="tab"]', { hasText: 'gesleept' }).click();
+  await openButton.click();
+  await expect(kantoor).toHaveAttribute('aria-selected', 'true');
+  await expect(tabs).toHaveCount(tabsBefore + 1);
+  await expect(strip).toBeVisible();
+  await expect(strip).toContainText('kantoor.ifc was changed outside this tab. This tab still shows the earlier version. Close this tab and open the file again to see the new version.');
+  await expect(strip.locator('button')).toHaveCount(0);
+  await expect(page.locator('.ops-toast', { hasText: 'was changed outside this tab' })).toHaveCount(0);
+  await page.locator('[data-ops-tabstrip] [role="tab"]', { hasText: 'gesleept' }).click();
+  await expect(strip).toHaveCount(0);
+  await kantoor.click();
+  await expect(strip).toBeVisible();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.name))).toEqual(kantoorWork);
+  await page.evaluate(() => window.__OPS__!.store.setState((s) => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; }));
 });
 
 test('Taak toevoegen selecteert, onthult en richt de nieuwe taak zonder zoomwijziging', async ({ page, ops: _ops }) => {

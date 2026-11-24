@@ -17,13 +17,15 @@ You start the day with yesterday's project, you get a file from a colleague or f
 
 An IFC file gives its file name to the tab. A project from another format gets its project name.
 
+If the experimental setting *Open IFC with a building model* is on (see [App settings](docs://ref-instellingen)) and you open an IFC file that is already open in a tab, no second tab appears: the app goes to that tab. That tab keeps its content, including changes you have not saved yet. If the file has changed since that tab opened or saved it, for example because a colleague saved a new version, a strip appears above that tab: *kantoor.ifc was changed outside this tab. This tab still shows the earlier version. Close this tab and open the file again to see the new version.* The strip belongs to that tab and stays until you save the tab, export it as IFC over the same file or close it. If the tab has changes you have not saved and you want to keep them, choose *Save As* first, so they go into a new file. The app never loads a new version by itself. If the app does not know which version the tab has, for example because you opened it while the setting was off, the file opens in a new tab; only a double-click then goes to the open tab as always, without a message. In the desktop app, the app recognises the same file by exactly the same path text: through a shortcut or a path written differently, it gets a tab of its own. In the browser, the app has to recognise the file in time; if it does not, the file opens in a new tab. The same goes for dragging, *Recent* and a double-click. A file in another format, such as `.csv` or `.xer`, does open again in a tab of its own. So does a file from your computer in browsers that only download, such as Firefox. If the setting is off, an IFC file that is already open also opens in a new tab; only a double-click then goes to the open tab, without a message.
+
 The app opens `.ifc`, `.csv`, `.xml` (MS Project XML or Primavera P6 XML), `.mpp` and `.xer`. For the last two there are separate steps in [Opening an MS Project file (.mpp)](docs://howto-mpp-openen) and [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen).
 
 ### Dragging a file into the app
 
 1. Drag one or more files from your file manager or Finder onto the app window.
 2. While you drag, a grey layer covers the window, with *Drop to open* and *Project file or import*.
-3. Release the mouse button. Each file opens as with *Open*: in its own tab, in the order in which you dragged them. The last file is then the active tab. If the current tab was empty and unchanged, the first file opens in it.
+3. Release the mouse button. Each file opens as with *Open*: in its own tab, in the order in which you dragged them. With the experimental setting above, an IFC file that is already open goes to its tab. The last file is then the active tab. If the current tab was empty and unchanged, the first file opens in it.
 4. If a file shows the explanation of its format, the next file opens only after you close that explanation with *Got it*. This way each file gets its own explanation.
 
 A project with changes stays in its own tab; dragging replaces nothing. A dragged IFC file then works like an opened file: *Save* writes to it, except in browsers that only download, such as Firefox.
@@ -34,7 +36,7 @@ If a dialog or question is open, dragging opens nothing. If you open a dialog wh
 
 ### Opening a file with a double-click (desktop app)
 
-The installer does not associate `.ifc` with the app. To open a file with a double-click, associate the format yourself: on Windows, right-click the file, choose *Open with* and *Choose another app*. The app then opens the file as with *Open*, in its own tab. If the app is already running, the file opens in that window. This also works from the command line, with the path as an argument.
+The installer does not associate `.ifc` with the app. To open a file with a double-click, associate the format yourself: on Windows, right-click the file, choose *Open with* and *Choose another app*. The app then opens the file as with *Open*, in its own tab. If the app is already running, the file opens in that window. If the file is already open in a tab there, the app goes to that tab. This also works from the command line, with the path as an argument.
 
 If a dialog is open when the app starts, such as the welcome dialog, the file opens as soon as you close that dialog. If the file does not exist, or is in a format the app does not know, you see the usual message and the app stays open. The app cannot yet read a file outside your home folder this way; open it with *Open* instead.
 
@@ -70,6 +72,8 @@ Click the cross on the tab, or choose *File › Close project*. If the project h
 ## Pitfalls and what the app does then
 
 **An opened IFC file is immediately your project's file.** *Save* overwrites that file, even if it comes from another program. If you want to keep the original, choose *Save As* first.
+
+**If someone else changed the file in the meantime, Save does not write over it.** This applies when the experimental setting *Open IFC with a building model* is on (see [App settings](docs://ref-instellingen)). If a colleague or another program replaces your file while you have it open, *Save* reports: *Not saved. The file was changed by another program in the meantime. Your changes are still in the app. Choose Save As to keep them in a new file.* Your project stays *Not saved*. If you do want to replace the other version, choose *Save As* and the same file. The app checks as long as this tab knows the version of its own file: after opening, after saving and after an export over that file. After a recovery from a crash, or if writing to the file itself failed in the desktop app, the tab does not know that version and *Save* simply writes over the file the next time. If the file of a schedule without a building model has disappeared, *Save* in the desktop app simply writes it again. Without that setting, *Save* always writes over the file.
 
 **Other formats are never overwritten.** A `.csv`, `.xml`, `.mpp` or `.xer` has no file after opening. *Save* writes a new IFC file and leaves the original alone.
 
