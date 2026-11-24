@@ -8,7 +8,9 @@
 import type { AppState } from '@/state/appStoreFactory';
 import type { ImportLabels } from '@/services/importTypes';
 import { splitDroppedFiles, type DroppedFile } from '@/services/fileAccess/fileDrop';
+import { readFormatForFile, type FormatReadOptions } from '@/services/formatRegistry';
 import { openFailureNotices } from '@/state/slices/fileSlice';
+import { startOpenLookup, type HandleRef, type OpenLookup } from '@/state/openDocumentFor';
 
 /** De namen in de melding: hoogstens vijf, daarna "…", zodat een sleep met een hele map de melding
  *  niet over het scherm laat lopen. Bestandsnamen blijven zoals ze zijn (geen vertaling). */
@@ -18,7 +20,7 @@ export function fileNameList(names: readonly string[]): string {
 }
 
 interface FileDropStore {
-  getState(): Pick<AppState, 'openOpenedFile' | 'notify' | 'ui'>;
+  getState(): Pick<AppState, 'openOpenedFile' | 'notify' | 'ui' | 'getOpenDocumentPayloads'>;
 }
 
 /**
@@ -38,7 +40,7 @@ export async function openDroppedFiles(
   files: readonly DroppedFile[],
   labels: ImportLabels,
   isBlocked: () => boolean,
-  options: { waitWhenBlocked?: boolean } = {},
+  options: { waitWhenBlocked?: boolean; readOptions?: FormatReadOptions } = {},
 ): Promise<void> {
   if (files.length === 0) return;
   if (!options.waitWhenBlocked && isBlocked()) {
@@ -64,16 +66,23 @@ export async function openDroppedFiles(
     });
   }
   const waitWhile = () => isBlocked() || store.getState().ui.pendingFormatNotice !== null;
+  const readOptions = options.readOptions;
   for (const file of openable) {
+    let lookup: OpenLookup | null = null;
+    const beforeRead = readOptions?.ifcBytes && readFormatForFile(file.name).canBeSaveTarget
+      ? (ref: HandleRef) => { lookup = startOpenLookup(store.getState(), ref); }
+      : undefined;
     let opened;
     try {
-      opened = await file.read();
+      opened = await file.read(beforeRead);
     } catch (err) {
       console.error('Failed to read dropped file:', err);
       for (const notice of openFailureNotices(err)) store.getState().notify(notice);
       continue;
     }
     // `openOpenedFile` meldt een leesfout van het formaat zelf en gooit niet.
-    await store.getState().openOpenedFile(opened, labels, { waitWhile, existingDocument: file.existingDocument, stale: file.stale });
+    await store.getState().openOpenedFile(opened, labels, {
+      waitWhile, existingDocument: file.existingDocument, stale: file.stale, lookup,
+    });
   }
 }

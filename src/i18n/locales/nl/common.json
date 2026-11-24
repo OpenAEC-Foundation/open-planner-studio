@@ -780,6 +780,7 @@
     "closeTitle": "Niet-opgeslagen wijzigingen",
     "closeBody": "'{{name}}' heeft wijzigingen die nog niet zijn opgeslagen.",
     "dontSave": "Niet opslaan",
+    "changedOnDisk": "{{name}} is buiten dit tabblad gewijzigd. Dit tabblad toont nog de eerdere versie. Sluit dit tabblad en open het bestand opnieuw om de nieuwe versie te zien.",
     "stillSaving": "Wordt nog opgeslagen…"
   },
   "feedback": {
