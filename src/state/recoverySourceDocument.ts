@@ -5,18 +5,22 @@ import { recoveryIfcSourceFields } from '@/services/recovery/recoveryIfcSource';
 import { pendingIfcSourceSha256 } from '@/services/recovery/recoveryPendingSource';
 import { foreignSourceTargetOf } from '@/services/ifc/foreign/foreignSourceMark';
 import type { RecoverySourceDocument } from '@/services/recovery/recoveryDelta';
+import { recoverySnapshotGlobalIds } from '@/services/recovery/recoverySharedGlobalIds';
 
 /** De momentopname voor de hook: actuele bronmetadata, nooit een hash uit de serialisatiecache. */
 export function recoverySourceDocument(id: string, payload: DocumentPayload, enabled: boolean): RecoverySourceDocument {
+  const ifcSource = recoveryIfcSourceFields(payload, enabled, pendingIfcSourceSha256(id));
+  const withheldGlobalIds = ifcSource.ifcSource?.sharedGlobalIds && recoverySnapshotGlobalIds(payload.ifcGlobalIds);
   return {
     id,
     // Een inmiddels gewone planning (bijvoorbeeld een opgeslagen backup) heeft geen modelbron
     // meer nodig. Expliciet sourceMissing: false bewaart juist de doelbescherming van 9e;
     // oude manifesten/flag uit houden hun bestaande bron-ontbreekt-gedrag.
     source: enabled && payload.ifcSource && !payload.ifcSource.foreign && payload.foreignSourceMark?.sourceMissing === undefined
-      ? { ...payload, foreignSourceMark: null } : payload,
+      ? { ...payload, foreignSourceMark: null }
+      : withheldGlobalIds ? { ...payload, ifcGlobalIds: withheldGlobalIds.snapshotGlobalIds } : payload,
     ...recoverySaveTarget(payload),
-    ...recoveryIfcSourceFields(payload, enabled, pendingIfcSourceSha256(id)),
+    ...ifcSource,
     ...(enabled && !isTauri() && payload.ifcSource?.foreign && !payload.foreignSourceMark?.sourceMissing
       && (payload.siteFileId || !payload.foreignSourceMark?.handle) ? { sourceCopy: {
         bytes: payload.ifcSource.bytes, siteFileId: payload.siteFileId, siteFileVersion: payload.siteFileVersion,
