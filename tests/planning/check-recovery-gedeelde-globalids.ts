@@ -20,9 +20,9 @@ import { recoverySourceDocument } from '@/state/recoverySourceDocument';
 import { readRecoveryDocument } from '@/state/readRecoveryDocument';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { planningCanon } from '@/services/ifc/foreign/planningCanon';
-import { recoverySnapshotInput, serializeRecoverySnapshot, writeRecoverySnapshot } from '@/services/recovery/recoverySnapshotInput';
+import { recoverySnapshotInput, writeRecoverySnapshot } from '@/services/recovery/recoverySnapshotInput';
 import { recoveryIdentityRows, type RecoveryIdentityRow } from '@/services/recovery/recoveryIdentity';
-import { ifcGuid128 } from '@/services/ifc/ifcWriter';
+import { ifcGuid128, writeIFC } from '@/services/ifc/ifcWriter';
 
 installDeterminism();
 await loadStore();
@@ -76,7 +76,10 @@ function pinMain(loaded: Loaded, store: Store, label: string, enabled = true) {
     if (!doc) continue;
     const mainSource = enabled && payload.ifcSource && !payload.ifcSource.foreign && payload.foreignSourceMark?.sourceMissing === undefined
       ? { ...payload, foreignSourceMark: null } : payload;
-    assert.equal(doc.ifc, serializeRecoverySnapshot(mainSource), `${label}: de snapshot is precies die van main`);
+    const mark = mainSource.foreignSourceMark;
+    const mainSnapshot = writeIFC({ ...buildWriteIFCInput(mainSource, 'planOnly'), xerSourceArchiveStorage: 'recovery-reference',
+      ...(mark ? { recoveryForeignSource: { sha256: mark.sha256, byteLength: mark.byteLength } } : {}) });
+    assert.equal(doc.ifc, mainSnapshot, `${label}: de snapshot is precies die van main`);
     pinned++;
   }
   assert(pinned > 0, `${label}: er is een snapshot vergeleken`);
@@ -248,7 +251,7 @@ console.log('PROEF 1 GROEN: bewerken, Ctrl+Z, tabbladwissel, crash, herstel: ids
 const craneRow = rows.find(row => row[0] === `res:${craneId}`)!;
 const firstRow = rows.find(row => row[0] === `res:res-ifc-${scaffolders.guid}`)!;
 const crashedDoc = crashed.docs.find(d => d.id === sessionId)!;
-const twiceInSnapshot: Loaded = { ...crashed, docs: crashed.docs.map(d => d === crashedDoc ? { ...d, ifc: d.ifc.split(`'${H}'`).join(`'${scaffolders.guid}'`) } : d) };
+const twiceInSnapshot: Loaded = { ...crashed, docs: crashed.docs.map(d => d === crashedDoc ? { ...d, ifc: d.ifc.split(`'${H}'`).join(`'${craneRow[2]}'`) } : d) };
 const broken: readonly (readonly [string, unknown, boolean, Loaded])[] = [
   ['dubbele sleutel', [...rows, rows[0]], false, crashed],
   ['ontbrekende identiteit', rows.map(row => row === craneRow ? [row[0], row[1], ifcGuid128('bestaat-niet')] : row), true, crashed],
