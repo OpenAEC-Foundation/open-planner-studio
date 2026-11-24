@@ -3828,21 +3828,26 @@ en noem het in je rapport of PR-tekst.
      `getFile()` en lezen. Gevonden door de review van #1174 (Sol, ronde 1). — S (niet nagespeeld met een echte
      Chromium-handle)
 
-2244. **VERVOLG (#804, featureflag aan): opslaan na een wijziging van een bestand met een gebouwmodel en veel taken
-     duurt lang, en de tijd groeit sneller dan het aantal taken.** Het gaat om de gewijzigde merge: een bestand met een
-     gebouwmodel openen, een taak wijzigen en opslaan. Gemeten in Node op aia09-mp50 (24 november 2026, wandkloktijd,
-     één run per regel, op main van die dag) met `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` waaraan gewone taken
-     zijn toegevoegd: bij 1.000 taken (1,2 MB) 7,0 s, bij 5.000 taken (5,8 MB) 55,8 s, bij 10.000 taken (11,9 MB)
-     147,6 s. Openen van dat laatste bestand kost 4,3 s. Met één onbekende JSON-sleutel per taaknotitie: 5,8 s bij 1.000
-     en 183,1 s bij 5.000 taken. De metingen bij 1.000 en 5.000 taken liepen terwijl de machine zwaar belast was (load
-     20 tot 36); die bij 10.000 taken bij een load rond 3. Een eerdere run van 10.000 taken onder zware belasting kwam
-     op 513,8 s. Niets hiervan is in rust of in CPU-tijd gemeten, en niet in de app zelf (de opslag-Worker). Welke stap
-     sneller groeit dan het aantal taken, is nog niet uitgezocht. Er gaat niets verloren; de opslag slaagt. Met de
-     flag uit, en bij een planning zonder gebouwmodel of gegevens van een ander programma, loopt deze route niet.
-     Besluit technisch beslisser (24 november 2026): dit hoort bij de voorwaarden voordat de flag standaard aan mag;
-     opslaan na een wijziging mag bij 10.000 taken niet meer dan enkele seconden kosten, en een kwadratische stap is
-     een bug, geen grens. Gezien door de bouwer van #1188 bij het meten van die PR. — S (gemeten door de bouwer,
-     meetlogs `opslag-main-1k.log`, `opslag-main-5k.log` en `opslag-main-10k-rustig.log` van #1188; niet nagemeten)
+2244. **VERVOLG (#804, featureflag aan): opslaan na een wijziging van een bestand met een gebouwmodel kost bij veel
+     taken nog ongeveer 20 tot 25 keer een gewone opslag.** Het gaat om de gewijzigde merge: een bestand met een
+     gebouwmodel openen, een taak wijzigen en opslaan. Gemeten in Node op aia09-mp50 (24 november 2026, CPU van de
+     hoofdthread, onder het gedeelde slot) met `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` plus gewone taken en
+     één gewijzigde taaknaam, bij 1.000 / 2.000 / 5.000 / 10.000 taken: vóór #1210 6,9 / 13,3 / 46,0 / 136,8 s, na #1210
+     5,6 / 10,2 / 23,8 / 47,0 s. De gewone writer schrijft dezelfde planning in 0,18 / 0,39 / 0,91 / 1,9 tot 2,5 s.
+     #1210 haalde de stappen weg die sneller groeiden dan het aantal taken (een opzoeking door alle taken of door een
+     hele lijst per taak of per lid); sindsdien groeit elke stap lineair en is de uitvoer byte voor byte die van main.
+     Wat overblijft is lineair werk dat vaak gebeurt: de merge schrijft, leest en vergelijkt de hele planning ongeveer
+     twintig keer (vijf keer de merge-writer, vier keer de canon-writer, drie keer de lezer, zes keer paren, drie keer
+     vergelijken en twee keer openen in een store). Besluit technisch beslisser (24 november 2026): dit hoort bij de
+     voorwaarden voordat de flag standaard aan mag; opslaan na een wijziging mag bij 10.000 taken niet meer dan enkele
+     seconden kosten. Die voorwaarde blijft open tot het aantal volledige rondes omlaag is; dat is een ontwerpstap, geen
+     losse bug. Er gaat niets verloren; de opslag slaagt. Met de flag uit, en bij een planning zonder gebouwmodel of
+     gegevens van een ander programma, loopt deze route niet. Alleen gelezen, niet gemeten, met hetzelfde patroon: in
+     `mergeWriter.ts` `parent.childIds.filter(id => !s.includes(id))` bij een gemengde `IfcRelNests` onder een eigen
+     taak en `lines.find` per vreemd lid van een eigen template; in `lossCheck.ts` `candidates.filter` en
+     `candidates.find` in `pairRelations` per relatie met dezelfde sleutel, en `[...p1.out.values()].find` in
+     `bareKeyInWriterForm` per teruggezette kale sleutel in `OPS_Assignments`. — S (gemeten in #1210 met de meetscripts
+     van de meting van knownbug 2244, mediaan van twee runs per grootte; niet in de app of in de opslag-Worker gemeten)
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
