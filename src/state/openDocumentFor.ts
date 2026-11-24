@@ -26,7 +26,7 @@ export function startOpenLookup(s: Tabs, ref: HandleRef): OpenLookup {
 
 export type ReadVersion =
   | { readonly kind: 'site'; readonly version: string }
-  | { readonly kind: 'bytes'; readonly fingerprint: TargetFingerprint };
+  | { readonly kind: 'bytes'; readonly fingerprint: Pick<TargetFingerprint, 'sha256' | 'byteLength'> };
 
 export function readVersionOf(ref: FileRef, parsed: OpenedImport, siteVersion?: string | null): ReadVersion | null {
   if (ref.kind === 'site') return siteVersion ? { kind: 'site', version: siteVersion } : null;

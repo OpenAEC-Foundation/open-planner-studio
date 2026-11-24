@@ -1457,15 +1457,20 @@ await check('Ctrl+S met de flag uit (na het openen uitgezet): dezelfde weigering
 });
 
 const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
-const PLAIN_SAVE_CALLS: Record<'aan' | 'uit', string[]> = {
+const PLAIN_SAVE_CALLS: Record<'aan' | 'aan, onbekend' | 'aan, zelf geschreven' | 'uit', string[]> = {
   // Met de flag aan leest de doelcontrole eerst het bestaande doel (`refusedWriteTarget`), dan de gewone atomaire opslag.
   aan: ['plugin:fs|open <map>/model.ifc', 'plugin:fs|read ', 'plugin:fs|read ', 'plugin:fs|seek ', 'plugin:fs|read ',
     'plugin:fs|read ', 'plugin:resources|close ', 'plugin:fs|stat <map>/model.ifc', 'plugin:fs|read_file <map>/model.ifc',
     'plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
+  'aan, onbekend': ['plugin:fs|open <map>/model.ifc', 'plugin:fs|read ', 'plugin:fs|read ', 'plugin:fs|seek ', 'plugin:fs|read ',
+    'plugin:fs|read ', 'plugin:resources|close ',
+    'plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
+  'aan, zelf geschreven': ['plugin:fs|stat <map>/model.ifc', 'plugin:fs|read_file <map>/model.ifc',
+    'plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
   uit: ['plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
 };
 for (const flag of [true, false]) {
-  await check(`Ctrl+S zonder gebouwmodel, flag ${flag ? 'aan: de route van main, vooraf de doelscan en de toets van de bekende versie' : 'uit: dezelfde route en dezelfde aanroepen aan de bestandsrand als main'}`, async () => {
+  await check(`Ctrl+S zonder gebouwmodel, flag ${flag ? 'aan: na openen en zonder bekende versie de route van main (de doelscan, dan de toets van de bekende versie); op een zelf geschreven versie alleen die toets, vlak vóór het schrijven' : 'uit: dezelfde route en dezelfde aanroepen aan de bestandsrand als main'}`, async () => {
     const dir = join(work, `geval-${++cases}`);
     mkdirSync(dir);
     const path = join(dir, 'model.ifc');
@@ -1485,8 +1490,15 @@ for (const flag of [true, false]) {
     assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
     assert.equal(store.getState().isDirty, false);
     assert(readFileSync(path).toString('latin1').includes('Gewone opslag'));
-    // *Opslaan* in de sluitvraag: dezelfde aanroepen, en het tabblad gaat dicht zoals op main (fixronde 1 van #1008: de
-    // controle vlak vóór het sluiten beslist voor een gewoon document niets anders).
+    store.getState().setFilePath(path);
+    assert.equal(store.getState().knownTargetFingerprint, null, 'zonder bekende versie');
+    store.getState().updateTask(task.id, { name: 'Gewone opslag zonder bekende versie' });
+    const fromUnknown = ipc.calls.length;
+    await store.getState().saveFile();
+    const seenUnknown = ipc.calls.slice(fromUnknown).map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
+    assert.deepEqual(seenUnknown, PLAIN_SAVE_CALLS[flag ? 'aan, onbekend' : 'uit'], JSON.stringify(seenUnknown));
+    assert(readFileSync(path).toString('latin1').includes('Gewone opslag zonder bekende versie'));
+    assert.equal(store.getState().knownTargetFingerprint?.origin ?? null, flag ? 'written' : null);
     const id = store.getState().activeDocumentId;
     store.getState().updateTask(task.id, { name: 'Gewone opslag in de sluitvraag' });
     let closed = false;
@@ -1504,7 +1516,7 @@ for (const flag of [true, false]) {
       onSavePendingChange: pending => store.getState().setUI({ closeQuestionSaving: pending }),
     }).save();
     const seenClose = ipc.calls.slice(fromClose).map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
-    assert.deepEqual(seenClose, PLAIN_SAVE_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seenClose));
+    assert.deepEqual(seenClose, PLAIN_SAVE_CALLS[flag ? 'aan, zelf geschreven' : 'uit'], JSON.stringify(seenClose));
     assert.equal(closed, true, 'het tabblad gaat dicht');
     assert.equal(store.getState().getOpenDocumentPayloads().some(d => d.id === id), false);
     assert(readFileSync(path).toString('latin1').includes('Gewone opslag in de sluitvraag'));

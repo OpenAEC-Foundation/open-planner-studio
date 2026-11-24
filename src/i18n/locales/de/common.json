@@ -360,7 +360,6 @@
     "reportFontMissing": "Die eigene Schriftart {{name}} ist auf diesem Gerät nicht mehr vorhanden. Der Bericht verwendet wieder Inter.",
     "layoutsNotSaved": "Die Layouts konnten nicht gespeichert werden. Es wurde nichts geändert. Bitte versuchen Sie es erneut.",
     "ifcForeignOpenSchema": "Diese IFC-Datei enthält Daten eines anderen Programms und hat ein unbekanntes oder fehlendes Schema. Das Öffnen wurde angehalten, um Datenverlust beim Speichern zu verhindern.",
-    "ifcForeignOpenTooLarge": "Diese IFC-Datei ist größer als {{limit}} MB. Eine IFC-Datei mit einem Gebäudemodell oder mit Daten eines anderen Programms kann bis zu {{limit}} MB geöffnet werden.",
     "ifcForeignOpenUnsafe": "Diese IFC-Datei kann nicht sicher eingeordnet werden. Das Öffnen wurde angehalten, um Datenverlust beim Speichern zu verhindern.",
     "ifc2x3PlanningOnly": "IFC2X3 wurde als Terminplan geöffnet. Daten anderer Programme werden beim Speichern nicht übernommen.",
     "ifcForeignReplaceBlocked": "Nicht gespeichert. Dies ist die Datei, die Sie geöffnet haben. Verwenden Sie Speichern, um sie zu aktualisieren, oder „Speichern unter“ mit einem neuen Namen für eine Kopie.",

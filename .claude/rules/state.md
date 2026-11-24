@@ -83,9 +83,12 @@ de geschreven momentopname. `markAutoSaveVersionSaved` verwijst naar dezelfde co
 
 **De versie op het eigen doel** (#804, knownbug 1957 en 2064; gelezen door `openTabFor` bij het openen):
 `knownTargetFingerprint` (`DOCUMENT_FIELDS`, `snapshot: 'none'`, buiten `IFC_SAVE_KEYS`/`IFC_DIRTY_KEYS` en het
-herstelmanifest) is `{ sha256, byteLength }` van de bytes waarvan de app weet dat ze op het eigen pad of de eigen handle
-staan, of `null` (onbekend). Hash en grootte komen van dezelfde bytes en worden altijd samen gezet; de grootte laat een
-latere bewaking een ander bestand zonder lezen herkennen. Alleen met de flag `ifcForeignContent`. Openen neemt hash en
+herstelmanifest) is `{ sha256, byteLength, origin }` van de bytes waarvan de app weet dat ze op het eigen pad of de eigen
+handle staan, of `null` (onbekend). Hash en grootte komen van dezelfde bytes en worden altijd samen gezet; de grootte laat
+een latere bewaking een ander bestand zonder lezen herkennen. `origin` zegt waar de bytes vandaan komen: `'opened'` als
+openen ze van het doel las, `'written'` als de app ze zelf schreef (elke `commitSavedDocument`, ook de merge, en
+`settleFingerprintAfterExport`); de bewaking hieronder beslist er de doelscan op (knownbug 2203). Alleen met de flag
+`ifcForeignContent`. Openen neemt hash en
 grootte van `ifcSource` (geen extra hashwerk), alleen als de flag bij het activeren aan staat; IFC toepassen houdt het veld; laden in hetzelfde tabblad (`loadState`),
 een kopie, herstel, `setFilePath`, de site en een document zonder eigen pad of handle geven `null`. Elke
 `commitSavedDocument` zet het opnieuw: met `prepared` uit de merge, anders uit `written` (de opslagworker rekent de hash
@@ -113,12 +116,31 @@ aanroeper nergens op, zoals main. Anders `changedKnownTarget`: het bestand weg i
 grootte is veranderd; dezelfde grootte is lezen en SHA-256 (`knownTargetContent` in `fileAccess`). Na de vergelijking
 telt een weigering alleen als `guardedKnownTarget` nog dezelfde versie geeft (de flag ging niet uit). Veranderd of
 onleesbaar: niet schrijven, de melding van een gebouwmodel (`ownTargetContentNotice`; Automatisch opslaan
-`MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE` en `stopFor` met die versie). Die stop vervalt zodra `guardedKnownTarget` een
+`MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE` en `stopFor` met die versie). De toets is de laatste inhoudstoets vóór het
+schrijven, ná de broncontrole en ná elke doelscan (fixronde 1 van #1194).
+**Een zelf geschreven versie** (`origin: 'written'`, `writtenKnownTarget`; knownbug 2203): eigen schrijfuitvoer die op het
+doel staat, ook als een export haar op een andere naam schreef en het doel bytegelijk is (`settleFingerprintAfterExport`
+vergelijkt de inhoud, geen pad). Dan laat de doelcontrole alleen de doelscan weg (`refusedTargetIdentity` met
+`contentLeftToKnownTarget`, de splitsing van #1179); de broncontrole (regel 1) loopt wel. Regel 3 geldt voor deze twee routes niet,
+ook niet op main. Op de plek van de toets volgt één lezing met de vergelijking (`stillWrittenKnownTarget`). Gelijk:
+schrijven. Anders de route van main: de doelcontrole met haar stroomscan, daarna `changedKnownTarget`, met dezelfde
+meldingen en dezelfde stop; een verschil uit de eerste lezing telt niet mee. Dat de scan mag vervallen: op het doel
+staan dan bewezen (grootte en SHA-256, als laatste vóór het schrijven gelezen) de bytes die dit tabblad zelf schreef. Bij
+een gewone planning is dat haar eigen planning, of na een export over het eigen bestand de planning of bibliotheek van dit
+document (een document met een vreemd deel exporteert nooit over zijn eigen bestand: dat is zijn bron, regel 1). Een
+document met een vreemd deel komt hier niet langs: zijn opslag vergelijkt de bronbytes (`replaceOwnPathWithRecovery`,
+`sourceTargetContent`) en leest dit veld niet; geen route laat het zijn vreemde deel kwijtraken met dezelfde
+vingerafdruk (Opslaan als met ontbrekende bron zet een nieuwe, van de geschreven planning, op het nieuwe doel; IFC
+toepassen staat dicht). Een geopende versie (`'opened'`) en een onbekende houden de volgorde en de stroomscan van main:
+de scanner van openen aanvaardt meer dan de doelscan (twee datasecties, `stepScanner.ts`), en bij twijfel weigert de app
+(besluit Trias, 10 november 2026).
+De stop van Automatisch opslaan vervalt zodra `guardedKnownTarget` een
 andere waarde geeft: een vastgelegde eigen opslag of een export die het eigen doel schreef (`settleFingerprintAfterExport`;
 een nieuw object, ook als er intussen nieuw werk is), de flag uit (`setUI` wist het veld) of een onbekende versie;
 daarnaast de bestaande voorwaarden (niet gewijzigd, ander doel). De volgende ronde vergelijkt dan opnieuw. Geen wijzigingstijd: lezen en
-hashen van 11,8 MB kostte in Node 24 ms (knownbug 2203 voor de doelscan ernaast). Opslaan als en exports bewaakt ze
-niet. Proef: `check-bewaakte-opslag.ts`; het gat tussen toets en plaatsen: knownbug 2069.
+hashen van 11,8 MB kostte in Node 24 ms; wat er van de doelscan overblijft: knownbug 2203. Opslaan als en exports bewaakt
+ze niet. Proef: `check-bewaakte-opslag.ts` (2203 A tot en met G en de gevallen van fixronde 1) en de bestandsaanroepen per
+herkomst in `check-ifc-own-file-replace.ts`; het gat tussen toets en plaatsen: knownbug 2069.
 Bronvervanging is geen undo-event en telt niet als inhoudsverschil (`sameIFCSource`, ook voor de recoverydelta).
 `sameIFCSource` vergelijkt per referentie, met één uitzondering: een andere werksoortcatalogus telt alleen als de door
 taken gebruikte definities verschillen (`savedCustomTaskTypes`, dezelfde selectie als `writeTaskTypeMeta`). Zo is de stille

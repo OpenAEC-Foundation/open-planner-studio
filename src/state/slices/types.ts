@@ -231,7 +231,7 @@ export type NotificationMessageKey =
   // #804 fase 1a: opslaan van een document met een gebouwmodel is nog geweigerd (`state/ifcForeignGuard.ts`).
   | 'notifications.ifcForeignOpenSchema'
   | 'notifications.ifcForeignOpenUnsafe'
-  | 'notifications.ifcForeignOpenTooLarge'
+  | 'notifications.ifcForeignOpenLarge'
   | 'notifications.ifc2x3PlanningOnly'
   | 'notifications.ifcForeignSaveBlocked'
   | 'notifications.ifcForeignSourceMissing'

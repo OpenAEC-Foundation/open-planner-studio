@@ -784,7 +784,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
 
     {
       const { readFileSync } = await import('node:fs');
-      const { lowerModelOpenLimitForTests } = await import('@/services/ifc/modelOpenLimit');
+      const { lowerForeignOpenWarnBytesForTests } = await import('@/services/ifc/foreignOpenSize');
       const modelBytes = readFileSync('tests/fixtures/ifc-foreign/eigen-plus-model.ifc');
       const groot = join(dir, 'model-groot.ifc');
       writeFileSync(groot, modelBytes);
@@ -794,38 +794,38 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       dialogAnswer = groot;
       await T().openFile(labels);
       const modelTab = T().activeDocumentId;
-      eq('2043 voorwaarde: het model is open, met zijn bron', [T().filePath, !!T().ifcSource?.foreign], [groot, true]);
+      eq('al open model boven de drempel, voorwaarde: het model is open, met zijn bron', [T().filePath, !!T().ifcSource?.foreign], [groot, true]);
       T().newDocument();
       dialogAnswer = school;
       await T().openFile(labels);
       const schoolTab = T().activeDocumentId;
       const getFs = fileToolDeps.getFs;
       fileToolDeps.getFs = async () => ({ ...await realFs(), homeDir: async () => dir });
-      lowerModelOpenLimitForTests(modelBytes.length - 1);
+      lowerForeignOpenWarnBytesForTests(modelBytes.length - 1);
       try {
         for (const route of ['openen', 'recent', 'slepen', 'MCP'] as const) {
           T().switchDocument(schoolTab);
           clearNotices(st);
           const count = T().documents.length;
-          let mcpError: string | null = null;
+          let mcpAnswer: [boolean, boolean | undefined, boolean] | null = null;
           if (route === 'MCP') {
-            const r = await getTool('planner_import_schedule')!.handler({ path: groot }, mcpContext(app, schoolTab)) as { ok: boolean; code?: string; error?: string };
-            mcpError = r.ok ? null : `${r.code}: ${r.error ?? ''}`;
+            const r = await getTool('planner_import_schedule')!.handler({ path: groot }, mcpContext(app, schoolTab)) as { ok: boolean; data?: { alreadyOpen?: boolean; notice?: string } };
+            mcpAnswer = [r.ok, r.data?.alreadyOpen, /larger than/.test(r.data?.notice ?? '')];
           } else if (route === 'recent') {
             st.setState(s => { s.recentFiles = [{ id: 'g', ref: { kind: 'path', path: groot }, name: 'model-groot.ifc', addedAt: 1 }]; });
             await T().openRecentFile('g', labels);
           } else {
             await openVia(st, route, groot);
           }
-          eq(`2043 ${route}: model boven de grens dat al open staat; de groottemelding, geen wissel, geen tweede tabblad`, [
-            T().activeDocumentId === schoolTab, T().documents.length === count,
+          eq(`al open model boven de drempel, ${route}: naar dat tabblad, geen tweede tabblad, geen waarschuwing`, [
+            T().activeDocumentId === modelTab, T().documents.length === count,
             T().getOpenDocumentPayloads().some(d => d.id === modelTab && d.payload.filePath === groot),
-            route === 'MCP' ? /^VALIDATION: .*IFC open refused/.test(mcpError ?? '') : notices(st).some(n => n[1] === 'notifications.ifcForeignOpenTooLarge'),
-            notices(st).filter(n => n[1] === CHANGED).length,
-          ], [true, true, true, true, 0]);
+            route === 'MCP' ? mcpAnswer : null,
+            notices(st).filter(n => n[1] === CHANGED || n[1] === 'notifications.ifcForeignOpenLarge').length,
+          ], [true, true, true, route === 'MCP' ? [true, true, false] : null, 0]);
         }
       } finally {
-        lowerModelOpenLimitForTests();
+        lowerForeignOpenWarnBytesForTests();
         fileToolDeps.getFs = getFs;
       }
       const { removeRecent } = await import('@/services/fileAccess/recentFiles');

@@ -45,7 +45,7 @@ import {
   IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcFullWriteBlocked,
   IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE, IFC_SAVE_WORKER_FAILED_NOTICE,
   IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
-  refusedWriteTarget, newTargetWriteNotice, downloadCopyNotice, IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE,
+  refusedWriteTarget, refusedTargetIdentity, newTargetWriteNotice, downloadCopyNotice, IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE,
   IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE, EXPORT_TARGET_OPEN_IN_TAB_NOTICE, EXPORT_TARGET_OPEN_DOCUMENT_NOTICE,
   EXPORT_TARGET_OWN_FILE_NOTICE, exportNewTargetWriteNotice, IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE, exportTargetPermission,
 } from '../ifcForeignGuard';
@@ -74,7 +74,7 @@ import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { ensureUniqueImportIds } from '@/services/importNormalize';
 import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload, type TargetFingerprint } from '../documentContract';
-import { changedKnownTarget, guardedKnownTarget, type KnownTargetState } from '../knownTargetGuard';
+import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, stillWrittenKnownTarget, writtenKnownTarget, type KnownTargetState } from '../knownTargetGuard';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
@@ -88,7 +88,7 @@ import {
 } from '@/engine/externalLinks';
 import { externalAnchorChanges } from '@/engine/externalRefreshPreview';
 import { readExternalSiteSource, readExternalSource, readExternalSourceFile, type ExternalSourceRead } from '../externalSource';
-import { IfcModelOpenTooLargeError, refuseModelAboveOpenLimit } from '@/services/ifc/modelOpenLimit';
+import { withLargeForeignOpenNotice } from '@/state/largeForeignOpenNotice';
 import { fileFromHandleWeb, pickFilesWeb } from '@/services/fileAccess/webBackend';
 import { loadExternalSourceHandles, rememberExternalSourceHandle } from '@/services/fileAccess/externalSourceHandles';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
@@ -263,9 +263,6 @@ export function importFailureNotice(err: unknown, detail: string): NotifyInput {
       helpArticleId: P6XML_IMPORT_HELP_ARTICLE_ID,
     };
   }
-  if (err instanceof IfcModelOpenTooLargeError) {
-    return { severity: 'error', messageKey: 'notifications.ifcForeignOpenTooLarge', params: { limit: Math.floor(err.limit / (1024 * 1024)) }, detail };
-  }
   return { severity: 'error', messageKey: importErrorMessageKey(err), detail };
 }
 
@@ -392,10 +389,6 @@ export interface OpenOpenedFileOptions {
    *  activeren; de aanroeper leest opnieuw (een startbestand, #1091). */
   stale?: () => boolean;
   lookup?: OpenLookup | null;
-  /** Alleen het crashherstel, voor zijn eigen bron na de controle op lengte en SHA-256 (`recoveryDocumentWithSource`):
-   *  de productgrens voor het openen van een model (`refuseModelAboveOpenLimit`) geldt dan niet, zodat herstel gelijk
-   *  blijft aan main. Elke andere aanroeper laat dit weg en krijgt de grens. */
-  restoringVerifiedIfcSource?: boolean;
 }
 
 export interface FileSlice {
@@ -591,8 +584,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  `WriteTargetDeps.chosenTarget`): het gekozen pad en zijn gelezen versie. */
   const documentTargetCheck = (
     snapshot: AppState, write?: IfcOutput, ownTarget = false,
-    { readers = writeTargetReaders, openDocumentsExcept, chosenTarget, missingSourceSaveAs }: {
+    { readers = writeTargetReaders, openDocumentsExcept, chosenTarget, missingSourceSaveAs, leaveContentToKnownTarget = false }: {
       readers?: () => TargetReaders; openDocumentsExcept?: string; chosenTarget?: PickedSaveTarget; missingSourceSaveAs?: boolean;
+      leaveContentToKnownTarget?: boolean;
     } = {},
   ): SaveTargetCheck => async target => {
     if (write && refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs)) return true;
@@ -601,8 +595,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const ownVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
       ? { documentId: snapshot.activeDocumentId, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! }
       : ownLocal ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
-    const reason = await refusedWriteTarget(get(), target,
-      { identityFs: fileIdentityFs, readers, openDocumentsExcept, ...(chosenTarget ? { chosenTarget } : {}) }, ownVersion);
+    const deps = { identityFs: fileIdentityFs, readers, openDocumentsExcept, ...(chosenTarget ? { chosenTarget } : {}) };
+    const reason = leaveContentToKnownTarget ? contentLeftToKnownTarget(await refusedTargetIdentity(get(), target, deps, ownVersion))
+      : await refusedWriteTarget(get(), target, deps, ownVersion);
     if (reason) {
       get().notify(reason === 'open-document' ? IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE
         : hasForeignContent(snapshot.ifcSource) && reason === 'open-source' && target.kind !== 'site'
@@ -916,8 +911,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       target.foreignSourceMark = foreignSourceMarkFor(prepared.source, target);
     };
     const literalIds = prepared?.literalCalendarIds ?? literalCalendarIdsWritten(savedSource);
-    const fingerprint = !ifcForeignContentEnabled(get().ui.featureFlags) ? null
-      : prepared ? { sha256: prepared.sha256, byteLength: prepared.bytes.byteLength } : written;
+    const fingerprint: TargetFingerprint | null = !ifcForeignContentEnabled(get().ui.featureFlags) ? null
+      : prepared ? { sha256: prepared.sha256, byteLength: prepared.bytes.byteLength, origin: 'written' } : written;
     const applyKnownTarget = (target: Pick<AppState, keyof SaveDestination | 'knownTargetFingerprint'>) => {
       target.knownTargetFingerprint = onOwnFile(target, fingerprint);
     };
@@ -1062,7 +1057,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const readOptions = formatReadOptions();
     const opened = await openSiteFile(choice.id, { binaryExtensions: binaryExtensions(readOptions), version: choice.version });
     const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, readOptions);
-    refuseModelAboveOpenLimit(parsed);
     if (choice.version === undefined && opened.readOnly) {
       get().openAsDocument(parsed, { name: opened.name, ref: null });
       offerFormatNotice(opened.name, opened.content);
@@ -1403,7 +1397,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         source: { bytes: current, sha256: await precomputeSha256(current) }, stopBeforeWrite,
         refuseBeforePlace: placement.refuseBeforePlace,
         planningChanged: replacement.planningChanged, replaceAllowed: replacement.replaceAllowed,
-        commit: () => replacement.commit(path, { sha256: prepared.sha256, byteLength: bytes.byteLength }),
+        commit: () => replacement.commit(path, { sha256: prepared.sha256, byteLength: bytes.byteLength, origin: 'written' }),
       });
       for (const notice of replacement.notices(result, path)) get().notify(notice);
       return result.code === 'replaced';
@@ -1464,7 +1458,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, 'merge'));
       if (!write || refuseChangedDocumentWrite(state, write)) return false;
-      if (ref && await documentTargetCheck(state, write, true)(ref)) return false;
+      const ownWritten = ref && !handleRefused && !write.prepared ? writtenKnownTarget(knownTargetOf(documentId), ref) : null;
+      if (ref && await documentTargetCheck(state, write, true, { leaveContentToKnownTarget: !!ownWritten })(ref)) return false;
       if (ownHandle && write.prepared) return await replaceOwnHandle(documentId, state, write.prepared, write, ownHandle, failureNoticeKey);
       if (ownPath) return write.prepared ? await replaceOwnPath(documentId, state, write.prepared, write, ownPath, failureNoticeKey) : false;
       if (ref?.kind === 'site' && siteStorageAvailable()) {
@@ -1490,7 +1485,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       if (ref && !handleRefused && !(write.prepared && ref.kind === 'handle')) {
         try {
-          const known = write.prepared ? null : guardedKnownTarget(knownTargetOf(documentId), ref);
+          const stable = !!ownWritten && await stillWrittenKnownTarget(ownWritten, ref);
+          if (!stable && ownWritten && await documentTargetCheck(state, write, true)(ref)) return false;
+          const known = stable || write.prepared ? null : guardedKnownTarget(knownTargetOf(documentId), ref);
           if (known && await refuseChangedKnownTarget(documentId, ref, known)) return false;
           if (refuseChangedDocumentWrite(state, write)) return false;
           const last = lastWriteCheck(state, write);
@@ -1705,7 +1702,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       payload.knownTargetFingerprint = editing ? current.knownTargetFingerprint
         : inheritsTarget || !ownSource || !ifcForeignContentEnabled(current.ui.featureFlags) ? null
-          : onOwnFile(payload, { sha256: ownSource.sha256, byteLength: ownSource.bytes.byteLength });
+          : onOwnFile(payload, { sha256: ownSource.sha256, byteLength: ownSource.bytes.byteLength, origin: 'opened' });
       if (!opts.linkedOpen && !editing) {
         payload.project = { ...payload.project, companyId: undefined, companyName: undefined };
         stripLibraryOrigins(payload);
@@ -1843,7 +1840,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
       }
 
-      const notice = withOpenNoticeSticky(withXerArchiveIssueNotice(
+      const notice = withOpenNoticeSticky(withLargeForeignOpenNotice(withXerArchiveIssueNotice(
         withRecordedDatesNotice(
           withSchedulingProfileNotice(
             results,
@@ -1855,7 +1852,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           freshShownTotal,
         ),
         results.map(result => result.xerArchiveIssue),
-      ));
+      ), parsed));
       if (notice && taskTypesUnlockedDocs > 0) {
         get().notify({ ...notice, detailLines: [...(notice.detailLines ?? []), TASK_TYPES_DETAIL_LINE] });
       } else if (notice) {
@@ -1929,7 +1926,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       try {
         for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
-        if (!options?.restoringVerifiedIfcSource) refuseModelAboveOpenLimit(parsed);
         if (options?.waitWhile) {
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
         }
@@ -2194,7 +2190,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           const target = documentFields(s);
           const now = target ? saveTargetRef(target) : null;
           if (!target || !now || !sameFileRef(now, own) || !sameDocumentContent(s, content)) return;
-          target.knownTargetFingerprint = { sha256, byteLength: bytes.byteLength };
+          target.knownTargetFingerprint = { sha256, byteLength: bytes.byteLength, origin: 'written' };
           clearChangedOnDisk(s, documentId);
         });
       })();
