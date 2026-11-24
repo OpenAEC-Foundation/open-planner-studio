@@ -72,7 +72,8 @@ oude vorm van die tabel (`legacyArity`: een werkplan of werkschema met 15, een k
 resource met 9; de oude `IfcLagTime` en de vormen na `MergeProjects` hebben het aantal van het schema). De verliescontrole van de merge (`alignment` in `foreign/lossCheck.ts`) gebruikt die plekken. Een
 werkplan, werkschema of kalender vergelijkt zij bij elk aantal argumenten op die plekken (13 en 10 ook, zoals vóór het
 register); een ander type met een onbekend aantal geeft `aantal`. De bronkaart neemt alleen regels in de lay-out van
-het schema op (`inSchemaLayout`).
+het schema op (`inSchemaLayout`), en geen regel met een token dat niet verliesvrij te lezen is (een vervangteken na het
+decoderen, zoals bij een rauwe Latin-1-byte); zo'n stuk houdt de weigering `vreemde-herkomst`.
 
 De oude `IfcLagTime` met verwisselde argumenten vergelijkt zij op slotnaam als de writer de waarde exact zo schrijft:
 de oude tekstduur en de `IFCDURATION` van de writer als dagen met teken (de oude vorm kent alleen dagvormen, `lag-oud`

@@ -352,10 +352,14 @@ terug; het herstelrecord heeft er geen veld voor. Proef: `check-ifc-source-slots
 
 De merge schrijft met de kaart (deel 2 van PR 2, `foreign/sourceSlotWrite.ts`, één regel over de soort uit het register):
 een stuk van de kaart krijgt per slot het brontoken of de waarde van de writer. Constant: het brontoken (een `#` alleen
-op de vaste lijst, `bronverwijzing`); domein: het brontoken zolang de writer er hetzelfde schrijft als bij openen (O0)
-en de planner geen veld wijzigde waar de writer dat slot uit schrijft (`slotFieldChanged` in `lossCheck.ts`, dezelfde
-veldtabel als de uitleg van O1); afgeleid en verwijzing: de writer; een afhankelijk slot (`volgt`) samen met zijn
-hoofdslot. Het entiteittype komt uit de bron als het domein het niet onderscheidt (`sameDomainEntity`: een
+op de vaste lijst, `bronverwijzing`); domein: het brontoken zolang de planner geen veld wijzigde waar de writer dat slot
+uit schrijft (regel A: één slot, één beslissing, één veldenlijst; `slotFieldChanged` en `slotHasFields` in `lossCheck.ts`,
+dezelfde tabel als de uitleg van O1 voor een stuk uit de kaart); alleen een slot zonder veldenlijst kijkt of de writer er
+hetzelfde schrijft als bij openen (O0). Afgeleid: de writer. Verwijzing: de writer, behalve een gevulde verwijzing naar
+een stuk dat de writer niet draagt (niet P, zoals een `IfcTaskTimeRecurring`; regel B, `keepsTarget`): die houdt haar
+brontoken zolang de velden van het slot gelijk blijven, en de regel die de writer ernaast schreef vervalt
+(`dropReleased`); anders weigert de verliescontrole (`releasesKeptTarget`). Een afhankelijk slot (`volgt`) gaat samen met
+zijn hoofdslot. Het entiteittype komt uit de bron als het domein het niet onderscheidt (`sameDomainEntity`: een
 `IfcConstructionProductResource` blijft dat). Dat geldt voor de D-stukken met hun vaste id (ook een baselinekop die zijn
 id via zijn GlobalId houdt) en hun taaktijd of lag, in O0 en O1 (`buildLines` in `mergeWriter.ts`). Relaties van een
 ander programma (`IfcRelNests`, `IfcRelAggregates`, `IfcRelAssignsToControl`, `IfcRelAssignsToProcess`) schrijft de merge
@@ -363,8 +367,14 @@ opnieuw met hun bewaarde slots; de leden komen uit wat de writer voor dezelfde r
 Bonsai volgt de ouder (alle kinderen, in de volgorde van het domein), anders houdt elke bewaarde relatie haar leden die
 het domein nog koppelt, en houdt de eigen relatie de rest. Een relatie met de projectkalender (de lezer slaat die over)
 houdt de leden zonder eigen kalender. Zonder leden vervalt de relatie. De verliescontrole laat een afgeleid slot en een
-verwijzing buiten een relatierol en een groep aan de writer (`writerAlwaysWrites`); de rest toetst zij zoals bij een
-eigen stuk. Controle (c) krijgt de brontokens van de kaart zoals de slots van (b). `vreemde-herkomst` blijft voor wat de
+verwijzing buiten een relatierol en een groep aan de writer (`writerAlwaysWrites`), een verwijzing alleen als haar doel
+P is; de rest toetst zij zoals bij een eigen stuk. Een relatie uit de kaart met een unieke GlobalId paart alleen op die
+GlobalId (`guidIsIdentity`): een verdwenen relatie paart niet met een buur, en de ledencontrole verklaart haar. Controle
+(c) krijgt de slots die de kaart koos (`chosen`, vastgelegd waar `sourceSlotArgs` beslist); de owner history van een
+IfcRoot telt daar niet mee, en `checkedOutput` toetst elke gekozen verwijzing op de hernummerde regel. Een verwijzing
+naar een bewaard stuk houdt bij het hernummeren haar token (ook `#00107`). Een stuk met een token dat niet verliesvrij
+te lezen is (een rauwe Latin-1-byte), komt niet in de kaart. De nieuwe bron na een opslag neemt haar klassen uit de
+uitvoerscan en toetst dat precies de geschreven regels P zijn. `vreemde-herkomst` blijft voor wat de
 kaart niet draagt: een oude lay-out, de oude letterlijke codering, een vorm buiten het register (een
 `IfcLaborResource` met 10 argumenten) en een `IfcRelDeclares` of `IfcRelDefinesByProperties` van een ander programma
 (knownbug 2233). `entiteittype` blijft als de planner het type van een resource wijzigt. Proef:
@@ -376,7 +386,9 @@ bij 10.000 vreemde taken met taaktijden ongeveer 18,7 MiB extra V8-heap na GC, b
 `fix2-vendor-ops.ifc` (369 stukken) ongeveer 335 KiB. De kaart reist gekloond naar en van de opslagworker. Gemeten in
 deel 2 (aia09-mp50 onder zware belasting, dus ruwe tijden): 10.000 vreemde taken met taaktijden (2,09 MiB) openen 3,0 s,
 opslaan 27,3 s met een piek-RSS van 1.157 MiB; vóór de writer weigerde die opslag na 50,6 s met een piek van 686 MiB,
-vóór het herlezen van de uitvoer. `bonsai-4d.ifc` opslaan 141 ms.
+vóór het herlezen van de uitvoer. `bonsai-4d.ifc` opslaan 141 ms. Fixronde 1 van #1205, twee geslaagde opslagen van
+dezelfde invoer naast elkaar: vóór het herstel 28,3 s en een piek-RSS van 1.115 MiB, erna 28,3 s en 947 MiB (één meting per kant onder wisselende
+belasting; O1 houdt nu geen tweede kaart met de argumenten van de writer meer vast).
 
 Voor een eigen stuk blijft (b) in de verliescontrole (`planRestores` in `lossCheck.ts`): die leest de bronwaarden bij
 elke merge opnieuw uit `ifcSource.bytes`; een stuk van de kaart heeft na de writer geen verschil meer in O0. Bij (b) geldt de waarde van
