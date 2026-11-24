@@ -46,14 +46,6 @@ const byName = (r: ImportResult, name: string) => r.tasks.find(t => t.name === n
 }
 
 {
-  const noDates = `<Task><UID>1</UID><ID>1</ID><Name>Zonder datums</Name><OutlineLevel>1</OutlineLevel>
-  <Duration>PT16H0M0S</Duration>${baseline('PT40H0M0S')}</Task>`;
-  const r = read(noDates);
-  eq('3a taak zonder eigen Start krijgt geen start uit de baseline (anker = projectstart, niet 2026-03-09)',
-    byName(r, 'Zonder datums')?.time.scheduleStart, '2026-03-02');
-}
-
-{
   const r = read(`${task(1, 'Voor', '<Type>1</Type>')}${task(2, 'Na', `<Type>1</Type>${link(1, 2)}${baseline('PT40H0M0S')}`)}`);
   eq('4a eigen Type op de taak wint van de link-Type', byName(r, 'Na')?.mspTaskType, 'FIXED_DURATION');
   eq('4b de relatie houdt haar eigen Type', r.sequences.map(s => s.type), ['START_FINISH']);

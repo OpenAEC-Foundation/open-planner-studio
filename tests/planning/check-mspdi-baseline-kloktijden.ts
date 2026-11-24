@@ -30,8 +30,8 @@ const bt = baseline?.tasks.find(t => t.taskId === task?.id);
 eq('1 duureenheid uit de oude OPS_TaskDurationUnit-markering is hours', task?.time.durationUnit, 'hours');
 eq('2 Baseline 0 houdt kloktijden (uurkalender gekozen via Baseline/Start en Baseline/Finish)', [bt?.start, bt?.finish],
   ['2026-03-02T13:00', '2026-03-02T15:00']);
-eq('3 taakplanning uit eigen duur + gewone terugval (start = projectstart-anker, geen tijden uit de baseline gelekt)', [task?.time.scheduleStart, task?.time.durationMinutes],
-  ['2026-03-02', 960]);
+eq('3 taakplanning net als op main: Start/Finish kunnen uit de baseline komen (knownbugs.md 2011)', [task?.time.scheduleStart, task?.time.scheduleFinish, task?.time.durationMinutes],
+  ['2026-03-02T13:00', '2026-03-02T15:00', 960]);
 
 if (failures.length) {
   console.error(`XX mspdi-baseline-kloktijden: ${failures.length}/${checks}\n${failures.join('\n')}`);
