@@ -3,7 +3,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import { writeFields } from './fieldTable';
 import { CALENDAR_AREA } from './fieldGroups';
 import { placesNeededForOrder, taskInParentCycle } from './childOrder';
-import { resourceInconsistencies } from './ifcxResourceWriter';
+import { resourceInconsistencies } from './resourceConsistency';
 
 export interface Inconsistency {
   readonly field: string;

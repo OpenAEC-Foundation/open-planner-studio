@@ -11,6 +11,7 @@ import {
 } from './fields/baselineFields';
 import type { TaskReadTarget } from './fields/taskFields';
 import { derivedGlobalId, globalIdKey } from './stepGlobalIds';
+import { costInconsistencies } from './resourceConsistency';
 import { IfcxReadError, type IfcxErrorPlace } from './ifcxErrors';
 import { ATTRIBUTE, type IfcxAttributeName } from './profile';
 
@@ -143,6 +144,9 @@ export function readResourceNodes(context: ResourceReadContext): ResourceReadRes
   const assignments = readAssignments(context, taskIdAt, idAt);
   const assigned = resourceIdsByTask(assignments);
   for (const target of context.taskTargets) target.task.resourceIds = target.resourceIdsOverride ?? assigned.get(target.task.id) ?? [];
+  const resources = targets.map(target => target.resource);
+  const [problem] = costInconsistencies(resources, assignments);
+  if (problem !== undefined) throw invalid(problem.detail, { field: problem.field });
   const { baselines, activeBaselineId, comparedBaselineIds } = readBaselines(context, taskIdAt, globalIds);
-  return { resources: targets.map(target => target.resource), assignments, baselines, activeBaselineId, comparedBaselineIds, globalIds };
+  return { resources, assignments, baselines, activeBaselineId, comparedBaselineIds, globalIds };
 }

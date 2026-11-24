@@ -1,11 +1,10 @@
 import type { WriteIFCInput } from '../ifcWriter';
-import { normalizeComparedBaselines, type Baseline } from '@/types/baseline';
+import type { Baseline } from '@/types/baseline';
 import { writeFields } from './fieldTable';
 import { identityOfGlobalId, type IfcxIdentity } from './globalIdUuid';
-import { derivedGlobalId, globalIdKey, libraryCalendarsWrittenByStep, type GlobalIdOf } from './stepGlobalIds';
+import { derivedGlobalId, globalIdKey, type GlobalIdOf } from './stepGlobalIds';
 import { ASSIGNMENT_AREA, BASELINE_AREA, RESOURCE_AREA } from './fieldGroups';
 import type { BaselineRowIdentity } from './fields/baselineFields';
-import type { Inconsistency } from './consistency';
 import { ATTRIBUTE, type IfcxAttributeName } from './profile';
 
 export interface ResourceEntryLinks {
@@ -17,52 +16,6 @@ export interface ResourceEntryLinks {
 export interface PendingEntry {
   readonly path: string;
   readonly attributes: readonly [IfcxAttributeName, Record<string, unknown>][];
-}
-
-function duplicateOf(ids: readonly string[]): string | undefined {
-  const seen = new Set<string>();
-  for (const id of ids) {
-    if (seen.has(id)) return id;
-    seen.add(id);
-  }
-  return undefined;
-}
-
-export function resourceInconsistencies(input: WriteIFCInput): Inconsistency[] {
-  const found: Inconsistency[] = [];
-  const add = (field: string, detail: string) => { found.push({ field, detail }); };
-  const baselines = input.baselines ?? [];
-  const duplicates: [string | undefined, string, string][] = [
-    [duplicateOf(input.resources.map(resource => resource.id)), 'resource.id', 'resources'],
-    [duplicateOf(input.assignments.map(assignment => assignment.id)), 'assignment.id', 'toewijzingen'],
-    [duplicateOf(baselines.map(baseline => baseline.id)), 'baseline.id', 'baselines'],
-  ];
-  for (const [duplicate, field, what] of duplicates) if (duplicate !== undefined) add(field, `Twee ${what} hebben het id ${duplicate}`);
-  const calendarIds = new Set([input.calendar.id, ...libraryCalendarsWrittenByStep(input).map(calendar => calendar.id)]);
-  const resourceIds = new Set(input.resources.map(resource => resource.id));
-  for (const resource of input.resources) {
-    if (resource.parentId !== undefined && !resourceIds.has(resource.parentId)) {
-      add('resource.parentId', `Resource ${resource.id} hoort bij ploeg ${resource.parentId}, die niet bestaat`);
-    }
-    if (resource.calendarId !== undefined && !calendarIds.has(resource.calendarId)) {
-      add('resource.calendarId', `Resource ${resource.id} heeft kalender ${resource.calendarId}, die niet bestaat`);
-    }
-  }
-  const taskIds = new Set(input.tasks.map(task => task.id));
-  for (const assignment of input.assignments) {
-    if (!taskIds.has(assignment.taskId)) add('assignment.taskId', `Toewijzing ${assignment.id} hoort bij taak ${assignment.taskId}, die niet bestaat`);
-    if (!resourceIds.has(assignment.resourceId)) {
-      add('assignment.resourceId', `Toewijzing ${assignment.id} wijst resource ${assignment.resourceId} toe, die niet bestaat`);
-    }
-  }
-  const active = input.activeBaselineId ?? null;
-  if (active !== null && !baselines.some(baseline => baseline.id === active)) add('activeBaselineId', `De actieve baseline ${active} bestaat niet`);
-  const compared: readonly (string | null)[] = input.comparedBaselineIds ?? [null, null];
-  const kept = normalizeComparedBaselines(compared, baselines, active);
-  if (kept[0] !== (compared[0] ?? null) || kept[1] !== (compared[1] ?? null)) {
-    add('comparedBaselineIds', 'De vergelijking noemt een baseline die niet bestaat, de actieve, of twee keer dezelfde');
-  }
-  return found;
 }
 
 export function resourceGlobalIds(input: WriteIFCInput, globalIdOf: GlobalIdOf): Record<string, string> {

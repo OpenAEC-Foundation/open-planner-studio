@@ -309,12 +309,16 @@ ouders weigeren writer en lezer.
   een kind dat niet bestaat (`task.childIds`), een relatie van of naar een taak die niet bestaat
   (`sequence.predecessorId`, `sequence.successorId`), of een bibliotheekentry van de projectkalender met een andere
   inhoud (`resourceCalendars`). Voor resources, toewijzingen en baselines (`resourceInconsistencies` in
-  `ifcxResourceWriter.ts`): twee resources, toewijzingen of baselines met hetzelfde id (`resource.id`,
+  `resourceConsistency.ts`): twee resources, toewijzingen of baselines met hetzelfde id (`resource.id`,
   `assignment.id`, `baseline.id`), een ploeg of resourcekalender die niet bestaat (`resource.parentId`,
   `resource.calendarId`), een toewijzing aan een taak of van een resource die niet bestaat (`assignment.taskId`,
   `assignment.resourceId`), een actieve baseline die niet bestaat (`activeBaselineId`), en een vergelijking die de app
-  zelf zou wissen: een baseline die niet bestaat, de actieve of twee keer dezelfde (`comparedBaselineIds`). STEP laat
-  de meeste van die gevallen bij schrijven of lezen stil vallen;
+  zelf zou wissen: een baseline die niet bestaat, de actieve of twee keer dezelfde (`comparedBaselineIds`). Ook wat
+  de app voor kosten afdwingt (`clearCostResourceFields`, `normalizeAssignmentForResource`): een kostenresource met
+  een tarief, kalender, ploeg, eenheid, stappen of een capaciteit anders dan 1, een kostentoewijzing met werkvelden,
+  een inzet anders dan 1 of een ongeldig bedrag, en een bedrag op een toewijzing van een werkresource
+  (`resourceConsistency.ts`; de lezer toetst dezelfde regels). STEP laat de meeste van die gevallen bij schrijven of
+  lezen stil vallen;
 - met code `self-check`, als de eigen controle na het schrijven een verschil vindt; `fields` noemt de paden van de
   eerste verschillen (zie *Zelfcontrole*).
 
@@ -335,7 +339,8 @@ ouders weigeren writer en lezer.
   met een ongeldige waarde of vorm (ook een dag of kloktijd die niet bestaat), een verplicht veld dat ontbreekt, een
   verwijzing naar een pad van de verkeerde soort, twee objecten van één soort met hetzelfde interne id, een kring in
   de ouders, een gedeeld venster dat niet klopt, een `libraryPlace` die niet klopt, of niet precies één werkschema.
-  Voor resources en baselines ook: een kostenresource die geen `IfcConstructionMaterialResource` is, een baselinerij
+  Voor resources en baselines ook: een kostenresource die geen `IfcConstructionMaterialResource` is, een
+  kostenresource of toewijzing die de kostenregels van de app breekt (zie hierboven), een baselinerij
   die naar een object wijst dat geen taak is, een eigen id in `taskIds` voor een taak die bestaat of twee keer voor één
   pad, een verwijderde baselinetaak met het id van een taak die bestaat of met twee paden, twee actieve baselines, twee
   baselines op één vergelijkingsplaats, of de actieve baseline in de vergelijking.

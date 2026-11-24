@@ -219,7 +219,7 @@ function fullPlan(): ImportResult {
     {
       id: 'a1', taskId: 't-a', resourceId: 'r-mem', unitsPerDay: 2, curve: 'BELL', plannedUnitsPerDay: 1.111,
       workWindowStart: '2027-06-01', workWindowFinish: '2027-06-03T16:00', curveValues: CURVE_21,
-      plannedWorkMinutes: 9600, actualWorkMinutes: 4800, remainingWorkMinutes: 7200.5, costAmount: 99,
+      plannedWorkMinutes: 9600, actualWorkMinutes: 4800, remainingWorkMinutes: 7200.5,
     },
     { id: 'a2', taskId: 't-a', resourceId: 'r-mem', unitsPerDay: 1, curve: 'UNIFORM' },
     { id: 'a3', taskId: 't-b', resourceId: 'r-eq', unitsPerDay: 1, curve: undefined },
@@ -287,7 +287,10 @@ test('de gedeelde velden hebben de vaste vorm en openaec::ops:: draagt alleen wa
   const assignments = entriesWith(document, 'openaec::planning::assignment');
   assert.deepEqual(assignments[0].attributes['openaec::planning::assignment'], {
     relatingProcess: taskPath('t-a'), relatedResource: resourcePath('r-mem'), unitsPerDay: 2, plannedUnitsPerDay: 1.111,
-    scheduleContour: 'BELL', scheduleWork: 'PT9600M', actualWork: 'PT4800M', remainingWork: 'PT7200.5M', costAmount: 99,
+    scheduleContour: 'BELL', scheduleWork: 'PT9600M', actualWork: 'PT4800M', remainingWork: 'PT7200.5M',
+  });
+  assert.deepEqual(assignments[3].attributes['openaec::planning::assignment'], {
+    relatingProcess: taskPath('t-a'), relatedResource: resourcePath('r-cost'), unitsPerDay: 1, costAmount: 1250.55,
   });
   assert.deepEqual(assignments[0].attributes['openaec::ops::assignment'], {
     id: 'a1', curveValues: CURVE_21, workWindowStart: '2027-06-01', workWindowFinish: '2027-06-03T16:00',
@@ -447,6 +450,12 @@ const WRITE_REFUSALS: readonly {
     change: p => ({ ...p, comparedBaselineIds: ['bl-1', null] }) },
   { name: 'een vergelijking met een baseline die niet bestaat', fields: ['comparedBaselineIds'],
     change: p => ({ ...p, comparedBaselineIds: [null, 'weg'] }) },
+  { name: 'een bedrag op een toewijzing van een werkresource', fields: ['assignment.costAmount'],
+    change: p => ({ ...p, assignments: p.assignments.map(a => a.id === 'a1' ? { ...a, costAmount: 99 } : a) }) },
+  { name: 'een kostenresource met tarief, ploeg en capaciteit', fields: ['resource.costPerHour', 'resource.maxUnits', 'resource.parentId'],
+    change: p => ({ ...p, resources: p.resources.map(r => r.id === 'r-cost' ? { ...r, costPerHour: 10, parentId: 'r-crew', maxUnits: 2 } : r) }) },
+  { name: 'een kostentoewijzing met werk en een andere inzet', fields: ['assignment.remainingWorkMinutes', 'assignment.unitsPerDay'],
+    change: p => ({ ...p, assignments: p.assignments.map(a => a.id === 'a4' ? { ...a, unitsPerDay: 2, remainingWorkMinutes: 60 } : a) }) },
   { name: 'een onbekend veld op een resource, toewijzing, baseline of baselinetaak', code: 'unsupported',
     fields: ['assignment.extra', 'baseline.extra', 'baseline.tasks.extra', 'resource.extra'],
     change: p => ({
@@ -516,6 +525,12 @@ const READ_REFUSALS: readonly { name: string; code: IfcxReadErrorCode; change: (
   } },
   { name: 'twee baselines met hetzelfde id', code: 'invalid', change: d => {
     opsOf(d, 'openaec::planning::baseline', 'openaec::ops::baseline', 1).id = 'bl-1';
+  } },
+  { name: 'een kostenresource met een tarief', code: 'invalid', change: d => {
+    entriesWith(d, 'openaec::planning::resource')[5].attributes['openaec::planning::resource'].costPerHour = 10;
+  } },
+  { name: 'een bedrag op een toewijzing van een werkresource', code: 'invalid', change: d => {
+    first(d, 'openaec::planning::assignment').attributes['openaec::planning::assignment'].costAmount = 99;
   } },
   { name: 'een werkduur die geen ISO-duur in minuten is', code: 'invalid', change: d => {
     first(d, 'openaec::planning::assignment').attributes['openaec::planning::assignment'].scheduleWork = 'P2D';
