@@ -1,5 +1,6 @@
 import type { CalendarGeneration, Holiday, WorkCalendar, WorkingException, WorkTimeBands } from '@/types/calendar';
 import { DEFAULT_CALENDAR_ID } from '@/engine/calendar/defaultCalendar';
+import { HOLIDAY_COUNTRIES } from '@/engine/calendar/holidays';
 import {
   arrayOf, CALENDAR_DATE, enumOf, GLOBAL_ID_OUTSIDE_PATH, integer, NON_EMPTY_TEXT, objectOf, REAL, TEXT, type IfcxField, type IfcxValue,
 } from '../fieldTable';
@@ -168,11 +169,11 @@ export const CALENDAR_OPS_FIELDS: readonly CalendarField[] = [
   {
     key: 'generation', optional: true,
     value: objectOf({
-      ruleSetId: { value: NON_EMPTY_TEXT },
+      ruleSetId: { value: enumOf(HOLIDAY_COUNTRIES) },
       region: { value: TEXT, optional: true },
       breakChoice: { value: enumOf(['noord', 'midden', 'zuid']), optional: true },
-      generatedFromYear: { value: integer() },
-      generatedToYear: { value: integer() },
+      generatedFromYear: { value: integer(1000, 9999) },
+      generatedToYear: { value: integer(1000, 9999) },
     }),
     write: s => (s.calendar.generation ? generationOut(s.calendar.generation) : undefined),
     read: (v, t) => setOptional(t.calendar, 'generation', v ? generationOut(v as CalendarGeneration) as CalendarGeneration : undefined),

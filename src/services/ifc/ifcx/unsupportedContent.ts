@@ -2,6 +2,7 @@ import type { WriteIFCInput } from '../ifcWriter';
 import { savedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
 import { CALENDAR_GROUPS, carriedKeys, DOCUMENT_GROUPS, SEQUENCE_GROUPS, TASK_GROUPS } from './fieldGroups';
 import { carriesValue } from './fieldTable';
+import { SESSION_TIME_KEYS } from './selfCheck';
 
 function uncarriedKeys(object: object, carried: ReadonlySet<PropertyKey>): string[] {
   return Object.entries(object).filter(([key, value]) => !carried.has(key) && carriesValue(value)).map(([key]) => key);
@@ -28,7 +29,7 @@ export function unsupportedContent(input: WriteIFCInput): string[] {
     for (const key of uncarriedKeys(calendar, calendarCarried)) found.add(`calendar.${key}`);
   }
   const taskCarried = carriedKeys(TASK_GROUPS);
-  const timeCarried = new Set<PropertyKey>(TASK_GROUPS.flatMap(group => group.carriesTime));
+  const timeCarried = new Set<PropertyKey>([...TASK_GROUPS.flatMap(group => group.carriesTime), ...SESSION_TIME_KEYS]);
   for (const task of input.tasks) {
     for (const key of uncarriedKeys(task, taskCarried)) found.add(`task.${key}`);
     for (const key of uncarriedKeys(task.time, timeCarried)) found.add(`task.time.${key}`);

@@ -155,13 +155,12 @@ export const TASK_OPS_FIELDS: readonly TaskField[] = [
   {
     key: 'time', value: objectOf(membersOf(TASK_TIME_FIELDS)),
     write: s => writeFields(TASK_TIME_FIELDS, s.task.time),
-    read: (v, t) => readFields(TASK_TIME_FIELDS, v as Record<string, unknown>, t.task.time),
+    read: (v, t) => {
+      readFields(TASK_TIME_FIELDS, v as Record<string, unknown>, t.task.time);
+      t.task.status = derivedTaskStatus(t.task.time);
+    },
   },
-  {
-    key: 'status', value: enumOf(['NOT_STARTED', 'STARTED', 'COMPLETED']), optional: true,
-    write: s => (s.task.status !== derivedTaskStatus(s.task.time) ? s.task.status : undefined),
-    read: (v, t) => { t.task.status = (v as TaskStatus | undefined) ?? derivedTaskStatus(t.task.time); },
-  },
+
   {
     key: 'milestoneKind', value: enumOf(['START', 'FINISH']), optional: true,
     write: s => s.task.milestoneKind,

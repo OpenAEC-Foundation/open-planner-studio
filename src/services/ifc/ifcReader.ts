@@ -10,7 +10,7 @@ import { normalizeCurveValues } from '@/engine/contour/contourEngine';
 import type { CustomTaskType, CustomTaskTypeDraft } from '@/types/taskType';
 import { isTaskTypeColor, withTaskTypeColors } from '@/services/taskTypes/customTaskTypeColors';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
+import { isLeafTask } from '@/utils/taskHierarchy';
 import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve, isResourceCurve, clearCostResourceFields, normalizeAssignmentForResource, type ResourceType } from '@/types/resource';
@@ -51,7 +51,7 @@ import {
   IFC_TASKTIME_SLOTS, ALL_RECORDED_SLOT_KEYS, TASK_SLOT, TASKTIME_SLOT, IFC_TASK_STATUS_RUNNING, taskSlots,
   type RecordedFieldKey, type TaskTimeReadHelpers,
 } from './ifcTaskSlots';
-import { normalizeImportedProgress, reconstructResourceIds } from '@/services/importNormalize';
+import { deriveSummaryStatus, normalizeImportedProgress, reconstructResourceIds } from '@/services/importNormalize';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import type { XerImportMetadata } from '@/services/importTypes';
 import {
@@ -258,12 +258,7 @@ export function readIFC(
   // `runningStatusIds`: taken met `IfcTask.Status` = 'STARTED' — een lopende taak op 100 % blijft
   // dan lopend (eigenaarsbesluit 2026-10-14). Oude bestanden (`$`) lezen als voorheen.
   normalizeImportedProgress(tasks.filter(isLeafTask), project.statusDate, runningStatusIds);
-  for (const task of tasks) {
-    if (!isSummaryTask(task)) continue;
-    const t = task.time;
-    task.status = t.actualFinish ? 'COMPLETED'
-      : t.actualStart || t.completion > 0 ? 'STARTED' : 'NOT_STARTED';
-  }
+  deriveSummaryStatus(tasks);
 
   const ifcGlobalIds = collectIfcGlobalIds(entities, entityMap, taskStepIdMap, project.id, guidLog);
   if (options.stepIdsOut && stepLog) {

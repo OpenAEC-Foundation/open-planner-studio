@@ -8,11 +8,14 @@ import { intendedGlobalIds, type GlobalIdOfObject } from './identity';
 import { placesNeededForOrder } from './childOrder';
 import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from './fieldGroups';
 import { SCHEDULE_FIELDS } from './fields/documentFields';
+import { lagFromShared, sharedLagOf } from './fields/sequenceFields';
+import type { Sequence } from '@/types/sequence';
 import { HEADER_VALUE, ownSchemas } from './ownAttributes';
 import { attributeValueProblem } from './schemaCheck';
 import { unsupportedContent } from './unsupportedContent';
-import { attributeRuleProblem, inconsistentContent } from './consistency';
+import { inconsistentContent } from './consistency';
 import { taskWindow } from './dateProjection';
+import { normalizedCopy } from './openNormalize';
 import { selfCheckDifferences } from './selfCheck';
 import { IfcxWriteRefusedError } from './ifcxErrors';
 import {
@@ -76,8 +79,6 @@ function invalidValuesIn(document: IfcxDocument): IfcxWriteRefusedError | undefi
     for (const [name, value] of Object.entries(entry.attributes) as [IfcxAttributeName, Record<string, unknown>][]) {
       const problem = attributeValueProblem(entry.path, name, value);
       if (problem) return refused('invalid', [`${name}: ${problem.detail}`], [`${name}.${problem.place.field ?? ''}`]);
-      const rule = attributeRuleProblem(name, value);
-      if (rule) return refused('invalid', [`${name}: ${rule.detail}`], [`${name}.${rule.field}`]);
     }
   }
   return undefined;
@@ -174,6 +175,7 @@ function composeIfcxDocument(input: WriteIFCInput, writtenAt: Date, globalIdOf: 
     const source = {
       sequence, identity: identityOfGlobalId(globalIdOf('seq', sequence.id)),
       predecessorPath: taskPathById.get(sequence.predecessorId)!, successorPath: taskPathById.get(sequence.successorId)!,
+      ...sharedAndDerivedLag(sequence),
     };
     data.push({ path: source.identity.path, attributes: attributesOf([
       [ATTRIBUTE.sequence, writeFields(SEQUENCE_AREA.planning, source)],
@@ -191,6 +193,11 @@ function composeIfcxDocument(input: WriteIFCInput, writtenAt: Date, globalIdOf: 
     schemas: ownSchemas(used),
     data,
   };
+}
+
+function sharedAndDerivedLag(sequence: Sequence) {
+  const shared = sharedLagOf(sequence);
+  return { shared, derived: lagFromShared(shared) };
 }
 
 function indented(json: string): string {
@@ -215,7 +222,13 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function writeIfcx(input: WriteIFCInput, writtenAt: Date = new Date()): string {
+export function writeIfcx(given: WriteIFCInput, writtenAt: Date = new Date()): string {
+  let input: WriteIFCInput;
+  try {
+    input = normalizedCopy(given);
+  } catch (error) {
+    throw refused('invalid', [`De planning heeft een vorm die de writer niet kan schrijven: ${messageOf(error)}`], ['planning']);
+  }
   const unsupported = unsupportedContent(input);
   if (unsupported.length > 0) {
     throw new IfcxWriteRefusedError('unsupported', `IFCX draagt deze gegevens nog niet: ${unsupported.join(', ')}`, unsupported);

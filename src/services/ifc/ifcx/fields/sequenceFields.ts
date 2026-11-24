@@ -7,6 +7,8 @@ export interface SequenceWriteSource {
   readonly identity: IfcxIdentity;
   readonly predecessorPath: string;
   readonly successorPath: string;
+  readonly shared: SharedLag;
+  readonly derived: LagFromShared;
 }
 
 export interface SequenceReadTarget {
@@ -16,6 +18,7 @@ export interface SequenceReadTarget {
   predecessorPath: string;
   successorPath: string;
   shared: SharedLag;
+  precise: { lagDays?: number; lagMinutes?: number; lagPercent?: number };
 }
 
 type SequenceField = IfcxField<SequenceWriteSource, SequenceReadTarget>;
@@ -63,7 +66,7 @@ export function lagFromShared(shared: SharedLag): LagFromShared {
 
 function unlessDerived<K extends keyof LagFromShared>(source: SequenceWriteSource, key: K): Sequence[K] | undefined {
   const value = source.sequence[key];
-  return value !== lagFromShared(sharedLagOf(source.sequence))[key] ? value : undefined;
+  return value !== source.derived[key] ? value : undefined;
 }
 
 export const SEQUENCE_PLANNING_FIELDS: readonly SequenceField[] = [
@@ -84,12 +87,12 @@ export const SEQUENCE_PLANNING_FIELDS: readonly SequenceField[] = [
   },
   {
     key: 'timeLag', value: TIME_LAG, optional: true,
-    write: s => sharedLagOf(s.sequence).timeLag,
+    write: s => s.shared.timeLag,
     read: (v, t) => { if (v !== undefined) t.shared.timeLag = v as string; },
   },
   {
     key: 'timeLagRatio', value: REAL, optional: true,
-    write: s => sharedLagOf(s.sequence).timeLagRatio,
+    write: s => s.shared.timeLagRatio,
     read: (v, t) => { if (v !== undefined) t.shared.timeLagRatio = v as number; },
   },
   {
@@ -113,23 +116,17 @@ export const SEQUENCE_OPS_FIELDS: readonly SequenceField[] = [
   {
     key: 'lagDays', value: REAL, optional: true,
     write: s => unlessDerived(s, 'lagDays'),
-    read: (v, t) => { t.sequence.lagDays = (v as number | undefined) ?? lagFromShared(t.shared).lagDays; },
+    read: (v, t) => { t.precise.lagDays = v as number | undefined; },
   },
   {
     key: 'lagMinutes', value: REAL, optional: true,
     write: s => unlessDerived(s, 'lagMinutes'),
-    read: (v, t) => {
-      const value = (v as number | undefined) ?? lagFromShared(t.shared).lagMinutes;
-      if (value !== undefined) t.sequence.lagMinutes = value;
-    },
+    read: (v, t) => { t.precise.lagMinutes = v as number | undefined; },
   },
   {
     key: 'lagPercent', value: REAL, optional: true,
     write: s => unlessDerived(s, 'lagPercent'),
-    read: (v, t) => {
-      const value = (v as number | undefined) ?? lagFromShared(t.shared).lagPercent;
-      if (value !== undefined) t.sequence.lagPercent = value;
-    },
+    read: (v, t) => { t.precise.lagPercent = v as number | undefined; },
   },
 ];
 

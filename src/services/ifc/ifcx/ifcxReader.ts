@@ -5,13 +5,12 @@ import type { Sequence } from '@/types/sequence';
 import { ALL_RECORDED_SLOT_KEYS, type RecordedFieldKey } from '../ifcTaskSlots';
 import { ifcObjectSeed } from '../ifcWriter';
 import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
-import { startIsActual } from '@/utils/taskDates';
-import { isPinnedComplete } from '@/engine/scheduler/duration';
 import { checkValue, readFields } from './fieldTable';
 import { globalIdOfIdentity, isUuidPath, nameBasedUuid } from './globalIdUuid';
 import { childrenInPlace } from './childOrder';
-import { momentOfSharedDate, taskWindow, type SharedSpan } from './dateProjection';
-import { attributeRuleProblem, planningRuleProblems } from './consistency';
+import { planningRuleProblems } from './consistency';
+import { resolveDoubleRepresentations } from './doubleRepresentations';
+import { normalizeAsOnOpen } from './openNormalize';
 import { HEADER_VALUE } from './ownAttributes';
 import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from './fieldGroups';
 import { SCHEDULE_FIELDS, emptyProject, type DocumentReadTarget } from './fields/documentFields';
@@ -134,8 +133,6 @@ function assertValues(nodes: readonly IfcxNode[]): void {
     for (const [name, value] of node.attributes) {
       const problem = attributeValueProblem(node.path, name, value);
       if (problem) throw thrown(problem);
-      const rule = attributeRuleProblem(name, value);
-      if (rule) throw invalid(rule.detail, { path: node.path, attribute: name, field: rule.field });
     }
   }
 }
@@ -170,24 +167,6 @@ function recordedFieldsOf(tasks: readonly Task[]): Record<string, RecordedFieldK
     });
   }
   return out;
-}
-
-function applySharedSpan(task: Task, span: SharedSpan): boolean {
-  if (span.start === undefined || span.endExclusive === undefined) return false;
-  const original = taskWindow(task);
-  const startMoves = span.start !== original.start && !startIsActual(task);
-  const endMoves = span.endExclusive !== original.endExclusive && !isPinnedComplete(task.time);
-  if (!startMoves && !endMoves) return false;
-  if (startMoves) {
-    const moment = momentOfSharedDate(span.start);
-    task.time.scheduleStart = task.time.earlyStart = task.time.lateStart = moment;
-  }
-  if (endMoves || (startMoves && task.isMilestone)) {
-    const moment = task.isMilestone ? task.time.scheduleStart : momentOfSharedDate(span.endExclusive);
-    task.time.scheduleFinish = task.time.earlyFinish = task.time.lateFinish = moment;
-  }
-  task.manuallyScheduled = true;
-  return true;
 }
 
 export function readIfcxText(text: string, checkValues = true): IfcxImportResult {
@@ -267,17 +246,16 @@ export function readIfcxText(text: string, checkValues = true): IfcxImportResult
       const siblings = childrenOf.get(parentPath);
       if (siblings) siblings.push(target); else childrenOf.set(parentPath, [target]);
     }
-    const calendarPath = reference(target.calendarPath, 'calendar', { ...place, field: 'calendar' });
-    if (calendarPath !== undefined) target.task.calendarId = calendarIdAt.get(calendarPath)!;
+    reference(target.calendarPath, 'calendar', { ...place, field: 'calendar' });
   }
   for (const target of taskTargets) {
     target.task.childIds = childrenInPlace(childrenOf.get(target.path) ?? [], child => child.place).map(child => child.task.id);
   }
-  let sharedDatesApplied = 0;
-  for (const target of taskTargets) if (applySharedSpan(target.task, target.span)) sharedDatesApplied++;
 
   const sequenceTargets: SequenceReadTarget[] = of('sequence').map(node => {
-    const target: SequenceReadTarget = { sequence: emptySequence(), path: node.path, predecessorPath: '', successorPath: '', shared: {} };
+    const target: SequenceReadTarget = {
+      sequence: emptySequence(), path: node.path, predecessorPath: '', successorPath: '', shared: {}, precise: {},
+    };
     readFields(SEQUENCE_AREA.planning, node.attributes.get(ATTRIBUTE.sequence)!, target);
     readFields(SEQUENCE_AREA.ops, node.attributes.get(ATTRIBUTE.opsSequence) ?? {}, target);
     const place = { path: node.path, attribute: ATTRIBUTE.sequence };
@@ -286,6 +264,14 @@ export function readIfcxText(text: string, checkValues = true): IfcxImportResult
     assertIdentityPath(node.path, target.globalIdOutsidePath, { path: node.path, attribute: ATTRIBUTE.opsSequence });
     return target;
   });
+
+  const sharedDatesApplied = resolveDoubleRepresentations({
+    document: documentTarget, tasks: taskTargets, sequences: sequenceTargets, calendarIdAt,
+  });
+  if (typeof sharedDatesApplied !== 'number') {
+    const { detail, path, attribute, field } = sharedDatesApplied;
+    throw invalid(detail, { ...(path !== undefined ? { path } : {}), attribute, field });
+  }
 
   const tasks = taskTargets.map(target => target.task);
   const sequences: Sequence[] = sequenceTargets.map(target => target.sequence);
@@ -312,11 +298,9 @@ export function readIfcxText(text: string, checkValues = true): IfcxImportResult
     ifcGlobalIds,
     ...(sharedDatesApplied > 0 ? { ifcxSharedDatesApplied: sharedDatesApplied } : {}),
   };
-  const windowOf = new Map(taskTargets.map(target => [target.task, target.span]));
-  const [problem] = planningRuleProblems({
-    model: result, windowOf: task => windowOf.get(task) ?? {}, globalIdOf: (kind, id) => ifcGlobalIds[ifcObjectSeed(kind, id)],
-  });
+  const [problem] = planningRuleProblems({ model: result, globalIdOf: (kind, id) => ifcGlobalIds[ifcObjectSeed(kind, id)] });
   if (problem) throw invalid(problem.detail, { field: problem.field });
+  normalizeAsOnOpen(result);
   return result;
 }
 

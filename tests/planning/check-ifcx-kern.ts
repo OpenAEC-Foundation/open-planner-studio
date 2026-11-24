@@ -5,9 +5,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { ifcGuid, ifcGuid128, ifcObjectSeed, writeIFCForComparison, type WriteIFCInput } from '@/services/ifc/ifcWriter';
-import { planningCanon } from '@/services/ifc/foreign/planningCanon';
+import { planningCanon, planningDifference } from '@/services/ifc/foreign/planningCanon';
+import { planProgressEntry } from '@/engine/progressEntry';
 import {
-  classifyIfcx, readIfcx, writeIfcx, IfcxReadError, IfcxWriteRefusedError, type IfcxReadErrorCode,
+  classifyIfcx, readIfcx, writeIfcx, IfcxReadError, IfcxWriteRefusedError, type IfcxReadErrorCode, type IfcxWriteRefusedCode,
 } from '@/services/ifc/ifcx';
 import { ifcxSchemaProblems } from '@/services/ifc/ifcx/schemaCheck';
 import { SELF_CHECK_RULES, selfCheckDifferences } from '@/services/ifc/ifcx/selfCheck';
@@ -16,6 +17,12 @@ import { readIfcxText } from '@/services/ifc/ifcx/ifcxReader';
 import { HEADER_VALUE, OWN_ATTRIBUTE_VALUES } from '@/services/ifc/ifcx/ownAttributes';
 import { IDENTITY_KINDS, intendedGlobalIds, type PlanningModel } from '@/services/ifc/ifcx/identity';
 import { CONSISTENCY_RULES } from '@/services/ifc/ifcx/consistency';
+import { DOUBLE_REPRESENTATIONS } from '@/services/ifc/ifcx/doubleRepresentations';
+import { copyAsStepWritesIt, normalizedCopy } from '@/services/ifc/ifcx/openNormalize';
+import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from '@/services/ifc/ifcx/fieldGroups';
+import { lagFromShared, sharedLagOf } from '@/services/ifc/ifcx/fields/sequenceFields';
+import { taskWindow } from '@/services/ifc/ifcx/dateProjection';
+import { ATTRIBUTE } from '@/services/ifc/ifcx/profile';
 import {
   CALENDAR_DATE_FORM, FREE_TEXT_FORM, GLOBAL_ID_OUTSIDE_PATH_FORM, ISO_DATE_OR_MOMENT_OR_EMPTY_FORM, ISO_MOMENT_FORM,
   LOCAL_MOMENT_OR_EMPTY_FORM, NON_EMPTY_TEXT_FORM, VERSION_FORM, type IfcxValue,
@@ -416,13 +423,6 @@ for (const [name, input] of [...[...fullExamples].map(([file, full]) => [file, k
   });
 }
 
-test('een bibliotheekentry met het id van de projectkalender maar een andere inhoud wordt geweigerd', () => {
-  const viaApp = saveInputViaApp(datePlan());
-  const refusal = writeRefusal({ ...viaApp, resourceCalendars: (viaApp.resourceCalendars ?? []).map(calendar =>
-    calendar.id === viaApp.calendar.id ? { ...calendar, hoursPerDay: calendar.hoursPerDay + 1 } : calendar) });
-  assert.equal(refusal.code, 'inconsistent');
-  assert.deepEqual(refusal.fields, ['resourceCalendars']);
-});
 
 function changedFixture(change: (document: ReturnType<typeof documentOf>, activities: { path: string; attributes: Record<string, Record<string, unknown>> }[]) => void): Uint8Array {
   const document = documentOf(goodText);
@@ -478,23 +478,22 @@ test('een mijlpaal met een venster van meer dan één dag wordt geweigerd', () =
   assert.equal(error.code, 'invalid', error.message);
 });
 
-test('de werkelijke start van een gestarte taak blijft staan; een veranderd einde wel toegepast (2221)', () => {
-  const back = readIfcx(changedFixture((_document, [first]) => {
-    Object.assign(first.attributes['openaec::planning::activity'], { start: '2027-06-02', endExclusive: '2027-06-04', completion: 0.5 });
-    (first.attributes['openaec::ops::task'].time as Record<string, unknown>).actualStart = '2027-06-01T07:00';
-  }));
-  const task = back.tasks[0];
-  assert.equal(task.time.actualStart, '2027-06-01T07:00');
-  assert.equal(task.time.scheduleStart, '2027-06-01T07:00');
-  assert.equal(task.time.scheduleFinish, '2027-06-04T00:00');
+test('een gedeelde datum die een werkelijke start of een voltooid einde tegenspreekt, is invalid; een ander einde wordt toegepast', () => {
+  for (const window of [{ start: '2027-06-02', endExclusive: '2027-06-04' }, { start: '2027-05-31', endExclusive: '2027-06-02' }]) {
+    const error = readError(startedFixture(window));
+    assert.equal(error.code, 'invalid', error.message);
+    assert.equal(error.place.field, 'start');
+  }
+  const back = readIfcx(startedFixture({ start: '2027-06-01', endExclusive: '2027-06-04' }));
+  assert.equal(back.tasks[0].time.scheduleStart, '2027-06-01T07:00');
+  assert.equal(back.tasks[0].time.scheduleFinish, '2027-06-04T00:00');
   assert.equal(back.ifcxSharedDatesApplied, 1);
-  const onlyStart = readIfcx(changedFixture((_document, [first]) => {
-    Object.assign(first.attributes['openaec::planning::activity'], { start: '2027-05-31', completion: 0.5 });
-    (first.attributes['openaec::ops::task'].time as Record<string, unknown>).actualStart = '2027-06-01T07:00';
+  const finished = readError(changedFixture((_document, [first]) => {
+    Object.assign(first.attributes['openaec::planning::activity'], { endExclusive: '2027-06-05', completion: 1 });
+    Object.assign(first.attributes['openaec::ops::task'].time as Record<string, unknown>, { actualStart: '2027-06-01T07:00', actualFinish: '2027-06-01T16:00' });
   }));
-  assert.equal(onlyStart.ifcxSharedDatesApplied, undefined);
-  assert.equal(onlyStart.tasks[0].time.scheduleStart, '2027-06-01T07:00');
-  assert.equal(onlyStart.tasks[0].manuallyScheduled, undefined);
+  assert.equal(finished.code, 'invalid', finished.message);
+  assert.equal(finished.place.field, 'endExclusive');
 });
 
 const HEADER_AND_SCHEMA_REFUSALS: readonly { name: string; code: IfcxReadErrorCode; schema?: true; change: (document: ReturnType<typeof documentOf>) => void }[] = [
@@ -520,17 +519,13 @@ for (const refusal of HEADER_AND_SCHEMA_REFUSALS) {
   });
 }
 
-test('een kring van ouders wordt bij lezen en bij schrijven geweigerd', () => {
-  const error = readError(changedFixture((_document, [first, second]) => {
+test('een kring in de ouders leest en schrijft zoals STEP haar bewaart', () => {
+  const back = readIfcx(changedFixture((_document, [first, second]) => {
     first.attributes['openaec::planning::activity'].parent = second.path;
     second.attributes['openaec::planning::activity'].parent = first.path;
   }));
-  assert.equal(error.code, 'invalid', error.message);
-  const plan = datePlan();
-  const [a, b] = plan.tasks;
-  const refusal = writeRefusal({ ...plan, tasks: [{ ...a, parentId: b.id, childIds: [b.id] }, { ...b, parentId: a.id, childIds: [a.id] }, ...plan.tasks.slice(2)] });
-  assert.equal(refusal.code, 'inconsistent');
-  assert.deepEqual(refusal.fields, ['task.parentId']);
+  assert.equal(back.tasks[0].parentId, back.tasks[1].id);
+  assert.equal(back.tasks[1].parentId, back.tasks[0].id);
 });
 
 test('dubbele interne id\'s worden bij lezen en bij schrijven geweigerd', () => {
@@ -545,26 +540,21 @@ test('dubbele interne id\'s worden bij lezen en bij schrijven geweigerd', () => 
   assert.equal(writeRefusal({ ...plan, tasks: [...plan.tasks, { ...plan.tasks[0] }] }).code, 'inconsistent');
 });
 
-test('een verzameltaak met een kind dat niet bestaat of haar ouder niet noemt wordt geweigerd (2222)', () => {
+test('de boom komt zoals in STEP uit de kinderlijsten: een kind dat niet bestaat valt weg, de ouder volgt uit de lijst', () => {
   const plan = datePlan();
-  for (const tasks of [
-    plan.tasks.map((task, index) => index === 0 ? { ...task, isSummary: true, childIds: ['bestaat-niet'] } : task),
-    plan.tasks.map(task => task.id === 'binnen-een-dag' ? { ...task, childIds: ['handmatig'] } : task),
-  ]) {
-    const refusal = writeRefusal({ ...plan, tasks });
-    assert.equal(refusal.code, 'inconsistent');
-    assert.deepEqual(refusal.fields, ['task.childIds']);
-  }
+  const missing = readIfcx(encode(writeIfcx({ ...plan, tasks: plan.tasks.map((task, index) => index === 0 ? { ...task, isSummary: true, childIds: ['bestaat-niet'] } : task) }, CLOCK)));
+  assert.deepEqual(missing.tasks[0].childIds, []);
+  const unnamed = readIfcx(encode(writeIfcx({ ...plan, tasks: plan.tasks.map(task => task.id === 'binnen-een-dag' ? { ...task, childIds: ['handmatig'] } : task) }, CLOCK)));
+  assert.equal(unnamed.tasks.find(task => task.id === 'handmatig')!.parentId, 'binnen-een-dag');
+  const loose = readIfcx(encode(writeIfcx({ ...plan, tasks: plan.tasks.map((task, index) => index === 1 ? { ...task, parentId: 'weg' } : task) }, CLOCK)));
+  assert.equal(loose.tasks[1].parentId, null);
 });
 
-test('een ouder of relatie naar een taak die niet bestaat wordt geweigerd', () => {
+test('een relatie naar een taak die niet bestaat wordt geweigerd (regel C)', () => {
   const plan = datePlan();
   const relation = writeRefusal({ ...plan, sequences: [...plan.sequences, { id: 'los', predecessorId: 'weg', successorId: 'handmatig', type: 'FINISH_START', lagDays: 0 }] });
   assert.equal(relation.code, 'inconsistent');
   assert.deepEqual(relation.fields, ['sequence.predecessorId']);
-  const parent = writeRefusal({ ...plan, tasks: plan.tasks.map((task, index) => index === 1 ? { ...task, parentId: 'weg' } : task) });
-  assert.equal(parent.code, 'inconsistent');
-  assert.deepEqual(parent.fields, ['task.parentId']);
 });
 
 test('onmogelijke dagen en kloktijden worden geweigerd', () => {
@@ -658,6 +648,11 @@ test('de zelfcontrole ziet een waarde die bij het teruglezen stil verandert', ()
 });
 
 const SELF_CHECK_WITNESSES: Readonly<Record<string, () => WriteIFCInput>> = {
+  sessiegegevens: () => {
+    const plan = datePlan();
+    return { ...plan, tasks: plan.tasks.map((task, index) => index === 0
+      ? { ...task, time: { ...task.time, progressBeforeRecalculation: { status: 'NOT_STARTED' as const, completion: 0 } } } : task) };
+  },
   'lijsten-van-de-lezer': () => without(datePlan(), ['activityCodeTypes', 'customFieldDefs', 'baselines', 'resources', 'assignments', 'resourceCalendars', 'activeBaselineId']),
   'lege-velden-die-deze-versie-niet-draagt': () => {
     const plan = datePlan();
@@ -723,28 +718,15 @@ function startedFixture(window: { start: string; endExclusive: string }): Uint8A
   });
 }
 
-test('een gedeeld venster dat een gestarte taak vóór haar werkelijke start laat eindigen, wordt geweigerd (blokkade 2)', () => {
-  const error = readError(startedFixture({ start: '2027-05-28', endExclusive: '2027-05-29' }));
-  assert.equal(error.code, 'invalid', error.message);
-  assert.equal(error.place.field, 'task.time');
-  assert.equal(readError(startedFixture({ start: '2027-05-31', endExclusive: '2027-06-01' })).place.field, 'task.time');
-  assert.equal(readIfcx(startedFixture({ start: '2027-05-31', endExclusive: '2027-06-03' })).tasks[0].time.scheduleFinish, '2027-06-03T00:00');
+test('een gestarte taak die in de app vóór haar werkelijke start eindigt, schrijft en leest als in de app (ronde 2, blokkade 2)', () => {
   const plan = datePlan();
   const late = { ...plan, tasks: plan.tasks.map((task, index) => index === 0
     ? { ...task, time: { ...task.time, actualStart: '2027-06-03T07:00', completion: 0.5 } } : task) };
   const back = readIfcx(encode(writeIfcx(late, CLOCK)));
-  assertSameDomain(back, late);
+  assertSameDomain(back, normalizedCopy(late));
+  assert.equal(back.tasks[0].time.actualStart, '2027-06-03T07:00');
 });
 
-test('bekende grens 2224: een voltooide taak die eindigt vóór haar werkelijke start, kan niet als IFCX worden opgeslagen', () => {
-  const plan = datePlan();
-  const input = { ...plan, tasks: plan.tasks.map((task, index) => index === 0
-    ? { ...task, time: { ...task.time, actualStart: '2027-06-02T07:00', actualFinish: '2027-06-01T16:00', completion: 1 } } : task) };
-  const refusal = writeRefusal(input);
-  assert.equal(refusal.code, 'inconsistent');
-  assert.deepEqual(refusal.fields, ['task.time']);
-  assert.ok(writeIFCForComparison(input).length > 0, 'STEP schrijft haar wel');
-});
 
 test('een dubbele GlobalId wordt bij lezen en bij schrijven geweigerd, nooit stil vervangen (blokkade 3)', () => {
   const compactOfFirst = readError(changedFixture((_document, [first, second]) => {
@@ -788,14 +770,14 @@ test('twee lagvormen of een oneindige lag worden bij lezen en bij schrijven gewe
   assert.equal(both.place.field, 'timeLagRatio');
   const huge = readError(sequenceFixture(sequence => { delete sequence.timeLag; sequence.timeLagRatio = 1e308; }));
   assert.equal(huge.code, 'invalid', huge.message);
-  assert.equal(huge.place.field, 'sequence.lag');
+  assert.equal(huge.place.field, 'timeLagRatio');
   const infinite = readError(new TextDecoder().decode(sequenceFixture(sequence => { delete sequence.timeLag; sequence.timeLagRatio = 7; }))
     .replace('"timeLagRatio":7', '"timeLagRatio":1e999'));
   assert.equal(infinite.code, 'invalid', infinite.message);
   const plan = datePlan();
   const refusal = writeRefusal({ ...plan, sequences: plan.sequences.map((sequence, index) => index === 0 ? { ...sequence, lagDays: Infinity } : sequence) });
-  assert.equal(refusal.code, 'inconsistent');
-  assert.deepEqual(refusal.fields, ['sequence.lag']);
+  assert.equal(refusal.code, 'invalid');
+  assert.deepEqual(refusal.fields, ['openaec::ops::sequence.lagDays']);
 });
 
 test('ongeldige projectdatums, voortgang en kop worden bij schrijven en bij lezen geweigerd (blokkade 5)', () => {
@@ -803,13 +785,14 @@ test('ongeldige projectdatums, voortgang en kop worden bij schrijven en bij leze
   const cases: [WriteIFCInput, string][] = [
     [{ ...plan, project: { ...plan.project, startDate: '2027-02-30T99:99' } }, 'openaec::ops::document.startDate'],
     [{ ...plan, project: { ...plan.project, statusDate: '2027-02-30' } }, 'openaec::ops::document.statusDate'],
-    [{ ...plan, tasks: plan.tasks.map((task, index) => index === 0 ? { ...task, time: { ...task.time, completion: 1.5 } } : task) }, 'openaec::planning::activity.completion'],
   ];
   for (const [input, field] of cases) {
     const refusal = writeRefusal(input);
     assert.equal(refusal.code, 'invalid', field);
     assert.deepEqual(refusal.fields, [field]);
   }
+  const overFull = { ...plan, tasks: plan.tasks.map((task, index) => index === 0 ? { ...task, time: { ...task.time, completion: 1.5 } } : task) };
+  assert.equal(readIfcx(encode(writeIfcx(overFull, CLOCK))).tasks[0].time.completion, 1, 'de writer klemt de voortgang zoals de STEP-lezer');
   try {
     writeIfcx(plan, new Date('gisteren'));
     assert.fail('verwacht een weigering');
@@ -940,13 +923,28 @@ function variantPlan(): WriteIFCInput {
   };
 }
 
+function fieldPathOf(spec: IfcxValue, steps: readonly string[]): string {
+  let path = '';
+  let at: IfcxValue = spec;
+  for (const step of steps) {
+    if (at.dataType === 'Array') { path += `[${step}]`; at = at.item; continue; }
+    if (at.dataType === 'Object') { path += path ? `.${step}` : step; at = at.members[step].value; }
+  }
+  return path;
+}
+
 test('elk veld in de veldtabel wordt met elk tegenvoorbeeld van zijn vorm geweigerd, door de lezer en de writer (regel A, B)', () => {
   const documents = [maximalPlan(), variantPlan(), datePlan(), ...[...fullExamples.values()].map(kernOf)].map(input => documentOf(writeIfcx(input, CLOCK)));
   const missing: string[] = [], wrongReader: string[] = [], wrongWriter: string[] = [];
-  let readerCases = 0, writerRefusals = 0, writerUnreachable = 0;
+  const outcomes = {
+    'de writer weigert om dit veld': 0, 'de writer weigert om het andere veld van hetzelfde feit': 0, 'de writer kan de waarde niet in een veld zetten': 0,
+    'de ongetoetste lezer maakt er geen planning van': 0, 'de planning draagt de waarde niet': 0,
+  };
+  const under = (field: string, base: string) => field === base || field.startsWith(`${base}.`) || field.startsWith(`${base}[`);
+  const sameFact = (where: string) => DOUBLE_REPRESENTATIONS.find(row => [...row.shared, ...row.precise].some(field => under(where, field)));
   const check = (label: string, spec: IfcxValue, locate: (document: ReturnType<typeof documentOf>) => readonly unknown[], expected: (error: IfcxReadError) => boolean) => {
     for (const { steps, spec: value } of placesOf(spec).slice(1)) {
-      const where = `${label}.${steps.join('.')}`;
+      const where = `${label}.${fieldPathOf(spec, steps)}`;
       let found: { document: ReturnType<typeof documentOf>; holder: Record<string, unknown> } | undefined;
       for (const document of documents) {
         const holder = locate(document).map(root => holderOf(root, steps)).find(Boolean);
@@ -955,18 +953,27 @@ test('elk veld in de veldtabel wordt met elk tegenvoorbeeld van zijn vorm geweig
       if (!found) { missing.push(where); continue; }
       for (const bad of counterexamplesOf(value)) {
         const text = textWith(found.document, found.holder, steps[steps.length - 1], bad);
+        const shown = `${where} = ${JSON.stringify(bad)}`;
         let error: IfcxReadError | undefined;
         try { readIfcxText(text); } catch (thrown) { if (thrown instanceof IfcxReadError) error = thrown; }
-        if (!error || !expected(error)) { wrongReader.push(`${where} = ${JSON.stringify(bad)}: ${error?.message ?? 'gelezen'}`); continue; }
-        readerCases++;
+        if (!error || !expected(error)) { wrongReader.push(`${shown}: ${error?.message ?? 'gelezen'}`); continue; }
         let model: ImportResult;
-        try { model = readIfcxText(text, false); } catch { writerUnreachable++; continue; }
+        try { model = readIfcxText(text, false); } catch { outcomes['de ongetoetste lezer maakt er geen planning van']++; continue; }
+        let written: string;
         try {
-          readIfcx(encode(writeIfcx(model, CLOCK)));
+          written = writeIfcx(model, CLOCK);
         } catch (refusal) {
-          if (refusal instanceof IfcxWriteRefusedError && refusal.code !== 'self-check') writerRefusals++;
-          else wrongWriter.push(`${where} = ${JSON.stringify(bad)}: ${String(refusal)}`);
+          const row = sameFact(where);
+          if (!(refusal instanceof IfcxWriteRefusedError) || refusal.code !== 'invalid') wrongWriter.push(`${shown}: ${String(refusal)}`);
+          else if (refusal.fields.some(field => under(field, where))) outcomes['de writer weigert om dit veld']++;
+          else if (row && refusal.fields.some(field => [...row.shared, ...row.precise].some(base => under(field, base)))) outcomes['de writer weigert om het andere veld van hetzelfde feit']++;
+          else if (refusal.fields.length === 1 && refusal.fields[0] === 'planning') outcomes['de writer kan de waarde niet in een veld zetten']++;
+          else wrongWriter.push(`${shown}: ${String(refusal)}`);
+          continue;
         }
+        const carried = locate(documentOf(written)).map(root => holderOf(root, steps)).some(holder => holder && Object.is(holder[steps[steps.length - 1]], bad));
+        if (carried) wrongWriter.push(`${shown}: de writer schreef de waarde`);
+        else outcomes['de planning draagt de waarde niet']++;
       }
     }
   };
@@ -977,9 +984,9 @@ test('elk veld in de veldtabel wordt met elk tegenvoorbeeld van zijn vorm geweig
   check('header', HEADER_VALUE, document => [document.header], error => ['invalid', 'foreign', 'version'].includes(error.code));
   assert.deepEqual(missing, [], 'elk veld staat in een van de proefplanningen');
   assert.deepEqual(wrongReader, [], 'de lezer weigert elk tegenvoorbeeld als invalid');
-  assert.deepEqual(wrongWriter, [], 'de writer weigert getypeerd vóór de zelfcontrole');
-  assert.ok(writerRefusals > 0);
-  console.log(`   ${readerCases} tegenvoorbeelden door de lezer, ${writerRefusals} weigeringen van de writer, ${writerUnreachable} niet als planning te maken`);
+  assert.deepEqual(wrongWriter, [], 'de writer weigert om precies dat veld, of de planning draagt de waarde niet');
+  assert.ok(outcomes['de writer weigert om dit veld'] > 0);
+  console.log(`   ${Object.entries(outcomes).map(([reason, count]) => `${reason}: ${count}`).join('; ')}`);
 });
 
 type ObjectList = (model: WriteIFCInput) => { id: string }[] | undefined;
@@ -1021,6 +1028,10 @@ test('elke soort met een identiteit: dubbel id, dubbele GlobalId en een verwijzi
       const model = structuredClone(base);
       const owner = list!(model)!.find(item => item.id === owning.id) as unknown as Record<string, unknown>;
       owner[reference.field] = Array.isArray(owner[reference.field]) ? ['bestaat-niet'] : 'bestaat-niet';
+      if (spec.kind === 'task') {
+        assert.doesNotThrow(() => writeIfcx(model, CLOCK), `${reference.field}: de boom komt zoals in STEP uit de kinderlijsten`);
+        continue;
+      }
       const refusal = writeRefusal(model);
       assert.equal(refusal.code, 'inconsistent', `${spec.kind}.${reference.field}`);
       assert.ok(refusal.fields.includes(`${spec.area}.${reference.field}`), `${spec.kind}.${reference.field}: ${refusal.fields.join(', ')}`);
@@ -1030,29 +1041,318 @@ test('elke soort met een identiteit: dubbel id, dubbele GlobalId en een verwijzi
 
 const RULE_CASES: Readonly<Record<string, () => IfcxReadError | IfcxWriteRefusedError>> = {
   identiteit: () => { const plan = datePlan(); return writeRefusal({ ...plan, tasks: [...plan.tasks, { ...plan.tasks[0] }] }); },
-  boom: () => {
-    const plan = datePlan();
-    const [a, b] = plan.tasks;
-    return writeRefusal({ ...plan, tasks: [{ ...a, parentId: b.id, childIds: [b.id] }, { ...b, parentId: a.id, childIds: [a.id] }, ...plan.tasks.slice(2)] });
-  },
-  venster: () => readError(startedFixture({ start: '2027-05-28', endExclusive: '2027-05-29' })),
-  'lag-eindig': () => readError(sequenceFixture(sequence => { delete sequence.timeLag; sequence.timeLagRatio = 1e308; })),
-  'projectkalender-in-bibliotheek': () => {
-    const viaApp = saveInputViaApp(datePlan());
-    return writeRefusal({ ...viaApp, resourceCalendars: (viaApp.resourceCalendars ?? []).map(calendar =>
-      calendar.id === viaApp.calendar.id ? { ...calendar, hoursPerDay: calendar.hoursPerDay + 1 } : calendar) });
-  },
-  'een-lagvorm': () => readError(sequenceFixture(sequence => { Object.assign(sequence, { timeLag: 'P2D', timeLagRatio: 0.5 }); })),
-  'gedeeld-venster': () => readError(changedFixture((_document, [first]) => { first.attributes['openaec::planning::activity'].endExclusive = '2027-05-01'; })),
 };
 
-test('elke regel over meer velden heeft een reden en een geval dat hij weigert (regel E)', () => {
+test('elke regel in CONSISTENCY_RULES heeft een reden en een geval dat hij weigert', () => {
   assert.deepEqual(CONSISTENCY_RULES.map(rule => rule.id).sort(), Object.keys(RULE_CASES).sort());
   for (const rule of CONSISTENCY_RULES) {
     assert.ok(rule.reason.length > 20, rule.id);
-    assert.ok((rule.onPlanning === undefined) !== (rule.onAttribute === undefined), `${rule.id} kijkt naar de planning of naar één attribuut`);
     const refusal = RULE_CASES[rule.id]();
     assert.ok(refusal instanceof IfcxReadError ? refusal.code === 'invalid' : refusal.code === 'inconsistent', `${rule.id}: ${refusal.message}`);
+  }
+});
+
+type Attempt<T> = { ok: true; value: T } | { ok: false; error: unknown };
+function attempt<T>(action: () => T): Attempt<T> {
+  try { return { ok: true, value: action() }; } catch (error) { return { ok: false, error }; }
+}
+
+function withTask(plan: WriteIFCInput, id: string, change: (task: Task) => Task): WriteIFCInput {
+  return { ...plan, tasks: plan.tasks.map(task => (task.id === id ? change(task) : task)) };
+}
+
+function withTime(plan: WriteIFCInput, id: string, time: Partial<Task['time']>): WriteIFCInput {
+  return withTask(plan, id, task => ({ ...task, time: { ...task.time, ...time } }));
+}
+
+function withPhase(plan: WriteIFCInput): WriteIFCInput {
+  const phase = dateCaseTask('fase', moment(2, '09:30'), moment(4, '11:15'), { isSummary: true, childIds: ['handmatig'] });
+  const changed = withTask(plan, 'handmatig', task => ({ ...task, parentId: 'fase' }));
+  return { ...changed, tasks: [phase, ...changed.tasks] };
+}
+
+function withCalendar(change: (calendar: WriteIFCInput['calendar']) => WriteIFCInput['calendar']): WriteIFCInput {
+  const plan = datePlan();
+  return saveInputViaApp({ ...plan, calendar: change(plan.calendar) });
+}
+
+function weekBands(day: { start: number; end: number }[]) {
+  const work = [{ start: 420, end: 960 }];
+  return { byWeekday: { 1: day, 2: work, 3: work, 4: work, 5: work, 6: [], 7: [] } };
+}
+
+function progressBeforeRecalculation(): WriteIFCInput {
+  const plan = datePlan();
+  const task = plan.tasks[0];
+  const entry = planProgressEntry(task, { field: 'completion', value: 0.5 }, { statusDate: '2027-06-02', calendar: plan.calendar });
+  assert.ok(entry.ok && entry.change, 'de voortgangsinvoer geeft een wijziging');
+  return saveInputViaApp({ ...plan, tasks: plan.tasks.map(item => (item.id === task.id ? entry.change!.task : item)) });
+}
+
+interface StepCase {
+  readonly name: string;
+  readonly input: () => WriteIFCInput;
+  readonly refusedBy?: { readonly code: IfcxWriteRefusedCode; readonly rule: string };
+}
+
+const appPlan = () => saveInputViaApp(datePlan());
+
+const STEP_CASES: readonly StepCase[] = [
+  ...[...fullExamples].map(([name, full]) => ({ name, input: () => saveInputViaApp(kernOf(full)) })),
+  { name: 'ronde 3: 50 % voortgang ingevoerd vóór F5', input: progressBeforeRecalculation },
+  { name: 'ronde 3: een vrije periode van 3 tot en met 2 juni', input: () => withCalendar(calendar => ({
+    ...calendar, holidays: [...calendar.holidays, { name: 'Omgekeerd', startDate: '2027-06-03', endDate: '2027-06-02' }] })) },
+  { name: 'ronde 3: een werkblok van 960 tot 420', input: () => withCalendar(calendar => ({ ...calendar, workTime: weekBands([{ start: 960, end: 420 }]) })) },
+  { name: 'ronde 3: een nachtdienst van 1320 tot 1800', input: () => withCalendar(calendar => ({ ...calendar, workTime: weekBands([{ start: 1320, end: 1800 }]) })) },
+  { name: 'ronde 3: feestdagen gemaakt voor de jaren 2028 tot 2027', input: () => withCalendar(calendar => ({
+    ...calendar, generation: { ruleSetId: 'NL', generatedFromYear: 2028, generatedToYear: 2027 } })) },
+  { name: 'ronde 3: een bladtaak met een werkelijk einde en 50 %', input: () => withTime(appPlan(), 'binnen-een-dag', {
+    actualStart: moment(1, '07:00'), actualFinish: moment(1, '16:00'), completion: 0.5 }) },
+  { name: 'ronde 3 en 2224: omgekeerde werkelijke datums', input: () => withTime(appPlan(), 'binnen-een-dag', {
+    actualStart: moment(3, '07:00'), actualFinish: moment(2, '16:00'), completion: 1 }) },
+  { name: 'ronde 3: een relatie van een bladtaak naar zichzelf', input: () => {
+    const plan = appPlan();
+    return { ...plan, sequences: [...plan.sequences, { id: 'zelf', predecessorId: 'binnen-een-dag', successorId: 'binnen-een-dag', type: 'FINISH_START', lagDays: 0 }] };
+  } },
+  { name: 'ronde 3: een relatie tussen een fase en haar eigen kind', input: () => {
+    const plan = withPhase(appPlan());
+    return { ...plan, sequences: [...plan.sequences, { id: 'fase-kind', predecessorId: 'fase', successorId: 'handmatig', type: 'START_START', lagDays: 0 }] };
+  } },
+  { name: 'ronde 2: een gestarte taak die vóór F5 eindigt vóór haar werkelijke start', input: () => withTime(appPlan(), 'binnen-een-dag', {
+    actualStart: moment(3, '07:00'), completion: 0.5 }) },
+  { name: 'ronde 1: een verzameltaak met een kind dat niet bestaat', input: () => {
+    const plan = withPhase(appPlan());
+    return withTask(plan, 'fase', task => ({ ...task, childIds: [...task.childIds, 'bestaat-niet'] }));
+  } },
+  { name: 'ronde 1: een kind dat haar ouder niet noemt', input: () => withTask(withPhase(appPlan()), 'handmatig', task => ({ ...task, parentId: null })) },
+  { name: 'ronde 1: een kring in de ouders', input: () => {
+    const plan = appPlan();
+    return withTask(withTask(plan, 'binnen-een-dag', task => ({ ...task, parentId: 'einde-middernacht', childIds: ['einde-middernacht'] })),
+      'einde-middernacht', task => ({ ...task, parentId: 'binnen-een-dag', childIds: ['binnen-een-dag'] }));
+  } },
+  { name: 'ronde 1: een bibliotheekentry van de projectkalender met een andere inhoud', input: () => {
+    const plan = appPlan();
+    return { ...plan, resourceCalendars: (plan.resourceCalendars ?? []).map(calendar =>
+      calendar.id === plan.calendar.id ? { ...calendar, hoursPerDay: calendar.hoursPerDay + 1 } : calendar) };
+  } },
+  { name: 'ronde 1: een ouder die niet bestaat', input: () => withTask(appPlan(), 'handmatig', task => ({ ...task, parentId: 'weg' })) },
+  { name: 'een taak in de kinderlijst van twee ouders (2222)', refusedBy: { code: 'self-check', rule: 'één ouder per taak' }, input: () => withTask(withPhase(appPlan()), 'binnen-een-dag', task => ({ ...task, isSummary: true, childIds: ['handmatig'] })) },
+  { name: 'ronde 1: een relatie naar een taak die niet bestaat', refusedBy: { code: 'inconsistent', rule: 'C' }, input: () => {
+    const plan = appPlan();
+    return { ...plan, sequences: [...plan.sequences, { id: 'los', predecessorId: 'weg', successorId: 'handmatig', type: 'FINISH_START', lagDays: 0 }] };
+  } },
+  { name: 'ronde 1: twee taken met hetzelfde id', refusedBy: { code: 'inconsistent', rule: 'C' }, input: () => {
+    const plan = appPlan();
+    return { ...plan, tasks: [...plan.tasks, { ...plan.tasks[0] }] };
+  } },
+  { name: 'ronde 2: twee taken met dezelfde GlobalId', refusedBy: { code: 'inconsistent', rule: 'C' }, input: () => {
+    const plan = appPlan();
+    const shared = ifcGuid128('gedeeld');
+    return { ...plan, ifcGlobalIds: { ...plan.ifcGlobalIds, [`task:${plan.tasks[0].id}`]: shared, [`task:${plan.tasks[1].id}`]: shared } };
+  } },
+  { name: 'ronde 1: een dag die niet bestaat', refusedBy: { code: 'invalid', rule: 'A' }, input: () => withTime(appPlan(), 'binnen-een-dag', { lateStart: '2027-02-30T07:00' }) },
+  { name: 'ronde 2: voortgang boven 100 %', input: () => withTime(appPlan(), 'binnen-een-dag', { completion: 1.5 }) },
+  { name: 'ronde 2: een projectstart die niet bestaat', refusedBy: { code: 'invalid', rule: 'A' }, input: () => {
+    const plan = appPlan();
+    return { ...plan, project: { ...plan.project, startDate: '2027-02-30T99:99' } };
+  } },
+  { name: 'ronde 2: een oneindige lag', refusedBy: { code: 'invalid', rule: 'A' }, input: () => {
+    const plan = appPlan();
+    return { ...plan, sequences: plan.sequences.map((sequence, index) => (index === 0 ? { ...sequence, lagDays: Infinity } : sequence)) };
+  } },
+  { name: 'ronde 3: een feestdagenset die niet bestaat', refusedBy: { code: 'invalid', rule: 'A' }, input: () => withCalendar(calendar => ({
+    ...calendar, generation: { ruleSetId: 'XX' as never, generatedFromYear: 2027, generatedToYear: 2028 } })) },
+];
+
+const READ_METADATA = SELF_CHECK_RULES.find(rule => rule.id === 'leesmeta')!.keys;
+const canonOf = (model: WriteIFCInput) => planningCanon(saveInputViaApp(without(model as ImportResult, READ_METADATA)));
+
+const stepChanges: string[] = [];
+const fileOutsideDomain: string[] = [];
+test('voor elke planning in de lijst geeft IFCX heen en terug dezelfde planning als STEP, of beide weigeren (de maat)', () => {
+  const wrong: string[] = [];
+  for (const entry of STEP_CASES) {
+    const input = entry.input();
+    const before = structuredClone(input);
+    const step = attempt(() => readIFC(writeIFCForComparison(input)));
+    const own = attempt(() => readIfcx(encode(writeIfcx(input, CLOCK))));
+    const unnormalized = attempt(() => readIfcx(encode(serializeIfcx(buildIfcxDocument(copyAsStepWritesIt(input), CLOCK)))));
+    try { assert.deepEqual(input, before); } catch { wrong.push(`${entry.name}: writeIfcx veranderde de invoer`); }
+    if (step.ok && canonOf(step.value) !== canonOf(input)) {
+      stepChanges.push(`${entry.name}: ${planningDifference(saveInputViaApp(input as ImportResult), saveInputViaApp(without(step.value, READ_METADATA))).slice(0, 220)}`);
+    }
+    if (entry.refusedBy) {
+      const code = own.ok ? 'geschreven' : own.error instanceof IfcxWriteRefusedError ? own.error.code : String(own.error);
+      if (code !== entry.refusedBy.code) wrong.push(`${entry.name}: verwacht ${entry.refusedBy.code} (regel ${entry.refusedBy.rule}), kreeg ${code}`);
+      continue;
+    }
+    if (!step.ok) {
+      if (own.ok) wrong.push(`${entry.name}: STEP weigert (${String(step.error)}), IFCX niet`);
+      continue;
+    }
+    for (const [route, result] of [['writeIfcx', own], ['bestand zonder normalisatie', unnormalized]] as const) {
+      if (!result.ok && route === 'bestand zonder normalisatie' && result.error instanceof IfcxWriteRefusedError && result.error.code === 'invalid') {
+        fileOutsideDomain.push(entry.name);
+        continue;
+      }
+      if (!result.ok) { wrong.push(`${entry.name} (${route}): STEP bewaart, IFCX weigert: ${String(result.error).slice(0, 200)}`); continue; }
+      if (canonOf(result.value) !== canonOf(step.value)) {
+        wrong.push(`${entry.name} (${route}): andere planning dan STEP: ${planningDifference(without(step.value, READ_METADATA), without(result.value, READ_METADATA))}`);
+      }
+    }
+  }
+  console.log(`   ${STEP_CASES.length} planningen; STEP verandert zelf bij ${stepChanges.length}:`);
+  for (const change of stepChanges) console.log(`     - ${change}`);
+  console.log(`   zonder normalisatie geen geldig IFCX-bestand (regel A): ${fileOutsideDomain.join('; ') || 'geen'}`);
+  assert.deepEqual(wrong, []);
+});
+
+function recorder<T extends object>(value: T, path: string, seen: Set<string>): T {
+  return new Proxy(value, {
+    get(target, key, receiver) {
+      const item = Reflect.get(target, key, receiver) as unknown;
+      if (typeof key !== 'string') return item;
+      const at = `${path}.${key}`;
+      const leaf = path.includes('.') || item === null || typeof item !== 'object' || Array.isArray(item);
+      if (leaf) seen.add(at);
+      return leaf ? item : recorder(item, at, seen);
+    },
+  });
+}
+
+function domainKeysPerField<S>(fields: readonly { key: string; write: (source: S) => unknown }[], attribute: string, source: S, seen: Set<string>) {
+  return fields.map(field => {
+    seen.clear();
+    field.write(source);
+    return { field: `${attribute}.${field.key}`, keys: new Set(seen) };
+  });
+}
+
+const NOT_ONE_FACT: Readonly<Record<string, string>> = {
+  'openaec::planning::activity.parent ↔ openaec::ops::task.place': 'place is de plaats onder de ouder, niet de ouder zelf.',
+};
+
+test('elk gedeeld veld dat uit dezelfde domeinwaarde komt als een precies veld, heeft een rij of een reden (deel 2)', () => {
+  const plan = maximalPlan();
+  const seen = new Set<string>();
+  const overlaps: string[] = [];
+  const collect = (planning: ReturnType<typeof domainKeysPerField>, ops: ReturnType<typeof domainKeysPerField>) => {
+    for (const shared of planning) {
+      for (const precise of ops) {
+        if ([...shared.keys].some(key => precise.keys.has(key))) overlaps.push(`${shared.field} ↔ ${precise.field}`);
+      }
+    }
+  };
+  for (const sample of plan.tasks) {
+    const task = recorder(sample, 'task', seen);
+    const source = {
+      task, identity: { path: '00000000-0000-4000-8000-000000000000' },
+      get span() { return taskWindow(task); },
+      get parentPath() { return task.parentId ? 'ouder' : undefined; },
+      get calendarPath() { return task.calendarId ? 'kalender' : undefined; },
+      get place() { return task.parentId ? 0 : undefined; },
+    } as unknown as Parameters<typeof TASK_AREA.planning[number]['write']>[0];
+    collect(domainKeysPerField(TASK_AREA.planning, ATTRIBUTE.activity, source, seen), domainKeysPerField(TASK_AREA.ops, ATTRIBUTE.opsTask, source, seen));
+  }
+  for (const sample of plan.sequences) {
+    const sequence = recorder(sample, 'sequence', seen);
+    const source = {
+      sequence, identity: { path: '00000000-0000-4000-8000-000000000000' },
+      get predecessorPath() { return sequence.predecessorId; }, get successorPath() { return sequence.successorId; },
+      get shared() { return sharedLagOf(sequence); }, get derived() { return lagFromShared(sharedLagOf(sequence)); },
+    } as unknown as Parameters<typeof SEQUENCE_AREA.planning[number]['write']>[0];
+    collect(domainKeysPerField(SEQUENCE_AREA.planning, ATTRIBUTE.sequence, source, seen), domainKeysPerField(SEQUENCE_AREA.ops, ATTRIBUTE.opsSequence, source, seen));
+  }
+  const project = recorder(plan.project, 'project', seen);
+  const documentSource = {
+    project, headerUuid: '00000000-0000-4000-8000-000000000000', get headerAuthor() { return project.author; },
+    projectCalendarPath: 'kalender', projectCalendarId: plan.calendar.id,
+  } as unknown as Parameters<typeof DOCUMENT_AREA.planning[number]['write']>[0];
+  const headerFields = [{ key: 'author', write: (source: typeof documentSource) => source.headerAuthor }];
+  collect([...domainKeysPerField(DOCUMENT_AREA.planning, ATTRIBUTE.workplan, documentSource, seen), ...domainKeysPerField(headerFields, 'header', documentSource, seen)],
+    domainKeysPerField(DOCUMENT_AREA.ops, ATTRIBUTE.document, documentSource, seen));
+  for (const calendar of [plan.calendar, ...(plan.resourceCalendars ?? [])]) {
+    const source = { calendar: recorder(calendar, 'calendar', seen), isProjectCalendar: true, identity: { path: '00000000-0000-4000-8000-000000000000' } } as unknown as Parameters<typeof CALENDAR_AREA.planning[number]['write']>[0];
+    collect(domainKeysPerField(CALENDAR_AREA.planning, ATTRIBUTE.calendar, source, seen), domainKeysPerField(CALENDAR_AREA.ops, ATTRIBUTE.opsCalendar, source, seen));
+  }
+  const covered = (pair: string) => {
+    const [shared, precise] = pair.split(' ↔ ');
+    return DOUBLE_REPRESENTATIONS.some(row => row.shared.includes(shared) && row.precise.some(field => precise === field || precise.startsWith(`${field}.`)))
+      || NOT_ONE_FACT[pair] !== undefined;
+  };
+  const found = [...new Set(overlaps)].sort();
+  assert.deepEqual(found.filter(pair => !covered(pair)), [], 'elk paar heeft een rij of een reden');
+  for (const row of DOUBLE_REPRESENTATIONS) {
+    assert.ok(found.some(pair => row.shared.includes(pair.split(' ↔ ')[0])), `${row.id} hoort bij een paar dat de proef vindt`);
+  }
+  assert.deepEqual(Object.keys(NOT_ONE_FACT).filter(pair => !found.includes(pair)), [], 'elke reden hoort bij een gevonden paar');
+});
+
+function readOutcome(bytes: Uint8Array): IfcxReadError | ReturnType<typeof readIfcx> {
+  try { return readIfcx(bytes); } catch (error) { if (error instanceof IfcxReadError) return error; throw error; }
+}
+
+const REPRESENTATION_CASES: Readonly<Record<string, () => void>> = {
+  taakvenster: () => {
+    const contradicts = readOutcome(startedFixture({ start: '2027-06-02', endExclusive: '2027-06-04' }));
+    assert.ok(contradicts instanceof IfcxReadError && contradicts.code === 'invalid' && contradicts.place.field === 'start', String(contradicts));
+    const moved = readOutcome(startedFixture({ start: '2027-06-01', endExclusive: '2027-06-04' }));
+    assert.ok(!(moved instanceof IfcxReadError), String(moved));
+    assert.equal(moved.tasks[0].time.scheduleFinish, '2027-06-04T00:00');
+    assert.equal(moved.ifcxSharedDatesApplied, 1);
+  },
+  taakkalender: () => {
+    const both = readOutcome(changedFixture((document, [first]) => {
+      first.attributes['openaec::planning::activity'].calendar = entryWith(document, 'openaec::planning::calendar').path;
+      first.attributes['openaec::ops::task'].calendarId = 'wees';
+    }));
+    assert.ok(both instanceof IfcxReadError && both.code === 'invalid' && both.place.field === 'calendarId', String(both));
+  },
+  lag: () => {
+    const hidden = readOutcome(sequenceFixture(sequence => { delete sequence.timeLag; sequence.timeLagRatio = 1e308; }));
+    assert.ok(hidden instanceof IfcxReadError && hidden.place.field === 'timeLagRatio', String(hidden));
+    const document = documentOf(goodText);
+    const entry = entryWith(document, 'openaec::planning::sequence');
+    entry.attributes['openaec::planning::sequence'].timeLag = `P${'9'.repeat(309)}D`;
+    entry.attributes['openaec::ops::sequence'] = { ...(entry.attributes['openaec::ops::sequence'] ?? {}), lagDays: 10 };
+    const days = readOutcome(encode(JSON.stringify(document)));
+    assert.ok(days instanceof IfcxReadError && days.code === 'invalid' && days.place.field === 'timeLag', String(days));
+    const withPercent = documentOf(goodText);
+    const ratioEntry = entryWith(withPercent, 'openaec::planning::sequence');
+    delete ratioEntry.attributes['openaec::planning::sequence'].timeLag;
+    ratioEntry.attributes['openaec::planning::sequence'].timeLagRatio = 1e308;
+    ratioEntry.attributes['openaec::ops::sequence'] = { ...(ratioEntry.attributes['openaec::ops::sequence'] ?? {}), lagPercent: 10 };
+    const percent = readOutcome(encode(JSON.stringify(withPercent)));
+    assert.ok(percent instanceof IfcxReadError && percent.place.field === 'timeLagRatio', String(percent));
+    const twoForms = readOutcome(sequenceFixture(sequence => { Object.assign(sequence, { timeLag: 'P2D', timeLagRatio: 0.5 }); }));
+    assert.ok(twoForms instanceof IfcxReadError && twoForms.place.field === 'timeLagRatio', String(twoForms));
+  },
+  auteur: () => {
+    const plan = datePlan();
+    const named = readIfcx(encode(writeIfcx({ ...plan, project: { ...plan.project, author: 'Planbureau' } }, CLOCK)));
+    assert.equal(named.project.author, 'Planbureau');
+    const empty = documentOf(writeIfcx({ ...plan, project: { ...plan.project, author: '' } }, CLOCK));
+    assert.equal(empty.header.author, 'Open Planner Studio');
+    assert.equal(readIfcx(encode(JSON.stringify(empty))).project.author, '');
+  },
+  projectdatums: () => {
+    const plan = datePlan();
+    const text = writeIfcx({ ...plan, project: { ...plan.project, startDate: '2027-06-01T07:00' } }, CLOCK);
+    const document = documentOf(text);
+    entryWith(document, 'openaec::planning::workplan').attributes['openaec::planning::workplan'].start = '2027-06-07';
+    const back = readOutcome(encode(JSON.stringify(document)));
+    assert.ok(!(back instanceof IfcxReadError), String(back));
+    assert.equal(back.project.startDate, '2027-06-07');
+    assert.equal(back.ifcxSharedDatesApplied, 1);
+    assert.equal(readIfcx(encode(text)).project.startDate, '2027-06-01T07:00');
+  },
+};
+
+test('elke rij van de dubbele voorstellingen heeft een geval: tegenspraak geweigerd, voorrang toegepast (deel 2)', () => {
+  assert.deepEqual(DOUBLE_REPRESENTATIONS.map(row => row.id).sort(), Object.keys(REPRESENTATION_CASES).sort());
+  for (const row of DOUBLE_REPRESENTATIONS) {
+    assert.ok(row.conversion.length > 20 && row.precedence.length > 20, `${row.id} zegt hoe en wie voorgaat`);
+    REPRESENTATION_CASES[row.id]();
   }
 });
 
@@ -1118,7 +1418,7 @@ for (const size of sizes) {
     let text = '';
     for (let round = 0; round < rounds; round++) {
       const t0 = performance.now();
-      const unchecked = serializeIfcx(buildIfcxDocument(plan, CLOCK));
+      const unchecked = serializeIfcx(buildIfcxDocument(normalizedCopy(plan), CLOCK));
       const t1 = performance.now();
       text = writeIfcx(plan, CLOCK);
       const t2 = performance.now();

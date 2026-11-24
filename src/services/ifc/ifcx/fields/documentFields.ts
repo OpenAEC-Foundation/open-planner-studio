@@ -25,6 +25,9 @@ export interface DocumentReadTarget {
   calendarIdOverride?: string;
   sharedStart?: string;
   sharedFinish?: string;
+  preciseStart?: string;
+  preciseFinish?: string;
+  preciseAuthor?: string;
 }
 
 type DocumentField = IfcxField<DocumentWriteSource, DocumentReadTarget>;
@@ -84,12 +87,12 @@ export const DOCUMENT_OPS_FIELDS: readonly DocumentField[] = [
   {
     key: 'startDate', value: ISO_DATE_OR_MOMENT_OR_EMPTY, optional: true,
     write: s => (s.project.startDate !== (sharedProjectDate(s.project.startDate) ?? '') ? s.project.startDate : undefined),
-    read: (v, t) => { t.project.startDate = (v as string | undefined) ?? t.sharedStart ?? ''; },
+    read: (v, t) => { t.preciseStart = v as string | undefined; },
   },
   {
     key: 'endDate', value: ISO_DATE_OR_MOMENT_OR_EMPTY, optional: true,
     write: s => (s.project.endDate !== (sharedProjectDate(s.project.endDate) ?? '') ? s.project.endDate : undefined),
-    read: (v, t) => { t.project.endDate = (v as string | undefined) ?? t.sharedFinish ?? ''; },
+    read: (v, t) => { t.preciseFinish = v as string | undefined; },
   },
   {
     key: 'calendarId', value: NON_EMPTY_TEXT, optional: true,
@@ -109,7 +112,7 @@ export const DOCUMENT_OPS_FIELDS: readonly DocumentField[] = [
   {
     key: 'author', value: TEXT, optional: true,
     write: s => (s.project.author !== s.headerAuthor ? s.project.author : undefined),
-    read: (v, t) => { t.project.author = (v as string | undefined) ?? t.headerAuthor; },
+    read: (v, t) => { t.preciseAuthor = v as string | undefined; },
   },
   {
     key: 'company', value: TEXT, optional: true,

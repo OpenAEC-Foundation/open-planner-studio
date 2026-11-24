@@ -3886,26 +3886,15 @@ en noem het in je rapport of PR-tekst.
      de tokenizer op bytes van fase 4 (ontwerp §6.1) weigert een dubbele sleutel met de code `invalid`. Proef:
      `check-ifcx-kern.ts`, "bekende grens 2220". — B
 
-2221. **IFCX: een gedeelde startdatum die een ander programma veranderde, laat de lezer stil liggen bij een gestarte
-     taak.** `applySharedSpan` in `src/services/ifc/ifcx/ifcxReader.ts` past de leesregel van ontwerp §5.3 toe, maar de
-     start van een taak met een werkelijke start (`startIsActual`) en het einde van een voltooide taak
-     (`isPinnedComplete`) blijven een feit. Wijkt alleen zo'n datum af, dan verandert de lezer niets en telt de taak
-     niet mee in `ifcxSharedDatesApplied`; de volgende opslag schrijft weer de eigen projectie, zonder dat iemand het
-     verschil zag. Gezien door de reviewer (GPT-6.2-Sol, review van #1183 ronde 1) vóór de fix: gedeelde start naar
-     2 juni, `actualStart` 1 juni 07:00; toen werd `scheduleStart` 2 juni 00:00 en telde de taak mee terwijl de getoonde
-     start 1 juni 07:00 bleef. Voorstel: in fase 4 bepalen hoe de melding bij openen een gedeelde datum toont die met
-     een werkelijke datum botst. Proef: `check-ifcx-kern.ts`, "de werkelijke start van een gestarte taak blijft staan".
-     — B
-
-2222. **IFCX: een boom waarin `childIds` en `parentId` elkaar tegenspreken, kan niet als IFCX worden opgeslagen.** De
-     IFCX-writer schrijft de boom als `parent` per taak en leidt `childIds` bij lezen daaruit af. Noemt een ouder een
-     kind dat niet bestaat of haar niet als ouder noemt, dan weigert `inconsistentContent`
-     (`src/services/ifc/ifcx/consistency.ts`) met code `inconsistent` en veld `task.childIds`. STEP slaat zo'n boom
-     op: een kind dat niet bestaat filtert de STEP-writer weg (`writeWBSNesting`), en bij openen zet `extractNesting`
-     in `ifcReader.ts` `parentId` uit de nesting. Er gaat bij IFCX niets verloren, maar opslaan lukt dan niet. Voorstel:
-     de oorzaak vinden die zo'n boom maakt (zie ook 1980 en 1981), of de boom vóór het schrijven gelijktrekken zoals de
-     STEP-lezer doet. Proef: `check-ifcx-kern.ts`, "een verzameltaak met een kind dat niet bestaat of haar ouder niet
-     noemt wordt geweigerd (2222)". — B
+2222. **IFCX: een taak in de kinderlijst van twee ouders kan niet als IFCX worden opgeslagen.** De IFCX-writer
+     schrijft de boom zoals STEP hem schrijft: uit de kinderlijsten van de verzameltaken (`copyAsStepWritesIt` in
+     `src/services/ifc/ifcx/openNormalize.ts`). Een taak die in de lijst van twee ouders staat, bewaart STEP onder beide
+     ouders (`writeWBSNesting` schrijft beide nestingen, `extractNesting` in `ifcReader.ts` zet de laatste als ouder).
+     IFCX draagt per taak één ouder (`parent`), dus het teruggelezen model verschilt en `writeIfcx` weigert met
+     `self-check`. Er gaat niets verloren, maar opslaan als IFCX lukt dan niet. De app maakt zo'n boom niet bij gewoon
+     werk; hoe hij ontstaat, is niet nagegaan. Voorstel: de oorzaak vinden (zie ook 1980 en 1981), of in F3-4 de taak
+     bij de weigering noemen. Proef: `check-ifcx-kern.ts`, de lus naast STEP, geval "een taak in de kinderlijst van
+     twee ouders". — B
 
 2223. **IFCX: de vastgepinde schema's van IFC5-development en hun eigen voorbeeld Hello Wall spreken elkaar tegen.**
      Open Planner Studio schrijft in de kop `ifcxVersion: "ifcx_alpha"` en `dataVersion: "1.0.0"`, en kale UUID's als
@@ -3920,15 +3909,6 @@ en noem het in je rapport of PR-tekst.
      Gevolg: een letterlijke toets van het bestand tegen `openapi.yaml` of het padpatroon breekt af op de kop of op
      elk pad, ook bij Hello Wall. Voorstel: in F3-6 vastleggen welke ingang echt valideert (de functie `Validate`, de
      TypeSpec of het OpenAPI-bestand), en Hello Wall als controle voor dat referentiecontract gebruiken. — B
-
-2224. **IFCX: een voltooide taak die eindigt vóór haar werkelijke start, kan niet als IFCX worden opgeslagen.** De regel
-     `venster` in `CONSISTENCY_RULES` (`src/services/ifc/ifcx/consistency.ts`) eist dat het venster dat telt niet eindigt
-     vóór zijn start; bij een voltooide taak zijn dat de werkelijke start en het werkelijke einde. Staat `actualFinish`
-     vóór `actualStart`, dan weigert de writer met `inconsistent` en veld `task.time`; STEP slaat zo'n taak op. Er gaat
-     niets verloren, maar opslaan als IFCX lukt dan niet. Hoe vaak dit voorkomt, is niet nagegaan; de invoer van
-     voortgang in de app en een import uit P6 of MS Project zijn de plekken om te kijken. Voorstel: de invoer van een
-     werkelijk einde vóór de werkelijke start weigeren, of in F3-4 bij opslaan als IFCX de taak noemen. Proef:
-     `check-ifcx-kern.ts`, "bekende grens 2224". — B
 
 ## Rondleiding, Help en extensie-gidsen
 

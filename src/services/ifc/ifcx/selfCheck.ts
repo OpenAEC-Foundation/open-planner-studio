@@ -28,7 +28,8 @@ const PROJECT_NOT_CARRIED = knownNotCarried(PROJECT_KEYS, carriedKeys(DOCUMENT_G
 const CALENDAR_NOT_CARRIED = knownNotCarried(CALENDAR_KEYS, carriedKeys(CALENDAR_GROUPS));
 const TASK_LISTS_THE_READER_GIVES = ['resourceIds'];
 const TASK_NOT_CARRIED = knownNotCarried(TASK_KEYS, new Set([...carriedKeys(TASK_GROUPS), ...TASK_LISTS_THE_READER_GIVES]));
-const TASK_TIME_NOT_CARRIED = knownNotCarried(TASK_TIME_KEYS, new Set(TASK_GROUPS.flatMap(group => group.carriesTime)));
+export const SESSION_TIME_KEYS: readonly string[] = ['progressBeforeRecalculation'];
+const TASK_TIME_NOT_CARRIED = knownNotCarried(TASK_TIME_KEYS, new Set([...TASK_GROUPS.flatMap(group => group.carriesTime), ...SESSION_TIME_KEYS]));
 const SEQUENCE_NOT_CARRIED = knownNotCarried(SEQUENCE_KEYS, carriedKeys(SEQUENCE_GROUPS));
 const INPUT_NOT_CARRIED_NOR_READ = [
   'libraryPool', 'xerSourceArchive', 'xer', 'xerSourceProjectId', 'recordedSourceFormat', 'recoveryForeignSource',
@@ -60,7 +61,22 @@ const READ_METADATA = [
 
 const LISTS_THE_READER_GIVES = ['activityCodeTypes', 'customFieldDefs', 'baselines', 'resources', 'assignments', 'resourceCalendars'] as const;
 
+function withoutSessionData(model: Model, side: Side): void {
+  if (side !== 'input') return;
+  model.tasks = (model.tasks as WriteIFCInput['tasks']).map(task => {
+    if (!SESSION_TIME_KEYS.some(key => key in task.time)) return task;
+    const time = { ...task.time } as Record<string, unknown>;
+    for (const key of SESSION_TIME_KEYS) delete time[key];
+    return { ...task, time: time as unknown as typeof task.time };
+  });
+}
+
 export const SELF_CHECK_RULES: readonly SelfCheckRule[] = [
+  {
+    id: 'sessiegegevens', keys: SESSION_TIME_KEYS.map(key => `task.time.${key}`),
+    reason: 'Sessiegegevens: het type noemt het veld uitdrukkelijk sessiegegevens zonder IFC-opslag, de STEP-writer schrijft het niet en de STEP-lezer geeft het niet terug. Dus is het ook voor IFCX geen inhoud; de voorcontrole weigert het niet.',
+    normalize: withoutSessionData,
+  },
   {
     id: 'schrijfroute', keys: ['writeMode'],
     reason: 'De keuze van de schrijfroute (samenvoegen of alleen de planning) is geen planningsgegeven; de STEP-writer leest haar ook niet.',

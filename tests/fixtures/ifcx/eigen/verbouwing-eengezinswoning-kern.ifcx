@@ -528,7 +528,29 @@
               "objectRestrictions": {
                 "values": {
                   "ruleSetId": {
-                    "dataType": "String"
+                    "dataType": "Enum",
+                    "enumRestrictions": {
+                      "options": [
+                        "NL",
+                        "DE",
+                        "BE",
+                        "FR",
+                        "UK",
+                        "AT",
+                        "CH",
+                        "US",
+                        "BO",
+                        "ES",
+                        "IT",
+                        "PL",
+                        "PT",
+                        "CZ",
+                        "SE",
+                        "DK",
+                        "NO",
+                        "FI"
+                      ]
+                    }
                   },
                   "region": {
                     "dataType": "String",
@@ -671,17 +693,6 @@
                     "optional": true
                   }
                 }
-              }
-            },
-            "status": {
-              "dataType": "Enum",
-              "optional": true,
-              "enumRestrictions": {
-                "options": [
-                  "NOT_STARTED",
-                  "STARTED",
-                  "COMPLETED"
-                ]
               }
             },
             "milestoneKind": {

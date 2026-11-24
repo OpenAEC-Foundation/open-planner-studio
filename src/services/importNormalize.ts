@@ -7,6 +7,7 @@ import { isDateOnly } from '@/engine/calendar/workdayRules';
 import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { workRuleFromMsp, workRuleFromXerDurationType } from '@/engine/work/workRuleMapping';
 import { minOf } from '@/utils/collections';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 /** Bij het openen van een bestand met 100% en een ontbrekend einde blijft de laadregel gelden. */
 export function defaultImportedActualFinish(
@@ -131,6 +132,15 @@ export function normalizeImportedProgress(
     // een eerder opgeslagen IFC); zonder bronrest leidt dezelfde regel als de store hem af uit
     // `completion`. Een voltooide taak krijgt rest 0.
     applyRemainingDuration(task, true);
+  }
+}
+
+export function deriveSummaryStatus(tasks: readonly Task[]): void {
+  for (const task of tasks) {
+    if (!isSummaryTask(task)) continue;
+    const t = task.time;
+    task.status = t.actualFinish ? 'COMPLETED'
+      : t.actualStart || t.completion > 0 ? 'STARTED' : 'NOT_STARTED';
   }
 }
 
