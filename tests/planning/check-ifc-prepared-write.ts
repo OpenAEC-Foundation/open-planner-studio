@@ -242,15 +242,27 @@ await check('getalcontrole: vier verliezen op nieuwe objecten weigeren zonder by
   }
 });
 
-await check('vreemde herkomst: niets wijzigen bewaart de bron; wijzigen blijft veilig geweigerd', async () => {
+await check('vreemde herkomst: niets wijzigen bewaart de bron; wijzigen schrijft met de herkomst van Bonsai', async () => {
   const bytes = read('tests/fixtures/ifc-foreign/bonsai-4d.ifc');
   const opened = await openForeign(bytes), input = cloneDomain(opened);
   const result = await prepareIfcWrite(input, opened.ifcSource!);
   assert.strictEqual(result.source, opened.ifcSource);
   assert.deepEqual(result.bytes, bytes);
   const edited = await storeEdit(input, state => { state.setProject({ name: 'Bewerkt' }); });
+  const written = await prepareIfcWrite(edited, opened.ifcSource!);
+  const sourceIndex = scanForeignStep(bytes), outIndex = scanForeignStep(written.bytes);
+  const foreign = classify(sourceIndex).foreignOrigin.map(c => sourceIndex.id(c));
+  assert.deepEqual(classify(outIndex).foreignOrigin.map(c => outIndex.id(c)).filter(id => foreign.includes(id)), foreign,
+    'elk stuk van Bonsai houdt zijn herkomst');
+  assert.ok(written.source.sourceSlots && written.source.sourceSlots.size === opened.ifcSource!.sourceSlots!.size,
+    'de nieuwe bron heeft een kaart met evenveel stukken');
+});
+
+await check('vreemde herkomst in een lay-out die de kaart niet draagt: wijzigen blijft veilig geweigerd', async () => {
+  const opened = await openForeign(read('tests/fixtures/ifc-foreign/council/proef-bonsai-achtig.ifc'));
+  const edited = await storeEdit(cloneDomain(opened), state => { state.setProject({ name: 'Bewerkt' }); });
   await assert.rejects(prepareIfcWrite(edited, opened.ifcSource!), (e: unknown) => e instanceof MergeNeedsPhase2Error
-    && e.cases.some(c => c.kind === 'vreemde-herkomst'));
+    && e.cases.some(c => c.kind === 'vreemde-herkomst' && /^IFCTASK #30\b/.test(c.detail)));
 });
 
 await check('bewerking en undo: de oorspronkelijke bytes terug', async () => {

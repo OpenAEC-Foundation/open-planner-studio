@@ -1670,16 +1670,23 @@ test('export_ifc: volledige bytes, exclusief nieuw doel, bron en document intact
     assertEq(binFiles.get(latinExport)!.length, latin.length, 'dispatcher schrijft de bronlengte');
     assertEq(hash(binFiles.get(latinExport)!), hash(latin), 'dispatcher schrijft exact de bronbytes');
     S().setProject({ name: 'Werkelijk gewijzigde vreemde planning' });
+    const editedLatin = await exportRpc(`${HOME}/latin1-corpus-bewerkt.ifc`, false, latinCtx);
+    assert(editedLatin.ok, 'werkelijke bewerking van de planning van Bonsai exporteert via dispatcher');
+    assertEq(hash(binFiles.get(latinPath)!), hash(latin), 'de bron blijft intact na export');
+    const oldLayout = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/council/proef-bonsai-achtig.ifc')));
+    const oldPath = `${HOME}/proef-bonsai-achtig.ifc`; setBinaryFile(oldPath, oldLayout);
+    const oldCtx = makeCtx(); await callOk('planner_import_schedule', { path: oldPath }, oldCtx);
+    S().setProject({ name: 'Werkelijk gewijzigde vreemde planning' });
     let typedRefusal = false;
     try { await prepareIfcWrite(buildWriteIFCInput(S(), 'merge'), S().ifcSource!); }
     catch (error) { typedRefusal = error instanceof MergeNeedsPhase2Error && error.cases.some(c => c.kind === 'vreemde-herkomst'); }
-    assert(typedRefusal, 'werkelijke bewerking van vreemde corpusplanning weigert getypeerd');
-    const deniedLatin = await exportRpc(`${HOME}/latin1-corpus-bewerkt.ifc`, false, latinCtx);
-    assert(!deniedLatin.ok && deniedLatin.code === 'VALIDATION' && deniedLatin.error.includes('vreemde-herkomst'),
+    assert(typedRefusal, 'een bewerking van een vreemde planning in een lay-out die de kaart niet draagt, weigert getypeerd');
+    const deniedOld = await exportRpc(`${HOME}/proef-bonsai-achtig-bewerkt.ifc`, false, oldCtx);
+    assert(!deniedOld.ok && deniedOld.code === 'VALIDATION' && deniedOld.error.includes('vreemde-herkomst'),
       'corpusweigering getypeerd via dispatcher, nul bytes');
-    assertEq(binFiles.has(`${HOME}/latin1-corpus-bewerkt.ifc`), false, 'geen bewerkte corpusuitvoer');
-    assertEq(hash(binFiles.get(latinPath)!), hash(latin), 'de bron blijft intact na export en weigering');
-    assertEq(byteWrites, 3, 'drie volledige byte-exports'); assertEq(textWrites, 0, 'geen tekstrondgang');
+    assertEq(binFiles.has(`${HOME}/proef-bonsai-achtig-bewerkt.ifc`), false, 'geen bewerkte corpusuitvoer');
+    assertEq(hash(binFiles.get(oldPath)!), hash(oldLayout), 'de bron blijft intact na de weigering');
+    assertEq(byteWrites, 4, 'vier volledige byte-exports'); assertEq(textWrites, 0, 'geen tekstrondgang');
   } finally { useAppStore.setState(s => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument(); }
 });
 

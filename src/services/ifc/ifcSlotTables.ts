@@ -81,6 +81,12 @@ const TABLES_BY_ENTITY: ReadonlyMap<string, readonly IfcSlotTable[]> = (() => {
   return byEntity;
 })();
 
+const TABLES_BY_NAME: ReadonlyMap<string, IfcSlotTable> = new Map(IFC_SLOT_TABLES.map(table => [table.naam, table]));
+
+export function slotTableNamed(naam: string): IfcSlotTable | undefined {
+  return TABLES_BY_NAME.get(naam);
+}
+
 export function slotTablesHaveOwnerHistory(entity: string): boolean {
   return TABLES_BY_ENTITY.get(entity)?.every(table => table.slots.some(slot => slot.key === 'ownerHistory')) ?? false;
 }

@@ -149,18 +149,20 @@ async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) =>
 
 // ── 1. Het corpus, zonder wijziging ──
 
-/** Een planning van Bonsai: werkplan, werkschema's en taken hebben de owner history van Bonsai (§4.5), en `Creators`
- *  staat in een slot dat de writer leeg schrijft. Behouden kan pas met herkomstmerken (fase 2). */
 /** De modellen met een kleine eigen planning die al vóór fixronde 3 schreven (geen oud eigen bestand). */
 const WRITES_FOREIGN_PLANNING: ReadonlySet<string> = new Set(['complexe-instanties.ifc', 'model-ifc4.ifc', 'model-ifc4x3.ifc']);
+/** Een planning van Bonsai in de lay-out van het schema: werkplan, werkschema's, taken en relaties hebben de owner history
+ *  van Bonsai (§4.5). De kaart draagt ze; ze schrijven, ook na een bewerking, en houden hun herkomst. */
+const BONSAI_WRITES: ReadonlySet<string> = new Set(['bonsai-4d.ifc', 'crlf-commentaar.ifc', 'dubbele-globalids.ifc', 'latin1.ifc',
+  'twee-werkplannen.ifc']);
+/** Een taak met 12 en een arbeidsresource met 10 argumenten: geen lay-out die de kaart draagt, dus de weigering blijft. */
 const BONSAI = ['niet-gedragen', 'vreemde-herkomst'];
 /** Bestanden van een ander programma: ze weigeren met deze gevallen. */
 const REFUSED: Readonly<Record<string, readonly string[]>> = {
-  'bonsai-4d.ifc': BONSAI, 'crlf-commentaar.ifc': BONSAI, 'dubbele-globalids.ifc': BONSAI, 'latin1.ifc': BONSAI,
-  'twee-werkplannen.ifc': BONSAI, 'council/proef-bonsai-achtig.ifc': BONSAI, 'council/r5sol-parallelle-relaties.ifc': BONSAI,
+  'council/proef-bonsai-achtig.ifc': BONSAI, 'council/r5sol-parallelle-relaties.ifc': BONSAI,
   'council/r6opus-twee-werkplannen.ifc': BONSAI, 'council/r6opus-twee-werkplannen.na.ifc': BONSAI,
   'council/r6sol-herkomst-na-eerste-opslag.ifc': BONSAI, 'council/r7fable-eigen-oh-planning.ifc': BONSAI,
-  // Kalender en psets van een ander programma (VendorOps).
+  // Kalender en psets van een ander programma (VendorOps); een IfcRelDefinesByProperties van een ander draagt de kaart niet.
   'council/fix2-vendor-ops.ifc': ['niet-gedragen', 'vreemde-herkomst'],
   // Plus een gemengde IfcRelAssignsToProcess die de writer anders zou schrijven.
   'council/r6sol-losse-bonsai-toewijzing.ifc': ['gemengde-relatie', 'niet-gedragen', 'vreemde-herkomst'],
@@ -209,7 +211,15 @@ for (const file of corpus) {
   // Elk ander bestand schrijft: een model met een eigen planning, ook van een oudere versie (fixronde 3).
   if (!await roundTrip(file, bytes)) continue;
   written++;
-  if (!WRITES_FOREIGN_PLANNING.has(file)) ownWritten++;
+  if (BONSAI_WRITES.has(file)) {
+    const edited = await roundTrip(`${file} met gewijzigde projectbeschrijving`, bytes, rewrite);
+    if (edited) {
+      const before = classify(scanStep(bytes)).foreignOrigin.map(c => scanStep(bytes).id(c));
+      const outIndex = scanStep(edited.out);
+      eq(`${file}: elk stuk van Bonsai houdt na opslaan zijn herkomst`, classify(outIndex).foreignOrigin.map(c => outIndex.id(c)).filter(id => before.includes(id)).length,
+        before.filter(id => outIndex.chunkOf(id) >= 0).length);
+    }
+  } else if (!WRITES_FOREIGN_PLANNING.has(file)) ownWritten++;
   // O1 is niet leeg: zonder bewerking is het domein dat de merge schrijft (`sourceFormWhereUnchanged`: wat alleen het openen
   // veranderde, in de vorm van de bron) gelijk aan het domein van de toets (`changedScopes`).
   const index = scanStep(bytes);
@@ -219,7 +229,8 @@ for (const file of corpus) {
     .filter(k => !READ_ONLY_KEYS.has(k));
   eq(`${file}: zonder bewerking verandert er niets (O1)`, changed.slice(0, 3), []);
 }
-eq('corpus: elk bestand uit REFUSED en OWN_REFUSED bestaat', [...Object.keys(REFUSED), ...Object.keys(OWN_REFUSED)].filter(f => !corpus.includes(f)), []);
+eq('corpus: elk bestand uit REFUSED, OWN_REFUSED en BONSAI_WRITES bestaat',
+  [...Object.keys(REFUSED), ...Object.keys(OWN_REFUSED), ...BONSAI_WRITES].filter(f => !corpus.includes(f)), []);
 ok(`corpus: minstens negentien eigen bestanden schrijven zonder wijziging (${ownWritten})`, ownWritten >= 19);
 
 // ── 2. Varianten met een eigen planning ──
@@ -493,7 +504,8 @@ async function expectRefusal(label: string, bytes: Uint8Array, kind: string, edi
 function unnamed(detail: string): string { return detail.replace(/^([A-Z0-9]+ #\d+) \(.*?\)(?=[,:] )/, '$1'); }
 /** `only` voor een proef op één stuk: het begin van `detail` (`^IFCTASK #51`). */
 const pieceOf = (detail: RegExp) => new RegExp(`${/^\^[A-Z0-9]+ #\d+/.exec(detail.source)?.[0] ?? '^$'}\\b`);
-await expectRefusal('vreemde herkomst (bonsai-4d)', read('tests/fixtures/ifc-foreign/bonsai-4d.ifc'), 'vreemde-herkomst');
+await expectRefusal('vreemde herkomst in een lay-out die de kaart niet draagt (taak met 12 argumenten)',
+  read('tests/fixtures/ifc-foreign/council/proef-bonsai-achtig.ifc'), 'vreemde-herkomst', undefined, /^IFCTASK #30\b/);
 // Een veld dat de lezer niet draagt, op een P-stuk: sinds fixronde 3 zet de merge de bronwaarde terug (b, sectie 5h).
 {
   const r = await roundTrip('LongDescription op een eigen taak', enc.encode(replaceLine(baseText, '#57=',

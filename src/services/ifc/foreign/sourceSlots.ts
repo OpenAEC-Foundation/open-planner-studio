@@ -11,7 +11,7 @@ export interface SourcePieceSlots {
 
 export type SourceSlots = ReadonlyMap<number, SourcePieceSlots>;
 
-const OWNED_BY_TABLE: ReadonlyMap<string, { readonly slot: string; readonly table: string }> = new Map([
+export const OWNED_BY_TABLE: ReadonlyMap<string, { readonly slot: string; readonly table: string }> = new Map([
   ['IfcTask', { slot: 'taskTime', table: 'IfcTaskTime' }],
   ['IfcRelSequence', { slot: 'timeLag', table: 'IfcLagTime' }],
 ]);
@@ -40,6 +40,17 @@ function slotsOf(index: StepIndex, chunk: number): SourcePieceSlots | undefined 
   if (!piece || !owner) return piece;
   const owned = pieceAt(index, directReference(index, piece.slots.get(owner.slot)));
   return owned?.table === owner.table ? { ...piece, owned } : piece;
+}
+
+export function* mappedChunks(index: StepIndex, slots: SourceSlots): Generator<[number, SourcePieceSlots]> {
+  for (const [id, piece] of slots) {
+    const chunk = index.chunkOf(String(id));
+    if (chunk < 0) continue;
+    yield [chunk, piece];
+    const owner = OWNED_BY_TABLE.get(piece.table);
+    const owned = owner && piece.owned ? directReference(index, piece.slots.get(owner.slot)) : -1;
+    if (owned >= 0) yield [owned, piece.owned!];
+  }
 }
 
 export function scanSourceSlots(index: StepIndex, pieces: Iterable<number>): Map<number, SourcePieceSlots> {

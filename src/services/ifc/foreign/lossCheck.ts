@@ -99,7 +99,7 @@ import { PER_TASK_PSET_BY_NAME, PROP, PSET, asciiJson, ifcJson } from '../ifcPse
 import { WORK_CALENDAR_ARITY, workCalendarSlots, workControlSlots } from '../ifcWorkControlSlots';
 import { lagValueSlot } from '../ifcLagTimeSlots';
 import { LAG_TIME_SLOT } from '../ifcSequenceSlots';
-import { knownLayout, relationRoles, schemaArgsOf, slotTableOf } from '../ifcSlotTables';
+import { knownLayout, relationRoles, schemaArgsOf, slotTableNamed, slotTableOf, type IfcSlotTable } from '../ifcSlotTables';
 import { decodeStepText, stepTextIsValid } from '../stepText';
 import { hasOwnOrigin, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { durationForm, type DurationSlot } from './durationForms';
@@ -111,6 +111,8 @@ import type { IfcSource } from './ifcSource';
 import { planningIdentities, planningIdentityInput } from './planningIdentity';
 import { splitStepArgs, type StepIndex } from './stepScanner';
 import type { MergePhase2Kind } from './mergeWriter';
+import { mappedChunks, type SourceSlots } from './sourceSlots';
+import { writerAlwaysWrites } from './sourceSlotWrite';
 
 /** Een regel van de writer, ontleed. */
 export interface OutLine { readonly id: number; readonly type: string; readonly args: readonly string[] }
@@ -235,6 +237,7 @@ export interface LossCheckInput {
    * pset meebewegen.
    */
   readonly secondFormsUnchanged?: ReadonlySet<string>;
+  readonly sourceSlots?: SourceSlots;
 }
 
 /** Het domein zoals de lezer het uit de bron leest: dezelfde bytes, dezelfde opties en dezelfde ingang als de bytes-route
@@ -943,6 +946,16 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
     return true;
   };
 
+  const mapped = new Map<number, IfcSlotTable>();
+  for (const [chunk, piece] of input.sourceSlots ? mappedChunks(index, input.sourceSlots) : []) {
+    const table = slotTableNamed(piece.table);
+    if (table) mapped.set(chunk, table);
+  }
+  const writersSlot = (s: number, k2: number, length: number) => {
+    const table = mapped.get(s);
+    return table !== undefined && table.slots.length === length && writerAlwaysWrites(table, k2);
+  };
+
   // ── Vergelijken ──
   const diffs: LossDiff[] = [];
   /** Een verschil van een gepaard stuk; paarde het niet eenduidig, dan met het merk (BLOKKEERT 5). */
@@ -1059,7 +1072,7 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
         continue;
       }
       covered.add(k2);
-      if (saveField(s, o, type, k2)) continue;
+      if (saveField(s, o, type, k2) || writersSlot(s, k2, b.length)) continue;
       const bt = b[k2].trim();
       if (k2 === 0 && isGuidToken(at) && isGuidToken(bt) && isRootLine(line) && ownAuxGuid(s)) continue;
       const ok = type === 'IFCPROPERTYSET' && k2 === 4 ? sameMembers(s, at, bt)
