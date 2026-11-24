@@ -4,17 +4,17 @@ De afdruk heeft haar eigen tekenlogica, maar geen eigen tijdrekening. `renderRep
 functies als de scherm-Gantt (`resolveGanttAxis` en `isCompressedEffective` uit `workdayAxis.ts`) en plaatst balken,
 mijlpalen, speling, onderbrekingen en baselines met de gedeelde functies van het scherm (`taskBarSpan`,
 `milestoneAnchorX`, `floatBandEnd`, `taskSplitSegments`, `baselineSpanX`). De weekindeling volgt `weekStartDay` met
-`getWeekNumberFor`, en de arcering van vrije dagen de kalender (`CalendarEngine.isWorkDay`). Zo
-beantwoordt de afdruk die vragen niet op een tweede plek. `check-print-screen-parity.ts` toetst de gedeelde
-weekfuncties en, met een toets op de bron, dat de afdruk de kalender gebruikt; `check-print-bar-moments.ts` legt balken,
-fasebalk, relatiepijl en mijlpaal van het scherm en de afdruk naast elkaar.
+`getWeekNumberFor`, en de arcering van vrije dagen de kalender (`CalendarEngine.isWorkDay`). Zo beantwoordt de afdruk
+die vragen niet op een tweede plek. `check-print-screen-parity.ts` toetst de gedeelde weekfuncties en, met een toets op
+de bron, dat de afdruk de kalender gebruikt; `check-print-bar-moments.ts` legt balken, fasebalk, relatiepijl en mijlpaal
+van het scherm en de afdruk naast elkaar.
 
-Bij *Passend maken* krijgt de tabel op elk papierformaat dezelfde fysieke maat en krijgt alleen de tijdas meer of
-minder pixels per dag. `printableWidthLogicalPx` is de bronbreedte die de pagineerder met zijn vaste verhouding 0,75
-(96 dpi naar 72 pt) op één papierbreedte zet; de tabel staat op elke paginabreedte opnieuw, dus over N breedtes
-(`timelineColumns`) heeft de tijdas `N × (printableWidth − tableWidth)` px. Een vaste ondergrens voor de breedte per
-dag zou een meerjarenplanning te breed maken, waarna de pagineerder de hele tabel mee verkleint
-(`check-print-report.ts`, sectie 5).
+Bij *Passend maken* krijgt de tabel op elk papierformaat dezelfde fysieke maat en krijgt alleen de tijdas meer of minder
+pixels per dag. `printableWidthLogicalPx` is de bronbreedte die de pagineerder met zijn vaste verhouding 0,75 (96 dpi
+naar 72 pt) op één papierbreedte zet; de tabel staat op elke paginabreedte opnieuw, dus over N breedtes
+(`timelineColumns`) heeft de tijdas `N × (printableWidth − tableWidth)` px. Een vaste ondergrens voor de breedte per dag
+zou een meerjarenplanning te breed maken, waarna de pagineerder de hele tabel mee verkleint (`check-print-report.ts`,
+sectie 5).
 
 ## Gevolgen
 
@@ -28,8 +28,18 @@ dag zou een meerjarenplanning te breed maken, waarna de pagineerder de hele tabe
 - Op de werkdagas vervangen weekbanden de weekendarcering, zoals op het scherm (`check-print-compress-week-banding.ts`).
   Een tijdvak zonder werkdag valt voor dat tijdvak terug op de kalenderas, want op de werkdagas zou het naar de eerste
   werkdag buiten het tijdvak schuiven (`check-print-report.ts`, het weekendvenster).
+- De status- en de voortgangslijn tekenen met het streepjespatroon en de kleur van de vandaaglijn: op papier zijn het
+  dezelfde soort referentielijn. De voortgangslijn is naar het voorbeeld van `GanttRenderer.drawProgressLine`: alleen
+  een bladtaak die geen mijlpaal is stulpt uit naar haar voortgang, en de vergelijking met de statusdatum gaat per dag,
+  of op het tijdstip als de projectkalender met tijd rekent (`isHourModeCalendar`, `statusDateInstant`). Toets:
+  `check-print-report.ts`, sectie 2. Met `showCompletion` krijgt een voltooide taak geen spelingsband: er is geen
+  speling meer te bewaken.
+- Met een tijdvak verdeelt de afdruk de kleurvakken over de hele balk en knipt ze daarna op het chartgebied, zodat een
+  afgekapte balk de kleuren van zijn zichtbare stuk toont (een grens daarvan: knownbug 1862). Een fase die het tijdvak
+  overschrijdt, krijgt aan de afgekapte kant geen haakje, want dat zou daar een begin of einde suggereren (een grens
+  daarvan: knownbug 1863).
 - *Vaste schaal* mag tot `REPORT_MIN_DAY_WIDTH` (0,01 px per dag), omdat het Rapport-tabblad bij de wissel vanaf
-  *Passend maken* begint op de breedte die passen gaf, en die ligt bij een lange planning onder 1 px per dag. Volgens het
-  weggehaalde commentaar gaf 1 px als ondergrens bij 5000 taken op A3 een sprong van 139 naar 695 pagina's.
+  *Passend maken* begint op de breedte die passen gaf, en die ligt bij een lange planning onder 1 px per dag. Volgens
+  het weggehaalde commentaar gaf 1 px als ondergrens bij 5000 taken op A3 een sprong van 139 naar 695 pagina's.
   `fixedScaleStartDayWidth` neemt die breedte een miljardste smaller, zodat een afrondfout in de bladindeling geen extra
   kolom bladen geeft. Toets: `check-report-svg.ts`, sectie 7.
