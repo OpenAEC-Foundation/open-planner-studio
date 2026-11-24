@@ -116,6 +116,12 @@ export function withJsonMembers(
   const targets = new Map<JsonNode, Target>();
   const created = new Map<JsonNode, Created[]>();
   const touched = new Set<JsonNode>();
+  const lists = new Map<JsonNode, Map<string, Map<string, JsonNode>>>();
+  const itemOf = (node: Extract<JsonNode, { kind: 'array' }>, veld: string, waarde: string) => {
+    const perField = lists.get(node) ?? lists.set(node, new Map()).get(node)!;
+    const items = perField.get(veld) ?? perField.set(veld, itemsByField(node, veld)).get(veld)!;
+    return items.get(waarde);
+  };
   for (const object of objects) {
     let node: JsonNode | undefined = root;
     const trail: JsonNode[] = [root];
@@ -123,7 +129,7 @@ export function withJsonMembers(
     for (const [k, step] of object.path.entries()) {
       if (!node) break;
       if ('veld' in step) {
-        node = node.kind === 'array' ? itemsByField(node, step.veld).get(step.waarde) : undefined;
+        node = node.kind === 'array' ? itemOf(node, step.veld, step.waarde) : undefined;
       } else if ('venster' in step) {
         node = undefined;
       } else {
@@ -195,7 +201,8 @@ function rehomedWindows(extras: readonly JsonExtras[], assignments: ReadonlyMap<
       const assignment = assignments.get(step.toewijzing);
       if (!assignment) continue;
       const owner = `task_${assignment.taskId}`;
-      moved.set(owner, [...(moved.get(owner) ?? []), o]);
+      const list = moved.get(owner);
+      if (list) list.push(o); else moved.set(owner, [o]);
     }
     if (stay.length > 0) out.push({ ...e, objects: stay });
   }
@@ -211,7 +218,10 @@ export function withJsonExtras(
   if (extras.length === 0) return lines;
   const byAssignment = new Map(assignments.map(a => [a.id, a]));
   const placed = new Map<string, JsonExtras[]>();
-  for (const e of rehomedWindows(extras, byAssignment)) placed.set(placeKey(e.owner, e.pset), [...(placed.get(placeKey(e.owner, e.pset)) ?? []), e]);
+  for (const e of rehomedWindows(extras, byAssignment)) {
+    const list = placed.get(placeKey(e.owner, e.pset));
+    if (list) list.push(e); else placed.set(placeKey(e.owner, e.pset), [e]);
+  }
   const out = [...lines];
   const at = new Map<number, number>();
   out.forEach((line, k) => { const m = /^#(\d+)=/.exec(line); if (m) at.set(Number(m[1]), k); });

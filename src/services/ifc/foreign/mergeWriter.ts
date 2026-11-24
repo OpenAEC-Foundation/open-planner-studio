@@ -1010,7 +1010,7 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   const unusedProblem = own && (unusedKeysProblem(source, index, taskIds, unusedKeys, actual.index, own.stepIds)
     ?? duplicateAssignmentKeyProblem(source, index, taskIds, actual.index, own.stepIds));
   if (unusedProblem) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: unusedProblem }]);
-  const outputJson = source.foreign ? scanJsonExtras(actual.index, c => actual.classification.classes[c] === 1) : [];
+  const outputJson = source.foreign && source.jsonExtras?.length ? scanJsonExtras(actual.index, c => actual.classification.classes[c] === 1) : [];
   const jsonCheck = own && jsonExtrasProblem(json.source, {
     index: actual.index, stepIds: own.stepIds, projectCalendarId: input.calendar.id, assignmentKeys: own.assignmentKeys ?? new Map(),
   }, input);

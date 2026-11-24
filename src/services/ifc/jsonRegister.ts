@@ -11,6 +11,7 @@ export type JsonMapIdentity = 'sleutel' | 'toewijzing';
 
 export type JsonShape =
   | { readonly soort: 'waarde' }
+  | { readonly soort: 'reeks' }
   | { readonly soort: 'doorgegeven' }
   | { readonly soort: 'object'; readonly sleutels: Readonly<Record<string, JsonShape>> }
   | { readonly soort: 'lijst'; readonly identiteit: JsonListIdentity; readonly item: JsonShape }
@@ -23,9 +24,12 @@ export interface JsonProperty {
 }
 
 const value: JsonShape = { soort: 'waarde' };
+const series: JsonShape = { soort: 'reeks' };
 const passedOn: JsonShape = { soort: 'doorgegeven' };
 const object = (sleutels: Readonly<Record<string, JsonShape>>): JsonShape => ({ soort: 'object', sleutels });
-const values = (...names: readonly string[]): JsonShape => object(Object.fromEntries(names.map(name => [name, value])));
+const each = (shape: JsonShape, names: readonly string[]) => Object.fromEntries(names.map(name => [name, shape]));
+const values = (...names: readonly string[]): JsonShape => object(each(value, names));
+const records = (...names: readonly string[]): JsonShape => object(each(series, names));
 const byField = (veld: string, item: JsonShape): JsonShape => ({ soort: 'lijst', identiteit: { veld }, item });
 const byOrigin = (item: JsonShape): JsonShape => ({ soort: 'lijst', identiteit: 'herkomstmerk', item });
 const keyed = (identiteit: JsonMapIdentity, waarde: JsonShape): JsonShape => ({ soort: 'kaart', identiteit, waarde });
@@ -64,7 +68,7 @@ export const JSON_PROPERTIES: readonly JsonProperty[] = [
     })),
   },
   { pset: PSET.Baselines, property: PROP.Baselines.TaskGuids, shape: keyed('sleutel', value) },
-  { pset: PSET.Baselines, property: PROP.Baselines.ComparedBaselineIds, shape: value },
+  { pset: PSET.Baselines, property: PROP.Baselines.ComparedBaselineIds, shape: series },
   {
     pset: PSET.SchedulingOptions, property: PROP.SchedulingOptions.SchedulingOptions,
     shape: object({
@@ -82,20 +86,21 @@ export const JSON_PROPERTIES: readonly JsonProperty[] = [
     pset: PSET.SchedulingProfile, property: PROP.SchedulingProfile.SchedulingProfile,
     shape: object({ id: value, baseId: value, name: value, conventions, overrides: conventions }),
   },
-  { pset: PSET.Sequences, property: PROP.Sequences.P6StartAtPredecessorFinishBoundarySequenceGuids, shape: value },
-  { pset: PSET.Sequences, property: DAY_MEASURE_LAGS_PROP, shape: keyed('sleutel', value) },
-  { pset: PSET.Sequences, property: EXACT_MINUTE_LAGS_PROP, shape: keyed('sleutel', value) },
+  { pset: PSET.Sequences, property: PROP.Sequences.P6StartAtPredecessorFinishBoundarySequenceGuids, shape: series },
+  { pset: PSET.Sequences, property: DAY_MEASURE_LAGS_PROP, shape: keyed('sleutel', series) },
+  { pset: PSET.Sequences, property: EXACT_MINUTE_LAGS_PROP, shape: keyed('sleutel', series) },
   { pset: PSET.Calendar, property: PROP.Calendar.LibraryOrigin, shape: libraryOrigin },
-  { pset: PSET.Calendar, property: PROP.Calendar.WorkingExceptionKeysV1, shape: value },
-  { pset: PSET.Calendar, property: PROP.Calendar.WorkingExceptionIds, shape: value },
-  { pset: PSET.Calendar, property: PROP.Calendar.P6NonWorkPenaltyDates, shape: value },
+  { pset: PSET.Calendar, property: PROP.Calendar.WorkingExceptionKeysV1, shape: series },
+  { pset: PSET.Calendar, property: PROP.Calendar.WorkingExceptionIds, shape: series },
+  { pset: PSET.Calendar, property: PROP.Calendar.P6NonWorkPenaltyDates, shape: series },
   { pset: PSET.Resource, property: PROP.Resource.LibraryOrigin, shape: libraryOrigin },
   {
     pset: PSET.Timephased, property: PROP.Timephased.Windows,
-    shape: keyed('toewijzing', values(
-      'workWindowStart', 'workWindowFinish', 'curveValues', 'plannedWorkMinutes', 'actualWorkMinutes',
-      'remainingWorkMinutes', 'plannedUnitsPerDay', 'costAmount',
-    )),
+    shape: keyed('toewijzing', object({
+      ...each(value, ['workWindowStart', 'workWindowFinish', 'plannedWorkMinutes', 'actualWorkMinutes', 'remainingWorkMinutes',
+        'plannedUnitsPerDay', 'costAmount']),
+      curveValues: series,
+    })),
   },
   {
     pset: PSET.DurationWalks, property: PROP.DurationWalks.DurationWalks,
@@ -110,7 +115,7 @@ export const JSON_PROPERTIES: readonly JsonProperty[] = [
     })),
   },
   { pset: PSET.TaskNotes, property: PROP.TaskNotes.Notes, shape: byField('id', values('id', 'text', 'done')) },
-  { pset: PSET.Analysis, property: EXACT_FLOAT_PROP, shape: values(...EXACT_FLOAT_KEYS) },
+  { pset: PSET.Analysis, property: EXACT_FLOAT_PROP, shape: records(...EXACT_FLOAT_KEYS) },
   { pset: PSET.Splits, property: PROP.Splits.Splits, shape: byOrigin(values('afterMinutes', 'gapMinutes', 'source')) },
   {
     pset: PSET.Contours, property: PROP.Contours.Contours,
@@ -118,8 +123,8 @@ export const JSON_PROPERTIES: readonly JsonProperty[] = [
       resourceUid: value, resourceId: value, periods: byOrigin(values('afterMinutes', 'minutes', 'workMinutes', 'kind')),
     })),
   },
-  { pset: PSET.WorkRule, property: DAY_MEASURE_DURATIONS_PROP, shape: values(...DAY_MEASURE_DURATION_KEYS) },
-  { pset: PSET.WorkRule, property: EXACT_MINUTES_PROP, shape: values(...EXACT_MINUTES_KEYS) },
+  { pset: PSET.WorkRule, property: DAY_MEASURE_DURATIONS_PROP, shape: records(...DAY_MEASURE_DURATION_KEYS) },
+  { pset: PSET.WorkRule, property: EXACT_MINUTES_PROP, shape: records(...EXACT_MINUTES_KEYS) },
 ];
 
 const BY_NAME = new Map(JSON_PROPERTIES.map(p => [`${p.pset}\u0000${p.property}`, p.shape]));

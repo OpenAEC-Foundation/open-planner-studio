@@ -48,7 +48,10 @@ function windowKeysOfTask(index: StepIndex, task: number): (key: string) => bool
     for (const r of index.refsAt(rel, 4)) if (r >= 0) count.set(r, (count.get(r) ?? 0) + 1);
   }
   const byGuid = new Map<string, number[]>();
-  for (const r of count.keys()) byGuid.set(index.globalId(r), [...(byGuid.get(index.globalId(r)) ?? []), r]);
+  for (const r of count.keys()) {
+    const list = byGuid.get(index.globalId(r));
+    if (list) list.push(r); else byGuid.set(index.globalId(r), [r]);
+  }
   return key => {
     const resources = byGuid.get(WINDOW_KEY.exec(key)?.[1] ?? '\u0000') ?? [];
     return resources.length === 1 && count.get(resources[0]) === 1;
@@ -65,17 +68,18 @@ export function scanJsonExtras(index: StepIndex, own: (chunk: number) => boolean
     const name = index.name(pset) ?? '';
     if (!JSON_PROPERTY_PSETS.has(name) || singleIn(index, pset, DEFINES, 5) !== r) continue;
     const key = `${related[0]}\u0000${name}`;
-    psets.set(key, [...(psets.get(key) ?? []), { owner: related[0], pset, name }]);
+    const list = psets.get(key);
+    if (list) list.push({ owner: related[0], pset, name }); else psets.set(key, [{ owner: related[0], pset, name }]);
   }
   const out: StepJsonExtras[] = [];
   for (const group of psets.values()) {
     if (group.length !== 1) continue;
     const { owner, pset, name } = group[0];
-    const props = index.refsAt(pset, 4).filter(p => p >= 0 && index.type(p) === 'IFCPROPERTYSINGLEVALUE');
+    const props = index.refsAt(pset, 4).filter(p => p >= 0 && index.type(p) === 'IFCPROPERTYSINGLEVALUE')
+      .map(p => ({ p, property: index.name(p) ?? '' }));
     const names = new Map<string, number>();
-    for (const p of props) names.set(index.name(p) ?? '', (names.get(index.name(p) ?? '') ?? 0) + 1);
-    for (const p of props) {
-      const property = index.name(p) ?? '';
+    for (const { property } of props) names.set(property, (names.get(property) ?? 0) + 1);
+    for (const { p, property } of props) {
       const shape = jsonPropertyShape(name, property);
       if (!shape || !own(p) || names.get(property) !== 1) continue;
       const text = index.propertyText(p);
@@ -150,73 +154,93 @@ export function jsonExtrasForWriter(extras: readonly SourceJsonExtras[], assignm
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
-const ownerId = (owner: string, prefix: string) => owner.startsWith(prefix) ? owner.slice(prefix.length) : undefined;
-const taskOf = (input: WriteIFCInput, owner: string) => input.tasks.find(t => t.id === ownerId(owner, 'task_'));
-const calendarOf = (input: WriteIFCInput, owner: string) => {
-  const id = owner === '_calendar' ? input.calendar.id : ownerId(owner, 'calendar_');
-  return [input.calendar, ...(input.resourceCalendars ?? [])].find(c => c.id === id);
-};
+const calendarKey = (input: WriteIFCInput, id: string) => id === input.calendar.id ? '_calendar' : `calendar_${id}`;
 
-function ownerExists(input: WriteIFCInput, owner: string): boolean {
-  if (owner.startsWith('task_')) return !!taskOf(input, owner);
-  if (owner.startsWith('res_')) return input.resources.some(r => r.id === ownerId(owner, 'res_'));
-  if (owner.startsWith('seq_')) return input.sequences.some(s => s.id === ownerId(owner, 'seq_'));
-  if (owner === '_calendar' || owner.startsWith('calendar_')) return !!calendarOf(input, owner);
-  return owner === '_project' || owner === '_worksched' || owner === '_workplan';
+type FieldCache = Map<object, Map<string, Map<unknown, unknown[]>>>;
+function byField<T>(cache: FieldCache, list: readonly T[], field: string, valueOf: (item: T) => unknown): Map<unknown, T[]> {
+  let perField = cache.get(list);
+  if (!perField) cache.set(list, perField = new Map());
+  let map = perField.get(field) as Map<unknown, T[]> | undefined;
+  if (!map) {
+    map = new Map();
+    for (const item of list) {
+      const v = valueOf(item);
+      if (v === undefined) continue;
+      const hits = map.get(v);
+      if (hits) hits.push(item); else map.set(v, [item]);
+    }
+    perField.set(field, map as Map<unknown, unknown[]>);
+  }
+  return map;
 }
 
+interface DomainLookup {
+  readonly input: WriteIFCInput;
+  readonly owners: ReadonlyMap<string, unknown>;
+  readonly fields: FieldCache;
+}
+function domainLookup(input: WriteIFCInput): DomainLookup {
+  const owners = new Map<string, unknown>();
+  for (const t of input.tasks) owners.set(`task_${t.id}`, t);
+  for (const r of input.resources) owners.set(`res_${r.id}`, r);
+  for (const q of input.sequences) owners.set(`seq_${q.id}`, q);
+  for (const c of [...(input.resourceCalendars ?? []), input.calendar]) owners.set(calendarKey(input, c.id), c);
+  for (const key of ['_project', '_worksched', '_workplan']) owners.set(key, input);
+  return { input, owners, fields: new Map() };
+}
+const ownerOf = <T>(d: DomainLookup, owner: string, prefix: string) => owner.startsWith(prefix) ? d.owners.get(owner) as T | undefined : undefined;
+
 type Mirror = {
-  readonly get: (input: WriteIFCInput, owner: string) => unknown;
-  readonly set?: (input: WriteIFCInput, owner: string, value: unknown) => WriteIFCInput;
+  readonly get: (d: DomainLookup, owner: string) => unknown;
+  readonly set?: (input: WriteIFCInput, values: ReadonlyMap<string, unknown>) => WriteIFCInput;
 };
 
 const onTask = (field: 'notes' | 'externalLinks'): Mirror => ({
-  get: (input, owner) => taskOf(input, owner)?.[field],
-  set: (input, owner, value) => ({ ...input, tasks: input.tasks.map(t => t.id === ownerId(owner, 'task_') ? { ...t, [field]: value } : t) }),
+  get: (d, owner) => ownerOf<WriteIFCInput['tasks'][number]>(d, owner, 'task_')?.[field],
+  set: (input, values) => ({ ...input, tasks: input.tasks.map(t => values.has(`task_${t.id}`) ? { ...t, [field]: values.get(`task_${t.id}`) } : t) }),
 });
 
 const DOMAIN: Readonly<Record<string, Mirror>> = {
   [propertyKey(PSET.StructureMeta, PROP.StructureMeta.structure)]: {
-    get: (input, owner) => owner === '_project'
+    get: ({ input }, owner) => owner === '_project'
       ? { activityCodeTypes: input.activityCodeTypes ?? [], customFieldDefs: input.customFieldDefs ?? [] } : undefined,
-    set: (input, _owner, value) => {
-      const v = value as Pick<WriteIFCInput, 'activityCodeTypes' | 'customFieldDefs'>;
+    set: (input, values) => {
+      const v = values.get('_project') as Pick<WriteIFCInput, 'activityCodeTypes' | 'customFieldDefs'>;
       return { ...input, activityCodeTypes: v.activityCodeTypes, customFieldDefs: v.customFieldDefs };
     },
   },
   [propertyKey(PSET.TaskTypes, PROP.TaskTypes.TaskTypes)]: {
-    get: (input, owner) => owner === '_project' ? { definitions: input.customTaskTypes ?? [] } : undefined,
+    get: ({ input }, owner) => owner === '_project' ? { definitions: input.customTaskTypes ?? [] } : undefined,
   },
-  [propertyKey(PSET.Library, PROP.Library.pool)]: { get: (input, owner) => owner === '_project' ? input.libraryPool : undefined },
+  [propertyKey(PSET.Library, PROP.Library.pool)]: { get: ({ input }, owner) => owner === '_project' ? input.libraryPool : undefined },
   [propertyKey(PSET.Baselines, PROP.Baselines.Baselines)]: {
-    get: (input, owner) => owner === '_worksched' ? input.baselines ?? [] : undefined,
-    set: (input, _owner, value) => ({ ...input, baselines: value as WriteIFCInput['baselines'] }),
+    get: ({ input }, owner) => owner === '_worksched' ? input.baselines ?? [] : undefined,
+    set: (input, values) => ({ ...input, baselines: values.get('_worksched') as WriteIFCInput['baselines'] }),
   },
   [propertyKey(PSET.SchedulingOptions, PROP.SchedulingOptions.SchedulingOptions)]: {
-    get: (input, owner) => owner === '_worksched' ? input.project.schedulingOptions : undefined,
+    get: ({ input }, owner) => owner === '_worksched' ? input.project.schedulingOptions : undefined,
   },
   [propertyKey(PSET.TaskNotes, PROP.TaskNotes.Notes)]: onTask('notes'),
   [propertyKey(PSET.ExternalLink, PROP.ExternalLink.Links)]: onTask('externalLinks'),
   [propertyKey(PSET.Resource, PROP.Resource.LibraryOrigin)]: {
-    get: (input, owner) => input.resources.find(r => r.id === ownerId(owner, 'res_'))?.libraryOrigin,
-    set: (input, owner, value) => ({ ...input, resources: input.resources.map(r => r.id === ownerId(owner, 'res_')
-      ? { ...r, libraryOrigin: value as typeof r.libraryOrigin } : r) }),
+    get: (d, owner) => ownerOf<WriteIFCInput['resources'][number]>(d, owner, 'res_')?.libraryOrigin,
+    set: (input, values) => ({ ...input, resources: input.resources.map(r => values.has(`res_${r.id}`)
+      ? { ...r, libraryOrigin: values.get(`res_${r.id}`) as typeof r.libraryOrigin } : r) }),
   },
   [propertyKey(PSET.Calendar, PROP.Calendar.LibraryOrigin)]: {
-    get: (input, owner) => calendarOf(input, owner)?.libraryOrigin,
-    set: (input, owner, value) => {
-      const id = calendarOf(input, owner)?.id;
-      const put = <C extends { id: string }>(c: C) => c.id === id ? { ...c, libraryOrigin: value } : c;
+    get: (d, owner) => (owner === '_calendar' || owner.startsWith('calendar_') ? d.owners.get(owner) as WriteIFCInput['calendar'] | undefined : undefined)?.libraryOrigin,
+    set: (input, values) => {
+      const put = <C extends { id: string }>(c: C) => values.has(calendarKey(input, c.id)) ? { ...c, libraryOrigin: values.get(calendarKey(input, c.id)) } : c;
       return { ...input, calendar: put(input.calendar), ...(input.resourceCalendars ? { resourceCalendars: input.resourceCalendars.map(put) } : {}) };
     },
   },
 };
 
-function domainObject(root: unknown, path: readonly JsonStep[]): Record<string, unknown> | undefined {
+function domainObject(fields: FieldCache, root: unknown, path: readonly JsonStep[]): Record<string, unknown> | undefined {
   let node: unknown = root;
   for (const step of path) {
     if ('veld' in step) {
-      const hits = Array.isArray(node) ? byField(node, node as unknown[], step.veld, item => isRecord(item) ? item[step.veld] : undefined).get(step.waarde) ?? [] : [];
+      const hits = Array.isArray(node) ? byField(fields, node as unknown[], step.veld, item => isRecord(item) ? item[step.veld] : undefined).get(step.waarde) ?? [] : [];
       node = hits.length === 1 ? hits[0] : undefined;
     } else if ('sleutel' in step) {
       node = isRecord(node) ? node[step.sleutel] : undefined;
@@ -228,20 +252,25 @@ function domainObject(root: unknown, path: readonly JsonStep[]): Record<string, 
 }
 
 export function withJsonExtrasInDomain(input: WriteIFCInput, extras: readonly JsonExtras[]): WriteIFCInput {
-  let out = input;
+  if (extras.length === 0) return input;
+  const d = domainLookup(input);
+  const values = new Map<string, Map<string, unknown>>();
   for (const e of extras) {
-    const mirror = DOMAIN[propertyKey(e.pset, e.property)];
-    const value = mirror?.set ? mirror.get(out, e.owner) : undefined;
+    const key = propertyKey(e.pset, e.property);
+    const mirror = DOMAIN[key];
+    const value = mirror?.set ? mirror.get(d, e.owner) : undefined;
     if (value === undefined) continue;
     const missing = e.objects.flatMap(o => {
-      const target = domainObject(value, o.path);
+      const target = domainObject(d.fields, value, o.path);
       return target ? o.members.filter(m => !(JSON.parse(m.key) in target)).map(m => ({ path: o.path, member: m })) : [];
     });
     if (missing.length === 0) continue;
     const copy = structuredClone(value);
-    for (const { path, member } of missing) domainObject(copy, path)![JSON.parse(member.key) as string] = JSON.parse(member.value);
-    out = mirror.set!(out, e.owner, copy);
+    for (const { path, member } of missing) domainObject(d.fields, copy, path)![JSON.parse(member.key) as string] = JSON.parse(member.value);
+    values.set(key, (values.get(key) ?? new Map<string, unknown>()).set(e.owner, copy));
   }
+  let out = input;
+  for (const [key, byOwner] of values) out = DOMAIN[key].set!(out, byOwner);
   return out;
 }
 
@@ -260,34 +289,19 @@ export interface WindowBinding {
 
 type Found = { readonly node: JsonNode } | 'absent' | 'onzeker';
 
-const fieldIndexes = new WeakMap<object, Map<string, Map<unknown, unknown[]>>>();
-function byField<T>(list: object, items: readonly T[], field: string, valueOf: (item: T) => unknown): Map<unknown, T[]> {
-  let perField = fieldIndexes.get(list);
-  if (!perField) fieldIndexes.set(list, perField = new Map());
-  let map = perField.get(field) as Map<unknown, T[]> | undefined;
-  if (!map) {
-    map = new Map();
-    for (const item of items) {
-      const v = valueOf(item);
-      if (v !== undefined) map.set(v, [...(map.get(v) ?? []), item]);
-    }
-    perField.set(field, map as Map<unknown, unknown[]>);
-  }
-  return map;
-}
 const jsonFieldValue = (field: string) => (item: JsonNode): unknown => {
   if (item.kind !== 'object') return undefined;
   const hits = item.members.filter(m => m.key === field && m.value.kind === 'string');
   return hits.length === 1 && hits[0].value.kind === 'string' ? hits[0].value.value : hits.length > 1 ? {} : undefined;
 };
 
-function follow(root: JsonNode | undefined, path: readonly JsonStep[]): Found {
+function follow(fields: FieldCache, root: JsonNode | undefined, path: readonly JsonStep[]): Found {
   let node = root;
   for (const step of path) {
     if (!node) return 'absent';
     if ('veld' in step) {
       if (node.kind !== 'array') return 'onzeker';
-      const hits = byField(node, node.items, step.veld, jsonFieldValue(step.veld)).get(step.waarde) ?? [];
+      const hits = byField(fields, node.items, step.veld, jsonFieldValue(step.veld)).get(step.waarde) ?? [];
       if (hits.length > 1) return 'onzeker';
       node = hits[0];
     } else if ('sleutel' in step) {
@@ -334,6 +348,7 @@ export function jsonExtrasProblem(before: readonly SourceJsonExtras[], output: J
     return found;
   };
   const tree = (place: { text: string; root: JsonNode | undefined }) => (place.root ??= parseJsonTree(place.text));
+  const d = domainLookup(input);
   const assignments = new Map(input.assignments.map(a => [a.id, a]));
   const membersProblem = (e: SourceJsonExtras, o: JsonExtrasObject, text: string, node: JsonNode): string | undefined => {
     if (node.kind !== 'object') return `${describe(e, o)}: het object met onbekende JSON-sleutels staat niet eenduidig in de uitvoer`;
@@ -360,25 +375,25 @@ export function jsonExtrasProblem(before: readonly SourceJsonExtras[], output: J
           continue;
         }
         if (!assignment) {
-          if (!ownerExists(input, e.owner)) continue;
+          if (!d.owners.has(e.owner)) continue;
           return { problem: `${describe(e, o)}: de toewijzing met onbekende JSON-sleutels is niet aantoonbaar dezelfde als in de bron`, windows };
         }
         const target = at(`task_${assignment.taskId}`, e.pset, e.property);
         const key = output.assignmentKeys.get(assignment.id);
-        const found = target && key !== undefined ? follow(tree(target), [{ sleutel: key }, ...o.path.slice(1)]) : 'onzeker';
+        const found = target && key !== undefined ? follow(d.fields, tree(target), [{ sleutel: key }, ...o.path.slice(1)]) : 'onzeker';
         if (typeof found === 'string') return { problem: `${describe(e, o)}: het venster van toewijzing ${assignment.id} met onbekende JSON-sleutels staat niet eenduidig in de uitvoer`, windows };
         const problem = membersProblem(e, o, target!.text, found.node);
         if (problem) return { problem, windows };
         windows.push({ ownerStepId: target!.ownerStepId, key: key!, assignmentId: assignment.id });
         continue;
       }
-      if (!ownerExists(input, e.owner)) continue;
+      if (!d.owners.has(e.owner)) continue;
       if (unchanged) continue;
-      const found = place ? follow(tree(place), o.path) : 'absent';
+      const found = place ? follow(d.fields, tree(place), o.path) : 'absent';
       if (found === 'onzeker') return { problem: `${describe(e, o)}: het object met onbekende JSON-sleutels staat niet eenduidig in de uitvoer`, windows };
       if (found === 'absent') {
         const mirror = DOMAIN[propertyKey(e.pset, e.property)];
-        if (mirror && !domainObject(mirror.get(input, e.owner), o.path)) continue;
+        if (mirror && !domainObject(d.fields, mirror.get(d, e.owner), o.path)) continue;
         return { problem: `${describe(e, o)}: het object met onbekende JSON-sleutels bestaat nog in de planning, maar ontbreekt in de uitvoer`, windows };
       }
       const problem = membersProblem(e, o, place!.text, found.node);
