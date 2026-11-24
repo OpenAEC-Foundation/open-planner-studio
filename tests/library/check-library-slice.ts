@@ -1250,6 +1250,34 @@ for (const size of [1000, 5000]) {
   assert(useAppStore.getState().resources.find(r => r.id === projRes2)?.libraryOrigin?.libraryItemId === poolResId2, 'geldige link gaat gewoon door naast de verdwenen kandidaat');
 }
 
+{
+  const iso = createAppStore();
+  installRecognitionFixture(iso, createRecognitionFixture(4));
+  iso.setState(s => { s.isDirty = false; s.importPristine = true; });
+  const eventsBefore = iso.getState().historyEvents.filter(e => e.state === 'applied').length;
+  const itemsBefore = JSON.stringify({ resources: iso.getState().resources, calendars: iso.getState().calendars });
+  iso.getState().linkRecognizedItems([
+    { kind: 'resource', projectId: 'onbekend-projectitem', poolId: 'pool-r-0' },
+    { kind: 'calendar', projectId: 'onbekende-kalender', poolId: 'pool-c-0' },
+  ]);
+  const after = iso.getState();
+  assert(JSON.stringify({ resources: after.resources, calendars: after.calendars }) === itemsBefore,
+    'knownbug 1991: link zonder projectitem wijzigt geen enkel projectitem');
+  assert(after.isDirty === false, 'knownbug 1991: link zonder projectitem zet isDirty niet op true');
+  assert(after.importPristine === true, 'knownbug 1991: link zonder projectitem wist importPristine niet');
+  assert(after.historyEvents.filter(e => e.state === 'applied').length === eventsBefore,
+    'knownbug 1991: link zonder projectitem pusht geen undo-event');
+
+  iso.getState().linkRecognizedItems([{ kind: 'resource', projectId: 'project-r-0', poolId: 'pool-r-0' }]);
+  const linked = iso.getState();
+  assert(linked.resources.find(r => r.id === 'project-r-0')?.libraryOrigin?.libraryItemId === 'pool-r-0',
+    'knownbug 1991 (controle): geldige link stempelt het projectitem alsnog');
+  assert(linked.isDirty === true && linked.importPristine === false,
+    'knownbug 1991 (controle): geldige link zet isDirty en wist importPristine, zoals nu');
+  assert(linked.historyEvents.filter(e => e.state === 'applied').length === eventsBefore + 1,
+    'knownbug 1991 (controle): geldige link pusht precies één undo-event');
+}
+
 // --- Bedrijfsweergave-CRUD raakt uitsluitend s.pools (plan-eis 3) ---
 {
   const s = useAppStore.getState();

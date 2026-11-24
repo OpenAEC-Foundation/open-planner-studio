@@ -71,6 +71,7 @@ import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { ensureUniqueImportIds } from '@/services/importNormalize';
 import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload, type TargetFingerprint } from '../documentContract';
+import { changedKnownTarget, guardedKnownTarget, type KnownTargetState } from '../knownTargetGuard';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
@@ -1106,6 +1107,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const ownTargetContentNotice = (content: Exclude<SourceTargetContent, 'same'>): NotifyInput =>
     content === 'changed' ? IFC_FOREIGN_TARGET_CHANGED_NOTICE : IFC_FOREIGN_TARGET_GONE_NOTICE;
 
+  const knownTargetOf = (documentId: string): KnownTargetState => {
+    const app = get();
+    return { featureFlags: app.ui.featureFlags, known: saveSourceForDocument(app, documentId)?.knownTargetFingerprint ?? null };
+  };
+  const refuseChangedKnownTarget = async (documentId: string, ref: FileRef, known: TargetFingerprint): Promise<boolean> => {
+    const change = await changedKnownTarget(() => knownTargetOf(documentId), known, ref);
+    if (change) get().notify(ownTargetContentNotice(change));
+    return change !== null;
+  };
+
   const replaceOwnHandle = async (
     documentId: string, state: AppState, prepared: PreparedIfcWrite, write: IfcOutput,
     ref: Extract<FileRef, { kind: 'handle' }>, failureNoticeKey: string,
@@ -1336,6 +1347,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       if (ref && !handleRefused && !(write.prepared && ref.kind === 'handle')) {
         try {
+          const known = write.prepared ? null : guardedKnownTarget(knownTargetOf(documentId), ref);
+          if (known && await refuseChangedKnownTarget(documentId, ref, known)) return false;
           if (refuseChangedDocumentWrite(state, write)) return false;
           const last = lastWriteCheck(state, write);
           const hashing = writtenFingerprint(state.ui.featureFlags, write);

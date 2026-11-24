@@ -69,7 +69,8 @@ legt vast wat de app als MCP-server levert, wat niet, en welke test het bewijst.
 ## Mutatie, undo en backup
 
 - Elke wijzigende tool is één undo-stap (`createMcpTransactions`); `planner_batch` is één undo-stap voor alle
-  stappen samen, met één herberekening. Een geweigerde mutatie maakt geen undo-stap.
+  stappen samen. Binnen een batch kan meer dan één keer gerekend worden: vóór de transactie bij een lees- of
+  nivelleerstap, tussen de stappen en aan het eind (ADR 0240). Een geweigerde mutatie maakt geen undo-stap.
 - Vóór de eerste wijziging per document per bridge-sessie schrijft de app een IFC-backup naar
   `<appDataDir>/ai-backups/<docId>/` (instelling *Auto-backup*, standaard aan). Een batch telt als één backup.
   Uitzondering: een kopie die `planner_duplicate_document` maakte, krijgt geen automatische backup (het
