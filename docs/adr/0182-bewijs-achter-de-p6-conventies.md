@@ -31,7 +31,7 @@ gemeten (het corpus staat niet in de repository). Verruim een poort alleen met e
   het manifest houdt het als orakel met de aantekening dat het twijfelachtig is.
 - C1 (`p6CompletedPredecessorAtDataDate`): geen bron van Oracle, en geen door P6 doorgerekend bestand bevat zo'n
   geval. Of de grens `prevWorkInstant` krijgt, is niet gemeten; ze volgt het B3-venster (ADR 0027).
-- C2 (`p6FreeFloatOnOwnCalendar`): empirisch (Hotel, Roads). Oracle zegt niets over de kalender; "op de
+- C2 (`p6FreeFloatOnOwnCalendar`): empirisch (Hotel, Roads). Een tekst van Oracle over de kalender is er niet; "op de
   eigen kalender" is onze uitleg, naar analogie van de totale speling. SS met lag en FF met lag zijn elk op één
   geval gemeten, op één kalenderpaar. FS met lag en een negatieve lag zijn doorgetrokken via T. Boyle, *Relationship
   Free Float and Float Paths in Multi-Calendar Projects* (2018), een bron van derden; de negatieve lag is vastgelegd
