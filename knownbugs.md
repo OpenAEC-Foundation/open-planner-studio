@@ -4223,6 +4223,54 @@ en noem het in je rapport of PR-tekst.
      code en de echte herstelcallback (reviewer van #1127); een processtop is niet opgewekt. — B (code en proef van de
      reviewer; geen processtop nagespeeld)
 
+2212. **Ctrl+S naar een bestaand IFC met een UTF-8-BOM weigert met de flag aan (#804).** Sinds fixronde 1 van #1184 opent
+     een IFC met een BOM vóór de kop met de flag `ifcForeignContent` aan (de scanner en de oude-kopherkenning van de
+     C/A/V-scan slaan een BOM op byte 0 over); main weigerde het openen. De doelcontrole houdt bewust de uitkomst van main:
+     een bestaand doel dat met een BOM begint en geen model heeft, is 'unreadable' (`targetForeignScan.ts`, `targetOf`),
+     want anders zou de gewone schrijver (zonder BOM) een bestand overschrijven dat main liet staan (review van #1184
+     ronde 2). Daardoor weigert Ctrl+S van een geopend gewoon document met BOM naar zijn eigen bestand
+     (`documentTargetCheck` → `refusedWriteTarget`, regel 2, melding "onleesbaar doel"); Opslaan als naar een nieuwe naam
+     gaat wel. Met de flag uit verandert er niets. Richting: het eigen bestand van het document met dezelfde lengte en
+     SHA-256 als de geopende bron als doel toelaten, en de BOM bij de gewone schrijver bewaren. Voorwaarde voor standaard
+     aan. — B (code en de proef van de doelcontrole, `check-ifc-foreign-target.ts` 9c; Ctrl+S zelf niet nagespeeld)
+
+2231. **VERVOLG, zo op main: opslaan weigert in "datums zoals opgeslagen" met `planning-na-openen` (#804, flag aan).**
+     Reproductie (review van #1184 ronde 2): het eigen IFC-voorbeeld, met de gewone writer geschreven met MSPDI-herkomst
+     (`OPS_ImportProvenance.SourceFormat`), één wand erbij, en opgeslagen vroege datums van `Set up site` die afwijken van
+     de berekening. Met de flag aan opent de app alle 20 taken in "datums zoals opgeslagen"; Ctrl+S zonder bewerking geeft
+     `notifications.ifcForeignMergeRefused` en schrijft nul bytes. De gedeelde schrijfroute geeft `planning-na-openen`, met
+     een verschil in `earlyStart` van `2027-05-06T07:00` naar `2027-05-07T07:00`. Gelijk op main en op de PR, met en
+     zonder `importPristine`; zonder datumafwijking geeft de merge de bron byte-gelijk terug. Plekken:
+     `src/state/documentActivation.ts` (`recordedDatesSource`), `src/state/ifcSaveInput.ts` (`buildWriteIFCInput`),
+     `src/state/ifcMergePlanning.ts` (`openMergePlanning`), `src/services/ifc/foreign/mergeWriter.ts` (de controle na
+     openen), `src/state/slices/fileSlice.ts` (`prepareAppIfcWrite`). Richting van de reviewer: geef de twee kanten van de
+     heropening gelijkwaardige informatie over de opgeslagen datums en behoud de vergelijking. Geen voorkomend exemplaar
+     in het onbewerkte corpus. Review van #1184 ronde 2 (GPT-6.2-Sol, xhigh). — B (proef van de reviewer)
+
+2219. **VERVOLG (review van #1184): de geheugenpiek van `openIfcBytes` bij een groot IFC is niet gemeten (#804).**
+     `openIfcBytes` (`src/core/index.ts`) maakt eerst een eigen kopie van zijn invoer (het publieke pakket moet een
+     buffer bezitten die de afnemer niet meer wijzigt). Daarna houdt het tegelijk het werkgeheugen van de scanner, de
+     indeling en de lezer vast, en bij `toIfcBytes()` dat van de merge en de uitvoer; de kern kopieert de uitvoer alleen als
+     de merge de bronbuffer zelf teruggeeft. Bewaart de bytes-route niets, dan leest de tekstroute dezelfde bytes daarna
+     nog eens (zie de vervolglijst van #1184). De scan stopt bij 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`). Niet gemeten:
+     piek en herstel bij een groot model. De HTTP-API gebruikt `openIfcBytes` niet. Review van #1184 ronde 1 (GPT-6.2-Sol,
+     xhigh). — S
+2252. **De headless kern: `openIfcBytes` kan een bestand met vreemde inhoud anders lezen dan `openIfc` (#804).**
+     Bewaart de bytes-route een vreemd deel, dan leest `openIfcBytes` (`src/core/index.ts`) het bestand volgens de regels
+     van de app voor zulke bestanden (de app met de flag `ifcForeignContent` aan); `openIfc` volgt de tekstroute van main.
+     Voor dezelfde bytes kan dat een andere planning geven. Vier voorbeelden uit de reviews van #1184:
+     (1) `examples/01-grachtenpand-amsterdam.ifc` met een leeg eigen werkschema, een baseline en één losse taak: de
+     tekstlezer leest 52 taken en einde `2028-01-12T16:00`, de bytes-route één taak en `2027-03-05T16:00`, omdat de regel
+     voor een leeg eigen werkschema de baselineboom uitsluit; (2) de woningfixture uit
+     `tests/planning/fixtures/projectnaam-in-settings/` met een externe pset aan het project: de tekstlezer neemt de
+     projectnaam uit `IfcProject`, de bytes-route uit `OPS_ProjectSettings`; (3) dezelfde woning met de naam gelijk en
+     een andere `ProjectDescription` in `OPS_ProjectSettings`; (4) het voorbeeld met een tweede `OPS_ProjectSettings` aan
+     een vreemde pset: de tekstlezer leest haar `CreatedAt`, de bytes-lezer niet. De HTTP-API gebruikt alleen de
+     tekstroute, dus daar speelt dit niet; een latere terugval naar de bytes-route in de API moet er wel rekening mee
+     houden. Richting: de lezing van de bytes-route en de tekstlezer voor bestanden met vreemde inhoud gelijktrekken.
+     Review van #1184 ronde 4, 5 en 6 (GPT-6.2-Sol, xhigh). — B
+2258. **Een IFC met meer dan 4 KiB witruimte of commentaar na `END-ISO-10303-21;` wordt als afgekapt geweigerd (zo op main).** De lezer zoekt de sluitmarkering alleen in de laatste 4096 tekens (`TERMINATOR_PROBE` in `src/services/ifc/ifcReader.ts`). Staat daarna meer witruimte of commentaar, dan meldt hij "afgekapt" (reden `truncated`; via de headless API 422 `IFC_READ_FAILED`), terwijl het bestand volledig is. Gevonden bij #1184 met een bestand met 5000 spaties na de sluitmarkering; op main is het gedrag hetzelfde. Richting: van achteren af witruimte en commentaar overslaan vóór de toets op de sluitmarkering, zonder het hele bestand te doorzoeken. — B
+
 
 
 
