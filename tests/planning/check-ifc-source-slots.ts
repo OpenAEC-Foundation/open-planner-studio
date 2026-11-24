@@ -239,9 +239,15 @@ await check('de scanworker: een vreemde bron zonder kaart, of een kaart zonder v
 await check('owned volgt de verwijzing zoals de lezer haar leest: direct, met het id zoals het er staat', async () => {
   const longer = BONSAI.replace("#110=IFCTASKTIME($,$,$,$,'P5D',", "#110=IFCTASKTIME($,$,$,$,'P17D',");
   assert.notEqual(longer, BONSAI);
-  for (const [vorm, token, read] of [['direct', '#110', true], ['als lijst', '(#110)', false], ['met een voorloopnul', '#0110', false]] as const) {
-    const src = longer.replace(",'1.2',$,$,$,.F.,$,#110,.NOTDEFINED.);", `,'1.2',$,$,$,.F.,$,${token},.NOTDEFINED.);`);
-    assert(token === '#110' || src !== longer, `${vorm}: de bron is aangepast`);
+  const CASES = [
+    ['direct', '#110', '#110', true], ['als lijst', '(#110)', '#110', false], ['verwijzing met een voorloopnul', '#0110', '#110', false],
+    ['beide met een voorloopnul', '#0110', '#0110', true], ['declaratie met een voorloopnul', '#110', '#0110', false],
+    ['beide met elf cijfers', '#00000000110', '#00000000110', true],
+  ] as const;
+  for (const [vorm, token, label, read] of CASES) {
+    const src = longer.replace(",'1.2',$,$,$,.F.,$,#110,.NOTDEFINED.);", `,'1.2',$,$,$,.F.,$,${token},.NOTDEFINED.);`)
+      .replace("\n#110=IFCTASKTIME(", `\n${label}=IFCTASKTIME(`);
+    assert(token === '#110' && label === '#110' || src !== longer, `${vorm}: de bron is aangepast`);
     const opened = await readIfcBytesDetailed(bytesOf(src), {}, { createWorker: () => null });
     const task = opened.result.tasks.find(t => t.name === 'Wand B bouwen');
     assert.equal(task?.time.scheduleDuration === 17, read, `${vorm}: de lezer leest de taaktijd ${read ? 'wel' : 'niet'}`);

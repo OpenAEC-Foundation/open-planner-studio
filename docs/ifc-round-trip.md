@@ -67,10 +67,9 @@ in een lay-out ontbreekt, staat daar op `-1`, ook `PredefinedType` van een werkp
 Per bronregel geeft `slotTableOf` precies één tabel: een werkschema is de baselinetabel als `isBaselineWorkControl`
 (`ifcWorkControlSlots.ts`, dezelfde herkenning als de lezer en de indeling) ja zegt, anders de livetabel.
 `schemaArgsOf` geeft per bronargument de plek in het schema volgens de plekken die de lay-out van de regel kiest;
-`knownLayout` zegt of dat aantal argumenten een bekende lay-out is (het aantal van het schema, of een oude vorm die de
-plekkiezer herkent: een werkplan of werkschema met 15 of meer argumenten, of 14 met tekst op `PredefinedType`, een
-kalender met 8 of minder, of 9 met een lijst op `Identification`, een taak met 12, een resource met 9, de oude
-`IfcLagTime`). De verliescontrole van de merge (`alignment` in `foreign/lossCheck.ts`) gebruikt die plekken. Een
+`knownLayout` zegt of dat aantal argumenten een bekende lay-out is: het aantal van het schema, of het aantal van de
+oude vorm van die tabel (`legacyArity`: een werkplan of werkschema met 15, een kalender met 8, een taak met 12, een
+resource met 9; de oude `IfcLagTime` en de vormen na `MergeProjects` hebben het aantal van het schema). De verliescontrole van de merge (`alignment` in `foreign/lossCheck.ts`) gebruikt die plekken. Een
 werkplan, werkschema of kalender vergelijkt zij bij elk aantal argumenten op die plekken (13 en 10 ook, zoals vóór het
 register); een ander type met een onbekend aantal geeft `aantal`. De bronkaart neemt alleen regels in de lay-out van
 het schema op (`inSchemaLayout`).

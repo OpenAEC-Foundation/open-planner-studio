@@ -29,9 +29,9 @@ function pieceAt(index: StepIndex, chunk: number): SourcePieceSlots | undefined 
 }
 
 function directReference(index: StepIndex, token: string | undefined): number {
-  const id = /^#(\w+)$/.exec((token ?? '').trim())?.[1];
-  const chunk = id === undefined ? -1 : index.chunkOf(id);
-  return chunk >= 0 && index.id(chunk) === id ? chunk : -1;
+  const label = /^#(\w+)$/.exec((token ?? '').trim())?.[1];
+  const chunk = label === undefined ? -1 : index.chunkOf(label.replace(/^0+(?=\d)/, ''));
+  return chunk >= 0 && index.idLabel(chunk) === label ? chunk : -1;
 }
 
 function slotsOf(index: StepIndex, chunk: number): SourcePieceSlots | undefined {

@@ -793,6 +793,20 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
     villa.replace(schemaLag, `#178=IFCLAGTIME('Lag',.PREDICTED.,$,.WORKTIME.,${precise});`), 'schrijft', renameOther(''),
     lagTokensAre("'Lag'", '.PREDICTED.', '$', '.WORKTIME.', precise));
 
+  for (const [value, extra] of [[precise, '$'], ["'P0Y0M3D'", '$'], ["'P0Y0M3D'", "'extra'"]] as const) {
+    const src = villa.replace(schemaLag, `#178=IFCLAGTIME('Lag',.PREDICTED.,$,.WORKTIME.,${value},${extra});`);
+    const o = await openForeign(latin1(src));
+    const d = cloneDomain(o);
+    renameOther('')(d);
+    let outcome: string;
+    try { outcome = (await tryMerge(d, o.ifcSource!)).ok ? 'schrijft' : 'weigert'; }
+    catch (e) { outcome = `fout: ${(e as Error).message}`; }
+    const refused = outcome === 'weigert' ? (await tryMerge(d, o.ifcSource!)) : undefined;
+    const details = refused && !refused.ok ? refused.error.cases.map(c => `${c.kind}: ${c.detail}`) : [];
+    ok(`oude lagvorm met zes argumenten (${value}, ${extra}): zoals main, geen bekende lay-out (kreeg ${outcome}: ${details.slice(0, 2).join(' | ')})`,
+      outcome === 'weigert' && details.some(x => /^niet-gedragen: IFCLAGTIME #178: 6 argumenten → 5 argumenten, geen bekende lay-out/.test(x)));
+  }
+
   const withArgs = (src: string, id: number, change: (args: string[]) => string[]) => {
     const line = new RegExp(`^#${id}=(IFC[A-Z0-9_]+)\\((.*)\\);$`, 'm').exec(src);
     if (!line) throw new Error(`geen #${id}`);

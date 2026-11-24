@@ -3,13 +3,13 @@ import {
   IFC_REL_AGGREGATES_SLOTS, IFC_REL_ASSIGNS_TO_CONTROL_SLOTS, IFC_REL_ASSIGNS_TO_PROCESS_SLOTS, IFC_REL_DECLARES_SLOTS,
   IFC_REL_DEFINES_BY_PROPERTIES_SLOTS, IFC_REL_NESTS_SLOTS, relationPositions,
 } from './ifcRelationSlots';
-import { IFC_RESOURCE_SLOTS, resourceSlots } from './ifcResourceSlots';
+import { IFC_RESOURCE_SLOTS, LEGACY_OPS_RESOURCE_ARITY, resourceSlots } from './ifcResourceSlots';
 import { IFC_LAG_TIME_SLOTS, IFC_SEQUENCE_SLOTS, SEQUENCE_SLOT, lagTimeSlots } from './ifcSequenceSlots';
 import { ABSENT_SLOT, type SlotPositions, type SlotSpec } from './ifcSlotSoort';
-import { IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, TASKTIME_SLOT, taskSlots } from './ifcTaskSlots';
+import { IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, LEGACY_TASK_ARITY, TASKTIME_SLOT, taskSlots } from './ifcTaskSlots';
 import {
-  IFC_BASELINE_SCHEDULE_SLOTS, IFC_CALENDAR_SLOTS, IFC_LIVE_SCHEDULE_SLOTS, IFC_WORK_PLAN_SLOTS,
-  isBaselineWorkControl, workCalendarSlots, workControlSlots,
+  IFC_BASELINE_SCHEDULE_SLOTS, IFC_CALENDAR_SLOTS, IFC_LIVE_SCHEDULE_SLOTS, IFC_WORK_PLAN_SLOTS, LEGACY_OPS_WORK_CALENDAR_ARITY,
+  LEGACY_OPS_WORK_CONTROL_ARITY, isBaselineWorkControl, workCalendarSlots, workControlSlots,
 } from './ifcWorkControlSlots';
 
 export interface IfcSlotTable {
@@ -18,22 +18,32 @@ export interface IfcSlotTable {
   readonly slots: readonly SlotSpec[];
   positions(args: readonly string[]): SlotPositions<string>;
   readonly appliesTo?: (args: readonly string[]) => boolean;
+  readonly legacyArity?: number;
 }
 
 export const IFC_SLOT_TABLES: readonly IfcSlotTable[] = [
-  { naam: 'IfcTask', entities: ['IFCTASK'], slots: IFC_TASK_SLOTS, positions: taskSlots },
+  { naam: 'IfcTask', entities: ['IFCTASK'], slots: IFC_TASK_SLOTS, positions: taskSlots, legacyArity: LEGACY_TASK_ARITY },
   { naam: 'IfcTaskTime', entities: ['IFCTASKTIME'], slots: IFC_TASKTIME_SLOTS, positions: () => TASKTIME_SLOT },
-  { naam: 'IfcWorkPlan', entities: ['IFCWORKPLAN'], slots: IFC_WORK_PLAN_SLOTS, positions: workControlSlots },
+  {
+    naam: 'IfcWorkPlan', entities: ['IFCWORKPLAN'], slots: IFC_WORK_PLAN_SLOTS, positions: workControlSlots,
+    legacyArity: LEGACY_OPS_WORK_CONTROL_ARITY,
+  },
   {
     naam: 'IfcWorkSchedule (live)', entities: ['IFCWORKSCHEDULE'], slots: IFC_LIVE_SCHEDULE_SLOTS, positions: workControlSlots,
-    appliesTo: args => !isBaselineWorkControl(args),
+    appliesTo: args => !isBaselineWorkControl(args), legacyArity: LEGACY_OPS_WORK_CONTROL_ARITY,
   },
   {
     naam: 'IfcWorkSchedule (baseline)', entities: ['IFCWORKSCHEDULE'], slots: IFC_BASELINE_SCHEDULE_SLOTS,
-    positions: workControlSlots, appliesTo: isBaselineWorkControl,
+    positions: workControlSlots, appliesTo: isBaselineWorkControl, legacyArity: LEGACY_OPS_WORK_CONTROL_ARITY,
   },
-  { naam: 'IfcWorkCalendar', entities: ['IFCWORKCALENDAR'], slots: IFC_CALENDAR_SLOTS, positions: workCalendarSlots },
-  { naam: 'resources', entities: Object.keys(IFC_TO_RESOURCE_TYPE), slots: IFC_RESOURCE_SLOTS, positions: resourceSlots },
+  {
+    naam: 'IfcWorkCalendar', entities: ['IFCWORKCALENDAR'], slots: IFC_CALENDAR_SLOTS, positions: workCalendarSlots,
+    legacyArity: LEGACY_OPS_WORK_CALENDAR_ARITY,
+  },
+  {
+    naam: 'resources', entities: Object.keys(IFC_TO_RESOURCE_TYPE), slots: IFC_RESOURCE_SLOTS, positions: resourceSlots,
+    legacyArity: LEGACY_OPS_RESOURCE_ARITY,
+  },
   { naam: 'IfcRelSequence', entities: ['IFCRELSEQUENCE'], slots: IFC_SEQUENCE_SLOTS, positions: () => SEQUENCE_SLOT },
   { naam: 'IfcLagTime', entities: ['IFCLAGTIME'], slots: IFC_LAG_TIME_SLOTS, positions: lagTimeSlots },
   { naam: 'IfcRelNests', entities: ['IFCRELNESTS'], slots: IFC_REL_NESTS_SLOTS, positions: relationPositions(IFC_REL_NESTS_SLOTS) },
@@ -82,7 +92,7 @@ const inSchemaPlaces = (table: IfcSlotTable, positions: SlotPositions<string>) =
   table.slots.every((slot, index) => positions[slot.key] === index);
 
 export function knownLayout(table: IfcSlotTable, args: readonly string[]): boolean {
-  return args.length === table.slots.length || !inSchemaPlaces(table, table.positions(args));
+  return args.length === table.slots.length || args.length === table.legacyArity;
 }
 
 export function schemaArgsOf(table: IfcSlotTable, args: readonly string[]): number[] {
