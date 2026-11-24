@@ -5211,8 +5211,9 @@ en noem het in je rapport of PR-tekst.
       komt Ctrl+S eerst en zet de tik zijn versie er stil overheen; beide tabbladen staan als opgeslagen. Na het live
       uitzetten van de flag tijdens het rekenen (de vingerafdrukken vervallen dan) gebeurt dat in beide richtingen. De
       proef van 16 varianten (desktop en browser, flag aan en live uit, tik in het ene of het andere tabblad, met en
-      zonder een bewerking na de tik): 12 met een stil verlies dat main niet heeft; de head van fixronde 2 heeft er 6
-      (alle met een bewerking na de tik, het geval van ronde 3). De andere drie blokkades (ronde 1 twee keer, de
+      zonder een bewerking na de tik): 12 met een stil verlies dat main niet heeft (in 8 verliest main niets, in 4
+      verliest main stil het andere tabblad); in 2 is de regel beter dan main. De head van fixronde 2 heeft er 6, alle
+      met een bewerking na de tik (het geval van ronde 3). De andere drie blokkades (ronde 1 twee keer, de
       schrijftoestemming van ronde 3) houden met de regel van fixronde 1 de uitkomst van main. Van 1937 en 1938 is op main
       niets afgevangen: beide nog gemeten. Een vierde regel is aan de technisch eigenaar. Proef en logs:
       `rapporten/hervat-1093-stap1/` in de sessiemap van #804 op aia09-mp50 (`probe-rand.ts`, `vergelijk-rand.txt`). — B
