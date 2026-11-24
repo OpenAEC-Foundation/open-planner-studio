@@ -104,7 +104,7 @@ class Calculator {
   }
 
   /** Alleen aanroepen als `busy` false is. */
-  run(job) {
+  run(job, transfer = []) {
     this.busy = true;
     if (!this.worker) this.worker = this.#spawn();
     const worker = this.worker;
@@ -137,7 +137,7 @@ class Calculator {
       worker.on('message', onMessage);
       worker.on('error', onError);
       worker.on('exit', onExit);
-      worker.postMessage(job);
+      worker.postMessage(job, transfer);
     });
   }
 
@@ -169,6 +169,16 @@ const STATUS_OF = {
 const BYTES_TYPE = 'application/octet-stream';
 const ACCEPTED_TYPES = new Set(['application/x-step', 'application/ifc', 'model/ifc', 'text/plain', BYTES_TYPE]);
 const REQUEST_ID = /^[A-Za-z0-9._-]{1,64}$/;
+
+function ownedBody(parts, size) {
+  const body = new Uint8Array(size);
+  let at = 0;
+  for (const part of parts) {
+    body.set(part, at);
+    at += part.length;
+  }
+  return body;
+}
 
 export function createApiServer(config) {
   const tokenDigest = { padded: padded(config.token), length: Buffer.byteLength(config.token) };
@@ -267,7 +277,7 @@ export function createApiServer(config) {
           if (size > config.maxBodyBytes) return done({ error: 'PAYLOAD_TOO_LARGE' });
           parts.push(chunk);
         };
-        const onEnd = () => done({ data: Buffer.concat(parts) });
+        const onEnd = () => done({ data: ownedBody(parts, size) });
         const onClose = () => done({ error: 'ABORTED' });
         const timer = setTimeout(() => done({ error: 'UPLOAD_TIMEOUT' }), config.uploadTimeoutMs);
         req.on('data', onData);
@@ -286,7 +296,9 @@ export function createApiServer(config) {
     // Intussen kan een andere upload de berekening hebben gekregen.
     if (calculator.busy) return fail('BUSY', 'The server is busy; try again later', {}, { 'Retry-After': '5' });
 
-    const result = await calculator.run(type === BYTES_TYPE ? { bytes: body.data, output } : { text: body.data.toString('utf8'), output });
+    const result = type === BYTES_TYPE
+      ? await calculator.run({ bytes: body.data, output }, [body.data.buffer])
+      : await calculator.run({ text: Buffer.from(body.data.buffer).toString('utf8'), output });
     if (res.destroyed) return;
     if (!result.ok) {
       return fail(result.code in STATUS_OF ? result.code : 'INTERNAL', result.message,

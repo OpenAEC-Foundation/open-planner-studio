@@ -40,7 +40,10 @@ Het volledige contract staat in `headless/server/openapi.yaml`.
 - `application/octet-stream` is de bytes-route (`openIfcBytes`): de server leest de body zonder tekstdecodering, en met
   `?output=ifc` komt de herberekende IFC terug als `application/octet-stream` (`toIfcBytes()`). Een gebouwmodel en de
   gegevens van andere programma's blijven byte voor byte staan; verandert de planning niet, dan komt het hele bestand
-  byte-gelijk terug. De andere types zijn de tekstroute van main (`openIfc`, UTF-8): die weigert een bestand met een
+  byte-gelijk terug. Een UTF-8-BOM vóór de kop opent en blijft staan. Van een IFC2X3-bestand blijft alleen de planning:
+  staat er iets naast, dan geeft `?output=ifc` 500 `IFC_WRITE_FAILED` met `details.reason` `ifc2x3-planning-only`. De
+  server leest de body in één eigen buffer en geeft die aan de rekenworker over; de worker geeft de uitvoer ook over in
+  plaats van te kopiëren (knownbug 2219: de geheugenpiek bij grote bestanden is niet gemeten). De andere types zijn de tekstroute van main (`openIfc`, UTF-8): die weigert een bestand met een
   gebouwmodel (422 `IFC_READ_FAILED`) en schrijft geen bestand met vreemde inhoud (500 `IFC_WRITE_FAILED`), en
   `?output=ifc` geeft `Content-Type: application/x-step; charset=utf-8`. Zie *Twee routes* in
   [headless-kern.md](headless-kern.md).
@@ -68,7 +71,7 @@ Een fout heeft altijd deze vorm. `code` is vast; `message` is Engels en voor men
 | 413 | `PAYLOAD_TOO_LARGE` | body groter dan de grens |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | verkeerd `Content-Type` |
 | 422 | `IFC_READ_FAILED`, `NO_TASKS`, `SCHEDULE_FAILED` | IFC, maar niet te plannen (bijv. een kring) |
-| 500 | `IFC_WRITE_FAILED`, `INTERNAL` | fout in de server, of het schrijven werd vóór uitvoer geweigerd: `details.reason` is `foreign` (of een andere scanuitkomst) op de tekstroute, `merge-needs-phase2` op de bytes-route |
+| 500 | `IFC_WRITE_FAILED`, `INTERNAL` | fout in de server, of het schrijven werd vóór uitvoer geweigerd: `details.reason` is `foreign` (of een andere scanuitkomst) op de tekstroute, `merge-needs-phase2` of `ifc2x3-planning-only` op de bytes-route |
 | 503 | `BUSY`, `TIMEOUT` | er loopt al een berekening of er komen al te veel bodies binnen (beslist vóór de body), of de berekening duurde te lang (met `Retry-After`) |
 
 De volgorde van de controles is: pad (404), methode (405), token (401), `output` (400), type (415),
@@ -251,7 +254,8 @@ breaker zet een mislukte deploy terug.
 kernbouw, `headless/`, `deploy/aws/`, de lockfile of de workflow raakt:
 
 - **local**: `npm run build:core`, server starten, weigeren zonder token (exit 78), smoke-test (ook het voorbeeld en
-  twee modelbestanden uit `tests/fixtures/ifc-foreign/` als bytes: byte-gelijk terug, en als tekst 422),
+  twee modelbestanden uit `tests/fixtures/ifc-foreign/` als bytes: byte-gelijk terug, en als tekst 422; het voorbeeld met
+  BOM als bytes; een IFC2X3 met externe pset en een geweigerde merge als JSON-fout),
   servertest (`server-test.mjs`: `GET //[` → 400 zonder crash, 30 uploads boven de grens → meteen 503
   en RSS begrensd, tweede verzoek tijdens een berekening → meteen 503, merkteken uit het IFC niet in
   de logs, 408 bij een te trage body, SIGTERM tijdens een upload), logs zonder token of IFC-inhoud,

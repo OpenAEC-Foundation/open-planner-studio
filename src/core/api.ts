@@ -104,6 +104,8 @@ export interface ScheduleSummary {
   foreignContent: ForeignContentSummary | null;
 }
 
+export type IfcWriteRefusalReason = 'foreign' | 'model' | 'unreadable' | 'merge-needs-phase2' | 'ifc2x3-planning-only';
+
 export interface ForeignContentSummary {
   format: 'ifc';
   schema: string;

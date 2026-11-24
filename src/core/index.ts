@@ -18,13 +18,15 @@ import { prepareIfcOutput, type IfcOutput } from '@/state/prepareIfcOutput';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { FeatureFlagValues } from '@/utils/featureFlags';
 import { isSummaryTask } from '@/utils/taskHierarchy';
-import { scanForeignTargetBytes } from '@/services/ifc/foreign/targetForeignScan';
+import { scanForeignTargetBytes, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import type {
-  CoreErrorCode, ForeignContentSummary, PlannerDocument, ScheduleSummary, ScheduleTaskSummary, ScheduleWarning,
+  CoreErrorCode, ForeignContentSummary, IfcWriteRefusalReason, PlannerDocument, ScheduleSummary, ScheduleTaskSummary,
+  ScheduleWarning,
 } from './api';
 
 export type {
-  CoreErrorCode, ForeignContentSummary, PlannerDocument, ScheduleSummary, ScheduleTaskSummary, ScheduleWarning,
+  CoreErrorCode, ForeignContentSummary, IfcWriteRefusalReason, PlannerDocument, ScheduleSummary, ScheduleTaskSummary,
+  ScheduleWarning,
 } from './api';
 
 /** Versie van de kern; gelijk aan de appversie (CalVer). De bouw vervangt de waarde. */
@@ -73,11 +75,11 @@ export async function openIfc(text: string): Promise<PlannerDocument> {
   const opened = openParsed(await readOrFail(() => readIFCWithXerReconstruction(body)));
   // T3: deze tekst-API bewaart nog geen vreemde bytes. Rekenen mag, verliesgevende IFC-uitvoer niet.
   const inputScan = scanForeignTargetBytes(new TextEncoder().encode(body));
+  const refusal = plainWriteRefusal(inputScan);
   const toIfc = (): string => {
-    if (inputScan !== 'no-model' && inputScan !== 'not-ifc') {
-      throw new PlannerCoreError('IFC_WRITE_FAILED',
-        'This IFC contains foreign content or cannot be scanned reliably; writing it without byte preservation is not supported.',
-        { reason: inputScan });
+    if (refusal) {
+      throw writeRefused(refusal,
+        'This IFC contains foreign content or cannot be scanned reliably; writing it without byte preservation is not supported.');
     }
     return plainIfc(opened.state());
   };
@@ -92,31 +94,50 @@ export async function openIfcBytes(bytes: Uint8Array): Promise<PlannerDocument> 
     throw new PlannerCoreError('INVALID_INPUT', `IFC input must start with "${STEP_HEADER}"`);
   }
   const ownBytes = new Uint8Array(bytes);
-  const opened = openParsed(await readOrFail(() => readIfcBytes(ownBytes, {}, { createWorker: () => null })), BYTES_ROUTE_FLAGS);
+  const parsed = await readOrFail(() => readIfcBytes(ownBytes, {}, { createWorker: () => null }));
+  const opened = openParsed(parsed, BYTES_ROUTE_FLAGS);
+  const ifc2x3PlanningOnly = parsed.ifcLegacySchemaLoss === true && plainWriteRefusal(scanForeignTargetBytes(ownBytes)) !== null;
+  const refuseIfc2x3Loss = () => {
+    if (ifc2x3PlanningOnly) {
+      throw writeRefused('ifc2x3-planning-only',
+        'This IFC2X3 file has content besides the schedule; of an IFC2X3 file only the schedule is kept, so writing it would lose that content.');
+    }
+  };
   const toIfc = (): string => {
+    refuseIfc2x3Loss();
     if (hasForeignContent(opened.state().ifcSource)) {
-      throw new PlannerCoreError('IFC_WRITE_FAILED',
-        'This document keeps foreign content (a building model or data of another program); write it with toIfcBytes().',
-        { reason: 'foreign' });
+      throw writeRefused('foreign',
+        'This document keeps foreign content (a building model or data of another program); write it with toIfcBytes().');
     }
     return plainIfc(opened.state());
   };
   const toIfcBytes = async (): Promise<Uint8Array> => {
+    refuseIfc2x3Loss();
     const s = opened.state();
     let output: IfcOutput;
     try {
       output = await prepareIfcOutput(s, buildWriteIFCInput(s, 'merge'));
     } catch (err) {
       if (err instanceof MergeNeedsPhase2Error) {
-        throw new PlannerCoreError('IFC_WRITE_FAILED',
-          `The foreign content cannot be preserved with these changes yet: ${err.message}`, { reason: 'merge-needs-phase2' });
+        throw writeRefused('merge-needs-phase2', `The foreign content cannot be preserved with these changes yet: ${err.message}`);
       }
       throw new PlannerCoreError('IFC_WRITE_FAILED', `Could not write IFC: ${errorText(err)}`);
     }
-    if (output.prepared) return output.prepared.bytes.slice();
+    if (output.prepared) {
+      const keptSource = output.prepared.bytes === s.ifcSource?.bytes;
+      return keptSource ? output.prepared.bytes.slice() : output.prepared.bytes;
+    }
     return output.bytes ?? new TextEncoder().encode(output.content);
   };
   return plannerDocument(opened, { toIfc, toIfcBytes });
+}
+
+function plainWriteRefusal(scan: TargetForeignScan): IfcWriteRefusalReason | null {
+  return scan === 'no-model' || scan === 'not-ifc' ? null : scan;
+}
+
+function writeRefused(reason: IfcWriteRefusalReason, message: string): PlannerCoreError {
+  return new PlannerCoreError('IFC_WRITE_FAILED', message, { reason });
 }
 
 function startsWithStepHeader(bytes: Uint8Array): boolean {

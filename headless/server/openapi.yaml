@@ -11,9 +11,12 @@ info:
 
     Send the file as `application/octet-stream` to keep a building model and the data of other
     programs: the API then reads the bytes as they are and returns the recalculated file as bytes,
-    with everything that is not the schedule byte for byte as it was. The other request types are
-    read as UTF-8 text; that route refuses a file with a building model (422 `IFC_READ_FAILED`) and
-    does not write a file with foreign content (500 `IFC_WRITE_FAILED`).
+    with everything that is not the schedule byte for byte as it was. A UTF-8 byte order mark before
+    the header is accepted and kept. Of an IFC2X3 file only the schedule is kept: when such a file has
+    other content, `output=ifc` gives 500 `IFC_WRITE_FAILED` with `details.reason`
+    `ifc2x3-planning-only` instead of a file without that content. The other request types are read
+    as UTF-8 text; that route refuses a file with a building model (422 `IFC_READ_FAILED`) and does
+    not write a file with foreign content (500 `IFC_WRITE_FAILED`).
 
     Every path that is not listed answers 404 `NOT_FOUND`.
 
@@ -121,9 +124,10 @@ paths:
                 description: |
                   The recalculated IFC file as bytes (when `output=ifc` and the request was
                   `application/octet-stream`). A building model and the data of other programs come back
-                  byte for byte; without changes to the schedule the whole file does.
+                  byte for byte; without changes to the schedule the whole file does. Not for an IFC2X3
+                  file with content besides the schedule: that gives 500 `IFC_WRITE_FAILED`.
         '400':
-          description: '`INVALID_INPUT` (the body is not ISO-10303-21 text) or `BAD_REQUEST` (unknown `output`, or a request target that is not a valid URL).'
+          description: '`INVALID_INPUT` (the body, as text or as bytes, does not start with `ISO-10303-21;` after an optional byte order mark and white space) or `BAD_REQUEST` (unknown `output`, or a request target that is not a valid URL).'
           content:
             application/json:
               schema:
@@ -170,10 +174,11 @@ paths:
         '500':
           description: |
             `IFC_WRITE_FAILED` or `INTERNAL`. With `IFC_WRITE_FAILED`, `details.reason` says why when it
-            is known: `foreign` (text route: the file has foreign content; send it as
-            `application/octet-stream`), `merge-needs-phase2` (bytes route: the foreign content cannot be
-            preserved with the recalculated schedule yet), or another scan result of the text route,
-            such as `unreadable`.
+            is known: `foreign` (the file has foreign content that this route does not keep; on the text
+            route, send it as `application/octet-stream`), `model` or `unreadable` (other scan results of
+            the text route), `merge-needs-phase2` (bytes route: the foreign content cannot be preserved with
+            the recalculated schedule yet), or `ifc2x3-planning-only` (bytes route: an IFC2X3 file with
+            content besides the schedule, of which only the schedule is kept).
           content:
             application/json:
               schema:

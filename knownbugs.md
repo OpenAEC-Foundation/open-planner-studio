@@ -3978,15 +3978,16 @@ en noem het in je rapport of PR-tekst.
      code en de echte herstelcallback (reviewer van #1127); een processtop is niet opgewekt. — B (code en proef van de
      reviewer; geen processtop nagespeeld)
 
-2212. **Een IFC met een UTF-8-BOM vóór de kop opent niet via de bytes-route (#804, flag aan).** Met de flag
-     `ifcForeignContent` aan weigert Bestand → Openen een eigen voorbeeld met de drie bytes `EF BB BF` vooraan
-     (`IfcForeignOpenError`, "unsafe scanner fallback"); met de flag uit opent hetzelfde bestand met al zijn taken, zoals
-     main. De scanner (`stepScanner.ts`) ziet vóór `ISO-10303-21;` geen BOM en geeft `geen-kop`; de terugval in
-     `ifcBytesRoute.ts` (`currentRoute`) leest de tekst dan wel (de `TextDecoder` haalt de BOM weg), maar weigert omdat
-     de scan niet slaagde. Witruimte vóór de kop opent wel. De headless kern (`openIfcBytes`) doet hetzelfde als de app;
-     `check-headless-core.ts` (12h) houdt kern en app gelijk, ook na een herstel. Richting: de scanner een BOM vooraan
-     laten overslaan, en de merge die bytes laten behouden. Gevonden bij #804 fase 2, PR 10a. — B (proef: een eigen
-     voorbeeld met BOM in een store met de flag aan en uit)
+2219. **VERVOLG (review van #1184): de geheugenpiek van de headless API bij een groot IFC als bytes is niet gemeten (#804).**
+     Een verzoek met `application/octet-stream` houdt tegelijk: de binnengekomen stukken en één eigen buffer van de body
+     (`ownedBody` in `headless/server/server.mjs`; de stukken vallen daarna weg), de kopie die `openIfcBytes`
+     (`src/core/index.ts`) van zijn invoer maakt (het publieke pakket moet een buffer bezitten die de afnemer niet meer
+     wijzigt), het werkgeheugen van de scanner, de indeling en de merge, en de uitvoer. De server geeft de body aan de
+     rekenworker over en de worker de uitvoer terug (`postMessage` met overdracht); de kern kopieert de uitvoer alleen als
+     de merge de bronbuffer zelf teruggeeft. Standaard is de body hooguit 20 MiB, met twee uploads tegelijk; de grens kan tot
+     512 MiB (`OPS_API_MAX_BODY_BYTES`), de scan stopt bij 300 MiB. De Fargate-template begint op 2 GiB, de containerproef
+     in de CI op 1 GiB met kleine bestanden. Niet gemeten: piek en herstel bij een groot model onder de verhoogde limiet.
+     Review van #1184 ronde 1 (GPT-6.2-Sol, xhigh). — S
 
 
 

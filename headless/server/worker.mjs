@@ -11,15 +11,17 @@ for (const method of ['log', 'info', 'warn', 'error', 'debug', 'trace']) console
 
 parentPort.on('message', async ({ text, bytes, output }) => {
   try {
-    if (bytes !== undefined) {
-      const doc = await openIfcBytes(bytes);
-      const summary = doc.schedule();
-      parentPort.postMessage(output === 'ifc' ? { ok: true, ifcBytes: await doc.toIfcBytes() } : { ok: true, summary });
-      return;
-    }
-    const doc = await openIfc(text);
+    const asBytes = bytes !== undefined;
+    const doc = asBytes ? await openIfcBytes(bytes) : await openIfc(text);
     const summary = doc.schedule();
-    parentPort.postMessage(output === 'ifc' ? { ok: true, ifc: doc.toIfc() } : { ok: true, summary });
+    if (output !== 'ifc') {
+      parentPort.postMessage({ ok: true, summary });
+    } else if (!asBytes) {
+      parentPort.postMessage({ ok: true, ifc: doc.toIfc() });
+    } else {
+      const ifcBytes = await doc.toIfcBytes();
+      parentPort.postMessage({ ok: true, ifcBytes }, [ifcBytes.buffer]);
+    }
   } catch (err) {
     if (err instanceof PlannerCoreError) {
       parentPort.postMessage({ ok: false, code: err.code, message: err.message, details: { ...err.details } });
