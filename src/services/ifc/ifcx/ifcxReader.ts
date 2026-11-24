@@ -9,7 +9,7 @@ import { checkValue, readFields } from './fieldTable';
 import { globalIdOfIdentity, isUuidPath, nameBasedUuid } from './globalIdUuid';
 import { childrenInPlace } from './childOrder';
 import { identityProblems } from './identity';
-import { normalizedCopy } from './openNormalize';
+import { stepRoundtrip } from './stepRoundtrip';
 import { composeIfcxDocument, globalIdsOf, type IfcxDocument } from './projection';
 import { HEADER_VALUE } from './ownAttributes';
 import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from './fieldGroups';
@@ -41,7 +41,7 @@ const NODE_SHAPES: readonly { kind: NodeKind; required: readonly IfcxAttributeNa
   { kind: 'schedule', required: [ATTRIBUTE.schedule], optional: [] },
   { kind: 'calendar', required: [ATTRIBUTE.calendar, ATTRIBUTE.opsCalendar], optional: [] },
   { kind: 'task', required: [ATTRIBUTE.activity, ATTRIBUTE.opsTask], optional: [] },
-  { kind: 'sequence', required: [ATTRIBUTE.sequence], optional: [ATTRIBUTE.opsSequence] },
+  { kind: 'sequence', required: [ATTRIBUTE.sequence, ATTRIBUTE.opsSequence], optional: [] },
 ];
 
 const TOP_LEVEL_KEYS = new Set(['header', 'imports', 'schemas', 'data']);
@@ -79,7 +79,7 @@ function parseDocument(text: string): Record<string, unknown> {
   return document;
 }
 
-function headerOf(document: Record<string, unknown>): { uuid: string; author: string; fields: Record<string, unknown> } {
+function headerOf(document: Record<string, unknown>): { uuid: string; fields: Record<string, unknown> } {
   const header = document.header as Record<string, unknown>;
   if (typeof header.id !== 'string' || !header.id.startsWith(OWN_HEADER_ID_PREFIX)) {
     throw foreign(`Het bestand is niet door Open Planner Studio begonnen (${JSON.stringify(header.id)})`);
@@ -90,7 +90,7 @@ function headerOf(document: Record<string, unknown>): { uuid: string; author: st
   if (!Array.isArray(document.imports)) throw invalid('Het bestand heeft geen lijst imports', { field: 'imports' });
   if (document.imports.length > 0) throw foreign('Het bestand importeert andere bestanden');
   if (!isPlainObject(document.schemas)) throw invalid('Het bestand heeft geen schemas', { field: 'schemas' });
-  return { uuid, author: header.author as string, fields: header };
+  return { uuid, fields: header };
 }
 
 function thrown(problem: IfcxCheckProblem): IfcxReadError {
@@ -231,7 +231,7 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   };
 
   const workplan = of('workplan')[0];
-  const project = { ...emptyProject(), author: header.author };
+  const project = emptyProject();
   const documentTarget: DocumentReadTarget = { project, headerUuid: header.uuid, formatVersion: '', calendarPath: '' };
   readFields(DOCUMENT_AREA.planning, workplan.attributes.get(ATTRIBUTE.workplan)!, documentTarget);
   readFields(DOCUMENT_AREA.ops, workplan.attributes.get(ATTRIBUTE.document)!, documentTarget);
@@ -246,7 +246,7 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
     throw invalid('Het werkschema hoort niet bij het werkplan', { path: schedule.path, attribute: ATTRIBUTE.schedule, field: 'workplan' });
   }
 
-  const projectCalendarPath = reference(documentTarget.calendarPath, 'calendar', { path: workplan.path, attribute: ATTRIBUTE.workplan, field: 'calendar' })!;
+  const projectCalendarPath = reference(documentTarget.calendarPath, 'calendar', { ...documentPlace, field: 'calendar' })!;
   const calendarTargets: CalendarReadTarget[] = of('calendar').map(node => {
     const target: CalendarReadTarget = { calendar: emptyCalendar(), isProjectCalendar: node.path === projectCalendarPath, path: node.path };
     readFields(CALENDAR_AREA.planning, node.attributes.get(ATTRIBUTE.calendar)!, target);
@@ -276,7 +276,7 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   const taskIdAt = new Map(taskTargets.map(target => [target.path, target.task.id]));
   const childrenOf = new Map<string, TaskReadTarget[]>();
   for (const target of taskTargets) {
-    const place = { path: target.path, attribute: ATTRIBUTE.activity };
+    const place = { path: target.path, attribute: ATTRIBUTE.opsTask };
     const parentPath = reference(target.parentPath, 'task', { ...place, field: 'parent' });
     target.task.parentId = parentPath === undefined ? null : taskIdAt.get(parentPath)!;
     if (parentPath !== undefined) {
@@ -291,12 +291,12 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   }
 
   const sequenceTargets: SequenceReadTarget[] = of('sequence').map(node => {
-    const target: SequenceReadTarget = { sequence: emptySequence(), path: node.path, predecessorPath: '', successorPath: '', shared: {} };
+    const target: SequenceReadTarget = { sequence: emptySequence(), path: node.path, predecessorPath: '', successorPath: '' };
     readFields(SEQUENCE_AREA.planning, node.attributes.get(ATTRIBUTE.sequence)!, target);
-    readFields(SEQUENCE_AREA.ops, node.attributes.get(ATTRIBUTE.opsSequence) ?? {}, target);
-    const place = { path: node.path, attribute: ATTRIBUTE.sequence };
-    target.sequence.predecessorId = taskIdAt.get(reference(target.predecessorPath, 'task', { ...place, field: 'relatingProcess' })!)!;
-    target.sequence.successorId = taskIdAt.get(reference(target.successorPath, 'task', { ...place, field: 'relatedProcess' })!)!;
+    readFields(SEQUENCE_AREA.ops, node.attributes.get(ATTRIBUTE.opsSequence)!, target);
+    const place = { path: node.path, attribute: ATTRIBUTE.opsSequence };
+    target.sequence.predecessorId = taskIdAt.get(reference(target.predecessorPath, 'task', { ...place, field: 'predecessor' })!)!;
+    target.sequence.successorId = taskIdAt.get(reference(target.successorPath, 'task', { ...place, field: 'successor' })!)!;
     assertIdentityPath(node.path, target.globalIdOutsidePath, { path: node.path, attribute: ATTRIBUTE.opsSequence });
     return target;
   });
@@ -326,15 +326,13 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   };
   const [problem] = identityProblems(read, (kind, id) => ifcGlobalIds[ifcObjectSeed(kind, id)]);
   if (problem) throw invalid(problem.detail, { field: problem.field });
-  const result = normalizedCopy(read);
-  if (checked) {
-    const objects = new Map<string, string>([[workplan.path, 'het werkplan'], [schedule.path, 'het werkschema']]);
-    for (const target of calendarTargets) objects.set(target.path, `kalender ${target.calendar.id}`);
-    for (const target of taskTargets) objects.set(target.path, `taak ${target.task.id} (${target.task.name})`);
-    for (const target of sequenceTargets) objects.set(target.path, `relatie ${target.sequence.id}`);
-    assertProjection(header.fields, nodes, composeIfcxDocument(result, new Date(0), globalIdsOf(result)), path => objects.get(path) ?? path);
-  }
-  return result;
+  if (!checked) return read;
+  const objects = new Map<string, string>([[workplan.path, 'het werkplan'], [schedule.path, 'het werkschema']]);
+  for (const target of calendarTargets) objects.set(target.path, `kalender ${target.calendar.id}`);
+  for (const target of taskTargets) objects.set(target.path, `taak ${target.task.id} (${target.task.name})`);
+  for (const target of sequenceTargets) objects.set(target.path, `relatie ${target.sequence.id}`);
+  assertProjection(header.fields, nodes, composeIfcxDocument(read, new Date(0), globalIdsOf(read)), path => objects.get(path) ?? path);
+  return stepRoundtrip(read);
 }
 
 export function readIfcx(bytes: Uint8Array): IfcxImportResult {

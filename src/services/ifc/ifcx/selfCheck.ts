@@ -33,7 +33,7 @@ const TASK_TIME_NOT_CARRIED = knownNotCarried(TASK_TIME_KEYS, new Set([...TASK_G
 const SEQUENCE_NOT_CARRIED = knownNotCarried(SEQUENCE_KEYS, carriedKeys(SEQUENCE_GROUPS));
 const INPUT_NOT_CARRIED_NOR_READ = [
   'libraryPool', 'xerSourceArchive', 'xer', 'xerSourceProjectId', 'recordedSourceFormat', 'recoveryForeignSource',
-  'withheldTaskTimeFields', 'ifcLiteralCalendarIds',
+  'withheldTaskTimeFields',
 ];
 
 function withoutEmpty<T extends object>(object: T, keys: readonly string[]): T {
@@ -56,7 +56,7 @@ function dropEmptyNotCarried(model: Model, side: Side): void {
 const READ_METADATA = [
   'timeModel', 'milestonesAtDayEnd', 'recordedFields', 'recordedTimes', 'recordedTimesOrigin', 'xerOrigin', 'xerArchiveIssue',
   'xerMissingPlannedStarts', 'p6xmlReport', 'msProjectReport', 'sourceScheduleNotes', 'suggestedProfileId', 'ifcLegacySchemaLoss',
-  'baselineOrphanGuids',
+  'baselineOrphanGuids', 'ifcLiteralCalendarIds',
 ] as const;
 
 const LISTS_THE_READER_GIVES = ['activityCodeTypes', 'customFieldDefs', 'baselines', 'resources', 'assignments', 'resourceCalendars'] as const;
@@ -84,7 +84,7 @@ export const SELF_CHECK_RULES: readonly SelfCheckRule[] = [
   },
   {
     id: 'leesmeta', keys: READ_METADATA,
-    reason: 'Wat een lezer bij openen meegeeft (de vastlegging van het bronbestand, het tijdmodel, meldingen): de STEP-writer leest het niet.',
+    reason: 'Wat een lezer bij openen meegeeft (de vastlegging van het bronbestand, het tijdmodel, meldingen, welke kalenders STEP letterlijk schreef): de STEP-writer leest het niet, of gebruikt het alleen voor de vorm van zijn eigen bestand.',
     normalize: dropKeys(READ_METADATA),
   },
   {

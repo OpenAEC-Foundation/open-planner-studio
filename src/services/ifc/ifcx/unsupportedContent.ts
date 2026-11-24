@@ -10,7 +10,7 @@ function uncarriedKeys(object: object, carried: ReadonlySet<PropertyKey>): strin
 
 const STEP_WRITER_INPUT_NOT_CARRIED = [
   'resources', 'assignments', 'activityCodeTypes', 'customFieldDefs', 'baselines', 'libraryPool', 'xerSourceArchive', 'xer',
-  'xerSourceProjectId', 'recordedSourceFormat', 'recoveryForeignSource', 'withheldTaskTimeFields', 'ifcLiteralCalendarIds',
+  'xerSourceProjectId', 'recordedSourceFormat', 'recoveryForeignSource', 'withheldTaskTimeFields',
 ] as const satisfies readonly (keyof WriteIFCInput)[];
 
 export function unsupportedContent(input: WriteIFCInput): string[] {

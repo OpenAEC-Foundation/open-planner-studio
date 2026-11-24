@@ -27,6 +27,7 @@ export interface TaskReadTarget {
 }
 
 type TaskField = IfcxField<TaskWriteSource, TaskReadTarget>;
+const TASK_STATUSES = ['NOT_STARTED', 'STARTED', 'COMPLETED'] as const satisfies readonly TaskStatus[];
 type TimeField = IfcxField<TaskTime, TaskTime>;
 
 export function derivedTaskStatus(time: Pick<TaskTime, 'actualStart' | 'actualFinish' | 'completion'>): TaskStatus {
@@ -76,52 +77,52 @@ export const TASK_ACTIVITY_FIELDS: readonly TaskField[] = [
   {
     key: 'name', value: TEXT,
     write: s => s.task.name,
-    read: (v, t) => { t.task.name = v as string; },
+    read: () => {},
   },
   {
     key: 'description', value: TEXT, optional: true,
     write: s => s.task.description || undefined,
-    read: (v, t) => { t.task.description = (v as string | undefined) ?? ''; },
+    read: () => {},
   },
   {
     key: 'identification', value: TEXT, optional: true,
     write: s => s.task.wbsCode || undefined,
-    read: (v, t) => { t.task.wbsCode = (v as string | undefined) ?? ''; },
+    read: () => {},
   },
   {
     key: 'parent', value: REFERENCE, optional: true,
     write: s => s.parentPath,
-    read: (v, t) => { t.parentPath = v as string | undefined; },
+    read: () => {},
   },
   {
     key: 'predefinedType', value: enumOf(TASK_TYPES),
     write: s => s.task.taskType,
-    read: (v, t) => { t.task.taskType = v as Task['taskType']; },
+    read: () => {},
   },
   {
     key: 'isMilestone', value: BOOLEAN, optional: true,
     write: s => (s.task.isMilestone ? true : undefined),
-    read: (v, t) => { t.task.isMilestone = v === true; },
+    read: () => {},
   },
   {
     key: 'priority', value: integer(), optional: true,
     write: s => (s.task.priority !== DEFAULT_PRIORITY ? s.task.priority : undefined),
-    read: (v, t) => { t.task.priority = (v as number | undefined) ?? DEFAULT_PRIORITY; },
+    read: () => {},
   },
   {
     key: 'calendar', value: REFERENCE, optional: true,
     write: s => s.calendarPath,
-    read: (v, t) => { t.calendarPath = v as string | undefined; },
+    read: () => {},
   },
   {
     key: 'durationType', value: enumOf(['WORKTIME', 'ELAPSEDTIME']), optional: true,
     write: s => (s.task.time.durationType !== 'WORKTIME' ? s.task.time.durationType : undefined),
-    read: (v, t) => { t.task.time.durationType = (v as TaskTime['durationType'] | undefined) ?? 'WORKTIME'; },
+    read: () => {},
   },
   {
     key: 'completion', value: FRACTION, optional: true,
     write: s => (s.task.time.completion !== 0 ? s.task.time.completion : undefined),
-    read: (v, t) => { t.task.time.completion = (v as number | undefined) ?? 0; },
+    read: () => {},
   },
   {
     key: 'start', value: CALENDAR_DATE, optional: true,
@@ -147,17 +148,64 @@ export const TASK_OPS_FIELDS: readonly TaskField[] = [
     read: (v, t) => { t.globalIdOutsidePath = v as string | undefined; },
   },
   {
+    key: 'name', value: TEXT,
+    write: s => s.task.name,
+    read: (v, t) => { t.task.name = v as string; },
+  },
+  {
+    key: 'description', value: TEXT, optional: true,
+    write: s => s.task.description || undefined,
+    read: (v, t) => { t.task.description = (v as string | undefined) ?? ''; },
+  },
+  {
+    key: 'wbsCode', value: TEXT, optional: true,
+    write: s => s.task.wbsCode || undefined,
+    read: (v, t) => { t.task.wbsCode = (v as string | undefined) ?? ''; },
+  },
+  {
+    key: 'taskType', value: enumOf(TASK_TYPES),
+    write: s => s.task.taskType,
+    read: (v, t) => { t.task.taskType = v as Task['taskType']; },
+  },
+  {
+    key: 'isMilestone', value: BOOLEAN, optional: true,
+    write: s => (s.task.isMilestone ? true : undefined),
+    read: (v, t) => { t.task.isMilestone = v === true; },
+  },
+  {
+    key: 'priority', value: integer(), optional: true,
+    write: s => (s.task.priority !== DEFAULT_PRIORITY ? s.task.priority : undefined),
+    read: (v, t) => { t.task.priority = (v as number | undefined) ?? DEFAULT_PRIORITY; },
+  },
+  {
+    key: 'parent', value: REFERENCE, optional: true,
+    write: s => s.parentPath,
+    read: (v, t) => { t.parentPath = v as string | undefined; },
+  },
+  {
     key: 'place', value: integer(0), optional: true,
     write: s => s.place,
     read: (v, t) => { t.place = v as number | undefined; },
   },
   {
+    key: 'durationType', value: enumOf(['WORKTIME', 'ELAPSEDTIME']), optional: true,
+    write: s => (s.task.time.durationType !== 'WORKTIME' ? s.task.time.durationType : undefined),
+    read: (v, t) => { t.task.time.durationType = (v as TaskTime['durationType'] | undefined) ?? 'WORKTIME'; },
+  },
+  {
+    key: 'completion', value: FRACTION, optional: true,
+    write: s => (s.task.time.completion !== 0 ? s.task.time.completion : undefined),
+    read: (v, t) => { t.task.time.completion = (v as number | undefined) ?? 0; },
+  },
+  {
     key: 'time', value: objectOf(membersOf(TASK_TIME_FIELDS)),
     write: s => writeFields(TASK_TIME_FIELDS, s.task.time),
-    read: (v, t) => {
-      readFields(TASK_TIME_FIELDS, v as Record<string, unknown>, t.task.time);
-      t.task.status = derivedTaskStatus(t.task.time);
-    },
+    read: (v, t) => readFields(TASK_TIME_FIELDS, v as Record<string, unknown>, t.task.time),
+  },
+  {
+    key: 'status', value: enumOf(TASK_STATUSES), optional: true,
+    write: s => (s.task.status !== derivedTaskStatus(s.task.time) ? s.task.status : undefined),
+    read: (v, t) => { t.task.status = (v as TaskStatus | undefined) ?? derivedTaskStatus(t.task.time); },
   },
 
   {
@@ -179,6 +227,11 @@ export const TASK_OPS_FIELDS: readonly TaskField[] = [
     key: 'manuallyScheduled', value: BOOLEAN, optional: true,
     write: s => s.task.manuallyScheduled,
     read: (v, t) => setOptional(t.task, 'manuallyScheduled', v as boolean | undefined),
+  },
+  {
+    key: 'calendar', value: REFERENCE, optional: true,
+    write: s => s.calendarPath,
+    read: (v, t) => { t.calendarPath = v as string | undefined; },
   },
   {
     key: 'calendarId', value: NON_EMPTY_TEXT, optional: true,

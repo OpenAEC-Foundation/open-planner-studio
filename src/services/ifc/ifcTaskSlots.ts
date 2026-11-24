@@ -310,7 +310,7 @@ export const IFC_TASK_STATUS_RUNNING = 'STARTED';
  * STARTED op 1 geeft (alle taken klaar plus een niet-gestarte mijlpaal, of ≥ 99,95 % afgerond), en
  * de solve rekent hem na het openen opnieuw uit.
  */
-export function isRunningAtFullCompletion(task: Task): boolean {
+function isRunningAtFullCompletion(task: Task): boolean {
   return !isSummaryTask(task)
     && task.status === 'STARTED' && task.time.completion >= 1 && !task.time.actualFinish;
 }

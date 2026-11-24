@@ -9,7 +9,6 @@ import { existingDatePart } from '../dateProjection';
 export interface DocumentWriteSource {
   readonly project: Project;
   readonly headerUuid: string;
-  readonly headerAuthor: string;
   readonly projectGlobalIdOutsidePath?: string;
   readonly workplanGlobalIdOutsidePath?: string;
   readonly scheduleGlobalIdOutsidePath?: string;
@@ -40,27 +39,27 @@ export const WORKPLAN_FIELDS: readonly DocumentField[] = [
   {
     key: 'name', value: TEXT,
     write: s => s.project.name,
-    read: (v, t) => { t.project.name = v as string; },
+    read: () => {},
   },
   {
     key: 'description', value: TEXT, optional: true,
     write: s => s.project.description || undefined,
-    read: (v, t) => { t.project.description = (v as string | undefined) ?? ''; },
+    read: () => {},
   },
   {
     key: 'start', value: CALENDAR_DATE, optional: true,
     write: s => sharedProjectDate(s.project.startDate),
-    read: (v, t) => { t.project.startDate = (v as string | undefined) ?? ''; },
+    read: () => {},
   },
   {
     key: 'finish', value: CALENDAR_DATE, optional: true,
     write: s => sharedProjectDate(s.project.endDate),
-    read: (v, t) => { t.project.endDate = (v as string | undefined) ?? ''; },
+    read: () => {},
   },
   {
     key: 'calendar', value: REFERENCE,
     write: s => s.projectCalendarPath,
-    read: (v, t) => { t.calendarPath = v as string; },
+    read: () => {},
   },
 ];
 
@@ -69,6 +68,21 @@ export const DOCUMENT_OPS_FIELDS: readonly DocumentField[] = [
     key: 'formatVersion', value: VERSION_TEXT,
     write: () => OPS_PROFILE_VERSION,
     read: (v, t) => { t.formatVersion = v as string; },
+  },
+  {
+    key: 'name', value: TEXT,
+    write: s => s.project.name,
+    read: (v, t) => { t.project.name = v as string; },
+  },
+  {
+    key: 'description', value: TEXT, optional: true,
+    write: s => s.project.description || undefined,
+    read: (v, t) => { t.project.description = (v as string | undefined) ?? ''; },
+  },
+  {
+    key: 'calendar', value: REFERENCE,
+    write: s => s.projectCalendarPath,
+    read: (v, t) => { t.calendarPath = v as string; },
   },
   {
     key: 'projectId', value: NON_EMPTY_TEXT, optional: true,
@@ -92,13 +106,13 @@ export const DOCUMENT_OPS_FIELDS: readonly DocumentField[] = [
   },
   {
     key: 'startDate', value: ISO_DATE_OR_MOMENT_OR_EMPTY, optional: true,
-    write: s => (s.project.startDate !== (sharedProjectDate(s.project.startDate) ?? '') ? s.project.startDate : undefined),
-    read: (v, t) => setOptional(t.project, 'startDate', v as string | undefined),
+    write: s => s.project.startDate || undefined,
+    read: (v, t) => { t.project.startDate = (v as string | undefined) ?? ''; },
   },
   {
     key: 'endDate', value: ISO_DATE_OR_MOMENT_OR_EMPTY, optional: true,
-    write: s => (s.project.endDate !== (sharedProjectDate(s.project.endDate) ?? '') ? s.project.endDate : undefined),
-    read: (v, t) => setOptional(t.project, 'endDate', v as string | undefined),
+    write: s => s.project.endDate || undefined,
+    read: (v, t) => { t.project.endDate = (v as string | undefined) ?? ''; },
   },
   {
     key: 'createdAt', value: ISO_DATE_OR_MOMENT_OR_EMPTY, optional: true,
@@ -112,8 +126,8 @@ export const DOCUMENT_OPS_FIELDS: readonly DocumentField[] = [
   },
   {
     key: 'author', value: TEXT, optional: true,
-    write: s => (s.project.author !== s.headerAuthor ? s.project.author : undefined),
-    read: (v, t) => setOptional(t.project, 'author', v as string | undefined),
+    write: s => s.project.author || undefined,
+    read: (v, t) => { t.project.author = (v as string | undefined) ?? ''; },
   },
   {
     key: 'company', value: TEXT, optional: true,

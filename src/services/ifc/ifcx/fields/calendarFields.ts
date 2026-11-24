@@ -29,11 +29,11 @@ export function derivedCalendarId(path: string, isProjectCalendar: boolean): str
 
 const SHIFT_TO_IFC = { FIRST: 'FIRSTSHIFT', SECOND: 'SECONDSHIFT', THIRD: 'THIRDSHIFT', USERDEFINED: 'USERDEFINED' } as const;
 type Shift = keyof typeof SHIFT_TO_IFC;
-const IFC_TO_SHIFT = Object.fromEntries(Object.entries(SHIFT_TO_IFC).map(([shift, ifc]) => [ifc, shift])) as Record<string, Shift>;
 
 const BAND: IfcxValue = objectOf({ start: { value: REAL }, end: { value: REAL } });
 const BANDS: IfcxValue = arrayOf(BAND);
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
+const HOLIDAYS: IfcxValue = arrayOf(objectOf({ name: { value: TEXT }, start: { value: CALENDAR_DATE }, end: { value: CALENDAR_DATE, optional: true } }));
 
 type Band = { start: number; end: number };
 const bandsOut = (bands: readonly Band[]) => bands.map(band => ({ start: band.start, end: band.end }));
@@ -86,23 +86,22 @@ export const CALENDAR_PLANNING_FIELDS: readonly CalendarField[] = [
   {
     key: 'name', value: TEXT,
     write: s => s.calendar.name,
-    read: (v, t) => { t.calendar.name = v as string; },
+    read: () => {},
   },
   {
     key: 'description', value: TEXT, optional: true,
     write: s => s.calendar.description || undefined,
-    read: (v, t) => { t.calendar.description = (v as string | undefined) ?? ''; },
+    read: () => {},
   },
   {
     key: 'predefinedType', value: enumOf(Object.values(SHIFT_TO_IFC)), optional: true,
     write: s => (s.calendar.shift ? SHIFT_TO_IFC[s.calendar.shift] : undefined),
-    read: (v, t) => setOptional(t.calendar, 'shift', v === undefined ? undefined : IFC_TO_SHIFT[v as string]),
+    read: () => {},
   },
   {
-    key: 'exceptionTimes', optional: true,
-    value: arrayOf(objectOf({ name: { value: TEXT }, start: { value: CALENDAR_DATE }, end: { value: CALENDAR_DATE, optional: true } })),
+    key: 'exceptionTimes', optional: true, value: HOLIDAYS,
     write: s => (s.calendar.holidays.length ? holidaysOut(s.calendar.holidays) : undefined),
-    read: (v, t) => { t.calendar.holidays = v ? holidaysIn(v as { name: string; start: string; end?: string }[]) : []; },
+    read: () => {},
   },
 ];
 
@@ -121,6 +120,26 @@ export const CALENDAR_OPS_FIELDS: readonly CalendarField[] = [
     key: 'libraryPlace', value: integer(0), optional: true,
     write: s => s.libraryPlace,
     read: (v, t) => { t.libraryPlace = v as number | undefined; },
+  },
+  {
+    key: 'name', value: TEXT,
+    write: s => s.calendar.name,
+    read: (v, t) => { t.calendar.name = v as string; },
+  },
+  {
+    key: 'description', value: TEXT, optional: true,
+    write: s => s.calendar.description || undefined,
+    read: (v, t) => { t.calendar.description = (v as string | undefined) ?? ''; },
+  },
+  {
+    key: 'shift', value: enumOf(Object.keys(SHIFT_TO_IFC)), optional: true,
+    write: s => s.calendar.shift,
+    read: (v, t) => setOptional(t.calendar, 'shift', v as Shift | undefined),
+  },
+  {
+    key: 'holidays', optional: true, value: HOLIDAYS,
+    write: s => (s.calendar.holidays.length ? holidaysOut(s.calendar.holidays) : undefined),
+    read: (v, t) => { t.calendar.holidays = v ? holidaysIn(v as { name: string; start: string; end?: string }[]) : []; },
   },
   {
     key: 'workDays', value: arrayOf(integer(1, 7)),

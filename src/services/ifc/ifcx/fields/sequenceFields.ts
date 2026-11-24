@@ -8,7 +8,6 @@ export interface SequenceWriteSource {
   readonly predecessorPath: string;
   readonly successorPath: string;
   readonly shared: SharedLag;
-  readonly derived: LagFromShared;
 }
 
 export interface SequenceReadTarget {
@@ -17,7 +16,6 @@ export interface SequenceReadTarget {
   globalIdOutsidePath?: string;
   predecessorPath: string;
   successorPath: string;
-  shared: SharedLag;
 }
 
 type SequenceField = IfcxField<SequenceWriteSource, SequenceReadTarget>;
@@ -33,6 +31,8 @@ export interface LagFromShared {
   readonly lagPercent?: number;
 }
 
+const SEQUENCE_TYPE = enumOf(['FINISH_START', 'START_START', 'FINISH_FINISH', 'START_FINISH']);
+const LAG_UNIT = enumOf(['WORKTIME', 'ELAPSEDTIME']);
 const PLAIN_NUMBER = /^\d+(\.\d+)?$/;
 const DAYS_LAG = /^(-?)P(\d+(?:\.\d+)?)D$/;
 const MINUTES_LAG = /^(-?)PT(\d+(?:\.\d+)?)M$/;
@@ -63,44 +63,36 @@ export function lagFromShared(shared: SharedLag): LagFromShared {
   return { lagDays: days ? (days[1] ? -1 : 1) * Number(days[2]) : 0 };
 }
 
-function unlessDerived<K extends keyof LagFromShared>(source: SequenceWriteSource, key: K): Sequence[K] | undefined {
-  const value = source.sequence[key];
-  return value !== source.derived[key] ? value : undefined;
-}
-
 export const SEQUENCE_PLANNING_FIELDS: readonly SequenceField[] = [
   {
     key: 'relatingProcess', value: REFERENCE,
     write: s => s.predecessorPath,
-    read: (v, t) => { t.predecessorPath = v as string; },
+    read: () => {},
   },
   {
     key: 'relatedProcess', value: REFERENCE,
     write: s => s.successorPath,
-    read: (v, t) => { t.successorPath = v as string; },
+    read: () => {},
   },
   {
-    key: 'sequenceType', value: enumOf(['FINISH_START', 'START_START', 'FINISH_FINISH', 'START_FINISH']),
+    key: 'sequenceType', value: SEQUENCE_TYPE,
     write: s => s.sequence.type,
-    read: (v, t) => { t.sequence.type = v as SequenceType; },
+    read: () => {},
   },
   {
     key: 'timeLag', value: TIME_LAG, optional: true,
     write: s => s.shared.timeLag,
-    read: (v, t) => { if (v !== undefined) t.shared.timeLag = v as string; },
+    read: () => {},
   },
   {
     key: 'timeLagRatio', value: REAL, optional: true,
     write: s => s.shared.timeLagRatio,
-    read: (v, t) => { if (v !== undefined) t.shared.timeLagRatio = v as number; },
+    read: () => {},
   },
   {
-    key: 'lagDurationType', value: enumOf(['WORKTIME', 'ELAPSEDTIME']), optional: true,
+    key: 'lagDurationType', value: LAG_UNIT, optional: true,
     write: s => s.sequence.lagUnit,
-    read: (v, t) => {
-      if (v !== undefined) t.sequence.lagUnit = v as LagUnit;
-      Object.assign(t.sequence, lagFromShared(t.shared));
-    },
+    read: () => {},
   },
 ];
 
@@ -116,18 +108,38 @@ export const SEQUENCE_OPS_FIELDS: readonly SequenceField[] = [
     read: (v, t) => { t.globalIdOutsidePath = v as string | undefined; },
   },
   {
+    key: 'predecessor', value: REFERENCE,
+    write: s => s.predecessorPath,
+    read: (v, t) => { t.predecessorPath = v as string; },
+  },
+  {
+    key: 'successor', value: REFERENCE,
+    write: s => s.successorPath,
+    read: (v, t) => { t.successorPath = v as string; },
+  },
+  {
+    key: 'type', value: SEQUENCE_TYPE,
+    write: s => s.sequence.type,
+    read: (v, t) => { t.sequence.type = v as SequenceType; },
+  },
+  {
+    key: 'lagUnit', value: LAG_UNIT, optional: true,
+    write: s => s.sequence.lagUnit,
+    read: (v, t) => { if (v !== undefined) t.sequence.lagUnit = v as LagUnit; },
+  },
+  {
     key: 'lagDays', value: REAL, optional: true,
-    write: s => unlessDerived(s, 'lagDays'),
-    read: (v, t) => { if (v !== undefined) t.sequence.lagDays = v as number; },
+    write: s => (s.sequence.lagDays !== 0 ? s.sequence.lagDays : undefined),
+    read: (v, t) => { t.sequence.lagDays = (v as number | undefined) ?? 0; },
   },
   {
     key: 'lagMinutes', value: REAL, optional: true,
-    write: s => unlessDerived(s, 'lagMinutes'),
+    write: s => s.sequence.lagMinutes,
     read: (v, t) => { if (v !== undefined) t.sequence.lagMinutes = v as number; },
   },
   {
     key: 'lagPercent', value: REAL, optional: true,
-    write: s => unlessDerived(s, 'lagPercent'),
+    write: s => s.sequence.lagPercent,
     read: (v, t) => { if (v !== undefined) t.sequence.lagPercent = v as number; },
   },
 ];

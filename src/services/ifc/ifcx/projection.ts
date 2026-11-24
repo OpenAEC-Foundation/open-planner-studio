@@ -1,15 +1,14 @@
-import { ifcObjectSeed, type WriteIFCInput } from '../ifcWriter';
+import { ifcObjectSeed } from '../ifcWriter';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
-import type { Sequence } from '@/types/sequence';
 import { writeFields } from './fieldTable';
 import { identityOfGlobalId, type IfcxIdentity } from './globalIdUuid';
 import { libraryCalendarsWrittenByStep } from './stepGlobalIds';
-import { intendedGlobalIds, type GlobalIdOfObject } from './identity';
+import { intendedGlobalIds, type GlobalIdOfObject, type PlanningModel } from './identity';
 import { placesNeededForOrder } from './childOrder';
 import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from './fieldGroups';
 import { SCHEDULE_FIELDS } from './fields/documentFields';
-import { lagFromShared, sharedLagOf } from './fields/sequenceFields';
+import { sharedLagOf } from './fields/sequenceFields';
 import { ownSchemas } from './ownAttributes';
 import { taskWindow } from './dateProjection';
 import {
@@ -61,7 +60,7 @@ function childPlaces(tasks: readonly Task[], taskPathById: ReadonlyMap<string, s
   return places;
 }
 
-export function composeIfcxDocument(input: WriteIFCInput, writtenAt: Date, globalIdOf: GlobalIdOfObject): IfcxDocument {
+export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globalIdOf: GlobalIdOfObject): IfcxDocument {
   const { project } = input;
   const projectIdentity = identityOfGlobalId(globalIdOf('proj', project.id));
   const workplanIdentity = identityOfGlobalId(globalIdOf('wp', project.id));
@@ -88,7 +87,7 @@ export function composeIfcxDocument(input: WriteIFCInput, writtenAt: Date, globa
 
   const data: IfcxEntry[] = [];
   const documentSource = {
-    project, headerUuid: projectIdentity.path, headerAuthor,
+    project, headerUuid: projectIdentity.path,
     ...(projectIdentity.globalIdOutsidePath !== undefined ? { projectGlobalIdOutsidePath: projectIdentity.globalIdOutsidePath } : {}),
     ...(workplanIdentity.globalIdOutsidePath !== undefined ? { workplanGlobalIdOutsidePath: workplanIdentity.globalIdOutsidePath } : {}),
     ...(scheduleIdentity.globalIdOutsidePath !== undefined ? { scheduleGlobalIdOutsidePath: scheduleIdentity.globalIdOutsidePath } : {}),
@@ -129,7 +128,7 @@ export function composeIfcxDocument(input: WriteIFCInput, writtenAt: Date, globa
     const source = {
       sequence, identity: identityOfGlobalId(globalIdOf('seq', sequence.id)),
       predecessorPath: taskPathById.get(sequence.predecessorId)!, successorPath: taskPathById.get(sequence.successorId)!,
-      ...sharedAndDerivedLag(sequence),
+      shared: sharedLagOf(sequence),
     };
     data.push({ path: source.identity.path, attributes: attributesOf([
       [ATTRIBUTE.sequence, writeFields(SEQUENCE_AREA.planning, source)],
@@ -149,12 +148,7 @@ export function composeIfcxDocument(input: WriteIFCInput, writtenAt: Date, globa
   };
 }
 
-function sharedAndDerivedLag(sequence: Sequence) {
-  const shared = sharedLagOf(sequence);
-  return { shared, derived: lagFromShared(shared) };
-}
-
-export function globalIdsOf(input: WriteIFCInput): GlobalIdOfObject {
+export function globalIdsOf(input: PlanningModel): GlobalIdOfObject {
   const intended = intendedGlobalIds(input);
   return (kind, id) => intended.get(ifcObjectSeed(kind, id))!;
 }
