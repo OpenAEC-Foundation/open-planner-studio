@@ -16,7 +16,6 @@ const { createAppStoreContext } = await import('@/state/appStoreFactory');
 const { startOpenLookup, openTabFor, changedOnDiskShown } = await import('@/state/openDocumentFor');
 const { hasChangedOnDisk } = await import('@/state/documentSaveState');
 const { isBlockingDialogOpen } = await import('@/state/blockingDialogs');
-const { isGlobalShortcutFrozen } = await import('@/hooks/keyboard/shortcutRegistry');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
 const { writeCSV } = await import('@/services/csv/csvWriter');
@@ -144,21 +143,21 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     ['doc-site-handle', { filePath: 'sh.ifc', fileHandle: handleFor('sh.ifc'), siteFileId: 'site-2', siteFileVersion: 'v1' }],
     ['doc-csv', { filePath: null }],
   ]);
-  eq('A1 hetzelfde pad, dezelfde versie: wisselen zonder melding', choose(docs, path('/plan/a.ifc')), { id: 'doc-pad', changedOnDisk: false });
+  eq('A1 hetzelfde pad, dezelfde versie: wisselen zonder melding', choose(docs, path('/plan/a.ifc')), { id: 'doc-pad', changedOnDisk: false, provenSame: true });
   eq('A2 een link (een andere padtekst) telt niet (knownbug 2063)', decide(docs, path('/plan/link-a.ifc')), null);
   eq('A4 POSIX is hoofdlettergevoelig', decide(docs, path('/plan/A.ifc')), null);
   eq('A5 geen normalisatie: een anders geschreven pad telt niet (ook op Windows)',
     [decide(docs, path('/plan/./a.ifc')), decide(docs, path('/plan/x/../a.ifc')), decide(docs, path('c:\\Werk\\.\\Plan.ifc'))], [null, null, null]);
   eq('A11 een tabblad met een handle telt niet voor een pad', decide(docs, path('h.ifc')), null);
   eq('A9 site: hetzelfde id en dezelfde versie', choose(docs, { kind: 'site', id: 'site-1' }, { kind: 'site', version: 'v1' }),
-    { id: 'doc-site', changedOnDisk: false });
+    { id: 'doc-site', changedOnDisk: false, provenSame: true });
   eq('A9 site: een andere versie ⇒ wisselen met melding', choose(docs, { kind: 'site', id: 'site-1' }, { kind: 'site', version: 'v2' }),
-    { id: 'doc-site', changedOnDisk: true });
+    { id: 'doc-site', changedOnDisk: true, provenSame: false });
   eq('A9 site: de versie van de lezing onbekend ⇒ geen wissel', choose(docs, { kind: 'site', id: 'site-1' }, null), null);
   eq('A9b site: ander id', choose(docs, { kind: 'site', id: 'site-9' }, { kind: 'site', version: 'v1' }), null);
-  eq('V1 een andere hash ⇒ wisselen met melding', choose(docs, path('/plan/a.ifc'), read(V2)), { id: 'doc-pad', changedOnDisk: true });
+  eq('V1 een andere hash ⇒ wisselen met melding', choose(docs, path('/plan/a.ifc'), read(V2)), { id: 'doc-pad', changedOnDisk: true, provenSame: false });
   eq('V1 dezelfde hash, een andere grootte ⇒ met melding', choose(docs, path('/plan/a.ifc'), read({ sha256: 'aa', byteLength: 11 })),
-    { id: 'doc-pad', changedOnDisk: true });
+    { id: 'doc-pad', changedOnDisk: true, provenSame: false });
   eq('V2 het tabblad kent zijn versie niet ⇒ geen wissel (tweede tabblad, zoals main)',
     choose(state([['onbekend', { filePath: '/plan/a.ifc', knownTargetFingerprint: null }]]), path('/plan/a.ifc')), null);
   eq('V2 de lezing heeft geen hash ⇒ geen wissel', choose(docs, path('/plan/a.ifc'), null), null);
@@ -167,12 +166,12 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       ['onbekend', { filePath: '/plan/a.ifc', knownTargetFingerprint: null }],
       ['anders', { filePath: '/plan/a.ifc', knownTargetFingerprint: V2 }],
       ['gelijk', { filePath: '/plan/a.ifc' }],
-    ]), path('/plan/a.ifc')), { id: 'gelijk', changedOnDisk: false });
+    ]), path('/plan/a.ifc')), { id: 'gelijk', changedOnDisk: false, provenSame: true });
   eq('V3 zonder gelijke versie: het eerste tabblad met een bekende versie, met melding',
     choose(state([
       ['onbekend', { filePath: '/plan/a.ifc', knownTargetFingerprint: null }],
       ['anders', { filePath: '/plan/a.ifc', knownTargetFingerprint: V2 }],
-    ]), path('/plan/a.ifc')), { id: 'anders', changedOnDisk: true });
+    ]), path('/plan/a.ifc')), { id: 'anders', changedOnDisk: true, provenSame: false });
   calls.length = 0;
   eq('A6 handle: isSameEntry waar, ander object', await findId(docs, handleFor('a.ifc')), 'doc-handle');
   eq('A6 richting: gevraagd.isSameEntry(tabblad), niet voor een site-tabblad', calls, ['a.ifc→a.ifc']);
@@ -1154,10 +1153,12 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
             if (route === 'startlink') await openLaunchFiles(st, [link], io, labels, () => false, launchOptions(st));
             else await openVia(st, 'openen');
           } finally { ifcFormat.read = parse; }
-          eq(`B10 flag uit tijdens het parsen, ${route}: naar het open tabblad, geen tweede`, [
-            T().activeDocumentId, T().documents.length, ifcForeignContentEnabled(T().ui.featureFlags),
+          eq(route === 'startlink'
+            ? 'B10 flag uit tijdens het parsen, startbestand: naar het open tabblad, zoals main'
+            : 'B10 / R9-4 flag uit tijdens het parsen, openen (Sol, ronde 9): de tabkeuze leest de actuele flag ⇒ een tweede tabblad, zoals main', [
+            T().activeDocumentId === first, T().documents.length, ifcForeignContentEnabled(T().ui.featureFlags),
             notices(st).filter(n => n[1] === CHANGED).length,
-          ], [first, 2, false, 0]);
+          ], [route === 'startlink', route === 'startlink' ? 2 : 3, false, 0]);
         }
       }
       {
@@ -1259,6 +1260,10 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         clearNotices(st);
         return { app, st, T, a, count: T().documents.length };
       };
+      if (typeof (globalThis as { document?: unknown }).document === 'undefined') {
+        Object.defineProperty(globalThis, 'document', { configurable: true, value: { documentElement: {} } });
+      }
+      const { isGlobalShortcutFrozen } = await import('@/hooks/keyboard/shortcutRegistry');
       const marked = (st: Store, id: string) => hasChangedOnDisk(st.getState(), id);
       const shown = (st: Store) => changedOnDiskShown(st.getState());
       const holdRead = () => {
@@ -1406,7 +1411,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           const placed = gate(), release = gate();
           const outer = internals.invoke;
           internals.invoke = async (command, args, options) => {
-            if (command === 'plugin:fs|rename' && !held) { held = true; placed.open(); await release.wait; }
+            if (/^plugin:fs\|(write|write_file|write_text_file|rename)$/.test(command) && !held) { held = true; placed.open(); await release.wait; }
             if (/^plugin:fs\|read_(text_)?file$/.test(command) && (args as { path?: string } | undefined)?.path === kantoor) reads++;
             return outer(command, args, options);
           };
@@ -1457,6 +1462,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
               },
             });
             const hold = holdRead();
+            hold.release();
             const loading = T().loadNewVersion(labels);
             if (valid) await until(() => phase(st) === 'question');
             const seen = [phase(st), T().tasks.map(t => t.name), open, hold.reads()];

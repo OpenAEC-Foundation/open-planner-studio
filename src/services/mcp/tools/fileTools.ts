@@ -576,7 +576,7 @@ export const fileTools: McpToolDef[] = [
       const lateBlocked = postAwaitGuards(ctx);
       if (lateBlocked) return lateBlocked;
       const ref: FileRef = { kind: 'path', path };
-      const tab = readOptions.ifcBytes && readFormatForFile(path).canBeSaveTarget
+      const tab = ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) && readFormatForFile(path).canBeSaveTarget
         ? openTabFor(ctx.app.store.getState(), ref, null, readVersionOf(ref, parsed)) : null;
       if (tab !== null) switchToOpenDocument(ctx.app.store.getState(), tab);
       const opened = tab !== null ? null : ctx.app.store.getState().openAsDocument(parsed, { name: path, ref });
