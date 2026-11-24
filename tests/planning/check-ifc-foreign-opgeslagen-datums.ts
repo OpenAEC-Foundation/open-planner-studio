@@ -206,12 +206,12 @@ await check('2231 de drie XER-kandidaten van de review: de geldige opslag slaagt
 });
 
 const PROBED_SLOTS = [
-  'scheduleDuration', 'scheduleStart', 'scheduleFinish', 'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish',
-  'freeFloat', 'totalFloat', 'isCritical', 'actualDuration', 'actualStart', 'actualFinish', 'remainingTime', 'completion',
+  'durationType', 'scheduleDuration', 'scheduleStart', 'scheduleFinish', 'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish',
+  'freeFloat', 'totalFloat', 'isCritical', 'statusTime', 'actualDuration', 'actualStart', 'actualFinish', 'remainingTime', 'completion',
 ] as const;
 type ProbedSlot = typeof PROBED_SLOTS[number];
 const DATE_SLOTS: ReadonlySet<ProbedSlot> = new Set<ProbedSlot>([
-  'scheduleStart', 'scheduleFinish', 'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'actualStart', 'actualFinish',
+  'scheduleStart', 'scheduleFinish', 'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'statusTime', 'actualStart', 'actualFinish',
 ]);
 const ACCEPTED_COPIES: Readonly<Record<string, string>> = {};
 
@@ -224,6 +224,7 @@ function nextDay(token: string): string {
 function otherValue(slot: ProbedSlot, token: string, args: readonly string[]): string {
   if (DATE_SLOTS.has(slot)) return nextDay(token === '$' ? args[TASKTIME_SLOT.scheduleStart] : token);
   if (slot === 'isCritical') return token === '.T.' ? '.F.' : '.T.';
+  if (slot === 'durationType') return token === '.WORKTIME.' ? '.ELAPSEDTIME.' : '.WORKTIME.';
   if (slot === 'completion') return token === '0.37' ? '0.38' : '0.37';
   return token === "'P0Y0M23D'" ? "'P0Y0M24D'" : "'P0Y0M23D'";
 }

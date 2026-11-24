@@ -258,6 +258,21 @@ van een pset, template of relatie niet. Een pset of `IfcRelDeclares` met een nie
 vreemde leden (die de merge schrijft om ze te bewaren) is geen groep; een lege lijst of minstens één eigen lid wel. Een slot dat (b) terugzette, toetst (c) apart (hieronder, per slot). Niet getoetst: een groep waarin (c) zo'n slot niet eenduidig aanwijst, en de bronbytes zelf.
 Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren. Proef: `check-ifc-foreign-eigen-uitvoer.ts`.
 
+**De toets op de taaktijden** (knownbug 2231, fixronde 1 van #1216): de controle na openen ziet wat er in het geschreven
+bestand staat; geen bron buiten het slot kan een geschreven datum of een ontbrekend slot voor haar verbergen. Alleen voor
+uitvoer die de writer zelf schreef (met `own`; de bronbytes zelf terug, stuk 1, niet), direct na de ongewijzigde
+vergelijking na heropenen, met dezelfde soort `planning-na-openen`. (1) `taskTimeLineProblem` (`mergeWriter.ts`): de
+`IFCTASKTIME` van elke taak van de momentopname staat in de uitvoer precies zoals de writer haar schrijft uit wat de lezer
+erin leest (`parsed`, in de bronvorm van de uitvoer, zoals (c)), met de slots die de momentopname bewust weglaat
+(`withheldTaskTimeFields`). Zo verbergt geen afleiding in de lezer een slot: de voortgangsregels
+(`normalizeImportedProgress`, `applyRemainingDuration`), een leeg slot dat de lezer invult (`resolveMissingScheduleDates`,
+`fillEmptyComputedDateSlots`), de statustijd die de lezer uit `OPS_ProjectSettings` neemt; en een slot dat de momentopname
+weglaat, mag niet gevuld zijn. (2) `slotReading` (`ifcMergePlanning.ts`): heeft de lezing een bron met voorrang op de
+slots (nu alleen de datums uit het XER-bronarchief), dan opent de controle de uitvoer ook zonder die bron en vergelijkt
+ze met het domein. Grens: buiten "datums zoals opgeslagen" herberekent het laden de rekenslots, dus een andere waarde daar
+ziet de controle niet (knownbug 2360). Proef: `check-ifc-foreign-opgeslagen-datums.ts` (de eigenschapsproef: per stand
+en per tijdslot een kopie met een andere waarde en met `$`).
+
 De andere toets in de verliescontrole (PR 12b, `ownGroups` in `LossCheckInput`, `openedOwnGroups` in `mergeWriter.ts`):
 een verschil in O1 in een eigen groep op projectniveau (dezelfde indeling, op de bronregels) hoeft geen bewerking te
 verklaren als de groep in de bron gedragen is (a: geen stuk dat de herleestoets (b) nodig had; een vreemd lid sluit de groep

@@ -4286,6 +4286,18 @@ en noem het in je rapport of PR-tekst.
      SHA-256 als de geopende bron als doel toelaten, en de BOM bij de gewone schrijver bewaren. Voorwaarde voor standaard
      aan. — B (code en de proef van de doelcontrole, `check-ifc-foreign-target.ts` 9c; Ctrl+S zelf niet nagespeeld)
 
+2360. **Bekende grens (#804, flag aan): buiten "datums zoals opgeslagen" ziet `planning-na-openen` een andere waarde in
+     een rekenslot niet.** Een document buiten de modus heropent met de berekening: het laden rekent de vroege en late
+     datums, de speling en `IsCritical` opnieuw uit (`prepareLoadedPayload` in `src/state/documentActivation.ts`), dus wat
+     in die slots staat, telt bij heropenen niet mee. Schrijft de merge daar een andere waarde dan de planner zag, dan toont
+     de app na heropenen toch de berekening en aanvaardt de controle het bestand; een IFC-lezer die `IFCTASKTIME` leest,
+     ziet de andere waarde. Een leeg slot (`$`) weigert sinds #1216 wel (de toets op de taaktijdregels,
+     `taskTimeLineProblem` in `src/services/ifc/foreign/mergeWriter.ts`); op main kwam ook dat door. In de modus bewaakt
+     de controle deze slots wel. Nagebootst in fixronde 1 van #1216: het eigen voorbeeld zonder `recordedSourceFormat`,
+     `Set up site` hernoemd, en in de uitvoer een andere vroege start, late finish of totale speling: aanvaard. Richting: de
+     rekenslots van de uitvoer ook buiten de modus vergelijken met die van de momentopname, na dezelfde normalisatie als
+     bij openen. — B (nagebootst)
+
 2219. **VERVOLG (review van #1184): de geheugenpiek van `openIfcBytes` bij een groot IFC is niet gemeten (#804).**
      `openIfcBytes` (`src/core/index.ts`) maakt eerst een eigen kopie van zijn invoer (het publieke pakket moet een
      buffer bezitten die de afnemer niet meer wijzigt). Daarna houdt het tegelijk het werkgeheugen van de scanner, de
