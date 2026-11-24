@@ -1,11 +1,16 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { elementLinksByTask, scanElementLinks, type ElementLink, type StepElementLink } from '@/services/ifc/foreign/elementLinks';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { scanStep } from '@/services/ifc/foreign/stepScanner';
+import { classify } from '@/services/ifc/foreign/classify';
+import { foreignScanFrom, scanForeign, scanForeignToOpen } from '@/services/ifc/foreign/foreignScan';
+import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
+import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
+import { fakeScanWorker, fakeScanWorkerStats } from './fakeScanWorker';
 import { elementLinkCounts, taskElementLinks } from '@/state/taskElementLinks';
 import { cloneDomain, openForeign } from './ifcMergeKern';
 import { lengthen, lengthenedTask, openInStore, recalculated } from './ifcAppRoute';
@@ -61,17 +66,49 @@ await check('Bonsai-4D met CRLF en commentaar in de entiteiten: dezelfde koppeli
   assert.deepEqual(links.get(idOf('Wand B bouwen')), [output(WALL_B)]);
 });
 
-await check('een doel dat niet in het bestand staat: niet gevonden, met zijn verwijzing', async () => {
+await check('een doel dat niet in het bestand staat: bij ToProduct niet gevonden, een ontbrekend proceslid telt niet', async () => {
   const content = BONSAI
     .replace("(#108,#160),$,#61);", "(#108,#160),$,#9999);")
     .replace("(#118,#30),$,#104,#121);", "(#118,#30,#9998),$,#104,#121);");
   assert.notEqual(content, BONSAI);
   const { idOf, links } = await openedLinks(content);
   const wallA = links.get(idOf('Wand A bouwen'))!, wallB = links.get(idOf('Wand B bouwen'))!;
-  assert.deepEqual(wallA, [output(WALL_A), input(WALL_A), input('#9998', false)]);
-  assert.deepEqual(wallB, [output('#9999', false)]);
-  assert.deepEqual(elementLinkCounts(wallA), { elements: 2, notFound: 1 });
+  assert.deepEqual(wallA, [output(WALL_A), input(WALL_A)], 'het ontbrekende lid #9998 kan ook een resource zijn: geen bouwdeel');
+  assert.deepEqual(wallB, [output('#9999', false)], 'het doel van ToProduct is altijd een bouwdeel');
+  assert.deepEqual(elementLinkCounts(wallA), { elements: 1, notFound: 0 });
   assert.deepEqual(elementLinkCounts(wallB), { elements: 1, notFound: 1 });
+});
+
+await check('een planning zonder gebouwmodel met een ontbrekend proceslid: geen koppeling', async () => {
+  const plain = text('public/examples/03-kantoorgebouw-zuidas.ifc');
+  const end = plain.lastIndexOf('ENDSEC;');
+  const content = plain.slice(0, end) + "#99990=IFCRELASSIGNSTOPROCESS('1OntbrekendeResource001',$,$,$,(#99991),$,#52,$);\n" + plain.slice(end);
+  const { store, links } = await openedLinks(content);
+  assert.equal(store.getState().ifcSource!.buildingModel, false);
+  assert.equal(links.size, 0);
+});
+
+await check('alleen openen verzamelt koppelingen: de doelcontrole en de interne scans van de merge niet', async () => {
+  const bytes = bytesOf(BONSAI);
+  const target = scanForeign(bytes);
+  assert(target.ok && !('stepElementLinks' in target), 'scanForeign (doelcontrole, headless) zonder koppelingen');
+  const index = scanForeignStep(bytes);
+  assert(!('stepElementLinks' in foreignScanFrom(index, classify(index), bytes)), 'foreignScanFrom zonder koppelingen');
+  const opened = scanForeignToOpen(bytes);
+  assert(opened.ok && opened.stepElementLinks.length === 6, 'openen: alle koppelingen met een taak, ook die van de baselinetaken');
+  const stats = fakeScanWorkerStats();
+  const viaWorker = await readIfcBytesDetailed(bytes, {}, { createWorker: () => fakeScanWorker('ok', stats) });
+  assert.equal(stats.workers, 1, 'de scan liep in de Worker');
+  assert.equal(viaWorker.result.ifcSource!.elementLinks.size, 2, 'de koppelingen komen mee uit de Worker');
+  const callers: string[] = [];
+  for (const file of readdirSync(join(root, 'src'), { recursive: true }) as string[]) {
+    if (!/\.tsx?$/.test(file)) continue;
+    const count = readFileSync(join(root, 'src', file), 'utf8').split('scanElementLinks(').length - 1;
+    for (let n = 0; n < count; n++) callers.push(file);
+  }
+  assert.deepEqual(callers.sort(), [
+    'services/ifc/foreign/elementLinks.ts', 'services/ifc/foreign/foreignScan.ts', 'services/ifc/foreign/mergeWriter.ts',
+  ], 'scanElementLinks: de definitie, het openen en de bron die de writer teruggeeft');
 });
 
 const OWN = text('tests/fixtures/ifc-foreign/eigen-plus-model.ifc');

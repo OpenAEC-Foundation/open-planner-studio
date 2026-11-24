@@ -32,10 +32,10 @@ function taskStepId(index: StepIndex, id: string | undefined): number | undefine
   return chunk >= 0 && index.type(chunk) === 'IFCTASK' ? Number(id) : undefined;
 }
 
-function elementTarget(index: StepIndex, id: string | undefined): Omit<ElementLink, 'direction'> | undefined {
+function elementTarget(index: StepIndex, id: string | undefined, missingIsElement: boolean): Omit<ElementLink, 'direction'> | undefined {
   if (id === undefined) return undefined;
   const chunk = index.chunkOf(id);
-  if (chunk < 0) return { target: `#${id}`, found: false };
+  if (chunk < 0) return missingIsElement ? { target: `#${id}`, found: false } : undefined;
   if (!IFC_BUILDING_MODEL_TYPES.has(index.type(chunk))) return undefined;
   return { target: index.globalId(chunk) || `#${id}`, found: true };
 }
@@ -53,11 +53,11 @@ export function scanElementLinks(index: StepIndex): StepElementLink[] {
       const task = taskStepId(index, relating);
       if (task === undefined) continue;
       for (const id of related) {
-        const target = elementTarget(index, id);
+        const target = elementTarget(index, id, false);
         if (target) links.push({ taskStepId: task, direction: 'input', ...target });
       }
     } else {
-      const target = elementTarget(index, relating);
+      const target = elementTarget(index, relating, true);
       if (!target) continue;
       for (const id of related) {
         const task = taskStepId(index, id);
