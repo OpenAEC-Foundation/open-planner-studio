@@ -73,13 +73,14 @@ export function withSharedGlobalIdsRestored<T extends ImportResult>(parsed: T, s
     const written = ifcGuid128(seed);
     const snapshotId = prefix === null ? id : `${prefix}-ifc-${written}`;
     const snapshotSeed = `${kind}:${snapshotId}`;
-    if (globalIds.get(snapshotSeed) !== written) continue;
-    if (snapshotId !== id) {
-      if (taken.has(id)) continue;
-      taken.add(id);
-      renames.get(kind)!.set(snapshotId, id);
-      globalIds.delete(snapshotSeed);
-    }
+    if (globalIds.get(snapshotSeed) === written) {
+      if (snapshotId !== id) {
+        if (taken.has(id)) continue;
+        taken.add(id);
+        renames.get(kind)!.set(snapshotId, id);
+        globalIds.delete(snapshotSeed);
+      }
+    } else if (globalIds.has(seed)) continue;
     globalIds.set(seed, globalId);
     restored++;
   }
