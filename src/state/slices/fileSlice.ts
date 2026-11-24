@@ -399,7 +399,7 @@ export interface FileSlice {
   saveFile: () => Promise<void>;
   saveFileForDocument: (documentId: string) => Promise<boolean>;
   saveFileAs: () => Promise<void>;
-  commitSavedDocument: (document: DocumentContentRef, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite, missingSourceSaveAs?: boolean, written?: TargetFingerprint | null) => boolean;
+  commitSavedDocument: (document: DocumentContentRef, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite, missingSourceSaveAs?: boolean, written?: TargetFingerprint | null, writtenName?: string) => boolean;
   captureDocumentWrite: (document: DocumentContentRef) => () => void;
   exportAs: (format: ExportFormat, options?: ExportOptions) => Promise<ExportResult>;
   exportProjectWithPool: () => Promise<ExportResult>;
@@ -882,7 +882,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const s = get();
     const path = destination?.filePath
       ?? (s.activeDocumentId === documentId ? s.filePath : s.documents.find(d => d.id === documentId)?.payload?.filePath);
-    return path ? basename(path) : documentFileName(s);
+    return path || documentFileName(s);
   };
 
   const captureDocumentWrite = (document: DocumentContentRef): (() => void) => {
@@ -902,8 +902,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     prepared?: PreparedIfcWrite,
     missingSourceSaveAs = false,
     written: TargetFingerprint | null = null,
+    writtenName?: string,
   ): boolean => {
-    notifyForeignChangesWritten(get, prepared, writtenFileName(document.id, destination));
+    notifyForeignChangesWritten(get().notify, prepared, () => writtenName ?? writtenFileName(document.id, destination));
     if (!sameDocumentContent(get(), document)) return false;
     const documentId = document.id;
     const currentSource = saveSourceForDocument(get(), documentId);
@@ -1364,7 +1365,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const state = get();
     if (state.activeDocumentId !== documentId || !sameDocumentContent(state, requested)) return false;
     if (refuseForeignDocumentWrite(state)) return false;
-    const releaseCapture = captureDocumentWrite(requested);
+    const releaseCapture = hasForeignContent(state.ifcSource) && ifcForeignContentEnabled(state.ui.featureFlags) ? captureDocumentWrite(requested) : () => {};
     let siteName: string | null = null;
     let handleWriteFailed = false;
     const failureNoticeKey = `project-save:${++saveAttemptSequence}`;
@@ -1423,7 +1424,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
         return commitSavedDocument(snapshotContent(state), state, {
           filePath: state.filePath ?? saved.name, fileHandle: null, siteFileId: ref.id, siteFileVersion: saved.version,
-        }, write.prepared);
+        }, write.prepared, false, null, saved.name);
       }
       if (ref && !handleRefused && !(write.prepared && ref.kind === 'handle')) {
         try {
@@ -1472,11 +1473,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return false;
       if (write.prepared && outcome.viaDownload && ref?.kind === 'handle' && hasBuildingModel(state.ifcSource)) {
         get().notify(downloadCopyNotice(outcome.name));
-        notifyForeignChangesWritten(get, write.prepared, outcome.name);
+        notifyForeignChangesWritten(get().notify, write.prepared, () => outcome.name, true);
         return false;
       }
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
-      if (write.prepared && outcome.viaDownload) notifyForeignChangesWritten(get, write.prepared, outcome.name);
+      if (write.prepared && outcome.viaDownload) notifyForeignChangesWritten(get().notify, write.prepared, () => outcome.name, true);
       const saved = write.prepared && outcome.viaDownload
         ? commitSavedDocument(snapshotContent(state), state)
         : commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, false, fingerprint);
@@ -1524,7 +1525,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!missingSourceSaveAsAllowed(state) || state.foreignSourceMark !== before.foreignSourceMark
         || state.ifcSource !== before.ifcSource) return;
     } else if (refuseForeignDocumentWrite(state)) return;
-    const releaseCapture = captureDocumentWrite(requested);
+    const releaseCapture = hasForeignContent(state.ifcSource) && ifcForeignContentEnabled(state.ui.featureFlags) ? captureDocumentWrite(requested) : () => {};
     let siteName: string | null = null;
 
     try {
@@ -1553,7 +1554,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return;
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
       if (write.prepared && outcome.viaDownload) {
-        notifyForeignChangesWritten(get, write.prepared, outcome.name);
+        notifyForeignChangesWritten(get().notify, write.prepared, () => outcome.name, true);
         commitSavedDocument(snapshotContent(state), state);
       } else commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, missingSourceSaveAs, fingerprint);
       if (!sameDocumentContent(get(), snapshotContent(state))) return;
@@ -2073,7 +2074,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           return null;
         }
         if (written) await recordOwnFileExport(state, written, preparedExport || planOnly ? [] : exportedLiteral, payload);
-        if (written) notifyForeignChangesWritten(get, preparedExport, written.name);
+        if (written) notifyForeignChangesWritten(get().notify, preparedExport, () => written.ref?.kind === 'path' ? written.ref.path : written.name, written.viaDownload === true);
         if (written && ext === 'ifc' && exportContentReplaced(state)) return null;
         return written;
       };

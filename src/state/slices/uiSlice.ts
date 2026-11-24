@@ -1,4 +1,4 @@
-import type { UIState, AppSlice, AppNotification, NotificationAction, NotifyInput } from './types';
+import type { UIState, AppSlice, AppNotification, NotifyInput } from './types';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
 import type { McpServerStatus } from '@/services/mcp/contracts';
 import { loadFeatureFlags, MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
@@ -57,7 +57,6 @@ export interface UiSlice {
    *  anders meldingen zouden stapelen. Een `error` verdwijnt niet uit zichzelf (klik = weg). */
   notify: (n: NotifyInput) => void;
   dismissNotification: (id: string) => void;
-  setNotificationAction: (id: string, action: NotificationAction | undefined) => void;
   /** Open Backstage → Help op een specifiek artikel ("lees meer"-link vanuit
    *  een melding of het eigenschappenpaneel). Zet dezelfde twee velden die de Help-navigatie al
    *  kent (`activeRibbonTab`/`backstageSection`) plus `pendingHelpArticleId`, dat `HelpPanel`
@@ -433,13 +432,13 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       if (s.ui.notifications.length > MAX_NOTIFICATIONS) {
         const list = s.ui.notifications;
         const newest = list.length - 1;
-        const plainInfo = (x: AppNotification) => x.severity === 'info' && !x.sticky && !x.keepInStack;
+        const plainInfo = (x: AppNotification) => x.severity === 'info' && !x.sticky;
         let idx = list.findIndex((x, i) => i !== newest && plainInfo(x));
-        if (idx < 0) idx = list.findIndex((x) => x.refusal && !x.keepInStack);
+        if (idx < 0) idx = list.findIndex((x) => x.refusal);
         if (idx < 0 && plainInfo(list[newest])) idx = newest;
-        if (idx < 0) idx = list.findIndex((x) => x.severity === 'info' && !x.keepInStack);
-        if (idx < 0) idx = list.findIndex((x) => !x.keepInStack);
+        if (idx < 0) idx = list.findIndex((x) => x.severity === 'info');
         if (idx >= 0) list.splice(idx, 1);
+        else list.shift();
       }
     }),
 
@@ -447,14 +446,6 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
     set((s) => {
       const idx = s.ui.notifications.findIndex((x) => x.id === id);
       if (idx >= 0) s.ui.notifications.splice(idx, 1);
-    }),
-
-  setNotificationAction: (id, action) =>
-    set((s) => {
-      const notice = s.ui.notifications.find((x) => x.id === id);
-      if (!notice) return;
-      if (action) notice.action = { ...action };
-      else delete notice.action;
     }),
 
   openHelpArticle: (articleId) =>

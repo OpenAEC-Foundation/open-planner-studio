@@ -398,6 +398,8 @@
     "foreignLinksDropped_other": "Er verwezen {{count}} IFC-gegevens buiten de planning naar wat je verwijderde. Bij het opslaan worden ze aangepast of verwijderd.",
     "foreignChangesWritten_one": "{{file}}: {{count}} IFC-gegeven buiten de planning verwees naar iets wat uit de planning is verwijderd. Het is bij het opslaan aangepast of verwijderd.",
     "foreignChangesWritten_other": "{{file}}: {{count}} IFC-gegevens buiten de planning verwezen naar iets wat uit de planning is verwijderd. Ze zijn bij het opslaan aangepast of verwijderd.",
+    "foreignChangesDownloaded_one": "{{file}} (download): {{count}} IFC-gegeven buiten de planning verwees naar iets wat uit de planning is verwijderd. Het is in de download aangepast of verwijderd.",
+    "foreignChangesDownloaded_other": "{{file}} (download): {{count}} IFC-gegevens buiten de planning verwezen naar iets wat uit de planning is verwijderd. Ze zijn in de download aangepast of verwijderd.",
     "taskTypeRenameNameTaken": "In dit project blijft de naam „{{oldName}}”: een andere werksoort in dit project heet al „{{takenName}}”.",
     "otherWork": {
       "durationDays_one": "Taak duurt nu {{days}} dag.",

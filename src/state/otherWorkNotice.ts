@@ -14,7 +14,7 @@ import type { AppState } from './appStore';
 import { DOCUMENT_FIELDS } from './documentContract';
 import { selectUndoHistoryEvent } from './sessionHistory';
 import type { Snapshot } from './snapshot';
-import type { NotificationAction, NotifyInput } from './slices/types';
+import type { AppNotification, NotifyInput } from './slices/types';
 import { TASK_TYPES_HELP_ARTICLE_ID } from './helpArticles';
 import { isHourTask, workRuleApplies } from '@/engine/work/workRuleApply';
 import { shownRemainingWorkMinutes, shownWorkHours } from '@/engine/work/shownWork';
@@ -74,26 +74,25 @@ export function watchNotice(
   suspended: (state: AppState) => boolean = () => false,
 ): void {
   const data = noticeData(store.getState());
-  const ours = (action: NotificationAction | undefined) => action?.kind === 'undoHistoryEvent' && action.eventId === eventId;
-  const id = store.getState().ui.notifications.find((n) => ours(n.action))?.id;
-  let held: NotificationAction | undefined;
+  const ours = (n: AppNotification) => n.action?.kind === 'undoHistoryEvent' && n.action.eventId === eventId;
+  let held: AppNotification | undefined;
   const check = (s: AppState) => {
-    const notice = s.ui.notifications.find((n) => n.id === id);
-    if (!notice || (held ? notice.action !== undefined : !ours(notice.action))) { stop(); return; } // tijd om, kruisje of vervangen
+    const notice = s.ui.notifications.find(ours);
+    if (!notice && !held) { stop(); return; } // tijd om, kruisje of vervangen
     if (selectUndoHistoryEvent(s.historyEvents, s.activeDocumentId)?.id === eventId
       && noticeData(s).every((value, i) => value === data[i]) && stillValid(s)) {
-      if (!held && suspended(s)) {
-        held = notice.action;
-        s.setNotificationAction(notice.id, undefined);
+      if (notice && suspended(s)) {
+        held = notice;
+        s.dismissNotification(notice.id);
       } else if (held && !suspended(s)) {
-        const action = held;
+        const shown = held;
         held = undefined;
-        s.setNotificationAction(notice.id, action);
+        s.notify(shown);
       }
       return;
     }
     stop();
-    s.dismissNotification(notice.id);
+    if (notice) s.dismissNotification(notice.id);
   };
   const stop = store.subscribe(check);
   check(store.getState());

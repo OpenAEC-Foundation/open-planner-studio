@@ -157,7 +157,7 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       // document pas hier gewijzigd, en hoort de sluitwaarschuwing te krijgen.
       appStoreContext.runtime.finishPendingTextEdits();
       const dirty = useAppStore.getState().getOpenDocumentPayloads().some((d) => d.payload.isDirty);
-      if (!dirty && !useAppStore.getState().ui.notifications.some((n) => n.keepInStack)) return;
+      if (!dirty) return;
       e.preventDefault();
       // Legacy-vereiste van sommige browsers om de prompt te tonen (de tekst zelf is niet instelbaar).
       e.returnValue = '';

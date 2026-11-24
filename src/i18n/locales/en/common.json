@@ -398,6 +398,8 @@
     "foreignLinksDropped_other": "{{count}} IFC items outside the schedule referred to what you deleted. They will be adjusted or removed when you save.",
     "foreignChangesWritten_one": "{{file}}: {{count}} IFC item outside the schedule referred to something that was deleted from the schedule. It was adjusted or removed when saving.",
     "foreignChangesWritten_other": "{{file}}: {{count}} IFC items outside the schedule referred to something that was deleted from the schedule. They were adjusted or removed when saving.",
+    "foreignChangesDownloaded_one": "{{file}} (download): {{count}} IFC item outside the schedule referred to something that was deleted from the schedule. It was adjusted or removed in the download.",
+    "foreignChangesDownloaded_other": "{{file}} (download): {{count}} IFC items outside the schedule referred to something that was deleted from the schedule. They were adjusted or removed in the download.",
     "taskTypeRenameNameTaken": "In this project the name stays “{{oldName}}”: another work category in this project is already called “{{takenName}}”.",
     "otherWork": {
       "durationDays_one": "The task now takes {{days}} day.",
