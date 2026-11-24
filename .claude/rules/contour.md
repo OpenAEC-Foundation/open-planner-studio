@@ -18,7 +18,7 @@ paths:
 
 Besluiten van dit onderdeel: `docs/adr/0002-contour-is-data-op-de-taakas.md`,
 `0003-contour-herschalen-bij-duurwijziging.md`, `0004-contourfasen-zijn-weergave.md` en
-`0005-curveweergave-los-van-verdeling.md`. De code van `src/engine/contour/` heeft geen commentaar meer.
+`0005-curveweergave-los-van-verdeling.md`; de gevolgen van een duurwijziging in `utils/taskDefaults.ts`: `0214`. De code van `src/engine/contour/` heeft geen commentaar meer.
 Besluiten van de nivelleerder (`src/engine/scheduler/ResourceLeveler.ts`, zonder commentaar): `docs/adr/0160` tot en
 met `0165` (eigen verse planning, vaste last en pins, kandidaten op de taakkalender, het poolgrootboek, venster en
 reden, onderbrekingen).

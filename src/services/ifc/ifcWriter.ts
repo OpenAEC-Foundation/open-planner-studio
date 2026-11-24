@@ -24,7 +24,7 @@ import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes';
 import type { ForeignSourceRecord } from './foreign/foreignSourceMark';
 import {
-  IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC, COST_RESOURCE_OBJECT_TYPE,
+  IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
 import { ACTIVITY_CODE_ID_SUFFIX, PSET, PROP, PER_TASK_PSETS, XER_ARCHIVE_CHUNK, xerArchiveChunkName, OPS_APP_VERSION, ifcStr, ifcJson, asciiJson, ifcTypedReal, stepReal, ifcDateValue } from './ifcPsets';
 import { ifcSchemaQuestionFor } from './ifcSchemaQuestion';
@@ -39,6 +39,12 @@ import {
 import {
   ifcDurationExact, IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx, type WithheldTaskTimeField,
 } from './ifcTaskSlots';
+import { writeSlots } from './ifcSlotSoort';
+import {
+  IFC_BASELINE_SCHEDULE_SLOTS, IFC_CALENDAR_SLOTS, IFC_LIVE_SCHEDULE_SLOTS, IFC_WORK_PLAN_SLOTS,
+} from './ifcWorkControlSlots';
+import { IFC_RESOURCE_SLOTS } from './ifcResourceSlots';
+import { IFC_LAG_TIME_SLOTS, IFC_SEQUENCE_SLOTS } from './ifcSequenceSlots';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { groupBy } from '@/utils/collections';
 import { effHoursPerDay } from '@/utils/taskDuration';
@@ -140,26 +146,6 @@ function ifcDuration(days: number): string {
 
 function ifcDurationHour(minutes: number): string {
   return `'${minutesToIsoDuration(minutes)}'`;
-}
-
-function workControlArgs(a: {
-  guid: string; ownerHistId: number; name: string; description: string;
-  creationDate: string; predefinedType: 'PLANNED' | 'BASELINE';
-  startTimeArg: string; finishTimeArg: string;
-}): string {
-  return [
-    ifcStr(a.guid), `#${a.ownerHistId}`, ifcStr(a.name), ifcStr(a.description),
-    '$',
-    '$',
-    ifcDateTime(a.creationDate),
-    '$',
-    '$',
-    '$',
-    '$',
-    a.startTimeArg,
-    a.finishTimeArg,
-    `.${a.predefinedType}.`,
-  ].join(',');
 }
 
 function baselineStart(b: Baseline): string {
@@ -398,23 +384,23 @@ function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds, comparisonD
 
   const workControlStartArg = startArgs[0] || ifcDateTime(project.startDate || now);
   const workControlFinishArg = endArgs[endArgs.length - 1] || ifcDateTime(project.endDate);
-  const workPlanId = addLine(ctx, '_workplan', `IFCWORKPLAN(${workControlArgs({
+  const workPlanId = addLine(ctx, '_workplan', `IFCWORKPLAN(${writeSlots(IFC_WORK_PLAN_SLOTS, {
     guid: objectGuid(ctx, 'wp', project.id), ownerHistId, name: project.name, description: project.description,
-    creationDate: now, startTimeArg: workControlStartArg, finishTimeArg: workControlFinishArg, predefinedType: 'PLANNED',
+    creationDateArg: ifcDateTime(now), startTimeArg: workControlStartArg, finishTimeArg: workControlFinishArg, predefinedType: 'PLANNED',
   })})`);
 
-  const workSchedId = addLine(ctx, '_worksched', `IFCWORKSCHEDULE(${workControlArgs({
+  const workSchedId = addLine(ctx, '_worksched', `IFCWORKSCHEDULE(${writeSlots(IFC_LIVE_SCHEDULE_SLOTS, {
     guid: objectGuid(ctx, 'ws', project.id), ownerHistId, name: 'Construction schedule v1.0', description: '',
-    creationDate: now, startTimeArg: workControlStartArg, finishTimeArg: workControlFinishArg, predefinedType: 'PLANNED',
+    creationDateArg: ifcDateTime(now), startTimeArg: workControlStartArg, finishTimeArg: workControlFinishArg, predefinedType: 'PLANNED',
   })})`);
 
   const baselineSchedRefs: string[] = [];
   for (const b of baselines) {
     const start = baselineStart(b);
     const guid = guidOf(ctx, 'baseline_ws_' + b.id);
-    const bId = addLine(ctx, `_baseline_ws_${b.id}`, `IFCWORKSCHEDULE(${workControlArgs({
+    const bId = addLine(ctx, `_baseline_ws_${b.id}`, `IFCWORKSCHEDULE(${writeSlots(IFC_BASELINE_SCHEDULE_SLOTS, {
       guid, ownerHistId, name: b.name, description: '',
-      creationDate: b.createdAt || now, startTimeArg: start ? ifcDateTime(start) : workControlStartArg,
+      creationDateArg: ifcDateTime(b.createdAt || now), startTimeArg: start ? ifcDateTime(start) : workControlStartArg,
       finishTimeArg: ifcDateTime(b.projectEnd),
       predefinedType: 'BASELINE',
     })})`, guid);
@@ -863,15 +849,6 @@ function writeImportProvenanceMeta(
     `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_importprov'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
 }
 
-function shiftToPredefinedType(shift: WorkCalendar['shift']): string {
-  switch (shift) {
-    case 'SECOND': return '.SECONDSHIFT.';
-    case 'THIRD': return '.THIRDSHIFT.';
-    case 'USERDEFINED': return '.USERDEFINED.';
-    default: return '.FIRSTSHIFT.';
-  }
-}
-
 interface WriteCalendarResult {
   calStepId: number;
   workingExceptionStepIds: number[];
@@ -1064,9 +1041,10 @@ function writeCalendar(
 
   const allExceptionRefs = [...holidayRefs, ...workingExceptionRefs];
   const exceptStr = allExceptionRefs.length > 0 ? `(${allExceptionRefs.join(',')})` : '$';
-  const objectType = cal.shift === 'USERDEFINED' ? ifcStr('USERDEFINED') : '$';
-  const calStepId = addLine(ctx, key,
-    `IFCWORKCALENDAR(${ifcStr(objectGuid(ctx, 'cal', cal.id))},#${ownerHistId},${ifcStr(cal.name)},${ifcStr(cal.description)},${objectType},$,(${workTimeIds.map((i) => `#${i}`).join(',')}),${exceptStr},${shiftToPredefinedType(cal.shift)})`);
+  const calStepId = addLine(ctx, key, `IFCWORKCALENDAR(${writeSlots(IFC_CALENDAR_SLOTS, {
+    calendar: cal, ownerHistId, guidArg: ifcStr(objectGuid(ctx, 'cal', cal.id)),
+    workingTimesArg: `(${workTimeIds.map((i) => `#${i}`).join(',')})`, exceptionTimesArg: exceptStr,
+  })})`);
   return {
     calStepId,
     workingExceptionStepIds,
@@ -1290,13 +1268,13 @@ function writeTask(
     ...(withheld && withheld.length > 0 ? { withheld: new Set(withheld) } : {}),
   };
   const taskTimeId = addLine(ctx, `tasktime_${task.id}`,
-    `IFCTASKTIME(${IFC_TASKTIME_SLOTS.map(s => s.write(ttCtx)).join(',')})`);
+    `IFCTASKTIME(${writeSlots(IFC_TASKTIME_SLOTS, ttCtx)})`);
 
   const taskCtx: TaskWriteCtx = {
     task, ownerHistId, guidArg: ifcStr(objectGuid(ctx, 'task', task.id)), taskTimeId, customTaskTypeLabel,
   };
   addLine(ctx, `task_${task.id}`,
-    `IFCTASK(${IFC_TASK_SLOTS.map(s => s.write(taskCtx)).join(',')})`);
+    `IFCTASK(${writeSlots(IFC_TASK_SLOTS, taskCtx)})`);
   return {
     ...(Object.keys(dayMeasureDurations).length > 0 ? { dayMeasureDurations } : {}),
     ...(Object.keys(exactFloat).length > 0 ? { exactFloat } : {}),
@@ -1361,12 +1339,15 @@ function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number, mi
     record = lag.record;
     exactMinutes = lag.exactMinutes;
     const lagId = addLine(ctx, `lag_${seq.id}`,
-      `IFCLAGTIME('Lag',.PREDICTED.,$,${lag.value},.${durationType}.)`);
+      `IFCLAGTIME(${writeSlots(IFC_LAG_TIME_SLOTS, { lagValueArg: lag.value, durationType })})`);
     lagRef = `#${lagId}`;
   }
 
-  addLine(ctx, `seq_${seq.id}`,
-    `IFCRELSEQUENCE(${ifcStr(objectGuid(ctx, 'seq', seq.id))},#${ownerHistId},$,$,${ref(ctx, `task_${seq.predecessorId}`)},${ref(ctx, `task_${seq.successorId}`)},${lagRef},.${seq.type}.,$)`);
+  addLine(ctx, `seq_${seq.id}`, `IFCRELSEQUENCE(${writeSlots(IFC_SEQUENCE_SLOTS, {
+    guidArg: ifcStr(objectGuid(ctx, 'seq', seq.id)), ownerHistId,
+    relatingProcessArg: ref(ctx, `task_${seq.predecessorId}`), relatedProcessArg: ref(ctx, `task_${seq.successorId}`),
+    timeLagArg: lagRef, sequenceType: seq.type,
+  })})`);
   return { ...(record ? { record } : {}), ...(exactMinutes ? { exactMinutes } : {}) };
 }
 
@@ -1403,10 +1384,9 @@ function writeSequenceMeta(
 
 function writeResource(ctx: WriteContext, res: Resource, ownerHistId: number): void {
   const entityName = RESOURCE_TYPE_TO_IFC[res.type] ?? 'IFCCONSTRUCTIONMATERIALRESOURCE';
-  const entity = res.type === 'COST'
-    ? `${entityName}(${ifcStr(objectGuid(ctx, 'res', res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},${ifcStr(COST_RESOURCE_OBJECT_TYPE)},$,$,$,$,$,.USERDEFINED.)`
-    : `${entityName}(${ifcStr(objectGuid(ctx, 'res', res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,$,$,.NOTDEFINED.)`;
-  addLine(ctx, `res_${res.id}`, entity);
+  addLine(ctx, `res_${res.id}`, `${entityName}(${writeSlots(IFC_RESOURCE_SLOTS, {
+    resource: res, ownerHistId, guidArg: ifcStr(objectGuid(ctx, 'res', res.id)),
+  })})`);
 }
 
 function writeResourceMeta(ctx: WriteContext, resources: Resource[], ownerHistId: number): void {

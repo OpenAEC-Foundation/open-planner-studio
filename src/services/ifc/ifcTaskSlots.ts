@@ -3,6 +3,9 @@ import { ifcStr, ifcBool, stepReal } from './ifcPsets';
 import { DEFAULT_PRIORITY } from './ifcConstants';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { wholeFloatDays } from './dayMeasureIo';
+import {
+  ABSENT_SLOT, OWNER_HISTORY_SOORTEN, slotIndex, type SlotPositions, type WriteSlot,
+} from './ifcSlotSoort';
 
 /** Dagen exact, zonder afronding, zoals OPS tot `b738a5096` ze schreef (`'P0Y0M${days}D'`, JavaScript `toString`).
  *  Alleen voor de merge met een vreemd deel: een gebroken dag die de planner niet wijzigde, in de vorm van de bron
@@ -23,13 +26,6 @@ export function ifcDurationExact(days: number): string {
  * afgeleide naam→index-maps `TASKTIME_SLOT`/`TASK_SLOT`, zodat writer-positie en reader-index niet
  * kunnen divergeren.
  *
- * WEL in descriptors gevangen: de volledige IFCTASKTIME write+read (per-slot, zoals ifcPsets), en de
- * IFCTASK write. BEWUST NIET (verweven arg-count-detectie):
- *   - `extractTasks` blijft in ifcReader met zijn taak-time-ref-resolutie, mijlpaal-neveneffect en
- *     priority-parse; de legacy-12-detectie wordt daar één OFFSET die de gedeelde `TASK_SLOT`-indices
- *     verschuift (i.p.v. losse ternary's per slot).
- *   - `applyHourModeIFC` blijft in ifcReader (verweven signaal-detectie + herinterpretatie), maar
- *     leest via dezelfde `TASKTIME_SLOT`-namen.
  * De STEP-parse-helpers (parseDateFromIFC/parseDurationDays/optDate/optDuration) blijven in ifcReader
  * en worden aan de read-descriptors doorgegeven (dependency-injectie) — zo importeert dit bestand
  * alleen uit `@/types`, `@/utils/taskHierarchy`, `./ifcPsets` en `./ifcConstants` (leaves) en
@@ -87,10 +83,7 @@ export interface TaskTimeReadHelpers {
   optDur: (arg: string | undefined) => number | undefined;
 }
 
-export interface TaskTimeSlot {
-  key: string;
-  /** Geformatteerde STEP-waarde voor deze positie. */
-  write(w: TaskTimeWriteCtx): string;
+export interface TaskTimeSlot<K extends string = string> extends WriteSlot<TaskTimeWriteCtx, K> {
   /** Zet de gelezen rauwe arg-string terug op het TaskTime-veld. Afwezig ⇒ slot wordt bij het lezen
    *  genegeerd (Name/DataOrigin/UserDefinedDataOrigin, en StatusTime — dat lezen we uit
    *  OPS_ProjectSettings, niet uit dit slot). */
@@ -102,47 +95,47 @@ export interface TaskTimeSlot {
  * ActualDuration, 16 ActualStart, 17 ActualFinish, 18 RemainingTime) blijven `$` bij een taak zonder
  * actuals.
  */
-export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
-  { key: 'name', write: (w) => ifcStr(w.task.name + ' Time') },
-  { key: 'dataOrigin', write: () => '.PREDICTED.' },
-  { key: 'userDefinedDataOrigin', write: () => '$' },
+const TASKTIME_TABLE = [
+  { key: 'name', soort: 'afgeleid', write: (w) => ifcStr(w.task.name + ' Time') },
+  { key: 'dataOrigin', soort: 'constant', write: () => '.PREDICTED.' },
+  { key: 'userDefinedDataOrigin', soort: 'constant', write: () => '$' },
   {
-    key: 'durationType',
+    key: 'durationType', soort: 'domein',
     write: (w) => `.${w.task.time.durationType}.`,
     read: (t, arg) => { t.durationType = arg?.includes('ELAPSED') ? 'ELAPSEDTIME' : 'WORKTIME'; },
   },
   {
-    key: 'scheduleDuration',
+    key: 'scheduleDuration', soort: 'domein',
     write: (w) => w.schedDurArg,
     read: (t, arg, p) => { t.scheduleDuration = p.parseDur(arg); },
   },
   {
-    key: 'scheduleStart',
+    key: 'scheduleStart', soort: 'domein',
     write: (w) => w.dt(w.task.time.scheduleStart),
     read: (t, arg, p) => { t.scheduleStart = p.parseDate(arg); },
   },
   {
-    key: 'scheduleFinish',
+    key: 'scheduleFinish', soort: 'domein',
     write: (w) => w.dt(w.task.time.scheduleFinish),
     read: (t, arg, p) => { t.scheduleFinish = p.parseDate(arg); },
   },
   {
-    key: 'earlyStart',
+    key: 'earlyStart', soort: 'domein',
     write: (w) => unlessWithheld(w, 'earlyStart', () => w.dt(w.task.time.earlyStart)),
     read: (t, arg, p) => { t.earlyStart = p.parseDate(arg); },
   },
   {
-    key: 'earlyFinish',
+    key: 'earlyFinish', soort: 'domein',
     write: (w) => unlessWithheld(w, 'earlyFinish', () => w.dt(w.task.time.earlyFinish)),
     read: (t, arg, p) => { t.earlyFinish = p.parseDate(arg); },
   },
   {
-    key: 'lateStart',
+    key: 'lateStart', soort: 'domein',
     write: (w) => unlessWithheld(w, 'lateStart', () => w.dt(w.task.time.lateStart)),
     read: (t, arg, p) => { t.lateStart = p.parseDate(arg); },
   },
   {
-    key: 'lateFinish',
+    key: 'lateFinish', soort: 'domein',
     write: (w) => unlessWithheld(w, 'lateFinish', () => w.dt(w.task.time.lateFinish)),
     read: (t, arg, p) => { t.lateFinish = p.parseDate(arg); },
   },
@@ -150,47 +143,47 @@ export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
   // verkeerd (`P0Y0M2.5D` ⇒ 5, I10). De exacte dagen en de minuten staan in `OPS_Analysis.ExactFloat`;
   // de lezer zet ze terug zolang dit slot nog de afgeronde dagen draagt (`applyTaskTimeRecords`).
   {
-    key: 'freeFloat',
+    key: 'freeFloat', soort: 'domein',
     write: (w) => unlessWithheld(w, 'freeFloat', () => (w.exactFloat?.has('freeFloat') ? ifcDurationExact(w.task.time.freeFloat)
       : w.ifcDuration(wholeFloatDays(w.task.time.freeFloat)))),
     read: (t, arg, p) => { t.freeFloat = p.parseDur(arg); },
   },
   {
-    key: 'totalFloat',
+    key: 'totalFloat', soort: 'domein',
     write: (w) => unlessWithheld(w, 'totalFloat', () => (w.exactFloat?.has('totalFloat') ? ifcDurationExact(w.task.time.totalFloat)
       : w.ifcDuration(wholeFloatDays(w.task.time.totalFloat)))),
     read: (t, arg, p) => { t.totalFloat = p.parseDur(arg); },
   },
   {
-    key: 'isCritical',
+    key: 'isCritical', soort: 'domein',
     write: (w) => unlessWithheld(w, 'isCritical', () => ifcBool(w.task.time.isCritical)),
     read: (t, arg) => { t.isCritical = arg?.includes('T') || false; },
   },
   // StatusTime (14): geschreven als peildatum bij actuals, maar bij het lezen genegeerd — de
   // projectbrede statusdatum komt uit OPS_ProjectSettings. Geen `read`.
-  { key: 'statusTime', write: (w) => w.statusTimeArg },
+  { key: 'statusTime', soort: 'afgeleid', write: (w) => w.statusTimeArg },
   {
-    key: 'actualDuration',
+    key: 'actualDuration', soort: 'domein',
     write: (w) => w.actualDurationArg,
     read: (t, arg, p) => { t.actualDuration = p.optDur(arg); },
   },
   {
-    key: 'actualStart',
+    key: 'actualStart', soort: 'domein',
     write: (w) => w.actualStartArg,
     read: (t, arg, p) => { t.actualStart = p.optDate(arg); },
   },
   {
-    key: 'actualFinish',
+    key: 'actualFinish', soort: 'domein',
     write: (w) => w.actualFinishArg,
     read: (t, arg, p) => { t.actualFinish = p.optDate(arg); },
   },
   {
-    key: 'remainingTime',
+    key: 'remainingTime', soort: 'domein',
     write: (w) => w.remainingArg,
     read: (t, arg, p) => { t.remainingTime = p.optDur(arg); },
   },
   {
-    key: 'completion',
+    key: 'completion', soort: 'domein',
     // Vangnet: een writer mag nooit de HELE opslag laten crashen op één veld. `completion` is
     // verplicht op `TaskTime`, maar een taak die buiten de typechecker om is aangemaakt
     // (extensie-sandbox, MCP-payload) kan hier `undefined` dragen; de bronlaag
@@ -201,7 +194,11 @@ export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
     write: (w) => ifcCompletionReal(w.task.time.completion ?? 0),
     read: (t, arg) => { t.completion = parseFloat(arg || '0') || 0; },
   },
-];
+] as const satisfies readonly TaskTimeSlot[];
+
+export type TaskTimeSlotKey = (typeof TASKTIME_TABLE)[number]['key'];
+
+export const IFC_TASKTIME_SLOTS: readonly TaskTimeSlot<TaskTimeSlotKey>[] = TASKTIME_TABLE;
 
 /**
  * `completion` als IFC-REAL: twee decimalen voor elke waarde die daarmee exact terugleest (hele
@@ -318,10 +315,7 @@ function isRunningAtFullCompletion(task: Task): boolean {
     && task.status === 'STARTED' && task.time.completion >= 1 && !task.time.actualFinish;
 }
 
-export interface TaskSlot {
-  key: string;
-  write(w: TaskWriteCtx): string;
-}
+export type TaskSlot<K extends string = string> = WriteSlot<TaskWriteCtx, K>;
 
 /**
  * De 13 IFCTASK-argumenten in de spec-conforme IFC 4.3-volgorde (0-based; geverifieerd tegen
@@ -334,40 +328,53 @@ export interface TaskSlot {
  * eerder zaten) — de reader (`extractTasks`) verschuift de gedeelde `TASK_SLOT`-indices met één OFFSET
  * voor die legacy-lay-out.
  */
-export const IFC_TASK_SLOTS: TaskSlot[] = [
-  { key: 'globalId', write: (w) => w.guidArg },
-  { key: 'ownerHistory', write: (w) => `#${w.ownerHistId}` },
+const TASK_TABLE = [
+  { key: 'globalId', soort: 'domein', write: (w) => w.guidArg },
+  { key: 'ownerHistory', ...OWNER_HISTORY_SOORTEN, write: (w) => `#${w.ownerHistId}` },
   // `IfcTask.HasName` (WHERE-regel) eist een Name. Een lege naam wordt daarom `''` en niet `$`; de
   // lezer leest beide als leeg (en toont dan 'Naamloze taak').
-  { key: 'name', write: (w) => ifcStr(w.task.name) === '$' ? "''" : ifcStr(w.task.name) },
-  { key: 'description', write: (w) => ifcStr(w.task.description) },
+  { key: 'name', soort: 'domein', write: (w) => ifcStr(w.task.name) === '$' ? "''" : ifcStr(w.task.name) },
+  { key: 'description', soort: 'domein', write: (w) => ifcStr(w.task.description) },
   // IFC eist USERDEFINED voor een niet-standaard classificatie. ObjectType geeft andere IFC-tools
   // een leesbaar label; de stabiele id reist aanvullend mee in OPS_TaskTypes.
   // `IfcTask.CorrectPredefinedType` (WHERE-regel): bij PredefinedType USERDEFINED moet ObjectType
   // bestaan. Daarom een label in elk geval waarin `predefinedType` hieronder USERDEFINED schrijft,
   // ook een USERDEFINED-taak zonder eigen taaktype. De lezer leest ObjectType van een taak niet.
-  { key: 'objectType', write: (w) => w.task.customTaskTypeId || w.task.taskType === 'USERDEFINED' ? ifcStr(w.customTaskTypeLabel || 'USERDEFINED') : '$' },
-  { key: 'identification', write: (w) => ifcStr(w.task.wbsCode) },
-  { key: 'longDescription', write: () => '$' },
-  { key: 'status', write: (w) => (isRunningAtFullCompletion(w.task) ? ifcStr(IFC_TASK_STATUS_RUNNING) : '$') },
-  { key: 'workMethod', write: () => '$' },
-  { key: 'isMilestone', write: (w) => ifcBool(w.task.isMilestone) },
-  { key: 'priority', write: (w) => (w.task.priority !== DEFAULT_PRIORITY ? String(Math.round(w.task.priority)) : '$') },
-  { key: 'taskTime', write: (w) => `#${w.taskTimeId}` },
-  { key: 'predefinedType', write: (w) => `.${w.task.customTaskTypeId ? 'USERDEFINED' : w.task.taskType}.` },
-];
+  { key: 'objectType', soort: 'afgeleid', volgt: 'predefinedType', write: (w) => w.task.customTaskTypeId || w.task.taskType === 'USERDEFINED' ? ifcStr(w.customTaskTypeLabel || 'USERDEFINED') : '$' },
+  { key: 'identification', soort: 'domein', write: (w) => ifcStr(w.task.wbsCode) },
+  { key: 'longDescription', soort: 'constant', write: () => '$' },
+  { key: 'status', soort: 'domein', write: (w) => (isRunningAtFullCompletion(w.task) ? ifcStr(IFC_TASK_STATUS_RUNNING) : '$') },
+  { key: 'workMethod', soort: 'constant', write: () => '$' },
+  { key: 'isMilestone', soort: 'domein', write: (w) => ifcBool(w.task.isMilestone) },
+  { key: 'priority', soort: 'domein', write: (w) => (w.task.priority !== DEFAULT_PRIORITY ? String(Math.round(w.task.priority)) : '$') },
+  { key: 'taskTime', soort: 'verwijzing', write: (w) => `#${w.taskTimeId}` },
+  { key: 'predefinedType', soort: 'domein', write: (w) => `.${w.task.customTaskTypeId ? 'USERDEFINED' : w.task.taskType}.` },
+] as const satisfies readonly TaskSlot[];
+
+export type TaskSlotKey = (typeof TASK_TABLE)[number]['key'];
+
+export const IFC_TASK_SLOTS: readonly TaskSlot<TaskSlotKey>[] = TASK_TABLE;
 
 // ── Afgeleide naam→index-maps (single-source: de array-positie boven is de index) ─────────────────
 
-function indexMap(slots: { key: string }[]): Record<string, number> {
-  const m: Record<string, number> = {};
-  slots.forEach((s, i) => { m[s.key] = i; });
-  return m;
-}
-
 /** Naam→arg-index voor de IFCTASKTIME-slots (spec-lay-out). Gebruikt door `applyHourModeIFC`. */
-export const TASKTIME_SLOT = indexMap(IFC_TASKTIME_SLOTS);
+export const TASKTIME_SLOT = slotIndex(IFC_TASKTIME_SLOTS);
 
 /** Naam→arg-index voor de IFCTASK-slots (spec-lay-out). `extractTasks` verschuift de post-WorkMethod-
  *  slots met een OFFSET voor de 12-arg-legacy-lay-out. */
-export const TASK_SLOT = indexMap(IFC_TASK_SLOTS);
+export const TASK_SLOT = slotIndex(IFC_TASK_SLOTS);
+
+export const LEGACY_TASK_ARITY = 12;
+
+const LEGACY_TASK_SLOT: SlotPositions<TaskSlotKey> = {
+  ...TASK_SLOT,
+  workMethod: ABSENT_SLOT,
+  isMilestone: TASK_SLOT.isMilestone - 1,
+  priority: TASK_SLOT.priority - 1,
+  taskTime: TASK_SLOT.taskTime - 1,
+  predefinedType: TASK_SLOT.predefinedType - 1,
+};
+
+export function taskSlots(args: readonly string[]): SlotPositions<TaskSlotKey> {
+  return args.length === LEGACY_TASK_ARITY ? LEGACY_TASK_SLOT : TASK_SLOT;
+}

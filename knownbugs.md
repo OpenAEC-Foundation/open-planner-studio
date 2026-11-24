@@ -665,6 +665,28 @@ en noem het in je rapport of PR-tekst.
      taak van 4 werkdagen op 50 %, restwerk op 24 u gezet (16 u verricht, 24 u rest); daarna voortgang naar 0 % gaf
      0 u verricht en 48 u rest, ook na herlezen van de geschreven IFC. — B
 
+2001. **Een tijdpatch laat `progressBeforeRecalculation` vallen.** `mergeTaskTime` (`src/utils/taskDefaults.ts`) somt
+     de velden op die het samenvoegt, en `progressBeforeRecalculation` staat er niet bij. Een script gaf voor een basis
+     met dat veld geen `progressBeforeRecalculation` terug, met een patch `{ completion: 0.6 }` en ook met een patch die
+     het veld zelf meestuurt. `taskSlice.updateTask` en `draft.updateTaskFields` (`createMcpTransactions.ts`) zetten bij
+     een tijdpatch de samengevoegde tijd (`mergeTaskUpdate`); Taak bewerken zet het veld met
+     `rememberProgressBeforeRecalculation` op de tijd die het aan `updateTask` geeft (`state/taskDialogSave.ts`). De
+     voortgangsroute van het eigenschappenpaneel (`commitProgressEdit` in `taskSlice.ts`) en `draft.patchTaskFields`
+     gebruiken `mergeTaskTime` niet. Een proef via de schrijffuncties liet de basis verdwijnen via de opslag van Taak
+     bewerken en via `draft.updateTaskFields` met een tijdpatch, en staan via het paneel en via `draft.patchTaskFields`
+     met een patch die duur en kalender niet verandert (een andere `calendarId` wist het daar met
+     `invalidateForTimeBaseChange`, punt 2002). Wat dat in de planning doet, is niet nagespeeld. — B
+
+2002. **Een kalenderwissel van een urentaak wist de bevroren kalenderwandelingen via de ene route wel en via de andere
+     niet.** `taskSlice.updateTask`, `draft.updateTaskFields` en `draft.patchTaskFields` (`createMcpTransactions.ts`)
+     roepen bij een andere `calendarId` `invalidateForTimeBaseChange` aan, dat `timephasedDurationWalks` met
+     `workMinutes` en `progressBeforeRecalculation` wist. `setTaskCalendar` roept zelf `clearTimephasedWindow` en
+     `clearLevelingGaps` aan, en `settleCalendarChange` keert voor een urentaak terug zonder iets te wissen. Een proef
+     via de schrijffuncties op een urentaak met bevroren wandelingen: `setTaskCalendar` hield de wandelingen en de
+     voortgangsbasis en wiste de nivelleergaten; de drie andere routes wisten wandelingen en voortgangsbasis. Bij een
+     dagtaak waarvan de werkdriehoek de duur verandert, bereikt `setTaskCalendar` via `settleDurationAftermath` wel
+     `invalidateForTimeBaseChange`; dat is niet nagespeeld. — B
+
 2107. **VERVOLG (#1167): een lokaal tekort markeert volledige boekingen op het poolitem als onvolledig.**
      `computeDistribution` zet `afterIncomplete` gelijk aan `hasShortfall`, ook als de overbezetting
      alleen een lokale resource raakt en `afterLoadByDay` alle boekingen op het gekozen poolitem bevat.
@@ -1449,6 +1471,32 @@ en noem het in je rapport of PR-tekst.
       feestdagenset en geeft `materializeHolidays` een TypeError op `defs`. Bevestigd in reviewronde 1 met de
       generator uit die release. Richting voor toekomstige uitbreidingen: bied hergeneratie alleen aan voor
       een bekende set. — B
+
+2003. **`hoursPerDay` en de blokken van een werkende uitzondering zonder eigen blokken kunnen van elkaar afwijken.**
+      `modalBandHoursPerDay` telt elke weekdag met blokken mee, ook als die weekdag niet in `workDays` staat;
+      `computeStandardWorkdayBands` (`src/engine/scheduler/CalendarEngine.ts`) telt alleen weekdagen die in
+      `workDays` staan én blokken hebben. Op een kalender waarin die twee niet kloppen, kan de werktijd van een
+      werkende uitzondering zonder eigen blokken op een dag zonder weekdagblokken afwijken van `hoursPerDay`. Nagespeeld
+      met een script: `workDays` ma en di met 8 u, wo tot en met vr blokken van 10 u maar niet in `workDays`, plus een
+      werkende zaterdag zonder blokken: `hoursPerDay` is 10, de zaterdag krijgt 480 minuten. Met 8 u op alle vijf
+      weekdagen en verder dezelfde kalender is `hoursPerDay` 8 en krijgt de zaterdag ook 480 minuten. Of een lezer of
+      invoer zo'n kalender maakt, is niet nagegaan. — B
+
+2004. **Een datum in twee werkende uitzonderingen krijgt de blokken van de laatste met eigen blokken.**
+      `buildWorkingExceptions` (`src/engine/scheduler/CalendarEngine.ts`) overschrijft de blokken per datum alleen
+      voor een uitzondering met eigen blokken; een latere uitzondering zonder blokken laat de eerdere staan. Nagespeeld
+      met een script: eerst za 06:00–12:00, dan dezelfde zaterdag zonder blokken, geeft 360 werkminuten. De
+      kalendertool van MCP weigert zo'n overlap niet (`workingExceptionsReason` in
+      `src/services/mcp/tools/calendarResourceTools.ts` toetst alleen de vorm), en de P6 XML-lezer houdt twee
+      `HolidayOrException`-elementen met eigen blokken op dezelfde datum allebei als werkende uitzondering:
+      `mergeConsecutiveDays` in `src/services/p6/p6xmlReader.ts` voegt alleen aansluitende dagen samen (gelezen in de
+      code). — B
+
+2005. **`addWorkingDaysSigned` telt vanaf de volgende werkdag als de begindatum geen werkdag is.**
+      `addWorkingDaysSigned` (`src/engine/scheduler/CalendarEngine.ts`) zet de begindatum eerst met `nextWorkDay`
+      vooruit. Nagespeeld met een script op een ma-vr-kalender: −1 vanaf zaterdag geeft vrijdag, en −1 vanaf vrijdag
+      geeft donderdag. Of elke aanroeper (onder meer `CPMSolver.ts`, `ResourceLeveler.ts`, `useBarDrag.ts`,
+      `splitWalk.ts`, `barDragMath.ts`) een werkdag meegeeft, is niet nagegaan. — B
 
 ## Bibliotheek, bezetting, extensies, AI
 
@@ -3640,13 +3688,14 @@ en noem het in je rapport of PR-tekst.
      versie noemen die niet meer op schijf staat.** Ctrl+S en Automatisch opslaan maken `knownTargetFingerprint`
      onbekend als hun schrijfactie naar het eigen pad een fout geeft (de directe terugval van `replaceUserFile` in
      `atomicWrite.ts` kan het doel al afgekapt hebben), en ook als de vervanging met herstel van een gebouwmodel
-     `unknown`, `previous-stranded` of `target-taken` geeft. Drie gevallen laten het veld staan. Opslaan als over een
-     bestaand bestand (`replaceExistingPath`) met zo'n onzekere uitkomst: het gekozen pad kan het eigen bestand zijn,
-     maar de route vergelijkt dat niet. Een export over het eigen pad (Exporteren → IFC, de export met de
-     resourcebibliotheek, Bestand → Bibliotheek, `planner_export_ifc`) die een fout geeft. En in de browser de
-     opslaankiezer uit knownbug 1899: die kan de eigen handle al leeggemaakt hebben als de schrijfactie daarna
-     mislukt. Herstel: in die drie routes het veld wissen als het doel het eigen bestand kan zijn. — S (code gelezen,
-     niet nagespeeld)
+     `unknown`, `previous-stranded` of `target-taken` geeft. Na een geslaagde export vergelijkt
+     `settleFingerprintAfterExport` het eigen doel met de geschreven bytes. Drie gevallen laten het veld staan.
+     Een export die mislukt nadat hij het eigen bestand al raakte: op het eigen doel staat dan iets wat de export niet
+     (helemaal) schreef. De vingerafdruk blijft staan, de komende bewaking weigert dan Ctrl+S met haar melding, en er
+     gaat niets verloren. Opslaan als over een bestaand bestand (`replaceExistingPath`) met een onzekere uitkomst: het
+     gekozen pad kan het eigen bestand zijn, maar de route kijkt daar niet naar. En in de browser de opslaankiezer uit
+     knownbug 1899: die kan de eigen handle al leeggemaakt hebben als de schrijfactie daarna mislukt. — S (code
+     gelezen, niet nagespeeld)
 
 2200. **VERVOLG (#804, de versie op het eigen doel): bij openen kan de vingerafdruk van opnieuw gecodeerde tekst
      komen.** Openen, Recent en een browser-drop kiezen vóór het lezen of een `.ifc` als tekst of als bytes binnenkomt
@@ -3658,27 +3707,16 @@ en noem het in je rapport of PR-tekst.
      `applyLoadedProject` zet bij tekst `null`. Dat raakt de openroute, waar de volgende stap (openen wisselt) bouwt.
      De omgekeerde volgorde is gedicht: gaat de flag uit tussen het lezen en het activeren, dan blijft het veld
      `null`. — B (code gelezen in de reviews van #1168, niet nagespeeld)
+2217. **VERVOLG (#804, de versie op het eigen doel): een lopende nacontrole kan een gewiste vingerafdruk terugzetten.**
+     De planner zet de flag `ifcForeignContent` uit precies terwijl een export het eigen bestand terugleest of de
+     nieuwe vingerafdruk berekent (`settleFingerprintAfterExport` in `src/state/slices/fileSlice.ts`). `setUI` wist de
+     vingerafdruk van elk tabblad (`src/state/slices/uiSlice.ts`), waarna de export haar alsnog vastlegt als document
+     en doel gelijk bleven. Exporteert de planner daarna met de flag uit opnieuw over het eigen bestand en zet hij de
+     flag later weer aan, dan kan de bewaking van Ctrl+S en Automatisch opslaan de volgende opslag op die teruggezette
+     waarde weigeren. Uitweg voor de planner: Opslaan als. Richting: bij het vastleggen opnieuw toetsen dat er nog een
+     vingerafdruk is. Gezien in de code door de reviewer van #1168 (GPT-6.2-Sol, ronde 5); het vraagt dat het
+     uitzetten precies tijdens de nacontrole valt. — B (code)
 
-2201. **VERVOLG (#804, de versie op het eigen doel): met de flag uit wist elke geschreven export het veld, ook naar
-     een ander bestand.** Met `ifcForeignContent` uit is `knownTargetFingerprint` alleen gevuld als het uit een eerdere
-     periode met de flag aan komt. Om dan geen extra `await` te maken, wissen Exporteren → IFC, de export met de
-     resourcebibliotheek, Bestand → Bibliotheek en `planner_export_ifc` het veld na een geschreven export zonder het
-     doel te vergelijken; een geannuleerde of geweigerde export doet niets. Netter is het veld één keer voor alle
-     tabbladen te wissen als de flag uitgaat; daar is nog geen plek voor, want de flag verandert via de algemene
-     `setUI` en de instellingen. Dan hoeven de exports met de flag uit niets meer. De planner merkt er niets van. — B
-     (code gelezen)
-
-2202. **VERVOLG (#804, de versie op het eigen doel): op Windows laat een export via een alias van het eigen bestand
-     een verouderde vingerafdruk staan.** Na een export vergelijkt `exportTargetMatch` het gekozen doel met het eigen
-     doel. Alleen `same` (dezelfde padtekst, dezelfde identiteit, of `isSameEntry`) wist de vingerafdruk; `different`
-     en `unknown` laten haar staan. Op Windows geeft plugin-fs 2.7.1 geen `dev` en `ino`, dus een andere padtekst geeft
-     `unknown`. Dat is het gewone geval van elke export naar een andere naam. Schrijft de planner via een andere
-     schrijfwijze van hetzelfde bestand (hoofdletters, een link, een netwerkpad), dan blijft de oude vingerafdruk
-     staan. De bibliotheekroutes weigeren zo'n alias op Windows ook niet vooraf. De afweging: een verouderde
-     vingerafdruk laat de volgende Ctrl+S hooguit één keer onterecht weigeren, met de bestaande melding, en er gaat
-     niets verloren; wissen zou de bewaking de volgende opslag laten overslaan, en dan kan een wijziging van buiten
-     stil overschreven worden. De kalenders tellen `unknown` wel als treffer (knownbug 1026, de veilige richting
-     daar). — B (`check-tabblad-schijfversie.ts`, A2-tabel windows, alias)
 
 2069. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan bij een gewone planning): tussen de toets en het
      schrijven kan het bestand nog veranderen.** Met de featureflag `ifcForeignContent` vergelijkt de app het eigen pad of
@@ -3771,6 +3809,16 @@ en noem het in je rapport of PR-tekst.
      generatie vast, ook de herstelde versie), doorwerken aan dat document, en bij de volgende herstelvraag uitstellen; daarna
      kwamen de oude IFC-bytes terug. `check-recovery-web-hold.ts` toetst bij een dubbel document alleen dat het één keer
      verschijnt, niet welke versie. — B
+
+2209. **VERVOLG (#1182): de verliescontrole kent de oude lay-outs los van de slottabellen.** `alignment` in
+     `src/services/ifc/foreign/lossCheck.ts` legt zelf vast hoe een regel in een oude eigen lay-out op de uitvoer past
+     (`IfcTask` met 12 argumenten, resources met 9 via `OLD_RESOURCE_TYPES` en `RESOURCE_ARITY`, werkplan en kalender
+     via `workControlSlots` en `workCalendarSlots`), en noemt het argumentaantal per type nog eens bij de `slot:`-wortels.
+     Sinds #1182 staan die lay-outs in de slottabellen (`taskSlots`, `resourceSlots`, `lagTimeSlots`, `IFC_SLOT_TABLES`
+     in `ifcSlotTables.ts`). Eén verschil: bij een `IfcLagTime` in de oude OPS-indeling (waarde en type duur verwisseld)
+     paart `alignment` per positie, de tabel verwisselt de twee. Of de verliescontrole daardoor een verkeerd slot
+     vergelijkt, is niet nagegaan; de lagwaarde zelf vergelijkt `durationTexts` via `lagValueSlot`. Voorstel: fase 2
+     PR 2 (`sourceSlots`), die `lossCheck.ts` toch aanpast, leidt `alignment` af uit `IFC_SLOT_TABLES`. — S
 
 ## Rondleiding, Help en extensie-gidsen
 

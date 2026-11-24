@@ -165,6 +165,8 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
      *  Standaard uit, zodat de oudere proeven hun nabootsing houden. */
     forbiddenMeta: false,
     noIdentity: false,
+    mapPath: null as ((path: string) => string) | null,
+    onCall: null as ((command: string, path: string | undefined) => void) | null,
     writeErrorAfter: null as number | null,
     renameError: null as unknown,
     removeError: null as unknown,
@@ -183,11 +185,13 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
     const rawBody = isBytes(args);
     const bytesInObject = !rawBody && containsBytes(args);
     const writeFile = command === 'plugin:fs|write_file' || command === 'plugin:fs|write_text_file';
-    const path = writeFile ? decodeURIComponent(ipcOptions?.headers?.path ?? '') : typeof a.path === 'string' ? a.path : undefined;
+    const named = writeFile ? decodeURIComponent(ipcOptions?.headers?.path ?? '') : typeof a.path === 'string' ? a.path : undefined;
+    const path = named !== undefined && faults.mapPath ? faults.mapPath(named) : named;
     const sent = writeFile ? sentWriteOptions(ipcOptions?.headers?.options) : {};
     const callOptions = writeFile ? sent.options : a.options as OpenOptions | undefined;
     const call: IpcCall = { command, path, options: callOptions, optionsError: sent.error, rawBody, bytesInObject, wrote: false };
     calls.push(call);
+    faults.onCall?.(command, path);
     switch (command) {
       case 'plugin:fs|stat':
       case 'plugin:fs|lstat': {
