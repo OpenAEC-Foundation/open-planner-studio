@@ -396,7 +396,6 @@ const eigen = text(await settle(read('tests/fixtures/ifc-foreign/eigen-plus-mode
 const TASK_GUID = '06AdBvh4v8lXgXlHO1$rfO';
 const R109 = '3LKE2mEiGfOR4VMIq3h_xv';
 const R110 = '34SuBObt1dKPNSent0osWG';
-const R111 = '1XVcwxvomwVx$qDRoCxjQu';
 const TASK_65_GUID = '2kDzoebYmR6NjQ7T17ccu7';
 const BIG = '98765432109876543210987654321';
 

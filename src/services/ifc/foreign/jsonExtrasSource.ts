@@ -81,7 +81,7 @@ export function scanJsonExtras(index: StepIndex, own: (chunk: number) => boolean
   const out: StepJsonExtras[] = [];
   for (const group of psets.values()) {
     if (group.length !== 1) continue;
-    const { owner, pset, name } = group[0];
+    const { pset, name } = group[0];
     const props = index.refsAt(pset, 4).filter(p => p >= 0 && index.type(p) === 'IFCPROPERTYSINGLEVALUE')
       .map(p => ({ p, property: index.name(p) ?? '' }));
     const names = new Map<string, number>();
