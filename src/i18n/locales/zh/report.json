@@ -147,7 +147,7 @@
     "groupByType": "按资源类型分组",
     "showAssignmentColumns": "显示单位/天和曲线",
     "columnsDropped": "已省略“单位/天”和“曲线”列：表格给时间轴留下的空间太少。更大或横向的纸张、更小的字号或更窄的表格可腾出更多空间。",
-    "emptyPeriod": "报告期间内没有任务 — 请选择其他期间或整个项目。",
+    "emptyPeriod": "自定义期间内没有任务 — 请选择其他日期或关闭“自定义期间”。",
     "outsidePeriod": "期间之外：",
     "empty": "没有资源分配——请先为任务分配资源。",
     "resources": "资源：",
@@ -460,7 +460,6 @@
     },
     "pages_other": "{{count}} 页",
     "mm": "{{value}} mm",
-    "reportingPeriod": "报表期间",
     "tasks": {
       "title": "哪些任务",
       "all": "全部任务",
@@ -621,6 +620,11 @@
       "chart": "任务条和时间轴",
       "footer": "图例和页脚",
       "page": "页面"
+    },
+    "period": {
+      "hint": "报告中只包含此期间内的任务。时间轴恰好覆盖该期间；超出期间的横道在边缘处截断。",
+      "outside_other": "{{count}} 个任务不在此期间内，未包含在报告中。",
+      "own": "自定义期间"
     }
   },
   "customFont": {

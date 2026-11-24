@@ -169,8 +169,8 @@ ok(
   ok(`mijlpaal-100-verouderd: voorwaarde — verouderde ES (${staleStart}) ligt ná de statusdatum`, staleStart > '2026-06-10');
   S().setTaskProgress(ids.m, 1);
   ok(`mijlpaal-100-verouderd: AS niet ná AF (${actuals(task(ids.m)!.time)})`, inOrder(task(ids.m)!.time));
-  ok(`mijlpaal-100-verouderd: AS = AF = statusdatum (${actuals(task(ids.m)!.time)})`,
-    task(ids.m)!.time.actualStart === '2026-06-10T07:00' && task(ids.m)!.time.actualFinish === '2026-06-10T07:00');
+  ok(`mijlpaal-100-verouderd: AS = AF = gepland moment na afmelden voorganger (${actuals(task(ids.m)!.time)})`,
+    task(ids.m)!.time.actualStart === '2026-06-08T07:00' && task(ids.m)!.time.actualFinish === '2026-06-08T07:00');
 
   // Paneel/contextmenu: taak die volgens de VERSE planning ná de statusdatum begint.
   ids = setup();

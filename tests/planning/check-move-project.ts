@@ -72,6 +72,7 @@ const baseTask: Task = {
     ...createDefaultTaskTime('2026-06-01', 5),
     actualStart: '2026-06-01', actualFinish: '2026-06-03',
     actualDuration: 3, remainingTime: 2, remainingMinutes: 960, completion: 0.6,
+    progressBeforeRecalculation: { status: 'STARTED', completion: 0, actualStart: '2026-06-01T07:00' },
     earlyStart: '2026-06-01', earlyFinish: '2026-06-05',
     lateStart: '2026-06-01', lateFinish: '2026-06-05',
   },
@@ -94,6 +95,8 @@ eq('20 time.scheduleStart schuift (HET anker)', st.time.scheduleStart, '2026-06-
 eq('21 time.scheduleFinish schuift', st.time.scheduleFinish, shiftIso(baseTask.time.scheduleFinish, 7));
 eq('22 time.actualStart schuift (R5)', st.time.actualStart, '2026-06-08');
 eq('23 time.actualFinish schuift (R5)', st.time.actualFinish, '2026-06-10');
+eq('23a werkelijke start vóór de nog niet doorgerekende voortgang schuift mee',
+  st.time.progressBeforeRecalculation?.actualStart, '2026-06-08T07:00');
 eq('24 constraint.date schuift', st.constraint?.date, '2026-06-11');
 eq('25 constraint2.date schuift (fase 2.9 — het makkelijkst te vergeten veld)', st.constraint2?.date, '2026-06-27');
 eq('26 deadline schuift', st.deadline, '2026-07-02');

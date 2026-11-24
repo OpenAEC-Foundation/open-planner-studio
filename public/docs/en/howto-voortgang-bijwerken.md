@@ -41,8 +41,8 @@ A milestone has one field, *Actual date*. If you type only a date for a mileston
 **Several tasks in the table.** Useful when you update a whole list.
 
 1. Click the **+** at the right of the task list header (*Add column*) and open the category *Progress*. Add the columns *Actual start*, *Actual finish*, *Remaining* and *Status*. The column *Progress* is already on the *Table* tab.
-2. Double-click a cell, type the value and press Enter. You type a percentage as `50` or `50%`, a date as `25-06-2027`, a remaining duration as `1`.
-3. For *Status*, after a double-click press Enter and choose *Not started*, *In progress* or *Completed*.
+2. Click a cell, type the value and press Enter. You type a percentage as `50` or `50%`, a date as `25-06-2027`, a remaining duration as `1`.
+3. For *Status*, double-click the cell (or press Enter) and choose *Not started*, *In progress* or *Completed*.
 
 If you type a remaining duration, the app works back to the percentage: for a task of 2 work days a remainder of 1 gives a percentage of 50. A remainder of 0 completes the task. The *Actual duration* column (also in the category *Progress*) works the other way round: type how much work is already done and the app calculates the percentage. For a task of 4 work days, an actual duration of 1 gives 25%. If you choose *Not started* at *Status*, the percentage goes to 0 and the actual dates disappear.
 
@@ -68,7 +68,7 @@ Every change to progress or the status date makes the schedule out of date: the 
 
 **A task that would only start after the status date.** If you enter progress for a task that according to the schedule would not have started yet, the window *Enter the actual start* opens. It asks when the task actually started; the suggestion is the status date. With *Apply progress* you record it, with *Cancel* nothing changes. The **?** in the header opens this Help article without applying progress. Go back from Help to return to the same question with the date you entered. If the question came from *Edit task*, that draft is also kept and reappears behind the question when you return. Invalid date input and its error message are kept as well. While the question is waiting, you cannot open another project or close the current one from Help; answer or cancel the question first. Undo and Redo (in the title bar and through keyboard shortcuts) and the other background controls also wait until you answer or cancel the question.
 
-**100% without dates.** If you set a task to 100% without an actual finish, the actual finish becomes the status date, even if the task was finished earlier. Then fill in the actual finish yourself.
+**100% without an actual finish.** When you set a task to 100%, the app uses its scheduled finish. A task scheduled for October 28–30 keeps October 30 as its finish, even when the status date is later. If the scheduled finish is after the status date, the app uses the status date. If you know when the task actually finished, enter that date.
 
 **A percentage below 100%.** If you set a completed task back below 100%, the actual finish is dropped. If you clear only the actual finish, the percentage goes to 0 and the task stays *In progress*. If you want the task to count as not started again, also clear the actual start, or choose *Not started* at *Status* in the table.
 

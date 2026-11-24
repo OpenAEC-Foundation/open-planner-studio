@@ -208,6 +208,37 @@ measureCase('twee gaten vanaf wo 11:00', 'ops', task('g4', '2026-06-03T11:00', 3
   eq('halve minuut: geen werkminuut na het einde (vr 07:00–12:31 = 331 min)', placed.days.at(-1)?.minutes, 331);
 }
 
+{
+  const start = '2026-06-05T07:00';
+  const cases: Array<[string, TaskSplitGap[]]> = [
+    ['hele minuten', [{ afterMinutes: 120, gapMinutes: 60 }, { afterMinutes: 300, gapMinutes: 60 }]],
+    ['één halfminuutgat', [{ afterMinutes: 122, gapMinutes: 62 }]],
+    ['twee halfminuutgaten', [{ afterMinutes: 122, gapMinutes: 62 }, { afterMinutes: 306, gapMinutes: 62 }]],
+  ];
+  const observations = [];
+  for (const [label, gaps] of cases) {
+    const t = task('kb255', start, 0.625, gaps);
+    const engine = new CalendarEngine(CAL);
+    const solved = solveProject({ tasks: [t], sequences: [], calendar: CAL, calendars: [], schedulingOptions: OPS });
+    eq(`255 ${label}: doorrekening zonder fout`, solved.error ?? null, null);
+    const recipe = taskWorkPlacement(t, engine, OPS);
+    eq(`255 ${label}: plaatsingsrecept`, recipe?.measure, 'workdays');
+    if (!recipe || !t.time.earlyStart || !t.time.earlyFinish) continue;
+    const finish = parseInstant(t.time.earlyFinish);
+    const placed = workPlacement(engine, recipe);
+    eq(`255 ${label}: eindmoment solver = plaatsing`, placed.finish.getTime(), finish.getTime());
+    eq(`255 ${label}: plaatsing alleen vrijdags`, placed.days.map(d => d.iso), ['2026-06-05']);
+    const gantt = segmentMinutesPerDay(engine, t, 'workdays')['2026-06-05'];
+    const load = placed.days[0]?.minutes;
+    if (label === 'hele minuten') eq('255 controle: werkminuten komen overeen', load, gantt);
+    observations.push({ label, finish: t.time.earlyFinish, load, gantt, share: r6(placed.days[0]?.share ?? 0) });
+  }
+  eq('255: alle drie de gevallen gemeten', observations.length, cases.length);
+  const summary = JSON.stringify(observations);
+  console.log('KNOWNBUG255_SUMMARY', summary);
+  if (process.env.GITHUB_ACTIONS === 'true') console.log(`::notice title=Knownbug 255::${summary}`);
+}
+
 for (const f of failures) console.error(`XX ${f}`);
 console.log(`Split-as solver = plaatsing: ${checks} checks, ${failures.length} afwijkingen`);
 process.exit(failures.length ? 1 : 0);

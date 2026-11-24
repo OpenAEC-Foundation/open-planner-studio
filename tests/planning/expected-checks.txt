@@ -29,6 +29,7 @@ check-baseline-oude-dagtelling.ts matrix
 check-baseline-referentie.ts matrix
 check-baseline-vergelijking.ts matrix
 check-benchmark-generator.ts matrix
+check-bewaakte-opslag.ts matrix
 check-bulk-scale.ts matrix
 check-calendar-arith.ts matrix
 check-calendar-breaks.ts matrix
@@ -52,6 +53,7 @@ check-cpm-writeback.ts matrix
 check-critical-bar-colors-route.ts matrix
 check-csv-import.ts matrix
 check-custom-report-font.ts matrix
+check-custom-task-type-colors.ts matrix
 check-custom-task-types.ts matrix
 check-dag-is-werktijd.ts matrix
 check-dag-uur-lag.ts matrix
@@ -178,22 +180,28 @@ check-ifc-datumvorm.ts matrix
 check-ifc-document-save.ts matrix
 check-ifc-duur-lezen.ts matrix
 check-ifc-duurvormen.ts matrix
+check-ifc-element-links.ts matrix
 check-ifc-empty-date-slots.ts matrix
 check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
 check-ifc-foreign-eigen-toets.ts matrix
 check-ifc-foreign-eigen-uitvoer.ts matrix
+check-ifc-foreign-grens.ts los
 check-ifc-foreign-groot.ts los
 check-ifc-foreign-herleestoets.ts matrix
 check-ifc-foreign-hulp-identiteit.ts matrix
 check-ifc-foreign-klok.ts matrix
 check-ifc-foreign-merge-telling.ts los
+check-ifc-foreign-ongebruikte-sleutels.ts matrix
 check-ifc-foreign-open.ts matrix
 check-ifc-foreign-oude-eigen.ts matrix
 check-ifc-foreign-pariteit.ts los
 check-ifc-foreign-preserve.ts matrix
+check-ifc-foreign-slotplaats.ts matrix
 check-ifc-foreign-strikt.ts matrix
 check-ifc-foreign-target.ts matrix
+check-ifc-foreign-telling-verschil.ts los
+check-ifc-foreign-werksoortkleur.ts matrix
 check-ifc-globalid.ts matrix
 check-ifc-kalendertijd.ts matrix
 check-ifc-legacy-arity.ts matrix
@@ -213,6 +221,7 @@ check-ifc-saved-source.ts matrix
 check-ifc-schema-question.ts matrix
 check-ifc-schema-reader.ts matrix
 check-ifc-schema.ts matrix
+check-ifc-slotsoorten.ts matrix
 check-ifc-step-encoding.ts matrix
 check-ifc-target-model-scan.ts matrix
 check-ifc-urenperdag-blokken.ts matrix
@@ -231,8 +240,12 @@ check-just-updated.ts matrix
 check-kalender-ms-randen.ts matrix
 check-kalender-ms-wandeling.ts matrix
 check-keyboard-event-routing.ts matrix
+check-knownbug-114.ts matrix
+check-knownbug-4.ts matrix
+check-knownbug-7.ts matrix
 check-lag-format.ts matrix
 check-lange-keten.ts matrix
+check-launch-files.ts matrix
 check-layout-presets.ts matrix
 check-leveler-candidate-axis.ts matrix
 check-leveler-ceiling.ts matrix
@@ -244,7 +257,9 @@ check-leveler-seam.ts matrix
 check-leveler-splitmode.ts matrix
 check-leveler-splits.ts matrix
 check-leveling-delay-units.ts matrix
+check-leveling-fixed-load.ts matrix
 check-leveling-input.ts los
+check-leveling-status-floor.ts matrix
 check-load-profile.ts matrix
 check-local-time-parsing.ts matrix
 check-mijlpaal-afmelden.ts matrix
@@ -293,6 +308,7 @@ check-native-menu.ts matrix
 check-new-project-view-rows.ts matrix
 check-new-task-measure.ts matrix
 check-notifications.ts matrix
+check-one-file-one-tab.ts matrix
 check-open-failure-detail.ts matrix
 check-p6-ff-day-hour.ts matrix
 check-p6-verified-cases-engine.ts matrix
@@ -366,6 +382,7 @@ check-report-columns.ts matrix
 check-report-font-setting.ts matrix
 check-report-font.ts matrix
 check-report-footer-setting.ts matrix
+check-report-gantt-period.ts matrix
 check-report-layouts.ts matrix
 check-report-name-column-setting.ts matrix
 check-report-resource-gantt-setting.ts matrix
@@ -434,6 +451,7 @@ check-summary-relation-expansion.ts matrix
 check-summary-relation-prune.ts matrix
 check-svg-sanitizer.ts matrix
 check-system-theme.ts matrix
+check-tabblad-schijfversie.ts matrix
 check-table-shown-dates.ts matrix
 check-task-cell-editor.ts matrix
 check-task-column-registry.ts matrix
@@ -497,6 +515,7 @@ check-week-banding.ts matrix
 check-werkdag-einde.ts matrix
 check-wiki-links.ts matrix
 check-work-decimals.ts matrix
+check-work-others-notice.ts matrix
 check-work-rule-actual-history.ts matrix
 check-work-rule-completed.ts matrix
 check-work-rule-days-measure.ts matrix

@@ -153,7 +153,7 @@
     "groupByType": "Zoskupiť podľa typu zdroja",
     "showAssignmentColumns": "Zobraziť jednotky/deň a krivku",
     "columnsDropped": "Stĺpce Jedn./d a Krivka sú vynechané, lebo tabuľka nechala pre časovú os málo miesta. Viac miesta získate väčším papierom alebo režimom na šírku, menšou veľkosťou písma alebo užšou tabuľkou.",
-    "emptyPeriod": "V sledovanom období nie sú žiadne úlohy — vyberte iné obdobie alebo Celý projekt.",
+    "emptyPeriod": "Vo vlastnom období nie sú žiadne úlohy — zvoľte iné dátumy alebo vypnite Vlastné obdobie.",
     "outsidePeriod": "Mimo obdobia:",
     "empty": "Žiadne priradenia zdrojov — najprv priraďte zdroje k úlohám.",
     "resources": "Zdroje:",
@@ -475,7 +475,6 @@
     "pages_many": "{{count}} strany",
     "pages_other": "{{count}} strán",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Obdobie zostavy",
     "tasks": {
       "title": "Ktoré úlohy",
       "all": "Všetky úlohy",
@@ -696,6 +695,14 @@
       "chart": "Pruhy a časová os",
       "footer": "Legenda a päta",
       "page": "Strana"
+    },
+    "period": {
+      "hint": "V zostave sú len úlohy z tohto obdobia. Časová os pokrýva presne toto obdobie; pruh, ktorý ho presahuje, sa na okraji oreže.",
+      "outside_one": "{{count}} úloha je mimo obdobia a v zostave nie je.",
+      "outside_few": "{{count}} úlohy sú mimo obdobia a v zostave nie sú.",
+      "outside_many": "{{count}} úlohy je mimo obdobia a v zostave nie je.",
+      "outside_other": "{{count}} úloh je mimo obdobia a v zostave nie sú.",
+      "own": "Vlastné obdobie"
     }
   },
   "customFont": {

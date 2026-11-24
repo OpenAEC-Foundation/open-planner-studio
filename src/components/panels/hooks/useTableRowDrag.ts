@@ -181,7 +181,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
 
     const handleMouseUp = () => setCandidate(null);
 
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onDocumentSwitch: handleMouseUp });
   }, [candidateActive, candidateRef, optionsRef, computeHover]);
 
   // Opruimen van de "net-gesleept"-vlag, met een EXTRA vangnet dat een canvas niet nodig zou
@@ -282,17 +282,29 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       setDragState(null);
     };
 
-    // Escape annuleert ZONDER mutatie. Capture-fase + stopImmediatePropagation, net als bij het
-    // canvas: anders kan een globale Escape-sneltoets er eerst tussen komen.
+    // Stoppen ZONDER mutatie: bij Escape, en bij een documentwissel (review #1004, ronde 12), want de
+    // verplaatsing hoort bij het document waarin de sleep begon.
+    const stop = () => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      pending = null;
+      setDragState(null);
+    };
+
+    // Escape: capture-fase + stopImmediatePropagation, net als bij het canvas: anders kan een globale
+    // Escape-sneltoets er eerst tussen komen. De muis is nog ingedrukt; de click van het loslaten
+    // mag niets selecteren.
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       e.stopImmediatePropagation();
       optionsRef.current.justDraggedRef.current = true;
       armJustDraggedClear();
-      setDragState(null);
+      stop();
     };
 
-    const stopListening = listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true });
+    const stopListening = listenWindowDrag({
+      onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true, onDocumentSwitch: stop,
+    });
     return () => {
       if (frame) cancelAnimationFrame(frame);
       stopListening();

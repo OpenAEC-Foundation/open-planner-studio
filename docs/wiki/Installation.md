@@ -17,7 +17,7 @@ Download the latest installer for your platform from the
 
 - **Windows** — the signed `.exe` installer.
 - **macOS** — the universal `.dmg` (Apple Silicon and Intel).
-- **Linux** — an AppImage, a `.deb`, an `.rpm`, or a `.snap` package. The `open-planner-studio-bin` AUR package is not published yet because the publishing key is missing. Arch Linux users can use the AppImage in the meantime. AppImage launches add a menu entry and icon for your user.
+- **Linux** — an AppImage, a `.deb`, an `.rpm`, or a `.snap` package. AppImage launches add a menu entry and icon for your user.
 
 For **v2026.47.0**, the `.snap` file is available from the [GitHub release assets](https://github.com/OpenAEC-Foundation/open-planner-studio/releases/tag/v2026.47.0). This version is **not yet available in the Snap Store**; store publication is waiting for renewed publishing credentials.
 
@@ -26,8 +26,8 @@ the running app and without it. See [Connecting an MCP client](docs://howto-ai-a
 
 ## Automatic updates
 
-The desktop app checks for updates on startup and can install them in place. Snap and AUR
-installations use snapd and pacman respectively; the in-app updater steps aside for both. AppImage
+The desktop app checks for updates on startup and can install them in place. Snap
+installations use snapd; the in-app updater steps aside. AppImage
 and `.deb` installations use the in-app updater.
 
 ## Build from source

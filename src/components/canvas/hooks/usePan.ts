@@ -55,7 +55,7 @@ export function usePan({ setScroll, justBoxSelectedRef }: UsePanOptions) {
       setPanState(null);
     };
 
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onDocumentSwitch: () => setPanState(null) });
   }, [panState, setScroll, justBoxSelectedRef]);
 
   return { panState, startPan: setPanState, active: !!panState };

@@ -124,6 +124,8 @@ export const TASK_TIME_FIELD_COVERAGE = {
   remainingTime: field('direct', 'task.time.remainingTime'),
   remainingMinutes: field('technical', 'task.time.remainingMinutes'),
   completion: field('direct', 'task.time.completion'),
+  // Tijdelijke invoer voor de datumafleiding uit het percentage. Geen eigen kolom.
+  progressBeforeRecalculation: field('technical', 'task.time.completion'),
 } satisfies Record<keyof TaskTime, FieldCoverage>;
 
 export const CONSTRAINT_FIELD_COVERAGE = {

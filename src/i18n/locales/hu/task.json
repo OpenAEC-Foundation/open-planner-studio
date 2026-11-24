@@ -328,7 +328,11 @@
     "rename": "Szerkesztés",
     "remove": "Eltávolítás",
     "addToMine": "Hozzáadás a saját munkanemekhez",
-    "confirmRemove": "Ezt a munkanemet használja a megnyitott projekt. Eltávolítja a Saját munkanemek közül? A projekt példánya megmarad."
+    "confirmRemove": "Ezt a munkanemet használja a megnyitott projekt. Eltávolítja a Saját munkanemek közül? A projekt példánya megmarad.",
+    "renameInProjectTitle": "Ebben a projektben is átnevezi?",
+    "renameInProjectMessage": "A(z) „{{oldName}}” munkanem ebben a projektben is szerepel. Szeretné ezt itt is „{{newName}}” névre nevezni?",
+    "renameInProjectYes": "Ebben a projektben is",
+    "renameInProjectNo": "Csak a saját listámban"
   },
   "duration": {
     "label": "Időtartam",
@@ -381,7 +385,15 @@
       "resourceShorter": "Egy további erőforrás lerövidíti a tevékenységet.",
       "resourceAddsWorkSameDuration": "Egy további erőforrás munkát ad hozzá; az időtartam ugyanaz marad."
     },
-    "info": "A tevékenységtípus magyarázata"
+    "info": "A tevékenységtípus magyarázata",
+    "hint": {
+      "intro": "A tevékenységtípus határozza meg, mit módosít az alkalmazás, ha az időtartamot, a hozzárendelt mennyiséget (fő naponta) vagy a munkát (óra) változtatja.",
+      "FIXED_DURATION_RATE": "Az időtartam és a hozzárendelt mennyiség megmarad, a munka ehhez igazodik. Példa: 2 fő, 5 nap 8 órában = 80 óra.",
+      "FIXED_DURATION_WORK": "Az időtartam és a munka megmarad, a hozzárendelt mennyiség igazodik. Példa: 80 óra 5 nap alatt, 8 órás napokkal = napi 2 fő.",
+      "FIXED_WORK": "A munka marad, az időtartam igazodik. Példa: 80 óra 2 fővel = 5 nap, 4 fővel 2,5 nap.",
+      "FIXED_RATE": "A hozzárendelt mennyiség marad, a munka határozza meg az időtartamot. Példa: 1 daru, 40 óra munka = 5 nap, 80 óra munka = 10 nap.",
+      "projectDefault": "A projekt alapértelmezett tevékenységtípusát követi."
+    }
   },
   "properties": {
     "task": "Tevékenység",
@@ -453,6 +465,10 @@
     "interferingFloat": "Interferáló tartalékidő:",
     "criticalPath": "Kritikus út:",
     "dependencies": "Kapcsolatok",
+    "predecessors_one": "{{count}} előd",
+    "predecessors_other": "{{count}} előd",
+    "successors_one": "{{count}} utód",
+    "successors_other": "{{count}} utód",
     "addRelation": "Kapcsolat hozzáadása",
     "addRelationSearch": "Tevékenység keresése…",
     "addRelationConfirm": "Kapcsolat létrehozása",

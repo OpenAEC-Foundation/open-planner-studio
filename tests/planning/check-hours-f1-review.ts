@@ -1,13 +1,13 @@
 // PR #563, reviewrondes 1 t/m 4: ingevoerde feiten, relatievensters en mijlpaalkanten behouden.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
-import { createTaskDialogSave, draftWithActualStart, draftWithActualFinish } from '@/state/taskDialogSave';
-import { planProgressEntry } from '@/engine/progressEntry';
+import { createTaskDialogSave, planTaskDialogProgress } from '@/state/taskDialogSave';
 import { invalidDateReasons } from '@/engine/reports/dcmaAssessment';
 import { normalizeImportedProgress } from '@/services/importNormalize';
 import { readXER } from '@/services/xer/xerReader';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { progress } from '@/state/mcpValidation';
+import { progressPlannedDates } from '@/state/progressPlannedDates';
 import { makeBands } from '@/utils/effectiveWorkTime';
 import { parseLagInput } from '@/utils/lagFormat';
 import type { CellEditIntent } from '@/types/taskGrid';
@@ -41,19 +41,17 @@ function fixture(start = 480, end = 960) {
   return { context, S, id, task, calendar, cell, draft };
 }
 
-// Punt 1: een aanwezige werkelijke start is een feit, ook ná het afgeleide blokeinde.
-// D1/D6 beslissen alleen over datumloze invoer. Besluit orkestrator: het afgeleide einde wordt
-// minstens die start. De statusdag en de taakkalender veranderen een vastgelegde start niet.
+// Punt 1: gebruik het geplande einde (#998) en behoud de werkelijke start, ook als die
+// later ligt. Bij 10:00 loopt het resterende halve werk vanaf de statusdag tot 12:00.
 for (const [day, start, finish, ownCalendar] of [
-  ['2026-06-03', '2026-06-03T10:00', '2026-06-03T16:00', false],
+  ['2026-06-03', '2026-06-03T10:00', '2026-06-03T12:00', false],
   ['2026-06-03', '2026-06-03T18:00', '2026-06-03T18:00', false],
   ['2026-06-06', '2026-06-06T18:00', '2026-06-06T18:00', false],
   ['2026-06-03', '2026-06-03T18:00', '2026-06-03T18:00', true],
 ] as const) for (const route of ['paneel', 'dialoog', 'rasterpercentage', 'statuskolom', 'plakken', 'import', 'MCP'] as const) {
   const f = fixture();
-  let calendar = f.calendar;
   if (ownCalendar) {
-    calendar = { ...calendar, id: 'eigen-09-17', hoursPerDay: 8, workStartHour: 9, workEndHour: 17,
+    const calendar = { ...f.calendar, id: 'eigen-09-17', hoursPerDay: 8, workStartHour: 9, workEndHour: 17,
       workTime: makeBands([1, 2, 3, 4, 5], [{ start: 540, end: 1020 }]) };
     f.context.store.setState(s => { s.calendars.push(calendar); });
     f.S().updateTask(f.id, { calendarId: calendar.id });
@@ -62,19 +60,21 @@ for (const [day, start, finish, ownCalendar] of [
   const label = `P1 ${route} ${start}${ownCalendar ? ' eigen 09–17' : ''}`;
   eq(label + ': start toegestaan', f.S().setActualStart(f.id, start), true);
   f.S().setTaskProgress(f.id, 0.5);
+  f.S().runCPM();
   eq(label + ': start vastgelegd', f.task().time.actualStart, start);
   let actual = f.task();
   if (route === 'paneel') eq(label + ': toegestaan', f.S().setTaskProgress(f.id, 1), true);
   else if (route === 'dialoog') {
-    const plan = planProgressEntry(f.task(), { field: 'completion', value: 1 },
-      { statusDate: day, today: day, calendar });
+    const plan = planTaskDialogProgress(f.S(), f.task(), undefined, { field: 'completion', value: 1 }, { today: day });
     eq(label + ': concept toegestaan', plan.ok && !!plan.change, true);
     if (plan.ok && plan.change) eq(label + ': opgeslagen', createTaskDialogSave(f.context)({
       editingTaskId: f.id, draft: plan.change.task, startDate: f.task().time.scheduleStart,
     }), true);
   } else if (route === 'MCP') {
     const draft = f.draft();
-    eq(label + ': toegestaan', progress.applyProgressUpdate(draft, f.id, { completion: 100 }, day).applied, true);
+    eq(label + ': toegestaan', progress.applyProgressUpdate(
+      draft, f.id, { completion: 100 }, day, progressPlannedDates(f.S()),
+    ).applied, true);
     actual = draft.tasks[0];
   } else if (route === 'import') {
     eq(label + ': toegepast', f.S().applyProgressImport([
@@ -87,7 +87,7 @@ for (const [day, start, finish, ownCalendar] of [
   }
   if (route !== 'MCP') actual = f.task();
   eq(label + ': vastgelegde start blijft staan', actual.time.actualStart, start);
-  eq(label + ': einde D6, minstens de vastgelegde start', actual.time.actualFinish, finish);
+  eq(label + ': gepland einde, minstens de vastgelegde start', actual.time.actualFinish, finish);
   eq(label + ': voltooid', [actual.time.completion, actual.status], [1, 'COMPLETED']);
 }
 
@@ -296,6 +296,7 @@ for (const route of ['raster', 'plakken', 'plakken-met-naam']) for (const [field
   f.S().updateTask(f.id, { status: 'STARTED', time: {
     ...f.task().time, actualStart: '2026-06-02T10:00', completion: 0.5,
   } });
+  f.S().runCPM();
   const edit = f.cell(field, value);
   const label = `P3 ${route} ${field}`;
   const writes = route === 'plakken-met-naam'
@@ -304,14 +305,14 @@ for (const route of ['raster', 'plakken', 'plakken-met-naam']) for (const [field
   eq(label + ': toegestaan', f.S().runGridMutation(route === 'raster'
     ? [edit] : [{ kind: 'paste', writes }]).ok, true);
   eq(label + ': actuals', [f.task().time.actualStart, f.task().time.actualFinish],
-    ['2026-06-02T10:00', '2026-06-03T16:00']);
+    ['2026-06-02T10:00', '2026-06-03T12:00']);
   eq(label + ': voltooid', [f.task().status, f.task().time.completion], ['COMPLETED', 1]);
 }
 
 // Punt 4: beide velden van een FINISH-mijlpaal horen bij dezelfde werkdag, ook over middernacht.
 for (const [start, end, moment] of [
   [1320, 1800, '2026-06-04T06:00'], [0, 1440, '2026-06-04T00:00'],
-] as const) for (const route of ['MCP', 'plakken', 'paneel', 'dialoog', 'dialoogvelden'] as const) {
+] as const) for (const route of ['MCP', 'plakken', 'paneel', 'dialoog'] as const) {
   const f = fixture(start, end);
   f.S().updateTask(f.id, { isMilestone: true, milestoneKind: 'FINISH', time: {
     ...f.task().time, scheduleDuration: 0, durationMinutes: 0,
@@ -334,18 +335,11 @@ for (const [start, end, moment] of [
   } else if (route === 'paneel') {
     eq(label + ': start toegestaan', f.S().setActualStart(f.id, '2026-06-03'), true);
     eq(label + ': einde toegestaan', f.S().setActualFinish(f.id, '2026-06-03'), true);
-  } else if (route === 'dialoogvelden') {
-    const started = draftWithActualStart(f.task(), '2026-06-03', '2026-06-03', f.calendar);
-    eq(label + ': start toegestaan', started !== null, true);
-    const draft = started && draftWithActualFinish(started, '2026-06-03', '2026-06-03', f.calendar);
-    eq(label + ': einde toegestaan', !!draft, true);
-    eq(label + ': opgeslagen', !!draft && createTaskDialogSave(f.context)({ editingTaskId: f.id, draft,
-      startDate: f.task().time.scheduleStart }), true);
   } else {
     let draft = f.task();
     for (const field of ['actualStart', 'actualFinish'] as const) {
-      const plan = planProgressEntry(draft, { field, value: '2026-06-03' },
-        { statusDate: '2026-06-03', today: '2026-06-03', calendar: f.calendar });
+      const plan = planTaskDialogProgress(f.S(), draft, undefined,
+        { field, value: '2026-06-03' }, { today: '2026-06-03' });
       eq(label + ': ' + field + ' toegestaan', plan.ok, true);
       if (plan.ok && plan.change) draft = plan.change.task;
     }

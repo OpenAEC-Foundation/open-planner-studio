@@ -24,6 +24,7 @@ import { readP6XML } from '@/services/p6/p6xmlReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import type { Task } from '@/types/task';
+import { CUSTOM_TASK_TYPE_COLOR_ORDER as C } from '@/engine/renderer/resourcePalette';
 import { installDOMParser } from './xmldom-shim';
 import { applyProjectTaskTypeRename } from '@/components/task-sections/projectTaskTypeRename';
 import { writeIFCForComparison } from '@/services/ifc/ifcWriter';
@@ -40,7 +41,8 @@ const eq = (label: string, actual: unknown, expected: unknown) => {
 };
 const project = createDefaultProject();
 const calendar = createDefaultCalendar();
-const custom = { id: 'ops-gevel-v1', name: 'Gevelinspectie' };
+// De adapters (CSV/MSPDI/P6) dragen de kleur niet; bij het lezen krijgt de enige werksoort de eerste vrije (#856).
+const custom = { id: 'ops-gevel-v1', name: 'Gevelinspectie', color: C[0] };
 const task: Task = {
   id: 'task-gevel', name: 'Controle', description: '', wbsCode: '1', taskType: 'USERDEFINED', customTaskTypeId: custom.id,
   status: 'NOT_STARTED', isMilestone: false, priority: 500, parentId: null, childIds: [], resourceIds: [],
@@ -141,7 +143,7 @@ S().redo();
 eq('hernoemen: opnieuw zet de nieuwe naam terug', projectNames(), ['ctt-gevel=Gevelcontrole', 'ctt-dak=Dakinspectie']);
 
 const reopened = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
-eq('hernoemen: na opslaan en heropenen staat de nieuwe naam in het IFC', reopened.customTaskTypes, [{ id: 'ctt-gevel', name: 'Gevelcontrole' }]);
+eq('hernoemen: na opslaan en heropenen staat de nieuwe naam in het IFC', reopened.customTaskTypes, [{ id: 'ctt-gevel', name: 'Gevelcontrole', color: C[0] }]);
 
 // Een botsende naam (ander type in dit project, ook met andere hoofdletters), een lege naam, een
 // onbekend type, dezelfde naam, een werksoort die geen taak gebruikt of een ander document veranderen
@@ -171,7 +173,7 @@ const recovered = await readRecoveryDocument({
 }, new Map(), false);
 const fresh = createAppStoreContext().store;
 eq('herstel: geen document overgeslagen', fresh.getState().restoreDocuments([recovered], docA).skippedIds, []);
-eq('herstel: bevestigde naam terug', fresh.getState().customTaskTypes, [{ id: 'ctt-gevel', name: 'GEVELCONTROLE' }]);
+eq('herstel: bevestigde naam terug', fresh.getState().customTaskTypes, [{ id: 'ctt-gevel', name: 'GEVELCONTROLE', color: C[0] }]);
 
 // Twee documenten met hetzelfde werksoort-id: de hernoeming hoort bij het document waarin ze gevraagd is.
 // Is een ander document actief, dan verandert nergens iets.
@@ -191,7 +193,7 @@ S().switchDocument(docA);
 eq('documentbinding: A blijft daarna gelijk', projectNames(), ['ctt-gevel=GEVELCONTROLE', 'ctt-dak=Dakinspectie']);
 
 // Main liet een ongebruikte definitie al weg uit IFC; dat blijft zo (de schrijfregel verandert niet).
-eq('ongebruikt: IFC bewaart alleen de gebruikte definitie', readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).customTaskTypes, [{ id: 'ctt-gevel', name: 'GEVELCONTROLE' }]);
+eq('ongebruikt: IFC bewaart alleen de gebruikte definitie', readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).customTaskTypes, [{ id: 'ctt-gevel', name: 'GEVELCONTROLE', color: C[0] }]);
 
 // ── Ongebruikte projectkopie: de nieuwe naam gaat stil mee (eigenaarsbesluit 18 november 2026) ──
 // Zo'n definitie bewaart IFC noch herstel, dus er verandert niets wat bewaard wordt: geen sluitvraag
@@ -252,7 +254,7 @@ eq('1834: uitgestelde hernoeming van een ongebruikte kopie', [projectNames(), ev
 
 // Krijgt een taak de werksoort daarna, dan heeft hij de nieuwe naam, ook na IFC-uitvoer en herlezing.
 S().updateTask(stelTask, { taskType: 'USERDEFINED', customTaskTypeId: 'ctt-stel' });
-eq('stil: daarna toegekend: nieuwe naam in het IFC', readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).customTaskTypes, [{ id: 'ctt-kozijn', name: 'Kozijnen' }, { id: 'ctt-stel', name: 'Stelkozijn' }]);
+eq('stil: daarna toegekend: nieuwe naam in het IFC', readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).customTaskTypes, [{ id: 'ctt-kozijn', name: 'Kozijnen', color: C[0] }, { id: 'ctt-stel', name: 'Stelkozijn', color: C[1] }]);
 
 // ── Opslaan terwijl de stille hernoeming valt (fixronde 1 van #1007, review GPT-6.2-Sol) ──
 // Een geslaagde opslag laat het document schoon achter als intussen alleen een ongebruikte werksoort een

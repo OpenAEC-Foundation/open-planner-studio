@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
+import type { RelationAssignDirection } from '@/state/slices/types';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { Icon } from '@/components/icons';
 
@@ -38,6 +39,9 @@ export interface ContextMenuProps {
   /** "Relatie toevoegen" zet de tekenmodus aan en die werkt alleen in de Gantt. Het
    *  taakraster zonder Gantt in beeld geeft hier de uitleg mee; aanwezig = item uitgeschakeld. */
   addRelationDisabledReason?: string;
+  /** Voorgangers of opvolgers toewijzen in het relatiepaneel (issue #1000, Assign in Primavera).
+   *  Werkt ook zonder Gantt: het paneel staat in de rail naast Gantt én Tabel. */
+  onAssignRelation: (direction: RelationAssignDirection) => void;
   onTracePath: () => void;
   onSaveTemplate: () => void;
   /** APARTE in-/uitklap-acties (geen toggle) — zie het commentaar bij het menu-item. */
@@ -97,7 +101,7 @@ export const CONTEXT_MENU_ITEM_CLASS =
 
 export function ContextMenu({
   x, y, task, barHit, group, traceActive, isTreeMode, calendars, canPaste, onClose,
-  onEdit, onAddSubtask, onAddMilestone, onAddRelation, addRelationDisabledReason, onTracePath, onSaveTemplate,
+  onEdit, onAddSubtask, onAddMilestone, onAddRelation, addRelationDisabledReason, onAssignRelation, onTracePath, onSaveTemplate,
   onCollapse, onExpand, onDelete, onDissolve, onAddTask,
   onInsertAbove, onInsertBelow, onIndent, onOutdent, onToggleMilestone,
   onSetCalendar, onSetProgress, onSetPriority,
@@ -192,6 +196,8 @@ export function ContextMenu({
           <MenuItem label={t('context.addSubtask')} onClick={() => { onAddSubtask(); closeAll(); }} onEnter={() => setOpenSub(null)} />
           <MenuItem label={t('context.addMilestone')} onClick={() => { onAddMilestone(); closeAll(); }} onEnter={() => setOpenSub(null)} />
           <MenuItem label={t('context.addRelation')} disabled={addRelationDisabledReason !== undefined} title={addRelationDisabledReason} onClick={() => { onAddRelation(); closeAll(); }} onEnter={() => setOpenSub(null)} />
+          <MenuItem label={t('context.assignPredecessors')} onClick={() => { onAssignRelation('predecessor'); closeAll(); }} onEnter={() => setOpenSub(null)} />
+          <MenuItem label={t('context.assignSuccessors')} onClick={() => { onAssignRelation('successor'); closeAll(); }} onEnter={() => setOpenSub(null)} />
           <Separator />
 
           {isTreeMode && (

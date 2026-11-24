@@ -4,6 +4,7 @@ import { Select } from '@/components/common/Select';
 import { latestReportSettings, patchReportSettings, type ReportOrientation, type ReportPaperSize } from '@/utils/reportSettings';
 import { isReportFontId, REPORT_FONT_IDS, type ReportFontChoice, type ReportFontId } from '@/services/pdf/reportFont';
 import { getCustomFont, saveCustomFont } from '@/services/pdf/customFontStore';
+import { fontReadIsCurrent } from '@/services/pdf/customFontGuard';
 import type { PickedFont } from '@/services/pdf/systemFonts';
 import { useReportSettings } from '@/hooks/useReportSettings';
 import { useAppStore } from '@/state/appStore';
@@ -97,7 +98,6 @@ export function ReportFontSelect({ id, className, value, onChange }: {
   const { t } = useTranslation('report');
   const { customReportFont } = useReportSettings();
   const [dialogOpen, setDialogOpen] = useState(false);
-  useCustomReportFontGuard(value);
 
   const picked = async (font: PickedFont) => {
     const saved = await saveCustomFont(font);
@@ -141,7 +141,7 @@ let missingNoticeShown = false;
  * dan valt het rapport terug op Inter, met één melding (besluit Ethan, 14 november 2026). Staat er in de opslag
  * een nieuwere versie dan in de instellingen, dan neemt deze stand die naam en versie over; leest altijd vers.
  */
-function useCustomReportFontGuard(value: ReportFontChoice): void {
+export function useCustomReportFontGuard(value: ReportFontChoice): void {
   const { customReportFont } = useReportSettings();
   const rev = customReportFont?.rev;
   useEffect(() => {
@@ -149,7 +149,11 @@ function useCustomReportFontGuard(value: ReportFontChoice): void {
     let cancelled = false;
     void getCustomFont({ fresh: true }).then(font => {
       if (cancelled) return;
-      const ref = latestReportSettings().customReportFont;
+      const current = latestReportSettings();
+      // De keuze kan al gewijzigd zijn voordat React de vorige effectopruiming uitvoert.
+      // Een oude opslaglezing mag een nieuwere keuze of revisie niet overschrijven.
+      if (!fontReadIsCurrent(rev, current)) return;
+      const ref = current.customReportFont;
       if (!font) {
         patchReportSettings({ reportFontFamily: 'inter', customReportFont: null });
         if (missingNoticeShown) return;

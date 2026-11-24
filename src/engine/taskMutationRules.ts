@@ -158,22 +158,44 @@ export function normalizeLoadedActualDate(
   return normalizeActualDateWith(task, field, value, statusDate, calendar, false);
 }
 
-/**
- * Werkelijk einde voor een taak op 100 % zonder `actualFinish`: de statusdatum, anders de EIGEN
- * geplande finish (berekend, anders gepland); de regel valt nooit terug op "vandaag"
- * (`check-task-slice.ts`). Eén regel voor de store (`applyProgressInvariants`: grid, store-setters,
- * MCP-validatie) én voor elke lezer (`normalizeImportedProgress`: IFC/CSV/MSPDI/P6/MPP). Een
- * terugval op vandaag zou een bestand met 100 % zonder werkelijk einde bij elke opening op de
- * leesdatum voltooien en zijn opvolgers mee laten opschuiven
- * (`tests/planning/check-import-progress-default.ts`). Bewust alleen de AF-default gedeeld, niet de
- * hele invariant: de import houdt zijn eigen STARTED-regel voor completion > 0 zonder actualStart
- * (het solver-vangnet).
- */
-export function defaultActualFinish(
-  time: Pick<TaskTime, 'earlyFinish' | 'scheduleFinish'>,
-  statusDate: string | undefined,
-): string {
-  return statusDate || time.earlyFinish || time.scheduleFinish;
+export type PlannedProgressDates = Pick<TaskTime, 'earlyStart' | 'earlyFinish'>;
+
+/** Bewaar alleen de voortgang van vóór deze rekenronde. De solver gebruikt verder de actuele
+ * taakplaatsing en actuele relaties. De informatie gaat met de taak mee bij undo en tabwissels. */
+export function rememberProgressBeforeRecalculation(before: Task, after: Task): void {
+  const { completion, actualStart, actualFinish, remainingTime, remainingMinutes } = before.time;
+  const time = after.time;
+  if (completion === time.completion && actualStart === time.actualStart && actualFinish === time.actualFinish
+    && remainingTime === time.remainingTime && remainingMinutes === time.remainingMinutes) return;
+  if (time.completion === 0 && !time.actualStart && !time.actualFinish) {
+    if (time.progressBeforeRecalculation) time.progressBeforeRecalculation = undefined;
+    return;
+  }
+  if (time.actualFinish) return;
+  time.progressBeforeRecalculation ??= {
+    status: before.status, completion, actualStart, actualFinish, remainingTime, remainingMinutes,
+    splitGaps: before.splitGaps,
+  };
+}
+
+/** Lees de planning alleen als de voortgang een datum moet afleiden. */
+export function datesForProgress(
+  task: Task, completion: number, lookup?: (task: Task) => PlannedProgressDates | undefined,
+): PlannedProgressDates | undefined {
+  if (completion >= 1 && !task.time.actualFinish) return lookup?.(task);
+  if (completion > 0 && !task.time.actualStart && !isZeroDurationMilestone(task)) return lookup?.(task);
+  return undefined;
+}
+
+/** Besluit 2026-11-21 (#998): een afmelding op 100% gebruikt het geplande einde.
+ * De statusdatum blijft de bovengrens voor een feit. */
+function deriveActualFinish(
+  task: Task, statusDate: string | undefined, calendar?: WorkCalendar, planned?: PlannedProgressDates,
+): string | undefined {
+  const finish = normalizeActualDate(task, 'actualFinish',
+    planned?.earlyFinish || task.time.earlyFinish || task.time.scheduleFinish, statusDate, calendar);
+  if (!statusDate || !finish || !isTaskActualPastStatusDate(task, 'actualFinish', finish, statusDate, calendar)) return finish;
+  return normalizeActualDate(task, 'actualFinish', statusDate, statusDate, calendar);
 }
 
 /**
@@ -204,7 +226,7 @@ export function isActualFinishBeforeStart(time: Pick<TaskTime, 'actualStart' | '
  * werkelijke start ná het werkelijke einde (= de statusdatum).
  *
  * "Het einde" is het al gezette `actualFinish`, of — staat de taak op 100% zonder einde — het einde
- * dat `applyProgressInvariants` daarna afleidt (`defaultActualFinish`). Roep dit dus aan NÁ het
+ * dat `applyProgressInvariants` daarna afleidt (`deriveActualFinish`). Roep dit dus aan NÁ het
  * vastleggen van `completion` en het wissen van een verouderd einde, en vóór de invarianten.
  * Eerst D1/D6 op de afgeleide datums, dan vergelijken met `isActualFinishBeforeStart`
  * (instantprecisie). Zo blijft een start om 10:00 vóór een afgeleid einde om 16:00.
@@ -213,17 +235,19 @@ export function isActualFinishBeforeStart(time: Pick<TaskTime, 'actualStart' | '
  * ongemoeid; een ongeldig opgegeven paar hoort de aanroeper te weigeren, niet stil te klemmen.
  */
 export function fillMissingActualStart(
-  task: Task, statusDate: string | undefined, calendar?: WorkCalendar, plannedStart?: () => string | undefined,
+  task: Task, statusDate: string | undefined, calendar?: WorkCalendar, planned?: PlannedProgressDates,
 ): void {
   const time = task.time;
   if (time.actualStart) return;
   // Een nulduur-mijlpaal heeft één werkelijk moment. Gebruik daarvoor de regel voor afmelden.
-  const originalStart = isZeroDurationMilestone(task) ? undefined : plannedStart?.();
-  const start = normalizeActualDate(task, 'actualStart', originalStart ?? defaultActualStart(time), statusDate, calendar)!;
-  const finish = time.actualFinish
-    || (time.completion >= 1
-      ? normalizeActualDate(task, 'actualFinish', defaultActualFinish(time, statusDate), statusDate, calendar)
-      : undefined);
+  const finish = time.actualFinish || (time.completion >= 1
+    ? deriveActualFinish(task, statusDate, calendar, planned)
+    : undefined);
+  if (!time.actualFinish && finish && isZeroDurationMilestone(task)) {
+    time.actualStart = finish;
+    return;
+  }
+  const start = normalizeActualDate(task, 'actualStart', planned?.earlyStart || defaultActualStart(time), statusDate, calendar)!;
   time.actualStart = finish && isActualFinishBeforeStart({ actualStart: start, actualFinish: finish })
     ? finish
     : start;
@@ -236,12 +260,12 @@ export function fillMissingActualStart(
  *  te draaien, met dezelfde `statusDate`. */
 export function applyCompletionEdit(
   task: Task, completion: number, statusDate: string | undefined, calendar?: WorkCalendar,
-  plannedStart?: () => string | undefined,
+  planned?: PlannedProgressDates,
 ): void {
   const time = task.time;
   time.completion = completion;
   if (completion < 1) time.actualFinish = undefined;
-  if (completion > 0) fillMissingActualStart(task, statusDate, calendar, plannedStart);
+  if (completion > 0) fillMissingActualStart(task, statusDate, calendar, planned);
 }
 
 /** Een werkelijke start of einde zetten (`undefined` = wissen) en daarna de voortgangsinvarianten
@@ -255,14 +279,17 @@ export function applyActualDateEdit(
   date: string | undefined,
   statusDate: string | undefined,
   calendar?: WorkCalendar,
+  planned?: PlannedProgressDates,
 ): void {
   task.time[field] = date || undefined;
   if (field === 'actualFinish' && !date && task.time.completion >= 1) task.time.completion = 0;
-  applyProgressInvariants(task, statusDate, calendar);
+  applyProgressInvariants(task, statusDate, calendar, planned);
 }
 
 /** Centrale voortgangsinvarianten, gedeeld door grid, store-setters en MCP-validatie. */
-export function applyProgressInvariants(task: Task, statusDate: string | undefined, calendar?: WorkCalendar): void {
+export function applyProgressInvariants(
+  task: Task, statusDate: string | undefined, calendar?: WorkCalendar, planned?: PlannedProgressDates,
+): void {
   const time = task.time;
   if (time.actualFinish) {
     time.completion = 1;
@@ -270,7 +297,7 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
     task.status = 'COMPLETED';
   } else if (time.completion >= 1) {
     // Eerst D6, dan pas de volgorde: een vastgelegde start om 10:00 blijft vóór het einde om 16:00.
-    time.actualFinish = normalizeActualDate(task, 'actualFinish', defaultActualFinish(time, statusDate), statusDate, calendar);
+    time.actualFinish = deriveActualFinish(task, statusDate, calendar, planned);
     const startWasDerived = !time.actualStart;
     if (startWasDerived) time.actualStart = time.actualFinish;
     const finish = time.actualFinish!;

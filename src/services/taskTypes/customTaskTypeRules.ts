@@ -16,7 +16,7 @@ export function sameTaskTypeName(a: string, b: string): boolean {
  *  type met een ánder id maar dezelfde naam. */
 export function customTaskTypeClashes(
   types: readonly CustomTaskType[],
-  candidate: CustomTaskType,
+  candidate: Pick<CustomTaskType, 'id' | 'name'>,
 ): { sameId?: CustomTaskType; sameNameOtherId?: CustomTaskType } {
   return {
     sameId: types.find(type => type.id === candidate.id),

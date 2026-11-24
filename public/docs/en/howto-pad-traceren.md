@@ -16,7 +16,7 @@ The roofing only starts in three weeks and you want to know which task decides t
 
 If you select another task while tracing, the path follows the new selection.
 
-If you want to walk the path step by step, for example back along the critical path, use the arrows next to the *Dependencies* heading in the *Properties* panel. The left one goes to the driving predecessor, the right one to the successor the task drives, and the path follows. You can also click the WBS code of a predecessor or successor to jump to that task.
+If you want to walk the path step by step, for example back along the critical path, use the arrows next to the *Dependencies* heading in the *Properties* panel. The left one goes to the driving predecessor, the right one to the successor the task drives, and the path follows. You can also click the WBS code of a predecessor or successor to jump to that task. The relations themselves are listed in two separate lists: the predecessors and the successors of the selected task, each with its own heading (side by side in a wide panel, stacked in a narrow one).
 
 ## Reading the result
 

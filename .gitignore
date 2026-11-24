@@ -21,6 +21,7 @@ headless/**/package-lock.json
 !.claude/skills/wiki/
 !.claude/skills/docs-update/
 !.claude/skills/docs-audit/
+!.claude/skills/delete-comment/
 !.claude/skills/update-ui-lang/
 !.claude/skills/nachtvertalingen/
 !.claude/skills/update-docs-lang/

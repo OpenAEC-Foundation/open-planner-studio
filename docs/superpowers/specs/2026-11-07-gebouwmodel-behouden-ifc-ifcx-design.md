@@ -550,7 +550,7 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
 
 1. **Openen als bytes.** Elke open-route voor IFC leest bytes: Openen (`tauriBackend.ts:22`, `webBackend.ts:124`,
    `siteBackend.ts:43`), Recent (`tauriBackend.ts:87-90`, `fileSlice.ts:1658`) en externe bronnen
-   (`parseExternalSource`, `fileSlice.ts:1500`). De grootte wordt vóór het lezen gecontroleerd (§4.13).
+   (`parseExternalSource`, `fileSlice.ts:1500`). De grenzen staan in §4.13.
    `openExampleFromString` (voorbeelden, `helpApi.ts:104`, `useDemoStartExample.ts:49`, `qaScenes.ts:89`) blijft tekst:
    het zijn eigen bestanden in UTF-8. Een voorbeeld met een model (`bouwmodel-ifc4.ifc` in de QA-scènes) gaat via
    dezelfde route met `TextEncoder`; dat is byte-gelijk voor geldige UTF-8.
@@ -571,19 +571,16 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
 6. **Terugval naar de huidige route (v21, fase 1a; afwijking 7).** De bytes-route valt terug op de route van nu: de bytes
    als UTF-8-tekst naar `readIFC`, met de modelweigering en zonder `ifcSource`. Dat gebeurt in vier gevallen
    (`src/services/ifc/foreign/ifcBytesRoute.ts:77-96`):
-   - de bron is groter dan 300 MiB (`IFC_BYTES_ROUTE_MAX_BYTES`, §4.13);
+   - de bron is groter dan 300 MiB (`IFC_BYTES_ROUTE_MAX_BYTES`, de technische grens, §4.13);
    - de scanner weigert de bytes (§4.1), ook als `readIFC` het bestand wel opent;
    - de kopnaam is geen van de herkende namen van §4.11;
    - de lezer kiest andere taken, resources, kalenders, een ander werkplan of een ander werkschema dan `selectPlanning`
      (een controle na het lezen).
 
-   De uitkomst is dan precies die van de app zonder flag. Waarom: de scanner is strenger dan `readIFC` (bijvoorbeeld bij
-   een dubbel `#id` of een `#id` boven 2147483647, knownbug 1007). Een bestand dat nu opent, mag met de flag niet
-   geweigerd worden. Een model dat de scanner niet kan indelen, kan de writer niet byte-gelijk bewaren; dat blijft dus
-   geweigerd. Voorbeeld: een eigen bestand met een losse `#2147483648=IFCPERSON(...)` opent zoals nu, zonder bron, en
-   opslaan mag. `bonsai-4d.ifc` met dezelfde regel krijgt de modelweigering. Met `#2147483647` gaan beide door de
-   bytes-route. Gevolg voor §4.11: een onbekend schema met een vreemd deel zonder `IfcProduct` opent zoals nu (zonder
-   bron, dus zonder bewaking); met een model blijft het geweigerd. Test: `tests/planning/check-ifc-foreign-open.ts`,
+   De scanner is strenger dan `readIFC` (bijvoorbeeld bij een dubbel `#id` of een `#id` boven 2147483647, knownbug 1007).
+   Een model dat de scanner niet kan indelen, kan de writer niet byte-gelijk bewaren; dat blijft geweigerd. Een terugval
+   opent alleen als de indeling daarna geen C, A of V vindt; anders weigert openen. De uitzondering voor een schema
+   (IFC2X3 zonder model) staat in §4.11. Test: `tests/planning/check-ifc-foreign-open.ts`,
    deel 7.
 
    Uitwerking van punt 4 in fase 1a: de lezer krijgt ook het stuk van het enige `IfcProject` als dat V is (§4.2,
@@ -770,15 +767,18 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     van wat de app gezien heeft); een leesbaar bestand dat geen IFC is, is een gewoon doel. Eén scan van de vastgelegde
     bytes, gedeeld door de controle na de kiezer en die na de eerste herstelronde (was knownbug 1891). De eigen bron
     blijft geweigerd, met een verwijzing naar *Opslaan*; het bestand of de bron van een ander open document krijgt de
-    melding van een open tabblad, net als bij Exporteren. Een link naar een modelbestand blijft geweigerd. Exporteren,
-    Ctrl+S met een opslagdoel, Automatisch opslaan en MCP krijgen die toestemming niet. Daarbij weigert
+    melding van een open tabblad, net als bij Exporteren. Een link naar een modelbestand blijft geweigerd. Ctrl+S met
+    een opslagdoel en Automatisch opslaan krijgen die toestemming niet. Daarbij weigert
     de vervanging ook een bestand dat in een ander tabblad open staat, ook een gewone planning zonder vreemd deel
     (fixronde 1 van #1019): na de eerste herstelronde en vóór de eerste schrijfactie in de map. Een vrije naam die een
     ander tabblad nog als pad onthoudt, blijft een vrije naam (fixronde 2). Of er een bestand staat, stelt de app direct na de
     terugkeer van de bestandskiezer vast; een toen leeg pad houdt de exclusieve aanmaak (knownbug 1890). Waar de vervanging
     niet kan (buiten de scope van de kiezer, knownbug 1762; een link of een harde link; een bestandssysteem zonder
     exclusieve stap), blijft de melding dat alleen een nieuwe naam kan; geen terugval. Met de flag uit is alles zoals
-    voorheen, ook de volgorde van de weigerredenen. Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
+    voorheen, ook de volgorde van de weigerredenen. Exporteren → IFC (de planner in het venster) en `planner_export_ifc`
+    (alleen met `overwrite: true`) vervangen een bestaande naam bij een document met een vreemd deel langs dezelfde weg
+    (besluit van de eigenaar, 21 november 2026; #1179): zonder manifeststap, zonder vastleggen op het document, en niet
+    over het eigen bestand van het document.
   - **Stappen.** 0: een eigen herstelrecord voor deze vervanging, `recovery[.<slug>].replace.<id>.json` in de
     appDataDir, met `{ id, path, vorigeSha256, pendingSha256 }`, en in het manifest `pendingSha256` (§4.14). Het record
     staat bewust buiten het manifest (besluit van de technisch beslisser, 18 november 2026, na de review van #991): het
@@ -908,7 +908,31 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 
 - Bronbytes één keer in het geheugen (§4.8). Uitvoer = verwijzingen naar de bron plus de P-stukken.
 - De Tauri-app draait op WebKit (JavaScriptCore) op Linux en macOS en op WebView2 (V8) op Windows; de browserbuild op V8.
-- Voorlopige grens: 150 MB, gecontroleerd vóór het volledig lezen. De echte grens volgt uit de meting in fase 0.
+- Twee grenzen, elk op één plek (besluit van de technisch beslisser, 21 november 2026, route A; knownbug 1936):
+  - **De drempel voor de waarschuwing**: 150 MiB (binair, 157.286.400 bytes), `IFC_FOREIGN_OPEN_WARN_BYTES` in
+    `foreignOpenSize.ts`. Eerste besluit van de eigenaar (21 november 2026): "tot 150 mb, later kunnen we dat nog
+    uitbouwen, zorg dat de architectuur flexibel genoeg is om dat alsnog te doen later." Openen weigerde toen daarboven.
+    Besluit van de eigenaar van 24 november 2026: "zo laten, kunnen we niet maken dat het toch kan en dan gewoon hier een
+    warning van maken dat het heel gevaarlijk is?", met de vorm "Het bestand opent meteen. De waarschuwing blijft staan
+    tot je haar wegklikt." Een bestand dat volgens de leesroute een gebouwmodel of vreemde gegevens heeft en groter is
+    dan 150 MiB, opent dus gewoon, met een openingsmelding zonder timer die zegt dat opslaan kan mislukken doordat het
+    geheugen opraakt en dat recente wijzigingen dan verloren kunnen gaan. Dat het bestand op schijf gelijk blijft, belooft
+    ze niet: dat is alleen gemeten voor een stop tijdens het rekenen, vóór het schrijven (knownbug 1936). Zonder timer is
+    niet hetzelfde als staan tot je haar wegklikt: de stapel van drie kan haar verdringen (knownbug 2253). De toets
+    gebruikt wat de leesroute al weet; geen tweede scan. Een planning zonder gebouwmodel en zonder vreemde gegevens krijgt de waarschuwing niet, en een
+    IFC2X3-bestand zonder gebouwmodel evenmin: dat opent via de schematerugval zonder `ifcSource`, met de bestaande
+    verliesmelding (§4.11). Elke route die in de app een nieuw document opent, toont haar, en `planner_import_schedule`
+    in de app zet haar ook in zijn antwoord. Niet bij het crashherstel (dat opent zijn bron in een eigen context), de
+    doelscan, opslaan of headless.
+  - **De technische grens van de bytes-route**: 300 MiB, `IFC_FOREIGN_SCAN_MAX_BYTES` in `foreignScan.ts` (de meting van
+    fase 0). Daarboven de terugval `te-groot` (§4.9 punt 6). De doelscan, het crashherstel en headless gebruiken alleen
+    deze grens.
+  Waarom twee: opslaan van een model van 157 MB piekte in de desktopapp op Linux na #1111 op 3,44 / 3,54 / 3,69 GB over
+  drie opslagen, bij een maat van 4 GB (meting van 21 november 2026 op main `2d585a295`, knownbug 1936); de eigenaar wilde
+  op 21 november een model tot 150 MB, en sinds 24 november daarboven een waarschuwing in plaats van een weigering. Eén
+  verlaagde technische grens schoof ook de terugval voor een planning zonder model, het herstel en de doelscan naar
+  150 MiB, en daar verloor de app wat main bewaart (review van #1127, ronde 1 tot 3). De uitvoer van opslaan heeft geen
+  grens; een bestand dat door opslaan boven de drempel komt, opent daarna met de waarschuwing.
 
 ### 4.14 Herstel en een ontbrekende bron
 

@@ -283,16 +283,16 @@ for (const { kind, statusDate } of SCENARIOS) {
 }
 
 // #998: de statusdatum kan de taak op de statusdag laten lijken terwijl haar anker eerder ligt.
-// Als alleen het percentage wordt ingevuld, geldt dat oorspronkelijke begin als werkelijke start.
+// Als alleen het percentage wordt ingevuld, blijven het oorspronkelijke begin en einde gelden.
 for (const { kind, start, finish } of [
-  { kind: 'uur', start: '2026-06-01T08:00', finish: '2026-06-10T17:00' },
-  { kind: 'dag', start: '2026-06-01T07:00', finish: '2026-06-10T16:00' },
+  { kind: 'uur', start: '2026-06-01T08:00', finish: '2026-06-05T12:00' },
+  { kind: 'dag', start: '2026-06-01T07:00', finish: '2026-06-05T16:00' },
 ] as const) {
   const { S, ids, time$ } = setup(kind, '2026-06-10', 1, '2026-06-01');
   const t = ids[0]!;
   eq(`${kind} #998: geplande taak is opgeschoven`, time$(t).earlyStart.slice(0, 10), '2026-06-10');
   const result = S().runGridMutation([cell(t, 'task.time.completion', 'task-progress', 1)]);
-  eq(`${kind} #998: 100% houdt oorspronkelijk begin en einde op statusdatum`,
+  eq(`${kind} #998: 100% houdt oorspronkelijk begin en einde`,
     { accepted: result.ok, start: time$(t).actualStart, finish: time$(t).actualFinish },
     { accepted: true, start, finish });
 }

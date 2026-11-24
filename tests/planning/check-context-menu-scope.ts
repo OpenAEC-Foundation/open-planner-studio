@@ -175,15 +175,29 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   eq('17 voortgang: één Ctrl+Z draait alle drie terug',
     [b, c, d].map(id => task(id)?.time.completion), [0, 0, 0]);
 }
-{
+for (const duration of [1, 3]) {
   S().newProject();
   S().setProject({ startDate: '2026-06-08', statusDate: '2026-06-10' });
-  const a = S().addTask({ name: 'A', time: { scheduleDuration: 1 } as Task['time'] });
+  const a = S().addTask({ name: 'A', time: { scheduleDuration: duration } as Task['time'] });
   const b = S().addTask({ name: 'B', time: { scheduleDuration: 2 } as Task['time'] });
   S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
   S().runCPM();
   S().selectTasks([b, a], false);
   const action = contextMenuBulk.setProgress(b, 1);
+  if (duration === 1) {
+    eq('#998 geen startvraag als het geplande einde van A op 8 juni blijft',
+      S().ui.pendingActualStartQuestion, null);
+    answerActualStartQuestion(null);
+    await action;
+    eq('#998 gelijktijdig afmelden gebruikt het geplande einde en start van de opvolger',
+      [task(a)?.time.actualFinish, task(b)?.time.actualStart, task(b)?.time.actualFinish],
+      ['2026-06-08T16:00', '2026-06-09T07:00', '2026-06-10T16:00']);
+    S().undo();
+    eq('#998 één Ctrl+Z draait beide afmeldingen terug',
+      [task(a)?.time.completion, task(b)?.time.completion], [0, 0]);
+    continue;
+  }
+  // Met drie werkdagen eindigt A op de statusdag. Voor B is dan een werkelijke start nodig.
   eq('#998 contextmenu vraagt om start van opvolger voordat iets is afgemeld',
     [S().ui.pendingActualStartQuestion?.items.map(item => item.taskId), task(a)?.time.completion, task(b)?.time.completion],
     [[b], 0, 0]);

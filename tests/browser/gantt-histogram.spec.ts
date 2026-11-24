@@ -264,6 +264,25 @@ test('histogram splitter persisteert pas bij mouseup en paints worden weer stil'
   await expect.poll(() => page.evaluate(() => window.__OPS__!.gantt.lastSize('histogram')?.height))
     .toBe(height);
   await waitForTwoQuietWindows(page);
+
+  // Terug uit Tabel mount de strook pas ná de eerste render (portal-doel `histogramHost`). Ook dan
+  // moet een nieuwe hoogte op de volle maat hertekenen, niet op de oude.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'table' }));
+  await expect(page.getByTestId('gantt-histogram-canvas')).toHaveCount(0);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'start' }));
+  await expect(page.getByTestId('gantt-histogram-canvas')).toBeVisible();
+  await waitForTwoQuietWindows(page);
+  const remounted = await splitter.boundingBox();
+  expect(remounted).not.toBeNull();
+  await page.mouse.move(remounted!.x + remounted!.width / 2, remounted!.y + remounted!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(remounted!.x + remounted!.width / 2, remounted!.y - 80, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(() => state(page).then(s => s.ui.histogramHeight)).toBeGreaterThan(height);
+  const grown = (await state(page)).ui.histogramHeight;
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.gantt.lastSize('histogram')?.height))
+    .toBe(grown);
+  await waitForTwoQuietWindows(page);
 });
 
 test('Gantt: pijltjestoetsen volgen de zichtbare taken zodra de gedeelde taakgrid focus heeft', async ({ page, ops: _ops }) => {

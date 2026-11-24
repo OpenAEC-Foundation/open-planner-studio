@@ -56,6 +56,7 @@ export function useStudioPrintOptions(
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   const cpmResult = useAppStore(s => s.cpmResult);
   const resources = useAppStore(s => s.resources);
+  const customTaskTypes = useAppStore(s => s.customTaskTypes);
   const assignments = useAppStore(s => s.assignments);
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
@@ -177,10 +178,9 @@ export function useStudioPrintOptions(
       companyName,
       taskNameColumnWidth: settings.truncateTaskNames ? settings.taskNameColumnWidth : (autoNameWidth ?? settings.taskNameColumnWidth),
       labels: {
-        // Resourcediagram zonder toewijzing: zeg wat er ontbreekt, niet "geen taken".
         noTasks: resource && tasks.length > 0
           ? (resource.result.counts.inPeriod === 0 && resource.result.counts.outsidePeriod > 0 ? t('resourceGantt.emptyPeriod') : t('resourceGantt.empty'))
-          : t('noTasks'),
+          : rowSource.window && tasks.length > 0 && reportRows?.length === 0 ? t('resourceGantt.emptyPeriod') : t('noTasks'),
         printed: t('printed'),
         legend: {
           criticalPath: t('legend.criticalPath'),
@@ -220,6 +220,7 @@ export function useStudioPrintOptions(
       activityCodeTypes: fieldCtx.activityCodeTypes,
       customFieldDefs: fieldCtx.customFieldDefs,
       taskTypeLabels,
+      customTaskTypes,
       barColorNoneLabel: tTask('structure.none'),
       statusLine: settings.statusLine,
       statusDate: project.statusDate,
@@ -252,7 +253,7 @@ export function useStudioPrintOptions(
     settings.compressNonWorkdays, settings.timelineColumns, settings.reportFontScale, settings.statusLine,
     companyName, autoNameWidth, t, tTask, tableHeaders, daySuffix, locale, project.startDate,
     project.endDate, project.author, project.statusDate, dateNotation, timeNotation, weekStartDay, cpmResult, barColorSelection,
-    fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs, taskTypeLabels, resources, assignments, baselineOverlay,
+    fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs, taskTypeLabels, customTaskTypes, resources, assignments, baselineOverlay,
     baselineComparisons, baselineNames, columnWidths, tableColumns, durationDisplay, durationSuffixes, calendars,
-    workdayDurationMeasure, fontStack, rowFields, resource, curveLabels, curveColumnWidth, tasks.length]);
+    workdayDurationMeasure, fontStack, rowFields, resource, curveLabels, curveColumnWidth, tasks.length, rowSource.window, reportRows]);
 }

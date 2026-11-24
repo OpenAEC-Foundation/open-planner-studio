@@ -24,7 +24,7 @@ import {
   type MoveProjectOptions, type MoveImpact, type HolidayGapCalendar,
 } from '@/engine/moveProject';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
-import { freshPayload, hydratePayload } from '../documentContract';
+import { freshPayload, hydratePayload, type TargetFingerprint } from '../documentContract';
 import { normalizeTaskDates } from '../migrations/minuteModel';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
@@ -112,6 +112,7 @@ export interface ProjectSlice {
   /** De site-versie waarop dit document rust (de `baseVersion` van de volgende opslag), of `null`.
    *  Zie `DocumentPayload.siteFileVersion`. */
   siteFileVersion: string | null;
+  knownTargetFingerprint: TargetFingerprint | null;
   /** Persoonlijke sessiekeuze voor echte bestands-AutoSave; per document via DOCUMENT_FIELDS. */
   autoSaveToFile: boolean;
   /** XER-herkomst van het actieve document; externe relaties blijven solverloze brondata. */
@@ -216,6 +217,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   fileHandle: null,
   siteFileId: null,
   siteFileVersion: null,
+  knownTargetFingerprint: null,
   autoSaveToFile: false,
   xerImportMetadata: null,
   xerSourceArchive: null,
@@ -617,6 +619,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   setFilePath: (path) =>
     set((s) => {
       s.filePath = path;
+      s.knownTargetFingerprint = null;
     }),
 
   loadState: (loaded, opts) => {

@@ -515,7 +515,8 @@ export function fixedCatalogEdits(_d: Domain): Edit[] {
  * De verliescontrole (`lossCheck`) direct op de echte uitvoer van een geslaagde opslag, als O1, met de bron als O0 (zo kan
  * een proef een fout van de writer in O1 nabootsen). `run(lines)` geeft de bronstukken waarop de controle weigert; de
  * ongemuteerde O1 hoort leeg te geven. `toets`: ook met de andere toets voor de eigen groepen (PR 12b) en de baselinekop
- * (PR 12c), zoals `prepareIfcWrite` hem aanzet (`openedOwnGroups`); zonder: de controle van main.
+ * (PR 12c), zoals `prepareIfcWrite` hem aanzet (`openedOwnGroups`); zonder: de controle van main. `explained`: elk verschil
+ * dat een oude verklaring (`explainO1`) toeliet, met de regel.
  */
 export async function lossProbe(bytes: Uint8Array, input: Domain, output: Uint8Array, toets = false) {
   const lines = (b: Uint8Array) => latin1Text(b).split('\n').map(parseOutLine).filter((l): l is OutLine => !!l);
@@ -527,8 +528,8 @@ export async function lossProbe(bytes: Uint8Array, input: Domain, output: Uint8A
   const objects1 = new Map(Object.entries(reread.ifcSource!.stepIds).map(([key, id]) => [id, key]));
   for (const l of o1) if (l.type === 'IFCWORKSCHEDULE' && l.args[13] === '.BASELINE.') objects1.set(l.id, 'baselines');
   const pristine = await pristineDomain(index, cls, source);
-  const own = toets && source.opened ? openedOwnGroups(index, cls, plan.plan, pristine, source.opened, source.stepIds, new Date()) : {};
-  const run = (o1Lines: OutLine[], edited = input, lines0 = o0) => {
+  const own: Partial<ReturnType<typeof openedOwnGroups>> = toets && source.opened ? openedOwnGroups(index, cls, plan.plan, pristine, source.opened, source.stepIds, new Date()) : {};
+  const run = (o1Lines: OutLine[], edited = input, lines0 = o0, explained?: (chunk: number, why: string) => void) => {
     const found: number[] = [];
     lossCheck({ index, cls, fixed: new Set([...plan.bySource.keys(), ...plan.baselineHeads.values()]), bySource: plan.bySource,
       o0: lines0, o1: o1Lines, pristine, domain: sourceFormWhereUnchanged(edited, source.opened, pristine).input, opened: source.opened, objects1,
@@ -536,8 +537,9 @@ export async function lossProbe(bytes: Uint8Array, input: Domain, output: Uint8A
       owner0: Number(o0.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
       owner1: Number(o1.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
       ...own,
+      ...(explained ? { explainedO1: (d: { chunk: number }, why: string) => explained(d.chunk, why) } : {}),
     }, f => found.push(f.chunk));
     return found;
   };
-  return { index, o0, o1, run, opened };
+  return { index, o0, o1, run, opened, ownGroups: own.ownGroups };
 }

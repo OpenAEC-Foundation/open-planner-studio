@@ -324,7 +324,11 @@
     "rename": "편집",
     "remove": "삭제",
     "addToMine": "내 공종에 추가",
-    "confirmRemove": "이 공종은 열린 프로젝트에서 사용 중입니다. 내 공종에서 삭제하시겠습니까? 프로젝트 사본은 유지됩니다."
+    "confirmRemove": "이 공종은 열린 프로젝트에서 사용 중입니다. 내 공종에서 삭제하시겠습니까? 프로젝트 사본은 유지됩니다.",
+    "renameInProjectTitle": "이 프로젝트에서도 이름을 바꾸시겠습니까?",
+    "renameInProjectMessage": "공종 “{{oldName}}”은(는) 이 프로젝트에서도 사용됩니다. 여기에서도 “{{newName}}”(으)로 부르시겠습니까?",
+    "renameInProjectYes": "이 프로젝트에도",
+    "renameInProjectNo": "내 목록에서만"
   },
   "duration": {
     "label": "기간",
@@ -377,7 +381,15 @@
       "resourceShorter": "추가 리소스를 배정하면 작업이 짧아집니다.",
       "resourceAddsWorkSameDuration": "추가 리소스를 배정하면 작업량이 늘고, 기간은 그대로 유지됩니다."
     },
-    "info": "작업 유형 설명"
+    "info": "작업 유형 설명",
+    "hint": {
+      "intro": "작업 유형은 기간, 단위(하루 인원) 또는 작업량(시간)을 바꿀 때 앱이 무엇을 조정할지 정합니다.",
+      "FIXED_DURATION_RATE": "기간과 단위는 그대로 두고 작업량이 따라 바뀝니다. 예: 2명, 하루 8시간씩 5일 = 80시간.",
+      "FIXED_DURATION_WORK": "기간과 작업량은 그대로 두고 단위가 따라 바뀝니다. 예: 하루 8시간씩 5일에 80시간 = 하루 2명.",
+      "FIXED_WORK": "작업량은 그대로 두고 기간이 따라 바뀝니다. 예: 2명이 80시간 = 5일, 4명이면 2.5일.",
+      "FIXED_RATE": "단위는 그대로 두고 작업량이 기간을 정합니다. 예: 크레인 1대, 작업량 40시간 = 5일, 80시간 = 10일.",
+      "projectDefault": "프로젝트가 기본값으로 쓰는 작업 유형을 따릅니다."
+    }
   },
   "properties": {
     "task": "작업",
@@ -449,6 +461,8 @@
     "interferingFloat": "간섭 여유:",
     "criticalPath": "주공정 경로:",
     "dependencies": "관계",
+    "predecessors_other": "선행 작업 {{count}}개",
+    "successors_other": "후속 작업 {{count}}개",
     "addRelation": "관계 추가",
     "addRelationSearch": "작업 검색…",
     "addRelationConfirm": "관계 만들기",

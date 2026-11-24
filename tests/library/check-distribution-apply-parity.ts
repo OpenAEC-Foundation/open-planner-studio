@@ -201,5 +201,118 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
+function distributionWithLocalMachine(successorDays: number, relation: 'FINISH_START' | 'FINISH_FINISH' = 'FINISH_START') {
+  const context = createAppStoreContext();
+  const state = context.store.getState;
+  const fixed = addDocumentTask(context, 'ops', 'Vaste kraanboeking', '2026-06-01', 1, 1000);
+  state().newDocument();
+  const moving = addDocumentTask(context, 'ops', 'Te verdelen kraantaak', '2026-06-01', 1);
+  const machine = state().addResource({ name: 'Lokale machine', type: 'EQUIPMENT', description: '', maxUnits: 1 });
+  const machineTask = (name: string, start: string, days: number) => {
+    const id = state().addTask({ name, time: createDefaultTaskTime(start, days, 'days', state().calendar) });
+    state().assignResource(id, machine, 1);
+    return id;
+  };
+  const successor = machineTask('Opvolger buiten scope', '2026-06-02', successorDays);
+  state().addSequence({ predecessorId: moving.taskId, successorId: successor, type: relation, lagDays: 0 });
+  const propose = () => {
+    state().runCPM();
+    const docs = inputs(context).map(doc => ({ ...doc, pinned: doc.docId === fixed.docId }));
+    return { proposal: computeDistribution('c1', pool, 'kraan', docs, { allowSplits: false }), writeScope: scope(docs) };
+  };
+  const start = () => state().tasks.find(task => task.id === successor)?.time.earlyStart.slice(0, 10);
+  const machineConflicts = () => state().resourceLoadResult?.overallocatedDays[machine] ?? [];
+  return { state, fixed, moving, machine, machineTask, successor, propose, start, machineConflicts };
+}
+
+check('R2 nieuwe botsing door het wissen van een bestaande kraanvertraging', () => {
+  const { state, fixed, moving, machineTask, successor, propose, start, machineConflicts } = distributionWithLocalMachine(1);
+  const first = propose();
+  assert.equal(start(), '2026-06-02');
+  assert(state().applyDistribution(first.proposal, first.writeScope).ok);
+  assert.equal(start(), '2026-06-03');
+
+  state().switchDocument(fixed.docId);
+  state().updateTask(fixed.taskId, { time: createDefaultTaskTime('2026-06-05', 1, 'days', state().calendar) });
+  state().runCPM();
+  state().switchDocument(moving.docId);
+  machineTask('Andere machinetaak', '2026-06-02', 1);
+  const second = propose();
+  assert.equal(start(), '2026-06-03');
+  assert.deepEqual(machineConflicts(), []);
+  const shortfalls = second.proposal.docs.find(doc => doc.docId === moving.docId)?.shortfalls;
+  const applied = state().applyDistribution(second.proposal, second.writeScope);
+  assert.deepEqual({ shortfalls, applied: applied.ok ? 'applied' : applied.reason, conflicts: machineConflicts() }, {
+    shortfalls: [{ taskId: successor, reason: undefined, days: ['2026-06-02'] }],
+    applied: 'shortfall',
+    conflicts: [],
+  });
+  assert.equal(start(), '2026-06-03');
+});
+
+check('R2 gelijke lokale overbezetting houdt de kraanverdeling niet tegen', () => {
+  const { state, machine, machineTask, propose, start, machineConflicts } = distributionWithLocalMachine(3);
+  const thursday = '2026-06-04';
+  machineTask('Andere machinetaak', thursday, 1);
+  const { proposal, writeScope } = propose();
+  assert.equal(start(), '2026-06-02');
+  assert.deepEqual(machineConflicts(), [thursday]);
+  const loadBefore = state().resourceLoadResult?.load[machine]?.[thursday];
+  assert.equal(loadBefore, 2);
+  const applied = state().applyDistribution(proposal, writeScope);
+  assert.equal(applied.ok ? 'applied' : applied.reason, 'applied');
+  assert.equal(proposal.hasShortfall, false);
+  assert.equal(start(), '2026-06-03');
+  assert.deepEqual(machineConflicts(), [thursday]);
+  assert.equal(state().resourceLoadResult?.load[machine]?.[thursday], loadBefore);
+});
+
+check('R3 hamertaak buiten scope gaat voor het eerst de lokale machine bezetten', () => {
+  const { state, moving, machine, machineTask, successor, propose, machineConflicts } =
+    distributionWithLocalMachine(1, 'FINISH_FINISH');
+  const tuesday = '2026-06-02';
+  const startAnchor = machineTask('Startanker van de hamertaak', tuesday, 1);
+  state().updateTask(successor, { isHammock: true });
+  state().addSequence({ predecessorId: startAnchor, successorId: successor, type: 'START_START', lagDays: 0 });
+  const { proposal, writeScope } = propose();
+  const duration = () => state().tasks.find(task => task.id === successor)?.time.scheduleDuration;
+  assert.equal(duration(), 0);
+  assert.equal(state().resourceLoadResult?.load[machine]?.[tuesday], 1);
+  assert.deepEqual(machineConflicts(), []);
+
+  const shortfalls = proposal.docs.find(doc => doc.docId === moving.docId)?.shortfalls;
+  const applied = state().applyDistribution(proposal, writeScope);
+  assert.deepEqual({ shortfalls, applied, duration: duration(), conflicts: machineConflicts() }, {
+    shortfalls: [{ taskId: successor, reason: undefined, days: [tuesday] }],
+    applied: { ok: false, reason: 'shortfall' },
+    duration: 0,
+    conflicts: [],
+  });
+});
+
+check('R4 vaste woensdaglast blijft staan terwijl een tweede kraantaak opschuift', () => {
+  const { state, moving, machine, machineTask, propose, start, machineConflicts } = distributionWithLocalMachine(1);
+  const first = propose();
+  assert(state().applyDistribution(first.proposal, first.writeScope).ok);
+  const wednesday = '2026-06-03';
+  assert.equal(start(), wednesday);
+  const secondCrane = machineTask('Tweede taak met kraan en machine', '2026-06-02', 1);
+  const crane = state().resources.find(resource => resource.libraryOrigin?.libraryItemId === 'kraan');
+  assert(crane);
+  state().assignResource(secondCrane, crane.id, 1);
+  const second = propose();
+  assert.equal(state().resourceLoadResult?.load[machine]?.[wednesday], 1);
+  assert.deepEqual(machineConflicts(), []);
+
+  const shortfalls = second.proposal.docs.find(doc => doc.docId === moving.docId)?.shortfalls;
+  const write = state().applyDistribution(second.proposal, second.writeScope);
+  assert.deepEqual({
+    shortfalls, applied: write.ok ? 'applied' : write.reason, after: state().resourceLoadResult?.load[machine]?.[wednesday],
+  }, {
+    shortfalls: [{ taskId: secondCrane, reason: undefined, days: [wednesday] }], applied: 'shortfall', after: 1,
+  });
+  assert.equal(start(), wednesday);
+});
+
 console.log(`${cases} ketens, ${failures} afwijkingen`);
 process.exitCode = failures ? 1 : 0;

@@ -29,7 +29,8 @@ lopende bewerking (`editHold.ts`) en na een mislukte berekening met ongewijzigde
 `BACKUP_RETENTION`: alles van de laatste 7 dagen (max. 20), daarna één per week tot 30 dagen, één per maand tot een jaar, daarna één per jaar) en `activityLog.ts` (ring-buffer achter het AI-activiteitenpaneel). De 42
 `planner_*`-tools staan in `src/services/mcp/tools/` (taken, relaties, resources, kalender, project,
 baselines, documenten/bestanden, leestools, XER/P6-bronprovenance, en `planner_batch` als transactionele executor met
-temp-id-resolutie).
+temp-id-resolutie). Besluiten over de wijzigende tools voor resources, toewijzingen, kalenders, nivelleren en het
+project staan in `docs/adr/0100` tot en met `0107`.
 
 Een MCP-backup bewaart planning plus bronkenmerk, nooit gebouwmodelbytes. Bij openen krijgt dat kenmerk alleen met
 `ifcForeignContent` aan `sourceMissing` (1c PR 9d): dezelfde bestaande weigering van alle IFC-opslag als bij herstel
@@ -39,7 +40,7 @@ met alleen planning. MCP-export stelt die vraag nooit en blijft geblokkeerd tot 
 Met de flag uit blijft de bestaande backuproute gelijk. Opnieuw koppelen aan de actuele bron is 9c (1575).
 
 Alles wat de agent via MCP leest (tool- en schema-beschrijvingen, foutmeldingen, waarschuwingen, `MCP_INSTRUCTIONS`)
-is Engels; codecommentaar blijft Nederlands. Dat geldt ook voor wat `planner_get_planning_guide` levert: de
+is Engels. Dat geldt ook voor wat `planner_get_planning_guide` levert: de
 agentgids `public/agent/planning-guide.md` (per principe de tools, niet het Help-artikel voor mensen) en de skills
 `public/skills/{goed-plannen,progress-update}/SKILL.md` (byte-identiek in `.claude/skills/`). Verandert een tool iets
 wat daar beschreven staat, werk dan ook die teksten bij; `verify:docs` (poort 9 en 11) bewaakt de kopieën en
@@ -112,9 +113,24 @@ uit het initialisatiescript `ops-process-info` in `main.rs` (geen command). Deta
 test `tests/mcp/cases-discovery.ts` en de echte-app-run.
 
 **IFC-export van de app (#804, 1c PR 11b).** `planner_export_ifc` deelt `state/prepareIfcOutput.ts` met
-de documentroute en Exporteren → IFC. Vreemde inhoud schrijft met de flag aan uitsluitend naar een nieuw doel,
-via de optionele `McpFileFs.writeNewUserBytes` (Tauri: eigen tijdelijk bestand en `place_file_exclusive`, zie
-`tauri-ifc.md`; geen tekstrondgang). Een bestaande naam en `source-changed` krijgen elk een eigen antwoord. Het antwoord bevat
+de documentroute en Exporteren → IFC. Vreemde inhoud schrijft met de flag aan naar een nieuw doel via de optionele
+`McpFileFs.writeNewUserBytes` (Tauri: eigen tijdelijk bestand en `place_file_exclusive`, zie `tauri-ifc.md`; geen
+tekstrondgang). Een bestaande naam vervangt de export alleen met `overwrite: true` en alleen als de host
+`McpFileFs.replaceUserBytes` levert (alleen de app; #804, besluit van de eigenaar, 21 november 2026). Volgorde: eerst de
+schemacontrole en de identiteitsweigeringen (`refusedTargetIdentity`: eigen bron, ander open tabblad), dan, alleen als
+het actieve document en zijn bron nog die van het begin zijn en de flag nog aan staat (live gelezen na die controles),
+één volledige lezing (`observe`, `existingRegularFileTauri`, dezelfde als `pickSaveTarget`), en dan de
+inhoudscontrole op die bytes (`refusedTargetContent` met `exportTargetPermission`: een uitvoer zonder gebouwmodel vervangt
+geen modelbestand). `replace` vervangt alleen die versie via `replaceOwnPathWithRecovery` met `documentId: null`. Na het
+herstelrecord en vlak vóór het opzijzetten lopen de doelcontrole en de documentcontrole van de export opnieuw, en na het
+opzijzetten vraagt de haak `planningChanged` of de planning veranderde en daarna `replaceAllowed` of de flag nog aan staat
+(dan terugzetten, `VALIDATION`), in dezelfde synchrone stap als de definitieve plaatsing (knownbug 2247). De tooltekst in
+`tools/list` hangt aan de flag (`McpToolDef.describe`, door de dispatcher toegepast): met de flag uit en headless precies de
+tekst van main. Een link of een plek zonder veilige vervanging weigert; het
+eigen bestand van het document weigert met een eigen tekst; een versie van een ander programma die bewaard bleef, staat in
+`replaceNotice`; een doel dat tussen `exists` en de lezing verdwijnt, krijgt de veranderingsmelding (`observe` geeft dan
+`'missing'`, `observeRegularFileTauri`). Zonder de naad (headless) blijft de weigering van een bestaande naam. Een naam die pas tussen controle en
+schrijven ontstaat en `source-changed` krijgen elk een eigen antwoord. Het antwoord bevat
 `byteLength` voor bytes en `characters` alleen voor de gewone tekstuitvoer. De export verandert bron, kenmerk,
 doel, dirty-vlag en letterlijke kalenders niet. Scope, lease, drift, readonly en schrijfslot blijven gelden.
 Headless biedt de nieuwe bytenaad niet en blijft op zijn bestaande tekstgedrag (1136, fase 2).

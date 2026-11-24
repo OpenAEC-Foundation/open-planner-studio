@@ -69,7 +69,8 @@ legt vast wat de app als MCP-server levert, wat niet, en welke test het bewijst.
 ## Mutatie, undo en backup
 
 - Elke wijzigende tool is één undo-stap (`createMcpTransactions`); `planner_batch` is één undo-stap voor alle
-  stappen samen, met één herberekening. Een geweigerde mutatie maakt geen undo-stap.
+  stappen samen. Binnen een batch kan meer dan één keer gerekend worden: vóór de transactie bij een lees- of
+  nivelleerstap, tussen de stappen en aan het eind (ADR 0240). Een geweigerde mutatie maakt geen undo-stap.
 - Vóór de eerste wijziging per document per bridge-sessie schrijft de app een IFC-backup naar
   `<appDataDir>/ai-backups/<docId>/` (instelling *Auto-backup*, standaard aan). Een batch telt als één backup.
   Uitzondering: een kopie die `planner_duplicate_document` maakte, krijgt geen automatische backup (het
@@ -285,12 +286,15 @@ headless MCP-server (#572) op een werkmap. Dit is het schakelstuk uit het ontwer
 
 `planner_export_ifc` gebruikt met `ifcForeignContent` en een bewaarde vreemde bron dezelfde voorbereiding als
 Opslaan als. De app schrijft de bytes via `McpFileFs.writeNewUserBytes` naar een exclusief nieuw einddoel (eerst een eigen
-tijdelijk bestand, dan `place_file_exclusive`; knownbug 1131 stap 4),
-ook met `overwrite: true`. Een export vervangt geen documentbron en legt geen kalenderkeuzes vast. Het antwoord
+tijdelijk bestand, dan `place_file_exclusive`; knownbug 1131 stap 4). Met `overwrite: true` vervangt de app een bestaand
+gewoon bestand via `McpFileFs.replaceUserBytes`, langs dezelfde vervanging als Opslaan als (`replaceOwnPathWithRecovery`,
+alleen het herstelrecord; #804). Een export vervangt geen documentbron en legt geen kalenderkeuzes vast. Het antwoord
 bevat `byteLength` voor deze byte-uitvoer; alleen de gewone tekstroute geeft `characters`.
 De echte-app-proef (`mcp-real-app.yml`) exporteert een gebouwmodel naar een nieuwe naam in de thuismap en leest via
 het ops-test-kanaal (`log`) de regel van `writeNewUserBytes` in het app-log (kanaal `nieuweNaam`): voor precies dat
-doel moet het echte `place_file_exclusive` `placed` of `dir-not-synced` hebben gegeven, zonder directe aanmaak.
+doel moet het echte `place_file_exclusive` `placed` of `dir-not-synced` hebben gegeven, zonder directe aanmaak. Daarna
+vervangt ze met `overwrite: true` een bestaand bestand: het heeft precies de exportbytes en er blijft geen hulpbestand.
 `cases-doc-file.ts` toetst via de dispatcher import, duuractie, export en volledige heropening, bronidentiteit,
-bestaande/eigen doelen, flag uit na openen, ontbrekende bron en Latin-1 zonder tekstrondgang.
+bestaande/eigen doelen, flag uit na openen, ontbrekende bron en Latin-1 zonder tekstrondgang, en op echte bestanden het
+vervangen met en zonder `overwrite`, een doel dat na het lezen verandert, links, het eigen bestand en een ander tabblad.
 De headless server blijft tekst schrijven; de beperking en richting staan bij knownbug 1136 in `docs/headless-mcp.md`.

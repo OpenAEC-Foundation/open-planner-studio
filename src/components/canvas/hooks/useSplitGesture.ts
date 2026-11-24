@@ -306,7 +306,9 @@ export function useSplitGesture({
       stop();
     };
 
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown });
+    // Documentwissel (review #1004, ronde 11): stoppen zonder commit. Een al geschreven pauze blijft
+    // in het startdocument.
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, onDocumentSwitch: stop });
   }, [state?.dragging, canvasRef, axis, snapAt, setTaskSplits, undo, stop, dayZoom]);
 
   // Geleidelijn op het gedeelde overlay-canvas — dezelfde laag waarop `useDependencyDraw` zijn

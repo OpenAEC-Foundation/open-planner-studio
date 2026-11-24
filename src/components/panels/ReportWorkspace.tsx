@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { useReportSettings } from '@/hooks/useReportSettings';
 import { ReportPanel } from './ReportPanel';
+import { useCustomReportFontGuard } from './reports/reportFormPrimitives';
 
 const GanttReportStudio = lazy(() => import('./reportStudio/GanttReportStudio').then(m => ({ default: m.GanttReportStudio })));
 
@@ -16,7 +17,8 @@ const GanttReportStudio = lazy(() => import('./reportStudio/GanttReportStudio').
  * Het tour-anker `report-panel` staat op de kaart om deze werkruimte (`App.tsx`), niet hierbinnen.
  */
 export function ReportWorkspace() {
-  const { reportType } = useReportSettings();
+  const { reportType, reportFontFamily } = useReportSettings();
+  useCustomReportFontGuard(reportFontFamily);
   if (reportType === 'gantt' || reportType === 'resourceGantt') {
     return (
       <Suspense fallback={<div className="flex-1 min-h-0" />}>

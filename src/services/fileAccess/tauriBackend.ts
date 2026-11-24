@@ -6,6 +6,8 @@ import {
 import { missingTarget, type FileIdentityFs } from './fileIdentity';
 import { scanForeignTargetSource, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { compareTargetChunks, TARGET_CHUNK_BYTES, type SourceTargetContent } from './sourceTargetContent';
+import { compareKnownTarget } from './knownTargetContent';
+import type { TargetFingerprint } from '@/state/documentContract';
 import type { RemnantEvent } from './ownFileReplace';
 import { whenProjectFileWritesIdle } from './writeCoordinator';
 
@@ -20,6 +22,11 @@ interface PathChunksTauri {
   next(): Promise<Uint8Array | null>;
   seek(offset: number): Promise<void>;
   close(): Promise<void>;
+}
+
+export async function seekToExactPosition(seek: (offset: number) => Promise<number>, offset: number): Promise<void> {
+  const actual = await seek(offset);
+  if (actual !== offset) throw new Error(`Terugspoelen mislukt: verwacht ${offset}, kreeg ${actual}`);
 }
 
 /**
@@ -44,7 +51,7 @@ async function openPathChunksTauri(path: string): Promise<PathChunksTauri | null
       const n = await handle.read(buffer);
       return n === null || n === 0 ? null : buffer.subarray(0, n);
     },
-    seek: async (offset) => { await handle.seek(offset, SeekMode.Start); },
+    seek: (offset) => seekToExactPosition(n => handle.seek(n, SeekMode.Start), offset),
     close: async () => { try { await handle.close(); } catch { /* al dicht */ } },
   };
 }
@@ -81,6 +88,11 @@ export async function sourceTargetContentOfPathTauri(path: string, expected: Uin
   } finally {
     await chunks.close();
   }
+}
+
+export async function knownTargetContentOfPathTauri(path: string, known: TargetFingerprint): Promise<SourceTargetContent> {
+  const { stat, readFile } = await import('@tauri-apps/plugin-fs');
+  return compareKnownTarget({ size: async () => (await stat(path)).size, bytes: () => readFile(path), missing: missingTarget }, known);
 }
 
 export interface TauriOpenIO {
@@ -223,8 +235,13 @@ export async function pickSaveTargetTauri(defaultName: string, filters: FileFilt
  *  of als `lstat` faalt (dan de exclusieve aanmaakroute, zoals main); `'unreadable'` als een gewoon bestand niet te lezen
  *  is (de doelcontrole weigert dat, zoals voorheen de doelscan van het pad). */
 async function existingRegularFileTauri(path: string): Promise<Uint8Array | 'unreadable' | null> {
+  const seen = await observeRegularFileTauri(path);
+  return seen === 'missing' ? null : seen;
+}
+
+export async function observeRegularFileTauri(path: string): Promise<Uint8Array | 'unreadable' | 'missing' | null> {
   const { lstat, readFile } = await import('@tauri-apps/plugin-fs');
-  try { if (!(await lstat(path)).isFile) return null; } catch { return null; }
+  try { if (!(await lstat(path)).isFile) return null; } catch (error) { return missingTarget(error) ? 'missing' : null; }
   try { return await readFile(path); } catch { return 'unreadable'; }
 }
 

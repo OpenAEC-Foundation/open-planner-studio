@@ -90,6 +90,26 @@ const tfSmallest = tfOf({ totalFloatMode: 'smallest' });
 eq('09 MSP-standaard rekent voor een gestarte taak de finish-speling', tfAuto, tfFinish);
 eq('10 …met de hand: automatisch 14 wd (finish), kleinste 10 wd (start)', [tfAuto, tfSmallest], [14, 10]);
 
+const autoModes = [
+  ['automatisch', undefined], ['start', { totalFloatMode: 'start' }],
+  ['finish', { totalFloatMode: 'finish' }], ['kleinste', { totalFloatMode: 'smallest' }],
+] as const;
+for (const status of ['2026-05-06', undefined]) {
+  ctx.store.setState(s => { s.project.statusDate = status; });
+  for (const [mode, options] of autoModes) {
+    const total = tfOf(options);
+    const current = S();
+    const task = current.tasks.find(t => t.id === a);
+    const row = current.cpmResult?.tasks.get(a);
+    if (current.cpmResult?.error || !task || !row) {
+      throw new Error('Knownbug 47: mislukte berekening: ' + (current.cpmResult?.error ?? mode));
+    }
+    console.log('KNOWNBUG47', JSON.stringify({ status: current.project.statusDate ?? null, mode, total,
+      totalMinutes: row.totalFloatMinutes, completion: task.time.completion, actualStart: task.time.actualStart,
+      es: row.earlyStart, ef: row.earlyFinish, ls: row.lateStart, lf: row.lateFinish }));
+  }
+}
+
 if (diffs.length > 0) {
   console.log(`XX  msproject-float-default: ${diffs.length} afwijking(en) van ${checks}`);
   for (const d of diffs) console.log(`   - ${d}`);

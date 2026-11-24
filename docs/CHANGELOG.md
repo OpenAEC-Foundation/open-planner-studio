@@ -6,6 +6,54 @@ version has its own section (no gaps); the newest is at the top. It is deliberat
 running archive of every individual commit: within a version there is a curated description,
 grouped by whichever category applies (`Added`, `Changed`, `Fixed`, `Documentation`).
 
+## v2026.48.0 — 2026-11-23
+
+### Added
+
+- Link selected tasks now works from two or more tasks and has a shortcut (Ctrl+F2, ⌘+F2 on a Mac). It creates finish-to-start relations without lag in the order of the task list on screen, not in click order. Existing relations are reported and skipped; one Undo removes the whole chain. An ambiguous order, for example in a resource grouping or inside a collapsed milestone series, links nothing and explains why. The right-click menu and the Link menu offer *Assign predecessors…* and *Assign successors…*, which open the Dependencies block with the direction set. Shift-range selection uses one anchor across the task list and the timeline.
+- The Dependencies block in the Properties panel and the task dialog shows predecessors and successors as two separate lists with a count, side by side when there is room and stacked in a narrow panel.
+- Date fields and date cells in the table open the app's own date picker (button or Alt+Down): a month grid with week numbers, the configured first weekday, localised month and day names, and WAI-ARIA keyboard control. Typing in the date field is unchanged. Project move and the reporting period now use the same field.
+- Two or more milestones directly below each other collapse into one *Milestones (n)* row in the table and the Gantt. Milestones on the same day share one diamond with their count; clicking or dragging acts on the whole group. Collapse and Expand include the series; filters, grouping, sorting and print show them expanded.
+- Custom work categories get their own bar colour and legend entry under *Bar colour › Work category*, in the Gantt, print and legend. Each new category receives a free colour that no other category uses; existing colours do not shift.
+- Changing units, work, duration or assignments outside *Edit task* shows a notice when the hours of other resources on the task change, for example *Anna: 80 → 160 h*, with Undo for the whole change. The notice disappears as soon as the document leaves that state.
+- Task type options show a short example line in the drop-down, and an information icon explains what a task type is and how the current one behaves.
+- On the desktop, a file passed on the command line, at first start or to an already running app, opens through the normal open route. A file already open in a tab switches to that tab; a file outside the home folder cannot be read this way yet.
+- The holiday generator includes Bolivia. Regenerating a calendar whose holiday list was edited asks before replacing the days off.
+- Settings are rebuilt from one catalogue: a search bar that finds every visible text, eight groups instead of three tabs, compact rows, preview pictures for visual choices, a dot and reset button for changed settings, a *Changed only* filter and direct links to one setting from Help.
+- The status bar shows the save state of every document: *Saving…*, *Saved* with the time, or *Unsaved*.
+
+### Changed
+
+- Saving, Save As, IFC export, export with the resource library and file AutoSave compute the IFC output in a background worker, also for ordinary files without a building model. If the worker does not start, ordinary saves fall back to the main thread. On the desktop the bytes go to the file layer as a raw body, which avoids a long stall on large files.
+- Closing a tab, the choices in the close question and quitting the app wait for a running save and show *Still saving…* until it finishes; installing an update also waits for it. Switching tabs no longer cancels a save; a save always commits to the document it was requested for.
+- Save As and Export refuse a file that is open in another tab, for every format, including the resource library and PDF reports; `planner_export_ifc` refuses it too.
+- In the task grid, double-clicking an editable drop-down cell (yes/no, choice or code) opens its list in the cell; other cells still open the Properties panel. Activity-code columns use the same drop-down with code and description, typing on a closed list jumps to the first match, and Shift+Enter moves up a row.
+- CSV export follows the computer's regional separator and decimal mark, independently of the interface language. Fractional lags always use a point.
+- Renaming a custom work category that the active project uses asks whether the project should follow; an unused project copy follows silently.
+- On Linux the frameless desktop window has a shadow and a resize border; GTK's own title bar stays hidden.
+- Gantt and histogram canvases use exact device-pixel sizes for sharper text.
+- `tauri-plugin-fs` and `@tauri-apps/plugin-fs` are updated to 2.7.1 and `tauri-plugin-persisted-scope` to 2.4.3. The app denies every file command access to the webview's own data folders. On Linux, Save As checks the name with the added extension and asks again if it exists or is not allowed.
+
+### Fixed
+
+- Setting a task to 100% without an actual finish keeps its scheduled finish, or the status date when the scheduled finish lies after it. A derived actual start is taken from the current placement before the status-date shift, and only when a progress percentage is entered.
+- The progress start question respects which side of the work day a milestone sits on. Completed tasks no longer show a current critical label in report progress rows.
+- Custom report fonts with GSUB rules that the old font parser could not read stay vector in the PDF, with correct widths and searchable text. The page number uses the report font, and the custom-font check also runs when page settings are closed.
+- Crash-recovery copies with the same name get a sequence number instead of colliding, and a link found during the recovery check is left untouched.
+
+### Experimental IFC building-model support
+
+- With the experimental flag on, Ctrl+S and *Save* in the close question write over the document's own file: in the browser through its file handle, on the desktop through a guarded replacement with its own recovery record. The file is compared with the opened source before and just before replacing; a change stops the save or keeps the other version as a separate copy.
+- On the desktop, Save As can replace another existing ordinary file after confirmation in the file dialog, also when that file contains a building model. Links, unreadable files and files open in another tab are refused.
+- File AutoSave includes documents with a building model on its own rhythm: after 30 seconds of rest, at most 5 minutes after the first change, and never more often than the previous round's duration allows. Manual saves and exports take priority.
+- Opening an IFC file with a building model or data from another program is limited to 150 MB; larger files are refused with a message. Crash recovery of a verified source and schedules without such content are not limited.
+- Conservative output checks now also accept renamed task types, moved baseline headers and own groups with foreign members, and the save worker stops after each merge to release memory. The feature remains incomplete and disabled by default.
+
+### Documentation
+
+- Dutch and English guides cover linking selected tasks, the separate dependency lists, the date picker, collapsing milestone series, work-category colours, the hours notice, task type explanations, opening a file at start-up, the save status, the rebuilt settings, CSV number format, Bolivia and the experimental building-model saves. The open-and-save guide now explains *Still saving…* when closing, and the wiki feature list follows this release.
+- All 28 interface languages are updated through the translation pipeline. Guide translations beyond Dutch and English remain separate work.
+
 ## v2026.47.0 — 2026-11-17
 
 ### Added

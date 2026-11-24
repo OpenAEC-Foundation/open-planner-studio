@@ -153,7 +153,7 @@
     "groupByType": "Grupuj według typu zasobu",
     "showAssignmentColumns": "Pokaż jednostki/dzień i krzywą",
     "columnsDropped": "Pominięto kolumny Jedn./d i Krzywa: tabela zostawiała za mało miejsca na oś czasu. Więcej miejsca da większy papier lub orientacja pozioma, mniejsza czcionka albo węższa tabela.",
-    "emptyPeriod": "Brak zadań w okresie raportu — wybierz inny okres lub Cały projekt.",
+    "emptyPeriod": "Brak zadań we własnym okresie — wybierz inne daty lub wyłącz Własny okres.",
     "outsidePeriod": "Poza okresem:",
     "empty": "Brak przypisań zasobów — najpierw przypisz zasoby do zadań.",
     "resources": "Zasoby:",
@@ -475,7 +475,6 @@
     "pages_many": "{{count}} stron",
     "pages_other": "{{count}} strony",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Okres raportowania",
     "tasks": {
       "title": "Które zadania",
       "all": "Wszystkie zadania",
@@ -696,6 +695,14 @@
       "chart": "Paski i oś czasu",
       "footer": "Legenda i stopka",
       "page": "Strona"
+    },
+    "period": {
+      "hint": "W raporcie są tylko zadania z tego okresu. Oś czasu obejmuje dokładnie ten okres; pasek, który wychodzi poza niego, jest obcinany na krawędzi.",
+      "outside_one": "{{count}} zadanie jest poza okresem i nie ma go w raporcie.",
+      "outside_few": "{{count}} zadania są poza okresem i nie ma ich w raporcie.",
+      "outside_many": "{{count}} zadań jest poza okresem i nie ma ich w raporcie.",
+      "outside_other": "{{count}} zadania jest poza okresem i nie ma ich w raporcie.",
+      "own": "Własny okres"
     }
   },
   "customFont": {

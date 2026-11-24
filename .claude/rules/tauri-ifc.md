@@ -21,7 +21,7 @@ Any code that touches `@tauri-apps/*` must be either dynamically imported inside
 
 ## The Rust backend is thin — file I/O uses JS plugins, not `invoke`
 
-De `invoke_handler` in `src-tauri/src/main.rs` telt precies vier commands: `install_kind` (uit `src-tauri/src/commands/mod.rs`), `place_file_exclusive` (uit `src-tauri/src/commands/place_file.rs`, hieronder) plus `mcp_bridge_start`/`mcp_bridge_stop` (uit `src-tauri/src/mcp_bridge.rs`, zie `.claude/rules/mcp.md`). `install_kind` wordt aangeroepen vanuit `src/services/updater/updaterService.ts` om het installatietype (appimage/snap/aur/deb/native) te detecteren en de updater te poorten. (The unused `read_file`/`write_file` commands were removed for finding K6a: everything in the `invoke_handler` is reachable via `window.__TAURI_INTERNALS__.invoke(...)`, extension code included, and those two did no path validation and bypassed the `plugin-fs` scope. Houd die lat aan: elk nieuw command is publiek oppervlak.) Naast de commands registreert `main.rs` de plugin zonder commands, `ops-process-info`: een initialisatiescript dat het proces-id als alleen-lezen `window.__OPS_PROCESS__.pid` zet, voor de ontdekkingsbestanden van de MCP-plugin (`docs/mcp-ontdekking.md`). Op Linux zet `src-tauri/src/desktop_integration.rs` bij elke start uit een AppImage (env `APPIMAGE`) een menu-item (`~/.local/share/applications/org.openaec.planner.desktop`) en het logo (hicolor 256x256) neer; geen command, alleen een thread vanuit `main`. Een `.desktop`-bestand zonder de markering `X-OpenPlannerStudio-AppImage=true` blijft staan; `OPS_NO_DESKTOP_INTEGRATION` schakelt het uit. All real file I/O funnels through `src/services/fileAccess/` — a runtime-dispatched abstraction (`index.ts` kiest Tauri↔web met een `FileRef`-model) met een Tauri-backend (`plugin-fs` + `plugin-dialog`), een web-backend (File System Access API + download-fallback) en een site-backend (`siteBackend.ts`, `FileRef` van de soort `site`: opslag via de pagina die de tool host, contract `window.openaecHost` in `siteHost.ts`; alleen in de browser, zie `docs/platformbouw.md`): `fileSlice` (open/save/export), `src/services/recovery/recoveryStore.ts` (auto-save) en `ReportPanel.tsx` (rapport-export) draaien er allemaal op; handle-backed recente-bestanden via `fileAccess/recentFiles.ts`. Schrijven over een bestand van de gebruiker (Opslaan, Opslaan als, automatisch opslaan, export, MCP `export_ifc`) loopt in Tauri via `writeUserTextFileTauri`/`writeUserBytesTauri` uit `fileAccess/atomicWrite.ts`: plugin-fs truncate't het doel vóór het schrijft, dus die route maakt per save een korte, zelfstandige basename `save-<id>.ops-save.tmp` in dezelfde map exclusief aan (onafhankelijk van de lengte van de doelnaam) met de inhoud erin, in één `writeFile`/`writeTextFile` met `createNew: true` en de modus (één open bestand in Rust, dus ook een 0444-origineel blijft zoals nu vervangbaar), en hernoemt pas daarna. Alleen de schrijffout van plugin-fs ná een geslaagde aanmaak (`failed to write bytes to file at path:`, `WRITE_AFTER_CREATE_ERROR`) geeft eigendom (`OwnFileWriteError`); elke andere fout ruimt niets op. **Bytes gaan naar Tauri nooit in een object**: alleen een kale `Uint8Array` als hele payload (`writeFile`/`writeTextFile`) gaat als rauwe body; een `Uint8Array` in een object (zoals `FileHandle.write` met `{ rid, data }`) maakt Tauri met `Array.from` tot JSON, één getal per byte, synchroon op de hoofdthread (tauri 2.12.3 `process-ipc-message-fn.js`; in V8 ongeveer 274 ms per MiB). De opties van `writeFile` gaan als JSON in de kop `options`; sinds plugin-fs 2.6.0 faalt de aanroep vóór het openen als die onleesbaar zijn (2.7.1 `parse_write_file_options`; daarvóór vielen ze stil terug op aanmaken en afkappen), en de Node-adapter `tests/planning/nodeFileIpc.ts` doet dat na. Valt Tauri terug op `postMessage`, dan wordt ook de rauwe body weer JSON; dat is alleen in de echte app te zien (knownbug 1790). Het oude vaste `<doel>.ops-save.tmp` blijft met rust. Een mislukte aanmaak geeft geen eigendom voor cleanup; een botsing geeft een fout zonder directe terugval. Buiten de fs-scope, bij een geweigerde rename en bij een gelinkt doel blijft direct schrijven de bestaande terugval, met de foutveiligheid van die directe write. Buiten de scope valt sinds plugin-fs 2.7.0 ook een map in `$HOME` die via een symbolische link buiten `$HOME` uitkomt: de scope toetst het echte pad (bij een nieuw pad de echte bovenliggende map), dus het halffabricaat ernaast wordt geweigerd; het via de dialoog gekozen bestand zelf blijft toegestaan (Tauri neemt ook zijn echte vorm op), dus Opslaan schrijft daar direct. Alleen eigen halffabricaten worden opgeruimd; cleanup kan mislukken. Dit biedt geen padlock tegen latere link-/directorywissels. Bestaande Unix-modebits worden als aanmaakmode meegegeven, maar de proces-umask kan ze beperken; exact modebehoud wordt niet gegarandeerd; de alleen-lezen-doelkwestie van knownbug 162 blijft apart. Follow that pattern — breid `fileAccess` uit, geen nieuwe Rust-command — when adding file operations. All IFC parsing/serialization, scheduling, and rendering are TypeScript; Rust is just the shell. De commandloze plugin `persisted-scope` staat na `fs` en bewaart de via de kiezer verleende toegang over herstarts, voor Recent. Naast `$HOME` mogen alleen `read_dir`, `open` en `read_file` (scope per opdracht) in de lettertypemappen van het systeem (`/usr/share/fonts`, `/usr/local/share/fonts`, `/System/Library/Fonts`, `/Library/Fonts`, `C:/Windows/Fonts`), voor het eigen rapportlettertype (`src/services/pdf/systemFonts.ts`, #770). Schrijf scopepaden altijd met `/`, ook voor Windows: Tauri bouwt een opdrachtscope bij elke aanroep opnieuw, en één patroon dat op een platform ongeldig is (zoals `C:\\Windows\\Fonts\\**` op Linux en macOS) laat die opdracht daar voor elk pad weigeren (`check-tauri-capability-scopes.ts`). `open` kan daar ook met `write: true`; dan beschermt alleen het besturingssysteem die mappen. Enabled plugins: `fs`, `persisted-scope`, `dialog`, `shell`, `store`, `os`, `updater`, `process`, `clipboard-manager`; app id `org.openaec.planner`. `tauri-plugin-fs` staat op 2.7.1 (ondergrens in `Cargo.toml`; `@tauri-apps/plugin-fs` op dezelfde versie) en `tauri-plugin-persisted-scope` op 2.4.3; een verhoging van plugin-fs raakt `FsRenameScope` (hieronder) en de nabootsing in `nodeFileIpc.ts`.
+De `invoke_handler` in `src-tauri/src/main.rs` telt precies vier commands: `install_kind` (uit `src-tauri/src/commands/mod.rs`), `place_file_exclusive` (uit `src-tauri/src/commands/place_file.rs`, hieronder) plus `mcp_bridge_start`/`mcp_bridge_stop` (uit `src-tauri/src/mcp_bridge.rs`, zie `.claude/rules/mcp.md`). `install_kind` wordt aangeroepen vanuit `src/services/updater/updaterService.ts` om het installatietype (appimage/snap/aur/deb/native) te detecteren en de updater te poorten. (The unused `read_file`/`write_file` commands were removed for finding K6a: everything in the `invoke_handler` is reachable via `window.__TAURI_INTERNALS__.invoke(...)`, extension code included, and those two did no path validation and bypassed the `plugin-fs` scope. Houd die lat aan: elk nieuw command is publiek oppervlak.) Naast de commands registreert `main.rs` de plugin zonder commands, `ops-process-info`: een initialisatiescript dat het proces-id als alleen-lezen `window.__OPS_PROCESS__.pid` zet, voor de ontdekkingsbestanden van de MCP-plugin (`docs/mcp-ontdekking.md`). Bestanden op de opdrachtregel (de eerste start, en een tweede start via de single-instance-callback met diens werkmap; #1091) houdt `src-tauri/src/launch_files.rs` vast tot de webview het event `ops:open-files-ready` stuurt, en stuurt ze dan als event `ops:open-files`; `src/state/launchFiles.ts` opent ze via de route van slepen en neerzetten. Geen command, geen verruiming van de fs-scope (buiten `$HOME` faalt het lezen, knownbug 2030). Op Linux zet `src-tauri/src/desktop_integration.rs` bij elke start uit een AppImage (env `APPIMAGE`) een menu-item (`~/.local/share/applications/org.openaec.planner.desktop`) en het logo (hicolor 256x256) neer; geen command, alleen een thread vanuit `main`. Een `.desktop`-bestand zonder de markering `X-OpenPlannerStudio-AppImage=true` blijft staan; `OPS_NO_DESKTOP_INTEGRATION` schakelt het uit. Ook alleen op Linux geeft `linux_window_shadow` in `main.rs` (vanuit `setup`) het randloze venster (`"decorations": false`) een schaduw: GTK krijgt zijn client-side decoraties terug met een verborgen titelbalk (`set_no_show_all`), dus de titelbalk van de webview blijft de enige. Toon die widget nooit: een getoonde widget krijgt van GTK 3 minstens 1 px hoogte boven de webview, ook gemaximaliseerd, en vangt dan de klikken op de bovenste rij van de vensterknoppen. De schaduw vraagt op X11 een compositor; zonder compositor valt GTK terug op `solid-csd` (effen rand, geen schaduw). Dat moet gebeuren voordat het venster voor het eerst zichtbaar wordt; het werkt alleen omdat het start verborgen (#895). Toon het venster dus niet eerder, en verander `decorations` niet zonder deze functie mee te nemen. De crate `gtk` (0.18, alleen Linux) is dezelfde die tauri/wry al meebrengt. All real file I/O funnels through `src/services/fileAccess/` — a runtime-dispatched abstraction (`index.ts` kiest Tauri↔web met een `FileRef`-model) met een Tauri-backend (`plugin-fs` + `plugin-dialog`), een web-backend (File System Access API + download-fallback) en een site-backend (`siteBackend.ts`, `FileRef` van de soort `site`: opslag via de pagina die de tool host, contract `window.openaecHost` in `siteHost.ts`; alleen in de browser, zie `docs/platformbouw.md`): `fileSlice` (open/save/export), `src/services/recovery/recoveryStore.ts` (auto-save) en `ReportPanel.tsx` (rapport-export) draaien er allemaal op; handle-backed recente-bestanden via `fileAccess/recentFiles.ts`. Schrijven over een bestand van de gebruiker (Opslaan, Opslaan als, automatisch opslaan, export, MCP `export_ifc`) loopt in Tauri via `writeUserTextFileTauri`/`writeUserBytesTauri` uit `fileAccess/atomicWrite.ts`: plugin-fs truncate't het doel vóór het schrijft, dus die route maakt per save een korte, zelfstandige basename `save-<id>.ops-save.tmp` in dezelfde map exclusief aan (onafhankelijk van de lengte van de doelnaam) met de inhoud erin, in één `writeFile`/`writeTextFile` met `createNew: true` en de modus (één open bestand in Rust, dus ook een 0444-origineel blijft zoals nu vervangbaar), en hernoemt pas daarna. Alleen de schrijffout van plugin-fs ná een geslaagde aanmaak (`failed to write bytes to file at path:`, `WRITE_AFTER_CREATE_ERROR`) geeft eigendom (`OwnFileWriteError`); elke andere fout ruimt niets op. **Bytes gaan naar Tauri nooit in een object**: alleen een kale `Uint8Array` als hele payload (`writeFile`/`writeTextFile`) gaat als rauwe body; een `Uint8Array` in een object (zoals `FileHandle.write` met `{ rid, data }`) maakt Tauri met `Array.from` tot JSON, één getal per byte, synchroon op de hoofdthread (tauri 2.12.3 `process-ipc-message-fn.js`; in V8 ongeveer 274 ms per MiB). De opties van `writeFile` gaan als JSON in de kop `options`; sinds plugin-fs 2.6.0 faalt de aanroep vóór het openen als die onleesbaar zijn (2.7.1 `parse_write_file_options`; daarvóór vielen ze stil terug op aanmaken en afkappen), en de Node-adapter `tests/planning/nodeFileIpc.ts` doet dat na. Valt Tauri terug op `postMessage`, dan wordt ook de rauwe body weer JSON; dat is alleen in de echte app te zien (knownbug 1790). Het oude vaste `<doel>.ops-save.tmp` blijft met rust. Een mislukte aanmaak geeft geen eigendom voor cleanup; een botsing geeft een fout zonder directe terugval. Buiten de fs-scope, bij een geweigerde rename en bij een gelinkt doel blijft direct schrijven de bestaande terugval, met de foutveiligheid van die directe write. Buiten de scope valt sinds plugin-fs 2.7.0 ook een map in `$HOME` die via een symbolische link buiten `$HOME` uitkomt: de scope toetst het echte pad (bij een nieuw pad de echte bovenliggende map), dus het halffabricaat ernaast wordt geweigerd; het via de dialoog gekozen bestand zelf blijft toegestaan (Tauri neemt ook zijn echte vorm op), dus Opslaan schrijft daar direct. Alleen eigen halffabricaten worden opgeruimd; cleanup kan mislukken. Dit biedt geen padlock tegen latere link-/directorywissels. Bestaande Unix-modebits worden als aanmaakmode meegegeven, maar de proces-umask kan ze beperken; exact modebehoud wordt niet gegarandeerd; de alleen-lezen-doelkwestie van knownbug 162 blijft apart. Follow that pattern — breid `fileAccess` uit, geen nieuwe Rust-command — when adding file operations. All IFC parsing/serialization, scheduling, and rendering are TypeScript; Rust is just the shell. De commandloze plugin `persisted-scope` staat na `fs` en bewaart de via de kiezer verleende toegang over herstarts, voor Recent. Naast `$HOME` mogen alleen `read_dir`, `open` en `read_file` (scope per opdracht) in de lettertypemappen van het systeem (`/usr/share/fonts`, `/usr/local/share/fonts`, `/System/Library/Fonts`, `/Library/Fonts`, `C:/Windows/Fonts`), voor het eigen rapportlettertype (`src/services/pdf/systemFonts.ts`, #770). Schrijf scopepaden altijd met `/`, ook voor Windows: Tauri bouwt een opdrachtscope bij elke aanroep opnieuw, en één patroon dat op een platform ongeldig is (zoals `C:\\Windows\\Fonts\\**` op Linux en macOS) laat die opdracht daar voor elk pad weigeren (`check-tauri-capability-scopes.ts`). `open` kan daar ook met `write: true`; dan beschermt alleen het besturingssysteem die mappen. Enabled plugins: `fs`, `persisted-scope`, `dialog`, `shell`, `store`, `os`, `updater`, `process`, `clipboard-manager`; app id `org.openaec.planner`. `tauri-plugin-fs` staat op 2.7.1 (ondergrens in `Cargo.toml`; `@tauri-apps/plugin-fs` op dezelfde versie) en `tauri-plugin-persisted-scope` op 2.4.3; een verhoging van plugin-fs raakt `FsRenameScope` (hieronder) en de nabootsing in `nodeFileIpc.ts`.
 
 Opslaan als in Tauri (`pickSavePathTauri` in `fileAccess/tauriBackend.ts`) laat de eindnaam zelf door het
 opslagvenster gaan. Het venster geeft toestemming voor het pad dat het teruggeeft (plugin-dialog `save`: `allow_file`,
@@ -104,7 +104,7 @@ andere aanmaakfout (ook `EEXIST` op de hulpnaam) geeft geen eigendom: niets verw
 `target-exists` kan de hernoeming op een netwerkschijf toch gebeurd zijn (1795): opruimen verbergt de fout nooit en het
 doel wordt niet teruggelezen. Nooit `rename` van plugin-fs (die vervangt). De directe aanmaak is niet crashvast, en na
 een crash kan een `save-<id>.ops-save.tmp` blijven staan (1131). Meldingen: `ifcForeignNewTargetOnly` (Opslaan als en
-Exporteren, 1760; Opslaan als over een bestaand gewoon bestand vervangt het sinds stap 8, ook met een gebouwmodel, zie hieronder) en `ifcForeignPlaceUnknown` via `newTargetWriteNotice` (`ifcForeignGuard.ts`). Proeven:
+Exporteren, 1760; Opslaan als over een bestaand gewoon bestand vervangt het sinds stap 8, ook met een gebouwmodel, en Exporteren → IFC van een document met een vreemd deel ook, zie hieronder; de export zegt het dan met `exportReplaceNewTargetOnly`) en `ifcForeignPlaceUnknown` via `newTargetWriteNotice` (`ifcForeignGuard.ts`). Proeven:
 `check-file-ifc-bytes.ts` (nagebootst commando op echte bestanden in `nodeFileIpc.ts`), `check-ifc-document-save.ts` en
 `cases-doc-file.ts`. Browserhandles missen exclusieve aanmaak en weigeren vóór schrijven (behalve Ctrl+S op het eigen bestand,
 hieronder); de webdialoog
@@ -113,7 +113,7 @@ downloadt een Blob, ook met FSA (1130). De sitefuncties `saveNewSiteFileBytes` e
 behoudt de conflictkopie van de host. De aanroeper houdt de buffer ongewijzigd tot voltooiing.
 PR 11a sluit de documentroutes aan: nieuwe lokale naam, download en siteversie met basis.
 PR 11b sluit IFC-export en app-MCP aan op dezelfde `state/prepareIfcOutput.ts`, zonder documentcommit.
-De MCP-naad `writeNewUserBytes` gebruikt dezelfde exclusieve byte-ingang; headless biedt haar nog niet. Bestaande tekst-/PDF-routes
+De MCP-naad `writeNewUserBytes` gebruikt dezelfde exclusieve byte-ingang; headless biedt haar nog niet, net zo min als `replaceUserBytes` (de vervanging van een bestaande naam, zie `mcp.md`). Bestaande tekst-/PDF-routes
 veranderen niet. Bestaande vreemde lokale doelen en de bronhash horen bij fase 2 (1131).
 
 The application's persistence model is IFC 4.3 (buildingSMART). Loading a project = parsing IFC via `src/services/ifc/ifcReader`; saving = serializing the entire app state via `ifcWriter`. There is no separate JSON project format. When adding new domain data (tasks, sequences, resources, assignments, calendar), it must round-trip through the IFC layer or it will be lost on save/reload. CSV/MS Project/P6 services in `src/services/` are import/export adapters, not the source of truth. The other `src/services/` areas — `fileAccess/` (Tauri↔web bestands-I/O + handle-backed recents), `recovery/` (auto-save/restore, Tauri fs + web IndexedDB), `actualAutosave/` (opt-in, promptvrije writes to an existing project file), `benchmark/` (ingebouwde benchmark-tool via Instellingen), `print/` (printvoorbeeld), `pdf/` (vector-PDF-export via `pdf-lib`; Arabic and Persian stay vector, while CJK rasterizes only without an optional `pdf-fonts` extension), `updater/`, `feedback/` (feedbackdialoog + screenshot-annotator), `mcp/` (AI-assistent, zie `.claude/rules/mcp.md`) and `debug/appLog` (log-bus achter de DebugTerminal) — are app plumbing with no IFC impact. `library/` is de uitzondering: bibliotheekdata is app-globaal, maar herkomststempels round-trippen wél door het project-IFC (zie *Resourcebibliotheken*).
@@ -122,9 +122,27 @@ The application's persistence model is IFC 4.3 (buildingSMART). Loading a projec
 
 **GlobalIds** (audit 2026-09-26). Eén uitgiftepunt: `guidOf` in `ifcWriter.ts`, voor objecten via `objectGuid(ctx, soort, id)` met seed `ifcObjectSeed(soort, id)` (`task:`, `res:`, `cal:`, `seq:`, `proj:`): uit XER kunnen taak, relatie en kalender hetzelfde kale getal als id dragen, en zonder soort deelden ze een GlobalId. Elk object uit een ingelezen IFC houdt zijn GlobalId uit dat bestand: `readIFC` levert `ifcGlobalIds` (seed → GlobalId), dat reist als documentveld mee en `buildWriteIFCInput` geeft het aan de writer. Nieuwe objecten krijgen `ifcGuid128(seed)`: 128 bits, IFC-vorm, deterministisch (dus bij elk opslaan gelijk). Hulpentiteiten (`guidOf`: psets, rels, werkschema's) en de projectkalender (`cal-default`, in elk project hetzelfde id) hashen met het project-id als zout (`auxSalt`), zodat twee projecten geen GlobalId delen; geen lezer rekent die na. Id's: taken via OPS_TaskIdentity of `task-ifc-<GlobalId>`; resources, bibliotheekkalenders en relaties via `stableIdFromGuid` (`res-ifc-`, `rescal-ifc-`, `seq-ifc-<GlobalId>`, dubbel ⇒ `-dup-N`), dus gelijk bij elk openen; de projectkalender blijft `cal-default`. Een in de app gemaakt object krijgt bij het eerste heropenen zo nog één keer een ander id; verwijzingen daarnaar in JSON (contour, nivelleren) lopen via `mappedResourceId` (zelfde id, anders `ifcGuid128`, anders de oude 32-bits `ifcGuid` voor bestanden van vóór deze wijziging). Toets: `check-ifc-globalid`.
 
+### De IFC-lezer (`ifcReader.ts`)
+
+Besluiten van de lezer: `docs/adr/0040-ifc-lezen-integriteitspoort.md`, `0041-step-tekstscan-quote-bewust.md`,
+`0042-ifc-lezen-leeg-is-een-uitspraak.md`, `0043-ifc-lezen-uurmodus-kalender.md`,
+`0044-ifc-lezen-welke-taken-en-kalenders.md`, `0045-ifc-lezen-toewijzingen.md`,
+`0046-ifc-lezen-verwijzingen-terugvinden.md`, `0047-ifc-lezen-ops-sequences-een-bron.md`,
+`0048-xer-vastlegging-via-bronreconstructie.md`, `0049-ifc-lezen-opties-van-de-bytesroute.md` en
+`0050-ifc-lezen-oude-en-vreemde-vormen.md`.
+
+### De IFC-writer (`ifcWriter.ts`)
+
+Besluiten van de writer: `docs/adr/0140-ifc-schrijven-globalids-uniek-per-bestand.md`,
+`0141-ifc-schrijven-kop-en-verplichte-tekst.md`, `0142-ifc-schrijven-projectinstellingen.md`,
+`0143-ifc-schrijven-standaard-ifc-naast-eigen-json.md`, `0144-ifc-schrijven-kalenders.md`,
+`0145-ifc-schrijven-datums-duren-en-lags.md`, `0146-ifc-schrijven-met-een-vreemd-deel.md`,
+`0147-ifc-schrijven-resources-en-toewijzingen.md` en `0148-ifc-schrijven-een-invoerobject.md`.
+
 ### Bestandsschema per project
 
-Het IFC-schema is een projectinstelling: `Project.ifcSchema` (standaard `IFC4X3_ADD2`; ook `IFC4X3` en `IFC4`, keuze in Projectinstellingen). Schrijf nooit stil in een ander schema dan het gekozen schema. Bij het eerste EXPLICIETE opslaan (Opslaan, Ctrl+S, Opslaan als, ook "Opslaan" in de sluitvraag) van een bestand met een ander schema in de kop vraagt `src/services/ifc/ifcSchemaQuestion.ts` wat te doen; de UI beantwoordt de vraag via `src/state/ifcSchemaQuestionBridge.ts` (keuzelogica: `src/state/ifcSchemaChoice.ts`). De openstaande vraag woont op het project (`Project.ifcSchemaUnconfirmed`) en round-tript via `OPS_ProjectSettings`. Autosave, crashherstel, de MCP-backup en MCP-opslaan vragen niets en veranderen niets. Bewaking: `tests/planning/check-ifc-schema.ts` (tabel via `scripts/ifc-schema-table.py`, met de hand opnieuw te draaien na een nieuwe writer-entiteit; CI draait geen Python). Detail: `docs/ifc-round-trip.md` (§ Schemageldigheid).
+Het IFC-schema is een projectinstelling: `Project.ifcSchema` (standaard `IFC4X3_ADD2`; ook `IFC4X3` en `IFC4`, keuze in Projectinstellingen). Schrijf nooit stil in een ander schema dan het gekozen schema. Bij het eerste EXPLICIETE opslaan (Opslaan, Ctrl+S, Opslaan als, ook "Opslaan" in de sluitvraag) van een document met een openstaande schemavraag vraagt `src/services/ifc/ifcSchemaQuestion.ts` wat te doen (wanneer die vraag openstaat: ADR 0184 en 0142); de UI beantwoordt de vraag via `src/state/ifcSchemaQuestionBridge.ts` (keuzelogica: `src/state/ifcSchemaChoice.ts`). De openstaande vraag woont op het project (`Project.ifcSchemaUnconfirmed`) en round-tript via `OPS_ProjectSettings`. Autosave, crashherstel, de MCP-backup en MCP-opslaan vragen niets en veranderen niets. Bewaking: `tests/planning/check-ifc-schema.ts` (tabel via `scripts/ifc-schema-table.py`, met de hand opnieuw te draaien na een nieuwe writer-entiteit; CI draait geen Python). Detail: `docs/ifc-round-trip.md` (§ Schemageldigheid). Besluit over de standaard en de
+terugval: `docs/adr/0184-ifc-schema-standaard-en-terugval.md`.
 
 Met `ifcForeignContent` en een vreemd deel ligt de letterlijke kopnaam vast in `ifcSource.schemaName`.
 Projectinstellingen toont de keuze uit met een reden; store- en MCP-projectpatches kunnen haar niet
@@ -144,7 +162,9 @@ gewone writer. De uitvoer ís de nieuwe bronbuffer; het resultaat houdt daardoor
 haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6. Pool en planOnly alleen na de vraag "alleen de planning" (PR 13, zie `state.md`); paneel en dev-bridge blijven geblokkeerd. AutoSave schrijft sinds #804 stap 8 (flag aan, bron aanwezig) via dezelfde vervanging van het eigen bestand als Ctrl+S (`replaceOwnHandleWithRecovery`, `replaceOwnPathWithRecovery`, met de grens van de voorrang op `stopBeforeWrite`); zie `settings-autosave.md`. Een IFC-export (ook met bibliotheek) houdt voorrang vanaf het rekenen (`prepareExportIfcWrite` → `claimProjectFileWrite`).
 
 **De opslagworker** (#804 stap 4 tot en met 6, `src/services/ifc/saveWorker/`) rekent wat `prepareIfcOutput` rekent (de
-gewone writer of `prepareIfcWrite`) in één herbruikbare Web Worker. De gemounte app bezit één client (`appStore.ts`) en
+gewone writer of `prepareIfcWrite`) in een Web Worker. De gewone writer hergebruikt hem; na elk antwoord op een merge (een
+uitkomst of een weigering) stopt hij en start het volgende verzoek een nieuwe (knownbug 1936: een worker houdt het afval
+van zijn kopie van de bron en de indexen vast, op de desktop bij 157 MB ongeveer 2 GB). De gemounte app bezit één client (`appStore.ts`) en
 geeft de berekenfunctie onvoorwaardelijk door, via `StoreRuntimeOptions.ifcSaveCompute`: de gewone writer en de merge
 rekenen in de worker voor Ctrl+S (ook *Opslaan* in de sluitvraag), Opslaan als, Exporteren → IFC, de export met de
 resourcebibliotheek en Automatisch opslaan naar het bestand. Headless-, scratch- en testcontexten, het crashherstel en
@@ -152,10 +172,20 @@ resourcebibliotheek en Automatisch opslaan naar het bestand. Headless-, scratch-
 uit de worker; die gaan rechtstreeks naar de schrijflaag (`FileData`: `saveDataDialog`, `saveToRef`,
 `saveToRefWithoutPrompt`, de site), nooit eerst naar tekst. Tekst bestaat alleen als de hoofdthread rekende (de worker
 startte niet). De gewone writer houdt zijn recht op overschrijven (`saveFileDialog`/`saveBytesDialog`, de atomaire
-opslag); `saveNewBytesDialog` blijft de exclusieve route van de merge. Heen gaat de bron als kopie, terug de uitvoerbuffers overgedragen (`ifcSaveProtocol.ts`); een inhoudelijke
-fout komt aan als dezelfde foutsoort, een transportfout als `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). Terugval op
-de hoofdthread alleen als de worker niet start (geen `started`); sterft hij daarna, of verloopt de tijd (60 s plus 1 s per
-MiB bron), dan is het een fout en rekent de hoofdthread niet opnieuw. `prepareAppIfcWrite` (`fileSlice.ts`) maakt daar een
+opslag); `saveNewBytesDialog` blijft de exclusieve route van de merge. Met de flag `ifcForeignContent` vraagt een
+documentopslag (Ctrl+S, Opslaan als, Automatisch opslaan; geen export) in de writer-job ook de SHA-256 van de bytes
+(`hashBytes`, `documentSaveCompute`); het antwoord draagt dan `sha256` en `resultFits` eist hem, en weigert hem zonder
+vraag. Met de flag uit zijn verzoek en antwoord gelijk aan die van vóór de vraag (de versie op het eigen doel, `state.md`). Heen gaat de bron als kopie, terug de uitvoerbuffers overgedragen (`ifcSaveProtocol.ts`); een inhoudelijke
+fout komt aan als dezelfde foutsoort, een transportfout als `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). Meldt de
+worker geen `started` binnen de vaste starttijd (10 s, voor elke worker dezelfde), dan startte hij niet. Een gewoon verzoek
+rekent dan op de hoofdthread, zoals op main, en gewone verzoeken blijven daar de rest van de sessie; staat de flag de hele
+sessie uit, dan is dit de enige soort verzoek en is het gedrag dat van main. Eén verschil (knownbug 2025): na een eerdere
+merge in dezelfde sessie (flag aan, ook een weigering) is die worker gestopt: na een antwoord van een mergeworker kan het
+volgende gewone verzoek een verse worker starten, zolang de gewone route nog beschikbaar is, waar main de gestarte
+hergebruikte; start die niet, dan rekent de hoofdthread de rest van de sessie voor gewone verzoeken, en
+blijft hij stil, dan wacht dat verzoek eerst tot de starttijd van 10 s voorbij is. Een merge valt alleen terug zolang er in deze sessie nog nooit een worker startte; daarna is
+een startfout bij een merge een fout (`not-started`), nooit de hoofdthread. Sterft hij na de start, of verloopt de
+rekentijd (60 s plus 1 s per MiB bron), dan is het ook een fout en rekent de hoofdthread niet opnieuw. `prepareAppIfcWrite` (`fileSlice.ts`) maakt daar een
 mislukte opslag of export van vóór elke I/O, met één melding (`ifcSaveWorkerFailed`). De worker laadt
 `appStoreFactory.ts`, nooit `appStore.ts` (`verify:store-boundaries`). Een antwoord dat niet bij het verzoek past
 (`resultFits`), is een transportfout. Workerbundels krijgen de grens van de headless kern (`vite.config.ts`: `zustand`
@@ -167,19 +197,34 @@ opslagstand in de statusbalk staat in `state.md`.
 
 **De laatste controle in de schrijflaag** (knownbug 1896, #804 stap 6 en fixronde 1 van #1027): elke documentopslag en
 elke IFC-export geeft `refuseBeforePlace` (`RefuseBeforePlace` in `fileAccess/index.ts`; `refuseChangedDocumentWrite`
-of `refuseExportBeforePlace`) mee tot het laatste veilige punt: vóór `close()` van een bestaande browserhandle (anders
+of `refuseChangedExport`) mee tot het laatste veilige punt: vóór `close()` van een bestaande browserhandle (anders
 `abort()`; bij de mergehandle synchroon direct na de bronvergelijking, zonder `await` ertussen), vóór de hernoeming en
 elke directe schrijfactie van `replaceUserFile`, vóór de exclusieve plaatsing of aanmaak van `writeNewUserBytes`, vóór
 het opzijzetten in `replaceOwnFileBytes` (uitkomst `stopped`) en vlak vóór de site-opslag. Een weigering laat het doel
 onveranderd; het tijdelijke bestand en het herstelrecord gaan langs het bestaande opruimpad weg; de bestaande melding,
 niets in Recent. **Uitzondering: een handle uit de opslaankiezer van de browser** (Opslaan als, de exports, Ctrl+S
-zonder doel) krijgt geen late controle (`saveDataDialogWeb`): Chromium maakt een bestaand doel bij het kiezen al leeg,
-dus `abort()` liet 0 bytes staan (knownbug 1899). De opslag maakt het gevraagde bestand af; bij een intussen vervangen
-inhoud legt de commit niets vast en komt er niets in Recent, en een export meldt geen succes en legt geen kalenderkeuze
-vast (`exportContentReplaced`). De native kiezer van Tauri geeft alleen een pad (plugin-dialog `save`), dus op de
-desktop geldt de late controle overal. De late controle van een export kijkt naar het geëxporteerde document, ook als
-dat intussen in een ander tabblad staat (`refuseExportBeforePlace`, review van #1027 ronde 2): een tabbladwissel is geen
-wijziging van de planning, dus de export rondt af zolang het document zijn inhoud en bron hield. Automatisch opslaan doet de doelcontrole (`refusedWriteTarget`) ná het rekenen,
+zonder doel): Chromium maakt een bestaand doel bij het kiezen al leeg, dus `abort()` laat daar 0 bytes staan (knownbug
+1899). `saveDataDialogWeb` geeft `refuseBeforePlace` wel door vóór `close()`, maar de aanroeper geeft hem in de browser
+alleen mee als een leeg bestand beter is dan de uitvoer: Opslaan als en Ctrl+S zonder doel geven er geen
+(`documentSaveDialog`); daar maakt de opslag het gevraagde bestand af, bij een intussen vervangen inhoud legt de commit
+niets vast en komt er niets in Recent. De native kiezer van Tauri geeft alleen een pad (plugin-dialog `save`), dus op de
+desktop geldt de late controle overal.
+De controle van een IFC-export (`exportAs('ifc')` en `exportProjectWithPool`) is één inhoudscontrole,
+`refuseChangedExport`: ze kijkt naar het geëxporteerde document, ook als dat intussen in een ander tabblad staat
+(review van #1027 ronde 2, knownbug 1903), en weigert als dat document gesloten is of een andere inhoud kreeg, als de te
+schrijven inhoud veranderde, of, bij een document met een vreemd deel, als het bronobject niet meer hetzelfde is of de
+app de volledige IFC weigert. Een tabbladwissel alleen is geen wijziging. De controlepunten:
+- onder het schrijfslot vóór de kiezer en vóór een download: die controle, en het document moet ook nog vooraan staan
+  (`refuseExportBeforePicker`);
+- direct na de kiezer, op het gekozen doel (`refuseTarget`), op elk platform;
+- desktop: vlak vóór de plaatsing, altijd (`exportTargetChecks`);
+- browser, op de handle uit de opslaankiezer (`exportTargetChecks`, keuze (b) van de technisch beslisser, fixronde 3 van
+  #1097). **Gekozen** wordt de late controle bij de geslaagde doelcontrole: stond het geëxporteerde document daar niet
+  vooraan (het punt waar main weigerde), dan geldt ze voor deze export. **Ze loopt** vlak vóór `close()`, welk tabblad
+  dan ook vooraan staat; weigert ze, dan `abort()` en het bestand blijft leeg. Stond het document bij de doelcontrole
+  wel vooraan, dan is er geen late controle, ook niet als de planner daarna wisselt: een wijziging tussen de
+  doelcontrole en `close()` komt dan niet in het bestand en de export meldt succes, zoals op main (knownbug 1958). Een export meldt bij een intussen
+  vervangen inhoud geen succes en legt geen kalenderkeuze vast (`exportContentReplaced`). Automatisch opslaan doet de doelcontrole (`refusedWriteTarget`) ná het rekenen,
 in dezelfde schrijfbeurt, zoals Ctrl+S. Een IFC-export (`exportAs('ifc')`, ook zonder gebouwmodel, en
 `exportProjectWithPool`) loopt als één volgorde met voorrang (`withIfcExportPriority`, fixronde 2 van de review van
 #1033): `claimProjectFileWrite` van de bronkeuze via de vraag "alleen de planning" tot en met het schrijven, en een ronde
@@ -210,7 +255,7 @@ zonder levende taak de GlobalId waarmee hij haar zocht in `ImportResult.baseline
 (`assumedRowGuid` en `withOrphanRowGuids` in `foreign/sourceForm.ts`), zonder eigen afleiding. Het veld is geen documentveld:
 `payloadFromImport` neemt het niet over. Alleen verwijzingen buiten tekst naar een eigen regel of het `IfcProject` tellen: een vreemd lid
 van een pset, template of relatie niet. Een pset of `IfcRelDeclares` met een niet-lege ledenlijst van uitsluitend
-vreemde leden (die de merge schrijft om ze te bewaren) is geen groep; een lege lijst of minstens één eigen lid wel. Niet getoetst: groepen waar (b) bronwaarden terugzette, en de bronbytes zelf.
+vreemde leden (die de merge schrijft om ze te bewaren) is geen groep; een lege lijst of minstens één eigen lid wel. Een slot dat (b) terugzette, toetst (c) apart (hieronder, per slot). Niet getoetst: een groep waarin (c) zo'n slot niet eenduidig aanwijst, en de bronbytes zelf.
 Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren. Proef: `check-ifc-foreign-eigen-uitvoer.ts`.
 
 De andere toets in de verliescontrole (PR 12b, `ownGroups` in `LossCheckInput`, `openedOwnGroups` in `mergeWriter.ts`):
@@ -219,7 +264,19 @@ verklaren als de groep in de bron gedragen is (a: geen stuk dat de herleestoets 
 niet uit, stap 5 deel 1: de merge houdt het lid, ook in een pset met alleen vreemde leden als de writer de pset niet meer
 schrijft, en controle 1 bewaakt het lidmaatschap) en het openen hem niet veranderde (a′: de writer op de lezing van de bron en op `ifcSource.opened`
 schrijft in die groep hetzelfde, in de bronvorm van `sourceFormWhereUnchanged`; alleen met `opened`). Dan toetsen (c) en
-de controle na openen de echte uitvoer. Geldt (a) of (a′) niet, dan blijft de controle van main. De baselinekop (PR 12c,
+de controle na openen de echte uitvoer. Geldt (a) of (a′) niet, dan blijft de controle van main.
+(a) blijft per groep: een groep met een slot van (b) valt helemaal buiten de toets, ook als (c) haar per slot toetst.
+(c) per slot (stap 5 deel 2, PR A): een slot dat (b) terugzette, toetst (c) apart; de rest van zijn groep gewoon.
+`restoredOwnSlots` (`ownGroups.ts`) wijst het aan op O1 vóór de bewerkingen: de plaats in de boom van (c) (de groep, de weg
+via typen en namen, en het argument: `OPS_ProjectSettings|IFCRELDEFINESBYPROPERTIES/5:IFCPROPERTYSET('OPS_ProjectSettings')#3`),
+de regel, het argument en de bronwaarde. `checkedOutput` draagt de regel door de nummerkaart van de hernummering (`remap`)
+naar de uitvoer. `restoredOwnGroupDifference` eist dat op die plaats in de uitvoer precies die regel staat, met op dat
+argument precies de bronwaarde (anders weigert (c)), en dat de herschreven boom daar precies één regel heeft, zonder
+verwijzing. Valt dat laatste niet te maken, of is de plaats niet eenduidig (twee properties of psets met dezelfde naam, twee
+koppen of taken met dezelfde GlobalId, het slot is de naam of de GlobalId), staat er een verwijzing in de bronwaarde of in de
+waarde van de writer, is de bronwaarde van een soort die de lezer deels draagt (lijst, JSON, samengestelde tekst; de lezer
+leest haar mee, dus de rest van de groep kan na heropenen anders teruglezen, knownbug 1770), of staat de regel niet in de
+nummerkaart: dan slaat (c) de hele groep over, zoals vóór PR A. Proef van het aanwijzen: `check-ifc-foreign-slotplaats.ts`. De baselinekop (PR 12c,
 E1, `headsFollowBaselines`): valt `OPS_Baselines` onder de toets, veranderde het openen ook de koppen
 niet en zette (b) geen kop terug, dan mag in de aggregatie van het eigen werkplan een kop met zijn baseline wegvallen of
 erbij komen (hooguit zoveel als de planner wiste of maakte); de rest van die aggregatie blijft exact en in volgorde. (c)
@@ -228,11 +285,53 @@ bewaakt van de koppen het aantal, de inhoud, de plaats en de GlobalId per baseli
 en zette (b) geen typenaam terug, dan mag slot 4 (`ObjectType`) veranderen van een eigen taak die in de bron en in O1
 `.USERDEFINED.` is, met hetzelfde type als bij openen, waarvan de definitie nu een andere naam heeft (een hernoemd type).
 Elk ander slot van de taakregel blijft onder de controle van main. De waarde toetst (c), per taak op GlobalId; zette (b)
-ergens een typenaam terug, dan toetst (c) geen typenaam (knownbug 1747). Beide tweede vormen staan in `SECOND_FORMS`
+een typenaam terug, dan toetst (c) dat slot van die taak apart, op de bronwaarde. Beide vormen blijven per groep: zette (b) iets terug in
+de pset van de vorm of in de vorm zelf, dan beweegt de vorm niet mee (knownbug 1747). Beide tweede vormen staan in `SECOND_FORMS`
 (`ownGroups.ts`: pset en vorm; `lossCheck.ts`: wat de vorm mag dragen); `openedOwnGroups` geeft per pset of het openen de
 vorm niet veranderde (`secondFormsUnchanged`). Buiten de toets: alles buiten de eigen
-projectgroepen (taken, relaties, kalenders, resources). De oude verklaringen blijven tot stap 5. Proef:
+projectgroepen (taken, relaties, kalenders, resources). De oude verklaringen (lijst A) en de nacontrole blijven; ze weghalen
+is PR B van stap 5 deel 2, geparkeerd (knownbug 1953). Proef:
 `check-ifc-foreign-eigen-toets.ts`; de verliescontrole los op een nagebootste fout in O1: `lossProbe` in `ifcMergeKern.ts`.
+
+### Koppelingen taak↔bouwdeel (#804 fase 2, `elementLinks`)
+
+`ifcSource.elementLinks` (ontwerp §4.6) is een afgeleide, alleen-lezen weergave per taak-id: `{ direction, target, found }[]`,
+geen domein- en geen documentveld, als `Map` (veilig voor elke taak-id, ook na het klonen in een Worker).
+`foreign/elementLinks.ts` leest de koppelingen uit een `StepIndex` (`scanElementLinks`), alleen op twee plekken: bij openen
+(`scanForeignToOpen`, in de Worker via een verzoek met `open: true`) en voor de bron die de writer teruggeeft
+(`writtenSource` in `mergeWriter.ts`, uit de index die daar al is). `scanForeign` en `foreignScanFrom` (doelcontrole, ook
+headless, en de interne scans van de merge) verzamelen ze niet. `IfcRelAssignsToProcess` met een `IfcTask` als relating
+geeft `input` naar elk lid met een modeltype (`IFC_BUILDING_MODEL_TYPES`); een ontbrekend lid telt daar niet, want het kan
+ook een resource zijn. `IfcRelAssignsToProduct` geeft `output` aan elk `IfcTask`-lid; staat het doel daar niet in het
+bestand, dan is het `found: false` met `target` = `#<id>`. Een bestaand doel zonder modeltype (een resource, een
+kostenpost) is geen koppeling; een complexe instantie ook niet (knownbug 2216). De scan levert ze op STEP-id;
+`elementLinksByTask` deelt ze in één keer in (één `Set` op taak, richting en doel, in de volgorde van de bron) met de kaart
+domein-id → `#id`: bij openen die van de lezer (`ifcBytesRoute.ts`), na een merge die van de writer (§4.8), nooit met
+domein-ids van een nieuwe indeling. De opslagworker eist die vorm (`resultFits`). Niet via `parseSTEP` van de lezer: de doelen zijn V en staan niet in de
+tekst die de lezer krijgt. De app schrijft niets aan de koppelingen; de A-stukken blijven bytegelijk. Het taakpaneel
+(`TaskElementLinksNotice`) en `planner_get_task` lezen ze alleen met de flag aan, via `state/taskElementLinks.ts`; een
+bouwdeel dat zowel invoer als uitvoer is, telt één keer. IFCX (§6.4) hoort bij fase 3 en 4. Proeven:
+`check-ifc-element-links.ts`, `tests/mcp/cases-element-links.ts` en de stap met `bonsai-4d.ifc` in `settings-tabs.spec.ts`.
+
+### Ongebruikte sleutels in `OPS_Assignments` (#804 fase 2, PR 3)
+
+Een sleutel in GlobalId-vorm (`isAssignmentKeyName` in `src/services/ifc/assignmentKeys.ts`, ook de herkenner achter
+`isOwnAssignmentKey` in `classify.ts`) die de lezer aan geen toewijzing koppelt, is ongebruikt: meer `#n`-sleutels dan
+toewijzingen van die resource, een kale sleutel naast genoeg `#n`-sleutels, of een waarde die geen tekst is.
+`extractAssignments` meldt ze via `unusedAssignmentKeysOut`. De bytes-route vraagt daar alleen om bij een vreemd deel
+(`C + A + V > 0`) en zet ze dan in `ifcSource.unusedKeys` (taak-`#id` met de property-`#id`'s, in psetvolgorde); een eigen
+bestand krijgt hetzelfde leesresultaat als op main. Alleen de merge schrijft ze terug: `unusedKeysForWriter`
+(`foreign/unusedKeys.ts`) leest naam en waardetoken uit de bron, en `writeAssignmentMeta` schrijft ze na de eigen sleutels,
+met de namen van `unusedAssignmentKeyNames`: een `#n` onder de nummers die de writer zelf schrijft, schuift naar het
+eerste vrije nummer erboven, zodat de wachtrij van de lezer niet verschuift; een kale sleutel houdt haar naam. Dat vrije
+nummer slaat ook de namen van de vreemde leden van dezelfde pset over (`foreignAssignmentKeyNamesForWriter`), want een
+pset met twee properties met dezelfde naam is ongeldige IFC. Heeft de taak geen toewijzingen meer, dan krijgt ze een pset
+met alleen deze sleutels. In `checkedBytes` eist `unusedKeysProblem` per bestaande taak in de herlezing van de uitvoer
+dezelfde waarden onder de namen die de regel geeft, en weigert `duplicateAssignmentKeyProblem` elke naam die in
+`OPS_Assignments` vaker voorkomt dan in de bron, ook een eigen sleutel naast een vreemd lid (beide `uitvoer-controle`).
+De nieuwe bron neemt de lijst uit die herlezing. Een gewiste taak neemt haar sleutels mee; melding en `detached` volgen
+in PR 6 en 7. Zonder vreemd deel schrijft de gewone writer ze niet, zoals op main; een paar bronvormen weigeren nog
+(knownbug 2210). Proef: `check-ifc-foreign-ongebruikte-sleutels.ts`.
 
 ### Vergelijkingsklok (#804 fase 1c)
 
@@ -243,6 +342,38 @@ geen vergelijkingsdatum mee. Projectdatums en bestaande baseline-aanmaakdatums b
 `OPS_ProjectSettings.CreatedAt/ModifiedAt` overschrijven die wanneer aanwezig. Gewoon openen blijft
 ontbrekende datums met de echte klok vullen. `check-ifc-foreign-klok.ts` bewaakt beide klokgrenzen,
 bronidentieke bytes en de gewone/download-/site-uitvoer zonder vaste vergelijkingsdatum.
+
+### Twee grenzen: de drempel voor de waarschuwing en de technische grens (#804, knownbug 1936)
+
+Twee getallen, elk op één plek:
+- **De drempel voor de waarschuwing** `IFC_FOREIGN_OPEN_WARN_BYTES` (`src/services/ifc/foreignOpenSize.ts`): 150 MiB
+  (binair, `IFC_FOREIGN_OPEN_WARN_MIB`). Besluit van de eigenaar, 24 november 2026: boven deze grootte opent een bestand
+  met een gebouwmodel of vreemde gegevens gewoon, met een waarschuwing zonder timer (van 21 tot 24 november weigerde
+  openen hier). Eén toets, `opensLargeForeignSource`: de bron van een gelezen document heeft `ifcSource.foreign` en is
+  groter dan de drempel (`>`); geen tweede scan. De proefnaad `lowerForeignOpenWarnBytesForTests` verlaagt alleen die
+  vergelijking; het getal in de tekst is altijd `IFC_FOREIGN_OPEN_WARN_MIB`. De tekst belooft niet dat het bestand op
+  schijf gelijk blijft als opslaan mislukt (review van #1203, ronde 1): ze zegt dat recente wijzigingen verloren kunnen
+  gaan. De melding `notifications.ifcForeignOpenLarge` loopt mee in de
+  keten van openingsmeldingen (`withLargeForeignOpenNotice` in `applyOpenedImport`; ADR 0071: een regel onder een
+  bestaande openingsmelding, anders een eigen melding) en heeft geen timer via `STICKY_OPEN_NOTICE_KEYS`; de stapel van
+  drie en de samenvouwing kunnen haar wel verdringen (knownbug 2253). Het kanaal kent
+  geen aparte ernst voor een waarschuwing; zoals de andere verlieswaarschuwingen is ze `info` met `sticky`. Zo krijgt
+  elke route die een nieuw document opent haar: Bestand → Openen, Recent, slepen en het startbestand, de dev-link, de
+  site en `planner_import_schedule` in de app. Een wissel naar een tabblad waarin het bestand al open staat, opent niets
+  en waarschuwt niet. Het crashherstel opent zijn bron in een eigen storecontext (`recoveryDocumentWithSource`), net als
+  de kern, de mergecontrole en de headless MCP-server: hun melding bereikt het scherm niet. `planner_import_schedule`
+  zet de waarschuwing in de app ook in `notice` (`McpFileFs.warnsLargeForeignSource`, gezet door `realFs`); de headless
+  server niet, die gelijk blijft aan main. Met de flag uit is er geen `ifcSource` en dus geen waarschuwing.
+- **De technische grens** `IFC_FOREIGN_SCAN_MAX_BYTES` (`foreignScan.ts`, ook `IFC_BYTES_ROUTE_MAX_BYTES`): 300 MiB, zoals
+  main. Bytes-route, scanner, doelscan, crashherstel en headless gebruiken alleen deze, ongewijzigd. Daarboven weigert
+  openen een bestand met een gebouwmodel of vreemde gegevens, met de melding van main.
+
+Een planning zonder gebouwmodel en zonder vreemde gegevens krijgt de waarschuwing niet. De uitvoer van opslaan heeft geen
+grens; een bestand dat door opslaan boven de drempel komt, opent daarna met de waarschuwing. Bewaakt in
+`check-ifc-foreign-grens.ts` (de drempel verlaagd met de proefnaad `lowerForeignOpenWarnBytesForTests`, door de echte
+routes en de echte herstelvraag; boven de technische grens met een nagebootste lengte), `check-one-file-one-tab.ts` (een
+al open model boven de drempel), `tests/mcp/cases-doc-file.ts` (de app) en `tests/mcp/cases-headless-server.ts`
+(headless zoals main).
 
 ### Auteur en bedrijf (#804 fase 1c)
 
@@ -267,7 +398,7 @@ worden niet als vrije tekst herkend. De grens is precies die van main: 64 KiB UT
 tellen niet mee. Mogelijke entiteitsbeginnen, commentaar en quote/veldgrenzen (ook met witruimte) behouden de
 main-route en worden niet gemaskeerd of overgeslagen. De stroom houdt alleen de nog onbesliste kop vast. Alle andere bestanden houden de sectiezoekregel van main (1061). De aparte, ruimere
 herkenning in `targetModelScan.ts` is weg; een kapotte huidige kop is geen oude kop en weigert als doel. Een geldig
-bestand volgt de gewone grammatica. IFC schrijven met een vreemd deel gebruikt uitsluitend de voorbereide document- en volledige exportroutes; bestaande lokale doelen blijven geblokkeerd.
+bestand volgt de gewone grammatica. IFC schrijven met een vreemd deel gebruikt uitsluitend de voorbereide document- en volledige exportroutes; een bestaand lokaal doel vervangen ze alleen langs `replaceOwnPathWithRecovery` (hieronder).
 Proeven: `check-ifc-foreign-classify.ts`, `-open.ts`, `-target.ts`, `check-ifc-target-model-scan.ts` en de herleestoets.
 
 ### Opslaan als bij ontbrekend gebouwmodel (#804, PR 9e)
@@ -322,8 +453,8 @@ leest erdoor, dus de schrijfrij wacht nooit op zichzelf. Een lezing die al vóó
 sluitbeslissing (een bewerking tijdens de opslag: de geschreven versie wordt de bron, het document blijft gewijzigd).
 Elke andere uitkomst meldt via `ownPathReplaceNotices` en stopt; nooit de gewone schrijfroutine (die schrijft op naam).
 Automatisch opslaan met een gebouwmodel (#804 stap 8) neemt dezelfde vervanging, met een eigen beleid voor een oud record
-en de grens van de voorrang op `stopBeforeWrite` (zie `settings-autosave.md`); `planner_export_ifc` niet (de export
-weigert een bestaand pad met een vreemd deel). Proeven: `check-ifc-own-file-replace.ts` (onderaan), `check-ifc-document-save.ts`,
+en de grens van de voorrang op `stopBeforeWrite` (zie `settings-autosave.md`); Exporteren → IFC en `planner_export_ifc`
+over een andere bestaande naam ook (zie *Exporteren → IFC over een andere bestaande naam*). Proeven: `check-ifc-own-file-replace.ts` (onderaan), `check-ifc-document-save.ts`,
 `check-app-quit-lifecycle.ts`.
 
 **Opslaan als over een andere bestaande naam (stap 8, #1019, keuze 4).** Alleen desktop, flag aan: de merge, en met de
@@ -352,9 +483,46 @@ Opslaan als naar een nieuwe naam; daarna Recent. `save-as-only` (buiten de scope
 harde link, ook op Windows via `nNumberOfLinks` in `place_file_exclusive`; `unsupported`, `refused`) ⇒
 `ifcForeignNewTargetOnly`; de andere uitkomsten de meldingen van Ctrl+S. Met de flag uit gaat een document zonder vreemd
 deel langs de gewone kiezer van main (`documentSaveDialog`, `saveDataDialog` → `writeUserFileTauri`), zonder
-toestemming, en geldt de volgorde van de weigerredenen van main (zie hieronder). Exporteren, Ctrl+S met een opslagdoel, Automatisch opslaan, `planner_export_ifc` en de dev-bridge geven geen
-toestemming en weigeren een doel met een gebouwmodel zoals voorheen. Afhandelen na een crash gaat via het record, ook
+toestemming, en geldt de volgorde van de weigerredenen van main (zie hieronder). Ctrl+S met een opslagdoel, Automatisch opslaan, de exports van een planning zonder vreemd deel en de dev-bridge geven
+geen toestemming en weigeren een doel met een gebouwmodel zoals voorheen; Exporteren → IFC van een document met een
+vreemd deel en `planner_export_ifc` met `overwrite: true` wel (hieronder). Afhandelen na een crash gaat via het record, ook
 als het doel in deze sessie nooit geopend was. Proeven: `check-ifc-own-file-replace.ts` deel c.
+
+**Exporteren → IFC over een andere bestaande naam (#804, besluit van de eigenaar, 21 november 2026).** Alleen desktop,
+flag aan, een document met een vreemd deel (`preparedExport`). Opslaan als en deze export delen één functie,
+`placeOnDesktop` (`fileSlice.ts`, geeft `SaveOutcome | null`): de kiezer met de doelwaarneming, de doelcontrole met die
+waarneming, pas daarna de bytes, en dan de vervanging, de exclusieve aanmaak of de weigering zoals hierboven. De route
+geeft de doelcontrole, de late controle, het document voor het manifest, de commit en de meldingen mee. De export:
+- **Bevestiging.** Dezelfde waarneming als Opslaan als: de versie die `pickSaveTarget` direct na de keuze leest, is de
+  bevestigde (maat a van Trias, fixronde 2 van #1179; geen tijdstempels). Stond er toen niets, dan de exclusieve aanmaak
+  (een later verschenen bestand blijft staan, `exportReplaceNewTargetOnly`). De grens vóór die lezing: knownbug 2208.
+- **P1.** `exportTargetPermission(bron, waarneming)` (`ifcForeignGuard.ts`) is de ene exportregel voor de toestemming:
+  `chosenTarget` plus `protectModelTargets` als de uitvoer geen gebouwmodel draagt (`hasBuildingModel`). Dan blijft een
+  doel met een gebouwmodel geweigerd, ook bevestigd; een doel met alleen gegevens van een ander programma niet.
+- Doelcontrole `exportTargetChecks(momentopname, toestemming)` (`foreignTargetCheck` met één scan van de vastgelegde bytes,
+  `capturedTargetReaders` in `foreignSourceTarget.ts`, daarna `refuseChangedExport`), late controle `refuseChangedExport`,
+  `documentId: null` (alleen het herstelrecord, geen `pendingSha256` in het manifest) en een lege commit: bron, kenmerk,
+  doel, dirty-vlag en kalenderkeuzes blijven staan; daarna Recent, zoals elke export.
+- **De haak `planningChanged`** (alleen de export; `replaceOwnFileBytes`, na het opzijzetten van het doel en vóór de
+  plaatsing): vraagt alleen of de planning sinds de opdracht veranderde (`exportPlanningChanged`, zonder melding en zonder
+  vlag- of doelcontrole). Zo ja: het doel exclusief terug op zijn plek, het tijdelijke bestand weg, uitkomst
+  `planning-changed` (de aanroeper meldt `ifcExportChangedWhileWaiting`); lukt het terugzetten niet, dan
+  `previous-stranded` en blijven het record en de hulpnaam. Zonder haak (Ctrl+S, Opslaan als, Automatisch opslaan) loopt
+  de route aanroep voor aanroep als voorheen (proef: de reeksen aanroepen in `check-ifc-own-file-replace.ts`).
+- **De vlag tot de plaatsing** (`replaceAllowed`, alleen de export, los van de haak): direct na de haak, in dezelfde
+  synchrone stap. Staat `ifcForeignContent` uit, dan dezelfde terugzetstap, uitkomst `replace-withdrawn` (de melding van
+  main bij de flag uit, `ifcForeignSaveBlocked`). `tauriOwnFileReplaceFs` laadt `invoke` vooraf
+  (`placeFileExclusiveWith`), zodat haak, vlag en de aanroep van de definitieve plaatsing geen `await` scheidt; wat
+  overblijft is knownbug 2247.
+- Het eigen bestand van het document blijft geweigerd; bij de IFC-exports van de planning (`exportTargetChecks`: ook
+  zonder gebouwmodel en het planningsbestand van de export met bibliotheek) met `exportTargetOwnFile`, dat naar Opslaan
+  verwijst. Andere formaten en de afzonderlijke bibliotheekuitvoer houden hun zin.
+Een planning zonder vreemd deel krijgt geen toestemming en blijft op `saveDataDialog`, zoals main. Een mislukte vervanging
+meldt met de exportzinnen van `exportReplaceNotices` (`state/ownFileReplace.ts`, "Niet geëxporteerd"); een link en
+`save-as-only` geven `exportReplaceNewTargetOnly`. Na een crash handelt het herstel de hulpnamen af zoals bij Opslaan als
+(de naam van de kopie: knownbug 2207). `planner_export_ifc` doet hetzelfde met `overwrite: true` via
+`McpFileFs.replaceUserBytes` (`mcp.md`). Proeven: de gevallen "Exporteren → IFC over …", P1 en de haak in
+`check-ifc-own-file-replace.ts`, `check-ifc-document-save.ts`, `cases-doc-file.ts` en `run-real-app.ts`.
 
 **Opslaan als en Exporteren over het bestand van een ander tabblad (#1022, knownbug 1907).** De doelcontrole direct na
 de bestandskiezer van een document (`documentSaveDialog` en `saveAsOnDesktop`: Opslaan als, en Ctrl+S zonder bruikbaar
@@ -376,7 +544,19 @@ uit precies main (fixronde 2): regel 1, dan de eigen versie, dan het open tabbla
 bestandsaanroepen, ook als er na het uitzetten nog een tabblad met een gebouwmodel open staat. Staat er op het pad geen bestand meer, dan is de naam vrij, ook als een ander
 tabblad hem onthoudt (fixronde 2 van #1019; knownbug 1908). Op de desktop wijzigt de kiezer niets, dus er is dan niets
 geschreven. Alleen paden: een handle uit de opslaankiezer van de browser is al leeggemaakt (1899), dus daar vergelijkt de
-controle niets en maken Opslaan als en Exporteren het bestand af (knownbug 1893). Opslaan als op de site maakt altijd een
+controle niets en maken Opslaan als en Exporteren het bestand af (knownbug 1893). Openen gaat met de flag aan altijd naar het tabblad dat een
+bestand al open heeft, met een strook als de gelezen versie verschilt (`openDocumentFor.ts`, knownbug 1957; de beslissing
+staat in `state.md`). Regel: de PR voegt geen wachtmoment en geen bestandsaanroep toe aan de openactie, ook niet aan de
+native kant (besluit D, review #1121 ronde 6). De desktop kijkt bij het openen niet naar de schijf: geen `stat`, geen
+`fileIdentityFs` in een openroute; Openen, Recent, slepen en `planner_import_schedule` lezen regel voor regel zoals main
+(eerst de schrijfrij, `whenProjectFileWritesIdle` in `tauriBackend.ts`, dan de herstelrecords, dan één lezing;
+`planner_import_schedule` leest via `realFs` buiten die rij om, ook zoals main: knownbug 2060). De versie komt uit de al
+gelezen bytes (`ifcSource.sha256`), niet uit een tweede lezing. Alleen de browser heeft een asynchroon deel
+(`startOpenLookup`); het start synchroon vlak vóór het lezen en niets wacht erop: de haak `beforeRead` van
+`openFileDialogWeb`, die van `DroppedFile.read` in `webDroppedFile`, en in `openRecentFile` vóór de vraag om leesrechten.
+Met de flag uit gaat elke route langs de lijn van main. Een tweede tabblad op hetzelfde bestand kan er nog zijn
+(crashherstel, een tabblad zonder bekende versie, een ander pad naar hetzelfde bestand: knownbug 2063, kruisende
+openacties in de browser: knownbug 2041; een late toets: 2062), dus de doelbewaking blijft nodig. Opslaan als op de site maakt altijd een
 nieuw sitebestand (geen `id`), dus daar is geen bestaand doel om te vergelijken. Het eigen bestand van het document
 blijft een gewoon doel. Proeven: `check-ifc-own-file-replace.ts` (#1022, knownbug 1907, de bibliotheek),
 `check-ifc-foreign-target.ts` (#1022 browser), `cases-doc-file.ts` en `cases-headless-server.ts` (`planner_export_ifc`).

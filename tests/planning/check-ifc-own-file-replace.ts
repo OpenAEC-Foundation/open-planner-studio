@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { documentContentOf } from '@/state/documentSaveState';
 import { createHash } from 'node:crypto';
 import {
-  existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync,
+  existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -20,11 +20,12 @@ import nlCommon from '@/i18n/locales/nl/common.json';
 import enCommon from '@/i18n/locales/en/common.json';
 import { loadStore } from './ifcAppRoute';
 import { installNodeFileIpc, type PlaceAnswer } from './nodeFileIpc';
-import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { openSecondTabOn } from './sameFileTabFixture';
+import { buildExportIFCInput, buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
-import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { projectFileWriteTurns, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import {
-  previousVersionPath, replaceCopyPath, tauriOwnFileReplaceFs, type OwnFileReplaceFs, type ReplaceRemnantsFs,
+  placeUniqueReplaceCopy, previousVersionPath, replaceCopyPath, tauriOwnFileReplaceFs, type OwnFileReplaceFs, type ReplaceRemnantsFs,
 } from '@/services/fileAccess/ownFileReplace';
 import {
   parseReplaceRecord, pendingReplaceFor, replaceRecordId, replaceRecordName, serializeReplaceRecord, settlePendingReplaces,
@@ -527,6 +528,96 @@ await check('stap 4 faalt en terugzetten ook: het record blijft, en de volgende 
   } finally { await tidy(c); }
 });
 
+
+await check('1816: andere programmaversie krijgt een vrije naam zonder bestaande kopieën te raken', async () => {
+  const c = await opened();
+  try {
+    const second = 'model (versie van ander programma 2026-11-17 14.32 2).ifc';
+    const third = 'model (versie van ander programma 2026-11-17 14.32 3).ifc';
+    writeFileSync(join(c.dir, OTHER_COPY), bytes);
+    writeFileSync(join(c.dir, second), otherNew);
+    const { result } = await replace(c, await aroundPlace(1, 'before', () => writeFileSync(c.path, otherProgram)));
+    assert.deepEqual(result, { code: 'replaced', otherVersion: join(c.dir, third), leftOver: null });
+    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [OTHER_COPY]: hash(bytes), [second]: hash(otherNew), [third]: hash(otherProgram) });
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
+
+await check('1816: alleen botsing herhalen, andere uitkomsten stoppen en aantal pogingen is begrensd', async () => {
+  let attempts = 0;
+  const collision = { place: async () => { attempts++; return { code: 'target-exists' as const }; } };
+  assert.equal(await placeUniqueReplaceCopy(collision, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'), null);
+  assert.equal(attempts, 100);
+  attempts = 0;
+  const syncWarning = { place: async () => {
+    attempts++;
+    return attempts === 1 ? { code: 'target-exists' as const }
+      : { code: 'dir-not-synced' as const, message: 'test' };
+  } };
+  assert.equal(await placeUniqueReplaceCopy(syncWarning, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'),
+    '/map/model (kopie 2).ifc');
+  assert.equal(attempts, 2, 'een geplaatste kopie niet opnieuw verplaatsen');
+  attempts = 0;
+  const uncertainAfterCollision = { place: async () => {
+    attempts++;
+    return attempts === 1 ? { code: 'target-exists' as const } : { code: 'source-changed' as const };
+  } };
+  assert.equal(await placeUniqueReplaceCopy(uncertainAfterCollision, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'), null);
+  assert.equal(attempts, 2, 'onzekere toestand na botsing niet opnieuw proberen');
+  for (const code of ['source-changed', 'io', 'refused', 'unsupported'] as const) {
+    attempts = 0;
+    const fs = { place: async () => {
+      attempts++;
+      if (code === 'io' || code === 'unsupported') return { code, message: 'test' };
+      if (code === 'refused') return { code, reason: 'scope' as const };
+      return { code };
+    } };
+    assert.equal(await placeUniqueReplaceCopy(fs, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'), null);
+    assert.equal(attempts, 1, code);
+  }
+});
+
+await check('1832: een aangetroffen link onder de vorige naam blijft staan zonder hem te lezen', async () => {
+  const c = await opened();
+  try {
+    let previous = '', readPrevious = false;
+    const base = await aroundPlace(2, 'after', () => {
+      previous = previousVersionPath(c.path, helperId(c));
+      unlinkSync(previous);
+      symlinkSync(c.path, previous);
+    });
+    const fs: OwnFileReplaceFs = { ...base, content: async (path, expected) => {
+      if (path === previous) readPrevious = true;
+      return base.content(path, expected);
+    } };
+    const { result } = await replace(c, fs);
+    assert.deepEqual(result, { code: 'replaced', otherVersion: null, leftOver: previous });
+    assert.equal(readPrevious, false);
+    assert.equal(lstatSync(previous).isSymbolicLink(), true);
+    assert.equal(hash(new Uint8Array(readFileSync(c.path))), c.prepared.sha256);
+    assert.equal(recordsOnDisk().length, 1);
+  } finally { await tidy(c); }
+});
+
+await check('1832: fout bij lstat laat de vorige naam ongemoeid', async () => {
+  const c = await opened(), base = await tauriOwnFileReplaceFs();
+  try {
+    let denied = '', readPrevious = false;
+    const fs: OwnFileReplaceFs = { ...base, lstat: async path => {
+      if (path.includes('.ops-vorige-')) { denied = path; throw new Error('geen toegang'); }
+      return base.lstat(path);
+    }, content: async (path, expected) => {
+      if (path.includes('.ops-vorige-')) readPrevious = true;
+      return base.content(path, expected);
+    } };
+    const { result } = await replace(c, fs);
+    assert.deepEqual(result, { code: 'replaced', otherVersion: null, leftOver: denied });
+    assert.equal(readPrevious, false);
+    assert.equal(hash(new Uint8Array(readFileSync(denied))), hash(bytes));
+    assert.equal(recordsOnDisk().length, 1);
+  } finally { await tidy(c); }
+});
+
 // ── Een ander programma schrijft tijdens de vervanging ───────────────────────────────────────────────────────────
 
 await check('het doel verandert tussen stap 2 en 3: de versie van de ander blijft als "versie van ander programma"', async () => {
@@ -603,6 +694,21 @@ function fullVersionOnTarget(c: Case, restored: Awaited<ReturnType<typeof recove
   assert.equal(restored.filePath, c.path, 'en geeft het doel terug');
 }
 const sourceNow = (c: Case) => c.state.ifcSource!.sha256;
+
+await check('1816: niet opgeslagen planning krijgt bij botsing een vrije naam', async () => {
+  const c = await opened();
+  try {
+    const second = 'model (niet opgeslagen planning 2026-11-17 14.32 2).ifc';
+    writeFileSync(join(c.dir, UNSAVED_COPY), otherProgram);
+    await crashAt(c, (_b, crash) => ({ content: crash }));
+    const { notices } = await recover(c);
+    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes), [UNSAVED_COPY]: hash(otherProgram), [second]: c.prepared.sha256 });
+    assert.deepEqual(notices.map(n => [n.messageKey, n.params]), [
+      ['notifications.ifcForeignReplaceUnsavedCopy', { file: c.path, copy: join(c.dir, second) }],
+    ]);
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
 
 await check('crash na stap 0: herstel vindt de oude versie; er is niets op te ruimen en het record gaat weg', async () => {
   const c = await opened();
@@ -1154,6 +1260,22 @@ const openViaDrop = async (c: Case) => {
 };
 const otherTab = (c: Case) => c.store.getState().getOpenDocumentPayloads()
   .find(d => d.id !== c.id && d.payload.foreignSourceMark?.filePath === c.path);
+const secondTab = (c: Case, content: Uint8Array = bytes) => openSecondTabOn(c.store, { kind: 'path', path: c.path },
+  () => c.store.getState().openOpenedFile({ name: basename(c.path), content: '', bytes: content, ref: { kind: 'path', path: `${c.path}.kopie` } }));
+const openedVersions = (c: Case) => {
+  const original = c.store.getState().openOpenedFile;
+  const versions: string[] = [];
+  c.store.setState({
+    openOpenedFile: (opened, ...rest) => {
+      if (opened.ref?.kind === 'path' && opened.ref.path === c.path) {
+        versions.push(hash(opened.bytes ?? new TextEncoder().encode(opened.content)));
+      }
+      return original(opened, ...rest);
+    },
+  });
+  return { versions, stop: () => c.store.setState({ openOpenedFile: original }) };
+};
+const changedOnDiskNotices = (c: Case) => c.store.getState().documents.filter(d => d.changedOnDisk).length;
 /** De herstelronde van `opened`, met `during` één keer in de eerste ronde binnen de vervanging (`pendingSha256` staat dan
  *  in het manifest; de controle na de herstelronde komt daarna). */
 function firstPendingRound(c: Case, during: () => void | Promise<void>) {
@@ -1174,7 +1296,7 @@ function firstPendingRound(c: Case, during: () => void | Promise<void>) {
 await check('een vooraf geopend tweede tabblad met hetzelfde bestand stopt Ctrl+S, met nul plaatsingen', async () => {
   const c = await opened();
   try {
-    await openViaDrop(c);
+    await secondTab(c);
     assert(otherTab(c), 'het tweede tabblad is open');
     c.store.getState().switchDocument(c.id);
     clearNotices(c);
@@ -1185,11 +1307,12 @@ await check('een vooraf geopend tweede tabblad met hetzelfde bestand stopt Ctrl+
   } finally { await tidy(c); }
 });
 
-await check('een tweede tabblad dat tijdens de eerste herstelronde opengaat, wacht tot de vervanging klaar is en leest de nieuwe versie', async () => {
+await check('een opening die tijdens de eerste herstelronde begint, wacht tot de vervanging klaar is en gaat dan naar het open tabblad', async () => {
   const c = await opened();
   let opening: Promise<void> | undefined;
   // Niet afwachten in de herstelronde: die loopt binnen de schrijfactie, en het openen wacht juist daarop.
   const round = firstPendingRound(c, () => { opening = openViaDrop(c); });
+  const read = openedVersions(c);
   try {
     clearNotices(c);
     const from = ipc.calls.length;
@@ -1199,16 +1322,16 @@ await check('een tweede tabblad dat tijdens de eerste herstelronde opengaat, wac
     const written = fileHash(c, 'model.ifc');
     assert.deepEqual({ result, changed: written !== hash(bytes), places: placesSince(from).length, errors: errorKeys(c) },
       { result: true, changed: true, places: 2, errors: [] }, 'de opslag slaagt');
-    const second = otherTab(c);
-    assert(second, 'het tweede tabblad is open');
-    assert.equal(second.payload.ifcSource?.sha256, written, 'het tweede tabblad las de nieuwe versie');
-  } finally { round.unregister(); await tidy(c); }
+    assert.deepEqual(read.versions, [written], 'het openen las de geschreven versie, pas na de vervanging');
+    assert.equal(otherTab(c), undefined, 'geen tweede tabblad');
+    assert.deepEqual([c.store.getState().activeDocumentId, changedOnDiskNotices(c)], [c.id, 0], 'naar het tabblad dat opsloeg, dezelfde versie, geen melding');
+  } finally { read.stop(); round.unregister(); await tidy(c); }
 });
 
 await check('een tweede tabblad dat er na de eerste herstelronde toch is: de vervanging stopt met nul plaatsingen en de melding van de doelbewaking', async () => {
   const c = await opened();
   // Rechtstreeks in de store (de openactie met bytes, zonder de leesroute), tussen de controle vóór en na de herstelronde.
-  const round = firstPendingRound(c, () => c.store.getState().openOpenedFile({ name: 'model.ifc', content: '', bytes, ref: { kind: 'path', path: c.path } }));
+  const round = firstPendingRound(c, async () => { await secondTab(c); });
   try {
     clearNotices(c);
     const from = ipc.calls.length;
@@ -1241,7 +1364,7 @@ const throughRecent = (c: Case) => {
   return c.store.getState().openRecentFile('review-recent');
 };
 for (const route of ['dialoog', 'Recent'] as const) {
-  await check(`${route}: opening tijdens herstel wacht en leest wat Ctrl+S schreef`, async () => {
+  await check(`${route}: opening tijdens herstel wacht tot Ctrl+S klaar is en gaat naar het open tabblad`, async () => {
     const c = await opened();
     const invoke = internal.invoke;
     internal.invoke = (command, ...args) => command === 'plugin:dialog|open' ? Promise.resolve(c.path) : invoke(command, ...args);
@@ -1251,15 +1374,19 @@ for (const route of ['dialoog', 'Recent'] as const) {
       await new Promise<void>(resolve => setImmediate(resolve));
       assert.equal(otherTab(c), undefined);
     });
+    const read = openedVersions(c);
     try {
       assert.equal(await c.store.getState().saveFileForDocument(c.id), true);
       assert.ok(opening && round.fired());
       await opening;
       const written = fileHash(c, 'model.ifc');
       assert.notEqual(written, hash(bytes));
-      assert.equal(otherTab(c)?.payload.ifcSource?.sha256, written);
+      assert.deepEqual(read.versions, [written], 'de opening las de geschreven versie, pas na de vervanging');
+      assert.equal(otherTab(c), undefined, 'geen tweede tabblad');
+      assert.deepEqual([c.store.getState().activeDocumentId, changedOnDiskNotices(c)], [c.id, 0], 'naar het tabblad dat opsloeg, dezelfde versie, geen melding');
       assert.deepEqual(errorKeys(c), []);
     } finally {
+      read.stop();
       internal.invoke = invoke;
       round.unregister();
       await tidy(c);
@@ -1267,7 +1394,7 @@ for (const route of ['dialoog', 'Recent'] as const) {
   });
 }
 
-await check('1837: een al begonnen lezing blijft oud, maar Ctrl+S weigert ook nadat het eerste tabblad dicht is', async () => {
+await check('1837: een al begonnen lezing gaat naar het open tabblad; een tabblad met de oude bron weigert Ctrl+S, ook nadat het eerste dicht is', async () => {
   const c = await opened();
   const read = deferredOpen(), release = deferredOpen();
   const invoke = internal.invoke;
@@ -1282,6 +1409,7 @@ await check('1837: een al begonnen lezing blijft oud, maar Ctrl+S weigert ook na
     }
     return invoke(command, ...args);
   };
+  const versions = openedVersions(c);
   const opening = throughRecent(c);
   try {
     await Promise.race([read.promise, opening.then(() => { throw new Error('de route heeft de verwachte leesrand niet geraakt'); })]);
@@ -1291,13 +1419,16 @@ await check('1837: een al begonnen lezing blijft oud, maar Ctrl+S weigert ook na
     assert.notEqual(written, hash(bytes));
     release.resolve();
     await opening;
-    const second = otherTab(c);
-    assert(second, 'het tweede tabblad ging open');
-    assert.equal(second.payload.ifcSource?.sha256, hash(bytes), 'het las de oude bron');
+    assert.deepEqual(versions.versions, [hash(bytes)], 'de lezing van vóór Ctrl+S kreeg de oude versie');
+    versions.stop();
+    assert.equal(otherTab(c), undefined, 'de oude bron kwam niet in een tabblad');
+    assert.deepEqual([c.store.getState().activeDocumentId, changedOnDiskNotices(c)], [c.id, 1], 'naar het tabblad dat opsloeg; de lezing was ouder, dus de melding met de knop');
+    const secondId = await secondTab(c, bytes);
+    assert.equal(otherTab(c)?.payload.ifcSource?.sha256, hash(bytes), 'het tabblad met de oude bron');
     c.store.getState().closeDocument(c.id);
     renameTask(c, 'Bewerking in het achterlopende tabblad');
     const from = ipc.calls.length;
-    assert.equal(await c.store.getState().saveFileForDocument(second.id), false);
+    assert.equal(await c.store.getState().saveFileForDocument(secondId), false);
     assert.equal(fileHash(c, 'model.ifc'), written);
     assert.equal(c.store.getState().isDirty, true);
     assert.equal(placesSince(from).length, 0);
@@ -1305,6 +1436,7 @@ await check('1837: een al begonnen lezing blijft oud, maar Ctrl+S weigert ook na
   } finally {
     release.resolve();
     await opening;
+    versions.stop();
     internal.invoke = invoke;
     await tidy(c);
   }
@@ -1325,15 +1457,20 @@ await check('Ctrl+S met de flag uit (na het openen uitgezet): dezelfde weigering
 });
 
 const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
-const MAIN_CALLS: Record<'aan' | 'uit', string[]> = {
+const PLAIN_SAVE_CALLS: Record<'aan' | 'aan, onbekend' | 'aan, zelf geschreven' | 'uit', string[]> = {
   // Met de flag aan leest de doelcontrole eerst het bestaande doel (`refusedWriteTarget`), dan de gewone atomaire opslag.
   aan: ['plugin:fs|open <map>/model.ifc', 'plugin:fs|read ', 'plugin:fs|read ', 'plugin:fs|seek ', 'plugin:fs|read ',
-    'plugin:fs|read ', 'plugin:resources|close ', 'plugin:fs|lstat <map>/model.ifc',
-    'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
+    'plugin:fs|read ', 'plugin:resources|close ', 'plugin:fs|stat <map>/model.ifc', 'plugin:fs|read_file <map>/model.ifc',
+    'plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
+  'aan, onbekend': ['plugin:fs|open <map>/model.ifc', 'plugin:fs|read ', 'plugin:fs|read ', 'plugin:fs|seek ', 'plugin:fs|read ',
+    'plugin:fs|read ', 'plugin:resources|close ',
+    'plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
+  'aan, zelf geschreven': ['plugin:fs|stat <map>/model.ifc', 'plugin:fs|read_file <map>/model.ifc',
+    'plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
   uit: ['plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
 };
 for (const flag of [true, false]) {
-  await check(`Ctrl+S zonder gebouwmodel, flag ${flag ? 'aan' : 'uit'}: dezelfde route en dezelfde aanroepen aan de bestandsrand als main`, async () => {
+  await check(`Ctrl+S zonder gebouwmodel, flag ${flag ? 'aan: na openen en zonder bekende versie de route van main (de doelscan, dan de toets van de bekende versie); op een zelf geschreven versie alleen die toets, vlak vóór het schrijven' : 'uit: dezelfde route en dezelfde aanroepen aan de bestandsrand als main'}`, async () => {
     const dir = join(work, `geval-${++cases}`);
     mkdirSync(dir);
     const path = join(dir, 'model.ifc');
@@ -1349,12 +1486,19 @@ for (const flag of [true, false]) {
     const from = ipc.calls.length;
     await store.getState().saveFile();
     const seen = ipc.calls.slice(from).map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
-    assert.deepEqual(seen, MAIN_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seen));
+    assert.deepEqual(seen, PLAIN_SAVE_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seen));
     assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
     assert.equal(store.getState().isDirty, false);
     assert(readFileSync(path).toString('latin1').includes('Gewone opslag'));
-    // *Opslaan* in de sluitvraag: dezelfde aanroepen, en het tabblad gaat dicht zoals op main (fixronde 1 van #1008: de
-    // controle vlak vóór het sluiten beslist voor een gewoon document niets anders).
+    store.getState().setFilePath(path);
+    assert.equal(store.getState().knownTargetFingerprint, null, 'zonder bekende versie');
+    store.getState().updateTask(task.id, { name: 'Gewone opslag zonder bekende versie' });
+    const fromUnknown = ipc.calls.length;
+    await store.getState().saveFile();
+    const seenUnknown = ipc.calls.slice(fromUnknown).map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
+    assert.deepEqual(seenUnknown, PLAIN_SAVE_CALLS[flag ? 'aan, onbekend' : 'uit'], JSON.stringify(seenUnknown));
+    assert(readFileSync(path).toString('latin1').includes('Gewone opslag zonder bekende versie'));
+    assert.equal(store.getState().knownTargetFingerprint?.origin ?? null, flag ? 'written' : null);
     const id = store.getState().activeDocumentId;
     store.getState().updateTask(task.id, { name: 'Gewone opslag in de sluitvraag' });
     let closed = false;
@@ -1372,7 +1516,7 @@ for (const flag of [true, false]) {
       onSavePendingChange: pending => store.getState().setUI({ closeQuestionSaving: pending }),
     }).save();
     const seenClose = ipc.calls.slice(fromClose).map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
-    assert.deepEqual(seenClose, MAIN_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seenClose));
+    assert.deepEqual(seenClose, PLAIN_SAVE_CALLS[flag ? 'aan, zelf geschreven' : 'uit'], JSON.stringify(seenClose));
     assert.equal(closed, true, 'het tabblad gaat dicht');
     assert.equal(store.getState().getOpenDocumentPayloads().some(d => d.id === id), false);
     assert(readFileSync(path).toString('latin1').includes('Gewone opslag in de sluitvraag'));
@@ -2320,7 +2464,7 @@ for (const via of ['een symbolische link', 'een harde link'] as const) {
   });
 }
 
-for (const [who, own] of [['een gewone planning', plain], ['een document met een gebouwmodel', bytes]] as const) {
+for (const [who, own] of [['een gewone planning', plain]] as const) {
   await check(`keuze 4: Exporteren → IFC van ${who} over een bestand met een gebouwmodel: blijft weigeren`, async () => {
     const t = await twoPlainTabs(true, own);
     const target = join(t.dir, 'model-van-ander.ifc');
@@ -2715,15 +2859,36 @@ for (const flag of [false, true]) {
     const projectPath = join(t.dir, 'uitgewisseld.ifc'), poolPath = join(t.dir, 'bibliotheek.ifc'), loose = join(t.dir, 'los.ifc');
     writeFileSync(loose, changedPlain);
     let outcome: ExportResult | undefined;
+    // Review ronde 5 van #1116: beide bibliotheekbestanden in de ene schrijfrij, zodat een startbestand dat intussen
+    // gelezen werd opnieuw gelezen wordt (`projectFileWriteTurns`, `check-launch-files.ts` deel J).
+    const turnsBefore = projectFileWriteTurns();
     await withPicks([projectPath, poolPath], async () => { outcome = await t.store.getState().exportProjectWithPool(); });
     assert.deepEqual(outcome, { ok: true, warnings: [] }, 'een voltooide export');
+    assert.equal(projectFileWriteTurns() - turnsBefore, 2, 'met de resourcebibliotheek: twee beurten in de schrijfrij, ook voor de bibliotheek');
+    const turnsLoose = projectFileWriteTurns();
     await withPicks([loose], () => t.store.getState().exportLibrary(t.companyId));
+    assert.equal(projectFileWriteTurns() - turnsLoose, 1, 'Bibliotheek → Exporteren: één beurt in de schrijfrij');
     assert.deepEqual(t.errors(), [], 'geen melding');
     for (const path of [poolPath, loose]) assert(readFileSync(path).toString('latin1').includes('OPS_Library'), `${basename(path)}: de bibliotheek`);
     assert.equal(hash(readFileSync(t.path)), hash(plain), 'het bestand van A is onaangeroerd');
     assert.equal(hash(readFileSync(t.target)), hash(changedPlain), 'het bestand van B is onaangeroerd');
   });
 }
+
+// Review ronde 6 van #1116: CSV, MSPDI, P6-XML en XER opent de app ook. Hun export loopt door de ene schrijfrij, net als
+// IFC: een startbestand dat tijdens de export gelezen wordt, leest daarna opnieuw (`check-launch-files.ts` deel J en L),
+// en afsluiten en de updater wachten op de export.
+await check('Exporteren naar CSV, MSPDI, P6-XML en XER onder een vrije naam: elke export is één beurt in de schrijfrij', async () => {
+  const t = await twoPlainTabs(false);
+  for (const [format, name] of [['csv', 'plan.csv'], ['mspdi', 'plan-msp.xml'], ['p6', 'plan-p6.xml'], ['xer', 'plan.xer']] as const) {
+    const path = join(t.dir, name);
+    const turns = projectFileWriteTurns();
+    await exportTo(t.store, path, format);
+    assert.equal(projectFileWriteTurns() - turns, 1, `${format}: één beurt in de schrijfrij`);
+    assert(readFileSync(path).toString('latin1').includes('Werk in tabblad A'), `${format}: de planning van A staat in het bestand`);
+  }
+  assert.deepEqual(t.errors(), [], 'geen melding');
+});
 
 await check('Knownbug 1907, flag aan: Exporteren → IFC van een document met een gebouwmodel over het bestand van een ander tabblad: geweigerd, niets geschreven', async () => {
   const t = await twoPlainTabs(true, bytes);
@@ -3077,6 +3242,581 @@ await check('stap 8: een ronde van Automatisch opslaan terwijl een ander program
     await round();
     assert.equal(projectWriteFiles(c, again).length, 0, 'geen tweede poging');
     assert.deepEqual(errorKeys(c), ['notifications.ifcForeignAutoSaveTargetChanged'], 'geen tweede melding');
+  } finally { await tidy(c); }
+});
+
+function edgeCalls(from: number, dir: string, own: string, target: string): string[] {
+  const label = (path: string | undefined) => path === undefined ? '-' : path === target ? 'doel' : path === own ? 'eigen'
+    : isTempPath(path) ? 'tijdelijk' : path.includes('.ops-vorige-') ? 'vorige'
+      : path.startsWith(appData) ? `herstel/${basename(path).replace(/[0-9a-z]{8,}/g, '<id>').replace(/-\d+-[0-9a-z]+\.ifc/g, '-<n>.ifc')}`
+        : path.startsWith(dir) ? basename(path) : path;
+  return ipc.calls.slice(from).filter(call => call.command.startsWith('plugin:fs|') || call.command === 'place_file_exclusive')
+    .map(call => `${call.command} ${label(call.path)}`);
+}
+const EDGE_CTRL_S: string[] = [
+  'plugin:fs|lstat doel',
+  'plugin:fs|write_text_file herstel/<id>.test.replace.<id>.json.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|exists herstel/<id>.test.<id>.json',
+  'plugin:fs|read_text_file herstel/<id>.test.<id>.json',
+  'plugin:fs|mkdir herstel/appdata',
+  'plugin:fs|read_dir herstel/appdata',
+  'plugin:fs|write_text_file herstel/<id>.test.<id>.json.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|write_file tijdelijk',
+  'plugin:fs|stat doel',
+  'plugin:fs|open doel',
+  'plugin:fs|read -',
+  'plugin:fs|read -',
+  'place_file_exclusive vorige',
+  'place_file_exclusive doel',
+  'plugin:fs|lstat vorige',
+  'plugin:fs|stat vorige',
+  'plugin:fs|open vorige',
+  'plugin:fs|read -',
+  'plugin:fs|read -',
+  'plugin:fs|remove vorige',
+  'plugin:fs|exists herstel/<id>.test.<id>.json',
+  'plugin:fs|read_text_file herstel/<id>.test.<id>.json',
+  'plugin:fs|mkdir herstel/appdata',
+  'plugin:fs|write_text_file herstel/<id>.test.<id>.doc-<id>.<id>-<n>.ifc.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|read_dir herstel/appdata',
+  'plugin:fs|write_text_file herstel/<id>.test.<id>.json.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|remove herstel/<id>.test.<id>.doc-<id>.<id>-<n>.ifc',
+  'plugin:fs|lstat tijdelijk',
+  'plugin:fs|lstat vorige',
+  'plugin:fs|remove herstel/<id>.test.replace.<id>.json',
+];
+const EDGE_SAVE_AS_MODEL: string[] = [
+  'plugin:fs|lstat doel',
+  'plugin:fs|read_file doel',
+  'plugin:fs|stat doel',
+  'plugin:fs|stat eigen',
+  'plugin:fs|lstat doel',
+  'plugin:fs|write_text_file herstel/<id>.test.replace.<id>.json.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|exists herstel/<id>.test.<id>.json',
+  'plugin:fs|read_text_file herstel/<id>.test.<id>.json',
+  'plugin:fs|mkdir herstel/appdata',
+  'plugin:fs|write_text_file herstel/<id>.test.<id>.doc-<id>.<id>-<n>.ifc.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|read_dir herstel/appdata',
+  'plugin:fs|write_text_file herstel/<id>.test.<id>.json.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|remove herstel/<id>.test.<id>.doc-<id>.<id>-<n>.ifc',
+  'plugin:fs|stat doel',
+  'plugin:fs|stat eigen',
+  'plugin:fs|write_file tijdelijk',
+  'plugin:fs|stat doel',
+  'plugin:fs|open doel',
+  'plugin:fs|read -',
+  'plugin:fs|read -',
+  'place_file_exclusive vorige',
+  'place_file_exclusive doel',
+  'plugin:fs|lstat vorige',
+  'plugin:fs|stat vorige',
+  'plugin:fs|open vorige',
+  'plugin:fs|read -',
+  'plugin:fs|read -',
+  'plugin:fs|remove vorige',
+  'plugin:fs|exists herstel/<id>.test.<id>.json',
+  'plugin:fs|read_text_file herstel/<id>.test.<id>.json',
+  'plugin:fs|mkdir herstel/appdata',
+  'plugin:fs|write_text_file herstel/<id>.test.<id>.doc-<id>.<id>-<n>.ifc.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|read_dir herstel/appdata',
+  'plugin:fs|write_text_file herstel/<id>.test.<id>.json.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|remove herstel/<id>.test.<id>.doc-<id>.<id>-<n>.ifc',
+  'plugin:fs|lstat tijdelijk',
+  'plugin:fs|lstat vorige',
+  'plugin:fs|remove herstel/<id>.test.replace.<id>.json',
+];
+const EDGE_SAVE_AS_PLAIN: string[] = [
+  'plugin:fs|lstat doel',
+  'plugin:fs|read_file doel',
+  'plugin:fs|lstat doel',
+  'plugin:fs|write_text_file herstel/<id>.test.replace.<id>.json.tmp',
+  'plugin:fs|rename -',
+  'plugin:fs|write_file tijdelijk',
+  'plugin:fs|stat doel',
+  'plugin:fs|open doel',
+  'plugin:fs|read -',
+  'plugin:fs|read -',
+  'place_file_exclusive vorige',
+  'place_file_exclusive doel',
+  'plugin:fs|lstat vorige',
+  'plugin:fs|stat vorige',
+  'plugin:fs|open vorige',
+  'plugin:fs|read -',
+  'plugin:fs|read -',
+  'plugin:fs|remove vorige',
+  'plugin:fs|lstat tijdelijk',
+  'plugin:fs|lstat vorige',
+  'plugin:fs|remove herstel/<id>.test.replace.<id>.json',
+];
+await check('de haak van de export: Ctrl+S en Opslaan als houden aan de bestandsrand precies hun aanroepen', async () => {
+  const c = await opened();
+  try {
+    let from = ipc.calls.length;
+    assert.equal(await c.store.getState().saveFileForDocument(c.id), true);
+    const ctrlS = edgeCalls(from, c.dir, c.path, c.path);
+    renameTask(c, 'Daarna Opslaan als');
+    const target = otherFile(c);
+    from = ipc.calls.length;
+    await saveAsTo(c.store, target.path);
+    const saveAs = edgeCalls(from, c.dir, c.path, target.path);
+    const p = await plainWithTarget(true, plain);
+    from = ipc.calls.length;
+    await saveAsTo(p.store, p.target);
+    const plainSaveAs = edgeCalls(from, p.dir, p.path, p.target);
+    assert.deepEqual(ctrlS, EDGE_CTRL_S, 'Ctrl+S');
+    assert.deepEqual(saveAs, EDGE_SAVE_AS_MODEL, 'Opslaan als met een gebouwmodel over een bestaande naam');
+    assert.deepEqual(plainSaveAs, EDGE_SAVE_AS_PLAIN, 'Opslaan als van een gewone planning over een bestaande naam');
+  } finally { await tidy(c); }
+});
+
+const exportOf = async (c: Case) => {
+  const s = c.store.getState();
+  return prepareIfcWrite(buildExportIFCInput(s, 'merge'), s.ifcSource!);
+};
+const exportedFrom = (c: Case) => {
+  const s = c.store.getState();
+  return {
+    source: s.ifcSource, mark: s.foreignSourceMark, literal: s.ifcLiteralCalendarIds, path: s.filePath, dirty: s.isDirty,
+    known: s.knownTargetFingerprint,
+  };
+};
+function exportLeftDocument(c: Case, before: ReturnType<typeof exportedFrom>) {
+  const now = exportedFrom(c);
+  assert(now.source === before.source && now.mark === before.mark && now.literal === before.literal,
+    'de export laat bron, kenmerk en kalenderkeuzes staan');
+  assert(before.known !== null, 'het eigen bestand had een bekende versie');
+  assert.deepEqual(now.known, before.known, 'de bekende versie van het eigen bestand blijft staan');
+  assert.deepEqual([now.path, now.dirty, now.mark?.filePath], [c.path, true, c.path], 'het document houdt zijn pad en blijft gewijzigd');
+}
+async function manifestStillOwnSource(c: Case) {
+  const manifest = (await loadRecovery()).docs.find(d => d.id === c.id)?.ifcSource;
+  assert.deepEqual([manifest?.sha256, manifest?.pendingSha256], [hash(bytes), undefined], 'het herstelmanifest kent nog de eigen bron');
+}
+const inRecents = (c: Case, path: string) => c.store.getState().recentFiles.some(r => r.ref.kind === 'path' && r.ref.path === path);
+
+for (const [label, prepare] of [
+  ['een eerdere export van dit document', async (c: Case): Promise<OtherTarget> => {
+    const path = join(c.dir, 'stand voor aannemer.ifc');
+    await exportTo(c.store, path);
+    assert.deepEqual(errorKeys(c), [], 'de eerste export naar een nieuwe naam slaagt');
+    renameTask(c, 'Stand van deze vrijdag');
+    return { path, content: new Uint8Array(readFileSync(path)) };
+  }],
+  ['een modelbestand van een ander programma', async (c: Case) => otherFile(c, otherWithModel)],
+  ['een gewone planning', async (c: Case) => otherFile(c)],
+] as const) {
+  await check(`Exporteren → IFC over ${label}: vervangen langs de vervanging van Opslaan als, het document blijft zoals het was`, async () => {
+    const c = await opened();
+    try {
+      const target = await prepare(c);
+      c.store.setState(s => { s.recentFiles = []; s.ui.notifications = []; });
+      const before = exportedFrom(c), expected = await exportOf(c);
+      assert.notEqual(expected.sha256, hash(target.content), 'de export verschilt van wat er stond');
+      let atStep3: ReplaceRecord[] | undefined;
+      placeCalls({ 1: () => { atStep3 = recordsOnDisk(); return undefined; } });
+      const from = ipc.calls.length;
+      await exportTo(c.store, target.path);
+      assert.deepEqual(errorKeys(c), [], 'geen melding');
+      const output = new Uint8Array(readFileSync(target.path));
+      assert.equal(hash(output), expected.sha256, 'precies de uitvoer van de export');
+      assert.deepEqual(mergeProblems(bytes, output), [], 'het gebouwmodel bytegelijk');
+      if (label === 'een eerdere export van dit document') assert(latin1(target.path).includes('Stand van deze vrijdag'), 'de nieuwe stand');
+      exportLeftDocument(c, before);
+      assert.deepEqual(atStep3?.map(r => [r.path, r.vorigeSha256, r.pendingSha256]), [[target.path, hash(target.content), expected.sha256]],
+        'het herstelrecord noemt het doel, wat de kiezer las en de export');
+      assert.deepEqual(recordsOnDisk(), [], 'het record is weg');
+      noHelpers(c.dir);
+      assert.equal(projectWriteFiles(c, from).length, 1, 'één schrijfactie, in het eigen tijdelijke bestand');
+      assert.deepEqual(placesSince(from).map(call => call.path), [previousVersionPath(target.path, atStep3![0].id), target.path],
+        'stap 3 en 4, geen gewone schrijfroutine');
+      await manifestStillOwnSource(c);
+      assert(inRecents(c, target.path), 'Recent kent het exportbestand');
+      assert.equal(fileHash(c, 'model.ifc'), hash(bytes), 'het eigen bestand ongewijzigd');
+    } finally { await tidy(c); }
+  });
+}
+
+await check('Exporteren → IFC over een bestaande naam die na de keuze verandert: niet vervangen, de zin van de export', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c);
+    clearNotices(c);
+    const before = exportedFrom(c), from = ipc.calls.length;
+    ipc.faults.beforeOpen = p => { if (isTempPath(p)) { writeFileSync(target.path, changedPlain); ipc.faults.beforeOpen = null; } };
+    await exportTo(c.store, target.path);
+    assert.deepEqual(errorKeys(c), ['notifications.exportReplaceTargetChanged']);
+    assert.match(i18next.t('common:notifications.exportReplaceTargetChanged'), /^Niet geëxporteerd\./);
+    assert.deepEqual(disk(c), { 'ander.ifc': hash(changedPlain), 'model.ifc': hash(bytes) }, 'het doel houdt de inhoud van de ander');
+    exportLeftDocument(c, before);
+    assert.deepEqual(placesSince(from), [], 'niets verplaatst');
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
+
+await check('Exporteren → IFC over een modelbestand dat tijdens de eindvergelijking een andere versie krijgt: vervangen, die versie blijft als kopie', async () => {
+  const c = await opened();
+  const invoke = internal.invoke;
+  try {
+    const target = otherFile(c, otherWithModel), next = new Uint8Array([...otherWithModel, 10]);
+    clearNotices(c);
+    const before = exportedFrom(c), expected = await exportOf(c);
+    let rid: unknown, arrived = false;
+    internal.invoke = async (command, ...args) => {
+      const a = args[0] as { path?: string; rid?: number } | undefined;
+      if (!arrived && command === 'plugin:fs|open' && a?.path === target.path) {
+        rid = await invoke(command, ...args);
+        return rid;
+      }
+      if (!arrived && rid !== undefined && command === 'plugin:fs|read' && a?.rid === rid) {
+        putAt(c.dir, target.path, next);
+        arrived = true;
+      }
+      return invoke(command, ...args);
+    };
+    await exportTo(c.store, target.path);
+    internal.invoke = invoke;
+    assert.equal(arrived, true, 'de andere versie kwam terwijl de app het doel las');
+    const kept = files(c).filter(name => fileHash(c, name) === hash(next));
+    assert.equal(kept.length, 1, `de andere versie staat nog als bestand (${files(c).join(', ')})`);
+    assert.notEqual(kept[0], 'ander.ifc', 'naast het doel, als kopie');
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignReplaceOtherVersion']);
+    assert.equal(fileHash(c, 'ander.ifc'), expected.sha256, 'het doel heeft de export');
+    exportLeftDocument(c, before);
+    noHelpers(c.dir);
+  } finally { internal.invoke = invoke; await tidy(c); }
+});
+
+await check('Exporteren → IFC over het eigen bestand van het document: geweigerd, de zin wijst naar Opslaan', async () => {
+  const c = await opened();
+  try {
+    clearNotices(c);
+    const before = exportedFrom(c), from = ipc.calls.length;
+    await exportTo(c.store, c.path);
+    assert.deepEqual(errorKeys(c), ['notifications.exportTargetOwnFile']);
+    assert.match(i18next.t('common:notifications.exportTargetOwnFile'), /Gebruik Opslaan/);
+    assert.equal(fileHash(c, 'model.ifc'), hash(bytes), 'bytegelijk');
+    exportLeftDocument(c, before);
+    assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties');
+  } finally { await tidy(c); }
+});
+
+function onceRecordWritten(during: () => void) {
+  const invoke = internal.invoke;
+  let fired = false;
+  internal.invoke = async (command, ...args) => {
+    const result = await invoke(command, ...args);
+    if (!fired && recordsOnDisk().length > 0) { fired = true; during(); }
+    return result;
+  };
+  return { restore: () => { internal.invoke = invoke; }, fired: () => fired };
+}
+for (const [label, during] of [
+  ['een bewerking', (c: Case) => renameTask(c, 'Tijdens de export gewijzigd')],
+  ['een tabbladwissel', (c: Case) => c.store.getState().newDocument()],
+] as const) {
+  await check(`Exporteren → IFC over een bestaande naam, ${label} na het herstelrecord: ${label === 'een bewerking' ? 'gestopt, het doel bytegelijk' : 'precies de export van het eerste tabblad'}`, async () => {
+    const c = await opened();
+    try {
+      const target = otherFile(c);
+      clearNotices(c);
+      const expected = await exportOf(c), from = ipc.calls.length;
+      const hook = onceRecordWritten(() => during(c));
+      try { await exportTo(c.store, target.path); } finally { hook.restore(); }
+      assert.equal(hook.fired(), true, 'de wijziging kwam na het vastleggen van het herstelrecord');
+      if (label === 'een bewerking') {
+        assert.deepEqual(errorKeys(c), ['notifications.ifcExportChangedWhileWaiting']);
+        assert.deepEqual(disk(c), { 'ander.ifc': hash(plain), 'model.ifc': hash(bytes) }, 'het doel bytegelijk, geen hulpbestand');
+        assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties in de projectmap');
+      } else {
+        assert.deepEqual(errorKeys(c), []);
+        assert.notEqual(c.store.getState().activeDocumentId, c.id, 'het nieuwe tabblad is actief');
+        assert.equal(fileHash(c, 'ander.ifc'), expected.sha256, 'precies de export van het eerste tabblad');
+        noHelpers(c.dir);
+      }
+      assert.deepEqual(recordsOnDisk(), []);
+    } finally { await tidy(c); }
+  });
+}
+
+for (const via of ['een symbolische link', 'een harde link'] as const) {
+  await check(`Exporteren → IFC over ${via} naar een gewone planning: niet vervangen, de zin van een nieuwe naam in exportwoorden`, async () => {
+    const c = await opened();
+    try {
+      const target = otherFile(c);
+      const link = join(c.dir, 'link.ifc');
+      if (via === 'een symbolische link') symlinkSync(target.path, link); else linkSync(target.path, link);
+      clearNotices(c);
+      const before = exportedFrom(c), from = ipc.calls.length;
+      await exportTo(c.store, link);
+      assert.deepEqual(errorKeys(c), ['notifications.exportReplaceNewTargetOnly']);
+      assert.match(i18next.t('common:notifications.exportReplaceNewTargetOnly'), /^Niet geëxporteerd\./);
+      assert.equal(hash(readFileSync(target.path)), hash(plain), 'de planning bytegelijk');
+      assert.deepEqual(files(c), ['ander.ifc', 'link.ifc', 'model.ifc'], 'geen hulpbestand');
+      exportLeftDocument(c, before);
+      assert.deepEqual(projectWriteFiles(c, from).filter(call => !isTempPath(call.path!)), [], 'nooit een schrijfactie op het doel');
+      assert.deepEqual(recordsOnDisk(), []);
+    } finally { await tidy(c); }
+  });
+}
+
+for (const [label, content, fails] of [['zonder DATA-sectie', withoutData, false], ['dat niet te lezen is (leesfout)', plain, true]] as const) {
+  await check(`Exporteren → IFC met een gebouwmodel over een bestand ${label}: blijft geweigerd`, async () => {
+    const c = await opened();
+    const target = otherFile(c, content);
+    const restore = fails ? readFailsOn(target.path) : () => {};
+    try {
+      clearNotices(c);
+      const before = exportedFrom(c), from = ipc.calls.length;
+      await exportTo(c.store, target.path);
+      assert.deepEqual(errorKeys(c), ['notifications.ifcUnreadableTargetExport']);
+      assert.equal(hash(readFileSync(target.path)), hash(content), 'het doel is bytegelijk');
+      exportLeftDocument(c, before);
+      assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties');
+      assert.deepEqual(recordsOnDisk(), []);
+    } finally { restore(); await tidy(c); }
+  });
+}
+
+const pathOfCall = (command: string, args: unknown[]) => command === 'plugin:fs|write_file'
+  ? decodeURIComponent((args[1] as { headers?: { path?: string } } | undefined)?.headers?.path ?? '')
+  : (args[0] as { path?: string } | undefined)?.path;
+async function exportCrashingAt(c: Case, target: OtherTarget, crashesAt: (command: string, path: string | undefined, placed: number) => boolean) {
+  const invoke = internal.invoke;
+  let placed = 0, diskAtCrash: Record<string, string> | undefined;
+  internal.invoke = async (command, ...args) => {
+    if (diskAtCrash) throw new Crash('na de crash');
+    if (crashesAt(command, pathOfCall(command, args), placed)) {
+      c.unregister();
+      diskAtCrash = disk(c);
+      throw new Crash('crash');
+    }
+    const result = await invoke(command, ...args);
+    if (command === 'place_file_exclusive') placed++;
+    return result;
+  };
+  try { await exportTo(c.store, target.path); } finally { internal.invoke = invoke; }
+  assert(diskAtCrash, 'de crash vond plaats');
+  assert.deepEqual(disk(c), diskAtCrash, 'na de crash veranderde er niets meer in de map');
+  const records = recordsOnDisk();
+  assert.equal(records.length, 1, 'het herstelrecord staat er');
+  assert.deepEqual([records[0].path, records[0].vorigeSha256], [target.path, hash(target.content)]);
+  return records[0];
+}
+for (const [label, crashesAt, expected] of [
+  ['na stap 0', (command: string, path: string | undefined) => command === 'plugin:fs|write_file' && isTempPath(path ?? ''),
+    (_record: ReplaceRecord) => ({ 'ander.ifc': hash(plain) })],
+  ['na stap 2 (vóór het opzijzetten)', (command: string, _path: string | undefined, placed: number) => command === 'place_file_exclusive' && placed === 0,
+    (record: ReplaceRecord) => ({ 'ander.ifc': hash(plain), [SAVE_AS_UNSAVED_COPY]: record.pendingSha256 })],
+  ['na stap 3 (doel weg)', (command: string, _path: string | undefined, placed: number) => command === 'place_file_exclusive' && placed === 1,
+    (record: ReplaceRecord) => ({ 'ander.ifc': hash(plain), [SAVE_AS_UNSAVED_COPY]: record.pendingSha256 })],
+  ['na stap 4', (_command: string, _path: string | undefined, placed: number) => placed === 2,
+    (record: ReplaceRecord) => ({ 'ander.ifc': record.pendingSha256, [previousName(record.id)]: hash(plain) })],
+] as const) {
+  await check(`Exporteren → IFC over een nooit geopende bestaande naam, crash ${label}: na afhandelen een volledig bestand, de oude inhoud terug te vinden`, async () => {
+    const c = await opened();
+    try {
+      const target = otherFile(c), exported = await exportOf(c);
+      const record = await exportCrashingAt(c, target, crashesAt);
+      assert.equal(record.pendingSha256, exported.sha256, 'de komende versie is de export');
+      await manifestStillOwnSource(c);
+      const { notices, restored } = await recover(c);
+      assert.deepEqual(disk(c), { ...expected(record), 'model.ifc': hash(bytes) }, JSON.stringify(disk(c)));
+      const after = disk(c);
+      if (after['ander.ifc'] !== exported.sha256) assert.equal(after['ander.ifc'], hash(plain), 'zolang de export er niet staat, staat de oude versie er');
+      else assert(Object.values(after).includes(hash(plain)), 'de oude inhoud is terug te vinden');
+      assert.deepEqual([restored.filePath, restored.ifcSource?.sha256], [c.path, hash(bytes)], 'het herstelde document: het eigen bestand met zijn bron');
+      const kept = after[previousName(record.id)] !== undefined;
+      assert.deepEqual(recordsOnDisk().length, kept ? 1 : 0, kept ? 'het record blijft zolang de vorige versie er staat' : 'het record is weg');
+      assert.deepEqual(notices.map(n => n.messageKey), kept ? ['notifications.ifcForeignReplaceLeftOver']
+        : after[SAVE_AS_UNSAVED_COPY] ? ['notifications.ifcForeignReplaceUnsavedCopy'] : []);
+    } finally { await tidy(c); }
+  });
+}
+
+await check('P1: Exporteren → IFC van een planning met alleen gegevens van een ander programma over een modelbestand: geweigerd, het model bytegelijk', async () => {
+  const c = await opened(externalPset);
+  try {
+    assert.equal(c.store.getState().ifcSource?.buildingModel, false, 'de bron heeft geen gebouwmodel');
+    const target = otherFile(c, otherWithModel);
+    clearNotices(c);
+    const before = exportedFrom(c), from = ipc.calls.length;
+    await exportTo(c.store, target.path);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetExport']);
+    assert.equal(fileHash(c, 'ander.ifc'), hash(otherWithModel), 'het gebouwmodel bytegelijk');
+    exportLeftDocument(c, before);
+    assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties');
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
+
+async function pickAppearing(store: Case['store'], path: string, content: Uint8Array, when: 'voor' | 'na', saveAs = false): Promise<void> {
+  const invoke = internal.invoke;
+  internal.invoke = async (command, ...args) => {
+    if (command === 'plugin:dialog|save') {
+      if (when === 'voor') writeFileSync(path, content);
+      return path;
+    }
+    if (when === 'na' && command === 'plugin:fs|lstat' && (args[0] as { path?: string } | undefined)?.path === path && !existsSync(path)) {
+      try { return await invoke(command, ...args); } finally { writeFileSync(path, content); }
+    }
+    return invoke(command, ...args);
+  };
+  try { if (saveAs) await store.getState().saveFileAs(); else await store.getState().exportAs('ifc'); } finally { internal.invoke = invoke; }
+}
+await check('Exporteren → IFC naar een vrije naam waar na de lezing direct na de keuze een bestand verschijnt: niet vervangen, het bestand bytegelijk', async () => {
+  const c = await opened();
+  try {
+    const path = join(c.dir, 'nieuw.ifc');
+    clearNotices(c);
+    const before = exportedFrom(c), from = ipc.calls.length;
+    await pickAppearing(c.store, path, plain, 'na');
+    assert.deepEqual(errorKeys(c), ['notifications.exportReplaceNewTargetOnly']);
+    assert.equal(fileHash(c, 'nieuw.ifc'), hash(plain), 'het verschenen bestand bytegelijk');
+    assert.deepEqual(files(c), ['model.ifc', 'nieuw.ifc'], 'geen hulpbestand');
+    exportLeftDocument(c, before);
+    assert.deepEqual(projectWriteFiles(c, from).filter(call => !isTempPath(call.path!)), [], 'nooit een schrijfactie op het doel');
+    assert.deepEqual(placesSince(from).map(call => call.path), [path], 'alleen de exclusieve aanmaak, geen opzijzetten');
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
+
+for (const saveAs of [false, true]) {
+  await check(`Grens (knownbug 2208): een bestand dat na de bevestiging en vóór de lezing op de gekozen naam verschijnt, ${saveAs
+    ? 'Opslaan als vervangt het (knownbug 1890)' : 'Exporteren → IFC vervangt het, zoals Opslaan als'}`, async () => {
+    const c = await opened();
+    try {
+      const path = join(c.dir, 'nieuw.ifc');
+      clearNotices(c);
+      const before = exportedFrom(c), expected = await exportOf(c);
+      await pickAppearing(c.store, path, plain, 'voor', saveAs);
+      assert.deepEqual(errorKeys(c), [], 'geen melding');
+      assert.notEqual(fileHash(c, 'nieuw.ifc'), hash(plain), 'het verschenen bestand is vervangen');
+      assert.deepEqual(files(c), ['model.ifc', 'nieuw.ifc'], 'geen hulpbestand, geen kopie');
+      assert.deepEqual(recordsOnDisk(), []);
+      if (saveAs) assert.equal(c.store.getState().filePath, path, 'het document heeft de nieuwe naam');
+      else {
+        assert.equal(fileHash(c, 'nieuw.ifc'), expected.sha256, 'precies de export');
+        exportLeftDocument(c, before);
+      }
+    } finally { await tidy(c); }
+  });
+}
+
+await check('Exporteren → IFC over een bestaande naam die een ander programma bewaart terwijl het venster open staat: de versie bij de keuze wordt vervangen', async () => {
+  const c = await opened();
+  const invoke = internal.invoke;
+  try {
+    const target = otherFile(c), lastWeek = new Date(2026, 10, 10, 9, 0), later = new Date(Date.now() + 60_000);
+    utimesSync(target.path, lastWeek, lastWeek);
+    clearNotices(c);
+    const before = exportedFrom(c), expected = await exportOf(c);
+    internal.invoke = (command, ...args) => {
+      if (command !== 'plugin:dialog|save') return invoke(command, ...args);
+      writeFileSync(target.path, changedPlain);
+      utimesSync(target.path, later, later);
+      return Promise.resolve(target.path);
+    };
+    await c.store.getState().exportAs('ifc');
+    internal.invoke = invoke;
+    assert.deepEqual(errorKeys(c), [], 'geen melding');
+    assert.equal(fileHash(c, 'ander.ifc'), expected.sha256, 'de export staat op de gekozen naam');
+    noHelpers(c.dir);
+    assert.deepEqual(recordsOnDisk(), []);
+    exportLeftDocument(c, before);
+  } finally { internal.invoke = invoke; await tidy(c); }
+});
+
+for (const restored of [true, false]) {
+  await check(`Exporteren → IFC over een bestaande naam, een bewerking terwijl het doel opzij gaat: ${restored
+    ? 'niet vervangen, het doel bytegelijk terug, geen hulpbestand, geen record' : 'terugzetten mislukt: het record en de vorige versie blijven'}`, async () => {
+    const c = await opened();
+    try {
+      const target = otherFile(c);
+      clearNotices(c);
+      const before = exportedFrom(c);
+      const answers: Parameters<typeof placeCalls>[0] = {
+        1: (_from, _to, real) => { const answer = real(); renameTask(c, 'Tijdens het opzijzetten'); return answer; },
+      };
+      if (!restored) answers[2] = () => reject('io', { message: 'nog gedeeld' });
+      placeCalls(answers);
+      await exportTo(c.store, target.path);
+      const records = recordsOnDisk();
+      if (restored) {
+        assert.deepEqual(errorKeys(c), ['notifications.ifcExportChangedWhileWaiting']);
+        assert.deepEqual(disk(c), { 'ander.ifc': hash(plain), 'model.ifc': hash(bytes) }, 'het doel bytegelijk terug, geen hulpbestand');
+        assert.deepEqual(records, [], 'het record is weg');
+      } else {
+        assert.deepEqual(errorKeys(c), ['notifications.exportReplacePreviousStranded']);
+        assert.equal(records.length, 1, 'het record blijft');
+        assert.deepEqual(disk(c), { [previousName(records[0].id)]: hash(plain), 'model.ifc': hash(bytes) }, 'de vorige versie staat onder haar hulpnaam');
+      }
+      exportLeftDocument(c, before);
+    } finally { await tidy(c); }
+  });
+}
+
+await check('De laatste controles vóór de definitieve plaatsing en de aanroep van die plaatsing vallen in dezelfde synchrone stap', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c);
+    let late = false, lateAtPlace: boolean | undefined, asked = 0;
+    placeCalls({ 2: () => { lateAtPlace = late; return undefined; } });
+    const result = await runProjectFileWrite(() => replaceOwnPathWithRecovery({
+      documentId: null, path: target.path, prepared: c.prepared, source: { bytes: target.content, sha256: hash(target.content) },
+      commit: () => {}, stopBeforeWrite: async () => false, refuseBeforePlace: () => false, now: NOW,
+      planningChanged: () => { asked++; queueMicrotask(() => { late = true; }); return false; },
+      replaceAllowed: () => { asked++; queueMicrotask(() => { late = true; }); return true; },
+    }), () => { throw new Error('de schrijfpoort is dicht'); });
+    assert.equal(lateAtPlace, false, 'geen microtaak tussen de controles en de aanroep van de plaatsing');
+    assert.equal(asked, 2, 'beide controles gevraagd');
+    assert.equal(result.code, 'replaced');
+    assert.equal(fileHash(c, 'ander.ifc'), c.prepared.sha256);
+    noHelpers(c.dir);
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
+
+await check('Grens (knownbug 2247): Exporteren → IFC over een bestaande naam, een bewerking terwijl de definitieve plaatsing onderweg is: de planning van de opdracht staat op het doel, de bewerking blijft in het document', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c);
+    clearNotices(c);
+    const before = exportedFrom(c), expected = await exportOf(c);
+    placeCalls({ 2: (_from, _to, real) => { const answer = real(); renameTask(c, 'Tijdens de definitieve plaatsing'); return answer; } });
+    await exportTo(c.store, target.path);
+    assert.deepEqual(errorKeys(c), [], 'geen melding');
+    assert.equal(fileHash(c, 'ander.ifc'), expected.sha256, 'precies de export van de planning bij de opdracht');
+    assert(!latin1(target.path).includes('Tijdens de definitieve plaatsing'), 'de latere bewerking staat niet in het exportbestand');
+    assert(c.store.getState().tasks.some(t => t.name === 'Tijdens de definitieve plaatsing'), 'de bewerking staat in het document');
+    assert.deepEqual([c.store.getState().filePath, c.store.getState().isDirty], [before.path, true], 'het document houdt zijn pad en blijft gewijzigd');
+    noHelpers(c.dir);
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
+
+await check('Exporteren → IFC over een bestaande naam, de flag uit terwijl het doel opzij gaat: niet vervangen, het doel bytegelijk terug, de zin van main', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c);
+    clearNotices(c);
+    const before = exportedFrom(c);
+    placeCalls({ 1: (_from, _to, real) => { const answer = real(); c.store.getState().setUI({ featureFlags: {} }); return answer; } });
+    await exportTo(c.store, target.path);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignSaveBlocked']);
+    assert.deepEqual(disk(c), { 'ander.ifc': hash(plain), 'model.ifc': hash(bytes) }, 'het doel bytegelijk terug, geen hulpbestand');
+    assert.deepEqual(recordsOnDisk(), [], 'het record is weg');
+    const now = exportedFrom(c);
+    assert(now.source === before.source && now.mark === before.mark && now.literal === before.literal, 'bron, kenmerk en kalenderkeuzes intact');
+    assert.deepEqual([now.path, now.dirty], [c.path, true], 'het document houdt zijn pad en blijft gewijzigd');
   } finally { await tidy(c); }
 });
 

@@ -28,7 +28,7 @@ import { notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import { clearLevelingOutput, hasLevelingOutput, writeLevelingResult } from '@/utils/taskDefaults';
 import type { AppSliceFactory } from './types';
 
-/** TaskTime bevat alleen scalars. Vergelijk nul en -nul als dezelfde waarde, net als de
+/** Vergelijk nul en -nul als dezelfde waarde, net als de
  *  Immer-setter: kalenderberekeningen kunnen -0 leveren zonder dat de planning verandert. */
 function sameTaskTime(a: TaskTime, b: TaskTime): boolean {
   const keys = Object.keys(a) as (keyof TaskTime)[];

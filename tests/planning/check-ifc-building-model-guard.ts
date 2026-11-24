@@ -137,4 +137,4 @@ async function main(): Promise<void> {
   for (const failure of failures) console.error(`XX ${failure}`);
   if (failures.length) process.exitCode = 1;
 }
-main().catch(error => { console.error(error); process.exitCode = 1; });
+await main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -1,16 +1,8 @@
 // F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
-// Import/export-audit, bevinding 6: de voortgangsinvariant "100 % zonder werkelijk einde" bestond
-// twee keer. De store (`applyProgressInvariants`, sinds H1/check-task-slice.ts) koos
-// AF = statusdatum ‖ eigen geplande finish; alle lezers (`normalizeImportedProgress`: CSV, IFC,
-// MSPDI, P6, MPP) kozen nog AF = statusdatum ‖ VANDAAG. Gevolg: een CSV/MSPDI/IFC met 100 % en geen
-// werkelijk einde opende met AF = vandaag, de voltooide taak "gebeurde vandaag" en alle opvolgers
-// schoven naar na vandaag — bij elke opening opnieuw, want `isDirty` bleef false.
-//
-// De fix: één gedeelde helper voor alleen de AF-default (`defaultActualFinish`,
-// engine/taskMutationRules.ts), die beide kopieën aanroepen. Bewust GEEN drop-in
-// `applyProgressInvariants` in de import: die zou de bewuste STARTED-status voor
-// "completion > 0 zonder actualStart" veranderen (solver-vangnet §4.2 tak 2b) — sectie 4 pint die
-// afwijking vast.
+// Bij openen blijft de fallback voor een onvolledig voltooid taakrecord de statusdatum,
+// anders het eigen geplande einde. Zo vervangt de leesdatum een ontbrekend feit nooit.
+// Voortgang invoeren in de app gebruikt sinds #998 het geplande einde, met de statusdatum
+// als bovengrens. Een lopend taakrecord zonder werkelijke start houdt zijn eigen laadregel.
 //
 // Ankerdatum ver in het verleden (2015, zoals check-task-slice.ts): "vandaag" kan daar nooit
 // toevallig mee samenvallen. Draait via run.sh. Exit 0 = alles groen.
@@ -56,23 +48,23 @@ function open(parsed: ImportResult, name: string): void {
   S().openAsDocument(parsed, { name, ref: null });
 }
 
-// ── 1. Eén regel: store-invariant en import-normalisatie geven dezelfde AF-default ─────────────
-// (De AS-default loopt in de store via de setters vóór `applyProgressInvariants` — die pariteit
-// toetsen sectie 2 en 3 via de echte store-actie `setTaskProgress`.)
+// ── 1. De fallback bij laden en de afleiding bij een voortgangsbewerking ───────────────────────
 {
   const make = (earlyFinish: string): Task => ({
     id: 'x', name: 'X', description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
     isMilestone: false, priority: 500, parentId: null, childIds: [], resourceIds: [],
     time: { ...createDefaultTaskTime('2015-01-05', 5), scheduleFinish: '2015-01-09', earlyFinish, completion: 1 },
   });
-  for (const statusDate of [undefined, '2015-01-07']) {
+  for (const statusDate of [undefined, '2015-01-07', '2015-01-20']) {
     for (const earlyFinish of ['2015-01-12', '']) {
       const store = make(earlyFinish);
       const imported = make(earlyFinish);
       applyProgressInvariants(store, statusDate);
       normalizeImportedProgress([imported], statusDate);
       const tag = `1 [statusDate=${statusDate ?? '-'}, earlyFinish=${earlyFinish || '-'}]`;
-      eq(`${tag} import-AF === store-AF`, imported.time.actualFinish, store.time.actualFinish);
+      const finish = earlyFinish || '2015-01-09';
+      eq(`${tag} store-AF = gepland tot de statusdatum`, store.time.actualFinish,
+        statusDate && statusDate < finish ? statusDate : finish);
       eq(`${tag} import-status === store-status`, imported.status, store.status);
       eq(`${tag} import-remainingTime === store-remainingTime`, imported.time.remainingTime, store.time.remainingTime);
       eq(`${tag} AF = statusdatum ‖ earlyFinish ‖ scheduleFinish`,

@@ -42,6 +42,21 @@ duurbewerking (de poort is de totale werkduur). Verandert het restwerk van een t
 zakt de contourhoogte mee (`reconcileContourWork`, "vorm blijft, hoogte zakt"). Materiaalresources sturen
 de duur nooit.
 
+Verandert een losse bewerking aan één toewijzing in de store (`assignResource`, `updateAssignment`,
+`unassignResource`, `setAssignmentWork`) de uren van een ANDERE werkresource op die taak zichtbaar, dan
+meldt de app dat met de nieuwe duur, per resource "oud → nieuw" en de knop Ongedaan maken
+(`otherWorkNotice.ts`, #954, eigenaarsbesluit 2026-11-21). De melding hoort bij de geschiedenisstap van de
+bewerking: `notifyOtherWorkChanged` vergelijkt vóór en ná van die stap, met het getal van *Werk (u)*
+(`engine/work/shownWork.ts`, gedeeld met het paneel, dus ook een contoursom) op twee decimalen; een tweede
+toewijzing van dezelfde resource telt niet als ander persoon. De melding met haar knop (`undoHistoryEvent`)
+blijft precies zo lang als het document in de stand van die stap staat (`watchNotice`, een abonnement op de
+store): haar stap is de stap van Ctrl+Z en de projectdata zijn dezelfde (elk 'data'-veld behalve de taken,
+die ook de berekening schrijft). Een nieuwere stap, Ctrl+Z, een documentwissel of een bibliotheekverversing
+haalt haar definitief weg; F5 laat haar staan. Geen eigen stap (batch, extensie) of een stap
+in een bewerksessie ⇒ geen melding: Taak bewerken bundelt meerdere bewerkingen tot één stap en heeft
+Annuleren als weg terug (knownbug 2054). MCP, raster en `removeResource`/`moveAssignment` melden niets
+(knownbug 2050). Test: `check-work-others-notice.ts`.
+
 Een **kalenderwissel** (taak-/projectkalender of andere uren per dag in een kalender) verandert de
 slotgrootte en loopt daarna óók door de regel (`applySlotChange`/`settleCalendarChange`: Vast werk/Vaste
 inzet ⇒ duur; Vaste duur en werk ⇒ inzet; standaard ⇒ werk volgt, byte-identiek); de contour-as herschaalt
@@ -95,3 +110,6 @@ ontsluit stil), één keer per document (`taskTypesNotice.ts`); selector `taskTy
 in globals.css, kop en regels als subgrid), en de rasterkolommen `task.workRule` en
 `assignment.remainingWork` (alleen `available` wanneer ontsloten; `TaskColumnContext.taskTypesUnlocked`).
 Gidsen: `public/docs/{nl,en}/howto-werkregel-kiezen.md` en het veld *Taaktype* in `ref-taak-eigenschappen.md`; browserspec `tests/browser/work-rule.spec.ts`.
+
+Besluiten in de werkregelbrug (`workRuleApply.ts`) staan in `docs/adr/`: momentopname, bewerking en terugschrijven
+(0200), verricht en resterend werk per toewijzing (0201) en vast werk als urenmaat, ook bij openen (0202).

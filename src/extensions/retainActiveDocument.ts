@@ -62,6 +62,8 @@ import type { ImporterDefinition } from './types';
 import type { ImportResult } from '@/services/importTypes';
 import type { ProjectSchedulingOptions } from '@/types/project';
 import type { Task } from '@/types/task';
+import type { CustomTaskType } from '@/types/taskType';
+import { withTaskTypeColors } from '@/services/taskTypes/customTaskTypeColors';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { COST_ASSIGNMENT_WORK_FIELDS, isCostResource, type ResourceAssignment } from '@/types/resource';
@@ -96,14 +98,18 @@ function withSourceFields<T extends { id: string }>(items: T[], own: readonly T[
 
 /** Documententries die de extensie niet meestuurt, achter die van de extensie (zie de kop). */
 function mergeCustomTaskTypes(
-  fromExtension: readonly { id: string; name: string }[],
-  own: readonly { id: string; name: string }[],
-): { id: string; name: string }[] {
+  fromExtension: readonly CustomTaskType[],
+  own: readonly CustomTaskType[],
+): CustomTaskType[] {
   const ids = new Set(fromExtension.map((t) => t.id.trim()));
   const names = new Set(fromExtension.map((t) => t.name.trim().toLocaleLowerCase()));
+  const kept = own.filter((t) => !ids.has(t.id.trim()) && !names.has(t.name.trim().toLocaleLowerCase()));
+  // Een werksoort die het document al had, houdt haar kleur (#856); een nieuwe krijgt een kleur die
+  // naast die van het document nog vrij is.
+  const ownColor = new Map(own.map((t) => [t.id.trim(), t.color]));
   return [
-    ...fromExtension,
-    ...own.filter((t) => !ids.has(t.id.trim()) && !names.has(t.name.trim().toLocaleLowerCase())),
+    ...withTaskTypeColors(fromExtension.map(({ id, name }) => ({ id, name, color: ownColor.get(id.trim()) })), kept),
+    ...kept,
   ];
 }
 

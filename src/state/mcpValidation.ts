@@ -1,4 +1,4 @@
-import { isElapsedTask, isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { isElapsedTask } from '@/engine/scheduler/duration';
 // =================================================================================================
 // MCP-bridge — validatielaag (guards, validaties en relatie-validatie).
 //
@@ -20,12 +20,14 @@ import { isElapsedTask, isZeroDurationMilestone } from '@/engine/scheduler/durat
 // =================================================================================================
 
 import type { AppState } from './appStore';
-import type { Task } from '@/types/task';
+import type { Task, TaskTime } from '@/types/task';
 import {
-  applyProgressInvariants, fillMissingActualStart, isActualFinishBeforeStart, isTaskActualPastStatusDate,
-  normalizeActualDate,
+  applyProgressInvariants, datesForProgress, fillMissingActualStart, isActualFinishBeforeStart, isTaskActualPastStatusDate,
+  normalizeActualDate, rememberProgressBeforeRecalculation,
+  type PlannedProgressDates,
 } from '@/engine/taskMutationRules';
-import { captureProgressWork, settleProgressWork } from '@/engine/work/workRuleApply';
+import { captureProgressWork, durationCompletionDates, settleProgressWork } from '@/engine/work/workRuleApply';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { actualStartQuestionFor } from '@/engine/progressEntry';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
@@ -172,7 +174,8 @@ export const progress = {
     taskId: string,
     update: { completion?: number; actualStart?: string; actualFinish?: string },
     statusDate: string | undefined,
-    getPlannedStart?: (task: Task) => string | undefined,
+    getPlannedDates?: (task: Task) => PlannedProgressDates | undefined,
+    beforeDuration?: TaskTime,
   ): ProgressResult {
     const task = draftState.tasks.find((t) => t.id === taskId) as Task | undefined;
     if (!task) return { applied: false, reason: `task '${taskId}' does not exist` };
@@ -210,15 +213,6 @@ export const progress = {
     //     taak die nog op 0% staat) die finish meteen weer wissen — terwijl een opgegeven finish juist
     //     completion=1 hoort af te dwingen via de invarianten.
     if (update.completion !== undefined && time.completion < 1) time.actualFinish = undefined;
-
-    // (4) completion > 0 zonder actualStart ⇒ actualStart afleiden (MSP-conventie: % ⇒ gestart).
-    //     Ná (3), zodat de klem het einde ziet dat overblijft: een afgeleide start valt nooit ná het
-    //     (opgegeven of door de invarianten afgeleide) werkelijke einde. Een OPGEGEVEN actualStart
-    //     staat er dan al en blijft ongemoeid — die toetst (7) gewoon.
-    const originalStart = update.completion !== undefined && time.completion > 0 && !time.actualStart
-      && !isZeroDurationMilestone(task) ? getPlannedStart?.(task) : undefined;
-    const plannedStart = originalStart ? () => originalStart : undefined;
-    if (time.completion > 0) fillMissingActualStart(scratch, statusDate, calendar, plannedStart);
 
     // (5) OPGEGEVEN actual ná de statusdatum ⇒ weigering (spiegel van setActualStart/Finish accepted=false),
     //     met dezelfde vergelijking als store en grid: een date-only statusdatum laat de hele dag toe.
@@ -260,19 +254,25 @@ export const progress = {
       return { applied: false, reason: `task '${taskId}' is a summary task (has children); progress, status and actual dates are derived from the leaf tasks below it, not set directly — set the progress on those leaf tasks` };
     }
 
-    // (10) invarianten.
-    applyProgressInvariants(scratch, statusDate, calendar);
+    // (10) Leid ontbrekende datums pas af uit de aanvaarde datums, duur en splits.
+    const afterDuration = beforeDuration && time.completion >= 1 && !time.actualFinish
+      ? durationCompletionDates(scratch, beforeDuration, calendar,
+        effectiveSchedulingOptions(draftState.project).workdayDurationMeasure === true) : undefined;
+    const planned = afterDuration ?? (update.completion === undefined
+      ? undefined : datesForProgress(scratch, time.completion, () => getPlannedDates?.(task)));
+    if (time.completion > 0) fillMissingActualStart(scratch, statusDate, calendar, planned);
+    applyProgressInvariants(scratch, statusDate, calendar, planned);
     // (11) Geen verzonnen werkelijke start — de AI geeft hem zelf op.
     const question = actualStartQuestionFor(task, scratch, statusDate, {
       actualStart: !!update.actualStart,
       actualFinish: !!update.actualFinish,
-    }, isElapsedTask(task) ? undefined : calendar, plannedStart);
+    }, isElapsedTask(task) ? undefined : calendar, () => planned?.earlyStart);
     if (question) {
-      const planned = originalStart ?? (scratch.time.earlyStart || scratch.time.scheduleStart);
+      const plannedStart = planned?.earlyStart ?? (scratch.time.earlyStart || scratch.time.scheduleStart);
       return {
         applied: false,
         reason: `task '${taskId}' has no actual start yet and was planned to start only after the status ` +
-          `date (${question.statusDate}) (planned start ${planned}): progress means it has already started, ` +
+          `date (${question.statusDate}) (planned start ${plannedStart}): progress means it has already started, ` +
           'but only the user knows when. Pass the actual start in `progress.actualStart` (at the latest ' +
           `${question.latest}); the AI connection does not derive it`,
       };
@@ -282,6 +282,7 @@ export const progress = {
     // nivelleergaten NIET wissen — dezelfde no-op-regel als taskSlice.ts's voortgangssetters
     // (`commitProgressEdit`). Het item is wél verwerkt: het staat al zoals gevraagd.
     if (sameValue(task, scratch)) return { applied: true };
+    rememberProgressBeforeRecalculation(task, scratch);
     // De voortgang verplaatst opgeslagen werk van rest naar verricht — momentopname op de
     // ONGEWIJZIGDE taak, settle ná de commit (zelfde als de store). Ná de no-op-check, zodat een
     // no-op ook het werk niet raakt.

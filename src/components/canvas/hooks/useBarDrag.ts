@@ -401,6 +401,7 @@ export function useBarDrag({
     gestureMarkRef.current = null;
   }, [endHistorySession]);
 
+
   // Drag and drop: mousemove (via native event for performance)
   useEffect(() => {
     if (!dragState) return;
@@ -875,7 +876,24 @@ export function useBarDrag({
       setDragState(null);
     };
 
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true });
+    // Documentwissel midden in het gebaar (review #1004, ronde 11): stoppen zoals loslaten, zonder
+    // meldingen. Wat al geschreven was blijft in het startdocument, als één undo-stap daar. Terugdraaien
+    // zoals Escape kan niet: `revertHistorySince` werkt op het actieve document, en dat is het nieuwe.
+    const handleDocumentSwitch = () => {
+      if (gestureMarkRef.current) endHistorySession(gestureMarkRef.current);
+      gestureMarkRef.current = null;
+      undoKeyRef.current = null;
+      startRuleRef.current = null;
+      companionsRef.current = [];
+      actualLockRef.current = null;
+      setSplitLabel(null);
+      setDragState(null);
+    };
+
+    return listenWindowDrag({
+      onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true,
+      onDocumentSwitch: handleDocumentSwitch,
+    });
   }, [
     dragState,
     zoom,

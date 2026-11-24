@@ -33,6 +33,8 @@ De items staan in deze volgorde. Een lijn tussen groepen is een scheidingslijn i
 
 **Relatie toevoegen** — doet hetzelfde als *Relatie leggen vanaf hier*: zet de relatiemodus aan met deze taak geselecteerd. In de takenlijst is het item uitgeschakeld als de Gantt niet in beeld is, met de tooltip *Alleen beschikbaar als de Gantt in beeld is*.
 
+**Voorgangers toewijzen…** en **Opvolgers toewijzen…** — selecteren deze taak en openen in het paneel *Eigenschappen* het blok *Afhankelijkheden* met een zoekveld, de richting al gekozen. Je kiest er de andere taken, het type en de lag. Werkt ook zonder Gantt in beeld. Zie [Relaties leggen](docs://howto-relaties-leggen).
+
 **Inspringen** en **Uitspringen** — maakt de taken van het bereik een niveau dieper of een niveau hoger in de WBS. Deze twee staan er alleen in de pure boomweergave. Zie [Structuur aanpassen](docs://howto-structuur-aanpassen).
 
 **Mijlpaal aan/uit** — zet de taak om naar een mijlpaal, of terug. De nieuwe stand volgt uit de taak waarop je klikte en geldt voor het hele bereik: is die een taak, dan worden alle taken van het bereik mijlpaal. Een samenvattingstaak en een taak met toewijzingen worden geen mijlpaal; de rest van het bereik wel, en je krijgt een melding per reden.

@@ -38,6 +38,6 @@ User's remaining ≠ duration × (1 − completion/100): `completion` = done ÷ 
 
 - Report end/critical-path changes (planner_get_project_info, planner_get_critical_path); baseline variance (planner_compare_baseline); delay (planner_analyze_delay).
 - Negative `totalFloat` (planner_get_critical_path shows it too): planner_get_task on each such task and its successors; report the `deadline`, `constraint` or external successor that no longer fits, and its date.
-- Reached milestones need `completion: 100`, `actualFinish`; otherwise they move to the status date.
+- For reached milestones, pass `completion: 100` and the reported `actualFinish`. Without an actual finish, 100% uses the scheduled finish up to the status date.
 - Report out-of-sequence work (started, FS predecessor unfinished); change `progressMode` only on request.
 - Status date; started/finished/running tasks; unreported work; assumptions/omissions.

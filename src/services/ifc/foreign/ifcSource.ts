@@ -13,6 +13,7 @@
  * `opened` (vervolg-PR van #867): een verwijzing naar het domein van het document zoals het na openen was.
  */
 import type { WriteIFCInput } from '../ifcWriter';
+import type { TaskElementLinks } from './elementLinks';
 import type { StepIndex } from './stepScanner';
 
 /** Eén gecontroleerde schrijfvoorbereiding, nog zonder bestandsschrijf of documentwijziging.
@@ -26,6 +27,11 @@ export interface PreparedIfcWrite {
   readonly literalCalendarIds: readonly string[];
   /** Ruimte voor PR 6: een bewaarde uitvoerindex. Deze PR bewaart/hergebruikt hem nog niet. */
   readonly outputIndex?: StepIndex;
+}
+
+export interface UnusedKeysOfTask {
+  readonly taskStepId: number;
+  readonly propertyStepIds: readonly number[];
 }
 
 export interface IfcSource {
@@ -46,6 +52,8 @@ export interface IfcSource {
   readonly stepIds: Readonly<Record<string, number>>;
   /** Properties in een eigen pset (of property-templates in een eigen template) die de lezer niet leest (stukken). */
   readonly foreignMembers: readonly number[];
+  readonly elementLinks: TaskElementLinks;
+  readonly unusedKeys?: readonly UnusedKeysOfTask[];
   /** Is er een vreemd deel: een entiteit die niet P is (§3)? */
   readonly foreign: boolean;
   /** Aantal entiteiten dat niet P is (C, A en V), voor de melding van §4.15. */

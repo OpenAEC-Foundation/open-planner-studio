@@ -332,7 +332,11 @@
     "rename": "Editar",
     "remove": "Eliminar",
     "addToMine": "Añadir a mis categorías de trabajo",
-    "confirmRemove": "Esta categoría de trabajo se usa en el proyecto abierto. ¿Desea eliminarla de «Mis categorías de trabajo»? La copia del proyecto se conserva."
+    "confirmRemove": "Esta categoría de trabajo se usa en el proyecto abierto. ¿Desea eliminarla de «Mis categorías de trabajo»? La copia del proyecto se conserva.",
+    "renameInProjectTitle": "¿Cambiar también el nombre en este proyecto?",
+    "renameInProjectMessage": "La categoría de trabajo «{{oldName}}» también se usa en este proyecto. ¿Quiere llamarla también «{{newName}}» aquí?",
+    "renameInProjectYes": "También en este proyecto",
+    "renameInProjectNo": "Solo en mi lista"
   },
   "duration": {
     "label": "Duración",
@@ -385,7 +389,15 @@
       "resourceShorter": "Un recurso adicional acorta la tarea.",
       "resourceAddsWorkSameDuration": "Un recurso adicional añade trabajo; la duración no cambia."
     },
-    "info": "Explicación del tipo de tarea"
+    "info": "Explicación del tipo de tarea",
+    "hint": {
+      "intro": "El tipo de tarea determina qué ajusta la aplicación cuando cambia la duración, las unidades (personas por día) o el trabajo (horas).",
+      "FIXED_DURATION_RATE": "La duración y las unidades se mantienen, el trabajo se calcula. Ejemplo: 2 personas, 5 días de 8 horas = 80 horas.",
+      "FIXED_DURATION_WORK": "La duración y el trabajo se mantienen, las unidades se calculan. Ejemplo: 80 horas en 5 días de 8 horas = 2 personas por día.",
+      "FIXED_WORK": "El trabajo se mantiene, la duración se calcula. Ejemplo: 80 horas con 2 personas = 5 días; con 4 personas, 2,5 días.",
+      "FIXED_RATE": "Las unidades se mantienen, el trabajo determina la duración. Ejemplo: 1 grúa, 40 horas de trabajo = 5 días; 80 horas = 10 días.",
+      "projectDefault": "Sigue el tipo de tarea que el proyecto usa como predeterminado."
+    }
   },
   "properties": {
     "task": "Tarea",
@@ -457,6 +469,12 @@
     "interferingFloat": "Holgura interferente:",
     "criticalPath": "Ruta crítica:",
     "dependencies": "Relaciones",
+    "predecessors_one": "{{count}} predecesor",
+    "predecessors_many": "{{count}} predecesores",
+    "predecessors_other": "{{count}} predecesores",
+    "successors_one": "{{count}} sucesor",
+    "successors_many": "{{count}} sucesores",
+    "successors_other": "{{count}} sucesores",
     "addRelation": "Añadir relación",
     "addRelationSearch": "Buscar tarea…",
     "addRelationConfirm": "Crear relación",

@@ -151,7 +151,7 @@
     "groupByType": "Grouper par type de ressource",
     "showAssignmentColumns": "Afficher unités/jour et courbe",
     "columnsDropped": "Les colonnes Unités/j et Courbe ont été omises : le tableau ne laissait pas assez de place à l'axe du temps. Un papier plus grand ou en paysage, une police plus petite ou un tableau plus étroit donne plus de place.",
-    "emptyPeriod": "Aucune tâche dans la période de rapport — choisissez une autre période ou Projet entier.",
+    "emptyPeriod": "Aucune tâche dans la période personnalisée — choisissez d'autres dates ou désactivez Période personnalisée.",
     "outsidePeriod": "Hors période :",
     "empty": "Aucune affectation de ressource — affectez d'abord des ressources aux tâches.",
     "resources": "Ressources :",
@@ -470,7 +470,6 @@
     "pages_many": "{{count}} pages",
     "pages_other": "{{count}} pages",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Période du rapport",
     "tasks": {
       "title": "Quelles tâches",
       "all": "Toutes les tâches",
@@ -671,6 +670,13 @@
       "chart": "Barres et chronologie",
       "footer": "Légende et pied de page",
       "page": "Page"
+    },
+    "period": {
+      "hint": "Seules les tâches de cette période figurent dans le rapport. La chronologie couvre exactement la période ; une barre qui la dépasse est coupée au bord.",
+      "outside_one": "{{count}} tâche est hors période et ne figure pas dans le rapport.",
+      "outside_many": "{{count}} de tâches sont hors période et ne figurent pas dans le rapport.",
+      "outside_other": "{{count}} tâches sont hors période et ne figurent pas dans le rapport.",
+      "own": "Période personnalisée"
     }
   },
   "customFont": {

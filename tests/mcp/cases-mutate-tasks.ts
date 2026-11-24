@@ -11,6 +11,7 @@
 // registry-registratie via registerToolModules + tools/list-vorm via de dispatcher; plus de guards
 // (paused/readOnly/drift) en de backup-hook.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
+import { CUSTOM_TASK_TYPE_COLOR_ORDER } from '@/engine/renderer/resourcePalette';
 import { taskTools } from '@/services/mcp/tools/taskTools';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
@@ -492,7 +493,7 @@ test('custom task type: MCP materialiseert id+naam atomisch en behoudt builtin-e
   const id = data.created.CUSTOM as string;
   assertEq(taskById(id)?.taskType, 'USERDEFINED', 'custom type gebruikt expliciet USERDEFINED, nooit CONSTRUCTION');
   assertEq(taskById(id)?.customTaskTypeId, custom.id, 'taak bewaart de stabiele custom-id');
-  assertEq(store.getState().customTaskTypes, [custom], 'projectsnapshot bevat id plus naam');
+  assertEq(store.getState().customTaskTypes, [{ ...custom, color: CUSTOM_TASK_TYPE_COLOR_ORDER[0] }], 'projectsnapshot bevat id plus naam, en een vrije kleur (#856)');
 
   const conflict = await call('planner_update_tasks', { updates: [{ id, fields: {
     customTaskType: { id: custom.id, name: 'Andere naam' },
@@ -516,7 +517,7 @@ test('custom task type: MCP materialiseert id+naam atomisch en behoudt builtin-e
   const customUpdate = await call('planner_update_tasks', { updates: [{ id, fields: { customTaskType: opvolger } }] }, ctx);
   assert(customUpdate.ok, 'update kan een nieuw custom type materialiseren');
   assertEq(taskById(id)?.customTaskTypeId, opvolger.id, 'update bewaart de nieuwe stabiele id');
-  assertEq(store.getState().customTaskTypes, [custom, opvolger], 'update voegt de nieuwe projectsnapshot toe zonder de oude te herschrijven');
+  assertEq(store.getState().customTaskTypes, [{ ...custom, color: CUSTOM_TASK_TYPE_COLOR_ORDER[0] }, { ...opvolger, color: CUSTOM_TASK_TYPE_COLOR_ORDER[1] }], 'update voegt de nieuwe projectsnapshot toe zonder de oude te herschrijven');
 });
 
 await run();

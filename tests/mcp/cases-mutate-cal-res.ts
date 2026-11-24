@@ -735,12 +735,33 @@ test('registratie: zeven T20-tools met prefix, description, vier annotaties en J
   }
   assertEq(tools.find((t) => t.name === 'planner_update_calendar').annotations.destructiveHint, true,
     'update_calendar is destructief (spec §Naamgeving & annotaties)');
+  const generator = tools.find((t) => t.name === 'planner_update_calendar')
+    .inputSchema.properties.calendars.items.properties.generate.properties;
+  assert(generator.country.enum.includes('BO'), 'de dispatcher publiceert Bolivia in de landenlijst');
+  assert(generator.region.description.includes('P = Potosí'), 'het schema geeft de regiocode voor Potosí');
   // Reviewfix: spec r65 zet destructiveHint op een GESLOTEN lijst — clear_leveling hoort er niet bij.
   assertEq(tools.find((t) => t.name === 'planner_clear_leveling').annotations.destructiveHint, false,
     'clear_leveling draagt GEEN destructiveHint (afgeleide, herberekenbare waarden)');
   // level_resources zegt zelf dat het eerdere nivellering wist; clear_leveling hoeft dat niet te herhalen (#818).
   assert(/resets earlier leveling itself/i.test(tool('planner_level_resources').description),
     'level_resources-beschrijving legt uit dat het zelf eerdere nivellering wist');
+});
+
+test('update_calendar: Bolivia accepteert P en weigert Potosí als regiocode', async () => {
+  reset();
+  store.getState().setProject({ startDate: '2026-01-01' });
+  const id = store.getState().project.calendarId;
+  const generate = { country: 'BO', region: 'P' };
+  const ctx = makeCtx();
+  const result = await call('planner_update_calendar', { calendars: [{ id, generate }] }, ctx);
+  assertEq(rejections(result).length, 0, 'P is een geldige regiocode');
+  const before = store.getState().calendar;
+  assert(before.holidays.some(h => h.startDate === '2026-11-10'), 'P voegt de vrije dag in Potosí toe');
+  const wrongCode = await call('planner_update_calendar', {
+    calendars: [{ id, generate: { ...generate, region: 'Potosí' } }],
+  }, ctx);
+  assert(rejections(wrongCode)[0]?.reason.includes('P = Potosí'), 'geef bij een weigering de geldige codes');
+  assertEq(store.getState().calendar, before, 'ongeldige regio overschrijft de bestaande kalender niet');
 });
 
 await run();

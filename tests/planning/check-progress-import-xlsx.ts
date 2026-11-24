@@ -796,7 +796,7 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
 
 {
   const today = '2026-06-10';
-  for (const [target, start] of [['A', '2026-06-08T07:00'], ['B', '2026-06-09T07:00'], ['beide', null]] as const) {
+  for (const [target, start] of [['A', '2026-06-08T07:00'], ['B', '2026-06-09T07:00'], ['beide', null], ['met einde', null]] as const) {
     const { store } = createAppStoreContext();
     const S = store.getState;
     S().setProject({ startDate: '2026-06-08', statusDate: today });
@@ -805,14 +805,24 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
     S().addSequence({ predecessorId: A, successorId: B, type: 'FINISH_START', lagDays: 0 });
     S().runCPM();
     const id = target === 'A' ? A : B;
-    const input = target === 'beide'
-      ? [{ taskId: B, completion: 0.5 }, { taskId: A, completion: 1 }]
+    const input = target === 'beide' || target === 'met einde'
+      ? [{ taskId: B, completion: 0.5 }, { taskId: A, completion: 1,
+        ...(target === 'met einde' ? { actualFinish: today } : {}) }]
       : [{ taskId: id, completion: 0.5 }];
     const sheet = await parseProgressXlsx(await progressSheetBytes(input));
     const rows = finalizeProgressRows(sheet, 'dmy');
     const preview = S().previewProgressImport(rows, undefined, { today });
     const applied = S().applyProgressImport(rows, undefined, { today });
     if (target === 'beide') {
+      eq('#998 Excel gebruikt het geplande einde van A en aanvaardt beide rijen, ook met B bovenaan',
+        [preview, applied].map(plan => plan.rows.map(row => [row.outcome, row.plannedTask?.time.actualFinish ?? null])),
+        [[['apply', null], ['apply', '2026-06-08T16:00']], [['apply', null], ['apply', '2026-06-08T16:00']]]);
+      eq('#998 Excel bewaart de afgeleide datums', S().tasks.map(task => [
+        task.time.completion, task.time.actualStart, task.time.actualFinish ?? null,
+      ]), [[1, '2026-06-08T07:00', '2026-06-08T16:00'], [0.5, '2026-06-09T07:00', null]]);
+      continue;
+    }
+    if (target === 'met einde') {
       eq('#998 Excel weigert de voortgang op B na het afmelden van A, ook als B bovenaan staat',
         [preview, applied].map(plan => plan.rows.map(row => [row.taskId, row.outcome, row.reason ?? null])),
         [[[B, 'refused', 'actualStartRequired'], [A, 'apply', null]], [[B, 'refused', 'actualStartRequired'], [A, 'apply', null]]]);

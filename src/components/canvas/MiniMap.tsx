@@ -136,7 +136,7 @@ export function MiniMap({
       if (next !== null) applyScrollX(next);
     };
     const handleUp = () => setDragOffsetDays(null);
-    return listenWindowDrag({ onMove: handleMove, onUp: handleUp });
+    return listenWindowDrag({ onMove: handleMove, onUp: handleUp, onDocumentSwitch: handleUp });
   }, [dragOffsetDays, scrollXForMiniX, applyScrollX]);
 
   return (

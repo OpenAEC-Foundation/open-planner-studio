@@ -174,11 +174,8 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
     await recalculate(page);
     expect((await readTask(page, dialogId)).earlyFinish).toBe(finish);
   }
-  // Review #563: bij 100% blijft een vastgelegde start staan, ook ná het afgeleide blokeinde.
-  for (const [actualStart, actualFinish] of [
-    ['2026-06-03T10:00', '2026-06-03T16:00'],
-    ['2026-06-03T18:00', '2026-06-03T18:00'],
-  ]) {
+  // Bij 100% geldt het geplande einde, met de vastgelegde start als ondergrens.
+  for (const actualStart of ['2026-06-03T10:00', '2026-06-03T18:00']) {
     await page.evaluate(({ ids, actualStart }) => {
       const s = window.__OPS__!.store.getState();
       s.setProject({ startDate: '2026-06-01', statusDate: '2026-06-03' });
@@ -187,7 +184,7 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
         s.updateTask(id, { status: 'STARTED', time: {
           ...task.time, scheduleStart: '2026-06-03T08:00', durationUnit: 'hours',
           durationMinutes: 480, scheduleDuration: 1, completion: 0.5,
-          actualStart, actualFinish: undefined,
+          remainingMinutes: 240, remainingTime: 0.5, actualStart, actualFinish: undefined,
         } });
       }
       const after = window.__OPS__!.store.getState();
@@ -195,6 +192,10 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
       after.setViewStartDate('2026-06-01');
       after.setScroll(0, 0);
     }, { ids: [panelId, dialogId], actualStart });
+    const plannedFinish = (await readTask(page, panelId)).earlyFinish;
+    if (!plannedFinish) throw new Error('De taak heeft geen gepland einde');
+    expect((await readTask(page, dialogId)).earlyFinish).toBe(plannedFinish);
+    const actualFinish = plannedFinish > actualStart ? plannedFinish : actualStart;
     // Na de fixturewissel kan de vorige balkgeometrie nog staan; de rasterrij heeft een vaste plek.
     await page.locator(`[data-grid-row-key="${panelId}"] [data-grid-column-id="task.name"]`).first().click();
     await pressSlider(page, page.locator('[data-ops-progress-slider]').first(), { end: true });
@@ -235,6 +236,29 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
   expect(await readTask(page, taskId)).toMatchObject({
     completion: 1, status: 'COMPLETED', actualStart: "2026-03-02T07:00", actualFinish: "2026-03-06T16:00", remainingTime: 0,
   });
+
+  // Het al in de dialoog afgeleide einde moet de daarna getypte duur volgen.
+  await page.evaluate(id => {
+    const store = window.__OPS__!.store.getState();
+    const task = store.tasks.find(candidate => candidate.id === id)!;
+    store.setProject({ statusDate: '2026-03-20' });
+    store.updateTask(id, { status: 'NOT_STARTED', time: {
+      ...task.time, completion: 0, actualStart: undefined, actualFinish: undefined,
+    } });
+    store.runCPM();
+  }, taskId);
+  await page.locator(`[data-grid-row-key="${taskId}"] [data-grid-column-id="task.name"]`).first().click({ button: 'right' });
+  await page.getByRole('button', { name: /^(Edit|Bewerken)\.\.\.$/ }).click();
+  dialog = page.locator('[data-ops-task-dialog]');
+  await expect(dialog).toBeVisible();
+  await pressSlider(page, dialog.locator('[data-ops-progress-slider]'), { end: true });
+  await expect(dialog.locator('[data-ops-progress-slider]')).toHaveValue('100');
+  const duration = dialog.locator('[data-ops-duration-value]');
+  await duration.fill('3');
+  await duration.press('Tab');
+  await dialog.locator('[data-ops-task-save]').click();
+  await expect(dialog).toBeHidden();
+  expect(await readTask(page, taskId)).toMatchObject({ completion: 1, actualFinish: '2026-03-04T16:00' });
 });
 
 test('Taak bewerken: voortgang en startanker volgen de actuele planning na het verwijderen van een voorganger', async ({ page, ops: _ops }) => {

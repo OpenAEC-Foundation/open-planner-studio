@@ -150,7 +150,7 @@ function addWriterBreadth(base: ImportResult): ImportResult {
   }];
   leaf(0).activityCodes = { ...leaf(0).activityCodes, 'ac-rich-fase': 'ac-rich-ruw' };
   leaf(4).activityCodes = { ...leaf(4).activityCodes, 'ac-rich-fase': 'ac-rich-afb' };
-  r.customTaskTypes = [...(r.customTaskTypes ?? []), { id: 'ctt-rich-keuring', name: 'Keuring' }];
+  r.customTaskTypes = [...(r.customTaskTypes ?? []), { id: 'ctt-rich-keuring', name: 'Keuring', color: '#0D9488' }];
   leaf(5).customTaskTypeId = 'ctt-rich-keuring';
   leaf(5).taskType = 'USERDEFINED';
 

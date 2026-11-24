@@ -332,7 +332,11 @@
     "rename": "Modifier",
     "remove": "Supprimer",
     "addToMine": "Ajouter à mes catégories de travaux",
-    "confirmRemove": "Cette catégorie de travaux est utilisée dans le projet ouvert. La supprimer de « Mes catégories de travaux » ? La copie du projet reste disponible."
+    "confirmRemove": "Cette catégorie de travaux est utilisée dans le projet ouvert. La supprimer de « Mes catégories de travaux » ? La copie du projet reste disponible.",
+    "renameInProjectTitle": "Renommer aussi dans ce projet ?",
+    "renameInProjectMessage": "La catégorie de travaux « {{oldName}} » est aussi utilisée dans ce projet. Voulez-vous lui donner ici aussi le nom « {{newName}} » ?",
+    "renameInProjectYes": "Aussi dans ce projet",
+    "renameInProjectNo": "Seulement dans ma liste"
   },
   "duration": {
     "label": "Durée",
@@ -385,7 +389,15 @@
       "resourceShorter": "Une ressource supplémentaire raccourcit la tâche.",
       "resourceAddsWorkSameDuration": "Une ressource supplémentaire ajoute du travail ; la durée reste la même."
     },
-    "info": "Explication du type de tâche"
+    "info": "Explication du type de tâche",
+    "hint": {
+      "intro": "Le type de tâche détermine ce que l'application ajuste lorsque vous modifiez la durée, l'unité (personnes par jour) ou le travail (heures).",
+      "FIXED_DURATION_RATE": "La durée et l'unité restent, le travail suit. Exemple : 2 personnes, 5 jours de 8 heures = 80 heures.",
+      "FIXED_DURATION_WORK": "La durée et le travail restent, l'unité suit. Exemple : 80 heures en 5 jours de 8 heures = 2 personnes par jour.",
+      "FIXED_WORK": "Le travail reste, la durée suit. Exemple : 80 heures avec 2 personnes = 5 jours, avec 4 personnes = 2,5 jours.",
+      "FIXED_RATE": "L'unité reste, le travail détermine la durée. Exemple : 1 grue, 40 heures de travail = 5 jours, 80 heures = 10 jours.",
+      "projectDefault": "Suit le type de tâche que le projet utilise par défaut."
+    }
   },
   "properties": {
     "task": "Tâche",
@@ -457,6 +469,12 @@
     "interferingFloat": "Marge interférente :",
     "criticalPath": "Chemin critique :",
     "dependencies": "Dépendances",
+    "predecessors_one": "{{count}} prédécesseur",
+    "predecessors_many": "{{count}} de prédécesseurs",
+    "predecessors_other": "{{count}} prédécesseurs",
+    "successors_one": "{{count}} successeur",
+    "successors_many": "{{count}} de successeurs",
+    "successors_other": "{{count}} successeurs",
     "addRelation": "Ajouter une relation",
     "addRelationSearch": "Rechercher une tâche…",
     "addRelationConfirm": "Créer la relation",

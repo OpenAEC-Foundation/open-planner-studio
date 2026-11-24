@@ -1,5 +1,6 @@
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useLatestRef } from '@/hooks/useLatestRef';
+import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 
 // Generieke sleep-splitter — hetzelfde patroon dat door de app werd gedupliceerd
 // (rechterpaneel-rand in App, tabel/chart-rand in GanttCanvas): losse drag-state,
@@ -96,16 +97,14 @@ export function useSplitter(opts: UseSplitterOptions): Splitter {
       if (typeof dragOwner === 'number' && event.pointerId === dragOwner) finish();
     };
     if (dragOwner === 'mouse') {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', finish);
-    } else {
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
-      window.addEventListener('pointercancel', handlePointerUp);
+      // Een documentwissel stopt de sleep zoals loslaten (review #1004, ronde 15): de verhouding van de
+      // gesplitste Gantt hoort bij de weergave van het document waarin de sleep begon.
+      return listenWindowDrag({ onMove: handleMouseMove, onUp: finish, onDocumentSwitch: finish });
     }
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', finish);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
       window.removeEventListener('pointercancel', handlePointerUp);

@@ -11,6 +11,7 @@
 //
 // De lichtheden lopen bewust sterk uiteen: band 1/12 breed per kleur.
 import type { Resource } from '@/types/resource';
+import { TASK_TYPES } from '@/types/task';
 import { contrastRatio } from '@/engine/renderer/themePalette';
 
 // Samengesteld op lichtheid (relatieve lichtheid via 0.2126R+0.7152G+0.0722B): twaalf tinten over
@@ -53,6 +54,37 @@ function hashId(id: string): number {
 export function paletteColorForId(id: string): string {
   return RESOURCE_PALETTE[hashId(id) % RESOURCE_PALETTE.length];
 }
+
+// --- Eigen werkcategorieën (issue #856) -----------------------------------------------------------
+//
+// Een eigen werkcategorie krijgt één keer een kleur, die daarna bij haar bewaard blijft (in de
+// bibliotheek en in het IFC-bestand; besluit Ethan 21 november 2026, toekenning in
+// `src/services/taskTypes/customTaskTypeColors.ts`). Dit is de volgorde waarin die kleuren vrij komen:
+// eerst de paletplekken die geen vaste categorie gebruikt, dan acht eigen tinten die in geen enkel palet
+// hierboven staan. Daarna volgt een berekende reeks (`freeTaskTypeColor`); de kleuren van de vaste
+// categorieën krijgt een eigen werksoort nooit. Plek 1 (rood-700) doet niet mee: in het donkere
+// thema is die bijna kritiek-rood (zie de paletkop). Geen van de tinten is kritiek-rood (#DC2626).
+const CRITICAL_LOOKALIKE_SLOT = 1;
+const BUILTIN_TASK_TYPE_SLOTS = new Set(TASK_TYPES.map(type => hashId(type) % RESOURCE_PALETTE.length));
+/** De balkkleuren van de vaste werkcategorieën (ook *Overig*), zoals de balkkleuring ze kiest. */
+export const BUILTIN_TASK_TYPE_COLORS: readonly string[] = TASK_TYPES.map(type => paletteColorForId(type));
+const CUSTOM_TASK_TYPE_EXTRA_COLORS: readonly string[] = [
+  '#7E22CE', // purple-700
+  '#0E7490', // cyan-700
+  '#15803D', // green-700
+  '#CA8A04', // yellow-600
+  '#F472B6', // pink-400
+  '#2563EB', // blue-600
+  '#7C2D12', // orange-900
+  '#94A3B8', // slate-400
+];
+export const CUSTOM_TASK_TYPE_COLOR_ORDER: readonly string[] = (() => {
+  const usable = RESOURCE_PALETTE.map((_, slot) => slot).filter(slot => slot !== CRITICAL_LOOKALIKE_SLOT);
+  return [
+    ...usable.filter(slot => !BUILTIN_TASK_TYPE_SLOTS.has(slot)).map(slot => RESOURCE_PALETTE[slot]),
+    ...CUSTOM_TASK_TYPE_EXTRA_COLORS,
+  ];
+})();
 
 /**
  * De kleur waarin een resource getekend wordt: haar eigen, expliciet gekozen kleur als die er is,
@@ -116,7 +148,7 @@ function hexToHsl(hex: string): { h: number; s: number; l: number } {
 }
 
 /** {h, s, l} → #rrggbb. */
-function hslToHex(h: number, s: number, l: number): string {
+export function hslToHex(h: number, s: number, l: number): string {
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const hp = ((h % 360) + 360) % 360 / 60;
   const x = c * (1 - Math.abs((hp % 2) - 1));

@@ -181,4 +181,4 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((e) => { console.log(`XX  check-wbs-auto-on-open crasht: ${(e as Error).stack}`); process.exitCode = 1; });
+await main().catch((e) => { console.log(`XX  check-wbs-auto-on-open crasht: ${(e as Error).stack}`); process.exitCode = 1; });

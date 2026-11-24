@@ -35,3 +35,8 @@ op een kloon van zijn taken, alleen voor deze weergave, zonder de payload aan te
 (zie `.claude/rules/state.md`). De weergave ziet uitsluitend documenten die in déze app-instantie open staan;
 geen sync tussen machines of vensters (zie `docs/library.md` en de in-app gids
 `public/docs/{nl,en}/howto-bezettingsoverzicht-gebruiken.md`).
+
+**Besluiten in `librarySlice.ts`** staan in `docs/adr/`: de bibliotheek opslaan en beheren (0170), een projectitem
+naar de bibliotheek promoveren (0171), verversen uit de bibliotheek wist de redo per gekoppeld document (0172),
+bibliotheekacties op het project die niets veranderen (0173), de demobibliotheek met inhoudsversie (0174) en een
+verdeling toepassen en terugdraaien (0175).

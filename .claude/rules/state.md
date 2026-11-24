@@ -36,7 +36,7 @@ Core runtimefactories en storegebonden MCP-tools mogen daarom nooit zelf `useApp
 tweede context is een correct headless/testfundament, geen productbelofte voor multi-window of een
 multi-store-Reactinterface.
 
-Multi-document is **single-active**: het actieve document leeft op top-level (project/tasks/sequences/… zoals altijd), zodat alle slices, componenten en de renderer single-document blijven. `documentSlice` bewaart de overige geopende documenten als losse `DocumentPayload`-snapshots en swapt top-level ↔ payload bij `switchDocument`/`newDocument`/`closeDocument`. Per-document: project, kalender, taken/relaties/resources/toewijzingen, selectie, `cpmResult`, `view`, `collapsedTaskIds`, `filePath` (met `fileHandle`/`siteFileId` als opslagdoel, af te leiden via `saveTargetRef`) en `isDirty`. De undo/redo-opslag is geen stapel in iedere payload maar één niet-gepersisteerde sessiechronologie binnen de appcontext (`historyEvents`/`nextHistorySequence`); undo en redo kiezen daaruit het toepasselijke event voor het actieve document of de betreffende gridsurface. Ook de rest van `ui`, `taskClipboard` en de taakgridvoorkeuren is appcontext-globaal en wordt niet met een document geswapt. Er is altijd minstens één document; het laatste sluiten reset naar een leeg document. De document-chrome-UI staat in `src/components/layout/DocumentChrome/`: `DocumentTabBar`, `ProjectRail` en `SwitcherPill` zijn drie instelbare stijlen (`ui.documentChromeStyle` ∈ `'tabs' | 'rail' | 'switcher'`, persistent), plus een `ProjectOverview`-overlay en `CloseDocumentDialog` met 3-weg sluitbevestiging (opslaan/niet opslaan/annuleren); Ctrl/⌘ 1–9 springt naar het n-de document. `openFile`/`openRecentFile` openen in een **nieuw** document tenzij het actieve tabblad nog leeg en ongewijzigd is (`isActivePristine` in `fileSlice`); "Nieuw" opent de projectwizard (`ProjectInfoDialog` met kalender-presets en faseringssjablonen, via `ui.showNewProjectDialog`) in plaats van een kaal `newProject()`.
+Multi-document is **single-active**: het actieve document leeft op top-level (project/tasks/sequences/… zoals altijd), zodat alle slices, componenten en de renderer single-document blijven. `documentSlice` bewaart de overige geopende documenten als losse `DocumentPayload`-snapshots en swapt top-level ↔ payload bij `switchDocument`/`newDocument`/`closeDocument`. Per-document: project, kalender, taken/relaties/resources/toewijzingen, selectie, `cpmResult`, `view`, `collapsedTaskIds`, `filePath` (met `fileHandle`/`siteFileId` als opslagdoel, af te leiden via `saveTargetRef`) en `isDirty`. De undo/redo-opslag is geen stapel in iedere payload maar één niet-gepersisteerde sessiechronologie binnen de appcontext (`historyEvents`/`nextHistorySequence`); undo en redo kiezen daaruit het toepasselijke event voor het actieve document of de betreffende gridsurface. Ook de rest van `ui`, `taskClipboard` en de taakgridvoorkeuren is appcontext-globaal en wordt niet met een document geswapt. Er is altijd minstens één document; het laatste sluiten reset naar een leeg document. De document-chrome-UI staat in `src/components/layout/DocumentChrome/`: `DocumentTabBar`, `ProjectRail` en `SwitcherPill` zijn drie instelbare stijlen (`ui.documentChromeStyle` ∈ `'tabs' | 'rail' | 'switcher'`, persistent), plus een `ProjectOverview`-overlay en `CloseDocumentDialog` met 3-weg sluitbevestiging (opslaan/niet opslaan/annuleren); Ctrl/⌘ 1–9 springt naar het n-de document. `openFile`/`openRecentFile` openen in een **nieuw** document tenzij het actieve tabblad nog leeg en ongewijzigd is (`isActivePristine` in `fileSlice`); met de flag `ifcForeignContent` gaat een bestand dat al in een tabblad open staat altijd naar dat tabblad; dat tabblad houdt zijn inhoud (`openDocumentFor.ts`, #804, knownbug 1957: Openen, Recent, slepen, de site, het startbestand en `planner_import_schedule`). Regel: de PR voegt geen wachtmoment en geen bestandsaanroep toe aan de openactie (besluit D, review #1121 ronde 6). Na het parsen en de groottecontrole beslist `openTabFor` synchroon, in de stap van het activeren (MCP legt daar ook document-id, driftanker en antwoord vast): welk tabblad heeft dit bestand (desktop: dezelfde letterlijke padtekst, geen `stat`; een link of anders geschreven pad geeft een tweede tabblad, zoals main: knownbug 2063; site: het id; browser: hetzelfde handle-object of een treffer van `startOpenLookup`, dat `isSameEntry` voor elk tabblad met een handle tegelijk start vlak vóór het lezen en de bevestigde paren tabblad-id en handle bijhoudt; niets wacht erop, een late treffer telt niet: knownbug 2062), en welke versie: de hash en grootte van de gelezen bytes (`readVersionOf`, uit `ifcSource`) tegen `knownTargetFingerprint` van dat tabblad, op de site de gelezen versie tegen `siteFileVersion` (aanpak W, besluit eigenaar 23 november 2026). Gelijk: wisselen zonder melding. Ongelijk: wisselen en het versieverschil op het tabblad zetten (`DocumentEntry.changedOnDisk`, sessiegegeven zoals `saveState`: niet in IFC, undo of het herstelmanifest; weg bij `stampSaved` na een eigen opslag of Opslaan als, bij een export over het eigen bestand die `settleFingerprintAfterExport` als dezelfde inhoud bevestigt, bij het uitzetten van de flag (samen met elke `knownTargetFingerprint`), bij `replaceDocumentContent` en met het tabblad). De waarschuwing is een strook bij het actieve tabblad (`ChangedOnDiskNotice`, `changedOnDiskShown`: alleen met de flag), niet in de meldingenlijst. Onbekend (geen versie aan een van beide kanten): een tweede tabblad, zoals main. Een tabblad met dezelfde versie gaat voor een tabblad met een andere. De tabkeuze geldt alleen voor een formaat met opslagdoel (`readFormatForFile(naam).canBeSaveTarget`, ook op de site). Een startbestand (#1091) houdt de toets en herlezing van main (`existingDocument`/`stale` van `openLaunchFiles`, geen Recent bij een wissel) en krijgt alleen bij een bewezen verschil de melding; onbekend wisselt daar zoals main (knownbug 2064). De strook heeft geen knop: de nieuwe versie zie je door het tabblad te sluiten en het bestand opnieuw te openen (een knop wordt een eigen PR op de bestaande sluit- en openroute, besluit van 24 november 2026). De tabkeuze van alle openroutes beslist op de actuele vlag en de uitkomst van de lezing, niet op wat vóór het lezen was vastgelegd; een heropening met bewezen dezelfde versie wist een eerdere strook. Twee kruisende openacties in de browser of via een link kunnen nog twee tabbladen geven (knownbug 2041); "Nieuw" opent de projectwizard (`ProjectInfoDialog` met kalender-presets en faseringssjablonen, via `ui.showNewProjectDialog`) in plaats van een kaal `newProject()`.
 
 Scheduling is **manual, not reactive**: the actual solve — leaf-filter → `CPMSolver` (which owns `CalendarEngine`) → write computed fields (early/late dates, total float, critical-path flag) back onto the tasks — lives in `solveProject()` (`src/engine/scheduler/solveProject.ts`), extracted from `runCPM` in A3/M3 so it has exactly one implementation. The `runCPM` action (`scheduleSlice.ts`) is a thin wrapper: it calls `solveProject` on a `cloneTasksForSolve` clone outside the Immer producer, calculates resource load on those same solved tasks, then atomically writes changed `time` fields and summary `status` back alongside `cpmResult`/`resourceLoadResult` and clears `scheduleStale`. Unchanged tasks keep their references; errors do not write the clone back. It does not re-run on every edit — triggered explicitly by F5, the ribbon **Calculate** button, the menu, and after an IFC load. Editing tasks without calling `runCPM` leaves the schedule stale, so call it after mutating tasks/sequences/calendar. The same `solveProject` also powers the resource-occupancy overview (see *Resourcebibliotheken* below): opening the overview runs it there on a **clone** (`cloneTasksForSolve`) of a stale, non-active document's tasks — ephemeral, no write-back. Is **Automatisch berekenen** aan, dan gebeurt dat efemere doorrekenen nog steeds, en draait `documentSlice`'s `recalculateStaleSleepingDocuments()` er **daarnaast** overheen: die rekent óók op een kloon van de payload-taken en schrijft juist díé kloon terug (no undo snapshot, mirroring `runCPM`'s semantics). Die kloon is geen detail maar de atomiciteitsgarantie — de payload blijft onaangeraakt tot de solve slaagt, zodat een cyclus niets halfs achterlaat. Het actieve document blijft buiten die actie en houdt zijn eigen pad via `useAutoCalcCPM`. Elke solve krijgt zijn opties uitsluitend via `solveOptionsFor`/`solveInputFor` (`src/engine/scheduler/solveInput.ts`): het opgeloste rekenprofiel plus de projectopties — zie `.claude/rules/rekenprofielen.md`.
 
@@ -76,10 +76,71 @@ niets vast op een vervangen inhoud (het bestand houdt de opgeslagen inhoud, de n
 van Automatisch opslaan onthoudt `content`) volgen dezelfde identiteit. Sessiegegeven op de documentregistratie, niet in
 `DOCUMENT_FIELDS`: het hoort bij het open tabblad, niet bij het bestand, en hoeft geen undo, herstel of opslag te overleven.
 
-Na geslaagde I/O gebruikt de opslagroute `commitSavedDocument(ref, savedSource, destination?, prepared?)`.
+Na geslaagde I/O gebruikt de opslagroute `commitSavedDocument(ref, savedSource, destination?, prepared?, missingSourceSaveAs?, written?)`.
 Met `PreparedIfcWrite` worden doel, `ifcSource` en letterlijke kalenderkeuzes samen vastgelegd, voor actief of slapend
 document. De inhoudsvergelijking gebeurt vóór de Immer-producer: tussentijds werk blijft dirty, maar de bron volgt
 de geschreven momentopname. `markAutoSaveVersionSaved` verwijst naar dezelfde commit. Exports gebruiken hem niet.
+
+**De versie op het eigen doel** (#804, knownbug 1957 en 2064; gelezen door `openTabFor` bij het openen):
+`knownTargetFingerprint` (`DOCUMENT_FIELDS`, `snapshot: 'none'`, buiten `IFC_SAVE_KEYS`/`IFC_DIRTY_KEYS` en het
+herstelmanifest) is `{ sha256, byteLength, origin }` van de bytes waarvan de app weet dat ze op het eigen pad of de eigen
+handle staan, of `null` (onbekend). Hash en grootte komen van dezelfde bytes en worden altijd samen gezet; de grootte laat
+een latere bewaking een ander bestand zonder lezen herkennen. `origin` zegt waar de bytes vandaan komen: `'opened'` als
+openen ze van het doel las, `'written'` als de app ze zelf schreef (elke `commitSavedDocument`, ook de merge, en
+`settleFingerprintAfterExport`); de bewaking hieronder beslist er de doelscan op (knownbug 2203). Alleen met de flag
+`ifcForeignContent`. Openen neemt hash en
+grootte van `ifcSource` (geen extra hashwerk), alleen als de flag bij het activeren aan staat; IFC toepassen houdt het veld; laden in hetzelfde tabblad (`loadState`),
+een kopie, herstel, `setFilePath`, de site en een document zonder eigen pad of handle geven `null`. Elke
+`commitSavedDocument` zet het opnieuw: met `prepared` uit de merge, anders uit `written` (de opslagworker rekent de hash
+als de job `hashBytes` draagt, zie `tauri-ifc.md`; zonder worker start `precomputeSha256` vóór het schrijven en wacht de
+route er ná het bevestigde schrijven op, nooit tussen de laatste controle en het plaatsen). Zonder bekende bytes, na een
+download, op de site en met de flag uit: `null`. Na een geschreven export
+(Exporteren → IFC, beide delen van de export met de resourcebibliotheek, Bestand → Bibliotheek, `planner_export_ifc`)
+roept de route `settleFingerprintAfterExport(documentId, written)` aan, binnen dezelfde beurt van de schrijfrij
+(`runProjectFileWrite`). Alleen met de flag aan; ze neemt niets mee van vóór de beurt behalve het document-id en de
+geschreven bytes. Ze leest het actuele eigen doel en de actuele vingerafdruk van dat document; heeft het document er
+een en een eigen pad of handle, dan vergelijkt ze dat doel met de geschreven bytes (`sourceTargetContent`: eerst de
+grootte, bij gelijke grootte byte voor byte). Gelijk: de vingerafdruk wordt die van de geschreven bytes, zonder
+vergelijking met een oude waarde, als de documentinhoud en het eigen doel tijdens de nacontrole niet veranderden;
+anders blijft ze. Er wordt geen pad vergeleken. Met de flag uit of bij annuleren gebeurt niets, ook geen `stat`. De
+letterlijke kalenders houden `exportHitsOwnFile`. De flag uitzetten (`setUI`) wist de vingerafdruk van elk tabblad.
+Een geweigerde opslag laat het veld staan.
+Een mislukte schrijfactie naar het eigen pad (Ctrl+S, Automatisch opslaan) en een onzekere vervanging met herstel
+(`unknown`, `previous-stranded`, `target-taken`) maken het `null`; een rekenfout vóór het schrijven niet.
+Proef: `check-tabblad-schijfversie.ts` (de A2-tabel); grenzen: knownbug 2065, 2066 en 2200.
+**De bewaking die het leest** (`knownTargetGuard.ts`): met de flag toetst Ctrl+S zonder `prepared`
+(`writeActiveDocument`, vlak vóór `refuseChangedDocumentWrite`; ook *Opslaan* in de sluitvraag) en elke gewone ronde van
+Automatisch opslaan (na `refusedWriteTarget`) het eigen pad of de eigen handle tegen de actuele waarde van het veld, niet
+die van de momentopname. Eerst synchroon `guardedKnownTarget`: flag uit, `null` of de site geeft `null` en dan wacht de
+aanroeper nergens op, zoals main. Anders `changedKnownTarget`: het bestand weg is schrijven zoals main; een andere
+grootte is veranderd; dezelfde grootte is lezen en SHA-256 (`knownTargetContent` in `fileAccess`). Na de vergelijking
+telt een weigering alleen als `guardedKnownTarget` nog dezelfde versie geeft (de flag ging niet uit). Veranderd of
+onleesbaar: niet schrijven, de melding van een gebouwmodel (`ownTargetContentNotice`; Automatisch opslaan
+`MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE` en `stopFor` met die versie). De toets is de laatste inhoudstoets vóór het
+schrijven, ná de broncontrole en ná elke doelscan (fixronde 1 van #1194).
+**Een zelf geschreven versie** (`origin: 'written'`, `writtenKnownTarget`; knownbug 2203): eigen schrijfuitvoer die op het
+doel staat, ook als een export haar op een andere naam schreef en het doel bytegelijk is (`settleFingerprintAfterExport`
+vergelijkt de inhoud, geen pad). Dan laat de doelcontrole alleen de doelscan weg (`refusedTargetIdentity` met
+`contentLeftToKnownTarget`, de splitsing van #1179); de broncontrole (regel 1) loopt wel. Regel 3 geldt voor deze twee routes niet,
+ook niet op main. Op de plek van de toets volgt één lezing met de vergelijking (`stillWrittenKnownTarget`). Gelijk:
+schrijven. Anders de route van main: de doelcontrole met haar stroomscan, daarna `changedKnownTarget`, met dezelfde
+meldingen en dezelfde stop; een verschil uit de eerste lezing telt niet mee. Dat de scan mag vervallen: op het doel
+staan dan bewezen (grootte en SHA-256, als laatste vóór het schrijven gelezen) de bytes die dit tabblad zelf schreef. Bij
+een gewone planning is dat haar eigen planning, of na een export over het eigen bestand de planning of bibliotheek van dit
+document (een document met een vreemd deel exporteert nooit over zijn eigen bestand: dat is zijn bron, regel 1). Een
+document met een vreemd deel komt hier niet langs: zijn opslag vergelijkt de bronbytes (`replaceOwnPathWithRecovery`,
+`sourceTargetContent`) en leest dit veld niet; geen route laat het zijn vreemde deel kwijtraken met dezelfde
+vingerafdruk (Opslaan als met ontbrekende bron zet een nieuwe, van de geschreven planning, op het nieuwe doel; IFC
+toepassen staat dicht). Een geopende versie (`'opened'`) en een onbekende houden de volgorde en de stroomscan van main:
+de scanner van openen aanvaardt meer dan de doelscan (twee datasecties, `stepScanner.ts`), en bij twijfel weigert de app
+(besluit Trias, 10 november 2026).
+De stop van Automatisch opslaan vervalt zodra `guardedKnownTarget` een
+andere waarde geeft: een vastgelegde eigen opslag of een export die het eigen doel schreef (`settleFingerprintAfterExport`;
+een nieuw object, ook als er intussen nieuw werk is), de flag uit (`setUI` wist het veld) of een onbekende versie;
+daarnaast de bestaande voorwaarden (niet gewijzigd, ander doel). De volgende ronde vergelijkt dan opnieuw. Geen wijzigingstijd: lezen en
+hashen van 11,8 MB kostte in Node 24 ms; wat er van de doelscan overblijft: knownbug 2203. Opslaan als en exports bewaakt
+ze niet. Proef: `check-bewaakte-opslag.ts` (2203 A tot en met G en de gevallen van fixronde 1) en de bestandsaanroepen per
+herkomst in `check-ifc-own-file-replace.ts`; het gat tussen toets en plaatsen: knownbug 2069.
 Bronvervanging is geen undo-event en telt niet als inhoudsverschil (`sameIFCSource`, ook voor de recoverydelta).
 `sameIFCSource` vergelijkt per referentie, met één uitzondering: een andere werksoortcatalogus telt alleen als de door
 taken gebruikte definities verschillen (`savedCustomTaskTypes`, dezelfde selectie als `writeTaskTypeMeta`). Zo is de stille
@@ -95,9 +156,27 @@ met het vinkje Zonder gebouwmodel (`export`) en de export met de resourcebibliot
 `planOnlyQuestionApplies(state, reason)` klopt (flag aan; bij ontbrekend model alleen Opslaan als, de twee exports alleen
 met een aanwezig model). Zonder bevestiging (MCP, kern, paneel, dev-bridge) blijft planOnly met een vreemd deel
 geweigerd. De exports vragen vóór de bestandskiezer en schrijven niet als het document tijdens de vraag veranderde
-(`refuseChangedExport` onder het schrijfslot); ze raken het document niet. Een export naar een ander formaat dan IFC vraagt niets vooraf; met een gebouwmodel (`hasBuildingModel` in `ifcSource.ts`, flag aan) krijgt de melding na afloop de regel `exportPlanOnly` via `withPlanOnlyExportSentence` (`fileSlice.ts`, de enige plek; knownbug 1740): onder de laatste melding van de export (die blijft bij de grens `MAX_NOTIFICATIONS` staan), zonder andere melding een eigen melding.
+(`refuseExportBeforePicker` onder het schrijfslot); ze raken het document niet. Een export naar een ander formaat dan IFC vraagt niets vooraf; met een gebouwmodel (`hasBuildingModel` in `ifcSource.ts`, flag aan) krijgt de melding na afloop de regel `exportPlanOnly` via `withPlanOnlyExportSentence` (`fileSlice.ts`, de enige plek; knownbug 1740): onder de laatste melding van de export (die blijft bij de grens `MAX_NOTIFICATIONS` staan), zonder andere melding een eigen melding.
 De uitzondering "eigen doel" in `refusedWriteTarget` (`ownVersion`) bindt document-id, bronidentiteit en kenmerk op één plek; exports en Opslaan als geven haar niet mee. Site: met de basisversie. Handle (1131 stap 2, alleen Ctrl+S via `documentTargetCheck(…, true)`): dezelfde handle als document en kenmerk (`isSameEntry`); een ander open document met dat bestand als bron blijft geweigerd. Pad (1131 stap 5b, alleen Ctrl+S en *Opslaan* in de sluitvraag): precies het pad van document en kenmerk, zonder handle; hetzelfde voor een ander open document. Bij een pad hangt de sluitbeslissing aan de boolean van `commitSavedDocument`, niet aan "geen fout"; na de eerste herstelronde loopt dezelfde `documentTargetCheck` nog een keer (fixronde 1 van #1008). *Opslaan* in de sluitvraag sluit, voor elk document, alleen als de opslag `true` gaf én hetzelfde document vlak vóór het sluiten schoon is. Dat beslist `closeDocument(id, { onlyIfClean: true })` op één plek, in de volgorde open veldinvoer afronden → schooncontrole → verwijderen (fixronde 2; `closeDocumentAfterSaves` wacht alleen en geeft de uitkomst door); `ui.closeQuestionSaving` houdt intussen de knoppen en Escape (`edit.deselect`) tegen. De routes staan in `tauri-ifc.md`. De voorbereiding
 loopt vóór de bestandskiezer; document-id en bronidentiteit worden vlak vóór schrijven hercontroleerd, op het document van
 de momentopname en niet op het actieve document (#804 stap 3): een tabbladwissel tijdens de opslag weigert niet, en de
 commit gaat naar dat document. Na de momentopname leest een opslag het actieve document niet meer.
 Een download houdt het openingsdoel, de bron en het kenmerk; alleen de dirty-vlag volgt de bestaande opslagcommit. Uitzondering (knownbug 1768): bij een document met een gebouwmodel (`hasBuildingModel(ifcSource)`: de bron draagt `buildingModel`, gezet door de scan die haar accepteerde, bij openen en na de merge; niet elke vreemde inhoud) commit de download die Ctrl+S geeft als de browser de schrijftoestemming op de eigen handle weigert niets; het document blijft gewijzigd, Ctrl+S geeft `false` (de sluitvraag sluit niet) en de melding `ifcForeignDownloadCopy` noemt de kopie. De kopiemelding (`downloadCopyNotice` in `ifcForeignGuard.ts`) is een gewone informatiemelding zoals `savedViaDownload`, één voor de hele app die een nieuwe kopie ververst (1843); de bescherming is de dirty-vlag. Een complexe instantie telt altijd als gebouwmodel (de index kent haar deeltypen niet, 1845). Opslaan als en Ctrl+S zonder handle zetten het nog op opgeslagen (1830).
+
+**Besluiten in `fileSlice.ts`** staan in `docs/adr/`: externe bronnen controleren en verversen (0070), één melding per
+geopend bestand (0071), openen laadt gekoppeld en de andere laadroutes los (0072), opslagdoel en melding per
+opslagpoging (0073) en de keuzes van de exportroute (0074).
+
+**Besluiten in `taskSlice.ts`** staan in `docs/adr/`: de volgorde van taken op drie plekken (0150), verhangen eerst op
+een proefkopie (0151), de vraag bij een nieuwe samenvattingstaak (0152), een taakbewerking telt op haar uitkomst
+(0153), voortgang invullen en inlezen (0154), taken opheffen (0155) en taken toevoegen, invoegen en verwijderen (0156).
+
+**Besluiten in `utils/taskDefaults.ts`** staan in `docs/adr/`: het ingevoerde einde van een urentaak (0210), de verse
+tijd en de velden van een nieuwe taak (0211), een tijdpatch samenvoegen (0212), een bewerking laat afgeleide sturing
+los (0213), de gevolgen van een duurwijziging (0214) en MSP-herkomst in bewerkregels (0215).
+
+**Besluiten in `runtime/createMcpTransactions.ts`** staan in `docs/adr/`: een MCP-transactie beslist op haar uitkomst
+en draait bij een fout terug (0240), de draftprimitieven (0241), taken in bulk aanmaken (0242) en de twee patchroutes
+voor een taak (0243).
+
+**De WBS-nummering van een geladen bestand** (`Project.wbsAutoNumber`): `docs/adr/0185-wbs-nummering-van-een-geladen-bestand.md`.

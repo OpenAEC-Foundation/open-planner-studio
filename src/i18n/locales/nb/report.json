@@ -149,7 +149,7 @@
     "groupByType": "Grupper etter ressurstype",
     "showAssignmentColumns": "Vis enh./d og kurve",
     "columnsDropped": "Kolonnene Enh./d og Kurve er utelatt. Tabellen ga for lite plass til tidsaksen. For mer plass: velg større eller liggende papir, en mindre skriftstørrelse eller en smalere tabell.",
-    "emptyPeriod": "Ingen aktiviteter i rapporteringsperioden — velg en annen periode eller Hele prosjektet.",
+    "emptyPeriod": "Ingen aktiviteter i den egne perioden — velg andre datoer eller slå av Egen periode.",
     "outsidePeriod": "Utenfor perioden:",
     "empty": "Ingen ressurstilordninger — tilordne først ressurser til aktiviteter.",
     "resources": "Ressurser:",
@@ -465,7 +465,6 @@
     "pages_one": "{{count}} side",
     "pages_other": "{{count}} sider",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Rapporteringsperiode",
     "tasks": {
       "title": "Hvilke aktiviteter",
       "all": "Alle aktiviteter",
@@ -646,6 +645,12 @@
       "chart": "Stolper og tidslinje",
       "footer": "Tegnforklaring og bunntekst",
       "page": "Side"
+    },
+    "period": {
+      "hint": "Bare aktiviteter i denne perioden er med i rapporten. Tidslinjen dekker nøyaktig perioden; en stolpe som går utenfor den, kuttes ved kanten.",
+      "outside_one": "{{count}} aktivitet faller utenfor perioden og er ikke med i rapporten.",
+      "outside_other": "{{count}} aktiviteter faller utenfor perioden og er ikke med i rapporten.",
+      "own": "Egen periode"
     }
   },
   "customFont": {

@@ -91,15 +91,12 @@ Anders controleert het script, in deze volgorde, en stopt het bij elke onbekende
    draft zonder run: stop. Rood: eenmaal `gh run rerun <id> --failed`, nooit een hele rerun (na een geslaagde
    `create-release` zou die een tweede draft maken). Daarna moet de release gepubliceerd zijn
    (`draft=false`, `prerelease=false`, `published_at`). Alleen HTTP 404 telt als ontbrekend.
-2. **Vervolgworkflows.** `release-verify.yml`, `snap.yml` en `aur.yml` via `workflow_run`. Zo'n run staat op de
+2. **Vervolgworkflows.** `release-verify.yml` en `snap.yml` via `workflow_run`. Zo'n run staat op de
    SHA van main op dat moment, niet op de tag. Het script neemt de oudste niet-overgeslagen run sinds de start van
-   de release-run en volgt of herhaalt hem pas als een gedraaide job de tag logt (`HEAD_BRANCH: <tag>` of
-   `VERSION: <tag>`); anders is het een stop.
+   de release-run en volgt of herhaalt hem pas als een gedraaide job de tag logt (`HEAD_BRANCH: <tag>`); anders is het een stop.
    Snap telt met de stap `Publish to Snap Store` op `success`, of met de bewezen
    [verlopen Store-login](#verlopen-snap-store-login); een ontbrekende Snap-run is een stop
-   (een dispatch publiceert niet). Een ontbrekende AUR-run krijgt eenmaal
-   `gh workflow run aur.yml --ref "$TAG" -f "version=$TAG" -f publish=true`. AUR telt met `Push to AUR` op
-   `success` en de juiste versie in de AUR, of met het [ontbrekende secret](#ontbrekend-aur-secret).
+   (een dispatch publiceert niet).
 3. **Uitlevering.** Zie [Uitlevering controleren](#uitlevering-controleren).
 4. **Wiki.** Af als de wiki-pagina Changelog de sectie `## v<VERSION> ` heeft. Anders publiceert het script
    vanaf de getagde commit (proef zonder waarschuwingen, linkcheck, `-- --push`) en controleert het de pagina en Home.
@@ -113,45 +110,10 @@ de thread) laat het staan. Het script leest de
 stand niet uit het verslag maar uit GitHub, dus ook een verslag dat “klaar” zegt, wordt gecontroleerd. De thread
 zet fix-PR's, reruns, review-taak-ID's en BLOKKEERT/VERVOLG eronder, buiten het scriptblok, als hij een stop herstelt.
 
-### Ontbrekend AUR-secret
-
-Besluit eigenaar, 2026-10-31. Een ontbrekend `AUR_SSH_PRIVATE_KEY` houdt de release niet tegen.
-De AUR-uitlevering is dan geen onafgerond werk en geen stopreden, ook niet voor een oudere tag.
-Dit geldt alleen als de `aur.yml`-run van deze tag aan alle vier de punten voldoet:
-
-1. De run heeft conclusie `success`.
-2. De stap `Push to AUR` heeft conclusie `skipped`.
-3. De job heeft de notice `AUR-push overgeslagen: secret AUR_SSH_PRIVATE_KEY ontbreekt.`
-4. De joblog toont de `.deb` van `VERSION`, dus deze run hoort bij deze tag.
-
-Het releasescript controleert deze vier punten zelf. Met de hand (bijvoorbeeld na een stop `aur-mislukt`):
-lees de notice uit de annotaties, niet uit de joblog. De tekst staat daar altijd, want de log
-toont ook het script zelf. `AUR_RUN` is het run-ID van de `aur.yml`-run. De laatste opdracht heeft twee
-vormen: `gh` 2.102.0 weigert deze log zonder `--allow-escape-sequences`, en `gh` 2.45.0 op aia kent die vlag niet.
-
-```bash
-gh run view "$AUR_RUN" --repo "$REPO" --json conclusion,jobs \
-  --jq '.conclusion, (.jobs[].steps[] | select(.name == "Push to AUR") | .conclusion)'
-JOB=$(gh run view "$AUR_RUN" --repo "$REPO" --json jobs --jq '.jobs[] | select(.name == "aur") | .databaseId')
-gh api "repos/$REPO/check-runs/$JOB/annotations" --jq '.[] | select(.annotation_level == "notice") | .message'
-{ gh api "repos/$REPO/actions/jobs/$JOB/logs" --allow-escape-sequences 2>/dev/null ||
-  gh api "repos/$REPO/actions/jobs/$JOB/logs"; } | grep -F "Open.Planner.Studio_${VERSION}_amd64.deb:"
-```
-
-Is dit bewezen: ga door, zonder rerun, dispatch of secretwijziging. Schrijf in het hervatverslag en
-het eindrapport: “Arch kreeg nog geen pakket: secret `AUR_SSH_PRIVATE_KEY` ontbreekt.”
-
-De release stopt wel bij een rode `aur.yml`, een mislukte push terwijl het secret er is, of een pakket
-met de verkeerde versie. Een overgeslagen push zonder deze notice is geen bewijs; dat is bijvoorbeeld
-een handmatige test zonder `publish`. Er is geen schakelaar. Bestaat het secret, dan pusht de
-volgende `aur.yml`-run vanzelf, en gelden weer `success` en de `pkgver`-controle uit
-[Uitlevering controleren](#uitlevering-controleren).
-
 ### Verlopen Snap Store-login
 
 Besluit wrakko, 2026-11-17 (na de verlopen login bij v2026.47.0). Faalt de Snap-publicatie op de bekende fout van een
-verlopen Store-login, dan houdt dat de release niet tegen, voor de vorige en voor de nieuwe tag, net als bij het
-[ontbrekende AUR-secret](#ontbrekend-aur-secret). Het script controleert dat vast (`snapLoginVerlopen`): de run is
+verlopen Store-login, dan houdt dat de release niet tegen, voor de vorige en voor de nieuwe tag. Het script controleert dat vast (`snapLoginVerlopen`): de run is
 `failure`, de enige rode stap is `Publish to Snap Store`, en de joblog bevat
 `credentials are no longer valid for the Snap Store`. Dan geen rerun; het script zet het in het verslag en schrijft
 `RELEASE-MELDING snap-login: …` met de link, die de thread aan wrakko doorgeeft. Ethan herstelt de login; daarna
@@ -384,7 +346,7 @@ app-release niet en staat in het verslag; de volgende maandag probeert het scrip
 
 Het script controleert dit na elke groene release-run (`controleerAssets` in `scripts/release/stappen.mjs`).
 
-- `release.yml`, `release-verify.yml`, `snap.yml` en `aur.yml` tot hun eindstatus, gekoppeld aan tag en SHA.
+- `release.yml`, `release-verify.yml` en `snap.yml` tot hun eindstatus, gekoppeld aan tag en SHA.
 - Assets tegenover de vorige gepubliceerde release (namen met de versie vervangen): alle installers,
   updaterarchieven, `.sig`-bestanden, `latest.json` en de Claude Desktop-bundel `open-planner-studio-<versie>.mcpb`.
 - `latest.json` van **deze tag** (`gh release download`): juiste versie, niet-lege notes, een entry voor linux,
@@ -394,6 +356,4 @@ Het script controleert dit na elke groene release-run (`controleerAssets` in `sc
 - Snap: stap **Publish to Snap Store** `success`; alleen een bijgevoegde `.snap` bewijst geen publicatie.
   Uitzondering: de bewezen [verlopen Store-login](#verlopen-snap-store-login), gemeld en niet gestopt. Vraag of wijzig
   geen secrets.
-- AUR: stap **Push to AUR** `success` en de AUR toont `<versie>-<pkgrel>`, of het bewezen
-  [ontbrekende AUR-secret](#ontbrekend-aur-secret).
 - Bij een afwijking: rapporteer het bewijs. Verplaats nooit de tag en wijzig assets niet op goed geluk.

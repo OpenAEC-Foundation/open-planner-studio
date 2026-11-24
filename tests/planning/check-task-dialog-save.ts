@@ -1,7 +1,6 @@
 // F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // "Taak bewerken" → Opslaan, headless tegen de ECHTE store. Opslaan loopt via `createTaskDialogSave`,
-// net als in `TaskDialog.tsx`. Percentage-invoer doorloopt `planProgressEntry` met dezelfde
-// geplande start als de echte dialoog. De losse datumproeven gebruiken de `draftWith*`-helpers.
+// net als in `TaskDialog.tsx`. Percentage-invoer gebruikt `planTaskDialogProgress`.
 //
 // Bevinding 4 (taakmutaties-audit): de dialoog schreef completion/actualStart/actualFinish kaal via
 // `updateTask` weg, zonder de voortgangsregels (`applyProgressInvariants`) die het paneel, het raster
@@ -22,10 +21,13 @@
 import './domStub';
 import { createAppStoreContext, type AppStoreContext } from '@/state/appStore';
 import {
-  createTaskDialogSave, draftWithActualFinish, draftWithActualStart, planTaskDialogProgress,
+  createTaskDialogSave, planTaskDialogProgress,
   type TaskDialogSaveInput,
 } from '@/state/taskDialogSave';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { writeIFC } from '@/services/ifc/ifcWriter';
 import { addPersonalTaskType } from '@/services/taskTypes/personalTaskTypes';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import type { Task } from '@/types/task';
@@ -88,6 +90,83 @@ function draftWithPercentage(f: Fixture, draft: Task, value: number, startDate?:
   return plan.change?.task ?? draft;
 }
 
+for (const durationFirst of [true, false]) {
+  const f = fixture(['Genivelleerd']);
+  const [id] = f.ids;
+  f.S().setProject({ startDate: '2026-10-28', statusDate: '2026-11-18' });
+  f.S().updateTask(id, { time: { ...f.task(id).time, scheduleStart: '2026-10-28', scheduleDuration: 5 } });
+  f.ctx.store.setState(s => {
+    s.tasks[0].splitGaps = [{ afterMinutes: 480, gapMinutes: 480, source: 'leveling' }];
+  });
+  f.S().runCPM();
+  const input = f.open(id);
+  const initialDuration = { unit: 'days', scheduleDuration: 5 } as const;
+  const shorten = (task: Task) => ({ ...task, time: { ...task.time, scheduleDuration: 3 } });
+  const draft = durationFirst ? shorten(input.draft) : input.draft;
+  const plan = planTaskDialogProgress(f.S(), draft, undefined, { field: 'completion', value: 1 },
+    { today: '2026-11-18', initialDuration });
+  if (plan.ok && plan.change) f.save({
+    ...input, draft: durationFirst ? plan.change.task : shorten(plan.change.task), initialDuration,
+  });
+  eq(`#998 inkorten en afmelden (duur eerst: ${durationFirst}): het gewiste nivelleergat telt niet mee`,
+    [f.task(id).time.actualFinish, f.task(id).splitGaps], ['2026-10-30T16:00', undefined]);
+  const reopened = readIFC(writeIFC(buildWriteIFCInput(f.S(), 'planOnly')));
+  eq(`#998 inkorten en afmelden (duur eerst: ${durationFirst}): IFC bewaart de einddag van de dagtaak`,
+    reopened.tasks[0]?.time.actualFinish, '2026-10-30');
+}
+
+for (const durationFirst of [true, false]) {
+  const f = fixture(['Lopende montage']);
+  const [id] = f.ids;
+  const today = '2026-11-18';
+  f.S().setProject({ startDate: '2026-10-28', statusDate: today });
+  f.S().setUI({ autoCalcCPM: false });
+  f.S().updateTask(id, { time: { ...f.task(id).time, scheduleStart: '2026-10-28', scheduleDuration: 4 } });
+  f.S().runCPM();
+  f.S().enterTaskProgress(id, { field: 'completion', value: 0.5 }, { today });
+  const input = f.open(id);
+  const initialDuration = { unit: 'days', scheduleDuration: 4 } as const;
+  const shorten = (task: Task) => ({ ...task, time: { ...task.time, scheduleDuration: 3 } });
+  const draft = durationFirst ? shorten(input.draft) : input.draft;
+  const plan = planTaskDialogProgress(f.S(), draft, undefined, { field: 'completion', value: 1 }, { today, initialDuration });
+  if (plan.ok && plan.change) f.save({ ...input, today, initialDuration,
+    draft: durationFirst ? plan.change.task : shorten(plan.change.task) });
+  const facts = () => {
+    const { actualStart, actualFinish, completion, scheduleDuration } = f.S().tasks[0].time;
+    return [actualStart?.slice(0, 10), actualFinish?.slice(0, 10), completion, scheduleDuration];
+  };
+  const expected = ['2026-10-28', '2026-10-30', 1, 3];
+  eq(`#998 lopende taak inkorten en afmelden (duur eerst: ${durationFirst}): einde volgt de nieuwe duur`, facts(), expected);
+  const reopened = readIFC(writeIFC(buildWriteIFCInput(f.S(), 'planOnly')));
+  f.S().applyLoadedProject(reopened, { linkedOpen: true, recompute: true, filePath: null });
+  eq(`#998 lopende taak inkorten en afmelden (duur eerst: ${durationFirst}): dezelfde feiten na IFC-heropening`, facts(), expected);
+}
+
+// Een later opgegeven werkelijke start begrenst het voorlopige einde in beide invoervolgordes.
+for (const completionFirst of [true, false]) {
+  const f = fixture(['Montage']);
+  const [id] = f.ids;
+  f.S().setProject({ startDate: '2026-10-28', statusDate: '2026-11-18' });
+  f.S().updateTask(id, { time: { ...f.task(id).time, scheduleStart: '2026-10-28', scheduleDuration: 3 } });
+  f.S().runCPM();
+  const input = f.open(id);
+  const today = '2026-11-18';
+  const completion = { field: 'completion', value: 1 } as const;
+  const start = { field: 'actualStart', value: '2026-11-04' } as const;
+  let draft = input.draft;
+  for (const edit of completionFirst ? [completion, start] : [start, completion]) {
+    const plan = planTaskDialogProgress(f.S(), draft, undefined, edit, { today });
+    eq(`#998 ${edit.field} aanvaard (100% eerst: ${completionFirst})`, plan.ok, true);
+    if (plan.ok && plan.change) draft = plan.change.task;
+  }
+  f.save({ ...input, draft, today });
+  eq(`#998 de opgegeven start begrenst het afgeleide einde (100% eerst: ${completionFirst})`,
+    [f.task(id).time.actualStart, f.task(id).time.actualFinish], ['2026-11-04T07:00', '2026-11-04T07:00']);
+  const reopened = readIFC(writeIFC(buildWriteIFCInput(f.S(), 'planOnly'))).tasks[0];
+  eq(`#998 IFC bewaart start en afgeleid einde (100% eerst: ${completionFirst})`,
+    [reopened.time.actualStart, reopened.time.actualFinish], ['2026-11-04T07:00', '2026-11-04T07:00']);
+}
+
 // Een expliciete beperking wint, en een bestaande beperking kan de getypte start tegenhouden.
 for (const explicit of [true, false]) {
   const f = fixture(['A', 'B']);
@@ -116,8 +195,10 @@ for (const explicit of [true, false]) {
   f.S().setActualStart(b, '2026-03-03');
   f.S().runCPM();
   const input = f.open(b);
-  const cleared = draftWithActualStart(input.draft, undefined, '2026-03-06');
-  if (!cleared) throw new Error('de werkelijke start kon niet worden gewist');
+  const clear = planTaskDialogProgress(f.S(), input.draft, undefined,
+    { field: 'actualStart', value: undefined }, { today: '2026-03-06' });
+  if (!clear.ok || !clear.change) throw new Error('de werkelijke start kon niet worden gewist');
+  const cleared = clear.change.task;
   const startDate = { date: '2026-03-23', completion: cleared.time.completion };
   const edit = { field: 'completion', value: 0.01 } as const;
   const plan = planTaskDialogProgress(f.S(), cleared, startDate, edit, { today: '2026-03-06' });
@@ -175,40 +256,42 @@ for (const explicit of [true, false]) {
 {
   const f = fixture(['Paneel', 'Dialoog']);
   const [panel, dialog] = f.ids;
-  const statusDate = () => f.S().project.statusDate;
-  const viaDialog = (edit: (draft: Task) => Task | null) => {
+  const today = '2026-03-06';
+  const viaDialog = (field: 'actualStart' | 'actualFinish', value?: string) => {
     const input = f.open(dialog);
-    const draft = edit(input.draft);
-    if (!draft) throw new Error('dialoog weigerde een geldige datum');
-    f.save({ ...input, draft });
+    const plan = planTaskDialogProgress(f.S(), input.draft, undefined, { field, value }, { today });
+    if (!plan.ok || !plan.change) throw new Error('dialoog paste een geldige datum niet toe');
+    f.save({ ...input, draft: plan.change.task, today });
     f.S().runCPM();
   };
 
   // 3a. Werkelijke start op een onbegonnen taak ⇒ gestart.
   f.S().setActualStart(panel, '2026-03-04');
-  viaDialog(d => draftWithActualStart(d, '2026-03-04', statusDate()));
+  viaDialog('actualStart', '2026-03-04');
   f.S().runCPM();
   eq('3a werkelijke start: dialoog = paneel', progressOf(f.task(dialog)), progressOf(f.task(panel)));
   eq('3a werkelijke start ⇒ gestart', f.task(dialog).status, 'STARTED');
 
   // 3b. Werkelijk einde ⇒ voltooid (100%, resterend 0).
   f.S().setActualFinish(panel, '2026-03-05');
-  viaDialog(d => draftWithActualFinish(d, '2026-03-05', statusDate()));
+  viaDialog('actualFinish', '2026-03-05');
   f.S().runCPM();
   eq('3b werkelijk einde: dialoog = paneel', progressOf(f.task(dialog)), progressOf(f.task(panel)));
   eq('3b werkelijk einde ⇒ voltooid', { completion: f.task(dialog).time.completion, status: f.task(dialog).status }, { completion: 1, status: 'COMPLETED' });
 
   // 3c. Werkelijk einde wissen op een voltooide taak ⇒ terug naar gestart, resterend weer vol.
   f.S().setActualFinish(panel, undefined);
-  viaDialog(d => draftWithActualFinish(d, undefined, statusDate()));
+  viaDialog('actualFinish');
   f.S().runCPM();
   eq('3c einde wissen: dialoog = paneel', progressOf(f.task(dialog)), progressOf(f.task(panel)));
   eq('3c einde wissen ⇒ gestart', f.task(dialog).status, 'STARTED');
 
   // 3d. Een datum ná de statusdatum wordt (net als in het paneel) geweigerd.
   const input = f.open(dialog);
-  eq('3d werkelijke start ná statusdatum geweigerd', draftWithActualStart(input.draft, '2026-03-09', statusDate()), null);
-  eq('3d werkelijk einde ná statusdatum geweigerd', draftWithActualFinish(input.draft, '2026-03-09', statusDate()), null);
+  for (const field of ['actualStart', 'actualFinish'] as const) {
+    eq(`3d ${field} ná statusdatum geweigerd`, planTaskDialogProgress(f.S(), input.draft, undefined,
+      { field, value: '2026-03-09' }, { today }), { ok: false, reason: 'afterStatusDate' });
+  }
 }
 
 // ── 4. Geen voortgangswijziging ⇒ de voortgangsvelden blijven ongemoeid ─────────────────────────────
@@ -268,7 +351,6 @@ for (const explicit of [true, false]) {
 {
   const f = fixture(['Paneel', 'Dialoog', 'Eerst voortgang', 'Nieuwe start']);
   const [panel, dialog, progressFirst, newStart] = f.ids;
-  const statusDate = () => f.S().project.statusDate;
   const milestoneOn = (d: Task): Task => ({ ...d, ...taskMilestoneTransition(d, true) });
 
   // 6a. Eerst mijlpaal, dan de werkelijke datum; paneel als referentie.
@@ -276,9 +358,10 @@ for (const explicit of [true, false]) {
   f.S().setActualFinish(panel, '2026-03-04');
   {
     const input = f.open(dialog);
-    const draft = draftWithActualFinish(milestoneOn(input.draft), '2026-03-04', statusDate());
-    if (!draft) throw new Error('dialoog weigerde een geldige datum');
-    f.save({ ...input, draft });
+    const plan = planTaskDialogProgress(f.S(), milestoneOn(input.draft), undefined,
+      { field: 'actualFinish', value: '2026-03-04' }, { today: '2026-03-06' });
+    if (!plan.ok || !plan.change) throw new Error('dialoog paste een geldige datum niet toe');
+    f.save({ ...input, draft: plan.change.task, today: '2026-03-06' });
   }
   f.S().runCPM();
   eq('6a mijlpaal + werkelijke datum: opgeslagen', {

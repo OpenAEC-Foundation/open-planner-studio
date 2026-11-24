@@ -33,6 +33,8 @@ The items are in this order. A line between groups is a separator in the menu.
 
 **Add relation** — does the same as *Start relation from here*: turns on relation mode with this task selected. In the task list the item is disabled if the Gantt is not visible, with the tooltip *Only available when the Gantt chart is visible*.
 
+**Assign predecessors…** and **Assign successors…** — select this task and open the *Dependencies* block in the *Properties* panel with a search field, the direction already chosen. There you choose the other tasks, the type and the lag. Also works without the Gantt in view. See [Creating relations](docs://howto-relaties-leggen).
+
 **Indent** and **Outdent** — moves the tasks of the scope one level deeper or one level higher in the WBS. These two are only in the pure tree view. See [Adjusting the structure](docs://howto-structuur-aanpassen).
 
 **Toggle milestone** — turns the task into a milestone, or back. The new state follows from the task you clicked on and applies to the whole scope: if that one is a task, all tasks in the scope become milestones. A summary task and a task with assignments do not become a milestone; the rest of the scope does, and you get a message per reason.

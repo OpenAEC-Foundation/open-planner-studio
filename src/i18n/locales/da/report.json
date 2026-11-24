@@ -149,7 +149,7 @@
     "groupByType": "Gruppér efter ressourcetype",
     "showAssignmentColumns": "Vis enh./dag og kurve",
     "columnsDropped": "Kolonnerne Enh./d og Kurve er udeladt: tabellen gav for lidt plads til tidsaksen. Mere plads får du med større eller liggende papir, en mindre skriftstørrelse eller en smallere tabel.",
-    "emptyPeriod": "Ingen opgaver i rapporteringsperioden — vælg en anden periode eller Hele projektet.",
+    "emptyPeriod": "Ingen opgaver i den egne periode — vælg andre datoer eller slå Egen periode fra.",
     "outsidePeriod": "Uden for perioden:",
     "empty": "Ingen ressourcetildelinger — tildel først ressourcer til opgaver.",
     "resources": "Ressourcer:",
@@ -465,7 +465,6 @@
     "pages_one": "{{count}} side",
     "pages_other": "{{count}} sider",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Rapporteringsperiode",
     "tasks": {
       "title": "Hvilke opgaver",
       "all": "Alle opgaver",
@@ -646,6 +645,12 @@
       "chart": "Bjælker og tidslinje",
       "footer": "Forklaring og fod",
       "page": "Side"
+    },
+    "period": {
+      "hint": "Kun opgaver i denne periode er med i rapporten. Tidslinjen dækker præcis perioden; en bjælke, der går ud over den, skæres af ved kanten.",
+      "outside_one": "{{count}} opgave falder uden for perioden og er ikke med i rapporten.",
+      "outside_other": "{{count}} opgaver falder uden for perioden og er ikke med i rapporten.",
+      "own": "Egen periode"
     }
   },
   "customFont": {

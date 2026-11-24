@@ -20,7 +20,7 @@ You set a constraint and a deadline in the *Properties* panel.
 
 The fields are also in the *Edit task* window, which you open by right-clicking the task and choosing *Edit...*; you confirm with *Save*.
 
-In the table you work with columns. Click the **+** in the table header and under *Constraints* choose the columns *Constraint type*, *Constraint date* and *Deadline* (there are also *Hard constraint*, *Secondary constraint type* and *Secondary constraint date*). Double-click a cell to edit it: you choose the type from a list, and you type a date with dashes, for example 21-06-2027. *Hard constraint* can only be changed for MSO and MFO.
+In the table you work with columns. Click the **+** in the table header and under *Constraints* choose the columns *Constraint type*, *Constraint date* and *Deadline* (there are also *Hard constraint*, *Secondary constraint type* and *Secondary constraint date*). Click a cell and press Enter, or start typing. You choose the type from a list, which a double-click on the cell also opens; you type a date with dashes, for example 21-06-2027. *Hard constraint* can only be changed for MSO and MFO.
 
 If the task has a predecessor, there is a shortcut for *Start no earlier than*: just type a new start date in the *Start* field (in the *Properties* panel, in *Edit task* or in the table), or move the bar in the Gantt. The app then turns it into a constraint *Start no earlier than (SNET)* itself and tells you so.
 

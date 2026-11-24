@@ -12,6 +12,7 @@ import {
   freshPayload,
   payloadFromInput,
   type DocumentPayload,
+  type TargetFingerprint,
   type RecoveryDocInput,
 } from '../documentContract';
 import { HOST_EVENTS } from '@/services/extensionEvents';
@@ -81,6 +82,7 @@ export interface DocumentEntry {
   /** De identiteit van de inhoud (fixronde 1 van #1020, `documentSaveState.ts`): omhoog als een andere inhoud dit
    *  tabblad hergebruikt (`replaceDocumentContent`); `undefined` = 0. Sessiegegeven, geen documentdata. */
   content?: number;
+  changedOnDisk?: true;
 }
 
 /**
@@ -100,6 +102,10 @@ export interface DocumentEntry {
 function resetDocumentScopedUI(s: AppState): void {
   s.ui.showTaskDialog = false;
   s.ui.editingTaskId = null;
+  // Shift-anker en toewijsverzoek wijzen naar taken en rijen van het uitgaande document; een variant
+  // deelt taak-id's en rijsleutels met zijn bron (review #1004, ronde 5).
+  s.ui.selectionAnchor = null;
+  s.ui.pendingRelationAssign = null;
   // Bibliotheek-afwijkingen horen bij het document dat ze opleverde: de activatiegrens zet deze
   // twee alléén AAN, dus zonder reset toont een volgend document het scherm van zijn voorganger.
   s.ui.showLibraryLinkDialog = false;
@@ -218,7 +224,7 @@ export interface DocumentSlice {
   /** Zet alleen voor het actieve document de persoonlijke, niet-IFC AutoSave-keuze. */
   setAutoSaveToFile: (enabled: boolean) => void;
   /** Markeer uitsluitend de documentversie die de writer daadwerkelijk heeft weggeschreven schoon. */
-  markAutoSaveVersionSaved: (document: DocumentContentRef, source: IFCSaveSource, prepared?: PreparedIfcWrite) => void;
+  markAutoSaveVersionSaved: (document: DocumentContentRef, source: IFCSaveSource, prepared?: PreparedIfcWrite, written?: TargetFingerprint | null) => void;
 }
 
 /** Diepe JSON-kloon (de projectdata is JSON-veilig). */
@@ -458,6 +464,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       // Ook het site-doel niet: anders schrijft Ctrl+S in de kopie een nieuwe versie van de bron.
       siteFileId: null,
       siteFileVersion: null,
+      knownTargetFingerprint: null,
       autoSaveToFile: false,
       isDirty: true,
       xerImportMetadata: src.xerImportMetadata
@@ -614,6 +621,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       void saving.then(() => get().requestCloseDocument(id));
       return;
     }
+    if (!get().documents.some((document) => document.id === id)) return;
+    runtime.finishPendingTextEdits();
     const doc = get().getOpenDocuments().find((d) => d.id === id);
     if (!doc) return;
     if (doc.isDirty) get().setUI({ pendingCloseDocId: id });
@@ -657,8 +666,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     set((s) => { s.autoSaveToFile = enabled; });
   },
 
-  markAutoSaveVersionSaved: (document, source, prepared) => {
-    get().commitSavedDocument(document, source, undefined, prepared);
+  markAutoSaveVersionSaved: (document, source, prepared, written = null) => {
+    get().commitSavedDocument(document, source, undefined, prepared, false, written);
   },
 
   restoreDocuments: (docs, activeId) => {

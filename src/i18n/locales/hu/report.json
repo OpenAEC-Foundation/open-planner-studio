@@ -149,7 +149,7 @@
     "groupByType": "Csoportosítás erőforrástípus szerint",
     "showAssignmentColumns": "Hozzárendelt mennyiség/nap és görbe megjelenítése",
     "columnsDropped": "A Hozz. mennyiség/nap és a Görbe oszlop kimaradt, mert a táblázat túl kevés helyet hagyott az idősávnak. Nagyobb papírméret vagy fekvő tájolás, kisebb betűméret vagy keskenyebb táblázat több helyet ad.",
-    "emptyPeriod": "Nincs tevékenység a jelentési időszakban. Válasszon másik időszakot vagy a Teljes projektet.",
+    "emptyPeriod": "Az egyéni időszakban nincs tevékenység — válasszon más dátumokat, vagy kapcsolja ki az Egyéni időszakot.",
     "outsidePeriod": "Az időszakon kívül:",
     "empty": "Nincsenek erőforrás-hozzárendelések. Rendeljen először erőforrásokat a tevékenységekhez.",
     "resources": "Erőforrások:",
@@ -465,7 +465,6 @@
     "pages_one": "{{count}} oldal",
     "pages_other": "{{count}} oldal",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Jelentési időszak",
     "tasks": {
       "title": "Mely tevékenységek",
       "all": "Összes tevékenység",
@@ -646,6 +645,12 @@
       "chart": "Sávok és idővonal",
       "footer": "Jelmagyarázat és lábléc",
       "page": "Oldal"
+    },
+    "period": {
+      "hint": "A jelentésben csak az ebbe az időszakba eső tevékenységek szerepelnek. Az idővonal pontosan az időszakot fedi le; az azon túlnyúló sáv a szélénél le van vágva.",
+      "outside_one": "{{count}} tevékenység az időszakon kívül esik, és nem szerepel a jelentésben.",
+      "outside_other": "{{count}} tevékenység az időszakon kívül esik, és nem szerepel a jelentésben.",
+      "own": "Egyéni időszak"
     }
   },
   "customFont": {

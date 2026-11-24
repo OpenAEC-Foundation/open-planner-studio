@@ -59,3 +59,10 @@ jobs:
         run: |
           mkdir -p dist
           cargo test --manifest-path src-tauri/Cargo.toml place_file
+
+      # Startbestanden uit de opdrachtregel (#1091); één test draait alleen op Windows.
+      - name: Rust-tests van launch_files
+        shell: bash
+        run: |
+          mkdir -p dist
+          cargo test --manifest-path src-tauri/Cargo.toml launch_files

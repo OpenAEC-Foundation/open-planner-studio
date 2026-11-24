@@ -40,6 +40,7 @@ import {
 } from '@/services/ifc/foreign/targetModelScan';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
+import { seekToExactPosition } from '@/services/fileAccess/tauriBackend';
 import { StepDataSectionFinder, indexOfStepDataSection } from '@/services/ifc/stepDataSection';
 import { stepFileGrammar } from '@/services/ifc/stepFileGrammar';
 import { IFC_BUILDING_MODEL_TYPES } from '@/services/ifc/ifcBuildingModelTypes';
@@ -336,6 +337,20 @@ const own = (data: string) => enc.encode(OWN_HEAD + data + TAIL);
       });
     } catch (e) { badError = (e as Error).message; }
     eq(`stroom: ${label}: een leesfout, de bron gaat dicht`, [badError.startsWith('De bron eindigt na terugspoelen'), badClosed], [true, 1]);
+  }
+  const longRewind = own(`#1=IFCTASK('a',\n${' '.repeat(18 << 20)}#9=IFCWALL('x',$);\n${' '.repeat(20 << 20)}`);
+  for (const works of [true, false]) {
+    let at = 0;
+    let closed = 0;
+    let result = '';
+    try {
+      result = await scanTargetSource({
+        next: async () => at >= longRewind.length ? null : longRewind.subarray(at, at = Math.min(longRewind.length, at + CHUNK)),
+        seek: offset => seekToExactPosition(async n => { if (works) at = n; return at; }, offset),
+        close: () => { closed++; },
+      });
+    } catch { result = 'error'; }
+    eq(`stroom: lange bron met ${works ? 'goede' : 'foute'} seek`, [result, closed], [works ? 'model' : 'error', 1]);
   }
   // De Blob van een FSA-handle: dezelfde uitkomst via `stream()`.
   const t0 = performance.now();

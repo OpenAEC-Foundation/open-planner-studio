@@ -4,6 +4,7 @@
 // Dit bestand bevat uitsluitend types. Het koppelt geen store, mount geen DOM en voert geen
 // domeinmutatie uit. Zo krijgt elke coördinator een smal contract in plaats van de hele
 // applicatiestaat als gemaksargument.
+import type { SelectedRow } from '@/state/slices/selectionSlice';
 import type { BaselineReach } from '@/types/baseline';
 import type {
   MouseEvent as ReactMouseEvent,
@@ -50,7 +51,10 @@ export interface GanttRendererHostInput {
   containers: Pick<
     GanttViewportRefs,
     'primaryContainerRef' | 'secondaryContainerRef' | 'histogramContainerRef'
-  >;
+  > & {
+    /** De histogramstrook mount via een portal ná de eerste render; de node zelf, als React-state. */
+    histogramContainer: HTMLDivElement | null;
+  };
   primary: GanttRenderOptionsSourceInput;
   secondary?: GanttRenderOptionsSourceInput;
   histogram?: HistogramRenderInput;
@@ -158,6 +162,8 @@ export interface GanttContextMenuState {
   /** Rechtsklik op LEGE ruimte (geen balk): de datum onder de cursor (`YYYY-MM-DD`). "Nieuwe taak"
    *  en "Nieuwe mijlpaal" beginnen dan op die datum (review 2026-10-06, punt 1). */
   clickDate?: string | null;
+  /** De aangeklikte rij: dezelfde taak kan in meer ploegen staan. Toewijzen kiest de taak op deze rij. */
+  rowKey?: string;
 }
 
 export interface GanttTooltipState {
@@ -218,8 +224,10 @@ export interface GanttPointerCoordinatorInput {
    *  dagtaak sleept en splitst (dagenmaat of uren), zoals de Gantt-stukken. */
   workdayDurationMeasure: boolean;
   compressNonWorkdays: boolean;
-  selectTask: (id: string, additive?: boolean, range?: boolean) => void;
+  selectTask: (id: string, additive?: boolean, range?: boolean, row?: SelectedRow) => void;
   selectTasks: (ids: string[], additive: boolean) => void;
+  /** Zet de cursorrij van de takenlijst (`ui.gridActiveRowKey`); het kader doet dat net als een klik. */
+  setGridActiveRowKey: (rowKey: string) => void;
   deselectAll: () => void;
   updateTask: (id: string, updates: Partial<Task>, options?: { coalesceKey?: string }) => void;
   /** De ENE schrijfweg voor gebruikerssplits (`taskSlice.setTaskSplits`). */
@@ -271,4 +279,8 @@ export interface GanttPointerCoordinatorOutput {
   tooltip: GanttTooltipState | null;
   closeContextMenu: () => void;
   closeRelationPopover: () => void;
+  /** Sluit menu en relatiepopover: ze houden taak-id's vast, en een variant draagt dezelfde id's. Na
+   *  een documentwissel landde hun actie anders in het andere document (review #1004, ronde 10). Lopende
+   *  sleepgebaren stopt `listenWindowDrag` zelf. */
+  closeForDocumentSwitch: () => void;
 }

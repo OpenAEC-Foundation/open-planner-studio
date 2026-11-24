@@ -20,10 +20,12 @@ import { refusedWriteTarget, ifcFullWriteBlocked, ifcSaveBlocked } from '@/state
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { scheduleFileAutoSave } from '@/services/actualAutosave/fileAutoSaveTimers';
 import { closeProjectFileWrites, isProjectFileWriteBusy } from '@/services/fileAccess/writeCoordinator';
+import { replaceRecordId } from '@/services/fileAccess/replaceRecords';
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
 import { openInStore, loadStore } from './ifcAppRoute';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
+import { openSecondTabOn } from './sameFileTabFixture';
 import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
 import { loadRecovery, clearRecovery } from '@/services/recovery/recoveryStore';
@@ -518,11 +520,35 @@ await check('IFC-export desktop: volledig bestand, document intact, daarna Opsla
   } finally { ipc.dispose(); }
 });
 
-for (const kind of ['bestaand', 'eigen-bron', 'andere-bron'] as const) await check(`IFC-export ${kind}: nul bytes, één melding`, async () => {
-  const target = join(dir, `export-${kind}.ifc`);
+await check('IFC-export bestaand: de planning op die naam vervangen, het document intact', async () => {
+  const target = join(dir, 'export-bestaand.ifc');
   const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
-  writeFileSync(target, kind === 'bestaand' ? plain : bytes);
-  const store = kind === 'bestaand' ? (await openInStore(bytes)).store : await openAt({ kind: 'path', path: target });
+  writeFileSync(target, plain);
+  const appData = mkdtempSync(join(tmpdir(), 'ops-804-appdata-'));
+  const { store } = await openInStore(bytes);
+  longer(store); const before = preserved(store), literal = store.getState().ifcLiteralCalendarIds, ipc = desktop(appData);
+  ipc.choose(target);
+  try {
+    clearNotices(store);
+    const expected = await prepareIfcWrite(buildExportIFCInput(store.getState(), 'merge'), before.source!);
+    const result = await store.getState().exportAs('ifc');
+    assert(result.ok && !result.cancelled, 'de export slaagt');
+    const output = new Uint8Array(readFileSync(target));
+    assert.equal(hash(output), hash(expected.bytes), 'precies de uitvoer van de export');
+    assert.deepEqual(mergeProblems(bytes, output), []);
+    unchanged(store, before);
+    assert(store.getState().ifcLiteralCalendarIds === literal, 'export legt geen letterlijke kalenders vast');
+    assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
+    assert(store.getState().recentFiles.some(r => r.ref.kind === 'path' && r.ref.path === target), 'Recent kent het exportbestand');
+    assert.deepEqual(readdirSync(dir).filter(name => name.includes('.ops-')), [], 'geen hulpbestand');
+    assert.deepEqual(readdirSync(appData).filter(name => replaceRecordId(name) !== null), [], 'geen herstelrecord');
+  } finally { ipc.dispose(); }
+});
+
+for (const kind of ['eigen-bron', 'andere-bron'] as const) await check(`IFC-export ${kind}: nul bytes, één melding`, async () => {
+  const target = join(dir, `export-${kind}.ifc`);
+  writeFileSync(target, bytes);
+  const store = await openAt({ kind: 'path', path: target });
   if (kind === 'andere-bron') {
     store.getState().newDocument();
     await store.getState().openOpenedFile({ name: 'ander.ifc', content: '', bytes, ref: null });
@@ -533,12 +559,10 @@ for (const kind of ['bestaand', 'eigen-bron', 'andere-bron'] as const) await che
     clearNotices(store); const result = await store.getState().exportAs('ifc');
     assert(result.ok && result.cancelled); unchanged(store, before);
     assert.equal(hash(new Uint8Array(readFileSync(target))), oldHash);
-    // Een bestaand doel: alleen het eigen tijdelijke bestand werd geschreven, de plaatsing weigerde en het is weer weg.
-    assert.deepEqual(ipc.calls.filter(c => c.wrote).map(c => isTemp(c.path)), kind === 'bestaand' ? [true] : []);
+    assert.deepEqual(ipc.calls.filter(c => c.wrote).map(c => isTemp(c.path)), []);
     assert.deepEqual(tempLeft(), []);
     // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad.
-    assertNotice(store, kind === 'bestaand' ? 'notifications.ifcForeignNewTargetOnly'
-      : kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab' : 'notifications.ifcForeignTargetExport');
+    assertNotice(store, kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab' : 'notifications.exportTargetOwnFile');
   } finally { ipc.dispose(); }
 });
 
@@ -645,25 +669,49 @@ for (const cause of ['flag-uit', 'sourceMissing', 'mergeweigering'] as const) aw
   } finally { ipc.dispose(); }
 });
 
+// Knownbug 1903 (besluit technisch beslisser, 21 november 2026): een documentwissel tijdens de kiezer is geen wijziging
+// van A. De export schrijft dan precies wat A zonder wissel schrijft, niets van het nieuwe tabblad. Tot #1097 eiste deze
+// proef nul bytes (`3ecdeec01`, toen de controle de bron van het actieve tabblad vergeleek).
 for (const cause of ['flag-uit-na-kiezer', 'sourceMissing-na-kiezer', 'nieuwe-bron', 'documentwissel'] as const) {
-  await check(`IFC-export ${cause}: nul bytes na voorbereiding`, async () => {
+  await check(`IFC-export ${cause}: ${cause === 'documentwissel' ? 'precies de bytes van A' : 'nul bytes'} na voorbereiding`, async () => {
     const { store } = await openInStore(bytes); longer(store);
     const before = preserved(store), id = store.getState().activeDocumentId, ipc = desktop();
     const target = join(dir, `export-laat-${cause}.ifc`); ipc.choose(target);
     const other = cause === 'nieuwe-bron'
       ? await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), before.source!) : null;
+    const ofA = cause === 'documentwissel'
+      ? (await prepareIfcWrite(buildExportIFCInput(store.getState(), 'merge'), before.source!)).bytes : null;
+    const nameOfA = store.getState().project.name;
     ipc.onPick(() => {
-      if (cause === 'documentwissel') store.getState().newDocument();
-      else if (other) store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, store.getState(), undefined, other);
+      if (cause === 'documentwissel') {
+        // Een herkenbaar B: alles hiervan dat in het bestand komt, valt op.
+        store.getState().newDocument();
+        store.getState().setProject({ name: 'ProjectBravo1097' });
+        store.getState().addTask({ name: 'TaakBravo1097' });
+      } else if (other) store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, store.getState(), undefined, other);
       else store.setState(s => {
         if (cause === 'flag-uit-na-kiezer') s.ui.featureFlags = {};
         else s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true };
       });
     });
     try {
-      const result = await store.getState().exportAs('ifc'); assert(result.ok && result.cancelled);
-      assert.equal(existsSync(target), false); assert.equal(ipc.calls.filter(c => c.wrote).length, 0);
-      if (cause === 'documentwissel') store.getState().switchDocument(id);
+      const result = await store.getState().exportAs('ifc');
+      if (ofA) {
+        assert(result.ok && !result.cancelled, 'de export van A rondt af');
+        const written = new Uint8Array(readFileSync(target));
+        assert.equal(hash(written), hash(ofA), 'precies wat A zonder documentwissel schrijft');
+        const fresh = store.getState();
+        assert.notEqual(fresh.activeDocumentId, id, 'het nieuwe tabblad is actief');
+        const text = new TextDecoder().decode(written);
+        assert(nameOfA && text.includes(`IFCPROJECT('`) && text.includes(`'${nameOfA}'`), 'het project van A');
+        assert.equal(fresh.project.name, 'ProjectBravo1097');
+        assert(fresh.tasks.some(t => t.name === 'TaakBravo1097'), 'B heeft eigen inhoud');
+        assert(!text.includes('ProjectBravo1097') && !text.includes('TaakBravo1097'), 'niets van het nieuwe tabblad');
+        store.getState().switchDocument(id);
+      } else {
+        assert(result.ok && result.cancelled);
+        assert.equal(existsSync(target), false); assert.equal(ipc.calls.filter(c => c.wrote).length, 0);
+      }
       if (other) assert(store.getState().ifcSource === other.source, 'de nieuwe opslagbron blijft staan');
       else assert(store.getState().ifcSource === before.source, 'de openingsbron blijft staan');
     } finally { ipc.dispose(); }
@@ -678,9 +726,13 @@ for (const flag of [true, false]) await check(`gewone IFC-export, flag ${flag}: 
   try {
     const { buildExportIFCInput } = await import('@/state/ifcSaveInput');
     const expected = new TextEncoder().encode(writeIFC(buildExportIFCInput(store.getState(), 'merge')));
+    const from = ipc.calls.length;
     const result = await store.getState().exportAs('ifc'); assert(result.ok && !result.cancelled);
     const output = new Uint8Array(readFileSync(target)); assert.equal(hash(output), hash(expected)); await openForeign(output);
     unchanged(store, before);
+    if (!flag) assert.deepEqual(ipc.calls.slice(from).map(c => [c.command, c.path === target ? 'doel' : isTemp(c.path) ? 'eigen hulpbestand' : c.path ?? null, c.wrote]),
+      [['plugin:fs|lstat', 'doel', false], ['plugin:fs|write_text_file', 'eigen hulpbestand', true], ['plugin:fs|rename', null, false],
+        ['plugin:fs|stat', 'doel', false], ['plugin:fs|stat', 'bron.ifc', false]], 'flag uit: precies de aanroepen aan de bestandsrand van main');
   } finally { ipc.dispose(); }
 });
 
@@ -804,7 +856,8 @@ for (const kind of ['eigen-bron', 'andere-bron', 'bestaand-model'] as const) for
       assert.equal(hash(new Uint8Array(readFileSync(target))), oldHash, 'het bestand met gebouwmodel blijft heel');
       assert.equal(writeCalls(ipc), 0); unchanged(store, before);
       // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad.
-      assertNotice(store, kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab' : 'notifications.ifcForeignTargetExport');
+      assertNotice(store, kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab'
+        : kind === 'eigen-bron' ? 'notifications.exportTargetOwnFile' : 'notifications.ifcForeignTargetExport');
     } finally { ipc.dispose(); resetPlanOnlyAsker(); }
   });
 }
@@ -1430,7 +1483,8 @@ await check('handle: een ander open document met hetzelfde bestand als bron blij
   const { store, name } = await openHandle(), unregister = recoveryRounds(store);
   try {
     store.getState().newDocument();
-    await store.getState().openOpenedFile({ name, content: '', bytes, ref: { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle } });
+    await openSecondTabOn(store, { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle, name },
+      () => store.getState().openOpenedFile({ name, content: '', bytes, ref: { kind: 'handle', handle: new FakeHandle(`${name}.kopie`) as unknown as FileSystemFileHandle } }));
     longer(store); clearNotices(store); writableLog.length = 0;
     const before = preserved(store);
     assert.equal(await ctrlS(store), false);
@@ -1468,7 +1522,8 @@ await check('doelcontrole: de uitzondering "eigen doel" alleen voor de eigen han
     'een ander pad: geen uitzondering (zonder lezer is het doel onleesbaar)');
   // Een ander open document met hetzelfde bestand als bron.
   onPath.getState().newDocument();
-  await onPath.getState().openOpenedFile({ name: 'bron.ifc', content: '', bytes, ref: { kind: 'path', path } });
+  await openSecondTabOn(onPath, { kind: 'path', path },
+    () => onPath.getState().openOpenedFile({ name: 'bron.ifc', content: '', bytes, ref: { kind: 'path', path: `${path}.kopie` } }));
   const twice = onPath.getState();
   // Fixronde 1 van #1071, punt 3: de reden noemt het open tabblad (was 'open-source').
   assert.equal(await refusedWriteTarget(twice, { kind: 'path', path }, deps, { documentId: twice.activeDocumentId, source: twice.ifcSource! }),
@@ -1692,7 +1747,9 @@ await check('gebouwmodel via de opslagworker: Ctrl+S, Opslaan als en Exporteren 
     assert.equal(await ctrlS(plain.store), true);
     assert.equal(sw.requests().length, 4, 'de gewone writer ging naar de worker');
     assert.equal(sw.requests()[3]!.job.kind, 'writer');
-    assert.equal(sw.workers.length, 1, 'één worker voor alle opslagen');
+    // Knownbug 1936: elke merge rekende in een eigen worker, die daarna stopte; de gewone writer kreeg er een nieuwe.
+    assert.deepEqual(sw.workers.map(w => [w.requests.map(r => r.job.kind), w.terminated]),
+      [[['merge'], true], [['merge'], true], [['merge'], true], [['writer'], false]], 'een verse worker na elke merge');
   } finally { unregister(); browser.dispose(); sw.client.dispose(); await clearRecovery(); }
 });
 
@@ -2901,6 +2958,236 @@ for (const withPool of [false, true]) {
       finishWrite();
       internal.invoke = invoke;
       ipc.dispose();
+      sw.client.dispose();
+    }
+  });
+}
+
+/** Knownbugs 1901 (a) en 1903: de desktopexport van A, met op één moment eerst `change` op A (bewerken, of via de
+ *  extensie een ander project laden) en dan een wissel naar tabblad B. `temp`: met de uitvoer van A in het hulpbestand,
+ *  vóór de plaatsing (één schrijfpauze, zoals de proef van ronde 2 hierboven); `picker`: vlak na de bestandskiezer,
+ *  vóór de doelcontrole terugkomt. `foreign`: A is een IFC met gebouwmodel (flag aan) en de export de volledige IFC, dus
+ *  alleen een nieuwe naam. Ongewijzigd rondt de export af met precies de bytes van A; gewijzigd weigert hij met de
+ *  bestaande melding en schrijft hij niets. */
+async function exportWithTabSwitch({ withPool, foreign, when, change }: {
+  withPool: boolean; foreign: boolean; when: 'picker' | 'temp'; change: 'none' | 'edit' | 'replace';
+}) {
+  const { createAppStoreContext } = await loadStore();
+  const sw = saveWorker();
+  const context = createAppStoreContext({ ifcSaveCompute: sw.compute }), { store } = context;
+  const ipc = desktop();
+  const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
+  const internal = win.__TAURI_INTERNALS__;
+  const invoke = internal.invoke;
+  const tag = `${withPool ? 'pool' : foreign ? 'model' : 'ifc'}-${when}-${change}`;
+  const target = join(dir, `export-wissel-${tag}.ifc`), pool = join(dir, `export-wissel-${tag}-bibliotheek.ifc`);
+  const previous = new TextEncoder().encode('Bestaande projectexport');
+  let tempWritten!: () => void;
+  const atTemp = new Promise<void>(resolve => { tempWritten = resolve; });
+  let finishWrite!: () => void;
+  const waitToPlace = new Promise<void>(resolve => { finishWrite = resolve; });
+  let switched = false;
+  try {
+    if (foreign) store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    await store.getState().openOpenedFile(foreign
+      ? { name: 'model.ifc', content: '', bytes, ref: null }
+      : { name: 'gewoon.ifc', content: plainText(plainBytes()), ref: null });
+    assert.equal(hasForeignContent(store.getState().ifcSource), foreign);
+    const first = store.getState().activeDocumentId;
+    const second = store.getState().newDocument();
+    store.getState().switchDocument(first);
+    if (withPool) store.getState().setProject({ companyId: store.getState().seedDemoLibrary(), companyName: 'Proefbedrijf' });
+    longer(store);
+    clearNotices(store);
+    const snapshot = store.getState();
+    const input = buildExportIFCInput(snapshot, withPool ? 'planOnly' : 'merge');
+    const expected = foreign ? (await prepareIfcWrite(input, snapshot.ifcSource!)).bytes : new TextEncoder().encode(writeIFC(input));
+    const secondFile = payloadOf(store, second).filePath;
+    if (!foreign) writeFileSync(target, previous);
+    const switchAway = () => {
+      switched = true;
+      if (change === 'edit') longer(store);
+      if (change === 'replace') loadThroughExtension(context, false);
+      store.getState().switchDocument(second);
+      assert.equal(store.getState().activeDocumentId, second);
+    };
+    ipc.choose(target);
+    ipc.onPick(() => {
+      if (ipc.picks() === 1 && when === 'picker') switchAway();
+      if (ipc.picks() === 2) ipc.choose(pool);
+    });
+    if (when === 'temp') internal.invoke = async (...args) => {
+      const result = await invoke(...args);
+      if (!switched && writeFileCallOf({ command: String(args[0]) }) && tempLeft().length > 0) {
+        tempWritten();
+        await waitToPlace;
+      }
+      return result;
+    };
+    const action = withPool ? snapshot.exportProjectWithPool() : snapshot.exportAs('ifc');
+    if (when === 'temp') {
+      await Promise.race([atTemp, action.then(() => assert.fail('de export kwam nooit bij het hulpbestand'))]);
+      assert.equal(hash(readFileSync(join(dir, tempLeft()[0]!))), hash(expected), 'in het hulpbestand staan alle bytes van A');
+      switchAway();
+      finishWrite();
+    }
+    const result = await action;
+    assert(switched, 'de tabbladwissel vond plaats');
+    assert.equal(store.getState().activeDocumentId, second, 'B blijft het actieve tabblad');
+    assert.equal(store.getState().filePath, secondFile, 'B houdt zijn eigen doel');
+    assert.deepEqual(tempLeft(), [], 'geen hulpbestand achtergebleven');
+    const recent = store.getState().recentFiles.some(file => file.name === target.split('/').at(-1));
+    if (change === 'none') {
+      assert(result.ok && !result.cancelled, 'een gewone tabbladwissel is geen wijziging van de planning');
+      assert.equal(hash(readFileSync(target)), hash(expected), 'precies de planning van A');
+      if (foreign) assert.deepEqual(mergeProblems(bytes, new Uint8Array(readFileSync(target))), []);
+      assert.equal(ipc.picks(), withPool ? 2 : 1);
+      assert.equal(existsSync(pool), withPool);
+      assert.equal(recent, true);
+      assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error'), []);
+    } else {
+      assert(result.ok && result.cancelled, 'een gewijzigde A wordt niet geëxporteerd');
+      if (foreign) assert.equal(existsSync(target), false);
+      else assert.equal(hash(readFileSync(target)), hash(previous), 'het bestaande doel blijft ongewijzigd');
+      // Na de kiezer weigert de doelcontrole al, dus vóór er een hulpbestand ontstaat.
+      if (when === 'picker') assert.equal(ipc.calls.filter(c => writeFileCallOf(c) && isTemp(c.path)).length, 0, 'niets geschreven');
+      assert.equal(ipc.picks(), 1);
+      assert.equal(existsSync(pool), false);
+      assert.equal(recent, false);
+      assertNotice(store, 'notifications.ifcExportChangedWhileWaiting');
+    }
+  } finally {
+    finishWrite();
+    internal.invoke = invoke;
+    ipc.dispose();
+    sw.client.dispose();
+  }
+}
+
+for (const withPool of [false, true]) {
+  const route = withPool ? 'met resourcebibliotheek' : 'IFC';
+  for (const change of ['edit', 'replace'] as const) {
+    await check(`knownbug 1901: desktopexport ${route}, A ${change === 'edit' ? 'bewerkt' : 'vervangen'} en dan naar B, weigert`,
+      () => exportWithTabSwitch({ withPool, foreign: false, when: 'temp', change }));
+  }
+  await check(`knownbug 1903: desktopexport ${route}, direct na de kiezer naar B, rondt af`,
+    () => exportWithTabSwitch({ withPool, foreign: false, when: 'picker', change: 'none' }));
+  await check(`knownbug 1903: desktopexport ${route}, na de kiezer A bewerkt en naar B, weigert vóór het schrijven`,
+    () => exportWithTabSwitch({ withPool, foreign: false, when: 'picker', change: 'edit' }));
+}
+await check('knownbug 1901: desktopexport IFC met gebouwmodel, met de uitvoer van A in het hulpbestand naar B, rondt af',
+  () => exportWithTabSwitch({ withPool: false, foreign: true, when: 'temp', change: 'none' }));
+await check('knownbug 1903: desktopexport IFC met gebouwmodel, direct na de kiezer naar B, rondt af',
+  () => exportWithTabSwitch({ withPool: false, foreign: true, when: 'picker', change: 'none' }));
+
+// Knownbug 1903 in de browser (met knownbug 1899): de opslaankiezer van Chromium maakt een gekozen bestaand bestand al
+// leeg bij het kiezen. Weigerde de doelcontrole daarna om een tabbladwissel, dan bleef dat bestand leeg. Nu krijgt het de
+// bytes van A. Een A die na de kiezer verandert, schrijft de export niet; dan blijft het bestand leeg, zoals bij elke
+// weigering na deze kiezer (1899). Fixronde 2 van #1097 (keuze (b) van de technisch beslisser): staat A na de kiezer niet
+// meer vooraan, dan moet A ook tot aan `close()` ongewijzigd blijven, anders `abort()`. `change`:
+// - `edit-at-picker`: A bewerkt vóór de doelcontrole, dan naar B;
+// - `back-and-edit`: naar B bij de kiezer; tijdens de write terug naar A, een taak bewerkt, weer naar B;
+// - `rename-library`: naar B bij de kiezer; tijdens de write de bibliotheek van A hernoemd terwijl B vooraan blijft
+//   (`renameCompany` wijzigt `project.companyName` in het slapende A, en die naam gaat mee in het IFC);
+// - `back-and-stay` (fixronde 3): naar B bij de kiezer; tijdens de write terug naar A, een taak bewerkt, en op A blijven.
+//   De keuze voor de late controle valt bij de geslaagde doelcontrole (A stond daar niet vooraan), niet bij `close()`;
+// - `no-switch-edit`: geen wissel, A tijdens de write bewerkt. Dat is het late venster van main (knownbug 1958): de
+//   export plaatst de planning van vóór de wijziging en meldt succes. Bewust niet veranderd; deze proef legt main vast;
+// - `edit-then-switch` (fixronde 3): A vooraan tot en met de doelcontrole, tijdens de write A bewerkt en dán pas naar B.
+//   Ook dat is main (knownbug 1958): de eerste wissel kwam na de doelcontrole.
+const BROWSER_CHANGES = ['none', 'edit-at-picker', 'back-and-edit', 'rename-library', 'back-and-stay', 'no-switch-edit', 'edit-then-switch'] as const;
+const browserCases = [false, true].flatMap(withPool => BROWSER_CHANGES
+  .filter(change => !withPool || change !== 'edit-at-picker')
+  .map(change => ({ withPool, change })));
+for (const { withPool, change } of browserCases) {
+  const label = {
+    'none': 'direct na de kiezer naar B, krijgt de bytes van A',
+    'edit-at-picker': 'na de kiezer A bewerkt en naar B, schrijft A niet',
+    'back-and-edit': 'naar B, tijdens de write A bewerkt, breekt af vóór close',
+    'rename-library': 'naar B, tijdens de write de bibliotheek van A hernoemd, breekt af vóór close',
+    'back-and-stay': 'naar B, tijdens de write terug naar A en A bewerkt, breekt af vóór close',
+    'no-switch-edit': 'zonder wissel A bewerkt tijdens de write, plaatst de oude bytes zoals main (knownbug 1958)',
+    'edit-then-switch': 'A vooraan bij de doelcontrole, tijdens de write bewerkt en dan naar B, plaatst de oude bytes zoals main (knownbug 1958)',
+  }[change];
+  await check(`knownbug 1903: browserexport ${withPool ? 'met resourcebibliotheek' : 'IFC'} naar een handle, ${label}`, async () => {
+    const { createAppStoreContext } = await loadStore();
+    const sw = saveWorker();
+    const { store } = createAppStoreContext({ ifcSaveCompute: sw.compute });
+    const browser = browserDownload();
+    const win = window as unknown as Record<string, unknown>;
+    const name = `browser-wissel-${withPool}-${change}-${++handleCount}.ifc`, library = `${name}-bibliotheek.ifc`;
+    const switchAtPicker = change !== 'no-switch-edit' && change !== 'edit-then-switch';
+    const placed = change === 'none' || change === 'no-switch-edit' || change === 'edit-then-switch';
+    try {
+      await store.getState().openOpenedFile({ name: 'gewoon.ifc', content: plainText(plainBytes()), ref: null });
+      const first = store.getState().activeDocumentId;
+      const companyId = store.getState().seedDemoLibrary();
+      store.getState().setProject({ companyId, companyName: 'Bedrijf van A' });
+      const second = store.getState().newDocument();
+      store.getState().switchDocument(first);
+      longer(store);
+      clearNotices(store);
+      const expected = new TextEncoder().encode(writeIFC(buildExportIFCInput(store.getState(), withPool ? 'planOnly' : 'merge')));
+      handleFiles.set(name, new TextEncoder().encode('Versie vóór export'));
+      win.showOpenFilePicker = () => { throw new Error('niet gebruikt'); };
+      let picks = 0;
+      win.showSaveFilePicker = async () => {
+        if (++picks === 2) { handleFiles.set(library, new Uint8Array()); return new FakeHandle(library); }
+        handleFiles.set(name, new Uint8Array()); // Chromium kapt het gekozen bestand af vóór de kiezer terugkomt.
+        if (change === 'edit-at-picker') longer(store);
+        if (switchAtPicker) store.getState().switchDocument(second);
+        return new FakeHandle(name);
+      };
+      let changedDuringWrite = false;
+      handleFaults.set(name, { onWrite: () => {
+        if (changedDuringWrite) return;
+        changedDuringWrite = true;
+        if (change === 'back-and-edit') {
+          store.getState().switchDocument(first);
+          longer(store);
+          store.getState().switchDocument(second);
+        }
+        if (change === 'rename-library') {
+          assert.equal(store.getState().activeDocumentId, second);
+          store.getState().renameCompany(companyId, 'Bibliotheek hernoemd 1097');
+          assert.equal(payloadOf(store, first).project.companyName, 'Bibliotheek hernoemd 1097', 'het slapende A veranderde');
+        }
+        if (change === 'back-and-stay') {
+          store.getState().switchDocument(first);
+          longer(store);
+        }
+        if (change === 'no-switch-edit' || change === 'edit-then-switch') longer(store);
+        if (change === 'edit-then-switch') store.getState().switchDocument(second);
+      } });
+      writableLog.length = 0;
+      const result = withPool ? await store.getState().exportProjectWithPool() : await store.getState().exportAs('ifc');
+      const projectLog = writableLog.filter(entry => entry.split(' ')[1] === name).map(entry => entry.split(' ')[0]);
+      const recent = store.getState().recentFiles.some(file => file.name === name);
+      assert.equal(store.getState().activeDocumentId, change === 'no-switch-edit' || change === 'back-and-stay' ? first : second);
+      assert.equal(browser.downloads.length, 0, 'geen download ernaast');
+      if (placed) {
+        assert(result.ok && !result.cancelled, change === 'none' ? 'een tabbladwissel is geen wijziging van de planning' : 'main: de export slaagt');
+        assert(Buffer.from(fileOf(name)).equals(Buffer.from(expected)), 'het gekozen bestand krijgt precies de bytes van A (van de momentopname)');
+        assert.deepEqual(projectLog, ['create', 'close']);
+        assert.equal(recent, true);
+        assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error'), []);
+        if (withPool) assert(fileOf(library).byteLength > 0, 'de bibliotheek ernaast');
+        assert.equal(picks, withPool ? 2 : 1);
+        if (change !== 'none') assert(changedDuringWrite, 'A veranderde tijdens de write');
+      } else {
+        assert(result.ok && result.cancelled, 'een veranderde A wordt niet geëxporteerd');
+        assert.equal(fileOf(name).byteLength, 0, 'de kiezer had het bestand al leeggemaakt (1899); niet de oude bytes van A');
+        assert.deepEqual(projectLog, change === 'edit-at-picker' ? [] : ['create', 'abort'], 'afgebroken vóór close');
+        assert.equal(change === 'edit-at-picker' || changedDuringWrite, true);
+        assert.equal(recent, false, 'niets in Recent');
+        assert.equal(handleFiles.has(library), false, 'geen bibliotheek');
+        assert.equal(picks, 1, 'geen tweede kiezer');
+        assertNotice(store, 'notifications.ifcExportChangedWhileWaiting');
+      }
+    } finally {
+      handleFaults.delete(name);
+      delete win.showOpenFilePicker;
+      browser.dispose();
       sw.client.dispose();
     }
   });

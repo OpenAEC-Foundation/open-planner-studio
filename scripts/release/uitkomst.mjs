@@ -42,7 +42,7 @@ export class DroogStop extends Error {
 export const STOPCODES = new Set([
   'al-actief', 'origin', 'weekendstop', 'reparatie-geblokkeerd', 'geen-tag', 'wacht-te-lang',
   'release-ontbreekt', 'release-rood', 'release-verify-rood', 'snap-mislukt', 'snap-ontbreekt',
-  'aur-mislukt', 'uitlevering', 'wiki',
+  'uitlevering', 'wiki',
   'kandidaat', 'main-ci-rood', 'main-ci-ontbreekt', 'werkplek', 'inhoud-ontbreekt',
   'tekst-agent', 'tekst-grens', 'tekst-checks', 'merge-conflict', 'pr-ci-rood', 'main-beweegt',
   'cijfers', 'poort', 'onverwacht',

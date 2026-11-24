@@ -198,6 +198,16 @@ export type P6ActivityType = 'TT_Task' | 'TT_Rsrc' | 'TT_LOE' | 'TT_Mile' | 'TT_
  */
 export type MilestoneKind = 'START' | 'FINISH';
 
+export interface ProgressBeforeRecalculation {
+  status: TaskStatus;
+  completion: number;
+  actualStart?: string;
+  actualFinish?: string;
+  remainingTime?: number;
+  remainingMinutes?: number;
+  splitGaps?: TaskSplitGap[];
+}
+
 export interface TaskTime {
   durationType: DurationType;
   durationUnit: TaskDurationUnit;
@@ -258,6 +268,8 @@ export interface TaskTime {
    *  `durationMinutes`. */
   remainingMinutes?: number;
   completion: number; // 0.0 - 1.0
+  /** Sessiegegevens vóór de eerste nog niet doorgerekende voortgangsinvoer. Geen IFC-veld. */
+  progressBeforeRecalculation?: ProgressBeforeRecalculation;
 }
 
 /**
@@ -301,6 +313,7 @@ export type TaskTimeAnalysis = Pick<
 export type TaskTimeTracking = Pick<
   TaskTime,
   'actualStart' | 'actualFinish' | 'actualDuration' | 'remainingTime' | 'remainingMinutes' | 'completion'
+  | 'progressBeforeRecalculation'
 >;
 
 // --- Compile-assert: de vier rollen vormen een EXACTE partitie van `keyof TaskTime` ---------------

@@ -13,20 +13,23 @@ export interface ConfirmDialogProps {
   cancelLabel?: string;
   /** Rode bevestigknop (destructieve actie, bv. verwijderen). Default false. */
   danger?: boolean;
+  /** Enter bedient alleen een gefocuste knop van deze vraag. Default false. */
+  requireButtonFocus?: boolean;
 }
 
 /**
  * Generieke in-app bevestigingsdialoog ter vervanging van `window.confirm()`.
  * Puur presentationeel (geen store-koppeling). Toetsen: Escape = annuleren; Enter op een gefocuste
  * knop van deze dialoog activeert díé knop (Enter op Annuleren = annuleren, zoals
- * `focusedButtonOwnsEnter` in `useDialogKeys`); Enter zonder knopfocus = bevestigen. Bedoeld om BOVEN een reeds openstaande dialoog te stapelen
+ * `focusedButtonOwnsEnter` in `useDialogKeys`); zonder knopfocus bevestigt Enter standaard.
+ * Met `requireButtonFocus` wordt Enter dan opgevangen zonder actie. Bedoeld om BOVEN een reeds openstaande dialoog te stapelen
  * (LayoutsDialog/BaselineDialog/AiConnectionGroup zijn zelf al `fixed inset-0`-overlays met `z-50`),
  * dus deze laag gebruikt `z-[60]`, boven de aanroepende dialoog. `LibrarySection.tsx`
  * (Backstage → Bibliotheek, bedrijf verwijderen) stapelt ANDERS: Backstage is zelf geen `fixed inset-0`-dialoog, dus
  * daar is dit de EERSTE modale laag in plaats van een stapelend tweede laagje; de `z-[60]` werkt
  * daar net zo goed (er is simpelweg niets onder om boven uit te steken).
  */
-export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel, cancelLabel, danger }: ConfirmDialogProps) {
+export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel, cancelLabel, danger, requireButtonFocus }: ConfirmDialogProps) {
   const { t } = useTranslation('common');
   const buttonsRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +47,7 @@ export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel, canc
         const el = document.activeElement;
         if (el instanceof HTMLButtonElement && buttonsRef.current?.contains(el)) return;
         e.preventDefault();
-        onConfirm();
+        if (!requireButtonFocus) onConfirm();
       }
     };
     // Capture-fase: deze dialoog stapelt boven een al openstaande dialoog die zelf ook een
@@ -52,7 +55,7 @@ export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel, canc
     // capture zou die onderliggende listener ook vuren en de aanroepende dialoog per ongeluk sluiten.
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
-  }, [onCancel, onConfirm]);
+  }, [onCancel, onConfirm, requireButtonFocus]);
 
   return (
     // `z-[60]` + stopBackdropPropagation: deze laag stapelt BOVEN een al openstaande dialoog

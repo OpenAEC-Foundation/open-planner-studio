@@ -32,10 +32,18 @@
 // 8. Stap 5 deel 1 (was knownbug 1707): na "het laatste eigen lid weg" heropenen, zonder bewerking (dezelfde bytes) en met de
 //    handeling andersom (het vreemde lid weer in de eigen pset); het vreemde lid niet achteraan in de ledenlijst (weigert,
 //    zoals op de basis); een vreemde `Creators`-verwijzing in een kop.
+// 9. Stap 5, PR A: (c) per slot. Een omschrijving van een ander programma op een eigen pset (die zet (b) terug), dan de
+//    gewone handeling: schrijft en is heel, (c) toetst precies dat ene slot apart (op regel en bronwaarde) en de rest van de
+//    groep gewoon, en in de verliescontrole valt die groep helemaal buiten de toets: een oude verklaring draagt het verschil,
+//    zoals op de basis. Daarna de slotgevallen: twee slots in één groep, een slot in een andere groep, een kop, een typenaam,
+//    een omschrijving op `ModifiedAt`, wat terugvalt op de hele groep (wat niet eenduidig aan te wijzen is, en een bronwaarde
+//    van een soort die de lezer deels draagt: een vreemde `Creators`, een lijst), en de twee handelingen van de review van
+//    #1095 (punt 2) die met een omschrijving op `OPS_StructureMeta` weigeren, zoals op de basis.
 import assert from 'node:assert/strict';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { parseOutLine, type OutLine } from '@/services/ifc/foreign/lossCheck';
-import { PSET, ifcJson } from '@/services/ifc/ifcPsets';
+import { PROP, PSET, ifcJson } from '@/services/ifc/ifcPsets';
+import type { RestoredOwnSlots } from '@/services/ifc/foreign/ownGroups';
 import { decodeStepText } from '@/services/ifc/stepText';
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import {
@@ -43,8 +51,9 @@ import {
   reopenPlain, sameBytes, savedCatalogStart, savedSequenceStart, shownAfterOpen, type Domain,
 } from './ifcMergeKern';
 import {
-  SOURCES, addTask, bytesOf, clock, deleteAll, finish, foreignMemberKept, idsAt, latin1, leaves, ok, read, save, se, summary,
-  withForeignMember, withLabelOnUntypedTask, withLines, withWall, type Outcome, type S,
+  DESCRIPTION, SOURCES, addTask, bytesOf, clock, deleteAll, finish, foreignMemberKept, idsAt, latin1, leaves, linesOfBytes, ok,
+  propertyDescriptionPlace, psetDescriptionPlace, read, save, se, summary, withForeignMember, withLabelOnUntypedTask, withLines,
+  withPropertyDescription, withPsetDescription, withWall, type Outcome, type S,
 } from './ifcEigenKern';
 
 type Expect = 'schrijft' | 'weigert';
@@ -217,7 +226,8 @@ await one('1700 één baseline wissen', cat, se(s => { s.deleteBaseline(s.baseli
 await one('1586 een taaktypedefinitie hernoemen (stap 4)', cat, d => { d.customTaskTypes![0].name = 'Hernoemd projecttype'; return d; }, 'schrijft');
 await one('1588 ongebruikte brondefinitie, alleen de projectbeschrijving', unused, beschrijving, 'weigert');
 await one('1588 ongebruikte brondefinitie, nieuw type', unused, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
-// (a): een groep met een bronwaarde van (b) is niet gedragen, ook niet in zijn andere stukken; (c) toetst zo'n groep niet.
+// (a): een groep met een bronwaarde van (b) is niet gedragen, ook niet in zijn andere stukken. (c) toetst de rest van zo'n
+// groep, en het slot zelf apart (PR A).
 await one('niet gedragen: omschrijving op de codetemplates, alleen de projectbeschrijving', describedTemplates, beschrijving, 'schrijft');
 await one('niet gedragen: omschrijving op de codetemplates, code hernoemen (1585)', describedTemplates, se(s => { s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Hernoemde code'); }), 'weigert');
 await one('grens: onbekend definitieveld, typegroei', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
@@ -952,6 +962,158 @@ function withForeignMemberInMiddle(bytes: Uint8Array, pset: string): Uint8Array 
     ["#95300=IFCPERSON($,'Planner van een ander programma',$,$,$,$,$,$);"]);
   await one('kop: vreemde Creators op een kop, projectbeschrijving', creators, beschrijving, 'schrijft');
   await one('kop: vreemde Creators op een kop, de andere baseline wissen', creators, wisEen, 'weigert');
+}
+
+// ── 9. Stap 5, PR A: (c) per slot (knownbugs 1953 en 1747) ──
+// Zette (b) een slot terug, dan toetst (c) dat slot apart en de rest van zijn groep gewoon. Het slot staat op zijn plaats in de
+// boom van (c): de groep, de weg via typen en namen vanaf de wortel, en het argument, zonder id's (`restoredOwnSlots` in
+// `ownGroups.ts`); daar eist (c) de regel waarop (b) de bronwaarde zette, met precies die bronwaarde. Is die plaats niet
+// eenduidig, dan slaat (c) de groep helemaal over, zoals op de basis. De toets (a) blijft per groep: de groep met het slot valt
+// in de verliescontrole helemaal buiten de toets. Per geval: het schrijft en is heel, de omschrijving blijft staan, (c) slaat
+// geen groep over en toetst precies de verwachte slots apart (`restored`, zoals de opslag het meldt), heropenen en zonder
+// bewerking opnieuw opslaan geeft dezelfde bytes, en de verliescontrole zelf (`lossProbe`, met O0 in de vorm van de writer,
+// zodat (b) het slot terugzet zoals bij opslaan) laat de echte O1 door, met een oude verklaring (lijst A) in de groep met het
+// slot, zoals op de basis. De tegenproeven op de echte uitvoer staan in `check-ifc-foreign-eigen-uitvoer.ts`, blok 10.
+const restoredText = (r: RestoredOwnSlots | undefined) => r
+  ? `overslaan: ${[...r.skip].join(', ') || 'niets'}; apart: ${r.slots.map(s => s.place).join(' + ') || 'niets'}` : 'niet gemeld';
+const sameSet = (a: ReadonlySet<string> | undefined, b: readonly string[]) => !!a && a.size === b.length && b.every(x => a.has(x));
+/** De plaatsen van de slots die (c) apart toetst. */
+const placesOf = (r: RestoredOwnSlots | undefined) => r && new Set(r.slots.map(s => s.place));
+const descriptions = (b: Uint8Array) => latin1(b).split(DESCRIPTION).length - 1;
+/**
+ * Eén geval per slot: `start` in de vorm van de writer, `slotted` met de slots van een ander programma erin (die zet (b)
+ * terug), `edit` de handeling. `places`: de slots die (c) apart toetst. `perGroup`: de groepen met zo'n slot; daar valt de
+ * groep in de verliescontrole helemaal buiten de toets, zoals op de basis, en draagt een oude verklaring (lijst A) het
+ * verschil. `carried`: groepen zonder zo'n slot; daar draagt de toets, zonder oude verklaring.
+ */
+async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, edit: Edit, places: readonly string[],
+  perGroup: readonly string[], carried: readonly string[] = []) {
+  const { o, d } = await one(label, slotted, edit, 'schrijft');
+  if (!o.ok) return undefined;
+  console.log(`SLOT ${label}: ${restoredText(o.restored)}`);
+  ok(`${label}: (c) slaat geen groep over`, o.restored?.skip.size === 0, restoredText(o.restored));
+  ok(`${label}: (c) toetst precies het teruggezette slot apart`, sameSet(placesOf(o.restored), places), restoredText(o.restored));
+  ok(`${label}: de omschrijving van het andere programma blijft staan`, descriptions(o.bytes) === descriptions(slotted), `${descriptions(o.bytes)} van ${descriptions(slotted)}`);
+  await sameWithoutEdit(`${label}, heropend`, o.bytes);
+  const p = await lossProbe(slotted, d, o.bytes, true);
+  const old = new Map<string, string[]>();
+  const found = p.run(p.o1, undefined, linesOfBytes(start), (c, why) => {
+    const g = p.ownGroups?.get(c);
+    if (g !== undefined) old.set(g, [...old.get(g) ?? [], `${p.index.type(c)} #${p.index.id(c)}: ${why}`]);
+  });
+  ok(`verliesproef ${label}: de echte O1 slaagt, met (b) zoals bij opslaan`, found.length === 0, found.map(c => `${p.index.type(c)} #${p.index.id(c)}`).join(', '));
+  console.log(`OUDE VERKLARING ${label}: ${[...old].map(([g, w]) => `${g}: ${w.join(' | ')}`).join(' || ') || 'geen'}`);
+  for (const g of perGroup) ok(`verliesproef ${label}: in ${g} draagt een oude verklaring het verschil, zoals op de basis`, (old.get(g)?.length ?? 0) > 0);
+  for (const g of carried) ok(`verliesproef ${label}: in ${g} draagt de toets, zonder oude verklaring`, !old.has(g), old.get(g)?.slice(0, 3).join(' | '));
+  return o;
+}
+{
+  const single = prepared.get('eigen')!.single;
+  const SEVEN: [string, Uint8Array, string, Edit][] = [
+    ['OPS_StructureMeta: tweede code (1953)', single, PSET.StructureMeta, se(s => {
+      const c = s.addActivityCodeType('Code per slot'); s.addActivityCodeValue(c, { code: 'P', description: 'Per slot' });
+    })],
+    ['OPS_TaskTypes: nieuw type en toewijzen', single, PSET.TaskTypes, se(s => {
+      s.ensureProjectTaskType({ id: 'type-slot', name: 'Type per slot' });
+      s.updateTask(leaves(s).find((t: any) => !t.customTaskTypeId).id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-slot' });
+    })],
+    ['OPS_TaskTypes: type wisselen', cat, PSET.TaskTypes, se(s => {
+      s.updateTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id, { customTaskTypeId: 'type-7d-b' });
+    })],
+    ['OPS_Baselines: taak en baseline erbij', single, PSET.Baselines, se(s => { addTask(s, 'Taak per slot'); s.saveBaseline('Baseline per slot'); })],
+    ['OPS_Baselines: andere baseline actief', single, PSET.Baselines, se(s => { s.setActiveBaseline(s.baselines.find((b: any) => b.id !== s.activeBaselineId).id); })],
+    ['OPS_ProjectSettings: statusdatum zetten', single, PSET.ProjectSettings, se(s => { s.setStatusDate('2026-12-01'); })],
+    ['OPS_ProjectSettings: WBS-nummering uit', single, PSET.ProjectSettings, se(s => { s.setWbsAutoNumber(false); })],
+  ];
+  for (const [label, start, pset, edit] of SEVEN) {
+    await perSlot(`per slot: omschrijving op ${label}`, start, withPsetDescription(start, pset), edit, [psetDescriptionPlace(pset)], [pset]);
+  }
+  // Twee slots in één groep: de omschrijving op de pset en op een property die de handeling niet raakt.
+  const PS = PSET.ProjectSettings, statusdatum = se(s => { s.setStatusDate('2026-12-01'); });
+  await perSlot('per slot: twee slots in OPS_ProjectSettings, statusdatum zetten', single,
+    withPropertyDescription(withPsetDescription(single, PS), PS, PROP.ProjectSettings.IfcSchemaConfirmed), statusdatum,
+    [psetDescriptionPlace(PS), propertyDescriptionPlace(PS, PROP.ProjectSettings.IfcSchemaConfirmed)], [PS]);
+  // Een slot in de ene groep sluit een andere groep niet uit: de omschrijving op `OPS_TaskTypes`, de handeling in
+  // `OPS_StructureMeta`; die groep draagt de toets (de tegenproef dat (c) haar helemaal toetst, staat in eigen-uitvoer).
+  await perSlot('per slot: omschrijving op OPS_TaskTypes, tweede code', single, withPsetDescription(single, PSET.TaskTypes), SEVEN[0][3],
+    [psetDescriptionPlace(PSET.TaskTypes)], [], [PSET.StructureMeta]);
+  // Een slot op een tweede vorm: de typenaam op een taak zonder type, en een omschrijving op een kop. (c) toetst dan dat ene
+  // slot van die ene taak of kop apart (was knownbug 1747: de hele vorm niet). De vorm zelf beweegt niet mee (blok 5 en 6,
+  // hierboven): dat blijft per vorm. Een vreemde `Creators` op een kop is een lijst, een soort die de lezer deels draagt: daar
+  // slaat (c) de koppen over, zoals op de basis, en het slot blijft staan.
+  const guidOf = (b: Uint8Array, pick: (l: OutLine) => boolean) => linesOfBytes(b).find(pick)!.args[0].trim();
+  {
+    const labelled = withLabelOnUntypedTask(cat, 'Type 0 7d');
+    const task = guidOf(labelled, l => l.type === 'IFCTASK' && l.args[4].trim() === "'Type 0 7d'" && l.args[12]?.trim() !== '.USERDEFINED.');
+    for (const [what, edit] of [['projectbeschrijving', beschrijving], ['typewissel (1747)', (d: Domain) => applyEdit(fixedCatalogEdits(d)[2], d)]] as const) {
+      await perSlot(`per slot: typenaam op een taak zonder type, ${what}`, cat, labelled, edit, [`taak:ObjectType|${task}#4`], []);
+    }
+  }
+  {
+    const ls = parsedLines(cat), m = membersOf(planAggregate(ls)), head = ls.find(l => `#${l.id}` === m[2])!;
+    const described = replaced(cat, [{ ...head, args: head.args.map((a, k) => k === 3 ? DESCRIPTION : a) }]);
+    await perSlot('per slot: omschrijving op een kop, projectbeschrijving', cat, described, beschrijving, [`kop:OPS_Baselines|${head.args[0].trim()}#3`], []);
+    const creators = replaced(cat, [{ ...head, args: head.args.map((a, k) => k === 7 ? '(#95300)' : a) }],
+      ["#95300=IFCPERSON($,'Planner van een ander programma',$,$,$,$,$,$);"]);
+    nextCase();
+    const opened = await openForeign(creators);
+    const r = await attempt('per slot: vreemde Creators op een kop, projectbeschrijving', creators, opened.ifcSource!, await beschrijving(cloneDomain(opened)), 'schrijft');
+    if (r.ok) {
+      console.log(`SLOT vreemde Creators op een kop: ${restoredText(r.restored)}`);
+      ok('per slot: vreemde Creators op een kop: een lijst, dus (c) slaat de koppen over zoals op de basis',
+        sameSet(r.restored?.skip ?? new Set(), ['kop:OPS_Baselines']) && r.restored?.slots.length === 0, restoredText(r.restored));
+      ok('per slot: vreemde Creators op een kop: de verwijzing blijft staan', /=IFCWORKSCHEDULE\([^\n]*\(#95300\)/.test(latin1(r.bytes)));
+    }
+  }
+  // Wat (c) niet eenduidig kan aanwijzen, komt niet bij (c): twee eigen properties met dezelfde naam, en twee eigen psets met
+  // dezelfde naam, paren in de verliescontrole niet eenduidig of hebben geen tegenhanger in O0. Dat weigert, zoals op de
+  // basis. Wat `restoredOwnSlots` doet als het toch zo ver komt (de hele groep buiten (c)), toetst
+  // `check-ifc-foreign-slotplaats.ts` los.
+  {
+    const ls = linesOfBytes(single);
+    const settings = ls.find(l => l.type === 'IFCPROPERTYSET' && l.args[2].trim() === `'${PS}'`)!;
+    const confirmed = ls.find(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0].trim() === `'${PROP.ProjectSettings.IfcSchemaConfirmed}'`)!;
+    const twice = replaced(withPsetDescription(single, PS), [{ ...settings, args: settings.args.map((a, k) => k === 3 ? DESCRIPTION : k === 4 ? a.replace(/\)$/, ',#95400)') : a) }],
+      [`#95400=IFCPROPERTYSINGLEVALUE(${confirmed.args.join(',')});`]);
+    await one('per slot: twee properties met dezelfde naam in OPS_ProjectSettings, statusdatum zetten', twice, statusdatum, 'weigert');
+    const rel = ls.find(l => l.type === 'IFCRELDEFINESBYPROPERTIES' && l.args[5].trim() === `#${settings.id}`)!;
+    const second = replaced(withPsetDescription(single, PS), [], [
+      `#95401=IFCPROPERTYSET('0R804SLOTTWEEDEPSET000',${settings.args[1]},'${PS}',$,(#95402));`,
+      `#95402=IFCPROPERTYSINGLEVALUE(${confirmed.args.join(',')});`,
+      `#95403=IFCRELDEFINESBYPROPERTIES('0R804SLOTTWEEDEREL0000',${rel.args[1]},$,$,${rel.args[4]},#95401);`,
+    ]);
+    await one('per slot: twee psets OPS_ProjectSettings op het project, statusdatum zetten', second, statusdatum, 'weigert');
+  }
+  // Een slot dat (b) terugzet en dat de planner wijzigde, weigert zoals tot nu: een onbekend veld in de typedefinities (JSON,
+  // de lezer draagt een deel) en een nieuw type (blok 2, "grens: onbekend definitieveld, typegroei").
+  await one('per slot: onbekend definitieveld (b) en een nieuw type', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
+  // De review van #1095, punt 2: met een omschrijving op `OPS_StructureMeta` valt die groep in de verliescontrole helemaal
+  // buiten de toets, zoals op de basis. Het eerste eigen veld toevoegen en een activiteitscodetype hernoemen weigeren daar
+  // (`IfcRelDeclares` en de templatelijst verschillen, en geen oude verklaring dekt dat), en dat blijft zo.
+  {
+    const described = withPsetDescription(single, PSET.StructureMeta);
+    for (const [what, edit] of [
+      ['het eerste eigen veld toevoegen', se(s => { s.addCustomField('Kostencode voor de review', 'text'); })],
+      ['een activiteitscodetype hernoemen', se(s => { s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Code andere naam'); })],
+    ] as const) {
+      const { o } = await one(`per groep: omschrijving op OPS_StructureMeta, ${what}`, described, edit, 'weigert');
+      if (!o.ok) ok(`per groep: omschrijving op OPS_StructureMeta, ${what}: weigert in de verliescontrole, zoals op de basis`,
+        o.kinds.join(',') === 'niet-gedragen', `${o.kinds.join(',')}: ${o.detail}`);
+    }
+  }
+  // Een omschrijving op een property waarvan de handeling de waarde zet (`ModifiedAt` verandert bij elke bewerking): de
+  // waarde komt van de writer, de omschrijving zet (b) terug en blijft staan (ook op de basis); (c) toetst alleen dat slot apart.
+  {
+    const slotted = withPropertyDescription(single, PS, PROP.ProjectSettings.ModifiedAt);
+    const { o } = await one('per slot: omschrijving op ModifiedAt, statusdatum zetten', slotted, statusdatum, 'schrijft');
+    if (o.ok) {
+      console.log(`SLOT omschrijving op ModifiedAt, statusdatum zetten: ${restoredText(o.restored)}`);
+      ok('per slot: omschrijving op ModifiedAt, statusdatum zetten: de omschrijving blijft staan',
+        descriptions(slotted) === 1 && descriptions(o.bytes) === 1, `${descriptions(o.bytes)} van ${descriptions(slotted)}`);
+      ok('per slot: omschrijving op ModifiedAt, statusdatum zetten: (c) toetst alleen dat slot apart',
+        o.restored?.skip.size === 0 && sameSet(placesOf(o.restored), [propertyDescriptionPlace(PS, PROP.ProjectSettings.ModifiedAt)]), restoredText(o.restored));
+    }
+  }
 }
 
 finish();

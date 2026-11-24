@@ -336,7 +336,11 @@
     "rename": "Edytuj",
     "remove": "Usuń",
     "addToMine": "Dodaj do moich rodzajów robót",
-    "confirmRemove": "Ten rodzaj robót jest używany w otwartym projekcie. Usunąć go z listy „Moje rodzaje robót“? Kopia projektu pozostanie."
+    "confirmRemove": "Ten rodzaj robót jest używany w otwartym projekcie. Usunąć go z listy „Moje rodzaje robót“? Kopia projektu pozostanie.",
+    "renameInProjectTitle": "Zmienić nazwę także w tym projekcie?",
+    "renameInProjectMessage": "Rodzaj robót „{{oldName}}” występuje także w tym projekcie. Czy chcesz nazwać go tu również „{{newName}}”?",
+    "renameInProjectYes": "Także w tym projekcie",
+    "renameInProjectNo": "Tylko na mojej liście"
   },
   "duration": {
     "label": "Czas trwania",
@@ -389,7 +393,15 @@
       "resourceShorter": "Dodatkowy zasób skraca zadanie.",
       "resourceAddsWorkSameDuration": "Dodatkowy zasób dodaje pracę; czas trwania pozostaje taki sam."
     },
-    "info": "Wyjaśnienie typu zadania"
+    "info": "Wyjaśnienie typu zadania",
+    "hint": {
+      "intro": "Typ zadania decyduje, co aplikacja dopasowuje, gdy zmienisz czas trwania, jednostki (osoby dziennie) albo pracę (godziny).",
+      "FIXED_DURATION_RATE": "Czas trwania i jednostki zostają, praca się dostosowuje. Przykład: 2 osoby, 5 dni po 8 godzin = 80 godzin.",
+      "FIXED_DURATION_WORK": "Czas trwania i praca zostają, jednostki się dostosowują. Przykład: 80 godzin w 5 dniach po 8 godzin = 2 osoby dziennie.",
+      "FIXED_WORK": "Praca zostaje, czas trwania się dostosowuje. Przykład: 80 godzin z 2 osobami = 5 dni, z 4 osobami 2,5 dnia.",
+      "FIXED_RATE": "Jednostki zostają, praca wyznacza czas trwania. Przykład: 1 dźwig, 40 godzin pracy = 5 dni, 80 godzin = 10 dni.",
+      "projectDefault": "Wynika z typu zadania, który projekt ma jako domyślny."
+    }
   },
   "properties": {
     "task": "Zadanie",
@@ -461,6 +473,14 @@
     "interferingFloat": "Zapas interferujący:",
     "criticalPath": "Ścieżka krytyczna:",
     "dependencies": "Zależności",
+    "predecessors_one": "{{count}} poprzednik",
+    "predecessors_few": "{{count}} poprzedniki",
+    "predecessors_many": "{{count}} poprzedników",
+    "predecessors_other": "{{count}} poprzednika",
+    "successors_one": "{{count}} następnik",
+    "successors_few": "{{count}} następniki",
+    "successors_many": "{{count}} następników",
+    "successors_other": "{{count}} następnika",
     "addRelation": "Dodaj zależność",
     "addRelationSearch": "Szukaj zadania…",
     "addRelationConfirm": "Utwórz zależność",

@@ -31,7 +31,7 @@ import type {
 } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
-import { defaultActualFinish, defaultActualStart } from '@/engine/taskMutationRules';
+import { defaultActualStart } from '@/engine/taskMutationRules';
 import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { flattenOrder } from '@/utils/wbs';
 import { formatInstant, parseInstant } from '@/utils/dateUtils';
@@ -44,7 +44,7 @@ import {
   type XerSourceReconstruction,
 } from '@/services/xerSourceArchive';
 import type { RecordedTime } from '@/engine/scheduler/recordedDates';
-import { deriveImportedWorkRules } from '@/services/importNormalize';
+import { defaultImportedActualFinish, deriveImportedWorkRules } from '@/services/importNormalize';
 import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
 import { taskWorkMinutes as activityWorkMinutesOf } from '@/engine/contour/contourEngine';
 import { XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
@@ -1037,7 +1037,7 @@ function readXerProject(
     }
     const startWasDerived = !t.actualStart;
     if (startWasDerived) t.actualStart = defaultActualStart(t);
-    t.actualFinish = defaultActualFinish(t, statusDate);
+    t.actualFinish = defaultImportedActualFinish(t, statusDate);
     orderActualsAfterDerivedFinish(t, statusDate, startWasDerived);
   }
 

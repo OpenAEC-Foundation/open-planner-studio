@@ -40,6 +40,13 @@ export function TaskWorkRuleField({ task, onChange }: {
     const ex = workRuleExplanation(rule, effortDriven);
     return [ex.lead, ...ex.rest].map(s => t(`workRule.explain.${s}`)).join('\n');
   };
+  // Voorstel #954 deel 2 (opmerking Ethan: "dit soort dingen horen toch onder de tooltip"): het i-icoon
+  // bij het veld zegt eerst wat een taaktype is (vet), dan het taaktype dat nu geldt met een voorbeeld, en
+  // dan wat er gebeurt als je iets wijzigt. De kernzin van `explain` valt weg: het voorbeeld zegt hetzelfde.
+  const fieldTip = (rule: WorkRule): string => {
+    const ex = workRuleExplanation(rule, effortDriven);
+    return [t('workRule.hint.intro'), t(`workRule.hint.${rule}`), ...ex.rest.map(s => t(`workRule.explain.${s}`))].join('\n');
+  };
   return (
     <Field label={t('workRule.label')}>
       <div className="flex min-w-0 items-center gap-1.5">
@@ -54,8 +61,11 @@ export function TaskWorkRuleField({ task, onChange }: {
                 value: '',
                 label: t('workRule.projectDefault', { rule: t(`workRule.${projectRule}`) }),
                 description: explain(projectRule),
+                hint: t('workRule.hint.projectDefault'),
               },
-              ...WORK_RULES.map(rule => ({ value: rule, label: t(`workRule.${rule}`), description: explain(rule) })),
+              ...WORK_RULES.map(rule => ({
+                value: rule, label: t(`workRule.${rule}`), description: explain(rule), hint: t(`workRule.hint.${rule}`),
+              })),
             ]}
           />
         </div>
@@ -67,7 +77,7 @@ export function TaskWorkRuleField({ task, onChange }: {
           <button
             type="button"
             className="inline-flex h-full w-full items-center justify-center rounded-[5px] text-text-secondary hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-            title={explain(effective)}
+            title={fieldTip(effective)}
             aria-label={t('workRule.info')}
             data-tooltip-instant="true"
             data-tooltip-lead="true"

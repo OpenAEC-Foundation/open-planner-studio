@@ -30,7 +30,7 @@ export interface ForeignSourceTargetDeps {
 }
 
 /** Hetzelfde pad, lexicaal: dezelfde regel als de externe bronnen (`normalizeExternalSourcePath`). */
-function samePath(a: string, b: string): boolean {
+export function samePath(a: string, b: string): boolean {
   if (a === b) return true;
   const na = normalizeExternalSourcePath(a);
   return na !== null && na === normalizeExternalSourcePath(b);
@@ -67,6 +67,19 @@ export interface TargetReaders {
   scanPath?: (path: string) => Promise<TargetForeignScan | null>;
   /** Een bestand op de site lezen; `null` = niet leesbaar, dus weigeren. */
   readSite?: (id: string) => Promise<Uint8Array | null>;
+}
+
+/** De lezers van de doelcontrole voor het doel dat de bestandskiezer vastlegde (was knownbug 1891): één scan van de
+ *  vastgelegde bytes, gedeeld door de controle direct na de kiezer en die na de eerste herstelronde. Zonder vastgelegde
+ *  inhoud (een vrije naam, een link, een map) scant de controle het pad, zoals voorheen. Een onleesbaar bestand blijft
+ *  een onleesbaar doel. */
+export function capturedTargetReaders(current: Uint8Array | 'unreadable' | null, base: () => TargetReaders): () => TargetReaders {
+  if (current === null) return base;
+  let scan: Promise<TargetForeignScan> | undefined;
+  return () => ({
+    ...base(),
+    scanPath: async () => current === 'unreadable' ? 'unreadable' : (scan ??= scanForeignTargetBytesAsync(current)),
+  });
 }
 
 /** Doelindeling met de flag aan (in headless altijd): model eerst als stroom, daarna dezelfde C/A/V-scan als openen.

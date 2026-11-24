@@ -1,6 +1,5 @@
 import type { Task } from '@/types/task';
-import type { ViewRow } from '@/engine/view/visibleRows';
-import { shownFinish, shownStart } from '@/utils/taskDates';
+import { milestoneAnchorDate as anchorDate, milestonesInDrawnOrder, type ViewRow } from '@/engine/view/visibleRows';
 
 /**
  * Issue #868, punt 3 (keuze Ethan): mijlpalen van een ingeklapte reeks die op dezelfde dag vallen,
@@ -15,11 +14,6 @@ export type MilestoneGroups = ReadonlyMap<string, readonly Task[]>;
 
 const EMPTY: MilestoneGroups = new Map();
 const cache = new WeakMap<ViewRow[], MilestoneGroups>();
-
-/** De datum waarop het ruitje staat, dezelfde kant als `milestoneAnchorX`. */
-function anchorDate(task: Task): string {
-  return shownStart(task) || shownFinish(task) || '';
-}
 
 export function milestoneGroups(rows: ViewRow[]): MilestoneGroups {
   const cacheable = Object.isFrozen(rows);
@@ -38,8 +32,7 @@ export function milestoneGroups(rows: ViewRow[]): MilestoneGroups {
     }
     for (const list of byDay.values()) {
       if (list.length < 2) continue;
-      // Stabiel: gelijke momenten houden de volgorde van de reeks.
-      const sorted = [...list].sort((a, b) => (anchorDate(a) < anchorDate(b) ? -1 : anchorDate(a) > anchorDate(b) ? 1 : 0));
+      const sorted = milestonesInDrawnOrder(list);
       groups ??= new Map();
       for (const task of sorted) groups.set(task.id, sorted);
     }

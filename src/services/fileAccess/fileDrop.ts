@@ -13,7 +13,10 @@ import { binaryExtensions, isReadableFileName, type FormatReadOptions } from '@/
  *  `read()`: een geweigerd bestand wordt nooit gelezen. */
 export interface DroppedFile {
   name: string;
-  read(): Promise<OpenedFile>;
+  read(beforeRead?: (ref: Extract<FileRef, { kind: 'handle' }>) => void): Promise<OpenedFile>;
+  /** Zie `OpenOpenedFileOptions.existingDocument` en `.stale`: alleen een startbestand (#1091) zet ze. */
+  existingDocument?: () => string | null;
+  stale?: () => boolean;
 }
 
 /** De delen van `DataTransfer` die hier gelezen worden; structureel, zodat de headless test een
@@ -45,11 +48,12 @@ function handleOf(item: Pick<DataTransferItem, 'getAsFileSystemHandle'>): Promis
 function webDroppedFile(file: File, handle: Promise<FileSystemHandle | null>, readOptions?: FormatReadOptions): DroppedFile {
   return {
     name: file.name,
-    read: async () => {
+    read: async (beforeRead) => {
       const h = await handle;
       // Alleen een bestandshandle is een opslagdoel; zonder handle (Firefox/Safari, of een geweigerde
       // vraag) is dit dezelfde vorm als de `<input type=file>`-terugval van de bestandskiezer.
-      const ref: FileRef | null = h && h.kind === 'file' ? { kind: 'handle', handle: h as FileSystemFileHandle } : null;
+      const ref = h && h.kind === 'file' ? { kind: 'handle', handle: h as FileSystemFileHandle } as const : null;
+      if (ref) beforeRead?.(ref);
       return openedFromFile(file, ref, { binaryExtensions: binaryExtensions(readOptions) });
     },
   };

@@ -280,6 +280,14 @@ function nearestOccurrence(
   return best;
 }
 
+/** Zet het Shift-anker op `rowKey`: het anker van de store, gedeeld met de tijdlijn (review #1004).
+ *  De cursor en de selectie blijven. */
+export function withSelectionAnchor(state: GridSelectionState, rowKey: string): GridSelectionState {
+  return state.active && rowKey !== state.anchor?.rowKey
+    ? { ...state, anchor: { rowKey, columnId: state.active.columnId } }
+    : state;
+}
+
 export function syncActiveCellToPublishedTask(
   reconciled: Readonly<GridSelectionState>,
   publishedActiveTaskId: string | null,

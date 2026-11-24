@@ -149,7 +149,7 @@
     "groupByType": "Nach Ressourcentyp gruppieren",
     "showAssignmentColumns": "Einheiten/Tag und Kurve anzeigen",
     "columnsDropped": "Die Spalten Einh./T und Kurve wurden weggelassen: die Tabelle ließ zu wenig Platz für die Zeitachse. Mehr Platz geben ein größeres Papier oder Querformat, eine kleinere Schriftgröße oder eine schmalere Tabelle.",
-    "emptyPeriod": "Keine Vorgänge im Berichtszeitraum — wählen Sie einen anderen Zeitraum oder Gesamtes Projekt.",
+    "emptyPeriod": "Keine Vorgänge im eigenen Zeitraum — wählen Sie andere Daten oder schalten Sie Eigener Zeitraum aus.",
     "outsidePeriod": "Außerhalb des Zeitraums:",
     "empty": "Keine Ressourcenzuweisungen — weisen Sie zuerst Ressourcen zu Vorgängen zu.",
     "resources": "Ressourcen:",
@@ -465,7 +465,6 @@
     "pages_one": "{{count}} Seite",
     "pages_other": "{{count}} Seiten",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Berichtszeitraum",
     "tasks": {
       "title": "Welche Vorgänge",
       "all": "Alle Vorgänge",
@@ -646,6 +645,12 @@
       "chart": "Balken und Zeitleiste",
       "footer": "Legende und Fußbereich",
       "page": "Seite"
+    },
+    "period": {
+      "hint": "Nur Vorgänge in diesem Zeitraum stehen im Bericht. Die Zeitachse umfasst genau den Zeitraum; ein Balken, der darüber hinausreicht, wird am Rand abgeschnitten.",
+      "outside_one": "{{count}} Vorgang liegt außerhalb des Zeitraums und steht nicht im Bericht.",
+      "outside_other": "{{count}} Vorgänge liegen außerhalb des Zeitraums und stehen nicht im Bericht.",
+      "own": "Eigener Zeitraum"
     }
   },
   "customFont": {

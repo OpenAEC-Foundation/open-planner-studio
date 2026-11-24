@@ -24,8 +24,8 @@ This is a setting of the app, not of the project file. If a file already contain
 
 1. Select the task. The *Properties* panel is on the right; if you do not see it, turn it on with *View › Panels › Properties*.
 2. At *Task type*, choose one of the five options: *Project default (Fixed duration and units)*, *Fixed duration and units*, *Fixed duration and work*, *Fixed work* or *Fixed units*. With *Project default* the task follows the project's default.
-3. Want to know what an option does? In the open drop-down each option has an i icon. Point at it, click or tap it for the explanation. Clicking the i icon does not choose that task type yet.
-4. Next to the closed field there is an i icon too. It explains the task type that applies now, for example *Duration follows from work and units.* With *Project default* that is the task type between the brackets.
+3. Want to know what an option does? In the open drop-down each option has a short line below it, with an example for the four task types, such as *The work stays, the duration follows. Example: 80 hours with 2 people = 5 days, with 4 people 2.5 days.* Each option also has an i icon with the full explanation. Point at it, click or tap it. Clicking the i icon does not choose that task type yet.
+4. Next to the closed field there is an i icon too. It first says what a task type is, then explains the task type that applies now, with an example. With *Project default* that is the task type between the brackets.
 
 *Project default* is the first choice and is what a task has by default. The task type between the brackets is the one the project currently has as its default. Under *Settings › Project settings › Default task type*, choose one of the four task types and click *Apply*. Every existing and new task set to *Project default* follows that choice. Tasks with their own task type keep their choice. The project default is saved in the IFC file. If you want another task type for one task, choose it here.
 
@@ -64,7 +64,9 @@ If that changes the task's duration, the status bar says *Out of date — recalc
 
 **The work does not exactly match units × duration.** This can come from a P6 or MS Project file, but can also happen when you change one resource's work yourself under *Fixed work* or *Fixed units*. On a task of 10 working days of 8 hours, one resource can have 40 hours of work after your own input at units of 1, while another resource keeps the duration at 10 working days. Units × remaining duration is then 80 hours, but the stored work is 40 hours. A warning sign, *Differs from units × duration*, appears in the *Work (h)* field. The histogram follows the stored work and spreads those 40 hours over the task duration.
 
-Under *Fixed units*, the other assignments stay as they are when you change units or work, as long as the remaining task duration stays the same. If that duration changes, the other resources' work follows their units over the new duration.
+Under *Fixed units*, the other assignments stay as they are when you change units or work, as long as the remaining task duration stays the same. If that duration changes, the other resources' work follows their units over the new duration. An example: Anna and Bram both work at 100 % on a task of 10 workdays, so 80 hours each. Set Bram to 50 % and the task takes 20 workdays, and Anna gets 160 hours.
+
+When the hours of another resource on the task change like this, the app tells you, for example *The task now takes 20 days.* with *Anna: 80 → 160 h* below it. This applies under every task type, and also when you add or remove a resource. *Undo* in that message reverts the whole change in one step, including the duration. The message stays as long as you change nothing else afterwards. In *Edit task* there is no message: there, *Cancel* reverts your changes to the task. If the hours of the others stay the same, there is no message.
 
 If you change the duration itself, the app follows the task type. The tooltip at the warning sign tells you for each task whether remaining work is recalculated as units × new remaining duration, or work stays the same and units adjust. A notification appears when differing stored remaining work is recalculated. Ctrl+Z restores the previous value.
 

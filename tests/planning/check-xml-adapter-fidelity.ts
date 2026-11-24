@@ -527,7 +527,7 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((e: unknown) => {
+await main().catch((e: unknown) => {
   console.log(`XX  xml-adapter-fidelity: onverwachte fout: ${e instanceof Error ? e.stack : String(e)}`);
   process.exit(1);
 });

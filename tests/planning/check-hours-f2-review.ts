@@ -380,6 +380,39 @@ for (const baseId of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
+{
+  const date = '2026-06-02T18:00';
+  const observed = [];
+  for (const baseId of ['ops', 'p6', 'msproject'] as const) {
+    const opts = { ...options, schedulingOptions: effectiveSchedulingOptions({ schedulingProfile: builtInProfile(baseId) }) };
+    for (const [calendarName, cal] of [['scalar', calendar], ['bands', blockCalendar]] as const) {
+      for (const kind of ['START', undefined] as const) {
+        for (const linked of [true, false]) {
+          const label = `${baseId}/${calendarName}/${kind ?? 'none'}/${linked ? 'FS+0' : 'root'}`;
+          const m = { ...task('M', 0), milestoneKind: kind, constraint: { type: 'FNET' as const, date } };
+          const solved = new CPMSolver(linked ? [task('P'), m] : [m], linked
+            ? [{ ...fs, predecessorId: 'P', successorId: 'M' }] : [], cal, [], opts).solve();
+          eq(`${label}: geen rekenfout`, solved.error ?? null, null);
+          const r = solved.tasks.get('M');
+          eq(`${label}: bestaand geldig startmoment op of na FNET`, !!r && parseInstant(r.earlyStart) >= parseInstant(date), true);
+          if (!r) continue;
+          eq(`${label}: vroege mijlpaal is een punt`, r.earlyFinish, r.earlyStart);
+          eq(`${label}: late mijlpaal is een punt`, r.lateFinish, r.lateStart);
+          eq(`${label}: constraint niet geschonden`, solved.violatedConstraintTaskIds.includes('M'), false);
+          observed.push([label, r.earlyStart, r.lateStart, r.totalFloat, solved.tasks.get('P')?.earlyFinish ?? null]);
+        }
+      }
+    }
+  }
+  eq('knownbug 276: alle profiel-/kalender-/netwerkcombinaties doorgerekend', observed.length, 24);
+  console.log('KNOWNBUG276_SUMMARY', JSON.stringify(observed));
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    const outcomes = observed.map(([label, es, ls, float]) =>
+      `${label}=${es}/${ls}/${float}`).join('; ');
+    console.log(`::notice title=Knownbug 276 (ES/LS/TF)::${outcomes}`);
+  }
+}
+
 // B6 blijft gelden voor een losse mijlpaal met een andere constraint (SNET): einde van de werkdag.
 {
   const m = { ...task('M', 0), milestoneKind: 'START' as const, constraint: { type: 'SNET' as const, date: '2026-06-02' } };

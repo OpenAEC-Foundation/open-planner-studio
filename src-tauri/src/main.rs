@@ -3,9 +3,27 @@
 mod commands;
 #[cfg(target_os = "linux")]
 mod desktop_integration;
+mod launch_files;
 mod mcp_bridge;
 
-use tauri::Manager;
+use std::sync::Mutex;
+use tauri::{Emitter, Listener, Manager};
+
+/// Meegegeven bestanden die nog naar de webview moeten (issue #1091, zie `launch_files`).
+struct LaunchState(Mutex<launch_files::LaunchQueue>);
+
+/// Geef nieuwe paden aan de wachtrij en stuur wat nu weg mag naar de webview. Een vergiftigde mutex
+/// (een paniek in een andere draad) houdt de paden niet tegen: de wachtrij zelf is dan nog heel.
+fn deliver_launch_files(app: &tauri::AppHandle, take: impl FnOnce(&mut launch_files::LaunchQueue) -> Vec<String>) {
+    let Some(state) = app.try_state::<LaunchState>() else { return };
+    let paths = {
+        let mut queue = state.0.lock().unwrap_or_else(|e| e.into_inner());
+        take(&mut *queue)
+    };
+    if !paths.is_empty() {
+        let _ = app.emit(launch_files::OPEN_FILES_EVENT, paths);
+    }
+}
 
 /// Haal het bestaande venster naar voren (bevinding K5).
 ///
@@ -61,6 +79,33 @@ fn process_info_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
         .build()
 }
 
+/// Schaduw voor het randloze venster op Linux.
+///
+/// Een GTK-venster zonder decoraties (`"decorations": false`) krijgt van de compositor geen schaduw.
+/// Daarom houdt GTK hier zijn client-side decoraties, met een verborgen titelbalk: GTK tekent de
+/// schaduw, en de titelbalk van de webview (`TitleBar.tsx`) blijft de enige titelbalk. De titelbalk
+/// moet verborgen blijven (`set_no_show_all`): een getoonde widget krijgt van GTK 3 minstens 1 px
+/// hoogte boven de webview, ook gemaximaliseerd, en vangt dan de klikken op de bovenste rij van de
+/// vensterknoppen. Een verborgen widget in `set_titlebar` zet de client-side decoraties al aan; tao
+/// doet hetzelfde op Wayland (`platform_impl/linux/window.rs`). Op X11 zonder compositor valt GTK
+/// terug op `solid-csd`: een effen rand, geen schaduw. Dit moet gebeuren voordat het venster voor
+/// het eerst zichtbaar wordt; het start verborgen (#895), dus `setup` is op tijd.
+#[cfg(target_os = "linux")]
+fn linux_window_shadow(app: &tauri::App) {
+    use gtk::prelude::*;
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+    let Ok(gtk_window) = window.gtk_window() else {
+        return;
+    };
+    let titlebar = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    // `show_all` van het venster mag deze widget niet zichtbaar maken.
+    titlebar.set_no_show_all(true);
+    gtk_window.set_titlebar(Some(&titlebar));
+    gtk_window.set_decorated(true);
+}
+
 fn main() {
     // Installatietype één keer per proces bepalen, vroeg en buiten de UI-thread (zie
     // `commands::install_kind`): later kan het programmapad al vervangen zijn door een pakketupdate.
@@ -88,8 +133,12 @@ fn main() {
     // via de worktree-slug in de recovery-bestandsnamen. De check staat bewust op runtime en
     // niet op `debug_assertions`, zodat deze tak gewoon meecompileert in `cargo check`.
     if std::env::var_os("OPS_DEV_INSTANCE").is_none() {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
             focus_existing_window(app);
+            // Een tweede start met een bestand (issue #1091): open het in dit venster. Een relatief pad
+            // gaat uit van de werkmap van die tweede start, niet van deze.
+            let paths = launch_files::launch_file_paths(argv, std::path::Path::new(&cwd));
+            deliver_launch_files(app, |queue| queue.offer(paths));
         }));
     }
 
@@ -108,8 +157,20 @@ fn main() {
         .plugin(process_info_plugin())
         // MCP-bridge-state (fase 1, Tauri-only): één actieve bridge of geen.
         .manage(mcp_bridge::BridgeState::default())
+        // Bestanden uit de opdrachtregel van deze start (issue #1091). Ze wachten tot de webview luistert.
+        .manage(LaunchState(Mutex::new(launch_files::LaunchQueue::new(launch_files::launch_file_paths(
+            std::env::args_os(),
+            &std::env::current_dir().unwrap_or_default(),
+        )))))
         .setup(|app| {
+            #[cfg(target_os = "linux")]
+            linux_window_shadow(app);
             reveal_window_fallback(app.handle().clone());
+            // Het klaarsignaal van de webview (`src/state/launchFiles.ts`): een event, geen command.
+            let handle = app.handle().clone();
+            app.listen_any(launch_files::OPEN_FILES_READY_EVENT, move |_| {
+                deliver_launch_files(&handle, launch_files::LaunchQueue::mark_ready);
+            });
             Ok(())
         })
         // Alles wat hier staat is aanroepbaar via `window.__TAURI_INTERNALS__.invoke(...)`

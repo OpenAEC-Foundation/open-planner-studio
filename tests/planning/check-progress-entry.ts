@@ -4,7 +4,7 @@
 //   - eigenschappenpaneel: `enterTaskProgress` (TaskPropertiesPanel.tsx);
 //   - contextmenu: `contextMenuBulk.setProgress` (GanttCanvas/FullTaskGrid);
 //   - taakraster: `runGridMutation(intents, { progressEntry })` (FullTaskGrid.tsx);
-//   - "Taak bewerken": `draftWithProgress` + `createTaskDialogSave` (TaskDialog.tsx).
+//   - "Taak bewerken": `planTaskDialogProgress` + `createTaskDialogSave` (TaskDialog.tsx).
 //
 // Regel 1 (Z1): voortgang invullen zonder statusdatum ⇒ de statusdatum gaat op VANDAAG (zoals het
 // statusdatumveld hem oplevert: datum zonder tijd), in dezelfde undo-stap, met één melding. Zonder
@@ -22,9 +22,12 @@
 import './domShim';
 import { createAppStoreContext, useAppStore, type AppState, type AppStoreContext } from '@/state/appStore';
 import { contextMenuBulk } from '@/components/canvas/contextMenuScope';
-import { createTaskDialogSave, draftWithProgress } from '@/state/taskDialogSave';
+import { createTaskDialogSave, planTaskDialogProgress } from '@/state/taskDialogSave';
 import { answerActualStartQuestion } from '@/state/actualStartQuestion';
 import { planProgressEntry } from '@/engine/progressEntry';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 import { displayDate } from '@/utils/displayDate';
 import type { CellEditIntent } from '@/types/taskGrid';
@@ -88,6 +91,36 @@ function referenceB(): { es?: string; ef?: string; tf?: number } {
 }
 const REF = referenceB();
 
+for (const withSuccessor of [false, true]) {
+  const { S } = fresh();
+  const today = '2026-11-18';
+  S().setProject({ startDate: '2026-10-28', statusDate: today });
+  S().setUI({ autoCalcCPM: false });
+  const id = S().addTask({ name: 'Montage', time: { scheduleDuration: 4 } as Task['time'] });
+  const next = withSuccessor ? S().addTask({ name: 'Controle' }) : undefined;
+  if (next) S().addSequence({ predecessorId: id, successorId: next, type: 'FINISH_START', lagDays: 0 });
+  S().runCPM();
+  S().enterTaskProgress(id, { field: 'completion', value: 0.5 }, { today });
+  S().runCPM();
+  const result = S().runGridMutation([{ kind: 'paste', writes: [
+    ...(next ? [cell(next, 'task.time.completion', 0.5)] : []),
+    { ...cell(id, 'task.time.scheduleDuration', { unit: 'days', scheduleDuration: 2, explicitUnit: true }), route: 'task-schedule' },
+    cell(id, 'task.time.actualStart', '2026-11-04'),
+  ] }], { progressEntry: { today } });
+  eq('#998 raster aanvaardt de geplakte duur én werkelijke start', result.ok ? 'ok' : result.errors.map(error => error.code), 'ok');
+  const facts = () => {
+    const { actualStart, actualFinish, completion, scheduleDuration } = S().tasks.find(task => task.name === 'Montage')!.time;
+    return [actualStart?.slice(0, 10), actualFinish?.slice(0, 10), completion, scheduleDuration];
+  };
+  const expected = ['2026-11-04', '2026-11-05', 1, 2];
+  eq('#998 raster leidt het einde af vanaf de opgegeven werkelijke start', facts(), expected);
+  if (next) eq('#998 dezelfde plak gebruikt het nieuwe werkelijke einde voor de opvolger',
+    taskOf(S, next).time.actualStart, '2026-11-06T07:00');
+  const reopened = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
+  S().applyLoadedProject(reopened, { linkedOpen: true, recompute: true, filePath: null });
+  eq('#998 raster behoudt beide datums en de nieuwe duur na IFC-heropening', facts(), expected);
+}
+
 /** Wat elke UI-route na "B op 50 %" moet opleveren. */
 function expectRule1(label: string, S: () => AppState, B: string, depthBefore: number): void {
   eq(`${label}: statusdatum = vandaag (datum zonder tijd)`, S().project.statusDate, TODAY);
@@ -149,11 +182,64 @@ function expectRule1(label: string, S: () => AppState, B: string, depthBefore: n
   const d0 = undoDepth(S);
   const t = taskOf(S, B);
   // De dialoog rekent de concepttaak zonder statusdatum met vandaag (TaskDialog.tsx).
-  const draft = draftWithProgress({ ...t, time: { ...t.time } }, 0.5, TODAY);
-  createTaskDialogSave(ctx)({
-    editingTaskId: B, draft, startDate: t.time.earlyStart || t.time.scheduleStart, today: TODAY,
-  });
+  const plan = planTaskDialogProgress(S(), t, undefined, { field: 'completion', value: 0.5 }, { today: TODAY });
+  if (!plan.ok || !plan.change) throw new Error('De dialoog legde geen voortgang vast');
+  createTaskDialogSave(ctx)({ editingTaskId: B, draft: plan.change.task, today: TODAY });
   expectRule1('1e Taak bewerken', S, B, d0);
+}
+
+// Vóór de eerste F5 loopt de relatie al mee in de afleiding. Elke schuifstap gebruikt
+// hetzelfde venster, ook nadat de eerste stap de statusdatum op vandaag heeft gezet.
+{
+  const { S } = fresh();
+  const today = '2026-11-18';
+  S().setProject({ startDate: '2026-10-21' });
+  const A = S().addTask({ name: 'Fundering', time: { scheduleDuration: 5 } as Task['time'] });
+  const B = S().addTask({ name: 'Metselwerk', time: { scheduleDuration: 3 } as Task['time'] });
+  S().addSequence({ predecessorId: A, successorId: B, type: 'FINISH_START', lagDays: 0 });
+  const depth = undoDepth(S);
+  for (const value of [0.25, 0.5, 1]) {
+    const result = S().enterTaskProgress(B, { field: 'completion', value }, { today, coalesceKey: 'schuif' });
+    eq(`#998 vóór F5: ${value * 100}% aanvaard`, result, { ok: true });
+  }
+  const { actualStart, actualFinish, scheduleDuration } = taskOf(S, B).time;
+  eq('#998 vóór F5: op 100% blijft het venster van de volgorde geldig',
+    [actualStart, actualFinish, scheduleDuration, undoDepth(S) - depth],
+    ['2026-10-28T07:00', '2026-10-30T16:00', 3, 1]);
+}
+
+for (const route of ['paneel', 'raster', 'dialoog', 'voortgangsblad', 'andere taken koppelen'] as const) {
+  const { ctx, S } = fresh();
+  const today = '2026-11-18';
+  S().setProject({ startDate: '2026-10-28' });
+  const B = S().addTask({ name: 'Metselwerk', time: { scheduleDuration: 3 } as Task['time'] });
+  const otherA = S().addTask({ name: 'Andere taak A' });
+  const otherB = S().addTask({ name: 'Andere taak B' });
+  S().runCPM();
+  S().enterTaskProgress(B, { field: 'completion', value: 0.5 }, { today });
+  if (route === 'andere taken koppelen') {
+    S().addSequence({ predecessorId: otherA, successorId: otherB, type: 'FINISH_START', lagDays: 0 });
+  }
+  const before = taskOf(S, B).time;
+  eq(`#998 ${route}: het getoonde einde staat nog op 30 oktober`, before.earlyFinish, '2026-10-30T16:00');
+  const edit = { field: 'completion', value: 1 } as const;
+  if (route === 'raster') S().runGridMutation([cell(B, 'task.time.completion', 1)], { progressEntry: { today } });
+  else if (route === 'dialoog') {
+    const plan = planTaskDialogProgress(S(), taskOf(S, B), undefined, edit, { today });
+    if (plan.ok && plan.change) createTaskDialogSave(ctx)({ editingTaskId: B, draft: plan.change.task, today });
+  } else if (route === 'voortgangsblad') S().applyProgressImport([
+    { rowNumber: 2, taskId: B, completion: { kind: 'value', value: 1 } },
+  ], undefined, { today });
+  else S().enterTaskProgress(B, edit, { today });
+  eq(`#998 ${route}: losse afmelding zonder F5 houdt het geplande einde`,
+    taskOf(S, B).time.actualFinish, '2026-10-30T16:00');
+  if (route === 'andere taken koppelen') {
+    const reopened = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
+    eq('#998 andere taken koppelen: IFC bewaart de einddag van de dagtaak',
+      reopened.tasks.find(task => task.name === 'Metselwerk')?.time.actualFinish, '2026-10-30');
+  }
+  S().undo();
+  eq(`#998 ${route}: één Ctrl+Z herstelt de toestand op 50%`, taskOf(S, B).time, before);
 }
 
 // ── 2. Wat NIET verandert ────────────────────────────────────────────────────────────────────────
@@ -231,7 +317,11 @@ for (const scenario of ['voor F5', 'voorganger afmelden'] as const) {
   } else S().runCPM();
   const original = S().tasks;
   const writes = [cell(B, 'task.time.completion', 0.5)];
-  if (scenario === 'voorganger afmelden') writes.unshift(cell(A, 'task.time.completion', 1));
+  if (scenario === 'voorganger afmelden') writes.unshift(
+    cell(A, 'task.time.completion', 1),
+    cell(A, 'task.time.actualStart', '2026-06-08'),
+    cell(A, 'task.time.actualFinish', today),
+  );
   for (const order of [writes, [...writes].reverse()]) {
     const grid = S().runGridMutation([{ kind: 'paste', writes: order }], { progressEntry: { today } });
     eq(`#998 raster ${scenario} vraagt om start van opvolger`, grid.ok ? 'ok' : grid.errors.map(e => [e.code, e.taskId]), [['actualStartRequired', B]]);

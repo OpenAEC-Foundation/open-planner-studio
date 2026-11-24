@@ -151,7 +151,7 @@
     "groupByType": "Grupiraj po vrsti resursa",
     "showAssignmentColumns": "Prikaži jed./d i krivulju",
     "columnsDropped": "Stupci Jed./d i Krivulja su izostavljeni: tablica je ostavila premalo mjesta za vremensku os. Veći papir ili vodoravna orijentacija, manja veličina slova ili uža tablica daju više prostora.",
-    "emptyPeriod": "Nema zadataka u razdoblju izvješća — odaberite drugo razdoblje ili Cijeli projekt.",
+    "emptyPeriod": "Nema zadataka u vlastitom razdoblju — odaberite druge datume ili isključite Vlastito razdoblje.",
     "outsidePeriod": "Izvan razdoblja:",
     "empty": "Nema dodjela resursa — najprije dodijelite resurse zadacima.",
     "resources": "Resursi:",
@@ -470,7 +470,6 @@
     "pages_few": "{{count}} stranice",
     "pages_other": "{{count}} stranica",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Razdoblje izvješća",
     "tasks": {
       "title": "Koji zadaci",
       "all": "Svi zadaci",
@@ -671,6 +670,13 @@
       "chart": "Trake i vremenska os",
       "footer": "Legenda i podnožje",
       "page": "Stranica"
+    },
+    "period": {
+      "hint": "U izvješću su samo zadaci iz ovog razdoblja. Vremenska crta pokriva točno to razdoblje; traka koja izlazi izvan njega reže se na rubu.",
+      "outside_one": "{{count}} zadatak je izvan razdoblja i nije u izvješću.",
+      "outside_few": "{{count}} zadatka su izvan razdoblja i nisu u izvješću.",
+      "outside_other": "{{count}} zadataka je izvan razdoblja i nisu u izvješću.",
+      "own": "Vlastito razdoblje"
     }
   },
   "customFont": {

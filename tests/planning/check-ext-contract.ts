@@ -24,6 +24,7 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
+import { CUSTOM_TASK_TYPE_COLOR_ORDER } from '@/engine/renderer/resourcePalette';
 import i18next from 'i18next';
 import nlMenu from '@/i18n/locales/nl/menu.json';
 import enMenu from '@/i18n/locales/en/menu.json';
@@ -173,7 +174,8 @@ const NIET_PUBLIEK = {
   resource: ['availability', 'libraryOrigin'] as readonly string[],
   task: [] as readonly string[],
   // Alleen uren §3.4: de speling in minuten is nog geen extensieveld (F3c); de API toont `totalFloat`/`freeFloat`.
-  taskTime: ['totalFloatMinutes', 'freeFloatMinutes'] as readonly string[],
+  // De tijdelijke rekenbasis voor voortgang is sessie-informatie buiten het extensiecontract.
+  taskTime: ['totalFloatMinutes', 'freeFloatMinutes', 'progressBeforeRecalculation'] as readonly string[],
   sequence: [] as readonly string[],
   // Het begrote tempo naast een P6-resttempo (resttempo-besluit 2026-10-15) is bronreferentie voor de
   // P6 XML-export, geen extensie-invoer. Het extensiecontract (apiVersion) blijft ongewijzigd. Een
@@ -233,6 +235,7 @@ const VOL_TIME = {
   completion: 0.6,
   resume: '2026-06-05T10:00',
   stop: '2026-06-04T14:00',
+  progressBeforeRecalculation: { status: 'STARTED', completion: 0.2, actualStart: '2026-06-01' },
 } satisfies Required<TaskTime>;
 
 const VOL_TASK = {
@@ -586,6 +589,9 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   }
   for (const k of NIET_PUBLIEK.resource) {
     eq(`18b resourceveld "${k}" lekt niet naar het contract`, k in toExtResource(VOL_RESOURCE), false);
+  }
+  for (const k of NIET_PUBLIEK.taskTime) {
+    eq(`18b taakveld "${k}" lekt niet naar het contract`, k in toExtTaskTime(VOL_TIME), false);
   }
   // Review #361 punt 1: het veld steekt niet over, maar gaat bij een lees-wijzig-laad op hetzelfde id
   // ook niet verloren. Mutatiebewijs: de `assignments`-regel in `retainActiveDocument` weg ⇒ 18c en 24 rood.
@@ -1453,17 +1459,20 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   zetDocument();
   useAppStore.setState((s) => {
     s.customTaskTypes = [
-      { id: 'ops-ongebruikt', name: 'Ongebruikt' },
-      { id: 'zelfde-id', name: 'Oude naam' },
-      { id: 'doc-ruwbouw', name: 'Ruwbouw' },
+      { id: 'ops-ongebruikt', name: 'Ongebruikt', color: '#111111' },
+      { id: 'zelfde-id', name: 'Oude naam', color: '#222222' },
+      { id: 'doc-ruwbouw', name: 'Ruwbouw', color: '#333333' },
     ];
   });
   const typen = herladen((r) => {
     r.customTaskTypes = [{ id: 'zelfde-id', name: 'Nieuwe naam' }, { id: 'ext-ruwbouw', name: 'ruwbouw' }];
   });
+  // #856: hetzelfde id houdt de kleur van het document; een nieuwe werksoort krijgt een vrije kleur.
   eq('N3D-17 ongebruikte eigen taaktypes blijven; de extensie wint bij een botsing op id of naam',
     typen.customTaskTypes, [
-      { id: 'zelfde-id', name: 'Nieuwe naam' }, { id: 'ext-ruwbouw', name: 'ruwbouw' }, { id: 'ops-ongebruikt', name: 'Ongebruikt' },
+      { id: 'zelfde-id', name: 'Nieuwe naam', color: '#222222' },
+      { id: 'ext-ruwbouw', name: 'ruwbouw', color: CUSTOM_TASK_TYPE_COLOR_ORDER[0] },
+      { id: 'ops-ongebruikt', name: 'Ongebruikt', color: '#111111' },
     ]);
 
   // Hetzelfde id, maar de extensie wijst naar een kalender die niet bestaat ⇒ terugval op de projectkalender.

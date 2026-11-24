@@ -1,3 +1,4 @@
+import type { PlannedProgressDates } from '@/engine/taskMutationRules';
 import { useAppStore } from '@/state/appStore';
 import { appTaskBulkActions } from '@/state/taskBulkActions';
 import { addTaskNearSelection, insertTaskRelativeToScope } from '@/state/taskInsertActions';
@@ -8,7 +9,7 @@ import { descendantLeaves } from '@/engine/scheduler/summaryProgress';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { localTodayIso } from '@/utils/dateUtils';
 import { planStoredProgressEdit } from '@/state/slices/taskSlice';
-import { progressPlacementForBatch, progressPlannedStarts } from '@/state/progressPlannedStart';
+import { progressPlacementForBatch, progressPlannedDates } from '@/state/progressPlannedDates';
 import { askActualStart, type ActualStartAnswers } from '@/state/actualStartQuestion';
 
 /**
@@ -152,24 +153,24 @@ export const contextMenuBulk = {
     }
     const ids = [...leafIds];
     const edit = { field: 'completion', value: completion } as const;
-    const starts = new Map<string, string | undefined>();
-    const baseStart = progressPlannedStarts(state);
+    const dates = new Map<string, PlannedProgressDates | undefined>();
+    const baseDates = progressPlannedDates(state);
     let answers: ActualStartAnswers = {};
     while (true) {
       const batch = completion > 0
         ? progressPlacementForBatch(state, leafIds, state.project.statusDate || today)
         : undefined;
-      const plannedStart = batch?.plannedStart ?? baseStart;
+      const plannedDates = batch?.plannedDates ?? baseDates;
       const questions = [];
-      starts.clear();
+      dates.clear();
       for (const id of batch?.order ?? ids) {
         const task = byId.get(id)!;
         const plan = planStoredProgressEdit(state, task, edit, {
           today, actualStart: answers[id],
-          plannedStart: () => {
-            const start = plannedStart(task);
-            starts.set(id, start);
-            return start;
+          plannedDates: () => {
+            const placement = plannedDates(task);
+            dates.set(id, placement);
+            return placement;
           },
         });
         if (plan.ok && plan.change) batch?.accept(task, plan.change.task);
@@ -182,7 +183,7 @@ export const contextMenuBulk = {
     }
     appTaskBulkActions.applyToTaskIds(ids, (current, id) => {
       current.enterTaskProgress(id, edit, { today, actualStart: answers[id],
-        plannedStart: () => starts.get(id) });
+        plannedDates: () => dates.get(id) });
     });
   },
 

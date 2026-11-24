@@ -178,7 +178,7 @@ const registry = buildTaskColumnRegistry({
     id: 'fase:1', name: 'Fase', values: [{ id: 'v-1', code: 'A' }, { id: 'v-2', code: 'A' }],
   }],
   customFieldDefs: [{ id: 'cf:1', name: 'Eigen veld', type: 'text' }],
-  customTaskTypes: [{ id: 'custom-installation', name: 'Speciale installatie' }],
+  customTaskTypes: [{ id: 'custom-installation', name: 'Speciale installatie', color: '#0D9488' }],
   baselines: [baseline],
 });
 

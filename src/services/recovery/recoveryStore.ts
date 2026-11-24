@@ -12,30 +12,19 @@ import { parseForeignSourceTarget, sameForeignSourceTarget, type ForeignSourceTa
 import { checkRecoveryDocumentIds, checkRecoveryDocuments, checkRecoveryManifestVersion, RecoveryManifestError, RECOVERY_MANIFEST_VERSION } from './recoveryManifest';
 export { RECOVERY_MANIFEST_VERSION, RecoveryManifestError } from './recoveryManifest';
 
-/** Eén recovery-document (IFC-CONTENT, niet de bestandsnaam). */
 export interface RecoveryDocContent {
   id: string;
   ifc: string;
   filePath: string | null;
   isDirty: boolean;
-  /** Zie `RecoveryDocMetadata.datesAsRecorded`. */
   datesAsRecorded: boolean;
-  /** Zie `RecoveryDocMetadata.xerArchive`. */
   xerArchive?: string;
-  /** Zie `RecoveryDocMetadata.siteFileId`. */
   siteFileId?: string | null;
   siteFileVersion?: string | null;
-  /** Zie `RecoveryDocMetadata.foreignSource`. */
   foreignSource?: ForeignSourceTarget | null;
-  /** Optionele bronverwijzing binnen v5, zonder bronbytes. */
   ifcSource?: RecoveryIfcSource;
 }
 
-/**
- * Het site-opslagdoel uit een (mogelijk oud of vreemd) manifestrecord: alleen een niet-lege string
- * telt, anders `null`. Het manifest wordt soepel gelezen (`parseRecoveryManifest`), dus de vorm van
- * deze optionele velden is niet gegarandeerd.
- */
 export function recoverySiteMeta(record: object | null | undefined): {
   siteFileId: string | null;
   siteFileVersion: string | null;
@@ -48,7 +37,6 @@ export function recoverySiteMeta(record: object | null | undefined): {
   return { siteFileId, siteFileVersion };
 }
 
-/** Zijn twee recordmetadata gelijk wat het site-doel betreft? `undefined` telt als `null`. */
 export function sameRecoverySiteMeta(
   a: { siteFileId?: string | null; siteFileVersion?: string | null },
   b: { siteFileId?: string | null; siteFileVersion?: string | null },
@@ -57,70 +45,29 @@ export function sameRecoverySiteMeta(
     && (a.siteFileVersion ?? null) === (b.siteFileVersion ?? null);
 }
 
-/** Metadata die bij élke recoveryronde in het manifest hoort, ook zonder nieuwe IFC-payload. */
 export interface RecoveryDocMetadata {
   id: string;
   filePath: string | null;
   isDirty: boolean;
-  /**
-   * Stond dit document in "datums zoals opgeslagen" toen de snapshot werd geschreven? Expliciet
-   * meegeschreven feit i.p.v. een terugleesheuristiek: de
-   * datums in de snapshot kunnen toevallig gelijk zijn aan de vastlegging zónder dat de modus
-   * aanstond — bijvoorbeeld wanneer een bewerking de modus verliet en de auto-save vóór de
-   * uitgestelde herberekening viel. Zie `RecoveryManifestDoc.datesAsRecorded` voor de
-   * leesbaarheid van oudere manifesten.
-   */
   datesAsRecorded: boolean;
-  /**
-   * SHA-256 van het XER-bronarchief waar de snapshot naar verwijst (zie
-   * `RecoveryManifestDoc.xerArchive`). Afwezig: geen archief, of een ingebed archief (oude vorm).
-   */
   xerArchive?: string;
-  /**
-   * Het site-opslagdoel (`DocumentPayload.siteFileId`, issue #309) en de versie waarop het document
-   * rust (`DocumentPayload.siteFileVersion`). Optioneel: zonder site blijven ze weg of `null`, en een
-   * ouder manifest kent ze niet. Zie `RecoveryManifestDoc.siteFileId`.
-   */
   siteFileId?: string | null;
   siteFileVersion?: string | null;
-  /**
-   * Het doel van de bron met een vreemd deel (#804 fase 1a, fixronde 1). Afwezig: geen kenmerk. Zie
-   * `RecoveryManifestDoc.foreignSource`.
-   */
   foreignSource?: ForeignSourceTarget | null;
-  /** Optionele bronverwijzing binnen v5, zonder bronbytes. */
   ifcSource?: RecoveryIfcSource;
 }
 
-/**
- * Lazy leverancier van de ruwe bronbytes van één archief. De opslaglaag roept hem ALLEEN aan als de
- * blob nog niet bestaat: een tick met een bestaande blob raakt het archief niet aan (geen decodering,
- * geen kopie). Eigenaarsbesluit plan (9), "één keer schrijven".
- */
 export type RecoveryArchiveSupplier = () => Uint8Array;
 
-/**
- * De opslaggrens van recovery: de volledige open-documentlijst is manifestmetadata; `upserts`
- * bevat UITSLUITEND de nieuwe of inhoudelijk gewijzigde, volledige IFC-snapshots. Daarmee kan
- * een actieve-tab-wissel een manifest-only schrijfactie zijn en herschrijft één taakbewerking
- * niet de IFC-payloads van de overige documenten.
- */
 export interface RecoverySaveInput {
   activeDocumentId: string | null;
   documents: RecoveryDocMetadata[];
   upserts: RecoveryDocContent[];
-  /**
-   * Per verwezen archief-sha256 de leverancier van de bronbytes. Elke `xerArchive` in `documents`
-   * MOET hier staan: ontbreekt de blob op schijf (eerste tick, of opgeruimd), dan schrijft de
-   * opslaglaag hem vóór het manifest. Afwezig = geen verwijzingen.
-   */
   archives?: ReadonlyMap<string, RecoveryArchiveSupplier>;
-  /** Alleen runtime; bronbytes gaan uitsluitend naar de aparte browserdatabase. */
   ifcSourceCopies?: ReadonlyMap<string, RecoverySourceCopy>;
   onSourceCopyFailure?: (documentId: string) => void;
 }
 
-/** Gebruik uitsluitend in tests en voor expliciete compatibiliteitsmigraties: alles is nieuw. */
 export function fullRecoverySave(
   activeDocumentId: string | null,
   docs: RecoveryDocContent[],
@@ -139,7 +86,6 @@ export function fullRecoverySave(
   };
 }
 
-/** Alle archief-sha's waar deze ronde naar verwijst; elk moet een leverancier hebben. */
 function referencedArchives(input: RecoverySaveInput): Set<string> {
   const out = new Set<string>();
   for (const document of input.documents) {
@@ -155,52 +101,30 @@ function referencedArchives(input: RecoverySaveInput): Set<string> {
   return out;
 }
 
-/** Roep de leverancier aan en controleer dat hij precies het verwezen archief levert. */
 function suppliedArchiveBytes(input: RecoverySaveInput, sha256: string): Uint8Array {
   const bytes = input.archives!.get(sha256)!();
   if (!(bytes instanceof Uint8Array)) throw new Error('Recovery: archiefleverancier gaf geen bytes.');
   return bytes;
 }
 
-/** Geladen record incl. weergave-mtime (Tauri: bestand-mtime; web: addedAt). */
 export interface LoadedRecoveryDoc extends RecoveryDocContent {
   mtime: Date | null;
-  /** Bestaande webrecordsleutel, alleen voor het terugvinden van de bronkopie/sitebasis. */
   sourceCopyDocumentKey?: string;
 }
 
 export interface LoadedRecovery {
-  /** Manifestregels waarvan de snapshottekst niet leesbaar was. Geen lege/ontbrekende herstelset:
-   * deze fouten tellen mee bij de herstelkeuze en verhinderen automatisch opruimen (knownbug 202). */
   readFailures?: readonly { id: string; detail: string }[];
   activeDocumentId: string | null;
   docs: LoadedRecoveryDoc[];
-  /**
-   * De archiefblobs (sha256 → ruwe bronbytes) waar de manifestregels naar verwijzen. Een
-   * ontbrekende blob staat er niet in; de lezer meldt dat document dan met `bytes-missing`.
-   */
   archives: ReadonlyMap<string, Uint8Array>;
 }
 
-// ---------------------------------------------------------------------------
-// Tauri-backend — appDataDir + plugin-fs (met dev-slug-isolatie).
-// ---------------------------------------------------------------------------
-
-// Padnamen + manifestvorm komen uit `@/services/recovery/recoveryPaths` — één bron voor de dev-slug-isolatie
-// (zie daar), gedeeld met de auto-save-/herstel-hooks.
 const names = ownRecoveryNames;
 const manifestName = names.manifest;
 const legacyFile = names.legacy;
 
-/** Achtervoegsel van het halffabricaat van een atomaire schrijfactie (zie `saveTauri`). */
 const TMP_SUFFIX = recoveryTmpSuffix;
 
-/**
- * De site-velden zoals ze in een manifestregel horen: weggelaten als er geen site-doel is. Zo heeft
- * een manifestregel zonder site exact dezelfde velden als vóór issue #309. De velden zijn optioneel
- * en blijven binnen de ondersteunde versies leesbaar; ze kregen geen eigen versienummer (issue #309
- * hield 4 aan; de huidige 5 komt van de XER-archiefverwijzing `xerArchive`).
- */
 export function siteMetaFields(record: object | null | undefined):
   { siteFileId?: string; siteFileVersion?: string } {
   const { siteFileId, siteFileVersion } = recoverySiteMeta(record);
@@ -208,17 +132,11 @@ export function siteMetaFields(record: object | null | undefined):
   return siteFileVersion ? { siteFileId, siteFileVersion } : { siteFileId };
 }
 
-/**
- * Het doel van een bron met een vreemd deel zoals het in een manifestregel hoort (#804 fase 1a, fixronde 1): weggelaten
- * zonder kenmerk, zodat een regel zonder kenmerk dezelfde velden heeft als vóór de fixronde. Soepel gelezen: een
- * ongeldige vorm telt als afwezig. Geen eigen versienummer, net als de site-velden.
- */
 export function foreignSourceMetaFields(record: object | null | undefined): { foreignSource?: ForeignSourceTarget } {
   const foreignSource = parseForeignSourceTarget((record as { foreignSource?: unknown } | null | undefined)?.foreignSource);
   return foreignSource ? { foreignSource } : {};
 }
 
-/** Zijn twee recordmetadata gelijk wat het doel van de vreemde bron betreft? Afwezig en `null` zijn gelijk. */
 export function sameRecoveryForeignSource(
   a: { foreignSource?: ForeignSourceTarget | null },
   b: { foreignSource?: ForeignSourceTarget | null },
@@ -226,11 +144,6 @@ export function sameRecoveryForeignSource(
   return sameForeignSourceTarget(a.foreignSource, b.foreignSource);
 }
 
-/**
- * Lokale herstelidentiteit voor instantie en websessie (geen authenticatietoken).
- * Dezelfde terugval op alle aanmaak-/rotatiepaden: randomUUID kan ontbreken op een
- * HTTP-adres. getRandomValues werkt daar wel en levert ook dan 128 willekeurige bits.
- */
 function newRecoveryId(): string {
   try {
     return crypto.randomUUID();
@@ -239,34 +152,15 @@ function newRecoveryId(): string {
     return `inst-${Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')}`;
   }
 }
-// Manifest-eigenaar van deze app-instantie (proces/realm).
 const instanceId = newRecoveryId();
 
-/** IFC-bestandsnamen die DEZE instantie ooit zelf heeft geschreven. */
 const ownWritten = new Set<string>();
-/**
- * IFC-bestandsnamen die we van een VREEMDE eigenaar in ons manifest hebben overgenomen. Ze staan
- * daarmee wel in "ons" manifest, maar onze opruimlus mag ze pas wissen nadat ze aantoonbaar
- * hersteld én door een nieuwe gecommitte generatie vervangen zijn.
- */
 const adoptedIfc = new Set<string>();
-/** Alleen aantoonbaar herstelde snapshots mogen na een nieuwe manifestcommit verdwijnen. */
 const restoredIfc = new Set<string>();
-/** Archief-sha's waarvan DEZE instantie de blob schreef (zie `archiveRemovals`). */
 const ownWrittenArchives = new Set<string>();
 
 export type ManifestOwnership = 'none' | 'own' | 'legacy' | 'foreign';
 
-/**
- * Van wie is het manifest dat er staat?
- *   `none`    — er is er geen;
- *   `own`     — door deze instantie geschreven;
- *   `legacy`  — v1-manifest zonder `ownerId`: geschreven door een oudere build, dus per definitie
- *               niet door een gelijktijdig draaiende instantie die eigenaarschap kent.
- *               Overnemen is hier de veilige keuze; anders ruimt de eerste start na een update
- *               nooit meer op;
- *   `foreign` — een andere `ownerId`.
- */
 export function manifestOwnership(prev: RecoveryManifest | null, self: string): ManifestOwnership {
   if (!prev) return 'none';
   if (typeof prev.ownerId !== 'string' || prev.ownerId === '') return 'legacy';
@@ -274,42 +168,24 @@ export function manifestOwnership(prev: RecoveryManifest | null, self: string): 
 }
 
 export interface RecoveryCleanupInput {
-  /** Bestandsnamen zoals `readDir` ze oplevert (namen, geen paden). */
   listing: string[];
-  /** Het ondersteunde manifest van VÓÓR deze schrijfronde (null = geen manifest). */
   prev: RecoveryManifest | null;
-  /** Id van deze app-instantie. */
   self: string;
-  /** IFC-bestandsnamen die we zojuist geschreven hebben — die blijven per definitie staan. */
   keep: string[];
-  /** IFC-bestandsnamen die deze instantie ooit zelf schreef. */
   ownWritten: string[];
-  /** IFC-bestandsnamen die we van een vreemde eigenaar hebben overgenomen. */
   adopted: string[];
-  /** Aantoonbaar herstelde snapshots waarvoor deze ronde een nieuwe generatie commit. */
   replaced?: string[];
-  /** Naamgeving van DEZE base. */
   names: RecoveryNames;
-  /** Archief-sha's waar het NIEUWE manifest (zonder carry-over) naar verwijst. */
   keepArchives?: string[];
-  /** Archief-sha's waarvan deze instantie zelf de blob schreef. */
   ownWrittenArchives?: string[];
 }
 
 export interface RecoveryCleanupPlan {
   ownership: ManifestOwnership;
-  /** Exacte bestandsnamen die weg mogen (snapshots, archiefblobs en halffabricaten). */
   remove: string[];
-  /** Documentregels van een vreemde eigenaar die in ons manifest mee moeten. */
   carryOver: RecoveryManifestDoc[];
 }
 
-/**
- * Archiefblobs die weg mogen: dezelfde eigen-boekhoudingsregel als de snapshots (vorig eigen/legacy
- * manifest ∪ zelf geschreven), maar een blob blijft staan zolang het nieuwe manifest — inclusief de
- * meegedragen regels van een vreemde eigenaar — hem noemt. Content-adressed: twaalf documenten uit
- * één bestand delen één blob, en die gaat pas weg als de laatste verwijzing weg is.
- */
 function archiveRemovals(
   candidates: Iterable<string>, referenced: ReadonlySet<string>, present: ReadonlySet<string>, n: RecoveryNames,
 ): string[] {
@@ -323,34 +199,6 @@ function archiveRemovals(
   return remove;
 }
 
-/**
- * Bepaal wat één auto-save-ronde mag opruimen. Opruimen mag ALLEEN binnen de eigen boekhouding —
- * vegen op prefix ("alles met de prefix dat niet in mijn keep-set zit") zou bij twee vensters elke
- * ronde de complete snapshotverzameling van de ander wissen:
- *
- *   kandidaten = (het vorige manifest, mits van onszelf of `legacy`)
- *              ∪ (wat deze instantie zelf heeft geschreven)
- *   minus        (wat we net geschreven hebben)
- *   minus        (wat we van een vreemde eigenaar hebben overgenomen)
- *   ∩            (wat er daadwerkelijk in de map staat, op EXACTE naam)
- *
- * Er wordt dus nooit op een prefix door de map geveegd: een bestand dat wij niet zelf hebben
- * aangemaakt of geërfd, raken we niet aan — ook niet als single-instance ooit bewust uit gaat.
- *
- * Is het manifest van een ander, dan worden diens documentregels NIET gewist maar meegenomen in
- * ons manifest (`carryOver`), zodat ze bij de volgende start nog steeds als herstelkandidaat
- * worden aangeboden in plaats van stil wees te worden. Zo'n overgenomen regel (`adopted`) gaat
- * ook in elke volgende ronde mee, als het manifest inmiddels van ons (of legacy) is.
- *
- * Over `heartbeatAt`: dat veld wordt geschreven en is hier beschikbaar, maar het bepaalt bewust
- * NIET of we mogen wissen. Een verse heartbeat is niet te onderscheiden tussen "er draait nu een
- * tweede venster" en "het proces is drie seconden geleden gecrasht" — precies het geval waarvoor
- * recovery bestaat. Elke drempel kiest dus tussen het wissen van de bestanden van een levend
- * venster en het wissen van de bestanden van een crashslachtoffer. Daarom wissen we hier
- * niets van een vreemde eigenaar zonder expliciete herstelkeuze. Alleen aantoonbaar herstelde
- * snapshots met een nieuwe generatie mogen via `replaced` weg; anders gebeurt opruimen uitsluitend
- * via `clearRecovery()`, nadat de gebruiker de snapshots aangeboden kreeg en koos.
- */
 export function planRecoveryCleanup(input: RecoveryCleanupInput): RecoveryCleanupPlan {
   const { listing, prev, self, keep, names: n } = input;
   const ownership = manifestOwnership(prev, self);
@@ -371,17 +219,11 @@ export function planRecoveryCleanup(input: RecoveryCleanupInput): RecoveryCleanu
   const remove: string[] = [];
   for (const name of candidates) {
     if (keepSet.has(name) || adopted.has(name)) continue;
-    // Naamvorm van een ándere base (of geen snapshotnaam) → nooit aanraken: de productie-base
-    // `recovery` is een prefix van elke dev-base.
     if (n.snapshotDocId(name) === null) continue;
     if (present.has(name)) remove.push(name);
     if (present.has(name + recoveryTmpSuffix)) remove.push(name + recoveryTmpSuffix);
   }
 
-  // Halffabricaten van een afgebroken schrijfactie voor bestanden die we NU schrijven (en voor het
-  // manifest zelf): die horen na een geslaagde `rename` niet meer te bestaan, dus wat er ligt is
-  // een restant van een crash. Ze worden op exacte naam aangewezen, niet met een sweep, zodat een
-  // in-flight `.tmp` van een andere instantie buiten schot blijft.
   const keepArchiveNames = (input.keepArchives ?? []).map((sha) => n.archiveName(sha));
   for (const name of [...keep, ...keepArchiveNames, n.manifest]) {
     const tmp = name + recoveryTmpSuffix;
@@ -392,13 +234,10 @@ export function planRecoveryCleanup(input: RecoveryCleanupInput): RecoveryCleanu
   if (prev) {
     for (const d of prev.documents) {
       if (!d || typeof d.ifc !== 'string' || typeof d.id !== 'string') continue;
-      // Vreemd manifest: alle regels mee. Eigen of legacy manifest: alleen de regels die we eerder
-      // overnamen of vasthielden (`adopted`); anders valt hun verwijzing na één ronde weg en blijven
-      // alleen weesbytes over die `loadRecovery` niet meer aanbiedt.
       if (ownership !== 'foreign' && !adopted.has(d.ifc)) continue;
-      if (replaced.has(d.ifc)) continue;    // hersteld én vervangen door een nieuwe generatie
-      if (keepSet.has(d.ifc)) continue;      // zelfde document — onze eigen regel wint
-      if (!present.has(d.ifc)) continue;     // snapshot is er niet (meer)
+      if (replaced.has(d.ifc)) continue;
+      if (keepSet.has(d.ifc)) continue;
+      if (!present.has(d.ifc)) continue;
       carryOver.push({
         id: d.id, ifc: d.ifc, filePath: d.filePath ?? null, isDirty: d.isDirty ?? true,
         datesAsRecorded: d.datesAsRecorded ?? false,
@@ -428,19 +267,6 @@ export function planRecoveryCleanup(input: RecoveryCleanupInput): RecoveryCleanu
   return { ownership, remove, carryOver };
 }
 
-/**
- * Bepaal wat `clearRecovery()` weghaalt: alle bestanden van DEZE base, op exacte naam.
- *
- * Bewust breder dan de opruimlus hierboven: `loadTauri` valt bij een corrupt manifest terug op een
- * directory-scan, dus een snapshot die het manifest niet noemde zou anders bij de VOLGENDE start
- * opnieuw als herstelkandidaat opduiken — terwijl de gebruiker net
- * "verwerpen" (of een geslaagd herstel) achter de rug heeft. Wissen betekent wissen.
- *
- * Bewust NIET afhankelijk van eigenaarschap: wat hier weggaat is exact wat de gebruiker zojuist
- * kreeg aangeboden, en `loadTauri` biedt aan wat er staat. De begrenzing zit in de EXACTE
- * naamvorm — een productiebuild raakt geen `recovery.<slug>.…` van een dev-worktree aan, en
- * een dev-build geen productiebestanden.
- */
 export function planRecoveryClear(
   listing: string[],
   manifest: RecoveryManifest | null,
@@ -450,8 +276,6 @@ export function planRecoveryClear(
   for (const name of listing) {
     if (n.isOwnFile(name)) out.add(name);
   }
-  // Manifestregels meenemen ook als de directory-scan niets opleverde (bijv. `readDir` faalde):
-  // wél gefilterd op onze eigen naamvorm.
   for (const d of manifest?.documents ?? []) {
     if (d && typeof d.ifc === 'string' && n.snapshotDocId(d.ifc) !== null) out.add(d.ifc);
     if (d && typeof d.xerArchive === 'string' && /^[0-9a-f]{64}$/.test(d.xerArchive)) out.add(n.archiveName(d.xerArchive));
@@ -459,17 +283,6 @@ export function planRecoveryClear(
   return [...out];
 }
 
-/**
- * Wat een SCHONE AFSLUITING weghaalt (review 2026-09-28): alleen wat deze instantie zelf schreef.
- * `planRecoveryClear` wist alles van deze base en is alleen goed na een keuze in het herstelvenster;
- * bij afsluiten zou hij ook de snapshots wissen die de gebruiker daar heeft uitgesteld (door ons
- * manifest meegedragen, `adopted`) of die nog niet eens zijn aangeboden (het venster stond open en
- * het manifest is nog van de vorige start). Daarom:
- *   - verwijderen: de eigen snapshots (`ownWritten`) en hun halffabricaten, nooit `adopted`;
- *   - manifest van onszelf: herschrijven met de meegedragen regels die nog op schijf staan, of weg
- *     als er niets overblijft;
- *   - manifest van een ander (vorige start, legacy) of geen manifest: niet aanraken.
- */
 export function planRecoveryExitClear(input: {
   listing: string[];
   manifest: RecoveryManifest | null;
@@ -477,7 +290,6 @@ export function planRecoveryExitClear(input: {
   ownWritten: string[];
   adopted: string[];
   names: RecoveryNames;
-  /** Archief-sha's waarvan deze instantie zelf de blob schreef. */
   ownWrittenArchives?: string[];
 }): { remove: string[]; manifest: 'keep' | 'remove' | RecoveryManifestDoc[] } {
   const present = new Set(input.listing);
@@ -494,9 +306,6 @@ export function planRecoveryExitClear(input: {
     ? (input.manifest?.documents ?? []).filter((d) =>
       d && typeof d.ifc === 'string' && adopted.has(d.ifc) && !removed.has(d.ifc) && present.has(d.ifc))
     : [];
-  // Eigen archiefblobs gaan mee weg, behalve als een regel die blijft staan ernaar verwijst: een
-  // bewaard (uitgesteld of vreemd) manifest. Is het manifest niet van ons, dan blijft alles staan
-  // waar dát manifest naar verwijst.
   const stillReferenced = new Set(
     (ownManifest ? kept : (input.manifest?.documents ?? []))
       .flatMap((d) => (d && typeof d.xerArchive === 'string' ? [d.xerArchive] : [])),
@@ -506,17 +315,14 @@ export function planRecoveryExitClear(input: {
   return { remove, manifest: kept.length > 0 ? kept : 'remove' };
 }
 
-/** Tekst plus wijzigingstijd van één snapshot; faalt `stat`, dan blijft de mtime `null`. */
 async function readSnapshotTauri(path: string): Promise<{ ifc: string; mtime: Date | null }> {
   const { readTextFile, stat } = await import('@tauri-apps/plugin-fs');
   const ifc = await readTextFile(path);
   let mtime: Date | null = null;
-  try { mtime = (await stat(path)).mtime; } catch { /* geen mtime — laat null */ }
+  try { mtime = (await stat(path)).mtime; } catch { }
   return { ifc, mtime };
 }
 
-/** De bestandsnamen in de appDataDir; een mislukte scan logt en geeft een lege lijst — het opruimen
- *  valt dan terug op wat het manifest noemt. */
 async function listAppDataTauri(dir: string): Promise<string[]> {
   const { readDir } = await import('@tauri-apps/plugin-fs');
   try {
@@ -558,12 +364,6 @@ interface TauriSnapshotWrite {
   ifc: string;
 }
 
-/**
- * Maak de v3-manifestvorm vóór er bytes naar schijf gaan. Ongewijzigde documenten houden hun
- * vorige snapshotnaam; nieuwe inhoud krijgt altijd een nieuwe immutable generatie. Als een
- * document nog geen vorige snapshot heeft, MOET de aanroeper een volledige upsert leveren — een
- * manifest dat naar niet-bestaande inhoud wijst is slechter dan geen nieuwe manifestcommit.
- */
 export function planTauriV3RecoverySave(
   previous: RecoveryManifest | null,
   input: RecoverySaveInput,
@@ -594,9 +394,6 @@ export function planTauriV3RecoverySave(
     if (!previousDocument) {
       throw new Error(`Recovery: ${JSON.stringify(metadata.id)} heeft geen vorige snapshot en geen upsert.`);
     }
-    // Ongewijzigde inhoud ⇒ dezelfde snapshot ⇒ dezelfde verwijzing. Die komt uit de huidige
-    // metadata (afgeleid uit dezelfde bron), niet uit het vorige manifest: een oude v4-regel
-    // zonder verwijzing blijft zo zonder, want zijn snapshot draagt het archief ingebed.
     documents.push({
       id: metadata.id, ifc: previousDocument.ifc, filePath: metadata.filePath,
       isDirty: metadata.isDirty, datesAsRecorded: metadata.datesAsRecorded,
@@ -616,7 +413,6 @@ function nextRecoveryGeneration(): string {
   return `${Date.now().toString(36)}-${generationCounter.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/** Vóór elke mutatie opnieuw lezen: een geweigerde read verleent nooit schrijfrecht. */
 async function existingTauriManifest(dir: string): Promise<RecoveryManifest | null> {
   const { exists, readTextFile } = await import('@tauri-apps/plugin-fs');
   const { join } = await import('@tauri-apps/api/path');
@@ -632,20 +428,11 @@ async function saveTauri(input: RecoverySaveInput): Promise<void> {
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
   const prev = await existingTauriManifest(dir);
-  await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet
+  await mkdir(dir, { recursive: true });
 
-  // Schrijf-en-vervang: een gewone `writeTextFile` laat bij een crash precies datgene achter
-  // waarvoor recovery bestaat — een AFGEKAPTE snapshot, en die komt er ongemerkt doorheen, want
-  // `readIFC` gooit daar niet op. Zie `writeTextFileAtomic` voor wat dit wel/niet dekt.
   const writeAtomic = (name: string, text: string) => writeTextFileAtomic(dir, name, text, TMP_SUFFIX);
 
-  // Fase 1 van één generatiecommit: alleen gewijzigde IFC-payloads krijgen een NIEUWE,
-  // immutable naam. Het oude manifest wijst nog naar de vorige complete generatie zolang dit
-  // lukt of faalt; een crash kan dus geen half nieuwe documentverzameling publiceren.
   const snapshotPlan = planTauriV3RecoverySave(prev, input, nextRecoveryGeneration(), names);
-  // Fase 0: archiefblobs, content-adressed en immutable. Bestaat de blob al, dan raakt deze ronde
-  // het archief niet aan — de leverancier (decodering) loopt alleen bij een ontbrekende blob. Vóór de
-  // snapshots en vóór de manifestcommit: een gecommit manifest verwijst nooit naar een ontbrekende blob.
   const keepArchives = [...referencedArchives(input)];
   for (const sha of keepArchives) {
     const name = names.archiveName(sha);
@@ -659,8 +446,6 @@ async function saveTauri(input: RecoverySaveInput): Promise<void> {
   }
   const keep = snapshotPlan.documents.map((document) => document.ifc);
 
-  // Alleen expliciet geslaagd herstel geeft dit recht: een toevallig gelijk doc-id van een
-  // vreemde of uitgestelde snapshot is geen reden om die kopie te verwijderen.
   const currentById = new Map(snapshotPlan.documents.map(document => [document.id, document.ifc]));
   const replaced = (prev?.documents ?? []).filter(document =>
     restoredIfc.has(document.ifc) && currentById.has(document.id)
@@ -685,35 +470,26 @@ async function saveTauri(input: RecoverySaveInput): Promise<void> {
     activeDocumentId: input.activeDocumentId,
     documents: [
       ...snapshotPlan.documents,
-      // Een vreemde instantie kan een doc-id hebben die intussen in onze actieve set voorkomt.
-      // Onze eigen, expliciete metadata wint dan; dubbele manifestregels zouden loadRecovery
-      // anders één document tweemaal kunnen herstellen.
       ...plan.carryOver.filter((document) => !currentIds.has(document.id)),
     ],
     ownerId: instanceId,
     heartbeatAt: Date.now(),
   };
-  // Fase 2 = het commitpoint. `rename` vervangt het manifest atomair: pas vanaf hier wordt de
-  // nieuwe verzameling generaties zichtbaar voor loadTauri. Opruimen staat bewust erná.
   await writeAtomic(manifestName, JSON.stringify(manifest));
 
-  // Pas na het commitpoint: bij een mislukte manifestwrite blijven de oude bytes én hun
-  // bescherming intact. Vanaf nu mag ook een latere opruimronde deze vervangen kopie wissen.
   for (const name of replaced) {
     adoptedIfc.delete(name);
     restoredIfc.delete(name);
     ownWritten.add(name);
   }
   for (const name of plan.remove) {
-    try { await remove(await join(dir, name)); } catch { /* al weg */ }
+    try { await remove(await join(dir, name)); } catch { }
     ownWritten.delete(name);
     const sha = names.archiveSha(name);
     if (sha) ownWrittenArchives.delete(sha);
   }
 }
 
-/** Lees de archiefblobs waar de manifestregels naar verwijzen; een ontbrekende of onleesbare blob
- *  ontbreekt in de map (de lezer meldt het document dan met `bytes-missing`). */
 async function readArchivesTauri(dir: string, documents: readonly RecoveryManifestDoc[]): Promise<Map<string, Uint8Array>> {
   const { readFile } = await import('@tauri-apps/plugin-fs');
   const { join } = await import('@tauri-apps/api/path');
@@ -730,10 +506,6 @@ async function readArchivesTauri(dir: string, documents: readonly RecoveryManife
   return archives;
 }
 
-/**
- * Alleen onparseerbare JSON geeft de bestaande terugval op stabiele v1/v2-snapshots.
- * Een herkenbaar maar onbekend/ongeldig contract mag nooit via die terugval worden omzeild.
- */
 export function parseRecoveryManifest(raw: string): RecoveryManifest | null {
   let parsed: unknown;
   try { parsed = JSON.parse(raw) as unknown; } catch { return null; }
@@ -746,12 +518,6 @@ export function parseRecoveryManifest(raw: string): RecoveryManifest | null {
   return m;
 }
 
-/**
- * Terugval als het manifest ontbreekt of niet parst: scan de appDataDir op losse
- * `<base>.<docId>.ifc`-snapshots. Eén stukgelopen JSON-bestandje mag nooit betekenen dat het
- * ECHTE werk — de snapshots zelf — als weg wordt beschouwd. Zonder manifest kennen we `filePath`
- * niet meer; `isDirty` staat op `true`, wat voor een crashsnapshot per definitie klopt.
- */
 async function scanTauriSnapshots(): Promise<LoadedRecoveryDoc[]> {
   const { readDir } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
@@ -760,17 +526,10 @@ async function scanTauriSnapshots(): Promise<LoadedRecoveryDoc[]> {
 
   for (const entry of await readDir(dir)) {
     const name = entry.name;
-    // EXACTE naamvorm: met een prefix-vergelijking zou een productiebuild hier ook de
-    // `recovery.<slug>.<docId>.ifc` van elke dev-worktree oppikken. Het legacy-bestand valt hier
-    // automatisch buiten (dat heeft geen doc-id-segment) en heeft zijn eigen terugval hieronder.
-    // Alleen stabiele v1/v2-snapshots mogen zonder manifest worden teruggevonden. Een v3-
-    // generatie die vóór de manifest-rename is geschreven, is nog NIET gecommit en mag bij een
-    // corrupt/ontbrekend manifest niet per ongeluk als halfnieuwe herstelset verschijnen.
     const id = name ? names.stableSnapshotDocId(name) : null;
     if (!name || !id) continue;
     try {
       const { ifc, mtime } = await readSnapshotTauri(await join(dir, name));
-      // Manifestloze scan: geen metadata, dus geen modus (de opgeslagen datums zijn dan vergeten).
       docs.push({ id, ifc, filePath: null, isDirty: true, datesAsRecorded: false, mtime });
     } catch (err) {
       console.error('Recovery: kon gescande snapshot niet lezen:', name, err);
@@ -800,10 +559,8 @@ async function loadTauri(): Promise<LoadedRecovery> {
           const { ifc, mtime } = await readSnapshotTauri(await join(dir, d.ifc));
           docs.push({
             id: d.id, ifc, filePath: d.filePath ?? null, isDirty: d.isDirty ?? true,
-            // v1–v3-manifest kent het veld niet ⇒ `false` (geen modus).
             datesAsRecorded: d.datesAsRecorded ?? false, mtime,
             ...(typeof d.xerArchive === 'string' ? { xerArchive: d.xerArchive } : {}),
-            // Een manifest van vóór issue #309 kent het site-doel niet ⇒ weggelaten (geen site-doel).
             ...siteMetaFields(d),
             ...foreignSourceMetaFields(d),
             ...ifcSourceMetaFields(d),
@@ -819,20 +576,14 @@ async function loadTauri(): Promise<LoadedRecovery> {
           archives: await readArchivesTauri(dir, manifest.documents),
         };
       }
-      // Alleen een werkelijk leeg manifest valt terug op de scan. Een manifest met uitsluitend
-      // I/O-fouten moet eerst een expliciete herstelkeuze krijgen, geen lege-sessie-autosave.
     } else {
       console.error('Recovery: manifest onleesbaar of vormvreemd — terugval op directory-scan.');
     }
 
-    // Terugval: de losse snapshots staan er nog; die mogen niet verloren gaan omdat één
-    // klein JSON-bestand stuk is.
     const scanned = await scanTauriSnapshots();
-    // De scan vindt alleen v1/v2-snapshots; die dragen hun archief ingebed.
     if (scanned.length > 0) return { activeDocumentId: scanned[0].id, docs: scanned, archives: new Map() };
   }
 
-  // Terugval: oude losse <base>.ifc (één document).
   const legacyPath = await join(dir, legacyFile);
   if (await exists(legacyPath)) {
     const { ifc, mtime } = await readSnapshotTauri(legacyPath);
@@ -855,24 +606,22 @@ async function clearTauri(): Promise<void> {
   const manifestPath = await join(dir, manifestName);
 
   for (const name of planRecoveryClear(await listAppDataTauri(dir), manifest, names)) {
-    try { await remove(await join(dir, name)); } catch { /* al weg */ }
+    try { await remove(await join(dir, name)); } catch { }
     ownWritten.delete(name);
     adoptedIfc.delete(name);
     restoredIfc.delete(name);
     const sha = names.archiveSha(name);
     if (sha) ownWrittenArchives.delete(sha);
   }
-  // Het manifest zelf zit al in de scan; als `readDir` faalde staat hij er nog.
   if (await exists(manifestPath)) {
-    try { await remove(manifestPath); } catch { /* al weg */ }
+    try { await remove(manifestPath); } catch { }
   }
   const legacyPath = await join(dir, legacyFile);
   if (await exists(legacyPath)) {
-    try { await remove(legacyPath); } catch { /* al weg */ }
+    try { await remove(legacyPath); } catch { }
   }
 }
 
-/** Zie `planRecoveryExitClear`. */
 async function clearOwnTauri(): Promise<void> {
   const { remove } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
@@ -885,26 +634,20 @@ async function clearOwnTauri(): Promise<void> {
     ownWrittenArchives: [...ownWrittenArchives],
   });
   if (plan.manifest === 'remove') {
-    try { await remove(manifestPath); } catch { /* al weg */ }
+    try { await remove(manifestPath); } catch { }
   } else if (plan.manifest !== 'keep' && manifest) {
-    // Eerst het manifest herschrijven (commitpoint), dan pas de eigen snapshots weghalen.
     const next: RecoveryManifest = { ...manifest, documents: plan.manifest, heartbeatAt: Date.now() };
     if (!plan.manifest.some((d) => d.id === next.activeDocumentId)) next.activeDocumentId = plan.manifest[0].id;
     await writeTextFileAtomic(dir, manifestName, JSON.stringify(next), TMP_SUFFIX);
   }
   for (const name of plan.remove) {
-    try { await remove(await join(dir, name)); } catch { /* al weg */ }
+    try { await remove(await join(dir, name)); } catch { }
     ownWritten.delete(name);
     const sha = names.archiveSha(name);
     if (sha) ownWrittenArchives.delete(sha);
   }
 }
 
-/**
- * Zie `holdRecoveryForLater`. Neem de regels van het manifest dat er nu staat over (`adopted`):
- * de opruimlus wist ze dan niet en draagt ze mee. Nodig voor een v1-manifest zonder `ownerId`
- * (`legacy`): dat valt anders onder de eigen opruiming en is na één ronde weg.
- */
 async function holdTauri(restoredDocumentIds: readonly string[]): Promise<void> {
   const { appDataDir } = await import('@tauri-apps/api/path');
   const manifest = await existingTauriManifest(await appDataDir());
@@ -914,35 +657,13 @@ async function holdTauri(restoredDocumentIds: readonly string[]): Promise<void> 
   }
 }
 
-// ---------------------------------------------------------------------------
-// Web-backend — IndexedDB 'ops-recovery', per-tab sessionId-scoping.
-// ---------------------------------------------------------------------------
-
 const WEB_DB = 'ops-recovery';
 const WEB_STORE = 'records';
-/**
- * v2 (2026-10-07): de content-adressed XER-archiefblobs in een EIGEN object-store, zodat de
- * `getAll()` op de snapshots per tick nooit de (grote) archiefbytes meeleest. Sleutel = sha256.
- */
 const WEB_ARCHIVE_STORE = 'xer-archives';
-// v3: niet-unieke kind-index; vindt ook manifesten onder afwijkende sleutels zonder IFC te lezen.
 const WEB_DB_VERSION = 3;
 const WEB_KIND_INDEX = 'kind';
-// Na een geblokkeerde detectie is de oude herstelkeuze nog niet gemaakt. Laat een late ontgrendeling
-// daarom niet alsnog schrijven/wissen/roteren; alleen een nieuwe paginastart probeert herstel opnieuw.
 let webUpgradeBlocked: IndexedDbUpgradeBlockedError | null = null;
 
-/**
- * De browser weigert IndexedDB voor deze pagina (issue #582). Voorbeeld: de SuperCloud-werkplek
- * draait de webbuild in een sandbox-iframe zonder `allow-same-origin`; de origin is dan opaque en
- * `indexedDB.open` gooit een `SecurityError`, of `indexedDB` ontbreekt helemaal. Crashherstel gaat
- * dan stil uit voor deze sessie: geen melding, één regel in de console. Opslaan via de site
- * (`window.openaecHost`) staat hier los van en werkt gewoon.
- *
- * Alleen zolang de opslag in deze sessie nog niet werkte: na de eerste geslaagde opslagactie
- * (`webStorageProven`) is een `SecurityError` een gewone fout met de bestaande zichtbare foutroute.
- * Anders zou een latere uitval in een gewone browser het crashherstel stil uitzetten.
- */
 export class RecoveryStorageUnavailableError extends Error {
   constructor(readonly refusal?: unknown) {
     super('Crashherstel is niet beschikbaar: de browser weigert IndexedDB voor deze pagina.');
@@ -951,25 +672,17 @@ export class RecoveryStorageUnavailableError extends Error {
 }
 
 let webStorageUnavailable = false;
-/**
- * De webopslag werkte in deze sessie al: een geslaagde lezing in `readWebRecovery` (de opstartcontrole)
- * of een geslaagde save, wis- of uitstelactie. Daarna wordt geen enkele fout meer een stille weigering.
- */
 let webStorageProven = false;
 
-/** `true` als de webopslag voor crashherstel in deze sessie geweigerd is. Desktop: altijd `false`. */
 export function recoveryStorageUnavailable(): boolean {
   return !isTauri() && webStorageUnavailable;
 }
 
-/** Alleen een weigering van de opslag zelf, en alleen vóór de eerste geslaagde opslagactie; een
- *  quota-, lees- of upgradefout, en elke fout ná `webStorageProven`, houdt haar eigen route. */
 const isStorageRefusal = (error: unknown): boolean =>
   error instanceof RecoveryStorageUnavailableError
   || (!webStorageProven && typeof error === 'object' && error !== null
     && (error as { name?: unknown }).name === 'SecurityError');
 
-/** Zet de sessievlag (één consoleregel, alleen de eerste keer) en geef de fout voor de aanroeper. */
 function markStorageUnavailable(cause: unknown): RecoveryStorageUnavailableError {
   if (cause instanceof RecoveryStorageUnavailableError) return cause;
   if (!webStorageUnavailable) {
@@ -979,15 +692,11 @@ function markStorageUnavailable(cause: unknown): RecoveryStorageUnavailableError
   return new RecoveryStorageUnavailableError(cause);
 }
 
-/** Een weigering wordt `RecoveryStorageUnavailableError`; elke andere fout blijft ongewijzigd. */
 const asStorageRefusal = (error: unknown): unknown => (isStorageRefusal(error) ? markStorageUnavailable(error) : error);
 
 const openRecoveryDb = async (): Promise<IDBDatabase> => {
   if (webUpgradeBlocked) throw webUpgradeBlocked;
   if (webStorageUnavailable) throw new RecoveryStorageUnavailableError();
-  // Lezen van `indexedDB` kan zelf al gooien (opaque origin in sommige browsers), of de waarde
-  // ontbreekt. Beide tellen als weigering, net als een `SecurityError` bij het openen.
-  // Na bewezen werkende opslag blijft ook dit een gewone fout.
   const refuse = (cause: unknown) => (webStorageProven ? cause : markStorageUnavailable(cause));
   let factory: unknown;
   try { factory = (globalThis as { indexedDB?: unknown }).indexedDB; } catch (error) { throw refuse(error); }
@@ -1003,59 +712,28 @@ const openRecoveryDb = async (): Promise<IDBDatabase> => {
   }
 };
 const SESSION_KEY = 'ops-recovery-session';
-const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 dagen
+const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** Hoe lang we wachten voordat we een niet-verkregen claim als "echt bezet" beschouwen. */
 const CLAIM_RETRY_MS = 150;
 
-/**
- * Claim `name` voor de LEVENSDUUR van deze pagina via de Web Locks API.
- *
- * De lock wordt bewust nooit vrijgegeven: de callback geeft een promise terug die nooit rond komt,
- * waardoor de browser hem pas loslaat als het document weg is. Dat is het gedocumenteerde patroon
- * voor een "page lease". `ifAvailable` zorgt dat we niet gaan wachten maar meteen weten of iemand
- * anders hem al heeft.
- */
 async function claimLock(name: string): Promise<boolean> {
   try {
     const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
-    if (!locks) return true; // geen Web Locks → geen detectie mogelijk
+    if (!locks) return true;
     return await new Promise<boolean>((resolve, reject) => {
       locks.request(name, { mode: 'exclusive', ifAvailable: true }, (lock) => {
         resolve(lock !== null);
         if (!lock) return undefined;
-        return new Promise<never>(() => { /* nooit vrijgeven: leeft zolang deze pagina leeft */ });
+        return new Promise<never>(() => { });
       }).catch(reject);
     });
   } catch {
-    // Ook een synchrone fout in getter/request betekent een onzekere claim, geen geweigerde
-    // IndexedDB. Volg dezelfde retry/nieuwe-id-route als bij een afgewezen lock-promise (373).
     return false;
   }
 }
 
 const delay = (ms: number) => new Promise<void>((r) => { setTimeout(r, ms); });
 
-/**
- * Per-tab id: overleeft reload/crash van hetzelfde tab (sessionStorage), niet tab-sluiten.
- *
- * Waarom hier een lock omheen staat: `sessionStorage` scheidt tabs — met één uitzondering:
- * "Tabblad dupliceren" KOPIEERT de volledige sessionStorage naar het nieuwe tab. Twee levende tabs
- * zouden dan dezelfde sessie-id en dezelfde IndexedDB-sleutels delen: de `clearRecovery()` van tab B
- * wist de records van tab A, en de opruimlus in `saveWeb` verwijdert elke ronde de doc-records die
- * B niet open heeft. Zelfde probleem als aan de Tauri-kant, ander opslagmedium.
- *
- * De detectie moet noodzakelijk aan de andere tabs gevraagd worden — een gekopieerde
- * sessionStorage is lokaal niet van een echte te onderscheiden — en dat kan alleen asynchroon.
- * Vandaar dat dit een promise is die één keer per pagina wordt uitgerekend; de drie
- * web-backend-functies zijn toch al async.
- *
- * Bewuste keuze bij twijfel: als de claim mislukt minten we een NIEUWE id in plaats van de oude
- * te delen. De prijs bij een vals alarm (een reload waarbij de oude lock nog net niet los is) is
- * dat dit tab zijn eigen vorige snapshot niet meer terugvindt — die blijft staan en verdwijnt via
- * de 7-daagse opruiming. De prijs bij niet-detecteren is dat twee tabs elkaars snapshots WISSEN.
- * De ene retry met een korte pauze houdt dat valse alarm klein.
- */
 async function resolveSessionId(): Promise<string> {
   let id: string;
   try {
@@ -1063,19 +741,16 @@ async function resolveSessionId(): Promise<string> {
     id = stored ?? newRecoveryId();
     if (!stored) sessionStorage.setItem(SESSION_KEY, id);
   } catch {
-    return 'default'; // sessionStorage geblokkeerd → vaste sleutel
+    return 'default';
   }
 
   const key = (v: string) => `${SESSION_KEY}:${v}`;
   if (await claimLock(key(id))) return id;
-  // Eén korte retry: bij een gewone herlaad van hetzelfde tab kan de lock van het vorige document
-  // net nog vastzitten, en dan is dit géén duplicaat.
   await delay(CLAIM_RETRY_MS);
   if (await claimLock(key(id))) return id;
 
-  // Bezet door een ander levend tab (gedupliceerd tabblad): eigen id nemen.
   id = newRecoveryId();
-  try { sessionStorage.setItem(SESSION_KEY, id); } catch { /* niet te schrijven — id blijft lokaal */ }
+  try { sessionStorage.setItem(SESSION_KEY, id); } catch { }
   console.warn('Recovery: sessie-id was al in gebruik door een ander tabblad — nieuwe id genomen.');
   await claimLock(key(id));
   return id;
@@ -1087,17 +762,6 @@ function sessionId(): Promise<string> {
   return sessionIdPromise;
 }
 
-/**
- * Vastgehouden herstelgeneraties van DIT tab (audit 2026-09-26). Kiest de gebruiker in het
- * herstel-venster voor "later" (of kon een snapshot niet gelezen/hersteld worden), dan moeten die
- * snapshots de eerstvolgende crashherstel-ronde overleven. Op het web deelt een herlaad dezelfde
- * sessie-id, dus `saveWeb` overschreef het manifest en wiste elk documentrecord dat niet meer open
- * was — precies de uitgestelde snapshots. Daarom verhuist `holdRecoveryForLater` de huidige
- * generatie naar een vastgehouden id (in sessionStorage onder `HELD_KEY`) en krijgt het tab een
- * verse sessie-id voor nieuwe snapshots. `loadWeb` leest eigen + vastgehouden generaties,
- * `clearWeb` wist ze allemaal. Tauri houdt vast via `holdTauri`: de manifestregels worden
- * overgenomen en gaan via de carry-over in `planRecoveryCleanup` elke ronde mee.
- */
 const HELD_KEY = `${SESSION_KEY}:held`;
 
 function readHeldSessionIds(): string[] {
@@ -1114,11 +778,9 @@ function writeHeldSessionIds(ids: readonly string[]): void {
   try {
     if (ids.length === 0) sessionStorage.removeItem(HELD_KEY);
     else sessionStorage.setItem(HELD_KEY, JSON.stringify(ids));
-  } catch { /* sessionStorage geblokkeerd — dan blijft alleen de eigen generatie bestaan */ }
+  } catch { }
 }
 
-/** Vastgehouden generaties die dit tab mag lezen/wissen: een gedupliceerd tabblad erft de lijst
- *  via sessionStorage, maar alleen het tab dat de lease (Web Lock) krijgt, bezit ze. */
 let heldSessionIdsPromise: Promise<string[]> | null = null;
 function heldSessionIds(): Promise<string[]> {
   if (!heldSessionIdsPromise) {
@@ -1143,45 +805,39 @@ async function holdWeb(): Promise<void> {
   checkWebGenerations((await readWebRecovery(true)).records, [current, ...held]);
   if (!held.includes(current)) held.push(current);
   writeHeldSessionIds(held);
-  // De huidige generatie blijft onder haar id staan (de lock houdt dit tab al vast); nieuwe
-  // snapshots gaan naar een verse id.
   const fresh = newRecoveryId();
-  try { sessionStorage.setItem(SESSION_KEY, fresh); } catch { /* id blijft lokaal */ }
+  try { sessionStorage.setItem(SESSION_KEY, fresh); } catch { }
   await claimLock(`${SESSION_KEY}:${fresh}`);
   sessionIdPromise = Promise.resolve(fresh);
 }
 
 interface WebDocRecord {
-  id: string; // `${sid}::doc::${docId}`
+  id: string;
   kind: 'doc';
   sessionId: string;
   docId: string;
   ifc: string;
   addedAt: number;
-  /** v1/v2-compatibiliteit: metadata woonde toen nog in elk documentrecord. */
   filePath?: string | null;
   isDirty?: boolean;
 }
 interface WebManifestRecord {
-  id: string; // `${sid}::manifest`
+  id: string;
   kind: 'manifest';
   sessionId: string;
   activeDocumentId: string | null;
-  /** v3: alle weergave- en documentmetadata, los van de IFC-payloadrecords. */
   documents?: RecoveryManifestDoc[];
-  /** v1/v2-compatibiliteit. */
   docIds?: string[];
   version?: number;
   addedAt: number;
 }
 type WebRecord = WebDocRecord | WebManifestRecord;
 interface WebArchiveRecord {
-  id: string; // sha256 van de bronbytes
+  id: string;
   bytes: Uint8Array;
   addedAt: number;
 }
 
-/** De oude webschrijver had géén version en bewaarde metadata in doc-records (b1c174f4e). */
 function checkWebManifest(value: unknown): WebManifestRecord {
   if (!value || typeof value !== 'object') throw new RecoveryManifestError('invalid-shape');
   const m = value as WebManifestRecord;
@@ -1200,12 +856,10 @@ function checkWebManifest(value: unknown): WebManifestRecord {
   return m;
 }
 
-/** Vreemde/onbekende generaties zijn geen opruimkandidaten, ook niet na zeven dagen. */
 function readableWebManifest(value: unknown): value is WebManifestRecord {
   try { checkWebManifest(value); return true; } catch { return false; }
 }
 
-/** Dezelfde kandidaatselectie voor lezen, schrijven, wissen, rotatie en blobbeheer. */
 function webManifestCandidates(records: readonly WebRecord[]): WebRecord[] {
   return records.filter(record => record.kind === 'manifest'
     || (typeof record.id === 'string' && record.id.endsWith('::manifest')));
@@ -1219,8 +873,6 @@ function webKeySession(key: unknown): string | null {
 
 function checkWebGenerations(records: readonly WebRecord[], generations: readonly string[]): void {
   for (const candidate of webManifestCandidates(records)) {
-    // Een kandidaat kan via zijn declaratie worden gelezen/gewist, of via zijn sleutel worden
-    // overschreven/opgeruimd. Controleer ALLE kandidaten; een gezonde eerste maskeert geen tweede.
     const keySession = webKeySession(candidate.id);
     if (generations.includes(candidate.sessionId) || (keySession !== null && generations.includes(keySession))) {
       checkWebManifest(candidate);
@@ -1228,7 +880,6 @@ function checkWebGenerations(records: readonly WebRecord[], generations: readonl
   }
 }
 
-/** Alle archiefverwijzingen van alle manifesten in de database (alle tabs, alle vastgehouden generaties). */
 function webArchiveReferences(records: readonly WebRecord[]): Set<string> {
   const out = new Set<string>();
   for (const manifest of webManifestCandidates(records)) {
@@ -1243,7 +894,6 @@ function webArchiveReferences(records: readonly WebRecord[]): Set<string> {
 const docKey = (sid: string, docId: string): string => `${sid}::doc::${docId}`;
 const manifestKey = (sid: string): string => `${sid}::manifest`;
 
-/** Kopie-opruimen gebruikt dezelfde index plus canonieke sleutels als saveWeb. */
 async function sourceCopyManifests(db: IDBDatabase): Promise<WebRecord[]> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(WEB_STORE, 'readonly'), store = tx.objectStore(WEB_STORE);
@@ -1273,7 +923,6 @@ async function sourceCopyManifests(db: IDBDatabase): Promise<WebRecord[]> {
 async function cleanupWebSourceCopies(generations = new Set<string>()): Promise<void> {
   const db = await openRecoveryDb();
   const manifests = await sourceCopyManifests(db);
-  // Bij een onbekend contract kennen we niet alle verwijzingen: helemaal niets wissen.
   if (manifests.some(m => !readableWebManifest(m))) return;
   const references = new Set<string>(), hashes = new Set<string>();
   for (const manifest of manifests as WebManifestRecord[]) for (const document of manifest.documents ?? []) {
@@ -1286,7 +935,6 @@ async function cleanupWebSourceCopies(generations = new Set<string>()): Promise<
   await cleanupRecoverySourceCopies(generations, references, hashes);
 }
 
-// Na één mislukking geen tiensecondenlus van grote kopieerpogingen of meldingen.
 let sourceCopiesUsed = false;
 const failedSourceCopies = new Set<string>();
 async function prepareWebSourceCopies(input: RecoverySaveInput): Promise<{ input: RecoverySaveInput; failed: string[] }> {
@@ -1312,20 +960,12 @@ async function prepareWebSourceCopies(input: RecoverySaveInput): Promise<{ input
   return { input: { ...input, documents: input.documents.map(withoutMissing), upserts: input.upserts.map(withoutMissing) }, failed };
 }
 
-/**
- * Schrijf de héle webdelta in ÉÉN strikte IndexedDB readwrite-transactie. Eerst lezen we de
- * bestaande records in dezelfde transactie, daarna valideren we alle referenties, schrijven we
- * uitsluitend de upserts en ten slotte het manifest en eventuele deletes. Een fout abort de
- * transactie; de auto-save promoot zijn in-memory persistentiebasis pas nadat deze promise
- * succesvol terugkeert.
- */
 async function saveWeb(input: RecoverySaveInput): Promise<void> {
   const sid = await sessionId();
   const held = await heldSessionIds();
   const now = Date.now();
   const db = await openRecoveryDb();
   await new Promise<void>((resolve, reject) => {
-    // Eén transactie over beide stores: blob, snapshots, manifest en opruimen committen samen.
     const tx = db.transaction([WEB_STORE, WEB_ARCHIVE_STORE], 'readwrite');
     const store = tx.objectStore(WEB_STORE);
     const archiveStore = tx.objectStore(WEB_ARCHIVE_STORE);
@@ -1344,21 +984,17 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
     tx.onerror = () => fail(tx.error ?? new Error('IndexedDB-recoverytransactie mislukt.'));
     tx.onabort = () => fail(tx.error ?? new Error('IndexedDB-recoverytransactie afgebroken.'));
 
-    // Per tick NIET `getAll()`: dat las alle snapshots (bij rehab-2 ±35–60 MB) terug om er alleen de
-    // sleutels en de manifesten uit te halen (prestatiemeting 2026-10-07, 0,3–0,8 s per tick). Nu:
-    // sleutels van beide stores en manifestmetadata via de kind-index + canonieke sleutelchecks.
     const keysRequest = store.getAllKeys();
     keysRequest.onerror = () => fail(keysRequest.error ?? new Error('IndexedDB-recoverysleutels niet leesbaar.'));
     keysRequest.onsuccess = () => {
       const recordKeys = (keysRequest.result as IDBValidKey[]).filter((key): key is string => typeof key === 'string');
       const canonicalKeys = recordKeys.filter(key => key.endsWith('::manifest'));
       const manifestRecords: WebRecord[] = [];
-      let pending = 2; // kind-index + archiefsleutels; eventueel extra canonieke sleutelchecks
+      let pending = 2;
       const step = () => {
         pending -= 1;
         if (pending === 0) writeRound();
       };
-      // De index vindt iedere kind=manifest, ook buiten de canonieke sleutelvorm of doc-namespace.
       const manifestRequest = store.index(WEB_KIND_INDEX).getAll('manifest');
       manifestRequest.onerror = () => fail(manifestRequest.error ?? new Error('IndexedDB-recoverymanifesten niet leesbaar.'));
       manifestRequest.onsuccess = () => {
@@ -1366,7 +1002,6 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
         const indexedIds = new Set(manifestRecords.map(record => record.id));
         const missingKeys = canonicalKeys.filter(key => !indexedIds.has(key));
         pending += missingKeys.length;
-        // Een canonieke manifestsleutel met een ongeldige kind ontbreekt juist in de index.
         for (const key of missingKeys) {
           const request = store.get(key);
           request.onerror = () => fail(request.error ?? new Error('IndexedDB-recoverymanifest niet leesbaar.'));
@@ -1377,7 +1012,6 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
         }
         step();
       };
-      // Alleen de SLEUTELS van de archiefstore: bestaan en opruimen zonder de bytes te lezen.
       let archiveKeys = new Set<string>();
       const archiveKeysRequest = archiveStore.getAllKeys();
       archiveKeysRequest.onerror = () => fail(archiveKeysRequest.error ?? new Error('IndexedDB-archiefsleutels niet leesbaar.'));
@@ -1388,7 +1022,6 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
 
       const writeRound = () => {
         try {
-          // Alle metadata komt uit dezelfde readwrite-transactie, vóór de eerste put/delete.
           const candidates = webManifestCandidates(manifestRecords);
           checkWebGenerations(candidates, [sid, ...held]);
           const unknownManifest = candidates.some(value => !readableWebManifest(value));
@@ -1403,14 +1036,12 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
             }
           }
 
-          // Eén keer per archief: de leverancier (decodering) loopt alleen als de blob er nog niet is.
           for (const sha of referenced) {
             if (archiveKeys.has(sha)) continue;
             const record: WebArchiveRecord = { id: sha, bytes: suppliedArchiveBytes(input, sha), addedAt: now };
             archiveStore.put(record);
           }
 
-          // Alleen nieuwe of inhoudelijk gewijzigde IFC-payloads worden aangeraakt.
           for (const document of upserts.values()) {
             const record: WebDocRecord = {
               id: docKey(sid, document.id), kind: 'doc', sessionId: sid, docId: document.id,
@@ -1419,8 +1050,6 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
             store.put(record);
           }
 
-          // Alle metadata hoort bij het manifest. Daardoor is een actieve-tabwissel of alleen een
-          // pad-/dirtywijziging exact één manifest-write, nooit een serie grote IFC-copies.
           const manifest: WebManifestRecord = {
             id: manifestKey(sid), kind: 'manifest', sessionId: sid,
             version: RECOVERY_MANIFEST_VERSION,
@@ -1440,9 +1069,6 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
           };
           store.put(manifest);
 
-          // Opruimen op sleutel. Een andere generatie verloopt als haar manifest ouder is dan
-          // MAX_AGE_MS, of als ze geen manifest (meer) heeft: zonder manifest biedt `loadWeb` haar
-          // nooit aan (snapshots en manifest worden altijd in één transactie geschreven).
           const keep = new Set(input.documents.map((document) => docKey(sid, document.id)));
           const survivingManifests: WebManifestRecord[] = [manifest];
           for (const key of recordKeys) {
@@ -1451,8 +1077,6 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
               if (key.startsWith(ownDocPrefix) && !keep.has(key)) store.delete(key);
               continue;
             }
-            // Bij een onbekend contract kennen we diens verwijzingen niet: behoud alle vreemde
-            // records, ook als een afwijkende sleutel geen bruikbare sessieprefix heeft.
             if (unknownManifest) continue;
             const other = keySession !== null ? manifests.get(keySession) : undefined;
             if (!other || now - other.addedAt > MAX_AGE_MS) store.delete(key);
@@ -1460,15 +1084,11 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
           for (const [session, other] of manifests) {
             if (session !== sid && now - other.addedAt <= MAX_AGE_MS) survivingManifests.push(other);
           }
-          // Een blob verdwijnt zodra GEEN manifest in de database hem nog noemt.
           const stillReferenced = webArchiveReferences(survivingManifests);
-          // Een onbekend contract kan blobs noemen op een voor ons onbekende manier.
           if (!unknownManifest) {
             for (const key of archiveKeys) if (!stillReferenced.has(key)) archiveStore.delete(key);
           }
         } catch (err) {
-          // Geen gedeeltelijke promotie: alle writes hierboven horen bij dezelfde transactie en
-          // verdwijnen bij abort. Onze headless dubbel kent geen `abort`, daarom defensief optioneel.
           fail(err);
           (tx as unknown as { abort?: () => void }).abort?.();
         }
@@ -1477,9 +1097,6 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
   });
 }
 
-/** Lees snapshots plus archiefblobs in één readonly-transactie. Opstarten houdt de bestaande lege
- *  terugval bij een IDB-fout, behalve bij upgradeblokkade: die moet zichtbaar worden en mutaties stoppen.
- *  Uitstellen leest strict, zodat een leesfout geen sessierotatie toestaat. */
 async function readWebRecovery(strict = false): Promise<{ records: WebRecord[]; archives: Map<string, Uint8Array> }> {
   try {
     const db = await openRecoveryDb();
@@ -1508,7 +1125,6 @@ async function readWebRecovery(strict = false): Promise<{ records: WebRecord[]; 
     webStorageProven = true;
     return read;
   } catch (error) {
-    // Ook een weigering bij de eerste transactie zet de sessievlag (issue #582).
     const refusal = asStorageRefusal(error);
     if (strict || error instanceof IndexedDbUpgradeBlockedError) throw refusal;
     return { records: [], archives: new Map() };
@@ -1516,21 +1132,15 @@ async function readWebRecovery(strict = false): Promise<{ records: WebRecord[]; 
 }
 
 async function loadWeb(): Promise<LoadedRecovery> {
-  // Eerst de sessieclaims, dan pas de herstelread (review PR #644): een gedupliceerd tabblad wacht
-  // hier op de lock; las het vóór die wachttijd, dan kon het een oudere generatie herstellen en daarna
-  // bij het wissen de nieuwere generatie van het andere tabblad weggooien. In een opaque origin kost
-  // dit niets extra: daar weigert sessionStorage en geeft `resolveSessionId` meteen `'default'`.
   const sid = await sessionId();
   const held = await heldSessionIds();
   const { records: all, archives: allArchives } = await readWebRecovery();
-  // Bij een geweigerde opslag (issue #582) is er niets te herstellen.
   if (webStorageUnavailable) return emptyRecovery();
   const candidates = webManifestCandidates(all);
   checkWebGenerations(candidates, [sid, ...held]);
   const docs: LoadedRecoveryDoc[] = [];
   const seen = new Set<string>();
   let activeDocumentId: string | null = null;
-  // Eigen generatie eerst (haar actieve tabblad wint), daarna de vastgehouden, oudste eerst.
   for (const generation of [sid, ...held.filter((id) => id !== sid)]) {
     const manifest = candidates.find((r) => r.kind === 'manifest' && r.sessionId === generation) as WebManifestRecord | undefined;
     if (!manifest) continue;
@@ -1551,13 +1161,8 @@ async function loadWeb(): Promise<LoadedRecovery> {
         ...(ifcSourceMetaFields(document).ifcSource ? { sourceCopyDocumentKey: rec.id } : {}),
         ifc: rec.ifc,
         filePath: document.filePath ?? rec.filePath ?? null,
-        // docIds-manifesten hadden geen documentmetadata: hun synthetische defaults
-        // mogen de daadwerkelijk bewaarde vlag in het oude doc-record niet verdringen.
-        // Ook documents-manifesten mogen de optionele vlag missen (knownbug 330).
         isDirty: (Array.isArray(manifest.documents) ? document.isDirty : undefined) ?? rec.isDirty ?? true,
-        // v1–v3-webrecord kent het veld niet ⇒ `false` (geen modus).
         datesAsRecorded: document.datesAsRecorded ?? false,
-        // Een webrecord van vóór issue #309 kent het site-doel niet ⇒ weggelaten (geen site-doel).
         ...siteMetaFields(document),
         ...foreignSourceMetaFields(document),
         ...ifcSourceMetaFields(document),
@@ -1566,7 +1171,6 @@ async function loadWeb(): Promise<LoadedRecovery> {
       });
     }
   }
-  // Alleen de blobs waar de geladen documenten naar verwijzen (niet die van andere tabs).
   const archives = new Map<string, Uint8Array>();
   for (const doc of docs) {
     const bytes = doc.xerArchive ? allArchives.get(doc.xerArchive) : undefined;
@@ -1601,30 +1205,18 @@ async function clearWeb(): Promise<void> {
         const unknownManifest = candidates.some(record => !readableWebManifest(record));
         const ours = all.filter((record) => generations.has(record.sessionId));
         for (const record of ours) store.delete(record.id);
-        // Blobs zonder verwijzing uit een manifest van een ANDER tab gaan mee.
         const stillReferenced = webArchiveReferences(candidates.filter(record => !generations.has(record.sessionId)));
         const orphanArchives = (unknownManifest ? [] : keysRequest.result as IDBValidKey[])
           .filter((key): key is string => typeof key === 'string' && !stillReferenced.has(key));
         for (const key of orphanArchives) archiveStore.delete(key);
         writeHeldSessionIds([]);
         heldSessionIdsPromise = Promise.resolve([]);
-        // Echte IndexedDB committeert ook een lege transactie; de kleine headless dubbel plant dan
-        // geen `oncomplete`. Alleen voor dat lege, write-loze geval lossen we lokaal op — nooit een
-        // tweede, losse transaction openen: dat zou de atomische grens breken.
         if (ours.length === 0 && orphanArchives.length === 0) queueMicrotask(resolve);
       };
     };
   });
 }
 
-// ---------------------------------------------------------------------------
-// Publieke API — backend-keuze bij runtime.
-// ---------------------------------------------------------------------------
-
-// Schrijf- en wisacties lopen strikt ná elkaar: `clearRecovery()` bij een schone exit
-// (`useAppCloseGuard`) mag nooit ingehaald worden door een crashherstel-save die op dat moment nog
-// halverwege was — die zou de net opgeruimde snapshots terugzetten en de volgende start zou alsnog
-// "niet normaal afgesloten" melden. Een mislukte actie breekt de keten niet.
 let recoveryWriteTail: Promise<unknown> = Promise.resolve();
 function serializeRecoveryWrite(action: () => Promise<void>): Promise<void> {
   const run = recoveryWriteTail.then(action, action);
@@ -1632,10 +1224,8 @@ function serializeRecoveryWrite(action: () => Promise<void>): Promise<void> {
   return run;
 }
 
-/** Lege herstelset: dezelfde vorm als een webstart zonder snapshots. */
 const emptyRecovery = (): LoadedRecovery => ({ activeDocumentId: null, docs: [], archives: new Map() });
 
-/** Webtak van wis- en uitstelacties: na een geweigerde opslag stil een no-op (issue #582). */
 async function quietWhenRefused(action: () => Promise<void>): Promise<void> {
   if (webStorageUnavailable) return;
   try { await action(); webStorageProven = true; } catch (error) {
@@ -1644,14 +1234,6 @@ async function quietWhenRefused(action: () => Promise<void>): Promise<void> {
   }
 }
 
-/**
- * Weigert de browser IndexedDB, dan gooit de webtak `RecoveryStorageUnavailableError` in plaats van
- * stil over te slaan. Bewuste keuze: `runRecoveryTick` legt pas na een geslaagde `saveRecovery` vast
- * dat de bron bewaard is (`RecoveryDeltaTracker.commit`). Een stille overslag zou dat ten onrechte
- * doen. De fout zelf blijft stil: `notifyRecoveryError` handelt hem af zonder melding, en
- * `useAutoSave` slaat volgende rondes over via `recoveryStorageUnavailable()`. Werkte de opslag in
- * deze sessie al (`webStorageProven`), dan is een `SecurityError` een gewone fout met een melding.
- */
 export function saveRecovery(input: RecoverySaveInput): Promise<void> {
   return serializeRecoveryWrite(async () => {
     if (isTauri()) { await saveTauri(input); return; }
@@ -1661,7 +1243,6 @@ export function saveRecovery(input: RecoverySaveInput): Promise<void> {
       await saveWeb(prepared.input);
       webStorageProven = true;
       for (const id of prepared.failed) input.onSourceCopyFailure?.(id);
-      // Best effort: een opruimfout mag het geslaagde manifest niet ongedaan maken.
       if (sourceCopiesUsed) await cleanupWebSourceCopies().catch(() => {});
     } catch (error) { throw asStorageRefusal(error); }
   });
@@ -1673,13 +1254,10 @@ export async function loadRecovery(): Promise<LoadedRecovery> {
   else if (webStorageUnavailable) return emptyRecovery();
   else {
     try { loaded = await loadWeb(); } catch (error) {
-      // Geweigerde opslag: er kan geen herstelset zijn. Geen fout, geen melding.
       if (isStorageRefusal(error)) { markStorageUnavailable(error); return emptyRecovery(); }
       throw error;
     }
   }
-  // De herstelverificatie (lengte + SHA-256 per blob) en de reconstructie hashen synchroon; reken de
-  // digests hier vooraf native uit (`crypto.subtle`), zodat dat niet in pure JS op de hoofdthread loopt.
   for (const bytes of loaded.archives.values()) await precomputeSha256(bytes);
   return loaded;
 }
@@ -1692,23 +1270,10 @@ export function clearRecovery(): Promise<void> {
   })));
 }
 
-/**
- * Schone afsluiting van de desktopapp: alleen de eigen snapshots van deze start weghalen; uitgestelde
- * of nog niet aangeboden snapshots blijven voor de volgende start (zie `planRecoveryExitClear`).
- * Web: no-op (daar is geen afsluitmoment; `beforeunload` in `useAutoSave`), dus ook na een
- * geweigerde opslag.
- */
 export function clearOwnRecovery(): Promise<void> {
   return serializeRecoveryWrite(() => (isTauri() ? clearOwnTauri() : Promise.resolve()));
 }
 
-/**
- * "Nu niet herstellen, maar ook niet weggooien": de gevonden snapshots moeten de volgende
- * crashherstel-rondes overleven en bij de volgende start opnieuw aangeboden worden. Aanroepen
- * vóórdat de auto-save weer aan gaat. Tauri: zie `holdTauri`; web: zie `holdWeb`.
- * Alleen ids die daadwerkelijk zijn hersteld meegeven: op desktop mag hun oude generatie pas
- * na een geslaagde nieuwe snapshot-/manifestcommit worden opgeruimd. Uitstellen geeft geen ids.
- */
 export function holdRecoveryForLater(restoredDocumentIds: readonly string[] = []): Promise<void> {
   return serializeRecoveryWrite(() => (isTauri() ? holdTauri(restoredDocumentIds) : quietWhenRefused(holdWeb)));
 }

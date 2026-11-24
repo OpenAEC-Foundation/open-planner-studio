@@ -32,9 +32,9 @@ export const RELATIONS_PANEL_PARITY: readonly ParityRow[] = [
   },
   {
     id: 'link-selected',
-    requirement: 'Twee geselecteerde taken koppelen',
+    requirement: 'Geselecteerde taken koppelen',
     registry: [{ file: 'src/engine/taskGrid/taskColumnRegistry.ts', needle: "id: `relation.${direction}s`" }],
-    planner: [{ file: 'src/state/relationActions.ts', needle: 'export function createRelationWithFeedback' }],
+    planner: [{ file: 'src/state/relationActions.ts', needle: 'export function linkTasksInChain' }],
     ribbon: [{ file: 'src/components/layout/Ribbon/ribbonWidgets.tsx', needle: "key: 'linkSelected'" }],
     automatedChecks: [{ file: 'tests/planning/check-relation-ribbon-trace.ts', needle: 'geselecteerde taken koppelen gebruikt de bewaakte gedeelde actie' }],
     evidenceId: 'link-selected',

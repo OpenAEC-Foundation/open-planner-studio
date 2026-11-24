@@ -1,8 +1,999 @@
 {
   "schema": 1,
   "product": "open-planner-studio",
-  "generated": "2026-11-17T03:27:02.581Z",
+  "generated": "2026-11-23T07:35:10.437Z",
   "releases": [
+    {
+      "version": "2026.48.0",
+      "tag": "v2026.48.0",
+      "stats": {
+        "daysSincePrevious": 6,
+        "commitsSincePrevious": 761,
+        "addedCodeLines": 39118
+      },
+      "highlights": {
+        "nl": {
+          "primary": {
+            "category": "RELATIES",
+            "title": "Koppel taken als in MS Project en P6",
+            "description": "Ctrl+F2 koppelt de selectie in de volgorde van de lijst; het rechtsklikmenu wijst voorgangers of opvolgers toe.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "DATUMS",
+              "title": "Kies datums in een kalender",
+              "description": "Datumvelden en datumcellen in de tabel openen een kalender met weeknummers.",
+              "icon": "tasks"
+            },
+            {
+              "category": "INSTELLINGEN",
+              "title": "Vind elke instelling",
+              "description": "Zoeken, acht groepen, plaatjes en terugzetten per gewijzigde instelling.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Vouw mijlpalen tot één regel",
+              "description": "Mijlpalen onder elkaar klappen in; eigen werkcategorieën krijgen een eigen kleur.",
+              "icon": "tasks"
+            },
+            {
+              "category": "OPSLAAN",
+              "title": "Opslaan op de achtergrond",
+              "description": "De statusbalk toont de opslagstand en sluiten wacht op een lopende opslag.",
+              "icon": "import"
+            }
+          ]
+        },
+        "en": {
+          "primary": {
+            "category": "DEPENDENCIES",
+            "title": "Link tasks as in MS Project and P6",
+            "description": "Ctrl+F2 links the selection in list order; the right-click menu assigns predecessors or successors.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "DATES",
+              "title": "Pick dates from a calendar",
+              "description": "Date fields and date cells in the table open a calendar with week numbers.",
+              "icon": "tasks"
+            },
+            {
+              "category": "SETTINGS",
+              "title": "Find every setting",
+              "description": "Search, eight groups, pictures and a reset for each changed setting.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Fold milestones into one row",
+              "description": "Milestone series collapse, and custom work categories get their own colour.",
+              "icon": "tasks"
+            },
+            {
+              "category": "SAVING",
+              "title": "Save in the background",
+              "description": "The status bar shows the save state, and closing waits for a running save.",
+              "icon": "import"
+            }
+          ]
+        },
+        "fr": {
+          "primary": {
+            "category": "RELATIONS",
+            "title": "Liez les tâches comme dans MS Project et P6",
+            "description": "Ctrl+F2 lie la sélection dans l’ordre de la liste ; le menu contextuel affecte prédécesseurs ou successeurs.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "DATES",
+              "title": "Choisissez les dates dans un calendrier",
+              "description": "Les champs de date et les cellules du tableau ouvrent un calendrier avec numéros de semaine.",
+              "icon": "tasks"
+            },
+            {
+              "category": "PARAMÈTRES",
+              "title": "Trouvez chaque paramètre",
+              "description": "Recherche, huit groupes, images et réinitialisation de chaque paramètre modifié.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Regroupez les jalons sur une ligne",
+              "description": "Les séries de jalons se replient et les catégories de travail personnalisées ont leur propre couleur.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ENREGISTREMENT",
+              "title": "Enregistrez en arrière-plan",
+              "description": "La barre d’état indique l’enregistrement et la fermeture attend qu’il soit terminé.",
+              "icon": "import"
+            }
+          ]
+        },
+        "de": {
+          "primary": {
+            "category": "BEZIEHUNGEN",
+            "title": "Vorgänge wie in MS Project und P6 verknüpfen",
+            "description": "Strg+F2 verknüpft die Auswahl in Listenreihenfolge; das Kontextmenü weist Vorgänger oder Nachfolger zu.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "KALENDER",
+              "title": "Daten im Kalender wählen",
+              "description": "Datumsfelder und Tabellenzellen öffnen einen Kalender mit Kalenderwochen.",
+              "icon": "tasks"
+            },
+            {
+              "category": "EINSTELLUNGEN",
+              "title": "Jede Einstellung finden",
+              "description": "Suche, acht Gruppen, Bilder und Zurücksetzen für jede geänderte Einstellung.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Meilensteine in einer Zeile",
+              "description": "Meilensteinreihen lassen sich einklappen, eigene Arbeitskategorien erhalten eine eigene Farbe.",
+              "icon": "tasks"
+            },
+            {
+              "category": "SPEICHERN",
+              "title": "Im Hintergrund speichern",
+              "description": "Die Statusleiste zeigt den Speicherstand, und Schließen wartet auf laufendes Speichern.",
+              "icon": "import"
+            }
+          ]
+        },
+        "es": {
+          "primary": {
+            "category": "RELACIONES",
+            "title": "Vincule tareas como en MS Project y P6",
+            "description": "Ctrl+F2 vincula la selección en el orden de la lista; el menú contextual asigna predecesoras o sucesoras.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "FECHAS",
+              "title": "Elija fechas en un calendario",
+              "description": "Los campos de fecha y las celdas de la tabla abren un calendario con números de semana.",
+              "icon": "tasks"
+            },
+            {
+              "category": "CONFIGURACIÓN",
+              "title": "Encuentre cada ajuste",
+              "description": "Búsqueda, ocho grupos, imágenes y restablecimiento de cada ajuste modificado.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Agrupe hitos en una fila",
+              "description": "Las series de hitos se contraen y las categorías de trabajo propias tienen su propio color.",
+              "icon": "tasks"
+            },
+            {
+              "category": "GUARDADO",
+              "title": "Guarde en segundo plano",
+              "description": "La barra de estado muestra el guardado y el cierre espera a que termine.",
+              "icon": "import"
+            }
+          ]
+        },
+        "zh": {
+          "primary": {
+            "category": "依赖关系",
+            "title": "像 MS Project 和 P6 一样链接任务",
+            "description": "Ctrl+F2 按列表顺序链接所选任务；右键菜单可指定前置或后续任务。",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "日期",
+              "title": "从日历中选择日期",
+              "description": "日期字段和表格单元格可打开带周数的日历。",
+              "icon": "tasks"
+            },
+            {
+              "category": "设置",
+              "title": "找到每项设置",
+              "description": "搜索、八个分组、示意图，并可重置每项已更改的设置。",
+              "icon": "examples"
+            },
+            {
+              "category": "甘特图",
+              "title": "将里程碑折叠为一行",
+              "description": "连续的里程碑可以折叠，自定义工作类别拥有自己的颜色。",
+              "icon": "tasks"
+            },
+            {
+              "category": "保存",
+              "title": "在后台保存",
+              "description": "状态栏显示保存状态，关闭时会等待正在进行的保存。",
+              "icon": "import"
+            }
+          ]
+        },
+        "it": {
+          "primary": {
+            "category": "RELAZIONI",
+            "title": "Collegare i compiti come in MS Project e P6",
+            "description": "Ctrl+F2 collega la selezione nell’ordine dell’elenco; il menu contestuale assegna predecessori o successori.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "DATE",
+              "title": "Scegliere le date da un calendario",
+              "description": "Campi data e celle della tabella aprono un calendario con i numeri di settimana.",
+              "icon": "tasks"
+            },
+            {
+              "category": "IMPOSTAZIONI",
+              "title": "Trovare ogni impostazione",
+              "description": "Ricerca, otto gruppi, immagini e ripristino di ogni impostazione modificata.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Milestone su una sola riga",
+              "description": "Le serie di milestone si comprimono e le categorie di lavoro personalizzate hanno un proprio colore.",
+              "icon": "tasks"
+            },
+            {
+              "category": "SALVATAGGIO",
+              "title": "Salvare in background",
+              "description": "La barra di stato mostra il salvataggio e la chiusura attende che finisca.",
+              "icon": "import"
+            }
+          ]
+        },
+        "pt": {
+          "primary": {
+            "category": "RELAÇÕES",
+            "title": "Ligue tarefas como no MS Project e no P6",
+            "description": "Ctrl+F2 liga a seleção pela ordem da lista; o menu de contexto atribui predecessoras ou sucessoras.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "DATAS",
+              "title": "Escolha datas num calendário",
+              "description": "Os campos de data e as células da tabela abrem um calendário com números de semana.",
+              "icon": "tasks"
+            },
+            {
+              "category": "DEFINIÇÕES",
+              "title": "Encontre cada definição",
+              "description": "Pesquisa, oito grupos, imagens e reposição de cada definição alterada.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Agrupe marcos numa linha",
+              "description": "As séries de marcos recolhem-se e as categorias de trabalho próprias têm a sua cor.",
+              "icon": "tasks"
+            },
+            {
+              "category": "GRAVAÇÃO",
+              "title": "Guarde em segundo plano",
+              "description": "A barra de estado mostra a gravação e o fecho espera que termine.",
+              "icon": "import"
+            }
+          ]
+        },
+        "pl": {
+          "primary": {
+            "category": "RELACJE",
+            "title": "Łącz zadania jak w MS Project i P6",
+            "description": "Ctrl+F2 łączy zaznaczenie w kolejności listy; menu kontekstowe przypisuje poprzedników lub następników.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "DATY",
+              "title": "Wybieraj daty z kalendarza",
+              "description": "Pola dat i komórki tabeli otwierają kalendarz z numerami tygodni.",
+              "icon": "tasks"
+            },
+            {
+              "category": "USTAWIENIA",
+              "title": "Znajdź każde ustawienie",
+              "description": "Wyszukiwanie, osiem grup, ilustracje i reset każdego zmienionego ustawienia.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Kamienie milowe w jednym wierszu",
+              "description": "Serie kamieni milowych można zwinąć, a własne kategorie prac mają własny kolor.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ZAPIS",
+              "title": "Zapisuj w tle",
+              "description": "Pasek stanu pokazuje stan zapisu, a zamykanie czeka na trwający zapis.",
+              "icon": "import"
+            }
+          ]
+        },
+        "tr": {
+          "primary": {
+            "category": "İLİŞKİLER",
+            "title": "Görevleri MS Project ve P6’daki gibi bağlayın",
+            "description": "Ctrl+F2 seçimi liste sırasıyla bağlar; sağ tık menüsü önceki veya sonraki görevleri atar.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "TARİHLER",
+              "title": "Tarihleri takvimden seçin",
+              "description": "Tarih alanları ve tablo hücreleri hafta numaralı bir takvim açar.",
+              "icon": "tasks"
+            },
+            {
+              "category": "AYARLAR",
+              "title": "Her ayarı bulun",
+              "description": "Arama, sekiz grup, görseller ve değişen her ayar için sıfırlama.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Kilometre taşlarını tek satırda toplayın",
+              "description": "Ardışık kilometre taşları daraltılır, özel iş kategorileri kendi rengini alır.",
+              "icon": "tasks"
+            },
+            {
+              "category": "KAYDETME",
+              "title": "Arka planda kaydedin",
+              "description": "Durum çubuğu kayıt durumunu gösterir, kapatma süren kaydı bekler.",
+              "icon": "import"
+            }
+          ]
+        },
+        "ar": {
+          "primary": {
+            "category": "العلاقات",
+            "title": "اربط المهام كما في MS Project وP6",
+            "description": "يربط Ctrl+F2 التحديد بترتيب القائمة، وتعيّن قائمة النقر بزر الماوس الأيمن المهام السابقة أو اللاحقة.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "التواريخ",
+              "title": "اختر التواريخ من تقويم",
+              "description": "تفتح حقول التاريخ وخلايا الجدول تقويمًا بأرقام الأسابيع.",
+              "icon": "tasks"
+            },
+            {
+              "category": "الإعدادات",
+              "title": "اعثر على كل إعداد",
+              "description": "بحث وثماني مجموعات وصور وإعادة تعيين لكل إعداد تم تغييره.",
+              "icon": "examples"
+            },
+            {
+              "category": "مخطط جانت",
+              "title": "اطوِ الأحداث الرئيسية في صف واحد",
+              "description": "تُطوى سلاسل الأحداث الرئيسية، وتحصل فئات العمل المخصصة على لونها الخاص.",
+              "icon": "tasks"
+            },
+            {
+              "category": "الحفظ",
+              "title": "احفظ في الخلفية",
+              "description": "يعرض شريط الحالة حالة الحفظ، وينتظر الإغلاق انتهاء الحفظ الجاري.",
+              "icon": "import"
+            }
+          ]
+        },
+        "ja": {
+          "primary": {
+            "category": "依存関係",
+            "title": "MS Project や P6 のようにタスクをリンク",
+            "description": "Ctrl+F2 で選択をリスト順にリンク。右クリックメニューで先行・後続タスクを割り当て。",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "日付",
+              "title": "カレンダーで日付を選択",
+              "description": "日付フィールドと表のセルから週番号付きのカレンダーを開けます。",
+              "icon": "tasks"
+            },
+            {
+              "category": "設定",
+              "title": "すべての設定を見つける",
+              "description": "検索、8つのグループ、図解、変更した設定ごとのリセット。",
+              "icon": "examples"
+            },
+            {
+              "category": "ガント",
+              "title": "マイルストーンを1行に",
+              "description": "連続するマイルストーンを折りたたみ、独自の作業カテゴリに専用の色を付けます。",
+              "icon": "tasks"
+            },
+            {
+              "category": "保存",
+              "title": "バックグラウンドで保存",
+              "description": "ステータスバーに保存状態を表示し、閉じる操作は保存の完了を待ちます。",
+              "icon": "import"
+            }
+          ]
+        },
+        "ko": {
+          "primary": {
+            "category": "관계",
+            "title": "MS Project와 P6처럼 작업 연결",
+            "description": "Ctrl+F2로 선택 항목을 목록 순서대로 연결하고, 오른쪽 클릭 메뉴로 선행·후행 작업을 지정합니다.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "날짜",
+              "title": "달력에서 날짜 선택",
+              "description": "날짜 필드와 표 셀에서 주 번호가 있는 달력을 엽니다.",
+              "icon": "tasks"
+            },
+            {
+              "category": "설정",
+              "title": "모든 설정 찾기",
+              "description": "검색, 여덟 개 그룹, 그림, 변경한 설정마다 초기화.",
+              "icon": "examples"
+            },
+            {
+              "category": "간트",
+              "title": "마일스톤을 한 줄로",
+              "description": "연속된 마일스톤을 접고, 사용자 작업 범주마다 고유한 색을 씁니다.",
+              "icon": "tasks"
+            },
+            {
+              "category": "저장",
+              "title": "백그라운드에서 저장",
+              "description": "상태 표시줄에 저장 상태가 보이고, 닫기는 진행 중인 저장을 기다립니다.",
+              "icon": "import"
+            }
+          ]
+        },
+        "fa": {
+          "primary": {
+            "category": "روابط",
+            "title": "فعالیت‌ها را مانند MS Project و P6 پیوند دهید",
+            "description": "Ctrl+F2 انتخاب را به ترتیب فهرست پیوند می‌دهد؛ منوی راست‌کلیک پیش‌نیاز یا پس‌نیاز تعیین می‌کند.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "تاریخ‌ها",
+              "title": "تاریخ را از تقویم انتخاب کنید",
+              "description": "فیلدهای تاریخ و خانه‌های جدول تقویمی با شماره هفته باز می‌کنند.",
+              "icon": "tasks"
+            },
+            {
+              "category": "تنظیمات",
+              "title": "هر تنظیمی را پیدا کنید",
+              "description": "جست‌وجو، هشت گروه، تصویر و بازنشانی هر تنظیم تغییرکرده.",
+              "icon": "examples"
+            },
+            {
+              "category": "گانت",
+              "title": "نقاط عطف را در یک ردیف جمع کنید",
+              "description": "سری نقاط عطف جمع می‌شود و دسته‌های کاری سفارشی رنگ خود را می‌گیرند.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ذخیره",
+              "title": "ذخیره در پس‌زمینه",
+              "description": "نوار وضعیت وضعیت ذخیره را نشان می‌دهد و بستن منتظر پایان ذخیره می‌ماند.",
+              "icon": "import"
+            }
+          ]
+        },
+        "ru": {
+          "primary": {
+            "category": "СВЯЗИ",
+            "title": "Связывайте задачи как в MS Project и P6",
+            "description": "Ctrl+F2 связывает выделенное в порядке списка; контекстное меню назначает предшественников или последователей.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "ДАТЫ",
+              "title": "Выбирайте даты в календаре",
+              "description": "Поля дат и ячейки таблицы открывают календарь с номерами недель.",
+              "icon": "tasks"
+            },
+            {
+              "category": "НАСТРОЙКИ",
+              "title": "Находите любую настройку",
+              "description": "Поиск, восемь групп, иллюстрации и сброс каждой изменённой настройки.",
+              "icon": "examples"
+            },
+            {
+              "category": "ГАНТ",
+              "title": "Вехи в одной строке",
+              "description": "Серии вех сворачиваются, а свои категории работ получают собственный цвет.",
+              "icon": "tasks"
+            },
+            {
+              "category": "СОХРАНЕНИЕ",
+              "title": "Сохранение в фоне",
+              "description": "Строка состояния показывает сохранение, а закрытие ждёт его завершения.",
+              "icon": "import"
+            }
+          ]
+        },
+        "uk": {
+          "primary": {
+            "category": "ЗВ’ЯЗКИ",
+            "title": "Пов’язуйте завдання як у MS Project і P6",
+            "description": "Ctrl+F2 пов’язує виділене в порядку списку; контекстне меню призначає попередників або наступників.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "ДАТИ",
+              "title": "Вибирайте дати в календарі",
+              "description": "Поля дат і клітинки таблиці відкривають календар із номерами тижнів.",
+              "icon": "tasks"
+            },
+            {
+              "category": "НАЛАШТУВАННЯ",
+              "title": "Знаходьте будь-яке налаштування",
+              "description": "Пошук, вісім груп, ілюстрації та скидання кожного зміненого налаштування.",
+              "icon": "examples"
+            },
+            {
+              "category": "ҐАНТ",
+              "title": "Віхи в одному рядку",
+              "description": "Серії віх згортаються, а власні категорії робіт мають власний колір.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ЗБЕРЕЖЕННЯ",
+              "title": "Збереження у фоні",
+              "description": "Рядок стану показує збереження, а закриття чекає на його завершення.",
+              "icon": "import"
+            }
+          ]
+        },
+        "cs": {
+          "primary": {
+            "category": "VAZBY",
+            "title": "Propojujte úkoly jako v MS Project a P6",
+            "description": "Ctrl+F2 propojí výběr v pořadí seznamu; místní nabídka přiřadí předchůdce nebo následníky.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "DATUMY",
+              "title": "Vybírejte data v kalendáři",
+              "description": "Datová pole a buňky tabulky otevírají kalendář s čísly týdnů.",
+              "icon": "tasks"
+            },
+            {
+              "category": "NASTAVENÍ",
+              "title": "Najděte každé nastavení",
+              "description": "Hledání, osm skupin, obrázky a obnovení každého změněného nastavení.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Milníky na jednom řádku",
+              "description": "Řady milníků lze sbalit a vlastní kategorie prací mají vlastní barvu.",
+              "icon": "tasks"
+            },
+            {
+              "category": "UKLÁDÁNÍ",
+              "title": "Ukládání na pozadí",
+              "description": "Stavový řádek ukazuje stav uložení a zavření čeká na jeho dokončení.",
+              "icon": "import"
+            }
+          ]
+        },
+        "sk": {
+          "primary": {
+            "category": "VÄZBY",
+            "title": "Prepájajte úlohy ako v MS Project a P6",
+            "description": "Ctrl+F2 prepojí výber v poradí zoznamu; kontextová ponuka priradí predchodcov alebo nasledovníkov.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "DÁTUMY",
+              "title": "Vyberajte dátumy v kalendári",
+              "description": "Dátumové polia a bunky tabuľky otvárajú kalendár s číslami týždňov.",
+              "icon": "tasks"
+            },
+            {
+              "category": "NASTAVENIA",
+              "title": "Nájdite každé nastavenie",
+              "description": "Vyhľadávanie, osem skupín, obrázky a obnovenie každého zmeneného nastavenia.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Míľniky v jednom riadku",
+              "description": "Rady míľnikov sa dajú zbaliť a vlastné kategórie prác majú vlastnú farbu.",
+              "icon": "tasks"
+            },
+            {
+              "category": "UKLADANIE",
+              "title": "Ukladanie na pozadí",
+              "description": "Stavový riadok ukazuje stav uloženia a zatvorenie čaká na jeho dokončenie.",
+              "icon": "import"
+            }
+          ]
+        },
+        "sr": {
+          "primary": {
+            "category": "ВЕЗЕ",
+            "title": "Повежите задатке као у MS Project и P6",
+            "description": "Ctrl+F2 повезује избор редоследом листе; контекстни мени додељује претходнике или следбенике.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "ДАТУМИ",
+              "title": "Бирајте датуме у календару",
+              "description": "Поља за датум и ћелије табеле отварају календар са бројевима недеља.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ПОДЕШАВАЊА",
+              "title": "Пронађите свако подешавање",
+              "description": "Претрага, осам група, слике и враћање сваког промењеног подешавања.",
+              "icon": "examples"
+            },
+            {
+              "category": "ГАНТ",
+              "title": "Прекретнице у једном реду",
+              "description": "Низови прекретница се скупљају, а сопствене категорије радова добијају своју боју.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ЧУВАЊЕ",
+              "title": "Чување у позадини",
+              "description": "Статусна трака приказује стање чувања, а затварање чека да се оно заврши.",
+              "icon": "import"
+            }
+          ]
+        },
+        "hr": {
+          "primary": {
+            "category": "VEZE",
+            "title": "Povežite zadatke kao u MS Projectu i P6",
+            "description": "Ctrl+F2 povezuje odabir redoslijedom popisa; kontekstni izbornik dodjeljuje prethodnike ili sljedbenike.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "DATUMI",
+              "title": "Birajte datume u kalendaru",
+              "description": "Polja datuma i ćelije tablice otvaraju kalendar s brojevima tjedana.",
+              "icon": "tasks"
+            },
+            {
+              "category": "POSTAVKE",
+              "title": "Pronađite svaku postavku",
+              "description": "Pretraživanje, osam grupa, slike i vraćanje svake promijenjene postavke.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Prekretnice u jednom retku",
+              "description": "Nizovi prekretnica se sažimaju, a vlastite kategorije radova dobivaju svoju boju.",
+              "icon": "tasks"
+            },
+            {
+              "category": "SPREMANJE",
+              "title": "Spremanje u pozadini",
+              "description": "Traka stanja prikazuje spremanje, a zatvaranje čeka da ono završi.",
+              "icon": "import"
+            }
+          ]
+        },
+        "bg": {
+          "primary": {
+            "category": "ВРЪЗКИ",
+            "title": "Свързвайте задачи като в MS Project и P6",
+            "description": "Ctrl+F2 свързва избраното по реда в списъка; контекстното меню задава предходни или следващи задачи.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "ДАТИ",
+              "title": "Избирайте дати от календар",
+              "description": "Полетата за дата и клетките в таблицата отварят календар с номера на седмиците.",
+              "icon": "tasks"
+            },
+            {
+              "category": "НАСТРОЙКИ",
+              "title": "Намерете всяка настройка",
+              "description": "Търсене, осем групи, илюстрации и нулиране на всяка променена настройка.",
+              "icon": "examples"
+            },
+            {
+              "category": "ГАНТ",
+              "title": "Етапи на един ред",
+              "description": "Поредици от етапи се свиват, а собствените категории работи получават свой цвят.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ЗАПИСВАНЕ",
+              "title": "Записване във фонов режим",
+              "description": "Лентата на състоянието показва записа, а затварянето изчаква той да приключи.",
+              "icon": "import"
+            }
+          ]
+        },
+        "hu": {
+          "primary": {
+            "category": "KAPCSOLATOK",
+            "title": "Kapcsolja a feladatokat, mint az MS Projectben és a P6-ban",
+            "description": "A Ctrl+F2 a lista sorrendjében kapcsolja a kijelölést; a helyi menü elődöt vagy utódot rendel hozzá.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "DÁTUMOK",
+              "title": "Válasszon dátumot naptárból",
+              "description": "A dátummezők és a táblázatcellák hétszámokat mutató naptárt nyitnak.",
+              "icon": "tasks"
+            },
+            {
+              "category": "BEÁLLÍTÁSOK",
+              "title": "Találjon meg minden beállítást",
+              "description": "Keresés, nyolc csoport, ábrák és visszaállítás minden módosított beállításnál.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Mérföldkövek egy sorban",
+              "description": "A mérföldkősorozatok összecsukhatók, a saját munkakategóriák saját színt kapnak.",
+              "icon": "tasks"
+            },
+            {
+              "category": "MENTÉS",
+              "title": "Mentés a háttérben",
+              "description": "Az állapotsor mutatja a mentést, a bezárás pedig megvárja a folyamatban lévő mentést.",
+              "icon": "import"
+            }
+          ]
+        },
+        "ro": {
+          "primary": {
+            "category": "RELAȚII",
+            "title": "Legați sarcinile ca în MS Project și P6",
+            "description": "Ctrl+F2 leagă selecția în ordinea listei; meniul contextual atribuie predecesori sau succesori.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "CALENDAR",
+              "title": "Alegeți datele dintr-un calendar",
+              "description": "Câmpurile de dată și celulele tabelului deschid un calendar cu numerele săptămânilor.",
+              "icon": "tasks"
+            },
+            {
+              "category": "SETĂRI",
+              "title": "Găsiți orice setare",
+              "description": "Căutare, opt grupuri, imagini și resetare pentru fiecare setare modificată.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Jaloane pe un singur rând",
+              "description": "Seriile de jaloane se restrâng, iar categoriile de lucru proprii au culoarea lor.",
+              "icon": "tasks"
+            },
+            {
+              "category": "SALVARE",
+              "title": "Salvare în fundal",
+              "description": "Bara de stare arată salvarea, iar închiderea așteaptă terminarea ei.",
+              "icon": "import"
+            }
+          ]
+        },
+        "sv": {
+          "primary": {
+            "category": "SAMBAND",
+            "title": "Koppla aktiviteter som i MS Project och P6",
+            "description": "Ctrl+F2 kopplar markeringen i listans ordning; snabbmenyn tilldelar föregångare eller efterföljare.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "DATUM",
+              "title": "Välj datum i en kalender",
+              "description": "Datumfält och tabellceller öppnar en kalender med veckonummer.",
+              "icon": "tasks"
+            },
+            {
+              "category": "INSTÄLLNINGAR",
+              "title": "Hitta varje inställning",
+              "description": "Sökning, åtta grupper, bilder och återställning av varje ändrad inställning.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Milstolpar på en rad",
+              "description": "Serier av milstolpar fälls ihop och egna arbetskategorier får egen färg.",
+              "icon": "tasks"
+            },
+            {
+              "category": "SPARANDE",
+              "title": "Spara i bakgrunden",
+              "description": "Statusfältet visar sparläget och stängning väntar på pågående sparande.",
+              "icon": "import"
+            }
+          ]
+        },
+        "nb": {
+          "primary": {
+            "category": "AVHENGIGHETER",
+            "title": "Koble aktiviteter som i MS Project og P6",
+            "description": "Ctrl+F2 kobler utvalget i listens rekkefølge; høyreklikkmenyen tildeler forgjengere eller etterfølgere.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "DATOER",
+              "title": "Velg datoer i en kalender",
+              "description": "Datofelt og tabellceller åpner en kalender med ukenumre.",
+              "icon": "tasks"
+            },
+            {
+              "category": "INNSTILLINGER",
+              "title": "Finn hver innstilling",
+              "description": "Søk, åtte grupper, bilder og tilbakestilling av hver endret innstilling.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Milepæler på én rad",
+              "description": "Serier av milepæler felles sammen, og egne arbeidskategorier får egen farge.",
+              "icon": "tasks"
+            },
+            {
+              "category": "LAGRING",
+              "title": "Lagre i bakgrunnen",
+              "description": "Statuslinjen viser lagringen, og lukking venter til pågående lagring er ferdig.",
+              "icon": "import"
+            }
+          ]
+        },
+        "da": {
+          "primary": {
+            "category": "RELATIONER",
+            "title": "Forbind opgaver som i MS Project og P6",
+            "description": "Ctrl+F2 forbinder markeringen i listens rækkefølge; højreklikmenuen tildeler forgængere eller efterfølgere.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "DATOER",
+              "title": "Vælg datoer i en kalender",
+              "description": "Datofelter og tabelceller åbner en kalender med ugenumre.",
+              "icon": "tasks"
+            },
+            {
+              "category": "INDSTILLINGER",
+              "title": "Find hver indstilling",
+              "description": "Søgning, otte grupper, billeder og nulstilling af hver ændret indstilling.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Milepæle på én række",
+              "description": "Serier af milepæle foldes sammen, og egne arbejdskategorier får deres egen farve.",
+              "icon": "tasks"
+            },
+            {
+              "category": "GEMNING",
+              "title": "Gem i baggrunden",
+              "description": "Statuslinjen viser, om der gemmes, og lukning venter, til gemningen er færdig.",
+              "icon": "import"
+            }
+          ]
+        },
+        "fi": {
+          "primary": {
+            "category": "RIIPPUVUUDET",
+            "title": "Linkitä tehtävät kuten MS Projectissa ja P6:ssa",
+            "description": "Ctrl+F2 linkittää valinnan luettelon järjestyksessä; pikavalikko määrittää edeltäjät tai seuraajat.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "PÄIVÄMÄÄRÄT",
+              "title": "Valitse päivämäärät kalenterista",
+              "description": "Päivämääräkentät ja taulukon solut avaavat kalenterin viikkonumeroineen.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ASETUKSET",
+              "title": "Löydä jokainen asetus",
+              "description": "Haku, kahdeksan ryhmää, kuvat ja palautus jokaiselle muutetulle asetukselle.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "Virstanpylväät yhdelle riville",
+              "description": "Virstanpylväiden sarjat voi tiivistää, ja omat työluokat saavat oman värinsä.",
+              "icon": "tasks"
+            },
+            {
+              "category": "TALLENNUS",
+              "title": "Tallenna taustalla",
+              "description": "Tilarivi näyttää tallennuksen tilan, ja sulkeminen odottaa käynnissä olevaa tallennusta.",
+              "icon": "import"
+            }
+          ]
+        },
+        "lo": {
+          "primary": {
+            "category": "ຄວາມສຳພັນ",
+            "title": "ເຊື່ອມວຽກຄືໃນ MS Project ແລະ P6",
+            "description": "Ctrl+F2 ເຊື່ອມວຽກທີ່ເລືອກຕາມລຳດັບລາຍການ; ເມນູຄລິກຂວາກຳນົດວຽກກ່ອນ ຫຼືວຽກຕໍ່ໄປ.",
+            "icon": "relations",
+            "docsId": "howto-relaties-leggen"
+          },
+          "secondary": [
+            {
+              "category": "ວັນທີ",
+              "title": "ເລືອກວັນທີຈາກປະຕິທິນ",
+              "description": "ຊ່ອງວັນທີ ແລະຕາລາງໃນຕາຕະລາງເປີດປະຕິທິນທີ່ມີເລກອາທິດ.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ການຕັ້ງຄ່າ",
+              "title": "ຊອກຫາທຸກການຕັ້ງຄ່າ",
+              "description": "ຄົ້ນຫາ, ແປດກຸ່ມ, ຮູບພາບ ແລະການຕັ້ງຄືນສຳລັບທຸກການຕັ້ງຄ່າທີ່ປ່ຽນ.",
+              "icon": "examples"
+            },
+            {
+              "category": "GANTT",
+              "title": "ລວມໝາຍສຳຄັນເປັນແຖວດຽວ",
+              "description": "ຊຸດໝາຍສຳຄັນພັບໄດ້ ແລະປະເພດວຽກທີ່ສ້າງເອງມີສີຂອງຕົນ.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ການບັນທຶກ",
+              "title": "ບັນທຶກໃນພື້ນຫຼັງ",
+              "description": "ແຖບສະຖານະສະແດງສະຖານະການບັນທຶກ ແລະການປິດຈະລໍຖ້າການບັນທຶກທີ່ກຳລັງເຮັດ.",
+              "icon": "import"
+            }
+          ]
+        }
+      }
+    },
     {
       "version": "2026.47.0",
       "tag": "v2026.47.0",

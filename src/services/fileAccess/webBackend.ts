@@ -288,8 +288,10 @@ export async function openFileDialogWeb(filters: FileFilter[], opts?: OpenDialog
   if (hasFSA() && !platformRefusesReads && !featurePolicyBlocksFSA()) {
     try {
       const [handle] = await window.showOpenFilePicker!({ multiple: false, types: toAcceptTypes(filters) });
+      const ref = { kind: 'handle', handle } as const;
+      opts?.beforeRead?.(ref);
       // `await` binnen de try: een weigering tijdens het lezen moet de catch hieronder bereiken.
-      return await openedFromFile(await handle.getFile(), { kind: 'handle', handle }, opts);
+      return await openedFromFile(await handle.getFile(), ref, opts);
     } catch (err) {
       // Annuleren blijft `null` — geen tweede picker via de input-terugval.
       if (isAbort(err)) return null;
@@ -330,12 +332,11 @@ export async function saveDataDialogWeb(
       });
       // #804 fixronde 1: het gekozen bestand vóór `createWritable()` controleren (bijv. de bron van een gebouwmodel).
       if (await opts?.refuseTarget?.({ kind: 'handle', handle })) return null;
-      // Geen late controle (`refuseBeforePlace`) op een handle uit de kiezer: Chromium heeft een bestaand doel bij het
-      // kiezen al leeggemaakt, dus `abort()` bracht het oude bestand niet terug maar liet 0 bytes staan (knownbug 1899).
-      // De opslag maakt het gevraagde bestand af; de aanroeper legt niets vast als de inhoud intussen verving.
-      await writeThroughHandle(handle, data);
-      const file = await handle.getFile();
-      return { ref: { kind: 'handle', handle }, name: file.name };
+      // Chromium heeft een bestaand doel bij het kiezen al leeggemaakt, dus `abort()` brengt het oude bestand niet terug
+      // maar laat 0 bytes staan (knownbug 1899). Daarom geeft de aanroeper hier alleen een late controle mee als een leeg
+      // bestand beter is dan de uitvoer (fixronde 2 van #1097: een IFC-export na een tabbladwissel).
+      if (!(await writeThroughHandle(handle, data, opts?.refuseBeforePlace))) return null;
+      return { ref: { kind: 'handle', handle }, name: handle.name };
     } catch (err) {
       // Annuleren is geen fout — en mag dus ook geen download opleveren.
       if (isAbort(err)) return null;

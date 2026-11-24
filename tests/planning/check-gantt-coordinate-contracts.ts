@@ -158,7 +158,7 @@ const edgeTask = {
     scheduleDuration: 94,
   },
 };
-const edgeRenderer = new GanttRenderer({} as CanvasRenderingContext2D, {
+const edgeOptions: ConstructorParameters<typeof GanttRenderer>[1] = {
   rows: [{ kind: 'task', rowKey: edgeTask.id, task: edgeTask, depth: 0, dimmed: false }],
   sequences: [],
   calendar,
@@ -169,7 +169,8 @@ const edgeRenderer = new GanttRenderer({} as CanvasRenderingContext2D, {
   rowHeight: 28,
   headerHeight: 50,
   palette: readGanttPalette(),
-});
+};
+const edgeRenderer = new GanttRenderer({} as CanvasRenderingContext2D, edgeOptions);
 const rowMidY = 64;
 equal('bar-resize raakt x=0', edgeRenderer.getTaskBarBounds(0, rowMidY)?.edge, 'left');
 equal('barbody raakt x=width-1', edgeRenderer.getTaskBarBounds(639, rowMidY)?.edge, 'body');
@@ -177,6 +178,18 @@ equal('barhit weigert x=width', edgeRenderer.getTaskBarBounds(640, rowMidY), nul
 equal('relatiebron raakt x=0', edgeRenderer.getRelationSourceAt(0, rowMidY)?.id, edgeTask.id);
 equal('relatiebron raakt x=width-1', edgeRenderer.getRelationSourceAt(639, rowMidY)?.id, edgeTask.id);
 equal('relatiebron weigert x=width', edgeRenderer.getRelationSourceAt(640, rowMidY), null);
+
+// Kaderselectie (`getRowsInYRange`): een band geheel boven de eerste rij raakt geen rij, ook als de
+// rij-index ver negatief wordt (review #1004, ronde 18: `slice` telde een negatief einde van achteren).
+const bandRenderer = new GanttRenderer({} as CanvasRenderingContext2D, {
+  ...edgeOptions,
+  rows: Array.from({ length: 8 }, (_, i) => ({
+    kind: 'task' as const, rowKey: `band-${i}`, task: { ...edgeTask, id: `band-${i}` }, depth: 0, dimmed: false,
+  })),
+});
+const bandKeys = (y1: number, y2: number) => bandRenderer.getRowsInYRange(y1, y2).map(row => row.rowKey);
+deepEqual('kader boven alle rijen raakt geen rij', bandKeys(-200, -150), []);
+deepEqual('kader over rij 2 en 3 raakt die twee', bandKeys(50 + 2 * 28 + 14, 50 + 3 * 28 + 14), ['band-2', 'band-3']);
 
 equal('GanttRenderer kent geen taskTableWidth meer', /taskTableWidth/.test(rendererSource), false);
 equal('GanttRenderer tekent geen canvas-taaktabel meer', /drawTaskTable|columnHeaders/.test(rendererSource), false);

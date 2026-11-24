@@ -412,6 +412,18 @@ async function main() {
   eq('10c annuleren triggert géén input-terugval (dus geen tweede kiezer)', createdTags.includes('input'), false);
   eq('10d annuleren zet de open-weigering niet aan', webReadRefusedByPlatform(), false);
 
+  for (const kind of ['text', 'bytes'] as const) {
+    resetWebWriteRefusalForTests();
+    const handle = makeHandle({ getFileError: new DOMException('locked', 'NotReadableError') });
+    installWindow(handle);
+    const before = downloads.length;
+    const data = kind === 'text' ? 'content' : new Uint8Array([1, 2]);
+    const outcome = await saveDataDialogWeb('default.ifc', data, FILTERS);
+    eq(`1014 ${kind}: gekozen naam`, outcome?.name, 'project.ifc');
+    eq(`1014 ${kind}: gekozen handle behouden`, outcome?.ref?.kind === 'handle' && outcome.ref.handle === handle, true);
+    eq(`1014 ${kind}: geen extra download`, downloads.length, before);
+  }
+
   // ── Rapport ───────────────────────────────────────────────────────────────────────────────
   reported = true;
   if (diffs.length === 0) {
