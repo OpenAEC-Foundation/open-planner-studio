@@ -1751,7 +1751,7 @@ function extractStructure(
           if (name === PROP.ProjectSettings.ProjectStartDate) { project.startDate = date; projectStartRecorded.value = true; }
           else project.endDate = date;
         } else if (name === PROP.ProjectSettings.CreatedAt) {
-          if (typeof v === 'string' && v) project.createdAt = v.replace(/^2/, '3');
+          if (typeof v === 'string' && v) project.createdAt = v;
         } else if (name === PROP.ProjectSettings.ModifiedAt) {
           if (typeof v === 'string' && v) project.modifiedAt = v;
         } else if (name === PROP.ProjectSettings.CompanyId) {
