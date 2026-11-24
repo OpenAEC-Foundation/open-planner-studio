@@ -12,6 +12,7 @@ import { createIfcSaveWorker } from '@/services/ifc/saveWorker/ifcSaveWorker';
 import type { IfcSaveResponse, IfcSaveResult } from '@/services/ifc/saveWorker/ifcSaveProtocol';
 import { computeIfcOutputHere, type IfcOutputCompute, type IfcSaveJob } from '@/state/prepareIfcOutput';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
+import { isProjectFileWriteBusy } from '@/services/fileAccess/writeCoordinator';
 import type { FileRef } from '@/services/fileAccess';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { resetSiteAskers, setSiteSaveAsker } from '@/services/fileAccess/siteDialogs';
@@ -69,6 +70,7 @@ const quietly = async <T,>(run: () => Promise<T>): Promise<T> => {
 };
 
 const handleFiles = new Map<string, Uint8Array>();
+let onHandleWrite: ((name: string) => void) | null = null;
 class FakeHandle {
   readonly kind = 'file';
   constructor(readonly name: string) {}
@@ -85,7 +87,7 @@ class FakeHandle {
     return {
       write: async (part: Uint8Array | string) => { parts.push(typeof part === 'string' ? new TextEncoder().encode(part) : new Uint8Array(part)); },
       abort: async () => {},
-      close: async () => { handleFiles.set(name, new Uint8Array(Buffer.concat(parts))); },
+      close: async () => { onHandleWrite?.(name); handleFiles.set(name, new Uint8Array(Buffer.concat(parts))); },
     };
   }
 }
@@ -960,7 +962,8 @@ for (const [label, moment, change] of [
   ['een ander programma schrijft het eigen bestand tussen de export en de stat (andere grootte)', 'plugin:fs|stat', 'kleiner'],
   ['een ander programma schrijft het eigen bestand tussen de export en de stat (gelijke grootte, andere inhoud)', 'plugin:fs|stat', 'gelijk-groot'],
   ['een ander programma schrijft het eigen bestand tussen de stat en het lezen', 'plugin:fs|open', 'gelijk-groot'],
-  ['een eigen opslag landt tijdens de controle', 'plugin:fs|stat', 'eigen-opslag'],
+  ['de inhoud van het tabblad wordt tijdens de nacontrole vervangen', 'plugin:fs|stat', 'inhoud'],
+  ['het eigen doel van het tabblad verandert tijdens de nacontrole', 'plugin:fs|stat', 'doel'],
 ] as const) {
   await check(`na een export over het eigen bestand: ${label}`, async () => {
     const { fileToolDeps, run } = await mcpTool();
@@ -969,10 +972,10 @@ for (const [label, moment, change] of [
     const previousFs = fileToolDeps.getFs;
     fileToolDeps.getFs = mcpFs(p => p, dir, true, p => { if (p === own) armed = true; });
     const ipc = desktop();
-    const ownSave = { sha256: 'een-eigen-opslag', byteLength: 1 };
     try {
       const context = await openAt({ kind: 'path', path: own }, plainBytes());
       const before = known(context.store);
+      const replacement = await readIfcFromText(new TextDecoder().decode(otherPlainBytes()), undefined, { ifcBytes: true });
       edit(context.store);
       let changed = false;
       ipc.faults.onCall = (command, path) => {
@@ -985,13 +988,16 @@ for (const [label, moment, change] of [
           now[now.length - 3] = now[now.length - 3] === 0x41 ? 0x42 : 0x41;
           writeFileSync(own, now);
         }
-        if (change === 'eigen-opslag') context.store.setState(s => { s.knownTargetFingerprint = ownSave; });
+        if (change === 'inhoud') context.store.getState().loadState(replacement);
+        if (change === 'doel') context.store.getState().setFilePath(join(dir, `ander-doel-${moment.slice(-4)}.ifc`));
       };
       const result = await run(context, own);
       assert.equal(result.ok, true, JSON.stringify(result));
       assert.equal(changed, true, 'het moment kwam');
-      if (change === 'eigen-opslag') assert.deepEqual(known(context.store), ownSave, 'de export overschrijft de nieuwe vingerafdruk niet');
-      else {
+      if (change === 'inhoud' || change === 'doel') {
+        assert.notDeepEqual(onDisk(own), before, 'de export schreef het eigen bestand');
+        assert.deepEqual(known(context.store), null, change === 'inhoud' ? 'de nieuwe inhoud kreeg geen vingerafdruk van de export' : 'het nieuwe doel kreeg geen vingerafdruk van het oude');
+      } else {
         assert.deepEqual(known(context.store), before, 'de oude vingerafdruk blijft');
         assert.notDeepEqual(known(context.store), onDisk(own), 'en die klopt niet met de schijf');
       }
@@ -1066,6 +1072,137 @@ for (const flag of [false, true] as const) {
     } finally { fileToolDeps.getFs = previousFs; ipc.dispose(); }
   });
 }
+
+await check('volgorde 1: de export met de resourcebibliotheek schrijft beide delen over de eigen handle; daarna volgt de vingerafdruk de bytes op die handle', async () => {
+  const win = window as unknown as Record<string, unknown>;
+  const own = newHandle(plainBytes()), answers: FakeHandle[] = [own, own];
+  win.showOpenFilePicker = () => { throw new Error('niet gebruikt'); };
+  win.showSaveFilePicker = async () => answers.shift()!;
+  const written: string[] = [];
+  onHandleWrite = name => { if (name === own.name) written.push(name); };
+  try {
+    const { store } = await openAt(handleRef(own), plainBytes());
+    const companyId = store.getState().seedDemoLibrary();
+    store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
+    edit(store);
+    assert.equal(await ctrlS(store), true);
+    written.length = 0;
+    const before = known(store);
+    edit(store);
+    const pooled = await store.getState().exportProjectWithPool();
+    assert(pooled.ok && !pooled.cancelled);
+    assert.equal(answers.length, 0);
+    assert.equal(written.length, 2, 'beide delen schreven de eigen handle');
+    assert.equal(new TextDecoder().decode(handleFiles.get(own.name)!).includes('IFCTASK('), false, 'de bibliotheek staat als laatste op de eigen handle');
+    assert.notDeepEqual(known(store), before);
+    assert.deepEqual(known(store), onHandle(own), 'hash én grootte zijn die van de bytes op de eigen handle');
+  } finally { onHandleWrite = null; delete win.showOpenFilePicker; delete win.showSaveFilePicker; }
+});
+
+await check('volgorde 2: Automatisch opslaan schrijft, de export wacht in de schrijfrij en schrijft daarna andere bytes over het eigen pad; daarna volgt de vingerafdruk de bytes op schijf', async () => {
+  const ipc = desktop(), own = fileAt('volgorde-2.ifc', plainBytes());
+  let armed = false, reached!: () => void, release!: () => void;
+  const atGate = new Promise<void>(resolve => { reached = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const held: IfcOutputCompute = async job => {
+    if (armed) { armed = false; reached(); await gate; }
+    return computeIfcOutputHere(job);
+  };
+  try {
+    const { store } = await openAt({ kind: 'path', path: own }, plainBytes());
+    store.getState().setAutoSaveToFile(true);
+    edit(store);
+    armed = true;
+    const autoSave = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute: held }).flush();
+    await atGate;
+    edit(store);
+    ipc.choose(own);
+    const exported = store.getState().exportAs('ifc');
+    for (let i = 0; i < 50 && ipc.picks() === 0; i++) await new Promise(resolve => setTimeout(resolve, 5));
+    assert.equal(ipc.picks(), 0, 'de export wacht in de rij achter Automatisch opslaan');
+    release();
+    await autoSave;
+    const afterAutoSave = known(store);
+    assert.deepEqual(afterAutoSave, onDisk(own), 'Automatisch opslaan legde zijn eigen vingerafdruk vast');
+    assert((await exported).ok);
+    assert.notDeepEqual(onDisk(own), afterAutoSave, 'de export schreef andere bytes over het eigen pad');
+    assert.deepEqual(known(store), onDisk(own), 'hash én grootte zijn die van de bytes die de export schreef');
+  } finally { ipc.dispose(); }
+});
+
+await check('de schrijfrij: elke exportroute schrijft het eigen doel en legt de vingerafdruk vast binnen de beurt van de rij', async () => {
+  const win = window as unknown as Record<string, unknown>;
+  for (const route of ['exportAs', 'pool-project', 'pool-library', 'library'] as const) {
+    const own = newHandle(plainBytes()), elsewhere = newHandle(new Uint8Array());
+    const answers = route === 'pool-library' ? [elsewhere, own] : route === 'pool-project' ? [own, null] : [own];
+    win.showOpenFilePicker = () => { throw new Error('niet gebruikt'); };
+    win.showSaveFilePicker = async () => {
+      const next = answers.shift();
+      if (!next) throw new DOMException('geannuleerd', 'AbortError');
+      return next;
+    };
+    const writes: boolean[] = [], commits: boolean[] = [];
+    onHandleWrite = name => { if (name === own.name) writes.push(isProjectFileWriteBusy()); };
+    try {
+      const { store } = await openAt(handleRef(own), plainBytes());
+      const companyId = store.getState().seedDemoLibrary();
+      store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
+      edit(store);
+      assert.equal(await ctrlS(store), true);
+      writes.length = 0;
+      edit(store);
+      const unsubscribe = store.subscribe((now, prev) => {
+        if (now.knownTargetFingerprint !== prev.knownTargetFingerprint) commits.push(isProjectFileWriteBusy());
+      });
+      try {
+        if (route === 'exportAs') await store.getState().exportAs('ifc');
+        if (route === 'pool-project' || route === 'pool-library') await store.getState().exportProjectWithPool();
+        if (route === 'library') await store.getState().exportLibrary(companyId);
+      } finally { unsubscribe(); }
+      assert.equal(isProjectFileWriteBusy(), false, `${route}: de rij is daarna leeg`);
+      assert.deepEqual(writes, [true], `${route}: het schrijven van de eigen handle valt binnen de beurt`);
+      assert.deepEqual(commits, [true], `${route}: de nacontrole legt vast binnen de beurt`);
+      assert.deepEqual(known(store), onHandle(own), route);
+    } finally { onHandleWrite = null; delete win.showOpenFilePicker; delete win.showSaveFilePicker; }
+  }
+  const { fileToolDeps, run } = await mcpTool();
+  const own = fileAt('rij-mcp.ifc', plainBytes());
+  const writes: boolean[] = [], commits: boolean[] = [];
+  const previousFs = fileToolDeps.getFs;
+  fileToolDeps.getFs = mcpFs(p => p, dir, true, p => { if (p === own) writes.push(isProjectFileWriteBusy()); });
+  const ipc = desktop();
+  try {
+    const context = await openAt({ kind: 'path', path: own }, plainBytes());
+    edit(context.store);
+    const unsubscribe = context.store.subscribe((now, prev) => {
+      if (now.knownTargetFingerprint !== prev.knownTargetFingerprint) commits.push(isProjectFileWriteBusy());
+    });
+    try { assert.equal((await run(context, own)).ok, true); } finally { unsubscribe(); }
+    assert.equal(isProjectFileWriteBusy(), false, 'mcp: de rij is daarna leeg');
+    assert.deepEqual(writes, [true], 'mcp: het schrijven valt binnen de beurt');
+    assert.deepEqual(commits, [true], 'mcp: de nacontrole legt vast binnen de beurt');
+    assert.deepEqual(known(context.store), onDisk(own));
+  } finally { fileToolDeps.getFs = previousFs; ipc.dispose(); }
+});
+
+await check('de flag uitzetten via de instelling wist de vingerafdruk van elk tabblad; weer aanzetten brengt geen oude waarde terug', async () => {
+  const ipc = desktop(), first = fileAt('flag-uit-eerste.ifc', plainBytes()), second = fileAt('flag-uit-tweede.ifc', otherPlainBytes());
+  try {
+    const { store } = await openAt({ kind: 'path', path: first }, plainBytes());
+    const firstId = store.getState().activeDocumentId;
+    await store.getState().openOpenedFile({ name: basename(second), content: '', bytes: otherPlainBytes(), ref: { kind: 'path', path: second } });
+    assert.notEqual(store.getState().activeDocumentId, firstId);
+    assert.deepEqual(known(store, firstId), onDisk(first), 'het slapende tabblad');
+    assert.deepEqual(known(store), onDisk(second), 'het actieve tabblad');
+    store.getState().setUI({ featureFlags: { ...store.getState().ui.featureFlags, ifcForeignContent: false } });
+    assert.deepEqual([known(store, firstId), known(store)], [null, null]);
+    store.getState().setUI({ featureFlags: { ...store.getState().ui.featureFlags, ifcForeignContent: true } });
+    assert.deepEqual([known(store, firstId), known(store)], [null, null], 'weer aan: onbekend tot de volgende opslag');
+    edit(store);
+    assert.equal(await ctrlS(store), true);
+    assert.deepEqual(known(store), onDisk(second));
+  } finally { ipc.dispose(); }
+});
 
 rmSync(dir, { recursive: true, force: true });
 console.log(`Tabblad kent de schijfversie: ${passed} geslaagd, ${failed} mislukt.`);

@@ -403,9 +403,7 @@ export interface FileSlice {
   exportProjectWithPool: () => Promise<ExportResult>;
   recordLiteralCalendarsWritten: (documentId: string, ids: readonly string[]) => void;
   forgetKnownTargetFingerprint: (documentId: string) => void;
-  settleFingerprintAfterExport: (
-    snapshot: Pick<AppState, 'activeDocumentId' | 'knownTargetFingerprint' | 'filePath' | 'fileHandle' | 'siteFileId'>, written: FileData,
-  ) => Promise<void> | undefined;
+  settleFingerprintAfterExport: (documentId: string, written: FileData) => Promise<void> | undefined;
   foreignTargetCheck: (exceptDocumentId: string | null) => SaveTargetCheck;
   exportLibrary: (companyId: string) => Promise<void>;
   recentFiles: RecentEntry[];
@@ -661,13 +659,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   // In de ene schrijfrij, zoals elke schrijfactie naar een projectbestand (inclusief de kiezer, zoals `exportAs`): een
   // startbestand dat intussen gelezen werd, leest de app dan opnieuw (`projectFileWriteTurns`, review ronde 5 van #1116).
-  const saveLibraryFile = (state: AppState, name: string, content: string) => runProjectFileWrite(() => {
-    const written = saveFileDialog(name, content, IFC_FILE_FILTERS, { refuseTarget: foreignTargetCheck(null) });
-    if (!ifcForeignContentEnabled(state.ui.featureFlags) || !state.knownTargetFingerprint) return written;
-    return written.then(async outcome => {
-      if (outcome) await recordOwnFileExport(state, outcome, [], content);
-      return outcome;
-    });
+  const saveLibraryFile = (documentId: string, name: string, content: string) => runProjectFileWrite(async () => {
+    const outcome = await saveFileDialog(name, content, IFC_FILE_FILTERS, { refuseTarget: foreignTargetCheck(null) });
+    const settling = outcome ? settleAfterExport(documentId, outcome, content) : undefined;
+    if (settling) await settling;
+    return outcome;
   }, () => null);
 
   const settledSourceVersions = new Map<string, string>();
@@ -943,10 +939,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return unchanged;
   };
 
+  const settleAfterExport = (documentId: string, outcome: SaveOutcome, written: FileData) =>
+    outcome.viaDownload ? undefined : get().settleFingerprintAfterExport(documentId, written);
+
   const recordOwnFileExport = async (
     state: AppState, outcome: SaveOutcome, ids: readonly string[], written: FileData,
   ): Promise<void> => {
-    const settling = outcome.viaDownload ? undefined : get().settleFingerprintAfterExport(state, written);
+    const settling = settleAfterExport(state.activeDocumentId, outcome, written);
     if (settling) await settling;
     if (ids.length === 0) return;
     const hitsOwnFile = await exportHitsOwnFile(saveTargetRef(state), outcome.ref, await fileIdentityFs());
@@ -2006,20 +2005,23 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return { ok: true, warnings };
     },
 
-    settleFingerprintAfterExport: (snapshot, written) => {
-      const before = snapshot.knownTargetFingerprint;
-      const ref = saveTargetRef(snapshot);
-      if (!before || !ref || ref.kind === 'site' || !ifcForeignContentEnabled(get().ui.featureFlags)) return undefined;
+    settleFingerprintAfterExport: (documentId, written) => {
+      if (!ifcForeignContentEnabled(get().ui.featureFlags)) return undefined;
+      const documentFields = (s: AppState) => s.activeDocumentId === documentId ? s
+        : s.documents.find(document => document.id === documentId)?.payload;
+      const content = documentContentOf(get(), documentId);
+      const current = documentFields(get());
+      const ref = current?.knownTargetFingerprint ? saveTargetRef(current) : null;
+      if (!content || !ref || ref.kind === 'site') return undefined;
       const own = ref;
       const bytes = typeof written === 'string' ? new TextEncoder().encode(written) : written;
       return (async () => {
         if (await sourceTargetContent(own, bytes) !== 'same') return;
         const sha256 = await precomputeSha256(bytes);
         set((s) => {
-          const target = s.activeDocumentId === snapshot.activeDocumentId ? s
-            : s.documents.find(document => document.id === snapshot.activeDocumentId)?.payload;
-          const now = target?.knownTargetFingerprint;
-          if (!target || !now || now.sha256 !== before.sha256 || now.byteLength !== before.byteLength) return;
+          const target = documentFields(s);
+          const now = target ? saveTargetRef(target) : null;
+          if (!target || !now || !sameFileRef(now, own) || !sameDocumentContent(s, content)) return;
           target.knownTargetFingerprint = { sha256, byteLength: bytes.byteLength };
         });
       })();
@@ -2078,7 +2080,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!companyId) return { ok: true, warnings: [] };
       const poolContent = state.exportPoolIFC(companyId);
       if (!poolContent) return { ok: true, warnings: [] };
-      const poolOutcome = await saveLibraryFile(state, `${base}-${exportFileSuffix('library')}.ifc`, poolContent);
+      const poolOutcome = await saveLibraryFile(state.activeDocumentId, `${base}-${exportFileSuffix('library')}.ifc`, poolContent);
       if (!poolOutcome) return { ok: true, warnings: [], cancelled: true };
       noticeIfDownloaded(poolOutcome);
       return { ok: true, warnings: [] };
@@ -2087,11 +2089,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     foreignTargetCheck,
 
     exportLibrary: async (companyId) => {
-      const state = get();
-      const company = state.companies.find(c => c.id === companyId);
-      const content = state.exportPoolIFC(companyId);
+      const company = get().companies.find(c => c.id === companyId);
+      const content = get().exportPoolIFC(companyId);
       if (!company || !content) return;
-      noticeIfDownloaded(await saveLibraryFile(state, `bibliotheek-${company.name}.ifc`, content));
+      noticeIfDownloaded(await saveLibraryFile(get().activeDocumentId, `bibliotheek-${company.name}.ifc`, content));
     },
 
     recentFiles: [],

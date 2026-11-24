@@ -442,7 +442,7 @@ export const fileTools: McpToolDef[] = [
           const cause = e instanceof ByteWriteError && e.cause !== undefined ? e.cause : e;
           return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Writing to '${path}' failed: ${cause instanceof Error ? cause.message : String(cause)}`);
         }
-        const settling = ctx.app.store.getState().settleFingerprintAfterExport(state, output.prepared ? output.prepared.bytes : output.content);
+        const settling = ctx.app.store.getState().settleFingerprintAfterExport(state.activeDocumentId, output.prepared ? output.prepared.bytes : output.content);
         if (settling) await settling;
         if (!output.prepared && output.literalCalendarIds.length > 0 && await exportHitsOwnFile(saveTargetRef(state, true), { kind: 'path', path }, fs)) {
           ctx.app.store.getState().recordLiteralCalendarsWritten(state.activeDocumentId, output.literalCalendarIds);
