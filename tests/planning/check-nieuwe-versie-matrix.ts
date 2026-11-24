@@ -35,8 +35,8 @@ interface Case { platform: Platform; begin: Begin; before: Before; during: Durin
 
 const other = join(dir, 'kantoor-ander.ifc');
 const modelBytes = readFileSync('tests/fixtures/ifc-foreign/eigen-plus-model.ifc');
-const newestIfc = changedIfc.replaceAll('Extern opgeslagen werk', 'Nieuwste versie op schijf');
-const schoolNewIfc = schoolIfc.replaceAll("'Dak'", "'Dak nieuwe versie'");
+const newestIfc = changedIfc.split('Extern opgeslagen werk').join('Nieuwste versie op schijf');
+const schoolNewIfc = schoolIfc.split("'Dak'").join("'Dak nieuwe versie'");
 
 const holds: { reached: () => void; release: Promise<void> }[] = [];
 const armRead = () => {

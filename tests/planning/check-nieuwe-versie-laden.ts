@@ -34,8 +34,8 @@ const tabState = (st: Store, path: string) => {
   return [tab?.payload.tasks.map(t => t.name) ?? null, tab ? tab.payload.knownTargetFingerprint?.sha256 === onDisk(path) : null,
     tab ? T().documents.find(d => d.id === tab.id)?.changedOnDisk === true : null];
 };
-const schoolNew = schoolIfc.replaceAll("'Dak'", "'Dak nieuwe versie'");
-const newest = changedIfc.replaceAll('Extern opgeslagen werk', 'Nieuwste versie op schijf');
+const schoolNew = schoolIfc.split("'Dak'").join("'Dak nieuwe versie'");
+const newest = changedIfc.split('Extern opgeslagen werk').join('Nieuwste versie op schijf');
 
 async function twoStrips(route: Route) {
   const { st, T, a, b } = await setup(false);
