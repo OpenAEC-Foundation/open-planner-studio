@@ -1,5 +1,5 @@
 import { checkValue, hasKey } from './fieldTable';
-import { isOwnAttributeName, OWN_ATTRIBUTE_VALUES, ownSchemas } from './ownAttributes';
+import { isOwnAttributeName, OWN_ATTRIBUTE_VALUES, ownSchemas } from './nodes';
 import type { IfcxErrorPlace, IfcxReadErrorCode } from './ifcxErrors';
 import { OPS_NAMESPACE } from './profile';
 

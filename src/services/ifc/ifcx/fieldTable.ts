@@ -1,5 +1,5 @@
 import { isExistingYmd, isStrictIsoDateTime } from '@/utils/dateUtils';
-import { isCompactGlobalId, isUuidPath } from './globalIdUuid';
+import { isIdentityPath } from './identityPath';
 
 export type IfcxValue =
   | { readonly dataType: 'String'; readonly form: IfcxForm }
@@ -23,9 +23,12 @@ export interface IfcxMember {
   readonly optional?: boolean;
 }
 
-export interface IfcxField<W, R> extends IfcxMember {
+export interface SharedField<W> extends IfcxMember {
   readonly key: string;
   readonly write: (source: W) => unknown;
+}
+
+export interface IfcxField<W, R> extends SharedField<W> {
   readonly read: (value: unknown, target: R) => void;
 }
 
@@ -52,9 +55,6 @@ export const ISO_MOMENT_FORM: IfcxForm = {
   pattern: /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}:\d{2})?)?$/,
   accepts: value => isStrictIsoDateTime(value, { maxFractionDigits: 9 }),
 };
-export const GLOBAL_ID_OUTSIDE_PATH_FORM: IfcxForm = {
-  name: 'een GlobalId zonder 128-bitsvorm', pattern: /^[\s\S]+$/, accepts: value => !isCompactGlobalId(value),
-};
 export const VERSION_FORM: IfcxForm = { name: 'MAJOR.MINOR.PATCH', pattern: /^\d+\.\d+\.\d+$/ };
 
 export const TEXT: IfcxValue = { dataType: 'String', form: FREE_TEXT_FORM };
@@ -67,7 +67,6 @@ export const CALENDAR_DATE: IfcxValue = { dataType: 'DateTime', form: CALENDAR_D
 export const LOCAL_MOMENT_OR_EMPTY: IfcxValue = { dataType: 'String', form: LOCAL_MOMENT_OR_EMPTY_FORM };
 export const ISO_DATE_OR_MOMENT_OR_EMPTY: IfcxValue = { dataType: 'String', form: ISO_DATE_OR_MOMENT_OR_EMPTY_FORM };
 export const ISO_MOMENT: IfcxValue = { dataType: 'DateTime', form: ISO_MOMENT_FORM };
-export const GLOBAL_ID_OUTSIDE_PATH: IfcxValue = { dataType: 'String', form: GLOBAL_ID_OUTSIDE_PATH_FORM };
 export const VERSION_TEXT: IfcxValue = { dataType: 'String', form: VERSION_FORM };
 
 export function integer(min?: number, max?: number): IfcxValue {
@@ -95,7 +94,7 @@ export function membersOf(fields: readonly (IfcxMember & { readonly key: string 
   return members;
 }
 
-export function writeFields<W, R>(fields: readonly IfcxField<W, R>[], source: W): Record<string, unknown> {
+export function writeFields<W>(fields: readonly SharedField<W>[], source: W): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const field of fields) {
     const value = field.write(source);
@@ -127,7 +126,7 @@ export type IfcxValueProblem =
 
 export function carriesValue(value: unknown): boolean {
   if (value === undefined || value === null) return false;
-  if (Array.isArray(value)) return value.length > 0;
+  if (Array.isArray(value)) return value.some(carriesValue);
   if (typeof value === 'object') return Object.keys(value).length > 0;
   return true;
 }
@@ -160,7 +159,7 @@ function problemOf(spec: IfcxValue, value: unknown): Problem | undefined {
       if (!spec.form.pattern.test(value) || spec.form.accepts?.(value) === false) return invalidValue(`verwacht de vorm ${spec.form.name}, gevonden ${found()}`);
       return;
     case 'Reference':
-      return typeof value === 'string' && isUuidPath(value) ? undefined : invalidValue(`verwacht een pad (UUID), gevonden ${found()}`);
+      return typeof value === 'string' && isIdentityPath(value) ? undefined : invalidValue(`verwacht een pad, gevonden ${found()}`);
     case 'Boolean':
       return typeof value === 'boolean' ? undefined : invalidValue(`verwacht waar of onwaar, gevonden ${found()}`);
     case 'Real':

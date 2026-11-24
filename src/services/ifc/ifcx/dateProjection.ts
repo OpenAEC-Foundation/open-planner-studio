@@ -29,10 +29,6 @@ export function projectSpan(start: string, finish: string): SharedSpan {
   return { start: startDate, endExclusive: endExclusive > startDate ? endExclusive : nextCalendarDate(startDate) };
 }
 
-export function momentOfSharedDate(date: string): string {
-  return `${date}T00:00`;
-}
-
 export function taskWindow(task: Task): SharedSpan {
   return projectSpan(shownStart(task), shownFinish(task));
 }

@@ -1,10 +1,9 @@
 import type { LagUnit, Sequence, SequenceType } from '@/types/sequence';
-import { enumOf, GLOBAL_ID_OUTSIDE_PATH, NON_EMPTY_TEXT, REAL, REFERENCE, type IfcxField, type IfcxValue } from '../fieldTable';
-import type { IfcxIdentity } from '../globalIdUuid';
+import { enumOf, NON_EMPTY_TEXT, objectOf, REAL, REFERENCE, type IfcxField, type IfcxValue, type SharedField } from '../fieldTable';
 
 export interface SequenceWriteSource {
   readonly sequence: Sequence;
-  readonly identity: IfcxIdentity;
+  readonly path: string;
   readonly predecessorPath: string;
   readonly successorPath: string;
   readonly shared: SharedLag;
@@ -13,7 +12,6 @@ export interface SequenceWriteSource {
 export interface SequenceReadTarget {
   readonly sequence: Sequence;
   readonly path: string;
-  globalIdOutsidePath?: string;
   predecessorPath: string;
   successorPath: string;
 }
@@ -25,21 +23,23 @@ export interface SharedLag {
   timeLagRatio?: number;
 }
 
-export interface LagFromShared {
-  readonly lagDays: number;
-  readonly lagMinutes?: number;
-  readonly lagPercent?: number;
+export const LAG_AMOUNT_UNITS = ['DAYS', 'MINUTES', 'PERCENT'] as const;
+type LagAmountUnit = typeof LAG_AMOUNT_UNITS[number];
+
+interface PreciseLag {
+  readonly amount: number;
+  readonly unit: LagAmountUnit;
 }
 
 const SEQUENCE_TYPE = enumOf(['FINISH_START', 'START_START', 'FINISH_FINISH', 'START_FINISH']);
 const LAG_UNIT = enumOf(['WORKTIME', 'ELAPSEDTIME']);
 const PLAIN_NUMBER = /^\d+(\.\d+)?$/;
-const DAYS_LAG = /^(-?)P(\d+(?:\.\d+)?)D$/;
-const MINUTES_LAG = /^(-?)PT(\d+(?:\.\d+)?)M$/;
 
 const TIME_LAG: IfcxValue = {
   dataType: 'String', form: { name: 'ISO 8601-duur P<dagen>D of PT<minuten>M, met een minteken voor een lead', pattern: /^-?P(\d+(\.\d+)?D|T\d+(\.\d+)?M)$/ },
 };
+
+const LAG: IfcxValue = objectOf({ amount: { value: REAL }, unit: { value: enumOf(LAG_AMOUNT_UNITS) } });
 
 function isoLag(amount: number, designator: 'D' | 'M'): string | undefined {
   const magnitude = String(Math.abs(amount));
@@ -55,57 +55,32 @@ export function sharedLagOf(sequence: Sequence): SharedLag {
   return timeLag ? { timeLag } : {};
 }
 
-export function lagFromShared(shared: SharedLag): LagFromShared {
-  if (shared.timeLagRatio !== undefined) return { lagDays: 0, lagPercent: shared.timeLagRatio * 100 };
-  const minutes = shared.timeLag ? MINUTES_LAG.exec(shared.timeLag) : null;
-  if (minutes) return { lagDays: 0, lagMinutes: (minutes[1] ? -1 : 1) * Number(minutes[2]) };
-  const days = shared.timeLag ? DAYS_LAG.exec(shared.timeLag) : null;
-  return { lagDays: days ? (days[1] ? -1 : 1) * Number(days[2]) : 0 };
+function preciseLagOf(sequence: Sequence): PreciseLag | undefined {
+  if (finite(sequence.lagPercent)) return { amount: sequence.lagPercent, unit: 'PERCENT' };
+  if (finite(sequence.lagMinutes)) return { amount: sequence.lagMinutes, unit: 'MINUTES' };
+  return sequence.lagDays !== 0 ? { amount: sequence.lagDays, unit: 'DAYS' } : undefined;
 }
 
-export const SEQUENCE_PLANNING_FIELDS: readonly SequenceField[] = [
-  {
-    key: 'relatingProcess', value: REFERENCE,
-    write: s => s.predecessorPath,
-    read: () => {},
-  },
-  {
-    key: 'relatedProcess', value: REFERENCE,
-    write: s => s.successorPath,
-    read: () => {},
-  },
-  {
-    key: 'sequenceType', value: SEQUENCE_TYPE,
-    write: s => s.sequence.type,
-    read: () => {},
-  },
-  {
-    key: 'timeLag', value: TIME_LAG, optional: true,
-    write: s => s.shared.timeLag,
-    read: () => {},
-  },
-  {
-    key: 'timeLagRatio', value: REAL, optional: true,
-    write: s => s.shared.timeLagRatio,
-    read: () => {},
-  },
-  {
-    key: 'lagDurationType', value: LAG_UNIT, optional: true,
-    write: s => s.sequence.lagUnit,
-    read: () => {},
-  },
+function applyPreciseLag(sequence: Sequence, lag: PreciseLag | undefined): void {
+  sequence.lagDays = lag?.unit === 'DAYS' ? lag.amount : 0;
+  if (lag?.unit === 'MINUTES') sequence.lagMinutes = lag.amount;
+  if (lag?.unit === 'PERCENT') sequence.lagPercent = lag.amount;
+}
+
+export const SEQUENCE_SHARED_FIELDS: readonly SharedField<SequenceWriteSource>[] = [
+  { key: 'relatingProcess', value: REFERENCE, write: s => s.predecessorPath },
+  { key: 'relatedProcess', value: REFERENCE, write: s => s.successorPath },
+  { key: 'sequenceType', value: SEQUENCE_TYPE, write: s => s.sequence.type },
+  { key: 'timeLag', value: TIME_LAG, optional: true, write: s => s.shared.timeLag },
+  { key: 'timeLagRatio', value: REAL, optional: true, write: s => s.shared.timeLagRatio },
+  { key: 'lagDurationType', value: LAG_UNIT, optional: true, write: s => s.sequence.lagUnit },
 ];
 
-export const SEQUENCE_OPS_FIELDS: readonly SequenceField[] = [
+export const SEQUENCE_FIELDS: readonly SequenceField[] = [
   {
     key: 'id', value: NON_EMPTY_TEXT, optional: true,
-    write: s => (s.sequence.id !== s.identity.path ? s.sequence.id : undefined),
+    write: s => (s.sequence.id !== s.path ? s.sequence.id : undefined),
     read: (v, t) => { t.sequence.id = (v as string | undefined) ?? t.path; },
-  },
-  {
-    key: 'globalId', value: GLOBAL_ID_OUTSIDE_PATH, optional: true,
-    write: s => s.identity.globalIdOutsidePath,
-    read: (v, t) => { t.globalIdOutsidePath = v as string | undefined; },
   },
   {
     key: 'predecessor', value: REFERENCE,
@@ -128,19 +103,9 @@ export const SEQUENCE_OPS_FIELDS: readonly SequenceField[] = [
     read: (v, t) => { if (v !== undefined) t.sequence.lagUnit = v as LagUnit; },
   },
   {
-    key: 'lagDays', value: REAL, optional: true,
-    write: s => (s.sequence.lagDays !== 0 ? s.sequence.lagDays : undefined),
-    read: (v, t) => { t.sequence.lagDays = (v as number | undefined) ?? 0; },
-  },
-  {
-    key: 'lagMinutes', value: REAL, optional: true,
-    write: s => s.sequence.lagMinutes,
-    read: (v, t) => { if (v !== undefined) t.sequence.lagMinutes = v as number; },
-  },
-  {
-    key: 'lagPercent', value: REAL, optional: true,
-    write: s => s.sequence.lagPercent,
-    read: (v, t) => { if (v !== undefined) t.sequence.lagPercent = v as number; },
+    key: 'lag', value: LAG, optional: true,
+    write: s => preciseLagOf(s.sequence),
+    read: (v, t) => applyPreciseLag(t.sequence, v as PreciseLag | undefined),
   },
 ];
 

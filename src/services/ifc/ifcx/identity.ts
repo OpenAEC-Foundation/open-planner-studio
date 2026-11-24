@@ -2,7 +2,9 @@ import { ifcObjectSeed, type IfcObjectKind, type WriteIFCInput } from '../ifcWri
 import type { WorkCalendar } from '@/types/calendar';
 import { defaultGlobalId } from './stepGlobalIds';
 
-export type PlanningModel = Pick<WriteIFCInput, 'project' | 'calendar' | 'tasks' | 'sequences' | 'resourceCalendars' | 'ifcGlobalIds'>;
+export type PlanningModel = Pick<WriteIFCInput,
+  | 'project' | 'calendar' | 'tasks' | 'sequences' | 'resourceCalendars' | 'ifcGlobalIds' | 'timeModel' | 'importPristine'
+  | 'ifcLiteralCalendarIds' | 'milestonesAtDayEnd' | 'recordedFields'>;
 
 export interface IdentityReference {
   readonly field: string;
@@ -63,6 +65,11 @@ export function intendedGlobalIds(model: PlanningModel): Map<string, string> {
 
 export function identityProblems(model: PlanningModel, globalIdOf: GlobalIdOfObject): IdentityProblem[] {
   const problems: IdentityProblem[] = [];
+  const libraryIds = new Set<string>();
+  for (const calendar of model.resourceCalendars ?? []) {
+    if (libraryIds.has(calendar.id)) problems.push({ field: 'calendar.id', detail: `Twee kalenders in de bibliotheek hebben het id ${calendar.id}` });
+    libraryIds.add(calendar.id);
+  }
   const idsByKind = new Map<IfcObjectKind, Set<string>>();
   const objectsByKind = new Map<IdentityKind, readonly IdentityObject[]>();
   for (const spec of IDENTITY_KINDS) {

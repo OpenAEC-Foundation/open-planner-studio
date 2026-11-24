@@ -2,21 +2,19 @@ import type { CalendarGeneration, Holiday, WorkCalendar, WorkingException, WorkT
 import { DEFAULT_CALENDAR_ID } from '@/engine/calendar/defaultCalendar';
 import { HOLIDAY_COUNTRIES } from '@/engine/calendar/holidays';
 import {
-  arrayOf, CALENDAR_DATE, enumOf, GLOBAL_ID_OUTSIDE_PATH, integer, NON_EMPTY_TEXT, objectOf, REAL, TEXT, type IfcxField, type IfcxValue,
+  arrayOf, CALENDAR_DATE, enumOf, integer, NON_EMPTY_TEXT, objectOf, REAL, TEXT, type IfcxField, type IfcxValue, type SharedField,
 } from '../fieldTable';
-import type { IfcxIdentity } from '../globalIdUuid';
 
 export interface CalendarWriteSource {
   readonly calendar: WorkCalendar;
   readonly isProjectCalendar: boolean;
-  readonly identity: IfcxIdentity;
+  readonly path: string;
 }
 
 export interface CalendarReadTarget {
   readonly calendar: WorkCalendar;
   readonly isProjectCalendar: boolean;
   readonly path: string;
-  globalIdOutsidePath?: string;
 }
 
 type CalendarField = IfcxField<CalendarWriteSource, CalendarReadTarget>;
@@ -80,39 +78,21 @@ function setOptional<K extends keyof WorkCalendar>(calendar: WorkCalendar, key: 
   if (value !== undefined) calendar[key] = value;
 }
 
-export const CALENDAR_PLANNING_FIELDS: readonly CalendarField[] = [
-  {
-    key: 'name', value: TEXT,
-    write: s => s.calendar.name,
-    read: () => {},
-  },
-  {
-    key: 'description', value: TEXT, optional: true,
-    write: s => s.calendar.description || undefined,
-    read: () => {},
-  },
+export const CALENDAR_SHARED_FIELDS: readonly SharedField<CalendarWriteSource>[] = [
+  { key: 'name', value: TEXT, write: s => s.calendar.name },
+  { key: 'description', value: TEXT, optional: true, write: s => s.calendar.description || undefined },
   {
     key: 'predefinedType', value: enumOf(Object.values(SHIFT_TO_IFC)), optional: true,
     write: s => (s.calendar.shift ? SHIFT_TO_IFC[s.calendar.shift] : undefined),
-    read: () => {},
   },
-  {
-    key: 'exceptionTimes', optional: true, value: HOLIDAYS,
-    write: s => (s.calendar.holidays.length ? holidaysOut(s.calendar.holidays) : undefined),
-    read: () => {},
-  },
+  { key: 'exceptionTimes', optional: true, value: HOLIDAYS, write: s => (s.calendar.holidays.length ? holidaysOut(s.calendar.holidays) : undefined) },
 ];
 
-export const CALENDAR_OPS_FIELDS: readonly CalendarField[] = [
+export const CALENDAR_FIELDS: readonly CalendarField[] = [
   {
     key: 'id', value: NON_EMPTY_TEXT, optional: true,
-    write: s => (s.calendar.id !== derivedCalendarId(s.identity.path, s.isProjectCalendar) ? s.calendar.id : undefined),
+    write: s => (s.calendar.id !== derivedCalendarId(s.path, s.isProjectCalendar) ? s.calendar.id : undefined),
     read: (v, t) => { t.calendar.id = (v as string | undefined) ?? derivedCalendarId(t.path, t.isProjectCalendar); },
-  },
-  {
-    key: 'globalId', value: GLOBAL_ID_OUTSIDE_PATH, optional: true,
-    write: s => s.identity.globalIdOutsidePath,
-    read: (v, t) => { t.globalIdOutsidePath = v as string | undefined; },
   },
   {
     key: 'name', value: TEXT,
