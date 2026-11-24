@@ -42,8 +42,10 @@ export function planningDifference(a: WriteIFCInput, b: WriteIFCInput): string {
     }
     return `${path}: ${JSON.stringify(x)} → ${JSON.stringify(y)}`;
   }
+  const others = new Map<string, WriteIFCInput['tasks'][number]>();
+  for (const t of b.tasks) if (!others.has(t.id)) others.set(t.id, t);
   for (const task of a.tasks) {
-    const other = b.tasks.find(t => t.id === task.id);
+    const other = others.get(task.id);
     const diff = first(task, other, `taak ${task.id}`);
     if (diff) return diff;
   }

@@ -255,7 +255,8 @@ export function sourceFormWhereUnchanged(domain: WriteIFCInput, opened: WriteIFC
     const failing = restores.filter(r => r.converted && !sameValue(againValue(r.leaf).value, shownValue(r.leaf).value));
     if (failing.length === 0) break;
     const datesOf = new Set(failing.filter(r => isDateLeaf(r.leaf)).map(r => r.leaf.id));
-    restores = restores.filter(r => !failing.includes(r) && !(isDateLeaf(r.leaf) && datesOf.has(r.leaf.id)));
+    const failed = new Set(failing);
+    restores = restores.filter(r => !failed.has(r) && !(isDateLeaf(r.leaf) && datesOf.has(r.leaf.id)));
   }
   return {
     input: withProjectSource(withRestores(domain, restores), opened, pristine),

@@ -369,7 +369,8 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   // Gedragen (fixronde 1 van #886): een slot is volledig gedragen als de writer op de lezing van de bron (O0) dezelfde
   // waarde teruggeeft als de bron. Zonder (b) is dat zo (O0 is dan gelijk aan de bron); met (b) alleen bij een datum, tijd of duur
   // met dezelfde betekenis in een andere vorm (`sameMeaning`). Wat niet gedragen is, krijgt nooit de waarde van de writer.
-  const notCarried = new Set(restores.filter(r => !sameMeaning(index, r, p0.out.get(p0.pairedOut.get(r.chunk)![0])!.args[r.outArg], taskTimeMinutesPerDay(input, r.chunk)))
+  const pristineTasks = firstTaskById(input.pristine.tasks);
+  const notCarried = new Set(restores.filter(r => !sameMeaning(index, r, p0.out.get(p0.pairedOut.get(r.chunk)![0])!.args[r.outArg], taskTimeMinutesPerDay(input, r.chunk, pristineTasks)))
     .map(r => `${r.chunk}:${r.outArg}`));
   const carried = (chunk: number, outArg: number) => !notCarried.has(`${chunk}:${outArg}`);
   // De andere toets (PR 12b; onderzoek van 14 november 2026, vraag 2): een eigen groep op projectniveau die het openen niet
@@ -892,6 +893,18 @@ function shiftingLists(input: LossCheckInput): { readonly list: number; readonly
   return lists;
 }
 
+function firstTaskById(tasks: readonly Task[]): Map<string, Task> {
+  const out = new Map<string, Task>();
+  for (const t of tasks) if (!out.has(t.id)) out.set(t.id, t);
+  return out;
+}
+
+function firstPositions(list: readonly number[]): Map<number, number> {
+  const out = new Map<number, number>();
+  list.forEach((id, k) => { if (!out.has(id)) out.set(id, k); });
+  return out;
+}
+
 /**
  * Plek 27 (fixronde 5, BLOKKEERT 3): de uitzonderingen van een kalender (feestdagen en werkende uitzonderingen) hebben in
  * het domein geen id; de kalenderdialoog wijzigt en wist ze per plek in de lijst. Naam en datum zijn dus geen identiteit.
@@ -910,15 +923,15 @@ function unstableLists(input: LossCheckInput, p0: Pairing, p1: Pairing): void {
     const line0 = c0 === undefined ? undefined : p0.out.get(c0);
     const line1 = c1 === undefined ? undefined : p1.out.get(c1);
     if (!line0 || !line1) continue; // de lijst zelf is weg: dan valt ze buiten de toets
-    const list0 = refList(line0.args[outArg]);
-    const list1 = refList(line1.args[outArg]);
-    const order = members.map(m => ({ m, at: list0.indexOf(p0.pairedOut.get(m)?.[0] ?? -1) })).sort((x, y) => x.at - y.at);
+    const positions0 = firstPositions(refList(line0.args[outArg]));
+    const positions1 = firstPositions(refList(line1.args[outArg]));
+    const order = members.map(m => ({ m, at: positions0.get(p0.pairedOut.get(m)?.[0] ?? -1) ?? -1 })).sort((x, y) => x.at - y.at);
     let last = -1;
     const stable = order.every(({ m, at }) => {
       const o0 = p0.pairedOut.get(m)?.[0];
       const o1 = p1.pairedOut.get(m)?.[0];
       if (at < 0 || o0 === undefined || o1 === undefined) return false;
-      const at1 = list1.indexOf(o1);
+      const at1 = positions1.get(o1) ?? -1;
       if (at1 <= last || keyOf(p0.out.get(o0)) !== keyOf(p1.out.get(o1))) return false;
       last = at1;
       return true;
@@ -1715,6 +1728,7 @@ interface O1Context {
   /** De taken van het gelezen en van het bewerkte domein, per id. */
   readonly tasks0: ReadonlyMap<string, Task>;
   readonly tasks1: ReadonlyMap<string, Task>;
+  readonly tasksAtOpen: ReadonlyMap<string, Task>;
   /** Draagt de lezing van de bron dit slot volledig (zie `lossCheck`, "Gedragen")? Per bronstuk en uitvoerslot. */
   readonly carried: (chunk: number, outArg: number) => boolean;
   /** Wat de planner wijzigde (`LossCheckInput.plannerChanged`, anders `changed`). */
@@ -1726,6 +1740,7 @@ function o1Context(input: LossCheckInput, p: Pairing, changed: ChangedScopes, ca
   return {
     input, p, scopes: sourceScopes(input), changed, ownPerson: refOf(pao?.args[0]), ownOrg: refOf(pao?.args[1]),
     tasks0: new Map(input.pristine.tasks.map(t => [t.id, t])), tasks1: new Map(input.domain.tasks.map(t => [t.id, t])),
+    tasksAtOpen: firstTaskById((input.opened ?? input.pristine).tasks),
     carried, plannerChanged: input.plannerChanged ?? changed.keys,
   };
 }
@@ -2196,7 +2211,7 @@ function plannerReplacedDate(ctx: O1Context, r: SlotRestore): boolean {
 }
 
 /** Minuten per dag van de bron-taak van dit slot; gedeelde slots moeten dezelfde maat hebben. */
-function taskTimeMinutesPerDay(input: LossCheckInput, chunk: number): number | undefined {
+function taskTimeMinutesPerDay(input: LossCheckInput, chunk: number, pristineTasks: ReadonlyMap<string, Task>): number | undefined {
   const { index, pristine } = input;
   if (index.type(chunk) !== 'IFCTASKTIME') return undefined;
   const values = new Set<number>();
@@ -2204,7 +2219,7 @@ function taskTimeMinutesPerDay(input: LossCheckInput, chunk: number): number | u
     const from = index.inSource(k);
     if (from < 0 || index.type(from) !== 'IFCTASK') continue;
     const owner = input.bySource.get(Number(index.id(from)));
-    const task = owner?.kind === 'task' ? pristine.tasks.find(t => t.id === owner.id) : undefined;
+    const task = owner?.kind === 'task' ? pristineTasks.get(owner.id) : undefined;
     if (!task) return undefined;
     const cal = resolveCalendar(task.calendarId, pristine.resourceCalendars ?? [], pristine.calendar);
     values.add(taskMinutesPerDay(task, effHoursPerDay(cal)));
@@ -2378,7 +2393,7 @@ function typeNameFollowsDefinition(ctx: O1Context, d: LossDiff): boolean {
   if (!key?.startsWith('task:') || !ctx.plannerChanged.has('customTaskTypes')) return false;
   const before = input.opened ?? input.pristine;
   const typeId = ctx.tasks1.get(key.slice(5))?.customTaskTypeId;
-  if (!typeId || before.tasks.find(t => t.id === key.slice(5))?.customTaskTypeId !== typeId) return false;
+  if (!typeId || ctx.tasksAtOpen.get(key.slice(5))?.customTaskTypeId !== typeId) return false;
   const name = (x: Pick<WriteIFCInput, 'customTaskTypes'>) => x.customTaskTypes?.find(t => t.id === typeId)?.name;
   return name(input.domain) !== undefined && name(before) !== undefined && name(input.domain) !== name(before);
 }
