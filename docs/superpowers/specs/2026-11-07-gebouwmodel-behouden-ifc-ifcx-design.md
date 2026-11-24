@@ -767,15 +767,18 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     van wat de app gezien heeft); een leesbaar bestand dat geen IFC is, is een gewoon doel. Eén scan van de vastgelegde
     bytes, gedeeld door de controle na de kiezer en die na de eerste herstelronde (was knownbug 1891). De eigen bron
     blijft geweigerd, met een verwijzing naar *Opslaan*; het bestand of de bron van een ander open document krijgt de
-    melding van een open tabblad, net als bij Exporteren. Een link naar een modelbestand blijft geweigerd. Exporteren,
-    Ctrl+S met een opslagdoel, Automatisch opslaan en MCP krijgen die toestemming niet. Daarbij weigert
+    melding van een open tabblad, net als bij Exporteren. Een link naar een modelbestand blijft geweigerd. Ctrl+S met
+    een opslagdoel en Automatisch opslaan krijgen die toestemming niet. Daarbij weigert
     de vervanging ook een bestand dat in een ander tabblad open staat, ook een gewone planning zonder vreemd deel
     (fixronde 1 van #1019): na de eerste herstelronde en vóór de eerste schrijfactie in de map. Een vrije naam die een
     ander tabblad nog als pad onthoudt, blijft een vrije naam (fixronde 2). Of er een bestand staat, stelt de app direct na de
     terugkeer van de bestandskiezer vast; een toen leeg pad houdt de exclusieve aanmaak (knownbug 1890). Waar de vervanging
     niet kan (buiten de scope van de kiezer, knownbug 1762; een link of een harde link; een bestandssysteem zonder
     exclusieve stap), blijft de melding dat alleen een nieuwe naam kan; geen terugval. Met de flag uit is alles zoals
-    voorheen, ook de volgorde van de weigerredenen. Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
+    voorheen, ook de volgorde van de weigerredenen. Exporteren → IFC (de planner in het venster) en `planner_export_ifc`
+    (alleen met `overwrite: true`) vervangen een bestaande naam bij een document met een vreemd deel langs dezelfde weg
+    (besluit van de eigenaar, 21 november 2026; #1179): zonder manifeststap, zonder vastleggen op het document, en niet
+    over het eigen bestand van het document.
   - **Stappen.** 0: een eigen herstelrecord voor deze vervanging, `recovery[.<slug>].replace.<id>.json` in de
     appDataDir, met `{ id, path, vorigeSha256, pendingSha256 }`, en in het manifest `pendingSha256` (§4.14). Het record
     staat bewust buiten het manifest (besluit van de technisch beslisser, 18 november 2026, na de review van #991): het
