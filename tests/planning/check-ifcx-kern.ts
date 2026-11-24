@@ -223,6 +223,7 @@ test('relaties dragen het lagtype en de lag als ISO 8601-duur of verhouding', ()
   assert.equal(shared(0).timeLag, 'P0D');
   assert.equal(shared(1).timeLag, '-PT90M');
   assert.equal(shared(1).sequenceType, 'START_START');
+  assert.deepEqual(ops(1), { id: 'r2' }, 'de lag in minuten volgt uit de gedeelde duur, met teken');
   assert.equal(shared(2).timeLagRatio, 0.07);
   assert.equal(shared(2).lagDurationType, 'ELAPSEDTIME');
   assert.equal(ops(2).lagPercent, 7);
@@ -390,6 +391,18 @@ test('de zelfcontrole weigert wat de voorcontrole niet ziet', () => {
   assert.equal(odd.code, 'self-check');
   const library = writeRefusal({ ...plan, resourceCalendars: [{ ...plan.calendar }] });
   assert.equal(library.code, 'self-check');
+});
+
+test('bekende grens 2220: bij een dubbele sleutel in een eigen bestand wint stil de laatste', () => {
+  const doubled = goodText.replace('"name":"Taak binnen-een-dag"', '"name":"Oud","name":"Taak binnen-een-dag"');
+  assert.notEqual(doubled, goodText);
+  assert.equal(readIfcx(encode(doubled)).tasks[0].name, 'Taak binnen-een-dag');
+});
+
+test('bekende grens 2222: een kind dat haar ouder niet noemt, weigert de zelfcontrole', () => {
+  const plan = datePlan();
+  const refusal = writeRefusal({ ...plan, tasks: plan.tasks.map(task => task.id === 'binnen-een-dag' ? { ...task, childIds: ['handmatig'] } : task) });
+  assert.equal(refusal.code, 'self-check');
 });
 
 const FIXTURES: readonly { file: string; input: () => ImportResult }[] = [

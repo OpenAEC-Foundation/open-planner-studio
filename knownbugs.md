@@ -3700,6 +3700,30 @@ en noem het in je rapport of PR-tekst.
      kwamen de oude IFC-bytes terug. `check-recovery-web-hold.ts` toetst bij een dubbel document alleen dat het één keer
      verschijnt, niet welke versie. — B
 
+2220. **IFCX: bij een dubbele sleutel in een eigen bestand wint stil de laatste.** `readIfcxText` in
+     `src/services/ifc/ifcx/ifcxReader.ts` leest met `JSON.parse` (keuze T1 van #804 fase 3). Staat in één object twee
+     keer dezelfde sleutel, dan neemt `JSON.parse` zonder melding de laatste waarde. De eigen writer schrijft nooit een
+     dubbele sleutel; alleen een bestand dat een ander programma of iemand met de hand veranderde, raakt dit. Voorstel:
+     de tokenizer op bytes van fase 4 (ontwerp §6.1) weigert een dubbele sleutel met de code `invalid`. Proef:
+     `check-ifcx-kern.ts`, "bekende grens 2220". — B
+
+2221. **IFCX: een veranderde gedeelde datum verschuift een gestarte taak niet zichtbaar.** `applySharedSpan` in
+     `src/services/ifc/ifcx/ifcxReader.ts` past de leesregel van ontwerp §5.3 toe: wijkt `start` of `endExclusive` af
+     van de projectie van de precieze datums, dan zet hij de geplande, vroege en late datums op 00:00 van de gedeelde
+     datum en maakt hij de taak handmatig. Een taak met een werkelijke start toont die werkelijke start (`shownStart` in
+     `src/utils/taskDates.ts`), dus daar blijft de getoonde start gelijk, terwijl `ifcxSharedDatesApplied` haar wel
+     meetelt; de werkelijke datums zelf veranderen niet. Alleen een bestand dat een ander programma veranderde, raakt
+     dit. Voorstel: in fase 4 afspreken wat een gedeelde datum op een gestarte taak betekent. — S (uit de code
+     afgeleid)
+
+2222. **IFCX: een taak in de `childIds` van een ouder die zelf geen `parentId` naar die ouder heeft, kan niet als IFCX
+     worden opgeslagen.** De IFCX-writer (`src/services/ifc/ifcx/ifcxWriter.ts`) schrijft de boom als `parent` per taak
+     en leidt `childIds` bij lezen daaruit af. Spreken `childIds` en `parentId` elkaar tegen, dan geeft de herlezing een
+     andere planning en weigert de zelfcontrole (`self-check`). STEP slaat zo'n boom op en herstelt hem bij openen
+     (`extractNesting` in `ifcReader.ts` zet `parentId` uit de nesting). Er gaat niets verloren, maar opslaan als IFCX
+     lukt dan niet. Voorstel: de boom vóór het schrijven gelijktrekken, zoals de STEP-lezer doet, of de oorzaak vinden
+     die zo'n boom maakt (zie ook 1980 en 1981). Proef: `check-ifcx-kern.ts`, "bekende grens 2222". — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
