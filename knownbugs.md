@@ -4008,35 +4008,38 @@ en noem het in je rapport of PR-tekst.
       staan in het bestand eerst `A` (`SequenceNumber` 2) en dan `B` (`SequenceNumber` 1); de takenlijst geeft `R, B, A`,
       `childIds` van `R` geeft `A, B`. Welke delen van de app de volgorde uit `childIds` halen, is niet nagegaan. — B
 
-2310. **Een `.mpp`-kalender die op een half uur begint, kan elke taak erop een tijdsignaal geven.** `mppAnchorClock`
-      (`src/services/mpp/mppReader.ts`) maakt het anker uit `workStartHour` als heel uur, en `mppCalendars.ts` zet dat
-      bij één blok per dag op het hele uur eronder (`Math.floor`). Een kalender van 07:30 krijgt zo het anker 07:00, en
-      een taak die om 07:30 begint, geeft in `readTasks` het signaal van `hasNonAnchorTime`, waarna de kalender een
-      uurkalender wordt. Gelezen in de code, niet nagespeeld; het weggehaalde commentaar noemde het een bekende,
-      ongeteste rand. Open vraag: of zo'n kalender anders gelezen moet worden, want bij een kalender met meer blokken
-      gebeurt de promotie vaak al door de blokken. — S
+2310. **Een `.mpp`-kalender die op een half uur begint, wordt een uurkalender door een taak op dat halve uur.**
+      `mppAnchorClock` (`src/services/mpp/mppReader.ts`) maakt het anker uit `workStartHour` als heel uur, en
+      `mppCalendars.ts` zet dat bij één blok per dag op het hele uur eronder (`Math.floor`). In een proef kreeg een
+      kalender met één blok vanaf 07:30 bij `readMPP` ankeruur 7: een taak om 07:30 gaf in `readTasks` het signaal van
+      `hasNonAnchorTime`, de kalender werd een uurkalender en de taak hield 07:30. Met een blok vanaf 07:00 hield de
+      taak alleen de datum. De promotie bewaart hier de tijd uit het bestand; een nadeel voor de planner is niet
+      vastgesteld. — B
 
-2311. **Op een `.mpp`-kalender zonder werkblokken schuift de lezer de periodes van een toewijzing niet naar haar
-      start.** `computeShiftedAssignmentPeriods` (`src/services/mpp/mppReader.ts`) verschuift alleen als
-      `CalendarEngine.isHourMode` waar is; op een taakkalender die geen uurkalender werd (ADR 0283) begint elke
-      toewijzing voor splits en contouren op de taakstart, ook als haar eigen `START` later ligt. Gelezen in de code; het
-      weggehaalde commentaar zei dat er voor een dagkalender geen gemeten formule is. Hoe vaak een toewijzing op zo'n
-      kalender later begint dan haar taak, is niet gemeten. — S
-
-2312. **Zonder `RESUME` begint het restwerk van een `.mpp`-toewijzing direct na het verrichte werk.**
-      `computeShiftedAssignmentPeriods` (`src/services/mpp/mppReader.ts`) schuift de resterende periodes bij verricht
-      werk naar `RESUME` op een uurkalender, en anders naar het einde van de verschoven werkelijke periodes. Volgens het
-      weggehaalde commentaar is dat een benadering zonder steun in MPXJ (`AssignmentField.RESUME` heeft daar geen
-      standaardplek in de veldkaart). Of MS Project het restwerk na een onderbreking later laat beginnen, is niet
-      nagegaan. — S
+2312. **Zonder `RESUME` begint het restwerk van een `.mpp`-toewijzing direct na haar verrichte werk.**
+      `computeShiftedAssignmentPeriods` (`src/services/mpp/mppReader.ts`) schuift de resterende periodes van een
+      toewijzing met verricht werk naar haar `RESUME`, en zonder `RESUME` naar het einde van haar laatste verschoven
+      werkelijke periode. Dat geldt voor splits en contouren. In een proef met een taakstart om 08:00 en een
+      toewijzingsstart om 09:00 begon het restwerk zonder `RESUME` op taakminuut 180, en met een hervatting op de
+      volgende werkdag op minuut 480. Volgens het weggehaalde commentaar heeft die terugval geen steun in MPXJ
+      (`AssignmentField.RESUME` heeft daar geen standaardplek in de veldkaart). Wat MS Project bij een ontbrekend
+      `RESUME` doet, is niet getoetst. — B
 
 2313. **Een `.mpp`-taak wandelt ook over een resourcekalender waarvan feestdag en werkende uitzondering elkaar bij de
       opgeslagen duur opheffen; of het einde na een duurwijziging klopt met MS Project, is onbekend.**
-      `calendarDiffersIncludingExceptions` (`src/services/mpp/mppReader.ts`) telt zo'n kalender als afwijkend, dus de
-      taak krijgt een wandeling over de resourcekalender (ADR 0288). Volgens het weggehaalde commentaar is het einde in
-      `mpp14timephasedsegments(manual).mpp` ("Task Seven", "Task Eight") bij de opgeslagen duur van 4800 minuten gelijk,
-      en wijkt het bij een andere duur (960 of 1920 minuten) 1 tot 2 werkdagen af; het corpus heeft geen uitkomst van
-      MS Project voor een bewerkte duur. — S
+      `calendarDiffersIncludingExceptions` (`src/services/mpp/mppReader.ts`) telt zo'n kalender als afwijkend, dus bij
+      één kandidaat levert `deriveTimephasedWindowsForTasks` een wandeling over de resourcekalender (ADR 0288). In een
+      proef met een vrije dinsdag en een werkende zaterdag gaf 4800 minuten op beide kalenders hetzelfde einde; bij 960
+      en 1920 minuten eindigde de resourcekalender één werkdag later. Volgens het weggehaalde commentaar gebeurt dat in
+      `mpp14timephasedsegments(manual).mpp` ("Task Seven", "Task Eight"). Het corpus heeft geen uitkomst van MS Project
+      voor een bewerkte duur. — B
+
+2314. **Een resourcekalender die alleen in de werktijden van een werkende uitzondering afwijkt, geeft een `.mpp`-taak
+      met één toewijzing geen wandeling.** `calendarDiffersIncludingExceptions` (`src/services/mpp/mppReader.ts`)
+      vergelijkt de weekblokken en de datumbereiken van feestdagen en werkende uitzonderingen, niet de blokken binnen
+      een werkende uitzondering. In een proef met één werkresource, dezelfde uitzonderingsdatum en een latere start
+      op die dag gaf de vergelijker `false`; dezelfde 120 werkminuten eindigden op de twee kalenders om 10:00 en 12:00.
+      De lezer levert dan voor die taak geen wandeling. Of MS Project daar over de resourcekalender plant, is niet nagegaan. — B
 
 ## Rondleiding, Help en extensie-gidsen
 

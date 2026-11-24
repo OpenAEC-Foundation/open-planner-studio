@@ -18,12 +18,15 @@ van de toewijzing naar de taak, met `CalendarEngine.workMinutesBetween`) staat i
   vragen alleen uid's op die uit `readAssignmentTimephasedRaw` komen, en die komen al uit VarMeta.
 - Alleen bladtaken met een start krijgen splits en contouren; een samenvattingstaak niet (volgens het weggehaalde
   commentaar ook in MPXJ `Task.calculateWorkSplits`).
-- De periodes van een toewijzing beginnen bij haar eigen `START`. Op een uurkalender van de taak schuift
-  `computeShiftedAssignmentPeriods` ze op met de werkminuten van taakstart tot `START` (niet negatief; zonder `START`
-  0); op een kalender zonder werkblokken is die verschuiving 0 (knownbug 2311). Het restwerk schuift, als er al
-  verricht werk is, vanaf `RESUME` op een uurkalender, en anders (zonder `RESUME` of zonder werkblokken) tot het einde
-  van de verschoven werkelijke periodes (knownbug 2312). Volgens het weggehaalde commentaar ankeren de decoders van MPXJ (`getCompleteWork`, `getPlannedWork`) ook op
-  `START` en bij verricht werk op `RESUME`.
+- De periodes van een toewijzing beginnen bij haar eigen `START`. `computeShiftedAssignmentPeriods` schuift ze op met
+  de werkminuten van taakstart tot `START` (niet negatief; zonder `START` 0), gerekend door een `CalendarEngine` op de
+  effectieve taakkalender. Die engine leidt voor een kalender zonder opgeslagen `workTime` de werkblokken af uit de
+  enkelvoudige werkdag (`calendarForEngine`); alleen als ook dan geen werktijd overblijft (`isHourMode` onwaar), is de
+  verschuiving 0. In een proef gaf een taak om 08:00 op een kalender zonder opgeslagen blokken met een toewijzing om
+  09:00 een verschuiving van 60 minuten, net als met opgeslagen blokken.
+- Het restwerk schuift, als de toewijzing verricht werk heeft, vanaf haar `RESUME`; zonder `RESUME` (of zonder werktijd
+  op de kalender, als hierboven) tot het einde van haar laatste verschoven werkelijke periode (knownbug 2312). Volgens het weggehaalde commentaar ankeren de decoders
+  van MPXJ (`getCompleteWork`, `getPlannedWork`) ook op `START` en bij verricht werk op `RESUME`.
 - Splits en contouren decoderen zonder `referenceFinish`: een vlak samenvattend record (`blockCount` 0) kan geen gat
   tonen, en met een lengte in klokminuten op de as van werkminuten zou het een echt gat kunnen overbruggen.
 - Splits: per toewijzing met periodes een lijst gaten (`deriveSplitGapsFromPeriods`), samengevoegd per taak
@@ -32,8 +35,8 @@ van de toewijzing naar de taak, met `CalendarEngine.workMinutesBetween`) staat i
   `resourceId`, ook als er geen gat uit volgt. De bezetting (`ResourceLoad.ts`) en de contourlaag (onder andere
   `curveState.ts`) lezen de verdeling van het werk daaruit; een split alleen zou die verdeling niet dragen.
 - `deriveSplitGapsForTasks` heeft geen eigen try/catch: `readAssignmentTimephasedRaw` en `buildAssignmentUidLinks`
-  vangen hun fouten zelf, en `CalendarEngine.ts` gooit niet. Een fout hoort bij de bron voorkomen te worden, zoals met
-  de voorwaarde `isHourMode` hierboven, niet weggevangen.
+  vangen hun fouten zelf, en `CalendarEngine.ts` gooit niet. Een fout hoort bij de bron voorkomen te worden, niet
+  weggevangen.
 - `task.resourceIds` is een afleiding van de toewijzingen (`reconstructResourceIds`, dezelfde als in de IFC-lezer); de
   hervattingsregel van de solver (`resumeOverride` in `CPMSolver.ts`) gebruikt `resume` alleen bij hoogstens één
   resource in die lijst.

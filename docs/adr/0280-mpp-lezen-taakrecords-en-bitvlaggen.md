@@ -1,51 +1,46 @@
-# MPP lezen: de taakrecords, de bitvlaggen en wat van MPXJ is overgenomen
+# MPP lezen: welke taakrecords de lezer leest, en de bitvlaggen per versie
 
 `readMPP` (`mppReader.ts`) leest het binaire `.mpp` van MS Project 2010 tot en met 2021 (MPP14, de map `"   114"`).
 Microsoft beschrijft dat formaat niet; de structuur komt uit MPXJ (`github.com/joniles/mpxj`, LGPL-2.1), zoals de
-regel `mpp` zegt. Het weggehaalde commentaar noemde als bronnen `MPP14Reader.java`, `FieldMap14.java`, `PropsKey.java`
-en `TaskField.java`; die bronnen zijn niet in de repo nagegaan. De veld-id's en offsets staan als constanten in
-`fieldMap14.ts` (`TaskFieldId`, `AssignmentFieldId` en de standaardtabellen), de recordgroottes als constanten in
-`mppReader.ts` en `mppEntities.ts`. Een veld dat in de veldkaart ontbreekt of buiten een te kort record valt, geeft
-voor dat veld een lege of vaste waarde; alleen waar zonder een veld geen betrouwbare taak overblijft, weigert de lezer.
+regel `mpp` zegt. De veld-id's en offsets staan in de veldkaart `fieldMap14.ts`, de recordgroottes als constanten in
+`mppReader.ts` en `mppEntities.ts`. Het weggehaalde commentaar noemde als bronnen `MPP14Reader.java`,
+`FieldMap14.java`, `PropsKey.java` en `TaskField.java`; die bronnen zijn niet in de repo nagegaan.
 
 ## Gevolgen
 
-- `openMppProject` leest de projecteigenschappen uit `"   114"/Props`. Dat de `Props14`-stroom in de wortel alleen de
-  wachtwoordvlag draagt (`assertReadable` in `mppContainer.ts`), komt uit het weggehaalde commentaar.
-- `TBkndCons` is in het MPP-jargon de tabel met relaties, geen datumconstraints; `readRelations` (`mppEntities.ts`)
-  leest hem.
-- De itemgrootte van `TBkndTask/FixedMeta` is 47 (`TASK_FIXED_META_ITEM_SIZE`); die van `Fixed2Meta` kiest
-  `FixedMeta.withHeuristicItemSize` uit 92 tot en met 96 (`TASK_FIXED2_META_ITEM_SIZES`), tegen het aantal items van
-  `FixedData`. Volgens het weggehaalde commentaar zijn dat de getallen van `MPP14Reader.java`.
+- Ontbreekt een van de stromen `FixedMeta`, `FixedData` of `VarMeta` van `TBkndTask`, of `"   114"/Props`, dan
+  weigert de lezer het bestand. Ontbreekt in de veldkaart `UNIQUE_ID`, `ID`, `NAME`, `SCHEDULED_START` of
+  `SCHEDULED_FINISH`, dan ook: zo'n veldkaart wijst op een mis-parse (bijvoorbeeld de verkeerde sleutel
+  `TASK_FIELD_MAP` of `TASK_FIELD_MAP2`), en taken zonder naam of datum zijn erger dan een geweigerd bestand.
+- Welke records taken zijn, beslist `collectValidTaskIndices` (`mppRecords.ts`); een record zonder leesbaar unique-id
+  valt als geheel weg, en de taak met unique-id 0 (de projectsamenvattingstaak) slaat `readTasks` over, zoals
+  `readMSPDI`. Een ander veld dat in de veldkaart ontbreekt of buiten het record valt, krijgt per veld een lege of
+  vaste waarde.
 - `Fixed2Meta` en `Fixed2Data` mogen ontbreken of onleesbaar zijn, net als `TBkndRsc/Fixed2Meta` in `mppEntities.ts`:
-  dan is de taak `AUTO_SCHEDULED` en blijven het handmatige anker en de handmatige duur leeg. De vier blokken van een
-  taak delen hun index.
-- Ontbreekt in de veldkaart `UNIQUE_ID`, `ID`, `NAME`, `SCHEDULED_START` of `SCHEDULED_FINISH`, dan gooit `readTasks`
-  een fout. Zo'n veldkaart wijst op een mis-parse (bijvoorbeeld de verkeerde sleutel `TASK_FIELD_MAP` of
-  `TASK_FIELD_MAP2`), en taken zonder naam of datum zijn erger dan een geweigerd bestand.
-- De taak met unique-id 0 is de projectsamenvattingstaak en wordt overgeslagen, zoals in `readMSPDI`.
-- Welke bit in de metadata de mijlpaal, de manier van plannen en `EFFORT_DRIVEN` draagt, hangt af van de versie die
-  `detectApplicationVersion` vindt (`isLegacyBitFlagVersion`): tot en met 14 (Project 2010) en een onbekende versie
-  de tabel van 2010, daarboven die van 2013 en 2016. Een onbekende versie telt als 0, zoals MPXJ
-  `NumberHelper.getInt(null)` (weggehaald commentaar). Mijlpaal en `EFFORT_DRIVEN` staan in `FixedMeta`, de manier van
-  plannen in `Fixed2Meta` (`milestoneBitFlag`, `effortDrivenBitFlag`, `taskModeBitFlag`). Dat 2013 en 2016 voor deze
-  bits dezelfde offset en hetzelfde masker hebben, komt uit het weggehaalde commentaar.
-- `mspTaskTypeFromRaw`: `TYPE` 0, 1 en 2 worden Vaste eenheden, Vaste duur en Vast werk, elke andere aanwezige waarde
-  Vast werk; ontbreekt het veld of is het record te kort, dan krijgt de taak geen `mspTaskType`
-  (`check-mpp-import.ts`, `[Z14b type]` toetst het ontbrekende geval). Dat Vast werk de terugval van MPXJ
-  `TaskTypeHelper` is en dat waarde 3 in een `.mpp` niet voorkomt, komt uit het weggehaalde commentaar.
+  dan is de taak `AUTO_SCHEDULED` en blijven het handmatige anker en de handmatige duur leeg. De itemgrootte van
+  `Fixed2Meta` kiest `FixedMeta.withHeuristicItemSize` uit 92 tot en met 96, die van `FixedMeta` is 47; volgens het
+  weggehaalde commentaar de getallen van `MPP14Reader.java`.
+- De bit voor mijlpaal, manier van plannen en `EFFORT_DRIVEN` hangt af van de versie uit `detectApplicationVersion`
+  (`isLegacyBitFlagVersion`): tot en met 14 (Project 2010) en een onbekende versie de tabel van 2010, daarboven die
+  van 2013 en 2016. Dat een onbekende versie als 0 telt zoals MPXJ `NumberHelper.getInt(null)`, en dat 2013 en 2016
+  voor deze bits dezelfde offset en hetzelfde masker hebben, komt uit het weggehaalde commentaar. Mijlpaal en
+  `EFFORT_DRIVEN` staan in `FixedMeta`, de manier van plannen in `Fixed2Meta`.
+- De projecteigenschappen komen uit `"   114"/Props`; dat de `Props14`-stroom in de wortel alleen de wachtwoordvlag
+  draagt, komt uit het weggehaalde commentaar. `TBkndCons` is in het MPP-jargon de tabel met relaties, geen
+  datumconstraints.
 - Een percentage voltooid buiten 0 tot en met 100 wordt 0 (`readPercentComplete`).
+- `mspTaskTypeFromRaw`: 0, 1 en 2 worden Vaste eenheden, Vaste duur en Vast werk, een andere waarde Vast werk, en
+  `null` geen taaktype. `check-mpp-import.ts` (`[Z14b type]`) toetst twee helpers: een veldkaart zonder `TYPE` geeft
+  bij `fixedOffsetOf` `null`, en `mspTaskTypeFromRaw(null)` geeft `undefined`. Dat Vast werk de terugval van MPXJ
+  `TaskTypeHelper` is en dat waarde 3 in een `.mpp` niet voorkomt, komt uit het weggehaalde commentaar.
 - De `.mpp.xml`-bestanden die in het corpus als ground truth dienen, zijn een andere revisie van het document dan de
-  `.mpp`-bestanden (hernummerde unique-id's, verplaatste taken, een andere projectstart; ook genoemd in de kop van
-  `check-mpp-relations.ts`). Een lezer kan dat verschil niet overbruggen; `check-mpp-import.ts` houdt daarom per veld
-  een budget voor afwijkingen.
-- Elke tekst die deze lezer uit var-data of de Props haalt, gaat door `getUnicodeString` met `MAX_VAR_TEXT_BYTES`
-  (de reden staat bij die constante in `limits.ts`).
+  `.mpp`-bestanden (ook genoemd in de kop van `check-mpp-relations.ts`); `check-mpp-import.ts` houdt daarom per
+  veldsoort een budget voor afwijkingen.
 
 ## Overwogen
 
-Twee filters van MPXJ `createTaskMap` zijn niet overgenomen: een niet-leeg `Fixed2Data`-record eisen, en een
-`FixedData`-record van minstens 75 % van `fieldMap.getMaxFixedDataSize(0)`. Dat maximum gaat over alle taakvelden van
-MPXJ en is met de veldenlijst van deze lezer niet betrouwbaar te berekenen. `collectValidTaskIndices` (`mppRecords.ts`)
-toetst eenvoudiger; volgens het weggehaalde commentaar gaf dat op alle ground-truthbestanden van het corpus hetzelfde
-aantal taken. Wijkt een telling ooit af, dan zijn deze filters de eerste kandidaat.
+Volgens het weggehaalde commentaar heeft MPXJ `createTaskMap` twee filters die hier niet zijn overgenomen: een
+niet-leeg `Fixed2Data`-record eisen, en een `FixedData`-record van minstens 75 % van `fieldMap.getMaxFixedDataSize(0)`.
+Dat maximum gaat over alle taakvelden van MPXJ en is met de veldenlijst van deze lezer niet betrouwbaar te berekenen.
+Ook volgens dat commentaar gaf `collectValidTaskIndices` op alle ground-truthbestanden van het corpus hetzelfde aantal
+taken. Wijkt een telling ooit af, dan zijn deze filters de eerste kandidaat.
