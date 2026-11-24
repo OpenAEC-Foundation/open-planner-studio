@@ -275,6 +275,11 @@ function richDomain(): Domain {
   const merged = (s: string, r: string, w: string) => { const x = mergedJsonText(series, s, r, w); return 'refused' in x ? 'geweigerd' : x.text; };
   ok('per lid: een reeks met dezelfde lengte per plaats, met een andere lengte weigert',
     merged('[1.0,2,3e0]', '[1,2,3]', '[1,5,3]') === '[1.0,5,3e0]' && merged('[1.0,2]', '[1,2]', '[1,2,3]') === 'geweigerd');
+  const windowShape = (jsonPropertyShape('OPS_Timephased', 'Windows') as Extract<JsonShape, { soort: 'kaart' }>).waarde;
+  const win = mergedJsonText(windowShape, '{"plannedWorkMinutes":48e1,"costAmount":5.0,"vendorW":"w"}', '{"plannedWorkMinutes":480,"costAmount":5}',
+    '{"plannedWorkMinutes":480,"costAmount":6}');
+  ok(`per lid: in een gewijzigd venster houdt een ongewijzigd getal zijn spelling (${show(win)})`,
+    'text' in win && win.text === '{"plannedWorkMinutes":48e1,"costAmount":6,"vendorW":"w"}');
 }
 
 {
