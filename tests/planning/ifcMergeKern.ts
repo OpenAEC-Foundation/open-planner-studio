@@ -518,6 +518,14 @@ export function fixedCatalogEdits(_d: Domain): Edit[] {
  * (PR 12c), zoals `prepareIfcWrite` hem aanzet (`openedOwnGroups`); zonder: de controle van main. `explained`: elk verschil
  * dat een oude verklaring (`explainO1`) toeliet, met de regel.
  */
+/** De owner history van OPS in een bestand (de applicatie `'OPS'`), bij voorkeur een die niet in `kept` staat (de nieuwe
+ *  van de writer naast een bewaarde); anders die van de eerste taak. */
+function ownOwnerHistory(lines: readonly OutLine[], kept: ReadonlySet<number> = new Set()): number {
+  const apps = new Set(lines.filter(l => l.type === 'IFCAPPLICATION' && l.args[3]?.trim() === "'OPS'").map(l => `#${l.id}`));
+  const own = lines.filter(l => l.type === 'IFCOWNERHISTORY' && apps.has(l.args[1]?.trim() ?? ''));
+  const chosen = own.find(l => !kept.has(l.id)) ?? own[0];
+  return chosen ? chosen.id : Number(lines.find(l => l.type === 'IFCTASK')!.args[1].slice(1));
+}
 export async function lossProbe(bytes: Uint8Array, input: Domain, output: Uint8Array, toets = false) {
   const lines = (b: Uint8Array) => latin1Text(b).split('\n').map(parseOutLine).filter((l): l is OutLine => !!l);
   const opened = await openForeign(bytes), source = opened.ifcSource!;
@@ -534,8 +542,8 @@ export async function lossProbe(bytes: Uint8Array, input: Domain, output: Uint8A
     lossCheck({ index, cls, fixed: new Set([...plan.bySource.keys(), ...plan.baselineHeads.values()]), bySource: plan.bySource,
       o0: lines0, o1: o1Lines, pristine, domain: sourceFormWhereUnchanged(edited, source.opened, pristine).input, opened: source.opened, objects1,
       plannerChanged: changedScopes(edited, source.opened ?? pristine).keys,
-      owner0: Number(o0.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
-      owner1: Number(o1.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
+      ...(source.sourceSlots ? { sourceSlots: source.sourceSlots } : {}),
+      owner0: ownOwnerHistory(o0), owner1: ownOwnerHistory(o1, new Set(o0.map(l => l.id))),
       ...own,
       ...(explained ? { explainedO1: (d: { chunk: number }, why: string) => explained(d.chunk, why) } : {}),
     }, f => found.push(f.chunk));

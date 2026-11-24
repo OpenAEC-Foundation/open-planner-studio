@@ -348,9 +348,27 @@ writer schreef, met een owner history van een ander programma). Een bron zonder 
 main; de doelcontrole, de headless routes en de interne scans van de merge verzamelen niets. De scanrunner en de
 opslagworker eisen bij een vreemd deel een kaart (een lege is geldig) en weigeren er een zonder vreemd deel
 (`isSourceSlots`, in `foreignScanRunner.ts` en `resultFits`). Het crashherstel opent de bronbytes opnieuw en krijgt ze zo
-terug; het herstelrecord heeft er geen veld voor. De writer gebruikt ze nog niet: het terugschrijven per slotsoort en het
-wegnemen van de weigeringen `vreemde-herkomst` en `entiteittype` volgen in deel 2 van PR 2. Proef:
-`check-ifc-source-slots.ts`.
+terug; het herstelrecord heeft er geen veld voor. Proef: `check-ifc-source-slots.ts`.
+
+De merge schrijft met de kaart (deel 2 van PR 2, `foreign/sourceSlotWrite.ts`, één regel over de soort uit het register):
+een stuk van de kaart krijgt per slot het brontoken of de waarde van de writer. Constant: het brontoken (een `#` alleen
+op de vaste lijst, `bronverwijzing`); domein: het brontoken zolang de writer er hetzelfde schrijft als bij openen (O0)
+en de planner geen veld wijzigde waar de writer dat slot uit schrijft (`slotFieldChanged` in `lossCheck.ts`, dezelfde
+veldtabel als de uitleg van O1); afgeleid en verwijzing: de writer; een afhankelijk slot (`volgt`) samen met zijn
+hoofdslot. Het entiteittype komt uit de bron als het domein het niet onderscheidt (`sameDomainEntity`: een
+`IfcConstructionProductResource` blijft dat). Dat geldt voor de D-stukken met hun vaste id (ook een baselinekop die zijn
+id via zijn GlobalId houdt) en hun taaktijd of lag, in O0 en O1 (`buildLines` in `mergeWriter.ts`). Relaties van een
+ander programma (`IfcRelNests`, `IfcRelAggregates`, `IfcRelAssignsToControl`, `IfcRelAssignsToProcess`) schrijft de merge
+opnieuw met hun bewaarde slots; de leden komen uit wat de writer voor dezelfde relating schreef: een enige `Nests` van
+Bonsai volgt de ouder (alle kinderen, in de volgorde van het domein), anders houdt elke bewaarde relatie haar leden die
+het domein nog koppelt, en houdt de eigen relatie de rest. Een relatie met de projectkalender (de lezer slaat die over)
+houdt de leden zonder eigen kalender. Zonder leden vervalt de relatie. De verliescontrole laat een afgeleid slot en een
+verwijzing buiten een relatierol en een groep aan de writer (`writerAlwaysWrites`); de rest toetst zij zoals bij een
+eigen stuk. Controle (c) krijgt de brontokens van de kaart zoals de slots van (b). `vreemde-herkomst` blijft voor wat de
+kaart niet draagt: een oude lay-out, de oude letterlijke codering, een vorm buiten het register (een
+`IfcLaborResource` met 10 argumenten) en een `IfcRelDeclares` of `IfcRelDefinesByProperties` van een ander programma
+(knownbug 2233). `entiteittype` blijft als de planner het type van een resource wijzigt. Proef:
+`check-ifc-source-slot-write.ts` (de regel en de rest per slot over het hele register).
 
 Kosten: evenredig met het aantal stukken van een ander programma én met de gedecodeerde lengte van hun regels
 (`argTokens` decodeert en splitst de hele regel, ook een ledenlijst van 50.000). De reviewer van #1196 (GPT-6.2-Sol) mat
@@ -358,8 +376,8 @@ bij 10.000 vreemde taken met taaktijden ongeveer 18,7 MiB extra V8-heap na GC, b
 `fix2-vendor-ops.ifc` (369 stukken) ongeveer 335 KiB. De kaart reist gekloond naar en van de opslagworker. De piek op een
 groot model met veel vreemde planning is niet gemeten.
 
-Twee routes naast elkaar, tot deel 2: (b) in de verliescontrole (`planRestores` in `lossCheck.ts`) leest de bronwaarden bij
-elke merge opnieuw uit `ifcSource.bytes`; `sourceSlots` is de kaart op de bron voor de writer. Bij (b) geldt de waarde van
+Voor een eigen stuk blijft (b) in de verliescontrole (`planRestores` in `lossCheck.ts`): die leest de bronwaarden bij
+elke merge opnieuw uit `ifcSource.bytes`; een stuk van de kaart heeft na de writer geen verschil meer in O0. Bij (b) geldt de waarde van
 de planner als hij het veld wijzigde; bij een slot van de soort `lijst`, `json` of `samengesteld` (de lezer draagt er een
 deel van) weigert de merge dan, want per lid, per sleutel of per deel samenvoegen volgt met `jsonExtras` en `unusedKeys`.
 Paart het stuk in O1 niet eenduidig, of heeft de regel in O1 een ander type of een andere vorm, dan weigert de merge ook.

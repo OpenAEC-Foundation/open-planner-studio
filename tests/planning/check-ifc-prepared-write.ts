@@ -252,7 +252,7 @@ await check('vreemde herkomst: niets wijzigen bewaart de bron; wijzigen schrijft
   const written = await prepareIfcWrite(edited, opened.ifcSource!);
   const sourceIndex = scanForeignStep(bytes), outIndex = scanForeignStep(written.bytes);
   const foreign = classify(sourceIndex).foreignOrigin.map(c => sourceIndex.id(c));
-  assert.deepEqual(classify(outIndex).foreignOrigin.map(c => outIndex.id(c)).filter(id => foreign.includes(id)), foreign,
+  assert.deepEqual(classify(outIndex).foreignOrigin.map(c => outIndex.id(c)).filter(id => foreign.includes(id)).sort(), [...foreign].sort(),
     'elk stuk van Bonsai houdt zijn herkomst');
   assert.ok(written.source.sourceSlots && written.source.sourceSlots.size === opened.ifcSource!.sourceSlots!.size,
     'de nieuwe bron heeft een kaart met evenveel stukken');

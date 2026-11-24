@@ -91,9 +91,14 @@ Elk slot heeft een **soort** (`ifcSlotSoort.ts`):
 Wijkt de soort af bij een stuk van een ander programma, dan staat die in `soortVreemd` (de owner history is
 dan constant). `bronverwijzing` zet een constant slot op de vaste lijst slots waarin een `#`-token uit de bron
 mag blijven staan. `volgt` bindt een afhankelijk slot aan het slot waar het bij hoort (`ObjectType` bij een
-`USERDEFINED`-type). De soorten veranderen nu nog niets aan lezen of schrijven. Bij openen van een bron met een
+`USERDEFINED`-type). `rol` zegt welk slot van een relatie de relating is en welk de leden; de verliescontrole en de
+merge lezen de posities daaruit (`relationRoles`). Bij openen van een bron met een
 vreemd deel bewaart `ifcSource.sourceSlots` (`foreign/sourceSlots.ts`) de tokens per slotnaam van elk D- en R-stuk
-van een ander programma; de writer kiest er in een volgende PR per soort mee tussen de bronwaarde en de eigen waarde. `check-ifc-slotsoorten.ts` eist dat elk slot een soort
+van een ander programma. De merge kiest er per soort mee tussen de bronwaarde en de eigen waarde
+(`foreign/sourceSlotWrite.ts`): constant het brontoken, domein het brontoken zolang de writer en het veld niet
+veranderden, afgeleid en verwijzing de writer, een afhankelijk slot met zijn hoofdslot; het entiteittype uit de bron als
+het domein het niet onderscheidt; een relatie van een ander programma met haar bewaarde slots en de leden uit het domein.
+Wat de kaart niet draagt, weigert de merge (`vreemde-herkomst`). Zie `.claude/rules/tauri-ifc.md`. `check-ifc-slotsoorten.ts` eist dat elk slot een soort
 heeft, dat de slots de attributen van het schema volgen (in IFC4X3_ADD2, IFC4X3 en IFC4), dat de vaste lijst
 precies de constante slots bevat die volgens het schema een verwijzing kunnen dragen, en de plekken in de oude
 lay-outs.

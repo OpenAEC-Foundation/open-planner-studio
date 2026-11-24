@@ -134,7 +134,8 @@ await check('pariteit: de voorbeelden (gewone writer)', async () => {
 });
 
 await check('pariteit: de fixtures met een vreemd deel (merge), ongewijzigd en na een bewerking', async () => {
-  const files = readdirSync(join(root, 'tests/fixtures/ifc-foreign')).filter(f => f.endsWith('.ifc')).sort();
+  // Een planning van een ander programma in een lay-out die de kaart niet draagt: die weigert de merge bij een bewerking.
+  const files = [...readdirSync(join(root, 'tests/fixtures/ifc-foreign')).filter(f => f.endsWith('.ifc')).sort(), 'council/proef-bonsai-achtig.ifc'];
   let opened = 0;
   for (const file of files) {
     let route: Awaited<ReturnType<typeof openInStore>>;

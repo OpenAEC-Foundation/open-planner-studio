@@ -48,7 +48,7 @@ import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
 import { assumedRowGuid, orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged, withOrphanRowGuids } from './sourceForm';
 import {
   changedScopes, dateTimeTexts, decimalKey, slotFieldChanged, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, taskField,
-  taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine,
+  taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine, type SlotEdit,
 } from './lossCheck';
 import { elementLinksByTask, scanElementLinks } from './elementLinks';
 import { foreignOriginAmong, OWNED_BY_TABLE, scanSourceSlots, type SourcePieceSlots } from './sourceSlots';
@@ -219,7 +219,7 @@ function refList(token: string | undefined): number[] {
 
 const formatRefs = (ids: readonly number[]) => `(${ids.map(id => `#${id}`).join(',')})`;
 
-interface WrittenPiece { readonly args: readonly string[]; readonly owned?: readonly string[] }
+interface WrittenPiece { readonly args: readonly string[]; readonly owned?: readonly string[]; readonly ownedId?: number }
 
 /** Een multiset van ids. */
 class Bag {
@@ -460,6 +460,10 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     const outIdOf = (key: string) => written.idMap.get(key);
     const scheduleOut = outIdOf('_worksched');
 
+    /** De baseline-koppen die met hun bron-id in de uitvoer staan (`baselineHeads`). */
+    const keptHeads = new Set<number>();
+    for (const [key, id] of written.idMap) if (key.startsWith('_baseline_ws_') && reserved.has(id)) keptHeads.add(id);
+
     const raw = new Map<number, WrittenPiece>();
     const fromSource = (line: OwnLine, piece: SourcePieceSlots, prior: readonly string[] | undefined, object: string | undefined)
       : readonly string[] | undefined => {
@@ -473,7 +477,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       return writtenArgs;
     };
     for (const line of lines) {
-      const piece = sourceSlots && keptD.has(line.id) ? sourceSlots.get(line.id) : undefined;
+      const piece = sourceSlots && (keptD.has(line.id) || keptHeads.has(line.id)) ? sourceSlots.get(line.id) : undefined;
       if (!piece || line.drop) continue;
       const prior = before?.get(line.id);
       const owner = OWNED_BY_TABLE.get(piece.table);
@@ -484,11 +488,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       if (!args) continue;
       const ownedLine = byId.get(ownedRef);
       const owned = ownedLine && !ownedLine.drop ? fromSource(ownedLine, piece.owned!, prior?.owned, object) : undefined;
-      raw.set(line.id, { args, ...(owned ? { owned } : {}) });
+      raw.set(line.id, { args, ...(owned ? { owned, ownedId: ownedRef } : {}) });
     }
-    /** De baseline-koppen die met hun bron-id in de uitvoer staan (`baselineHeads`). */
-    const keptHeads = new Set<number>();
-    for (const [key, id] of written.idMap) if (key.startsWith('_baseline_ws_') && reserved.has(id)) keptHeads.add(id);
 
     // ── 4. Bewaarde en gemengde relaties ──
     /** Leden die in geen eigen relatie van dit type mogen staan (SET [0:1]). */
@@ -910,9 +911,6 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 
   // ── 8. De verliesbewaking (`lossCheck.ts`): O0, het domein zoals de lezer het uit de bron las, moet elk P-stuk van de
   // bron veld voor veld teruggeven; O1 mag daar alleen van afwijken waar het domein veranderde. ──
-  // (b), het slotdeel van `sourceSlots` (fixronde 3 van #867): de slots die de lezer niet draagt, krijgen in O1 de
-  // bronwaarde terug zolang de planner dat veld niet wijzigde (`lossCheck`, `edits`). De bronwaarden komen uit
-  // `ifcSource.bytes`: geen tweede kopie, en niets nieuws in het document, undo, herstel of de MCP-backup.
   const o0 = built0.lines.filter(l => !l.drop);
   const lossInput: LossCheckInput = {
     index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain, opened: source.opened,
@@ -929,7 +927,13 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // en de bronwaarde), en de rest van de groep gewoon; is het slot niet eenduidig aan te wijzen, dan slaat (c) de hele groep
   // over (`restoredOwnSlots`, op O1 vóór de bewerkingen). Een verwijzing naar een stuk dat de writer niet schrijft (het
   // `IfcProject` van een ander programma), leest het type uit de bron.
-  const restored = restoredOwnSlots(linesView(lines.filter(l => !l.drop), id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; }), edits);
+  const fromMap: Pick<SlotEdit, 'id' | 'arg' | 'token'>[] = [];
+  for (const [id, piece] of built.raw) {
+    for (const [lineId, written] of [[id, piece.args], [piece.ownedId ?? -1, piece.owned ?? []]] as const) {
+      byId.get(lineId)?.args.forEach((token, arg) => { if (token !== written[arg]) fromMap.push({ id: lineId, arg, token }); });
+    }
+  }
+  const restored = restoredOwnSlots(linesView(lines.filter(l => !l.drop), id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; }), [...edits, ...fromMap]);
   const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds);
   if (cases.length === 0 && edits.length > 0) {
     const plain = lines.filter(l => !l.drop).map(l => l.text);

@@ -1775,6 +1775,21 @@ en noem het in je rapport of PR-tekst.
      aantallen C, A en V. Dat is extra werk bij het openen van een groot bestand, geen fout in de uitkomst. Richting:
      dit pad de gewone workersessie en `scanForeign` geven. Gezien in de code door de reviewer van #1180
      (GPT-6.2-Sol, ronde 2). — B (code)
+2233. **Een `IfcRelDeclares` of `IfcRelDefinesByProperties` van een ander programma draagt de merge niet.** Flag aan, een
+     bestand waarin een ander programma de owner history van zo'n eigen relatie zette (de council-fixture
+     `fix2-vendor-ops.ifc`: een applicatie met identifier `'/*vendor*/OPS'`, dus vreemde herkomst op elk stuk). De kaart
+     bewaart hun tokens, maar `foreignRelations` in `src/services/ifc/foreign/mergeWriter.ts` schrijft alleen `Nests`,
+     `Aggregates`, `AssignsToControl` en `AssignsToProcess` opnieuw; deze twee houden de weigering `vreemde-herkomst`,
+     zoals vóór #804 fase 2 PR 2. Richting: de pset-relatie paren op eigenaar en psetnaam, net als de verliescontrole
+     (`relKeySource`), en de pset zelf ook met haar bewaarde owner history schrijven. Gezien met de meetproef over het
+     corpus (#804 fase 2 PR 2 deel 2). — B
+2234. **Een taak tot mijlpaal maken weigert de merge met `bronvorm-leest-anders`, ook bij een eigen planning.** Flag aan,
+     `public/examples/showcase-verbouwing-eengezinswoning.ifc` met een wand van Revit erbij (een vreemd deel), de eerste
+     taak zonder kinderen `isMilestone: true` via `updateTask` en doorrekenen: de opslag weigert, met
+     `time.scheduleFinish: "2027-05-07T07:00" na herlezen in plaats van "2027-05-07T16:00"` (ook `earlyFinish` en
+     `lateFinish`). Het einde in de vorm van de bron (`sourceFormWhereUnchanged`, `src/services/ifc/foreign/sourceForm.ts`)
+     leest na heropenen anders dan wat de planner zag. Geen verlies (de merge weigert), wel een opslag die niet lukt.
+     Nagespeeld met een proef (#804 fase 2 PR 2 deel 2). — B
 
 2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
      `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
