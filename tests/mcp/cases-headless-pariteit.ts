@@ -6,6 +6,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ReadBuffer, serializeMessage } from '@modelcontextprotocol/sdk/shared/stdio.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
+import { brokenNameFiles, dataKopBestanden } from '../planning/ifcDoelBestanden';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const MAIN = process.env.OPS_MAIN_WORKTREE;
@@ -39,6 +40,8 @@ function corpus(): Case[] {
     { name: 'villa-met-bom-en-spatie.ifc', bytes: Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf, 0x20]), villa]) },
     { name: 'villa-met-los-byte.ifc', bytes: rawByte },
     { name: 'model-ifc2x3.ifc', bytes: readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/model-ifc2x3.ifc')) },
+    ...[...dataKopBestanden(villa.toString('utf8')), ...brokenNameFiles(villa.toString('utf8'))]
+      .map(([name, text]) => ({ name: `villa-${name}.ifc`, bytes: Buffer.from(text, 'utf8') })),
   );
   return cases;
 }
@@ -159,12 +162,13 @@ if (!MAIN) {
       const mainServer = build(MAIN, join(tmp, 'main'));
       const branchServer = build(ROOT, join(tmp, 'branch'));
       const cases = corpus();
+      const started = Date.now();
       const work = join(tmp, 'werkmap');
       const expected = await replay(mainServer, work, cases, preload, tmp);
       const actual = await replay(branchServer, work, cases, preload, tmp);
-      assertEq(actual.transcript.length, expected.transcript.length, 'evenveel antwoorden');
       const [mainLines, branchLines] = [renamedIds(expected.transcript), renamedIds(actual.transcript)];
-      const differs = mainLines.findIndex((line, i) => branchLines[i] !== line);
+      const differs = Array.from({ length: Math.max(mainLines.length, branchLines.length) }, (_, i) => i)
+        .find(i => branchLines[i] !== mainLines[i]) ?? -1;
       assert(differs < 0, `antwoord ${differs} verschilt:\nmain:   ${mainLines[differs]?.slice(0, 1500)}\nbranch: ${branchLines[differs]?.slice(0, 1500)}`);
       const generated = new Set(expected.transcript.flatMap(line => line.match(GENERATED_ID) ?? [])).size;
       assertEq([...actual.files.keys()], [...expected.files.keys()], 'dezelfde bestanden');
@@ -172,7 +176,7 @@ if (!MAIN) {
         assert(actual.files.get(key)!.equals(bytes), `${key} (${cases[Number(key.split('/')[0])].name}): andere bytes dan main`);
       }
       const opened = expected.transcript.filter(line => line.includes('"documentsOpened"')).length;
-      console.log(`  ${cases.length} bestanden, ${expected.transcript.length} antwoorden, ${expected.files.size} bestanden op schijf, ${opened} keer geopend, ${generated} gegenereerde id's hernoemd`);
+      console.log(`  ${Math.round((Date.now() - started) / 1000)} s; ${cases.length} bestanden, ${expected.transcript.length} antwoorden, ${expected.files.size} bestanden op schijf, ${opened} keer geopend, ${generated} gegenereerde id's hernoemd`);
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }

@@ -971,6 +971,23 @@ test('B stdio bevinding 4: een link naar een map die alleen in hoofdletters vers
   assertEq(readdirSync(sibling), ['geheim.ifc'], 'naast de werkmap is niets geschreven');
 });
 
+test('B stdio knownbug 1136: de losse server neemt een externe pset en een gebouwmodel mee naar een nieuwe naam', async () => {
+  const pset = Buffer.from(withExternPset(readFileSync(EXAMPLE, 'utf8')));
+  const model = readFileSync(join(FOREIGN_FIXTURES, 'eigen-plus-model.ifc'));
+  for (const [name, bytes] of [['extern', pset], ['model', model]] as const) {
+    writeFileSync(join(work, `${name}-bron.ifc`), bytes);
+    await ok(stdio, 'planner_import_schedule', { path: `~/${name}-bron.ifc` });
+    const exported = await ok(stdio, 'planner_export_ifc', { path: `~/${name}-kopie.ifc` });
+    const written = readFileSync(join(work, `${name}-kopie.ifc`));
+    assertEq(exported.byteLength, written.byteLength, `${name}: byteLength`);
+    if (name === 'model') assert(written.equals(model), 'model: bytegelijk');
+    else assert(written.toString('latin1').includes("'ExternPset'"), 'extern: de externe pset staat in de uitvoer');
+    await refused(stdio, 'planner_export_ifc', { path: `~/${name}-bron.ifc`, overwrite: true }, 'VALIDATION', `${name}: over de bron`);
+    assert(readFileSync(join(work, `${name}-bron.ifc`)).equals(bytes), `${name}: de bron is bytegelijk`);
+  }
+  assertEq(readdirSync(work).filter(f => f.includes('.ops-')), [], 'geen hulpbestand');
+});
+
 /** Bladtaken als gesorteerde `naam|startdatum`-regels, voor een vergelijking tussen formaten. */
 async function leafSchedule(client: Client): Promise<string[]> {
   const rows = (await ok(client, 'planner_list_tasks', { limit: 1000 })).tasks as Array<{ name: string; start: string; summary?: boolean }>;
