@@ -303,7 +303,7 @@ function richDomain(): Domain {
 
 {
   const q = (s: string) => s.replace(/'/g, "''");
-  const step = (lines: string[]) => new TextEncoder().encode(`ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION((''),'2;1');\nFILE_SCHEMA(('IFC4X3_ADD2'));\nENDSEC;\nDATA;\n${lines.join('\n')}\nENDSEC;\nEND-ISO-10303-21;\n`);
+  const step = (lines: readonly string[]) => new TextEncoder().encode(`ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION((''),'2;1');\nFILE_SCHEMA(('IFC4X3_ADD2'));\nENDSEC;\nDATA;\n${lines.join('\n')}\nENDSEC;\nEND-ISO-10303-21;\n`);
   const synthetic = (n: number, form: 'bron' | 'lezing' | 'nu') => {
     const stepIds: Record<string, number> = {};
     const idMap = new Map<string, number>();
