@@ -307,6 +307,8 @@ check-mutation-seq.ts matrix
 check-native-menu.ts matrix
 check-new-project-view-rows.ts matrix
 check-new-task-measure.ts matrix
+check-nieuwe-versie-laden.ts matrix
+check-nieuwe-versie-matrix.ts matrix
 check-notifications.ts matrix
 check-one-file-one-tab.ts matrix
 check-open-failure-detail.ts matrix

@@ -42,6 +42,7 @@ import type { XerWriteLossCode } from '@/services/xerWriteTypes';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
 import type { ExternalSourceLocator } from '@/engine/externalLinks';
 import type { DependentLink, TightAnchor } from '@/engine/dependentProjects';
+import type { RecentTarget } from '@/services/fileAccess/recentFiles';
 
 /** Eén detailregel van de XER-exportmelding: een verliessoort van de writer, of `sourceDetails`
  *  (XER-broninformatie die geen writer terugschrijft, uit `detectXerExportLoss`), of een definitie
@@ -814,6 +815,7 @@ export interface UIState {
   ribbonWheelSwitchesTabs: boolean; // persisted — muiswiel boven de lint-tabs wisselt van tab (#688)
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
+  pendingCloseReopen: RecentTarget | null;
   /** Session — *Opslaan* in de sluitvraag loopt (fixronde 1 van #1008). De knoppen van de sluitvraag én Escape
    *  (`edit.deselect`) lezen deze ene vlag: tijdens die opslag verbergt niets de vraag. Alleen via de sluitvraag
    *  (`onSavePendingChange` van `createCloseDocumentDialogActions`). */

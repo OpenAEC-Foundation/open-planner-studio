@@ -5,12 +5,12 @@ interface CloseDocumentDialogControlProps {
   body: string;
   cancelLabel: string;
   discardLabel: string;
-  saveLabel: string;
+  saveLabel?: string;
   busy: boolean;
   cancelButtonRef: Ref<HTMLButtonElement>;
   onCancel: () => void;
   onDiscard: () => void;
-  onSave: () => void;
+  onSave?: () => void;
 }
 
 /** Prop-gedreven dialooglaag, zodat de echte backdrop- en knopwiring gericht uitvoerbaar is. */
@@ -72,14 +72,16 @@ export function CloseDocumentDialogControl({
           >
             {discardLabel}
           </button>
-          <button
-            className="btn btn--primary btn--sm"
-            data-ops-close-choice="save"
-            disabled={busy}
-            onClick={busy ? undefined : onSave}
-          >
-            {saveLabel}
-          </button>
+          {onSave && (
+            <button
+              className="btn btn--primary btn--sm"
+              data-ops-close-choice="save"
+              disabled={busy}
+              onClick={busy ? undefined : onSave}
+            >
+              {saveLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>

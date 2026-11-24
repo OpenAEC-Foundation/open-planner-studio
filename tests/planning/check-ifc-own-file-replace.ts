@@ -1422,7 +1422,7 @@ await check('1837: een al begonnen lezing gaat naar het open tabblad; een tabbla
     assert.deepEqual(versions.versions, [hash(bytes)], 'de lezing van vóór Ctrl+S kreeg de oude versie');
     versions.stop();
     assert.equal(otherTab(c), undefined, 'de oude bron kwam niet in een tabblad');
-    assert.deepEqual([c.store.getState().activeDocumentId, changedOnDiskNotices(c)], [c.id, 1], 'naar het tabblad dat opsloeg; de lezing was ouder, dus de melding met de knop');
+    assert.deepEqual([c.store.getState().activeDocumentId, changedOnDiskNotices(c)], [c.id, 1], 'naar het tabblad dat opsloeg; de lezing was ouder, dus de strook');
     const secondId = await secondTab(c, bytes);
     assert.equal(otherTab(c)?.payload.ifcSource?.sha256, hash(bytes), 'het tabblad met de oude bron');
     c.store.getState().closeDocument(c.id);

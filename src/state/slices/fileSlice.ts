@@ -61,7 +61,7 @@ import {
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import { capturedTargetReaders, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
-import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
+import { loadRecents, addRecent, removeRecent, type RecentEntry, type RecentTarget } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSliceFactory, ExternalSourceUpdate, NotifyInput, NotificationDetailLine } from './types';
 import type { AppState } from '../appStore';
@@ -103,14 +103,14 @@ import {
   changeSaving, clearChangedOnDisk, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
   sameDocumentContent, stampSaved, type DocumentContentRef,
 } from '../documentSaveState';
-import { saveQuestionOpen } from '@/state/blockingDialogs';
+import { isBlockingDialogOpen, saveQuestionOpen } from '@/state/blockingDialogs';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { tightAnchorsIfSaved } from '../dependentCandidates';
 import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
-import { launchTabFor, openTabFor, readVersionOf, startOpenLookup, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
+import { changedOnDiskShown, launchTabFor, openTabFor, readVersionOf, startOpenLookup, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -390,6 +390,11 @@ export interface OpenOpenedFileOptions {
   lookup?: OpenLookup | null;
 }
 
+export interface DocumentLeaveGate {
+  blocked(): boolean;
+  leave(proceed: () => void): void;
+}
+
 export interface FileSlice {
   openFile: (labels?: ImportLabels) => Promise<void>;
   openOpenedFile: (
@@ -412,6 +417,8 @@ export interface FileSlice {
   openRecentFile: (id: string, labels?: ImportLabels) => Promise<void>;
   openFromSite: (id: string, labels?: ImportLabels) => Promise<boolean>;
   markChangedOnDisk: (documentId: string) => void;
+  loadNewVersion: (labels?: ImportLabels, gate?: DocumentLeaveGate) => Promise<void>;
+  finishCloseQuestion: (documentId: string, labels?: ImportLabels) => Promise<void>;
   forgetChangedOnDisk: (documentId: string) => void;
   parseExternalSource: (filePath: string, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
   externalSourceVersion: (filePath: string) => Promise<string | undefined>;
@@ -1080,7 +1087,39 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return { name, content: content ?? '', ...(bytes ? { bytes } : {}), ref };
   };
 
-  const openRecentSiteFile = async (entry: RecentEntry, labels?: ImportLabels) => {
+  const openRecentEntry = async (entry: RecentTarget, labels?: ImportLabels) => {
+    if (entry.ref.kind === 'site') {
+      await openRecentSiteFile(entry, labels);
+      return;
+    }
+    try {
+      const readOptions = formatReadOptions();
+      const lookup = readOptions.ifcBytes && entry.ref.kind === 'handle' && readFormatForFile(entry.name).canBeSaveTarget
+        ? startOpenLookup(get(), entry.ref) : null;
+      const opened = await readLocalRef(entry.ref, entry.name, readOptions);
+      if (!opened) return;
+      await get().openOpenedFile(opened, labels, { lookup });
+    } catch (err) {
+      console.error('Failed to open recent file:', err);
+      for (const notice of openFailureNotices(err)) get().notify(notice);
+    }
+  };
+
+  const reopenAfterClose = async (documentId: string, target: RecentTarget, labels?: ImportLabels) => {
+    if (get().documents.some((d) => d.id === documentId) || get().ui.appQuitPending) return;
+    if (get().ui.activeRibbonTab === 'file') get().setUI({ activeRibbonTab: 'start' });
+    await openRecentEntry(target, labels);
+  };
+
+  const closeThenReopen = async (documentId: string, target: RecentTarget, labels?: ImportLabels) => {
+    for (let saving = get().waitForSavesBeforeClose(); saving; saving = get().waitForSavesBeforeClose()) await saving;
+    if (!get().documents.some((d) => d.id === documentId)) return;
+    get().requestCloseDocument(documentId);
+    if (get().ui.pendingCloseDocId === documentId) get().setUI({ pendingCloseReopen: target });
+    else await reopenAfterClose(documentId, target, labels);
+  };
+
+  const openRecentSiteFile = async (entry: RecentTarget, labels?: ImportLabels) => {
     if (entry.ref.kind !== 'site') return;
     try {
       await openSiteChoice({ kind: 'site', id: entry.ref.id }, labels);
@@ -2493,22 +2532,25 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     openRecentFile: async (id: string, labels) => {
       const entry = get().recentFiles.find((e) => e.id === id);
-      if (!entry) return;
-      if (entry.ref.kind === 'site') {
-        await openRecentSiteFile(entry, labels);
-        return;
-      }
-      try {
-        const readOptions = formatReadOptions();
-        const lookup = readOptions.ifcBytes && entry.ref.kind === 'handle' && readFormatForFile(entry.name).canBeSaveTarget
-          ? startOpenLookup(get(), entry.ref) : null;
-        const opened = await readLocalRef(entry.ref, entry.name, readOptions);
-        if (!opened) return;
-        await get().openOpenedFile(opened, labels, { lookup });
-      } catch (err) {
-        console.error('Failed to open recent file:', err);
-        for (const notice of openFailureNotices(err)) get().notify(notice);
-      }
+      if (entry) await openRecentEntry(entry, labels);
+    },
+
+    loadNewVersion: async (labels, gate = { blocked: () => isBlockingDialogOpen(get().ui), leave: (proceed) => proceed() }) => {
+      const state = get();
+      const documentId = state.activeDocumentId;
+      const ref = saveTargetRef(state);
+      if (!ref || gate.blocked() || !changedOnDiskShown(state)) return;
+      const target: RecentTarget = state.recentFiles.find((e) => sameFileRef(e.ref, ref))
+        ?? { id: '', ref, name: ref.kind === 'handle' ? ref.handle.name : ref.kind === 'path' ? basename(ref.path) : state.filePath ?? '' };
+      let run: Promise<void> | null = null;
+      gate.leave(() => { run = closeThenReopen(documentId, target, labels); });
+      if (run) await run;
+    },
+
+    finishCloseQuestion: async (documentId, labels) => {
+      const target = get().ui.pendingCloseDocId === documentId ? get().ui.pendingCloseReopen : null;
+      get().setUI({ pendingCloseDocId: null });
+      if (target) await reopenAfterClose(documentId, target, labels);
     },
 
     markChangedOnDisk: (documentId) => {

@@ -126,6 +126,7 @@ export function createDefaultUI(): UIState {
     ribbonWheelSwitchesTabs: true,
     showProjectOverview: false,
     pendingCloseDocId: null,
+    pendingCloseReopen: null,
     closeQuestionSaving: false,
     appQuitPending: false,
     savingBeforeClose: false,
@@ -256,6 +257,9 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       // herstel daarom naar de volledige Tabel zonder documentdata of historie te muteren.
       if ((updates as { activeRibbonTab?: unknown }).activeRibbonTab === 'relations') {
         (updates as Partial<UIState>).activeRibbonTab = 'table';
+      }
+      if ('pendingCloseDocId' in updates && !('pendingCloseReopen' in updates)) {
+        (updates as Partial<UIState>).pendingCloseReopen = null;
       }
       // Relatiemodus en splits-modus kapen allebei de sleep vanaf een balk, dus ze
       // sluiten elkaar uit. Hier afgedwongen en niet in de twee lintknoppen: elke aanroeper (lint,

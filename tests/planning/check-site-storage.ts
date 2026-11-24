@@ -876,6 +876,63 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
     f.versions.pop();
     useAppStore.setState((st) => { st.ui.pendingFormatNotice = null; });
   }
+  {
+    const tabY = S().getOpenDocumentPayloads().find((d) => d.payload.siteFileId === 'y')!.id;
+    S().switchDocument(tabB);
+    site.otherUserSaves('y');
+    await S().openFromSite('y');
+    const shown = [S().activeDocumentId === tabY, changedOnDiskShown(S())];
+    await S().loadNewVersion();
+    const asked = S().ui.pendingCloseDocId === tabY;
+    if (asked) {
+      await S().closeDocumentAfterSaves(tabY);
+      await S().finishCloseQuestion(tabY);
+    }
+    const latest = site.latest(site.files.get('y')!).version;
+    eq('G21 (#1201) Nieuwe versie laden op de site: sluiten, dan Recent op de site; de nieuwste versie met hetzelfde id als basis, de strook weg', [
+      shown, S().documents.some((d) => d.id === tabY), S().siteFileId, S().siteFileVersion === latest, changedOnDiskShown(S()),
+    ], [[true, true], false, 'y', true, false]);
+  }
+  for (const readOnly of [false, true]) for (const work of [false, true]) {
+    const endState = () => JSON.stringify([
+      S().getOpenDocumentPayloads().filter((d) => d.payload.filePath === recentY()!.name || d.payload.siteFileId === 'y' || d.id === S().activeDocumentId)
+        .map((d) => [d.payload.siteFileId, d.payload.siteFileVersion === site.latest(site.files.get('y')!).version, d.payload.isDirty,
+          d.payload.tasks.map((t) => t.name), S().documents.find((e) => e.id === d.id)?.changedOnDisk ?? false]),
+      S().documents.length, changedOnDiskShown(S()), S().siteFileId, S().filePath, S().ui.activeRibbonTab,
+      S().ui.notifications.map((n) => n.messageKey), S().ui.pendingCloseDocId, S().ui.pendingCloseReopen,
+    ]);
+    const route = async (knop: boolean) => {
+      const tabY = S().getOpenDocumentPayloads().find((d) => d.payload.siteFileId === 'y')!.id;
+      S().switchDocument(tabB);
+      site.otherUserSaves('y');
+      await S().openFromSite('y');
+      if (work) S().addTask({ name: 'Werk op de site' });
+      useAppStore.setState((st) => { st.ui.notifications = []; });
+      const open = site.storage.open;
+      if (readOnly) site.storage.open = async (...args: Parameters<typeof open>) => ({ ...await open(...args), readOnly: true });
+      try {
+        if (knop) await S().loadNewVersion();
+        else S().requestCloseDocument(tabY);
+        if (S().ui.pendingCloseDocId === tabY) {
+          await S().closeDocumentAfterSaves(tabY);
+          await S().finishCloseQuestion(tabY);
+        }
+        if (!knop) await S().openRecentFile(recentY()!.id);
+        for (let i = 0; i < 400 && !(S().siteFileId === 'y' || S().ui.notifications.some((n) => n.messageKey === 'notifications.siteFileReadOnly')); i++) {
+          await new Promise<void>((r) => setTimeout(r, 5));
+        }
+      } finally { site.storage.open = open; }
+      const state = endState();
+      if (readOnly) {
+        S().closeDocument(S().activeDocumentId);
+        await S().openFromSite('y');
+      }
+      return state;
+    };
+    const knop = await route(true);
+    const kruisje = await route(false);
+    eq(`G22 (#1201) de knop op de site eindigt als kruisje, dan Recent (${work ? 'met' : 'zonder'} niet-opgeslagen werk${readOnly ? ', alleen-lezen' : ''})`, knop, kruisje);
+  }
   setSiteOpenAsker(async () => ({ kind: 'site', id: 'y', version: 'v1', copyName: 'Eén (versie v1)' }));
   const countCopy = S().documents.length;
   await S().openFile();
