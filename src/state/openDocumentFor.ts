@@ -44,7 +44,7 @@ function holds(ref: FileRef, id: string, payload: TabFile, lookup: OpenLookup | 
   return !payload.fileHandle && payload.filePath === ref.path;
 }
 
-export function versionMatches(tab: TabFile, read: ReadVersion | null): boolean | null {
+function versionMatches(tab: TabFile, read: ReadVersion | null): boolean | null {
   if (read === null) return null;
   if (read.kind === 'site') return tab.siteFileVersion ? tab.siteFileVersion === read.version : null;
   const known = tab.knownTargetFingerprint;

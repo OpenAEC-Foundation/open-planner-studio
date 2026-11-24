@@ -16,7 +16,7 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, readOpenedPathInWriteTurn, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { ownPathReplaceNotices, remnantNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery } from '../ownFileReplace';
 import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
@@ -97,17 +97,17 @@ import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerEx
 import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementSettled } from '@/services/fileAccess/writeCoordinator';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
-  changeSaving, clearChangedOnDisk, documentContentOf, hasChangedOnDisk, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
+  changeSaving, clearChangedOnDisk, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
   sameDocumentContent, stampSaved, type DocumentContentRef,
 } from '../documentSaveState';
-import { isBlockingDialogOpen, saveQuestionOpen } from '@/state/blockingDialogs';
+import { saveQuestionOpen } from '@/state/blockingDialogs';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { tightAnchorsIfSaved } from '../dependentCandidates';
 import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
-import { launchTabFor, openTabFor, readVersionOf, startOpenLookup, switchToOpenDocument, versionMatches, type OpenLookup } from '../openDocumentFor';
+import { launchTabFor, openTabFor, readVersionOf, startOpenLookup, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -360,7 +360,6 @@ export interface ApplyLoadedProjectOpts {
   linkedOpen?: boolean;
   viewStartDate?: string;
   deferTaskTypesNotice?: boolean;
-  refillActiveTab?: true;
 }
 
 export interface OpenedFileSource {
@@ -419,9 +418,6 @@ export interface FileSlice {
   openFromSite: (id: string, labels?: ImportLabels) => Promise<boolean>;
   markChangedOnDisk: (documentId: string) => void;
   forgetChangedOnDisk: (documentId: string) => void;
-  loadNewVersion: (labels?: ImportLabels) => Promise<void>;
-  confirmReload: () => boolean;
-  cancelReload: () => void;
   parseExternalSource: (filePath: string, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
   externalSourceVersion: (filePath: string) => Promise<string | undefined>;
   checkExternalSources: (labels?: ImportLabels) => Promise<void>;
@@ -1078,11 +1074,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   const readLocalRef = async (
-    ref: Exclude<FileRef, { kind: 'site' }>, name: string, readOptions: FormatReadOptions, inWriteTurn = false,
+    ref: Exclude<FileRef, { kind: 'site' }>, name: string, readOptions: FormatReadOptions,
   ): Promise<OpenedFile | null> => {
     const isBinary = readsAsBytes(name, readOptions);
     if (ref.kind === 'path' && isTauri()) {
-      return { ...await (inWriteTurn ? readOpenedPathInWriteTurn : readOpenedPath)(ref.path, isBinary), name };
+      return { ...await readOpenedPath(ref.path, isBinary), name };
     }
     const content = isBinary ? null : await readFromRef(ref);
     const bytes = isBinary ? await readBytesFromRef(ref) : null;
@@ -1091,97 +1087,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return null;
     }
     return { name, content: content ?? '', ...(bytes ? { bytes } : {}), ref };
-  };
-
-  interface ReloadStamp {
-    readonly content: number;
-    readonly savedAt: number | null;
-    readonly saving: number;
-    readonly fingerprint: string | null;
-    readonly filePath: string | null;
-    readonly fileHandle: FileSystemFileHandle | null;
-    readonly siteFileId: string | null;
-    readonly siteFileVersion: string | null;
-  }
-  interface PreparedReload {
-    readonly documentId: string;
-    readonly stamp: ReloadStamp;
-    readonly parsed: OpenedImport;
-    readonly target: { filePath: string | null; fileHandle: FileSystemFileHandle | null; siteFileId: string | null };
-    readonly siteFileVersion: string | null;
-  }
-  interface ReloadTurn {
-    readonly documentId: string;
-    readonly finish: () => void;
-    prepared: PreparedReload | null;
-  }
-  let reloadTurn: ReloadTurn | null = null;
-
-  const reloadStamp = (s: AppState, documentId: string): ReloadStamp | null => {
-    const entry = s.documents.find(document => document.id === documentId);
-    if (!entry || s.activeDocumentId !== documentId) return null;
-    const known = s.knownTargetFingerprint;
-    return {
-      content: entry.content ?? 0, savedAt: entry.saveState?.savedAt ?? null, saving: entry.saveState?.saving ?? 0,
-      fingerprint: known ? `${known.sha256}:${known.byteLength}` : null,
-      filePath: s.filePath, fileHandle: s.fileHandle, siteFileId: s.siteFileId, siteFileVersion: s.siteFileVersion,
-    };
-  };
-
-  const reloadStillValid = (s: AppState, documentId: string, stamp: ReloadStamp): boolean => {
-    if (!ifcForeignContentEnabled(s.ui.featureFlags) || isBlockingDialogOpen({ ...s.ui, reloadVersion: null })) return false;
-    if (!hasChangedOnDisk(s, documentId)) return false;
-    const now = reloadStamp(s, documentId);
-    return !!now && (Object.keys(stamp) as (keyof ReloadStamp)[]).every(key => now[key] === stamp[key]);
-  };
-
-  const readForReload = async (ref: FileRef, labels?: ImportLabels): Promise<{ parsed: OpenedImport; siteFileVersion: string | null } | null> => {
-    const readOptions = formatReadOptions();
-    let opened: OpenedFile;
-    let siteFileVersion: string | null = null;
-    try {
-      if (ref.kind === 'site') {
-        const site = await openSiteFile(ref.id, { binaryExtensions: binaryExtensions(readOptions) });
-        if (!site.ref || !readFormatForFile(site.name).canBeSaveTarget) {
-          get().notify(site.readOnly
-            ? { severity: 'info', sticky: true, messageKey: 'notifications.siteFileReadOnly', params: { name: site.name } }
-            : { severity: 'error', messageKey: 'notifications.openFailed', detail: site.name });
-          return null;
-        }
-        opened = site;
-        siteFileVersion = site.version;
-      } else {
-        const read = await readLocalRef(ref, ref.kind === 'handle' ? ref.handle.name : basename(ref.path), readOptions, true);
-        if (!read) return null;
-        opened = read;
-      }
-    } catch (err) {
-      console.error('Failed to reload file:', err);
-      for (const notice of openFailureNotices(err)) get().notify(notice);
-      return null;
-    }
-    for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
-    try {
-      const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, readOptions);
-      refuseModelAboveOpenLimit(parsed);
-      return { parsed, siteFileVersion };
-    } catch (err) {
-      console.error('Failed to reload file:', err);
-      get().notify(importFailureNotice(err, saveErrorDetail(err)));
-      return null;
-    }
-  };
-
-  const applyReload = (prepared: PreparedReload) => {
-    const autoSaveToFile = get().autoSaveToFile;
-    get().applyOpenedImport(prepared.parsed, {
-      ...prepared.target,
-      siteFileVersion: prepared.target.siteFileId ? prepared.siteFileVersion : null,
-      recompute: true,
-      linkedOpen: true,
-      refillActiveTab: true,
-    });
-    if (autoSaveToFile && !prepared.target.siteFileId) set((s) => { s.autoSaveToFile = true; });
   };
 
   const openRecentSiteFile = async (entry: RecentEntry, labels?: ImportLabels) => {
@@ -1715,7 +1620,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (editing) runtime.beginUndoable(s, { label: 'IFC toepassen' });
         else {
           removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
-          if (replacesContent || opts.refillActiveTab) replaceDocumentContent(s, s.activeDocumentId);
+          if (replacesContent) replaceDocumentContent(s, s.activeDocumentId);
         }
         if (activation.invalidateRedoScope) {
           invalidateDocumentRedo(s, s.activeDocumentId);
@@ -1802,8 +1707,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       let datesAsRecordedShownTotal = 0;
       let taskTypesUnlockedDocs = 0;
       let freshShownTotal = 0;
-      for (const [index, result] of results.entries()) {
-        if (!(opts.refillActiveTab && index === 0) && !isActivePristine(get())) get().newDocument();
+      for (const result of results) {
+        if (!isActivePristine(get())) get().newDocument();
         openedDocumentIds.push(get().activeDocumentId);
         const conversion = get().applyLoadedProject(result, { ...opts, deferTaskTypesNotice: true });
         if (conversion && conversion.shifted.length > 0) {
@@ -2580,72 +2485,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     forgetChangedOnDisk: (documentId) => {
       set((s) => { clearChangedOnDisk(s, documentId); });
-    },
-
-    loadNewVersion: async (labels) => {
-      const start = get();
-      const documentId = start.activeDocumentId;
-      if (reloadTurn || !ifcForeignContentEnabled(start.ui.featureFlags) || isBlockingDialogOpen(start.ui)) return;
-      if (!hasChangedOnDisk(start, documentId)) return;
-      if (!runtime.settlePendingTextEdits() || isBlockingDialogOpen(get().ui)) return;
-      let finish!: () => void;
-      const answered = new Promise<void>((resolve) => { finish = resolve; });
-      const turn: ReloadTurn = { documentId, finish, prepared: null };
-      reloadTurn = turn;
-      const current = () => reloadTurn === turn;
-      get().setUI({ reloadVersion: { documentId, phase: 'reading' } });
-      try {
-        await runProjectFileWrite(async () => {
-          if (!current()) return;
-          const before = get();
-          const stamp = reloadStamp(before, documentId);
-          const ref = saveTargetRef(before);
-          if (!stamp || !ref) return;
-          const read = await readForReload(ref, labels);
-          if (!read || !current() || !reloadStillValid(get(), documentId, stamp)) return;
-          if (versionMatches(get(), readVersionOf(ref, read.parsed, read.siteFileVersion)) === true) {
-            set((s) => { clearChangedOnDisk(s, documentId); });
-            return;
-          }
-          const prepared: PreparedReload = {
-            documentId, stamp, parsed: read.parsed, siteFileVersion: read.siteFileVersion,
-            target: { filePath: before.filePath, fileHandle: before.fileHandle, siteFileId: before.siteFileId },
-          };
-          if (!get().isDirty) {
-            applyReload(prepared);
-            return;
-          }
-          turn.prepared = prepared;
-          get().setUI({ reloadVersion: { documentId, phase: 'question' } });
-          await answered;
-        }, () => undefined);
-      } finally {
-        if (current()) {
-          reloadTurn = null;
-          get().setUI({ reloadVersion: null });
-        }
-      }
-    },
-
-    confirmReload: () => {
-      const turn = reloadTurn;
-      const prepared = turn?.prepared;
-      if (!turn || !prepared || get().ui.reloadVersion?.phase !== 'question') return false;
-      reloadTurn = null;
-      turn.prepared = null;
-      get().setUI({ reloadVersion: null });
-      const valid = reloadStillValid(get(), prepared.documentId, prepared.stamp);
-      if (valid) applyReload(prepared);
-      turn.finish();
-      return valid;
-    },
-
-    cancelReload: () => {
-      const turn = reloadTurn;
-      reloadTurn = null;
-      if (turn) turn.prepared = null;
-      get().setUI({ reloadVersion: null });
-      turn?.finish();
     },
 
     openFromSite: async (id, labels) => {

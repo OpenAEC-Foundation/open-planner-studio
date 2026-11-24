@@ -483,7 +483,8 @@ export const fileTools: McpToolDef[] = [
       'setting "Open IFC with a building model" on, an IFC path that is already open in a tab (the same path text after it is resolved ' +
       'inside the home folder) switches to that tab instead and returns it with `alreadyOpen: true`; that tab keeps its own content. ' +
       'If the file differs from the version that tab last read or saved, the response also has `changedOnDisk: true` and the app ' +
-      'shows the user a strip with a button to load the new version. If the app does not know which version that tab has, the ' +
+      'shows the user a strip that says to close the tab and open the file again to see the new version. If the app does not ' +
+      'know which version that tab has, the ' +
       'file opens in a new tab. Tell the user what is lost: CSV has no calendar (dates can ' +
       'shift), resources or assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP has no baselines or custom fields. ' +
       'Also pass on `notice`. Use `documents` in the response (one file can open several). Ids are per ' +
@@ -613,7 +614,7 @@ export const fileTools: McpToolDef[] = [
           ? 'This file was already open in a tab, so nothing new was opened: the app switched to that tab ' +
             `(document '${tab.id}'). The file is now a different version than that tab has; the tab keeps its own ` +
             'content, including unsaved changes, and the new version was not loaded. The app shows the user a strip above that ' +
-            'tab with a button to load the new version. Tell the user.'
+            'tab that says to close the tab and open the file again to see the new version. Tell the user.'
           : 'This file was already open in a tab with this same version, so nothing new was opened: the app switched ' +
             `to that tab (document '${tab.id}'). That tab keeps its own content, including unsaved changes.`);
       }

@@ -140,7 +140,6 @@ export function buildEnvelope(ctx: McpContext): McpEnvelope {
 const BLOCKING_UI_FLAGS = [
   // De sluitvraag ("wijzigingen opslaan?") gebruikt geen `Dialog`, maar is wel modaal.
   'pendingCloseDocId',
-  'reloadVersion',
   'showTaskDialog', 'showProjectSettings', 'showProjectInfoDialog', 'showSettingsDialog',
   'showCalendarDialog', 'showUpdateDialog', 'showNewProjectDialog', 'showFeedbackDialog',
   'showStructureDialog', 'showLevelingDialog', 'showBaselineDialog', 'showColumnsDialog',

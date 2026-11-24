@@ -4021,21 +4021,10 @@ en noem het in je rapport of PR-tekst.
 2048. **VERVOLG (#1121, flag aan): de melding "buiten dit tabblad gewijzigd" kan ook komen als de lezing ouder is dan
      wat het tabblad net opsloeg.** Begint een openactie te lezen vlak voordat het tabblad met hetzelfde bestand opslaat
      (1909, 1837), dan krijgt ze de oude bytes terwijl het tabblad de nieuwe versie kent. De vergelijking ziet een
-     verschil en de app wisselt met de strook en de knop *Nieuwe versie laden*. De tekst klopt dan niet. Verloren gaat er
-     niets: de knop leest in de schrijfrij, ná de eigen opslag, vindt dan de versie die het tabblad kent en haalt
-     alleen de strook weg (K7, R9-3 in `check-one-file-one-tab.ts`). Tijdens het laden is de app bevroren. Proeven: B7 in `check-one-file-one-tab.ts`, "1837: een al begonnen lezing" in
+     verschil en de app wisselt met de strook. De tekst klopt dan niet. Verloren gaat er niets: het tabblad houdt zijn
+     inhoud, en zijn eigen versie staat op schijf. Proeven: B7 in `check-one-file-one-tab.ts`, "1837: een al begonnen lezing" in
      `check-ifc-own-file-replace.ts`. Richting: het verschil alleen melden als de lezing na de laatste eigen opslag
      begon. — B (proef)
-2213. **VERVOLG (#1121, flag aan): zolang de vraag van *Nieuwe versie laden* openstaat, wacht elke projectopslag.**
-     Het herladen is één beurt in de schrijfrij (`runProjectFileWrite`, fixronde na ronde 9), en die rij is er één
-     voor de hele app. Staat de vraag open, dan wacht ook Automatisch opslaan van een ander tabblad tot de planner
-     kiest; de app is dan bevroren, dus de planner kan intussen niets anders opslaan. Er gaat niets verloren: de
-     wachtende opslag loopt daarna. Richting: een rij per bestand, als de schrijfcoördinatie dat ooit krijgt. — B (code)
-2204. **VERVOLG (#1121, flag aan): na *Nieuwe versie laden* kan het tabblad meteen gewijzigd zijn, met een stap om terug te
-     zetten.** Is de nieuwe versie een bestand uit een oudere versie van de app waarvan de omzetting naar minuten taken
-     verschuift, dan doet de laadroute wat gewoon openen ook doet: de geschiedenis is leeg, maar de omzetting zet de
-     planning op gewijzigd en schrijft één stap die de datums zoals vastgelegd terugzet (`minuteModelTransition.ts`).
-     Zo ook bij gewoon openen. Proef K6 in `check-one-file-one-tab.ts`; de gids noemt het. — B (proef)
 2205. **VERVOLG (#1121): de beschrijving van `planner_import_schedule` noemt de route "naar het open tabblad" ook als de
      featureflag uit staat.** De toolbeschrijving is één vaste tekst in `src/services/mcp/tools/fileTools.ts`; ze zegt
      dat het werkt "with the experimental setting … on", maar een client met de flag uit leest dezelfde tekst. Het
@@ -6087,10 +6076,10 @@ en noem het in je rapport of PR-tekst.
      bestand al open heeft; dat tabblad houdt zijn inhoud. Bij het wisselen vergelijkt de app synchroon de hash en
      grootte van de net gelezen bytes met de versie die het tabblad van zijn bestand kent (`knownTargetFingerprint`,
      #1168; op de site de gelezen versie met `siteFileVersion`). Gelijk: wisselen zonder melding. Ongelijk: wisselen,
-     en het tabblad krijgt een strook "… is buiten dit tabblad gewijzigd. Dit tabblad toont nog de eerdere versie." met
-     de knop *Nieuwe versie laden* (sessiegegeven van het tabblad, niet in de meldingenlijst; fixronde 9). De knop leest
-     en parseert eerst zonder het tabblad te raken, breekt af als het tabblad intussen opsloeg of wisselde, vraagt bij
-     niet-opgeslagen werk pas dan weggooien of annuleren, en vervangt in dezelfde stap als het akkoord. De app herlaadt nooit vanzelf. De beslissing (`src/state/openDocumentFor.ts`, besluit D na
+     en het tabblad krijgt een strook "… is buiten dit tabblad gewijzigd. Dit tabblad toont nog de eerdere versie. Sluit
+     dit tabblad en open het bestand opnieuw om de nieuwe versie te zien." (sessiegegeven van het tabblad, niet in de
+     meldingenlijst; zonder knop: een knop om de nieuwe versie te laden wordt een eigen PR op de bestaande sluit- en
+     openroute, besluit van 24 november 2026). De app laadt nooit vanzelf een nieuwe versie. De beslissing (`src/state/openDocumentFor.ts`, besluit D na
      ronde 6 van de review van #1121: geen wachtmoment en geen bestandsaanroep in de openactie) valt na het parsen, in
      de stap van het activeren. Op de desktop telt alleen dezelfde letterlijke padtekst (2063); in de browser hetzelfde
      handle-object of een `isSameEntry`-treffer die al binnen is (2062); de site het id; MCP legt document, driftanker
@@ -6102,19 +6091,19 @@ en noem het in je rapport of PR-tekst.
      crashherstel, buiten de desktopapp een pad zonder opslagdoel, een lezing zonder bytesroute zoals IFC2X3 of een
      bestand boven de grens van de scanner), dan opent het bestand in een tweede tabblad, zoals main; het startbestand
      wisselt dan zoals main zonder versiecontrole (2064). Proeven: `check-one-file-one-tab.ts` (V1–V7 per route:
-     dezelfde versie, een andere versie, onbekend, en openen–bewerken–Ctrl+S–opnieuw openen; K1–K6 de knop: schoon
-     tabblad, weggooien en annuleren, mislukt lezen, de strook weg na Opslaan als en sluiten, de flag uit, de
-     minutenomzetting; R8-1a/b, R8-2 en R8-3 de drie paden uit ronde 8; verder de volgorde
+     dezelfde versie, een andere versie, onbekend, en openen–bewerken–Ctrl+S–opnieuw openen; K de strook: weg na
+     opslaan, Opslaan als, een export over het eigen bestand, een heropening met dezelfde versie, sluiten en de flag
+     uit, en alleen bij het eigen tabblad; verder de volgorde
      lezen, parsen, activeren zoals main per route in T1 en T2, D1–D3, P1–P5, R2–R7, B1–B11, C1–C5, A1–A20),
      G16–G20 (met G19b/c) in `check-site-storage.ts` en `cases-doc-file.ts`; in de browser de stap in `new-open-task-flow.spec.ts`.
      Wat met de flag aan nog gaat zoals main: in de browser krijgt een tabblad dat ná de toets dit bestand krijgt
      (*Opslaan als* geeft daar een nieuw handle-object) een tweede tabblad ernaast (1893); een opslag die het bestand op
      schijf vervangt terwijl het gelezen of geparst wordt, blijft 1909; MCP leest buiten de schrijfrij om (2060); een
-     taakdialoog die tijdens het lezen opengaat, sluit bij het nieuwe tabblad (2061); Ctrl+S na de melding schrijft
-     zoals main over de nieuwere versie heen (de bewaking van Ctrl+S en Automatisch opslaan is een eigen PR, 2064).
+     taakdialoog die tijdens het lezen opengaat, sluit bij het nieuwe tabblad (2061). Ctrl+S na de melding weigert
+     met de bestaande melding van de bewaakte opslag (#1174, 2064).
      Met de flag uit blijft het zoals main (besluit T1 van de technisch beslisser); dat verdwijnt als de flag standaard
      aan gaat. De headless MCP-server heeft geen flag, dus daar geldt het ook (knownbug 2042). Grenzen van de toets:
-     2029, 2040, 2041, 2048, 2062, 2063, 2204. — B (proef, met de flag uit)
+     2029, 2040, 2041, 2048, 2062, 2063. — B (proef, met de flag uit)
 
 1908. **Opslaan als naar een naam die een ander tabblad nog onthoudt, terwijl het bestand weg is: daarna delen beide tabbladen die naam.**
      Is het bestand van een open tabblad buiten de app verwijderd, dan is die naam vrij voor *Opslaan als* (fixronde 2
@@ -6154,8 +6143,8 @@ en noem het in je rapport of PR-tekst.
 2040. **Het startbestand ziet `maplink/../kantoor.ifc` als `kantoor.ifc`, zo op main.** Een bestand dat bij het starten
      is meegegeven (#1091, ook een tweede start) houdt de toets van main (`openLaunchFiles`), die het lexicale pad vóór
      de identiteit stelt: `maplink/../kantoor.ifc` wordt daar als `kantoor.ifc` gezien, ook als een betrouwbare
-     `dev`/`ino` zegt dat het een ander bestand is; met de flag aan dan zonder melding, of met de strook *Nieuwe versie
-     laden* als de versie van dat tabblad verschilt van wat er gelezen is. Op Windows ziet
+     `dev`/`ino` zegt dat het een ander bestand is; met de flag aan dan zonder melding, of met de strook als de
+     versie van dat tabblad verschilt van wat er gelezen is. Op Windows ziet
      die toets een junction, een gekoppelde schijf tegenover hetzelfde UNC-pad of een 8.3-naam niet (geen `dev`/`ino` in
      plugin-fs); dezelfde grens geldt voor de doelcontrole van Opslaan als (knownbug 1907). De gewone routes vergelijken
      sinds besluit D (review #1121 ronde 6) alleen de letterlijke padtekst (2063); een genormaliseerd pad telt daar

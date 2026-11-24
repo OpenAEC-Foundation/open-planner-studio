@@ -27,7 +27,6 @@ import { ProjectRail } from '@/components/layout/DocumentChrome/ProjectRail';
 import { NewOrOpenProjectDialog } from '@/components/dialogs/NewOrOpenProjectDialog';
 import { ProjectOverview } from '@/components/layout/DocumentChrome/ProjectOverview';
 import { CloseDocumentDialog } from '@/components/layout/DocumentChrome/CloseDocumentDialog';
-import { ReloadVersionDialog } from '@/components/layout/DocumentChrome/ReloadVersionDialog';
 import { SavingBeforeCloseNotice } from '@/components/layout/DocumentChrome/SavingBeforeCloseNotice';
 import { useMacOSMenu } from '@/hooks/useMacOSMenu';
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
@@ -481,7 +480,6 @@ function AppContent() {
 
       {/* Sluit-bevestiging bij niet-opgeslagen wijzigingen (3-weg) */}
       <CloseDocumentDialog />
-      <ReloadVersionDialog />
       {/* "Wordt nog opgeslagen…": sluiten of afsluiten wacht op een lopende opslag (#804 stap 3). */}
       <SavingBeforeCloseNotice />
 

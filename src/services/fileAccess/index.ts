@@ -4,7 +4,7 @@ import {
   fileIdentityFsTauri, scanTargetPathTauri, sourceTargetContentOfPathTauri, knownTargetContentOfPathTauri,
   saveNewBytesDialogTauri, saveNewBytesToRefTauri, pickSaveTargetTauri,
 } from './tauriBackend';
-import { openFileDialogTauri, readOpenedPathInWriteTurnTauri, readOpenedPathTauri } from './tauriOpenPath';
+import { openFileDialogTauri, readOpenedPathTauri } from './tauriOpenPath';
 import type { FileIdentityFs } from './fileIdentity';
 import type { RemnantEvent } from './ownFileReplace';
 import type { TargetReaders } from './foreignSourceTarget';
@@ -329,10 +329,6 @@ export function readFromRef(ref: FileRef): Promise<string | null> {
  *  onafgeronde vervanging van dat pad afhandelen, dan lezen. */
 export function readOpenedPath(path: string, asBytes: boolean): Promise<OpenedFile> {
   return readOpenedPathTauri(path, asBytes);
-}
-
-export function readOpenedPathInWriteTurn(path: string, asBytes: boolean): Promise<OpenedFile> {
-  return readOpenedPathInWriteTurnTauri(path, asBytes);
 }
 
 /** Bytes van een bewaarde ref herlezen. `null` bij onbruikbare ref/geweigerd; leesfouten gooien. */

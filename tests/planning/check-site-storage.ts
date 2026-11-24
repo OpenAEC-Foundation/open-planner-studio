@@ -857,45 +857,6 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
     S().switchDocument(tabOriginal);
   }
   {
-    const tabLoad = S().activeDocumentId;
-    S().addTask({ name: 'Werk vóór het laden' });
-    site.otherUserSaves('y');
-    S().switchDocument(tabB);
-    useAppStore.setState((st) => { st.ui.notifications = []; });
-    await S().openFromSite('y');
-    const shown = [S().activeDocumentId === tabLoad, changedOnDiskShown(S())];
-    const loading = S().loadNewVersion();
-    for (let i = 0; i < 400 && S().ui.reloadVersion?.phase !== 'question'; i++) await new Promise<void>((r) => setTimeout(r, 5));
-    const asked = S().ui.reloadVersion?.documentId === tabLoad;
-    const latest = site.latest(site.files.get('y')!).version;
-    const loaded = S().confirmReload();
-    await loading;
-    eq('G19 Nieuwe versie laden op de site: de strook, de vraag; weggooien ⇒ dit tabblad met de nieuwste versie als basis', [
-      shown, asked, loaded, S().activeDocumentId === tabLoad, S().tasks.some((t) => t.name === 'Werk vóór het laden'), S().isDirty,
-      S().siteFileId, S().siteFileVersion === latest, changedOnDiskShown(S()),
-    ], [[true, true], true, true, true, false, false, 'y', true, false]);
-    site.otherUserSaves('y');
-    S().switchDocument(tabB);
-    await S().openFromSite('y');
-    const open = site.storage.open;
-    site.storage.open = async (...args: Parameters<typeof open>) => ({ ...await open(...args), readOnly: true });
-    const before = [S().siteFileVersion, S().tasks.map((t) => t.name)];
-    useAppStore.setState((st) => { st.ui.notifications = []; });
-    try { await S().loadNewVersion(); } finally { site.storage.open = open; }
-    eq('G19b (Sol, ronde 8): de site geeft het bestand nu alleen-lezen ⇒ het tabblad blijft met zijn doel, de melding van Openen, de strook blijft', [
-      [S().siteFileVersion, S().tasks.map((t) => t.name)], S().siteFileId, S().ui.notifications.map((n) => n.messageKey), changedOnDiskShown(S()),
-    ], [before, 'y', ['notifications.siteFileReadOnly'], true]);
-    const f = site.files.get('y')!;
-    const ifcName = f.name;
-    f.name = 'lijst.csv';
-    useAppStore.setState((st) => { st.ui.notifications = []; });
-    await S().loadNewVersion();
-    f.name = ifcName;
-    eq('G19c (Sol, ronde 8): onder het id staat nu een ander formaat ⇒ het tabblad blijft met zijn doel', [
-      [S().siteFileVersion, S().tasks.map((t) => t.name)], S().siteFileId, S().ui.notifications.map((n) => n.messageKey), changedOnDiskShown(S()),
-    ], [before, 'y', ['notifications.openFailed'], true]);
-  }
-  {
     const { writeCSV } = await import('@/services/csv/csvWriter');
     const state = S();
     const csv = writeCSV(state.project, state.calendar, state.tasks, state.sequences, state.resources, state.assignments);
