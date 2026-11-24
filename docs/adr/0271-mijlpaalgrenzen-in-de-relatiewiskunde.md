@@ -14,10 +14,13 @@ ADR 0029); zie knownbug 2306.
   voorganger als grens (bij SF met de regel voor `predStartsNextDay` hieronder), niet het volgende blokbegin; bij FS
   ook met een lag in kalendertijd van 0 minuten. Een nulduurmijlpaal zonder soort krijgt die regel alleen in de FF-tak
   (`finishFinishRequirement`); `sfReqFinishHour` leest de expliciete vlag. Of de solver zo'n moment daarna laat staan,
-  beslist `snapSuccessorEarlyStart` (ADR 0014). Bij FS geldt de regel ook als de voorganger `predEndsBeginOfDay`
-  heeft, omdat een voorganger zonder duur op de statusdatumvloer op een blokeinde van zijn eigen kalender kan staan
-  (`msp-06b` in `cases-msp-pariteit.json`). Het weggehaalde commentaar noemde dit pariteit met MS Project; een
-  bestand van MS Project dat het laat zien, is niet nagegaan.
+  beslist `snapSuccessorEarlyStart` (ADR 0014). Zonder die regel in de FS-tak (`succIsFinishMs` met `lagIsZero`)
+  worden `msp-01c`, `msp-03` en `msp-37` in `cases-msp-pariteit.json` rood. Bij FS geldt de regel ook als de
+  voorganger `predEndsBeginOfDay` heeft, omdat een voorganger zonder duur op de statusdatumvloer op een blokeinde van
+  zijn eigen kalender kan staan; geen geval in
+  `cases-msp-pariteit.json` of `cases-hours-relations.json` wordt rood als die voorganger wordt uitgesloten, ook
+  `msp-06b` niet. Het weggehaalde commentaar noemde dit pariteit met MS Project; een bestand van MS Project dat het
+  laat zien, is niet nagegaan.
 - FS met een echte lag naar een eindmijlpaal (`finishStartLaggedStart`) mag op een eindmoment van de opvolgerkalender
   landen in plaats van op het volgende blokbegin, als de opvolgerkalender en de lagkalender het als dezelfde grens
   lezen; `nextWorkInstant` alleen zou een blokeinde overslaan. De functie is gedeeld met de externe voorganger
@@ -26,9 +29,9 @@ ADR 0029); zie knownbug 2306.
   achterwaarts `snapStrictBefore`); voorwaarts bij SF niet voor een opvolger in de dagenmaat (ADR 0274). Zie
   knownbug 153.
 - FF naar een startmijlpaal, bij een voorganger zonder `predEndsBeginOfDay`, geeft het moment strikt na de geëiste
-  finish (`snapStrictAfter`). Uitzondering in `forwardHour` en spiegelbeeldig in
-  `backwardHour`: telt de voorganger in de dagenmaat en is de lag geen kalendertijd, dan blijft een moment midden in
-  een werkblok (`isInsideBlock`) staan. Voor een voorganger in de urenmaat blijft "strikt na", omdat de bredere
+  finish (`snapStrictAfter`). Uitzondering in `forwardHour` en spiegelbeeldig in `backwardHour`: telt de voorganger
+  in de dagenmaat en is de lag geen kalendertijd, dan blijft een moment midden in een werkblok (`isInsideBlock`)
+  staan. Voor een voorganger in de urenmaat blijft "strikt na", omdat de bredere
   correctie drie C7-controles rood maakte (knownbug 230). C7 (`p6FinishFinishStartMilestoneLateFinish`) zet
   `succIsStartMs` voor FF uit (ADR 0029).
 - Achterwaarts bij FS met een lag in werktijd kiest `backwardHour` eerst een doel en normaliseert dat daarna. Het
