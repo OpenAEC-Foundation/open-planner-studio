@@ -3951,10 +3951,12 @@ en noem het in je rapport of PR-tekst.
       gegevens van een ander programma zijn aangepast of verwijderd (`notifyForeignChangesWritten`). Gezien in de code;
       `check-ifc-document-save.ts` toetst voor die routes alleen de melding na het opslaan. Richting: dezelfde aanroep in
       `removeSequence` en `commitCalendarLibrary`. — S
-2250. **VERVOLG (#1199): Ctrl+Z na het opslaan brengt de taak terug, niet de koppeling van het andere programma.** Na
-      het opslaan is `ifcSource` de uitvoer zonder de vervallen stukken, en undo zet de bron niet terug (documentveld
-      zonder momentopname). De melding na het opslaan zegt dat de gegevens zijn aangepast of verwijderd, maar niet dat
-      Ctrl+Z ze niet terugbrengt. Richting: PR 7 van #804 (`detached`, de soort *teruggezet*) bewaart de oude bytes van
+2250. **VERVOLG (#1199): Ctrl+Z na het opslaan, of tijdens het opslaan na de momentopname, brengt de taak terug, niet
+      de koppeling van het andere programma.** Na het opslaan is `ifcSource` de uitvoer zonder de vervallen stukken, en
+      undo zet de bron niet terug (documentveld zonder momentopname). Een opslag die haar momentopname al had, schrijft
+      en commit die uitvoer ook als de planner intussen Ctrl+Z drukt. De knop *Ongedaan maken* in de wismelding staat er
+      in die periode niet meer (regel B, fixronde 2), maar Ctrl+Z op het toetsenbord werkt wel. De melding na het opslaan
+      zegt dat de gegevens zijn aangepast of verwijderd, maar niet dat Ctrl+Z ze niet terugbrengt. Richting: PR 7 van #804 (`detached`, de soort *teruggezet*) bewaart de oude bytes van
       de wijzigingslijst en kan ze bij undo terugzetten. Afgeleid uit de code, niet nagespeeld. — S
 2251. **Veel taken wissen in een bestand met een gebouwmodel, en dan opslaan, weigert met `planning-na-openen`.** Met
       de flag *IFC met gebouwmodel openen* aan: een gegenereerde planning van 10.000 taken
