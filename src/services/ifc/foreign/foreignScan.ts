@@ -11,6 +11,8 @@ import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
 import { scanForeignStep } from './oldOwnHeader';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { scanElementLinks, type StepElementLink } from './elementLinks';
+import type { ForeignReferences } from './changeList';
+import { foreignReferences } from './foreignReferences';
 
 /** De technische grens van de bytes-route en de doelindeling: 300 MiB (fase-0-meting). Niet de productgrens voor het
  *  openen van een model: die staat apart, in `../modelOpenLimit.ts` (`IFC_MODEL_OPEN_MAX_BYTES`, 150 MiB). */
@@ -62,6 +64,7 @@ export interface ForeignScanResult {
 
 export interface OpenedForeignScan extends ForeignScanResult {
   readonly stepElementLinks: readonly StepElementLink[];
+  readonly foreignReferences: ForeignReferences;
 }
 
 /** De scanner weigerde de invoer (ongeschikte of onvolledige STEP); de bytes-route valt dan terug (afwijking 7). */
@@ -86,7 +89,11 @@ function indexOrRefusal(bytes: Uint8Array): StepIndex | ForeignScanRefusal {
 export function scanForeignToOpen(bytes: Uint8Array): OpenedForeignScanOutcome {
   const index = indexOrRefusal(bytes);
   if (!(index instanceof StepIndex)) return index;
-  return { ...foreignScanFrom(index, classify(index), bytes), stepElementLinks: scanElementLinks(index) };
+  const cls = classify(index);
+  return {
+    ...foreignScanFrom(index, cls, bytes), stepElementLinks: scanElementLinks(index),
+    foreignReferences: foreignReferences(index, cls.classes, bytes, cls.selection.inD),
+  };
 }
 
 /** Scan en deel in. Een weigering van de scanner is een uitkomst, geen fout; elke andere fout gooit. */
@@ -232,9 +239,11 @@ export function readerOptions(scan: ForeignScanResult): {
 export function foreignScanTransferables(outcome: ForeignScanOutcome): ArrayBuffer[] {
   if (!outcome.ok) return [];
   const s = outcome.selection;
+  const r = 'foreignReferences' in outcome ? (outcome as OpenedForeignScan).foreignReferences : undefined;
   const arrays = [
     outcome.chunkStarts, outcome.chunkIds, outcome.classes, outcome.literal, outcome.foreignMembers, outcome.mixedPsetChunks,
     s.tasks, s.resources, s.calendars, s.sequences,
+    ...(r ? [r.stepIds, r.groupStart, r.groupSize, r.targetStart, r.targets] : []),
   ];
   const buffers = new Set<ArrayBuffer>();
   for (const a of arrays) if (a.buffer instanceof ArrayBuffer) buffers.add(a.buffer);

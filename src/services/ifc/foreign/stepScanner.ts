@@ -75,7 +75,7 @@ function isDigit(c: number): boolean {
 }
 /** Witruimte en commentaar overslaan: de lezer strippt commentaar vóór hij entiteiten leest, dus
  *  `#1= IFCTASK /* x *\/ (…);` is daar een gewone entiteit. */
-function skipBlank(b: Uint8Array, i: number): number {
+export function skipBlank(b: Uint8Array, i: number): number {
   const n = b.length;
   for (;;) {
     while (i < n && isSpace(b[i])) i++;
@@ -89,7 +89,7 @@ function skipBlank(b: Uint8Array, i: number): number {
  * dan de index direct erna; anders -1. Niet afgesloten: tot het einde. Spiegel van
  * `skipQuotedOrComment` in `ifcReader.ts`, op bytes.
  */
-function skipQuotedOrComment(b: Uint8Array, i: number): number {
+export function skipQuotedOrComment(b: Uint8Array, i: number): number {
   const n = b.length;
   const c = b[i];
   if (c === CH_QUOTE) {
