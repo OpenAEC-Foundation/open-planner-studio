@@ -1509,6 +1509,21 @@ en noem het in je rapport of PR-tekst.
       geeft donderdag. Of elke aanroeper (onder meer `CPMSolver.ts`, `ResourceLeveler.ts`, `useBarDrag.ts`,
       `splitWalk.ts`, `barDragMath.ts`) een werkdag meegeeft, is niet nagegaan. — B
 
+2301. **Een P6 XML-bestand waarvan elke eindtijd van een werkblok op een veelvoud van vijf minuten valt, leest met
+      exacte eindtijden, ook als het uit P6 komt.** `p6FinishUsesLastMinute` (`src/services/p6/p6xmlReader.ts`) telt
+      alleen een minuut bij een eindtijd op als het bestand een export van OPS met `<StandardWorkHours>` is, of als
+      minstens één eindtijd (behalve 23:59) niet op een veelvoud van vijf minuten valt. Nagespeeld met een script via
+      `readP6XMLDocuments` op een bestand zonder OPS-markering: `<Finish>16:00:00</Finish>` geeft een blok tot 16:00, en
+      `<Finish>15:59:00</Finish>` ook. Een blok van P6 dat een minuut na een veelvoud van vijf eindigt (tot 16:01, door P6
+      als `16:00:00` geschreven) komt zo een minuut korter binnen. Of P6 zulke blokken schrijft, is niet nagegaan (ADR
+      0262). — B
+
+2302. **De P6 XML-lezer begrenst het aantal kalenders niet.** `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`)
+      leest elke `<Calendar>` met `<Type>Resource</Type>` als bibliotheekkalender, ook als geen activiteit of resource
+      ernaar verwijst. De MSPDI-lezer en de `.mpp`-lezer houden 1024 kalenders aan (`MAX_MSPDI_CALENDARS`,
+      `MAX_CALENDARS`, ADR 0254). Nagespeeld met een script via `readP6XMLDocuments`: een bestand met 1200
+      Resource-kalenders zonder verwijzing geeft 1200 bibliotheekkalenders. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
