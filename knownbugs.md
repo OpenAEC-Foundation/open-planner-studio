@@ -3899,15 +3899,16 @@ en noem het in je rapport of PR-tekst.
      de tokenizer op bytes van fase 4 (ontwerp §6.1) weigert een dubbele sleutel met de code `invalid`. Proef:
      `check-ifcx-kern.ts`, "bekende grens 2220". — B
 
-2222. **IFCX: een taak in de kinderlijst van twee ouders kan niet als IFCX worden opgeslagen.** De IFCX-writer
-     schrijft de boom zoals STEP hem schrijft: uit de kinderlijsten van de verzameltaken (`copyAsStepWritesIt` in
-     `src/services/ifc/ifcx/openNormalize.ts`). Een taak die in de lijst van twee ouders staat, bewaart STEP onder beide
-     ouders (`writeWBSNesting` schrijft beide nestingen, `extractNesting` in `ifcReader.ts` zet de laatste als ouder).
-     IFCX draagt per taak één ouder (`parent`), dus het teruggelezen model verschilt en `writeIfcx` weigert met
-     `self-check`. Er gaat niets verloren, maar opslaan als IFCX lukt dan niet. De app maakt zo'n boom niet bij gewoon
-     werk; hoe hij ontstaat, is niet nagegaan. Voorstel: de oorzaak vinden (zie ook 1980 en 1981), of in F3-4 de taak
-     bij de weigering noemen. Proef: `check-ifcx-kern.ts`, de lus naast STEP, geval "een taak in de kinderlijst van
-     twee ouders". — B
+2257. **Een bestaand IFC met twee identiteiten of twee ouders komt via Openen met het conflict in de store.** Gemeld in
+     de review van #1183 ronde 4 (GPT-6.2-Sol), als route in de app, met een synthetisch beschadigd eigen IFC. Twee
+     gevallen. (1) Twee verschillende `IFCTASK`-records met dezelfde GlobalId: Openen houdt beide taken, want de interne
+     id's zijn al uniek en `ensureUniqueImportIds` (`src/services/importNormalize.ts`) kijkt niet naar `ifcGlobalIds`.
+     Opslaan als IFC geeft de tweede taak stil een andere GlobalId; `writeIfcx` weigert met `inconsistent` en noemt
+     beide taken en de GlobalId. (2) Eén kind in de kinderlijsten van twee `IFCRELNESTS`: Openen houdt beide lijsten en
+     zet de laatst gelezen ouder in `parentId` (`extractNesting` in `src/services/ifc/ifcReader.ts`). Opslaan als IFC
+     bewaart beide lijsten; `writeIfcx` weigert met `inconsistent` en noemt het kind en beide ouders. Geen gewone
+     schermbewerking maakt deze toestand. Niet opgelost in #1183 (besluit van Trias bij fixronde 4). Voorstel: bij
+     Openen het conflict melden en laten rechtzetten, voor STEP en IFCX gelijk. — B
 
 2223. **IFCX: de vastgepinde schema's van IFC5-development en hun eigen voorbeeld Hello Wall spreken elkaar tegen.**
      Open Planner Studio schrijft in de kop `ifcxVersion: "ifcx_alpha"` en `dataVersion: "1.0.0"`, en kale UUID's als

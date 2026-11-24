@@ -1163,6 +1163,18 @@ test('R2: elk gedeeld veld dat de writer schreef, veranderd, weggelaten of met e
   console.log(`   ${count} veranderde bestanden, elk geweigerd`);
 });
 
+test('punt 8: een bestand dat R2 doorstaat maar geen dekpunt van de STEP-rondgang is, opent zoals STEP het zou openen', () => {
+  const document = documentOf(writeIfcx(datePlan(), CLOCK));
+  const time = entryWith(document, 'openaec::ops::task').attributes['openaec::ops::task'].time as Record<string, unknown>;
+  Object.assign(time, { earlyStart: '', earlyFinish: '', lateStart: '', lateFinish: '' });
+  const text = JSON.stringify(document);
+  const read = readIfcxText(text, false);
+  assert.equal(read.tasks[0].time.earlyStart, '', 'het bestand draagt lege vroege datums');
+  const back = readIfcx(encode(text));
+  assert.notEqual(back.tasks[0].time.earlyStart, '', 'openen geeft wat de STEP-rondgang geeft');
+  assert.deepEqual(domainOf(back), domainOf(stepRoundtrip(read)));
+});
+
 test('ronde 4, blokkade 1: werkplan en werkschema met een oude GlobalId slaan op en komen terug zoals in STEP', () => {
   const plan = datePlan();
   const input: ImportResult = { ...plan, ifcGlobalIds: { [`wp:${plan.project.id}`]: 'oud-werkplan', [`ws:${plan.project.id}`]: 'oud-schema' } };
