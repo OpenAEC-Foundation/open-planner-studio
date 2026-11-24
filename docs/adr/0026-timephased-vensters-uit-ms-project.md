@@ -5,7 +5,7 @@ mee. Het gelezen finishvenster (`timephasedFinishFloor`, de toewijzingsfinish va
 toewijzingsstart (`timephasedStartAnchor`) zet hij alleen bij voortgang 0, omdat een gelezen datum bij een gestarte
 taak een cirkelmeting zou zijn. De kalenderwandelingen (`timephasedDurationWalks`: per toewijzing een anker, een
 resourcekalender en eventueel `workMinutes`) zijn geen gelezen datum maar een kalenderverwijzing; die zet hij bij
-elke voortgang. De beslistabel zelf staat bij de lezer. In de solver geldt deze voorrang: een voltooide taak plant op
+elke voortgang. De beslistabel van de lezer staat in ADR 0288. In de solver geldt deze voorrang: een voltooide taak plant op
 haar werkelijke datums en een lopende taak op haar hervattings- en restwerkroute; die twee takken lezen geen
 timephased venster. Voor de andere taken wint het gelezen finishvenster, anders het maximum van de wandelingen,
 anders de gewone duur.

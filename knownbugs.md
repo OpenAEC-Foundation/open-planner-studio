@@ -710,7 +710,7 @@ en noem het in je rapport of PR-tekst.
      leest `MilestoneKind` voor elke taak met `isMilestone`, zonder duurtoets; zie ook 1042), via MCP (`taskFields.ts`
      zet `milestoneKind` zonder duurtoets) en via de MSPDI-lezer met een expliciete OPS-markering
      (`explicitOpsMilestoneKind` in `mspdiReader.ts`, zonder duurtoets). Elders plant de solver een mijlpaal met duur
-     als duurtaak (`isZeroDurationMilestone`). — B
+     als duurtaak (`isZeroDurationMilestone`). De volledige voorwaarden van die grensregels staan in ADR 0271. — B
 
 2307. **Een opvolger in kalendertijd na FS met een lag in werktijd komt op het volgende werkmoment van haar eigen
      kalender.** Bij SS, FF en SF slaat `forwardHour` (`src/engine/scheduler/relationMath.ts`) voor een opvolger in
@@ -1562,6 +1562,41 @@ en noem het in je rapport of PR-tekst.
       bibliotheekkalenders (`MAX_MSPDI_CALENDARS`); de `.mpp`-lezer stopt bij 1024 unieke ruwe kalenderrecords
       (`MAX_CALENDARS`, `mppCalendars.ts`). Nagespeeld met een script via `readP6XMLDocuments`: een bestand met 1200
       Resource-kalenders met verschillende geldige `ObjectId`'s zonder verwijzing geeft 1200 bibliotheekkalenders. — B
+
+2318. **Een maandelijkse of jaarlijkse herhaling kan een datum na haar einddatum opleveren.**
+      De vier generatoren `getMonthlyAbsoluteDates`, `getMonthlyRelativeDates`, `getYearlyAbsoluteDates` en
+      `getYearlyRelativeDates` (`src/services/calendarRecurrence.ts`, via `expandRecurrence`) toetsen de einddatum
+      (`moreDates`) op de eerste van de maand en voegen daarna de dag in die maand toe; de twee relatieve stoppen pas na
+      het toevoegen. `getYearlyAbsoluteDates` schuift bovendien een datum vóór het begin nog een jaar op. Nagespeeld
+      met een script via `expandRecurrence`: jaarlijks op 1 januari (`relative: false`, `dayNumber` 1, `monthNumber` 1),
+      begin 2020-06-01, einde 2020-12-31, `occurrences` 0, geeft `2021-01-01`. Dezelfde opzet als eerste maandag van
+      januari (`relative: true`) geeft niets. Nagespeeld via `readMSPDI` en `CalendarEngine`, zonder jaaropschuiving:
+      een maandelijkse en een jaarlijkse uitzondering op de 31e met einde 15 januari maken 31 januari vrij; een
+      maandelijkse en een jaarlijkse op de derde vrijdag met einde 3 januari maken 17 januari vrij. Het weggehaalde
+      commentaar noemde dit overgenomen gedrag van MPXJ; of MPXJ en MS Project zo'n datum opleveren, is niet
+      nagegaan. — B
+
+2319. **Als het gedeelde budget voor uitzonderingsdagen opraakt, kan juist de uitzondering met de hoogste voorrang
+      wegvallen.** `buildContributions` stopt bij een leeg budget in de volgorde van het bestand, en
+      `resolveContributions`
+      vult de kaart per datum in de volgorde van de voorrang (ADR 0291) tot het budget op is; wat dan nog komt, telt
+      niet mee. In `mergeInherited` gaan de dagen van de basiskalender vóór de eigen uitzonderingen in dat budget.
+      Nagespeeld met een script, steeds met een wekelijkse herhaling op alle dagen van 2020-01-01 tot 2020-01-10 en
+      daarna in het bestand een werkende uitzondering op 2020-01-05: met budget 100 is 5 januari werkend en het vrije
+      bereik gesplitst; met budget 10 is 1 tot en met 10 januari één vrij bereik en is er geen werkende uitzondering;
+      met budget 5 is alleen 1 tot en met 5 januari vrij. Staat de werkende uitzondering in het bestand vóór de
+      herhaling, dan blijft met budget 10 5 januari werkend en valt 10 januari weg: welke wegvalt, volgt de volgorde
+      van het bestand. Twee uitzonderingen op dezelfde datum kosten elk een plaats in het budget. Via `mergeInherited` met een basis die 1 tot en met
+      10 januari vrij heeft en dezelfde werkende uitzondering als eigen uitzondering: met budget 100 werkend, met
+      budget 10 vrij. Het budget is 100.000 dagen (`MAX_TOTAL_HOLIDAY_SLOTS`, ADR 0293); of een echt bestand het
+      bereikt, is niet nagegaan. — B
+
+2320. **Een onbekend herhalingstype leest de MSPDI-lezer als gewoon bereik, de `.mpp`-lezer slaat het record over.**
+      `RECURRENCE_TYPES` (`src/services/calendarRecurrence.ts`) kent de waarden 1 tot en met 7 (0 is geen herhaling).
+      Voor een waarde buiten 0 tot en met 7 geeft `readMspdiRecurringData` (`mspdiReader.ts`) `null`, en `readRawMspdiExceptions` houdt het record dan als
+      niet-herhalend bereik van `FromDate` tot `ToDate`, en slaat het zonder `ToDate` over; `readRawExceptions` (`mppCalendars.ts`) zet bij `null`
+      `contributesNothing` en neemt het record niet op. Gelezen in de code, niet nagespeeld. Welke van de twee MS
+      Project volgt, is niet nagegaan. — S
 
 ## Bibliotheek, bezetting, extensies, AI
 
@@ -2560,12 +2595,19 @@ en noem het in je rapport of PR-tekst.
      (`/tmp/fase1b-v2-scope/echte-invoer/resultaten.json` op aia09-mp50, 11 november 2026). — B
 
 
-1570. **VERVOLG (#804, gemaakt geval): id-afleiding bij een `-dup-N`-object na crashherstel nog beproeven.**
-     PR 9a gebruikt de gewone bytes-route, zonder `idExceptions`: de echte keten met een in de app
-     toegevoegde resource, Opslaan als, verder bewerken, crashherstel en opnieuw Opslaan als behoudt
-     de GlobalId en het vreemde deel. Een geconstrueerd dubbel-GlobalId-geval (`-dup-N`) is niet
-     in die herstelketen gemeten. Alleen dit gemaakte geval blijft vervolg; geen claim van verlies
-     of van herstel van zulke id-uitzonderingen. — S
+2236. **VERVOLG (#804 fase 2, PR 11): main weigert de opslag na het verwijderen van de eerste houder van een gedeelde GlobalId.**
+     Gemeten in `check-recovery-gedeelde-globalids.ts` (deel 3): een bron met vier paren gedeelde GlobalIds in het eigen
+     deel; na het verwijderen van de eerste resource van een paar weigert de merge met `niet-gedragen`, in de sessie en
+     na herstel gelijk. Een ongewijzigde planning slaat letterlijk op (deel 1 en 6). Meer is niet gemeten. Ontwerp §4.3
+     wil dat de writer de tweede houder een nieuwe GlobalId geeft. Komt die opslag er, dan leidt de lezer uit de nieuwe
+     bron een ander id af dan het document draagt, en is het lijstje per bronversie uit §4.14 nodig (`idExceptions`, met
+     `pendingIdExceptions` in stap 0). Het eerste element van zo'n paar is het id waaronder het herstelde document het
+     object draagt: na PR 11 het id van de sessie bij een gedeelde GlobalId, en het van de GlobalId afgeleide id bij een
+     in de app gemaakte resource (proef 2 in `check-recovery-ifc-source.ts`). — B
+2237. **VERVOLG (#804, 9c): een MCP-backup draagt de koppeling van PR 11 niet.** De backup schrijft de planning met
+     dezelfde writer als de herstelsnapshot (`backupService.ts`), maar zonder `snapshotIdentities`: een object met een
+     gedeelde GlobalId komt bij terugzetten terug met het id van zijn nieuwe GlobalId, zoals op main. Wat de planner
+     daarvan merkt, is niet gemeten. 9c (knownbug 1575) kan de koppeling van `recoveryIdentity.ts` meenemen. — S
 1575. **VERVOLG (#804, 9c): een MCP-backup op het open document terugzetten met de actuele gebouwmodelbron.**
      §4.12/E31 blijft een eigen onderdeel 9c op de eindlijst, niet verplicht vóór de flag standaard aan mag.
      De backup bevat planning en een bronkenmerk, geen gebouwmodelbytes. De kleine stap 9d zet bij het openen
@@ -3896,21 +3938,38 @@ en noem het in je rapport of PR-tekst.
      `getFile()` en lezen. Gevonden door de review van #1174 (Sol, ronde 1). — S (niet nagespeeld met een echte
      Chromium-handle)
 
-2244. **VERVOLG (#804, featureflag aan): opslaan na een wijziging van een bestand met een gebouwmodel en veel taken
-     duurt lang, en de tijd groeit sneller dan het aantal taken.** Het gaat om de gewijzigde merge: een bestand met een
-     gebouwmodel openen, een taak wijzigen en opslaan. Gemeten in Node op aia09-mp50 (24 november 2026, wandkloktijd,
-     één run per regel, op main van die dag) met `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` waaraan gewone taken
-     zijn toegevoegd: bij 1.000 taken (1,2 MB) 7,0 s, bij 5.000 taken (5,8 MB) 55,8 s, bij 10.000 taken (11,9 MB)
-     147,6 s. Openen van dat laatste bestand kost 4,3 s. Met één onbekende JSON-sleutel per taaknotitie: 5,8 s bij 1.000
-     en 183,1 s bij 5.000 taken. De metingen bij 1.000 en 5.000 taken liepen terwijl de machine zwaar belast was (load
-     20 tot 36); die bij 10.000 taken bij een load rond 3. Een eerdere run van 10.000 taken onder zware belasting kwam
-     op 513,8 s. Niets hiervan is in rust of in CPU-tijd gemeten, en niet in de app zelf (de opslag-Worker). Welke stap
-     sneller groeit dan het aantal taken, is nog niet uitgezocht. Er gaat niets verloren; de opslag slaagt. Met de
-     flag uit, en bij een planning zonder gebouwmodel of gegevens van een ander programma, loopt deze route niet.
-     Besluit technisch beslisser (24 november 2026): dit hoort bij de voorwaarden voordat de flag standaard aan mag;
-     opslaan na een wijziging mag bij 10.000 taken niet meer dan enkele seconden kosten, en een kwadratische stap is
-     een bug, geen grens. Gezien door de bouwer van #1188 bij het meten van die PR. — S (gemeten door de bouwer,
-     meetlogs `opslag-main-1k.log`, `opslag-main-5k.log` en `opslag-main-10k-rustig.log` van #1188; niet nagemeten)
+2244. **VERVOLG (#804, featureflag aan): opslaan na een wijziging van een bestand met een gebouwmodel kost bij veel
+     taken nog ongeveer 20 tot 25 keer een gewone opslag.** Het gaat om de gewijzigde merge: een bestand met een
+     gebouwmodel openen, een taak wijzigen en opslaan. Gemeten in Node op aia09-mp50 (24 november 2026, CPU van de
+     hoofdthread, onder het gedeelde slot) met `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` plus gewone taken en
+     één gewijzigde taaknaam, bij 1.000 / 2.000 / 5.000 / 10.000 taken: vóór #1210 6,9 / 13,3 / 46,0 / 136,8 s, na #1210
+     5,6 / 10,2 / 23,8 / 47,0 s. De gewone writer schrijft dezelfde planning in 0,18 / 0,39 / 0,91 / 1,9 tot 2,5 s.
+     #1210 haalde de stappen weg die sneller groeiden dan het aantal taken (een opzoeking door alle taken of door een
+     hele lijst per taak of per lid); in de gemeten gevallen (een naamswijziging bij 1.000 tot 10.000 taken, veel
+     feestdagen in één kalender, lags in uren, gemengde toewijzingen met twee leden per relatie) groeit het werk
+     sindsdien ongeveer lineair, en de uitvoer is byte voor byte die van main.
+     Wat overblijft is lineair werk dat vaak gebeurt: de merge schrijft, leest en vergelijkt de hele planning ongeveer
+     twintig keer (vijf keer de merge-writer, vier keer de canon-writer, drie keer de lezer, zes keer paren, drie keer
+     vergelijken en twee keer openen in een store). Besluit technisch beslisser (24 november 2026): dit hoort bij de
+     voorwaarden voordat de flag standaard aan mag; opslaan na een wijziging mag bij 10.000 taken niet meer dan enkele
+     seconden kosten. Die voorwaarde blijft open tot het aantal volledige rondes omlaag is; dat is een ontwerpstap, geen
+     losse bug. Er gaat niets verloren; de opslag slaagt. Met de flag uit, en bij een planning zonder gebouwmodel of
+     gegevens van een ander programma, loopt deze route niet. Alleen gelezen, niet gemeten, met hetzelfde patroon: in
+     `mergeWriter.ts` `parent.childIds.filter(id => !s.includes(id))` bij een gemengde `IfcRelNests` onder een eigen
+     taak en `lines.find` per vreemd lid van een eigen template; in `lossCheck.ts` `candidates.filter` en
+     `candidates.find` in `pairRelations` per relatie met dezelfde sleutel, en `[...p1.out.values()].find` in
+     `bareKeyInWriterForm` per teruggezette kale sleutel in `OPS_Assignments`. Uit de review van #1210 (ronde 1),
+     nog open: (a) één gemengde `IfcRelAssignsToProcess` met veel verschillende resources op één taak blijft
+     kwadratisch (`count(s, id)` en `count(domainRes, id)` per id en de volgordetoets met `s.includes(id)` in
+     `mergeWriter.ts`: 1.000.000 vergelijkingen bij 1.000 resources, 4.000.000 bij 2.000; stond zo op main);
+     (b) de IFC-lezer bouwt sinds #1210 bij `lagCalendar = projectDefault` een takenindex die hij niet gebruikt, ook
+     met de flag uit (één taakvergelijking op main, 2.000 indexeringen bij 2.000 taken; dezelfde leesuitkomst, de
+     doorlooptijd is niet gemeten), en `sourceFormWhereUnchanged` indexeert ook als er geen geconverteerde velden zijn;
+     (c) `src/utils/firstById.ts` doet hetzelfde als de private functie in `taskTree.ts`, die kan vervallen;
+     (d) de werkproef `check-ifc-foreign-werk.ts` telt voor `includes`, `indexOf` en `shift` de hele lijstlengte, dus
+     haar verhoudingen zijn een schatting van lijstwerk, geen telling van bezochte elementen. — S (gemeten in #1210
+     met de meetscripts van de meting van knownbug 2244, mediaan van twee runs per grootte; niet in de app of in de
+     opslag-Worker gemeten)
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
@@ -3968,7 +4027,40 @@ en noem het in je rapport of PR-tekst.
      Route in een proef van de reviewer (GPT-6.2-Sol, review van #1170): gedeeltelijk herstel (`holdWeb` houdt de hele
      generatie vast, ook de herstelde versie), doorwerken aan dat document, en bij de volgende herstelvraag uitstellen; daarna
      kwamen de oude IFC-bytes terug. `check-recovery-web-hold.ts` toetst bij een dubbel document alleen dat het één keer
-     verschijnt, niet welke versie. — B
+     verschijnt, niet welke versie. Ook gezien in een tussenversie van `check-recovery-identiteit-reeksen.ts` (#1198, reeks 17:
+     twee keer `holdRecoveryForLater` met hetzelfde open document); de definitieve proef eist het eigen herstel daarom
+     alleen bij de laatst geschreven versie. — B
+
+2314. **Bekende grens (#804, flag aan): de toets van het crashherstel bewijst alleen wat de writer schrijft.** Het herstel
+     aanvaardt een koppeling van identiteiten (`snapshotIdentities`) alleen als het herstelde document, opnieuw
+     geschreven, byte voor byte de gelezen snapshot oplevert (`rewritesSnapshot`, `src/state/readRecoveryDocument.ts`).
+     Velden die de writer niet schrijft of zelf afleidt, ziet die vergelijking niet: `Task.parentId` (de writer nest via
+     `childIds`), `Task.resourceIds` (afgeleid uit de toewijzingen), de toewijzings-id's (ontstaan bij elke lezing) en
+     een bewaarde GlobalId die de writer toch afleidt. De proef verschuift ze met de hand: van 313 verschuivingen
+     aanvaardt de toets er 51 (`check-recovery-gedeelde-globalids.ts`, deel 13). De hernoeming van vandaag schrijft geen van deze
+     velden, dus er is geen aangetoonde route naar verlies. Gaat de hernoeming later meer velden aanpassen, dan hoort
+     daar eerst een gerichte proef via de gewone herstelroute bij. Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B
+     (proef 13 en de code)
+2315. **Bekende grens (#804, flag aan): het crashherstel valt in drie gevallen terug op het herstel van main, terwijl de
+     koppeling bruikbaar was.** Het document blijft heel; alleen een object met een gedeelde GlobalId (een
+     `-dup-N`-object) krijgt dan de identiteit die main bij herstel geeft, zoals vóór #1198. (1) Na het toevoegen en
+     toewijzen van een resourcekalender: de lezer zet kalenders met toewijzingen vóór kalenders zonder, en leest de
+     nieuwe kalender terug als `rescal-ifc-…` waar de sessie `cal-…` gebruikte; de writer gebruikt dat id in
+     hulp-GlobalIds, dus de bytes verschillen en de hele tabel vervalt. (2) Een snapshot in de stand "Datums zoals
+     opgeslagen" (rekenslots als `$`, of `recordedSourceFormat`): de toets bouwt de schrijfinvoer vóór de stap die die
+     stand activeert (langs de code gevolgd, niet gedraaid). (3) Een snapshot waarvan `FILE_NAME` en
+     `IFCOWNERHISTORY` aan weerszijden van een secondegrens zijn geschreven: de writer leest de klok twee keer en de
+     toets gebruikt de seconde uit de kop voor beide. Richting: één tijdstip voor beide velden bij het schrijven van
+     een snapshot; voor (1) en (2) een vergelijking die objecten en hun verbindingen bewaakt in plaats van bytes.
+     Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B (proef van de reviewer voor 1 en 3; 2 uit de code)
+2316. **Bekende grens (#804, flag aan): een beschadigde lijst identiteiten zonder één rij wordt deels toegepast.** De
+     toets van het crashherstel verwerpt elke rij die het herstelde document oplevert en die niet in de lijst staat,
+     maar eist niet dat de lijst volledig is (een verwijderde houder laat terecht een rij minder achter). Met één
+     taakrij met de hand uit acht geldige rijen gehaald, bij dezelfde IFC en SHA-256, aanvaardt de toets de overige
+     zeven; de taak zonder rij houdt de GlobalId uit de snapshot, zoals op main. De gewone schrijfroute laat geen rij
+     weg (de writer telt de oorspronkelijke houders en neemt elke uitgegeven rij mee met haar upsert). Richting: een
+     integriteitscontrole over de lijst zelf. Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B (proef van de
+     reviewer)
 
 2210. **VERVOLG (#804 fase 2, PR 3): ongebruikte sleutels in `OPS_Assignments` blijven alleen in de merge bewaard, en
      een paar bronvormen weigeren nog.** De merge (een document met een vreemd deel, flag `ifcForeignContent` aan) schrijft
@@ -4029,6 +4121,40 @@ en noem het in je rapport of PR-tekst.
       `childIds` van de ouder in de documentvolgorde. Nagespeeld met een script via `readP6XMLDocuments`: onder WBS `R`
       staan in het bestand eerst `A` (`SequenceNumber` 2) en dan `B` (`SequenceNumber` 1); de takenlijst geeft `R, B, A`,
       `childIds` van `R` geeft `A, B`. Welke delen van de app de volgorde uit `childIds` halen, is niet nagegaan. — B
+
+2310. **Een `.mpp`-kalender die op een half uur begint, wordt een uurkalender door een taak op dat halve uur.**
+      `mppAnchorClock` (`src/services/mpp/mppReader.ts`) maakt het anker uit `workStartHour` als heel uur, en
+      `mppCalendars.ts` zet dat bij één blok per dag op het hele uur eronder (`Math.floor`). In een proef kreeg een
+      kalender met één blok vanaf 07:30 bij `readMPP` ankeruur 7: een taak om 07:30 gaf in `readTasks` het signaal van
+      `hasNonAnchorTime`, de kalender werd een uurkalender en de taak hield 07:30. Met een blok vanaf 07:00 hield de
+      taak alleen de datum. De promotie bewaart hier de tijd uit het bestand; een nadeel voor de planner is niet
+      vastgesteld. — B
+
+2312. **Zonder `RESUME` begint het restwerk van een `.mpp`-toewijzing direct na haar verrichte werk.**
+      `computeShiftedAssignmentPeriods` (`src/services/mpp/mppReader.ts`) schuift de resterende periodes van een
+      toewijzing waarvoor de decoder minstens één werkelijke periode oplevert naar haar `RESUME` als `CalendarEngine.isHourMode`
+      waar is, en zonder `RESUME` of bij een onware `isHourMode` naar het einde van haar laatste verschoven werkelijke
+      periode. Dat geldt voor splits en contouren. In een proef met een taakstart om 08:00 en een
+      toewijzingsstart om 09:00 begon het restwerk zonder `RESUME` op taakminuut 180, en met een hervatting op de
+      volgende werkdag op minuut 480. Volgens het weggehaalde commentaar heeft die terugval geen steun in MPXJ
+      (`AssignmentField.RESUME` heeft daar geen standaardplek in de veldkaart). Wat MS Project bij een ontbrekend
+      `RESUME` doet, is niet getoetst. — B
+
+2313. **Een `.mpp`-taak wandelt ook over een resourcekalender waarvan feestdag en werkende uitzondering elkaar bij de
+      opgeslagen duur opheffen; of het einde na een duurwijziging klopt met MS Project, is onbekend.**
+      `calendarDiffersIncludingExceptions` (`src/services/mpp/mppReader.ts`) telt zo'n kalender als afwijkend (als beide kalenders `workTime` hebben), dus bij
+      één kandidaat levert `deriveTimephasedWindowsForTasks` een wandeling over de resourcekalender (ADR 0288). In een
+      proef met een vrije dinsdag en een werkende zaterdag gaf 4800 minuten op beide kalenders hetzelfde einde; bij 960
+      en 1920 minuten eindigde de resourcekalender één werkdag later. Volgens het weggehaalde commentaar gebeurt dat in
+      `mpp14timephasedsegments(manual).mpp` ("Task Seven", "Task Eight"). Het corpus heeft geen uitkomst van MS Project
+      voor een bewerkte duur. — B
+
+2317. **Een resourcekalender die alleen in de werktijden van een werkende uitzondering afwijkt, geeft een `.mpp`-taak
+      met één toewijzing geen wandeling.** `calendarDiffersIncludingExceptions` (`src/services/mpp/mppReader.ts`)
+      vergelijkt alleen als beide kalenders `workTime` hebben, en dan de weekblokken en de datumbereiken van feestdagen en
+      werkende uitzonderingen, niet de blokken binnen een werkende uitzondering. In een proef met één werkresource, dezelfde uitzonderingsdatum en een latere start
+      op die dag gaf de vergelijker `false`; dezelfde 120 werkminuten eindigden op de twee kalenders om 10:00 en 12:00.
+      De lezer levert dan voor die taak geen wandeling. Of MS Project daar over de resourcekalender plant, is niet nagegaan. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -5304,6 +5430,17 @@ en noem het in je rapport of PR-tekst.
       plek; een handmatige actie gaat alleen voor op wat nog niet begon; geen vastgehouden rij tijdens de
       schrijftoestemming), met de proeven van alle drie de rondes als bewaking. Of die regel dan houdt, is niet
       bewezen. — S
+
+2254. **VERVOLG (#804 fase 2, PR 11, testdubbel): de IndexedDB-dubbel draait een afgebroken transactie niet terug.**
+     In `tests/planning/fakeRecoveryIndexedDb.ts` past `put` een record meteen toe, en `abort` roept alleen `onabort`
+     aan. Een echte IndexedDB schrijft bij een fout in dezelfde transactie niets. Faalt in de dubbel de manifestschrijf
+     ná de snapshotrecords, dan staan die records er toch: een gemengde toestand die in de browser niet kan bestaan. Een
+     browserproef met een schrijffout halverwege een ronde kan daardoor onterecht rood worden (een toestand die A nooit
+     maakt), of groen terwijl ze alleen laat zien dat de leestoets die gemengde toestand afwijst, niet dat de opslag
+     klopt. `check-recovery-identiteit-reeksen.ts` bootst het terugdraaien zelf na (een kopie van de opslag bij het begin
+     van elke schrijftransactie); deel 9 van `check-recovery-gedeelde-globalids.ts` laat de fout afgaan bij de eerste
+     put, vóór er iets veranderd is. Fouten die alleen bij echte asynchrone verzoeken, commit of herstart zichtbaar
+     worden, dekt de dubbel niet. — B
 
 ## Wensen en open taken (geen bug)
 
