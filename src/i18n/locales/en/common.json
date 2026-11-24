@@ -788,6 +788,7 @@
     "closeTitle": "Unsaved changes",
     "closeBody": "'{{name}}' has changes that haven't been saved yet.",
     "dontSave": "Don't save",
+    "changedOnDisk": "{{name}} was changed outside this tab. This tab still shows the earlier version. Close this tab and open the file again to see the new version.",
     "stillSaving": "Still saving…"
   },
   "feedback": {

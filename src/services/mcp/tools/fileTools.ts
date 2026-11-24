@@ -37,7 +37,7 @@ import { isTauri } from '@/utils/platform';
 import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
-import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
+import { detectXmlFlavor, parseOpenedFile, readFormatForFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
 import { refuseModelAboveOpenLimit } from '@/services/ifc/modelOpenLimit';
 import { buildExportIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
 import { exportHitsOwnFile } from '@/state/savedLiteralCalendars';
@@ -52,7 +52,7 @@ import type { McpContext, McpToolAnnotations, McpToolDef, McpToolResult } from '
 import { writeUserTextFileTauri, writeNewUserBytesTauri } from '@/services/fileAccess/atomicWrite';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
-import { saveTargetRef, type PickedSaveTarget, type RefuseBeforePlace } from '@/services/fileAccess';
+import { saveTargetRef, type FileRef, type PickedSaveTarget, type RefuseBeforePlace } from '@/services/fileAccess';
 import { existingRegularFileTauri, scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
 import { replaceOwnPathWithRecovery, type OwnPathReplaceResult } from '@/state/ownFileReplace';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
@@ -62,6 +62,7 @@ import {
   exportTargetPermission, ifcFullWriteBlocked, refusedTargetContent, refusedTargetIdentity, refusedWriteTarget,
   type WriteTargetDeps, type WriteTargetRefusal,
 } from '@/state/ifcForeignGuard';
+import { openTabFor, readVersionOf, switchToOpenDocument } from '@/state/openDocumentFor';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 /** #804: IFC-uitvoer blijft geweigerd met ontbrekende bronbytes of de flag uit (`state/ifcForeignGuard.ts`). */
@@ -588,7 +589,13 @@ export const fileTools: McpToolDef[] = [
     name: 'planner_import_schedule',
     description:
       'Open a schedule file (.ifc, .xml from P6 or MS Project, .csv, .xer, .mpp) inside the home folder in a ' +
-      'new active tab (an empty, unchanged active tab is reused); nothing is merged. Tell the user what is lost: CSV has no calendar (dates can ' +
+      'new active tab (an empty, unchanged active tab is reused); nothing is merged. In the app, with the experimental ' +
+      'setting "Open IFC with a building model" on, an IFC path that is already open in a tab (the same path text after it is resolved ' +
+      'inside the home folder) switches to that tab instead and returns it with `alreadyOpen: true`; that tab keeps its own content. ' +
+      'If the file differs from the version that tab last read or saved, the response also has `changedOnDisk: true` and the app ' +
+      'shows the user a strip that says to close the tab and open the file again to see the new version. If the app does not ' +
+      'know which version that tab has, the ' +
+      'file opens in a new tab. Tell the user what is lost: CSV has no calendar (dates can ' +
       'shift), resources or assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP has no baselines or custom fields. ' +
       'Also pass on `notice`. Use `documents` in the response (one file can open several). Ids are per ' +
       'document; rebuild calendars with planner_update_calendar.',
@@ -676,10 +683,11 @@ export const fileTools: McpToolDef[] = [
       // vóór het openen, anders opent de AI alsnog een document nadat de gebruiker hem stopte.
       const lateBlocked = postAwaitGuards(ctx);
       if (lateBlocked) return lateBlocked;
-      const opened = ctx.app.store.getState().openAsDocument(parsed, {
-        name: path,
-        ref: { kind: 'path', path },
-      });
+      const ref: FileRef = { kind: 'path', path };
+      const tab = ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) && readFormatForFile(path).canBeSaveTarget
+        ? openTabFor(ctx.app.store.getState(), ref, null, readVersionOf(ref, parsed)) : null;
+      if (tab !== null) switchToOpenDocument(ctx.app.store.getState(), tab);
+      const opened = tab !== null ? null : ctx.app.store.getState().openAsDocument(parsed, { name: path, ref });
       // Drift-anker naar het RESULTERENDE document — anders zou de eerstvolgende
       // mutatie op het importdocument als drift falen en zet de import zichzelf klem.
       bindExpectedDoc(ctx);
@@ -691,8 +699,8 @@ export const fileTools: McpToolDef[] = [
       ]));
       // B5: het meldingenkanaal van de app bereikt een MCP-client niet. Dezelfde telling en grootste
       // verschuiving als `notifications.minuteModelConverted`, per document in de inventaris.
-      const conversionById = new Map(opened.minuteModelConversions.map(c => [c.documentId, c]));
-      const documents = opened.documentIds.map(documentId => {
+      const conversionById = new Map((opened?.minuteModelConversions ?? []).map(c => [c.documentId, c]));
+      const documents = (opened?.documentIds ?? (tab ? [tab.id] : [])).map(documentId => {
         const payload = payloadById.get(documentId);
         if (!payload) throw new Error(`Opened document '${documentId}' is missing after the import`);
         const conversion = conversionById.get(documentId);
@@ -711,6 +719,15 @@ export const fileTools: McpToolDef[] = [
         };
       });
       const notices: string[] = [];
+      if (tab !== null) {
+        notices.push(tab.changedOnDisk
+          ? 'This file was already open in a tab, so nothing new was opened: the app switched to that tab ' +
+            `(document '${tab.id}'). The file is now a different version than that tab has; the tab keeps its own ` +
+            'content, including unsaved changes, and the new version was not loaded. The app shows the user a strip above that ' +
+            'tab that says to close the tab and open the file again to see the new version. Tell the user.'
+          : 'This file was already open in a tab with this same version, so nothing new was opened: the app switched ' +
+            `to that tab (document '${tab.id}'). That tab keeps its own content, including unsaved changes.`);
+      }
       for (const document of documents) {
         if (!document.minuteModelConversion) continue;
         const { shiftedTasks, maxShiftWorkdays } = document.minuteModelConversion;
@@ -722,32 +739,35 @@ export const fileTools: McpToolDef[] = [
           'new dates; planner_undo restores the recorded dates (Dates as recorded). Tell the user.',
         );
       }
-      if (format === 'CSV') {
-        notices.push('CSV contains no calendar (the document now runs on the DEFAULT calendar — dates may differ) and no resources/assignments.');
-      } else if (format === 'P6-XML') {
-        notices.push('P6 XML: Nonlabor resources were imported as EQUIPMENT.');
-      } else if (format === 'MPP14') {
-        notices.push('MPP import is read-only (best effort; baselines and custom fields are not included). Saving writes IFC; export to MS Project = MSPDI XML.');
-      } else if (format === 'XER') {
-        notices.push(
-          `XER import is read-only; this step imports ${documents.length} non-empty P6 project` +
-          `${documents.length === 1 ? '' : 's'} as ${documents.length} document` +
-          `${documents.length === 1 ? '' : 's'}. Saving writes IFC.`,
-        );
-      }
-      if (format !== 'IFC') {
-        notices.push('The document has NO save target yet: saving writes IFC, so the source file is not overwritten — the user chooses a path when saving.');
+      if (opened) {
+        if (format === 'CSV') {
+          notices.push('CSV contains no calendar (the document now runs on the DEFAULT calendar — dates may differ) and no resources/assignments.');
+        } else if (format === 'P6-XML') {
+          notices.push('P6 XML: Nonlabor resources were imported as EQUIPMENT.');
+        } else if (format === 'MPP14') {
+          notices.push('MPP import is read-only (best effort; baselines and custom fields are not included). Saving writes IFC; export to MS Project = MSPDI XML.');
+        } else if (format === 'XER') {
+          notices.push(
+            `XER import is read-only; this step imports ${documents.length} non-empty P6 project` +
+            `${documents.length === 1 ? '' : 's'} as ${documents.length} document` +
+            `${documents.length === 1 ? '' : 's'}. Saving writes IFC.`,
+          );
+        }
+        if (format !== 'IFC') {
+          notices.push('The document has NO save target yet: saving writes IFC, so the source file is not overwritten — the user chooses a path when saving.');
+        }
       }
       return {
         ok: true,
         envelope: buildEnvelope(ctx),
         data: {
           documentId: after.activeDocumentId,
-          documentsOpened: documents.length,
+          documentsOpened: opened ? documents.length : 0,
           documents,
           path,
           format,
-          reusedActiveTab: opened.reusedActiveTab,
+          reusedActiveTab: opened?.reusedActiveTab ?? false,
+          ...(tab !== null ? { alreadyOpen: true, ...(tab.changedOnDisk ? { changedOnDisk: true } : {}) } : {}),
           /** Opslagdoel van het document: het bronpad bij IFC, anders null (zie hierboven). */
           filePath: after.filePath,
           tasks: after.tasks.length,
