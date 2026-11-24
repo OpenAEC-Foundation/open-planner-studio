@@ -108,7 +108,7 @@ async function quitDuringQuestion(route: Route) {
       onSavePendingChange: (pending) => T().setUI({ closeQuestionSaving: pending }),
     });
     await actions.discard();
-    await finishing;
+    await Promise.race([finishing, until(() => reading.reads() > 0)]);
     const windowClosed = await until(() => closed);
     return [asked, windowClosed, has(st, a), T().documents.length, reading.reads()];
   } finally { unsubscribe(); reading.release(); resetInvoke(); }
