@@ -91,6 +91,7 @@ export interface DocumentPayload {
    *  hetzelfde site-bestand hebben elk hun eigen basis. `null` zonder site-doel. Niet in IFC of undo;
    *  crashherstel bewaart hem in het manifest. */
   siteFileVersion: string | null;
+  knownTargetFingerprint: TargetFingerprint | null;
   /** Persoonlijke sessiekeuze: echte bestands-AutoSave, geen IFC-data en geen crashherstel. */
   autoSaveToFile: boolean;
   isDirty: boolean;
@@ -148,6 +149,11 @@ export interface DocumentPayload {
    *  terugkomen (opslaan met `LiteralTimes`, de bewerking ongedaan maken, opnieuw opslaan). Een id dat na Toepassen een
    *  andere kalender aanwijst, maakt hooguit een kalender te veel letterlijk: de veilige richting. */
   ifcLiteralCalendarIds: string[] | null;
+}
+
+export interface TargetFingerprint {
+  readonly sha256: string;
+  readonly byteLength: number;
 }
 
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.
@@ -332,6 +338,7 @@ export const DOCUMENT_FIELDS = [
   // Opslaan-doel op de site — zelfde rol als `fileHandle`: niet in undo, niet in IFC.
   field({ key: 'siteFileId', get: (s) => s.siteFileId, set: (s, v) => { s.siteFileId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.siteFileId ?? null }),
   field({ key: 'siteFileVersion', get: (s) => s.siteFileVersion, set: (s, v) => { s.siteFileVersion = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.siteFileVersion ?? null }),
+  field({ key: 'knownTargetFingerprint', get: (s) => s.knownTargetFingerprint, set: (s, v) => { s.knownTargetFingerprint = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.knownTargetFingerprint ?? null }),
   // Runtime-only: rijdt mee tussen open tabbladen, maar nooit door IFC of recoverymetadata.
   field({ key: 'autoSaveToFile', get: (s) => s.autoSaveToFile, set: (s, v) => { s.autoSaveToFile = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.autoSaveToFile ?? false }),
   field({ key: 'isDirty', get: (s) => s.isDirty, set: (s, v) => { s.isDirty = v; }, fresh: () => false, snapshot: 'none' }),

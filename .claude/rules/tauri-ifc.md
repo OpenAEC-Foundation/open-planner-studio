@@ -172,7 +172,10 @@ resourcebibliotheek en Automatisch opslaan naar het bestand. Headless-, scratch-
 uit de worker; die gaan rechtstreeks naar de schrijflaag (`FileData`: `saveDataDialog`, `saveToRef`,
 `saveToRefWithoutPrompt`, de site), nooit eerst naar tekst. Tekst bestaat alleen als de hoofdthread rekende (de worker
 startte niet). De gewone writer houdt zijn recht op overschrijven (`saveFileDialog`/`saveBytesDialog`, de atomaire
-opslag); `saveNewBytesDialog` blijft de exclusieve route van de merge. Heen gaat de bron als kopie, terug de uitvoerbuffers overgedragen (`ifcSaveProtocol.ts`); een inhoudelijke
+opslag); `saveNewBytesDialog` blijft de exclusieve route van de merge. Met de flag `ifcForeignContent` vraagt een
+documentopslag (Ctrl+S, Opslaan als, Automatisch opslaan; geen export) in de writer-job ook de SHA-256 van de bytes
+(`hashBytes`, `documentSaveCompute`); het antwoord draagt dan `sha256` en `resultFits` eist hem, en weigert hem zonder
+vraag. Met de flag uit zijn verzoek en antwoord gelijk aan die van vóór de vraag (de versie op het eigen doel, `state.md`). Heen gaat de bron als kopie, terug de uitvoerbuffers overgedragen (`ifcSaveProtocol.ts`); een inhoudelijke
 fout komt aan als dezelfde foutsoort, een transportfout als `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). Meldt de
 worker geen `started` binnen de vaste starttijd (10 s, voor elke worker dezelfde), dan startte hij niet. Een gewoon verzoek
 rekent dan op de hoofdthread, zoals op main, en gewone verzoeken blijven daar de rest van de sessie; staat de flag de hele

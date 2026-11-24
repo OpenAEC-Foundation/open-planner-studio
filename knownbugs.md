@@ -3667,6 +3667,51 @@ en noem het in je rapport of PR-tekst.
      Recent, slepen en MCP, de startroute zelf niet. Richting: alleen wisselen als de gelezen versie overeenkomt met
      de versie die het tabblad van zijn bestand kent. — B (code gelezen, ook door de reviewer van #1153; niet
      nagespeeld)
+
+2065. **VERVOLG (#804, de versie op het eigen doel): het tabblad merkt niet elke schrijfactie van de app op zijn bestand.**
+     `knownTargetFingerprint` volgt de opslag en de exports van het tabblad zelf. Twee schrijvers van de app ziet het
+     niet: in de browser kan Opslaan als of een export uit een ander tabblad over de handle van dit tabblad schrijven
+     (de opslaankiezer wordt daar niet vergeleken, knownbug 1899), en een rapport (PDF) dat de planner over het eigen
+     `.ifc`-bestand opslaat. Het veld beschrijft dan de laatste opslag van het tabblad zelf, niet wat er op schijf staat,
+     zoals bij een wijziging buiten de app. Een tabblad uit crashherstel krijgt altijd `null`, ook als het herstel de bron
+     van het eigen pad las. Wie het veld gaat lezen (de bewaking van Ctrl+S en Automatisch opslaan), krijgt in deze
+     gevallen "het bestand is veranderd" of "onbekend". — B (code gelezen, `check-tabblad-schijfversie.ts`; de twee
+     schrijvers niet nagespeeld)
+
+2066. **VERVOLG (#804, de versie op het eigen doel): na een mislukte of onzekere schrijfactie kan het veld een
+     versie noemen die niet meer op schijf staat.** Ctrl+S en Automatisch opslaan maken `knownTargetFingerprint`
+     onbekend als hun schrijfactie naar het eigen pad een fout geeft (de directe terugval van `replaceUserFile` in
+     `atomicWrite.ts` kan het doel al afgekapt hebben), en ook als de vervanging met herstel van een gebouwmodel
+     `unknown`, `previous-stranded` of `target-taken` geeft. Na een geslaagde export vergelijkt
+     `settleFingerprintAfterExport` het eigen doel met de geschreven bytes. Drie gevallen laten het veld staan.
+     Een export die mislukt nadat hij het eigen bestand al raakte: op het eigen doel staat dan iets wat de export niet
+     (helemaal) schreef. De vingerafdruk blijft staan, de komende bewaking weigert dan Ctrl+S met haar melding, en er
+     gaat niets verloren. Opslaan als over een bestaand bestand (`replaceExistingPath`) met een onzekere uitkomst: het
+     gekozen pad kan het eigen bestand zijn, maar de route kijkt daar niet naar. En in de browser de opslaankiezer uit
+     knownbug 1899: die kan de eigen handle al leeggemaakt hebben als de schrijfactie daarna mislukt. — S (code
+     gelezen, niet nagespeeld)
+
+2200. **VERVOLG (#804, de versie op het eigen doel): bij openen kan de vingerafdruk van opnieuw gecodeerde tekst
+     komen.** Openen, Recent en een browser-drop kiezen vóór het lezen of een `.ifc` als tekst of als bytes binnenkomt
+     (`useFileDrop.ts`, de opendialoog en Recent in `fileSlice.ts`). `openOpenedFile` vraagt de flag daarna opnieuw op.
+     Gaat de flag `ifcForeignContent` daartussen aan, dan komt het bestand als tekst binnen. `File.text()` en het lezen
+     als tekst laten een UTF-8-BOM weg en vervangen ongeldige bytes, en `readIfcFromText` codeert de tekst opnieuw.
+     `applyLoadedProject` koppelt de hash en grootte van die nieuwe bytes aan het doel; met een BOM is de grootte drie
+     bytes te klein. Herstel: `openOpenedFile` geeft door of de bytes van het doel zelf kwamen (`opened.bytes`), en
+     `applyLoadedProject` zet bij tekst `null`. Dat raakt de openroute, waar de volgende stap (openen wisselt) bouwt.
+     De omgekeerde volgorde is gedicht: gaat de flag uit tussen het lezen en het activeren, dan blijft het veld
+     `null`. — B (code gelezen in de reviews van #1168, niet nagespeeld)
+2217. **VERVOLG (#804, de versie op het eigen doel): een lopende nacontrole kan een gewiste vingerafdruk terugzetten.**
+     De planner zet de flag `ifcForeignContent` uit precies terwijl een export het eigen bestand terugleest of de
+     nieuwe vingerafdruk berekent (`settleFingerprintAfterExport` in `src/state/slices/fileSlice.ts`). `setUI` wist de
+     vingerafdruk van elk tabblad (`src/state/slices/uiSlice.ts`), waarna de export haar alsnog vastlegt als document
+     en doel gelijk bleven. Exporteert de planner daarna met de flag uit opnieuw over het eigen bestand en zet hij de
+     flag later weer aan, dan kan de bewaking van Ctrl+S en Automatisch opslaan de volgende opslag op die teruggezette
+     waarde weigeren. Uitweg voor de planner: Opslaan als. Richting: bij het vastleggen opnieuw toetsen dat er nog een
+     vingerafdruk is. Gezien in de code door de reviewer van #1168 (GPT-6.2-Sol, ronde 5); het vraagt dat het
+     uitzetten precies tijdens de nacontrole valt. — B (code)
+
+
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
