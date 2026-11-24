@@ -14,6 +14,7 @@ import { IfcCalendarTimePrecisionError, IfcParseError } from '@/services/ifc/ifc
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { StepScanError } from '@/services/ifc/foreign/stepScanner';
 import type { PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
+import { isSourceSlots } from '@/services/ifc/foreign/sourceSlots';
 import { precomputeSha256, XerSourceArchiveValidationError } from '@/services/xerSourceArchive';
 import { computeIfcOutputHere, type IfcOutput, type IfcSaveJob } from '@/state/prepareIfcOutput';
 
@@ -101,6 +102,7 @@ export function resultFits(job: IfcSaveJob, result: unknown): result is IfcSaveR
     && source.bytes === bytes && source.sha256 === sha256 && typeof source.schemaName === 'string'
     && source.chunkStarts instanceof Uint32Array && source.chunkIds instanceof Int32Array && source.classes instanceof Uint8Array
     && isRecord(source.stepIds) && Array.isArray(source.foreignMembers) && isElementLinkMap(source.elementLinks)
+    && (source.sourceSlots === undefined || isSourceSlots(source.sourceSlots))
     && typeof source.foreign === 'boolean'
     && typeof source.foreignObjectCount === 'number' && typeof source.buildingModel === 'boolean'
     && (source.lineEnding === '\n' || source.lineEnding === '\r\n') && (source.opened === undefined || isRecord(source.opened));

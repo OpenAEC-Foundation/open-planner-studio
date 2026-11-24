@@ -333,6 +333,22 @@ De nieuwe bron neemt de lijst uit die herlezing. Een gewiste taak neemt haar sle
 in PR 6 en 7. Zonder vreemd deel schrijft de gewone writer ze niet, zoals op main; een paar bronvormen weigeren nog
 (knownbug 2210). Proef: `check-ifc-foreign-ongebruikte-sleutels.ts`.
 
+### Tokens per slot van een ander programma (#804 fase 2, `sourceSlots`)
+
+`ifcSource.sourceSlots` (ontwerp §4.5) bewaart van elk D- en R-stuk van vreemde herkomst (`cls.foreignOrigin`: de owner
+history wijst niet naar de applicatie `'OPS'`) het entiteittype, de tabel en de ruwe tokens per slotnaam, als `Map` op het
+bron-`#id`; de `IfcTaskTime` van een taak en de `IfcLagTime` van een relatie staan onder `owned` van hun eigenaar.
+`foreign/sourceSlots.ts` leest ze met het register (`slotTableOf` in `ifcSlotTables.ts`: per bronregel precies één
+tabel, een werkschema op `isBaselineWorkControl`). Een stuk in een oude lay-out of met de oude letterlijke codering
+(§4.9) krijgt geen tokens. Alleen op twee plekken: bij openen van een bron met een vreemd deel (`scanForeignToOpen`, ook
+in de Worker) en voor de bron die de writer teruggeeft (`writtenSource` in `mergeWriter.ts`: de stukken die de writer
+schreef, met een owner history van een ander programma). Een bron zonder vreemd deel heeft het veld niet, zoals op main;
+de doelcontrole, de headless routes en de interne scans van de merge verzamelen niets. De scanrunner en de opslagworker
+eisen de vorm als het veld er is (`isSourceSlots`, in `foreignScanRunner.ts` en `resultFits`). Het crashherstel opent de
+bronbytes opnieuw en krijgt ze zo terug; het herstelrecord heeft er geen veld voor. De writer gebruikt ze nog niet: het
+terugschrijven per slotsoort en het wegnemen van de weigeringen `vreemde-herkomst` en `entiteittype` volgen in een
+volgende PR. Proef: `check-ifc-source-slots.ts`.
+
 ### Vergelijkingsklok (#804 fase 1c)
 
 `planningCanon` gebruikt alleen `writeIFCForComparison`: één vaste datum via de interne schrijfkern,

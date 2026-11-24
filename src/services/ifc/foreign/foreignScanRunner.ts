@@ -16,6 +16,7 @@
 import { scanForeignToOpen, type ForeignScanOutcome, type OpenedForeignScanOutcome } from './foreignScan';
 import type { ForeignScanWorkerRequest, ForeignScanWorkerResponse } from './foreignScanHandler';
 import type { TargetScanStep } from './targetModelScan';
+import { isSourceSlots } from './sourceSlots';
 
 export type ForeignScanWorker = Pick<Worker, 'postMessage' | 'terminate' | 'onmessage' | 'onerror' | 'onmessageerror'>;
 
@@ -58,8 +59,9 @@ function defaultCreateWorker(): ForeignScanWorker | null {
 
 type Body<T> = T extends unknown ? Omit<T, 'id'> : never;
 
-const hasElementLinks = (outcome: ForeignScanOutcome): outcome is OpenedForeignScanOutcome =>
-  !outcome.ok || ('stepElementLinks' in outcome && Array.isArray(outcome.stepElementLinks));
+const isOpenedScan = (outcome: ForeignScanOutcome): outcome is OpenedForeignScanOutcome =>
+  !outcome.ok || ('stepElementLinks' in outcome && Array.isArray(outcome.stepElementLinks)
+    && (!('sourceSlots' in outcome) || isSourceSlots(outcome.sourceSlots)));
 
 /**
  * `work` met één Worker; zonder Worker of bij een fout van het transport `fallback` (na het stoppen van de Worker). Een
@@ -133,7 +135,7 @@ export async function withScanWorker<T>(
     },
     opened: async (bytes) => {
       const r = await ask({ bytes, open: true });
-      if (!('outcome' in r) || !hasElementLinks(r.outcome)) throw unexpected();
+      if (!('outcome' in r) || !isOpenedScan(r.outcome)) throw unexpected();
       return r.outcome;
     },
     step: async (chunk) => {

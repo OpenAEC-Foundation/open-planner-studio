@@ -11,6 +11,7 @@ import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
 import { scanForeignStep } from './oldOwnHeader';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { scanElementLinks, type StepElementLink } from './elementLinks';
+import { scanSourceSlots, type SourceSlots } from './sourceSlots';
 
 /** De technische grens van de bytes-route en de doelindeling: 300 MiB (fase-0-meting). Niet de productgrens voor het
  *  openen van een model: die staat apart, in `../modelOpenLimit.ts` (`IFC_MODEL_OPEN_MAX_BYTES`, 150 MiB). */
@@ -62,6 +63,7 @@ export interface ForeignScanResult {
 
 export interface OpenedForeignScan extends ForeignScanResult {
   readonly stepElementLinks: readonly StepElementLink[];
+  readonly sourceSlots?: SourceSlots;
 }
 
 /** De scanner weigerde de invoer (ongeschikte of onvolledige STEP); de bytes-route valt dan terug (afwijking 7). */
@@ -86,7 +88,13 @@ function indexOrRefusal(bytes: Uint8Array): StepIndex | ForeignScanRefusal {
 export function scanForeignToOpen(bytes: Uint8Array): OpenedForeignScanOutcome {
   const index = indexOrRefusal(bytes);
   if (!(index instanceof StepIndex)) return index;
-  return { ...foreignScanFrom(index, classify(index), bytes), stepElementLinks: scanElementLinks(index) };
+  const cls = classify(index);
+  const scan = foreignScanFrom(index, cls, bytes);
+  const { C, A, V } = scan.counts;
+  return {
+    ...scan, stepElementLinks: scanElementLinks(index),
+    ...(C + A + V > 0 ? { sourceSlots: scanSourceSlots(index, cls.foreignOrigin) } : {}),
+  };
 }
 
 /** Scan en deel in. Een weigering van de scanner is een uitkomst, geen fout; elke andere fout gooit. */

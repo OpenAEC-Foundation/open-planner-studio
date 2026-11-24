@@ -50,6 +50,7 @@ import {
   taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine,
 } from './lossCheck';
 import { elementLinksByTask, scanElementLinks } from './elementLinks';
+import { scanSourceSlots, writtenForeignOrigin } from './sourceSlots';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource, PreparedIfcWrite, UnusedKeysOfTask } from './ifcSource';
@@ -935,6 +936,7 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, index: Ste
     chunkStarts: scan.chunkStarts, chunkIds: scan.chunkIds, classes, stepIds, foreignMembers,
     elementLinks: elementLinksByTask(scanElementLinks(index), stepIds),
     ...(unusedKeys && foreignObjectCount > 0 ? { unusedKeys } : {}),
+    ...(foreignObjectCount > 0 ? { sourceSlots: scanSourceSlots(index, writtenForeignOrigin(index, classes)) } : {}),
     foreign: foreignObjectCount > 0, foreignObjectCount, buildingModel: scan.buildingModel, lineEnding: scan.lineEnding, opened: input,
   };
 }

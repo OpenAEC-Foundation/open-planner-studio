@@ -132,6 +132,7 @@ export async function readIfcBytesDetailed(
     foreignMembers: Array.from(scan.foreignMembers),
     elementLinks: elementLinksByTask(scan.stepElementLinks, stepIds),
     ...(unusedKeys ? { unusedKeys } : {}),
+    ...(scan.sourceSlots && foreignObjectCount > 0 ? { sourceSlots: scan.sourceSlots } : {}),
     foreign: foreignObjectCount > 0,
     foreignObjectCount,
     buildingModel: scan.buildingModel,
