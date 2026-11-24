@@ -33,5 +33,7 @@ standaardkalender die `readCalendars` teruggeeft bij een ontbrekende of onleesba
 - `MINUTES_PER_DAY` uit de Props geldt alleen als hij groter is dan 0 en hoogstens 1440. Dan wordt hij de uren per dag
   van de projectkalender (`calendarHoursPerDayOverride`, in `readCalendars`), ook na de promotie, zoals
   `<MinutesPerDay>` bij MSPDI; alleen als die projectkalender in de kalendersectie is gevonden onder het unique-id dat
-  `readCalendars` als projectkalender aanwijst, dus niet bij een terugvalkalender. Anders blijven de uren per dag uit de blokken staan, en is de `hoursPerDay` van
-  `parseProjectProperties` 8. Een corrupte waarde geeft zo geen absurde dag.
+  `readCalendars` als projectkalender aanwijst, dus niet bij een terugvalkalender; die houdt de uren per dag uit haar blokken. De `hoursPerDay` van
+  `parseProjectProperties` is bij een geldige waarde die waarde, ook als de kalender haar niet krijgt, en bij een
+  ongeldige of ontbrekende waarde 8; dan blijven ook de uren per dag uit de blokken staan. Een corrupte waarde geeft
+  zo geen absurde dag.

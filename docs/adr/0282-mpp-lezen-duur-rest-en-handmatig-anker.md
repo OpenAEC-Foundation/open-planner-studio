@@ -41,7 +41,8 @@ de promotie van ADR 0283.
   projectstart uit de Props als anker; heeft het bestand geen projectstart, dan zet `readMPP` de projectstart op het
   anker dat die functie teruggeeft.
 - De lag van een relatie levert `mppLagToSequenceFields` (`mppEntities.ts`). Een lag in
-  werktijd is altijd `lagMinutes`, ook 0, zoals bij MSPDI. Een lag in procenten is `lagPercent`, een lag in verstreken
-  dagen `lagDays` met `lagUnit: 'ELAPSEDTIME'`, en een andere verstreken eenheid `lagMinutes` met die `lagUnit`. Een
+  werktijd is altijd `lagMinutes`, ook 0, zoals bij MSPDI. Een lag in procenten is `lagPercent`, bij verstreken
+  procenten met `lagUnit: 'ELAPSEDTIME'`; een lag in verstreken dagen is `lagDays` met die `lagUnit`, en een andere
+  verstreken eenheid `lagMinutes` met die `lagUnit`. Een
   bronwaarde -1, ook de terugval als het record te kort is voor de lag, geeft alleen `lagDays: 0`. De constraintcodes vertaalt
   `mspCodeToConstraint` van de MSPDI-lezer.

@@ -4058,8 +4058,8 @@ en noem het in je rapport of PR-tekst.
 
 2312. **Zonder `RESUME` begint het restwerk van een `.mpp`-toewijzing direct na haar verrichte werk.**
       `computeShiftedAssignmentPeriods` (`src/services/mpp/mppReader.ts`) schuift de resterende periodes van een
-      toewijzing waarvoor de decoder minstens één werkelijke periode oplevert naar haar `RESUME` (alleen op een kalender
-      met werktijd), en zonder `RESUME` naar het einde van haar laatste verschoven werkelijke periode. Dat geldt voor splits en contouren. In een proef met een taakstart om 08:00 en een
+      toewijzing waarvoor de decoder minstens één werkelijke periode oplevert naar haar `RESUME`, en zonder `RESUME` of op een
+      kalender zonder werktijd naar het einde van haar laatste verschoven werkelijke periode. Dat geldt voor splits en contouren. In een proef met een taakstart om 08:00 en een
       toewijzingsstart om 09:00 begon het restwerk zonder `RESUME` op taakminuut 180, en met een hervatting op de
       volgende werkdag op minuut 480. Volgens het weggehaalde commentaar heeft die terugval geen steun in MPXJ
       (`AssignmentField.RESUME` heeft daar geen standaardplek in de veldkaart). Wat MS Project bij een ontbrekend
@@ -4076,8 +4076,8 @@ en noem het in je rapport of PR-tekst.
 
 2317. **Een resourcekalender die alleen in de werktijden van een werkende uitzondering afwijkt, geeft een `.mpp`-taak
       met één toewijzing geen wandeling.** `calendarDiffersIncludingExceptions` (`src/services/mpp/mppReader.ts`)
-      vergelijkt de weekblokken en, als beide kalenders `workTime` hebben, de datumbereiken van feestdagen en werkende
-      uitzonderingen, niet de blokken binnen een werkende uitzondering. In een proef met één werkresource, dezelfde uitzonderingsdatum en een latere start
+      vergelijkt alleen als beide kalenders `workTime` hebben, en dan de weekblokken en de datumbereiken van feestdagen en
+      werkende uitzonderingen, niet de blokken binnen een werkende uitzondering. In een proef met één werkresource, dezelfde uitzonderingsdatum en een latere start
       op die dag gaf de vergelijker `false`; dezelfde 120 werkminuten eindigden op de twee kalenders om 10:00 en 12:00.
       De lezer levert dan voor die taak geen wandeling. Of MS Project daar over de resourcekalender plant, is niet nagegaan. — B
 
