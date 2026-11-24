@@ -24,6 +24,7 @@ import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes';
 import type { ForeignSourceRecord } from './foreign/foreignSourceMark';
 import { unusedAssignmentKeyNames, type UnusedAssignmentKey } from './assignmentKeys';
+import { withJsonExtras, type JsonExtras } from './jsonExtras';
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC, COST_RESOURCE_OBJECT_TYPE,
 } from './ifcConstants';
@@ -194,6 +195,7 @@ export interface WriterMergeIds {
   readonly sourceBandCalendarIds?: ReadonlySet<string>;
   readonly sourceBaselineHeadGuids?: ReadonlyMap<string, string>;
   readonly unusedAssignmentKeys?: ReadonlyMap<string, readonly UnusedAssignmentKey[]>;
+  readonly jsonExtras?: readonly JsonExtras[];
 }
 
 export interface SourceTaskTime {
@@ -277,7 +279,7 @@ export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds, 
   lines: string[]; idMap: ReadonlyMap<string, number>; literalCalendarIds: readonly string[];
 } {
   const { lines, idMap, literalCalendarIds } = writeIfcParts(input, merge, writtenAt);
-  return { lines, idMap, literalCalendarIds };
+  return { lines: withJsonExtras(lines, idMap, input.assignments, merge.jsonExtras ?? []), idMap, literalCalendarIds };
 }
 
 function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds, comparisonDate?: Date): {

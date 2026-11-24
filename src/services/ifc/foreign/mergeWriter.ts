@@ -53,6 +53,7 @@ import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource, PreparedIfcWrite, UnusedKeysOfTask } from './ifcSource';
 import { unusedKeysForWriter, unusedKeysFromRead, unusedKeysProblem } from './unusedKeys';
+import { jsonExtrasOf, jsonExtrasProblem, writerKeyOfSeed } from './jsonExtrasSource';
 import { readFileSchemaName } from '../ifcReader';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { scanForeignStep } from './oldOwnHeader';
@@ -279,13 +280,7 @@ export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Read
     const at = seed.indexOf(':');
     const kind = seed.slice(0, at);
     const id = seed.slice(at + 1);
-    const key = kind === 'task' ? `task_${id}`
-      : kind === 'res' ? `res_${id}`
-        : kind === 'seq' ? `seq_${id}`
-          : kind === 'cal' ? (id === projectCalendarId ? '_calendar' : `calendar_${id}`)
-            : kind === 'proj' ? (projectIsP ? '_project' : undefined)
-              : kind === 'wp' ? '_workplan'
-                : kind === 'ws' ? '_worksched' : undefined;
+    const key = kind === 'proj' && !projectIsP ? undefined : writerKeyOfSeed(seed, projectCalendarId);
     if (!key || bySource.has(stepId)) continue; // de eerste sleutel voor een bron-id wint
     keep.set(key, stepId);
     bySource.set(stepId, { kind, id });
@@ -383,7 +378,9 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   for (const i of cls.foreignOrigin) caseAt('vreemde-herkomst', i, `${label(i)} heeft de owner history van een ander programma`);
   const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
   const { keep, bySource, reserved, baselineHeads, projects } = ids;
-  const plan: WriterMergeIds = { ...ids.plan, unusedAssignmentKeys: unusedKeysForWriter(source, index) };
+  const sourceJson = { index, own: isP, stepIds: source.stepIds, projectCalendarId: input.calendar.id };
+  const jsonExtras = jsonExtrasOf(sourceJson);
+  const plan: WriterMergeIds = { ...ids.plan, unusedAssignmentKeys: unusedKeysForWriter(source, index), jsonExtras };
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
   // Een verstopt stuk vóór een P-stuk (#886): het commentaar ervóór gaat met het P-stuk weg.
   for (let i = 0; i < n; i++) {
@@ -983,6 +980,10 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   const unusedKeys = unusedKeysFromRead(writtenUnusedKeys);
   const unusedProblem = own && unusedKeysProblem(source, index, input.tasks.map(t => t.id), unusedKeys, actual.index, own.stepIds);
   if (unusedProblem) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: unusedProblem }]);
+  const outputJson = { index: actual.index, own: (c: number) => actual.classification.classes[c] === 1, projectCalendarId: input.calendar.id };
+  const jsonProblem = own && jsonExtrasProblem(jsonExtrasOf({ index, own: c => cls.classes[c] === 1, stepIds: source.stepIds, projectCalendarId: input.calendar.id }),
+    { ...outputJson, stepIds: own.stepIds }, input.assignments);
+  if (jsonProblem) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: jsonProblem }]);
   if (probe) {
     for (const [side, probeOpened] of [['uitvoer', shown], ['domein', wanted]] as const) {
       const copy = freeze(structuredClone(probeOpened), true);
@@ -1025,11 +1026,12 @@ function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classificat
   parsed: WriteIFCInput, input: WriteIFCInput, own: OwnOutputCheck): string | undefined {
   const output = indexView(out, i => { const original = sourceIndex.chunkOf(out.id(i)); return original < 0 || sourceCls.classes[original] === 1; });
   const ids = mergeIdPlan(out, outCls, own.stepIds, parsed.calendar.id, bytes);
+  const jsonExtras = jsonExtrasOf({ index: out, own: c => outCls.classes[c] === 1, stepIds: own.stepIds, projectCalendarId: parsed.calendar.id });
   // Een weesrij krijgt in de herlezing de GlobalId die de writer uit het domein had (PR 12e, was knownbug 1706), niet die uit de
   // uitvoer zelf: zo ziet (c) een verkeerde waarde in `TaskGuids`, net als een sleutel zonder rij.
   const domainGuids = withOrphanRowGuids(input, own.sourceRowGuid).ifcGlobalIds ?? {};
   const reread = withOrphanRowGuids(parsed, id => domainGuids[ifcObjectSeed('task', id)]);
-  const rewritten = writeIfcMergeLines(reread, sourceFormPlan(ids.plan, parsed, parsed, out, own.stepIds), own.writtenAt).lines
+  const rewritten = writeIfcMergeLines(reread, sourceFormPlan({ ...ids.plan, jsonExtras }, parsed, parsed, out, own.stepIds), own.writtenAt).lines
     .map(text => parseOutLine(text)).filter((l): l is OutLine => l !== undefined);
   return restoredOwnGroupDifference(output, linesView(rewritten, output.typeOf), own)?.detail;
 }

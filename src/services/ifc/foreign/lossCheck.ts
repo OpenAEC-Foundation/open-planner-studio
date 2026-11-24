@@ -105,6 +105,7 @@ import { PER_TASK_PSET_BY_NAME, PROP, PSET, asciiJson, ifcJson } from '../ifcPse
 import { WORK_CALENDAR_ARITY, WORK_CONTROL_ARITY, workCalendarSlots, workControlSlots } from '../ifcWorkControlSlots';
 import { lagValueSlot } from '../ifcLagTimeSlots';
 import { decodeStepText, stepTextIsValid } from '../stepText';
+import { sameJsonValue } from '../jsonTokens';
 import { hasOwnOrigin, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { durationForm, type DurationSlot } from './durationForms';
 import { parseIfcDuration } from '../isoDuration';
@@ -154,7 +155,7 @@ export interface LossDiff {
  * lezer alleen de datum leest). Een tekst die de lezer helemaal niet draagt (O0 leeg, zoals `Status 'ON HOLD'`), is een
  * `tekst`: wijzigt de planner dat veld, dan geldt zijn waarde.
  */
-export type SlotKind = 'enumeratie' | 'duur' | 'tekst' | 'samengesteld' | 'getal' | 'verwijzing' | 'lijst' | 'json' | 'leeg';
+export type SlotKind = 'enumeratie' | 'duur' | 'tekst' | 'samengesteld' | 'getal' | 'verwijzing' | 'lijst' | 'json' | 'json-gedragen' | 'leeg';
 /** Properties waarvan de waarde een lijst STEP-ids van de writer is (`ifcWriter.ts`, `writeCalendarGenerationMeta`). */
 const ID_LIST_PROPS: ReadonlySet<string> = new Set([PROP.Calendar.WorkingExceptionIds]);
 /** Is dit slot de waarde van zo'n property? */
@@ -1195,12 +1196,13 @@ function slotKind(type: string, outArg: number, token: string, outToken: string,
   const read = innerText(outToken, x => decodeStepText(unquote(x)));
   const source = innerText(t, text);
   const part = composite || (read !== undefined && read !== '' && source !== undefined && source !== read && source.includes(read));
-  if (t.startsWith("'")) return DURATION_SLOTS[type]?.includes(outArg) ? 'duur' : isJson(t) ? 'json' : part ? 'samengesteld' : 'tekst';
+  const json = (): SlotKind => source !== undefined && read !== undefined && sameJsonValue(source, read) ? 'json-gedragen' : 'json';
+  if (t.startsWith("'")) return DURATION_SLOTS[type]?.includes(outArg) ? 'duur' : isJson(t) ? json() : part ? 'samengesteld' : 'tekst';
   const typed = /^([A-Za-z0-9_]+)\s*\(([\s\S]*)\)$/.exec(t);
   if (typed) {
     const inner = typed[2].trim();
     if (typed[1].toUpperCase() === 'IFCDURATION') return 'duur';
-    if (inner.startsWith("'")) return isJson(inner) ? 'json' : part ? 'samengesteld' : 'tekst';
+    if (inner.startsWith("'")) return isJson(inner) ? json() : part ? 'samengesteld' : 'tekst';
     return inner.startsWith('.') ? 'enumeratie' : 'getal';
   }
   return /^[+-]?\d/.test(t) ? 'getal' : 'enumeratie';

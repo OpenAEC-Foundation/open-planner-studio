@@ -105,12 +105,13 @@ function sanitizeLeveling(value: unknown): LevelingSettings | undefined {
 }
 
 /** Compile-time: elke sleutel van `LegacySchedulingOptions` moet hieronder een tak hebben. */
-type HandledKeys =
-  | (typeof BOOLEAN_KEYS)[number]
-  | 'milestoneWithoutPredecessorAtDayEnd' // In oude opties bewust genegeerd; uitsluitend profieldata.
-  | 'workdayDurationMeasure' // Idem (§3.14): oudere versies kennen geen maat.
-  | 'p6Source' | 'lagCalendar' | 'criticalDefinition' | 'totalFloatMode'
-  | 'nearCriticalThreshold' | 'floatPaths' | 'startToStartLagFrom' | 'leveling';
+export const SCHEDULING_OPTION_KEYS = [
+  ...BOOLEAN_KEYS,
+  'milestoneWithoutPredecessorAtDayEnd', 'workdayDurationMeasure',
+  'p6Source', 'lagCalendar', 'criticalDefinition', 'totalFloatMode',
+  'nearCriticalThreshold', 'floatPaths', 'startToStartLagFrom', 'leveling',
+] as const satisfies ReadonlyArray<keyof LegacySchedulingOptions>;
+type HandledKeys = (typeof SCHEDULING_OPTION_KEYS)[number];
 type MissingKeys = Exclude<keyof LegacySchedulingOptions, HandledKeys>;
 const _allKeysHandled: MissingKeys extends never ? true : MissingKeys = true;
 void _allKeysHandled;
