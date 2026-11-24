@@ -74,7 +74,9 @@ function pinMain(loaded: Loaded, store: Store, label: string, enabled = true) {
   for (const { id, payload } of store.getState().getOpenDocumentPayloads()) {
     const doc = loaded.docs.find(d => d.id === id);
     if (!doc) continue;
-    assert.equal(doc.ifc, serializeRecoverySnapshot(recoverySourceDocument(id, payload, enabled).source), `${label}: de snapshot is precies die van main`);
+    const mainSource = enabled && payload.ifcSource && !payload.ifcSource.foreign && payload.foreignSourceMark?.sourceMissing === undefined
+      ? { ...payload, foreignSourceMark: null } : payload;
+    assert.equal(doc.ifc, serializeRecoverySnapshot(mainSource), `${label}: de snapshot is precies die van main`);
     pinned++;
   }
   assert(pinned > 0, `${label}: er is een snapshot vergeleken`);
@@ -244,19 +246,24 @@ assert.deepEqual(resourceLine(fromRecovery, CRANE), { ...crane, guid: scaffolder
 console.log('PROEF 1 GROEN: bewerken, Ctrl+Z, tabbladwissel, crash, herstel: ids, verwijzingen, GlobalIds en bronkaart als in de sessie; de derde resource met H blijft de derde.');
 
 const craneRow = rows.find(row => row[0] === `res:${craneId}`)!;
-const broken: readonly (readonly [string, unknown, boolean])[] = [
-  ['dubbele sleutel', [...rows, rows[0]], false],
-  ['ontbrekende identiteit', rows.map(row => row === craneRow ? [row[0], row[1], ifcGuid128('bestaat-niet')] : row), true],
-  ['een rij te veel', [...rows, ['res:res-erbij', craneRow[1], craneRow[2]]], false],
-  ['een kapotte rij', [...rows.slice(1), [rows[0][0], rows[0][1]]], false],
+const firstRow = rows.find(row => row[0] === `res:res-ifc-${scaffolders.guid}`)!;
+const crashedDoc = crashed.docs.find(d => d.id === sessionId)!;
+const twiceInSnapshot: Loaded = { ...crashed, docs: crashed.docs.map(d => d === crashedDoc ? { ...d, ifc: d.ifc.split(`'${H}'`).join(`'${scaffolders.guid}'`) } : d) };
+const broken: readonly (readonly [string, unknown, boolean, Loaded])[] = [
+  ['dubbele sleutel', [...rows, rows[0]], false, crashed],
+  ['ontbrekende identiteit', rows.map(row => row === craneRow ? [row[0], row[1], ifcGuid128('bestaat-niet')] : row), true, crashed],
+  ['een rij te veel', [...rows, ['res:res-erbij', craneRow[1], craneRow[2]]], false, crashed],
+  ['een kapotte rij', [...rows.slice(1), [rows[0][0], rows[0][1]]], false, crashed],
+  ['doel bezet', rows.map(row => row === firstRow ? [row[0], row[1], H] : row), true, crashed],
+  ['geschreven identiteit twee keer in de snapshot', rows, true, twiceInSnapshot],
 ];
-for (const [label, wrong, shapeOk] of broken) {
+for (const [label, wrong, shapeOk, base] of broken) {
   assert.equal(recoveryIdentityRows(wrong) !== null, shapeOk, `${label}: de vormtoets`);
-  const tried = await restore(withRows(crashed, sessionId, wrong)), main = await restore(withoutField(crashed));
+  const tried = await restore(withRows(base, sessionId, wrong)), main = await restore(withoutField(base));
   for (const store of [tried, main]) store.getState().switchDocument(sessionId);
   sameIdentities(tried, main, `${label}: niets half toegepast, het herstel van main`);
 }
-console.log('PROEF 2 GROEN: een koppeling die niet klopt (dubbele sleutel, ontbrekende identiteit, een rij te veel, een kapotte rij) laat het herstel van main staan.');
+console.log('PROEF 2 GROEN: een koppeling die niet klopt (dubbele sleutel, ontbrekende identiteit, een rij te veel, een kapotte rij, doel bezet, dubbel in de snapshot) laat het herstel van main staan.');
 await clearRecovery();
 
 const firstGone = await openAt(source, join(dir, 'eerste-weg.ifc'));
