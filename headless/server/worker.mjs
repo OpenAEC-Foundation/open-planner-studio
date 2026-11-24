@@ -37,7 +37,7 @@ async function preservedOrWhyNot(bytes, textSummary) {
     const summary = doc.schedule();
     if (summary.foreignContent === null) return {};
     const differences = scheduleDifferences(textSummary, summary);
-    void differences;
+    if (differences.length > 0) return { whyNot: `the bytes route reads this file differently (${differences.join(', ')})` };
     return { ifcBytes: await doc.toIfcBytes() };
   } catch (err) {
     return { whyNot: err instanceof PlannerCoreError ? err.message : 'the bytes route failed' };
