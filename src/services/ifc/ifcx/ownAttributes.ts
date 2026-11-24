@@ -1,5 +1,7 @@
-import { ifc5ValueDescription, membersOf, objectOf, type IfcxValue } from './fieldTable';
-import { ATTRIBUTE, type IfcxAttributeName } from './profile';
+import {
+  enumOf, ifc5ValueDescription, ISO_MOMENT, membersOf, objectOf, TEXT, VERSION_TEXT, type IfcxValue,
+} from './fieldTable';
+import { ATTRIBUTE, IFCX_VERSION, type IfcxAttributeName } from './profile';
 import { SCHEDULE_FIELDS } from './fields/documentFields';
 import {
   ASSIGNMENT_AREA, BASELINE_AREA, CALENDAR_AREA, DOCUMENT_AREA, RESOURCE_AREA, SEQUENCE_AREA, TASK_AREA,
@@ -32,3 +34,11 @@ export function ownSchemas(used: ReadonlySet<string>): Record<string, { value: R
   for (const [name, value] of OWN_ATTRIBUTE_VALUES) if (used.has(name)) schemas[name] = { value: ifc5ValueDescription(value) };
   return schemas;
 }
+
+export const HEADER_VALUE: IfcxValue = objectOf({
+  id: { value: { dataType: 'String', form: { name: 'urn:openaec:planner:<project-uuid>', pattern: /^urn:openaec:planner:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/ } } },
+  ifcxVersion: { value: enumOf([IFCX_VERSION]) },
+  dataVersion: { value: VERSION_TEXT },
+  author: { value: TEXT },
+  timestamp: { value: ISO_MOMENT },
+});

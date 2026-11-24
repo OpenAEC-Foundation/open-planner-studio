@@ -10,6 +10,7 @@ import {
 } from '@/services/ifc/ifcx';
 import { ifcxSchemaProblems } from '@/services/ifc/ifcx/schemaCheck';
 import { buildIfcxDocument, serializeIfcx } from '@/services/ifc/ifcx/ifcxWriter';
+import { defaultGlobalId, stepGlobalIdsFor } from '@/services/ifc/ifcx/stepGlobalIds';
 import { compactGlobalIdToUuid, nameBasedUuid } from '@/services/ifc/ifcx/globalIdUuid';
 import { createAppStoreContext } from '@/state/appStore';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -225,14 +226,14 @@ function fullPlan(): ImportResult {
     { id: 'a3', taskId: 't-b', resourceId: 'r-eq', unitsPerDay: 1, curve: undefined },
     { id: 'a4', taskId: 't-a', resourceId: 'r-cost', unitsPerDay: 1, costAmount: 1250.55 },
     { id: 'a5', taskId: 't-m', resourceId: 'r-cost', unitsPerDay: 1, costAmount: 0 },
-    { id: 'a6', taskId: 't-b', resourceId: 'r-mat', unitsPerDay: 0.5, remainingWorkMinutes: 1e21, actualWorkMinutes: -5 },
+    { id: 'a6', taskId: 't-b', resourceId: 'r-mat', unitsPerDay: 0.5, remainingWorkMinutes: 1e21, actualWorkMinutes: 1e-7, plannedWorkMinutes: 2e-7 },
   ];
   const baselines: Baseline[] = [
     {
       id: 'bl-1', name: 'Nulmeting', createdAt: '2027-05-01T09:00:00.000Z',
       tasks: [
-        { taskId: 't-a', start: '2027-06-01T07:00', finish: '2027-06-03T16:00', duration: 3, isMilestone: false, milestoneKind: 'START' },
         { taskId: 't-m', start: '2027-06-04T16:00', finish: '2027-06-04T16:00', duration: 0, isMilestone: true, milestoneKind: 'FINISH' },
+        { taskId: 't-a', start: '2027-06-01T07:00', finish: '2027-06-03T16:00', duration: 3, isMilestone: false, milestoneKind: 'START' },
         { taskId: 't-weg', start: '2027-05-20', finish: '', duration: 2.5, isMilestone: false },
         { taskId: '', start: '', finish: '', duration: 0, isMilestone: false },
       ],
@@ -246,8 +247,8 @@ function fullPlan(): ImportResult {
     {
       id: 'bl-3', name: 'Derde', createdAt: '2027-05-03T09:00:00.000Z',
       tasks: [
-        { taskId: 't-weg', start: '2027-05-21', finish: '2027-05-22', duration: 1, isMilestone: false },
         { taskId: 't-oud', start: '2027-05-23', finish: '2027-05-24', duration: 1, isMilestone: false },
+        { taskId: 't-weg', start: '2027-05-21', finish: '2027-05-22', duration: 1, isMilestone: false },
       ],
       projectEnd: '2027-05-24', projectDuration: 2,
     },
@@ -256,7 +257,10 @@ function fullPlan(): ImportResult {
     project: { ...base.project, id: 'proj-resources', name: 'Resourcegevallen' },
     calendar: base.calendar, resourceCalendars: [libraryCalendar], tasks, sequences, resources, assignments, baselines,
     activeBaselineId: 'bl-1', comparedBaselineIds: [null, 'bl-3'],
-    ifcGlobalIds: { 'task:t-weg': ifcGuid128('een andere seed'), 'task:t-oud': 'oude-guid-van-t-oud' },
+    ifcGlobalIds: {
+      'task:t-weg': ifcGuid128('een andere seed'), 'task:t-oud': 'oude-guid-van-t-oud', 'res:r-sub': 'oude-guid-van-r-sub',
+      'baseline_ws_bl-3': 'oude-guid-van-bl-3',
+    },
   };
 }
 
@@ -296,7 +300,7 @@ test('de gedeelde velden hebben de vaste vorm en openaec::ops:: draagt alleen wa
     id: 'a1', curveValues: CURVE_21, workWindowStart: '2027-06-01', workWindowFinish: '2027-06-03T16:00',
   });
   assert.equal(assignments[2].attributes['openaec::planning::assignment'].scheduleContour, undefined);
-  assert.deepEqual(assignments[5].attributes['openaec::ops::assignment'], { id: 'a6', actualWorkMinutes: -5, remainingWorkMinutes: 1e21 },
+  assert.deepEqual(assignments[5].attributes['openaec::ops::assignment'], { id: 'a6', plannedWorkMinutes: 2e-7, actualWorkMinutes: 1e-7, remainingWorkMinutes: 1e21 },
     'werk dat geen ISO-duur kan zijn, staat precies in openaec::ops::');
 
   const opsTask = (id: string) => entriesWith(document, 'openaec::planning::activity')[plan.tasks.findIndex(t => t.id === id)].attributes['openaec::ops::task'];
@@ -314,8 +318,8 @@ test('de gedeelde velden hebben de vaste vorm en openaec::ops:: draagt alleen wa
   assert.deepEqual(first['openaec::planning::baseline'], {
     name: 'Nulmeting', creationDate: '2027-05-01T09:00:00.000Z', finish: '2027-06-04',
     tasks: [
-      { task: taskPath('t-a'), start: '2027-06-01T07:00', finish: '2027-06-03T16:00', duration: 3, milestoneKind: 'START' },
       { task: taskPath('t-m'), start: '2027-06-04T16:00', finish: '2027-06-04T16:00', duration: 0, isMilestone: true, milestoneKind: 'FINISH' },
+      { task: taskPath('t-a'), start: '2027-06-01T07:00', finish: '2027-06-03T16:00', duration: 3, milestoneKind: 'START' },
       { task: orphanPath, start: '2027-05-20', finish: '', duration: 2.5 },
       { start: '', finish: '', duration: 0 },
     ],
@@ -331,8 +335,8 @@ test('de gedeelde velden hebben de vaste vorm en openaec::ops:: draagt alleen wa
   const third = baselines[2].attributes['openaec::ops::baseline'];
   assert.equal(third.comparedSlot, 2);
   assert.deepEqual(third.taskIds, [
-    { task: orphanPath, id: 't-weg' },
     { task: nameBasedUuid(plan.ifcGlobalIds!['task:t-oud']), id: 't-oud', globalId: plan.ifcGlobalIds!['task:t-oud'] },
+    { task: orphanPath, id: 't-weg' },
   ]);
 });
 
@@ -344,7 +348,7 @@ test('een verwijderde baselinetaak houdt haar id en GlobalId, ook na opnieuw ops
   assert.equal(writeIfcx(back, CLOCK), text);
   const fresh = { ...plan, ifcGlobalIds: {} };
   const freshBack = roundTrip(fresh).back;
-  assert.equal(freshBack.ifcGlobalIds!['task:t-weg'], undefined, 'een afgeleide GlobalId komt niet in ifcGlobalIds');
+  assert.equal(freshBack.ifcGlobalIds!['task:t-weg'], defaultGlobalId('task', 't-weg', plan.project.id), 'de lezer geeft de afgeleide GlobalId terug');
   assert.equal(freshBack.baselines![0].tasks[2].taskId, 't-weg');
 });
 
@@ -355,28 +359,19 @@ test('een baselinetaak die in STEP al verwijderd was, gaat via IFCX terug naar S
   assertRoundTrip(viaStep);
 });
 
-test('een resource krijgt bij een gedeelde bewaarde GlobalId voorrang op een bibliotheekkalender, zoals in STEP', () => {
+test('een resource krijgt bij een gedeelde bewaarde GlobalId voorrang op een bibliotheekkalender, zoals in STEP, en IFCX weigert de botsing', () => {
   const plan = fullPlan();
   const shared = ifcGuid128('gedeeld');
   const input: ImportResult = { ...plan, ifcGlobalIds: { ...plan.ifcGlobalIds, 'res:r-eq': shared, 'cal:libcal': shared } };
-  const document = buildIfcxDocument(input, CLOCK);
   const stepText = writeIFCForComparison(input);
   const stepGuid = (pattern: RegExp) => pattern.exec(stepText)![1];
-  const equipment = stepGuid(/IFCCONSTRUCTIONEQUIPMENTRESOURCE\('([^']+)'/);
-  const library = stepGuid(/IFCWORKCALENDAR\('([^']+)',#\d+,'Nachtploeg'/);
-  assert.equal(equipment, shared);
-  assert.notEqual(library, shared);
-  const resourcePaths = document.data.filter(entry => 'openaec::planning::resource' in entry.attributes).map(entry => entry.path);
-  const calendarPaths = document.data.filter(entry => 'openaec::planning::calendar' in entry.attributes).map(entry => entry.path);
-  assert.equal(resourcePaths[2], compactGlobalIdToUuid(equipment));
-  assert.equal(calendarPaths[1], compactGlobalIdToUuid(library));
-  const text = writeIfcx(input, CLOCK);
-  const back = readIfcx(encode(text));
-  assertSameDomain(back, input);
-  assert.equal(back.ifcGlobalIds!['res:r-eq'], shared);
-  assert.equal(back.ifcGlobalIds!['cal:libcal'], library, 'de herlezing houdt de GlobalId die de writer uitgaf');
-  assert.equal(writeIFCForComparison(back), stepText);
-  assert.equal(writeIfcx(back, CLOCK), text);
+  const globalIdOf = stepGlobalIdsFor(input);
+  assert.equal(stepGuid(/IFCCONSTRUCTIONEQUIPMENTRESOURCE\('([^']+)'/), shared);
+  assert.equal(globalIdOf('res', 'r-eq'), shared);
+  assert.equal(globalIdOf('cal', 'libcal'), stepGuid(/IFCWORKCALENDAR\('([^']+)',#\d+,'Nachtploeg'/));
+  const refusal = writeRefusal(input);
+  assert.equal(refusal.code, 'inconsistent');
+  assert.deepEqual(refusal.fields, ['resource.globalId']);
 });
 
 function appPlan(): ImportResult {

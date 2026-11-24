@@ -1,7 +1,8 @@
 import type { Baseline, BaselineTask } from '@/types/baseline';
 import type { MilestoneKind } from '@/types/task';
 import {
-  arrayOf, BOOLEAN, CALENDAR_DATE, enumOf, integer, LOCAL_MOMENT_OR_EMPTY, objectOf, REAL, TEXT, type IfcxField, type IfcxValue,
+  arrayOf, BOOLEAN, CALENDAR_DATE, enumOf, GLOBAL_ID_OUTSIDE_PATH, integer, ISO_DATE_OR_MOMENT_OR_EMPTY, ISO_MOMENT, LOCAL_MOMENT_OR_EMPTY,
+  NON_EMPTY_TEXT, NON_NEGATIVE, objectOf, TEXT, type IfcxField, type IfcxValue,
 } from '../fieldTable';
 import type { IfcxIdentity } from '../globalIdUuid';
 import { sharedProjectDate } from './documentFields';
@@ -58,7 +59,7 @@ const ROW: IfcxValue = objectOf({
   task: { value: UUID_TEXT, optional: true },
   start: { value: LOCAL_MOMENT_OR_EMPTY },
   finish: { value: LOCAL_MOMENT_OR_EMPTY },
-  duration: { value: REAL },
+  duration: { value: NON_NEGATIVE },
   isMilestone: { value: BOOLEAN, optional: true },
   milestoneKind: { value: enumOf(['START', 'FINISH']), optional: true },
   sourceTaskId: { value: TEXT, optional: true },
@@ -66,7 +67,7 @@ const ROW: IfcxValue = objectOf({
 });
 
 const ROW_IDENTITY: IfcxValue = objectOf({
-  task: { value: UUID_TEXT }, id: { value: TEXT, optional: true }, globalId: { value: TEXT, optional: true },
+  task: { value: UUID_TEXT }, id: { value: NON_EMPTY_TEXT, optional: true }, globalId: { value: GLOBAL_ID_OUTSIDE_PATH, optional: true },
 });
 
 function rowOut(row: BaselineTask, path: string | undefined) {
@@ -104,7 +105,7 @@ export const BASELINE_PLANNING_FIELDS: readonly BaselineField[] = [
     read: (v, t) => { t.name = v as string; },
   },
   {
-    key: 'creationDate', value: TEXT, optional: true,
+    key: 'creationDate', value: ISO_MOMENT, optional: true,
     write: s => s.baseline.createdAt || undefined,
     read: (v, t) => { t.createdAt = (v as string | undefined) ?? ''; },
   },
@@ -122,12 +123,12 @@ export const BASELINE_PLANNING_FIELDS: readonly BaselineField[] = [
 
 export const BASELINE_OPS_FIELDS: readonly BaselineField[] = [
   {
-    key: 'id', value: TEXT, optional: true,
+    key: 'id', value: NON_EMPTY_TEXT, optional: true,
     write: s => (s.baseline.id !== s.identity.path ? s.baseline.id : undefined),
     read: (v, t) => { t.id = (v as string | undefined) ?? t.path; },
   },
   {
-    key: 'globalId', value: TEXT, optional: true,
+    key: 'globalId', value: GLOBAL_ID_OUTSIDE_PATH, optional: true,
     write: s => s.identity.globalIdOutsidePath,
     read: (v, t) => { t.globalIdOutsidePath = v as string | undefined; },
   },
@@ -137,12 +138,12 @@ export const BASELINE_OPS_FIELDS: readonly BaselineField[] = [
     read: (v, t) => { if (v !== undefined) t.sourceProjectId = v as string; },
   },
   {
-    key: 'projectEnd', value: TEXT, optional: true,
+    key: 'projectEnd', value: ISO_DATE_OR_MOMENT_OR_EMPTY, optional: true,
     write: s => (s.baseline.projectEnd !== (sharedProjectDate(s.baseline.projectEnd) ?? '') ? s.baseline.projectEnd : undefined),
     read: (v, t) => { t.projectEnd = (v as string | undefined) ?? t.sharedFinish ?? ''; },
   },
   {
-    key: 'projectDuration', value: REAL, optional: true,
+    key: 'projectDuration', value: NON_NEGATIVE, optional: true,
     write: s => (s.baseline.projectDuration !== 0 ? s.baseline.projectDuration : undefined),
     read: (v, t) => { t.projectDuration = (v as number | undefined) ?? 0; },
   },

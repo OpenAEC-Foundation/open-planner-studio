@@ -1,17 +1,17 @@
 import type { WriteIFCInput } from '../ifcWriter';
-import { shownFinish, shownStart } from '@/utils/taskDates';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
-import { writeFields } from './fieldTable';
+import { checkValue, writeFields } from './fieldTable';
 import { identityOfGlobalId, type IfcxIdentity } from './globalIdUuid';
 import { libraryCalendarsWrittenByStep, stepGlobalIdsFor } from './stepGlobalIds';
 import { placesNeededForOrder } from './childOrder';
-import { projectSpan } from './dateProjection';
 import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from './fieldGroups';
 import { SCHEDULE_FIELDS } from './fields/documentFields';
-import { ownSchemas } from './ownAttributes';
+import { HEADER_VALUE, ownSchemas } from './ownAttributes';
+import { attributeValueProblem } from './schemaCheck';
 import { unsupportedContent } from './unsupportedContent';
-import { inconsistentContent } from './consistency';
+import { attributeRuleProblem, inconsistentContent } from './consistency';
+import { taskWindow } from './dateProjection';
 import { selfCheckDifferences } from './selfCheck';
 import { IfcxWriteRefusedError } from './ifcxErrors';
 import {
@@ -47,7 +47,7 @@ function attributesOf(pairs: readonly [IfcxAttributeName, Record<string, unknown
   return out;
 }
 
-function refused(code: 'unsupported' | 'inconsistent', details: readonly string[], fields: readonly string[]): IfcxWriteRefusedError {
+function refused(code: 'unsupported' | 'inconsistent' | 'invalid', details: readonly string[], fields: readonly string[]): IfcxWriteRefusedError {
   return new IfcxWriteRefusedError(code, details.join('; '), [...new Set(fields)]);
 }
 
@@ -70,12 +70,40 @@ function childPlaces(tasks: readonly Task[], taskPathById: ReadonlyMap<string, s
   return places;
 }
 
-export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDocument {
-  const { project } = input;
-  const inconsistencies = inconsistentContent(input);
-  if (inconsistencies.length > 0) {
-    throw refused('inconsistent', inconsistencies.map(item => item.detail), inconsistencies.map(item => item.field));
+function invalidValuesIn(document: IfcxDocument): IfcxWriteRefusedError | undefined {
+  const header = checkValue(HEADER_VALUE, document.header);
+  if (header) return refused('invalid', [`Ongeldige kop: ${header.kind === 'invalid' ? header.detail : 'onbekend veld'}`], [`header.${header.field}`]);
+  for (const entry of document.data) {
+    for (const [name, value] of Object.entries(entry.attributes) as [IfcxAttributeName, Record<string, unknown>][]) {
+      const problem = attributeValueProblem(entry.path, name, value);
+      if (problem) return refused('invalid', [`${name}: ${problem.detail}`], [`${name}.${problem.place.field ?? ''}`]);
+      const rule = attributeRuleProblem(name, value);
+      if (rule) return refused('invalid', [`${name}: ${rule.detail}`], [`${name}.${rule.field}`]);
+    }
   }
+  return undefined;
+}
+
+export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDocument {
+  if (Number.isNaN(writtenAt.getTime())) throw refused('invalid', ['Het moment van schrijven is geen geldige datum'], ['header.timestamp']);
+  let document: IfcxDocument;
+  try {
+    const inconsistencies = inconsistentContent(input);
+    if (inconsistencies.length > 0) {
+      throw refused('inconsistent', inconsistencies.map(item => item.detail), inconsistencies.map(item => item.field));
+    }
+    document = composeIfcxDocument(input, writtenAt);
+  } catch (error) {
+    if (error instanceof IfcxWriteRefusedError) throw error;
+    throw refused('invalid', [`De planning heeft een vorm die de writer niet kan schrijven: ${messageOf(error)}`], ['planning']);
+  }
+  const invalid = invalidValuesIn(document);
+  if (invalid) throw invalid;
+  return document;
+}
+
+function composeIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDocument {
+  const { project } = input;
   const globalIdOf = stepGlobalIdsFor(input);
   const projectIdentity = identityOfGlobalId(globalIdOf('proj', project.id));
   const workplanIdentity = identityOfGlobalId(globalIdOf('wp', project.id));
@@ -104,7 +132,7 @@ export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDo
   const taskPathById = new Map<string, string>();
   input.tasks.forEach((task, index) => { if (!taskPathById.has(task.id)) taskPathById.set(task.id, taskIdentities[index].path); });
   const places = childPlaces(input.tasks, taskPathById);
-  const assignedResourceIds = resourceIdsByTask(input.assignments);
+  const assignedResourceIds = resourceIdsByTask(input.assignments ?? []);
 
   const data: IfcxEntry[] = [];
   const documentSource = {
@@ -132,7 +160,7 @@ export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDo
     const calendarPath = task.calendarId === undefined ? undefined : calendarPathById.get(task.calendarId);
     const place = places.get(task.id);
     const source = {
-      task, identity: taskIdentities[index], span: projectSpan(shownStart(task), shownFinish(task)),
+      task, identity: taskIdentities[index], span: taskWindow(task),
       assignedResourceIds: assignedResourceIds.get(task.id) ?? [],
       ...(parentPath !== undefined ? { parentPath } : {}),
       ...(calendarPath !== undefined ? { calendarPath } : {}),

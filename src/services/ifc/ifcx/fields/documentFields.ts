@@ -1,6 +1,7 @@
 import { IFC_SCHEMAS, type Project } from '@/types/project';
 import {
-  BOOLEAN, CALENDAR_DATE, enumOf, REFERENCE, TEXT, VERSION_TEXT, type IfcxField,
+  BOOLEAN, CALENDAR_DATE, enumOf, GLOBAL_ID_OUTSIDE_PATH, ISO_DATE_OR_MOMENT_OR_EMPTY, NON_EMPTY_TEXT, REFERENCE, TEXT, VERSION_TEXT,
+  type IfcxField,
 } from '../fieldTable';
 import { OPS_PROFILE_VERSION } from '../profile';
 import { existingDatePart } from '../dateProjection';
@@ -71,37 +72,37 @@ export const DOCUMENT_OPS_FIELDS: readonly DocumentField[] = [
     read: (v, t) => { t.formatVersion = v as string; },
   },
   {
-    key: 'projectId', value: TEXT, optional: true,
+    key: 'projectId', value: NON_EMPTY_TEXT, optional: true,
     write: s => (s.project.id !== s.headerUuid ? s.project.id : undefined),
     read: (v, t) => { t.project.id = (v as string | undefined) ?? t.headerUuid; },
   },
   {
-    key: 'globalId', value: TEXT, optional: true,
+    key: 'globalId', value: GLOBAL_ID_OUTSIDE_PATH, optional: true,
     write: s => s.projectGlobalIdOutsidePath,
     read: (v, t) => { t.projectGlobalIdOutsidePath = v as string | undefined; },
   },
   {
-    key: 'startDate', value: TEXT, optional: true,
+    key: 'startDate', value: ISO_DATE_OR_MOMENT_OR_EMPTY, optional: true,
     write: s => (s.project.startDate !== (sharedProjectDate(s.project.startDate) ?? '') ? s.project.startDate : undefined),
     read: (v, t) => { t.project.startDate = (v as string | undefined) ?? t.sharedStart ?? ''; },
   },
   {
-    key: 'endDate', value: TEXT, optional: true,
+    key: 'endDate', value: ISO_DATE_OR_MOMENT_OR_EMPTY, optional: true,
     write: s => (s.project.endDate !== (sharedProjectDate(s.project.endDate) ?? '') ? s.project.endDate : undefined),
     read: (v, t) => { t.project.endDate = (v as string | undefined) ?? t.sharedFinish ?? ''; },
   },
   {
-    key: 'calendarId', value: TEXT, optional: true,
+    key: 'calendarId', value: NON_EMPTY_TEXT, optional: true,
     write: s => (s.project.calendarId !== s.projectCalendarId ? s.project.calendarId : undefined),
     read: (v, t) => { t.calendarIdOverride = v as string | undefined; },
   },
   {
-    key: 'createdAt', value: TEXT, optional: true,
+    key: 'createdAt', value: ISO_DATE_OR_MOMENT_OR_EMPTY, optional: true,
     write: s => s.project.createdAt || undefined,
     read: (v, t) => { t.project.createdAt = (v as string | undefined) ?? ''; },
   },
   {
-    key: 'modifiedAt', value: TEXT, optional: true,
+    key: 'modifiedAt', value: ISO_DATE_OR_MOMENT_OR_EMPTY, optional: true,
     write: s => s.project.modifiedAt || undefined,
     read: (v, t) => { t.project.modifiedAt = (v as string | undefined) ?? ''; },
   },
@@ -136,7 +137,7 @@ export const DOCUMENT_OPS_FIELDS: readonly DocumentField[] = [
     read: (v, t) => setOptional(t.project, 'defaultTaskDurationUnit', v as Project['defaultTaskDurationUnit']),
   },
   {
-    key: 'statusDate', value: TEXT, optional: true,
+    key: 'statusDate', value: ISO_DATE_OR_MOMENT_OR_EMPTY, optional: true,
     write: s => s.project.statusDate,
     read: (v, t) => setOptional(t.project, 'statusDate', v as string | undefined),
   },

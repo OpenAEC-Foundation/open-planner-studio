@@ -1,7 +1,7 @@
 import type { CalendarGeneration, Holiday, WorkCalendar, WorkingException, WorkTimeBands } from '@/types/calendar';
 import { DEFAULT_CALENDAR_ID } from '@/engine/calendar/defaultCalendar';
 import {
-  arrayOf, CALENDAR_DATE, enumOf, integer, objectOf, REAL, TEXT, type IfcxField, type IfcxValue,
+  arrayOf, CALENDAR_DATE, enumOf, GLOBAL_ID_OUTSIDE_PATH, integer, NON_EMPTY_TEXT, objectOf, REAL, TEXT, type IfcxField, type IfcxValue,
 } from '../fieldTable';
 import type { IfcxIdentity } from '../globalIdUuid';
 
@@ -107,12 +107,12 @@ export const CALENDAR_PLANNING_FIELDS: readonly CalendarField[] = [
 
 export const CALENDAR_OPS_FIELDS: readonly CalendarField[] = [
   {
-    key: 'id', value: TEXT, optional: true,
+    key: 'id', value: NON_EMPTY_TEXT, optional: true,
     write: s => (s.calendar.id !== derivedCalendarId(s.identity.path, s.isProjectCalendar) ? s.calendar.id : undefined),
     read: (v, t) => { t.calendar.id = (v as string | undefined) ?? derivedCalendarId(t.path, t.isProjectCalendar); },
   },
   {
-    key: 'globalId', value: TEXT, optional: true,
+    key: 'globalId', value: GLOBAL_ID_OUTSIDE_PATH, optional: true,
     write: s => s.identity.globalIdOutsidePath,
     read: (v, t) => { t.globalIdOutsidePath = v as string | undefined; },
   },
@@ -168,7 +168,7 @@ export const CALENDAR_OPS_FIELDS: readonly CalendarField[] = [
   {
     key: 'generation', optional: true,
     value: objectOf({
-      ruleSetId: { value: TEXT },
+      ruleSetId: { value: NON_EMPTY_TEXT },
       region: { value: TEXT, optional: true },
       breakChoice: { value: enumOf(['noord', 'midden', 'zuid']), optional: true },
       generatedFromYear: { value: integer() },

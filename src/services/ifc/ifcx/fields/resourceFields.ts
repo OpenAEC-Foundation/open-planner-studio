@@ -1,7 +1,7 @@
 import type { AvailabilityStep, Resource, ResourceType } from '@/types/resource';
 import type { LibraryOrigin } from '@/types/library';
 import {
-  arrayOf, CALENDAR_DATE, enumOf, integer, objectOf, REAL, REFERENCE, TEXT, type IfcxField,
+  arrayOf, CALENDAR_DATE, enumOf, GLOBAL_ID_OUTSIDE_PATH, integer, NON_EMPTY_TEXT, NON_NEGATIVE, objectOf, REFERENCE, TEXT, type IfcxField,
 } from '../fieldTable';
 import type { IfcxIdentity } from '../globalIdUuid';
 import { IfcxReadError } from '../ifcxErrors';
@@ -83,12 +83,12 @@ export const RESOURCE_PLANNING_FIELDS: readonly ResourceField[] = [
     read: (v, t) => { t.calendarPath = v as string | undefined; },
   },
   {
-    key: 'maxUnits', value: REAL, optional: true,
+    key: 'maxUnits', value: NON_NEGATIVE, optional: true,
     write: s => (s.resource.maxUnits !== DEFAULT_MAX_UNITS ? s.resource.maxUnits : undefined),
     read: (v, t) => { t.resource.maxUnits = (v as number | undefined) ?? DEFAULT_MAX_UNITS; },
   },
   {
-    key: 'costPerHour', value: REAL, optional: true,
+    key: 'costPerHour', value: NON_NEGATIVE, optional: true,
     write: s => s.resource.costPerHour,
     read: (v, t) => setOptional(t.resource, 'costPerHour', v as number | undefined),
   },
@@ -101,12 +101,12 @@ export const RESOURCE_PLANNING_FIELDS: readonly ResourceField[] = [
 
 export const RESOURCE_OPS_FIELDS: readonly ResourceField[] = [
   {
-    key: 'id', value: TEXT, optional: true,
+    key: 'id', value: NON_EMPTY_TEXT, optional: true,
     write: s => (s.resource.id !== s.identity.path ? s.resource.id : undefined),
     read: (v, t) => { t.resource.id = (v as string | undefined) ?? t.path; },
   },
   {
-    key: 'globalId', value: TEXT, optional: true,
+    key: 'globalId', value: GLOBAL_ID_OUTSIDE_PATH, optional: true,
     write: s => s.identity.globalIdOutsidePath,
     read: (v, t) => { t.globalIdOutsidePath = v as string | undefined; },
   },
@@ -123,12 +123,12 @@ export const RESOURCE_OPS_FIELDS: readonly ResourceField[] = [
     },
   },
   {
-    key: 'availability', value: REAL, optional: true,
+    key: 'availability', value: NON_NEGATIVE, optional: true,
     write: s => s.resource.availability,
     read: (v, t) => setOptional(t.resource, 'availability', v as number | undefined),
   },
   {
-    key: 'availabilitySteps', value: arrayOf(objectOf({ from: { value: CALENDAR_DATE }, maxUnits: { value: REAL } })), optional: true,
+    key: 'availabilitySteps', value: arrayOf(objectOf({ from: { value: CALENDAR_DATE }, maxUnits: { value: NON_NEGATIVE } })), optional: true,
     write: s => (s.resource.availabilitySteps ? stepsOut(s.resource.availabilitySteps) : undefined),
     read: (v, t) => setOptional(t.resource, 'availabilitySteps', v ? stepsOut(v as AvailabilityStep[]) : undefined),
   },
@@ -140,7 +140,7 @@ export const RESOURCE_OPS_FIELDS: readonly ResourceField[] = [
   {
     key: 'libraryOrigin', optional: true,
     value: objectOf({
-      companyId: { value: TEXT }, libraryItemId: { value: TEXT }, poolVersion: { value: integer() }, syncedHash: { value: TEXT, optional: true },
+      companyId: { value: NON_EMPTY_TEXT }, libraryItemId: { value: NON_EMPTY_TEXT }, poolVersion: { value: integer(0) }, syncedHash: { value: TEXT, optional: true },
     }),
     write: s => (s.resource.libraryOrigin ? libraryOriginOut(s.resource.libraryOrigin) : undefined),
     read: (v, t) => setOptional(t.resource, 'libraryOrigin', v ? libraryOriginOut(v as LibraryOrigin) : undefined),

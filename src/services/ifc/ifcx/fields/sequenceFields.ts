@@ -1,5 +1,5 @@
 import type { LagUnit, Sequence, SequenceType } from '@/types/sequence';
-import { enumOf, REAL, REFERENCE, TEXT, type IfcxField, type IfcxValue } from '../fieldTable';
+import { enumOf, GLOBAL_ID_OUTSIDE_PATH, NON_EMPTY_TEXT, REAL, REFERENCE, type IfcxField, type IfcxValue } from '../fieldTable';
 import type { IfcxIdentity } from '../globalIdUuid';
 
 export interface SequenceWriteSource {
@@ -101,12 +101,12 @@ export const SEQUENCE_PLANNING_FIELDS: readonly SequenceField[] = [
 
 export const SEQUENCE_OPS_FIELDS: readonly SequenceField[] = [
   {
-    key: 'id', value: TEXT, optional: true,
+    key: 'id', value: NON_EMPTY_TEXT, optional: true,
     write: s => (s.sequence.id !== s.identity.path ? s.sequence.id : undefined),
     read: (v, t) => { t.sequence.id = (v as string | undefined) ?? t.path; },
   },
   {
-    key: 'globalId', value: TEXT, optional: true,
+    key: 'globalId', value: GLOBAL_ID_OUTSIDE_PATH, optional: true,
     write: s => s.identity.globalIdOutsidePath,
     read: (v, t) => { t.globalIdOutsidePath = v as string | undefined; },
   },

@@ -2,7 +2,7 @@ import type { WriteIFCInput } from '../ifcWriter';
 import type { Baseline } from '@/types/baseline';
 import { writeFields } from './fieldTable';
 import { identityOfGlobalId, type IfcxIdentity } from './globalIdUuid';
-import { derivedGlobalId, globalIdKey, type GlobalIdOf } from './stepGlobalIds';
+import type { GlobalIdOf } from './stepGlobalIds';
 import { ASSIGNMENT_AREA, BASELINE_AREA, RESOURCE_AREA } from './fieldGroups';
 import type { BaselineRowIdentity } from './fields/baselineFields';
 import { ATTRIBUTE, type IfcxAttributeName } from './profile';
@@ -16,21 +16,6 @@ export interface ResourceEntryLinks {
 export interface PendingEntry {
   readonly path: string;
   readonly attributes: readonly [IfcxAttributeName, Record<string, unknown>][];
-}
-
-export function resourceGlobalIds(input: WriteIFCInput, globalIdOf: GlobalIdOf): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const resource of input.resources) out[globalIdKey('res', resource.id)] = globalIdOf('res', resource.id);
-  const liveTaskIds = new Set(input.tasks.map(task => task.id));
-  const keepIfIssued = (kind: 'baseline' | 'task', id: string) => {
-    const guid = globalIdOf(kind, id);
-    if (guid !== derivedGlobalId(kind, id, input.project.id)) out[globalIdKey(kind, id)] = guid;
-  };
-  for (const baseline of input.baselines ?? []) {
-    keepIfIssued('baseline', baseline.id);
-    for (const row of baseline.tasks) if (row.taskId && !liveTaskIds.has(row.taskId)) keepIfIssued('task', row.taskId);
-  }
-  return out;
 }
 
 function rowIdentities(baseline: Baseline, rowIdentity: readonly (IfcxIdentity | undefined)[], live: ReadonlyMap<string, string>): BaselineRowIdentity[] {
@@ -52,9 +37,9 @@ export function resourceEntries(input: WriteIFCInput, links: ResourceEntryLinks)
   const baselines = input.baselines ?? [];
   const entries: PendingEntry[] = [];
 
-  const resourceIdentities = input.resources.map(resource => identityOfGlobalId(links.globalIdOf('res', resource.id)));
-  const resourcePathById = new Map(input.resources.map((resource, index) => [resource.id, resourceIdentities[index].path]));
-  input.resources.forEach((resource, index) => {
+  const resourceIdentities = (input.resources ?? []).map(resource => identityOfGlobalId(links.globalIdOf('res', resource.id)));
+  const resourcePathById = new Map((input.resources ?? []).map((resource, index) => [resource.id, resourceIdentities[index].path]));
+  (input.resources ?? []).forEach((resource, index) => {
     const source = {
       resource, identity: resourceIdentities[index],
       ...(resource.parentId !== undefined ? { crewPath: resourcePathById.get(resource.parentId)! } : {}),
@@ -66,7 +51,7 @@ export function resourceEntries(input: WriteIFCInput, links: ResourceEntryLinks)
     ] });
   });
 
-  for (const assignment of input.assignments) {
+  for (const assignment of input.assignments ?? []) {
     const source = {
       assignment, identity: identityOfGlobalId(links.globalIdOf('assignment', assignment.id)),
       taskPath: links.taskPathById.get(assignment.taskId)!, resourcePath: resourcePathById.get(assignment.resourceId)!,

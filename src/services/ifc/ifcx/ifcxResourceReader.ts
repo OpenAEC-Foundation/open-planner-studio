@@ -10,8 +10,7 @@ import {
   baselineOf, emptyBaselineTarget, type BaselineReadTarget, type BaselineRowIdentity, type BaselineRowRead,
 } from './fields/baselineFields';
 import type { TaskReadTarget } from './fields/taskFields';
-import { derivedGlobalId, globalIdKey } from './stepGlobalIds';
-import { costInconsistencies } from './resourceConsistency';
+import { globalIdKey } from './stepGlobalIds';
 import { IfcxReadError, type IfcxErrorPlace } from './ifcxErrors';
 import { ATTRIBUTE, type IfcxAttributeName } from './profile';
 
@@ -21,13 +20,14 @@ export interface ResourceNode {
 }
 
 export interface ResourceReadContext {
-  readonly projectId: string;
   readonly nodes: (kind: 'resource' | 'assignment' | 'baseline') => readonly ResourceNode[];
   readonly reference: (path: string | undefined, kind: 'task' | 'calendar' | 'resource', place: IfcxErrorPlace) => string | undefined;
   readonly kindAt: (path: string) => string | undefined;
   readonly calendarIdAt: ReadonlyMap<string, string>;
   readonly taskTargets: readonly TaskReadTarget[];
+  readonly assertIdentityPath: (path: string, globalIdOutsidePath: string | undefined, place: IfcxErrorPlace) => void;
 }
+
 
 export interface ResourceReadResult {
   readonly resources: Resource[];
@@ -42,22 +42,14 @@ function invalid(detail: string, place?: IfcxErrorPlace): IfcxReadError {
   return new IfcxReadError('invalid', detail, place);
 }
 
-function assertUniqueIds(items: readonly { id: string; path: string }[], attribute: IfcxAttributeName, what: string): void {
-  const seen = new Set<string>();
-  for (const item of items) {
-    if (seen.has(item.id)) throw invalid(`Twee ${what} met id ${item.id}`, { path: item.path, attribute, field: 'id' });
-    seen.add(item.id);
-  }
-}
-
 function readResources(context: ResourceReadContext): { targets: ResourceReadTarget[]; idAt: Map<string, string> } {
   const targets = context.nodes('resource').map(node => {
     const target: ResourceReadTarget = { resource: emptyResource(), path: node.path };
     readFields(RESOURCE_AREA.planning, node.attributes.get(ATTRIBUTE.resource)!, target);
     readFields(RESOURCE_AREA.ops, node.attributes.get(ATTRIBUTE.opsResource) ?? {}, target);
+    context.assertIdentityPath(node.path, target.globalIdOutsidePath, { path: node.path, attribute: ATTRIBUTE.opsResource });
     return target;
   });
-  assertUniqueIds(targets.map(target => ({ id: target.resource.id, path: target.path })), ATTRIBUTE.opsResource, 'resources');
   const idAt = new Map(targets.map(target => [target.path, target.resource.id]));
   for (const target of targets) {
     const place = { path: target.path, attribute: ATTRIBUTE.resource };
@@ -77,10 +69,10 @@ function readAssignments(context: ResourceReadContext, taskIdAt: ReadonlyMap<str
     const place = { path: node.path, attribute: ATTRIBUTE.assignment };
     target.assignment.taskId = taskIdAt.get(context.reference(target.taskPath, 'task', { ...place, field: 'relatingProcess' })!)!;
     target.assignment.resourceId = resourceIdAt.get(context.reference(target.resourcePath, 'resource', { ...place, field: 'relatedResource' })!)!;
+    context.assertIdentityPath(node.path, undefined, { path: node.path, attribute: ATTRIBUTE.opsAssignment });
     return target;
   });
-  assertUniqueIds(targets.map(target => ({ id: target.assignment.id, path: target.path })), ATTRIBUTE.opsAssignment, 'toewijzingen');
-  return targets.map(target => target.assignment);
+  return targets;
 }
 
 function baselineChoice(targets: readonly BaselineReadTarget[]): { activeBaselineId: string | null; comparedBaselineIds: ComparedBaselineIds } {
@@ -102,9 +94,9 @@ function readBaselines(context: ResourceReadContext, taskIdAt: ReadonlyMap<strin
     const target = emptyBaselineTarget(node.path);
     readFields(BASELINE_AREA.planning, node.attributes.get(ATTRIBUTE.baseline)!, target);
     readFields(BASELINE_AREA.ops, node.attributes.get(ATTRIBUTE.opsBaseline) ?? {}, target);
+    context.assertIdentityPath(node.path, target.globalIdOutsidePath, { path: node.path, attribute: ATTRIBUTE.opsBaseline });
     return target;
   });
-  assertUniqueIds(targets, ATTRIBUTE.opsBaseline, 'baselines');
   const liveTaskIds = new Set(taskIdAt.values());
   const baselines = targets.map(target => {
     const place = { path: target.path, attribute: ATTRIBUTE.opsBaseline, field: 'taskIds' };
@@ -112,6 +104,7 @@ function readBaselines(context: ResourceReadContext, taskIdAt: ReadonlyMap<strin
     for (const identity of target.rowIdentities) {
       if (identityAt.has(identity.path)) throw invalid('Twee ids voor één baselinetaak', place);
       if (taskIdAt.has(identity.path)) throw invalid('Een eigen id voor een baselinetaak die bestaat', place);
+      context.assertIdentityPath(identity.path, identity.globalId, place);
       identityAt.set(identity.path, identity);
     }
     const taskIdOfRow = (row: BaselineRowRead): string => {
@@ -126,11 +119,10 @@ function readBaselines(context: ResourceReadContext, taskIdAt: ReadonlyMap<strin
       const guid = globalIdOfIdentity(row.task, identity?.globalId);
       const key = globalIdKey('task', id);
       if (globalIds[key] !== undefined && globalIds[key] !== guid) throw invalid(`Twee paden voor verwijderde baselinetaak ${id}`, rowPlace);
-      if (guid !== derivedGlobalId('task', id, context.projectId)) globalIds[key] = guid;
+      globalIds[key] = guid;
       return id;
     };
-    const guid = globalIdOfIdentity(target.path, target.globalIdOutsidePath);
-    if (guid !== derivedGlobalId('baseline', target.id, context.projectId)) globalIds[globalIdKey('baseline', target.id)] = guid;
+    globalIds[globalIdKey('baseline', target.id)] = globalIdOfIdentity(target.path, target.globalIdOutsidePath);
     return baselineOf(target, taskIdOfRow);
   });
   return { baselines, ...baselineChoice(targets) };
@@ -141,12 +133,12 @@ export function readResourceNodes(context: ResourceReadContext): ResourceReadRes
   const taskIdAt = new Map(context.taskTargets.map(target => [target.path, target.task.id]));
   const { targets, idAt } = readResources(context);
   for (const target of targets) globalIds[globalIdKey('res', target.resource.id)] = globalIdOfIdentity(target.path, target.globalIdOutsidePath);
-  const assignments = readAssignments(context, taskIdAt, idAt);
+  const assignmentTargets = readAssignments(context, taskIdAt, idAt);
+  for (const target of assignmentTargets) globalIds[globalIdKey('assignment', target.assignment.id)] = globalIdOfIdentity(target.path, undefined);
+  const assignments = assignmentTargets.map(target => target.assignment);
   const assigned = resourceIdsByTask(assignments);
   for (const target of context.taskTargets) target.task.resourceIds = target.resourceIdsOverride ?? assigned.get(target.task.id) ?? [];
   const resources = targets.map(target => target.resource);
-  const [problem] = costInconsistencies(resources, assignments);
-  if (problem !== undefined) throw invalid(problem.detail, { field: problem.field });
   const { baselines, activeBaselineId, comparedBaselineIds } = readBaselines(context, taskIdAt, globalIds);
   return { resources, assignments, baselines, activeBaselineId, comparedBaselineIds, globalIds };
 }

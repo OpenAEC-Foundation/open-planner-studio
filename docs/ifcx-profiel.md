@@ -197,8 +197,8 @@ tekst, want de contour mag een resource noemen die er niet meer is).
 | `subtype` | keuze `IfcLaborResource`, `IfcConstructionEquipmentResource`, `IfcConstructionMaterialResource`, `IfcSubContractResource`, `IfcCrewResource`, verplicht | de IFC-klasse; een kostenresource is `IfcConstructionMaterialResource`, zoals in STEP |
 | `crew` | pad | de ploeg (een andere resource) waar de resource bij hoort |
 | `calendar` | pad | de kalender van de resource; ontbreekt als zij de projectkalender volgt zonder eigen keuze |
-| `maxUnits` | getal | capaciteit per werkdag (1 is 100 %); ontbreekt bij 1 |
-| `costPerHour` | getal | tarief per uur |
+| `maxUnits` | getal ≥ 0 | capaciteit per werkdag (1 is 100 %); ontbreekt bij 1 |
+| `costPerHour` | getal ≥ 0 | tarief per uur |
 | `unitOfMeasure` | tekst | eenheid van materiaal |
 
 `openaec::ops::resource`: `id`, `globalId`, `type` (keuze `COST`, alleen bij een kostenresource), `availability` (het
@@ -213,14 +213,14 @@ het document), `color`, `libraryOrigin` (`{ companyId, libraryItemId, poolVersio
 |---|---|---|
 | `relatingProcess` | pad, verplicht | de taak |
 | `relatedResource` | pad, verplicht | de resource |
-| `unitsPerDay` | getal, verplicht | inzet per werkdag (1 is 100 %); bij een P6-toewijzing met restwerk het resterende tempo |
-| `plannedUnitsPerDay` | getal | het begrote tempo, als het afwijkt (P6) |
+| `unitsPerDay` | getal ≥ 0, verplicht | inzet per werkdag (1 is 100 %); bij een P6-toewijzing met restwerk het resterende tempo |
+| `plannedUnitsPerDay` | getal ≥ 0 | het begrote tempo, als het afwijkt (P6) |
 | `scheduleContour` | keuze `UNIFORM`, `FRONT_LOADED`, `BACK_LOADED`, `BELL`, `EARLY_PEAK`, `LATE_PEAK`, `DOUBLE_PEAK`, `TURTLE` | de verdeelcurve (`ScheduleContour` van `IfcResourceTime`); ontbreekt als de app geen curve vastlegde |
 | `scheduleWork`, `actualWork`, `remainingWork` | ISO 8601-duur `PT<minuten>M` | begroot, verricht en resterend werk (`IfcResourceTime`) |
-| `costAmount` | getal | het begrote bedrag van een kostentoewijzing |
+| `costAmount` | getal ≥ 0 | het begrote bedrag van een kostentoewijzing |
 
 `openaec::ops::assignment`: `id`, `plannedWorkMinutes`, `actualWorkMinutes`, `remainingWorkMinutes` (alleen als de
-minuten niet als ISO-duur te schrijven zijn: negatief of in e-notatie), `curveValues` (21 getallen, de precieze curve),
+minuten niet als ISO-duur te schrijven zijn: in e-notatie; werk is nooit negatief), `curveValues` (getallen van 0 tot en met 100, de precieze curve),
 `workWindowStart` en `workWindowFinish` (momenten, het tijdvenster van de toewijzing).
 
 ### Baseline
@@ -230,15 +230,15 @@ minuten niet als ISO-duur te schrijven zijn: negatief of in e-notatie), `curveVa
 | Veld | Vorm | Betekenis |
 |---|---|---|
 | `name` | tekst, verplicht | naam |
-| `creationDate` | tekst | het moment van vastleggen |
+| `creationDate` | moment in ISO 8601, met of zonder tijdzone | het moment van vastleggen |
 | `finish` | datum | de datum van het projecteinde in de baseline |
 | `tasks` | lijst, verplicht | de rijen, in de volgorde van het document |
 
 Een rij: `task` (UUID als tekst, het pad van de taak, ook als die taak verwijderd is; ontbreekt als de rij geen taak
-noemt), `start` en `finish` (momenten of leeg), `duration` (werkdagen, verplicht), `isMilestone` (ontbreekt bij nee),
+noemt), `start` en `finish` (momenten of leeg), `duration` (werkdagen, getal ≥ 0, verplicht), `isMilestone` (ontbreekt bij nee),
 `milestoneKind`, `sourceTaskId` en `sourceTaskCode` (de taak in het bronproject van een P6-baseline).
 
-`openaec::ops::baseline`: `id`, `globalId`, `sourceProjectId`, `projectEnd` (als het meer is dan een datum),
+`openaec::ops::baseline`: `id`, `globalId`, `sourceProjectId`, `projectEnd` (een dag of moment in ISO 8601, of leeg; alleen als het meer is dan een datum),
 `projectDuration` (werkdagen, ontbreekt bij 0), `active` (ja, bij de actieve baseline), `comparedSlot` (1 of 2, de
 plaats in de vergelijking), `taskIds` (lijst van `{ task, id, globalId }` voor de rijen van een verwijderde taak:
 `id` als het interne id afwijkt van het pad, `globalId` als de GlobalId geen 128-bitsvorm heeft).
@@ -308,17 +308,20 @@ ouders weigeren writer en lezer.
   bestaat of een kring in de ouders (`task.parentId`), kinderen die niet kloppen met de taken die de ouder noemen, ook
   een kind dat niet bestaat (`task.childIds`), een relatie van of naar een taak die niet bestaat
   (`sequence.predecessorId`, `sequence.successorId`), of een bibliotheekentry van de projectkalender met een andere
-  inhoud (`resourceCalendars`). Voor resources, toewijzingen en baselines (`resourceInconsistencies` in
-  `resourceConsistency.ts`): twee resources, toewijzingen of baselines met hetzelfde id (`resource.id`,
-  `assignment.id`, `baseline.id`), een ploeg of resourcekalender die niet bestaat (`resource.parentId`,
-  `resource.calendarId`), een toewijzing aan een taak of van een resource die niet bestaat (`assignment.taskId`,
-  `assignment.resourceId`), een actieve baseline die niet bestaat (`activeBaselineId`), en een vergelijking die de app
-  zelf zou wissen: een baseline die niet bestaat, de actieve of twee keer dezelfde (`comparedBaselineIds`). Ook wat
-  de app voor kosten afdwingt (`clearCostResourceFields`, `normalizeAssignmentForResource`): een kostenresource met
-  een tarief, kalender, ploeg, eenheid, stappen of een capaciteit anders dan 1, een kostentoewijzing met werkvelden,
-  een inzet anders dan 1 of een ongeldig bedrag, en een bedrag op een toewijzing van een werkresource
-  (`resourceConsistency.ts`; de lezer toetst dezelfde regels). STEP laat de meeste van die gevallen bij schrijven of
-  lezen stil vallen;
+  inhoud (`resourceCalendars`). Resources, toewijzingen, baselines en verwijderde baselinetaken staan in dezelfde
+  lijst van soorten (`IDENTITY_KINDS` in `identity.ts`): twee resources, toewijzingen of baselines met hetzelfde id
+  (`resource.id`, `assignment.id`, `baseline.id`), een GlobalId die een ander object al heeft (`resource.globalId`,
+  enzovoort), een ploeg of resourcekalender die niet bestaat (`resource.parentId`, `resource.calendarId`) en een
+  toewijzing aan een taak of van een resource die niet bestaat (`assignment.taskId`, `assignment.resourceId`). Een
+  baselinerij verwijst met tekst en mag een verwijderde taak noemen: die taak is daar een eigen soort
+  (`baselineTask`), zonder verwijzing, maar met een GlobalId die uniek moet zijn. Twee regels in
+  `CONSISTENCY_RULES` (uitgewerkt in `resourceConsistency.ts`): `baselinekeuze`, een actieve baseline die niet bestaat
+  (`activeBaselineId`) of een vergelijking die de app zelf zou wissen, met een baseline die niet bestaat, de actieve
+  of twee keer dezelfde (`comparedBaselineIds`); en `kosten`, wat de app voor kosten afdwingt
+  (`clearCostResourceFields`, `normalizeAssignmentForResource`): een kostenresource met een tarief, kalender, ploeg,
+  eenheid, stappen of een capaciteit anders dan 1, een kostentoewijzing met werkvelden, een inzet anders dan 1 of een
+  ongeldig bedrag, en een bedrag op een toewijzing van een werkresource. De lezer toetst dezelfde lijst op zijn
+  resultaat. STEP laat de meeste van die gevallen bij schrijven of lezen stil vallen;
 - met code `self-check`, als de eigen controle na het schrijven een verschil vindt; `fields` noemt de paden van de
   eerste verschillen (zie *Zelfcontrole*).
 

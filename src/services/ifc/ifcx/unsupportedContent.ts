@@ -39,11 +39,11 @@ export function unsupportedContent(input: WriteIFCInput): string[] {
     for (const key of uncarriedKeys(sequence, sequenceCarried)) found.add(`sequence.${key}`);
   }
   const resourceCarried = carriedKeys(RESOURCE_GROUPS);
-  for (const resource of input.resources) {
+  for (const resource of input.resources ?? []) {
     for (const key of uncarriedKeys(resource, resourceCarried)) found.add(`resource.${key}`);
   }
   const assignmentCarried = carriedKeys(ASSIGNMENT_GROUPS);
-  for (const assignment of input.assignments) {
+  for (const assignment of input.assignments ?? []) {
     for (const key of uncarriedKeys(assignment, assignmentCarried)) found.add(`assignment.${key}`);
   }
   const baselineCarried = carriedKeys(BASELINE_GROUPS);

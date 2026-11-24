@@ -21,7 +21,7 @@ function hashSeedOf(kind: IfcxObjectKind, id: string, projectId: string): string
   return kind === 'cal' && id === DEFAULT_CALENDAR_ID ? `${key}@${projectId}` : key;
 }
 
-export function derivedGlobalId(kind: IfcxObjectKind, id: string, projectId: string): string {
+export function defaultGlobalId(kind: IfcxObjectKind, id: string, projectId: string): string {
   return ifcGuid128(hashSeedOf(kind, id, projectId));
 }
 
@@ -54,10 +54,10 @@ export function stepGlobalIdsFor(input: WriteIFCInput): GlobalIdOf {
   for (const baseline of input.baselines ?? []) issue('baseline', baseline.id);
   for (const task of input.tasks) issue('task', task.id);
   for (const sequence of input.sequences) issue('seq', sequence.id);
-  for (const resource of input.resources) issue('res', resource.id);
+  for (const resource of input.resources ?? []) issue('res', resource.id);
   for (const calendar of libraryCalendarsWrittenByStep(input)) issue('cal', calendar.id);
   for (const baseline of input.baselines ?? []) for (const row of baseline.tasks) if (row.taskId) issue('task', row.taskId);
-  for (const assignment of input.assignments) issue('assignment', assignment.id);
+  for (const assignment of input.assignments ?? []) issue('assignment', assignment.id);
   return issue;
 }
 

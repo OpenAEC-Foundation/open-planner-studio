@@ -1,11 +1,11 @@
 import type { Task, TaskTimephasedContour, TimephasedContourPeriod } from '@/types/task';
-import { arrayOf, enumOf, integer, objectOf, REAL, TEXT, type IfcxField } from '../fieldTable';
+import { arrayOf, enumOf, integer, NON_EMPTY_TEXT, NON_NEGATIVE, objectOf, type IfcxField } from '../fieldTable';
 import type { TaskReadTarget, TaskWriteSource } from './taskFields';
 
 type TaskField = IfcxField<TaskWriteSource, TaskReadTarget>;
 
 const PERIOD = objectOf({
-  afterMinutes: { value: REAL }, minutes: { value: REAL }, workMinutes: { value: REAL }, kind: { value: enumOf(['actual', 'remaining']) },
+  afterMinutes: { value: NON_NEGATIVE }, minutes: { value: NON_NEGATIVE }, workMinutes: { value: NON_NEGATIVE }, kind: { value: enumOf(['actual', 'remaining']) },
 });
 
 const periodsOf = (periods: readonly TimephasedContourPeriod[]): TimephasedContourPeriod[] =>
@@ -31,14 +31,14 @@ const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.
 
 export const TASK_RESOURCE_OPS_FIELDS: readonly TaskField[] = [
   {
-    key: 'resourceIds', value: arrayOf(TEXT), optional: true,
+    key: 'resourceIds', value: arrayOf(NON_EMPTY_TEXT), optional: true,
     write: s => (sameList(s.task.resourceIds, s.assignedResourceIds) ? undefined : [...s.task.resourceIds]),
     read: (v, t) => { t.resourceIdsOverride = v === undefined ? undefined : [...(v as string[])]; },
   },
   {
     key: 'timephasedContours', optional: true,
     value: arrayOf(objectOf({
-      resourceUid: { value: integer(), optional: true }, resourceId: { value: TEXT, optional: true }, periods: { value: arrayOf(PERIOD) },
+      resourceUid: { value: integer(), optional: true }, resourceId: { value: NON_EMPTY_TEXT, optional: true }, periods: { value: arrayOf(PERIOD) },
     })),
     write: s => (s.task.timephasedContours ? contoursOut(s.task.timephasedContours) : undefined),
     read: (v, t) => {
