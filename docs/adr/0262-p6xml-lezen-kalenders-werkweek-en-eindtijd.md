@@ -1,7 +1,8 @@
 # P6 XML lezen: welke kalenders, de werkweek en het einde van een blok
 
 P6 schrijft het einde van een werktijdblok als de laatste minuut ervan: 08:00 tot 16:30 staat als
-`<Finish>16:29:00</Finish>`. Andere programma's en de oudere eigen writer schrijven het exacte einde (`16:30:00`).
+`<Finish>16:29:00</Finish>` (zo staat het in de toetsen en bij de writer; de fixtures zijn zelf geschreven, en of
+elke versie van P6 zo schrijft, is in de repo niet nagegaan). Andere programma's en de oudere eigen writer schrijven het exacte einde (`16:30:00`).
 Eén regel voor beide zou een van de twee een minuut per blok laten winnen of verliezen; op een kalender met halve
 uren kostte dat een minuut per dag (`check-p6xml-calendar-rules.ts` (1), fixronde 2 van #330). De regel geldt daarom
 per bestand (`p6FinishUsesLastMinute`): de laatste minuut als het een export van OPS is (ADR 0260) met een

@@ -14,7 +14,8 @@ het 0 %.
 ## Gevolgen
 
 - Een percentage is een fractie van 0 tot 1 en wordt keer 100 genomen (`p6PercentToPercent`; de huidige writer schrijft
-  zo, `check-p6xml-writer-p6.ts` 4a). Een export van OPS zonder `<PercentCompleteType>` schreef procenten en houdt ze
+  zo, `check-p6xml-writer-p6.ts` 4a). Dat P6 en MPXJ een fractie schrijven, komt uit het weggehaalde commentaar en is
+  niet nagegaan. Een export van OPS zonder `<PercentCompleteType>` schreef procenten en houdt ze
   (7c). Een waarde boven 1 kan geen fractie zijn en blijft een procent; een procent van 1 of minder uit een ander
   programma leest daardoor als fractie.
 - In een export van OPS is de status geen bron: OPS leidt de status af uit voortgang en werkelijke datums

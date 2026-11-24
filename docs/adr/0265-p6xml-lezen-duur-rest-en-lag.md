@@ -24,6 +24,8 @@ de schrijver, omdat een getal anders bij elke rondgang verandert.
   geschreven, telt dan niet (review #585 r1, punt 1).
 - De lagkalender komt uit de project-UDF `OPS_LagCalendar` (`parseLagCalendarOption`) als die er staat, en anders uit
   `<ScheduleOptions>` via `deriveP6XmlScheduleOptions` (ADR 0267).
+- `Lag` is een lengte in uren; de eenheid van de opvolger verandert die lengte niet (spec I5). Een geldig lagrecord
+  geeft de dagenmaat terug, of de kalendertijd, die P6 per relatie niet kent (`lagFromRecord`).
 - Zonder geldig record wordt de lag `sixDecimalHoursToMinutes`: ruis van zes decimalen wordt de hele minuut
   (0,666667 uur is 40 minuten) en een echte breuk blijft (150,5 minuten), zoals in de XER-lezer
   (`check-uren-f5b-adapters.ts` (13) en (14), review #591).
