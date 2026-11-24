@@ -1,15 +1,6 @@
-// De productgrens van 150 MiB voor het openen van een model (#804, fixronde 3 van #1127, route A) door de echte routes:
-// openen per route, het geval met de gemengde IFC-tekst, het crashherstel door de echte herstelvraag (browser zonder en
-// met handle, sitebestand, twee tabbladen, desktop met nagebootste Tauri-IPC) en een onderbroken opslag. Een bestand van
-// 150 MiB is daarvoor niet nodig: de proef verlaagt de productgrens met haar proefnaad; de technische grens blijft die
-// van main.
-//
 // Hoe: deze check bundelt `ifcGrensProef.ts` met dezelfde esbuild-instellingen als run.sh, en zet in
 // `useRecoveryRestore.ts` `reactHookDouble.ts` in plaats van `react` en `react-i18next` (elk precies één keer, anders
 // faalt de check).
-//
-// Mutatiebewijs: de controle uit `openOpenedFile` halen ⇒ deel 1 en 2 rood; de uitzondering van het herstel
-// (`restoringVerifiedIfcSource`) weghalen ⇒ het herstel (deel 3) rood, in de browser en op de desktop.
 //
 // Draait via run.sh (esbuild-bundel), één keer, buiten de tijdzone-matrix: de bundel twee keer, `web` en `desktop` (met
 // een eigen tijdelijke map als appData). Exit 0 = alles groen.

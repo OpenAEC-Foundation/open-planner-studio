@@ -1509,6 +1509,24 @@ en noem het in je rapport of PR-tekst.
       geeft donderdag. Of elke aanroeper (onder meer `CPMSolver.ts`, `ResourceLeveler.ts`, `useBarDrag.ts`,
       `splitWalk.ts`, `barDragMath.ts`) een werkdag meegeeft, is niet nagegaan. — B
 
+2301. **Een P6 XML-bestand zonder OPS-markering waarvan elke eindtijd op een veelvoud van vijf minuten valt, leest met
+      exacte eindtijden, ook als de schrijver de laatste minuut bedoelde.** `p6FinishUsesLastMinute`
+      (`src/services/p6/p6xmlReader.ts`, ADR 0262) telt alleen een minuut bij elke eindtijd op bij een export van OPS
+      met `<StandardWorkHours>`, of als minstens één eindtijd van een werkblok (behalve 23:59) niet op een veelvoud van
+      vijf minuten valt. Nagespeeld met een script via `readP6XMLDocuments`, met een blok vanaf 08:00: zonder
+      OPS-markering geeft `<Finish>16:00:00</Finish>` een blok tot 16:00 en `<Finish>15:59:00</Finish>` ook; met de
+      OPS-markering en `<StandardWorkHours>` geeft `<Finish>16:00:00</Finish>` een blok tot 16:01. Bedoelt de schrijver
+      met `16:00:00` een blok tot 16:01, dan komt dat blok in het eerste geval een minuut korter binnen. Of een programma
+      zulke bestanden schrijft, is niet nagegaan. — B
+
+2302. **De P6 XML-lezer begrenst het aantal bibliotheekkalenders niet.** `readP6XmlProject`
+      (`src/services/p6/p6xmlReader.ts`) leest elke `<Calendar>` met `<Type>Resource</Type>` als bibliotheekkalender, ook
+      als geen activiteit of resource ernaar verwijst; alleen de projectkalender, een kalender zonder geldig `ObjectId` en
+      een kalender met hetzelfde `ObjectId` als een eerdere slaat hij over. De MSPDI-lezer stopt bij 1024
+      bibliotheekkalenders (`MAX_MSPDI_CALENDARS`); de `.mpp`-lezer stopt bij 1024 unieke ruwe kalenderrecords
+      (`MAX_CALENDARS`, `mppCalendars.ts`). Nagespeeld met een script via `readP6XMLDocuments`: een bestand met 1200
+      Resource-kalenders met verschillende geldige `ObjectId`'s zonder verwijzing geeft 1200 bibliotheekkalenders. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
@@ -2606,14 +2624,6 @@ en noem het in je rapport of PR-tekst.
      `/tmp/fase1c-pr11b-bewijs/browser-eerste-run/`; geslaagde route en screenshot-herstel in
      `/tmp/fase1c-pr11b-bewijs/browser-vervolg-1/`. — B
 
-1569. **VERVOLG (#804, MCP-tekst): het advies van `planner_export_ifc` bij een bestaand doel klopt niet bij een vreemd
-     deel.** `src/services/mcp/tools/fileTools.ts` adviseert bij een bestaand doel zonder `overwrite` nog om
-     `overwrite: true` te sturen. Heeft het document een vreemd deel, dan blijft dat doel ook daarna geweigerd: de
-     route eist een nieuwe naam (via de dispatcher nagegaan, nul schrijfacties). De tekst van de bronweigering zegt
-     bovendien nog dat alleen planning zou worden geschreven. Richting: bij een vreemd deel meteen de uitleg "kies een
-     nieuwe naam" geven en zeggen dat veilig vervangen nog ontbreekt (1131); geen nieuwe foutklasse. Gevonden door de
-     review van #928. — B
-
 1563. **VERVOLG (#804, tekst): de algemene blokkademelding noemt de reden en de uitweg niet.**
      `notifications.ifcForeignSaveBlocked` zegt "Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk." De
      planner ziet haar bij een geblokkeerde route (bijvoorbeeld pool-export of de flag uit), en ook
@@ -3245,8 +3255,9 @@ en noem het in je rapport of PR-tekst.
         `nNumberOfLinks` in `place_file_exclusive`, `unsupported`, `refused`) dezelfde zin als een bestaande naam
         (`ifcForeignNewTargetOnly`), zonder terugval. Met de flag uit zijn volgorde, meldingen en bestandsaanroepen
         die van main. Of er een bestand staat, stelt de kiezer direct na zijn terugkeer
-        vast (1890). Blijft open: Exporteren → IFC en `planner_export_ifc` over een bestaande naam (weigeren nog; de
-        vraag ligt bij de eigenaar). Niet gemeten in een echte desktopapp.
+        vast (1890). Exporteren → IFC en `planner_export_ifc` (alleen met `overwrite: true`) vervangen een bestaande
+        naam sinds #1179 langs dezelfde functie (`placeOnDesktop`, met `documentId: null`; besluit van de eigenaar, 21
+        november 2026); het eigen bestand van het document blijft daar geweigerd. Niet gemeten in een echte desktopapp.
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
@@ -3713,7 +3724,10 @@ en noem het in je rapport of PR-tekst.
      start, dan leest de startroute de nieuwe versie wel (`src/state/launchFiles.ts`, `read`, rond regel 100–118),
      maar `existingDocument` kiest het open tabblad met hetzelfde bestand (identiteit of padtekst) en `openOpenedFile`
      wisselt daarheen (`src/state/slices/fileSlice.ts`, `switchDocument(existing)`). De zojuist gelezen inhoud
-     vervalt, zonder melding; het tabblad toont de oude stand. Met de featureflag uit vergelijkt Ctrl+S bij een gewone
+     vervalt; het tabblad toont de oude stand. Met de featureflag `ifcForeignContent` (#1121, aanpak W) krijgt het
+     tabblad daarbij de strook als het tabblad zijn versie kent en die verschilt (proef V5 "start" in
+     `check-one-file-one-tab.ts`); kent het tabblad zijn versie niet, of staat de flag uit, dan wisselt het zonder
+     melding, zoals main (V6). Met de featureflag uit vergelijkt Ctrl+S bij een gewone
      planning (zonder vreemd deel) de versie op schijf niet met de versie van het tabblad: de opslag vervangt de
      nieuwere versie en het extern opgeslagen werk is weg. Met de flag aan weigeren Ctrl+S en Automatisch opslaan dat
      sinds #1174 met de bestaande melding ("Het bestand is intussen door een ander programma gewijzigd"), zolang het
@@ -3726,8 +3740,7 @@ en noem het in je rapport of PR-tekst.
      alleen schrijfbeurten van de app zelf, geen wijziging van buiten. Via
      Bestand → Openen, Recent en slepen opent main in dit geval een tweede tabblad met de nieuwe versie. Zelfde
      familie als 1957. Dezelfde volgorde blokkeerde PR #1121 in reviewronde 7; daar is zij nagespeeld voor Openen,
-     Recent, slepen en MCP, de startroute zelf niet. Richting: alleen wisselen als de gelezen versie overeenkomt met
-     de versie die het tabblad van zijn bestand kent. — B (code gelezen, ook door de reviewer van #1153; niet
+     Recent, slepen en MCP, de startroute zelf niet. Wat overblijft: het geval zonder bekende versie (V6). — B (code gelezen, ook door de reviewer van #1153; niet
      nagespeeld)
 
 2065. **VERVOLG (#804, de versie op het eigen doel): het tabblad merkt niet elke schrijfactie van de app op zijn bestand.**
@@ -3783,20 +3796,27 @@ en noem het in je rapport of PR-tekst.
      ander programma het bestand in die tijd (op de desktop ongeveer zo lang als het schrijven van het tijdelijke
      bestand duurt), dan overschrijft de app die versie zonder melding, zoals main dat altijd doet. Een document met een
      gebouwmodel heeft daar de vervanging met een tweede vergelijking vlak vóór het plaatsen
-     (`replaceOwnPathWithRecovery`); die route is voor een gewone planning bewust niet overgenomen (opdracht #804). —
+     (`replaceOwnPathWithRecovery`); die route is voor een gewone planning bewust niet overgenomen (opdracht #804). Bij
+     een versie die het tabblad zelf schreef (PR #1194) vervalt de doelscan, maar de toets blijft de laatste lezing vóór
+     het schrijven: hetzelfde gat als hier beschreven, niet groter. —
      S (code gelezen, niet nagespeeld)
 
-2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): met de featureflag aan leest de bestaande
-     doelscan vóór elke Ctrl+S en elke ronde het hele eigen bestand, en daarna leest de toets van de bekende versie het
-     nog eens.** `refusedWriteTarget` in `src/state/ifcForeignGuard.ts` laat `targetRefusal`
-     (`src/services/fileAccess/foreignSourceTarget.ts`) het doel ook bij een gewone planning helemaal indelen; daarna
-     leest `changedKnownTarget` (`src/state/knownTargetGuard.ts`) het bij gelijke grootte opnieuw en rekent de SHA-256.
-     Gemeten in Node op aia09-mp50 (23 november 2026, mediaan van 15): voor een planning van 10.000 taken (11.821.500
-     bytes) kost de doelscan alleen al in het geheugen 1.732 ms, de toets 23,5 ms; voor het grootste voorbeeld (481.752
-     bytes) 74 ms tegen 2 ms. In de app (lezen via de Tauri-plugin of `getFile()`, en op een netwerkschijf) is het niet
-     gemeten. Richting: scan en hash in één lezing. Besluit technisch beslisser (23 november 2026): dit hoort bij de
-     voorwaarden voordat de flag standaard aan mag. — B (gemeten in Node, meetlog
-     `bewaakte-opslag-logs/07-meting.log` van #1174)
+2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): de eerste opslag na openen leest het eigen bestand
+     nog drie keer, een opslag zonder bekende versie twee keer.** Sinds PR #1194 vervalt de doelscan als op het eigen pad of
+     de eigen handle de versie staat die het tabblad zelf schreef (`origin: 'written'`, `writtenKnownTarget` in
+     `src/state/knownTargetGuard.ts`): dan blijven de broncontrole en één lezing met de vergelijking, als laatste stap
+     vóór het schrijven. De eerste opslag na openen (`origin: 'opened'`) en een tabblad dat zijn versie niet kent (`null`:
+     na crashherstel, een mislukte schrijfactie, laden in hetzelfde tabblad) houden bewust de volgorde van main: de
+     doelscan als stroom (modelscan en indeling) en, alleen met een bekende versie, daarna de toets: drie lezingen na
+     openen, twee zonder bekende versie. "Eén lezing" bij een zelf geschreven versie geldt voor de vergelijking van het
+     eigen doel; een bronkenmerk zonder browserhandle (uit herstel) kan in de broncontrole zelf nog een lezing vragen.
+     De scanner van openen neemt meer aan dan de doelscan (twee datasecties, proef 2203 C in `check-bewaakte-opslag.ts`),
+     en de toets moet de laatste lezing blijven (review
+     Sol, ronde 1 van #1194). Ook een zelf geschreven versie die niet meer op het doel staat, krijgt die route van main.
+     Gemeten in Node 24 op aia09-mp50: zie de PR voor de getallen per opslag. In de app (Tauri-IPC, WebKit, `getFile()`,
+     een netwerkschijf, de Worker) niet gemeten. Richting: de scan bij openen in de achtergrond op `ifcSource.bytes`
+     laten draaien en de uitkomst bij de vingerafdruk bewaren, met een laatste toets vóór het schrijven. — B (gemeten in
+     Node, meetlogs `doelscan-logs/` van #1194)
 
 2206. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan in de browser): een aanraking tijdens het lezen van
      de eigen handle kan een onterechte weigering geven.** `knownTargetContentOfHandle` in
@@ -3807,6 +3827,22 @@ en noem het in je rapport of PR-tekst.
      veranderden. Er gaat niets verloren; opnieuw opslaan lukt. Richting: bij `NotReadableError` één keer opnieuw
      `getFile()` en lezen. Gevonden door de review van #1174 (Sol, ronde 1). — S (niet nagespeeld met een echte
      Chromium-handle)
+
+2244. **VERVOLG (#804, featureflag aan): opslaan na een wijziging van een bestand met een gebouwmodel en veel taken
+     duurt lang, en de tijd groeit sneller dan het aantal taken.** Het gaat om de gewijzigde merge: een bestand met een
+     gebouwmodel openen, een taak wijzigen en opslaan. Gemeten in Node op aia09-mp50 (24 november 2026, wandkloktijd,
+     één run per regel, op main van die dag) met `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` waaraan gewone taken
+     zijn toegevoegd: bij 1.000 taken (1,2 MB) 7,0 s, bij 5.000 taken (5,8 MB) 55,8 s, bij 10.000 taken (11,9 MB)
+     147,6 s. Openen van dat laatste bestand kost 4,3 s. Met één onbekende JSON-sleutel per taaknotitie: 5,8 s bij 1.000
+     en 183,1 s bij 5.000 taken. De metingen bij 1.000 en 5.000 taken liepen terwijl de machine zwaar belast was (load
+     20 tot 36); die bij 10.000 taken bij een load rond 3. Een eerdere run van 10.000 taken onder zware belasting kwam
+     op 513,8 s. Niets hiervan is in rust of in CPU-tijd gemeten, en niet in de app zelf (de opslag-Worker). Welke stap
+     sneller groeit dan het aantal taken, is nog niet uitgezocht. Er gaat niets verloren; de opslag slaagt. Met de
+     flag uit, en bij een planning zonder gebouwmodel of gegevens van een ander programma, loopt deze route niet.
+     Besluit technisch beslisser (24 november 2026): dit hoort bij de voorwaarden voordat de flag standaard aan mag;
+     opslaan na een wijziging mag bij 10.000 taken niet meer dan enkele seconden kosten, en een kwadratische stap is
+     een bug, geen grens. Gezien door de bouwer van #1188 bij het meten van die PR. — S (gemeten door de bouwer,
+     meetlogs `opslag-main-1k.log`, `opslag-main-5k.log` en `opslag-main-10k-rustig.log` van #1188; niet nagemeten)
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
@@ -3924,6 +3960,50 @@ en noem het in je rapport of PR-tekst.
      elk pad, ook bij Hello Wall. Voorstel: in F3-6 vastleggen welke ingang echt valideert (de functie `Validate`, de
      TypeSpec of het OpenAPI-bestand), en Hello Wall als controle voor dat referentiecontract gebruiken. — B
 
+2010. **De MSPDI-lezer telt een dag vóór de `T` in een taakduur als 1440 minuten, ook in werktijd; wat een schrijver
+      daarmee bedoelt, is niet nagegaan.** `mspDurationMinutes` (`src/services/msproject/mspdiReader.ts`) rekent een
+      dagcomponent als 1440 minuten. Nagespeeld met een script op een kalender van 8 uur per dag, taak zonder
+      OPS-markering: `<Duration>PT16H0M0S</Duration>` geeft 960 minuten (2 dagen), `P2D` en `P2DT0H0M0S` geven allebei
+      2880 minuten (6 dagen); de review van #1200 zag hetzelfde. Dezelfde functie leest ook `<RemainingDuration>` en het
+      werk van een toewijzing. Of een schrijver met `P2D` twee werkdagen of 48 uur bedoelt, en of zo'n schrijver bestaat,
+      is niet nagegaan; daarvan hangt af of 2880 minuten klopt. — B
+
+2011. **Een veld dat op een MSPDI-taak ontbreekt, kan de lezer uit een genest element halen.** `getElementText` in
+      `src/services/msproject/mspdiReader.ts` neemt het eerste element met die naam ergens onder de taak
+      (`descendantText`), ook binnen `<PredecessorLink>` of `<Baseline>`. Nagespeeld met een script via `readMSPDI`, en
+      in de review van #1200 ook via `parseOpenedFile`: een taak zonder `<Type>` met een `<PredecessorLink>` met
+      `<Type>2</Type>` krijgt `mspTaskType` `FIXED_WORK`, en een taak zonder `<Duration>` met een `<Baseline>` met
+      `<Duration>PT40H0M0S</Duration>` krijgt 2400 minuten. Volgens die review maakt het MSPDI-schema `<Type>` en
+      `<Duration>` op een taak optioneel, dus geldige XML van een andere schrijver kan dit raken; of MS Project zelf die
+      velden weglaat, is niet nagegaan. Welke andere velden zo kunnen verschuiven, ook niet. — B
+
+2303. **De P6 XML-lezer rekent de eenheden van een materiaaltoewijzing om alsof het uren zijn.** In de toewijzingslezer
+      van `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) worden `PlannedUnits`, `ActualUnits` en `RemainingUnits`
+      voor elke soort resource keer 60 genomen en aan `importedWorkFields` gegeven; wijken ze af van de afgeleide, dan
+      komen ze in `plannedWorkMinutes`, `actualWorkMinutes` en `remainingWorkMinutes`, velden in werkminuten
+      (`src/types/resource.ts`). De XER-lezer geeft een materiaaltoewijzing geen werkvelden (`xerResourceAssignments.ts`).
+      Nagespeeld met een script via `readP6XMLDocuments`: een materiaal `Beton` (eenheid `m3`) op een taak van 480
+      minuten met `PlannedUnitsPerTime` 1.25 en `PlannedUnits`/`RemainingUnits` 3 geeft `plannedWorkMinutes` 180 en
+      `remainingWorkMinutes` 180; met 10 geeft het geen werkvelden, omdat 600 minuten gelijk is aan de afleiding. Open
+      vraag: of `PlannedUnits` van een materiaal in P6 XML uren zijn of de eigen eenheid van het materiaal; Oracle P6 Help
+      beschrijft materiaal met een eigen eenheid (https://docs.oracle.com/cd/F88966_01/p6help/en/33987.htm, aangedragen
+      in de review en niet zelf gelezen). Welke berekening die velden daarna voor materiaal gebruikt, is niet nagegaan.
+      — B
+
+2304. **De projectstart uit P6 XML houdt geen tijd, ook niet op een uurkalender.** `readP6XmlProject`
+      (`src/services/p6/p6xmlReader.ts`) leest `PlannedStartDate` van het project op een uurkalender met zijn tijd
+      (`xmlTaskDate`), maar zet `project.startDate` daarna op het anker dat `resolveMissingScheduleDates`
+      (`src/services/importDates.ts`) teruggeeft, en dat is het datumdeel. Nagespeeld met een script via
+      `readP6XMLDocuments`: een bestand met een projectkalender in twee blokken per dag en `PlannedStartDate`
+      `2026-11-23T09:00:00` geeft een uurkalender, `project.startDate` `2026-11-23` en een taakstart `2026-11-23T09:00`.
+      De eerste lezing met tijd verandert zo niets aan wat de lezer levert (ADR 0264). — B
+
+2305. **Na een P6 XML met `SequenceNumber` volgt `childIds` van een WBS-taak een andere volgorde dan de takenlijst.**
+      `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) sorteert de WBS-taken op `SequenceNumber`, maar vult
+      `childIds` van de ouder in de documentvolgorde. Nagespeeld met een script via `readP6XMLDocuments`: onder WBS `R`
+      staan in het bestand eerst `A` (`SequenceNumber` 2) en dan `B` (`SequenceNumber` 1); de takenlijst geeft `R, B, A`,
+      `childIds` van `R` geeft `A, B`. Welke delen van de app de volgorde uit `childIds` halen, is niet nagegaan. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
@@ -3968,7 +4048,7 @@ en noem het in je rapport of PR-tekst.
 1127. **Ontwerp #804 noemt twee versies en twee groottewaarden.** Het ontwerpbestand
      `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md` heet v20, maar §4.9 noemt
      de tijdelijke terugval "v21, fase 1a". De grootte is gelijkgezet (21 november 2026): §4.13 noemt twee getallen, de
-     productgrens van 150 MiB voor het openen van een model (`IFC_MODEL_OPEN_MAX_BYTES`) en de technische grens van de
+     drempel van 150 MiB voor de waarschuwing bij openen (`IFC_FOREIGN_OPEN_WARN_BYTES`) en de technische grens van de
      bytes-route van 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`, de meting van fase 0); meting en besluit bij 1936. VERVOLG
      (docs): de versieverwijzing in het ontwerp gelijkzetten. — B
 
@@ -3982,7 +4062,9 @@ en noem het in je rapport of PR-tekst.
      app op 3,0 GB staan. Vóór de ingrepen (main `1830e5e67`): 52 MB in 24,5 s met 2,08 GB; een model van 87 MB met
      vooral losse punten in 22,4 s met 2,52 GB (zonder wijziging 16,8 s en 1,97 GB); bij 157 MB stond het proces na 51
      s op 4,09 GB en stopte de kernel de webview, vóór er iets geschreven was (het bestand bleef byte-gelijk en
-     crashherstel zette de wijziging terug). In Node kost dezelfde opslag veel minder (CI-run 44895156035, het werk
+     crashherstel zette de wijziging terug). Dat is één gemeten geval, op Linux, tijdens het rekenen; het zegt niet wat
+     er gebeurt als het geheugen opraakt terwijl de app schrijft. Voor de vensters tijdens het schrijven en plaatsen zie
+     1890, 1899, 2207, 2208, 2247 en 2248. In Node kost dezelfde opslag veel minder (CI-run 44895156035, het werk
      van de opslagworker, met wijziging): 150 MiB in 9,18 s met 1.228 MB, 300 MiB in 16,97 s met 2.239 MB (vóór de
      ingrepen 17,35 s en 1.708 MB, en 33,23 s en 3.155 MB). De cijfers uit Node zeggen dus niet of een model in de
      desktopapp past. Openen is het probleem niet: 157 MB opent in 12,4 s met een piek van 1,68 GB. Stand na #1111 (de
@@ -3994,8 +4076,8 @@ en noem het in je rapport of PR-tekst.
      Rust-proces springt bij het schrijven nog tot 635 MB (dat haalt het geparkeerde #1110 weg), maar telt niet meer
      mee voor de piek. Bij de derde opslag (3.688 MB) is er 408 MB over tot het plafond van 4.096 MB. In die meting
      liep de piek per opslag nog op (ongeveer 0,1 tot 0,15 GB), hoewel elke opslag een verse worker heeft en de rust
-     niet oploopt; niet verklaard. Dat proefmodel is 3,6 KB groter dan 150 MiB en opent sinds de productgrens niet
-     meer. Stand op de release v2026.48.0 (main `e50c0f98a`), gemeten op 23 november 2026 in de desktopapp op Linux
+     niet oploopt; niet verklaard. Dat proefmodel is 3,6 KB groter dan 150 MiB; het opende van 21 tot 24 november 2026
+     niet en opent nu met de waarschuwing. Stand op de release v2026.48.0 (main `e50c0f98a`), gemeten op 23 november 2026 in de desktopapp op Linux
      (WebKitGTK) met het pakket van de release zelf (`.deb`), featureflag aan, Automatisch opslaan uit, een model uit
      dezelfde generator net onder de grens (157.184.144 bytes, 149,9 MiB), zes keer een duur gewijzigd en Ctrl+S met
      telkens 30 s rust: alle zes de opslagen slaagden. De afgelezen cgroup-piek van de hele app kwam bij de eerste
@@ -4008,9 +4090,14 @@ en noem het in je rapport of PR-tekst.
      kleiner) verschillen alle drie. Eén run, niet herhaald. De MB in de desktopmetingen van dit punt zijn binair
      (MiB) en afgekapt op hele eenheden: voor de hele app de standen van de cgroup, voor het Rust-proces de RSS van
      dat ene proces. De getallen in GB van de meting na #1111 zijn zulke cgroup-standen gedeeld door duizend (3.438 MB
-     staat er als 3,44 GB). Openen van een model boven 150 MiB weigert sinds 21 november 2026 (de productgrens
-     `IFC_MODEL_OPEN_MAX_BYTES`, besluit van de eigenaar, zie 1127); de technische grens van de bytes-route blijft 300
-     MiB, en de uitvoer van opslaan heeft geen grens (2043). Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB,
+     staat er als 3,44 GB). Openen van een model boven 150 MiB weigerde van 21 tot 24 november 2026. Sinds het besluit
+     van de eigenaar van 24 november ("zo laten, kunnen we niet maken dat het toch kan en dan gewoon hier een warning van
+     maken dat het heel gevaarlijk is?") opent het meteen, met een waarschuwing zonder timer die zegt dat opslaan kan
+     mislukken en recente wijzigingen dan verloren kunnen gaan (de drempel `IFC_FOREIGN_OPEN_WARN_BYTES`, PR #1203; dat
+     de melding kan verdwijnen zonder klik staat bij 2253). De app waarschuwt daar dus in plaats van te weigeren,
+     terwijl het geheugen daar niet bewezen is: op de desktop is boven 150 MiB alleen dat proefmodel van 157 MB gemeten,
+     3,6 KB boven de drempel; een groter model is nergens op de desktop gemeten. De technische grens van de bytes-route
+     blijft 300 MiB, en de uitvoer van opslaan heeft geen grens. Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB,
      en 300 MiB vraagt ruim 6 GB. Met de flag uit bestaat dit niet: openen van een bestand met een gebouwmodel wordt
      geweigerd, op main en in v2026.47.0 gelijk (157 MB en 87 MB gemeten), en een bestand van 87 MB zonder gebouwmodel
      slaat op beide in 0,7 s op. Niet gemeten: meer dan zes opslagen, Automatisch opslaan, Windows en macOS, 300 MiB
@@ -4054,19 +4141,39 @@ en noem het in je rapport of PR-tekst.
      (op main één worker, op de PR twee). Richting, als het nodig blijkt: de worker van gewone verzoeken los houden van
      die van de merge, zodat een gewoon verzoek zijn gestarte worker houdt zoals op main. — B (proef in Node)
 
-2043. **Een opgeslagen model kan boven de productgrens van 150 MiB uitkomen en opent daarna niet meer (#804, flag aan).**
-     Opslaan (merge), *Opslaan als* en *Exporteren* van een document met een gebouwmodel kennen geen grens op de
-     uitvoer (`writeIfcMerge` in `mergeWriter.ts`). De productgrens `IFC_MODEL_OPEN_MAX_BYTES` (`modelOpenLimit.ts`)
-     geldt alleen bij openen. Groeit een open model door de planning (taken, relaties, toewijzingen) tot boven 150 MiB,
-     dan gaat opslaan goed: de app schrijft het bestand, en een volgende Ctrl+S in dezelfde sessie lukt ook (de opslag
-     neemt de nieuwe bytes als bron over). Opnieuw openen weigert het daarna, met de melding "Dit IFC-bestand is groter
-     dan 150 MB …"; met de flag uit weigert openen het om het gebouwmodel, zoals main. Het crashherstel geeft het tot de
-     technische grens van 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`) terug met model en planning, zoals main
-     (`check-ifc-foreign-grens.ts` deel 3), mits de bron beschikbaar, passend (lengte en SHA-256) en leesbaar is. Er gaat
-     niets verloren: het bestand bevat model en planning. Met één bestand, één tabblad (PR #1121) geeft heropenen van
-     zo'n al open, inmiddels gegroeid model de groottemelding, en het huidige tabblad blijft actief. Richting: vóór het
-     schrijven de uitvoer tegen de productgrens houden. — B (code gelezen; niet met een bestand van 150 MiB nagespeeld)
+2253. **VERVOLG (#804, flag aan): de waarschuwing bij een groot gebouwmodel kan verdwijnen zonder klik.** De melding
+     `notifications.ifcForeignOpenLarge` (boven 150 MiB, PR #1203) heeft geen timer (`STICKY_OPEN_NOTICE_KEYS`), maar
+     de stapel houdt hoogstens drie meldingen: bij vier grote bestanden in één sleepactie verdringt de vierde melding de
+     eerste. En staat de grootteregel onder een samengevoegde openingsmelding (bijvoorbeeld bij een onbruikbaar
+     XER-bronarchief, met een vaste `dedupeKey`), dan kan een volgende opening die melding vervangen, en daarmee de
+     grootteregel van het eerdere bestand. Gevolgen van de bestaande stapel en samenvouwing; de gids noemt de melding
+     daarom "zonder timer". De eigenaar koos voor "De waarschuwing blijft staan tot je haar wegklikt": dit punt gaat ook
+     naar hem. Bron: review van #1203, ronde 1 (Sol). — B (code gelezen: `notify` en `MAX_NOTIFICATIONS` = 3 in
+     `uiSlice.ts`; niet nagespeeld)
 
+2048. **VERVOLG (#1121, flag aan): de melding "buiten dit tabblad gewijzigd" kan ook komen als de lezing ouder is dan
+     wat het tabblad net opsloeg.** Begint een openactie te lezen vlak voordat het tabblad met hetzelfde bestand opslaat
+     (1909, 1837), dan krijgt ze de oude bytes terwijl het tabblad de nieuwe versie kent. De vergelijking ziet een
+     verschil en de app wisselt met de strook. De tekst klopt dan niet. Verloren gaat er niets: het tabblad houdt zijn
+     inhoud, en zijn eigen versie staat op schijf. Proeven: B7 in `check-one-file-one-tab.ts`, "1837: een al begonnen lezing" in
+     `check-ifc-own-file-replace.ts`. Richting: het verschil alleen melden als de lezing na de laatste eigen opslag
+     begon. — B (proef)
+2245. **VERVOLG (#1121, flag aan): een oudere lezing kan een nieuwere strook wissen.** Het tabblad kent versie A. Twee
+     openacties van hetzelfde bestand lopen door elkaar, en tussen hun lezingen slaat een ander programma versie B op.
+     Rondt de tweede eerst af, dan zet zij de strook (B verschilt van A). Rondt daarna de eerste af, met A, dan is die
+     lezing gelijk aan wat het tabblad kent en wist zij de strook, terwijl B op schijf staat. Op de site geldt hetzelfde
+     voor twee opvragingen via Recent. Er gaat geen werk verloren: het tabblad houdt zijn inhoud, en Ctrl+S weigert
+     daarna met de bestaande melding van de bewaakte opslag (#1174) zolang het tabblad zijn versie kent. Zeldzaam: twee
+     overlappende openacties en een externe opslag ertussen. Gevonden in ronde 10 van de review van #1121 (Sol).
+     Richting: een volgnummer per openactie, genomen vóór het lezen; een gelijke lezing wist de strook alleen als geen
+     latere openactie voor hetzelfde doel een verschil meldde. Dat raakt alle zes openroutes, dus een eigen PR. — B (code
+     gelezen, niet nagespeeld)
+
+2205. **VERVOLG (#1121): de beschrijving van `planner_import_schedule` noemt de route "naar het open tabblad" ook als de
+     featureflag uit staat.** De toolbeschrijving is één vaste tekst in `src/services/mcp/tools/fileTools.ts`; ze zegt
+     dat het werkt "with the experimental setting … on", maar een client met de flag uit leest dezelfde tekst. Het
+     antwoord zelf volgt de flag (geen `alreadyOpen` met de flag uit). Richting: een beschrijving per flagstand, als de
+     toolregistry dat gaat toelaten. — B (code)
 2049. **VERVOLG, zo op main: een bestaand IFC-bestand zonder gebouwmodel van meer dan 300 MiB is voor de doelscan
      onleesbaar (#804, flag aan).** De doelscan deelt een bestand van meer dan `IFC_FOREIGN_SCAN_MAX_BYTES` (300 MiB,
      de technische grens) niet in en geeft `unreadable`; de doelcontrole weigert het dan als doel van Ctrl+S, *Exporteren*
@@ -6053,7 +6160,10 @@ en noem het in je rapport of PR-tekst.
      tabblad pas na die tweede controle in de store, dan opent het met de oude bron terwijl het bestand de nieuwe versie
      krijgt. Er gaat niets verloren: Ctrl+S in dat tweede tabblad weigert dan met een melding (het eerste tabblad heeft
      het bestand als bron, en wat er staat is niet meer zijn bron), en Opslaan als blijft. Richting: het openen van een pad meldt zich bij de
-     schrijfcoördinator zodat lezen en vervangen elkaar uitsluiten. Gevonden bij fixronde 1 van #1008, uit de code. — S
+     schrijfcoördinator zodat lezen en vervangen elkaar uitsluiten. Gevonden bij fixronde 1 van #1008, uit de code.
+     Met de featureflag `ifcForeignContent` (#804, knownbug 1957) ziet de toets na het lezen dat het bestand al open staat
+     en gaat de app naar het tabblad dat opsloeg; de oude bron komt dan niet in een tabblad (proef "1837: een al begonnen
+     lezing …" in `check-ifc-own-file-replace.ts`, via Recent). Met de flag uit zoals hierboven. — S
 1847. **VERVOLG (opruimen): de schooncontrole bij het sluiten bouwt de titels van alle tabbladen op.**
      `closeDocument(id, { onlyIfClean })` (`documentSlice.ts`) vraagt via `getOpenDocuments` de titel en het volgnummer
      van elk open document op om van één document de wijzigingsvlag te lezen. Eén zoekactie naar het doel-id, gevolgd
@@ -6082,6 +6192,64 @@ en noem het in je rapport of PR-tekst.
      doelidentiteit kan teruggeven. Een extra vraag van de app zelf is een productkeuze: de eigenaar koos één
      bevestiging. Gevonden door de review van #1019 (Sol, ronde 1). — S
 
+2207. **VERVOLG (#804, tekst): na een crash tijdens Exporteren → IFC over een bestaande naam kan de bewaarde export
+     "niet opgeslagen planning" heten.** De export vervangt een bestaand bestand langs dezelfde vervanging als Opslaan als
+     (`replaceOwnPathWithRecovery` met `documentId: null`). Crasht de app nadat het tijdelijke bestand volledig geschreven
+     is en voordat de export op de naam staat, dan bewaart de volgende start dat bestand als `<naam> (niet opgeslagen
+     planning <datum tijd>).ifc`, dezelfde kopienaam als bij Opslaan als (`settleReplaceRemnants`,
+     `ifcForeignReplaceUnsavedCopy`). Het vorige bestand staat dan nog op zijn naam (crash vóór het opzijzetten), of de
+     volgende start zet het terug als het doel ontbreekt en de opzijgezette versie aantoonbaar die uit het record is. Er
+     gaat niets verloren, maar het woord past niet bij een export: het tabblad kan al vóór de export opgeslagen zijn. Het
+     herstelrecord weet niet of het een export was; een eigen naam vraagt een veld in het record. Voorlopige keuze P5 van
+     de bouwopdracht van #1179; proef: de crashgevallen van Exporteren in `check-ifc-own-file-replace.ts`. — B
+
+2208. **VERVOLG (#804, grens): een bestand dat een ander programma op de gekozen naam zet tussen de bevestiging in het
+     venster en de eerste waarneming van die naam, kan Exporteren → IFC vervangen.** De kiezer (plugin-dialog) geeft alleen
+     een pad terug, niet wat de planner in het venster bevestigde. De export bindt het doel daarom aan de versie die de app
+     bij de eerste waarneming van de uiteindelijke doelnaam leest (`pickSaveTarget`: `lstat`, een gewoon bestand helemaal
+     gelezen), zoals Opslaan als (1890); tijdstempels tellen niet mee (fixronde 2 van #1179). Stond er bij die lezing niets,
+     dan blijft het de exclusieve aanmaak van main: een bestand dat daarna verschijnt, blijft staan, met
+     `exportReplaceNewTargetOnly`. Wat binnen één stap moet gebeuren: een ander programma zet in dat venster (de terugkeer
+     van de dialoog over IPC, bij een aangevulde extensie ook de aparte `exists`-toets van de kiezer, dan de `lstat` en de
+     lezing) een gewoon bestand op de naam, bijvoorbeeld een synchronisatieprogramma dat een bestaand bestand in
+     dezelfde map naar die naam hernoemt. Dan geldt dat bestand als bevestigd: de export vervangt het langs de vervanging
+     van Opslaan als, en stap 5 wist het als het onderweg niet veranderde. Niet slechter dan main: Opslaan als doet in
+     hetzelfde venster hetzelfde (1890), en de gewone export van main over een bestaande naam (`saveDataDialog` →
+     `writeUserFileTauri` → `replaceUserFile` in `atomicWrite.ts`) hernoemt over wat er op dat moment staat, zonder
+     vergelijking, ook over een bestand dat pas na de lezing kwam. De assistent heeft geen venster: `overwrite: true` is
+     de toestemming voor het pad, en zijn eigen `exists` komt vóór de lezing. Niet gemeten op Windows of macOS. Proeven: "Grens
+     (knownbug 2208)" en "… waar na de lezing direct na de keuze een bestand verschijnt" in
+     `check-ifc-own-file-replace.ts`. — B
+
+2247. **VERVOLG (#804, grens): een bewerking terwijl de definitieve plaatsing van Exporteren → IFC al onderweg is, komt
+     niet meer in dat exportbestand.** Na het opzijzetten van het doel vraagt de export of de planning sinds de opdracht
+     veranderde (de haak `planningChanged`) en of de flag nog aan staat (`replaceAllowed`), en roept in dezelfde
+     synchrone stap `place_file_exclusive` aan: `tauriOwnFileReplaceFs` laadt de Tauri-aanroep vooraf, zodat er geen
+     `await` tussen zit (fixronde 2 van #1179). Wat binnen één stap moet gebeuren: de planner bewerkt een taak terwijl die
+     opdracht onderweg is (IPC en de hernoeming in het commando). Dan staat op het doel de planning van het moment van de
+     opdracht, wist stap 5 de vorige versie die de planner bevestigde, en blijft de bewerking in het document, dat
+     gewijzigd blijft. Er gaat geen planning verloren. Voor de flag geldt dezelfde grens: wie haar uitzet terwijl die
+     opdracht onderweg is, ziet de vervanging nog afronden. Niet slechter dan main: de gewone export van main controleert
+     vlak vóór de hernoeming en roept die in dezelfde stap aan (`refuseBeforePlace` in `replaceUserFile`,
+     `atomicWrite.ts`); aan de kant van de app is de volgorde dezelfde (controle, dan één opdracht: daar `rename`, hier
+     `place_file_exclusive`), en hoe lang elk van beide in het besturingssysteem duurt, is niet gemeten. Opslaan als
+     controleert alleen vóór het opzijzetten (`refuseBeforePlace`) en plaatst daarna zonder nieuwe controle, een groter
+     venster. Proeven: "De laatste controles vóór de definitieve plaatsing …" en "Grens
+     (knownbug 2247)" in `check-ifc-own-file-replace.ts`, en de bewerking tijdens de definitieve plaatsing in de
+     grenzentoets van `cases-doc-file.ts`. — B
+
+2248. **VERVOLG (#804): een schrijffout bij het vastleggen van een herstelrecord kan een half recordbestand in de
+     app-gegevensmap achterlaten.** Stap 0 van de vervanging (Ctrl+S met een gebouwmodel, Opslaan als over een bestaande
+     naam, en sinds #1179 Exporteren → IFC en `planner_export_ifc` over een bestaande naam) schrijft het record via
+     `writeViaTemp` (`atomicWrite.ts`) naar `recovery[.<slug>].replace.<id>.json.tmp`. Faalt dat schrijven halverwege,
+     bijvoorbeeld bij een volle schijf, dan stopt de vervanging terecht met `not-recorded` vóór er in de projectmap iets
+     gebeurt, maar het half geschreven `.json.tmp` blijft staan: het schrijven valt vóór de opruimende `try`, de start
+     leest alleen voltooide `.json`-records en de gewone herstelopruiming (`recoveryPaths.ts`) kent deze naam niet. Er gaat
+     geen planning verloren; het is een los bestand in de app-gegevensmap. Op main geldt dit al bij Opslaan als. Richting
+     (review van #1179, Sol ronde 3): laat de recordstore (`replaceRecords.ts`) na een mislukte schrijfactie één aantoonbaar
+     eigen tijdelijk bestand opruimen; de recordvorm blijft. De proef met een gooiende recordstore in
+     `check-ifc-own-file-replace.ts` bewijst alleen de weigering. — B (code)
+
 1893. **Browser: Opslaan als over het bestand van een ander tabblad maakt dat bestand af; daarna wijzen beide tabbladen ernaar (OPS #1022).**
      Op de desktop weigert *Opslaan als* sinds #1022 een bestand dat in een ander tabblad open staat (de doelcontrole
      direct na de bestandskiezer, `openDocumentsExcept` in `refusedWriteTarget`). In de browser (Chromium, een handle uit
@@ -6095,21 +6263,49 @@ en noem het in je rapport of PR-tekst.
      of het andere tabblad zijn bestand laten loslaten zodat zijn Ctrl+S Opslaan als wordt; of de keuze in de browser
      anders laten lopen (de richting van 1899). Een nieuwe vraag of melding is een keuze voor de eigenaar. Hetzelfde geldt
      voor *Exporteren*: op de desktop weigert het sinds 1907 een bestand dat in een ander tabblad open staat, in de
-     browser vergelijkt de doelcontrole ook daar geen handles en schrijft de export het bestand helemaal. — B (proef)
+     browser vergelijkt de doelcontrole ook daar geen handles en schrijft de export het bestand helemaal. Met de flag
+     `ifcForeignContent` (#1121) blijft dit staan: het andere tabblad kent dan nog de versie van zijn laatste eigen
+     opslag (2065). Heropenen gaat dan naar het tabblad dat de nieuwe, gelijke versie open heeft (dat krijgt voorrang),
+     zonder strook; het andere tabblad krijgt geen strook vanzelf, en Ctrl+S daarin overschrijft zoals main. — B (proef)
 
-1957. **Openen opent hetzelfde bestand een tweede keer, in een nieuw tabblad, zonder melding.** Kiest de planner op de
-     desktop via *Openen* een bestand dat al in een tabblad open staat, dan opent de app het nog eens, in een nieuw
-     tabblad, zonder melding en zonder naar het open tabblad te wisselen. Daarna wijzen twee tabbladen naar hetzelfde
-     pad; slaat de planner het ene op (Ctrl+S of Automatisch opslaan), dan overschrijft dat stil wat het andere opsloeg.
-     Dezelfde familie als 1893: twee tabbladen, één bestand. Gezien met een proef voor de bestandskiezer op de desktop,
-     via de echte store-actie `openFile()` (review van #1093, ronde 2; de proef staat op de geparkeerde branch
-     `feat/804-coordinator-toelating`, `check-ifc-document-save.ts`, "twee keer Openen"). Alleen in de code gelezen, niet
-     met een proef: Recent (`openRecentFile`), een bestand op het venster slepen en `planner_import_schedule` lopen door
-     dezelfde open-route (`openOpenedFile` of direct `openAsDocument`), en die kijkt niet of het doel al in een tabblad
-     open staat. De browser is niet nagegaan. Een bestand dat bij het starten is meegegeven (#1091) wisselt wel naar
-     het open tabblad (`openLaunchFiles`). Voorstel: het tweede Openen wisselt naar het open tabblad. Een keuze voor
-     de eigenaar, samen met 1893. Besluit technisch beslisser (21 november 2026): 1893 en 1957 gaan vóór 1939, en vóór de
-     featureflag `ifcForeignContent` standaard aan gaat. — B (proef, bestandskiezer op de desktop)
+1957. **Met de featureflag `ifcForeignContent` uit: Openen opent hetzelfde bestand een tweede keer, in een nieuw tabblad, zonder melding.**
+     Kiest de planner via *Openen* (of Recent, slepen, de site, `planner_import_schedule`) een bestand dat al in een
+     tabblad open staat, dan opent de app het nog eens, in een nieuw tabblad, zonder melding en zonder naar het open
+     tabblad te wisselen. Daarna wijzen twee tabbladen naar hetzelfde bestand; slaat de planner het ene op (Ctrl+S of
+     Automatisch opslaan), dan overschrijft dat stil wat het andere opsloeg. Dezelfde familie als 1893.
+     **Met de flag aan opgelost** (#804, PR 1 van 2, besluit van de eigenaar 21 november 2026 "één bestand, één
+     tabblad", verfijnd op 23 november 2026: aanpak W): in de gewone routes gaat de app dan naar het tabblad dat het
+     bestand al open heeft; dat tabblad houdt zijn inhoud. Bij het wisselen vergelijkt de app synchroon de hash en
+     grootte van de net gelezen bytes met de versie die het tabblad van zijn bestand kent (`knownTargetFingerprint`,
+     #1168; op de site de gelezen versie met `siteFileVersion`). Gelijk: wisselen zonder melding. Ongelijk: wisselen,
+     en het tabblad krijgt een strook "… is buiten dit tabblad gewijzigd. Dit tabblad toont nog de eerdere versie. Sluit
+     dit tabblad en open het bestand opnieuw om de nieuwe versie te zien." (sessiegegeven van het tabblad, niet in de
+     meldingenlijst; zonder knop: een knop om de nieuwe versie te laden wordt een eigen PR op de bestaande sluit- en
+     openroute, besluit van 24 november 2026). De app laadt nooit vanzelf een nieuwe versie. De beslissing (`src/state/openDocumentFor.ts`, besluit D na
+     ronde 6 van de review van #1121: geen wachtmoment en geen bestandsaanroep in de openactie) valt na het parsen, in
+     de stap van het activeren. Op de desktop telt alleen dezelfde letterlijke padtekst (2063); in de browser hetzelfde
+     handle-object of een `isSameEntry`-treffer die al binnen is (2062); de site het id; MCP legt document, driftanker
+     en antwoord (`alreadyOpen`, bij een verschil ook `changedOnDisk`) in die stap vast. De keuze leest de actuele
+     flag en de uitkomst van de lezing, niets wat vóór het lezen is vastgelegd (fixronde na ronde 9), en geldt alleen
+     voor een formaat dat een opslagdoel kan zijn. Een
+     bestand dat bij het starten is meegegeven (#1091) houdt de toets en de herlezing van main en krijgt alleen bij een
+     bewezen verschil de melding. **Benoemde grens:** kent het tabblad zijn versie niet (geopend met de flag uit, uit
+     crashherstel, buiten de desktopapp een pad zonder opslagdoel, een lezing zonder bytesroute zoals IFC2X3 of een
+     bestand boven de grens van de scanner), dan opent het bestand in een tweede tabblad, zoals main; het startbestand
+     wisselt dan zoals main zonder versiecontrole (2064). Proeven: `check-one-file-one-tab.ts` (V1–V7 per route:
+     dezelfde versie, een andere versie, onbekend, en openen–bewerken–Ctrl+S–opnieuw openen; K de strook: weg na
+     opslaan, Opslaan als, een export over het eigen bestand, een heropening met dezelfde versie, sluiten en de flag
+     uit, en alleen bij het eigen tabblad; verder de volgorde
+     lezen, parsen, activeren zoals main per route in T1 en T2, D1–D3, P1–P5, R2–R7, B1–B11, C1–C5, A1–A20),
+     G16–G20 (met G19b/c) in `check-site-storage.ts` en `cases-doc-file.ts`; in de browser de stap in `new-open-task-flow.spec.ts`.
+     Wat met de flag aan nog gaat zoals main: in de browser krijgt een tabblad dat ná de toets dit bestand krijgt
+     (*Opslaan als* geeft daar een nieuw handle-object) een tweede tabblad ernaast (1893); een opslag die het bestand op
+     schijf vervangt terwijl het gelezen of geparst wordt, blijft 1909; MCP leest buiten de schrijfrij om (2060); een
+     taakdialoog die tijdens het lezen opengaat, sluit bij het nieuwe tabblad (2061). Ctrl+S na de melding weigert
+     met de bestaande melding van de bewaakte opslag (#1174, 2064).
+     Met de flag uit blijft het zoals main (besluit T1 van de technisch beslisser); dat verdwijnt als de flag standaard
+     aan gaat. De headless MCP-server heeft geen flag, dus daar geldt het ook (knownbug 2042). Grenzen van de toets:
+     2029, 2040, 2041, 2048, 2062, 2063. — B (proef, met de flag uit)
 
 1908. **Opslaan als naar een naam die een ander tabblad nog onthoudt, terwijl het bestand weg is: daarna delen beide tabbladen die naam.**
      Is het bestand van een open tabblad buiten de app verwijderd, dan is die naam vrij voor *Opslaan als* (fixronde 2
@@ -6127,7 +6323,101 @@ en noem het in je rapport of PR-tekst.
      andere. Begint het openen pas tijdens de opslag, dan wacht de leesroute (`tauriBackend.ts`) wel en leest ze de
      nieuwe versie. Zeldzaam: een leesactie en een opslag naar hetzelfde bestand moeten elkaar kruisen. Richting: laat
      een leesactie die een opslag kruiste het bestand opnieuw lezen vóór het document actief wordt. Proef van de
-     reviewer: `proeven.ts` bij het rapport van review #1034. — B (proef van de reviewer)
+     reviewer: `proeven.ts` bij het rapport van review #1034. Op de desktop wachten Openen, Recent en slepen, zoals
+     main, met lezen tot een opslag van de app die al loopt klaar is (`whenProjectFileWritesIdle` in `tauriBackend.ts`):
+     begint *Opslaan als* van het andere tabblad vóór het lezen, dan leest het openen de nieuwe versie.
+     `planner_import_schedule` leest buiten die rij om, ook zoals main (2060). Met de featureflag `ifcForeignContent`
+     aan (#804, knownbug 1957) verandert hieraan niets: op de desktop kijkt de toets of het bestand al open staat niet
+     naar de schijf, en het openen beslist na het parsen op de padtekst. Een opslag die pas begint als het lezen al loopt, blijft zoals
+     hierboven. — B (proef van de reviewer)
+
+2029. **Hetzelfde bestand in twee browsertabbladen van de website, of in de desktopapp en de website tegelijk: wie het laatst opslaat, wint.**
+     De toets "staat al open" van #804 (knownbug 1957, met de featureflag `ifcForeignContent`) kijkt alleen naar de
+     tabbladen binnen één app. Elk browsertabblad of -venster van de website heeft een eigen store; er is geen
+     afstemming over open bestanden (geen `BroadcastChannel`; `navigator.locks` alleen voor de herstelsessies,
+     `recoveryStore.ts`). Open je een bestand van je computer (kantoor.ifc) in twee browservensters, of in de desktopapp en
+     in de browser, dan slaat elk zijn eigen versie op en overschrijft de laatste stil de andere. Een sitebestand valt
+     erbuiten: de site-opslag geeft de basisversie mee (`siteFileVersion`); is het bestand intussen verder, dan meldt de
+     site een conflict of maakt ze een kopie (`siteHost.ts`), en overschrijft ze niets stil. Gevonden bij het bouwen van #804 PR 1, alleen
+     in de code gelezen. Richting: een melding als een ander venster hetzelfde bestand open heeft; een keuze voor de
+     eigenaar. — S
+
+2040. **Het startbestand ziet `maplink/../kantoor.ifc` als `kantoor.ifc`, zo op main.** Een bestand dat bij het starten
+     is meegegeven (#1091, ook een tweede start) houdt de toets van main (`openLaunchFiles`), die het lexicale pad vóór
+     de identiteit stelt: `maplink/../kantoor.ifc` wordt daar als `kantoor.ifc` gezien, ook als een betrouwbare
+     `dev`/`ino` zegt dat het een ander bestand is; met de flag aan dan zonder melding, of met de strook als de
+     versie van dat tabblad verschilt van wat er gelezen is. Op Windows ziet
+     die toets een junction, een gekoppelde schijf tegenover hetzelfde UNC-pad of een 8.3-naam niet (geen `dev`/`ino` in
+     plugin-fs); dezelfde grens geldt voor de doelcontrole van Opslaan als (knownbug 1907). De gewone routes vergelijken
+     sinds besluit D (review #1121 ronde 6) alleen de letterlijke padtekst (2063); een genormaliseerd pad telt daar
+     bewust niet, omdat het op POSIX een ander bestand kan zijn (proeven A5, B9 en B11 in `check-one-file-one-tab.ts`).
+     In de code gelezen; niet op Windows gemeten. — S
+
+2041. **Twee keer tegelijk openen van hetzelfde bestand kan in de browser nog twee tabbladen geven.**
+     Lopen twee openacties van hetzelfde bestand door elkaar (twee neerzettingen kort na elkaar, of een klik in Recent
+     terwijl Openen van hetzelfde bestand nog leest), dan zien beide bij het begin niets open (knownbug 1957). Op de
+     desktop ziet de synchrone eindbeslissing na het parsen het tabblad van de eerste wel, want het heeft dezelfde
+     padtekst: dan één tabblad (proef R6 in `check-one-file-one-tab.ts`: Openen, Recent en slepen lezen tegelijk). De
+     site vergelijkt het id, ook synchroon. In de browser heeft elke openactie een eigen handle-object, en de
+     `isSameEntry` van de tweede startte vóór het tabblad van de eerste bestond: dan komen er twee tabbladen, zoals main
+     altijd doet. Via een ander pad op de desktop: 2063. Alleen in de code gelezen voor de browser. — S
+
+2042. **De headless MCP-server heeft geen featureflag: `planner_import_schedule` opent daar een bestand dat al open is opnieuw.**
+     De toets "staat al open" (knownbug 1957) staat achter de flag `ifcForeignContent`, en de headless server zet geen
+     flags (`headless/mcp-server/`). Dezelfde code draait daar, dus `planner_import_schedule` op een pad dat al open is
+     geeft daar een tweede document, zoals main. Gaat de flag standaard aan, dan geldt het daar ook; de proef
+     "B stdio … opslaan, heropenen, vergelijken" in `tests/mcp/cases-headless-server.ts` heropent hetzelfde pad om de
+     round-trip te toetsen en moet dan een eigen manier krijgen (een tweede pad of een nieuw document). In de code
+     gelezen. — B (code)
+
+2060. **VERVOLG, zo op main: `planner_import_schedule` in de app wacht niet op de schrijfrij, en kan daarna een opslag overschrijven.**
+     Openen, Recent en slepen op de desktop wachten met lezen tot een opslag van de app klaar is
+     (`whenProjectFileWritesIdle` in `tauriBackend.ts`, knownbug 1909). De MCP-tool leest via `realFs` en die rij
+     niet. Leest een import een bestand terwijl *Opslaan als* van een ander tabblad naar datzelfde bestand de
+     doelcontrole al voorbij is, dan krijgt de import de oude versie. Sluit de planner daarna het opgeslagen tabblad,
+     dan kan Ctrl+S in het geïmporteerde tabblad het opgeslagen werk overschrijven. Zeldzaam: een import en een opslag
+     naar hetzelfde bestand moeten elkaar kruisen. Gevonden in ronde 5 van de review van #1121 (Sol); #1121 doet hier
+     hetzelfde als main, met de flag aan en uit (proef P2 in `check-one-file-one-tab.ts`). Richting: de MCP-lezing in
+     de app ook op de schrijfrij laten wachten. — B (proef van de reviewer)
+
+2061. **VERVOLG, zo op main: een nieuw of gewisseld tabblad sluit een open taakdialoog, en het concept is weg.**
+     Wordt een tabblad nieuw of actief, dan zet `resetDocumentScopedUI` de documentgebonden schermen terug, ook de
+     taakdialoog. Opent de planner die dialoog (F2) terwijl een bestand nog gelezen of geparst wordt, dan sluit hij
+     zodra het bestand opent, en wat hij al had getypt is weg. Met de flag `ifcForeignContent` aan voegt #1121 hier
+     geen wachttijd aan toe: een openactie die naar een open tabblad gaat, wacht niet meer op de toets "staat al
+     open" (proef P3 in `check-one-file-one-tab.ts`, Openen en Recent). Gevonden in ronde 5 van de review van #1121.
+     Richting: de dialoog met een concept niet stil sluiten, of het openen pas activeren als de dialoog dicht is; een
+     keuze voor de eigenaar. — B (proef van de reviewer)
+
+2062. **VERVOLG, benoemde grens (#1121, flag aan): komt de identiteit in de browser later dan het lezen en parsen, dan opent hetzelfde bestand in een tweede tabblad.**
+     De browsertoets "staat al open" (knownbug 1957) start vlak vóór het lezen `isSameEntry` voor elk open tabblad met
+     een handle, alle tegelijk, in de richting `gevraagd.isSameEntry(tabblad)`, en de openactie wacht er niet op. Is de
+     treffer nog niet binnen als het parsen klaar is, dan telt alleen hetzelfde handle-object, en de kiezer en een
+     neerzetting geven telkens een nieuw object. Dan opent het bestand in een eigen tabblad, zoals main; bij het openen
+     zelf gaat er niets verloren (twee tabbladen op hetzelfde bestand kunnen later wel elkaars opslag overschrijven,
+     1957), en de late uitkomst doet niets meer (proef P1 in `check-one-file-one-tab.ts`). Wat de meting draagt
+     (meting B3 bij fixronde 5 van #1121, Chromium 158, Chrome for Testing, `--headless=new`): met de vergelijkingen
+     tegelijk gestart, zoals de app nu doet, tot 10 tabbladen, tot na het echte parsen met de scanner in zijn Worker,
+     was de identiteit bij een leeg project (5,1 KB) en een voorbeeld van 32 KB in elke herhaling op tijd (twee reeksen:
+     420 van 420; met dezelfde naam 140 van 140), met een kleinste voorsprong van 36,4 ms; de klok liep tot het laatste
+     antwoord, dus ook een treffer achteraan valt erbinnen. Wat ze niet draagt: een handle uit de bestandskiezer of een
+     echte neerzetting (de meting gebruikte handles uit de OPFS; de browsertest in CI ook, achter een gesimuleerde
+     kiezer); en parsen zonder Worker (geen meting zonder Worker; is de herkenning te laat, dan opent een tweede
+     tabblad). — S
+
+2063. **VERVOLG, benoemde grens (#1121, flag aan): hetzelfde bestand via een ander pad opent op de desktop in een tweede tabblad.**
+     Op de desktop vergelijkt de toets "staat al open" (knownbug 1957, besluit D na ronde 6 van de review van #1121)
+     alleen de letterlijke padtekst, synchroon bij het activeren; ze kijkt niet naar de schijf. Het gewone geval wordt
+     herkend: hetzelfde pad uit Openen, Recent, slepen of `planner_import_schedule`. Hetzelfde bestand via een ander pad
+     (een link, een hardlink, een andere schrijfwijze zoals `./kantoor.ifc`, een schijfletter tegenover een netwerkpad)
+     opent in een tweede tabblad, zoals main; bij het openen zelf gaat er niets verloren (twee tabbladen op hetzelfde
+     bestand kunnen later wel elkaars opslag overschrijven, 1957), en Opslaan als en Exporteren blijven de bestanden
+     van de andere tabbladen weigeren waar hun doelcontrole dat ziet (knownbug 1907). **VERMOED, niet gemeten:** op
+     Windows kan hetzelfde pad met andere hoofdletters een andere padtekst geven, en dus een tweede tabblad. Waarom zo:
+     een eigen waarneming van de schijf door de toets (`stat`) kijkt op een ander moment dan de lezing, en houdt op
+     Linux de native draad vast die ook het lezen afhandelt (review #1121 ronde 6, Sol). Aliasherkenning op de desktop
+     vraagt een eigen PR: de identiteit uit de lezing zelf, buiten de GTK-draad. Proeven A2, A4, A5, B1 via een link en
+     B9 in `check-one-file-one-tab.ts`, en "een link" in `tests/mcp/cases-doc-file.ts`. — B (proef)
 
 1932. **VERVOLG (review #1064, tekst): de headless MCP-server adviseert een document te sluiten.** Weigert
      `planner_export_ifc` het bestand van een ander open document, dan eindigt de fout met "close that document first"

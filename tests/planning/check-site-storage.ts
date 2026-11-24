@@ -146,6 +146,7 @@ const { recoveryNames } = await import('@/services/recovery/recoveryPaths');
 const { setSiteOpenAsker, setSiteSaveAsker, resetSiteAskers } = await import('@/services/fileAccess/siteDialogs');
 const { useAppStore } = await import('@/state/appStore');
 const { isActivePristine, siteSaveDefaultName, siteVersionCopyName } = await import('@/state/slices/fileSlice');
+const { changedOnDiskShown } = await import('@/state/openDocumentFor');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
 const { readIFC } = await import('@/services/ifc/ifcReader');
@@ -761,6 +762,125 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
   eq('G15 Ctrl+S in B stuurt v2 mee en slaagt', [site.saves().at(-1)?.baseVersion, S().isDirty, S().siteFileVersion], ['v2', false, 'v3']);
   S().switchDocument(tabA);
   eq('G15 A houdt zijn eigen basis', S().siteFileVersion, 'v1');
+
+  useAppStore.setState((st) => { st.ui.featureFlags = { ifcForeignContent: true }; });
+  site.put('y', 'Eén.ifc', [ifc]);
+  setSiteOpenAsker(async () => ({ kind: 'site', id: 'y' }));
+  S().newDocument();
+  await S().openFile();
+  const tabY = S().activeDocumentId;
+  S().addTask({ name: 'Werk in Y' });
+  site.otherUserSaves('y');
+  const workY = JSON.stringify([S().tasks.map((t) => t.name), S().isDirty, S().siteFileVersion]);
+  const recentY = () => S().recentFiles.find((e) => e.ref.kind === 'site' && e.ref.id === 'y');
+  const routes: Array<[string, () => Promise<unknown>]> = [
+    ['Openen van de site', () => S().openFile()],
+    ['Recent', () => S().openRecentFile(recentY()!.id)],
+    ['startbestand', () => S().openFromSite('y')],
+  ];
+  for (const [route, open] of routes) {
+    S().switchDocument(tabB);
+    useAppStore.setState((st) => { st.ui.notifications = []; });
+    const count = S().documents.length;
+    await open();
+    eq(`G16 ${route}: geen tweede tabblad, naar het open tabblad`, [S().documents.length, S().activeDocumentId], [count, tabY]);
+    eq(`G16 ${route}: het tabblad houdt zijn werk en basis v1`, JSON.stringify([S().tasks.map((t) => t.name), S().isDirty, S().siteFileVersion]), workY);
+    eq(`G16 ${route}: een collega sloeg v2 op ⇒ de strook bij het tabblad, geen melding in de lijst`, [S().ui.notifications.length, changedOnDiskShown(S())], [0, true]);
+    eq(`G16 ${route}: Recent bovenaan`, S().recentFiles[0]?.ref, { kind: 'site', id: 'y' });
+  }
+  {
+    const { allReadFormats } = await import('@/services/formatRegistry');
+    const ifcFormat = allReadFormats().find((f) => f.extensions.includes('ifc'))!;
+    const parse = ifcFormat.read;
+    const save = site.storage.save;
+    S().switchDocument(tabY);
+    useAppStore.setState((st) => { st.ui.notifications = []; });
+    const count = S().documents.length;
+    const opens = () => site.calls.filter((c) => c.fn === 'open').length;
+    let hostSaved!: () => void;
+    const savedOnHost = new Promise<void>((resolve) => { hostSaved = resolve; });
+    let commit!: () => void;
+    const commitMay = new Promise<void>((resolve) => { commit = resolve; });
+    setSiteSaveAsker(async () => ({ kind: 'site', name: 'Kopie.ifc' }));
+    site.storage.save = async (request) => {
+      const result = await save(request);
+      hostSaved();
+      await commitMay;
+      return result;
+    };
+    const saving = S().saveFileAs();
+    await savedOnHost;
+    const opensBefore = opens();
+    let committedDuringParse = false;
+    ifcFormat.read = async (input, l, o) => {
+      if (!committedDuringParse && input.name === 'Eén.ifc') {
+        commit();
+        await saving;
+        committedDuringParse = S().getOpenDocumentPayloads().find((d) => d.id === tabY)?.payload.siteFileId !== 'y';
+      }
+      return parse(input, l, o);
+    };
+    try { await S().openFromSite('y'); } finally {
+      ifcFormat.read = parse;
+      site.storage.save = save;
+      resetSiteAskers();
+    }
+    const copy = S().getOpenDocumentPayloads().find((d) => d.id === tabY)?.payload;
+    eq('G17 Opslaan als op de site, commit tijdens het parsen: het origineel in een eigen tabblad, de kopie houdt haar id en werk', [
+      committedDuringParse, S().documents.length, S().activeDocumentId !== tabY, S().siteFileId,
+      !!copy?.siteFileId && copy.siteFileId !== 'y', copy?.tasks.some((t) => t.name === 'Werk in Y'),
+      S().documents.filter((d) => d.changedOnDisk).length,
+      opens() - opensBefore,
+    ], [true, count + 1, true, 'y', true, true, 0, 1]);
+  }
+  {
+    const tabOriginal = S().activeDocumentId;
+    S().newDocument();
+    useAppStore.setState((st) => { st.ui.notifications = []; });
+    const count = S().documents.length;
+    const open = site.storage.open;
+    let flipped = false;
+    site.storage.open = async (...args: Parameters<typeof open>) => {
+      flipped = true;
+      useAppStore.setState((st) => { st.ui.featureFlags = {}; });
+      return open(...args);
+    };
+    try { await S().openFromSite('y'); } finally {
+      site.storage.open = open;
+      useAppStore.setState((st) => { st.ui.featureFlags = { ifcForeignContent: true }; });
+    }
+    eq('G18 / R9-4 site (Sol, ronde 9): de flag gaat uit tijdens het lezen ⇒ het bestand in het lege tabblad, niet naar het open tabblad, zoals main', [
+      flipped, S().activeDocumentId !== tabOriginal, S().documents.length - count, S().siteFileId,
+      S().documents.filter((d) => d.changedOnDisk).length,
+    ], [true, true, 0, 'y', 0]);
+    S().closeDocument(S().activeDocumentId);
+    S().switchDocument(tabOriginal);
+  }
+  {
+    const { writeCSV } = await import('@/services/csv/csvWriter');
+    const state = S();
+    const csv = writeCSV(state.project, state.calendar, state.tasks, state.sequences, state.resources, state.assignments);
+    const f = site.files.get('y')!;
+    const ifcName = f.name;
+    f.name = 'lijst.csv';
+    f.versions.push({ version: `v${f.versions.length + 1}`, data: csv });
+    S().switchDocument(tabB);
+    useAppStore.setState((st) => { st.ui.notifications = []; });
+    const count = S().documents.length;
+    await S().openFromSite('y');
+    eq('G20 (Sol, ronde 7): een CSV onder het id van een open IFC-tabblad ⇒ een eigen tabblad zonder opslagdoel, zoals main', [
+      S().documents.length - count, S().siteFileId, S().filePath,
+      changedOnDiskShown(S()),
+    ], [1, null, null, false]);
+    f.name = ifcName;
+    f.versions.pop();
+    useAppStore.setState((st) => { st.ui.pendingFormatNotice = null; });
+  }
+  setSiteOpenAsker(async () => ({ kind: 'site', id: 'y', version: 'v1', copyName: 'Eén (versie v1)' }));
+  const countCopy = S().documents.length;
+  await S().openFile();
+  eq('G16 oudere versie: een eigen tabblad zonder doel', [S().documents.length, S().siteFileId], [countCopy + 1, null]);
+  useAppStore.setState((st) => { st.ui.featureFlags = {}; });
 
   resetSiteAskers();
   clearHost();

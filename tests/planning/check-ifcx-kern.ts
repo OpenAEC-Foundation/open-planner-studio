@@ -1039,7 +1039,7 @@ const STEP_CASES: readonly StepCase[] = [
       calendar.id === plan.calendar.id ? { ...calendar, hoursPerDay: calendar.hoursPerDay + 1 } : calendar) };
   } },
   { name: 'ronde 1: een ouder die niet bestaat', input: () => withTask(appPlan(), 'handmatig', task => ({ ...task, parentId: 'weg' })) },
-  { name: 'een taak in de kinderlijst van twee ouders (2222)', refusedBy: { code: 'inconsistent', rule: 'R0' }, input: () => withTask(withPhase(appPlan()), 'binnen-een-dag', task => ({ ...task, isSummary: true, childIds: ['handmatig'] })) },
+  { name: 'een taak in de kinderlijst van twee ouders (vroeger knownbug 2222)', refusedBy: { code: 'inconsistent', rule: 'R0' }, input: () => withTask(withPhase(appPlan()), 'binnen-een-dag', task => ({ ...task, isSummary: true, childIds: ['handmatig'] })) },
   { name: 'ronde 1: een relatie naar een taak die niet bestaat', refusedBy: { code: 'inconsistent', rule: 'C' }, input: () => {
     const plan = appPlan();
     return { ...plan, sequences: [...plan.sequences, { id: 'los', predecessorId: 'weg', successorId: 'handmatig', type: 'FINISH_START', lagDays: 0 }] };

@@ -60,6 +60,7 @@ import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { isOnboardingActive } from '@/state/onboarding';
 import { RecordedDatesNotice } from '@/components/layout/RecordedDatesNotice';
 import { ExternalSourceNotice } from '@/components/layout/ExternalSourceNotice';
+import { ChangedOnDiskNotice } from '@/components/layout/ChangedOnDiskNotice';
 import { NotificationHost } from '@/components/layout/NotificationHost';
 import { FileDropOverlay } from '@/components/layout/FileDropOverlay';
 import { DOCUMENT_TABPANEL_ID, documentTabId } from '@/components/layout/DocumentChrome/documentTabNavigation';
@@ -402,6 +403,7 @@ function AppContent() {
 
         {/* Nieuwe versie van een bron (stap 1.5): per bron een strook met Bekijken en Later. */}
         <ExternalSourceNotice />
+        <ChangedOnDiskNotice />
       </div>
 
       {/* Backstage view (File-tab actief) — neemt de volledige body over.

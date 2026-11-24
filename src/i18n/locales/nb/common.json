@@ -360,7 +360,6 @@
     "reportFontMissing": "Skriften {{name}} finnes ikke lenger på denne enheten. Rapporten bruker igjen Inter.",
     "layoutsNotSaved": "Oppsettene kunne ikke lagres. Ingenting er endret. Prøv på nytt.",
     "ifcForeignOpenSchema": "Denne IFC-filen inneholder data fra et annet program og har et ukjent eller manglende skjema. Åpningen er stoppet for å unngå tap av data ved lagring.",
-    "ifcForeignOpenTooLarge": "Denne IFC-filen er større enn {{limit}} MB. En IFC-fil med en bygningsmodell eller med data fra et annet program kan åpnes med opptil {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Denne IFC-filen kan ikke trygt klassifiseres. Åpningen er stoppet for å unngå tap av data ved lagring.",
     "ifc2x3PlanningOnly": "IFC2X3 er åpnet som tidsplan. Data fra andre programmer tas ikke med ved lagring.",
     "ifcForeignReplaceBlocked": "Ikke lagret. Dette er filen du har åpen. Bruk «Lagre» for å oppdatere den, eller «Lagre som» med et nytt navn for en kopi.",

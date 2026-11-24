@@ -230,7 +230,7 @@ export type NotificationMessageKey =
   // #804 fase 1a: opslaan van een document met een gebouwmodel is nog geweigerd (`state/ifcForeignGuard.ts`).
   | 'notifications.ifcForeignOpenSchema'
   | 'notifications.ifcForeignOpenUnsafe'
-  | 'notifications.ifcForeignOpenTooLarge'
+  | 'notifications.ifcForeignOpenLarge'
   | 'notifications.ifc2x3PlanningOnly'
   | 'notifications.ifcForeignSaveBlocked'
   | 'notifications.ifcForeignSourceMissing'
@@ -252,6 +252,14 @@ export type NotificationMessageKey =
   | 'notifications.exportTargetOpenInTab'
   // Review van #1064: een uitvoer zonder de planning (bibliotheek, rapport) koos een bestand dat in een tabblad open staat.
   | 'notifications.exportTargetOpenDocument'
+  | 'notifications.exportTargetOwnFile'
+  | 'notifications.exportReplaceNewTargetOnly'
+  | 'notifications.exportReplaceTargetChanged'
+  | 'notifications.exportReplaceTargetGone'
+  | 'notifications.exportReplaceNotRecorded'
+  | 'notifications.exportReplaceFailed'
+  | 'notifications.exportReplaceTargetTaken'
+  | 'notifications.exportReplacePreviousStranded'
   | 'notifications.ifcForeignPlaceUnknown'
   // Knownbug 1131 stap 5: het eigen bestand vervangen op de desktop (`state/ownFileReplace.ts`) en de restbestanden na
   // een crash. Parameters: paden (`file`, `copy`, `target`, `temp`, `previous`, `path`).

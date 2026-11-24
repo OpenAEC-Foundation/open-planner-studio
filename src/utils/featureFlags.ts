@@ -35,9 +35,18 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     // meldingen voor een onleesbaar doel uit #870: die geeft alleen de doelcontrole met de flag aan
     // (`refusedWriteTarget` in src/state/ifcForeignGuard.ts).
     texts: [
+      'common:documents.changedOnDisk',
       'common:ifcExportWithoutModel.*',
       'common:ifcMissingSourceSaveAs.*',
       'common:notifications.exportPlanOnly',
+      'common:notifications.exportReplaceFailed',
+      'common:notifications.exportReplaceNewTargetOnly',
+      'common:notifications.exportReplaceNotRecorded',
+      'common:notifications.exportReplacePreviousStranded',
+      'common:notifications.exportReplaceTargetChanged',
+      'common:notifications.exportReplaceTargetGone',
+      'common:notifications.exportReplaceTargetTaken',
+      'common:notifications.exportTargetOwnFile',
       'common:notifications.ifc2x3PlanningOnly',
       'common:notifications.ifcForeignAutoSaveNotRecorded',
       'common:notifications.ifcForeignAutoSaveRemnant',
@@ -46,8 +55,8 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
       'common:notifications.ifcForeignDownloadCopy',
       'common:notifications.ifcForeignMergeRefused',
       'common:notifications.ifcForeignNewTargetOnly',
+      'common:notifications.ifcForeignOpenLarge',
       'common:notifications.ifcForeignOpenSchema',
-      'common:notifications.ifcForeignOpenTooLarge',
       'common:notifications.ifcForeignOpenUnsafe',
       'common:notifications.ifcForeignPlaceUnknown',
       'common:notifications.ifcForeignReplaceBlocked',
