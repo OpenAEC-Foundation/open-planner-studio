@@ -392,6 +392,28 @@ test('de eigen schemacontrole keurt een kapotte uitvoer af', () => {
   assert.ok(broken(d => { delete entryWith(d, 'openaec::ops::task').attributes['openaec::ops::task'].time; }).length > 0);
 });
 
+const NOT_CARRIED_YET = [
+  'resources', 'assignments', 'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'baselines', 'activeBaselineId',
+  'comparedBaselineIds', 'libraryPool', 'sourceScheduleNotes', 'recordedTimes', 'baselineOrphanGuids', 'recordedSourceFormat',
+  'suggestedProfileId', 'xer', 'xerOrigin', 'xerSourceArchive', 'ifcSource', 'ifcLegacySchemaLoss', 'recoveryForeignSource',
+  'xerSourceProjectId', 'xerArchiveIssue', 'xerMissingPlannedStarts', 'p6xmlReport', 'msProjectReport', 'withheldTaskTimeFields',
+  'xerSourceArchiveStorage',
+];
+
+test('R1 volledig: elk veld dat de STEP-lezer naast het model teruggeeft, is ingedeeld; wat IFCX nog niet draagt, weigert de writer', () => {
+  assert.deepEqual([...STEP_WRITER_INPUT_NOT_CARRIED].sort(), [...NOT_CARRIED_YET].sort());
+  const carried = new Set(NODES.flatMap(node => node.modelKeys));
+  const known = new Set<string>(ALL_MODEL_KEYS);
+  const unclassified = new Set<string>();
+  for (const model of [...fullExamples.values(), stepRoundtrip(maximalPlan()), stepRoundtrip(variantPlan())]) {
+    for (const key of Object.keys(model)) if (!known.has(key)) unclassified.add(key);
+  }
+  assert.deepEqual([...unclassified], [], 'een veld van de STEP-lezer dat nergens is ingedeeld');
+  for (const key of ['timeModel', 'milestonesAtDayEnd', 'recordedFields', 'recordedTimesOrigin', 'importPristine', 'ifcLiteralCalendarIds', 'minuteModelPending']) {
+    assert.ok(carried.has(key as never), `${key} hoort bij een node`);
+  }
+});
+
 const goodText = writeIfcx(datePlan(), CLOCK);
 const REFUSALS: readonly { name: string; code: IfcxReadErrorCode; change: (document: ReturnType<typeof documentOf>) => unknown }[] = [
   { name: 'een vreemde kop', code: 'foreign', change: d => { d.header.id = 'urn:ifccad:model:1'; } },
@@ -620,28 +642,6 @@ test('de zelfcontrole ziet een waarde die bij het teruglezen stil verandert', ()
   assert.deepEqual(selfCheckDifferences(step, shifted).map(difference => difference.slice(0, difference.indexOf(': '))), ['tasks[1].priority']);
   const reordered = { ...reread, sequences: [...reread.sequences].reverse() };
   assert.ok(selfCheckDifferences(step, reordered).length > 0, 'de volgorde telt mee');
-});
-
-const NOT_CARRIED_YET = [
-  'resources', 'assignments', 'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'baselines', 'activeBaselineId',
-  'comparedBaselineIds', 'libraryPool', 'sourceScheduleNotes', 'recordedTimes', 'baselineOrphanGuids', 'recordedSourceFormat',
-  'suggestedProfileId', 'xer', 'xerOrigin', 'xerSourceArchive', 'ifcSource', 'ifcLegacySchemaLoss', 'recoveryForeignSource',
-  'xerSourceProjectId', 'xerArchiveIssue', 'xerMissingPlannedStarts', 'p6xmlReport', 'msProjectReport', 'withheldTaskTimeFields',
-  'xerSourceArchiveStorage',
-];
-
-test('R1 volledig: elk veld dat de STEP-lezer naast het model teruggeeft, is ingedeeld; wat IFCX nog niet draagt, weigert de writer', () => {
-  assert.deepEqual([...STEP_WRITER_INPUT_NOT_CARRIED].sort(), [...NOT_CARRIED_YET].sort());
-  const carried = new Set(NODES.flatMap(node => node.modelKeys));
-  const known = new Set<string>(ALL_MODEL_KEYS);
-  const unclassified = new Set<string>();
-  for (const model of [...fullExamples.values(), stepRoundtrip(maximalPlan()), stepRoundtrip(variantPlan())]) {
-    for (const key of Object.keys(model)) if (!known.has(key)) unclassified.add(key);
-  }
-  assert.deepEqual([...unclassified], [], 'een veld van de STEP-lezer dat nergens is ingedeeld');
-  for (const key of ['timeModel', 'milestonesAtDayEnd', 'recordedFields', 'recordedTimesOrigin', 'importPristine', 'ifcLiteralCalendarIds', 'minuteModelPending']) {
-    assert.ok(carried.has(key as never), `${key} hoort bij een node`);
-  }
 });
 
 const FILLED_IS_REFUSED: Readonly<Record<string, () => WriteIFCInput>> = {

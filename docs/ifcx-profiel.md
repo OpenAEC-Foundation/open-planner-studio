@@ -2,7 +2,7 @@
 
 Dit document beschrijft hoe Open Planner Studio een planning in IFCX schrijft en leest: de kop, de paden, de
 attributen met hun velden, de vorm en betekenis van elk veld, de projectie naar de gedeelde attributen, de betekenis
-van lag, de drie regels R0, R1 en R2, en de versieregel. Het ontwerp staat in
+van lag, de regels R0, R1, R2 en R3, en de versieregel. Het ontwerp staat in
 `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md` (§5 en §6); de code staat in
 `src/services/ifc/ifcx/`. De velden, de betekenis van lag en de proeven zijn eigen keuzes van deze repo (ontwerp §11,
 besluit 12).
@@ -53,26 +53,44 @@ gelden sinds fixronde 4 drie regels (besluit van Trias, 24 november: "akkoord me
   bestand. Elk verschil is `invalid`." Code: `assertProjection` in `ifcxReader.ts`, met `composeIfcxDocument` uit
   `projection.ts`, dezelfde functie als de writer.
 
+In fixronde 5 vond de review drie plekken waar informatie niet één-op-één werd gedragen: de zelfcontrole liet een deel
+van wat STEP teruggeeft buiten de vergelijking (een eindmijlpaal schoof bij heropenen van 16:00 naar 07:00), de
+precieze kant droeg de lag twee keer (acht dagen naast 25 %), en twee verschillende GlobalIds konden hetzelfde pad
+krijgen. De technisch eigenaar keurde drie aanscherpingen goed (24 november), letterlijk:
+
+- **R1 volledig:** ""Wat STEP zou teruggeven" is alles wat de STEP-lezer teruggeeft en wat de laadgrens of een
+  volgende opslag gebruikt: het model én wat de lezer daarnaast doorgeeft (`AtDayEnd`, `ifcLiteralCalendarIds`, de
+  toestand van het minutenmodel, en wat je verder vindt). De precieze kant draagt het, de zelfcontrole vergelijkt
+  het." En: "READ_METADATA mag alleen het leesmoment zelf bevatten, met reden." Zie *Wat de STEP-lezer naast het
+  model teruggeeft*.
+- **De publieke lezer geeft het gecontroleerde precieze model terug.** "De STEP-rondgang bij openen (jouw punt 8) gaat
+  eruit." Zie *R2: lezen toetst de projectie*, punt 8.
+- **R3 (nieuw):** "de precieze kant draagt elk feit één keer, in de vorm waarin STEP het bewaart; identiteit en pad zijn
+  één-op-één." Met "Eén lag met eenheid in de precieze kant; de gedeelde kant is daar de projectie van" en "Een padvorm
+  waarin een oude tekst-GlobalId en een echte IFC-GlobalId nooit hetzelfde pad geven, door de vorm zelf en niet door
+  een andere hash-namespace. Schrijver en lezer gebruiken dezelfde ene functie, heen en terug." Zie *R3: elk feit één
+  keer* en *Paden en identiteit*.
+
 ## Het bestand
 
 ```json
 {
-  "header": { "id": "urn:openaec:planner:<project-uuid>", "ifcxVersion": "ifcx_alpha", "dataVersion": "1.0.0",
+  "header": { "id": "urn:openaec:planner:<pad van het project>", "ifcxVersion": "ifcx_alpha", "dataVersion": "1.0.0",
               "author": "…", "timestamp": "2026-11-24T08:00:00.000Z" },
   "imports": [],
   "schemas": { "openaec::planning::activity": { "value": { "dataType": "Object", "objectRestrictions": { … } } }, … },
-  "data": [ { "path": "<uuid>", "attributes": { "openaec::planning::activity": { … }, "openaec::ops::task": { … } } }, … ]
+  "data": [ { "path": "<pad>", "attributes": { "openaec::planning::activity": { … }, "openaec::ops::task": { … } } }, … ]
 }
 ```
 
-- **Kop**: `id` is `urn:openaec:planner:` met de UUID van de GlobalId van het project. `ifcxVersion` is `ifcx_alpha`,
+- **Kop**: `id` is `urn:openaec:planner:` met het pad van de GlobalId van het project (zie *Paden en identiteit*). `ifcxVersion` is `ifcx_alpha`,
   `dataVersion` heeft de vorm `MAJOR.MINOR.PATCH`. `author` is de projectie van de auteur van het project, of
   `Open Planner Studio` als die leeg is. `timestamp` is het moment van schrijven (ISO 8601, UTC). De kop heeft een
   waardedomein zoals elk attribuut (`HEADER_VALUE` in `ownAttributes.ts`); writer en lezer toetsen hem met dezelfde
   functie.
 - **`imports`** is altijd leeg. De app schrijft geen `bsi::ifc::class`, geen `children` en geen `inherits`.
 - **`schemas`** bevat voor elk attribuut dat in het bestand voorkomt de definitie. Die komt uit dezelfde tabel als het
-  schrijven en lezen (`fieldGroups.ts`, `ownAttributes.ts`).
+  schrijven en lezen (de registratie per node in `nodes.ts`).
 - **`data`**: één entry per object, in deze volgorde: werkplan, werkschema, projectkalender, de andere kalenders,
   taken (in de volgorde van de takenlijst), relaties. Elke entry staat op één regel.
 
@@ -80,10 +98,10 @@ gelden sinds fixronde 4 drie regels (besluit van Trias, 24 november: "akkoord me
 
 Elk object heeft een precies attribuut in `openaec::ops::` en een gedeeld attribuut in `openaec::planning::`.
 
-- **De precieze kant draagt elk feit.** De lezer leest alleen `openaec::ops::`. Een veld staat er niet als het de
-  standaardwaarde heeft: een lege tekst, prioriteit 500, geen mijlpaal, `WORKTIME`, voortgang 0, een lag van 0 dagen,
-  het id dat uit het pad volgt (`cal-default` voor de projectkalender, de UUID uit de kop voor het project), en de
-  plaats onder de ouder die uit de volgorde van de entries volgt.
+- **De precieze kant draagt elk feit, één keer** (R3). De lezer leest alleen `openaec::ops::`. Een veld staat er niet
+  als het de standaardwaarde heeft: een lege tekst, prioriteit 500, geen mijlpaal, `WORKTIME`, voortgang 0, geen lag,
+  het id dat uit het pad volgt (`cal-default` voor de projectkalender, het pad uit de kop voor het project), de plaats
+  onder de ouder die uit de volgorde van de entries volgt, en de ingevulde velden die uit de waarden volgen.
 - **De gedeelde kant is alleen de projectie** voor andere programma's: het gedeelde attribuut en de kopauteur rekent
   de writer uit de precieze gegevens uit (`composeIfcxDocument` in `projection.ts`). De lezer leest er niets uit, maar
   rekent dezelfde projectie na en weigert elk verschil (R2).
@@ -93,22 +111,32 @@ teruggeeft.
 
 ## Paden en identiteit
 
-- Het pad van een object is de UUID van zijn GlobalId: dezelfde 128 bits, in kleine letters met streepjes en zonder
-  voorloop-`/`. De GlobalId is die van de STEP-uitkomst (R1), dus wat STEP bij heropenen teruggeeft.
-- Een GlobalId zonder geldige 128-bitsvorm (22 tekens, eerste teken `0`–`3`; de oude `ifcGuid` geeft dat niet altijd)
-  krijgt als pad een UUID v5 van de GlobalId, en de GlobalId zelf staat in het veld `globalId` van het
-  `openaec::ops::`-attribuut van dat object. Voor werkplan en werkschema zijn dat de velden `workplanGlobalId` en
-  `scheduleGlobalId` van `openaec::ops::document`. De namespace is `fd4e93a2-de83-56ee-929c-defaa450b626`, de UUID v5
-  van `urn:openaec:planner` in de URL-namespace van RFC 4122. Een pad dat niet bij zo'n GlobalId hoort, weigert de
-  lezer met `invalid` en veld `globalId`.
+Het pad van een object volgt uit zijn GlobalId, met één functie heen en terug (`pathOfGlobalId` en `globalIdOfPath` in
+`identityPath.ts`). De GlobalId is die van de STEP-uitkomst (R1), dus wat STEP bij heropenen teruggeeft.
+
+- Een **compacte IFC-GlobalId** (22 tekens uit het IFC-alfabet, eerste teken `0`–`3`: precies 128 bits) krijgt als pad
+  de UUID van die 128 bits, in kleine letters met streepjes.
+- **Elke andere tekst** (een oude `ifcGuid`, een GlobalId van een ander programma) krijgt als pad `t-` gevolgd door
+  vier kleine hexcijfers per UTF-16-teken: `oud-1` wordt `t-006f00750064002d0031`.
+- De lezer kent alleen deze twee vormen. Een `t-`-pad dat een compacte GlobalId uitspelt, is geen pad: die GlobalId
+  heeft haar UUID als enige pad. Een UUID met hoofdletters is ook geen pad.
+
+**Waarom dat één-op-één is.** Binnen de eerste vorm is de afbeelding een omzetting van dezelfde 128 bits, heen en
+terug. Binnen de tweede vorm geeft elk teken vier vaste cijfers, dus verschillende teksten geven verschillende paden en
+het pad geeft de tekst terug. Tussen de twee vormen botst niets: een pad begint met `t-` of heeft de vorm van een UUID,
+nooit allebei. En elke GlobalId heeft precies één vorm, omdat de tweede vorm geen compacte GlobalId aanneemt. De
+oude afbeelding (een UUID v5 van de tekst) gaf een tekst en de compacte GlobalId van diezelfde UUID hetzelfde pad; een
+andere namespace verschuift die botsing alleen. Een proef toetst de afbeelding zelf op ruim 7.500 GlobalIds, waaronder
+elk paar dat onder de oude afbeelding botste.
+
 - Het interne id van een object staat in het veld `id` van zijn `openaec::ops::`-attribuut als het afwijkt van het
   pad.
-- Verwijzingen tussen objecten zijn paden: `parent`, `calendar` (van een taak en van het werkplan), `predecessor`,
-  `successor` en `workplan`. De gedeelde kant draagt dezelfde paden als projectie (`parent`, `calendar`,
-  `relatingProcess`, `relatedProcess`).
+- Verwijzingen tussen objecten zijn paden: `parent`, `calendar` (van een taak en van het werkplan), `literalCalendars`,
+  `predecessor`, `successor` en `workplan`. De gedeelde kant draagt dezelfde paden als projectie (`parent`,
+  `calendar`, `relatingProcess`, `relatedProcess`).
 
 **R0, één regel voor alle soorten** (`IDENTITY_KINDS` en `identityProblems` in `identity.ts`): het interne id is uniek
-binnen de soort; de GlobalId is uniek over alle objecten samen, project, werkplan en werkschema inbegrepen; een relatie
+binnen de soort, en binnen de kalenderbibliotheek; de GlobalId is uniek over alle objecten samen, project, werkplan en werkschema inbegrepen; een relatie
 heeft een voorganger en een opvolger die bestaan; en een taak staat in de kinderlijst van hoogstens één ouder. De writer
 weigert een botsing met `inconsistent`, met het veld (`<soort>.id`, `<soort>.globalId`, `sequence.predecessorId`,
 `sequence.successorId` of `task.childIds`) en een melding met de namen: het dubbele id, de GlobalId met beide
@@ -131,23 +159,25 @@ elke waarde met dezelfde functie (`checkValue`). Een tekst- of datumveld zonder 
 | *moment* | een bestaand moment in lokale tijd zonder zone, `YYYY-MM-DD[THH:MM[:SS[.sss]]]`, uren 00–23, minuten en seconden 00–59, of leeg | de momenten in `openaec::ops::task.time` |
 | *projectmoment* | een bestaande dag of een bestaand moment in ISO 8601, met of zonder zone, tot 9 decimalen, of leeg | `startDate`, `endDate`, `createdAt`, `modifiedAt`, `statusDate` |
 | *ISO-moment* | als *projectmoment*, niet leeg | `timestamp` in de kop |
-| *GlobalId zonder 128-bitsvorm* | niet leeg, en geen geldige 22-tekens-GlobalId | `globalId`, `workplanGlobalId`, `scheduleGlobalId` |
 | *versie* | `MAJOR.MINOR.PATCH` | `formatVersion`, `dataVersion` |
 | *lagduur* | `P<dagen>D` of `PT<minuten>M`, met een minteken voor een lead | `timeLag` |
 | *getal* | een eindig getal; `completion` alleen 0–1 | |
 | *geheel getal* | een veilig geheel getal; `place` vanaf 0, `workDays` 1–7 | |
-| *ja/nee*, *keuze*, *pad* | `true`/`false`; een van de genoemde waarden; een UUID | |
+| *ja/nee*, *keuze*, *pad* | `true`/`false`; een van de genoemde waarden; een pad in een van de twee vormen van *Paden en identiteit* | |
 
 Een veld zonder "verplicht" mag ontbreken; `null` is nooit een geldige waarde.
 
 ### Werkplan
 
 `openaec::ops::document`: `formatVersion` (verplicht, nu `1.0.0`), `name` (verplicht), `description`, `calendar` (pad,
-verplicht: de projectkalender), `projectId`, `globalId`, `workplanGlobalId`, `scheduleGlobalId`, `startDate` en
-`endDate` (de projectdatums zoals ingevoerd), `createdAt`, `modifiedAt`, `author`, `company`, `ifcSchema` (keuze
-`IFC4X3_ADD2`, `IFC4X3`, `IFC4`: het schema voor een opslag als STEP), `ifcSchemaUnconfirmed`, `wbsAutoNumber`
-(ja/nee), `defaultTaskDurationUnit` (keuze `days`, `hours`), `statusDate`. Er is één verwijzing naar de
-projectkalender; `project.calendarId` is het id van die kalender.
+verplicht: de projectkalender), `projectId`, `startDate` en `endDate` (de projectdatums zoals ingevoerd), `createdAt`,
+`modifiedAt`, `author`, `company`, `ifcSchema` (keuze `IFC4X3_ADD2`, `IFC4X3`, `IFC4`: het schema voor een opslag als
+STEP), `ifcSchemaUnconfirmed`, `wbsAutoNumber` (ja/nee), `defaultTaskDurationUnit` (keuze `days`, `hours`),
+`statusDate`, en de laadgegevens van R1 volledig: `timeModel` (het tijdmodel dat STEP teruggeeft, nu `MINUTES-1`; het
+ontbreekt bij een oude planning met een openstaande omzetting naar het minutenmodel, zoals STEP het dan ook weglaat),
+`importPristine` (ja, als STEP de planning als ongewijzigd sinds een import teruggeeft) en `literalCalendars` (lijst
+van paden: de kalenders waarvan STEP de tijden letterlijk schreef, in de volgorde van STEP). Er is één verwijzing naar
+de projectkalender; `project.calendarId` is het id van die kalender.
 
 `openaec::planning::workplan` (projectie): `name`, `description`, `start` en `finish` (de datum van de projectdatums),
 `calendar` (pad).
@@ -158,7 +188,7 @@ projectkalender; `project.calendarId` is het id van die kalender.
 
 ### Kalender
 
-`openaec::ops::calendar`: `id`, `globalId`, `name` (verplicht), `description`, `shift` (keuze `FIRST`, `SECOND`,
+`openaec::ops::calendar`: `id`, `name` (verplicht), `description`, `shift` (keuze `FIRST`, `SECOND`,
 `THIRD`, `USERDEFINED`), `holidays` (lijst van `{ name, start, end }`; `end` ontbreekt bij een vrije periode zonder
 einddatum), `workDays` (lijst van gehele getallen 1–7, maandag is 1, verplicht), `workStartHour`, `workEndHour`,
 `hoursPerDay` (getallen, verplicht), `simpleBreakStartMinute`, `simpleBreakDurationMinutes`, `workTime`
@@ -172,21 +202,29 @@ twee jaren liggen tussen 1000 en 9999).
 
 De app houdt de projectkalender twee keer bij: als `calendar` en als entry met hetzelfde id in de kalenderbibliotheek
 (`syncProjectCalendar`). De STEP-rondgang geeft de bibliotheek terug zonder die entry, en zo schrijft IFCX haar ook;
-de app zet de entry bij openen terug (`promoteProjectCalendarToLibrary`).
+de app zet de entry bij openen terug (`promoteProjectCalendarToLibrary`). R0 toetst eerst de ids binnen de
+bibliotheek (twee rijen met hetzelfde id weigert de writer met `inconsistent`, `calendar.id` en het id), en behandelt
+daarna de cache en de ene bibliotheekrij met hetzelfde id als één kalender.
 
 ### Taak
 
-`openaec::ops::task`: `id`, `globalId`, `name` (verplicht), `description`, `wbsCode`, `taskType` (keuze
-`IfcTaskTypeEnum` zonder `NOTDEFINED`, verplicht), `isMilestone`, `priority`, `parent` (pad), `place` (geheel getal
-vanaf 0), `durationType` (keuze `WORKTIME`, `ELAPSEDTIME`), `completion` (getal 0–1), `time` (verplicht, hieronder),
-`milestoneKind` (keuze `START`, `FINISH`), `mandatory`, `isSummary`, `manuallyScheduled` (ja/nee), `calendar` (pad).
+`openaec::ops::task`: `id`, `name` (verplicht), `description`, `wbsCode`, `taskType` (keuze `IfcTaskTypeEnum` zonder
+`NOTDEFINED`, verplicht), `isMilestone`, `priority`, `parent` (pad), `place` (geheel getal vanaf 0), `durationType`
+(keuze `WORKTIME`, `ELAPSEDTIME`), `completion` (getal 0–1), `time` (verplicht, hieronder), `milestoneKind` (keuze
+`START`, `FINISH`), `mandatory`, `isSummary`, `manuallyScheduled` (ja/nee), `calendar` (pad), en de laadgegevens van
+R1 volledig: `atDayEnd` (ja: STEP geeft de taak terug als mijlpaal aan het eind van de dag, `OPS_Milestone.AtDayEnd`;
+de laadgrens zet zo'n mijlpaal zonder soort op 16:00 in plaats van 07:00) en `recorded` (de ingevulde tijdvelden zoals
+STEP ze teruggeeft, alleen als dat afwijkt van de velden met een waarde, bijvoorbeeld als STEP lege vroege datums bij
+het lezen invulde).
 
-`time` draagt de precieze tijden: `durationUnit` (keuze `days`, `hours`), `scheduleDuration` (werkdagen),
-`durationMinutes`, de momenten `scheduleStart`, `scheduleFinish`, `resume`, `stop`, `earlyStart`, `earlyFinish`,
+`time` draagt de precieze tijden: `durationUnit` (keuze `days`, `hours`), `scheduleDuration` (werkdagen; bij een uurtaak
+met minuten op een kalender met werktijd ontbreekt het, want STEP leidt het dan uit de minuten af en de lezer doet
+dat ook), `durationMinutes`, de momenten `scheduleStart`, `scheduleFinish`, `resume`, `stop`, `earlyStart`, `earlyFinish`,
 `lateStart`, `lateFinish`, `actualStart`, `actualFinish`, de spelingen `freeFloat` en `totalFloat` (werkdagen) met
-`freeFloatMinutes` en `totalFloatMinutes`, `isCritical`, `actualDuration`, `remainingTime` (werkdagen) en
-`remainingMinutes`. Verplicht zijn `durationUnit`, `scheduleDuration`, `scheduleStart`, `scheduleFinish`, de vroege
-en late momenten, `freeFloat`, `totalFloat` en `isCritical`.
+`freeFloatMinutes` en `totalFloatMinutes`, `isCritical`, `actualDuration`, `remainingTime` (werkdagen; ontbreekt bij een uurtaak met
+`remainingMinutes`, om dezelfde reden) en `remainingMinutes`. Verplicht zijn `durationUnit`, `scheduleStart`,
+`scheduleFinish`, de vroege en late momenten, `freeFloat`, `totalFloat` en `isCritical`; `scheduleDuration` ook, behalve
+bij de afgeleide uurtaak (R2 weigert het daar).
 
 `openaec::planning::activity` (projectie): `name`, `description`, `identification` (WBS-code), `parent`,
 `predefinedType`, `isMilestone`, `priority`, `calendar`, `durationType`, `completion`, `start` en `endExclusive` (zie
@@ -194,18 +232,19 @@ en late momenten, `freeFloat`, `totalFloat` en `isCritical`.
 
 ### Relatie
 
-`openaec::ops::sequence`: `id`, `globalId`, `predecessor` en `successor` (paden, verplicht), `type` (keuze
-`FINISH_START`, `START_START`, `FINISH_FINISH`, `START_FINISH`, verplicht), `lagUnit` (keuze `WORKTIME`,
-`ELAPSEDTIME`), `lagDays` (ontbreekt bij 0), `lagMinutes`, `lagPercent`.
+`openaec::ops::sequence`: `id`, `predecessor` en `successor` (paden, verplicht), `type` (keuze `FINISH_START`,
+`START_START`, `FINISH_FINISH`, `START_FINISH`, verplicht), `lagUnit` (keuze `WORKTIME`, `ELAPSEDTIME`), `lag`
+(`{ amount, unit }`, `unit` is `DAYS`, `MINUTES` of `PERCENT`; ontbreekt bij een lag van 0 dagen).
 
 `openaec::planning::sequence` (projectie): `relatingProcess`, `relatedProcess`, `sequenceType` (`IfcSequenceEnum`),
 `timeLag` of `timeLagRatio` (zie *Lag*), `lagDurationType`.
 
 ## Lag
 
-Een lag schuift de opvolger op ten opzichte van de voorganger; negatief is een lead. De precieze kant draagt de lag
-zoals de STEP-rondgang haar teruggeeft. STEP houdt er één: een percentage gaat voor (dan is `lagDays` 0), anders
-minuten, anders dagen. De projectie:
+Een lag schuift de opvolger op ten opzichte van de voorganger; negatief is een lead. STEP heeft er één slot voor en
+kiest: een percentage gaat voor, anders minuten, anders dagen. De precieze kant draagt die ene waarde met haar eenheid
+(`lag`), en de lezer zet haar terug zoals de STEP-lezer: bij `PERCENT` en `MINUTES` is `lagDays` 0. Een tweede lagveld
+naast `lag` bestaat niet; zo'n veld weigert de lezer als onbekend (`newer-profile`, met veld en object). De projectie:
 
 - **Procent** (`timeLagRatio` = `lagPercent` / 100): een deel van de duur van de voorganger, bij elke berekening
   opnieuw uit de actuele duur bepaald en afgerond op hele dagen (dagtaken) of hele minuten (uurtaken), zoals MS Project.
@@ -249,7 +288,8 @@ kinderen op dezelfde plaats, een plaats buiten de lijst, een plaats op een taak 
 3. `unsupportedContent` op de STEP-uitkomst: wat STEP bewaart en IFCX nog niet draagt, weigert de writer met
    `unsupported` en de veldnamen;
 4. de projectie van de uitkomst (`composeIfcxDocument`) en de waardetoets met dezelfde functie als de lezer;
-5. de zelfcontrole: één keer teruglezen (zonder R2) en rechtstreeks vergelijken met de STEP-uitkomst.
+5. de zelfcontrole: één keer teruglezen (zonder R2) en rechtstreeks vergelijken met de hele STEP-uitkomst, het model
+   en alles wat de STEP-lezer ernaast teruggeeft (R1 volledig).
 
 Het document van de aanroeper verandert niet; een proef vergelijkt het na de aanroep diep met een kopie van ervoor.
 Wat STEP niet bewaart, bewaart IFCX dus niet: onbekende velden en onbekende leden van werkblokken, een enkele pauze
@@ -281,13 +321,19 @@ de boom tegenover de volgorde. Elke afwijking van wat de writer zou schrijven, w
 verandert elk gedeeld veld van een geschreven bestand één voor één (een andere waarde, weglaten, een element erbij) en
 eist dat de lezer elk veranderd bestand weigert met `invalid`, met het veld en het pad van het object.
 
-**Ronde 4, punt 8.** Een bestand dat R2 doorstaat, is wat de writer voor het gelezen model zou schrijven, maar dat model
-hoeft geen uitkomst van de STEP-rondgang te zijn: een bestand met lege vroege datums, gedeeld en precies gelijk, doorstaat
-R2. De lezer haalt het gelezen model daarom ook door de STEP-rondgang en geeft die uitkomst terug (`stepRoundtrip` aan
-het eind van `readIfcxText`). Zo is wat `readIfcx` teruggeeft altijd wat STEP voor die planning teruggeeft. Weigeren als
-de rondgang iets verandert, sluit ook, maar dan opent een eigen bestand niet meer zodra de STEP-rondgang ergens niet
-herhaalbaar is; teruggeven doet wat STEP met een STEP-bestand van dezelfde planning doet. Zie *Metingen* voor wat het
-bij openen kost.
+**Punt 8 (ronde 4 en 5).** Een bestand dat R2 doorstaat, is wat de writer voor het gelezen model zou schrijven, maar
+dat model hoeft geen uitkomst van de STEP-rondgang te zijn: een bestand met lege vroege datums, gedeeld en precies
+gelijk, doorstaat R2. In fixronde 4 haalde de lezer het gelezen model daarom nog door de STEP-rondgang; sinds fixronde
+5 niet meer (besluit van de technisch eigenaar). `readIfcx` geeft het gecontroleerde precieze model terug, en dat is
+alles wat de lezer met het bestand doet.
+
+Wat bij openen wordt afgeleid, komt van dezelfde laadgrens die ook een STEP-bestand doorloopt: `payloadFromImport` in
+`src/state/documentContract.ts` (met `migrateToMinuteModel`, dat de laadgegevens `timeModel` en `milestonesAtDayEnd`
+gebruikt) en daarna `prepareLoadedPayload` in `src/state/documentActivation.ts` (de projectkalender terug in de
+bibliotheek, en desgewenst een berekening). Het invullen van lege vroege en late datums uit de planningsdatums
+(`fillEmptyComputedDateSlots`) zit niet in die laadgrens maar in de STEP-lezer zelf: het hoort bij het lezen van
+STEP-slots. Het bestand van punt 8 opent daarom met lege vroege datums, en de eerste berekening vult ze. De writer
+schrijft zo'n bestand nooit: hij schrijft de STEP-uitkomst, en daarin zijn ze al ingevuld. Een proef pint beide.
 
 ## Wat verviel in fixronde 4
 
@@ -301,6 +347,61 @@ bij openen kost.
 - Negen uitzonderingen van de zelfcontrole en de compileerlijsten in `domainKeys.ts`; zie *Zelfcontrole*.
 - De velden `libraryPlace`, `openaec::ops::document.calendarId`, `openaec::ops::task.calendarId` en de status van een
   taak: de STEP-rondgang geeft geen planning waarin ze iets dragen.
+
+## Wat verviel in fixronde 5
+
+- De STEP-rondgang aan het eind van `readIfcxText`; de lezer geeft het precieze model terug.
+- `READ_METADATA`, `SELF_CHECK_RULES` en beide regels (`leesmeta`, `nee-is-afwezig`); de zelfcontrole vergelijkt alles.
+- De velden `globalId`, `workplanGlobalId` en `scheduleGlobalId`, de UUID v5 en haar namespace (`globalIdUuid.ts`);
+  het pad draagt de GlobalId.
+- `lagDays`, `lagMinutes` en `lagPercent` in `openaec::ops::sequence`; er is één `lag`.
+- `fieldGroups.ts`, `lagFromShared`, `momentOfSharedDate` en de lege leesfuncties van de gedeelde velden: de gedeelde
+  kant heeft alleen vorm en schrijver (`SharedField`), de precieze vorm, schrijver en lezer (`IfcxField`).
+
+## Wat de STEP-lezer naast het model teruggeeft
+
+R1 volledig vraagt een indeling van elk veld dat de STEP-lezer teruggeeft. Die staat op één plek: `MODEL_KEYS` in
+`nodes.ts` noemt elke sleutel van `WriteIFCInput` (een ontbrekende of extra sleutel is een compileerfout), en elke
+sleutel is óf van een node (`modelKeys` in de registratie), óf van het pad (`ifcGlobalIds`), óf nog niet gedragen
+(`STEP_WRITER_INPUT_NOT_CARRIED`, dat de writer met `unsupported` weigert zodra het iets draagt). Een proef eist dat elk
+veld dat de STEP-lezer voor de voorbeelden en de proefplanningen teruggeeft, in die indeling staat. Er is geen lijst
+van uitzonderingen meer: de zelfcontrole vergelijkt elk veld.
+
+De velden die tot fixronde 4 buiten de vergelijking bleven:
+
+| Veld | Nu | Waarom |
+|---|---|---|
+| `timeModel` | `openaec::ops::document.timeModel` | de laadgrens zet zonder `MINUTES-1` een omzetting naar het minutenmodel open |
+| `milestonesAtDayEnd` | `openaec::ops::task.atDayEnd` | de laadgrens zet een mijlpaal zonder soort aan het eind van de dag (16:00) |
+| `ifcLiteralCalendarIds` | `openaec::ops::document.literalCalendars` | een volgende opslag houdt die kalenders letterlijk |
+| `recordedFields` | `openaec::ops::task.recorded`, alleen als het afwijkt van de velden met een waarde | "datums zoals opgeslagen" leest welke velden het bestand droeg; zonder `recordedSourceFormat` (nog niet gedragen) heeft het bij openen geen gevolg, maar STEP geeft het terug |
+| `recordedTimesOrigin` | vast `ifc-own`: een IFCX-bestand is altijd een eigen bestand | de laadgrens kiest daarmee tussen verse import en heropening |
+| `importPristine` | `openaec::ops::document.importPristine` | "datums zoals opgeslagen" gaat bij een ongewijzigde import vanzelf aan |
+| `minuteModelPending` | via `timeModel` (STEP laat `TimeModel` weg, IFCX ook) | alleen invoer van de writer; de STEP-lezer geeft het niet terug |
+| `recordedTimes`, `xerOrigin`, `xerArchiveIssue`, `baselineOrphanGuids` | nog niet gedragen, weigert de writer | volgen uit het XER-archief en de baselines (F3-2 en F3-3); zonder die inhoud geeft STEP ze niet terug |
+| `xerMissingPlannedStarts`, `p6xmlReport`, `msProjectReport`, `sourceScheduleNotes`, `suggestedProfileId`, `ifcLegacySchemaLoss` | nog niet gedragen, weigert de writer | meldingen van andere lezers over hun bronbestand; de STEP-lezer geeft ze voor een eigen bestand niet terug, dus ze zijn er nooit |
+
+Het leesmoment zelf (de aanmaak- en wijzigingsdatum die de STEP-lezer invult als het bestand ze leeg laat) staat niet
+in die lijst: de STEP-rondgang krijgt de datums van de invoer als terugval (`projectTimestampFallback`), dus het is
+geen veld van de uitkomst.
+
+## R3: elk feit één keer
+
+De precieze kant draagt elk feit één keer, in de vorm waarin STEP het bewaart. De plekken waar de STEP-writer uit twee
+domeinvelden kiest wat hij in één slot schrijft:
+
+| Feit | Domeinvelden | STEP-slot | Precies veld |
+|---|---|---|---|
+| lag | `lagDays`, `lagMinutes`, `lagPercent` | `IfcLagTime.LagValue` (verhouding, of duur in minuten of dagen) | `lag` `{ amount, unit }` |
+| duur van een uurtaak | `durationMinutes`, `scheduleDuration` | `ScheduleDuration` in minuten | `time.durationMinutes`; `scheduleDuration` leidt de lezer af zoals STEP (`hourTaskScheduleDuration`) |
+| restduur van een uurtaak | `remainingMinutes`, `remainingTime` | `RemainingTime` in minuten | `time.remainingMinutes`; `remainingTime` leidt de lezer af zoals STEP (`hourRemainingDays`) |
+
+De spelingen (`totalFloat` met `totalFloatMinutes`, `freeFloat` met `freeFloatMinutes`) staan er niet in: STEP bewaart
+daar beide waarden (het slot in minuten en een eigen record met de dagen), dus het zijn twee feiten.
+
+Een proef pint R3 met één lus: voor geschreven bestanden verandert ze elk precies veld één voor één in een andere
+geldige waarde, laat het weg of voegt het toe, en eist dat de lezer een model teruggeeft waarvan de projectie precies
+het veranderde bestand is en dat van het oude model verschilt, of weigert met het veld en het object in de melding.
 
 ## Wat de writer weigert
 
@@ -326,13 +427,12 @@ bij openen kost.
   veld in een `openaec::ops::`-attribuut;
 - `foreign`: niet helemaal van Open Planner Studio (keuze T2): een kop zonder `urn:openaec:planner:`, een onbekend
   kop- of entryveld, `imports`, `children` of `inherits`, een attribuut van een ander, een onbekend veld in een
-  `openaec::planning::`-attribuut, een pad dat geen UUID is, twee bijdragen van één attribuut op één pad, een pad
+  `openaec::planning::`-attribuut, een pad dat geen identiteitspad is (zie *Paden en identiteit*), twee bijdragen van één attribuut op één pad, een pad
   waarvan de attributen samen geen planningsobject vormen, of niet precies één eigen werkplan;
 - `invalid`: een kopveld buiten zijn domein (`header.<veld>`), een bestand zonder `imports`, `schemas` of profielversie,
   een eigen schema dat afwijkt van het profiel of ontbreekt, een bekend veld met een waarde buiten zijn domein (ook
   een dag of kloktijd die niet bestaat, en een getal als `1e999`), een verplicht veld dat ontbreekt, een verwijzing
-  naar een pad van de verkeerde soort, een pad dat niet bij de GlobalId van het object hoort, R0, een verschil met de
-  projectie (R2), of niet precies één werkschema.
+  naar een pad van de verkeerde soort, R0, een verschil met de projectie (R2), of niet precies één werkschema.
 
 `classifyIfcx` gebruikt dezelfde regel: `own` als de lezer het bestand leest, `foreign` bij `foreign`, `not-ifcx` bij
 `not-ifcx`, en `unreadable` bij de andere codes. De lezer leest met `JSON.parse` (keuze T1); een dubbele sleutel ziet
@@ -348,52 +448,58 @@ de echte validator van IFC5-development en met ifcx-explorer draait in een eigen
 ## Zelfcontrole
 
 Na het schrijven leest `writeIfcx` zijn eigen uitvoer één keer terug en legt het teruggelezen model rechtstreeks naast
-de STEP-uitkomst (`selfCheck.ts`). De vergelijking is algemeen: elk veld telt mee, op elk niveau, met de volgorde van
-lijsten; alleen een ontbrekend veld en `undefined` zijn hetzelfde. Twee regels laten iets weg:
+de hele STEP-uitkomst (`selfCheck.ts`). De vergelijking is algemeen: elk veld telt mee, op elk niveau, met de volgorde
+van lijsten; alleen een ontbrekend veld en `undefined` zijn hetzelfde. Er zijn geen uitzonderingen.
 
-| Regel | Wat | Waarom |
-|---|---|---|
-| `leesmeta` | `timeModel`, `recordedFields`, `recordedTimesOrigin`, `ifcLiteralCalendarIds` en de andere meldingen van een lezer | wat een lezer bij openen meegeeft over het bestand dat hij las, geen planningsgegeven |
-| `nee-is-afwezig` | `minuteModelPending`, `importPristine` | de STEP-lezer zet ze op onwaar, de IFCX-lezer laat ze weg; dat betekent hetzelfde |
-
-Elke regel heeft in `check-ifcx-kern.ts` een geval dat zonder die regel een verschil geeft. Een proef haalt elk precies
-veld één voor één uit de veldtabel en eist dat `writeIfcx` dan weigert: in de zelfcontrole, of in de waardetoets als
-het veld verplicht is. Zo faalt de zelfcontrole op een veld dat STEP bewaart en IFCX niet draagt (besluit 3 van Trias:
-wat STEP zelf ook laat vallen, is geen fout).
+Een proef haalt elk precies veld één voor één uit de veldtabel en eist dat `writeIfcx` dan weigert: in de
+zelfcontrole, of in de waardetoets als het veld verplicht is. Zo faalt de zelfcontrole op een veld dat STEP bewaart en
+IFCX niet draagt (besluit 3 van Trias: wat STEP zelf ook laat vallen, is geen fout).
 
 ## Metingen
 
-CPU-tijd in één proces (`process.cpuUsage`), mediaan van vijf, op aia09-mp50 (AMD Ryzen 7 3700U), 24 november 2026,
-belasting rond 3, met de planning van de meting van stap 1 (`check-ifcx-meting.ts`):
+De grens (besluit van de technisch eigenaar, 24 november, letterlijk): "De verhouding (hoogstens vier keer opslaan als
+IFC, op dezelfde machine in dezelfde run) is de harde grens; de absolute CPU-tijd wordt alleen gemeld." En: "Leg voor
+openen dezelfde verhouding vast (hoogstens vier keer openen als IFC), zodat ook dat niet ongemerkt groeit."
+`check-ifcx-meting.ts` toetst beide verhoudingen bij 10.000 taken, met dezelfde planning in hetzelfde proces: opslaan
+als IFCX (`writeIfcx`, met rondgang en zelfcontrole) tegenover `writeIFC`, en openen als IFCX (`readIfcx` op de bytes)
+tegenover openen als IFC (de bytes decoderen en `readIFC`). De absolute CPU-tijd staat alleen in de uitvoer; die hoort
+bij de meting op Windows en macOS vóór "IFCX standaard aan". Met `OPS_IFCX_MEASURE=1` geeft de meting ook de tabel per
+stuk.
 
-| Taken | Opslaan als IFC | `writeIfcx` (rondgang en zelfcontrole) | Verhouding | `readIfcx` (openen) |
-|---|---|---|---|---|
-| 1.000 | 151 ms | 415 ms | 2,75 | 214 ms |
-| 5.000 | 760 ms | 2.087 ms | 2,75 | 1.367 ms |
-| 10.000 | 1.686 ms | 4.548 ms | 2,70 | 2.922 ms |
+CPU-tijd in één proces (`process.cpuUsage`), mediaan van vijf, 10.000 taken. Op aia09-mp50 (AMD Ryzen 7 3700U), 24
+november, oude en nieuwe code om en om in dezelfde meetproef (belasting 3,5 tot 11):
 
-Bij 10.000 taken: STEP-writer 1.686, STEP-lezer 1.261, IFCX-writer zonder rondgang 524, teruglezen 601, vergelijking
-283 ms. De grens van de technisch eigenaar (24 november): `writeIfcx` hoogstens vier keer opslaan als IFC en hoogstens
-4 s CPU-tijd bij 10.000 taken. `check-ifcx-meting.ts` toetst beide in de planningssuite. Dezelfde STEP-writer mat om
-09:10 op dezelfde planning 1.061 ms; de verhouding hangt niet van de machine af, de absolute tijd wel.
+| | Opslaan als IFC | Opslaan als IFCX | Verhouding | Openen als IFC | Openen als IFCX | Verhouding |
+|---|---|---|---|---|---|---|
+| vóór fixronde 5 (`b7acccdd6`, lezer met STEP-rondgang) | 1.224 / 1.050 ms | 4.503 / 4.384 ms | 3,68 / 4,17 | 1.165 / 1.250 ms | 4.392 / 4.370 ms | 3,77 / 3,50 |
+| na fixronde 5 | 1.110 / 1.034 ms | 4.156 / 4.277 ms | 3,74 / 4,13 | 1.236 / 1.310 ms | 1.089 / 1.152 ms | 0,88 / 0,88 |
+
+Openen als IFCX kost nu minder dan openen als IFC: de lezer leest JSON en rekent één projectie na, zonder STEP-rondgang.
+Opslaan ligt op aia rond de grens, vóór en na deze ronde: de STEP-rondgang zelf (`writeIFC` plus `readIFC`) is daar al
+ruim 2,3 keer opslaan als IFC. In de CI meet dezelfde proef ruim lager (zie de PR); daar is ze de harde grens.
 
 ## Uitbreiden (F3-2 en F3-3)
 
-Onder R1 en R2 is uitbreiden drie dingen:
+Elke node heeft één registratie in `NODES` (`nodes.ts`): zijn attributen met hun velden, de sleutels van het model die
+hij draagt (`modelKeys`) en de domeinvelden per object (`objectKeys`). Daaruit volgen het schema en de waardetoets
+(`OWN_ATTRIBUTE_VALUES`), de vorm van een node bij lezen (`NODE_SHAPES`), en wat de writer nog weigert
+(`STEP_WRITER_INPUT_NOT_CARRIED` en de velden per object in `unsupportedContent.ts`). Een uitbreiding doet:
 
-- **Velden met een vorm.** Elk nieuw feit krijgt een veld in een precies attribuut (`fields/`, sleutel, vorm,
-  schrijven en lezen samen), weggelaten bij de standaardwaarde, en waar er een gedeelde woordenschat is een veld in
-  het gedeelde attribuut dat alleen schrijft. De domeinvelden die een groep draagt, staan in `carries`
-  (`fieldGroups.ts`); daaruit volgen het schema, de waardetoets, `unsupportedContent` en R2.
-- **Een soort in de identiteitslijst.** Een nieuwe soort object (resource, toewijzing, baseline) komt als regel in
-  `IDENTITY_KINDS` met zijn verwijzingen, en als node in `projection.ts` en `ifcxReader.ts` (`NODE_SHAPES`).
-- **Een planning met de gegevens in de proef.** In `STEP_CASES` (de R1-lus: heen en terug gelijk aan de
-  STEP-rondgang) en in `maximalPlan` of `variantPlan`, zodat de veldproef, de R2-lus en de proef die elk precies veld
-  weghaalt het nieuwe veld zien. Voor F3-2: een kostenresource met een toewijzing. Voor F3-3: een geval per nieuwe
-  betekenis.
+- **Velden met een vorm.** Elk nieuw feit krijgt één veld in een precies attribuut (`fields/`: sleutel, vorm, schrijven
+  en lezen samen), in de vorm waarin STEP het bewaart, weggelaten bij de standaardwaarde (R3). Waar de STEP-writer uit
+  twee domeinvelden kiest, is dat één precies veld. Waar er een gedeelde woordenschat is, komt er een veld in het
+  gedeelde attribuut dat alleen schrijft (`SharedField`).
+- **De registratie.** Een nieuwe node (resource, toewijzing, baseline) of een nieuw attribuut komt in `NODES`, met de
+  sleutels die het overneemt in `modelKeys` (zo verdwijnen ze uit de weigering) en de domeinvelden in `objectKeys`.
+  Een nieuwe soort object komt daarnaast als regel in `IDENTITY_KINDS` met zijn verwijzingen, en de modelopbouw in
+  `projection.ts` en `ifcxReader.ts`.
+- **De proef.** `NOT_CARRIED_YET` in `check-ifcx-kern.ts` gaat mee omlaag. Een planning met de nieuwe gegevens komt in
+  `STEP_CASES` (de R1-lus) en in `maximalPlan` of `variantPlan`: de veldproef, de R2-lus, de R3-lus en de proef die
+  elk precies veld weghaalt, lopen over alle geregistreerde attributen en falen bij een veld zonder proefgegevens. Voor
+  F3-2: een kostenresource met een toewijzing. Voor F3-3: een geval per nieuwe betekenis.
 
-Geen eigen normalisatie, geen tabel van dubbele voorstellingen en geen nieuwe uitzondering in de zelfcontrole: wat STEP
-bij openen doet, komt uit de rondgang.
+Geen eigen normalisatie, geen tabel van dubbele voorstellingen en geen uitzondering in de zelfcontrole: de precieze
+kant draagt wat STEP teruggeeft, en wat bij openen hoort, doet de laadgrens.
 
 De proef is `tests/planning/check-ifcx-kern.ts`; de voorbeeldbestanden in `tests/fixtures/ifcx/eigen/` maak je opnieuw
 met `OPS_IFCX_FIXTURES_WRITE=1 bash tests/planning/run.sh check-ifcx-kern.ts`. De meting is
