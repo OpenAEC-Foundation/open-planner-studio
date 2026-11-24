@@ -42,6 +42,13 @@ export const SEQUENCE_GROUPS: readonly IfcxFieldGroup<SequenceWriteSource, Seque
   { planning: SEQUENCE_PLANNING_FIELDS, ops: SEQUENCE_OPS_FIELDS, carries: SEQUENCE_KEYS_CARRIED },
 ];
 
-export const planningFields = <W, R, D>(groups: readonly IfcxFieldGroup<W, R, D>[]) => groups.flatMap(group => group.planning);
-export const opsFields = <W, R, D>(groups: readonly IfcxFieldGroup<W, R, D>[]) => groups.flatMap(group => group.ops);
+function fieldsOf<W, R, D>(groups: readonly IfcxFieldGroup<W, R, D>[]) {
+  return { planning: groups.flatMap(group => group.planning), ops: groups.flatMap(group => group.ops) };
+}
+
+export const DOCUMENT_AREA = fieldsOf(DOCUMENT_GROUPS);
+export const CALENDAR_AREA = fieldsOf(CALENDAR_GROUPS);
+export const TASK_AREA = fieldsOf(TASK_GROUPS);
+export const SEQUENCE_AREA = fieldsOf(SEQUENCE_GROUPS);
+
 export const carriedKeys = <W, R, D>(groups: readonly IfcxFieldGroup<W, R, D>[]) => new Set<keyof D>(groups.flatMap(group => group.carries));

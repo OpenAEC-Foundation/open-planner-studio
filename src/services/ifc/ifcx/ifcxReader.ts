@@ -10,7 +10,7 @@ import { checkValue, readFields } from './fieldTable';
 import { globalIdOfIdentity, isUuidPath } from './globalIdUuid';
 import { childrenInPlace } from './childOrder';
 import { momentOfSharedDate, projectSpan } from './dateProjection';
-import { CALENDAR_GROUPS, DOCUMENT_GROUPS, opsFields, planningFields, SEQUENCE_GROUPS, TASK_GROUPS } from './fieldGroups';
+import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from './fieldGroups';
 import { SCHEDULE_FIELDS, emptyProject, type DocumentReadTarget } from './fields/documentFields';
 import { emptyCalendar, type CalendarReadTarget } from './fields/calendarFields';
 import { emptyTask, type TaskReadTarget } from './fields/taskFields';
@@ -132,7 +132,7 @@ function assertProfileVersion(nodes: readonly IfcxNode[]): void {
 function assertValues(nodes: readonly IfcxNode[]): void {
   for (const node of nodes) {
     for (const [name, value] of node.attributes) {
-      const problem = checkValue(OWN_ATTRIBUTE_VALUES.get(name)!, value, '');
+      const problem = checkValue(OWN_ATTRIBUTE_VALUES.get(name)!, value);
       if (!problem) continue;
       const place = { path: node.path, attribute: name, field: problem.field };
       if (problem.kind === 'invalid') throw invalid(`Ongeldige waarde: ${problem.detail}`, place);
@@ -190,7 +190,8 @@ export function readIfcxText(text: string): IfcxImportResult {
   for (const node of nodes) {
     const kind = kindOf(node);
     kindAt.set(node.path, kind);
-    byKind.set(kind, [...(byKind.get(kind) ?? []), node]);
+    const list = byKind.get(kind);
+    if (list) list.push(node); else byKind.set(kind, [node]);
   }
   const of = (kind: NodeKind) => byKind.get(kind) ?? [];
   if (of('workplan').length !== 1) throw foreign(`Het bestand heeft ${of('workplan').length} werkplannen van Open Planner Studio`);
@@ -204,8 +205,8 @@ export function readIfcxText(text: string): IfcxImportResult {
   const workplan = of('workplan')[0];
   const project = emptyProject();
   const documentTarget: DocumentReadTarget = { project, headerUuid: header.uuid, headerAuthor: header.author, formatVersion: '' };
-  readFields(planningFields(DOCUMENT_GROUPS), workplan.attributes.get(ATTRIBUTE.workplan)!, documentTarget);
-  readFields(opsFields(DOCUMENT_GROUPS), workplan.attributes.get(ATTRIBUTE.document)!, documentTarget);
+  readFields(DOCUMENT_AREA.planning, workplan.attributes.get(ATTRIBUTE.workplan)!, documentTarget);
+  readFields(DOCUMENT_AREA.ops, workplan.attributes.get(ATTRIBUTE.document)!, documentTarget);
   const schedule = of('schedule')[0];
   const scheduleTarget: { workplanPath?: string } = {};
   readFields(SCHEDULE_FIELDS, schedule.attributes.get(ATTRIBUTE.schedule)!, scheduleTarget);
@@ -219,8 +220,8 @@ export function readIfcxText(text: string): IfcxImportResult {
   if (projectCalendarPath === undefined) throw invalid('Het bestand heeft geen kalender');
   const calendarTargets: CalendarReadTarget[] = calendarNodes.map(node => {
     const target: CalendarReadTarget = { calendar: emptyCalendar(), isProjectCalendar: node.path === projectCalendarPath, path: node.path };
-    readFields(planningFields(CALENDAR_GROUPS), node.attributes.get(ATTRIBUTE.calendar)!, target);
-    readFields(opsFields(CALENDAR_GROUPS), node.attributes.get(ATTRIBUTE.opsCalendar)!, target);
+    readFields(CALENDAR_AREA.planning, node.attributes.get(ATTRIBUTE.calendar)!, target);
+    readFields(CALENDAR_AREA.ops, node.attributes.get(ATTRIBUTE.opsCalendar)!, target);
     return target;
   });
   const calendarIdAt = new Map(calendarTargets.map(target => [target.path, target.calendar.id]));
@@ -229,8 +230,8 @@ export function readIfcxText(text: string): IfcxImportResult {
 
   const taskTargets: TaskReadTarget[] = of('task').map(node => {
     const target: TaskReadTarget = { task: emptyTask(), path: node.path, span: {} };
-    readFields(planningFields(TASK_GROUPS), node.attributes.get(ATTRIBUTE.activity)!, target);
-    readFields(opsFields(TASK_GROUPS), node.attributes.get(ATTRIBUTE.opsTask)!, target);
+    readFields(TASK_AREA.planning, node.attributes.get(ATTRIBUTE.activity)!, target);
+    readFields(TASK_AREA.ops, node.attributes.get(ATTRIBUTE.opsTask)!, target);
     return target;
   });
   const taskIdAt = new Map(taskTargets.map(target => [target.path, target.task.id]));
@@ -239,7 +240,10 @@ export function readIfcxText(text: string): IfcxImportResult {
     const place = { path: target.path, attribute: ATTRIBUTE.activity };
     const parentPath = reference(target.parentPath, 'task', { ...place, field: 'parent' });
     target.task.parentId = parentPath === undefined ? null : taskIdAt.get(parentPath)!;
-    if (parentPath !== undefined) childrenOf.set(parentPath, [...(childrenOf.get(parentPath) ?? []), target]);
+    if (parentPath !== undefined) {
+      const siblings = childrenOf.get(parentPath);
+      if (siblings) siblings.push(target); else childrenOf.set(parentPath, [target]);
+    }
     const calendarPath = reference(target.calendarPath, 'calendar', { ...place, field: 'calendar' });
     if (calendarPath !== undefined) target.task.calendarId = calendarIdAt.get(calendarPath)!;
   }
@@ -251,8 +255,8 @@ export function readIfcxText(text: string): IfcxImportResult {
 
   const sequenceTargets: SequenceReadTarget[] = of('sequence').map(node => {
     const target: SequenceReadTarget = { sequence: emptySequence(), path: node.path, predecessorPath: '', successorPath: '', shared: {} };
-    readFields(planningFields(SEQUENCE_GROUPS), node.attributes.get(ATTRIBUTE.sequence)!, target);
-    readFields(opsFields(SEQUENCE_GROUPS), node.attributes.get(ATTRIBUTE.opsSequence) ?? {}, target);
+    readFields(SEQUENCE_AREA.planning, node.attributes.get(ATTRIBUTE.sequence)!, target);
+    readFields(SEQUENCE_AREA.ops, node.attributes.get(ATTRIBUTE.opsSequence) ?? {}, target);
     const place = { path: node.path, attribute: ATTRIBUTE.sequence };
     target.sequence.predecessorId = taskIdAt.get(reference(target.predecessorPath, 'task', { ...place, field: 'relatingProcess' })!)!;
     target.sequence.successorId = taskIdAt.get(reference(target.successorPath, 'task', { ...place, field: 'relatedProcess' })!)!;

@@ -1,0 +1,756 @@
+{
+  "header": {
+    "id": "urn:openaec:planner:9288d314-dbf1-4845-1586-cf041839d053",
+    "ifcxVersion": "ifcx_alpha",
+    "dataVersion": "1.0.0",
+    "author": "Thomas van Leeuwen",
+    "timestamp": "2026-11-24T08:00:00.000Z"
+  },
+  "imports": [],
+  "schemas": {
+    "openaec::planning::workplan": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "name": {
+              "dataType": "String"
+            },
+            "description": {
+              "dataType": "String",
+              "optional": true
+            },
+            "start": {
+              "dataType": "DateTime",
+              "optional": true
+            },
+            "finish": {
+              "dataType": "DateTime",
+              "optional": true
+            },
+            "calendar": {
+              "dataType": "Reference",
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::planning::schedule": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "workplan": {
+              "dataType": "Reference"
+            }
+          }
+        }
+      }
+    },
+    "openaec::planning::calendar": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "name": {
+              "dataType": "String"
+            },
+            "description": {
+              "dataType": "String",
+              "optional": true
+            },
+            "predefinedType": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "FIRSTSHIFT",
+                  "SECONDSHIFT",
+                  "THIRDSHIFT",
+                  "USERDEFINED"
+                ]
+              }
+            },
+            "exceptionTimes": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "name": {
+                        "dataType": "String"
+                      },
+                      "start": {
+                        "dataType": "DateTime"
+                      },
+                      "end": {
+                        "dataType": "DateTime",
+                        "optional": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::planning::activity": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "name": {
+              "dataType": "String"
+            },
+            "description": {
+              "dataType": "String",
+              "optional": true
+            },
+            "identification": {
+              "dataType": "String",
+              "optional": true
+            },
+            "parent": {
+              "dataType": "Reference",
+              "optional": true
+            },
+            "predefinedType": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "CONSTRUCTION",
+                  "INSTALLATION",
+                  "DEMOLITION",
+                  "LOGISTIC",
+                  "ATTENDANCE",
+                  "MOVE",
+                  "RENOVATION",
+                  "MAINTENANCE",
+                  "USERDEFINED"
+                ]
+              }
+            },
+            "isMilestone": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "priority": {
+              "dataType": "Integer",
+              "optional": true
+            },
+            "calendar": {
+              "dataType": "Reference",
+              "optional": true
+            },
+            "durationType": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "WORKTIME",
+                  "ELAPSEDTIME"
+                ]
+              }
+            },
+            "completion": {
+              "dataType": "Real",
+              "optional": true
+            },
+            "start": {
+              "dataType": "DateTime",
+              "optional": true
+            },
+            "endExclusive": {
+              "dataType": "DateTime",
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::planning::sequence": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "relatingProcess": {
+              "dataType": "Reference"
+            },
+            "relatedProcess": {
+              "dataType": "Reference"
+            },
+            "sequenceType": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "FINISH_START",
+                  "START_START",
+                  "FINISH_FINISH",
+                  "START_FINISH"
+                ]
+              }
+            },
+            "timeLag": {
+              "dataType": "String",
+              "optional": true
+            },
+            "timeLagRatio": {
+              "dataType": "Real",
+              "optional": true
+            },
+            "lagDurationType": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "WORKTIME",
+                  "ELAPSEDTIME"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::ops::document": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "formatVersion": {
+              "dataType": "String"
+            },
+            "projectId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "globalId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "startDate": {
+              "dataType": "String",
+              "optional": true
+            },
+            "endDate": {
+              "dataType": "String",
+              "optional": true
+            },
+            "calendarId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "createdAt": {
+              "dataType": "String",
+              "optional": true
+            },
+            "modifiedAt": {
+              "dataType": "String",
+              "optional": true
+            },
+            "author": {
+              "dataType": "String",
+              "optional": true
+            },
+            "company": {
+              "dataType": "String",
+              "optional": true
+            },
+            "ifcSchema": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "IFC4X3_ADD2",
+                  "IFC4X3",
+                  "IFC4"
+                ]
+              }
+            },
+            "ifcSchemaUnconfirmed": {
+              "dataType": "String",
+              "optional": true
+            },
+            "wbsAutoNumber": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "defaultTaskDurationUnit": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "days",
+                  "hours"
+                ]
+              }
+            },
+            "statusDate": {
+              "dataType": "String",
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::ops::calendar": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "id": {
+              "dataType": "String",
+              "optional": true
+            },
+            "globalId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "workDays": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Integer"
+                }
+              }
+            },
+            "workStartHour": {
+              "dataType": "Real"
+            },
+            "workEndHour": {
+              "dataType": "Real"
+            },
+            "hoursPerDay": {
+              "dataType": "Real"
+            },
+            "simpleBreakStartMinute": {
+              "dataType": "Real",
+              "optional": true
+            },
+            "simpleBreakDurationMinutes": {
+              "dataType": "Real",
+              "optional": true
+            },
+            "workTime": {
+              "dataType": "Object",
+              "optional": true,
+              "objectRestrictions": {
+                "values": {
+                  "byWeekday": {
+                    "dataType": "Object",
+                    "objectRestrictions": {
+                      "values": {
+                        "1": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "start": {
+                                    "dataType": "Real"
+                                  },
+                                  "end": {
+                                    "dataType": "Real"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "2": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "start": {
+                                    "dataType": "Real"
+                                  },
+                                  "end": {
+                                    "dataType": "Real"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "3": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "start": {
+                                    "dataType": "Real"
+                                  },
+                                  "end": {
+                                    "dataType": "Real"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "4": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "start": {
+                                    "dataType": "Real"
+                                  },
+                                  "end": {
+                                    "dataType": "Real"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "5": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "start": {
+                                    "dataType": "Real"
+                                  },
+                                  "end": {
+                                    "dataType": "Real"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "6": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "start": {
+                                    "dataType": "Real"
+                                  },
+                                  "end": {
+                                    "dataType": "Real"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "7": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "start": {
+                                    "dataType": "Real"
+                                  },
+                                  "end": {
+                                    "dataType": "Real"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "workingExceptions": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "name": {
+                        "dataType": "String"
+                      },
+                      "startDate": {
+                        "dataType": "DateTime"
+                      },
+                      "endDate": {
+                        "dataType": "DateTime"
+                      },
+                      "bands": {
+                        "dataType": "Array",
+                        "optional": true,
+                        "arrayRestrictions": {
+                          "value": {
+                            "dataType": "Object",
+                            "objectRestrictions": {
+                              "values": {
+                                "start": {
+                                  "dataType": "Real"
+                                },
+                                "end": {
+                                  "dataType": "Real"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "generation": {
+              "dataType": "Object",
+              "optional": true,
+              "objectRestrictions": {
+                "values": {
+                  "ruleSetId": {
+                    "dataType": "String"
+                  },
+                  "region": {
+                    "dataType": "String",
+                    "optional": true
+                  },
+                  "breakChoice": {
+                    "dataType": "Enum",
+                    "optional": true,
+                    "enumRestrictions": {
+                      "options": [
+                        "noord",
+                        "midden",
+                        "zuid"
+                      ]
+                    }
+                  },
+                  "generatedFromYear": {
+                    "dataType": "Integer"
+                  },
+                  "generatedToYear": {
+                    "dataType": "Integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::ops::task": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "id": {
+              "dataType": "String",
+              "optional": true
+            },
+            "globalId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "place": {
+              "dataType": "Integer",
+              "optional": true
+            },
+            "time": {
+              "dataType": "Object",
+              "objectRestrictions": {
+                "values": {
+                  "durationUnit": {
+                    "dataType": "Enum",
+                    "enumRestrictions": {
+                      "options": [
+                        "days",
+                        "hours"
+                      ]
+                    }
+                  },
+                  "scheduleDuration": {
+                    "dataType": "Real"
+                  },
+                  "durationMinutes": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "scheduleStart": {
+                    "dataType": "String"
+                  },
+                  "scheduleFinish": {
+                    "dataType": "String"
+                  },
+                  "resume": {
+                    "dataType": "String",
+                    "optional": true
+                  },
+                  "stop": {
+                    "dataType": "String",
+                    "optional": true
+                  },
+                  "earlyStart": {
+                    "dataType": "String"
+                  },
+                  "earlyFinish": {
+                    "dataType": "String"
+                  },
+                  "lateStart": {
+                    "dataType": "String"
+                  },
+                  "lateFinish": {
+                    "dataType": "String"
+                  },
+                  "freeFloat": {
+                    "dataType": "Real"
+                  },
+                  "totalFloat": {
+                    "dataType": "Real"
+                  },
+                  "totalFloatMinutes": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "freeFloatMinutes": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "isCritical": {
+                    "dataType": "Boolean"
+                  },
+                  "interferingFloat": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "isNearCritical": {
+                    "dataType": "Boolean",
+                    "optional": true
+                  },
+                  "floatPath": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "actualStart": {
+                    "dataType": "String",
+                    "optional": true
+                  },
+                  "actualFinish": {
+                    "dataType": "String",
+                    "optional": true
+                  },
+                  "actualDuration": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "remainingTime": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "remainingMinutes": {
+                    "dataType": "Real",
+                    "optional": true
+                  }
+                }
+              }
+            },
+            "status": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "NOT_STARTED",
+                  "STARTED",
+                  "COMPLETED"
+                ]
+              }
+            },
+            "milestoneKind": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "START",
+                  "FINISH"
+                ]
+              }
+            },
+            "mandatory": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "isSummary": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "manuallyScheduled": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "calendarId": {
+              "dataType": "String",
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::ops::sequence": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "id": {
+              "dataType": "String",
+              "optional": true
+            },
+            "globalId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "lagDays": {
+              "dataType": "Real",
+              "optional": true
+            },
+            "lagMinutes": {
+              "dataType": "Real",
+              "optional": true
+            },
+            "lagPercent": {
+              "dataType": "Real",
+              "optional": true
+            }
+          }
+        }
+      }
+    }
+  },
+  "data": [
+    {"path":"b0b82870-4da5-c37a-c688-017c0cc125b4","attributes":{"openaec::planning::workplan":{"name":"Datumgevallen","description":"Detached luxury villa with swimming pool and guest house","start":"2027-06-01","finish":"2027-06-30","calendar":"5ddb2a00-ffa3-8e8c-b1b8-661fdb82e43a"},"openaec::ops::document":{"formatVersion":"1.0.0","projectId":"proj-datums","endDate":"2027-06-30T16:00","createdAt":"2026-10-26T11:31:17.184Z","modifiedAt":"2026-10-26T11:31:17.185Z","company":"Exclusive Living BV","ifcSchema":"IFC4X3_ADD2","wbsAutoNumber":true,"defaultTaskDurationUnit":"days"}}},
+    {"path":"ae9de5d9-27b3-4e2f-6e1b-efdb6d74e077","attributes":{"openaec::planning::schedule":{"workplan":"b0b82870-4da5-c37a-c688-017c0cc125b4"}}},
+    {"path":"5ddb2a00-ffa3-8e8c-b1b8-661fdb82e43a","attributes":{"openaec::planning::calendar":{"name":"Construction calendar NL","description":"Standard construction calendar: Mon-Fri 07:00-16:00","exceptionTimes":[{"name":"New Year's Day","start":"2027-01-01","end":"2027-01-01"},{"name":"Good Friday","start":"2027-03-26","end":"2027-03-26"},{"name":"Easter","start":"2027-03-28","end":"2027-03-29"},{"name":"King's Day","start":"2027-04-27","end":"2027-04-27"},{"name":"Liberation Day","start":"2027-05-05","end":"2027-05-05"},{"name":"Ascension Day","start":"2027-05-06","end":"2027-05-06"},{"name":"Whitsun","start":"2027-05-16","end":"2027-05-17"},{"name":"Christmas","start":"2027-12-25","end":"2027-12-26"},{"name":"Construction holiday (northern region)","start":"2027-07-26","end":"2027-08-15"},{"name":"New Year's Day","start":"2028-01-01","end":"2028-01-01"},{"name":"Good Friday","start":"2028-04-14","end":"2028-04-14"},{"name":"Easter","start":"2028-04-16","end":"2028-04-17"},{"name":"King's Day","start":"2028-04-27","end":"2028-04-27"},{"name":"Liberation Day","start":"2028-05-05","end":"2028-05-05"},{"name":"Ascension Day","start":"2028-05-25","end":"2028-05-25"},{"name":"Whitsun","start":"2028-06-04","end":"2028-06-05"},{"name":"Christmas","start":"2028-12-25","end":"2028-12-26"},{"name":"Construction holiday (northern region)","start":"2028-07-24","end":"2028-08-13"}]},"openaec::ops::calendar":{"workDays":[1,2,3,4,5],"workStartHour":7,"workEndHour":16,"hoursPerDay":8}}},
+    {"path":"68ed7902-a1cc-f2fc-59fe-bcf6a347a690","attributes":{"openaec::planning::activity":{"name":"Taak binnen-een-dag","predefinedType":"CONSTRUCTION","start":"2027-06-01","endExclusive":"2027-06-02"},"openaec::ops::task":{"id":"binnen-een-dag","time":{"durationUnit":"days","scheduleDuration":1,"scheduleStart":"2027-06-01T07:00","scheduleFinish":"2027-06-01T16:00","earlyStart":"2027-06-01T07:00","earlyFinish":"2027-06-01T16:00","lateStart":"2027-06-01T07:00","lateFinish":"2027-06-01T16:00","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"dcc5a54c-2f61-a86f-fdfe-0d43ff078a64","attributes":{"openaec::planning::activity":{"name":"Taak einde-middernacht","predefinedType":"CONSTRUCTION","start":"2027-06-01","endExclusive":"2027-06-03"},"openaec::ops::task":{"id":"einde-middernacht","time":{"durationUnit":"days","scheduleDuration":1,"scheduleStart":"2027-06-01T08:00","scheduleFinish":"2027-06-03T00:00","earlyStart":"2027-06-01T08:00","earlyFinish":"2027-06-03T00:00","lateStart":"2027-06-01T08:00","lateFinish":"2027-06-03T00:00","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"dd0cfbf3-cd3a-24ed-16d6-e98be7d9b787","attributes":{"openaec::planning::activity":{"name":"Taak handmatig","predefinedType":"CONSTRUCTION","start":"2027-06-02","endExclusive":"2027-06-05"},"openaec::ops::task":{"id":"handmatig","time":{"durationUnit":"days","scheduleDuration":1,"scheduleStart":"2027-06-02T09:30","scheduleFinish":"2027-06-04T11:15","earlyStart":"2027-06-02T09:30","earlyFinish":"2027-06-04T11:15","lateStart":"2027-06-02T09:30","lateFinish":"2027-06-04T11:15","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true},"manuallyScheduled":true}}},
+    {"path":"3acdc116-0b53-c234-4e0c-e808a3ffa48c","attributes":{"openaec::planning::activity":{"name":"Taak eindmijlpaal","predefinedType":"CONSTRUCTION","isMilestone":true,"start":"2027-06-04","endExclusive":"2027-06-05"},"openaec::ops::task":{"id":"eindmijlpaal","time":{"durationUnit":"days","scheduleDuration":0,"scheduleStart":"2027-06-04T16:00","scheduleFinish":"2027-06-04T16:00","earlyStart":"2027-06-04T16:00","earlyFinish":"2027-06-04T16:00","lateStart":"2027-06-04T16:00","lateFinish":"2027-06-04T16:00","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true},"milestoneKind":"FINISH"}}},
+    {"path":"336e107f-27a8-a238-a354-38baad37dc63","attributes":{"openaec::planning::sequence":{"relatingProcess":"68ed7902-a1cc-f2fc-59fe-bcf6a347a690","relatedProcess":"dcc5a54c-2f61-a86f-fdfe-0d43ff078a64","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"r1"}}},
+    {"path":"4961f955-f06f-2916-ab5b-d991870f9466","attributes":{"openaec::planning::sequence":{"relatingProcess":"dcc5a54c-2f61-a86f-fdfe-0d43ff078a64","relatedProcess":"3acdc116-0b53-c234-4e0c-e808a3ffa48c","sequenceType":"START_START","timeLag":"-PT90M"},"openaec::ops::sequence":{"id":"r2"}}},
+    {"path":"b77d7396-256b-e464-8605-6aac42695585","attributes":{"openaec::planning::sequence":{"relatingProcess":"dd0cfbf3-cd3a-24ed-16d6-e98be7d9b787","relatedProcess":"3acdc116-0b53-c234-4e0c-e808a3ffa48c","sequenceType":"FINISH_FINISH","timeLagRatio":0.07,"lagDurationType":"ELAPSEDTIME"},"openaec::ops::sequence":{"id":"r3","lagPercent":7}}},
+    {"path":"bdfc66bc-0aa0-cf04-8252-3dd61deba730","attributes":{"openaec::planning::sequence":{"relatingProcess":"68ed7902-a1cc-f2fc-59fe-bcf6a347a690","relatedProcess":"dd0cfbf3-cd3a-24ed-16d6-e98be7d9b787","sequenceType":"START_FINISH","timeLag":"P2.5D"},"openaec::ops::sequence":{"id":"r4"}}}
+  ]
+}

@@ -97,51 +97,69 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export function checkValue(spec: IfcxValue, value: unknown, field: string): IfcxValueProblem | undefined {
-  const invalid = (detail: string): IfcxValueProblem => ({ kind: 'invalid', field, detail });
+type Problem = { kind: 'unknown-field' | 'invalid'; path: string[]; detail: string };
+
+function invalidValue(detail: string): Problem {
+  return { kind: 'invalid', path: [], detail };
+}
+
+function within(problem: Problem | undefined, step: string): Problem | undefined {
+  if (problem) problem.path.unshift(step);
+  return problem;
+}
+
+function problemOf(spec: IfcxValue, value: unknown): Problem | undefined {
+  const found = () => JSON.stringify(value);
   switch (spec.dataType) {
     case 'String':
     case 'DateTime':
-      if (typeof value !== 'string') return invalid(`verwacht tekst, gevonden ${JSON.stringify(value)}`);
-      if (spec.form && !spec.form.pattern.test(value)) return invalid(`verwacht de vorm ${spec.form.name}, gevonden ${JSON.stringify(value)}`);
+      if (typeof value !== 'string') return invalidValue(`verwacht tekst, gevonden ${found()}`);
+      if (spec.form && !spec.form.pattern.test(value)) return invalidValue(`verwacht de vorm ${spec.form.name}, gevonden ${found()}`);
       return;
     case 'Reference':
-      return typeof value === 'string' ? undefined : invalid(`verwacht een pad, gevonden ${JSON.stringify(value)}`);
+      return typeof value === 'string' ? undefined : invalidValue(`verwacht een pad, gevonden ${found()}`);
     case 'Boolean':
-      return typeof value === 'boolean' ? undefined : invalid(`verwacht waar of onwaar, gevonden ${JSON.stringify(value)}`);
+      return typeof value === 'boolean' ? undefined : invalidValue(`verwacht waar of onwaar, gevonden ${found()}`);
     case 'Real':
-      return typeof value === 'number' && Number.isFinite(value) ? undefined : invalid(`verwacht een getal, gevonden ${JSON.stringify(value)}`);
+      return typeof value === 'number' && Number.isFinite(value) ? undefined : invalidValue(`verwacht een getal, gevonden ${found()}`);
     case 'Integer':
-      if (typeof value !== 'number' || !Number.isSafeInteger(value)) return invalid(`verwacht een geheel getal, gevonden ${JSON.stringify(value)}`);
-      if (spec.min !== undefined && value < spec.min) return invalid(`kleiner dan ${spec.min}`);
-      if (spec.max !== undefined && value > spec.max) return invalid(`groter dan ${spec.max}`);
+      if (typeof value !== 'number' || !Number.isSafeInteger(value)) return invalidValue(`verwacht een geheel getal, gevonden ${found()}`);
+      if (spec.min !== undefined && value < spec.min) return invalidValue(`kleiner dan ${spec.min}`);
+      if (spec.max !== undefined && value > spec.max) return invalidValue(`groter dan ${spec.max}`);
       return;
     case 'Enum':
       return typeof value === 'string' && spec.options.includes(value) ? undefined
-        : invalid(`verwacht een van ${spec.options.join(', ')}, gevonden ${JSON.stringify(value)}`);
+        : invalidValue(`verwacht een van ${spec.options.join(', ')}, gevonden ${found()}`);
     case 'Array': {
-      if (!Array.isArray(value)) return invalid(`verwacht een lijst, gevonden ${JSON.stringify(value)}`);
+      if (!Array.isArray(value)) return invalidValue(`verwacht een lijst, gevonden ${found()}`);
       for (let i = 0; i < value.length; i++) {
-        const problem = checkValue(spec.item, value[i], `${field}[${i}]`);
+        const problem = within(problemOf(spec.item, value[i]), `[${i}]`);
         if (problem) return problem;
       }
       return;
     }
     case 'Object': {
-      if (!isPlainObject(value)) return invalid(`verwacht een object, gevonden ${JSON.stringify(value)}`);
-      for (const key of Object.keys(value)) {
-        if (!Object.hasOwn(spec.members, key)) return { kind: 'unknown-field', field: field ? `${field}.${key}` : key };
+      if (!isPlainObject(value)) return invalidValue(`verwacht een object, gevonden ${found()}`);
+      for (const key in value) {
+        if (!Object.hasOwn(spec.members, key)) return { kind: 'unknown-field', path: [key], detail: 'onbekend veld' };
       }
-      for (const [key, member] of Object.entries(spec.members)) {
-        const at = field ? `${field}.${key}` : key;
+      for (const key in spec.members) {
+        const member = spec.members[key];
         if (!Object.hasOwn(value, key)) {
           if (member.optional) continue;
-          return { kind: 'invalid', field: at, detail: 'ontbreekt' };
+          return { kind: 'invalid', path: [key], detail: 'ontbreekt' };
         }
-        const problem = checkValue(member.value, value[key], at);
+        const problem = within(problemOf(member.value, value[key]), key);
         if (problem) return problem;
       }
       return;
     }
   }
+}
+
+export function checkValue(spec: IfcxValue, value: unknown): IfcxValueProblem | undefined {
+  const problem = problemOf(spec, value);
+  if (!problem) return undefined;
+  const field = problem.path.map((step, index) => (index === 0 || step.startsWith('[') ? step : `.${step}`)).join('');
+  return problem.kind === 'invalid' ? { kind: 'invalid', field, detail: problem.detail } : { kind: 'unknown-field', field };
 }

@@ -1,20 +1,18 @@
 import { ifc5ValueDescription, membersOf, objectOf, type IfcxValue } from './fieldTable';
 import { ATTRIBUTE, type IfcxAttributeName } from './profile';
 import { SCHEDULE_FIELDS } from './fields/documentFields';
-import {
-  CALENDAR_GROUPS, DOCUMENT_GROUPS, opsFields, planningFields, SEQUENCE_GROUPS, TASK_GROUPS,
-} from './fieldGroups';
+import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from './fieldGroups';
 
 export const OWN_ATTRIBUTE_VALUES: ReadonlyMap<IfcxAttributeName, IfcxValue> = new Map<IfcxAttributeName, IfcxValue>([
-  [ATTRIBUTE.workplan, objectOf(membersOf(planningFields(DOCUMENT_GROUPS)))],
+  [ATTRIBUTE.workplan, objectOf(membersOf(DOCUMENT_AREA.planning))],
   [ATTRIBUTE.schedule, objectOf(membersOf(SCHEDULE_FIELDS))],
-  [ATTRIBUTE.calendar, objectOf(membersOf(planningFields(CALENDAR_GROUPS)))],
-  [ATTRIBUTE.activity, objectOf(membersOf(planningFields(TASK_GROUPS)))],
-  [ATTRIBUTE.sequence, objectOf(membersOf(planningFields(SEQUENCE_GROUPS)))],
-  [ATTRIBUTE.document, objectOf(membersOf(opsFields(DOCUMENT_GROUPS)))],
-  [ATTRIBUTE.opsCalendar, objectOf(membersOf(opsFields(CALENDAR_GROUPS)))],
-  [ATTRIBUTE.opsTask, objectOf(membersOf(opsFields(TASK_GROUPS)))],
-  [ATTRIBUTE.opsSequence, objectOf(membersOf(opsFields(SEQUENCE_GROUPS)))],
+  [ATTRIBUTE.calendar, objectOf(membersOf(CALENDAR_AREA.planning))],
+  [ATTRIBUTE.activity, objectOf(membersOf(TASK_AREA.planning))],
+  [ATTRIBUTE.sequence, objectOf(membersOf(SEQUENCE_AREA.planning))],
+  [ATTRIBUTE.document, objectOf(membersOf(DOCUMENT_AREA.ops))],
+  [ATTRIBUTE.opsCalendar, objectOf(membersOf(CALENDAR_AREA.ops))],
+  [ATTRIBUTE.opsTask, objectOf(membersOf(TASK_AREA.ops))],
+  [ATTRIBUTE.opsSequence, objectOf(membersOf(SEQUENCE_AREA.ops))],
 ]);
 
 export function isOwnAttributeName(name: string): name is IfcxAttributeName {

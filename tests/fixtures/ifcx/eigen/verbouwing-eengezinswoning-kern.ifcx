@@ -1,0 +1,784 @@
+{
+  "header": {
+    "id": "urn:openaec:planner:cc7c12e9-b644-0820-92c0-ac0bf33bc735",
+    "ifcxVersion": "ifcx_alpha",
+    "dataVersion": "1.0.0",
+    "author": "Contractor",
+    "timestamp": "2026-11-24T08:00:00.000Z"
+  },
+  "imports": [],
+  "schemas": {
+    "openaec::planning::workplan": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "name": {
+              "dataType": "String"
+            },
+            "description": {
+              "dataType": "String",
+              "optional": true
+            },
+            "start": {
+              "dataType": "DateTime",
+              "optional": true
+            },
+            "finish": {
+              "dataType": "DateTime",
+              "optional": true
+            },
+            "calendar": {
+              "dataType": "Reference",
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::planning::schedule": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "workplan": {
+              "dataType": "Reference"
+            }
+          }
+        }
+      }
+    },
+    "openaec::planning::calendar": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "name": {
+              "dataType": "String"
+            },
+            "description": {
+              "dataType": "String",
+              "optional": true
+            },
+            "predefinedType": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "FIRSTSHIFT",
+                  "SECONDSHIFT",
+                  "THIRDSHIFT",
+                  "USERDEFINED"
+                ]
+              }
+            },
+            "exceptionTimes": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "name": {
+                        "dataType": "String"
+                      },
+                      "start": {
+                        "dataType": "DateTime"
+                      },
+                      "end": {
+                        "dataType": "DateTime",
+                        "optional": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::planning::activity": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "name": {
+              "dataType": "String"
+            },
+            "description": {
+              "dataType": "String",
+              "optional": true
+            },
+            "identification": {
+              "dataType": "String",
+              "optional": true
+            },
+            "parent": {
+              "dataType": "Reference",
+              "optional": true
+            },
+            "predefinedType": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "CONSTRUCTION",
+                  "INSTALLATION",
+                  "DEMOLITION",
+                  "LOGISTIC",
+                  "ATTENDANCE",
+                  "MOVE",
+                  "RENOVATION",
+                  "MAINTENANCE",
+                  "USERDEFINED"
+                ]
+              }
+            },
+            "isMilestone": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "priority": {
+              "dataType": "Integer",
+              "optional": true
+            },
+            "calendar": {
+              "dataType": "Reference",
+              "optional": true
+            },
+            "durationType": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "WORKTIME",
+                  "ELAPSEDTIME"
+                ]
+              }
+            },
+            "completion": {
+              "dataType": "Real",
+              "optional": true
+            },
+            "start": {
+              "dataType": "DateTime",
+              "optional": true
+            },
+            "endExclusive": {
+              "dataType": "DateTime",
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::planning::sequence": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "relatingProcess": {
+              "dataType": "Reference"
+            },
+            "relatedProcess": {
+              "dataType": "Reference"
+            },
+            "sequenceType": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "FINISH_START",
+                  "START_START",
+                  "FINISH_FINISH",
+                  "START_FINISH"
+                ]
+              }
+            },
+            "timeLag": {
+              "dataType": "String",
+              "optional": true
+            },
+            "timeLagRatio": {
+              "dataType": "Real",
+              "optional": true
+            },
+            "lagDurationType": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "WORKTIME",
+                  "ELAPSEDTIME"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::ops::document": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "formatVersion": {
+              "dataType": "String"
+            },
+            "projectId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "globalId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "startDate": {
+              "dataType": "String",
+              "optional": true
+            },
+            "endDate": {
+              "dataType": "String",
+              "optional": true
+            },
+            "calendarId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "createdAt": {
+              "dataType": "String",
+              "optional": true
+            },
+            "modifiedAt": {
+              "dataType": "String",
+              "optional": true
+            },
+            "author": {
+              "dataType": "String",
+              "optional": true
+            },
+            "company": {
+              "dataType": "String",
+              "optional": true
+            },
+            "ifcSchema": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "IFC4X3_ADD2",
+                  "IFC4X3",
+                  "IFC4"
+                ]
+              }
+            },
+            "ifcSchemaUnconfirmed": {
+              "dataType": "String",
+              "optional": true
+            },
+            "wbsAutoNumber": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "defaultTaskDurationUnit": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "days",
+                  "hours"
+                ]
+              }
+            },
+            "statusDate": {
+              "dataType": "String",
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::ops::calendar": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "id": {
+              "dataType": "String",
+              "optional": true
+            },
+            "globalId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "workDays": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Integer"
+                }
+              }
+            },
+            "workStartHour": {
+              "dataType": "Real"
+            },
+            "workEndHour": {
+              "dataType": "Real"
+            },
+            "hoursPerDay": {
+              "dataType": "Real"
+            },
+            "simpleBreakStartMinute": {
+              "dataType": "Real",
+              "optional": true
+            },
+            "simpleBreakDurationMinutes": {
+              "dataType": "Real",
+              "optional": true
+            },
+            "workTime": {
+              "dataType": "Object",
+              "optional": true,
+              "objectRestrictions": {
+                "values": {
+                  "byWeekday": {
+                    "dataType": "Object",
+                    "objectRestrictions": {
+                      "values": {
+                        "1": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "start": {
+                                    "dataType": "Real"
+                                  },
+                                  "end": {
+                                    "dataType": "Real"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "2": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "start": {
+                                    "dataType": "Real"
+                                  },
+                                  "end": {
+                                    "dataType": "Real"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "3": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "start": {
+                                    "dataType": "Real"
+                                  },
+                                  "end": {
+                                    "dataType": "Real"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "4": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "start": {
+                                    "dataType": "Real"
+                                  },
+                                  "end": {
+                                    "dataType": "Real"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "5": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "start": {
+                                    "dataType": "Real"
+                                  },
+                                  "end": {
+                                    "dataType": "Real"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "6": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "start": {
+                                    "dataType": "Real"
+                                  },
+                                  "end": {
+                                    "dataType": "Real"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "7": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "start": {
+                                    "dataType": "Real"
+                                  },
+                                  "end": {
+                                    "dataType": "Real"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "workingExceptions": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "name": {
+                        "dataType": "String"
+                      },
+                      "startDate": {
+                        "dataType": "DateTime"
+                      },
+                      "endDate": {
+                        "dataType": "DateTime"
+                      },
+                      "bands": {
+                        "dataType": "Array",
+                        "optional": true,
+                        "arrayRestrictions": {
+                          "value": {
+                            "dataType": "Object",
+                            "objectRestrictions": {
+                              "values": {
+                                "start": {
+                                  "dataType": "Real"
+                                },
+                                "end": {
+                                  "dataType": "Real"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "generation": {
+              "dataType": "Object",
+              "optional": true,
+              "objectRestrictions": {
+                "values": {
+                  "ruleSetId": {
+                    "dataType": "String"
+                  },
+                  "region": {
+                    "dataType": "String",
+                    "optional": true
+                  },
+                  "breakChoice": {
+                    "dataType": "Enum",
+                    "optional": true,
+                    "enumRestrictions": {
+                      "options": [
+                        "noord",
+                        "midden",
+                        "zuid"
+                      ]
+                    }
+                  },
+                  "generatedFromYear": {
+                    "dataType": "Integer"
+                  },
+                  "generatedToYear": {
+                    "dataType": "Integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::ops::task": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "id": {
+              "dataType": "String",
+              "optional": true
+            },
+            "globalId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "place": {
+              "dataType": "Integer",
+              "optional": true
+            },
+            "time": {
+              "dataType": "Object",
+              "objectRestrictions": {
+                "values": {
+                  "durationUnit": {
+                    "dataType": "Enum",
+                    "enumRestrictions": {
+                      "options": [
+                        "days",
+                        "hours"
+                      ]
+                    }
+                  },
+                  "scheduleDuration": {
+                    "dataType": "Real"
+                  },
+                  "durationMinutes": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "scheduleStart": {
+                    "dataType": "String"
+                  },
+                  "scheduleFinish": {
+                    "dataType": "String"
+                  },
+                  "resume": {
+                    "dataType": "String",
+                    "optional": true
+                  },
+                  "stop": {
+                    "dataType": "String",
+                    "optional": true
+                  },
+                  "earlyStart": {
+                    "dataType": "String"
+                  },
+                  "earlyFinish": {
+                    "dataType": "String"
+                  },
+                  "lateStart": {
+                    "dataType": "String"
+                  },
+                  "lateFinish": {
+                    "dataType": "String"
+                  },
+                  "freeFloat": {
+                    "dataType": "Real"
+                  },
+                  "totalFloat": {
+                    "dataType": "Real"
+                  },
+                  "totalFloatMinutes": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "freeFloatMinutes": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "isCritical": {
+                    "dataType": "Boolean"
+                  },
+                  "interferingFloat": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "isNearCritical": {
+                    "dataType": "Boolean",
+                    "optional": true
+                  },
+                  "floatPath": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "actualStart": {
+                    "dataType": "String",
+                    "optional": true
+                  },
+                  "actualFinish": {
+                    "dataType": "String",
+                    "optional": true
+                  },
+                  "actualDuration": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "remainingTime": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "remainingMinutes": {
+                    "dataType": "Real",
+                    "optional": true
+                  }
+                }
+              }
+            },
+            "status": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "NOT_STARTED",
+                  "STARTED",
+                  "COMPLETED"
+                ]
+              }
+            },
+            "milestoneKind": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "START",
+                  "FINISH"
+                ]
+              }
+            },
+            "mandatory": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "isSummary": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "manuallyScheduled": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "calendarId": {
+              "dataType": "String",
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::ops::sequence": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "id": {
+              "dataType": "String",
+              "optional": true
+            },
+            "globalId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "lagDays": {
+              "dataType": "Real",
+              "optional": true
+            },
+            "lagMinutes": {
+              "dataType": "Real",
+              "optional": true
+            },
+            "lagPercent": {
+              "dataType": "Real",
+              "optional": true
+            }
+          }
+        }
+      }
+    }
+  },
+  "data": [
+    {"path":"c2874f2a-ec54-8866-2fde-85f03a721610","attributes":{"openaec::planning::workplan":{"name":"Refurbishment & Extension of a Family Home","description":"Extension plus internal refurbishment of a family home — entry-level schedule.","start":"2027-05-06","calendar":"9028027a-665b-8efd-bd5c-e8ec1e5ddda9"},"openaec::ops::document":{"formatVersion":"1.0.0","projectId":"proj-mvp6eekj3vex19","createdAt":"2026-10-26T11:31:06.692Z","modifiedAt":"2026-10-26T11:31:06.695Z","company":"Van Dijk Construction BV","ifcSchema":"IFC4X3_ADD2","wbsAutoNumber":true,"defaultTaskDurationUnit":"days"}}},
+    {"path":"7bba9eea-20d2-e8fb-9196-1d752564403f","attributes":{"openaec::planning::schedule":{"workplan":"c2874f2a-ec54-8866-2fde-85f03a721610"}}},
+    {"path":"9028027a-665b-8efd-bd5c-e8ec1e5ddda9","attributes":{"openaec::planning::calendar":{"name":"Construction calendar NL","description":"Standard construction calendar: Mon-Fri 07:00-16:00","exceptionTimes":[{"name":"New Year's Day","start":"2027-01-01","end":"2027-01-01"},{"name":"Good Friday","start":"2027-03-26","end":"2027-03-26"},{"name":"Easter","start":"2027-03-28","end":"2027-03-29"},{"name":"King's Day","start":"2027-04-27","end":"2027-04-27"},{"name":"Liberation Day","start":"2027-05-05","end":"2027-05-05"},{"name":"Ascension Day","start":"2027-05-06","end":"2027-05-06"},{"name":"Whitsun","start":"2027-05-16","end":"2027-05-17"},{"name":"Christmas","start":"2027-12-25","end":"2027-12-26"},{"name":"Construction holiday (northern region)","start":"2027-07-26","end":"2027-08-15"},{"name":"New Year's Day","start":"2028-01-01","end":"2028-01-01"},{"name":"Good Friday","start":"2028-04-14","end":"2028-04-14"},{"name":"Easter","start":"2028-04-16","end":"2028-04-17"},{"name":"King's Day","start":"2028-04-27","end":"2028-04-27"},{"name":"Liberation Day","start":"2028-05-05","end":"2028-05-05"},{"name":"Ascension Day","start":"2028-05-25","end":"2028-05-25"},{"name":"Whitsun","start":"2028-06-04","end":"2028-06-05"},{"name":"Christmas","start":"2028-12-25","end":"2028-12-26"},{"name":"Construction holiday (northern region)","start":"2028-07-24","end":"2028-08-13"}]},"openaec::ops::calendar":{"workDays":[1,2,3,4,5],"workStartHour":7,"workEndHour":16,"hoursPerDay":8}}},
+    {"path":"c66e59a5-29da-d917-c31d-abf06034a729","attributes":{"openaec::planning::activity":{"name":"Start of refurbishment","identification":"1","predefinedType":"CONSTRUCTION","isMilestone":true,"start":"2027-05-07","endExclusive":"2027-05-08"},"openaec::ops::task":{"id":"task-mvp6eel2x2ge26","time":{"durationUnit":"days","scheduleDuration":0,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-06","earlyStart":"2027-05-07","earlyFinish":"2027-05-07","lateStart":"2027-05-12","lateFinish":"2027-05-12","freeFloat":0,"totalFloat":3,"totalFloatMinutes":1440,"freeFloatMinutes":0,"isCritical":false},"milestoneKind":"START"}}},
+    {"path":"face38ea-a448-8646-3abc-fe1dd4c0f0f0","attributes":{"openaec::planning::activity":{"name":"1. Preparation","identification":"2","predefinedType":"LOGISTIC","start":"2027-05-07","endExclusive":"2027-05-19"},"openaec::ops::task":{"id":"task-mvp6eel4sh9b27","time":{"durationUnit":"days","scheduleDuration":8,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-12","earlyStart":"2027-05-07","earlyFinish":"2027-05-19","lateStart":"2027-05-12","lateFinish":"2027-05-19","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"a5bc5af8-3349-135d-acac-64dc93567844","attributes":{"openaec::planning::activity":{"name":"Set up site","identification":"2.1","parent":"face38ea-a448-8646-3abc-fe1dd4c0f0f0","predefinedType":"LOGISTIC","start":"2027-05-07","endExclusive":"2027-05-10"},"openaec::ops::task":{"id":"task-mvp6eel7qyht28","time":{"durationUnit":"days","scheduleDuration":2,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-07","earlyStart":"2027-05-07","earlyFinish":"2027-05-10","lateStart":"2027-05-12","lateFinish":"2027-05-13","freeFloat":3,"totalFloat":3,"totalFloatMinutes":1440,"freeFloatMinutes":1440,"isCritical":false}}}},
+    {"path":"75e9675d-b128-3ab1-24b5-e09a1a765b5d","attributes":{"openaec::planning::activity":{"name":"Demolish existing extension","identification":"2.2","parent":"face38ea-a448-8646-3abc-fe1dd4c0f0f0","predefinedType":"DEMOLITION","start":"2027-05-14","endExclusive":"2027-05-19"},"openaec::ops::task":{"id":"task-mvp6eelbztk029","time":{"durationUnit":"days","scheduleDuration":3,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-10","earlyStart":"2027-05-14","earlyFinish":"2027-05-19","lateStart":"2027-05-14","lateFinish":"2027-05-19","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"74629c48-8bb0-ee41-d525-350cb8964daa","attributes":{"openaec::planning::activity":{"name":"2. Foundations & structure","identification":"3","predefinedType":"CONSTRUCTION","start":"2027-05-20","endExclusive":"2027-06-10"},"openaec::ops::task":{"id":"task-mvp6eelfwk0p30","time":{"durationUnit":"days","scheduleDuration":16,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-12","earlyStart":"2027-05-20","earlyFinish":"2027-06-10","lateStart":"2027-05-20","lateFinish":"2027-06-10","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"71fef627-a4ce-a261-93ba-03b33a4e9d84","attributes":{"openaec::planning::activity":{"name":"Earthworks for extension","identification":"3.1","parent":"74629c48-8bb0-ee41-d525-350cb8964daa","predefinedType":"CONSTRUCTION","start":"2027-05-20","endExclusive":"2027-05-24"},"openaec::ops::task":{"id":"task-mvp6eeli04fx31","time":{"durationUnit":"days","scheduleDuration":3,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-10","earlyStart":"2027-05-20","earlyFinish":"2027-05-24","lateStart":"2027-05-20","lateFinish":"2027-05-24","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"0c5a76f8-27eb-2a9e-e38d-effd55e22935","attributes":{"openaec::planning::activity":{"name":"Extension foundations","identification":"3.2","parent":"74629c48-8bb0-ee41-d525-350cb8964daa","predefinedType":"CONSTRUCTION","start":"2027-05-25","endExclusive":"2027-05-28"},"openaec::ops::task":{"id":"task-mvp6eellhh9b32","time":{"durationUnit":"days","scheduleDuration":4,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-11","earlyStart":"2027-05-25","earlyFinish":"2027-05-28","lateStart":"2027-05-25","lateFinish":"2027-05-28","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"622e8be2-dc53-bfdc-7301-b94be21c8722","attributes":{"openaec::planning::activity":{"name":"Pour ground floor slab","identification":"3.3","parent":"74629c48-8bb0-ee41-d525-350cb8964daa","predefinedType":"CONSTRUCTION","start":"2027-05-31","endExclusive":"2027-06-02"},"openaec::ops::task":{"id":"task-mvp6eeln4n3033","time":{"durationUnit":"days","scheduleDuration":3,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-10","earlyStart":"2027-05-31","earlyFinish":"2027-06-02","lateStart":"2027-05-31","lateFinish":"2027-06-02","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"062a72f9-ac4e-48be-1aa1-bd1601ff5a58","attributes":{"openaec::planning::activity":{"name":"Build masonry walls","identification":"3.4","parent":"74629c48-8bb0-ee41-d525-350cb8964daa","predefinedType":"CONSTRUCTION","start":"2027-06-03","endExclusive":"2027-06-10"},"openaec::ops::task":{"id":"task-mvp6eelrzyli34","time":{"durationUnit":"days","scheduleDuration":6,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-13","earlyStart":"2027-06-03","earlyFinish":"2027-06-10","lateStart":"2027-06-03","lateFinish":"2027-06-10","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"ae37dca8-962c-1b19-7b5a-1dd0479a6e07","attributes":{"openaec::planning::activity":{"name":"Install roof structure","identification":"3.5","parent":"74629c48-8bb0-ee41-d525-350cb8964daa","predefinedType":"CONSTRUCTION","start":"2027-06-07","endExclusive":"2027-06-10"},"openaec::ops::task":{"id":"task-mvp6eelui9bb35","time":{"durationUnit":"days","scheduleDuration":4,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-11","earlyStart":"2027-06-07","earlyFinish":"2027-06-10","lateStart":"2027-06-07","lateFinish":"2027-06-10","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"606a9569-3c10-f32f-f2fa-11216ac4a61a","attributes":{"openaec::planning::activity":{"name":"3. Fit-out","identification":"4","predefinedType":"CONSTRUCTION","start":"2027-06-11","endExclusive":"2027-07-05"},"openaec::ops::task":{"id":"task-mvp6eelysodt36","time":{"durationUnit":"days","scheduleDuration":17,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-12","earlyStart":"2027-06-11","earlyFinish":"2027-07-05","lateStart":"2027-06-11","lateFinish":"2027-07-05","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"437e2fd7-f195-b38e-484c-46bf8b1cc1eb","attributes":{"openaec::planning::activity":{"name":"Apply roofing","identification":"4.1","parent":"606a9569-3c10-f32f-f2fa-11216ac4a61a","predefinedType":"CONSTRUCTION","start":"2027-06-11","endExclusive":"2027-06-15"},"openaec::ops::task":{"id":"task-mvp6eem1g3gh37","time":{"durationUnit":"days","scheduleDuration":3,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-10","earlyStart":"2027-06-11","earlyFinish":"2027-06-15","lateStart":"2027-06-11","lateFinish":"2027-06-15","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"185e6800-d750-abb7-b90c-053575a9cceb","attributes":{"openaec::planning::activity":{"name":"Install window frames","identification":"4.2","parent":"606a9569-3c10-f32f-f2fa-11216ac4a61a","predefinedType":"INSTALLATION","start":"2027-06-16","endExclusive":"2027-06-21"},"openaec::ops::task":{"id":"task-mvp6eem4t9v838","time":{"durationUnit":"days","scheduleDuration":4,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-11","earlyStart":"2027-06-16","earlyFinish":"2027-06-21","lateStart":"2027-06-16","lateFinish":"2027-06-21","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"a0b4fa66-13e2-7302-9e5d-94568d76dc37","attributes":{"openaec::planning::activity":{"name":"Plastering","identification":"4.3","parent":"606a9569-3c10-f32f-f2fa-11216ac4a61a","predefinedType":"CONSTRUCTION","start":"2027-06-22","endExclusive":"2027-06-28"},"openaec::ops::task":{"id":"task-mvp6eem6mjjq39","time":{"durationUnit":"days","scheduleDuration":5,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-12","earlyStart":"2027-06-22","earlyFinish":"2027-06-28","lateStart":"2027-06-22","lateFinish":"2027-06-28","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"0a0d87be-d216-df61-c579-5205a3ccee10","attributes":{"openaec::planning::activity":{"name":"Tiling","identification":"4.4","parent":"606a9569-3c10-f32f-f2fa-11216ac4a61a","predefinedType":"INSTALLATION","start":"2027-06-29","endExclusive":"2027-07-02"},"openaec::ops::task":{"id":"task-mvp6eem9c8jj40","time":{"durationUnit":"days","scheduleDuration":4,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-11","earlyStart":"2027-06-29","earlyFinish":"2027-07-02","lateStart":"2027-06-29","lateFinish":"2027-07-02","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"be056323-f62f-c9cc-540a-7663ce3cf955","attributes":{"openaec::planning::activity":{"name":"Painting","identification":"4.5","parent":"606a9569-3c10-f32f-f2fa-11216ac4a61a","predefinedType":"CONSTRUCTION","start":"2027-07-01","endExclusive":"2027-07-05"},"openaec::ops::task":{"id":"task-mvp6eemdvxsz41","time":{"durationUnit":"days","scheduleDuration":3,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-10","earlyStart":"2027-07-01","earlyFinish":"2027-07-05","lateStart":"2027-07-01","lateFinish":"2027-07-05","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"366d5d9d-9a59-d523-24c7-aa17f527f180","attributes":{"openaec::planning::activity":{"name":"4. Handover","identification":"5","predefinedType":"ATTENDANCE","start":"2027-07-06","endExclusive":"2027-07-07"},"openaec::ops::task":{"id":"task-mvp6eemgvn4t42","time":{"durationUnit":"days","scheduleDuration":2,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-12","earlyStart":"2027-07-06","earlyFinish":"2027-07-07","lateStart":"2027-07-06","lateFinish":"2027-07-07","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"bf8a85d6-1cab-f010-2f9b-d64465483092","attributes":{"openaec::planning::activity":{"name":"Final cleaning","identification":"5.1","parent":"366d5d9d-9a59-d523-24c7-aa17f527f180","predefinedType":"LOGISTIC","start":"2027-07-06","endExclusive":"2027-07-07"},"openaec::ops::task":{"id":"task-mvp6eemic5vy43","time":{"durationUnit":"days","scheduleDuration":1,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-06","earlyStart":"2027-07-06","earlyFinish":"2027-07-06","lateStart":"2027-07-06","lateFinish":"2027-07-06","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"a1d3227d-3545-6587-fad1-7ff88cc12955","attributes":{"openaec::planning::activity":{"name":"Handover inspection","description":"Mandatory handover inspection; the deadline has ample margin (no conflict).","identification":"5.2","parent":"366d5d9d-9a59-d523-24c7-aa17f527f180","predefinedType":"CONSTRUCTION","isMilestone":true,"start":"2027-07-06","endExclusive":"2027-07-07"},"openaec::ops::task":{"id":"task-mvp6eemlcolq44","time":{"durationUnit":"days","scheduleDuration":0,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-06","earlyStart":"2027-07-06","earlyFinish":"2027-07-06","lateStart":"2027-07-06","lateFinish":"2027-07-06","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true},"milestoneKind":"FINISH","mandatory":true}}},
+    {"path":"0659fcff-70a9-728a-ca22-3b0c3d800e72","attributes":{"openaec::planning::activity":{"name":"Final handover with the occupant","identification":"5.3","parent":"366d5d9d-9a59-d523-24c7-aa17f527f180","predefinedType":"ATTENDANCE","start":"2027-07-07","endExclusive":"2027-07-08"},"openaec::ops::task":{"id":"task-mvp6eemogi8545","time":{"durationUnit":"days","scheduleDuration":1,"scheduleStart":"2027-05-06","scheduleFinish":"2027-05-06","earlyStart":"2027-07-07","earlyFinish":"2027-07-07","lateStart":"2027-07-07","lateFinish":"2027-07-07","freeFloat":0,"totalFloat":0,"totalFloatMinutes":0,"freeFloatMinutes":0,"isCritical":true}}}},
+    {"path":"d9cad69c-e9d0-c020-f0f5-92b7cef7be9b","attributes":{"openaec::planning::sequence":{"relatingProcess":"c66e59a5-29da-d917-c31d-abf06034a729","relatedProcess":"a5bc5af8-3349-135d-acac-64dc93567844","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"seq-ifc-3PojQSwT308F3rahVEzxwR"}}},
+    {"path":"31251aeb-dbd1-9ef4-5210-b9aea44193c3","attributes":{"openaec::planning::sequence":{"relatingProcess":"a5bc5af8-3349-135d-acac-64dc93567844","relatedProcess":"75e9675d-b128-3ab1-24b5-e09a1a765b5d","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"seq-ifc-0n9Hhhsz6Uz58GkQwaGPF3"}}},
+    {"path":"1491e7d7-c2d9-0ab4-4c47-8c5c364a246e","attributes":{"openaec::planning::sequence":{"relatingProcess":"75e9675d-b128-3ab1-24b5-e09a1a765b5d","relatedProcess":"71fef627-a4ce-a261-93ba-03b33a4e9d84","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"seq-ifc-0KaUVNmjaAj4n7Z5msIYHk"}}},
+    {"path":"a410da04-10d2-7f29-0948-a8bfc3ef7fa0","attributes":{"openaec::planning::sequence":{"relatingProcess":"71fef627-a4ce-a261-93ba-03b33a4e9d84","relatedProcess":"0c5a76f8-27eb-2a9e-e38d-effd55e22935","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"seq-ifc-2a4De44D9$AGb8gB$3xt_W"}}},
+    {"path":"14c81372-76cb-e598-1035-25eb1ff49715","attributes":{"openaec::planning::sequence":{"relatingProcess":"0c5a76f8-27eb-2a9e-e38d-effd55e22935","relatedProcess":"622e8be2-dc53-bfdc-7301-b94be21c8722","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"seq-ifc-0Ko1DoTilbc10r9UiVz9SL"}}},
+    {"path":"11ab95c8-f326-7a58-dd89-41afa37941e9","attributes":{"openaec::planning::sequence":{"relatingProcess":"622e8be2-dc53-bfdc-7301-b94be21c8722","relatedProcess":"062a72f9-ac4e-48be-1aa1-bd1601ff5a58","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"seq-ifc-0HgvN8yoPwMDs9GQ_ZUK7f"}}},
+    {"path":"948364ae-c7e0-0d50-1bf5-96165c5ced0d","attributes":{"openaec::planning::sequence":{"relatingProcess":"062a72f9-ac4e-48be-1aa1-bd1601ff5a58","relatedProcess":"ae37dca8-962c-1b19-7b5a-1dd0479a6e07","sequenceType":"START_START","timeLag":"P2D"},"openaec::ops::sequence":{"id":"seq-ifc-2KWsIkn_0DK1lrbXPSNEqD"}}},
+    {"path":"ae30c566-9cdb-9020-76e4-97f7861cde27","attributes":{"openaec::planning::sequence":{"relatingProcess":"ae37dca8-962c-1b19-7b5a-1dd0479a6e07","relatedProcess":"437e2fd7-f195-b38e-484c-46bf8b1cc1eb","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"seq-ifc-2kCCLcdDkG87Rab$U67Dud"}}},
+    {"path":"7c8c16db-a5fc-f6c7-7900-8aace626315b","attributes":{"openaec::planning::sequence":{"relatingProcess":"437e2fd7-f195-b38e-484c-46bf8b1cc1eb","relatedProcess":"185e6800-d750-abb7-b90c-053575a9cceb","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"seq-ifc-1yZ1RRfVpsnta0Ygpc9Z5R"}}},
+    {"path":"f85e73e7-ad9e-bdc5-2456-6448bb5e2cf5","attributes":{"openaec::planning::sequence":{"relatingProcess":"185e6800-d750-abb7-b90c-053575a9cceb","relatedProcess":"a0b4fa66-13e2-7302-9e5d-94568d76dc37","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"seq-ifc-3uNdFdhPwznIHMP4YxNYpr"}}},
+    {"path":"eb5faf9e-dafa-5f6e-4fd0-d11d6584d0a9","attributes":{"openaec::planning::sequence":{"relatingProcess":"a0b4fa66-13e2-7302-9e5d-94568d76dc37","relatedProcess":"0a0d87be-d216-df61-c579-5205a3ccee10","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"seq-ifc-3hNw_UslfVRa$GqHrbXD2f"}}},
+    {"path":"0863512b-79f7-00e9-8368-721ff7b63ad2","attributes":{"openaec::planning::sequence":{"relatingProcess":"a0b4fa66-13e2-7302-9e5d-94568d76dc37","relatedProcess":"be056323-f62f-c9cc-540a-7663ce3cf955","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"seq-ifc-08Or4hUVS0wODeSX$tjZhI"}}},
+    {"path":"44746257-ded7-68c5-8870-67b828a18ab8","attributes":{"openaec::planning::sequence":{"relatingProcess":"0a0d87be-d216-df61-c579-5205a3ccee10","relatedProcess":"be056323-f62f-c9cc-540a-7663ce3cf955","sequenceType":"FINISH_FINISH","timeLag":"P1D"},"openaec::ops::sequence":{"id":"seq-ifc-14T69NtjTenOXmPxWeeOgu"}}},
+    {"path":"0cd84d52-e9cf-8f9b-73a1-81b110f7e868","attributes":{"openaec::planning::sequence":{"relatingProcess":"be056323-f62f-c9cc-540a-7663ce3cf955","relatedProcess":"bf8a85d6-1cab-f010-2f9b-d64465483092","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"seq-ifc-0Cs4rIwS_FctEXWR4Gz_Xe"}}},
+    {"path":"fd574ff3-71eb-181d-d539-f8036db8d9a7","attributes":{"openaec::planning::sequence":{"relatingProcess":"bf8a85d6-1cab-f010-2f9b-d64465483092","relatedProcess":"a1d3227d-3545-6587-fad1-7ff88cc12955","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"seq-ifc-3zLq$pSUiO7TKv_0DjkDcd"}}},
+    {"path":"a6cc2c6e-c397-e94c-2228-df3f8ead54ed","attributes":{"openaec::planning::sequence":{"relatingProcess":"a1d3227d-3545-6587-fad1-7ff88cc12955","relatedProcess":"0659fcff-70a9-728a-ca22-3b0c3d800e72","sequenceType":"FINISH_START","timeLag":"P0D"},"openaec::ops::sequence":{"id":"seq-ifc-2cp2nkmvVfJ28etp_EhLJj"}}}
+  ]
+}

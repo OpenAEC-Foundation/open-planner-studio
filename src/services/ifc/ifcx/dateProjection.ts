@@ -8,10 +8,21 @@ function isMidnight(moment: string): boolean {
   return /^(T00:00(:00(\.0{1,3})?)?)?$/.test(moment.slice(10));
 }
 
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28;
+  return month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31;
+}
+
+const twoDigits = (value: number) => String(value).padStart(2, '0');
+
 export function nextCalendarDate(date: string): string {
-  const [, y, m, d] = DATE_PART.exec(date)!;
-  const next = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d) + 1));
-  return next.toISOString().slice(0, 10);
+  let year = Number(date.slice(0, 4)), month = Number(date.slice(5, 7)), day = Number(date.slice(8, 10)) + 1;
+  if (day > daysInMonth(year, month)) {
+    day = 1;
+    month++;
+    if (month > 12) { month = 1; year++; }
+  }
+  return `${String(year).padStart(4, '0')}-${twoDigits(month)}-${twoDigits(day)}`;
 }
 
 export interface SharedSpan {

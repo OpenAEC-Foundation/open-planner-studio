@@ -8,7 +8,7 @@ import { identityOfGlobalId, type IfcxIdentity } from './globalIdUuid';
 import { libraryCalendarsWrittenByStep, stepGlobalIdsFor } from './stepGlobalIds';
 import { placesNeededForOrder } from './childOrder';
 import { projectSpan } from './dateProjection';
-import { CALENDAR_GROUPS, DOCUMENT_GROUPS, opsFields, planningFields, SEQUENCE_GROUPS, TASK_GROUPS } from './fieldGroups';
+import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from './fieldGroups';
 import { SCHEDULE_FIELDS } from './fields/documentFields';
 import { ownSchemas } from './ownAttributes';
 import { unsupportedContent } from './unsupportedContent';
@@ -99,8 +99,8 @@ export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDo
     projectCalendarPath: calendars[0].identity.path, projectCalendarId: input.calendar.id,
   };
   data.push({ path: workplanIdentity.path, attributes: attributesOf([
-    [ATTRIBUTE.workplan, writeFields(planningFields(DOCUMENT_GROUPS), documentSource)],
-    [ATTRIBUTE.document, writeFields(opsFields(DOCUMENT_GROUPS), documentSource)],
+    [ATTRIBUTE.workplan, writeFields(DOCUMENT_AREA.planning, documentSource)],
+    [ATTRIBUTE.document, writeFields(DOCUMENT_AREA.ops, documentSource)],
   ]) });
   data.push({ path: scheduleIdentity.path, attributes: attributesOf([
     [ATTRIBUTE.schedule, writeFields(SCHEDULE_FIELDS, { workplanPath: workplanIdentity.path })],
@@ -108,8 +108,8 @@ export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDo
 
   for (const node of calendars) {
     data.push({ path: node.identity.path, attributes: attributesOf([
-      [ATTRIBUTE.calendar, writeFields(planningFields(CALENDAR_GROUPS), node)],
-      [ATTRIBUTE.opsCalendar, writeFields(opsFields(CALENDAR_GROUPS), node)],
+      [ATTRIBUTE.calendar, writeFields(CALENDAR_AREA.planning, node)],
+      [ATTRIBUTE.opsCalendar, writeFields(CALENDAR_AREA.ops, node)],
     ]) });
   }
 
@@ -127,8 +127,8 @@ export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDo
       ...(place !== undefined ? { place } : {}),
     };
     data.push({ path: source.identity.path, attributes: attributesOf([
-      [ATTRIBUTE.activity, writeFields(planningFields(TASK_GROUPS), source)],
-      [ATTRIBUTE.opsTask, writeFields(opsFields(TASK_GROUPS), source)],
+      [ATTRIBUTE.activity, writeFields(TASK_AREA.planning, source)],
+      [ATTRIBUTE.opsTask, writeFields(TASK_AREA.ops, source)],
     ]) });
   });
 
@@ -140,8 +140,8 @@ export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDo
     }
     const source = { sequence, identity: identityOfGlobalId(globalIdOf('seq', sequence.id)), predecessorPath, successorPath };
     data.push({ path: source.identity.path, attributes: attributesOf([
-      [ATTRIBUTE.sequence, writeFields(planningFields(SEQUENCE_GROUPS), source)],
-      [ATTRIBUTE.opsSequence, writeFields(opsFields(SEQUENCE_GROUPS), source)],
+      [ATTRIBUTE.sequence, writeFields(SEQUENCE_AREA.planning, source)],
+      [ATTRIBUTE.opsSequence, writeFields(SEQUENCE_AREA.ops, source)],
     ]) });
   }
 

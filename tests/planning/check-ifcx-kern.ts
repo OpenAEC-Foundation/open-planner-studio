@@ -10,6 +10,7 @@ import {
   classifyIfcx, readIfcx, writeIfcx, IfcxReadError, IfcxWriteRefusedError, type IfcxReadErrorCode,
 } from '@/services/ifc/ifcx';
 import { ifcxSchemaProblems } from '@/services/ifc/ifcx/schemaCheck';
+import { buildIfcxDocument, serializeIfcx } from '@/services/ifc/ifcx/ifcxWriter';
 import {
   compactGlobalIdToUuid, isCompactGlobalId, nameBasedUuid, uuidToCompactGlobalId,
 } from '@/services/ifc/ifcx/globalIdUuid';
@@ -449,22 +450,27 @@ for (const size of sizes) {
   test(`meting: schrijven met zelfcontrole en teruglezen bij ${size} taken`, () => {
     const plan = syntheticPlan(size);
     const rounds = size > 1000 ? 3 : 5;
-    const write: number[] = [], read: number[] = [], canon: number[] = [];
+    const plainWrite: number[] = [], write: number[] = [], read: number[] = [], canon: number[] = [];
     let text = '';
     for (let round = 0; round < rounds; round++) {
       const t0 = performance.now();
-      text = writeIfcx(plan, CLOCK);
+      const unchecked = serializeIfcx(buildIfcxDocument(plan, CLOCK));
       const t1 = performance.now();
-      const back = readIfcx(encode(text));
+      text = writeIfcx(plan, CLOCK);
       const t2 = performance.now();
-      planningCanon(back);
+      const back = readIfcx(encode(text));
       const t3 = performance.now();
-      write.push(t1 - t0);
-      read.push(t2 - t1);
-      canon.push(t3 - t2);
+      planningCanon(back);
+      const t4 = performance.now();
+      assert.equal(unchecked, text);
+      plainWrite.push(t1 - t0);
+      write.push(t2 - t1);
+      read.push(t3 - t2);
+      canon.push(t4 - t3);
     }
-    console.log(`   ${size} taken, ${(text.length / 1024 / 1024).toFixed(1)} MiB: writeIfcx met zelfcontrole ${median(write).toFixed(0)} ms, `
-      + `readIfcx ${median(read).toFixed(0)} ms, één planningCanon ${median(canon).toFixed(0)} ms (mediaan van ${rounds})`);
+    console.log(`   ${size} taken, ${(text.length / 1024 / 1024).toFixed(1)} MiB: schrijven zonder zelfcontrole ${median(plainWrite).toFixed(0)} ms, `
+      + `writeIfcx met zelfcontrole ${median(write).toFixed(0)} ms, readIfcx ${median(read).toFixed(0)} ms, `
+      + `één planningCanon ${median(canon).toFixed(0)} ms (mediaan van ${rounds})`);
   });
 }
 

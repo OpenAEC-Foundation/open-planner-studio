@@ -3,20 +3,24 @@ import { OPS_NAME_UUID_NAMESPACE } from './profile';
 const GLOBAL_ID_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$';
 const UUID_FORM = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
+const GLOBAL_ID_VALUE = new Int8Array(128).fill(-1);
+for (let i = 0; i < GLOBAL_ID_CHARS.length; i++) GLOBAL_ID_VALUE[GLOBAL_ID_CHARS.charCodeAt(i)] = i;
+
+function valueOfChar(text: string, index: number): number {
+  const code = text.charCodeAt(index);
+  return code < 128 ? GLOBAL_ID_VALUE[code] : -1;
+}
+
 export function isUuidPath(path: string): boolean {
   return UUID_FORM.test(path);
 }
 
 export function isCompactGlobalId(globalId: string): boolean {
-  if (globalId.length !== 22 || GLOBAL_ID_CHARS.indexOf(globalId[0]) > 3) return false;
-  for (const char of globalId) if (GLOBAL_ID_CHARS.indexOf(char) < 0) return false;
+  if (globalId.length !== 22) return false;
+  const first = valueOfChar(globalId, 0);
+  if (first < 0 || first > 3) return false;
+  for (let i = 1; i < 22; i++) if (valueOfChar(globalId, i) < 0) return false;
   return true;
-}
-
-function hexOfBits(bits: readonly number[]): string {
-  let hex = '';
-  for (let i = 0; i < 128; i += 4) hex += ((bits[i] << 3) | (bits[i + 1] << 2) | (bits[i + 2] << 1) | bits[i + 3]).toString(16);
-  return hex;
 }
 
 function uuidOfHex(hex: string): string {
@@ -25,29 +29,34 @@ function uuidOfHex(hex: string): string {
 
 export function compactGlobalIdToUuid(globalId: string): string {
   if (!isCompactGlobalId(globalId)) throw new Error(`Geen GlobalId van 128 bits: ${globalId}`);
-  const bits: number[] = [];
-  const first = GLOBAL_ID_CHARS.indexOf(globalId[0]);
-  bits.push((first >> 1) & 1, first & 1);
-  for (const char of globalId.slice(1)) {
-    const value = GLOBAL_ID_CHARS.indexOf(char);
-    for (let b = 5; b >= 0; b--) bits.push((value >> b) & 1);
+  let hex = '';
+  let buffer = valueOfChar(globalId, 0), bits = 2;
+  for (let i = 1; i < 22; i++) {
+    buffer = (buffer << 6) | valueOfChar(globalId, i);
+    bits += 6;
+    while (bits >= 4) {
+      bits -= 4;
+      hex += ((buffer >> bits) & 15).toString(16);
+    }
+    buffer &= (1 << bits) - 1;
   }
-  return uuidOfHex(hexOfBits(bits));
+  return uuidOfHex(hex);
 }
 
 export function uuidToCompactGlobalId(uuid: string): string {
   if (!isUuidPath(uuid)) throw new Error(`Geen UUID: ${uuid}`);
   const hex = uuid.replace(/-/g, '');
-  const bits: number[] = [];
-  for (const char of hex) {
-    const value = parseInt(char, 16);
-    for (let b = 3; b >= 0; b--) bits.push((value >> b) & 1);
-  }
-  let out = GLOBAL_ID_CHARS[(bits[0] << 1) | bits[1]];
-  for (let c = 0; c < 21; c++) {
-    let value = 0;
-    for (let b = 0; b < 6; b++) value = (value << 1) | bits[2 + c * 6 + b];
-    out += GLOBAL_ID_CHARS[value];
+  let out = '';
+  let buffer = 0, bits = 0, width = 2;
+  for (let i = 0; i < 32; i++) {
+    buffer = (buffer << 4) | parseInt(hex[i], 16);
+    bits += 4;
+    while (bits >= width) {
+      bits -= width;
+      out += GLOBAL_ID_CHARS[(buffer >> bits) & ((1 << width) - 1)];
+      width = 6;
+    }
+    buffer &= (1 << bits) - 1;
   }
   return out;
 }
