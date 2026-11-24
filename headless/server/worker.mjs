@@ -15,7 +15,7 @@ parentPort.on('message', async ({ text, bytes, output }) => {
   try {
     doc = await openIfc(text ?? Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('utf8'));
     summary = doc.schedule();
-    parentPort.postMessage(output === 'ifc' ? { ok: true, ifc: doc.toIfc() } : { ok: true, summary });
+    parentPort.postMessage(output === 'ifc' ? { ok: true, ifc: doc.toIfc() } : { ok: true, summary: withoutForeignContent(summary) });
   } catch (err) {
     if (err instanceof PlannerCoreError) {
       const fallback = bytes === undefined ? null
@@ -44,7 +44,7 @@ async function viaBytesRoute(bytes, output, textReading) {
     const summary = doc.schedule();
     if (summary.foreignContent === null) return null;
     if (textReading) {
-      const differences = [...scheduleDifferences(textReading.summary, summary), planningDifference(textReading.doc, doc)].filter(Boolean);
+      const differences = [...scheduleDifferences(textReading.summary, summary)].filter(Boolean);
       if (differences.length > 0) return { differences };
     }
     return output === 'ifc' ? { ifcBytes: await doc.toIfcBytes() } : { summary };
