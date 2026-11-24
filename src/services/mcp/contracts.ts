@@ -130,6 +130,7 @@ export interface McpToolDef {
    * tools op beschrijving.
    */
   description: string;
+  describe?: (ctx: McpContext) => string;
   /** Stuurt guards + backup-trigger. */
   kind: 'read' | 'mutate' | 'document' | 'other' | 'batch';
   /** Mag deze tool als batch-stap draaien? */
