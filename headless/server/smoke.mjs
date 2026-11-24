@@ -11,7 +11,7 @@
 // voorbeeld-IFC doorrekenen met de verwachte uitkomst (JSON en IFC), 400 bij geen IFC, 422 bij een
 // IFC zonder taken, en 413 bij een body boven de grens die /healthz meldt. Exitcode 0 = groen.
 // Alleen Node 22 (fetch); geen dependencies. Het token komt nooit in de uitvoer.
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,11 +24,11 @@ const base = baseArg.replace(/\/+$/, '');
 const here = dirname(fileURLToPath(import.meta.url));
 const EXAMPLE = join(here, '..', '..', 'examples', '01-grachtenpand-amsterdam.ifc');
 const FOREIGN_FIXTURES = join(here, '..', '..', 'tests', 'fixtures', 'ifc-foreign');
-const OLD_OPS_EXPORT = join(here, '..', '..', 'tests', 'planning', 'fixtures', 'oude-tags', 'v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc');
-const MODEL_FILES = [
-  { file: 'eigen-plus-model.ifc', schema: 'IFC4X3_ADD2', objectCount: 90 },
-  { file: 'latin1.ifc', schema: 'IFC4', objectCount: 155 },
-];
+const EXAMPLE_DIRS = [join(here, '..', '..', 'examples'), join(here, '..', '..', 'public', 'examples')];
+const OLD_TAGS = join(here, '..', '..', 'tests', 'planning', 'fixtures', 'oude-tags');
+const PROJECT_NAME_IN_SETTINGS = join(here, '..', '..', 'tests', 'planning', 'fixtures', 'projectnaam-in-settings', 'showcase-verbouwing-eengezinswoning.ifc');
+const SCHEDULE_READ_OTHERWISE = 'het voorbeeld met een leeg eigen werkschema, een baseline en een losse taak';
+const NAME_READ_OTHERWISE = 'de woning met een externe pset aan het project';
 // Dezelfde verwachte uitkomst als scripts/verify-core-package.mjs.
 const EXPECTED = { name: 'New-Build Canal House, Amsterdam', start: '2027-03-01', finish: '2028-01-12T16:00', tasks: 51 };
 
@@ -60,9 +60,60 @@ const BYTES = { 'Content-Type': 'application/octet-stream' };
 const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 const EXTERN_PSET = "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n"
   + "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;";
-const BONSAI_WALL_A_TIME = "#109=IFCTASKTIME($,$,$,$,'P5D','2026-02-02T09:00:00','2026-02-06T17:00:00',$,$,";
-const BONSAI_WALL_A_STALE = "#109=IFCTASKTIME($,$,$,$,'P5D','2026-02-02T09:00:00','2026-02-06T17:00:00','2026-03-02T09:00:00','2026-03-06T17:00:00',";
+const ISO_TIME = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?/g;
+const EPOCH_SECONDS = /\b\d{10}\b/g;
 const refusalOf = (r) => `${r.status} ${r.json?.error?.code}:${r.json?.error?.details?.reason}`;
+
+function emptyOwnSchedule(source, looseTask) {
+  const lines = source.split('\n');
+  const schedule = lines.find(l => l.startsWith('#47=IFCWORKSCHEDULE('));
+  const task = lines.find(l => l.startsWith('#52=IFCTASK('));
+  const added = [schedule.replace(/^#47=IFCWORKSCHEDULE\('[^']*'/, "#99010=IFCWORKSCHEDULE('1SolR4BaselineSchema01'").replace('.PLANNED.);', '.BASELINE.);')];
+  if (looseTask) added.push(task.replace(/^#52=IFCTASK\('[^']*',#6,'[^']*',\$,\$,'[^']*'/, "#99011=IFCTASK('1SolR4LooseTask0000001',#6,'Loose task',$,$,'99'"));
+  const moved = lines.map(l => l.startsWith('#158=IFCRELNESTS(') ? l.replace(',#47,(', ',#99010,(')
+    : l.startsWith('#312=IFCRELASSIGNSTOCONTROL(') ? l.replace(',$,#47);', ',$,#99010);') : l).join('\n');
+  return Buffer.from(moved.replace('ENDSEC;\nEND-ISO-10303-21;', `${added.join('\n')}\nENDSEC;\nEND-ISO-10303-21;`));
+}
+function projectPset(source) {
+  return Buffer.from(source.replace('ENDSEC;\nEND-ISO-10303-21;', [
+    "#99020=IFCPROPERTYSINGLEVALUE('ExternalCode',$,IFCTEXT('X-1'),$);",
+    "#99021=IFCPROPERTYSET('1SolR4ExternalPset0001',#6,'ExternalMetadata',$,(#99020));",
+    "#99022=IFCRELDEFINESBYPROPERTIES('1SolR4ExternalRel00001',#6,$,$,(#13),#99021);",
+    'ENDSEC;', 'END-ISO-10303-21;'].join('\n')));
+}
+function withoutWriteTime(text, from, to) {
+  const now = (ms) => ms >= from - 5000 && ms <= to + 5000;
+  return text.replace(ISO_TIME, t => now(Date.parse(t.endsWith('Z') ? t : `${t}Z`)) ? 'SCHRIJFTIJD' : t)
+    .replace(EPOCH_SECONDS, n => now(Number(n) * 1000) ? 'SCHRIJFTIJD' : n);
+}
+const sameAnswer = (a, b) => a.status === b.status && a.headers.get('content-type') === b.headers.get('content-type') && a.text === b.text;
+async function outcomeAsBytes(body) {
+  const asText = await call('/v1/schedule', { method: 'POST', body, headers: IFC });
+  const asBytes = await call('/v1/schedule', { method: 'POST', body, headers: BYTES });
+  if (!sameAnswer(asBytes, asText)) {
+    return { broken: `samenvatting: tekst ${asText.status} ${asText.text.slice(0, 120)}, bytes ${asBytes.status} ${asBytes.text.slice(0, 120)}` };
+  }
+  const from = Date.now();
+  const ifcText = await call('/v1/schedule?output=ifc', { method: 'POST', body, headers: IFC });
+  const ifcBytes = await call('/v1/schedule?output=ifc', { method: 'POST', body, headers: BYTES });
+  const to = Date.now();
+  const seen = `tekst ${refusalOf(ifcText)} ${ifcText.headers.get('content-type')}, bytes ${refusalOf(ifcBytes)} ${ifcBytes.headers.get('content-type')}`;
+  if (refusalOf(ifcText) !== '500 IFC_WRITE_FAILED:foreign') {
+    const same = ifcBytes.status === ifcText.status && ifcBytes.headers.get('content-type') === ifcText.headers.get('content-type')
+      && withoutWriteTime(ifcBytes.text, from, to) === withoutWriteTime(ifcText.text, from, to);
+    return same ? {} : { broken: `output=ifc wijkt af van main: ${seen}` };
+  }
+  if (ifcBytes.status === 200) {
+    if (ifcBytes.headers.get('content-type') !== 'application/octet-stream') return { broken: `bewaarde bytes met een ander type: ${seen}` };
+    const reread = await call('/v1/schedule', { method: 'POST', body: ifcBytes.bytes, headers: IFC });
+    return sameAnswer(reread, asText) ? { kept: true }
+      : { broken: `de bewaarde bytes dragen een andere planning dan de samenvatting: ${reread.status} ${reread.text.slice(0, 160)}` };
+  }
+  const mainMessage = ifcText.json.error.message;
+  const message = ifcBytes.json?.error?.message ?? '';
+  if (refusalOf(ifcBytes) !== refusalOf(ifcText) || !message.startsWith(mainMessage)) return { broken: `een andere weigering dan main: ${seen} ${message}` };
+  return message === mainMessage ? {} : { refusedWithDifference: true };
+}
 
 try {
   // 1. Health, zonder token.
@@ -115,56 +166,65 @@ try {
   ok('herberekende IFC geeft hetzelfde einde', again.status === 200 && again.json?.project?.finish === EXPECTED.finish, String(again.json?.project?.finish));
 
   const exampleBytes = readFileSync(EXAMPLE);
-  for (const model of MODEL_FILES) {
-    const source = readFileSync(join(FOREIGN_FIXTURES, model.file));
-    const asText = await call('/v1/schedule', { method: 'POST', body: source, headers: IFC });
-    ok(`${model.file} als IFC-tekst → 422 IFC_READ_FAILED: de tekstroute weigert een gebouwmodel, zoals op main`,
-      asText.status === 422 && isError(asText, 'IFC_READ_FAILED'), `${asText.status} ${asText.text.slice(0, 200)}`);
-    const modelSummary = await call('/v1/schedule', { method: 'POST', body: source, headers: BYTES });
-    const foreign = modelSummary.json?.foreignContent;
-    ok(`${model.file} als bytes → 200 met het bewaarde vreemde deel in foreignContent`, modelSummary.status === 200
-      && foreign?.format === 'ifc' && foreign?.schema === model.schema && foreign?.objectCount === model.objectCount,
-      `${modelSummary.status} ${JSON.stringify(foreign) ?? modelSummary.text.slice(0, 200)}`);
-    const modelIfc = await call('/v1/schedule?output=ifc', { method: 'POST', body: source, headers: BYTES });
-    ok(`${model.file} als bytes, output=ifc → het bestand komt byte-gelijk terug`, modelIfc.status === 200
-      && modelIfc.headers.get('content-type') === 'application/octet-stream' && modelIfc.bytes.equals(source),
-      `${modelIfc.status} ${modelIfc.bytes.length} ≠ ${source.length} bytes`);
-  }
-
   const legacyPlanning = Buffer.from(example.replace(/FILE_SCHEMA\(.*?\);/, "FILE_SCHEMA(('IFC2X3'));"));
   const legacyWithPset = Buffer.from(legacyPlanning.toString('utf8').replace('ENDSEC;\nEND-ISO-10303-21;', EXTERN_PSET));
-  const likeMain = [
-    ['het voorbeeld', exampleBytes, 200],
-    ['het voorbeeld met UTF-8-BOM', Buffer.concat([UTF8_BOM, exampleBytes]), 200],
-    ['de oude OPS-export uit v2026.7.12 met BOM', Buffer.concat([UTF8_BOM, readFileSync(OLD_OPS_EXPORT)]), 200],
-    ['een dubbele BOM', Buffer.concat([UTF8_BOM, UTF8_BOM, exampleBytes]), 200],
-    ['een BOM na een spatie', Buffer.concat([Buffer.from(' '), UTF8_BOM, exampleBytes]), 200],
-    ['U+00A0 na een BOM', Buffer.concat([UTF8_BOM, Buffer.from('\u00a0'), exampleBytes]), 200],
-    ['een IFC2X3-planning met BOM', Buffer.concat([UTF8_BOM, legacyPlanning]), 200],
-    ['een IFC2X3-planning met een externe pset', legacyWithPset, 500],
-    ['een IFC2X3-planning met een externe pset en BOM', Buffer.concat([UTF8_BOM, legacyWithPset]), 500],
+  const scheduleReadOtherwise = emptyOwnSchedule(example, true);
+  const nameReadOtherwise = projectPset(readFileSync(PROJECT_NAME_IN_SETTINGS, 'utf8'));
+  const ifcFiles = (dir, prefix = '') => readdirSync(dir).filter(f => f.endsWith('.ifc')).map(f => [`${prefix}${f}`, readFileSync(join(dir, f))]);
+  const corpus = [
+    ...EXAMPLE_DIRS.flatMap(dir => ifcFiles(dir)),
+    ...ifcFiles(OLD_TAGS, 'oude-tags/'),
+    ['een IFC2X3-planning', legacyPlanning],
+    ['een IFC2X3-planning met een externe pset', legacyWithPset],
+    ['het voorbeeld met een leeg eigen werkschema', emptyOwnSchedule(example, false)],
+    ['het voorbeeld met een externe pset', Buffer.from(example.replace('ENDSEC;\nEND-ISO-10303-21;', EXTERN_PSET))],
+    ...ifcFiles(FOREIGN_FIXTURES, 'ifc-foreign/'),
+    [SCHEDULE_READ_OTHERWISE, scheduleReadOtherwise],
+    [NAME_READ_OTHERWISE, nameReadOtherwise],
   ];
-  for (const [label, body, mainIfcStatus] of likeMain) {
-    const textSummary = await call('/v1/schedule', { method: 'POST', body, headers: IFC });
-    const bytesSummary = await call('/v1/schedule', { method: 'POST', body, headers: BYTES });
-    ok(`${label} als bytes → dezelfde status en samenvatting als als tekst, zoals op main`, textSummary.status === 200
-      && bytesSummary.status === textSummary.status && JSON.stringify(bytesSummary.json) === JSON.stringify(textSummary.json),
-      `tekst ${textSummary.status}, bytes ${bytesSummary.status} ${bytesSummary.text.slice(0, 160)}`);
-    const textIfc = await call('/v1/schedule?output=ifc', { method: 'POST', body, headers: IFC });
-    const bytesIfc = await call('/v1/schedule?output=ifc', { method: 'POST', body, headers: BYTES });
-    const same = bytesIfc.status === textIfc.status && bytesIfc.headers.get('content-type') === textIfc.headers.get('content-type')
-      && (textIfc.status === 200 ? bytesIfc.text.startsWith('ISO-10303-21;') : refusalOf(bytesIfc) === refusalOf(textIfc));
-    ok(`${label} als bytes, output=ifc → ${mainIfcStatus}, met hetzelfde type en dezelfde fout als als tekst, zoals op main`,
-      textIfc.status === mainIfcStatus && same,
-      `tekst ${refusalOf(textIfc)} ${textIfc.headers.get('content-type')}, bytes ${refusalOf(bytesIfc)} ${bytesIfc.headers.get('content-type')}`);
+  const forms = [
+    ['kaal', b => b],
+    ['met BOM', b => Buffer.concat([UTF8_BOM, b])],
+    ['met BOM en een spatie', b => Buffer.concat([UTF8_BOM, Buffer.from(' '), b])],
+  ];
+  const cases = [
+    ...corpus.flatMap(([name, source]) => forms.map(([form, shape]) => [`${name}, ${form}`, shape(source)])),
+    ['het voorbeeld met een dubbele BOM', Buffer.concat([UTF8_BOM, UTF8_BOM, exampleBytes])],
+    ['het voorbeeld met een BOM na een spatie', Buffer.concat([Buffer.from(' '), UTF8_BOM, exampleBytes])],
+    ['het voorbeeld met U+00A0 na een BOM', Buffer.concat([UTF8_BOM, Buffer.from(' '), exampleBytes])],
+  ];
+  const kept = [];
+  const refusedWithDifference = [];
+  for (const [label, body] of cases) {
+    const outcome = await outcomeAsBytes(body);
+    ok(`${label}: als bytes het antwoord van main, of de bewaarde bytes waar main het schrijven weigerde`, !outcome.broken, outcome.broken);
+    if (outcome.kept) kept.push(label);
+    if (outcome.refusedWithDifference) refusedWithDifference.push(label);
   }
-  const bonsai = readFileSync(join(FOREIGN_FIXTURES, 'bonsai-4d.ifc'), 'utf8');
-  const staleBonsai = Buffer.from(bonsai.replace(BONSAI_WALL_A_TIME, BONSAI_WALL_A_STALE));
-  ok('fixture: een Bonsai-planning met een vroege start die de berekening niet geeft', !staleBonsai.equals(Buffer.from(bonsai)));
-  const mergeRefused = await call('/v1/schedule?output=ifc', { method: 'POST', body: staleBonsai, headers: BYTES });
-  ok('Bonsai-planning als bytes, output=ifc → 500 IFC_WRITE_FAILED met reason merge-needs-phase2, als JSON',
-    refusalOf(mergeRefused) === '500 IFC_WRITE_FAILED:merge-needs-phase2'
-      && (mergeRefused.headers.get('content-type') ?? '').startsWith('application/json'), refusalOf(mergeRefused));
+  const expectKept = ['oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc', 'oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc', 'het voorbeeld met een externe pset']
+    .flatMap(name => forms.map(([form]) => `${name}, ${form}`));
+  ok('alleen bij de twee oude woongebouw-bestanden en het voorbeeld met een externe pset komen bewaarde bytes terug, in elke vorm',
+    JSON.stringify(kept) === JSON.stringify(expectKept), kept.join(' | '));
+  const expectRefused = [SCHEDULE_READ_OTHERWISE, NAME_READ_OTHERWISE].flatMap(name => forms.map(([form]) => `${name}, ${form}`));
+  ok('alleen bij de twee bestanden die de bytes-route anders leest blijft de weigering van main, met het verschil erbij, in elke vorm',
+    JSON.stringify(refusedWithDifference) === JSON.stringify(expectRefused), refusedWithDifference.join(' | '));
+
+  for (const [label, body, expect, fields] of [
+    [SCHEDULE_READ_OTHERWISE, scheduleReadOtherwise, s => s?.counts?.tasks === 52 && s?.project?.finish === '2028-01-12T16:00',
+      ['counts.tasks', 'project.finish']],
+    [NAME_READ_OTHERWISE, nameReadOtherwise, s => s?.project?.name === 'Refurbishment & Extension of a Family Home' && s?.counts?.tasks === 20,
+      ['project.name']],
+  ]) {
+    for (const path of ['/v1/schedule', '/v1/schedule?output=summary']) {
+      const r = await call(path, { method: 'POST', body, headers: BYTES });
+      ok(`${label} als bytes, ${path} → 200 met de samenvatting van main`, r.status === 200 && expect(r.json),
+        `${r.status} ${r.json?.counts?.tasks} taken, ${r.json?.project?.finish}, ${r.json?.project?.name}`);
+    }
+    const r = await call('/v1/schedule?output=ifc', { method: 'POST', body, headers: BYTES });
+    const message = r.json?.error?.message ?? '';
+    ok(`${label} als bytes, output=ifc → de weigering foreign van main, met ${fields.join(' en ')} in de melding`,
+      refusalOf(r) === '500 IFC_WRITE_FAILED:foreign' && fields.every(field => message.includes(field)), `${refusalOf(r)} ${message}`);
+  }
 
   // 6. Ongeldige invoer.
   const notIfc = await call('/v1/schedule', { method: 'POST', body: 'dit is geen IFC', headers: { 'Content-Type': 'text/plain' } });
