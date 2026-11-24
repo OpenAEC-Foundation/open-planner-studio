@@ -40,15 +40,20 @@ Het volledige contract staat in `headless/server/openapi.yaml`.
 - `application/octet-stream` is de bytes-route (`openIfcBytes`): de server leest de body zonder tekstdecodering, en met
   `?output=ifc` komt de herberekende IFC terug als `application/octet-stream` (`toIfcBytes()`). Een gebouwmodel en de
   gegevens van andere programma's blijven byte voor byte staan; verandert de planning niet, dan komt het hele bestand
-  byte-gelijk terug. Een UTF-8-BOM vóór de kop opent en blijft staan. Van een IFC2X3-bestand blijft alleen de planning:
+  byte-gelijk terug. Een UTF-8-BOM vóór de kop opent; bij een bestand met een vreemd deel blijft hij staan, een bestand
+  zonder vreemd deel komt zonder BOM terug, zoals op main. Kan de bytes-route een upload niet lezen, dan leest de kern
+  hem via de tekstroute van main (zie *Twee routes* in [headless-kern.md](headless-kern.md)): een octet-stream-upload die
+  main aannam, wordt nooit geweigerd, en schrijven gebeurt dan alleen waar main schreef. Van een IFC2X3-bestand blijft alleen de planning:
   staat er iets naast, dan geeft `?output=ifc` 500 `IFC_WRITE_FAILED` met `details.reason` `ifc2x3-planning-only`. De
   server leest de body in één eigen buffer en geeft die aan de rekenworker over; de worker geeft de uitvoer ook over in
   plaats van te kopiëren (knownbug 2219: de geheugenpiek bij grote bestanden is niet gemeten). De andere types zijn de tekstroute van main (`openIfc`, UTF-8): die weigert een bestand met een
   gebouwmodel (422 `IFC_READ_FAILED`) en schrijft geen bestand met vreemde inhoud (500 `IFC_WRITE_FAILED`), en
   `?output=ifc` geeft `Content-Type: application/x-step; charset=utf-8`. Zie *Twee routes* in
   [headless-kern.md](headless-kern.md).
-- De samenvatting heeft dezelfde vorm als `ScheduleSummary` van de kern (`formatVersion: 1`), met `foreignContent`
-  (`null` op de tekstroute).
+- De samenvatting heeft dezelfde vorm als `ScheduleSummary` van de kern (`formatVersion: 1`), met `foreignContent`:
+  wat de kern naast de planning bewaart. `null` op de tekstroute, na de terugval naar de tekstroute en bij een
+  IFC2X3-bestand, ook als er meer in de invoer stond; de samenvatting doet geen schrijfcontrole (die geeft pas
+  `?output=ifc`).
 - Elk antwoord heeft een header `X-Request-Id`. Stuur zelf een `X-Request-Id`
   (1–64 tekens `A-Z a-z 0-9 . _ -`) om een verzoek in de logs terug te vinden.
 
@@ -255,7 +260,8 @@ kernbouw, `headless/`, `deploy/aws/`, de lockfile of de workflow raakt:
 
 - **local**: `npm run build:core`, server starten, weigeren zonder token (exit 78), smoke-test (ook het voorbeeld en
   twee modelbestanden uit `tests/fixtures/ifc-foreign/` als bytes: byte-gelijk terug, en als tekst 422; het voorbeeld met
-  BOM als bytes; een IFC2X3 met externe pset en een geweigerde merge als JSON-fout),
+  BOM als bytes; de oude eigen export met BOM, een dubbele BOM, een BOM na een spatie en U+00A0 na een BOM als bytes
+  met dezelfde uitkomst als als tekst; een IFC2X3 met externe pset en een geweigerde merge als JSON-fout),
   servertest (`server-test.mjs`: `GET //[` → 400 zonder crash, 30 uploads boven de grens → meteen 503
   en RSS begrensd, tweede verzoek tijdens een berekening → meteen 503, merkteken uit het IFC niet in
   de logs, 408 bij een te trage body, SIGTERM tijdens een upload), logs zonder token of IFC-inhoud,

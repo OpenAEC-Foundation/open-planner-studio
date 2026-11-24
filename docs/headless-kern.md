@@ -74,7 +74,9 @@ Daarom is de keuze van de ingang hier de flag:
   `toIfcBytes()` beslist en schrijft zoals Ctrl+S (`prepareIfcOutput` met `buildWriteIFCInput(…, 'merge')`). Zonder
   vreemd deel is dat dezelfde IFC als `toIfc()`. Met een vreemd deel blijft alles wat niet de eigen planning is byte voor
   byte staan; verandert de planning niet, dan komt het hele bestand byte-gelijk terug, ook na `schedule()` en ook met
-  bytes die geen geldige UTF-8 zijn. Een UTF-8-BOM vóór de kop hoort bij de kop en blijft staan. Kan de samenvoeging
+  bytes die geen geldige UTF-8 zijn. Een UTF-8-BOM vóór de kop hoort bij de kop: de bewaakte samenvoeging (een bestand
+  met een vreemd deel) laat hem staan; de gewone schrijver (een bestand zonder vreemd deel) schrijft zonder BOM, zoals
+  main. Kan de samenvoeging
   het vreemde deel bij de wijziging nog niet bewaren, dan weigert hij vóór uitvoer met `IFC_WRITE_FAILED` en
   `details.reason` `merge-needs-phase2`; fase 2 van #804 maakt die gevallen kleiner. `toIfc()` van een document met een
   vreemd deel weigert met `details.reason` `foreign`: als tekst zouden bytes die geen geldige UTF-8 zijn verloren gaan.
@@ -82,6 +84,15 @@ Daarom is de keuze van de ingang hier de flag:
   melding dat alleen de planning blijft. Staat er naast de planning nog iets in (bijv. een externe pset), dan weigeren
   `toIfc()` en `toIfcBytes()` vóór uitvoer met `details.reason` `ifc2x3-planning-only`; de tekstroute weigert hetzelfde
   bestand met `foreign`. Een IFC2X3-planning zonder iets ernaast schrijft gewoon, zoals op de tekstroute.
+- **De bytes-ingang weigert nooit iets wat main aannam.** Kan de bytes-route de invoer niet lezen (elke leesfout:
+  `INVALID_INPUT` of `IFC_READ_FAILED`), dan opent `openIfcBytes` dezelfde bytes via precies de tekstroute van main:
+  decoderen als UTF-8 (de BOM blijft daarbij staan, zoals `Buffer.toString`), dan `openIfc`, dat een BOM en voorloop
+  weghaalt. Zo'n document is een tekstdocument, met alle controles van main: `foreignContent` is `null` en schrijven
+  weigert waar main weigerde (bijv. `foreign`). De fout van de tekstroute is dan de fout die terugkomt. Voorbeelden: een
+  oude eigen export (v2026.7.12) met BOM, een dubbele BOM, een BOM na een spatie, U+00A0 na een BOM. De terugval geldt
+  alleen voor lezen dat mislukt: een document dat de bytes-route wel leest maar niet mag schrijven (`foreign`,
+  `merge-needs-phase2`, `ifc2x3-planning-only`), blijft geweigerd. De keuze valt in `openIfcBytes`, omdat daar vaststaat
+  of de bytes-route de invoer kon lezen; zo geldt de regel voor elke afnemer van de kern, ook de HTTP-API.
 - Het ontwerp zegt dat `openIfc(text)`/`toIfc()` blijven en alleen byte-gelijk zijn voor geldige UTF-8. Dat geldt pas als
   de flag er in de app af gaat (#804, PR 13): tot dan blijft de tekstroute gelijk aan main.
 
@@ -118,7 +129,9 @@ De samenvatting (`formatVersion: 1`) bevat:
 - `foreignContent`: wat het document naast de planning bewaart en ongewijzigd terugschrijft (een gebouwmodel, gegevens
   van andere programma's), als `{ format: 'ifc', schema, objectCount }`: `schema` is de schemanaam uit de kop
   (`IFC4X3_ADD2`, `IFC4`, …), `objectCount` het aantal entiteiten dat niet tot de eigen planning hoort. `null` op de
-  tekstroute en als er naast de planning niets is.
+  tekstroute (ook na de terugval van `openIfcBytes`), bij een IFC2X3-bestand (daarvan bewaart de bytes-route alleen de
+  planning, ook als er meer in stond) en als er naast de planning niets is. `null` zegt dus niet dat de invoer niets naast
+  de planning had. Samenvatten doet geen schrijfcontrole: of schrijven mag, zegt pas `toIfc()` of `toIfcBytes()`.
 
 Datums zijn ISO-8601-tekst zoals de app ze bewaart: een datum (`2027-03-01`) of, bij urenplanning,
 datum en tijd.

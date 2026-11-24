@@ -12,7 +12,11 @@ info:
     Send the file as `application/octet-stream` to keep a building model and the data of other
     programs: the API then reads the bytes as they are and returns the recalculated file as bytes,
     with everything that is not the schedule byte for byte as it was. A UTF-8 byte order mark before
-    the header is accepted and kept. Of an IFC2X3 file only the schedule is kept: when such a file has
+    the header is accepted; a file with foreign content keeps it, a file without foreign content comes
+    back without it, as before. When the bytes route cannot read an upload, the API reads the same body
+    as UTF-8 text, exactly as the text route does: an `application/octet-stream` upload that was
+    accepted before is never refused, and the API then only writes where the text route writes. Of an
+    IFC2X3 file only the schedule is kept: when such a file has
     other content, `output=ifc` gives 500 `IFC_WRITE_FAILED` with `details.reason`
     `ifc2x3-planning-only` instead of a file without that content. The other request types are read
     as UTF-8 text; that route refuses a file with a building model (422 `IFC_READ_FAILED`) and does
@@ -366,8 +370,11 @@ components:
         foreignContent:
           description: |
             What the document keeps besides the schedule (a building model, the data of other programs)
-            and writes back unchanged. Only the bytes route (`application/octet-stream`) keeps it; on the
-            text route this is always `null`. Also `null` when the file has nothing besides the schedule.
+            and writes back unchanged. Only the bytes route (`application/octet-stream`) keeps it. `null` on
+            the text route (also when the API fell back to it), for an IFC2X3 file (of which only the
+            schedule is kept, even when the file had more), and when the file has nothing besides the
+            schedule. So `null` does not say that the input had nothing besides the schedule. The summary
+            does not check writing; `output=ifc` does.
           oneOf:
             - type: 'null'
             - $ref: '#/components/schemas/ForeignContent'
