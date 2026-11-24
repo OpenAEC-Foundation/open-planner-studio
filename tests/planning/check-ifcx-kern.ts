@@ -11,25 +11,28 @@ import {
   classifyIfcx, readIfcx, writeIfcx, IfcxReadError, IfcxWriteRefusedError, type IfcxReadErrorCode, type IfcxWriteRefusedCode,
 } from '@/services/ifc/ifcx';
 import { ifcxSchemaProblems } from '@/services/ifc/ifcx/schemaCheck';
-import { SELF_CHECK_RULES, selfCheckDifferences } from '@/services/ifc/ifcx/selfCheck';
+import { selfCheckDifferences } from '@/services/ifc/ifcx/selfCheck';
 import { readIfcxText } from '@/services/ifc/ifcx/ifcxReader';
+import { composeIfcxDocument, globalIdsOf } from '@/services/ifc/ifcx/projection';
 import { stepRoundtrip } from '@/services/ifc/ifcx/stepRoundtrip';
-import { HEADER_VALUE, OWN_ATTRIBUTE_VALUES } from '@/services/ifc/ifcx/ownAttributes';
+import { HEADER_VALUE } from '@/services/ifc/ifcx/ownAttributes';
+import { ALL_MODEL_KEYS, NODES, OWN_ATTRIBUTE_VALUES, STEP_WRITER_INPUT_NOT_CARRIED } from '@/services/ifc/ifcx/nodes';
 import { IDENTITY_KINDS, intendedGlobalIds, type PlanningModel } from '@/services/ifc/ifcx/identity';
-import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from '@/services/ifc/ifcx/fieldGroups';
 import { TASK_TIME_FIELDS } from '@/services/ifc/ifcx/fields/taskFields';
 import {
-  CALENDAR_DATE_FORM, FREE_TEXT_FORM, GLOBAL_ID_OUTSIDE_PATH_FORM, ISO_DATE_OR_MOMENT_OR_EMPTY_FORM, ISO_MOMENT_FORM,
+  CALENDAR_DATE_FORM, FREE_TEXT_FORM, ISO_DATE_OR_MOMENT_OR_EMPTY_FORM, ISO_MOMENT_FORM,
   LOCAL_MOMENT_OR_EMPTY_FORM, NON_EMPTY_TEXT_FORM, VERSION_FORM, type IfcxField, type IfcxValue,
 } from '@/services/ifc/ifcx/fieldTable';
 import {
-  compactGlobalIdToUuid, isCompactGlobalId, nameBasedUuid, uuidToCompactGlobalId,
-} from '@/services/ifc/ifcx/globalIdUuid';
+  compactGlobalIdToUuid, globalIdOfPath, isCompactGlobalId, isIdentityPath, pathOfGlobalId, uuidToCompactGlobalId,
+} from '@/services/ifc/ifcx/identityPath';
+import { OPS_NAMESPACE } from '@/services/ifc/ifcx/profile';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import { syncProjectCalendar } from '@/state/syncProjectCalendar';
 import { buildWriteIFCInput, type IFCSaveSource } from '@/state/ifcSaveInput';
+import { freshPayload, payloadFromImport, type DocumentPayload } from '@/state/documentContract';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const examplesDir = join(root, 'public/examples');
@@ -64,7 +67,7 @@ function without<T extends object>(object: T, keys: readonly string[]): T {
 function kernOf(full: ImportResult): ImportResult {
   return {
     ...full, resources: [], assignments: [], baselines: [], activeBaselineId: null, comparedBaselineIds: [null, null],
-    activityCodeTypes: [], customFieldDefs: [], customTaskTypes: [], ifcLiteralCalendarIds: undefined, libraryPool: undefined,
+    activityCodeTypes: [], customFieldDefs: [], customTaskTypes: [], libraryPool: undefined,
     project: without(full.project, NOT_IN_KERN_PROJECT_FIELDS),
     tasks: full.tasks.map(task => ({ ...without(task, NOT_IN_KERN_TASK_FIELDS), resourceIds: [],
       time: without(task.time, ['progressBeforeRecalculation']) })),
@@ -81,10 +84,16 @@ function domainOf(model: ImportResult): Record<string, unknown> {
   }) as Record<string, unknown>;
 }
 
+const atLoad = (model: ImportResult) => plain(payloadFromImport(structuredClone(model), null)) as DocumentPayload;
+
+function asStepDifferences(back: ImportResult, step: ImportResult): string[] {
+  const model = selfCheckDifferences(step, back, 10);
+  if (model.length > 0) return model.map(difference => `model ${difference}`);
+  return isDeepStrictEqual(atLoad(back), atLoad(step)) ? [] : ['na de laadgrens verschillend'];
+}
+
 function assertAsStep(back: ImportResult, input: WriteIFCInput): void {
-  const expected = domainOf(stepRoundtrip(input));
-  const actual = domainOf(back);
-  for (const key of Object.keys(expected)) assert.deepEqual(actual[key], expected[key], key);
+  assert.deepEqual(asStepDifferences(back, stepRoundtrip(input)), []);
 }
 
 function documentOf(text: string): { header: Record<string, unknown>; imports: unknown[]; schemas: Record<string, unknown>; data: { path: string; attributes: Record<string, Record<string, unknown>> }[] } {
@@ -146,7 +155,7 @@ test('de kop heeft de vorm van §5.1 en geen imports of klasse', () => {
   const document = documentOf(text);
   const projectGuid = kern03.ifcGlobalIds![`proj:${kern03.project.id}`];
   assert.deepEqual(document.header, {
-    id: `urn:openaec:planner:${compactGlobalIdToUuid(projectGuid)}`, ifcxVersion: 'ifcx_alpha', dataVersion: '1.0.0',
+    id: `urn:openaec:planner:${pathOfGlobalId(projectGuid)}`, ifcxVersion: 'ifcx_alpha', dataVersion: '1.0.0',
     author: kern03.project.author, timestamp: CLOCK.toISOString(),
   });
   assert.deepEqual(document.imports, []);
@@ -159,7 +168,7 @@ test('een taak uit STEP met OPS_TaskIdentity houdt haar interne id en GlobalId',
   const guid = kern03.ifcGlobalIds![`task:${task.id}`];
   assert.ok(guid && !task.id.includes(guid), 'het interne id is niet uit de GlobalId afgeleid');
   const document = documentOf(writeIfcx(kern03, CLOCK));
-  const entry = document.data.find(item => item.path === compactGlobalIdToUuid(guid))!;
+  const entry = document.data.find(item => item.path === pathOfGlobalId(guid))!;
   assert.equal(entry.attributes['openaec::ops::task'].id, task.id);
   const back = readIfcx(encode(JSON.stringify(document)));
   assert.equal(back.tasks[1].id, task.id);
@@ -236,14 +245,18 @@ test('relaties dragen het lagtype en de lag als ISO 8601-duur of verhouding', ()
   const ops = (index: number) => entryWith(document, 'openaec::planning::sequence', index).attributes['openaec::ops::sequence'];
   const step = stepRoundtrip(plan).sequences;
   assert.equal(shared(0).timeLag, 'P0D');
+  assert.equal(ops(0).lag, undefined);
   assert.equal(shared(1).timeLag, '-PT90M');
   assert.equal(shared(1).sequenceType, 'START_START');
-  assert.equal(ops(1).lagMinutes, step[1].lagMinutes);
+  assert.deepEqual(ops(1).lag, { amount: step[1].lagMinutes, unit: 'MINUTES' });
   assert.equal(shared(2).timeLagRatio, (step[2].lagPercent ?? 0) / 100);
   assert.equal(shared(2).lagDurationType, 'ELAPSEDTIME');
-  assert.equal(ops(2).lagPercent, step[2].lagPercent);
+  assert.deepEqual(ops(2).lag, { amount: step[2].lagPercent, unit: 'PERCENT' });
   assert.equal(shared(3).timeLag, 'P2.5D');
-  assert.equal(ops(3).lagDays, 2.5);
+  assert.deepEqual(ops(3).lag, { amount: 2.5, unit: 'DAYS' });
+  for (let index = 0; index < 4; index++) {
+    assert.deepEqual(Object.keys(ops(index)).filter(key => key.startsWith('lag')).sort(), index === 0 ? [] : index === 2 ? ['lag', 'lagUnit'] : ['lag']);
+  }
 });
 
 test('een gedeelde datum die een ander programma veranderde, opent niet en noemt veld en taak (§5.3 vervalt)', () => {
@@ -270,31 +283,86 @@ test('GlobalId en UUID zijn dezelfde 128 bits, heen en terug', () => {
   assert.ok(!isCompactGlobalId('kort'));
 });
 
-test('de naam-UUID is een UUID v5 met de vaste namespace van het profiel', () => {
+function oldNameBasedGlobalId(text: string): string {
   const namespace = 'fd4e93a2-de83-56ee-929c-defaa450b626';
-  for (const name of ['zzzzzzzzzzzzzzzzzzzzzz', 'oude-guid', 'é ü 漢']) {
-    const hash = createHash('sha1').update(Buffer.concat([Buffer.from(namespace.replace(/-/g, ''), 'hex'), Buffer.from(name, 'utf8')])).digest();
-    hash[6] = (hash[6] & 0x0f) | 0x50;
-    hash[8] = (hash[8] & 0x3f) | 0x80;
-    const hex = hash.subarray(0, 16).toString('hex');
-    assert.equal(nameBasedUuid(name), `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`);
+  const hash = createHash('sha1').update(Buffer.concat([Buffer.from(namespace.replace(/-/g, ''), 'hex'), Buffer.from(text, 'utf8')])).digest();
+  hash[6] = (hash[6] & 0x0f) | 0x50;
+  hash[8] = (hash[8] & 0x3f) | 0x80;
+  const hex = hash.subarray(0, 16).toString('hex');
+  return uuidToCompactGlobalId(`${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`);
+}
+
+function pathIdentities(): string[] {
+  const out = new Set<string>(['', 'oud-1', 'oude-guid', 'review-legacy-global-id', 'é ü 漢', '🧱', 't-', 't-0041', '0'.repeat(22), '3' + '$'.repeat(21),
+    '4' + '0'.repeat(21), '0'.repeat(21), '0'.repeat(23), 'zzzzzzzzzzzzzzzzzzzzzz', '\u0000', 'a\ud800b', '00000000-0000-4000-8000-000000000001']);
+  for (let i = 0; i < 1500; i++) {
+    const text = `oude-guid-${i}`;
+    out.add(text);
+    out.add(oldNameBasedGlobalId(text));
+    out.add(ifcGuid128(`seed-${i}`));
+    out.add(ifcGuid(`kort-${i}`));
+    out.add(pathOfGlobalId(ifcGuid128(`pad-${i}`)));
   }
-  const urlNamespace = createHash('sha1').update(Buffer.concat([Buffer.from('6ba7b8119dad11d180b400c04fd430c8', 'hex'), Buffer.from('urn:openaec:planner')])).digest();
-  assert.equal(urlNamespace.subarray(0, 4).toString('hex'), namespace.slice(0, 8), 'de namespace is UUID v5 van urn:openaec:planner');
+  return [...out];
+}
+
+test('padvorm: twee verschillende GlobalIds krijgen nooit hetzelfde pad en het pad geeft de GlobalId terug (R3)', () => {
+  const owners = new Map<string, string>();
+  const wrong: string[] = [];
+  const identities = pathIdentities();
+  const all = new Set(identities);
+  let collisionsBefore = 0;
+  for (const globalId of identities) {
+    const path = pathOfGlobalId(globalId);
+    const owner = owners.get(path);
+    if (owner !== undefined && owner !== globalId) wrong.push(`${JSON.stringify(owner)} en ${JSON.stringify(globalId)} op ${path}`);
+    owners.set(path, globalId);
+    if (!isIdentityPath(path) || globalIdOfPath(path) !== globalId) wrong.push(`${JSON.stringify(globalId)} → ${path} → ${JSON.stringify(globalIdOfPath(path))}`);
+    if (!isCompactGlobalId(globalId) && all.has(oldNameBasedGlobalId(globalId))) collisionsBefore++;
+  }
+  assert.deepEqual(wrong, []);
+  assert.ok(collisionsBefore >= 1500, `de verzameling bevat de paren die onder de oude afbeelding botsten (${collisionsBefore})`);
+  for (const path of ['', 'geen-pad', 't-004', 't-00G1', 't-00A1', 'T-0041', `t-${[...'0'.repeat(22)].map(c => c.charCodeAt(0).toString(16).padStart(4, '0')).join('')}`,
+    '00000000-0000-4000-8000-00000000000G', '00000000-0000-4000-8000-00000000000A', '00000000-0000-4000-8000-0000000000001']) {
+    assert.equal(globalIdOfPath(path), undefined, path);
+  }
+  assert.equal(globalIdOfPath('t-'), '', 'de lege tekst heeft het pad t-');
+  for (const path of owners.keys()) assert.equal(pathOfGlobalId(globalIdOfPath(path)!), path);
 });
 
-test('een GlobalId zonder 128-bitsvorm krijgt een UUID v5 en blijft in openaec::ops:: staan', () => {
+test('padvorm: een compacte GlobalId wordt haar UUID, andere tekst t- met vier hexcijfers per teken', () => {
+  const guid = ifcGuid128('taak');
+  assert.equal(pathOfGlobalId(guid), compactGlobalIdToUuid(guid));
+  assert.equal(pathOfGlobalId('oud-1'), 't-006f00750064002d0031');
+  assert.equal(pathOfGlobalId('é'), 't-00e9');
+});
+
+test('een GlobalId zonder 128-bitsvorm krijgt een tekstpad en geen apart veld', () => {
   const plan = datePlan();
   const oldGuid = ifcGuid('oude-taak');
   const odd = isCompactGlobalId(oldGuid) ? 'z' + oldGuid.slice(1) : oldGuid;
   const input: ImportResult = { ...plan, ifcGlobalIds: { 'task:handmatig': odd, 'seq:r1': 'geen-guid' } };
   const text = writeIfcx(input, CLOCK);
   const document = documentOf(text);
-  const entry = document.data.find(item => item.path === nameBasedUuid(odd))!;
-  assert.equal(entry.attributes['openaec::ops::task'].globalId, odd);
+  const entry = document.data.find(item => item.path === pathOfGlobalId(odd))!;
+  assert.match(entry.path, /^t-/);
+  assert.ok(!('globalId' in entry.attributes['openaec::ops::task']));
   const back = readIfcx(encode(text));
   assert.equal(back.ifcGlobalIds!['task:handmatig'], odd);
+  assert.equal(back.ifcGlobalIds![`seq:${back.sequences[0].id}`], 'geen-guid');
   assertAsStep(back, input);
+});
+
+test('ronde 5, blokkade 3: een oude tekst-GlobalId en de compacte GlobalId van haar oude UUID v5 slaan allebei op', () => {
+  const legacy = 'review-legacy-global-id';
+  const compact = oldNameBasedGlobalId(legacy);
+  assert.equal(compact, '2kQYLmYGPONRDhJ87YhMzT');
+  const plan = saveInputViaApp(datePlan());
+  const input = { ...plan, ifcGlobalIds: { ...plan.ifcGlobalIds, 'task:binnen-een-dag': legacy, 'task:einde-middernacht': compact } };
+  const back = readIfcx(encode(writeIfcx(input, CLOCK)));
+  assertAsStep(back, input);
+  assert.equal(back.ifcGlobalIds!['task:binnen-een-dag'], legacy);
+  assert.equal(back.ifcGlobalIds!['task:einde-middernacht'], compact);
 });
 
 test('de volgorde onder een ouder komt terug met zo weinig mogelijk volgnummers', () => {
@@ -342,7 +410,11 @@ const REFUSALS: readonly { name: string; code: IfcxReadErrorCode; change: (docum
   { name: 'een andere ifcxVersion', code: 'version', change: d => { d.header.ifcxVersion = 'ifcx_beta'; } },
   { name: 'een hogere profielversie', code: 'newer-profile', change: d => { entryWith(d, 'openaec::ops::document').attributes['openaec::ops::document'].formatVersion = '2.0.0'; } },
   { name: 'twee bijdragen op één pad', code: 'foreign', change: d => { d.data.push(structuredClone(entryWith(d, 'openaec::planning::activity'))); } },
-  { name: 'een pad dat geen UUID is', code: 'foreign', change: d => { entryWith(d, 'openaec::planning::sequence').path = '/planning/work-0'; } },
+  { name: 'een pad dat geen identiteitspad is', code: 'foreign', change: d => { entryWith(d, 'openaec::planning::sequence').path = '/planning/work-0'; } },
+  { name: 'een tekstpad van een compacte GlobalId', code: 'foreign', change: d => {
+    const entry = entryWith(d, 'openaec::planning::sequence');
+    entry.path = `t-${[...uuidToCompactGlobalId(entry.path)].map(c => c.charCodeAt(0).toString(16).padStart(4, '0')).join('')}`;
+  } },
   { name: 'een tweede werkplan', code: 'foreign', change: d => {
     d.data.push({ ...structuredClone(entryWith(d, 'openaec::planning::workplan')), path: '00000000-0000-4000-8000-000000000001' });
   } },
@@ -550,31 +622,29 @@ test('de zelfcontrole ziet een waarde die bij het teruglezen stil verandert', ()
   assert.ok(selfCheckDifferences(step, reordered).length > 0, 'de volgorde telt mee');
 });
 
-const SELF_CHECK_WITNESSES: Readonly<Record<string, () => WriteIFCInput>> = {
-  leesmeta: datePlan,
-  'nee-is-afwezig': () => ({ ...datePlan(), minuteModelPending: false }),
-};
+const NOT_CARRIED_YET = [
+  'resources', 'assignments', 'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'baselines', 'activeBaselineId',
+  'comparedBaselineIds', 'libraryPool', 'sourceScheduleNotes', 'recordedTimes', 'baselineOrphanGuids', 'recordedSourceFormat',
+  'suggestedProfileId', 'xer', 'xerOrigin', 'xerSourceArchive', 'ifcSource', 'ifcLegacySchemaLoss', 'recoveryForeignSource',
+  'xerSourceProjectId', 'xerArchiveIssue', 'xerMissingPlannedStarts', 'p6xmlReport', 'msProjectReport', 'withheldTaskTimeFields',
+  'xerSourceArchiveStorage',
+];
 
-test('de lijst uitzonderingen van de zelfcontrole heeft voor elke regel een geval', () => {
-  assert.deepEqual(SELF_CHECK_RULES.map(rule => rule.id).sort(), Object.keys(SELF_CHECK_WITNESSES).sort());
-  const wrong: string[] = [];
-  for (const rule of SELF_CHECK_RULES) {
-    if (rule.reason.length <= 20) wrong.push(`${rule.id}: geen reden`);
-    const outcome = attempt(() => {
-      const input = SELF_CHECK_WITNESSES[rule.id]();
-      const step = stepRoundtrip(input);
-      const reread = readIfcxText(writeIfcx(input, CLOCK), false);
-      return [selfCheckDifferences(step, reread), selfCheckDifferences(step, reread, SELF_CHECK_RULES.filter(other => other !== rule))];
-    });
-    if (!outcome.ok) wrong.push(`${rule.id}: ${String(outcome.error).slice(0, 200)}`);
-    else if (outcome.value[0].length > 0) wrong.push(`${rule.id}: ${outcome.value[0].join('; ')}`);
-    else if (outcome.value[1].length === 0) wrong.push(`${rule.id}: zonder de regel ziet de controle geen verschil`);
+test('R1 volledig: elk veld dat de STEP-lezer naast het model teruggeeft, is ingedeeld; wat IFCX nog niet draagt, weigert de writer', () => {
+  assert.deepEqual([...STEP_WRITER_INPUT_NOT_CARRIED].sort(), [...NOT_CARRIED_YET].sort());
+  const carried = new Set(NODES.flatMap(node => node.modelKeys));
+  const known = new Set<string>(ALL_MODEL_KEYS);
+  const unclassified = new Set<string>();
+  for (const model of [...fullExamples.values(), stepRoundtrip(maximalPlan()), stepRoundtrip(variantPlan())]) {
+    for (const key of Object.keys(model)) if (!known.has(key)) unclassified.add(key);
   }
-  assert.deepEqual(wrong, []);
+  assert.deepEqual([...unclassified], [], 'een veld van de STEP-lezer dat nergens is ingedeeld');
+  for (const key of ['timeModel', 'milestonesAtDayEnd', 'recordedFields', 'recordedTimesOrigin', 'importPristine', 'ifcLiteralCalendarIds', 'minuteModelPending']) {
+    assert.ok(carried.has(key as never), `${key} hoort bij een node`);
+  }
 });
 
 const FILLED_IS_REFUSED: Readonly<Record<string, () => WriteIFCInput>> = {
-  'een openstaande omzetting': () => ({ ...datePlan(), minuteModelPending: true }),
   'een vergelijking met een baseline die er niet is': () => ({ ...datePlan(), comparedBaselineIds: ['b1', null] }),
   'een actieve baseline die er niet is': () => ({ ...datePlan(), activeBaselineId: 'b1' }),
   'een notitie op een taak': () => {
@@ -624,14 +694,6 @@ test('een gestarte taak die in de app vóór haar werkelijke start eindigt, schr
 
 
 test('een dubbele GlobalId wordt bij lezen en bij schrijven geweigerd, nooit stil vervangen (blokkade 3)', () => {
-  const compactOfFirst = readError(changedFixture((_document, [first, second]) => {
-    second.attributes['openaec::ops::task'].globalId = uuidToCompactGlobalId(first.path);
-  }));
-  assert.equal(compactOfFirst.code, 'invalid', compactOfFirst.message);
-  assert.equal(compactOfFirst.place.field, 'globalId');
-  const wrongPath = readError(changedFixture((_document, [first]) => { first.attributes['openaec::ops::task'].globalId = 'oud-1'; }));
-  assert.equal(wrongPath.code, 'invalid', wrongPath.message);
-  assert.equal(wrongPath.place.field, 'globalId');
   const projectPath = readError(changedFixture((document, [first]) => {
     const oldPath = first.path;
     first.path = String(document.header.id).slice('urn:openaec:planner:'.length);
@@ -730,10 +792,10 @@ const FORM_COUNTEREXAMPLES: Readonly<Record<string, readonly unknown[]>> = {
   [LOCAL_MOMENT_OR_EMPTY_FORM.name]: ['2027-02-30', '2027-06-01T99:99', '2027-06-01T07:00+02:00', 'morgen'],
   [ISO_DATE_OR_MOMENT_OR_EMPTY_FORM.name]: ['2027-02-30T99:99', '2027-02-30', 'gisteren'],
   [ISO_MOMENT_FORM.name]: ['', 'gisteren', '2027-02-30'],
-  [GLOBAL_ID_OUTSIDE_PATH_FORM.name]: ['', ifcGuid128('botsing')],
   [VERSION_FORM.name]: ['een', '1.0'],
   'ISO 8601-duur P<dagen>D of PT<minuten>M, met een minteken voor een lead': ['P2', 'PT', '2D'],
-  'urn:openaec:planner:<project-uuid>': ['urn:openaec:planner:geen-uuid'],
+  'urn:openaec:planner:<pad van het project>': ['urn:openaec:planner:geen-pad', 'urn:openaec:planner:00000000-0000-4000-8000-00000000000A',
+    `urn:openaec:planner:t-${[...'0'.repeat(22)].map(c => c.charCodeAt(0).toString(16).padStart(4, '0')).join('')}`],
 };
 
 function counterexamplesOf(spec: IfcxValue): readonly unknown[] {
@@ -749,7 +811,7 @@ function counterexamplesOf(spec: IfcxValue): readonly unknown[] {
     case 'Integer': return [1.5, '1', ...bounds(1)];
     case 'Boolean': return ['ja'];
     case 'Enum': return ['ONBEKEND'];
-    case 'Reference': return ['geen-uuid', 5];
+    case 'Reference': return ['geen-pad', 5, `t-${[...'0'.repeat(22)].map(c => c.charCodeAt(0).toString(16).padStart(4, '0')).join('')}`];
     case 'Array': return ['geen lijst'];
     case 'Object': return ['geen object'];
   }
@@ -797,12 +859,15 @@ function maximalPlan(): WriteIFCInput {
     remainingTime: 1, remainingMinutes: 480, durationUnit: 'hours',
   };
   const loose = dateCaseTask('los', moment(5, '07:00'), moment(5, '16:00'), { calendarId: 'bestaat-niet-als-kalender' });
+  const empty = dateCaseTask('leeg', moment(6, '07:00'), moment(6, '16:00'));
+  empty.time = { ...empty.time, earlyStart: '', earlyFinish: '', lateStart: '', lateFinish: '' };
   const done = dateCaseTask('klaar', moment(1, '07:00'), moment(1, '16:00'));
   done.time = { ...done.time, actualStart: moment(1, '07:00'), actualFinish: moment(1, '16:00'), completion: 1 };
   const tasks = [parent, ...viaApp.tasks.map(task => task.id === 'binnen-een-dag' ? { ...task, parentId: 'fase' }
-    : task.id === 'eindmijlpaal' ? { ...task, mandatory: true } : task), full, loose, done];
+    : task.id === 'eindmijlpaal' ? { ...task, mandatory: true } : task), full, loose, done, empty];
   return {
     ...viaApp,
+    importPristine: true,
     project: { ...viaApp.project, statusDate: '2027-06-02', createdAt: '2027-05-01T08:00:00Z', modifiedAt: '2027-05-02T08:00:00Z' },
     resourceCalendars: [...(viaApp.resourceCalendars ?? []), extra],
     tasks,
@@ -814,6 +879,38 @@ function maximalPlan(): WriteIFCInput {
     },
   };
 }
+
+function payloadPlan(change: (payload: DocumentPayload) => void): WriteIFCInput {
+  const payload = freshPayload();
+  payload.calendar.holidays = [];
+  payload.calendars = payload.calendars.map(calendar => (calendar.id === payload.calendar.id ? payload.calendar : calendar));
+  change(payload);
+  return buildWriteIFCInput(payload as unknown as IFCSaveSource, 'planOnly');
+}
+
+function d7Plan(): WriteIFCInput {
+  return payloadPlan(payload => {
+    const milestone = dateCaseTask('mijlpaal', '2026-06-01T16:00', '2026-06-01T16:00', { isMilestone: true });
+    milestone.time.scheduleDuration = 0;
+    payload.tasks = [milestone];
+  });
+}
+
+function literalPlan(): WriteIFCInput {
+  return payloadPlan(payload => {
+    payload.tasks = [dateCaseTask('dag', '2026-06-01T07:00', '2026-06-01T16:00')];
+    payload.ifcLiteralCalendarIds = [payload.calendar.id];
+  });
+}
+
+function pendingPlan(): WriteIFCInput {
+  return payloadPlan(payload => {
+    payload.tasks = [dateCaseTask('oud', '2026-06-01', '2026-06-01')];
+    payload.minuteModelPending = true;
+  });
+}
+
+const loadPlans = () => [d7Plan(), literalPlan(), pendingPlan()];
 
 function variantPlan(): WriteIFCInput {
   const plan = datePlan();
@@ -841,7 +938,7 @@ function fieldPathOf(spec: IfcxValue, steps: readonly string[]): string {
 }
 
 test('elk veld in de veldtabel wordt met elk tegenvoorbeeld van zijn vorm geweigerd, door de lezer en de writer (regel A, B)', () => {
-  const documents = [maximalPlan(), variantPlan(), datePlan(), ...[...fullExamples.values()].map(kernOf)].map(input => documentOf(writeIfcx(input, CLOCK)));
+  const documents = [maximalPlan(), variantPlan(), datePlan(), ...loadPlans(), ...[...fullExamples.values()].map(kernOf)].map(input => documentOf(writeIfcx(input, CLOCK)));
   const missing: string[] = [], wrongReader: string[] = [], wrongWriter: string[] = [];
   const outcomes = {
     'de writer weigert om dit veld': 0, 'de writer weigert in hetzelfde attribuut, waar de STEP-rondgang de waarde neerzette': 0,
@@ -1163,16 +1260,16 @@ test('R2: elk gedeeld veld dat de writer schreef, veranderd, weggelaten of met e
   console.log(`   ${count} veranderde bestanden, elk geweigerd`);
 });
 
-test('punt 8: een bestand dat R2 doorstaat maar geen dekpunt van de STEP-rondgang is, opent zoals STEP het zou openen', () => {
+test('punt 8: een bestand met lege vroege datums opent zoals het is, zonder tweede rondgang; de eerste berekening vult ze', () => {
   const document = documentOf(writeIfcx(datePlan(), CLOCK));
   const time = entryWith(document, 'openaec::ops::task').attributes['openaec::ops::task'].time as Record<string, unknown>;
   Object.assign(time, { earlyStart: '', earlyFinish: '', lateStart: '', lateFinish: '' });
   const text = JSON.stringify(document);
-  const read = readIfcxText(text, false);
-  assert.equal(read.tasks[0].time.earlyStart, '', 'het bestand draagt lege vroege datums');
   const back = readIfcx(encode(text));
-  assert.notEqual(back.tasks[0].time.earlyStart, '', 'openen geeft wat de STEP-rondgang geeft');
-  assert.deepEqual(domainOf(back), domainOf(stepRoundtrip(read)));
+  assert.deepEqual(plain(back), plain(readIfcxText(text, false)), 'de lezer geeft het precieze model van het bestand');
+  assert.equal(back.tasks[0].time.earlyStart, '', 'de vroege datum blijft leeg tot de eerste berekening');
+  assert.equal(atLoad(back).tasks[0].time.earlyStart, '', 'de laadgrens vult haar niet');
+  assert.notEqual(stepRoundtrip(back).tasks[0].time.earlyStart, '', 'STEP vult haar bij het lezen van zijn eigen bestand');
 });
 
 test('ronde 4, blokkade 1: werkplan en werkschema met een oude GlobalId slaan op en komen terug zoals in STEP', () => {
@@ -1184,10 +1281,11 @@ test('ronde 4, blokkade 1: werkplan en werkschema met een oude GlobalId slaan op
   assert.equal(back.ifcGlobalIds![`wp:${back.project.id}`], 'oud-werkplan');
   assert.equal(back.ifcGlobalIds![`ws:${back.project.id}`], 'oud-schema');
   const document = documentOf(text);
+  assert.ok(document.data.some(entry => entry.path === pathOfGlobalId('oud-schema') && 'openaec::planning::schedule' in entry.attributes));
   entryWith(document, 'openaec::ops::document').attributes['openaec::ops::document'].scheduleGlobalId = 'ander-schema';
   const error = readError(JSON.stringify(document));
-  assert.equal(error.code, 'invalid', error.message);
-  assert.equal(error.place.field, 'globalId');
+  assert.equal(error.code, 'newer-profile', error.message);
+  assert.equal(error.place.field, 'scheduleGlobalId');
 });
 
 test('ronde 4, blokkade 2: de projectkalender heeft één verwijzing; een tweede of een andere opent niet', () => {
@@ -1224,7 +1322,7 @@ test('ronde 4, blokkade 3: een gedeeld venster naast een werkelijk einde opent n
 });
 
 test('ronde 4, blokkade 4: een gedeeld percentage naast een precieze lag in dagen opent niet; de writer schrijft wat STEP teruggeeft', () => {
-  for (const [shared, precise] of [[{ timeLagRatio: 0.25 }, { lagDays: 8 }], [{ timeLag: 'P8D' }, { lagPercent: 25 }]] as const) {
+  for (const [shared, precise] of [[{ timeLagRatio: 0.25 }, { lag: { amount: 8, unit: 'DAYS' } }], [{ timeLag: 'P8D' }, { lag: { amount: 25, unit: 'PERCENT' } }]] as const) {
     const document = documentOf(goodText);
     const entry = entryWith(document, 'openaec::planning::sequence');
     delete entry.attributes['openaec::planning::sequence'].timeLag;
@@ -1239,7 +1337,19 @@ test('ronde 4, blokkade 4: een gedeeld percentage naast een precieze lag in dage
   const back = readIfcx(encode(writeIfcx(input, CLOCK)));
   assertAsStep(back, input);
   assert.equal(back.sequences[0].lagPercent, 25);
-  assert.equal(back.sequences[0].lagDays, stepRoundtrip(input).sequences[0].lagDays);
+  assert.equal(back.sequences[0].lagDays, 0);
+});
+
+test('ronde 5, blokkade 2: acht dagen naast 25 % lag kan de precieze kant niet meer dragen', () => {
+  const plan = saveInputViaApp(datePlan());
+  const input = { ...plan, sequences: plan.sequences.map((sequence, index) => index === 0 ? { ...sequence, lagDays: 0, lagPercent: 25 } : sequence) };
+  const document = documentOf(writeIfcx(input, CLOCK));
+  const entry = entryWith(document, 'openaec::ops::sequence');
+  assert.deepEqual(entry.attributes['openaec::ops::sequence'].lag, { amount: 25, unit: 'PERCENT' });
+  entry.attributes['openaec::ops::sequence'].lagDays = 8;
+  const error = readError(JSON.stringify(document));
+  assert.equal(error.code, 'newer-profile', error.message);
+  assert.deepEqual(error.place, { path: entry.path, attribute: 'openaec::ops::sequence', field: 'lagDays' });
 });
 
 test('ronde 4, blokkade 5: lege vroege en late datums en de uurmaat komen terug zoals STEP ze bij openen invult', () => {
@@ -1263,19 +1373,155 @@ test('ronde 4, blokkade 6: onbekende leden van werkblokken laat STEP vallen en I
   assert.ok(!JSON.stringify(back).includes('nieuweInformatie'));
 });
 
+test('ronde 5, blokkade 1 en R1 volledig: na de laadgrens geeft IFCX hetzelfde als STEP, voor de D7-mijlpaal, een letterlijke kalender en een oude planning', () => {
+  const cases: readonly [string, WriteIFCInput, (payload: DocumentPayload) => unknown, unknown][] = [
+    ['de D7-mijlpaal', d7Plan(), payload => [payload.tasks[0].time.earlyStart, payload.tasks[0].time.earlyFinish], ['2026-06-01T16:00', '2026-06-01T16:00']],
+    ['de letterlijke kalender', literalPlan(), payload => payload.ifcLiteralCalendarIds, ['cal-default']],
+    ['de oude planning', pendingPlan(), payload => [payload.minuteModelPending, payload.tasks[0].time.scheduleStart], [true, '2026-06-01T07:00']],
+  ];
+  for (const [name, input, pick, expected] of cases) {
+    const step = payloadFromImport(stepRoundtrip(input), null);
+    const own = payloadFromImport(readIfcx(encode(writeIfcx(input, CLOCK))), null);
+    assert.deepEqual(plain(pick(step)), expected, `${name}: STEP`);
+    assert.deepEqual(plain(pick(own)), expected, `${name}: IFCX`);
+    assert.deepEqual(plain(own), plain(step), `${name}: de hele planning na de laadgrens`);
+  }
+  const d7 = documentOf(writeIfcx(d7Plan(), CLOCK));
+  assert.equal(entryWith(d7, 'openaec::ops::task').attributes['openaec::ops::task'].atDayEnd, true);
+  const pending = documentOf(writeIfcx(pendingPlan(), CLOCK));
+  assert.ok(!('timeModel' in entryWith(pending, 'openaec::ops::document').attributes['openaec::ops::document']));
+});
+
+test('R0: twee bibliotheekrijen met het id van de projectkalender weigert de writer; één rij is de projectkalender zelf (vervolg ronde 5)', () => {
+  const plan = saveInputViaApp(datePlan());
+  const row = (plan.resourceCalendars ?? []).find(calendar => calendar.id === plan.calendar.id)!;
+  const refusal = writeRefusal({ ...plan, resourceCalendars: [...(plan.resourceCalendars ?? []), structuredClone(row)] });
+  assert.equal(refusal.code, 'inconsistent');
+  assert.deepEqual(refusal.fields, ['calendar.id']);
+  assert.match(refusal.message, new RegExp(`Twee kalenders in de bibliotheek hebben het id ${row.id}`));
+  assertAsStep(readIfcx(encode(writeIfcx(plan, CLOCK))), plan);
+});
+
+interface PrecisePlace { readonly steps: readonly string[]; readonly spec: IfcxValue; readonly optional: boolean }
+
+function precisePlacesOf(spec: IfcxValue, steps: readonly string[] = []): PrecisePlace[] {
+  if (spec.dataType === 'Array') return precisePlacesOf(spec.item, [...steps, '0']).map(place => (place.steps.length === steps.length + 1 ? { ...place, optional: true } : place));
+  if (spec.dataType !== 'Object') return [];
+  return Object.entries(spec.members).flatMap(([key, member]) => [
+    { steps: [...steps, key], spec: member.value, optional: member.optional === true },
+    ...precisePlacesOf(member.value, [...steps, key]),
+  ]);
+}
+
+function containerOf(root: unknown, steps: readonly string[]): Record<string, unknown> | undefined {
+  let at = root;
+  for (const step of steps.slice(0, -1)) {
+    if (typeof at !== 'object' || at === null || !(step in at)) return undefined;
+    at = (at as Record<string, unknown>)[step];
+  }
+  return typeof at === 'object' && at !== null ? at as Record<string, unknown> : undefined;
+}
+
+const FORM_SAMPLES: Readonly<Record<string, readonly unknown[]>> = {
+  [FREE_TEXT_FORM.name]: ['anders', 'nog anders'],
+  [NON_EMPTY_TEXT_FORM.name]: ['anders', 'nog-anders'],
+  [CALENDAR_DATE_FORM.name]: ['2027-06-09', '2027-06-10'],
+  [LOCAL_MOMENT_OR_EMPTY_FORM.name]: ['2027-06-09T08:00', '2027-06-10', ''],
+  [ISO_DATE_OR_MOMENT_OR_EMPTY_FORM.name]: ['2027-06-09T08:00', '2027-06-10', ''],
+  [VERSION_FORM.name]: ['1.0.1', '1.0.0'],
+};
+
+function madeValue(spec: IfcxValue, current: unknown, paths: readonly string[]): unknown {
+  switch (spec.dataType) {
+    case 'String': case 'DateTime': return (FORM_SAMPLES[spec.form.name] ?? ['anders']).find(value => value !== current);
+    case 'Real': {
+      const next = (typeof current === 'number' ? current : 0) + 0.25;
+      return spec.max !== undefined && next > spec.max ? spec.min ?? 0 : next;
+    }
+    case 'Integer': {
+      const next = (typeof current === 'number' ? current : spec.min ?? 0) + 1;
+      return spec.max !== undefined && next > spec.max ? spec.min ?? 0 : next;
+    }
+    case 'Boolean': return current !== true;
+    case 'Enum': return spec.options.find(option => option !== current);
+    case 'Reference': return paths.find(path => path !== current);
+    case 'Array': return Array.isArray(current) && current.length > 0 ? current.slice(0, -1) : [madeValue(spec.item, undefined, paths)];
+    case 'Object': return Object.fromEntries(Object.entries(spec.members).filter(([, member]) => !member.optional)
+      .map(([key, member]) => [key, madeValue(member.value, undefined, paths)]));
+  }
+}
+
+test('R3: elk precies veld, veranderd, weggelaten of toegevoegd, geeft precies dat feit terug of een weigering met veld en object', () => {
+  const texts = [maximalPlan(), variantPlan(), datePlan(), ...loadPlans()].map(plan => writeIfcx(plan, CLOCK));
+  const wrong: string[] = [];
+  const tally = { 'precies dat feit': 0, 'geweigerd met veld en object': 0 };
+  const run = (text: string, index: number, name: string, steps: readonly string[], label: string, change: (holder: Record<string, unknown>, key: string) => void) => {
+    const original = readIfcx(encode(text));
+    const document = documentOf(text);
+    const entry = document.data[index];
+    change(containerOf(entry.attributes[name], steps)!, steps[steps.length - 1]);
+    const where = `${name}.${steps.join('.')} op ${entry.path}: ${label}`;
+    const outcome = readOutcome(encode(JSON.stringify(document)));
+    if (outcome instanceof IfcxReadError) {
+      const objectNamed = outcome.place.path !== undefined || outcome.place.field?.startsWith('header.') === true
+        || /\b(taak|task|kalender|calendar|relatie|sequence|werkplan|project)\b/i.test(outcome.message);
+      if (outcome.place.field === undefined || !objectNamed) wrong.push(`${where}: ${outcome.code} ${JSON.stringify(outcome.place)} ${outcome.message.slice(0, 120)}`);
+      else tally['geweigerd met veld en object']++;
+      return;
+    }
+    const composed = composeIfcxDocument(outcome, CLOCK, globalIdsOf(outcome));
+    const header = { ...composed.header, timestamp: document.header.timestamp };
+    if (!isDeepStrictEqual(plain(composed.data), plain(document.data)) || !isDeepStrictEqual(header, document.header)) {
+      wrong.push(`${where}: het model draagt iets anders dan het bestand`);
+    } else if (selfCheckDifferences(original, outcome).length === 0) {
+      wrong.push(`${where}: de waarde viel stil weg`);
+    } else tally['precies dat feit']++;
+  };
+  for (const [name, spec] of OWN_ATTRIBUTE_VALUES) {
+    if (!name.startsWith(OPS_NAMESPACE)) continue;
+    for (const place of precisePlacesOf(spec)) {
+      const key = place.steps[place.steps.length - 1];
+      let present = 0, absent = 0;
+      for (const text of texts) {
+        const document = documentOf(text);
+        const paths = document.data.map(entry => entry.path);
+        document.data.forEach((entry, index) => {
+          const attribute = entry.attributes[name];
+          const holder = attribute && containerOf(attribute, place.steps);
+          if (!holder) return;
+          if (key in holder && present < 2) {
+            present++;
+            const other = madeValue(place.spec, holder[key], paths);
+            if (other !== undefined) run(text, index, name, place.steps, `${JSON.stringify(holder[key])} wordt ${JSON.stringify(other)}`, (target, at) => { target[at] = other; });
+            if (place.optional) run(text, index, name, place.steps, 'weggelaten', (target, at) => {
+              if (Array.isArray(target)) target.splice(Number(at), 1); else delete target[at];
+            });
+          } else if (!(key in holder) && place.optional && !Array.isArray(holder) && absent < 1) {
+            absent++;
+            const added = madeValue(place.spec, undefined, paths);
+            run(text, index, name, place.steps, `toegevoegd als ${JSON.stringify(added)}`, (target, at) => { target[at] = added; });
+          }
+        });
+      }
+    }
+  }
+  for (const line of wrong.slice(0, 30)) console.error(`   ${line}`);
+  assert.deepEqual(wrong, []);
+  console.log(`   ${Object.entries(tally).map(([reason, count]) => `${reason}: ${count}`).join('; ')}`);
+});
+
 const FIELD_TABLES: readonly [string, IfcxField<never, never>[]][] = [
-  ['openaec::ops::document', DOCUMENT_AREA.ops as unknown as IfcxField<never, never>[]],
-  ['openaec::ops::calendar', CALENDAR_AREA.ops as unknown as IfcxField<never, never>[]],
-  ['openaec::ops::task', TASK_AREA.ops as unknown as IfcxField<never, never>[]],
+  ...NODES.flatMap(node => node.attributes.filter(attribute => attribute.name.startsWith(OPS_NAMESPACE))
+    .map(attribute => [attribute.name, attribute.fields as unknown as IfcxField<never, never>[]] as [string, IfcxField<never, never>[]])),
   ['openaec::ops::task.time', TASK_TIME_FIELDS as unknown as IfcxField<never, never>[]],
-  ['openaec::ops::sequence', SEQUENCE_AREA.ops as unknown as IfcxField<never, never>[]],
 ];
 
 test('elk precies veld draagt iets: zonder dat veld weigert writeIfcx, in de zelfcontrole of de waardetoets (besluit 3, ronde 4 blokkade 6)', () => {
-  const plans = [maximalPlan(), variantPlan(), datePlan()];
+  const plans = [maximalPlan(), variantPlan(), datePlan(), ...loadPlans()];
   const written = plans.map(plan => documentOf(writeIfcx(plan, CLOCK)));
   const wrong: string[] = [];
   let count = 0;
+  assert.equal(FIELD_TABLES.length, 5);
   for (const [label, table] of FIELD_TABLES) {
     const [attribute, nested] = label.split('.');
     for (let index = 0; index < table.length; index++) {
