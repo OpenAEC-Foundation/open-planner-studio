@@ -104,7 +104,7 @@ const TECHNICAL_MODEL = [null, 0, [['notifications.openFailed', 'error', false, 
 const TECHNICAL_PSET = [null, 0, [['notifications.ifcForeignOpenUnsafe', 'error', false, false, true]]];
 const largeWarnings = (store: Store | typeof useAppStore) => warnings(store).filter(n => n[0] === LARGE_KEY);
 const WITH_MODEL_KEY = 'notifications.ifcForeignOpenedWithModel';
-const full = (store: Store | typeof useAppStore) => store.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null, n.numberParams ?? null, n.detailLines ?? null]);
+const full = (store: Store | typeof useAppStore) => store.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null, n.numberParams ?? null, n.detailLines ?? null, n.addedLines ?? null]);
 const objectsOf = (bytes: Uint8Array) => { const scan = scanForeign(bytes); return scan.ok ? scan.counts.C + scan.counts.A + scan.counts.V : -1; };
 const modelOf = (bytes: Uint8Array) => { const scan = scanForeign(bytes); return scan.ok && scan.buildingModel; };
 
@@ -119,20 +119,20 @@ if (mode === 'web') {
   const over = pad(model, GRENS + 1);
   const underLimit = await open(below);
   eq('openen, model één byte onder de drempel: opent met zijn bron, zonder waarschuwing, met alleen de telmelding met gebouwmodel',
-    [underLimit.getState().ifcSource?.sha256 ?? null, full(underLimit)], [sha(below), [[WITH_MODEL_KEY, { count: objectsOf(below) }, { objects: objectsOf(below) }, null]]]);
+    [underLimit.getState().ifcSource?.sha256 ?? null, full(underLimit)], [sha(below), [[WITH_MODEL_KEY, { count: objectsOf(below) }, { objects: objectsOf(below) }, [], null]]]);
   const opened = await open(atLimit);
   eq('openen, model precies op de drempel: opent met zijn bron en alleen de telmelding met gebouwmodel', [opened.getState().ifcSource?.sha256 ?? null, full(opened)],
-    [sha(atLimit), [[WITH_MODEL_KEY, { count: objectsOf(atLimit) }, { objects: objectsOf(atLimit) }, null]]]);
+    [sha(atLimit), [[WITH_MODEL_KEY, { count: objectsOf(atLimit) }, { objects: objectsOf(atLimit) }, [], null]]]);
   const large = await open(over);
   eq('openen, model één byte boven de drempel: opent met zijn bron en de waarschuwing zonder timer, met 150 MB in de tekst',
     [large.getState().ifcSource?.sha256 ?? null, large.getState().tasks.length > 0, warnings(large)], [sha(over), true, LARGE]);
   eq('openen, model één byte boven de drempel: de waarschuwing is de kop, de telregel met gebouwmodel staat eronder', full(large),
-    [[LARGE_KEY, { limit: 150 }, null, [{ messageKey: WITH_MODEL_KEY, params: { count: objectsOf(over) }, numberParams: { objects: objectsOf(over) } }]]]);
+    [[LARGE_KEY, { limit: 150 }, null, null, [{ messageKey: WITH_MODEL_KEY, params: { count: objectsOf(over) }, numberParams: { objects: objectsOf(over) } }]]]);
   const psetBytes = pad(withPset(plan), GRENS + 1);
   const pset = await open(psetBytes);
   eq('openen, vreemde pset boven de drempel: opent met zijn bron en de waarschuwing zonder timer', [pset.getState().ifcSource?.sha256 ?? null, warnings(pset)], [sha(psetBytes), LARGE]);
   eq('openen, vreemde pset boven de drempel: de waarschuwing is de kop, de telregel zonder gebouwmodel staat eronder', full(pset),
-    [[LARGE_KEY, { limit: 150 }, null, [{ messageKey: 'notifications.ifcForeignOpenedOtherData', params: { count: objectsOf(psetBytes) }, numberParams: { objects: objectsOf(psetBytes) } }]]]);
+    [[LARGE_KEY, { limit: 150 }, null, null, [{ messageKey: 'notifications.ifcForeignOpenedOtherData', params: { count: objectsOf(psetBytes) }, numberParams: { objects: objectsOf(psetBytes) } }]]]);
   eq('openen: de scan ziet bij het model een gebouwmodel en bij de vreemde pset niet', [modelOf(atLimit), modelOf(psetBytes)], [true, false]);
 
   const literal = String.raw`Planning \X2\00E9\X0\ deel`;

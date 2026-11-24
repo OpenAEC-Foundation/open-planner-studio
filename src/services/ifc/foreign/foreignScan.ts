@@ -125,7 +125,7 @@ export function foreignScanFrom(index: StepIndex, cls: Classification, bytes: Ui
   // Elk byte valt in precies één stuk (§4.1; de poort eist dat), dus het laatste stuk eindigt op de lengte van de bron.
   chunkStarts[n] = bytes.length;
   const sel = cls.selection;
-  const buildingModel = hasBuildingModelEntity(index);
+  const model = hasBuildingModelEntity(index);
   return {
     ok: true,
     chunkStarts,
@@ -147,8 +147,8 @@ export function foreignScanFrom(index: StepIndex, cls: Classification, bytes: Ui
     counts: { ...cls.counts },
     foreignMembers: Int32Array.from(cls.foreignMembers),
     lineEnding: index.lineEnding,
-    buildingModel,
-    buildingModelUncertain: buildingModel && !hasModelTypeEntity(index),
+    buildingModel: model.found,
+    buildingModelUncertain: model.uncertain,
   };
 }
 
@@ -160,20 +160,15 @@ export function foreignScanFrom(index: StepIndex, cls: Classification, bytes: Ui
  * telt daarom altijd als gebouwmodel, zonder de tekst te lezen (de veilige kant: het document blijft na een kopie
  * gewijzigd, de exportzin staat erbij). Een complexe instantie zonder modeltype krijgt dus ook de zin (knownbug 1845).
  */
-function hasBuildingModelEntity(index: StepIndex): boolean {
+function hasBuildingModelEntity(index: StepIndex): { found: boolean; uncertain: boolean } {
+  let complex = false;
   for (let i = 0; i < index.count; i++) {
     if (!index.isEntity(i)) continue;
     const type = index.type(i);
-    if (type === COMPLEX_TYPE || IFC_BUILDING_MODEL_TYPES.has(type)) return true;
+    if (IFC_BUILDING_MODEL_TYPES.has(type)) return { found: true, uncertain: false };
+    if (type === COMPLEX_TYPE) complex = true;
   }
-  return false;
-}
-
-function hasModelTypeEntity(index: StepIndex): boolean {
-  for (let i = 0; i < index.count; i++) {
-    if (index.isEntity(i) && IFC_BUILDING_MODEL_TYPES.has(index.type(i))) return true;
-  }
-  return false;
+  return { found: complex, uncertain: complex };
 }
 
 /** §4.6 b: de V-stukken van een pset uit het register onder een gemengde `IfcRelDefinesByProperties` (A, met een D-object

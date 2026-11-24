@@ -177,9 +177,9 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
       // Knownbug 1131 stap 2: Ctrl+S via de handle weigert niet meer vóór de merge. Deze proef registreert geen
       // herstelronde, dus de komende versie ligt niet vast in het herstelmanifest en de app schrijft niet (1764).
       eq(`${label}: na openen de telmelding met gebouwmodel, zonder herstelronde geen vervanging van het modeldoel`,
-        store.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null, n.numberParams ?? null, n.detailLines ?? null]),
-        [[OPENED_WITH_MODEL_KEY, { count: foreignObjectsOf(enc.encode(text)) }, { objects: foreignObjectsOf(enc.encode(text)) }, null],
-          ['notifications.ifcForeignReplaceNotRecorded', null, null, null]]);
+        store.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null, n.numberParams ?? null, n.detailLines ?? null, n.sticky ?? null]),
+        [[OPENED_WITH_MODEL_KEY, { count: foreignObjectsOf(enc.encode(text)) }, { objects: foreignObjectsOf(enc.encode(text)) }, [], false],
+          ['notifications.ifcForeignReplaceNotRecorded', null, null, null, null]]);
       eq(`${label}: volledige bron inclusief wand intact`, data, text);
     }
     // Ctrl+S bevestigt ook de bestaande minutenomzetting; vergelijk met de daardoor vastgelegde toestand.
@@ -281,7 +281,8 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
     const objects = foreignObjectsOf(enc.encode(text));
     const messageKey = text.includes('IFCWALL(') ? OPENED_WITH_MODEL_KEY : 'notifications.ifcForeignOpenedOtherData';
     eq(`PR 12 ${name}: na openen met de flag precies de telmelding`, on.notices,
-      [{ count: 1, messageKey, numberParams: { objects }, params: { count: objects }, severity: 'info' }]);
+      [{ count: 1, dedupeKey: 'ifc-foreign-opened', detailLines: [], messageKey, numberParams: { objects }, params: { count: objects },
+        replaceOnDedupe: true, severity: 'info', sticky: false, yieldsPlace: true }]);
   }
   const withMainOpenNotices = (rows: OldHeaderRow[]) => rows.map(row => !openNoticeRows.includes(row.name) ? row
     : { ...row, routes: row.routes.map(route => route.flag ? { ...route, notices: mainOpenNotices(row.name) } : route) });
