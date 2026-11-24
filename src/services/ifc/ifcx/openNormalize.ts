@@ -65,7 +65,7 @@ export function copyAsStepWritesIt<T extends OpenedPlanning>(input: T): T {
   const tasks = input.tasks.map(task => ({ ...task, time: { ...task.time } }));
   treeAsStepWritesIt(tasks);
   const resourceCalendars = libraryAsStepWritesIt(input);
-  return { ...input, tasks, ...(resourceCalendars ? { resourceCalendars } : {}) };
+  return { ...input, project: { ...input.project, calendarId: input.calendar.id }, tasks, ...(resourceCalendars ? { resourceCalendars } : {}) };
 }
 
 export function normalizedCopy<T extends OpenedPlanning>(input: T): T {

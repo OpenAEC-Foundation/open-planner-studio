@@ -101,5 +101,13 @@ export function identityProblems(model: PlanningModel, globalIdOf: GlobalIdOfObj
       }
     }
   }
+  const parentOf = new Map<string, string>();
+  for (const task of model.tasks) {
+    for (const child of new Set(task.childIds ?? [])) {
+      const first = parentOf.get(child);
+      if (first === undefined) parentOf.set(child, task.id);
+      else problems.push({ field: 'task.childIds', detail: `Taak ${child} staat in de kinderlijst van twee ouders: ${first} en ${task.id}` });
+    }
+  }
   return problems;
 }

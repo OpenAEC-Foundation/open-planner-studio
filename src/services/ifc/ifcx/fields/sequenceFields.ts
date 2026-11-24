@@ -18,7 +18,6 @@ export interface SequenceReadTarget {
   predecessorPath: string;
   successorPath: string;
   shared: SharedLag;
-  precise: { lagDays?: number; lagMinutes?: number; lagPercent?: number };
 }
 
 type SequenceField = IfcxField<SequenceWriteSource, SequenceReadTarget>;
@@ -98,7 +97,10 @@ export const SEQUENCE_PLANNING_FIELDS: readonly SequenceField[] = [
   {
     key: 'lagDurationType', value: enumOf(['WORKTIME', 'ELAPSEDTIME']), optional: true,
     write: s => s.sequence.lagUnit,
-    read: (v, t) => { if (v !== undefined) t.sequence.lagUnit = v as LagUnit; },
+    read: (v, t) => {
+      if (v !== undefined) t.sequence.lagUnit = v as LagUnit;
+      Object.assign(t.sequence, lagFromShared(t.shared));
+    },
   },
 ];
 
@@ -116,17 +118,17 @@ export const SEQUENCE_OPS_FIELDS: readonly SequenceField[] = [
   {
     key: 'lagDays', value: REAL, optional: true,
     write: s => unlessDerived(s, 'lagDays'),
-    read: (v, t) => { t.precise.lagDays = v as number | undefined; },
+    read: (v, t) => { if (v !== undefined) t.sequence.lagDays = v as number; },
   },
   {
     key: 'lagMinutes', value: REAL, optional: true,
     write: s => unlessDerived(s, 'lagMinutes'),
-    read: (v, t) => { t.precise.lagMinutes = v as number | undefined; },
+    read: (v, t) => { if (v !== undefined) t.sequence.lagMinutes = v as number; },
   },
   {
     key: 'lagPercent', value: REAL, optional: true,
     write: s => unlessDerived(s, 'lagPercent'),
-    read: (v, t) => { t.precise.lagPercent = v as number | undefined; },
+    read: (v, t) => { if (v !== undefined) t.sequence.lagPercent = v as number; },
   },
 ];
 

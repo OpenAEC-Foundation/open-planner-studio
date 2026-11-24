@@ -24,7 +24,6 @@ export interface TaskReadTarget {
   parentPath?: string;
   calendarPath?: string;
   place?: number;
-  span: { start?: string; endExclusive?: string };
 }
 
 type TaskField = IfcxField<TaskWriteSource, TaskReadTarget>;
@@ -127,12 +126,12 @@ export const TASK_ACTIVITY_FIELDS: readonly TaskField[] = [
   {
     key: 'start', value: CALENDAR_DATE, optional: true,
     write: s => s.span.start,
-    read: (v, t) => { t.span.start = v as string | undefined; },
+    read: () => {},
   },
   {
     key: 'endExclusive', value: CALENDAR_DATE, optional: true,
     write: s => s.span.endExclusive,
-    read: (v, t) => { t.span.endExclusive = v as string | undefined; },
+    read: () => {},
   },
 ];
 

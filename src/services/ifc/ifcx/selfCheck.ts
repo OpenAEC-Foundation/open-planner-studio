@@ -56,7 +56,7 @@ function dropEmptyNotCarried(model: Model, side: Side): void {
 const READ_METADATA = [
   'timeModel', 'milestonesAtDayEnd', 'recordedFields', 'recordedTimes', 'recordedTimesOrigin', 'xerOrigin', 'xerArchiveIssue',
   'xerMissingPlannedStarts', 'p6xmlReport', 'msProjectReport', 'sourceScheduleNotes', 'suggestedProfileId', 'ifcLegacySchemaLoss',
-  'baselineOrphanGuids', 'ifcxSharedDatesApplied',
+  'baselineOrphanGuids',
 ] as const;
 
 const LISTS_THE_READER_GIVES = ['activityCodeTypes', 'customFieldDefs', 'baselines', 'resources', 'assignments', 'resourceCalendars'] as const;

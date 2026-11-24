@@ -11,23 +11,19 @@ export interface DocumentWriteSource {
   readonly headerUuid: string;
   readonly headerAuthor: string;
   readonly projectGlobalIdOutsidePath?: string;
+  readonly workplanGlobalIdOutsidePath?: string;
+  readonly scheduleGlobalIdOutsidePath?: string;
   readonly projectCalendarPath: string;
-  readonly projectCalendarId: string;
 }
 
 export interface DocumentReadTarget {
   readonly project: Project;
   readonly headerUuid: string;
-  readonly headerAuthor: string;
   formatVersion: string;
   projectGlobalIdOutsidePath?: string;
-  calendarPath?: string;
-  calendarIdOverride?: string;
-  sharedStart?: string;
-  sharedFinish?: string;
-  preciseStart?: string;
-  preciseFinish?: string;
-  preciseAuthor?: string;
+  workplanGlobalIdOutsidePath?: string;
+  scheduleGlobalIdOutsidePath?: string;
+  calendarPath: string;
 }
 
 type DocumentField = IfcxField<DocumentWriteSource, DocumentReadTarget>;
@@ -54,17 +50,17 @@ export const WORKPLAN_FIELDS: readonly DocumentField[] = [
   {
     key: 'start', value: CALENDAR_DATE, optional: true,
     write: s => sharedProjectDate(s.project.startDate),
-    read: (v, t) => { t.sharedStart = v as string | undefined; },
+    read: (v, t) => { t.project.startDate = (v as string | undefined) ?? ''; },
   },
   {
     key: 'finish', value: CALENDAR_DATE, optional: true,
     write: s => sharedProjectDate(s.project.endDate),
-    read: (v, t) => { t.sharedFinish = v as string | undefined; },
+    read: (v, t) => { t.project.endDate = (v as string | undefined) ?? ''; },
   },
   {
-    key: 'calendar', value: REFERENCE, optional: true,
+    key: 'calendar', value: REFERENCE,
     write: s => s.projectCalendarPath,
-    read: (v, t) => { t.calendarPath = v as string | undefined; },
+    read: (v, t) => { t.calendarPath = v as string; },
   },
 ];
 
@@ -85,19 +81,24 @@ export const DOCUMENT_OPS_FIELDS: readonly DocumentField[] = [
     read: (v, t) => { t.projectGlobalIdOutsidePath = v as string | undefined; },
   },
   {
+    key: 'workplanGlobalId', value: GLOBAL_ID_OUTSIDE_PATH, optional: true,
+    write: s => s.workplanGlobalIdOutsidePath,
+    read: (v, t) => { t.workplanGlobalIdOutsidePath = v as string | undefined; },
+  },
+  {
+    key: 'scheduleGlobalId', value: GLOBAL_ID_OUTSIDE_PATH, optional: true,
+    write: s => s.scheduleGlobalIdOutsidePath,
+    read: (v, t) => { t.scheduleGlobalIdOutsidePath = v as string | undefined; },
+  },
+  {
     key: 'startDate', value: ISO_DATE_OR_MOMENT_OR_EMPTY, optional: true,
     write: s => (s.project.startDate !== (sharedProjectDate(s.project.startDate) ?? '') ? s.project.startDate : undefined),
-    read: (v, t) => { t.preciseStart = v as string | undefined; },
+    read: (v, t) => setOptional(t.project, 'startDate', v as string | undefined),
   },
   {
     key: 'endDate', value: ISO_DATE_OR_MOMENT_OR_EMPTY, optional: true,
     write: s => (s.project.endDate !== (sharedProjectDate(s.project.endDate) ?? '') ? s.project.endDate : undefined),
-    read: (v, t) => { t.preciseFinish = v as string | undefined; },
-  },
-  {
-    key: 'calendarId', value: NON_EMPTY_TEXT, optional: true,
-    write: s => (s.project.calendarId !== s.projectCalendarId ? s.project.calendarId : undefined),
-    read: (v, t) => { t.calendarIdOverride = v as string | undefined; },
+    read: (v, t) => setOptional(t.project, 'endDate', v as string | undefined),
   },
   {
     key: 'createdAt', value: ISO_DATE_OR_MOMENT_OR_EMPTY, optional: true,
@@ -112,7 +113,7 @@ export const DOCUMENT_OPS_FIELDS: readonly DocumentField[] = [
   {
     key: 'author', value: TEXT, optional: true,
     write: s => (s.project.author !== s.headerAuthor ? s.project.author : undefined),
-    read: (v, t) => { t.preciseAuthor = v as string | undefined; },
+    read: (v, t) => setOptional(t.project, 'author', v as string | undefined),
   },
   {
     key: 'company', value: TEXT, optional: true,
