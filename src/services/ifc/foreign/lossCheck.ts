@@ -20,12 +20,6 @@
  *     verschilt: `niet-gedragen`, of `niet-eenduidig` als het stuk niet eenduidig paarde. In O1 krijgt hetzelfde slot de
  *     bronwaarde terug zolang de planner het veld niet wijzigde: "het veld" is het slot zoals de writer het uit het
  *     domein schrijft; is het in O1 gelijk aan O0 (verwijzingen als bronstuk), dan wijzigde de bewerking het niet.
- *     Wijzigde hij het wel, dan geldt zijn waarde; bij een `lijst`, `json` of `samengesteld` (de lezer draagt er een deel
- *     van) weigert de merge dan, want per lid, per sleutel of per deel samenvoegen is fase 2 (`jsonExtras`,
- *     `unusedKeys`). Paart het stuk in O1 niet eenduidig, of heeft de regel in O1 een ander type of een andere vorm, dan
- *     weigert de merge ook. De bronwaarden komen uit de bronbytes van `ifcSource`, bij elke merge opnieuw gelezen; er is
- *     geen documentveld bij. De merge leest de planning met de bronwaarden erin terug (`mergeWriter.ts`); geeft dat een
- *     andere planning dan zonder, dan weigert hij.
  *     (b) zet niet terug: een heel stuk (ontbreekt, ander type, onbekende lay-out), een argument zonder slot in de
  *     uitvoer, structuur (`structural`: GlobalId en owner history van een `IfcRoot`, de leden van een relatie, de
  *     properties van een pset), tekst uit een stuk met de oude letterlijke codering die niet in beide coderingen gelijk

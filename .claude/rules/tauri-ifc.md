@@ -337,17 +337,34 @@ in PR 6 en 7. Zonder vreemd deel schrijft de gewone writer ze niet, zoals op mai
 
 `ifcSource.sourceSlots` (ontwerp §4.5) bewaart van elk D- en R-stuk van vreemde herkomst (`cls.foreignOrigin`: de owner
 history wijst niet naar de applicatie `'OPS'`) het entiteittype, de tabel en de ruwe tokens per slotnaam, als `Map` op het
-bron-`#id`; de `IfcTaskTime` van een taak en de `IfcLagTime` van een relatie staan onder `owned` van hun eigenaar.
+bron-`#id`; de `IfcTaskTime` van een taak en de `IfcLagTime` van een relatie staan onder `owned` van hun eigenaar,
+alleen bij een directe verwijzing met het id zoals het er staat (zoals de lezer: een lijst of een voorloopnul geeft geen
+taaktijd en geen `owned`).
 `foreign/sourceSlots.ts` leest ze met het register (`slotTableOf` in `ifcSlotTables.ts`: per bronregel precies één
 tabel, een werkschema op `isBaselineWorkControl`). Een stuk in een oude lay-out of met de oude letterlijke codering
 (§4.9) krijgt geen tokens. Alleen op twee plekken: bij openen van een bron met een vreemd deel (`scanForeignToOpen`, ook
-in de Worker) en voor de bron die de writer teruggeeft (`writtenSource` in `mergeWriter.ts`: de stukken die de writer
-schreef, met een owner history van een ander programma). Een bron zonder vreemd deel heeft het veld niet, zoals op main;
-de doelcontrole, de headless routes en de interne scans van de merge verzamelen niets. De scanrunner en de opslagworker
-eisen de vorm als het veld er is (`isSourceSlots`, in `foreignScanRunner.ts` en `resultFits`). Het crashherstel opent de
-bronbytes opnieuw en krijgt ze zo terug; het herstelrecord heeft er geen veld voor. De writer gebruikt ze nog niet: het
-terugschrijven per slotsoort en het wegnemen van de weigeringen `vreemde-herkomst` en `entiteittype` volgen in een
-volgende PR. Proef: `check-ifc-source-slots.ts`.
+in de Worker) en voor de bron die de writer teruggeeft (`writtenSource` in `mergeWriter.ts`: alleen de regels die de
+writer schreef, met een owner history van een ander programma). Een bron zonder vreemd deel heeft het veld niet, zoals op
+main; de doelcontrole, de headless routes en de interne scans van de merge verzamelen niets. De scanrunner en de
+opslagworker eisen bij een vreemd deel een kaart (een lege is geldig) en weigeren er een zonder vreemd deel
+(`isSourceSlots`, in `foreignScanRunner.ts` en `resultFits`). Het crashherstel opent de bronbytes opnieuw en krijgt ze zo
+terug; het herstelrecord heeft er geen veld voor. De writer gebruikt ze nog niet: het terugschrijven per slotsoort en het
+wegnemen van de weigeringen `vreemde-herkomst` en `entiteittype` volgen in deel 2 van PR 2. Proef:
+`check-ifc-source-slots.ts`.
+
+Kosten: evenredig met het aantal stukken van een ander programma én met de gedecodeerde lengte van hun regels
+(`argTokens` decodeert en splitst de hele regel, ook een ledenlijst van 50.000). De reviewer van #1196 (GPT-6.2-Sol) mat
+bij 10.000 vreemde taken met taaktijden ongeveer 18,7 MiB extra V8-heap na GC, bij een IFC van 1,51 MiB; bij
+`fix2-vendor-ops.ifc` (369 stukken) ongeveer 335 KiB. De kaart reist gekloond naar en van de opslagworker. De piek op een
+groot model met veel vreemde planning is niet gemeten.
+
+Twee routes naast elkaar, tot deel 2: (b) in de verliescontrole (`planRestores` in `lossCheck.ts`) leest de bronwaarden bij
+elke merge opnieuw uit `ifcSource.bytes`; `sourceSlots` is de kaart op de bron voor de writer. Bij (b) geldt de waarde van
+de planner als hij het veld wijzigde; bij een slot van de soort `lijst`, `json` of `samengesteld` (de lezer draagt er een
+deel van) weigert de merge dan, want per lid, per sleutel of per deel samenvoegen volgt met `jsonExtras` en `unusedKeys`.
+Paart het stuk in O1 niet eenduidig, of heeft de regel in O1 een ander type of een andere vorm, dan weigert de merge ook.
+De merge leest de planning met de bronwaarden erin terug (`mergeWriter.ts`); geeft dat een andere planning dan zonder,
+dan weigert hij.
 
 ### Vergelijkingsklok (#804 fase 1c)
 
