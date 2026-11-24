@@ -23,8 +23,12 @@ info:
       resources, assignments and project fields), the preserved file comes back. Otherwise the
       answer stays the refusal of the text route, with the same status, code and `details`. The
       bytes route reads a file with foreign content by the rules of the app for such files, and
-      that can give a different schedule than the text route; only then does `message` add the
-      fields that differ.
+      that can give a different schedule than the text route; then the refusal stays.
+
+    The answer of the text route is the outcome unless the bytes route succeeds: any other
+    outcome (an error, a different schedule, the calculation time running out, a stopped or
+    crashed worker) gives that refusal byte for byte. Such a request can therefore take up to the
+    calculation time limit before the refusal arrives.
 
     A preserved file comes back as `application/octet-stream`, with the foreign content and the
     header (also a UTF-8 byte order mark) byte for byte as they were; without changes to the
@@ -77,7 +81,8 @@ paths:
         once, before it reads the body. Retry after `Retry-After` seconds.
 
         Time limits: the body must arrive within `limits.uploadTimeoutMs` (408 `UPLOAD_TIMEOUT`), and
-        the calculation must finish within `limits.timeoutMs` (503 `TIMEOUT`). Together they stay below
+        the calculation must finish within `limits.timeoutMs` (503 `TIMEOUT`; when the text route has
+        already refused the file, that refusal instead). Together they stay below
         the 120 s idle timeout of the load balancer, so the API itself always answers.
       parameters:
         - name: output
@@ -190,9 +195,7 @@ paths:
           description: |
             `IFC_WRITE_FAILED` or `INTERNAL`. With `IFC_WRITE_FAILED`, `details.reason` says why when it
             is known: `foreign` (the file has foreign content that the text route does not
-            keep), `model` or `unreadable` (other scan results). Only when an `application/octet-stream`
-            request with `foreign` is refused because the bytes route reads a different schedule,
-            `message` also names the fields that differ; otherwise it is the message of the text route.
+            keep), `model` or `unreadable` (other scan results).
           content:
             application/json:
               schema:

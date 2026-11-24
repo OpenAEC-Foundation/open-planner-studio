@@ -4206,18 +4206,30 @@ en noem het in je rapport of PR-tekst.
      bewaarde bytes alleen terug als beide lezingen dezelfde planning geven: dezelfde samenvatting na het doorrekenen en
      dezelfde schrijfinvoer volgens de gedeelde `planningCanon` (`planningDifference` in `src/core/index.ts`; die ziet ook
      relaties, resources, toewijzingen, ingevoerde duur en projectvelden). De bytes-route leest een bestand met vreemde
-     inhoud volgens de regels van de app voor zulke bestanden, en dat kan een andere planning geven; dan blijft het de
-     weigering van main, met de velden die verschillen in `message`. Drie voorbeelden uit de reviews, alle in de smoke-test
+     inhoud volgens de regels van de app voor zulke bestanden, en dat kan een andere planning geven; dan blijft het
+     byte voor byte de weigering van main (sinds fixronde 6 zonder de velden in `message`: alleen een geslaagde
+     bytes-route vervangt het antwoord van main). Vier voorbeelden uit de reviews, alle in de smoke-test
      (`headless/server/smoke-corpus.mjs`): (1) `examples/01-grachtenpand-amsterdam.ifc` met een leeg eigen werkschema,
      een baseline en één losse taak: de tekstlezer leest 52 taken en einde `2028-01-12T16:00`, de bytes-route één taak en
      `2027-03-05T16:00`, omdat de regel voor een leeg eigen werkschema de baselineboom uitsluit; (2) de woningfixture uit
      `tests/planning/fixtures/projectnaam-in-settings/` met een externe pset aan het project: de tekstlezer neemt de
      projectnaam uit `IfcProject`, de bytes-route uit `OPS_ProjectSettings`; (3) dezelfde woning met de naam gelijk en
      een andere `ProjectDescription` in `OPS_ProjectSettings`: de samenvatting is gelijk, de planning niet
-     (`planning.project.description`). `openIfcBytes` in de kern geeft voor zulke bestanden de lezing van de bytes-route.
-     Richting: de lezing van de bytes-route en de tekstlezer voor bestanden met vreemde inhoud gelijktrekken, zodat de
-     API ook daar de bewaarde bytes kan geven. Review van #1184 ronde 4 en 5 (GPT-6.2-Sol, xhigh). — B
+     (`planning.project.description`); (4) het voorbeeld met een tweede `OPS_ProjectSettings` aan een vreemde pset: de
+     tekstlezer leest haar `CreatedAt`, de bytes-lezer niet (`planning.project.createdAt`). `openIfcBytes` in de kern
+     geeft voor zulke bestanden de lezing van de bytes-route. Richting: de lezing van de bytes-route en de tekstlezer voor
+     bestanden met vreemde inhoud gelijktrekken, zodat de API ook daar de bewaarde bytes kan geven. Review van #1184
+     ronde 4, 5 en 6 (GPT-6.2-Sol, xhigh). — B
 2258. **Een IFC met meer dan 4 KiB witruimte of commentaar na `END-ISO-10303-21;` wordt als afgekapt geweigerd (zo op main).** De lezer zoekt de sluitmarkering alleen in de laatste 4096 tekens (`TERMINATOR_PROBE` in `src/services/ifc/ifcReader.ts`). Staat daarna meer witruimte of commentaar, dan meldt hij "afgekapt" (reden `truncated`; via de headless API 422 `IFC_READ_FAILED`), terwijl het bestand volledig is. Gevonden bij #1184 met een bestand met 5000 spaties na de sluitmarkering; op main is het gedrag hetzelfde, en het octet-stream-antwoord van #1184 volgt daar main. Richting: van achteren af witruimte en commentaar overslaan vóór de toets op de sluitmarkering, zonder het hele bestand te doorzoeken. — B
+2259. **Grens van de headless API: bij een bestand dat main weigert vanwege vreemde inhoud kan de weigering later komen dan op main (#804).**
+     Weigert de tekstroute een octet-stream-body vanwege een gebouwmodel (422) of bij `?output=ifc` met `foreign` (500),
+     dan stuurt de worker dat antwoord eerst naar de server en probeert daarna de bytes-route (`headless/server/worker.mjs`).
+     Slaagt die niet, dan krijgt de afnemer de weigering van main byte voor byte (`Calculator` in
+     `headless/server/server.mjs`). Loopt de bytes-route vast, dan komt die weigering pas als de rekentijd op is
+     (`OPS_API_TIMEOUT_MS`, standaard 60 s); op main kwam ze meteen. De inhoud is dezelfde; zolang de bytes-route loopt,
+     houdt het verzoek de rekenplek bezet, en een tweede verzoek krijgt dan 503 `BUSY`, zoals tijdens elke berekening.
+     Bewust geen eigen tijdbudget of nieuwe instelling (besluit van de technisch eigenaar, fixronde 6). Getoetst in
+     `headless/server/server-test.mjs`, sectie 7. Review van #1184 ronde 6 (GPT-6.2-Sol, xhigh). — B
 
 
 

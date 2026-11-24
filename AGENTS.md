@@ -333,7 +333,9 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   byte for byte (`headless/server/main-reference.json`, checked by the smoke test); only for an
   `application/octet-stream` body that main refuses because of foreign content does it try `openIfcBytes`: when reading
   (the building-model gate, recognised by `PlannerCoreError.readRefusal`) or when `output=ifc` is refused with `foreign`
-  (then only if both routes give the same summary and planning; `docs/headless-api.md`, knownbug 2252). The core builds its own context per document from
+  (then only if both routes give the same summary and planning; `docs/headless-api.md`, knownbug 2252). The worker
+  sends main's refusal first; `Calculator` in `server.mjs` keeps it unless the bytes route succeeds, whatever else
+  happens (knownbug 2259, tested in `server-test.mjs`). The core builds its own context per document from
   `appStoreFactory.ts` and imports no value from `appStore.ts` (`verify:store-boundaries`); the build fails if
   React, Tauri, the singleton or the i18n UI config end up in the bundle. `api.ts` imports nothing and is the
   contract: a change there is a contract change (`docs/headless-kern.md`). Guards: `check-headless-core.ts`
