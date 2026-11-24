@@ -1408,6 +1408,17 @@ en noem het in je rapport of PR-tekst.
       dan zichtbaar A (WBS 1.2) vóór X (WBS 1.1). Sleep A en X samen onder een andere fase: daar staat X vóór A, omdat
       `moveTasksToEdit` de groep op `flattenOrder` sorteert. Bron: proef van de reviewer in de store, bij de opruiming
       van het commentaar in `taskSlice.ts`. Zie ADR 0150 en 0151. — B
+2006. **De status- of voortgangslijn ligt op het papier en in het raster boven de labels bij de balken, in de vector-PDF eronder.**
+    `renderReport` (`src/services/print/printPreview.ts`) tekent de lijn na de labels (`drawStatusReferenceLine`). De
+    SVG-opname van het papier (`SvgRecordingDraw2D`) en het canvas van de rasterexport (`CanvasDraw2D`) houden de volgorde
+    van de aanroepen aan, dus daar ligt de lijn boven de tekst. `paginateVector.ts` zet alle vormen in één Form-XObject en
+    de tekst daarna per blad, dus in de vector-PDF staat een label boven de lijn. Waar de lijn door een taaknaam loopt,
+    verschilt de vector-PDF van het papier. Gezien in de code van alle drie de routes en door een tweede controle in de code bevestigd;
+    zie ADR 0232. — B
+2007. **De bovengrens van de curvekolom is niet nagemeten voor alle 28 talen.** `COL.curve.w` (98 px, in
+    `src/services/print/printPreview.ts`) is volgens het weggehaalde commentaar de breedte waarop de langste curvenaam
+    van veertien talen past; de app heeft er nu 28. `measureCurveColumnWidth` begrenst de kolom op die breedte, dus een
+    langere vertaalde curvenaam wordt in de cel afgekapt. Niet gemeten. — S
 
 ## Kalenders
 
@@ -3851,6 +3862,22 @@ en noem het in je rapport of PR-tekst.
      paart `alignment` per positie, de tabel verwisselt de twee. Of de verliescontrole daardoor een verkeerd slot
      vergelijkt, is niet nagegaan; de lagwaarde zelf vergelijkt `durationTexts` via `lagValueSlot`. Voorstel: fase 2
      PR 2 (`sourceSlots`), die `lossCheck.ts` toch aanpast, leidt `alignment` af uit `IFC_SLOT_TABLES`. — S
+
+2210. **VERVOLG (#804 fase 2, PR 3): ongebruikte sleutels in `OPS_Assignments` blijven alleen in de merge bewaard, en
+     een paar bronvormen weigeren nog.** De merge (een document met een vreemd deel, flag `ifcForeignContent` aan) schrijft
+     ongebruikte sleutels terug na de eigen sleutels (`.claude/rules/tauri-ifc.md`, *Ongebruikte sleutels*). Drie grenzen:
+     (1) zonder vreemd deel, met of zonder flag, schrijft de gewone writer ze niet en vallen ze bij opslaan weg, zoals op
+     main: `prepareIfcOutput` geeft zo'n document de gewone writer zonder bron. (2) Opslaan weigert nog met `niet-gedragen`
+     of `niet-eenduidig` als de writer de pset van de bron niet letterlijk kan teruggeven: een ongebruikte sleutel vóór of
+     tussen de eigen sleutels, een kale sleutel vóór de `#n`-sleutels, of een bron waarin een ander programma een
+     toewijzing wegnam die niet de laatste was (de eigen sleutels krijgen dan een ander nummer). De verliesbewaking eist
+     dezelfde namen en dezelfde volgorde in de pset. Dat is veilig (niets gaat stil verloren), maar strenger dan nodig: de
+     lezer kijkt niet naar die volgorde. Richting: de verliesbewaking laat in `OPS_Assignments` een andere volgorde en de
+     hernummering van het ontwerp (§4.2) toe. (3) Krijgt een nieuwe eigen sleutel de naam van een vreemd lid in dezelfde
+     pset (een vreemde `IFCPROPERTYENUMERATEDVALUE('<GlobalId>#2',…)` en een derde toewijzing), dan weigert opslaan met
+     `uitvoer-controle` (dubbele naam): de writer nummert eigen sleutels op hun plek in de lijst. Zonder die weigering
+     schreef de merge twee properties met dezelfde naam (review 1 van #1181). Een ongebruikte sleutel slaat zo'n naam wel
+     over. Gemeten in `check-ifc-foreign-ongebruikte-sleutels.ts` (blokken "grens" en "review 1, vangnet"). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
