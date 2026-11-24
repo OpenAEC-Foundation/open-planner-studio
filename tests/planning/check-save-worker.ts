@@ -325,6 +325,9 @@ await checkWithTimers('de worker sterft, overschrijdt de tijd of antwoordt verke
     ['een merge zonder bron', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, source: undefined } } }],
     ['een merge waarvan de bron andere bytes heeft', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, bytes: new Uint8Array(prepared.bytes) } } }],
     ['een merge zonder indexarrays', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, source: { ...prepared.source, classes: [] } } } }],
+    ['koppelingen als gewoon object', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, source: { ...prepared.source, elementLinks: { taak: [] } } } } }],
+    ['een koppelingenlijst die geen lijst is', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, source: { ...prepared.source, elementLinks: new Map([['taak', { length: 1 }]]) } } } }],
+    ['een koppeling met een onbekende richting', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, source: { ...prepared.source, elementLinks: new Map([['taak', [{ direction: 'beide', target: 'X', found: true }]]]) } } } }],
     ['een onbekende antwoordsoort', writerJob, { result: { kind: 'iets', bytes: new Uint8Array([35]), literalCalendarIds: [] } }],
     ['letterlijke kalenders geen lijst', writerJob, { result: { kind: 'writer', bytes: new Uint8Array([35]), literalCalendarIds: 'cal' } }],
     ['een fout van een onbekende soort', writerJob, { error: { type: 'BestaatNiet', name: 'X', message: 'x', data: {} } }],
@@ -349,6 +352,18 @@ await checkWithTimers('de worker sterft, overschrijdt de tijd of antwoordt verke
     client.dispose();
     await assert.rejects(next);
   }
+  const linked = new Map([['taak', [
+    { direction: 'output', target: '0oHvMxggWNftrR39jeFeUQ', found: true }, { direction: 'input', target: '#9999', found: false },
+  ]]]);
+  const linkedPort = new InProcessWorker('manual');
+  const linkedClient = createIfcSaveWorker({ createWorker: () => linkedPort });
+  const accepted = linkedClient.compute(mergeJob);
+  await turn();
+  linkedPort.start();
+  linkedPort.emit({ id: linkedPort.requests[0]!.id,
+    result: { kind: 'merge', prepared: { ...prepared, source: { ...prepared.source, elementLinks: linked } } } } as IfcSaveResponse);
+  assert.deepEqual((await accepted).prepared?.source.elementLinks, linked, 'een geldige, niet-lege koppelingenkaart komt door');
+  linkedClient.dispose();
 });
 
 await check('dispose tijdens een verzoek: een fout, en een laat antwoord doet niets', async () => {

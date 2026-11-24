@@ -80,6 +80,10 @@ export async function handleIfcSaveRequest(request: IfcSaveRequest): Promise<{ r
 const isStringList = (value: unknown): value is readonly string[] =>
   Array.isArray(value) && value.every(item => typeof item === 'string');
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+const isElementLink = (value: unknown): boolean => isRecord(value) && (value.direction === 'input' || value.direction === 'output')
+  && typeof value.target === 'string' && typeof value.found === 'boolean';
+const isElementLinkMap = (value: unknown): boolean => value instanceof Map
+  && [...value].every(([taskId, links]) => typeof taskId === 'string' && Array.isArray(links) && links.every(isElementLink));
 
 /** Past dit antwoord bij het verzoek, met alle verplichte velden van zijn soort? Een antwoord dat niet past, mag nooit
  *  een uitkomst worden die een schrijfroute kan gebruiken (review van #1016): de bediening maakt er een transportfout van.
@@ -94,7 +98,7 @@ export function resultFits(job: IfcSaveJob, result: unknown): result is IfcSaveR
   return bytes instanceof Uint8Array && typeof sha256 === 'string' && isStringList(literalCalendarIds) && isRecord(source)
     && source.bytes === bytes && source.sha256 === sha256 && typeof source.schemaName === 'string'
     && source.chunkStarts instanceof Uint32Array && source.chunkIds instanceof Int32Array && source.classes instanceof Uint8Array
-    && isRecord(source.stepIds) && Array.isArray(source.foreignMembers) && isRecord(source.elementLinks)
+    && isRecord(source.stepIds) && Array.isArray(source.foreignMembers) && isElementLinkMap(source.elementLinks)
     && typeof source.foreign === 'boolean'
     && typeof source.foreignObjectCount === 'number' && typeof source.buildingModel === 'boolean'
     && (source.lineEnding === '\n' || source.lineEnding === '\r\n') && (source.opened === undefined || isRecord(source.opened));
