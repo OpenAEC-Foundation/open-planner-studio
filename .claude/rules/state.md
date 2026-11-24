@@ -105,6 +105,20 @@ Een geweigerde opslag laat het veld staan.
 Een mislukte schrijfactie naar het eigen pad (Ctrl+S, Automatisch opslaan) en een onzekere vervanging met herstel
 (`unknown`, `previous-stranded`, `target-taken`) maken het `null`; een rekenfout vóór het schrijven niet.
 Proef: `check-tabblad-schijfversie.ts` (de A2-tabel); grenzen: knownbug 2065, 2066 en 2200.
+**De bewaking die het leest** (`knownTargetGuard.ts`): met de flag toetst Ctrl+S zonder `prepared`
+(`writeActiveDocument`, vlak vóór `refuseChangedDocumentWrite`; ook *Opslaan* in de sluitvraag) en elke gewone ronde van
+Automatisch opslaan (na `refusedWriteTarget`) het eigen pad of de eigen handle tegen de actuele waarde van het veld, niet
+die van de momentopname. Eerst synchroon `guardedKnownTarget`: flag uit, `null` of de site geeft `null` en dan wacht de
+aanroeper nergens op, zoals main. Anders `changedKnownTarget`: het bestand weg is schrijven zoals main; een andere
+grootte is veranderd; dezelfde grootte is lezen en SHA-256 (`knownTargetContent` in `fileAccess`). Na de vergelijking
+telt een weigering alleen als `guardedKnownTarget` nog dezelfde versie geeft (de flag ging niet uit). Veranderd of
+onleesbaar: niet schrijven, de melding van een gebouwmodel (`ownTargetContentNotice`; Automatisch opslaan
+`MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE` en `stopFor` met die versie). Die stop vervalt zodra `guardedKnownTarget` een
+andere waarde geeft: een vastgelegde eigen opslag of een export die het eigen doel schreef (`settleFingerprintAfterExport`;
+een nieuw object, ook als er intussen nieuw werk is), de flag uit (`setUI` wist het veld) of een onbekende versie;
+daarnaast de bestaande voorwaarden (niet gewijzigd, ander doel). De volgende ronde vergelijkt dan opnieuw. Geen wijzigingstijd: lezen en
+hashen van 11,8 MB kostte in Node 24 ms (knownbug 2203 voor de doelscan ernaast). Opslaan als en exports bewaakt ze
+niet. Proef: `check-bewaakte-opslag.ts`; het gat tussen toets en plaatsen: knownbug 2069.
 Bronvervanging is geen undo-event en telt niet als inhoudsverschil (`sameIFCSource`, ook voor de recoverydelta).
 `sameIFCSource` vergelijkt per referentie, met één uitzondering: een andere werksoortcatalogus telt alleen als de door
 taken gebruikte definities verschillen (`savedCustomTaskTypes`, dezelfde selectie als `writeTaskTypeMeta`). Zo is de stille
