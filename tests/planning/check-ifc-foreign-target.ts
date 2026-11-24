@@ -1941,6 +1941,18 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
         eq(`9c ${c.name}: een fout uit de Worker geeft dezelfde weigering`, failing, want);
       }
     } finally { globalThis.Worker = originalWorker; }
+    const { refusedTargetContent } = await import('@/state/ifcForeignGuard');
+    for (const c of cases) {
+      const target = { kind: 'handle', handle: fakeHandle('doel.ifc', c.bytes).handle } as const;
+      const plain = await refusedTargetContent(target, { readers: () => ({}) });
+      const asked: boolean[] = [];
+      const own = (answer: boolean) => async () => { asked.push(answer); return answer; };
+      const allowed = await refusedTargetContent(target, { readers: () => ({}), openedOwnTargetWithBom: own(true) });
+      const refused = await refusedTargetContent(target, { readers: () => ({}), openedOwnTargetWithBom: own(false) });
+      const unreadable = plain === 'unreadable-target';
+      eq(`9c ${c.name}: knownbug 2212, alleen een onleesbaar doel vraagt de uitzondering voor het eigen geopende bestand met BOM`,
+        [allowed, refused, asked], unreadable ? [null, 'unreadable-target', [true, false]] : [plain, plain, []]);
+    }
   }
   // 9d. Fixronde 1 van #985 (Sol): een Worker die niet start, houdt de opslag niet twee minuten op. De runner wacht kort
   // op de startbevestiging (`FOREIGN_SCAN_START_TIMEOUT_MS`) en daarna pas de ruime rekentijd.
