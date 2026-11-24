@@ -699,6 +699,42 @@ en noem het in je rapport of PR-tekst.
      machinevraag van de opvolger mee uit de voorlopige dinsdagboeking en laat die conflictmelding staan. Toets
      de lokale pinmelding op de proefbezetting met behoud van de afzonderlijke pooltoets. — S
 
+2306. **Een mijlpaal met duur en een expliciete mijlpaalsoort krijgt als opvolger de grensregels van een
+     nulduurmijlpaal.** `relationBoundaryFlags` (`src/engine/scheduler/relationMath.ts`) leest voor de voorganger de
+     duur (`scheduleDuration <= 0`), maar voor de opvolger `isMilestone` met `milestoneKind`. Een proef door de solver:
+     een START-mijlpaal van 1 uur kreeg na een FF-relatie een venster van 10:00 tot 11:00; met dezelfde duur en een
+     automatische soort was het 09:00 tot 10:00. Haar eigen FS-opvolger volgde in beide gevallen haar echte finish. In
+     de code is dat de FF-tak van `forwardHour`, die bij `succIsStartMs` de start op de geëiste finish zet (strikt
+     erna, of bij een voorganger in de dagenmaat midden in een werkblok op dat moment zelf), zonder de duur af te
+     trekken. De combinatie kan ontstaan via IFC (`ifcPsets.ts` schrijft en
+     leest `MilestoneKind` voor elke taak met `isMilestone`, zonder duurtoets; zie ook 1042), via MCP (`taskFields.ts`
+     zet `milestoneKind` zonder duurtoets) en via de MSPDI-lezer met een expliciete OPS-markering
+     (`explicitOpsMilestoneKind` in `mspdiReader.ts`, zonder duurtoets). Elders plant de solver een mijlpaal met duur
+     als duurtaak (`isZeroDurationMilestone`). — B
+
+2307. **Een opvolger in kalendertijd na FS met een lag in werktijd komt op het volgende werkmoment van haar eigen
+     kalender.** Bij SS, FF en SF slaat `forwardHour` (`src/engine/scheduler/relationMath.ts`) voor een opvolger in
+     kalendertijd de normalisatie op haar kalender over (ADR 0273); bij FS gaat de grens door
+     `finishStartLaggedStart` naar `se.nextWorkInstant`. `msp-42-z11-punt2-elapsed-opvolger-uitgesloten` in
+     `cases-msp-pariteit.json` legt bij lag 0 maandag 08:00 vast. Een proef door de solver met 30 werkminuten lag op
+     een 24-uurslagkalender gaf na de lag vrijdag 17:30; daarna zette de kalender van de opvolger haar op zaterdag
+     08:00. Die tweede stap wijkt af van ADR 0016: een kalendertijdtaak snapt niet naar werktijd waar het om haar eigen
+     planning gaat. Of FS zonder lag ook de eerste normalisatie op de lagkalender hoort over te slaan, is open. Zie ook
+     155 (lag in kalendertijd). — B
+
+2308. **Een SF-relatie naar een hammock krijgt geen finishvloer, en de hammock kan vóór de SF-eis eindigen.**
+     `hammockEarlyFinish` (`src/engine/scheduler/CPMSolver.ts`) zet de SF-grens met `forwardConstraint` om naar een
+     start en die met `finishFromStart` naar een finish, zonder `forwardFinishFloor`. Een proef door de solver met
+     dezelfde SF-driver als `msp-35-z10-sf-weekendgrens`: de gewone taak eindigt maandag 08:00, dezelfde taak als
+     hammock vrijdag 17:00. Dat schendt de finishgrens van de driver, die volgens ADR 0023 ook voor een hammock geldt
+     (haar vroege finish is het maximum van de grenzen uit haar FF- en SF-voorgangers). — B
+
+2309. **Een lopende opvolger van een SF-relatie krijgt de SF-finishvloer niet.** De voortgangstak van `forwardPass`
+     (`src/engine/scheduler/CPMSolver.ts`, `isPinnedInProgress`) gebruikt de relatiegrens voor het restwerk, maar legt
+     de vroege finish vast zonder de al berekende `sfFinishFloor`. Een proef door de solver, met behoud van
+     relatielogica, een statusdatum op donderdag 13:00 en acht uur restwerk: de SF-relatie verschoof de finish van
+     vrijdag 12:00 naar vrijdag 17:00, terwijl de SF-eis op maandag 13:00 lag. Zie ADR 0275. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
