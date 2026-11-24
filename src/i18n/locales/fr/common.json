@@ -460,7 +460,6 @@
     "reportFontMissing": "Votre police {{name}} n’est plus sur cet appareil. Le rapport utilise de nouveau Inter.",
     "layoutsNotSaved": "Les dispositions n’ont pas pu être enregistrées. Rien n’a changé. Veuillez réessayer.",
     "ifcForeignOpenSchema": "Ce fichier IFC contient des données d’un autre programme et a un schéma inconnu ou manquant. L’ouverture a été arrêtée pour éviter une perte de données lors de l’enregistrement.",
-    "ifcForeignOpenTooLarge": "Ce fichier IFC est plus grand que {{limit}} Mo. Un fichier IFC contenant un modèle de bâtiment ou des données d'un autre programme peut être ouvert jusqu'à {{limit}} Mo.",
     "ifcForeignOpenUnsafe": "Ce fichier IFC ne peut pas être classé en toute sécurité. L’ouverture a été arrêtée pour éviter une perte de données lors de l’enregistrement.",
     "ifc2x3PlanningOnly": "IFC2X3 a été ouvert comme planning. Les données d’autres programmes ne seront pas incluses lors de l’enregistrement.",
     "ifcForeignReplaceBlocked": "Non enregistré. Il s’agit du fichier que vous avez ouvert. Utilisez «Enregistrer» pour le mettre à jour, ou «Enregistrer sous» avec un nouveau nom pour une copie.",

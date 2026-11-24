@@ -360,7 +360,6 @@
     "reportFontMissing": "Oma kirjasin {{name}} ei ole enää tällä laitteella. Raportti käyttää taas fonttia Inter.",
     "layoutsNotSaved": "Asetteluja ei voitu tallentaa. Mitään ei muutettu. Yritä uudelleen.",
     "ifcForeignOpenSchema": "Tämä IFC-tiedosto sisältää toisen ohjelman tietoja, ja sen skeema on tuntematon tai puuttuu. Avaaminen pysäytettiin, jotta tiedot eivät katoa tallennettaessa.",
-    "ifcForeignOpenTooLarge": "Tämä IFC-tiedosto on suurempi kuin {{limit}} Mt. IFC-tiedoston, jossa on rakennusmalli tai toisen ohjelman tietoja, voi avata enintään {{limit}} Mt:n kokoisena.",
     "ifcForeignOpenUnsafe": "Tätä IFC-tiedostoa ei voida luokitella turvallisesti. Avaaminen pysäytettiin, jotta tiedot eivät katoa tallennettaessa.",
     "ifc2x3PlanningOnly": "IFC2X3 avattiin aikatauluna. Muiden ohjelmien tietoja ei sisällytetä tallennettaessa.",
     "ifcForeignReplaceBlocked": "Ei tallennettu. Tämä on tiedosto, joka on avattu tässä sovelluksessa. Päivitä se komennolla Tallenna, tai tallenna kopio komennolla ”Tallenna nimellä” uudella nimellä.",
