@@ -11,6 +11,7 @@ import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { readIfcBytes } from '@/services/ifc/foreign/ifcBytesRoute';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
+import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import type { ImportResult } from '@/services/importTypes';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -39,11 +40,13 @@ declare const __OPS_CORE_VERSION__: string | undefined;
 export class PlannerCoreError extends Error {
   readonly code: CoreErrorCode;
   readonly details: Readonly<Record<string, unknown>>;
-  constructor(code: CoreErrorCode, message: string, details: Record<string, unknown> = {}) {
+  declare readonly readRefusal?: 'building-model';
+  constructor(code: CoreErrorCode, message: string, details: Record<string, unknown> = {}, readRefusal?: 'building-model') {
     super(message);
     this.name = 'PlannerCoreError';
     this.code = code;
     this.details = details;
+    if (readRefusal) this.readRefusal = readRefusal;
   }
 }
 
@@ -147,7 +150,8 @@ async function readOrFail(read: () => Promise<ImportResult>): Promise<ImportResu
   try {
     return await read();
   } catch (err) {
-    throw new PlannerCoreError('IFC_READ_FAILED', `Could not read IFC: ${errorText(err)}`);
+    throw new PlannerCoreError('IFC_READ_FAILED', `Could not read IFC: ${errorText(err)}`, {},
+      err instanceof IfcParseError && err.reason === 'building-model' ? 'building-model' : undefined);
   }
 }
 
