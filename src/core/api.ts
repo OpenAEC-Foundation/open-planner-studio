@@ -101,6 +101,13 @@ export interface ScheduleSummary {
   /** Id's van de taken op het kritieke pad, in padvolgorde. */
   criticalPath: string[];
   warnings: ScheduleWarning[];
+  foreignContent: ForeignContentSummary | null;
+}
+
+export interface ForeignContentSummary {
+  format: 'ifc';
+  schema: string;
+  objectCount: number;
 }
 
 /** Eén geopend document. Elk document heeft een eigen, losse rekencontext; documenten delen niets. */
@@ -118,4 +125,5 @@ export interface PlannerDocument {
    *  de tekst de berekende datums; zonder `schedule()` de stand zoals de app hem na openen heeft.
    *  Gooit `PlannerCoreError` met code `IFC_WRITE_FAILED`. */
   toIfc(): string;
+  toIfcBytes(): Promise<Uint8Array>;
 }
