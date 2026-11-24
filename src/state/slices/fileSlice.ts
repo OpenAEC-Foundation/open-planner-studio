@@ -30,6 +30,7 @@ import { askSiteOpen, askSiteSave, type SiteOpenChoice } from '@/services/fileAc
 import { withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
 import { P6XmlImportError } from '@/services/p6/p6xmlErrors';
 import { withOpenNoticeSticky } from '@/state/openNoticeSticky';
+import { withIfcForeignOpenNotice } from '@/state/ifcForeignOpenNotice';
 import { clearRefusals, refusalNotice } from '@/state/refusalNotice';
 import {
   EXPORT_LOSS_HELP_ARTICLE_ID, P6XML_IMPORT_HELP_ARTICLE_ID, RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID,
@@ -1700,7 +1701,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
       }
 
-      const notice = withOpenNoticeSticky(withXerArchiveIssueNotice(
+      const notice = withOpenNoticeSticky(withIfcForeignOpenNotice(withXerArchiveIssueNotice(
         withRecordedDatesNotice(
           withSchedulingProfileNotice(
             results,
@@ -1712,7 +1713,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           freshShownTotal,
         ),
         results.map(result => result.xerArchiveIssue),
-      ));
+      ), results));
       if (notice && taskTypesUnlockedDocs > 0) {
         get().notify({ ...notice, detailLines: [...(notice.detailLines ?? []), TASK_TYPES_DETAIL_LINE] });
       } else if (notice) {
