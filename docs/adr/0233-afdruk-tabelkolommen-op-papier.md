@@ -20,9 +20,11 @@ er bewust niet: de WBS-kolom zegt al waar een rij staat, en op papier gaat elke 
   `measureCurveColumnWidth`), zodat afronding van subpixelbreedtes geen beletselteken uitlokt.
   `measureTaskNameColumnWidth` rekent dezelfde som als de naamcel in `drawTaskTable`; wie de ene wijzigt, wijzigt de
   andere.
-- Een kolomkop mag de volle kolombreedte gebruiken, een datacel de breedte min de celmarge aan beide kanten. De marge is
-  voor een kop speling: de Arabische kop van Eenh./d meet volgens het weggehaalde commentaar 44,8 px in een kolom van 45
-  en hoort voluit te staan. Een datacel houdt haar marge omdat rechts uitgelijnde getallen anders tegen de lijn staan.
+- Een gecentreerde kolomkop mag de volle kolombreedte gebruiken; een links uitgelijnde kop (naam, curve, een links
+  uitgelijnde registerkolom) begint na de celmarge en heeft de rest van de kolom. Een datacel krijgt de breedte min de
+  celmarge aan beide kanten. De marge is voor een gecentreerde kop speling: de Arabische kop van Eenh./d meet volgens
+  het weggehaalde commentaar 44,8 px in een kolom van 45 en hoort voluit te staan. Een datacel houdt haar marge omdat
+  rechts uitgelijnde getallen anders tegen de lijn staan.
 - De ingebouwde kolommen (`BuiltinPrintColumnKey`) houden hun tekenwijze van vóór de kolomlijst van #817, zodat de
   standaardafdruk niet veranderde. `check-report-columns.ts` (sectie 1) vergelijkt de render zonder lijst met de render
   met de standaardlijst; het legt de oude afdruk zelf niet vast. `tableColumnSlots` laat een dubbele soort of sleutel

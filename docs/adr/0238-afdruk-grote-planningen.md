@@ -20,6 +20,9 @@ het wat voor een ongewijzigde taak al uitgerekend is.
   per klik. De celteksten hangen ook van de opmaak af; `cellTextCacheFor` houdt per opmaak (notaties, taal,
   duurweergave, afkortingen en de kalenders) een eigen tabel bij, hoogstens vier tegelijk, genoeg voor bijvoorbeeld
   meting en render naast elkaar.
+- Met een rijvenster toetst `drawDependencies` eerst de rijnummers van voorganger en opvolger aan het venster en zoekt
+  pas daarna de taken en hun balkgrenzen op: bij een groot plan vallen zo de meeste relaties af voordat er iets berekend
+  wordt.
 - `drivingSetOf` maakt de verzameling bepalende relaties één keer per lijst `drivingSequenceIds`, want het papier
   rendert per klik meerdere keren met dezelfde opties; volgens het weggehaalde commentaar kostte het opbouwen bij 5000
   relaties elke render een milliseconde.

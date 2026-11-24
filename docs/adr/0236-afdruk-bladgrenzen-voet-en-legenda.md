@@ -12,8 +12,12 @@ typelaag) krijgt geen eigen overgang, anders stond de typekop alleen op een verd
   pagineerders zetten zelf `n / totaal` in de ondermarge.
 - `footerLayoutWidth` legt de inhoud van de voet (naam en datum links, legenda in het midden, merknaam rechts) binnen
   één paginabreedte; de grijze strook blijft zo breed als het rapport. De herhaalde voet komt uit één vast stuk van de
-  bron, dus bij meer dan één kolom bladen moet de voet op één blad compleet zijn. De aanroepers geven de breedte uit
-  `footerLayoutWidthFor` (`tileLayout.ts`) door: `exportGanttReportPdf.ts` en `reportPaperModel.ts`.
+  bron, dus bij meer dan één kolom bladen moet de voet op één blad compleet zijn. Elke route haalt die breedte uit de
+  bladindeling: het papier (`reportPaperModel.ts`) en de vector-PDF (`paginateVector.ts`) via `footerRelayoutWidth`, de
+  rasterexport (`exportGanttReportPdf.ts`) via `footerLayoutWidthFor`, beide uit `tileLayout.ts`.
+- Zonder afgedrukte taak (en zonder tijdvak met rijen) tekent de render alleen een melding in een vak van 600 × 200 px,
+  zonder kop en voet (`headerHeight` en `footerHeight` zijn 0, er is niets te herhalen). De tekst breekt op woorden,
+  zodat een aanwijzing als "kies een andere periode" niet halverwege wordt afgekapt.
 - De legenda staat tussen het linker- en het rechterblok. Is er te weinig ruimte, dan laat `drawFooter` items van
   achteren weg in plaats van over de blokken heen te tekenen. De regel die de lijnstijl van de relaties verklaart, staat
   daarom achteraan: hij is het minst nodig. Hij staat er alleen bij `showDeps` en `drivingSequenceIds`; zonder die ids
