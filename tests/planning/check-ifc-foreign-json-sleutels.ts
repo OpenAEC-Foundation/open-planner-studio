@@ -424,10 +424,9 @@ if (base) {
     domain.assignments = [...domain.assignments.filter(x => x !== a), { ...a, id: 'asgn-opnieuw' }];
     const verdict = await refusal(domain, opened.ifcSource!);
     const prepared = verdict === 'schreef' ? await prepareIfcWrite(domain, opened.ifcSource!) : undefined;
-    ok(`toewijzing: een vervangende toewijzing met exact dezelfde vensterdata: weigert, of laat het venster byte-gelijk staan zoals main (${verdict.slice(0, 160)})`,
+    ok(`toewijzing: een vervangende toewijzing met exact dezelfde vensterdata: het ongewijzigde venster blijft byte-gelijk staan, zoals main (${verdict.slice(0, 160)})`,
       verdict === 'schreef'
-        ? jsonIn(prepared!.bytes, 'OPS_Timephased', 'Windows', TASK_GUID) === jsonIn(withExtras, 'OPS_Timephased', 'Windows', TASK_GUID)
-        : /Windows/.test(verdict));
+        && jsonIn(prepared!.bytes, 'OPS_Timephased', 'Windows', TASK_GUID) === jsonIn(withExtras, 'OPS_Timephased', 'Windows', TASK_GUID));
   }
   await refuses('toewijzing: een ander toewijzings-id (zoals na herstel) en een bewerking van het venster', (d, o) => {
     const a = asgn(d, o, 110);
@@ -442,8 +441,8 @@ if (base) {
     const verdict = await refusal(domain, opened.ifcSource!);
     const prepared = verdict === 'schreef' ? await prepareIfcWrite(domain, opened.ifcSource!) : undefined;
     const windows = prepared && jsonIn(prepared.bytes, 'OPS_Timephased', 'Windows', TASK_GUID);
-    ok(`toewijzing: een ander toewijzings-id zonder bewerking van het venster: weigert, of laat het venster byte-gelijk (${verdict.slice(0, 160)})`,
-      verdict === 'schreef' ? windows === jsonIn(withExtras, 'OPS_Timephased', 'Windows', TASK_GUID) : /Windows/.test(verdict));
+    ok(`toewijzing: een ander toewijzings-id (zoals na herstel) zonder bewerking van het venster: het venster blijft byte-gelijk, zoals main (${verdict.slice(0, 160)})`,
+      verdict === 'schreef' && windows === jsonIn(withExtras, 'OPS_Timephased', 'Windows', TASK_GUID));
   }
 
   await refuses('taaktype: het laatste gebruik van type A weg, terwijl A in de catalogus blijft (zoals main)', d => {
@@ -493,7 +492,7 @@ if (base) {
       jsonIn(prepared.bytes, 'OPS_Timephased', 'Windows', TASK_GUID)?.includes('"plannedWorkMinutes":-0') === true);
   }
 
-  const opaque = latin1(patchJson(baseText, 'structure', j => j.replace(/\}$/, ',"vendorOpaque":{"code":1,"code":2}}')));
+  const opaque = latin1(patchJson(baseText, 'structure', j => j.replace(/\}$/, ',"vendorOpaque":{"code":1,"code":2},"vendorText":"\\X2\\00E9\\X0\\"}')));
   for (const [label, edit] of [
     ['alleen de projectbeschrijving', (_d: Domain) => {}],
     ['een ander codetype hernoemen', (d: Domain) => { d.activityCodeTypes = d.activityCodeTypes!.map(t => t.id === 'act-zone' ? { ...t, name: 'Zone (nieuw)' } : t); }],
@@ -505,6 +504,8 @@ if (base) {
     const prepared = await save(`dubbele sleutels in een onbekend token, ${label}`, domain, opened.ifcSource!);
     if (prepared) ok(`dubbele sleutels in een onbekend token, ${label}: het token komt byte-gelijk terug`,
       memberOf(jsonIn(prepared.bytes, 'OPS_StructureMeta', 'structure'), ['vendorOpaque']) === '{"code":1,"code":2}');
+    if (prepared) ok(`een letterlijk teken in een onbekend token, ${label}: geschreven zoals in de bron, niet als escape (${memberOf(jsonIn(prepared.bytes, 'OPS_StructureMeta', 'structure'), ['vendorText'])})`,
+      memberOf(jsonIn(prepared.bytes, 'OPS_StructureMeta', 'structure'), ['vendorText']) === '"\u00e9"');
   }
 }
 

@@ -190,9 +190,7 @@ const unknownFieldType = String(taskTypeDefinitions(unknownField).find(d => d.on
 function keepsUnknownField(label: string, r: { o: Outcome; d: Domain }) {
   if (!r.o.ok) return;
   const definition = taskTypeDefinitions(r.o.bytes).find(d => d.id === unknownFieldType);
-  const used = r.d.tasks.some(t => t.customTaskTypeId === unknownFieldType);
-  ok(`${label}: het onbekende veld blijft bij zijn definitie, of vervalt met de definitie die de writer niet meer schrijft`,
-    used ? definition?.onbekend === 'bewaar-mij' : definition === undefined, JSON.stringify(definition));
+  ok(`${label}: het onbekende veld blijft bij zijn definitie`, definition?.onbekend === 'bewaar-mij', JSON.stringify(definition));
 }
 const unknownKey = withJson(cat, 'Baselines', v => { v[0].onbekendeSleutel = 'bewaar-mij'; });
 const beschrijving = se(s => { s.setProject({ description: 'Alleen de projectbeschrijving is gewijzigd' }); });
@@ -244,6 +242,9 @@ keepsUnknownField('onbekend definitieveld, typegroei',
   await one('onbekend definitieveld, typegroei', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'schrijft'));
 keepsUnknownField('onbekend definitieveld, taak met dat type wissen',
   await one('onbekend definitieveld, taak met dat type wissen', unknownField, se(s => { s.deleteTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id); }), 'schrijft'));
+await one('onbekend definitieveld, laatste gebruik van type A weg terwijl A in de catalogus blijft', unknownField, se(s => {
+  for (const t of s.tasks.filter((t: any) => t.customTaskTypeId === 'type-7d-a')) s.updateTask(t.id, { customTaskTypeId: 'type-7d-b' });
+}), 'weigert');
 await one('grens: onbekende baselinesleutel, een andere baseline wissen', unknownKey, se(s => { s.deleteBaseline(s.baselines[1].id); }), 'schrijft');
 // (a′): bij het openen van een backup met een vreemd deel verdwijnt het herstelkenmerk (knownbug 1703); de toets weigert
 // daar zoals main.
