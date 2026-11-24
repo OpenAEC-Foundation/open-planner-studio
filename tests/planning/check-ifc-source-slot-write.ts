@@ -166,10 +166,13 @@ function bonsaiPlanning(file: string): Fixture {
     const owned = ownedSlot ? index.refAt(chunk, table.slots.findIndex(s => s.key === ownedSlot)) : -1;
     if (owned >= 0) rewrite(owned, slotTableOf(index.type(owned), index.argTokens(owned)!)!, true);
   }
+  // Vervolgpunt 4 van #1182: een `IfcConstructionProductResource` van Bonsai (de lezer leest hem als materieel).
+  let product = false;
   const text = original.split(/\r?\n/).map(line => {
     const m = /^#(\d+)=([A-Z0-9_]+)\(/.exec(line);
     const args = m ? lines.get(m[1]) : undefined;
-    return args ? `#${m![1]}=${m![2]}(${args.join(',')});` : line;
+    const type = m?.[2] === 'IFCLABORRESOURCE' && !product && (product = true) ? 'IFCCONSTRUCTIONPRODUCTRESOURCE' : m?.[2];
+    return args ? `#${m![1]}=${type}(${args.join(',')});` : line;
   }).join('\n').replace('ENDSEC;\nEND-ISO', `${BONSAI.join('\n')}\nENDSEC;\nEND-ISO`);
   return { text, distinct, carried };
 }
@@ -187,6 +190,7 @@ for (const table of IFC_SLOT_TABLES) {
   if (!NOT_CARRIED.has(table.naam)) ok(`${table.naam}: de proef heeft een stuk van Bonsai in deze tabel`, inMap.has(table.naam));
 }
 eq('de proef: elk stuk van Bonsai staat in de kaart', [...fixture.carried].filter(id => !source.sourceSlots!.has(id)), []);
+ok('de proef: een IfcConstructionProductResource van Bonsai in de kaart', pieces.some(([c]) => sourceIndex.type(c) === 'IFCCONSTRUCTIONPRODUCTRESOURCE'));
 
 type Index = StepIndex;
 const argsAt = (index: Index, chunk: number) => [...index.argTokens(chunk)!].map(t => t.trim());
