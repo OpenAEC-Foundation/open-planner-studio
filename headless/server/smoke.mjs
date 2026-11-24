@@ -14,6 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { answerDigest, BYTES_TYPE, corpusCases, REQUESTS } from './smoke-corpus.mjs';
 
 const [baseArg, token] = process.argv.slice(2);
 if (!baseArg || !token) {
@@ -49,6 +50,14 @@ async function call(path, { method = 'GET', body, headers = {}, auth = true } = 
 }
 const isError = (r, code) => r.json?.error?.code === code && typeof r.json.error.message === 'string';
 const IFC = { 'Content-Type': 'application/x-step' };
+const reference = JSON.parse(readFileSync(join(here, 'main-reference.json'), 'utf8'));
+const describe = (r) => `${r.status} ${r.headers.get('content-type')}${r.status === 200 ? '' : ` ${r.text.slice(0, 160)}`}`;
+const describeMain = (m) => `${m.status} ${m.type}${m.body === undefined ? '' : ` ${m.body.slice(0, 160)}`}`;
+function sameAsMain(r, main, kind, source) {
+  if (r.status !== main.status || r.headers.get('content-type') !== main.type) return false;
+  if ((r.headers.get('retry-after') ?? undefined) !== main.retryAfter) return false;
+  return main.body !== undefined ? r.text === main.body : answerDigest(r.text, kind, r.status, source) === main.sha256;
+}
 
 try {
   // 1. Health, zonder token.
@@ -99,6 +108,24 @@ try {
     && (ifc.headers.get('content-type') ?? '').startsWith('application/x-step'), `${ifc.status} ${ifc.text.slice(0, 80)}`);
   const again = await call('/v1/schedule', { method: 'POST', body: ifc.text, headers: IFC });
   ok('herberekende IFC geeft hetzelfde einde', again.status === 200 && again.json?.project?.finish === EXPECTED.finish, String(again.json?.project?.finish));
+
+  const cases = corpusCases();
+  const unrecorded = cases.filter(c => !reference.cases[c.label]).map(c => c.label);
+  console.log(`    referentie van main ${reference.main}, ${cases.length} gevallen`);
+  ok('de referentie van main dekt het hele corpus en niets anders', unrecorded.length === 0 && Object.keys(reference.cases).length === cases.length,
+    `${unrecorded.length} ontbreken (${unrecorded.slice(0, 3).join(' | ')}), referentie ${Object.keys(reference.cases).length}, corpus ${cases.length}`);
+  for (const c of cases) {
+    const record = reference.cases[c.label];
+    if (!record) continue;
+    const problems = [];
+    for (const type of [...c.textTypes, BYTES_TYPE]) {
+      for (const [path, kind] of REQUESTS) {
+        const r = await call(path, { method: 'POST', body: c.body, headers: { 'Content-Type': type } });
+        if (!sameAsMain(r, record[kind], kind, c.body)) problems.push(`${type} ${path}: ${describe(r)} ≠ main ${describeMain(record[kind])}`);
+      }
+    }
+    ok(`${c.label}: elk antwoord is dat van main`, problems.length === 0, problems.join('; '));
+  }
 
   // 6. Ongeldige invoer.
   const notIfc = await call('/v1/schedule', { method: 'POST', body: 'dit is geen IFC', headers: { 'Content-Type': 'text/plain' } });

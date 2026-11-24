@@ -12,6 +12,7 @@
 import { scanForeign, IFC_FOREIGN_SCAN_MAX_BYTES, type ForeignScanOutcome } from './foreignScan';
 import { ForeignScanFailure, withScanWorker, type ForeignScanRunOptions } from './foreignScanRunner';
 import { driveTargetScan, scanTargetBytes, targetScanPush, type TargetModelScan, type TargetScanStep, type TargetSource } from './targetModelScan';
+import { utf8BomLength } from './stepScanner';
 
 export type TargetForeignScan = TargetModelScan | 'foreign';
 
@@ -27,7 +28,7 @@ function targetOf(scan: ForeignScanOutcome): TargetForeignScan {
 export function scanForeignTargetBytes(bytes: Uint8Array): TargetForeignScan {
   const model = scanTargetBytes(bytes);
   if (model !== 'no-model') return model;
-  return bytes.length > IFC_FOREIGN_SCAN_MAX_BYTES ? 'unreadable' : targetOf(scanForeign(bytes));
+  return bytes.length > IFC_FOREIGN_SCAN_MAX_BYTES || utf8BomLength(bytes) > 0 ? 'unreadable' : targetOf(scanForeign(bytes));
 }
 
 /** De hele bron vanaf het begin; `null` boven de grens van 300 MiB (zonder verder te lezen). */
@@ -58,7 +59,7 @@ async function scanSource(
   const model = await driveTargetScan(source, push);
   if (model !== 'no-model') return model;
   const bytes = await readWhole(source);
-  return bytes ? targetOf(await classify(bytes)) : 'unreadable';
+  return bytes && utf8BomLength(bytes) === 0 ? targetOf(await classify(bytes)) : 'unreadable';
 }
 
 /**
