@@ -1744,14 +1744,6 @@ en noem het in je rapport of PR-tekst.
      schuift. Onder het MS Project-profiel staat conventie A23 `unstartedIgnoresStatusDate` aan
      (`src/engine/scheduler/conventions/registry.ts`) en schuift het niet; `statusDateEffect.shifted` meldt dan
      terecht `false`. Gezien in de review van #1083 (GPT-6.2-Sol, proef met statusdatum 1 juni). — B
-1991. **Koppelen zonder bestaand projectitem zet het document op *Niet opgeslagen*.** `linkRecognizedItems`
-     (`src/state/slices/librarySlice.ts`) toetst vóór `beginUndoable` alleen of het poolitem van een link nog
-     bestaat, niet het projectitem. Bestaat het projectitem niet meer, dan verandert er niets, maar `finishMutation`
-     loopt wel en zet `isDirty`. Gezien met een proef op de echte store: een link met een onbekend `projectId` en een
-     bestaand `poolId` geeft `isDirty: true`, geen undo-event en geen nieuwe resource. Op een schoon heropend
-     IFC-bestand wist dezelfde route ook `importPristine` (`markDocumentEdited` in `src/state/documentEdited.ts`), en na
-     schrijven en teruglezen bleef die vlag weg (proef van de reviewer, GPT-6.2-Sol, review van #1164). Hoe vaak het
-     afwijkingenscherm zo'n link stuurt, is niet nagegaan. — B
 1992. **Een mislukte verdeling kan de afrondingsmelding van de herpoging opmaken.** In de verdeelroute
      (`applyDistribution` in `src/state/slices/librarySlice.ts`, de eenmalige melding in
      `src/state/timephasedLossNotice.ts`) kwam in de proef een slapend document met een vertraging in minuten als
@@ -1789,6 +1781,33 @@ en noem het in je rapport of PR-tekst.
      aantallen C, A en V. Dat is extra werk bij het openen van een groot bestand, geen fout in de uitkomst. Richting:
      dit pad de gewone workersessie en `scanForeign` geven. Gezien in de code door de reviewer van #1180
      (GPT-6.2-Sol, ronde 2). — B (code)
+
+2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
+     `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
+     callback van `run` `notifyLevelingDelayRounded` aan. Die zet het document via `claimOnce`
+     (`src/state/timephasedLossNotice.ts`) in een registratie op moduleniveau. `rollback` zet daarna
+     `ui.notifications` terug, maar die registratie niet, dus een latere wissing van zulke vertraging voor hetzelfde
+     document kan in deze sessie zonder melding blijven. Gezien in een proef via de MCP-dispatcher: met 90 minuten
+     geïmporteerde nivelleervertraging wiste een `planner_batch` eerst de nivellering en las daarna een onbekende taak;
+     de batch gaf `NOT_FOUND` en zette de 90 minuten terug, en een losse `planner_clear_leveling` wiste daarna de
+     vertraging bij één taak zonder melding. In de code van `rollback` en `claimOnce` nagegaan. — B
+2009. **Een teruggedraaide MCP-transactie kan de werkregels zichtbaar laten.** Draftmethoden zetten
+     `taskTypesVisible` op `true`, onder meer `draft.setTaskWorkRule` met een regel, `draft.setAssignmentWork` en
+     `draft.addTask` met een `workRule` (`src/state/runtime/createMcpTransactions.ts`). Dat veld heeft in
+     `DOCUMENT_FIELDS` (`src/state/documentContract.ts`) de rol `snapshot: 'none'`, en `restoreDocument` in `run` zet
+     het niet terug. Na `rollback` blijft het dus `true`, en `taskTypesUnlocked` (`src/state/taskTypesVisibility.ts`)
+     ontsluit daarmee de werkregelvelden en -kolommen, ook als de geweigerde transactie verder niets achterliet. In de
+     code nagegaan, ook in een tweede, onafhankelijke controle van de code; niet nagespeeld in de app. — B (code)
+
+2300. **Na een geweigerde `planner_batch` kunnen de berekende datums anders zijn dan vóór de aanroep.** Een batch met
+     een lees- of nivelleerstap kan een verouderde planning doorrekenen in `beforeTransaction`
+     (`src/services/mcp/tools/batchTool.ts`), dat `runMutateTool` (`src/services/mcp/tools/runtime.ts`) aanroept vóór
+     `run` zijn momentopname neemt. Mislukt daarna een stap, dan zet `rollback`
+     (`src/state/runtime/createMcpTransactions.ts`) de toestand van ná die berekening terug: de mutaties van de batch
+     zijn weg, de berekening blijft. Gezien in een proef via de MCP-dispatcher: met automatisch berekenen uit was een
+     taak verlengd zonder te rekenen; een batch hernoemde die taak en probeerde daarna een taak met een onbekend id te
+     lezen. De batch gaf `NOT_FOUND` en de oude naam kwam terug, terwijl de berekende start van de opvolger van 11 naar
+     16 maart ging. Zie ADR 0240. — B
 
 ## Bestanden en herstel
 
@@ -3701,17 +3720,24 @@ en noem het in je rapport of PR-tekst.
      review van #1116 (Sol, ronde 4 tot en met 7). — S (review)
 
 2064. **VERVOLG, zo op main (desktop, ook met de featureflag uit): een startbestand dat al open staat en buiten de app
-     is vervangen, wisselt naar het oude tabblad; een volgende Ctrl+S overschrijft de nieuwere versie.** Staat
+     is vervangen, wisselt naar het oude tabblad; met de featureflag uit overschrijft een volgende Ctrl+S de nieuwere
+     versie.** Staat
      `kantoor.ifc` open en vervangt een ander programma (of een collega via een gedeelde map) het bestand op hetzelfde
      pad door een nieuwere versie, en opent de planner het daarna via een dubbelklik, *Openen met* of een tweede
      start, dan leest de startroute de nieuwe versie wel (`src/state/launchFiles.ts`, `read`, rond regel 100–118),
      maar `existingDocument` kiest het open tabblad met hetzelfde bestand (identiteit of padtekst) en `openOpenedFile`
      wisselt daarheen (`src/state/slices/fileSlice.ts`, `switchDocument(existing)`). De zojuist gelezen inhoud
-     vervalt, zonder melding; het tabblad toont de oude stand. Bij een gewone planning (zonder vreemd deel) vergelijkt
-     Ctrl+S de versie op schijf niet met de versie van het tabblad: de opslag vervangt de nieuwere versie en het
-     extern opgeslagen werk is weg. Met de featureflag aan kan de doelscan een onleesbaar doel of een doel met vreemde
-     inhoud weigeren; een leesbare gewone planning komt erdoor, ook als zij intussen veranderd is. De herlezing van de
-     startroute (`stale`, knownbug 2036) telt alleen schrijfbeurten van de app zelf, geen wijziging van buiten. Via
+     vervalt, zonder melding; het tabblad toont de oude stand. Met de featureflag uit vergelijkt Ctrl+S bij een gewone
+     planning (zonder vreemd deel) de versie op schijf niet met de versie van het tabblad: de opslag vervangt de
+     nieuwere versie en het extern opgeslagen werk is weg. Met de flag aan weigeren Ctrl+S en Automatisch opslaan dat
+     sinds #1174 met de bestaande melding ("Het bestand is intussen door een ander programma gewijzigd"), zolang het
+     tabblad de versie van zijn bestand kent (`knownTargetFingerprint`, `check-bewaakte-opslag.ts`); na een export over
+     het eigen bestand kent het de geschreven versie. Wat daarvan overblijft: kent het tabblad die versie niet (`null`: na
+     een mislukte schrijfactie naar het eigen pad, na crashherstel, na laden in hetzelfde tabblad), dan schrijft Ctrl+S
+     eroverheen zoals main; bij twee tabbladen op hetzelfde bestand (1957) en bij de schrijvers die het tabblad niet ziet
+     (2065) weigert de volgende opslag met dezelfde melding, ook als de app zelf de schrijver was; en het gat tussen toets
+     en schrijven (2069). Het wisselen hierboven blijft. De herlezing van de startroute (`stale`, knownbug 2036) telt
+     alleen schrijfbeurten van de app zelf, geen wijziging van buiten. Via
      Bestand → Openen, Recent en slepen opent main in dit geval een tweede tabblad met de nieuwe versie. Zelfde
      familie als 1957. Dezelfde volgorde blokkeerde PR #1121 in reviewronde 7; daar is zij nagespeeld voor Openen,
      Recent, slepen en MCP, de startroute zelf niet. Richting: alleen wisselen als de gelezen versie overeenkomt met
@@ -3762,6 +3788,39 @@ en noem het in je rapport of PR-tekst.
      uitzetten precies tijdens de nacontrole valt. — B (code)
 
 
+2069. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan bij een gewone planning): tussen de toets en het
+     schrijven kan het bestand nog veranderen.** Met de featureflag `ifcForeignContent` vergelijkt de app het eigen pad of
+     de eigen handle vóór het schrijven met de versie die het tabblad kent (`changedKnownTarget` in
+     `src/state/knownTargetGuard.ts`, aangeroepen in `writeActiveDocument` in `fileSlice.ts` en in de gewone ronde van
+     `fileAutoSave.ts`). Daarna volgen zonder nieuwe lezing de inhoudscontrole van het document, op de desktop het
+     tijdelijke bestand en de `rename` (`replaceUserFile`), in de browser `createWritable()` en `close()`. Schrijft een
+     ander programma het bestand in die tijd (op de desktop ongeveer zo lang als het schrijven van het tijdelijke
+     bestand duurt), dan overschrijft de app die versie zonder melding, zoals main dat altijd doet. Een document met een
+     gebouwmodel heeft daar de vervanging met een tweede vergelijking vlak vóór het plaatsen
+     (`replaceOwnPathWithRecovery`); die route is voor een gewone planning bewust niet overgenomen (opdracht #804). —
+     S (code gelezen, niet nagespeeld)
+
+2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): met de featureflag aan leest de bestaande
+     doelscan vóór elke Ctrl+S en elke ronde het hele eigen bestand, en daarna leest de toets van de bekende versie het
+     nog eens.** `refusedWriteTarget` in `src/state/ifcForeignGuard.ts` laat `targetRefusal`
+     (`src/services/fileAccess/foreignSourceTarget.ts`) het doel ook bij een gewone planning helemaal indelen; daarna
+     leest `changedKnownTarget` (`src/state/knownTargetGuard.ts`) het bij gelijke grootte opnieuw en rekent de SHA-256.
+     Gemeten in Node op aia09-mp50 (23 november 2026, mediaan van 15): voor een planning van 10.000 taken (11.821.500
+     bytes) kost de doelscan alleen al in het geheugen 1.732 ms, de toets 23,5 ms; voor het grootste voorbeeld (481.752
+     bytes) 74 ms tegen 2 ms. In de app (lezen via de Tauri-plugin of `getFile()`, en op een netwerkschijf) is het niet
+     gemeten. Richting: scan en hash in één lezing. Besluit technisch beslisser (23 november 2026): dit hoort bij de
+     voorwaarden voordat de flag standaard aan mag. — B (gemeten in Node, meetlog
+     `bewaakte-opslag-logs/07-meting.log` van #1174)
+
+2206. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan in de browser): een aanraking tijdens het lezen van
+     de eigen handle kan een onterechte weigering geven.** `knownTargetContentOfHandle` in
+     `src/services/fileAccess/knownTargetContent.ts` haalt één `File` op met `getFile()` en leest daarna de grootte en de
+     bytes (`arrayBuffer()`). Verandert het bestand tussen die twee stappen, ook alleen de wijzigingstijd, dan kan
+     Chromium het al opgehaalde `File` onleesbaar maken (`NotReadableError`). De toets geeft dan `unreadable`: Ctrl+S
+     weigert met "verplaatst, verwijderd of niet meer te lezen" en Automatisch opslaan stopt, ook als de bytes niet
+     veranderden. Er gaat niets verloren; opnieuw opslaan lukt. Richting: bij `NotReadableError` één keer opnieuw
+     `getFile()` en lezen. Gevonden door de review van #1174 (Sol, ronde 1). — S (niet nagespeeld met een echte
+     Chromium-handle)
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
@@ -6132,3 +6191,4 @@ en noem het in je rapport of PR-tekst.
      `encodeText` in `embedReportFont.ts` weg. Review #1074 ronde 3 (GPT-6.2-Sol, xhigh). — B (code)
 2290. **VERVOLG (review #1187 ronde 1, tekst): de help stuurt de planner voor papier en richting nog naar een ander rapport.** Sinds #1187 hebben *Milestone overview* en *Variance* zelf een kaart *Report options*. De handleiding (`public/docs/nl/howto-rapport-maken-en-afdrukken.md` en de Engelse versie) en `public/docs/nl/ref-rapporttypes.md` zeggen nog dat je papier kiest bij bijvoorbeeld de Gantt-afdruk en daarna teruggaat. Richting: die omweg schrappen en de drie opties beschrijven waar ze nu staan. Review #1187 ronde 1 (GPT-6.2-Sol, xhigh). — S (tekst)
 2291. **VERVOLG (review #1187 ronde 1, test): de browsertest bedient de nieuwe velden niet.** `tests/browser/table-reports.spec.ts` kiest A2 staand bij Look-ahead en controleert bij de twee nieuwe rapporten alleen of de velden zichtbaar zijn en wat de PDF-maten zijn. Een kapotte wijzigingsactie in de nieuwe kaart blijft dan groen. Richting: in de kaart van elk van de twee rapporten papier, richting en een ander lettertype kiezen en de uitvoer controleren. Ook kan `body = null` voor `milestones` en `variance` de lege tak van `progressCurve` delen. Review #1187 ronde 1 (GPT-6.2-Sol, xhigh). — S (test)
+2292. **VERVOLG (review #1191 ronde 1): dezelfde koppeling opnieuw aanroepen zet een schoon document op *Niet opgeslagen*.** `linkRecognizedItems` (`src/state/slices/librarySlice.ts`) vervangt het item ook als alle waarden en de herkomststempel al gelijk zijn, dus `finishMutation` zet `isDirty` en er komt een extra undo-stap. Het afwijkingenscherm biedt een koppeling na de eerste keer niet meer aan, dus dit vraagt een rechtstreekse aanroep (bijvoorbeeld via MCP). Richting: het bijgewerkte item, met stempel, vergelijken vóór de toewijzing, en bij nul echte wijzigingen ook de herberekening van resourcebelasting en rijen overslaan. Review #1191 ronde 1 (GPT-6.2-Sol, xhigh). — S

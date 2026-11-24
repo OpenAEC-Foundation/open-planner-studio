@@ -29,6 +29,7 @@ check-baseline-oude-dagtelling.ts matrix
 check-baseline-referentie.ts matrix
 check-baseline-vergelijking.ts matrix
 check-benchmark-generator.ts matrix
+check-bewaakte-opslag.ts matrix
 check-bulk-scale.ts matrix
 check-calendar-arith.ts matrix
 check-calendar-breaks.ts matrix
