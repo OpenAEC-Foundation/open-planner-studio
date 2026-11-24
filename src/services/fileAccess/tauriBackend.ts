@@ -234,9 +234,14 @@ export async function pickSaveTargetTauri(defaultName: string, filters: FileFilt
 /** De inhoud van een gewoon bestand op `path`, zonder een link te volgen. `null` als daar niets staat, een link of map,
  *  of als `lstat` faalt (dan de exclusieve aanmaakroute, zoals main); `'unreadable'` als een gewoon bestand niet te lezen
  *  is (de doelcontrole weigert dat, zoals voorheen de doelscan van het pad). */
-export async function existingRegularFileTauri(path: string): Promise<Uint8Array | 'unreadable' | null> {
+async function existingRegularFileTauri(path: string): Promise<Uint8Array | 'unreadable' | null> {
+  const seen = await observeRegularFileTauri(path);
+  return seen === 'missing' ? null : seen;
+}
+
+export async function observeRegularFileTauri(path: string): Promise<Uint8Array | 'unreadable' | 'missing' | null> {
   const { lstat, readFile } = await import('@tauri-apps/plugin-fs');
-  try { if (!(await lstat(path)).isFile) return null; } catch { return null; }
+  try { if (!(await lstat(path)).isFile) return null; } catch (error) { return missingTarget(error) ? 'missing' : null; }
   try { return await readFile(path); } catch { return 'unreadable'; }
 }
 

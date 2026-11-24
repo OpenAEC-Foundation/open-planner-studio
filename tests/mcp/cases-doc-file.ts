@@ -1911,6 +1911,13 @@ test('export_ifc in de app: de grenzen van de vervanging (fixronde 1 van #1179)'
     assertEq(read(from, target).filter(command => command !== 'plugin:fs|open'), [], 'geen lstat en geen volledige lezing van het doel');
     assertEq([fileHash(target), helpers(), records()], [hash(plain), [], []], 'het doel bytegelijk');
 
+    fs.exists = async p => { const answer = await exists(p); if (p === target) rmSync(target); return answer; };
+    const gone = await exportRpc(target, true, makeCtx());
+    fs.exists = exists;
+    assert(!gone.ok && gone.code === 'VALIDATION' && gone.error.includes('changed after the app read it'),
+      `een doel dat na de bestaanstoets verdwijnt: de veranderingsmelding (${gone.ok ? 'ok' : gone.error})`);
+    assertEq([existsSync(target), helpers(), records()], [false, [], []], 'niets aangemaakt, geen hulpbestand, geen record');
+
     for (const restored of [true, false]) {
       writeFileSync(target, plain);
       let places = 0;

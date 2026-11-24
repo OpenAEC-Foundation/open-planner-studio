@@ -128,7 +128,8 @@ opzijzetten vraagt de haak `planningChanged` of de planning veranderde en daarna
 `tools/list` hangt aan de flag (`McpToolDef.describe`, door de dispatcher toegepast): met de flag uit en headless precies de
 tekst van main. Een link of een plek zonder veilige vervanging weigert; het
 eigen bestand van het document weigert met een eigen tekst; een versie van een ander programma die bewaard bleef, staat in
-`replaceNotice`. Zonder de naad (headless) blijft de weigering van een bestaande naam. Een naam die pas tussen controle en
+`replaceNotice`; een doel dat tussen `exists` en de lezing verdwijnt, krijgt de veranderingsmelding (`observe` geeft dan
+`'missing'`, `observeRegularFileTauri`). Zonder de naad (headless) blijft de weigering van een bestaande naam. Een naam die pas tussen controle en
 schrijven ontstaat en `source-changed` krijgen elk een eigen antwoord. Het antwoord bevat
 `byteLength` voor bytes en `characters` alleen voor de gewone tekstuitvoer. De export verandert bron, kenmerk,
 doel, dirty-vlag en letterlijke kalenders niet. Scope, lease, drift, readonly en schrijfslot blijven gelden.

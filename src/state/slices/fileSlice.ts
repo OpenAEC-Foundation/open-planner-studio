@@ -994,8 +994,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  vooraan (waar main nog weigerde, knownbug 1903), dan loopt ze vlak vóór `close()`, welk tabblad dan ook vooraan
    *  staat (keuze (b) van de technisch beslisser, fixronde 3 van #1097). Stond het er wel vooraan, dan niet: de browser
    *  doet wat main deed, ook bij een wissel daarna (knownbug 1958). */
-  const exportTargetChecks = (snapshot: AppState, permission?: ReturnType<typeof exportTargetPermission>) => {
-    const foreignCheck = foreignTargetCheck(snapshot.activeDocumentId, { ...(permission ? { permission } : {}), ownFileToSave: true });
+  const exportTargetChecks = (snapshot: AppState) => {
+    const foreignCheck = foreignTargetCheck(snapshot.activeDocumentId, { ownFileToSave: true });
     let inactiveAtTarget = false;
     const refuseTarget: SaveTargetCheck = async target => {
       if ((await foreignCheck(target)) || refuseChangedExport(snapshot)) return true;
@@ -1253,7 +1253,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const exportOnDesktop = (state: AppState, name: string, filters: FileFilter[], prepared: PreparedIfcWrite): Promise<SaveOutcome | null> =>
     placeOnDesktop({
       name, filters, bytes: () => prepared.bytes,
-      targetCheck: picked => exportTargetChecks(state, exportTargetPermission(state.ifcSource, picked)).refuseTarget,
+      targetCheck: picked => {
+        const foreignCheck = foreignTargetCheck(state.activeDocumentId, { permission: exportTargetPermission(state.ifcSource, picked), ownFileToSave: true });
+        return async target => (await foreignCheck(target)) || refuseChangedExport(state);
+      },
       refuseBeforePlace: () => refuseChangedExport(state),
       replacement: {
         documentId: null,
@@ -1320,8 +1323,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         documentId: replacement.documentId, path, prepared,
         source: { bytes: current, sha256: await precomputeSha256(current) }, stopBeforeWrite,
         refuseBeforePlace: placement.refuseBeforePlace,
-        ...(replacement.planningChanged ? { planningChanged: replacement.planningChanged } : {}),
-        ...(replacement.replaceAllowed ? { replaceAllowed: replacement.replaceAllowed } : {}),
+        planningChanged: replacement.planningChanged, replaceAllowed: replacement.replaceAllowed,
         commit: () => replacement.commit(path, { sha256: prepared.sha256, byteLength: bytes.byteLength }),
       });
       for (const notice of replacement.notices(result, path)) get().notify(notice);
@@ -2022,19 +2024,21 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Fixronde 1 (BLOKKEERT 2): elk formaat weigert het bronbestand van een document met een vreemd deel. Een
       // IFC-export wacht op de schrijflock (hieronder): na de kiezer ook kijken of het document nog gelijk is, en
       // (knownbug 1896) vlak vóór de plaatsing (`exportTargetChecks`).
-      const { refuseTarget, refuseBeforePlace } = ext === 'ifc'
-        ? exportTargetChecks(state) : { refuseTarget: foreignTargetCheck(state.activeDocumentId), refuseBeforePlace: null };
       const refuseDownload = ext === 'ifc' ? () => refuseExportBeforePicker(state) : null;
-      const dialogOpts = format === 'progress-xlsx'
-        ? { preferDownloads: true, mime, refuseTarget, refuseDownload }
-        : { refuseTarget, refuseDownload, refuseBeforePlace };
+      const dialogOpts = () => {
+        const { refuseTarget, refuseBeforePlace } = ext === 'ifc'
+          ? exportTargetChecks(state) : { refuseTarget: foreignTargetCheck(state.activeDocumentId), refuseBeforePlace: null };
+        return format === 'progress-xlsx'
+          ? { preferDownloads: true, mime, refuseTarget, refuseDownload }
+          : { refuseTarget, refuseDownload, refuseBeforePlace };
+      };
       const writeAndRecord = async () => {
         if (ext === 'ifc' && refuseExportBeforePicker(state)) return null;
         let written: SaveOutcome | null;
         try {
-          written = !preparedExport ? await saveDataDialog(defaultName, payload, filters, dialogOpts)
+          written = !preparedExport ? await saveDataDialog(defaultName, payload, filters, dialogOpts())
             : isTauri() ? await exportOnDesktop(state, defaultName, filters, preparedExport)
-              : await saveNewBytesDialog(defaultName, preparedExport.bytes, filters, dialogOpts);
+              : await saveNewBytesDialog(defaultName, preparedExport.bytes, filters, dialogOpts());
         } catch (error) {
           if (!preparedExport) throw error;
           get().notify(exportNewTargetWriteNotice(error)

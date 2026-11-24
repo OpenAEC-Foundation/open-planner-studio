@@ -102,8 +102,7 @@ export async function replaceOwnPathWithRecovery(input: OwnPathReplaceInput): Pr
           path: input.path, id, bytes: input.prepared.bytes, source: input.source.bytes,
           ...(target.mode === undefined ? {} : { mode: target.mode }), label: replaceCopyLabel(input.now),
           refuseBeforePlace: input.refuseBeforePlace,
-          ...(input.planningChanged ? { planningChanged: input.planningChanged } : {}),
-          ...(input.replaceAllowed ? { replaceAllowed: input.replaceAllowed } : {}),
+          planningChanged: input.planningChanged, replaceAllowed: input.replaceAllowed,
         });
         nothingWritten = outcome.code === 'save-as-only' && outcome.nothingWritten === true;
         return outcome.code === 'replaced';

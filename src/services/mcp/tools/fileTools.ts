@@ -53,7 +53,7 @@ import { writeUserTextFileTauri, writeNewUserBytesTauri } from '@/services/fileA
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import { saveTargetRef, type FileRef, type PickedSaveTarget, type RefuseBeforePlace } from '@/services/fileAccess';
-import { existingRegularFileTauri, scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
+import { observeRegularFileTauri, scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
 import { replaceOwnPathWithRecovery, type OwnPathReplaceResult } from '@/state/ownFileReplace';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { capturedTargetReaders } from '@/services/fileAccess/foreignSourceTarget';
@@ -100,6 +100,9 @@ const exportIfcDescription = (replaces: boolean) =>
 const OWN_FILE_TARGET_REFUSAL = (path: string) => `'${path}' is the file of the active document itself. An export does not ` +
   "update a document's own file: ask the user to save in the app, or export to another path.";
 
+const TARGET_CHANGED = (path: string) => `'${path}' changed after the app read it (another program wrote, moved or removed it). ` +
+  'Nothing was replaced. Export again with overwrite: true if you still mean to replace it.';
+
 const NOT_SAFELY_REPLACEABLE = (path: string) => `'${path}' cannot be replaced safely here (a link, or a file system without ` +
   'a safe replacement). Nothing was written. Export to a new file name.';
 
@@ -122,8 +125,7 @@ function replaceError(ctx: McpContext, path: string, result: OwnPathReplaceResul
     case 'planning-changed': return toolError(ctx, 'VALIDATION', `The document changed during the export. '${path}' was not replaced; ` +
       'the file is as it was. Retry the export.');
     case 'replace-withdrawn': return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
-    case 'target-changed': return toolError(ctx, 'VALIDATION', `'${path}' changed after the app read it (another program wrote, ` +
-      'moved or removed it). Nothing was replaced. Export again with overwrite: true if you still mean to replace it.');
+    case 'target-changed': return toolError(ctx, 'VALIDATION', TARGET_CHANGED(path));
     case 'save-as-only': return toolError(ctx, 'VALIDATION', NOT_SAFELY_REPLACEABLE(path));
     case 'not-recorded': return toolError(ctx, 'INTERNAL', `'${path}' cannot be replaced safely right now, because crash recovery ` +
       'could not be updated. Nothing was written. Export to a new file name.');
@@ -179,7 +181,7 @@ export interface McpFileFs extends FileIdentityFs {
 }
 
 export interface UserFileReplace {
-  observe(path: string): Promise<PickedSaveTarget['current']>;
+  observe(path: string): Promise<PickedSaveTarget['current'] | 'missing'>;
   replace(path: string, prepared: { bytes: Uint8Array; sha256: string }, expected: Uint8Array, guards: {
     stopBeforeWrite: () => Promise<boolean>; refuseBeforePlace: RefuseBeforePlace; planningChanged: () => boolean; replaceAllowed: () => boolean;
   }): Promise<OwnPathReplaceResult>;
@@ -205,7 +207,7 @@ export async function realFs(): Promise<McpFileFs> {
     readFile: (p) => readFile(p),
     scanTarget: (p) => scanTargetPathTauri(p),
     replaceUserBytes: {
-      observe: existingRegularFileTauri,
+      observe: observeRegularFileTauri,
       replace: async (p, prepared, expected, guards) => replaceOwnPathWithRecovery({
         documentId: null, path: p, prepared, source: { bytes: expected, sha256: await precomputeSha256(expected) },
         commit: () => {}, ...guards,
@@ -461,6 +463,7 @@ export const fileTools: McpToolDef[] = [
         && live.activeDocumentId === checked.activeDocumentId && live.ifcSource === checked.ifcSource && !ifcFullWriteBlocked(live)
         ? fs.replaceUserBytes : undefined;
       const observed = replacing ? await replacing.observe(path) : undefined;
+      if (observed === 'missing') return toolError(ctx, 'VALIDATION', TARGET_CHANGED(path));
       const targetDeps: WriteTargetDeps = {
         ...identityDeps,
         readers: observed === undefined ? pathReaders : capturedTargetReaders(observed, pathReaders),
