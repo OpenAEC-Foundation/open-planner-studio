@@ -19,7 +19,7 @@ parentPort.on('message', async ({ text, bytes, output }) => {
   } catch (err) {
     if (err instanceof PlannerCoreError) {
       const fallback = bytes === undefined ? null
-        : err.code === 'IFC_READ_FAILED' ? await viaBytesRoute(bytes, output)
+        : err.readRefusal === 'building-model' ? await viaBytesRoute(bytes, output)
         : output === 'ifc' && err.code === 'IFC_WRITE_FAILED' && err.details.reason === 'foreign' ? await viaBytesRoute(bytes, output, { doc, summary })
         : null;
       if (fallback?.summary) return parentPort.postMessage({ ok: true, summary: fallback.summary });
