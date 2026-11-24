@@ -2,7 +2,7 @@ import { normalizeTaskDates } from '../migrations/minuteModel';
 import { exportHitsOwnFile, literalCalendarIdsWritten, mergeLiteralCalendarIds, rememberLiteralCalendarsWritten } from '../savedLiteralCalendars';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
-import { claimTaskTypesNotice, notifyTaskTypesUnlocked } from '../taskTypesNotice';
+import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
 import { taskTypesNeedNotice } from '../taskTypesVisibility';
 import { ifcObjectSeed } from '@/services/ifc/ifcWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
@@ -33,7 +33,8 @@ import { askSiteOpen, askSiteSave, type SiteOpenChoice } from '@/services/fileAc
 import { withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
 import { P6XmlImportError } from '@/services/p6/p6xmlErrors';
 import { withOpenNoticeSticky } from '@/state/openNoticeSticky';
-import { openedFileNotice } from '@/state/ifcForeignOpenNotice';
+import { ifcForeignOpenLines, ifcForeignOpenPlacement, noticesTouched } from '@/state/ifcForeignOpenNotice';
+import { MAX_NOTIFICATIONS } from './uiSlice';
 import { clearRefusals, refusalNotice } from '@/state/refusalNotice';
 import {
   EXPORT_LOSS_HELP_ARTICLE_ID, P6XML_IMPORT_HELP_ARTICLE_ID, RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID,
@@ -1735,6 +1736,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (results.length === 0) throw new Error('Openroute ontving geen projectdocumenten');
 
       const reusedActiveTab = isActivePristine(get());
+      const shownAtStart = get().ui.notifications;
       const openedDocumentIds: string[] = [];
       const minuteModelConversions: AppliedOpenedImport['minuteModelConversions'] = [];
       let datesAsRecordedShownTotal = 0;
@@ -1762,7 +1764,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
       }
 
-      const notice = withLargeForeignOpenNotice(withXerArchiveIssueNotice(
+      const shownBeforeFileNotice = get().ui.notifications;
+      const notice = withOpenNoticeSticky(withLargeForeignOpenNotice(withXerArchiveIssueNotice(
         withRecordedDatesNotice(
           withSchedulingProfileNotice(
             results,
@@ -1774,13 +1777,23 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           freshShownTotal,
         ),
         results.map(result => result.xerArchiveIssue),
-      ), parsed);
-      const opened = openedFileNotice(notice, taskTypesUnlockedDocs > 0, results);
-      if (opened) get().notify(opened);
+      ), parsed));
+      if (notice && taskTypesUnlockedDocs > 0) {
+        get().notify({ ...notice, detailLines: [...(notice.detailLines ?? []), TASK_TYPES_DETAIL_LINE] });
+      } else if (notice) {
+        get().notify(notice);
+      } else if (taskTypesUnlockedDocs > 0) {
+        notifyTaskTypesUnlockedClaimed(get().notify);
+      }
+      const fileNoticeIds = noticesTouched(shownBeforeFileNotice, get().ui.notifications);
 
       if (results.some(result => result.ifcLegacySchemaLoss)) {
         get().notify({ severity: 'info', sticky: true, messageKey: 'notifications.ifc2x3PlanningOnly' });
       }
+      const placement = ifcForeignOpenPlacement(get().ui.notifications,
+        [...fileNoticeIds, ...noticesTouched(shownAtStart, get().ui.notifications)], ifcForeignOpenLines(results), MAX_NOTIFICATIONS);
+      if (placement?.kind === 'under') get().addNotificationLines(placement.id, placement.lines);
+      else if (placement) get().notify(placement.notice);
 
       const activeIndex = isMultiDocumentImport(parsed) ? parsed.activeDocumentIndex : 0;
       const activeId = openedDocumentIds[activeIndex];

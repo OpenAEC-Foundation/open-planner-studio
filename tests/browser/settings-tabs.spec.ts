@@ -814,7 +814,7 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       });
       await expect(openNotice, 'na openen via de bestandskiezer: één telmelding').toHaveCount(1);
       const parts = task.foreign.length;
-      await expect(openNotice.locator('.ops-toast-message')).toHaveText(new RegExp(`^(Dit bestand bevat ook een gebouwmodel en andere IFC-gegevens buiten de planning \\(${parts} ${parts === 1 ? 'onderdeel' : 'onderdelen'}\\)\\. Bij opslaan blijven die ongewijzigd\\.|This file also contains a building model and other IFC data outside the schedule \\(${parts} ${parts === 1 ? 'item' : 'items'}\\)\\. Saving leaves them unchanged\\.)$`));
+      await expect(openNotice.locator('.ops-toast-message')).toHaveText(new RegExp(`^(Dit bestand bevat ook een gebouwmodel en andere IFC-gegevens buiten de planning \\(${parts} ${parts === 1 ? 'onderdeel' : 'onderdelen'}\\)\\.|This file also contains a building model and other IFC data outside the schedule \\(${parts} ${parts === 1 ? 'item' : 'items'}\\)\\.)$`));
       await expect(openNotice.locator('[data-ops-toast-detail]'), 'één werkplan: geen regel onder de telmelding').toHaveCount(0);
       await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)?.time.scheduleDuration, task.id)).toBe(task.duration + 1);
       expect(await page.evaluate(() => {

@@ -580,6 +580,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  IFCFOREIGNOPENNOTICE="$DIR/.ifc-foreign-open-notice.mjs"
+  if bundle_check "$DIR/check-ifc-foreign-open-notice.ts" "$IFCFOREIGNOPENNOTICE"; then
+    TZ=Europe/Amsterdam node "$IFCFOREIGNOPENNOTICE" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.

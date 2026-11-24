@@ -20,10 +20,11 @@ import { writeFileSync } from 'node:fs';
 import { installBrowserStubs, installDeterminism } from ${JSON.stringify(join(root, 'tests/planning/ifcPariteitKern.ts'))};
 installBrowserStubs();
 installDeterminism();
-const { runOpenNoticeMatrix } = await import(${JSON.stringify(join(root, 'tests/planning/ifcOpenNoticeMatrix.ts'))});
-const cases = await runOpenNoticeMatrix(${JSON.stringify(root)});
-writeFileSync(${JSON.stringify(output)}, JSON.stringify({ basis: ${JSON.stringify(basis)}, cases }, null, 1) + '\\n');
-console.log('OK meldingen bij openen: ' + Object.keys(cases).length + ' gevallen op main ' + ${JSON.stringify(basis)});
+const { recordOpenNoticeReference } = await import(${JSON.stringify(join(root, 'tests/planning/ifcOpenNoticeMatrix.ts'))});
+const text = await recordOpenNoticeReference(${JSON.stringify(root)}, ${JSON.stringify(basis)});
+writeFileSync(${JSON.stringify(output)}, text);
+const reference = JSON.parse(text);
+console.log('OK meldingen bij openen: ' + Object.keys(reference.cases).length + ' gevallen, ' + reference.representatives.length + ' handtekeningen, op main ' + ${JSON.stringify(basis)});
 process.exit(0);
 `);
   execFileSync(join(root, 'node_modules/.bin/esbuild'), [join(work, 'entry.ts'), '--bundle', '--platform=node', '--format=esm',

@@ -1,8 +1,8 @@
 import type { ImportResult } from '@/services/importTypes';
 import { hasBuildingModel, hasForeignContent } from '@/services/ifc/foreign/ifcSource';
-import type { NotificationDetailLine, NotifyInput } from './slices/types';
-import { withOpenNoticeSticky } from './openNoticeSticky';
-import { withTaskTypesUnlockedNotice } from './taskTypesNotice';
+import type { AppNotification, NotificationDetailLine, NotifyInput } from './slices/types';
+
+export const IFC_FOREIGN_OPEN_NOTICE_KEY = 'ifc-foreign-opened';
 
 function foreignContentLines(result: ImportResult): NotificationDetailLine[] {
   const source = result.ifcSource;
@@ -18,21 +18,34 @@ function foreignContentLines(result: ImportResult): NotificationDetailLine[] {
   return lines;
 }
 
-export function withIfcForeignOpenNotice(
-  notice: NotifyInput | undefined,
-  results: readonly ImportResult[],
-): NotifyInput | undefined {
-  const lines = results.flatMap(foreignContentLines);
-  if (lines.length === 0) return notice;
-  if (notice) return { ...notice, detailLines: [...(notice.detailLines ?? []), ...lines] };
-  const [head, ...rest] = lines;
-  return { severity: 'info', ...head, ...(rest.length > 0 ? { detailLines: rest } : {}) };
+export function ifcForeignOpenLines(results: readonly ImportResult[]): NotificationDetailLine[] {
+  return results.flatMap(foreignContentLines);
 }
 
-export function openedFileNotice(
-  fileNotice: NotifyInput | undefined,
-  taskTypesUnlocked: boolean,
-  results: readonly ImportResult[],
-): NotifyInput | undefined {
-  return withOpenNoticeSticky(withIfcForeignOpenNotice(withTaskTypesUnlockedNotice(fileNotice, taskTypesUnlocked), results));
+export function noticesTouched(before: readonly AppNotification[], after: readonly AppNotification[]): string[] {
+  return after.filter(notice => !before.includes(notice)).map(notice => notice.id);
+}
+
+export type IfcForeignOpenPlacement =
+  | { kind: 'under'; id: string; lines: NotificationDetailLine[] }
+  | { kind: 'own'; notice: NotifyInput };
+
+export function ifcForeignOpenPlacement(
+  shown: readonly AppNotification[],
+  openingNoticeIds: readonly string[],
+  lines: NotificationDetailLine[],
+  maxShown: number,
+): IfcForeignOpenPlacement | null {
+  if (lines.length === 0) return null;
+  const target = openingNoticeIds.find(id => shown.some(notice => notice.id === id));
+  if (target) return { kind: 'under', id: target, lines };
+  if (shown.length >= maxShown && !shown.some(notice => notice.dedupeKey === IFC_FOREIGN_OPEN_NOTICE_KEY)) return null;
+  const [head, ...rest] = lines;
+  return {
+    kind: 'own',
+    notice: {
+      severity: 'info', ...head, detailLines: rest,
+      dedupeKey: IFC_FOREIGN_OPEN_NOTICE_KEY, replaceOnDedupe: true, sticky: false, yieldsPlace: true,
+    },
+  };
 }

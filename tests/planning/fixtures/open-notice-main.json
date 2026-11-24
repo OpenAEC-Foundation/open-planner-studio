@@ -1,840 +1,1074 @@
 {
- "basis": "5b3c1756e7f1a0ec1127b8381b22b60e9341d459",
- "cases": {
-  "geen melding, vreemd deel": [
-   []
-  ],
-  "geen melding, vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.ifcForeignOpenLarge",
-     "params": {
-      "limit": 150
-     },
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "geen melding, geen vreemd deel": [
-   []
-  ],
-  "geen melding, geen vreemd deel, drempel laag": [
-   []
-  ],
-  "geen melding, taaktypen, vreemd deel": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.taskTypesUnlocked",
-     "dedupeKey": "task-types-unlocked",
-     "helpArticleId": "howto-werkregel-kiezen",
-     "count": 1
-    }
-   ]
-  ],
-  "geen melding, taaktypen, vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.ifcForeignOpenLarge",
-     "params": {
-      "limit": 150
-     },
-     "sticky": true,
-     "detailLines": [
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "count": 1
-    }
-   ]
-  ],
-  "geen melding, taaktypen, geen vreemd deel": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.taskTypesUnlocked",
-     "dedupeKey": "task-types-unlocked",
-     "helpArticleId": "howto-werkregel-kiezen",
-     "count": 1
-    }
-   ]
-  ],
-  "geen melding, taaktypen, geen vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.taskTypesUnlocked",
-     "dedupeKey": "task-types-unlocked",
-     "helpArticleId": "howto-werkregel-kiezen",
-     "count": 1
-    }
-   ]
-  ],
-  "onbruikbaar XER-archief, vreemd deel": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.xerArchiveUnusable",
-     "detailLines": [
-      {
-       "messageKey": "notifications.xerArchiveReasonBytesMissing"
-      },
-      {
-       "messageKey": "notifications.xerArchiveUnusableConsequence"
-      }
-     ],
-     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
-     "helpArticleId": "howto-xer-openen",
-     "dedupeKey": "xer-archive-unusable",
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "onbruikbaar XER-archief, vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.xerArchiveUnusable",
-     "detailLines": [
-      {
-       "messageKey": "notifications.xerArchiveReasonBytesMissing"
-      },
-      {
-       "messageKey": "notifications.xerArchiveUnusableConsequence"
-      },
-      {
-       "messageKey": "notifications.ifcForeignOpenLarge",
-       "params": {
-        "limit": 150
-       }
-      }
-     ],
-     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
-     "helpArticleId": "howto-xer-openen",
-     "dedupeKey": "xer-archive-unusable",
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "onbruikbaar XER-archief, geen vreemd deel": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.xerArchiveUnusable",
-     "detailLines": [
-      {
-       "messageKey": "notifications.xerArchiveReasonBytesMissing"
-      },
-      {
-       "messageKey": "notifications.xerArchiveUnusableConsequence"
-      }
-     ],
-     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
-     "helpArticleId": "howto-xer-openen",
-     "dedupeKey": "xer-archive-unusable",
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "onbruikbaar XER-archief, geen vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.xerArchiveUnusable",
-     "detailLines": [
-      {
-       "messageKey": "notifications.xerArchiveReasonBytesMissing"
-      },
-      {
-       "messageKey": "notifications.xerArchiveUnusableConsequence"
-      }
-     ],
-     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
-     "helpArticleId": "howto-xer-openen",
-     "dedupeKey": "xer-archive-unusable",
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "onbruikbaar XER-archief, taaktypen, vreemd deel": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.xerArchiveUnusable",
-     "detailLines": [
-      {
-       "messageKey": "notifications.xerArchiveReasonBytesMissing"
-      },
-      {
-       "messageKey": "notifications.xerArchiveUnusableConsequence"
-      },
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
-     "helpArticleId": "howto-xer-openen",
-     "dedupeKey": "xer-archive-unusable",
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "onbruikbaar XER-archief, taaktypen, vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.xerArchiveUnusable",
-     "detailLines": [
-      {
-       "messageKey": "notifications.xerArchiveReasonBytesMissing"
-      },
-      {
-       "messageKey": "notifications.xerArchiveUnusableConsequence"
-      },
-      {
-       "messageKey": "notifications.ifcForeignOpenLarge",
-       "params": {
-        "limit": 150
-       }
-      },
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
-     "helpArticleId": "howto-xer-openen",
-     "dedupeKey": "xer-archive-unusable",
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "onbruikbaar XER-archief, taaktypen, geen vreemd deel": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.xerArchiveUnusable",
-     "detailLines": [
-      {
-       "messageKey": "notifications.xerArchiveReasonBytesMissing"
-      },
-      {
-       "messageKey": "notifications.xerArchiveUnusableConsequence"
-      },
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
-     "helpArticleId": "howto-xer-openen",
-     "dedupeKey": "xer-archive-unusable",
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "onbruikbaar XER-archief, taaktypen, geen vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.xerArchiveUnusable",
-     "detailLines": [
-      {
-       "messageKey": "notifications.xerArchiveReasonBytesMissing"
-      },
-      {
-       "messageKey": "notifications.xerArchiveUnusableConsequence"
-      },
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "detail": "Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig",
-     "helpArticleId": "howto-xer-openen",
-     "dedupeKey": "xer-archive-unusable",
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "opgenomen datums, vreemd deel": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.importDatesAsRecorded",
-     "params": {
-      "count": 20
-     },
-     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
-     "count": 1
-    }
-   ]
-  ],
-  "opgenomen datums, vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.importDatesAsRecorded",
-     "params": {
-      "count": 20
-     },
-     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
-     "detailLines": [
-      {
-       "messageKey": "notifications.ifcForeignOpenLarge",
-       "params": {
-        "limit": 150
-       }
-      }
-     ],
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "opgenomen datums, geen vreemd deel": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.importDatesAsRecorded",
-     "params": {
-      "count": 20
-     },
-     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
-     "count": 1
-    }
-   ]
-  ],
-  "opgenomen datums, geen vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.importDatesAsRecorded",
-     "params": {
-      "count": 20
-     },
-     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
-     "count": 1
-    }
-   ]
-  ],
-  "opgenomen datums, taaktypen, vreemd deel": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.importDatesAsRecorded",
-     "params": {
-      "count": 20
-     },
-     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
-     "detailLines": [
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "count": 1
-    }
-   ]
-  ],
-  "opgenomen datums, taaktypen, vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.importDatesAsRecorded",
-     "params": {
-      "count": 20
-     },
-     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
-     "detailLines": [
-      {
-       "messageKey": "notifications.ifcForeignOpenLarge",
-       "params": {
-        "limit": 150
-       }
-      },
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "opgenomen datums, taaktypen, geen vreemd deel": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.importDatesAsRecorded",
-     "params": {
-      "count": 20
-     },
-     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
-     "detailLines": [
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "count": 1
-    }
-   ]
-  ],
-  "opgenomen datums, taaktypen, geen vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.importDatesAsRecorded",
-     "params": {
-      "count": 20
-     },
-     "helpArticleId": "uitleg-datums-zoals-opgeslagen",
-     "detailLines": [
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "count": 1
-    }
-   ]
-  ],
-  "rekenprofiel, vreemd deel": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.schedulingProfileApplied",
-     "params": {
-      "profile": "Primavera P6"
-     },
-     "helpArticleId": "uitleg-rekenprofielen",
-     "action": {
-      "kind": "openBackstageSection",
-      "section": "project-info",
-      "labelKey": "notifications.actions.openProjectInfo"
-     },
-     "dedupeKey": "scheduling-profile-applied:document-1",
-     "count": 1
-    }
-   ]
-  ],
-  "rekenprofiel, vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.schedulingProfileApplied",
-     "params": {
-      "profile": "Primavera P6"
-     },
-     "helpArticleId": "uitleg-rekenprofielen",
-     "action": {
-      "kind": "openBackstageSection",
-      "section": "project-info",
-      "labelKey": "notifications.actions.openProjectInfo"
-     },
-     "dedupeKey": "scheduling-profile-applied:document-1",
-     "detailLines": [
-      {
-       "messageKey": "notifications.ifcForeignOpenLarge",
-       "params": {
-        "limit": 150
-       }
-      }
-     ],
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "rekenprofiel, geen vreemd deel": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.schedulingProfileApplied",
-     "params": {
-      "profile": "Primavera P6"
-     },
-     "helpArticleId": "uitleg-rekenprofielen",
-     "action": {
-      "kind": "openBackstageSection",
-      "section": "project-info",
-      "labelKey": "notifications.actions.openProjectInfo"
-     },
-     "dedupeKey": "scheduling-profile-applied:document-1",
-     "count": 1
-    }
-   ]
-  ],
-  "rekenprofiel, geen vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.schedulingProfileApplied",
-     "params": {
-      "profile": "Primavera P6"
-     },
-     "helpArticleId": "uitleg-rekenprofielen",
-     "action": {
-      "kind": "openBackstageSection",
-      "section": "project-info",
-      "labelKey": "notifications.actions.openProjectInfo"
-     },
-     "dedupeKey": "scheduling-profile-applied:document-1",
-     "count": 1
-    }
-   ]
-  ],
-  "rekenprofiel, taaktypen, vreemd deel": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.schedulingProfileApplied",
-     "params": {
-      "profile": "Primavera P6"
-     },
-     "helpArticleId": "uitleg-rekenprofielen",
-     "action": {
-      "kind": "openBackstageSection",
-      "section": "project-info",
-      "labelKey": "notifications.actions.openProjectInfo"
-     },
-     "dedupeKey": "scheduling-profile-applied:document-1",
-     "detailLines": [
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "count": 1
-    }
-   ]
-  ],
-  "rekenprofiel, taaktypen, vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.schedulingProfileApplied",
-     "params": {
-      "profile": "Primavera P6"
-     },
-     "helpArticleId": "uitleg-rekenprofielen",
-     "action": {
-      "kind": "openBackstageSection",
-      "section": "project-info",
-      "labelKey": "notifications.actions.openProjectInfo"
-     },
-     "dedupeKey": "scheduling-profile-applied:document-1",
-     "detailLines": [
-      {
-       "messageKey": "notifications.ifcForeignOpenLarge",
-       "params": {
-        "limit": 150
-       }
-      },
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "rekenprofiel, taaktypen, geen vreemd deel": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.schedulingProfileApplied",
-     "params": {
-      "profile": "Primavera P6"
-     },
-     "helpArticleId": "uitleg-rekenprofielen",
-     "action": {
-      "kind": "openBackstageSection",
-      "section": "project-info",
-      "labelKey": "notifications.actions.openProjectInfo"
-     },
-     "dedupeKey": "scheduling-profile-applied:document-1",
-     "detailLines": [
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "count": 1
-    }
-   ]
-  ],
-  "rekenprofiel, taaktypen, geen vreemd deel, drempel laag": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.schedulingProfileApplied",
-     "params": {
-      "profile": "Primavera P6"
-     },
-     "helpArticleId": "uitleg-rekenprofielen",
-     "action": {
-      "kind": "openBackstageSection",
-      "section": "project-info",
-      "labelKey": "notifications.actions.openProjectInfo"
-     },
-     "dedupeKey": "scheduling-profile-applied:document-1",
-     "detailLines": [
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "count": 1
-    }
-   ]
-  ],
-  "eigen bestand uit v2026.7.2": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.minuteModelConverted",
-     "params": {
-      "count": 37,
-      "document": "Nieuwbouw Woongebouw Parkzicht"
-     },
-     "numberParams": {
-      "days": 14
-     },
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "eigen bestand met los project": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.minuteModelConverted",
-     "params": {
-      "count": 37,
-      "document": "Nieuwbouw Woongebouw Parkzicht"
-     },
-     "numberParams": {
-      "days": 14
-     },
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "Bonsai-planning met model": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.minuteModelConverted",
-     "params": {
-      "count": 2,
-      "document": "Proj"
-     },
-     "numberParams": {
-      "days": 0
-     },
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "eigen planning met een complexe eenheid": [
-   []
-  ],
-  "reeks: groot met taaktypen, dan klein met taaktypen": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.ifcForeignOpenLarge",
-     "params": {
-      "limit": 150
-     },
-     "sticky": true,
-     "detailLines": [
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "count": 1
-    }
-   ],
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.ifcForeignOpenLarge",
-     "params": {
-      "limit": 150
-     },
-     "sticky": true,
-     "detailLines": [
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "count": 1
-    },
-    {
-     "severity": "info",
-     "messageKey": "notifications.taskTypesUnlocked",
-     "dedupeKey": "task-types-unlocked",
-     "helpArticleId": "howto-werkregel-kiezen",
-     "count": 1
-    }
-   ]
-  ],
-  "reeks: klein, dan groot": [
-   [],
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.ifcForeignOpenLarge",
-     "params": {
-      "limit": 150
-     },
-     "sticky": true,
-     "count": 1
-    }
-   ]
-  ],
-  "reeks: twee keer groot": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.ifcForeignOpenLarge",
-     "params": {
-      "limit": 150
-     },
-     "sticky": true,
-     "detailLines": [
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "count": 1
-    }
-   ],
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.ifcForeignOpenLarge",
-     "params": {
-      "limit": 150
-     },
-     "sticky": true,
-     "detailLines": [
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "count": 1
-    },
-    {
-     "severity": "info",
-     "messageKey": "notifications.ifcForeignOpenLarge",
-     "params": {
-      "limit": 150
-     },
-     "sticky": true,
-     "detailLines": [
-      {
-       "messageKey": "notifications.taskTypesUnlockedDetail",
-       "helpArticleId": "howto-werkregel-kiezen",
-       "linkKey": "notifications.workRulesReadMore"
-      }
-     ],
-     "count": 1
-    }
-   ]
-  ],
-  "reeks: twee werkplannen met taaktypen, dan een eigen planning met taaktypen": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.taskTypesUnlocked",
-     "dedupeKey": "task-types-unlocked",
-     "helpArticleId": "howto-werkregel-kiezen",
-     "count": 1
-    }
-   ],
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.taskTypesUnlocked",
-     "dedupeKey": "task-types-unlocked",
-     "helpArticleId": "howto-werkregel-kiezen",
-     "count": 2
-    }
-   ]
-  ],
-  "reeks: taaktypen en model, dezelfde soort met een ander aantal, dan een eigen planning": [
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.taskTypesUnlocked",
-     "dedupeKey": "task-types-unlocked",
-     "helpArticleId": "howto-werkregel-kiezen",
-     "count": 1
-    }
-   ],
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.taskTypesUnlocked",
-     "dedupeKey": "task-types-unlocked",
-     "helpArticleId": "howto-werkregel-kiezen",
-     "count": 2
-    }
-   ],
-   [
-    {
-     "severity": "info",
-     "messageKey": "notifications.taskTypesUnlocked",
-     "dedupeKey": "task-types-unlocked",
-     "helpArticleId": "howto-werkregel-kiezen",
-     "count": 3
-    }
-   ]
-  ]
- }
+"basis": "a54d67392d5344ab6bf60f9b40c252fad40ff6f6",
+"notices": [
+ {"severity":"info","messageKey":"notifications.ifcForeignOpenLarge","params":{"limit":150},"sticky":true,"count":1},
+ {"severity":"info","messageKey":"notifications.taskTypesUnlocked","dedupeKey":"task-types-unlocked","helpArticleId":"howto-werkregel-kiezen","count":1},
+ {"severity":"info","messageKey":"notifications.ifcForeignOpenLarge","params":{"limit":150},"sticky":true,"detailLines":[{"messageKey":"notifications.taskTypesUnlockedDetail","helpArticleId":"howto-werkregel-kiezen","linkKey":"notifications.workRulesReadMore"}],"count":1},
+ {"severity":"info","messageKey":"notifications.xerArchiveUnusable","detailLines":[{"messageKey":"notifications.xerArchiveReasonBytesMissing"},{"messageKey":"notifications.xerArchiveUnusableConsequence"}],"detail":"Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig","helpArticleId":"howto-xer-openen","dedupeKey":"xer-archive-unusable","sticky":true,"count":1},
+ {"severity":"info","messageKey":"notifications.xerArchiveUnusable","detailLines":[{"messageKey":"notifications.xerArchiveReasonBytesMissing"},{"messageKey":"notifications.xerArchiveUnusableConsequence"},{"messageKey":"notifications.ifcForeignOpenLarge","params":{"limit":150}}],"detail":"Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig","helpArticleId":"howto-xer-openen","dedupeKey":"xer-archive-unusable","sticky":true,"count":1},
+ {"severity":"info","messageKey":"notifications.xerArchiveUnusable","detailLines":[{"messageKey":"notifications.xerArchiveReasonBytesMissing"},{"messageKey":"notifications.xerArchiveUnusableConsequence"},{"messageKey":"notifications.taskTypesUnlockedDetail","helpArticleId":"howto-werkregel-kiezen","linkKey":"notifications.workRulesReadMore"}],"detail":"Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig","helpArticleId":"howto-xer-openen","dedupeKey":"xer-archive-unusable","sticky":true,"count":1},
+ {"severity":"info","messageKey":"notifications.xerArchiveUnusable","detailLines":[{"messageKey":"notifications.xerArchiveReasonBytesMissing"},{"messageKey":"notifications.xerArchiveUnusableConsequence"},{"messageKey":"notifications.ifcForeignOpenLarge","params":{"limit":150}},{"messageKey":"notifications.taskTypesUnlockedDetail","helpArticleId":"howto-werkregel-kiezen","linkKey":"notifications.workRulesReadMore"}],"detail":"Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig","helpArticleId":"howto-xer-openen","dedupeKey":"xer-archive-unusable","sticky":true,"count":1},
+ {"severity":"info","messageKey":"notifications.importDatesAsRecorded","params":{"count":20},"helpArticleId":"uitleg-datums-zoals-opgeslagen","count":1},
+ {"severity":"info","messageKey":"notifications.importDatesAsRecorded","params":{"count":20},"helpArticleId":"uitleg-datums-zoals-opgeslagen","detailLines":[{"messageKey":"notifications.ifcForeignOpenLarge","params":{"limit":150}}],"sticky":true,"count":1},
+ {"severity":"info","messageKey":"notifications.importDatesAsRecorded","params":{"count":20},"helpArticleId":"uitleg-datums-zoals-opgeslagen","detailLines":[{"messageKey":"notifications.taskTypesUnlockedDetail","helpArticleId":"howto-werkregel-kiezen","linkKey":"notifications.workRulesReadMore"}],"count":1},
+ {"severity":"info","messageKey":"notifications.importDatesAsRecorded","params":{"count":20},"helpArticleId":"uitleg-datums-zoals-opgeslagen","detailLines":[{"messageKey":"notifications.ifcForeignOpenLarge","params":{"limit":150}},{"messageKey":"notifications.taskTypesUnlockedDetail","helpArticleId":"howto-werkregel-kiezen","linkKey":"notifications.workRulesReadMore"}],"sticky":true,"count":1},
+ {"severity":"info","messageKey":"notifications.schedulingProfileApplied","params":{"profile":"Primavera P6"},"helpArticleId":"uitleg-rekenprofielen","action":{"kind":"openBackstageSection","section":"project-info","labelKey":"notifications.actions.openProjectInfo"},"dedupeKey":"scheduling-profile-applied:document-1","count":1},
+ {"severity":"info","messageKey":"notifications.schedulingProfileApplied","params":{"profile":"Primavera P6"},"helpArticleId":"uitleg-rekenprofielen","action":{"kind":"openBackstageSection","section":"project-info","labelKey":"notifications.actions.openProjectInfo"},"dedupeKey":"scheduling-profile-applied:document-1","detailLines":[{"messageKey":"notifications.ifcForeignOpenLarge","params":{"limit":150}}],"sticky":true,"count":1},
+ {"severity":"info","messageKey":"notifications.schedulingProfileApplied","params":{"profile":"Primavera P6"},"helpArticleId":"uitleg-rekenprofielen","action":{"kind":"openBackstageSection","section":"project-info","labelKey":"notifications.actions.openProjectInfo"},"dedupeKey":"scheduling-profile-applied:document-1","detailLines":[{"messageKey":"notifications.taskTypesUnlockedDetail","helpArticleId":"howto-werkregel-kiezen","linkKey":"notifications.workRulesReadMore"}],"count":1},
+ {"severity":"info","messageKey":"notifications.schedulingProfileApplied","params":{"profile":"Primavera P6"},"helpArticleId":"uitleg-rekenprofielen","action":{"kind":"openBackstageSection","section":"project-info","labelKey":"notifications.actions.openProjectInfo"},"dedupeKey":"scheduling-profile-applied:document-1","detailLines":[{"messageKey":"notifications.ifcForeignOpenLarge","params":{"limit":150}},{"messageKey":"notifications.taskTypesUnlockedDetail","helpArticleId":"howto-werkregel-kiezen","linkKey":"notifications.workRulesReadMore"}],"sticky":true,"count":1},
+ {"severity":"info","messageKey":"notifications.minuteModelConverted","params":{"count":37,"document":"Nieuwbouw Woongebouw Parkzicht"},"numberParams":{"days":14},"sticky":true,"count":1},
+ {"severity":"info","messageKey":"notifications.minuteModelConverted","params":{"count":2,"document":"Proj"},"numberParams":{"days":0},"sticky":true,"count":1},
+ {"severity":"info","messageKey":"notifications.importDatesAsRecorded","params":{"count":2},"helpArticleId":"uitleg-datums-zoals-opgeslagen","count":1},
+ {"severity":"info","messageKey":"notifications.importDatesAsRecorded","params":{"count":2},"helpArticleId":"uitleg-datums-zoals-opgeslagen","detailLines":[{"messageKey":"notifications.ifcForeignOpenLarge","params":{"limit":150}}],"sticky":true,"count":1},
+ {"severity":"info","messageKey":"notifications.taskTypesUnlocked","dedupeKey":"task-types-unlocked","helpArticleId":"howto-werkregel-kiezen","count":2},
+ {"severity":"info","messageKey":"notifications.taskTypesUnlocked","dedupeKey":"task-types-unlocked","helpArticleId":"howto-werkregel-kiezen","count":3},
+ {"severity":"info","messageKey":"notifications.schedulingProfileApplied","params":{"profile":"Primavera P6"},"helpArticleId":"uitleg-rekenprofielen","action":{"kind":"openBackstageSection","section":"project-info","labelKey":"notifications.actions.openProjectInfo"},"dedupeKey":"scheduling-profile-applied:document-2","count":1},
+ {"severity":"info","messageKey":"notifications.schedulingProfileApplied","params":{"profile":"Primavera P6"},"helpArticleId":"uitleg-rekenprofielen","action":{"kind":"openBackstageSection","section":"project-info","labelKey":"notifications.actions.openProjectInfo"},"dedupeKey":"scheduling-profile-applied:document-2","detailLines":[{"messageKey":"notifications.ifcForeignOpenLarge","params":{"limit":150}}],"sticky":true,"count":1},
+ {"severity":"info","messageKey":"notifications.schedulingProfileApplied","params":{"profile":"Primavera P6"},"helpArticleId":"uitleg-rekenprofielen","action":{"kind":"openBackstageSection","section":"project-info","labelKey":"notifications.actions.openProjectInfo"},"dedupeKey":"scheduling-profile-applied:document-2","detailLines":[{"messageKey":"notifications.taskTypesUnlockedDetail","helpArticleId":"howto-werkregel-kiezen","linkKey":"notifications.workRulesReadMore"}],"count":1},
+ {"severity":"info","messageKey":"notifications.schedulingProfileApplied","params":{"profile":"Primavera P6"},"helpArticleId":"uitleg-rekenprofielen","action":{"kind":"openBackstageSection","section":"project-info","labelKey":"notifications.actions.openProjectInfo"},"dedupeKey":"scheduling-profile-applied:document-2","detailLines":[{"messageKey":"notifications.ifcForeignOpenLarge","params":{"limit":150}},{"messageKey":"notifications.taskTypesUnlockedDetail","helpArticleId":"howto-werkregel-kiezen","linkKey":"notifications.workRulesReadMore"}],"sticky":true,"count":1},
+ {"severity":"info","messageKey":"notifications.xerArchiveUnusable","detailLines":[{"messageKey":"notifications.xerArchiveReasonBytesMissing"},{"messageKey":"notifications.xerArchiveUnusableConsequence"}],"detail":"Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig","helpArticleId":"howto-xer-openen","dedupeKey":"xer-archive-unusable","sticky":true,"count":2},
+ {"severity":"info","messageKey":"notifications.xerArchiveUnusable","detailLines":[{"messageKey":"notifications.xerArchiveReasonBytesMissing"},{"messageKey":"notifications.xerArchiveUnusableConsequence"},{"messageKey":"notifications.ifcForeignOpenLarge","params":{"limit":150}}],"detail":"Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig","helpArticleId":"howto-xer-openen","dedupeKey":"xer-archive-unusable","sticky":true,"count":2},
+ {"severity":"info","messageKey":"notifications.xerArchiveUnusable","detailLines":[{"messageKey":"notifications.xerArchiveReasonBytesMissing"},{"messageKey":"notifications.xerArchiveUnusableConsequence"},{"messageKey":"notifications.taskTypesUnlockedDetail","helpArticleId":"howto-werkregel-kiezen","linkKey":"notifications.workRulesReadMore"}],"detail":"Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig","helpArticleId":"howto-xer-openen","dedupeKey":"xer-archive-unusable","sticky":true,"count":2},
+ {"severity":"info","messageKey":"notifications.xerArchiveUnusable","detailLines":[{"messageKey":"notifications.xerArchiveReasonBytesMissing"},{"messageKey":"notifications.xerArchiveUnusableConsequence"},{"messageKey":"notifications.ifcForeignOpenLarge","params":{"limit":150}},{"messageKey":"notifications.taskTypesUnlockedDetail","helpArticleId":"howto-werkregel-kiezen","linkKey":"notifications.workRulesReadMore"}],"detail":"Ongeldig OPS_XerSourceArchive: manifest belooft 1 bronchunk(s), maar er is er geen enkele aanwezig","helpArticleId":"howto-xer-openen","dedupeKey":"xer-archive-unusable","sticky":true,"count":2}
+],
+"representatives": [
+ "geen melding, geen vreemd deel",
+ "geen melding, vreemd deel",
+ "geen melding, vreemd deel, groot",
+ "geen melding, taaktypen, geen vreemd deel",
+ "geen melding, taaktypen, vreemd deel",
+ "geen melding, taaktypen, vreemd deel, groot",
+ "onbruikbaar XER-archief, geen vreemd deel",
+ "onbruikbaar XER-archief, vreemd deel",
+ "onbruikbaar XER-archief, vreemd deel, groot",
+ "onbruikbaar XER-archief, taaktypen, geen vreemd deel",
+ "onbruikbaar XER-archief, taaktypen, vreemd deel",
+ "onbruikbaar XER-archief, taaktypen, vreemd deel, groot",
+ "opgenomen datums, geen vreemd deel",
+ "opgenomen datums, vreemd deel",
+ "opgenomen datums, vreemd deel, groot",
+ "opgenomen datums, taaktypen, geen vreemd deel",
+ "opgenomen datums, taaktypen, vreemd deel",
+ "opgenomen datums, taaktypen, vreemd deel, groot",
+ "rekenprofiel, geen vreemd deel",
+ "rekenprofiel, vreemd deel",
+ "rekenprofiel, vreemd deel, groot",
+ "rekenprofiel, taaktypen, geen vreemd deel",
+ "rekenprofiel, taaktypen, vreemd deel",
+ "rekenprofiel, taaktypen, vreemd deel, groot",
+ "eigen bestand uit v2026.7.2",
+ "Bonsai-planning met model",
+ "Bonsai-planning met model, groot",
+ "twee werkplannen",
+ "twee werkplannen, groot",
+ "eigen planning met model en een tweede werkplan, taaktypen",
+ "eigen planning met een complexe eenheid"
+],
+"cases": {
+ "geen melding, geen vreemd deel": [[0]],
+ "geen melding, vreemd deel": [[0]],
+ "geen melding, vreemd deel, groot": [[1,0]],
+ "geen melding, taaktypen, geen vreemd deel": [[1,1]],
+ "geen melding, taaktypen, vreemd deel": [[1,1]],
+ "geen melding, taaktypen, vreemd deel, groot": [[1,2]],
+ "onbruikbaar XER-archief, geen vreemd deel": [[1,3]],
+ "onbruikbaar XER-archief, vreemd deel": [[1,3]],
+ "onbruikbaar XER-archief, vreemd deel, groot": [[1,4]],
+ "onbruikbaar XER-archief, taaktypen, geen vreemd deel": [[1,5]],
+ "onbruikbaar XER-archief, taaktypen, vreemd deel": [[1,5]],
+ "onbruikbaar XER-archief, taaktypen, vreemd deel, groot": [[1,6]],
+ "opgenomen datums, geen vreemd deel": [[1,7]],
+ "opgenomen datums, vreemd deel": [[1,7]],
+ "opgenomen datums, vreemd deel, groot": [[1,8]],
+ "opgenomen datums, taaktypen, geen vreemd deel": [[1,9]],
+ "opgenomen datums, taaktypen, vreemd deel": [[1,9]],
+ "opgenomen datums, taaktypen, vreemd deel, groot": [[1,10]],
+ "rekenprofiel, geen vreemd deel": [[1,11]],
+ "rekenprofiel, vreemd deel": [[1,11]],
+ "rekenprofiel, vreemd deel, groot": [[1,12]],
+ "rekenprofiel, taaktypen, geen vreemd deel": [[1,13]],
+ "rekenprofiel, taaktypen, vreemd deel": [[1,13]],
+ "rekenprofiel, taaktypen, vreemd deel, groot": [[1,14]],
+ "eigen bestand uit v2026.7.2": [[1,15]],
+ "eigen bestand met los project": [[1,15]],
+ "Bonsai-planning met model": [[1,16]],
+ "Bonsai-planning met model, groot": [[2,16,0]],
+ "twee werkplannen": [[1,16]],
+ "twee werkplannen, groot": [[2,16,0]],
+ "eigen planning met model en een tweede werkplan, taaktypen": [[1,1]],
+ "eigen planning met een complexe eenheid": [[0]],
+ "extern: opgenomen datums en een wand": [[1,17]],
+ "extern: opgenomen datums en een wand, groot": [[1,18]],
+ "reeks: groot met taaktypen, dan klein met taaktypen": [[1,2],[1,2,1]],
+ "reeks: klein, dan groot": [[0],[1,0]],
+ "reeks: twee keer groot": [[1,2],[1,2,2]],
+ "reeks: twee werkplannen met taaktypen, dan een eigen planning met taaktypen": [[1,1],[1,19]],
+ "reeks: taaktypen en model, dezelfde soort met een ander aantal, dan een eigen planning": [[1,1],[1,19],[1,20]],
+ "reeks: Bonsai groot, dan twee werkplannen klein": [[2,16,0],[1,16,0,16]],
+ "reeks: drie blijvende meldingen, dan een bestand waarbij main niets toont": [[2,16,0],[1,16,0,16],[0,16,0,16]],
+ "reeks: gewone melding, blijvende melding, eigen telmelding, dan een nieuwe melding": [[1,1],[1,1,7],[0,1,7],[1,1,7,16]],
+ "paar 1-1": [[0],[0]],
+ "paar 1-2": [[0],[0]],
+ "paar 1-3": [[0],[1,0]],
+ "paar 1-4": [[0],[1,1]],
+ "paar 1-5": [[0],[1,1]],
+ "paar 1-6": [[0],[1,2]],
+ "paar 1-7": [[0],[1,3]],
+ "paar 1-8": [[0],[1,3]],
+ "paar 1-9": [[0],[1,4]],
+ "paar 1-10": [[0],[1,5]],
+ "paar 1-11": [[0],[1,5]],
+ "paar 1-12": [[0],[1,6]],
+ "paar 1-13": [[0],[1,7]],
+ "paar 1-14": [[0],[1,7]],
+ "paar 1-15": [[0],[1,8]],
+ "paar 1-16": [[0],[1,9]],
+ "paar 1-17": [[0],[1,9]],
+ "paar 1-18": [[0],[1,10]],
+ "paar 1-19": [[0],[1,21]],
+ "paar 1-20": [[0],[1,21]],
+ "paar 1-21": [[0],[1,22]],
+ "paar 1-22": [[0],[1,23]],
+ "paar 1-23": [[0],[1,23]],
+ "paar 1-24": [[0],[1,24]],
+ "paar 1-25": [[0],[1,15]],
+ "paar 1-26": [[0],[1,16]],
+ "paar 1-27": [[0],[2,16,0]],
+ "paar 1-28": [[0],[1,16]],
+ "paar 1-29": [[0],[2,16,0]],
+ "paar 1-30": [[0],[1,1]],
+ "paar 1-31": [[0],[0]],
+ "paar 2-1": [[0],[0]],
+ "paar 2-2": [[0],[0]],
+ "paar 2-3": [[0],[1,0]],
+ "paar 2-4": [[0],[1,1]],
+ "paar 2-5": [[0],[1,1]],
+ "paar 2-6": [[0],[1,2]],
+ "paar 2-7": [[0],[1,3]],
+ "paar 2-8": [[0],[1,3]],
+ "paar 2-9": [[0],[1,4]],
+ "paar 2-10": [[0],[1,5]],
+ "paar 2-11": [[0],[1,5]],
+ "paar 2-12": [[0],[1,6]],
+ "paar 2-13": [[0],[1,7]],
+ "paar 2-14": [[0],[1,7]],
+ "paar 2-15": [[0],[1,8]],
+ "paar 2-16": [[0],[1,9]],
+ "paar 2-17": [[0],[1,9]],
+ "paar 2-18": [[0],[1,10]],
+ "paar 2-19": [[0],[1,21]],
+ "paar 2-20": [[0],[1,21]],
+ "paar 2-21": [[0],[1,22]],
+ "paar 2-22": [[0],[1,23]],
+ "paar 2-23": [[0],[1,23]],
+ "paar 2-24": [[0],[1,24]],
+ "paar 2-25": [[0],[1,15]],
+ "paar 2-26": [[0],[1,16]],
+ "paar 2-27": [[0],[2,16,0]],
+ "paar 2-28": [[0],[1,16]],
+ "paar 2-29": [[0],[2,16,0]],
+ "paar 2-30": [[0],[1,1]],
+ "paar 2-31": [[0],[0]],
+ "paar 3-1": [[1,0],[0,0]],
+ "paar 3-2": [[1,0],[0,0]],
+ "paar 3-3": [[1,0],[1,0,0]],
+ "paar 3-4": [[1,0],[1,0,1]],
+ "paar 3-5": [[1,0],[1,0,1]],
+ "paar 3-6": [[1,0],[1,0,2]],
+ "paar 3-7": [[1,0],[1,0,3]],
+ "paar 3-8": [[1,0],[1,0,3]],
+ "paar 3-9": [[1,0],[1,0,4]],
+ "paar 3-10": [[1,0],[1,0,5]],
+ "paar 3-11": [[1,0],[1,0,5]],
+ "paar 3-12": [[1,0],[1,0,6]],
+ "paar 3-13": [[1,0],[1,0,7]],
+ "paar 3-14": [[1,0],[1,0,7]],
+ "paar 3-15": [[1,0],[1,0,8]],
+ "paar 3-16": [[1,0],[1,0,9]],
+ "paar 3-17": [[1,0],[1,0,9]],
+ "paar 3-18": [[1,0],[1,0,10]],
+ "paar 3-19": [[1,0],[1,0,21]],
+ "paar 3-20": [[1,0],[1,0,21]],
+ "paar 3-21": [[1,0],[1,0,22]],
+ "paar 3-22": [[1,0],[1,0,23]],
+ "paar 3-23": [[1,0],[1,0,23]],
+ "paar 3-24": [[1,0],[1,0,24]],
+ "paar 3-25": [[1,0],[1,0,15]],
+ "paar 3-26": [[1,0],[1,0,16]],
+ "paar 3-27": [[1,0],[2,0,16,0]],
+ "paar 3-28": [[1,0],[1,0,16]],
+ "paar 3-29": [[1,0],[2,0,16,0]],
+ "paar 3-30": [[1,0],[1,0,1]],
+ "paar 3-31": [[1,0],[0,0]],
+ "paar 4-1": [[1,1],[0,1]],
+ "paar 4-2": [[1,1],[0,1]],
+ "paar 4-3": [[1,1],[1,1,0]],
+ "paar 4-4": [[1,1],[1,19]],
+ "paar 4-5": [[1,1],[1,19]],
+ "paar 4-6": [[1,1],[1,1,2]],
+ "paar 4-7": [[1,1],[1,1,3]],
+ "paar 4-8": [[1,1],[1,1,3]],
+ "paar 4-9": [[1,1],[1,1,4]],
+ "paar 4-10": [[1,1],[1,1,5]],
+ "paar 4-11": [[1,1],[1,1,5]],
+ "paar 4-12": [[1,1],[1,1,6]],
+ "paar 4-13": [[1,1],[1,1,7]],
+ "paar 4-14": [[1,1],[1,1,7]],
+ "paar 4-15": [[1,1],[1,1,8]],
+ "paar 4-16": [[1,1],[1,1,9]],
+ "paar 4-17": [[1,1],[1,1,9]],
+ "paar 4-18": [[1,1],[1,1,10]],
+ "paar 4-19": [[1,1],[1,1,21]],
+ "paar 4-20": [[1,1],[1,1,21]],
+ "paar 4-21": [[1,1],[1,1,22]],
+ "paar 4-22": [[1,1],[1,1,23]],
+ "paar 4-23": [[1,1],[1,1,23]],
+ "paar 4-24": [[1,1],[1,1,24]],
+ "paar 4-25": [[1,1],[1,1,15]],
+ "paar 4-26": [[1,1],[1,1,16]],
+ "paar 4-27": [[1,1],[2,1,16,0]],
+ "paar 4-28": [[1,1],[1,1,16]],
+ "paar 4-29": [[1,1],[2,1,16,0]],
+ "paar 4-30": [[1,1],[1,19]],
+ "paar 4-31": [[1,1],[0,1]],
+ "paar 5-1": [[1,1],[0,1]],
+ "paar 5-2": [[1,1],[0,1]],
+ "paar 5-3": [[1,1],[1,1,0]],
+ "paar 5-4": [[1,1],[1,19]],
+ "paar 5-5": [[1,1],[1,19]],
+ "paar 5-6": [[1,1],[1,1,2]],
+ "paar 5-7": [[1,1],[1,1,3]],
+ "paar 5-8": [[1,1],[1,1,3]],
+ "paar 5-9": [[1,1],[1,1,4]],
+ "paar 5-10": [[1,1],[1,1,5]],
+ "paar 5-11": [[1,1],[1,1,5]],
+ "paar 5-12": [[1,1],[1,1,6]],
+ "paar 5-13": [[1,1],[1,1,7]],
+ "paar 5-14": [[1,1],[1,1,7]],
+ "paar 5-15": [[1,1],[1,1,8]],
+ "paar 5-16": [[1,1],[1,1,9]],
+ "paar 5-17": [[1,1],[1,1,9]],
+ "paar 5-18": [[1,1],[1,1,10]],
+ "paar 5-19": [[1,1],[1,1,21]],
+ "paar 5-20": [[1,1],[1,1,21]],
+ "paar 5-21": [[1,1],[1,1,22]],
+ "paar 5-22": [[1,1],[1,1,23]],
+ "paar 5-23": [[1,1],[1,1,23]],
+ "paar 5-24": [[1,1],[1,1,24]],
+ "paar 5-25": [[1,1],[1,1,15]],
+ "paar 5-26": [[1,1],[1,1,16]],
+ "paar 5-27": [[1,1],[2,1,16,0]],
+ "paar 5-28": [[1,1],[1,1,16]],
+ "paar 5-29": [[1,1],[2,1,16,0]],
+ "paar 5-30": [[1,1],[1,19]],
+ "paar 5-31": [[1,1],[0,1]],
+ "paar 6-1": [[1,2],[0,2]],
+ "paar 6-2": [[1,2],[0,2]],
+ "paar 6-3": [[1,2],[1,2,0]],
+ "paar 6-4": [[1,2],[1,2,1]],
+ "paar 6-5": [[1,2],[1,2,1]],
+ "paar 6-6": [[1,2],[1,2,2]],
+ "paar 6-7": [[1,2],[1,2,3]],
+ "paar 6-8": [[1,2],[1,2,3]],
+ "paar 6-9": [[1,2],[1,2,4]],
+ "paar 6-10": [[1,2],[1,2,5]],
+ "paar 6-11": [[1,2],[1,2,5]],
+ "paar 6-12": [[1,2],[1,2,6]],
+ "paar 6-13": [[1,2],[1,2,7]],
+ "paar 6-14": [[1,2],[1,2,7]],
+ "paar 6-15": [[1,2],[1,2,8]],
+ "paar 6-16": [[1,2],[1,2,9]],
+ "paar 6-17": [[1,2],[1,2,9]],
+ "paar 6-18": [[1,2],[1,2,10]],
+ "paar 6-19": [[1,2],[1,2,21]],
+ "paar 6-20": [[1,2],[1,2,21]],
+ "paar 6-21": [[1,2],[1,2,22]],
+ "paar 6-22": [[1,2],[1,2,23]],
+ "paar 6-23": [[1,2],[1,2,23]],
+ "paar 6-24": [[1,2],[1,2,24]],
+ "paar 6-25": [[1,2],[1,2,15]],
+ "paar 6-26": [[1,2],[1,2,16]],
+ "paar 6-27": [[1,2],[2,2,16,0]],
+ "paar 6-28": [[1,2],[1,2,16]],
+ "paar 6-29": [[1,2],[2,2,16,0]],
+ "paar 6-30": [[1,2],[1,2,1]],
+ "paar 6-31": [[1,2],[0,2]],
+ "paar 7-1": [[1,3],[0,3]],
+ "paar 7-2": [[1,3],[0,3]],
+ "paar 7-3": [[1,3],[1,3,0]],
+ "paar 7-4": [[1,3],[1,3,1]],
+ "paar 7-5": [[1,3],[1,3,1]],
+ "paar 7-6": [[1,3],[1,3,2]],
+ "paar 7-7": [[1,3],[1,25]],
+ "paar 7-8": [[1,3],[1,25]],
+ "paar 7-9": [[1,3],[1,26]],
+ "paar 7-10": [[1,3],[1,27]],
+ "paar 7-11": [[1,3],[1,27]],
+ "paar 7-12": [[1,3],[1,28]],
+ "paar 7-13": [[1,3],[1,3,7]],
+ "paar 7-14": [[1,3],[1,3,7]],
+ "paar 7-15": [[1,3],[1,3,8]],
+ "paar 7-16": [[1,3],[1,3,9]],
+ "paar 7-17": [[1,3],[1,3,9]],
+ "paar 7-18": [[1,3],[1,3,10]],
+ "paar 7-19": [[1,3],[1,3,21]],
+ "paar 7-20": [[1,3],[1,3,21]],
+ "paar 7-21": [[1,3],[1,3,22]],
+ "paar 7-22": [[1,3],[1,3,23]],
+ "paar 7-23": [[1,3],[1,3,23]],
+ "paar 7-24": [[1,3],[1,3,24]],
+ "paar 7-25": [[1,3],[1,3,15]],
+ "paar 7-26": [[1,3],[1,3,16]],
+ "paar 7-27": [[1,3],[2,3,16,0]],
+ "paar 7-28": [[1,3],[1,3,16]],
+ "paar 7-29": [[1,3],[2,3,16,0]],
+ "paar 7-30": [[1,3],[1,3,1]],
+ "paar 7-31": [[1,3],[0,3]],
+ "paar 8-1": [[1,3],[0,3]],
+ "paar 8-2": [[1,3],[0,3]],
+ "paar 8-3": [[1,3],[1,3,0]],
+ "paar 8-4": [[1,3],[1,3,1]],
+ "paar 8-5": [[1,3],[1,3,1]],
+ "paar 8-6": [[1,3],[1,3,2]],
+ "paar 8-7": [[1,3],[1,25]],
+ "paar 8-8": [[1,3],[1,25]],
+ "paar 8-9": [[1,3],[1,26]],
+ "paar 8-10": [[1,3],[1,27]],
+ "paar 8-11": [[1,3],[1,27]],
+ "paar 8-12": [[1,3],[1,28]],
+ "paar 8-13": [[1,3],[1,3,7]],
+ "paar 8-14": [[1,3],[1,3,7]],
+ "paar 8-15": [[1,3],[1,3,8]],
+ "paar 8-16": [[1,3],[1,3,9]],
+ "paar 8-17": [[1,3],[1,3,9]],
+ "paar 8-18": [[1,3],[1,3,10]],
+ "paar 8-19": [[1,3],[1,3,21]],
+ "paar 8-20": [[1,3],[1,3,21]],
+ "paar 8-21": [[1,3],[1,3,22]],
+ "paar 8-22": [[1,3],[1,3,23]],
+ "paar 8-23": [[1,3],[1,3,23]],
+ "paar 8-24": [[1,3],[1,3,24]],
+ "paar 8-25": [[1,3],[1,3,15]],
+ "paar 8-26": [[1,3],[1,3,16]],
+ "paar 8-27": [[1,3],[2,3,16,0]],
+ "paar 8-28": [[1,3],[1,3,16]],
+ "paar 8-29": [[1,3],[2,3,16,0]],
+ "paar 8-30": [[1,3],[1,3,1]],
+ "paar 8-31": [[1,3],[0,3]],
+ "paar 9-1": [[1,4],[0,4]],
+ "paar 9-2": [[1,4],[0,4]],
+ "paar 9-3": [[1,4],[1,4,0]],
+ "paar 9-4": [[1,4],[1,4,1]],
+ "paar 9-5": [[1,4],[1,4,1]],
+ "paar 9-6": [[1,4],[1,4,2]],
+ "paar 9-7": [[1,4],[1,25]],
+ "paar 9-8": [[1,4],[1,25]],
+ "paar 9-9": [[1,4],[1,26]],
+ "paar 9-10": [[1,4],[1,27]],
+ "paar 9-11": [[1,4],[1,27]],
+ "paar 9-12": [[1,4],[1,28]],
+ "paar 9-13": [[1,4],[1,4,7]],
+ "paar 9-14": [[1,4],[1,4,7]],
+ "paar 9-15": [[1,4],[1,4,8]],
+ "paar 9-16": [[1,4],[1,4,9]],
+ "paar 9-17": [[1,4],[1,4,9]],
+ "paar 9-18": [[1,4],[1,4,10]],
+ "paar 9-19": [[1,4],[1,4,21]],
+ "paar 9-20": [[1,4],[1,4,21]],
+ "paar 9-21": [[1,4],[1,4,22]],
+ "paar 9-22": [[1,4],[1,4,23]],
+ "paar 9-23": [[1,4],[1,4,23]],
+ "paar 9-24": [[1,4],[1,4,24]],
+ "paar 9-25": [[1,4],[1,4,15]],
+ "paar 9-26": [[1,4],[1,4,16]],
+ "paar 9-27": [[1,4],[2,4,16,0]],
+ "paar 9-28": [[1,4],[1,4,16]],
+ "paar 9-29": [[1,4],[2,4,16,0]],
+ "paar 9-30": [[1,4],[1,4,1]],
+ "paar 9-31": [[1,4],[0,4]],
+ "paar 10-1": [[1,5],[0,5]],
+ "paar 10-2": [[1,5],[0,5]],
+ "paar 10-3": [[1,5],[1,5,0]],
+ "paar 10-4": [[1,5],[1,5,1]],
+ "paar 10-5": [[1,5],[1,5,1]],
+ "paar 10-6": [[1,5],[1,5,2]],
+ "paar 10-7": [[1,5],[1,25]],
+ "paar 10-8": [[1,5],[1,25]],
+ "paar 10-9": [[1,5],[1,26]],
+ "paar 10-10": [[1,5],[1,27]],
+ "paar 10-11": [[1,5],[1,27]],
+ "paar 10-12": [[1,5],[1,28]],
+ "paar 10-13": [[1,5],[1,5,7]],
+ "paar 10-14": [[1,5],[1,5,7]],
+ "paar 10-15": [[1,5],[1,5,8]],
+ "paar 10-16": [[1,5],[1,5,9]],
+ "paar 10-17": [[1,5],[1,5,9]],
+ "paar 10-18": [[1,5],[1,5,10]],
+ "paar 10-19": [[1,5],[1,5,21]],
+ "paar 10-20": [[1,5],[1,5,21]],
+ "paar 10-21": [[1,5],[1,5,22]],
+ "paar 10-22": [[1,5],[1,5,23]],
+ "paar 10-23": [[1,5],[1,5,23]],
+ "paar 10-24": [[1,5],[1,5,24]],
+ "paar 10-25": [[1,5],[1,5,15]],
+ "paar 10-26": [[1,5],[1,5,16]],
+ "paar 10-27": [[1,5],[2,5,16,0]],
+ "paar 10-28": [[1,5],[1,5,16]],
+ "paar 10-29": [[1,5],[2,5,16,0]],
+ "paar 10-30": [[1,5],[1,5,1]],
+ "paar 10-31": [[1,5],[0,5]],
+ "paar 11-1": [[1,5],[0,5]],
+ "paar 11-2": [[1,5],[0,5]],
+ "paar 11-3": [[1,5],[1,5,0]],
+ "paar 11-4": [[1,5],[1,5,1]],
+ "paar 11-5": [[1,5],[1,5,1]],
+ "paar 11-6": [[1,5],[1,5,2]],
+ "paar 11-7": [[1,5],[1,25]],
+ "paar 11-8": [[1,5],[1,25]],
+ "paar 11-9": [[1,5],[1,26]],
+ "paar 11-10": [[1,5],[1,27]],
+ "paar 11-11": [[1,5],[1,27]],
+ "paar 11-12": [[1,5],[1,28]],
+ "paar 11-13": [[1,5],[1,5,7]],
+ "paar 11-14": [[1,5],[1,5,7]],
+ "paar 11-15": [[1,5],[1,5,8]],
+ "paar 11-16": [[1,5],[1,5,9]],
+ "paar 11-17": [[1,5],[1,5,9]],
+ "paar 11-18": [[1,5],[1,5,10]],
+ "paar 11-19": [[1,5],[1,5,21]],
+ "paar 11-20": [[1,5],[1,5,21]],
+ "paar 11-21": [[1,5],[1,5,22]],
+ "paar 11-22": [[1,5],[1,5,23]],
+ "paar 11-23": [[1,5],[1,5,23]],
+ "paar 11-24": [[1,5],[1,5,24]],
+ "paar 11-25": [[1,5],[1,5,15]],
+ "paar 11-26": [[1,5],[1,5,16]],
+ "paar 11-27": [[1,5],[2,5,16,0]],
+ "paar 11-28": [[1,5],[1,5,16]],
+ "paar 11-29": [[1,5],[2,5,16,0]],
+ "paar 11-30": [[1,5],[1,5,1]],
+ "paar 11-31": [[1,5],[0,5]],
+ "paar 12-1": [[1,6],[0,6]],
+ "paar 12-2": [[1,6],[0,6]],
+ "paar 12-3": [[1,6],[1,6,0]],
+ "paar 12-4": [[1,6],[1,6,1]],
+ "paar 12-5": [[1,6],[1,6,1]],
+ "paar 12-6": [[1,6],[1,6,2]],
+ "paar 12-7": [[1,6],[1,25]],
+ "paar 12-8": [[1,6],[1,25]],
+ "paar 12-9": [[1,6],[1,26]],
+ "paar 12-10": [[1,6],[1,27]],
+ "paar 12-11": [[1,6],[1,27]],
+ "paar 12-12": [[1,6],[1,28]],
+ "paar 12-13": [[1,6],[1,6,7]],
+ "paar 12-14": [[1,6],[1,6,7]],
+ "paar 12-15": [[1,6],[1,6,8]],
+ "paar 12-16": [[1,6],[1,6,9]],
+ "paar 12-17": [[1,6],[1,6,9]],
+ "paar 12-18": [[1,6],[1,6,10]],
+ "paar 12-19": [[1,6],[1,6,21]],
+ "paar 12-20": [[1,6],[1,6,21]],
+ "paar 12-21": [[1,6],[1,6,22]],
+ "paar 12-22": [[1,6],[1,6,23]],
+ "paar 12-23": [[1,6],[1,6,23]],
+ "paar 12-24": [[1,6],[1,6,24]],
+ "paar 12-25": [[1,6],[1,6,15]],
+ "paar 12-26": [[1,6],[1,6,16]],
+ "paar 12-27": [[1,6],[2,6,16,0]],
+ "paar 12-28": [[1,6],[1,6,16]],
+ "paar 12-29": [[1,6],[2,6,16,0]],
+ "paar 12-30": [[1,6],[1,6,1]],
+ "paar 12-31": [[1,6],[0,6]],
+ "paar 13-1": [[1,7],[0,7]],
+ "paar 13-2": [[1,7],[0,7]],
+ "paar 13-3": [[1,7],[1,7,0]],
+ "paar 13-4": [[1,7],[1,7,1]],
+ "paar 13-5": [[1,7],[1,7,1]],
+ "paar 13-6": [[1,7],[1,7,2]],
+ "paar 13-7": [[1,7],[1,7,3]],
+ "paar 13-8": [[1,7],[1,7,3]],
+ "paar 13-9": [[1,7],[1,7,4]],
+ "paar 13-10": [[1,7],[1,7,5]],
+ "paar 13-11": [[1,7],[1,7,5]],
+ "paar 13-12": [[1,7],[1,7,6]],
+ "paar 13-13": [[1,7],[1,7,7]],
+ "paar 13-14": [[1,7],[1,7,7]],
+ "paar 13-15": [[1,7],[1,7,8]],
+ "paar 13-16": [[1,7],[1,7,9]],
+ "paar 13-17": [[1,7],[1,7,9]],
+ "paar 13-18": [[1,7],[1,7,10]],
+ "paar 13-19": [[1,7],[1,7,21]],
+ "paar 13-20": [[1,7],[1,7,21]],
+ "paar 13-21": [[1,7],[1,7,22]],
+ "paar 13-22": [[1,7],[1,7,23]],
+ "paar 13-23": [[1,7],[1,7,23]],
+ "paar 13-24": [[1,7],[1,7,24]],
+ "paar 13-25": [[1,7],[1,7,15]],
+ "paar 13-26": [[1,7],[1,7,16]],
+ "paar 13-27": [[1,7],[2,7,16,0]],
+ "paar 13-28": [[1,7],[1,7,16]],
+ "paar 13-29": [[1,7],[2,7,16,0]],
+ "paar 13-30": [[1,7],[1,7,1]],
+ "paar 13-31": [[1,7],[0,7]],
+ "paar 14-1": [[1,7],[0,7]],
+ "paar 14-2": [[1,7],[0,7]],
+ "paar 14-3": [[1,7],[1,7,0]],
+ "paar 14-4": [[1,7],[1,7,1]],
+ "paar 14-5": [[1,7],[1,7,1]],
+ "paar 14-6": [[1,7],[1,7,2]],
+ "paar 14-7": [[1,7],[1,7,3]],
+ "paar 14-8": [[1,7],[1,7,3]],
+ "paar 14-9": [[1,7],[1,7,4]],
+ "paar 14-10": [[1,7],[1,7,5]],
+ "paar 14-11": [[1,7],[1,7,5]],
+ "paar 14-12": [[1,7],[1,7,6]],
+ "paar 14-13": [[1,7],[1,7,7]],
+ "paar 14-14": [[1,7],[1,7,7]],
+ "paar 14-15": [[1,7],[1,7,8]],
+ "paar 14-16": [[1,7],[1,7,9]],
+ "paar 14-17": [[1,7],[1,7,9]],
+ "paar 14-18": [[1,7],[1,7,10]],
+ "paar 14-19": [[1,7],[1,7,21]],
+ "paar 14-20": [[1,7],[1,7,21]],
+ "paar 14-21": [[1,7],[1,7,22]],
+ "paar 14-22": [[1,7],[1,7,23]],
+ "paar 14-23": [[1,7],[1,7,23]],
+ "paar 14-24": [[1,7],[1,7,24]],
+ "paar 14-25": [[1,7],[1,7,15]],
+ "paar 14-26": [[1,7],[1,7,16]],
+ "paar 14-27": [[1,7],[2,7,16,0]],
+ "paar 14-28": [[1,7],[1,7,16]],
+ "paar 14-29": [[1,7],[2,7,16,0]],
+ "paar 14-30": [[1,7],[1,7,1]],
+ "paar 14-31": [[1,7],[0,7]],
+ "paar 15-1": [[1,8],[0,8]],
+ "paar 15-2": [[1,8],[0,8]],
+ "paar 15-3": [[1,8],[1,8,0]],
+ "paar 15-4": [[1,8],[1,8,1]],
+ "paar 15-5": [[1,8],[1,8,1]],
+ "paar 15-6": [[1,8],[1,8,2]],
+ "paar 15-7": [[1,8],[1,8,3]],
+ "paar 15-8": [[1,8],[1,8,3]],
+ "paar 15-9": [[1,8],[1,8,4]],
+ "paar 15-10": [[1,8],[1,8,5]],
+ "paar 15-11": [[1,8],[1,8,5]],
+ "paar 15-12": [[1,8],[1,8,6]],
+ "paar 15-13": [[1,8],[1,8,7]],
+ "paar 15-14": [[1,8],[1,8,7]],
+ "paar 15-15": [[1,8],[1,8,8]],
+ "paar 15-16": [[1,8],[1,8,9]],
+ "paar 15-17": [[1,8],[1,8,9]],
+ "paar 15-18": [[1,8],[1,8,10]],
+ "paar 15-19": [[1,8],[1,8,21]],
+ "paar 15-20": [[1,8],[1,8,21]],
+ "paar 15-21": [[1,8],[1,8,22]],
+ "paar 15-22": [[1,8],[1,8,23]],
+ "paar 15-23": [[1,8],[1,8,23]],
+ "paar 15-24": [[1,8],[1,8,24]],
+ "paar 15-25": [[1,8],[1,8,15]],
+ "paar 15-26": [[1,8],[1,8,16]],
+ "paar 15-27": [[1,8],[2,8,16,0]],
+ "paar 15-28": [[1,8],[1,8,16]],
+ "paar 15-29": [[1,8],[2,8,16,0]],
+ "paar 15-30": [[1,8],[1,8,1]],
+ "paar 15-31": [[1,8],[0,8]],
+ "paar 16-1": [[1,9],[0,9]],
+ "paar 16-2": [[1,9],[0,9]],
+ "paar 16-3": [[1,9],[1,9,0]],
+ "paar 16-4": [[1,9],[1,9,1]],
+ "paar 16-5": [[1,9],[1,9,1]],
+ "paar 16-6": [[1,9],[1,9,2]],
+ "paar 16-7": [[1,9],[1,9,3]],
+ "paar 16-8": [[1,9],[1,9,3]],
+ "paar 16-9": [[1,9],[1,9,4]],
+ "paar 16-10": [[1,9],[1,9,5]],
+ "paar 16-11": [[1,9],[1,9,5]],
+ "paar 16-12": [[1,9],[1,9,6]],
+ "paar 16-13": [[1,9],[1,9,7]],
+ "paar 16-14": [[1,9],[1,9,7]],
+ "paar 16-15": [[1,9],[1,9,8]],
+ "paar 16-16": [[1,9],[1,9,9]],
+ "paar 16-17": [[1,9],[1,9,9]],
+ "paar 16-18": [[1,9],[1,9,10]],
+ "paar 16-19": [[1,9],[1,9,21]],
+ "paar 16-20": [[1,9],[1,9,21]],
+ "paar 16-21": [[1,9],[1,9,22]],
+ "paar 16-22": [[1,9],[1,9,23]],
+ "paar 16-23": [[1,9],[1,9,23]],
+ "paar 16-24": [[1,9],[1,9,24]],
+ "paar 16-25": [[1,9],[1,9,15]],
+ "paar 16-26": [[1,9],[1,9,16]],
+ "paar 16-27": [[1,9],[2,9,16,0]],
+ "paar 16-28": [[1,9],[1,9,16]],
+ "paar 16-29": [[1,9],[2,9,16,0]],
+ "paar 16-30": [[1,9],[1,9,1]],
+ "paar 16-31": [[1,9],[0,9]],
+ "paar 17-1": [[1,9],[0,9]],
+ "paar 17-2": [[1,9],[0,9]],
+ "paar 17-3": [[1,9],[1,9,0]],
+ "paar 17-4": [[1,9],[1,9,1]],
+ "paar 17-5": [[1,9],[1,9,1]],
+ "paar 17-6": [[1,9],[1,9,2]],
+ "paar 17-7": [[1,9],[1,9,3]],
+ "paar 17-8": [[1,9],[1,9,3]],
+ "paar 17-9": [[1,9],[1,9,4]],
+ "paar 17-10": [[1,9],[1,9,5]],
+ "paar 17-11": [[1,9],[1,9,5]],
+ "paar 17-12": [[1,9],[1,9,6]],
+ "paar 17-13": [[1,9],[1,9,7]],
+ "paar 17-14": [[1,9],[1,9,7]],
+ "paar 17-15": [[1,9],[1,9,8]],
+ "paar 17-16": [[1,9],[1,9,9]],
+ "paar 17-17": [[1,9],[1,9,9]],
+ "paar 17-18": [[1,9],[1,9,10]],
+ "paar 17-19": [[1,9],[1,9,21]],
+ "paar 17-20": [[1,9],[1,9,21]],
+ "paar 17-21": [[1,9],[1,9,22]],
+ "paar 17-22": [[1,9],[1,9,23]],
+ "paar 17-23": [[1,9],[1,9,23]],
+ "paar 17-24": [[1,9],[1,9,24]],
+ "paar 17-25": [[1,9],[1,9,15]],
+ "paar 17-26": [[1,9],[1,9,16]],
+ "paar 17-27": [[1,9],[2,9,16,0]],
+ "paar 17-28": [[1,9],[1,9,16]],
+ "paar 17-29": [[1,9],[2,9,16,0]],
+ "paar 17-30": [[1,9],[1,9,1]],
+ "paar 17-31": [[1,9],[0,9]],
+ "paar 18-1": [[1,10],[0,10]],
+ "paar 18-2": [[1,10],[0,10]],
+ "paar 18-3": [[1,10],[1,10,0]],
+ "paar 18-4": [[1,10],[1,10,1]],
+ "paar 18-5": [[1,10],[1,10,1]],
+ "paar 18-6": [[1,10],[1,10,2]],
+ "paar 18-7": [[1,10],[1,10,3]],
+ "paar 18-8": [[1,10],[1,10,3]],
+ "paar 18-9": [[1,10],[1,10,4]],
+ "paar 18-10": [[1,10],[1,10,5]],
+ "paar 18-11": [[1,10],[1,10,5]],
+ "paar 18-12": [[1,10],[1,10,6]],
+ "paar 18-13": [[1,10],[1,10,7]],
+ "paar 18-14": [[1,10],[1,10,7]],
+ "paar 18-15": [[1,10],[1,10,8]],
+ "paar 18-16": [[1,10],[1,10,9]],
+ "paar 18-17": [[1,10],[1,10,9]],
+ "paar 18-18": [[1,10],[1,10,10]],
+ "paar 18-19": [[1,10],[1,10,21]],
+ "paar 18-20": [[1,10],[1,10,21]],
+ "paar 18-21": [[1,10],[1,10,22]],
+ "paar 18-22": [[1,10],[1,10,23]],
+ "paar 18-23": [[1,10],[1,10,23]],
+ "paar 18-24": [[1,10],[1,10,24]],
+ "paar 18-25": [[1,10],[1,10,15]],
+ "paar 18-26": [[1,10],[1,10,16]],
+ "paar 18-27": [[1,10],[2,10,16,0]],
+ "paar 18-28": [[1,10],[1,10,16]],
+ "paar 18-29": [[1,10],[2,10,16,0]],
+ "paar 18-30": [[1,10],[1,10,1]],
+ "paar 18-31": [[1,10],[0,10]],
+ "paar 19-1": [[1,11],[0,11]],
+ "paar 19-2": [[1,11],[0,11]],
+ "paar 19-3": [[1,11],[1,11,0]],
+ "paar 19-4": [[1,11],[1,11,1]],
+ "paar 19-5": [[1,11],[1,11,1]],
+ "paar 19-6": [[1,11],[1,11,2]],
+ "paar 19-7": [[1,11],[1,11,3]],
+ "paar 19-8": [[1,11],[1,11,3]],
+ "paar 19-9": [[1,11],[1,11,4]],
+ "paar 19-10": [[1,11],[1,11,5]],
+ "paar 19-11": [[1,11],[1,11,5]],
+ "paar 19-12": [[1,11],[1,11,6]],
+ "paar 19-13": [[1,11],[1,11,7]],
+ "paar 19-14": [[1,11],[1,11,7]],
+ "paar 19-15": [[1,11],[1,11,8]],
+ "paar 19-16": [[1,11],[1,11,9]],
+ "paar 19-17": [[1,11],[1,11,9]],
+ "paar 19-18": [[1,11],[1,11,10]],
+ "paar 19-19": [[1,11],[1,11,21]],
+ "paar 19-20": [[1,11],[1,11,21]],
+ "paar 19-21": [[1,11],[1,11,22]],
+ "paar 19-22": [[1,11],[1,11,23]],
+ "paar 19-23": [[1,11],[1,11,23]],
+ "paar 19-24": [[1,11],[1,11,24]],
+ "paar 19-25": [[1,11],[1,11,15]],
+ "paar 19-26": [[1,11],[1,11,16]],
+ "paar 19-27": [[1,11],[2,11,16,0]],
+ "paar 19-28": [[1,11],[1,11,16]],
+ "paar 19-29": [[1,11],[2,11,16,0]],
+ "paar 19-30": [[1,11],[1,11,1]],
+ "paar 19-31": [[1,11],[0,11]],
+ "paar 20-1": [[1,11],[0,11]],
+ "paar 20-2": [[1,11],[0,11]],
+ "paar 20-3": [[1,11],[1,11,0]],
+ "paar 20-4": [[1,11],[1,11,1]],
+ "paar 20-5": [[1,11],[1,11,1]],
+ "paar 20-6": [[1,11],[1,11,2]],
+ "paar 20-7": [[1,11],[1,11,3]],
+ "paar 20-8": [[1,11],[1,11,3]],
+ "paar 20-9": [[1,11],[1,11,4]],
+ "paar 20-10": [[1,11],[1,11,5]],
+ "paar 20-11": [[1,11],[1,11,5]],
+ "paar 20-12": [[1,11],[1,11,6]],
+ "paar 20-13": [[1,11],[1,11,7]],
+ "paar 20-14": [[1,11],[1,11,7]],
+ "paar 20-15": [[1,11],[1,11,8]],
+ "paar 20-16": [[1,11],[1,11,9]],
+ "paar 20-17": [[1,11],[1,11,9]],
+ "paar 20-18": [[1,11],[1,11,10]],
+ "paar 20-19": [[1,11],[1,11,21]],
+ "paar 20-20": [[1,11],[1,11,21]],
+ "paar 20-21": [[1,11],[1,11,22]],
+ "paar 20-22": [[1,11],[1,11,23]],
+ "paar 20-23": [[1,11],[1,11,23]],
+ "paar 20-24": [[1,11],[1,11,24]],
+ "paar 20-25": [[1,11],[1,11,15]],
+ "paar 20-26": [[1,11],[1,11,16]],
+ "paar 20-27": [[1,11],[2,11,16,0]],
+ "paar 20-28": [[1,11],[1,11,16]],
+ "paar 20-29": [[1,11],[2,11,16,0]],
+ "paar 20-30": [[1,11],[1,11,1]],
+ "paar 20-31": [[1,11],[0,11]],
+ "paar 21-1": [[1,12],[0,12]],
+ "paar 21-2": [[1,12],[0,12]],
+ "paar 21-3": [[1,12],[1,12,0]],
+ "paar 21-4": [[1,12],[1,12,1]],
+ "paar 21-5": [[1,12],[1,12,1]],
+ "paar 21-6": [[1,12],[1,12,2]],
+ "paar 21-7": [[1,12],[1,12,3]],
+ "paar 21-8": [[1,12],[1,12,3]],
+ "paar 21-9": [[1,12],[1,12,4]],
+ "paar 21-10": [[1,12],[1,12,5]],
+ "paar 21-11": [[1,12],[1,12,5]],
+ "paar 21-12": [[1,12],[1,12,6]],
+ "paar 21-13": [[1,12],[1,12,7]],
+ "paar 21-14": [[1,12],[1,12,7]],
+ "paar 21-15": [[1,12],[1,12,8]],
+ "paar 21-16": [[1,12],[1,12,9]],
+ "paar 21-17": [[1,12],[1,12,9]],
+ "paar 21-18": [[1,12],[1,12,10]],
+ "paar 21-19": [[1,12],[1,12,21]],
+ "paar 21-20": [[1,12],[1,12,21]],
+ "paar 21-21": [[1,12],[1,12,22]],
+ "paar 21-22": [[1,12],[1,12,23]],
+ "paar 21-23": [[1,12],[1,12,23]],
+ "paar 21-24": [[1,12],[1,12,24]],
+ "paar 21-25": [[1,12],[1,12,15]],
+ "paar 21-26": [[1,12],[1,12,16]],
+ "paar 21-27": [[1,12],[2,12,16,0]],
+ "paar 21-28": [[1,12],[1,12,16]],
+ "paar 21-29": [[1,12],[2,12,16,0]],
+ "paar 21-30": [[1,12],[1,12,1]],
+ "paar 21-31": [[1,12],[0,12]],
+ "paar 22-1": [[1,13],[0,13]],
+ "paar 22-2": [[1,13],[0,13]],
+ "paar 22-3": [[1,13],[1,13,0]],
+ "paar 22-4": [[1,13],[1,13,1]],
+ "paar 22-5": [[1,13],[1,13,1]],
+ "paar 22-6": [[1,13],[1,13,2]],
+ "paar 22-7": [[1,13],[1,13,3]],
+ "paar 22-8": [[1,13],[1,13,3]],
+ "paar 22-9": [[1,13],[1,13,4]],
+ "paar 22-10": [[1,13],[1,13,5]],
+ "paar 22-11": [[1,13],[1,13,5]],
+ "paar 22-12": [[1,13],[1,13,6]],
+ "paar 22-13": [[1,13],[1,13,7]],
+ "paar 22-14": [[1,13],[1,13,7]],
+ "paar 22-15": [[1,13],[1,13,8]],
+ "paar 22-16": [[1,13],[1,13,9]],
+ "paar 22-17": [[1,13],[1,13,9]],
+ "paar 22-18": [[1,13],[1,13,10]],
+ "paar 22-19": [[1,13],[1,13,21]],
+ "paar 22-20": [[1,13],[1,13,21]],
+ "paar 22-21": [[1,13],[1,13,22]],
+ "paar 22-22": [[1,13],[1,13,23]],
+ "paar 22-23": [[1,13],[1,13,23]],
+ "paar 22-24": [[1,13],[1,13,24]],
+ "paar 22-25": [[1,13],[1,13,15]],
+ "paar 22-26": [[1,13],[1,13,16]],
+ "paar 22-27": [[1,13],[2,13,16,0]],
+ "paar 22-28": [[1,13],[1,13,16]],
+ "paar 22-29": [[1,13],[2,13,16,0]],
+ "paar 22-30": [[1,13],[1,13,1]],
+ "paar 22-31": [[1,13],[0,13]],
+ "paar 23-1": [[1,13],[0,13]],
+ "paar 23-2": [[1,13],[0,13]],
+ "paar 23-3": [[1,13],[1,13,0]],
+ "paar 23-4": [[1,13],[1,13,1]],
+ "paar 23-5": [[1,13],[1,13,1]],
+ "paar 23-6": [[1,13],[1,13,2]],
+ "paar 23-7": [[1,13],[1,13,3]],
+ "paar 23-8": [[1,13],[1,13,3]],
+ "paar 23-9": [[1,13],[1,13,4]],
+ "paar 23-10": [[1,13],[1,13,5]],
+ "paar 23-11": [[1,13],[1,13,5]],
+ "paar 23-12": [[1,13],[1,13,6]],
+ "paar 23-13": [[1,13],[1,13,7]],
+ "paar 23-14": [[1,13],[1,13,7]],
+ "paar 23-15": [[1,13],[1,13,8]],
+ "paar 23-16": [[1,13],[1,13,9]],
+ "paar 23-17": [[1,13],[1,13,9]],
+ "paar 23-18": [[1,13],[1,13,10]],
+ "paar 23-19": [[1,13],[1,13,21]],
+ "paar 23-20": [[1,13],[1,13,21]],
+ "paar 23-21": [[1,13],[1,13,22]],
+ "paar 23-22": [[1,13],[1,13,23]],
+ "paar 23-23": [[1,13],[1,13,23]],
+ "paar 23-24": [[1,13],[1,13,24]],
+ "paar 23-25": [[1,13],[1,13,15]],
+ "paar 23-26": [[1,13],[1,13,16]],
+ "paar 23-27": [[1,13],[2,13,16,0]],
+ "paar 23-28": [[1,13],[1,13,16]],
+ "paar 23-29": [[1,13],[2,13,16,0]],
+ "paar 23-30": [[1,13],[1,13,1]],
+ "paar 23-31": [[1,13],[0,13]],
+ "paar 24-1": [[1,14],[0,14]],
+ "paar 24-2": [[1,14],[0,14]],
+ "paar 24-3": [[1,14],[1,14,0]],
+ "paar 24-4": [[1,14],[1,14,1]],
+ "paar 24-5": [[1,14],[1,14,1]],
+ "paar 24-6": [[1,14],[1,14,2]],
+ "paar 24-7": [[1,14],[1,14,3]],
+ "paar 24-8": [[1,14],[1,14,3]],
+ "paar 24-9": [[1,14],[1,14,4]],
+ "paar 24-10": [[1,14],[1,14,5]],
+ "paar 24-11": [[1,14],[1,14,5]],
+ "paar 24-12": [[1,14],[1,14,6]],
+ "paar 24-13": [[1,14],[1,14,7]],
+ "paar 24-14": [[1,14],[1,14,7]],
+ "paar 24-15": [[1,14],[1,14,8]],
+ "paar 24-16": [[1,14],[1,14,9]],
+ "paar 24-17": [[1,14],[1,14,9]],
+ "paar 24-18": [[1,14],[1,14,10]],
+ "paar 24-19": [[1,14],[1,14,21]],
+ "paar 24-20": [[1,14],[1,14,21]],
+ "paar 24-21": [[1,14],[1,14,22]],
+ "paar 24-22": [[1,14],[1,14,23]],
+ "paar 24-23": [[1,14],[1,14,23]],
+ "paar 24-24": [[1,14],[1,14,24]],
+ "paar 24-25": [[1,14],[1,14,15]],
+ "paar 24-26": [[1,14],[1,14,16]],
+ "paar 24-27": [[1,14],[2,14,16,0]],
+ "paar 24-28": [[1,14],[1,14,16]],
+ "paar 24-29": [[1,14],[2,14,16,0]],
+ "paar 24-30": [[1,14],[1,14,1]],
+ "paar 24-31": [[1,14],[0,14]],
+ "paar 25-1": [[1,15],[0,15]],
+ "paar 25-2": [[1,15],[0,15]],
+ "paar 25-3": [[1,15],[1,15,0]],
+ "paar 25-4": [[1,15],[1,15,1]],
+ "paar 25-5": [[1,15],[1,15,1]],
+ "paar 25-6": [[1,15],[1,15,2]],
+ "paar 25-7": [[1,15],[1,15,3]],
+ "paar 25-8": [[1,15],[1,15,3]],
+ "paar 25-9": [[1,15],[1,15,4]],
+ "paar 25-10": [[1,15],[1,15,5]],
+ "paar 25-11": [[1,15],[1,15,5]],
+ "paar 25-12": [[1,15],[1,15,6]],
+ "paar 25-13": [[1,15],[1,15,7]],
+ "paar 25-14": [[1,15],[1,15,7]],
+ "paar 25-15": [[1,15],[1,15,8]],
+ "paar 25-16": [[1,15],[1,15,9]],
+ "paar 25-17": [[1,15],[1,15,9]],
+ "paar 25-18": [[1,15],[1,15,10]],
+ "paar 25-19": [[1,15],[1,15,21]],
+ "paar 25-20": [[1,15],[1,15,21]],
+ "paar 25-21": [[1,15],[1,15,22]],
+ "paar 25-22": [[1,15],[1,15,23]],
+ "paar 25-23": [[1,15],[1,15,23]],
+ "paar 25-24": [[1,15],[1,15,24]],
+ "paar 25-25": [[1,15],[1,15,15]],
+ "paar 25-26": [[1,15],[1,15,16]],
+ "paar 25-27": [[1,15],[2,15,16,0]],
+ "paar 25-28": [[1,15],[1,15,16]],
+ "paar 25-29": [[1,15],[2,15,16,0]],
+ "paar 25-30": [[1,15],[1,15,1]],
+ "paar 25-31": [[1,15],[0,15]],
+ "paar 26-1": [[1,16],[0,16]],
+ "paar 26-2": [[1,16],[0,16]],
+ "paar 26-3": [[1,16],[1,16,0]],
+ "paar 26-4": [[1,16],[1,16,1]],
+ "paar 26-5": [[1,16],[1,16,1]],
+ "paar 26-6": [[1,16],[1,16,2]],
+ "paar 26-7": [[1,16],[1,16,3]],
+ "paar 26-8": [[1,16],[1,16,3]],
+ "paar 26-9": [[1,16],[1,16,4]],
+ "paar 26-10": [[1,16],[1,16,5]],
+ "paar 26-11": [[1,16],[1,16,5]],
+ "paar 26-12": [[1,16],[1,16,6]],
+ "paar 26-13": [[1,16],[1,16,7]],
+ "paar 26-14": [[1,16],[1,16,7]],
+ "paar 26-15": [[1,16],[1,16,8]],
+ "paar 26-16": [[1,16],[1,16,9]],
+ "paar 26-17": [[1,16],[1,16,9]],
+ "paar 26-18": [[1,16],[1,16,10]],
+ "paar 26-19": [[1,16],[1,16,21]],
+ "paar 26-20": [[1,16],[1,16,21]],
+ "paar 26-21": [[1,16],[1,16,22]],
+ "paar 26-22": [[1,16],[1,16,23]],
+ "paar 26-23": [[1,16],[1,16,23]],
+ "paar 26-24": [[1,16],[1,16,24]],
+ "paar 26-25": [[1,16],[1,16,15]],
+ "paar 26-26": [[1,16],[1,16,16]],
+ "paar 26-27": [[1,16],[2,16,16,0]],
+ "paar 26-28": [[1,16],[1,16,16]],
+ "paar 26-29": [[1,16],[2,16,16,0]],
+ "paar 26-30": [[1,16],[1,16,1]],
+ "paar 26-31": [[1,16],[0,16]],
+ "paar 27-1": [[2,16,0],[0,16,0]],
+ "paar 27-2": [[2,16,0],[0,16,0]],
+ "paar 27-3": [[2,16,0],[1,16,0,0]],
+ "paar 27-4": [[2,16,0],[1,16,0,1]],
+ "paar 27-5": [[2,16,0],[1,16,0,1]],
+ "paar 27-6": [[2,16,0],[1,16,0,2]],
+ "paar 27-7": [[2,16,0],[1,16,0,3]],
+ "paar 27-8": [[2,16,0],[1,16,0,3]],
+ "paar 27-9": [[2,16,0],[1,16,0,4]],
+ "paar 27-10": [[2,16,0],[1,16,0,5]],
+ "paar 27-11": [[2,16,0],[1,16,0,5]],
+ "paar 27-12": [[2,16,0],[1,16,0,6]],
+ "paar 27-13": [[2,16,0],[1,16,0,7]],
+ "paar 27-14": [[2,16,0],[1,16,0,7]],
+ "paar 27-15": [[2,16,0],[1,16,0,8]],
+ "paar 27-16": [[2,16,0],[1,16,0,9]],
+ "paar 27-17": [[2,16,0],[1,16,0,9]],
+ "paar 27-18": [[2,16,0],[1,16,0,10]],
+ "paar 27-19": [[2,16,0],[1,16,0,21]],
+ "paar 27-20": [[2,16,0],[1,16,0,21]],
+ "paar 27-21": [[2,16,0],[1,16,0,22]],
+ "paar 27-22": [[2,16,0],[1,16,0,23]],
+ "paar 27-23": [[2,16,0],[1,16,0,23]],
+ "paar 27-24": [[2,16,0],[1,16,0,24]],
+ "paar 27-25": [[2,16,0],[1,16,0,15]],
+ "paar 27-26": [[2,16,0],[1,16,0,16]],
+ "paar 27-27": [[2,16,0],[2,0,16,0]],
+ "paar 27-28": [[2,16,0],[1,16,0,16]],
+ "paar 27-29": [[2,16,0],[2,0,16,0]],
+ "paar 27-30": [[2,16,0],[1,16,0,1]],
+ "paar 27-31": [[2,16,0],[0,16,0]],
+ "paar 28-1": [[1,16],[0,16]],
+ "paar 28-2": [[1,16],[0,16]],
+ "paar 28-3": [[1,16],[1,16,0]],
+ "paar 28-4": [[1,16],[1,16,1]],
+ "paar 28-5": [[1,16],[1,16,1]],
+ "paar 28-6": [[1,16],[1,16,2]],
+ "paar 28-7": [[1,16],[1,16,3]],
+ "paar 28-8": [[1,16],[1,16,3]],
+ "paar 28-9": [[1,16],[1,16,4]],
+ "paar 28-10": [[1,16],[1,16,5]],
+ "paar 28-11": [[1,16],[1,16,5]],
+ "paar 28-12": [[1,16],[1,16,6]],
+ "paar 28-13": [[1,16],[1,16,7]],
+ "paar 28-14": [[1,16],[1,16,7]],
+ "paar 28-15": [[1,16],[1,16,8]],
+ "paar 28-16": [[1,16],[1,16,9]],
+ "paar 28-17": [[1,16],[1,16,9]],
+ "paar 28-18": [[1,16],[1,16,10]],
+ "paar 28-19": [[1,16],[1,16,21]],
+ "paar 28-20": [[1,16],[1,16,21]],
+ "paar 28-21": [[1,16],[1,16,22]],
+ "paar 28-22": [[1,16],[1,16,23]],
+ "paar 28-23": [[1,16],[1,16,23]],
+ "paar 28-24": [[1,16],[1,16,24]],
+ "paar 28-25": [[1,16],[1,16,15]],
+ "paar 28-26": [[1,16],[1,16,16]],
+ "paar 28-27": [[1,16],[2,16,16,0]],
+ "paar 28-28": [[1,16],[1,16,16]],
+ "paar 28-29": [[1,16],[2,16,16,0]],
+ "paar 28-30": [[1,16],[1,16,1]],
+ "paar 28-31": [[1,16],[0,16]],
+ "paar 29-1": [[2,16,0],[0,16,0]],
+ "paar 29-2": [[2,16,0],[0,16,0]],
+ "paar 29-3": [[2,16,0],[1,16,0,0]],
+ "paar 29-4": [[2,16,0],[1,16,0,1]],
+ "paar 29-5": [[2,16,0],[1,16,0,1]],
+ "paar 29-6": [[2,16,0],[1,16,0,2]],
+ "paar 29-7": [[2,16,0],[1,16,0,3]],
+ "paar 29-8": [[2,16,0],[1,16,0,3]],
+ "paar 29-9": [[2,16,0],[1,16,0,4]],
+ "paar 29-10": [[2,16,0],[1,16,0,5]],
+ "paar 29-11": [[2,16,0],[1,16,0,5]],
+ "paar 29-12": [[2,16,0],[1,16,0,6]],
+ "paar 29-13": [[2,16,0],[1,16,0,7]],
+ "paar 29-14": [[2,16,0],[1,16,0,7]],
+ "paar 29-15": [[2,16,0],[1,16,0,8]],
+ "paar 29-16": [[2,16,0],[1,16,0,9]],
+ "paar 29-17": [[2,16,0],[1,16,0,9]],
+ "paar 29-18": [[2,16,0],[1,16,0,10]],
+ "paar 29-19": [[2,16,0],[1,16,0,21]],
+ "paar 29-20": [[2,16,0],[1,16,0,21]],
+ "paar 29-21": [[2,16,0],[1,16,0,22]],
+ "paar 29-22": [[2,16,0],[1,16,0,23]],
+ "paar 29-23": [[2,16,0],[1,16,0,23]],
+ "paar 29-24": [[2,16,0],[1,16,0,24]],
+ "paar 29-25": [[2,16,0],[1,16,0,15]],
+ "paar 29-26": [[2,16,0],[1,16,0,16]],
+ "paar 29-27": [[2,16,0],[2,0,16,0]],
+ "paar 29-28": [[2,16,0],[1,16,0,16]],
+ "paar 29-29": [[2,16,0],[2,0,16,0]],
+ "paar 29-30": [[2,16,0],[1,16,0,1]],
+ "paar 29-31": [[2,16,0],[0,16,0]],
+ "paar 30-1": [[1,1],[0,1]],
+ "paar 30-2": [[1,1],[0,1]],
+ "paar 30-3": [[1,1],[1,1,0]],
+ "paar 30-4": [[1,1],[1,19]],
+ "paar 30-5": [[1,1],[1,19]],
+ "paar 30-6": [[1,1],[1,1,2]],
+ "paar 30-7": [[1,1],[1,1,3]],
+ "paar 30-8": [[1,1],[1,1,3]],
+ "paar 30-9": [[1,1],[1,1,4]],
+ "paar 30-10": [[1,1],[1,1,5]],
+ "paar 30-11": [[1,1],[1,1,5]],
+ "paar 30-12": [[1,1],[1,1,6]],
+ "paar 30-13": [[1,1],[1,1,7]],
+ "paar 30-14": [[1,1],[1,1,7]],
+ "paar 30-15": [[1,1],[1,1,8]],
+ "paar 30-16": [[1,1],[1,1,9]],
+ "paar 30-17": [[1,1],[1,1,9]],
+ "paar 30-18": [[1,1],[1,1,10]],
+ "paar 30-19": [[1,1],[1,1,21]],
+ "paar 30-20": [[1,1],[1,1,21]],
+ "paar 30-21": [[1,1],[1,1,22]],
+ "paar 30-22": [[1,1],[1,1,23]],
+ "paar 30-23": [[1,1],[1,1,23]],
+ "paar 30-24": [[1,1],[1,1,24]],
+ "paar 30-25": [[1,1],[1,1,15]],
+ "paar 30-26": [[1,1],[1,1,16]],
+ "paar 30-27": [[1,1],[2,1,16,0]],
+ "paar 30-28": [[1,1],[1,1,16]],
+ "paar 30-29": [[1,1],[2,1,16,0]],
+ "paar 30-30": [[1,1],[1,19]],
+ "paar 30-31": [[1,1],[0,1]],
+ "paar 31-1": [[0],[0]],
+ "paar 31-2": [[0],[0]],
+ "paar 31-3": [[0],[1,0]],
+ "paar 31-4": [[0],[1,1]],
+ "paar 31-5": [[0],[1,1]],
+ "paar 31-6": [[0],[1,2]],
+ "paar 31-7": [[0],[1,3]],
+ "paar 31-8": [[0],[1,3]],
+ "paar 31-9": [[0],[1,4]],
+ "paar 31-10": [[0],[1,5]],
+ "paar 31-11": [[0],[1,5]],
+ "paar 31-12": [[0],[1,6]],
+ "paar 31-13": [[0],[1,7]],
+ "paar 31-14": [[0],[1,7]],
+ "paar 31-15": [[0],[1,8]],
+ "paar 31-16": [[0],[1,9]],
+ "paar 31-17": [[0],[1,9]],
+ "paar 31-18": [[0],[1,10]],
+ "paar 31-19": [[0],[1,21]],
+ "paar 31-20": [[0],[1,21]],
+ "paar 31-21": [[0],[1,22]],
+ "paar 31-22": [[0],[1,23]],
+ "paar 31-23": [[0],[1,23]],
+ "paar 31-24": [[0],[1,24]],
+ "paar 31-25": [[0],[1,15]],
+ "paar 31-26": [[0],[1,16]],
+ "paar 31-27": [[0],[2,16,0]],
+ "paar 31-28": [[0],[1,16]],
+ "paar 31-29": [[0],[2,16,0]],
+ "paar 31-30": [[0],[1,1]],
+ "paar 31-31": [[0],[0]],
+ "reeks 27-2-29": [[2,16,0],[0,16,0],[2,0,16,0]],
+ "reeks 27-29-3-2": [[2,16,0],[2,0,16,0],[1,16,0,0],[0,16,0,0]]
+}
 }

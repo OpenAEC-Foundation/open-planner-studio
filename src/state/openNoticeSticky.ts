@@ -53,7 +53,6 @@ export const STICKY_OPEN_NOTICE_KEYS: ReadonlySet<string> = new Set<Notification
   'notifications.xerArchiveUnusableLine',
   'notifications.xerArchiveUnusable',
   'notifications.ifcForeignOpenLarge',
-  'notifications.ifcForeignWorkPlansMerged',
   // Alle formaten: dubbele id's hernummerd, relaties die niet meerekenen.
   'notifications.duplicateIdsRenamed',
   'notifications.summaryRelationsDropped',

@@ -225,7 +225,7 @@ export function NotificationHost() {
           {n.detailKey
             ? <div className="ops-toast-detail">{t(n.detailKey, { ...n.detailParams })}</div>
             : n.detail && <div className="ops-toast-detail">{n.detail}</div>}
-          {n.detailLines?.map((line, index) => (
+          {[...(n.detailLines ?? []), ...(n.addedLines ?? [])].map((line, index) => (
             <div className="ops-toast-detail" key={`${line.messageKey}-${index}`} data-ops-toast-detail={line.messageKey}>
               {notificationDetailText(t, {
                 ...line, params: { ...line.params, ...localizedNumberParams(line.numberParams, i18n.language) },
