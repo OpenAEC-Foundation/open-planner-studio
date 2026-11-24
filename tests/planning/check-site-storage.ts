@@ -876,6 +876,23 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
     f.versions.pop();
     useAppStore.setState((st) => { st.ui.pendingFormatNotice = null; });
   }
+  {
+    const tabY = S().getOpenDocumentPayloads().find((d) => d.payload.siteFileId === 'y')!.id;
+    S().switchDocument(tabB);
+    site.otherUserSaves('y');
+    await S().openFromSite('y');
+    const shown = [S().activeDocumentId === tabY, changedOnDiskShown(S())];
+    await S().loadNewVersion();
+    const asked = S().ui.pendingCloseDocId === tabY;
+    if (asked) {
+      await S().loadNewVersionAfterDiscard();
+      S().setUI({ pendingCloseDocId: null });
+    }
+    const latest = site.latest(site.files.get('y')!).version;
+    eq('G21 (#1201) Nieuwe versie laden op de site: de nieuwste versie in een tabblad met hetzelfde id, die versie als basis, de strook weg', [
+      shown, S().documents.some((d) => d.id === tabY), S().siteFileId, S().siteFileVersion === latest, changedOnDiskShown(S()),
+    ], [[true, true], false, 'y', true, false]);
+  }
   setSiteOpenAsker(async () => ({ kind: 'site', id: 'y', version: 'v1', copyName: 'Eén (versie v1)' }));
   const countCopy = S().documents.length;
   await S().openFile();

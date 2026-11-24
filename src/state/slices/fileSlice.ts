@@ -107,7 +107,7 @@ import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
-import { launchTabFor, openTabFor, readVersionOf, startOpenLookup, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
+import { launchTabFor, openTabFor, readVersionOf, startOpenLookup, switchToOpenDocument, versionMatches, type OpenLookup } from '../openDocumentFor';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -1110,7 +1110,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const s = get();
     const fields = s.activeDocumentId === documentId ? s : s.documents.find((d) => d.id === documentId)?.payload;
     const now = fields ? saveTargetRef(fields) : null;
-    return ifcForeignContentEnabled(s.ui.featureFlags) && hasChangedOnDisk(s, documentId) && !!now && sameFileRef(now, ref);
+    return hasChangedOnDisk(s, documentId) && !!now && sameFileRef(now, ref);
   };
 
   const readNewVersion = async (ref: FileRef, labels?: ImportLabels): Promise<Omit<PreparedNewVersion, 'documentId' | 'ref'> | null> => {
@@ -2568,6 +2568,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (!read) return;
         await waitForSavesBeforeNewVersion();
         if (!newVersionStillApplies(documentId, ref) || isBlockingDialogOpen(get().ui)) return;
+        const fields = get().activeDocumentId === documentId ? get() : get().documents.find((d) => d.id === documentId)?.payload;
+        if (fields && versionMatches(fields, readVersionOf(ref, read.parsed, read.siteFileVersion)) === true) {
+          get().forgetChangedOnDisk(documentId);
+          return;
+        }
         const prepared: PreparedNewVersion = { documentId, ref, ...read };
         get().requestCloseDocument(documentId);
         if (!get().documents.some((d) => d.id === documentId)) {

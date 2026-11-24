@@ -265,6 +265,16 @@ try {
     ], [[false, true, route === 'knop'], true, false]);
   }
 
+  for (const dirty of [false, true]) {
+    const { st, T, a } = await setup(dirty);
+    writeFileSync(kantoor, kantoorIfc);
+    const count = T().documents.length;
+    await T().loadNewVersion(labels);
+    eq(`N12 (2048) ${dirty ? 'gewijzigd' : 'schoon'} tabblad: op schijf staat de versie die het tabblad kent ⇒ alleen de strook weg, geen vraag`, [
+      has(st, a), T().activeDocumentId === a, T().documents.length - count, names(st), changedOnDiskShown(T()), T().ui.pendingCloseDocId,
+    ], [true, true, 0, dirty ? ['Fundering', 'Eigen werk'] : ['Fundering'], false, null]);
+  }
+
   {
     const { st, T, a } = await setup(false);
     T().setUI({ featureFlags: {} });
