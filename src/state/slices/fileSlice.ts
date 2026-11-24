@@ -71,7 +71,7 @@ import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { ensureUniqueImportIds } from '@/services/importNormalize';
 import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload, type TargetFingerprint } from '../documentContract';
-import { checkKnownTarget, guardedKnownTarget, type KnownTargetState } from '../knownTargetGuard';
+import { checkKnownTarget, guardedKnownTarget, type KnownTargetCheck, type KnownTargetState } from '../knownTargetGuard';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
@@ -1111,10 +1111,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const app = get();
     return { featureFlags: app.ui.featureFlags, known: saveSourceForDocument(app, documentId)?.knownTargetFingerprint ?? null };
   };
-  const knownTargetReaders = async (documentId: string, ref: FileRef, known: TargetFingerprint): Promise<(() => TargetReaders) | null> => {
-    const checked = await checkKnownTarget(() => knownTargetOf(documentId), known, ref, writeTargetReaders);
-    if (checked.change) get().notify(ownTargetContentNotice(checked.change));
-    return checked.change ? null : checked.readers;
+  const refuseChangedKnownTarget = (checked: KnownTargetCheck | null): boolean => {
+    const change = checked?.change() ?? null;
+    if (change) get().notify(ownTargetContentNotice(change));
+    return change !== null;
   };
 
   const replaceOwnHandle = async (
@@ -1322,9 +1322,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, 'merge'));
       if (!write || refuseChangedDocumentWrite(state, write)) return false;
       const known = ref && !handleRefused && !write.prepared ? guardedKnownTarget(knownTargetOf(documentId), ref) : null;
-      const readers = ref && known ? await knownTargetReaders(documentId, ref, known) : writeTargetReaders;
-      if (!readers) return false;
-      if (ref && await documentTargetCheck(state, write, true, { readers })(ref)) return false;
+      const checked = ref && known ? await checkKnownTarget(() => knownTargetOf(documentId), known, ref, writeTargetReaders) : null;
+      if (ref && await documentTargetCheck(state, write, true, { readers: checked?.readers ?? writeTargetReaders })(ref)) return false;
       if (ownHandle && write.prepared) return await replaceOwnHandle(documentId, state, write.prepared, write, ownHandle, failureNoticeKey);
       if (ownPath) return write.prepared ? await replaceOwnPath(documentId, state, write.prepared, write, ownPath, failureNoticeKey) : false;
       if (ref?.kind === 'site' && siteStorageAvailable()) {
@@ -1350,6 +1349,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       if (ref && !handleRefused && !(write.prepared && ref.kind === 'handle')) {
         try {
+          if (refuseChangedKnownTarget(checked)) return false;
           if (refuseChangedDocumentWrite(state, write)) return false;
           const last = lastWriteCheck(state, write);
           const hashing = writtenFingerprint(state.ui.featureFlags, write);

@@ -378,10 +378,6 @@ export function createFileAutoSaveController(deps: {
       // wordt niet overschreven. Eén doelscan; daarna beslist alleen nog de synchrone inhoudscontrole hieronder.
       const known = guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
       const checked = known ? await checkKnownTarget(() => knownTargetOf(candidate.id), known, candidate.ref!, targetDeps.readers) : null;
-      if (checked?.change) {
-        stopFor(candidate.id, candidate.ref!, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE, known);
-        return 'refused';
-      }
       const reason = await refusedWriteTarget(getState(), candidate.ref!, checked ? { ...targetDeps, readers: checked.readers } : targetDeps);
       if (reason) {
         refusedTarget.set(candidate.id, { ref: candidate.ref!, source: current.ifcSource, known: null });
@@ -390,6 +386,10 @@ export function createFileAutoSaveController(deps: {
           getState().notify(reason === 'unreadable-target'
             ? IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE : IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE);
         }
+        return 'refused';
+      }
+      if (checked?.change()) {
+        stopFor(candidate.id, candidate.ref!, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE, known);
         return 'refused';
       }
       rememberLiteralCalendarsWritten(current, output.literalCalendarIds);

@@ -827,7 +827,7 @@ await check('2203 C: een geopend bestand met twee datasecties (openen neemt het 
   } finally { ipc.dispose(); }
 });
 
-await check('2203 D: is de zelf geschreven versie vervangen door een even groot bestand met een muur, dan weigeren Ctrl+S en de ronde met "gewijzigd", zonder scan', async () => {
+await check('2203 D: is de zelf geschreven versie vervangen door een even groot bestand met een muur, dan weigeren Ctrl+S en de ronde zoals voor deze PR: de doelscan van het bestand ziet de muur', async () => {
   const ipc = desktop(), path = fileAt('muur.ifc', plainBytes());
   try {
     const { store } = await openAt({ kind: 'path', path }, plainBytes());
@@ -837,14 +837,14 @@ await check('2203 D: is de zelf geschreven versie vervangen door een even groot 
     const wall = wallOfSameSize(new Uint8Array(readFileSync(path)));
     writeFileSync(path, wall);
     edit(store);
-    const read = ipc.bytesRead();
     assert.equal(await ctrlS(store), false);
-    assert.deepEqual(errors(store), [CHANGED]);
-    assert.equal(ipc.bytesRead() - read, wall.byteLength, 'alleen de lezing van de vergelijking');
+    assert.deepEqual(errors(store), [FOREIGN_TARGET]);
     assert.deepEqual(onDisk(path), print(wall));
     await autoSave(store).flush();
     assert.deepEqual(onDisk(path), print(wall));
-    assert.equal(notices(store, AUTOSAVE_CHANGED), 1);
+    assert.equal(store.getState().isDirty, true);
+    assert.equal(notices(store, 'notifications.ifcForeignTargetAutoSave'), 1);
+    assert.equal(notices(store, AUTOSAVE_CHANGED), 0);
   } finally { ipc.dispose(); }
 });
 

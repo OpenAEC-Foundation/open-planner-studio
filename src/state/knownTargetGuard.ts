@@ -13,8 +13,8 @@ export interface KnownTargetState {
 }
 
 export interface KnownTargetCheck {
-  readonly change: KnownTargetChange | null;
   readonly readers: () => TargetReaders;
+  readonly change: () => KnownTargetChange | null;
 }
 
 export function guardedKnownTarget(state: KnownTargetState, ref: FileRef): TargetFingerprint | null {
@@ -24,14 +24,14 @@ export function guardedKnownTarget(state: KnownTargetState, ref: FileRef): Targe
 export async function checkKnownTarget(
   current: () => KnownTargetState, known: TargetFingerprint, ref: FileRef, readers: () => TargetReaders,
 ): Promise<KnownTargetCheck> {
-  if (ref.kind === 'site') return { change: null, readers };
+  if (ref.kind === 'site') return { readers, change: () => null };
   const read = await knownTargetContent(ref, known);
-  const stillKnown = guardedKnownTarget(current(), ref) === known;
+  const stillKnown = () => guardedKnownTarget(current(), ref) === known;
   if (read.content === 'same') {
-    return { change: null, readers: readersOfReadContent(read.bytes, stillKnown && known.origin === 'written', readers) };
+    return { readers: readersOfReadContent(read.bytes, stillKnown() && known.origin === 'written', readers), change: () => null };
   }
   const change = read.content === 'changed' || read.content === 'unreadable' ? read.content : null;
-  return { change: stillKnown ? change : null, readers };
+  return { readers, change: () => (change && stillKnown() ? change : null) };
 }
 
 function readersOfReadContent(bytes: Uint8Array, writtenByThisTab: boolean, readers: () => TargetReaders): () => TargetReaders {

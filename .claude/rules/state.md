@@ -115,12 +115,14 @@ vergelijkt het met de actuele waarde van het veld, niet die van de momentopname.
 flag uit, `null` of de site geeft `null`; dan leest de toets niets, wacht de aanroeper nergens op en loopt de bestaande
 doelcontrole met haar stroomscan, zoals main. Anders `checkKnownTarget`: een andere grootte is veranderd; dezelfde grootte
 is lezen en SHA-256 (`knownTargetContent` in `fileAccess`, dat bij gelijk ook de gelezen bytes teruggeeft); het bestand
-weg laat de bestaande doelcontrole beslissen. Na de lezing telt de uitkomst alleen als `guardedKnownTarget` nog dezelfde
-versie geeft (de flag ging niet uit); anders beslist de bestaande doelcontrole. Veranderd of onleesbaar: niet schrijven,
-zonder doelscan, de melding van een gebouwmodel (`ownTargetContentNotice`; Automatisch opslaan
-`MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE` en `stopFor` met die versie). Gelijk: de doelcontrole krijgt lezers van die ene
-lezing (`scanPath` en `scanHandle` in `TargetReaders`). Bij `'opened'` scant regel 2 van `refusedWriteTarget` dezelfde
-bytes; bij `'written'` vervalt die scan, regel 1 en 3 lopen wel. Dat mag omdat op het doel dan bewezen (grootte en SHA-256
+weg laat de bestaande doelcontrole beslissen. Veranderd of onleesbaar: eerst de bestaande doelcontrole met haar
+stroomscan, zoals in #1174 (een gebouwmodel of een onleesbaar doel houdt zo zijn eigen melding en stop); weigert die niet,
+dan niet schrijven met de melding van een gebouwmodel (`ownTargetContentNotice`; Automatisch opslaan
+`MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE` en `stopFor` met die versie). Die weigering telt alleen als `guardedKnownTarget` na
+de doelcontrole nog dezelfde versie geeft (de flag ging niet uit; `KnownTargetCheck.change()`). Gelijk: de doelcontrole
+krijgt lezers van die ene lezing (`scanPath` en `scanHandle` in `TargetReaders`). Bij `'opened'` scant regel 2 van `refusedWriteTarget` dezelfde
+bytes; bij `'written'`, en alleen als `guardedKnownTarget` direct na de lezing nog dezelfde versie geeft, vervalt die
+scan; regel 1 en 3 lopen wel. Dat mag omdat op het doel dan bewezen (grootte en SHA-256
 uit deze beurt) de bytes staan die dit tabblad zelf schreef: bij een gewone planning haar eigen planning, of na een export
 over het eigen bestand de planning of bibliotheek van dit document (een document met een vreemd deel exporteert nooit
 over zijn eigen bestand: dat is zijn bron, regel 1). Een document met een vreemd deel komt hier niet langs: zijn opslag
