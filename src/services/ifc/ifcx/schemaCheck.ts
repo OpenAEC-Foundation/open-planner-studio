@@ -1,3 +1,4 @@
+import { hasKey } from './fieldTable';
 import { isOwnAttributeName, ownSchemas } from './ownAttributes';
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -37,9 +38,9 @@ function problemIn(description: unknown, value: unknown, at: string): string | u
       if (!isPlainObject(value)) return expected('een object');
       const values = isPlainObject(description.objectRestrictions) ? description.objectRestrictions.values : undefined;
       if (!isPlainObject(values)) return `${at}: Object zonder objectRestrictions`;
-      for (const key of Object.keys(value)) if (!Object.hasOwn(values, key)) return `${at}.${key}: veld staat niet in het schema`;
+      for (const key of Object.keys(value)) if (!hasKey(values, key)) return `${at}.${key}: veld staat niet in het schema`;
       for (const [key, member] of Object.entries(values)) {
-        if (!Object.hasOwn(value, key)) {
+        if (!hasKey(value, key)) {
           if (isPlainObject(member) && member.optional === true) continue;
           return `${at}.${key}: verplicht veld ontbreekt`;
         }

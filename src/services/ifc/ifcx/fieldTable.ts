@@ -93,6 +93,10 @@ export type IfcxValueProblem =
   | { readonly kind: 'unknown-field'; readonly field: string }
   | { readonly kind: 'invalid'; readonly field: string; readonly detail: string };
 
+export function hasKey(object: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(object, key);
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -141,11 +145,11 @@ function problemOf(spec: IfcxValue, value: unknown): Problem | undefined {
     case 'Object': {
       if (!isPlainObject(value)) return invalidValue(`verwacht een object, gevonden ${found()}`);
       for (const key in value) {
-        if (!Object.hasOwn(spec.members, key)) return { kind: 'unknown-field', path: [key], detail: 'onbekend veld' };
+        if (!hasKey(spec.members, key)) return { kind: 'unknown-field', path: [key], detail: 'onbekend veld' };
       }
       for (const key in spec.members) {
         const member = spec.members[key];
-        if (!Object.hasOwn(value, key)) {
+        if (!hasKey(value, key)) {
           if (member.optional) continue;
           return { kind: 'invalid', path: [key], detail: 'ontbreekt' };
         }
