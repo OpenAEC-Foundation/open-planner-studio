@@ -298,6 +298,7 @@ export type NotificationMessageKey =
   | 'notifications.siteFileGone'
   // De site gaf de nieuwste versie als alleen-lezen (#818): geopend zonder opslagdoel. Parameter `name`.
   | 'notifications.siteFileReadOnly'
+  | 'notifications.newVersionSiteReadOnly'
   | 'notifications.librarySaveFailed'
   | 'notifications.savedViaDownload'
   // Opslaan in een browser die niet terugschrijft — zie `browserSaveNotice.ts` (één keer per sessie).
