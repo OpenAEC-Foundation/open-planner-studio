@@ -743,6 +743,17 @@ en noem het in je rapport of PR-tekst.
      relatielogica, een statusdatum op donderdag 13:00 en acht uur restwerk: de SF-relatie verschoof de finish van
      vrijdag 12:00 naar vrijdag 17:00, terwijl de SF-eis op maandag 13:00 lag. Zie ADR 0275. — B
 
+2322. **De belasting van opgeslagen werk kan bij een gestarte dagtaak meer werk tellen dan verricht plus resterend.**
+     `assignmentDayUnits` (`src/engine/scheduler/ResourceLoad.ts`) leidt bij een toewijzing met `remainingWorkMinutes`
+     en zonder `actualWorkMinutes` het verrichte deel af als de duur min `remainingDaysOf`. Die functie rondt zonder
+     `remainingTime` de rest `scheduleDuration × (1 − completion)` af op hele dagen (en een urentaak zonder
+     `remainingMinutes` op hele minuten); de solver en `remainingMinutesOf` (`workRuleApply.ts`) ronden niet af. Een
+     proef met `assignmentDayUnits`: een dagtaak van 5 dagen uit `createDefaultTaskTime`, `completion` 0,32,
+     `actualStart` gezet, geen `remainingTime`, inzet 1, `remainingWorkMinutes` 1632 (3,4 dagslots van 480 minuten)
+     en geen `actualWorkMinutes` gaf een som van 5,4 dagslots in plaats van 5. Met `remainingTime` 3,4 of met
+     `actualWorkMinutes` 768 was de som 5. Op een kalender met werkblokken houdt `assignmentPlacementLoad` bij
+     opgeslagen werk het totaal van die dagslots (gelezen, niet nagespeeld). — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
