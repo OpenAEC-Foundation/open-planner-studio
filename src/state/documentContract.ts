@@ -1,5 +1,5 @@
-import { assertMinuteModelTaskDates, migrateToMinuteModel } from './migrations/minuteModel';
-import { hasTaskTypeData } from '@/state/taskTypesVisibility';
+import { assertMinuteModelTaskDates } from './migrations/minuteModel';
+import { documentDataFromImport } from '@/services/documentData';
 import type { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
@@ -11,7 +11,8 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { normalizeComparedBaselines, noComparedBaselines, type Baseline, type ComparedBaselineIds } from '@/types/baseline';
-import type { ImportResult, RecordedTimesOrigin } from '@/services/importTypes';
+export { isFreshImportOrigin } from '@/services/documentData';
+import type { ImportResult } from '@/services/importTypes';
 import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
@@ -538,47 +539,5 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
  *  worden overgenomen; selectie/cpm/history/scheduleStale starten vers. `view`/`collapsedTaskIds`
  *  vult de aanroeper (`applyLoadedProject` behoudt die van het huidige document — load-semantiek). */
 export function payloadFromImport(parsed: ImportResult, filePath: string | null): DocumentPayload {
-  const payload: DocumentPayload = {
-    ...freshPayload(),
-    project: parsed.project,
-    calendar: parsed.calendar,
-    tasks: parsed.tasks,
-    sequences: parsed.sequences,
-    resources: parsed.resources,
-    assignments: parsed.assignments,
-    calendars: parsed.resourceCalendars ?? [],
-    activityCodeTypes: parsed.activityCodeTypes ?? [],
-    customFieldDefs: parsed.customFieldDefs ?? [],
-    customTaskTypes: parsed.customTaskTypes ?? [],
-    baselines: parsed.baselines ?? [],
-    activeBaselineId: parsed.activeBaselineId ?? null,
-    comparedBaselineIds: normalizeComparedBaselines(parsed.comparedBaselineIds, parsed.baselines ?? [], parsed.activeBaselineId ?? null),
-    xerImportMetadata: parsed.xer ?? null,
-    xerSourceArchive: parsed.xerSourceArchive ?? null,
-    xerSourceProjectId: parsed.xer?.sourceProjectId ?? parsed.xerSourceProjectId ?? null,
-    ifcSource: parsed.ifcSource ?? null,
-    // Het kenmerk zet `applyLoadedProject` (hij kent het doel) of `payloadFromInput` (herstel).
-    foreignSourceMark: null,
-    // Het geladen bestand ontsluit de werkregel-UI voor zichzelf.
-    taskTypesVisible: hasTaskTypeData(parsed.tasks, parsed.assignments, parsed.project),
-    // Een VERSE import (xer/p6xml/mspdi/mpp/csv/ifc-uit-ander-pakket) is
-    // per definitie ongewijzigd; een HEROPENING (eigen IFC: 'ifc-own'/'xer-archive') draagt de
-    // vlag alleen als het bestand haar zelf zegt (`OPS_ImportProvenance`), anders `false`. Zonder
-    // herkomst (extensie-importer) `false`: nooit een gok richting automatisch aan.
-    importPristine: parsed.importPristine ?? isFreshImportOrigin(parsed.recordedTimesOrigin),
-    xerArchiveIssue: parsed.xerArchiveIssue ?? null,
-    ifcGlobalIds: parsed.ifcGlobalIds ?? null,
-    ifcLiteralCalendarIds: parsed.ifcLiteralCalendarIds ?? null,
-    filePath,
-    isDirty: false,
-  };
-  const migrated = migrateToMinuteModel(payload, { timeModel: parsed.timeModel, milestonesAtDayEnd: parsed.milestonesAtDayEnd });
-  return { ...migrated.payload, minuteModelPending: migrated.report.conversionPending };
-}
-
-/** Zie `ImportResult.recordedTimesOrigin`: verse import (automatisch aan bij afwijkingen) versus
- *  heropening van een eigen IFC (automatisch aan bij `importPristine` of opslaan in de modus). Eén definitie,
- *  gedeeld door `payloadFromImport` en `applyRecordedDatesOnLoad`. */
-export function isFreshImportOrigin(origin: RecordedTimesOrigin | undefined): boolean {
-  return origin === 'xer' || origin === 'p6xml' || origin === 'mspdi' || origin === 'mpp' || origin === 'csv' || origin === 'ifc';
+  return { ...freshPayload(), ...documentDataFromImport(parsed), filePath, isDirty: false };
 }

@@ -1,7 +1,6 @@
 import type { WriteIFCInput } from '../ifcWriter';
 import type { ImportResult } from '@/services/importTypes';
-import { payloadFromImport } from '@/state/documentContract';
-import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { buildWriteIFCInput, documentDataFromImport } from '@/services/documentData';
 import { checkValue } from './fieldTable';
 import { identityProblems, intendedGlobalIds, type GlobalIdOfObject, type PlanningModel } from './identity';
 import { HEADER_VALUE } from './ownAttributes';
@@ -97,5 +96,5 @@ export function ownFileFor(given: WriteIFCInput, writtenAt: Date, attributeValue
 }
 
 export function savedAfterOpening(read: ImportResult): WriteIFCInput {
-  return buildWriteIFCInput(payloadFromImport(structuredClone(read), null), 'planOnly');
+  return buildWriteIFCInput(documentDataFromImport(structuredClone(read)), 'planOnly');
 }

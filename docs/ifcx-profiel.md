@@ -328,7 +328,8 @@ de uurmaat uit de minuten, de voortgang en status uit de werkelijke datums, een 
 2. **Het model** uit de precieze kant, met de afleiding die het bestand niet draagt (de dagwaarden van een uurtaak, de
    status, de ingevulde tijdvelden).
 3. **R4**: de lezer zet het gelezen model door de laadgrens en de opslaginvoer van de app (`savedAfterOpening`:
-   `payloadFromImport`, daarna `buildWriteIFCInput`), en geeft dat aan dezelfde functie als `writeIfcx`
+   `documentDataFromImport`, daarna `buildWriteIFCInput`, allebei in `src/services/documentData.ts`, dezelfde functies
+   als openen en opslaan in de app), en geeft dat aan dezelfde functie als `writeIfcx`
    (`ownFileFor` in `ownFile.ts`: R0, de STEP-rondgang, de planning na heropenen, de weigering van wat de kern nog niet
    draagt, de projectie en de waardetoets). Daarna vergelijkt hij het resultaat met het bestand: de kop (`id`,
    `ifcxVersion`, `dataVersion`, `author`), de schema's, en elk object in volgorde, elk attribuut, gedeeld en precies,
