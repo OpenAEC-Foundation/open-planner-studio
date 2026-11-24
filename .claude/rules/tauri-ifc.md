@@ -172,7 +172,10 @@ resourcebibliotheek en Automatisch opslaan naar het bestand. Headless-, scratch-
 uit de worker; die gaan rechtstreeks naar de schrijflaag (`FileData`: `saveDataDialog`, `saveToRef`,
 `saveToRefWithoutPrompt`, de site), nooit eerst naar tekst. Tekst bestaat alleen als de hoofdthread rekende (de worker
 startte niet). De gewone writer houdt zijn recht op overschrijven (`saveFileDialog`/`saveBytesDialog`, de atomaire
-opslag); `saveNewBytesDialog` blijft de exclusieve route van de merge. Heen gaat de bron als kopie, terug de uitvoerbuffers overgedragen (`ifcSaveProtocol.ts`); een inhoudelijke
+opslag); `saveNewBytesDialog` blijft de exclusieve route van de merge. Met de flag `ifcForeignContent` vraagt een
+documentopslag (Ctrl+S, Opslaan als, Automatisch opslaan; geen export) in de writer-job ook de SHA-256 van de bytes
+(`hashBytes`, `documentSaveCompute`); het antwoord draagt dan `sha256` en `resultFits` eist hem, en weigert hem zonder
+vraag. Met de flag uit zijn verzoek en antwoord gelijk aan die van vóór de vraag (de versie op het eigen doel, `state.md`). Heen gaat de bron als kopie, terug de uitvoerbuffers overgedragen (`ifcSaveProtocol.ts`); een inhoudelijke
 fout komt aan als dezelfde foutsoort, een transportfout als `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). Meldt de
 worker geen `started` binnen de vaste starttijd (10 s, voor elke worker dezelfde), dan startte hij niet. Een gewoon verzoek
 rekent dan op de hoofdthread, zoals op main, en gewone verzoeken blijven daar de rest van de sessie; staat de flag de hele
@@ -290,21 +293,45 @@ projectgroepen (taken, relaties, kalenders, resources). De oude verklaringen (li
 is PR B van stap 5 deel 2, geparkeerd (knownbug 1953). Proef:
 `check-ifc-foreign-eigen-toets.ts`; de verliescontrole los op een nagebootste fout in O1: `lossProbe` in `ifcMergeKern.ts`.
 
+### Koppelingen taak↔bouwdeel (#804 fase 2, `elementLinks`)
+
+`ifcSource.elementLinks` (ontwerp §4.6) is een afgeleide, alleen-lezen weergave per taak-id: `{ direction, target, found }[]`,
+geen domein- en geen documentveld, als `Map` (veilig voor elke taak-id, ook na het klonen in een Worker).
+`foreign/elementLinks.ts` leest de koppelingen uit een `StepIndex` (`scanElementLinks`), alleen op twee plekken: bij openen
+(`scanForeignToOpen`, in de Worker via een verzoek met `open: true`) en voor de bron die de writer teruggeeft
+(`writtenSource` in `mergeWriter.ts`, uit de index die daar al is). `scanForeign` en `foreignScanFrom` (doelcontrole, ook
+headless, en de interne scans van de merge) verzamelen ze niet. `IfcRelAssignsToProcess` met een `IfcTask` als relating
+geeft `input` naar elk lid met een modeltype (`IFC_BUILDING_MODEL_TYPES`); een ontbrekend lid telt daar niet, want het kan
+ook een resource zijn. `IfcRelAssignsToProduct` geeft `output` aan elk `IfcTask`-lid; staat het doel daar niet in het
+bestand, dan is het `found: false` met `target` = `#<id>`. Een bestaand doel zonder modeltype (een resource, een
+kostenpost) is geen koppeling; een complexe instantie ook niet (knownbug 2216). De scan levert ze op STEP-id;
+`elementLinksByTask` deelt ze in één keer in (één `Set` op taak, richting en doel, in de volgorde van de bron) met de kaart
+domein-id → `#id`: bij openen die van de lezer (`ifcBytesRoute.ts`), na een merge die van de writer (§4.8), nooit met
+domein-ids van een nieuwe indeling. De opslagworker eist die vorm (`resultFits`). Niet via `parseSTEP` van de lezer: de doelen zijn V en staan niet in de
+tekst die de lezer krijgt. De app schrijft niets aan de koppelingen; de A-stukken blijven bytegelijk. Het taakpaneel
+(`TaskElementLinksNotice`) en `planner_get_task` lezen ze alleen met de flag aan, via `state/taskElementLinks.ts`; een
+bouwdeel dat zowel invoer als uitvoer is, telt één keer. IFCX (§6.4) hoort bij fase 3 en 4. Proeven:
+`check-ifc-element-links.ts`, `tests/mcp/cases-element-links.ts` en de stap met `bonsai-4d.ifc` in `settings-tabs.spec.ts`.
+
 ### Ongebruikte sleutels in `OPS_Assignments` (#804 fase 2, PR 3)
 
 Een sleutel in GlobalId-vorm (`isAssignmentKeyName` in `src/services/ifc/assignmentKeys.ts`, ook de herkenner achter
 `isOwnAssignmentKey` in `classify.ts`) die de lezer aan geen toewijzing koppelt, is ongebruikt: meer `#n`-sleutels dan
 toewijzingen van die resource, een kale sleutel naast genoeg `#n`-sleutels, of een waarde die geen tekst is.
-`extractAssignments` meldt ze via `unusedAssignmentKeysOut`; de bytes-route zet ze in `ifcSource.unusedKeys` (taak-`#id`
-met de property-`#id`'s, in psetvolgorde). Alleen de merge schrijft ze terug: `unusedKeysForWriter`
+`extractAssignments` meldt ze via `unusedAssignmentKeysOut`. De bytes-route vraagt daar alleen om bij een vreemd deel
+(`C + A + V > 0`) en zet ze dan in `ifcSource.unusedKeys` (taak-`#id` met de property-`#id`'s, in psetvolgorde); een eigen
+bestand krijgt hetzelfde leesresultaat als op main. Alleen de merge schrijft ze terug: `unusedKeysForWriter`
 (`foreign/unusedKeys.ts`) leest naam en waardetoken uit de bron, en `writeAssignmentMeta` schrijft ze na de eigen sleutels,
 met de namen van `unusedAssignmentKeyNames`: een `#n` onder de nummers die de writer zelf schrijft, schuift naar het
-eerste vrije nummer erboven, zodat de wachtrij van de lezer niet verschuift; een kale sleutel houdt haar naam. Heeft de
-taak geen toewijzingen meer, dan krijgt ze een pset met alleen deze sleutels. `unusedKeysProblem` in `checkedBytes` eist
-per bestaande taak dezelfde waarden in de herlezing van de uitvoer (anders `uitvoer-controle`); de nieuwe bron neemt de
-lijst uit die herlezing. Een gewiste taak neemt haar sleutels mee; melding en `detached` volgen in PR 6 en 7. Zonder vreemd
-deel schrijft de gewone writer ze niet, zoals op main; een paar bronvormen weigeren nog (knownbug 2210). Proef:
-`check-ifc-foreign-ongebruikte-sleutels.ts`.
+eerste vrije nummer erboven, zodat de wachtrij van de lezer niet verschuift; een kale sleutel houdt haar naam. Dat vrije
+nummer slaat ook de namen van de vreemde leden van dezelfde pset over (`foreignAssignmentKeyNamesForWriter`), want een
+pset met twee properties met dezelfde naam is ongeldige IFC. Heeft de taak geen toewijzingen meer, dan krijgt ze een pset
+met alleen deze sleutels. In `checkedBytes` eist `unusedKeysProblem` per bestaande taak in de herlezing van de uitvoer
+dezelfde waarden onder de namen die de regel geeft, en weigert `duplicateAssignmentKeyProblem` elke naam die in
+`OPS_Assignments` vaker voorkomt dan in de bron, ook een eigen sleutel naast een vreemd lid (beide `uitvoer-controle`).
+De nieuwe bron neemt de lijst uit die herlezing. Een gewiste taak neemt haar sleutels mee; melding en `detached` volgen
+in PR 6 en 7. Zonder vreemd deel schrijft de gewone writer ze niet, zoals op main; een paar bronvormen weigeren nog
+(knownbug 2210). Proef: `check-ifc-foreign-ongebruikte-sleutels.ts`.
 
 ### Onbekende JSON-sleutels (#804 fase 2, PR 4)
 

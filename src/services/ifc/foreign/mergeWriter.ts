@@ -49,10 +49,13 @@ import {
   changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, taskField,
   taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine,
 } from './lossCheck';
+import { elementLinksByTask, scanElementLinks } from './elementLinks';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource, PreparedIfcWrite, UnusedKeysOfTask } from './ifcSource';
-import { unusedKeysForWriter, unusedKeysFromRead, unusedKeysProblem } from './unusedKeys';
+import {
+  duplicateAssignmentKeyProblem, foreignAssignmentKeyNamesForWriter, unusedKeysForWriter, unusedKeysFromRead, unusedKeysProblem,
+} from './unusedKeys';
 import { jsonExtrasOf, jsonExtrasProblem, withJsonExtrasInDomain, writerKeyOfSeed } from './jsonExtrasSource';
 import { readFileSchemaName } from '../ifcReader';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
@@ -347,7 +350,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // De gewone writer blijft ongemoeid. Deze bestaande ingang levert met een leeg id-plan
     // dezelfde nummering vanaf 1 en de sessiekaart, zonder nieuwe indeling tot eigenaar te maken.
     const metadata = writeIfcMergeLines(input, { firstId: 1, keep: new Map(), reserved: new Set(), baselineHeads: new Map() });
-    const next = await writtenSource(input, bytes, scan, writerStepIds(input, metadata.idMap), classes, []);
+    const next = await writtenSource(input, bytes, index, scan, writerStepIds(input, metadata.idMap), classes, []);
     return { bytes, sha256: next.sha256, source: next, literalCalendarIds: written.literalCalendarIds };
   }
   const index = scanForeignStep(source.bytes);
@@ -380,7 +383,10 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   for (const i of cls.foreignOrigin) caseAt('vreemde-herkomst', i, `${label(i)} heeft de owner history van een ander programma`);
   const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
   const { keep, bySource, reserved, baselineHeads, projects } = ids;
-  const plan: WriterMergeIds = { ...ids.plan, unusedAssignmentKeys: unusedKeysForWriter(source, index), jsonExtras };
+  const plan: WriterMergeIds = {
+    ...ids.plan, unusedAssignmentKeys: unusedKeysForWriter(source, index),
+    foreignAssignmentKeyNames: foreignAssignmentKeyNamesForWriter(source, index), jsonExtras,
+  };
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
   // Een verstopt stuk vóór een P-stuk (#886): het commentaar ervóór gaat met het P-stuk weg.
   for (let i = 0; i < n; i++) {
@@ -877,7 +883,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       if (id >= 0) classes[k] = written.has(id) ? 1 : cls.classes[index.chunkOf(String(id))];
     }
     const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c)));
-    const next = await writtenSource(input, actual.bytes, actual.scan, stepIds, classes, members, actual.unusedKeys);
+    const next = await writtenSource(input, actual.bytes, actual.index, actual.scan, stepIds, classes, members, actual.unusedKeys);
     // Alleen de nieuwe buffer blijft via het resultaat vastgehouden; de oude bron kan na commit weg.
     return { bytes: actual.bytes, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds };
   }
@@ -915,7 +921,7 @@ function writerStepIds(input: WriteIFCInput, idMap: ReadonlyMap<string, number>,
 }
 
 /** De scanner levert grenzen; eigendom, leden en sessie-identiteit komen van het schrijfplan. */
-async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, scan: ForeignScanResult,
+async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, index: StepIndex, scan: ForeignScanResult,
   stepIds: Readonly<Record<string, number>>, classes: Uint8Array, foreignMembers: readonly number[],
   unusedKeys?: readonly UnusedKeysOfTask[]): Promise<IfcSource> {
   const schemaName = readFileSchemaName(new TextDecoder().decode(bytes.subarray(0, scan.chunkStarts[1])));
@@ -923,7 +929,9 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, scan: Fore
   const foreignObjectCount = classes.reduce((count, c) => count + (c > 1 ? 1 : 0), 0);
   return {
     bytes, sha256: await precomputeSha256(bytes), schemaName,
-    chunkStarts: scan.chunkStarts, chunkIds: scan.chunkIds, classes, stepIds, foreignMembers, ...(unusedKeys ? { unusedKeys } : {}),
+    chunkStarts: scan.chunkStarts, chunkIds: scan.chunkIds, classes, stepIds, foreignMembers,
+    elementLinks: elementLinksByTask(scanElementLinks(index), stepIds),
+    ...(unusedKeys && foreignObjectCount > 0 ? { unusedKeys } : {}),
     foreign: foreignObjectCount > 0, foreignObjectCount, buildingModel: scan.buildingModel, lineEnding: scan.lineEnding, opened: input,
   };
 }
@@ -978,7 +986,9 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
     throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `uitvoer scannen of heropenen: ${String(e)}` }]);
   }
   const unusedKeys = unusedKeysFromRead(writtenUnusedKeys);
-  const unusedProblem = own && unusedKeysProblem(source, index, input.tasks.map(t => t.id), unusedKeys, actual.index, own.stepIds);
+  const taskIds = input.tasks.map(t => t.id);
+  const unusedProblem = own && (unusedKeysProblem(source, index, taskIds, unusedKeys, actual.index, own.stepIds)
+    ?? duplicateAssignmentKeyProblem(source, index, taskIds, actual.index, own.stepIds));
   if (unusedProblem) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: unusedProblem }]);
   const outputJson = { index: actual.index, own: (c: number) => actual.classification.classes[c] === 1, projectCalendarId: input.calendar.id };
   const jsonProblem = own && jsonExtrasProblem(jsonExtrasOf({ index, own: c => cls.classes[c] === 1, stepIds: source.stepIds, projectCalendarId: input.calendar.id }),

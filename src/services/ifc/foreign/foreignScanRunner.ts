@@ -13,7 +13,7 @@
  * is. Tot dan wacht de runner hoogstens `FOREIGN_SCAN_START_TIMEOUT_MS`, daarna per verzoek de ruime rekentijd
  * (`timeoutMs`). Na een terugval is de Worker gestopt en zijn de luisteraars weg: een laat bericht doet niets.
  */
-import { scanForeign, type ForeignScanOutcome } from './foreignScan';
+import { scanForeignToOpen, type ForeignScanOutcome, type OpenedForeignScanOutcome } from './foreignScan';
 import type { ForeignScanWorkerRequest, ForeignScanWorkerResponse } from './foreignScanHandler';
 import type { TargetScanStep } from './targetModelScan';
 
@@ -46,6 +46,7 @@ class ScanWorkerUnavailable extends Error {}
 export interface ForeignScanSession {
   /** Scan en indeling van `bytes` (een kopie). */
   outcome(bytes: Uint8Array): Promise<ForeignScanOutcome>;
+  opened(bytes: Uint8Array): Promise<OpenedForeignScanOutcome>;
   /** Het volgende stuk (een kopie) voor de modelscan van de doelscan, `null` aan het einde. */
   step(chunk: Uint8Array | null): Promise<TargetScanStep>;
 }
@@ -56,6 +57,9 @@ function defaultCreateWorker(): ForeignScanWorker | null {
 }
 
 type Body<T> = T extends unknown ? Omit<T, 'id'> : never;
+
+const hasElementLinks = (outcome: ForeignScanOutcome): outcome is OpenedForeignScanOutcome =>
+  !outcome.ok || ('stepElementLinks' in outcome && Array.isArray(outcome.stepElementLinks));
 
 /**
  * `work` met één Worker; zonder Worker of bij een fout van het transport `fallback` (na het stoppen van de Worker). Een
@@ -127,6 +131,11 @@ export async function withScanWorker<T>(
       if (!('outcome' in r)) throw unexpected();
       return r.outcome;
     },
+    opened: async (bytes) => {
+      const r = await ask({ bytes, open: true });
+      if (!('outcome' in r) || !hasElementLinks(r.outcome)) throw unexpected();
+      return r.outcome;
+    },
     step: async (chunk) => {
       const r = await ask({ push: chunk });
       if (!('step' in r)) throw unexpected();
@@ -147,6 +156,6 @@ export async function withScanWorker<T>(
   return fallback();
 }
 
-export function runForeignScan(bytes: Uint8Array, opts: ForeignScanRunOptions = {}): Promise<ForeignScanOutcome> {
-  return withScanWorker(opts, session => session.outcome(bytes), () => scanForeign(bytes));
+export function runForeignScan(bytes: Uint8Array, opts: ForeignScanRunOptions = {}): Promise<OpenedForeignScanOutcome> {
+  return withScanWorker(opts, session => session.opened(bytes), () => scanForeignToOpen(bytes));
 }

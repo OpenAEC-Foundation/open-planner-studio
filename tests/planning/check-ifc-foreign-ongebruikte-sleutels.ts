@@ -10,6 +10,8 @@ import { scanStep } from '@/services/ifc/foreign/stepScanner';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { unusedAssignmentKeyNames } from '@/services/ifc/assignmentKeys';
+import { outputFromResult, resultFits, runIfcSaveJob } from '@/services/ifc/saveWorker/ifcSaveProtocol';
+import type { IfcSaveJob } from '@/state/prepareIfcOutput';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const reseed = installDeterminism();
@@ -103,15 +105,16 @@ const SOURCE_UNUSED = ["IFCTEXT('7|BACKLOADED')", "IFCTEXT('5|FRONTLOADED')", 'I
 }
 
 type Edit = (d: Domain, o: Opened) => void | Domain | Promise<void | Domain>;
-async function scenario(label: string, edit: Edit, wantKeys: readonly Key[], wantAssignments: readonly string[]): Promise<PreparedIfcWrite | undefined> {
-  const opened = await openForeign(withUnused);
+async function scenario(label: string, edit: Edit, wantKeys: readonly Key[], wantAssignments: readonly string[],
+  sourceBytes: Uint8Array = withUnused): Promise<PreparedIfcWrite | undefined> {
+  const opened = await openForeign(sourceBytes);
   let domain = cloneDomain(opened);
   domain.project.description = `${domain.project.description} (proef ongebruikte sleutels)`;
   const edited = await edit(domain, opened);
   if (edited) domain = edited;
   const prepared = await save(label, domain, opened.ifcSource!);
   if (!prepared) return undefined;
-  const problems = mergeProblems(withUnused, prepared.bytes);
+  const problems = mergeProblems(sourceBytes, prepared.bytes);
   ok(`${label}: de invarianten van de merge (${problems.slice(0, 2).join(' | ')})`, problems.length === 0);
   const keys = assignmentKeysOf(prepared.bytes, TASK_GUID);
   ok(`${label}: de sleutels van #63 na opslaan (${show(keys)})`, show(keys) === show(wantKeys));
@@ -152,6 +155,51 @@ await scenario('de toewijzing van #110 weg: de kale sleutel blijft ongebruikt',
 await scenario('alle toewijzingen van #63 weg: de pset houdt alleen de ongebruikte sleutels',
   (d, o) => { d.assignments = d.assignments.filter(a => a.taskId !== taskOf(o).id); },
   [extra(`${R109}#2`), bare, real(`${R109}#9`)], []);
+
+{
+  const opened = await openForeign(withUnused);
+  const input = { ...cloneDomain(opened), writeMode: 'merge' as const };
+  input.project.description = `${input.project.description} (proef opslagworker)`;
+  const job = structuredClone<IfcSaveJob>({ kind: 'merge', input, source: opened.ifcSource! });
+  ok(`opslagworker: de bron gaat heen met haar ongebruikte sleutels (${show(job.kind === 'merge' && job.source.unusedKeys)})`,
+    job.kind === 'merge' && show(job.source.unusedKeys) === show(opened.ifcSource!.unusedKeys));
+  const result: unknown = structuredClone(await runIfcSaveJob(job));
+  ok('opslagworker: het antwoord past (resultFits)', resultFits(job, result));
+  if (resultFits(job, result)) {
+    const back = outputFromResult(job, result).prepared?.source;
+    const direct = await save('opslagworker: dezelfde opslag op deze thread', structuredClone(input), opened.ifcSource!);
+    ok(`opslagworker: de nieuwe bron komt terug met haar ongebruikte sleutels (${show(back?.unusedKeys)})`,
+      back?.unusedKeys !== undefined && show(back.unusedKeys) === show(direct?.source.unusedKeys));
+    ok('opslagworker: de nieuwe bron houdt ook haar koppelingen met bouwdelen (elementLinks)', back?.elementLinks instanceof Map);
+  }
+}
+
+const R111 = '1XVcwxvomwVx$qDRoCxjQu';
+const withForeignMember = (name: string) => latin1(after(
+  setLine(eigen, 154, "#154=IFCPROPERTYSET('26EUCC2ORYjlLXgzsMT4U9',#6,'OPS_Assignments',$,(#152,#153,#9200,#9201,#9202,#9204));"),
+  153, [...UNUSED_LINES, `#9204=IFCPROPERTYENUMERATEDVALUE('${name}',$,(IFCLABEL('vendor')),$);`].join('\n')));
+const vendor = (name: string): Key => [name, "(IFCLABEL('vendor'))"];
+const carpenters = (d: Domain, o: Opened) => { d.assignments.push({ ...of(d, o, 109), id: 'proef-111', resourceId: resOf(o, 111).id, unitsPerDay: 5 }); };
+await scenario('review 1: een vreemd lid G#3 in de pset en een derde toewijzing: de ongebruikte G#2 slaat G#3 over',
+  carpenters,
+  [own0, own1, written(`${R111}#2`, 5), extra(`${R109}#4`), bare, real(`${R109}#9`), vendor(`${R109}#3`)],
+  ['109:1', '110:2', '111:5'], withForeignMember(`${R109}#3`));
+{
+  const bytes = withForeignMember(`${R111}#2`);
+  const opened = await openForeign(bytes);
+  const domain = cloneDomain(opened);
+  domain.project.description = `${domain.project.description} (proef dubbele naam)`;
+  carpenters(domain, opened);
+  try {
+    const prepared = await prepareIfcWrite(domain, opened.ifcSource!);
+    ok(`review 1, vangnet: een eigen sleutel met de naam van een vreemd lid weigert, maar de merge schreef ${show(assignmentKeysOf(prepared.bytes, TASK_GUID))}`, false);
+  } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    const details = e.cases.map(c => `${c.kind}: ${c.detail}`);
+    ok(`review 1, vangnet: een eigen sleutel met de naam van een vreemd lid weigert met een dubbele naam (${details.slice(0, 2).join(' | ')})`,
+      details.some(d => /^uitvoer-controle: .*dubbel/.test(d)));
+  }
+}
 
 {
   const opened = await openForeign(withUnused);
@@ -205,6 +253,10 @@ if (kept) {
   const added = out.replace(whole, `${head}${members},#${maxId + 1}${tail}\n#${maxId + 1}=IFCPROPERTYSINGLEVALUE('${R109}#20',$,IFCTEXT('9|UNIFORM'),$);`);
   const extraKey = await verdict(latin1(added));
   ok(`uitvoercontrole: een ongebruikte sleutel die de bron niet had, weigert (${extraKey})`, refused(extraKey));
+  const renamed = out.replace(`'${R109}#9'`, `'${R109}#10'`);
+  ok('uitvoercontrole: de proefbewerking hernoemde G#9 naar G#10', renamed !== out && renamed.includes(`'${R109}#10',$,IFCREAL(3.),$`));
+  const otherName = await verdict(latin1(renamed));
+  ok(`review 3: een andere naam met dezelfde waarde weigert (${otherName})`, refused(otherName));
 }
 
 {
@@ -230,6 +282,8 @@ if (kept) {
     show(assignmentKeysOf(latin1(plainWith), TASK_GUID)) === show([own0, own1]));
   const flagOn = await openForeign(latin1(withKeys));
   ok('flag aan zonder vreemd deel: geen vreemd deel, dus de gewone writer (knownbug 2210)', flagOn.ifcSource?.foreign === false);
+  ok(`review 2: flag aan zonder vreemd deel: de bron heeft geen lijst ongebruikte sleutels, zoals op main (${show(flagOn.ifcSource?.unusedKeys)})`,
+    flagOn.ifcSource !== undefined && !('unusedKeys' in flagOn.ifcSource));
 }
 
 {
