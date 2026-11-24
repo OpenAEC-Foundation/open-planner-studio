@@ -629,7 +629,7 @@ function skipQuotedOrCommentStrict(b: Uint8Array, i: number): number {
   }
   return -1;
 }
-function utf8BomLength(b: Uint8Array): number {
+export function utf8BomLength(b: Uint8Array): number {
   return b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf ? 3 : 0;
 }
 
