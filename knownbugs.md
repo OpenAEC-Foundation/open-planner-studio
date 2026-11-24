@@ -3908,12 +3908,15 @@ en noem het in je rapport of PR-tekst.
      wat het tabblad net opsloeg.** Begint een openactie te lezen vlak voordat het tabblad met hetzelfde bestand opslaat
      (1909, 1837), dan krijgt ze de oude bytes terwijl het tabblad de nieuwe versie kent. De vergelijking ziet een
      verschil en de app wisselt met de strook en de knop *Nieuwe versie laden*. De tekst klopt dan niet. Verloren gaat er
-     alleen iets na een akkoord: bij een schoon tabblad laadt de knop de versie die het tabblad zelf opsloeg (dezelfde
-     inhoud, maar een lege geschiedenis); bij niet-opgeslagen werk komt eerst de vraag, en alleen *Wijzigingen
-     weggooien en laden* gooit het weg. Werkt of slaat de planner intussen op, dan laadt de knop niets (R8-1a, R8-1b in
-     `check-one-file-one-tab.ts`). Proeven: B7 in `check-one-file-one-tab.ts`, "1837: een al begonnen lezing" in
+     niets: de knop leest in de schrijfrij, ná de eigen opslag, vindt dan de versie die het tabblad kent en haalt
+     alleen de strook weg (K7, R9-3 in `check-one-file-one-tab.ts`). Tijdens het laden is de app bevroren. Proeven: B7 in `check-one-file-one-tab.ts`, "1837: een al begonnen lezing" in
      `check-ifc-own-file-replace.ts`. Richting: het verschil alleen melden als de lezing na de laatste eigen opslag
      begon. — B (proef)
+2213. **VERVOLG (#1121, flag aan): zolang de vraag van *Nieuwe versie laden* openstaat, wacht elke projectopslag.**
+     Het herladen is één beurt in de schrijfrij (`runProjectFileWrite`, fixronde na ronde 9), en die rij is er één
+     voor de hele app. Staat de vraag open, dan wacht ook Automatisch opslaan van een ander tabblad tot de planner
+     kiest; de app is dan bevroren, dus de planner kan intussen niets anders opslaan. Er gaat niets verloren: de
+     wachtende opslag loopt daarna. Richting: een rij per bestand, als de schrijfcoördinatie dat ooit krijgt. — B (code)
 2204. **VERVOLG (#1121, flag aan): na *Nieuwe versie laden* kan het tabblad meteen gewijzigd zijn, met een stap om terug te
      zetten.** Is de nieuwe versie een bestand uit een oudere versie van de app waarvan de omzetting naar minuten taken
      verschuift, dan doet de laadroute wat gewoon openen ook doet: de geschiedenis is leeg, maar de omzetting zet de
@@ -5977,8 +5980,9 @@ en noem het in je rapport of PR-tekst.
      ronde 6 van de review van #1121: geen wachtmoment en geen bestandsaanroep in de openactie) valt na het parsen, in
      de stap van het activeren. Op de desktop telt alleen dezelfde letterlijke padtekst (2063); in de browser hetzelfde
      handle-object of een `isSameEntry`-treffer die al binnen is (2062); de site het id; MCP legt document, driftanker
-     en antwoord (`alreadyOpen`, bij een verschil ook `changedOnDisk`) in die stap vast. De keuze ligt per openactie
-     bij het begin vast, ook als de flag uit staat, en geldt alleen voor een formaat dat een opslagdoel kan zijn. Een
+     en antwoord (`alreadyOpen`, bij een verschil ook `changedOnDisk`) in die stap vast. De keuze leest de actuele
+     flag en de uitkomst van de lezing, niets wat vóór het lezen is vastgelegd (fixronde na ronde 9), en geldt alleen
+     voor een formaat dat een opslagdoel kan zijn. Een
      bestand dat bij het starten is meegegeven (#1091) houdt de toets en de herlezing van main en krijgt alleen bij een
      bewezen verschil de melding. **Benoemde grens:** kent het tabblad zijn versie niet (geopend met de flag uit, uit
      crashherstel, buiten de desktopapp een pad zonder opslagdoel, een lezing zonder bytesroute zoals IFC2X3 of een
