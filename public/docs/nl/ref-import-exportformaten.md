@@ -20,7 +20,7 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 ## IFC
 
-**Openen** — ja, `.ifc`. De app leest IFC4 en IFC 4.3 (ook ADD2). Een bestand in een ander schema, zoals IFC2X3, opent ook. Bij het eerste opslaan kies je dan een schema dat de app kan schrijven (zie [Het IFC-schema kiezen](docs://howto-ifc-schema-kiezen)). Rekenprofiel: dat uit het bestand.
+**Openen** — ja, `.ifc`. De app leest IFC4 en IFC 4.3 (ook ADD2). Een planning zonder gebouwmodel in een ander schema, zoals IFC2X3, opent ook. Een IFC2X3-bestand met een gebouwmodel opent niet. Bij het eerste opslaan kies je dan een schema dat de app kan schrijven (zie [Het IFC-schema kiezen](docs://howto-ifc-schema-kiezen)). Rekenprofiel: dat uit het bestand.
 
 **Opslaan** — ja, en het is het enige formaat dat opslaat. *Opslaan* schrijft je hele project als IFC-bestand, in het IFC-schema van het project (standaard IFC 4.3 ADD2). Het bestand wordt het opslagdoel.
 
