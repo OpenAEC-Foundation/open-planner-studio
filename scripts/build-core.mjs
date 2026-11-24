@@ -139,7 +139,7 @@ const summary = doc.schedule();       // calculate like the app (F5) → JSON su
 const ifc = doc.toIfc();              // IFC text with the calculated dates
 
 const withModel = await openIfcBytes(ifcBytes);  // keeps a building model and data of other programs
-withModel.schedule().foreignContent;              // { format, schema, objectCount } | null
+withModel.schedule().foreignContent;              // { format, schema, objectCount }, only when something is kept
 const bytes = await withModel.toIfcBytes();       // everything besides the schedule byte for byte as it was
 \`\`\`
 

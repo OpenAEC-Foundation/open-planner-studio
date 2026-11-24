@@ -101,7 +101,7 @@ export interface ScheduleSummary {
   /** Id's van de taken op het kritieke pad, in padvolgorde. */
   criticalPath: string[];
   warnings: ScheduleWarning[];
-  foreignContent: ForeignContentSummary | null;
+  foreignContent?: ForeignContentSummary;
 }
 
 export type IfcWriteRefusalReason = 'foreign' | 'model' | 'unreadable' | 'merge-needs-phase2';

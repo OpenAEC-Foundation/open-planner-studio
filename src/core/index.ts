@@ -12,9 +12,6 @@ import { readIfcBytes } from '@/services/ifc/foreign/ifcBytesRoute';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { utf8BomLength } from '@/services/ifc/foreign/stepScanner';
-import { planningCanon, planningDifferencePath } from '@/services/ifc/foreign/planningCanon';
-import { planningIdentityInput } from '@/services/ifc/foreign/planningIdentity';
-import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import type { ImportResult } from '@/services/importTypes';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -43,13 +40,11 @@ declare const __OPS_CORE_VERSION__: string | undefined;
 export class PlannerCoreError extends Error {
   readonly code: CoreErrorCode;
   readonly details: Readonly<Record<string, unknown>>;
-  declare readonly readRefusal?: 'building-model';
-  constructor(code: CoreErrorCode, message: string, details: Record<string, unknown> = {}, readRefusal?: 'building-model') {
+  constructor(code: CoreErrorCode, message: string, details: Record<string, unknown> = {}) {
     super(message);
     this.name = 'PlannerCoreError';
     this.code = code;
     this.details = details;
-    if (readRefusal) this.readRefusal = readRefusal;
   }
 }
 
@@ -77,8 +72,13 @@ export async function openIfc(text: string): Promise<PlannerDocument> {
   if (!body.startsWith(STEP_HEADER)) {
     throw new PlannerCoreError('INVALID_INPUT', `IFC input must start with "${STEP_HEADER}"`);
   }
-  const clock = new Date().toISOString();
-  const opened = openParsed(await readOrFail(() => readIFCWithXerReconstruction(body, {}, { projectTimestampFallback: { createdAt: clock, modifiedAt: clock } })), clock);
+  let parsed: Awaited<ReturnType<typeof readIFCWithXerReconstruction>>;
+  try {
+    parsed = await readIFCWithXerReconstruction(body);
+  } catch (err) {
+    throw new PlannerCoreError('IFC_READ_FAILED', `Could not read IFC: ${errorText(err)}`);
+  }
+  const opened = openParsed(parsed);
   // T3: deze tekst-API bewaart nog geen vreemde bytes. Rekenen mag, verliesgevende IFC-uitvoer niet.
   const inputScan = scanForeignTargetBytes(new TextEncoder().encode(body));
   const refusal = plainWriteRefusal(inputScan);
@@ -104,11 +104,10 @@ export async function openIfcBytes(bytes: Uint8Array): Promise<PlannerDocument> 
 async function documentKeepingForeignContent(bytes: Uint8Array): Promise<PlannerDocument | null> {
   if (!startsWithStepHeader(bytes)) return null;
   let opened: OpenedCoreDocument;
-  const clock = new Date().toISOString();
   try {
-    const parsed = await readIfcBytes(bytes, {}, { createWorker: () => null, projectTimestampFallback: { createdAt: clock, modifiedAt: clock } });
+    const parsed = await readIfcBytes(bytes, {}, { createWorker: () => null });
     if (!hasForeignContent(parsed.ifcSource)) return null;
-    opened = openParsed(parsed, clock, BYTES_ROUTE_FLAGS);
+    opened = openParsed(parsed, BYTES_ROUTE_FLAGS);
   } catch {
     return null;
   }
@@ -148,22 +147,12 @@ function startsWithStepHeader(bytes: Uint8Array): boolean {
   return STEP_HEADER_BYTES.every((b, i) => bytes[at + i] === b);
 }
 
-async function readOrFail(read: () => Promise<ImportResult>): Promise<ImportResult> {
-  try {
-    return await read();
-  } catch (err) {
-    throw new PlannerCoreError('IFC_READ_FAILED', `Could not read IFC: ${errorText(err)}`, {},
-      err instanceof IfcParseError && err.reason === 'building-model' ? 'building-model' : undefined);
-  }
-}
-
 interface OpenedCoreDocument {
   readonly state: () => AppState;
   readonly importWarnings: readonly ScheduleWarning[];
-  readonly clock: string;
 }
 
-function openParsed(parsed: ImportResult, clock: string, featureFlags?: FeatureFlagValues): OpenedCoreDocument {
+function openParsed(parsed: ImportResult, featureFlags?: FeatureFlagValues): OpenedCoreDocument {
   if (parsed.tasks.length === 0) {
     throw new PlannerCoreError('NO_TASKS', 'The IFC file contains no tasks');
   }
@@ -190,7 +179,7 @@ function openParsed(parsed: ImportResult, clock: string, featureFlags?: FeatureF
     importWarnings.push({ code: 'MINUTE_MODEL_CONVERTED', ids: [...conversion.shifted],
       maxShiftWorkdays: conversion.maxWorkdays });
   }
-  return { state: () => ctx.store.getState(), importWarnings, clock };
+  return { state: () => ctx.store.getState(), importWarnings };
 }
 
 function plainIfc(s: AppState): string {
@@ -201,32 +190,11 @@ function plainIfc(s: AppState): string {
   }
 }
 
-const openedDocuments = new WeakMap<PlannerDocument, OpenedCoreDocument>();
-const PROJECT_CLOCK_FIELDS = ['createdAt', 'modifiedAt'] as const;
-
-export function planningDifference(a: PlannerDocument, b: PlannerDocument): string | null {
-  const openedA = openedDocuments.get(a);
-  const openedB = openedDocuments.get(b);
-  if (!openedA || !openedB) {
-    throw new PlannerCoreError('INVALID_INPUT', 'planningDifference compares two documents opened by this package');
-  }
-  const inputA = buildWriteIFCInput(openedA.state(), 'merge');
-  const writtenB = buildWriteIFCInput(openedB.state(), 'merge');
-  const projectB = { ...writtenB.project };
-  for (const field of PROJECT_CLOCK_FIELDS) {
-    if (inputA.project[field] === openedA.clock && projectB[field] === openedB.clock) projectB[field] = inputA.project[field];
-  }
-  const inputB = { ...writtenB, project: projectB };
-  if (planningCanon(inputA) === planningCanon(inputB)) return null;
-  const named = (input: typeof inputA) => ({ ...planningIdentityInput(input), assignments: input.assignments.map(x => ({ ...x, id: '' })) });
-  return planningDifferencePath(named(inputA), named(inputB));
-}
-
 function plannerDocument(
   opened: OpenedCoreDocument, output: Pick<PlannerDocument, 'toIfc' | 'toIfcBytes'>,
 ): PlannerDocument {
   const { state, importWarnings } = opened;
-  const document: PlannerDocument = {
+  return {
     get openWarnings(): ScheduleWarning[] {
       return importWarnings.map(w => ({ ...w, ids: [...w.ids] }));
     },
@@ -256,17 +224,15 @@ function plannerDocument(
     toIfc: output.toIfc,
     toIfcBytes: output.toIfcBytes,
   };
-  openedDocuments.set(document, opened);
-  return document;
 }
 
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-function foreignContentOf(source: IfcSource | null): ForeignContentSummary | null {
-  if (!source || !hasForeignContent(source)) return null;
-  return { format: 'ifc', schema: source.schemaName, objectCount: source.foreignObjectCount };
+function foreignContentOf(source: IfcSource | null): { foreignContent: ForeignContentSummary } | Record<string, never> {
+  if (!source || !hasForeignContent(source)) return {};
+  return { foreignContent: { format: 'ifc', schema: source.schemaName, objectCount: source.foreignObjectCount } };
 }
 
 function summarize(s: AppState, result: CPMResult, importWarnings: readonly ScheduleWarning[]): ScheduleSummary {
@@ -316,6 +282,6 @@ function summarize(s: AppState, result: CPMResult, importWarnings: readonly Sche
     tasks,
     criticalPath: [...result.criticalPath],
     warnings,
-    foreignContent: foreignContentOf(s.ifcSource),
+    ...foreignContentOf(s.ifcSource),
   };
 }

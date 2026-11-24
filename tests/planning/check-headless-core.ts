@@ -19,7 +19,7 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openIfc, openIfcBytes, planningDifference, PlannerCoreError, type PlannerDocument, type ScheduleSummary } from '@/core';
+import { openIfc, openIfcBytes, PlannerCoreError, type PlannerDocument, type ScheduleSummary } from '@/core';
 import { createAppStoreContext } from '@/state/appStore';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -117,8 +117,8 @@ for (const file of files) {
   const bytesSummary = bytesDoc.schedule();
   ok(`9 ${name}: openIfcBytes geeft dezelfde samenvatting als openIfc`,
     JSON.stringify(bytesSummary) === JSON.stringify(summary), firstDiff(datesOf(bytesSummary), coreDates));
-  ok(`9a ${name}: zonder vreemd deel is foreignContent null op beide routes`,
-    bytesSummary.foreignContent === null && summary.foreignContent === null, JSON.stringify(bytesSummary.foreignContent));
+  ok(`9a ${name}: zonder vreemd deel heeft de samenvatting geen foreignContent, op beide routes, zoals main`,
+    !('foreignContent' in bytesSummary) && !('foreignContent' in summary), JSON.stringify(bytesSummary.foreignContent));
   const textIfc = await atOneWriteTime(() => doc.toIfc());
   const bytesIfc = await atOneWriteTime(() => bytesDoc.toIfcBytes());
   ok(`9b ${name}: toIfcBytes() schrijft byte voor byte dezelfde IFC als toIfc() van de tekstroute`,
@@ -364,7 +364,7 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
   try { doc.toIfc(); } catch (e) { error = e; }
   ok('8 toIfc weigert met de bestaande vaste code vóór uitvoer',
     error instanceof PlannerCoreError && error.code === 'IFC_WRITE_FAILED', String(error));
-  ok('8a de tekstroute bewaart geen vreemd deel: foreignContent is null', doc.schedule().foreignContent === null);
+  ok('8a de tekstroute bewaart geen vreemd deel: de samenvatting heeft geen foreignContent', !('foreignContent' in doc.schedule()));
   const bytesDoc = await openIfcBytes(encoded(foreign));
   const kept = bytesDoc.schedule().foreignContent;
   ok('8b de bytesroute meldt de externe pset als bewaard vreemd deel',
@@ -559,7 +559,7 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
   const doc = await openIfcBytes(encoded(legacy));
   const summary = doc.schedule();
   ok('16a de planning opent en rekent; de bytesroute bewaart van IFC2X3 niets naast de planning',
-    summary.counts.tasks > 0 && summary.foreignContent === null, JSON.stringify(summary.foreignContent));
+    summary.counts.tasks > 0 && !('foreignContent' in summary), JSON.stringify(summary.foreignContent));
   const refusal = async (write: () => unknown) => {
     try { await write(); return 'schreef een bestand'; } catch (e) {
       return e instanceof PlannerCoreError ? `${e.code}:${String(e.details.reason)}` : String(e);
@@ -680,7 +680,7 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
     if (!main.summary || !viaBytes.summary) return main.http === viaBytes.http ? '' : `rekenen: ${viaBytes.http} ≠ ${main.http}`;
     const plain = (summary: ScheduleSummary) => JSON.stringify({ ...summary, foreignContent: null });
     if (plain(main.summary) !== plain(viaBytes.summary)) return 'samenvatting wijkt af van main';
-    if (viaBytes.summary.foreignContent === null) {
+    if (!viaBytes.summary.foreignContent) {
       if (viaBytes.http !== main.http) return `uitvoer zoals de HTTP-worker: ${viaBytes.http?.slice(0, 80)} ≠ ${main.http?.slice(0, 80)}`;
       return viaBytes.bytes === main.bytes ? '' : `toIfcBytes(): ${viaBytes.bytes?.slice(0, 80)} ≠ ${main.bytes?.slice(0, 80)}`;
     }
@@ -727,7 +727,7 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
       const viaMain = await outcome(() => openIfc(Buffer.from(bytes).toString('utf8')),
         async doc => encoded(doc.toIfc()), async doc => encoded(doc.toIfc()));
       const viaBytes = await outcome(() => openIfcBytes(bytes),
-        async (doc, summary) => summary.foreignContent === null ? encoded(doc.toIfc()) : doc.toIfcBytes(), doc => doc.toIfcBytes());
+        async (doc, summary) => !summary.foreignContent ? encoded(doc.toIfc()) : doc.toIfcBytes(), doc => doc.toIfcBytes());
       const broken = ruleBroken(viaMain, viaBytes);
       ok(`18 ${name}, ${form}: openIfcBytes geeft de uitkomst van main, of bewaart een vreemd deel waar main weigerde`, broken === '', broken);
       if (viaBytes.summary?.foreignContent) kept++;
@@ -739,151 +739,6 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
   ok('18 de regel is gepind op het hele corpus', pinned === corpus.length * forms.length && pinned >= 130, String(pinned));
 }
 
-{
-  const example = readFileSync(join(root, 'examples/01-grachtenpand-amsterdam.ifc'), 'utf8');
-  const foreignDir = join(root, 'tests/fixtures/ifc-foreign');
-  const modelText = readFileSync(join(foreignDir, 'eigen-plus-model.ifc'), 'utf8');
-  const END = 'END-ISO-10303-21;';
-  const looseTaskOutsideBaseline = (() => {
-    const lines = example.split('\n');
-    const schedule = lines.find(l => l.startsWith('#47=IFCWORKSCHEDULE('))!;
-    const task = lines.find(l => l.startsWith('#52=IFCTASK('))!;
-    const added = [
-      schedule.replace(/^#47=IFCWORKSCHEDULE\('[^']*'/, "#99010=IFCWORKSCHEDULE('1SolR4BaselineSchema01'").replace('.PLANNED.);', '.BASELINE.);'),
-      task.replace(/^#52=IFCTASK\('[^']*',#6,'[^']*',\$,\$,'[^']*'/, "#99011=IFCTASK('1SolR4LooseTask0000001',#6,'Loose task',$,$,'99'"),
-    ];
-    const moved = lines.map(l => l.startsWith('#158=IFCRELNESTS(') ? l.replace(',#47,(', ',#99010,(')
-      : l.startsWith('#312=IFCRELASSIGNSTOCONTROL(') ? l.replace(',$,#47);', ',$,#99010);') : l).join('\n');
-    return moved.replace(`ENDSEC;\n${END}`, `${added.join('\n')}\nENDSEC;\n${END}`);
-  })();
-  const otherReadErrors: Array<[string, string, string]> = [
-    ['leeg', '', 'INVALID_INPUT'],
-    ['alleen witruimte', '  \n\t ', 'INVALID_INPUT'],
-    ['geen STEP-kop', 'dit is geen IFC', 'INVALID_INPUT'],
-    ['NUL vóór de kop', `\u0000${example}`, 'INVALID_INPUT'],
-    ['alleen de kop', 'ISO-10303-21;\n', 'IFC_READ_FAILED'],
-    ['afgekapt voorbeeld', example.slice(0, example.lastIndexOf(END)), 'IFC_READ_FAILED'],
-    ['afgekapt model', modelText.slice(0, modelText.lastIndexOf(END)), 'IFC_READ_FAILED'],
-    ['5000 spaties na de sluitmarkering', example + ' '.repeat(5000), 'IFC_READ_FAILED'],
-    ['geen DATA-sectie', "ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('IFC4X3_ADD2'));\nENDSEC;\nEND-ISO-10303-21;\n", 'IFC_READ_FAILED'],
-    ['nul taken', 'ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\nENDSEC;\nEND-ISO-10303-21;\n', 'NO_TASKS'],
-    ['ongeldige duur', example.replace("'P0Y0M5D'", "'P0Y0M5X'"), 'IFC_READ_FAILED'],
-    ['ongeldige duur buiten de planning die de bytes-route leest', looseTaskOutsideBaseline.replace("'P0Y0M23D'", "'P0Y0M23X'"), 'IFC_READ_FAILED'],
-  ];
-  const refusalOf = async (text: string): Promise<PlannerCoreError | string> => {
-    try { await openIfc(text); return 'opende'; } catch (e) { return e instanceof PlannerCoreError ? e : `ander fouttype: ${String(e)}`; }
-  };
-  for (const [name, text, code] of otherReadErrors) {
-    const e = await refusalOf(text);
-    ok(`19 ${name}: ${code} zonder readRefusal`, e instanceof PlannerCoreError && e.code === code && !('readRefusal' in e),
-      e instanceof PlannerCoreError ? `${e.code} readRefusal=${String(e.readRefusal)}` : e);
-  }
-  const outside = await openIfcBytes(encoded(otherReadErrors[otherReadErrors.length - 1][1]));
-  ok('19 fixture: de bytes-route leest de ongeldige duur buiten haar planning wel, met een vreemd deel',
-    outside.schedule().foreignContent !== null && outside.schedule().counts.tasks === 1);
-  const modelRefusals: Array<[string, string]> = [
-    ...readdirSync(foreignDir).filter(f => f.endsWith('.ifc')).sort().map(f => [f, readFileSync(join(foreignDir, f), 'utf8')] as [string, string]),
-    ['een model met een ongeldige duur', modelText.replace(/'P\d+D'/, "'P5X'")],
-  ];
-  ok('19 fixture: elf modelbestanden en een model met een ongeldige duur', modelRefusals.length === 12, String(modelRefusals.length));
-  for (const [name, text] of modelRefusals) {
-    const e = await refusalOf(text);
-    ok(`19 ${name}: de weigering van de gebouwmodel-poort draagt readRefusal 'building-model', met lege details zoals main`,
-      e instanceof PlannerCoreError && e.code === 'IFC_READ_FAILED' && e.readRefusal === 'building-model'
-        && JSON.stringify(e.details) === '{}' && Object.keys(e).includes('readRefusal'),
-      e instanceof PlannerCoreError ? `${e.code} readRefusal=${String(e.readRefusal)} details=${JSON.stringify(e.details)}` : e);
-  }
-  const plainError = new PlannerCoreError('INVALID_INPUT', 'x');
-  ok('19 een PlannerCoreError zonder readRefusal heeft de eigenschap niet', !('readRefusal' in plainError));
-}
-
-{
-  const example = readFileSync(join(root, 'examples/01-grachtenpand-amsterdam.ifc'), 'utf8');
-  const END = 'END-ISO-10303-21;';
-  const withProjectPset = (source: string) => source.replace(`ENDSEC;\n${END}`, [
-    "#99020=IFCPROPERTYSINGLEVALUE('ExternalCode',$,IFCTEXT('X-1'),$);",
-    "#99021=IFCPROPERTYSET('1SolR4ExternalPset0001',#6,'ExternalMetadata',$,(#99020));",
-    "#99022=IFCRELDEFINESBYPROPERTIES('1SolR4ExternalRel00001',#6,$,$,(#13),#99021);", 'ENDSEC;', END].join('\n'));
-  const woning = readFileSync(join(root, 'tests/planning/fixtures/projectnaam-in-settings/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
-  const describedInSettings = withProjectPset(woning.replace("IFCTEXT('Naam van een ander programma')", "IFCTEXT('Refurbishment & Extension of a Family Home')")
-    .replace('#90001=IFCPROPERTYSINGLEVALUE(',
-      "#90002=IFCPROPERTYSINGLEVALUE('ProjectDescription',$,IFCTEXT('Beschrijving van een ander programma'),$);\n#90001=IFCPROPERTYSINGLEVALUE(")
-    .replace(',#90001));', ',#90001,#90002));'));
-  const sameSummary = (a: ScheduleSummary, b: ScheduleSummary) => JSON.stringify({ ...a, foreignContent: null }) === JSON.stringify({ ...b, foreignContent: null });
-  const bothRoutes = async (text: string) => {
-    const viaText = await openIfc(text);
-    const viaBytes = await openIfcBytes(encoded(text));
-    return { viaText, viaBytes, text: viaText.schedule(), bytes: viaBytes.schedule() };
-  };
-  for (const [name, text] of [
-    ['oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc', readFileSync(join(root, 'tests/planning/fixtures/oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc'), 'utf8')],
-    ['oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc', readFileSync(join(root, 'tests/planning/fixtures/oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc'), 'utf8')],
-  ] as const) {
-    const r = await bothRoutes(text);
-    ok(`20 ${name}: de bytes-route bewaart een vreemd deel en leest dezelfde planning als de tekstroute, ook zonder CreatedAt in het bestand`,
-      r.bytes.foreignContent !== null && planningDifference(r.viaText, r.viaBytes) === null, String(planningDifference(r.viaText, r.viaBytes)));
-  }
-  {
-    const r = await bothRoutes(describedInSettings);
-    ok('20 een andere beschrijving in OPS_ProjectSettings: dezelfde samenvatting, maar niet dezelfde planning (project.description)',
-      sameSummary(r.text, r.bytes) && planningDifference(r.viaText, r.viaBytes) === 'planning.project.description',
-      `${sameSummary(r.text, r.bytes)} ${planningDifference(r.viaText, r.viaBytes)}`);
-  }
-  const ctx = createAppStoreContext({ emitHostEvents: false });
-  ctx.store.getState().openAsDocument(await readIFCWithXerReconstruction(example), { name: 'x.ifc', ref: null, saveTarget: false });
-  const base = ctx.store.getState();
-  const written = (patch: Partial<ReturnType<typeof buildWriteIFCInput>>) => writeIFC({ ...buildWriteIFCInput(base, 'planOnly'), ...patch });
-  const original = written({});
-  const nonDriving = base.sequences.findIndex(s => s.id === 'seq-ifc-3F9VVSryarwHSN_w2Pu$nl');
-  ok('20 fixture: de relatie zonder invloed op de berekening staat in het voorbeeld', nonDriving >= 0);
-  for (const [kind, variant, field] of [
-    ['een relatie (lag)', written({ sequences: base.sequences.map((s, i) => i === nonDriving ? { ...s, lagDays: s.lagDays + 1, ...(s.lagMinutes === undefined ? {} : { lagMinutes: s.lagMinutes + 480 }) } : s) }), `planning.sequences.${nonDriving}.lagDays`],
-    ['een resource (naam)', written({ resources: base.resources.map((r, i) => i === 0 ? { ...r, name: `${r.name} X` } : r) }), 'planning.resources.0.name'],
-    ['een resource (uurtarief)', written({ resources: base.resources.map((r, i) => i === 0 ? { ...r, costPerHour: (r.costPerHour ?? 0) + 7 } : r) }), 'planning.resources.0.costPerHour'],
-    ['een toewijzing (eenheden per dag)', written({ assignments: base.assignments.map((a, i) => i === 0 ? { ...a, unitsPerDay: (a.unitsPerDay ?? 1) + 1 } : a) }), 'planning.assignments.0.unitsPerDay'],
-  ] as const) {
-    const a = await openIfc(original);
-    const b = await openIfc(variant);
-    const summaryA = a.schedule();
-    const summaryB = b.schedule();
-    ok(`20 ${kind}: dezelfde samenvatting en dezelfde tellingen, maar planningDifference noemt ${field}`,
-      sameSummary(summaryA, summaryB) && planningDifference(a, b) === field, `${sameSummary(summaryA, summaryB)} ${planningDifference(a, b)}`);
-  }
-  {
-    const a = await openIfc(original);
-    const b = await openIfc(original);
-    a.schedule();
-    ok('20 twee openingen van hetzelfde bestand: dezelfde planning', planningDifference(a, b) === null, String(planningDifference(a, b)));
-  }
-  {
-    const withoutStamps = example.split('\n').filter(l => !l.includes("IFCPROPERTYSINGLEVALUE('CreatedAt'") && !l.includes("IFCPROPERTYSINGLEVALUE('ModifiedAt'")).join('\n');
-    const a = await openIfc(withoutStamps);
-    await new Promise(r => setTimeout(r, 5));
-    const b = await openIfc(withoutStamps);
-    ok('20 zonder CreatedAt en ModifiedAt in het bestand: de klokwaarden van twee openingen tellen niet', planningDifference(a, b) === null,
-      String(planningDifference(a, b)));
-    const stamped = example.replace("IFCTEXT('2026-10-26T11:31:14.496Z')", "IFCTEXT('2001-01-01T00:00:00.000Z')");
-    ok('20 fixture: het voorbeeld heeft een opgeslagen CreatedAt', stamped !== example);
-    const c = await openIfc(example);
-    const d = await openIfc(stamped);
-    ok('20 een andere opgeslagen CreatedAt: dezelfde samenvatting, maar planning.project.createdAt',
-      sameSummary(c.schedule(), d.schedule()) && planningDifference(c, d) === 'planning.project.createdAt', String(planningDifference(c, d)));
-    const secondSettings = example.replace(`ENDSEC;\n${END}`, [
-      "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);",
-      "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));",
-      "#99040=IFCPROPERTYSINGLEVALUE('CreatedAt',$,IFCTEXT('2001-01-01T00:00:00.000Z'),$);",
-      "#99041=IFCPROPERTYSET('1SolR6TweedeSettings01',#6,'OPS_ProjectSettings',$,(#99040));",
-      "#99042=IFCRELDEFINESBYPROPERTIES('1SolR6TweedeSettingsR1',#6,$,$,(#99002),#99041);", 'ENDSEC;', END].join('\n'));
-    const r = await bothRoutes(secondSettings);
-    ok('20 een tweede OPS_ProjectSettings aan een vreemde pset: de tekstlezer leest haar CreatedAt, de bytes-lezer niet',
-      r.bytes.foreignContent !== null && planningDifference(r.viaText, r.viaBytes) === 'planning.project.createdAt',
-      String(planningDifference(r.viaText, r.viaBytes)));
-  }
-  const foreignDocument = { openWarnings: [], schedule: () => { throw new Error('x'); }, toIfc: () => '', toIfcBytes: async () => new Uint8Array() };
-  let refused = '';
-  try { planningDifference(await openIfc(original), foreignDocument); } catch (e) { refused = e instanceof PlannerCoreError ? e.code : String(e); }
-  ok('20 een document van buiten het pakket: INVALID_INPUT', refused === 'INVALID_INPUT', refused);
-}
 
 if (diffs.length === 0) {
   console.log(`OK: headless kern — ${checks} checks groen (${files.length} voorbeeldbestanden)`);

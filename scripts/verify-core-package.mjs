@@ -103,6 +103,7 @@ try {
     ok('4d aantal taken', s.counts.tasks === EXPECTED.tasks && s.tasks.length === EXPECTED.tasks, String(s.counts.tasks));
     ok('4e taakvelden', ['id', 'name', 'wbs', 'start', 'finish', 'totalFloat', 'critical'].every((k) => k in s.tasks[0]));
     ok('4f herberekend IFC geschreven', existsSync(outIfc) && readFileSync(outIfc, 'utf8').startsWith('ISO-10303-21;'));
+    ok('4g zonder vreemd deel geen foreignContent in de samenvatting, zoals main', !('foreignContent' in s));
   }
 
   const again = run(process.execPath, ['index.mjs', outIfc, '--json'], consumer);
@@ -147,7 +148,7 @@ export async function use(text: string): Promise<string> {
 }
 export async function useBytes(bytes: Uint8Array): Promise<number> {
   const doc = await openIfcBytes(bytes);
-  const foreign: ForeignContentSummary | null = doc.schedule().foreignContent;
+  const foreign: ForeignContentSummary | undefined = doc.schedule().foreignContent;
   const written: Uint8Array = await doc.toIfcBytes();
   return written.length + (foreign?.objectCount ?? 0);
 }

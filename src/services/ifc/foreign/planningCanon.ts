@@ -27,10 +27,9 @@ export function planningCanon(input: WriteIFCInput): string {
   return `${written}\nresourceCalendars=${exact}`;
 }
 
-type Difference = { path: string; from: unknown; to: unknown };
-
-function firstDifference(a: WriteIFCInput, b: WriteIFCInput): Difference | undefined {
-  function first(x: unknown, y: unknown, path: string): Difference | undefined {
+/** Benoem het eerste verschil met domeinpad en taak-id; de canon bepaalt óf er een verschil is. */
+export function planningDifference(a: WriteIFCInput, b: WriteIFCInput): string {
+  function first(x: unknown, y: unknown, path: string): string | undefined {
     if (Object.is(x, y)) return;
     if (x && y && typeof x === 'object' && typeof y === 'object') {
       const left = x as Record<string, unknown>, right = y as Record<string, unknown>;
@@ -41,22 +40,12 @@ function firstDifference(a: WriteIFCInput, b: WriteIFCInput): Difference | undef
       }
       return;
     }
-    return { path, from: x, to: y };
+    return `${path}: ${JSON.stringify(x)} → ${JSON.stringify(y)}`;
   }
   for (const task of a.tasks) {
     const other = b.tasks.find(t => t.id === task.id);
     const diff = first(task, other, `taak ${task.id}`);
     if (diff) return diff;
   }
-  return first(calendarInput(a), calendarInput(b), 'planning');
-}
-
-/** Benoem het eerste verschil met domeinpad en taak-id; de canon bepaalt óf er een verschil is. */
-export function planningDifference(a: WriteIFCInput, b: WriteIFCInput): string {
-  const found = firstDifference(a, b);
-  return found ? `${found.path}: ${JSON.stringify(found.from)} → ${JSON.stringify(found.to)}` : 'de geschreven planning verschilt';
-}
-
-export function planningDifferencePath(a: WriteIFCInput, b: WriteIFCInput): string {
-  return firstDifference(a, b)?.path ?? 'de geschreven planning verschilt';
+  return first(calendarInput(a), calendarInput(b), 'planning') ?? 'de geschreven planning verschilt';
 }
