@@ -1,13 +1,4 @@
-// De schrijfregel per slotsoort (#804 fase 2, PR 2 deel 2; ontwerp §4.5 "Vier soorten slots"), vastgepind met een lus over
-// het register (`IFC_SLOT_TABLES`): een slot dat erbij komt, wordt vanzelf getoetst, en een slot zonder proef geeft rood.
-//   1. De regel zelf (`sourceSlotArgs`, `writerAlwaysWrites`), voor elk slot van elke tabel.
-//   2. Van openen tot opslaan, op een eigen voorbeeld waarvan elk D- en R-stuk de owner history van Bonsai kreeg en elk
-//      constant en afgeleid slot een eigen brontoken: na één onschuldige wijziging elders staat in de uitvoer het token
-//      dat de slotsoort voorschrijft.
-//   3. Een gewijzigd domeinveld krijgt de nieuwe waarde, nooit het brontoken; per domeinslot een bewerking, of de reden
-//      waarom de planner dat veld niet kan wijzigen.
-//   4. Tweemaal opslaan: zonder wijziging bytegelijk, met een wijziging blijft alles van Bonsai staan.
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { classify } from '@/services/ifc/foreign/classify';
@@ -27,6 +18,12 @@ import type { Task } from '@/types/task';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installDeterminism();
+const dump = (name: string, bytes: Uint8Array) => {
+  const dir = process.env.OPS_MERGE_UITVOER;
+  if (!dir) return;
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, name), bytes);
+};
 let checks = 0;
 const fails: string[] = [];
 const ok = (label: string, condition: boolean) => { checks++; if (!condition) fails.push(label); };
@@ -36,15 +33,12 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 
 const soort = (table: IfcSlotTable, k: number) => table.slots[k].soortVreemd ?? table.slots[k].soort;
-/** De slots die de descriptor samen schrijft (een hoofdslot en wat het `volgt`), het hoofdslot eerst. */
 function groupOf(table: IfcSlotTable, k: number): number[] | undefined {
   const main = table.slots[k].volgt ?? table.slots[k].key;
   const members = table.slots.flatMap((slot, j) => (slot.key === main || slot.volgt === main ? [j] : []));
   if (members.length < 2) return undefined;
   return [members.find(j => table.slots[j].key === main)!, ...members.filter(j => table.slots[j].key !== main)];
 }
-/** Het ontwerp, letterlijk: constant het brontoken; domein het brontoken zolang het niet veranderde; afgeleid en
- *  verwijzing de writer; een afhankelijk slot samen met zijn hoofdslot. */
 function wantsSource(table: IfcSlotTable, k: number, changed: ReadonlySet<number>): boolean {
   const own = (j: number) => soort(table, j) === 'constant' || (soort(table, j) === 'domein' && !changed.has(j));
   const group = groupOf(table, k);
@@ -53,7 +47,6 @@ function wantsSource(table: IfcSlotTable, k: number, changed: ReadonlySet<number
   return own(main) && dependents.every(d => !changed.has(d));
 }
 
-// ── 1. De regel, voor elk slot van elke tabel ──
 let ruleSlots = 0;
 for (const table of IFC_SLOT_TABLES) {
   const source = table.slots.map((slot, k) => (slot.bronverwijzing ? `(#${900 + k})` : `'bron ${k}'`));
@@ -77,10 +70,7 @@ for (const table of IFC_SLOT_TABLES) {
   });
 }
 
-// ── 2. Van openen tot opslaan ──
-/** Wat de kaart bewust niet draagt: daar blijft de weigering `vreemde-herkomst` (sectie 5). */
 const NOT_CARRIED: ReadonlySet<string> = new Set(['IfcRelDeclares', 'IfcRelDefinesByProperties']);
-/** Slots waarvan de proef het brontoken niet anders kan maken dan wat de writer schrijft, met de reden. */
 const SAME_AS_WRITER: Readonly<Record<string, string>> = {
   'IfcWorkSchedule (baseline).globalId': 'de kop van een baseline houdt zijn id via zijn GlobalId',
   'IfcWorkSchedule (baseline).name': 'een baselinekop hoort bij de planning via naam en datum in OPS_Baselines',
@@ -101,10 +91,8 @@ const BONSAI = [
   "#990012=IFCQUANTITYCOUNT('Aantal van Bonsai',$,$,3.,$);",
   '#990013=IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.);',
   '#990014=IFCMEASUREWITHUNIT(IFCCOUNTMEASURE(2.),#990013);',
-  // De lezer slaat een relatie met de projectkalender over: het lid volgt dan de projectkalender (§4.5).
   "#990020=IFCRELASSIGNSTOCONTROL('0Bonsaiprojectkalender',#990005,'Kalender van Bonsai',$,(#51,#53),$,#38);",
 ];
-/** De constante slots met een `#` (de vaste lijst van §4.5): een verwijzing naar een stuk van Bonsai. */
 const BONSAI_REFERENCE: Readonly<Record<string, string>> = {
   ownerHistory: '#990005', creators: '(#990001)', usage: '#990010', baseCosts: '(#990011)', baseQuantity: '#990012',
   quantityInProcess: '#990014',
@@ -113,7 +101,6 @@ const codeOf = (type: string, k: number) => {
   const attribute = IFC_SCHEMA_TABLES.IFC4X3_ADD2.attributes[type]?.[k];
   return attribute?.slice(attribute.indexOf(':') + 1).replace(/\?$/, '');
 };
-/** Een eigen brontoken voor een constant of afgeleid slot, op de soort van het schema; `undefined` als de proef er geen heeft. */
 function ownToken(code: string | undefined, current: string, key: string): string | undefined {
   if (code === 'S') return `'Bonsai ${key}'`;
   if (code === 'DT') return "'2001-02-03T04:05:00'";
@@ -123,13 +110,10 @@ function ownToken(code: string | undefined, current: string, key: string): strin
   const other = literals?.find(l => `.${l}.` !== current.trim() && l !== 'USERDEFINED' && l !== 'NOTDEFINED');
   return other ? `.${other}.` : undefined;
 }
-/** Dezelfde tekst in een andere STEP-vorm (de eerste letter als `\X2\…\X0\`): de lezer leest hetzelfde. */
 const otherForm = (token: string) => (/^'[A-Za-z]/.test(token)
   ? `'\\X2\\${token.charCodeAt(1).toString(16).toUpperCase().padStart(4, '0')}\\X0\\${token.slice(2)}` : undefined);
 
 interface Fixture { readonly text: string; readonly distinct: ReadonlySet<string>; readonly carried: ReadonlySet<number> }
-/** Het voorbeeld met een planning van Bonsai: elk D- en R-stuk dat de kaart draagt (en zijn taaktijd of lag), met eigen
- *  brontokens. De Status van de taken wordt een tekst van Bonsai (sectie 3: de lezer leest die niet). */
 function bonsaiPlanning(file: string): Fixture {
   const original = readFileSync(join(ROOT, file), 'latin1');
   const index = scanForeignStep(new TextEncoder().encode(original));
@@ -166,7 +150,6 @@ function bonsaiPlanning(file: string): Fixture {
     const owned = ownedSlot ? index.refAt(chunk, table.slots.findIndex(s => s.key === ownedSlot)) : -1;
     if (owned >= 0) rewrite(owned, slotTableOf(index.type(owned), index.argTokens(owned)!)!, true);
   }
-  // Vervolgpunt 4 van #1182: een `IfcConstructionProductResource` van Bonsai (de lezer leest hem als materieel).
   let product = false;
   const text = original.split(/\r?\n/).map(line => {
     const m = /^#(\d+)=([A-Z0-9_]+)\(/.exec(line);
@@ -194,8 +177,6 @@ ok('de proef: een IfcConstructionProductResource van Bonsai in de kaart', pieces
 
 type Index = StepIndex;
 const argsAt = (index: Index, chunk: number) => [...index.argTokens(chunk)!].map(t => t.trim());
-/** Het stuk in de uitvoer bij een bronstuk: een D-stuk op zijn id, een relatie op haar GlobalId, een taaktijd of lag via zijn
- *  eigenaar. */
 function counterparts(out: Uint8Array): (chunk: number) => number {
   const index = scanForeignStep(out);
   const byGuid = new Map<string, number>();
@@ -223,6 +204,8 @@ function counterparts(out: Uint8Array): (chunk: number) => number {
 
 const innocent = (d: Domain) => storeEdit(d, s => { s.setProject({ name: `${d.project.name} (elders gewijzigd)` }); });
 const first = await tryMerge(await innocent(cloneDomain(opened)), source);
+dump('bron.ifc', sourceBytes);
+if (first.ok) dump('na-onschuldige-wijziging.ifc', first.bytes);
 ok(`na een onschuldige wijziging elders schrijft de merge${first.ok ? '' : ` (${first.error.cases.slice(0, 3).map(c => `${c.kind}: ${c.detail}`).join(' | ')})`}`, first.ok);
 const tested = new Set<string>();
 if (first.ok) {
@@ -269,7 +252,6 @@ for (const table of IFC_SLOT_TABLES) {
 }
 for (const at of Object.keys(SAME_AS_WRITER)) ok(`${at}: de uitzondering bestaat in het register`, tested.has(at));
 
-// ── 2b. De verliescontrole oordeelt per slotsoort over wat de writer aanbood (een fout van de writer in O1 nagebootst) ──
 if (first.ok) {
   const probe = await lossProbe(sourceBytes, await innocent(cloneDomain(opened)), first.bytes);
   const named = (chunks: readonly number[]) => chunks.map(c => `${sourceIndex.type(c)} #${sourceIndex.id(c)}`);
@@ -295,7 +277,6 @@ if (first.ok) {
     named(probe.run(changedAt(timePiece[0], 'name', () => "'Andere naam van de writer'"))), []);
 }
 
-// ── 3. Een gewijzigd domeinveld: de nieuwe waarde ──
 const leaves = (d: Domain) => d.tasks.filter(t => t.childIds.length === 0 && !t.isMilestone);
 const stepOf = (o: Opened, key: string) => o.ifcSource!.stepIds[key];
 const taskStep = (d: Domain) => stepOf(opened, `task:${leaves(d)[0].id}`);
@@ -310,13 +291,11 @@ const progress = (completion: number) => (d: Domain) => storeEdit(d, s => {
   if (!result.ok) throw new Error(`voortgang: ${result.reason}`);
 });
 const lengthened = async (d: Domain) => recalculated(await lengthen(d, leaves(d)[0].id));
-/** Dezelfde tijd een kalenderdag later. */
 const dayLater = (at: string) => {
   const day = new Date(`${at.slice(0, 10)}T00:00:00Z`);
   day.setUTCDate(day.getUTCDate() + 1);
   return `${day.toISOString().slice(0, 10)}${at.slice(10)}`;
 };
-/** De taak met de meeste speling: langer dan haar speling, en doorgerekend (F5). */
 const floating = (d: Domain): Task => [...leaves(d)].sort((a, b) => (b.time.totalFloat ?? 0) - (a.time.totalFloat ?? 0))[0];
 const beyondFloat = async (d: Domain) => {
   const t = floating(d), extra = Math.ceil(t.time.totalFloat ?? 0) + 2;
@@ -374,7 +353,6 @@ const EDITS: Readonly<Record<string, DomainEdit>> = {
   },
   'IfcWorkCalendar.predefinedType': { pick: () => stepOf(opened, `cal:${opened.calendar.id}`), edit: sync(d => { d.calendar.shift = 'SECOND'; }) },
 };
-/** Domeinslots die de planner niet kan wijzigen, of die een bewerking hierboven al raakt, met de reden. */
 const NOT_EDITABLE: Readonly<Record<string, string>> = {
   'IfcTask.globalId': 'de planner wijzigt geen GlobalId',
   'IfcWorkPlan.globalId': 'de planner wijzigt geen GlobalId',
@@ -412,7 +390,6 @@ for (const [at, entry] of Object.entries(EDITS)) {
   ok(`${at}: de nieuwe waarde van de writer, niet het brontoken (${was} → ${now})`, now !== was);
 }
 
-// ── 4. Tweemaal opslaan ──
 if (first.ok) {
   const reread = await openForeign(first.bytes);
   const again = await tryMerge(cloneDomain(reread), reread.ifcSource!);
@@ -421,6 +398,7 @@ if (first.ok) {
   const second = await tryMerge(renamed, reread.ifcSource!);
   ok(`tweemaal opslaan met een wijziging ertussen: schrijft${second.ok ? '' : ` (${second.error.cases.slice(0, 2).map(c => c.detail).join(' | ')})`}`, second.ok);
   if (second.ok) {
+    dump('tweede-opslag.ifc', second.bytes);
     const map = counterparts(second.bytes), outIndex = scanForeignStep(second.bytes);
     for (const [chunk, piece] of pieces) {
       const table = slotTableNamed(piece.table)!, o = map(chunk);
@@ -433,7 +411,6 @@ if (first.ok) {
   }
 }
 
-// ── 5. Relaties van Bonsai bij een bewerking: geen lid dubbel, geen lid kwijt, de bewaarde slots intact ──
 const relationPieces = pieces.filter(([c]) => sourceIndex.type(c).startsWith('IFCREL') && sourceIndex.type(c) !== 'IFCRELSEQUENCE');
 const guidOf = (chunk: number) => argsAt(sourceIndex, chunk)[0];
 const relationOf = (type: string, relatingStep: number) => relationPieces.find(([c]) => sourceIndex.type(c) === type
@@ -487,12 +464,13 @@ const RELATION_EDITS: readonly { label: string; edit: (d: Domain) => Promise<Dom
       ['#53 volgt de projectkalender nog', (membersIn(out, calendarControl) ?? []).includes(53)]],
   },
 ];
-for (const { label, edit, expect } of RELATION_EDITS) {
+for (const [n, { label, edit, expect }] of RELATION_EDITS.entries()) {
   const d = cloneDomain(opened);
   let edited: Domain;
   try { edited = await edit(d); } catch (e) { ok(`${label}: de bewerking lukt (${(e as Error).message})`, false); continue; }
   const result = await tryMerge(edited, source);
   if (!result.ok) { ok(`${label}: schrijft (${result.error.cases.slice(0, 2).map(c => `${c.kind}: ${c.detail}`).join(' | ')})`, false); continue; }
+  dump(`relatie-${n + 1}.ifc`, result.bytes);
   eq(`${label}: invarianten`, mergeProblems(sourceBytes, result.bytes), []);
   eq(`${label}: geen lid dubbel`, doubleMemberships(result.bytes).filter(k => !doubleMemberships(sourceBytes).includes(k)), []);
   const index = scanForeignStep(result.bytes), counterpart = counterparts(result.bytes);

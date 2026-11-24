@@ -518,8 +518,6 @@ export function fixedCatalogEdits(_d: Domain): Edit[] {
  * (PR 12c), zoals `prepareIfcWrite` hem aanzet (`openedOwnGroups`); zonder: de controle van main. `explained`: elk verschil
  * dat een oude verklaring (`explainO1`) toeliet, met de regel.
  */
-/** De owner history van OPS in een bestand (de applicatie `'OPS'`), bij voorkeur een die niet in `kept` staat (de nieuwe
- *  van de writer naast een bewaarde); anders die van de eerste taak. */
 function ownOwnerHistory(lines: readonly OutLine[], kept: ReadonlySet<number> = new Set()): number {
   const apps = new Set(lines.filter(l => l.type === 'IFCAPPLICATION' && l.args[3]?.trim() === "'OPS'").map(l => `#${l.id}`));
   const own = lines.filter(l => l.type === 'IFCOWNERHISTORY' && apps.has(l.args[1]?.trim() ?? ''));

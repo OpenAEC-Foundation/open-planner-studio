@@ -42,6 +42,7 @@ import { changedScopes, lossCheck, parseOutLine, pristineDomain, sameDuration, s
 import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import type { Task } from '@/types/task';
 import { classify } from '@/services/ifc/foreign/classify';
+import { slotTableNamed } from '@/services/ifc/ifcSlotTables';
 import { sourceFormWhereUnchanged } from '@/services/ifc/foreign/sourceForm';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -151,18 +152,14 @@ async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) =>
 
 /** De modellen met een kleine eigen planning die al vóór fixronde 3 schreven (geen oud eigen bestand). */
 const WRITES_FOREIGN_PLANNING: ReadonlySet<string> = new Set(['complexe-instanties.ifc', 'model-ifc4.ifc', 'model-ifc4x3.ifc']);
-/** Een planning van Bonsai in de lay-out van het schema: werkplan, werkschema's, taken en relaties hebben de owner history
- *  van Bonsai (§4.5). De kaart draagt ze; ze schrijven, ook na een bewerking, en houden hun herkomst. */
 const BONSAI_WRITES: ReadonlySet<string> = new Set(['bonsai-4d.ifc', 'crlf-commentaar.ifc', 'dubbele-globalids.ifc', 'latin1.ifc',
   'twee-werkplannen.ifc']);
-/** Een taak met 12 en een arbeidsresource met 10 argumenten: geen lay-out die de kaart draagt, dus de weigering blijft. */
 const BONSAI = ['niet-gedragen', 'vreemde-herkomst'];
 /** Bestanden van een ander programma: ze weigeren met deze gevallen. */
 const REFUSED: Readonly<Record<string, readonly string[]>> = {
   'council/proef-bonsai-achtig.ifc': BONSAI, 'council/r5sol-parallelle-relaties.ifc': BONSAI,
   'council/r6opus-twee-werkplannen.ifc': BONSAI, 'council/r6opus-twee-werkplannen.na.ifc': BONSAI,
   'council/r6sol-herkomst-na-eerste-opslag.ifc': BONSAI, 'council/r7fable-eigen-oh-planning.ifc': BONSAI,
-  // Kalender en psets van een ander programma (VendorOps); een IfcRelDefinesByProperties van een ander draagt de kaart niet.
   'council/fix2-vendor-ops.ifc': ['niet-gedragen', 'vreemde-herkomst'],
   // Plus een gemengde IfcRelAssignsToProcess die de writer anders zou schrijven.
   'council/r6sol-losse-bonsai-toewijzing.ifc': ['gemengde-relatie', 'niet-gedragen', 'vreemde-herkomst'],
@@ -218,6 +215,22 @@ for (const file of corpus) {
       const outIndex = scanStep(edited.out);
       eq(`${file}: elk stuk van Bonsai houdt na opslaan zijn herkomst`, classify(outIndex).foreignOrigin.map(c => outIndex.id(c)).filter(id => before.includes(id)).length,
         before.filter(id => outIndex.chunkOf(id) >= 0).length);
+    }
+    const leaf = opened.tasks.find(t => t.childIds.length === 0);
+    const renamed = leaf && await roundTrip(`${file} met een hernoemde taak`, bytes, d => storeEdit(d, s => { s.updateTask(leaf.id, { name: `${leaf.name} (hernoemd)` }); }));
+    if (renamed) {
+      const sourceIndex = scanStep(bytes), outIndex = scanStep(renamed.out);
+      const KEPT: Readonly<Record<string, readonly string[]>> = { IfcTask: ['ownerHistory', 'status'], IfcWorkPlan: ['ownerHistory', 'creators'],
+        'IfcWorkSchedule (live)': ['ownerHistory', 'creators'], IfcRelAssignsToProcess: ['ownerHistory', 'quantityInProcess'] };
+      for (const [id, piece] of opened.ifcSource.sourceSlots ?? []) {
+        const o = outIndex.chunkOf(String(id));
+        for (const key of KEPT[piece.table] ?? []) {
+          if (o >= 0 && outIndex.type(o) === sourceIndex.type(sourceIndex.chunkOf(String(id)))) {
+            const k = slotTableNamed(piece.table)!.slots.findIndex(slot => slot.key === key);
+            eq(`${file} met een hernoemde taak: #${id}.${key} byte-gelijk`, outIndex.argTokens(o)![k].trim(), piece.slots.get(key)!.trim());
+          }
+        }
+      }
     }
   } else if (!WRITES_FOREIGN_PLANNING.has(file)) ownWritten++;
   // O1 is niet leeg: zonder bewerking is het domein dat de merge schrijft (`sourceFormWhereUnchanged`: wat alleen het openen

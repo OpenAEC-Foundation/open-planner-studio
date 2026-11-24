@@ -487,7 +487,6 @@ let pickerCalls = 0;
 win.showOpenFilePicker = () => { throw new Error('niet in deze test'); };
 win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('geannuleerd', 'AbortError'); };
 {
-  // Een planning van een ander programma in een lay-out die de kaart niet draagt (een taak met 12 argumenten): de merge weigert.
   const store = await open(true, 'proef-bonsai-achtig.ifc', fileBytes(`${FOREIGN}/council/proef-bonsai-achtig.ifc`));
   const S = () => store.getState();
   S().addTask({ name: 'Nieuwe taak' });
