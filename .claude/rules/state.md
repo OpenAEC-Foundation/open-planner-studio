@@ -134,8 +134,8 @@ vingerafdruk (Opslaan als met ontbrekende bron zet een nieuwe, van de geschreven
 toepassen staat dicht). Een geopende versie (`'opened'`) en een onbekende houden de volgorde en de stroomscan van main:
 de scanner van openen aanvaardt meer dan de doelscan (twee datasecties, `stepScanner.ts`), en bij twijfel weigert de app
 (besluit Trias, 10 november 2026). Uitzondering voor een geopende versie met een UTF-8-BOM: zie *Oude eigen kop, scan
-en datasectie* in `tauri-ifc.md` (knownbug 2212); `utf8Bom` zegt of de bekende bytes met een BOM beginnen, en Ctrl+S en
-Automatisch opslaan zetten de BOM terug vóór de gewone uitvoer als de bevestigde versie er een had.
+en datasectie* in `tauri-ifc.md` (knownbug 2212); `utf8Bom` zegt of de bekende bytes met een BOM beginnen. Ctrl+S en
+Automatisch opslaan nemen die versie één keer per poging (`knownBomVersion`) en zetten de BOM dan vóór de gewone uitvoer.
 De stop van Automatisch opslaan vervalt zodra `guardedKnownTarget` een
 andere waarde geeft: een vastgelegde eigen opslag of een export die het eigen doel schreef (`settleFingerprintAfterExport`;
 een nieuw object, ook als er intussen nieuw werk is), de flag uit (`setUI` wist het veld) of een onbekende versie;

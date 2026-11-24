@@ -3841,8 +3841,17 @@ en noem het in je rapport of PR-tekst.
      gebouwmodel heeft daar de vervanging met een tweede vergelijking vlak vóór het plaatsen
      (`replaceOwnPathWithRecovery`); die route is voor een gewone planning bewust niet overgenomen (opdracht #804). Bij
      een versie die het tabblad zelf schreef (PR #1194) vervalt de doelscan, maar de toets blijft de laatste lezing vóór
-     het schrijven: hetzelfde gat als hier beschreven, niet groter. —
-     S (code gelezen, niet nagespeeld)
+     het schrijven: hetzelfde gat als hier beschreven, niet groter. Het geldt ook voor een eigen bestand met een UTF-8-BOM
+     (knownbug 2212, PR #1213): dat krijgt dezelfde laatste lezing vóór het schrijven als hetzelfde bestand zonder BOM. —
+     S (code gelezen; voor het BOM-bestand nagespeeld in `check-ifc-bom-eigen-bestand.ts`, reeks `tijdens-het-schrijven`)
+
+2358. **Ctrl+S weigert een eigen IFC met een UTF-8-BOM als het tabblad de versie van dat bestand niet kent (#804, flag aan).**
+     Sinds PR #1213 gedraagt een eigen bestand met een BOM zich bij Ctrl+S, *Opslaan* in de sluitvraag en Automatisch
+     opslaan als hetzelfde bestand zonder BOM op main, zolang `knownTargetFingerprint` de versie met BOM kent
+     (`knownBomVersion` in `src/state/knownTargetGuard.ts`). Kent het tabblad de versie niet (na crashherstel, na een
+     mislukte schrijfactie naar het eigen pad, of als de flag pas na het openen aanging), dan blijft de BOM de doelscan
+     onleesbaar maken: Ctrl+S weigert met *onleesbaar doel*, waar main hetzelfde bestand zonder BOM schrijft. Opslaan als
+     naar een nieuwe naam werkt; heropenen geeft het tabblad de versie weer. Nagespeeld op pad en handle. — B
 
 2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): de eerste opslag na openen leest het eigen bestand
      nog drie keer, een opslag zonder bekende versie twee keer.** Sinds PR #1194 vervalt de doelscan als op het eigen pad of
