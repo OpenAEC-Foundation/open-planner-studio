@@ -69,7 +69,9 @@ Per bronregel geeft `slotTableOf` precies één tabel: een werkschema is de base
 `schemaArgsOf` geeft per bronargument de plek in het schema, of niets bij een aantal argumenten dat geen bekende
 lay-out is. De verliescontrole van de merge (`alignment` in `foreign/lossCheck.ts`) gebruikt alleen dat, dus ook de
 oude `IfcLagTime` met verwisselde argumenten vergelijkt zij op slotnaam: de oude tekstduur tegen de `IFCDURATION`
-van de writer, en zij zet die oude vorm niet terug.
+van de writer, beide als dagen met teken (de oude vorm kent alleen dagvormen, `lag-oud` in `foreign/durationForms.ts`),
+en zij zet die oude vorm niet terug. Een oude vorm die niet op die lijst staat, weigert de duurcontrole al vóór het
+schrijven (`duur-deels-gelezen`).
 
 Elk slot heeft een **soort** (`ifcSlotSoort.ts`):
 
