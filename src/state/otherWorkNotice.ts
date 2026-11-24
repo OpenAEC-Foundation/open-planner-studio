@@ -29,7 +29,7 @@ export const OTHER_WORK_NOTICE_KEY = 'other-work-changed';
 const OTHER_WORK_NOTICE_MS = 12000;
 
 type WorkState = Pick<Snapshot, 'tasks' | 'assignments' | 'resources' | 'calendars' | 'calendar'>;
-type NoticeStore = Pick<StoreApi<AppState>, 'getState' | 'subscribe'>;
+export type NoticeStore = Pick<StoreApi<AppState>, 'getState' | 'subscribe'>;
 
 /** Wat *Werk (u)* per werkresource van de taak toont, in minuten. Materiaal en kosten tonen een
  *  streepje en tellen niet mee; zonder werkregel op de taak (fase, mijlpaal) is de lijst leeg. */
@@ -67,7 +67,7 @@ function noticeData(state: AppState): unknown[] {
  *  wijziging die dat breekt (een nieuwere stap, Ctrl+Z, een ander document, een bibliotheekverversing) haalt
  *  haar definitief weg, dus ook Ctrl+Z van wat daarna kwam brengt haar niet terug (review #1120 ronde 4
  *  en 5). Zo kloppen haar cijfers zolang ze er staat, en zet haar knop alleen haar eigen stap terug. */
-function watchNotice(store: NoticeStore, eventId: string): void {
+export function watchNotice(store: NoticeStore, eventId: string): void {
   const data = noticeData(store.getState());
   const stop = store.subscribe((s) => {
     const notice = s.ui.notifications.find((n) => n.action?.kind === 'undoHistoryEvent' && n.action.eventId === eventId);

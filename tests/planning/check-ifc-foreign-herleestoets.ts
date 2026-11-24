@@ -567,7 +567,7 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
     const edited = await applyEdit(edit, cloneDomain(opened));
     const outcome = await tryMerge(edited, source);
     if (outcome.ok) {
-      assert.deepEqual(mergeProblems(bytes, outcome.bytes), [], '1103: kop en alle vreemde bytes blijven gelijk');
+      assert.deepEqual(mergeProblems(bytes, outcome.bytes, outcome.changes), [], '1103: kop en alle vreemde bytes blijven gelijk');
       assert.equal(readbackDifference(outcome.shown, await openForeign(outcome.bytes)), undefined,
         '1103: echte volledige heropening gelijk aan de naad');
     } else {

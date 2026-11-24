@@ -85,7 +85,7 @@ async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Ope
     return { label, outcome: 'fout', kinds: [], details: [`${(e as Error).name}: ${(e as Error).message.slice(0, 160)}`] };
   }
   if (r.ok) {
-    const problems = mergeProblems(bytes, r.bytes);
+    const problems = mergeProblems(bytes, r.bytes, r.changes);
     if (problems.length > 0) return { label, outcome: 'fout', kinds: [], details: problems.slice(0, 3).map(p => `invariant: ${p}`), out: r.bytes };
     return { label, outcome: 'schrijft', kinds: [], details: [], out: r.bytes, shown: r.shown };
   }

@@ -513,9 +513,20 @@ await expectRefusal('vreemde herkomst (bonsai-4d)', read('tests/fixtures/ifc-for
       /^#\d+=IFCPROPERTYSINGLEVALUE\('3LKE2mEiGfOR4VMIq3h_xv#5',\$,IFCTEXT\('1\|UNIFORM'\),\$\);$/m.test(text(twoKeys.out)));
   }
 }
-await expectRefusal('taak wissen met een wand eraan', enc.encode(r4), 'verwijderd', (d) => {
+async function expectDeletion(label: string, bytes: Uint8Array, edit: (d: Domain) => void, dropped: string[], kept: string[]) {
+  const opened = await openForeign(bytes);
+  const d = cloneDomain(opened);
+  edit(d);
+  const r = await tryMerge(d, opened.ifcSource!);
+  ok(`${label}: schrijft (§4.7)${r.ok ? '' : `, maar weigert: ${r.kinds.join(', ')}`}`, r.ok);
+  if (!r.ok) return;
+  eq(`${label}: de wijzigingslijst`, r.changes.map(c => `${c.kind} #${c.id}`), dropped.map(id => `vervallen #${id}`));
+  eq(`${label}: invarianten met de wijzigingslijst`, mergeProblems(bytes, r.bytes, r.changes), []);
+  for (const id of kept) ok(`${label}: #${id} staat er nog, byte-gelijk (regel 4)`, lineOf(r.bytes, id) === lineOf(bytes, id) && lineOf(bytes, id) !== '');
+}
+await expectDeletion('taak wissen met een wand eraan', enc.encode(r4), (d) => {
   d.tasks = []; d.assignments = []; d.sequences = [];
-});
+}, ['905'], ['904']);
 // Een vreemd stuk dat naar een R-stuk wijst (de eigen IfcRelNests #58, dat bij opslaan een nieuw id krijgt, §4.3). Met
 // besluit 1 ook: de GlobalId van #58 mag dan niet veranderen, want een stuk dat niet P is, wijst ernaar (sectie 5i).
 {
@@ -607,7 +618,7 @@ await expectRefusal('de gedeelde kalender wijzigen', await settle(read('tests/fi
   ]));
   const r = await roundTrip('een kostenpost wijst naar een taak', src);
   if (r) ok('kostenpost: de taak blijft ook in het D-schema', relationsOf(r.out, 'IFCRELASSIGNSTOCONTROL', 6, 4).some(x => x.relating === '54' && x.related.includes('57')));
-  await expectRefusal('kostenpost: de taak wissen', src, 'verwijderd', (d) => { d.tasks = []; d.assignments = []; d.sequences = []; });
+  await expectDeletion('kostenpost: de taak wissen', src, (d) => { d.tasks = []; d.assignments = []; d.sequences = []; }, ['908'], ['907']);
 }
 {
   // Een gemengde IfcRelNests: de eigen taak #57 met als leden een eigen kind (#909) en een vreemde gebeurtenis (#910).

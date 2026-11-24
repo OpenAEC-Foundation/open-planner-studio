@@ -234,6 +234,7 @@ export type NotificationMessageKey =
   | 'notifications.ifc2x3PlanningOnly'
   | 'notifications.ifcForeignSaveBlocked'
   | 'notifications.ifcForeignSourceMissing'
+  | 'notifications.foreignLinksDropped'
   | 'notifications.ifcSourceCopyFailed'
   | 'notifications.ifcForeignReplaceBlocked'
   // Knownbug 1131 stap 2: Ctrl+S op het eigen bestand achter een handle.

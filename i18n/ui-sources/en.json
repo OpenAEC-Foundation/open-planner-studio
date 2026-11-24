@@ -276,6 +276,7 @@
     "notifications.ifcForeignReplaceLeftOver": "022e7fcfbfb907c1",
     "notifications.ifcSourceCopyFailed": "f0a56ba0f6b6928b",
     "notifications.ifcForeignSourceMissing": "8f7b445dc9d434ad",
+    "notifications.foreignLinksDropped": "b25cc91cf3e360e9",
     "notifications.taskTypeRenameNameTaken": "415138a9da576ef1",
     "notifications.otherWork.durationDays": "b3898b0add607756",
     "notifications.otherWork.durationHours": "d5d6ff630a058748",
