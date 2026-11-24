@@ -27,6 +27,10 @@ export function openMergePlanning(input: WriteIFCInput, side: 'uitvoer' | 'domei
   return structuredClone(buildWriteIFCInput(store.getState(), 'merge'));
 }
 
+export function slotReading(parsed: ImportResult): ImportResult | undefined {
+  return parsed.recordedTimes ? { ...parsed, recordedTimes: undefined, recordedTimesOrigin: 'ifc-own' } : undefined;
+}
+
 function recordedFieldsWritten(input: WriteIFCInput): Record<string, RecordedFieldKey[]> {
   const out: Record<string, RecordedFieldKey[]> = {};
   for (const task of input.tasks) {

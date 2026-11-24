@@ -65,7 +65,8 @@ import { planningCanon, planningDifference } from './planningCanon';
 import { planningIdentities, planningIdentityInput } from './planningIdentity';
 import { sameValue } from '@/utils/sameValue';
 import { freeze } from 'immer';
-import { openMergePlanning } from '@/state/ifcMergePlanning';
+import { openMergePlanning, slotReading } from '@/state/ifcMergePlanning';
+import { IFC_TASKTIME_SLOTS, TASK_SLOT } from '../ifcTaskSlots';
 import { psetOwners, validateMergeOutput } from './mergeValidation';
 import {
   SECOND_FORMS, indexView, linesView, ownGroupMembers, ownGroupTrees, restoredOwnGroupDifference, restoredOwnSlots, type RestoredOwnSlots,
@@ -343,7 +344,7 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, pro
  *  `observe`, alleen voor proeven: wat (c) bij deze opslag doet met de slots die (b) terugzette, precies zoals de opslag het
  *  aan (c) geeft. */
 export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, probe?: OpenMergePlanning,
-  observe?: (restored: RestoredOwnSlots) => void): Promise<PreparedIfcWrite> {
+  observe?: (restored: OwnOutputCheck) => void): Promise<PreparedIfcWrite> {
   input = freeze(structuredClone(input), true);
   if (!source.foreign) {
     const written = writeIFCWithChoices(input);
@@ -972,7 +973,7 @@ function concatParts(parts: readonly Uint8Array[]): Uint8Array {
 async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: IfcSource,
   index: StepIndex, cls: Classification, opened: WriteIFCInput, probe?: OpenMergePlanning, own?: OwnOutputCheck) {
   let actual: ReturnType<typeof validateMergeOutput>;
-  let shown: WriteIFCInput, wanted: WriteIFCInput;
+  let shown: WriteIFCInput, wanted: WriteIFCInput, slots: WriteIFCInput | undefined;
   let parsed: WriteIFCInput;
   let outputScan: ForeignScanResult;
   const writtenUnusedKeys = new Map<string, string[]>();
@@ -980,10 +981,13 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
     actual = validateMergeOutput(index, cls, source.bytes, bytes);
     if (actual.problems.length) throw new MergeNeedsPhase2Error(actual.problems.map(detail => ({ kind: 'uitvoer-controle', detail })));
     outputScan = foreignScanFrom(actual.index, actual.classification, bytes);
-    parsed = await pristineFromScan(outputScan, bytes, opened.project, writtenUnusedKeys) as WriteIFCInput;
+    const read = await pristineFromScan(outputScan, bytes, opened.project, writtenUnusedKeys);
+    parsed = read as WriteIFCInput;
     // ImportResult draagt ook TimeModel en opgeslagen datums: de echte openactie beslist daarover.
     shown = openMergePlanning(freeze(structuredClone(parsed), true), 'uitvoer');
     wanted = openMergePlanning(input, 'domein');
+    const reading = own && slotReading(read);
+    slots = reading ? openMergePlanning(freeze(reading as WriteIFCInput, true), 'uitvoer') : undefined;
   } catch (e) {
     if (e instanceof MergeNeedsPhase2Error) throw e;
     throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `uitvoer scannen of heropenen: ${String(e)}` }]);
@@ -1013,6 +1017,9 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   if (planningCanon(wanted) !== planningCanon(shown)) {
     throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(wanted, shown) }]);
   }
+  const slotProblem = own && (taskTimeLineProblem(bytes, actual.index, actual.classification, parsed, input, own)
+    ?? (slots && planningCanon(wanted) !== planningCanon(slots) ? planningDifference(wanted, slots) : undefined));
+  if (slotProblem) throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: slotProblem }]);
   const numberProblem = unchangedPlanningNumberProblem(input, opened, wanted, shown);
   if (numberProblem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: numberProblem }]);
   // (c), als laatste: wat hiervoor al weigerde, houdt zijn soort.
@@ -1031,6 +1038,33 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
  * precies de bronwaarde (PR A, `restoredOwnGroupDifference`); de rest van zijn groep gewoon. Groepen in `own.skip` toetst
  * (c) helemaal niet: daar was zo'n slot niet eenduidig aan te wijzen.
  */
+function taskTimeLineProblem(bytes: Uint8Array, out: StepIndex, outCls: Classification, parsed: WriteIFCInput, input: WriteIFCInput,
+  own: OwnOutputCheck): string | undefined {
+  const reread: WriteIFCInput = { ...parsed, withheldTaskTimeFields: input.withheldTaskTimeFields };
+  const ids = mergeIdPlan(out, outCls, own.stepIds, parsed.calendar.id, bytes);
+  const rewritten = new Map<number, OutLine>();
+  for (const text of writeIfcMergeLines(reread, sourceFormPlan(ids.plan, parsed, parsed, out, own.stepIds), own.writtenAt).lines) {
+    const line = parseOutLine(text);
+    if (line) rewritten.set(line.id, line);
+  }
+  for (const task of input.tasks) {
+    const step = own.stepIds[`task:${task.id}`];
+    const chunk = step === undefined ? -1 : out.chunkOf(String(step));
+    const time = chunk < 0 ? -1 : out.refAt(chunk, TASK_SLOT.taskTime);
+    const written = time < 0 ? undefined : out.argTokens(time);
+    const expected = step === undefined ? undefined : rewritten.get(refOf(rewritten.get(step)?.args[TASK_SLOT.taskTime]))?.args;
+    if (!written && !expected) continue;
+    if (!written || !expected || written.length !== expected.length) {
+      return `taak ${task.id}: de taaktijd in de uitvoer (${written?.length ?? 'geen'} argumenten) is niet wat de writer schrijft uit wat de lezer erin leest (${expected?.length ?? 'geen'})`;
+    }
+    const k = written.findIndex((token, i) => token !== expected[i]);
+    if (k >= 0) {
+      return `taak ${task.id}.time, IFCTASKTIME argument ${k} (${IFC_TASKTIME_SLOTS[k]?.key ?? '?'}): in de uitvoer ${written[k]}, na lezen en opnieuw schrijven ${expected[k]}`;
+    }
+  }
+  return undefined;
+}
+
 function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classification, sourceIndex: StepIndex, sourceCls: Classification,
   parsed: WriteIFCInput, input: WriteIFCInput, own: OwnOutputCheck): string | undefined {
   const output = indexView(out, i => { const original = sourceIndex.chunkOf(out.id(i)); return original < 0 || sourceCls.classes[original] === 1; });
