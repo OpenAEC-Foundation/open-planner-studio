@@ -15,10 +15,11 @@
 //    samenvatting; een nieuw bestand meldt niets.
 //
 // Het gebouwde pakket zelf (bundel, install, consumeervoorbeeld) toetst `npm run verify:core-package`.
+import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openIfc, openIfcBytes, PlannerCoreError, type ScheduleSummary } from '@/core';
+import { openIfc, openIfcBytes, PlannerCoreError, type PlannerDocument, type ScheduleSummary } from '@/core';
 import { createAppStoreContext } from '@/state/appStore';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -374,6 +375,9 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
   ok('8d toIfc() van een bytesdocument met een vreemd deel weigert met reason foreign',
     bytesError instanceof PlannerCoreError && bytesError.code === 'IFC_WRITE_FAILED' && bytesError.details.reason === 'foreign',
     String(bytesError));
+  const withoutForeignContent = (summary: ScheduleSummary) => JSON.stringify({ ...summary, foreignContent: null });
+  ok('8e de samenvatting van de bytesroute is die van de tekstroute, op foreignContent na',
+    withoutForeignContent(bytesDoc.schedule()) === withoutForeignContent(doc.schedule()));
 }
 
 // De blokkade op de historische eigen kop (1132) is weg, ook voor echte kernuitvoer.
@@ -443,8 +447,9 @@ const foreignFixture = (name: string): string => join(root, 'tests/fixtures/ifc-
   const empty = createAppStoreContext({ emitHostEvents: false }).store.getState();
   ok('12d IFC zonder taken ⇒ NO_TASKS',
     await codeOf(() => openIfcBytes(encoded(writeIFC(buildWriteIFCInput(empty, 'planOnly'))))) === 'NO_TASKS');
-  ok('12e een model zonder planning ⇒ NO_TASKS',
-    await codeOf(() => openIfcBytes(new Uint8Array(readFileSync(foreignFixture('model-ifc4.ifc'))))) === 'NO_TASKS');
+  const pureModel = readFileSync(foreignFixture('model-ifc4.ifc'));
+  eqText('12e een model zonder planning geeft de fout van main',
+    await codeOf(() => openIfcBytes(new Uint8Array(pureModel))), await codeOf(() => openIfc(pureModel.toString('utf8'))));
   ok('12f een IFC2X3-model blijft geweigerd ⇒ IFC_READ_FAILED',
     await codeOf(() => openIfcBytes(new Uint8Array(readFileSync(foreignFixture('model-ifc2x3.ifc'))))) === 'IFC_READ_FAILED');
   const own = readFileSync(files[0]);
@@ -560,10 +565,8 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
       return e instanceof PlannerCoreError ? `${e.code}:${String(e.details.reason)}` : String(e);
     }
   };
-  eqText('16b toIfcBytes() weigert vóór uitvoer met reason ifc2x3-planning-only',
-    await refusal(() => doc.toIfcBytes()), 'IFC_WRITE_FAILED:ifc2x3-planning-only');
-  eqText('16c toIfc() weigert vóór uitvoer met reason ifc2x3-planning-only',
-    await refusal(() => doc.toIfc()), 'IFC_WRITE_FAILED:ifc2x3-planning-only');
+  eqText('16b toIfcBytes() weigert vóór uitvoer zoals main', await refusal(() => doc.toIfcBytes()), 'IFC_WRITE_FAILED:foreign');
+  eqText('16c toIfc() weigert vóór uitvoer zoals main', await refusal(() => doc.toIfc()), 'IFC_WRITE_FAILED:foreign');
   eqText('16d de tekstroute weigert hetzelfde bestand, zoals main',
     await refusal(async () => (await openIfc(legacy)).toIfc()), 'IFC_WRITE_FAILED:foreign');
   const plainLegacy = asIfc2x3(own);
@@ -571,6 +574,15 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
   const plainText = await openIfc(plainLegacy);
   ok('16e een IFC2X3-planning zonder vreemde inhoud schrijft via bytes dezelfde IFC als de tekstroute, zoals main',
     sameBytes(await atOneWriteTime(() => plainBytes.toIfcBytes()), encoded(await atOneWriteTime(() => plainText.toIfc()))));
+  const plainWithBom = new Uint8Array([...UTF8_BOM, ...encoded(plainLegacy)]);
+  const plainBomBytes = await openIfcBytes(plainWithBom);
+  const plainBomMain = await openIfc(Buffer.from(plainWithBom).toString('utf8'));
+  ok('16f dezelfde IFC2X3-planning met één BOM schrijft via bytes dezelfde IFC als main',
+    sameBytes(await atOneWriteTime(() => plainBomBytes.toIfcBytes()), encoded(await atOneWriteTime(() => plainBomMain.toIfc()))));
+  const psetWithBom = new Uint8Array([...UTF8_BOM, ...encoded(legacy)]);
+  eqText('16g de IFC2X3-planning met externe pset en één BOM weigert schrijven zoals main',
+    await refusal(async () => (await openIfcBytes(psetWithBom)).toIfcBytes()),
+    await refusal(async () => (await openIfc(Buffer.from(psetWithBom).toString('utf8'))).toIfc()));
 }
 
 {
@@ -640,6 +652,59 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
   ok('17c de app met de flag aan opent de oude OPS-export met BOM, met dezelfde 20 taken en datums',
     failure === undefined && app.store.getState().tasks.length === 20 && appDiff === '',
     failure === undefined ? appDiff : String(failure));
+}
+
+{
+  const describe = (e: unknown): string => e instanceof PlannerCoreError ? `${e.code}:${String(e.details.reason ?? '')}` : `ander fouttype: ${String(e)}`;
+  const digest = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
+  async function outcome(open: () => Promise<PlannerDocument>, write: (doc: PlannerDocument) => Promise<Uint8Array>): Promise<string[]> {
+    let doc: PlannerDocument;
+    try { doc = await open(); } catch (e) { return [`openen ${describe(e)}`]; }
+    let summary: string;
+    try { summary = JSON.stringify(doc.schedule()); } catch (e) { return ['open', `rekenen ${describe(e)}`]; }
+    let ifc: string;
+    try { ifc = digest(await atOneWriteTime(() => write(doc))); } catch (e) { ifc = `schrijven ${describe(e)}`; }
+    return ['open', summary, ifc];
+  }
+  const emptyLiveSchedule = (() => {
+    const st = createAppStoreContext({ emitHostEvents: false }).store.getState();
+    const projectEnd = '2027-03-05';
+    return writeIFC({
+      project: { ...st.project, id: 'leeg-werkschema', startDate: '2027-03-01' }, calendar: st.calendar,
+      tasks: [], sequences: [], resources: [], assignments: [],
+      baselines: [{ id: 'bl-1', name: 'Baseline', createdAt: '2027-02-15T12:00:00.000Z', projectEnd, projectDuration: 5,
+        tasks: [{ taskId: 'taak-1', start: '2027-03-01', finish: projectEnd, duration: 5, isMilestone: false }] }],
+      activeBaselineId: 'bl-1',
+    });
+  })();
+  const corpus: Array<[string, Uint8Array]> = [
+    ...files.map(f => [f.slice(root.length + 1), new Uint8Array(readFileSync(f))] as [string, Uint8Array]),
+    ...readdirSync(join(root, 'tests/planning/fixtures/oude-tags')).filter(f => f.endsWith('.ifc'))
+      .map(f => [`oude-tags/${f}`, new Uint8Array(readFileSync(join(root, 'tests/planning/fixtures/oude-tags', f)))] as [string, Uint8Array]),
+    ['IFC2X3-planning', encoded(utf8(new Uint8Array(readFileSync(files[0]))).replace(/FILE_SCHEMA\(.*?\);/, "FILE_SCHEMA(('IFC2X3'));"))],
+    ['leeg eigen werkschema met één baselinetaak', encoded(emptyLiveSchedule)],
+  ];
+  ok('18 fixture: het leeg eigen werkschema leest via tekst één taak',
+    (await openIfc(emptyLiveSchedule)).schedule().counts.tasks === 1);
+  const forms: Array<[string, (bytes: Uint8Array) => Uint8Array]> = [
+    ['kaal', bytes => bytes],
+    ['met BOM', bytes => new Uint8Array([...UTF8_BOM, ...bytes])],
+    ['met BOM en een spatie', bytes => new Uint8Array([...UTF8_BOM, 0x20, ...bytes])],
+  ];
+  let pinned = 0;
+  for (const [name, source] of corpus) {
+    for (const [form, shape] of forms) {
+      const bytes = shape(source);
+      const viaMain = await outcome(() => openIfc(Buffer.from(bytes).toString('utf8')), async doc => encoded(doc.toIfc()));
+      const viaBytes = await outcome(() => openIfcBytes(bytes), doc => doc.toIfcBytes());
+      const at = viaMain.findIndex((part, i) => part !== viaBytes[i]);
+      ok(`18 ${name}, ${form}: openIfcBytes geeft de samenvatting en de uitvoer van main`,
+        at < 0 && viaMain.length === viaBytes.length,
+        at < 0 ? `${viaBytes.length} ≠ ${viaMain.length} delen` : `${['openen', 'samenvatting', 'uitvoer'][at]}: ${viaBytes[at]?.slice(0, 120)} ≠ ${viaMain[at]?.slice(0, 120)}`);
+      pinned++;
+    }
+  }
+  ok('18 de regel is gepind op het hele corpus zonder vreemd deel', pinned === corpus.length * forms.length && pinned >= 130, String(pinned));
 }
 
 if (diffs.length === 0) {

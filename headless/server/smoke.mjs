@@ -115,14 +115,6 @@ try {
   ok('herberekende IFC geeft hetzelfde einde', again.status === 200 && again.json?.project?.finish === EXPECTED.finish, String(again.json?.project?.finish));
 
   const exampleBytes = readFileSync(EXAMPLE);
-  const bytesSummary = await call('/v1/schedule', { method: 'POST', body: exampleBytes, headers: BYTES });
-  ok('voorbeeld als bytes → dezelfde samenvatting als als tekst, zonder vreemd deel',
-    bytesSummary.status === 200 && bytesSummary.json?.foreignContent === null
-      && JSON.stringify(bytesSummary.json?.tasks) === JSON.stringify(s?.tasks), `${bytesSummary.status} ${bytesSummary.text.slice(0, 200)}`);
-  const bytesIfc = await call('/v1/schedule?output=ifc', { method: 'POST', body: exampleBytes, headers: BYTES });
-  ok('voorbeeld als bytes, output=ifc → 200 met application/octet-stream', bytesIfc.status === 200
-    && bytesIfc.headers.get('content-type') === 'application/octet-stream' && bytesIfc.text.startsWith('ISO-10303-21;'),
-    `${bytesIfc.status} ${bytesIfc.headers.get('content-type')}`);
   for (const model of MODEL_FILES) {
     const source = readFileSync(join(FOREIGN_FIXTURES, model.file));
     const asText = await call('/v1/schedule', { method: 'POST', body: source, headers: IFC });
@@ -139,32 +131,33 @@ try {
       `${modelIfc.status} ${modelIfc.bytes.length} ≠ ${source.length} bytes`);
   }
 
-  const bomUpload = await call('/v1/schedule', { method: 'POST', body: Buffer.concat([UTF8_BOM, exampleBytes]), headers: BYTES });
-  ok('voorbeeld met UTF-8-BOM als bytes → 200 met dezelfde taken, zoals op main', bomUpload.status === 200
-    && JSON.stringify(bomUpload.json?.tasks) === JSON.stringify(s?.tasks), `${bomUpload.status} ${bomUpload.text.slice(0, 200)}`);
-  const leads = [
-    ['de oude OPS-export uit v2026.7.12 met BOM', Buffer.concat([UTF8_BOM, readFileSync(OLD_OPS_EXPORT)])],
-    ['een dubbele BOM', Buffer.concat([UTF8_BOM, UTF8_BOM, exampleBytes])],
-    ['een BOM na een spatie', Buffer.concat([Buffer.from(' '), UTF8_BOM, exampleBytes])],
-    ['U+00A0 na een BOM', Buffer.concat([UTF8_BOM, Buffer.from('\u00a0'), exampleBytes])],
+  const legacyPlanning = Buffer.from(example.replace(/FILE_SCHEMA\(.*?\);/, "FILE_SCHEMA(('IFC2X3'));"));
+  const legacyWithPset = Buffer.from(legacyPlanning.toString('utf8').replace('ENDSEC;\nEND-ISO-10303-21;', EXTERN_PSET));
+  const likeMain = [
+    ['het voorbeeld', exampleBytes, 200],
+    ['het voorbeeld met UTF-8-BOM', Buffer.concat([UTF8_BOM, exampleBytes]), 200],
+    ['de oude OPS-export uit v2026.7.12 met BOM', Buffer.concat([UTF8_BOM, readFileSync(OLD_OPS_EXPORT)]), 200],
+    ['een dubbele BOM', Buffer.concat([UTF8_BOM, UTF8_BOM, exampleBytes]), 200],
+    ['een BOM na een spatie', Buffer.concat([Buffer.from(' '), UTF8_BOM, exampleBytes]), 200],
+    ['U+00A0 na een BOM', Buffer.concat([UTF8_BOM, Buffer.from('\u00a0'), exampleBytes]), 200],
+    ['een IFC2X3-planning met BOM', Buffer.concat([UTF8_BOM, legacyPlanning]), 200],
+    ['een IFC2X3-planning met een externe pset', legacyWithPset, 500],
+    ['een IFC2X3-planning met een externe pset en BOM', Buffer.concat([UTF8_BOM, legacyWithPset]), 500],
   ];
-  for (const [label, body] of leads) {
-    const mainRoute = await call('/v1/schedule', { method: 'POST', body, headers: IFC });
-    const viaBytes = await call('/v1/schedule', { method: 'POST', body, headers: BYTES });
-    ok(`${label} als bytes → dezelfde status en taken als als tekst, zoals op main`, mainRoute.status === 200
-      && viaBytes.status === mainRoute.status && JSON.stringify(viaBytes.json?.tasks) === JSON.stringify(mainRoute.json?.tasks),
-      `tekst ${mainRoute.status}, bytes ${viaBytes.status} ${viaBytes.text.slice(0, 160)}`);
-    const ifcViaBytes = await call('/v1/schedule?output=ifc', { method: 'POST', body, headers: BYTES });
-    ok(`${label} als bytes, output=ifc → 200 met IFC, zoals op main`, ifcViaBytes.status === 200
-      && ifcViaBytes.text.startsWith('ISO-10303-21;'), `${ifcViaBytes.status} ${ifcViaBytes.text.slice(0, 160)}`);
+  for (const [label, body, mainIfcStatus] of likeMain) {
+    const textSummary = await call('/v1/schedule', { method: 'POST', body, headers: IFC });
+    const bytesSummary = await call('/v1/schedule', { method: 'POST', body, headers: BYTES });
+    ok(`${label} als bytes → dezelfde status en samenvatting als als tekst, zoals op main`, textSummary.status === 200
+      && bytesSummary.status === textSummary.status && JSON.stringify(bytesSummary.json) === JSON.stringify(textSummary.json),
+      `tekst ${textSummary.status}, bytes ${bytesSummary.status} ${bytesSummary.text.slice(0, 160)}`);
+    const textIfc = await call('/v1/schedule?output=ifc', { method: 'POST', body, headers: IFC });
+    const bytesIfc = await call('/v1/schedule?output=ifc', { method: 'POST', body, headers: BYTES });
+    const same = bytesIfc.status === textIfc.status && bytesIfc.headers.get('content-type') === textIfc.headers.get('content-type')
+      && (textIfc.status === 200 ? bytesIfc.text.startsWith('ISO-10303-21;') : refusalOf(bytesIfc) === refusalOf(textIfc));
+    ok(`${label} als bytes, output=ifc → ${mainIfcStatus}, met hetzelfde type en dezelfde fout als als tekst, zoals op main`,
+      textIfc.status === mainIfcStatus && same,
+      `tekst ${refusalOf(textIfc)} ${textIfc.headers.get('content-type')}, bytes ${refusalOf(bytesIfc)} ${bytesIfc.headers.get('content-type')}`);
   }
-  const legacy = Buffer.from(example.replace(/FILE_SCHEMA\(.*?\);/, "FILE_SCHEMA(('IFC2X3'));").replace('ENDSEC;\nEND-ISO-10303-21;', EXTERN_PSET));
-  const legacySummary = await call('/v1/schedule', { method: 'POST', body: legacy, headers: BYTES });
-  ok('IFC2X3 met een externe pset als bytes → 200, zonder bewaard vreemd deel', legacySummary.status === 200
-    && legacySummary.json?.foreignContent === null, `${legacySummary.status} ${legacySummary.text.slice(0, 200)}`);
-  const legacyIfc = await call('/v1/schedule?output=ifc', { method: 'POST', body: legacy, headers: BYTES });
-  ok('IFC2X3 met een externe pset als bytes, output=ifc → 500 IFC_WRITE_FAILED met reason ifc2x3-planning-only',
-    refusalOf(legacyIfc) === '500 IFC_WRITE_FAILED:ifc2x3-planning-only', refusalOf(legacyIfc));
   const bonsai = readFileSync(join(FOREIGN_FIXTURES, 'bonsai-4d.ifc'), 'utf8');
   const staleBonsai = Buffer.from(bonsai.replace(BONSAI_WALL_A_TIME, BONSAI_WALL_A_STALE));
   ok('fixture: een Bonsai-planning met een vroege start die de berekening niet geeft', !staleBonsai.equals(Buffer.from(bonsai)));
