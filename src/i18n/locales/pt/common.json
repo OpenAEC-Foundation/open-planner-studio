@@ -460,7 +460,6 @@
     "reportFontMissing": "O seu tipo de letra {{name}} já não está neste dispositivo. O relatório volta a usar a Inter.",
     "layoutsNotSaved": "Não foi possível guardar os layouts. Nada foi alterado. Tente novamente.",
     "ifcForeignOpenSchema": "Este ficheiro IFC contém dados de outra aplicação e tem um esquema desconhecido ou em falta. A abertura foi interrompida para evitar perda de dados ao guardar.",
-    "ifcForeignOpenTooLarge": "Este ficheiro IFC tem mais de {{limit}} MB. Um ficheiro IFC com um modelo de edifício ou com dados de outro programa pode ser aberto até {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Este ficheiro IFC não pode ser classificado com segurança. A abertura foi interrompida para evitar perda de dados ao guardar.",
     "ifc2x3PlanningOnly": "O IFC2X3 foi aberto como planeamento. Os dados de outras aplicações não serão incluídos ao guardar.",
     "ifcForeignReplaceBlocked": "Não guardado. Este é o ficheiro que tem aberto. Utilize «Guardar» para o atualizar, ou «Guardar como» com um novo nome para obter uma cópia.",
