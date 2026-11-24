@@ -554,7 +554,7 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
   const pairedOut = new Map<number, number[]>();
   const usedOut = new Set<number>();
   const seenPair = new Set<string>();
-  const queue: [number, number][] = [];
+  const pairs: [number, number][] = [];
   const pair = (s: number, o: number) => {
     const key = `${s}|${o}`;
     if (seenPair.has(key)) return;
@@ -563,7 +563,7 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
     usedOut.add(o);
     const list = pairedOut.get(s);
     if (list) list.push(o); else pairedOut.set(s, [o]);
-    queue.push([s, o]);
+    pairs.push([s, o]);
   };
   /** Bronstuk → uitvoer-id (de eerste tegenhanger). Een stuk dat niet P is, staat met zijn eigen id in de uitvoer. */
   const outIdOf = (s: number): number | undefined => {
@@ -650,7 +650,9 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
       if (list) list.push(t); else srcByType.set(index.type(t), [t]);
     }
     for (const [type, src] of srcByType) {
-      let left = [...(outByType.get(type) ?? [])];
+      const outOfType = outByType.get(type) ?? [];
+      const inType = new Set(outOfType);
+      const taken = new Set<number>();
       // Een stuk dat niet P is en met zijn eigen id in de lijst staat, is zichzelf. Staat het er niet, dan zoekt de toets de
       // kopie die de writer schreef (de normalisatie `id`, bijvoorbeeld een eigen owner history naast een gedeelde).
       // Een kopie bestaat alleen in de keten van de owner history (fixronde 4, plek 28): een ander stuk dat niet P is (een
@@ -658,26 +660,39 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
       // een verschil.
       let todo = src.filter(t => {
         const o = outIdOf(t);
-        if (o !== undefined && left.includes(o)) { left = left.filter(x => x !== o); if (!inD[t] && isP(t)) pair(t, o); return false; }
+        if (o !== undefined && inType.has(o) && !taken.has(o)) { taken.add(o); if (!inD[t] && isP(t)) pair(t, o); return false; }
         return o === undefined || (!isP(t) && COPY_TYPES.has(index.type(t)));
       });
+      let left = outOfType.filter(x => !taken.has(x));
       /** Paar op een sleutel. Hebben meer bronstukken of meer regels dezelfde sleutel, dan is het paar niet eenduidig
        *  (BLOKKEERT 5): dan nog wel in volgorde paren (de vergelijking ziet een verschil), maar met het merk `ambiguous`. */
       const take = (srcKey: (t: number) => string, outKey: (line: OutLine) => string) => {
         const srcCount = new Map<string, number>();
         for (const t of todo) { const k = srcKey(t); srcCount.set(k, (srcCount.get(k) ?? 0) + 1); }
         const outCount = new Map<string, number>();
-        const keyOfOut = new Map<number, string>();
-        for (const id of left) { const k = outKey(out.get(id)!); keyOfOut.set(id, k); outCount.set(k, (outCount.get(k) ?? 0) + 1); }
+        const outOfKey = new Map<string, number[]>();
+        const listed = new Set<number>();
+        for (const id of left) {
+          const k = outKey(out.get(id)!);
+          outCount.set(k, (outCount.get(k) ?? 0) + 1);
+          if (listed.has(id)) continue;
+          listed.add(id);
+          const ids = outOfKey.get(k);
+          if (ids) ids.push(id); else outOfKey.set(k, [id]);
+        }
+        const nextOfKey = new Map<string, number>();
         todo = todo.filter(t => {
           const k = srcKey(t);
-          const o = left.find(id => keyOfOut.get(id) === k);
+          const next = nextOfKey.get(k) ?? 0;
+          const o = outOfKey.get(k)?.[next];
           if (o === undefined) return true;
           if ((srcCount.get(k) ?? 0) > 1 || (outCount.get(k) ?? 0) > 1) ambiguous[t] = 1;
-          left = left.filter(x => x !== o);
+          nextOfKey.set(k, next + 1);
+          taken.add(o);
           pair(t, o);
           return false;
         });
+        left = left.filter(x => !taken.has(x));
       };
       const nameSlot = NAME_SLOT[type];
       if (nameSlot !== undefined) {
@@ -712,11 +727,10 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
   };
 
   // Via de eigenaar, met de relaties tussendoor, tot er niets meer bij komt.
-  const pairs: [number, number][] = [];
+  let processed = 0;
   const process = () => {
-    while (queue.length > 0) {
-      const [s, o] = queue.shift()!;
-      pairs.push([s, o]);
+    while (processed < pairs.length) {
+      const [s, o] = pairs[processed++];
       const line = out.get(o);
       const a = index.argTokens(s);
       if (!line || line.type !== index.type(s) || !a) continue;

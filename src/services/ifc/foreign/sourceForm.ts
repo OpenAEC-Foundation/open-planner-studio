@@ -103,21 +103,30 @@ const TIME_DATE_KEYS: ReadonlySet<string> = new Set<string>(TIME_FIELDS);
 const isDateLeaf = (leaf: SourceFormLeaf) => leaf.kind === 'task'
   && (leaf.sub === undefined ? TASK_DATE_KEYS.has(leaf.field) : TIME_DATE_KEYS.has(leaf.sub));
 
+function firstById<T extends { id: string }>(list: readonly T[] | undefined): Map<string, T> {
+  const out = new Map<string, T>();
+  for (const x of list ?? []) if (!out.has(x.id)) out.set(x.id, x);
+  return out;
+}
+
 /** De waarde van een veld, of `found: false` als het object ontbreekt. */
-function leafValue(planning: { tasks: readonly Task[]; baselines?: readonly Baseline[]; calendars?: readonly WorkCalendar[] },
-  leaf: SourceFormLeaf): { found: boolean; value?: unknown } {
-  if (leaf.kind === 'calendar') {
-    const c = (planning.calendars ?? []).find(x => x.id === leaf.id);
-    return c ? { found: true, value: c } : { found: false };
-  }
-  if (leaf.kind === 'baseline') {
-    const b = (planning.baselines ?? []).find(x => x.id === leaf.id);
-    return b ? { found: true, value: b } : { found: false };
-  }
-  const t = planning.tasks.find(x => x.id === leaf.id);
-  if (!t) return { found: false };
-  const v = fields(t)[leaf.field];
-  return { found: true, value: leaf.sub === undefined ? v : (v as Record<string, unknown> | undefined)?.[leaf.sub] };
+function leafValues(planning: { tasks: readonly Task[]; baselines?: readonly Baseline[]; calendars?: readonly WorkCalendar[] }):
+  (leaf: SourceFormLeaf) => { found: boolean; value?: unknown } {
+  const tasks = firstById(planning.tasks), baselines = firstById(planning.baselines), calendars = firstById(planning.calendars);
+  return (leaf) => {
+    if (leaf.kind === 'calendar') {
+      const c = calendars.get(leaf.id);
+      return c ? { found: true, value: c } : { found: false };
+    }
+    if (leaf.kind === 'baseline') {
+      const b = baselines.get(leaf.id);
+      return b ? { found: true, value: b } : { found: false };
+    }
+    const t = tasks.get(leaf.id);
+    if (!t) return { found: false };
+    const v = fields(t)[leaf.field];
+    return { found: true, value: leaf.sub === undefined ? v : (v as Record<string, unknown> | undefined)?.[leaf.sub] };
+  };
 }
 
 /**
@@ -242,7 +251,8 @@ export function sourceFormWhereUnchanged(domain: WriteIFCInput, opened: WriteIFC
   for (;;) {
     const again = orphanRowsWithoutId(reopened(withRestores(domain, restores)));
     const shown = orphanRowsWithoutId(domain);
-    const failing = restores.filter(r => r.converted && !sameValue(leafValue(again, r.leaf).value, leafValue(shown, r.leaf).value));
+    const againValue = leafValues(again), shownValue = leafValues(shown);
+    const failing = restores.filter(r => r.converted && !sameValue(againValue(r.leaf).value, shownValue(r.leaf).value));
     if (failing.length === 0) break;
     const datesOf = new Set(failing.filter(r => isDateLeaf(r.leaf)).map(r => r.leaf.id));
     restores = restores.filter(r => !failing.includes(r) && !(isDateLeaf(r.leaf) && datesOf.has(r.leaf.id)));
@@ -306,11 +316,12 @@ export function sourceFormProblems(checked: readonly SourceFormLeaf[], domain: W
   const m = orphanRowsWithoutId(migrated(back));
   const shown = { ...orphanRowsWithoutId(domain), calendars: calendarIds([domain.calendar, ...(domain.resourceCalendars ?? [])], wantIds) };
   const actual = { ...m, calendars: calendarIds(m.calendars, gotIds) };
+  const shownValue = leafValues(shown), actualValue = leafValues(actual);
   const out: string[] = [];
   for (const leaf of checked) {
     const identityLeaf = leaf.kind === 'calendar' ? { ...leaf, id: wantIds.get(leaf.id) ?? leaf.id } : leaf;
-    const want = leafValue(shown, identityLeaf);
-    const got = leafValue(actual, identityLeaf);
+    const want = shownValue(identityLeaf);
+    const got = actualValue(identityLeaf);
     if (!got.found) { out.push(`${leafLabel(leaf)}: ontbreekt na herlezen`); continue; }
     if (!sameValue(got.value, want.value)) {
       out.push(`${leafLabel(leaf)}: ${JSON.stringify(got.value)?.slice(0, 80)} na herlezen in plaats van ${JSON.stringify(want.value)?.slice(0, 80)}`);
