@@ -11,6 +11,8 @@ import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { readIfcBytes } from '@/services/ifc/foreign/ifcBytesRoute';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
+import { planningCanon, planningDifference as firstPlanningDifference } from '@/services/ifc/foreign/planningCanon';
+import { planningIdentityInput } from '@/services/ifc/foreign/planningIdentity';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import type { ImportResult } from '@/services/importTypes';
@@ -198,11 +200,27 @@ function plainIfc(s: AppState): string {
   }
 }
 
+const documentStates = new WeakMap<PlannerDocument, () => AppState>();
+
+export function planningDifference(a: PlannerDocument, b: PlannerDocument): string | null {
+  const stateOfA = documentStates.get(a);
+  const stateOfB = documentStates.get(b);
+  if (!stateOfA || !stateOfB) {
+    throw new PlannerCoreError('INVALID_INPUT', 'planningDifference compares two documents opened by this package');
+  }
+  const inputA = buildWriteIFCInput(stateOfA(), 'merge');
+  const writtenB = buildWriteIFCInput(stateOfB(), 'merge');
+  const inputB = { ...writtenB, project: { ...writtenB.project, createdAt: inputA.project.createdAt, modifiedAt: inputA.project.modifiedAt } };
+  if (planningCanon(inputA) === planningCanon(inputB)) return null;
+  const named = (input: typeof inputA) => ({ ...planningIdentityInput(input), assignments: input.assignments.map(a => ({ ...a, id: '' })) });
+  return firstPlanningDifference(named(inputA), named(inputB)).split(':')[0];
+}
+
 function plannerDocument(
   opened: OpenedCoreDocument, output: Pick<PlannerDocument, 'toIfc' | 'toIfcBytes'>,
 ): PlannerDocument {
   const { state, importWarnings } = opened;
-  return {
+  const document: PlannerDocument = {
     get openWarnings(): ScheduleWarning[] {
       return importWarnings.map(w => ({ ...w, ids: [...w.ids] }));
     },
@@ -232,6 +250,8 @@ function plannerDocument(
     toIfc: output.toIfc,
     toIfcBytes: output.toIfcBytes,
   };
+  documentStates.set(document, state);
+  return document;
 }
 
 function errorText(err: unknown): string {
