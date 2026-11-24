@@ -14,7 +14,7 @@ import { rememberLiteralCalendarsWritten } from '@/state/savedLiteralCalendars';
 import { ifcSchemaBlocksSilentWrite } from '@/services/ifc/ifcSchemaQuestion';
 import { buildWriteIFCInput, sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { documentContentOf, sameDocumentContent, type DocumentContentRef } from '@/state/documentSaveState';
-import { computeIfcOutputHere, prepareIfcOutput, type IfcOutputCompute } from '@/state/prepareIfcOutput';
+import { computeIfcOutputHere, documentSaveCompute, prepareIfcOutput, writtenFingerprint, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
   canWriteToRefWithoutPrompt, fileIdentityFs, sameFileRef, saveTargetRef, saveToRefWithoutPrompt, sourceTargetContent,
@@ -254,6 +254,7 @@ export function createFileAutoSaveController(deps: {
         // Een onbekende stand of hulpbestanden die blijven staan, met hun record: de melding van Ctrl+S, en stoppen.
         const notices = ownPathReplaceNotices(result, ref.path);
         for (const notice of notices) getState().notify(notice);
+        getState().forgetKnownTargetFingerprint(candidate.id);
         stopFor(candidate.id, ref, null);
         return 'refused';
       }
@@ -363,7 +364,9 @@ export function createFileAutoSaveController(deps: {
       // #804 stap 6: de momentopname en het rekenen onder het schrijfslot, via dezelfde berekenfunctie als Ctrl+S
       // (de opslagworker). Typt de planner intussen, dan schrijft de ronde deze momentopname en blijft het document
       // gewijzigd (`commitSavedDocument`); de volgende ronde neemt het latere werk mee.
-      const output = await prepareIfcOutput({ ...current, ui: getState().ui }, buildWriteIFCInput(current, 'merge'), undefined, compute);
+      const ui = getState().ui;
+      const output = await prepareIfcOutput({ ...current, ui }, buildWriteIFCInput(current, 'merge'), undefined,
+        documentSaveCompute(ui.featureFlags, compute));
       if (output.prepared) return 'refused';
       // #804 fixronde 2: dezelfde doelcontrole als Opslaan, onder dezelfde lock. Fixronde 1 van #1027 (review Sol): ná het
       // rekenen, vlak vóór het schrijven, zoals Ctrl+S: een gebouwmodel dat tijdens het rekenen op het doel verscheen,
@@ -383,11 +386,19 @@ export function createFileAutoSaveController(deps: {
       let replaced = false;
       const contentReplaced = () => (replaced = !sameDocumentContent(getState(), document));
       if (contentReplaced()) return 'stale';
-      const written = await saveToRefWithoutPrompt(candidate.ref!, output.bytes ?? output.content, contentReplaced);
+      const hashing = writtenFingerprint(ui.featureFlags, output);
+      let written: Awaited<ReturnType<typeof saveToRefWithoutPrompt>>;
+      try {
+        written = await saveToRefWithoutPrompt(candidate.ref!, output.bytes ?? output.content, contentReplaced);
+      } catch (error) {
+        if (candidate.ref?.kind === 'path') getState().forgetKnownTargetFingerprint(candidate.id);
+        throw error;
+      }
       if (replaced) return 'stale';
       if (!written) return false;
+      const fingerprint = hashing instanceof Promise ? await hashing : hashing;
       // Binnen dezelfde schrijfbeurt vastleggen, zoals Ctrl+S: dirty alleen weg als precies deze versie nog actueel is.
-      getState().markAutoSaveVersionSaved(document, current);
+      getState().markAutoSaveVersionSaved(document, current, undefined, fingerprint);
       return true;
     }, () => 'refused'),
     onFailure: (_candidate, error) => {
