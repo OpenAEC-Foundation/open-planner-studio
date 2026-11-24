@@ -12,9 +12,6 @@
 //
 // 1. Wat de nieuwe toets laat schrijven: de knownbugs 1582, 1585, 1586 (laatste gebruik van één type), 1587, 1589, 1110 en
 //    de grens van 7d; de gevallen van 7c en 7d op drie bronnen; de reeksen; de sessieketen.
-// 2. Wat blijft weigeren: 1588 en een onbekend definitieveld (de groep is niet gedragen; een typedefinitie hernoemen
-//    schrijft sinds PR 12d, blok 6), de backup met herstelkenmerk (a′, knownbug 1703), en alles buiten de eigen groepen (de r7sol-bestanden, de
-//    volgorde in `IfcRelNests`).
 // 3. Een vreemd lid in een eigen pset: het blijft staan, ook als het laatste eigen lid wegvalt (stap 5 deel 1, was knownbug 1707).
 // 4. De klok: de reeksen en de sessieketen ook met een lopende klok.
 // 5. PR 12c, de baselinekop (E1): een kop in de aggregatie van het werkplan beweegt mee met zijn baseline (1581, 1700, de
@@ -184,6 +181,17 @@ for (const which of ['eigen', 'kantoor', 'oud', 'arity'] as const) {
 }
 const unused = withJson(cat, 'TaskTypes', v => { v.definitions.push({ id: 'ongebruikt', name: 'Ongebruikt bron-type' }); });
 const unknownField = withJson(cat, 'TaskTypes', v => { v.definitions[0].onbekend = 'bewaar-mij'; });
+function taskTypeDefinitions(bytes: Uint8Array): Record<string, unknown>[] {
+  const line = latin1(bytes).split('\n').map(l => parseOutLine(l.replace(/\r$/, ''))).find(l => l?.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === "'TaskTypes'");
+  if (!line) return [];
+  return JSON.parse(decodeStepText(/^IFCTEXT\(('[\s\S]*')\)$/.exec(line.args[2].trim())![1].slice(1, -1).replace(/''/g, "'"))).definitions;
+}
+const unknownFieldType = String(taskTypeDefinitions(unknownField).find(d => d.onbekend)?.id);
+function keepsUnknownField(label: string, r: { o: Outcome; d: Domain }) {
+  if (!r.o.ok) return;
+  const definition = taskTypeDefinitions(r.o.bytes).find(d => d.id === unknownFieldType);
+  ok(`${label}: het onbekende veld blijft bij zijn definitie`, definition?.onbekend === 'bewaar-mij', JSON.stringify(definition));
+}
 const unknownKey = withJson(cat, 'Baselines', v => { v[0].onbekendeSleutel = 'bewaar-mij'; });
 const beschrijving = se(s => { s.setProject({ description: 'Alleen de projectbeschrijving is gewijzigd' }); });
 /** Een omschrijving op elk eigen codetemplate (`IfcSimplePropertyTemplate`, argument 3): de lezer leest haar niet, dus de
@@ -230,8 +238,13 @@ await one('1588 ongebruikte brondefinitie, nieuw type', unused, d => applyEdit(f
 // groep, en het slot zelf apart (PR A).
 await one('niet gedragen: omschrijving op de codetemplates, alleen de projectbeschrijving', describedTemplates, beschrijving, 'schrijft');
 await one('niet gedragen: omschrijving op de codetemplates, code hernoemen (1585)', describedTemplates, se(s => { s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Hernoemde code'); }), 'weigert');
-await one('grens: onbekend definitieveld, typegroei', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
-await one('grens: onbekend definitieveld, taak met dat type wissen', unknownField, se(s => { s.deleteTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id); }), 'weigert');
+keepsUnknownField('onbekend definitieveld, typegroei',
+  await one('onbekend definitieveld, typegroei', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'schrijft'));
+keepsUnknownField('onbekend definitieveld, taak met dat type wissen',
+  await one('onbekend definitieveld, taak met dat type wissen', unknownField, se(s => { s.deleteTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id); }), 'schrijft'));
+await one('onbekend definitieveld, laatste gebruik van type A weg terwijl A in de catalogus blijft', unknownField, se(s => {
+  for (const t of s.tasks.filter((t: any) => t.customTaskTypeId === 'type-7d-a')) s.updateTask(t.id, { customTaskTypeId: 'type-7d-b' });
+}), 'weigert');
 await one('grens: onbekende baselinesleutel, een andere baseline wissen', unknownKey, se(s => { s.deleteBaseline(s.baselines[1].id); }), 'schrijft');
 // (a′): bij het openen van een backup met een vreemd deel verdwijnt het herstelkenmerk (knownbug 1703); de toets weigert
 // daar zoals main.
@@ -670,10 +683,9 @@ for (const mode of ['vast', 'lopend'] as const) {
 }
 clock.mode = 'vast';
 
-// Wat moet blijven weigeren: `OPS_TaskTypes` niet gedragen (1588, een onbekend definitieveld), en een
-// typenaam die de herleestoets (b) terugzet (dan beweegt de typenaam niet mee: (c) toetst die groep niet).
 await one('typenaam: 1588 ongebruikte brondefinitie, type A hernoemen', unused, hernoemA, 'weigert');
-await one('typenaam: onbekend definitieveld, dat type hernoemen', unknownField, hernoemA, 'weigert');
+keepsUnknownField('typenaam: onbekend definitieveld, dat type hernoemen',
+  await one('typenaam: onbekend definitieveld, dat type hernoemen', unknownField, hernoemA, 'schrijft'));
 {
   // Een vreemd lid in `OPS_TaskTypes` maakt de groep niet meer ongedragen (stap 5 deel 1): de typenaam beweegt mee.
   const r = await one('typenaam: vreemd lid in OPS_TaskTypes, type A hernoemen', withForeignMember(cat, PSET.TaskTypes), hernoemA, 'schrijft');
@@ -1084,9 +1096,8 @@ async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, ed
     ]);
     await one('per slot: twee psets OPS_ProjectSettings op het project, statusdatum zetten', second, statusdatum, 'weigert');
   }
-  // Een slot dat (b) terugzet en dat de planner wijzigde, weigert zoals tot nu: een onbekend veld in de typedefinities (JSON,
-  // de lezer draagt een deel) en een nieuw type (blok 2, "grens: onbekend definitieveld, typegroei").
-  await one('per slot: onbekend definitieveld (b) en een nieuw type', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
+  keepsUnknownField('per slot: onbekend definitieveld en een nieuw type',
+    await one('per slot: onbekend definitieveld en een nieuw type', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'schrijft'));
   // De review van #1095, punt 2: met een omschrijving op `OPS_StructureMeta` valt die groep in de verliescontrole helemaal
   // buiten de toets, zoals op de basis. Het eerste eigen veld toevoegen en een activiteitscodetype hernoemen weigeren daar
   // (`IfcRelDeclares` en de templatelijst verschillen, en geen oude verklaring dekt dat), en dat blijft zo.

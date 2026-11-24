@@ -26,6 +26,7 @@ import { elementLinksByTask } from './elementLinks';
 import type { IfcSource } from './ifcSource';
 import type { StepScanReason } from './stepScanner';
 import { unusedKeysFromRead } from './unusedKeys';
+import { jsonExtrasIndex } from './jsonExtrasSource';
 
 /** Grootste bron voor de bytes-route: 300 MiB. De meting van fase 0 (vraag 4) liep tot 300 MB zonder harde grens;
  *  daarboven alleen de gewone route als bewezen is dat er geen vreemd deel is. Geen nieuwe grens zonder meting. */
@@ -121,6 +122,7 @@ export async function readIfcBytesDetailed(
   const stepIds: Record<string, number> = {};
   for (const [key, id] of Object.entries(stepIdsOut)) stepIds[key] = Number(id);
   const unusedKeys = unusedAssignmentKeysOut && unusedKeysFromRead(unusedAssignmentKeysOut);
+  const jsonExtras = foreignObjectCount > 0 ? jsonExtrasIndex(scan.stepJsonExtras) : undefined;
   const ifcSource: IfcSource = {
     bytes,
     sha256: await precomputeSha256(bytes),
@@ -132,6 +134,7 @@ export async function readIfcBytesDetailed(
     foreignMembers: Array.from(scan.foreignMembers),
     elementLinks: elementLinksByTask(scan.stepElementLinks, stepIds),
     ...(unusedKeys ? { unusedKeys } : {}),
+    ...(jsonExtras ? { jsonExtras } : {}),
     foreign: foreignObjectCount > 0,
     foreignObjectCount,
     buildingModel: scan.buildingModel,

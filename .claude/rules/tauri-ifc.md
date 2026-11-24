@@ -333,6 +333,35 @@ De nieuwe bron neemt de lijst uit die herlezing. Een gewiste taak neemt haar sle
 in PR 6 en 7. Zonder vreemd deel schrijft de gewone writer ze niet, zoals op main; een paar bronvormen weigeren nog
 (knownbug 2210). Proef: `check-ifc-foreign-ongebruikte-sleutels.ts`.
 
+### Onbekende JSON-sleutels (#804 fase 2, PR 4)
+
+Het register `JSON_PROPERTIES` (`src/services/ifc/jsonRegister.ts`) noemt elke JSON-eigenschap die de writer schrijft:
+per object de sleutels die de app kent, per lijst of kaart de identiteit van haar leden (een sleutelveld; `sleutel`: de
+sleutel uit de data; `volgorde`: de lezer koppelt de leden op volgorde of positie aan iets anders), `waarde` voor een
+losse waarde, `reeks` voor een lijst van losse waarden en `doorgegeven` voor wat de lezer heel overneemt. Een rij met
+`domain` zegt waar de planning die waarde draagt. `check-ifc-foreign-json-sleutels.ts` eist een identiteit per lijst en
+kaart, dat elke rij geschreven wordt, en faalt op JSON buiten het register.
+
+Alleen de merge gebruikt het. Een eigenschap met ergens leden op `volgorde` (`membersHaveIdentity` is onwaar:
+`OPS_Timephased.Windows`, `Splits`, de contouren, `DurationWalks`) wordt niet per lid gedragen: de scanner neemt haar
+niet op, en de merge loopt voor haar precies zoals main (knownbug 2218). `ifcSource.jsonExtras` is een kleine index: de
+andere JSON-eigenschappen met onbekende leden. De waarden blijven in de bronbytes. Gevuld bij het openen (alleen met een
+vreemd deel) en na elke opslag.
+
+Per eigenschap zijn er twee uitkomsten: gedragen per lid, of de verliesbewaking van main. De beslissing valt in één
+functie (`memberText` in `foreign/jsonMembers.ts`, via `mergedJsonText` en `jsonMembers`), met de bron (S), wat de
+writer uit de lezing van de bron schrijft (Z) en wat hij nu schrijft (W): een lid dat de planner niet wijzigde (Z en W
+gelijk) houdt zijn brontokens, sleutel en waarde; een gewijzigd lid krijgt de waarde van de writer; een onbekend lid
+blijft staan; een lid dat wegvalt terwijl het iets droeg wat de writer niet schrijft, valt alleen weg als het ook uit de
+planning weg is. Een onbekend lid gaat nergens door een JS-object: vergelijken en ordenen gebeurt op de tokens van
+`parseJsonTree`. Kan de functie een eigenschap niet per lid beslissen (een dubbel sleutelveld, een andere lengte van een
+reeks), dan geldt voor die eigenschap main, en alleen voor die eigenschap. O0 krijgt voor een beslist lid de bron zelf,
+O1 de uitkomst; de verliesbewaking laat die stukken aan de functie (`memberCarried`). De eindcontrole
+(`jsonMembersProblem`) eist dat de uitvoer per eigenschap de tekst van de functie heeft; de planningcontrole na
+heropenen vergelijkt van die eigenschappen alleen de bekende leden (`withoutUnknownMembers`). De proeven die "zoals
+main" eisen, vergelijken met een opname van de code van main: `bash tests/planning/json-sleutels-main-opname.sh <commit>`
+schrijft `tests/fixtures/ifc-foreign/json-sleutels-main.json`. Grenzen: knownbug 2218.
+
 ### Vergelijkingsklok (#804 fase 1c)
 
 `planningCanon` gebruikt alleen `writeIFCForComparison`: één vaste datum via de interne schrijfkern,

@@ -29,6 +29,10 @@ export interface PreparedIfcWrite {
   readonly outputIndex?: StepIndex;
 }
 
+export interface JsonExtrasOfProperty {
+  readonly propertyStepId: number;
+}
+
 export interface UnusedKeysOfTask {
   readonly taskStepId: number;
   readonly propertyStepIds: readonly number[];
@@ -54,6 +58,7 @@ export interface IfcSource {
   readonly foreignMembers: readonly number[];
   readonly elementLinks: TaskElementLinks;
   readonly unusedKeys?: readonly UnusedKeysOfTask[];
+  readonly jsonExtras?: readonly JsonExtrasOfProperty[];
   /** Is er een vreemd deel: een entiteit die niet P is (§3)? */
   readonly foreign: boolean;
   /** Aantal entiteiten dat niet P is (C, A en V), voor de melding van §4.15. */

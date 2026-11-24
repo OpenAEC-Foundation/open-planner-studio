@@ -149,6 +149,12 @@ ontbreekt, de JSON is corrupt of beide lijsten zijn leeg), dan leest de lezer de
 `P_ENUMERATEDVALUE`-sjablonen, elk met een nieuwe id. Het veldtype volgt de meeteenheid van het sjabloon, anders
 wordt het `text`.
 
+Een nieuwe JSON-eigenschap, of een nieuwe sleutel, lijst of kaart erin, komt ook in het register `JSON_PROPERTIES`
+(`src/services/ifc/jsonRegister.ts`), met de identiteit van elke lijst en kaart (een sleutelveld, een sleutel uit de data,
+of `volgorde` als de lezer de leden op volgorde aan iets anders koppelt) en `reeks` voor een lijst van losse waarden. Een nieuwe rij moet de proef ook geschreven zien (een voorbeeld, of `richDomain` in de proef).
+Anders faalt `check-ifc-foreign-json-sleutels.ts`. Met een gebouwmodel in het bestand houdt de app daarmee de sleutels die een ander
+programma in zo'n JSON zette (`.claude/rules/tauri-ifc.md`, *Onbekende JSON-sleutels*).
+
 Verliesloos en simpel, maar het is **ondoorzichtig voor andere programma's**. Gebruik deze route
 alleen als 1 en 2 niet kunnen, en niet omdat het sneller opschiet.
 

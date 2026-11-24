@@ -198,8 +198,10 @@ anders niet (`IfcRelSequence` is D, stap 1):
     `ifcReader.ts:2211-2213`, `ifcWriter.ts:789`; Sol, review #839). De property is P, dus `sourceSlots` en controle 1
     zagen dat niet. Regel: het register noemt elke JSON-property met de sleutels die de lezer leest. Een **onbekende
     JSON-sleutel** bewaart de app als ruw token (JSON-tokenizer van §6.1, na het decoderen van de STEP-tekst;
-    `ifcSource.jsonExtras`, per domeinobject, property en object in de JSON). De writer zet ze terug in hetzelfde
-    object, na de bekende sleutels, in hun oorspronkelijke volgorde.
+    `ifcSource.jsonExtras`, per domeinobject, property en object in de JSON). De merge zet ze terug in hetzelfde
+    object, op dezelfde plek, als dat object dezelfde identiteit heeft als bij het openen; anders weigert opslaan zoals
+    main (besluit van de technisch eigenaar, 24 november 2026: twee uitkomsten per eigenschap, geen verhuizing, en een
+    onbekend lid alleen als token, nooit door een JS-object).
   - **Identiteit per JSON-structuur** (Sol en Terra, review #839, ronde 2: positie als sleutel koppelde vreemde velden aan
     het verkeerde item). Het register legt voor elk object en elke lijst in elke JSON-property vast hoe de app het
     terugvindt; een test faalt als een JSON-property of lijst geen identiteit heeft:
@@ -208,9 +210,10 @@ anders niet (`IfcRelSequence` is D, stap 1):
       `taskId` (`src/types/baseline.ts`); codetypen, codewaarden en eigen velden aan `id` (`src/types/structure.ts`);
     - een object onder een sleutel uit de data: aan het domeinobject achter die sleutel. In `Windows` van
       `OPS_Timephased` is de sleutel `<resource-GlobalId>#<index>`, en de index volgt de lijst van toewijzingen
-      (`ifcWriter.ts:1935`). Bij openen legt de app per sleutel vast welke toewijzing de lezer eraan koppelde; de writer
-      schrijft de onbekende sleutels bij dezelfde toewijzing, onder haar nieuwe sleutel. Zo schuiven ze mee als de
-      planner een toewijzing toevoegt of verwijdert;
+      (`ifcWriter.ts:1935`). De lezer koppelt de vensters per resource op volgorde aan de toewijzingen, dus een venster
+      heeft geen eigen identiteit. Zo'n eigenschap (ook `Splits`, de contouren en `DurationWalks`) draagt geen onbekende
+      leden over een wijziging heen: ongewijzigd blijft ze byte-gelijk, gewijzigd weigert opslaan zoals main (besluit van
+      de technisch eigenaar, 24 november 2026; knownbug 2218). Bewaren vraagt eerst het herkomstmerk hieronder;
     - een item in een lijst zonder sleutelveld (bijvoorbeeld `Splits` in `OPS_TaskSplits`, `ifcPsets.ts:556-580`, of de
       periodes van een contour), en een item waarvan het sleutelveld in de bron twee keer voorkomt: aan een
       **herkomstmerk** (Sol en Terra, review #839, ronde 3: gelijke waarden zijn geen identiteit; een duurwijziging

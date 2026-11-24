@@ -239,6 +239,7 @@ export interface LossCheckInput {
    * pset meebewegen.
    */
   readonly secondFormsUnchanged?: ReadonlySet<string>;
+  readonly memberCarried?: ReadonlySet<number>;
 }
 
 /** Het domein zoals de lezer het uit de bron leest: dezelfde bytes, dezelfde opties en dezelfde ingang als de bytes-route
@@ -464,7 +465,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     const ctx = o1Context(input, p1b, changed, carried);
     const differences = compareOutput(input, p1b, input.owner1);
     for (const d of differences) {
-      if (ownGroupCarries(d.chunk) || (!lost.has(d.chunk) && following.some(f => f.follows(ctx, d)))) continue;
+      if (ownGroupCarries(d.chunk) || input.memberCarried?.has(d.chunk) || (!lost.has(d.chunk) && following.some(f => f.follows(ctx, d)))) continue;
       const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
       if (why === undefined) say(d, true); else input.explainedO1?.(d, why);
     }
@@ -472,7 +473,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     // Ook zonder slotverschil moet de volledige verwachte wijziging aanwezig zijn.
     const different = new Set(differences.map(d => d.chunk));
     for (const [chunk, scopes] of ctx.scopes) {
-      if (different.has(chunk) || scopes.size !== 1 || ownGroupCarries(chunk)) continue;
+      if (different.has(chunk) || scopes.size !== 1 || ownGroupCarries(chunk) || input.memberCarried?.has(chunk)) continue;
       const scope = [...scopes][0];
       const codes = index.type(chunk) === 'IFCPROPERTYSETTEMPLATE' && index.name(chunk) === PSET.ActivityCodes;
       if (!codes && (index.type(chunk) !== 'IFCPROPERTYSINGLEVALUE'
