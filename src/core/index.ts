@@ -214,7 +214,7 @@ export function planningDifference(a: PlannerDocument, b: PlannerDocument): stri
   const writtenB = buildWriteIFCInput(openedB.state(), 'merge');
   const projectB = { ...writtenB.project };
   for (const field of PROJECT_CLOCK_FIELDS) {
-    if (inputA.project[field] === openedA.clock && projectB[field] === openedB.clock) projectB[field] = inputA.project[field];
+    projectB[field] = inputA.project[field];
   }
   const inputB = { ...writtenB, project: projectB };
   if (planningCanon(inputA) === planningCanon(inputB)) return null;
