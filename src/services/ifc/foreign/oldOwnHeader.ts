@@ -2,15 +2,16 @@
  * Alle 17 tags: LF, IFC4X3, dezelfde vaste regels en now = toISOString().split('.')[0]. Vanaf v2026.7.13 zijn de
  * drie vrije velden beschermd. Alleen na een strenge scanfout proberen we deze vorm; DATA blijft ongewijzigd streng.
  */
-import { scanStep, StepScanError, type StepIndex } from './stepScanner';
+import { scanStep, StepScanError, utf8BomLength, type StepIndex } from './stepScanner';
 import { recognizeOldOwnHeader } from '../oldOwnHeader';
 
 /** Even lange, zelfstandige scankopie; ook Buffer.slice() mag de bron niet delen. */
 function oldHeaderForScan(bytes: Uint8Array): Uint8Array | null {
-  const header = recognizeOldOwnHeader(bytes);
+  const headerStart = utf8BomLength(bytes);
+  const header = recognizeOldOwnHeader(bytes.subarray(headerStart));
   if (!header || header === 'main') return null;
   const safe = new Uint8Array(bytes);
-  for (const [start, end] of header.fields) safe.fill(0x78, start, end);
+  for (const [start, end] of header.fields) safe.fill(0x78, headerStart + start, headerStart + end);
   return safe;
 }
 
