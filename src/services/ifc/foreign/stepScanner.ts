@@ -636,6 +636,10 @@ function skipQuotedOrCommentStrict(b: Uint8Array, i: number): number {
   }
   return -1;
 }
+export function utf8BomLength(b: Uint8Array): number {
+  return b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf ? 3 : 0;
+}
+
 /** Witruimte en commentaar overslaan; gooit bij commentaar zonder einde. */
 function skipBlankStrict(b: Uint8Array, i: number): number {
   const n = b.length;
@@ -817,7 +821,7 @@ export function scanStep(bytes: Uint8Array): StepIndex {
   let lastIsEnd = false;
   let pending = 0;
   let firstData = true;
-  let i = 0;
+  let i = utf8BomLength(b);
   for (;;) {
     i = skipBlankStrict(b, i);
     if (i >= n) break;
