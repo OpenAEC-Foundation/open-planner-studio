@@ -121,10 +121,12 @@ export async function createHeadlessHost(opts: HostOptions): Promise<HeadlessHos
 
   // Eén document zonder opslagdoel, zoals een nieuwe app-start. Geen host-events: extensies bestaan hier niet.
   const app = createAppStoreContext({ emitHostEvents: false });
+  app.store.setState((s) => { s.ui.featureFlags = { ifcForeignContent: true }; });
 
   const appLock = opts.isPathOpenInApp ?? createAppLock(opts.discoveryDirs ?? platformDiscoveryDirs());
   const fileFs = await createNodeFileFs(root, appLock);
   fileToolDeps.getFs = async () => fileFs;
+  fileToolDeps.mainRouteUnlessForeign = true;
   guideToolDeps.fetchImpl = embeddedAssetFetch(opts.assets);
   registerAllTools();
 

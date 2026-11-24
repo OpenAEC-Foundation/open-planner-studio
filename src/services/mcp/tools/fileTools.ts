@@ -45,7 +45,7 @@ import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { ifcSchemaBlocksSilentWrite, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { DEFAULT_IFC_SCHEMA, projectIfcSchema } from '@/types/project';
 import { extensionOf } from '@/utils/filePath';
-import type { OpenedImport } from '@/services/importTypes';
+import { isMultiDocumentImport, type OpenedImport } from '@/services/importTypes';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, postAwaitGuards, toolError } from './runtime';
 import { guardBridgeFlags } from './documentTools';
 import type { McpContext, McpToolAnnotations, McpToolDef, McpToolResult } from '../contracts';
@@ -159,7 +159,6 @@ export interface McpFileFs extends FileIdentityFs {
   homeDir(): Promise<string>;
   exists(path: string): Promise<boolean>;
   writeTextFile(path: string, content: string): Promise<void>;
-  /** Alleen een nieuw einddoel, exclusief en zonder tekstrondgang. Headless biedt dit nog niet (fase 2). */
   writeNewUserBytes?(path: string, bytes: Uint8Array): Promise<void>;
   readTextFile(path: string): Promise<string>;
   readFile(path: string): Promise<Uint8Array>;
@@ -226,7 +225,22 @@ export async function realFs(): Promise<McpFileFs> {
 }
 
 /** Injecteerbare afhankelijkheden (tests vervangen `getFs` door een in-memory fake). */
-export const fileToolDeps: { getFs: () => Promise<McpFileFs> } = { getFs: realFs };
+export const fileToolDeps: { getFs: () => Promise<McpFileFs>; mainRouteUnlessForeign: boolean } = {
+  getFs: realFs, mainRouteUnlessForeign: false,
+};
+
+export function appForeignContentRoute(ctx: McpContext): boolean {
+  return ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) && !fileToolDeps.mainRouteUnlessForeign;
+}
+
+async function keptForeignContent(input: FormatInput): Promise<OpenedImport | null> {
+  try {
+    const parsed = await parseOpenedFile(input, undefined, { ifcBytes: true });
+    return !isMultiDocumentImport(parsed) && hasForeignContent(parsed.ifcSource) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 // --- Padnormalisatie + scope ---------------------------------------------------------------------
 
@@ -381,7 +395,7 @@ export const fileTools: McpToolDef[] = [
   {
     name: 'planner_export_ifc',
     description: exportIfcDescription(false),
-    describe: ctx => exportIfcDescription(ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags)),
+    describe: ctx => exportIfcDescription(appForeignContentRoute(ctx)),
     kind: 'other',
     batchable: false, // export_ifc/import_schedule zijn uitgesloten van batch
     inputSchema: {
@@ -652,15 +666,22 @@ export const fileTools: McpToolDef[] = [
       // opslagdoel-waardig gelezen worden.
       let input: FormatInput;
       let readOptions: FormatReadOptions = {};
+      const keepsForeignOnly = fileToolDeps.mainRouteUnlessForeign && readFormatForFile(path).id === 'ifc';
       try {
         // Gedeelde isBinary?readFile:readTextFile-tak,
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
         // #804 fase 1a: met de flag `ifcForeignContent` leest IFC als bytes, zoals Bestand → Openen.
-        readOptions = { ifcBytes: ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) };
+        readOptions = { ifcBytes: keepsForeignOnly || appForeignContentRoute(ctx) };
         input = await readFormatInput(path, fs, readOptions);
       } catch (e) {
         const code = e instanceof ScopeEscapeError ? 'SCOPE' : e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND';
         return toolError(ctx, code, `Could not read '${path}': ${e instanceof Error ? e.message : String(e)}`);
+      }
+      const read = keepsForeignOnly ? input.bytes : undefined;
+      const kept = read ? await keptForeignContent(input) : null;
+      if (read && !kept) {
+        input = { name: input.name, text: new TextDecoder('utf-8', { ignoreBOM: true }).decode(read) };
+        readOptions = {};
       }
       const content = input.text ?? '';
 
@@ -669,7 +690,7 @@ export const fileTools: McpToolDef[] = [
         // Geen `labels`: dienstlaag zonder `t(...)` — de MCP-laag is AI-facing en kent geen UI-taal.
         // `readIFC` valt dan terug op de Engelse default voor een bestand zonder IFCPROJECT (zie
         // ImportLabels).
-        parsed = await parseOpenedFile(input, undefined, readOptions);
+        parsed = kept ?? await parseOpenedFile(input, undefined, readOptions);
       } catch (e) {
         return toolError(ctx, 'VALIDATION', `'${path}' could not be read as a schedule: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -691,7 +712,7 @@ export const fileTools: McpToolDef[] = [
       const lateBlocked = postAwaitGuards(ctx);
       if (lateBlocked) return lateBlocked;
       const ref: FileRef = { kind: 'path', path };
-      const tab = ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) && readFormatForFile(path).canBeSaveTarget
+      const tab = appForeignContentRoute(ctx) && readFormatForFile(path).canBeSaveTarget
         ? openTabFor(ctx.app.store.getState(), ref, null, readVersionOf(ref, parsed)) : null;
       if (tab !== null) switchToOpenDocument(ctx.app.store.getState(), tab);
       const opened = tab !== null ? null : ctx.app.store.getState().openAsDocument(parsed, { name: path, ref });

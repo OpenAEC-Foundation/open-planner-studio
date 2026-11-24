@@ -52,6 +52,10 @@ const EXAMPLE = join(PUBLIC, 'examples', '10-villa-wassenaar.ifc');
 const appVersion = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version as string;
 const tmp = mkdtempSync(join(tmpdir(), 'ops-headless-mcp-'));
 const TOKEN = 'b'.repeat(64);
+const FOREIGN_FIXTURES = join(ROOT, 'tests/fixtures/ifc-foreign');
+const withExternPset = (own: string) => own.replace('ENDSEC;\nEND-ISO-10303-21;',
+  "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
+  "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;");
 
 function publicAssets(): Record<string, string> {
   const assets: Record<string, string> = {};
@@ -579,42 +583,32 @@ test('A2 late scopeweigering bereikt de MCP-client bij import en export zonder b
   }
 });
 
-test('A drempel voor de waarschuwing: headless opent met en zonder flag zoals main, zonder waarschuwing', async () => {
+test('A drempel voor de waarschuwing: headless opent een model met zijn bron, zonder waarschuwing', async () => {
   const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
   const model = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
   const path = join(rootA, 'productgrens-model.ifc');
   writeFileSync(path, model);
-  const flags = app.store.getState().ui.featureFlags;
   try {
     lowerForeignOpenWarnBytesForTests(model.length - 1);
-    // Met de flag uit (de standaard van headless): de bestaande modelweigering, zoals main.
-    const off = await refused(client, 'planner_import_schedule', { path }, 'VALIDATION', 'flag uit');
-    assert(String(off.s.error).includes('building model') && !String(off.s.error).includes('above the limit'),
-      `flag uit: de modelweigering van main (${off.s.error})`);
-    // Met de flag aan (zoals de host hem uit `ops-featureFlags` inleest): het model opent met zijn bron, zoals main.
-    app.store.setState((s) => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: true }; });
     const opened = await ok(client, 'planner_import_schedule', { path });
     const source = app.store.getState().ifcSource;
     assertEq([source?.foreign, source?.sha256], [true, createHash('sha256').update(model).digest('hex')],
-      'flag aan: het model opent met zijn geverifieerde bron, ook boven de drempel');
-    assert(!JSON.stringify(opened).includes('larger than'), `flag aan: geen waarschuwing in het antwoord, zoals main (${JSON.stringify(opened).slice(0, 300)})`);
+      'het model opent met zijn geverifieerde bron, ook boven de drempel');
+    assert(!JSON.stringify(opened).includes('larger than'), `geen waarschuwing in het antwoord, zoals main (${JSON.stringify(opened).slice(0, 300)})`);
   } finally {
     lowerForeignOpenWarnBytesForTests();
-    app.store.setState((s) => { s.ui.featureFlags = flags; });
     await client.close();
   }
 });
 
-test('A doelbescherming: model en externe pset blijven bytegelijk zonder flag of draaiende app', async () => {
+test('A doelbescherming: model en externe pset blijven bytegelijk zonder draaiende app', async () => {
   const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
   try {
     const own = readFileSync(EXAMPLE, 'utf8');
-    const foreign = own.replace('ENDSEC;\nEND-ISO-10303-21;',
-      "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
-      "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;");
+    const foreign = withExternPset(own);
     writeFileSync(join(rootA, 'eigen-bron.ifc'), own);
     await ok(client, 'planner_import_schedule', { path: join(rootA, 'eigen-bron.ifc') });
-    assertEq(app.store.getState().ui.featureFlags.ifcForeignContent, undefined, 'headless zet geen flag');
+    assertEq(app.store.getState().ui.featureFlags.ifcForeignContent, true, 'headless zet de flag in zijn eigen store');
     for (const [name, bytes] of [
       ['model', readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/model-ifc4.ifc'))],
       ['externe-pset', Buffer.from(foreign)],
@@ -659,6 +653,73 @@ test('A knownbug 1907: export_ifc over het bestand van een ander open document w
     await ok(client, 'planner_export_ifc', { path: join(rootA, 'open-vrij.ifc') });
     assert(readFileSync(join(rootA, 'open-vrij.ifc'), 'utf8').includes('IFCTASK('), 'een vrije naam: geschreven');
     assert(readFileSync(fileA).equals(before), 'A blijft bytegelijk');
+  } finally { await client.close(); }
+});
+
+test('A knownbug 1136: een externe pset gaat mee naar een nieuwe naam; over de bron en een bestaande naam weigert de export', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  try {
+    const sourceBytes = Buffer.from(withExternPset(readFileSync(EXAMPLE, 'utf8')));
+    const source = join(rootA, 'extern-bron.ifc');
+    writeFileSync(source, sourceBytes);
+    const opened = await ok(client, 'planner_import_schedule', { path: source });
+    assertEq(opened.filePath, source, 'de bron is het bestand van het document');
+    const kept = app.store.getState().ifcSource;
+    assertEq([kept?.foreign, kept?.buildingModel, kept?.sha256], [true, false, createHash('sha256').update(sourceBytes).digest('hex')],
+      'het document bewaart de bron met de externe pset');
+    const leaf = app.store.getState().tasks.find(t => t.childIds.length === 0)!;
+    await ok(client, 'planner_update_tasks', { updates: [{ id: leaf.id, fields: { name: 'Hernoemd headless' } }] });
+
+    const copy = join(rootA, 'extern-kopie.ifc');
+    const exported = await ok(client, 'planner_export_ifc', { path: copy });
+    const written = readFileSync(copy);
+    assertEq([exported.overwritten, exported.byteLength, exported.characters], [false, written.byteLength, undefined],
+      'de export schrijft bytes naar de nieuwe naam');
+    const text = written.toString('latin1');
+    assert(text.includes("'ExternPset'") && text.includes("IFCTEXT('behouden')"), 'de externe pset staat in de uitvoer');
+    assert(text.includes('Hernoemd headless'), 'de wijziging van de planning staat in de uitvoer');
+    assertEq(readdirSync(rootA).filter(f => f.includes('.ops-')), [], 'geen hulpbestand');
+
+    const again = await refused(client, 'planner_export_ifc', { path: copy }, 'VALIDATION', 'dezelfde naam zonder overwrite');
+    assert(String(again.s.error).includes('already exists'), `de bestaande naam: ${again.s.error}`);
+    for (const target of [source, copy, join(rootA, 'eigen-bron.ifc')]) {
+      const before = readFileSync(target);
+      const r = await refused(client, 'planner_export_ifc', { path: target, overwrite: true }, 'VALIDATION', `over ${target}`);
+      assert(readFileSync(target).equals(before), `${target}: bytegelijk na ${r.s.error}`);
+    }
+    assert(readFileSync(source).equals(sourceBytes), 'de bron is bytegelijk');
+
+    await ok(client, 'planner_import_schedule', { path: copy });
+    const reopened = app.store.getState();
+    assert(reopened.ifcSource?.foreign === true && reopened.tasks.some(t => t.name === 'Hernoemd headless'),
+      'de kopie opent opnieuw met de externe pset en de wijziging');
+  } finally { await client.close(); }
+});
+
+test('A gebouwmodel: openen bewaart het model, een nieuwe naam krijgt het bytegelijk, een ongedragen wijziging weigert getypeerd', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  try {
+    const model = readFileSync(join(FOREIGN_FIXTURES, 'eigen-plus-model.ifc'));
+    const source = join(rootA, 'eigen-plus-model.ifc');
+    writeFileSync(source, model);
+    await ok(client, 'planner_import_schedule', { path: source });
+    assertEq(app.store.getState().ifcSource?.buildingModel, true, 'het model is bewaard');
+    const copy = join(rootA, 'model-kopie.ifc');
+    const exported = await ok(client, 'planner_export_ifc', { path: copy });
+    assertEq(exported.byteLength, model.byteLength, 'byteLength');
+    assert(readFileSync(copy).equals(model), 'een ongewijzigde planning met model komt bytegelijk terug');
+
+    const bonsai = readFileSync(join(FOREIGN_FIXTURES, 'bonsai-4d.ifc'));
+    const bonsaiPath = join(rootA, 'bonsai-4d.ifc');
+    writeFileSync(bonsaiPath, bonsai);
+    await ok(client, 'planner_import_schedule', { path: bonsaiPath });
+    const task = app.store.getState().tasks.find(t => t.childIds.length === 0 && !t.isMilestone)!;
+    await ok(client, 'planner_update_tasks', { updates: [{ id: task.id, fields: { duration: task.time.scheduleDuration + 1 } }] });
+    const target = join(rootA, 'bonsai-kopie.ifc');
+    const r = await refused(client, 'planner_export_ifc', { path: target }, 'VALIDATION', 'ongedragen wijziging');
+    assert(String(r.s.error).includes('merge-needs-phase2') && String(r.s.error).includes('another format'), `de fout zegt waarom: ${r.s.error}`);
+    assertEq(existsSync(target), false, 'er is niets geschreven');
+    assert(readFileSync(bonsaiPath).equals(bonsai), 'de bron is bytegelijk');
   } finally { await client.close(); }
 });
 
