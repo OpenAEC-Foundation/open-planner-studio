@@ -215,14 +215,83 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
   await expect(kantoor).toHaveAttribute('aria-selected', 'true');
   await expect(tabs).toHaveCount(tabsBefore + 1);
   await expect(strip).toBeVisible();
-  await expect(strip).toContainText('kantoor.ifc was changed outside this tab. This tab still shows the earlier version. Close this tab and open the file again to see the new version.');
-  await expect(strip.locator('button')).toHaveCount(0);
+  await expect(strip).toContainText('kantoor.ifc was changed outside this tab. This tab still shows the earlier version.');
+  const loadButton = strip.locator('[data-ops-changed-on-disk-load]');
+  await expect(loadButton).toHaveText('Load new version');
   await expect(page.locator('.ops-toast', { hasText: 'was changed outside this tab' })).toHaveCount(0);
   await page.locator('[data-ops-tabstrip] [role="tab"]', { hasText: 'gesleept' }).click();
   await expect(strip).toHaveCount(0);
   await kantoor.click();
   await expect(strip).toBeVisible();
   expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.name))).toEqual(kantoorWork);
+
+  const question = page.locator('[data-ops-close-dialog]');
+  const closeKantoor = page.locator('.ops-tab-group').filter({ has: kantoor }).locator('.ops-tab-close');
+  await closeKantoor.click();
+  await expect(question).toBeVisible();
+  await expect(question.locator('[data-ops-close-choice]')).toHaveCount(3);
+  await question.locator('[data-ops-close-choice="cancel"]').click();
+  await expect(question).toBeHidden();
+  await expect(strip).toBeVisible();
+
+  await loadButton.click();
+  await expect(question).toBeVisible();
+  await expect(question).toContainText("Choose Don't save to discard them and load the new version.");
+  await expect(question.locator('[data-ops-close-choice]')).toHaveCount(2);
+  await expect(question.locator('[data-ops-close-choice="save"]')).toHaveCount(0);
+  await question.locator('[data-ops-close-choice="cancel"]').click();
+  await expect(question).toBeHidden();
+  await expect(strip).toBeVisible();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.name))).toEqual(kantoorWork);
+  await loadButton.click();
+  await expect(question).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(question).toBeHidden();
+  await expect(strip).toBeVisible();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.name))).toEqual(kantoorWork);
+  await loadButton.click();
+  await question.locator('[data-ops-close-choice="discard"]').click();
+  await expect(question).toBeHidden();
+  await expect(strip).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().tasks.some(t => t.name === 'Onopgeslagen in kantoor'))).toBe(false);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
+  await expect(kantoor).toHaveAttribute('aria-selected', 'true');
+  await expect(tabs).toHaveCount(tabsBefore + 1);
+
+  const openDraft = async () => {
+    await page.evaluate(() => {
+      const s = window.__OPS__!.store.getState();
+      s.setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
+      s.selectTask(s.tasks[0].id);
+    });
+    await page.locator('[data-ops-dependency-add]').first().click();
+    const draft = page.locator('[data-ops-dependency-draft]');
+    await expect(draft).toBeVisible();
+    await draft.locator('[data-ops-dependency-search]').pressSequentially('Fund');
+    await expect(draft.locator('[data-ops-dependency-search]')).toHaveValue('Fund');
+  };
+  await page.evaluate(async (text) => {
+    const handle = await (await navigator.storage.getDirectory()).getFileHandle('kantoor.ifc');
+    const writable = await handle.createWritable();
+    await writable.write(`${text}\n\n`);
+    await writable.close();
+  }, planning);
+  await page.locator('[data-ops-tabstrip] [role="tab"]', { hasText: 'gesleept' }).click();
+  await openButton.click();
+  await expect(kantoor).toHaveAttribute('aria-selected', 'true');
+  await expect(strip).toBeVisible();
+  await openDraft();
+  await loadButton.click();
+  await expect(strip).toHaveCount(0);
+  await expect(question).toHaveCount(0);
+  await expect(page.locator('[data-ops-dependency-draft]')).toHaveCount(0);
+  await expect(kantoor).toHaveAttribute('aria-selected', 'true');
+  await expect(tabs).toHaveCount(tabsBefore + 1);
+  await openDraft();
+  await closeKantoor.click();
+  await expect(question).toHaveCount(0);
+  await expect(kantoor).toHaveCount(0);
+  await expect(page.locator('[data-ops-dependency-draft]')).toHaveCount(0);
   await page.evaluate(() => window.__OPS__!.store.setState((s) => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; }));
 });
 
