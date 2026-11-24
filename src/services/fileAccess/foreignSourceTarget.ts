@@ -69,6 +69,19 @@ export interface TargetReaders {
   readSite?: (id: string) => Promise<Uint8Array | null>;
 }
 
+/** De lezers van de doelcontrole voor het doel dat de bestandskiezer vastlegde (was knownbug 1891): één scan van de
+ *  vastgelegde bytes, gedeeld door de controle direct na de kiezer en die na de eerste herstelronde. Zonder vastgelegde
+ *  inhoud (een vrije naam, een link, een map) scant de controle het pad, zoals voorheen. Een onleesbaar bestand blijft
+ *  een onleesbaar doel. */
+export function capturedTargetReaders(current: Uint8Array | 'unreadable' | null, base: () => TargetReaders): () => TargetReaders {
+  if (current === null) return base;
+  let scan: Promise<TargetForeignScan> | undefined;
+  return () => ({
+    ...base(),
+    scanPath: async () => current === 'unreadable' ? 'unreadable' : (scan ??= scanForeignTargetBytesAsync(current)),
+  });
+}
+
 /** Doelindeling met de flag aan (in headless altijd): model eerst als stroom, daarna dezelfde C/A/V-scan als openen.
  * 'model' en 'foreign' weigeren. Een scanfout, onleesbaar bestaand doel of ontbrekende lezer is 'unreadable'.
  * 'no-model' is pas veilig na de volledige indeling zonder vreemd deel; 'not-ifc' blijft een normaal ander formaat.

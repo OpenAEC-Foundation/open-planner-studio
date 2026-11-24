@@ -28,6 +28,7 @@
  */
 
 import { isTauri } from '@/utils/platform';
+import type { invoke as TauriInvoke } from '@tauri-apps/api/core';
 
 /** Welke controle van het commando weigerde. Gelijk aan `RefusalReason` in `place_file.rs`. */
 export type PlaceFileRefusal = 'path-shape' | 'helper-name' | 'scope' | 'not-regular-file' | 'hard-linked';
@@ -88,6 +89,10 @@ function toPlaceFileOutcome(value: unknown): PlaceFileOutcome {
 export async function placeFileExclusive(from: string, to: string): Promise<PlaceFileOutcome> {
   if (!isTauri()) return { code: 'unsupported', message: 'not-tauri' };
   const { invoke } = await import('@tauri-apps/api/core');
+  return placeFileExclusiveWith(invoke, from, to);
+}
+
+export async function placeFileExclusiveWith(invoke: typeof TauriInvoke, from: string, to: string): Promise<PlaceFileOutcome> {
   try {
     return toPlaceFileOutcome(await invoke('place_file_exclusive', { from, to }));
   } catch (error) {
