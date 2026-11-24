@@ -7,7 +7,7 @@
 // `openWorldHint` als `false`, niet als de standaard uit de spec, en vraagt dan geen toestemming meer bij een
 // destructieve tool. Weglaten levert ook geen modeltokens op: een Anthropic-tooldefinitie heeft geen veld
 // `annotations`, en het SuperCloud-contract noemt alleen `name`, `description` en `inputSchema`.
-import type { McpContext, McpToolAnnotations, McpToolDef } from './contracts';
+import type { McpToolAnnotations, McpToolDef } from './contracts';
 
 /** Een tooldefinitie zoals een client hem ziet. */
 export interface ListedTool {
@@ -18,10 +18,10 @@ export interface ListedTool {
 }
 
 /** Eén regel voor `tools/list` en voor de SuperCloud-export. */
-export function toolListEntry(def: McpToolDef, ctx?: McpContext): ListedTool {
+export function toolListEntry(def: McpToolDef): ListedTool {
   return {
     name: def.name,
-    description: ctx && def.describe ? def.describe(ctx) : def.description,
+    description: def.description,
     inputSchema: def.inputSchema,
     annotations: def.annotations,
   };

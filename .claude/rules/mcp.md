@@ -123,7 +123,7 @@ inhoudscontrole op die bytes (`refusedTargetContent` met `exportTargetPermission
 geen modelbestand). `replace` vervangt alleen die versie via `replaceOwnPathWithRecovery` met `documentId: null`. Na het
 herstelrecord en vlak vóór het opzijzetten lopen de doelcontrole en de documentcontrole van de export opnieuw, en na het
 opzijzetten vraagt de haak `planningChanged` of de planning veranderde (dan terugzetten, `VALIDATION`). De tooltekst in
-`tools/list` hangt aan de flag (`McpToolDef.describe`, `toolListEntry(def, ctx)`): met de flag uit en headless precies de
+`tools/list` hangt aan de flag (`McpToolDef.describe`, door de dispatcher toegepast): met de flag uit en headless precies de
 tekst van main. Een link of een plek zonder veilige vervanging weigert; het
 eigen bestand van het document weigert met een eigen tekst; een versie van een ander programma die bewaard bleef, staat in
 `replaceNotice`. Zonder de naad (headless) blijft de weigering van een bestaande naam. Een naam die pas tussen controle en
