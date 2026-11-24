@@ -1,14 +1,16 @@
-import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
+import { writeIFCWithChoices, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput, type IFCSaveSource } from '@/state/ifcSaveInput';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
+import { snapshotIdentities, type RecoverySnapshotIdentities } from './recoveryIdentity';
 
 /** Uitsluitend clonebare writer-invoer; nooit een documentpayload met handles of archiefbytes. */
 export interface RecoverySnapshotInput {
   input: Omit<WriteIFCInput, 'xerSourceArchive' | 'xer'>;
   archive?: Pick<XerSourceArchive, 'format' | 'byteLength' | 'sha256'> & { selectorValid: boolean };
+  identities?: true;
 }
 
-export function recoverySnapshotInput(source: IFCSaveSource): RecoverySnapshotInput {
+export function recoverySnapshotInput(source: IFCSaveSource, identities = false): RecoverySnapshotInput {
   const { xerSourceArchive: archive, xer, ...input } = buildWriteIFCInput(source, 'planOnly');
   const selector = xer?.sourceProjectId ?? input.xerSourceProjectId;
   // #804 fase 1a, fixronde 1: kwam het document uit een bestand met een vreemd deel, dan alleen de vingerafdruk (twee
@@ -23,10 +25,22 @@ export function recoverySnapshotInput(source: IFCSaveSource): RecoverySnapshotIn
       format: archive.format, byteLength: archive.byteLength, sha256: archive.sha256,
       selectorValid: !!(selector && archive.diagnostics.documentViews[selector]),
     } } : {}),
+    ...(identities ? { identities: true as const } : {}),
   };
 }
 
-export function serializeRecoveryInput({ input, archive }: RecoverySnapshotInput): string {
+export interface RecoverySnapshot {
+  readonly ifc: string;
+  readonly identities?: RecoverySnapshotIdentities;
+}
+
+export function serializeRecoveryInput(snapshot: RecoverySnapshotInput): string {
+  return writeRecoverySnapshot(snapshot).ifc;
+}
+
+export function writeRecoverySnapshotParts({ input, archive }: RecoverySnapshotInput, writtenAt?: Date): {
+  input: WriteIFCInput; ifc: string; issuedGlobalIds: ReadonlyMap<string, string>;
+} {
   // De referentietak van de writer leest alleen deze velden en de geldigheid van de selector.
   // Bewust een smalle adapter: het volledige archief (bytes, readModel, diagnostics) wordt nooit
   // gekloond. Pariteitstests bewaken dat deze tak geen andere archiefvelden gaat gebruiken.
@@ -35,7 +49,14 @@ export function serializeRecoveryInput({ input, archive }: RecoverySnapshotInput
     diagnostics: { documentViews: archive.selectorValid && input.xerSourceProjectId
       ? { [input.xerSourceProjectId]: true } : {} },
   } as unknown as XerSourceArchive : undefined;
-  return writeIFC({ ...input, xerSourceArchive: reference });
+  const written = writeIFCWithChoices({ ...input, xerSourceArchive: reference }, writtenAt);
+  return { input, ifc: written.content, issuedGlobalIds: written.issuedGlobalIds };
+}
+
+export function writeRecoverySnapshot(snapshot: RecoverySnapshotInput): RecoverySnapshot {
+  const { input, ifc, issuedGlobalIds } = writeRecoverySnapshotParts(snapshot);
+  const identities = snapshot.identities ? snapshotIdentities(input, issuedGlobalIds, ifc) : undefined;
+  return { ifc, ...(identities ? { identities } : {}) };
 }
 
 /** Dezelfde writer en referentie-invoer voor headless, fallback en worker. */
