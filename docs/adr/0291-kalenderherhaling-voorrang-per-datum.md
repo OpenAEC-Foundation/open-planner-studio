@@ -16,9 +16,11 @@ verschillende begindatums (T3 invariant: de dag is werkend, het vrije bereik is 
 
 - De voorrang, van laag naar hoog: herhalingen per type in de volgorde van `RECURRENCE_PRECEDENCE_ORDER` (WEEKLY,
   MONTHLY, YEARLY, DAILY), dan de niet-herhalende uitzonderingen. Binnen een groep geldt de volgorde in het bestand.
-  `buildContributions` levert de bijdragen in die volgorde. T3 precedentie in `check-mpp-calendars.ts` toetst (a)
-  DAILY boven de andere drie types en (b) een niet-herhalende werkende uitzondering boven alle vier; T4 precedentie in
-  `check-adapters-hours.ts` toetst een niet-herhalende vrije dag boven een herhaling via de MSPDI-lezer.
+  `buildContributions` levert de bijdragen in die volgorde. T3 precedentie (b) in `check-mpp-calendars.ts`
+  toetst een niet-herhalende werkende uitzondering boven vrije herhalingen op dezelfde datum. De volgorde van de vier
+  herhalingstypes onderling bewaakt geen toets: in T3 precedentie (a) zijn alle kandidaten vrij en levert de
+  dagelijkse één datum op, en in T4 precedentie in `check-adapters-hours.ts` levert de jaarlijkse herhaling één datum
+  op, zodat daar de volgorde in het bestand tussen twee niet-herhalende beslist.
 - Een herhaling die tot precies één datum uitrekent, telt als niet-herhalend, wat haar type ook is, en komt op haar
   plaats in het bestand tussen de niet-herhalende uitzonderingen. Dat dit `populateExpandedExceptions()` van MPXJ
   volgt (dat op het aantal uitgerekende datums kijkt), komt uit het weggehaalde commentaar en is niet nagegaan.
@@ -36,7 +38,8 @@ verschillende begindatums (T3 invariant: de dag is werkend, het vrije bereik is 
   per taal van de app verschillen. De P6 XML-lezer gebruikt dezelfde twee namen (ADR 0263).
 - Overerving (`mergeInherited`) gebruikt dezelfde kaart: de feestdagen en daarna de werkende uitzonderingen van de
   basiskalender, die al uitgerekend zijn, gaan per dag terug in bijdragen (`reExpandRange`) en komen vóór de eigen
-  bijdragen van de afgeleide kalender. Zo wint per datum een eigen uitzondering van de basis.
-  `check-mspdi-feestdagen.ts` 5 toetst basis en eigen uitzondering alleen op verschillende datums.
-- Als het budget opraakt, valt de bijdrage met de hoogste voorrang het eerst weg (knownbug 2319); het budget zelf staat
-  in ADR 0293.
+  bijdragen van de afgeleide kalender. Bereiken beide de kaart, dan wint per datum de eigen uitzondering van de basis.
+  `check-mspdi-feestdagen.ts` 5 toetst basis en eigen uitzondering alleen op verschillende datums: dat beide meekomen.
+- Als het budget opraakt, beslist de afkap welke bijdrage wegvalt: `buildContributions` kapt af in de volgorde van het
+  bestand, `resolveContributions` en `mergeInherited` in de volgorde van de kaart, waar de hoogste voorrang het laatst
+  komt (knownbug 2319). Twee bijdragen op dezelfde datum kosten elk een plaats. Het budget zelf staat in ADR 0293.
