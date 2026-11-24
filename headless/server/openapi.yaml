@@ -9,6 +9,12 @@ info:
     the work rules and scheduling profile of the project) and returns a JSON summary or the
     recalculated IFC file. The API stores nothing: every request stands alone.
 
+    Send the file as `application/octet-stream` to keep a building model and the data of other
+    programs: the API then reads the bytes as they are and returns the recalculated file as bytes,
+    with everything that is not the schedule byte for byte as it was. The other request types are
+    read as UTF-8 text; that route refuses a file with a building model (422 `IFC_READ_FAILED`) and
+    does not write a file with foreign content (500 `IFC_WRITE_FAILED`).
+
     Every path that is not listed answers 404 `NOT_FOUND`.
 
     Errors always have the body `{"error": {"code": "...", "message": "..."}}`. `code` is fixed;
@@ -62,7 +68,7 @@ paths:
         - name: output
           in: query
           required: false
-          description: '`summary` (default) gives the JSON summary; `ifc` gives the recalculated IFC file.'
+          description: '`summary` (default) gives the JSON summary; `ifc` gives the recalculated IFC file, as bytes (`application/octet-stream`) when the request was bytes, otherwise as text (`application/x-step`).'
           schema:
             type: string
             enum: [summary, ifc]
@@ -75,7 +81,7 @@ paths:
             pattern: '^[A-Za-z0-9._-]{1,64}$'
       requestBody:
         required: true
-        description: The IFC file as text (UTF-8). Maximum size is `limits.maxBodyBytes` from `/healthz` (default 20 MiB).
+        description: The IFC file, as text (UTF-8) or as bytes (`application/octet-stream`, which keeps a building model and the data of other programs). Maximum size is `limits.maxBodyBytes` from `/healthz` (default 20 MiB).
         content:
           application/x-step:
             schema:
@@ -93,6 +99,7 @@ paths:
             schema:
               type: string
               format: binary
+              description: The file as bytes, read without text decoding.
       responses:
         '200':
           description: The schedule is calculated.
@@ -106,7 +113,15 @@ paths:
             application/x-step:
               schema:
                 type: string
-                description: The recalculated IFC file (when `output=ifc`).
+                description: The recalculated IFC file as text (when `output=ifc` and the request was text).
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+                description: |
+                  The recalculated IFC file as bytes (when `output=ifc` and the request was
+                  `application/octet-stream`). A building model and the data of other programs come back
+                  byte for byte; without changes to the schedule the whole file does.
         '400':
           description: '`INVALID_INPUT` (the body is not ISO-10303-21 text) or `BAD_REQUEST` (unknown `output`, or a request target that is not a valid URL).'
           content:
@@ -153,7 +168,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '500':
-          description: '`IFC_WRITE_FAILED` or `INTERNAL`.'
+          description: |
+            `IFC_WRITE_FAILED` or `INTERNAL`. With `IFC_WRITE_FAILED`, `details.reason` says why when it
+            is known: `foreign` (text route: the file has foreign content; send it as
+            `application/octet-stream`), `merge-needs-phase2` (bytes route: the foreign content cannot be
+            preserved with the recalculated schedule yet), or another scan result of the text route,
+            such as `unreadable`.
           content:
             application/json:
               schema:
@@ -256,7 +276,7 @@ components:
           description: Request bodies being received now.
     ScheduleSummary:
       type: object
-      required: [formatVersion, project, counts, tasks, criticalPath, warnings]
+      required: [formatVersion, project, counts, tasks, criticalPath, warnings, foreignContent]
       properties:
         formatVersion:
           type: integer
@@ -338,6 +358,28 @@ components:
                   (an IFC from an older version of the app), so opening recalculated them; `ids` are the
                   tasks with a different start or finish, and this is the largest shift in workdays (one
                   decimal).
+        foreignContent:
+          description: |
+            What the document keeps besides the schedule (a building model, the data of other programs)
+            and writes back unchanged. Only the bytes route (`application/octet-stream`) keeps it; on the
+            text route this is always `null`. Also `null` when the file has nothing besides the schedule.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/ForeignContent'
+    ForeignContent:
+      type: object
+      required: [format, schema, objectCount]
+      properties:
+        format:
+          type: string
+          const: ifc
+          description: The file format of the kept content (ISO-10303-21).
+        schema:
+          type: string
+          description: The IFC schema from the file header, for example `IFC4X3_ADD2` or `IFC4`.
+        objectCount:
+          type: integer
+          description: The number of entities that are not part of the schedule.
     TaskSummary:
       type: object
       required: [id, name, wbs, parentId, summary, milestone, start, finish, lateStart, lateFinish, totalFloat, critical]
