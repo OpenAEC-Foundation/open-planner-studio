@@ -10,7 +10,7 @@ import {
 } from '@/services/ifc/ifcx';
 import { ifcxSchemaProblems } from '@/services/ifc/ifcx/schemaCheck';
 import { buildIfcxDocument, serializeIfcx } from '@/services/ifc/ifcx/ifcxWriter';
-import { defaultGlobalId, stepGlobalIdsFor } from '@/services/ifc/ifcx/stepGlobalIds';
+import { defaultGlobalId } from '@/services/ifc/ifcx/stepGlobalIds';
 import { compactGlobalIdToUuid, nameBasedUuid } from '@/services/ifc/ifcx/globalIdUuid';
 import { createAppStoreContext } from '@/state/appStore';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -359,16 +359,13 @@ test('een baselinetaak die in STEP al verwijderd was, gaat via IFCX terug naar S
   assertRoundTrip(viaStep);
 });
 
-test('een resource krijgt bij een gedeelde bewaarde GlobalId voorrang op een bibliotheekkalender, zoals in STEP, en IFCX weigert de botsing', () => {
+test('een resource en een kalender met dezelfde bewaarde GlobalId: STEP vervangt er een stil, IFCX weigert de botsing', () => {
   const plan = fullPlan();
   const shared = ifcGuid128('gedeeld');
   const input: ImportResult = { ...plan, ifcGlobalIds: { ...plan.ifcGlobalIds, 'res:r-eq': shared, 'cal:libcal': shared } };
   const stepText = writeIFCForComparison(input);
-  const stepGuid = (pattern: RegExp) => pattern.exec(stepText)![1];
-  const globalIdOf = stepGlobalIdsFor(input);
-  assert.equal(stepGuid(/IFCCONSTRUCTIONEQUIPMENTRESOURCE\('([^']+)'/), shared);
-  assert.equal(globalIdOf('res', 'r-eq'), shared);
-  assert.equal(globalIdOf('cal', 'libcal'), stepGuid(/IFCWORKCALENDAR\('([^']+)',#\d+,'Nachtploeg'/));
+  assert.equal(/IFCCONSTRUCTIONEQUIPMENTRESOURCE\('([^']+)'/.exec(stepText)![1], shared);
+  assert.notEqual(/IFCWORKCALENDAR\('([^']+)',#\d+,'Nachtploeg'/.exec(stepText)![1], shared);
   const refusal = writeRefusal(input);
   assert.equal(refusal.code, 'inconsistent');
   assert.deepEqual(refusal.fields, ['resource.globalId']);

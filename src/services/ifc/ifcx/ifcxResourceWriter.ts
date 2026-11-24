@@ -2,13 +2,13 @@ import type { WriteIFCInput } from '../ifcWriter';
 import type { Baseline } from '@/types/baseline';
 import { writeFields } from './fieldTable';
 import { identityOfGlobalId, type IfcxIdentity } from './globalIdUuid';
-import type { GlobalIdOf } from './stepGlobalIds';
+import type { GlobalIdOfObject } from './identity';
 import { ASSIGNMENT_AREA, BASELINE_AREA, RESOURCE_AREA } from './fieldGroups';
 import type { BaselineRowIdentity } from './fields/baselineFields';
 import { ATTRIBUTE, type IfcxAttributeName } from './profile';
 
 export interface ResourceEntryLinks {
-  readonly globalIdOf: GlobalIdOf;
+  readonly globalIdOf: GlobalIdOfObject;
   readonly taskPathById: ReadonlyMap<string, string>;
   readonly calendarPathById: ReadonlyMap<string, string>;
 }

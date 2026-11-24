@@ -737,6 +737,16 @@ test('een gedeeld venster dat een gestarte taak vóór haar werkelijke start laa
   assertSameDomain(back, late);
 });
 
+test('bekende grens 2224: een voltooide taak die eindigt vóór haar werkelijke start, kan niet als IFCX worden opgeslagen', () => {
+  const plan = datePlan();
+  const input = { ...plan, tasks: plan.tasks.map((task, index) => index === 0
+    ? { ...task, time: { ...task.time, actualStart: '2027-06-02T07:00', actualFinish: '2027-06-01T16:00', completion: 1 } } : task) };
+  const refusal = writeRefusal(input);
+  assert.equal(refusal.code, 'inconsistent');
+  assert.deepEqual(refusal.fields, ['task.time']);
+  assert.ok(writeIFCForComparison(input).length > 0, 'STEP schrijft haar wel');
+});
+
 test('een dubbele GlobalId wordt bij lezen en bij schrijven geweigerd, nooit stil vervangen (blokkade 3)', () => {
   const compactOfFirst = readError(changedFixture((_document, [first, second]) => {
     second.attributes['openaec::ops::task'].globalId = uuidToCompactGlobalId(first.path);

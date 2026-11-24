@@ -7,8 +7,7 @@ import { writeFields } from './fieldTable';
 import { CALENDAR_AREA } from './fieldGroups';
 import { placesNeededForOrder, taskInParentCycle } from './childOrder';
 import { momentOfSharedDate, nextCalendarDate, taskWindow, type SharedSpan } from './dateProjection';
-import { identityProblems, intendedGlobalIds, type PlanningModel } from './identity';
-import { globalIdKey } from './stepGlobalIds';
+import { identityProblems, type GlobalIdOfObject, type PlanningModel } from './identity';
 import { baselineChoiceProblems, costInconsistencies } from './resourceConsistency';
 import { ATTRIBUTE, type IfcxAttributeName } from './profile';
 
@@ -20,6 +19,7 @@ export interface Inconsistency {
 export interface RuleSubject {
   readonly model: PlanningModel;
   readonly windowOf: (task: Task) => SharedSpan;
+  readonly globalIdOf: GlobalIdOfObject;
 }
 
 export interface ConsistencyRule {
@@ -50,10 +50,7 @@ export const CONSISTENCY_RULES: readonly ConsistencyRule[] = [
   {
     id: 'identiteit',
     reason: 'Elk id is uniek binnen zijn soort, elke GlobalId is uniek over alle objecten (project, werkplan en werkschema inbegrepen), en elke verwijzing heeft een doel.',
-    onPlanning: ({ model }) => {
-      const intended = intendedGlobalIds(model);
-      return identityProblems(model, (kind, id) => intended.get(globalIdKey(kind, id))!);
-    },
+    onPlanning: ({ model, globalIdOf }) => identityProblems(model, globalIdOf),
   },
   {
     id: 'boom', reason: 'De kinderen van een taak zijn precies de taken die haar als ouder noemen, en geen taak is haar eigen voorouder.',
@@ -159,6 +156,6 @@ export function attributeRuleProblem(name: string, value: Readonly<Record<string
   return undefined;
 }
 
-export function inconsistentContent(input: WriteIFCInput): Inconsistency[] {
-  return planningRuleProblems({ model: input, windowOf: taskWindow });
+export function inconsistentContent(input: WriteIFCInput, globalIdOf: GlobalIdOfObject): Inconsistency[] {
+  return planningRuleProblems({ model: input, windowOf: taskWindow, globalIdOf });
 }

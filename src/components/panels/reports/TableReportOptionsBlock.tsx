@@ -167,6 +167,10 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
         </>
       );
       break;
+    case 'milestones':
+    case 'variance':
+      body = null;
+      break;
     default:
       return null;
   }

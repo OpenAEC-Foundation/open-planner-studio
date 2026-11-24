@@ -29,8 +29,10 @@ toewijzingen en baselines. De overige velden komen in F3-3. Wat het profiel nog 
 }
 ```
 
-- **Kop**: `id` is `urn:openaec:planner:` met de UUID van de GlobalId van het project. `author` is de auteur van het
-  project, of `Open Planner Studio` als die leeg is. `timestamp` is het moment van schrijven (ISO 8601, UTC).
+- **Kop**: `id` is `urn:openaec:planner:` met de UUID van de GlobalId van het project. `ifcxVersion` is `ifcx_alpha`,
+  `dataVersion` heeft de vorm `MAJOR.MINOR.PATCH`. `author` is de auteur van het project, of `Open Planner Studio` als
+  die leeg is. `timestamp` is het moment van schrijven (ISO 8601, UTC). De kop heeft een waardedomein zoals elk
+  attribuut (`HEADER_VALUE` in `ownAttributes.ts`); writer en lezer toetsen hem met dezelfde functie.
 - **`imports`** is altijd leeg. De app schrijft geen `bsi::ifc::class`, geen `children` en geen `inherits`.
 - **`schemas`** bevat voor elk attribuut dat in het bestand voorkomt de definitie. Die komt uit dezelfde tabel als het
   schrijven en lezen (`fieldGroups.ts`, `ownAttributes.ts`): een veld heeft één beschrijving met schema, controle,
@@ -43,14 +45,14 @@ toewijzingen en baselines. De overige velden komen in F3-3. Wat het profiel nog 
 
 - Het pad van een object is de UUID van zijn GlobalId: dezelfde 128 bits, in kleine letters met streepjes en zonder
   voorloop-`/`. De GlobalId is die van de STEP-writer: een bewaarde GlobalId (`ifcGlobalIds`), anders `ifcGuid128`
-  van `ifcObjectSeed` (`stepGlobalIds.ts`, met dezelfde regel bij een botsing en in dezelfde volgorde als
-  `ifcWriter.ts`: project, projectkalender, werkplan, werkschema, baselines, taken, relaties, resources, de andere
-  kalenders, de taken in baselines). Zo houdt IFC → IFCX → IFC dezelfde GlobalIds. Een baseline heeft de GlobalId
-  van haar werkschema in STEP (sleutel `baseline_ws_<id>`, afgeleid van `<project-id>/baseline_ws_<id>`). Een
-  toewijzing heeft in STEP geen eigen GlobalId; zij krijgt er een uit `<project-id>/ifcx_assignment_<id>`, als
-  laatste uitgegeven. De lezer vult `ifcGlobalIds` terug voor project, kalenders, taken, relaties en resources, en
-  voor werkplan, werkschema, baselines en verwijderde baselinetaken alleen als hun GlobalId afwijkt van wat de writer
-  zou afleiden.
+  van `ifcObjectSeed` (`defaultGlobalId` in `stepGlobalIds.ts`). Zo houdt IFC → IFCX → IFC dezelfde GlobalIds. Delen
+  twee objecten een GlobalId, dan geeft de STEP-writer het tweede een nieuwe; de IFCX-writer weigert (zie hieronder).
+  Een baseline heeft de GlobalId van haar werkschema in STEP (sleutel `baseline_ws_<id>`, afgeleid van
+  `<project-id>/baseline_ws_<id>`). Een toewijzing heeft in STEP geen eigen GlobalId; zij krijgt er een met de
+  sleutel `ifcx_assignment_<id>`, afgeleid van `<project-id>/ifcx_assignment_<id>`. Een verwijderde taak in een
+  baseline houdt de GlobalId die STEP haar in `TaskGuids` zou geven (sleutel `task:<id>`). De lezer vult
+  `ifcGlobalIds` terug voor elk object: project, werkplan, werkschema, kalenders, taken, relaties, resources,
+  toewijzingen, baselines en verwijderde baselinetaken.
 - Een GlobalId zonder geldige 128-bitsvorm (22 tekens, eerste teken `0`–`3`; de oude `ifcGuid` geeft dat niet altijd)
   krijgt als pad een UUID v5 van de GlobalId, en de GlobalId zelf staat in het veld `globalId` van het
   `openaec::ops::`-attribuut van dat object. De namespace is `fd4e93a2-de83-56ee-929c-defaa450b626`, de UUID v5 van
@@ -62,6 +64,24 @@ toewijzingen en baselines. De overige velden komen in F3-3. Wat het profiel nog 
 - Verwijzingen tussen objecten (`parent`, `calendar`, `relatingProcess`, `relatedProcess`, `workplan`, `crew`,
   `relatedResource`) zijn paden naar een object dat bestaat. Een baseline verwijst met gewone tekst naar haar taken
   (`task` in een rij), ook naar een taak die verwijderd is (ontwerp §5.2).
+
+**Identiteit is één regel voor alle soorten** (`IDENTITY_KINDS` in `identity.ts`, een gewone lijst met de soorten die
+er nu zijn: project, werkplan, werkschema, kalender, taak, relatie, resource, toewijzing, baseline en verwijderde
+baselinetaak). Voor elke soort geldt:
+
+- het interne id is uniek binnen de soort;
+- de GlobalId is uniek over alle objecten samen, project, werkplan en werkschema inbegrepen;
+- een verwijzing naar een ander object (`parentId`, `childIds`, `predecessorId`, `successorId`, de ploeg en kalender
+  van een resource, de taak en resource van een toewijzing) heeft een doel. Een baselinerij verwijst met tekst en mag
+  een verwijderde taak noemen; zo'n taak is een eigen soort (`baselineTask`) zonder verwijzing, maar haar GlobalId telt
+  mee voor de uniekheid. De lezer onderscheidt haar zo: het pad van de rij is geen object in het bestand (wijst het
+  naar een object dat geen taak is, dan weigert hij);
+- een GlobalId zonder 128-bitsvorm hoort bij precies één pad: de UUID v5 hierboven. Een pad dat daar niet bij hoort,
+  weigert de lezer met `invalid` en veld `globalId`.
+
+De writer toetst dit op zijn invoer en weigert een botsing met `inconsistent` en het veld `<soort>.id`,
+`<soort>.globalId` of `<soort>.<verwijzing>`; hij rekent nooit een vervangende GlobalId uit. De lezer toetst hetzelfde
+op het model dat hij las en weigert met `invalid` en hetzelfde veld.
 
 ## Eén regel voor `openaec::ops::`
 
@@ -86,10 +106,26 @@ writer gebruiken daarvoor dezelfde afleiding (ontwerp §5.2):
 
 ## Attributen
 
-Vormen: *tekst*, *datum* (een bestaande dag, `YYYY-MM-DD`), *moment* (een bestaand moment in lokale tijd zonder zone,
-`YYYY-MM-DD[THH:MM[:SS[.sss]]]` met uren 00–23 en minuten en seconden 00–59, of leeg),
-*getal*, *geheel getal*, *ja/nee*, *keuze*, *pad*. Een veld zonder "verplicht" mag ontbreken. Een leeg tekstveld dat in
-het domein verplicht is (zoals een lege omschrijving) schrijft de app niet; de lezer maakt er weer een lege tekst van.
+Elk veld heeft in de veldtabel (`fieldTable.ts` en `fields/`) een volledig waardedomein, en lezer en writer toetsen
+elke waarde met dezelfde functie (`checkValue`). Een tekst- of datumveld zonder vorm is een compileerfout. De vormen:
+
+| Vorm | Domein | Velden |
+|---|---|---|
+| *tekst* | elke tekst | namen, omschrijvingen, `author`, `company`, `region` |
+| *niet-lege tekst* | tekst van minstens één teken | `id`, `projectId`, `calendarId`, `ruleSetId` |
+| *datum* | een bestaande dag `YYYY-MM-DD` | `start`, `finish`, `endExclusive`, vrije en werkdagen van een kalender |
+| *moment* | een bestaand moment in lokale tijd zonder zone, `YYYY-MM-DD[THH:MM[:SS[.sss]]]`, uren 00–23, minuten en seconden 00–59, of leeg | de momenten in `openaec::ops::task.time` |
+| *projectmoment* | een bestaande dag of een bestaand moment in ISO 8601, met of zonder zone, tot 9 decimalen, of leeg | `startDate`, `endDate`, `createdAt`, `modifiedAt`, `statusDate` |
+| *ISO-moment* | als *projectmoment*, niet leeg | `timestamp` in de kop |
+| *GlobalId zonder 128-bitsvorm* | niet leeg, en geen geldige 22-tekens-GlobalId | `globalId` |
+| *versie* | `MAJOR.MINOR.PATCH` | `formatVersion`, `dataVersion` |
+| *lagduur* | `P<dagen>D` of `PT<minuten>M`, met een minteken voor een lead | `timeLag` |
+| *getal* | een eindig getal; `completion` alleen 0–1 | |
+| *geheel getal* | een veilig geheel getal; `place` en `libraryPlace` vanaf 0, `workDays` 1–7 | |
+| *ja/nee*, *keuze*, *pad* | `true`/`false`; een van de genoemde waarden; een UUID | |
+
+Een veld zonder "verplicht" mag ontbreken; `null` is nooit een geldige waarde. Een leeg tekstveld dat in het domein
+verplicht is (zoals een lege omschrijving) schrijft de app niet; de lezer maakt er weer een lege tekst van.
 
 ### Werkplan
 
@@ -270,11 +306,12 @@ einde van de taak (`shownStart` en `shownFinish` in `src/utils/taskDates.ts`):
 
 - `start` is de datum van het startmoment;
 - `endExclusive` is de datum van het eindmoment als dat precies 00:00 is, anders die datum plus één dag
-  (1 juni 07:00–16:00 geeft 1 juni tot 2 juni; een einde op 3 juni 00:00 geeft 3 juni);
+  (1 juni 07:00–16:00 geeft 1 juni tot 2 juni; een einde op 3 juni 00:00 geeft 3 juni). Een einde zonder tijd, alleen
+  een datum, telt tot het eind van die dag, zoals `finishInstant`: een einde op 2 juni geeft `endExclusive` 3 juni;
 - een mijlpaal, of een taak waarvan het einde niet na de start ligt, krijgt `endExclusive` = startdatum plus één dag.
 
 **Het venster.** `start` en `endExclusive` staan er samen of geen van beide, `endExclusive` ligt na `start`, en bij
-een mijlpaal is het venster precies één dag. Anders weigert de lezer met `invalid`.
+een mijlpaal is het venster precies één dag (regel `gedeeld-venster`). Anders weigert de lezer met `invalid`.
 
 **Leesregel.** De precieze tijden in `openaec::ops::task.time` gelden alleen als hun projectie gelijk is aan `start` en
 `endExclusive`. De lezer vergelijkt beide met één projectie van de taak zoals ze in het bestand staat. Wijkt een van de
@@ -285,6 +322,12 @@ van `endExclusive` (bij een mijlpaal op de start). De taak wordt handmatig gepla
 van een voltooide taak. Wijkt alleen zo'n datum af, dan verandert er niets en telt de taak niet mee (knownbug 2221).
 Voor een eigen bestand dat niemand veranderde, verandert openen dus geen datum.
 
+**Het venster dat telt** (regel `venster`): de start is de werkelijke start als die vaststaat, anders `start`; het einde
+is het werkelijke einde van een voltooide taak, anders `endExclusive`. Dat venster eindigt niet vóór zijn start.
+Verplaatst een ander programma het venster van een gestarte taak naar vóór haar werkelijke start, dan weigert de lezer
+met `invalid` en veld `task.time`. Een taak die in de app zelf vóór haar werkelijke start eindigt (een werkelijke start
+ingevuld, nog niet opnieuw berekend), schrijft de writer gewoon: haar venster begint op de werkelijke start.
+
 ## Volgorde onder een ouder
 
 De taken staan in de volgorde van de takenlijst. De kinderen van een ouder komen in de lezer in de volgorde van hun
@@ -293,6 +336,24 @@ van hun entries; een `place` buiten de lijst komt achteraan. De writer geeft all
 een langste reeks die in de takenlijst en onder de ouder in dezelfde volgorde staat (`childOrder.ts`). Een boom waarin
 `childIds` en `parentId` elkaar tegenspreken, weigert de writer met `inconsistent` (knownbug 2222); een kring in de
 ouders weigeren writer en lezer.
+
+## Regels over meer velden
+
+Wat meer dan één veld raakt, staat in één lijst: `CONSISTENCY_RULES` in `consistency.ts`. De writer past elke regel
+toe op zijn invoer, de lezer op het model dat hij las, na de leesregel; een regel over één attribuut (`onAttribute`)
+toetsen beide op de attribuutwaarde. Elke regel heeft een reden in de lijst zelf.
+
+| Regel | Wat | Veld bij weigering |
+|---|---|---|
+| `identiteit` | zie *Paden en identiteit* | `<soort>.id`, `<soort>.globalId`, `<soort>.<verwijzing>` |
+| `boom` | de kinderen van een taak zijn precies de taken die haar als ouder noemen; geen kring in de ouders | `task.childIds`, `task.parentId` |
+| `venster` | het venster dat telt eindigt niet vóór zijn start (zie *Datums*) | `task.time` |
+| `lag-eindig` | `lagDays`, `lagMinutes` en `lagPercent` zijn eindige getallen (ook `timeLagRatio` × 100) | `sequence.lag` |
+| `projectkalender-in-bibliotheek` | de bibliotheekentry van de projectkalender is dezelfde kalender | `resourceCalendars` |
+| `een-lagvorm` | een relatie heeft `timeLag` of `timeLagRatio`, niet allebei | `timeLagRatio` |
+| `gedeeld-venster` | zie *Datums* | `start`, `endExclusive` |
+| `baselinekeuze` | de actieve baseline bestaat; de vergelijking noemt alleen baselines die bestaan, niet de actieve en niet twee keer dezelfde | `activeBaselineId`, `comparedBaselineIds` |
+| `kosten` | een kostenresource heeft geen tarief, kalender, ploeg, eenheid of stappen en capaciteit 1; een kostentoewijzing heeft geen werk en inzet 1; een bedrag staat alleen op een kostentoewijzing (`resourceConsistency.ts`) | `resource.<veld>`, `assignment.<veld>` |
 
 ## Wat de writer weigert
 
@@ -303,25 +364,17 @@ ouders weigeren writer en lezer.
   letterlijke kalenders, een openstaande omzetting naar het minutenmodel, en elk veld van project, kalender, taak,
   relatie, resource, toewijzing, baseline of baselinerij dat geen veldgroep draagt (`unsupportedContent.ts`), en een
   werkplan of werkschema zonder GlobalId van 128 bits;
-- met code `inconsistent` en de veldnamen in `fields`, als het document zichzelf tegenspreekt (`consistency.ts`): twee
-  taken, relaties of bibliotheekkalenders met hetzelfde id (`task.id`, `sequence.id`, `calendar.id`), een ouder die niet
-  bestaat of een kring in de ouders (`task.parentId`), kinderen die niet kloppen met de taken die de ouder noemen, ook
-  een kind dat niet bestaat (`task.childIds`), een relatie van of naar een taak die niet bestaat
-  (`sequence.predecessorId`, `sequence.successorId`), of een bibliotheekentry van de projectkalender met een andere
-  inhoud (`resourceCalendars`). Resources, toewijzingen, baselines en verwijderde baselinetaken staan in dezelfde
-  lijst van soorten (`IDENTITY_KINDS` in `identity.ts`): twee resources, toewijzingen of baselines met hetzelfde id
-  (`resource.id`, `assignment.id`, `baseline.id`), een GlobalId die een ander object al heeft (`resource.globalId`,
-  enzovoort), een ploeg of resourcekalender die niet bestaat (`resource.parentId`, `resource.calendarId`) en een
-  toewijzing aan een taak of van een resource die niet bestaat (`assignment.taskId`, `assignment.resourceId`). Een
-  baselinerij verwijst met tekst en mag een verwijderde taak noemen: die taak is daar een eigen soort
-  (`baselineTask`), zonder verwijzing, maar met een GlobalId die uniek moet zijn. Twee regels in
-  `CONSISTENCY_RULES` (uitgewerkt in `resourceConsistency.ts`): `baselinekeuze`, een actieve baseline die niet bestaat
-  (`activeBaselineId`) of een vergelijking die de app zelf zou wissen, met een baseline die niet bestaat, de actieve
-  of twee keer dezelfde (`comparedBaselineIds`); en `kosten`, wat de app voor kosten afdwingt
-  (`clearCostResourceFields`, `normalizeAssignmentForResource`): een kostenresource met een tarief, kalender, ploeg,
-  eenheid, stappen of een capaciteit anders dan 1, een kostentoewijzing met werkvelden, een inzet anders dan 1 of een
-  ongeldig bedrag, en een bedrag op een toewijzing van een werkresource. De lezer toetst dezelfde lijst op zijn
-  resultaat. STEP laat de meeste van die gevallen bij schrijven of lezen stil vallen;
+- met code `inconsistent` en de veldnamen in `fields`, als het document een regel uit *Regels over meer velden*
+  breekt: twee objecten van één soort met hetzelfde id, twee objecten met dezelfde GlobalId, een verwijzing zonder doel,
+  een boom die niet klopt, een venster dat eindigt vóór zijn start, een oneindige lag, een bibliotheekentry van de
+  projectkalender met een andere inhoud, een baselinekeuze die de app zelf zou wissen, of een kostenresource of
+  -toewijzing die de kostenregels van de app breekt. STEP laat de meeste van die gevallen bij schrijven of lezen stil
+  vallen;
+- met code `invalid` en het attribuut en veld in `fields` (zoals `openaec::ops::document.startDate` of
+  `openaec::planning::activity.completion`), als een waarde buiten haar domein valt. De writer toetst elke waarde die
+  hij zou schrijven, en de kop, met dezelfde functie als de lezer, vóór het schrijven. Een ongeldig moment van
+  schrijven geeft `header.timestamp`; een planning die de writer niet in de velden kan zetten (zoals `workTime` zonder
+  `byWeekday`) geeft `planning`;
 - met code `self-check`, als de eigen controle na het schrijven een verschil vindt; `fields` noemt de paden van de
   eerste verschillen (zie *Zelfcontrole*).
 
@@ -337,18 +390,18 @@ ouders weigeren writer en lezer.
   kop- of entryveld, `imports`, `children` of `inherits`, een attribuut van een ander, een onbekend veld in een
   `openaec::planning::`-attribuut, een pad dat geen UUID is, twee bijdragen van één attribuut op één pad, een pad
   waarvan de attributen samen geen planningsobject vormen, of niet precies één eigen werkplan;
-- `invalid`: een kop zonder `dataVersion`, `author` of `timestamp`, een bestand zonder `imports` of `schemas`, een
-  eigen schema dat afwijkt van het profiel of ontbreekt voor een attribuut dat in het bestand staat, een bekend veld
-  met een ongeldige waarde of vorm (ook een dag of kloktijd die niet bestaat), een verplicht veld dat ontbreekt, een
-  verwijzing naar een pad van de verkeerde soort, twee objecten van één soort met hetzelfde interne id, een kring in
-  de ouders, een gedeeld venster dat niet klopt, een `libraryPlace` die niet klopt, of niet precies één werkschema.
-  Voor resources en baselines ook: een kostenresource die geen `IfcConstructionMaterialResource` is, een
-  kostenresource of toewijzing die de kostenregels van de app breekt (zie hierboven), een baselinerij
-  die naar een object wijst dat geen taak is, een eigen id in `taskIds` voor een taak die bestaat of twee keer voor één
-  pad, een verwijderde baselinetaak met het id van een taak die bestaat of met twee paden, twee actieve baselines, twee
-  baselines op één vergelijkingsplaats, of de actieve baseline in de vergelijking.
+- `invalid`: een kopveld buiten zijn domein (`place.field` is dan `header.<veld>`), een bestand zonder `imports` of
+  `schemas`, een eigen schema dat afwijkt van het profiel of ontbreekt voor een attribuut dat in het bestand staat, een
+  bekend veld met een waarde buiten zijn domein (ook een dag of kloktijd die niet bestaat, en een getal als `1e999`),
+  een verplicht veld dat ontbreekt, een verwijzing naar een pad van de verkeerde soort, een pad dat niet bij de
+  GlobalId van het object hoort, een gebroken regel uit *Regels over meer velden* (`place.field` noemt het veld van de
+  regel), een `libraryPlace` die niet klopt, of niet precies één werkschema. Voor resources en baselines ook: een
+  kostenresource die geen `IfcConstructionMaterialResource` is, een baselinerij die naar een object wijst dat geen taak
+  is, een eigen id in `taskIds` voor een taak die bestaat of twee keer voor één pad, een verwijderde baselinetaak met
+  het id van een taak die bestaat of met twee paden, twee actieve baselines, twee baselines op één vergelijkingsplaats,
+  of de actieve baseline in de vergelijking.
 
-De lezer eist dus in de kop `id`, `ifcxVersion`, `dataVersion`, `author` en `timestamp` (alle tekst), `imports` als
+De lezer eist dus in de kop `id`, `ifcxVersion`, `dataVersion`, `author` en `timestamp` in hun domein, `imports` als
 lege lijst en `schemas` als object. Elk schema in `schemas` moet een eigen attribuutnaam hebben (anders `foreign`, of
 `newer-profile` voor een onbekende `openaec::ops::`-naam) en precies de definitie van het profiel.
 
@@ -369,23 +422,31 @@ gereedschap. De controle met de echte validator van IFC5-development en met ifcx
 Na het schrijven leest `writeIfcx` zijn eigen uitvoer terug en legt het teruggelezen model rechtstreeks naast de invoer
 (`selfCheck.ts`, besluit van de technisch beslisser over keuze T4). De vergelijking is algemeen: elk veld van de invoer
 en van het teruggelezen model telt mee, op elk niveau, met de volgorde van lijsten. Een veld dat niemand in een
-veldgroep zette, geeft dus een verschil en een weigering. Alleen de regels in `SELF_CHECK_RULES` normaliseren of laten
-iets weg, elk met een reden in de lijst zelf:
+veldgroep zette, geeft dus een verschil en een weigering, ook als het leeg is (`null`, `[]` of `{}`), bovenin en
+dieper in een object. Alleen een ontbrekend veld en `undefined` zijn hetzelfde. Verder normaliseren of laten alleen de
+regels in `SELF_CHECK_RULES` iets weg, elk voor genoemde paden en met een reden in de lijst zelf:
 
 | Regel | Wat | Waarom |
 |---|---|---|
-| `leeg-is-afwezig` | overal | een lege lijst, een leeg object, `null` en een niet gezet veld betekenen hetzelfde; de voorcontrole volgt dezelfde regel |
 | `schrijfroute` | `writeMode` | de keuze van de schrijfroute is geen planningsgegeven |
-| `leesmeta` | `timeModel`, `recordedFields`, `recordedTimesOrigin` en de andere meldingen van een lezer | wat een lezer bij openen meegeeft; de STEP-writer leest het niet |
+| `leesmeta` | `timeModel`, `recordedFields`, `recordedTimesOrigin`, `ifcxSharedDatesApplied` en de andere meldingen van een lezer | wat een lezer bij openen meegeeft; de STEP-writer leest het niet |
 | `bronidentiteit` | `ifcSource` | de bron van een STEP-document met een vreemd deel; de codec schrijft alleen de planning |
 | `archiefopslag` | `xerSourceArchiveStorage` | heeft zonder bronarchief geen effect |
 | `nee-is-afwezig` | `minuteModelPending`, `importPristine` | onwaar betekent hetzelfde als niet gezet; waar weigert de voorcontrole |
 | `globalids` | `ifcGlobalIds` | de invoer telt met de GlobalIds die de STEP-writer zou geven, zonder die van verdwenen objecten |
 | `gebruikte-taaktypes` | `customTaskTypes` | alleen gebruikte taaktypes worden opgeslagen, zoals in STEP |
-| `geen-vergelijking` | `comparedBaselineIds` | `[null, null]` betekent: geen vergelijking |
+| `geen-vergelijking` | `comparedBaselineIds` | precies `[null, null]` betekent: geen vergelijking |
+| `lijsten-van-de-lezer` | `activityCodeTypes`, `customFieldDefs`, `baselines`, `resources`, `assignments`, `resourceCalendars`, `activeBaselineId`, `task.resourceIds` | de lezer geeft deze lijsten altijd, ook leeg, en `activeBaselineId` als `null`; ontbreken ze in de invoer, dan betekent dat hetzelfde; met inhoud weigert de voorcontrole ze |
+| `lege-velden-die-deze-versie-niet-draagt` | de bekende domeinvelden die geen veldgroep draagt, met naam in de regel | leeg betekent zo'n veld niets; met inhoud weigert de voorcontrole het; een onbekend veld valt er niet onder |
+
+Leeg is dus alleen gelijk aan afwezig voor de paden in de laatste vier regels hierboven, en voor `minuteModelPending`
+en `importPristine` als ze onwaar zijn. Welke domeinvelden bekend zijn, volgt uit de typen (`domainKeys.ts`): een veld
+dat in het type bijkomt of wegvalt, is een compileerfout tot het in de lijst staat.
 
 Elke regel heeft in `check-ifcx-kern.ts` een geval dat zonder die regel een verschil geeft, en de proef eist dat de
-lijst en die gevallen dezelfde regels noemen. De STEP-pariteit (`planningCanon` gelijk en dezelfde STEP-uitvoer) staat
+lijst en die gevallen dezelfde regels noemen. Voor de regels die leeg gelijkstellen aan afwezig is er ook een
+tegenproef: met inhoud weigert de writer. Het teruglezen in de zelfcontrole toetst de waarden niet nog eens: de writer
+toetste precies die waarden vlak ervoor met dezelfde functie als de lezer. De STEP-pariteit (`planningCanon` gelijk en dezelfde STEP-uitvoer) staat
 alleen nog in de proeven. Waar de controle draait (Ctrl+S en Opslaan als, niet Automatisch opslaan, in de Worker), kiest
 de app (F3-4).
 
@@ -394,7 +455,12 @@ de app (F3-4).
 Een nieuw gebied krijgt een eigen bestand in `src/services/ifc/ifcx/fields/` met zijn velden (sleutel, vorm, schrijven
 en lezen samen) en de domeinvelden die het draagt (`carries`), en één regel in de lijst van groepen in
 `fieldGroups.ts`. Het schema in het bestand, de controle van de lezer, de voorcontrole van de writer en de zelfcontrole
-volgen daar vanzelf uit; voor de zelfcontrole hoeft een nieuwe groep niets te doen. Heeft een veld een andere maar
+volgen daar vanzelf uit; voor de zelfcontrole hoeft een nieuwe groep niets te doen. Elk veld krijgt een vorm uit
+`fieldTable.ts` (een tekst- of datumveld zonder vorm compileert niet); een nieuwe vorm krijgt tegenvoorbeelden in
+`FORM_COUNTEREXAMPLES` in de proef, en elk veld moet in een van de proefplanningen (`maximalPlan`, `variantPlan`)
+staan (voor resources, toewijzingen en baselines: het voorbeeldbestand `resources-alle-velden.ifcx`); anders faalt de tabelproef, die elk veld met elk tegenvoorbeeld door lezer en writer haalt. Een nieuwe soort
+object komt als regel in `IDENTITY_KINDS` (met zijn verwijzingen) en in `IDENTITY_LISTS` in de proef. Een regel over
+meer velden komt in `CONSISTENCY_RULES` en krijgt een geval in `RULE_CASES`. Heeft een veld een andere maar
 gelijkwaardige vorm na het teruglezen, of is het afgeleide metadata, dan komt er een regel in `SELF_CHECK_RULES` met een
 reden, en een geval in `SELF_CHECK_WITNESSES` in de proef. Een nieuw soort object vraagt ook een node in de writer en
 in `NODE_SHAPES` van `ifcxReader.ts`; resources, toewijzingen en baselines hebben hun eigen writer en lezer

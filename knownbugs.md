@@ -3693,17 +3693,24 @@ en noem het in je rapport of PR-tekst.
      review van #1116 (Sol, ronde 4 tot en met 7). — S (review)
 
 2064. **VERVOLG, zo op main (desktop, ook met de featureflag uit): een startbestand dat al open staat en buiten de app
-     is vervangen, wisselt naar het oude tabblad; een volgende Ctrl+S overschrijft de nieuwere versie.** Staat
+     is vervangen, wisselt naar het oude tabblad; met de featureflag uit overschrijft een volgende Ctrl+S de nieuwere
+     versie.** Staat
      `kantoor.ifc` open en vervangt een ander programma (of een collega via een gedeelde map) het bestand op hetzelfde
      pad door een nieuwere versie, en opent de planner het daarna via een dubbelklik, *Openen met* of een tweede
      start, dan leest de startroute de nieuwe versie wel (`src/state/launchFiles.ts`, `read`, rond regel 100–118),
      maar `existingDocument` kiest het open tabblad met hetzelfde bestand (identiteit of padtekst) en `openOpenedFile`
      wisselt daarheen (`src/state/slices/fileSlice.ts`, `switchDocument(existing)`). De zojuist gelezen inhoud
-     vervalt, zonder melding; het tabblad toont de oude stand. Bij een gewone planning (zonder vreemd deel) vergelijkt
-     Ctrl+S de versie op schijf niet met de versie van het tabblad: de opslag vervangt de nieuwere versie en het
-     extern opgeslagen werk is weg. Met de featureflag aan kan de doelscan een onleesbaar doel of een doel met vreemde
-     inhoud weigeren; een leesbare gewone planning komt erdoor, ook als zij intussen veranderd is. De herlezing van de
-     startroute (`stale`, knownbug 2036) telt alleen schrijfbeurten van de app zelf, geen wijziging van buiten. Via
+     vervalt, zonder melding; het tabblad toont de oude stand. Met de featureflag uit vergelijkt Ctrl+S bij een gewone
+     planning (zonder vreemd deel) de versie op schijf niet met de versie van het tabblad: de opslag vervangt de
+     nieuwere versie en het extern opgeslagen werk is weg. Met de flag aan weigeren Ctrl+S en Automatisch opslaan dat
+     sinds #1174 met de bestaande melding ("Het bestand is intussen door een ander programma gewijzigd"), zolang het
+     tabblad de versie van zijn bestand kent (`knownTargetFingerprint`, `check-bewaakte-opslag.ts`); na een export over
+     het eigen bestand kent het de geschreven versie. Wat daarvan overblijft: kent het tabblad die versie niet (`null`: na
+     een mislukte schrijfactie naar het eigen pad, na crashherstel, na laden in hetzelfde tabblad), dan schrijft Ctrl+S
+     eroverheen zoals main; bij twee tabbladen op hetzelfde bestand (1957) en bij de schrijvers die het tabblad niet ziet
+     (2065) weigert de volgende opslag met dezelfde melding, ook als de app zelf de schrijver was; en het gat tussen toets
+     en schrijven (2069). Het wisselen hierboven blijft. De herlezing van de startroute (`stale`, knownbug 2036) telt
+     alleen schrijfbeurten van de app zelf, geen wijziging van buiten. Via
      Bestand → Openen, Recent en slepen opent main in dit geval een tweede tabblad met de nieuwe versie. Zelfde
      familie als 1957. Dezelfde volgorde blokkeerde PR #1121 in reviewronde 7; daar is zij nagespeeld voor Openen,
      Recent, slepen en MCP, de startroute zelf niet. Richting: alleen wisselen als de gelezen versie overeenkomt met
@@ -3754,6 +3761,39 @@ en noem het in je rapport of PR-tekst.
      uitzetten precies tijdens de nacontrole valt. — B (code)
 
 
+2069. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan bij een gewone planning): tussen de toets en het
+     schrijven kan het bestand nog veranderen.** Met de featureflag `ifcForeignContent` vergelijkt de app het eigen pad of
+     de eigen handle vóór het schrijven met de versie die het tabblad kent (`changedKnownTarget` in
+     `src/state/knownTargetGuard.ts`, aangeroepen in `writeActiveDocument` in `fileSlice.ts` en in de gewone ronde van
+     `fileAutoSave.ts`). Daarna volgen zonder nieuwe lezing de inhoudscontrole van het document, op de desktop het
+     tijdelijke bestand en de `rename` (`replaceUserFile`), in de browser `createWritable()` en `close()`. Schrijft een
+     ander programma het bestand in die tijd (op de desktop ongeveer zo lang als het schrijven van het tijdelijke
+     bestand duurt), dan overschrijft de app die versie zonder melding, zoals main dat altijd doet. Een document met een
+     gebouwmodel heeft daar de vervanging met een tweede vergelijking vlak vóór het plaatsen
+     (`replaceOwnPathWithRecovery`); die route is voor een gewone planning bewust niet overgenomen (opdracht #804). —
+     S (code gelezen, niet nagespeeld)
+
+2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): met de featureflag aan leest de bestaande
+     doelscan vóór elke Ctrl+S en elke ronde het hele eigen bestand, en daarna leest de toets van de bekende versie het
+     nog eens.** `refusedWriteTarget` in `src/state/ifcForeignGuard.ts` laat `targetRefusal`
+     (`src/services/fileAccess/foreignSourceTarget.ts`) het doel ook bij een gewone planning helemaal indelen; daarna
+     leest `changedKnownTarget` (`src/state/knownTargetGuard.ts`) het bij gelijke grootte opnieuw en rekent de SHA-256.
+     Gemeten in Node op aia09-mp50 (23 november 2026, mediaan van 15): voor een planning van 10.000 taken (11.821.500
+     bytes) kost de doelscan alleen al in het geheugen 1.732 ms, de toets 23,5 ms; voor het grootste voorbeeld (481.752
+     bytes) 74 ms tegen 2 ms. In de app (lezen via de Tauri-plugin of `getFile()`, en op een netwerkschijf) is het niet
+     gemeten. Richting: scan en hash in één lezing. Besluit technisch beslisser (23 november 2026): dit hoort bij de
+     voorwaarden voordat de flag standaard aan mag. — B (gemeten in Node, meetlog
+     `bewaakte-opslag-logs/07-meting.log` van #1174)
+
+2206. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan in de browser): een aanraking tijdens het lezen van
+     de eigen handle kan een onterechte weigering geven.** `knownTargetContentOfHandle` in
+     `src/services/fileAccess/knownTargetContent.ts` haalt één `File` op met `getFile()` en leest daarna de grootte en de
+     bytes (`arrayBuffer()`). Verandert het bestand tussen die twee stappen, ook alleen de wijzigingstijd, dan kan
+     Chromium het al opgehaalde `File` onleesbaar maken (`NotReadableError`). De toets geeft dan `unreadable`: Ctrl+S
+     weigert met "verplaatst, verwijderd of niet meer te lezen" en Automatisch opslaan stopt, ook als de bytes niet
+     veranderden. Er gaat niets verloren; opnieuw opslaan lukt. Richting: bij `NotReadableError` één keer opnieuw
+     `getFile()` en lezen. Gevonden door de review van #1174 (Sol, ronde 1). — S (niet nagespeeld met een echte
+     Chromium-handle)
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
@@ -3866,6 +3906,29 @@ en noem het in je rapport of PR-tekst.
      de oorzaak vinden die zo'n boom maakt (zie ook 1980 en 1981), of de boom vóór het schrijven gelijktrekken zoals de
      STEP-lezer doet. Proef: `check-ifcx-kern.ts`, "een verzameltaak met een kind dat niet bestaat of haar ouder niet
      noemt wordt geweigerd (2222)". — B
+
+2223. **IFCX: de vastgepinde schema's van IFC5-development en hun eigen voorbeeld Hello Wall spreken elkaar tegen.**
+     Open Planner Studio schrijft in de kop `ifcxVersion: "ifcx_alpha"` en `dataVersion: "1.0.0"`, en kale UUID's als
+     pad (`src/services/ifc/ifcx/ifcxWriter.ts`, docs/ifcx-profiel.md). Op commit `1a63082` van
+     buildingSMART/IFC5-development heeft de TypeSpec-kop die twee velden (`schema/ifcx.tsp`, regels 7–24), net als het
+     voorbeeld Hello Wall (`examples/Hello Wall/hello-wall.ifcx`, regels 1–12). Het gegenereerde OpenAPI-bestand
+     (`schema/out/@typespec/openapi3/openapi.yaml`, regels 64–79) eist in de kop `version` in plaats daarvan. Het
+     padpatroon `</[A-Za-z0-9_/.:]+>` staat in beide weergaven (`ifcx.tsp` en `openapi.yaml`, regels 168–170) en
+     verwerpt een kale UUID, zowel die van Open Planner Studio als die van Hello Wall (regels 95–99). De functie
+     `Validate` in `src/ifcx-core/schema/schema-validation.ts` (regels 124–151) toetst alleen attribuutwaarden tegen
+     hun schema, niet de kop of de paden. Zelf nagelezen op die commit, na de review van #1183 ronde 2 (GPT-6.2-Sol).
+     Gevolg: een letterlijke toets van het bestand tegen `openapi.yaml` of het padpatroon breekt af op de kop of op
+     elk pad, ook bij Hello Wall. Voorstel: in F3-6 vastleggen welke ingang echt valideert (de functie `Validate`, de
+     TypeSpec of het OpenAPI-bestand), en Hello Wall als controle voor dat referentiecontract gebruiken. — B
+
+2224. **IFCX: een voltooide taak die eindigt vóór haar werkelijke start, kan niet als IFCX worden opgeslagen.** De regel
+     `venster` in `CONSISTENCY_RULES` (`src/services/ifc/ifcx/consistency.ts`) eist dat het venster dat telt niet eindigt
+     vóór zijn start; bij een voltooide taak zijn dat de werkelijke start en het werkelijke einde. Staat `actualFinish`
+     vóór `actualStart`, dan weigert de writer met `inconsistent` en veld `task.time`; STEP slaat zo'n taak op. Er gaat
+     niets verloren, maar opslaan als IFCX lukt dan niet. Hoe vaak dit voorkomt, is niet nagegaan; de invoer van
+     voortgang in de app en een import uit P6 of MS Project zijn de plekken om te kijken. Voorstel: de invoer van een
+     werkelijk einde vóór de werkelijke start weigeren, of in F3-4 bij opslaan als IFCX de taak noemen. Proef:
+     `check-ifcx-kern.ts`, "bekende grens 2224". — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -6150,3 +6213,5 @@ en noem het in je rapport of PR-tekst.
      label doet pdf-lib twee layouts (`widthOfTextAtSize` en `encodeText`). Richting van de reviewer: de ingebedde
      letter en dezelfde layout gebruiken als de rapporttekst (`layoutPdfText`); dan kan ook de vervanging van
      `encodeText` in `embedReportFont.ts` weg. Review #1074 ronde 3 (GPT-6.2-Sol, xhigh). — B (code)
+2290. **VERVOLG (review #1187 ronde 1, tekst): de help stuurt de planner voor papier en richting nog naar een ander rapport.** Sinds #1187 hebben *Milestone overview* en *Variance* zelf een kaart *Report options*. De handleiding (`public/docs/nl/howto-rapport-maken-en-afdrukken.md` en de Engelse versie) en `public/docs/nl/ref-rapporttypes.md` zeggen nog dat je papier kiest bij bijvoorbeeld de Gantt-afdruk en daarna teruggaat. Richting: die omweg schrappen en de drie opties beschrijven waar ze nu staan. Review #1187 ronde 1 (GPT-6.2-Sol, xhigh). — S (tekst)
+2291. **VERVOLG (review #1187 ronde 1, test): de browsertest bedient de nieuwe velden niet.** `tests/browser/table-reports.spec.ts` kiest A2 staand bij Look-ahead en controleert bij de twee nieuwe rapporten alleen of de velden zichtbaar zijn en wat de PDF-maten zijn. Een kapotte wijzigingsactie in de nieuwe kaart blijft dan groen. Richting: in de kaart van elk van de twee rapporten papier, richting en een ander lettertype kiezen en de uitvoer controleren. Ook kan `body = null` voor `milestones` en `variance` de lege tak van `progressCurve` delen. Review #1187 ronde 1 (GPT-6.2-Sol, xhigh). — S (test)

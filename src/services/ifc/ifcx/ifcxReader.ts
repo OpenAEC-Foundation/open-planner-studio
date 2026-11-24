@@ -8,7 +8,7 @@ import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import { startIsActual } from '@/utils/taskDates';
 import { isPinnedComplete } from '@/engine/scheduler/duration';
 import { checkValue, readFields } from './fieldTable';
-import { globalIdOfIdentity, identityOfGlobalId, isUuidPath } from './globalIdUuid';
+import { globalIdOfIdentity, isUuidPath, nameBasedUuid } from './globalIdUuid';
 import { childrenInPlace } from './childOrder';
 import { momentOfSharedDate, taskWindow, type SharedSpan } from './dateProjection';
 import { attributeRuleProblem, planningRuleProblems } from './consistency';
@@ -20,6 +20,7 @@ import { emptyTask, type TaskReadTarget } from './fields/taskFields';
 import { emptySequence, type SequenceReadTarget } from './fields/sequenceFields';
 import { attributeValueProblem, schemaDefinitionProblems, type IfcxCheckProblem } from './schemaCheck';
 import { readResourceNodes } from './ifcxResourceReader';
+import { globalIdKey } from './stepGlobalIds';
 import { IfcxReadError, type IfcxErrorPlace } from './ifcxErrors';
 import {
   ATTRIBUTE, IFCX_VERSION, OPS_PROFILE_MAJOR, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
@@ -145,7 +146,7 @@ function assertValues(nodes: readonly IfcxNode[]): void {
 }
 
 function assertIdentityPath(path: string, globalIdOutsidePath: string | undefined, place: IfcxErrorPlace): void {
-  if (identityOfGlobalId(globalIdOfIdentity(path, globalIdOutsidePath)).path !== path) {
+  if (globalIdOutsidePath !== undefined && nameBasedUuid(globalIdOutsidePath) !== path) {
     throw invalid('Het pad hoort niet bij de GlobalId die het object draagt', { ...place, field: 'globalId' });
   }
 }
@@ -322,7 +323,9 @@ export function readIfcxText(text: string, checkValues = true): IfcxImportResult
     ...(sharedDatesApplied > 0 ? { ifcxSharedDatesApplied: sharedDatesApplied } : {}),
   };
   const windowOf = new Map(taskTargets.map(target => [target.task, target.span]));
-  const [problem] = planningRuleProblems({ model: result, windowOf: task => windowOf.get(task) ?? {} });
+  const [problem] = planningRuleProblems({
+    model: result, windowOf: task => windowOf.get(task) ?? {}, globalIdOf: (kind, id) => ifcGlobalIds[globalIdKey(kind, id)],
+  });
   if (problem) throw invalid(problem.detail, { field: problem.field });
   return result;
 }

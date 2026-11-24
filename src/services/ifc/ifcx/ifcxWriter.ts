@@ -3,7 +3,8 @@ import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { checkValue, writeFields } from './fieldTable';
 import { identityOfGlobalId, type IfcxIdentity } from './globalIdUuid';
-import { libraryCalendarsWrittenByStep, stepGlobalIdsFor } from './stepGlobalIds';
+import { globalIdKey, libraryCalendarsWrittenByStep } from './stepGlobalIds';
+import { intendedGlobalIds, type GlobalIdOfObject } from './identity';
 import { placesNeededForOrder } from './childOrder';
 import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from './fieldGroups';
 import { SCHEDULE_FIELDS } from './fields/documentFields';
@@ -88,11 +89,13 @@ export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDo
   if (Number.isNaN(writtenAt.getTime())) throw refused('invalid', ['Het moment van schrijven is geen geldige datum'], ['header.timestamp']);
   let document: IfcxDocument;
   try {
-    const inconsistencies = inconsistentContent(input);
+    const intended = intendedGlobalIds(input);
+    const globalIdOf: GlobalIdOfObject = (kind, id) => intended.get(globalIdKey(kind, id))!;
+    const inconsistencies = inconsistentContent(input, globalIdOf);
     if (inconsistencies.length > 0) {
       throw refused('inconsistent', inconsistencies.map(item => item.detail), inconsistencies.map(item => item.field));
     }
-    document = composeIfcxDocument(input, writtenAt);
+    document = composeIfcxDocument(input, writtenAt, globalIdOf);
   } catch (error) {
     if (error instanceof IfcxWriteRefusedError) throw error;
     throw refused('invalid', [`De planning heeft een vorm die de writer niet kan schrijven: ${messageOf(error)}`], ['planning']);
@@ -102,9 +105,8 @@ export function buildIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDo
   return document;
 }
 
-function composeIfcxDocument(input: WriteIFCInput, writtenAt: Date): IfcxDocument {
+function composeIfcxDocument(input: WriteIFCInput, writtenAt: Date, globalIdOf: GlobalIdOfObject): IfcxDocument {
   const { project } = input;
-  const globalIdOf = stepGlobalIdsFor(input);
   const projectIdentity = identityOfGlobalId(globalIdOf('proj', project.id));
   const workplanIdentity = identityOfGlobalId(globalIdOf('wp', project.id));
   const scheduleIdentity = identityOfGlobalId(globalIdOf('ws', project.id));
@@ -229,7 +231,7 @@ export function writeIfcx(input: WriteIFCInput, writtenAt: Date = new Date()): s
   const text = serializeIfcx(buildIfcxDocument(input, writtenAt));
   let reread;
   try {
-    reread = readIfcxText(text);
+    reread = readIfcxText(text, false);
   } catch (error) {
     throw new IfcxWriteRefusedError('self-check', `De IFCX-uitvoer leest niet terug: ${messageOf(error)}`);
   }
