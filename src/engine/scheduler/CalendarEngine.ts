@@ -2,58 +2,37 @@ import { calendarForEngine, calendarHasOwnWorkBlocks } from '@/utils/effectiveWo
 import { holidayEndDate, isHourModeCalendar, WorkCalendar, type WorkTimeBands } from '@/types/calendar';
 import { parseDate, isoDayOfWeek, addCalendarDays, formatDate, diffCalendarDays, MS_PER_DAY, utcDayIndex } from '@/utils/dateUtils';
 
-/** Eén gematerialiseerd werk-interval, absolute UTC-ms, half-open `[start, end)`. */
 interface BandInterval {
   start: number;
   end: number;
 }
 
-/** Band-uitrol-cache, GEMEMOIZED op het KALENDER-OBJECT. Twee `CalendarEngine`-instanties
- *  die op hetzelfde kalender-object worden gebouwd (bv. de 4 solver-instantiaties) delen deze
- *  cache — de uitrol wordt zo één keer gedaan. `fills` telt de dag-materialisaties (cache-misses)
- *  en is observeerbaar voor de memoization-test. */
 interface BandCache {
   days: Map<number, BandInterval[]>;
   fills: number;
-  /** Dagenmaat (alleen uren §3.14): per werkdag de blokken op volgorde en de werkminuten. Afgeleid
-   *  van `days`, dus net zo puur een functie van het kalender-object. */
   measure: Map<number, MeasureDay>;
-  /** Lopende som van de werkminuten per kalenderdag (de blokken die op die dag BEGINNEN), voor
-   *  `workMinutesBetween` over lange spannes. `cum[i]` = som van dag `firstDay` t/m `firstDay + i - 1`
-   *  (dagindex, UTC). Afgeleid van `measure`, dus net zo puur een functie van het kalender-object. */
   minutePrefix?: { firstDay: number; cum: number[] };
 }
 
-/** Eén kalenderdag voor de dagenmaat: de blokken die op die dag BEGINNEN, op volgorde, en hun som in
- *  werkminuten. `minutes === 0` ⇒ geen werkdag (feestdag, niet-werkdag). */
 interface MeasureDay {
   bands: BandInterval[];
   minutes: number;
 }
 
-/** Waar een moment op de dagenmaat ligt: de werkdag (UTC-middernacht-ms) en het aantal werkminuten
- *  van die dag vóór het moment. */
 interface MeasurePosition {
   dayMs: number;
   offset: number;
   day: MeasureDay;
 }
 
-/** Marge voor zwevendekommafouten in een dagenteller (`2.625 − 0.375` enz.): kleiner dan een
- *  duizendste minuut op elke echte werkdag, en ruim groter dan de afrondingsruis van een double. */
 const MEASURE_EPS = 1e-9;
 
-/** De werkblokken van een kalender zonder werktijd: elke weekdag leeg. Gedeeld en nooit gemuteerd. */
 const EMPTY_WEEK: WorkTimeBands = Object.freeze({
   byWeekday: Object.freeze({ 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] }),
 }) as WorkTimeBands;
 
-/** WeakMap kalender-object → gedeelde band-cache. Bewust op het OBJECT (identiteit), niet per
- *  engine-instantie, zodat parallelle engines op dezelfde kalender de uitrol delen. */
 const bandCacheRegistry = new WeakMap<WorkCalendar, BandCache>();
 
-/** De meest voorkomende waarde van een niet-lege lijst, bij gelijkspel de HOOGSTE — de "modale
- *  dagsom" waarmee zowel `hoursPerDay` als de standaardwerkdag van een uur-kalender gekozen worden. */
 function modalHighest(values: readonly number[]): number {
   const freq = new Map<number, number>();
   for (const v of values) freq.set(v, (freq.get(v) ?? 0) + 1);
@@ -68,13 +47,11 @@ function modalHighest(values: readonly number[]): number {
   return best;
 }
 
-/** Afgeleide `hoursPerDay` uit banden: de MODALE dagsom in uren over de
- *  weekdagen die banden dragen, bij gelijkspel de HOOGSTE; zonder banden `fallback`. */
 export function modalBandHoursPerDay(bands: WorkTimeBands, fallback: number): number {
   const sums: number[] = [];
   for (let wd = 1 as 1 | 2 | 3 | 4 | 5 | 6 | 7; wd <= 7; wd = (wd + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7) {
     const list = bands.byWeekday[wd] ?? [];
-    if (list.length === 0) continue; // niet-werkdag telt niet mee
+    if (list.length === 0) continue;
     sums.push(list.reduce((s, b) => s + (b.end - b.start), 0) / 60);
   }
   return sums.length === 0 ? fallback : modalHighest(sums);
@@ -83,78 +60,42 @@ export function modalBandHoursPerDay(bands: WorkTimeBands, fallback: number): nu
 export class CalendarEngine {
   private calendar: WorkCalendar;
   private holidaySet: Set<string>;
-  // ── Numerieke afgeleide structuren ─────────────
-  // O(1)- resp. O(1+#holidays·log)-arithmetiek voor isWorkDay/workDaysBetween, i.p.v. dag-voor-dag
-  // scannen. NAAST de string-structuren: de uur-modus (bandsStartingOn/isHoliday) leunt op holidaySet.
-  private workDayMask: boolean[];         // index 1..7 (ISO-weekdag) ⇒ is-werkdag
-  private workDaysPerWeek: number;        // som van true in workDayMask[1..7]
-  private holidayDaySet: Set<number>;     // UTC-dagindices van alle holiday-dagen
-  private holidayWorkdayIdxSorted: number[]; // holiday-dagindices OP een werk-weekdag, oplopend
-  // ── Werkende uitzonderingen — dag-uitzonderingen die een dag WERKEND
-  //    maken, evt. met eigen banden. Afwezig `workingExceptions` ⇒ alle drie de sets/maps blijven leeg
-  //    en elke `.has(...)` hieronder is false.
-  private workingExceptionDaySet: Set<number>;    // UTC-dagindices die door een uitzondering WERKEND zijn
-  private workingExceptionSet: Set<string>;       // dezelfde dagen als datumstring (voor isHoliday's string-API)
-  private workingExceptionBandsByDay: Map<number, { start: number; end: number }[]>; // alleen bij expliciete override-banden
-  // Valkuil: een werkende uitzondering op een NIET-werk-weekdag (bv. zaterdag) zit niet in
-  // `workDaysPerWeek`/`countWorkWeekdays` (die kennen alleen het vaste weekpatroon) en moet dus als
-  // EXTRA werkdag worden opgeteld in `workDaysBetween` — vandaar een eigen gesorteerde index.
+  private workDayMask: boolean[];
+  private workDaysPerWeek: number;
+  private holidayDaySet: Set<number>;
+  private holidayWorkdayIdxSorted: number[];
+  private workingExceptionDaySet: Set<number>;
+  private workingExceptionSet: Set<string>;
+  private workingExceptionBandsByDay: Map<number, { start: number; end: number }[]>;
   private workingExceptionOnNonWorkWeekdayIdxSorted: number[];
-  // Veiligheidsgrenzen tegen vastlopen bij een kapotte kalender (geen werkdagen)
-  // of een ongeldige/sentinel-datum: MAX_SCAN = max dagen zoeken naar een werkdag;
-  // MAX_DAYS = absolute iteratielimiet (~547 jaar) voor de tel-lussen.
   private static readonly MAX_SCAN = 366;
   private static readonly MAX_DAYS = 200_000;
-  // Uur-modus: absolute minuut-grens, analoog aan MAX_SCAN/MAX_DAYS. Een duur groter
-  // dan dit wordt niet uitgeteld (een kapotte/sentinel-invoer mag de banden-lus niet laten hangen).
   private static readonly MAX_MINUTES = CalendarEngine.MAX_DAYS * 24 * 60;
   private static readonly MS_PER_MIN = 60_000;
 
-  // ── Werkblok-state ─────────────────────────
   private derivedHpd = 0;
   private bandCache!: BandCache;
-  // De banden van een "normale werkdag" van deze
-  // kalender — fallback voor een band-loze werkende uitzondering op een dag die zelf géén weekdag-
-  // banden heeft (bv. een werkende zaterdag in een ma-vr-uurkalender). Zie `computeStandardWorkdayBands`.
   private standardWorkdayBands: { start: number; end: number }[] = [];
 
-  /** T11: conventies houden hun bereik op de oorspronkelijk opgeslagen werkblokken. */
   readonly hasOwnWorkBlocks: boolean;
 
-  /** Draagt de kalender werkblokken (`workTime`) na `calendarForEngine`: eigen blokken, of blokken uit
-   *  geldige begin/einde/uren per dag? Dit toetst alleen dát er blokken zijn, niet dat er werktijd in
-   *  zit: een opgeslagen lege week (`workTime` met lege weekdagen) geeft ook waar. Sinds F6 is er geen
-   *  dagmodus meer. Onwaar betekent: de engine ziet een week zonder werkblokken, en een berekening stopt
-   *  (`taskWithoutWorkHours`, `noWorkingHours`). Invoer- en weergavecode weigert op deze vlag. De naam
-   *  blijft voor het `DurationCalendar`-contract (`duration.ts`). */
   readonly isHourMode: boolean;
 
   constructor(calendar: WorkCalendar) {
     this.hasOwnWorkBlocks = calendarHasOwnWorkBlocks(calendar);
     calendar = calendarForEngine(calendar);
     this.calendar = calendar;
-    // Werkdag-masker + weekdag-som. Alleen indices 1..7 tellen mee; een out-of-range workDays-entry
-    // raakt nooit een echte isoDayOfWeek (1..7) en verstoort dus niets (`workDays.includes`-semantiek).
     this.workDayMask = new Array(8).fill(false);
     for (const wd of this.calendar.workDays) this.workDayMask[wd] = true;
     this.workDaysPerWeek = 0;
     for (let wd = 1; wd <= 7; wd++) if (this.workDayMask[wd]) this.workDaysPerWeek++;
     this.holidaySet = new Set<string>();
     this.holidayDaySet = new Set<number>();
-    this.buildHolidaySet(); // vult zowel de string-set (uur-modus) als de numerieke dagindex-set
-    // Werkende uitzonderingen — leeg blijven zonder `calendar.workingExceptions`. MOET
-    // vóór `holidayWorkdayIdxSorted` hieronder draaien: die index moet weten welke
-    // holiday-dagen door een uitzondering overruled zijn, anders telt `workDaysBetween` zo'n dag dubbel
-    // weg (zie de uitleg bij `holidayWorkdayIdxSorted`).
+    this.buildHolidaySet();
     this.workingExceptionDaySet = new Set<number>();
     this.workingExceptionSet = new Set<string>();
     this.workingExceptionBandsByDay = new Map<number, { start: number; end: number }[]>();
     this.buildWorkingExceptions();
-    // Holiday-dagen die OP een werk-weekdag vallen ÉN niet door een werkende uitzondering overruled
-    // zijn, gededupliceerd (via de Set) en oplopend gesorteerd — de aftrekterm van workDaysBetween
-    // (binary-search-telling per bereik). Zonder de `!workingExceptionDaySet.has(idx)`-filter telt
-    // `workDaysBetween` een holiday-op-werkdag-die-ook-uitzondering-is dubbel weg, terwijl
-    // `isWorkDay`/`isHoliday` die dag werkend noemen (`HolOverridden` in check-calendar-hours.ts).
     this.holidayWorkdayIdxSorted = [...this.holidayDaySet]
       .filter((idx) => this.workDayMask[isoDayOfWeek(new Date(idx * MS_PER_DAY))]
         && !this.workingExceptionDaySet.has(idx))
@@ -163,9 +104,6 @@ export class CalendarEngine {
       .filter((idx) => !this.workDayMask[isoDayOfWeek(new Date(idx * MS_PER_DAY))])
       .sort((a, b) => a - b);
     this.isHourMode = isHourModeCalendar(calendar);
-    // Alleen uren (F6): ook een kalender zonder werktijd (geen werkblokken en geen geldige
-    // begin/einde/uren per dag) krijgt een bandset, een lege week. Een uurmethode vindt daar dan geen
-    // werk in plaats van te crashen op een ontbrekende cache. De dagvelden blijven gelijk.
     if (!this.calendar.workTime) this.calendar = { ...this.calendar, workTime: EMPTY_WEEK };
     this.derivedHpd = this.computeDerivedHoursPerDay();
     this.standardWorkdayBands = this.computeStandardWorkdayBands();
@@ -190,21 +128,6 @@ export class CalendarEngine {
     }
   }
 
-  /** Materialiseert `calendar.workingExceptions` naar dagindex-/datumstring-sets plus,
-   *  bij expliciete override-banden, een dagindex→banden-map. INVARIANT (afgedwongen door de PARSER;
-   *  hier vertrouwd maar niet blind: `isWorkDay`/`isHoliday`/`bandsStartingOn`/`workDaysBetween`
-   *  blijven correct óók als een datum toch in zowel `holidays` als `workingExceptions` voorkomt, zie
-   *  de precedentie-orde in die functies en de filter bij `holidayWorkdayIdxSorted`): een datum staat normaliter nooit tegelijk in `holidays` én in
-   *  `workingExceptions`. Mirroring `buildHolidaySet` qua vorm — bewust géén gedeelde helper, zodat een
-   *  fout in de ene lus niet stilzwijgend in de andere meelift.
-   *
-   *  OVERLAP OP DEZELFDE DATUM tussen TWEE `workingExceptions`-entries (mag óók niet voorkomen — de
-   *  parser levert per-datum-unieke invoer — maar gedocumenteerd voor het geval die garantie
-   *  lekt): de LAATST-verwerkte entry MET expliciete banden wint voor
-   *  die datum (`.set(...)` overschrijft). Een LATERE entry ZONDER banden wist een eerder gezette
-   *  override-bandenset NIET — de `if (exc.bands...)`-guard slaat dan simpelweg over, dus de eerdere
-   *  banden blijven staan. Dit is geen "laatste-wint-altijd"-semantiek; het is bewust niet verder
-   *  dichtgetimmerd omdat de parser-invariant dit pad dood hoort te houden. */
   private buildWorkingExceptions(): void {
     for (const exc of this.calendar.workingExceptions ?? []) {
       const start = parseDate(exc.startDate);
@@ -216,81 +139,45 @@ export class CalendarEngine {
         this.workingExceptionDaySet.add(dayIdx);
         this.workingExceptionSet.add(formatDate(d));
         if (exc.bands && exc.bands.length > 0) {
-          // Kopie — nooit de aanroeper-array delen/aliasen: een latere mutatie op
-          // `exc.bands` door de aanroeper mag de al-gematerialiseerde kalenderstate niet raken.
           this.workingExceptionBandsByDay.set(dayIdx, [...exc.bands]);
         }
       }
     }
   }
 
-  /** Heeft de kalender überhaupt werkdagen? Een lege werkweek levert anders stil onzin-datums. */
   hasWorkingDays(): boolean {
     return Array.isArray(this.calendar.workDays) && this.calendar.workDays.length > 0;
   }
 
-  /** Check if a given date is a working day.
-   *  Numeriek: `floor(ms/MS_PER_DAY)` = dezelfde UTC-dagindex als `formatDate` (epoch op
-   *  UTC-middernacht). Ongeldige datum: `isoDayOfWeek`→NaN ⇒ `workDayMask[NaN]`=undefined ⇒ false. */
   isWorkDay(date: Date): boolean {
-    // ÉÉN pad met een gedeelde holiday-check voor beide gevallen (met en zonder werkende
-    // uitzonderingen): twee takken met elk een eigen check lopen stil uit elkaar. Zonder
-    // uitzonderingen is `!hasExc && !workDayMask[dow]` de snelle vroege uitstap (`dayIdx` pas daarna).
-    // `dayIdx` is NaN voor een ongeldige `date`; `Set.has(NaN)` is altijd false.
     const dow = isoDayOfWeek(date);
     const hasExc = this.workingExceptionDaySet.size > 0;
     if (!hasExc && !this.workDayMask[dow]) return false;
     const dayIdx = utcDayIndex(date.getTime());
-    // Een werkende uitzondering wint altijd — ook op een niet-werk-weekdag (zaterdag) en
-    // ook boven een holiday op diezelfde datum (precedentie; zie de filter bij `holidayWorkdayIdxSorted`
-    // voor de bijbehorende `workDaysBetween`-consistentie). Een holiday op een ANDERE datum (elders in de
-    // kalender) mag hierdoor niet stiekem meegetrokken worden — vandaar de gedeelde holiday-check hieronder
-    // die voor BEIDE gevallen (met en zonder uitzonderingen) hetzelfde pad volgt.
     if (hasExc && this.workingExceptionDaySet.has(dayIdx)) return true;
     if (!this.workDayMask[dow]) return false;
     return !this.holidayDaySet.has(dayIdx);
   }
 
-  /** Check if a given date string is a holiday. Een werkende uitzondering op dezelfde
-   *  datum overrulet — die dag is dan geen holiday meer (precedentie, zelfde volgorde als isWorkDay). */
   isHoliday(dateStr: string): boolean {
     return this.holidaySet.has(dateStr) && !this.workingExceptionSet.has(dateStr);
   }
 
-  /**
-   * Add working days to a start date.
-   * Returns the end date (the last working day).
-   * For duration=0 (milestone), returns the start date itself.
-   *
-   * Delegeert naar `addWorkDaysChecked` en pakt `.date`, voor aanroepers (o.a. `useBarDrag`, de
-   * niet-taakdatum-CPM-plekken) die het cap-signaal niet nodig hebben.
-   */
   addWorkDays(startDate: Date, workDays: number): Date {
     return this.addWorkDaysChecked(startDate, workDays).date;
   }
 
-  /**
-   * `addWorkDays` mét expliciet CAP-signaal. `capped: true` zodra
-   * een van de twee veiligheidsgrenzen wordt geraakt — de MAX_SCAN-werkdag-zoek (een kalender die het
-   * venster onwerkbaar maakt, bv. een aaneengesloten holiday-blok) óf de MAX_DAYS-tellimiet — waarna de
-   * teruggegeven `Date` een gecapte (niet-betekenisvolle) datum is i.p.v. de echte laatste werkdag.
-   * De solver aggregeert dit tot een zachte `cappedTaskIds`-waarschuwing.
-   */
   addWorkDaysChecked(startDate: Date, workDays: number): { date: Date; capped: boolean } {
     if (workDays <= 0) return { date: new Date(startDate.getTime()), capped: false };
 
     let current = new Date(startDate.getTime());
-    // Ensure we start on a work day
     let scan = 0;
     while (!this.isWorkDay(current)) {
       current = addCalendarDays(current, 1);
-      if (++scan > CalendarEngine.MAX_SCAN) return { date: current, capped: true }; // geen werkdag — niet vastlopen
+      if (++scan > CalendarEngine.MAX_SCAN) return { date: current, capped: true };
     }
 
-    let remaining = workDays - 1; // first work day counts as day 1
-    // Audit 2026-09-26: rekenkundig i.p.v. dag voor dag (was de grootste kostenpost van elke solve
-    // en van de leveler). Exact dezelfde dag; waar de oude lus op MAX_DAYS zou afkappen (of bij
-    // NaN/∞) valt dit terug op die lus, zodat ook dat randgedrag identiek blijft.
+    let remaining = workDays - 1;
     const fastOffset = this.offsetOfNthWorkday(current, remaining, 1);
     if (fastOffset !== null) return { date: addCalendarDays(current, fastOffset), capped: false };
     let steps = 0;
@@ -304,22 +191,10 @@ export class CalendarEngine {
     return { date: current, capped: false };
   }
 
-  /**
-   * Calculate the number of working days between two dates (inclusive).
-   *
-   * Arithmetisch i.p.v. dag-voor-dag scannen (anders O(n²) in de solver). Semantiek:
-   *  - Dagen k=0,1,… met dagindex `startIdx+k` zolang `startMs + k·MS_PER_DAY ≤ endMs` (elke +1
-   *    kalenderdag = +MS_PER_DAY in UTC, geen DST). Aantal dagen = `floor((endMs−startMs)/MS_PER_DAY)+1`
-   *    als `endMs≥startMs`, anders 0.
-   *  - CAP: hoogstens MAX_DAYS+1 dagen ⇒ `cappedDays = min(totalDays, MAX_DAYS+1)`.
-   * Telling: #werk-weekdagen in het (gecapte) bereik − #(holidays op een werk-weekdag) daarin
-   *  + #(werkende uitzonderingen op een NIET-werk-weekdag) daarin (zonder die term telt een werkende
-   *  zaterdag niet mee, zie `workingExceptionOnNonWorkWeekdayIdxSorted`).
-   */
   workDaysBetween(start: Date, end: Date): number {
     const startMs = start.getTime();
     const endMs = end.getTime();
-    if (!(endMs >= startMs)) return 0; // dekt endMs<startMs én NaN (NaN>=x is false) — 0-iteratie-lus
+    if (!(endMs >= startMs)) return 0;
     const totalDays = Math.floor((endMs - startMs) / MS_PER_DAY) + 1;
     const cappedDays = Math.min(totalDays, CalendarEngine.MAX_DAYS + 1);
     const startIdx = utcDayIndex(startMs);
@@ -329,16 +204,10 @@ export class CalendarEngine {
       + this.countWorkingExceptionsAddedInRange(startIdx, lastIdx);
   }
 
-  /** Getekend werkdag-verschil van `a` naar `b`: a≤b ⇒ +stappen (`workDaysBetween − 1`), a>b ⇒
-   *  −stappen. De ene definitie achter de CPM-vrije speling, de variance- en rapportdeltas, de
-   *  baselinekolommen van het taakraster en de nivelleervoorvertoning. */
   signedWorkDaysBetween(a: Date, b: Date): number {
     return a <= b ? this.workDaysBetween(a, b) - 1 : -(this.workDaysBetween(b, a) - 1);
   }
 
-  /** #werk-weekdagen in het INCLUSIEVE dagindex-bereik [startIdx, lastIdx]. Volledige weken dragen
-   *  elk `workDaysPerWeek` bij (elke weekdag komt precies één keer voor); de resterende dagen worden
-   *  uitgeteld vanaf de weekdag van `startIdx`. */
   private countWorkWeekdays(startIdx: number, lastIdx: number): number {
     const L = lastIdx - startIdx + 1;
     if (L <= 0) return 0;
@@ -346,7 +215,7 @@ export class CalendarEngine {
     let count = fullWeeks * this.workDaysPerWeek;
     const rem = L - fullWeeks * 7;
     if (rem > 0) {
-      let wd = isoDayOfWeek(new Date(startIdx * MS_PER_DAY)); // 1..7
+      let wd = isoDayOfWeek(new Date(startIdx * MS_PER_DAY));
       for (let i = 0; i < rem; i++) {
         if (this.workDayMask[wd]) count++;
         wd = wd === 7 ? 1 : wd + 1;
@@ -355,12 +224,7 @@ export class CalendarEngine {
     return count;
   }
 
-  /** Aantal elementen van een oplopend gesorteerde dagindex-lijst in het inclusieve bereik
-   *  [startIdx, lastIdx], via lower/upper-bound binary search. Gedeeld door de holiday- (aftrekken)
-   *  en de werkende-uitzondering-telling: zelfde vorm, ander teken bij de
-   *  aanroeper. */
   private countSortedIdxInRange(sorted: number[], startIdx: number, lastIdx: number): number {
-    // lo = eerste index i met sorted[i] >= startIdx (lower bound)
     let lo = 0;
     let loHi = sorted.length;
     while (lo < loHi) {
@@ -368,7 +232,6 @@ export class CalendarEngine {
       if (sorted[mid] < startIdx) lo = mid + 1;
       else loHi = mid;
     }
-    // hi = eerste index i met sorted[i] > lastIdx (upper bound)
     let hi = 0;
     let hiHi = sorted.length;
     while (hi < hiHi) {
@@ -379,23 +242,14 @@ export class CalendarEngine {
     return hi - lo;
   }
 
-  /** Aantal holiday-dagen ÓP een werk-weekdag in het inclusieve bereik [startIdx, lastIdx]. */
   private countHolidayWorkdaysInRange(startIdx: number, lastIdx: number): number {
     return this.countSortedIdxInRange(this.holidayWorkdayIdxSorted, startIdx, lastIdx);
   }
 
-  /** Aantal werkende uitzonderingen ÓP een NIET-werk-weekdag
-   *  in het inclusieve bereik [startIdx, lastIdx] — dagen die `countWorkWeekdays` (kent alleen het
-   *  vaste weekpatroon) NIET meetelt en die hier dus als EXTRA werkdag worden opgeteld. Een werkende
-   *  uitzondering op een reeds-werkende weekdag zit al in `countWorkWeekdays` en staat daarom niet in
-   *  `workingExceptionOnNonWorkWeekdayIdxSorted` (gefilterd in de constructor) — geen dubbeltelling. */
   private countWorkingExceptionsAddedInRange(startIdx: number, lastIdx: number): number {
     return this.countSortedIdxInRange(this.workingExceptionOnNonWorkWeekdayIdxSorted, startIdx, lastIdx);
   }
 
-  /**
-   * Get the next working day on or after the given date.
-   */
   nextWorkDay(date: Date): Date {
     let current = new Date(date.getTime());
     let scan = 0;
@@ -406,9 +260,6 @@ export class CalendarEngine {
     return current;
   }
 
-  /**
-   * Get the next working day strictly after the given date.
-   */
   nextWorkDayAfter(date: Date): Date {
     let current = addCalendarDays(date, 1);
     let scan = 0;
@@ -419,11 +270,6 @@ export class CalendarEngine {
     return current;
   }
 
-  /**
-   * Eerste werkdag op of vóór de datum (spiegel van nextWorkDay). Gebruikt om een
-   * kalenderdag-lag in de backward-pass richtingbewust op een werkdag te snappen:
-   * een bovengrens ("niet later dan…") die op een weekend valt, hoort terug naar vrijdag.
-   */
   prevWorkDay(date: Date): Date {
     let current = new Date(date.getTime());
     let scan = 0;
@@ -434,11 +280,6 @@ export class CalendarEngine {
     return current;
   }
 
-  /**
-   * Get the next working day strictly before the given date.
-   * Spiegel van nextWorkDayAfter — gebruikt door de backward-pass zodat de
-   * "successor start de werkdag ná de predecessor"-relatie symmetrisch terugloopt.
-   */
   prevWorkDayBefore(date: Date): Date {
     let current = addCalendarDays(date, -1);
     let scan = 0;
@@ -449,10 +290,6 @@ export class CalendarEngine {
     return current;
   }
 
-  /**
-   * Subtract working days from an end date.
-   * Returns the start date.
-   */
   subtractWorkDays(endDate: Date, workDays: number): Date {
     if (workDays <= 0) return new Date(endDate.getTime());
 
@@ -477,17 +314,6 @@ export class CalendarEngine {
     return current;
   }
 
-  /**
-   * Verschuif `n` werkdagen vanaf een datum: n=0 => dezelfde (werk)dag, n>0 vooruit, n<0 achteruit.
-   * Anders dan addWorkDays/subtractWorkDays telt de begindag hier NIET als "dag 1" — dit is een
-   * zuivere offset over werkdagen. Nodig voor correcte lag/lead (positief, negatief én 0) en voor
-   * de relatie-logica (FF/SF) in de CPM-solver, waar "N werkdagen verderop/eerder" exact N moet zijn.
-   *
-   * INVARIANT: de aanroeper voert een wérkdag aan. Alle CPM-paden garanderen dat (early/late-datums
-   * zijn altijd werkdagen); een kalenderdag-lag die op een weekend landt wordt op de gebruiksplek
-   * eerst richtingbewust gesnapt (forward: nextWorkDay, backward: prevWorkDay) vóór hij hier
-   * binnenkomt. Een niet-werkdag zou hier vooruit normaliseren, wat voor n<0 een dag zou schelen.
-   */
   addWorkingDaysSigned(date: Date, n: number): Date {
     let current = this.nextWorkDay(new Date(date.getTime()));
     if (n === 0) return current;
@@ -504,21 +330,12 @@ export class CalendarEngine {
     return current;
   }
 
-  /**
-   * Rekenkundige tegenhanger van de lus "stap één kalenderdag in richting `dir`; is het een werkdag,
-   * dan `remaining--`; stop zodra `remaining <= 0`": het aantal kalenderdagen D waarna die lus stopt,
-   * of `null` als de lus niet in D ≤ MAX_DAYS stappen stopt (of `remaining` geen eindig getal is) —
-   * dan houdt de aanroeper de oude lus aan, inclusief haar afkapgedrag. `remaining ≤ 0` ⇒ 0.
-   * Werkt met dezelfde telling als `workDaysBetween` (weekpatroon − feestdagen + werkende
-   * uitzonderingen), dus exact dezelfde dag als dag voor dag lopen met `isWorkDay`.
-   */
   private offsetOfNthWorkday(from: Date, remaining: number, dir: 1 | -1): number | null {
     if (!Number.isFinite(remaining)) return null;
     if (remaining <= 0) return 0;
     const need = Math.ceil(remaining);
     const fromIdx = utcDayIndex(from.getTime());
     if (!Number.isFinite(fromIdx)) return null;
-    // Werkdagen in de D kalenderdagen ná (dir 1) resp. vóór (dir -1) `from`, `from` zelf niet meegeteld.
     const countWithin = (d: number): number => {
       const a = dir === 1 ? fromIdx + 1 : fromIdx - d;
       const b = dir === 1 ? fromIdx + d : fromIdx - 1;
@@ -534,7 +351,6 @@ export class CalendarEngine {
       lo = hi;
       hi = Math.min(limit, hi * 2);
     }
-    // Kleinste D in (lo, hi] met countWithin(D) >= need.
     while (hi - lo > 1) {
       const mid = lo + Math.floor((hi - lo) / 2);
       if (countWithin(mid) >= need) hi = mid;
@@ -543,28 +359,10 @@ export class CalendarEngine {
     return hi;
   }
 
-  /** De werktijd van de typische werkdag in uren. Zonder werkblokken (een lege week) is dat de
-   *  opgegeven `hoursPerDay` van de kalender (`modalBandHoursPerDay`). */
   get hoursPerDay(): number {
     return this.derivedHpd;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  WERKBLOKKEN. De rekenkern op de tijdas in minuten. Conventies:
-  //    band = [start, end);  nextWorkInstant(t)=t als t∈[start,end);
-  //    prevWorkInstant(t)=t als t∈(start,end];  strikte varianten met "After"/"Before".
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  /** De EFFECTIEVE banden (minuut-van-de-dag, `[start,end)`) die op de KALENDERDAG van `d` gelden —
-   *  via hetzelfde `bandsStartingOn`-pad dat de solver zelf voor elke snap/telling gebruikt, dus
-   *  INCLUSIEF werkende uitzonderingen en holidays. Alleen voor read-only VERGELIJKING tussen twee
-   *  kalenders OP EEN SPECIFIEKE DATUM (`calendarsAgreeOnSharedWorkdayBands` in `relationMath.ts`) —
-   *  geen dag-/uur-lus leest hierlangs. Bewust met datumcontext: de STATISCHE weekdagtabel
-   *  (`workTime.byWeekday`) ziet uitzonderingen/holidays niet, zodat twee kalenders met een identiek
-   *  WEEKPATROON maar een afwijkende werkende uitzondering op de landingsdag ten onrechte "identiek"
-   *  lijken (de msp-04-foutvorm). Geeft een LEGE array terug (nooit `undefined`) op elke dag die voor
-   *  deze kalender niet werkt (holiday, geen band). Geeft altijd een VERSE kopie terug, nooit de
-   *  gememoizede cache-array van `bandsStartingOn` zelf. */
   effectiveBandsOn(d: Date): ReadonlyArray<Readonly<{ start: number; end: number }>> {
     const dayMs = this.dayStartMsOf(d.getTime());
     return this.bandsStartingOn(dayMs).map((b) => ({
@@ -573,47 +371,10 @@ export class CalendarEngine {
     }));
   }
 
-  /** Afgeleide `hoursPerDay` voor een uur-kalender: de MODALE band-som over de
-   *  werk-weekdagen (meest voorkomende dagsom in uren), bij gelijkspel de HOOGSTE.
-   *
-   *  BEKENDE BEPERKING (niet gefixt): deze functie telt een weekdag
-   *  mee zodra hij BANDEN draagt (`bands.length===0`-check), ongeacht `workDayMask`/`calendar.
-   *  workDays` — `computeStandardWorkdayBands` hieronder telt een weekdag alleen mee als hij ZOWEL
-   *  in `workDayMask` staat ALS banden draagt. Op een INTERN CONSISTENTE kalender (elke `workDays`-
-   *  dag heeft banden, elke bandloze dag staat niet in `workDays`) maken beide filters exact
-   *  dezelfde weekdagenset mee, dus is dit onderscheid onzichtbaar. Op een ZELF-TEGENSTRIJDIGE
-   *  kalender (bv. `workDays` bevat zaterdag NIET, maar `workTime.byWeekday[6]` draagt toch banden
-   *  — een vorm die geen van de lezers (`mppReader.ts`/`mspdiReader.ts`/`p6xmlReader.ts`) produceert,
-   *  parser-invariant net als de `holidays`/`workingExceptions`-exclusiviteit hierboven) kunnen deze
-   *  functie en `computeStandardWorkdayBands` een ANDERE weekdag als "modaal" aanwijzen, en dus een
-   *  `hoursPerDay` teruggeven die niet bij `standardWorkdayBands`'s minutensom past. Geen corpus-
-   *  of synthetische case raakt dit (de parsers garanderen de consistentie), dus bewust ongefixt. */
   private computeDerivedHoursPerDay(): number {
     return modalBandHoursPerDay(this.calendar.workTime!, this.calendar.hoursPerDay);
   }
 
-  /** De banden van een "normale
-   *  werkdag" van deze kalender. MOET dezelfde dag aanwijzen als `computeDerivedHoursPerDay` (de MODALE
-   *  dagsom, bij gelijkspel de HOOGSTE) — anders spreken `hoursPerDay` en de band-loze-uitzondering-
-   *  fallback elkaar tegen (bv. ma 4u, di-vr 8u: de EERSTE weekdag met banden zou 240m geven, terwijl
-   *  `hoursPerDay`=8 een band-loze werkende zaterdag 480m laat verwachten).
-   *  Fallback voor een band-loze werkende uitzondering op een dag zonder eigen weekdagbanden (bv. een
-   *  werkende zaterdag in een ma-vr-uurkalender, `byWeekday[6]=[]`): zonder deze fallback zou zo'n dag
-   *  `isWorkDay`-achtig "werkend" zijn maar 0 werkminuten opleveren — dag- en uurmodus zouden elkaar
-   *  tegenspreken en ResourceLoad/workdayAxis zouden een werkdag zonder capaciteit zien. MPXJ produceert
-   *  dit scenario nooit (het raakt alleen ons eigen model), maar de semantiek moet gedefinieerd zijn.
-   *  Rekent in MINUTEN (niet in afgeronde uren zoals `computeDerivedHoursPerDay`) zodat de modale
-   *  waarde exact is; bij gelijke frequentie wint de HOOGSTE minutensom, en van de weekdagen die dié
-   *  modale som halen de EERSTE (laagste ISO-weekdagnummer) — deterministisch, ook als twee weekdagen
-   *  dezelfde som maar een andere bandvorm hebben. Degenererende kalender (geen `workDays`-weekdag
-   *  heeft banden) ⇒ val terug op de eerste niet-lege weekdag ongeacht `workDays`; blijft dat leeg,
-   *  dan `[]` (de bestaande MAX_SCAN/geen-werk-paden vangen dat al af).
-   *
-   *  BEKENDE BEPERKING (niet gefixt): het eerste filter hierboven
-   *  eist zowel `workDayMask[wd]` ALS banden — `computeDerivedHoursPerDay` eist alleen banden. Zie
-   *  de toelichting daar voor de volledige analyse; op een zelf-tegenstrijdige kalender (`workDays`
-   *  en `workTime.byWeekday` niet in overeenstemming, een vorm die geen lezer produceert) kunnen
-   *  beide functies een andere weekdag als "modaal" aanwijzen. */
   private computeStandardWorkdayBands(): { start: number; end: number }[] {
     const byWeekday = this.calendar.workTime!.byWeekday;
     const sums: { wd: 1 | 2 | 3 | 4 | 5 | 6 | 7; minutes: number }[] = [];
@@ -625,7 +386,7 @@ export class CalendarEngine {
     }
     if (sums.length > 0) {
       const bestMinutes = modalHighest(sums.map((s) => s.minutes));
-      const match = sums.find((s) => s.minutes === bestMinutes)!; // eerste (laagste wd) met de modale som
+      const match = sums.find((s) => s.minutes === bestMinutes)!;
       return byWeekday[match.wd]!;
     }
     for (let wd = 1 as 1 | 2 | 3 | 4 | 5 | 6 | 7; wd <= 7; wd = (wd + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7) {
@@ -635,33 +396,14 @@ export class CalendarEngine {
     return [];
   }
 
-  /** De werkblokken van de typische werkdag (de "normale werkdag" van {@link computeStandardWorkdayBands},
-   *  dezelfde dag die `hoursPerDay` bepaalt), als verse kopie in minuten van de dag. Leeg zonder
-   *  werkblokken.
-   *  Voor regel D4 van de dagregels (`src/engine/calendar/workdayRules.ts`): een datum zonder werkblok
-   *  krijgt de blokken van deze dag. Leest alleen; geen rekenpad gebruikt dit. */
   typicalWorkdayBands(): ReadonlyArray<Readonly<{ start: number; end: number }>> {
     return this.standardWorkdayBands.map((b) => ({ start: b.start, end: b.end }));
   }
 
-  // ── Band-materialisatie (venster-gebaseerd, gememoized op het kalender-object) ──
-
-  /** UTC-middernacht-ms van de dag die `ms` bevat (epoch is op UTC-middernacht uitgelijnd). */
   private dayStartMsOf(ms: number): number {
     return utcDayIndex(ms) * MS_PER_DAY;
   }
 
-  /** Absolute werk-intervallen voor de banden die op de dag `dayMs` STARTEN. Een holiday op
-   *  díé dag onderdrukt uitsluitend de banden die er starten; de staart na middernacht
-   *  van de wrap-band van de vórige dag hoort bij die vorige dag en loopt gewoon door (hij wordt bij
-   *  díé dag gematerialiseerd). Gememoized op de gedeelde kalender-cache.
-   *  Een werkende uitzondering op `dayMs` wint van de holiday-onderdrukking
-   *  hieronder. Fallback-keten voor de te gebruiken banden:
-   *  (1) expliciete override-banden op de uitzondering zelf; anders (2) de eigen weekdag-banden van
-   *  `dayMs` als die niet leeg zijn; anders (3) `standardWorkdayBands` (de banden van een normale
-   *  werkdag van deze kalender) — zodat een band-loze uitzondering op een dag zonder eigen weekdag-
-   *  banden (zaterdag in een ma-vr-kalender) niet stilzwijgend 0 minuten oplevert terwijl `isWorkDay`
-   *  "werkend" zegt. Zonder `workingExceptions` is `workingExceptionDaySet` leeg en speelt dit niet. */
   private bandsStartingOn(dayMs: number): BandInterval[] {
     const cache = this.bandCache;
     const hit = cache.days.get(dayMs);
@@ -673,8 +415,6 @@ export class CalendarEngine {
     return result;
   }
 
-  /** Een nachtstaart blijft bij haar startdag; de volgende dag krijgt alleen het nog niet
-   *  bedekte deel. De uitrol en de snelle dagtelling toetsen hiermee dezelfde dagbanden. */
   private materializeDayBands(
     dayMs: number,
     bands: WorkTimeBands['byWeekday'][1],
@@ -694,10 +434,9 @@ export class CalendarEngine {
     return result;
   }
 
-  /** De opgeslagen dagbanden, vóór het wegnemen van overlap met de vorige nacht. */
   private sourceBandsOn(dayMs: number): { start: number; end: number }[] {
     const d = new Date(dayMs);
-    const dayIdx = utcDayIndex(dayMs); // dayMs is altijd dag-uitgelijnd (aanroepers)
+    const dayIdx = utcDayIndex(dayMs);
     const wd = isoDayOfWeek(d) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
     let bands: { start: number; end: number }[];
     if (this.workingExceptionDaySet.has(dayIdx)) {
@@ -705,16 +444,13 @@ export class CalendarEngine {
       const ownWeekdayBands = this.calendar.workTime!.byWeekday[wd];
       bands = override ?? (ownWeekdayBands && ownWeekdayBands.length > 0 ? ownWeekdayBands : this.standardWorkdayBands);
     } else if (this.holidaySet.has(formatDate(d))) {
-      bands = []; // holiday onderdrukt de shifts die op deze dag STARTEN
+      bands = [];
     } else {
       bands = this.calendar.workTime!.byWeekday[wd] ?? [];
     }
     return bands;
   }
 
-  /** De band die `tMs` bevat, of null. `leftOpen=false` ⇒ voorwaartse conventie `[start,end)`;
-   *  `leftOpen=true` ⇒ achterwaartse conventie `(start,end]`. Scant de huidige dag plus twee dagen
-   *  terug om de staart van een wrap-band (`end ∈ (1440,2880]`) op te vangen. */
   private findContaining(tMs: number, leftOpen: boolean): BandInterval | null {
     const day0 = this.dayStartMsOf(tMs);
     for (let k = -2; k <= 0; k++) {
@@ -729,8 +465,6 @@ export class CalendarEngine {
     return null;
   }
 
-  /** Vroegste bandstart strikt > `tMs` (in ms). Dag-scan vooruit; banden zijn per dag gesorteerd en
-   *  dag-starts lopen op, dus de eerste hit is globaal de kleinste. */
   private nextBandStartStrictAfter(tMs: number): number {
     let dayMs = this.dayStartMsOf(tMs);
     let scan = 0;
@@ -741,11 +475,9 @@ export class CalendarEngine {
       dayMs += MS_PER_DAY;
       scan++;
     }
-    return tMs; // geen werkdagen — best effort (kapotte kalender)
+    return tMs;
   }
 
-  /** Laatste band-eind ≤ `tMs` (of strikt < bij `strict`), in ms. Dag-scan achteruit; stopt zodra
-   *  geen eerdere dag het beste resultaat nog kan verbeteren (max mogelijke eind = dagstart+2880m). */
   private prevBandEndBound(tMs: number, strict: boolean): number | null {
     let best = Number.NEGATIVE_INFINITY;
     let dayMs = this.dayStartMsOf(tMs);
@@ -763,9 +495,6 @@ export class CalendarEngine {
     return best === Number.NEGATIVE_INFINITY ? null : best;
   }
 
-  // ── Instant-vinders ─────────────────────────────────────────────────
-
-  /** t valt binnen een band `[start,end)`. Uur-tegenhanger van `isWorkDay`. */
   isWorkInstant(t: Date): boolean {
     return this.findContaining(t.getTime(), false) !== null;
   }
@@ -775,28 +504,22 @@ export class CalendarEngine {
     return band !== null && band.end >= through.getTime();
   }
 
-  /** t als t ∈ `[bandstart, bandeind)`, anders de eerstvolgende bandstart > t. */
   nextWorkInstant(t: Date): Date {
     const tMs = t.getTime();
     if (this.findContaining(tMs, false)) return new Date(tMs);
     return new Date(this.nextBandStartStrictAfter(tMs));
   }
 
-  /** De eerstvolgende bandstart STRIKT > t (bij band-eindgrens: de volgende band). */
   nextWorkInstantAfter(t: Date): Date {
     return new Date(this.nextBandStartStrictAfter(t.getTime()));
   }
 
-  /** t als t ∈ `(bandstart, bandeind]`, anders het laatste band-eind ≤ t. Een finish exact op
-   *  een band-eind is legitiem en blijft staan (rand `(start,end]`). */
   prevWorkInstant(t: Date): Date {
     const tMs = t.getTime();
     if (this.findContaining(tMs, true)) return new Date(tMs);
     return new Date(this.prevBandEndBound(tMs, false) ?? tMs);
   }
 
-  /** Begrensde variant voor aanroepers die "geen band gevonden" semantisch moeten onderscheiden
-   *  van de bestaande best-effort-terugval op `t`. Dezelfde MAX_SCAN-zoektocht, nooit een tweede lus. */
   prevWorkInstantOrNull(t: Date): Date | null {
     const tMs = t.getTime();
     if (this.findContaining(tMs, true)) return new Date(tMs);
@@ -804,65 +527,19 @@ export class CalendarEngine {
     return found === null ? null : new Date(found);
   }
 
-  /** Het laatste band-eind STRIKT < t. */
   prevWorkInstantBefore(t: Date): Date {
     const tMs = t.getTime();
     return new Date(this.prevBandEndBound(tMs, true) ?? tMs);
   }
 
-  // ── Minuut-lussen ───────────────────────────────────────────────────
-  //
-  // SNAP-REGEL OP NIET-WERK-INSTANTS — waarom `addWorkMinutes` en `subtractWorkMinutes` elkaars
-  // exacte spiegel zijn, en waar die spiegel schijnbaar (maar niet werkelijk) breekt.
-  //
-  // Beide lussen normaliseren hun aangrijpingspunt eerst naar een werk-instant, elk IN DE RICHTING
-  // VAN DE EIGEN WANDELING: `addWorkMinutes` gebruikt `nextWorkInstant` (vooruit), en
-  // `subtractWorkMinutes` gebruikt `prevWorkInstant` (achteruit). Daaruit volgen drie regels die je
-  // moet kennen vóór je hier iets aanraakt:
-  //
-  //  1. Voor elk WERK-instant `t` geldt `subtractWorkMinutes(addWorkMinutes(t, n), n) === t` op de
-  //     milliseconde. Dat is geen toevallige eigenschap maar de invariant waarop de backward-pass
-  //     van de solver leunt: `LS..LF` moet exact evenveel werktijd overspannen als `ES..EF`.
-  //  2. Voor een `t` die GEEN werk-instant is (midden in een weekend, een feestdag of een
-  //     aaneengesloten vrij blok van dagen) is er geen ronde-reis-identiteit, en dat is correct:
-  //     `add` snapt naar de eerstvolgende bandstart, `sub` naar het laatste band-eind ervóór. De
-  //     twee snappunten liggen per definitie aan weerszijden van hetzelfde gat. Een aanroeper die
-  //     een niet-werk-instant aanlevert vraagt om een richtingsafhankelijk antwoord en krijgt het.
-  //  3. Op een BANDGRENS zijn twee verschillende instants hetzelfde punt op de werk-as: het eind van
-  //     de ene band en het begin van de volgende hebben nul werkminuten tussen zich. `sub` levert
-  //     daarom een bandstart waar `add` een band-eind levert, zónder dat er werktijd verschilt. De
-  //     juiste gelijkheidstest tussen twee posities op de werk-as is `workMinutesBetween(a, b) === 0`,
-  //     NIET `a.getTime() === b.getTime()`.
-  //
-  // Er is GEEN brongebonden uitzondering op die drie regels: P6-vrije dagen worden in de XER-decoder
-  // gereconstrueerd (`xerCalendarData.ts`), niet met een asymmetrische wandeling hier.
-  // `tests/planning/check-calendar-mirror.ts` pint deze drie regels vast, over een aaneengesloten
-  // niet-werkblok van tien dagen, in dag-modus en in uur-modus met 1, 2 en 3 banden per dag.
-
-  /** Tel `minutes` werkminuten op vanaf `startInstant`: verbruik over opeenvolgende banden,
-   *  spring bij een bandgrens naar de volgende bandstart. Een verbruik dat exact op een band-eind
-   *  landt geeft die eindgrens terug (legitiem finish-moment). `minutes ≤ 0` ⇒ start ongewijzigd
-   *  (spiegelt `addWorkDays`' `≤0`-tak, voor mijlpalen). Een lengte die in hele ms 0 is (onder een halve
-   *  ms, zie `walkMs`) is een lengte 0: ook dan blijft de start ongewijzigd. */
   addWorkMinutes(startInstant: Date, minutes: number): Date {
     return this.addPhysicalWorkMinutes(startInstant, minutes);
   }
 
-  /** De lengte van een wandeling in hele milliseconden. Beide fysieke wandelingen rekenen alleen in hele ms,
-   *  ook de rest na elke band (review #591 r7, was knownbug 385 en 388). Met kommagetalminuten bleef bij een
-   *  bandgrens soms een rest van ~10⁻¹³ min of een deel van een ms over; de terugwandeling koos dan het vorige
-   *  werkeinde. Voorbeeld: 523,2 min (8,72 u) gaf LS ma 16:00 in plaats van di 08:00, en 1600,00002 min gaf
-   *  vr 15:59:59,999. Een `Date` draagt toch alleen hele ms.
-   *
-   *  Openbaar voor de werkplaatsing (`workPlacement.ts`): die wandelt dezelfde banden en rondt op dezelfde
-   *  manier af, zodat haar einde gelijk is aan `addWorkMinutes` (was knownbug 390). */
   static walkMs(minutes: number): number {
     return Math.round(Math.min(minutes, CalendarEngine.MAX_MINUTES) * CalendarEngine.MS_PER_MIN);
   }
 
-  /** De fysieke bandwandeling, in hele ms (`walkMs`). Een lengte die in hele ms 0 is, gedraagt zich als
-   *  `minutes ≤ 0`: de start blijft staan. Anders normaliseerde de wandeling de start vooruit en de spiegel
-   *  achteruit, en kwam een duur van 0,000001 min vanaf ma 08:00 terug op vr 16:00 (was knownbug 391). */
   private addPhysicalWorkMinutes(startInstant: Date, minutes: number): Date {
     let remaining = CalendarEngine.walkMs(minutes);
     if (minutes <= 0 || remaining === 0) return new Date(startInstant.getTime());
@@ -870,28 +547,24 @@ export class CalendarEngine {
     let steps = 0;
     while (remaining > 0) {
       const band = this.findContaining(curMs, false);
-      if (!band) break; // geen werk (kapotte kalender) — niet vastlopen
+      if (!band) break;
       const availMs = band.end - curMs;
       if (remaining <= availMs) {
         curMs += remaining;
         remaining = 0;
       } else {
         remaining -= availMs;
-        curMs = this.nextWorkInstant(new Date(band.end)).getTime(); // band-eind ⇒ volgende bandstart
+        curMs = this.nextWorkInstant(new Date(band.end)).getTime();
       }
       if (++steps > CalendarEngine.MAX_DAYS) break;
     }
     return new Date(curMs);
   }
 
-  /** Trek `minutes` werkminuten af van `endInstant` (spiegel van `addWorkMinutes`). Een
-   *  landing exact op een bandstart is legitiem (rand `(start,end]`). */
   subtractWorkMinutes(endInstant: Date, minutes: number): Date {
     return this.subtractPhysicalWorkMinutes(endInstant, minutes);
   }
 
-  /** De fysieke achterwaartse bandwandeling, in hele ms (`walkMs`), zodat hij de exacte spiegel van
-   *  `addPhysicalWorkMinutes` blijft; ook een lengte die in hele ms 0 is, laat het eind staan. */
   private subtractPhysicalWorkMinutes(endInstant: Date, minutes: number): Date {
     let remaining = CalendarEngine.walkMs(minutes);
     if (minutes <= 0 || remaining === 0) return new Date(endInstant.getTime());
@@ -906,20 +579,17 @@ export class CalendarEngine {
         remaining = 0;
       } else {
         remaining -= availMs;
-        curMs = this.prevWorkInstant(new Date(band.start)).getTime(); // bandstart ⇒ vorig band-eind
+        curMs = this.prevWorkInstant(new Date(band.start)).getTime();
       }
       if (++steps > CalendarEngine.MAX_DAYS) break;
     }
     return new Date(curMs);
   }
 
-  /** Getekende werkminuten in `[a,b)` (voor vrije speling). Positief als b>a, negatief als
-   *  b<a, 0 als gelijk. */
   workMinutesBetween(a: Date, b: Date): number {
     return this.physicalWorkMinutesBetween(a, b);
   }
 
-  /** Fysieke bandminuten in `[a,b)`. */
   private physicalWorkMinutesBetween(a: Date, b: Date): number {
     const aMs = a.getTime();
     const bMs = b.getTime();
@@ -927,13 +597,9 @@ export class CalendarEngine {
     const sign = bMs > aMs ? 1 : -1;
     const lo = Math.min(aMs, bMs);
     const hi = Math.max(aMs, bMs);
-    // Begin twee dagen vóór `lo`: een wrap-band (end ≤ +2880m) van een eerdere dag kan in [lo,hi) reiken.
     const firstDayMs = this.dayStartMsOf(lo) - 2 * MS_PER_DAY;
-    // Snelle weg (F3c, speling in minuten over lange spannes): een dag `d` met `d ≥ lo` en `d + 2 dagen ≤ hi`
-    // ligt met al zijn blokken (ook een wrap-blok) binnen `[lo,hi)` en telt dus volledig mee; die dagen
-    // komen uit de lopende som. Alleen de randdagen worden blok voor blok geteld, zoals hieronder.
     const fullFrom = Math.ceil(lo / MS_PER_DAY);
-    const fullTo = Math.floor(hi / MS_PER_DAY) - 2; // inclusief
+    const fullTo = Math.floor(hi / MS_PER_DAY) - 2;
     const spanDays = (hi - firstDayMs) / MS_PER_DAY;
     if (fullTo - fullFrom >= CalendarEngine.PREFIX_MIN_DAYS && spanDays <= CalendarEngine.MAX_DAYS) {
       return sign * (this.bandMinutesOnDays(firstDayMs, fullFrom * MS_PER_DAY, lo, hi)
@@ -955,10 +621,8 @@ export class CalendarEngine {
     return sign * total;
   }
 
-  /** Vanaf hoeveel volle dagen `physicalWorkMinutesBetween` de lopende som gebruikt. */
   private static readonly PREFIX_MIN_DAYS = 14;
 
-  /** Bandminuten in `[lo,hi)` van de blokken die beginnen op de dagen `fromDayMs` ≤ dag < `toDayMs`. */
   private bandMinutesOnDays(fromDayMs: number, toDayMs: number, lo: number, hi: number): number {
     let total = 0;
     for (let dayMs = fromDayMs; dayMs < toDayMs && dayMs < hi; dayMs += MS_PER_DAY) {
@@ -971,8 +635,6 @@ export class CalendarEngine {
     return total;
   }
 
-  /** Som van de volle werkminuten van de dagen met index `fromDay` ≤ d < `toDay` (UTC-dagindex), uit de
-   *  lopende som op het kalender-object. Groeit de som, dan ruim (minstens een jaar extra aan elke kant). */
   private fullDayMinutes(fromDay: number, toDay: number): number {
     const cache = this.bandCache;
     let prefix = cache.minutePrefix;
@@ -989,32 +651,12 @@ export class CalendarEngine {
     return prefix.cum[toDay - prefix.firstDay] - prefix.cum[fromDay - prefix.firstDay];
   }
 
-  /** Zuivere getekende offset over werkminuten (uur-tegenhanger van `addWorkingDaysSigned`, voor
-   *  lag/lead). m=0 ⇒ genormaliseerd naar `nextWorkInstant(t)`; m>0 vooruit, m<0 achteruit. */
   addWorkingMinutesSigned(t: Date, m: number): Date {
     const current = this.nextWorkInstant(t);
     if (m === 0) return current;
     return m > 0 ? this.addWorkMinutes(current, m) : this.subtractWorkMinutes(current, -m);
   }
 
-  // ── Dagenmaat-lopers (alleen uren §3.14, technische keuze T23) ──────────────
-  //
-  // De dagenmaat telt werkdagen: elke werkdag telt als 1, hoe lang hij ook is. Binnen een dag telt het
-  // deel van de werktijd van die dag (wo 11:00–16:00 op een dag van 8 u = 0,5 d). Een feestdag en een
-  // niet-werkdag tellen 0; een werkende uitzondering telt 1, ook met minder uren. Een werkdag is een
-  // kalenderdag waarop een werkblok BEGINT: een nachtblok di 22:00–wo 06:00 hoort bij dinsdag (§0).
-  //
-  // Afronding (T23): de lopers rekenen in hele minuten. Het deel van de laatste dag wordt
-  // `Math.round(deel × werkminuten van die dag)`, zonder verborgen rest. Vooruit en daarna achteruit
-  // verschilt daardoor hooguit ½ + ½ × (werkminuten van de begindag ÷ werkminuten van de einddag) minuut;
-  // `tests/planning/check-dagenmaat-lopers.ts` toetst die grens. Op gelijke dagen is dat 1 minuut.
-  //
-  // Randen: vooruit levert een EINDmoment (een blokeinde blijft staan, zoals `addWorkMinutes`),
-  // achteruit een STARTmoment (een blokbegin, zoals `subtractWorkMinutes`). Een kalender zonder
-  // werkblokken heeft geen dagenmaat-werkdag: vooruit `capped`, achteruit `end` ongewijzigd, afstand 0.
-
-  /** De dagenmaat-gegevens van kalenderdag `dayMs` (UTC-middernacht): de blokken die er beginnen, op
-   *  volgorde, en hun som in werkminuten. Gecachet op het kalender-object, net als `bandsStartingOn`. */
   private measureDay(dayMs: number): MeasureDay {
     const cache = this.bandCache;
     const hit = cache.measure.get(dayMs);
@@ -1029,7 +671,6 @@ export class CalendarEngine {
     return day;
   }
 
-  /** Werkminuten van `day` vóór het moment `tMs`. */
   private measureOffset(day: MeasureDay, tMs: number): number {
     let offset = 0;
     for (const b of day.bands) {
@@ -1039,8 +680,6 @@ export class CalendarEngine {
     return offset;
   }
 
-  /** Plek van een STARTmoment op de dagenmaat: de werkdag van het eerstvolgende werkmoment (`[start,end)`).
-   *  Een moment buiten werktijd telt als het begin van de volgende werkdag. `null` zonder werktijd. */
   private measureFrom(t: Date): MeasurePosition | null {
     const s = this.nextWorkInstant(t).getTime();
     const band = this.findContaining(s, false);
@@ -1051,8 +690,6 @@ export class CalendarEngine {
     return { dayMs, offset: this.measureOffset(day, s), day };
   }
 
-  /** Plek van een EINDmoment op de dagenmaat: de werkdag van het laatste werkmoment ervoor (`(start,end]`).
-   *  Een moment buiten werktijd telt als het einde van de vorige werkdag. `null` zonder werktijd. */
   private measureTo(t: Date): MeasurePosition | null {
     const e = this.prevWorkInstantOrNull(t);
     if (!e) return null;
@@ -1065,10 +702,6 @@ export class CalendarEngine {
     return { dayMs, offset: this.measureOffset(day, eMs), day };
   }
 
-  /** Telt de dagenmaat dezelfde werkdagen als `isWorkDay`? De overgebleven weekbanden moeten
-   *  overeenkomen met `workDays`, ook na overlap met de vorige nacht. Rond een werkende uitzondering
-   *  toetsen we de dag zelf én de dag erna. Alleen dan mogen selectie en afstandtelling hele dagen
-   *  rekenkundig overslaan; anders volgen beide de gematerialiseerde dagbanden. Eén keer per engine. */
   private measureLikeWorkDays(): boolean {
     if (this.measureLikeWorkDaysCache !== undefined) return this.measureLikeWorkDaysCache;
     const byWeekday = this.calendar.workTime?.byWeekday;
@@ -1096,8 +729,6 @@ export class CalendarEngine {
   }
   private measureLikeWorkDaysCache?: boolean;
 
-  /** De `n`-de werkdag (dagenmaat) na (`dir` 1) of vóór (`dir` −1) werkdag `dayMs`; `null` als die binnen de
-   *  veiligheidsgrenzen niet bestaat (geen werkdag in MAX_SCAN dagen, of meer dan MAX_DAYS dagen ver). */
   private nthMeasureWorkday(dayMs: number, n: number, dir: 1 | -1): number | null {
     if (n <= 0) return dayMs;
     if (this.measureLikeWorkDays()) {
@@ -1120,7 +751,6 @@ export class CalendarEngine {
     return d;
   }
 
-  /** Aantal werkdagen (dagenmaat) in `[aMs, bMs)`, beide UTC-middernacht. */
   private measureWorkdaysInRange(aMs: number, bMs: number): number {
     if (bMs <= aMs) return 0;
     if (this.measureLikeWorkDays()) return this.workDaysBetween(new Date(aMs), new Date(bMs - MS_PER_DAY));
@@ -1131,9 +761,6 @@ export class CalendarEngine {
     return count;
   }
 
-  /** Het moment `offset` werkminuten na het begin van werkdag `day`. `'end'`: een grens tussen twee blokken
-   *  wordt het blokeinde (een eindmoment). `'start'`: het volgende blokbegin (een startmoment); de volle dag
-   *  is dan het begin van de volgende werkdag. */
   private measureMoment(day: MeasureDay, offset: number, side: 'start' | 'end'): number {
     let left = offset;
     for (const b of day.bands) {
@@ -1145,15 +772,10 @@ export class CalendarEngine {
     return side === 'end' ? last.end : this.nextWorkInstant(new Date(last.end)).getTime();
   }
 
-  /** Dagenmaat vooruit: het EINDmoment `days` werkdagen (mag een breuk zijn) na `start`. `days ≤ 0` ⇒
-   *  `start` ongewijzigd (zoals `addWorkMinutes`). Voorbeeldweek (ma–do 8 u, vr 6 u): ma 07:00 + 5 d ⇒
-   *  vr 14:00; di 11:00 + 3 d ⇒ vr 10:00. */
   addMeasuredWorkdays(start: Date, days: number): Date {
     return this.addMeasuredWorkdaysChecked(start, days).date;
   }
 
-  /** `addMeasuredWorkdays` met het CAP-signaal van `addWorkDaysChecked`: `capped` als de kalender binnen de
-   *  veiligheidsgrenzen geen werkdag meer heeft; de datum is dan `start` (geen betekenisvol einde). */
   addMeasuredWorkdaysChecked(start: Date, days: number): { date: Date; capped: boolean } {
     if (!(days > 0) || !Number.isFinite(days)) return { date: new Date(start.getTime()), capped: false };
     const from = this.measureFrom(start);
@@ -1170,14 +792,10 @@ export class CalendarEngine {
     if (dayMs === null) return { date: new Date(start.getTime()), capped: true };
     const day = this.measureDay(dayMs);
     const minutes = Math.round(Math.min(1, rest - (n - 1)) * day.minutes);
-    // Valt het deel van de laatste dag weg in de afronding, dan is het einde het einde van de werkdag
-    // ervoor (op de tijdas hetzelfde punt als het begin van deze dag).
     if (minutes <= 0) return { date: this.prevWorkInstant(new Date(day.bands[0].start)), capped: false };
     return { date: new Date(this.measureMoment(day, minutes, 'end')), capped: false };
   }
 
-  /** Dagenmaat achteruit: het STARTmoment `days` werkdagen (mag een breuk zijn) vóór `end`. Spiegel van
-   *  `addMeasuredWorkdays`; `days ≤ 0` ⇒ `end` ongewijzigd. */
   subtractMeasuredWorkdays(end: Date, days: number): Date {
     if (!(days > 0) || !Number.isFinite(days)) return new Date(end.getTime());
     const to = this.measureTo(end);
@@ -1194,22 +812,15 @@ export class CalendarEngine {
     if (dayMs === null) return new Date(end.getTime());
     const day = this.measureDay(dayMs);
     const minutes = Math.round(Math.min(1, rest - (n - 1)) * day.minutes);
-    // `minutes === 0`: het deel valt weg in de afronding; dan is de start het begin van de werkdag erna.
     return new Date(this.measureMoment(day, day.minutes - minutes, 'start'));
   }
 
-  /** Het einde (laatste blokeinde) van de dagenmaat-werkdag waarop het startmoment `t` valt; een moment
-   *  buiten werktijd telt als het begin van de volgende werkdag. Zonder werkdag: `t` ongewijzigd. */
   measuredWorkdayEnd(t: Date): Date {
     const from = this.measureFrom(t);
     if (!from) return new Date(t.getTime());
     return new Date(this.measureMoment(from.day, from.day.minutes, 'end'));
   }
 
-  /** Getekende afstand in de dagenmaat van `a` naar `b`: de hele werkdagen ertussen plus het deel van de
-   *  begin- en de einddag (§3.4, de speling van een dagenmaat-taak). Een moment buiten werktijd telt als
-   *  het begin van de volgende werkdag, dus als het einde van de vorige: een blokeinde en het volgende
-   *  blokbegin liggen op dezelfde plek. Positief als `b` later ligt. */
   measuredWorkdaysBetween(a: Date, b: Date): number {
     const aMs = a.getTime();
     const bMs = b.getTime();
@@ -1222,23 +833,14 @@ export class CalendarEngine {
       + pb.offset / pb.day.minutes - pa.offset / pa.day.minutes;
   }
 
-  /**
-   * Werk-intervallen (absolute UTC-`Date`-paren, half-open `[start,end)`) die het venster
-   * `[from, to]` snijden — voor de balk-opsplitsing/bar-necking in de Gantt. Hergebruikt de
-   * op het kalender-object GEMEMOIZEDE band-materialisatie (`bandsStartingOn`), dus geen extra
-   * uitrol per frame. Scant vanaf de dag vóór `from` om de na-middernacht-staart van een
-   * wrap-band (nachtploeg) mee te nemen.
-   */
   workIntervalsBetween(from: Date, to: Date): { start: Date; end: Date }[] {
     const fromMs = from.getTime();
     const toMs = to.getTime();
     if (!(toMs > fromMs)) return [];
     const out: { start: Date; end: Date }[] = [];
     const lastDay = this.dayStartMsOf(toMs);
-    let dayMs = this.dayStartMsOf(fromMs) - MS_PER_DAY; // vang wrap-staart vorige dag
+    let dayMs = this.dayStartMsOf(fromMs) - MS_PER_DAY;
     let scan = 0;
-    // Absolute iteratielimiet i.p.v. MAX_SCAN (366): een uur-taak van meer dan een jaar werd anders
-    // afgekapt getekend. De renderer vraagt alleen het zichtbare venster op (audit 2026-09-26).
     while (dayMs <= lastDay && scan <= CalendarEngine.MAX_DAYS) {
       for (const band of this.bandsStartingOn(dayMs)) {
         const s = Math.max(band.start, fromMs);
@@ -1252,13 +854,9 @@ export class CalendarEngine {
     return out;
   }
 
-  // ── Introspectie voor de memoization-test. Twee engines op hetzelfde kalender-object
-  //    delen deze cache-identiteit en teller. ──
-  /** Aantal dag-materialisaties (cache-misses) op de GEDEELDE kalender-object-cache. */
   materializationCount(): number {
     return this.bandCache.fills;
   }
-  /** Identiteit van de gedeelde band-cache (voor een `===`-check tussen twee engines). */
   bandCacheRef(): unknown {
     return this.bandCache;
   }
