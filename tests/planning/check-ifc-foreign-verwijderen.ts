@@ -427,7 +427,7 @@ await check('een beschadigde complexe instantie op de wijzigingslijst: de uitvoe
 
 function reversedChain(length: number) {
   const lines: string[] = [];
-  for (let k = 0; k < length; k++) {
+  for (let k = length - 1; k >= 0; k--) {
     lines.push(`#${9100 + length - 1 - k}=IFCPROPERTYREFERENCEVALUE('k${k}',$,$,#${k === 0 ? 51 : 9100 + length - k});`);
   }
   return withLines(text('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'), lines);
@@ -451,18 +451,32 @@ await check('een lange keten in omgekeerde bronvolgorde: de uitvoercontrole doet
   assert(large / small < 2.6, `twee keer zo lang geeft ${(large / small).toFixed(2)} keer zoveel werk; lineair is 2, kwadratisch 4`);
 });
 
+function historySteps(run: () => void): number {
+  const prototype = Array.prototype as unknown as Record<symbol, (this: unknown[]) => Iterator<unknown>>;
+  const original = prototype[Symbol.iterator]!;
+  let steps = 0;
+  prototype[Symbol.iterator] = function (this: unknown[]) {
+    const inner = original.call(this);
+    if (this.length < 90) return inner;
+    return { next: () => { steps++; return inner.next(); }, [Symbol.iterator]() { return this; } } as unknown as Iterator<unknown>;
+  };
+  try { run(); } finally { prototype[Symbol.iterator] = original; }
+  return steps;
+}
+
 await check('Opnieuw kiest de stap één keer, ook met de flag uit en zonder vreemd deel', async () => {
   for (const flag of [false, true]) {
     const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
     store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; });
     store.getState().newProject();
     const ids = [store.getState().addTask({ name: 'a' }), store.getState().addTask({ name: 'b' })];
-    for (let k = 0; k < 600; k++) store.getState().updateTask(ids[k % 2]!, { name: `t${k}` });
+    for (let k = 0; k < 150; k++) store.getState().updateTask(ids[k % 2]!, { name: `t${k}` });
     store.getState().undo();
-    const redo = arrayAndCollectionOperations(() => store.getState().redo()).operations;
-    const undo = arrayAndCollectionOperations(() => store.getState().undo()).operations;
-    console.log(`   flag ${flag ? 'aan' : 'uit'}: Opnieuw ${redo}, Ongedaan maken ${undo} bewerkingen`);
-    assert(redo < undo * 1.3, `Opnieuw kost ${(redo / undo).toFixed(2)} keer Ongedaan maken; één keuze is ongeveer 1, twee keuzes ongeveer 2`);
+    const redo = historySteps(() => store.getState().redo());
+    const undo = historySteps(() => store.getState().undo());
+    console.log(`   flag ${flag ? 'aan' : 'uit'}: Opnieuw ${redo}, Ongedaan maken ${undo} stappen door de geschiedenis`);
+    assert(store.getState().historyEvents.length >= 90 && undo >= 90, 'Ongedaan maken loopt de geschiedenis één keer door');
+    assert(redo < undo * 1.3, `Opnieuw loopt ${(redo / undo).toFixed(2)} keer zo vaak door de geschiedenis; één keuze is ongeveer 1, twee keuzes ongeveer 2`);
   }
 });
 

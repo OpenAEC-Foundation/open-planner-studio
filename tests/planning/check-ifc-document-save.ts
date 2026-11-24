@@ -4535,7 +4535,16 @@ async function linkedDocuments(count: number, flag = true) {
   clearNotices(store);
   return { context, store, docs, unregister: recoveryRounds(store) };
 }
-const LINKED_TASKS = ['Set up site', 'Demolish existing extension'];
+const deleteLinked = (store: Store) => {
+  const s = store.getState();
+  const task = ['Set up site', 'Demolish existing extension'].find(name => s.tasks.some(t => t.name === name));
+  if (task) { s.deleteTask(taskNamed(store, task)); return true; }
+  const resource = s.resources.find(r => r.name === 'Bricklayers');
+  if (resource) { s.removeResource(resource.id); return true; }
+  const sequence = Object.entries(s.ifcSource?.stepIds ?? {}).find(([key, id]) => id === 92 && key.startsWith('seq:'))?.[0].slice('seq:'.length);
+  if (sequence && s.sequences.some(q => q.id === sequence)) { s.removeSequence(sequence); return true; }
+  return false;
+};
 const expectedFor = async (store: Store, id: string) => {
   const payload = store.getState().getOpenDocumentPayloads().find(d => d.id === id)!.payload;
   return prepareIfcWrite(buildWriteIFCInput(payload, 'merge'), payload.ifcSource!);
@@ -4547,19 +4556,19 @@ for (const [seed, count] of [[11, 2], [12, 3], [13, 5]] as const) {
     const auto = modelAutoSave(store);
     const lines: string[] = [];
     const log: string[] = [];
+    let most = 0;
     const record = async (doc: { id: string; name: string }, expected: PreparedIfcWrite | null, written: Uint8Array | undefined) => {
       const n = expected?.foreignChanges?.length ?? 0;
       if (expected && written && hash(written) === expected.sha256 && n > 0) lines.push(`${doc.name}:${n}`);
     };
     try {
-      for (let step = 0; step < 14; step++) {
-        const doc = docs[next(docs.length)]!, op = ['wis', 'langer', 'ctrlS', 'fout', 'auto', 'als', 'zien'][next(7)]!;
+      for (let step = 0; step < 28; step++) {
+        const ops = ['wis', 'wis', 'langer', 'ctrlS', 'ctrlS', 'fout', 'auto', 'auto', 'als', 'zien'] as const;
+        const doc = docs[next(docs.length)]!, op = ops[next(ops.length)]!;
         log.push(`${op}:${doc.name}`);
         store.getState().switchDocument(doc.id);
-        if (op === 'wis') {
-          const name = LINKED_TASKS.find(t => store.getState().tasks.some(x => x.name === t));
-          if (name) store.getState().deleteTask(taskNamed(store, name)); else longer(store);
-        } else if (op === 'langer') longer(store);
+        if (op === 'wis') { if (!deleteLinked(store)) longer(store); }
+        else if (op === 'langer') longer(store);
         else if (op === 'ctrlS' || op === 'fout') {
           const expected = await expectedFor(store, doc.id);
           if (op === 'fout') handleFaults.set(doc.name, { writeErrorAt: 0 });
@@ -4581,7 +4590,9 @@ for (const [seed, count] of [[11, 2], [12, 3], [13, 5]] as const) {
           lines.length = 0;
         }
         assert.deepEqual(reportLines(store), lines, `na ${log.join(' ')}`);
+        most = Math.max(most, lines.length);
       }
+      assert(most >= 2, `de reeks liet hoogstens ${most} telling(en) tegelijk zien: ${log.join(' ')}`);
     } finally { browser.dispose(); unregister(); await clearRecovery(); }
   });
 }
@@ -4605,9 +4616,9 @@ await check('fixronde 2 van #1199, regel A: vier en meer geschreven bestanden en
 
 async function quitting(context: Awaited<ReturnType<typeof linkedDocuments>>['context']) {
   let destroyed = false;
-  const controller = createAppQuitController(appQuitDependencies(context, {
+  const controller = createAppQuitController({ ...appQuitDependencies(context, {
     stopRecovery: () => () => {}, clearRecovery: async () => {}, destroyWindow: async () => { destroyed = true; },
-  }));
+  }), claimShutdown: () => () => {} });
   const stop = context.store.subscribe(() => { if (controller.active) controller.step(); });
   const answerSave = async () => {
     const store = context.store, id = store.getState().ui.pendingCloseDocId!;
