@@ -85,6 +85,7 @@ export interface OpenedFile {
 export interface OpenDialogOpts {
   /** Extensies (zonder punt, lowercase) die als bytes gelezen moeten worden i.p.v. tekst. */
   binaryExtensions?: string[];
+  beforeRead?: (ref: Extract<FileRef, { kind: 'handle' }>) => void;
 }
 
 /** Extra sturing voor `saveFileDialog` — optioneel (o.a. de voortgangsblad-export).
