@@ -19,7 +19,7 @@ export class IfcxReadError extends Error {
   }
 }
 
-export type IfcxWriteRefusedCode = 'unsupported' | 'inconsistent' | 'self-check';
+export type IfcxWriteRefusedCode = 'unsupported' | 'inconsistent' | 'invalid' | 'self-check';
 
 export class IfcxWriteRefusedError extends Error {
   readonly code: IfcxWriteRefusedCode;

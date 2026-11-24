@@ -1,13 +1,11 @@
-import { addCalendarDays, formatDate, parseDate } from '@/utils/dateUtils';
+import { addCalendarDays, formatDate, MS_PER_DAY, parseDate, parseInstant } from '@/utils/dateUtils';
+import type { Task } from '@/types/task';
+import { finishInstant, shownFinish, shownStart } from '@/utils/taskDates';
 import { isExistingCalendarDate } from './fieldTable';
 
 export function existingDatePart(moment: string): string | undefined {
   const date = moment.slice(0, 10);
   return isExistingCalendarDate(date) ? date : undefined;
-}
-
-function isMidnight(moment: string): boolean {
-  return /^(T00:00(:00(\.0{1,3})?)?)?$/.test(moment.slice(10));
 }
 
 export function nextCalendarDate(date: string): string {
@@ -20,14 +18,21 @@ export interface SharedSpan {
 }
 
 export function projectSpan(start: string, finish: string): SharedSpan {
-  const startDate = existingDatePart(start);
-  if (startDate === undefined) return {};
-  const finishDate = existingDatePart(finish);
-  if (finishDate === undefined || finish <= start) return { start: startDate, endExclusive: nextCalendarDate(startDate) };
-  const endExclusive = isMidnight(finish) ? finishDate : nextCalendarDate(finishDate);
+  if (!start || existingDatePart(start) === undefined) return {};
+  const startMs = parseInstant(start).getTime();
+  if (Number.isNaN(startMs)) return {};
+  const startDate = formatDate(new Date(startMs));
+  const finishMs = finish && existingDatePart(finish) !== undefined ? finishInstant(finish).getTime() : Number.NaN;
+  if (Number.isNaN(finishMs) || finishMs <= startMs) return { start: startDate, endExclusive: nextCalendarDate(startDate) };
+  const finishDayStart = Math.floor(finishMs / MS_PER_DAY) * MS_PER_DAY;
+  const endExclusive = formatDate(new Date(finishMs === finishDayStart ? finishMs : finishDayStart + MS_PER_DAY));
   return { start: startDate, endExclusive: endExclusive > startDate ? endExclusive : nextCalendarDate(startDate) };
 }
 
 export function momentOfSharedDate(date: string): string {
   return `${date}T00:00`;
+}
+
+export function taskWindow(task: Task): SharedSpan {
+  return projectSpan(shownStart(task), shownFinish(task));
 }

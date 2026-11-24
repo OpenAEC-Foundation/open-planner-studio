@@ -7,6 +7,11 @@ export function libraryCalendarsWrittenByStep(input: Pick<WriteIFCInput, 'projec
   return (input.resourceCalendars ?? []).filter(calendar => calendar.id !== input.project.calendarId);
 }
 
+export function defaultGlobalId(kind: IfcObjectKind, id: string, projectId: string): string {
+  const key = ifcObjectSeed(kind, id);
+  return ifcGuid128(kind === 'cal' && id === DEFAULT_CALENDAR_ID ? `${key}@${projectId}` : key);
+}
+
 export function stepGlobalIdsFor(input: WriteIFCInput): GlobalIdOf {
   const preserved = new Map(Object.entries(input.ifcGlobalIds ?? {}));
   const reserved = new Set(preserved.values());
@@ -22,7 +27,7 @@ export function stepGlobalIdsFor(input: WriteIFCInput): GlobalIdOf {
       guid = kept;
     } else {
       const hashSeed = kind === 'cal' && id === DEFAULT_CALENDAR_ID ? `${key}@${input.project.id}` : key;
-      guid = ifcGuid128(hashSeed);
+      guid = defaultGlobalId(kind, id, input.project.id);
       for (let n = 1; used.has(guid) || reserved.has(guid); n++) guid = ifcGuid128(`${hashSeed}#dup${n}`);
     }
     issued.set(key, guid);

@@ -1,7 +1,8 @@
 import { TASK_TYPES, type Task, type TaskStatus, type TaskTime } from '@/types/task';
 import { DEFAULT_PRIORITY } from '../../ifcConstants';
 import {
-  BOOLEAN, CALENDAR_DATE, enumOf, integer, LOCAL_MOMENT_OR_EMPTY, objectOf, membersOf, readFields, REAL, REFERENCE, TEXT,
+  BOOLEAN, CALENDAR_DATE, enumOf, FRACTION, GLOBAL_ID_OUTSIDE_PATH, integer, LOCAL_MOMENT_OR_EMPTY, NON_EMPTY_TEXT, objectOf, membersOf,
+  readFields, REAL, REFERENCE, TEXT,
   writeFields, type IfcxField, type IfcxValue,
 } from '../fieldTable';
 import type { IfcxIdentity } from '../globalIdUuid';
@@ -119,7 +120,7 @@ export const TASK_ACTIVITY_FIELDS: readonly TaskField[] = [
     read: (v, t) => { t.task.time.durationType = (v as TaskTime['durationType'] | undefined) ?? 'WORKTIME'; },
   },
   {
-    key: 'completion', value: REAL, optional: true,
+    key: 'completion', value: FRACTION, optional: true,
     write: s => (s.task.time.completion !== 0 ? s.task.time.completion : undefined),
     read: (v, t) => { t.task.time.completion = (v as number | undefined) ?? 0; },
   },
@@ -137,12 +138,12 @@ export const TASK_ACTIVITY_FIELDS: readonly TaskField[] = [
 
 export const TASK_OPS_FIELDS: readonly TaskField[] = [
   {
-    key: 'id', value: TEXT, optional: true,
+    key: 'id', value: NON_EMPTY_TEXT, optional: true,
     write: s => (s.task.id !== s.identity.path ? s.task.id : undefined),
     read: (v, t) => { t.task.id = (v as string | undefined) ?? t.path; },
   },
   {
-    key: 'globalId', value: TEXT, optional: true,
+    key: 'globalId', value: GLOBAL_ID_OUTSIDE_PATH, optional: true,
     write: s => s.identity.globalIdOutsidePath,
     read: (v, t) => { t.globalIdOutsidePath = v as string | undefined; },
   },
@@ -182,7 +183,7 @@ export const TASK_OPS_FIELDS: readonly TaskField[] = [
     read: (v, t) => setOptional(t.task, 'manuallyScheduled', v as boolean | undefined),
   },
   {
-    key: 'calendarId', value: TEXT, optional: true,
+    key: 'calendarId', value: NON_EMPTY_TEXT, optional: true,
     write: s => (s.task.calendarId !== undefined && s.calendarPath === undefined ? s.task.calendarId : undefined),
     read: (v, t) => setOptional(t.task, 'calendarId', v as string | undefined),
   },
