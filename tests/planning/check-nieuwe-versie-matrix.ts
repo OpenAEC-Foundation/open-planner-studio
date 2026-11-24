@@ -313,7 +313,7 @@ async function runRoute(route: Route, c: Case) {
       const version = (hash: string) => versionNames.get(hash) ?? 'eigen opslag';
       return JSON.stringify([
         ref, payload.tasks.map(t => t.name), payload.isDirty, T().documents.find(d => d.id === id)?.changedOnDisk === true,
-        payload.project.name, payload.ifcSource ? version(payload.ifcSource.sha256) : null, payload.ifcSource?.byteLength ?? null,
+        payload.project.name, payload.ifcSource ? version(payload.ifcSource.sha256) : null, payload.ifcSource?.bytes.byteLength ?? null,
         known ? [version(known.sha256), known.byteLength, !!disk && sha(disk) === known.sha256 && disk.byteLength === known.byteLength] : null,
       ]);
     }).sort();
