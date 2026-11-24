@@ -11,6 +11,8 @@ export interface RecentEntry {
   addedAt: number;
 }
 
+export type RecentTarget = Pick<RecentEntry, 'id' | 'name' | 'ref'>;
+
 const DB = 'ops-recent-files';
 const STORE = 'recents';
 const MAX = 10;

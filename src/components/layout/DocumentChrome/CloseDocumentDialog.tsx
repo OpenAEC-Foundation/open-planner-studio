@@ -33,7 +33,7 @@ export function CloseDocumentDialog() {
   const closeDocumentAfterSaves = useAppStore((s) => s.closeDocumentAfterSaves);
   const switchDocument = useAppStore((s) => s.switchDocument);
   const saveFileForDocument = useAppStore((s) => s.saveFileForDocument);
-  const loadNewVersionAfterDiscard = useAppStore((s) => s.loadNewVersionAfterDiscard);
+  const finishCloseQuestion = useAppStore((s) => s.finishCloseQuestion);
   const openerRef = useRef<HTMLElement | null>(null);
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
   const actionGateRef = useRef<CloseDocumentActionGate | null>(null);
@@ -69,9 +69,9 @@ export function CloseDocumentDialog() {
     pendingId,
     getActiveDocumentId: () => useAppStore.getState().activeDocumentId,
     switchDocument,
-    closeDocument: loadsNewVersion ? (id) => loadNewVersionAfterDiscard(id, buildImportLabels(t)) : closeDocumentAfterSaves,
+    closeDocument: closeDocumentAfterSaves,
     saveFile: () => saveFileForDocument(pendingId),
-    clearPending: () => { setUI({ pendingCloseDocId: null }); },
+    clearPending: () => { void finishCloseQuestion(pendingId, buildImportLabels(t)); },
     restoreOpenerFocus,
     onSavePendingChange: (pending) => { setUI({ closeQuestionSaving: pending }); },
   });

@@ -61,7 +61,7 @@ import {
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import { capturedTargetReaders, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
-import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
+import { loadRecents, addRecent, removeRecent, type RecentEntry, type RecentTarget } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSliceFactory, ExternalSourceUpdate, NotifyInput, NotificationDetailLine } from './types';
 import type { AppState } from '../appStore';
@@ -418,7 +418,7 @@ export interface FileSlice {
   openFromSite: (id: string, labels?: ImportLabels) => Promise<boolean>;
   markChangedOnDisk: (documentId: string) => void;
   loadNewVersion: (labels?: ImportLabels, gate?: DocumentLeaveGate) => Promise<void>;
-  loadNewVersionAfterDiscard: (documentId: string, labels?: ImportLabels) => Promise<boolean>;
+  finishCloseQuestion: (documentId: string, labels?: ImportLabels) => Promise<void>;
   forgetChangedOnDisk: (documentId: string) => void;
   parseExternalSource: (filePath: string, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
   externalSourceVersion: (filePath: string) => Promise<string | undefined>;
@@ -1087,7 +1087,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return { name, content: content ?? '', ...(bytes ? { bytes } : {}), ref };
   };
 
-  const openRecentEntry = async (entry: RecentEntry, labels?: ImportLabels) => {
+  const openRecentEntry = async (entry: RecentTarget, labels?: ImportLabels) => {
     if (entry.ref.kind === 'site') {
       await openRecentSiteFile(entry, labels);
       return;
@@ -1105,32 +1105,21 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
   };
 
-  let newVersionRunning = false;
-
-  const reopenRecentEntry = (entry: RecentEntry, labels?: ImportLabels) => {
+  const reopenAfterClose = async (documentId: string, target: RecentTarget, labels?: ImportLabels) => {
+    if (get().documents.some((d) => d.id === documentId) || get().ui.appQuitPending) return;
     if (get().ui.activeRibbonTab === 'file') get().setUI({ activeRibbonTab: 'start' });
-    return openRecentEntry(entry, labels);
+    await openRecentEntry(target, labels);
   };
 
-  const closeThenReopen = async (labels?: ImportLabels) => {
-    const state = get();
-    const documentId = state.activeDocumentId;
-    const ref = saveTargetRef(state);
-    if (!ref) return;
-    const entry = state.recentFiles.find((e) => sameFileRef(e.ref, ref))
-      ?? { id: '', ref, name: ref.kind === 'handle' ? ref.handle.name : ref.kind === 'path' ? basename(ref.path) : state.filePath ?? '', addedAt: 0 };
-    newVersionRunning = true;
-    try {
-      for (let saving = get().waitForSavesBeforeClose(); saving; saving = get().waitForSavesBeforeClose()) await saving;
-      get().requestCloseDocument(documentId);
-      if (!get().documents.some((d) => d.id === documentId)) await reopenRecentEntry(entry, labels);
-      else if (get().ui.pendingCloseDocId === documentId) get().setUI({ pendingCloseReopen: entry });
-    } finally {
-      newVersionRunning = false;
-    }
+  const closeThenReopen = async (documentId: string, target: RecentTarget, labels?: ImportLabels) => {
+    for (let saving = get().waitForSavesBeforeClose(); saving; saving = get().waitForSavesBeforeClose()) await saving;
+    if (!get().documents.some((d) => d.id === documentId)) return;
+    get().requestCloseDocument(documentId);
+    if (get().ui.pendingCloseDocId === documentId) get().setUI({ pendingCloseReopen: target });
+    else await reopenAfterClose(documentId, target, labels);
   };
 
-  const openRecentSiteFile = async (entry: RecentEntry, labels?: ImportLabels) => {
+  const openRecentSiteFile = async (entry: RecentTarget, labels?: ImportLabels) => {
     if (entry.ref.kind !== 'site') return;
     try {
       await openSiteChoice({ kind: 'site', id: entry.ref.id }, labels);
@@ -2547,17 +2536,21 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     },
 
     loadNewVersion: async (labels, gate = { blocked: () => isBlockingDialogOpen(get().ui), leave: (proceed) => proceed() }) => {
-      if (newVersionRunning || gate.blocked() || !changedOnDiskShown(get())) return;
+      const state = get();
+      const documentId = state.activeDocumentId;
+      const ref = saveTargetRef(state);
+      if (!ref || gate.blocked() || !changedOnDiskShown(state)) return;
+      const target: RecentTarget = state.recentFiles.find((e) => sameFileRef(e.ref, ref))
+        ?? { id: '', ref, name: ref.kind === 'handle' ? ref.handle.name : ref.kind === 'path' ? basename(ref.path) : state.filePath ?? '' };
       let run: Promise<void> | null = null;
-      gate.leave(() => { run = closeThenReopen(labels); });
+      gate.leave(() => { run = closeThenReopen(documentId, target, labels); });
       if (run) await run;
     },
 
-    loadNewVersionAfterDiscard: async (documentId, labels) => {
-      const entry = get().ui.pendingCloseReopen;
-      const closed = await get().closeDocumentAfterSaves(documentId);
-      if (closed && entry) void reopenRecentEntry(entry, labels);
-      return closed;
+    finishCloseQuestion: async (documentId, labels) => {
+      const target = get().ui.pendingCloseDocId === documentId ? get().ui.pendingCloseReopen : null;
+      get().setUI({ pendingCloseDocId: null });
+      if (target) await reopenAfterClose(documentId, target, labels);
     },
 
     markChangedOnDisk: (documentId) => {
