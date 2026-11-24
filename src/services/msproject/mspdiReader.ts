@@ -166,6 +166,16 @@ function getTaskElementInt(te: Element, tagName: string, fallback = 0): number {
   return toInt(getTaskElementText(te, tagName), fallback);
 }
 
+function hasBaselineTimeSignal(te: Element): boolean {
+  const baselineEls = te.getElementsByTagName('Baseline');
+  for (let i = 0; i < baselineEls.length; i++) {
+    const bEl = baselineEls[i];
+    if (bEl.parentElement !== te) continue;
+    if (xmlTimeSignal(getElementText(bEl, 'Start')) || xmlTimeSignal(getElementText(bEl, 'Finish'))) return true;
+  }
+  return false;
+}
+
 function readAvailabilityPeriods(resEl: Element): MspdiAvailabilityPeriod[] {
   const rows = resEl.getElementsByTagName('AvailabilityPeriod');
   const periods: MspdiAvailabilityPeriod[] = [];
@@ -350,7 +360,8 @@ export function readMSPDI(content: string): ImportResult {
     const durSignal = durMin != null && isSubDayMinutes(durMin, cal.hoursPerDay);
     const dateSignal = literalCalIds
       ? literalCalIds.has(calId)
-      : ['Start', 'Finish', 'ActualStart', 'ActualFinish'].some(field => xmlTimeSignal(getTaskElementText(te, field)));
+      : ['Start', 'Finish', 'ActualStart', 'ActualFinish'].some(field => xmlTimeSignal(getTaskElementText(te, field)))
+        || hasBaselineTimeSignal(te);
     if (durSignal || dateSignal) cSignalCalIds.add(calId);
   }
   const hourModeCalIds = promoteHourCalendars(calById, id => cSignalCalIds.has(id), false);
