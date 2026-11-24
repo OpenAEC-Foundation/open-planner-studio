@@ -16,7 +16,7 @@ parentPort.on('message', async ({ text, bytes, output }) => {
     const summary = doc.schedule();
     if (output !== 'ifc') {
       parentPort.postMessage({ ok: true, summary });
-    } else if (!asBytes) {
+    } else if (summary.foreignContent === null) {
       parentPort.postMessage({ ok: true, ifc: doc.toIfc() });
     } else {
       const ifcBytes = await doc.toIfcBytes();

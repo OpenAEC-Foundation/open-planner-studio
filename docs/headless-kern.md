@@ -66,33 +66,29 @@ Daarom is de keuze van de ingang hier de flag:
   opent en rekent, maar `toIfc()` weigert vóór uitvoer met `IFC_WRITE_FAILED`; `details.reason` is de uitkomst van de
   scan (`foreign`, `unreadable`, …): de tekstroute bewaart dat deel niet. `foreignContent` is op deze route altijd `null`.
   `toIfcBytes()` van zo'n document is de UTF-8 van `toIfc()`, met dezelfde weigering.
-- `openIfcBytes(bytes)` en `toIfcBytes()` zijn de bytes-route, zoals de app met de flag aan: de kern zet de flag in de
-  eigen context van het document. De app zelf gebruikt de kern niet; met de flag uit blijft zij gelijk aan main. De
-  kern kopieert de invoer: wie zijn buffer daarna wijzigt, verandert het document niet. Het lezen is dezelfde
-  bytes-route als Bestand → Openen (`readIfcBytes`, de scanner zonder Worker). Alleen de technische grens van 300 MiB
-  geldt (`IFC_FOREIGN_SCAN_MAX_BYTES`), niet de productgrens van 150 MiB voor het openen in de app (ontwerp §4.13).
-  `toIfcBytes()` beslist en schrijft zoals Ctrl+S (`prepareIfcOutput` met `buildWriteIFCInput(…, 'merge')`). Zonder
-  vreemd deel is dat dezelfde IFC als `toIfc()`. Met een vreemd deel blijft alles wat niet de eigen planning is byte voor
-  byte staan; verandert de planning niet, dan komt het hele bestand byte-gelijk terug, ook na `schedule()` en ook met
-  bytes die geen geldige UTF-8 zijn. Een UTF-8-BOM vóór de kop hoort bij de kop: de bewaakte samenvoeging (een bestand
-  met een vreemd deel) laat hem staan; de gewone schrijver (een bestand zonder vreemd deel) schrijft zonder BOM, zoals
-  main. Kan de samenvoeging
-  het vreemde deel bij de wijziging nog niet bewaren, dan weigert hij vóór uitvoer met `IFC_WRITE_FAILED` en
-  `details.reason` `merge-needs-phase2`; fase 2 van #804 maakt die gevallen kleiner. `toIfc()` van een document met een
-  vreemd deel weigert met `details.reason` `foreign`: als tekst zouden bytes die geen geldige UTF-8 zijn verloren gaan.
-- Van een IFC2X3-bestand bewaart de bytes-route alleen de planning (ontwerp §4.11): de app opent zo'n bestand met de
-  melding dat alleen de planning blijft. Staat er naast de planning nog iets in (bijv. een externe pset), dan weigeren
-  `toIfc()` en `toIfcBytes()` vóór uitvoer met `details.reason` `ifc2x3-planning-only`; de tekstroute weigert hetzelfde
-  bestand met `foreign`. Een IFC2X3-planning zonder iets ernaast schrijft gewoon, zoals op de tekstroute.
-- **De bytes-ingang weigert nooit iets wat main aannam.** Kan de bytes-route de invoer niet lezen (elke leesfout:
-  `INVALID_INPUT` of `IFC_READ_FAILED`), dan opent `openIfcBytes` dezelfde bytes via precies de tekstroute van main:
-  decoderen als UTF-8 (de BOM blijft daarbij staan, zoals `Buffer.toString`), dan `openIfc`, dat een BOM en voorloop
-  weghaalt. Zo'n document is een tekstdocument, met alle controles van main: `foreignContent` is `null` en schrijven
-  weigert waar main weigerde (bijv. `foreign`). De fout van de tekstroute is dan de fout die terugkomt. Voorbeelden: een
-  oude eigen export (v2026.7.12) met BOM, een dubbele BOM, een BOM na een spatie, U+00A0 na een BOM. De terugval geldt
-  alleen voor lezen dat mislukt: een document dat de bytes-route wel leest maar niet mag schrijven (`foreign`,
-  `merge-needs-phase2`, `ifc2x3-planning-only`), blijft geweigerd. De keuze valt in `openIfcBytes`, omdat daar vaststaat
-  of de bytes-route de invoer kon lezen; zo geldt de regel voor elke afnemer van de kern, ook de HTTP-API.
+- **`openIfcBytes(bytes)` kiest de bytes-route alleen waar main niet kon schrijven** (`src/core/index.ts`,
+  `openIfcBytes` en `documentKeepingForeignContent`). De kern maakt één eigen kopie van de invoer; wie zijn buffer
+  daarna wijzigt, verandert niets. Met die kopie probeert hij de bytes-route van de app met de flag aan
+  (`readIfcBytes`, de scanner zonder Worker; de kern zet de flag in de eigen context van het document). Levert die een
+  document waarvan de bron een vreemd deel draagt (`hasForeignContent(ifcSource)`, het kenmerk van de app), dan is dat
+  het document: main las zo'n bestand en weigerde het te schrijven, nu blijft het vreemde deel bewaard. In **elk** ander
+  geval (de bytes-route kan niet lezen; ze leest maar er is geen vreemd deel; de IFC2X3-terugval; nul taken; welke fout
+  dan ook) opent dezelfde kopie via precies de tekstroute van main: decoderen als UTF-8 met de BOM erin (zoals
+  `Buffer.toString` op main), dan `openIfc`. Dat document is in alles een tekstdocument van main: dezelfde samenvatting,
+  dezelfde schrijfcontroles (ook de vreemdedeelscan vóór uitvoer), dezelfde bytes en dezelfde fouten. Een verzoek dat
+  main volledig afhandelde, krijgt zo de uitkomst van main; niets wordt strenger dan main.
+- Welk soort document het is, zegt `foreignContent` in de samenvatting: niet `null` is een document dat een vreemd deel
+  bewaart, `null` een tekstdocument. Schrijf een tekstdocument met `toIfc()` (zoals main; `toIfcBytes()` geeft er de
+  UTF-8 van). Schrijf een document met een vreemd deel met `toIfcBytes()`: dat beslist en schrijft zoals Ctrl+S
+  (`prepareIfcOutput` met `buildWriteIFCInput(…, 'merge')`). Byte voor byte blijven dan het vreemde deel en de kop staan,
+  ook een UTF-8-BOM vóór de kop en bytes die geen geldige UTF-8 zijn; verandert de planning niet, dan komt het hele
+  bestand byte-gelijk terug, ook na `schedule()`. Kan de samenvoeging het vreemde deel bij de wijziging nog niet
+  bewaren, dan weigert hij vóór uitvoer met `IFC_WRITE_FAILED` en `details.reason` `merge-needs-phase2`; fase 2 van #804
+  maakt die gevallen kleiner. `toIfc()` van zo'n document weigert met `details.reason` `foreign`. Alleen de technische
+  grens van 300 MiB geldt (`IFC_FOREIGN_SCAN_MAX_BYTES`), niet de productgrens van 150 MiB van de app (ontwerp §4.13).
+- Een IFC2X3-bestand bewaart de bytes-route niet (ontwerp §4.11), dus het loopt de tekstroute van main: een planning
+  zonder iets ernaast schrijft, een planning met bijv. een externe pset weigert schrijven met `foreign`, met of zonder
+  BOM.
 - Het ontwerp zegt dat `openIfc(text)`/`toIfc()` blijven en alleen byte-gelijk zijn voor geldige UTF-8. Dat geldt pas als
   de flag er in de app af gaat (#804, PR 13): tot dan blijft de tekstroute gelijk aan main.
 
@@ -128,10 +124,10 @@ De samenvatting (`formatVersion: 1`) bevat:
   hierboven;
 - `foreignContent`: wat het document naast de planning bewaart en ongewijzigd terugschrijft (een gebouwmodel, gegevens
   van andere programma's), als `{ format: 'ifc', schema, objectCount }`: `schema` is de schemanaam uit de kop
-  (`IFC4X3_ADD2`, `IFC4`, …), `objectCount` het aantal entiteiten dat niet tot de eigen planning hoort. `null` op de
-  tekstroute (ook na de terugval van `openIfcBytes`), bij een IFC2X3-bestand (daarvan bewaart de bytes-route alleen de
-  planning, ook als er meer in stond) en als er naast de planning niets is. `null` zegt dus niet dat de invoer niets naast
-  de planning had. Samenvatten doet geen schrijfcontrole: of schrijven mag, zegt pas `toIfc()` of `toIfcBytes()`.
+  (`IFC4X3_ADD2`, `IFC4`, …), `objectCount` het aantal entiteiten dat niet tot de eigen planning hoort. `null` bij elk
+  tekstdocument: van `openIfc`, en van `openIfcBytes` als de bytes-route niets bewaart (ook bij een IFC2X3-bestand met
+  meer dan de planning). `null` zegt dus niet dat de invoer niets naast de planning had. Samenvatten doet geen
+  schrijfcontrole: of schrijven mag, zegt pas `toIfc()` of `toIfcBytes()`.
 
 Datums zijn ISO-8601-tekst zoals de app ze bewaart: een datum (`2027-03-01`) of, bij urenplanning,
 datum en tijd.
@@ -145,10 +141,10 @@ niet om te parsen.
 | code | wanneer |
 |---|---|
 | `INVALID_INPUT` | De invoer is geen tekst (`openIfc`) of geen `Uint8Array` (`openIfcBytes`), is leeg, of begint (na een eventuele BOM en witruimte) niet met `ISO-10303-21;`. |
-| `IFC_READ_FAILED` | De IFC-lezer kan het bestand niet lezen, of het openen in de store mislukt (bijv. bij een extreem diepe WBS, knownbugs.md). Ook: een gebouwmodel op de tekstroute, en op de bytes-route een bestand dat de bytes-route niet veilig kan openen (een IFC2X3-model, een scan die faalt, boven 300 MiB met vreemde inhoud). |
+| `IFC_READ_FAILED` | De IFC-lezer kan het bestand niet lezen, of het openen in de store mislukt (bijv. bij een extreem diepe WBS, knownbugs.md). Ook: een gebouwmodel op de tekstroute. `openIfcBytes` geeft de fouten van de tekstroute van main, behalve voor een bestand waarvan de bytes-route het vreemde deel bewaart. |
 | `NO_TASKS` | Het bestand heeft geen taken. |
 | `SCHEDULE_FAILED` | De planning is niet te berekenen, bijv. door een kring in de relaties, of de berekening gooit een fout. `details.reason` heeft de solvertekst, `details.taskIds` de taken van de kring. |
-| `IFC_WRITE_FAILED` | Het schrijven naar IFC mislukt of wordt vóór uitvoer geweigerd. `details.reason` (type `IfcWriteRefusalReason`): `foreign` (een vreemd deel dat deze route niet bewaart), `model` of `unreadable` (de andere scanuitkomsten van de tekstroute), `merge-needs-phase2` (de samenvoeging kan het vreemde deel bij deze wijziging nog niet bewaren), `ifc2x3-planning-only` (een IFC2X3-bestand met iets naast de planning; daarvan blijft alleen de planning). |
+| `IFC_WRITE_FAILED` | Het schrijven naar IFC mislukt of wordt vóór uitvoer geweigerd. `details.reason` (type `IfcWriteRefusalReason`): `foreign` (een vreemd deel dat deze route niet bewaart), `model` of `unreadable` (de andere scanuitkomsten van de tekstroute), `merge-needs-phase2` (de samenvoeging kan het vreemde deel bij deze wijziging nog niet bewaren). |
 
 ## Versiemodel
 
@@ -191,7 +187,7 @@ Met `--bytes` gebruikt het voorbeeld `openIfcBytes` en `toIfcBytes()`. Het voorb
 
 | test | wat hij bewijst |
 |---|---|
-| `tests/planning/check-headless-core.ts` | Voor elk voorbeeld in `examples/` en `public/examples/` geeft de kern dezelfde datums, speling, kritieke vlag, projecteinde en kritiek pad als de app-store (`loadState` → `runCPM`). Verder: `toIfc` → `openIfc` geeft dezelfde datums, twee documenten zijn los, de foutcodes kloppen (ook 6.000 geneste taken geeft een `PlannerCoreError`), een weggelaten XER-archief geeft `XER_ARCHIVE_DROPPED`, `toIfc()` vóór `schedule()` is gelijk aan de app na openen, en een oud bestand meldt `MINUTE_MODEL_CONVERTED` in `openWarnings` (een nieuw bestand niet). De bytes-route: voor elk voorbeeld dezelfde samenvatting en byte voor byte dezelfde IFC als de tekstroute (bij één vaste schrijftijd); een eigen planning met een gebouwmodel en een model met een rauw Latin-1-byte komen byte-gelijk terug, vóór en na `schedule()`, met `foreignContent` en dezelfde datums als de app met de flag aan; een externe pset blijft staan; een IFC met UTF-8-BOM opent in kern en app met dezelfde samenvatting als via tekst, en een modelbestand met BOM komt byte-gelijk terug, ook na een merge met een gewijzigde taaknaam (BOM en modelregels blijven staan); een IFC2X3-planning met externe pset weigert beide schrijfingangen; de weigeringen (`foreign`, `merge-needs-phase2`, `ifc2x3-planning-only`) en de invoerfouten. |
+| `tests/planning/check-headless-core.ts` | Voor elk voorbeeld in `examples/` en `public/examples/` geeft de kern dezelfde datums, speling, kritieke vlag, projecteinde en kritiek pad als de app-store (`loadState` → `runCPM`). Verder: `toIfc` → `openIfc` geeft dezelfde datums, twee documenten zijn los, de foutcodes kloppen (ook 6.000 geneste taken geeft een `PlannerCoreError`), een weggelaten XER-archief geeft `XER_ARCHIVE_DROPPED`, `toIfc()` vóór `schedule()` is gelijk aan de app na openen, en een oud bestand meldt `MINUTE_MODEL_CONVERTED` in `openWarnings` (een nieuw bestand niet). De bytes-route: voor elk voorbeeld dezelfde samenvatting en byte voor byte dezelfde IFC als de tekstroute (bij één vaste schrijftijd); een eigen planning met een gebouwmodel en een model met een rauw Latin-1-byte komen byte-gelijk terug, vóór en na `schedule()`, met `foreignContent` en dezelfde datums als de app met de flag aan; een externe pset blijft staan; een IFC met UTF-8-BOM opent in kern en app met dezelfde samenvatting als via tekst, en een modelbestand met BOM komt byte-gelijk terug, ook na een merge met een gewijzigde taaknaam (BOM en modelregels blijven staan); een IFC2X3-planning met en zonder externe pset, met en zonder BOM, schrijft of weigert zoals main; de weigeringen (`foreign`, `merge-needs-phase2`) en de invoerfouten. En één lus die de regel van `openIfcBytes` pint: voor het hele corpus (de voorbeelden, de oude-tags-fixtures, een IFC2X3-planning, een leeg eigen werkschema met één baselinetaak), kaal, met BOM en met BOM en een spatie, geeft `openIfcBytes` dezelfde samenvatting, uitvoer en fouten als de tekstingang van main, en bewaart hij alleen een vreemd deel waar main het schrijven weigerde. |
 | `npm run verify:core-package` | Bouwt het pakket, maakt een tarball met `npm pack`, installeert die in een kopie van het consumeervoorbeeld, controleert `THIRD-PARTY-NOTICES.md`, draait het voorbeeld (verwachte uitkomst, herberekend IFC, foutcode; met `--bytes` een modelbestand dat byte-gelijk terugkomt, en hetzelfde bestand als tekst geweigerd) en typecheckt een kleine TypeScript-consument tegen de declaraties. |
 | `tests/planning/check-store-runtime-boundaries.ts` | De grens: een waarde-import uit `appStore` in `src/core/` maakt `verify:store-boundaries` rood. |
 

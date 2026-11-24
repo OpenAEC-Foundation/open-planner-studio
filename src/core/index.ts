@@ -90,42 +90,26 @@ export async function openIfcBytes(bytes: Uint8Array): Promise<PlannerDocument> 
   if (!(bytes instanceof Uint8Array)) {
     throw new PlannerCoreError('INVALID_INPUT', 'IFC input must be a Uint8Array');
   }
-  try {
-    return await openViaBytesRoute(bytes);
-  } catch (err) {
-    if (!(err instanceof PlannerCoreError) || !BYTES_ROUTE_READ_FAILURES.has(err.code)) throw err;
-    return openIfc(new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes));
-  }
+  const ownBytes = new Uint8Array(bytes);
+  return await documentKeepingForeignContent(ownBytes)
+    ?? openIfc(new TextDecoder('utf-8', { ignoreBOM: true }).decode(ownBytes));
 }
 
-const BYTES_ROUTE_READ_FAILURES: ReadonlySet<CoreErrorCode> = new Set(['INVALID_INPUT', 'IFC_READ_FAILED']);
-
-async function openViaBytesRoute(bytes: Uint8Array): Promise<PlannerDocument> {
-  if (!startsWithStepHeader(bytes)) {
-    throw new PlannerCoreError('INVALID_INPUT', `IFC input must start with "${STEP_HEADER}"`);
+async function documentKeepingForeignContent(bytes: Uint8Array): Promise<PlannerDocument | null> {
+  if (!startsWithStepHeader(bytes)) return null;
+  let opened: OpenedCoreDocument;
+  try {
+    const parsed = await readIfcBytes(bytes, {}, { createWorker: () => null });
+    if (!hasForeignContent(parsed.ifcSource)) return null;
+    opened = openParsed(parsed, BYTES_ROUTE_FLAGS);
+  } catch {
+    return null;
   }
-  const ownBytes = new Uint8Array(bytes);
-  const parsed = await readOrFail(() => readIfcBytes(ownBytes, {}, { createWorker: () => null }));
-  const opened = openParsed(parsed, BYTES_ROUTE_FLAGS);
-  const keptOnlyThePlanningOfIfc2x3 = parsed.ifcLegacySchemaLoss === true;
-  let ifc2x3PlanningOnly: boolean | undefined;
-  const refuseIfc2x3Loss = () => {
-    ifc2x3PlanningOnly ??= keptOnlyThePlanningOfIfc2x3 && plainWriteRefusal(scanForeignTargetBytes(ownBytes)) !== null;
-    if (ifc2x3PlanningOnly) {
-      throw writeRefused('ifc2x3-planning-only',
-        'This IFC2X3 file has content besides the schedule; of an IFC2X3 file only the schedule is kept, so writing it would lose that content.');
-    }
-  };
   const toIfc = (): string => {
-    refuseIfc2x3Loss();
-    if (hasForeignContent(opened.state().ifcSource)) {
-      throw writeRefused('foreign',
-        'This document keeps foreign content (a building model or data of another program); write it with toIfcBytes().');
-    }
-    return plainIfc(opened.state());
+    throw writeRefused('foreign',
+      'This document keeps foreign content (a building model or data of another program); write it with toIfcBytes().');
   };
   const toIfcBytes = async (): Promise<Uint8Array> => {
-    refuseIfc2x3Loss();
     const s = opened.state();
     let output: IfcOutput;
     try {

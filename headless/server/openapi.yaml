@@ -10,17 +10,17 @@ info:
     recalculated IFC file. The API stores nothing: every request stands alone.
 
     Send the file as `application/octet-stream` to keep a building model and the data of other
-    programs: the API then reads the bytes as they are and returns the recalculated file as bytes,
-    with everything that is not the schedule byte for byte as it was. A UTF-8 byte order mark before
-    the header is accepted; a file with foreign content keeps it, a file without foreign content comes
-    back without it, as before. When the bytes route cannot read an upload, the API reads the same body
-    as UTF-8 text, exactly as the text route does: an `application/octet-stream` upload that was
-    accepted before is never refused, and the API then only writes where the text route writes. Of an
-    IFC2X3 file only the schedule is kept: when such a file has
-    other content, `output=ifc` gives 500 `IFC_WRITE_FAILED` with `details.reason`
-    `ifc2x3-planning-only` instead of a file without that content. The other request types are read
-    as UTF-8 text; that route refuses a file with a building model (422 `IFC_READ_FAILED`) and does
-    not write a file with foreign content (500 `IFC_WRITE_FAILED`).
+    programs. The API then reads the bytes as they are. It keeps them only where the text route could
+    not write the file: when the file has content besides the schedule that the bytes route reads and
+    keeps (`foreignContent` in the summary is not `null`). Then `output=ifc` returns the recalculated
+    file as `application/octet-stream`, with that content and the header (also a UTF-8 byte order
+    mark) byte for byte as they were; without changes to the schedule the whole file comes back. Every
+    other `application/octet-stream` request is handled exactly as the text route handles the same body
+    decoded as UTF-8, and gets the same answer: the same summary, status and error, and for
+    `output=ifc` the same file as `application/x-step`. That includes an IFC2X3 file, which the bytes
+    route does not keep. The other request types are read as UTF-8 text; that route refuses a file with
+    a building model (422 `IFC_READ_FAILED`) and does not write a file with foreign content (500
+    `IFC_WRITE_FAILED`).
 
     Every path that is not listed answers 404 `NOT_FOUND`.
 
@@ -75,7 +75,7 @@ paths:
         - name: output
           in: query
           required: false
-          description: '`summary` (default) gives the JSON summary; `ifc` gives the recalculated IFC file, as bytes (`application/octet-stream`) when the request was bytes, otherwise as text (`application/x-step`).'
+          description: '`summary` (default) gives the JSON summary; `ifc` gives the recalculated IFC file: as bytes (`application/octet-stream`) when the document keeps foreign content (only after an `application/octet-stream` request), otherwise as text (`application/x-step`).'
           schema:
             type: string
             enum: [summary, ifc]
@@ -120,16 +120,16 @@ paths:
             application/x-step:
               schema:
                 type: string
-                description: The recalculated IFC file as text (when `output=ifc` and the request was text).
+                description: The recalculated IFC file as text (when `output=ifc` and the document keeps no foreign content).
             application/octet-stream:
               schema:
                 type: string
                 format: binary
                 description: |
-                  The recalculated IFC file as bytes (when `output=ifc` and the request was
-                  `application/octet-stream`). A building model and the data of other programs come back
-                  byte for byte; without changes to the schedule the whole file does. Not for an IFC2X3
-                  file with content besides the schedule: that gives 500 `IFC_WRITE_FAILED`.
+                  The recalculated IFC file as bytes (when `output=ifc`, the request was
+                  `application/octet-stream` and the document keeps foreign content). The foreign content
+                  and the header come back byte for byte; without changes to the schedule the whole file
+                  does.
         '400':
           description: '`INVALID_INPUT` (the body, as text or as bytes, does not start with `ISO-10303-21;` after an optional byte order mark and white space) or `BAD_REQUEST` (unknown `output`, or a request target that is not a valid URL).'
           content:
@@ -181,8 +181,7 @@ paths:
             is known: `foreign` (the file has foreign content that this route does not keep; on the text
             route, send it as `application/octet-stream`), `model` or `unreadable` (other scan results of
             the text route), `merge-needs-phase2` (bytes route: the foreign content cannot be preserved with
-            the recalculated schedule yet), or `ifc2x3-planning-only` (bytes route: an IFC2X3 file with
-            content besides the schedule, of which only the schedule is kept).
+            the recalculated schedule yet).
           content:
             application/json:
               schema:
@@ -370,11 +369,11 @@ components:
         foreignContent:
           description: |
             What the document keeps besides the schedule (a building model, the data of other programs)
-            and writes back unchanged. Only the bytes route (`application/octet-stream`) keeps it. `null` on
-            the text route (also when the API fell back to it), for an IFC2X3 file (of which only the
-            schedule is kept, even when the file had more), and when the file has nothing besides the
-            schedule. So `null` does not say that the input had nothing besides the schedule. The summary
-            does not check writing; `output=ifc` does.
+            and writes back unchanged; not `null` only after an `application/octet-stream` request whose
+            content the bytes route keeps. `null` for every request handled by the text route, including an
+            IFC2X3 file and a file with more than the schedule that the bytes route does not keep. So `null`
+            does not say that the input had nothing besides the schedule. The summary does not check
+            writing; `output=ifc` does.
           oneOf:
             - type: 'null'
             - $ref: '#/components/schemas/ForeignContent'

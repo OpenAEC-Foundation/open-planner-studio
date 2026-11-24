@@ -123,7 +123,7 @@ for (const file of files) {
   const bytesIfc = await atOneWriteTime(() => bytesDoc.toIfcBytes());
   ok(`9b ${name}: toIfcBytes() schrijft byte voor byte dezelfde IFC als toIfc() van de tekstroute`,
     sameBytes(bytesIfc, encoded(textIfc)), firstLineDiff(utf8(bytesIfc), textIfc));
-  const bytesDocText = await atOneWriteTime(() => bytesDoc.toIfc());
+  const bytesDocText = await atOneWriteTime(() => bytesDoc.toIfc()).catch((e: unknown) => `schrijven weigerde: ${String(e)}`);
   ok(`9c ${name}: toIfc() van een bytesdocument zonder vreemd deel = toIfc() van de tekstroute`,
     bytesDocText === textIfc, firstLineDiff(bytesDocText, textIfc));
   const textDocBytes = await atOneWriteTime(() => doc.toIfcBytes());
@@ -642,6 +642,11 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
       return e instanceof PlannerCoreError ? `${e.code}:${String(e.details.reason)}` : String(e);
     }
   };
+  const reused = new Uint8Array([...UTF8_BOM, 0x20, ...oldOps]);
+  const pending = openIfcBytes(reused);
+  reused.fill(0x20);
+  ok('17d de tekstroute leest de eigen kopie van de invoer, ook als de aanroeper zijn buffer meteen hergebruikt',
+    await codeOf(async () => (await pending).schedule()) === 'geen fout');
   const fallbackDoc = await openIfcBytes(doubleBomPset);
   ok('17a dubbele BOM met externe pset: de terugval leest de planning', fallbackDoc.schedule().counts.tasks > 0);
   eqText('17b en schrijven weigert zoals main, met reason foreign', await refusedWrite(() => fallbackDoc.toIfcBytes()), 'IFC_WRITE_FAILED:foreign');
@@ -657,25 +662,48 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
 {
   const describe = (e: unknown): string => e instanceof PlannerCoreError ? `${e.code}:${String(e.details.reason ?? '')}` : `ander fouttype: ${String(e)}`;
   const digest = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
-  async function outcome(open: () => Promise<PlannerDocument>, write: (doc: PlannerDocument) => Promise<Uint8Array>): Promise<string[]> {
+  type Write = (doc: PlannerDocument, summary: ScheduleSummary) => Promise<Uint8Array>;
+  interface Outcome { open: string; summary?: ScheduleSummary; http?: string; bytes?: string }
+  const outcome = (open: () => Promise<PlannerDocument>, asHttp: Write, asBytes: Write): Promise<Outcome> => atOneWriteTime(async () => {
     let doc: PlannerDocument;
-    try { doc = await open(); } catch (e) { return [`openen ${describe(e)}`]; }
-    let summary: string;
-    try { summary = JSON.stringify(doc.schedule()); } catch (e) { return ['open', `rekenen ${describe(e)}`]; }
-    let ifc: string;
-    try { ifc = digest(await atOneWriteTime(() => write(doc))); } catch (e) { ifc = `schrijven ${describe(e)}`; }
-    return ['open', summary, ifc];
+    try { doc = await open(); } catch (e) { return { open: describe(e) }; }
+    let summary: ScheduleSummary;
+    try { summary = doc.schedule(); } catch (e) { return { open: 'open', http: `rekenen ${describe(e)}` }; }
+    const written = async (write: Write) => {
+      try { return digest(await write(doc, summary)); } catch (e) { return `schrijven ${describe(e)}`; }
+    };
+    return { open: 'open', summary, http: await written(asHttp), bytes: await written(asBytes) };
+  });
+  const wrote = (result: string | undefined) => !!result && /^[0-9a-f]{64}$/.test(result);
+  function ruleBroken(main: Outcome, viaBytes: Outcome): string {
+    if (main.open !== viaBytes.open) return `openen: ${viaBytes.open} ≠ ${main.open}`;
+    if (!main.summary || !viaBytes.summary) return main.http === viaBytes.http ? '' : `rekenen: ${viaBytes.http} ≠ ${main.http}`;
+    const plain = (summary: ScheduleSummary) => JSON.stringify({ ...summary, foreignContent: null });
+    if (plain(main.summary) !== plain(viaBytes.summary)) return 'samenvatting wijkt af van main';
+    if (viaBytes.summary.foreignContent === null) {
+      if (viaBytes.http !== main.http) return `uitvoer zoals de HTTP-worker: ${viaBytes.http?.slice(0, 80)} ≠ ${main.http?.slice(0, 80)}`;
+      return viaBytes.bytes === main.bytes ? '' : `toIfcBytes(): ${viaBytes.bytes?.slice(0, 80)} ≠ ${main.bytes?.slice(0, 80)}`;
+    }
+    if (wrote(main.http)) return 'de bytes-route bewaart een vreemd deel waar main gewoon schreef';
+    return wrote(viaBytes.http) && wrote(viaBytes.bytes) ? '' : `bewaren mislukt: ${viaBytes.bytes?.slice(0, 80)}`;
   }
   const emptyLiveSchedule = (() => {
     const st = createAppStoreContext({ emitHostEvents: false }).store.getState();
-    const projectEnd = '2027-03-05';
-    return writeIFC({
+    const task: Task = {
+      id: 'taak-1', name: 'Taak', description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED', priority: 500,
+      isMilestone: false, parentId: null, childIds: [], time: createDefaultTaskTime('2027-03-01', 5), resourceIds: [],
+    };
+    const written = writeIFC({
       project: { ...st.project, id: 'leeg-werkschema', startDate: '2027-03-01' }, calendar: st.calendar,
-      tasks: [], sequences: [], resources: [], assignments: [],
-      baselines: [{ id: 'bl-1', name: 'Baseline', createdAt: '2027-02-15T12:00:00.000Z', projectEnd, projectDuration: 5,
-        tasks: [{ taskId: 'taak-1', start: '2027-03-01', finish: projectEnd, duration: 5, isMilestone: false }] }],
+      tasks: [task], sequences: [], resources: [], assignments: [],
+      baselines: [{ id: 'bl-1', name: 'Baseline', createdAt: '2027-02-15T12:00:00.000Z', projectEnd: '2027-03-05', projectDuration: 5,
+        tasks: [{ taskId: 'taak-1', start: '2027-03-01', finish: '2027-03-05', duration: 5, isMilestone: false }] }],
       activeBaselineId: 'bl-1',
     });
+    const scheduleId = (kind: string) => new RegExp(`^#(\\d+)=IFCWORKSCHEDULE\\(.*\\.${kind}\\.\\);$`, 'm').exec(written)?.[1];
+    const [live, baseline] = [scheduleId('PLANNED'), scheduleId('BASELINE')];
+    return written.split('\n').map(line => /^#\d+=IFC(RELNESTS|RELASSIGNSTOCONTROL)\(/.test(line)
+      ? line.replace(new RegExp(`#${live}\\b`), `#${baseline}`) : line).join('\n');
   })();
   const corpus: Array<[string, Uint8Array]> = [
     ...files.map(f => [f.slice(root.length + 1), new Uint8Array(readFileSync(f))] as [string, Uint8Array]),
@@ -692,19 +720,23 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
     ['met BOM en een spatie', bytes => new Uint8Array([...UTF8_BOM, 0x20, ...bytes])],
   ];
   let pinned = 0;
+  let kept = 0;
   for (const [name, source] of corpus) {
     for (const [form, shape] of forms) {
       const bytes = shape(source);
-      const viaMain = await outcome(() => openIfc(Buffer.from(bytes).toString('utf8')), async doc => encoded(doc.toIfc()));
-      const viaBytes = await outcome(() => openIfcBytes(bytes), doc => doc.toIfcBytes());
-      const at = viaMain.findIndex((part, i) => part !== viaBytes[i]);
-      ok(`18 ${name}, ${form}: openIfcBytes geeft de samenvatting en de uitvoer van main`,
-        at < 0 && viaMain.length === viaBytes.length,
-        at < 0 ? `${viaBytes.length} ≠ ${viaMain.length} delen` : `${['openen', 'samenvatting', 'uitvoer'][at]}: ${viaBytes[at]?.slice(0, 120)} ≠ ${viaMain[at]?.slice(0, 120)}`);
+      const viaMain = await outcome(() => openIfc(Buffer.from(bytes).toString('utf8')),
+        async doc => encoded(doc.toIfc()), async doc => encoded(doc.toIfc()));
+      const viaBytes = await outcome(() => openIfcBytes(bytes),
+        async (doc, summary) => summary.foreignContent === null ? encoded(doc.toIfc()) : doc.toIfcBytes(), doc => doc.toIfcBytes());
+      const broken = ruleBroken(viaMain, viaBytes);
+      ok(`18 ${name}, ${form}: openIfcBytes geeft de uitkomst van main, of bewaart een vreemd deel waar main weigerde`, broken === '', broken);
+      if (viaBytes.summary?.foreignContent) kept++;
       pinned++;
     }
   }
-  ok('18 de regel is gepind op het hele corpus zonder vreemd deel', pinned === corpus.length * forms.length && pinned >= 130, String(pinned));
+  ok('18 de bytes-route bewaart alleen bij de twee oude woongebouw-bestanden, waar de indeling een vreemd deel ziet en main het schrijven weigert, in elke vorm',
+    kept === 2 * forms.length, String(kept));
+  ok('18 de regel is gepind op het hele corpus', pinned === corpus.length * forms.length && pinned >= 130, String(pinned));
 }
 
 if (diffs.length === 0) {
