@@ -104,13 +104,12 @@ class Calculator {
   }
 
   /** Alleen aanroepen als `busy` false is. */
-  run(job, transfer = []) {
+  run(job) {
     this.busy = true;
     if (!this.worker) this.worker = this.#spawn();
     const worker = this.worker;
     return new Promise((resolve) => {
       let settled = false;
-      let kept = null;
       const finish = (result) => {
         if (settled) return;
         settled = true;
@@ -119,12 +118,9 @@ class Calculator {
         worker.off('error', onError);
         worker.off('exit', onExit);
         this.busy = false;
-        resolve(result.ok || kept === null ? result : kept);
+        resolve(result);
       };
-      const onMessage = (msg) => {
-        if (msg.provisional) kept = msg;
-        else finish(msg);
-      };
+      const onMessage = (msg) => finish(msg);
       const onError = () => {
         this.worker = null;
         finish({ ok: false, code: 'INTERNAL', message: 'The calculation worker failed' });
@@ -141,7 +137,7 @@ class Calculator {
       worker.on('message', onMessage);
       worker.on('error', onError);
       worker.on('exit', onExit);
-      worker.postMessage(job, transfer);
+      worker.postMessage(job);
     });
   }
 
@@ -170,19 +166,8 @@ const STATUS_OF = {
   BUSY: 503,
   TIMEOUT: 503,
 };
-const BYTES_TYPE = 'application/octet-stream';
-const ACCEPTED_TYPES = new Set(['application/x-step', 'application/ifc', 'model/ifc', 'text/plain', BYTES_TYPE]);
+const ACCEPTED_TYPES = new Set(['application/x-step', 'application/ifc', 'model/ifc', 'text/plain', 'application/octet-stream']);
 const REQUEST_ID = /^[A-Za-z0-9._-]{1,64}$/;
-
-function ownedBody(parts, size) {
-  const body = new Uint8Array(size);
-  let at = 0;
-  for (const part of parts) {
-    body.set(part, at);
-    at += part.length;
-  }
-  return body;
-}
 
 export function createApiServer(config) {
   const tokenDigest = { padded: padded(config.token), length: Buffer.byteLength(config.token) };
@@ -281,7 +266,7 @@ export function createApiServer(config) {
           if (size > config.maxBodyBytes) return done({ error: 'PAYLOAD_TOO_LARGE' });
           parts.push(chunk);
         };
-        const onEnd = () => done({ data: ownedBody(parts, size) });
+        const onEnd = () => done({ text: Buffer.concat(parts).toString('utf8') });
         const onClose = () => done({ error: 'ABORTED' });
         const timer = setTimeout(() => done({ error: 'UPLOAD_TIMEOUT' }), config.uploadTimeoutMs);
         req.on('data', onData);
@@ -300,9 +285,7 @@ export function createApiServer(config) {
     // Intussen kan een andere upload de berekening hebben gekregen.
     if (calculator.busy) return fail('BUSY', 'The server is busy; try again later', {}, { 'Retry-After': '5' });
 
-    const result = type === BYTES_TYPE
-      ? await calculator.run({ bytes: body.data, output }, [body.data.buffer])
-      : await calculator.run({ text: Buffer.from(body.data.buffer).toString('utf8'), output });
+    const result = await calculator.run({ text: body.text, output });
     if (res.destroyed) return;
     if (!result.ok) {
       return fail(result.code in STATUS_OF ? result.code : 'INTERNAL', result.message,
@@ -310,15 +293,12 @@ export function createApiServer(config) {
         result.code === 'TIMEOUT' ? { 'Retry-After': '30' } : {});
     }
     if (output === 'ifc') {
-      const ifc = result.ifcBytes === undefined
-        ? result.ifc
-        : Buffer.from(result.ifcBytes.buffer, result.ifcBytes.byteOffset, result.ifcBytes.byteLength);
       res.writeHead(200, {
-        'Content-Type': result.ifcBytes === undefined ? 'application/x-step; charset=utf-8' : BYTES_TYPE,
-        'Content-Length': Buffer.byteLength(ifc),
+        'Content-Type': 'application/x-step; charset=utf-8',
+        'Content-Length': Buffer.byteLength(result.ifc),
         'Content-Disposition': 'attachment; filename="schedule.ifc"',
       });
-      return res.end(ifc);
+      return res.end(result.ifc);
     }
     return sendJson(200, result.summary);
   }

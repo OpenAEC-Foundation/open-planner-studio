@@ -9,31 +9,6 @@ info:
     the work rules and scheduling profile of the project) and returns a JSON summary or the
     recalculated IFC file. The API stores nothing: every request stands alone.
 
-    Every request is first handled by the text route: the body is decoded as UTF-8, opened,
-    calculated and written. Only where that route refuses because of foreign content, and the
-    request was `application/octet-stream`, does the API read the same bytes again as they are; if
-    that route cannot help either, the answer stays the one of the text route:
-
-    - When reading: a file with a building model (422 `IFC_READ_FAILED`). If the bytes route keeps
-      the model, the summary and, with `output=ifc`, the preserved file come from that one reading.
-      No other read error opens the bytes route.
-    - When writing: `output=ifc` refused with 500 `IFC_WRITE_FAILED` and `details.reason`
-      `foreign`. If the bytes route keeps the foreign content and reads the same schedule (the same
-      summary after the calculation, and the same stored planning: tasks, relations, calendars,
-      resources, assignments and project fields), the preserved file comes back. Otherwise the
-      answer stays the refusal of the text route, with the same status, code and `details`. The
-      bytes route reads a file with foreign content by the rules of the app for such files, and
-      that can give a different schedule than the text route; then the refusal stays.
-
-    The answer of the text route is the outcome unless the bytes route succeeds: any other
-    outcome (an error, a different schedule, the calculation time running out, a stopped or
-    crashed worker) gives that refusal byte for byte. Such a request can therefore take up to the
-    calculation time limit before the refusal arrives.
-
-    A preserved file comes back as `application/octet-stream`, with the foreign content and the
-    header (also a UTF-8 byte order mark) byte for byte as they were; without changes to the
-    schedule the whole file comes back.
-
     Every path that is not listed answers 404 `NOT_FOUND`.
 
     Errors always have the body `{"error": {"code": "...", "message": "..."}}`. `code` is fixed;
@@ -81,14 +56,13 @@ paths:
         once, before it reads the body. Retry after `Retry-After` seconds.
 
         Time limits: the body must arrive within `limits.uploadTimeoutMs` (408 `UPLOAD_TIMEOUT`), and
-        the calculation must finish within `limits.timeoutMs` (503 `TIMEOUT`; when the text route has
-        already refused the file, that refusal instead). Together they stay below
+        the calculation must finish within `limits.timeoutMs` (503 `TIMEOUT`). Together they stay below
         the 120 s idle timeout of the load balancer, so the API itself always answers.
       parameters:
         - name: output
           in: query
           required: false
-          description: '`summary` (default) gives the JSON summary; `ifc` gives the recalculated IFC file as text (`application/x-step`), or as bytes (`application/octet-stream`) only where the text route refused the file because of foreign content and the request was `application/octet-stream` (see the description above).'
+          description: '`summary` (default) gives the JSON summary; `ifc` gives the recalculated IFC file.'
           schema:
             type: string
             enum: [summary, ifc]
@@ -101,7 +75,7 @@ paths:
             pattern: '^[A-Za-z0-9._-]{1,64}$'
       requestBody:
         required: true
-        description: The IFC file, as text (UTF-8) or as bytes (`application/octet-stream`, which can keep a building model and the data of other programs where the text route refuses them). Maximum size is `limits.maxBodyBytes` from `/healthz` (default 20 MiB).
+        description: The IFC file as text (UTF-8). Maximum size is `limits.maxBodyBytes` from `/healthz` (default 20 MiB).
         content:
           application/x-step:
             schema:
@@ -119,7 +93,6 @@ paths:
             schema:
               type: string
               format: binary
-              description: The file as bytes. The API decodes it as UTF-8 like the other types; only where the text route refuses the file because of foreign content does it read the bytes themselves.
       responses:
         '200':
           description: The schedule is calculated.
@@ -133,19 +106,9 @@ paths:
             application/x-step:
               schema:
                 type: string
-                description: The recalculated IFC file as text (when `output=ifc`).
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
-                description: |
-                  The recalculated IFC file as bytes (when `output=ifc`, the request was
-                  `application/octet-stream`, the text route refused the file because of a building model
-                  or refused to write it with `foreign`, and the bytes route keeps the foreign content; in
-                  the second case only when it reads the same schedule). The foreign content and the
-                  header come back byte for byte; without changes to the schedule the whole file does.
+                description: The recalculated IFC file (when `output=ifc`).
         '400':
-          description: '`INVALID_INPUT` (the body, as text or as bytes, does not start with `ISO-10303-21;` after an optional byte order mark and white space) or `BAD_REQUEST` (unknown `output`, or a request target that is not a valid URL).'
+          description: '`INVALID_INPUT` (the body is not ISO-10303-21 text) or `BAD_REQUEST` (unknown `output`, or a request target that is not a valid URL).'
           content:
             application/json:
               schema:
@@ -184,18 +147,13 @@ paths:
         '422':
           description: |
             The file is IFC but cannot be planned: `IFC_READ_FAILED`, `NO_TASKS`, or `SCHEDULE_FAILED`
-            (for example a loop in the relations; `details.taskIds` lists the tasks of the loop). A file
-            with a building model gives `IFC_READ_FAILED` on the text route; send it as
-            `application/octet-stream` to open it.
+            (for example a loop in the relations; `details.taskIds` lists the tasks of the loop).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '500':
-          description: |
-            `IFC_WRITE_FAILED` or `INTERNAL`. With `IFC_WRITE_FAILED`, `details.reason` says why when it
-            is known: `foreign` (the file has foreign content that the text route does not
-            keep), `model` or `unreadable` (other scan results).
+          description: '`IFC_WRITE_FAILED` or `INTERNAL`.'
           content:
             application/json:
               schema:
@@ -380,27 +338,6 @@ components:
                   (an IFC from an older version of the app), so opening recalculated them; `ids` are the
                   tasks with a different start or finish, and this is the largest shift in workdays (one
                   decimal).
-        foreignContent:
-          description: |
-            Only present after an `application/octet-stream` request with a building model that the
-            bytes route opens: what the document keeps besides the schedule and writes back unchanged.
-            The summary then comes from that reading. Every other summary comes from the text route
-            and has no `foreignContent`.
-          $ref: '#/components/schemas/ForeignContent'
-    ForeignContent:
-      type: object
-      required: [format, schema, objectCount]
-      properties:
-        format:
-          type: string
-          const: ifc
-          description: The file format of the kept content (ISO-10303-21).
-        schema:
-          type: string
-          description: The IFC schema from the file header, for example `IFC4X3_ADD2` or `IFC4`.
-        objectCount:
-          type: integer
-          description: The number of entities that are not part of the schedule.
     TaskSummary:
       type: object
       required: [id, name, wbs, parentId, summary, milestone, start, finish, lateStart, lateFinish, totalFloat, critical]

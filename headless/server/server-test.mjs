@@ -13,12 +13,10 @@
 //   node headless/server/server-test.mjs        # vraagt `npm run build:core` + npm install hier
 // Alleen Linux voor de RSS-meting (/proc); elders wordt die stap overgeslagen.
 import { spawn } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { connect } from 'node:net';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { corpusCases } from './smoke-corpus.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const TOKEN = 'server-test-token-0123456789';
@@ -33,8 +31,8 @@ const ok = (label, condition, detail = '') => {
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function startServer(extraEnv = {}, serverDir = here) {
-  const child = spawn(process.execPath, [join(serverDir, 'server.mjs')], {
+function startServer(extraEnv = {}) {
+  const child = spawn(process.execPath, [join(here, 'server.mjs')], {
     env: {
       PATH: process.env.PATH, OPS_API_TOKEN: TOKEN, HOST: '127.0.0.1', PORT: '0',
       OPS_API_MAX_BODY_BYTES: String(MAX_BODY), OPS_API_MAX_UPLOADS: '2', OPS_API_TIMEOUT_MS: '20000',
@@ -84,36 +82,6 @@ const rssKb = (pid) => {
   return Number(/VmRSS:\s+(\d+)/.exec(readFileSync(path, 'utf8'))?.[1] ?? 0);
 };
 const health = async (port) => (await fetch(`http://127.0.0.1:${port}/healthz`)).json();
-
-function serverWithBytesRouteSeam() {
-  const dir = mkdtempSync(join(tmpdir(), 'ops-api-afloop-'));
-  for (const file of ['server.mjs', 'worker.mjs']) cpSync(join(here, file), join(dir, file));
-  const core = join(dir, 'node_modules', '@openaec', 'open-planner-core');
-  mkdirSync(core, { recursive: true });
-  const real = JSON.stringify(import.meta.resolve('@openaec/open-planner-core'));
-  writeFileSync(join(core, 'package.json'), JSON.stringify({ name: '@openaec/open-planner-core', type: 'module', exports: './index.mjs' }));
-  writeFileSync(join(core, 'index.mjs'), [
-    `import * as core from ${real};`,
-    `export * from ${real};`,
-    'export async function openIfc(text) {',
-    "  if (process.env.OPS_TEST_TEXT_ROUTE === 'hangt') return new Promise(() => {});",
-    '  return core.openIfc(text);',
-    '}',
-    'export async function openIfcBytes(bytes) {',
-    '  const fate = process.env.OPS_TEST_BYTES_ROUTE;',
-    "  if (fate === 'gooit') throw new Error('de bytes-route gooit');",
-    "  if (fate === 'hangt tot de deadline') return new Promise(() => {});",
-    "  if (fate === 'de worker stopt') process.exit(1);",
-    "  if (fate === 'de worker crasht') {",
-    "    setImmediate(() => { throw new Error('de worker crasht'); });",
-    '    return new Promise(() => {});',
-    '  }',
-    '  return core.openIfcBytes(bytes);',
-    '}',
-    '',
-  ].join('\n'));
-  return dir;
-}
 
 const example = readFileSync(join(here, '..', '..', 'examples', '01-grachtenpand-amsterdam.ifc'), 'utf8');
 const markerIfc = readFileSync(join(here, 'fixtures', 'log-marker.ifc'), 'utf8');
@@ -218,83 +186,6 @@ try {
   console.log(`XX  de test brak af: ${err instanceof Error ? err.message : String(err)}`);
 } finally {
   if (srv.child.exitCode === null) srv.child.kill('SIGKILL');
-}
-
-const seamDir = serverWithBytesRouteSeam();
-const reference = JSON.parse(readFileSync(join(here, 'main-reference.json'), 'utf8'));
-const corpus = new Map(corpusCases().map((c) => [c.label, c.body]));
-const REFUSALS = [
-  ['ifc-foreign/eigen-plus-model.ifc, kaal', '/v1/schedule', 'summary'],
-  ['ifc-foreign/eigen-plus-model.ifc, kaal', '/v1/schedule?output=ifc', 'ifc'],
-  ['het voorbeeld met een externe pset, kaal', '/v1/schedule?output=ifc', 'ifc'],
-];
-const FATES = [
-  ['gooit', 'main'],
-  ['hangt tot de deadline', 'main'],
-  ['de worker stopt', 'main'],
-  ['de worker crasht', 'main'],
-  ['slaagt', 'bytes'],
-];
-const calculate = (port, path, body, type, requestId) => fetch(`http://127.0.0.1:${port}${path}`, {
-  method: 'POST', body, headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': type, 'X-Request-Id': requestId },
-});
-try {
-  for (const [fate, expect] of FATES) {
-    const s = startServer({ OPS_TEST_BYTES_ROUTE: fate, OPS_API_TIMEOUT_MS: '5000', OPS_API_MAX_BODY_BYTES: String(5 * MAX_BODY) }, seamDir);
-    try {
-      const port = await s.port;
-      for (const [label, path, kind] of REFUSALS) {
-        const main = reference.cases[label][kind];
-        const requestId = `afloop-${FATES.findIndex(([f]) => f === fate)}-${REFUSALS.findIndex(([l, p]) => l === label && p === path)}`;
-        const pending = calculate(port, path, corpus.get(label), 'application/octet-stream', requestId);
-        if (fate === 'hangt tot de deadline') {
-          while (!(await health(port)).busy) await sleep(20);
-          await sleep(2000);
-          const second = await calculate(port, path, corpus.get(label), 'application/octet-stream', `${requestId}-tweede`);
-          const secondBody = await second.json();
-          ok(`7 de bytes-route ${fate}: ${label}, ${path} → een tweede verzoek krijgt 503 BUSY met Retry-After 5, zoals bij elke lopende berekening`,
-            second.status === 503 && secondBody.error?.code === 'BUSY' && second.headers.get('retry-after') === '5',
-            `${second.status} ${JSON.stringify(secondBody)}`);
-        }
-        const r = await pending;
-        const text = Buffer.from(await r.arrayBuffer()).toString('utf8');
-        ok(`7 de bytes-route ${fate}: ${label}, ${path} → daarna is de rekenplek vrij`, (await health(port)).busy === false);
-        if (expect === 'main') {
-          ok(`7 de bytes-route ${fate}: ${label}, ${path} → het antwoord van main uit main-reference.json`,
-            r.status === main.status && r.headers.get('content-type') === main.type && text === main.body && !r.headers.get('retry-after'),
-            `${r.status} ${r.headers.get('content-type')} ${text.slice(0, 160)}`);
-        } else {
-          await sleep(50);
-          const logged = s.out.stdout.split('\n').filter((l) => l.includes(`"requestId":"${requestId}"`) && l.includes('"msg":"request"'));
-          ok(`7 de bytes-route ${fate}: ${label}, ${path} → het geslaagde antwoord, één keer`,
-            r.status === 200 && main.status !== 200 && logged.length === 1 && logged[0].includes('"status":200'),
-            `${r.status} ${text.slice(0, 120)} | ${logged.join(' | ')}`);
-        }
-      }
-    } finally {
-      s.child.kill('SIGKILL');
-      await s.exited;
-    }
-  }
-  const hanging = startServer({ OPS_TEST_TEXT_ROUTE: 'hangt', OPS_API_TIMEOUT_MS: '2000' }, seamDir);
-  try {
-    const port = await hanging.port;
-    for (const type of ['application/x-step', 'application/octet-stream']) {
-      const r = await calculate(port, '/v1/schedule', corpus.get('ifc-foreign/eigen-plus-model.ifc, kaal'), type, `afloop-tekst-${type.length}`);
-      const body = await r.json();
-      ok(`7 de tekstbewerking hangt (${type}) → 503 TIMEOUT met Retry-After 30, zoals main`,
-        r.status === 503 && body.error?.code === 'TIMEOUT' && body.error.message === 'The calculation took longer than 2000 ms'
-          && r.headers.get('retry-after') === '30', `${r.status} ${JSON.stringify(body)}`);
-    }
-  } finally {
-    hanging.child.kill('SIGKILL');
-    await hanging.exited;
-  }
-} catch (err) {
-  failures++;
-  console.log(`XX  de afloopproef brak af: ${err instanceof Error ? err.message : String(err)}`);
-} finally {
-  rmSync(seamDir, { recursive: true, force: true });
 }
 
 console.log(failures === 0 ? `GROEN — ${checks} servertests` : `ROOD — ${failures} van ${checks} servertests faalden`);
