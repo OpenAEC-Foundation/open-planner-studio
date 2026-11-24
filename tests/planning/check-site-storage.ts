@@ -885,8 +885,8 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
     await S().loadNewVersion();
     const asked = S().ui.pendingCloseDocId === tabY;
     if (asked) {
-      await S().loadNewVersionAfterDiscard(tabY);
-      S().setUI({ pendingCloseDocId: null });
+      await S().closeDocumentAfterSaves(tabY);
+      await S().finishCloseQuestion(tabY);
     }
     const latest = site.latest(site.files.get('y')!).version;
     eq('G21 (#1201) Nieuwe versie laden op de site: sluiten, dan Recent op de site; de nieuwste versie met hetzelfde id als basis, de strook weg', [
@@ -914,9 +914,8 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
         if (knop) await S().loadNewVersion();
         else S().requestCloseDocument(tabY);
         if (S().ui.pendingCloseDocId === tabY) {
-          if (knop) await S().loadNewVersionAfterDiscard(tabY);
-          else await S().closeDocumentAfterSaves(tabY);
-          S().setUI({ pendingCloseDocId: null });
+          await S().closeDocumentAfterSaves(tabY);
+          await S().finishCloseQuestion(tabY);
         }
         if (!knop) await S().openRecentFile(recentY()!.id);
         for (let i = 0; i < 400 && !(S().siteFileId === 'y' || S().ui.notifications.some((n) => n.messageKey === 'notifications.siteFileReadOnly')); i++) {

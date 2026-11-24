@@ -24,17 +24,19 @@ const escape = SHORTCUTS.find(s => s.id === 'edit.deselect')!;
 
 type Route = 'knop' | 'kruisje';
 type Platform = 'pad' | 'handle';
-type Begin = 'schoon' | 'werk' | 'verouderd' | 'verouderdWerk' | 'backstage' | 'dialoog' | 'tweede' | 'weg' | 'onleesbaar' | 'groot';
+type Begin = 'schoon' | 'werk' | 'verouderd' | 'verouderdWerk' | 'backstage' | 'dialoog' | 'tweede' | 'weg' | 'onleesbaar' | 'groot'
+  | 'tweeStroken';
 type Before = 'niets' | 'opslagLoopt';
 type During = 'niets' | 'typen' | 'ctrlS' | 'opslaanAls' | 'recent' | 'slepen' | 'flagUit' | 'dialoog' | 'backstage'
-  | 'nieuwereVersie' | 'handleB' | 'venster';
+  | 'nieuwereVersie' | 'handleB' | 'venster' | 'exporteren' | 'tabSluiten' | 'recentAnder' | 'knopAnder';
 type Answer = 'nietOpslaan' | 'annuleren' | 'escape';
 type Moment = 'vraag' | 'lezen';
 interface Case { platform: Platform; begin: Begin; before: Before; during: During; moment: Moment; answer: Answer }
 
 const other = join(dir, 'kantoor-ander.ifc');
 const modelBytes = readFileSync('tests/fixtures/ifc-foreign/eigen-plus-model.ifc');
-const newestIfc = changedIfc.replace('Extern opgeslagen werk', 'Nieuwste versie op schijf');
+const newestIfc = changedIfc.replaceAll('Extern opgeslagen werk', 'Nieuwste versie op schijf');
+const schoolNewIfc = schoolIfc.replaceAll("'Dak'", "'Dak nieuwe versie'");
 
 const holds: { reached: () => void; release: Promise<void> }[] = [];
 const armRead = () => {
@@ -83,7 +85,7 @@ interface World {
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const versionNames = new Map<string, string>([
   [sha(enc.encode(kantoorIfc)), 'A'], [sha(enc.encode(changedIfc)), 'B'], [sha(enc.encode(newestIfc)), 'C'],
-  [sha(enc.encode(schoolIfc)), 'school'], [sha(modelBytes), 'model'],
+  [sha(enc.encode(schoolIfc)), 'school'], [sha(enc.encode(schoolNewIfc)), 'school-nieuw'], [sha(modelBytes), 'model'],
 ]);
 
 async function padWorld(c: Case): Promise<World> {
@@ -100,6 +102,12 @@ async function padWorld(c: Case): Promise<World> {
   if (c.begin === 'weg') unlinkSync(kantoor);
   if (c.begin === 'onleesbaar') writeFileSync(kantoor, 'ISO-10303-21;\nkapot');
   if (c.begin === 'groot') writeFileSync(kantoor, modelBytes);
+  if (c.begin === 'tweeStroken') {
+    writeFileSync(join(dir, 'school.ifc'), schoolNewIfc);
+    const id = T().recentFiles.find(e => e.ref.kind === 'path' && e.ref.path === join(dir, 'school.ifc'))?.id;
+    if (id) await T().openRecentFile(id, labels);
+    T().switchDocument(a);
+  }
   if (c.begin === 'tweede') {
     T().switchDocument(b);
     T().addTask({ name: 'Werk in tweede tab' });
@@ -163,20 +171,46 @@ const unregister: (() => void)[] = [];
 const registerDraft = () => { unregister.push(setBackstageLeaveGuard(() => { backstageAsked++; return true; })); };
 const gateFor = (w: World) => ({ blocked: () => isBlockingDialogOpen(w.T().ui), leave: leaveBackstageGuarded });
 
-async function duringAction(w: World, c: Case, created: string[]) {
+interface Created { name: string; doc: string }
+const schoolPath = join(dir, 'school.ifc');
+const schoolRecent = (w: World) => w.T().recentFiles.find(e => e.ref.kind === 'path' && e.ref.path === schoolPath)?.id ?? null;
+let quitUnsubscribe: (() => void) | null = null;
+
+async function duringAction(w: World, c: Case, route: Route, created: Created[]) {
   const { T, b } = w;
   switch (c.during) {
     case 'niets': return;
     case 'typen':
       T().addTask({ name: 'Getypt tijdens lezen' });
-      created.push('Getypt tijdens lezen');
+      created.push({ name: 'Getypt tijdens lezen', doc: T().activeDocumentId });
       return;
     case 'ctrlS':
       T().switchDocument(b);
       T().addTask({ name: 'Opgeslagen in school' });
-      created.push('Opgeslagen in school');
+      created.push({ name: 'Opgeslagen in school', doc: b });
       await T().saveFile();
       return;
+    case 'exporteren':
+      dialog.save = T().filePath ?? kantoor;
+      await T().exportAs('ifc');
+      return;
+    case 'tabSluiten':
+      T().closeDocument(T().activeDocumentId);
+      return;
+    case 'recentAnder': {
+      const id = schoolRecent(w);
+      if (id) await T().openRecentFile(id, labels);
+      return;
+    }
+    case 'knopAnder': {
+      if (!w.T().documents.some(d => d.id === b)) return;
+      T().switchDocument(b);
+      if (route === 'knop') { await T().loadNewVersion(labels, gateFor(w)); return; }
+      T().requestCloseDocument(b);
+      const id = schoolRecent(w);
+      if (id && !w.T().documents.some(d => d.id === b)) await T().openRecentFile(id, labels);
+      return;
+    }
     case 'opslaanAls':
       T().switchDocument(b);
       dialog.save = other;
@@ -199,28 +233,29 @@ async function duringAction(w: World, c: Case, created: string[]) {
         clearRecovery: async () => {},
         destroyWindow: async () => { windowClosed = true; },
       }));
+      quitUnsubscribe = w.st.subscribe(() => { if (controller.active) controller.step(); });
       controller.requestQuit();
       return;
     }
   }
 }
 
-const actionsFor = (w: World, route: Route) => createCloseDocumentDialogActions({
-  pendingId: w.a,
-  getActiveDocumentId: () => w.T().activeDocumentId,
-  switchDocument: (id) => w.T().switchDocument(id),
-  closeDocument: route === 'knop' ? (id) => w.T().loadNewVersionAfterDiscard(id, labels) : (id, options) => w.T().closeDocumentAfterSaves(id, options),
-  saveFile: () => w.T().saveFileForDocument(w.a),
-  clearPending: () => { w.T().setUI({ pendingCloseDocId: null }); },
-  restoreOpenerFocus: () => {},
-  onSavePendingChange: (pending) => { w.T().setUI({ closeQuestionSaving: pending }); },
-});
-
-async function answer(w: World, route: Route, c: Case) {
-  const actions = actionsFor(w, route);
-  if (c.answer === 'nietOpslaan') await actions.discard();
+async function answer(w: World, c: Case, discarded: Set<string>) {
+  let finishing: Promise<void> | null = null;
+  const actions = createCloseDocumentDialogActions({
+    pendingId: w.a,
+    getActiveDocumentId: () => w.T().activeDocumentId,
+    switchDocument: (id) => w.T().switchDocument(id),
+    closeDocument: (id, options) => w.T().closeDocumentAfterSaves(id, options),
+    saveFile: () => w.T().saveFileForDocument(w.a),
+    clearPending: () => { finishing = w.T().finishCloseQuestion(w.a, labels); },
+    restoreOpenerFocus: () => {},
+    onSavePendingChange: (pending) => { w.T().setUI({ closeQuestionSaving: pending }); },
+  });
+  if (c.answer === 'nietOpslaan') { discarded.add(w.a); await actions.discard(); }
   else if (c.answer === 'annuleren') actions.cancel();
   else escape.run(w.T());
+  return { finishing: finishing as Promise<void> | null };
 }
 
 const settledAfter = (w: World) => {
@@ -231,8 +266,9 @@ const settledAfter = (w: World) => {
 async function runRoute(route: Route, c: Case) {
   const w = c.platform === 'pad' ? await padWorld(c) : await handleWorld(c);
   const { T, st, a } = w;
-  const created = c.begin === 'werk' || c.begin === 'verouderdWerk' ? ['Eigen werk'] : [];
-  if (c.begin === 'tweede' && c.platform === 'pad') created.push('Werk in tweede tab');
+  const created: Created[] = c.begin === 'werk' || c.begin === 'verouderdWerk' ? [{ name: 'Eigen werk', doc: a }] : [];
+  if (c.begin === 'tweede' && c.platform === 'pad') created.push({ name: 'Werk in tweede tab', doc: w.b });
+  const discarded = new Set<string>();
   let asked = 0, readsOfKantoor = 0;
   const unsubscribe = st.subscribe((next, prev) => {
     if (next.ui.pendingCloseDocId && next.ui.pendingCloseDocId !== prev.ui.pendingCloseDocId) asked++;
@@ -274,7 +310,7 @@ async function runRoute(route: Route, c: Case) {
     else if (!isBlockingDialogOpen(T().ui)) leaveBackstageGuarded(() => T().requestCloseDocument(a));
     if (saving) {
       T().addTask({ name: 'Getypt terwijl de opslag liep' });
-      created.push('Getypt terwijl de opslag liep');
+      created.push({ name: 'Getypt terwijl de opslag liep', doc: T().activeDocumentId });
       release?.();
       await saving;
     }
@@ -284,12 +320,13 @@ async function runRoute(route: Route, c: Case) {
     let settled = settledAfter(w);
     if (T().ui.pendingCloseDocId === a) {
       if (c.during !== 'niets' && c.moment === 'vraag') {
-        await duringAction(w, c, created);
+        await duringAction(w, c, route, created);
         settled = settledAfter(w);
       }
-      await answer(w, route, c);
+      const { finishing } = await answer(w, c, discarded);
       const id = w.recentId();
-      if (route === 'kruisje' && closed() && id) opening = T().openRecentFile(id, labels);
+      if (route === 'kruisje' && closed() && id && !T().ui.appQuitPending) opening = T().openRecentFile(id, labels);
+      else if (route === 'knop') opening = finishing;
     } else if (route === 'kruisje' && closed()) {
       const id = w.recentId();
       if (id) opening = T().openRecentFile(id, labels);
@@ -298,29 +335,42 @@ async function runRoute(route: Route, c: Case) {
     }
     if (reading && closed()) {
       if (!await Promise.race([reading.reached.then(() => true), until(() => false)])) holds.length = 0;
-      await duringAction(w, c, created);
+      await duringAction(w, c, route, created);
       settled = settledAfter(w);
     }
     reading?.release();
     if (opening) await opening;
     else if (closed()) await until(settled);
+    if (c.during === 'venster') await until(() => windowClosed);
     holds.length = 0;
-    const tabs = T().getOpenDocumentPayloads().map(({ id, payload }) => {
+    const names = new Map(versionNames);
+    const seen = new Map<string, string>();
+    const version = (hash: string) => {
+      if (!names.has(hash)) names.set(hash, `eigen-${names.size - versionNames.size + 1}`);
+      seen.set(hash, names.get(hash)!);
+      return names.get(hash)!;
+    };
+    const ordered = [...T().getOpenDocumentPayloads()].sort((x, y) =>
+      String(x.payload.filePath ?? handleIds.get(x.payload.fileHandle ?? {}) ?? '').localeCompare(String(y.payload.filePath ?? handleIds.get(y.payload.fileHandle ?? {}) ?? ''))
+      || x.payload.tasks.map(t => t.name).join().localeCompare(y.payload.tasks.map(t => t.name).join()));
+    for (const path of [kantoor, schoolPath]) { try { version(sha(readFileSync(path))); } catch { } }
+    const tabs = ordered.map(({ id, payload }) => {
       const ref = payload.fileHandle ? `handle:${handleIds.get(payload.fileHandle) ?? '?'}` : payload.filePath ? `pad:${basename(payload.filePath)}` : null;
       const disk = payload.fileHandle ? (payload.fileHandle as unknown as FakeHandle).bytes
         : payload.filePath ? (() => { try { return readFileSync(payload.filePath!); } catch { return null; } })() : null;
       const known = payload.knownTargetFingerprint;
-      const version = (hash: string) => versionNames.get(hash) ?? 'eigen opslag';
       return JSON.stringify([
         ref, payload.tasks.map(t => t.name), payload.isDirty, T().documents.find(d => d.id === id)?.changedOnDisk === true,
         payload.project.name, payload.ifcSource ? version(payload.ifcSource.sha256) : null, payload.ifcSource?.bytes.byteLength ?? null,
         known ? [version(known.sha256), known.byteLength, !!disk && sha(disk) === known.sha256 && disk.byteLength === known.byteLength] : null,
       ]);
-    }).sort();
+    });
+    const injective = new Set(seen.values()).size === seen.size;
     const everywhere = [...T().getOpenDocumentPayloads().flatMap(d => d.payload.tasks.map(t => t.name)),
       new TextDecoder().decode(w.kantoorBytes()), (() => { try { return readFileSync(other, 'utf8'); } catch { return ''; } })(),
       (() => { try { return readFileSync(join(dir, 'school.ifc'), 'utf8'); } catch { return ''; } })()];
-    const lost = asked > 0 ? [] : created.filter(name => !everywhere.some(text => text === name || text.includes(name)));
+    const lost = created.filter(item => !discarded.has(item.doc) && !everywhere.some(text => text === item.name || text.includes(item.name)))
+      .map(item => item.name);
     return {
       tabs,
       active: T().filePath ? basename(T().filePath!) : T().fileHandle ? handleIds.get(T().fileHandle!) ?? '?' : null,
@@ -331,9 +381,13 @@ async function runRoute(route: Route, c: Case) {
       lost,
       notices: T().ui.notifications.map(n => n.messageKey).sort(),
       reads: readsOfKantoor,
+      disk: [kantoor, schoolPath].map(path => { try { return version(sha(readFileSync(path))); } catch { return null; } }),
+      injective,
     };
   } finally {
     unsubscribe();
+    quitUnsubscribe?.();
+    quitUnsubscribe = null;
     for (const undo of unregister.splice(0)) undo();
     lowerForeignOpenWarnBytesForTests();
     try { unlinkSync(other); } catch { }
@@ -357,11 +411,15 @@ add('pad', 'tweede');
 add('pad', 'weg');
 add('pad', 'onleesbaar');
 add('pad', 'groot');
-for (const during of ['typen', 'ctrlS', 'opslaanAls', 'recent', 'slepen', 'flagUit', 'dialoog', 'backstage', 'nieuwereVersie', 'venster'] as const) {
+for (const during of ['typen', 'ctrlS', 'opslaanAls', 'exporteren', 'tabSluiten', 'recent', 'recentAnder', 'slepen', 'flagUit', 'dialoog', 'backstage', 'nieuwereVersie', 'venster'] as const) {
   add('pad', 'schoon', during);
   add('pad', 'werk', during);
   add('pad', 'werk', during, ['nietOpslaan'], 'niets', 'vraag');
 }
+add('pad', 'tweeStroken');
+add('pad', 'tweeStroken', 'knopAnder');
+add('pad', 'tweeStroken', 'recentAnder');
+add('pad', 'tweede', 'ctrlS');
 add('pad', 'schoon', 'niets', ['nietOpslaan'], 'opslagLoopt');
 add('handle', 'schoon');
 add('handle', 'werk', 'niets', ['nietOpslaan', 'annuleren']);
@@ -373,7 +431,9 @@ add('handle', 'werk', 'nieuwereVersie');
 try {
   for (const c of cases) {
     const id = `${c.platform} ${c.begin} ${c.before} ${c.during}@${c.moment} ${c.answer}`;
+    console.log(`GEVAL ${id}`);
     const knop = await runRoute('knop', c);
+    console.log(`GEVAL ${id} kruisje`);
     const kruisje = await runRoute('kruisje', c);
     const { question: _k, ...knopRest } = knop;
     const { question: _r, ...kruisjeRest } = kruisje;
@@ -383,6 +443,7 @@ try {
     eq(`M ${id}: de knop eindigt als kruisje, dan Recent`, knopRest, kruisjeRest);
     eq(`M ${id}: een vraag bij de knop alleen als het kruisje er een gaf`, knop.question, kruisje.question);
     eq(`M ${id}: geen werk zonder vraag weg`, knop.lost, []);
+    eq(`M ${id}: verschillende versies krijgen verschillende namen`, [knop.injective, kruisje.injective], [true, true]);
   }
 } finally {
   ipc.dispose();
