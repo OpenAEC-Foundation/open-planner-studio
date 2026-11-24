@@ -771,16 +771,16 @@ await check('2203 B: de eerste Ctrl+S na openen leest het doel één keer en sch
 await check('2203 A en B: of er gescand wordt, hangt alleen aan de herkomst en de inhoud uit die ene lezing (een toestand die de app zelf niet maakt: een gebouwmodel met een passende vingerafdruk)', async () => {
   for (const kind of ['pad', 'handle'] as const) {
     for (const from of ['written', 'opened'] as const) {
-      const ipc = desktop(), model = modelBytes();
+      const ipc = kind === 'pad' ? desktop() : null, model = modelBytes();
       try {
         let store: Store, onTarget: () => Uint8Array, reads: () => number;
         if (kind === 'pad') {
-          const path = fileAt(`herkomst-${from}.ifc`, plainBytes());
+          const path = fileAt(`herkomst-${from}.ifc`, plainBytes()), files = ipc!;
           ({ store } = await openAt({ kind: 'path', path }, plainBytes()));
           writeFileSync(path, model);
           onTarget = () => new Uint8Array(readFileSync(path));
-          const start = ipc.bytesRead();
-          reads = () => ipc.bytesRead() - start;
+          const start = files.bytesRead();
+          reads = () => files.bytesRead() - start;
         } else {
           const handle = newHandle(plainBytes());
           ({ store } = await openAt(handleRef(handle), plainBytes()));
@@ -802,7 +802,7 @@ await check('2203 A en B: of er gescand wordt, hangt alleen aan de herkomst en d
           assert.deepEqual(fresh(), [FOREIGN_TARGET]);
           assert.deepEqual(print(onTarget()), print(model));
         }
-      } finally { ipc.dispose(); }
+      } finally { ipc?.dispose(); }
     }
   }
 });
@@ -901,20 +901,20 @@ await check('2203, Opslaan als over een bestand met een gebouwmodel (bevestigd i
   } finally { ipc.dispose(); }
 });
 
-await check('2203 en knownbug 2065: schreef een ander tabblad (met een gebouwmodel) via de browserkiezer over de eigen handle, dan weigert Ctrl+S met "gewijzigd" en slaat niets over', async () => {
-  const own = newHandle(plainBytes()), source = newHandle(modelBytes());
+await check('2203 en knownbug 2065: schreef een ander tabblad via de browserkiezer over de eigen handle, dan weigert Ctrl+S met "gewijzigd" en slaat niets over', async () => {
+  const own = newHandle(plainBytes()), source = newHandle(otherPlainBytes());
   const { store } = await openAt(handleRef(own), plainBytes());
   const plain = store.getState().activeDocumentId;
   edit(store);
   assert.equal(await ctrlS(store), true);
   assert.equal(origin(store), 'written');
-  await store.getState().openOpenedFile({ name: source.name, content: '', bytes: modelBytes(), ref: handleRef(source) });
+  await store.getState().openOpenedFile({ name: source.name, content: '', bytes: otherPlainBytes(), ref: handleRef(source) });
   assert.notEqual(store.getState().activeDocumentId, plain);
   const picker = ownHandlePicker(own, 1);
   try {
     assert((await store.getState().exportAs('ifc')).ok, 'de browserkiezer vergelijkt de gekozen handle niet (knownbug 1899)');
   } finally { picker.dispose(); }
-  assert(new TextDecoder().decode(handleFiles.get(own.name)!).includes('IFCWALL'), 'het gebouwmodel van het andere tabblad staat op de eigen handle');
+  assert(new TextDecoder().decode(handleFiles.get(own.name)!).includes("'New-Build Villa, Wassenaar'"), 'de planning van het andere tabblad staat op de eigen handle');
   store.getState().switchDocument(plain);
   const fresh = newErrors(store), onOwn = onHandle(own);
   edit(store);
