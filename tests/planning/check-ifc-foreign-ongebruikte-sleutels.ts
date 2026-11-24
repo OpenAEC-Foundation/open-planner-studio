@@ -157,7 +157,11 @@ await scenario('alle toewijzingen van #63 weg: de pset houdt alleen de ongebruik
   [extra(`${R109}#2`), bare, real(`${R109}#9`)], []);
 
 {
-  const opened = await openForeign(withUnused);
+  const withLink = latin1(after(text(withUnused), 9202, "#9310=IFCRELASSIGNSTOPRODUCT('0P8x9yZ1a2B3c4D5e6F7gH',#6,$,$,(#63),$,#354);"));
+  const opened = await openForeign(withLink);
+  const linksOf = (source: IfcSource | undefined) => show(source?.elementLinks.get(taskOf(opened).id) ?? null);
+  ok(`opslagworker: de taak heeft bij openen haar koppeling met wand B (${linksOf(opened.ifcSource)})`,
+    linksOf(opened.ifcSource) === show([{ direction: 'output', target: '242F3AJ$ylGv3IUzUFH5GZ', found: true }]));
   const input = { ...cloneDomain(opened), writeMode: 'merge' as const };
   input.project.description = `${input.project.description} (proef opslagworker)`;
   const job = structuredClone<IfcSaveJob>({ kind: 'merge', input, source: opened.ifcSource! });
@@ -171,6 +175,8 @@ await scenario('alle toewijzingen van #63 weg: de pset houdt alleen de ongebruik
     ok(`opslagworker: de nieuwe bron komt terug met haar ongebruikte sleutels (${show(back?.unusedKeys)})`,
       back?.unusedKeys !== undefined && show(back.unusedKeys) === show(direct?.source.unusedKeys));
     ok('opslagworker: de nieuwe bron houdt ook haar koppelingen met bouwdelen (elementLinks)', back?.elementLinks instanceof Map);
+    ok(`opslagworker: na heen en terug dezelfde koppeling van de taak (${linksOf(back)})`,
+      linksOf(back) === linksOf(opened.ifcSource) && linksOf(back) === linksOf(direct?.source));
   }
 }
 

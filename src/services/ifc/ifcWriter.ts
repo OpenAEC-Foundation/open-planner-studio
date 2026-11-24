@@ -1481,10 +1481,10 @@ function writeAssignmentMeta(
 ): void {
   const byTask = writtenAssignmentsByTask(ctx, assignments);
   for (const task of tasks) {
-    const list = byTask.get(task.id) ?? [];
-    const unused = ctx.merge?.unusedAssignmentKeys?.get(task.id) ?? [];
-    if (list.length === 0 && unused.length === 0) continue;
-    const props = list.map((a, index) => {
+    const list = byTask.get(task.id);
+    const unused = ctx.merge?.unusedAssignmentKeys?.get(task.id);
+    if (!list?.length && !unused?.length) continue;
+    const props = (list ?? []).map((a, index) => {
       const resGuid = objectGuid(ctx, 'res', a.resourceId);
       const propName = `${resGuid}#${index}`;
       const val = `${a.unitsPerDay}|${a.curve ?? 'UNIFORM'}`;
@@ -1492,8 +1492,8 @@ function writeAssignmentMeta(
         `IFCPROPERTYSINGLEVALUE(${ifcStr(propName)},$,IFCTEXT(${ifcStr(val)}),$)`);
       return `#${propId}`;
     });
-    if (unused.length > 0) {
-      const ownNames = list.map((a, index) => `${objectGuid(ctx, 'res', a.resourceId)}#${index}`);
+    if (unused?.length) {
+      const ownNames = (list ?? []).map((a, index) => `${objectGuid(ctx, 'res', a.resourceId)}#${index}`);
       const unusedNames = unusedAssignmentKeyNames(ownNames, unused.map(key => key.name),
         ctx.merge?.foreignAssignmentKeyNames?.get(task.id) ?? []);
       unused.forEach((key, k) => {

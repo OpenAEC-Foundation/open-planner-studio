@@ -2596,8 +2596,9 @@ function extractAssignments(
 ): ResourceAssignment[] {
   const metaByTask = new Map<string, TaskAssignmentMeta>();
   const windowsByTask = new Map<string, Map<string, WindowMeta[]>>();
-  const keysByTask = unusedKeysOut ? new Map<string, { prop: StepEntity; meta?: AssignmentMeta }[]>() : undefined;
-  const usedMeta = new Set<AssignmentMeta>();
+  const unusedRead = unusedKeysOut
+    ? { out: unusedKeysOut, keysByTask: new Map<string, { prop: StepEntity; meta?: AssignmentMeta }[]>(), usedMeta: new Set<AssignmentMeta>() }
+    : undefined;
   for (const { pset, name: psetName, objectRefs } of propertySetRelations(entities, entityMap)) {
 
     if (psetName === PSET.Timephased) {
@@ -2660,8 +2661,8 @@ function extractAssignments(
         metaByTask.set(objRef, taskMeta);
       }
       const indexed: { guid: string; index: number; meta: AssignmentMeta }[] = [];
-      let taskKeys = keysByTask?.get(objRef);
-      if (keysByTask && !taskKeys) keysByTask.set(objRef, taskKeys = []);
+      let taskKeys = unusedRead?.keysByTask.get(objRef);
+      if (unusedRead && !taskKeys) unusedRead.keysByTask.set(objRef, taskKeys = []);
       for (const prop of props) {
         const propName = stripQuotes(prop.args[0] || '');
         const value = parseTypedValue(prop.args[2] || '');
@@ -2708,7 +2709,7 @@ function extractAssignments(
       const resEntity = entityMap.get(resRef);
       const resGuid = resEntity ? stripQuotes(resEntity.args[RESOURCE_SLOT.globalId] || '') : '';
       const meta = taskMeta?.queues.get(resGuid)?.shift() ?? taskMeta?.legacy.get(resGuid);
-      if (meta && keysByTask) usedMeta.add(meta);
+      if (meta) unusedRead?.usedMeta.add(meta);
       const window = windowsByTask.get(taskRef)?.get(resGuid)?.shift();
 
       assignments.push({
@@ -2729,12 +2730,14 @@ function extractAssignments(
     }
   }
 
-  for (const [taskRef, keys] of keysByTask ?? []) {
-    if (!taskStepIdMap.has(taskRef)) continue;
-    const unused = keys
-      .filter(({ prop, meta }) => !(meta && usedMeta.has(meta)) && isAssignmentKeyName(stripQuotes(prop.args[0] || '')))
-      .map(({ prop }) => prop.id);
-    if (unused.length > 0) unusedKeysOut!.set(taskRef, unused);
+  if (unusedRead) {
+    for (const [taskRef, keys] of unusedRead.keysByTask) {
+      if (!taskStepIdMap.has(taskRef)) continue;
+      const unused = keys
+        .filter(({ prop, meta }) => !(meta && unusedRead.usedMeta.has(meta)) && isAssignmentKeyName(stripQuotes(prop.args[0] || '')))
+        .map(({ prop }) => prop.id);
+      if (unused.length > 0) unusedRead.out.set(taskRef, unused);
+    }
   }
   return assignments;
 }
