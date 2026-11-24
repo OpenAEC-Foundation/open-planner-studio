@@ -3905,9 +3905,10 @@ en noem het in je rapport of PR-tekst.
      schrijft terwijl het blijft bestaan: alle codetypen en velden gewist, geen vensterdata meer bij een toewijzing, en het
      laatste gebruik van een taaktype weg terwijl het type in de catalogus blijft (de writer schrijft alleen gebruikte
      typen; de andere lijsten schrijft hij heel). (3) Een venster in `OPS_Timephased.Windows` hoort bij de toewijzing die de
-     lezer bij het openen aan zijn sleutel gaf. Is die binding niet zeker, dan weigert een gewijzigde `Windows` met
-     `uitvoer-controle`: na herstel (de lezer geeft nieuwe toewijzings-id's), bij twee toewijzingen van dezelfde resource op
-     één taak in de bron, en na verwijderen en opnieuw toewijzen. Een ongewijzigde `Windows` blijft byte-gelijk. (4) Staat
+     lezer bij het openen aan zijn sleutel gaf. Is die binding niet zeker, dan draagt de merge het venster niet en
+     weigert een gewijzigde `Windows` zoals main: na herstel (de lezer geeft nieuwe toewijzings-id's), bij twee
+     toewijzingen van dezelfde resource op één taak in de bron, en na verwijderen en opnieuw toewijzen. Een ongewijzigde
+     `Windows` blijft byte-gelijk. (4) Staat
      een onbekende sleutel in `OPS_StructureMeta` vóór de bekende sleutels, dan weigert het hernoemen van een codetype met
      `niet-gedragen` op `IFCPROPERTYSETTEMPLATE`, zoals main; bij een andere bewerking komt de sleutel achter de bekende
      sleutels. (5) De kalenders en resources in `OPS_Library` staan als `doorgegeven` in het register: de lezer zet ze heel

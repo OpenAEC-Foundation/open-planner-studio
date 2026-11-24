@@ -365,7 +365,8 @@ dubbele sleutels). `sameJsonValue` houdt het teken van nul en noemt dubbele sleu
 in `checkedBytes`: een eigenschap die byte-gelijk aan de bron is, is goed; anders staat elk object met onbekende
 sleutels eenduidig in de uitvoer, met per sleutel hetzelfde ruwe token. Een object geldt alleen als verdwenen als het in
 het huidige domein niet meer bestaat; bestaat het nog en ontbreekt het in de uitvoer, dan `uitvoer-controle`. Een
-venster zonder zekere toewijzing (niet meer in het domein, terwijl de taak blijft) weigert ook. Grenzen: knownbug 2218.
+venster waarvan de toewijzing niet meer bestaat, staat in O0 en O1 allebei niet (`pristineJson` in `mergeWriter.ts`):
+daarover beslist de verliescontrole, zoals op main. Grenzen: knownbug 2218.
 
 ### Vergelijkingsklok (#804 fase 1c)
 
