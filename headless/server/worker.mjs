@@ -2,7 +2,7 @@
 // gebouwde pakket; het antwoord is altijd `{ ok: true, … }` of `{ ok: false, code, message, details? }`.
 // Loopt in een eigen thread, zodat de server bij een timeout de worker kan beëindigen.
 import { parentPort } from 'node:worker_threads';
-import { openIfcBytes, PlannerCoreError } from '@openaec/open-planner-core';
+import { openIfc, PlannerCoreError } from '@openaec/open-planner-core';
 
 // De kern logt soms id's of namen uit het bestand (bijv. een relatie-id bij een te grote
 // samenvattingsrelatie). Die horen niet in de serverlogs: console hier stil, en de server gooit
@@ -11,7 +11,7 @@ for (const method of ['log', 'info', 'warn', 'error', 'debug', 'trace']) console
 
 parentPort.on('message', async ({ text, output }) => {
   try {
-    const doc = await openIfcBytes(new TextEncoder().encode(text));
+    const doc = await openIfc(text);
     const summary = doc.schedule();
     parentPort.postMessage(output === 'ifc' ? { ok: true, ifc: doc.toIfc() } : { ok: true, summary });
   } catch (err) {
