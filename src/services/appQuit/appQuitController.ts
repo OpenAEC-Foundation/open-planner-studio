@@ -60,6 +60,7 @@ export interface AppQuitDependencies {
   watchFailures: () => () => boolean;
   /** Neemt de afsluitfase (`claimShutdown('quit')`); `null` als de updater hem heeft. */
   claimShutdown: () => (() => void) | null;
+  writeReportOpen?: () => boolean;
 }
 
 export interface AppQuitController {
@@ -79,10 +80,13 @@ export function createAppQuitController(deps: AppQuitDependencies): AppQuitContr
   let prompting: string | null = null;
   /** Geeft de afsluitfase terug; gezet zolang de controller hem bezit. */
   let releaseShutdown: (() => void) | null = null;
+  let holding = false;
+  const reportOpen = () => deps.writeReportOpen?.() === true;
 
   const abort = () => {
     active = false;
     prompting = null;
+    holding = false;
     deps.setQuitPending(false);
     releaseShutdown?.();
     releaseShutdown = null;
@@ -106,7 +110,7 @@ export function createAppQuitController(deps: AppQuitDependencies): AppQuitContr
       finishing = false;
     };
     // Het vangnet: met een gewijzigd document gaat het venster nooit dicht nadat het herstel gewist is.
-    if (deps.listDocuments().some((doc) => doc.isDirty)) {
+    if (deps.listDocuments().some((doc) => doc.isDirty) || reportOpen()) {
       reopen();
       step();
       return;
@@ -161,11 +165,17 @@ export function createAppQuitController(deps: AppQuitDependencies): AppQuitContr
       }
     }
     const next = docs.find((doc) => doc.isDirty);
+    if (holding && next) {
+      abort();
+      return;
+    }
     if (next) {
       prompting = next.id;
       deps.setPendingCloseDocId(next.id);
       return;
     }
+    holding = reportOpen();
+    if (holding) return;
     void finish();
   };
 

@@ -579,7 +579,7 @@ export const fileTools: McpToolDef[] = [
           ...(replaceNotice ? { replaceNotice } : {}),
           ...(foreignDataChanged > 0 ? {
             foreignDataChanged,
-            foreignDataNotice: `${foreignDataChanged} item(s) from other programs were linked to deleted tasks or resources. `
+            foreignDataNotice: `${foreignDataChanged} IFC item(s) outside the schedule referred to something that was deleted from the schedule. `
               + 'They were adjusted or removed in this file.',
           } : {}),
           /** Het schema in de kop van het geschreven bestand (issue #292). */

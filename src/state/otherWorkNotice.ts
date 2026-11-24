@@ -14,7 +14,7 @@ import type { AppState } from './appStore';
 import { DOCUMENT_FIELDS } from './documentContract';
 import { selectUndoHistoryEvent } from './sessionHistory';
 import type { Snapshot } from './snapshot';
-import type { NotifyInput } from './slices/types';
+import type { NotificationAction, NotifyInput } from './slices/types';
 import { TASK_TYPES_HELP_ARTICLE_ID } from './helpArticles';
 import { isHourTask, workRuleApplies } from '@/engine/work/workRuleApply';
 import { shownRemainingWorkMinutes, shownWorkHours } from '@/engine/work/shownWork';
@@ -67,16 +67,36 @@ function noticeData(state: AppState): unknown[] {
  *  wijziging die dat breekt (een nieuwere stap, Ctrl+Z, een ander document, een bibliotheekverversing) haalt
  *  haar definitief weg, dus ook Ctrl+Z van wat daarna kwam brengt haar niet terug (review #1120 ronde 4
  *  en 5). Zo kloppen haar cijfers zolang ze er staat, en zet haar knop alleen haar eigen stap terug. */
-export function watchNotice(store: NoticeStore, eventId: string, stillValid: (state: AppState) => boolean = () => true): void {
+export function watchNotice(
+  store: NoticeStore,
+  eventId: string,
+  stillValid: (state: AppState) => boolean = () => true,
+  suspended: (state: AppState) => boolean = () => false,
+): void {
   const data = noticeData(store.getState());
-  const stop = store.subscribe((s) => {
-    const notice = s.ui.notifications.find((n) => n.action?.kind === 'undoHistoryEvent' && n.action.eventId === eventId);
-    if (!notice) { stop(); return; } // tijd om, kruisje of vervangen
+  const ours = (action: NotificationAction | undefined) => action?.kind === 'undoHistoryEvent' && action.eventId === eventId;
+  const id = store.getState().ui.notifications.find((n) => ours(n.action))?.id;
+  let held: NotificationAction | undefined;
+  const check = (s: AppState) => {
+    const notice = s.ui.notifications.find((n) => n.id === id);
+    if (!notice || (held ? notice.action !== undefined : !ours(notice.action))) { stop(); return; } // tijd om, kruisje of vervangen
     if (selectUndoHistoryEvent(s.historyEvents, s.activeDocumentId)?.id === eventId
-      && noticeData(s).every((value, i) => value === data[i]) && stillValid(s)) return;
+      && noticeData(s).every((value, i) => value === data[i]) && stillValid(s)) {
+      if (!held && suspended(s)) {
+        held = notice.action;
+        s.setNotificationAction(notice.id, undefined);
+      } else if (held && !suspended(s)) {
+        const action = held;
+        held = undefined;
+        s.setNotificationAction(notice.id, action);
+      }
+      return;
+    }
     stop();
     s.dismissNotification(notice.id);
-  });
+  };
+  const stop = store.subscribe(check);
+  check(store.getState());
 }
 
 /**

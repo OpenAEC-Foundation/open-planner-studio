@@ -1710,7 +1710,7 @@ test('export_ifc: na het wissen van een taak met een koppeling van een ander pro
     assert(result.ok, `export na wissen slaagt: ${result.ok ? '' : result.error}`);
     const data = (result as McpToolOk).data as { foreignDataChanged?: number; foreignDataNotice?: string };
     assertEq(data.foreignDataChanged, 1, 'het antwoord noemt de ene vervallen koppeling');
-    assert(data.foreignDataNotice?.startsWith('1 item(s) from other programs') ?? false, 'met een zin voor de assistent');
+    assert(data.foreignDataNotice?.startsWith('1 IFC item(s) outside the schedule referred to something that was deleted') ?? false, 'met een zin voor de assistent');
     assert(!new TextDecoder().decode(binFiles.get(target)!).includes('#9001='), 'de koppeling staat niet in het bestand');
   } finally { useAppStore.setState(s => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument(); }
 });

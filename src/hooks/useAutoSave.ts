@@ -14,6 +14,7 @@ import { createFileAutoSaveController } from '@/services/actualAutosave/fileAuto
 import { scheduleFileAutoSave } from '@/services/actualAutosave/fileAutoSaveTimers';
 import { onTextEntry } from '@/state/textEntryActivity';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
+import { writeReportOpen } from '@/state/foreignChangesWrittenNotice';
 
 // Auto-save GETHROTTLED op ~10 s (bewust geen debounce): bij een reeks wijzigingen
 // schrijven we een recovery-snapshot HOOGSTENS eens per `AUTOSAVE_INTERVAL_MS`, óók tijdens
@@ -157,7 +158,7 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       // document pas hier gewijzigd, en hoort de sluitwaarschuwing te krijgen.
       appStoreContext.runtime.finishPendingTextEdits();
       const dirty = useAppStore.getState().getOpenDocumentPayloads().some((d) => d.payload.isDirty);
-      if (!dirty) return;
+      if (!dirty && !writeReportOpen(useAppStore.getState())) return;
       e.preventDefault();
       // Legacy-vereiste van sommige browsers om de prompt te tonen (de tekst zelf is niet instelbaar).
       e.returnValue = '';

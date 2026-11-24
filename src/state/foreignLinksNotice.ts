@@ -4,6 +4,7 @@ import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import type { AppState } from './appStore';
 import { watchNotice, type NoticeStore } from './otherWorkNotice';
 import { selectUndoHistoryEvent } from './sessionHistory';
+import { writeCaptures } from './documentSaveState';
 
 export const FOREIGN_LINKS_NOTICE_KEY = 'foreign-links-dropped';
 
@@ -42,6 +43,6 @@ export function notifyForeignLinksDropped(store: NoticeStore, before: DomainBefo
     replaceOnDedupe: true,
     durationMs: FOREIGN_LINKS_NOTICE_MS,
   });
-  const source = state.ifcSource;
-  watchNotice(store, event.id, s => s.ifcSource === source);
+  const source = state.ifcSource, documentId = state.activeDocumentId;
+  watchNotice(store, event.id, s => s.ifcSource === source && ifcForeignContentEnabled(s.ui.featureFlags), s => writeCaptures(s, documentId));
 }

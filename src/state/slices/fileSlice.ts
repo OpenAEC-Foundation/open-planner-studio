@@ -101,7 +101,7 @@ import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerEx
 import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementSettled } from '@/services/fileAccess/writeCoordinator';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
-  changeSaving, clearChangedOnDisk, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
+  changeCapturing, changeSaving, clearChangedOnDisk, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
   sameDocumentContent, stampSaved, type DocumentContentRef,
 } from '../documentSaveState';
 import { saveQuestionOpen } from '@/state/blockingDialogs';
@@ -400,6 +400,7 @@ export interface FileSlice {
   saveFileForDocument: (documentId: string) => Promise<boolean>;
   saveFileAs: () => Promise<void>;
   commitSavedDocument: (document: DocumentContentRef, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite, missingSourceSaveAs?: boolean, written?: TargetFingerprint | null) => boolean;
+  captureDocumentWrite: (document: DocumentContentRef) => () => void;
   exportAs: (format: ExportFormat, options?: ExportOptions) => Promise<ExportResult>;
   exportProjectWithPool: () => Promise<ExportResult>;
   recordLiteralCalendarsWritten: (documentId: string, ids: readonly string[]) => void;
@@ -877,6 +878,23 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return state.documents.find(document => document.id === documentId)?.payload ?? null;
   };
 
+  const writtenFileName = (documentId: string, destination?: SaveDestination): string => {
+    const s = get();
+    const path = destination?.filePath
+      ?? (s.activeDocumentId === documentId ? s.filePath : s.documents.find(d => d.id === documentId)?.payload?.filePath);
+    return path ? basename(path) : documentFileName(s);
+  };
+
+  const captureDocumentWrite = (document: DocumentContentRef): (() => void) => {
+    set(s => { changeCapturing(s, document, 1); });
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      set(s => { changeCapturing(s, document, -1); });
+    };
+  };
+
   const commitSavedDocument = (
     document: DocumentContentRef,
     savedSource: IFCSaveSource,
@@ -885,7 +903,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     missingSourceSaveAs = false,
     written: TargetFingerprint | null = null,
   ): boolean => {
-    notifyForeignChangesWritten(get().notify, prepared);
+    notifyForeignChangesWritten(get, prepared, writtenFileName(document.id, destination));
     if (!sameDocumentContent(get(), document)) return false;
     const documentId = document.id;
     const currentSource = saveSourceForDocument(get(), documentId);
@@ -1346,6 +1364,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const state = get();
     if (state.activeDocumentId !== documentId || !sameDocumentContent(state, requested)) return false;
     if (refuseForeignDocumentWrite(state)) return false;
+    const releaseCapture = captureDocumentWrite(requested);
     let siteName: string | null = null;
     let handleWriteFailed = false;
     const failureNoticeKey = `project-save:${++saveAttemptSequence}`;
@@ -1453,11 +1472,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return false;
       if (write.prepared && outcome.viaDownload && ref?.kind === 'handle' && hasBuildingModel(state.ifcSource)) {
         get().notify(downloadCopyNotice(outcome.name));
-        notifyForeignChangesWritten(get().notify, write.prepared);
+        notifyForeignChangesWritten(get, write.prepared, outcome.name);
         return false;
       }
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
-      if (write.prepared && outcome.viaDownload) notifyForeignChangesWritten(get().notify, write.prepared);
+      if (write.prepared && outcome.viaDownload) notifyForeignChangesWritten(get, write.prepared, outcome.name);
       const saved = write.prepared && outcome.viaDownload
         ? commitSavedDocument(snapshotContent(state), state)
         : commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, false, fingerprint);
@@ -1475,6 +1494,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       notifyWriteError(err);
       return false;
+    } finally {
+      releaseCapture();
     }
   }, () => false);
 
@@ -1503,6 +1524,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!missingSourceSaveAsAllowed(state) || state.foreignSourceMark !== before.foreignSourceMark
         || state.ifcSource !== before.ifcSource) return;
     } else if (refuseForeignDocumentWrite(state)) return;
+    const releaseCapture = captureDocumentWrite(requested);
     let siteName: string | null = null;
 
     try {
@@ -1531,7 +1553,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return;
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
       if (write.prepared && outcome.viaDownload) {
-        notifyForeignChangesWritten(get().notify, write.prepared);
+        notifyForeignChangesWritten(get, write.prepared, outcome.name);
         commitSavedDocument(snapshotContent(state), state);
       } else commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, missingSourceSaveAs, fingerprint);
       if (!sameDocumentContent(get(), snapshotContent(state))) return;
@@ -1545,6 +1567,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       console.error('Save As failed:', err);
       get().notify(newTargetWriteNotice(err)
         ?? { severity: 'error', messageKey: 'notifications.saveFailed', detail: saveErrorDetail(err) });
+    } finally {
+      releaseCapture();
     }
   };
 
@@ -1565,6 +1589,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   const slice: FileSlice = {
     commitSavedDocument,
+    captureDocumentWrite,
     applyProjectEdit: (parsed, opts) => get().applyLoadedProject(parsed, {
       intent: 'edit',
       recompute: true,
@@ -2048,7 +2073,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           return null;
         }
         if (written) await recordOwnFileExport(state, written, preparedExport || planOnly ? [] : exportedLiteral, payload);
-        if (written) notifyForeignChangesWritten(get().notify, preparedExport);
+        if (written) notifyForeignChangesWritten(get, preparedExport, written.name);
         if (written && ext === 'ifc' && exportContentReplaced(state)) return null;
         return written;
       };

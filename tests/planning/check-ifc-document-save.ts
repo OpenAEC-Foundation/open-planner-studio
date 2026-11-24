@@ -3,14 +3,14 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdtempSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { buildExportIFCInput, buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { writeIFC, writeIFCWithChoices } from '@/services/ifc/ifcWriter';
 import { askPlanOnly, resetPlanOnlyAsker, setPlanOnlyAsker, type PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
-import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
+import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
 import { computeIfcOutputHere, prepareIfcOutput, IfcWriteBlockedError, type IfcOutputCompute } from '@/state/prepareIfcOutput';
@@ -39,6 +39,10 @@ import { InProcessWorker } from './inProcessSaveWorker';
 import { createExtensionApi } from '@/extensions/extensionApi';
 import { FOREIGN_CHANGES_WRITTEN_NOTICE_KEY } from '@/state/foreignChangesWrittenNotice';
 import { FOREIGN_LINKS_NOTICE_KEY } from '@/state/foreignLinksNotice';
+import { createAppQuitController } from '@/services/appQuit/appQuitController';
+import { appQuitDependencies } from '@/services/appQuit/appQuitDependencies';
+import { loadExtensionProject } from '@/extensions/retainActiveDocument';
+import { toExtAssignment, toExtCalendar, toExtProject, toExtResource, toExtSequence, toExtTask } from '@/extensions/extMappers';
 
 const reseed = installDeterminism();
 await loadStore();
@@ -4265,51 +4269,117 @@ const LINKED = await (async () => {
   ].join('\n') + '\n' + content.slice(end));
 })();
 
-type WriteRoute = { readonly store: Store; readonly write: () => Promise<unknown>; readonly dispose: () => Promise<void> };
+type WriteRoute = {
+  readonly store: Store;
+  readonly write: () => Promise<boolean | void>;
+  readonly written: () => Promise<Uint8Array | undefined>;
+  readonly file: () => string;
+  readonly prepare?: () => Promise<PreparedIfcWrite>;
+  readonly dispose: () => Promise<void>;
+};
 let routeFiles = 0;
-const onDesktop = async (write: (store: Store, ipc: ReturnType<typeof desktop>) => Promise<unknown>): Promise<WriteRoute> => {
+const reportLines = (store: Store) => {
+  const notice = writtenNotices(store)[0];
+  return notice ? [notice.params, ...(notice.detailLines ?? []).map(l => l.params)].map(p => `${p?.file}:${p?.count}`) : [];
+};
+const preparedWrite = (store: Store) => prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+const onDesktop = async (write: (store: Store, ipc: ReturnType<typeof desktop>, target: (path?: string) => string) => Promise<boolean | void>,
+  exported = false): Promise<WriteRoute> => {
   const appData = mkdtempSync(join(tmpdir(), 'ops-route-appdata-')), ipc = desktop(appData);
   const path = join(dir, `route-${++routeFiles}.ifc`); writeFileSync(path, LINKED);
   const store = await openAt({ kind: 'path', path }, LINKED), unregister = recoveryRounds(store);
-  return { store, write: () => write(store, ipc), dispose: async () => { unregister(); await clearRecovery(); ipc.dispose(); rmSync(appData, { recursive: true, force: true }); } };
+  let last = path;
+  const target = (chosen?: string) => { if (chosen) { last = chosen; ipc.choose(chosen); } return last; };
+  return {
+    store, write: () => write(store, ipc, target), written: async () => existsSync(last) ? new Uint8Array(readFileSync(last)) : undefined,
+    file: () => basename(last),
+    ...(exported ? { prepare: () => prepareIfcWrite(buildExportIFCInput(store.getState(), 'merge'), store.getState().ifcSource!) } : {}),
+    dispose: async () => { unregister(); await clearRecovery(); ipc.dispose(); rmSync(appData, { recursive: true, force: true }); },
+  };
 };
-const onHandle = async (write: (store: Store) => Promise<unknown>): Promise<WriteRoute> => {
-  const { store } = await openHandle(LINKED), unregister = recoveryRounds(store);
-  return { store, write: () => write(store), dispose: async () => { unregister(); await clearRecovery(); } };
+const onHandle = async (write: (store: Store) => Promise<boolean | void>, fail = false): Promise<WriteRoute> => {
+  const { store, name } = await openHandle(LINKED), unregister = recoveryRounds(store);
+  if (fail) handleFaults.set(name, { writeErrorAt: 0 });
+  return { store, write: () => write(store), written: async () => fileOf(name), file: () => basename(store.getState().filePath!),
+    dispose: async () => { handleFaults.delete(name); unregister(); await clearRecovery(); } };
 };
-const onDownload = async (write: (store: Store) => Promise<unknown>): Promise<WriteRoute> => {
+const downloaded = async (browser: ReturnType<typeof browserDownload>) => {
+  const last = browser.downloads.at(-1);
+  return last ? new Uint8Array(await last.arrayBuffer()) : undefined;
+};
+const onDownload = async (write: (store: Store) => Promise<boolean | void>): Promise<WriteRoute> => {
   const browser = browserDownload(), { store } = await openInStore(LINKED);
-  return { store, write: () => write(store), dispose: async () => { browser.dispose(); } };
+  return { store, write: () => write(store), written: () => downloaded(browser), file: () => basename(store.getState().filePath ?? 'bron.ifc'),
+    dispose: async () => { browser.dispose(); } };
 };
-const onRefusedHandle = async (write: (store: Store) => Promise<unknown>): Promise<WriteRoute> => {
+const onRefusedHandle = async (write: (store: Store) => Promise<boolean | void>): Promise<WriteRoute> => {
   const browser = browserDownload(), { store, name } = await openHandle(LINKED), unregister = recoveryRounds(store);
   handleFaults.set(name, { permission: 'denied' });
-  return { store, write: () => write(store), dispose: async () => { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); } };
+  return { store, write: () => write(store), written: () => downloaded(browser), file: () => basename(store.getState().filePath!),
+    dispose: async () => { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); } };
 };
-const WRITE_ROUTES: readonly [string, () => Promise<WriteRoute>][] = [
+const onSite = async (): Promise<WriteRoute> => {
+  const win = window as unknown as Record<string, unknown>, requests: { data: Blob }[] = [];
+  let version = 1;
+  win.openaecHost = { storage: {
+    list: async () => [], versions: async () => [], open: async () => ({ data: new Blob([LINKED.buffer]), name: 'site-bron.ifc', version: 'v1' }),
+    save: async (request: { id?: string; data: Blob }) => { requests.push(request); return { id: request.id ?? 'site', name: 'site-bron.ifc', version: `v${++version}` }; },
+  } };
+  const store = await openAt({ kind: 'site', id: 'site' }, LINKED);
+  store.setState(s => { s.siteFileVersion = 'v1'; });
+  return { store, write: () => store.getState().saveFile(),
+    written: async () => { const last = requests.at(-1); return last ? new Uint8Array(await last.data.arrayBuffer()) : undefined; },
+    file: () => basename(store.getState().filePath!), dispose: async () => { delete win.openaecHost; resetSiteAskers(); } };
+};
+const closePromptSave = (store: Store) => {
+  const id = store.getState().activeDocumentId;
+  return createCloseDocumentDialogActions({
+    pendingId: id, getActiveDocumentId: () => store.getState().activeDocumentId,
+    switchDocument: store.getState().switchDocument, closeDocument: () => {},
+    saveFile: () => ctrlS(store), clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+  }).save();
+};
+const WRITE_ROUTES: readonly [string, () => Promise<WriteRoute>, boolean?][] = [
   ['Ctrl+S, bestand op de desktop', () => onDesktop(store => ctrlS(store))],
-  ['Opslaan als, desktop', () => onDesktop((store, ipc) => { ipc.choose(join(dir, `als-${++routeFiles}.ifc`)); return store.getState().saveFileAs(); })],
-  ['Exporteren als IFC, desktop', () => onDesktop((store, ipc) => { ipc.choose(join(dir, `export-${++routeFiles}.ifc`)); return store.getState().exportAs('ifc'); })],
+  ['Automatisch opslaan, desktop', () => onDesktop(store => modelAutoSave(store).round().then(() => undefined))],
+  ['Opslaan als, desktop', () => onDesktop((store, _ipc, target) => { target(join(dir, `als-${++routeFiles}.ifc`)); return store.getState().saveFileAs(); })],
+  ['Exporteren als IFC, desktop, nieuw bestand', () => onDesktop((store, _ipc, target) => {
+    target(join(dir, `export-${++routeFiles}.ifc`)); return store.getState().exportAs('ifc').then(() => undefined);
+  }, true)],
+  ['Exporteren als IFC, desktop, over een bestaand bestand', () => onDesktop((store, _ipc, target) => {
+    writeFileSync(target(join(dir, `bestaand-${++routeFiles}.ifc`)), plainBytes()); return store.getState().exportAs('ifc').then(() => undefined);
+  }, true)],
   ['Ctrl+S, browser met handle', () => onHandle(store => ctrlS(store))],
-  ['Automatisch opslaan, browser met handle', () => onHandle(store => modelAutoSave(store).round())],
+  ['Automatisch opslaan, browser met handle', () => onHandle(store => modelAutoSave(store).round().then(() => undefined))],
+  ['de sluitvraag met Opslaan', () => onHandle(store => closePromptSave(store))],
+  ['Ctrl+S naar de site', () => onSite()],
   ['Opslaan als, download', () => onDownload(store => store.getState().saveFileAs())],
   ['Ctrl+S, download', () => onDownload(store => ctrlS(store))],
   ['Ctrl+S, handle geweigerd: kopie als download', () => onRefusedHandle(store => ctrlS(store))],
+  ['Ctrl+S, de schrijfactie mislukt', () => onHandle(store => ctrlS(store), true), true],
 ];
 
-await check('fixronde 1 van #1199: elke schrijfroute meldt het aantal van de geschreven wijzigingslijst, een lege lijst niets', async () => {
-  for (const [name, open] of WRITE_ROUTES) {
+await check('fixronde 2 van #1199: elke schrijfroute meldt per geslaagde schrijfactie het aantal van haar lijst, met de bestandsnaam; een lege of mislukte niets', async () => {
+  for (const [name, open, fails = false] of WRITE_ROUTES) {
     const route = await open();
     try {
-      longer(route.store); clearNotices(route.store);
-      await route.write();
-      assert.deepEqual(writtenNotices(route.store), [], `${name}: een lege lijst geeft geen melding`);
-      route.store.getState().deleteTask(taskNamed(route.store, 'Set up site'));
-      const expected = await writtenCount(route.store);
-      assert(expected > 0, `${name}: er vervalt iets`);
       clearNotices(route.store);
-      await route.write();
-      assert.deepEqual(writtenNotices(route.store).map(n => n.params?.count), [expected], `${name}: de melding met het aantal van de lijst`);
+      const lines: string[] = [];
+      for (const remove of [false, true]) {
+        if (remove) route.store.getState().deleteTask(taskNamed(route.store, 'Set up site')); else longer(route.store);
+        const expected = await (route.prepare ?? (() => preparedWrite(route.store)))();
+        const count = expected.foreignChanges?.length ?? 0;
+        assert.equal(count > 0, remove, `${name}: alleen het wissen laat iets vervallen`);
+        const outcome = await route.write();
+        const after = await route.written();
+        const wrote = after !== undefined && hash(after) === expected.sha256;
+        assert.equal(wrote, !fails, `${name}: ${fails ? 'de schrijfactie mislukt' : 'precies de voorbereide uitvoer staat op het doel'} `
+          + (after ? firstDiff(new TextDecoder().decode(expected.bytes), new TextDecoder().decode(after)) : 'geen bestand'));
+        if (typeof outcome === 'boolean' && !name.includes('download')) assert.equal(outcome, !fails, `${name}: de uitkomst van de schrijfactie`);
+        if (wrote && count > 0) lines.push(`${route.file()}:${count}`);
+        assert.deepEqual(reportLines(route.store), lines, `${name}: na ${remove ? 'het wissen' : 'een langere duur'}`);
+      }
+      if (fails) assert(route.store.getState().ui.notifications.some(n => n.severity === 'error'), `${name}: de fout zelf staat er`);
     } finally { await route.dispose(); }
   }
 });
@@ -4378,6 +4448,269 @@ await check('fixronde 1 van #1199: de knop Ongedaan maken verdwijnt met de bron;
     assert.equal(auto.store.getState().isDirty, false, 'de volgende ronde schreef');
     assert.deepEqual(writtenNotices(auto.store), [], 'de volgende ronde meldt niets: de bron is de uitvoer');
   } finally { await auto.dispose(); }
+});
+
+const knobOf = (store: Store) => deleteNotices(store)[0]?.action;
+const clickKnob = (store: Store) => {
+  const action = knobOf(store);
+  assert(action?.kind === 'undoHistoryEvent', 'de knop staat er');
+  store.getState().undoHistoryEvent(action.eventId);
+};
+for (const via of ['Ctrl+S', 'Automatisch opslaan'] as const) {
+  await check(`fixronde 2 van #1199, regel B (${via}): na de momentopname geen knop; na een mislukte schrijfactie is ze terug en werkt ze`, async () => {
+    const sw = saveWorker('manual'), { store, name } = await openHandle(LINKED, sw.compute), unregister = recoveryRounds(store);
+    const auto = via === 'Automatisch opslaan' ? modelAutoSave(store, sw.compute) : null;
+    try {
+      store.getState().deleteTask(taskNamed(store, 'Set up site'));
+      assert.equal(knobOf(store)?.kind, 'undoHistoryEvent', 'vóór de opslag staat de knop er');
+      handleFaults.set(name, { writeErrorAt: 0 });
+      const writing: Promise<unknown> = auto ? auto.round() : ctrlS(store);
+      await mergeArrives(sw, 1);
+      assert.equal(knobOf(store), undefined, 'de schrijfactie heeft haar momentopname: geen knop');
+      assert.equal(deleteNotices(store).length, 1, 'de melding zelf blijft staan');
+      await finishMerge(sw);
+      const outcome = await writing;
+      if (!auto) assert.equal(outcome, false, 'de schrijfactie mislukt');
+      assert.equal(hash(fileOf(name)), hash(LINKED), 'het bestand is niet veranderd');
+      assert.equal(knobOf(store)?.kind, 'undoHistoryEvent', 'dezelfde bron en wisstap: de knop is terug');
+      clickKnob(store);
+      assert(store.getState().tasks.some(t => t.name === 'Set up site'), 'de knop zet de taak terug');
+      assert.deepEqual(deleteNotices(store), [], 'en de melding gaat weg');
+    } finally { handleFaults.delete(name); unregister(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
+
+await check('fixronde 2 van #1199, regel B: een geslaagde schrijfactie haalt de knop weg vanaf de momentopname, en hij komt niet terug', async () => {
+  const sw = saveWorker('manual'), { store } = await openHandle(LINKED, sw.compute), unregister = recoveryRounds(store);
+  try {
+    store.getState().deleteTask(taskNamed(store, 'Set up site'));
+    const writing = ctrlS(store);
+    await mergeArrives(sw, 1);
+    assert.equal(knobOf(store), undefined);
+    await finishMerge(sw);
+    assert.equal(await writing, true);
+    assert.deepEqual(deleteNotices(store), [], 'na de commit is de melding weg');
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+await check('fixronde 2 van #1199: de flag uitzetten haalt een lopende wismelding weg', async () => {
+  const { store } = await openHandle(LINKED), unregister = recoveryRounds(store);
+  try {
+    store.getState().deleteTask(taskNamed(store, 'Set up site'));
+    assert.equal(deleteNotices(store).length, 1);
+    store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    assert.deepEqual(deleteNotices(store), []);
+  } finally { unregister(); await clearRecovery(); }
+});
+
+function rng(seed: number) {
+  let a = seed >>> 0;
+  return (n: number) => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return Math.floor((((t ^ (t >>> 14)) >>> 0) / 4294967296) * n);
+  };
+}
+async function linkedDocuments(count: number, flag = true) {
+  const { createAppStoreContext } = await loadStore(), context = createAppStoreContext();
+  const { store } = context;
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; });
+  const docs: { id: string; name: string }[] = [];
+  for (let k = 0; k < count; k++) {
+    const name = `telling-${++handleCount}.ifc`;
+    handleFiles.set(name, LINKED);
+    await store.getState().openOpenedFile({ name, content: '', bytes: LINKED,
+      ref: { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle } });
+    store.getState().setAutoSaveToFile(true);
+    docs.push({ id: store.getState().activeDocumentId, name });
+  }
+  clearNotices(store);
+  return { context, store, docs, unregister: recoveryRounds(store) };
+}
+const LINKED_TASKS = ['Set up site', 'Demolish existing extension'];
+const expectedFor = async (store: Store, id: string) => {
+  const payload = store.getState().getOpenDocumentPayloads().find(d => d.id === id)!.payload;
+  return prepareIfcWrite(buildWriteIFCInput(payload, 'merge'), payload.ifcSource!);
+};
+
+for (const [seed, count] of [[11, 2], [12, 3], [13, 5]] as const) {
+  await check(`fixronde 2 van #1199, regel A: willekeurige schrijfacties over ${count} documenten (zaad ${seed}): precies de niet-lege geslaagde lijsten, elk met naam en aantal, tot ze gezien zijn`, async () => {
+    const { store, docs, unregister } = await linkedDocuments(count), next = rng(seed), browser = browserDownload();
+    const auto = modelAutoSave(store);
+    const lines: string[] = [];
+    const log: string[] = [];
+    const record = async (doc: { id: string; name: string }, expected: PreparedIfcWrite | null, written: Uint8Array | undefined) => {
+      const n = expected?.foreignChanges?.length ?? 0;
+      if (expected && written && hash(written) === expected.sha256 && n > 0) lines.push(`${doc.name}:${n}`);
+    };
+    try {
+      for (let step = 0; step < 14; step++) {
+        const doc = docs[next(docs.length)]!, op = ['wis', 'langer', 'ctrlS', 'fout', 'auto', 'als', 'zien'][next(7)]!;
+        log.push(`${op}:${doc.name}`);
+        store.getState().switchDocument(doc.id);
+        if (op === 'wis') {
+          const name = LINKED_TASKS.find(t => store.getState().tasks.some(x => x.name === t));
+          if (name) store.getState().deleteTask(taskNamed(store, name)); else longer(store);
+        } else if (op === 'langer') longer(store);
+        else if (op === 'ctrlS' || op === 'fout') {
+          const expected = await expectedFor(store, doc.id);
+          if (op === 'fout') handleFaults.set(doc.name, { writeErrorAt: 0 });
+          try { await ctrlS(store); } finally { handleFaults.delete(doc.name); }
+          await record(doc, expected, fileOf(doc.name));
+        } else if (op === 'auto') {
+          const expected = new Map<string, PreparedIfcWrite>();
+          for (const d of docs) expected.set(d.id, await expectedFor(store, d.id));
+          await auto.round();
+          for (const d of docs) await record(d, expected.get(d.id)!, fileOf(d.name));
+        } else if (op === 'als') {
+          const expected = await expectedFor(store, doc.id), before = browser.downloads.length;
+          await store.getState().saveFileAs();
+          const blob = browser.downloads.length > before ? browser.downloads.at(-1)! : undefined;
+          await record(doc, expected, blob ? new Uint8Array(await blob.arrayBuffer()) : undefined);
+        } else {
+          const notice = writtenNotices(store)[0];
+          if (notice) store.getState().dismissNotification(notice.id);
+          lines.length = 0;
+        }
+        assert.deepEqual(reportLines(store), lines, `na ${log.join(' ')}`);
+      }
+    } finally { browser.dispose(); unregister(); await clearRecovery(); }
+  });
+}
+
+await check('fixronde 2 van #1199, regel A: vier en meer geschreven bestanden en een volle meldingenstapel: geen telling verdwijnt', async () => {
+  const { store, docs, unregister } = await linkedDocuments(5);
+  try {
+    const auto = modelAutoSave(store);
+    for (const doc of docs) { store.getState().switchDocument(doc.id); store.getState().deleteTask(taskNamed(store, 'Set up site')); }
+    await auto.round();
+    for (let k = 0; k < 4; k++) store.getState().notify({ severity: 'error', messageKey: 'notifications.saveFailed', dedupeKey: `vol-${k}` });
+    for (let k = 0; k < 4; k++) store.getState().notify({ severity: 'info', messageKey: 'notifications.saveFailed', sticky: true, dedupeKey: `blijvend-${k}` });
+    assert.deepEqual(reportLines(store).map(l => l.split(':')[0]), docs.map(d => d.name), 'elk bestand met zijn eigen regel');
+    assert(store.getState().ui.notifications.length <= 3, 'de stapel blijft binnen zijn grens');
+    store.getState().switchDocument(docs[0]!.id); longer(store); await ctrlS(store);
+    assert.equal(reportLines(store).length, docs.length, 'een tweede schrijfactie naar hetzelfde bestand met een lege lijst laat de telling staan');
+    store.getState().closeDocument(docs[1]!.id);
+    assert.equal(reportLines(store).length, docs.length, 'het tabblad sluiten laat de telling staan');
+  } finally { unregister(); await clearRecovery(); }
+});
+
+async function quitting(context: Awaited<ReturnType<typeof linkedDocuments>>['context']) {
+  let destroyed = false;
+  const controller = createAppQuitController(appQuitDependencies(context, {
+    stopRecovery: () => () => {}, clearRecovery: async () => {}, destroyWindow: async () => { destroyed = true; },
+  }));
+  const stop = context.store.subscribe(() => { if (controller.active) controller.step(); });
+  const answerSave = async () => {
+    const store = context.store, id = store.getState().ui.pendingCloseDocId!;
+    assert(id, 'de sluitvraag staat open');
+    store.getState().switchDocument(id);
+    await createCloseDocumentDialogActions({
+      pendingId: id, getActiveDocumentId: () => store.getState().activeDocumentId, switchDocument: store.getState().switchDocument,
+      closeDocument: () => { store.getState().closeDocument(id); }, saveFile: () => ctrlS(store),
+      clearPending: () => store.getState().setUI({ pendingCloseDocId: null }), restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+    }).save();
+  };
+  return { controller, destroyed: () => destroyed, answerSave, dispose: stop };
+}
+
+await check('fixronde 2 van #1199, afsluiten: de sluitvraag met Opslaan bij een niet-lege lijst sluit pas als de telling gezien is', async () => {
+  const { context, store, docs, unregister } = await linkedDocuments(2);
+  const quit = await quitting(context);
+  try {
+    for (const doc of docs) { store.getState().switchDocument(doc.id); store.getState().deleteTask(taskNamed(store, 'Set up site')); }
+    clearNotices(store);
+    quit.controller.requestQuit();
+    await quit.answerSave();
+    await someTurns();
+    assert.equal(quit.destroyed(), false, 'na het eerste document: de vraag voor het tweede');
+    await quit.answerSave();
+    await someTurns();
+    assert.deepEqual(reportLines(store).map(l => l.split(':')[0]), docs.map(d => d.name), 'beide tellingen met naam');
+    assert.equal(quit.destroyed(), false, 'het venster blijft open tot de telling gezien is');
+    assert.equal(quit.controller.active, true);
+    store.getState().dismissNotification(writtenNotices(store)[0]!.id);
+    await someTurns();
+    assert.equal(quit.destroyed(), true, 'na het sluiten van de telling gaat het venster dicht');
+  } finally { quit.dispose(); unregister(); await clearRecovery(); }
+});
+
+await check('fixronde 2 van #1199, afsluiten tijdens een lopende geslaagde opslag: wachten op de telling; doorwerken breekt het afsluiten af', async () => {
+  for (const workOn of [false, true]) {
+    const sw = saveWorker('manual');
+    const { createAppStoreContext } = await loadStore(), context = createAppStoreContext({ ifcSaveCompute: sw.compute });
+    const { store } = context, name = `telling-${++handleCount}.ifc`;
+    store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    handleFiles.set(name, LINKED);
+    await store.getState().openOpenedFile({ name, content: '', bytes: LINKED,
+      ref: { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle } });
+    const unregister = recoveryRounds(store), quit = await quitting(context);
+    try {
+      store.getState().deleteTask(taskNamed(store, 'Set up site'));
+      clearNotices(store);
+      const writing = ctrlS(store);
+      await mergeArrives(sw, 1);
+      quit.controller.requestQuit();
+      await finishMerge(sw);
+      assert.equal(await writing, true);
+      await someTurns();
+      assert.equal(reportLines(store).length, 1, 'de telling staat er');
+      assert.equal(quit.destroyed(), false, 'het venster wacht op de telling');
+      if (workOn) {
+        longer(store);
+        await someTurns();
+        assert.equal(quit.controller.active, false, 'doorwerken: het afsluiten gaat niet door');
+        assert.equal(store.getState().ui.pendingCloseDocId, null, 'en geen sluitvraag');
+      } else {
+        store.getState().dismissNotification(writtenNotices(store)[0]!.id);
+        await someTurns();
+        assert.equal(quit.destroyed(), true);
+      }
+    } finally { quit.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
+  }
+});
+
+async function plainDocument(flag: boolean) {
+  const { createAppStoreContext } = await loadStore(), context = createAppStoreContext(), name = `gewoon-${++handleCount}.ifc`;
+  context.store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; });
+  handleFiles.set(name, plainBytes());
+  await context.store.getState().openOpenedFile({ name, content: plainText(plainBytes()),
+    ref: { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle } });
+  return { context, store: context.store, unregister: recoveryRounds(context.store) };
+}
+
+await check('fixronde 2 van #1199, afsluiten: een lege lijst, de flag uit of een document zonder vreemd deel sluit direct, zoals main', async () => {
+  for (const variant of ['lege lijst', 'flag uit', 'zonder vreemd deel'] as const) {
+    const { context, store, unregister } = variant === 'lege lijst' ? await linkedDocuments(1) : await plainDocument(variant === 'zonder vreemd deel');
+    const quit = await quitting(context);
+    try {
+      if (variant === 'lege lijst') longer(store); else store.getState().deleteTask(leaf(store).id);
+      assert.deepEqual(deleteNotices(store), [], `${variant}: geen wismelding`);
+      clearNotices(store);
+      quit.controller.requestQuit();
+      await quit.answerSave();
+      await someTurns();
+      assert.deepEqual(reportLines(store), [], `${variant}: geen telling`);
+      assert.equal(quit.destroyed(), true, `${variant}: het venster gaat direct dicht`);
+    } finally { quit.dispose(); unregister(); await clearRecovery(); }
+  }
+});
+
+await check('fixronde 2 van #1199: de extensieroute laadt dezelfde taak met een nieuw id terug; Ctrl+S weigert en het bestand blijft gelijk, zoals op main', async () => {
+  const { store, name } = await openHandle(LINKED), unregister = recoveryRounds(store);
+  try {
+    const state = store.getState(), oldId = taskNamed(store, 'Set up site');
+    const ext = { project: toExtProject(state.project), calendar: toExtCalendar(state.calendar), tasks: state.tasks.map(t => toExtTask(t)),
+      sequences: state.sequences.map(toExtSequence), resources: state.resources.map(toExtResource), assignments: state.assignments.map(toExtAssignment) };
+    loadExtensionProject(store, JSON.parse(JSON.stringify(ext).split(`"${oldId}"`).join('"taak-met-nieuw-id"')));
+    assert.equal(store.getState().ifcSource, state.ifcSource, 'de bron blijft gekoppeld');
+    clearNotices(store);
+    assert.equal(await ctrlS(store), false, 'Ctrl+S weigert');
+    assert.equal(hash(fileOf(name)), hash(LINKED), 'het bestand bytegelijk');
+    assert(store.getState().ui.notifications.some(n => n.severity === 'error'), 'met een weigering');
+    assert.deepEqual(reportLines(store), [], 'en zonder telling');
+  } finally { unregister(); await clearRecovery(); }
 });
 
 rmSync(dir, { recursive: true, force: true });
