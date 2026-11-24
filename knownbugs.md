@@ -4115,8 +4115,8 @@ en noem het in je rapport of PR-tekst.
      (1909, 1837), dan krijgt ze de oude bytes terwijl het tabblad de nieuwe versie kent. De vergelijking ziet een
      verschil en de app wisselt met de strook. De tekst klopt dan niet. Verloren gaat er niets: het tabblad houdt zijn
      inhoud, en zijn eigen versie staat op schijf. Een volgende Ctrl+S schrijft gewoon, want op schijf staat de versie
-     die het tabblad kent. *Nieuwe versie laden* (#1201) leest dan de eigen versie, ziet dat die gelijk is aan wat het
-     tabblad kent, en haalt alleen de strook weg. Proeven: B7 in `check-one-file-one-tab.ts`, "1837: een al begonnen lezing" in
+     die het tabblad kent. *Nieuwe versie laden* (#1201) doet dan wat het kruisje en daarna Recent doen: het tabblad gaat
+     dicht (bij niet-opgeslagen werk eerst de vraag) en de eigen versie opent opnieuw. Proeven: B7 in `check-one-file-one-tab.ts`, "1837: een al begonnen lezing" in
      `check-ifc-own-file-replace.ts`. Richting: het verschil alleen melden als de lezing na de laatste eigen opslag
      begon. — B (proef)
 2245. **VERVOLG (#1121, flag aan): een oudere lezing kan een nieuwere strook wissen.** Het tabblad kent versie A. Twee
