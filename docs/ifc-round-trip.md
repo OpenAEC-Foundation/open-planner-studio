@@ -150,8 +150,9 @@ ontbreekt, de JSON is corrupt of beide lijsten zijn leeg), dan leest de lezer de
 wordt het `text`.
 
 Een nieuwe JSON-eigenschap, of een nieuwe sleutel, lijst of kaart erin, komt ook in het register `JSON_PROPERTIES`
-(`src/services/ifc/jsonRegister.ts`), met de identiteit van elke lijst (een sleutelveld als dat er is). Anders faalt
-`check-ifc-foreign-json-sleutels.ts`. Met een gebouwmodel in het bestand houdt de app daarmee de sleutels die een ander
+(`src/services/ifc/jsonRegister.ts`), met de identiteit van elke lijst (een sleutelveld als dat er is) en `reeks` voor
+een lijst van losse waarden. Een nieuwe rij moet de proef ook geschreven zien (een voorbeeld, of `richDomain` in de proef).
+Anders faalt `check-ifc-foreign-json-sleutels.ts`. Met een gebouwmodel in het bestand houdt de app daarmee de sleutels die een ander
 programma in zo'n JSON zette (`.claude/rules/tauri-ifc.md`, *Onbekende JSON-sleutels*).
 
 Verliesloos en simpel, maar het is **ondoorzichtig voor andere programma's**. Gebruik deze route

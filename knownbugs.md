@@ -3841,18 +3841,24 @@ en noem het in je rapport of PR-tekst.
 
 2218. **VERVOLG (#804 fase 2, PR 4): onbekende JSON-sleutels blijven nog niet bij elke bewerking staan.** De merge
      (vreemd deel, flag `ifcForeignContent` aan) zet onbekende sleutels in de JSON-eigenschappen van de planning terug in
-     hetzelfde object (`.claude/rules/tauri-ifc.md`, *Onbekende JSON-sleutels*). Grenzen: (1) een item in een lijst zonder
-     sleutelveld (`Splits`, de contouren en hun periodes, `DurationWalks`) of met een sleutelveld dat in de bron twee keer
-     voorkomt, heeft nog geen identiteit (herkomstmerk, PR 5): een bewerking van die eigenschap weigert met `niet-gedragen`,
-     zoals op main. (2) Schrijft de writer de eigenschap of het geneste object niet meer terwijl de eigenaar blijft (alle
-     codetypen en velden gewist, geen vensterdata meer bij de taak), dan stopt opslaan met `uitvoer-controle` in plaats van
-     de vraag *Annuleren*/*Opslaan zonder deze gegevens* uit ontwerp §4.2 (PR 5). (3) De kalenders en resources in
-     `OPS_Library` staan als `doorgegeven` in het register: de lezer zet ze heel in het domein, en de proef kijkt er niet in.
-     (4) Knownbug 1553 blijft: de lezer zet oude `task-…`-ids in baselineregels om, dus de JSON leest niet terug tot de bron.
-     (5) De registerproef zag `DayMeasureLags`, `ExactMinuteLags`, `DayMeasureDurations`, `ExactMinutes`,
-     `WorkingExceptionKeysV1`, `WorkingExceptionIds` en `P6NonWorkPenaltyDates` niet geschreven; hun vorm in het register is
-     uit de code gelezen, niet gemeten. Zonder vreemd deel verandert er niets: de gewone writer laat onbekende sleutels
-     weg, zoals op main. Gemeten in `check-ifc-foreign-json-sleutels.ts`. — B
+     hetzelfde object (`.claude/rules/tauri-ifc.md`, *Onbekende JSON-sleutels*). Waar dat niet aantoonbaar kan, weigert
+     opslaan zoals main. Grenzen: (1) een item in een lijst zonder sleutelveld (`Splits`, de contouren en hun periodes,
+     `DurationWalks`) of met een sleutelveld dat in de bron twee keer voorkomt, heeft nog geen identiteit (herkomstmerk,
+     PR 5): een bewerking van die eigenschap weigert met `niet-gedragen`. (2) Een object met onbekende sleutels dat in het
+     domein nog bestaat maar niet meer in de uitvoer staat, weigert met `uitvoer-controle` in plaats van de vraag
+     *Annuleren*/*Opslaan zonder deze gegevens* uit ontwerp §4.2 (PR 5). Dat geldt ook als de writer het object niet meer
+     schrijft terwijl het blijft bestaan: alle codetypen en velden gewist, geen vensterdata meer bij een toewijzing, en het
+     laatste gebruik van een taaktype weg terwijl het type in de catalogus blijft (de writer schrijft alleen gebruikte
+     typen; de andere lijsten schrijft hij heel). (3) Een venster in `OPS_Timephased.Windows` hoort bij de toewijzing die de
+     lezer bij het openen aan zijn sleutel gaf. Is die binding niet zeker, dan weigert een gewijzigde `Windows` met
+     `uitvoer-controle`: na herstel (de lezer geeft nieuwe toewijzings-id's), bij twee toewijzingen van dezelfde resource op
+     één taak in de bron, en na verwijderen en opnieuw toewijzen. Een ongewijzigde `Windows` blijft byte-gelijk. (4) Staat
+     een onbekende sleutel in `OPS_StructureMeta` vóór de bekende sleutels, dan weigert het hernoemen van een codetype met
+     `niet-gedragen` op `IFCPROPERTYSETTEMPLATE`, zoals main; bij een andere bewerking komt de sleutel achter de bekende
+     sleutels. (5) De kalenders en resources in `OPS_Library` staan als `doorgegeven` in het register: de lezer zet ze heel
+     in het domein, en de proef kijkt er niet in. (6) Knownbug 1553 blijft: de lezer zet oude `task-…`-ids in
+     baselineregels om, dus de JSON leest niet terug tot de bron. Zonder vreemd deel verandert er niets: de gewone writer
+     laat onbekende sleutels weg, zoals op main. Gemeten in `check-ifc-foreign-json-sleutels.ts`. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
