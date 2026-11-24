@@ -49,9 +49,7 @@ const byName = (r: ImportResult, name: string) => r.tasks.find(t => t.name === n
   const noDates = `<Task><UID>1</UID><ID>1</ID><Name>Zonder datums</Name><OutlineLevel>1</OutlineLevel>
   <Duration>PT16H0M0S</Duration>${baseline('PT40H0M0S')}</Task>`;
   const r = read(noDates);
-  // Ontbrekende datum ⇒ anker uit het bestand (projectstart 2026-03-02, zie resolveMissingScheduleDates),
-  // NOOIT de baseline-start 2026-03-09.
-  eq('3a taak zonder eigen Start krijgt geen start uit de baseline',
+  eq('3a taak zonder eigen Start krijgt geen start uit de baseline (anker = projectstart, niet 2026-03-09)',
     byName(r, 'Zonder datums')?.time.scheduleStart, '2026-03-02');
 }
 
