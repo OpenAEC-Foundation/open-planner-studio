@@ -770,28 +770,6 @@
             "atDayEnd": {
               "dataType": "Boolean",
               "optional": true
-            },
-            "recorded": {
-              "dataType": "Array",
-              "optional": true,
-              "arrayRestrictions": {
-                "value": {
-                  "dataType": "Enum",
-                  "enumRestrictions": {
-                    "options": [
-                      "earlyStart",
-                      "earlyFinish",
-                      "lateStart",
-                      "lateFinish",
-                      "freeFloat",
-                      "totalFloat",
-                      "isCritical",
-                      "scheduleStart",
-                      "scheduleFinish"
-                    ]
-                  }
-                }
-              }
             }
           }
         }

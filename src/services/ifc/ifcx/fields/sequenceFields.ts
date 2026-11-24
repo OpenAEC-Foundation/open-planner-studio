@@ -49,16 +49,17 @@ function isoLag(amount: number, designator: 'D' | 'M'): string | undefined {
 
 const finite = (value: number | undefined): value is number => typeof value === 'number' && Number.isFinite(value);
 
-export function sharedLagOf(sequence: Sequence): SharedLag {
-  if (finite(sequence.lagPercent)) return { timeLagRatio: sequence.lagPercent / 100 };
-  const timeLag = finite(sequence.lagMinutes) ? isoLag(sequence.lagMinutes, 'M') : isoLag(sequence.lagDays, 'D');
-  return timeLag ? { timeLag } : {};
-}
-
 function preciseLagOf(sequence: Sequence): PreciseLag | undefined {
   if (finite(sequence.lagPercent)) return { amount: sequence.lagPercent, unit: 'PERCENT' };
   if (finite(sequence.lagMinutes)) return { amount: sequence.lagMinutes, unit: 'MINUTES' };
   return sequence.lagDays !== 0 ? { amount: sequence.lagDays, unit: 'DAYS' } : undefined;
+}
+
+export function sharedLagOf(sequence: Sequence): SharedLag {
+  const lag = preciseLagOf(sequence);
+  if (lag?.unit === 'PERCENT') return { timeLagRatio: lag.amount / 100 };
+  const timeLag = isoLag(lag?.amount ?? 0, lag?.unit === 'MINUTES' ? 'M' : 'D');
+  return timeLag ? { timeLag } : {};
 }
 
 function applyPreciseLag(sequence: Sequence, lag: PreciseLag | undefined): void {

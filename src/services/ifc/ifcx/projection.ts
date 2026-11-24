@@ -13,7 +13,6 @@ import { TASK_FIELDS, TASK_SHARED_FIELDS, type TaskWriteSource } from './fields/
 import { SEQUENCE_FIELDS, SEQUENCE_SHARED_FIELDS, sharedLagOf } from './fields/sequenceFields';
 import { ownSchemas } from './nodes';
 import { taskWindow } from './dateProjection';
-import { recordedFieldsOf } from './recordedFields';
 import {
   ATTRIBUTE, DEFAULT_HEADER_AUTHOR, IFCX_DATA_VERSION, IFCX_VERSION, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
 } from './profile';
@@ -67,10 +66,6 @@ export function hourDurationIsDerived(task: Task, calendar: WorkCalendar): boole
   return task.time.durationUnit === 'hours' && task.time.durationMinutes !== undefined && effHoursPerDay(calendar) > 0;
 }
 
-function sameKeys(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((key, index) => key === b[index]);
-}
-
 export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globalIdOf: GlobalIdOfObject): IfcxDocument {
   const { project } = input;
   const projectPath = pathOfGlobalId(globalIdOf('proj', project.id));
@@ -114,12 +109,10 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
     const parentPath = task.parentId === null || task.parentId === undefined ? undefined : taskPathById.get(task.parentId);
     const calendarPath = task.calendarId === undefined ? undefined : calendarPathById.get(task.calendarId);
     const place = places.get(task.id);
-    const recorded = input.recordedFields?.[task.id];
     const source: TaskWriteSource = {
       task, path: taskPaths[index], span: taskWindow(task),
       derivesDays: hourDurationIsDerived(task, resolveCalendar(task.calendarId, resourceCalendars, input.calendar)),
       atDayEnd: input.milestonesAtDayEnd?.has(task.id) === true,
-      ...(recorded !== undefined && !sameKeys(recorded, recordedFieldsOf(task)) ? { recorded } : {}),
       ...(parentPath !== undefined ? { parentPath } : {}),
       ...(calendarPath !== undefined ? { calendarPath } : {}),
       ...(place !== undefined ? { place } : {}),
@@ -152,6 +145,17 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
     schemas: ownSchemas(used),
     data,
   };
+}
+
+export function objectLabels(input: PlanningModel, globalIdOf: GlobalIdOfObject): Map<string, string> {
+  const labels = new Map<string, string>([
+    [pathOfGlobalId(globalIdOf('wp', input.project.id)), 'het werkplan'],
+    [pathOfGlobalId(globalIdOf('ws', input.project.id)), 'het werkschema'],
+  ]);
+  for (const calendar of [input.calendar, ...(input.resourceCalendars ?? [])]) labels.set(pathOfGlobalId(globalIdOf('cal', calendar.id)), `kalender ${calendar.id}`);
+  for (const task of input.tasks) labels.set(pathOfGlobalId(globalIdOf('task', task.id)), `taak ${task.id} (${task.name})`);
+  for (const sequence of input.sequences) labels.set(pathOfGlobalId(globalIdOf('seq', sequence.id)), `relatie ${sequence.id}`);
+  return labels;
 }
 
 export function globalIdsOf(input: PlanningModel): GlobalIdOfObject {

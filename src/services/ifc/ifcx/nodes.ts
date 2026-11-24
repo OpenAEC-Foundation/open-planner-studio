@@ -17,7 +17,7 @@ export interface AttributeRegistration {
 
 export interface CarriedObjectKeys {
   readonly object: string;
-  readonly instances: (model: WriteIFCInput) => readonly object[];
+  readonly instances: (model: WriteIFCInput) => readonly (readonly [string, object])[];
   readonly keys: readonly string[];
 }
 
@@ -33,7 +33,7 @@ export const NODES: readonly NodeRegistration[] = [
     kind: 'workplan',
     attributes: [{ name: ATTRIBUTE.workplan, fields: WORKPLAN_SHARED_FIELDS }, { name: ATTRIBUTE.document, fields: DOCUMENT_FIELDS }],
     modelKeys: ['project', 'timeModel', 'minuteModelPending', 'importPristine', 'ifcLiteralCalendarIds', 'recordedTimesOrigin'],
-    objectKeys: [{ object: 'project', instances: model => [model.project], keys: PROJECT_KEYS_CARRIED }],
+    objectKeys: [{ object: 'project', instances: model => [['het project', model.project]], keys: PROJECT_KEYS_CARRIED }],
   },
   {
     kind: 'schedule',
@@ -45,22 +45,25 @@ export const NODES: readonly NodeRegistration[] = [
     kind: 'calendar',
     attributes: [{ name: ATTRIBUTE.calendar, fields: CALENDAR_SHARED_FIELDS }, { name: ATTRIBUTE.opsCalendar, fields: CALENDAR_FIELDS }],
     modelKeys: ['calendar', 'resourceCalendars'],
-    objectKeys: [{ object: 'calendar', instances: model => [model.calendar, ...(model.resourceCalendars ?? [])], keys: CALENDAR_KEYS_CARRIED }],
+    objectKeys: [{
+      object: 'calendar', keys: CALENDAR_KEYS_CARRIED,
+      instances: model => [model.calendar, ...(model.resourceCalendars ?? [])].map(calendar => [`kalender ${calendar.id}`, calendar] as const),
+    }],
   },
   {
     kind: 'task',
     attributes: [{ name: ATTRIBUTE.activity, fields: TASK_SHARED_FIELDS }, { name: ATTRIBUTE.opsTask, fields: TASK_FIELDS }],
     modelKeys: ['tasks', 'milestonesAtDayEnd', 'recordedFields'],
     objectKeys: [
-      { object: 'task', instances: model => model.tasks, keys: TASK_KEYS_CARRIED },
-      { object: 'task.time', instances: model => model.tasks.map(task => task.time), keys: TASK_TIME_KEYS_CARRIED },
+      { object: 'task', instances: model => model.tasks.map(task => [`taak ${task.id}`, task] as const), keys: TASK_KEYS_CARRIED },
+      { object: 'task.time', instances: model => model.tasks.map(task => [`taak ${task.id}`, task.time] as const), keys: TASK_TIME_KEYS_CARRIED },
     ],
   },
   {
     kind: 'sequence',
     attributes: [{ name: ATTRIBUTE.sequence, fields: SEQUENCE_SHARED_FIELDS }, { name: ATTRIBUTE.opsSequence, fields: SEQUENCE_FIELDS }],
     modelKeys: ['sequences'],
-    objectKeys: [{ object: 'sequence', instances: model => model.sequences, keys: SEQUENCE_KEYS_CARRIED }],
+    objectKeys: [{ object: 'sequence', instances: model => model.sequences.map(sequence => [`relatie ${sequence.id}`, sequence] as const), keys: SEQUENCE_KEYS_CARRIED }],
   },
 ];
 

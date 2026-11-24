@@ -572,11 +572,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
-  # #804 F3-1: opslaan als IFCX tegen opslaan als IFC op dezelfde 10.000 taken, in CPU-tijd en in één proces (besluit van
-  # de technisch eigenaar, 24 november 2026). Een meting, geen tijdzonetest: één keer, buiten de matrix.
+  # #804 F3-1: opslaan en openen als IFCX tegen IFC op dezelfde 10.000 taken, in CPU-tijd en in één proces (besluit van
+  # de technisch eigenaar, 24 november 2026). Een prestatiepoort: één keer, buiten de matrix, alleen in de pool.
   IFCXMETING="$DIR/.ifcx-meting.mjs"
   if bundle_check "$DIR/check-ifcx-meting.ts" "$IFCXMETING"; then
-    TZ=Europe/Amsterdam node "$IFCXMETING" || STATUS=1
+    TZ=Europe/Amsterdam OPS_RELAX_PERF=0 node "$IFCXMETING" || STATUS=1
     unset 'BUNDLES[-1]'
   fi
 

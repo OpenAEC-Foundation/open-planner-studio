@@ -13,7 +13,8 @@ import {
 import { ifcxSchemaProblems } from '@/services/ifc/ifcx/schemaCheck';
 import { selfCheckDifferences } from '@/services/ifc/ifcx/selfCheck';
 import { readIfcxText } from '@/services/ifc/ifcx/ifcxReader';
-import { composeIfcxDocument, globalIdsOf } from '@/services/ifc/ifcx/projection';
+import { ownFileFor } from '@/services/ifc/ifcx/ownFile';
+import { ALL_RECORDED_SLOT_KEYS } from '@/services/ifc/ifcTaskSlots';
 import { stepRoundtrip } from '@/services/ifc/ifcx/stepRoundtrip';
 import { HEADER_VALUE } from '@/services/ifc/ifcx/ownAttributes';
 import { ALL_MODEL_KEYS, NODES, OWN_ATTRIBUTE_VALUES, STEP_WRITER_INPUT_NOT_CARRIED } from '@/services/ifc/ifcx/nodes';
@@ -86,6 +87,20 @@ function domainOf(model: ImportResult): Record<string, unknown> {
 
 const atLoad = (model: ImportResult) => plain(payloadFromImport(structuredClone(model), null)) as DocumentPayload;
 
+function stepReopened(input: WriteIFCInput): ImportResult {
+  const step = stepRoundtrip(input);
+  const present = (task: Task) => ALL_RECORDED_SLOT_KEYS.filter(key => {
+    const value = task.time[key];
+    return typeof value === 'string' ? value !== '' : value !== undefined;
+  });
+  return {
+    ...step, ifcGlobalIds: { ...step.ifcGlobalIds, ...Object.fromEntries([...intendedGlobalIds(step)].filter(([seed]) => !step.ifcGlobalIds?.[seed])) },
+    recordedFields: Object.fromEntries(step.tasks.map(task => [task.id, present(task)])),
+  };
+}
+
+const asAppSaves = (model: ImportResult): WriteIFCInput => buildWriteIFCInput(payloadFromImport(structuredClone(model), null), 'planOnly');
+
 function asStepDifferences(back: ImportResult, step: ImportResult): string[] {
   const model = selfCheckDifferences(step, back, 10);
   if (model.length > 0) return model.map(difference => `model ${difference}`);
@@ -93,7 +108,7 @@ function asStepDifferences(back: ImportResult, step: ImportResult): string[] {
 }
 
 function assertAsStep(back: ImportResult, input: WriteIFCInput): void {
-  assert.deepEqual(asStepDifferences(back, stepRoundtrip(input)), []);
+  assert.deepEqual(asStepDifferences(back, stepReopened(input)), []);
 }
 
 function documentOf(text: string): { header: Record<string, unknown>; imports: unknown[]; schemas: Record<string, unknown>; data: { path: string; attributes: Record<string, Record<string, unknown>> }[] } {
@@ -479,6 +494,8 @@ test('de voorcontrole noemt wat deze versie van IFCX nog niet draagt', () => {
   });
   assert.equal(refusal.code, 'unsupported');
   assert.deepEqual([...refusal.fields].sort(), ['project.schedulingOptions', 'task.constraint']);
+  assert.match(refusal.message, /task\.constraint \(taak binnen-een-dag\)/);
+  assert.match(refusal.message, /project\.schedulingOptions \(het project\)/);
 });
 
 function saveInputViaApp(result: ImportResult): WriteIFCInput {
@@ -635,7 +652,7 @@ test('een veld dat STEP niet bewaart, bewaart IFCX ook niet: geen fout (besluit 
 test('de zelfcontrole ziet een waarde die bij het teruglezen stil verandert', () => {
   const plan = datePlan();
   const text = writeIfcx(plan, CLOCK);
-  const step = stepRoundtrip(plan);
+  const step = stepReopened(plan);
   const reread = readIfcxText(text, false);
   assert.deepEqual(selfCheckDifferences(step, reread), []);
   const shifted = { ...reread, tasks: reread.tasks.map((task, index) => index === 1 ? { ...task, priority: task.priority + 1 } : task) };
@@ -1260,16 +1277,14 @@ test('R2: elk gedeeld veld dat de writer schreef, veranderd, weggelaten of met e
   console.log(`   ${count} veranderde bestanden, elk geweigerd`);
 });
 
-test('punt 8: een bestand met lege vroege datums opent zoals het is, zonder tweede rondgang; de eerste berekening vult ze', () => {
+test('punt 8 (ronde 4, 5 en 6): een bestand met lege vroege datums schrijft de eigen schrijver niet, dus het opent niet: taak en veld', () => {
   const document = documentOf(writeIfcx(datePlan(), CLOCK));
-  const time = entryWith(document, 'openaec::ops::task').attributes['openaec::ops::task'].time as Record<string, unknown>;
-  Object.assign(time, { earlyStart: '', earlyFinish: '', lateStart: '', lateFinish: '' });
-  const text = JSON.stringify(document);
-  const back = readIfcx(encode(text));
-  assert.deepEqual(plain(back), plain(readIfcxText(text, false)), 'de lezer geeft het precieze model van het bestand');
-  assert.equal(back.tasks[0].time.earlyStart, '', 'de vroege datum blijft leeg tot de eerste berekening');
-  assert.equal(atLoad(back).tasks[0].time.earlyStart, '', 'de laadgrens vult haar niet');
-  assert.notEqual(stepRoundtrip(back).tasks[0].time.earlyStart, '', 'STEP vult haar bij het lezen van zijn eigen bestand');
+  const entry = entryWith(document, 'openaec::ops::task');
+  Object.assign(entry.attributes['openaec::ops::task'].time as Record<string, unknown>, { earlyStart: '', earlyFinish: '', lateStart: '', lateFinish: '' });
+  const error = readError(JSON.stringify(document));
+  assert.equal(error.code, 'invalid', error.message);
+  assert.deepEqual(error.place, { path: entry.path, attribute: 'openaec::ops::task', field: 'time.earlyStart' });
+  assert.match(error.message, /taak binnen-een-dag/);
 });
 
 test('ronde 4, blokkade 1: werkplan en werkschema met een oude GlobalId slaan op en komen terug zoals in STEP', () => {
@@ -1402,16 +1417,97 @@ test('R0: twee bibliotheekrijen met het id van de projectkalender weigert de wri
   assertAsStep(readIfcx(encode(writeIfcx(plan, CLOCK))), plan);
 });
 
-interface PrecisePlace { readonly steps: readonly string[]; readonly spec: IfcxValue; readonly optional: boolean }
+type Document = ReturnType<typeof documentOf>;
+type Entry = Document['data'][number];
 
-function precisePlacesOf(spec: IfcxValue, steps: readonly string[] = []): PrecisePlace[] {
-  if (spec.dataType === 'Array') return precisePlacesOf(spec.item, [...steps, '0']).map(place => (place.steps.length === steps.length + 1 ? { ...place, optional: true } : place));
-  if (spec.dataType !== 'Object') return [];
-  return Object.entries(spec.members).flatMap(([key, member]) => [
-    { steps: [...steps, key], spec: member.value, optional: member.optional === true },
-    ...precisePlacesOf(member.value, [...steps, key]),
-  ]);
+function r4Plans(): WriteIFCInput[] {
+  return [maximalPlan(), variantPlan(), datePlan(), ...loadPlans()];
 }
+
+test('R4, richting 1: elk bestand dat writeIfcx schrijft, opent, geeft precies de geschreven planning terug, en opnieuw opslaan geeft dezelfde bytes', () => {
+  const wrong: string[] = [];
+  const inputs: [string, WriteIFCInput][] = [
+    ...[...fullExamples].flatMap(([name, full]) => [[name, kernOf(full)], [`${name} via de app`, saveInputViaApp(kernOf(full))]] as [string, WriteIFCInput][]),
+    ...r4Plans().map((plan, index) => [`proefplanning ${index}`, plan] as [string, WriteIFCInput]),
+    ...STEP_CASES.filter(entry => !entry.refusedBy).map(entry => [entry.name, entry.input()] as [string, WriteIFCInput]),
+  ];
+  let written = 0;
+  for (const [name, input] of inputs) {
+    const own = attempt(() => ownFileFor(input, CLOCK));
+    if (!own.ok) continue;
+    const text = writeIfcx(input, CLOCK);
+    written++;
+    const back = attempt(() => readIfcx(encode(text)));
+    if (!back.ok) { wrong.push(`${name}: opent niet: ${String(back.error).slice(0, 200)}`); continue; }
+    const differences = selfCheckDifferences(own.value.planning, back.value, 3);
+    if (differences.length > 0) wrong.push(`${name}: een andere planning: ${differences.join('; ')}`);
+    if (writeIfcx(asAppSaves(back.value), CLOCK) !== text) wrong.push(`${name}: openen en opslaan via de app geeft andere bytes`);
+  }
+  assert.deepEqual(wrong, []);
+  assert.ok(written >= 30, `${written} bestanden`);
+  console.log(`   ${written} geschreven bestanden, elk geopend, gelijk aan de geschreven planning en byte voor byte opnieuw geschreven`);
+});
+
+test('ronde 6: een dagtaak met een tweede duur of restduur, een project op het lege pad, een werkelijk einde met 50 % en lege vroege datums openen niet', () => {
+  const text = writeIfcx(datePlan(), CLOCK);
+  const cases: readonly [string, (document: Document) => Entry | undefined, (entry: Entry | undefined) => object][] = [
+    ['blokkade 1: durationMinutes naast een dagduur', document => {
+      const entry = entryWith(document, 'openaec::ops::task');
+      (entry.attributes['openaec::ops::task'].time as Record<string, unknown>).durationMinutes = 9999;
+      return entry;
+    }, entry => ({ path: entry!.path, attribute: 'openaec::ops::task', field: 'time.durationMinutes' })],
+    ['blokkade 1: remainingMinutes naast een restduur in dagen', document => {
+      const entry = entryWith(document, 'openaec::ops::task');
+      Object.assign(entry.attributes['openaec::ops::task'].time as Record<string, unknown>, { remainingTime: 0.5, remainingMinutes: 999 });
+      return entry;
+    }, entry => ({ path: entry!.path, attribute: 'openaec::ops::task', field: 'time.remainingMinutes' })],
+    ['blokkade 2: het project op het lege tekstpad', document => { document.header.id = 'urn:openaec:planner:t-'; return undefined; }, () => ({ field: 'header.id' })],
+    ['blokkade 3: werkelijk einde met 50 %', document => {
+      const entry = entryWith(document, 'openaec::ops::task');
+      const time = entry.attributes['openaec::ops::task'].time as Record<string, unknown>;
+      Object.assign(time, { actualStart: time.scheduleStart, actualFinish: time.scheduleFinish });
+      entry.attributes['openaec::ops::task'].completion = 0.5;
+      entry.attributes['openaec::planning::activity'].completion = 0.5;
+      return entry;
+    }, entry => ({ path: entry!.path, attribute: 'openaec::ops::task', field: 'completion' })],
+  ];
+  for (const [name, change, place] of cases) {
+    const document = documentOf(text);
+    const entry = change(document);
+    const error = readError(JSON.stringify(document));
+    assert.equal(error.code, 'invalid', `${name}: ${error.message}`);
+    assert.deepEqual(error.place, place(entry), `${name}: ${error.message}`);
+    assert.match(error.message, entry ? /taak binnen-een-dag/ : /Het project/, name);
+  }
+  const plan = datePlan();
+  const emptyGlobalIds = { ...plan, ifcGlobalIds: { 'proj:proj-datums': '', 'wp:proj-datums': '', 'task:handmatig': '', 'seq:r1': '' } };
+  const back = readIfcx(encode(writeIfcx(emptyGlobalIds, CLOCK)));
+  assert.ok(Object.values(back.ifcGlobalIds ?? {}).every(globalId => globalId !== ''), 'een lege GlobalId schrijft de schrijver als de afgeleide');
+  assertAsStep(back, emptyGlobalIds);
+});
+
+test('R4 is één functie: writeIfcx en de toets in readIfcx roepen allebei ownFileFor aan; alleen ownFile.ts roept de rondgang en de projectie aan', () => {
+  const dir = join(root, 'src/services/ifc/ifcx');
+  const sources = readdirSync(dir).filter(name => name.endsWith('.ts')).map(name => [name, readFileSync(join(dir, name), 'utf8')] as const);
+  const callers = (call: string, definedIn: string) => sources.filter(([name, text]) => name !== definedIn && text.includes(`${call}(`)).map(([name]) => name);
+  assert.deepEqual(callers('stepRoundtrip', 'stepRoundtrip.ts'), ['ownFile.ts']);
+  assert.deepEqual(callers('composeIfcxDocument', 'projection.ts'), ['ownFile.ts']);
+  assert.deepEqual(callers('ownFileFor', 'ownFile.ts').sort(), ['ifcxReader.ts', 'ifcxWriter.ts']);
+  assert.match(sources.find(([name]) => name === 'ifcxReader.ts')![1], /ownFileFor\(savedAfterOpening\(read\)/);
+});
+
+interface R4Place { readonly attribute: string; readonly steps: readonly string[]; readonly spec: IfcxValue; readonly optional: boolean }
+
+function r4PlacesOf(attribute: string, spec: IfcxValue, steps: readonly string[] = [], optional = false): R4Place[] {
+  const own = steps.length > 0 ? [{ attribute, steps, spec, optional }] : [];
+  if (spec.dataType === 'Object') {
+    return [...own, ...Object.entries(spec.members).flatMap(([key, member]) => r4PlacesOf(attribute, member.value, [...steps, key], member.optional === true))];
+  }
+  if (spec.dataType === 'Array') return [...own, ...r4PlacesOf(attribute, spec.item, [...steps, '0'], true)];
+  return own;
+}
+
+const placeKey = (place: Pick<R4Place, 'attribute' | 'steps'>) => `${place.attribute}.${place.steps.join('.')}`;
 
 function containerOf(root: unknown, steps: readonly string[]): Record<string, unknown> | undefined {
   let at = root;
@@ -1429,11 +1525,16 @@ const FORM_SAMPLES: Readonly<Record<string, readonly unknown[]>> = {
   [LOCAL_MOMENT_OR_EMPTY_FORM.name]: ['2027-06-09T08:00', '2027-06-10', ''],
   [ISO_DATE_OR_MOMENT_OR_EMPTY_FORM.name]: ['2027-06-09T08:00', '2027-06-10', ''],
   [VERSION_FORM.name]: ['1.0.1', '1.0.0'],
+  'ISO 8601-duur P<dagen>D of PT<minuten>M, met een minteken voor een lead': ['P3D', '-PT45M'],
 };
 
 function madeValue(spec: IfcxValue, current: unknown, paths: readonly string[]): unknown {
   switch (spec.dataType) {
-    case 'String': case 'DateTime': return (FORM_SAMPLES[spec.form.name] ?? ['anders']).find(value => value !== current);
+    case 'String': case 'DateTime': {
+      const samples = FORM_SAMPLES[spec.form.name];
+      assert.ok(samples, `de vorm "${spec.form.name}" heeft geen geldige proefwaarde in de eigenschapsproef`);
+      return samples.find(value => value !== current);
+    }
     case 'Real': {
       const next = (typeof current === 'number' ? current : 0) + 0.25;
       return spec.max !== undefined && next > spec.max ? spec.min ?? 0 : next;
@@ -1451,63 +1552,153 @@ function madeValue(spec: IfcxValue, current: unknown, paths: readonly string[]):
   }
 }
 
-test('R3: elk precies veld, veranderd, weggelaten of toegevoegd, geeft precies dat feit terug of een weigering met veld en object', () => {
-  const texts = [maximalPlan(), variantPlan(), datePlan(), ...loadPlans()].map(plan => writeIfcx(plan, CLOCK));
-  const wrong: string[] = [];
-  const tally = { 'precies dat feit': 0, 'geweigerd met veld en object': 0 };
-  const run = (text: string, index: number, name: string, steps: readonly string[], label: string, change: (holder: Record<string, unknown>, key: string) => void) => {
-    const original = readIfcx(encode(text));
-    const document = documentOf(text);
-    const entry = document.data[index];
-    change(containerOf(entry.attributes[name], steps)!, steps[steps.length - 1]);
-    const where = `${name}.${steps.join('.')} op ${entry.path}: ${label}`;
-    const outcome = readOutcome(encode(JSON.stringify(document)));
-    if (outcome instanceof IfcxReadError) {
-      const objectNamed = outcome.place.path !== undefined || outcome.place.field?.startsWith('header.') === true
-        || /\b(taak|task|kalender|calendar|relatie|sequence|werkplan|project)\b/i.test(outcome.message);
-      if (outcome.place.field === undefined || !objectNamed) wrong.push(`${where}: ${outcome.code} ${JSON.stringify(outcome.place)} ${outcome.message.slice(0, 120)}`);
-      else tally['geweigerd met veld en object']++;
-      return;
-    }
-    const composed = composeIfcxDocument(outcome, CLOCK, globalIdsOf(outcome));
-    const header = { ...composed.header, timestamp: document.header.timestamp };
-    if (!isDeepStrictEqual(plain(composed.data), plain(document.data)) || !isDeepStrictEqual(header, document.header)) {
-      wrong.push(`${where}: het model draagt iets anders dan het bestand`);
-    } else if (selfCheckDifferences(original, outcome).length === 0) {
-      wrong.push(`${where}: de waarde viel stil weg`);
-    } else tally['precies dat feit']++;
-  };
-  for (const [name, spec] of OWN_ATTRIBUTE_VALUES) {
-    if (!name.startsWith(OPS_NAMESPACE)) continue;
-    for (const place of precisePlacesOf(spec)) {
-      const key = place.steps[place.steps.length - 1];
-      let present = 0, absent = 0;
-      for (const text of texts) {
-        const document = documentOf(text);
-        const paths = document.data.map(entry => entry.path);
-        document.data.forEach((entry, index) => {
-          const attribute = entry.attributes[name];
-          const holder = attribute && containerOf(attribute, place.steps);
-          if (!holder) return;
-          if (key in holder && present < 2) {
-            present++;
-            const other = madeValue(place.spec, holder[key], paths);
-            if (other !== undefined) run(text, index, name, place.steps, `${JSON.stringify(holder[key])} wordt ${JSON.stringify(other)}`, (target, at) => { target[at] = other; });
-            if (place.optional) run(text, index, name, place.steps, 'weggelaten', (target, at) => {
-              if (Array.isArray(target)) target.splice(Number(at), 1); else delete target[at];
-            });
-          } else if (!(key in holder) && place.optional && !Array.isArray(holder) && absent < 1) {
-            absent++;
-            const added = madeValue(place.spec, undefined, paths);
-            run(text, index, name, place.steps, `toegevoegd als ${JSON.stringify(added)}`, (target, at) => { target[at] = added; });
-          }
-        });
-      }
+type Change = { readonly keys: readonly string[]; readonly label: string; readonly apply: (document: Document) => void };
+
+function setAt(entry: Entry, place: R4Place, value: unknown): void {
+  const holder = containerOf(entry.attributes[place.attribute], place.steps)!;
+  holder[place.steps[place.steps.length - 1]] = value;
+}
+
+function removeAt(entry: Entry, place: R4Place): void {
+  const holder = containerOf(entry.attributes[place.attribute], place.steps)!;
+  const key = place.steps[place.steps.length - 1];
+  if (Array.isArray(holder)) holder.splice(Number(key), 1); else delete holder[key];
+}
+
+const SAME_FACT: readonly (readonly [string, string, string])[] = [
+  ['openaec::ops::task', 'name', 'name'], ['openaec::ops::task', 'description', 'description'], ['openaec::ops::task', 'wbsCode', 'identification'],
+  ['openaec::ops::task', 'priority', 'priority'], ['openaec::ops::task', 'completion', 'completion'], ['openaec::ops::task', 'isMilestone', 'isMilestone'],
+  ['openaec::ops::task', 'durationType', 'durationType'], ['openaec::ops::task', 'taskType', 'predefinedType'],
+  ['openaec::ops::calendar', 'name', 'name'], ['openaec::ops::calendar', 'description', 'description'],
+  ['openaec::ops::document', 'name', 'name'], ['openaec::ops::document', 'description', 'description'],
+];
+const SHARED_OF: Readonly<Record<string, string>> = {
+  'openaec::ops::task': 'openaec::planning::activity', 'openaec::ops::calendar': 'openaec::planning::calendar', 'openaec::ops::document': 'openaec::planning::workplan',
+};
+
+function changesFor(document: Document, index: number, placesByAttribute: ReadonlyMap<string, readonly R4Place[]>): Change[] {
+  const entry = document.data[index];
+  const paths = document.data.map(item => item.path);
+  const at = (d: Document) => d.data[index];
+  const present: R4Place[] = [], absent: R4Place[] = [];
+  for (const name of Object.keys(entry.attributes)) {
+    for (const place of placesByAttribute.get(name) ?? []) {
+      const holder = containerOf(entry.attributes[name], place.steps);
+      if (!holder) continue;
+      if (place.steps[place.steps.length - 1] in holder) present.push(place); else if (place.optional && !Array.isArray(holder)) absent.push(place);
     }
   }
+  const valueAt = (place: R4Place) => containerOf(entry.attributes[place.attribute], place.steps)![place.steps[place.steps.length - 1]];
+  const out: Change[] = [];
+  for (const place of present) {
+    const other = madeValue(place.spec, valueAt(place), paths);
+    if (other !== undefined) out.push({ keys: [placeKey(place)], label: `${placeKey(place)} wordt ${JSON.stringify(other)}`, apply: d => setAt(at(d), place, structuredClone(other)) });
+    if (place.optional) out.push({ keys: [placeKey(place)], label: `${placeKey(place)} weg`, apply: d => removeAt(at(d), place) });
+    const value = valueAt(place);
+    if (Array.isArray(value) && value.length > 0) {
+      out.push({ keys: [placeKey(place)], label: `${placeKey(place)} met een element erbij`, apply: d => { (containerOf(at(d).attributes[place.attribute], place.steps)![place.steps[place.steps.length - 1]] as unknown[]).push(structuredClone(value[value.length - 1])); } });
+    }
+  }
+  for (const place of absent) {
+    const added = madeValue(place.spec, undefined, paths);
+    out.push({ keys: [placeKey(place)], label: `${placeKey(place)} erbij als ${JSON.stringify(added)}`, apply: d => setAt(at(d), place, structuredClone(added)) });
+  }
+  const leaves = present.filter(place => !['Object', 'Array'].includes(place.spec.dataType) && !place.steps.includes('0'));
+  const combined = (group: readonly R4Place[]): Change => {
+    const values = group.map(place => madeValue(place.spec, valueAt(place), paths));
+    return {
+      keys: group.map(placeKey), label: `samen: ${group.map((place, i) => `${placeKey(place)} wordt ${JSON.stringify(values[i])}`).join(', ')}`,
+      apply: d => group.forEach((place, i) => { if (values[i] !== undefined) setAt(at(d), place, structuredClone(values[i])); }),
+    };
+  };
+  for (let i = 0; i + 1 < leaves.length; i += 2) out.push(combined([leaves[i], leaves[i + 1]]));
+  for (let i = 0; i + 2 < leaves.length; i += 3) out.push(combined([leaves[i], leaves[i + 1], leaves[i + 2]]));
+  for (const [precise, preciseField, sharedField] of SAME_FACT) {
+    const shared = SHARED_OF[precise];
+    if (!entry.attributes[precise] || !entry.attributes[shared]) continue;
+    const place = (placesByAttribute.get(precise) ?? []).find(item => item.steps.length === 1 && item.steps[0] === preciseField)!;
+    const value = madeValue(place.spec, entry.attributes[precise][preciseField], paths);
+    out.push({
+      keys: [placeKey(place), `${shared}.${sharedField}`], label: `${precise}.${preciseField} en ${shared}.${sharedField} samen ${JSON.stringify(value)}`,
+      apply: d => { at(d).attributes[precise][preciseField] = value; at(d).attributes[shared][sharedField] = value; },
+    });
+  }
+  for (const name of Object.keys(entry.attributes).filter(attribute => attribute.startsWith(OPS_NAMESPACE))) {
+    const foreignPlace = [...placesByAttribute].filter(([other]) => other !== name && other.startsWith(OPS_NAMESPACE))
+      .flatMap(([, places]) => places).find(place => place.steps.length === 1 && !(place.steps[0] in entry.attributes[name]));
+    if (foreignPlace) {
+      const value = madeValue(foreignPlace.spec, undefined, paths);
+      out.push({ keys: [`${name}.vreemd`], label: `${name} met het veld ${foreignPlace.steps[0]} van ${foreignPlace.attribute}`, apply: d => { at(d).attributes[name][foreignPlace.steps[0]] = value; } });
+    }
+  }
+  out.push({ keys: ['object.weg'], label: `object ${entry.path} weg`, apply: d => { d.data.splice(index, 1); } });
+  out.push({ keys: ['object.erbij'], label: `een kopie van ${entry.path} erbij`, apply: d => { d.data.splice(index + 1, 0, { ...structuredClone(entry), path: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}` }); } });
+  const textPath = `t-${[...`pad-${index}`].map(c => c.charCodeAt(0).toString(16).padStart(4, '0')).join('')}`;
+  out.push({
+    keys: ['object.pad'], label: `${entry.path} op het pad ${textPath}, met de verwijzingen mee`,
+    apply: d => {
+      const old = d.data[index].path;
+      const json = JSON.stringify(d).split(`"${old}"`).join(`"${textPath}"`).split(`urn:openaec:planner:${old}"`).join(`urn:openaec:planner:${textPath}"`);
+      Object.assign(d, JSON.parse(json));
+    },
+  });
+  return out;
+}
+
+test('R4, richting 2: elk bestand dat readIfcx aanvaardt, is wat de eigen schrijver voor de gelezen planning schrijft; elke andere mutatie weigert met object en veld', () => {
+  const placesByAttribute = new Map([...OWN_ATTRIBUTE_VALUES].map(([name, spec]) => [name as string, r4PlacesOf(name, spec)]));
+  const executed = new Map<string, { refused: number; accepted: number }>();
+  for (const places of placesByAttribute.values()) for (const place of places) executed.set(placeKey(place), { refused: 0, accepted: 0 });
+  const wrong: string[] = [];
+  const tally = { geweigerd: 0, 'aanvaard en zo geschreven': 0 };
+  for (const text of r4Plans().map(plan => writeIfcx(plan, CLOCK))) {
+    const base = documentOf(text);
+    const seen = new Map<string, number>();
+    base.data.forEach((entry, index) => {
+      const kind = Object.keys(entry.attributes).sort().join('+');
+      const count = seen.get(kind) ?? 0;
+      seen.set(kind, count + 1);
+      if (count >= 3) return;
+      for (const change of changesFor(base, index, placesByAttribute)) {
+        const document = documentOf(text);
+        change.apply(document);
+        if (isDeepStrictEqual(document, base)) continue;
+        const outcome = readOutcome(encode(JSON.stringify(document)));
+        let verdict: 'refused' | 'accepted' | undefined;
+        if (outcome instanceof IfcxReadError) {
+          const named = outcome.place.path !== undefined || outcome.place.field?.startsWith('header.') === true
+            || /\b(taak|kalender|kalenders|relatie|werkplan|werkplannen|werkschema|project|task|sequence|calendar)\b/i.test(outcome.message);
+          const located = outcome.place.field !== undefined || outcome.place.path !== undefined;
+          if (named && located) verdict = 'refused';
+          else wrong.push(`${change.label} op ${entry.path}: geweigerd zonder object en veld: ${outcome.code} ${JSON.stringify(outcome.place)} ${outcome.message.slice(0, 160)}`);
+        } else {
+          const rewritten = documentOf(writeIfcx(asAppSaves(outcome), new Date(String(document.header.timestamp))));
+          if (isDeepStrictEqual(rewritten, document)) verdict = 'accepted';
+          else wrong.push(`${change.label} op ${entry.path}: aanvaard, maar de eigen schrijver schrijft voor die planning iets anders`);
+        }
+        if (!verdict) continue;
+        tally[verdict === 'refused' ? 'geweigerd' : 'aanvaard en zo geschreven']++;
+        for (const key of change.keys) {
+          const counts = executed.get(key) ?? { refused: 0, accepted: 0 };
+          counts[verdict]++;
+          executed.set(key, counts);
+        }
+      }
+    });
+  }
+  const unexercised = [...executed].filter(([, counts]) => counts.refused + counts.accepted === 0).map(([key]) => key);
   for (const line of wrong.slice(0, 30)) console.error(`   ${line}`);
   assert.deepEqual(wrong, []);
-  console.log(`   ${Object.entries(tally).map(([reason, count]) => `${reason}: ${count}`).join('; ')}`);
+  assert.deepEqual(unexercised, [], 'elk veld en elke vorm heeft een uitgevoerde mutatie');
+  console.log(`   ${tally.geweigerd + tally['aanvaard en zo geschreven']} mutaties: ${Object.entries(tally).map(([reason, count]) => `${reason} ${count}`).join(', ')}`);
+  const byAttribute = new Map<string, string[]>();
+  for (const [key, counts] of executed) {
+    const attribute = key.split('.')[0];
+    const list = byAttribute.get(attribute) ?? [];
+    list.push(`${key.slice(attribute.length + 1)} ${counts.refused}/${counts.accepted}`);
+    byAttribute.set(attribute, list);
+  }
+  for (const [attribute, list] of byAttribute) console.log(`   ${attribute} (geweigerd/aanvaard): ${list.join(', ')}`);
 });
 
 const FIELD_TABLES: readonly [string, IfcxField<never, never>[]][] = [

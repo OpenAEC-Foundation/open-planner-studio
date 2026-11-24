@@ -57,7 +57,7 @@ export function intendedGlobalIds(model: PlanningModel): Map<string, string> {
   for (const spec of IDENTITY_KINDS) {
     for (const object of spec.objects(model)) {
       const seed = ifcObjectSeed(spec.kind, object.id);
-      if (!out.has(seed)) out.set(seed, model.ifcGlobalIds?.[seed] ?? defaultGlobalId(spec.kind, object.id, model.project.id));
+      if (!out.has(seed)) out.set(seed, model.ifcGlobalIds?.[seed] || defaultGlobalId(spec.kind, object.id, model.project.id));
     }
   }
   return out;

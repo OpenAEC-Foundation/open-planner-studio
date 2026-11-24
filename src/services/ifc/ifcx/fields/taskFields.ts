@@ -1,8 +1,7 @@
 import { TASK_TYPES, type Task, type TaskStatus, type TaskTime } from '@/types/task';
 import { DEFAULT_PRIORITY } from '../../ifcConstants';
-import { ALL_RECORDED_SLOT_KEYS, type RecordedFieldKey } from '../../ifcTaskSlots';
 import {
-  arrayOf, BOOLEAN, CALENDAR_DATE, enumOf, FRACTION, integer, LOCAL_MOMENT_OR_EMPTY, membersOf, NON_EMPTY_TEXT, objectOf,
+  BOOLEAN, CALENDAR_DATE, enumOf, FRACTION, integer, LOCAL_MOMENT_OR_EMPTY, membersOf, NON_EMPTY_TEXT, objectOf,
   readFields, REAL, REFERENCE, TEXT, writeFields, type IfcxField, type IfcxValue, type SharedField,
 } from '../fieldTable';
 import type { SharedSpan } from '../dateProjection';
@@ -16,7 +15,6 @@ export interface TaskWriteSource {
   readonly span: SharedSpan;
   readonly derivesDays: boolean;
   readonly atDayEnd: boolean;
-  readonly recorded?: readonly RecordedFieldKey[];
 }
 
 export interface TaskReadTarget {
@@ -26,7 +24,6 @@ export interface TaskReadTarget {
   calendarPath?: string;
   place?: number;
   atDayEnd: boolean;
-  recorded?: RecordedFieldKey[];
 }
 
 interface TimeWriteSource {
@@ -192,11 +189,6 @@ export const TASK_FIELDS: readonly TaskField[] = [
     key: 'atDayEnd', value: BOOLEAN, optional: true,
     write: s => (s.atDayEnd ? true : undefined),
     read: (v, t) => { t.atDayEnd = v === true; },
-  },
-  {
-    key: 'recorded', value: arrayOf(enumOf(ALL_RECORDED_SLOT_KEYS)), optional: true,
-    write: s => s.recorded,
-    read: (v, t) => { if (v !== undefined) t.recorded = [...(v as RecordedFieldKey[])]; },
   },
 ];
 

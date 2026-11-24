@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { readIfcx, writeIfcx } from '@/services/ifc/ifcx';
-import { buildIfcxDocument, serializeIfcx } from '@/services/ifc/ifcx/ifcxWriter';
+import { serializeIfcx } from '@/services/ifc/ifcx/ifcxWriter';
+import { documentFor } from '@/services/ifc/ifcx/ownFile';
 import { readIfcxText } from '@/services/ifc/ifcx/ifcxReader';
 import { selfCheckDifferences } from '@/services/ifc/ifcx/selfCheck';
 import { stepRoundtrip } from '@/services/ifc/ifcx/stepRoundtrip';
@@ -94,7 +95,7 @@ function pieces(size: number): void {
   for (let round = 0; round < ROUNDS; round++) {
     const stepText = timed(() => writeIFC(input));
     const stepRead = timed(() => readIFC(stepText.value, {}, { projectTimestampFallback: input.project }));
-    const ifcxText = timed(() => serializeIfcx(buildIfcxDocument(stepRead.value, CLOCK)));
+    const ifcxText = timed(() => serializeIfcx(documentFor(stepRead.value, CLOCK)));
     const reread = timed(() => readIfcxText(ifcxText.value, false));
     const compare = timed(() => selfCheckDifferences(stepRead.value, reread.value));
     assert.deepEqual(compare.value, []);
@@ -112,7 +113,7 @@ function pieces(size: number): void {
   });
 }
 
-function ratioTest(name: string, prepare: () => { step: () => unknown; ifcx: () => unknown }, stepName: string, ifcxName: string): void {
+function ratioTest(name: string, label: string, prepare: () => { step: () => unknown; ifcx: () => unknown }, stepName: string, ifcxName: string): void {
   test(name, () => {
     const { step: stepAction, ifcx: ifcxAction } = prepare();
     stepAction();
@@ -120,22 +121,28 @@ function ratioTest(name: string, prepare: () => { step: () => unknown; ifcx: () 
     const step: number[] = [], ifcx: number[] = [];
     const before = loadNow();
     for (let round = 0; round < ROUNDS; round++) {
-      step.push(timed(stepAction).cpu);
-      ifcx.push(timed(ifcxAction).cpu);
+      if (round % 2 === 0) {
+        step.push(timed(stepAction).cpu);
+        ifcx.push(timed(ifcxAction).cpu);
+      } else {
+        ifcx.push(timed(ifcxAction).cpu);
+        step.push(timed(stepAction).cpu);
+      }
     }
     const ratio = median(ifcx) / median(step);
-    console.log(`   CPU-tijd in ms, mediaan van ${ROUNDS}: ${stepName} ${median(step).toFixed(0)}, ${ifcxName} ${median(ifcx).toFixed(0)}, verhouding ${ratio.toFixed(2)}; belasting ${before} → ${loadNow()}`);
+    console.log(`   CPU-tijd in ms, mediaan van ${ROUNDS}, volgorde om en om: ${stepName} ${median(step).toFixed(0)}, ${ifcxName} ${median(ifcx).toFixed(0)}; belasting ${before} → ${loadNow()}`);
+    console.log(`IFCX-verhouding ${label}: ${ratio.toFixed(2)} (grens ${MAX_RATIO})`);
     assert.ok(ratio <= MAX_RATIO, `${ifcxName} kost ${ratio.toFixed(2)} keer ${stepName}`);
   });
 }
 
-ratioTest(`opslaan als IFCX kost bij ${SIZE} taken hoogstens ${MAX_RATIO} keer opslaan als IFC`, () => {
+ratioTest(`opslaan als IFCX kost bij ${SIZE} taken hoogstens ${MAX_RATIO} keer opslaan als IFC`, 'opslaan', () => {
   const input = plan(SIZE);
   assert.equal(stepRoundtrip(input).tasks.length, SIZE);
   return { step: () => writeIFC(input), ifcx: () => writeIfcx(input, CLOCK) };
 }, 'opslaan als IFC', 'opslaan als IFCX');
 
-ratioTest(`openen als IFCX kost bij ${SIZE} taken hoogstens ${MAX_RATIO} keer openen als IFC`, () => {
+ratioTest(`openen als IFCX kost bij ${SIZE} taken hoogstens ${MAX_RATIO} keer openen als IFC`, 'openen', () => {
   const input = plan(SIZE);
   const stepBytes = encode(writeIFC(input));
   const ifcxBytes = encode(writeIfcx(input, CLOCK));

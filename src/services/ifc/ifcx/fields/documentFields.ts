@@ -19,7 +19,6 @@ export interface DocumentWriteSource {
 export interface DocumentReadTarget {
   readonly project: Project;
   readonly projectPath: string;
-  formatVersion: string;
   calendarPath: string;
   timeModel?: string;
   importPristine: boolean;
@@ -48,7 +47,7 @@ export const DOCUMENT_FIELDS: readonly DocumentField[] = [
   {
     key: 'formatVersion', value: VERSION_TEXT,
     write: () => OPS_PROFILE_VERSION,
-    read: (v, t) => { t.formatVersion = v as string; },
+    read: () => {},
   },
   {
     key: 'name', value: TEXT,

@@ -2,7 +2,7 @@
 
 Dit document beschrijft hoe Open Planner Studio een planning in IFCX schrijft en leest: de kop, de paden, de
 attributen met hun velden, de vorm en betekenis van elk veld, de projectie naar de gedeelde attributen, de betekenis
-van lag, de regels R0, R1, R2 en R3, en de versieregel. Het ontwerp staat in
+van lag, de regels R0, R1, R3 en R4 (R2 ging op in R4), en de versieregel. Het ontwerp staat in
 `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md` (§5 en §6); de code staat in
 `src/services/ifc/ifcx/`. De velden, de betekenis van lag en de proeven zijn eigen keuzes van deze repo (ontwerp §11,
 besluit 12).
@@ -23,7 +23,7 @@ gedeeld of precies), dan gaat de profielversie (`formatVersion`) omhoog, en moet
 versie de oude projectie kunnen narekenen; anders weigert R2 elk oud bestand. Deze regel komt in F3-4 in de
 `AGENTS.md` van het project (besluit van Trias, 24 november 2026).
 
-## De maat en de drie regels
+## De maat en de regels
 
 Besluit van Trias, 24 november 2026, letterlijk: "Voor dezelfde planning is IFCX niet slechter dan IFC (STEP) op main.
 BLOKKEERT is: IFCX verliest of verandert iets wat STEP bewaart; IFCX weigert wat STEP opslaat; of twee voorstellingen
@@ -48,10 +48,10 @@ gelden sinds fixronde 4 drie regels (besluit van Trias, 24 november: "akkoord me
   Ctrl+S en heropenen, in het schema van het project), en schrijft die uitkomst. De zelfcontrole blijft: teruglezen en
   rechtstreeks vergelijken met die uitkomst." Code: `stepRoundtrip` in `stepRoundtrip.ts` (`writeIFC`, daarna
   `readIFC`), aangeroepen in `writeIfcx`.
-- **R2 (lezen):** "de gedeelde gegevens in het bestand zijn precies de projectie van de precieze. De lezer leest de
+- **R2 (lezen, sinds fixronde 6 opgegaan in R4):** "de gedeelde gegevens in het bestand zijn precies de projectie van de precieze. De lezer leest de
   precieze kant, rekent met de projectie van de writer uit wat er gedeeld had moeten staan, en vergelijkt dat met het
   bestand. Elk verschil is `invalid`." Code: `assertProjection` in `ifcxReader.ts`, met `composeIfcxDocument` uit
-  `projection.ts`, dezelfde functie als de writer.
+  `projection.ts`, dezelfde functie als de writer. Sinds fixronde 6 is dat de vergelijking van R4.
 
 In fixronde 5 vond de review drie plekken waar informatie niet één-op-één werd gedragen: de zelfcontrole liet een deel
 van wat STEP teruggeeft buiten de vergelijking (een eindmijlpaal schoof bij heropenen van 16:00 naar 07:00), de
@@ -70,6 +70,17 @@ krijgen. De technisch eigenaar keurde drie aanscherpingen goed (24 november), le
   waarin een oude tekst-GlobalId en een echte IFC-GlobalId nooit hetzelfde pad geven, door de vorm zelf en niet door
   een andere hash-namespace. Schrijver en lezer gebruiken dezelfde ene functie, heen en terug." Zie *R3: elk feit één
   keer* en *Paden en identiteit*.
+
+**Fixronde 6: R4.** Zes reviewrondes naast elkaar laten één patroon zien. De schrijfkant is sinds R1 dicht: de
+schrijver schrijft alleen wat een STEP-rondgang ervan maakt. Alle blokkades van ronde 4, 5 en 6 zaten aan de leeskant:
+de lezer aanvaardde bestanden die de eigen schrijver nooit schrijft, en hij toetste ze veld voor veld en met losse
+regels (R0, R2, R3). Elke ronde vond de review een combinatie van op zich geldige velden die STEP anders zou maken
+(ronde 6: een dagtaak met een tweede duur in minuten, een project op het lege tekstpad, een werkelijk einde met 50 %
+voortgang). Besluit van de technisch eigenaar, letterlijk: "Ja op R4: de lezer aanvaardt een bestand alleen als de
+eigen schrijver het voor de gelezen planning precies zo zou schrijven, als toets die weigert met het eerste verschil
+(object en veld), nooit als reparatie. R0, R2 en R3 mogen opgaan in R4 waar R4 ze dekt; de vormtoets vóór het lezen
+blijft. Het past bij "de kern opent uitsluitend het eigen profiel"." Zie *R4: het bestand is een vast punt van de eigen
+schrijver*.
 
 ## Het bestand
 
@@ -213,9 +224,8 @@ daarna de cache en de ene bibliotheekrij met hetzelfde id als één kalender.
 (keuze `WORKTIME`, `ELAPSEDTIME`), `completion` (getal 0–1), `time` (verplicht, hieronder), `milestoneKind` (keuze
 `START`, `FINISH`), `mandatory`, `isSummary`, `manuallyScheduled` (ja/nee), `calendar` (pad), en de laadgegevens van
 R1 volledig: `atDayEnd` (ja: STEP geeft de taak terug als mijlpaal aan het eind van de dag, `OPS_Milestone.AtDayEnd`;
-de laadgrens zet zo'n mijlpaal zonder soort op 16:00 in plaats van 07:00) en `recorded` (de ingevulde tijdvelden zoals
-STEP ze teruggeeft, alleen als dat afwijkt van de velden met een waarde, bijvoorbeeld als STEP lege vroege datums bij
-het lezen invulde).
+de laadgrens zet zo'n mijlpaal zonder soort op 16:00 in plaats van 07:00). Welke tijdvelden ingevuld zijn
+(`recordedFields`), volgt uit de velden met een waarde (zie *Wat de STEP-lezer naast het model teruggeeft*).
 
 `time` draagt de precieze tijden: `durationUnit` (keuze `days`, `hours`), `scheduleDuration` (werkdagen; bij een uurtaak
 met minuten op een kalender met werktijd ontbreekt het, want STEP leidt het dan uit de minuten af en de lezer doet
@@ -224,7 +234,7 @@ dat ook), `durationMinutes`, de momenten `scheduleStart`, `scheduleFinish`, `res
 `freeFloatMinutes` en `totalFloatMinutes`, `isCritical`, `actualDuration`, `remainingTime` (werkdagen; ontbreekt bij een uurtaak met
 `remainingMinutes`, om dezelfde reden) en `remainingMinutes`. Verplicht zijn `durationUnit`, `scheduleStart`,
 `scheduleFinish`, de vroege en late momenten, `freeFloat`, `totalFloat` en `isCritical`; `scheduleDuration` ook, behalve
-bij de afgeleide uurtaak (R2 weigert het daar).
+bij de afgeleide uurtaak (R4 weigert het daar).
 
 `openaec::planning::activity` (projectie): `name`, `description`, `identification` (WBS-code), `parent`,
 `predefinedType`, `isMilestone`, `priority`, `calendar`, `durationType`, `completion`, `start` en `endExclusive` (zie
@@ -288,6 +298,12 @@ kinderen op dezelfde plaats, een plaats buiten de lijst, een plaats op een taak 
 3. `unsupportedContent` op de STEP-uitkomst: wat STEP bewaart en IFCX nog niet draagt, weigert de writer met
    `unsupported` en de veldnamen;
 4. de projectie van de uitkomst (`composeIfcxDocument`) en de waardetoets met dezelfde functie als de lezer;
+
+Stap 1 tot en met 4 zijn één functie, `ownFileFor` in `ownFile.ts`. Na stap 2 zet die functie de planning zoals ze na
+heropenen is: een GlobalId die STEP leeg teruggeeft, krijgt de afgeleide GlobalId die de volgende STEP-opslag ook zou
+schrijven (een lege GlobalId telt overal als afwezig, ook in R0), en de ingevulde tijdvelden zijn de velden met een
+waarde. De lezer roept dezelfde functie aan (R4).
+
 5. de zelfcontrole: één keer teruglezen (zonder R2) en rechtstreeks vergelijken met de hele STEP-uitkomst, het model
    en alles wat de STEP-lezer ernaast teruggeeft (R1 volledig).
 
@@ -300,40 +316,73 @@ de uurmaat uit de minuten, de voortgang en status uit de werkelijke datums, een 
 2 maart), een oneindige lag (wordt 0), en de nieuwe id's van relaties en bibliotheekkalenders (`seq-ifc-<GlobalId>`,
 `rescal-ifc-<GlobalId>`).
 
-## R2: lezen toetst de projectie
+## R4: het bestand is een vast punt van de eigen schrijver
 
-De lezer ontleedt het bestand (kop, schema's, de vorm van elk veld volgens regel A, de soort van elke verwijzing),
-bouwt het model uit de precieze kant en toetst R0. Daarna rekent hij met `composeIfcxDocument` uit wat de writer voor
-dit model zou schrijven, en vergelijkt dat met het bestand (`assertProjection`):
+`readIfcx` doet, in deze volgorde:
 
-- per pad elk attribuut en elk veld, gedeeld én precies, structureel (de volgorde van sleutels telt niet, die van
-  lijsten wel);
-- in de kop `id`, `dataVersion` en `author`; niet `timestamp`, dat per schrijfactie verschilt;
-- een pad dat het bestand meer of minder heeft dan de projectie.
+1. **De vormtoets** (blijft, want zonder haar kan de lezer niet veilig lezen): JSON en UTF-8, de kop en zijn domein,
+   `imports` leeg, de schema's, de padvorm van elk pad (de decoder geeft de gelezen GlobalId direct aan het object),
+   geen `children` of `inherits`, één bijdrage per attribuut per pad, de profielversie (`newer-profile`), de vorm van
+   elk veld volgens regel A, de soort van elk object, precies één werkplan en één werkschema, en de soort van elke
+   verwijzing.
+2. **Het model** uit de precieze kant, met de afleiding die het bestand niet draagt (de dagwaarden van een uurtaak, de
+   status, de ingevulde tijdvelden).
+3. **R4**: de lezer zet het gelezen model door de laadgrens en de opslaginvoer van de app (`savedAfterOpening`:
+   `payloadFromImport`, daarna `buildWriteIFCInput`), en geeft dat aan dezelfde functie als `writeIfcx`
+   (`ownFileFor` in `ownFile.ts`: R0, de STEP-rondgang, de planning na heropenen, de weigering van wat de kern nog niet
+   draagt, de projectie en de waardetoets). Daarna vergelijkt hij het resultaat met het bestand: de kop (`id`,
+   `ifcxVersion`, `dataVersion`, `author`), de schema's, en elk object in volgorde, elk attribuut, gedeeld en precies,
+   elk veld, ook wat het bestand méér of minder heeft. Ten slotte vergelijkt hij het model dat de schrijver zou opslaan
+   met het gelezen model.
+4. Bij een verschil weigert hij met `invalid` en het eerste verschil: het object en het veld in `place` en in de
+   melding, met wat het bestand had en wat de eigen schrijver schrijft. Hij repareert niets. Weigert de schrijver de
+   gelezen planning zelf (R0), dan noemt de melding de namen zoals bij schrijven.
+5. Is er geen verschil, dan geeft hij het gelezen model terug. Het is dan gelijk aan wat de schrijver opslaat.
 
-Het eerste verschil geeft `invalid` met pad, attribuut en veld in `place`, en een melding met het object (`taak <id>
-(<naam>)`, `kalender <id>`, `relatie <id>`, het werkplan of het werkschema) en beide waarden. Attributen van een ander
-dan Open Planner Studio staan er niet in, want die weigert de lezer al eerder met `foreign`.
+**Het eerste verschil** zoekt de lezer in drie rondes over het hele bestand: eerst een veld of object dat het bestand
+draagt en dat de schrijver voor deze planning helemaal niet schrijft, dan een veld met een andere waarde, en dan wat
+het bestand mist. In elke ronde komen de kop, de schema's en de objecten in volgorde, en per object de precieze kant
+vóór de gedeelde. Zo wijst de melding naar wat het bestand zelf zegt, en niet naar een gevolg. Een dagtaak met
+`remainingMinutes` naast een restduur in dagen laat STEP bijvoorbeeld de hele kalender letterlijk schrijven, maar de
+melding noemt `time.remainingMinutes` van de taak.
 
-Waarom alles en niet alleen de gedeelde kant: dan is er geen lijst van paren nodig, en weigert de lezer ook een bestand
-waarin dezelfde informatie op twee precieze plekken verschilt, of een lijst tegenover een verwijzing, of de plaats in
-de boom tegenover de volgorde. Elke afwijking van wat de writer zou schrijven, waar ook, is een verschil. Een proef
-verandert elk gedeeld veld van een geschreven bestand één voor één (een andere waarde, weglaten, een element erbij) en
-eist dat de lezer elk veranderd bestand weigert met `invalid`, met het veld en het pad van het object.
+**Waarom via de laadgrens.** De STEP-rondgang op haar eigen uitkomst is niet altijd een vast punt: de D7-mijlpaal
+verliest `AtDayEnd` en een oude planning krijgt een `TimeModel`, omdat de STEP-writer de planning na de laadgrens
+verwacht. Met de route van de app (openen, dan opslaan) is ze dat wel, voor alle voorbeelden en gevallen van de
+kernproef. R4 toetst dus precies wat een planner doet: openen en weer opslaan geeft hetzelfde bestand.
 
-**Punt 8 (ronde 4 en 5).** Een bestand dat R2 doorstaat, is wat de writer voor het gelezen model zou schrijven, maar
-dat model hoeft geen uitkomst van de STEP-rondgang te zijn: een bestand met lege vroege datums, gedeeld en precies
-gelijk, doorstaat R2. In fixronde 4 haalde de lezer het gelezen model daarom nog door de STEP-rondgang; sinds fixronde
-5 niet meer (besluit van de technisch eigenaar). `readIfcx` geeft het gecontroleerde precieze model terug, en dat is
-alles wat de lezer met het bestand doet.
+**Wat buiten de vergelijking valt**, met de reden:
 
-Wat bij openen wordt afgeleid, komt van dezelfde laadgrens die ook een STEP-bestand doorloopt: `payloadFromImport` in
-`src/state/documentContract.ts` (met `migrateToMinuteModel`, dat de laadgegevens `timeModel` en `milestonesAtDayEnd`
-gebruikt) en daarna `prepareLoadedPayload` in `src/state/documentActivation.ts` (de projectkalender terug in de
-bibliotheek, en desgewenst een berekening). Het invullen van lege vroege en late datums uit de planningsdatums
-(`fillEmptyComputedDateSlots`) zit niet in die laadgrens maar in de STEP-lezer zelf: het hoort bij het lezen van
-STEP-slots. Het bestand van punt 8 opent daarom met lege vroege datums, en de eerste berekening vult ze. De writer
-schrijft zo'n bestand nooit: hij schrijft de STEP-uitkomst, en daarin zijn ze al ingevuld. Een proef pint beide.
+- `header.timestamp`: het moment van schrijven, geen planningsgegeven; elke schrijfactie geeft een ander.
+- De opmaak van de JSON: witruimte en de volgorde van sleutels binnen een object (JSON kent die volgorde geen betekenis
+  toe). De volgorde van lijsten en van de objecten in `data` telt wel.
+- Het leesmoment: dat komt niet in de vergelijking, want de STEP-rondgang krijgt de aanmaak- en wijzigingsdatum van het
+  bestand als terugval.
+
+Alles daarbuiten is een verschil.
+
+**Wat een schrijver van een ander programma moet doen.** Het profiel eist een vast punt: een bestand opent alleen als
+de schrijver van Open Planner Studio voor de planning die erin staat precies dat bestand schrijft. Een ander programma
+moet dus dezelfde paden, dezelfde precieze en gedeelde velden met dezelfde waarden (de standaardwaarden weggelaten, de
+afgeleide waarden niet geschreven), dezelfde schema's en dezelfde volgorde schrijven; in de praktijk: via deze kern. Een
+bestand dat een ander programma wijzigde, opent niet. Bestanden van anderen horen bij fase 4.
+
+**Welke losse toetsen aan de leeskant opgingen in R4**, en welke bleven:
+
+| Toets | Nu | Reden |
+|---|---|---|
+| `assertProjection` (R2) | weg | R4 vergelijkt de gedeelde én de precieze kant met wat de schrijver schrijft |
+| `identityProblems` bij lezen (R0) | weg als eigen aanroep | `ownFileFor` doet R0 op de gelezen planning; de melding noemt de namen zoals bij schrijven |
+| de vormtoets per veld (regel A) | blijft | nodig om veilig te lezen, en ze geeft `newer-profile` voor een onbekend veld |
+| de padvorm, één bijdrage per attribuut, de soort van een object en van een verwijzing, één werkplan en één werkschema | blijft | nodig om het model te kunnen bouwen |
+| de profielversie | blijft | geeft `newer-profile` vóór de vormtoets |
+| de schema's | blijft | geeft `foreign` of `newer-profile` voor een onbekend schema; R4 vergelijkt de schema's daarnaast in hun geheel |
+| één feit, één veld (R3) | weg als toets | een tweede veld voor een feit schrijft de schrijver niet, dus R4 weigert het |
+| de afleiding voor uurtaken | blijft, als modelopbouw | het bestand draagt de afgeleide dagwaarde niet; R4 weigert een bestand dat haar wel draagt |
+
+**Punt 8.** Een bestand met lege vroege en late datums schrijft de eigen schrijver niet: hij schrijft de STEP-uitkomst,
+waarin ze ingevuld zijn. Sinds fixronde 6 opent zo'n bestand daarom niet; de melding noemt de taak en
+`time.earlyStart`.
 
 ## Wat verviel in fixronde 4
 
@@ -358,6 +407,13 @@ schrijft zo'n bestand nooit: hij schrijft de STEP-uitkomst, en daarin zijn ze al
 - `fieldGroups.ts`, `lagFromShared`, `momentOfSharedDate` en de lege leesfuncties van de gedeelde velden: de gedeelde
   kant heeft alleen vorm en schrijver (`SharedField`), de precieze vorm, schrijver en lezer (`IfcxField`).
 
+## Wat verviel in fixronde 6
+
+- `assertProjection` en de aanroep van `identityProblems` in de lezer; R4 doet het.
+- Het veld `recorded` van `openaec::ops::task` (zie hieronder).
+- `DocumentReadTarget.formatVersion`, de tweede keuze van de lageenheid (de gedeelde lag volgt nu uit de ene precieze)
+  en de tweede decodering van elk pad.
+
 ## Wat de STEP-lezer naast het model teruggeeft
 
 R1 volledig vraagt een indeling van elk veld dat de STEP-lezer teruggeeft. Die staat op één plek: `MODEL_KEYS` in
@@ -374,12 +430,20 @@ De velden die tot fixronde 4 buiten de vergelijking bleven:
 | `timeModel` | `openaec::ops::document.timeModel` | de laadgrens zet zonder `MINUTES-1` een omzetting naar het minutenmodel open |
 | `milestonesAtDayEnd` | `openaec::ops::task.atDayEnd` | de laadgrens zet een mijlpaal zonder soort aan het eind van de dag (16:00) |
 | `ifcLiteralCalendarIds` | `openaec::ops::document.literalCalendars` | een volgende opslag houdt die kalenders letterlijk |
-| `recordedFields` | `openaec::ops::task.recorded`, alleen als het afwijkt van de velden met een waarde | "datums zoals opgeslagen" leest welke velden het bestand droeg; zonder `recordedSourceFormat` (nog niet gedragen) heeft het bij openen geen gevolg, maar STEP geeft het terug |
+| `recordedFields` | de velden met een waarde (sinds fixronde 6; in fixronde 5 `openaec::ops::task.recorded`) | zie hieronder |
 | `recordedTimesOrigin` | vast `ifc-own`: een IFCX-bestand is altijd een eigen bestand | de laadgrens kiest daarmee tussen verse import en heropening |
 | `importPristine` | `openaec::ops::document.importPristine` | "datums zoals opgeslagen" gaat bij een ongewijzigde import vanzelf aan |
 | `minuteModelPending` | via `timeModel` (STEP laat `TimeModel` weg, IFCX ook) | alleen invoer van de writer; de STEP-lezer geeft het niet terug |
 | `recordedTimes`, `xerOrigin`, `xerArchiveIssue`, `baselineOrphanGuids` | nog niet gedragen, weigert de writer | volgen uit het XER-archief en de baselines (F3-2 en F3-3); zonder die inhoud geeft STEP ze niet terug |
 | `xerMissingPlannedStarts`, `p6xmlReport`, `msProjectReport`, `sourceScheduleNotes`, `suggestedProfileId`, `ifcLegacySchemaLoss` | nog niet gedragen, weigert de writer | meldingen van andere lezers over hun bronbestand; de STEP-lezer geeft ze voor een eigen bestand niet terug, dus ze zijn er nooit |
+
+**`recordedFields` en R4.** De eerste STEP-lezing kan voor een taak minder ingevulde velden noemen dan er waarden zijn:
+STEP vult lege vroege en late datums bij het lezen in, en noemt ze dan niet als ingevuld. Dat overleeft openen en
+opnieuw opslaan niet: de opslaginvoer van de app draagt `recordedFields` niet, dus de volgende STEP-opslag schrijft
+alle waarden en de lezing daarna noemt ze alle. Met `recorded` in het bestand was een eigen bestand daarom geen vast
+punt, en R4 zou het weigeren. Sinds fixronde 6 draagt IFCX de ingevulde velden zoals STEP ze na één keer opnieuw
+opslaan teruggeeft: de velden met een waarde. Bij openen heeft het verschil voor een eigen bestand geen gevolg zolang
+`recordedSourceFormat` niet gedragen wordt ("datums zoals opgeslagen" gaat dan niet aan).
 
 Het leesmoment zelf (de aanmaak- en wijzigingsdatum die de STEP-lezer invult als het bestand ze leeg laat) staat niet
 in die lijst: de STEP-rondgang krijgt de datums van de invoer als terugval (`projectTimestampFallback`), dus het is
@@ -432,7 +496,8 @@ het veranderde bestand is en dat van het oude model verschilt, of weigert met he
 - `invalid`: een kopveld buiten zijn domein (`header.<veld>`), een bestand zonder `imports`, `schemas` of profielversie,
   een eigen schema dat afwijkt van het profiel of ontbreekt, een bekend veld met een waarde buiten zijn domein (ook
   een dag of kloktijd die niet bestaat, en een getal als `1e999`), een verplicht veld dat ontbreekt, een verwijzing
-  naar een pad van de verkeerde soort, R0, een verschil met de projectie (R2), of niet precies één werkschema.
+  naar een pad van de verkeerde soort, niet precies één werkschema, of een verschil met wat de eigen schrijver voor de
+  gelezen planning schrijft (R4, ook R0).
 
 `classifyIfcx` gebruikt dezelfde regel: `own` als de lezer het bestand leest, `foreign` bij `foreign`, `not-ifcx` bij
 `not-ifcx`, en `unreadable` bij de andere codes. De lezer leest met `JSON.parse` (keuze T1); een dubbele sleutel ziet
@@ -447,7 +512,8 @@ de echte validator van IFC5-development en met ifcx-explorer draait in een eigen
 
 ## Zelfcontrole
 
-Na het schrijven leest `writeIfcx` zijn eigen uitvoer één keer terug en legt het teruggelezen model rechtstreeks naast
+Na het schrijven leest `writeIfcx` zijn eigen uitvoer één keer terug (zonder R4, want de uitvoer is de STEP-uitkomst
+zelf) en legt het teruggelezen model rechtstreeks naast
 de hele STEP-uitkomst (`selfCheck.ts`). De vergelijking is algemeen: elk veld telt mee, op elk niveau, met de volgorde
 van lijsten; alleen een ontbrekend veld en `undefined` zijn hetzelfde. Er zijn geen uitzonderingen.
 
