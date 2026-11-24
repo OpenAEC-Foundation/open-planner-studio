@@ -13,7 +13,7 @@ De twee schaalstanden. Bij *Vaste schaal* (pagineermodus `actual`) zet de pagine
 px en kiest de planner de breedte per dag (`customZoom`). Bij *Passend maken* (`fit-width`) geeft `renderReport` de
 tijdas de ruimte naast de tabel (`availableChartWidth`: over N paginabreedtes uit `timelineColumns` `N ×
 (printableWidthLogicalPx − tableWidth)` px, minstens N px), en de breedte per dag is die ruimte, min de stroken voor de
-datums bij de balken als die getekend worden (ADR 0237), gedeeld door het aantal dagen op de as. Blijft er naast de
+datums bij de balken als die gereserveerd zijn (ADR 0237), gedeeld door het aantal dagen op de as. Blijft er naast de
 tabel minstens 1 px over, dan komt de pagineerder bij *Passend maken* op dezelfde 0,75 pt per px uit als bij *Vaste
 schaal*; laat de tabel minder over (een grote lettergrootte, een brede naamkolom, klein of staand papier), dan krijgt
 de tijdas die minimale breedte en verkleint de pagineerder de hele bron, tabel inbegrepen. De 0,75 gaat over de schaal,
