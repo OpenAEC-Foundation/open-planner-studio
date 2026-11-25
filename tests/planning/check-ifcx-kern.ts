@@ -33,6 +33,11 @@ import type { Sequence } from '@/types/sequence';
 import { syncProjectCalendar } from '@/state/syncProjectCalendar';
 import { buildWriteIFCInput, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { freshPayload, payloadFromImport, type DocumentPayload } from '@/state/documentContract';
+import { prepareLoadedPayload } from '@/state/documentActivation';
+import { minuteModelTransition } from '@/state/minuteModelTransition';
+import { recordedGridBinding, unrecordedExportGate } from '@/state/recordedDatesSelectors';
+import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
+import { ALL_RECORDED_SLOT_KEYS, type WithheldTaskTimeField } from '@/services/ifc/ifcTaskSlots';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const examplesDir = join(root, 'public/examples');
@@ -1504,6 +1509,76 @@ test('R5 is niet te halen voor een pauze buiten de werkdag: STEP houdt haar bij 
   assert.deepEqual(breakOf(readIfcx(encode(writeIfcx(inside, CLOCK)))), [[600, 30]]);
 });
 
+const COMPUTED_SLOTS: readonly WithheldTaskTimeField[] = ['earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'totalFloat', 'freeFloat', 'isCritical'];
+
+function openedInTheApp(parsed: ImportResult): Record<string, unknown> {
+  const loaded = payloadFromImport(structuredClone(parsed), null);
+  const computed = prepareLoadedPayload(loaded, { recompute: true });
+  const transition = minuteModelTransition(loaded, computed, captureRecordedDates(loaded.tasks, parsed.recordedFields, parsed.recordedTimes));
+  const { before } = transition;
+  const grid = recordedGridBinding(before.recordedDates ?? null, before.datesAsRecorded === true);
+  const exported = unrecordedExportGate(before.recordedDates ?? null, before.datesAsRecorded === true);
+  const withheld = buildWriteIFCInput(before, 'planOnly').withheldTaskTimeFields;
+  return plain({
+    recordedFields: parsed.recordedFields, shifted: transition.shifted,
+    afterUndo: before.tasks.map(task => ({
+      id: task.id, recorded: before.recordedDates?.times[task.id], grid: grid.recordedUnrecordedAxes?.(task) ?? [],
+      export: exported?.(task) ?? [], withheld: withheld?.[task.id] ?? [],
+    })),
+  }) as Record<string, unknown>;
+}
+
+function sundayPlan(): WriteIFCInput {
+  const plan = kindsPlan(true);
+  const sunday = (value: string) => (value ? `2027-06-06${value.slice(10)}` : value);
+  return { ...plan, tasks: plan.tasks.map(task => ({ ...task, time: { ...task.time,
+    scheduleStart: sunday(task.time.scheduleStart), scheduleFinish: sunday(task.time.scheduleFinish), earlyStart: sunday(task.time.earlyStart),
+    earlyFinish: sunday(task.time.earlyFinish), lateStart: sunday(task.time.lateStart), lateFinish: sunday(task.time.lateFinish) } })) };
+}
+
+test('recorded: dezelfde planning uit STEP en uit IFCX geopend geeft dezelfde ingevulde velden, en na Ongedaan maken van de minutenomzetting dezelfde tabel, exportselectie en achtergehouden velden', () => {
+  const wrong: string[] = [];
+  const compared = new Map<string, number>();
+  let cases = 0;
+  const compare = (name: string, input: WriteIFCInput, keys: readonly string[]) => {
+    const step = attempt(() => stepRoundtrip(input));
+    const ifcx = attempt(() => readIfcx(encode(writeIfcx(input, CLOCK))));
+    if (!step.ok || !ifcx.ok) {
+      if (step.ok !== ifcx.ok) wrong.push(`${name}: STEP ${step.ok ? 'opent' : 'weigert'}, IFCX ${ifcx.ok ? 'opent' : String(ifcx.error).slice(0, 160)}`);
+      return;
+    }
+    const expected = openedInTheApp(step.value), actual = openedInTheApp(ifcx.value);
+    if (!isDeepStrictEqual(actual, expected)) {
+      wrong.push(`${name}: ${selfCheckDifferences(expected as unknown as ImportResult, actual as unknown as ImportResult, 3).join('; ')}`);
+      return;
+    }
+    cases++;
+    for (const key of keys) compared.set(key, (compared.get(key) ?? 0) + 1);
+  };
+  const sol = sundayPlan();
+  compare('de planning van vóór het minutenmodel met een taak op zondag zonder vroege en late datums (ronde 7)', {
+    ...sol, sequences: [], tasks: [{ ...sol.tasks[1], parentId: null, time: { ...sol.tasks[1].time, earlyStart: '', earlyFinish: '', lateStart: '', lateFinish: '' } }],
+  }, ['zondag']);
+  for (const pending of [true, false]) {
+    const base = pending ? sundayPlan() : kindsPlan(false);
+    for (const task of base.tasks) {
+      for (const slot of ALL_RECORDED_SLOT_KEYS) {
+        const computedSlot = (COMPUTED_SLOTS as readonly string[]).includes(slot);
+        const input: WriteIFCInput = computedSlot
+          ? { ...base, withheldTaskTimeFields: { [task.id]: [slot as WithheldTaskTimeField] } }
+          : { ...base, tasks: base.tasks.map(other => (other.id === task.id ? { ...other, time: { ...other.time, [slot]: '' } } : other)) };
+        compare(`${pending ? 'vóór het minutenmodel' : 'minutenmodel'}, ${task.id} zonder ${slot}`, input,
+          [`taak ${task.id}`, `slot ${slot}`, pending ? 'vóór het minutenmodel' : 'minutenmodel']);
+      }
+    }
+  }
+  const needed = ['zondag', ...['fase', 'dag', 'uur', 'mijlpaal'].map(id => `taak ${id}`), ...ALL_RECORDED_SLOT_KEYS.map(slot => `slot ${slot}`), 'vóór het minutenmodel', 'minutenmodel'];
+  for (const line of wrong.slice(0, 30)) console.error(`   ${line}`);
+  assert.deepEqual(wrong, []);
+  assert.deepEqual(needed.filter(key => !compared.get(key)), [], 'elke taaksoort en elk tijdslot heeft een vergeleken geval');
+  console.log(`   ${cases} gevallen, elk uit STEP en uit IFCX geopend en vergeleken`);
+});
+
 test('R5, richting 1: voor elke planning die de schrijver aanvaardt, opent readIfcx(writeIfcx(x)) als de canonieke planning, ook als x niet canoniek is', () => {
   const fields = TASK_TIME_FIELDS.filter(field => field.value === LOCAL_MOMENT_OR_EMPTY).map(field => field.key as keyof Task['time']);
   const accepted = new Map<string, number>();
@@ -1588,6 +1663,23 @@ test('een schrijfweigering om een waarde buiten haar domein noemt het object (ve
   assert.equal(refusal.code, 'invalid', refusal.message);
   assert.match(refusal.message, /^kalender \S+: openaec::ops::calendar: /);
   assert.deepEqual(refusal.fields, ['openaec::ops::calendar.generation.ruleSetId']);
+});
+
+test('vervolg ronde 7: de uitgestelde waardetoets weigert met pad, attribuut en veld, en een niet-lege imports noemt het veld', () => {
+  const document = documentOf(writeIfcx(datePlan(), CLOCK));
+  const entry = entryWith(document, 'openaec::ops::task');
+  Object.assign(entry.attributes['openaec::ops::task'].time as Record<string, unknown>, {
+    scheduleStart: '9999-12-31T07:00', scheduleFinish: '9999-12-31T16:00', earlyStart: '9999-12-31T07:00', earlyFinish: '9999-12-31T16:00',
+  });
+  const late = readOutcome(encode(JSON.stringify(document)));
+  assert.ok(late instanceof IfcxReadError && late.code === 'invalid', String(late));
+  assert.deepEqual(late.place, { path: entry.path, attribute: 'openaec::planning::activity', field: 'endExclusive' });
+  assert.match(late.message, /^De eigen schrijver schrijft deze planning niet: taak binnen-een-dag /);
+  const imported = documentOf(writeIfcx(datePlan(), CLOCK));
+  imported.imports.push({ uri: 'https://example.org/ander.ifcx' });
+  const foreign = readOutcome(encode(JSON.stringify(imported)));
+  assert.ok(foreign instanceof IfcxReadError && foreign.code === 'foreign', String(foreign));
+  assert.deepEqual(foreign.place, { field: 'imports' });
 });
 
 test('R4 en R5 zijn één functie: writeIfcx en readIfcx gaan door dezelfde canonieke planning; de schrijver toetst zich met de publieke lezer; alleen ownFile.ts roept de rondgang, de projectie en de laadgrens aan', () => {
