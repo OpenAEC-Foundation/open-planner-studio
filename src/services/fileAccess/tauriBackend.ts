@@ -5,6 +5,7 @@ import {
 } from '@/services/fileAccess/atomicWrite';
 import { missingTarget, type FileIdentityFs } from './fileIdentity';
 import { scanForeignTargetSource, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
+import { IFC_FOREIGN_SCAN_MAX_BYTES } from '@/services/ifc/foreign/foreignScan';
 import { compareTargetChunks, TARGET_CHUNK_BYTES, type SourceTargetContent } from './sourceTargetContent';
 import { compareKnownTarget } from './knownTargetContent';
 import type { TargetFingerprint } from '@/state/documentContract';
@@ -65,6 +66,27 @@ export async function scanTargetPathTauri(path: string): Promise<TargetForeignSc
   const chunks = await openPathChunksTauri(path);
   if (chunks === null || chunks === 'unreadable') return chunks;
   return scanForeignTargetSource(chunks);
+}
+
+export async function readTargetPathTauri(path: string): Promise<Uint8Array | null> {
+  const chunks = await openPathChunksTauri(path);
+  if (chunks === null) return null;
+  if (chunks === 'unreadable') throw new Error(`Het bestaande doel ${path} is niet leesbaar.`);
+  try {
+    const parts: Uint8Array[] = [];
+    let size = 0;
+    for (let chunk = await chunks.next(); chunk !== null; chunk = await chunks.next()) {
+      size += chunk.length;
+      if (size > IFC_FOREIGN_SCAN_MAX_BYTES) throw new Error(`Het bestaande doel ${path} is te groot om te lezen.`);
+      parts.push(chunk.slice());
+    }
+    const bytes = new Uint8Array(size);
+    let at = 0;
+    for (const part of parts) { bytes.set(part, at); at += part.length; }
+    return bytes;
+  } finally {
+    await chunks.close();
+  }
 }
 
 /**

@@ -9,8 +9,8 @@
 // Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasBuildingModel, hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { isForeignSourceTarget, sameEntry, sameLocalFile, samePath, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
-import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
+import { ifcxTargetRefusal, isForeignSourceTarget, sameEntry, sameLocalFile, samePath, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
+import { ifcForeignContentEnabled, ifcxEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 import { missingTarget, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import type { FileRef, PickedSaveTarget } from '@/services/fileAccess';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
@@ -368,6 +368,9 @@ export async function refusedWriteTarget(
   ownVersion?: OwnTargetVersion,
 ): Promise<WriteTargetRefusal | null> {
   const identity = await refusedTargetIdentity(s, target, deps, ownVersion);
+  if (identity !== null && identity !== 'check-content') return identity;
+  const ifcx = ifcxEnabled(s.ui.featureFlags) ? await ifcxTargetRefusal(target, deps.readers()) : null;
+  if (ifcx) return ifcx === 'unreadable' ? 'unreadable-target' : 'foreign-content';
   return identity === 'check-content' ? refusedTargetContent(target, deps) : identity;
 }
 

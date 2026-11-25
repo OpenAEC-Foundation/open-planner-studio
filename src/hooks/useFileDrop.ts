@@ -8,12 +8,11 @@ import {
   dragCarriesFiles, droppedFilesFromDataTransfer, droppedFilesFromPaths, type DroppedFile,
 } from '@/services/fileAccess/fileDrop';
 import { tauriOpenIO } from '@/services/fileAccess/tauriOpenPath';
-import type { FormatReadOptions } from '@/services/formatRegistry';
+import { readOptionsFor, type FormatReadOptions } from '@/services/formatRegistry';
 import { openDroppedFiles } from '@/state/fileDrop';
-import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 /** De leeskeuze van een neerzetting (#804 fase 1a): met de flag `ifcForeignContent` leest IFC als bytes. */
-const dropReadOptions = () => ({ ifcBytes: ifcForeignContentEnabled(useAppStore.getState().ui.featureFlags) });
+const dropReadOptions = () => readOptionsFor(useAppStore.getState().ui.featureFlags);
 
 /** Zonder `dragover` gaat de laag na deze tijd weg. De browser stuurt `dragover` ook bij een
  *  stilstaande muis, minstens om de 550 ms (HTML-sleepmodel: 350 ± 200 ms); dit vangt een gemiste

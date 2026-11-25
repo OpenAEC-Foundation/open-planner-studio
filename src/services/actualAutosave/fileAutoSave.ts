@@ -16,6 +16,8 @@ import { buildWriteIFCInput, sameIFCSource, type IFCSaveSource } from '@/state/i
 import { documentContentOf, sameDocumentContent, type DocumentContentRef } from '@/state/documentSaveState';
 import { computeIfcOutputHere, documentSaveCompute, prepareIfcOutput, writtenFingerprint, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
+import { IfcxWriteRefusedError } from '@/services/ifc/ifcx/ifcxErrors';
+import { documentFileFormat, IFCX_FLAG_OFF_NOTICE, ifcxWriteBlocked, ifcxWriteRefusedNotice } from '@/state/ifcxGuard';
 import {
   canWriteToRefWithoutPrompt, fileIdentityFs, sameFileRef, saveTargetRef, saveToRefWithoutPrompt, sourceTargetContent,
   writeTargetReaders, type FileRef,
@@ -98,6 +100,7 @@ export function createFileAutoSaveController(deps: {
   const targetDeps: WriteTargetDeps = deps.targetDeps ?? { identityFs: fileIdentityFs, readers: writeTargetReaders };
   // #804 fase 1a: één melding per document als AutoSave aanstaat maar het vreemde deel opslaan verhindert.
   const foreignNotified = new Set<string>();
+  const ifcxFlagOffNotified = new Set<string>();
   // #804 fixronde 2: per document het doel dat de doelcontrole weigerde (de bron van een ander open document met een
   // vreemd deel, of een bestaand bestand met een gebouwmodel). AutoSave probeert daar niet opnieuw naartoe tot de
   // planner zelf opslaat (het document is dan niet meer gewijzigd) of een ander doel kiest. De melding één keer per
@@ -291,7 +294,8 @@ export function createFileAutoSaveController(deps: {
 
   /** Doet dit document zonder gebouwmodel mee met de gewone tik? Dezelfde toets bij de keuze (`listPlain`) en bij de beurt
    *  in de rij (`write`, fixronde 4 van de review van #1033): een document met een vreemd deel schrijft deze route nooit. */
-  const plainTakesPart = (id: string, payload: DocumentPayload): boolean => takesPart(id, payload) && !ifcSaveBlocked(payload);
+  const plainTakesPart = (id: string, payload: DocumentPayload): boolean => takesPart(id, payload) && !ifcSaveBlocked(payload)
+    && !ifcxWriteBlocked(payload, getState().ui.featureFlags);
 
   /** Fixronde 2 van de review van #1033: is dit document met een gebouwmodel nu (nog) aan de beurt? */
   const stillDue = (id: string): boolean => {
@@ -321,6 +325,10 @@ export function createFileAutoSaveController(deps: {
       if (foreignBlocked && payload.autoSaveToFile && payload.isDirty && !foreignNotified.has(id)) {
         foreignNotified.add(id);
         getState().notify(ifcWriteBlockedNotice(payload));
+      }
+      if (ifcxWriteBlocked(payload, state.ui.featureFlags) && payload.autoSaveToFile && payload.isDirty && !ifcxFlagOffNotified.has(id)) {
+        ifcxFlagOffNotified.add(id);
+        getState().notify(IFCX_FLAG_OFF_NOTICE);
       }
       const enabled = plainTakesPart(id, payload);
       candidates.push({ id, content: documentContentOf(state, id)!.content, enabled, dirty: payload.isDirty,
@@ -371,7 +379,7 @@ export function createFileAutoSaveController(deps: {
       // gewijzigd (`commitSavedDocument`); de volgende ronde neemt het latere werk mee.
       const ui = getState().ui;
       const output = await prepareIfcOutput({ ...current, ui }, buildWriteIFCInput(current, 'merge'), undefined,
-        documentSaveCompute(ui.featureFlags, compute));
+        documentSaveCompute(ui.featureFlags, compute, documentFileFormat(current, ui.featureFlags)));
       if (output.prepared) return 'refused';
       // #804 fixronde 2: dezelfde doelcontrole als Opslaan, onder dezelfde lock. Fixronde 1 van #1027 (review Sol): ná het
       // rekenen, vlak vóór het schrijven, zoals Ctrl+S: een gebouwmodel dat tijdens het rekenen op het doel verscheen,
@@ -420,6 +428,10 @@ export function createFileAutoSaveController(deps: {
       // #804 stap 6: de opslagworker stierf of verliep; niets geschreven, dezelfde melding als bij Ctrl+S.
       if (error instanceof IfcSaveWorkerError) {
         getState().notify(IFC_SAVE_WORKER_FAILED_NOTICE);
+        return;
+      }
+      if (error instanceof IfcxWriteRefusedError) {
+        getState().notify(ifcxWriteRefusedNotice(error));
         return;
       }
       getState().notify({

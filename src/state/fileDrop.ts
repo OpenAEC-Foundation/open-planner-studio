@@ -53,7 +53,7 @@ export async function openDroppedFiles(
     });
     return;
   }
-  const { openable, refused } = splitDroppedFiles(files);
+  const { openable, refused } = splitDroppedFiles(files, options.readOptions);
   // Vóór het openen: de melding staat er meteen, ook als het eerste bestand een uitlegvenster opent.
   if (refused.length > 0) {
     store.getState().notify({

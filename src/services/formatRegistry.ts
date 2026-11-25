@@ -11,6 +11,7 @@ import { readMSPDI } from '@/services/msproject/mspdiReader';
 import type { ImportLabels, ImportResult, OpenedImport } from '@/services/importTypes';
 import type { FileFilter, FileRef } from '@/services/fileAccess';
 import { basename, extensionOf } from '@/utils/filePath';
+import { ifcForeignContentEnabled, ifcxEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 
 /** Invoer voor een reader: tekstformaten krijgen `text`, binaire formaten `bytes`. */
 export interface FormatInput { name: string; text?: string; bytes?: Uint8Array }
@@ -36,6 +37,11 @@ export interface FormatReadOptions {
   /** De flag `ifcForeignContent` staat aan (#804 fase 1a): IFC leest als bytes, via de scanner en de indeling. Zonder
    *  deze optie is alles zoals vóór #804. De open-routes geven hem mee met `ifcForeignContentEnabled(ui.featureFlags)`. */
   ifcBytes?: boolean;
+  ifcx?: boolean;
+}
+
+export function readOptionsFor(featureFlags: Readonly<FeatureFlagValues>): FormatReadOptions {
+  return { ifcBytes: ifcForeignContentEnabled(featureFlags), ...(ifcxEnabled(featureFlags) ? { ifcx: true } : {}) };
 }
 
 /** Het root-element van een XML-document: lokale naam (zonder prefix) en de namespace die voor dat
@@ -183,27 +189,45 @@ const READ_FORMATS: ReadFormat[] = [
     } },
 ];
 
-/** Extensie-match; onbekende extensie ⇒ de default (IFC). */
-export function readFormatForFile(name: string): ReadFormat {
-  const ext = extensionOf(name);
-  return READ_FORMATS.find((f) => f.extensions.includes(ext)) ?? IFC_FORMAT;
+const IFCX_FORMAT: ReadFormat = {
+  id: 'ifcx', extensions: ['ifcx'], kind: 'binary', filterName: 'IFCX Files', canBeSaveTarget: true,
+  read: async (i) => {
+    if (!i.bytes) throw new Error('IFCX requires binary content');
+    const { openOwnIfcx } = await import('@/services/ifc/ifcxOwnBytes');
+    return openOwnIfcx(i.bytes);
+  },
+};
+
+const READ_FORMATS_WITH_IFCX: readonly ReadFormat[] = [IFC_FORMAT, IFCX_FORMAT, ...READ_FORMATS.slice(1)];
+
+function readFormats(opts?: FormatReadOptions): readonly ReadFormat[] {
+  return opts?.ifcx ? READ_FORMATS_WITH_IFCX : READ_FORMATS;
 }
+
+/** Extensie-match; onbekende extensie ⇒ de default (IFC). */
+export function readFormatForFile(name: string, opts?: FormatReadOptions): ReadFormat {
+  const ext = extensionOf(name);
+  return readFormats(opts).find((f) => f.extensions.includes(ext)) ?? IFC_FORMAT;
+}
+
+export const IFCX_FILE_FILTERS: readonly FileFilter[] = [{ name: IFCX_FORMAT.filterName, extensions: IFCX_FORMAT.extensions }];
 
 /** Kan de app dit bestand openen? Strikt op de extensie, zonder de IFC-terugval van
  *  `readFormatForFile`: een gesleept `tekening.pdf` of `notities` (geen punt) is géén IFC. Eén regel
  *  voor de keuze openen of weigeren bij slepen en neerzetten (`fileAccess/fileDrop.ts`). */
-export function isReadableFileName(name: string): boolean {
+export function isReadableFileName(name: string, opts?: FormatReadOptions): boolean {
   const base = basename(name);
   const dot = base.lastIndexOf('.');
   if (dot < 0) return false;
   const ext = base.slice(dot + 1).toLowerCase();
-  return READ_FORMATS.some((f) => f.extensions.includes(ext));
+  return readFormats(opts).some((f) => f.extensions.includes(ext));
 }
 
-export function openDialogFilters(): FileFilter[] {
+export function openDialogFilters(opts?: FormatReadOptions): FileFilter[] {
+  const formats = readFormats(opts);
   return [
-    { name: 'All Supported', extensions: READ_FORMATS.flatMap((f) => f.extensions) },
-    ...READ_FORMATS.map((f) => ({ name: f.filterName, extensions: f.extensions })),
+    { name: 'All Supported', extensions: formats.flatMap((f) => f.extensions) },
+    ...formats.map((f) => ({ name: f.filterName, extensions: f.extensions })),
   ];
 }
 
@@ -214,13 +238,13 @@ function readsFormatAsBytes(format: ReadFormat, opts?: FormatReadOptions): boole
 
 /** De extensies die de bestandslaag als bytes leest (`binaryExtensions` van `OpenFileOptions`). */
 export function binaryExtensions(opts?: FormatReadOptions): string[] {
-  return READ_FORMATS.filter((f) => readsFormatAsBytes(f, opts)).flatMap((f) => f.extensions);
+  return readFormats(opts).filter((f) => readsFormatAsBytes(f, opts)).flatMap((f) => f.extensions);
 }
 
 /** Leest de open-route `name` als bytes (Recent, `readFormatInput`)? Zelfde regel als `binaryExtensions`, met de
  *  IFC-terugval van `readFormatForFile` voor een onbekende extensie. */
 export function readsAsBytes(name: string, opts?: FormatReadOptions): boolean {
-  return readsFormatAsBytes(readFormatForFile(name), opts);
+  return readsFormatAsBytes(readFormatForFile(name, opts), opts);
 }
 
 /** Alle geregistreerde leesformaten — puur voor tests: `check-mpp-open-guard.ts` bewijst
@@ -231,7 +255,7 @@ export function allReadFormats(): readonly ReadFormat[] {
 }
 
 export function parseOpenedFile(input: FormatInput, labels?: ImportLabels, opts?: FormatReadOptions): Promise<OpenedImport> {
-  return readFormatForFile(input.name).read(input, labels, opts);
+  return readFormatForFile(input.name, opts).read(input, labels, opts);
 }
 
 /** Injecteerbare lees-naad voor `readFormatInput` — bewust een structureel subset-compatibele vorm
@@ -283,6 +307,10 @@ export function importErrorMessageKey(
 ):
   | 'notifications.ifcForeignOpenSchema'
   | 'notifications.ifcForeignOpenUnsafe'
+  | 'ifcx.open.foreign'
+  | 'ifcx.open.newer'
+  | 'ifcx.open.invalid'
+  | 'ifcx.open.notIfcx'
   | 'notifications.openFailed'
   | 'notifications.xmlUnknownSchedule'
   | 'notifications.mppEncrypted'
@@ -302,7 +330,13 @@ export function importErrorMessageKey(
   | 'notifications.xerDuplicateId'
   | 'notifications.xerAmbiguousLocalRelation'
   | 'notifications.xerDanglingLocalRelation' {
-  const typed = err as { mppCode?: string; xerCode?: string; xmlCode?: string; cfbCode?: string; code?: string; fallback?: { kind?: string } } | null | undefined;
+  const typed = err as { name?: string; mppCode?: string; xerCode?: string; xmlCode?: string; cfbCode?: string; code?: string; fallback?: { kind?: string } } | null | undefined;
+  if (typed?.name === 'IfcxReadError') {
+    if (typed.code === 'foreign') return 'ifcx.open.foreign';
+    if (typed.code === 'version' || typed.code === 'newer-profile') return 'ifcx.open.newer';
+    if (typed.code === 'not-ifcx') return 'ifcx.open.notIfcx';
+    return 'ifcx.open.invalid';
+  }
   if (typed?.code === 'IFC_FOREIGN_OPEN_REFUSED') return typed.fallback?.kind === 'schema'
     ? 'notifications.ifcForeignOpenSchema' : 'notifications.ifcForeignOpenUnsafe';
   if (typed?.xmlCode === 'XML_UNKNOWN_SCHEDULE') return 'notifications.xmlUnknownSchedule';

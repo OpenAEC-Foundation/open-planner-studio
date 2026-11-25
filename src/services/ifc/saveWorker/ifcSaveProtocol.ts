@@ -13,6 +13,7 @@ import { freeze } from 'immer';
 import { IfcCalendarTimePrecisionError, IfcParseError } from '@/services/ifc/ifcErrors';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { StepScanError } from '@/services/ifc/foreign/stepScanner';
+import { IfcxWriteRefusedError } from '@/services/ifc/ifcx/ifcxErrors';
 import type { PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { precomputeSha256, XerSourceArchiveValidationError } from '@/services/xerSourceArchive';
 import { computeIfcOutputHere, type IfcOutput, type IfcSaveJob } from '@/state/prepareIfcOutput';
@@ -34,7 +35,7 @@ export type IfcSaveResponse =
 /** Inhoudelijke fouten die oversteken als dezelfde foutsoort met dezelfde gegevens. Specifiek vóór algemeen. */
 const CONTENT_ERRORS = {
   MergeNeedsPhase2Error, IfcCalendarTimePrecisionError, StepScanError, IfcParseError, XerSourceArchiveValidationError,
-  TypeError, RangeError, Error,
+  IfcxWriteRefusedError, TypeError, RangeError, Error,
 } as const;
 type ContentErrorType = keyof typeof CONTENT_ERRORS;
 

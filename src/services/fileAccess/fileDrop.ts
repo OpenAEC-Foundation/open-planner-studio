@@ -93,11 +93,11 @@ export function droppedFilesFromPaths(paths: readonly string[], io: TauriOpenIO,
 }
 
 /** Splits in wat de app kan openen (volgorde van neerzetten blijft) en de namen van de rest. */
-export function splitDroppedFiles(files: readonly DroppedFile[]): { openable: DroppedFile[]; refused: string[] } {
+export function splitDroppedFiles(files: readonly DroppedFile[], readOptions?: FormatReadOptions): { openable: DroppedFile[]; refused: string[] } {
   const openable: DroppedFile[] = [];
   const refused: string[] = [];
   for (const file of files) {
-    if (isReadableFileName(file.name)) openable.push(file);
+    if (isReadableFileName(file.name, readOptions)) openable.push(file);
     else refused.push(file.name);
   }
   return { openable, refused };

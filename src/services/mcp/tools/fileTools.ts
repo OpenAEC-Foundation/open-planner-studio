@@ -37,14 +37,14 @@ import { isTauri } from '@/utils/platform';
 import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
-import { detectXmlFlavor, parseOpenedFile, readFormatForFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
+import { detectXmlFlavor, parseOpenedFile, readFormatForFile, readFormatInput, readOptionsFor, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
 import { IFC_FOREIGN_OPEN_WARN_MIB, opensLargeForeignSource } from '@/services/ifc/foreignOpenSize';
 import { buildExportIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
 import { exportHitsOwnFile } from '@/state/savedLiteralCalendars';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { ifcSchemaBlocksSilentWrite, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { DEFAULT_IFC_SCHEMA, projectIfcSchema } from '@/types/project';
-import { extensionOf } from '@/utils/filePath';
+import { extensionOf, isIfcxName } from '@/utils/filePath';
 import type { OpenedImport } from '@/services/importTypes';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, postAwaitGuards, toolError } from './runtime';
 import { guardBridgeFlags } from './documentTools';
@@ -63,7 +63,7 @@ import {
   type WriteTargetDeps, type WriteTargetRefusal,
 } from '@/state/ifcForeignGuard';
 import { openTabFor, readVersionOf, switchToOpenDocument } from '@/state/openDocumentFor';
-import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { ifcForeignContentEnabled, ifcxEnabled } from '@/utils/featureFlags';
 
 /** #804: IFC-uitvoer blijft geweigerd met ontbrekende bronbytes of de flag uit (`state/ifcForeignGuard.ts`). */
 const FOREIGN_CONTENT_REFUSAL = 'The active document contains a building model or data from other programs. The app cannot ' +
@@ -307,6 +307,8 @@ export function checkScope(home: string, input: string): ScopeCheck {
   return { ok: true, path: target };
 }
 
+const IFCX_EXPORT_REFUSAL = 'planner_export_ifc writes IFC (STEP), never IFCX: choose a path ending in .ifc.';
+
 // --- Formaatherkenning ---------------------------------------------------------------------------
 
 /** Leesbaar formaatlabel op basis van de extensie (de XML-variant volgt het root-element via
@@ -406,6 +408,9 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'VALIDATION', 'Parameter \'overwrite\' must be true or false.');
       }
       const overwrite = raw.overwrite === true;
+      if (ifcxEnabled(ctx.app.store.getState().ui.featureFlags) && isIfcxName(raw.path.trim())) {
+        return toolError(ctx, 'VALIDATION', IFCX_EXPORT_REFUSAL);
+      }
 
       let fs: McpFileFs;
       try {
@@ -649,7 +654,7 @@ export const fileTools: McpToolDef[] = [
         // Gedeelde isBinary?readFile:readTextFile-tak,
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
         // #804 fase 1a: met de flag `ifcForeignContent` leest IFC als bytes, zoals Bestand → Openen.
-        readOptions = { ifcBytes: ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) };
+        readOptions = readOptionsFor(ctx.app.store.getState().ui.featureFlags);
         input = await readFormatInput(path, fs, readOptions);
       } catch (e) {
         const code = e instanceof ScopeEscapeError ? 'SCOPE' : e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND';

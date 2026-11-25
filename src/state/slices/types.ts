@@ -207,6 +207,12 @@ export type NotificationMessageKey =
   | 'notifications.minuteModelConverted'
   | 'notifications.minuteModelCalendarRepaired'
   | 'notifications.openFailed'
+  | 'ifcx.open.foreign'
+  | 'ifcx.open.newer'
+  | 'ifcx.open.invalid'
+  | 'ifcx.open.notIfcx'
+  | 'ifcx.writeRefused'
+  | 'ifcx.flagOff'
   // Rapport-tabblad (#861): de gekozen layout is verwijderd; het rapport valt terug op alle taken.
   | 'notifications.reportLayoutGone'
   // Eigen rapportlettertype (#770): zonder vette variant (vet in de gewone letter), of de kopie is weg (terug op Inter).

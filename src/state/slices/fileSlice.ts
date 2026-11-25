@@ -38,7 +38,7 @@ import {
   EXPORT_LOSS_HELP_ARTICLE_ID, P6XML_IMPORT_HELP_ARTICLE_ID, RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID,
 } from '@/state/helpArticles';
 import { formatNoticeToShow } from '@/services/formatNotice';
-import { openDialogFilters, binaryExtensions, readFormatForFile, readsAsBytes, parseOpenedFile, importErrorMessageKey, saveTargetFor, readIfcFromText, writeXerExport, type ExportFormat, type FormatReadOptions } from '@/services/formatRegistry';
+import { openDialogFilters, binaryExtensions, readFormatForFile, readsAsBytes, parseOpenedFile, importErrorMessageKey, saveTargetFor, readIfcFromText, readOptionsFor, writeXerExport, type ExportFormat, type FormatReadOptions } from '@/services/formatRegistry';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import {
   ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, IFC_UNREADABLE_TARGET_EXPORT_NOTICE,
@@ -119,6 +119,8 @@ import { invalidateDocumentRedo, removeSessionHistoryForDocumentFromState } from
 import { scheduleFailedNotice } from '../scheduleErrorNotice';
 import { browserSaveNotice } from '../browserSaveNotice';
 import { basename, ensureExtension } from '@/utils/filePath';
+import { documentFileFilters, documentFileFormat, fileNameWithFormat, IFC_FILE_FILTERS, IFCX_FLAG_OFF_NOTICE, ifcxWriteBlocked, ifcxWriteRefusedNotice, type DocumentFileFormat } from '../ifcxGuard';
+import { IfcxWriteRefusedError } from '@/services/ifc/ifcx/ifcxErrors';
 import type { ScheduleErrorInfo } from '@/engine/scheduler/CPMSolver';
 
 export function suggestedFileBase(s: Pick<AppState, 'project' | 'xerImportMetadata'>): string {
@@ -148,8 +150,8 @@ function documentFileName(s: Pick<AppState, 'filePath' | 'project' | 'xerImportM
   return s.filePath ? basename(s.filePath) : `${suggestedFileBase(s)}.ifc`;
 }
 
-export function siteSaveDefaultName(s: Pick<AppState, 'filePath' | 'project' | 'xerImportMetadata'>): string {
-  return ensureExtension(documentFileName(s), 'ifc');
+export function siteSaveDefaultName(s: Pick<AppState, 'filePath' | 'project' | 'xerImportMetadata'>, format: DocumentFileFormat = 'ifc'): string {
+  return ensureExtension(documentFileName(s), format);
 }
 
 export function siteVersionCopyName(sourceName: string, version: string, copyLabel?: string): string {
@@ -465,7 +467,6 @@ export type ChosenExternalSource =
 
 const SOURCE_FILE_FILTERS = [{ name: 'IFC', extensions: ['ifc'] }];
 /** De bestandskiezer van een IFC-projectbestand (Opslaan, Opslaan als, de bibliotheek). */
-const IFC_FILE_FILTERS: FileFilter[] = [{ name: 'IFC Files', extensions: ['ifc'] }];
 
 export interface SaveDestination {
   filePath: string;
@@ -475,7 +476,13 @@ export interface SaveDestination {
 }
 
 export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get) => {
-  const formatReadOptions = (): FormatReadOptions => ({ ifcBytes: ifcForeignContentEnabled(get().ui.featureFlags) });
+  const formatReadOptions = (): FormatReadOptions => readOptionsFor(get().ui.featureFlags);
+
+  const refuseIfcxWithoutFlag = (state: AppState = get()): boolean => {
+    if (!ifcxWriteBlocked(state, state.ui.featureFlags)) return false;
+    get().notify(IFCX_FLAG_OFF_NOTICE);
+    return true;
+  };
 
   const refuseForeignDocumentWrite = (state: AppState = get()): boolean => {
     if (!ifcFullWriteBlocked(state)) return false;
@@ -493,6 +500,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     catch (error) {
       if (error instanceof IfcWriteBlockedError) get().notify(ifcWriteBlockedNotice(state));
       else if (error instanceof MergeNeedsPhase2Error) get().notify(IFC_FOREIGN_MERGE_REFUSED_NOTICE);
+      else if (error instanceof IfcxWriteRefusedError) get().notify(ifcxWriteRefusedNotice(error));
       else if (error instanceof IfcSaveWorkerError) {
         console.error('De opslagworker faalde:', error);
         get().notify(IFC_SAVE_WORKER_FAILED_NOTICE);
@@ -531,7 +539,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     } finally { release(); }
   };
   const prepareDocumentWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<IfcOutput | null> => {
-    const write = await prepareAppIfcWrite(state, input, planOnly, documentSaveCompute(state.ui.featureFlags, runtime.ifcSaveCompute));
+    const write = await prepareAppIfcWrite(state, input, planOnly, documentSaveCompute(state.ui.featureFlags, runtime.ifcSaveCompute, documentFileFormat(state, state.ui.featureFlags)));
     if (write && !write.prepared) rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
     return write;
   };
@@ -630,9 +638,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     };
     // De merge: alleen een nieuwe naam. De gewone writer overschrijft een bestaand bestand zoals altijd, atomair
     // (`saveDataDialog`, #804 stap 6: met de bytes van de worker).
+    const filters = documentFileFilters(documentFileFormat(snapshot, snapshot.ui.featureFlags));
     return write.prepared
-      ? saveNewBytesDialog(name, write.prepared.bytes, IFC_FILE_FILTERS, options)
-      : saveDataDialog(name, writerData(write), IFC_FILE_FILTERS, options);
+      ? saveNewBytesDialog(name, write.prepared.bytes, filters, options)
+      : saveDataDialog(name, writerData(write), filters, options);
   };
 
   const foreignTargetCheck = (
@@ -1028,7 +1037,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   const saveAsNewSiteFile = async (state: AppState, write: IfcOutput, name: string, missingSourceSaveAs = false): Promise<boolean> => {
     if (refuseChangedDocumentWrite(state, write, missingSourceSaveAs)) return false;
-    const info = write.prepared ? await saveNewSiteFileBytes(name, write.prepared.bytes) : await saveNewSiteFile(name, writerData(write));
+    const siteName = documentFileFormat(state, state.ui.featureFlags) === 'ifcx' ? ensureExtension(name, 'ifcx') : name;
+    const info = write.prepared ? await saveNewSiteFileBytes(siteName, write.prepared.bytes) : await saveNewSiteFile(siteName, writerData(write));
     const saved = commitSavedDocument(snapshotContent(state), state, {
       filePath: info.name, fileHandle: null, siteFileId: info.id, siteFileVersion: info.version,
     }, write.prepared, missingSourceSaveAs);
@@ -1215,7 +1225,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   ): Promise<{ outcome: SaveOutcome; committed: boolean } | null> => {
     let committed = false;
     const outcome = await placeOnDesktop({
-      name, filters: IFC_FILE_FILTERS, bytes: () => writeBytes(write),
+      name, filters: documentFileFilters(documentFileFormat(state, state.ui.featureFlags)), bytes: () => writeBytes(write),
       targetCheck: picked => documentTargetCheck(state, write, false, {
         readers: capturedTargetReaders(picked.current, writeTargetReaders), openDocumentsExcept: documentId, chosenTarget: picked, missingSourceSaveAs,
       }),
@@ -1339,11 +1349,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const documentId = requested.id;
     if (get().activeDocumentId !== documentId || !sameDocumentContent(get(), requested)) return false;
     if (refuseForeignDocumentWrite()) return false;
+    if (refuseIfcxWithoutFlag()) return false;
     if (!(await settleIfcSchemaQuestion())) return false;
     if (!(await settleDependentAnchors())) return false;
     const state = get();
     if (state.activeDocumentId !== documentId || !sameDocumentContent(state, requested)) return false;
     if (refuseForeignDocumentWrite(state)) return false;
+    if (refuseIfcxWithoutFlag(state)) return false;
+    const format = documentFileFormat(state, state.ui.featureFlags);
     let siteName: string | null = null;
     let handleWriteFailed = false;
     const failureNoticeKey = `project-save:${++saveAttemptSequence}`;
@@ -1430,7 +1443,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
 
       if (siteStorageAvailable()) {
-        const choice = await askSiteSave({ defaultName: siteSaveDefaultName(state) });
+        const choice = await askSiteSave({ defaultName: siteSaveDefaultName(state, documentFileFormat(state, state.ui.featureFlags)) });
         if (!choice) return false;
         if (choice.kind === 'site') {
           siteName = choice.name;
@@ -1441,13 +1454,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const hadFile = !isTauri() && (state.fileHandle !== null || !!state.filePath);
       // Fixronde 1 van #1071: de bestandskiezer van Ctrl+S is Opslaan als, op de desktop met dezelfde bevestigde doelroute.
       if (isTauri() && (write.prepared || ifcForeignContentEnabled(state.ui.featureFlags))) {
-        const saved = await saveAsOnDesktop(documentId, state, write, `${suggestedFileBase(state)}.ifc`);
+        const saved = await saveAsOnDesktop(documentId, state, write, fileNameWithFormat(suggestedFileBase(state), format));
         if (!saved || !sameDocumentContent(get(), snapshotContent(state))) return false;
         await pushRecent(saved.outcome.ref, saved.outcome.name);
         return saved.committed;
       }
       const hashing = writtenFingerprint(state.ui.featureFlags, write);
-      const outcome = await documentSaveDialog(state, write, `${suggestedFileBase(state)}.ifc`);
+      const outcome = await documentSaveDialog(state, write, fileNameWithFormat(suggestedFileBase(state), format));
       if (!outcome) return false;
       if (write.prepared && outcome.viaDownload && ref?.kind === 'handle' && hasBuildingModel(state.ifcSource)) {
         get().notify(downloadCopyNotice(outcome.name));
@@ -1505,7 +1518,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, missingSourceSaveAs ? 'planOnly' : 'merge'), planOnly);
       if (!write || refuseChangedDocumentWrite(state, write, missingSourceSaveAs)) return;
       if (siteStorageAvailable()) {
-        const choice = await askSiteSave({ defaultName: siteSaveDefaultName(state) });
+        const choice = await askSiteSave({ defaultName: siteSaveDefaultName(state, documentFileFormat(state, state.ui.featureFlags)) });
         if (!choice) return;
         if (choice.kind === 'site') {
           siteName = choice.name;
@@ -1800,7 +1813,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     openAsDocument: (parsed, source) => {
       const target = source.saveTarget === false
         ? { filePath: null, fileHandle: null, siteFileId: null }
-        : saveTargetFor(readFormatForFile(source.name), source.ref, source.name);
+        : saveTargetFor(readFormatForFile(source.name, formatReadOptions()), source.ref, source.name);
 
       return get().applyOpenedImport(parsed, {
         filePath: target.filePath,
@@ -1820,7 +1833,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const found: { lookup: OpenLookup | null } = { lookup: null };
       try {
         if (siteStorageAvailable()) {
-          const extensions = [...new Set(openDialogFilters().flatMap((filter) => filter.extensions))];
+          const extensions = [...new Set(openDialogFilters(formatReadOptions()).flatMap((filter) => filter.extensions))];
           const choice = await askSiteOpen({ extensions });
           if (!choice) return;
           if (choice.kind === 'site') {
@@ -1829,7 +1842,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           }
         }
         readOptions = formatReadOptions();
-        opened = await openFileDialog(openDialogFilters(), {
+        opened = await openFileDialog(openDialogFilters(readOptions), {
           binaryExtensions: binaryExtensions(readOptions),
           ...(readOptions.ifcBytes ? { beforeRead: (ref: Extract<FileRef, { kind: 'handle' }>) => {
             if (readFormatForFile(ref.handle.name).canBeSaveTarget) found.lookup = startOpenLookup(get(), ref);

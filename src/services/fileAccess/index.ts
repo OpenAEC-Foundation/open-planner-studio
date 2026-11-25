@@ -1,7 +1,7 @@
 import { isTauri } from '@/utils/platform';
 import {
   saveDataDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
-  fileIdentityFsTauri, scanTargetPathTauri, sourceTargetContentOfPathTauri, knownTargetContentOfPathTauri,
+  fileIdentityFsTauri, scanTargetPathTauri, readTargetPathTauri, sourceTargetContentOfPathTauri, knownTargetContentOfPathTauri,
   saveNewBytesDialogTauri, saveNewBytesToRefTauri, pickSaveTargetTauri,
 } from './tauriBackend';
 import { openFileDialogTauri, readOpenedPathTauri } from './tauriOpenPath';
@@ -185,7 +185,7 @@ export function fileIdentityFs(): Promise<FileIdentityFs | undefined> {
  *  het site-bestand. In de browser leest de controle de handle zelf (`getFile()`). */
 export function writeTargetReaders(): TargetReaders {
   return {
-    ...(isTauri() ? { scanPath: scanTargetPathTauri } : {}),
+    ...(isTauri() ? { scanPath: scanTargetPathTauri, readPath: readTargetPathTauri } : {}),
     ...(siteStorageAvailable() ? { readSite: async (id: string) => (await readSiteSourceFile(id)).bytes() } : {}),
   };
 }
