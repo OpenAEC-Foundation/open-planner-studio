@@ -632,8 +632,11 @@ await expectRelease('een taak uit het tweede schema verplaatsen', secondSchedule
   const src = enc.encode(withLines(replaceLine(showcaseApp, '#1572=',
     "#1572=IFCPROPERTYSETTEMPLATE('21BEfWwU0ulhEEz0WA5oeQ',#6,'OPS_CustomFields',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask',(#1569,#1570,#1571,#9001));"),
   ["#9001=IFCSIMPLEPROPERTYTEMPLATE('0vreemdVeld00000000000',#6,'VendorVeld',$,.P_SINGLEVALUE.,'IfcLabel',$,$,$,$,$,$);"]));
-  await expectRefusal('de planner maakt een veld met de naam van een vreemd lid', src, 'vreemd-lid', (d) => {
+  await expectRelease('de planner maakt een veld met de naam van een vreemd lid', src, (d) => {
     d.customFieldDefs = [...(d.customFieldDefs ?? []), { ...structuredClone(d.customFieldDefs![0]), id: 'veld-1b', name: 'VendorVeld' }];
+  }, ['vervallen #9001'], (out, reread) => {
+    ok('vreemd lid met de naam van een nieuw veld: het eigen template noemt het lid niet meer', !/IFCPROPERTYSETTEMPLATE\('21BEfWwU0ulhEEz0WA5oeQ'[^;]*#9001[,)]/.test(text(out)));
+    ok('vreemd lid met de naam van een nieuw veld: na heropenen is het veld van de planner', reread.customFieldDefs?.some(f => f.name === 'VendorVeld') === true);
   });
 }
 {

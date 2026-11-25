@@ -253,9 +253,10 @@ function editedPieces(index: StepIndex, changes: readonly ForeignChange[]): Read
   return edits;
 }
 
-function withLeaving(rule: ForeignRuleOutcome, leaving: ReadonlyMap<number, ReadonlySet<number>>, index: StepIndex): ForeignRuleOutcome {
-  if (leaving.size === 0) return rule;
-  const dropped = new Set(rule.dropped), trimmed = new Map(rule.trimmed);
+function withLeaving(rule: ForeignRuleOutcome, leaving: ReadonlyMap<number, ReadonlySet<number>>, readAsOwn: ReadonlySet<number>,
+  index: StepIndex): ForeignRuleOutcome {
+  if (leaving.size === 0 && readAsOwn.size === 0) return rule;
+  const dropped = new Set([...rule.dropped, ...readAsOwn]), trimmed = new Map(rule.trimmed);
   for (const [id, away] of leaving) {
     if (dropped.has(id)) continue;
     const chunk = index.chunkOf(String(id));
@@ -843,9 +844,6 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 
     // ── 6. Vreemde leden aan de eigen pset of template hangen ──
     const extraPsets = new Map<string, { owner: number; pset: number; rel: number; members: number[] }>();
-    // De velden en codes die de uitvoer in `OPS_StructureMeta` krijgt: een vreemd lid met zo'n naam (of code) leest de
-    // lezer na opslaan als eigen (§10: een veld "Zone" dat de planner later maakt). Dat vraagt een melding (fase 2); tot dan
-    // schrijft de merge niets.
     const outFields = new Set((input.customFieldDefs ?? []).map(d => d.name));
     const outCodes = new Map((input.activityCodeTypes ?? []).map(t => [t.name, new Set(t.values.map(v => v.code))]));
     // Dezelfde regels als `ownProperty` en `ownTemplateProperty` in `classify.ts`, met de structuur van de uitvoer.
@@ -865,6 +863,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       }
       return false;
     };
+    const readAsOwnMembers = new Set<number>();
     for (const m of cls.foreignMembers) {
       for (let k = index.inStart(m); k < index.inEnd(m); k++) {
         const parent = index.inSource(k);
@@ -872,7 +871,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
         const ptype = index.type(parent);
         const name = index.name(parent) ?? '';
         if (readAsOwn(m, name, ptype === 'IFCPROPERTYSETTEMPLATE')) {
-          caseAt('vreemd-lid', m, `${label(m)} in ${name} zou na opslaan als eigen gelezen worden: de planning heeft nu een veld of code met die naam`);
+          readAsOwnMembers.add(sid(m));
           continue;
         }
         if (ptype === 'IFCPROPERTYSET' && index.inArg(k) === 4) {
@@ -937,7 +936,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       else if (key === '_calendar') objects.set(id, `cal:${input.calendar.id}`);
     }
     return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds, objects, idMap: written.idMap, literalCalendarIds: written.literalCalendarIds, raw, chosen,
-      sourceDayLagIds: formPlan.sourceDayLagIds, origin, leaving };
+      sourceDayLagIds: formPlan.sourceDayLagIds, origin, leaving, readAsOwnMembers };
   }
   // Het domein zoals de lezer het uit de bron las (O0 hieronder), al vóór O1: de writer vergelijkt de taken ermee
   // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
@@ -972,7 +971,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     built = buildLines(form.input, (...a) => { pending.push(a); }, rule, built0.raw, plannerChanged);
   }
   for (const a of pending) caseAt(...a);
-  const changes = foreignChangeList(withLeaving(rule, built.leaving, index), index, source.bytes);
+  const changes = foreignChangeList(withLeaving(rule, built.leaving, built.readAsOwnMembers, index), index, source.bytes);
   const pieceEdits = editedPieces(index, changes);
   const domain = form.input;
   const { lines, byId, keptHeads, owner, taskIds, objects } = built;

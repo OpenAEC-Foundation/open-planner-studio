@@ -83,14 +83,36 @@ function releasableMembers(source: StepIndex, sourceClasses: Classification, chu
   return new Set(related < 0 ? [] : source.refsAt(chunk, related).filter(m => inD[m] === 1).map(m => Number(source.id(m))));
 }
 
+function ownNameInOutput(source: StepIndex, sourceClasses: Classification, index: StepIndex, classes: Classification, chunk: number): boolean {
+  if (!sourceClasses.foreignMembers.includes(chunk)) return false;
+  const name = source.name(chunk);
+  const named = (container: number, arg: number) => index.refsAt(container, arg).some(p => index.name(p) === name && classes.classes[p] === 1);
+  for (let k = source.inStart(chunk); k < source.inEnd(chunk); k++) {
+    const parent = source.inSource(k), type = source.type(parent), setName = source.name(parent);
+    if (type === 'IFCPROPERTYSET' && source.inArg(k) === 4) {
+      const owners = new Set(psetOwners(source, parent).map(o => source.id(o)));
+      for (let r = 0; r < index.count; r++) {
+        if (!index.isEntity(r) || index.type(r) !== 'IFCRELDEFINESBYPROPERTIES') continue;
+        const pset = index.refAt(r, 5);
+        if (pset >= 0 && index.name(pset) === setName && index.refsAt(r, 4).some(o => owners.has(index.id(o))) && named(pset, 4)) return true;
+      }
+    } else if (type === 'IFCPROPERTYSETTEMPLATE' && source.inArg(k) === 6) {
+      for (let t = 0; t < index.count; t++) {
+        if (index.isEntity(t) && index.type(t) === type && index.name(t) === setName && named(t, 6)) return true;
+      }
+    }
+  }
+  return false;
+}
+
 function listRefs(value: StepValue): Set<number> {
   const out = new Set<number>();
   for (const list of placeTriggers(value).lists) for (const id of list) out.add(id);
   return out;
 }
 
-function changeListProblems(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array, index: StepIndex, bytes: Uint8Array,
-  listed: ReadonlyMap<number, ForeignChange>, gone: ReadonlySet<number>): string[] {
+function changeListProblems(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array, index: StepIndex, classes: Classification,
+  bytes: Uint8Array, listed: ReadonlyMap<number, ForeignChange>, gone: ReadonlySet<number>): string[] {
   const problems: string[] = [];
   const removed = new Set(gone);
   const valueOf = (ix: StepIndex, b: Uint8Array, chunk: number) => chunk < 0 ? undefined : entityValue(b, ix.entityStart(chunk), ix.end(chunk));
@@ -124,6 +146,7 @@ function changeListProblems(source: StepIndex, sourceClasses: Classification, so
     const releasable = releasableMembers(source, sourceClasses, chunkOfId.get(piece.id)!);
     const lists = piece.value ? placeTriggers(piece.value).lists : [];
     if (releasable.size > 0 && lists.some(list => list.every(id => removed.has(id) || releasable.has(id)))) continue;
+    if (ownNameInOutput(source, sourceClasses, index, classes, chunkOfId.get(piece.id)!)) continue;
     problems.push(`wijzigingslijst: #${piece.id} vervalt, maar geen verwijderd stuk laat het vervallen`);
   }
   for (const [chunk, change] of listed) {
@@ -366,8 +389,9 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
   }
   // Vond de lus hierboven niets, dan staat elk niet-P-stuk byte-gelijk op zijn plek: dan telt alleen het verschil.
   const counting = problems.length === 0 && !options.full ? 'verschil' : 'volledig';
-  for (const problem of changeListProblems(source, sourceClasses, sourceBytes, index, bytes, listed, gone)) problems.push(problem);
+  for (const problem of changeListProblems(source, sourceClasses, sourceBytes, index, classification, bytes, listed, gone)) problems.push(problem);
   for (const member of sourceClasses.foreignMembers) {
+    if (listed.get(member)?.kind === 'vervallen') continue;
     const id = source.id(member), expected = bindings(source, id), shown = bindings(index, id);
     for (const key of [...expected.keys()]) if (gone.has(Number(JSON.parse(key)[0]))) expected.delete(key);
     if (expected.size !== shown.size || [...expected].some(([key, count]) => shown.get(key) !== count)) {
