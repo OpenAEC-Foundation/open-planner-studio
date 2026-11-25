@@ -16,5 +16,6 @@ dat er zo per project geen kopie van elke toewijzingsrij ontstaat; `rehab-2.xer`
 - Voor materiaal op een taak in de urenmaat rekent `xerResourceAssignments.ts` het tempo per uur om naar een tempo
   per dag met de werktijd per dag van de kalender van de taak (`hourTaskHoursPerDay`: `effHoursPerDay` van de
   kalender van `clndr_id`, anders van de projectkalender), dezelfde kalender als voor het dagengetal (ADR 0394), zodat
-  tempo maal dagengetal de uren geeft. Een taak zonder die waarde rekent met de uren per dag van de kalender van de
+  het tempo per dag maal het dagengetal dezelfde hoeveelheid materiaal geeft als het brontempo per uur maal de
+  werkuren. Een taak zonder die waarde rekent met de uren per dag van de kalender van de
   resource, anders van de projectkalender.

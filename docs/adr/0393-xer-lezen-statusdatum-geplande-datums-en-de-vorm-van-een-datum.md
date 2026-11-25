@@ -24,8 +24,9 @@ weggehaalde commentaar en is niet nagegaan.
   `check-xer-project-data-date.ts`, "scheduleStart = statusdatum"). Het weggehaalde commentaar gaf als reden voor de
   statusdatum dat P6 onbegonnen werk vanaf de data date plant; dat is niet nagegaan.
 - Zonder leesbare `target_end_date` begint het einde gelijk aan de start, en `resolveMissingScheduleDates` rekent het
-  einde uit start en duur op de kalender van de taak (`finishFromStartAndDuration`); lukt dat niet, dan blijft het
-  einde de start.
+  einde uit start en duur op de kalender van de taak (`finishFromStartAndDuration`). Lukt dat niet, dan houdt de taak
+  het einde dat de lezer zette: de gelezen of verankerde start, en zonder anker de tijdelijke `0001-01-01`, ook als de
+  start al vervangen is (knownbug 2462).
 - De vroege en late datums in `task.time` zijn bij het lezen de geplande datums, nooit de opgeslagen rekenuitvoer
   (`check-xer-reader.ts` 10; regel `xer`, bak 4).
 - Een `TT_FinMile` in uurmodus met dezelfde start en hetzelfde einde, precies één minuut na het begin van het eerste

@@ -25,7 +25,9 @@ uit het bestand en lag.
   bevat en geen tweede duur is. `check-xer-reader.ts` 3b eist het einde van zo'n taak met een niet-hele dagduur.
 - De rest is `remain_drtn_hr_cnt` met de regel van de duur; is die leeg, dan heeft de taak geen `remainingMinutes`.
   Een taak met status `STARTED`, `CP_Drtn` en een gelezen `complete_pct` krijgt in plaats daarvan de duur maal
-  (1 − voortgang) als rest, op de hele minuut (`Math.round`), omdat die waarde berekend is en geen bronwaarde. Welke
+  (1 − voortgang) als rest, op de hele minuut (`Math.round`), omdat die waarde berekend is en geen bronwaarde. Die
+  duur is `target_drtn_hr_cnt` uit het bestand, ook als het geplande venster hierboven de duur herstelde; rest en duur
+  kunnen dan uit verschillende waarden komen (knownbug 2460). Welke
   kolom de voortgang levert, staat in ADR 0395. `check-xer-status-afleiden.ts` 117-12 eist 720 minuten voor 16 uur
   op 25 %, met 14 uur rest in het bestand.
 - `lagMinutes` is `lag_hr_cnt` met dezelfde regel (`check-xer-reader.ts` 12: 1,5 uur wordt 90 minuten, −2 uur

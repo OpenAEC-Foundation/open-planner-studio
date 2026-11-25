@@ -15,7 +15,8 @@ zonder gelezen kalender, en de werkdag van een kalender met een lege `clndr_data
 - De projectkalender is de kalender van `PROJECT.clndr_id`, anders de eerste gelezen kalender. Een activiteit krijgt
   `calendarId` als haar `clndr_id` gevuld is en niet de projectkalender is, ook als er geen kalender met dat id
   gelezen is (de P6 XML-lezer laat het dan weg, ADR 0262). De lezer zelf rekent met de kalender van dat id, en zonder
-  zo'n gelezen kalender met de projectkalender.
+  zo'n gelezen kalender met de projectkalender. De kloktijden van zo'n activiteit tellen dan als uursignaal voor het
+  ontbrekende id en niet voor de projectkalender, zodat haar geplande tijden kunnen wegvallen (knownbug 2461).
 - Een lege `clndr_data` maakt de decoder tot maandag tot en met vrijdag 08:00 tot 16:00 (`check-xer-calendar-data.ts`
   6). `inferBlankCalendarBands` leidt daarna de werkdag af uit de geplande tijden van de activiteiten op die kalender
   (`clndr_id`, of leeg op de projectkalender). Het telt alleen activiteiten met een `target_drtn_hr_cnt` boven 0 die
