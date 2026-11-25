@@ -14,6 +14,7 @@ import { ifcxSchemaProblems } from '@/services/ifc/ifcx/schemaCheck';
 import { selfCheckDifferences } from '@/services/ifc/ifcx/selfCheck';
 import { readIfcxText } from '@/services/ifc/ifcx/ifcxReader';
 import { canonicalFor } from '@/services/ifc/ifcx/ownFile';
+import { serializeIfcx, type IfcxDocument } from '@/services/ifc/ifcx/projection';
 import { stepRoundtrip } from '@/services/ifc/ifcx/stepRoundtrip';
 import { HEADER_VALUE } from '@/services/ifc/ifcx/ownAttributes';
 import { ALL_MODEL_KEYS, NODES, OWN_ATTRIBUTE_VALUES, STEP_WRITER_INPUT_NOT_CARRIED } from '@/services/ifc/ifcx/nodes';
@@ -187,7 +188,7 @@ test('een taak uit STEP met OPS_TaskIdentity houdt haar interne id en GlobalId',
   const document = documentOf(writeIfcx(kern03, CLOCK));
   const entry = document.data.find(item => item.path === pathOfGlobalId(guid))!;
   assert.equal(entry.attributes['openaec::ops::task'].id, task.id);
-  const back = readIfcx(encode(JSON.stringify(document)));
+  const back = readIfcx(encode(serializeIfcx(document as unknown as IfcxDocument)));
   assert.equal(back.tasks[1].id, task.id);
   assert.equal(back.ifcGlobalIds![`task:${task.id}`], guid);
   const viaStep = readIFC(writeIFCForComparison(back));
@@ -633,10 +634,11 @@ test('de writer weigert vóór het schrijven een tijd die de lezer niet aanvaard
   assert.equal(odd.code, 'invalid');
 });
 
-test('bekende grens 2220: bij een dubbele sleutel in een eigen bestand wint stil de laatste', () => {
+test('2220 dicht voor eigen bestanden: een dubbele sleutel opent niet, want R4 vergelijkt de bytes', () => {
   const doubled = goodText.replace('"name":"Taak binnen-een-dag"', '"name":"Oud","name":"Taak binnen-een-dag"');
   assert.notEqual(doubled, goodText);
-  assert.equal(readIfcx(encode(doubled)).tasks[0].name, 'Taak binnen-een-dag');
+  const outcome = readOutcome(encode(doubled));
+  assert.ok(outcome instanceof IfcxReadError && outcome.code === 'invalid' && typeof outcome.place.offset === 'number', String(outcome));
 });
 
 test('een veld dat STEP niet bewaart, bewaart IFCX ook niet: geen fout (besluit 3 van Trias)', () => {
@@ -1682,6 +1684,34 @@ test('vervolg ronde 7: de uitgestelde waardetoets weigert met pad, attribuut en 
   assert.deepEqual(foreign.place, { field: 'imports' });
 });
 
+test('het gat vóór R4: R4 vergelijkt de bytes, dus een afgerond getal, een dubbele sleutel en elke andere schrijfwijze openen niet; alleen de tijdstempel mag anders', () => {
+  const plan = datePlan();
+  const done = { ...plan, tasks: plan.tasks.map((task, index) => (index === 0 ? { ...task, time: { ...task.time, actualStart: task.time.scheduleStart, actualFinish: task.time.scheduleFinish, completion: 1 } } : task)) };
+  const text = writeIfcx(done, CLOCK);
+  const once = (from: string, to: string) => {
+    assert.ok(text.includes(from), from);
+    return text.replace(from, to);
+  };
+  const cases: readonly [string, string, string][] = [
+    ['een voortgang net boven de grens', '"completion":1', '"completion":1.0000000000000001'],
+    ['een werkdag met een fractie', '"workDays":[1,', '"workDays":[1.0000000000000001,'],
+    ['het voortgangsveld twee keer, eerst 0.5', '"completion":1', '"completion":0.5,"completion":1'],
+    ['dezelfde waarde in een andere spelling (10e-1 is precies 1, maar niet wat de schrijver schrijft)', '"completion":1', '"completion":10e-1'],
+    ['andere witruimte', '"imports": [],', '"imports":[],'],
+  ];
+  for (const [name, from, to] of cases) {
+    const outcome = readOutcome(encode(once(from, to)));
+    assert.ok(outcome instanceof IfcxReadError && outcome.code === 'invalid', `${name}: ${outcome instanceof IfcxReadError ? outcome.message : 'geopend'}`);
+    assert.equal(typeof outcome.place.offset, 'number', `${name}: ${JSON.stringify(outcome.place)}`);
+    assert.match(outcome.message, /is anders geschreven dan de eigen schrijver het schrijft, vanaf teken \d+/, name);
+  }
+  const document = documentOf(text);
+  const reordered = { schemas: document.schemas, header: document.header, imports: document.imports, data: document.data };
+  assert.ok(readOutcome(encode(JSON.stringify(reordered, null, 2))) instanceof IfcxReadError, 'een andere volgorde van de sleutels');
+  const later = once(`"timestamp": "${CLOCK.toISOString()}"`, '"timestamp": "2026-11-25T04:05:06.000Z"');
+  assert.equal(readOutcome(encode(later)) instanceof IfcxReadError, false, 'alleen een andere tijdstempel opent');
+});
+
 test('R4 en R5 zijn één functie: writeIfcx en readIfcx gaan door dezelfde canonieke planning; de schrijver toetst zich met de publieke lezer; alleen ownFile.ts roept de rondgang, de projectie en de laadgrens aan', () => {
   const dir = join(root, 'src/services/ifc/ifcx');
   const sources = readdirSync(dir).filter(name => name.endsWith('.ts')).map(name => [name, readFileSync(join(dir, name), 'utf8')] as const);
@@ -1867,7 +1897,7 @@ test('R4, richting 2: elk bestand dat readIfcx aanvaardt, is wat de eigen schrij
         const document = documentOf(text);
         change.apply(document);
         if (isDeepStrictEqual(document, base)) continue;
-        const outcome = readOutcome(encode(JSON.stringify(document)));
+        const outcome = readOutcome(encode(serializeIfcx(document as unknown as IfcxDocument)));
         let verdict: 'refused' | 'accepted' | undefined;
         if (outcome instanceof IfcxReadError) {
           const named = outcome.place.path !== undefined || outcome.place.field?.startsWith('header.') === true

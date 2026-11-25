@@ -4,6 +4,7 @@ export interface IfcxErrorPlace {
   readonly path?: string;
   readonly attribute?: string;
   readonly field?: string;
+  readonly offset?: number;
 }
 
 export class IfcxReadError extends Error {
@@ -11,7 +12,7 @@ export class IfcxReadError extends Error {
   readonly place: IfcxErrorPlace;
 
   constructor(code: IfcxReadErrorCode, detail: string, place: IfcxErrorPlace = {}) {
-    const where = [place.path, place.attribute, place.field].filter(Boolean).join(' ');
+    const where = [place.path, place.attribute, place.field, place.offset === undefined ? undefined : `teken ${place.offset}`].filter(Boolean).join(' ');
     super(where ? `${detail} (${where})` : detail);
     this.name = 'IfcxReadError';
     this.code = code;

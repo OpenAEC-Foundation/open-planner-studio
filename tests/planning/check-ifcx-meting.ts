@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { readIfcx, writeIfcx } from '@/services/ifc/ifcx';
-import { serializeIfcx } from '@/services/ifc/ifcx/ifcxWriter';
+import { serializeIfcx } from '@/services/ifc/ifcx/projection';
 import { canonicalFor, ownFileFor } from '@/services/ifc/ifcx/ownFile';
 import { selfCheckDifferences } from '@/services/ifc/ifcx/selfCheck';
 import { stepRoundtrip } from '@/services/ifc/ifcx/stepRoundtrip';

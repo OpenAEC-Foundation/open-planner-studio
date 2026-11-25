@@ -8,7 +8,7 @@ import { hourTaskScheduleDuration } from '@/utils/taskDuration';
 import { checkValue, hasKey, readFields } from './fieldTable';
 import { globalIdOfPath } from './identityPath';
 import { childrenInPlace } from './childOrder';
-import { hourDurationIsDerived, objectLabels, type IfcxDocument } from './projection';
+import { hourDurationIsDerived, objectLabels, serializeIfcx, type IfcxDocument } from './projection';
 import { canonicalPlanning, ownFileFor, type CanonicalPlanning, type OwnFile } from './ownFile';
 import { selfCheckDifferences } from './selfCheck';
 import { HEADER_VALUE } from './ownAttributes';
@@ -254,17 +254,33 @@ function writerRefusal<T>(action: () => T): T {
   }
 }
 
-function differenceFrom(document: Record<string, unknown>, own: OwnFile): Located | undefined {
-  if (sameFile(document, own.document)) return undefined;
-  writerRefusal(own.assertAttributeValues);
-  return firstDifference(document, own.document, 'extra') ?? firstDifference(document, own.document, 'changed')
-    ?? firstDifference(document, own.document, 'missing');
+function firstTextDifference(text: string, own: string): Located {
+  let offset = 0;
+  while (offset < text.length && text[offset] === own[offset]) offset++;
+  const line = text.slice(text.lastIndexOf('\n', offset - 1) + 1, text.indexOf('\n', offset) === -1 ? text.length : text.indexOf('\n', offset));
+  let path: string | undefined;
+  try {
+    const entry: unknown = JSON.parse(line.trim().replace(/,$/, ''));
+    if (isPlainObject(entry) && typeof entry.path === 'string') path = entry.path;
+  } catch { path = undefined; }
+  return {
+    place: { ...(path !== undefined ? { path } : {}), offset },
+    detail: objectAt => `${path === undefined ? 'Het bestand' : objectAt(path)} is anders geschreven dan de eigen schrijver het schrijft, vanaf teken ${offset}`,
+  };
 }
 
-function ownPlanning(document: Record<string, unknown>, read: ImportResult): CanonicalPlanning {
+function differenceFrom(text: string, document: Record<string, unknown>, own: OwnFile): Located | undefined {
+  const ownText = serializeIfcx({ ...own.document, header: { ...own.document.header, timestamp: (document.header as Record<string, unknown>).timestamp as string } });
+  if (sameFile(document, own.document) && ownText === text) return undefined;
+  writerRefusal(own.assertAttributeValues);
+  return firstDifference(document, own.document, 'extra') ?? firstDifference(document, own.document, 'changed')
+    ?? firstDifference(document, own.document, 'missing') ?? (ownText === text ? undefined : firstTextDifference(text, ownText));
+}
+
+function ownPlanning(text: string, document: Record<string, unknown>, read: ImportResult): CanonicalPlanning {
   const planning = canonicalPlanning(read);
   const own = writerRefusal(() => ownFileFor(planning, new Date(0), 'deferred'));
-  const difference = differenceFrom(document, own);
+  const difference = differenceFrom(text, document, own);
   if (difference) {
     const labels = objectLabels(read, (kind, id) => read.ifcGlobalIds![ifcObjectSeed(kind, id)]);
     throw invalid(difference.detail(path => labels.get(path) ?? path), difference.place);
@@ -381,7 +397,7 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
     ifcGlobalIds,
     ...(ifcLiteralCalendarIds.length > 0 ? { ifcLiteralCalendarIds } : {}),
   };
-  return checked ? ownPlanning(document, read) : read;
+  return checked ? ownPlanning(text, document, read) : read;
 }
 
 export function readIfcx(bytes: Uint8Array): IfcxImportResult {
