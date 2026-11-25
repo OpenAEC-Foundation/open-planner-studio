@@ -3,6 +3,7 @@
 XER draagt duur, rest en lag als uren (`target_drtn_hr_cnt`, `remain_drtn_hr_cnt`, `lag_hr_cnt`). `readXerProject`
 neemt een activiteit in de urenmaat, met de minuten uit het bestand en zonder afronding op hele dagen, ook op een
 kalender zonder kloktijden (spec alleen-uren, `docs/superpowers/specs/2026-10-20-alleen-uren-design.md` §3.10; T15).
+Het weggehaalde commentaar gaf als reden dat P6 alleen werkuren kent; dat is niet nagegaan.
 Alleen een activiteit met de OPS-duureenheid uit een eigen export leest anders: via `readMeasure`, met
 `keepSourceMinutes`, zoals in de regel `xer` (3) en in de P6 XML-lezer (ADR 0265). Uren met zes decimalen worden de
 hele minuut als het verschil ruis is, en een echte breuk blijft (`sixDecimalHoursToMinutes`, ADR 0322), voor duur, rest

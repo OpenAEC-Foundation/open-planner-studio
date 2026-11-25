@@ -7,7 +7,8 @@ onder de samenvatting van haar `wbs_id`. Een ouder telt alleen als hij een PROJW
 in de fixture naar een P6-export (de projectknoop met `proj_node_flag` Y). De kop van die toets beschrijft wat een
 `parentId` naar een niet-bestaande taak deed: geen wortel, dus een plat raster, inklappen zonder effect en geen
 rollup. Om dezelfde reden hangt een activiteit met een `wbs_id` die het project niet heeft op het hoogste niveau
-(`check-xer-wbs-tree.ts` 2, 12 en 13).
+(`check-xer-wbs-tree.ts` 2, 12 en 13). Dat MPXJ een rij en een activiteit met een onvindbare ouder ook op het
+hoogste niveau zet (`TableProjectReader`), komt uit het weggehaalde commentaar en is niet nagegaan.
 
 ## Gevolgen
 
