@@ -9,6 +9,7 @@
 // Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasBuildingModel, hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
+import type { OwnBomVersion } from '@/services/ifc/foreign/targetForeignScan';
 import { isForeignSourceTarget, sameEntry, sameLocalFile, samePath, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 import { missingTarget, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
@@ -331,7 +332,7 @@ export interface WriteTargetDeps {
    *  niet. Regel 1 en 3 en een onleesbaar doel blijven weigeren. */
   chosenTarget?: Pick<PickedSaveTarget, 'path' | 'current'>;
   protectModelTargets?: boolean;
-  allowOwnBom?: boolean;
+  ownBomVersion?: OwnBomVersion | null;
 }
 
 /**
@@ -378,7 +379,7 @@ type OwnTargetVersion = { readonly documentId: string; readonly baseVersion?: st
 export async function refusedTargetIdentity(
   s: WriteTargetState,
   target: FileRef,
-  deps: Omit<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets' | 'allowOwnBom'>,
+  deps: Omit<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets' | 'ownBomVersion'>,
   ownVersion?: OwnTargetVersion,
 ): Promise<WriteTargetRefusal | null | 'check-content'> {
   const own = ownVersion && s.getOpenDocumentPayloads().find(d => d.id === ownVersion.documentId)?.payload;
@@ -415,9 +416,9 @@ export async function refusedTargetIdentity(
 }
 
 export async function refusedTargetContent(
-  target: FileRef, deps: Pick<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets' | 'allowOwnBom'>,
+  target: FileRef, deps: Pick<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets' | 'ownBomVersion'>,
 ): Promise<WriteTargetRefusal | null> {
-  const refusal = await targetRefusal(target, deps.readers(), deps.allowOwnBom === true);
+  const refusal = await targetRefusal(target, deps.readers(), deps.ownBomVersion ?? null);
   if (refusal === 'unreadable') return 'unreadable-target';
   if (refusal === null) return null;
   const chosen = deps.chosenTarget;

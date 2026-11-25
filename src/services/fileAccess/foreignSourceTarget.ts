@@ -19,7 +19,7 @@
 // vrijbrief.
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { scanForeignTargetBlob, scanForeignTargetBytesAsync, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
+import { scanForeignTargetBlob, scanForeignTargetBytesAsync, type OwnBomVersion, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { compareFilePaths, type FileIdentityFs } from './fileIdentity';
 import type { FileRef } from './index';
@@ -64,7 +64,7 @@ function targetContent(handle: FileSystemFileHandle): (mark: ForeignSourceMark) 
 /** Lezers van een bestaand doel, per route. Ontbreekt een lezer, dan is het doel niet leesbaar. */
 export interface TargetReaders {
   /** Een bestaand pad als stroom lezen (Tauri); `null` = bewezen ontbrekend nieuw pad; leesfouten geven unreadable. */
-  scanPath?: (path: string, allowBom: boolean) => Promise<TargetForeignScan | null>;
+  scanPath?: (path: string, ownBomVersion: OwnBomVersion | null) => Promise<TargetForeignScan | null>;
   /** Een bestand op de site lezen; `null` = niet leesbaar, dus weigeren. */
   readSite?: (id: string) => Promise<Uint8Array | null>;
 }
@@ -89,15 +89,15 @@ export function capturedTargetReaders(current: Uint8Array | 'unreadable' | null,
  * geen bestaand FileRef en komt hier niet langs. De app met de flag uit slaat deze controle nog altijd over.
  */
 export async function targetRefusal(
-  target: FileRef, readers: TargetReaders = {}, allowBom = false,
+  target: FileRef, readers: TargetReaders = {}, ownBomVersion: OwnBomVersion | null = null,
 ): Promise<'model' | 'foreign' | 'unreadable' | null> {
   const refusal = (scan: TargetForeignScan | null) => (scan === 'model' || scan === 'foreign' || scan === 'unreadable' ? scan : null);
   try {
     switch (target.kind) {
       case 'handle':
-        return refusal(await scanForeignTargetBlob(await target.handle.getFile(), { allowBom }));
+        return refusal(await scanForeignTargetBlob(await target.handle.getFile(), { ownBomVersion }));
       case 'path':
-        return readers.scanPath ? refusal(await readers.scanPath(target.path, allowBom)) : 'unreadable';
+        return readers.scanPath ? refusal(await readers.scanPath(target.path, ownBomVersion)) : 'unreadable';
       case 'site': {
         const bytes = readers.readSite ? await readers.readSite(target.id) : null;
         return bytes ? refusal(await scanForeignTargetBytesAsync(bytes)) : 'unreadable';

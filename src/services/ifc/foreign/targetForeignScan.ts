@@ -13,9 +13,15 @@ import { scanForeign, IFC_FOREIGN_SCAN_MAX_BYTES, type ForeignScanOutcome } from
 import { ForeignScanFailure, withScanWorker, type ForeignScanRunOptions } from './foreignScanRunner';
 import { driveTargetScan, scanTargetBytes, targetScanPush, type TargetModelScan, type TargetScanStep, type TargetSource } from './targetModelScan';
 import { utf8BomLength } from './stepScanner';
+import { precomputeSha256 } from '@/services/xerSourceArchive';
 
 export type TargetForeignScan = TargetModelScan | 'foreign';
-export type TargetScanOptions = ForeignScanRunOptions & { readonly allowBom?: boolean };
+export interface OwnBomVersion { readonly sha256: string; readonly byteLength: number }
+export type TargetScanOptions = ForeignScanRunOptions & { readonly ownBomVersion?: OwnBomVersion | null };
+
+async function isOwnBomVersion(bytes: Uint8Array, version: OwnBomVersion | null | undefined): Promise<boolean> {
+  return !!version && bytes.byteLength === version.byteLength && await precomputeSha256(bytes) === version.sha256;
+}
 
 /** De indeling naar een doeluitkomst: een weigering van de scanner is 'unreadable', een C, A of V is 'foreign'. */
 function targetOf(scan: ForeignScanOutcome): TargetForeignScan {
@@ -56,12 +62,13 @@ async function scanSource(
   source: Pick<TargetSource, 'next' | 'seek'>,
   push: (chunk: Uint8Array | null) => TargetScanStep | Promise<TargetScanStep>,
   classify: (bytes: Uint8Array) => Promise<ForeignScanOutcome> | ForeignScanOutcome,
-  allowBom: boolean,
+  ownBomVersion: OwnBomVersion | null | undefined,
 ): Promise<TargetForeignScan> {
   const model = await driveTargetScan(source, push);
   if (model !== 'no-model') return model;
   const bytes = await readWhole(source);
-  return bytes && (allowBom || utf8BomLength(bytes) === 0) ? targetOf(await classify(bytes)) : 'unreadable';
+  if (!bytes || (utf8BomLength(bytes) > 0 && !(await isOwnBomVersion(bytes, ownBomVersion)))) return 'unreadable';
+  return targetOf(await classify(bytes));
 }
 
 /**
@@ -76,10 +83,10 @@ export async function scanForeignTargetSource(source: TargetSource, opts: Target
     const tracked = { next: () => { read = true; return source.next(); }, seek: (n: number) => source.seek(n) };
     const onMain = async () => {
       if (read) await source.seek(0);
-      return scanSource(source, targetScanPush(), scanForeign, opts.allowBom === true);
+      return scanSource(source, targetScanPush(), scanForeign, opts.ownBomVersion);
     };
     try {
-      return await withScanWorker(opts, session => scanSource(tracked, session.step, session.outcome, opts.allowBom === true), onMain);
+      return await withScanWorker(opts, session => scanSource(tracked, session.step, session.outcome, opts.ownBomVersion), onMain);
     } catch (error) {
       if (!(error instanceof ForeignScanFailure)) throw error;
       return await onMain();

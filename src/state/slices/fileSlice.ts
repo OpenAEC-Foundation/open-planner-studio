@@ -582,9 +582,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  `WriteTargetDeps.chosenTarget`): het gekozen pad en zijn gelezen versie. */
   const documentTargetCheck = (
     snapshot: AppState, write?: IfcOutput, ownTarget = false,
-    { readers = writeTargetReaders, openDocumentsExcept, chosenTarget, missingSourceSaveAs, leaveContentToKnownTarget = false, ownBom = false }: {
+    { readers = writeTargetReaders, openDocumentsExcept, chosenTarget, missingSourceSaveAs, leaveContentToKnownTarget = false, ownBomVersion = null }: {
       readers?: () => TargetReaders; openDocumentsExcept?: string; chosenTarget?: PickedSaveTarget; missingSourceSaveAs?: boolean;
-      leaveContentToKnownTarget?: boolean; ownBom?: boolean;
+      leaveContentToKnownTarget?: boolean; ownBomVersion?: TargetFingerprint | null;
     } = {},
   ): SaveTargetCheck => async target => {
     if (write && refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs)) return true;
@@ -595,7 +595,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       : ownLocal ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
     const deps = {
       identityFs: fileIdentityFs, readers, openDocumentsExcept, ...(chosenTarget ? { chosenTarget } : {}),
-      ...(ownTarget && ownBom && target.kind !== 'site' ? { allowOwnBom: true } : {}),
+      ...(ownTarget && ownBomVersion && target.kind !== 'site' ? { ownBomVersion } : {}),
     };
     const reason = leaveContentToKnownTarget ? contentLeftToKnownTarget(await refusedTargetIdentity(get(), target, deps, ownVersion))
       : await refusedWriteTarget(get(), target, deps, ownVersion);
@@ -1363,7 +1363,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     try {
       const ref = saveTargetRef(state);
-      const ownBom = !!ref && !hasForeignContent(state.ifcSource) && guardedKnownTarget(knownTargetOf(documentId), ref)?.utf8Bom === true;
+      const ownVersion = ref && !hasForeignContent(state.ifcSource) ? guardedKnownTarget(knownTargetOf(documentId), ref) : null;
+      const ownBomVersion = ownVersion?.utf8Bom ? ownVersion : null;
       let ownHandle: Extract<FileRef, { kind: 'handle' }> | null = null;
       let ownPath: Extract<FileRef, { kind: 'path' }> | null = null;
       let handleRefused = false;
@@ -1385,9 +1386,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, 'merge'));
       if (!write || refuseChangedDocumentWrite(state, write)) return false;
       const ownWritten = ref && !handleRefused && !write.prepared ? writtenKnownTarget(knownTargetOf(documentId), ref) : null;
-      const bomData = ownBom && !handleRefused && !write.prepared ? withUtf8Bom(writerData(write)) : null;
+      const bomData = ownBomVersion && !handleRefused && !write.prepared ? withUtf8Bom(writerData(write)) : null;
       const bomHashing = bomData && write.sha256 !== undefined ? writtenFingerprint(state.ui.featureFlags, write, bomData) : null;
-      if (ref && await documentTargetCheck(state, write, true, { leaveContentToKnownTarget: !!ownWritten, ownBom })(ref)) return false;
+      if (ref && await documentTargetCheck(state, write, true, { leaveContentToKnownTarget: !!ownWritten, ownBomVersion })(ref)) return false;
       if (ownHandle && write.prepared) return await replaceOwnHandle(documentId, state, write.prepared, write, ownHandle, failureNoticeKey);
       if (ownPath) return write.prepared ? await replaceOwnPath(documentId, state, write.prepared, write, ownPath, failureNoticeKey) : false;
       if (ref?.kind === 'site' && siteStorageAvailable()) {
@@ -1414,7 +1415,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (ref && !handleRefused && !(write.prepared && ref.kind === 'handle')) {
         try {
           const stable = !!ownWritten && await stillWrittenKnownTarget(ownWritten, ref);
-          if (!stable && ownWritten && await documentTargetCheck(state, write, true, { ownBom })(ref)) return false;
+          if (!stable && ownWritten && await documentTargetCheck(state, write, true, { ownBomVersion })(ref)) return false;
           const known = stable || write.prepared ? null : guardedKnownTarget(knownTargetOf(documentId), ref);
           if (known && await refuseChangedKnownTarget(documentId, ref, known)) return false;
           if (refuseChangedDocumentWrite(state, write)) return false;
