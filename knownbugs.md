@@ -812,6 +812,50 @@ en noem het in je rapport of PR-tekst.
      het vroege paar uit de vastlegging en geeft de berekening één werkdag. In 5021 `IfcTaskTime`-regels uit 141
      bestanden in de repo schrijft geen enkel programma `''` in deze slots. — B
 
+2477. **Met een samenvattingstaak als voorganger bij SS of SF rekent de opvolger met de laatste kindstart, niet met de
+     start van de samenvatting.** `expandSummaryRelations` (`src/engine/scheduler/expandSummaryRelations.ts`) maakt per
+     blad een relatie, en de vroege start neemt het maximum over de voorgangers (ADR 0450). Gepind in
+     `tests/planning/cases-edge.json`: in `wbs-summary-relation-conservative-ss-pred-01` (fase P met K1 van 3 dagen op
+     het anker en K2 van 5 dagen na Q, P naar X met SS zonder lag) rolt P op tot een start op 1 juni en start X op
+     3 juni, met K2; in `wbs-summary-relation-conservative-sf-pred-01` eindigt X op de start van K2. De opvolger kan zo
+     later liggen dan bij een rekening met de fase als één taak. Wat MS Project hier doet, is niet in de repo
+     nagegaan; het weggehaalde commentaar noemde de vroegste kindstart de samenvattingsstart van MS Project. — B
+
+2478. **Met een samenvattingstaak als opvolger bij FF of SF moet elk kind aan de relatie voldoen, ook een kind dat
+     eerder klaar kan zijn.** `expandSummaryRelations` (`src/engine/scheduler/expandSummaryRelations.ts`) maakt per blad
+     een relatie (ADR 0450). Gepind in `tests/planning/cases-edge.json`: in
+     `wbs-summary-relation-conservative-ff-succ-01` (X van 6 dagen, FF zonder lag naar fase P met K1 van 3 en K2 van
+     5 dagen) eindigen K1 en K2 allebei op 8 juni, en start K1 daardoor pas op 4 juni;
+     `wbs-summary-relation-conservative-sf-succ-01` doet hetzelfde met de start van X als grens. Met de fase als één
+     taak hoeft alleen het laatst klare kind de eis te halen. Het weggehaalde commentaar noemde dit een vorm die MS
+     Project op een samenvatting ontmoedigt of verbiedt; dat is niet nagegaan. — B
+
+2479. **Een procentuele lag op een relatie met een samenvattingstaak als voorganger rekent met de duur van elk blad,
+     niet met die van de samenvatting.** Na `expandSummaryRelations` is de voorganger van elke bladrelatie het blad, en
+     `resolveEffectiveLagDays` en `resolveLagMinutes` (`CPMSolver.ts`) nemen de duur van de voorganger. Nagespeeld met
+     `solveProject` (profiel ops, een dagkalender ma tot en met vr van 8 tot 16 uur zonder `workTime`, projectstart
+     1 juni 2026): fase P met K1 van 2 dagen en K2 van 4 dagen met FS na K1, en P naar X met FS en `lagPercent` 50. K2
+     eindigt op 8 juni en X start op 11 juni, twee werkdagen later (de helft van K2). P beslaat zes werkdagen; met een
+     vaste lag van 3 dagen start X op 12 juni. Bladen met een verschillende duur krijgen zo elk een andere lag. Welke
+     duur MS Project als basis neemt, is niet nagegaan; het weggehaalde commentaar schreef "vermoedelijk" één duur
+     voor de samenvatting als geheel. — B
+
+2487. **Welke samenvattingsrelatie boven het plafond wegvalt, hangt af van de volgorde van de relaties.**
+     `expandSummaryRelations` (`src/engine/scheduler/expandSummaryRelations.ts`): zodra één relatie niet meer in
+     `MAX_EXPANDED_RELATIONS` past, vallen ook alle volgende relaties weg die uitgeschreven moeten worden (ADR 0452).
+     Nagespeeld met een script: twee fasen van elk 300 bladen met een FS-relatie ertussen (90.000 paren, zonder
+     interne relaties, dus niets te snoeien) en een FS-relatie van een losse taak naar een van die fasen (300 paren).
+     In de volgorde klein, groot valt alleen de grote relatie weg en komen er 300 bladrelaties uit; in de volgorde
+     groot, klein vallen beide weg en komt er geen bladrelatie uit. Beide staan dan in `droppedSequenceIds`. — B
+
+2488. **Een echt relatie-id dat eindigt op `::exp-` met cijfers, komt in het rekenresultaat onder een ander id.**
+     `foldSyntheticSequenceIds` en `originalSequenceId` (`src/engine/scheduler/expandSummaryRelations.ts`) halen dat
+     achtervoegsel van elk id, ook van een relatie die de uitklapping niet maakte (ADR 0454). Nagespeeld met
+     `solveProject` (profiel ops, dagkalender, twee bladtaken A en B van 2 dagen, één FS-relatie A naar B met id
+     `r::exp-1`): `drivingSequenceIds` is `['r']` en `sequenceFreeFloat` heeft alleen de sleutel `r`, een id dat geen
+     relatie heeft. Bestaat er ook een relatie `r`, dan vallen de twee volgens de code onder één id samen; dat is niet
+     nagespeeld. Of een lezer of de app zulke ids maakt, is niet nagegaan. — B (rekenresultaat), S (samenvallen met `r`)
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B

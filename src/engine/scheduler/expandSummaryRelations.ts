@@ -4,109 +4,23 @@ import type { CPMResult } from './CPMSolver';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { taskDurationUnit } from './duration';
 
-/**
- * Volledige samenvattingsrelatie-propagatie. `CPMSolver` kent alleen semantische bladtaken als
- * knopen; een relatie die een WBS-samenvattingstaak raakt kan de solver dus niet zelf verwerken.
- * Zulke relaties droppen zou in het corpus (870d339f60603f71) een kwart van de logica weggooien.
- *
- * MS Project-semantiek (referentie: de MSPDI-export van datzelfde bestand, die MS Project's eigen
- * berekende datums bevat) past een relatie op een samenvattingstaak toe op ELK onderliggend
- * bladkind:
- *   - samenvatting als VOORGANGER: elke bladafstammeling wordt zelf voorganger van de opvolger.
- *     Met FS betekent dat "wacht tot de hele tak klaar is" — dat volgt vanzelf uit de bestaande
- *     forward-pass, die per opvolger de MAX neemt over alle inkomende relatie-constraints. Er is
- *     dus geen aparte "laatste kind"-berekening nodig: één relatie per bladkind is voldoende, de
- *     solver doet de rest.
- *   - samenvatting als OPVOLGER: elke bladafstammeling wordt zelf opvolger van de voorganger — elk
- *     kind wacht op diezelfde voorganger, onafhankelijk van de andere kinderen.
- *   - beide kanten samenvatting: het kruisproduct van de twee (herschreven) kanten.
- *   - geneste samenvattingen: `leafDescendantsOf` daalt recursief af tot bladtaken, cyclusvast (een
- *     `visited`-set voorkomt oneindige recursie als `childIds` ooit corrupt een cyclus vormt).
- *   - voorouder-/zelfrelatie (een taak gekoppeld aan zijn eigen (voor)ouder-samenvatting, of P->P):
- *     ATOMAIR gedropt, zie de guard verderop in de functie — dit zou anders letterlijk A->B én B->A
- *     genereren en de hele solve laten crashen (`error: "Circular dependency"`, projectbreed geen
- *     datums meer). MS Project staat zo'n koppeling zelf ook niet toe.
- *
- * NAUWKEURIGHEID PER RELATIETYPE (de MAX-over-bladkinderen-truc uit de vorige alinea is niet voor elk type evenwaardig aan MS
- * Project's eigen "de samenvatting als geheel"-semantiek):
- *   - FS/FF, samenvatting als VOORGANGER: EXACT. De opvolger moet wachten tot de bladtaak die het
- *     LAATST klaar is (MAX van de kind-finishes) — dat is precies wat "wacht op de hele tak" met FS/
- *     FF betekent, en precies wat de MAX-over-relaties-truc oplevert.
- *   - FS/SS, samenvatting als OPVOLGER: EXACT. Elk kind moet onafhankelijk wachten op dezelfde
- *     voorganger (AND-semantiek over de kinderen) — dat is letterlijk "één relatie per kind".
- *   - SS/SF, samenvatting als VOORGANGER: CONSERVATIEF TE LAAT. MS Project's ware "samenvatting-
- *     start" is de VROEGSTE kind-start (MIN), maar één relatie per kind + de MAX-over-relaties-
- *     forward-pass dwingt de opvolger te wachten op de LAATSTE kind-start (MAX i.p.v. MIN). De
- *     opvolger kan dus later gepland worden dan MS Project zou doen — nooit vroeger. In bouwplanning
- *     is dat de veilige kant (nooit te vroeg beginnen); echte MIN-semantiek vergt de samenvatting
- *     als eigen solver-knoop.
- *   - FF/SF, samenvatting als OPVOLGER: CONSERVATIEF, en een vorm die MS Project op een samenvatting
- *     zelf al ontmoedigt/verbiedt. Het dwingt ELK kind (ook een kind dat allang klaar zou zijn) om
- *     te voldoen aan een constraint die eigenlijk alleen voor de SAMENVATTING als geheel (het LAATST
- *     afgeronde kind) zou moeten gelden — een vroeg kind kan hierdoor onnodig later worden gepland.
- * Corpusincidentie (870d339f60603f71): 0 — geen van de 28 samenvatting-relaties in dat bestand is
- * SS/SF-voorganger of FF/SF-opvolger, dus dit is een gedocumenteerde grens, geen gemeten regressie. Vier regressiecases pinnen het huidige (conservatieve) gedrag, zie
- * `cases-edge.json` ("wbs-summary-relation-conservative-*").
- *
- * BEKENDE BEPERKING: procentuele lag (`lagPercent`) op een relatie met een samenvattingstaak
- * wordt ná expansie opgelost tegen de duur van het INDIVIDUELE BLADKIND (`resolveEffectiveLagDays`
- * leest `predTask.time.scheduleDuration` van de synthetische voorganger, en dat IS het bladkind na
- * expansie) — niet tegen de duur/omvang van de samenvatting als geheel. Bij kinderen met sterk
- * uiteenlopende duren geeft dat per gegenereerde bladrelatie een andere absolute lag, terwijl MS
- * Project vermoedelijk één samenvattings-brede duur als basis neemt. Corpusincidentie: 0 (geen van
- * de samenvatting-relaties in 870d339f60603f71 heeft `lagPercent`).
- *
- * Lag/type van de oorspronkelijke relatie blijft op elke gegenereerde bladrelatie staan (spread);
- * alleen `id`/`predecessorId`/`successorId` wijzigen. Synthetische ids zijn afleidbaar van het
- * origineel (`${seq.id}::exp-<n>`), met een botsingsklem (zie `usedIds` verderop) tegen een
- * ECHTE relatie-id die toevallig al op datzelfde patroon eindigt — deze functie is PUUR en schrijft
- * niets naar de store; de synthetische relaties bestaan alleen als solver-invoer. De vier relatie-
- * gekeyde `CPMResult`-velden (`drivingSequenceIds`, `sequenceFreeFloat`, `truncatedLeadSequenceIds`,
- * `outOfSequenceSequenceIds`) bevatten ná een solve dus ook zulke synthetische ids — zie
- * `foldSyntheticSequenceIds` onderaan dit bestand om die terug te vouwen op de originele relatie-id.
- */
-
-/**
- * Kwadratische-explosie-klem, analoog aan `CalendarEngine.MAX_SCAN`/`MAX_DAYS`: het kruisproduct
- * van twee samenvattingstakken met N resp. M bladkinderen genereert N×M relaties. Eén relatie
- * tussen twee samenvattingen van elk 500 bladkinderen is al 250.000 combinaties. Harde bovengrens op het TOTAAL aantal synthetische
- * relaties dat deze functie over ALLE input-relaties samen mag produceren.
- *
- * Gedrag bij overschrijding: een relatie waarvan het eigen kruisproduct niet meer past wordt
- * ATOMAIR gedropt (nooit een gedeeltelijke — dus semantisch onjuiste — subset van bladrelaties) en
- * ELKE volgende relatie die zelf óók expansie nodig heeft, wordt daarna eveneens gedropt (geen
- * her-proberen op een kleiner kruisproduct verderop in de lijst — voorspelbaar "op is op"-gedrag
- * i.p.v. afhankelijk van invoervolgorde toch soms slagen). Relaties die al bladtaak-naar-bladtaak
- * waren (geen expansie nodig) blijven ONGEMOEID doorlopen — zij tellen niet mee tegen de klem, want
- * die groeien nooit kwadratisch (hooguit lineair met het aantal relaties).
- */
 export const MAX_EXPANDED_RELATIONS = 50_000;
 
 export interface ExpandSummaryRelationsResult {
-  /** Bladtaak-naar-bladtaak relaties, geschikt om direct aan `CPMSolver` te voeren. */
   sequences: Sequence[];
-  /** Ids van ORIGINELE relaties die niet konden worden gerepresenteerd: een samenvatting zonder
-   *  bladafstammelingen (lege/kapotte tak), of de MAX_EXPANDED_RELATIONS-klem. Bedoeld om door de
-   *  aanroeper samengevoegd te worden met `CPMResult.droppedSequenceIds` (de constructor-guard in de
-   *  solver zelf blijft het vangnet voor écht verweesde/ongeldige taak-ids). */
   droppedSequenceIds: string[];
 }
 
-/** Lege, cache-gedeelde constante voor "geen bladafstammelingen" (kapotte/lege tak). */
 const NONE: string[] = [];
 
 export function expandSummaryRelations(
   tasks: readonly Task[],
   sequences: readonly Sequence[],
-  /** Alleen voor tests: een lager plafond om de snoei-tak onder controle te toetsen. */
   maxExpanded: number = MAX_EXPANDED_RELATIONS,
 ): ExpandSummaryRelationsResult {
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const leafDescCache = new Map<string, string[]>();
 
-  // Recursief (geneste samenvattingen) tot bladtaken, cyclusvast via een visited-set per aanroep
-  // (corrupte `childIds` mag nooit een oneindige lus geven) en gecached over relaties heen (een
-  // groot bestand kan dezelfde samenvatting als kant van meerdere relaties hebben).
   function leafDescendantsOf(rootId: string): string[] {
     const cached = leafDescCache.get(rootId);
     if (cached) return cached;
@@ -122,10 +36,10 @@ export function expandSummaryRelations(
     const stack: string[] = [...root.childIds];
     while (stack.length > 0) {
       const id = stack.pop()!;
-      if (visited.has(id)) continue; // cyclus of dubbele boomverwijzing — stil negeren, niet crashen
+      if (visited.has(id)) continue;
       visited.add(id);
       const t = byId.get(id);
-      if (!t) continue; // verweesd kind-id — geen bladtaak om te representeren
+      if (!t) continue;
       if (isLeafTask(t)) {
         out.push(id);
       } else {
@@ -136,16 +50,6 @@ export function expandSummaryRelations(
     return out;
   }
 
-  // Bescherming tegen id-botsing. Een synthetische id is `${seq.id}::exp-<n>` — zeldzaam maar
-  // niet uitgesloten dat een ECHTE (niet-gegenereerde) relatie-id toevallig al op dat patroon
-  // eindigt (bv. een importer die zijn eigen id's met een vergelijkbare suffix samenstelt). Een
-  // botsing zou twee verschillende relaties op dezelfde id laten landen in de output-array — en
-  // daarmee stil laten samenvallen in elke id-geïndexeerde bookhouding verderop (successors-/
-  // predecessors-adjacency in de solver, `sequenceFreeFloat`, `drivingSequenceIds`-lookups).
-  // `usedIds` wordt hier ALVAST gevuld met ALLE originele relatie-ids (die overleven immers
-  // ongewijzigd in de output als ze niet hoeven te expanderen, ongeacht hun positie in `sequences`)
-  // zodat een botsing altijd wordt gezien, ook als de botsende originele relatie pas later in de
-  // lijst staat dan de relatie die aan het expanderen is.
   const usedIds = new Set(sequences.map((s) => s.id));
   let idCollisionWarned = false;
 
@@ -153,7 +57,6 @@ export function expandSummaryRelations(
   const dropped: string[] = [];
   let budget = maxExpanded;
   let budgetExhausted = false;
-  // Lui opgebouwd, alleen als een relatie het budget overschrijdt (zie `pruneDominated`).
   let leafEdges: { out: Map<string, Sequence[]>; inc: Map<string, Sequence[]> } | null = null;
   const edges = () => {
     if (leafEdges) return leafEdges;
@@ -174,38 +77,23 @@ export function expandSummaryRelations(
     const predTask = byId.get(seq.predecessorId);
     const succTask = byId.get(seq.successorId);
     if (!predTask || !succTask) {
-      // Geen samenvattingsgeval — een echt verweesd/ongeldig taak-id. Ongewijzigd doorgeven; de
-      // CPMSolver-constructor-guard droppt 'm met zijn eigen waarschuwing.
       outSeqs.push(seq);
       continue;
     }
     const predIsLeaf = isLeafTask(predTask);
     const succIsLeaf = isLeafTask(succTask);
     if (predIsLeaf && succIsLeaf) {
-      outSeqs.push(seq); // geen samenvatting aan weerskant — niets te expanderen
+      outSeqs.push(seq);
       continue;
     }
 
     const predIds = predIsLeaf ? [predTask.id] : [...leafDescendantsOf(predTask.id)];
     const succIds = succIsLeaf ? [succTask.id] : [...leafDescendantsOf(succTask.id)];
     if (predIds.length === 0 || succIds.length === 0) {
-      // Samenvatting zonder bladafstammelingen (lege of kapotte tak) — niets om te representeren.
       dropped.push(seq.id);
       continue;
     }
 
-    // VOOROUDER-/ZELFRELATIE-GUARD: een relatie waarvan de voorganger een
-    // (voor)ouder of afstammeling van de opvolger is — inclusief P->P, dezelfde samenvatting aan
-    // beide kanten — deelt bladafstammelingen tussen predIds/succIds. In een boom betekent élke
-    // niet-lege doorsnede tussen predIds en succIds dat minstens één bladtaak zowel voorganger als
-    // opvolger van zichzelf zou worden (bij doorsnede-grootte 1) of dat twee gedeelde bladtaken
-    // elkaars voorganger ÉN opvolger worden (bij doorsnede-grootte ≥2 — het kruisproduct genereert
-    // dan letterlijk K1->K2 én K2->K1). Dat laatste is een directe 2-cyclus: CPMSolver.solve() geeft
-    // dan `error: "Circular dependency"` en LEVERT PROJECTBREED GEEN DATUMS MEER — niet alleen voor
-    // deze relatie, voor het HELE document. MS Project staat een relatie tussen een taak en zijn
-    // eigen (voor)ouder-samenvatting principieel niet toe (een taak kan niet vóór/ná zijn eigen tak
-    // liggen); wij droppen 'm daarom hier ATOMAIR — vóór de budget-check, dus ongeacht klemstatus —
-    // i.p.v. de solver te laten crashen.
     const predSet = new Set(predIds);
     if (succIds.some((id) => predSet.has(id))) {
       dropped.push(seq.id);
@@ -217,15 +105,8 @@ export function expandSummaryRelations(
       continue;
     }
 
-    // Exact aantal — de voorouder-/zelfrelatie-guard hierboven garandeert dat predIds/succIds nu
-    // DISJUNCT zijn, dus elk (p,s)-paar hieronder is een écht andere bladtaak aan beide kanten.
     let size = predIds.length * succIds.length;
     if (size > budget) {
-      // Audit 2026-09-26: vóór het atomair droppen eerst exact snoeien. Een bladtaak die via een
-      // interne relatie (lag ≥ 0) ALTIJD vóór (of tegelijk met) een andere bladtaak van dezelfde tak
-      // klaar is, voegt aan het kruisproduct niets toe: de solver neemt toch het maximum. Zo passen
-      // twee fasen van honderden bladen (een lineaire keten erin) vaak ruim in het budget, terwijl ze
-      // vroeger in hun geheel wegvielen en de planning de fase-logica negeerde.
       const pruned = pruneDominated(seq, predIds, succIds, byId, edges());
       if (pruned) {
         const prunedSize = pruned.predIds.length * pruned.succIds.length;
@@ -237,10 +118,6 @@ export function expandSummaryRelations(
       }
     }
     if (size > budget) {
-      // Welke relatie hier precies sneuvelt is AFHANKELIJK VAN DE INVOERVOLGORDE (de eerste
-      // die het resterende budget niet meer past) — geen her-proberen verderop in de lijst op een
-      // kleiner kruisproduct, zie de moduleheader-klembeschrijving hierboven voor het volledige
-      // "op is op"-gedrag.
       budgetExhausted = true;
       dropped.push(seq.id);
       console.warn(
@@ -252,11 +129,6 @@ export function expandSummaryRelations(
       continue;
     }
 
-    // Monotone teller per relatie (n stijgt door over alle (p,s)-paren van DEZE relatie — nooit
-    // terug naar 0 per paar): het `usedIds.has`-controle-lusje hieronder is de zeldzame, trage tak
-    // (alleen bij een echte botsing, zie de `usedIds`-toelichting hierboven); de gewone weg is één
-    // O(1) Set-lookup per gegenereerde relatie, dus dit blijft lineair in het aantal paren — geen
-    // O(n²) bij een groot kruisproduct.
     let n = 0;
     for (const p of predIds) {
       for (const s of succIds) {
@@ -285,11 +157,6 @@ export function expandSummaryRelations(
 }
 
 
-// ── Exacte dominantie-snoei (audit 2026-09-26) ───────────────────────────────────────────────────
-
-/** Een taak waarvan de datums de relatie-ongelijkheden altijd volgen: geen handmatige planning,
- *  geen voortgang/werkelijke datums, geen harde constraint die haar vóór een voorganger kan trekken,
- *  geen hammock/LOE, en een echte duur (een nulduurmijlpaal heeft eigen dag-grenssemantiek). */
 function followsLogic(t: Task): boolean {
   if (t.manuallyScheduled || t.isHammock || t.isMilestone) return false;
   if (t.time.actualStart || t.time.actualFinish || (t.time.completion ?? 0) > 0) return false;
@@ -302,33 +169,10 @@ function nonNegativeLag(e: Sequence): boolean {
   return e.lagDays >= 0 && (e.lagMinutes ?? 0) >= 0 && (e.lagPercent ?? 0) >= 0;
 }
 
-/** Een lag in hele werkdagen: geen minuten-lag en geen ELAPSEDTIME. Een minuten-lag wordt voor een
- *  dag-voorganger op dagen afgerond en voor een uur-voorganger exact geteld, en een ELAPSEDTIME-lag
- *  telt 24/7; dan houdt de dominantie (p2.start ≥ p.finish) niet altijd stand. */
 function wholeDayLag(e: Sequence): boolean {
   return !e.lagMinutes && e.lagUnit !== 'ELAPSEDTIME';
 }
 
-/**
- * Snoei bladen die het maximum aan hun kant nooit kunnen bepalen. Alleen een interne
- * EIND-START-relatie (lag ≥ 0) telt als dominantie: `p → p2` betekent p2.start ≥ p.finish, dus zowel
- * de start als de finish van p2 liggen ná die van p.
- *  - Voorgangerkant: blad `p` valt weg als een ander blad `p2` van dezelfde tak via FS op `p` volgt.
- *    De relatie `p2 → q` is dan minstens zo streng als `p → q` — voorwaarts én achterwaarts (p's late
- *    finish blijft via p2 begrensd) en voor de vrije speling (die van p via p2 is nooit groter).
- *  - Opvolgerkant: blad `q` valt weg als het via FS op een ander blad `q2` van dezelfde tak volgt:
- *    q erft de grens van R dan via q2.
- * Waarom alleen FS: met SS/FF als dominantie waren de uitkomsten in uur-modus op dezelfde
- * werktijdpositie wel gelijk, maar kozen ze bij een bandgrens een andere weergave (16:00 van de ene
- * werkdag i.p.v. 08:00 van de volgende) — zichtbaar anders.
- * Alleen tussen taken op dezelfde kalender die de logica volgen (`followsLogic`). Niet snoeibaar
- * (`null`, dus terug naar het oude droppen met melding) als R een procentuele lag heeft (die rekent
- * per voorgangerblad, M5), als R of een dominantierelatie geen lag in hele werkdagen heeft
- * (`wholeDayLag`), of als de bladen niet allemaal dezelfde duureenheid hebben of er een
- * ELAPSEDTIME-duur tussen zit: daar vond de review van 2026-09-28 gevallen waarin de gesnoeide
- * uitkomst een dag afweek. Binnen die grenzen is de snoei in de toets
- * (`check-summary-relation-prune.ts`, drie profielen) gelijk aan de volledige uitklapping.
- */
 function pruneDominated(
   rel: Sequence,
   predIds: readonly string[],
@@ -367,17 +211,8 @@ function pruneDominated(
   return { predIds: keepPred, succIds: keepSucc };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-//  Synthetische ids terugvouwen in de solver-UITVOER
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-
-/** Herkent het synthetische suffix `::exp-<n>` aan het EINDE van een id (niet een toevallige
- *  "::exp-" ergens in het midden van een echte, niet-gegenereerde id — vgl. de botsingsklem
- *  hierboven, die er juist voor zorgt dat zo'n echte id nooit een gegenereerd suffix draagt). */
 const SYNTHETIC_SUFFIX = /::exp-\d+$/;
 
-/** Vouw een (mogelijk synthetische) relatie-id terug naar zijn origineel. Idempotent op een
- *  al-originele id: geen suffix ⇒ ongewijzigd teruggegeven, dus dubbel toepassen is veilig. */
 export function originalSequenceId(id: string): string {
   return id.replace(SYNTHETIC_SUFFIX, '');
 }
@@ -395,33 +230,6 @@ function dedupOriginal(ids: string[]): string[] {
   return out;
 }
 
-/**
- * Vouw de synthetische `::exp-<n>`-ids in een `CPMResult` terug op hun ORIGINELE relatie-id. Nodig
- * omdat `CPMSolver` niets van de expansie afweet: draai je 'm op de output van
- * `expandSummaryRelations`, dan bevatten de vier relatie-gekeyde velden synthetische ids die geen
- * van de consumenten (taakgrids, StatusBar, ReportPanel, TaskDependenciesSection, GanttCanvas,
- * de MCP-leestools) herkent — die kennen alleen `s.sequences`, met de originele ids. Zonder fold
- * vallen synthetische driving-relaties stil uit elke weergave (op 870d339f60603f71: 114 van de 167
- * `drivingSequenceIds`), geeft `sequenceFreeFloat[seq.id]` `undefined`, en telt een N-voudig
- * kruisproduct in `outOfSequenceSequenceIds`/`truncatedLeadSequenceIds` als N in plaats van 1.
- *
- * Muteert `result` IN PLACE (past bij hoe de aanroepers dit object al behandelen, zie de
- * `droppedSequenceIds`-merge in `solveProject`):
- *   - `drivingSequenceIds` — OR: zodra minstens één synthetische instantie van een relatie driving
- *     is, geldt de originele relatie als driving (verzameling, dus meteen gededupliceerd).
- *   - `sequenceFreeFloat` — MIN: de striktste (kleinste) vrije speling over alle synthetische
- *     instanties van dezelfde originele relatie representeert de relatie als geheel (0 ⇒ minstens
- *     één instantie is driving, consistent met `drivingSequenceIds`).
- *   - `truncatedLeadSequenceIds` / `outOfSequenceSequenceIds` — dedup: een VERZAMELING van originele
- *     ids, geen optelling — dat optellen was precies de N×-tellerbug in de StatusBar.
- *   - `droppedSequenceIds` — dedup, defensief: de solver-eigen 489a9ef2-guard opereert op de
- *     GEËXPANDEERDE set; een synthetische id zou daar in theorie nooit in mogen voorkomen (elke
- *     synthetische relatie wijst naar een echte bladtaak-id), maar folden is hier goedkoop en
- *     ontneemt elke twijfel.
- *
- * Idempotent: `originalSequenceId` is een no-op op een id zonder `::exp-N`-suffix, dus een resultaat
- * dat al gevouwen is (of nooit geëxpandeerde invoer had) verandert niet bij een herhaalde aanroep.
- */
 export function foldSyntheticSequenceIds(result: CPMResult): void {
   result.drivingSequenceIds = dedupOriginal(result.drivingSequenceIds);
   result.truncatedLeadSequenceIds = dedupOriginal(result.truncatedLeadSequenceIds);
@@ -440,38 +248,20 @@ export function foldSyntheticSequenceIds(result: CPMResult): void {
   result.sequenceFreeFloat = foldedFreeFloat;
 }
 
-/**
- * De bladtaken voor de solver, met de externe relaties van hun verzameltaken erbij. Een externe
- * relatie op een fase geldt voor elke bladtaak eronder, net als een gewone relatie op een fase
- * (de kop van dit bestand): een externe VOORGANGER op een fase is een ondergrens voor elk blad
- * (zoals "samenvatting als opvolger": EXACT bij FS/SS, conservatief bij FF/SF), een externe
- * OPVOLGER een bovengrens voor elk blad (zoals "samenvatting als voorganger": EXACT bij FS/FF,
- * conservatief bij SS/SF). Geneste fasen tellen allemaal mee.
- *
- * De solver kent alleen bladtaken; zonder deze stap telde een externe relatie op een fase niet mee.
- * Elke aanroeper die `CPMSolver` met bladtaken voedt, haalt ze hier (net als de relaties uit
- * `expandSummaryRelations`). Een blad zonder geërfde koppeling blijft hetzelfde object; een blad
- * mét krijgt een ondiepe kopie, zodat de taak in de store haar eigen `externalLinks` houdt.
- */
 export function leafTasksForSolve(tasks: readonly Task[]): Task[] {
   return tasks.filter(isLeafTask).map(withInheritedExternalLinks(tasks));
 }
 
-/** De externe relaties die voor bladtaak `task` gelden: haar eigen, dan die van haar fasen (van
- *  dichtbij naar ver). Voor het logica-rapport, dat een blad onder zo'n fase niet als "zonder
- *  voorganger" mag tellen. */
 export function effectiveExternalLinks(tasks: readonly Task[]): (task: Task) => readonly ExternalLink[] {
   const inherit = withInheritedExternalLinks(tasks);
   return (task) => inherit(task).externalLinks ?? [];
 }
 
 function withInheritedExternalLinks(tasks: readonly Task[]): (task: Task) => Task {
-  // Snelle weg: zonder een fase met externe relaties verandert er niets (de gewone planning).
   if (!tasks.some(t => !isLeafTask(t) && (t.externalLinks?.length ?? 0) > 0)) return task => task;
   const byId = new Map(tasks.map(t => [t.id, t] as const));
   return (task) => {
     const inherited: ExternalLink[] = [];
-    // Cyclusvast, net als `leafDescendantsOf`: een kapotte ouderketen stopt hier.
     const visited = new Set<string>([task.id]);
     let parentId = task.parentId;
     while (parentId && !visited.has(parentId)) {
