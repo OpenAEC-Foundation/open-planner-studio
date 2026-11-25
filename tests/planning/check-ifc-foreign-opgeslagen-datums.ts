@@ -460,7 +460,10 @@ const RULES = {
   getal: 'STEP REAL: hetzelfde getal in een andere schrijfwijze',
 } as const;
 type RuleId = keyof typeof RULES;
-interface Candidate { readonly kind: string; readonly token: string; readonly rule?: RuleId; readonly edit?: (bytes: Uint8Array) => Uint8Array }
+interface Candidate {
+  readonly kind: string; readonly token: string; readonly rule?: RuleId; readonly refusal?: string;
+  readonly edit?: (bytes: Uint8Array) => Uint8Array;
+}
 
 const nextDate = (date: string) => new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 
@@ -479,7 +482,7 @@ function stampCandidates(token: string): Candidate[] {
     { kind: 'de tijdzone +01:00', token: `'${date}T${clock}:00+01:00'` },
     { kind: 'andere seconden', token: `'${date}T${clock}:30'` },
     { kind: 'een onbestaande dag', token: `'${date.slice(0, 4)}-02-30T${clock}:00'` },
-    { kind: 'een onbestaande kloktijd', token: `'${date}T25:${clock.slice(3)}:00'` },
+    { kind: 'een onbestaande kloktijd', token: `'${date}T25:${clock.slice(3)}:00'`, refusal: 'uitvoer-controle' },
     ...sameDayOverflow(date, clock),
   ];
 }
@@ -604,15 +607,15 @@ for (const { name: stand, make, task: named } of PROPERTY_STANDS) {
       if (!picked.has(key)) picked.set(key, t.id);
     }
     const text = dec.decode(good), deviations: string[] = [];
-    const probe = async (difference: string, bytes: Uint8Array, rule: RuleId | undefined, label: string) => {
+    const probe = async (difference: string, bytes: Uint8Array, rule: RuleId | undefined, label: string, refusal = 'planning-na-openen') => {
       const result = await verdict(bytes, input, source, own);
       const tally = probed.byDifference.get(difference) ?? { copies: 0, refused: 0, byRule: new Map<RuleId, number>() };
       probed.byDifference.set(difference, tally);
       tally.copies++;
       probed.copies++;
-      if (result === 'planning-na-openen') tally.refused++;
+      if (result === refusal) tally.refused++;
       if (rule && result === 'aanvaard') tally.byRule.set(rule, (tally.byRule.get(rule) ?? 0) + 1);
-      if (result !== (rule ? 'aanvaard' : 'planning-na-openen')) deviations.push(`${label}: ${result}${rule ? `, de regel ${rule} noemt het gelijk` : ''}`);
+      if (result !== (rule ? 'aanvaard' : refusal)) deviations.push(`${label}: ${result}${rule ? `, de regel ${rule} noemt het gelijk` : ''}`);
     };
     for (const id of picked.values()) {
       const task = input.tasks.find(t => t.id === id)!, { args } = taskTimeArgs(text, task.name);
@@ -630,7 +633,7 @@ for (const { name: stand, make, task: named } of PROPERTY_STANDS) {
         for (const candidate of candidates) {
           const bytes = withSlot(text, task.name, at, candidate.token);
           await probe(`${sortOf(slot)} | ${candidate.kind}`, candidate.edit ? candidate.edit(bytes) : bytes, candidate.rule,
-            `${stand} | ${kindOf(task)} | ${task.name} | ${slot} | ${candidate.kind}: ${token} → ${candidate.token}`);
+            `${stand} | ${kindOf(task)} | ${task.name} | ${slot} | ${candidate.kind}: ${token} → ${candidate.token}`, candidate.refusal);
         }
       }
       const { line, head } = taskTimeArgs(text, task.name);
