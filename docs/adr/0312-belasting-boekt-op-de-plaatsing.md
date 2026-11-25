@@ -6,7 +6,7 @@ taak per aanroep (`taskPlacementCache`), en per toewijzing `assignmentLoadOnPlac
 dezelfde twee functies voor elke kandidaat (ADR 0162). Zo delen histogram en nivelleerder één verdeling, zoals de
 spec alleen uren vraagt (`docs/superpowers/specs/2026-10-20-alleen-uren-design.md`, §3.11). Een kalender zonder
 opgeslagen werkblokken krijgt voor de engine afgeleide blokken uit haar scalaire velden (`calendarForEngine` in
-`utils/effectiveWorkTime.ts`); beslissend is `engine.isHourMode` na die afleiding. Is die onwaar, dan geeft
+`utils/effectiveWorkTime.ts`), als die velden bruikbare blokken opleveren (`effectiveWorkTimeBands`); beslissend is `engine.isHourMode` na die afleiding. Is die onwaar, dan geeft
 `taskLoadPlacement` `null` en boekt `dayslotLoad` de dagslots van ADR 0311 op de werkdagen van `taskWorkDayIsos`. De
 nivelleerder heeft dezelfde tak met `dayslotLoad`, maar bereikt die niet meer (knownbug 507). Een onleesbare start
 geeft een lege plaatsing, dus geen belasting.
@@ -25,8 +25,9 @@ geeft een lege plaatsing, dus geen belasting.
 - `taskWorkDayIsos` op de dagslotroute neemt bij kalendertijd en bij een voltooide taak (`isPinnedComplete`) de
   werkdagen van `earlyStart` tot en met `earlyFinish` zonder splits (`enumerateWorkDays`): bij kalendertijd telt
   `scheduleDuration` kalenderdagen, en bij een voltooide taak komt het einde uit de werkelijke datums. Elke andere taak
-  krijgt daar `enumerateTaskWorkDays` vanaf `earlyStart`, met de splits, ook een taak die op de plaatsing haar
-  berekende spanne volgt (`placementFollowsSpan`; ADR 0162).
+  krijgt daar `enumerateTaskWorkDays` vanaf `earlyStart`, met de splits. Een lopende taak, een handmatig geplande taak
+  en een hamertaak volgen op deze route dus hun duur, terwijl ze op de plaatsing hun berekende spanne volgen
+  (`placementFollowsSpan` in `workPlacement.ts`).
 - `ResourceLoadResult.hours` is per resource de geboekte eenheden maal de uren per dag van de taakkalender. Op een
   plaatsing komt het werk uit `assignmentPlacementWork`, dat een rest van het bronwerk buiten de afgeronde spanne
   (`PlacementDay.residueMinutes`) meetelt; de belasting telt die rest niet. De kolom Totaal in het resourcepaneel

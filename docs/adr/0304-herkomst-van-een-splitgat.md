@@ -11,8 +11,9 @@ gaten meetelt, niet op de as van de zuivere werkduur (ADR 0002, ADR 0015).
 - Nivelleergaten schrijft een nieuwe nivellering opnieuw (`writeLevelingResult`, ADR 0165). Ze vallen weg bij
   nivellering wissen (`clearLevelingOutput`) en bij een bewerking die de tijdbasis verzet (ADR 0213), beide via
   `clearLevelingGaps`; die functie laat gaten zonder `source` en met `'user'` staan.
-- Bewerkt de planner de onderbrekingen, dan maakt `applyTaskSplits` (`splitMutations.ts`) de nivelleergaten van die
-  taak tot gebruikersgaten (`adoptLevelingGaps` in `splitEdit.ts`). De store-actie `setTaskSplits` (`taskSlice.ts`)
+- Bewerkt de planner de onderbrekingen, dan maakt `applyTaskSplits` (`splitMutations.ts`) de nivelleergaten die na
+  de bewerking overblijven tot gebruikersgaten (`adoptLevelingGaps` in `splitEdit.ts`); verwijdert de planner alle
+  onderbrekingen, dan is de gatenlijst leeg. De store-actie `setTaskSplits` (`taskSlice.ts`)
   en de MCP-transactie roepen die functie aan.
 - Een importgat houdt bij zo'n bewerking niet altijd zijn plek. Verandert de planner het werkstuk vóór een importgat
   (`setWorkLength` in `splitEdit.ts`), dan rekent `fromSplitPieces` de offset van dat gat opnieuw uit en blijft
