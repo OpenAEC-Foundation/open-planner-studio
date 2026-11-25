@@ -5,8 +5,9 @@ van P6. Na `exportAs('p6')` noemt de exportmelding (`exportP6XmlLossNotice` in `
 zij telt, met een regel per soort, en de broninformatie, codes en eigen velden waarvoor de detector
 `detectXerExportLoss` een categorie geeft. Een verlies dat zij niet telt, zoals de kalender van een samenvattingstaak
 (knownbug 2342), meldt zij niet. `check-p6xml-export-loss.ts` vergelijkt de regels voor een reeks invoeren; voor
-notities, de definities van codes en eigen velden en de broninformatie toetst zij dat detector en melding overeenkomen,
-en met het P6-profiel verwacht zij voor `schedule-options-and-provenance` geen regel. Onderbrekingen, ingekorte namen en
+notities en de definities van codes en eigen velden toetst zij dat detector en melding overeenkomen, voor de
+broninformatie geeft zij twee categorienamen rechtstreeks aan de melding en verwacht zij één regel, en met het
+P6-profiel verwacht zij voor `schedule-options-and-provenance` geen regel. Onderbrekingen, ingekorte namen en
 ongeldige tekens hebben een eigen melding in `exportAs`. De writer zet bij een deel van de weglatingen daarnaast een
 regel in de console; voor elke soort daarvan heeft de melding een regel, of bij onderbrekingen de eigen melding, ook
 voor de nivelleervertraging (`levelingDelays`) en de kalendertijd (`elapsedDurations`), die knownbug 480 nog als
@@ -17,7 +18,8 @@ alleen in de console noemt.
 - Een kostenresource en haar toewijzingen gaan niet mee (issue #815); de XER-writer laat ze ook weg. De melding telt
   ze (`costResources`). Dat P6 geen kostenresource kent, komt uit het weggehaalde commentaar en is niet nagegaan.
 - De writer geeft taken en project nieuwe `ObjectId`'s (ADR 0360) en schrijft `p6TaskId` en `p6ProjectId` uit de bron
-  niet; na inlezen draagt de taak de identiteit van het XML-bestand zelf (`check-xer-p6xml-parity.ts`, assertie 2). Het
+  niet; na inlezen draagt een activiteit de identiteit van het XML-bestand zelf (`check-xer-p6xml-parity.ts`, assertie
+  2). Een WBS-rij krijgt van de lezer geen `p6TaskId` of `p6ProjectId`. Het
   exacte XER-bronarchief gaat alleen in het IFC mee (ADR 0048).
 - Relaties met een ander project (`externalLinks`), notities, een nivelleervertraging, een stop- of hervatdatum en een
   baseline schrijft de writer niet.
