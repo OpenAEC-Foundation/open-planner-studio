@@ -386,7 +386,10 @@ op de vaste lijst, `bronverwijzing`); domein: het brontoken zolang de planner ge
 uit schrijft (regel A: één slot, één beslissing, één veldenlijst; `slotFieldChanged` en `slotHasFields` in `lossCheck.ts`,
 dezelfde tabel als de uitleg van O1 voor een stuk uit de kaart, die ook dezelfde wijzigingen leest: `plannerChanged`,
 tegenover wat de app na openen liet zien); alleen een slot zonder veldenlijst kijkt of de writer er hetzelfde schrijft als
-bij openen (O0). De waarde van een lag volgt de schrijfkeuze van de writer: houdt die de dagvorm van de bron
+bij openen (O0). Een tijdveld dat alleen het openen veranderde, krijgt de waarde uit de bronlezing terug
+(`sourceFormWhereUnchanged`), behalve bij een taak die bij openen kinderen had en nu geen meer: heropenen telt haar
+tijd dan niet meer op uit de kinderen, dus schrijft de writer de taaktijd van de planner, met de duur-eenheid. De
+waarde van een lag volgt de schrijfkeuze van de writer: houdt die de dagvorm van de bron
 (`sourceDayLagIds`), dan hangt de waarde niet van de eenheid af en blijft `P0.50D` staan. Afgeleid: de writer. Verwijzing: de writer, behalve een gevulde verwijzing naar
 een stuk dat de writer niet draagt (niet P, zoals een `IfcTaskTimeRecurring`; regel B, `keepsTarget`): die houdt haar
 brontoken zolang de velden van het slot gelijk blijven, en de regel die de writer ernaast schreef vervalt

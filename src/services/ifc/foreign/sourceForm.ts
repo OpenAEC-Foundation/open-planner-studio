@@ -186,6 +186,7 @@ function candidates(domain: WriteIFCInput, opened: WriteIFCInput, pristine: Impo
       if (key === 'time' || key === 'id') continue;
       consider({ kind: 'task', id: d.id, field: key }, fields(d)[key], fields(o)[key], fields(p)[key], fields(mt)[key], false);
     }
+    if (o.childIds.length > 0 && d.childIds.length === 0) continue;
     const td = fields(d.time), to = fields(o.time), tp = fields(p.time), tm = fields(mt.time);
     for (const sub of new Set([...Object.keys(td), ...Object.keys(to), ...Object.keys(tp)])) {
       consider({ kind: 'task', id: d.id, field: 'time', sub }, td[sub], to[sub], tp[sub], tm[sub], true);

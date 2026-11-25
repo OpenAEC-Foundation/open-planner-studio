@@ -178,19 +178,20 @@ const BOUNDARIES: readonly Boundary[] = [
     fits: (c, source, label) => source === 'de pinbron' && c.kind === 'bronvorm-leest-anders' && /: ((mijlpaal|durationType) gewijzigd|duur een dag langer \(een mijlpaal\))$/.test(label) },
   { id: '2256', reason: 'een taak zonder volledige taaktijd in de bron, met een afgeleide waarde die herlezen anders afleidt',
     fits: (c, source) => (source === R6_LONG && ((c.kind === 'bronvorm-leest-anders' && /anders: taak task-ifc-0sub0+, time\./.test(c.detail))
-      || (c.kind === 'planning-na-openen' && /^taak task-ifc-0task0+\.time\.scheduleDuration: 5 → 0$/.test(c.detail))))
-      || (source === 'bonsai-4d.ifc' && c.kind === 'planning-na-openen' && c.detail.startsWith('taak task-ifc-2lNOVVAc3x$DPP3aHgo958.time.durationUnit:')) },
+      || (c.kind === 'planning-na-openen' && /^taak task-ifc-0task0+\.time\.scheduleDuration: 5 → 0$/.test(c.detail)))) },
   { id: 'PR 8', reason: 'een gemengde relatie: resources en producten in één IfcRelAssignsToProcess, of een gemengde kalenderrelatie',
     fits: c => c.kind === 'gemengde-relatie' },
   { id: 'main', reason: 'een taak en een resource in een oude lay-out buiten het register; main weigert het bestand op herkomst',
     fits: (_c, source) => source === 'r6opus-twee-werkplannen.na.ifc' },
 ];
+const ORDINARY_FILE = 'bonsai-4d.ifc';
+const fitOf = (c: Refused, source: string, label: string) =>
+  BOUNDARIES.find(b => b.fits(c, source, label) && (source !== ORDINARY_FILE || b.id === 'PR 8'));
 const unnamed = (r: MergeOutcome, source: string, label: string) => (r.ok ? '' : r.error.cases
-  .filter(c => !BOUNDARIES.some(b => b.fits(c, source, label))).slice(0, 3).map(c => `${c.kind} #${c.sourceId}: ${c.detail}`).join(' | '));
+  .filter(c => !fitOf(c, source, label)).slice(0, 3).map(c => `${c.kind} #${c.sourceId}: ${c.detail}`).join(' | '));
 const boundaryOf = (r: MergeOutcome, source: string, label: string): Boundary | undefined => {
   if (r.ok) return undefined;
-  const fit = (c: Refused) => BOUNDARIES.find(b => b.fits(c, source, label));
-  return r.error.cases.every(c => fit(c) !== undefined) ? fit(r.error.cases[0]) : undefined;
+  return r.error.cases.every(c => fitOf(c, source, label) !== undefined) ? fitOf(r.error.cases[0], source, label) : undefined;
 };
 const perBoundary = new Map<string, number>();
 interface Outcome { readonly written: number; readonly refused: number; readonly idle: number; readonly kinds: Readonly<Record<string, number>> }
@@ -324,6 +325,7 @@ function ordinaryWork(o: Opened): { readonly edits: readonly (readonly [string, 
     ['een taak een niveau hoger', s => { s.outdentTasks([child.id], { phaseAssignments: 'move', answered: true }); }],
     ['de kinderen van een taak in andere volgorde gesleept', s => { reversed(s, parent.id); }],
     ['een taak gewist', s => { s.deleteTask(free.id); }],
+    ['alle kinderen van een fase gewist', s => { for (const id of [...s.tasks.find(t => t.id === parent.id)!.childIds]) s.deleteTask(id); }],
     ['een vrije dag toegevoegd', s => { s.setCalendar({ ...s.calendar, holidays: [...s.calendar.holidays, { name: 'Extra vrije dag', startDate: day, endDate: day }] }); }],
     ['een taak hernoemd en een ploeg toegewezen, in één opslag', s => { s.updateTask(first.id, { name: `${first.name} (hernoemd)` }); assign(s); }],
   ];
@@ -407,12 +409,19 @@ for (const [name, text] of [['de pinbron', SOURCES[0][1]], ['bonsai-4d.ifc', B4D
 }
 
 {
-  const o = await openForeign(new TextEncoder().encode(B4D));
-  const label = 'beide kinderen van Ruwbouw gewist';
-  const result = await tryMerge(await storeEdit(cloneDomain(o), s => { for (const n of ['Wand A bouwen', 'Wand B bouwen']) s.deleteTask(taskNamed(s, n).id); }), o.ifcSource!);
-  const boundary = boundaryOf(result, 'bonsai-4d.ifc', label);
-  ok(`bonsai-4d.ifc, ${label}: weigert onder grens 2256 (${refusal(result)})`, boundary?.id === '2256');
-  if (boundary) perBoundary.set(boundary.id, (perBoundary.get(boundary.id) ?? 0) + 1);
+  const bytes = new TextEncoder().encode(B4D), graph = referenceGraph(bytes);
+  const o = await openForeign(bytes);
+  const label = 'Sol r4: in het ongewijzigde bonsai-4d.ifc beide kinderen van Ruwbouw gewist';
+  const edited = await storeEdit(cloneDomain(o), s => { for (const n of ['Wand A bouwen', 'Wand B bouwen']) s.deleteTask(taskNamed(s, n).id); });
+  const result = await tryMerge(edited, o.ifcSource!);
+  ok(`${label}: geschreven (${refusal(result)})`, result.ok);
+  if (result.ok) {
+    eq(`${label}: regel C`, regelC(o.ifcSource!, graph, referenceGraph(result.bytes), editScope(graph, o.ifcSource!, o, edited, result.changes)), []);
+    const reopened = await openForeign(result.bytes);
+    const timeOf = (d: Domain) => d.tasks.filter(t => t.name === 'Ruwbouw').map(t => [t.childIds.length, t.time.scheduleDuration, t.time.durationUnit, t.time.durationMinutes ?? null]);
+    eq(`${label}: na heropenen heeft Ruwbouw de duur en eenheid die de planner zag`, timeOf(reopened), timeOf(edited));
+    eq(`${label}: na heropenen zijn beide gewiste taken weg`, reopened.tasks.filter(t => t.name === 'Wand A bouwen' || t.name === 'Wand B bouwen').length, 0);
+  }
 }
 
 {
