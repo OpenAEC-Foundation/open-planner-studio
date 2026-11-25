@@ -573,6 +573,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # Knownbug 2212: een eigen bestand met een BOM tegen de opname van main (scripts/proef/maak-main-bom-eigen-bestand.mjs,
+  # met TZ=Europe/Amsterdam). De opname bevat volledige hashes van de geschreven bytes: daarom een vaste tijdzone.
+  IFCBOMEIGEN="$DIR/.ifc-bom-eigen-bestand.mjs"
+  if bundle_check "$DIR/check-ifc-bom-eigen-bestand.ts" "$IFCBOMEIGEN"; then
+    TZ=Europe/Amsterdam node "$IFCBOMEIGEN" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # 1107: één groot model, niet vijf keer in de tijdzonematrix (tijd/geheugen meten).
   IFCFOREIGNGROOT="$DIR/.ifc-foreign-groot.mjs"
   if bundle_check "$DIR/check-ifc-foreign-groot.ts" "$IFCFOREIGNGROOT"; then
