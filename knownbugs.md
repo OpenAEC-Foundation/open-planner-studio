@@ -2155,12 +2155,26 @@ en noem het in je rapport of PR-tekst.
      P-stuk) schrijft wel, en een opslag zonder wijziging in de planning geeft de bronbytes terug. Richting: het gedeelde hulpstuk één keer schrijven en elke verwijzer laten wijzen naar die ene
      regel, en alleen splitsen als de planner het veld van één verwijzer wijzigt. Review ronde 2 van #1205 (Sol);
      `check-ifc-foreign-regel-c.ts`. — B
-2370. **Doorrekenen op een Bonsai-bestand verschuift geen enkele datum.** Flag aan,
-      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: na `schedule()` krijgt *Wand A* (5 dagen) een vroege en late start
-      en een vroeg en laat einde die alle vier op 2026-02-02 09:00 staan. Het ligt niet aan de opslag: na heropenen ziet de
-      planner wat hij zag. Gezien door de bouwer van #1205 tijdens de vaste lijst gewone bewerkingen; niet uitgezocht of het
-      een fout is of bedoeld gedrag (een taak uit een ander programma wordt bij inlezen handmatig gepland). Wordt apart
-      uitgezocht (besluit van de technisch eigenaar, 25 november 2026). — S
+2370. **Een IFC-kalender zonder werktijden rekent met nul werktijd.** Ook met de flag uit (issue #1251). Een
+      `IfcWorkCalendar` zonder werkblokken (Bonsai schrijft `WorkingTimes = $`) met een taak met werkduur op een
+      kloktijd die niet 07:00 is: na F5 eindigt elke zulke taak op haar begin, zonder melding. Voorbeeld:
+      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`, waar *Wand A bouwen* (5 dagen) een vroege en late start en een vroeg
+      en laat einde krijgt die alle vier op 2026-02-02 09:00 staan. Het ligt niet aan de opslag: na heropenen ziet de
+      planner wat hij zag. Oorzaak: `applyHourModeIFC` (`src/services/ifc/ifcReader.ts`) maakt van de kalender een
+      urenkalender en houdt de lege werkblokken (`preferCanonicalWhenEmpty = true`); de lezers voor MSPDI, P6 XML,
+      `.mpp` en XER vallen daar terug op 07:00–16:00. Een stille terugval in de IFC-lezer is drie keer geprobeerd (PR
+      #1253, geparkeerd) en verschoof elke keer een planning die op main goed rekent: (1) een eigen bestand van
+      v2026.8.1 met een lege werkweek en twee werkende uitzonderingen, waarvan de taak op 3 februari 10:00 eindigde in
+      plaats van 9 februari 12:00; (2) een eigen bestand van v2026.8.1 met een werkweek zonder werkblokken en twee
+      kloktijdtaken (`ELAPSEDTIME`) met een relatie einde–begin, waarvan de tweede naar maandag 07:00 schoof in plaats
+      van direct aan te sluiten; (3) een geldig IFC4-bestand uit IfcOpenShell met `WorkingTimes = $` en dezelfde
+      kloktijdketen. De reden: kloktijdtaken sluiten op een kalender zonder werkblokken direct aan, en met werkblokken
+      zet de relatie de opvolger op het volgende werkblok; zolang de lezer stil een werkweek toevoegt, verschuift er
+      een bestand dat nu goed rekent. De richting is daarom een melding aan de planner in plaats van een stille
+      werkweek; die keuze is van de eigenaar en staat op de eindlijst van #804, vóór de flag standaard aan gaat
+      (besluit van de technisch eigenaar, 25 november 2026). De proefbestanden en de proef staan op de branch van
+      #1253. Niet nagegaan: of werktijden instellen in de kalenderdialoog en opnieuw rekenen het Bonsai-bestand goed
+      laat rekenen. — B
 
 2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
      `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
