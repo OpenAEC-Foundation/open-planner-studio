@@ -19,6 +19,7 @@ import { serializeIfcx, type IfcxDocument } from '@/services/ifc/ifcx/projection
 import { HEADER_VALUE } from '@/services/ifc/ifcx/ownAttributes';
 import { ALL_MODEL_KEYS, LOAD_BOUNDARY_MODEL_KEYS, NODES, OWN_ATTRIBUTE_VALUES, STEP_WRITER_INPUT_NOT_CARRIED } from '@/services/ifc/ifcx/nodes';
 import { IDENTITY_KINDS, intendedGlobalIds, type PlanningModel } from '@/services/ifc/ifcx/identity';
+import { unsupportedContent } from '@/services/ifc/ifcx/unsupportedContent';
 import { TASK_TIME_FIELDS } from '@/services/ifc/ifcx/fields/taskFields';
 import {
   CALENDAR_DATE_FORM, FREE_TEXT_FORM, ISO_DATE_OR_MOMENT_OR_EMPTY_FORM, ISO_MOMENT_FORM,
@@ -475,15 +476,16 @@ test('wat geen IFCX is, heet not-ifcx', () => {
   assert.equal(classifyIfcx(encode(goodText)), 'own');
 });
 
+const companyPool = () => ({ companyId: 'bedrijf-1', companyName: 'Bouwbedrijf', poolVersion: 1, modifiedAt: '2027-05-01T08:00:00Z', calendars: [], resources: [] });
+
 test('de voorcontrole noemt wat deze versie van IFCX nog niet draagt', () => {
   const plan = datePlan();
-  const refusal = writeRefusal({
-    ...plan, resources: [{ id: 'kraan', name: 'Kraan', type: 'EQUIPMENT', description: '', maxUnits: 1 }],
-    assignments: [{ id: 'inzet', taskId: 'binnen-een-dag', resourceId: 'kraan', unitsPerDay: 1 }],
-  });
+  const refusal = writeRefusal({ ...plan, libraryPool: companyPool() });
   assert.equal(refusal.code, 'unsupported');
-  assert.deepEqual([...refusal.fields].sort(), ['assignments', 'resources', 'task.resourceIds']);
-  assert.match(refusal.message, /task\.resourceIds \(taak binnen-een-dag\)/);
+  assert.deepEqual(refusal.fields, ['libraryPool']);
+  assert.match(refusal.message, /IFCX draagt deze gegevens nog niet: libraryPool/);
+  const later = { ...plan, tasks: plan.tasks.map((task, index) => (index === 0 ? { ...task, eenLaterVeld: 1 } : task)) } as WriteIFCInput;
+  assert.deepEqual(unsupportedContent(later), [{ field: 'task.eenLaterVeld', objects: ['taak binnen-een-dag'] }]);
 });
 
 
@@ -642,10 +644,7 @@ test('de zelfcontrole ziet een waarde die bij het teruglezen stil verandert', ()
 const FILLED_IS_REFUSED: Readonly<Record<string, () => WriteIFCInput>> = {
   'een vergelijking met een baseline die er niet is': () => ({ ...datePlan(), comparedBaselineIds: ['b1', null] }),
   'een actieve baseline die er niet is': () => ({ ...datePlan(), activeBaselineId: 'b1' }),
-  'een resource met een toewijzing': () => ({
-    ...datePlan(), resources: [{ id: 'kraan', name: 'Kraan', type: 'EQUIPMENT', description: '', maxUnits: 1 }],
-    assignments: [{ id: 'inzet', taskId: 'binnen-een-dag', resourceId: 'kraan', unitsPerDay: 1 }],
-  }),
+  'de bibliotheek van het bedrijf': () => ({ ...datePlan(), libraryPool: companyPool() }),
 };
 
 test('wat STEP met inhoud bewaart en IFCX niet draagt, weigert de writer met unsupported; wat STEP laat vallen, laat IFCX ook vallen', () => {
