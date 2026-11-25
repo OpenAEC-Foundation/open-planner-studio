@@ -37,7 +37,7 @@ export { ScopeEscapeError } from '@/services/mcp/fileScopeError';
 // terugval op direct schrijven (die in de app bestaat voor Tauri-scope en gelinkte bestanden; daar
 // verandert niets).
 import {
-  closeSync, constants as fsConstants, fchmodSync, fstatSync, fsyncSync, lstatSync, mkdirSync, openSync,
+  closeSync, constants as fsConstants, fchmodSync, fstatSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync,
   promises as fsp, readFileSync, readlinkSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync,
   type BigIntStats, type Stats,
 } from 'node:fs';
@@ -49,6 +49,7 @@ import type { FileIdentityInfo } from '@/services/fileAccess/fileIdentity';
 import { noAppLock, type AppLock } from './appLock';
 import { scanForeignTargetBytes } from '@/services/ifc/foreign/targetForeignScan';
 import { IFC_FOREIGN_SCAN_MAX_BYTES } from '@/services/ifc/foreign/foreignScan';
+import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 
 /** Is `child` gelijk aan of binnen `parent`? Beide zijn absolute, door `realpath` opgeloste paden.
  *  Exacte vergelijking, ook op Windows en macOS: liever een terechte weigering dan een ontsnapping. */
@@ -319,8 +320,9 @@ export async function createNodeFileFs(
   }
 
   /** Schrijf atomair: eigen halffabricaat in de echte map, `fsync`, `rename`, alles relatief aan die map. */
-  async function writeChecked(target: string, content: string): Promise<void> {
+  async function writeChecked(target: string, content: string | Uint8Array, exclusive = false): Promise<void> {
     const c = await check(target);
+    if (exclusive && c.file) throw new ByteWriteError('create-new');
     if (c.file && !c.file.isFile) throw new Error(`'${target}' is a folder, not a file`);
     // Het slot: per schrijfactie het register opnieuw lezen en op bestandsidentiteit toetsen.
     const locked = await appLock(c.real);
@@ -344,11 +346,27 @@ export async function createNodeFileFs(
         process.chdir(name);
         assertHere(target);
       }
-      writeHere(c, target, content);
+      writeHere(c, target, content, exclusive);
     });
   }
 
-  function writeHere(c: Checked, target: string, content: string): void {
+  function placeExclusive(tmpName: string, base: string, tmpId: Identity, target: string): void {
+    try {
+      linkSync(tmpName, base);
+    } catch (e) {
+      if (errCode(e) === 'EEXIST') throw new ByteWriteError('create-new', e);
+      throw e;
+    }
+    let placed: Identity;
+    try {
+      placed = idOf(lstatSync(base, { bigint: true }));
+    } catch {
+      throw changed(target);
+    }
+    if (!sameId(placed, tmpId)) throw changed(target);
+  }
+
+  function writeHere(c: Checked, target: string, content: string | Uint8Array, exclusive: boolean): void {
     // De doelnaam kan zelf al bijna NAME_MAX bytes zijn; voeg daar niets aan toe.
     // O_EXCL en de inodecontrole blijven het eigendom van deze korte eigen naam bewaken.
     const tmpName = `.${randomBytes(6).toString('hex')}.ops-save.tmp`;
@@ -382,8 +400,20 @@ export async function createNodeFileFs(
       if (!sameId(here, asked) || !sameId(tmpNow, tmpId)) throw changed(target);
       hooks.afterCheck?.('commit', c.real);
       hooks.fault?.('rename');
-      renameSync(tmpName, c.base);
-      renamed = true;
+      if (exclusive) {
+        placeExclusive(tmpName, c.base, tmpId, target);
+        renamed = true;
+        try {
+          unlinkSync(tmpName);
+        } catch (error) {
+          throw new Error(`'${target}' was placed, but removing its temporary name '${tmpName}' next to it failed `
+            + `(${String(error)}). The final folder check and the folder sync did not run, so crash durability is unconfirmed. `
+            + `If '${tmpName}' still exists, the file has two names and the server refuses to read it until that name is deleted.`);
+        }
+      } else {
+        renameSync(tmpName, c.base);
+        renamed = true;
+      }
       try {
         assertHere(target);
       } catch {
@@ -469,5 +499,6 @@ export async function createNodeFileFs(
       }
     },
     writeTextFile: (p, content) => writeChecked(p, content),
+    writeNewUserBytes: (p, bytes) => writeChecked(p, bytes, true),
   };
 }
