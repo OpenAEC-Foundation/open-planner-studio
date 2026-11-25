@@ -201,6 +201,7 @@ check-ifc-foreign-slotplaats.ts matrix
 check-ifc-foreign-strikt.ts matrix
 check-ifc-foreign-target.ts matrix
 check-ifc-foreign-telling-verschil.ts los
+check-ifc-foreign-verwijderen.ts matrix
 check-ifc-foreign-werk.ts los
 check-ifc-foreign-werksoortkleur.ts matrix
 check-ifc-globalid.ts matrix

@@ -480,8 +480,11 @@ Een A-stuk verwijst naar een D- of R-stuk dat in de uitvoer niet meer bestaat. D
 
 Elk gewijzigd of vervallen vreemd stuk staat in de **wijzigingslijst** (id, oude bytes, nieuwe bytes of "vervallen").
 Of een attribuut optioneel is, toetst de app niet zelf; `ifcopenshell.validate` in CI vangt de rest (§10). Melding na
-opslaan, via het meldingenkanaal: "3 gegevens van andere programma's hingen aan verwijderde taken of resources. Ze zijn
-aangepast of verwijderd."
+opslaan, via het meldingenkanaal, per geslaagde schrijfactie met de naam van het geschreven bestand: "bron.ifc: 3
+IFC-gegevens buiten de planning verwezen naar iets wat uit de planning is verwijderd. Ze zijn bij het opslaan aangepast
+of verwijderd." Elke geslaagde schrijfactie met een niet-lege lijst meldt haar eigen telling als gewone melding
+(fixronde 3 van #1199); wat die melding niet kan, staat in knownbug 2357. De melding bij het wissen is in
+deel 1 een gewone melding zonder knop; de knop *Ongedaan maken* komt in PR 7 (fixronde 5 van #1199, knownbug 2357).
 
 Dezelfde regel geldt voor vreemde gegevens **binnen** een eigen stuk: de onbekende JSON-sleutels (§4.2) en de
 ongebruikte sleutels in `OPS_Assignments` horen bij hun object en vervallen met dat object. Ze staan dan ook op de
