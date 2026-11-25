@@ -467,7 +467,7 @@ interface Candidate {
 
 const nextDate = (date: string) => new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 
-function stampCandidates(token: string): Candidate[] {
+function stampCandidates(token: string, read: boolean): Candidate[] {
   const m = /^'(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}):00'$/.exec(token);
   assert(m, `een tijdstip: ${token}`);
   const [, date, clock] = m;
@@ -482,7 +482,7 @@ function stampCandidates(token: string): Candidate[] {
     { kind: 'de tijdzone +01:00', token: `'${date}T${clock}:00+01:00'` },
     { kind: 'andere seconden', token: `'${date}T${clock}:30'` },
     { kind: 'een onbestaande dag', token: `'${date.slice(0, 4)}-02-30T${clock}:00'` },
-    { kind: 'een onbestaande kloktijd', token: `'${date}T25:${clock.slice(3)}:00'`, refusal: 'uitvoer-controle' },
+    { kind: 'een onbestaande kloktijd', token: `'${date}T25:${clock.slice(3)}:00'`, ...(read ? { refusal: 'uitvoer-controle' } : {}) },
     ...sameDayOverflow(date, clock),
   ];
 }
@@ -561,7 +561,7 @@ function recordCandidates(slot: ProbedSlot, text: string, task: string, token: s
 
 function candidatesFor(slot: ProbedSlot, token: string, task: DomainTask, minutesPerDay: number, text: string): Candidate[] {
   switch (sortOf(slot)) {
-    case 'tijdstip': return stampCandidates(token);
+    case 'tijdstip': return stampCandidates(token, slot !== 'statusTime');
     case 'enum': return ['.WORKTIME.', '.ELAPSEDTIME.', '.NOTDEFINED.', '.ONBEKEND.'].filter(m => m !== token)
       .map(member => ({ kind: `het lid ${member}`, token: member }));
     case 'logische waarde': return [{ kind: 'de andere waarde', token: token === '.T.' ? '.F.' : '.T.' }, { kind: 'onbekend (.U.)', token: '.U.' }];
