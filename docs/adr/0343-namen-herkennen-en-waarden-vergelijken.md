@@ -11,8 +11,11 @@ over dezelfde waarden gaan. Uitzondering bij kalenders: `diffCalendarVsPool` ver
 uitzonderingsvelden altijd, en `computeCalendarHash` neemt ze alleen mee als de kalender er een van heeft (de twee
 hashvormen in `docs/library.md`, *Waarom `syncedHash` bestaat*). `calendarMatchesStamp` vergelijkt ze alleen in de
 terugval voor oude stempels apart met de pool: als `computeCalendarHash` niet gelijk is aan de stempel en de hash over
-de oude veldlijst wel. Een kopie zonder pauze houdt zo haar oude hash; voegt de bibliotheek een pauze toe, dan is de
-kopie `behind` en wordt ze stil ververst (toets (3) van de hash-migratie in `tests/library/check-library-ops.ts`).
+de oude veldlijst wel. Een ongewijzigde kopie waarvan de twee pauzevelden en `workingExceptions` alle drie
+`undefined` zijn, houdt zo haar oude hash (een pauze van 0 minuten is een waarde en geeft de lange hashvorm); voegt
+de bibliotheek een pauze toe, dan is de kopie `behind` (toets (3) van de hash-migratie in
+`tests/library/check-library-ops.ts` toetst die indeling en dat `applyCalendarUpdate` de pauze overneemt). Het stille
+verversen van een kopie die `behind` is, staat in `src/state/documentActivation.ts`.
 
 ## Gevolgen
 
