@@ -5,6 +5,10 @@ import {
 } from '../fieldTable';
 import { OPS_PROFILE_VERSION } from '../profile';
 import { existingDatePart } from '../dateProjection';
+import type { RecordedSourceFormat } from '@/services/importTypes';
+import { PROJECT_SETTINGS_FIELDS, PROJECT_SETTINGS_KEYS_CARRIED } from './projectSettingsFields';
+import { SCHEDULING_FIELDS, SCHEDULING_KEYS_CARRIED } from './schedulingFields';
+import { STRUCTURE_DOCUMENT_FIELDS, type PlanningStructure } from './structureFields';
 import { BASELINE_SET_FIELDS, type BaselineSetReadTarget, type BaselineSetWriteSource } from './baselineFields';
 
 export interface DocumentWriteSource extends BaselineSetWriteSource {
@@ -16,6 +20,8 @@ export interface DocumentWriteSource extends BaselineSetWriteSource {
   readonly minuteModelPending: boolean;
   readonly importPristine: boolean;
   readonly literalCalendarPaths: readonly string[];
+  readonly structure: Readonly<PlanningStructure>;
+  readonly recordedSourceFormat?: RecordedSourceFormat;
 }
 
 export interface DocumentReadTarget extends BaselineSetReadTarget {
@@ -26,6 +32,8 @@ export interface DocumentReadTarget extends BaselineSetReadTarget {
   minuteModelPending: boolean;
   importPristine: boolean;
   literalCalendarPaths: string[];
+  structure: PlanningStructure;
+  recordedSourceFormat?: RecordedSourceFormat;
 }
 
 type DocumentField = IfcxField<DocumentWriteSource, DocumentReadTarget>;
@@ -147,12 +155,14 @@ export const DOCUMENT_FIELDS: readonly DocumentField[] = [
     write: s => (s.literalCalendarPaths.length > 0 ? [...s.literalCalendarPaths] : undefined),
     read: (v, t) => { t.literalCalendarPaths = [...((v as string[] | undefined) ?? [])]; },
   },
+  ...PROJECT_SETTINGS_FIELDS, ...SCHEDULING_FIELDS, ...STRUCTURE_DOCUMENT_FIELDS,
   ...BASELINE_SET_FIELDS,
 ];
 
 export const PROJECT_KEYS_CARRIED: readonly (keyof Project)[] = [
   'id', 'name', 'description', 'startDate', 'endDate', 'calendarId', 'createdAt', 'modifiedAt', 'author', 'company',
   'ifcSchema', 'ifcSchemaUnconfirmed', 'wbsAutoNumber', 'defaultTaskDurationUnit', 'statusDate',
+  ...PROJECT_SETTINGS_KEYS_CARRIED, ...SCHEDULING_KEYS_CARRIED,
 ];
 
 export function emptyProject(): Project {

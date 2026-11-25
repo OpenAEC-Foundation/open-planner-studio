@@ -1,26 +1,3 @@
-// MCP-bridge — de tien LEESTOOLS.
-//
-// Elke tool draagt de `planner_`-prefix, een verplichte description (de AI kiest tools op
-// beschrijving) en de leestool-annotaties (`readOnlyHint:true`, `openWorldHint:false`). De data is
-// bewust COMPACT (velden die false/0/leeg zijn worden weggelaten) — deze payloads gaan als JSON over
-// de bridge en de overview/list-tools kunnen op een groot project fors worden.
-//
-// Alle tools lopen door `runReadTool` (dialoog-guard + live envelop, GEEN drift/pauze-blokkade). Een
-// tool gooit een `McpStepError` om een NETTE code terug te geven (VALIDATION bij een
-// ongeldig argument, NOT_FOUND bij een onbekend id) i.p.v. de generieke INTERNAL van een kale throw.
-//
-// VERSHEID. Elke tool hier die berekende waarden teruggeeft (datums, speling, kritiek pad,
-// projecteinde, bezetting, baseline-/vertragingsvergelijking) rekent een verouderde of nooit berekende
-// planning eerst zelf door (`FRESH`, of `freshen` na het keuren van de args bij
-// `get_resource_histogram`) — zie `freshenScheduleForRead` in runtime.ts. Zonder `planner_run_cpm` is
-// dat de enige manier waarop de agent na een handmatige wijziging in de app verse datums leest.
-// `list_resources` en `get_calendars` geven alleen invoer terug en rekenen niet.
-//
-// Dat is een versheids-refresh, geen mutatie: dezelfde herrekening als F5, zonder undo-stap en zonder
-// `isDirty`. In "datums zoals opgeslagen" rekent een leestool NOOIT door (`runCPM` zou daar de modus
-// verlaten en wél een undo-stap pushen); de envelop meldt dan de modus. Daarmee blijft
-// `readOnlyHint:true` verdedigbaar (readOnlyHint staat op ALLE leestools).
-
 import type { AppState } from '@/state/appStore';
 import { ancestorIds, flattenOrder } from '@/utils/wbs';
 import type { ReadFreshResult } from '../freshness';
@@ -48,46 +25,26 @@ import { computeVariance, type VarianceRow } from '@/engine/variance';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { interruptionsOf, type Interruption } from './splitFields';
-// Zelfde twee bronnen als het slot in `ResourcePanel` en de weigering in `resourceTools` — één lijst.
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
 import { effectiveSchedulingOptions, resolveConventions } from '@/engine/scheduler/conventions/registry';
 import { elementLinkCounts, taskElementLinks } from '@/state/taskElementLinks';
 
-/** De leesbare onderbrekingen van één taak (zie `splitFields.ts`). Leeg object bij een
- *  taak zonder onderbrekingen, zodat de detailrespons van gewone taken ongewijzigd blijft. */
 function splitReadFields(task: Task, s: AppState): { interruptions?: Interruption[]; splitsEditable?: false } {
   if (!task.splitGaps || task.splitGaps.length === 0) return {};
   const { interruptions, editable } = interruptionsOf(task, s);
   return editable && interruptions ? { interruptions } : { splitsEditable: false };
 }
 
-// ── Compacte helpers ─────────────────────────────────────────────────────────────────────────────
-
-// `seqAbbrev` (FS/SS/FF/SF) en `lagLabel` ("+2d"/"+50%") staan in de gedeelde veldlaag
-// `sequenceFields.ts`: de SCHRIJFKANT moet exact deze notatie kunnen terugnemen, en dat lukt alleen
-// met één implementatie. Zie de kop van dat bestand.
-
-/** Voortgang 0-1 → geheel percent 0-100 (bridge-conventie completion 0-100). */
 function pct(completion: number): number {
   return Math.round((completion ?? 0) * 100);
 }
 
-/** WBS van een taak-id, of het id zelf als terugval (mocht een relatie naar een onbekende taak wijzen). */
 function wbsOf(taskById: Map<string, Task>, id: string): string {
   return taskById.get(id)?.wbsCode ?? id;
 }
 
-/**
- * Verkorte uitgaande relatie vanuit een voorganger: "→2.3 FS+2d #seq-7", met het SEQUENCE-ID als
- * `#`-suffix.
- *
- * Waarom het id erbij moet: de overview wordt aangeprezen als DE call voor structuur- en
- * netwerkanalyse ("één call volstaat"), maar élke mutatietool sleutelt op id — `remove_dependencies`
- * neemt letterlijk sequence-id's. Zonder id moet de agent alsnog `get_task` per taak ophalen, wat
- * vele malen duurder is dan de ~10 tekens die dit kost.
- */
 function relShort(taskById: Map<string, Task>, seq: Sequence): string {
   return `→${wbsOf(taskById, seq.successorId)} ${seqAbbrev(seq.type)}${lagLabel(seq)} #${seq.id}`;
 }
@@ -104,27 +61,9 @@ interface Paged<T> {
   next_offset: number | null;
 }
 
-// ── Invoervalidatie voor de leestools ─────────────────────────────────────────────────────────────
-//
-// Een ongevalideerd filter is bij een leestool net zo schadelijk als bij een mutatietool, alleen
-// stiller: `kritiek: "true"` matcht noch `=== true` noch `=== false`, dus de volledige takenlijst
-// zou terugkomen alsof het de kritieke verzameling was; `status: 'started'` zou `{tasks: [], total: 0}`
-// geven — niet te onderscheiden van "geen gestarte taken". Elke fout is daarom een NETTE
-// VALIDATION-fout die de toegestane waarden noemt.
-
 const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}/;
 const TASK_STATUSES = ['NOT_STARTED', 'STARTED', 'COMPLETED'];
 
-/**
- * Weiger elke sleutel die deze leestool niet kent (`additionalProperties: false`, maar dan als
- * RUNTIME-poort in de tool zelf).
- *
- * WAAROM DIT HIER MOET STAAN EN NIET ALLEEN IN HET SCHEMA: de leestools moeten correct zijn
- * ongeacht welk pad ze aanroept. Een verschreven filter — `{kritisch: true}` i.p.v. `kritiek` — dat
- * ergens stil genegeerd wordt, geeft de volledige takenlijst terug als "de kritieke taken": een
- * plausibel-maar-ONJUIST antwoord waarop de aanroeper zijn volgende stap bouwt. Dat de dispatcher
- * hetzelfde nog eens doet is onschadelijk.
- */
 function requireOnlyKeys(args: unknown, allowed: readonly string[], toolName: string): void {
   const reason = unknownArgsReason(args, allowed, toolName);
   if (reason) throw new McpStepError('VALIDATION', `${reason}.`);
@@ -134,14 +73,12 @@ const PAGE_KEYS = ['limit', 'offset'] as const;
 const LIST_TASKS_KEYS = ['kritiek', 'status', 'van', 'tot', 'zonder_relaties', 'externe_relaties', ...PAGE_KEYS] as const;
 const HISTOGRAM_KEYS = ['resourceIds', 'van', 'tot', 'bucket'] as const;
 
-/** Gooit een `McpStepError` wanneer `v` gezet maar geen boolean is. */
 function requireBool(v: unknown, name: string): void {
   if (v !== undefined && typeof v !== 'boolean') {
     throw new McpStepError('VALIDATION', `${booleanArgReason(v, name)}.`);
   }
 }
 
-/** Gooit een `McpStepError` wanneer `v` gezet maar geen ISO-datum (JJJJ-MM-DD) is. */
 function requireIsoDate(v: unknown, name: string): void {
   if (v === undefined) return;
   if (typeof v !== 'string' || !ISO_DATE_ONLY.test(v)) {
@@ -149,11 +86,6 @@ function requireIsoDate(v: unknown, name: string): void {
   }
 }
 
-/**
- * Valideer `limit`/`offset` i.p.v. ze stil te klemmen. Een `limit: 5000` die stil 1000 wordt,
- * of een `limit: 0` die stil 1 wordt, kost de aanroeper een onnodige ronde zonder dat hij begrijpt
- * waarom hij niet kreeg wat hij vroeg.
- */
 function requirePageArgs(args: PageArgs): void {
   if (args.limit !== undefined) {
     if (typeof args.limit !== 'number' || !Number.isInteger(args.limit) || args.limit < 1 || args.limit > 1000) {
@@ -167,13 +99,9 @@ function requirePageArgs(args: PageArgs): void {
   }
 }
 
-/** Uniforme paginering: limit default 50, offset default 0, retour total/has_more/
- *  next_offset. `next_offset` is null zodra er niets meer volgt (heldere "einde"-markering).
- *  De waarden zijn op dit punt al door `requirePageArgs` gevalideerd; de klemmen hieronder blijven
- *  puur als vangnet staan. */
 function paginate<T>(items: T[], args: PageArgs): Paged<T> {
   const rawLimit = typeof args.limit === 'number' && Number.isFinite(args.limit) ? Math.floor(args.limit) : 50;
-  const limit = Math.max(1, Math.min(rawLimit, 1000)); // harde bovengrens tegen een reuze-pagina
+  const limit = Math.max(1, Math.min(rawLimit, 1000));
   const rawOffset = typeof args.offset === 'number' && Number.isFinite(args.offset) ? Math.floor(args.offset) : 0;
   const offset = Math.max(0, rawOffset);
   const page = items.slice(offset, offset + limit);
@@ -182,25 +110,16 @@ function paginate<T>(items: T[], args: PageArgs): Paged<T> {
   return { items: page, total: items.length, has_more, next_offset: has_more ? nextOffset : null };
 }
 
-/**
- * OPTIONELE paginering (#818) voor een leestool die zonder `limit`/`offset` zijn hele lijst geeft
- * (kritiek pad, baselinevergelijking, vertraginganalyse). Zonder beide sleutels: null, en de tool
- * antwoordt precies als voorheen. Met minstens één: `paginate` (default limit 50). Zo heeft de
- * assistent van de site, die antwoorden boven ~30.000 tekens weigert, een uitweg die echt werkt.
- */
 function optionalPage<T>(items: T[], args: PageArgs): Paged<T> | null {
   requirePageArgs(args);
   if (args.limit === undefined && args.offset === undefined) return null;
   return paginate(items, args);
 }
 
-/** De paginavelden die een gepagineerd antwoord naast zijn lijst draagt (zelfde namen als list_tasks). */
 function pageFields(page: Paged<unknown>) {
   return { total: page.total, has_more: page.has_more, next_offset: page.next_offset };
 }
 
-/** Alle taak-id's die in minstens één relatie voorkomen (als voorganger óf opvolger) — basis voor
- *  de wees-detectie (`zonder_relaties`). */
 function idsInAnySequence(sequences: Sequence[]): Set<string> {
   const s = new Set<string>();
   for (const seq of sequences) {
@@ -210,13 +129,11 @@ function idsInAnySequence(sequences: Sequence[]): Set<string> {
   return s;
 }
 
-/** De actieve baseline of null. */
 function activeBaseline(s: AppState): Baseline | null {
   if (!s.activeBaselineId) return null;
   return s.baselines.find((b) => b.id === s.activeBaselineId) ?? null;
 }
 
-/** Compacte kalender-samenvatting (voor project_info). */
 function calendarSummary(cal: WorkCalendar) {
   return {
     id: cal.id,
@@ -228,9 +145,6 @@ function calendarSummary(cal: WorkCalendar) {
   };
 }
 
-// ── 1. planner_get_project_info ──────────────────────────────────────────────────────────────────
-
-/** Per bronproject van de externe relaties: hoeveel koppelingen, en hoeveel daarvan hun brontaak missen. */
 function externalSourcesSummary(tasks: readonly Task[]) {
   const bySource = new Map<string, { projectId: string; projectName?: string; filePath?: string; links: number; sourceMissing: number }>();
   for (const task of tasks) {
@@ -256,14 +170,8 @@ function getProjectInfo(s: AppState) {
   const leaves = tasks.filter(isLeafTask);
   const summaries = tasks.filter(isSummaryTask);
   const milestones = tasks.filter((t) => t.isMilestone);
-  // "Datums zoals opgeslagen": in de modus is `isCritical` van
-  // een taak zonder vastgelegde speling de `?? false`-terugval — die telt hier niet als "niet
-  // kritiek" maar als onbekend, apart gerapporteerd zodat een AI-client geen "0 kritieke taken"
-  // uit een verzwegen as leest. Buiten de modus is `unrecordedOf` undefined ⇒ ongewijzigde respons.
   const unrecordedOf = unrecordedExportGate(s.recordedDates, s.datesAsRecorded);
   const criticalUnknown = leaves.filter((t) => unrecordedOf?.(t).includes('isCritical')).length;
-  // Alleen bladtaken: een verzameltaak draagt een opgerolde kritiek-vlag maar is geen activiteit.
-  // Dezelfde teller als de statusbalk en het Rapportpaneel.
   const criticalCount = countCriticalActivities(tasks.filter((t) => !unrecordedOf?.(t).includes('isCritical')));
   const p = s.project;
   return {
@@ -278,8 +186,6 @@ function getProjectInfo(s: AppState) {
       ...(p.statusDate ? { statusDate: p.statusDate } : {}),
       ...(p.progressMode ? { progressMode: p.progressMode } : {}),
       ...(p.defaultWorkRule ? { defaultWorkRule: p.defaultWorkRule } : {}),
-      // Rekenprofiel: altijd expliciet, ook een OPS-project; `conventions` is de opgeloste
-      // set waarmee de solver rekent, `overrides` de letterlijke afwijkingen van de basis.
       schedulingProfile: {
         id: p.schedulingProfile?.id ?? 'ops',
         baseId: p.schedulingProfile?.baseId ?? 'ops',
@@ -287,9 +193,6 @@ function getProjectInfo(s: AppState) {
         overrides: { ...(p.schedulingProfile?.overrides ?? {}) },
         conventions: resolveConventions(p.schedulingProfile),
       },
-      // De elf projectopties letterlijk zoals het bestand ze draagt, plus `startToStartLagFrom` altijd
-      // expliciet: afwezig rekent de solver als 'earlyStart'. Het
-      // nivelleerblok (`leveling`) komt zo alleen-lezen mee; het heeft (nog) geen rekeneffect.
       schedulingOptions: {
         ...(p.schedulingOptions ?? {}),
         startToStartLagFrom: p.schedulingOptions?.startToStartLagFrom ?? 'earlyStart',
@@ -320,13 +223,9 @@ function getProjectInfo(s: AppState) {
   };
 }
 
-// ── 2. planner_get_project_overview ──────────────────────────────────────────────────────────────
-
 function getProjectOverview(s: AppState) {
   const tasks = s.tasks;
   const taskById = new Map(tasks.map((t) => [t.id, t]));
-  // Uitgaande relaties per voorganger — zo verschijnt ELKE relatie precies één keer en is de
-  // volledige relatiegraaf gegarandeerd in deze ene respons aanwezig (één call volstaat).
   const outByPred = new Map<string, Sequence[]>();
   for (const seq of s.sequences) {
     const arr = outByPred.get(seq.predecessorId);
@@ -337,11 +236,7 @@ function getProjectOverview(s: AppState) {
   const critUnrecorded = unrecordedOverview
     ? (t: Task) => unrecordedOverview(t).includes('isCritical')
     : undefined;
-  // Rijen in BOOMVOLGORDE met expliciete diepte: de store-volgorde is na een
-  // P6-/IFC-import "samenvattingen eerst", en `parent` (een WBS-code) is bij vrije of dubbele codes
-  // niet eenduidig — `parentId` en `depth` zijn dat wel. `parent` blijft staan voor bestaande clients.
   const ordered = flattenOrder(tasks);
-  // Diepte uit de ouderketen; `flattenOrder` levert ouders vóór hun kinderen, dus één pass volstaat.
   const depthById = new Map<string, number>();
   for (const t of ordered) {
     const parentDepth = t.parentId ? depthById.get(t.parentId) : undefined;
@@ -350,9 +245,6 @@ function getProjectOverview(s: AppState) {
   const rows = ordered.map((t) => {
     const rels = (outByPred.get(t.id) ?? []).map((seq) => relShort(taskById, seq));
     const row: Record<string, unknown> = {
-      // Het STABIELE Task.id staat vooraan. Zonder dit veld kan geen enkele mutatietool op de overview
-      // gevoed worden (die sleutelen allemaal op id, niet op WBS) — de "één call volstaat"-belofte geldt
-      // dan niet voor structuurWERK, alleen voor -analyse.
       id: t.id,
       wbs: t.wbsCode,
       name: t.name,
@@ -361,7 +253,6 @@ function getProjectOverview(s: AppState) {
       start: t.time.earlyStart,
       end: t.time.earlyFinish,
     };
-    // `depth`/`parent`/`parentId` alleen op geneste rijen — een wortel is impliciet diepte 1 (compact).
     if (t.parentId) {
       row.depth = depthById.get(t.id) ?? 1;
       row.parent = taskById.get(t.parentId)?.wbsCode ?? t.parentId;
@@ -369,8 +260,6 @@ function getProjectOverview(s: AppState) {
     }
     const p = pct(t.time.completion);
     if (p > 0) row.prog = p;
-    // Zelfde poort als `getTask`: een niet-vastgelegde
-    // kritiekas in de modus is onbekend, geen `false` — dan `crit: null` i.p.v. weglaten.
     if (critUnrecorded?.(t)) row.crit = null;
     else if (t.time.isCritical) row.crit = true;
     if (t.isMilestone) row.ms = true;
@@ -386,8 +275,6 @@ function getProjectOverview(s: AppState) {
   };
 }
 
-// ── 3. planner_list_tasks ────────────────────────────────────────────────────────────────────────
-
 interface ListTasksArgs extends PageArgs {
   kritiek?: unknown;
   status?: unknown;
@@ -398,7 +285,6 @@ interface ListTasksArgs extends PageArgs {
 }
 
 function listTasks(s: AppState, args: ListTasksArgs) {
-  // Elk filter eerst valideren; een fout filter mag NOOIT stil een andere verzameling geven.
   requireOnlyKeys(args, LIST_TASKS_KEYS, 'list_tasks');
   requireBool(args.kritiek, 'kritiek');
   requireBool(args.zonder_relaties, 'zonder_relaties');
@@ -413,8 +299,6 @@ function listTasks(s: AppState, args: ListTasksArgs) {
 
   let filtered = s.tasks;
 
-  // Onbekende kritiekas (modus "datums zoals opgeslagen"): hoort bij
-  // GEEN van beide filters — niet-vastgelegd is niet hetzelfde als niet-kritiek.
   const critUnknown = unrecordedExportGate(s.recordedDates, s.datesAsRecorded);
   if (args.kritiek === true) filtered = filtered.filter((t) => t.time.isCritical && !critUnknown?.(t).includes('isCritical'));
   if (args.kritiek === false) filtered = filtered.filter((t) => !t.time.isCritical && !critUnknown?.(t).includes('isCritical'));
@@ -422,25 +306,17 @@ function listTasks(s: AppState, args: ListTasksArgs) {
     const st = args.status;
     filtered = filtered.filter((t) => t.status === st);
   }
-  // Datumvenster: overlap van de getoonde spanne met [van, tot], op DAGniveau — dezelfde gedeelde
-  // test als het filter "Actief tussen" en de rapportvensters. Een ruwe stringvergelijking miste een
-  // urentaak die op de tot-dag begint: als tekst is "2026-06-03T08:00" groter dan "2026-06-03".
-  // Een open kant van het venster begrenst niets.
   if (typeof args.van === 'string' || typeof args.tot === 'string') {
     const van = typeof args.van === 'string' ? args.van : '0000-01-01';
     const tot = typeof args.tot === 'string' ? args.tot : '9999-12-31';
     filtered = filtered.filter((t) => shownSpanOverlapsDays(t, van, tot));
   }
-  // Externe relaties tellen als logica, ook op een fase (zoals de berekening en de rapporten,
-  // `buildLogicIndex`): een taak die wacht op een ander project is geen wees.
   const byId = new Map(s.tasks.map((t) => [t.id, t] as const));
   const externalCount = (t: Task) => externalRelationCount(t, byId);
   if (typeof args.externe_relaties === 'boolean') {
     const want = args.externe_relaties;
     filtered = filtered.filter((t) => (externalCount(t) > 0) === want);
   }
-  // Wees-detectie telt ook relaties op voorouders: die verbinden hun bladtaken met het netwerk.
-  // Een relatie op een kind verbindt niet automatisch zijn ouder of zustertakken.
   if (args.zonder_relaties === true) {
     const inSeq = idsInAnySequence(s.sequences);
     const parentOf = new Map(s.tasks.map((t) => [t.id, t.parentId]));
@@ -468,8 +344,6 @@ function listTasks(s: AppState, args: ListTasksArgs) {
     };
     const p = pct(t.time.completion);
     if (p > 0) row.prog = p;
-    // Zelfde poort als `getTask`: een niet-vastgelegde
-    // kritiekas in de modus is onbekend, geen `false` — dan `crit: null` i.p.v. weglaten.
     if (critUnrecorded?.(t)) row.crit = null;
     else if (t.time.isCritical) row.crit = true;
     if (t.isMilestone) row.ms = true;
@@ -485,8 +359,6 @@ function listTasks(s: AppState, args: ListTasksArgs) {
     next_offset: paged.next_offset,
   };
 }
-
-// ── 4. planner_get_task ──────────────────────────────────────────────────────────────────────────
 
 interface GetTaskArgs {
   taskId?: unknown;
@@ -511,14 +383,11 @@ function getTask(s: AppState, args: GetTaskArgs) {
       resourceId: a.resourceId,
       resourceName: resById.get(a.resourceId)?.name ?? null,
       unitsPerDay: a.unitsPerDay,
-      // Begroot tempo naast een P6-resttempo (dan is `unitsPerDay` het resttempo); alleen wanneer gezet.
       ...(a.plannedUnitsPerDay !== undefined ? { plannedUnitsPerDay: a.plannedUnitsPerDay } : {}),
       curve: a.curve ?? 'UNIFORM',
-      // De drie werkvelden, alleen wanneer gezet (afwezig ⇒ afgeleid).
       ...(a.plannedWorkMinutes !== undefined ? { plannedWorkMinutes: a.plannedWorkMinutes } : {}),
       ...(a.actualWorkMinutes !== undefined ? { actualWorkMinutes: a.actualWorkMinutes } : {}),
       ...(a.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: a.remainingWorkMinutes } : {}),
-      // Begroot bedrag van een kostentoewijzing (issue #815), alleen wanneer gezet.
       ...(a.costAmount !== undefined ? { costAmount: a.costAmount } : {}),
     }));
 
@@ -547,7 +416,6 @@ function getTask(s: AppState, args: GetTaskArgs) {
         : {}),
     }));
 
-  // Effectieve kalender: taak-kalender uit de bibliotheek, anders de projectkalender.
   const effCal = resolveCalendar(task.calendarId, s.calendars, s.calendar);
 
   const tt = task.time;
@@ -561,7 +429,6 @@ function getTask(s: AppState, args: GetTaskArgs) {
     ...(task.customTaskTypeId ? {
       customTaskType: {
         id: task.customTaskTypeId,
-        // Een beschadigd/oud project mag leesbaar blijven: de id blijft zichtbaar, naam is dan null.
         name: s.customTaskTypes.find(type => type.id === task.customTaskTypeId)?.name ?? null,
       },
     } : {}),
@@ -570,21 +437,13 @@ function getTask(s: AppState, args: GetTaskArgs) {
     ...(task.milestoneKind ? { milestoneKind: task.milestoneKind } : {}),
     ...(task.isHammock ? { isHammock: true } : {}),
     ...(task.mandatory ? { mandatory: true } : {}),
-    // Leeskant-rand: elk veld dat de .mpp-import op de taak zet, moet ook via de MCP-bridge leesbaar
-    // zijn, anders kan een AI-client een geïmporteerd project niet inspecteren. Geen van deze zes is via
-    // `fields` zetbaar (REJECT_HINTS in `taskFields.ts`, net als `isHammock`); onderbrekingen lopen via
-    // `planner_set_task_splits`.
     ...(task.manuallyScheduled ? { manuallyScheduled: true } : {}),
     ...(task.splitGaps && task.splitGaps.length > 0 ? { splitGaps: task.splitGaps } : {}),
-    // Naast de rauwe `splitGaps` de leesbare werk-as-vorm, in exact de eenheden die
-    // `planner_set_task_splits` accepteert (de schrijfkant spreekt de leeskant, zie `splitFields.ts`).
-    // Een niet-wélgevormde importsplit heeft geen leesbare vorm: `splitsEditable: false`.
     ...splitReadFields(task, s),
     ...(task.levelingDelayMinutes != null ? { levelingDelayMinutes: task.levelingDelayMinutes } : {}),
     ...(task.mspTaskType ? { mspTaskType: task.mspTaskType } : {}),
     ...(task.effortDriven ? { effortDriven: true } : {}),
     ...(task.timephasedContours && task.timephasedContours.length > 0 ? { timephasedContours: task.timephasedContours } : {}),
-    // De neutrale werkregel, leesbaar zodra gezet.
     ...(task.workRule ? { workRule: task.workRule } : {}),
     ...(task.p6DurationType !== undefined ? { p6DurationType: task.p6DurationType } : {}),
     ...(task.p6ActivityType !== undefined ? { p6ActivityType: task.p6ActivityType } : {}),
@@ -599,12 +458,6 @@ function getTask(s: AppState, args: GetTaskArgs) {
     duration: nativeDuration(task),
     durationUnit: taskDurationUnit(task),
     durationType: tt.durationType,
-    // "Datums zoals opgeslagen": staat de modus aan, dan draagt
-    // `task.time` de vastlegging van het bronbestand, mét de bewuste terugvallen voor assen die het
-    // bestand NIET vastlegde (`lateStart ?? rec.start`, `totalFloat ?? 0`, `isCritical ?? false`).
-    // In de tabel staat daar "Niet vastgelegd"; hier is `null` het equivalent. Zonder dit leest een
-    // AI-client een verzonnen nulspeling als feit — en anders dan een gebruiker ziet hij de strook
-    // boven de planning niet. `unrecorded` is `undefined` buiten de modus ⇒ ongewijzigde respons.
     schedule: {
       earlyStart: tt.earlyStart,
       earlyFinish: tt.earlyFinish,
@@ -614,7 +467,6 @@ function getTask(s: AppState, args: GetTaskArgs) {
       freeFloat: unrecorded?.includes('freeFloat') ? null : tt.freeFloat,
       isCritical: unrecorded?.includes('isCritical') ? null : tt.isCritical,
       ...(unrecorded && unrecorded.length > 0 ? {
-        // Expliciet, want `null` alleen is dubbelzinnig ("onbekend" vs "leeg gelaten").
         datesAsRecordedUnrecordedFields: unrecorded,
       } : {}),
     },
@@ -622,12 +474,6 @@ function getTask(s: AppState, args: GetTaskArgs) {
       completion: pct(tt.completion),
       ...(tt.actualStart ? { actualStart: tt.actualStart } : {}),
       ...(tt.actualFinish ? { actualFinish: tt.actualFinish } : {}),
-      // Een voltooide taak wordt op zijn actuals gepind, maar de gerekende datums liggen ALTIJD op
-      // een werkdag van de taakkalender. Valt de `actualFinish` in onwerkbare tijd (weekend, bouwvak,
-      // feestdag), dan is `earlyFinish` de laatste werkdag daarvóór en wijkt hij zichtbaar af van het
-      // geregistreerde feit. Dat verschil stil laten staan is precies wat dit oppervlak niet doet:
-      // een AI die de twee velden naast elkaar ziet, concludeert anders dat de herberekening kapot is.
-      // Alleen zichtbaar wanneer er iets te melden valt.
       ...(tt.completion >= 1 && tt.actualFinish && tt.earlyFinish && tt.earlyFinish !== tt.actualFinish
         ? {
             actualFinishAdjusted: {
@@ -654,8 +500,6 @@ function getTask(s: AppState, args: GetTaskArgs) {
     assignments,
     predecessors,
     successors,
-    // Externe relaties (keuze 11): de eigen koppelingen, en die van de fasen erboven (die gelden voor
-    // elke taak in de fase).
     externalLinks: (task.externalLinks ?? []).map(externalLinkView),
     ...(() => {
       const inherited = inheritedExternalLinkViews(task, taskById);
@@ -670,10 +514,8 @@ function elementLinkFields(s: AppState, taskId: string) {
   return links && links.length > 0 ? { elementLinks: { ...elementLinkCounts(links), links } } : {};
 }
 
-// ── 5. planner_get_critical_path ─────────────────────────────────────────────────────────────────
-
 function getCriticalPath(s: AppState, args: PageArgs) {
-  requirePageArgs(args); // ook als er geen resultaat is: een foute pagina blijft een VALIDATION-fout
+  requirePageArgs(args);
   const cpm = s.cpmResult;
   if (!cpm || cpm.error) {
     return {
@@ -690,9 +532,6 @@ function getCriticalPath(s: AppState, args: PageArgs) {
   const taskById = new Map(s.tasks.map((t) => [t.id, t]));
   const critSet = new Set(cpm.criticalPath);
 
-  // Kritieke taken in TOPO-volgorde (cpm.criticalPath is opgebouwd in de solver-order).
-  // Zelfde poort als in `getTask`: in "datums zoals opgeslagen" is de
-  // speling van een taak zonder vastgelegde `totalFloat` een `?? 0`-terugval, geen meting.
   const unrecordedOf = unrecordedExportGate(s.recordedDates, s.datesAsRecorded);
   const criticalTasks = cpm.criticalPath.map((id) => {
     const t = taskById.get(id);
@@ -707,12 +546,9 @@ function getCriticalPath(s: AppState, args: PageArgs) {
       totalFloat: unrecorded?.includes('totalFloat') ? null : (r?.totalFloat ?? 0),
     };
   });
-  // Optionele pagina over de kritieke taken; de relaties volgen de pagina via hun opvolger, zodat elke
-  // relatie op precies één pagina staat.
   const page = optionalPage(criticalTasks, args);
   const pageIds = page ? new Set(page.items.map((t) => t.id)) : null;
 
-  // Driving-relaties GEFILTERD op paren waarvan BEIDE eindpunten kritiek zijn.
   const seqById = new Map(s.sequences.map((seq) => [seq.id, seq]));
   const drivingIds = knownDrivingSequenceIds(cpm);
   const drivingRelations = drivingIds?.map((id) => seqById.get(id))
@@ -728,9 +564,6 @@ function getCriticalPath(s: AppState, args: PageArgs) {
       lag: lagLabel(seq),
     })) ?? null;
 
-  // Gescheiden parallelle ketens (`criticalPaths`) bestaan ALLEEN bij floatPaths.enabled mét
-  // FREE_FLOAT; in elk ander geval is criticalPaths === [criticalPath] (één samengevoegd array).
-  // De respons meldt welke situatie geldt; reconstructie van de keten is client-werk.
   const fp = s.project.schedulingOptions?.floatPaths;
   const parallelAvailable = fp?.enabled === true && fp.method === 'FREE_FLOAT';
   const base = {
@@ -747,7 +580,6 @@ function getCriticalPath(s: AppState, args: PageArgs) {
     pathsMode: parallelAvailable ? ('parallel' as const) : ('merged' as const),
   };
   if (parallelAvailable) {
-    // Naar WBS mappen zodat de client de ketens leesbaar heeft (id's blijven in criticalTasks).
     return {
       ...base,
       criticalPaths: cpm.criticalPaths.map((chain) => chain.map((id) => wbsOf(taskById, id))),
@@ -757,13 +589,9 @@ function getCriticalPath(s: AppState, args: PageArgs) {
   return base;
 }
 
-// ── 6. planner_list_resources ────────────────────────────────────────────────────────────────────
-
 function listResources(s: AppState, args: PageArgs) {
   requireOnlyKeys(args, PAGE_KEYS, 'list_resources');
   requirePageArgs(args);
-  // Toewijzings-samenvatting per resource (aantal toewijzingen, aantal betrokken taken, som units/dag).
-  // Een kostenresource (issue #815) telt geen inzet; zijn bedragen tellen op tot `totalCostAmount`.
   const costIds = new Set(s.resources.filter((r) => r.type === 'COST').map((r) => r.id));
   const byRes = new Map<string, { assignments: number; tasks: Set<string>; totalUnits: number; totalCost: number }>();
   for (const a of s.assignments) {
@@ -790,18 +618,9 @@ function listResources(s: AppState, args: PageArgs) {
     if (typeof r.costPerHour === 'number') row.costPerHour = r.costPerHour;
     if (r.unitOfMeasure) row.unitOfMeasure = r.unitOfMeasure;
     if (r.calendarId) row.calendarId = r.calendarId;
-    // LEESKANT ↔ SCHRIJFKANT (planner_manage_resources): elk veld dat schrijfbaar is, moet ook
-    // leesbaar zijn — anders kan een AI een resource niet lezen, aanpassen en terugschrijven zonder
-    // te raden. Deze drie zijn in het resourcepaneel zichtbaar/bewerkbaar en round-trippen door IFC
-    // (`OPS_Resource`-pset + IFCRELNESTS).
     if (r.description) row.description = r.description;
     if (r.parentId) row.parentId = r.parentId;
     if (r.availabilitySteps && r.availabilitySteps.length > 0) row.availabilitySteps = r.availabilitySteps;
-    // HERKOMST UIT EEN RESOURCEBIBLIOTHEEK. `planner_manage_resources` weigert een
-    // wijziging op de velden die de bibliotheek bepaalt — dan moet de aanroeper dát hier kunnen ZIEN
-    // in plaats van het pas bij de weigering te ontdekken (leeskant ↔ schrijfkant). `status: null`
-    // betekent een stempel van een ander/onbekend bedrijf: dan geldt er géén slot en is de rij, net
-    // als in het resourcepaneel, gewoon bewerkbaar. `lockedFields` is dan leeg.
     if (r.libraryOrigin) {
       const st = s.onOpenStatusForResource(r.id);
       row.library = {
@@ -820,10 +639,6 @@ function listResources(s: AppState, args: PageArgs) {
   };
 }
 
-// ── 7. planner_get_resource_histogram ────────────────────────────────────────────────────────────
-
-/** Bovengrens voor het gescopte detail (buckets × resources): ruim genoeg voor 25 resources × een
- *  jaar in dagbuckets of 190 resources × een jaar in weken, klein genoeg voor een bruikbare respons. */
 const MAX_HISTOGRAM_BUCKETS = 10_000;
 
 interface HistogramArgs {
@@ -834,11 +649,6 @@ interface HistogramArgs {
 }
 
 function getResourceHistogram(ctx: McpContext, args: HistogramArgs, freshen: () => ReadFreshResult) {
-  // VALIDEREN VÓÓR DE (potentieel dure) RECOMPUTE. Drie stille faalgevallen die zo uitgesloten zijn:
-  //   - `bucket` gecoërceerd (`bucket: 'day'` stil 'week');
-  //   - niet-string `resourceIds` weggefilterd; valt alles weg, dan wordt `scoped` false en schakelt
-  //     de tool stil naar de AGGREGAAT-modus — een heel andere respons dan gevraagd;
-  //   - een onbekend resource-id als lege reeks, die leest als "geen belasting".
   requireOnlyKeys(args, HISTOGRAM_KEYS, 'get_resource_histogram');
   if (args.bucket !== undefined && args.bucket !== 'dag' && args.bucket !== 'week' && args.bucket !== 'maand') {
     throw new McpStepError('VALIDATION',
@@ -860,7 +670,6 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs, freshen: () 
       throw new McpStepError('VALIDATION',
         `unknown resource id(s): ${unknown.join(', ')} — get valid ids with planner_list_resources.`);
     }
-    // Een kostenresource heeft geen belasting en dus geen histogram (issue #815).
     const costIds = new Set(ctx.app.store.getState().resources.filter((r) => r.type === 'COST').map((r) => r.id));
     const cost = (args.resourceIds as string[]).filter((id) => costIds.has(id));
     if (cost.length > 0) {
@@ -871,18 +680,14 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs, freshen: () 
     resourceIds = args.resourceIds as string[];
   }
 
-  // Vers herrekenen wanneer stale of nog nooit gerekend — maar niet in "datums zoals opgeslagen" en
-  // niet binnen een batch-transactie (zie `freshenScheduleForRead`). Een versheids-refresh, geen
-  // mutatie: geen undo-stap, geen `isDirty`.
   const fresh = freshen();
-  const s = ctx.app.store.getState(); // verse contextstate ná een eventuele recompute
+  const s = ctx.app.store.getState();
 
   const bucket: 'dag' | 'week' | 'maand' = args.bucket === 'dag' ? 'dag' : args.bucket === 'maand' ? 'maand' : 'week';
   const from = typeof args.van === 'string' ? args.van : undefined;
   const to = typeof args.tot === 'string' ? args.tot : undefined;
 
   const resNameById = new Map(s.resources.map((r) => [r.id, r.name]));
-  // Versheids-melding, gedeeld door beide paden: was de planning stale, dan is die vers herrekend.
   const freshMeta = {
     recomputed: fresh.recomputed,
     ...(fresh.error ? { scheduleError: fresh.error } : {}),
@@ -893,12 +698,6 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs, freshen: () 
 
   const scoped = (resourceIds && resourceIds.length > 0) || from !== undefined || to !== undefined;
 
-  // ── Ongescopt (geen venster ÉN geen resourceIds) ⇒ AGGREGAAT-default ───────────────────────────
-  // Een naïeve eerste call over een groot project zou anders per resource honderden bucket-rijen
-  // opleveren (fors payload/token-verbruik). We geven dan per resource een compacte samenvatting die
-  // de PIEKEN NOOIT verbergt (peakLoad + datum, aantal overbelaste dagen, spanne, capaciteits-/
-  // belastingssom), met `detailAvailable: true` + hint zodat de client gericht kan inzoomen. Intern
-  // rekenen we in DAG-granulariteit zodat de piekdatum exact is; er gaan géén bucket-arrays over.
   if (!scoped) {
     const dayReport = computeHistogramReport({
       tasks: s.tasks,
@@ -951,10 +750,6 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs, freshen: () 
     };
   }
 
-  // ── Gescopt (venster en/of resourceIds) ⇒ VOLLEDIG bucket-detail (bestaand gedrag) ─────────────
-  // Omvang begrenzen vóór het rekenen: een ruim venster in dagbuckets over alle resources (bv.
-  // `van` 1900 … `tot` 2100) leverde tienduizenden buckets per resource op — megabytes JSON die geen
-  // client kan gebruiken. Boven de grens een VALIDATION-fout met de uitweg.
   const bucketCount = histogramWindows(s.tasks, from, to, bucket).length
     * (resourceIds && resourceIds.length > 0 ? resourceIds.length : s.resources.length);
   if (bucketCount > MAX_HISTOGRAM_BUCKETS) {
@@ -990,16 +785,11 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs, freshen: () 
   };
 }
 
-// ── 8. planner_get_calendars ─────────────────────────────────────────────────────────────────────
-
 function getCalendars(s: AppState) {
-  // Unie cache (projectkalender) + bibliotheek, gededupt op id; projectkalender eerst.
   const byId = new Map<string, WorkCalendar>();
   byId.set(s.calendar.id, s.calendar);
   for (const c of s.calendars) if (!byId.has(c.id)) byId.set(c.id, c);
 
-  // Gebruikt-door tellingen. Voor de projectdefault tellen ook taken/resources ZONDER expliciete
-  // calendarId mee (die vallen terug op de projectkalender).
   const projectDefaultId = s.calendar.id;
   const list = [...byId.values()].map((cal) => {
     const isDefault = cal.id === projectDefaultId;
@@ -1009,7 +799,6 @@ function getCalendars(s: AppState) {
     const usedByResources = s.resources.filter((r) =>
       isDefault ? (!r.calendarId || r.calendarId === cal.id) : r.calendarId === cal.id,
     ).length;
-    // Volledige WorkCalendar-definitie (eis: cross-document-herbouw) + de afgeleide velden.
     return {
       ...cal,
       isProjectDefault: isDefault,
@@ -1020,12 +809,9 @@ function getCalendars(s: AppState) {
   return { calendars: list, count: list.length, projectDefaultId };
 }
 
-// ── 9. planner_compare_baseline ──────────────────────────────────────────────────────────────────
-
 function compareBaseline(s: AppState, args: PageArgs) {
   const baseline = activeBaseline(s);
   if (!baseline) {
-    // De weigering moet naar een BESTAANDE weg wijzen (de baselinetools in `baselineTools.ts`).
     throw new McpStepError('VALIDATION',
       'No active baseline. Save one with planner_save_baseline, or choose an existing one with ' +
       'planner_activate_baseline (planner_list_baselines shows which exist).');
@@ -1047,7 +833,6 @@ function compareBaseline(s: AppState, args: PageArgs) {
   };
 }
 
-/** Compacte variance-rij: laat undefined-velden weg. */
 function compactVarianceRow(r: VarianceRow) {
   const row: Record<string, unknown> = {
     taskId: r.taskId,
@@ -1064,8 +849,6 @@ function compactVarianceRow(r: VarianceRow) {
   return row;
 }
 
-// ── 10. planner_analyze_delay ────────────────────────────────────────────────────────────────────
-
 function analyzeDelay(s: AppState, args: PageArgs) {
   const baseline = activeBaseline(s);
   if (!baseline) {
@@ -1079,8 +862,6 @@ function analyzeDelay(s: AppState, args: PageArgs) {
   const currentEnd = cpm?.projectEnd || undefined;
   const variance = computeVariance(s.tasks, baseline, cal, currentEnd);
 
-  // Kritieke schuivers = variance-afwijkers die OP het huidige kritieke pad liggen — lokalisatie/
-  // verklaring, met individuele delta's. De opleverings-impact is NOOIT hun som (cascade-dubbeltelling).
   const critSet = new Set(cpm?.criticalPath ?? []);
   const shifters = variance.rows
     .filter((r) => r.status !== 'onSchedule' && critSet.has(r.taskId))
@@ -1101,7 +882,6 @@ function analyzeDelay(s: AppState, args: PageArgs) {
     baselineId: baseline.id,
     baselineName: baseline.name,
     scheduleStale: s.scheduleStale,
-    // DE opleverings-impact: projectEndDelta (werkdagen, signed). Nooit een som van taakdelta's.
     projectEndDeltaAvailable: hasDelta,
     projectEndDelta: hasDelta ? variance.projectEndDelta : null,
     ...(hasDelta
@@ -1114,18 +894,10 @@ function analyzeDelay(s: AppState, args: PageArgs) {
   };
 }
 
-// ── Tool-definities ──────────────────────────────────────────────────────────────────────────────
-
-/** Leestool met berekende waarden: eerst een verouderde planning doorrekenen (zie de kop). */
 const FRESH = { freshSchedule: true } as const;
-
-// Dat een leestool een verouderde planning eerst doorrekent, staat één keer: bij planner_get_project_info (de
-// SuperCloud-export heeft geen MCP_INSTRUCTIONS) en in MCP_INSTRUCTIONS (#818). De uitzonderingen
-// (`datesAsRecorded`, `scheduleStale`, `scheduleError`) legt de envelop zelf uit met `scheduleNote`.
 
 const NO_ARGS_SCHEMA = { type: 'object', properties: {}, additionalProperties: false } as const;
 
-/** Schema van een leestool met alleen OPTIONELE paginering (#818): zonder beide velden de hele lijst. */
 const OPTIONAL_PAGE_SCHEMA = {
   type: 'object',
   properties: {
@@ -1135,14 +907,8 @@ const OPTIONAL_PAGE_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-// De eenheid van de speling (council-ronde 3 op #836). `CPMSolver.signedFloat`: werkdagen van de taakkalender
-// (dagenmaat, anders werkminuten ÷ (uren per dag × 60), dus ook bij een uurtaak); ELAPSEDTIME: kalenderdagen van
-// 24 uur (`signedElapsedSpan`). Test: `cases-uurkalender` (4 uur naast 8 uur ⇒ 0.5).
 const FLOAT_UNIT_NOTE = 'Float is in working days of the task calendar, also on hour tasks (ELAPSEDTIME: calendar days).';
 
-/** Zin in de beschrijving van zo'n tool; de schemavelden zelf dragen geen beschrijving meer. Het schema zegt
- *  `number`, de handler eist gehele getallen (`requirePageArgs`); daarom staat "integer" hier. Zonder beide
- *  sleutels geeft `optionalPage` `null`, en de tool de hele lijst. */
 const optionalPageNote = (list: string): string =>
   ` Pages \`${list}\`: integer \`limit\` 1–1000 (default 50), \`offset\` ≥ 0; omit both for all.`;
 

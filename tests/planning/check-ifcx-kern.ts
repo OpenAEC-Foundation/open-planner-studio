@@ -5,8 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { readIFC } from '@/services/ifc/ifcReader';
-import { ifcGuid, ifcGuid128, ifcObjectSeed, writeIFC, writeIFCForComparison, type IfcObjectKind, type WriteIFCInput } from '@/services/ifc/ifcWriter';
-import { DEFAULT_CALENDAR_ID } from '@/engine/calendar/defaultCalendar';
+import { ifcGuid, ifcGuid128, ifcObjectSeed, writeIFCForComparison, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { planProgressEntry } from '@/engine/progressEntry';
 import {
   classifyIfcx, readIfcx, writeIfcx, IfcxReadError, IfcxWriteRefusedError, type IfcxImportResult, type IfcxReadErrorCode,
@@ -20,6 +19,7 @@ import { serializeIfcx, type IfcxDocument } from '@/services/ifc/ifcx/projection
 import { HEADER_VALUE } from '@/services/ifc/ifcx/ownAttributes';
 import { ALL_MODEL_KEYS, LOAD_BOUNDARY_MODEL_KEYS, NODES, OWN_ATTRIBUTE_VALUES, STEP_WRITER_INPUT_NOT_CARRIED } from '@/services/ifc/ifcx/nodes';
 import { IDENTITY_KINDS, intendedGlobalIds, type PlanningModel } from '@/services/ifc/ifcx/identity';
+import { unsupportedContent } from '@/services/ifc/ifcx/unsupportedContent';
 import { TASK_TIME_FIELDS } from '@/services/ifc/ifcx/fields/taskFields';
 import {
   CALENDAR_DATE_FORM, FREE_TEXT_FORM, ISO_DATE_OR_MOMENT_OR_EMPTY_FORM, ISO_MOMENT_FORM,
@@ -31,10 +31,11 @@ import {
 import { OPS_NAMESPACE } from '@/services/ifc/ifcx/profile';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
+import type { Project } from '@/types/project';
+import { CONVENTION_KEYS } from '@/engine/scheduler/conventions/registry';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Baseline, BaselineTask } from '@/types/baseline';
-import { syncProjectCalendar } from '@/state/syncProjectCalendar';
 import { buildWriteIFCInput, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { freshPayload, payloadFromImport, type DocumentPayload } from '@/state/documentContract';
 import { prepareLoadedPayload } from '@/state/documentActivation';
@@ -43,12 +44,14 @@ import { recordedGridBinding, unrecordedExportGate } from '@/state/recordedDates
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { ALL_RECORDED_SLOT_KEYS, type WithheldTaskTimeField } from '@/services/ifc/ifcTaskSlots';
 import { fixture as roundtripFixture } from './ifcRoundtripFixture';
+import {
+  ASSIGNMENT_ID_NOT_COMPARED, attempt, CLOCK, documentOf, encode, modelDifferences, openedAsStep, projectionOf, publicRouteProblems,
+  saveInputViaApp, stepRoundtrip, timestampOf,
+} from './ifcxProof';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const examplesDir = join(root, 'public/examples');
 const fixturesDir = join(root, 'tests/fixtures/ifcx/eigen');
-const CLOCK = new Date('2026-11-24T08:00:00.000Z');
-const encode = (text: string) => new TextEncoder().encode(text);
 
 let passed = 0, failed = 0;
 function test(name: string, action: () => void): void {
@@ -68,8 +71,6 @@ const NOT_IN_KERN_PROJECT_FIELDS = [
   'dependentProjectsFolder', 'anchorsFromOpenDocuments',
 ];
 
-const NOT_IN_KERN_CALENDAR_FIELDS = ['p6Source', 'p6NonWorkPenaltyDates', 'p6NonWorkPenaltyDatesState', 'libraryOrigin'];
-
 function without<T extends object>(object: T, keys: readonly string[]): T {
   const copy = { ...object } as Record<string, unknown>;
   for (const key of keys) delete copy[key];
@@ -80,8 +81,6 @@ function kernOf(full: ImportResult): ImportResult {
   return {
     ...full, activityCodeTypes: [], customFieldDefs: [], customTaskTypes: [], libraryPool: undefined,
     project: without(full.project, NOT_IN_KERN_PROJECT_FIELDS),
-    calendar: without(full.calendar, NOT_IN_KERN_CALENDAR_FIELDS),
-    ...(full.resourceCalendars ? { resourceCalendars: full.resourceCalendars.map(calendar => without(calendar, NOT_IN_KERN_CALENDAR_FIELDS)) } : {}),
     tasks: full.tasks.map(task => ({ ...without(task, NOT_IN_KERN_TASK_FIELDS), time: without(task.time, ['progressBeforeRecalculation']) })),
     sequences: full.sequences.map(sequence => without(sequence, ['p6StartAtPredecessorFinishBoundary'])),
   };
@@ -96,83 +95,17 @@ function domainOf(model: ImportResult): Record<string, unknown> {
   }) as Record<string, unknown>;
 }
 
-function stepRoundtrip(input: WriteIFCInput): ImportResult {
-  const { createdAt, modifiedAt } = input.project;
-  return readIFC(writeIFC(input), {}, { projectTimestampFallback: { createdAt, modifiedAt } });
-}
 
-function stepGlobalId(kind: IfcObjectKind, id: string, projectId: string): string {
-  const seed = ifcObjectSeed(kind, id);
-  return ifcGuid128(kind === 'cal' && id === DEFAULT_CALENDAR_ID ? `${seed}@${projectId}` : seed);
-}
 
-function stepReopened(input: WriteIFCInput): ImportResult {
-  const step = stepRoundtrip(input);
-  const ifcGlobalIds: Record<string, string> = { ...step.ifcGlobalIds };
-  const objects: [IfcObjectKind, string][] = [
-    ['proj', step.project.id], ['wp', step.project.id], ['ws', step.project.id],
-    ...[step.calendar, ...(step.resourceCalendars ?? [])].map(calendar => ['cal', calendar.id] as [IfcObjectKind, string]),
-    ...step.tasks.map(task => ['task', task.id] as [IfcObjectKind, string]),
-    ...step.sequences.map(sequence => ['seq', sequence.id] as [IfcObjectKind, string]),
-    ...step.resources.map(resource => ['res', resource.id] as [IfcObjectKind, string]),
-    ...(step.baselines ?? []).map(baseline => ['bl', baseline.id] as [IfcObjectKind, string]),
-  ];
-  for (const [kind, id] of objects) {
-    const seed = ifcObjectSeed(kind, id);
-    if (!ifcGlobalIds[seed]) ifcGlobalIds[seed] = stepGlobalId(kind, id, step.project.id);
-  }
-  const recordedFields = Object.fromEntries(step.tasks.map(task => {
-    const kept = step.recordedFields?.[task.id] ?? [];
-    const named = input.recordedFields?.[task.id];
-    return [task.id, named === undefined ? kept : kept.filter(key => named.includes(key))];
-  }));
-  return { ...step, ifcGlobalIds, recordedFields };
-}
 
-function openedAsStep(input: WriteIFCInput): IfcxImportResult {
-  const reading = stepReopened(input);
-  const { writeMode, minuteModelPending, ...loaded } = buildWriteIFCInput(payloadFromImport(structuredClone(reading), null), 'planOnly');
-  const { milestonesAtDayEnd, ...facts } = reading;
-  return { ...facts, ...loaded, ...(minuteModelPending ? { minuteModelPending } : {}), recordedFields: reading.recordedFields };
-}
 
-function comparableModel(value: unknown): unknown {
-  if (Object.is(value, -0)) return 0;
-  if (value instanceof Set || value instanceof Map) return [...value].map(comparableModel);
-  if (Array.isArray(value)) return value.map(comparableModel);
-  if (typeof value === 'object' && value !== null) {
-    return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined).map(([key, item]) => [key, comparableModel(item)]));
-  }
-  return value;
-}
 
-const ASSIGNMENT_ID_NOT_COMPARED = 'het toewijzings-id staat buiten de vergelijking (aanvulling op R6)';
-
-function withoutAssignmentIds(model: ImportResult): ImportResult {
-  const ifcGlobalIds = model.ifcGlobalIds && Object.fromEntries(Object.entries(model.ifcGlobalIds).filter(([seed]) => !seed.startsWith('asgn:')));
-  return {
-    ...model, assignments: model.assignments.map(assignment => ({ ...assignment, id: ASSIGNMENT_ID_NOT_COMPARED })),
-    ...(ifcGlobalIds ? { ifcGlobalIds } : {}),
-  };
-}
-
-function modelDifferences(expected: ImportResult, actual: ImportResult, limit = 5): string[] {
-  const left = comparableModel(withoutAssignmentIds(expected)), right = comparableModel(withoutAssignmentIds(actual));
-  if (isDeepStrictEqual(left, right)) return [];
-  const named = selfCheckDifferences(left as ImportResult, right as ImportResult, limit);
-  return named.length > 0 ? named : ['een verschil zonder pad'];
-}
 
 function assertAsStep(back: ImportResult, input: WriteIFCInput): void {
   assert.deepEqual(modelDifferences(openedAsStep(input), back), []);
 }
 
-const projectionOf = (model: ImportResult, writtenAt: Date) => serializeIfcx(ownFileFor(model, writtenAt).document);
-const timestampOf = (text: string) => new Date(String(documentOf(text).header.timestamp));
 
-function documentOf(text: string): { header: Record<string, unknown>; imports: unknown[]; schemas: Record<string, unknown>; data: { path: string; attributes: Record<string, Record<string, unknown>> }[] } {
-  return JSON.parse(text);
-}
 
 function entryWith(document: ReturnType<typeof documentOf>, attribute: string, index = 0) {
   return document.data.filter(entry => attribute in entry.attributes)[index];
@@ -459,43 +392,11 @@ test('de eigen schemacontrole keurt een kapotte uitvoer af', () => {
 });
 
 const NOT_CARRIED_YET = [
-  'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'libraryPool', 'sourceScheduleNotes', 'recordedTimes', 'recordedSourceFormat',
+  'libraryPool', 'sourceScheduleNotes', 'recordedTimes',
   'suggestedProfileId', 'xer', 'xerOrigin', 'xerSourceArchive', 'ifcSource', 'ifcLegacySchemaLoss', 'recoveryForeignSource',
   'xerSourceProjectId', 'xerArchiveIssue', 'xerMissingPlannedStarts', 'p6xmlReport', 'msProjectReport', 'withheldTaskTimeFields',
   'xerSourceArchiveStorage',
 ];
-
-const F3_3_FIELDS = new Set<string>([
-  ...NOT_CARRIED_YET, ...NOT_IN_KERN_TASK_FIELDS.map(key => `task.${key}`), ...NOT_IN_KERN_PROJECT_FIELDS.map(key => `project.${key}`),
-  ...NOT_IN_KERN_CALENDAR_FIELDS.map(key => `calendar.${key}`),
-  'task.time.progressBeforeRecalculation', 'sequence.p6StartAtPredecessorFinishBoundary',
-]);
-
-const FULLY_CARRIED_EXAMPLES = [
-  '03-kantoorgebouw-zuidas.ifc', '05-brugvervanging-n279.ifc', '08-zorgcentrum-de-linde.ifc', '10-villa-wassenaar.ifc', '15-datacentrum-agriport.ifc',
-];
-
-function assertRefusedOnlyForF3_3(input: WriteIFCInput): void {
-  const refusal = writeRefusal(input);
-  assert.equal(refusal.code, 'unsupported', refusal.message);
-  assert.ok(refusal.fields.length > 0);
-  assert.deepEqual(refusal.fields.filter(field => !F3_3_FIELDS.has(field)), [], refusal.message);
-}
-
-for (const [name, full] of fullExamples) {
-  const carried = FULLY_CARRIED_EXAMPLES.includes(name);
-  test(`${name}: het volledige voorbeeld ${carried ? 'slaat op en komt terug zoals de STEP-rondgang het geeft' : 'wordt alleen om velden van F3-3 geweigerd'}`, () => {
-    if (carried) assert.deepEqual(publicRouteProblems(name, full, writeIfcx(full, CLOCK)), []);
-    else assertRefusedOnlyForF3_3(full);
-  });
-}
-
-test('de maximale STEP-fixture van check-ifc-roundtrip.ts: zonder F3-3-inhoud slaat ze op en komt ze terug zoals de STEP-rondgang haar geeft, direct en via de app; met die inhoud alleen om velden van F3-3 geweigerd', () => {
-  for (const input of [maximalStepFixture(), saveInputViaApp(maximalStepFixture())]) {
-    assert.deepEqual(publicRouteProblems('maximale STEP-fixture', input, writeIfcx(input, CLOCK)), []);
-  }
-  assertRefusedOnlyForF3_3(structuredClone(roundtripFixture));
-});
 
 function stepAssignmentIds(step: ImportResult): string[] {
   const places = new Map<string, number>();
@@ -508,8 +409,7 @@ function stepAssignmentIds(step: ImportResult): string[] {
 
 test('aanvulling op R6: alles behalve het toewijzings-id is de STEP-lezing, het id volgt uit taak, resource-GlobalId en plaats, en twee opslagen van dezelfde planning zijn byte-gelijk', () => {
   const plans: [string, WriteIFCInput][] = [
-    ['maximalPlan', maximalPlan()], ['maximale STEP-fixture', maximalStepFixture()],
-    ...[...fullExamples].filter(([name]) => FULLY_CARRIED_EXAMPLES.includes(name)),
+    ['maximalPlan', maximalPlan()], ['de maximaal gevulde fixture van check-ifc-roundtrip', structuredClone(roundtripFixture)], ...fullExamples,
   ];
   for (const [name, input] of plans) {
     const text = writeIfcx(input, CLOCK);
@@ -595,29 +495,18 @@ test('wat geen IFCX is, heet not-ifcx', () => {
   assert.equal(classifyIfcx(encode(goodText)), 'own');
 });
 
+const companyPool = () => ({ companyId: 'bedrijf-1', companyName: 'Bouwbedrijf', poolVersion: 1, modifiedAt: '2027-05-01T08:00:00Z', calendars: [], resources: [] });
+
 test('de voorcontrole noemt wat deze versie van IFCX nog niet draagt', () => {
   const plan = datePlan();
-  const refusal = writeRefusal({
-    ...plan, project: { ...plan.project, schedulingOptions: { lagCalendar: '24hour' } },
-    tasks: plan.tasks.map((task, index) => index === 0 ? { ...task, constraint: { type: 'SNET', date: '2027-06-01' } } : task),
-  });
+  const refusal = writeRefusal({ ...plan, libraryPool: companyPool() });
   assert.equal(refusal.code, 'unsupported');
-  assert.deepEqual([...refusal.fields].sort(), ['project.schedulingOptions', 'task.constraint']);
-  assert.match(refusal.message, /task\.constraint \(taak binnen-een-dag\)/);
-  assert.match(refusal.message, /project\.schedulingOptions \(het project\)/);
+  assert.deepEqual(refusal.fields, ['libraryPool']);
+  assert.match(refusal.message, /IFCX draagt deze gegevens nog niet: libraryPool/);
+  const later = { ...plan, tasks: plan.tasks.map((task, index) => (index === 0 ? { ...task, eenLaterVeld: 1 } : task)) } as WriteIFCInput;
+  assert.deepEqual(unsupportedContent(later), [{ field: 'task.eenLaterVeld', objects: ['taak binnen-een-dag'] }]);
 });
 
-function saveInputViaApp(result: ImportResult): WriteIFCInput {
-  const source = {
-    ...result, calendars: [...(result.resourceCalendars ?? [])], minuteModelPending: false,
-    ifcGlobalIds: result.ifcGlobalIds ?? null, ifcLiteralCalendarIds: null, ifcSource: null,
-    activityCodeTypes: result.activityCodeTypes ?? [], customFieldDefs: result.customFieldDefs ?? [],
-    customTaskTypes: result.customTaskTypes ?? [], baselines: result.baselines ?? [], activeBaselineId: result.activeBaselineId ?? null,
-    comparedBaselineIds: result.comparedBaselineIds ?? [null, null],
-  } as unknown as IFCSaveSource;
-  syncProjectCalendar(source);
-  return buildWriteIFCInput(source, 'planOnly');
-}
 
 for (const [name, input] of [...[...fullExamples].map(([file, full]) => [file, kernOf(full)] as const), ['datumgevallen', datePlan()] as const]) {
   test(`${name}: de projectkalender als cache en als bibliotheekentry, zoals de app haar doorgeeft`, () => {
@@ -774,10 +663,7 @@ test('de zelfcontrole ziet een waarde die bij het teruglezen stil verandert', ()
 const FILLED_IS_REFUSED: Readonly<Record<string, () => WriteIFCInput>> = {
   'een vergelijking met een baseline die er niet is': () => ({ ...datePlan(), comparedBaselineIds: ['b1', null] }),
   'een actieve baseline die er niet is': () => ({ ...datePlan(), activeBaselineId: 'b1' }),
-  'een notitie op een taak': () => {
-    const plan = datePlan();
-    return { ...plan, tasks: plan.tasks.map((task, index) => index === 0 ? { ...task, notes: [{ id: 'n1', text: 'Let op', done: false }] } : task) };
-  },
+  'de bibliotheek van het bedrijf': () => ({ ...datePlan(), libraryPool: companyPool() }),
 };
 
 test('wat STEP met inhoud bewaart en IFCX niet draagt, weigert de writer met unsupported; wat STEP laat vallen, laat IFCX ook vallen', () => {
@@ -970,11 +856,6 @@ function textWith(document: unknown, holder: Record<string, unknown>, key: strin
   return text;
 }
 
-function maximalStepFixture(): WriteIFCInput {
-  const { recordedSourceFormat, ...kern } = kernOf(structuredClone(roundtripFixture));
-  return kern;
-}
-
 function maximalPlan(): WriteIFCInput {
   const viaApp = saveInputViaApp(datePlan());
   const extra = { ...structuredClone(viaApp.calendar), id: 'ploegendienst', name: 'Ploegendienst', simpleBreakStartMinute: 720, simpleBreakDurationMinutes: 30 };
@@ -1032,7 +913,7 @@ function maximalPlan(): WriteIFCInput {
     { id: 'bl-weg', name: 'Met een verwijderde taak', createdAt: '2027-05-20T08:00:00.000Z', tasks: [row('weg', 8)],
       projectEnd: moment(8, '16:00'), projectDuration: 6 },
   ];
-  return {
+  return withOtherFields({
     ...viaApp,
     importPristine: true,
     project: { ...viaApp.project, statusDate: '2027-06-02', createdAt: '2027-05-01T08:00:00Z', modifiedAt: '2027-05-02T08:00:00Z' },
@@ -1044,6 +925,57 @@ function maximalPlan(): WriteIFCInput {
       [`task:vol`]: 'oud-vol', [`seq:r5`]: 'oud-r5', [`cal:ploegendienst`]: 'oud-ploeg', [`proj:${viaApp.project.id}`]: 'oud-proj',
       [`wp:${viaApp.project.id}`]: 'oud-werkplan', [`ws:${viaApp.project.id}`]: 'oud-schema', [`task:weg`]: 'oud-weg',
     },
+  });
+}
+
+function withOtherFields(plan: WriteIFCInput): WriteIFCInput {
+  const project: Partial<Project> = {
+    progressMode: 'PROGRESS_OVERRIDE', defaultWorkRule: 'FIXED_DURATION_WORK', companyId: 'bedrijf-1', companyName: 'Bouwbedrijf',
+    p6ProjectCode: 'P6-01', dependentProjectsFolder: '/projecten/afhankelijk', anchorsFromOpenDocuments: true,
+    schedulingOptions: {
+      lagCalendar: 'predecessor', criticalDefinition: { mode: 'totalFloat', threshold: 1, thresholdHours: 4 }, totalFloatMode: 'smallest',
+      makeOpenEndedCritical: true, useExpectedFinishDates: true, useProjectEndDateForFloat: true, nearCriticalThreshold: 2,
+      floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 3 }, p6CompletedLateFromRemainingWindow: true, startToStartLagFrom: 'actualStart',
+      leveling: {
+        preserveScheduledDates: true, levelAllResources: false, priority: [{ field: 'priority', direction: 'DESC' }],
+        resources: [{ resourceId: 'kraan', maxUnitsPerHour: 1 }],
+      },
+    },
+    schedulingProfile: { baseId: 'ops', id: 'profiel-1', name: 'Eigen profiel', overrides: Object.fromEntries(CONVENTION_KEYS.map(key => [key, true])) },
+  };
+  const phase: Partial<Task> = {
+    customTaskTypeId: 'werksoort-1', activityCodes: { 'code-fase': 'fase-ruw' },
+    customFields: { 'veld-tekst': 'Blok A', 'veld-getal': 2.5, 'veld-ja': true },
+    notes: [{ id: 'notitie-1', text: 'Let op de kraan', done: false }], color: '#336699',
+    externalLinks: [{
+      id: 'koppeling-1', direction: 'predecessor', relType: 'FS', lagDays: 1, lagMinutes: 30, anchorDate: '2027-05-28T16:00',
+      sourceRef: { projectId: 'ander', projectName: 'Ander project', taskId: 't-9', taskName: 'Levering', filePath: '/projecten/ander.ifc', siteFileId: 'site-1' },
+      sourceMissing: false, sourceVersion: '3', anchorReadAt: '2027-05-20T10:00:00.000Z',
+    }],
+    mspTaskType: 'FIXED_DURATION', effortDriven: true, p6DurationType: 'DT_FixedDrtn', p6ActivityType: 'TT_Task', p6ProjectId: 'P1',
+    p6TaskId: 'A100', p6ExplicitTargetWindow: true, p6CompletePctType: 'CP_Drtn', p6ExpectedFinish: moment(9, '16:00'), p6SuspendResume: false,
+  };
+  const leaf: Partial<Task> = {
+    constraint: { type: 'SNET', date: moment(1, '07:00'), hard: true }, constraint2: { type: 'FNLT', date: moment(1, '16:00') },
+    deadline: moment(2, '16:00'), isHammock: true, workRule: 'FIXED_RATE', levelingDelay: 2, levelingDelayMinutes: 90, levelingDelayElapsed: true,
+    splitGaps: [{ afterMinutes: 120, gapMinutes: 60, source: 'user' }], timephasedFinishFloor: moment(1, '16:00'),
+    timephasedStartAnchor: moment(1, '07:00'), timephasedDurationWalks: [{ anchor: moment(1, '07:00'), resourceCalendarId: 'ploegendienst', workMinutes: 480 }],
+  };
+  return {
+    ...plan,
+    recordedSourceFormat: 'mspdi',
+    project: { ...plan.project, ...project },
+    activityCodeTypes: [{ id: 'code-fase', name: 'Fase', values: [{ id: 'fase-ruw', code: 'RUW', description: 'Ruwbouw', color: '#aa0000' }] }],
+    customFieldDefs: [{ id: 'veld-tekst', name: 'Blok', type: 'text' }, { id: 'veld-getal', name: 'Getal', type: 'number' }, { id: 'veld-ja', name: 'Gecontroleerd', type: 'boolean' }],
+    customTaskTypes: [{ id: 'werksoort-1', name: 'Kraanwerk', color: '#00aa00' }],
+    resourceCalendars: (plan.resourceCalendars ?? []).map(calendar => (calendar.id !== 'ploegendienst' ? calendar : {
+      ...calendar, p6Source: 'XER', p6NonWorkPenaltyDates: ['2027-06-07'], p6NonWorkPenaltyDatesState: 'VALID_VALUES',
+      libraryOrigin: { companyId: 'bedrijf-1', libraryItemId: 'kalender-1', poolVersion: 2, syncedHash: 'abc' },
+    })),
+    tasks: plan.tasks.map(task => (task.id === 'fase' ? { ...task, ...phase }
+      : task.id === 'binnen-een-dag' ? { ...task, ...leaf, customFields: { 'veld-getal': 4 } }
+        : task.id === 'einde-middernacht' ? { ...task, customFields: { 'veld-ja': false } } : task)),
+    sequences: plan.sequences.map(sequence => (sequence.id === 'r5' ? { ...sequence, p6StartAtPredecessorFinishBoundary: true } : sequence)),
   };
 }
 
@@ -1232,10 +1164,6 @@ test('R0: dubbel id, dubbele GlobalId, relatie zonder doel en een taak onder twe
   assert.match(refusal.message, /Taak handmatig staat in de kinderlijst van twee ouders: fase en binnen-een-dag/);
 });
 
-type Attempt<T> = { ok: true; value: T } | { ok: false; error: unknown };
-function attempt<T>(action: () => T): Attempt<T> {
-  try { return { ok: true, value: action() }; } catch (error) { return { ok: false, error }; }
-}
 
 function withTask(plan: WriteIFCInput, id: string, change: (task: Task) => Task): WriteIFCInput {
   return { ...plan, tasks: plan.tasks.map(task => (task.id === id ? change(task) : task)) };
@@ -1369,6 +1297,13 @@ const STEP_CASES: readonly StepCase[] = [
       assignments: [...plan.assignments, { id: 'k', taskId: 'binnen-een-dag', resourceId: 'kosten', unitsPerDay: 1, costAmount: 800 }] };
   } },
   { name: 'F3-2: een toewijzing aan een resource die niet bestaat', refusedBy: { code: 'inconsistent', rule: 'R0' }, input: () => withWork(appPlan(), {}, { resourceId: 'weg' }) },
+  { name: 'F3-3: een dagtaak onder vast werk (de laadgrens zet haar in de urenmaat)', input: () => withTask(appPlan(), 'binnen-een-dag', task => ({ ...task, workRule: 'FIXED_WORK' })) },
+  { name: 'F3-3: een werksoort die geen taak gebruikt (STEP laat haar vallen)', input: () => ({
+    ...appPlan(), customTaskTypes: [{ id: 'ongebruikt', name: 'Ongebruikt', color: '#000000' }] }) },
+  { name: 'F3-3: een code en een eigen veld zonder definitie (STEP laat ze vallen)', input: () => withTask(appPlan(), 'binnen-een-dag', task => ({
+    ...task, activityCodes: { 'bestaat-niet': 'waarde' }, customFields: { 'bestaat-ook-niet': 'tekst' } })) },
+  { name: 'F3-3: datums zoals opgeslagen na een MSPDI-import', input: () => ({
+    ...appPlan(), importPristine: true, recordedSourceFormat: 'mspdi', withheldTaskTimeFields: { 'binnen-een-dag': ['lateStart', 'lateFinish', 'totalFloat'] } }) },
 ];
 
 test('F3-2, ronde 1, blokkade 1 en 2: wat STEP van een tarief, een inzet, een curve en een verwijderde baselinetaak bewaart, bewaart IFCX ook', () => {
@@ -1612,23 +1547,6 @@ function r4Plans(): WriteIFCInput[] {
   return [maximalPlan(), variantPlan(), datePlan(), ...loadPlans(), absentPlan()];
 }
 
-function publicRouteProblems(name: string, input: WriteIFCInput, text: string): string[] {
-  const back = attempt(() => readIfcx(encode(text)));
-  if (!back.ok) return [`${name}: opent niet: ${String(back.error).slice(0, 200)}`];
-  const problems: string[] = [];
-  const first = openedAsStep(input);
-  const once = modelDifferences(first, back.value, 3);
-  if (once.length > 0) problems.push(`${name}: deel 1: niet de eerste STEP-lezing na de laadgrens: ${once.join('; ')}`);
-  if (projectionOf(back.value, timestampOf(text)) !== text) problems.push(`${name}: deel 2: het bestand is niet de projectie van de gelezen planning`);
-  const again = attempt(() => writeIfcx(back.value, CLOCK));
-  if (!again.ok) return [...problems, `${name}: de tweede opslag weigert: ${String(again.error).slice(0, 200)}`];
-  const twice = attempt(() => readIfcx(encode(again.value)));
-  if (!twice.ok) return [...problems, `${name}: de tweede opslag opent niet: ${String(twice.error).slice(0, 200)}`];
-  const second = modelDifferences(openedAsStep(first), twice.value, 3);
-  if (second.length > 0) problems.push(`${name}: tweede opslag: niet de tweede STEP-lezing na de laadgrens: ${second.join('; ')}`);
-  if (projectionOf(twice.value, CLOCK) !== again.value) problems.push(`${name}: deel 2 bij de tweede opslag: het bestand is niet de projectie van de gelezen planning`);
-  return problems;
-}
 
 test('R6, deel 1, deel 2 en de tweede opslag voor de bestanden: readIfcx(writeIfcx(x)) is de eerste STEP-lezing na de laadgrens, het bestand is de projectie van wat de lezer teruggeeft, en een tweede opslag doet wat STEP doet', () => {
   const wrong: string[] = [];

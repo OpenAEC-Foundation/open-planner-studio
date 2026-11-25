@@ -4,8 +4,8 @@ import { defaultGlobalId } from './stepGlobalIds';
 
 export type PlanningModel = Pick<WriteIFCInput,
   | 'project' | 'calendar' | 'tasks' | 'sequences' | 'resourceCalendars' | 'ifcGlobalIds' | 'timeModel' | 'importPristine'
-  | 'ifcLiteralCalendarIds' | 'minuteModelPending' | 'recordedFields' | 'resources' | 'assignments' | 'baselines' | 'activeBaselineId'
-  | 'comparedBaselineIds' | 'baselineOrphanGuids'>;
+  | 'ifcLiteralCalendarIds' | 'minuteModelPending' | 'recordedFields' | 'activityCodeTypes' | 'customFieldDefs' | 'customTaskTypes'
+  | 'recordedSourceFormat' | 'resources' | 'assignments' | 'baselines' | 'activeBaselineId' | 'comparedBaselineIds' | 'baselineOrphanGuids'>;
 
 export interface IdentityReference {
   readonly field: string;

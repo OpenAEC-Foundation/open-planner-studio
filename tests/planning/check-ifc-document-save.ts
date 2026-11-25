@@ -4783,6 +4783,25 @@ for (const [label, existing] of MAIN_STACKS) {
   });
 }
 
+await check('2212: handle Ctrl+S van een gebouwmodel met een UTF-8-BOM: de merge houdt de BOM, zonder wijziging byte voor byte, ook de tweede keer', async () => {
+  const source = new Uint8Array([0xef, 0xbb, 0xbf, ...bytes]);
+  const { store, name } = await openHandle(source), unregister = recoveryRounds(store);
+  try {
+    clearNotices(store);
+    assert.equal(await ctrlS(store), true, 'zonder wijziging');
+    assert.deepEqual(fileOf(name), source, 'zonder wijziging de bron byte voor byte');
+    for (const round of [1, 2]) {
+      store.getState().updateTask(leaf(store).id, { name: `Merge met BOM ${round}` });
+      assert.equal(await ctrlS(store), true, `ronde ${round}`);
+      const output = fileOf(name);
+      assert.deepEqual([...output.subarray(0, 3)], [0xef, 0xbb, 0xbf], `ronde ${round}: de BOM staat er nog`);
+      assert.deepEqual(mergeProblems(source, output), [], `ronde ${round}: het gebouwmodel bytegelijk behouden`);
+      assert.equal((await openForeign(output)).tasks.some(t => t.name === `Merge met BOM ${round}`), true);
+    }
+    assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
+  } finally { unregister(); await clearRecovery(); }
+});
+
 rmSync(dir, { recursive: true, force: true });
 console.log(`Documentopslag: ${passed} geslaagd, ${failed} mislukt.`);
 if (failed) process.exitCode = 1;

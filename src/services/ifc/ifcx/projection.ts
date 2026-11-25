@@ -108,6 +108,10 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
     minuteModelPending: input.minuteModelPending === true,
     importPristine: input.importPristine === true,
     literalCalendarPaths: (input.ifcLiteralCalendarIds ?? []).flatMap(id => calendarPathById.get(id) ?? []),
+    structure: {
+      activityCodeTypes: input.activityCodeTypes ?? [], customFieldDefs: input.customFieldDefs ?? [], customTaskTypes: input.customTaskTypes ?? [],
+    },
+    ...(input.recordedSourceFormat !== undefined ? { recordedSourceFormat: input.recordedSourceFormat } : {}),
     ...(baselinePath(input.activeBaselineId) !== undefined ? { activeBaselinePath: baselinePath(input.activeBaselineId) } : {}),
     comparedBaselinePaths: [baselinePath(comparedFirst), baselinePath(comparedSecond)],
     removedTasks: input.baselineOrphanGuids ?? {},

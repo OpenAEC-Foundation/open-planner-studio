@@ -15,6 +15,7 @@ import { HEADER_VALUE } from './ownAttributes';
 import { NODE_SHAPES, type NodeKind } from './nodes';
 import { recordedFieldsOf } from './recordedFields';
 import { DOCUMENT_FIELDS, emptyProject, type DocumentReadTarget } from './fields/documentFields';
+import { emptyStructure } from './fields/structureFields';
 import { CALENDAR_FIELDS, emptyCalendar, type CalendarReadTarget } from './fields/calendarFields';
 import { emptyTask, remainingIsDerived, TASK_FIELDS, type TaskReadTarget } from './fields/taskFields';
 import { emptySequence, SEQUENCE_FIELDS, type SequenceReadTarget } from './fields/sequenceFields';
@@ -317,6 +318,7 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   const project = emptyProject();
   const documentTarget: DocumentReadTarget = {
     project, projectPath: header.projectPath, calendarPath: '', minuteModelPending: false, importPristine: false, literalCalendarPaths: [],
+    structure: emptyStructure(),
     comparedBaselinePaths: [undefined, undefined], removedTasks: {},
   };
   readFields(DOCUMENT_FIELDS, workplan.attributes.get(ATTRIBUTE.document)!, documentTarget);
@@ -438,9 +440,10 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
     project, calendar: projectCalendar, tasks, sequences, resources, assignments,
     ...(documentTarget.timeModel !== undefined ? { timeModel: documentTarget.timeModel } : {}),
     ...(documentTarget.minuteModelPending ? { minuteModelPending: true } : {}),
-    activityCodeTypes: [], customFieldDefs: [], customTaskTypes: [], resourceCalendars,
+    ...documentTarget.structure, resourceCalendars,
     baselines: baselineTargets.map(target => target.baseline), activeBaselineId, comparedBaselineIds,
     recordedFields, recordedTimesOrigin: 'ifc-own', importPristine: documentTarget.importPristine,
+    ...(documentTarget.recordedSourceFormat !== undefined ? { recordedSourceFormat: documentTarget.recordedSourceFormat } : {}),
     ifcGlobalIds,
     ...(Object.keys(documentTarget.removedTasks).length > 0 ? { baselineOrphanGuids: documentTarget.removedTasks } : {}),
     ...(ifcLiteralCalendarIds.length > 0 ? { ifcLiteralCalendarIds } : {}),
