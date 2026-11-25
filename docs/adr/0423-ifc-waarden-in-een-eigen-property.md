@@ -21,7 +21,10 @@ document. Hier staan de grenzen die daar niet staan.
   teruggeeft (`check-ifc-real-values.ts`). Volgens het weggehaalde commentaar vond de IfcOpenShell-validatie van
   2026-10-13 zonder die punt 158 fouten in de voorbeelden. Een niet-eindig getal heeft geen STEP-vorm:
   `ifcTypedReal` geeft dan `$`, en mag daarom alleen op een OPTIONAL plek staan, zoals `NominalValue`; de lezer leest
-  `$` als geen waarde (`check-ifc-real-values.ts`: een niet-eindig tarief ontbreekt na heropenen).
+  `$` als geen waarde (`check-ifc-real-values.ts`: een niet-eindig tarief ontbreekt na heropenen). Oudere versies
+  schreven op die plek `IFCREAL(NaN)`. `parseTypedValue` in `ifcReader.ts` geeft voor een getal dat niet eindig is
+  geen waarde, dus die oude vorm leest gelijk aan `$` en het veld krijgt zijn standaardwaarde: een bestand met
+  `IFCREAL(NaN)` bij `OPS_Resource.MaxUnits` opent met capaciteit 1, en houdt die na opslaan en heropenen.
 - `encodeStepText` schrijft een losse surrogaathelft als UTF-16-eenheid in `\X2\…\X0\`, en een geldig paar als één
   teken in `\X4\…\X0\`; beide komen ongewijzigd terug (`check-ifc-step-encoding.ts`). `asciiJson` maakt elke
   UTF-16-eenheid vanaf U+007F een JSON-escape.
