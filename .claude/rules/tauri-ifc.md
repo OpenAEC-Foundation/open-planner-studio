@@ -205,7 +205,12 @@ verwijderde stukken. Een vreemd lid van een eigen pset van een verwijderd object
 op de lijst (§4.2 stap 3). Bij het wissen van een taak of resource, en bij Opnieuw van zo'n stap, meldt
 `state/foreignLinksNotice.ts` met dezelfde regel hoeveel er bij opslaan verandert: één info van main met het aantal van
 die ene wisstap en de knop *Ongedaan maken* (`undoHistoryEvent`, 12 s, zonder `dedupeKey`), bewaakt door `watchNotice`
-uit `otherWorkNotice.ts`: weg bij een nieuwere stap, Ctrl+Z of een ander tabblad (PR 7). Ze deelt de grenzen van de
+uit `otherWorkNotice.ts` met de flag als extra voorwaarde (PR 7). De regel van de knop: hij staat er zolang de melding
+zichtbaar is, de wisstap de stap van Ctrl+Z van het actieve document is, de projectgegevens sinds het wissen gelijk zijn
+en de flag aan staat; Ctrl+S en Automatisch opslaan halen hem niet weg, een nieuwere stap, Ctrl+Z, een ander tabblad,
+een verversing uit de resourcebibliotheek of de flag uit halen de melding met haar knop definitief weg, en Ctrl+Y van
+de wisstap meldt opnieuw als er dan nog iets vervalt. Besluit technisch eigenaar, 25 november 2026: met `detached`
+vervalt de reden van de oude regel B (Ctrl+Z na opslaan bracht de koppelingen niet terug). Ze deelt de grenzen van de
 stapel van main (knownbug 2357). Regel A: na het schrijven meldt `state/foreignChangesWrittenNotice.ts` per geslaagde
 schrijfactie met een niet-lege lijst één eigen gewone melding (info, blijvend, geen `dedupeKey`) met de naam van het
 geschreven doel uit de schrijfuitkomst (pad, handlenaam of de naam die de site teruggeeft) en het aantal, op elke

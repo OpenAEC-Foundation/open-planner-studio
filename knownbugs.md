@@ -4391,8 +4391,19 @@ en noem het in je rapport of PR-tekst.
       het drie schrijffouten of drie tellingen van eerdere opslagen, dan haalt de stapel de wismelding meteen weer weg
       en ziet de planner haar niet; staat er een gewone info of een passende weigering tussen, dan wijkt die en blijft
       de wismelding zichtbaar. Het opslaan laat de gegevens in beide gevallen vervallen.
-      Ze verdwijnt na 12 s, bij een nieuwere stap en bij Ctrl+Z, en hangt alleen aan het wissen van taken en resources
-      (knownbug 2249). Dit is de twaalfde voorwaarde voor het
+      De knop staat er zolang de melding zichtbaar is (12 s, of tot het kruisje), de wisstap de stap van Ctrl+Z van het
+      actieve document is, de projectgegevens sinds het wissen gelijk zijn en de flag aan staat. Ctrl+S en Automatisch
+      opslaan halen hem niet weg; een nieuwere stap, Ctrl+Z, een ander tabblad, een verversing uit de
+      resourcebibliotheek of de flag uit halen de melding met haar knop definitief weg (`watchNotice` in
+      `src/state/otherWorkNotice.ts`). Grenzen daarvan:
+      - Automatisch opslaan begint pas na 30 s zonder wijziging (`MODEL_AUTOSAVE_REST_MS` in
+        `src/services/actualAutosave/modelAutoSaveRhythm.ts`); de melding is dan meestal al weg. Ctrl+Z zet daarna
+        nog steeds terug, en de telling van die opslag heeft geen knop;
+      - Ctrl+Y van de wisstap meldt alleen opnieuw als de huidige bron nog iets heeft dat bij de volgende opslag
+        vervalt: na wissen, opslaan, Ctrl+Z en Ctrl+Y is dat aantal nul (de bron is al zonder die stukken), dus komt
+        er geen melding en geen knop (gezien in de code door de review van #1265, ronde 1);
+      - de melding hangt alleen aan het wissen van taken en resources (knownbug 2249).
+      Dit is de twaalfde voorwaarde voor het
       standaard aanzetten van de flag: de planner mist de waarschuwing bij het wissen niet en kan vanuit die waarschuwing
       ongedaan maken. Besluit technisch eigenaar, 25 november 2026 (fixronde 5). — S
 2354. **VERVOLG (#804 PR 7): wat `detached` nog niet meeneemt.** Ctrl+Z na het opslaan zet de stukken van de
@@ -4417,8 +4428,30 @@ en noem het in je rapport of PR-tekst.
       van de bron`). Zonder de tussentijdse opslag schrijft dezelfde reeks wel. Nagespeeld met een script op main
       `4f9c435c9` en op de branch van PR 7, met dezelfde uitkomst; het komt niet uit `detached`. Er gaat niets verloren
       (de opslag weigert), maar de planner kan zo niet opslaan; *Exporteren zonder gebouwmodel* blijft de uitweg. De
-      eigenschapsproef van PR 7 vond het (zaad 18) en laat zo'n reeks alleen door als dezelfde reeks met een bron zonder
-      `detached` op dezelfde stap ook weigert. Dit raakt gewoon werk met een gewoon bestand. — B
+      eigenschapsproef van PR 7 vond het (zaad 18) en laat zo'n reeks alleen door als dezelfde reeks met de bron zonder
+      `detached`, via de echte opslagcommit, op dezelfde stap letterlijk dezelfde fout geeft.
+      `check-ifc-foreign-detached.ts` legt de kortste reeks en de fout vast (29 regels `niet-eenduidig`, de eerste
+      `IFCRELASSIGNSTOCONTROL #248, argument 1 na de bewerking: #232 → #101`); main `376c83a94` geeft letterlijk
+      dezelfde tekst, ook in Pacific/Midway (gemeten met een script). Dit raakt gewoon werk met een gewoon bestand. — B
+2380. **Een mijlpaal via `updateTask` een duur geven en opslaan weigert met een vreemd deel, ook op main.** Flag aan,
+      de mijlpaal *Start of refurbishment* (`task-mvp6eel2x2ge26`, duur 0) krijgt met `updateTask` een
+      `scheduleDuration` van 1, en `isMilestone` blijft `true`. Ctrl+S en Automatisch opslaan weigeren dan. Op de pinbron
+      (`tests/planning/ifcBonsaiPin.ts`) met `bronvorm-leest-anders`: `60 veld(en) in de vorm van de bron lezen na
+      openen anders: taak task-mvp6eel4sh9b27, time.scheduleFinish: "2027-05-12T07:00" na herlezen in plaats van
+      "2027-05-12T16:00"; …`. Op `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met `planning-na-openen`:
+      `taak task-mvp6eel2x2ge26.time.scheduleDuration: 1 → 0`. Nagespeeld met een script via de desktoproute, op main
+      `376c83a94` en op de branch van PR 7 van #804, met letterlijk dezelfde fout. Een resource toevoegen hoort er niet
+      bij: in het rapport van PR 7 (ronde 0) stond het als "een resource erbij en dan Automatisch opslaan", maar al de
+      eerste opslag na de duur weigert, en Ctrl+S, een resource erbij, Ctrl+S schrijft. Of de app zelf (het duurveld,
+      het raster, MCP) een mijlpaal zo een duur kan geven, is niet nagegaan; zie ook knownbug 2234 (een taak tot
+      mijlpaal maken). Er gaat niets verloren (de opslag weigert). — B
+2381. **VERVOLG (#804 PR 7): commentaar vóór een vervallen stuk gaat bij terugzetten verloren.** De wijzigingslijst
+      bewaart van een vervallen stuk de hele bronspanne, met eventueel commentaar (`/* … */`) vóór de entiteit
+      (`foreignChangeList` in `src/services/ifc/foreign/foreignReferences.ts`). Krijgt het stuk bij Ctrl+Z na het
+      opslaan een nieuwe plek direct na het P-blok, dan neemt `renderedRestorations` (`src/services/ifc/foreign/detached.ts`)
+      alleen de entiteit mee (`subarray(skipBlank(…))`) en valt dat commentaar weg. Zonder tussentijdse opslag blijft het
+      commentaar staan. Gezien in de code door de review van #1265, ronde 1; niet nagespeeld. Richting: de voorloop apart
+      bewaren en bij het invoegen meenemen. Een randgeval: een STEP-bestand met commentaar tussen de regels. — S
 
 2303. **De P6 XML-lezer rekent de eenheden van een materiaaltoewijzing om alsof het uren zijn.** In de toewijzingslezer
       van `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) worden `PlannedUnits`, `ActualUnits` en `RemainingUnits`
