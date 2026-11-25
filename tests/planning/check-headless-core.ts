@@ -29,6 +29,7 @@ import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { taskDepths } from '@/utils/wbs';
 import type { Task } from '@/types/task';
+import { foreignWorkMethodSource, oldOwnSource, OLD_TASK_NAME } from '../mcp/headlessCorpus';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const diffs: string[] = [];
@@ -383,13 +384,43 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
 // De blokkade op de historische eigen kop (1132) is weg, ook voor echte kernuitvoer.
 for (const name of ['ohara', 'data']) {
   const text = readFileSync(join(root, `tests/planning/fixtures/oude-tags/v2026.7.12-${name}-showcase-verbouwing-eengezinswoning.ifc`), 'utf8');
-  const doc = await openIfc(text);
+  eqText(`8 ${name}: de oude naam van het live-werkschema geeft de huidige writer niet terug (#1219)`,
+    await refusalOf(async () => (await openIfc(text)).toIfc()), 'IFC_WRITE_FAILED:foreign');
+  const current = text.replace("'Bouwplanning v1.0'", "'Construction schedule v1.0'");
+  ok(`8 ${name}: het bestand heeft de oude naam één keer`, current !== text && !current.includes("'Bouwplanning v1.0'"));
+  const doc = await openIfc(current);
   const written = doc.toIfc();
-  ok(`8 ${name}: oude eigen planning schrijft en heropent met alle twintig taken`,
+  ok(`8 ${name}: met de naam van de huidige writer schrijft de oude eigen planning en heropent met alle twintig taken`,
     doc.schedule().counts.tasks === 20 && (await openIfc(written)).schedule().counts.tasks === 20);
 }
 
+{
+  const review = foreignWorkMethodSource(root);
+  for (const [route, open] of [['openIfc', () => openIfc(review.toString('utf8'))], ['openIfcBytes', () => openIfcBytes(new Uint8Array(review))]] as const) {
+    const doc = await open();
+    ok(`19 ${route}: een taak zonder OwnerHistory met een werkwijze van een ander programma opent en rekent`, doc.schedule().counts.tasks === 47);
+    eqText(`19 ${route}: toIfc() weigert vóór uitvoer, want de gewone writer schrijft WorkMethod als $ (#1219)`,
+      await refusalOf(() => doc.toIfc()), 'IFC_WRITE_FAILED:foreign');
+    eqText(`19 ${route}: toIfcBytes() weigert ook`, await refusalOf(() => doc.toIfcBytes()), 'IFC_WRITE_FAILED:foreign');
+  }
+  const old = await openIfc(oldOwnSource(root));
+  eqText('19 een oude eigen bron met een lege owner history en alleen gedragen slots schrijft zoals main',
+    await refusalOf(() => old.toIfc()), 'geschreven');
+  const reopened = await openIfc(old.toIfc());
+  ok('19 de oude eigen bron heropent met alle taken en de oude taaknaam', reopened.schedule().counts.tasks === 47
+    && reopened.schedule().tasks.some(t => t.name === OLD_TASK_NAME), JSON.stringify(reopened.schedule().counts));
+}
+
 const foreignFixture = (name: string): string => join(root, 'tests/fixtures/ifc-foreign', name);
+
+async function refusalOf(write: () => unknown): Promise<string> {
+  try {
+    await write();
+    return 'geschreven';
+  } catch (e) {
+    return e instanceof PlannerCoreError ? `${e.code}:${String(e.details.reason)}` : String(e);
+  }
+}
 {
   const modelFile = foreignFixture('eigen-plus-model.ifc');
   const source = new Uint8Array(readFileSync(modelFile));
@@ -611,11 +642,17 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
 }
 
 {
-  const oldOps = readFileSync(join(root, 'tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc'));
+  const oldOpsFile = readFileSync(join(root, 'tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc'));
+  const oldOps = encoded(utf8(new Uint8Array(oldOpsFile)).replace("'Bouwplanning v1.0'", "'Construction schedule v1.0'"));
+  const oldOpsWithBom = new Uint8Array([...UTF8_BOM, ...oldOpsFile]);
+  eqText('17 oude OPS-export uit v2026.7.12 met BOM en de oude schemanaam: toIfc() weigert (#1219)',
+    await refusalOf(async () => (await openIfc(Buffer.from(oldOpsWithBom).toString('utf8'))).toIfc()), 'IFC_WRITE_FAILED:foreign');
+  eqText('17 oude OPS-export uit v2026.7.12 met BOM en de oude schemanaam: openIfcBytes weigert gelijk',
+    await refusalOf(async () => (await openIfcBytes(oldOpsWithBom)).toIfcBytes()), 'IFC_WRITE_FAILED:foreign');
   const own = readFileSync(files[0]);
   const nbsp = encoded('\u00a0');
   const leads: Array<[string, Uint8Array]> = [
-    ['oude OPS-export uit v2026.7.12 met BOM', new Uint8Array([...UTF8_BOM, ...oldOps])],
+    ['oude OPS-export uit v2026.7.12 met BOM en de schemanaam van de huidige writer', new Uint8Array([...UTF8_BOM, ...oldOps])],
     ['dubbele BOM', new Uint8Array([...UTF8_BOM, ...UTF8_BOM, ...own])],
     ['BOM na een spatie', new Uint8Array([0x20, ...UTF8_BOM, ...own])],
     ['U+00A0 na een BOM', new Uint8Array([...UTF8_BOM, ...nbsp, ...own])],
