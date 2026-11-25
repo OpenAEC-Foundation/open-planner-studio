@@ -168,6 +168,8 @@ for (const [label, flags] of [['alleen ifcx', IFCX_ON], ['ifcx en ifcForeignCont
         assert(isIfcxText(written), 'het bestand is IFCX');
         assert.equal(readIfcx(written).tasks.find(t => t.id === id)!.time.scheduleDuration, duration);
         assert.equal(store.getState().isDirty, false);
+        assert.deepEqual(store.getState().ui.notifications.filter(n => n.messageKey.startsWith('notifications.foreignChanges')), [],
+          'geen telling van vreemde gegevens (#1199): een IFCX-document heeft geen vreemd deel');
         if (sw) {
           const writerJobs = sw.requests().filter(r => r.job.kind === 'writer');
           assert.equal(writerJobs.length, 1);
