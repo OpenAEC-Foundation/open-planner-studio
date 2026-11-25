@@ -79,12 +79,7 @@ export interface PreparedGridMutation {
   };
   notifications: readonly DeferredNotification[];
   timephasedLossCount: number;
-  /** Aantal doelcellen die deze paste oversloeg omdat ze read-only waren — statisch
-   *  berekend (clipboard.ts) of conditioneel bleken (deze module, applyCellEdits) — bij een echte
-   *  Ctrl+V-paste in plaats van de hele transactie te blokkeren. 0 buiten die route. */
   skippedReadOnlyCount: number;
-  /** Taken met overgeslagen cellen waarin NIETS is geschreven ("Niet aangepast: …"), en taken met
-   *  overgeslagen cellen waarin een andere cel wél is geschreven ("Niet toegepast bij: …"). */
   skippedReadOnlyUntouchedTaskIds?: readonly string[];
   skippedReadOnlyPartialTaskIds?: readonly string[];
   label: string;
@@ -95,22 +90,8 @@ export interface GridMutationError {
   message: string;
 }
 
-/**
- * Opties van een gridtransactie. `progressEntry` zet de invoerregels voor voortgang aan
- * (`engine/progressEntry.ts`): het taakraster geeft hem mee, headless aanroepers niet (zij houden
- * alleen het vangnet zonder deze regels).
- *  - Staat er geen statusdatum en houdt een voortgangscel een taak met voortgang over, dan gaat
- *    de statusdatum in DEZELFDE transactie (één undo-stap) op `today`, met een melding na de commit.
- *  - Zou een voortgangscel de werkelijke start afleiden uit een geplande start ná de
- *    (effectieve) statusdatum, dan wordt de HELE transactie geweigerd met per taak de fout
- *    `actualStartRequired` (waarde: `{ statusDate, latest }`). Het raster stelt dan de vraag en
- *    herhaalt dezelfde handeling mét een `task.time.actualStart`-write per taak.
- */
 export interface GridMutationOptions {
   progressEntry?: { today: string };
-  /** `false` ⇒ deze transactie schrijft GEEN eigen undo-stap: een omringende `withTransaction`
-   *  neemt hem samen met zijn andere mutaties op in één stap. Alleen voor die situatie (de
-   *  spookregel van het taakraster: taak aanmaken + eerste waarde). Standaard `true`. */
   recordHistory?: boolean;
 }
 
@@ -126,7 +107,6 @@ type StoreSet = (recipe: (state: AppState) => void) => void;
 
 let defaultStore: { get: StoreGet; set: StoreSet } | null = null;
 
-/** Bind uitsluitend de publieke singletonwrappers; iedere storeslice houdt zijn eigen get/set. */
 export function bindDefaultGridTransactionStore(get: StoreGet, set: StoreSet): void {
   defaultStore = { get, set };
 }
@@ -182,22 +162,14 @@ function buildGridColumnRuntime(state: Readonly<AppState>): GridColumnRuntime {
     resourcesById: new Map(state.resources.map(resource => [resource.id, resource])),
     baselinesById: new Map(state.baselines.map(baseline => [baseline.id, baseline])),
     scheduleStale: state.scheduleStale,
-    // Dezelfde taaktypes-ontsluiting als `FullTaskGrid` — anders weigert de
-    // gridtransactie een Werkregel-cel die de kolomkiezer wél toont.
     taskTypesUnlocked: state.ui.showTaskTypes || state.taskTypesVisible,
     wbsAutoNumber: state.project.wbsAutoNumber === true,
     effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(
       task, state.calendar, state.calendars,
     )),
-    // Zelfde projectkalenderroute als het UI-raster (FullTaskGrid); de engine pas bij gebruik.
     signedWorkDaysBetween: (fromIso, toIso) => signedWorkDaysBetween(
       projectEngine ??= new CalendarEngine(state.calendar), fromIso, toIso,
     ),
-    // Alleen `recordedMark` — die stuurt de `available()`-gate van de kolom `recorded.source`
-    // (taskColumnRegistry.ts). Zonder deze naad zou een paste die toevallig over die kolom heen
-    // strijkt hard falen (`plannerNotAvailable`) in plaats van de bestaande skip-readonly-route
-    // te nemen, op elk document waar de kolom via FullTaskGrid wél zichtbaar is. `format`/
-    // `recordedUnrecordedAxes` raken alleen weergave, niet het schrijfpad — die blijven hier weg.
     recordedMark: recordedGridBinding(recordedDates, datesAsRecorded).recordedMark,
   };
   const descriptors = buildTaskColumnRegistry({
@@ -231,12 +203,6 @@ function normalizeWrites(writes: readonly GridWriteIntent[]): GridResult<readonl
   return errors.length > 0 ? { ok: false, errors } : { ok: true, value: unique };
 }
 
-/**
- * Een paste volgt de visuele kolomvolgorde, maar domeincontrollers zoals mijlpaal- en
- * constrainttype veranderen tijdens dezelfde transactie welke cellen schrijfbaar zijn. Orden
- * alleen writes van dezelfde taak rond zulke overgangen; onafhankelijke writes behouden hun
- * oorspronkelijke volgorde.
- */
 function orderWritesForDependentTransitions(
   writes: readonly GridWriteIntent[],
 ): readonly GridWriteIntent[] {
@@ -264,9 +230,6 @@ function orderWritesForDependentTransitions(
   if (targets.size === 0 && hammockTargets.size === 0 && primaryConstraintTargets.size === 0
     && secondaryConstraintTargets.size === 0 && assignmentTaskIds.size === 0) return writes;
 
-  // Lege afhankelijke cellen uit een volledige taakrij zijn redundant wanneer de geplakte
-  // controller ze in de eindtoestand juist uitschakelt. Niet-lege tegenstrijdige waarden blijven
-  // staan en worden door de domeinplanner atomair geweigerd.
   const isEmptyDependentValue = (value: unknown): boolean => (
     value === undefined || value === '' || value === false
   );
@@ -291,9 +254,6 @@ function orderWritesForDependentTransitions(
     ...primaryConstraintTargets.keys(), ...secondaryConstraintTargets.keys(),
     ...assignmentTaskIds,
   ]);
-  // PRESTATIE: één vooraf gebouwde index (taakid → posities) maakt dit één keer O(writes) in
-  // plaats van O(taken × writes) — een scan over ALLE writes van de HELE paste per taak is bij een
-  // grote bulk-plak veruit de duurste stap.
   const positionsByTaskId = new Map<string, number[]>();
   ordered.forEach((write, index) => {
     const existing = positionsByTaskId.get(write.taskId);
@@ -308,11 +268,6 @@ function orderWritesForDependentTransitions(
     const rank = (write: GridWriteIntent): number => {
       let value = 0;
       if (targetMilestone === true) {
-        // Alle celwrites van één taak worden als één gezamenlijke eindtoestand toegepast zodra
-        // de eerste celwrite aan de beurt is. Een lege assignmentwrite moet daarom vóór iedere
-        // cel uit die groep staan: hij wist bestaande assignments voordat de mijlpaalovergang ze
-        // conditioneel onbeschikbaar maakt. Niet-lege assignments blijven na de overgang staan
-        // en worden als een tegenstrijdige eindtoestand atomair geweigerd.
         if (write.kind === 'assignment-set') value += write.tokens.length === 0 ? -100 : 10;
         if (write.kind === 'cell-edit' && String(write.columnId) === 'task.isHammock') {
           value += write.value === false || write.value === undefined ? -30 : 10;
@@ -338,13 +293,9 @@ function orderWritesForDependentTransitions(
         if (columnId === 'task.isMilestone') value -= 20;
         if (isMilestoneMetadata) value += 10;
       } else if (targetMilestone === false) {
-        // Metadata is in de beginstaat nog schrijfbaar. Verwerk die eerst; de overgang ruimt
-        // metadata daarna volgens het domeincontract op. Duur volgt juist ná de overgang.
         if (isMilestoneMetadata) value -= 30;
         if (columnId === 'task.isMilestone') value -= 20;
       }
-      // Een expliciete mijlpaalovergang heeft al de strengere gecombineerde volgorde hierboven.
-      // Zonder zo'n overgang moet duur vóór "hangmat aan" en juist ná "hangmat uit" landen.
       if (targetMilestone === undefined && targetHammock !== undefined) {
         if (targetHammock === true && columnId === 'task.time.scheduleDuration') value -= 30;
         if (columnId === 'task.isHammock') value -= 20;
@@ -398,7 +349,6 @@ function applyAssignmentSet(
         ...(columnId === 'assignment.curve'
           ? (incoming.curve ? { curve: incoming.curve } : {})
           : (assignment.curve ? { curve: assignment.curve } : {})),
-        // Het bedrag van een kostentoewijzing (#815) hoort niet bij deze kolom: het blijft staan.
         ...(assignment.costAmount !== undefined ? { costAmount: assignment.costAmount } : {}),
       };
     });
@@ -414,13 +364,9 @@ function applyAssignmentSet(
     resourcesById,
   });
   if (!planned.ok) return planned;
-  // Momentopname van de werkdriehoek VÓÓR het plan; ná het plan volgen inzet/werk/restduur de
-  // regel van de taak, in één terugschrijf.
   const task = tasksById.get(intent.taskId);
   const triangle = task ? captureTriangle(task, assignmentsForTask, state) : null;
   const oldWorkMinutes = task ? taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, state.calendars, state.calendar)) : 0;
-  // De basis van het ingevoerde einde VÓÓR plan en driehoek (`triangle.finishBasis`, zelfde moment).
-  // `applyTaskAssignmentPlan` muteert de draftobjecten in-place; de oude inzet dus vóóraf vastleggen.
   const unitsBefore = new Map(assignmentsForTask.map(a => [a.id, a.unitsPerDay] as const));
   const applied = applyTaskAssignmentPlan(
     state, planned.value, () => generateId('asgn'), applyIndexes,
@@ -440,13 +386,9 @@ function applyAssignmentSet(
     }
     const settled = settleAssignmentPlan(task, state.assignments, triangle, ops);
     let durationChanged = settled.durationChanged;
-    // De kolom "Resterend werk" — per toewijzing één werkbewerking door
-    // de driehoek (`settleWorkEdit`), ná het (hier lege) plan.
     if (columnId === 'assignment.remainingWork') {
       const byId = new Map(assignmentsForTask.map(a => [a.id, a] as const));
       const byResource = new Map(assignmentsForTask.map(a => [a.resourceId, a] as const));
-      // Vergelijk met wat de cel TOONDE (opgeslagen, anders afgeleid als restduur × inzet)
-      // — een niet-bewerkte toewijzing mag haar afgeleide getal niet als expliciet werk krijgen.
       const shownRemaining = remainingMinutesOf(task, { hoursPerDay: taskCalendarHoursPerDay(task, state.calendars, state.calendar) });
       for (const token of intent.tokens) {
         const current = (token.assignmentId ? byId.get(token.assignmentId) : undefined) ?? byResource.get(token.resourceId);
@@ -462,8 +404,6 @@ function applyAssignmentSet(
       }
     }
     if (durationChanged) {
-      // Zelfde nazorg als een duurbewerking (`settleDurationAftermath`: contour, importsplits,
-      // MSP-timephased-venster én bevroren duur-walks).
       const lost = settleDurationAftermath(task, state, oldWorkMinutes, triangle.finishBasis);
       if (lost && !lostTaskIds.includes(task.id)) lostTaskIds = [...lostTaskIds, task.id];
       markDateMutation(state);
@@ -472,8 +412,6 @@ function applyAssignmentSet(
   return { ok: true, value: { timephasedGuidanceLostTaskIds: lostTaskIds } };
 }
 
-/** Relatieplanner-fouten als celvalidatiefouten; `taskId` alleen wanneer de fout bij één eigenaar
- *  hoort (de eindgraafcontrole is taakoverstijgend en draagt er bewust geen). */
 function relationCellErrors(errors: readonly RelationTokenError[], taskId?: string): CellValidationError[] {
   return errors.map(error => ({
     code: error.code,
@@ -513,12 +451,6 @@ function applyRelationSet(
   return { ok: true, value: { changed: planned.value.changed } };
 }
 
-/**
- * Bouwt de `TaskEditPlanEnvironment` voor `task` tegen `state`. Gedeeld met de voortgangsimport
- * (`src/services/progressImport/buildPlan.ts`, via `taskSlice.ts`), zodat die exact dezelfde
- * omgeving opbouwt als het taakgrid — één implementatie, geen tweede die kan afdrijven. Het
- * callsite in `applyCellEdits` geeft `taskForCalendar` mee, niet de rauwe `task`.
- */
 export function buildTaskEditPlanEnvironment(state: AppState, task: Task): TaskEditPlanEnvironment {
   const effectiveCalendar = effectiveCalendarOf(task, state.calendar, state.calendars);
   return {
@@ -535,50 +467,29 @@ export function buildTaskEditPlanEnvironment(state: AppState, task: Task): TaskE
     customTaskTypeIds: new Set(state.customTaskTypes.map(type => type.id)),
     activityCodeTypes: state.activityCodeTypes,
     customFieldDefs: state.customFieldDefs,
-    // Werkbehoud bij de contourherschaling volgt de effectieve werkregel. Hier in de gedeelde
-    // bouwer, zodat óók de voortgangsimport en de
-    // store-`planTaskCellEdits`-paden hem krijgen — niet alleen de rastercelbewerking.
     contourKeepsWork: contourKeepsWork(task, state.project.defaultWorkRule),
-    // B1a: de effectieve werkregel (vast werk ⇒ urenmaat) ziet ook de projectstandaard.
     defaultWorkRule: state.project.defaultWorkRule,
   };
 }
 
-/** De kolommen waarin je een start typt; alleen daarvoor is de voorgangervraag nodig. */
 const TYPED_START_COLUMN_IDS: ReadonlySet<string> = new Set(['task.time.start', 'task.time.scheduleStart']);
 
 function applyCellEdits(
   state: AppState,
   edits: readonly CellEditIntent[],
   runtime: GridColumnRuntime,
-  // PRESTATIE: een `state.tasks.findIndex(...)` hier zou een lineaire scan over het VOLLEDIGE
-  // document zijn, per taak opnieuw. De caller bouwt die index al één keer (`draftTaskIndexById` in
-  // prepareGridMutation); hem hier meegeven maakt dit O(1) in plaats van O(document). De caller
-  // vervangt nooit posities in `state.tasks` (alleen elementen op dezelfde index), dus deze kaart
-  // blijft geldig zolang deze functie draait.
   taskIndexById: ReadonlyMap<string, number>,
-  // Alleen een echte Ctrl+V-paste zet dit aan (zie `skipReadOnlyCells` in
-  // clipboard.ts en `pasteIntentPresent` in prepareGridMutation hieronder). Een enkele celedit of
-  // Delete/Backspace (via `planTaskGridClear`) behoudt de bestaande harde weigering.
   skipReadOnlyCells: boolean,
-  // Bepaalt een voorganger de start van deze taak? Lui en per transactie gedeeld (zie
-  // `prepareGridMutation`), want alleen een getypte start heeft het nodig.
   startDrivenByPredecessor: (taskId: string) => boolean,
   plannedDates: (task: Task) => PlannedProgressDates | undefined,
-  // De toewijzingen van deze taak (uit de callerindex, O(1)), voor de
-  // werkdriehoek bij een duurbewerking.
   assignmentsForTask: readonly AppState['assignments'][number][] = [],
-  // Met `GridMutationOptions.progressEntry`: de statusdatum waarmee de cellen gepland worden als het
-  // project er nog geen heeft — vandaag. De draft zelf krijgt hem pas als de uitkomst hem houdt.
   statusDateOverride?: string,
   deferDurationCompletion?: boolean,
 ): GridResult<{
   timephasedGuidanceLost: boolean;
   skippedReadOnlyCount: number;
   startNotice?: StartEditNotice;
-  /** Dezelfde datum voor de afleiding en voor de startvraag na toepassen van de plak. */
   progressStart?: string;
-  /** Bewaard, afwijkend restwerk dat een duurcel opnieuw uitrekende (`settleDurationEdit`). */
   recomputedWork?: readonly RecomputedRemainingWork[];
 }, readonly CellValidationError[]> {
   const first = edits[0];
@@ -596,21 +507,11 @@ function applyCellEdits(
     if (!descriptor || !descriptor.available(runtime.context)) {
       return { ok: false, errors: [validationError('plannerNotAvailable', edit, edit.value)] };
     }
-    // Statisch berekende kolommen zijn nooit onderdeel van een gezamenlijke eindtoestand. Bij een
-    // echte paste wordt deze cel overgeslagen in plaats van de hele transactie te blokkeren — in
-    // de praktijk raakt clipboard.ts (met `skipReadOnlyCells` aan) deze tak hier al niet meer,
-    // maar deze weg blijft als achtervang voor elke andere aanroeper.
     if (descriptor.readOnly === true) {
       if (skipReadOnlyCells) { skippedReadOnlyCount++; continue; }
       return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
     }
     let value = edit.value;
-    // Dezelfde datum heeft vóór validatie en de no-op-vergelijking dezelfde vorm als
-    // de opgeslagen taak (D1/D2/D7). Een ongewijzigde start mag geen nieuwe SNET maken.
-    // Een werkelijke datum van een mijlpaal krijgt de klokketijd uit de planning van de taak
-    // van vóór deze invoer (`normalizeActualDate`, besluit 2026-10-29).
-    // Een einde zonder tijd is het einde van die dag zoals de tabel het toont (B4), ook bij
-    // kalendertijd (`normalizeTaskDateInput`); D3-exclusief geldt alleen op de laadgrens.
     if (typeof value === 'string') {
       const column = String(edit.columnId);
       let field: TaskDateField | null = null;
@@ -653,20 +554,6 @@ function applyCellEdits(
       : {}),
   };
 
-  // Algemene gezamenlijke-eindtoestandvalidatie voor conditioneel schrijfbare cellen. Een cel mag
-  // worden geschreven wanneer zij in de beginstaat al schrijfbaar is, of wanneer de OVERIGE
-  // writes van dezelfde taak haar controller in een schrijfbare toestand zetten. De eigen write
-  // telt bewust niet mee: zo kan een compacte notitiecel zichzelf niet openzetten door eerst de
-  // meerdere notities te overschrijven.
-  //
-  // PRESTATIE: `runtime.context.tasksById` — de VOLLEDIGE documentkaart — kopiëren per combinatie
-  // van (conditioneel schrijfbare cel × prefixlengte) bevriest een grote bulk-plak seconden lang.
-  // De kaart hoeft maar ÉÉN keer per taak te worden gekopieerd — alleen `task.id` verandert tussen
-  // de projecties, de rest van het document niet — dus hij wordt hier eenmalig aangemaakt en daarna
-  // alleen die ene entry bijgewerkt (structureel gedeeld tussen alle conditioneel schrijfbare
-  // cellen en alle prefixlengtes van deze taak). Zelfde semantiek, zelfde alles-of-niets-uitkomst:
-  // op het moment dat `descriptor.readOnly` wordt aangeroepen bevat de kaart precies dezelfde
-  // waarden als een per-aanroep-kopie.
   let sharedProjectedTasksById: Map<string, AppState['tasks'][number]> | null = null;
   let sharedProjectedContext: TaskColumnContext | null = null;
   const ensureProjectedContext = (): { tasksById: Map<string, AppState['tasks'][number]>; context: TaskColumnContext } => {
@@ -677,56 +564,10 @@ function applyCellEdits(
     return { tasksById: sharedProjectedTasksById, context: sharedProjectedContext };
   };
 
-  // Alleen deze vier velden bepalen ooit de conditionele readOnly-uitkomst van een ANDERE cel
-  // (zie descriptor.readOnly hierboven in taskColumnRegistry.ts: wbsCode/milestoneKind/mandatory/
-  // constraint.hard/isHammock/scheduleDuration lezen uitsluitend `ctx.wbsAutoNumber`,
-  // `task.isMilestone`, `task.constraint?.type`, `task.isHammock` of `task.childIds` (die laatste
-  // is structureel niet via een cel-paste schrijfbaar, zie aanname (1) hieronder); alleen
-  // `task.notes` leest een veld dat het zelf schrijft, en heeft dus per definitie geen ANDERE
-  // write die het beïnvloedt).
-  // Tussenliggende, niet-controller writes kunnen de conditionele uitkomst dus nooit veranderen:
-  // het is voldoende ELKE controllerGRENS te bekijken, niet elke prefixlengte van ALLE overige
-  // writes. `orderWritesForDependentTransitions` heeft de controllers al in hun canonieke
-  // onderlinge volgorde gezet, dus filteren op deze vier id's uit `validatedEdits` behoudt precies
-  // die volgorde.
-  //
-  // Deze set is met de hand onderhouden, niet uit de
-  // registry afgeleid (`readOnly` is een ondoorzichtige `(task, ctx) => boolean`, geen
-  // gestructureerde afhankelijkheidslijst). Twee stilzwijgende aannames die daarbij horen:
-  // (1) `task.childIds` staat hier bewust NIET in, ook al lezen isHammock, durationUnit,
-  //     scheduleDuration en de zes voortgangskolommen (verzameltaak ⇒ alleen-lezen) childIds.length —
-  //     childIds is nooit los via een cel-paste schrijfbaar (readonlyColumn, geen parse/planWrite),
-  //     dus er is structureel geen CellEditIntent-route die childIds binnen dezelfde transactie
-  //     kan veranderen; (2) `ctx.assignmentsByTaskId` staat hier ook NIET in, ook al zijn
-  //     assignment.resources/unitsPerDay/curve zelf ook conditioneel read-only via
-  //     `assignments(task, ctx).length === 0` — hun writes leveren altijd een AssignmentSetIntent
-  //     op ('assignment-set'), nooit een CellEditIntent ('cell-edit'), dus ze lopen structureel
-  //     nooit door déze conditionele controle (die uitsluitend CellEditIntent[] ziet). Beide
-  //     aannames staan gepind in `check-grid-transaction.ts` (sectie "Aanbeveling 4"): die pin
-  //     faalt zodra de registry hier niet meer bij past, zodat een wijziging bewust gecertificeerd
-  //     moet worden in plaats van deze set stilzwijgend te laten verouderen.
   const CONTROLLER_COLUMN_IDS = new Set([
     'task.isMilestone', 'task.isHammock', 'task.constraint.type', 'task.constraint2.type',
   ]);
 
-  // `task.isHammock` staat zowel IN CONTROLLER_COLUMN_IDS
-  // als heeft zelf een conditionele readOnly (`task.isMilestone || task.childIds.length > 0`).
-  // Op een samenvattende taak (childIds > 0) kan de isHammock-cel dus NOOIT jointly writable
-  // worden — geen enkele andere write in een paste raakt childIds of isMilestone. Wordt zo'n
-  // isHammock-write daarom overgeslagen, dan is het OPTIMISTISCHE oordeel dat een gelijktijdig
-  // geplakte task.time.scheduleDuration daardoor "jointly writable" is fout: de gedeelde
-  // controller-toestandenreeks neemt aan dat isHammock wél wordt toegepast, terwijl die write zelf
-  // nooit doorgaat. Concreet: samenvattende taak, isHammock=true, plak {isHammock: false, duur: 5d}
-  // ⇒ isHammock wordt (terecht) overgeslagen, en scheduleDuration zou anders hard falen op de
-  // VERKEERDE cel in plaats van een nette skip van beide cellen.
-  //
-  // De lus hieronder herhaalt daarom tot een vast punt: na elke nieuw ontdekte skip worden de
-  // gedeelde controllertoestanden herbouwd UITSLUITEND uit de nog niet overgeslagen edits, en
-  // wordt elke nog niet overgeslagen conditionele cel opnieuw beoordeeld. Zo eindigt dit geval
-  // netjes als "beide cellen overgeslagen + één geaggregeerde melding" in plaats van een
-  // misleidende foutmelding op de verkeerde cel. Zonder `skipReadOnlyCells` (Delete/clear, of een
-  // enkele celedit) faalt de eerste niet-schrijfbare cel nog steeds direct — de lus draait dan
-  // hooguit één keer, want de functie retourneert voordat een tweede pas ooit nodig is.
   const skippedConditionalEdits = new Set<CellEditIntent>();
   let passFoundNewSkip = true;
   while (passFoundNewSkip) {
@@ -751,11 +592,6 @@ function applyCellEdits(
         || !descriptor.readOnly(task, runtime.context)) continue;
       const { tasksById: projectedTasksById, context: projectedContext } = ensureProjectedContext();
 
-      // De vrijwel altijd genomen, snelle tak: de gecontroleerde cel is zelf geen controllerveld
-      // (dat zijn wbsCode/milestoneKind/mandatory/constraint.hard/scheduleDuration/notes — NIET
-      // isHammock, zie hierboven), dus de gedeelde controller-alleen-toestandenreeks van deze taak
-      // dekt precies dezelfde uitkomsten als een uitputtende prefixlus — zonder ze telkens
-      // opnieuw te herplannen, en ZONDER inmiddels overgeslagen controllers mee te rekenen.
       if (!CONTROLLER_COLUMN_IDS.has(String(edit.columnId))) {
         if (!sharedControllerStates) sharedControllerStates = buildControllerStates(edit);
         let jointlyWritable = false;
@@ -770,9 +606,6 @@ function applyCellEdits(
         continue;
       }
 
-      // De gecontroleerde cel is zelf (ook) een controllerveld (vandaag alleen `task.isHammock`).
-      // Valt terug op de oorspronkelijke, uitputtende prefixcontrole — zelfde semantiek, geen
-      // snelkoppeling — over de nog niet overgeslagen overige edits van deze pas.
       const otherEdits = activeEdits.filter(candidate => candidate !== edit);
       let jointlyWritable = false;
       for (let prefixLength = 1; prefixLength <= otherEdits.length; prefixLength++) {
@@ -795,12 +628,6 @@ function applyCellEdits(
     ? validatedEdits.filter(edit => !skippedConditionalEdits.has(edit))
     : validatedEdits;
 
-  // Een kalenderwissel in de cel is een EIGEN
-  // stap vóór de rest van de paste — zelfde volgorde als `taskSlice.updateTask`. De slotgrootte
-  // verandert en de werkregel beslist wat meebeweegt (`settleCalendarChange`); een duur in dezelfde
-  // paste wordt daarná gepland, tegen een verse momentopname in de nieuwe slot. (Het environment is
-  // al met de geplakte kalender gebouwd, dus het duurplan rekent in de juiste slot.) Geen `else`
-  // tussen de twee stappen: dat zou de geplakte duur weggooien.
   let changed = false;
   let timephasedGuidanceLost = false;
   let scheduleStale = false;
@@ -819,15 +646,8 @@ function applyCellEdits(
     }
   }
   const remainingEdits = calendarEdits.length > 0 ? finalEdits.filter(edit => !calendarEdits.includes(edit)) : finalEdits;
-  // Momentopname VÓÓR het plan; een gewijzigde duur laat de
-  // toewijzingen daarna hun regel volgen (`settleDurationEdit`) — onder de standaardregel zonder
-  // werkvelden verandert er niets.
-  // `assignmentsForTask` blijft ná de kalenderstap geldig: die muteert velden op dezelfde draft-
-  // objecten en voegt niets toe of weg (een `state.assignments.filter` hier zou een
-  // O(taken × toewijzingen)-kost zijn).
   const current = state.tasks[taskIndex];
   const triangle = captureTriangle(current, assignmentsForTask, state);
-  // Een voortgangscel verplaatst opgeslagen werk van rest naar verricht.
   const progressWork = captureProgressWork(current, state);
   const workRuleBefore = current.workRule;
   let progressStart: string | undefined;
@@ -847,11 +667,7 @@ function applyCellEdits(
     state.tasks[taskIndex] = planned.value.task;
     recomputedWork = settleDurationEdit(state.tasks[taskIndex], triangle).recomputedWork;
     settleProgressWork(state.tasks[taskIndex], state.assignments, progressWork);
-    // Een typewissel in het raster legt — net als
-    // `setTaskWorkRule` — onder een werkbeschermende regel het huidige restwerk vast.
     if (state.tasks[taskIndex].workRule !== workRuleBefore) {
-      // Een maatwijziging (B1a: vast werk maakt een dagenmaat-taak urenmaat) is planning: de modus
-      // "datums zoals opgeslagen" gaat uit en de planning wordt verouderd (spec §5.2, geval 11c).
       if (settleRuleChange(state.tasks[taskIndex], state.assignments, state, state.tasks[taskIndex].workRule).durationUnitChanged) {
         scheduleStale = true;
       }
@@ -859,8 +675,6 @@ function applyCellEdits(
     }
   }
   if (changed && scheduleStale) markDateMutation(state);
-  // Meldbaar: een SNET die er echt kwam (dus alleen bij een wijziging), of een start die een andere
-  // constraint tegenhield — die laat de taak juist ongemoeid, dus daar geldt `changed` niet.
   const snet = planned.value.task.constraint;
   const startNotice: StartEditNotice | undefined = planned.value.startBlocked
     ? { kind: 'blocked', name: planned.value.task.name, constraint: planned.value.startBlocked, taskId: planned.value.task.id,
@@ -876,7 +690,6 @@ function applyCellEdits(
   };
 }
 
-/** Bepaal starts met de nieuwe plaatsing en de voortgang van eerdere taken in de relatiegraaf. */
 function plannedDatesForGrid(
   state: Readonly<AppState>,
   writes: readonly GridWriteIntent[],
@@ -953,11 +766,6 @@ function prepareGridWrites(
   if (!normalized.ok) return normalized;
   const orderedWrites = orderWritesForDependentTransitions(normalized.value);
 
-  // Invoerregel uit `engine/progressEntry.ts`: voortgang invullen vanuit het raster zonder
-  // statusdatum. De cellen worden gepland met vandaag als statusdatum; pas als een beschreven taak
-  // daarna voortgang heeft, krijgt de draft die datum. Houdt geen enkele taak voortgang over (0 %,
-  // datums gewist), dan blijft het project onaangeroerd — de statusdatum doet bij zo'n uitkomst
-  // niets.
   const progressTaskIds = new Set<string>();
   for (const write of orderedWrites) {
     if (write.kind === 'cell-edit' && write.route === 'task-progress') progressTaskIds.add(write.taskId);
@@ -967,9 +775,6 @@ function prepareGridWrites(
   const entryStatusDate = today ? state.project.statusDate || today : undefined;
   const notifications: DeferredNotification[] = [];
 
-  // Alleen aanwezig op een PasteIntent die daar expliciet om vroeg (zie
-  // `TaskGridPasteOptions.skipReadOnlyCells` in clipboard.ts) — Delete/Backspace (`planTaskGridClear`)
-  // laat dit veld weg en behoudt zijn bestaande harde weigering.
   const skipReadOnlyCells = intents.some(
     intent => intent.kind === 'paste' && intent.allowSkippingReadOnlyCells === true,
   );
@@ -995,19 +800,13 @@ function prepareGridWrites(
   const appliedRelationWrites: RelationSetIntent[] = [];
   let skippedReadOnlyFromTransaction = 0;
   const skippedReadOnlyTaskIds = new Set<string>();
-  // Taken waarin deze transactie iets schreef (een cel die niet is overgeslagen, of een toewijzing).
   const wroteTaskIds = new Set<string>();
   for (const intent of intents) {
     if (intent.kind === 'paste') for (const id of intent.skippedReadOnlyTaskIds ?? []) skippedReadOnlyTaskIds.add(id);
   }
   const startNotices: StartEditNotice[] = [];
-  // Herschreven afwijkend restwerk over ALLE taken van deze transactie (plakken/doorvullen): één melding.
   const recomputedWork: RecomputedRemainingWork[] = [];
   const isolated = produce(state as AppState, draft => {
-    // Welke taken hebben een voorganger (getypte start ⇒ SNET)? Lui: alleen een getypte
-    // start vraagt ernaar, en dan één keer per transactie. Cellen verzetten geen relaties of
-    // hiërarchie, dus de beginstaat volstaat — tot een relatiewrite in deze transactie de relaties
-    // verandert; daarna rekent hij op de draft.
     let predecessorDriven: ReadonlySet<string> | null = null;
     let relationsChanged = false;
     const startDrivenByPredecessor = (taskId: string): boolean => {
@@ -1099,13 +898,11 @@ function prepareGridWrites(
       }
     }
     if (errors.length === 0 && appliedRelationWrites.length > 0) {
-      // Alleen fouten die deze mutatie toevoegt: `state` is de graaf van vóór de transactie.
       const finalGraph = validateFinalRelationGraph({
         tasks: draft.tasks, sequences: draft.sequences, before: { tasks: state.tasks, sequences: state.sequences },
       });
       if (!finalGraph.ok) errors.push(...relationCellErrors(finalGraph.errors));
     }
-    // T17 geldt voor elke invoerroute, ook één gewone datumcel of een plakactie.
     if (errors.length === 0) {
       for (const taskId of wroteTaskIds) {
         const task = draftTasksById.get(taskId);
@@ -1137,7 +934,6 @@ function prepareGridWrites(
       ? new Map(state.tasks.map(task => [task.id, task] as const))
       : null;
     if (beforeTasksById) {
-      // Geen verzonnen werkelijke start — het criterium dat alle routes delen.
       for (const taskId of progressTaskIds) {
         const before = beforeTasksById.get(taskId);
         const after = draftTasksById.get(taskId);
@@ -1216,8 +1012,6 @@ export function prepareGridMutation(
   let resourceLoadResult: ResourceLoadResult | null;
   try {
     viewRows = deriveViewRows(isolated);
-    // Een bewerking die de belasting niet raakt (naam, notities, codes, …) hergebruikt het vorige
-    // resultaat — zie `resourceLoadReuse.ts`. Zonder vorig resultaat wordt er gewoon gerekend.
     resourceLoadResult = state.resourceLoadResult !== null && resourceLoadInputsUnchanged(state, isolated)
       ? state.resourceLoadResult
       : computeReliableResourceLoad(
@@ -1253,8 +1047,6 @@ function commitPreparedAgainstStore(
   if (get().activeDocumentId !== prepared.documentId) {
     return { ok: false, errors: [{ code: 'documentChanged', message: 'Het actieve document is gewijzigd' }] };
   }
-  // Alleen de rechtstreeks geëxporteerde test-/diagnosenaad kan tussen prepare en commit worden
-  // vastgehouden. De normale wrapper is synchroon en slaat deze onnodige hotpathcheck over.
   if (requireFreshBefore && !snapshotsEqual(createSnapshot(get()), prepared.before)) {
     return { ok: false, errors: [{ code: 'stateChanged', message: 'De documentdata is na prepare gewijzigd' }] };
   }
@@ -1281,12 +1073,6 @@ function commitPreparedAgainstStore(
   if (changed && prepared.timephasedLossCount > 0) {
     notifyTimephasedLoss(get().notify, prepared.documentId, prepared.timephasedLossCount);
   }
-  // Ongeacht `changed` — ook een paste die UITSLUITEND read-only doelcellen raakte
-  // (dus per saldo niets schreef) moet de gebruiker vertellen dat er iets is overgeslagen, anders
-  // oogt de paste als een stille no-op.
-  // Een weigering (rood, blijvend), ook als de rest wél geschreven is. De detailregels noemen de
-  // taken waarin niets is aangepast, en apart de taken waarin een andere cel wél is geschreven. Geen
-  // samenvouwsleutel: het aantal staat in de tekst, en twee verschillende plakacties zijn twee meldingen.
   if (prepared.skippedReadOnlyCount > 0) {
     const tasks = get().tasks;
     const names = (ids: readonly string[] | undefined) => (ids ?? [])
