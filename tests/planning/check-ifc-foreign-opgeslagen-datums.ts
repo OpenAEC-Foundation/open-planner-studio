@@ -2,14 +2,19 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { taskMinutesPerDay } from '@/services/ifc/dayMeasureIo';
 import { checkMergeOutput, MergeNeedsPhase2Error, prepareIfcWrite, type OwnOutputCheck } from '@/services/ifc/foreign/mergeWriter';
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import { TASKTIME_SLOT } from '@/services/ifc/ifcTaskSlots';
+import { parseIfcDuration } from '@/services/ifc/isoDuration';
 import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { readP6XML } from '@/services/p6/p6xmlReader';
 import { readXER } from '@/services/xer/xerReader';
 import { prepareIfcOutput } from '@/state/prepareIfcOutput';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { MSPDI_FIXTURE, P6XML_FIXTURE } from '../fixtures/recordedTimesFormats';
 import { loadStore, openInStore } from './ifcAppRoute';
@@ -251,6 +256,24 @@ await check('2231 een rest op een eigen kalender van vier uur: de lezer rekent m
     'planning-na-openen', 'twaalf uur is op deze kalender drie werkdagen, geen anderhalve');
 });
 
+const atHalfPastTen = (input: WriteIFCInput) => {
+  input.project = { ...input.project, statusDate: `${input.project.statusDate}T10:30` };
+};
+
+await check('2231 de twee kandidaten van review ronde 3: een andere kloktijd van de peildatum en een onbepaald duurtype weigeren met planning-na-openen', async () => {
+  const running = await renamedAndWritten(await recordedExample({ progress: 0.5, edit: atHalfPastTen }), PROGRESS_TASK);
+  const text = dec.decode(running.bytes), task = `${PROGRESS_TASK} (hernoemd)`, { args } = taskTimeArgs(text, task);
+  const statusDate = running.input.project.statusDate!;
+  assert.match(statusDate, /^\d{4}-\d{2}-\d{2}T10:30$/, 'de peildatum heeft een kloktijd');
+  assert.equal(args[TASKTIME_SLOT.statusTime], `'${statusDate}:00'`, 'de merge schreef de peildatum met haar kloktijd');
+  assert.equal(args[TASKTIME_SLOT.durationType], '.WORKTIME.', 'de merge schreef het duurtype');
+  const verdictOf = (bytes: Uint8Array) => verdict(bytes, running.input, running.source, running.own);
+  assert.equal(await verdictOf(running.bytes), 'aanvaard', 'de geldige uitvoer');
+  assert.equal(await verdictOf(withSlot(text, task, TASKTIME_SLOT.statusTime, `'${statusDate.slice(0, 10)}T13:45:00'`)),
+    'planning-na-openen', 'een andere kloktijd op dezelfde dag');
+  assert.equal(await verdictOf(withSlot(text, task, TASKTIME_SLOT.durationType, '.NOTDEFINED.')), 'planning-na-openen', 'een onbepaald duurtype');
+});
+
 const PROBED_SLOTS = [
   'durationType', 'scheduleDuration', 'scheduleStart', 'scheduleFinish', 'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish',
   'freeFloat', 'totalFloat', 'isCritical', 'statusTime', 'actualDuration', 'actualStart', 'actualFinish', 'remainingTime', 'completion',
@@ -283,18 +306,96 @@ const EMPTY_BY_RULE: Readonly<Record<ProbedSlot, (task: DomainTask, withheld: re
   completion: t => (t.time.completion > 0 ? undefined : 'gereedheid 0 schrijft $, want IfcPositiveRatioMeasure moet groter zijn dan 0 (ifcCompletionReal)'),
 };
 
-function nextDay(token: string): string {
-  const m = /^'(\d{4})-(\d{2})-(\d{2})(.*)'$/.exec(token);
-  assert(m, `een datum: ${token}`);
-  return `'${new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + 1)).toISOString().slice(0, 10)}${m[4]}'`;
+type SlotSort = 'tijdstip' | 'enum' | 'duur' | 'logische waarde' | 'getal';
+const sortOf = (slot: ProbedSlot): SlotSort => DATE_SLOTS.has(slot) ? 'tijdstip' : slot === 'durationType' ? 'enum'
+  : slot === 'isCritical' ? 'logische waarde' : slot === 'completion' ? 'getal' : 'duur';
+
+const RULES = {
+  'iso-duur': 'ISO 8601: dezelfde duur in een andere schrijfwijze, met weggelaten nulcomponenten of in minuten (parseIfcDuration)',
+  werkdag: 'een rest, werkelijke duur of speling van een dagtaak rekent minuten om met de werkdag van de taakkalender, een speling met haar minuten (applyTaskTimeRecords)',
+  dagmaat: 'een gebroken dagduur die in minuten staat met haar dagmaatrecord, is dezelfde dagduur in dagen (DayMeasure, dayMeasureIo.ts)',
+  getal: 'STEP REAL: hetzelfde getal in een andere schrijfwijze',
+} as const;
+type RuleId = keyof typeof RULES;
+interface Candidate { readonly kind: string; readonly token: string; readonly rule?: RuleId }
+
+const nextDate = (date: string) => new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+
+function stampCandidates(token: string): Candidate[] {
+  const m = /^'(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}):00'$/.exec(token);
+  assert(m, `een tijdstip: ${token}`);
+  const [, date, clock] = m;
+  return [
+    { kind: 'een andere dag', token: `'${nextDate(date)}T${clock}:00'` },
+    { kind: 'een andere kloktijd op dezelfde dag', token: `'${date}T${clock === '13:45' ? '10:30' : '13:45'}:00'` },
+    { kind: 'een datum zonder tijd', token: `'${date}'` },
+    clock === '07:00'
+      ? { kind: 'middernacht waar 07:00 de datum zonder tijd is', token: `'${date}T00:00:00'` }
+      : { kind: '07:00, de datum zonder tijd, waar een kloktijd hoort', token: `'${date}T07:00:00'` },
+    { kind: 'de tijdzone Z', token: `'${date}T${clock}:00Z'` },
+    { kind: 'de tijdzone +01:00', token: `'${date}T${clock}:00+01:00'` },
+    { kind: 'andere seconden', token: `'${date}T${clock}:30'` },
+  ];
 }
 
-function otherValue(slot: ProbedSlot, token: string, args: readonly string[]): string {
-  if (DATE_SLOTS.has(slot)) return nextDay(token === '$' ? args[TASKTIME_SLOT.scheduleStart] : token);
-  if (slot === 'isCritical') return token === '.T.' ? '.F.' : '.T.';
-  if (slot === 'durationType') return token === '.WORKTIME.' ? '.ELAPSEDTIME.' : '.WORKTIME.';
-  if (slot === 'completion') return token === '0.37' ? '0.38' : '0.37';
-  return token === "'P0Y0M23D'" ? "'P0Y0M24D'" : "'P0Y0M23D'";
+function sameLengthRule(slot: ProbedSlot, task: DomainTask, to: 'uren' | 'dagen', minutes: number): RuleId | undefined {
+  const hourTask = taskDurationUnit(task) === 'hours';
+  if (slot === 'scheduleDuration') return !hourTask && to === 'dagen' ? 'dagmaat' : undefined;
+  if (slot === 'remainingTime') return hourTask ? undefined : 'werkdag';
+  if (slot === 'actualDuration') return 'werkdag';
+  const own = slot === 'totalFloat' ? task.time.totalFloatMinutes : task.time.freeFloatMinutes;
+  return (to === 'uren' ? own === minutes : own === undefined) ? 'werkdag' : undefined;
+}
+
+function durationCandidates(slot: ProbedSlot, token: string, task: DomainTask, minutesPerDay: number): Candidate[] {
+  const inner = token.slice(1, -1), negative = inner.startsWith('-'), body = negative ? inner.slice(1) : inner, sign = negative ? '-' : '';
+  const { days, timeMinutes } = parseIfcDuration(inner);
+  const signed = timeMinutes === null ? days * minutesPerDay : timeMinutes + days * minutesPerDay, minutes = Math.abs(signed);
+  const planned = Math.abs(Number(task.time[slot as keyof DomainTask['time']] ?? 0));
+  const out: Candidate[] = timeMinutes === null ? [
+    { kind: 'een andere lengte in dezelfde vorm', token: `'${sign}P0Y0M${Math.abs(days) + 1}D'` },
+    { kind: 'dezelfde lengte zonder nulcomponenten', token: `'${sign}P${Math.abs(days)}D'`, rule: 'iso-duur' },
+    { kind: 'dezelfde lengte in uren', token: `'${sign}PT${minutes}M'`, rule: sameLengthRule(slot, task, 'uren', signed) },
+  ] : [
+    { kind: 'een andere lengte in dezelfde vorm', token: `'${sign}${/T\d+H/.test(body) ? body.replace(/T(\d+)H/, (_, h: string) => `T${Number(h) + 1}H`) : body.replace('T', 'T1H')}'` },
+    { kind: 'dezelfde lengte in minuten', token: `'${sign}PT${minutes}M'`, rule: 'iso-duur' },
+    { kind: 'dezelfde lengte in dagen', token: `'${sign}P0Y0M${planned}D'`, rule: sameLengthRule(slot, task, 'dagen', signed) },
+  ];
+  if (minutes !== 0) {
+    out.push({ kind: 'het andere teken', token: `'${negative ? body : `-${body}`}'` });
+    out.push({ kind: 'een nulduur', token: "'P0Y0M0D'" });
+  }
+  return out;
+}
+
+function realCandidates(token: string): Candidate[] {
+  const out: Candidate[] = [
+    { kind: 'een andere waarde', token: token === '0.37' ? '0.38' : '0.37' },
+    { kind: 'hetzelfde getal met een extra nul', token: token.includes('E') ? token.replace('E', '0E') : `${token}0`, rule: 'getal' },
+  ];
+  if (!token.includes('E')) out.push({ kind: 'hetzelfde getal met een exponent', token: `${token}E0`, rule: 'getal' });
+  if (/^0\./.test(token)) out.push({ kind: 'hetzelfde getal zonder cijfer voor de punt', token: token.slice(1) });
+  if (Number.isInteger(Number(token))) out.push({ kind: 'hetzelfde getal als INTEGER', token: String(Number(token)) });
+  return out;
+}
+
+function candidatesFor(slot: ProbedSlot, token: string, task: DomainTask, minutesPerDay: number): Candidate[] {
+  switch (sortOf(slot)) {
+    case 'tijdstip': return stampCandidates(token);
+    case 'enum': return ['.WORKTIME.', '.ELAPSEDTIME.', '.NOTDEFINED.', '.ONBEKEND.'].filter(m => m !== token)
+      .map(member => ({ kind: `het lid ${member}`, token: member }));
+    case 'logische waarde': return [{ kind: 'de andere waarde', token: token === '.T.' ? '.F.' : '.T.' }, { kind: 'onbekend (.U.)', token: '.U.' }];
+    case 'getal': return realCandidates(token);
+    default: return durationCandidates(slot, token, task, minutesPerDay);
+  }
+}
+
+function valueWhereEmpty(slot: ProbedSlot, args: readonly string[]): string {
+  const sort = sortOf(slot);
+  if (sort === 'tijdstip') return args[TASKTIME_SLOT.scheduleStart];
+  if (sort === 'logische waarde') return '.F.';
+  if (sort === 'getal') return '0.37';
+  return "'P0Y0M23D'";
 }
 
 function kindOf(task: DomainTask): string {
@@ -306,10 +407,12 @@ function kindOf(task: DomainTask): string {
 const PROPERTY_STANDS: readonly Stand[] = [
   ...STANDS,
   { name: 'MSPDI-herkomst met een lopende taak op een kalender van vier uur', make: () => recordedExample({ progress: 0.5, halfDay: true }), task: PROGRESS_TASK },
+  { name: 'MSPDI-herkomst met een lopende taak en een peildatum om 10.30 uur', make: () => recordedExample({ progress: 0.5, edit: atHalfPastTen }), task: PROGRESS_TASK },
 ];
-const probed = { copies: 0, refused: 0, kinds: new Set<string>(), empty: new Map<string, number>(), accepted: [] as string[] };
+interface Tally { copies: number; refused: number; byRule: Map<RuleId, number> }
+const probed = { copies: 0, kinds: new Set<string>(), empty: new Map<string, number>(), byDifference: new Map<string, Tally>() };
 for (const { name: stand, make, task: named } of PROPERTY_STANDS) {
-  await check(`2231 ${stand}: elk tijdslot dat de merge schrijft of bewust leeg laat, toetst de controle tegen de planning`, async () => {
+  await check(`2231 ${stand}: elk soort verschil in elk tijdslot weigert, behalve wat een regel van de lijst gelijk noemt`, async () => {
     const { input, source, bytes: good, own, edited } = await renamedAndWritten(await make(), named);
     assert.equal(await verdict(good, input, source, own), 'aanvaard', 'de geldige uitvoer');
     const withheld = (id: string): readonly string[] => input.withheldTaskTimeFields?.[id] ?? [];
@@ -321,31 +424,43 @@ for (const { name: stand, make, task: named } of PROPERTY_STANDS) {
     const text = dec.decode(good), deviations: string[] = [];
     for (const id of picked.values()) {
       const task = input.tasks.find(t => t.id === id)!, { args } = taskTimeArgs(text, task.name);
+      const calendar = resolveCalendar(task.calendarId, input.resourceCalendars ?? [], input.calendar);
+      const minutesPerDay = taskMinutesPerDay(task, effHoursPerDay(calendar));
       probed.kinds.add(kindOf(task));
       for (const slot of PROBED_SLOTS) {
         const at = TASKTIME_SLOT[slot], token = args[at];
         const rule = EMPTY_BY_RULE[slot](task, withheld(id), input.project.statusDate);
         if ((token === '$') !== (rule !== undefined)) deviations.push(`${stand} | ${task.name} | ${slot}: de merge schreef ${token}, de regel zegt ${rule ?? 'gevuld'}`);
         if (rule) probed.empty.set(rule, (probed.empty.get(rule) ?? 0) + 1);
-        for (const copy of token !== '$' ? [otherValue(slot, token, args), '$'] : [otherValue(slot, token, args)]) {
-          const label = `${stand} | ${kindOf(task)} | ${task.name} | ${slot} | ${copy === '$' ? '$' : `${token} → ${copy}`}`;
-          const result = await verdict(withSlot(text, task.name, at, copy), input, source, own);
+        const candidates: Candidate[] = token === '$'
+          ? [{ kind: 'een waarde waar de regel het slot leeg laat', token: valueWhereEmpty(slot, args) }]
+          : [...candidatesFor(slot, token, task, minutesPerDay), { kind: 'leeg ($) waar de planning een waarde heeft', token: '$' }];
+        for (const candidate of candidates) {
+          const result = await verdict(withSlot(text, task.name, at, candidate.token), input, source, own);
+          const difference = `${sortOf(slot)} | ${candidate.kind}`;
+          const tally = probed.byDifference.get(difference) ?? { copies: 0, refused: 0, byRule: new Map<RuleId, number>() };
+          probed.byDifference.set(difference, tally);
+          tally.copies++;
           probed.copies++;
-          if (result === 'planning-na-openen') probed.refused++;
-          else {
-            if (result === 'aanvaard') probed.accepted.push(label);
-            deviations.push(`${label}: ${result}`);
+          if (result === 'planning-na-openen') tally.refused++;
+          if (candidate.rule && result === 'aanvaard') tally.byRule.set(candidate.rule, (tally.byRule.get(candidate.rule) ?? 0) + 1);
+          if (result !== (candidate.rule ? 'aanvaard' : 'planning-na-openen')) {
+            deviations.push(`${stand} | ${kindOf(task)} | ${task.name} | ${slot} | ${candidate.kind}: ${token} → ${candidate.token}: ${result}${candidate.rule ? `, de regel ${candidate.rule} noemt het gelijk` : ''}`);
           }
         }
       }
     }
-    assert.deepEqual(deviations, [], 'elke kopie met één ander slot weigert met planning-na-openen');
+    assert.equal(deviations.length, 0, `elke kopie weigert met planning-na-openen, behalve wat een regel gelijk noemt:\n${deviations.join('\n')}`);
   });
 }
 
-console.log(`Eigenschapsproef: ${probed.copies} kopieën, ${probed.refused} geweigerd met planning-na-openen, ${probed.accepted.length} aanvaard.`);
+console.log(`Eigenschapsproef: ${probed.copies} kopieën.`);
+for (const [difference, tally] of [...probed.byDifference].sort(([a], [b]) => a.localeCompare(b))) {
+  const rules = [...tally.byRule].map(([rule, count]) => `${count}× gelijk volgens ${rule}`).join(', ');
+  console.log(`VERSCHIL ${difference}: ${tally.copies} kopieën, ${tally.refused} geweigerd${rules ? `, ${rules}` : ''}`);
+}
+for (const [rule, text] of Object.entries(RULES)) console.log(`REGEL ${rule}: ${text}`);
 console.log(`Taaksoorten: ${[...probed.kinds].sort().join('; ')}.`);
 for (const [rule, count] of probed.empty) console.log(`LEEG VOLGENS DE REGEL (${count}×) ${rule}`);
-for (const label of probed.accepted) console.log(`AANVAARD ${label}`);
 console.log(`Opgeslagen datums bij de merge: ${passed} geslaagd, ${failed} mislukt.`);
 if (failed) process.exitCode = 1;

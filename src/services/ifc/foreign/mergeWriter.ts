@@ -888,7 +888,10 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     const own: OwnOutputCheck = {
       stepIds, writtenAt, sourceRowGuid: rowGuid, skip: new Set([...restored.skip, ...unmapped]),
       slots: restored.slots.filter(s => !unmapped.has(s.group)).map(s => ({ ...s, id: remap.get(s.id)! })),
-      sourceTokens: new Map(edits.map(e => [`${remap.get(e.id) ?? e.id}#${e.arg}`, e.token])),
+      ...(domain.recordedSourceFormat ? {
+        sourceTokens: new Map(edits.filter(e => byId.get(e.id)?.type === 'IFCTASKTIME')
+          .map(e => [`${remap.get(e.id) ?? e.id}#${e.arg}`, e.token])),
+      } : {}),
       domain,
     };
     observe?.(own);
