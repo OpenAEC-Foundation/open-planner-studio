@@ -10,8 +10,11 @@ eigenschappen van elke toewijzing komen uit de huidige toewijzing en niet uit de
 ## Gevolgen
 
 - Een andere kolom geeft `plannerNotAvailable`. In de kolommen voor inzet, curve en resterend werk moet de set
-  resources gelijk zijn aan die van de taak, anders `readOnly`. Het bedrag van een kostentoewijzing (#815) hoort bij
-  geen van die kolommen en blijft staan.
+  resources gelijk zijn aan die van de taak, anders `readOnly`. In die drie kolommen blijft het bedrag van een
+  kostentoewijzing (#815) staan, want het hoort bij geen van hen. In `assignment.resources` beslist
+  `planTaskAssignmentSet` over het bedrag: een bestaande kostentoewijzing neemt het bedrag van het token over, ook 0
+  of leeg, en houdt haar bedrag bij een ongeldig bedrag; een nieuwe krijgt het alleen als het eindig en niet negatief
+  is.
 - `applyTaskAssignmentPlan` muteert de toewijzingsobjecten van de kopie. Daarom legt `applyAssignmentSet` vóór die
   stap vast wat de brug nodig heeft: de momentopname van de driehoek (`captureTriangle`, met `finishBasis`), het werk
   van de taak en de oude inzet per toewijzing. Een inzetstap geeft het alleen door als de inzet echt veranderde.
@@ -21,6 +24,11 @@ eigenschappen van elke toewijzing komen uit de huidige toewijzing en niet uit de
   is, slaat ze over. Reden: een toewijzing die de planner niet aanraakte, krijgt anders haar afgeleide getal als
   vastgelegd werk. `check-work-rule-store.ts` (o2 en o3) toetst dat een toewijzing op haar getoonde waarde geen eigen
   restwerk krijgt. Een uitgevoerde werkbewerking zet `taskTypesVisible`.
+- Dat werkdeel draait alleen met een momentopname van de driehoek. Valt de taak buiten de werkregel
+  (`workRuleApplies`: samenvattingstaak, mijlpaal, hangmat of kalendertijd), dan geeft `captureTriangle` er geen en
+  slaat `applyAssignmentSet` de hele werkregelstap over (`settleAssignmentPlan` en de werkbewerking). Bij een taak in
+  kalendertijd komt een write in *Resterend werk* zo ver: de waarde valt weg zonder fout en zonder melding, terwijl de
+  andere writes van dezelfde plakactie gelden (knownbug 2485).
 - Verandert de duur door de toewijzingen, dan volgt dezelfde nazorg als bij een duurbewerking
   (`settleDurationAftermath`, met het werk en de `finishBasis` van vóór het plan) en `markDateMutation`.
 - Na alle writes valideert de transactie de uiteindelijke toewijzingen nog eens met `planTaskAssignmentSet`, voor elke

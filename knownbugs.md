@@ -1623,6 +1623,36 @@ en noem het in je rapport of PR-tekst.
     terugval en kwamen de spaties uit F4. Nagemeten met fontkit: Liberation Mono heeft U+202F niet, Noto Sans Arabic en
     Inter wel. Zie ADR 0384. Issue #1255. — B
 
+2484. **Een kalender en een duur in dezelfde rij plakken geeft een andere duur dan dezelfde duur na de kalenderwissel.**
+      `parseScheduledTaskDuration` (`src/engine/taskGrid/taskColumnRegistry.ts`) leest een duurtekst die
+      `parseTaskDurationInput` niet leest, zoals `2d 4u`, vóór de transactie als minuten, met de kalender die de taak op
+      dat moment heeft. `applyCellEdits` (`src/state/gridTransaction.ts`) plant die minuten daarna in de geplakte
+      kalender. Nagespeeld met `planTaskGridPaste` en `runGridMutation` in Node, niet in de browser: een nieuwe taak van
+      1 d op de projectkalender (8 u per dag) en een tweede kalender met 4 u per dag. Kalender en `2d 4u` in één rij
+      geplakt: de klembordparser levert 1200 minuten en de taak krijgt 5 d, zonder melding. Eerst de kalender geplakt en
+      daarna `2d 4u`: 720 minuten en 3 d. Issue #1279. — B
+
+2485. **Resterend werk plakken op een taak in kalendertijd valt weg zonder fout en zonder melding.** `planTaskGridPaste`
+      (`src/engine/taskGrid/clipboard.ts`) levert voor *Resterend werk* een `assignment-set`. `applyAssignmentSet`
+      (`src/state/gridTransaction.ts`) slaat de werkbewerking over, omdat `captureTriangle`
+      (`src/engine/work/workRuleApply.ts`) voor een taak met `durationType: 'ELAPSEDTIME'` geen momentopname geeft
+      (`workRuleApplies`). De cel telt niet mee als overgeslagen cel (`pasteSkippedReadOnly`). Nagespeeld met
+      `planTaskGridPaste` en `runGridMutation` in Node, niet in de browser: een taak van 2 d met één werkresource
+      *Ploeg* op inzet 1, zonder opgeslagen restwerk, daarna op `ELAPSEDTIME` gezet en doorgerekend. In *Naam* en
+      *Resterend werk* geplakt: `Nieuw` en `Ploeg: 10`. De transactie slaagt en de naam wordt `Nieuw`, maar het restwerk
+      van de toewijzing blijft leeg (het token droeg 600 minuten), en er komt geen melding. Issue #1279. — B
+
+2486. **Een kalenderwissel in het raster laat inzet en werk staan als het plan van de kalenderwrites tijdgefaseerde
+      sturing laat vervallen.** In `applyCellEdits` (`src/state/gridTransaction.ts`) staat `settleCalendarChange` rechts
+      van `timephasedGuidanceLost ||=`. Geeft het plan van de kalenderwrites al `timephasedGuidanceLost`, dan draait de
+      werkregelbrug voor de kalenderwissel niet; `updateTask` (`src/state/slices/taskSlice.ts`) roept haar wel aan.
+      Nagespeeld met de store in Node, niet in de browser: een taak van 4 d op de projectkalender (8 u per dag) met één
+      werkresource op inzet 1 en restwerk 1920 minuten, en met `timephasedFinishFloor`, `timephasedStartAnchor` en één
+      `timephasedDurationWalks`, doorgerekend; daarna de kalender gewisseld naar een kalender met 4 u per dag. Via
+      `runGridMutation` (celwrite `task.calendarId`) bleef het restwerk 1920 minuten en bleef de walk staan. Via
+      `updateTask` werd het restwerk 960 minuten en was de walk weg. Dezelfde rasterwissel zonder die drie velden gaf
+      960 minuten. Issue #1280. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden

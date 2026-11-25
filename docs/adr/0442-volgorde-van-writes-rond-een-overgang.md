@@ -15,11 +15,19 @@ oorspronkelijke volgorde. De rangorde staat in `rank` in die functie; de keuzes 
 - Een lege afhankelijke cel (`undefined`, `''` of `false`) die de geplakte overgang in de eindtoestand toch
   uitschakelt, valt weg: `task.constraint.date` en `task.constraint.hard` bij een eerste type `ASAP` of `ALAP`,
   `task.constraint.hard` bij elk ander eerste type dan `MSO` of `MFO`, en `task.constraint2.date` als het geplakte
-  tweede type leeg, `ASAP` of `ALAP` is. Zo'n lege cel komt mee als een volledige taakrij geplakt wordt. Een niet-lege
-  waarde die met de overgang botst, blijft staan; dan weigert de domeinplanner en daarmee de hele transactie.
+  tweede type leeg, `ASAP` of `ALAP` is. Zo'n lege cel komt mee als een volledige taakrij geplakt wordt.
+- Een niet-lege waarde die met de overgang botst, blijft staan. Wat er dan gebeurt, hangt af van de kolom. Heeft ze
+  een `readOnly`-functie, zoals `task.constraint.hard`, dan volgt de route van ADR 0443: bij Ctrl+V slaat de
+  transactie die cel over met een melding en schrijft ze de rest (een nieuwe naam, `SNET` met een datum en *Hard* op
+  `Ja` geven de naam en `SNET`, zonder *Hard*); bij een losse celbewerking weigert ze. Heeft de kolom geen
+  `readOnly`-functie, zoals `task.constraint.date`, dan weigert het plan van de taak (`planTaskCellEdits`) en daarmee
+  de hele transactie, ook bij Ctrl+V: een datum naast `ASAP` geeft `constraintDateUnavailable` en de taak blijft zoals
+  ze was.
 - Wordt de taak een mijlpaal (`task.isMilestone` op `true`), dan komt een lege toewijzingswrite vóór elke celwrite van
   die taak. Zo wist ze de bestaande toewijzingen voordat de overgang ze onbeschikbaar maakt. Een niet-lege
-  toewijzingswrite komt erna en geeft dan een tegenstrijdige eindtoestand, die de transactie als geheel weigert.
+  toewijzingswrite komt erna. Met een resource die geen kostenresource is, weigert `planTaskAssignmentSet` die dan
+  (`assignmentTaskUnavailable`) en daarmee de hele transactie. Een mijlpaal mag wel kostentoewijzingen dragen (issue
+  #815, eigenaarsbesluit 2026-11-07), dus mijlpaalvlag en een kostentoewijzing in dezelfde plakactie gaan samen door.
   Binnen de cellen komen hangmat uit en de duur vóór de mijlpaalvlag, en `task.milestoneKind` en `task.mandatory`
   erna.
 - Wordt de taak geen mijlpaal (`task.isMilestone` op `false`), dan komen `task.milestoneKind` en `task.mandatory` vóór

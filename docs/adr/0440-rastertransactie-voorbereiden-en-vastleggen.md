@@ -7,7 +7,8 @@ weergaverijen en de resourcebelasting, zonder de store te raken. `commitPrepared
 vast in één storeproducer, met één geschiedenisstap (`recordDocumentDataHistoryDelta`). Geeft een write in de
 transactie een fout, dan geeft het voorbereiden de verzamelde fouten terug en schrijft de transactie niets: een
 geplakt blok is één bewerking en één undo-stap, en een half toegepast blok is lastiger te herstellen dan een
-weigering.
+weigering. Een alleen-lezen cel die een plakactie overslaat, is geen fout (ADR 0443); welke botsing wel een fout is,
+staat in ADR 0442.
 
 ## Gevolgen
 
@@ -19,9 +20,10 @@ weigering.
   eist dat het voorbereiden geen `useAppStore`, `.setState(`, `.notify(`, `runCPM(` of `withTransaction` bevat, dat
   het vastleggen geen `async`, `await` of `Promise` bevat, precies één `set(` heeft en `activeDocumentId` vóór de
   producer toetst.
-- Alleen de geëxporteerde naad `commitPreparedGridMutation` kan tussen voorbereiden en vastleggen worden vastgehouden.
-  Die vergelijkt daarom de momentopname van de store met die van het voorbereiden (`requireFreshBefore`, fout
-  `stateChanged`). `runGridMutation` doet beide stappen synchroon achter elkaar en slaat die vergelijking over.
+- De geëxporteerde naad `commitPreparedGridMutation` legt een voorbereiding vast die een aanroeper eerder met
+  `prepareGridMutation` maakte; daartussen kan de store veranderen. Die naad vergelijkt daarom de momentopname van de
+  store met die van het voorbereiden (`requireFreshBefore`, fout `stateChanged`). `runGridMutation` doet beide stappen
+  synchroon achter elkaar en slaat die vergelijking over.
 - `recordHistory: false` schrijft geen eigen geschiedenisstap: een omringende `withTransaction` neemt de bewerking op
   in zijn stap. De enige aanroeper is de spookregel van `FullTaskGrid`, die in één `withTransaction` ('Taak
   toevoegen') een taak aanmaakt en haar eerste waarde schrijft.
