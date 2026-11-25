@@ -2112,8 +2112,6 @@
     "body_other": "{{count}} IFC items outside the schedule refer to something that was deleted from the schedule. Saving will adjust or remove them.",
     "bodyNew_one": "{{count}} IFC item outside the schedule refers to something that was deleted from the schedule. It will be adjusted or removed in the new file. The file you opened does not change.",
     "bodyNew_other": "{{count}} IFC items outside the schedule refer to something that was deleted from the schedule. They will be adjusted or removed in the new file. The file you opened does not change.",
-    "save": "Save",
-    "cancel": "Cancel",
     "dontAskAgain": "Don't ask again",
     "dontAskAgainHint": "You can turn this back on in Settings → Notices."
   }

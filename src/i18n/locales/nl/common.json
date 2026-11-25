@@ -2112,8 +2112,6 @@
     "body_other": "{{count}} IFC-gegevens buiten de planning verwijzen naar iets wat uit de planning is verwijderd. Bij opslaan worden ze aangepast of verwijderd.",
     "bodyNew_one": "{{count}} IFC-gegeven buiten de planning verwijst naar iets wat uit de planning is verwijderd. In het nieuwe bestand wordt het aangepast of verwijderd. Het bestand dat je opende, verandert niet.",
     "bodyNew_other": "{{count}} IFC-gegevens buiten de planning verwijzen naar iets wat uit de planning is verwijderd. In het nieuwe bestand worden ze aangepast of verwijderd. Het bestand dat je opende, verandert niet.",
-    "save": "Opslaan",
-    "cancel": "Annuleren",
     "dontAskAgain": "Niet meer vragen",
     "dontAskAgainHint": "Weer aan te zetten in Instellingen → Meldingen."
   }

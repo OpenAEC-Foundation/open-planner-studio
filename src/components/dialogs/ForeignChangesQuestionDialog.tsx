@@ -63,10 +63,10 @@ function ForeignChangesQuestionBody({ question }: { question: ForeignChangesQues
         </label>
         <div className="flex gap-2 shrink-0">
           <button ref={saveRef} type="button" className={buttonClass(SAVE_IS_DEFAULT)} onClick={save} data-ops-foreign-changes-save>
-            {t('foreignChangesQuestion.save')}
+            {t('save')}
           </button>
           <button ref={cancelRef} type="button" className={buttonClass(!SAVE_IS_DEFAULT)} onClick={cancel} data-ops-foreign-changes-cancel>
-            {t('foreignChangesQuestion.cancel')}
+            {t('cancel')}
           </button>
         </div>
       </div>
