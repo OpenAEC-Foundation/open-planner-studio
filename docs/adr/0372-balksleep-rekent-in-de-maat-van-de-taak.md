@@ -14,7 +14,7 @@ de maat waarin de motor dezelfde taak rekent.
   (`resolveDayMeasureBarDrag`). Anders, onder P6 en MS Project waar een dag de urenmaat is, rekent hij als een
   urentaak (`daysAsHours`).
 - Bij `daysAsHours` gaat de duur terug als `scheduleDuration`: de werkminuten gedeeld door de werktijd per dag,
-  afgerond op zes decimalen. Bij een urentaak gaat ze terug als `durationMinutes`, bij de dagenmaat als
+  afgerond op zes decimalen; bij kalendertijd door 1440 minuten. Bij een urentaak gaat ze terug als `durationMinutes`, bij de dagenmaat als
   `scheduleDuration` in werkdagen.
 - Kalendertijd (ELAPSEDTIME) telt nooit in de dagenmaat (`taskCountsInWorkdays`) en loopt dus via de uursleep, op
   de klok zoals de motor: `ELAPSED_DRAG_CLOCK` (`hourBarDragMath.ts`), een dag van 1440 minuten en geen snap naar

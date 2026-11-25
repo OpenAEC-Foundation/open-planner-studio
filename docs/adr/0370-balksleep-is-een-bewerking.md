@@ -15,7 +15,8 @@ loslaten: dan zou de balk tijdens het slepen niet de echte uitkomst van de store
   refs en niet in variabelen van het effect. Het effect herstart midden in een sleep, onder meer omdat
   `effectiveCalById` na elke geschreven `updateTask` een nieuwe identiteit krijgt. Een variabele van het effect zou
   dan terugvallen op haar beginwaarde: een tweede richtingskeuze halverwege, of dezelfde verschuiving die na de
-  herstart nog een keer geschreven wordt. Alleen `startBarDrag` zet deze refs terug.
+  herstart nog een keer geschreven wordt. De richtingskeuze en de laatst toegepaste verschuiving zet alleen
+  `startBarDrag` terug.
 - De bewerksessie (`historyMark` in `historySlice`) opent pas bij de eerste schrijfactie van het gebaar, zodat
   eerdere bewerkingen erbuiten vallen. Loslaten sluit haar (`endHistorySession`). Escape draait haar terug met
   `revertHistorySince`; dat is geen undo, dus er blijft geen redo-stap over, en ook de constraint en wat een
@@ -29,7 +30,8 @@ loslaten: dan zou de balk tijdens het slepen niet de echte uitkomst van de store
   sessie ook, anders zou een open sessie latere bewerkingen blijven merken.
 - Zolang er een sleep loopt, houdt het gebaar Automatisch berekenen vast (`holdAutoCalc` uit `state/editHold.ts`):
   een berekening midden in het gebaar laat de balk onder de muis verspringen. Het effect laat de rem ook los bij een
-  afgebroken gebaar of unmount. Wanneer een verdwenen taak de sessie laat hangen, staat in knownbug 586.
+  afgebroken gebaar of unmount. Een taak die midden in het gebaar verdwijnt, laat sessie en rem hangen
+  (knownbug 586).
 - De browsertests in `tests/browser/gantt-drag-undo.spec.ts` slepen met echte muisgebaren en controleren dat Ctrl+Z
   na een bodysleep precies één handeling terugneemt, dat een randsleep de undo-diepte met één verhoogt, en dat na
   Escape de tijdvelden en de constraint van een gesleepte balk en mijlpaal weer gelijk zijn aan die bij het grijpen.
