@@ -2096,6 +2096,36 @@ en noem het in je rapport of PR-tekst.
       planner wat hij zag. Gezien door de bouwer van #1205 tijdens de vaste lijst gewone bewerkingen; niet uitgezocht of het
       een fout is of bedoeld gedrag (een taak uit een ander programma wordt bij inlezen handmatig gepland). Wordt apart
       uitgezocht (besluit van de technisch eigenaar, 25 november 2026). — S
+2355. **VERVOLG (#804 fase 2, PR 8): Ctrl+Z na het opslaan zet een lid niet terug in de relatie van een ander programma.**
+      Flag aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: de toewijzing van de Metselploeg aan *Wand A bouwen* wissen
+      en opslaan haalt de ploeg uit `#120` (de `IfcRelAssignsToProcess` van Bonsai met de ploeg en de wand); `#120` houdt
+      de wand en haar `QuantityInProcess`. Ctrl+Z en weer opslaan geeft de planning die de planner zag, maar de ploeg komt
+      in een eigen toewijzingsrelatie van OPS en niet terug in `#120`. Hetzelfde geldt voor elk lid dat PR 8 uit een
+      bewaarde of gemengde relatie haalt (een verplaatste taak, een andere kalender, een gewijzigde gedeelde pset). Het
+      ontwerp (§4.6) wil dat Ctrl+Z het lid ook na het opslaan terugzet, via `detached` (PR 7). Vóór het opslaan werkt
+      Ctrl+Z wel: de bron is dan nog dezelfde. Vastgelegd in `check-ifc-foreign-gemengde-relaties.ts`. — B
+2356. **VERVOLG (#804 fase 2, PR 8): wat na PR 8 bij gemengde en bewaarde relaties nog anders gaat dan het ontwerp.** Flag
+      aan. Gevonden met `tests/planning/check-ifc-foreign-gemengde-relaties.ts` op `tests/fixtures/ifc-foreign/bonsai-4d.ifc`
+      en afgeleide bronnen.
+      (a) Een wortel-taak van een tweede live-schema die een kind wordt van een taak van het eerste schema, blijft staan in
+      de `IfcRelAssignsToControl` van het tweede schema (`#133` in `bonsai-4d.ifc`), zoals op main. Het ontwerp (§10) wil
+      haar daar ook uit. PR 8 verandert alleen wat main weigerde; uit een `IfcRelNests` van het tweede schema gaat ze wel.
+      (b) Een taak van het eerste schema onder een taak van het tweede schema zetten weigert, ook op main: op
+      `bonsai-4d.ifc` *Ruwbouw* onder *Stucwerk* geeft `niet-gedragen` op `#102` (de Bonsai-relatie van het D-schema raakt
+      haar enige lid kwijt en de verliescontrole verklaart dat niet: `memberMoved` in `lossCheck.ts` kent bij
+      `IfcRelAssignsToControl` alleen een andere kalender), en na een eerdere opslag `niet-eenduidig`.
+      (c) Een tweede ploeg aan een taak waarvan `#120` de eerste ploeg en een wand koppelt: de lezer zou de eigen relatie
+      vóór die van Bonsai lezen, dus haalt PR 8 de eerste ploeg uit `#120` en schrijft beide ploegen in een eigen relatie.
+      De `QuantityInProcess` van Bonsai blijft dan op `#120`, bij de wand. Een gewiste toewijzing gaat net zo.
+      (d) Niet uit PR 8, wel in dezelfde proef op het gewone bestand: een taak van Bonsai met een eigen kalender (en
+      doorrekenen) weigert met `bronvorm-leest-anders` (*Wand A bouwen* in `bonsai-4d.ifc`, ook buiten `#122`; zie 2234 en
+      2370), en wissen, opslaan, een taak erbij, opslaan, *Wand A bouwen* wortel-taak maken en opslaan weigert met
+      `planning-na-openen` (`Ruwbouw.time.durationUnit: "hours" → "days"`; zie 2251 en 2256). Beide weigerden al op main.
+      (e) Vormen die blijven weigeren met `gemengde-relatie`: een gemengde relatie met een relating in de planning buiten
+      de bekende vormen (bijvoorbeeld `IfcRelNests` onder een resource of `IfcRelAssignsToControl` onder het werkplan),
+      dezelfde resource twee keer in één gemengde `IfcRelAssignsToProcess`, een niet-resource als planningslid daarin, en
+      een gedeelde pset die de writer voor het planningsobject niet schrijft of deelt terwijl de waarden gelijk bleven.
+      Een schema onder een ander werkplan kan de planning niet uitdrukken (één werkplan). — B
 
 2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
      `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de

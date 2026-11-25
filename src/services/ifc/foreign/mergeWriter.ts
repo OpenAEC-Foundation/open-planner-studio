@@ -93,8 +93,6 @@ export type MergePhase2Kind =
   | 'verwijderd'
   /** Een niet-P-stuk wijst naar een P-stuk zonder vast id (een relatie of hulpstuk, §4.3). */
   | 'verwijzing-naar-p'
-  /** Een D-object kreeg een andere plek dan in een bewaarde relatie (§4.6, verplaatsen uit een bewaarde relatie). */
-  | 'verplaatst'
   /** De D-leden van een gemengde relatie veranderden, of de volgorde na herlezen zou anders zijn (§4.6). */
   | 'gemengde-relatie'
   /** Een vreemd lid zonder eigen pset (of template) om aan te hangen. */

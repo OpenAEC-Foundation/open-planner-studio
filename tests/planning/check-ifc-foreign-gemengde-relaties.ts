@@ -418,8 +418,7 @@ for (const seed of SEEDS) {
     if (outcome.written) { written++; continue; }
     refused++;
     for (const kind of outcome.kinds) kinds.set(kind.split(' ')[0], (kinds.get(kind.split(' ')[0]) ?? 0) + 1);
-    ok(`${at}: geen weigering om een gemengde of bewaarde relatie (${outcome.kinds.join(', ')})`,
-      outcome.kinds.every(kind => !kind.startsWith('gemengde-relatie') && !kind.startsWith('verplaatst')));
+    ok(`${at}: geen weigering om een gemengde of bewaarde relatie (${outcome.kinds.join(', ')})`, outcome.kinds.every(kind => !kind.startsWith('gemengde-relatie')));
     sequenceLog.push(`${at}: geweigerd (${outcome.detail.slice(0, 400)})`);
     store.getState().undo();
     undoable--;

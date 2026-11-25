@@ -510,6 +510,27 @@ Paart het stuk in O1 niet eenduidig, of heeft de regel in O1 een ander type of e
 De merge leest de planning met de bronwaarden erin terug (`mergeWriter.ts`); geeft dat een andere planning dan zonder,
 dan weigert hij.
 
+### Gemengde en bewaarde relaties (#804 fase 2, PR 8)
+
+Eén regel in stap 4 en 5 van `buildLines` (`mergeWriter.ts`): een planningslid blijft in een relatie van een ander
+programma die geen R is (gemengd, of bewaard met een relating buiten D), zolang de koppeling die de lezer eruit leest in
+het domein gelijk is en de writer voor dat lid geen eigen `IfcRelNests` schrijft. Anders gaat het eruit (`leave`), en de
+writer schrijft de plek of koppeling van het domein in een eigen relatie of pset. Per vorm: Nests onder een taak (andere
+ouder, of de volgorde na herlezen klopt niet: dan gaan alle planningsleden eruit), Nests onder een schema (geen wortel
+meer), Process onder een taak (het aantal toewijzingen van die resource veranderde, of de volgorde: alle), Control onder
+een kalender (andere kalender), een bewaarde Nests buiten D (de taak of resource heeft een ouder) en de gedeelde pset (b)
+(de writer schrijft andere waarden; het vreemde object houdt de oude pset). Aggregates onder het werkplan en Control onder
+het schema hebben geen wijziging die het domein kan uitdrukken. Een vreemd lid dat de lezer na opslaan als eigen veld of
+code zou lezen, vervalt (`readAsOwnMembers`). `withLeaving` voegt dit bij de uitkomst van `applyForeignRule`: één
+wijzigingslijst, één telling (§4.7); een relatie zonder leden vervalt. Controle 1 (`changeListProblems` in
+`mergeValidation.ts`) aanvaardt een verdwenen lid dat nog bestaat alleen als planningslid in de lijst van een
+`IfcRelNests`, of van een `IfcRelAggregates`, `IfcRelAssignsToControl` of `IfcRelAssignsToProcess` met een relating in
+D, of van een `IfcRelDefinesByProperties` met een pset uit het register; een vervallen vreemd lid alleen als de uitvoer bij
+hetzelfde object en dezelfde psetnaam een eigen property met die naam heeft. Een relatie met een vreemde relating
+(bijvoorbeeld een kostenpost) valt daar niet onder. De Control van een tweede schema houdt een verplaatste taak, zoals op
+main (knownbug 2356). Ctrl+Z na het opslaan zet een lid niet terug (knownbug 2355). Proef:
+`check-ifc-foreign-gemengde-relaties.ts` (per vorm en soort wijziging, vaste reeksen, zes gemuteerde uitvoeren).
+
 ### Vergelijkingsklok (#804 fase 1c)
 
 `planningCanon` gebruikt alleen `writeIFCForComparison`: één vaste datum via de interne schrijfkern,
