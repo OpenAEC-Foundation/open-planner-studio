@@ -6861,25 +6861,22 @@ en noem het in je rapport of PR-tekst.
 2293. **VERVOLG (review #1193 ronde 1): een uitzondering buiten `scratch-failed` kan de melding over verloren minuten alsnog opmaken.** `applyDistribution` (`src/state/slices/librarySlice.ts`) zet de vastgelegde meldingsclaims alleen terug bij `scratch-failed`. Gooit het laden van een tweede tijdelijke payload (`src/state/runtime/scratchDocument.ts`) of het schrijven naar de echte store een uitzondering, dan blijft de claim van het eerste document bezet terwijl het zijn minuten nog heeft. Geen route met een gewoon bestand gevonden. Richting: de melding pas claimen nadat het document echt is bijgewerkt; dan kan ook de snapshot voor tijdgefaseerde sturing weg, die `applyLeveling` niet raakt. ADR 0175 verwijst nog naar het verwijderde punt 1992. Review #1193 ronde 1 (GPT-6.2-Sol, xhigh). — S
 2294. **VERVOLG (review #1193 ronde 1, test): de proef kan een dubbele melding missen.** `tests/library/check-distribution-loss-notice.ts` telt alleen de lengte van de meldingenlijst, maar `notify` verhoogt bij dezelfde `dedupeKey` de teller op de bestaande melding (`src/state/slices/uiSlice.ts`). Richting: de eerste melding sluiten vóór de tweede schrijfronde en daarna nul meldingen verwachten. Review #1193 ronde 1 (GPT-6.2-Sol, xhigh). — S (test)
 
-2350. **De meetproef van IFCX: de CI is de poort, en de verhouding mag niet ongemerkt verder stijgen.**
-     `tests/planning/check-ifcx-meting.ts` eist bij 10.000 taken dat opslaan als IFCX hoogstens vier keer opslaan als IFC
-     kost en openen als IFCX hoogstens vier keer openen als IFC, met de mediaan van vijf rondes en de volgorde STEP–IFCX
-     en IFCX–STEP om en om, in de alleenloop van de planningspool (besluit van de technisch eigenaar, #1183). De grens is
-     vier en de CI is de poort; een run op aia09-mp50 is een melding en geen bewijs (daar lag opslaan op 24 november rond
-     3,7 tot 4,2, ook met de code van vóór fixronde 5). In de CI steeg opslaan van 2,34 (vóór fixronde 5) naar ongeveer 3
-     (2,53 tot 3,28; met R4 3,12). Sinds R4 (fixronde 6) doet openen weer ongeveer een STEP-rondgang en kostte het in de
-     CI 3,72 en daarna 4,26 keer openen als IFC (`9894f6236`, rood). Sinds de snelle doorgang van R4 (één doorgang die
-     alleen vaststelt óf het bestand afwijkt; de drie rondes en de waardetoets van de schrijver alleen bij een verschil)
-     kost openen op aia09-mp50 2,8 tot 2,9 keer openen als IFC, tegen 3,35 ervóór. De STEP-rondgang zelf kost ongeveer
-     twee keer openen als IFC. Beide verhoudingen staan als eigen regel `IFCX-verhouding …` in de CI-log, in het
-     planningsdeel dat de proef draait (in run 45510345490 `verify (planning 1-5)`). De marge verschilt per runner:
-     openen als IFC kostte in de CI 502 tot 667 ms, openen als IFCX 2.125 tot 2.232 ms; met de noemer van `9894f6236`
-     was de groene 3,18 van `23814bad4` ongeveer 4,23. Eén groene run zegt dus niets over de herhaalbaarheid op een
-     andere runner. Met R5 (fixronde 7) doet opslaan drie STEP-rondgangen (een lezing van de invoer, het eigen bestand
-     van de canonieke planning, en de zelfcontrole met de publieke lezer); op aia09-mp50 kost opslaan dan 8,4 tot 9,0
-     keer opslaan als IFC. Twee rondgangen kosten al ruim vier keer opslaan als IFC, dus een schrijver die canoniek
-     maakt, kan in deze vorm niet onder de grens. Het IFCX-deel sneller maken (de waardetoets, het teruglezen, de
-     rondgang) is een voorwaarde vóór "IFCX standaard aan". — B
+2350. **Voorwaarde vóór "IFCX standaard aan": opslaan als IFCX hoogstens vier keer IFC en hoogstens 4 s bij 10.000 taken.**
+     Besluit van de technisch eigenaar (#1183, ronde 7b), letterlijk: "De grens van vier op openen blijft hard. Opslaan
+     als IFCX wordt in deze PR gemeten en in de CI-log gemeld, niet afgedwongen. "Opslaan als IFCX hoogstens vier keer
+     IFC en hoogstens 4 s bij 10.000 taken, zonder dat de app blokkeert" wordt een harde voorwaarde in knownbug 2350
+     voor standaard aan, met het snelheidswerk als eigen stap na vrijdag, met eigen meting. Weg 4 niet: de
+     zelfcontrole blijft in de opslag zolang F3-2 en F3-3 niet af zijn. Automatisch opslaan volgt dezelfde gemelde
+     verhouding; geen stapeling blijft hard." `tests/planning/check-ifcx-meting.ts` toetst openen als IFCX hard
+     (hoogstens vier keer openen als IFC, mediaan van vijf, volgorde om en om, in de alleenloop van de planningspool) en
+     meldt opslaan als IFCX met de regel `IFCX-verhouding opslaan: …` en de uitsplitsing per stap (`IFCX-stap opslaan,
+     …`). De meting van nu: in de CI 8,14 (715 tegen 5.822 ms, `27ea25c32`), op aia09-mp50 8,4 tot 9,0. De opbouw: met R5
+     doet opslaan drie STEP-rondgangen (een lezing van de invoer, het eigen bestand van de canonieke planning, en de
+     zelfcontrole met de publieke lezer); één rondgang kost al ongeveer twee keer opslaan als IFC. Richting voor de
+     eigen stap: de schrijver schrijft eerst het eigen bestand van zijn ruwe invoer en maakt pas canoniek als de
+     publieke lezer het weigert (twee rondgangen in het gewone geval), en de rondgang zelf sneller. De marge op openen
+     verschilt per runner: openen als IFC kostte in de CI 502 tot 698 ms; met de noemer van `9894f6236` was de groene
+     3,18 van `23814bad4` ongeveer 4,23. De meetregels staan in het planningsdeel dat de proef draait. — B
 
 2351. **IFCX in de app (F3-4): het vaste punt van de kern geldt tot de laadgrens, zonder doorrekenen.** De kern toetst
      `writeIfcx(readIfcx(b))` en de canonieke planning na `payloadFromImport` en `buildWriteIFCInput`. De Openen-route
@@ -6890,12 +6887,21 @@ en noem het in je rapport of PR-tekst.
      zoals opgeslagen". F3-4 beslist of en wanneer de IFCX-openroute doorrekent en pint de echte route in één proef.
      Gemeld door de review van #1183 ronde 7 (GPT-6.2-Sol). — B
 
-2352. **IFCX weigert een kalender met een pauze buiten de werkdag, omdat STEP haar bij een tweede rondgang laat vallen.**
-     Een kalender met `simpleBreakStartMinute` 1 en `simpleBreakDurationMinutes` 30 (de werkdag van 07:00 tot 16:00): de
-     eerste STEP-rondgang zet de werktijden letterlijk neer en houdt de pauze, de tweede laat de pauze vallen. Twee keer
-     canoniek maken geeft dan iets anders dan één keer, dus regel R5 van #1183 is daar niet te halen. `writeIfcx` weigert
-     zo'n planning met `self-check`; STEP laat de pauze bij de tweede opslag na openen stil vallen. Een pauze binnen de
-     werkdag (600) blijft. Proef: `check-ifcx-kern.ts`, "R5 is niet te halen voor een pauze buiten de werkdag". — B
+2352. **Een eenvoudige pauze die STEP bij een tweede opslag niet houdt: IFCX weigert, STEP op main laat haar stil vallen.**
+     Bij een werkdag van 07:00 tot 16:00 is een eenvoudige pauze (`simpleBreakStartMinute`, `simpleBreakDurationMinutes`)
+     alleen stabiel als ze na het begin van de werktijd begint en uiterlijk aan het eind eindigt, of geen duur heeft.
+     Anders houdt de eerste STEP-rondgang haar en laat de tweede haar vallen (begin vóór of na de werktijd, of over het
+     eind heen), of verandert de tweede de werktijden en de uren per dag (een pauze die precies op het begin begint).
+     Een halve pauze (alleen een begin of alleen een duur, bijvoorbeeld omdat één van de twee geen geheel getal is en de
+     STEP-lezer het laat vallen) valt bij de tweede rondgang ook weg. **IFCX:** `writeIfcx` vergelijkt elke kalender met een
+     pauze na de eerste en na de tweede rondgang en weigert vóór de zelfcontrole met `invalid`, bijvoorbeeld: "kalender
+     Ploegendienst (ploegendienst): de pauze vanaf 00:01, 30 minuten, blijft bij een volgende opslag niet zoals ze is
+     (simpleBreakStartMinute: 1 → afwezig; simpleBreakDurationMinutes: 30 → afwezig). Leg de pauze helemaal binnen de
+     werktijd van 07:00 tot 16:00, na het begin, of haal haar weg." (besluit van de technisch eigenaar, #1183 ronde 7b:
+     "De uitzondering geldt ook hier: IFCX weigert die planning, en de melding noemt de kalender en de pauze, zodat de
+     planner het kan rechtzetten."). **STEP op main:** opslaan als IFC houdt de pauze bij de eerste opslag en laat haar
+     bij de tweede opslag na openen stil vallen; dat is een eigen fout van main. De andere kalendervelden van de
+     veldtabel (70 velden, 428 mutaties) zijn bij één en twee keer rondgang gelijk. Proef: `check-ifcx-kern.ts`, "2352". — B
 
 2364. **Met de flag `ifcx` uit weigert Ctrl+S een document met een doel op `.ifcx`, ook als het bestand STEP is.** De regel
      "met de flag uit schrijft de app een IFCX-document niet" (#804 F3-4, `ifcxWriteBlocked` in `src/state/ifcxGuard.ts`)

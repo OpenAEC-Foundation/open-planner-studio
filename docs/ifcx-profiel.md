@@ -361,10 +361,16 @@ van de app rekent daarna door (`prepareLoadedPayload` met `recompute: true`); da
 vroege finish van een taak die om 00:00 eindigt (`2027-06-03T00:00` wordt `2027-06-02T16:00`). Of en wanneer de
 IFCX-openroute doorrekent, beslist F3-4 (knownbug 2351).
 
-**Waar R5 niet te halen is.** Een kalender met een eenvoudige pauze buiten de werkdag (bijvoorbeeld begin minuut 1, duur
-30): de eerste STEP-rondgang zet de werktijden letterlijk neer en houdt de pauze, de tweede laat de pauze vallen. Twee keer
-canoniek maken geeft dan iets anders dan één keer. De kern bouwt daar geen uitzondering voor: de schrijver weigert zo'n
-planning met `self-check`. STEP zelf laat de pauze bij de tweede opslag na openen vallen.
+**Waar R5 niet te halen is.** Een kalender met een eenvoudige pauze die niet helemaal binnen de werktijd ligt (bijvoorbeeld
+begin minuut 1, duur 30, bij een werkdag van 07:00 tot 16:00), die precies op het begin van de werktijd begint, of waarvan
+alleen het begin of alleen de duur over is: de eerste STEP-rondgang houdt de pauze, de tweede laat haar vallen of verandert
+de werktijden. Twee keer canoniek maken geeft dan iets anders dan één keer. IFCX weigert zo'n planning, zoals bij een
+dubbele identiteit, en de melding noemt de kalender en de pauze, zodat de planner het kan rechtzetten (besluit van de
+technisch eigenaar, fixronde 7b): `writeIfcx` vergelijkt elke kalender met een pauze na de eerste en na de tweede rondgang
+en weigert vóór de zelfcontrole met `invalid`, de naam en het id van de kalender zoals de planner ze invoerde, het begin
+en de duur van de pauze, wat er verandert, en de werktijd waarbinnen de pauze moet liggen. STEP op main laat de pauze bij
+de tweede opslag na openen stil vallen; dat is een eigen fout van main (knownbug 2352). De andere kalendervelden van de
+veldtabel zijn bij één en twee keer rondgang gelijk.
 
 ## R4: het bestand is een vast punt van de eigen schrijver
 
@@ -611,10 +617,14 @@ IFCX niet draagt (besluit 3 van Trias: wat STEP zelf ook laat vallen, is geen fo
 
 De grens (besluit van de technisch eigenaar, 24 november, letterlijk): "De verhouding (hoogstens vier keer opslaan als
 IFC, op dezelfde machine in dezelfde run) is de harde grens; de absolute CPU-tijd wordt alleen gemeld." En: "Leg voor
-openen dezelfde verhouding vast (hoogstens vier keer openen als IFC), zodat ook dat niet ongemerkt groeit."
-`check-ifcx-meting.ts` toetst beide verhoudingen bij 10.000 taken, met dezelfde planning in hetzelfde proces: opslaan
-als IFCX (`writeIfcx`, met rondgang en zelfcontrole) tegenover `writeIFC`, en openen als IFCX (`readIfcx` op de bytes)
-tegenover openen als IFC (de bytes decoderen en `readIFC`). De absolute CPU-tijd staat alleen in de uitvoer; die hoort
+openen dezelfde verhouding vast (hoogstens vier keer openen als IFC), zodat ook dat niet ongemerkt groeit." Sinds
+fixronde 7b (besluit van de technisch eigenaar, letterlijk): "De grens van vier op openen blijft hard. Opslaan als IFCX
+wordt in deze PR gemeten en in de CI-log gemeld, niet afgedwongen." Hoogstens vier keer IFC en hoogstens 4 s bij
+10.000 taken voor opslaan is een harde voorwaarde vóór "IFCX standaard aan" (knownbug 2350).
+`check-ifcx-meting.ts` meet beide verhoudingen bij 10.000 taken, met dezelfde planning in hetzelfde proces: opslaan
+als IFCX (`writeIfcx`, met rondgang en zelfcontrole) tegenover `writeIFC`, gemeld met de uitsplitsing per stap
+(`IFCX-stap opslaan, …`: canoniek maken, het eigen bestand, serialiseren, de zelfcontrole, de vergelijking), en openen
+als IFCX (`readIfcx` op de bytes) tegenover openen als IFC (de bytes decoderen en `readIFC`), met de grens. De absolute CPU-tijd staat alleen in de uitvoer; die hoort
 bij de meting op Windows en macOS vóór "IFCX standaard aan". Met `OPS_IFCX_MEASURE=1` geeft de meting ook de tabel per
 stuk.
 
@@ -647,9 +657,10 @@ was dat `verify (planning 1-5)`).
 
 **Met R5 (fixronde 7)** doet opslaan drie STEP-rondgangen: één om een lezing van de invoer te maken, één voor het eigen
 bestand van de canonieke planning, en één in de zelfcontrole met de publieke lezer. Op aia09-mp50 (een melding) kost
-opslaan als IFCX daarmee 8,4 tot 9,0 keer opslaan als IFC en openen 3,1 tot 3,6 keer openen als IFC; de CI-meting staat in
-#1183. Een schrijver die een invoer die niet canoniek is canoniek maakt, heeft er minstens twee nodig, en twee
-STEP-rondgangen kosten al ruim vier keer opslaan als IFC.
+opslaan als IFCX daarmee 8,4 tot 9,0 keer opslaan als IFC en openen 3,1 tot 3,6 keer openen als IFC; in de CI (`27ea25c32`)
+opslaan 8,14 en openen 3,36. Een schrijver die een invoer die niet canoniek is canoniek maakt, heeft er minstens twee
+nodig, en twee STEP-rondgangen kosten al ruim vier keer opslaan als IFC. Daarom meldt de proef opslaan en dwingt ze het
+niet af; het snelheidswerk is een eigen stap na deze PR (knownbug 2350).
 
 ## Uitbreiden (F3-2 en F3-3)
 

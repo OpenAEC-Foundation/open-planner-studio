@@ -973,7 +973,7 @@ test('elk veld in de veldtabel wordt met elk tegenvoorbeeld van zijn vorm geweig
   const missing: string[] = [], wrongReader: string[] = [], wrongWriter: string[] = [];
   const outcomes = {
     'de writer weigert om dit veld': 0, 'de writer weigert in hetzelfde attribuut, waar de STEP-rondgang de waarde neerzette': 0,
-    'opslaan als IFC weigert de planning': 0, 'de writer weigert zijn eigen uitvoer, omdat STEP de planning bij een tweede rondgang anders schrijft': 0,
+    'opslaan als IFC weigert de planning': 0,
     'de ongetoetste lezer maakt er geen planning van': 0, 'de planning draagt de waarde niet': 0,
   };
   const withoutPlace = (field: string) => field.replace(/\[\d+\]/g, '[]');
@@ -1002,11 +1002,7 @@ test('elk veld in de veldtabel wordt met elk tegenvoorbeeld van zijn vorm geweig
         try {
           written = writeIfcx(model, CLOCK);
         } catch (refusal) {
-          if (refusal instanceof IfcxWriteRefusedError && refusal.code === 'self-check') {
-            outcomes['de writer weigert zijn eigen uitvoer, omdat STEP de planning bij een tweede rondgang anders schrijft']++;
-            console.log(`     ${shown}: de writer weigert zijn eigen uitvoer op ${refusal.fields.join(', ')}`);
-          }
-          else if (!(refusal instanceof IfcxWriteRefusedError) || refusal.code !== 'invalid') wrongWriter.push(`${shown}: ${String(refusal)}`);
+          if (!(refusal instanceof IfcxWriteRefusedError) || refusal.code !== 'invalid') wrongWriter.push(`${shown}: ${String(refusal)}`);
           else if (refusal.fields.some(field => under(field, where))) outcomes['de writer weigert om dit veld']++;
           else if (refusal.fields.some(field => field.startsWith(`${label}.`))) {
             outcomes['de writer weigert in hetzelfde attribuut, waar de STEP-rondgang de waarde neerzette']++;
@@ -1497,18 +1493,27 @@ const NOT_CANONICAL: readonly (readonly [string, (day: string) => string])[] = [
   ['na de werkdag', day => `${day}T22:30`],
 ];
 
-test('R5 is niet te halen voor een pauze buiten de werkdag: STEP houdt haar bij de eerste rondgang en laat haar bij de tweede vallen; de writer weigert met self-check', () => {
+test('2352: een pauze die STEP bij een tweede rondgang niet houdt, weigert de writer vóór de zelfcontrole met de kalender en de pauze; een pauze binnen de werktijd blijft', () => {
   const plan = maximalPlan();
-  const input: WriteIFCInput = { ...plan, resourceCalendars: plan.resourceCalendars!.map(calendar => (calendar.simpleBreakStartMinute === undefined ? calendar : { ...calendar, simpleBreakStartMinute: 1 })) };
+  const withBreak = (start: number, duration: number): WriteIFCInput => ({ ...plan, resourceCalendars: plan.resourceCalendars!.map(calendar => (calendar.simpleBreakStartMinute === undefined ? calendar
+    : { ...calendar, simpleBreakStartMinute: start, simpleBreakDurationMinutes: duration })) });
   const breakOf = (model: ImportResult) => (model.resourceCalendars ?? []).filter(calendar => calendar.simpleBreakDurationMinutes !== undefined).map(calendar => [calendar.simpleBreakStartMinute, calendar.simpleBreakDurationMinutes]);
-  const once = stepRoundtrip(input);
-  assert.deepEqual(breakOf(once), [[1, 30]]);
-  assert.deepEqual(breakOf(stepRoundtrip(canonicalFor(input))), []);
-  const refusal = attempt(() => writeIfcx(input, CLOCK));
-  assert.ok(!refusal.ok && refusal.error instanceof IfcxWriteRefusedError && refusal.error.code === 'self-check', String(refusal.ok ? 'geschreven' : refusal.error));
-  assert.match(refusal.error.message, /simpleBreakStartMinute: 1 → afwezig/);
-  const inside = { ...plan, resourceCalendars: plan.resourceCalendars!.map(calendar => (calendar.simpleBreakStartMinute === undefined ? calendar : { ...calendar, simpleBreakStartMinute: 600 })) };
-  assert.deepEqual(breakOf(readIfcx(encode(writeIfcx(inside, CLOCK)))), [[600, 30]]);
+  assert.deepEqual(breakOf(stepRoundtrip(withBreak(1, 30))), [[1, 30]]);
+  assert.deepEqual(breakOf(stepRoundtrip(canonicalFor(withBreak(1, 30)))), []);
+  const cases: readonly [number, number, string][] = [
+    [1, 30, 'vanaf 00:01, 30 minuten'], [420, 30, 'vanaf 07:00, 30 minuten'], [940, 60, 'vanaf 15:40, 60 minuten'],
+    [720.25, 30, 'zonder geldig begin (720.25), 30 minuten'],
+  ];
+  for (const [start, duration, shown] of cases) {
+    const refusal = attempt(() => writeIfcx(withBreak(start, duration), CLOCK));
+    assert.ok(!refusal.ok && refusal.error instanceof IfcxWriteRefusedError && refusal.error.code === 'invalid', `${start}/${duration}: ${refusal.ok ? 'geschreven' : String(refusal.error)}`);
+    assert.ok(refusal.error.message.startsWith('kalender Ploegendienst (ploegendienst): '), refusal.error.message);
+    assert.ok(refusal.error.message.includes(`: de pauze ${shown}, blijft bij een volgende opslag niet zoals ze is (`), refusal.error.message);
+    assert.ok(refusal.error.message.endsWith('Leg de pauze helemaal binnen de werktijd van 07:00 tot 16:00, na het begin, of haal haar weg.'), refusal.error.message);
+    assert.deepEqual(refusal.error.fields, ['openaec::ops::calendar.simpleBreakStartMinute', 'openaec::ops::calendar.simpleBreakDurationMinutes']);
+  }
+  assert.deepEqual(breakOf(readIfcx(encode(writeIfcx(withBreak(600, 30), CLOCK)))), [[600, 30]]);
+  assert.deepEqual(breakOf(readIfcx(encode(writeIfcx(withBreak(930, 30), CLOCK)))), [[930, 30]]);
 });
 
 const COMPUTED_SLOTS: readonly WithheldTaskTimeField[] = ['earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'totalFloat', 'freeFloat', 'isCritical'];
@@ -1725,7 +1730,7 @@ test('R4 en R5 zijn één functie: writeIfcx en readIfcx gaan door dezelfde cano
   assert.deepEqual([...source('ownFile.ts').matchAll(/^export (?:function|const) (\w+)/gm)].map(match => match[1]).sort(),
     ['canonicalFor', 'canonicalPlanning', 'ownFileFor']);
   assert.match(source('ifcxReader.ts'), /const planning = canonicalPlanning\(read\);\n\s+const own = writerRefusal\(\(\) => ownFileFor\(planning,/);
-  assert.match(source('ifcxWriter.ts'), /const canonical = canonicalFor\(given\);\n\s+const \{ document \} = ownFileFor\(canonical, writtenAt\);/);
+  assert.match(source('ifcxWriter.ts'), /const canonical = canonicalFor\(given\);\n\s+const \{ planning, document \} = ownFileFor\(canonical, writtenAt\);/);
   assert.match(source('ifcxWriter.ts'), /readIfcx\(new TextEncoder\(\)\.encode\(text\)\)/);
   assert.doesNotMatch(source('ifcxWriter.ts'), /readIfcxText/);
 });
