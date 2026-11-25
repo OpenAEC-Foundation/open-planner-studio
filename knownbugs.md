@@ -767,6 +767,43 @@ en noem het in je rapport of PR-tekst.
      contour alle 40 uur als `remaining`, naast de twee ongewijzigde werkvelden. Niet in de browser nagespeeld.
      Issue #1224. — B
 
+2326. **In "datums zoals opgeslagen" kan het projecteinde een moment noemen dat vóór het einde van een dagtaak ligt.**
+     `cpmResultFromRecorded` (`src/engine/scheduler/recordedDates.ts`) kiest `projectEnd` als het grootste `finish`
+     met een tekstvergelijking, zodat bij een mix van datums zonder tijd en momenten een moment op dezelfde dag wint.
+     Een einde zonder tijd geldt elders als het einde van die werkdag (`projectDurationOf`). Nagespeeld met een proef
+     op de standaardkalender, zonder `workTime`: record a van 2026-03-09 tot 2026-03-10 en record b van
+     2026-03-09T08:00 tot 2026-03-10T12:00 gaven `projectEnd` 2026-03-10T12:00. Open: op de laadroute zet
+     `normalizeRecordedTimes` (`minuteModelTransition.ts`) een datum zonder tijd eerst om in een moment, behalve waar
+     `normalizeTaskDate` geen moment geeft. In een laadproef met een zelfgemaakt IFC door de echte lezer leverde één
+     kalender beide datumvormen; `normalizeRecordedTimes` zette het dageinde om naar 16:00 en de reconstructie koos
+     16:00. Een bestand dat de mix voorbij die omzetting brengt, is niet gevonden. Met een nachtkalender verkortte de
+     tekstvergelijking in de losse functie ook de projectduur van 2 naar 1 werkdag. — B
+
+2327. **De projectduur in "datums zoals opgeslagen" leest de duur van de taak, niet de vastlegging.**
+     `cpmResultFromRecorded` (`src/engine/scheduler/recordedDates.ts`) geeft de taken door aan `projectDurationOf`,
+     waarvan de mijlpaaluitzondering `task.time.scheduleDuration > 0` leest. Een proef op de standaardkalender met één
+     vastgelegde taak (geen mijlpaal) van 2026-03-09 tot 2026-03-09 gaf `projectDuration` 0 bij `scheduleDuration` 0
+     en 1 bij `scheduleDuration` 1. Volgens het weggehaalde commentaar leest de IFC-lezer een `$` in `ScheduleDuration`
+     als 0, zodat een werkproject van één dag zonder opgeslagen duur duur 0 krijgt. Nagespeeld met een zelfgemaakt
+     IFC via `readIFC` en `openAsDocument`, in de modus doordat de opgeslagen vroege datums afwijken: één taak (geen
+     mijlpaal) van 07:00 tot 16:00 gaf met `ScheduleDuration=$` een projectduur van 0 werkdagen en met `P1D` 1
+     werkdag. De statusbalk (`StatusBar.tsx`) toont die waarde. Issue #1231. — B
+
+2328. **In "datums zoals opgeslagen" kan een fase later eindigen dan het projecteinde in de statusbalk.**
+     `cpmResultFromRecorded` (`src/engine/scheduler/recordedDates.ts`) bepaalt `projectEnd` alleen uit taken met een
+     record, terwijl de rollup (`rollupSummaryTasks` in `applyCpmResult.ts`) alle kinderen van een fase gebruikt, ook
+     een kind zonder vroeg paar dat zijn berekende datums houdt. Nagespeeld met een zelfgemaakt IFC door de echte
+     laadroute: een fase zonder eigen vastlegging, een kind met opgeslagen vroeg einde op 10 maart en een kind zonder
+     vroeg paar dat de solver op 13 maart laat eindigen. De fasebalk en haar resultaatrij eindigden op 13 maart,
+     *Einde* in de statusbalk gaf 10 maart. Issue #1231. — B
+
+2329. **In "datums zoals opgeslagen" melden het rapport en MCP een ketenstructuur die de vastlegging niet kent.**
+     `cpmResultFromRecorded` levert `criticalPaths` altijd als één lijst (`[criticalPath]`), ook als die leeg is. Het
+     rapport *Kritieke en near-critical activiteiten* (`src/engine/reports/criticalReport.ts`) telt die ene lijst als
+     één keten, en `src/services/mcp/tools/readTools.ts` meldt bij de projectoptie `floatPaths` met `FREE_FLOAT` dat
+     parallelle ketens beschikbaar zijn, terwijl de reconstructie één lijst met gemarkeerde taken geeft. In de code
+     bevestigd door twee lezers, niet nagespeeld. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -4127,6 +4164,58 @@ en noem het in je rapport of PR-tekst.
       `<Duration>PT40H0M0S</Duration>` krijgt 2400 minuten. Volgens die review maakt het MSPDI-schema `<Type>` en
       `<Duration>` op een taak optioneel, dus geldige XML van een andere schrijver kan dit raken; of MS Project zelf die
       velden weglaat, is niet nagegaan. Welke andere velden zo kunnen verschuiven, ook niet. — B
+2249. **VERVOLG (#1199): de melding bij het wissen komt alleen bij taken en resources.** `notifyForeignLinksDropped`
+      (`src/state/foreignLinksNotice.ts`) hangt aan `deleteTask`, `deleteTasksBulk`, `dissolveTasksBulk`,
+      `removeResource` en Opnieuw van zo'n stap. Wist de planner een relatie (`removeSequence`) of een kalender (de
+      kalenderdialoog), of wist hij via MCP, het IFC-paneel of een extensie, dan hoort hij pas na het opslaan hoeveel
+      gegevens van een ander programma zijn aangepast of verwijderd (`notifyForeignChangesWritten`). Gezien in de code;
+      `check-ifc-document-save.ts` toetst voor die routes alleen de melding na het opslaan. Opnieuw (Ctrl+Y) geeft elke
+      herstelde undo-stap door aan dezelfde teller: wist de planner een losse gekoppelde relatie of wiste hij via MCP
+      (`planner_delete_tasks`), dan komt er bij die eerste wissing geen wismelding, maar na Ctrl+Z en Ctrl+Y alsnog wel,
+      als die stap een stuk van een ander programma laat vervallen (gezien in de code door de reviewer van #1199,
+      ronde 6; niet nagespeeld). Richting: dezelfde aanroep in `removeSequence` en `commitCalendarLibrary`. — S
+2250. **VERVOLG (#1199): Ctrl+Z na het opslaan, of tijdens het opslaan na de momentopname, brengt de taak terug, niet
+      de koppeling van het andere programma.** Na het opslaan is `ifcSource` de uitvoer zonder de vervallen stukken, en
+      undo zet de bron niet terug (documentveld zonder momentopname). Een opslag die haar momentopname al had, schrijft
+      en commit die uitvoer ook als de planner intussen Ctrl+Z drukt. De wismelding heeft in deze PR geen knop (die komt
+      in PR 7); Ctrl+Z op het toetsenbord werkt wel. De melding na het opslaan
+      zegt dat de gegevens zijn aangepast of verwijderd, maar niet dat Ctrl+Z ze niet terugbrengt. Richting: PR 7 van #804 (`detached`, de soort *teruggezet*) bewaart de oude bytes van
+      de wijzigingslijst en kan ze bij undo terugzetten. Afgeleid uit de code, niet nagespeeld. — S
+2251. **Veel taken wissen in een bestand met een gebouwmodel, en dan opslaan, weigert met `planning-na-openen`.** Met
+      de flag *IFC met gebouwmodel openen* aan: een gegenereerde planning van 10.000 taken
+      (`generateBenchmarkProject(10_000, { seed: 0x5eed })` via `writeIFC`, met één `IfcWall` erbij en geen koppeling),
+      5.000 bladtaken wissen met `deleteTasksBulk` en dan `prepareIfcWrite`: de merge weigert met
+      `planning-na-openen`, `taak bm-top-16.time.lateStart: "2028-07-04T07:00" → "2030-11-26T07:00"`. Eén bladtaak
+      wissen schrijft wel. Nagespeeld met een script op main `ee9281b5d` en op de branch van #1199, met dezelfde
+      uitkomst; het komt dus niet uit #1199. Op die branch weigert het ook na `runCPM` (F5), met een koppeling erbij; of
+      main na F5 ook weigert, is niet nagegaan. Vermoeden: de geschreven late datum van een samenvattingstaak en wat het
+      heropenen ervan maakt, lopen uiteen als veel kinderen weg zijn. — B
+2357. **VERVOLG (#1199): de telling na het opslaan is een gewone melding, en de planner kan haar missen.** Elke geslaagde
+      schrijfactie met een niet-lege wijzigingslijst meldt haar eigen telling met de naam van het geschreven bestand
+      (`notifyForeignChangesWritten` in `src/state/foreignChangesWrittenNotice.ts`, een blijvende info zoals
+      `notifications.siteSaveConflictCopy`). Ze deelt de grenzen van de meldingen van main:
+      - de telling is weg na herladen in de browser, na een crash, na een herstart door de updater en na afsluiten, als de
+        planner haar nog niet las; het bestand is dan al zonder de vervallen gegevens geschreven;
+      - bij meer dan drie meldingen tegelijk verdringt de stapel volgens de regels van main (knownbug 2253); een telling
+        kan zo een andere melding verdringen of zelf verdrongen worden;
+      - de planner krijgt de telling in het venster waarin hij opsloeg; een tweede venster toont haar niet;
+      - in de browser kent de app de map van een bestand niet: twee bestanden met dezelfde naam in verschillende mappen
+        krijgen dezelfde regel als hun aantal gelijk is (de desktop-app noemt het volledige pad).
+      Dit is een voorwaarde voor het standaard aanzetten van de flag *IFC met gebouwmodel openen*: de planner mist de
+      telling van een opslag niet. De richting is een keuze van de eigenaar: vragen vóór het schrijven, of de uitkomst
+      duurzaam vastleggen en opnieuw tonen. Knownbug 2250 blijft staan. Besluit technisch eigenaar bij het opknippen van
+      #1199 (fixronde 3).
+
+      De waarschuwing bij het wissen (`notifyForeignLinksDropped` in `src/state/foreignLinksNotice.ts`) is ook een gewone
+      melding: een info van main zonder knop, met het aantal van die ene wisstap. Ze deelt dezelfde grenzen. Staan er al
+      drie meldingen open, dan kan ze ontbreken: het meldingenkanaal van main bepaalt welke melding plaatsmaakt. Zijn
+      het drie schrijffouten of drie tellingen van eerdere opslagen, dan haalt de stapel de wismelding meteen weer weg
+      en ziet de planner haar niet; staat er een gewone info of een passende weigering tussen, dan wijkt die en blijft
+      de wismelding zichtbaar. Het opslaan laat de gegevens in beide gevallen vervallen.
+      Ze verdwijnt na de gewone tijd van main en hangt alleen aan het wissen van taken en resources
+      (knownbug 2249). De knop *Ongedaan maken* komt in PR 7 (`detached`). Dit is de twaalfde voorwaarde voor het
+      standaard aanzetten van de flag: de planner mist de waarschuwing bij het wissen niet en kan vanuit die waarschuwing
+      ongedaan maken. Besluit technisch eigenaar, 25 november 2026 (fixronde 5). — S
 
 2303. **De P6 XML-lezer rekent de eenheden van een materiaaltoewijzing om alsof het uren zijn.** In de toewijzingslezer
       van `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) worden `PlannedUnits`, `ActualUnits` en `RemainingUnits`

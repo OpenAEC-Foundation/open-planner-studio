@@ -13,7 +13,7 @@
  * is. Tot dan wacht de runner hoogstens `FOREIGN_SCAN_START_TIMEOUT_MS`, daarna per verzoek de ruime rekentijd
  * (`timeoutMs`). Na een terugval is de Worker gestopt en zijn de luisteraars weg: een laat bericht doet niets.
  */
-import { scanForeignToOpen, type ForeignScanOutcome, type OpenedForeignScanOutcome } from './foreignScan';
+import { scanForeignToOpen, type ForeignScanOutcome, type OpenedForeignScan, type OpenedForeignScanOutcome } from './foreignScan';
 import type { ForeignScanWorkerRequest, ForeignScanWorkerResponse } from './foreignScanHandler';
 import type { TargetScanStep } from './targetModelScan';
 
@@ -59,7 +59,8 @@ function defaultCreateWorker(): ForeignScanWorker | null {
 type Body<T> = T extends unknown ? Omit<T, 'id'> : never;
 
 const hasElementLinks = (outcome: ForeignScanOutcome): outcome is OpenedForeignScanOutcome =>
-  !outcome.ok || ('stepElementLinks' in outcome && Array.isArray(outcome.stepElementLinks));
+  !outcome.ok || ('stepElementLinks' in outcome && Array.isArray(outcome.stepElementLinks)
+    && ((outcome as OpenedForeignScan).foreignReferences === undefined || (outcome as OpenedForeignScan).foreignReferences!.targets instanceof Int32Array));
 
 /**
  * `work` met één Worker; zonder Worker of bij een fout van het transport `fallback` (na het stoppen van de Worker). Een
