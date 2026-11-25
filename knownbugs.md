@@ -1788,6 +1788,32 @@ en noem het in je rapport of PR-tekst.
       werkdag komt van de eerste werkdag en toont de korte vrijdag niet. Door twee lezers in de code bevestigd, niet
       met een bronbestand nagespeeld. Issue #1228. — B
 
+2460. **Een XER-activiteit zonder geplande start op een kalender met lege `clndr_data` kan een andere duur krijgen
+      dan het bestand zegt.** `readXerProject` (`src/services/xer/xerReader.ts`) zet de start van zo'n activiteit op
+      de statusdatum en herstelt daarna de duur uit het venster van start tot `target_end_date` als dat hoogstens één
+      werkdag van `target_drtn_hr_cnt` afwijkt (ADR 0392 en 0394). Bij de niet-gestarte taak hieronder blijft de rest
+      `remain_drtn_hr_cnt`; bij een lopende `CP_Drtn`-taak met `complete_pct` rekent de lezer de rest met de bronduur
+      uit het bestand, niet met de herstelde duur (ADR 0394). Nagespeeld
+      met `readXER` op een fixture: kalender `C1` met lege `clndr_data` en `day_hr_cnt` 8, twee taken van 08:00 tot
+      17:00 waaruit de lezer de blokken 08:00 tot 12:00 en 13:00 tot 17:00 afleidt, `last_recalc_date` 2026-04-01
+      08:00, en een taak zonder `target_start_date` met `target_end_date` 2026-04-03 17:00 en 16 uur duur en rest. Die
+      taak krijgt `durationMinutes` 1440 en `remainingMinutes` 960; dezelfde taak met start 2026-04-02 08:00 houdt 960
+      en 960. Open vraag: of het venster de duur mag herstellen als de lezer de start zelf invulde. — B
+
+2461. **Een XER-activiteit met een `clndr_id` zonder gelezen kalender kan haar geplande kloktijden verliezen.**
+      `readXerProject` (`src/services/xer/xerReader.ts`) rekent zo'n activiteit met de projectkalender, maar telt
+      haar kloktijden als uursignaal voor het kalender-id uit de rij (`hourSignalCalendarIds`). Die kalender bestaat
+      niet, dus de projectkalender wordt geen uurkalender en de lezer leest de geplande datums zonder tijd; de
+      activiteit houdt `calendarId` met het ontbrekende id (ADR 0392). Nagespeeld met `readXER` en `payloadFromImport`
+      op een fixture: projectkalender `C1` met lege `clndr_data` en `day_hr_cnt` 8, `last_recalc_date` 2026-06-01
+      08:00, één activiteit van 2 uur op `clndr_id` `C2` (niet in CALENDAR) van 2026-06-01 10:30 tot 12:30. `readXER`
+      geeft start en einde 2026-06-01 zonder tijd, na het laden staan ze op 08:00 en 16:00, en `xer.calendarIssues` is
+      leeg. Met `clndr_id` `C1` blijven 10:30 en 12:30 staan. De tijden vallen alleen weg zolang de projectkalender in
+      dagmodus blijft: geeft een andere activiteit `C1` wel een uursignaal, dan houdt ook de activiteit op `C2` haar
+      10:30 en 12:30 (proef uit de review van #1256). De berekende datums zijn niet nagespeeld. In de drie
+      XER-testbestanden van de repo (`tests/browser/fixtures/xer/`, samen vier taken) wijst geen taak naar een
+      ontbrekende kalender; hoe vaak P6 dat exporteert, is niet nagegaan. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
@@ -4595,6 +4621,19 @@ en noem het in je rapport of PR-tekst.
       `workEndHour`. De motor houdt dan de blokken van de eerdere (`buildWorkingExceptions`, knownbug 2004). Wijken de
       terugvalblokken daarvan af, dan kan die datum na export en heropenen andere werktijden dragen dan de motor in de
       app gebruikte (aansluitende blokken voegt de lezer samen). Gelezen in de code. — B
+
+2462. **Een XER-activiteit zonder geplande start en einde kan na openen een gepland einde in 1901 krijgen.** Zonder
+      statusdatum en `PROJECT.plan_start_date` krijgt zo'n activiteit in `readXerProject`
+      (`src/services/xer/xerReader.ts`) de tijdelijke start `0001-01-01` en hetzelfde einde.
+      `resolveMissingScheduleDates` (`src/services/importDates.ts`) vervangt de start door het anker, maar
+      `finishFromStartAndDuration` rekent onder meer geen einde voor een positieve urentaak op een uurkalender of voor
+      een duur die geen geheel aantal dagen is, en dan blijft het einde `0001-01-01`; een nulduur en een taak in de
+      dagenmaat met hele werkdagen en een start zonder kloktijd krijgen wel een einde (proef uit de review van #1256). De openingsmelding telt alleen de ontbrekende start
+      (`xerMissingPlannedStarts`). Nagespeeld met `readXER` en `payloadFromImport` op een fixture: kalender `C1` met
+      lege `clndr_data`, PROJECT zonder `last_recalc_date` en `plan_start_date`, een taak van 8 uur op 2026-06-01 en
+      een taak van 2 uur zonder `target_start_date` en `target_end_date`. Die tweede taak krijgt in `readXER` start
+      2026-06-01 en einde `0001-01-01`, en na het laden start 2026-06-01T08:00 en einde 1901-01-01T16:00. De
+      berekende datums zijn niet nagespeeld. Issue #1258. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
