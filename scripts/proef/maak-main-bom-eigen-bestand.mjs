@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const BASIS = 'f95b8adf4a8aca8a3f2a89e2f4aa530eeaf48185';
+const BASIS = '3937d2ba53ae125f1cc19e62c4520ab00b6a374d';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT = join(ROOT, 'tests/planning/fixtures/main-bom-eigen-bestand.json');
 const option = name => {
@@ -31,18 +31,20 @@ try {
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { inputHashes, loadFiles, runBoundaries, runCases } from ${JSON.stringify(helper)};
+import { inputHashes, loadFiles, runBoundaries, runCases, shareSequences } from ${JSON.stringify(helper)};
 const [repo, out, basis] = process.argv.slice(2);
 const root = mkdtempSync(join(tmpdir(), 'ops-bom-opname-'));
 try {
   const files = await loadFiles(repo);
   const cases = await runCases(root, files, false);
   const boundaries = await runBoundaries(root, files, false);
-  const lines = Object.entries(cases).map(([name, steps]) => '  ' + JSON.stringify(name) + ': ' + JSON.stringify(steps));
+  const shared = shareSequences(cases);
+  const sequences = shared.sequences.map(steps => '  ' + JSON.stringify(steps));
+  const lines = Object.entries(shared.cases).map(([name, at]) => '  ' + JSON.stringify(name) + ': ' + at);
   const edges = Object.entries(boundaries).map(([name, steps]) => '  ' + JSON.stringify(name) + ': ' + JSON.stringify(steps));
-  writeFileSync(out, '{\\n"basis": ' + JSON.stringify(basis) + ',\\n"inputs": ' + JSON.stringify(inputHashes(files)) + ',\\n"cases": {\\n'
-    + lines.join(',\\n') + '\\n},\\n"boundaries": {\\n' + edges.join(',\\n') + '\\n}\\n}\\n');
-  console.log('gevallen: ' + lines.length + ', grensgevallen: ' + edges.length);
+  writeFileSync(out, '{\\n"basis": ' + JSON.stringify(basis) + ',\\n"inputs": ' + JSON.stringify(inputHashes(files)) + ',\\n"sequences": [\\n'
+    + sequences.join(',\\n') + '\\n],\\n"cases": {\\n' + lines.join(',\\n') + '\\n},\\n"boundaries": {\\n' + edges.join(',\\n') + '\\n}\\n}\\n');
+  console.log('gevallen: ' + lines.length + ', verschillende reeksen: ' + sequences.length + ', grensgevallen: ' + edges.length);
 } finally { rmSync(root, { recursive: true, force: true }); }
 process.exit(0);
 `;

@@ -29,7 +29,8 @@ export type Kind = 'pad' | 'handle';
 export type Compute = 'hier' | 'worker';
 export type How = 'Ctrl+S' | 'Automatisch opslaan' | 'sluitvraag';
 export const MOMENTS = ['recht', 'rekenen', 'hash', 'lezing-1', 'lezing-2', 'lezing-3', 'schrijven'] as const;
-export type Moment = typeof MOMENTS[number];
+export const FLAG_MOMENTS = ['recht', 'rekenen', 'lezing-1', 'lezing-2', 'lezing-3', 'schrijven'] as const;
+export type Moment = typeof MOMENTS[number] | 'bomversie';
 export type Fingerprint = 'klopt' | 'anders' | 'geen';
 
 export interface StepTrace {
@@ -56,8 +57,27 @@ export interface Files {
 export interface Recording {
   readonly basis: string;
   readonly inputs: Readonly<Record<string, string>>;
-  readonly cases: Readonly<Record<string, readonly StepTrace[]>>;
+  readonly sequences: readonly (readonly StepTrace[])[];
+  readonly cases: Readonly<Record<string, number>>;
   readonly boundaries: Readonly<Record<string, readonly StepTrace[]>>;
+}
+
+export function recorded(recording: Recording, name: string): readonly StepTrace[] | undefined {
+  const at = recording.cases[name];
+  return at === undefined ? undefined : recording.sequences[at];
+}
+
+export function shareSequences(cases: Record<string, StepTrace[]>): { sequences: StepTrace[][]; cases: Record<string, number> } {
+  const sequences: StepTrace[][] = [];
+  const seen = new Map<string, number>();
+  const index: Record<string, number> = {};
+  for (const [name, steps] of Object.entries(cases)) {
+    const key = JSON.stringify(steps);
+    let at = seen.get(key);
+    if (at === undefined) { at = sequences.push(steps) - 1; seen.set(key, at); }
+    index[name] = at;
+  }
+  return { sequences, cases: index };
 }
 
 class Tracker {
@@ -67,25 +87,27 @@ class Tracker {
   inCompute = false;
   output: Uint8Array | null = null;
   private withBomOutput: Uint8Array | null = null;
-  private armed: { moment: Moment; action: () => void } | null = null;
+  private armed: { moment: Moment; action: () => void }[] = [];
+  private wasArmed = false;
   constructor(readonly withBom: boolean) {}
   arm(moment: Moment, action: () => void) {
-    this.armed = { moment, action };
-    this.reads = 0;
-    this.fired = false;
+    if (this.armed.length === 0) { this.reads = 0; this.fired = false; }
+    this.armed.push({ moment, action });
+    this.wasArmed = true;
   }
   settle(): Record<string, unknown> | undefined {
-    const result = this.armed || this.fired ? { ingreep: this.fired } : undefined;
-    this.armed = null;
+    const result = this.wasArmed ? { ingreep: this.fired } : undefined;
+    this.armed = [];
+    this.wasArmed = false;
     this.fired = false;
     return result;
   }
   fire(moment: Moment) {
-    if (this.armed?.moment !== moment) return;
-    const { action } = this.armed;
-    this.armed = null;
+    const due = this.armed.filter(a => a.moment === moment);
+    if (due.length === 0) return;
+    this.armed = this.armed.filter(a => a.moment !== moment);
     this.fired = true;
-    action();
+    for (const { action } of due) action();
   }
   note(event: string, moment?: Moment) {
     this.events.push(event);
@@ -100,7 +122,7 @@ class Tracker {
     this.withBomOutput = addBom(bytes);
   }
   digest(data: Uint8Array) {
-    if (new Error().stack?.includes('isOwnBomVersion')) { this.note('hash-bomversie'); return; }
+    if (new Error().stack?.includes('isOwnBomVersion')) { this.note('hash-bomversie', 'bomversie'); return; }
     const plain = !!this.output && sameBytes(data, this.output);
     const bom = !!this.withBomOutput && sameBytes(data, this.withBomOutput);
     if (plain || bom) this.note('hash-uitvoer', (this.withBom ? bom : plain) ? 'hash' : undefined);
@@ -175,6 +197,7 @@ type Failure = 'lezen' | 'schijf vol' | 'hernoemen' | 'schrijfstroom';
 interface Place {
   readonly ref: FileRef;
   readonly appBom: boolean;
+  expectBom: boolean;
   byApp: boolean;
   otherBom: boolean;
   read(): Uint8Array | null;
@@ -204,7 +227,7 @@ function placeOnDisk(root: string, tracker: Tracker, data: Uint8Array, appBom: b
     else tracker.note(event, /^plugin:fs\|write/.test(command) ? 'schrijven' : undefined);
   };
   return {
-    ref: { kind: 'path', path }, appBom, byApp: true, otherBom: false,
+    ref: { kind: 'path', path }, appBom, expectBom: appBom, byApp: true, otherBom: false,
     read: () => { try { return new Uint8Array(readFileSync(path)); } catch { return null; } },
     put: next => writeFileSync(path, next),
     remove: () => unlinkSync(path),
@@ -226,7 +249,7 @@ function placeInBrowser(tracker: Tracker, data: Uint8Array | null, appBom: boole
   const box: Box = { bytes: data };
   const handle = new Handle('planning.ifc', box, tracker);
   return {
-    handle, ref: { kind: 'handle', handle: handle as unknown as FileSystemFileHandle }, appBom, byApp: true, otherBom: false,
+    handle, ref: { kind: 'handle', handle: handle as unknown as FileSystemFileHandle }, appBom, expectBom: appBom, byApp: true, otherBom: false,
     read: () => box.bytes,
     put: next => { box.bytes = next; },
     remove: () => { box.bytes = null; },
@@ -313,6 +336,8 @@ export interface Run {
   byOther(data: Uint8Array): void;
   inBomWorld(data: Uint8Array): Uint8Array;
   at(moment: Moment, action: () => void): void;
+  flag(on: boolean): void;
+  attemptWithFlagOff(): void;
   save(step: string, how: How, after?: () => Record<string, unknown>): Promise<void>;
   record(step: string, outcome: boolean | null, extra?: Record<string, unknown>): void;
   picker(answer: 'nieuw bestand' | 'geannuleerd'): void;
@@ -331,8 +356,6 @@ interface Scenario {
 }
 
 const VOORAF = [
-  ['een andere planning', (r: Run) => r.byOther(r.files.other)],
-  ['een gebouwmodel', (r: Run) => r.byOther(r.files.model)],
   ['vreemde inhoud', (r: Run) => r.byOther(r.files.foreign)],
   ['geen IFC', (r: Run) => r.byOther(new TextEncoder().encode('Geen IFC'))],
   ['een gebouwmodel, in de wereld van het bestand', (r: Run) => r.byOther(r.inBomWorld(r.files.model))],
@@ -349,32 +372,37 @@ export const CHANGES: readonly (readonly [string, ((files: Files) => Uint8Array)
   ['een gebouwmodel zonder BOM', files => files.model],
   ['het eigen bestand onveranderd', null],
 ];
-export const FLAGS = ['de flag blijft aan', 'de flag gaat uit', 'de flag gaat uit en weer aan'] as const;
-type Flag = typeof FLAGS[number];
+export const SWITCHES = ['uit', 'uit en weer aan'] as const;
+type Switch = typeof SWITCHES[number] | 'aan';
+export const switchBaseline = (name: string) => name.replace(/; wissel [^;]+$/, '');
+export const isSwitch = (name: string) => switchBaseline(name) !== name;
+export const atBomVersion = (name: string) => name.includes(' bij bomversie');
 
-function intervention(
-  how: typeof ROUTES[number], origin: typeof ORIGINS[number], change: string, data: ((files: Files) => Uint8Array) | null,
-  flag: Flag, early: boolean, moment: Moment | null,
+function attempt(
+  how: typeof ROUTES[number], origin: typeof ORIGINS[number], startOn: boolean, change: string,
+  data: ((files: Files) => Uint8Array) | null, early: boolean, at: Moment | null, flip: Switch | null, flipAt: Moment | null,
 ): Scenario {
-  const at = moment ? `bij ${moment}` : '';
-  const name = early ? `vooraf ${change}${moment ? `; ${at}: ${flag}` : `, ${flag}`}` : `${at}: ${change}, ${flag}`;
+  const what = early ? `vooraf ${change}` : at ? `${change} bij ${at}` : change;
+  const moments = [at, flipAt].filter((m): m is Moment => m !== null);
   return {
-    name: `${how}, ${origin}: ${name}`, opening: false,
-    kinds: moment === 'recht' ? ['handle'] : undefined,
-    computes: moment === null || moment === 'rekenen' || moment === 'hash' ? undefined : ['hier'],
+    name: `${how}, ${origin}, flag ${startOn ? 'aan' : 'uit'}: ${what}${flip ? `; wissel ${flip} bij ${flipAt}` : ''}`, opening: false,
+    kinds: moments.includes('recht') ? ['handle'] : undefined,
+    computes: moments.every(m => m === 'rekenen' || m === 'hash') ? undefined : ['hier'],
     run: async r => {
       await fromOrigin(r, origin);
+      if (!startOn) r.attemptWithFlagOff();
       r.rename();
       const external = data ? data(r.files) : null;
       let placed = false;
       const put = () => { if (external) { r.byOther(external); placed = true; } };
-      const flip = () => {
-        if (flag === FLAGS[0]) return;
-        r.store.getState().setUI({ featureFlags: {} });
-        if (flag === FLAGS[2]) r.store.getState().setUI({ featureFlags: { ifcForeignContent: true } });
-      };
       if (early) put();
-      if (moment) r.at(moment, () => { if (!early) put(); flip(); });
+      if (at && !early) r.at(at, put);
+      if (flip && flipAt) {
+        r.at(flipAt, () => {
+          r.flag(flip === 'aan');
+          if (flip === 'uit en weer aan') r.flag(true);
+        });
+      }
       await r.save(how, how, () => {
         const disk = r.place.read();
         return { extern: !external ? 'geen' : !placed ? 'niet geplaatst' : disk && sameBytes(disk, external) ? 'byte voor byte' : 'overschreven' };
@@ -508,17 +536,25 @@ export function scenarios(): Scenario[] {
           run: async r => { await fromOrigin(r, origin); r.rename(); change(r); await r.save(how, how); },
         });
       }
-      for (const [change, data] of CHANGES) {
-        if (data && change.endsWith('met BOM')) list.push(intervention(how, origin, change, data, FLAGS[0], true, null));
-      }
-      for (const moment of MOMENTS) {
+      for (const startOn of origin === 'geopend' ? [true, false] : [true]) {
         for (const [change, data] of CHANGES) {
-          for (const flag of FLAGS) {
-            if (moment === 'hash' && flag !== FLAGS[0]) continue;
-            if (data) list.push(intervention(how, origin, change, data, flag, false, moment));
-            if (flag !== FLAGS[0]) list.push(intervention(how, origin, change, data, flag, !!data, moment));
+          list.push(attempt(how, origin, startOn, change, data, !!data, null, null, null));
+          if (data) for (const at of startOn ? MOMENTS : FLAG_MOMENTS) list.push(attempt(how, origin, startOn, change, data, false, at, null, null));
+          for (const flipAt of FLAG_MOMENTS) {
+            for (const flip of startOn ? SWITCHES : ['aan' as const]) {
+              if (data) list.push(attempt(how, origin, startOn, change, data, false, flipAt, flip, flipAt));
+              list.push(attempt(how, origin, startOn, change, data, !!data, null, flip, flipAt));
+            }
           }
         }
+      }
+      if (origin === 'geopend') {
+        for (const [change, data] of CHANGES) {
+          if (!data) continue;
+          for (const flip of [null, ...SWITCHES]) list.push(attempt(how, origin, true, change, data, false, 'bomversie', flip, flip ? 'lezing-1' : null));
+        }
+      }
+      for (const moment of MOMENTS) {
         list.push({
           name: `${how}, ${origin}: het tabblad bewerkt bij ${moment}`, opening: false,
           kinds: moment === 'recht' ? ['handle'] : undefined,
@@ -564,6 +600,7 @@ async function runScenario(
     const store = await openStore(start, place.ref, computeOut);
     const autoSave = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute: computeOut });
     let renames = 0;
+    let bomWithFlag = true;
     const placeOf = () => {
       const s = store.getState();
       return places.find(p => (p.ref.kind === 'handle' ? s.fileHandle === p.ref.handle : p.ref.kind === 'path' && s.filePath === p.ref.path)) ?? null;
@@ -574,12 +611,15 @@ async function runScenario(
       const s = store.getState();
       const target = placeOf() ?? place;
       const disk = target.read();
-      if (disk && tracker.output && sameBytes(withoutBom(disk), tracker.output)) target.byApp = true;
+      if (disk && tracker.output && sameBytes(withoutBom(disk), tracker.output)) {
+        target.byApp = true;
+        target.expectBom = target.appBom && bomWithFlag;
+      }
       steps.push({
         step, outcome,
         notices: s.ui.notifications.map(n => stable(noticeOf(n))),
         disk: disk ? sha256(withoutBom(disk)) : null,
-        bomOk: disk ? hasBom(disk) === (target.byApp ? target.appBom : target.otherBom) : null,
+        bomOk: disk ? hasBom(disk) === (target.byApp ? target.expectBom : target.otherBom) : null,
         fingerprint: fingerprintOf(s.knownTargetFingerprint, disk),
         dirty: s.isDirty,
         events: tracker.take().join(' '),
@@ -596,6 +636,8 @@ async function runScenario(
       byOther: data => { place.byApp = false; place.otherBom = hasBom(data); place.put(data); },
       inBomWorld: data => (withBom ? addBom(data) : data),
       at: (moment, action) => tracker.arm(moment, action),
+      flag: on => store.getState().setUI({ featureFlags: on ? { ifcForeignContent: true } : {} }),
+      attemptWithFlagOff: () => { store.getState().setUI({ featureFlags: {} }); bomWithFlag = false; },
       record,
       save: async (step, how, after) => {
         let outcome: boolean;
@@ -656,12 +698,13 @@ function* caseList() {
   }
 }
 
-export async function runCases(root: string, files: Files, withBom: boolean): Promise<Record<string, StepTrace[]>> {
+export async function runCases(root: string, files: Files, withBom: boolean, only?: RegExp): Promise<Record<string, StepTrace[]>> {
   reseed ??= installDeterminism();
   const restore = patchDigest();
   const out: Record<string, StepTrace[]> = {};
   try {
     for (const c of caseList()) {
+      if (only && !only.test(c.name)) continue;
       reseed(0x2212);
       const source = c.source === 'LF' ? files.lf : c.source === 'CRLF' ? files.crlf : files.example;
       out[c.name] = await runScenario(root, files, withBom, c.kind, c.compute, source, c.scenario);
@@ -725,6 +768,20 @@ export async function runBoundaries(root: string, files: Files, withBom: boolean
       }
     }
     reseed(0x2212);
+    out['handle | recht geweigerd, een andere planning met BOM in de wereld van het bestand'] = await runScenario(
+      root, files, withBom, 'handle', 'hier', files.lf, {
+        name: 'recht geweigerd',
+        run: async r => {
+          const handle = (r.place as ReturnType<typeof placeInBrowser>).handle;
+          handle.query = 'prompt';
+          handle.request = 'denied';
+          r.picker('nieuw bestand');
+          r.byOther(r.inBomWorld(files.other));
+          r.rename();
+          await r.save('Ctrl+S', 'Ctrl+S');
+        },
+      });
+    reseed(0x2212);
     out['site | Ctrl+S'] = await siteCase(withBom ? addBom(files.lf) : files.lf);
   } finally { restore(); }
   return out;
@@ -771,23 +828,42 @@ function noticeOf(notice: AppNotification): string {
   return `${notice.severity}:${notice.messageKey}${rest.length ? ` ${JSON.stringify(Object.fromEntries(rest))}` : ''}`;
 }
 
-export const waitPoints = (events: string) => events.replace(/ ?hash-bomversie/g, '').replace(/hash-uitvoer(?: hash-uitvoer)+/g, 'hash-uitvoer');
+const TARGET_READ = /^(?:open|read_file):(?:doel|koppeling)$|^lezen$/;
+const WRITE = /^(?:write_file|write_text_file|write)(?::|$)|^schrijfstroom$/;
 
-function scanHashOutsideRead(events: string): boolean {
-  const tokens = events.split(' ');
-  return tokens.some((token, i) => token === 'hash-bomversie' && tokens[i - 1] !== 'read' && tokens[i - 1] !== 'lezen');
+function bomHashBeforeWrite(tokens: readonly string[], at: number): boolean {
+  for (const token of tokens.slice(at + 1)) {
+    if (TARGET_READ.test(token)) return false;
+    if (WRITE.test(token)) return true;
+  }
+  return false;
 }
 
-export function differences(main: readonly StepTrace[], pr: readonly StepTrace[]): string[] {
+export function waitPoints(events: string): string {
+  const tokens = events ? events.split(' ') : [];
+  return tokens.filter((token, i) => token !== 'hash-bomversie' || bomHashBeforeWrite(tokens, i)).join(' ')
+    .replace(/hash-uitvoer(?: hash-uitvoer)+/g, 'hash-uitvoer');
+}
+
+export const lastWaitIsBomHash = (events: string) => {
+  const tokens = events ? events.split(' ') : [];
+  return tokens.some((token, i) => token === 'hash-bomversie' && bomHashBeforeWrite(tokens, i));
+};
+
+export function differences(main: readonly StepTrace[], pr: readonly StepTrace[], switched: string | null = null): string[] {
   if (main.length !== pr.length) return [`aantal stappen ${main.length} ≠ ${pr.length}`];
   const out: string[] = [];
+  const withoutIngreep = (extra: StepTrace['extra']) => (extra ? Object.fromEntries(Object.entries(extra).filter(([key]) => key !== 'ingreep')) : {});
   main.forEach((m, i) => {
     const p = pr[i];
+    const clearedBySetting = switched !== null && switched !== 'aan' && p.outcome !== true && p.fingerprint === 'geen';
     for (const field of ['step', 'outcome', 'notices', 'disk', 'fingerprint', 'dirty', 'extra'] as const) {
-      if (JSON.stringify(m[field]) !== JSON.stringify(p[field])) out.push(`${m.step}: ${field} ${JSON.stringify(m[field])} ≠ ${JSON.stringify(p[field])}`);
+      if (field === 'fingerprint' && clearedBySetting) continue;
+      const [a, b] = field === 'extra' && switched !== null ? [withoutIngreep(m.extra), withoutIngreep(p.extra)] : [m[field], p[field]];
+      if (JSON.stringify(a) !== JSON.stringify(b)) out.push(`${m.step}: ${field} ${JSON.stringify(a)} ≠ ${JSON.stringify(b)}`);
     }
     if (waitPoints(m.events) !== waitPoints(p.events)) out.push(`${m.step}: wachtpunten "${m.events}" ≠ "${p.events}"`);
-    if (m.events.includes('hash-bomversie') || scanHashOutsideRead(p.events)) out.push(`${m.step}: een hash van de BOM-versie buiten de doelscan`);
+    if (lastWaitIsBomHash(p.events)) out.push(`${m.step}: de hash van de BOM-versie is het laatste wachtpunt vóór het schrijven`);
     if (m.bomOk === false || p.bomOk === false) out.push(`${m.step}: de BOM klopt niet (main ${m.bomOk}, PR ${p.bomOk})`);
   });
   return out;
