@@ -49,7 +49,7 @@ export function desktopRoute() {
     const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext({ ifcSaveCompute: compute });
     const path = join(dir, `bestand-${++files}.ifc`);
     writeFileSync(path, bytes);
-    store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; });
+    store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; s.ui.foreignChangesQuestion = false; });
     await store.getState().openOpenedFile({ name: 'bron.ifc', content: new TextDecoder().decode(bytes), bytes, ref: { kind: 'path', path } });
     const tracker = new RecoveryDeltaTracker();
     const unregister = registerRecoveryFlush(async () => {
