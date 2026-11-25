@@ -10,6 +10,9 @@ een deel ervan daarnaast een regel in de console; wat alleen daar staat, noemt k
 
 - Een kostenresource en haar toewijzingen gaan niet mee (issue #815); de XER-writer laat ze ook weg. De melding telt
   ze (`costResources`). Dat P6 geen kostenresource kent, komt uit het weggehaalde commentaar en is niet nagegaan.
+- De XER-identiteit van een taak (`p6ProjectId`, `p6TaskId`) schrijft de writer niet; na inlezen draagt de taak de
+  herkomst van het XML-bestand zelf (`check-xer-p6xml-parity.ts`, assertie 2). Volgens het weggehaalde commentaar bewaart een XER-import
+  zijn P6-velden en exacte bron alleen via IFC; het bronarchief staat in ADR 0048.
 - Relaties met een ander project (`externalLinks`), notities, een nivelleervertraging, een stop- of hervatdatum en een
   baseline schrijft de writer niet.
 - Een handmatig geplande taak gaat als gewone taak met haar rekendatums. Een taak in kalendertijd gaat voor P6 als

@@ -282,11 +282,6 @@ export function writeP6XMLWithReport(
     console.warn(`P6-export: ${resumeStopCount} taak/taken met resume/stop (uit-volgorde-hervatting) weggelaten — niet uitdrukbaar in P6-XML (§6).`);
   }
 
-  // Deze adapter is doelbewust asymmetrisch met XER. Een XER-import bewaart zijn P6-velden en exacte
-  // bron alleen via IFC; dit XML-profiel claimt daarvoor geen equivalent.
-  // TODO(X9/P6XML): pas na een gevalideerde Oracle-schema-/corpusmapping eventueel individuele
-  // DurationType/ActivityType/progressvelden lezen/schrijven, met een nieuwe parity-test.
-
   const writeView = minuteModelWriteView({ tasks, calendar, resourceCalendars, baselines: [] },
     { literalAutomaticMilestones: true, realTimes: true });
   tasks = writeView.tasks;
