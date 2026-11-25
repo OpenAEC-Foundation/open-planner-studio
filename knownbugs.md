@@ -6943,27 +6943,38 @@ en noem het in je rapport of PR-tekst.
      verschilt per runner: openen als IFC kostte in de CI 502 tot 698 ms; met de noemer van `9894f6236` was de groene
      3,18 van `23814bad4` ongeveer 4,23. De meetregels staan in het planningsdeel dat de proef draait. — B
 
-2351. **IFCX in de app (F3-4): het vaste punt van de kern geldt tot de laadgrens, zonder doorrekenen.** De kern toetst
-     `writeIfcx(readIfcx(b))` en de canonieke planning na `payloadFromImport` en `buildWriteIFCInput`. De Openen-route
-     van de app rekent daarna door (`prepareLoadedPayload` met `recompute: true`, `src/state/documentActivation.ts`); dan
-     verschuift bijvoorbeeld bij de datumfixture de vroege finish van de taak `einde-middernacht` van `2027-06-03T00:00`
-     naar `2027-06-02T16:00`, en de volgende opslag schrijft andere bytes. Ook draagt de opslagroute van de app
-     (`buildWriteIFCInput` op de toestand na openen) de afwezige tijdslots niet, net als bij STEP buiten de modus "datums
-     zoals opgeslagen". F3-4 beslist of en wanneer de IFCX-openroute doorrekent en pint de echte route in één proef.
-     Gemeld door de review van #1183 ronde 7 (GPT-6.2-Sol). — B
+2351. **IFCX in de app (F3-4): de lezer geeft de planning na de laadgrens terug; de openroute mag de laadgrens niet nog
+     eens toepassen op een manier die iets verandert.** Sinds #1183 ronde 8 (R6) gaan alleen de schrijver en zijn ene
+     STEP-rondgang door de laadgrens (`payloadFromImport`, `buildWriteIFCInput`). `readIfcx` past haar zelf niet meer
+     toe: het geeft de planning terug zoals ze in het bestand staat, en dat is de eerste STEP-lezing na de laadgrens, met
+     `minuteModelPending` uit het bestand en zonder de hint `milestonesAtDayEnd`. De openroute van F3-4 maakt daar de
+     payload van, en mag de laadgrens niet nog eens toepassen op een manier die iets verandert.
+     Daarnaast rekent de Openen-route van de app door (`prepareLoadedPayload` met `recompute: true`,
+     `src/state/documentActivation.ts`); dan verschuift bijvoorbeeld bij de datumfixture de vroege finish van de taak
+     `einde-middernacht` van `2027-06-03T00:00` naar `2027-06-02T16:00`, en de volgende opslag schrijft andere bytes. Ook
+     draagt de opslagroute van de app (`buildWriteIFCInput` op de toestand na openen) de afwezige tijdslots niet, net als
+     bij STEP buiten de modus "datums zoals opgeslagen". F3-4 beslist of en wanneer de IFCX-openroute doorrekent en pint
+     de echte route in één proef. Wat een tweede opslag verandert, staat in 2352. Gemeld door de review van #1183 ronde 7
+     (GPT-6.2-Sol). — B
 
-2352. **Een eenvoudige pauze die STEP bij een tweede opslag niet houdt: IFCX weigert, STEP op main laat haar stil vallen.**
-     Bij een werkdag van 07:00 tot 16:00 is een eenvoudige pauze (`simpleBreakStartMinute`, `simpleBreakDurationMinutes`)
-     alleen stabiel als ze na het begin van de werktijd begint en uiterlijk aan het eind eindigt, of geen duur heeft.
-     Anders houdt de eerste STEP-rondgang haar en laat de tweede haar vallen (begin vóór of na de werktijd, of over het
-     eind heen), of verandert de tweede de werktijden en de uren per dag (een pauze die precies op het begin begint).
-     Een halve pauze (alleen een begin of alleen een duur, bijvoorbeeld omdat één van de twee geen geheel getal is en de
-     STEP-lezer het laat vallen) valt bij de tweede rondgang ook weg. **IFCX:** `writeIfcx` vergelijkt elke kalender met een
-     pauze na de eerste en na de tweede rondgang en weigert vóór de zelfcontrole met `invalid`, bijvoorbeeld: "kalender
-     Ploegendienst (ploegendienst): de pauze vanaf 00:01, 30 minuten, blijft bij een volgende opslag niet zoals ze is
-     (simpleBreakStartMinute: 1 → afwezig; simpleBreakDurationMinutes: 30 → afwezig). Leg de pauze helemaal binnen de
-     werktijd van 07:00 tot 16:00, na het begin, of haal haar weg." (besluit van de technisch eigenaar, #1183 ronde 7b:
-     "De uitzondering geldt ook hier: IFCX weigert die planning, en de melding noemt de kalender en de pauze, zodat de
-     planner het kan rechtzetten."). **STEP op main:** opslaan als IFC houdt de pauze bij de eerste opslag en laat haar
-     bij de tweede opslag na openen stil vallen; dat is een eigen fout van main. De andere kalendervelden van de
-     veldtabel (70 velden, 428 mutaties) zijn bij één en twee keer rondgang gelijk. Proef: `check-ifcx-kern.ts`, "2352". — B
+2352. **Een tweede opslag als IFC verandert de planning stil; IFCX doet hetzelfde.** Opslaan als IFC houdt bij de eerste
+     opslag wat de planner invoerde, maar verandert bij de tweede opslag na openen stil (bij een werkdag van 07:00 tot
+     16:00):
+     - een eenvoudige pauze (`simpleBreakStartMinute`, `simpleBreakDurationMinutes`) die niet helemaal binnen de
+       werktijd ligt (vanaf 00:01, vanaf 06:40 over het begin heen, vanaf 15:40 over het einde heen, of vanaf 16:40):
+       de tweede opslag laat haar vallen;
+     - een pauze met een begin of een duur met een fractie: de eerste opslag houdt alleen het andere deel, de tweede
+       laat de pauze vallen;
+     - een pauze precies op het begin van de werktijd (vanaf 07:00): na de omzetting naar het minutenmodel houdt de
+       tweede opslag de pauze, maar verandert ze de werktijden van de kalender; vóór de omzetting zet de
+       laadnormalisatie de kalender bij de eerste opslag al recht, en verandert de tweede opslag niets;
+     - een gestarte dagtaak zonder vastgelegde restduur: de eerste lezing leidt de restduur af uit duur en voortgang
+       (0,75 dag bij 25 %), en daardoor schrijft de tweede opslag de projectkalender letterlijk; zo bij 8, 8½, 9 en 9½
+       nominale uren, vóór en na de omzetting;
+     - een kalender met 9½ nominale uren, na de omzetting: de tweede opslag maakt er 9 uur van, met werktijden.
+
+     Een pauze helemaal binnen de werktijd, tot het einde ervan, of met alleen een begin of alleen een duur, blijft bij
+     elke opslag. Dit is een fout van main. **IFCX** volgt STEP, ook bij de tweede opslag (besluit van de technisch
+     eigenaar, #1183 ronde 8, letterlijk: "de pauzeweigering vervalt; IFCX volgt STEP, ook bij de tweede opslag. Het
+     stille verlies blijft een fout van main in 2352."); de weigering van ronde 7b is weg. Proef: `check-ifcx-kern.ts`,
+     "2352" en "ronde 8, het geval van Sol". Gemeld door de review van #1183 ronde 7 en 8 (GPT-6.2-Sol). — B
