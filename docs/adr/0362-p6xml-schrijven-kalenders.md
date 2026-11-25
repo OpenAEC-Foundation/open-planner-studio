@@ -20,7 +20,8 @@ de keuzes hieronder zijn de spiegel daarvan.
   van begin tot einde gaf een andere werktijd dan de kalender heeft. Het voorbeeld uit het weggehaalde commentaar:
   07:00 tot 16:00 met 8 uur gaf 9 uur per dag, en 3 dagen kwamen terug als 2,67 dagen. De lezer herkent zo'n
   dagkalender met pauze (`opsDayWithBreak`, ADR 0262).
-- Een dag zonder blokken krijgt `<WorkTime xsi:nil="true"/>` (toets 2c). Het einde van een blok is de laatste minuut
+- Een dag zonder blokken krijgt `<WorkTime xsi:nil="true"/>` (toets 2c); dat het schema `<WorkTime>` verplicht stelt,
+  komt uit het weggehaalde commentaar en is niet nagegaan. Het einde van een blok is de laatste minuut
   (`p6FinishClock`, toets 2b); de leesregel staat in ADR 0262 en de tekstvorm in ADR 0322. Een blok over middernacht
   (einde boven 1440) gaat met het einde als tijd van de volgende dag; de lezer laat een blok dat op of vóór zijn
   begin eindigt doorlopen (ADR 0263).

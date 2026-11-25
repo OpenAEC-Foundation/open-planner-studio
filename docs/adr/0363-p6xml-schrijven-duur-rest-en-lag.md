@@ -35,7 +35,7 @@ XER-writer volgt dezelfde lijn (regel `xer`).
   - een lag in dagen gaat via `writeDays` met de werktijd per dag van de lagkalender (`lagWorkMinutesPerDay`, I7), met
     het record `[dagen, minuten]`, ook bij hele dagen, omdat een relatie geen eigen eenheidsveld heeft. In kalendertijd
     telt de dag op dezelfde manier en krijgt het record de eenheid `ed`. De dagen in het record zijn die van
-    `dayMeasureRecord` en verklaren de geschreven minuten. Een lag van 0 dagen in werktijd geeft 0 uur zonder record.
+    `dayMeasureRecord` en verklaren de geschreven minuten (aanval a06 na #600). Een lag van 0 dagen in werktijd geeft 0 uur zonder record.
 - Dat P6 geen lag in procenten en geen lageenheid per relatie kent, komt uit het weggehaalde commentaar en is niet
   nagegaan; de lagkalender is in P6 XML een projectoptie (`RelationshipLagCalendar` in `<ScheduleOptions>`, ADR
   0361). `p6Lag` meldt de procentlag en de lag in kalendertijd in de console; de XER-writer telt zijn verlies zelf.

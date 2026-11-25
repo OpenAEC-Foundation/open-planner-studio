@@ -27,7 +27,9 @@ project. De lezer neemt ze terug zoals in ADR 0269; de keuzes hieronder zijn de 
   `ResourceCurveObjectId` op de toewijzing (`curveObjIdFor`). Er komt één `<ResourceCurve>` per verschillende
   waardenlijst die een toewijzing gebruikt: `curveValues`, anders de OPS-tabel van `curve` (`CONTOUR_SHAPE_VALUES`);
   een vlakke lijst geeft geen curve, en `UNIFORM` zonder `curveValues` ook niet. `<Name>` is de naam uit `P6_CURVE_TO_NAME`, anders `Curve <nummer>`;
-  dezelfde namen gebruikt de XER-writer. `<PlannedCurve>` is een spreiding (`contourIo.ts`), geen curvenaam.
+  dezelfde namen gebruikt de XER-writer. `<PlannedCurve>` is een spreiding (`contourIo.ts`), geen curvenaam. Dat MPXJ
+  een curve zo schrijft (`XmlContextWriter.writeResourceCurves`), komt uit het weggehaalde commentaar en is niet
+  nagegaan.
 - Ook bij `DOUBLE_PEAK` en de andere vormen zijn de waarden die van de OPS-tabel en alleen de naam die van P6. De
   lezer zoekt eerst op waarden en pas daarna op naam (ADR 0269), zodat OPS zijn eigen vorm terugkrijgt. Dat P6 voor
   "Double Peak" en "Trapezoidal" eigen waarden heeft en dat de OPS-tabel die van MS Project is, komt uit het
