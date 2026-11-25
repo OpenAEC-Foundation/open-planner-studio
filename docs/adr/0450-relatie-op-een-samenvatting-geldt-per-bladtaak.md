@@ -11,7 +11,7 @@ een lag in werktijd telt in de kalender die de projectoptie `lagCalendar` voor d
 die van het blad dat voorganger is, ADR 0270), en een procentuele lag neemt de duur van dat blad. De vroege start
 neemt het maximum over de voorgangers (ADR 0270), dus de strengste berekende grens van een bladrelatie bepaalt de
 start. Dat is niet per se het blad dat het laatst klaar is, ook niet bij FS zonder lag, als de bladen een eigen
-kalender hebben. Proef uit de review van #1281: een fase met K1 op een kalender die alleen op maandag werkt (klaar
+kalender hebben. Nagespeeld met de rekenmotor: een fase met K1 op een kalender die alleen op maandag werkt (klaar
 op maandag 1 juni 15:00) en K2 op de projectkalender (klaar op dinsdag 2 juni 16:00), met FS zonder lag naar X: X
 start op maandag 8 juni 08:00, bepaald door K1; met alleen K2 als voorganger start X op woensdag 3 juni 08:00. Met
 een lag geldt hetzelfde (knownbug 2479).
