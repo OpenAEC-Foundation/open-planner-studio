@@ -20,7 +20,7 @@ import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes
 import { MSPDI_FIXTURE, P6XML_FIXTURE } from '../fixtures/recordedTimesFormats';
 import { loadStore, openInStore } from './ifcAppRoute';
 import { installDeterminism } from './ifcPariteitKern';
-import { PROGRESS_TASK, recordedExample, withWall } from './opgeslagenDatumsVoorbeeld';
+import { PROGRESS_TASK, recordedExample, recordedPhaseExample, withWall } from './opgeslagenDatumsVoorbeeld';
 import { installDOMParser } from './xmldom-shim';
 
 installDeterminism();
@@ -431,6 +431,8 @@ const PROPERTY_STANDS: readonly Stand[] = [
   ...STANDS,
   { name: 'MSPDI-herkomst met een lopende taak op een kalender van vier uur', make: () => recordedExample({ progress: 0.5, halfDay: true }), task: PROGRESS_TASK },
   { name: 'MSPDI-herkomst met een lopende taak en een peildatum om 10.30 uur', make: () => recordedExample({ progress: 0.5, edit: atHalfPastTen }), task: PROGRESS_TASK },
+  { name: 'MSPDI-herkomst met een lopende fase en een voltooide mijlpaal', make: () => recordedPhaseExample(false), task: PROGRESS_TASK },
+  { name: 'MSPDI-herkomst met een voltooide fase en een voltooide mijlpaal', make: () => recordedPhaseExample(true), task: 'Pour ground floor slab' },
 ];
 interface Tally { copies: number; refused: number; byRule: Map<RuleId, number> }
 const probed = { copies: 0, kinds: new Set<string>(), empty: new Map<string, number>(), byDifference: new Map<string, Tally>() };

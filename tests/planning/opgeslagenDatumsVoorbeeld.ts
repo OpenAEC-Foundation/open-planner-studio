@@ -60,3 +60,24 @@ export async function recordedExample({ edit = () => {}, wall = true, progress, 
   edit(input);
   return wall ? withWall(writeIFC(input)) : enc.encode(writeIFC(input));
 }
+
+export async function recordedPhaseExample(phaseDone: boolean): Promise<Uint8Array<ArrayBuffer>> {
+  const { buildWriteIFCInput } = await loadStore();
+  const example = new Uint8Array(readFileSync(join(root, 'public/examples/showcase-verbouwing-eengezinswoning.ifc')));
+  const { store } = await openInStore(example, 'voorbeeld.ifc');
+  const byName = (name: string) => store.getState().tasks.find(t => t.name === name)!;
+  store.getState().setStatusDate(byName(PROGRESS_TASK).time.earlyFinish.slice(0, 10));
+  for (const [name, progress] of [['Start of refurbishment', 1], ['Set up site', 1], [PROGRESS_TASK, phaseDone ? 1 : 0.5]] as const) {
+    for (const step of progress === 1 ? [0.5, 1] : [progress]) {
+      assert(store.getState().setTaskProgress(byName(name).id, step), `de voortgang van ${name} is gezet`);
+      store.getState().runCPM();
+    }
+  }
+  const input = structuredClone(buildWriteIFCInput(store.getState(), 'merge'));
+  const phase = input.tasks.find(t => t.name === '1. Preparation')!, milestone = input.tasks.find(t => t.name === 'Start of refurbishment')!;
+  assert(milestone.time.actualFinish && (phaseDone ? phase.time.actualFinish : phase.time.actualStart && !phase.time.actualFinish), 'de fase en de mijlpaal hebben hun voortgang');
+  const shifted = input.tasks.find(t => !t.childIds.length && !t.isMilestone && !t.time.actualStart && t.time.earlyStart !== t.time.scheduleStart)!;
+  shifted.time = { ...shifted.time, earlyStart: shifted.time.scheduleStart };
+  input.recordedSourceFormat = 'mspdi';
+  return withWall(writeIFC(input));
+}
