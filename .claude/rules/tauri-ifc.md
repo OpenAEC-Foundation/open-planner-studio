@@ -147,6 +147,14 @@ Besluiten van de helpers voor de IFC-, MSPDI-, P6 XML-, XER- en `.mpp`-adapters 
 `0324-werkdagen-wisselen-in-een-uurkalender.md`, `0325-soort-mijlpaal-op-een-blokgrens.md` en
 `0326-kalender-en-duur-van-een-taak-bij-het-schrijven.md`.
 
+### De P6 XML-writer (`p6/p6xmlWriter.ts`)
+
+Besluiten van de writer van P6 XML: `docs/adr/0360-p6xml-schrijven-indeling-objectids-en-volgorde.md`,
+`0361-p6xml-schrijven-eigen-ops-velden.md`, `0362-p6xml-schrijven-kalenders.md`,
+`0363-p6xml-schrijven-duur-rest-en-lag.md`, `0364-p6xml-schrijven-voortgang-type-duursoort-en-datums.md`,
+`0365-p6xml-schrijven-resources-toewijzingen-en-curves.md`, `0366-p6xml-schrijven-project-naam-id-en-rekenopties.md` en
+`0367-p6xml-schrijven-wat-niet-meegaat.md`. De lezer staat in de regel `xer`.
+
 ### Bestandsschema per project
 
 Het IFC-schema is een projectinstelling: `Project.ifcSchema` (standaard `IFC4X3_ADD2`; ook `IFC4X3` en `IFC4`, keuze in Projectinstellingen). Schrijf nooit stil in een ander schema dan het gekozen schema. Bij het eerste EXPLICIETE opslaan (Opslaan, Ctrl+S, Opslaan als, ook "Opslaan" in de sluitvraag) van een document met een openstaande schemavraag vraagt `src/services/ifc/ifcSchemaQuestion.ts` wat te doen (wanneer die vraag openstaat: ADR 0184 en 0142); de UI beantwoordt de vraag via `src/state/ifcSchemaQuestionBridge.ts` (keuzelogica: `src/state/ifcSchemaChoice.ts`). De openstaande vraag woont op het project (`Project.ifcSchemaUnconfirmed`) en round-tript via `OPS_ProjectSettings`. Autosave, crashherstel, de MCP-backup en MCP-opslaan vragen niets en veranderen niets. Bewaking: `tests/planning/check-ifc-schema.ts` (tabel via `scripts/ifc-schema-table.py`, met de hand opnieuw te draaien na een nieuwe writer-entiteit; CI draait geen Python). Detail: `docs/ifc-round-trip.md` (§ Schemageldigheid). Besluit over de standaard en de
