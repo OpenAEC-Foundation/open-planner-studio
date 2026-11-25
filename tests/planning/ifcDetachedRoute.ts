@@ -40,7 +40,7 @@ export function desktopRoute() {
     const path = join(dir, `bestand-${++files}.ifc`);
     writeFileSync(path, bytes);
     store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; });
-    await store.getState().openOpenedFile({ name: 'bron.ifc', content: '', bytes, ref: { kind: 'path', path } });
+    await store.getState().openOpenedFile({ name: 'bron.ifc', content: new TextDecoder().decode(bytes), bytes, ref: { kind: 'path', path } });
     const tracker = new RecoveryDeltaTracker();
     const unregister = registerRecoveryFlush(async () => {
       const s = store.getState();
