@@ -63,10 +63,14 @@ export function writtenFingerprint(
   if (output.prepared || !versionGuarded(featureFlags, format)) return null;
   const data = written ?? output.bytes ?? output.content;
   const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
-  const byteLength = bytes.byteLength, utf8Bom = utf8BomLength(bytes) > 0;
+  const byteLength = bytes.byteLength, bom = bomMark(bytes);
   const known = written === undefined || written === output.bytes ? output.sha256 : undefined;
-  return known !== undefined ? { sha256: known, byteLength, origin: 'written', utf8Bom }
-    : precomputeSha256(bytes).then((sha256): TargetFingerprint => ({ sha256, byteLength, origin: 'written', utf8Bom }));
+  return known !== undefined ? { sha256: known, byteLength, origin: 'written', ...bom }
+    : precomputeSha256(bytes).then((sha256): TargetFingerprint => ({ sha256, byteLength, origin: 'written', ...bom }));
+}
+
+export function bomMark(bytes: Uint8Array): { readonly utf8Bom?: true } {
+  return utf8BomLength(bytes) > 0 ? { utf8Bom: true } : {};
 }
 
 const UTF8_BOM = Uint8Array.of(0xef, 0xbb, 0xbf);

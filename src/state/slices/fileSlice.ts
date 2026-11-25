@@ -55,10 +55,9 @@ import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQ
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
 import { hasBuildingModel, hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { notifyForeignChangesWritten } from '../foreignChangesWrittenNotice';
-import { utf8BomLength } from '@/services/ifc/foreign/stepScanner';
 import { castDraft } from 'immer';
 import {
-  documentSaveCompute, prepareIfcOutput, planOnlyQuestionApplies, withUtf8Bom, writtenFingerprint, IfcWriteBlockedError,
+  bomMark, documentSaveCompute, prepareIfcOutput, planOnlyQuestionApplies, withUtf8Bom, writtenFingerprint, IfcWriteBlockedError,
   type IfcOutput, type IfcOutputCompute,
 } from '../prepareIfcOutput';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
@@ -947,7 +946,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const literalIds = prepared?.literalCalendarIds ?? literalCalendarIdsWritten(savedSource);
     const fingerprint: TargetFingerprint | null = !prepared ? written
       : !versionGuarded(get().ui.featureFlags, destination?.fileFormat ?? currentSource.fileFormat) ? null
-      : { sha256: prepared.sha256, byteLength: prepared.bytes.byteLength, origin: 'written', utf8Bom: utf8BomLength(prepared.bytes) > 0 };
+      : { sha256: prepared.sha256, byteLength: prepared.bytes.byteLength, origin: 'written', ...bomMark(prepared.bytes) };
     const applyKnownTarget = (target: Pick<AppState, keyof SaveDestination | 'knownTargetFingerprint'>) => {
       target.knownTargetFingerprint = onOwnFile(target, fingerprint);
     };
@@ -1358,7 +1357,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         source: { bytes: current, sha256: await precomputeSha256(current) }, stopBeforeWrite,
         refuseBeforePlace: placement.refuseBeforePlace,
         planningChanged: replacement.planningChanged, replaceAllowed: replacement.replaceAllowed,
-        commit: () => replacement.commit(path, { sha256: prepared.sha256, byteLength: bytes.byteLength, origin: 'written', utf8Bom: utf8BomLength(bytes) > 0 }),
+        commit: () => replacement.commit(path, { sha256: prepared.sha256, byteLength: bytes.byteLength, origin: 'written', ...bomMark(bytes) }),
       });
       for (const notice of replacement.notices(result, path)) get().notify(notice);
       return result.code === 'replaced';
@@ -1676,7 +1675,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       payload.fileFormat = editing || inheritsTarget ? current.fileFormat : parsed.ifcxRead ? 'ifcx' : 'ifc';
       const read = parsed.ifcxRead ?? (ownSource && ifcForeignContentEnabled(current.ui.featureFlags)
-        ? { sha256: ownSource.sha256, byteLength: ownSource.bytes.byteLength, utf8Bom: utf8BomLength(ownSource.bytes) > 0 } : null);
+        ? { sha256: ownSource.sha256, byteLength: ownSource.bytes.byteLength, ...bomMark(ownSource.bytes) } : null);
       payload.knownTargetFingerprint = editing ? current.knownTargetFingerprint
         : inheritsTarget || !read ? null : onOwnFile(payload, { ...read, origin: 'opened' });
       if (!opts.linkedOpen && !editing) {
@@ -2172,7 +2171,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           const target = documentFields(s);
           const now = target ? saveTargetRef(target) : null;
           if (!target || !now || !sameFileRef(now, own) || !sameDocumentContent(s, content)) return;
-          target.knownTargetFingerprint = { sha256, byteLength: bytes.byteLength, origin: 'written', utf8Bom: utf8BomLength(bytes) > 0 };
+          target.knownTargetFingerprint = { sha256, byteLength: bytes.byteLength, origin: 'written', ...bomMark(bytes) };
           clearChangedOnDisk(s, documentId);
         });
       })();

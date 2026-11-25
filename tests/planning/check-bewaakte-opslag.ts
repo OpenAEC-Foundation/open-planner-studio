@@ -802,7 +802,7 @@ await check('2203 A en B: of er gescand wordt, hangt alleen aan de herkomst en d
           const start = handleReads.get(handle.name) ?? 0;
           reads = () => (handleReads.get(handle.name) ?? 0) - start;
         }
-        store.setState(s => { s.knownTargetFingerprint = { ...print(model), origin: from, utf8Bom: false }; });
+        store.setState(s => { s.knownTargetFingerprint = { ...print(model), origin: from }; });
         const fresh = newErrors(store);
         edit(store);
         const saved = await ctrlS(store);
@@ -903,7 +903,7 @@ await check('2203 G: ook op een zelf geschreven versie weigert Ctrl+S de bron va
     await store.getState().openOpenedFile({ name: basename(path), content: '', bytes: modelBytes(), ref: { kind: 'path', path } });
     assert.notEqual(store.getState().activeDocumentId, plain, 'het model staat in een eigen tabblad');
     store.getState().switchDocument(plain);
-    store.setState(s => { s.filePath = path; s.knownTargetFingerprint = { ...onDisk(path), origin: 'written', utf8Bom: false }; });
+    store.setState(s => { s.filePath = path; s.knownTargetFingerprint = { ...onDisk(path), origin: 'written' }; });
     const fresh = newErrors(store);
     edit(store);
     assert.equal(await ctrlS(store), false);
