@@ -554,7 +554,7 @@ Alles daarbuiten is een verschil, ook de schrijfwijze.
 de planning die erin staat, tot op de byte. Een
 ander programma moet dus dezelfde paden, dezelfde precieze en gedeelde velden met dezelfde waarden (de standaardwaarden
 weggelaten, de afgeleide waarden niet geschreven), dezelfde schema's, dezelfde volgorde en dezelfde opmaak schrijven; in
-de praktijk: via deze kern. Een bestand dat een ander programma wijzigde, opent niet. Bestanden van anderen horen bij
+de praktijk: via deze kern. Bestanden van anderen horen bij
 fase 4.
 
 **Welke losse toetsen aan de leeskant opgingen in R4**, en welke bleven:

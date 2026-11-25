@@ -56,11 +56,31 @@ de taak zelf afleiden). Dat is een keuze die je opschrijft, geen omissie.
 Zo'n tabel heeft elk type dat de lezer tot planning maakt (#804 fase 2, ontwerp §4.5): `IfcTask` en
 `IfcTaskTime` in `ifcTaskSlots.ts`; het werkplan, het live werkschema, het baselineschema en de werkkalender
 in `ifcWorkControlSlots.ts`; de resources in `ifcResourceSlots.ts`; `IfcRelSequence` en `IfcLagTime` in
-`ifcSequenceSlots.ts`. Het register `IFC_SLOT_TABLES` (`ifcSlotTables.ts`) noemt ze allemaal. De writer schrijft
-elke regel van zo'n type met `writeSlots` uit de tabel. De lezer leest de slots op naam (`TASK_SLOT`,
+`ifcSequenceSlots.ts`; de zes relatietypen die een eigen relatie kunnen zijn (`IfcRelNests`, `IfcRelAggregates`,
+`IfcRelAssignsToControl`, `IfcRelAssignsToProcess` met `QuantityInProcess`, `IfcRelDeclares`,
+`IfcRelDefinesByProperties`) in `ifcRelationSlots.ts`. Het register `IFC_SLOT_TABLES` (`ifcSlotTables.ts`) noemt ze
+allemaal. De writer schrijft elke regel van zo'n type met `writeSlots` uit de tabel, behalve de relaties: die
+schrijft hij nog met zijn eigen sjablonen. De lezer leest de slots op naam (`TASK_SLOT`,
 `CALENDAR_SLOT`, `SEQUENCE_SLOT`, …); bij een type met een oude eigen lay-out kiest een functie de plekken op de
 argumenten (`taskSlots`, `workControlSlots`, `workCalendarSlots`, `resourceSlots`, `lagTimeSlots`). Een slot dat
-in een lay-out ontbreekt, staat daar op `-1`.
+in een lay-out ontbreekt, staat daar op `-1`, ook `PredefinedType` van een werkplan of werkschema na `MergeProjects`.
+Per bronregel geeft `slotTableOf` precies één tabel: een werkschema is de baselinetabel als `isBaselineWorkControl`
+(`ifcWorkControlSlots.ts`, dezelfde herkenning als de lezer en de indeling) ja zegt, anders de livetabel.
+`schemaArgsOf` geeft per bronargument de plek in het schema volgens de plekken die de lay-out van de regel kiest;
+`knownLayout` zegt of dat aantal argumenten een bekende lay-out is: het aantal van het schema, of het aantal van de
+oude vorm van die tabel (`legacyArity`: een werkplan of werkschema met 15, een kalender met 8, een taak met 12, een
+resource met 9; de oude `IfcLagTime` en de vormen na `MergeProjects` hebben het aantal van het schema). De verliescontrole van de merge (`alignment` in `foreign/lossCheck.ts`) gebruikt die plekken. Een
+werkplan, werkschema of kalender vergelijkt zij bij elk aantal argumenten op die plekken (13 en 10 ook, zoals vóór het
+register); een ander type met een onbekend aantal geeft `aantal`. De bronkaart neemt alleen regels in de lay-out van
+het schema op (`inSchemaLayout`), en geen regel met een token dat niet verliesvrij te lezen is (een vervangteken na het
+decoderen, zoals bij een rauwe Latin-1-byte); zo'n stuk houdt de weigering `vreemde-herkomst`.
+
+De oude `IfcLagTime` met verwisselde argumenten vergelijkt zij op slotnaam als de writer de waarde exact zo schrijft:
+de oude tekstduur en de `IFCDURATION` van de writer als dagen met teken (de oude vorm kent alleen dagvormen, `lag-oud`
+in `foreign/durationForms.ts`), en hetzelfde type duur. Dan komt de lag in de vorm van het schema. Schrijft de writer
+de waarde niet exact (`'P0Y0M0.10000000000000001D'` wordt `P0.1D`), dan vergelijkt zij op positie, zoals vóór het
+register, en zet (b) het brontoken terug zolang de planner de lag niet wijzigde: de regel blijft zoals in de bron. Een
+oude vorm die niet op de lijst staat, weigert de duurcontrole al vóór het schrijven (`duur-deels-gelezen`).
 
 Elk slot heeft een **soort** (`ifcSlotSoort.ts`):
 
@@ -72,8 +92,12 @@ Elk slot heeft een **soort** (`ifcSlotSoort.ts`):
 Wijkt de soort af bij een stuk van een ander programma, dan staat die in `soortVreemd` (de owner history is
 dan constant). `bronverwijzing` zet een constant slot op de vaste lijst slots waarin een `#`-token uit de bron
 mag blijven staan. `volgt` bindt een afhankelijk slot aan het slot waar het bij hoort (`ObjectType` bij een
-`USERDEFINED`-type). De soorten veranderen nu nog niets aan lezen of schrijven: `sourceSlots` (fase 2, PR 2) kiest
-er per slot mee tussen de bronwaarde en de eigen waarde. `check-ifc-slotsoorten.ts` eist dat elk slot een soort
+`USERDEFINED`-type). `rol` zegt welk slot van een relatie de relating is en welk de leden; de verliescontrole en de
+merge lezen de posities daaruit (`relationRoles`). Bij openen van een bron met een
+vreemd deel bewaart `ifcSource.sourceSlots` (`foreign/sourceSlots.ts`) de tokens per slotnaam van elk D- en R-stuk
+van een ander programma. De merge kiest er per slot mee tussen het brontoken en de waarde van de writer
+(`foreign/sourceSlotWrite.ts`); wat de kaart niet draagt, weigert de merge (`vreemde-herkomst`). De schrijfbeslissing
+per soort (regels A, B en C) staat op één plek uitgewerkt: `.claude/rules/tauri-ifc.md`. `check-ifc-slotsoorten.ts` eist dat elk slot een soort
 heeft, dat de slots de attributen van het schema volgen (in IFC4X3_ADD2, IFC4X3 en IFC4), dat de vaste lijst
 precies de constante slots bevat die volgens het schema een verwijzing kunnen dragen, en de plekken in de oude
 lay-outs.
@@ -715,7 +739,7 @@ eigen besluit.
 | onderwerp | bestand |
 |---|---|
 | native slots (write + read per slot) | `src/services/ifc/ifcTaskSlots.ts`, `ifcWorkControlSlots.ts`, `ifcResourceSlots.ts`, `ifcSequenceSlots.ts` |
-| slotsoorten en het register van de slottabellen | `src/services/ifc/ifcSlotSoort.ts`, `ifcSlotTables.ts`, `tests/planning/check-ifc-slotsoorten.ts` |
+| slotsoorten en het register van de slottabellen | `src/services/ifc/ifcSlotSoort.ts`, `ifcSlotTables.ts`, `ifcRelationSlots.ts`, `tests/planning/check-ifc-slotsoorten.ts` |
 | per-taak-psets (write + apply per descriptor) | `src/services/ifc/ifcPsets.ts` |
 | schrijven | `src/services/ifc/ifcWriter.ts` |
 | lezen | `src/services/ifc/ifcReader.ts` |

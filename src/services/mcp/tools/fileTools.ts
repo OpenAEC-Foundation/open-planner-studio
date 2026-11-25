@@ -37,14 +37,14 @@ import { isTauri } from '@/utils/platform';
 import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
-import { detectXmlFlavor, parseOpenedFile, readFormatForFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
+import { detectXmlFlavor, parseOpenedFile, readFormatForFile, readFormatInput, readOptionsFor, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
 import { IFC_FOREIGN_OPEN_WARN_MIB, opensLargeForeignSource } from '@/services/ifc/foreignOpenSize';
 import { buildExportIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
 import { exportHitsOwnFile } from '@/state/savedLiteralCalendars';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { ifcSchemaBlocksSilentWrite, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { DEFAULT_IFC_SCHEMA, projectIfcSchema } from '@/types/project';
-import { extensionOf } from '@/utils/filePath';
+import { extensionOf, isIfcxName } from '@/utils/filePath';
 import { isMultiDocumentImport, type OpenedImport } from '@/services/importTypes';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, postAwaitGuards, toolError } from './runtime';
 import { guardBridgeFlags } from './documentTools';
@@ -65,8 +65,9 @@ import {
   exportTargetPermission, ifcFullWriteBlocked, refusedTargetContent, refusedTargetIdentity, refusedWriteTarget,
   type WriteTargetDeps, type WriteTargetRefusal,
 } from '@/state/ifcForeignGuard';
-import { openTabFor, readVersionOf, switchToOpenDocument } from '@/state/openDocumentFor';
+import { openTabFor, readsOwnIfcx, readVersionOf, switchToOpenDocument } from '@/state/openDocumentFor';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { namesFollowFormat } from '@/state/ifcxGuard';
 import { writtenForeignChangeCount } from '@/state/foreignChangesWrittenNotice';
 
 /** #804: IFC-uitvoer blijft geweigerd met ontbrekende bronbytes of de flag uit (`state/ifcForeignGuard.ts`). */
@@ -364,6 +365,8 @@ export function checkScope(home: string, input: string): ScopeCheck {
   return { ok: true, path: target };
 }
 
+const IFCX_EXPORT_REFUSAL = 'planner_export_ifc writes IFC (STEP), never IFCX: choose a path ending in .ifc.';
+
 // --- Formaatherkenning ---------------------------------------------------------------------------
 
 /** Leesbaar formaatlabel op basis van de extensie (de XML-variant volgt het root-element via
@@ -463,6 +466,10 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'VALIDATION', 'Parameter \'overwrite\' must be true or false.');
       }
       const overwrite = raw.overwrite === true;
+      const asked = ctx.app.store.getState();
+      if (namesFollowFormat(asked, asked.ui.featureFlags) && isIfcxName(raw.path.trim())) {
+        return toolError(ctx, 'VALIDATION', IFCX_EXPORT_REFUSAL);
+      }
 
       let fs: McpFileFs;
       try {
@@ -714,7 +721,7 @@ export const fileTools: McpToolDef[] = [
         // Gedeelde isBinary?readFile:readTextFile-tak,
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
         // #804 fase 1a: met de flag `ifcForeignContent` leest IFC als bytes, zoals Bestand → Openen.
-        readOptions = { ifcBytes: keepsForeignOnly || appForeignContentRoute(ctx) };
+        readOptions = { ...readOptionsFor(ctx.app.store.getState().ui.featureFlags), ifcBytes: keepsForeignOnly || appForeignContentRoute(ctx) };
         input = await readFormatInput(path, fs, readOptions);
       } catch (e) {
         const code = e instanceof ScopeEscapeError ? 'SCOPE' : e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND';
@@ -752,7 +759,7 @@ export const fileTools: McpToolDef[] = [
       const lateBlocked = postAwaitGuards(ctx);
       if (lateBlocked) return lateBlocked;
       const ref: FileRef = { kind: 'path', path };
-      const tab = appForeignContentRoute(ctx) && readFormatForFile(path).canBeSaveTarget
+      const tab = (appForeignContentRoute(ctx) || readsOwnIfcx(parsed)) && readFormatForFile(path).canBeSaveTarget
         ? openTabFor(ctx.app.store.getState(), ref, null, readVersionOf(ref, parsed)) : null;
       if (tab !== null) switchToOpenDocument(ctx.app.store.getState(), tab);
       const opened = tab !== null ? null : ctx.app.store.getState().openAsDocument(parsed, { name: path, ref });
@@ -839,7 +846,7 @@ export const fileTools: McpToolDef[] = [
           documentsOpened: opened ? documents.length : 0,
           documents,
           path,
-          format,
+          format: isMultiDocumentImport(parsed) || !parsed.ifcxRead ? format : 'IFCX',
           reusedActiveTab: opened?.reusedActiveTab ?? false,
           ...(tab !== null ? { alreadyOpen: true, ...(tab.changedOnDisk ? { changedOnDisk: true } : {}) } : {}),
           /** Opslagdoel van het document: het bronpad bij IFC, anders null (zie hierboven). */

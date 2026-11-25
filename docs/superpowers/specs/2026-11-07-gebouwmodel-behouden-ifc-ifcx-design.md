@@ -379,8 +379,8 @@ verdwijnen.
   uit een oude lay-out, of uit een stuk met de oude letterlijke codering (`'0.1'`, §4.9), worden niet bewaard.
 - **Vier soorten slots.** Elk slot in elke descriptortabel heeft een soort; een test faalt bij een slot zonder soort.
   - **Domein**: de lezer vertaalt het naar een domeinveld. Eigen herkomst: altijd de waarde van de writer. Vreemde
-    herkomst: het brontoken als het domeinveld nog gelijk is aan wat de lezer eruit las, én het token in de codering van
-    de uitvoer dezelfde waarde geeft; anders de waarde van de writer. Zo blijft een Bonsai-`Status` staan.
+    herkomst: regel A in `.claude/rules/tauri-ifc.md`, de enige uitgewerkte beschrijving van de schrijfbeslissing. Zo
+    blijft een Bonsai-`Status` staan.
   - **Afgeleid**: de writer berekent het uit andere gegevens. Altijd de waarde van de writer. Voorbeelden:
     `IfcTaskTime.StatusTime` (`ifcWriter.ts:1542`), `IfcTaskTime.Name`, de naam van `IfcRelNests` bij eigen herkomst (`:1600`),
     StartTime/FinishTime/CreationDate van werkplan en werkschema (`:447-449`), naam en datums van de baselineschema's
@@ -389,8 +389,8 @@ verdwijnen.
   - **Constant**: de writer schrijft een vaste waarde (vaak `$`) en de lezer leest het slot niet. Dan het brontoken.
     Voorbeelden: `LongDescription`, `WorkMethod`, `IfcWorkPlan.Name` bij vreemde herkomst. In een bestand van de huidige
     writer is het brontoken al de constante.
-  - **Verwijzing** (`OwnerHistory` bij eigen herkomst, `TaskTime`, `Recurrence`, `WorkingTimes`): altijd de
-    eigen verwijzing van de writer.
+  - **Verwijzing** (`OwnerHistory` bij eigen herkomst, `TaskTime`, `Recurrence`, `WorkingTimes`): de eigen
+    verwijzing van de writer, met de uitzondering van regel B in `.claude/rules/tauri-ifc.md`.
   - Een brontoken met een `#` blijft alleen staan in een constant slot uit een vaste lijst: `OwnerHistory` bij vreemde
     herkomst, `Creators` van werkplan en werkschema (de writer zet daar `$`, `ifcWriter.ts:208`; besluit wrakko,
     9 november 2026, na fase 0), `IfcConstructionResource.Usage`,
@@ -519,11 +519,15 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
   `foreignMembers`, `jsonExtras` en `unusedKeys` (§4.2), wat de lezer uit gemengde relaties las (§4.6), `elementLinks`, `detached`, `foreign` (is er een vreemd
   deel), het aantal bewaarde vreemde tokens in constante slots, de grootte en wijzigingstijd van het bestand op het eigen
   doel (§4.10), de id-uitzonderingen (§4.14) en het totaal aantal vreemde objecten voor de melding.
-- **De nieuwe bron komt van de writer.** De klassen, de kaart domein-id → `#id`, `sourceSlots`, `foreignMembers` en
-  `elementLinks` van de nieuwe bron komen uit wat de writer schreef, met de domein-ids van de sessie, niet uit een nieuwe
-  indeling van de uitvoer. Anders kregen in de app gemaakte objecten, of een `-dup-N`-object met een nieuwe GlobalId, bij
-  elk opslaan een ander id, en verdwenen vreemde koppelingen ernaar (Opus, ronde 8). Bij heropenen deelt de indeling
-  opnieuw in; een test eist dat die uitkomst gelijk is aan wat de writer als P schreef.
+- **De nieuwe bron: de kaart uit het schrijfplan, de klassen uit de uitvoer.** De kaart domein-id → `#id` van de nieuwe
+  bron komt uit het schrijfplan van de writer, met de ids na de hernummering en de domein-ids van de sessie
+  (`writerStepIds` in `checkedOutput`, `mergeWriter.ts`). Anders kregen in de app gemaakte objecten, of een
+  `-dup-N`-object met een nieuwe GlobalId, bij elk opslaan een ander id, en verdwenen vreemde koppelingen ernaar (Opus,
+  ronde 8). De klassen C, A en V komen uit de scan van de uitvoer; P moet precies samenvallen met de regels die de writer
+  schreef, anders weigert de merge met `uitvoer-controle`. `sourceSlots` komt uit de scan van de geschreven stukken van
+  vreemde herkomst, `elementLinks` uit de scan van de uitvoer met de kaart van de sessie, en `foreignMembers` zijn de
+  bronleden op hun plek in de uitvoer. Bij heropenen deelt de indeling opnieuw in; een test eist dat die uitkomst gelijk
+  is aan wat de writer als P schreef.
 - **Na elk geslaagd schrijven naar het eigen doel** van het document (Opslaan, Opslaan als, de echte AutoSave naar het
   bestand) vervangt de app `ifcSource` door de uitvoer (die de controles al gescand hebben). Dat gebeurt in dezelfde
   `set()` als het afronden van het opslaan, en los van de dirty-vlag: werkt de planner door tijdens een lange AutoSave,

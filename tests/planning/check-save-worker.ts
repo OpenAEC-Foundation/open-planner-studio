@@ -68,7 +68,7 @@ function sameError(viaWorker: unknown, main: unknown, label: string) {
   assert.deepEqual(ownFields(viaWorker), ownFields(main), `${label}: dezelfde gegevens`);
 }
 const SOURCE_FIELDS = ['sha256', 'schemaName', 'chunkStarts', 'chunkIds', 'classes', 'stepIds', 'foreignMembers', 'elementLinks', 'foreign',
-  'foreignObjectCount', 'buildingModel', 'lineEnding', 'opened'] as const;
+  'foreignObjectCount', 'buildingModel', 'lineEnding', 'opened', 'unusedKeys', 'sourceSlots'] as const;
 /** Dezelfde uitkomst, of dezelfde fout. Geeft de soort terug voor de telling. */
 function sameOutcome(viaWorker: Outcome, main: Outcome, label: string): 'writer' | 'merge' | 'geweigerd' | 'fout' {
   if ('error' in main) {
@@ -134,7 +134,7 @@ await check('pariteit: de voorbeelden (gewone writer)', async () => {
 });
 
 await check('pariteit: de fixtures met een vreemd deel (merge), ongewijzigd en na een bewerking', async () => {
-  const files = readdirSync(join(root, 'tests/fixtures/ifc-foreign')).filter(f => f.endsWith('.ifc')).sort();
+  const files = [...readdirSync(join(root, 'tests/fixtures/ifc-foreign')).filter(f => f.endsWith('.ifc')).sort(), 'council/proef-bonsai-achtig.ifc'];
   let opened = 0;
   for (const file of files) {
     let route: Awaited<ReturnType<typeof openInStore>>;
@@ -326,6 +326,8 @@ await checkWithTimers('de worker sterft, overschrijdt de tijd of antwoordt verke
     ['een merge waarvan de bron andere bytes heeft', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, bytes: new Uint8Array(prepared.bytes) } } }],
     ['een merge zonder indexarrays', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, source: { ...prepared.source, classes: [] } } } }],
     ['koppelingen als gewoon object', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, source: { ...prepared.source, elementLinks: { taak: [] } } } } }],
+    ['bronslots als gewoon object', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, source: { ...prepared.source, sourceSlots: { 12: { entity: 'IFCTASK', table: 'IfcTask', slots: new Map() } } } } } }],
+    ['bronslots met slots als object', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, source: { ...prepared.source, sourceSlots: new Map([[12, { entity: 'IFCTASK', table: 'IfcTask', slots: { name: "'x'" } }]]) } } } }],
     ['een koppelingenlijst die geen lijst is', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, source: { ...prepared.source, elementLinks: new Map([['taak', { length: 1 }]]) } } } }],
     ['een koppeling met een onbekende richting', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, source: { ...prepared.source, elementLinks: new Map([['taak', [{ direction: 'beide', target: 'X', found: true }]]]) } } } }],
     ['een onbekende antwoordsoort', writerJob, { result: { kind: 'iets', bytes: new Uint8Array([35]), literalCalendarIds: [] } }],

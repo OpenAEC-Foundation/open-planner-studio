@@ -269,6 +269,17 @@ export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds, 
   return { lines, idMap, literalCalendarIds };
 }
 
+function writtenLiteralCalendarIds(calendar: WorkCalendar, resourceCalendars: readonly WorkCalendar[], literal: ReadonlySet<string>): string[] {
+  return [...new Set([calendar, ...resourceCalendars].map(cal => cal.id))].filter(id => literal.has(id));
+}
+
+export function plainWriteLiteralCalendarIds(input: WriteIFCInput): string[] {
+  const { tasks, calendar, resourceCalendars = [], baselines = [], ifcLiteralCalendarIds } = input;
+  const writeView = minuteModelWriteView({ tasks, calendar, resourceCalendars, baselines },
+    ifcLiteralCalendarIds ? { keepLiteralCalendarIds: ifcLiteralCalendarIds } : {});
+  return writtenLiteralCalendarIds(calendar, resourceCalendars, writeView.literalCalendarIds);
+}
+
 function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds, comparisonDate?: Date): {
   text: string; lines: string[]; idMap: ReadonlyMap<string, number>; literalCalendarIds: string[];
   issuedGlobalIds: ReadonlyMap<string, string>;
@@ -479,7 +490,7 @@ function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds, comparisonD
   writeSchedulingProfileMeta(ctx, workSchedId, project.schedulingProfile, ownerHistId);
   writeImportProvenanceMeta(ctx, workSchedId, importPristine === true, recordedSourceFormat, ownerHistId);
 
-  const literalCalendarIds = [...new Set([calendar, ...resourceCalendars].map(cal => cal.id))].filter(id => writeView.literalCalendarIds.has(id));
+  const literalCalendarIds = writtenLiteralCalendarIds(calendar, resourceCalendars, writeView.literalCalendarIds);
   if (merge) return { text: '', lines: ctx.lines, idMap: ctx.idMap, literalCalendarIds, issuedGlobalIds: ctx.guids };
 
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';

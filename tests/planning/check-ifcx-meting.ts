@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -11,6 +12,12 @@ import { filePlanning } from '@/services/ifc/ifcx/ifcxWriter';
 import { selfCheckDifferences } from '@/services/ifc/ifcx/selfCheck';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
+import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
+import { loadStore } from './ifcAppRoute';
+import { installNodeFileIpc } from './nodeFileIpc';
+import { InProcessWorker } from './inProcessSaveWorker';
+import { createIfcSaveWorker } from '@/services/ifc/saveWorker/ifcSaveWorker';
+import type { IfcOutputCompute } from '@/state/prepareIfcOutput';
 
 const MAX_RATIO = 4;
 const SIZE = 10000;
@@ -185,6 +192,85 @@ ratioTest(`openen als IFCX kost bij ${SIZE} taken hoogstens ${MAX_RATIO} keer op
   assert.equal(readIfcx(ifcxBytes).tasks.length, SIZE);
   return { step: () => openAsIfc(stepBytes), ifcx: () => readIfcx(ifcxBytes) };
 }, 'openen als IFC', 'openen als IFCX');
+
+async function timedAsync(action: () => Promise<unknown>): Promise<number> {
+  const cpu0 = process.cpuUsage();
+  await action();
+  const cpu = process.cpuUsage(cpu0);
+  return (cpu.user + cpu.system) / 1000;
+}
+
+type AppFormat = 'ifc' | 'ifcx';
+async function appRatioTest(
+  name: string, label: string, edit: (format: AppFormat, at: number) => void, save: (format: AppFormat) => Promise<void>,
+): Promise<void> {
+  try {
+    const round = async (format: AppFormat, at: number) => { edit(format, at); return timedAsync(() => save(format)); };
+    await round('ifc', -1);
+    await round('ifcx', -1);
+    const step: number[] = [], ifcx: number[] = [];
+    const before = loadNow();
+    for (let at = 0; at < ROUNDS; at++) {
+      if (at % 2 === 0) {
+        step.push(await round('ifc', at));
+        ifcx.push(await round('ifcx', at));
+      } else {
+        ifcx.push(await round('ifcx', at));
+        step.push(await round('ifc', at));
+      }
+    }
+    const ratio = median(ifcx) / median(step);
+    console.log(`   CPU-tijd in ms, mediaan van ${ROUNDS}, volgorde om en om: IFC-document ${median(step).toFixed(0)}, IFCX-document ${median(ifcx).toFixed(0)}; belasting ${before} → ${loadNow()}`);
+    console.log(`IFCX-verhouding ${label}: ${ratio.toFixed(2)} (gemeld, niet afgedwongen; ${MAX_RATIO} is een voorwaarde vóór standaard aan, knownbug 2350)`);
+    console.log(`OK ${name}`);
+  } catch (error) {
+    failed++;
+    console.error(`XX ${name}: ${String(error instanceof Error ? error.stack ?? error.message : error).slice(0, 1500)}`);
+  }
+}
+
+{
+  const { createAppStoreContext } = await loadStore();
+  const appData = mkdtempSync(join(tmpdir(), 'ops-ifcx-meting-'));
+  const ipc = installNodeFileIpc({ appDataDir: appData });
+  try {
+    const input = plan(SIZE);
+    const files = { ifc: encode(writeIFC(input)), ifcx: encode(writeIfcx(input, CLOCK)) };
+    const stores = {} as Record<'ifc' | 'ifcx', ReturnType<typeof createAppStoreContext>['store']>;
+    const computes = {} as Record<'ifc' | 'ifcx', IfcOutputCompute>;
+    for (const format of ['ifc', 'ifcx'] as const) {
+      const path = join(appData, `meting.${format}`);
+      writeFileSync(path, files[format]);
+      const worker = createIfcSaveWorker({ createWorker: () => new InProcessWorker('auto') });
+      const { store } = createAppStoreContext({ ifcSaveCompute: worker.compute, ifcxClassify: worker.classifyIfcx });
+      computes[format] = worker.compute;
+      store.setState(s => { s.ui.featureFlags = { ifcx: true }; });
+      const opened = format === 'ifcx' ? { content: '', bytes: files[format] } : { content: new TextDecoder().decode(files[format]) };
+      await store.getState().openOpenedFile({ name: `meting.${format}`, ...opened, ref: { kind: 'path', path } });
+      assert.equal(store.getState().filePath, path, `het ${format}-document is geopend`);
+      assert.equal(store.getState().tasks.length, SIZE);
+      store.setState(s => { s.autoSaveToFile = true; });
+      stores[format] = store;
+    }
+    const leafOf = (format: 'ifc' | 'ifcx') => stores[format].getState().tasks.find(t => t.childIds.length === 0)!.id;
+    const edit = (route: string) => (format: AppFormat, at: number) =>
+      stores[format].getState().updateTask(leafOf(format), { name: `${route} ${at}` });
+    await appRatioTest(`Ctrl+S van een IFCX-document bij ${SIZE} taken wordt gemeten tegen een IFC-document en gemeld, niet afgedwongen`,
+      'Ctrl+S', edit('ctrl-s'), async (format) => {
+        const saved = await stores[format].getState().saveFileForDocument(stores[format].getState().activeDocumentId);
+        assert.equal(saved, true, `Ctrl+S van het ${format}-document`);
+      });
+    await appRatioTest(`een ronde Automatisch opslaan van een IFCX-document bij ${SIZE} taken wordt gemeten tegen een IFC-document en gemeld, niet afgedwongen`,
+      'Automatisch opslaan', edit('automatisch'), async (format) => {
+        await createFileAutoSaveController({ getState: stores[format].getState, enabled: () => true, compute: computes[format] }).flush();
+        assert.equal(stores[format].getState().isDirty, false, `Automatisch opslaan van het ${format}-document`);
+      });
+    for (const format of ['ifc', 'ifcx'] as const) {
+      const errors = stores[format].getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey);
+      assert.deepEqual(errors, [], `geen meldingen bij het ${format}-document`);
+    }
+  } finally { ipc.dispose(); }
+}
 
 if (process.env.OPS_IFCX_MEASURE === '1') {
   console.log('   | taken | stuk | wandklok (ms) | CPU-tijd (ms) | verhouding tot opslaan of openen als IFC |');
