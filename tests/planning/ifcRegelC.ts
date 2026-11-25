@@ -133,6 +133,16 @@ export function editScope(graph: ReferenceGraph, source: IfcSource, before: Doma
     moved(old && parentOf(before, old), parentOf(after, t), c);
     moved(old && calendarOf(before, old), calendarOf(after, t), c);
   }
+  const childrenOf = (d: Domain, id: string | null) => (id === null ? d.tasks.filter(t => t.parentId === null).map(t => t.id)
+    : d.tasks.find(t => t.id === id)?.childIds ?? []);
+  const holders = (id: string | null): readonly (readonly [string, number])[] => (id === null
+    ? [['IFCRELNESTS', step(`ws:${after.project.id}`)], ['IFCRELASSIGNSTOCONTROL', step(`ws:${after.project.id}`)]] : [['IFCRELNESTS', step(`task:${id}`)]]);
+  for (const id of [null, ...after.tasks.filter(t => t.childIds.length > 1).map(t => t.id)]) {
+    const a = childrenOf(before, id), b = childrenOf(after, id);
+    const both = new Set(a.filter(x => b.includes(x)));
+    if (sameJson(a.filter(x => both.has(x)), b.filter(x => both.has(x)))) continue;
+    for (const [type, p] of holders(id)) if (p >= 0) for (const [c, k] of relationsOf(graph, type, p)) released.add(`${c}.${k}`);
+  }
   const tasks = new Map(after.tasks.map(t => [t.id, t]));
   for (const t of before.tasks) {
     const c = step(`task:${t.id}`);

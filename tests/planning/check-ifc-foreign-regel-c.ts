@@ -262,6 +262,7 @@ function view(d: Domain): string {
   const name = (id: string | null | undefined) => (id ? tasks.get(id)?.name ?? '?' : '-');
   return JSON.stringify({
     tasks: d.tasks.map(t => [t.name, name(t.parentId), t.time.scheduleDuration, t.time.durationUnit, t.time.completion ?? 0, t.isMilestone]).sort(),
+    children: d.tasks.filter(t => t.childIds.length > 0).map(t => [t.name, ...t.childIds.map(name)]).sort(),
     assignments: d.assignments.map(a => [name(a.taskId), resources.get(a.resourceId)?.name ?? '?', a.unitsPerDay]),
     sequences: d.sequences.map(q => [name(q.predecessorId), name(q.successorId), q.type, q.lagDays ?? 0, q.lagMinutes ?? null]).sort(),
     holidays: d.calendar.holidays.map(h => [h.startDate, h.endDate]).sort(),
@@ -284,6 +285,9 @@ const withProgress = (s: State, id: string) => {
   if (!result.ok && result.reason === 'needsActualStart') result = s.enterTaskProgress(id, edit, { ...opts, actualStart: result.question.latest });
   if (!result.ok) throw new Error(`voortgang: ${result.reason}`);
 };
+const reversed = (s: State, id: string) => {
+  [...s.tasks.find(t => t.id === id)!.childIds].reverse().forEach((child, childIndex) => s.moveTaskTo(child, { parentId: id, childIndex }));
+};
 const NEW_RESOURCE = { name: 'Nieuwe ploeg', description: '', type: 'LABOR' as const, maxUnits: 1 };
 function ordinaryWork(o: Opened): { readonly edits: readonly (readonly [string, (d: Domain) => Promise<Domain>])[]; readonly assign: Act } {
   const leaves = o.tasks.filter(t => t.childIds.length === 0 && !t.isMilestone);
@@ -291,6 +295,7 @@ function ordinaryWork(o: Opened): { readonly edits: readonly (readonly [string, 
   const crew = o.resources.find(r => r.id === assigned.resourceId)!.name;
   const free = leaves.find(t => !o.assignments.some(a => a.taskId === t.id))!;
   const [first, second] = leaves;
+  const parent = o.tasks.find(t => t.childIds.length >= 2)!;
   const child = leaves.find(t => t.parentId !== null)!;
   const day = dayLater(first.time.scheduleStart).slice(0, 10);
   const assign: Act = s => { s.assignResource(taskNamed(s, free.name).id, s.resources.find(r => r.name === crew)!.id, 2); };
@@ -316,6 +321,7 @@ function ordinaryWork(o: Opened): { readonly edits: readonly (readonly [string, 
     ] as const : []),
     ['een taak toegevoegd', s => { s.addTask({ name: 'Nieuwe taak', position: { anchorId: first.id, where: 'below' } }, { phaseAssignments: 'move', answered: true }); }],
     ['een taak een niveau hoger', s => { s.outdentTasks([child.id], { phaseAssignments: 'move', answered: true }); }],
+    ['de kinderen van een taak in andere volgorde gesleept', s => { reversed(s, parent.id); }],
     ['een taak gewist', s => { s.deleteTask(free.id); }],
     ['een vrije dag toegevoegd', s => { s.setCalendar({ ...s.calendar, holidays: [...s.calendar.holidays, { name: 'Extra vrije dag', startDate: day, endDate: day }] }); }],
     ['een taak hernoemd en een ploeg toegewezen, in één opslag', s => { s.updateTask(first.id, { name: `${first.name} (hernoemd)` }); assign(s); }],
@@ -406,6 +412,26 @@ for (const [name, text] of [['de pinbron', SOURCES[0][1]], ['bonsai-4d.ifc', B4D
   const boundary = boundaryOf(result, 'bonsai-4d.ifc', label);
   ok(`bonsai-4d.ifc, ${label}: weigert onder grens 2256 (${refusal(result)})`, boundary?.id === '2256');
   if (boundary) perBoundary.set(boundary.id, (perBoundary.get(boundary.id) ?? 0) + 1);
+}
+
+{
+  const bytes = new TextEncoder().encode(SOURCES[0][1]), graph = referenceGraph(bytes);
+  const o = await openForeign(bytes);
+  const [p, q] = o.tasks.filter(t => t.childIds.length >= 2);
+  const edited = await storeEdit(cloneDomain(o), s => { reversed(s, p.id); });
+  const result = await tryMerge(edited, o.ifcSource!);
+  const label = `de pinbron: de kinderen van ${JSON.stringify(p.name)} in andere volgorde gesleept`;
+  ok(`${label}: geschreven (${refusal(result)})`, result.ok);
+  if (result.ok) {
+    const scope = editScope(graph, o.ifcSource!, o, edited, result.changes);
+    eq(`${label}: regel C`, regelC(o.ifcSource!, graph, referenceGraph(result.bytes), scope), []);
+    const text = new TextDecoder().decode(result.bytes), at = `#${o.ifcSource!.stepIds[`task:${q.id}`]}`;
+    const nest = [...text.matchAll(/^#(\d+)=IFCRELNESTS\((.*)\);$/gm)].map(m => ({ id: Number(m[1]), args: splitStepArgs(m[2]) })).find(n => n.args[4] === at)!;
+    const members = nest.args[5].slice(1, -1).split(',');
+    const swapped = patch(text, nest.id, 5, `(${[members[1], members[0], ...members.slice(2)].join(',')})`);
+    ok(`${label}: een verwisseling bij ${JSON.stringify(q.name)} blijft rood`, regelC(o.ifcSource!, graph, referenceGraph(new TextEncoder().encode(swapped)), scope)
+      .some(x => x === `IFCRELNESTS #${nest.id} heeft in slot 5 een andere volgorde`));
+  }
 }
 
 for (const [name, list] of ordinary) console.log(`   gewoon werk op ${name}:\n${list.map(x => `     ${x}`).join('\n')}`);
