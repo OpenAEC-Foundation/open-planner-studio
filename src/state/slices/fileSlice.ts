@@ -16,7 +16,7 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type RefuseBeforePlace, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, localTargetName, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type RefuseBeforePlace, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import {
   exportReplaceFailedNotice, exportReplaceNotices, ownPathReplaceNotices, remnantNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery,
@@ -53,6 +53,7 @@ import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
 import { hasBuildingModel, hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
+import { notifyForeignChangesWritten } from '../foreignChangesWrittenNotice';
 import { castDraft } from 'immer';
 import {
   documentSaveCompute, prepareIfcOutput, planOnlyQuestionApplies, writtenFingerprint, IfcWriteBlockedError,
@@ -398,7 +399,7 @@ export interface FileSlice {
   saveFile: () => Promise<void>;
   saveFileForDocument: (documentId: string) => Promise<boolean>;
   saveFileAs: () => Promise<void>;
-  commitSavedDocument: (document: DocumentContentRef, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite, missingSourceSaveAs?: boolean, written?: TargetFingerprint | null) => boolean;
+  commitSavedDocument: (document: DocumentContentRef, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite, missingSourceSaveAs?: boolean, written?: TargetFingerprint | null, writtenName?: string) => boolean;
   exportAs: (format: ExportFormat, options?: ExportOptions) => Promise<ExportResult>;
   exportProjectWithPool: () => Promise<ExportResult>;
   recordLiteralCalendarsWritten: (documentId: string, ids: readonly string[]) => void;
@@ -883,7 +884,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     prepared?: PreparedIfcWrite,
     missingSourceSaveAs = false,
     written: TargetFingerprint | null = null,
+    writtenName?: string,
   ): boolean => {
+    notifyForeignChangesWritten(get().notify, prepared, () => writtenName ?? destination?.filePath ?? '');
     if (!sameDocumentContent(get(), document)) return false;
     const documentId = document.id;
     const currentSource = saveSourceForDocument(get(), documentId);
@@ -1147,7 +1150,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         documentId, ref, prepared, source: state.ifcSource!.bytes,
         stopBeforeWrite: () => refuseChangedDocumentWrite(state, write),
         refuseBeforePlace: () => refuseChangedDocumentWrite(state, write),
-        commit: () => { committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared); },
+        commit: () => { committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared, false, null, localTargetName(ref)); },
       });
       if (result.code === 'replaced') return committed;
       if (result.code === 'not-recorded') get().notify(IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE);
@@ -1175,7 +1178,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         source: { bytes: state.ifcSource!.bytes, sha256: state.ifcSource!.sha256 },
         stopBeforeWrite: () => documentTargetCheck(state, write, true)(ref),
         refuseBeforePlace: () => refuseChangedDocumentWrite(state, write),
-        commit: () => { committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared); },
+        commit: () => { committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared, false, null, localTargetName(ref)); },
       });
       for (const notice of ownPathReplaceNotices(result, ref.path)) get().notify(notice);
       if (result.code === 'unknown' || result.code === 'previous-stranded' || result.code === 'target-taken') {
@@ -1402,7 +1405,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
         return commitSavedDocument(snapshotContent(state), state, {
           filePath: state.filePath ?? saved.name, fileHandle: null, siteFileId: ref.id, siteFileVersion: saved.version,
-        }, write.prepared);
+        }, write.prepared, false, null, saved.name);
       }
       if (ref && !handleRefused && !(write.prepared && ref.kind === 'handle')) {
         try {
@@ -1419,7 +1422,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           if (last.refused()) return false;
           if (saved) {
             const fingerprint = hashing instanceof Promise ? await hashing : hashing;
-            return commitSavedDocument(snapshotContent(state), state, undefined, write.prepared, false, fingerprint);
+            return commitSavedDocument(snapshotContent(state), state, undefined, write.prepared, false, fingerprint,
+              ref.kind === 'site' ? undefined : localTargetName(ref));
           }
         } catch (err) {
           if (ref.kind === 'path') get().forgetKnownTargetFingerprint(documentId);
@@ -1451,9 +1455,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return false;
       if (write.prepared && outcome.viaDownload && ref?.kind === 'handle' && hasBuildingModel(state.ifcSource)) {
         get().notify(downloadCopyNotice(outcome.name));
+        notifyForeignChangesWritten(get().notify, write.prepared, () => outcome.name, true);
         return false;
       }
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
+      if (write.prepared && outcome.viaDownload) notifyForeignChangesWritten(get().notify, write.prepared, () => outcome.name, true);
       const saved = write.prepared && outcome.viaDownload
         ? commitSavedDocument(snapshotContent(state), state)
         : commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, false, fingerprint);
@@ -1526,8 +1532,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const outcome = await documentSaveDialog(state, write, defaultName, missingSourceSaveAs);
       if (!outcome) return;
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
-      if (write.prepared && outcome.viaDownload) commitSavedDocument(snapshotContent(state), state);
-      else commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, missingSourceSaveAs, fingerprint);
+      if (write.prepared && outcome.viaDownload) {
+        notifyForeignChangesWritten(get().notify, write.prepared, () => outcome.name, true);
+        commitSavedDocument(snapshotContent(state), state);
+      } else commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, missingSourceSaveAs, fingerprint);
       if (!sameDocumentContent(get(), snapshotContent(state))) return;
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
@@ -2042,6 +2050,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           return null;
         }
         if (written) await recordOwnFileExport(state, written, preparedExport || planOnly ? [] : exportedLiteral, payload);
+        if (written) notifyForeignChangesWritten(get().notify, preparedExport, () => written.ref?.kind === 'path' ? written.ref.path : written.name, written.viaDownload === true);
         if (written && ext === 'ifc' && exportContentReplaced(state)) return null;
         return written;
       };

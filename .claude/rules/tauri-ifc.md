@@ -139,6 +139,14 @@ Besluiten van de writer: `docs/adr/0140-ifc-schrijven-globalids-uniek-per-bestan
 `0145-ifc-schrijven-datums-duren-en-lags.md`, `0146-ifc-schrijven-met-een-vreemd-deel.md`,
 `0147-ifc-schrijven-resources-en-toewijzingen.md` en `0148-ifc-schrijven-een-invoerobject.md`.
 
+### Gedeelde helpers binnen een dag (`subdayIo.ts`)
+
+Besluiten van de helpers voor de IFC-, MSPDI-, P6 XML-, XER- en `.mpp`-adapters en het kalendervenster:
+`docs/adr/0320-uurkalender-herkennen-de-gedeelde-afwijkingsregel.md`, `0321-uurkalender-promotie-en-bandregister.md`,
+`0322-kloktijd-en-duur-als-tekst-in-de-adapters.md`, `0323-werkdag-en-uren-per-dag-uit-werkblokken.md`,
+`0324-werkdagen-wisselen-in-een-uurkalender.md`, `0325-soort-mijlpaal-op-een-blokgrens.md` en
+`0326-kalender-en-duur-van-een-taak-bij-het-schrijven.md`.
+
 ### Bestandsschema per project
 
 Het IFC-schema is een projectinstelling: `Project.ifcSchema` (standaard `IFC4X3_ADD2`; ook `IFC4X3` en `IFC4`, keuze in Projectinstellingen). Schrijf nooit stil in een ander schema dan het gekozen schema. Bij het eerste EXPLICIETE opslaan (Opslaan, Ctrl+S, Opslaan als, ook "Opslaan" in de sluitvraag) van een document met een openstaande schemavraag vraagt `src/services/ifc/ifcSchemaQuestion.ts` wat te doen (wanneer die vraag openstaat: ADR 0184 en 0142); de UI beantwoordt de vraag via `src/state/ifcSchemaQuestionBridge.ts` (keuzelogica: `src/state/ifcSchemaChoice.ts`). De openstaande vraag woont op het project (`Project.ifcSchemaUnconfirmed`) en round-tript via `OPS_ProjectSettings`. Autosave, crashherstel, de MCP-backup en MCP-opslaan vragen niets en veranderen niets. Bewaking: `tests/planning/check-ifc-schema.ts` (tabel via `scripts/ifc-schema-table.py`, met de hand opnieuw te draaien na een nieuwe writer-entiteit; CI draait geen Python). Detail: `docs/ifc-round-trip.md` (§ Schemageldigheid). Besluit over de standaard en de
@@ -159,7 +167,29 @@ schrijfinvoer, en de letterlijke kalender-ids. De bestaande uitvoercontrole leve
 de bron krijgt geen domein-ids uit herindeling. Bij ongewijzigde vreemde invoer gaan de bronbytes
 door dezelfde controle en komt dezelfde bron terug. Zonder vreemd deel blijven de bytes van de
 gewone writer. De uitvoer ís de nieuwe bronbuffer; het resultaat houdt daardoor niet ook de oude buffer vast. PR 8b legt na geslaagde opslag de bron vast, PR 9 herstelt
-haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6. Pool en planOnly alleen na de vraag "alleen de planning" (PR 13, zie `state.md`); paneel en dev-bridge blijven geblokkeerd. AutoSave schrijft sinds #804 stap 8 (flag aan, bron aanwezig) via dezelfde vervanging van het eigen bestand als Ctrl+S (`replaceOwnHandleWithRecovery`, `replaceOwnPathWithRecovery`, met de grens van de voorrang op `stopBeforeWrite`); zie `settings-autosave.md`. Een IFC-export (ook met bibliotheek) houdt voorrang vanaf het rekenen (`prepareExportIfcWrite` → `claimProjectFileWrite`).
+haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek (`outputIndex`) is nog ongebruikt. Pool en planOnly alleen na de vraag "alleen de planning" (PR 13, zie `state.md`); paneel en dev-bridge blijven geblokkeerd. AutoSave schrijft sinds #804 stap 8 (flag aan, bron aanwezig) via dezelfde vervanging van het eigen bestand als Ctrl+S (`replaceOwnHandleWithRecovery`, `replaceOwnPathWithRecovery`, met de grens van de voorrang op `stopBeforeWrite`); zie `settings-autosave.md`. Een IFC-export (ook met bibliotheek) houdt voorrang vanaf het rekenen (`prepareExportIfcWrite` → `claimProjectFileWrite`).
+
+**Wijzigingslijst** (#804 fase 2, ontwerp §4.7). Wijst een niet-P-stuk naar een D-stuk dat de planner verwijderde, dan
+past de merge één regel toe (`applyForeignRule` in `foreign/changeList.ts`): een lid van een lijst gaat eruit, een lijst
+die leeg wordt of een enkele verwijzing laat het stuk vervallen, herhaald tot niets meer verandert; wat een vervallen stuk
+aanwees, blijft staan. Welke objecten verdwenen, zegt `goneStepIds` (de sleutels van `ifcSource.stepIds` tegen het
+domein). De verwijzingen komen uit `foreignReferences` (`foreign/foreignReferences.ts`): bij openen in de scanworker
+(`ifcSource.foreignReferences`, alleen als de indeling C-, A- of V-stukken heeft) en na elk opslaan uit de uitvoer.
+`PreparedIfcWrite.foreignChanges` is de lijst: per stuk het id, de oude bytes en de nieuwe bytes of *vervallen*, plus de
+ongebruikte sleutels van een verwijderde taak. Controle 1 (`validateMergeOutput`) eist dat de uitvoer daarmee klopt en
+rekent de lijst na met een eigen lezer (`foreign/stepValue.ts`), los van de regel en de lexer van de merge: elk vervallen
+stuk moet vanuit de ontbrekende D-stukken te verklaren zijn, een gewijzigd stuk is precies de bron zonder de leden naar
+verwijderde stukken. Een vreemd lid van een eigen pset van een verwijderd object blijft als los stuk staan en staat niet
+op de lijst (§4.2 stap 3). Bij het wissen van een taak of resource, en bij Opnieuw van zo'n stap, meldt
+`state/foreignLinksNotice.ts` met dezelfde regel hoeveel er bij opslaan verandert: één gewone info van main, zonder knop,
+eigen duur of `dedupeKey`, met het aantal van die ene wisstap (fixronde 5 van #1199). Ze deelt de grenzen van de stapel
+van main; de knop *Ongedaan maken* komt in PR 7 (knownbug 2357). Regel A: na het schrijven meldt `state/foreignChangesWrittenNotice.ts` per geslaagde
+schrijfactie met een niet-lege lijst één eigen gewone melding (info, blijvend, geen `dedupeKey`) met de naam van het
+geschreven doel uit de schrijfuitkomst (pad, handlenaam of de naam die de site teruggeeft) en het aantal, op elke
+schrijfroute: `commitSavedDocument` (ook AutoSave en de site), de downloadtakken van Ctrl+S en Opslaan
+als (een eigen zin: "in de download"), de IFC-export en `planner_export_ifc` (in het antwoord). Die melding deelt de
+grenzen van de stapel van main; wat ze niet kan, staat in knownbug 2357. Weigeren blijft: een verwijzing naar een R-stuk
+(`verwijzing-naar-p`, het krijgt een nieuw id) en naar een D-stuk dat de planning niet kent (`verwijderd`).
 
 **De opslagworker** (#804 stap 4 tot en met 6, `src/services/ifc/saveWorker/`) rekent wat `prepareIfcOutput` rekent (de
 gewone writer of `prepareIfcWrite`) in een Web Worker. De gewone writer hergebruikt hem; na elk antwoord op een merge (een

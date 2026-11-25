@@ -15,7 +15,10 @@ apart opgeslagen, zodat een latere wissel van de werkregel de herkomst niet wist
   ADR 0215).
 - Een ontbrekend `mspTaskType` betekent onbekend, niet Fixed Units. De `.mpp`-lezer laat het weg als het veld in het
   record niet te lezen is (`mspTaskTypeFromRaw` met een ruwe waarde `null`).
-- In de rekenroutes zijn de P6-velden herkomstpoorten: de solver gebruikt ze als voorwaarde in de P6-conventietakken.
+- In de rekenroutes zijn de P6-velden herkomstpoorten: de solver gebruikt ze als voorwaarde, bijvoorbeeld
+  `p6ProjectId` naast de conventie `p6PreserveActualInstants` bij werkelijke datums in `CPMSolver.ts`. Niet elke poort
+  zit in een conventietak: bij hervatten bepaalt `p6ProjectId` zonder conventie of de taak een geldig P6-paar van
+  `stop` en `resume` nodig heeft (`hasValidP6SuspendResume`).
   Buiten de solver lezen ook andere delen van `src/engine/` ze: het taakraster leest alle acht velden voor de weergave
   (`p6ProvenanceOf` in `taskGrid/taskColumnRegistry.ts`), en `moveProject` (`moveProject.ts`) leest
   `p6ExpectedFinish` en verschuift die datum mee. `verify:conventions` (`scripts/verify-conventions.mjs`) telt per veld
@@ -31,9 +34,9 @@ apart opgeslagen, zodat een latere wissel van de werkregel de herkomst niet wist
   `target_end_date`; P6 XML ADR 0267), niet de berekende datums van P6, zodat een terugval van de lezer of een later
   berekende `scheduleStart` niet als bronwaarde telt (ADR 0210).
 - `time.resume` en `time.stop` zijn brondata. Een taak uit P6 volgt de route van suspend en resume alleen met
-  `p6SuspendResume` en een geldig, chronologisch paar (`hasValidP6SuspendResume`, ADR 0025);
-  `reconcileP6SuspendResume` wist een vlag zonder geldig paar en laat de datums staan. De solver rekent geen datum uit
-  `stop`: die poort vergelijkt alleen de volgorde van `stop` en `resume`, en `p6OpenLoeTargetSpanTrace` en
-  `p6CompletedRouteTrace.ts` toetsen alleen of het veld er is.
+  `p6ProjectId`, `p6SuspendResume` en twee parseerbare datums met `stop <= resume` (`hasValidP6SuspendResume` in
+  `utils/p6SuspendResume.ts`, ADR 0025); `reconcileP6SuspendResume` wist een vlag zonder geldig paar en laat de datums
+  staan. De solver rekent geen datum uit `stop`: die poort vergelijkt alleen de volgorde van `stop` en `resume`, en
+  `p6OpenLoeTargetSpanTrace` en `p6CompletedRouteTrace.ts` toetsen alleen of het veld er is.
 - `p6ExpectedFinish` (XER `expect_end_date`) telt alleen met de projectoptie `useExpectedFinishDates` en bij een taak
   met `p6ProjectId`, in de restwerkroute van een gestarte taak in `CPMSolver.ts`.
