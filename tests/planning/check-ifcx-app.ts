@@ -23,6 +23,7 @@ import { payloadFromImport } from '@/state/documentContract';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { documentDataFromImport } from '@/services/documentData';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
+import { createEmptyXerArchiveDiagnostics, createEmptyXerArchiveReadModel, createXerSourceArchive } from '@/services/xerSourceArchive';
 import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
 import { loadRecovery, clearRecovery } from '@/services/recovery/recoveryStore';
@@ -592,18 +593,22 @@ await check('zonder classificatie in de worker weigert een IFCX-document een onb
   } finally { ipc.dispose(); }
 });
 
-await check('een notitie op een taak (F3-3): de kern weigert het schrijven, één melding; Automatisch opslaan rekent dezelfde inhoud niet opnieuw (was knownbug 2367)', async () => {
+await check('het P6-bronarchief van een XER-import: de kern weigert het schrijven, één melding; Automatisch opslaan rekent dezelfde inhoud niet opnieuw (was knownbug 2367)', async () => {
   const ipc = desktop();
   try {
     const path = join(dir, 'resource.ifcx'); writeFileSync(path, own);
     const store = await openAt(path, IFCX_ON);
     const sw = workerOf.get(store)!;
-    const noted = store.getState().tasks.find(t => t.childIds.length === 0)!;
-    store.getState().updateTask(noted.id, { notes: [{ id: 'n1', text: 'Let op', done: false }] });
+    store.setState(s => {
+      s.xerSourceArchive = createXerSourceArchive(new Uint8Array(), {
+        encoding: 'utf-8', bom: 'none', newline: 'none', diagnostics: createEmptyXerArchiveDiagnostics(), readModel: createEmptyXerArchiveReadModel(),
+      });
+    });
+    shiftFirstTask(store);
     clearNotices(store);
     assert.equal(await save(store), false);
     assert.deepEqual(errors(store), ['ifcx.writeRefused']);
-    assert(store.getState().ui.notifications[0].detail?.includes('task.notes'), 'de melding noemt het veld');
+    assert(store.getState().ui.notifications[0].detail?.includes('xerSourceArchive'), 'de melding noemt het veld');
     assert.equal(hash(bytesAt(path)), hash(own));
     assert.equal(store.getState().isDirty, true);
     store.setState(s => { s.autoSaveToFile = true; }); clearNotices(store);
