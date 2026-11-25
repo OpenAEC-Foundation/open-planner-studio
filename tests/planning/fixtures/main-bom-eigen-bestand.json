@@ -1,5 +1,5 @@
 {
-"basis": "fd554de40558aca148f6daa12d944c0b42f0bae7",
+"basis": "f95b8adf4a8aca8a3f2a89e2f4aa530eeaf48185",
 "inputs": {"lf":"ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681","crlf":"8ddb8109105d503b002a13fbe2bde7ef3a521082aef67e16e40229b59c3575b0","example":"84067e080b9bc4153b7205480f7df5af60168937c2b19e2369da3845ddbd05b5","other":"a850b09c6e31445ce545091e1fcbd6e0c8968ac9e9baebc96d850cfc62543d22","model":"d5eb2b94c40a64338ac61863b706b079859e3498be19f2a063888ddace31d8fa","foreign":"125a9f0707a1afa9c92f4424515e81975390866203e7653707214a6facf3cf42"},
 "cases": {
   "LF | pad | hier | ongewijzigd": [{"step":"geopend","outcome":null,"notices":[],"disk":"ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681","bomOk":true,"fingerprint":"klopt","dirty":false,"events":"hash","extra":{"tasks":57}},{"step":"Ctrl+S","outcome":true,"notices":[],"disk":"ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681","bomOk":true,"fingerprint":"klopt","dirty":false,"events":"rekenen open:doel read read seek read read close stat:doel read_file:doel hash-uitvoer hash-uitvoer lstat:doel write_text_file:tijdelijk rename"}],
