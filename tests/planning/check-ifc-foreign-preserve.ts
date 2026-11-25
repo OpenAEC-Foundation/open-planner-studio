@@ -640,6 +640,14 @@ await expectRelease('een taak uit het tweede schema verplaatsen', secondSchedule
   });
 }
 {
+  const src = enc.encode(withLines(replaceLine(replaceLine(showcaseApp, '#1588=',
+    "#1588=IFCPROPERTYSET('3mAZv15nM_xFcVBM3NvzzE',#6,'OPS_CustomFields',$,(#1587,#9002));"), '#1589=',
+  "#1589=IFCRELDEFINESBYPROPERTIES('188lZ8h7Yy31YDHz5LPkqd',#6,$,$,(#58,#60),#1588);"), ["#9002=IFCPROPERTYSINGLEVALUE('VendorVeld',$,IFCLABEL('Revit'),$);"]));
+  await expectRefusal('een vreemd lid in een pset met twee eigenaren, en een veld met zijn naam', src, 'vreemd-lid', (d) => {
+    d.customFieldDefs = [...(d.customFieldDefs ?? []), { ...structuredClone(d.customFieldDefs![0]), id: 'veld-1c', name: 'VendorVeld' }];
+  }, /met 2 eigenaren/);
+}
+{
   // De laatste notitie van de taak met een vreemd lid in OPS_TaskNotes wissen: de writer schrijft die pset dan niet, en
   // de merge zet een pset met alleen het vreemde lid op dezelfde taak (met de GlobalId van de bron). De bron van de raad
   // heeft een lege lijst (`'[]'`), die de writer niet schrijft (sectie 1); hier staat er één notitie in.

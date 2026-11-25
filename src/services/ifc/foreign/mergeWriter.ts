@@ -826,12 +826,13 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       for (const owner of index.refsAt(r, 4).filter(x => x >= 0 && inD[x] && !rule.gone.has(sid(x)))) {
         const own = ownPsetsOf.get(`${sid(owner)}|${name}`);
         const want = sourceProps(index, pset);
-        if (own && !sameProps(own.props, want)) {
+        const d = domainOf(owner);
+        if (own && !sameProps(own.props, want) && d && changed.has(`${d.kind}:${d.id}`)) {
           leave(r, [owner]);
           continue;
         }
-        if (!own || own.rels.some(rel => refList(rel.args[4]).length !== 1)) {
-          caseAt('gemengde-relatie', r, `${label(r)}: de writer schrijft de pset ${name} van ${label(owner)} niet, of deelt haar`);
+        if (!own || own.rels.some(rel => refList(rel.args[4]).length !== 1) || !sameProps(own.props, want)) {
+          caseAt('gemengde-relatie', r, `${label(r)}: de pset ${name} van ${label(owner)} veranderde zonder wijziging in de planning, of de writer schrijft of deelt haar niet`);
           continue;
         }
         own.pset.drop = true;
@@ -868,16 +869,16 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
         if (parent < 0 || !isP(parent)) continue;
         const ptype = index.type(parent);
         const name = index.name(parent) ?? '';
+        const owners = ptype === 'IFCPROPERTYSET' && index.inArg(k) === 4 ? psetOwners(index, parent) : undefined;
+        if (owners && owners.length !== 1) {
+          caseAt('vreemd-lid', m, `${label(m)} hoort bij ${label(parent)} met ${owners.length} eigenaren`);
+          continue;
+        }
         if (readAsOwn(m, name, ptype === 'IFCPROPERTYSETTEMPLATE')) {
           readAsOwnMembers.add(sid(m));
           continue;
         }
-        if (ptype === 'IFCPROPERTYSET' && index.inArg(k) === 4) {
-          const owners = psetOwners(index, parent);
-          if (owners.length !== 1) {
-            caseAt('vreemd-lid', m, `${label(m)} hoort bij ${label(parent)} met ${owners.length} eigenaren`);
-            continue;
-          }
+        if (owners) {
           const own = ownPsetsOf.get(`${sid(owners[0])}|${name}`);
           if (!own || own.pset.drop) {
             const owner = owners[0];
@@ -1231,7 +1232,7 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   const slotInput = own && input.recordedSourceFormat ? input : undefined;
   const readings = new Map<string, TaskTimeReading>();
   try {
-    actual = validateMergeOutput(index, cls, source.bytes, bytes, { changes });
+    actual = validateMergeOutput(index, cls, source.bytes, bytes, { changes, planning: { stepIds: source.stepIds, before: opened, after: input } });
     if (actual.problems.length) throw new MergeNeedsPhase2Error(actual.problems.map(detail => ({ kind: 'uitvoer-controle', detail })));
     outputScan = foreignScanFrom(actual.index, actual.classification, bytes);
     parsed = await pristineFromScan(outputScan, bytes, opened.project, writtenUnusedKeys, slotInput && readings);

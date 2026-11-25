@@ -7,6 +7,8 @@ import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { splitStepArgs, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import { entityValue, placeTriggers, serializeStepValue, withoutRemovedMembers, type StepValue } from '@/services/ifc/foreign/stepValue';
 import type { PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
+import { relationRoles } from '@/services/ifc/ifcSlotTables';
+import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { documentContentOf } from '@/state/documentSaveState';
 import { computeIfcOutputHere, prepareIfcOutput } from '@/state/prepareIfcOutput';
 import { loadStore, openInStore } from './ifcAppRoute';
@@ -96,25 +98,47 @@ const valueAt = (index: StepIndex, bytes: Uint8Array, id: number) => {
   return chunk < 0 ? undefined : entityValue(bytes, index.entityStart(chunk), index.end(chunk));
 };
 
+function departed(si: StepIndex, relation: number, member: number, stepIds: Readonly<Record<string, number>>, before: WriteIFCInput, after: WriteIFCInput): boolean {
+  const keyOf = (stepId: number) => Object.entries(stepIds).find(([, id]) => id === stepId)?.[0];
+  const key = keyOf(member);
+  if (!key) return false;
+  const id = key.slice(key.indexOf(':') + 1), type = si.type(relation), roles = relationRoles(type);
+  const relating = roles ? si.refAt(relation, roles.relating) : -1;
+  const ownerKey = relating >= 0 ? keyOf(Number(si.id(relating))) : undefined, owner = ownerKey?.slice(ownerKey.indexOf(':') + 1);
+  const coupling = (d: WriteIFCInput) => {
+    const object = d.tasks.find(t => t.id === id) ?? d.resources.find(r => r.id === id);
+    if (type === 'IFCRELNESTS') return [object?.parentId ?? null, ownerKey?.startsWith('task:') ? d.tasks.find(t => t.id === owner)?.childIds : null];
+    if (type === 'IFCRELASSIGNSTOPROCESS') return d.assignments.filter(a => a.taskId === owner).map(a => a.resourceId);
+    if (type === 'IFCRELASSIGNSTOCONTROL') return object?.calendarId ?? null;
+    if (type === 'IFCRELDEFINESBYPROPERTIES') return key.startsWith('cal:') ? [d.calendar, ...(d.resourceCalendars ?? [])].find(c => c.id === id) : object;
+    return 'onbekende rol';
+  };
+  return JSON.stringify(coupling(before)) !== JSON.stringify(coupling(after));
+}
+
 async function conditions(at: string, source: Uint8Array, out: Uint8Array, changes: readonly ForeignChange[], store: Store,
-  linksBefore: ReadonlyMap<string, unknown>) {
+  linksBefore: ReadonlyMap<string, unknown>, stepIds: Readonly<Record<string, number>>, opened: WriteIFCInput) {
   eq(`${at}: het vreemde deel is dat van de bron, op de wijzigingslijst na`, mergeProblems(source, out, changes), []);
   const si = scanForeignStep(source), sc = classify(si), oi = scanForeignStep(out), oc = classify(oi);
+  const domain = buildWriteIFCInput(store.getState(), 'merge');
   const planning = (id: number) => { const c = si.chunkOf(String(id)); return c >= 0 && sc.selection.inD[c] === 1; };
+  const gone = (id: number) => planning(id) && oi.chunkOf(String(id)) < 0;
   for (const change of changes) {
     if (change.kind === 'vervallen' && change.unusedKeyOfTask !== undefined) continue;
     const before = valueAt(si, source, change.id);
     if (!before) { ok(`${at}: #${change.id} op de lijst staat in de bron`, false); continue; }
+    const relation = si.chunkOf(String(change.id));
+    const left = (id: number) => gone(id) || (planning(id) && departed(si, relation, id, stepIds, opened, domain));
     if (change.kind === 'vervallen') {
-      const gone = (id: number) => planning(id) && oi.chunkOf(String(id)) < 0;
-      ok(`${at}: #${change.id} vervalt alleen omdat zijn planningsleden weg zijn`,
-        placeTriggers(before).lists.some(list => list.every(planning)) || placeTriggers(before).direct.some(gone));
+      ok(`${at}: #${change.id} vervalt alleen omdat zijn planningsleden weg of verplaatst zijn`,
+        placeTriggers(before).lists.some(list => list.every(left)) || placeTriggers(before).direct.some(gone) || sc.foreignMembers.includes(relation));
       continue;
     }
     const after = valueAt(oi, out, change.id);
     const kept = after ? listRefs(after) : new Set<number>();
     const removed = new Set([...listRefs(before)].filter(id => !kept.has(id)));
-    ok(`${at}: #${change.id} verliest alleen verwijzingen naar planningsleden (${[...removed].join(',')})`, removed.size > 0 && [...removed].every(planning));
+    ok(`${at}: #${change.id} verliest alleen planningsleden die weg zijn of waarvan de koppeling veranderde (${[...removed].join(',')})`,
+      removed.size > 0 && [...removed].every(left));
     eq(`${at}: #${change.id} is verder byte voor byte de bron`, after && serializeStepValue(after), serializeStepValue(withoutRemovedMembers(before, removed)));
   }
   const nowPlanning: string[] = [];
@@ -152,7 +176,7 @@ async function savedStep(at: string, store: Store): Promise<Outcome> {
       detail: result.cases.slice(0, 2).map(c => `${c.kind} #${c.sourceId}: ${c.detail}`).join(' | ') };
   }
   const changes = result.foreignChanges ?? [];
-  await conditions(at, source.bytes, result.bytes, changes, store, linksBefore);
+  await conditions(at, source.bytes, result.bytes, changes, store, linksBefore, source.stepIds, source.opened!);
   eq(`${at}: de telling na het opslaan`, countOf(store).slice(counted), changes.length > 0 ? [changes.length] : []);
   const again = await save(store);
   ok(`${at}: een tweede opslag direct daarna is byte voor byte gelijk`, !(again instanceof MergeNeedsPhase2Error) && sameBytes(again.bytes, result.bytes));
@@ -266,9 +290,25 @@ for (const c of CASES) {
 {
   const store = await opened(SOURCES['bonsai-4d.ifc']);
   ownCalendar(store.getState(), 'Wand A bouwen');
-  const outcome = await savedStep('bonsai-4d.ifc: Wand A een eigen kalender', store);
-  ok(`bonsai-4d.ifc: Wand A een eigen kalender weigert niet meer om de gemengde #122 (knownbug 2356; ${outcome.detail})`,
-    outcome.kinds.every(kind => !kind.startsWith('gemengde-relatie')));
+  const outcome = await savedStep('knownbug 2378, bonsai-4d.ifc: Wand A bouwen een eigen kalender en doorrekenen', store);
+  ok(`knownbug 2378: de weigering heeft nog dezelfde reden (${outcome.detail || 'schrijft'})`, !outcome.written
+    && outcome.kinds.join() === 'bronvorm-leest-anders #undefined'
+    && /: 2 veld\(en\) in de vorm van de bron lezen na openen anders: taak task-ifc-22icVZXFsEZ1Ius5rjnii6, time\.earlyFinish: "2026-02-06T17:00" na herlezen in plaats van "2026-02-02T09:00"; taak task-ifc-22icVZXFsEZ1Ius5rjnii6, time\.lateFinish:/.test(outcome.detail));
+}
+
+{
+  const store = await opened(SOURCES['bonsai-4d.ifc']);
+  const at = 'knownbug 2379, bonsai-4d.ifc';
+  store.getState().deleteTask(task(store.getState(), 'Wand B bouwen').id);
+  const first = await savedStep(`${at}: Wand B bouwen gewist, opslaan`, store);
+  eq(`${at}: de eerste opslag schrijft`, [first.written, first.changes], [true, ['gewijzigd #116', 'gewijzigd #122', 'vervallen #178']]);
+  store.getState().addTask({ name: 'Nieuwe taak', position: { anchorId: task(store.getState(), 'Stucwerk').id, where: 'above' } }, PHASES);
+  const second = await savedStep(`${at}: een nieuwe taak boven Stucwerk, opslaan`, store);
+  eq(`${at}: de tweede opslag schrijft`, [second.written, second.changes], [true, []]);
+  store.getState().moveTaskTo(task(store.getState(), 'Wand A bouwen').id, { parentId: null, childIndex: 0 }, PHASES);
+  const third = await savedStep(`${at}: Wand A bouwen bovenaan als wortel-taak, opslaan`, store);
+  ok(`${at}: de derde opslag weigert nog om dezelfde reden (${third.detail || 'schrijft'})`, !third.written && third.kinds.join() === 'planning-na-openen #undefined'
+    && third.detail === 'planning-na-openen #undefined: taak task-ifc-2lNOVVAc3x$DPP3aHgo958.time.durationUnit: "hours" → "days"');
 }
 
 async function refusesOutput(label: string, source: string, act: (s: State) => void,
@@ -304,6 +344,19 @@ const pieceText = (bytes: Uint8Array, id: number) => {
   const index = scanForeignStep(bytes), chunk = index.chunkOf(String(id));
   return decode(bytes.slice(index.start(chunk), index.end(chunk)));
 };
+await refusesOutput('een ongewijzigd lid gaat uit een gemengde relatie (#108 uit #122)', 'bonsai-4d.ifc', unassigned, (out, changes) => {
+  const was = pieceText(SOURCES['bonsai-4d.ifc'], 122), now = was.replace('(#104,#108,#144,#160)', '(#104,#144,#160)');
+  return [out.replace(was, now), [...changes, { kind: 'gewijzigd' as const, id: 122, oldBytes: encode(was), newBytes: encode(now) }]];
+});
+{
+  const store = await opened(SOURCES['bonsai-4d.ifc']);
+  unassigned(store.getState());
+  const input = buildWriteIFCInput(store.getState(), 'merge'), ifcSource = store.getState().ifcSource!;
+  const prepared = await prepareIfcWrite(input, ifcSource);
+  let reason = '';
+  try { await checkMergeOutput(prepared.bytes, input, ifcSource, undefined, prepared.foreignChanges ?? []); } catch (e) { reason = String(e); }
+  eq(`controle 1 aanvaardt de bedoelde wijziging van #120 (${reason})`, [reason, (prepared.foreignChanges ?? []).map(c => `${c.kind} #${c.id}`)], ['', ['gewijzigd #120']]);
+}
 await refusesOutput('bij (b) wijzigt de pset van het vreemde object mee', 'gedeelde pset (b)', s => { s.setCalendar({ ...s.calendar, hoursPerDay: 7 }); }, (out, changes) => {
   const was = pieceText(SOURCES['gedeelde pset (b)'], 50), now = was.replace(/IFCREAL\([^)]*\)/, 'IFCREAL(7.)');
   return [out.replace(was, now), [...changes, { kind: 'gewijzigd' as const, id: 50, oldBytes: encode(was), newBytes: encode(now) }]];
@@ -398,6 +451,14 @@ const STEPS: readonly Step[] = [
   ['Ctrl+Z', s => { s.undo(); return 'Ctrl+Z'; }],
 ];
 const SEEDS = [0x804a, 0x804b, 0x804c, 0x804d];
+const TODAY: Readonly<Record<string, RegExp>> = {
+  'reeks 804a, stap 2': /^bronvorm-leest-anders #undefined: 2 veld\(en\) in de vorm van de bron lezen na openen anders: taak task-ifc-0lcQqRJaYYk6A457FDkszn, time\.lateStart/,
+  'reeks 804b, stap 5': /^bronvorm-leest-anders #undefined: 2 veld\(en\) in de vorm van de bron lezen na openen anders: taak task-ifc-0tweedeTaakAfbouw00000, time\.lateStart/,
+  'reeks 804d, stap 3': /^niet-eenduidig #8622: IFCRELASSIGNSTOCONTROL #8622, argument 1 na de bewerking: #8608 → #101/,
+  'reeks 804d, stap 5': /^planning-na-openen #undefined: taak task-ifc-2lNOVVAc3x\$DPP3aHgo958\.time\.durationUnit: "hours" → "days"$/,
+  'reeks 804d, stap 6': /^planning-na-openen #undefined: taak task-ifc-22icVZXFsEZ1Ius5rjnii6\.time\.lateStart: "2026-02-09T07:00" → "2026-02-02T09:00"$/,
+};
+const refusedSteps: string[] = [];
 const sequenceLog: string[] = [];
 let written = 0, refused = 0;
 for (const seed of SEEDS) {
@@ -418,13 +479,16 @@ for (const seed of SEEDS) {
     if (outcome.written) { written++; continue; }
     refused++;
     for (const kind of outcome.kinds) kinds.set(kind.split(' ')[0], (kinds.get(kind.split(' ')[0]) ?? 0) + 1);
-    ok(`${at}: geen weigering om een gemengde of bewaarde relatie (${outcome.kinds.join(', ')})`, outcome.kinds.every(kind => !kind.startsWith('gemengde-relatie')));
+    const key = `reeks ${seed.toString(16)}, stap ${step + 1}`;
+    refusedSteps.push(key);
+    ok(`${at}: alleen een weigering met de reden van vandaag (knownbug 2378, 2379 of 2356 b; ${outcome.detail})`, TODAY[key]?.test(outcome.detail) === true);
     sequenceLog.push(`${at}: geweigerd (${outcome.detail.slice(0, 400)})`);
     store.getState().undo();
     undoable--;
   }
 }
 
+eq('de reeksen weigeren precies de stappen van vandaag', refusedSteps, Object.keys(TODAY));
 console.log(`   reeksen (seeds ${SEEDS.map(s => s.toString(16)).join(', ')}): ${written} opslagen geschreven, ${refused} geweigerd${refused ? ` (${[...kinds].map(([k, v]) => `${k} ${v}`).join(', ')})` : ''}`);
 for (const line of sequenceLog) console.log(`   ${line}`);
 if (fails.length > 0) {
