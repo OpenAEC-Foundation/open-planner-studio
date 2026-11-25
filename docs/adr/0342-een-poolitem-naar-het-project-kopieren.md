@@ -22,5 +22,8 @@ die daar niet bestaat.
   Geen toets houdt dit vast. `applyResourceUpdate` neemt alleen `RESOURCE_DIFF_FIELDS` over, dus `parentId` en
   `calendarId` van een projectkopie blijven bij verversen staan. Alleen als de bijgewerkte resource `COST` is, wist
   `clearCostResourceFields` ze, ook als ze dat vóór het verversen al was. Een typewissel van of naar `COST` bij een
-  resource met toewijzingen weigert `resourceUpdateBlocked`; dan verandert alleen de herkomststempel.
+  resource met toewijzingen weigert `resourceUpdateBlocked`. Bij stil verversen (`materializeBehindOnlyRefresh` in
+  `src/state/documentActivation.ts` en `refreshAllDocumentsFromPool` in `librarySlice.ts`) roept de route dan toch
+  `applyResourceUpdate` aan, en die vernieuwt alleen de herkomststempel. De handmatige routes in `librarySlice.ts` (`updateProjectResourceFromLibrary`, en `resolveDeviation`
+  met *Bibliotheekwaarden gebruiken*) stoppen vóór die aanroep met een melding; dan blijft ook de stempel staan.
 - De andere richting, een projectresource promoveren, laat `parentId` en `calendarId` ook weg (ADR 0171).
