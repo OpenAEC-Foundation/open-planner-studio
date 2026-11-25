@@ -4624,6 +4624,14 @@ en noem het in je rapport of PR-tekst.
       alleen de entiteit mee (`subarray(skipBlank(…))`) en valt dat commentaar weg. Zonder tussentijdse opslag blijft het
       commentaar staan. Gezien in de code door de review van #1265, ronde 1; niet nagespeeld. Richting: de voorloop apart
       bewaren en bij het invoegen meenemen. Een randgeval: een STEP-bestand met commentaar tussen de regels. — S
+2384. **Alle taken van een Bonsai-bestand wissen en opslaan weigert met `planning-na-openen`, ook op main.** Flag aan,
+      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: wis *Ruwbouw* (met haar kinderen) en *Stucwerk* en sla op. De opslag
+      weigert, omdat *Ruwbouw* na heropenen van de kandidaat terug is. Main geeft letterlijk dezelfde weigering;
+      `detached` verandert er niets aan. De proef `check-ifc-foreign-detached.ts` legt de weigering vast met haar
+      kortste reeks en de precieze fouttekst (geval "alle taken van bonsai-4d.ifc gewist", vijf reeksen in de
+      eigenschapsproef). Gewoon werk dat nog niet schrijft; hoort bij 2251 (veel taken wissen weigert met
+      `planning-na-openen`). Gevonden bij de herstelronde van #1265; de weigering op main is door de bouwer met een
+      script gemeten, door de review van ronde 2 niet opnieuw uitgevoerd. — B
 
 2376. **Terwijl de vraag vóór het opslaan staat, toont de statusbalk "Opslaan…".** De opslag telt als lopend vanaf
       Ctrl+S (`trackSave` in `src/state/slices/fileSlice.ts` verhoogt `saveState.saving` vóór de poging), dus ook terwijl
