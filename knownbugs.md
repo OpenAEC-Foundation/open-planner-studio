@@ -1606,6 +1606,15 @@ en noem het in je rapport of PR-tekst.
       `contributesNothing` en neemt het record niet op. Gelezen in de code, niet nagespeeld. Welke van de twee MS
       Project volgt, is niet nagegaan. — S
 
+2324. **De soort van een mijlpaal op een werkende uitzondering of een feestdag volgt de gewone weekblokken.**
+      `milestoneKindAt` (`src/services/subdayIo.ts`), voor `readMSPDI` en `readTasks` van de `.mpp`-lezer, kijkt alleen
+      naar `workTime.byWeekday` van de kalender. Een anker op het begin of einde van een blok van een werkende
+      uitzondering met eigen blokken krijgt dus alleen een soort als die minuut ook een grens van de weekblokken van die
+      weekdag is, bijvoorbeeld geen soort op een werkende zaterdag zonder weekblokken. Een anker op een feestdag krijgt
+      een soort als de minuut een grens van de weekblokken van die weekdag is. Het weggehaalde commentaar zei dat een mijlpaal nooit op een
+      feestdag landt; dat is niet nagegaan, en ook niet of MS Project zulke mijlpalen schrijft. Gelezen in de code,
+      niet nagespeeld. — S
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
