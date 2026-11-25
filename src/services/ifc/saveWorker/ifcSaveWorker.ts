@@ -36,8 +36,8 @@
 import { computeIfcOutputHere, type IfcOutputCompute, type IfcSaveJob } from '@/state/prepareIfcOutput';
 import type { IfcxClassification } from '@/services/ifc/ifcx';
 import {
-  classificationFits, errorFromWire, outputFromResult, resultFits, wireErrorFits, type IfcSaveRequest, type IfcSaveRequestBody,
-  type IfcSaveResponse,
+  classificationFits, errorFromWire, outputFromResult, resultFits, wireErrorFits, type IfcSaveRequestBody,
+  type IfcSaveResponse, type IfcSaveWorkerRequest,
 } from './ifcSaveProtocol';
 import { IfcSaveWorkerError } from './ifcSaveWorkerError';
 
@@ -144,7 +144,7 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       arm();
       try {
         // Een kopie, nooit een overdracht: de hoofdthread blijft eigenaar van de bronbytes.
-        port.postMessage({ id, ...body } satisfies IfcSaveRequest);
+        port.postMessage({ id, ...body } satisfies IfcSaveWorkerRequest);
       } catch (error) {
         reject(new IfcSaveWorkerError('transport', `Het opslagverzoek kon niet naar de worker: ${error instanceof Error ? error.message : String(error)}`));
       }

@@ -19,8 +19,10 @@ import type { PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { precomputeSha256, XerSourceArchiveValidationError } from '@/services/xerSourceArchive';
 import { computeIfcOutputHere, type IfcOutput, type IfcSaveJob } from '@/state/prepareIfcOutput';
 
+export type IfcSaveRequest = { readonly id: number; readonly job: IfcSaveJob };
+export type IfcxClassifyRequest = { readonly id: number; readonly classify: Uint8Array };
+export type IfcSaveWorkerRequest = IfcSaveRequest | IfcxClassifyRequest;
 export type IfcSaveRequestBody = { readonly job: IfcSaveJob } | { readonly classify: Uint8Array };
-export type IfcSaveRequest = { readonly id: number } & IfcSaveRequestBody;
 
 export type IfcSaveResult =
   | { readonly kind: 'writer'; readonly bytes: Uint8Array; readonly literalCalendarIds: readonly string[]; readonly sha256?: string }
@@ -77,7 +79,7 @@ export function resultTransfer(result: IfcSaveResult): ArrayBuffer[] {
 }
 
 /** Het verzoek in de worker: nooit een gegooide fout, altijd een antwoord met zijn overdrachtslijst. */
-export async function handleIfcSaveRequest(request: IfcSaveRequest): Promise<{ response: IfcSaveResponse; transfer: ArrayBuffer[] }> {
+export async function handleIfcSaveRequest(request: IfcSaveWorkerRequest): Promise<{ response: IfcSaveResponse; transfer: ArrayBuffer[] }> {
   try {
     if ('classify' in request) {
       const { classifyIfcx } = await import('@/services/ifc/ifcx');

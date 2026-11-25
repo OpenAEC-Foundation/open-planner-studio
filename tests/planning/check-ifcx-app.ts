@@ -53,7 +53,9 @@ const BOTH_ON: FeatureFlagValues = { ifcx: true, ifcForeignContent: true };
 const ownStep = new TextEncoder().encode(writeIFC(buildWriteIFCInput(documentDataFromImport(structuredClone(readIfcx(own))), 'planOnly')));
 
 let passed = 0, failed = 0;
+const only = process.env.OPS_IFCX_APP_ONLY ? new RegExp(process.env.OPS_IFCX_APP_ONLY) : null;
 async function check(name: string, action: () => Promise<void>) {
+  if (only && !only.test(name)) return;
   try { await action(); passed++; console.log(`OK ${name}`); }
   catch (error) {
     failed++;
@@ -762,6 +764,14 @@ await check('Exporteren → IFC van een IFCX-document blijft STEP; het eigen IFC
       assert.equal(viaMcp.ok, false, `MCP met overwrite: true weigert (${JSON.stringify(flags)})`);
       assert.equal(hash(bytesAt(path)), hash(own));
     }
+    setFlags(store, IFCX_ON);
+    const getFs = fileToolDeps.getFs;
+    fileToolDeps.getFs = async () => ({ ...await realFs(), homeDir: async () => dir });
+    try {
+      const imported = await getTool('planner_import_schedule')!.handler({ path }, mcpContext(app));
+      assert(imported.ok, JSON.stringify(imported).slice(0, 300));
+      assert.equal((imported.data as { format?: string }).format, 'IFCX', 'de MCP-import meldt het gelezen formaat');
+    } finally { fileToolDeps.getFs = getFs; }
     const alias = join(dir, 'export-bron-alias.ifc');
     symlinkSync(path, alias);
     const viaAlias = await exportViaMcp(app, alias);
