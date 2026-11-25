@@ -3886,15 +3886,35 @@ en noem het in je rapport of PR-tekst.
      een versie die het tabblad zelf schreef (PR #1194) vervalt de doelscan, maar de toets blijft de laatste lezing vóór
      het schrijven: hetzelfde gat als hier beschreven, niet groter. Het geldt ook voor een eigen bestand met een UTF-8-BOM
      (knownbug 2212, PR #1213): dat krijgt dezelfde laatste lezing vóór het schrijven als hetzelfde bestand zonder BOM. —
-     S (code gelezen; voor het BOM-bestand nagespeeld in `check-ifc-bom-eigen-bestand.ts`, reeks `tijdens-het-schrijven`)
+     S (code gelezen; voor het BOM-bestand nagespeeld in `check-ifc-bom-eigen-bestand.ts`, gevallen `… op het doel bij
+     schrijven`, en zonder opslagworker `… bij hash`: daar hasht main de te schrijven bytes ná de laatste lezing, en
+     overschrijven main en de PR allebei)
 
 2358. **Ctrl+S weigert een eigen IFC met een UTF-8-BOM als het tabblad de versie van dat bestand niet kent (#804, flag aan).**
      Sinds PR #1213 gedraagt een eigen bestand met een BOM zich bij Ctrl+S, *Opslaan* in de sluitvraag en Automatisch
-     opslaan als hetzelfde bestand zonder BOM op main, zolang `knownTargetFingerprint` de versie met BOM kent
-     (`knownBomVersion` in `src/state/knownTargetGuard.ts`). Kent het tabblad de versie niet (na crashherstel, na een
-     mislukte schrijfactie naar het eigen pad, of als de flag pas na het openen aanging), dan blijft de BOM de doelscan
-     onleesbaar maken: Ctrl+S weigert met *onleesbaar doel*, waar main hetzelfde bestand zonder BOM schrijft. Opslaan als
-     naar een nieuwe naam werkt; heropenen geeft het tabblad de versie weer. Nagespeeld op pad en handle. — B
+     opslaan als hetzelfde bestand zonder BOM op main, zolang `knownTargetFingerprint` bij het begin van de opslagpoging
+     de versie met BOM kent (`utf8Bom`, `ownBom` in `writeActiveDocument` en `fileAutoSave.ts`). Kent het tabblad de
+     versie niet (na crashherstel, na een mislukte schrijfactie naar het eigen pad, of als de flag pas na het openen
+     aanging), dan blijft de BOM de doelscan onleesbaar maken: Ctrl+S weigert met *onleesbaar doel*, waar main hetzelfde
+     bestand zonder BOM schrijft. Opslaan als naar een nieuwe naam werkt; heropenen geeft het tabblad de versie weer.
+     Nagespeeld op pad en handle (`check-ifc-bom-eigen-bestand.ts`, grensgeval `onbekende versie na flag uit en aan`).
+     Voorwaarde voor standaard aan: elk tabblad kent zijn versie zodra de flag aan is, ook voor crashherstel en een
+     mislukte schrijfbeurt.
+     Verwante grens (review van #1213 ronde 2), als grensgevallen in dezelfde proef: de toestemming hangt aan de bekende
+     versie, niet aan de bytes op het doel. Schrijft een ander programma een andere planning mét BOM naar het doel, dan
+     weigert main met *onleesbaar doel* en de PR met *doel gewijzigd*. Zet een ander de geopende planning terug zónder
+     BOM, dan schrijft main verder (de bytes zijn zijn bekende versie) en weigert de PR met *doel gewijzigd* (de bekende
+     versie begint met een BOM). In beide gevallen blijft de versie van de ander staan. — B
+
+2359. **Ctrl+S weigert een eigen sitebestand met een UTF-8-BOM als onleesbaar doel (#804, flag aan).** Reproductie
+     (review van #1213 ronde 2; nagespeeld in `check-ifc-bom-eigen-bestand.ts`, grensgeval `site`): een site
+     (`window.openaecHost`) met een eigen planning met BOM als versie `v1`; openen van de site, één taak hernoemen,
+     Ctrl+S. Main slaat hetzelfde bestand zonder BOM op als `v2` (met `baseVersion: 'v1'`); de PR weigert met
+     *onleesbaar doel* voordat de host een aanroep krijgt. De regel van #1213 geldt voor de site dus nog niet. Oorzaak:
+     een sitebestand krijgt geen `knownTargetFingerprint` (`onOwnFile` en `guardedKnownTarget` slaan de site bewust
+     over), dus het tabblad weet niet dat zijn eigen versie met een BOM begon. Richting (reviewer): de eigen siteversie en
+     het bestaande hostcontract (`baseVersion`) de toestemming laten dragen, en bij het openen onthouden dat die versie
+     een BOM had. Voorwaarde voor standaard aan. — B
 
 2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): de eerste opslag na openen leest het eigen bestand
      nog drie keer, een opslag zonder bekende versie twee keer.** Sinds PR #1194 vervalt de doelscan als op het eigen pad of

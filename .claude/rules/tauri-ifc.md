@@ -405,14 +405,17 @@ C/A/V-scan (`foreign/oldOwnHeader.ts`) kijkt na die BOM en maskeert op absolute 
 zelf, de datasectievinder en de doelscan als stroom zijn ongewijzigd. De doelscan (`targetForeignScan.ts`) houdt
 een bestaand doel dat met een BOM begint 'unreadable', zoals main. Regel voor het eigen bestand (knownbug 2212, PR
 #1213): een eigen bestand met een BOM gedraagt zich bij Ctrl+S, *Opslaan* in de sluitvraag en Automatisch opslaan als
-hetzelfde bestand zonder BOM op main; alleen blijft de BOM staan. Eén beslissing per opslagpoging (`bomVersion` uit
-`knownBomVersion`: de bekende versie in `knownTargetFingerprint` als die met een BOM begint, `utf8Bom`) bepaalt dat de
-doelscan van dat bestand de BOM overslaat (`allowBom`), dat de toets van #1174 tegen die versie loopt en dat de BOM
-vóór de bytes van de gewone writer komt (`withUtf8Bom`, de vingerafdruk rekent op die bytes). Vervalt die versie
-tijdens de scan (de flag gaat uit), dan weigert de doelcontrole (`ownBomVersion.stillKnown`). Verder gelden de
-controles van main, met dezelfde redenen; het gat tussen toets en schrijven is dat van knownbug 2069. Opslaan als en
-export over een BOM-bestand blijven 'unreadable'; zonder bekende versie ook Ctrl+S (knownbug 2358). De merge houdt de
-BOM zelf, in het kopstuk. Proef van de regel: `check-ifc-bom-eigen-bestand.ts` (reeksen in `bomEigenBestand.ts`).
+hetzelfde bestand zonder BOM op main; alleen blijft de BOM staan. Eén beslissing per opslagpoging, aan het begin en
+vóór het rekenen (`ownBom`: de bekende versie in `knownTargetFingerprint` begint met een BOM, `utf8Bom`), bepaalt twee
+dingen: de doelscan van dat bestand slaat de BOM over (`allowOwnBom`), en de BOM komt direct na het antwoord van de
+writer vóór zijn bytes (`withUtf8Bom`; met de opslagworker ook de hash van die bytes), dus vóór de eerste lezing van het
+doel. Verder is de route letterlijk die van main, met dezelfde lezingen, redenen en meldingen; tussen de laatste lezing
+en de bestandslaag gebeurt niets wat main daar niet doet (het gat van knownbug 2069). Opslaan als en export over een
+BOM-bestand blijven 'unreadable'; zonder bekende versie ook Ctrl+S (knownbug 2358), en op de site (knownbug 2359). De
+merge houdt de BOM zelf, in het kopstuk. Proef van de regel: `check-ifc-bom-eigen-bestand.ts` tegen een opname van main
+(`scripts/proef/maak-main-bom-eigen-bestand.mjs` schrijft `tests/planning/fixtures/main-bom-eigen-bestand.json`; de
+gevallen staan in `bomEigenBestand.ts`). Verandert de writer of de opslagroute op main bewust, maak de opname dan
+opnieuw met een nieuwe `BASIS` en zeg dat in de PR.
 Proeven: `check-ifc-foreign-classify.ts`, `-open.ts`, `-target.ts`, `check-ifc-target-model-scan.ts` en de herleestoets.
 
 ### Opslaan als bij ontbrekend gebouwmodel (#804, PR 9e)
