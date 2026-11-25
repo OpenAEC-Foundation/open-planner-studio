@@ -1,10 +1,11 @@
 import { TASK_TYPES, type Task, type TaskStatus, type TaskTime } from '@/types/task';
 import { DEFAULT_PRIORITY } from '../../ifcConstants';
 import {
-  BOOLEAN, CALENDAR_DATE, enumOf, FRACTION, integer, LOCAL_MOMENT_OR_EMPTY, membersOf, NON_EMPTY_TEXT, objectOf,
+  arrayOf, BOOLEAN, CALENDAR_DATE, enumOf, FRACTION, integer, LOCAL_MOMENT_OR_EMPTY, membersOf, NON_EMPTY_TEXT, objectOf,
   readFields, REAL, REFERENCE, TEXT, writeFields, type IfcxField, type IfcxValue, type SharedField,
 } from '../fieldTable';
 import type { SharedSpan } from '../dateProjection';
+import { ALL_RECORDED_SLOT_KEYS, type RecordedFieldKey } from '../../ifcTaskSlots';
 
 export interface TaskWriteSource {
   readonly task: Task;
@@ -15,6 +16,7 @@ export interface TaskWriteSource {
   readonly span: SharedSpan;
   readonly derivesDays: boolean;
   readonly atDayEnd: boolean;
+  readonly unrecorded: readonly RecordedFieldKey[];
 }
 
 export interface TaskReadTarget {
@@ -24,6 +26,7 @@ export interface TaskReadTarget {
   calendarPath?: string;
   place?: number;
   atDayEnd: boolean;
+  unrecorded: readonly RecordedFieldKey[];
 }
 
 interface TimeWriteSource {
@@ -189,6 +192,11 @@ export const TASK_FIELDS: readonly TaskField[] = [
     key: 'atDayEnd', value: BOOLEAN, optional: true,
     write: s => (s.atDayEnd ? true : undefined),
     read: (v, t) => { t.atDayEnd = v === true; },
+  },
+  {
+    key: 'unrecorded', value: arrayOf(enumOf(ALL_RECORDED_SLOT_KEYS)), optional: true,
+    write: s => (s.unrecorded.length > 0 ? [...s.unrecorded] : undefined),
+    read: (v, t) => { t.unrecorded = (v as RecordedFieldKey[] | undefined) ?? []; },
   },
 ];
 

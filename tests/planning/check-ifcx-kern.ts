@@ -13,8 +13,7 @@ import {
 import { ifcxSchemaProblems } from '@/services/ifc/ifcx/schemaCheck';
 import { selfCheckDifferences } from '@/services/ifc/ifcx/selfCheck';
 import { readIfcxText } from '@/services/ifc/ifcx/ifcxReader';
-import { ownFileFor } from '@/services/ifc/ifcx/ownFile';
-import { ALL_RECORDED_SLOT_KEYS } from '@/services/ifc/ifcTaskSlots';
+import { canonicalFor } from '@/services/ifc/ifcx/ownFile';
 import { stepRoundtrip } from '@/services/ifc/ifcx/stepRoundtrip';
 import { HEADER_VALUE } from '@/services/ifc/ifcx/ownAttributes';
 import { ALL_MODEL_KEYS, NODES, OWN_ATTRIBUTE_VALUES, STEP_WRITER_INPUT_NOT_CARRIED } from '@/services/ifc/ifcx/nodes';
@@ -22,7 +21,7 @@ import { IDENTITY_KINDS, intendedGlobalIds, type PlanningModel } from '@/service
 import { TASK_TIME_FIELDS } from '@/services/ifc/ifcx/fields/taskFields';
 import {
   CALENDAR_DATE_FORM, FREE_TEXT_FORM, ISO_DATE_OR_MOMENT_OR_EMPTY_FORM, ISO_MOMENT_FORM,
-  LOCAL_MOMENT_OR_EMPTY_FORM, NON_EMPTY_TEXT_FORM, VERSION_FORM, type IfcxField, type IfcxValue,
+  LOCAL_MOMENT_OR_EMPTY, LOCAL_MOMENT_OR_EMPTY_FORM, NON_EMPTY_TEXT_FORM, VERSION_FORM, type IfcxField, type IfcxValue,
 } from '@/services/ifc/ifcx/fieldTable';
 import {
   compactGlobalIdToUuid, globalIdOfPath, isCompactGlobalId, isIdentityPath, pathOfGlobalId, uuidToCompactGlobalId,
@@ -89,22 +88,20 @@ const atLoad = (model: ImportResult) => plain(payloadFromImport(structuredClone(
 
 function stepReopened(input: WriteIFCInput): ImportResult {
   const step = stepRoundtrip(input);
-  const present = (task: Task) => ALL_RECORDED_SLOT_KEYS.filter(key => {
-    const value = task.time[key];
-    return typeof value === 'string' ? value !== '' : value !== undefined;
-  });
   return {
     ...step, ifcGlobalIds: { ...step.ifcGlobalIds, ...Object.fromEntries([...intendedGlobalIds(step)].filter(([seed]) => !step.ifcGlobalIds?.[seed])) },
-    recordedFields: Object.fromEntries(step.tasks.map(task => [task.id, present(task)])),
   };
 }
 
-const asAppSaves = (model: ImportResult): WriteIFCInput => buildWriteIFCInput(payloadFromImport(structuredClone(model), null), 'planOnly');
+
+const READING_FACTS = ['recordedFields', 'recordedTimes', 'recordedTimesOrigin', 'recordedSourceFormat'] as const;
+const readingFacts = (model: ImportResult) => Object.fromEntries(READING_FACTS.map(key => [key, model[key]])) as unknown as ImportResult;
 
 function asStepDifferences(back: ImportResult, step: ImportResult): string[] {
-  const model = selfCheckDifferences(step, back, 10);
-  if (model.length > 0) return model.map(difference => `model ${difference}`);
-  return isDeepStrictEqual(atLoad(back), atLoad(step)) ? [] : ['na de laadgrens verschillend'];
+  const facts = selfCheckDifferences(readingFacts(step), readingFacts(back), 10);
+  if (facts.length > 0) return facts.map(difference => `model ${difference}`);
+  return selfCheckDifferences(atLoad(step) as unknown as ImportResult, atLoad(back) as unknown as ImportResult, 10)
+    .map(difference => `na de laadgrens ${difference}`);
 }
 
 function assertAsStep(back: ImportResult, input: WriteIFCInput): void {
@@ -929,6 +926,16 @@ function pendingPlan(): WriteIFCInput {
 
 const loadPlans = () => [d7Plan(), literalPlan(), pendingPlan()];
 
+function absentPlan(): WriteIFCInput {
+  return payloadPlan(payload => {
+    const dag = dateCaseTask('dag', '2027-06-01T07:00', '2027-06-01T16:00');
+    dag.time = { ...dag.time, lateStart: '', lateFinish: '' };
+    const mijlpaal = dateCaseTask('mijlpaal', '2027-06-02T07:00', '2027-06-02T07:00', { isMilestone: true });
+    mijlpaal.time = { ...mijlpaal.time, scheduleDuration: 0, earlyStart: '', earlyFinish: '' };
+    payload.tasks = [dag, mijlpaal];
+  });
+}
+
 function variantPlan(): WriteIFCInput {
   const plan = datePlan();
   const day = [{ start: 420, end: 960 }];
@@ -959,7 +966,7 @@ test('elk veld in de veldtabel wordt met elk tegenvoorbeeld van zijn vorm geweig
   const missing: string[] = [], wrongReader: string[] = [], wrongWriter: string[] = [];
   const outcomes = {
     'de writer weigert om dit veld': 0, 'de writer weigert in hetzelfde attribuut, waar de STEP-rondgang de waarde neerzette': 0,
-    'opslaan als IFC weigert de planning': 0,
+    'opslaan als IFC weigert de planning': 0, 'de writer weigert zijn eigen uitvoer, omdat STEP de planning bij een tweede rondgang anders schrijft': 0,
     'de ongetoetste lezer maakt er geen planning van': 0, 'de planning draagt de waarde niet': 0,
   };
   const withoutPlace = (field: string) => field.replace(/\[\d+\]/g, '[]');
@@ -988,7 +995,11 @@ test('elk veld in de veldtabel wordt met elk tegenvoorbeeld van zijn vorm geweig
         try {
           written = writeIfcx(model, CLOCK);
         } catch (refusal) {
-          if (!(refusal instanceof IfcxWriteRefusedError) || refusal.code !== 'invalid') wrongWriter.push(`${shown}: ${String(refusal)}`);
+          if (refusal instanceof IfcxWriteRefusedError && refusal.code === 'self-check') {
+            outcomes['de writer weigert zijn eigen uitvoer, omdat STEP de planning bij een tweede rondgang anders schrijft']++;
+            console.log(`     ${shown}: de writer weigert zijn eigen uitvoer op ${refusal.fields.join(', ')}`);
+          }
+          else if (!(refusal instanceof IfcxWriteRefusedError) || refusal.code !== 'invalid') wrongWriter.push(`${shown}: ${String(refusal)}`);
           else if (refusal.fields.some(field => under(field, where))) outcomes['de writer weigert om dit veld']++;
           else if (refusal.fields.some(field => field.startsWith(`${label}.`))) {
             outcomes['de writer weigert in hetzelfde attribuut, waar de STEP-rondgang de waarde neerzette']++;
@@ -1201,10 +1212,7 @@ test('R1: voor de voorbeelden en de gevallen uit eerdere rondes geeft IFCX heen 
       continue;
     }
     if (!own.ok) { wrong.push(`${entry.name}: ${String(own.error).slice(0, 300)}`); continue; }
-    const expected = domainOf(step.value), actual = domainOf(own.value);
-    for (const key of Object.keys(expected)) {
-      if (!isDeepStrictEqual(actual[key], expected[key])) wrong.push(`${entry.name}: ${key} verschilt van STEP`);
-    }
+    for (const difference of asStepDifferences(own.value, stepReopened(input)).slice(0, 3)) wrong.push(`${entry.name}: ${difference}`);
   }
   assert.deepEqual(wrong, []);
 });
@@ -1421,7 +1429,19 @@ type Document = ReturnType<typeof documentOf>;
 type Entry = Document['data'][number];
 
 function r4Plans(): WriteIFCInput[] {
-  return [maximalPlan(), variantPlan(), datePlan(), ...loadPlans()];
+  return [maximalPlan(), variantPlan(), datePlan(), ...loadPlans(), absentPlan()];
+}
+
+function publicRouteProblems(name: string, input: WriteIFCInput, text: string): string[] {
+  const back = attempt(() => readIfcx(encode(text)));
+  if (!back.ok) return [`${name}: opent niet: ${String(back.error).slice(0, 200)}`];
+  const problems: string[] = [];
+  const differences = selfCheckDifferences(canonicalFor(input), back.value, 3);
+  if (differences.length > 0) problems.push(`${name}: niet de canonieke planning: ${differences.join('; ')}`);
+  const asStep = asStepDifferences(back.value, stepReopened(input));
+  if (asStep.length > 0) problems.push(`${name}: anders dan het STEP-bestand na openen: ${asStep.slice(0, 3).join('; ')}`);
+  if (writeIfcx(back.value, CLOCK) !== text) problems.push(`${name}: writeIfcx(readIfcx(b)) geeft andere bytes`);
+  return problems;
 }
 
 test('R4, richting 1: elk bestand dat writeIfcx schrijft, opent, geeft precies de geschreven planning terug, en opnieuw opslaan geeft dezelfde bytes', () => {
@@ -1433,19 +1453,96 @@ test('R4, richting 1: elk bestand dat writeIfcx schrijft, opent, geeft precies d
   ];
   let written = 0;
   for (const [name, input] of inputs) {
-    const own = attempt(() => ownFileFor(input, CLOCK));
-    if (!own.ok) continue;
-    const text = writeIfcx(input, CLOCK);
+    const text = attempt(() => writeIfcx(input, CLOCK));
+    if (!text.ok) {
+      if (text.error instanceof IfcxWriteRefusedError && text.error.code === 'self-check') wrong.push(`${name}: de schrijver weigert zijn eigen uitvoer: ${text.error.message.slice(0, 200)}`);
+      continue;
+    }
     written++;
-    const back = attempt(() => readIfcx(encode(text)));
-    if (!back.ok) { wrong.push(`${name}: opent niet: ${String(back.error).slice(0, 200)}`); continue; }
-    const differences = selfCheckDifferences(own.value.planning, back.value, 3);
-    if (differences.length > 0) wrong.push(`${name}: een andere planning: ${differences.join('; ')}`);
-    if (writeIfcx(asAppSaves(back.value), CLOCK) !== text) wrong.push(`${name}: openen en opslaan via de app geeft andere bytes`);
+    wrong.push(...publicRouteProblems(name, input, text.value));
   }
   assert.deepEqual(wrong, []);
   assert.ok(written >= 30, `${written} bestanden`);
   console.log(`   ${written} geschreven bestanden, elk geopend, gelijk aan de geschreven planning en byte voor byte opnieuw geschreven`);
+});
+
+function kindsPlan(pending: boolean): WriteIFCInput {
+  return payloadPlan(payload => {
+    const fase = dateCaseTask('fase', '2027-06-01T07:00', '2027-06-04T16:00', { isSummary: true, childIds: ['dag', 'uur', 'mijlpaal'] });
+    const dag = dateCaseTask('dag', '2027-06-01T07:00', '2027-06-01T16:00', { parentId: 'fase' });
+    const uur = dateCaseTask('uur', '2027-06-02T07:00', '2027-06-02T11:00', { parentId: 'fase' });
+    uur.time = { ...uur.time, durationUnit: 'hours', durationMinutes: 240, scheduleDuration: 4 / 9 };
+    const mijlpaal = dateCaseTask('mijlpaal', '2027-06-04T16:00', '2027-06-04T16:00', { parentId: 'fase', isMilestone: true, milestoneKind: 'FINISH' });
+    mijlpaal.time.scheduleDuration = 0;
+    payload.tasks = [fase, dag, uur, mijlpaal];
+    payload.sequences = [
+      { id: 'r1', predecessorId: 'dag', successorId: 'uur', type: 'FINISH_START', lagDays: 0 },
+      { id: 'r2', predecessorId: 'uur', successorId: 'mijlpaal', type: 'FINISH_START', lagDays: 0 },
+    ];
+    payload.minuteModelPending = pending;
+  });
+}
+
+const NOT_CANONICAL: readonly (readonly [string, (day: string) => string])[] = [
+  ['een dag zonder tijd', day => day],
+  ['een lege waarde', () => ''],
+  ['vóór de werkdag', day => `${day}T05:00`],
+  ['na de werkdag', day => `${day}T22:30`],
+];
+
+test('R5 is niet te halen voor een pauze buiten de werkdag: STEP houdt haar bij de eerste rondgang en laat haar bij de tweede vallen; de writer weigert met self-check', () => {
+  const plan = maximalPlan();
+  const input: WriteIFCInput = { ...plan, resourceCalendars: plan.resourceCalendars!.map(calendar => (calendar.simpleBreakStartMinute === undefined ? calendar : { ...calendar, simpleBreakStartMinute: 1 })) };
+  const breakOf = (model: ImportResult) => (model.resourceCalendars ?? []).filter(calendar => calendar.simpleBreakDurationMinutes !== undefined).map(calendar => [calendar.simpleBreakStartMinute, calendar.simpleBreakDurationMinutes]);
+  const once = stepRoundtrip(input);
+  assert.deepEqual(breakOf(once), [[1, 30]]);
+  assert.deepEqual(breakOf(stepRoundtrip(canonicalFor(input))), []);
+  const refusal = attempt(() => writeIfcx(input, CLOCK));
+  assert.ok(!refusal.ok && refusal.error instanceof IfcxWriteRefusedError && refusal.error.code === 'self-check', String(refusal.ok ? 'geschreven' : refusal.error));
+  assert.match(refusal.error.message, /simpleBreakStartMinute: 1 → afwezig/);
+  const inside = { ...plan, resourceCalendars: plan.resourceCalendars!.map(calendar => (calendar.simpleBreakStartMinute === undefined ? calendar : { ...calendar, simpleBreakStartMinute: 600 })) };
+  assert.deepEqual(breakOf(readIfcx(encode(writeIfcx(inside, CLOCK)))), [[600, 30]]);
+});
+
+test('R5, richting 1: voor elke planning die de schrijver aanvaardt, opent readIfcx(writeIfcx(x)) als de canonieke planning, ook als x niet canoniek is', () => {
+  const fields = TASK_TIME_FIELDS.filter(field => field.value === LOCAL_MOMENT_OR_EMPTY).map(field => field.key as keyof Task['time']);
+  const accepted = new Map<string, number>();
+  const wrong: string[] = [];
+  let cases = 0, written = 0;
+  const run = (name: string, input: WriteIFCInput, keys: readonly string[]) => {
+    cases++;
+    const text = attempt(() => writeIfcx(input, CLOCK));
+    if (!text.ok) {
+      if (text.error instanceof IfcxWriteRefusedError && text.error.code === 'self-check') wrong.push(`${name}: de schrijver weigert zijn eigen uitvoer: ${text.error.message.slice(0, 200)}`);
+      return;
+    }
+    written++;
+    const problems = publicRouteProblems(name, input, text.value);
+    wrong.push(...problems);
+    if (problems.length === 0) for (const key of keys) accepted.set(key, (accepted.get(key) ?? 0) + 1);
+  };
+  for (const pending of [false, true]) {
+    const base = kindsPlan(pending);
+    for (const task of base.tasks) {
+      for (const field of fields) {
+        for (const [form, valueOf] of NOT_CANONICAL) {
+          const day = String(task.time[field] || task.time.scheduleStart).slice(0, 10);
+          const input = { ...base, tasks: base.tasks.map(other => (other.id === task.id ? { ...other, time: { ...other.time, [field]: valueOf(day) } } : other)) };
+          run(`${pending ? 'vóór het minutenmodel, ' : ''}${task.id}.${field}: ${form}`, input,
+            [`taak ${task.id}`, `veld ${field}`, `vorm ${form}`, pending ? 'vóór het minutenmodel' : 'minutenmodel']);
+        }
+      }
+    }
+  }
+  for (const [index, plan] of r4Plans().entries()) run(`proefplanning ${index}`, plan, ['datumfixture']);
+  const needed = [
+    ...['fase', 'dag', 'uur', 'mijlpaal'].map(id => `taak ${id}`), ...fields.map(field => `veld ${field}`),
+    ...NOT_CANONICAL.map(([form]) => `vorm ${form}`), 'vóór het minutenmodel', 'minutenmodel', 'datumfixture',
+  ];
+  for (const line of wrong.slice(0, 30)) console.error(`   ${line}`);
+  assert.deepEqual(wrong, []);
+  assert.deepEqual(needed.filter(key => !accepted.get(key)), [], 'elke taaksoort, elk tijdveld en elke vorm heeft een geschreven en geopend geval');
+  console.log(`   ${cases} gevallen, ${written} geschreven; elk opent als de canonieke planning, gelijk aan het STEP-bestand na openen, en writeIfcx(readIfcx(b)) geeft dezelfde bytes`);
 });
 
 test('ronde 6: een dagtaak met een tweede duur of restduur, een project op het lege pad, een werkelijk einde met 50 % en lege vroege datums openen niet', () => {
@@ -1493,14 +1590,22 @@ test('een schrijfweigering om een waarde buiten haar domein noemt het object (ve
   assert.deepEqual(refusal.fields, ['openaec::ops::calendar.generation.ruleSetId']);
 });
 
-test('R4 is één functie: writeIfcx en de toets in readIfcx roepen allebei ownFileFor aan; alleen ownFile.ts roept de rondgang en de projectie aan', () => {
+test('R4 en R5 zijn één functie: writeIfcx en readIfcx gaan door dezelfde canonieke planning; de schrijver toetst zich met de publieke lezer; alleen ownFile.ts roept de rondgang, de projectie en de laadgrens aan', () => {
   const dir = join(root, 'src/services/ifc/ifcx');
   const sources = readdirSync(dir).filter(name => name.endsWith('.ts')).map(name => [name, readFileSync(join(dir, name), 'utf8')] as const);
-  const callers = (call: string, definedIn: string) => sources.filter(([name, text]) => name !== definedIn && text.includes(`${call}(`)).map(([name]) => name);
+  const callers = (call: string, definedIn?: string) => sources.filter(([name, text]) => name !== definedIn && text.includes(`${call}(`)).map(([name]) => name);
+  const source = (file: string) => sources.find(([name]) => name === file)![1];
   assert.deepEqual(callers('stepRoundtrip', 'stepRoundtrip.ts'), ['ownFile.ts']);
   assert.deepEqual(callers('composeIfcxDocument', 'projection.ts'), ['ownFile.ts']);
+  assert.deepEqual(callers('payloadFromImport'), ['ownFile.ts']);
+  assert.deepEqual(callers('buildWriteIFCInput'), ['ownFile.ts']);
   assert.deepEqual(callers('ownFileFor', 'ownFile.ts').sort(), ['ifcxReader.ts', 'ifcxWriter.ts']);
-  assert.match(sources.find(([name]) => name === 'ifcxReader.ts')![1], /ownFileFor\(savedAfterOpening\(read\)/);
+  assert.deepEqual([...source('ownFile.ts').matchAll(/^export (?:function|const) (\w+)/gm)].map(match => match[1]).sort(),
+    ['canonicalFor', 'canonicalPlanning', 'ownFileFor']);
+  assert.match(source('ifcxReader.ts'), /const planning = canonicalPlanning\(read\);\n\s+const own = writerRefusal\(\(\) => ownFileFor\(planning,/);
+  assert.match(source('ifcxWriter.ts'), /const canonical = canonicalFor\(given\);\n\s+const \{ document \} = ownFileFor\(canonical, writtenAt\);/);
+  assert.match(source('ifcxWriter.ts'), /readIfcx\(new TextEncoder\(\)\.encode\(text\)\)/);
+  assert.doesNotMatch(source('ifcxWriter.ts'), /readIfcxText/);
 });
 
 interface R4Place { readonly attribute: string; readonly steps: readonly string[]; readonly spec: IfcxValue; readonly optional: boolean }
@@ -1679,7 +1784,7 @@ test('R4, richting 2: elk bestand dat readIfcx aanvaardt, is wat de eigen schrij
           if (named && located) verdict = 'refused';
           else wrong.push(`${change.label} op ${entry.path}: geweigerd zonder object en veld: ${outcome.code} ${JSON.stringify(outcome.place)} ${outcome.message.slice(0, 160)}`);
         } else {
-          const rewritten = documentOf(writeIfcx(asAppSaves(outcome), new Date(String(document.header.timestamp))));
+          const rewritten = documentOf(writeIfcx(outcome, new Date(String(document.header.timestamp))));
           if (isDeepStrictEqual(rewritten, document)) verdict = 'accepted';
           else wrong.push(`${change.label} op ${entry.path}: aanvaard, maar de eigen schrijver schrijft voor die planning iets anders`);
         }

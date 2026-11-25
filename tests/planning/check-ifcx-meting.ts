@@ -6,8 +6,7 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { readIfcx, writeIfcx } from '@/services/ifc/ifcx';
 import { serializeIfcx } from '@/services/ifc/ifcx/ifcxWriter';
-import { documentFor } from '@/services/ifc/ifcx/ownFile';
-import { readIfcxText } from '@/services/ifc/ifcx/ifcxReader';
+import { canonicalFor, ownFileFor } from '@/services/ifc/ifcx/ownFile';
 import { selfCheckDifferences } from '@/services/ifc/ifcx/selfCheck';
 import { stepRoundtrip } from '@/services/ifc/ifcx/stepRoundtrip';
 import type { Task } from '@/types/task';
@@ -86,25 +85,27 @@ function test(name: string, action: () => void): void {
 function pieces(size: number): void {
   const input = plan(size);
   const names = [
-    'STEP-writer (opslaan als IFC)', 'STEP-lezer', 'IFCX-writer zonder rondgang en zelfcontrole', 'IFCX teruglezen',
-    'vergelijking van de zelfcontrole', 'writeIfcx in één stuk', 'openen als IFC (bytes, STEP-lezer)', 'readIfcx (openen als IFCX)',
+    'STEP-writer (opslaan als IFC)', 'canonieke planning (STEP-rondgang en laadgrens)', 'eigen bestand (STEP-rondgang, projectie, waardetoets)',
+    'serialiseren', 'zelfcontrole met de publieke lezer', 'vergelijking van de zelfcontrole', 'writeIfcx in één stuk',
+    'openen als IFC (bytes, STEP-lezer)', 'readIfcx (openen als IFCX)',
   ];
-  const relativeTo = [0, 0, 0, 0, 0, 0, 6, 6];
+  const relativeTo = [0, 0, 0, 0, 0, 0, 0, 7, 7];
   const wall: number[][] = names.map(() => []), cpu: number[][] = names.map(() => []);
   const before = loadNow();
   for (let round = 0; round < ROUNDS; round++) {
     const stepText = timed(() => writeIFC(input));
-    const stepRead = timed(() => readIFC(stepText.value, {}, { projectTimestampFallback: input.project }));
-    const ifcxText = timed(() => serializeIfcx(documentFor(stepRead.value, CLOCK)));
-    const reread = timed(() => readIfcxText(ifcxText.value, false));
-    const compare = timed(() => selfCheckDifferences(stepRead.value, reread.value));
+    const canonical = timed(() => canonicalFor(input));
+    const own = timed(() => ownFileFor(canonical.value, CLOCK));
+    const ifcxText = timed(() => serializeIfcx(own.value.document));
+    const reread = timed(() => readIfcx(encode(ifcxText.value)));
+    const compare = timed(() => selfCheckDifferences(canonical.value, reread.value));
     assert.deepEqual(compare.value, []);
     const whole = timed(() => writeIfcx(input, CLOCK));
     const stepBytes = encode(stepText.value);
     const ifcxBytes = encode(whole.value);
     const openStep = timed(() => openAsIfc(stepBytes));
     const open = timed(() => readIfcx(ifcxBytes));
-    [stepText, stepRead, ifcxText, reread, compare, whole, openStep, open].forEach((part, index) => { wall[index].push(part.wall); cpu[index].push(part.cpu); });
+    [stepText, canonical, own, ifcxText, reread, compare, whole, openStep, open].forEach((part, index) => { wall[index].push(part.wall); cpu[index].push(part.cpu); });
   }
   console.log(`   ${size} taken, mediaan van ${ROUNDS}, belasting ${before} → ${loadNow()}`);
   names.forEach((name, index) => {
