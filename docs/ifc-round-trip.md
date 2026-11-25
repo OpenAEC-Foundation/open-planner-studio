@@ -183,19 +183,21 @@ alleen als 1 en 2 niet kunnen, en niet omdat het sneller opschiet.
 1. **Voeg het veld toe** aan het domeintype in `src/types/`.
 2. **Kies een route** (hierboven) en schrijf de descriptor — write én read/apply in dezelfde
    descriptor. Kies je route 3, schrijf dan op waarom 1 en 2 niet konden.
-3. **Vul de fixture** in `tests/planning/check-ifc-roundtrip.ts` met een *onderscheidende* waarde.
+3. **Vul de fixture** in `tests/planning/ifcRoundtripFixture.ts` (de maximaal gevulde fixture van
+   `tests/planning/check-ifc-roundtrip.ts`) met een *onderscheidende* waarde.
    Niet de default: een fixture die toevallig de default draagt, kan een writer die niets schrijft
    niet van een writer die het goed doet onderscheiden.
 4. **Zet het veld in de canon-tabel** van datzelfde bestand: meedoen in de vergelijking, of
    gemotiveerd overslaan.
-5. **Draai `npm run verify`.** Ontbreekt er iets, dan valt het daar om — zie hieronder.
+5. **Geef het veld een plek in IFCX** (hieronder, *IFCX: een nieuw veld moet er ook in*).
+6. **Draai `npm run verify`.** Ontbreekt er iets, dan valt het daar om — zie hieronder.
 
 ## De poort
 
 `tests/planning/check-ifc-roundtrip.ts` is de bewaking, en hij is bewust **zelf-uitbreidend**: een
 nieuw domeinveld dwingt twee expliciete keuzes af, allebei op de compiler.
 
-- **De fixtures zijn `satisfies Required<…>`.** Een nieuw veld op `Task`, `Resource`, `Sequence`,
+- **De fixtures zijn `satisfies Required<…>`** (in `tests/planning/ifcRoundtripFixture.ts`). Een nieuw veld op `Task`, `Resource`, `Sequence`,
   `WorkCalendar`, `Project` of `TaskTime` moet een waarde krijgen, anders compileert de test niet.
   (`WorkCalendar` via een typegetuige: geen echte kalender draagt tegelijk een pauzepatroon en
   `workTime`. `workTime` zelf loopt wél door de vergelijking, via de uurkalender `hourCal`.)
@@ -214,6 +216,30 @@ De test doet daarnaast twee dingen die makkelijk te vergeten zijn:
   eerste inlezen krijgen resources, relaties en kalenders een id afgeleid uit hun GlobalId, dus
   anders dan in het schrijvende document (daarna blijft het gelijk; `check-ifc-globalid`). Alle
   kruisverwijzingen worden vóór de vergelijking naar die sleutels herschreven.
+
+## IFCX: een nieuw veld moet er ook in
+
+IFCX (#804, achter de featureflag `ifcx`) schrijft wat STEP na de laadgrens teruggeeft; het profiel staat in
+`docs/ifcx-profiel.md`. Een veld dat STEP bewaart en IFCX niet draagt, laat opslaan als IFCX weigeren: met
+`unsupported` als het veld niet in de lijst van gedragen velden staat (`*_KEYS_CARRIED` in
+`src/services/ifc/ifcx/fields/`), met `self-check` als het er wel staat maar niet terugkomt. Daarom krijgt een
+nieuw veld ook een plek in IFCX:
+
+- **Een veld op project, taak, kalender of relatie** krijgt een veld in het precieze attribuut, in het veldbestand
+  van zijn gebied in `src/services/ifc/ifcx/fields/` (bijvoorbeeld `taskScheduleFields.ts` voor de constraints en
+  werkregels), met een vorm voor elke waarde die STEP teruggeeft. Het veldbestand staat met één regel in de lijst
+  van de kern (`TASK_FIELDS`, `DOCUMENT_FIELDS`, `CALENDAR_FIELDS`, `SEQUENCE_FIELDS`). Een gedeelde projectie
+  (`openaec::planning::`) alleen waar IFC er woorden voor heeft.
+- **Een nieuw veld in `IFC_SAVE_KEYS`** (`src/state/ifcSaveInput.ts`) is een compileerfout tot het een plek heeft in
+  `IFCX_PLACE_OF_SAVE_KEY` (`src/services/ifc/ifcx/saveKeyPlaces.ts`): de sleutels van de schrijverinvoer die het
+  draagt, of een benoemde uitzondering (alleen het P6-bronarchief en wat daaruit volgt, en wat de STEP-schrijver
+  niet krijgt).
+- **De proeven.** De waarde komt in `maximalPlan` van `tests/planning/check-ifcx-kern.ts` (dan doen de veldproef,
+  de mutatieproef en de proef die elk precies veld weghaalt het werk) en in de fixture hierboven. De
+  volledigheidspoort `tests/planning/check-ifcx-velden.ts` eist dat elk voorbeeld in `public/examples`, de bestanden
+  van oudere releases in `tests/planning/fixtures/oude-tags/` en de fixture als IFCX opslaan en openen als de eerste
+  STEP-lezing na de laadgrens, ook geopend in de app met de opslaginvoer van Ctrl+S, en dat een code, een eigen veld en
+  een werkregel die in de app zijn toegevoegd na heropenen en opnieuw opslaan gelijk zijn aan STEP.
 
 ## Als een veld bewust níét round-trippt
 
@@ -721,7 +747,9 @@ eigen besluit.
 | lezen | `src/services/ifc/ifcReader.ts` |
 | plekken per indeling (schema, oud, MergeProjects, IFC2X3) | `src/services/ifc/ifcWorkControlSlots.ts`; voor taak, resources en `IfcLagTime`: `taskSlots`, `resourceSlots`, `lagTimeSlots` in hun eigen tabelbestand |
 | schemageldigheid: de poort, de toets per bestand, de tabel, de bronnen | `tests/planning/check-ifc-schema.ts`, `ifcSchemaCheck.ts`, `ifcSchemaTable.ts`, `ifcSchemaFixture.ts` |
-| de poort, de fixture, de canon-tabellen en de `KNOWN_GAPS`-asserties (blok 3) | `tests/planning/check-ifc-roundtrip.ts` |
+| de poort, de canon-tabellen en de `KNOWN_GAPS`-asserties (blok 3) | `tests/planning/check-ifc-roundtrip.ts` |
+| de maximaal gevulde fixture | `tests/planning/ifcRoundtripFixture.ts` |
+| IFCX: de velden per gebied, de typepoort en de volledigheidspoort | `src/services/ifc/ifcx/fields/`, `src/services/ifc/ifcx/saveKeyPlaces.ts`, `tests/planning/check-ifcx-velden.ts` |
 | werkblokken per weekdag (B7): groepen, geen terugvalweek, byte-identiek aan main, de lezer in beide indelingen | `tests/planning/check-ifc-werktijd-per-dag.ts` |
 | welke velden een save meeschrijft | `src/state/ifcSaveInput.ts` |
 | wat een "document" ís (breder dan IFC) | `src/state/documentContract.ts` |

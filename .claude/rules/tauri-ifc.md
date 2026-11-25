@@ -123,7 +123,8 @@ The application's persistence model is IFC 4.3 (buildingSMART). Loading a projec
 (`readIfcx`). **Regel F:** het formaat is een eigenschap van het document. De lezer legt het vast (`fileFormat`) en geeft
 lengte en SHA-256 van de gelezen bytes mee (`ReadImportResult.ifcxRead`); `applyLoadedProject` maakt daarvan de bekende
 versie van het doel, ook met `ifcForeignContent` uit (`versionGuarded`, `src/state/versionGuard.ts`). De naam van het doel
-beslist niets over een bestaand document. Een poging legt formaat en flag vast bij haar begin (`outputFormat`); met de flag
+beslist niets over een bestaand document. Een poging legt formaat en flag vast bij haar begin (`outputFormat`; één stand
+per poging, zie `state.md`); met de flag
 aan zet de documentopslag dan `format: 'ifcx'` op de writer-job, die alleen de opslagworker rekent (`writeIfcx`, met de
 letterlijke kalenders van de gewone writer, `plainWriteLiteralCalendarIds`). Het eigen doel toetst de bekende versie
 (#1174); een ander bestaand doel classificeert de worker (`classifyIfcx` via `ifcxTargetRefusal`, `TargetReaders.readPath`
@@ -152,6 +153,12 @@ Besluiten van de writer: `docs/adr/0140-ifc-schrijven-globalids-uniek-per-bestan
 `0143-ifc-schrijven-standaard-ifc-naast-eigen-json.md`, `0144-ifc-schrijven-kalenders.md`,
 `0145-ifc-schrijven-datums-duren-en-lags.md`, `0146-ifc-schrijven-met-een-vreemd-deel.md`,
 `0147-ifc-schrijven-resources-en-toewijzingen.md` en `0148-ifc-schrijven-een-invoerobject.md`.
+
+### Het register van de eigen psets (`ifcPsets.ts`)
+
+Besluiten van het register en de descriptors per taak: `docs/adr/0420-ifc-eigen-psets-een-register.md`,
+`0421-ifc-eigen-taakpset-alleen-als-hij-iets-zegt.md`, `0422-ifc-eigen-taakpset-lezen.md` en
+`0423-ifc-waarden-in-een-eigen-property.md`.
 
 ### Gedeelde helpers binnen een dag (`subdayIo.ts`)
 
@@ -231,6 +238,25 @@ direct na het P-blok (`renderedRestorations`, de `appended` van `assemble`). De 
 `teruggezet`; controle 1 eist de bytes en `countedForeignChanges` telt ze niet. De opslagworker draagt de buffers terug
 over en `resultFits` eist de vorm (`isDetached`). Het taakpaneel valt terug op de koppelingen in `detached`. Wat nog niet
 meegaat: knownbug 2354. Proef: `check-ifc-foreign-detached.ts`.
+
+**De vraag vóór het opslaan** (#804, besluit eigenaar 25 november 2026). Met de instelling `ui.foreignChangesQuestion` aan
+(standaard; `ops-foreignChangesQuestion`, per apparaat) vraagt een documentopslag met gewijzigde of vervallen stukken in
+`prepared.foreignChanges` eerst of het mag (`askForeignChanges` in `services/ifc/foreignChangesQuestion.ts`), met hun
+aantal (`writtenForeignChangeCount`; een stuk dat `detached` terugzet, telt niet mee): in `writeActiveDocument` direct na de merge en de controle erna, vóór de doelcontrole, de
+site-keuze en de kiezer (met de naam van het eigen pad, de eigen handle of het bestand op de site; zonder eigen doel en
+bij een geweigerde schrijftoestemming de vorm "nieuw bestand"); in `saveDocumentAsOnTurn` direct na de merge, vóór de
+site-keuze en de kiezer (altijd "nieuw bestand"). Zo vragen Ctrl+S, *Opslaan* in de sluitvraag, afsluiten, de site,
+Opslaan als en de download; er wordt na de vraag niets opnieuw gerekend. Annuleren: de poging geeft `false`, schrijft
+niets en meldt niets. Opslaan: de route toetst de inhoud opnieuw (`refuseChangedDocumentWrite`) en daarna lopen alle
+controles zoals zonder vraag. Na een beantwoorde vraag komt geen telling achteraf (de route onthoudt het
+`PreparedIfcWrite`-object, `countShownBeforeWrite`). De vraag hangt alleen aan `write.prepared` en leest de flag dus
+niet zelf; de instelling komt uit de momentopname van de poging. Het vinkje "Niet meer vragen" telt alleen met Opslaan
+en zet de instelling uit. Met de vraag uit, bij een export (ook `planner_export_ifc`) en bij Automatisch opslaan geldt
+regel A hierboven zoals vóór de vraag (Automatisch opslaan wacht op een besluit, `settings-autosave.md`). Wat er bij
+opslaan vervalt, is ook vooraf te tellen: `foreignChangesIfSaved` (`state/foreignLinksNotice.ts`, dezelfde regel als de
+wismelding) geeft hetzelfde aantal als de merge (`check-ifc-foreign-telling-vooraf.ts`). Ctrl+Z na een opslag en dan opslaan zet
+de stukken terug zonder vraag: er vervalt niets. Proeven: de blokken "vraag vóór opslaan" in
+`check-ifc-document-save.ts` en de stap met `bonsai-4d.ifc` in `settings-tabs.spec.ts`.
 
 **De opslagworker** (#804 stap 4 tot en met 6, `src/services/ifc/saveWorker/`) rekent wat `prepareIfcOutput` rekent (de
 gewone writer of `prepareIfcWrite`) in een Web Worker. De gewone writer hergebruikt hem; na elk antwoord op een merge (een
@@ -598,8 +624,25 @@ bestand volgt de gewone grammatica. IFC schrijven met een vreemd deel gebruikt u
 Een UTF-8-BOM op byte 0 slaat de scanner (`stepScanner.ts`) over: hij hoort bij het kopstuk, dat de merge byte-gelijk
 terugschrijft (fixronde 1 van #1184). Elders buiten tekst blijft een BOM een scanfout. De oude-kopherkenning van de
 C/A/V-scan (`foreign/oldOwnHeader.ts`) kijkt na die BOM en maskeert op absolute posities; `recognizeOldOwnHeader`
-zelf, de datasectievinder en de doelscan als stroom zijn ongewijzigd. De doelcontrole (`targetForeignScan.ts`) houdt
-een bestaand doel dat met een BOM begint 'unreadable', zoals main (knownbug 2212).
+zelf, de datasectievinder en de doelscan als stroom zijn ongewijzigd. De doelscan (`targetForeignScan.ts`) houdt
+een bestaand doel dat met een BOM begint 'unreadable', zoals main. Regel voor het eigen bestand (knownbug 2212, PR
+#1213): een eigen bestand met een BOM gedraagt zich bij Ctrl+S, *Opslaan* in de sluitvraag en Automatisch opslaan als
+hetzelfde bestand zonder BOM op main; alleen blijft de BOM staan. Het contract (fixronde 3): aan het begin van de
+poging legt de app de versie van het eigen bestand vast als waarde (`ownBomVersion`: de bekende versie in
+`knownTargetFingerprint` als die met een BOM begint, `utf8Bom`; Ctrl+S bij de momentopname van `writeActiveDocument`,
+Automatisch opslaan bij het kiezen van de kandidaat in `listPlain`). Die ene waarde bepaalt twee dingen. De doelscan laat
+een BOM alleen door als de bytes die hij zelf las precies die versie zijn: lengte en SHA-256, in de scan
+(`isOwnBomVersion` in `targetForeignScan.ts`). Daarnaast komt de BOM direct na het antwoord van de writer vóór zijn bytes
+(`withUtf8Bom`; met de opslagworker ook de hash van die bytes), dus vóór de eerste lezing van het doel. Na het vastleggen
+leest de poging hiervoor niets meer uit de store; een flagwissel of een gewiste vingerafdruk verandert de toestemming
+niet. Verder is de route letterlijk die van main, met dezelfde lezingen, redenen en meldingen; tussen de laatste lezing
+en de bestandslaag gebeurt niets wat main daar niet doet (het gat van knownbug 2069). Opslaan als en export over een
+BOM-bestand blijven 'unreadable', net als elke andere BOM-versie op het eigen doel; zonder bekende versie ook Ctrl+S
+(knownbug 2358), en op de site (knownbug 2359). De
+merge houdt de BOM zelf, in het kopstuk. Proef van de regel: `check-ifc-bom-eigen-bestand.ts` tegen een opname van main
+(`scripts/proef/maak-main-bom-eigen-bestand.mjs` schrijft `tests/planning/fixtures/main-bom-eigen-bestand.json`; de
+gevallen staan in `bomEigenBestand.ts`). Verandert de writer of de opslagroute op main bewust, maak de opname dan
+opnieuw met een nieuwe `BASIS` en zeg dat in de PR.
 Proeven: `check-ifc-foreign-classify.ts`, `-open.ts`, `-target.ts`, `check-ifc-target-model-scan.ts` en de herleestoets.
 
 ### Opslaan als bij ontbrekend gebouwmodel (#804, PR 9e)

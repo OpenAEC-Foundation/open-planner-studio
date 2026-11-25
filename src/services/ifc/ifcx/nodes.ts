@@ -1,6 +1,5 @@
 import type { WriteIFCInput } from '../ifcWriter';
-import { savedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
-import { carriesValue, ifc5ValueDescription, membersOf, objectOf, type IfcxMember, type IfcxValue } from './fieldTable';
+import { ifc5ValueDescription, membersOf, objectOf, type IfcxMember, type IfcxValue } from './fieldTable';
 import { ATTRIBUTE, type IfcxAttributeName } from './profile';
 import { DOCUMENT_FIELDS, PROJECT_KEYS_CARRIED, SCHEDULE_SHARED_FIELDS, WORKPLAN_SHARED_FIELDS } from './fields/documentFields';
 import { CALENDAR_FIELDS, CALENDAR_KEYS_CARRIED, CALENDAR_SHARED_FIELDS } from './fields/calendarFields';
@@ -32,7 +31,10 @@ export const NODES: readonly NodeRegistration[] = [
   {
     kind: 'workplan',
     attributes: [{ name: ATTRIBUTE.workplan, fields: WORKPLAN_SHARED_FIELDS }, { name: ATTRIBUTE.document, fields: DOCUMENT_FIELDS }],
-    modelKeys: ['project', 'timeModel', 'minuteModelPending', 'importPristine', 'ifcLiteralCalendarIds', 'recordedTimesOrigin'],
+    modelKeys: [
+      'project', 'timeModel', 'minuteModelPending', 'importPristine', 'ifcLiteralCalendarIds', 'recordedTimesOrigin',
+      'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'recordedSourceFormat',
+    ],
     objectKeys: [{ object: 'project', instances: model => [['het project', model.project]], keys: PROJECT_KEYS_CARRIED }],
   },
   {
@@ -87,15 +89,6 @@ export const ALL_MODEL_KEYS = Object.keys(MODEL_KEYS) as ModelKey[];
 const CARRIED_MODEL_KEYS = new Set<ModelKey>([...NODES.flatMap(node => node.modelKeys), ...PATH_MODEL_KEYS, ...LOAD_BOUNDARY_MODEL_KEYS]);
 
 export const STEP_WRITER_INPUT_NOT_CARRIED: readonly ModelKey[] = ALL_MODEL_KEYS.filter(key => !CARRIED_MODEL_KEYS.has(key));
-
-const CARRIES_CONTENT: Partial<Record<ModelKey, (model: WriteIFCInput) => boolean>> = {
-  customTaskTypes: model => savedCustomTaskTypes(model.tasks, model.customTaskTypes ?? []).length > 0,
-};
-
-export function carriesModelContent(model: WriteIFCInput, key: ModelKey): boolean {
-  const carries = CARRIES_CONTENT[key];
-  return carries ? carries(model) : carriesValue(model[key]);
-}
 
 export const OWN_ATTRIBUTE_VALUES: ReadonlyMap<IfcxAttributeName, IfcxValue> = new Map(
   NODES.flatMap(node => node.attributes.map(attribute => [attribute.name, objectOf(membersOf(attribute.fields))] as const)),

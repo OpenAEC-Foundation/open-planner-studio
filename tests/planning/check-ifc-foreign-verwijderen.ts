@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MergeNeedsPhase2Error, prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { validateMergeOutput } from '@/services/ifc/foreign/mergeValidation';
-import { applyForeignRule, goneStepIds, newForeignChangeCount, type ForeignChange, type ForeignReferences, type ForeignRuleOutcome } from '@/services/ifc/foreign/changeList';
+import { applyForeignRule, foreignChangeCount, goneStepIds, newForeignChangeCount, type ForeignChange, type ForeignReferences } from '@/services/ifc/foreign/changeList';
 import { foreignChangeList, foreignReferences } from '@/services/ifc/foreign/foreignReferences';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
@@ -29,7 +29,6 @@ const withLines = (content: string, lines: readonly string[]) => {
 };
 const lineOf = (bytes: Uint8Array, id: number) => new RegExp(`^#${id}=.*$`, 'm').exec(decode(bytes))?.[0];
 const listed = (changes: readonly ForeignChange[] | undefined) => (changes ?? []).map(c => `${c.kind} #${c.id}`);
-const foreignChangeCount = (outcome: ForeignRuleOutcome) => outcome.dropped.size + outcome.trimmed.size + outcome.droppedUnusedKeys.length;
 
 let passed = 0, failed = 0;
 async function check(label: string, run: () => Promise<void>) {

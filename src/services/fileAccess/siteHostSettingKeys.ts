@@ -73,6 +73,7 @@ export const HOST_PERSISTED_KEYS: readonly string[] = [
   'ops-compressNonWorkdays',
   'ops-tutorialOfferAnswered',
   'ops-formatNoticeHidden',
+  'ops-foreignChangesQuestion',
   'ops-feedbackEmail',
 ];
 

@@ -1,6 +1,6 @@
 import type { WriteIFCInput } from '../ifcWriter';
 import { carriesValue } from './fieldTable';
-import { carriesModelContent, NODES, STEP_WRITER_INPUT_NOT_CARRIED } from './nodes';
+import { NODES, STEP_WRITER_INPUT_NOT_CARRIED } from './nodes';
 
 export interface UnsupportedContent {
   readonly field: string;
@@ -9,7 +9,7 @@ export interface UnsupportedContent {
 
 export function unsupportedContent(model: WriteIFCInput): UnsupportedContent[] {
   const found = new Map<string, string[]>();
-  for (const key of STEP_WRITER_INPUT_NOT_CARRIED) if (carriesModelContent(model, key)) found.set(key, []);
+  for (const key of STEP_WRITER_INPUT_NOT_CARRIED) if (carriesValue(model[key])) found.set(key, []);
   for (const node of NODES) {
     for (const carried of node.objectKeys) {
       const keys = new Set(carried.keys);

@@ -223,6 +223,7 @@ export const SETTINGS: SettingDescriptor[] = [
 
   // Uitleg na het openen van een ander formaat dan IFC: de formaten waarvoor hij uit staat.
   setting({ key: 'formatNoticeHidden', field: 'formatNoticeHidden', parse: parseFormatNoticeHidden }),
+  setting({ key: 'foreignChangesQuestion', field: 'foreignChangesQuestion', parse: parseBoolean }),
 
   // Feedbackdialoog: het optionele e-mailadres voor een reactie. Geen paneelinstelling; de dialoog
   // vult het veld ermee in en bewaart het na een geslaagde melding (`saveFeedbackEmail`).

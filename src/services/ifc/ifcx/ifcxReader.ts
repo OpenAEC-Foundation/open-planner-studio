@@ -14,6 +14,7 @@ import { HEADER_VALUE } from './ownAttributes';
 import { NODE_SHAPES, type NodeKind } from './nodes';
 import { recordedFieldsOf } from './recordedFields';
 import { DOCUMENT_FIELDS, emptyProject, type DocumentReadTarget } from './fields/documentFields';
+import { emptyStructure } from './fields/structureFields';
 import { CALENDAR_FIELDS, emptyCalendar, type CalendarReadTarget } from './fields/calendarFields';
 import { emptyTask, remainingIsDerived, TASK_FIELDS, type TaskReadTarget } from './fields/taskFields';
 import { emptySequence, SEQUENCE_FIELDS, type SequenceReadTarget } from './fields/sequenceFields';
@@ -313,6 +314,7 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   const project = emptyProject();
   const documentTarget: DocumentReadTarget = {
     project, projectPath: header.projectPath, calendarPath: '', minuteModelPending: false, importPristine: false, literalCalendarPaths: [],
+    structure: emptyStructure(),
   };
   readFields(DOCUMENT_FIELDS, workplan.attributes.get(ATTRIBUTE.document)!, documentTarget);
   const documentPlace = { path: workplan.path, attribute: ATTRIBUTE.document };
@@ -384,9 +386,10 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
     project, calendar: projectCalendar, tasks, sequences, resources: [], assignments: [],
     ...(documentTarget.timeModel !== undefined ? { timeModel: documentTarget.timeModel } : {}),
     ...(documentTarget.minuteModelPending ? { minuteModelPending: true } : {}),
-    activityCodeTypes: [], customFieldDefs: [], customTaskTypes: [], resourceCalendars,
+    ...documentTarget.structure, resourceCalendars,
     baselines: [], activeBaselineId: null, comparedBaselineIds: [null, null],
     recordedFields, recordedTimesOrigin: 'ifc-own', importPristine: documentTarget.importPristine,
+    ...(documentTarget.recordedSourceFormat !== undefined ? { recordedSourceFormat: documentTarget.recordedSourceFormat } : {}),
     ifcGlobalIds,
     ...(ifcLiteralCalendarIds.length > 0 ? { ifcLiteralCalendarIds } : {}),
   };
