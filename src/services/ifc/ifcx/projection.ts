@@ -93,6 +93,10 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
     minuteModelPending: input.minuteModelPending === true,
     importPristine: input.importPristine === true,
     literalCalendarPaths: (input.ifcLiteralCalendarIds ?? []).flatMap(id => calendarPathById.get(id) ?? []),
+    structure: {
+      activityCodeTypes: input.activityCodeTypes ?? [], customFieldDefs: input.customFieldDefs ?? [], customTaskTypes: input.customTaskTypes ?? [],
+    },
+    ...(input.recordedSourceFormat !== undefined ? { recordedSourceFormat: input.recordedSourceFormat } : {}),
   };
   data.push({ path: workplanPath, attributes: attributesOf([
     [ATTRIBUTE.workplan, writeFields(WORKPLAN_SHARED_FIELDS, documentSource)],
