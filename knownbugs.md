@@ -1584,6 +1584,45 @@ en noem het in je rapport of PR-tekst.
     stuk één uur korter. De store schrijft meteen 1,875 d, maar de getekende rand blijft op woensdag 16:00; pas F5
     zet hem op 15:00. Proef uit de review van #1249, niet in de browser. — B
 
+2450. **Een tekst in een terugvalletter kan zonder melding uit de vector-PDF wegvallen als er een tweede terugvalletter
+    geladen is die niets tekent.** `paginateVectorToPdfBytes` (`src/services/print/paginateVector.ts`) laadt elke
+    terugvalletter (de `fallbackFonts` van de aanroeper en de CJK-aanbieders van een extensie) waarvan `covers` een
+    ongedekt teken raakt, en geeft na de eerste render alleen een letter met gebruikte tekens een `embed`.
+    `PdfVectorDraw2D.fillText` (`src/services/pdf/pdfVectorDraw2d.ts`) zet tekst langs de weg van de terugvalletters alleen
+    in de PDF als elke geladen letter een `embed` heeft (`cjkEmbedReady`). Nagespeeld met `paginateVectorToPdfBytes` en
+    één `fillText` (A4 staand, op de breedte), in twee opstellingen. (1) Rapportletter Carlito, Inter als `fallbackFonts`,
+    plus een aanbieder via `registerCjkFontProvider` met de Inter-bytes en een `covers` die voor elk teken waar geeft;
+    tekst `Fase 1 ↩ 2` (U+21A9 mist in Carlito, staat in Inter). Zonder die aanbieder heeft de laatste render één
+    tekstplaatsing, met de aanbieder nul, en de PDF komt er zonder fout. (2) Rapportletter Inter en aanbieders met
+    Noto Sans Coptic (`tests/planning/fixtures/fonts/`) en `covers` = de glyphs van die letter; tekst `Ⲁⲃⲅ fase`. Met één
+    aanbieder één plaatsing, met twee gelijke aanbieders nul, zonder fout. Op het blad staat de tekst dan niet, en er
+    komt geen rasterexport; de terugvalletter met tekens is dan wel ingebed. Treft de Gantt-afdruk en de tabelrapporten
+    (beide via `paginateVectorToPdfBytes`). Beide exportpaden (`exportGanttReportPdf.ts`, `ReportPanel.tsx`) geven zelf
+    hoogstens één terugvalletter mee (Inter, als de rapportletter niet Inter is); in de app treedt dit dus alleen op met
+    een extensie die een aanbieder registreert (`api.pdfFonts.register`). — B
+
+2451. **De dekking van een teken wordt voor beide gewichten één keer bepaald, met één gewicht.** `checkCoverage` en
+    `checkCoverageComplex` (`src/services/pdf/pdfVectorDraw2d.ts`) bewaren per teken één uitkomst voor gewoon en vet:
+    het gewicht van de eerste tekst met dat teken beslist. `collectCjkCodepoints` en in
+    `src/services/pdf/reportTextMeasure.ts` `fallbackIndexFor`, `needsFallback` en `splitFallbackRuns` kijken alleen in
+    de gewone letter, ook voor vette tekst. Bij de zes meegeleverde paren (Inter, Carlito, Liberation Sans, Serif en
+    Mono, Noto Sans Arabic) hebben gewoon en vet dezelfde tekenset (fontkit `characterSet`, nagemeten); voor een eigen
+    lettertype (`customReportFont.ts` kiest gewoon en vet per familie) en de vette letter van een CJK-aanbieder is dat
+    door niemand nagegaan. Mist het vette bestand een teken dat het gewone heeft, dan kan vette tekst in de PDF een leeg
+    vakje tonen zonder rasterexport; niet nagespeeld. — S
+
+2452. **Een teken dat de rapportletter mist en Noto Sans Arabic wel heeft, kan in een tekst zonder Arabisch of
+    Hebreeuws een vakje worden in de vector-PDF.** `checkCoverage` (`src/services/pdf/pdfVectorDraw2d.ts`) telt zo'n teken als
+    gedekt door Noto Sans Arabic, maar een tekst zonder Arabisch of Hebreeuws tekent `fillText` nooit met Noto. Zo blijft
+    zo'n teken buiten de ongedekte tekens van de eerste render, laadt `paginateVectorToPdfBytes`
+    (`src/services/print/paginateVector.ts`) daarvoor geen terugvalletter, en zet de rapportletter het op glyph 0.
+    Proef uit de review van #1252, met `renderReport` en de pagineerder in Node, niet in de browser: het meegeleverde
+    Zuidas-project, een taak hernoemd naar `Repère « lot A »` met de smalle vaste spatie U+202F binnen de
+    aanhalingstekens, Liberation Mono als rapportletter, de voortgangsweergave uit. De PDF kwam er zonder fout; de
+    paginastroom heeft voor beide smalle spaties glyph `0000`. Met een `✓` erbij in dezelfde export laadde Inter wel als
+    terugval en kwamen de spaties uit F4. Nagemeten met fontkit: Liberation Mono heeft U+202F niet, Noto Sans Arabic en
+    Inter wel. Zie ADR 0384. Issue #1255. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
@@ -1748,6 +1787,32 @@ en noem het in je rapport of PR-tekst.
       16:00 en vrijdag 08:00 tot 12:00, krijgt geen taaksignaal (`readTasks`) en promoveert dus niet; haar enkelvoudige
       werkdag komt van de eerste werkdag en toont de korte vrijdag niet. Door twee lezers in de code bevestigd, niet
       met een bronbestand nagespeeld. Issue #1228. — B
+
+2460. **Een XER-activiteit zonder geplande start op een kalender met lege `clndr_data` kan een andere duur krijgen
+      dan het bestand zegt.** `readXerProject` (`src/services/xer/xerReader.ts`) zet de start van zo'n activiteit op
+      de statusdatum en herstelt daarna de duur uit het venster van start tot `target_end_date` als dat hoogstens één
+      werkdag van `target_drtn_hr_cnt` afwijkt (ADR 0392 en 0394). Bij de niet-gestarte taak hieronder blijft de rest
+      `remain_drtn_hr_cnt`; bij een lopende `CP_Drtn`-taak met `complete_pct` rekent de lezer de rest met de bronduur
+      uit het bestand, niet met de herstelde duur (ADR 0394). Nagespeeld
+      met `readXER` op een fixture: kalender `C1` met lege `clndr_data` en `day_hr_cnt` 8, twee taken van 08:00 tot
+      17:00 waaruit de lezer de blokken 08:00 tot 12:00 en 13:00 tot 17:00 afleidt, `last_recalc_date` 2026-04-01
+      08:00, en een taak zonder `target_start_date` met `target_end_date` 2026-04-03 17:00 en 16 uur duur en rest. Die
+      taak krijgt `durationMinutes` 1440 en `remainingMinutes` 960; dezelfde taak met start 2026-04-02 08:00 houdt 960
+      en 960. Open vraag: of het venster de duur mag herstellen als de lezer de start zelf invulde. — B
+
+2461. **Een XER-activiteit met een `clndr_id` zonder gelezen kalender kan haar geplande kloktijden verliezen.**
+      `readXerProject` (`src/services/xer/xerReader.ts`) rekent zo'n activiteit met de projectkalender, maar telt
+      haar kloktijden als uursignaal voor het kalender-id uit de rij (`hourSignalCalendarIds`). Die kalender bestaat
+      niet, dus de projectkalender wordt geen uurkalender en de lezer leest de geplande datums zonder tijd; de
+      activiteit houdt `calendarId` met het ontbrekende id (ADR 0392). Nagespeeld met `readXER` en `payloadFromImport`
+      op een fixture: projectkalender `C1` met lege `clndr_data` en `day_hr_cnt` 8, `last_recalc_date` 2026-06-01
+      08:00, één activiteit van 2 uur op `clndr_id` `C2` (niet in CALENDAR) van 2026-06-01 10:30 tot 12:30. `readXER`
+      geeft start en einde 2026-06-01 zonder tijd, na het laden staan ze op 08:00 en 16:00, en `xer.calendarIssues` is
+      leeg. Met `clndr_id` `C1` blijven 10:30 en 12:30 staan. De tijden vallen alleen weg zolang de projectkalender in
+      dagmodus blijft: geeft een andere activiteit `C1` wel een uursignaal, dan houdt ook de activiteit op `C2` haar
+      10:30 en 12:30 (proef uit de review van #1256). De berekende datums zijn niet nagespeeld. In de drie
+      XER-testbestanden van de repo (`tests/browser/fixtures/xer/`, samen vier taken) wijst geen taak naar een
+      ontbrekende kalender; hoe vaak P6 dat exporteert, is niet nagegaan. — B
 
 ## Bibliotheek, bezetting, extensies, AI
 
@@ -2015,6 +2080,87 @@ en noem het in je rapport of PR-tekst.
      aantallen C, A en V. Dat is extra werk bij het openen van een groot bestand, geen fout in de uitkomst. Richting:
      dit pad de gewone workersessie en `scanForeign` geven. Gezien in de code door de reviewer van #1180
      (GPT-6.2-Sol, ronde 2). — B (code)
+2232. **Een `LongDescription` (of een ander constant slot) van een ander programma in een bestand zonder vreemd deel gaat bij
+     opslaan verloren.** Flag aan, een eigen bestand waarin een ander programma een `LongDescription` op een taak zette
+     (zonder iets anders van zichzelf: dan is er geen vreemd deel). De gewone writer schrijft daar `$`, net als op main;
+     `ifcSource.sourceSlots` bestaat alleen bij een vreemd deel (`scanForeignToOpen` in
+     `src/services/ifc/foreign/foreignScan.ts`), en zonder vreemd deel loopt opslaan via `writeIFCWithChoices` in
+     `prepareIfcWrite` (`src/services/ifc/foreign/mergeWriter.ts`). Behoud vraagt de kaart ook zonder vreemd deel, plus de
+     schrijfregel op dat pad. Gemeten (#804 fase 2 PR 2 deel 2, `scanSourceSlots` over alle D- en R-stukken, heap na GC):
+     `showcase-appartementencomplex.ifc` (0,46 MiB, 1.630 stukken) 19 ms en 1,4 MiB; een gegenereerd eigen plan van
+     10.000 taken (11,3 MiB, 53.481 stukken) 366 ms en 50,2 MiB, bovenop de scan en indeling van 654 ms. Dat pad heeft nu
+     geen extra werk en is bytegelijk aan main; daarom bewust niet gebouwd. Richting: de kaart alleen voor stukken met een
+     niet-leeg constant slot, of de tokens bij opslaan uit `ifcSource.bytes` lezen zoals (b). Het verlies volgt uit de code
+     (de schrijffunctie van het slot is `() => '$'` in `ifcTaskSlots.ts`); de kosten zijn gemeten. — B (code)
+2233. **Een `IfcRelDeclares` of `IfcRelDefinesByProperties` van een ander programma draagt de merge niet.** Flag aan, een
+     bestand waarin een ander programma de owner history van zo'n eigen relatie zette (de council-fixture
+     `fix2-vendor-ops.ifc`: een applicatie met identifier `'/*vendor*/OPS'`, dus vreemde herkomst op elk stuk). De kaart
+     bewaart hun tokens, maar `foreignRelations` in `src/services/ifc/foreign/mergeWriter.ts` schrijft alleen `Nests`,
+     `Aggregates`, `AssignsToControl` en `AssignsToProcess` opnieuw; deze twee houden de weigering `vreemde-herkomst`,
+     zoals vóór #804 fase 2 PR 2. Richting: de pset-relatie paren op eigenaar en psetnaam, net als de verliescontrole
+     (`relKeySource`), en de pset zelf ook met haar bewaarde owner history schrijven. Gezien met de meetproef over het
+     corpus (#804 fase 2 PR 2 deel 2). Twee verwante grenzen bij de kalenderhulpstukken van een ander programma (review
+     ronde 2 van #1205): een vrije dag (`IfcWorkTime` in `ExceptionTimes`) met een eigen herkomstlabel
+     (`DataOrigin .USERDEFINED.`, `UserDefinedDataOrigin`) weigert bij het verlengen van die vrije dag met `niet-eenduidig`
+     op die twee slots, want de writer schrijft `.PREDICTED.` en `$`; een werkweek (`IfcWorkTime` in `WorkingTimes`) die
+     haar `IfcRecurrencePattern` deelt met een terugkerende taaktijd weigert elke opslag met `niet-gedragen` op
+     `IfcWorkTime.Recurrence`, omdat de writer een eigen patroon schrijft. Main weigert beide bestanden al op herkomst.
+     Richting: de herhaling gekoppeld houden, en aparte slotbeslissingen voor de datum en de herkomstmetadata. Beide staan
+     als bron in `check-ifc-foreign-regel-c.ts`. — B
+2234. **Een taak tot mijlpaal maken weigert de merge met `bronvorm-leest-anders`, ook bij een eigen planning.** Flag aan,
+     `public/examples/showcase-verbouwing-eengezinswoning.ifc` met een wand van Revit erbij (een vreemd deel), de eerste
+     taak zonder kinderen `isMilestone: true` via `updateTask` en doorrekenen: de opslag weigert, met
+     `time.scheduleFinish: "2027-05-07T07:00" na herlezen in plaats van "2027-05-07T16:00"` (ook `earlyFinish` en
+     `lateFinish`). Het einde in de vorm van de bron (`sourceFormWhereUnchanged`, `src/services/ifc/foreign/sourceForm.ts`)
+     leest na heropenen anders dan wat de planner zag. Geen verlies (de merge weigert), wel een opslag die niet lukt.
+     Nagespeeld met een proef (#804 fase 2 PR 2 deel 2). Dezelfde wortel bij taken van een ander programma (fixronde 1
+     van #1205): wordt de projectkalender bij een opslag letterlijk (een mijlpaal, of een taak met verstreken duur), dan
+     houdt elk ongewijzigd datumslot van zo'n taak zijn brontoken (regel A), en een einde als `'2027-05-12T07:00'` leest
+     in een letterlijke kalender als 07:00 in plaats van 16:00. De merge weigert dan met `bronvorm-leest-anders`; vóór de
+     fixronde schreef hij alle datums van die taken in de vorm van de writer, ook waar de planner niets wijzigde. Een
+     mijlpaal een dag langer maken weigert om dezelfde reden. De pinproef `check-ifc-source-slot-write.ts` legt beide
+     weigeringen vast; `check-ifc-foreign-regel-c.ts` telt ze onder deze grens. — B
+2256. **Een taak zonder volledige taaktijd in de bron weigert de merge als wat de planner zag, afgeleid was.** Flag aan.
+     De merge houdt een taaktijdslot dat de planner niet wijzigde in de vorm van de bron; ontbreekt daar de taaktijd of
+     haar duur, dan leidt herlezen de waarde anders af dan de planner haar zag. Geen verlies (de merge weigert), wel een
+     opslag die niet lukt. Alleen nog in een zelfgemaakte bron: de council-bron
+     `tests/fixtures/ifc-foreign/council/r6opus-twee-werkplannen.na.ifc` met `IfcTask` en `IfcLaborResource` opgevuld tot
+     de lengte van IFC4. Twee reproducties in `check-ifc-foreign-regel-c.ts`: (1) taak `#32 Sub` heeft geen taaktijd en
+     opent op 08:00; na een hernoeming leest de kandidaat `scheduleStart`, `earlyStart` en `lateStart` op 07:00 en weigert
+     met `bronvorm-leest-anders` (47 bewerkingen; met een expliciete taaktijd met start 08:00 aan `#32` schrijft de
+     hernoeming, review ronde 3 van #1205, Sol). (2) `#32 Sub` gewist: `#30 Root` wordt een taak zonder kinderen, haar
+     taaktijd `#31` heeft de duur in het slot van `DurationType` en `$` als `ScheduleDuration`, en herlezen geeft duur 0 in
+     plaats van 5: `planning-na-openen`; een eigen bestand (`writeIFC`) leest de duur wel als 5. Opgelost in herstelronde 4
+     van #1205: een fase die al haar kinderen verliest en geen taaktijd in de bron had (`Ruwbouw` in
+     `tests/fixtures/ifc-foreign/bonsai-4d.ifc`) schrijft nu de taaktijd van de planner (`candidates` in
+     `src/services/ifc/foreign/sourceForm.ts`). Richting voor de rest: een taak die geen kinderen meer heeft, krijgt ook
+     een bestaande taaktijd in de vorm van de writer, en een taak zonder taaktijd in de bron krijgt bij opslaan haar
+     taaktijd met de start gelijk aan de geopende. — B
+2368. **Een toewijzing wissen weigert als dezelfde ploeg twee keer aan die taak hangt.** Flag aan, een bestand van een
+     ander programma met twee `IfcRelAssignsToProcess` die dezelfde resource aan dezelfde taak koppelen (twee inzetten met
+     elk een eigen hoeveelheid). De lezer maakt er twee toewijzingen van zonder vast te leggen uit welke relatie elk kwam,
+     dus bij het wissen van één van de twee is niet vast te stellen welke relatie weg moet. De merge weigert dan met
+     `niet-eenduidig` (`assignmentOrigin` in `src/services/ifc/foreign/assignmentOrigin.ts`, `foreignRelations` in
+     `mergeWriter.ts`); hernoemen en andere bewerkingen schrijven. Ook alle exemplaren wissen vóór één opslag weigert zo,
+     want de verzameling toewijzingen veranderde. Naast `niet-eenduidig` meldt de verliescontrole de stukken die alleen
+     aan de tweede relatie hangen als niet gedragen (haar hoeveelheid, of bij een relatie van OPS haar eigenaarsgegevens);
+     dat volgt uit dezelfde weigering. OPS zelf maakt zo'n paar niet (één resource per taak,
+     `assignResource`). Richting: de lezer laat elke toewijzing haar bronrelatie dragen (GlobalId), dan is het wissen
+     eenduidig. Review ronde 2 van #1205 (Sol); `check-ifc-foreign-regel-c.ts`. — B
+2369. **Een hulpstuk dat twee planningsstukken van een ander programma delen, weigert elke opslag met een wijziging.** Flag aan, een
+     bestand waarin twee `IfcRelSequence` één `IfcLagTime` delen, of twee taken één `IfcTaskTime`, ook als één van de twee
+     eigenaren van OPS-herkomst is. De writer schrijft zo'n hulpstuk per verwijzer opnieuw, dus de opslag zou het gedeelde
+     stuk splitsen. De merge weigert daarom vooraf met `niet-eenduidig` (`sharedHelpers` in `prepareIfcWrite`,
+     `mergeWriter.ts`), ook bij een bewerking elders. Een lag die gedeeld wordt met een reeks buiten de planning (geen
+     P-stuk) schrijft wel, en een opslag zonder wijziging in de planning geeft de bronbytes terug. Richting: het gedeelde hulpstuk één keer schrijven en elke verwijzer laten wijzen naar die ene
+     regel, en alleen splitsen als de planner het veld van één verwijzer wijzigt. Review ronde 2 van #1205 (Sol);
+     `check-ifc-foreign-regel-c.ts`. — B
+2370. **Doorrekenen op een Bonsai-bestand verschuift geen enkele datum.** Flag aan,
+      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: na `schedule()` krijgt *Wand A* (5 dagen) een vroege en late start
+      en een vroeg en laat einde die alle vier op 2026-02-02 09:00 staan. Het ligt niet aan de opslag: na heropenen ziet de
+      planner wat hij zag. Gezien door de bouwer van #1205 tijdens de vaste lijst gewone bewerkingen; niet uitgezocht of het
+      een fout is of bedoeld gedrag (een taak uit een ander programma wordt bij inlezen handmatig gepland). Wordt apart
+      uitgezocht (besluit van de technisch eigenaar, 25 november 2026). — S
 
 2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
      `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
@@ -2363,9 +2509,10 @@ en noem het in je rapport of PR-tekst.
 480. **Een paar zeldzamere exportweglatingen staan nog alleen in de console, niet in de verliesenvelope.**
      `src/services/xerExportLoss.ts` (`categoriesFor`) kent sinds #727 notities, datumconstraints die het doelformaat niet schrijft,
      handmatige planning en hammock-taken ook voor een native project. Nog niet: een soft MSO/MFO die MSPDI als
-     SNET/FNET schrijft (`mspdiWriter.ts`, `softLossCount`), `levelingDelayMinutes` (MSPDI en P6),
-     resume/stop (MSPDI) en een ELAPSEDTIME-taakduur naar P6 (`p6xmlWriter.ts`, `elapsedTaskCount`). Gelezen in
-     de writers, niet nagespeeld. Voorstel: per geval een categorie en een capability in dezelfde matrix. — S
+     SNET/FNET schrijft (`mspdiWriter.ts`, `softLossCount`), `levelingDelayMinutes` (MSPDI) en resume/stop (MSPDI).
+     Voor P6 XML telt de exportmelding de nivelleervertraging en de kalendertijd wel
+     (`levelingDelays`, `elapsedDurations` in `p6XmlExportNotice.ts`, ADR 0367). Gelezen in de writers, niet
+     nagespeeld. Voorstel: per geval een categorie en een capability in dezelfde matrix. — S
 
 482. **De exportverliestest bewaakt een primaire constraint op een P6-verzameltaak niet apart.**
      `tests/planning/check-xer-export-loss.ts` (scenario "Native verzameltaak met constraints") geeft de
@@ -4206,16 +4353,6 @@ en noem het in je rapport of PR-tekst.
      integriteitscontrole over de lijst zelf. Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B (proef van de
      reviewer)
 
-2209. **VERVOLG (#1182): de verliescontrole kent de oude lay-outs los van de slottabellen.** `alignment` in
-     `src/services/ifc/foreign/lossCheck.ts` legt zelf vast hoe een regel in een oude eigen lay-out op de uitvoer past
-     (`IfcTask` met 12 argumenten, resources met 9 via `OLD_RESOURCE_TYPES` en `RESOURCE_ARITY`, werkplan en kalender
-     via `workControlSlots` en `workCalendarSlots`), en noemt het argumentaantal per type nog eens bij de `slot:`-wortels.
-     Sinds #1182 staan die lay-outs in de slottabellen (`taskSlots`, `resourceSlots`, `lagTimeSlots`, `IFC_SLOT_TABLES`
-     in `ifcSlotTables.ts`). Eén verschil: bij een `IfcLagTime` in de oude OPS-indeling (waarde en type duur verwisseld)
-     paart `alignment` per positie, de tabel verwisselt de twee. Of de verliescontrole daardoor een verkeerd slot
-     vergelijkt, is niet nagegaan; de lagwaarde zelf vergelijkt `durationTexts` via `lagValueSlot`. Voorstel: fase 2
-     PR 2 (`sourceSlots`), die `lossCheck.ts` toch aanpast, leidt `alignment` af uit `IFC_SLOT_TABLES`. — S
-
 2210. **VERVOLG (#804 fase 2, PR 3): ongebruikte sleutels in `OPS_Assignments` blijven alleen in de merge bewaard, en
      een paar bronvormen weigeren nog.** De merge (een document met een vreemd deel, flag `ifcForeignContent` aan) schrijft
      ongebruikte sleutels terug na de eigen sleutels (`.claude/rules/tauri-ifc.md`, *Ongebruikte sleutels*). Drie grenzen:
@@ -4464,6 +4601,19 @@ en noem het in je rapport of PR-tekst.
       `workEndHour`. De motor houdt dan de blokken van de eerdere (`buildWorkingExceptions`, knownbug 2004). Wijken de
       terugvalblokken daarvan af, dan kan die datum na export en heropenen andere werktijden dragen dan de motor in de
       app gebruikte (aansluitende blokken voegt de lezer samen). Gelezen in de code. — B
+
+2462. **Een XER-activiteit zonder geplande start en einde kan na openen een gepland einde in 1901 krijgen.** Zonder
+      statusdatum en `PROJECT.plan_start_date` krijgt zo'n activiteit in `readXerProject`
+      (`src/services/xer/xerReader.ts`) de tijdelijke start `0001-01-01` en hetzelfde einde.
+      `resolveMissingScheduleDates` (`src/services/importDates.ts`) vervangt de start door het anker, maar
+      `finishFromStartAndDuration` rekent onder meer geen einde voor een positieve urentaak op een uurkalender of voor
+      een duur die geen geheel aantal dagen is, en dan blijft het einde `0001-01-01`; een nulduur en een taak in de
+      dagenmaat met hele werkdagen en een start zonder kloktijd krijgen wel een einde (proef uit de review van #1256). De openingsmelding telt alleen de ontbrekende start
+      (`xerMissingPlannedStarts`). Nagespeeld met `readXER` en `payloadFromImport` op een fixture: kalender `C1` met
+      lege `clndr_data`, PROJECT zonder `last_recalc_date` en `plan_start_date`, een taak van 8 uur op 2026-06-01 en
+      een taak van 2 uur zonder `target_start_date` en `target_end_date`. Die tweede taak krijgt in `readXER` start
+      2026-06-01 en einde `0001-01-01`, en na het laden start 2026-06-01T08:00 en einde 1901-01-01T16:00. De
+      berekende datums zijn niet nagespeeld. Issue #1258. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -6066,7 +6216,7 @@ en noem het in je rapport of PR-tekst.
      (GPT-6.1-Sol, xhigh, VERVOLG). Voorstel: de werkelijke glyphplaatsing toetsen bij het verdere fontwerk. — B
 
 934. **De tekstlaag van een PDF-rapport is niet trouw aan de bron voor Arabisch en voor sommige ligaturen.**
-     `pdfVectorDraw2d.ts:547–571` zet de geshapte glyphs rechtstreeks in de PDF (vooral regel 566). `pdftotext` geeft de
+     `fillTextComplex` (`pdfVectorDraw2d.ts`) zet de geshapte glyphs rechtstreeks in de PDF. `pdftotext` geeft de
      Arabische naam dan niet als de oorspronkelijke tekst terug, en met Carlito wordt `bouwlogistiek` in een gemengde naam
      `bouwlogis ek`. Op het blad staat het woord wel goed; kopiëren en zoeken in de PDF gaan mis. Zat al in main en
      verandert niet door #847 (24 PDF's per letter en richting byte-gelijk uitgelezen op merge-base en #847). Uit
@@ -7086,7 +7236,7 @@ en noem het in je rapport of PR-tekst.
      en zonder de hint `milestonesAtDayEnd`. Maakt de openroute van F3-4 daar met de laadgrens van de app de payload van,
      dan verandert die bij een bestand van de schrijver niets (getoetst voor de 49 bestanden en de 327 datumvormen van de
      kernproef). Bij een bestand dat de schrijver nooit maakt, kan ze wel iets veranderen, zoals bij STEP: een werkplan
-     zonder `timeModel` en zonder `minuteModelPending` krijgt `minuteModelPending`.
+     zonder `timeModel` en zonder `minuteModelPending` krijgt `minuteModelPending` (welke zulke bestanden openen: 2353).
      Daarnaast rekent de Openen-route van de app door (`prepareLoadedPayload` met `recompute: true`,
      `src/state/documentActivation.ts`); dan verschuift bijvoorbeeld bij de datumfixture de vroege finish van de taak
      `einde-middernacht` van `2027-06-03T00:00` naar `2027-06-02T16:00`, en de volgende opslag schrijft andere bytes. Ook
@@ -7132,6 +7282,26 @@ en noem het in je rapport of PR-tekst.
      veldtabel nauwer maken waar STEP een waarde laat vallen (een fractie in een minutenveld); geen toetsen per object
      die STEP nabootsen, want die sluit R6 uit. Gemeten in #1183 ronde 8. — B
 
+2365. **De doelcontrole van IFCX classificeert een onbekend bestaand doel met een volledige lezing.** Schrijft een
+     IFCX-document naar een bestaand doel dat niet zijn eigen bekende versie is (Opslaan als over een bestaand `.ifcx`, of
+     het eigen doel nadat de versie na een mislukte schrijfactie vergeten is), dan leest `classifyIfcx` dat bestand in de
+     opslagworker helemaal (`ifcxTargetRefusal`). Het venster blijft reageren; de opslag wacht, bij 10.000 taken in de orde
+     van seconden (niet gemeten in de app). Het eigen doel met een bekende versie toetst alleen de versie. — B (code), duur S
+
+2366. **In de browser leegt de opslaankiezer een gekozen bestaand bestand vóór elke controle, ook bij een naam die niet
+     bij het formaat past.** Een IFC-document dat met de flag `ifcx` aan in de kiezer een naam op `.ifcx` kiest (via "alle
+     bestanden"), krijgt de melding `ifcx.nameMismatch` en de app schrijft niets; het gekozen bestand heeft de browser dan
+     al leeg gemaakt of aangemaakt. Dat is de grens van main bij elk bestaand doel in die kiezer (knownbug 1899). Een
+     IFCX-document gebruikt de kiezer niet: een nieuw doel krijgt het als download met de naam op het formaat. — B (code)
+
+2372. **Opslaan als over een bestaand eigen IFCX classificeert op desktop dezelfde doelbytes twee keer.** Met beide
+     flags aan toetst `placeOnDesktop` het gekozen doel na de kiezer en nog eens na het herstelrecord
+     (`src/state/ownFileReplace.ts`). `capturedTargetReaders` deelt de STEP-scan van die vastgelegde bytes, maar de
+     IFCX-classificatie start per controle opnieuw: één volledige lezing van het doel te veel (de duur staat bij 2365).
+     Richting: deel binnen de poging één classificatie van de vastgelegde bytes, en laat beide identiteitscontroles en
+     de vergelijking met de verwachte bytes bij vervangen staan. Gemeld door de review van #1223 ronde 2
+     (GPT-6.2-Sol). — B
+
 2373. **IFCX (F3-2, onder 2353): een zelfgemaakt bestand met een resource-, toewijzings- of baselinewaarde die STEP nooit
      teruggeeft, opent.** Voorbeelden: een exacte curve (`curveValues`) die niet aan het contourcontract voldoet (twee
      punten in plaats van 21; de belasting rekent er dan mee als exacte curve), een `costAmount` op een werktoewijzing,
@@ -7151,3 +7321,14 @@ en noem het in je rapport of PR-tekst.
      crashherstel van F3-4 met twee toewijzingen aan dezelfde resource, kan het verschuiven wel merken. Richting: bij F3-4 beslissen of een toewijzing een eigen identiteit krijgt (dan ook in
      STEP) en het herstelscenario met twee toewijzingen aan één resource vastleggen. Gemeld door de review van #1189
      ronde 1 (VERVOLG "Toewijzingsidentiteit verdwijnt over STEP", GPT-6.2-Sol). — B
+
+2375. **Openen en opnieuw opslaan als IFC verliest de GlobalId van een verwijderde taak waar een baseline naar wijst;
+     IFCX doet hetzelfde.** De STEP-lezer geeft die GlobalId terug als `baselineOrphanGuids` (uit `TaskGuids`), maar de
+     app houdt haar bij openen niet vast (`documentDataFromImport` neemt `baselineOrphanGuids` niet over), en de volgende
+     opslag schrijft voor die rij de afgeleide GlobalId van het taak-id. Gemeten op aia09-mp50 met een baselinerij naar
+     de verwijderde taak `weg` met GlobalId `oud-weg`: eerste lezing `{"weg":"oud-weg"}`, na openen en opslaan de
+     afgeleide GlobalId. IFCX draagt de eerste lezing precies (`openaec::ops::document.removedTasks`) en volgt STEP bij de
+     tweede opslag (R6, punt 3), dus ook daar valt `oud-weg` weg. Een baselinerij die via die GlobalId weer aan een taak
+     moest koppelen, koppelt dan niet meer. Richting: `baselineOrphanGuids` meenemen in de documentgegevens en de
+     STEP-writer de GlobalId van een weesrij daaruit laten nemen; IFCX volgt dan vanzelf. Gevonden bij de herschrijving
+     van #1189 op de kern. — B

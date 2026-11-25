@@ -155,3 +155,11 @@ Besluiten van de lezer van P6 XML: `docs/adr/0260-p6xml-lezen-export-van-ops-en-
 `0265-p6xml-lezen-duur-rest-en-lag.md`, `0266-p6xml-lezen-voortgang-en-status.md`,
 `0267-p6xml-lezen-p6-herkomst-duursoort-en-constraints.md`, `0268-p6xml-lezen-rekenuitvoer-van-p6.md` en
 `0269-p6xml-lezen-resources-en-toewijzingen.md`.
+
+### Besluiten van de XER-lezer (`xerReader.ts`)
+
+`docs/adr/0390-xer-lezen-projecten-ids-en-de-vorm-van-het-resultaat.md`,
+`0391-xer-lezen-wbs-boom-volgorde-en-projectnaam.md`, `0392-xer-lezen-kalenders-zonder-bron-en-lege-kalenderdata.md`,
+`0393-xer-lezen-statusdatum-geplande-datums-en-de-vorm-van-een-datum.md`, `0394-xer-lezen-duur-rest-en-lag-in-werkuren.md`,
+`0395-xer-lezen-status-en-voortgang.md`, `0396-xer-lezen-duursoort-werkregel-en-rekenuitvoer.md` en
+`0397-xer-lezen-resources-per-project.md`.

@@ -2,8 +2,7 @@ import { readIFC } from '../ifcReader';
 import { writeIFC, type WriteIFCInput } from '../ifcWriter';
 import type { ImportResult } from '@/services/importTypes';
 import type { ResourceAssignment } from '@/types/resource';
-import { payloadFromImport } from '@/state/documentContract';
-import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { buildWriteIFCInput, documentDataFromImport } from '@/services/documentData';
 import { intendedGlobalIds } from './identity';
 import { selfCheckDifferences } from './selfCheck';
 import { unsupportedContent } from './unsupportedContent';
@@ -47,7 +46,7 @@ function stepReading(given: WriteIFCInput): ImportResult {
 export function filePlanning(given: WriteIFCInput): CanonicalPlanning {
   assertIdentity(given);
   const reading = stepReading(given);
-  const { writeMode, minuteModelPending, ...loaded } = buildWriteIFCInput(payloadFromImport(structuredClone(reading), null), 'planOnly');
+  const { writeMode, minuteModelPending, ...loaded } = buildWriteIFCInput(documentDataFromImport(structuredClone(reading)), 'planOnly');
   const { milestonesAtDayEnd, ...hintsLeft } = reading;
   const planning: CanonicalPlanning = { ...hintsLeft, ...loaded, ...(minuteModelPending ? { minuteModelPending } : {}), recordedFields: reading.recordedFields };
   const unsupported = unsupportedContent(planning);

@@ -118,6 +118,20 @@ veranderen niet. Bestaande vreemde lokale doelen en de bronhash horen bij fase 2
 
 The application's persistence model is IFC 4.3 (buildingSMART). Loading a project = parsing IFC via `src/services/ifc/ifcReader`; saving = serializing the entire app state via `ifcWriter`. There is no separate JSON project format. When adding new domain data (tasks, sequences, resources, assignments, calendar), it must round-trip through the IFC layer or it will be lost on save/reload. CSV/MS Project/P6 services in `src/services/` are import/export adapters, not the source of truth. The other `src/services/` areas — `fileAccess/` (Tauri↔web bestands-I/O + handle-backed recents), `recovery/` (auto-save/restore, Tauri fs + web IndexedDB), `actualAutosave/` (opt-in, promptvrije writes to an existing project file), `benchmark/` (ingebouwde benchmark-tool via Instellingen), `print/` (printvoorbeeld), `pdf/` (vector-PDF-export via `pdf-lib`; Arabic and Persian stay vector, while CJK rasterizes only without an optional `pdf-fonts` extension), `updater/`, `feedback/` (feedbackdialoog + screenshot-annotator), `mcp/` (AI-assistent, zie `.claude/rules/mcp.md`) and `debug/appLog` (log-bus achter de DebugTerminal) — are app plumbing with no IFC impact. `library/` is de uitzondering: bibliotheekdata is app-globaal, maar herkomststempels round-trippen wél door het project-IFC (zie *Resourcebibliotheken*).
 
+**IFCX achter de flag `ifcx` (#804 fase 3, F3-4).** Met de flag leest de registry `.ifcx` als bytes (`FormatReadOptions.ifcx`,
+`readOptionsFor`; `isIfcxName`, een naam zonder punt is nooit IFCX), lui via `src/services/ifc/ifcxOpen.ts` naar de kern
+(`readIfcx`). **Regel F:** het formaat is een eigenschap van het document. De lezer legt het vast (`fileFormat`) en geeft
+lengte en SHA-256 van de gelezen bytes mee (`ReadImportResult.ifcxRead`); `applyLoadedProject` maakt daarvan de bekende
+versie van het doel, ook met `ifcForeignContent` uit (`versionGuarded`, `src/state/versionGuard.ts`). De naam van het doel
+beslist niets over een bestaand document. Een poging legt formaat en flag vast bij haar begin (`outputFormat`); met de flag
+aan zet de documentopslag dan `format: 'ifcx'` op de writer-job, die alleen de opslagworker rekent (`writeIfcx`, met de
+letterlijke kalenders van de gewone writer, `plainWriteLiteralCalendarIds`). Het eigen doel toetst de bekende versie
+(#1174); een ander bestaand doel classificeert de worker (`classifyIfcx` via `ifcxTargetRefusal`, `TargetReaders.readPath`
+leest het pad helemaal) en alleen een eigen IFCX, een leeg bestand of een nieuwe naam mag. Met de flag uit weigert een
+IFCX-document elke schrijfactie naar zijn eigen doel (`ifcxWriteBlocked`); Opslaan als schrijft STEP naar een naam op
+`.ifc`. Een STEP-schrijfactie naar het bestand van een open IFCX-document weigert (`isOpenIfcxFile`). In de browser
+schrijft een IFCX-document een nieuw doel alleen als download (`saveNewBytesDialog`, zoals een merge).
+
 **Tekst in IFC is STEP-gecodeerd** (audit 2026-09-26). Elke stringliteral gaat door `ifcStr` → `encodeStepText` (`ifcPsets.ts`): alleen afdrukbaar ASCII letterlijk, `'` → `''`, `\` → `\\`, de rest `\X2\…\X0\` / `\X4\…\X0\`. Schrijf nooit een literal met de hand (`'${x}'`) behalve voor vaste ASCII (datums, tijden). `IFCAPPLICATION.Version` is een formaatteken, geen appversie: vanaf `'0.2'` (`OPS_APP_VERSION`) decodeert `readIFC` de strings (`decodeStepText`), net als bij elk bestand van een ander pakket; een eigen bestand met `'0.1'` schreef letterlijk en wordt ongedecodeerd gelezen (anders breekt een `\\` in een JSON-pset). De voorbeelden in `public/examples/` zijn sinds audit 2026-09-26 opnieuw gegenereerd (`'0.2'`); het oude letterlijke formaat toetst `check-ifc-step-encoding` met een eigen fixture. JSON-psets gaan via `ifcJson`/`asciiJson` (niet-ASCII als JSON-`\uXXXX`, dan pas STEP-gecodeerd), eigenaarsbesluit 2026-09-28: een app van vóór `'0.2'` leest letterlijk en gooide een pset met `\X2\` erin als ongeldige JSON helemaal weg (alle baselines); zo blijft het blok daar geldig en verliest die oude versie alleen nog een pset met `"` of `\` in een waarde. Nieuwe JSON-psets dus nooit met kale `ifcStr(JSON.stringify(…))`. Toets: `check-ifc-step-encoding`.
 
 **GlobalIds** (audit 2026-09-26). Eén uitgiftepunt: `guidOf` in `ifcWriter.ts`, voor objecten via `objectGuid(ctx, soort, id)` met seed `ifcObjectSeed(soort, id)` (`task:`, `res:`, `cal:`, `seq:`, `proj:`): uit XER kunnen taak, relatie en kalender hetzelfde kale getal als id dragen, en zonder soort deelden ze een GlobalId. Elk object uit een ingelezen IFC houdt zijn GlobalId uit dat bestand: `readIFC` levert `ifcGlobalIds` (seed → GlobalId), dat reist als documentveld mee en `buildWriteIFCInput` geeft het aan de writer. Nieuwe objecten krijgen `ifcGuid128(seed)`: 128 bits, IFC-vorm, deterministisch (dus bij elk opslaan gelijk). Hulpentiteiten (`guidOf`: psets, rels, werkschema's) en de projectkalender (`cal-default`, in elk project hetzelfde id) hashen met het project-id als zout (`auxSalt`), zodat twee projecten geen GlobalId delen; geen lezer rekent die na. Id's: taken via OPS_TaskIdentity of `task-ifc-<GlobalId>`; resources, bibliotheekkalenders en relaties via `stableIdFromGuid` (`res-ifc-`, `rescal-ifc-`, `seq-ifc-<GlobalId>`, dubbel ⇒ `-dup-N`), dus gelijk bij elk openen; de projectkalender blijft `cal-default`. Een in de app gemaakt object krijgt bij het eerste heropenen zo nog één keer een ander id; verwijzingen daarnaar in JSON (contour, nivelleren) lopen via `mappedResourceId` (zelfde id, anders `ifcGuid128`, anders de oude 32-bits `ifcGuid` voor bestanden van vóór deze wijziging). Toets: `check-ifc-globalid`.
@@ -405,6 +419,96 @@ dezelfde waarden onder de namen die de regel geeft, en weigert `duplicateAssignm
 De nieuwe bron neemt de lijst uit die herlezing. Een gewiste taak neemt haar sleutels mee; melding en `detached` volgen
 in PR 6 en 7. Zonder vreemd deel schrijft de gewone writer ze niet, zoals op main; een paar bronvormen weigeren nog
 (knownbug 2210). Proef: `check-ifc-foreign-ongebruikte-sleutels.ts`.
+
+### Tokens per slot van een ander programma (#804 fase 2, `sourceSlots`)
+
+`ifcSource.sourceSlots` (ontwerp §4.5) bewaart van elk D- en R-stuk van vreemde herkomst (`cls.foreignOrigin`: de owner
+history wijst niet naar de applicatie `'OPS'`) het entiteittype, de tabel en de ruwe tokens per slotnaam, als `Map` op het
+bron-`#id`; de `IfcTaskTime` van een taak en de `IfcLagTime` van een relatie staan onder `owned` van hun eigenaar,
+alleen bij een directe verwijzing met het id zoals het er staat (zoals de lezer: een lijst of een voorloopnul geeft geen
+taaktijd en geen `owned`).
+`foreign/sourceSlots.ts` leest ze met het register (`slotTableOf` in `ifcSlotTables.ts`: per bronregel precies één
+tabel, een werkschema op `isBaselineWorkControl`). Een stuk in een oude lay-out of met de oude letterlijke codering
+(§4.9) krijgt geen tokens. Alleen op twee plekken: bij openen van een bron met een vreemd deel (`scanForeignToOpen`, ook
+in de Worker) en voor de bron die de writer teruggeeft (`writtenSource` in `mergeWriter.ts`: alleen de regels die de
+writer schreef, met een owner history van een ander programma). Een bron zonder vreemd deel heeft het veld niet, zoals op
+main; de doelcontrole, de headless routes en de interne scans van de merge verzamelen niets. De scanrunner en de
+opslagworker eisen bij een vreemd deel een kaart (een lege is geldig) en weigeren er een zonder vreemd deel
+(`isSourceSlots`, in `foreignScanRunner.ts` en `resultFits`). Het crashherstel opent de bronbytes opnieuw en krijgt ze zo
+terug; het herstelrecord heeft er geen veld voor. Proef: `check-ifc-source-slots.ts`.
+
+De merge schrijft met de kaart (deel 2 van PR 2, `foreign/sourceSlotWrite.ts`, één regel over de soort uit het register):
+een stuk van de kaart krijgt per slot het brontoken of de waarde van de writer. Constant: het brontoken (een `#` alleen
+op de vaste lijst, `bronverwijzing`); domein: het brontoken zolang de planner geen veld wijzigde waar de writer dat slot
+uit schrijft (regel A: één slot, één beslissing, één veldenlijst; `slotFieldChanged` en `slotHasFields` in `lossCheck.ts`,
+dezelfde tabel als de uitleg van O1 voor een stuk uit de kaart, die ook dezelfde wijzigingen leest: `plannerChanged`,
+tegenover wat de app na openen liet zien); alleen een slot zonder veldenlijst kijkt of de writer er hetzelfde schrijft als
+bij openen (O0). Een tijdveld dat alleen het openen veranderde, krijgt de waarde uit de bronlezing terug
+(`sourceFormWhereUnchanged`), behalve bij een taak die bij openen kinderen had en nu geen meer: heropenen telt haar
+tijd dan niet meer op uit de kinderen, dus schrijft de writer de taaktijd van de planner, met de duur-eenheid. De
+waarde van een lag volgt de schrijfkeuze van de writer: houdt die de dagvorm van de bron
+(`sourceDayLagIds`), dan hangt de waarde niet van de eenheid af en blijft `P0.50D` staan. Afgeleid: de writer. Verwijzing: de writer, behalve een gevulde verwijzing naar
+een stuk dat de writer niet draagt (niet P, zoals een `IfcTaskTimeRecurring`; regel B, `keepsTarget`): die houdt haar
+brontoken zolang de velden van het slot gelijk blijven, en de regel die de writer ernaast schreef vervalt
+(`dropReleased`); anders weigert de verliescontrole (`releasesKeptTarget`). Een afhankelijk slot (`volgt`) gaat samen met
+zijn hoofdslot. Het entiteittype komt uit de bron als het domein het niet onderscheidt (`sameDomainEntity`: een
+`IfcConstructionProductResource` blijft dat). Dat geldt voor de D-stukken met hun vaste id (ook een baselinekop die zijn
+id via zijn GlobalId houdt) en hun taaktijd of lag, in O0 en O1 (`buildLines` in `mergeWriter.ts`). Relaties van een
+ander programma (`IfcRelNests`, `IfcRelAggregates`, `IfcRelAssignsToControl`, `IfcRelAssignsToProcess`) schrijft de merge
+opnieuw met hun bewaarde slots; de leden komen uit wat de writer voor dezelfde relating schreef: een enige `Nests` van
+Bonsai volgt de ouder (alle kinderen, in de volgorde van het domein), anders houdt elke bewaarde relatie haar leden die
+het domein nog koppelt, en houdt de eigen relatie de rest. Een relatie met de projectkalender (de lezer slaat die over)
+houdt de leden zonder eigen kalender. Zonder leden vervalt de relatie. De verliescontrole laat een afgeleid slot en een
+verwijzing buiten een relatierol en een groep aan de writer (`writerAlwaysWrites`), een verwijzing alleen als haar doel
+P is; de rest toetst zij zoals bij een eigen stuk. Een relatie uit de kaart met een unieke GlobalId paart alleen op die
+GlobalId (`guidIsIdentity`): een verdwenen relatie paart niet met een buur, en de ledencontrole verklaart haar. Controle
+(c) krijgt de slots die de kaart koos (`chosen`, vastgelegd waar `sourceSlotArgs` beslist); de owner history van een
+IfcRoot telt daar niet mee, en `checkedOutput` toetst elke gekozen verwijzing op de hernummerde regel. Een verwijzing
+naar een bewaard stuk houdt bij het hernummeren haar token (ook `#00107`). Een stuk met een token dat niet verliesvrij
+te lezen is (een rauwe Latin-1-byte), komt niet in de kaart. De nieuwe bron na een opslag neemt haar klassen uit de
+uitvoerscan en toetst dat precies de geschreven regels P zijn. `vreemde-herkomst` blijft voor wat de
+kaart niet draagt: een oude lay-out, de oude letterlijke codering, een vorm buiten het register (een
+`IfcLaborResource` met 10 argumenten) en een `IfcRelDeclares` of `IfcRelDefinesByProperties` van een ander programma
+(knownbug 2233). `entiteittype` blijft als de planner het type van een resource wijzigt. Proef:
+`check-ifc-source-slot-write.ts` (de regel en de rest per slot over het hele register).
+
+Regel C, waar regel A en B onder vallen: de opslag verandert de verwijzingen tussen bewaarde stukken van een ander
+programma niet, behalve waar de bewerking het verklaart. Elk stuk dat ernaar wees, wijst er nog naar (ook een eigen
+stuk; geeft OPS dat opnieuw uit met een nieuwe GlobalId, dan neemt een nieuw eigen stuk van hetzelfde type die rol in
+hetzelfde slot over), een gedeeld hulpstuk blijft gedeeld, en het stuk wijst nog naar dezelfde stukken. Verklaard is
+alleen wat bij een gewiste toewijzing, relatie of taak hoort, en de verwijzer van een gewijzigd veld. De herkomst van een
+toewijzing is de enige bronrelatie met die taak en die resource (`assignmentOrigin` in `foreign/assignmentOrigin.ts`:
+één beslissing voor de writer en de verliescontrole). Staat het paar in meer dan één relatie en veranderden de
+toewijzingen van dat paar, dan weigert de merge met `niet-eenduidig` (`foreignRelations` in `mergeWriter.ts`) en
+verklaart de verliescontrole niets (`expectedProcessMembers` in `lossCheck.ts`); knownbug 2368. Een P-hulpstuk achter
+een verwijzingsslot van een stuk uit de kaart dat twee verwijzers deelt, weigert de merge vooraf met `niet-eenduidig`
+(`sharedHelpers` in `prepareIfcWrite`; knownbug 2369); een opslag zonder wijziging in de planning (ook na ongedaan maken)
+komt daar niet: de merge geeft dan de bronbytes terug (`planningCanon` gelijk aan wat de app na openen liet zien). De
+volgorde telt per geordend slot: de kinderen van een `IfcRelNests` blijven in hun volgorde, behalve bij de ouder waar de
+planner ze versleepte. Een nieuwe toewijzingsrelatie staat in de uitvoer na de bewaarde toewijzingsrelaties van de taken
+die in het domein vóór haar taak staan (`assignmentPlacement` in `mergeWriter.ts`), zodat herlezen de toewijzingen in de
+volgorde van de planner geeft; die volgorde tussen taken is zichtbaar (de optelvolgorde van belasting en van de totalen per
+resource in MCP, `getAssignments` voor extensies, de UID's van MSPDI). Proef: `check-ifc-foreign-regel-c.ts` bouwt de verwijzingsgraaf
+van bron en uitvoer (`tests/planning/ifcRegelC.ts`) over twaalf bronnen en elke bewerking op elke plek waar ze kan; de
+pinproef gebruikt dezelfde toets.
+
+Kosten: evenredig met het aantal stukken van een ander programma én met de gedecodeerde lengte van hun regels
+(`argTokens` decodeert en splitst de hele regel, ook een ledenlijst van 50.000). De reviewer van #1196 (GPT-6.2-Sol) mat
+bij 10.000 vreemde taken met taaktijden ongeveer 18,7 MiB extra V8-heap na GC, bij een IFC van 1,51 MiB; bij
+`fix2-vendor-ops.ifc` (369 stukken) ongeveer 335 KiB. De kaart reist gekloond naar en van de opslagworker. Gemeten in
+deel 2 (aia09-mp50 onder zware belasting, dus ruwe tijden): 10.000 vreemde taken met taaktijden (2,09 MiB) openen 3,0 s,
+opslaan 27,3 s met een piek-RSS van 1.157 MiB; vóór de writer weigerde die opslag na 50,6 s met een piek van 686 MiB,
+vóór het herlezen van de uitvoer. `bonsai-4d.ifc` opslaan 141 ms. Fixronde 1 van #1205, twee geslaagde opslagen van
+dezelfde invoer naast elkaar: vóór het herstel 28,3 s en een piek-RSS van 1.115 MiB, erna 28,3 s en 947 MiB (één meting per kant onder wisselende
+belasting; O1 houdt nu geen tweede kaart met de argumenten van de writer meer vast).
+
+Voor een eigen stuk blijft (b) in de verliescontrole (`planRestores` in `lossCheck.ts`): die leest de bronwaarden bij
+elke merge opnieuw uit `ifcSource.bytes`; een stuk van de kaart heeft na de writer geen verschil meer in O0. Bij (b) geldt de waarde van
+de planner als hij het veld wijzigde; bij een slot van de soort `lijst`, `json` of `samengesteld` (de lezer draagt er een
+deel van) weigert de merge dan, want per lid, per sleutel of per deel samenvoegen volgt met `jsonExtras` en `unusedKeys`.
+Paart het stuk in O1 niet eenduidig, of heeft de regel in O1 een ander type of een andere vorm, dan weigert de merge ook.
+De merge leest de planning met de bronwaarden erin terug (`mergeWriter.ts`); geeft dat een andere planning dan zonder,
+dan weigert hij.
 
 ### Vergelijkingsklok (#804 fase 1c)
 

@@ -119,6 +119,7 @@ export interface SlotCase {
 
 export const FOREIGN_SLOT_TEXT = "'Waarde van een ander programma'";
 const FOREIGN_PERSON = 99901;
+const FOREIGN_GLOBAL_ID = "'0AnderPakket0000000001'";
 const FOREIGN_APPLICATION = 99902;
 const FOREIGN_OWNER_HISTORY = 99903;
 
@@ -163,7 +164,8 @@ function valueFor(code: string | undefined, current: string): string | undefined
   const list = /^(?:SET|LIST)\d+:(.*)$/.exec(body);
   const kind = list ? list[1] : body;
   const one = (k: string): string | undefined => {
-    if (k === '*' || k === 'G') return undefined;
+    if (k === 'G') return current === FOREIGN_GLOBAL_ID ? undefined : FOREIGN_GLOBAL_ID;
+    if (k === '*') return undefined;
     if (k.startsWith('#=')) return `#${FOREIGN_PERSON}`;
     if (k.startsWith('E=')) return k.slice(2).split('|').map(l => `.${l}.`).find(l => l !== current);
     if (k.startsWith('V=')) {

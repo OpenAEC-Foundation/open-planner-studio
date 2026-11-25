@@ -13,9 +13,10 @@
  * is. Tot dan wacht de runner hoogstens `FOREIGN_SCAN_START_TIMEOUT_MS`, daarna per verzoek de ruime rekentijd
  * (`timeoutMs`). Na een terugval is de Worker gestopt en zijn de luisteraars weg: een laat bericht doet niets.
  */
-import { scanForeignToOpen, type ForeignScanOutcome, type OpenedForeignScan, type OpenedForeignScanOutcome } from './foreignScan';
+import { scanForeignToOpen, type ForeignScanOutcome, type ForeignScanResult, type OpenedForeignScan, type OpenedForeignScanOutcome } from './foreignScan';
 import type { ForeignScanWorkerRequest, ForeignScanWorkerResponse } from './foreignScanHandler';
 import type { TargetScanStep } from './targetModelScan';
+import { isSourceSlots } from './sourceSlots';
 
 export type ForeignScanWorker = Pick<Worker, 'postMessage' | 'terminate' | 'onmessage' | 'onerror' | 'onmessageerror'>;
 
@@ -58,8 +59,11 @@ function defaultCreateWorker(): ForeignScanWorker | null {
 
 type Body<T> = T extends unknown ? Omit<T, 'id'> : never;
 
-const hasElementLinks = (outcome: ForeignScanOutcome): outcome is OpenedForeignScanOutcome =>
+const hasForeignPart = (outcome: ForeignScanResult) => outcome.counts.C + outcome.counts.A + outcome.counts.V > 0;
+
+const isOpenedScan = (outcome: ForeignScanOutcome): outcome is OpenedForeignScanOutcome =>
   !outcome.ok || ('stepElementLinks' in outcome && Array.isArray(outcome.stepElementLinks)
+    && (hasForeignPart(outcome) ? 'sourceSlots' in outcome && isSourceSlots(outcome.sourceSlots) : !('sourceSlots' in outcome))
     && ((outcome as OpenedForeignScan).foreignReferences === undefined || (outcome as OpenedForeignScan).foreignReferences!.targets instanceof Int32Array));
 
 /**
@@ -134,7 +138,7 @@ export async function withScanWorker<T>(
     },
     opened: async (bytes) => {
       const r = await ask({ bytes, open: true });
-      if (!('outcome' in r) || !hasElementLinks(r.outcome)) throw unexpected();
+      if (!('outcome' in r) || !isOpenedScan(r.outcome)) throw unexpected();
       return r.outcome;
     },
     step: async (chunk) => {

@@ -8,9 +8,12 @@ export interface SlotSoorten {
   readonly bronverwijzing?: true;
 }
 
+export type RelationRol = 'relating' | 'lid' | 'leden';
+
 export interface SlotSpec<K extends string = string> extends SlotSoorten {
   readonly key: K;
   readonly volgt?: K;
+  readonly rol?: RelationRol;
 }
 
 export interface WriteSlot<C, K extends string = string> extends SlotSpec<K> {

@@ -222,6 +222,13 @@ export class StepIndex {
     const n = this.#idNum[i];
     return n >= 0 ? String(n) : '';
   }
+  idLabel(i: number): string {
+    const from = this.#entStart[i] + 1;
+    if (from <= 0) return '';
+    let to = from;
+    while (to < this.#end[i] && isWord(this.#bytes[to])) to++;
+    return String.fromCharCode(...this.#bytes.subarray(from, to));
+  }
   /** Het stuk met dit `#id` (zonder `#`), of -1. */
   chunkOf(id: string): number {
     if (!/^\d{1,10}$/.test(id)) return -1;
@@ -468,7 +475,7 @@ export class StepIndex {
 /** De publieke velden en methoden van `StepIndex`: wat de indeling mag lezen (§4.2). */
 export const STEP_INDEX_FIELDS: ReadonlySet<string> = new Set([
   'count', 'entityCount', 'lineEnding', 'danglingRefCount',
-  'kind', 'isEntity', 'start', 'end', 'entityStart', 'type', 'id', 'chunkOf',
+  'kind', 'isEntity', 'start', 'end', 'entityStart', 'type', 'id', 'idLabel', 'chunkOf',
   'outStart', 'outEnd', 'outTarget', 'outArg', 'inStart', 'inEnd', 'inSource', 'inArg', 'refsAt', 'refAt',
   'argCount', 'globalId', 'name', 'templateType', 'workControl', 'propertyText', 'enumValues', 'application',
   'literalText',
