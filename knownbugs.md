@@ -2017,13 +2017,14 @@ en noem het in je rapport of PR-tekst.
      geërfde eigenschap van het object, en het paneel loopt vast op `pool.resources.filter`. Nagespeeld met een
      zelfgemaakt projectbestand, niet in de browser. Issue #1234. — B
 2333. **Een `null` in de werkblokken van een opgeslagen bibliotheekkalender zet het bewaren van de bibliotheek stil.**
-     `normalizePoolShape` (`src/services/library/libraryOps.ts`) gooit zelf bij een `null` in de werkblokken van een
-     kalender. Bij het laden uit opslag blijft `libraryLoaded` dan onwaar, en `persistLibrary`
+     `normalizePoolShape` (`src/services/library/libraryOps.ts`) gooit zelf bij een `null` in de werkblokken van de
+     eerste werkdag met blokken van een kalender (`workDayFromBlocks`); een `null` op een latere werkdag gooit daar niet. Bij het laden uit opslag blijft `libraryLoaded` dan onwaar, en `persistLibrary`
      (`src/state/slices/librarySlice.ts`) slaat elke latere bewerking van de bibliotheek over bij het wegschrijven.
      Bij importeren vertaalt de dialoog dezelfde fout naar "Dit IFC-bestand bevat geen resourcebibliotheek".
      Nagespeeld met zelfgemaakte gegevens, niet met echte opslag via Tauri of IndexedDB. Issue #1235. — B
-2334. **Het versienummer van een bibliotheek loopt vanaf 9007199254740992 niet meer op.** `normalizePoolShape` laat
-     die `poolVersion` door, en `bumpPool` (`libraryOps.ts`) telt er 1 bij op, wat hetzelfde getal geeft. `isPoolNewer`
+2334. **Het versienummer van een bibliotheek kan vanaf 9007199254740992 blijven steken.** `normalizePoolShape` laat
+     zo'n `poolVersion` door, en `bumpPool` (`libraryOps.ts`) telt er 1 bij op; bij precies die waarde geeft dat
+     hetzelfde getal. `isPoolNewer`
      vergelijkt dan alleen nog op `modifiedAt`. Nagespeeld met een los script; zo'n nummer komt alleen uit een
      zelfgemaakt bestand. — B
 
@@ -3250,9 +3251,9 @@ en noem het in je rapport of PR-tekst.
      ook in de oude lagindeling. Richting: die verschillende dagmaten in de bestaande regressie opnemen.
      Uit #892, review ronde 3 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
 
-1154. **VERVOLG: uitleg van de IFC-duurvormen loopt achter op de lezer.**
+1154. **VERVOLG: commentaar over de IFC-duurvormen loopt achter op de lezer.**
      `src/services/ifc/foreign/durationForms.ts` beschrijft nog afronding van seconden en de oude spelings- en
-     laginterpretatie. `docs/ifc-round-trip.md` zegt nog dat de lezer nergens spelingminuten afleidt. De lezer
+     laginterpretatie. De lezer
      leest tijdslots inmiddels exact; de conservatieve lijst zelf blijft veilig (1152). Richting: de uitleg
      bijwerken en het verschil tussen leesgedrag en de toegestane bronvormen voor schrijven toelichten.
      Uit #892, review ronde 3 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — S
