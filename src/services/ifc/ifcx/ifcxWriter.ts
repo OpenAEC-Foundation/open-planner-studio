@@ -3,27 +3,9 @@ import { selfCheckDifferences } from './selfCheck';
 import { IfcxWriteRefusedError } from './ifcxErrors';
 import { readIfcx } from './ifcxReader';
 import { canonicalFor, ownFileFor } from './ownFile';
-import type { IfcxDocument } from './projection';
+import { serializeIfcx } from './projection';
 
 export type { IfcxDocument, IfcxEntry, IfcxHeader } from './projection';
-
-function indented(json: string): string {
-  return json.replace(/\n/g, '\n  ');
-}
-
-export function serializeIfcx(document: IfcxDocument): string {
-  return [
-    '{',
-    `  "header": ${indented(JSON.stringify(document.header, null, 2))},`,
-    `  "imports": [],`,
-    `  "schemas": ${indented(JSON.stringify(document.schemas, null, 2))},`,
-    '  "data": [',
-    document.data.map(entry => `    ${JSON.stringify(entry)}`).join(',\n'),
-    '  ]',
-    '}',
-    '',
-  ].join('\n');
-}
 
 export function writeIfcx(given: WriteIFCInput, writtenAt: Date = new Date()): string {
   const canonical = canonicalFor(given);

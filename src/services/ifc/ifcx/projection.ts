@@ -164,3 +164,21 @@ export function globalIdsOf(input: PlanningModel): GlobalIdOfObject {
   const intended = intendedGlobalIds(input);
   return (kind, id) => intended.get(ifcObjectSeed(kind, id))!;
 }
+
+function indented(json: string): string {
+  return json.replace(/\n/g, '\n  ');
+}
+
+export function serializeIfcx(document: IfcxDocument): string {
+  return [
+    '{',
+    `  "header": ${indented(JSON.stringify(document.header, null, 2))},`,
+    `  "imports": [],`,
+    `  "schemas": ${indented(JSON.stringify(document.schemas, null, 2))},`,
+    '  "data": [',
+    document.data.map(entry => `    ${JSON.stringify(entry)}`).join(',\n'),
+    '  ]',
+    '}',
+    '',
+  ].join('\n');
+}
