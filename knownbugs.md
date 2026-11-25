@@ -7439,3 +7439,13 @@ en noem het in je rapport of PR-tekst.
      moest koppelen, koppelt dan niet meer. Richting: `baselineOrphanGuids` meenemen in de documentgegevens en de
      STEP-writer de GlobalId van een weesrij daaruit laten nemen; IFCX volgt dan vanzelf. Gevonden bij de herschrijving
      van #1189 op de kern. — B
+2382. **IFCX: een planning uit een XER-import weigert op te slaan met alleen "planning" in de melding.** Dat ze niet
+      opslaat is bedoeld: het P6-bronarchief (`xerSourceArchive` en wat daaruit volgt) draagt IFCX nog niet. Maar de
+      weigering komt binnen als `invalid` met als veld `planning`, niet als `unsupported` met de veldnamen: de
+      STEP-schrijver zet het compacte archief in het bestand, de lage STEP-lezer gooit zonder XER-reconstructie een
+      fout, en de IFCX-schrijver vangt die vóór `unsupportedContent` af. `docs/ifcx-profiel.md` belooft bij het
+      bronarchief een `unsupported`-weigering met veldnamen; de planner ziet alleen "planning" en niet waarom. Het
+      bestand blijft bytegelijk en het document blijft gewijzigd (app-proef van 2367, met een echte XER-import). Zit
+      al in main; gevonden bij de herstelronde van #1189 en bevestigd in review ronde 3 (Sol). Richting: het
+      bronarchief herkennen vóór de STEP-rondgang en weigeren met `unsupported` en de veldnamen, of het profiel
+      aanpassen aan wat er gebeurt. — B
