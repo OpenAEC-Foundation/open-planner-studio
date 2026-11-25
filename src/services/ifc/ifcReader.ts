@@ -46,7 +46,8 @@ import {
 } from './ifcPsets';
 import {
   DAY_MEASURE_LAGS_PROP, EXACT_MINUTE_LAGS_PROP, parseDayMeasureLags, taskMinutesPerDay,
-  wholeFloatDays, type DayMeasureRecord, type ExactMinutesRecord,
+  wholeFloatDays, type DayMeasureDurationRecords, type DayMeasureRecord, type ExactFloatRecords, type ExactMinutesRecord,
+  type ExactMinutesRecords,
 } from './dayMeasureIo';
 import {
   IFC_TASKTIME_SLOTS, ALL_RECORDED_SLOT_KEYS, TASK_SLOT, TASKTIME_SLOT, IFC_TASK_STATUS_RUNNING, taskSlots,
@@ -94,10 +95,22 @@ export interface IfcReadOptions {
   taskTimeReadingsOut?: Map<string, TaskTimeReading>;
 }
 
+export const TASK_TIME_READING_FIELDS = [
+  'scheduleStart', 'scheduleFinish', 'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'actualStart', 'actualFinish',
+  'durationUnit', 'scheduleDuration', 'durationMinutes', 'remainingTime', 'remainingMinutes', 'actualDuration',
+  'totalFloat', 'totalFloatMinutes', 'freeFloat', 'freeFloatMinutes',
+] as const satisfies readonly (keyof TaskTime)[];
+
 export interface TaskTimeReading {
   readonly id: string;
   readonly args: readonly string[];
-  readonly time: TaskTime;
+  readonly time: Pick<TaskTime, typeof TASK_TIME_READING_FIELDS[number]>;
+  readonly minutesPerDay: number;
+  readonly records: {
+    readonly dayMeasure?: DayMeasureDurationRecords;
+    readonly exactMinutes?: ExactMinutesRecords;
+    readonly exactFloat?: ExactFloatRecords;
+  };
 }
 
 interface StepEntity {
@@ -221,10 +234,12 @@ export function readIFC(
     for (const task of tasks) {
       const e = taskTimeEntities.get(task.id);
       if (!e) continue;
-      const time = structuredClone(task.time);
+      const time = Object.fromEntries(TASK_TIME_READING_FIELDS.map(f => [f, task.time[f]])) as TaskTimeReading['time'];
       const slotDuration = milestoneSlotDurations?.get(task.id);
       if (slotDuration !== undefined && time.durationUnit !== 'hours') time.scheduleDuration = slotDuration;
-      options.taskTimeReadingsOut.set(task.id, { id: e.id, args: [...e.args], time });
+      const minutesPerDay = taskMinutesPerDay(task, effHoursPerDay(resolveCalendar(task.calendarId, resourceCalendars, calendar)));
+      const records = { dayMeasure: readDayMeasureDurations(task), exactMinutes: readExactMinutes(task), exactFloat: readExactFloat(task) };
+      options.taskTimeReadingsOut.set(task.id, { id: e.id, args: [...e.args], time, minutesPerDay, records });
     }
   }
   for (const task of tasks) reconcileP6SuspendResume(task);

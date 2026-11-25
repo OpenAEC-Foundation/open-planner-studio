@@ -66,7 +66,7 @@ import { planningIdentities, planningIdentityInput } from './planningIdentity';
 import { sameValue } from '@/utils/sameValue';
 import { freeze } from 'immer';
 import { openMergePlanning } from '@/state/ifcMergePlanning';
-import { taskTimeSlotProblem } from './taskTimeExpectation';
+import { taskTimeSlotProblem, type LiteralSourceSlots } from './taskTimeExpectation';
 import type { TaskTimeReading } from '../ifcReader';
 import { psetOwners, validateMergeOutput } from './mergeValidation';
 import { applyForeignRule, emptyForeignReferences, goneStepIds, NOTHING_GONE, type ForeignChange, type ForeignReferences, type ForeignRuleOutcome } from './changeList';
@@ -910,11 +910,11 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     const own: OwnOutputCheck = {
       stepIds, writtenAt, sourceRowGuid: rowGuid, skip: new Set([...restored.skip, ...unmapped]),
       slots: restored.slots.filter(s => !unmapped.has(s.group)).map(s => ({ ...s, id: remap.get(s.id)! })),
-      ...(domain.recordedSourceFormat ? {
+      ...(input.recordedSourceFormat ? {
         sourceTokens: new Map(edits.filter(e => byId.get(e.id)?.type === 'IFCTASKTIME')
           .map(e => [`${remap.get(e.id) ?? e.id}#${e.arg}`, e.token])),
+        emptySourceSlots: form.emptySlots,
       } : {}),
-      domain,
     };
     observe?.(own);
     const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own, changes);
@@ -986,13 +986,11 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, index: Ste
 /** Wat de uitvoercontrole (c) nodig heeft: de sessiekaart van de uitvoer, de schrijfklok van O1 en wat (c) doet met de slots
  *  die (b) herstelde (`RestoredOwnSlots`, met de ids van de uitvoer). Zonder (de bronbytes zelf terug, stuk 1) loopt (c)
  *  niet: die bytes schreef deze writer niet. */
-export interface OwnOutputCheck extends RestoredOwnSlots {
+export interface OwnOutputCheck extends RestoredOwnSlots, LiteralSourceSlots {
   readonly stepIds: Readonly<Record<string, number>>;
   readonly writtenAt: Date;
   /** De GlobalId die de lezer in de bron voor een weesrij aannam (`assumedRowGuid` op de lezing van de bron). */
   readonly sourceRowGuid: (taskId: string) => string | undefined;
-  readonly sourceTokens?: ReadonlyMap<string, string>;
-  readonly domain?: WriteIFCInput;
 }
 
 /** Alleen voor proeven: de volledige uitvoercontrole van `prepareIfcWrite` op gegeven uitvoerbytes (ook een gemuteerde
@@ -1020,16 +1018,16 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   changes: readonly ForeignChange[] = []) {
   let actual: ReturnType<typeof validateMergeOutput>;
   let shown: WriteIFCInput, wanted: WriteIFCInput;
-  let parsed: WriteIFCInput;
+  let parsed: ImportResult;
   let outputScan: ForeignScanResult;
   const writtenUnusedKeys = new Map<string, string[]>();
-  const slotDomain = own?.domain?.recordedSourceFormat ? own.domain : undefined;
+  const slotInput = own && input.recordedSourceFormat ? input : undefined;
   const readings = new Map<string, TaskTimeReading>();
   try {
     actual = validateMergeOutput(index, cls, source.bytes, bytes, { changes });
     if (actual.problems.length) throw new MergeNeedsPhase2Error(actual.problems.map(detail => ({ kind: 'uitvoer-controle', detail })));
     outputScan = foreignScanFrom(actual.index, actual.classification, bytes);
-    parsed = await pristineFromScan(outputScan, bytes, opened.project, writtenUnusedKeys, slotDomain && readings) as WriteIFCInput;
+    parsed = await pristineFromScan(outputScan, bytes, opened.project, writtenUnusedKeys, slotInput && readings);
     // ImportResult draagt ook TimeModel en opgeslagen datums: de echte openactie beslist daarover.
     shown = openMergePlanning(freeze(structuredClone(parsed), true), 'uitvoer');
     wanted = openMergePlanning(input, 'domein');
@@ -1063,8 +1061,7 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   if (planningCanon(wanted) !== planningCanon(shown)) {
     throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(wanted, shown) }]);
   }
-  const slotProblem = slotDomain
-    && taskTimeSlotProblem(slotDomain, readings, (parsed as unknown as ImportResult).milestonesAtDayEnd, own?.sourceTokens);
+  const slotProblem = slotInput && own && taskTimeSlotProblem(slotInput, readings, parsed.milestonesAtDayEnd, own);
   if (slotProblem) throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: slotProblem }]);
   const numberProblem = unchangedPlanningNumberProblem(input, opened, wanted, shown);
   if (numberProblem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: numberProblem }]);
