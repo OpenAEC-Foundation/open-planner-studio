@@ -52,7 +52,8 @@ import {
 } from './lossCheck';
 import { elementLinksByTask, scanElementLinks } from './elementLinks';
 import { foreignOriginAmong, OWNED_BY_TABLE, scanSourceSlots, type SourcePieceSlots } from './sourceSlots';
-import { keepsTarget, sourceEntity, sourceSlotArgs } from './sourceSlotWrite';
+import { keepsTarget, sourceEntity, sourceSlotArgs, writerReferences } from './sourceSlotWrite';
+import { assignmentOrigin } from './assignmentOrigin';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource, PreparedIfcWrite, UnusedKeysOfTask } from './ifcSource';
@@ -407,6 +408,22 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   for (const i of cls.foreignOrigin) {
     if (!carried(i)) caseAt('vreemde-herkomst', i, `${label(i)} heeft de owner history van een ander programma`);
   }
+  const sharedHelpers = new Set<number>();
+  for (const [, piece] of sourceSlots ?? []) {
+    const table = slotTableNamed(piece.table);
+    if (!table) continue;
+    table.slots.forEach((slot, k) => {
+      for (const ref of writerReferences(table, k, piece.slots.get(slot.key))) {
+        const t = index.chunkOf(String(ref));
+        if (t < 0 || !isP(t) || sharedHelpers.has(t)) continue;
+        const referrers = new Set<number>();
+        for (let j = index.inStart(t); j < index.inEnd(t); j++) if (index.inSource(j) >= 0) referrers.add(index.inSource(j));
+        if (referrers.size < 2) continue;
+        sharedHelpers.add(t);
+        caseAt('niet-eenduidig', t, `${label(t)} is gedeeld door ${[...referrers].map(label).join(' en ')}, en de writer schrijft voor elke verwijzer een eigen ${index.type(t)}`);
+      }
+    });
+  }
   const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
   const { keep, bySource, reserved, baselineHeads, projects } = ids;
   const plan: WriterMergeIds = {
@@ -505,7 +522,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       const writtenArgs = line.args, type = line.type;
       line.type = sourceEntity(table, piece, line.type);
       setArgs(line, sourceSlotArgs(table, piece, writtenArgs, prior,
-        k => (object === undefined ? false : slotFieldChanged(type, k, object, changed) || (slotHasFields(type, k) ? false : undefined)), carried));
+        k => (object === undefined ? false : slotFieldChanged(type, k, object, changed, input) || (slotHasFields(type, k) ? false : undefined)), carried));
       line.args.forEach((token, arg) => {
         if (token === writtenArgs[arg]) return;
         chosen.push({ id: line.id, arg, token });
@@ -681,6 +698,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
         if (group) group.rels.push(r); else byRelating.set(key, { type, relating, rels: [r] });
       }
       if (byRelating.size === 0) return;
+      const origin = before ? assignmentOrigin(index, bySource, input, source.opened) : undefined;
       const outOf = (chunk: number) => (chunk >= 0 && byId.get(sid(chunk))?.drop === false ? sid(chunk) : undefined);
       const ownRels = new Map<string, OwnLine[]>();
       for (const line of lines) {
@@ -718,6 +736,16 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
           const cal = projectCalendar ? ownCalendar(m) : null;
           return cal !== null && (!cal || cal === input.calendar.id) ? id : undefined;
         };
+        const task = domainOf(relating);
+        if (origin && type === PROCESS && task?.kind === 'task') {
+          for (const r of rels) {
+            for (const m of index.refsAt(r, roles.related)) {
+              const resource = m >= 0 ? domainOf(m) : undefined;
+              if (resource?.kind !== 'res' || !origin.unclear(task.id, resource.id)) continue;
+              caseAt('niet-eenduidig', r, `${label(r)}: ${label(m)} staat bij ${label(relating)} in meer dan één toewijzing, en welke de planner wijzigde, is niet vast te stellen`);
+            }
+          }
+        }
         const nestsFollowParent = type === NESTS && rels.length === 1;
         if (nestsFollowParent) for (const m of ownMembers) fromPool.add(m);
         const taken = nestsFollowParent ? [ownMembers]

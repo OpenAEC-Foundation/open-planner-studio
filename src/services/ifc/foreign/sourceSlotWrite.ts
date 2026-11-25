@@ -32,9 +32,12 @@ export function writerAlwaysWrites(table: IfcSlotTable, k: number): boolean {
   return (soort === 'afgeleid' || soort === 'verwijzing') && table.slots[k].rol === undefined && !groupsOf(table).has(k);
 }
 
+export function writerReferences(table: IfcSlotTable, k: number, token: string | undefined): number[] {
+  return token !== undefined && soortVreemd(table, k) === 'verwijzing' && writerAlwaysWrites(table, k) ? references(token) : [];
+}
+
 export function keepsTarget(table: IfcSlotTable, k: number, token: string | undefined, carried: (id: number) => boolean): boolean {
-  return token !== undefined && soortVreemd(table, k) === 'verwijzing' && writerAlwaysWrites(table, k)
-    && references(token).some(id => !carried(id));
+  return writerReferences(table, k, token).some(id => !carried(id));
 }
 
 export function sourceSlotArgs(table: IfcSlotTable, piece: SourcePieceSlots, written: readonly string[],

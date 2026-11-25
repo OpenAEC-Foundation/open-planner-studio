@@ -89,6 +89,7 @@
 import { isStrictIsoDateTime, parseInstant } from '@/utils/dateUtils';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
+import { isWholeDays } from '../dayMeasureIo';
 import { withOpenedColors } from '@/services/taskTypes/customTaskTypeColors';
 import { savedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
@@ -115,6 +116,7 @@ import { splitStepArgs, type StepIndex } from './stepScanner';
 import type { MergePhase2Kind } from './mergeWriter';
 import { mappedChunks, type SourceSlots } from './sourceSlots';
 import { keepsTarget, writerAlwaysWrites } from './sourceSlotWrite';
+import { assignmentOrigin, type AssignmentOrigin } from './assignmentOrigin';
 
 /** Een regel van de writer, ontleed. */
 export interface OutLine { readonly id: number; readonly type: string; readonly args: readonly string[] }
@@ -575,12 +577,18 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
     return pos === undefined ? undefined : `${line.type}|${refOf(line.args[pos])}`;
   };
   const outRels = new Map<string, number[]>();
+  const outRelGuids = new Map<string, Map<string, number[]>>();
   for (const [id, line] of out) {
     if (fixed.has(id)) continue;
     const key = relKeyOut(line);
     if (key === undefined) continue;
     const list = outRels.get(key);
     if (list) list.push(id); else outRels.set(key, [id]);
+    const guid = unquote(line.args[0]);
+    let guids = outRelGuids.get(key);
+    if (!guids) outRelGuids.set(key, guids = new Map());
+    const same = guids.get(guid);
+    if (same) same.push(id); else guids.set(guid, [id]);
   }
   const relDone = new Uint8Array(n);
   /** Relaties die op hun GlobalId paarden (één kandidaat met hetzelfde GlobalId): dat is een identiteit. */
@@ -611,7 +619,7 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
       // Eén kandidaat met hetzelfde GlobalId: de writer gaf de relatie haar GlobalId terug (`ifcGlobalIds`). Anders de
       // eerste nog vrije; met meer kandidaten (of meer bronrelaties met deze sleutel) is dat niet eenduidig (hieronder).
       const guid = index.globalId(r);
-      const byGuid = candidates.filter(o => unquote(out.get(o)!.args[0]) === guid);
+      const byGuid = outRelGuids.get(key)?.get(guid) ?? [];
       if (byGuid.length === 1) { byGuidPair[r] = 1; pair(r, byGuid[0]); continue; }
       if (guidIsIdentity(r, guid)) continue;
       const free = candidates.find(o => !usedOut.has(o));
@@ -961,6 +969,25 @@ function mappedTables(input: LossCheckInput): ReadonlyMap<number, IfcSlotTable> 
   }
   MAPPED_TABLES.set(input, tables);
   return tables;
+}
+
+const ORIGINS = new WeakMap<LossCheckInput, AssignmentOrigin>();
+
+function expectedProcessMembers(input: LossCheckInput, r: number): number[] | undefined {
+  const { index, bySource } = input;
+  const roles = relationRoles('IFCRELASSIGNSTOPROCESS')!;
+  const relating = index.refAt(r, roles.relating);
+  const task = relating >= 0 ? bySource.get(Number(index.id(relating))) : undefined;
+  if (task?.kind !== 'task') return undefined;
+  let origin = ORIGINS.get(input);
+  if (!origin) ORIGINS.set(input, origin = assignmentOrigin(index, bySource, input.domain, input.opened));
+  const kept: number[] = [];
+  for (const m of index.refsAt(r, roles.related)) {
+    const resource = m >= 0 ? bySource.get(Number(index.id(m))) : undefined;
+    if (resource?.kind !== 'res' || origin.unclear(task.id, resource.id)) return undefined;
+    if (origin.remaining(task.id, resource.id) > 0) kept.push(m);
+  }
+  return kept;
 }
 
 const carriedTarget = (input: LossCheckInput) => (id: number) => input.cls.classes[input.index.chunkOf(String(id))] === 1;
@@ -1673,7 +1700,16 @@ const SEQ_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
 };
 /** Een resource (`writeResource`): naam, omschrijving, en bij een kostenresource het type. */
 const RES_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = { 2: ['name'], 3: ['description'], 4: ['type'], 10: ['type'] };
-const LAG_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = { 3: LAG_FIELDS, 4: ['lagUnit'] };
+const LAG_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = { 3: LAG_VALUE_FIELDS, 4: ['lagUnit'] };
+const SEQUENCES = new WeakMap<WriteIFCInput, ReadonlyMap<string, WriteIFCInput['sequences'][number]>>();
+function lagValueFields(domain: WriteIFCInput | undefined, object: string): readonly string[] {
+  if (!domain || !object.startsWith('seq:')) return LAG_SLOT_FIELDS[3];
+  let byId = SEQUENCES.get(domain);
+  if (!byId) SEQUENCES.set(domain, byId = new Map(domain.sequences.map(seq => [seq.id, seq])));
+  const seq = byId.get(object.slice(4));
+  const perDay = seq !== undefined && !Number.isFinite(seq.lagPercent) && !Number.isFinite(seq.lagMinutes) && !isWholeDays(seq.lagDays);
+  return perDay ? [...LAG_SLOT_FIELDS[3], 'lagUnit'] : LAG_SLOT_FIELDS[3];
+}
 /** `OPS_Resource` (`writeResourceMeta`): property → veld. */
 const RES_PROP_FIELDS: Readonly<Record<string, readonly string[]>> = {
   [PROP.Resource.MaxUnits]: ['maxUnits'], [PROP.Resource.CostPerHour]: ['costPerHour'],
@@ -1699,9 +1735,9 @@ export function slotHasFields(type: string, arg: number): boolean {
   return (SLOT_FIELDS_BY_TYPE.get(type)?.[arg]?.length ?? 0) > 0;
 }
 
-export function slotFieldChanged(type: string, arg: number, object: string, changed: ReadonlySet<string>): boolean {
+export function slotFieldChanged(type: string, arg: number, object: string, changed: ReadonlySet<string>, domain?: WriteIFCInput): boolean {
   if (changed.has(`${object}#@`) || changed.has(`${object}#*`)) return true;
-  return (SLOT_FIELDS_BY_TYPE.get(type)?.[arg] ?? [])
+  return (type === 'IFCLAGTIME' && arg === 3 ? lagValueFields(domain, object) : SLOT_FIELDS_BY_TYPE.get(type)?.[arg] ?? [])
     .some(field => (field.startsWith('@') ? changed.has(field.slice(1)) : changed.has(`${object}#${field}`)));
 }
 
@@ -2122,7 +2158,9 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   }
   if (kind === 'seq') {
     if (way === 'self') return type === 'IFCRELSEQUENCE' && !d.whole ? any(SEQ_SLOT_FIELDS[arg]) : undefined;
-    if (type === 'IFCLAGTIME' && way === 'slot:6') return any(d.whole || !mappedTables(input).has(d.chunk) ? LAG_FIELDS : LAG_SLOT_FIELDS[arg]);
+    if (type === 'IFCLAGTIME' && way === 'slot:6') {
+      return any(d.whole || !mappedTables(input).has(d.chunk) ? LAG_FIELDS : arg === 3 ? lagValueFields(input.domain, obj) : LAG_SLOT_FIELDS[arg]);
+    }
     return undefined;
   }
   if (kind === 'res') {
@@ -2344,6 +2382,9 @@ function explainRelation(ctx: O1Context, d: LossDiff, type: string, arg: number,
   if (type === 'IFCRELNESTS' && arg === 2) return has('name') ? `${obj}#name` : undefined;
   if (d.whole !== 'ontbreekt') return undefined;
   if (type === 'IFCRELNESTS') return has('childIds') ? `${obj}#childIds` : membersGone(ctx, d.chunk, type);
+  if (type === 'IFCRELASSIGNSTOPROCESS' && mappedTables(input).has(d.chunk)) {
+    return expectedProcessMembers(input, d.chunk)?.length === 0 ? `${obj}#assignments` : undefined;
+  }
   if (type === 'IFCRELASSIGNSTOPROCESS') return has('assignments') ? `${obj}#assignments` : undefined;
   if (type === 'IFCRELDEFINESBYPROPERTIES') {
     // De pset verdween: alleen als een veld veranderde dat de writer erin schrijft.
@@ -2486,6 +2527,11 @@ function explainMembers(ctx: O1Context, d: LossDiff): string | undefined {
   const relatingKey = relating >= 0 ? keyOf(relating) : undefined;
   const relHas = (f: string) => !!relatingKey && (changed.keys.has(`${relatingKey}#${f}`) || changed.keys.has(`${relatingKey}#*`));
   if (type === 'IFCRELNESTS' && relatingKey?.startsWith('task:') && relHas('childIds')) return `leden: ${relatingKey}#childIds`;
+  if (type === 'IFCRELASSIGNSTOPROCESS' && mappedTables(input).has(s)) {
+    const expected = expectedProcessMembers(input, s);
+    const actual = refList(line.args[d.outArg]).map(id => sourceChunkOf(input, id, p));
+    return expected && expected.length === actual.length && expected.every((c, i) => c === actual[i]) ? `leden: ${relatingKey}#assignments` : undefined;
+  }
   if (type === 'IFCRELASSIGNSTOPROCESS' && relatingKey?.startsWith('task:') && (relHas('assignments') || relHas('resourceIds'))) {
     return `leden: ${relatingKey}#assignments`;
   }
