@@ -380,6 +380,20 @@ kaart niet draagt: een oude lay-out, de oude letterlijke codering, een vorm buit
 (knownbug 2233). `entiteittype` blijft als de planner het type van een resource wijzigt. Proef:
 `check-ifc-source-slot-write.ts` (de regel en de rest per slot over het hele register).
 
+Regel C, waar regel A en B onder vallen: de opslag verandert de verwijzingen tussen bewaarde stukken van een ander
+programma niet, behalve waar de bewerking het verklaart. Elk stuk dat ernaar wees, wijst er nog naar (ook een eigen
+stuk; geeft OPS dat opnieuw uit met een nieuwe GlobalId, dan neemt een nieuw eigen stuk van hetzelfde type die rol in
+hetzelfde slot over), een gedeeld hulpstuk blijft gedeeld, en het stuk wijst nog naar dezelfde stukken. Verklaard is
+alleen wat bij een gewiste toewijzing, relatie of taak hoort, en de verwijzer van een gewijzigd veld. De herkomst van een
+toewijzing is de enige bronrelatie met die taak en die resource (`assignmentOrigin` in `foreign/assignmentOrigin.ts`:
+één beslissing voor de writer en de verliescontrole). Staat het paar in meer dan één relatie en veranderden de
+toewijzingen van dat paar, dan weigert de merge met `niet-eenduidig` (`foreignRelations` in `mergeWriter.ts`) en
+verklaart de verliescontrole niets (`expectedProcessMembers` in `lossCheck.ts`); knownbug 2368. Een P-hulpstuk achter
+een verwijzingsslot van een stuk uit de kaart dat twee verwijzers deelt, weigert de merge vooraf met `niet-eenduidig`
+(`sharedHelpers` in `prepareIfcWrite`; knownbug 2369). Proef: `check-ifc-foreign-regel-c.ts` bouwt de verwijzingsgraaf
+van bron en uitvoer (`tests/planning/ifcRegelC.ts`) over twaalf bronnen en elke bewerking op elke plek waar ze kan; de
+pinproef gebruikt dezelfde toets.
+
 Kosten: evenredig met het aantal stukken van een ander programma én met de gedecodeerde lengte van hun regels
 (`argTokens` decodeert en splitst de hele regel, ook een ledenlijst van 50.000). De reviewer van #1196 (GPT-6.2-Sol) mat
 bij 10.000 vreemde taken met taaktijden ongeveer 18,7 MiB extra V8-heap na GC, bij een IFC van 1,51 MiB; bij

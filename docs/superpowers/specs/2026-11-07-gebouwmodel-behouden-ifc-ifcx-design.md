@@ -510,11 +510,15 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
   `foreignMembers`, `jsonExtras` en `unusedKeys` (§4.2), wat de lezer uit gemengde relaties las (§4.6), `elementLinks`, `detached`, `foreign` (is er een vreemd
   deel), het aantal bewaarde vreemde tokens in constante slots, de grootte en wijzigingstijd van het bestand op het eigen
   doel (§4.10), de id-uitzonderingen (§4.14) en het totaal aantal vreemde objecten voor de melding.
-- **De nieuwe bron komt van de writer.** De klassen, de kaart domein-id → `#id`, `sourceSlots`, `foreignMembers` en
-  `elementLinks` van de nieuwe bron komen uit wat de writer schreef, met de domein-ids van de sessie, niet uit een nieuwe
-  indeling van de uitvoer. Anders kregen in de app gemaakte objecten, of een `-dup-N`-object met een nieuwe GlobalId, bij
-  elk opslaan een ander id, en verdwenen vreemde koppelingen ernaar (Opus, ronde 8). Bij heropenen deelt de indeling
-  opnieuw in; een test eist dat die uitkomst gelijk is aan wat de writer als P schreef.
+- **De nieuwe bron: de kaart uit het schrijfplan, de klassen uit de uitvoer.** De kaart domein-id → `#id` van de nieuwe
+  bron komt uit het schrijfplan van de writer, met de ids na de hernummering en de domein-ids van de sessie
+  (`writerStepIds` in `checkedOutput`, `mergeWriter.ts`). Anders kregen in de app gemaakte objecten, of een
+  `-dup-N`-object met een nieuwe GlobalId, bij elk opslaan een ander id, en verdwenen vreemde koppelingen ernaar (Opus,
+  ronde 8). De klassen C, A en V komen uit de scan van de uitvoer; P moet precies samenvallen met de regels die de writer
+  schreef, anders weigert de merge met `uitvoer-controle`. `sourceSlots` komt uit de scan van de geschreven stukken van
+  vreemde herkomst, `elementLinks` uit de scan van de uitvoer met de kaart van de sessie, en `foreignMembers` zijn de
+  bronleden op hun plek in de uitvoer. Bij heropenen deelt de indeling opnieuw in; een test eist dat die uitkomst gelijk
+  is aan wat de writer als P schreef.
 - **Na elk geslaagd schrijven naar het eigen doel** van het document (Opslaan, Opslaan als, de echte AutoSave naar het
   bestand) vervangt de app `ifcSource` door de uitvoer (die de controles al gescand hebben). Dat gebeurt in dezelfde
   `set()` als het afronden van het opslaan, en los van de dirty-vlag: werkt de planner door tijdens een lange AutoSave,

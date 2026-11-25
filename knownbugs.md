@@ -1891,7 +1891,14 @@ en noem het in je rapport of PR-tekst.
      `Aggregates`, `AssignsToControl` en `AssignsToProcess` opnieuw; deze twee houden de weigering `vreemde-herkomst`,
      zoals vóór #804 fase 2 PR 2. Richting: de pset-relatie paren op eigenaar en psetnaam, net als de verliescontrole
      (`relKeySource`), en de pset zelf ook met haar bewaarde owner history schrijven. Gezien met de meetproef over het
-     corpus (#804 fase 2 PR 2 deel 2). — B
+     corpus (#804 fase 2 PR 2 deel 2). Twee verwante grenzen bij de kalenderhulpstukken van een ander programma (review
+     ronde 2 van #1205): een vrije dag (`IfcWorkTime` in `ExceptionTimes`) met een eigen herkomstlabel
+     (`DataOrigin .USERDEFINED.`, `UserDefinedDataOrigin`) weigert bij het verlengen van die vrije dag met `niet-eenduidig`
+     op die twee slots, want de writer schrijft `.PREDICTED.` en `$`; een werkweek (`IfcWorkTime` in `WorkingTimes`) die
+     haar `IfcRecurrencePattern` deelt met een terugkerende taaktijd weigert elke opslag met `niet-gedragen` op
+     `IfcWorkTime.Recurrence`, omdat de writer een eigen patroon schrijft. Main weigert beide bestanden al op herkomst.
+     Richting: de herhaling gekoppeld houden, en aparte slotbeslissingen voor de datum en de herkomstmetadata. Beide staan
+     als bron in `check-ifc-foreign-regel-c.ts`. — B
 2234. **Een taak tot mijlpaal maken weigert de merge met `bronvorm-leest-anders`, ook bij een eigen planning.** Flag aan,
      `public/examples/showcase-verbouwing-eengezinswoning.ifc` met een wand van Revit erbij (een vreemd deel), de eerste
      taak zonder kinderen `isMilestone: true` via `updateTask` en doorrekenen: de opslag weigert, met
@@ -1904,6 +1911,22 @@ en noem het in je rapport of PR-tekst.
      in een letterlijke kalender als 07:00 in plaats van 16:00. De merge weigert dan met `bronvorm-leest-anders`; vóór de
      fixronde schreef hij alle datums van die taken in de vorm van de writer, ook waar de planner niets wijzigde. De
      pinproef `check-ifc-source-slot-write.ts` legt beide weigeringen vast. — B
+2368. **Een toewijzing wissen weigert als dezelfde ploeg twee keer aan die taak hangt.** Flag aan, een bestand van een
+     ander programma met twee `IfcRelAssignsToProcess` die dezelfde resource aan dezelfde taak koppelen (twee inzetten met
+     elk een eigen hoeveelheid). De lezer maakt er twee toewijzingen van zonder vast te leggen uit welke relatie elk kwam,
+     dus bij het wissen van één van de twee is niet vast te stellen welke relatie weg moet. De merge weigert dan met
+     `niet-eenduidig` (`assignmentOrigin` in `src/services/ifc/foreign/assignmentOrigin.ts`, `foreignRelations` in
+     `mergeWriter.ts`); hernoemen en andere bewerkingen schrijven. OPS zelf maakt zo'n paar niet (één resource per taak,
+     `assignResource`). Richting: de lezer laat elke toewijzing haar bronrelatie dragen (GlobalId), dan is het wissen
+     eenduidig. Review ronde 2 van #1205 (Sol); `check-ifc-foreign-regel-c.ts`. — B
+2369. **Een hulpstuk dat twee planningsstukken van een ander programma delen, weigert elke opslag.** Flag aan, een
+     bestand waarin twee `IfcRelSequence` één `IfcLagTime` delen, of twee taken één `IfcTaskTime`, ook als één van de twee
+     eigenaren van OPS-herkomst is. De writer schrijft zo'n hulpstuk per verwijzer opnieuw, dus de opslag zou het gedeelde
+     stuk splitsen. De merge weigert daarom vooraf met `niet-eenduidig` (`sharedHelpers` in `prepareIfcWrite`,
+     `mergeWriter.ts`), ook bij een bewerking elders. Een lag die gedeeld wordt met een reeks buiten de planning (geen
+     P-stuk) schrijft wel. Richting: het gedeelde hulpstuk één keer schrijven en elke verwijzer laten wijzen naar die ene
+     regel, en alleen splitsen als de planner het veld van één verwijzer wijzigt. Review ronde 2 van #1205 (Sol);
+     `check-ifc-foreign-regel-c.ts`. — B
 
 2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
      `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
