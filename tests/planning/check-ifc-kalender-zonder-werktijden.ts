@@ -69,6 +69,24 @@ async function bothMoments(store: Store, assert: (moment: string) => void): Prom
   assert('na F5');
 }
 
+const EMPTY_WEEK = { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '' };
+const calendarShape = (store: Store) => {
+  const calendar = store.getState().calendar;
+  return { week: week(calendar), urenPerDag: calendar.hoursPerDay, uitzonderingen: calendar.workingExceptions ?? [] };
+};
+
+async function throughSave(label: string, text: string, shown: (store: Store, label: string) => void): Promise<void> {
+  const file = memoryFile('eigen.ifc', text);
+  const store = await openPlain(text, { kind: 'handle', handle: file.handle });
+  await bothMoments(store, (moment) => shown(store, `${label}, ${moment}`));
+  await store.getState().saveFile();
+  same(`${label}: opslaan schrijft het bestand één keer`, file.writes.length, 1);
+  const saved = file.writes[0] ?? '';
+  same(`${label}: het opgeslagen bestand krijgt geen werkweek van 07:00 tot 16:00`, saved.includes("IFCTIMEPERIOD('07:00:00','16:00:00')"), false);
+  const reopened = await openPlain(saved);
+  await bothMoments(reopened, (moment) => shown(reopened, `${label}, na opslaan en heropenen, ${moment}`));
+}
+
 {
   const { store } = await openInStore(latin1(readText('tests/fixtures/ifc-foreign/bonsai-4d.ifc')), 'bonsai-4d.ifc');
   await bothMoments(store, (moment) => {
@@ -121,29 +139,40 @@ async function bothMoments(store: Store, assert: (moment: string) => void): Prom
     { name: 'Eerste werkvenster', startDate: '2026-02-02', endDate: '2026-02-02', bands: [{ start: 540, end: 600 }] },
     { name: 'Tweede werkvenster', startDate: '2026-02-09', endDate: '2026-02-09', bands: [{ start: 540, end: 780 }] },
   ];
-  const emptyWeek = { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '' };
   const wallTask = {
     duur: [0.5, 'hours', 240], vroeg: ['2026-02-02T09:00', '2026-02-09T12:00'], laat: ['2026-02-02T09:00', '2026-02-09T12:00'],
   };
-  const shown = (store: Store, label: string) => {
-    const calendar = store.getState().calendar;
-    same(`${label}: geen rekenfout`, store.getState().cpmResult?.error ?? null, null);
-    same(`${label}: de week blijft zonder werkblokken, met de twee werkende uitzonderingen`,
-      { week: week(calendar), urenPerDag: calendar.hoursPerDay, uitzonderingen: calendar.workingExceptions ?? [] },
-      { week: emptyWeek, urenPerDag: 8, uitzonderingen: exceptions });
-    same(`${label}: Wand A bouwen werkt 1 uur op 2 feb en 3 uur op 9 feb, tot 9 feb 12:00`, timing(find(store, 'Wand A bouwen')), wallTask);
-  };
   for (const [variant, text] of [['zoals opgeslagen', own], ['zonder WorkingTimes in de kalender', withoutWorkingTimes]] as const) {
-    const label = `(c) ${rel.split('/').pop()} ${variant}`;
-    const file = memoryFile('uitzonderingen.ifc', text);
-    const store = await openPlain(text, { kind: 'handle', handle: file.handle });
-    await bothMoments(store, (moment) => shown(store, `${label}, ${moment}`));
-    await store.getState().saveFile();
-    same(`${label}: opslaan schrijft het bestand één keer`, file.writes.length, 1);
-    const saved = file.writes[0] ?? '';
-    same(`${label}: het opgeslagen bestand krijgt geen werkweek van 07:00 tot 16:00`, saved.includes("IFCTIMEPERIOD('07:00:00','16:00:00')"), false);
-    const reopened = await openPlain(saved);
-    await bothMoments(reopened, (moment) => shown(reopened, `${label}, na opslaan en heropenen, ${moment}`));
+    await throughSave(`(c) ${rel.split('/').pop()} ${variant}`, text, (store, label) => {
+      same(`${label}: geen rekenfout`, store.getState().cpmResult?.error ?? null, null);
+      same(`${label}: de week blijft zonder werkblokken, met de twee werkende uitzonderingen`, calendarShape(store),
+        { week: EMPTY_WEEK, urenPerDag: 8, uitzonderingen: exceptions });
+      same(`${label}: Wand A bouwen werkt 1 uur op 2 feb en 3 uur op 9 feb, tot 9 feb 12:00`, timing(find(store, 'Wand A bouwen')), wallTask);
+    });
+  }
+}
+
+{
+  const elapsed = (from: string, to: string) => ({ duur: [0.5, 'hours', 240], vroeg: [from, to], laat: [from, to] });
+  const cases = [
+    ['v2026.8.1-lege-week-kloktijd-avond.ifc', [{ name: 'Zaterdag geopend zonder eigen uren', startDate: '2026-02-07', endDate: '2026-02-07' }],
+      [elapsed('2026-02-07T18:00', '2026-02-07T22:00'), elapsed('2026-02-07T22:00', '2026-02-08T02:00')]],
+    ['v2026.8.1-lege-week-kloktijd.ifc', [],
+      [elapsed('2026-02-07T09:00', '2026-02-07T13:00'), elapsed('2026-02-07T13:00', '2026-02-07T17:00')]],
+  ] as const;
+  for (const [name, exceptions, chain] of cases) {
+    const text = readText(`tests/planning/fixtures/kalendertijd-oud/${name}`);
+    same(`(d) voorwaarde: ${name} heeft een WorkingTimes-ingang met een week zonder tijdvak, zonder IsHourCalendar`, [
+      text.includes("'Lege week',$,$,(#15),"), text.includes('#14=IFCRECURRENCEPATTERN(.WEEKLY.,$,(1,2,3,4,5),$,$,$,$,());'),
+      text.includes('.ELAPSEDTIME.'), text.includes('IsHourCalendar'),
+    ], [true, true, true, false]);
+    await throughSave(`(d) ${name}`, text, (store, label) => {
+      same(`${label}: geen rekenfout`, store.getState().cpmResult?.error ?? null, null);
+      same(`${label}: de week blijft zonder werkblokken, zoals in het bestand`, calendarShape(store),
+        { week: EMPTY_WEEK, urenPerDag: 8, uitzonderingen: exceptions });
+      same(`${label}: de twee droogtijden van 4 uur kloktijd sluiten op elkaar aan`,
+        [timing(find(store, 'Droogtijd primer')), timing(find(store, 'Droogtijd afwerklaag'))], chain);
+    });
   }
 }
 
