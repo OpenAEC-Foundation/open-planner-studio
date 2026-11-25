@@ -187,6 +187,9 @@ const reversedChildren = (s: State, name: string) => {
   const parent = task(s, name);
   [...parent.childIds].reverse().forEach((id, childIndex) => s.moveTaskTo(id, { parentId: parent.id, childIndex }, PHASES));
 };
+const renamedChristmas = (s: State) => {
+  s.setCalendar({ ...s.calendar, holidays: s.calendar.holidays.map(h => (h.name === 'Kerst' && h.startDate === '2028-12-25' ? { ...h, name: 'Eerste Kerstdag' } : h)) });
+};
 const ownCalendar = (s: State, name: string) => {
   const { id: _id, ...calendar } = structuredClone(s.calendar);
   s.updateTask(task(s, name).id, { calendarId: s.addCalendar({ ...calendar, name: 'Eigen kalender' }) });
@@ -248,8 +251,11 @@ const CASES: readonly Case[] = [
     } },
   { source: 'Control onder een kalender met werktijden', label: 'een taak met een eigen kalender', act: s => { ownCalendar(s, 'Stucwerk'); },
     list: ['gewijzigd #122'], then: (out, src) => eq('Control onder een kalender: de andere taken en de baselinetaken blijven', lineOf(out, 122), lineOf(src, 122).replace('(#104,#108,#131,#144,#160)', '(#104,#108,#144,#160)')) },
-  { source: 'gedeelde pset (b)', label: 'andere uren per dag op de gedeelde kalender', act: s => { s.setCalendar({ ...s.calendar, hoursPerDay: 7 }); },
-    list: ['gewijzigd #52'], then: (out, src) => eq('gedeelde pset: de wand houdt de oude pset', [lineOf(out, 51), lineOf(out, 50)], [lineOf(src, 51), lineOf(src, 50)]) },
+  { source: 'gedeelde pset (b)', label: 'alleen de naam van een feestdag anders (Kerst 2028)', act: renamedChristmas, list: [], then: async (out, src) => {
+    eq('gedeelde pset, feestdagnaam: #50, #51 en #52 bytegelijk', [50, 51, 52].map(id => lineOf(out, id)), [50, 51, 52].map(id => lineOf(src, id)));
+    const back = (await opened(out)).getState().calendar.holidays.find(h => h.startDate === '2028-12-25');
+    eq('gedeelde pset, feestdagnaam: na heropenen de nieuwe naam', back?.name, 'Eerste Kerstdag');
+  } },
   { source: 'gedeelde pset (b)', label: 'een andere kalendernaam (niet in de pset)', act: s => { s.setCalendar({ ...s.calendar, name: 'Andere naam' }); }, list: [] },
 ];
 
@@ -288,6 +294,13 @@ for (const c of CASES) {
   ok(`tweede schema: verplaatsen en Ctrl+Z vóór het opslaan schrijft (${outcome.detail})`, outcome.written);
   eq('tweede schema: verplaatsen en Ctrl+Z vóór het opslaan: niets op de wijzigingslijst', outcome.changes, []);
   if (outcome.out) eq('tweede schema: verplaatsen en Ctrl+Z vóór het opslaan: Stucwerk blijft in de Nests van Bonsai', lineOf(outcome.out, 8502), lineOf(src, 8502));
+}
+
+{
+  const store = await opened(SOURCES['gedeelde pset (b)']);
+  store.getState().setCalendar({ ...store.getState().calendar, hoursPerDay: 7 });
+  const outcome = await savedStep('knownbug 2385, gedeelde pset (b): andere uren per dag op de gedeelde kalender', store);
+  eq('knownbug 2385: weigert zoals main', outcome.all, ['gemengde-relatie #52: IFCRELDEFINESBYPROPERTIES #52: de pset OPS_Calendar van IFCWORKCALENDAR #46 veranderde (of de writer deelt haar)']);
 }
 
 {
@@ -393,7 +406,7 @@ await refusesOutput('alleen een andere kalendernaam, en de kalender verlaat de g
     `#${rel}=IFCRELDEFINESBYPROPERTIES('0eigenKalenderRel00000',$,$,$,(#46),#${pset});`]),
   [...changes, { kind: 'gewijzigd' as const, id: 52, oldBytes: encode(was), newBytes: encode(now) }]];
 });
-await refusesOutput('bij (b) wijzigt de pset van het vreemde object mee', 'gedeelde pset (b)', s => { s.setCalendar({ ...s.calendar, hoursPerDay: 7 }); }, (out, changes) => {
+await refusesOutput('bij (b) een andere feestdagnaam, en de pset van het vreemde object wijzigt mee', 'gedeelde pset (b)', renamedChristmas, (out, changes) => {
   const was = pieceText(SOURCES['gedeelde pset (b)'], 50), now = was.replace(/IFCREAL\([^)]*\)/, 'IFCREAL(7.)');
   return [out.replace(was, () => now), [...changes, { kind: 'gewijzigd' as const, id: 50, oldBytes: encode(was), newBytes: encode(now) }]];
 });

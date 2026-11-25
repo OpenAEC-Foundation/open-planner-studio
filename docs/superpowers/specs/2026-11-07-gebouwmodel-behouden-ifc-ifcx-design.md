@@ -475,10 +475,12 @@ met de bestaande `parseSTEP` (een kleine set; de lezer kent `IfcRelAssignsToProd
   taak in de oude relatie en schreef de writer geen eigen nest; na heropenen ontbrak dan de gekozen ouder, want de lezer
   leidt `parentId` af uit taak-naar-taak-nesting (`ifcReader.ts:2393`).
 - **Gebouwd in fase 2, PR 8.** De writer haalt een gewijzigd planningslid uit een gemengde of bewaarde relatie en
-  schrijft de nieuwe plek of koppeling zelf; een gewijzigde gedeelde pset laat het vreemde object de oude pset houden. Het
-  stuk staat op de wijzigingslijst en telt mee (§4.7). Twee afwijkingen: een wortel-taak van een tweede schema die een
-  kind wordt, blijft in de `IfcRelAssignsToControl` van dat schema staan, zoals op main (knownbug 2356); Ctrl+Z na het
-  opslaan zet het lid niet terug in de relatie van het andere programma, dat volgt met `detached` (knownbug 2355). Een
+  schrijft de nieuwe plek of koppeling zelf (`departuresOf`, gedeeld met controle 1). Het stuk staat op de
+  wijzigingslijst en telt mee (§4.7). Afwijkingen: een wortel-taak van een tweede schema die een kind wordt, blijft in de
+  `IfcRelAssignsToControl` van dat schema staan, zoals op main (knownbug 2356); Ctrl+Z na het opslaan zet het lid niet
+  terug in de relatie van het andere programma, dat volgt met `detached` (knownbug 2355); een gewijzigde gedeelde pset
+  (geval b) weigert nog met `gemengde-relatie`, zoals op main (knownbug 2385); de volgorderegel kijkt per relatie
+  (knownbug 2386). Een
   vreemd lid dat na opslaan als eigen veld gelezen zou worden (§4.2), vervalt via dezelfde lijst en telling.
 
 ### 4.7 Een P-object is verwijderd

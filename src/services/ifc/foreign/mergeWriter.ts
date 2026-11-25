@@ -770,16 +770,11 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       const name = index.name(pset) ?? '';
       // Alleen bij een pset van het register is een gemengde pset mogelijk.
       if (!REGISTER_PSET_NAMES.has(name)) continue;
-      const departure = departures(r);
       for (const owner of index.refsAt(r, 4).filter(x => x >= 0 && inD[x] && !rule.gone.has(sid(x)))) {
-        if ('leave' in departure && departure.leave.has(sid(owner))) {
-          leave(r, [owner]);
-          continue;
-        }
         const own = ownPsetsOf.get(`${sid(owner)}|${name}`);
         const want = sourceProps(index, pset);
         if (!own || own.rels.some(rel => refList(rel.args[4]).length !== 1) || !sameProps(own.props, want)) {
-          caseAt('gemengde-relatie', r, `${label(r)}: de pset ${name} van ${label(owner)} veranderde zonder wijziging in een veld van die pset, of de writer schrijft of deelt haar niet`);
+          caseAt('gemengde-relatie', r, `${label(r)}: de pset ${name} van ${label(owner)} veranderde (of de writer deelt haar)`);
           continue;
         }
         own.pset.drop = true;

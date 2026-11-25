@@ -539,17 +539,18 @@ dan weigert hij.
 
 Eén functie bepaalt welke planningsleden een relatie van een ander programma verlaten die geen R is (gemengd, of bewaard
 met een relating buiten D): `departuresOf` in `departures.ts`. Ze rekent uit de bronrelatie, de planning bij openen en de
-te bewaren planning precies uit wie vertrekt. De writer (stap 4 en 5 van `buildLines` in `mergeWriter.ts`) haalt precies
-die leden eruit en schrijft hun plek of koppeling in een eigen relatie of pset; controle 1 (`changeListProblems` in
+te bewaren planning precies uit wie vertrekt. De writer (stap 4 van `buildLines` in `mergeWriter.ts`) haalt precies
+die leden eruit en schrijft hun plek of koppeling in een eigen relatie; controle 1 (`changeListProblems` in
 `mergeValidation.ts`) eist dat de uitvoer precies die leden mist, niet meer en niet minder, ook bij een stuk dat niet op
 de wijzigingslijst staat (review ronde 2 van #1262: eerst een toestemming, nu een exacte uitkomst). Per vorm vertrekt een
 lid als zijn eigen koppeling veranderde: Nests onder een taak (andere ouder), Nests onder een schema (geen wortel meer),
 Process onder een taak (het aantal toewijzingen van die resource bij de taak veranderde), Control onder een kalender
-(andere kalender), een bewaarde Nests buiten D (andere ouder) en de gedeelde pset (b) (een veld van die pset veranderde,
-`psetFieldsChanged`; het vreemde object houdt de oude pset). Bij Nests en Process onder een taak vertrekt een gebleven lid
+(andere kalender) en een bewaarde Nests buiten D (andere ouder). De gedeelde pset (b, stap 5) gaat zoals op main: bij
+gelijke waarden blijft de gedeelde relatie bytegelijk en vervalt de eigen pset, bij andere waarden weigert de writer met
+`gemengde-relatie` (knownbug 2385; besluit van Trias na review ronde 3). Bij Nests en Process onder een taak vertrekt een gebleven lid
 ook als de volgorde het onmogelijk maakt: de lezer leest de eigen relatie vóór de gemengde, dus alleen de langste staart
 van de kinderen of toewijzingen van het domein die in dezelfde volgorde in de bronrelatie staat, kan blijven
-(`keptTail`). Is die lijst ongewijzigd, dan vertrekt niemand: de bron had die vorm al. Kan de functie het niet eenduidig
+(`keptTail`; die kijkt per relatie, knownbug 2386). Is die lijst ongewijzigd, dan vertrekt niemand: de bron had die vorm al. Kan de functie het niet eenduidig
 zeggen (een D-lid van een andere soort, dezelfde resource twee keer in één relatie, of een gebleven resource met meer dan
 één toewijzing bij een gewijzigde lijst), dan weigert de writer met `gemengde-relatie`. Aggregates onder het werkplan en
 Control onder het schema hebben geen wijziging die het domein kan uitdrukken. Een vreemd lid dat de lezer na opslaan als

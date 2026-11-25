@@ -597,14 +597,9 @@ await expectRelease('een taak uit het tweede schema verplaatsen', secondSchedule
   ok('een taak uit het tweede schema verplaatsen: na heropenen onder de gekozen ouder', reread.tasks.find(t => t.id === second?.parentId)?.name === 'Externe bronactiviteit');
   eq('een taak uit het tweede schema verplaatsen: de control van het tweede schema blijft staan, zoals op main', lineOf(out, '911'), lineOf(secondSchedule, '911'));
 });
-{
-  const bytes = await settle(read('tests/fixtures/ifc-foreign/council/r5sol-gedeelde-calendar-pset.ifc'));
-  await expectRelease('de gedeelde kalender wijzigen', bytes, (d) => { d.calendar.hoursPerDay = 7; }, ['gewijzigd #52'], (out, reread) => {
-    eq('de gedeelde kalender wijzigen: de wand houdt de oude pset', [lineOf(out, '51'), lineOf(out, '50'), lineOf(out, '52')],
-      [lineOf(bytes, '51'), lineOf(bytes, '50'), lineOf(bytes, '52').replace('(#46,#904)', '(#904)')]);
-    eq('de gedeelde kalender wijzigen: na heropenen de uren van de planner', reread.calendar.hoursPerDay, 7);
-  });
-}
+await expectRefusal('de gedeelde kalender wijzigen', await settle(read('tests/fixtures/ifc-foreign/council/r5sol-gedeelde-calendar-pset.ifc')), 'gemengde-relatie', (d) => {
+  d.calendar.hoursPerDay = 7;
+});
 {
   // Een vreemd property-template in het eigen template `OPS_CustomFields` (een vreemd lid, §4.2). Zonder wijziging hangt
   // het weer aan het template; wist de planner alle eigen velden, dan schrijft de writer het template niet meer.

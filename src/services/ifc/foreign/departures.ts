@@ -1,8 +1,5 @@
-import type { ImportResult } from '@/services/importTypes';
 import { relationRoles } from '../ifcSlotTables';
 import type { WriteIFCInput } from '../ifcWriter';
-import { REGISTER_PSET_NAMES } from './classify';
-import { changedScopes, psetFieldsChanged } from './lossCheck';
 import { planningIdentities, planningIdentityInput } from './planningIdentity';
 import type { StepIndex } from './stepScanner';
 
@@ -15,10 +12,10 @@ export interface PlanningChange {
 export type Departure = { readonly leave: ReadonlySet<number> } | { readonly unknown: string };
 
 const NOTHING: Departure = { leave: new Set() };
-const NESTS = 'IFCRELNESTS', PROCESS = 'IFCRELASSIGNSTOPROCESS', CONTROL = 'IFCRELASSIGNSTOCONTROL', DEFINES = 'IFCRELDEFINESBYPROPERTIES';
+const NESTS = 'IFCRELNESTS', PROCESS = 'IFCRELASSIGNSTOPROCESS', CONTROL = 'IFCRELASSIGNSTOCONTROL';
 const STRUCTURAL: ReadonlySet<string> = new Set([NESTS, 'IFCRELAGGREGATES', CONTROL, PROCESS, 'IFCRELDECLARES']);
 
-interface DomainObject { readonly seed: string; readonly kind: string; readonly id: string }
+interface DomainObject { readonly kind: string; readonly id: string }
 
 function planningView(input: WriteIFCInput) {
   const d = planningIdentityInput(input);
@@ -60,25 +57,13 @@ export function departuresOf(index: StepIndex, inD: ArrayLike<number>, planning:
   for (const [seed, stepId] of Object.entries(planning.stepIds)) {
     if (objects.has(stepId)) continue;
     const at = seed.indexOf(':'), kind = seed.slice(0, at), raw = seed.slice(at + 1);
-    objects.set(stepId, { seed, kind, id: kind === 'res' ? ids.resource.get(raw) ?? raw : kind === 'cal' ? ids.calendar.get(raw) ?? raw : raw });
+    objects.set(stepId, { kind, id: kind === 'res' ? ids.resource.get(raw) ?? raw : kind === 'cal' ? ids.calendar.get(raw) ?? raw : raw });
   }
   const was = planningView(planning.before), now = planningView(planning.after);
-  let changed: ReadonlySet<string> | undefined;
   const objectOf = (chunk: number) => objects.get(Number(index.id(chunk)));
   const leave = (chunks: readonly number[]): Departure => ({ leave: new Set(chunks.map(c => Number(index.id(c)))) });
   return relation => {
     const type = index.type(relation);
-    if (type === DEFINES) {
-      const pset = index.refAt(relation, 5);
-      const name = pset >= 0 && index.type(pset) === 'IFCPROPERTYSET' ? index.name(pset) ?? '' : '';
-      if (!REGISTER_PSET_NAMES.has(name)) return NOTHING;
-      changed ??= changedScopes(planning.after, planning.before as unknown as ImportResult).keys;
-      const keys = changed;
-      return leave(index.refsAt(relation, 4).filter(m => {
-        const o = inD[m] === 1 ? objectOf(m) : undefined;
-        return o !== undefined && now.has(o) && psetFieldsChanged(name, o.seed, keys) === true;
-      }));
-    }
     const roles = relationRoles(type);
     if (!roles || !STRUCTURAL.has(type)) return NOTHING;
     const members = index.refsAt(relation, roles.related).filter(m => inD[m] === 1);
