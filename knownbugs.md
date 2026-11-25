@@ -4064,13 +4064,6 @@ en noem het in je rapport of PR-tekst.
      schreef de merge twee properties met dezelfde naam (review 1 van #1181). Een ongebruikte sleutel slaat zo'n naam wel
      over. Gemeten in `check-ifc-foreign-ongebruikte-sleutels.ts` (blokken "grens" en "review 1, vangnet"). — B
 
-2220. **IFCX: bij een dubbele sleutel in een eigen bestand wint stil de laatste.** `readIfcxText` in
-     `src/services/ifc/ifcx/ifcxReader.ts` leest met `JSON.parse` (keuze T1 van #804 fase 3). Staat in één object twee
-     keer dezelfde sleutel, dan neemt `JSON.parse` zonder melding de laatste waarde. De eigen writer schrijft nooit een
-     dubbele sleutel; alleen een bestand dat een ander programma of iemand met de hand veranderde, raakt dit. Voorstel:
-     de tokenizer op bytes van fase 4 (ontwerp §6.1) weigert een dubbele sleutel met de code `invalid`. Proef:
-     `check-ifcx-kern.ts`, "bekende grens 2220". — B
-
 2257. **Een bestaand IFC met twee identiteiten of twee ouders komt via Openen met het conflict in de store.** Gemeld in
      de review van #1183 ronde 4 (GPT-6.2-Sol), als route in de app, met een synthetisch beschadigd eigen IFC. Twee
      gevallen. (1) Twee verschillende `IFCTASK`-records met dezelfde GlobalId: Openen houdt beide taken, want de interne
@@ -6742,5 +6735,28 @@ en noem het in je rapport of PR-tekst.
      CI 3,72 en daarna 4,26 keer openen als IFC (`9894f6236`, rood). Sinds de snelle doorgang van R4 (één doorgang die
      alleen vaststelt óf het bestand afwijkt; de drie rondes en de waardetoets van de schrijver alleen bij een verschil)
      kost openen op aia09-mp50 2,8 tot 2,9 keer openen als IFC, tegen 3,35 ervóór. De STEP-rondgang zelf kost ongeveer
-     twee keer openen als IFC. Beide verhoudingen staan als eigen regel `IFCX-verhouding …` in de CI-log. Het IFCX-deel
-     sneller maken (de waardetoets, het teruglezen, de rondgang) is een voorwaarde vóór "IFCX standaard aan". — B
+     twee keer openen als IFC. Beide verhoudingen staan als eigen regel `IFCX-verhouding …` in de CI-log, in het
+     planningsdeel dat de proef draait (in run 45510345490 `verify (planning 1-5)`). De marge verschilt per runner:
+     openen als IFC kostte in de CI 502 tot 667 ms, openen als IFCX 2.125 tot 2.232 ms; met de noemer van `9894f6236`
+     was de groene 3,18 van `23814bad4` ongeveer 4,23. Eén groene run zegt dus niets over de herhaalbaarheid op een
+     andere runner. Met R5 (fixronde 7) doet opslaan drie STEP-rondgangen (een lezing van de invoer, het eigen bestand
+     van de canonieke planning, en de zelfcontrole met de publieke lezer); op aia09-mp50 kost opslaan dan 8,4 tot 9,0
+     keer opslaan als IFC. Twee rondgangen kosten al ruim vier keer opslaan als IFC, dus een schrijver die canoniek
+     maakt, kan in deze vorm niet onder de grens. Het IFCX-deel sneller maken (de waardetoets, het teruglezen, de
+     rondgang) is een voorwaarde vóór "IFCX standaard aan". — B
+
+2351. **IFCX in de app (F3-4): het vaste punt van de kern geldt tot de laadgrens, zonder doorrekenen.** De kern toetst
+     `writeIfcx(readIfcx(b))` en de canonieke planning na `payloadFromImport` en `buildWriteIFCInput`. De Openen-route
+     van de app rekent daarna door (`prepareLoadedPayload` met `recompute: true`, `src/state/documentActivation.ts`); dan
+     verschuift bijvoorbeeld bij de datumfixture de vroege finish van de taak `einde-middernacht` van `2027-06-03T00:00`
+     naar `2027-06-02T16:00`, en de volgende opslag schrijft andere bytes. Ook draagt de opslagroute van de app
+     (`buildWriteIFCInput` op de toestand na openen) de afwezige tijdslots niet, net als bij STEP buiten de modus "datums
+     zoals opgeslagen". F3-4 beslist of en wanneer de IFCX-openroute doorrekent en pint de echte route in één proef.
+     Gemeld door de review van #1183 ronde 7 (GPT-6.2-Sol). — B
+
+2352. **IFCX weigert een kalender met een pauze buiten de werkdag, omdat STEP haar bij een tweede rondgang laat vallen.**
+     Een kalender met `simpleBreakStartMinute` 1 en `simpleBreakDurationMinutes` 30 (de werkdag van 07:00 tot 16:00): de
+     eerste STEP-rondgang zet de werktijden letterlijk neer en houdt de pauze, de tweede laat de pauze vallen. Twee keer
+     canoniek maken geeft dan iets anders dan één keer, dus regel R5 van #1183 is daar niet te halen. `writeIfcx` weigert
+     zo'n planning met `self-check`; STEP laat de pauze bij de tweede opslag na openen stil vallen. Een pauze binnen de
+     werkdag (600) blijft. Proef: `check-ifcx-kern.ts`, "R5 is niet te halen voor een pauze buiten de werkdag". — B
