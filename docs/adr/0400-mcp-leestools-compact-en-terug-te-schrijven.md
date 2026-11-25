@@ -11,9 +11,10 @@ gezet zijn.
 Een agent geeft wat hij leest vaak door aan een schrijftool. De id's en notaties die een leestool geeft, komen
 daarom uit dezelfde bron als die de schrijfkant leest: elke rij draagt het `id` waarop de wijzigende tools
 sleutelen, en de notatie van relaties en onderbrekingen staat in dezelfde module als de schrijfkant. Dat maakt niet
-elke gelezen waarde verliesvrij terug te schrijven. Met een toets aangetoond terug te geven zijn de id's, relatietype
-en lag in de gelezen vorm, en een kalender uit `planner_get_calendars`, elk met de grenzen hieronder. Voor andere
-velden is dat niet aangetoond, en voor de voortgang en de onderbrekingen is het niet waar (hieronder).
+elke gelezen waarde verliesvrij terug te schrijven. Met een toets aangetoond terug te geven zijn de id's, het
+relatietype, een lag die niet leeg leest, en een kalender uit `planner_get_calendars`, elk met de grenzen hieronder.
+Voor andere velden is dat niet aangetoond, en voor een lege lag, de voortgang en de onderbrekingen is het niet waar
+(hieronder).
 
 ## Gevolgen
 
@@ -30,15 +31,19 @@ velden is dat niet aangetoond, en voor de voortgang en de onderbrekingen is het 
   als WBS-code).
 - Relatietype en lag komen uit `seqAbbrev` en `lagLabel` in `sequenceFields.ts`, waar ook `normalizeSeqType` en
   `parseLag` staan, die die vormen aannemen. Toetsen: `cases-stille-noops-taken.ts`, "H1: de KORTE typenotatie van de
-  leeskant …" en "H2: leeskant-lagvormen …" en "H2: procent-lag …". Grens: een lag in minuten en de eenheid van een
-  lag in kalendertijd (knownbug 354).
+  leeskant …" en "H2: leeskant-lagvormen …" en "H2: procent-lag …". Grenzen: een relatie zonder lag leest als
+  `lag: ""`, en die lege tekst weigert `parseLag`, dus `planner_add_dependencies` en `planner_update_dependencies`
+  nemen haar niet aan; een nullag schrijft de agent als `0` of door `lag` weg te laten. Een lag in minuten leest ook
+  als leeg, dus een lege lag is niet altijd nul, en de eenheid van een lag in kalendertijd staat er niet bij
+  (knownbug 354).
 - Een kalender uit `planner_get_calendars` is over te zetten zoals ADR 0104 beschrijft (`cases-kalender-roundtrip.ts`),
   behalve met bewaarde IFC-bronklokken (knownbug 1969).
 - De onderbrekingen van `planner_get_task` komen uit `interruptionsOf` in `splitFields.ts`, naast `planTaskSplits`
   van `planner_set_task_splits`. Een gatenlijst die het bewerkmodel niet draagt, geeft geen `interruptions` maar
   `splitsEditable: false`, naast de rauwe `splitGaps`. Een gelezen lijst is niet altijd terug te geven: een
   onderbreking die niet op een hele eenheid valt, leest als een fractie die de schrijftool weigert (knownbug 2472), en
-  een onderbreking in verricht werk blokkeert elke nieuwe lijst (knownbug 2473).
+  een lijst met een onderbreking in verricht werk wordt geweigerd, ook als de agent er alleen een toekomstige bij
+  zet; een lijst zonder die onderbreking wordt aangenomen en wist haar (knownbug 2473).
 - De voortgang staat in de leestools op een heel procent (`pct`), en de schrijfkant neemt elke waarde van 0 tot en
   met 100 aan. Een gelezen voortgang ongewijzigd terugschrijven kan haar dus veranderen, en een afgeronde 100 meldt een
   lopende taak af (knownbug 2471).

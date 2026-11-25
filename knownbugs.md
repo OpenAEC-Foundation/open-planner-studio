@@ -2252,7 +2252,8 @@ en noem het in je rapport of PR-tekst.
      `planTaskSplits` in `src/services/mcp/tools/splitFields.ts` haalt alle bestaande gaten weg en zet elke opgegeven
      onderbreking opnieuw met `splitAt`; die weigert een positie vóór het verrichte werk (`before-completed-work`,
      `completedWorkMinutes`). Een al verstreken pauze staat in het verrichte werk, dus een lijst die haar meestuurt, wordt
-     geweigerd; een lijst zonder haar wist haar volgens de code (niet nagespeeld). Nagespeeld via de dispatcher: een dagtaak van tien werkdagen
+     geweigerd; een lijst zonder haar wordt aangenomen en wist haar. Nagespeeld via de dispatcher: een dagtaak van tien
+     werkdagen
      met een pauze na dag drie, voortgang 60 %, de gelezen onderbrekingen plus een nieuwe na dag acht naar
      `planner_set_task_splits`: geweigerd, de opgeslagen lijst bleef ongewijzigd. Dat geldt ook bij hele werkdagen.
      Issue #1264. — B
