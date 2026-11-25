@@ -75,7 +75,7 @@ import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { ensureUniqueImportIds } from '@/services/importNormalize';
 import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload, type TargetFingerprint } from '../documentContract';
-import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, stillWrittenKnownTarget, type KnownTargetState } from '../knownTargetGuard';
+import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, stillWrittenKnownTarget, writtenKnownTarget, type KnownTargetState } from '../knownTargetGuard';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
@@ -582,9 +582,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  `WriteTargetDeps.chosenTarget`): het gekozen pad en zijn gelezen versie. */
   const documentTargetCheck = (
     snapshot: AppState, write?: IfcOutput, ownTarget = false,
-    { readers = writeTargetReaders, openDocumentsExcept, chosenTarget, missingSourceSaveAs, leaveContentToKnownTarget = false, bomVersion = null }: {
+    { readers = writeTargetReaders, openDocumentsExcept, chosenTarget, missingSourceSaveAs, leaveContentToKnownTarget = false, ownBom = false }: {
       readers?: () => TargetReaders; openDocumentsExcept?: string; chosenTarget?: PickedSaveTarget; missingSourceSaveAs?: boolean;
-      leaveContentToKnownTarget?: boolean; bomVersion?: TargetFingerprint | null;
+      leaveContentToKnownTarget?: boolean; ownBom?: boolean;
     } = {},
   ): SaveTargetCheck => async target => {
     if (write && refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs)) return true;
@@ -593,10 +593,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const ownVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
       ? { documentId: snapshot.activeDocumentId, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! }
       : ownLocal ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
-    const ownBom = ownTarget && bomVersion && target.kind !== 'site' ? bomVersion : null;
     const deps = {
       identityFs: fileIdentityFs, readers, openDocumentsExcept, ...(chosenTarget ? { chosenTarget } : {}),
-      ...(ownBom ? { ownBomVersion: { stillKnown: () => guardedKnownTarget(knownTargetOf(snapshot.activeDocumentId), target) === ownBom } } : {}),
+      ...(ownTarget && ownBom && target.kind !== 'site' ? { allowOwnBom: true } : {}),
     };
     const reason = leaveContentToKnownTarget ? contentLeftToKnownTarget(await refusedTargetIdentity(get(), target, deps, ownVersion))
       : await refusedWriteTarget(get(), target, deps, ownVersion);
@@ -1364,6 +1363,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     try {
       const ref = saveTargetRef(state);
+      const ownBom = !!ref && !hasForeignContent(state.ifcSource) && guardedKnownTarget(knownTargetOf(documentId), ref)?.utf8Bom === true;
       let ownHandle: Extract<FileRef, { kind: 'handle' }> | null = null;
       let ownPath: Extract<FileRef, { kind: 'path' }> | null = null;
       let handleRefused = false;
@@ -1384,12 +1384,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, 'merge'));
       if (!write || refuseChangedDocumentWrite(state, write)) return false;
-      const version = ref && !write.prepared ? guardedKnownTarget(knownTargetOf(documentId), ref) : null;
-      const ownWritten = !handleRefused && version?.origin === 'written' ? version : null;
-      const bomVersion = version?.utf8Bom ? version : null;
-      const bomData = bomVersion && !handleRefused && !write.prepared ? withUtf8Bom(writerData(write)) : null;
+      const ownWritten = ref && !handleRefused && !write.prepared ? writtenKnownTarget(knownTargetOf(documentId), ref) : null;
+      const bomData = ownBom && !handleRefused && !write.prepared ? withUtf8Bom(writerData(write)) : null;
       const bomHashing = bomData && write.sha256 !== undefined ? writtenFingerprint(state.ui.featureFlags, write, bomData) : null;
-      if (ref && await documentTargetCheck(state, write, true, { leaveContentToKnownTarget: !!ownWritten, bomVersion })(ref)) return false;
+      if (ref && await documentTargetCheck(state, write, true, { leaveContentToKnownTarget: !!ownWritten, ownBom })(ref)) return false;
       if (ownHandle && write.prepared) return await replaceOwnHandle(documentId, state, write.prepared, write, ownHandle, failureNoticeKey);
       if (ownPath) return write.prepared ? await replaceOwnPath(documentId, state, write.prepared, write, ownPath, failureNoticeKey) : false;
       if (ref?.kind === 'site' && siteStorageAvailable()) {
@@ -1416,8 +1414,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (ref && !handleRefused && !(write.prepared && ref.kind === 'handle')) {
         try {
           const stable = !!ownWritten && await stillWrittenKnownTarget(ownWritten, ref);
-          if (!stable && ownWritten && await documentTargetCheck(state, write, true, { bomVersion })(ref)) return false;
-          const known = stable || write.prepared ? null : bomVersion ?? guardedKnownTarget(knownTargetOf(documentId), ref);
+          if (!stable && ownWritten && await documentTargetCheck(state, write, true, { ownBom })(ref)) return false;
+          const known = stable || write.prepared ? null : guardedKnownTarget(knownTargetOf(documentId), ref);
           if (known && await refuseChangedKnownTarget(documentId, ref, known)) return false;
           if (refuseChangedDocumentWrite(state, write)) return false;
           const last = lastWriteCheck(state, write);

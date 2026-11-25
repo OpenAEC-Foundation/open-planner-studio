@@ -25,7 +25,7 @@ import {
 } from '@/services/fileAccess/writeCoordinator';
 import { pendingReplaceFor, tauriReplaceRecords } from '@/services/fileAccess/replaceRecords';
 import { tightAnchorsIfSaved } from '@/state/dependentCandidates';
-import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, stillWrittenKnownTarget, type KnownTargetState } from '@/state/knownTargetGuard';
+import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, stillWrittenKnownTarget, writtenKnownTarget, type KnownTargetState } from '@/state/knownTargetGuard';
 import {
   ifcFullWriteBlocked, ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_SAVE_WORKER_FAILED_NOTICE,
   IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedTargetIdentity, refusedWriteTarget, type WriteTargetDeps,
@@ -370,20 +370,17 @@ export function createFileAutoSaveController(deps: {
       // (de opslagworker). Typt de planner intussen, dan schrijft de ronde deze momentopname en blijft het document
       // gewijzigd (`commitSavedDocument`); de volgende ronde neemt het latere werk mee.
       const ui = getState().ui;
+      const ownBom = guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!)?.utf8Bom === true;
       const output = await prepareIfcOutput({ ...current, ui }, buildWriteIFCInput(current, 'merge'), undefined,
         documentSaveCompute(ui.featureFlags, compute));
       if (output.prepared) return 'refused';
       // #804 fixronde 2: dezelfde doelcontrole als Opslaan, onder dezelfde lock. Fixronde 1 van #1027 (review Sol): ná het
       // rekenen, vlak vóór het schrijven, zoals Ctrl+S: een gebouwmodel dat tijdens het rekenen op het doel verscheen,
       // wordt niet overschreven. Eén doelscan; daarna beslist alleen nog de synchrone inhoudscontrole hieronder.
-      const version = guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
-      const ownWritten = version?.origin === 'written' ? version : null;
-      const bomVersion = version?.utf8Bom ? version : null;
-      const bomData = bomVersion ? withUtf8Bom(output.bytes ?? output.content) : null;
+      const ownWritten = writtenKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
+      const bomData = ownBom ? withUtf8Bom(output.bytes ?? output.content) : null;
       const bomHashing = bomData && output.sha256 !== undefined ? writtenFingerprint(ui.featureFlags, output, bomData) : null;
-      const ownDeps: WriteTargetDeps = bomVersion ? {
-        ...targetDeps, ownBomVersion: { stillKnown: () => guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!) === bomVersion },
-      } : targetDeps;
+      const ownDeps: WriteTargetDeps = ownBom ? { ...targetDeps, allowOwnBom: true } : targetDeps;
       let reason = ownWritten ? contentLeftToKnownTarget(await refusedTargetIdentity(getState(), candidate.ref!, targetDeps))
         : await refusedWriteTarget(getState(), candidate.ref!, ownDeps);
       const stable = !reason && !!ownWritten && await stillWrittenKnownTarget(ownWritten, candidate.ref!);
@@ -397,7 +394,7 @@ export function createFileAutoSaveController(deps: {
         }
         return 'refused';
       }
-      const known = stable ? null : bomVersion ?? guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
+      const known = stable ? null : guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
       if (known && await changedKnownTarget(() => knownTargetOf(candidate.id), known, candidate.ref!)) {
         stopFor(candidate.id, candidate.ref!, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE, known);
         return 'refused';
