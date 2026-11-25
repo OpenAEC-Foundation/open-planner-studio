@@ -37,7 +37,7 @@ import { createNodeBackupFs } from './backupFs';
 import { createAppLock, platformDiscoveryDirs, type AppLock } from './appLock';
 import { ifcFullWriteBlocked } from '@/state/ifcForeignGuard';
 
-const BACKUP_WITHHELD = 'No AI backup was made: this document comes from a file whose data from other programs this server ' +
+export const BACKUP_WITHHELD = 'No AI backup was made: this document comes from a file whose data from other programs this server ' +
   'cannot keep, so it writes no IFC for this document, not even a backup. The source file is untouched and stays the ' +
   'unchanged version.';
 

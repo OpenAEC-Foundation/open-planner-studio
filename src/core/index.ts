@@ -19,7 +19,7 @@ import { prepareIfcOutput, type IfcOutput } from '@/state/prepareIfcOutput';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { FeatureFlagValues } from '@/utils/featureFlags';
 import { isSummaryTask } from '@/utils/taskHierarchy';
-import { textWriteRefusal } from '@/services/ifc/foreign/targetForeignScan';
+import { textWriteCheck, type TextWriteRefusal } from '@/services/ifc/foreign/targetForeignScan';
 import type {
   CoreErrorCode, ForeignContentSummary, IfcWriteRefusalReason, PlannerDocument, ScheduleSummary, ScheduleTaskSummary,
   ScheduleWarning,
@@ -80,8 +80,11 @@ export async function openIfc(text: string): Promise<PlannerDocument> {
   }
   const opened = openParsed(parsed);
   // T3: deze tekst-API bewaart nog geen vreemde bytes. Rekenen mag, verliesgevende IFC-uitvoer niet.
-  const refusal = textWriteRefusal(body);
+  const check = textWriteCheck(body);
+  const atOpen = opened.state();
+  let refusal: TextWriteRefusal | null | undefined = typeof check === 'function' ? undefined : check;
   const toIfc = (): string => {
+    if (refusal === undefined && typeof check === 'function') refusal = check(plainIfc(atOpen));
     if (refusal) {
       throw writeRefused(refusal,
         'This IFC contains foreign content or cannot be scanned reliably; writing it without byte preservation is not supported.');

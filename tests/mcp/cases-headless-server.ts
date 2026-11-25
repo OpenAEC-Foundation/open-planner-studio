@@ -40,7 +40,12 @@ import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { externalClientChecks, connectClient, type AppProbe } from './externalClient';
-import { foreignCorpus, oldOwnSource, ownCorpus, OLD_TASK_NAME } from './headlessCorpus';
+import {
+  foreignCorpus, foreignWorkMethodSource, oldOwnSource, ownCorpus, slotCaseLabel, slotCaseSpecs, slotCorpus, slotValueIn, OLD_TASK_NAME,
+  REVIEW_WORK_METHOD,
+} from './headlessCorpus';
+import { IFC_SLOT_TABLES } from '@/services/ifc/ifcSlotTables';
+import { PSET } from '@/services/ifc/ifcPsets';
 
 // Lokaal alleen bronproeven; de zelfstandige bundel en CLI draaien volledig in CI.
 function test(name: string, fn: () => void | Promise<void>): void {
@@ -855,12 +860,19 @@ function mutationSteps(dir: string, source: string): ToolStep[] {
       return { baselineId: st().baselines.find(b => b.id !== st().activeBaselineId)!.id };
     } },
     { tool: 'planner_delete_baseline', args: () => ({ baselineId: baseline() }) },
-    { tool: 'planner_refresh_external_links', args: () => ({}) },
+    { tool: 'planner_refresh_external_links', args: () => {
+      st().addExternalLink(leaf(), {
+        direction: 'predecessor', relType: 'FS', anchorDate: '2020-01-01T08:00:00', sourceMissing: false,
+        sourceRef: { projectId: st().project.id, taskId: parent(), filePath: source },
+      });
+      return {};
+    } },
     { tool: 'planner_batch', args: () => ({ steps: [{ tool: 'planner_update_tasks', args: { updates: [{ id: leaf(), fields: { name: 'Eigenschap batch' } }] } }] }) },
     { tool: 'planner_delete_tasks', args: () => ({ ids: [added()] }) },
     { tool: 'planner_undo', args: () => ({}) },
     { tool: 'planner_redo', args: () => ({}) },
     { tool: 'planner_duplicate_document', args: () => { original = st().activeDocumentId; return {}; } },
+    { tool: 'planner_export_ifc', args: () => ({ path: join(dir, 'export-duplicaat.ifc') }), refused: true },
     { tool: 'planner_switch_document', args: () => ({ documentId: original }) },
     { tool: 'planner_export_ifc', args: () => ({ path: join(dir, 'export.ifc') }), refused: true },
     { tool: 'planner_new_document', args: () => ({}) },
@@ -895,21 +907,23 @@ test('A eigenschap (1136 ronde 2): in stand 3 schrijft geen enkele wijzigende to
 
     const kept = foreignCorpus(ROOT).find(c => c.name === 'pset-aan-project-IFC4X3_ADD2-gewone-ids.ifc')!;
     const reportsBackup = new Set<string>();
-    const referenceOutcome: string[] = [];
-    for (const [i, step] of stepsFor('ref', 'x').entries()) {
+    const referenceErrors: string[] = [];
+    const stepCount = stepsFor('ref', 'x').length;
+    for (let i = 0; i < stepCount; i++) {
       const sub = join(dir, `ref-${i}`);
       mkdirSync(sub);
       const source = join(sub, 'bron.ifc');
       writeFileSync(source, kept.bytes);
+      const step = stepsFor(`ref-${i}`, source)[i];
       await ok(client, 'planner_import_schedule', { path: source });
       if (step.tool.includes('baseline') && step.tool !== 'planner_save_baseline') app.store.getState().saveBaseline('Referentie');
-      const r = await call(client, step.tool, step.tool === 'planner_import_schedule' ? { path: source } : step.args());
+      const r = await call(client, step.tool, step.args());
       if (r.s.envelope?.backupCreated) reportsBackup.add(step.tool);
-      else referenceOutcome.push(`${step.tool} ${r.isError ? `${r.s.code} ${String(r.s.error).slice(0, 100)}` : 'ok'}`);
+      if (r.isError && !step.refused) referenceErrors.push(`${step.tool} ${r.s.code} ${String(r.s.error).slice(0, 100)}`);
     }
-    console.log(`  zonder back-up in stand 2: ${referenceOutcome.join(' | ')}`);
-    assert(reportsBackup.has('planner_update_tasks') && reportsBackup.has('planner_batch'), `stand 2 maakt een back-up: ${[...reportsBackup].join(', ')}`);
-    assertEq([...reportsBackup].filter(t => !backsUp.has(t)), [], 'alleen tools van soort mutate of batch maken in stand 2 een back-up');
+    const expectedBackups = [...new Set(stepsFor('x', 'x').map(s => s.tool))].filter(t => backsUp.has(t)).sort();
+    assertEq(referenceErrors, [], 'in stand 2 slaagt elke stap');
+    assertEq([...reportsBackup].sort(), expectedBackups, 'in stand 2 maakt precies elke tool van soort mutate of batch een back-up');
 
     const uncertain = [
       ...ownCorpus(ROOT).filter(c => c.stand === 'onzeker' && c.opens),
@@ -943,6 +957,9 @@ test('A eigenschap (1136 ronde 2): in stand 3 schrijft geen enkele wijzigende to
         if (!r.isError && backsUp.has(step.tool) && app.store.getState().foreignSourceMark?.sourceMissing && !String(r.s.envelope?.backupWithheld ?? '').includes('No AI backup was made')) {
           problems.push(`${label}: het antwoord zegt niet dat er geen back-up is`);
         }
+        if (step.tool === 'planner_refresh_external_links' && !r.isError && !(r.s.data?.sources?.length >= 1)) {
+          problems.push(`${label}: het verversen las geen bron (${JSON.stringify(r.s.data).slice(0, 200)})`);
+        }
       }
     }
     fileToolDeps.getFs = original;
@@ -956,6 +973,65 @@ test('A eigenschap (1136 ronde 2): in stand 3 schrijft geen enkele wijzigende to
     for (const [i, c] of uncertain.entries()) assert(readFileSync(sources[i]).equals(c.bytes), `${c.name}: de bron is bytegelijk`);
   } finally {
     fileToolDeps.getFs = original;
+    await client.close();
+  }
+});
+
+test('A eigenschap (1136 ronde 3): elk slot uit de slottabel met een waarde van een ander programma komt terug in de kopie en de back-up, of er komt geen IFC', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  const dir = join(rootA, 'slots');
+  mkdirSync(dir);
+  const backups = join(dataA, 'ai-backups');
+  try {
+    const cases = slotCorpus(ROOT);
+    const constantSlots = IFC_SLOT_TABLES.flatMap(t => t.slots.filter(s => s.soort === 'constant' || s.soortVreemd === 'constant').map(s => `${t.naam}.${s.key}`));
+    const covered = new Set(cases.map(c => `${c.table.naam}.${c.slot.key}`));
+    assertEq(constantSlots.filter(name => !covered.has(name)), [], 'elk constant slot uit de slottabel heeft een geval');
+    assertEq(cases.map(slotCaseLabel), slotCaseSpecs().map(slotCaseLabel), 'een geval per slot en herkomst uit de tabel');
+    const outcome = new Map<string, string>();
+    const broken: string[] = [];
+    for (const [i, c] of cases.entries()) {
+      const label = slotCaseLabel(c);
+      const source = join(dir, `${i}-bron.ifc`);
+      const copy = join(dir, `${i}-kopie.ifc`);
+      writeFileSync(source, c.bytes);
+      const opened = await call(client, 'planner_import_schedule', { path: source });
+      if (opened.isError) {
+        broken.push(`${label}: opent niet (${opened.s.code} ${String(opened.s.error).slice(0, 120)})`);
+        continue;
+      }
+      const state = app.store.getState();
+      const stand = state.foreignSourceMark?.sourceMissing ? 'stand 3' : state.ifcSource ? 'stand 2' : 'stand 1';
+      const exported = await call(client, 'planner_export_ifc', { path: copy });
+      const written = existsSync(copy) ? readFileSync(copy, 'utf8') : null;
+      if (!exported.isError && written !== null && slotValueIn(written, c) === c.value) outcome.set(label, `${stand} geschreven`);
+      else if (exported.isError && exported.s.code === 'VALIDATION' && written === null) outcome.set(label, `${stand} geweigerd`);
+      else broken.push(`${label}: ${exported.isError ? exported.s.code : 'ok'}, in de kopie ${written === null ? 'geen bestand' : String(slotValueIn(written, c))} in plaats van ${c.value}`);
+      const before = filesBelow(backups);
+      const leaf = app.store.getState().tasks.find(t => t.childIds.length === 0)!;
+      const edited = await call(client, 'planner_update_tasks', { updates: [{ id: leaf.id, fields: { name: 'Eerste wijziging' } }] });
+      const fresh = [...filesBelow(backups).keys()].filter(p => !before.has(p));
+      const envelope = edited.s.envelope ?? {};
+      if (edited.isError) broken.push(`${label}: de taakwijziging faalt (${edited.s.code} ${String(edited.s.error).slice(0, 120)})`);
+      else if (envelope.backupWithheld) {
+        if (fresh.length > 0 || envelope.backupCreated) broken.push(`${label}: backupWithheld, maar toch ${fresh.length} nieuw bestand in de back-upmap`);
+      } else if (fresh.length === 1 && envelope.backupCreated) {
+        const backup = readFileSync(fresh[0], 'utf8');
+        if (!backup.includes(PSET.RecoveryForeignSource) && slotValueIn(backup, c) !== c.value) broken.push(`${label}: de back-up heeft het slot niet (${String(slotValueIn(backup, c))}) en is geen vastgelegde planningsback-up`);
+      } else broken.push(`${label}: de taakwijziging meldt ${fresh.length} nieuwe back-up(s), backupCreated ${String(envelope.backupCreated)}`);
+      if (!readFileSync(source).equals(c.bytes)) broken.push(`${label}: de bron veranderde`);
+    }
+    const tally = new Map<string, number>();
+    for (const value of outcome.values()) tally.set(value, (tally.get(value) ?? 0) + 1);
+    console.log(`  slots: ${cases.length} gevallen uit ${IFC_SLOT_TABLES.length} slottabellen (${[...tally].sort().map(([k, n]) => `${k} ${n}`).join(', ')})`);
+    console.log(`  geschreven met het slot: ${[...outcome].filter(([, v]) => v.endsWith('geschreven')).map(([k]) => k).join(', ')}`);
+    assertEq(broken, [], 'nooit ok met een slot dat niet terugkomt, geen kopie na een weigering, geen back-up zonder het slot');
+    assertEq(outcome.size, cases.length, 'elk geval heeft een uitkomst');
+    assertEq(outcome.get('IfcTask.workMethod vreemd'), 'stand 3 geweigerd', 'het geval van de review: stand 3, geen IFC');
+    assertEq(outcome.get('IfcTask.workMethod eigen'), 'stand 3 geweigerd', 'een werkwijze in een eigen taak: stand 3');
+    assertEq(outcome.get('IfcTask.status vreemd'), 'stand 3 geweigerd', 'een status die de lezer niet draagt: stand 3');
+    assertEq(outcome.get('IfcTask.name vreemd'), 'stand 1 geschreven', 'een naam die de lezer draagt: stand 1, met de naam');
+  } finally {
     await client.close();
   }
 });
@@ -1223,6 +1299,30 @@ test('B stdio knownbug 1136: de losse server neemt een externe pset en een gebou
   assertEq([oldExport.characters, oldExport.byteLength, readFileSync(join(work, 'oude-bron-kopie.ifc')).byteLength], [59171, undefined, 59171],
     'oude eigen bron: de tekstroute van main, 59.171 tekens zoals main 51b9cac22');
   assertEq(readdirSync(work).filter(f => f.includes('.ops-')), [], 'geen hulpbestand');
+});
+
+test('B stdio 1136 ronde 3: een taak zonder OwnerHistory met een werkwijze van een ander programma krijgt geen IFC, ook geen back-up', async () => {
+  const bytes = foreignWorkMethodSource(ROOT);
+  const source = join(work, 'werkwijze-bron.ifc');
+  const copy = join(work, 'werkwijze-kopie.ifc');
+  writeFileSync(source, bytes);
+  const opened = await ok(stdio, 'planner_import_schedule', { path: '~/werkwijze-bron.ifc' });
+  assertEq(opened.tasks, 47, 'de planning opent zoals main');
+  const first = await refused(stdio, 'planner_export_ifc', { path: '~/werkwijze-kopie.ifc' }, 'VALIDATION', 'export naar een nieuwe naam');
+  assert(String(first.s.error).includes('cannot keep') && String(first.s.error).includes('nothing was written'), `de fout zegt waarom: ${first.s.error}`);
+  assertEq(existsSync(copy), false, 'geen kopie');
+  const backups = join(dataB, 'ai-backups');
+  const before = filesBelow(backups);
+  const tasks = (await ok(stdio, 'planner_list_tasks', { limit: 1000 })).tasks as Array<{ id: string; summary?: boolean }>;
+  const edited = await call(stdio, 'planner_update_tasks', { updates: [{ id: tasks.find(t => !t.summary)!.id, fields: { name: 'Eerste wijziging' } }] });
+  assert(!edited.isError, `de taakwijziging gaat door: ${JSON.stringify(edited.s).slice(0, 300)}`);
+  assertEq(edited.s.envelope?.backupCreated, undefined, 'geen backupCreated');
+  assert(String(edited.s.envelope?.backupWithheld).includes('No AI backup was made'), 'het antwoord zegt dat er geen back-up is');
+  assertEq([...filesBelow(backups).keys()].filter(p => !before.has(p)), [], 'geen nieuw bestand in de back-upmap');
+  await refused(stdio, 'planner_export_ifc', { path: '~/werkwijze-kopie.ifc' }, 'VALIDATION', 'export na de wijziging');
+  await refused(stdio, 'planner_export_ifc', { path: '~/werkwijze-bron.ifc', overwrite: true }, 'VALIDATION', 'export over de bron');
+  assertEq(existsSync(copy), false, 'nog steeds geen kopie');
+  assert(readFileSync(source).equals(bytes) && bytes.includes(REVIEW_WORK_METHOD), 'de bron is bytegelijk en houdt de werkwijze');
 });
 
 /** Bladtaken als gesorteerde `naam|startdatum`-regels, voor een vergelijking tussen formaten. */

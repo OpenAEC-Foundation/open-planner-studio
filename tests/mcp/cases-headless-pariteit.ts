@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ReadBuffer, serializeMessage } from '@modelcontextprotocol/sdk/shared/stdio.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import { ownCorpus, type HeadlessStand } from './headlessCorpus';
+import { BACKUP_WITHHELD } from '../../headless/mcp-server/src/host';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const MAIN = process.env.OPS_MAIN_WORKTREE;
@@ -138,6 +139,27 @@ async function replay(server: string, work: string, cases: Case[], preload: stri
   return { head, cases: steps, files };
 }
 
+function withoutWithheld(response: string): { rest: string; withheld: unknown[] } {
+  const message = JSON.parse(response) as { result?: { structuredContent?: unknown; content?: Array<{ type: string; text?: string }> } };
+  const withheld: unknown[] = [];
+  const strip = (value: unknown) => {
+    const envelope = (value as { envelope?: Record<string, unknown> } | undefined)?.envelope;
+    if (envelope && 'backupWithheld' in envelope) {
+      withheld.push(envelope.backupWithheld);
+      delete envelope.backupWithheld;
+    }
+  };
+  strip(message.result?.structuredContent);
+  for (const item of message.result?.content ?? []) {
+    if (item.type !== 'text' || item.text === undefined) continue;
+    let parsed: unknown;
+    try { parsed = JSON.parse(item.text); } catch { continue; }
+    strip(parsed);
+    item.text = JSON.stringify(parsed);
+  }
+  return { rest: JSON.stringify(message), withheld };
+}
+
 const codeOf = (response: string) => (JSON.parse(response) as { result?: { structuredContent?: { code?: string } } }).result?.structuredContent?.code;
 
 if (!MAIN) {
@@ -177,8 +199,12 @@ if (!MAIN) {
           tally[mainOpened ? 'eigen' : 'nietGeopend']++;
           continue;
         }
-        const [m, b] = [renamedIds(main.slice(0, 4).map(s => s.response)), renamedIds(branch.slice(0, 4).map(s => s.response))];
-        assertEq(b, m, `${label}: openen, lezen, wijzigen en rekenen zoals main`);
+        const [mainSteps, branchSteps] = [main.slice(0, 4), branch.slice(0, 4)].map(steps => steps.map(s => withoutWithheld(s.response)));
+        assertEq(mainSteps.flatMap(s => s.withheld), [], `${label}: main meldt geen backupWithheld`);
+        assert(branchSteps.every((s, k) => (branch[k].tool === 'planner_update_tasks'
+          ? s.withheld.length > 0 && s.withheld.every(w => w === BACKUP_WITHHELD) : s.withheld.length === 0)),
+        `${label}: alleen de wijziging meldt backupWithheld, met de afgesproken tekst`);
+        assertEq(renamedIds(branchSteps.map(s => s.rest)), renamedIds(mainSteps.map(s => s.rest)), `${label}: openen, lezen, wijzigen en rekenen zoals main, op backupWithheld na`);
         const exports = branch.filter(s => s.tool === 'planner_export_ifc');
         assertEq(exports.map(s => codeOf(s.response)), ['VALIDATION', 'VALIDATION'], `${label}: elke IFC-export weigert`);
         assertEq(actual.files.get(`${i}/kopie.ifc`), undefined, `${label}: geen kopie`);

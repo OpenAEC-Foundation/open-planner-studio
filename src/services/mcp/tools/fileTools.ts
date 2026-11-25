@@ -57,7 +57,9 @@ import { observeRegularFileTauri, scanTargetPathTauri } from '@/services/fileAcc
 import { replaceOwnPathWithRecovery, type OwnPathReplaceResult } from '@/state/ownFileReplace';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { capturedTargetReaders } from '@/services/fileAccess/foreignSourceTarget';
-import { textWriteRefusal, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
+import { textWriteCheck, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import type { AppState } from '@/state/appStore';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
 import {
   exportTargetPermission, ifcFullWriteBlocked, refusedTargetContent, refusedTargetIdentity, refusedWriteTarget,
@@ -72,12 +74,16 @@ const FOREIGN_CONTENT_REFUSAL = 'The active document contains a building model o
   'save or export it as IFC yet, because the IFC would lose that content. Other export formats still work.';
 
 const UNKEPT_SOURCE_REFUSAL = 'The file this document was opened from has, or may have, data from other programs that this ' +
-  'server cannot keep: for example an IFC2X3 file with such data, or a file it could not read completely. An IFC written now ' +
-  'could lose that data, so nothing was written. Reading and changing the schedule still work. What the user can do: if the ' +
-  'file holds only a schedule (for example one with an unusual header), open it in the Open Planner Studio app with the ' +
-  'experimental setting "Open IFC with a building model" off and save it there. If it does hold data from other programs, ' +
-  'saving in the app also keeps only the schedule; to keep that data, save the file again as IFC4 or IFC4X3 in the program ' +
-  'that made it and import it again.';
+  'server cannot keep: for example an IFC2X3 file with such data, a value from another program in a schedule field, or a ' +
+  'file it could not read completely. An IFC written now could lose that data, so nothing was written. Reading and ' +
+  'changing the schedule still work, but the changes made through this server stay in its memory only: neither route ' +
+  'below includes them, so make them again after the new import. What the user can do: if the file holds only a schedule ' +
+  '(for example one with an unusual header, or one saved by an older version), open it in the Open Planner Studio app with ' +
+  'the experimental setting "Open IFC with a building model" off and save it there. That setting is in Settings > ' +
+  'Advanced > Experimental; if that block is hidden, the setting keeps its last choice, and clicking the version number ' +
+  'there at least twice a second for 5 seconds (or holding Enter on it) shows the block. If the file does hold data from other ' +
+  'programs, saving in the app also keeps only the ' +
+  'schedule; to keep that data, save the file again as IFC4 or IFC4X3 in the program that made it and import it again.';
 
 function foreignContentRefusal(ctx: McpContext): string {
   return fileToolDeps.mainRouteUnlessForeign && ctx.app.store.getState().foreignSourceMark?.sourceMissing
@@ -258,18 +264,23 @@ async function keptForeignContent(input: FormatInput): Promise<OpenedImport | nu
 
 interface HeadlessIfcRead {
   readonly parsed: OpenedImport;
-  readonly unkept: ForeignSourceMark | null;
+  readonly unkept: (opened: AppState) => ForeignSourceMark | null;
 }
 
 async function headlessIfcRead(path: string, name: string, bytes: Uint8Array): Promise<HeadlessIfcRead> {
   const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes);
-  const mainRoute = () => parseOpenedFile({ name, text });
-  if (textWriteRefusal(text) === null) return { parsed: await mainRoute(), unkept: null };
-  const kept = await keptForeignContent({ name, bytes });
-  if (kept) return { parsed: kept, unkept: null };
+  const check = textWriteCheck(text);
+  if (typeof check !== 'function') {
+    const kept = await keptForeignContent({ name, bytes });
+    if (kept) return { parsed: kept, unkept: () => null };
+  }
+  const parsed = await parseOpenedFile({ name, text });
+  const mark: ForeignSourceMark = {
+    sha256: await precomputeSha256(bytes), byteLength: bytes.length, filePath: path, siteFileId: null, handle: null, sourceMissing: true,
+  };
   return {
-    parsed: await mainRoute(),
-    unkept: { sha256: await precomputeSha256(bytes), byteLength: bytes.length, filePath: path, siteFileId: null, handle: null, sourceMissing: true },
+    parsed,
+    unkept: (opened) => (typeof check !== 'function' || check(writeIFC(buildExportIFCInput(opened, 'merge'))) ? mark : null),
   };
 }
 
@@ -713,7 +724,7 @@ export const fileTools: McpToolDef[] = [
       const headlessBytes = keepsForeignOnly ? input.bytes : undefined;
 
       let parsed: OpenedImport;
-      let unkept: ForeignSourceMark | null = null;
+      let unkept: HeadlessIfcRead['unkept'] | null = null;
       try {
         // Geen `labels`: dienstlaag zonder `t(...)` — de MCP-laag is AI-facing en kent geen UI-taal.
         // `readIFC` valt dan terug op de Engelse default voor een bestand zonder IFCPROJECT (zie
@@ -745,10 +756,8 @@ export const fileTools: McpToolDef[] = [
         ? openTabFor(ctx.app.store.getState(), ref, null, readVersionOf(ref, parsed)) : null;
       if (tab !== null) switchToOpenDocument(ctx.app.store.getState(), tab);
       const opened = tab !== null ? null : ctx.app.store.getState().openAsDocument(parsed, { name: path, ref });
-      if (opened && unkept) {
-        const mark = unkept;
-        ctx.app.store.setState((s) => { s.foreignSourceMark = mark; });
-      }
+      const mark = opened && unkept ? unkept(ctx.app.store.getState()) : null;
+      if (mark) ctx.app.store.setState((s) => { s.foreignSourceMark = mark; });
       // Drift-anker naar het RESULTERENDE document — anders zou de eerstvolgende
       // mutatie op het importdocument als drift falen en zet de import zichzelf klem.
       bindExpectedDoc(ctx);
