@@ -1554,6 +1554,13 @@ en noem het in je rapport of PR-tekst.
     (`ReportPaperView.tsx`) maakt voor elk blad een element en de vectorpagineerder (`paginateVector.ts`) voegt elk
     blad toe aan de PDF. Tijd en geheugen bij dat aantal zijn niet gemeten. Issue #1238. — B
 
+2400. **Een rechtermuisklik onder de kolomknop (+) op de hoogte van een taak opent geen menu voor lege ruimte.**
+    Sinds PR #1248 (issue #1246) loopt elke rij in de taaktabel door de kolomknopstrook (32 px) heen tot aan
+    de rand van het paneel (`.task-grid-data-row`, `margin-inline-end` in `src/styles/globals.css`). Een klik in die
+    strook valt dus op de rij, en `onContextMenu` in `DataGridCore.tsx` roept `onEmptyContextMenu` alleen aan
+    buiten een rij. Vóór die PR kwam een rechtermuisklik daar wel bij het menu voor lege ruimte. Bevestigd in de
+    review van PR #1248. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
