@@ -2031,7 +2031,7 @@ en noem het in je rapport of PR-tekst.
      zet het veld op `ignored` maar stuurt het in de proef niet mee. Gezien in de review van #1083 (GPT-6.2-Sol) en
      in de code nagelopen. Voorstel: het veld in `CAL_READONLY_KEYS` opnemen (meegestuurd, gemeld in
      `ignoredFields`, niet geschreven, want de bronklokken horen bij het bronbestand), en de proef het veld laten
-     meesturen. — B
+     meesturen. Issue #1274. — B
 1970. **`planner_update_calendar` meldt `taskDurationsPreserved: true` terwijl de duur verandert.** De rij met
      `modeChangedFrom` (`updateCalendarCore` in `src/services/mcp/tools/calendarResourceTools.ts`) en de waarschuwing
      over de moduswissel zeggen dat alleen de planning kan verschuiven. `draft.updateCalendar`
@@ -2293,7 +2293,7 @@ en noem het in je rapport of PR-tekst.
      `tests/planning/fixtures/periode-0730.ifc` zonder `ifcTimePeriods` leest met `planner_get_calendars` als 07:30 tot
      16:00 met 60 minuten pauze en `hoursPerDay: 8`; de schrijfvalidatie rekent 7,5 uur en `planner_update_calendar`
      met `create: true` weigert de gelezen kalender in een leeg document. Er gaat niets verloren; de kalender is zo
-     alleen niet over te zetten (ADR 0104). — B
+     alleen niet over te zetten (ADR 0104). Issue #1274. — B
 
 ## Bestanden en herstel
 
