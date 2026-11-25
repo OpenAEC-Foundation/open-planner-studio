@@ -59,7 +59,7 @@ const bB = baseline2?.tasks.find(t => t.taskId === taskB?.id);
 
 eq('4 taak B houdt baseline 09:00-11:00 (uurkalender via de baselineduur van taak A)', [bB?.start, bB?.finish],
   ['2026-03-02T09:00', '2026-03-02T11:00']);
-eq('5 taak A leent geen duur uit haar baseline', taskA?.time.durationMinutes, 0);
+eq('5 taak A zonder eigen duur leest de baselineduur net als op main (120 min)', taskA?.time.durationMinutes, 120);
 
 const export2 = writeMSPDI(r2.project, r2.calendar, r2.tasks, r2.sequences, r2.resources, r2.assignments,
   r2.resourceCalendars ?? [], r2.baselines ?? [], r2.activeBaselineId ?? null);
