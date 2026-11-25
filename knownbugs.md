@@ -4570,6 +4570,10 @@ en noem het in je rapport of PR-tekst.
       - Ctrl+Y van de wisstap meldt alleen opnieuw als de huidige bron nog iets heeft dat bij de volgende opslag
         vervalt: na wissen, opslaan, Ctrl+Z en Ctrl+Y is dat aantal nul (de bron is al zonder die stukken), dus komt
         er geen melding en geen knop (gezien in de code door de review van #1265, ronde 1);
+      - staat de vraag vóór het opslaan open, dan is de knop niet te bedienen: de rest van het scherm is inert en ligt
+        onder de donkere laag, en Ctrl+Z is bevroren. Na *Annuleren* staat de melding er nog (als haar 12 s niet om
+        zijn) en zet de knop terug. Gezien in de app (dev-server, `bonsai-4d.ifc`, PR 7, herstelronde 1); duurt de vraag
+        langer dan 12 s, dan is de melding daarna weg en blijft Ctrl+Z;
       - de melding hangt alleen aan het wissen van taken en resources (knownbug 2249).
       Dit is de twaalfde voorwaarde voor het
       standaard aanzetten van de flag: de planner mist de waarschuwing bij het wissen niet en kan vanuit die waarschuwing

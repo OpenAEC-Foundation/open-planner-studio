@@ -216,7 +216,9 @@ uit `otherWorkNotice.ts` met de flag als extra voorwaarde (PR 7). De regel van d
 zichtbaar is, de wisstap de stap van Ctrl+Z van het actieve document is, de projectgegevens sinds het wissen gelijk zijn
 en de flag aan staat; Ctrl+S en Automatisch opslaan halen hem niet weg, een nieuwere stap, Ctrl+Z, een ander tabblad,
 een verversing uit de resourcebibliotheek of de flag uit halen de melding met haar knop definitief weg, en Ctrl+Y van
-de wisstap meldt opnieuw als er dan nog iets vervalt. Besluit technisch eigenaar, 25 november 2026: met `detached`
+de wisstap meldt opnieuw als er dan nog iets vervalt. Staat de vraag vóór het opslaan open, dan is de knop zoals de
+rest van het scherm niet te bedienen (inert, ook Ctrl+Z); na *Annuleren* werkt hij weer zolang de melding er staat.
+Besluit technisch eigenaar, 25 november 2026: met `detached`
 vervalt de reden van de oude regel B (Ctrl+Z na opslaan bracht de koppelingen niet terug). Ze deelt de grenzen van de
 stapel van main (knownbug 2357). Regel A: na het schrijven meldt `state/foreignChangesWrittenNotice.ts` per geslaagde
 schrijfactie met een niet-lege lijst één eigen gewone melding (info, blijvend, geen `dedupeKey`) met de naam van het
