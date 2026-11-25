@@ -24,11 +24,13 @@ export type IfcxWriteRefusedCode = 'unsupported' | 'inconsistent' | 'invalid' | 
 export class IfcxWriteRefusedError extends Error {
   readonly code: IfcxWriteRefusedCode;
   readonly fields: readonly string[];
+  readonly place: IfcxErrorPlace;
 
-  constructor(code: IfcxWriteRefusedCode, detail: string, fields: readonly string[] = []) {
+  constructor(code: IfcxWriteRefusedCode, detail: string, fields: readonly string[] = [], place: IfcxErrorPlace = {}) {
     super(detail);
     this.name = 'IfcxWriteRefusedError';
     this.code = code;
     this.fields = fields;
+    this.place = place;
   }
 }

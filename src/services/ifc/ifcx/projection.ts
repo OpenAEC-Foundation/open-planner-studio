@@ -10,6 +10,7 @@ import { placesNeededForOrder } from './childOrder';
 import { DOCUMENT_FIELDS, SCHEDULE_SHARED_FIELDS, WORKPLAN_SHARED_FIELDS, type DocumentWriteSource } from './fields/documentFields';
 import { CALENDAR_FIELDS, CALENDAR_SHARED_FIELDS } from './fields/calendarFields';
 import { TASK_FIELDS, TASK_SHARED_FIELDS, type TaskWriteSource } from './fields/taskFields';
+import { unrecordedOf } from './recordedFields';
 import { SEQUENCE_FIELDS, SEQUENCE_SHARED_FIELDS, sharedLagOf } from './fields/sequenceFields';
 import { ownSchemas } from './nodes';
 import { taskWindow } from './dateProjection';
@@ -113,6 +114,7 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
       task, path: taskPaths[index], span: taskWindow(task),
       derivesDays: hourDurationIsDerived(task, resolveCalendar(task.calendarId, resourceCalendars, input.calendar)),
       atDayEnd: input.milestonesAtDayEnd?.has(task.id) === true,
+      unrecorded: unrecordedOf(task, input.recordedFields?.[task.id]),
       ...(parentPath !== undefined ? { parentPath } : {}),
       ...(calendarPath !== undefined ? { calendarPath } : {}),
       ...(place !== undefined ? { place } : {}),
