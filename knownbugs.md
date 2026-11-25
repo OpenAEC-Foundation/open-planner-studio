@@ -767,6 +767,23 @@ en noem het in je rapport of PR-tekst.
      contour alle 40 uur als `remaining`, naast de twee ongewijzigde werkvelden. Niet in de browser nagespeeld.
      Issue #1224. — B
 
+2326. **In "datums zoals opgeslagen" kan het projecteinde een moment noemen dat vóór het einde van een dagtaak ligt.**
+     `cpmResultFromRecorded` (`src/engine/scheduler/recordedDates.ts`) kiest `projectEnd` als het grootste `finish`
+     met een tekstvergelijking, zodat bij een mix van datums zonder tijd en momenten een moment op dezelfde dag wint.
+     Een einde zonder tijd geldt elders als het einde van die werkdag (`projectDurationOf`). Nagespeeld met een proef
+     op de standaardkalender, zonder `workTime`: record a van 2026-03-09 tot 2026-03-10 en record b van
+     2026-03-09T08:00 tot 2026-03-10T12:00 gaven `projectEnd` 2026-03-10T12:00. Open: op de laadroute zet
+     `normalizeRecordedTimes` (`minuteModelTransition.ts`) een datum zonder tijd eerst om in een moment, behalve waar
+     `normalizeTaskDate` geen moment geeft; of zo'n mix daar deze functie bereikt, is niet nagegaan. — B
+
+2327. **De projectduur in "datums zoals opgeslagen" leest de duur van de taak, niet de vastlegging.**
+     `cpmResultFromRecorded` (`src/engine/scheduler/recordedDates.ts`) geeft de taken door aan `projectDurationOf`,
+     waarvan de mijlpaaluitzondering `task.time.scheduleDuration > 0` leest. Een proef op de standaardkalender met één
+     vastgelegde taak (geen mijlpaal) van 2026-03-09 tot 2026-03-09 gaf `projectDuration` 0 bij `scheduleDuration` 0
+     en 1 bij `scheduleDuration` 1. Volgens het weggehaalde commentaar leest de IFC-lezer een `$` in `ScheduleDuration`
+     als 0, zodat een werkproject van één dag zonder opgeslagen duur duur 0 krijgt; die route via de lezer is niet
+     nagespeeld. — S
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
