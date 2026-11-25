@@ -28,8 +28,8 @@ staan op 0 %: of een voltooid segment blijft staan terwijl het restwerk schuift,
 - Per taak (`deriveTaskSplitGaps`, gelijk aan `intersectAssignmentGaps` in `contourIo.ts`): de doorsnede van de
   gaten van de toewijzingen: een gat telt voor de taak alleen waar elke toewijzing in haar eigen periodes een gat
   heeft. Volgens het weggehaalde commentaar neemt MPXJ (`Task.calculateWorkSplits`, `reduceWorkSplits`) de
-  vereniging van de werkperiodes. De doorsnede geeft alleen dezelfde uitkomst als de gaten van alle toewijzingen
-  over hetzelfde venster bepaald zijn: `gapsBetweenWorkedSpans` ziet alleen gaten tussen de werkperiodes van één
+  vereniging van de werkperiodes. De twee methoden zijn alleen in het algemeen gelijk te stellen als de gaten van
+  alle toewijzingen over hetzelfde venster bepaald zijn: `gapsBetweenWorkedSpans` ziet alleen gaten tussen de werkperiodes van één
   toewijzing. Werken twee toewijzingen op werkminuut 0 tot 60 en 120 tot 180, dan heeft geen van beide een gat en
   geeft de doorsnede geen gat, terwijl tussen de verenigde werkperiodes een gat van 60 minuten ligt. Of een `.mpp`
   dit verschil laat zien, is niet vastgesteld. Daarnaast rekent MPXJ op kalendermomenten en deze code op
