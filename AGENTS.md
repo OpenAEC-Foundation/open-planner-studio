@@ -310,10 +310,25 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   Other inputs retain main's data-section rule (knownbug 1061); broken headers
   outside that exact template are unreadable as targets. Original bytes/positions and strict DATA scanning remain.
   Other foreign-content write routes stay blocked.
-- **IFC 4.3 is the native format**; there is no JSON project format. New domain data must round-trip through
+- **IFC 4.3 is the native format**; there is no JSON project format, except IFCX behind the feature flag `ifcx` (#804
+  phase 3, below). New domain data must round-trip through
   `ifcWriter`/`ifcReader`, or it is gone after saving. CSV/MSPDI/P6/`.mpp`/`.xer` are adapters. The file schema is
   per project (`Project.ifcSchema`, default `IFC4X3_ADD2`); never write silently in another one. Route:
   `docs/ifc-round-trip.md`; depth in the `tauri-ifc` rule.
+- **IFCX behind the flag `ifcx` (#804 phase 3, F3-4).** The core `src/services/ifc/ifcx/` (`writeIfcx`, `readIfcx`,
+  `classifyIfcx`, profile in `docs/ifcx-profiel.md`) imports nothing from `src/state/` and reaches no store, slice,
+  component or hook (`verify:store-boundaries`); the load boundary it shares with the app (`documentDataFromImport`,
+  `buildWriteIFCInput`) lives in `src/services/documentData.ts`. Only with the flag the registry knows the format `ifcx`
+  (`FormatReadOptions.ifcx`, one place for every open route: `readOptionsFor(flags)`). The format of a document is one
+  function, `documentFileFormat` (`src/state/ifcxGuard.ts`): target extension `.ifcx` and the flag on. A document save
+  (Ctrl+S, Save As, Auto-save to the file, site, download) of such a document puts `format: 'ifcx'` on the writer job
+  (`documentSaveCompute`), so the save worker (or the main-thread fallback) writes IFCX through exactly the route of a
+  plain own `.ifc`; dialogs, filters and names follow the format; exports and a merge stay STEP. With the flag off a
+  document whose target is `.ifcx` refuses Ctrl+S and Auto-save (`ifcxWriteBlocked`, one notice); Save As to `.ifc`
+  works. A refusal of the core (`IfcxWriteRefusedError`, also across the worker) is one notice. With the flag on every
+  document write route refuses an existing `.ifcx` target that is foreign or unreadable (`ifcxTargetRefusal`); bytes the
+  app read or wrote as IFCX in this session are not checked again (`ifcxOwnBytes.ts`). `planner_export_ifc` refuses a
+  `.ifcx` path with the flag on. Proof: `check-ifcx-app.ts`.
 - **Document contract.** New project data belongs in `DOCUMENT_FIELDS` (`src/state/documentContract.ts`),
   otherwise it does not survive a document switch, undo, crash recovery or save. A `DocumentPayload` field
   missing from that list is a compile error.
@@ -664,6 +679,7 @@ Design docs: start at `docs/superpowers/README.md` — read them as *why*, not a
 | CPM solver / calendar engine | `src/engine/scheduler/`, `src/engine/calendar/` |
 | Canvas renderer | `src/engine/renderer/` |
 | IFC read/write | `src/services/ifc/ifcReader`, `ifcWriter` |
+| IFCX (flag `ifcx`) | core `src/services/ifc/ifcx/`, load boundary `src/services/documentData.ts`, document format `src/state/ifcxGuard.ts` |
 | File I/O (Tauri↔web↔site) | `src/services/fileAccess/` (+ `recentFiles.ts`; site contract `siteHost.ts`) |
 | Auto-save / recovery | `src/hooks/useAutoSave.ts`, `src/services/recovery/recoveryStore.ts` |
 | Rust commands (thin) | `src-tauri/src/commands/mod.rs` (`install_kind`), `src-tauri/src/commands/place_file.rs` (`place_file_exclusive`), `src-tauri/src/mcp_bridge.rs` (`mcp_bridge_start`/`mcp_bridge_stop`) |

@@ -43,7 +43,14 @@ onder het slot de inhouds- en bronidentiteit, de momentopname en het rekenen via
 (de opslagworker, `compute` van `useAutoSave`), daarna de doelcontrole (fixronde 1 van #1027: ná het rekenen, zodat een
 gebouwmodel dat intussen op het doel verscheen niet overschreven wordt), de laatste controle in de schrijflaag en het
 vastleggen. Typt de planner tijdens de ronde, dan schrijft ze de momentopname en blijft het document gewijzigd; een
-workerfout is een mislukte ronde met `ifcSaveWorkerFailed`, zonder terugval. `markAutoSaveVersionSaved(id, savedSource, prepared?)` gebruikt dezelfde
+workerfout is een mislukte ronde met `ifcSaveWorkerFailed`, zonder terugval. Een IFCX-document (flag `ifcx`, #804 F3-4:
+doel op `.ifcx`, `documentFileFormat`) schrijft Automatisch opslaan als IFCX in de opslagworker, langs dezelfde ronde
+(`documentSaveCompute` zet `format: 'ifcx'` op de writer-job; besluit van de technisch eigenaar, 25 november 2026). Een
+nieuwe ronde start niet zolang de vorige loopt: de controller in `actualAutoSave.ts` werkt serieel en zet bij een tik
+tijdens een ronde hooguit één vervolgronde klaar (`check-ifcx-app.ts`). Met de flag uit schrijft een document op `.ifcx`
+niet naar zijn bestand (één melding `ifcx.flagOff` per document); het crashherstel loopt door en bewaart zoals altijd
+een STEP-momentopname met het pad, dus na herstel schrijft Ctrl+S met de flag aan weer IFCX. Een weigering van de kern
+(`IfcxWriteRefusedError`) is de melding `ifcx.writeRefused`. `markAutoSaveVersionSaved(id, savedSource, prepared?)` gebruikt dezelfde
 `commitSavedDocument` als handmatige opslag: bron en kalenderkeuzes volgen de geschreven versie, ook als een latere
 bewerking dirty blijft. De Worker-invoer en MCP-backup blijven planning zonder bronbytes. Bronherstel (PR 9a) gebruikt met de flag aan een optioneel documentveld `ifcSource` binnen manifest v5:
 sha256, byteLength, foreign en eventueel een browserhandle, nooit bytes. Pad/site-id blijven alleen in `foreignSource`.

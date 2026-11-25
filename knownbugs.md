@@ -6736,3 +6736,31 @@ en noem het in je rapport of PR-tekst.
      kost openen op aia09-mp50 2,8 tot 2,9 keer openen als IFC, tegen 3,35 ervóór. De STEP-rondgang zelf kost ongeveer
      twee keer openen als IFC. Beide verhoudingen staan als eigen regel `IFCX-verhouding …` in de CI-log. Het IFCX-deel
      sneller maken (de waardetoets, het teruglezen, de rondgang) is een voorwaarde vóór "IFCX standaard aan". — B
+
+2364. **Met de flag `ifcx` uit weigert Ctrl+S een document met een doel op `.ifcx`, ook als het bestand STEP is.** De regel
+     "met de flag uit schrijft de app een IFCX-document niet" (#804 F3-4, `ifcxWriteBlocked` in `src/state/ifcxGuard.ts`)
+     kijkt naar de extensie van het opslagdoel, niet naar de inhoud. Op main schreef Ctrl+S in een STEP-bestand met de
+     naam `.ifcx` gewoon STEP. Zo'n document ontstaat met de flag uit alleen als een STEP-bestand `.ifcx` heet en via
+     `planner_import_schedule`, de dev-link of een open-venster zonder filter opent. Ctrl+S en Automatisch opslaan geven
+     dan de melding `ifcx.flagOff`; Opslaan als naar `.ifc` werkt. Geen verlies. — B (`check-ifcx-app.ts`)
+
+2365. **De doelbescherming voor IFCX kijkt alleen naar een doel op `.ifcx`, en toetst een onbekend doel op de
+     hoofdthread.** `ifcxTargetRefusal` (`src/services/fileAccess/foreignSourceTarget.ts`) leest een bestaand pad of een
+     handle alleen als de naam op `.ifcx` eindigt (op de site: als de inhoud met `{` begint). Een IFCX van een ander
+     programma onder de naam `.ifc` beschermt ze met alleen de flag `ifcx` niet (met `ifcForeignContent` aan zegt de
+     STEP-scan daar "geen IFC", zoals main). Een doel dat de app in deze sessie niet zelf als IFCX las of schreef, toetst
+     `classifyIfcx` op de hoofdthread: ongeveer een volledige lezing, bij 10.000 taken in de orde van seconden (niet
+     gemeten in de app). Komt voor bij Opslaan als over een bestaand `.ifcx` en bij Ctrl+S nadat een ander programma het
+     bestand veranderde. — B (code), duur S
+
+2366. **Opslaan als in de browser met een andere extensie dan `.ifcx`.** Bij een IFCX-document biedt de kiezer alleen het
+     IFCX-filter en de naam op `.ifcx`; op de desktop maakt `ensureExtension` van elke getypte naam een `.ifcx`, op de
+     site doet `saveAsNewSiteFile` dat. Of de opslaankiezer van Chromium een getypte naam op een andere extensie laat
+     staan, is niet nagegaan; dan krijgt dat bestand IFCX-inhoud, en de volgende Ctrl+S volgt de naam (STEP). Een type
+     kiezen bij Opslaan als is F3-5. — S
+
+2367. **Automatisch opslaan van een IFCX-document dat de kern weigert, rekent elke ronde opnieuw.** Heeft een
+     IFCX-document gegevens die de kern nog niet draagt (resources, toewijzingen, baselines tot F3-2 en F3-3), dan weigert
+     `writeIfcx` met `IfcxWriteRefusedError`. Automatisch opslaan toont één melding (`ifcx.writeRefused`, ontdubbeld), maar
+     probeert het elke ronde van 10 s opnieuw, met een volledige schrijfbeurt in de opslagworker, tot de planner de
+     gegevens weghaalt of Exporteren → IFC kiest. Het venster blijft reageren. — B (code)
