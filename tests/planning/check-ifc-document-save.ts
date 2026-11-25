@@ -4771,6 +4771,16 @@ await check('PR 7: wissen meldt één melding met het aantal van die wisstap en 
     store.getState().deleteTask(task.id);
     assert.deepEqual(calls, [], `${label}: geen melding`);
   }
+  const flagged = await openHandle(LINKED), stopRounds = recoveryRounds(flagged.store);
+  try {
+    const { store } = flagged, flag = (on: boolean) => store.getState().setUI({ featureFlags: { ...store.getState().ui.featureFlags, ifcForeignContent: on } });
+    store.getState().deleteTask(taskNamed(store, 'Set up site'));
+    assert.equal(deleteNotices(store).length, 1);
+    flag(false);
+    assert.deepEqual(deleteNotices(store), [], 'de flag uit haalt de melding met haar knop weg');
+    flag(true);
+    assert.deepEqual(deleteNotices(store), [], 'de flag weer aan brengt haar niet terug');
+  } finally { stopRounds(); await clearRecovery(); }
 });
 
 for (const [label, existing] of MAIN_STACKS) {

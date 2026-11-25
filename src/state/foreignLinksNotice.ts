@@ -25,5 +25,5 @@ export function notifyForeignLinksDropped(store: NoticeStore, before: DomainBefo
     action: { kind: 'undoHistoryEvent', eventId: event.id, labelKey: 'notifications.actions.undo' },
     durationMs: OTHER_WORK_NOTICE_MS,
   });
-  watchNotice(store, event.id);
+  watchNotice(store, event.id, s => ifcForeignContentEnabled(s.ui.featureFlags));
 }
