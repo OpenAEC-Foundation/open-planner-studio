@@ -133,8 +133,10 @@ eigen bestand van het document weigert met een eigen tekst; een versie van een a
 schrijven ontstaat en `source-changed` krijgen elk een eigen antwoord. Het antwoord bevat
 `byteLength` voor bytes en `characters` alleen voor de gewone tekstuitvoer. De export verandert bron, kenmerk,
 doel, dirty-vlag en letterlijke kalenders niet. Scope, lease, drift, readonly en schrijfslot blijven gelden.
-Headless (fase 2 PR 10b) zet de flag in zijn eigen store en `fileToolDeps.mainRouteUnlessForeign`: de bytes-route alleen
-voor een bestand waarvan ze een vreemd deel bewaart (de regel van `openIfcBytes`), anders de tekstroute van main;
-`appForeignContentRoute(ctx)` (flag aan en niet headless) beslist over de tooltekst, het open tabblad en de externe
-bronnen. Headless levert `writeNewUserBytes` (`nodeFs.ts`, `link` naar de nieuwe naam), niet `replaceUserBytes`: een
+Headless (fase 2 PR 10b) zet de flag in zijn eigen store en `fileToolDeps.mainRouteUnlessForeign`; `headlessIfcRead` in
+`fileTools.ts` geeft elke geopende IFC één stand: bewezen eigen (de schrijfpoort van de kern, `textWriteRefusal`, vindt
+niets vreemds: de tekstroute van main, één lezing), bewaarde vreemde bron (de bytes-route en de merge), of niet vast te
+stellen (openen zoals main, met het kenmerk "bron ontbreekt", zodat `ifcFullWriteBlocked` elke IFC-uitvoer vóór I/O
+weigert; eigen tekst `UNKEPT_SOURCE_REFUSAL`). `appForeignContentRoute(ctx)` (flag aan en niet headless) beslist over de
+tooltekst, het open tabblad en de externe bronnen. Headless levert `writeNewUserBytes` (`nodeFs.ts`, `link` naar de nieuwe naam), niet `replaceUserBytes`: een
 bestaande naam blijft voor een document met een vreemd deel geweigerd (knownbug 2240).

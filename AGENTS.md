@@ -346,11 +346,12 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   (`scanForeign` C/A/V; unreadable targets refused, historical own headers use the shared recognition), no replacing of an existing file while the desktop app runs (`appLock.ts`
   reads `open-files*.json` from the app's data folders or `--discovery-dir` on every write), its own XML parser as `DOMParser` (`xmlDom.ts`, for MSPDI/P6 XML) and
   MCP backups in its own data folder. IFC follows the core's `openIfcBytes` rule (#804, knownbug 1136): the host sets
-  `ifcForeignContent` in its own store plus `fileToolDeps.mainRouteUnlessForeign`, so `planner_import_schedule` keeps the
-  bytes route only when it preserves a building model or data from another program, and every other file takes main's
-  text route with the same answers and written bytes (`tests/mcp/cases-headless-pariteit.ts`, with `OPS_MAIN_WORKTREE`).
-  `planner_export_ifc` of such a document merges and writes only to a new name (`McpFileFs.writeNewUserBytes`: own temp
-  file, `fsync`, then `link`; an existing name is refused, knownbug 2240). It reuses the
+  `ifcForeignContent` in its own store plus `fileToolDeps.mainRouteUnlessForeign`, and `planner_import_schedule` gives every
+  IFC one of three states: proven own (the core's write gate `textWriteRefusal` finds nothing foreign) opens on main's text
+  route with main's answers and bytes; kept foreign content (the bytes route preserves it) exports by merge, only to a new
+  name (`McpFileFs.writeNewUserBytes`: own temp file, `fsync`, then `link`; knownbug 2240); anything else opens like main but
+  gets the existing "source missing" mark, so every IFC output refuses with `VALIDATION` before any I/O
+  (`tests/mcp/cases-headless-server.ts`; `cases-headless-pariteit.ts` against a main worktree via `OPS_MAIN_WORKTREE`). It reuses the
   dispatcher, registry, `runtime.ts`, the tools and `requestHandler.ts` unchanged; host functions go through seams
   (`fileToolDeps`, `McpFileFs.confine`, `guideToolDeps`, `createAppBackupService` overrides). Code it bundles imports
   no value from `appStore.ts` (`verify:store-boundaries`); `npm run build:mcp-server` fails on React, Tauri, the

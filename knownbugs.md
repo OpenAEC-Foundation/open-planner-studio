@@ -6726,13 +6726,7 @@ en noem het in je rapport of PR-tekst.
      file name", en de eigen bron geeft `'open-source'`). Een planner die headless een bestand met een gebouwmodel of een
      externe pset bijwerkt, kan het bestand dus niet ter plekke opslaan; de bron blijft heel en de nieuwe versie komt
      onder een andere naam. De tekst bij de eigen bron zegt "ask the user to save in the app", wat headless niet helpt:
-     de wijzigingen staan in het geheugen van de server. Richting: een Node-variant van de vervanging met herstelrecord
-     (`replaceOwnPathWithRecovery`) in `nodeFs.ts`, of een eigen headless tekst. Geproefd in
-     `tests/mcp/cases-headless-server.ts` ("A knownbug 1136"). — B
-2241. **VERVOLG (#804 fase 2 PR 10b, snelheid): headless leest een IFC zonder vreemd deel twee keer door de lezer.**
-     `planner_import_schedule` op de headless server probeert eerst de bytes-route (scanner en lezer) en leest dezelfde
-     bytes daarna via de tekstroute van main (`keptForeignContent` in `src/services/mcp/tools/fileTools.ts`). Van schijf
-     leest hij één keer. De kern doet hetzelfde (`openIfcBytes`). Op de voorbeelden geven beide routes dezelfde uitkomst
-     (`tests/mcp/cases-headless-pariteit.ts`, ook met de bytes-route voor elk bestand), maar bewezen voor elk bestand is
-     dat niet. Niet gemeten op een groot bestand. Richting: meten; is het verschil groot, dan eerst alleen de scanner
-     (`runForeignScan`) en pas bij C/A/V de bytes-route, met de pariteitsproef als vangnet. — B (code)
+     de wijzigingen staan in het geheugen van de server. (De fout bij een naam die tijdens de export bezet raakte, noemt
+     headless sinds fixronde 1 van #1219 een nieuwe naam in plaats van `overwrite: true`.) Richting: een Node-variant van
+     de vervanging met herstelrecord (`replaceOwnPathWithRecovery`) in `nodeFs.ts`, of een eigen headless tekst. Geproefd
+     in `tests/mcp/cases-headless-server.ts` ("A knownbug 1136"). — B
