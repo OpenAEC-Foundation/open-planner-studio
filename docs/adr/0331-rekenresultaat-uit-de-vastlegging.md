@@ -14,15 +14,17 @@ weten, blijft leeg: `drivingSequenceIds` (met `drivingUnknown`, ADR 0020), `sequ
   speling 0, zonder `isCritical` is de taak niet kritiek. `CPMTaskResult` eist die velden als getal of tekst;
   "niet vastgelegd" staat alleen in `times` (ADR 0332). Spelingminuten komen alleen mee als het record ze draagt,
   zonder terugval. Het kritieke pad bevat alleen taken met `isCritical: true` in het record
-  (`check-recorded-dates.ts` 3b, 3i).
+  (`check-recorded-dates.ts` 3b, 3i). `isCritical` is in het resultaat altijd een boolean, en `criticalPaths` is
+  altijd `[criticalPath]`, ook als die lijst leeg is; wat het rapport en MCP daarmee doen, staat in knownbug 2329.
 - Een verzameltaak zonder eigen record waaronder vastgelegde taken hangen, staat ook in het resultaat, met de waarden
   van haar `task.time` (die `applyRecordedTimesToTasks` net oprolde). Zo zeggen Gantt en taakraster (op `task.time`)
   en rapporten (op `cpmResult`) hetzelfde over die rij. Een tak zonder enige vastlegging blijft erbuiten
   (`check-recorded-dates.ts` 15f).
 - Een gemiste deadline gebruikt `deadlineBound` op de kalender van de taak (`resolveCalendar` op `task.calendarId`
   met de projectkalender als terugval, dan `engineForTaskCalendar`), zoals `CPMSolver.calendarFor`. Een einde precies
-  op de grens is niet gemist. Zo spreken de melding na een berekening en die in de modus elkaar niet tegen, ook niet
-  voor een taak op een eigen kalender (review PR #402 ronde 2; `check-recorded-dates.ts` 4f en 4g).
+  op de grens is niet gemist. De solver toetst zijn berekende einde, de modus het einde uit het record; voor dezelfde
+  taak, grens en einddatum geven ze hetzelfde oordeel, ook op een eigen kalender (review PR #402 ronde 2;
+  `check-recorded-dates.ts` 4f en 4g).
 - Het projecteinde is het grootste `finish` van de vastgelegde taken, de projectstart voor de duur het kleinste
   `start`, beide als tekst vergeleken (grens: knownbug 2326). De projectduur komt uit `projectDurationOf` op de
   projectkalender, met de ruwe tekst; die functie leest een datum zonder tijd als die werkdag zelf en een moment met
