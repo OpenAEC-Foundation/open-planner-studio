@@ -6340,13 +6340,22 @@ en noem het in je rapport of PR-tekst.
      lezerreparatie in #915; vlag uit blijft main. Hoort bij 1054/1061. Uit de bouw van #804 fase 1c PR 4,
      na de nieuwe werkwijze van de eigenaar (13 november 2026, GPT-6.1-Sol via Codex).
      Importgrens van de headless MCP-server (#1219, fase 2 PR 10b): vijftien gemaakte eigen vormen vallen daar bij het
-     openen in stand 3 (niet vast te stellen), omdat de schrijfpoort van de kern (`textWriteRefusal`) ze niet volledig
+     openen in stand 3 (niet vast te stellen), omdat de schrijfpoort van de kern (`textWriteCheck`) ze niet volledig
      leest: `data;` in kleine letters, een eigen bestand met STEP-ids vanaf 2147483648 en de dertien kapotte
      bestandsnamen uit `brokenNameFiles`. Main schreef ze; headless opent ze zoals main en weigert elke IFC-uitvoer met
      `VALIDATION`, zonder bestand en zonder back-up, met de melding dat de gebruiker zo'n bestand met alleen een planning
      in de app (de experimentele instelling uit) kan openen en opslaan. Een benoemde grens (besluit van de technisch
      eigenaar, na de review van #1219 ronde 2): Open Planner Studio schrijft die vormen zelf niet, de weigering is
-     getypeerd en verliest niets, en deze grens geldt al voor de doelcontrole. — B
+     getypeerd en verliest niets, en deze grens geldt al voor de doelcontrole.
+     Sinds herstelronde 3 van #1219 is "bewezen eigen" per slot: de gewone writer moet elk slot van elk stuk met een
+     slottabel (`IFC_SLOT_TABLES`) teruggeven. Daardoor vallen ook echte oude eigen bestanden van vóór #39 (28 juli 2026)
+     in stand 3, en weigert ook de kern ze met `IFC_WRITE_FAILED:foreign`: de naam `Bouwplanning v1.0` op het lopende
+     werkschema (een constant slot) schrijft de huidige writer als `Construction schedule v1.0` (in de repo de bestanden
+     van v2026.7.7 en v2026.7.12 in `oude-tags/`). Opslaan in de app schrijft de nieuwe naam. Twee grenzen van de
+     slottoets: een domeinslot van een stuk met eigen herkomst telt als gedragen (vergelijken zou 41 eigen bestanden uit
+     stand 1 halen, door de omrekening naar minuten, herberekende datums en oude notaties), en stukken zonder slottabel
+     op main (toewijzing, onderdelen van een kalender, psets, project, owner history, de andere relaties, de kop) toetst
+     alleen de scan. Zie `docs/headless-mcp.md`, *Bewezen eigen, per slot*. — B
 
 1588. **VERVOLG, gemaakte bron: een opgeslagen maar ongebruikt eigen taaktype laat ook ander werk weigeren.**
      Voeg in een kopie van de opgeslagen beginstand van PR 7d aan `TaskTypes.definitions` een extra
@@ -6846,9 +6855,11 @@ en noem het in je rapport of PR-tekst.
      in `tests/mcp/cases-headless-server.ts` ("A knownbug 1136"). — B
 2241. **VERVOLG (#1219, snelheid, niet gemeten): headless opent een grote eigen IFC met een extra volledige scan.**
      `planner_import_schedule` op de headless server decodeert de bytes, codeert de tekst opnieuw en draait de
-     schrijfpoort van de kern (`textWriteRefusal`: de modelcontrole en de volledige indeling) vóór de ene tekstparse van
+     schrijfpoort van de kern (`textWriteCheck`: de modelcontrole en de volledige indeling) vóór de ene tekstparse van
      main; een bestand met een vreemd deel gaat daarna ook door de bytes-route (`headlessIfcRead` in
-     `src/services/mcp/tools/fileTools.ts`). De bron wordt één keer van schijf gelezen. Opentijd en piekgeheugen zijn niet
+     `src/services/mcp/tools/fileTools.ts`). Sinds herstelronde 3 schrijft hij een bestand zonder vreemd stuk na het openen
+     ook één keer met de gewone writer en scant hij die uitvoer, voor de slottoets; de kern doet dat pas bij de eerste
+     `toIfc()`. De bron wordt één keer van schijf gelezen. Opentijd en piekgeheugen zijn niet
      gemeten, niet voor een grote eigen en niet voor een grote vreemde bron: de meting paste niet in het rekenslot van
      deze ronde. Richting: één grote eigen en één grote vreemde bron meten (`measure:large-plans` meet opslaan, niet deze
      import). Gemeld door de review van #1219 ronde 2 (Sol, VERMOED). — S

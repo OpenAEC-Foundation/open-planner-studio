@@ -134,8 +134,9 @@ schrijven ontstaat en `source-changed` krijgen elk een eigen antwoord. Het antwo
 `byteLength` voor bytes en `characters` alleen voor de gewone tekstuitvoer. De export verandert bron, kenmerk,
 doel, dirty-vlag en letterlijke kalenders niet. Scope, lease, drift, readonly en schrijfslot blijven gelden.
 Headless (fase 2 PR 10b) zet de flag in zijn eigen store en `fileToolDeps.mainRouteUnlessForeign`; `headlessIfcRead` in
-`fileTools.ts` geeft elke geopende IFC één stand: bewezen eigen (de schrijfpoort van de kern, `textWriteRefusal`, vindt
-niets vreemds: de tekstroute van main, één lezing), bewaarde vreemde bron (de bytes-route en de merge), of niet vast te
+`fileTools.ts` geeft elke geopende IFC één stand: bewezen eigen (de schrijfpoort van de kern, `textWriteCheck` in
+`targetForeignScan.ts`, vindt geen model, C, A of V, en na het openen geeft de gewone writer elk slot van elk stuk met
+een slottabel terug, #1219: de tekstroute van main, één lezing), bewaarde vreemde bron (de bytes-route en de merge), of niet vast te
 stellen (openen zoals main, met het kenmerk "bron ontbreekt", zodat `ifcFullWriteBlocked` elke IFC-uitvoer vóór I/O
 weigert; eigen tekst `UNKEPT_SOURCE_REFUSAL`). In die stand maakt de headless host ook geen MCP-backup: de back-upbinding
 heeft de optionele controle `withheld` (in de app leeg), `runMutateTool` slaat `ensureBackup` dan over en zet

@@ -297,7 +297,8 @@ vervangt ze met `overwrite: true` een bestaand bestand: het heeft precies de exp
 `cases-doc-file.ts` toetst via de dispatcher import, duuractie, export en volledige heropening, bronidentiteit,
 bestaande/eigen doelen, flag uit na openen, ontbrekende bron en Latin-1 zonder tekstrondgang, en op echte bestanden het
 vervangen met en zonder `overwrite`, een doel dat na het lezen verandert, links, het eigen bestand en een ander tabblad.
-De headless server (#804, fase 2 PR 10b) geeft elke geopende IFC één van drie standen: bewezen eigen (de route van main),
+De headless server (#804, fase 2 PR 10b) geeft elke geopende IFC één van drie standen: bewezen eigen (de route van main; sinds herstelronde 3 van #1219 alleen
+als de gewone writer elk slot van de planning teruggeeft, *Bewezen eigen, per slot*),
 bewaarde vreemde bron (de merge naar een nieuwe naam via `writeNewUserBytes` in `nodeFs.ts`: eigen halffabricaat, `fsync`,
 `link`; een bestaande naam weigert hij) of niet vast te stellen (openen zoals main, elke IFC-uitvoer geweigerd vóór I/O, ook
 de MCP-backup, met `backupWithheld` in het antwoord). Uitleg en proeven: *Gegevens van een ander

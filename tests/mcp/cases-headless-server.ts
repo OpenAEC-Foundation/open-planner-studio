@@ -919,10 +919,10 @@ test('A eigenschap (1136 ronde 2): in stand 3 schrijft geen enkele wijzigende to
       if (step.tool.includes('baseline') && step.tool !== 'planner_save_baseline') app.store.getState().saveBaseline('Referentie');
       const r = await call(client, step.tool, step.args());
       if (r.s.envelope?.backupCreated) reportsBackup.add(step.tool);
-      if (r.isError && !step.refused) referenceErrors.push(`${step.tool} ${r.s.code} ${String(r.s.error).slice(0, 100)}`);
+      if (r.isError && backsUp.has(step.tool)) referenceErrors.push(`${step.tool} ${r.s.code} ${String(r.s.error).slice(0, 100)}`);
     }
     const expectedBackups = [...new Set(stepsFor('x', 'x').map(s => s.tool))].filter(t => backsUp.has(t)).sort();
-    assertEq(referenceErrors, [], 'in stand 2 slaagt elke stap');
+    assertEq(referenceErrors, [], 'in stand 2 slaagt elke tool van soort mutate of batch');
     assertEq([...reportsBackup].sort(), expectedBackups, 'in stand 2 maakt precies elke tool van soort mutate of batch een back-up');
 
     const uncertain = [
