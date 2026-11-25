@@ -2058,6 +2058,12 @@ en noem het in je rapport of PR-tekst.
      P-stuk) schrijft wel, en een opslag zonder wijziging in de planning geeft de bronbytes terug. Richting: het gedeelde hulpstuk één keer schrijven en elke verwijzer laten wijzen naar die ene
      regel, en alleen splitsen als de planner het veld van één verwijzer wijzigt. Review ronde 2 van #1205 (Sol);
      `check-ifc-foreign-regel-c.ts`. — B
+2370. **Doorrekenen op een Bonsai-bestand verschuift geen enkele datum.** Flag aan,
+      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: na `schedule()` krijgt *Wand A* (5 dagen) een vroege en late start
+      en een vroeg en laat einde die alle vier op 2026-02-02 09:00 staan. Het ligt niet aan de opslag: na heropenen ziet de
+      planner wat hij zag. Gezien door de bouwer van #1205 tijdens de vaste lijst gewone bewerkingen; niet uitgezocht of het
+      een fout is of bedoeld gedrag (een taak uit een ander programma wordt bij inlezen handmatig gepland). Wordt apart
+      uitgezocht (besluit van de technisch eigenaar, 25 november 2026). — S
 
 2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
      `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
