@@ -1052,17 +1052,25 @@ test('A gebouwmodel: openen bewaart het model, een nieuwe naam krijgt het bytege
     assertEq(exported.byteLength, model.byteLength, 'byteLength');
     assert(readFileSync(copy).equals(model), 'een ongewijzigde planning met model komt bytegelijk terug');
 
-    const bonsai = readFileSync(join(FOREIGN_FIXTURES, 'bonsai-4d.ifc'));
-    const bonsaiPath = join(rootA, 'bonsai-4d.ifc');
-    writeFileSync(bonsaiPath, bonsai);
-    await ok(client, 'planner_import_schedule', { path: bonsaiPath });
-    const task = app.store.getState().tasks.find(t => t.childIds.length === 0 && !t.isMilestone)!;
-    await ok(client, 'planner_update_tasks', { updates: [{ id: task.id, fields: { duration: task.time.scheduleDuration + 1 } }] });
-    const target = join(rootA, 'bonsai-kopie.ifc');
+    const longer = async (name: string) => {
+      const bytes = readFileSync(join(FOREIGN_FIXTURES, name));
+      const path = join(rootA, name.replace(/^.*\//, ''));
+      writeFileSync(path, bytes);
+      await ok(client, 'planner_import_schedule', { path });
+      const task = app.store.getState().tasks.find(t => t.childIds.length === 0 && !t.isMilestone)!;
+      await ok(client, 'planner_update_tasks', { updates: [{ id: task.id, fields: { duration: task.time.scheduleDuration + 1 } }] });
+      return { bytes, path };
+    };
+    await longer('bonsai-4d.ifc');
+    const written = join(rootA, 'bonsai-kopie.ifc');
+    await ok(client, 'planner_export_ifc', { path: written });
+    assert(existsSync(written), 'een langere taak in bonsai-4d.ifc schrijft, met het vreemde deel');
+    const council = await longer('council/r6opus-twee-werkplannen.na.ifc');
+    const target = join(rootA, 'r6opus-kopie.ifc');
     const r = await refused(client, 'planner_export_ifc', { path: target }, 'VALIDATION', 'ongedragen wijziging');
     assert(String(r.s.error).includes('merge-needs-phase2') && String(r.s.error).includes('another format'), `de fout zegt waarom: ${r.s.error}`);
     assertEq(existsSync(target), false, 'er is niets geschreven');
-    assert(readFileSync(bonsaiPath).equals(bonsai), 'de bron is bytegelijk');
+    assert(readFileSync(council.path).equals(council.bytes), 'de bron is bytegelijk');
   } finally { await client.close(); }
 });
 
