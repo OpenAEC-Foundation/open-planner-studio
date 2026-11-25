@@ -379,7 +379,9 @@ records tellen alleen als het `PT…`-slot nog de geschreven minuten draagt.
 **Speling (T5).** `TotalFloat` en `FreeFloat` in `IfcTaskTime` dragen hele dagen (afgerond,
 `wholeFloatDays`). De exacte dagen en de minuten (`totalFloatMinutes`, `freeFloatMinutes`) staan in de
 eigenschap `ExactFloat` van `OPS_Analysis`. Die eigenschap komt er alleen als de taak spelingminuten draagt
-of als de speling een breuk heeft. De lezer neemt de minuten als ze er zijn en leidt ze nergens zelf af.
+of als de speling een breuk heeft. De lezer neemt de minuten uit dat record, of rechtstreeks uit een slot met
+een tijddeel: `applyTaskTimeRecords` (`ifcReader.ts`) maakt van `TotalFloat='PT6H'` zonder pset 360 minuten, en de
+dagen zijn die minuten ÷ minuten per dag. Uit een slot in hele dagen zonder record leidt hij geen minuten af.
 In "Datums zoals opgeslagen" lopen de minuten mee in de vastlegging (`RecordedTime.totalFloatMinutes`/
 `freeFloatMinutes`, `recordedDates.ts`); gaf het bestand geen minuten, dan wist de modus de minuten van de
 verworpen berekening. Zo schrijft opslaan in de modus nooit de dagen uit het bestand naast minuten uit een
@@ -390,7 +392,8 @@ de hele minuut); bij de speling: als het slot nog de afgeronde dagen van het rec
 ander programma de lengte, dan geldt het standaardveld. Een lag `PT4H0M0S` die `PT6H0M0S` werd, leest als
 360 min in de urenmaat (bij kalendertijd in kalenderminuten), zoals in v2026.9.0. Een duur wordt een
 urentaak; een rest of werkelijke duur van een dagtaak wordt minuten ÷ minuten per dag; een speling blijft
-het slot, zonder minuten. Corrupte JSON of een ongeldig record werkt als een bestand zonder record.
+het slot, zonder minuten, tenzij het slot een tijddeel heeft: dan levert het de minuten rechtstreeks (zie
+*Speling*). Corrupte JSON of een ongeldig record werkt als een bestand zonder record.
 
 **v2026.9.0** leest een nieuw bestand zonder dagen te verliezen of op te blazen: lag 0,5 d ⇒ 240 min
 urenmaat, 1,5 ed ⇒ 2160 kalenderminuten, duur 2,5 d ⇒ urentaak van 1200 min, speling 2,5 d ⇒ 3 d. Een

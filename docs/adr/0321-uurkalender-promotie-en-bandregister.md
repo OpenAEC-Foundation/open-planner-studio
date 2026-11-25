@@ -13,19 +13,24 @@ Registreren doen `ifcReader`, `mspdiReader`, `p6xmlReader`, `mppCalendars`, `xer
 - Wanneer een lezer promoveert, verschilt per formaat:
   - IFC (`ifcReader.ts`): al bij het lezen van de kalender bij `IsHourCalendar = .T.`, of bij seconden of de oude
     bandvorm in de kloktijd zonder `IsHourCalendar = .F.`; anders na de taken bij afwijkende blokken of een signaal,
-    niet bij een scalair gemarkeerde kalender (ADR 0043).
-  - MSPDI (`mspdiReader.ts`): na de taken bij afwijkende blokken, bij werkdagen met verschillende blokken
-    (`sharedWeekBlocks`, ook bij één blok per dag) of bij een signaal; in een bestand van OPS blijft een dagkalender
-    met pauze (`opsDayWithBreak`) zonder signaal een dagkalender (ADR 0253 en 0252).
-  - P6 XML (`p6xmlReader.ts`): na de taken bij afwijkende blokken of een signaal; werkdagen met elk één blok maar
-    andere tijden promoveren niet, en in een export van OPS blijft een dagkalender met pauze onder voorwaarden een
-    dagkalender (`registerP6Bands`, ADR 0262 en 0264).
-  - `.mpp` (`mppCalendars.ts`, `promoteCalendarsForHourMode`): na de taken bij de uitkomst van `canonicalizeBands` of
-    een signaal, zonder vergelijking tussen weekdagen (knownbug 2325, issue #1228; ADR 0283).
+    niet bij een scalair gemarkeerde kalender (ADR 0043). Uitzondering op de seconden: een kalender zonder
+    `IsHourCalendar = .T.` met één wekelijks tijdvak, zoals `07:30:01` tot `16:00:00`, zonder de oude bandvorm en
+    zonder afwijking blijft scalair (`scalarSeconds`); die voorwaarde gaat voor en sluit ook de promotie na de taken
+    uit (ADR 0043, stap 1).
+  - MSPDI (`mspdiReader.ts`): na de scan van de taakgegevens bij afwijkende blokken, bij werkdagen met verschillende
+    blokken (`sharedWeekBlocks`, ook bij één blok per dag) of bij een signaal; in een bestand van OPS blijft een
+    dagkalender met pauze (`opsDayWithBreak`) zonder signaal een dagkalender (ADR 0253 en 0252).
+  - P6 XML (`p6xmlReader.ts`): na de scan van de taakgegevens bij afwijkende blokken of een signaal; werkdagen met
+    elk één blok maar andere tijden promoveren niet, en in een export van OPS blijft een dagkalender met pauze onder
+    voorwaarden een dagkalender (`registerP6Bands`, ADR 0262 en 0264).
+  - `.mpp` (`mppCalendars.ts`, `promoteCalendarsForHourMode`): na de scan van de taakgegevens bij de uitkomst van
+    `canonicalizeBands` of een signaal, zonder vergelijking tussen weekdagen (knownbug 2325, issue #1228; ADR 0283).
   - XER: eerst in `decodeXerCalendarData` en de kalenderlus van `xerCalendarData.ts`, bij het lezen van de kalender,
-    bij elk expliciet klokblok in `clndr_data` (`hasExplicitClockBands`), dus ook bij één blok van 08:00 tot 16:00
-    zonder taaksignaal; daarna in `xerReader.ts`, na het lezen van de activiteitrijen, bij een kloktijd in een
-    taakdatum of bij blokken met een pauze die `inferBlankCalendarBands` uit de geplande tijden afleidt. Beide
+    bij elk expliciet klokblok in de weekdagen van `clndr_data` (`DaysOfWeek`, `hasExplicitClockBands`), dus ook bij
+    één blok van 08:00 tot 16:00 zonder taaksignaal; een klokblok dat alleen onder `Exceptions` staat, telt daar niet.
+    Daarna in `xerReader.ts`, na het lezen van de activiteitrijen, bij een kloktijd in een taakdatum uit de vaste
+    veldlijst voor `hourSignalCalendarIds` in `readXerProject` (een kloktijd die alleen in `early_start_date` staat,
+    telt niet), of bij blokken met een pauze die `inferBlankCalendarBands` uit de geplande tijden afleidt. Beide
     promoties zetten daarna de uren per dag terug die de kalender vóór de promotie had.
 - `promoteHourCalendar` promoveert als de geregistreerde blokken afwijken (`deviates`) of als de lezer een signaal
   meegeeft; zonder een van beide geeft hij onwaar, ook bij een kalender die al `workTime` heeft. Heeft een
