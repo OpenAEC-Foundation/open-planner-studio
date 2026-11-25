@@ -173,14 +173,17 @@ rekent de lijst na met een eigen lezer (`foreign/stepValue.ts`), los van de rege
 stuk moet vanuit de ontbrekende D-stukken te verklaren zijn, een gewijzigd stuk is precies de bron zonder de leden naar
 verwijderde stukken. Een vreemd lid van een eigen pset van een verwijderd object blijft als los stuk staan en staat niet
 op de lijst (§4.2 stap 3). Bij het wissen van een taak of resource, en bij Opnieuw van zo'n stap, meldt
-`state/foreignLinksNotice.ts` met dezelfde regel hoeveel er bij opslaan verandert, met *Ongedaan maken* (regel B). Een
-bronvervangende schrijfactie van een document met een vreemd deel legt het document vast vanaf haar momentopname
-(`captureDocumentWrite`, de teller `capturing` in `documentSaveState.ts`; Ctrl+S en Opslaan als in `fileSlice.ts`,
-Automatisch opslaan in `fileAutoSave.ts`); zolang dat duurt, haalt `watchNotice` de wismelding weg, en na een mislukte
-schrijfactie met dezelfde bron en stap zet hij haar terug. Na de commit is de bron vervangen en blijft ze weg; de flag
-uitzetten ook. Regel A: na het schrijven meldt `state/foreignChangesWrittenNotice.ts` per geslaagde schrijfactie met een
-niet-lege lijst één eigen gewone melding (info, blijvend, geen `dedupeKey`) met de naam van het geschreven bestand en het
-aantal, op elke schrijfroute: `commitSavedDocument` (ook AutoSave en de site), de downloadtakken van Ctrl+S en Opslaan
+`state/foreignLinksNotice.ts` met dezelfde regel hoeveel er bij opslaan verandert, met *Ongedaan maken*. Regel B
+(fixronde 4 van #1199): de melding en haar knop horen bij de wisstap. Een bronvervangende schrijfactie van een document
+met een vreemd deel legt bij haar momentopname de laatste undo-stap van het document vast (`captureDocumentWrite`,
+`snapshotEvent` in `documentSaveState.ts`; Ctrl+S en Opslaan als in `fileSlice.ts`, Automatisch opslaan in
+`fileAutoSave.ts`). Is dat de wisstap van de melding, dan haalt `watchNotice` haar weg zolang de schrijfactie loopt, zet
+haar terug als die mislukt, en laat haar weg als de commit slaagt. Een schrijfactie van vóór de wisstap verandert niets;
+vervangt haar commit de bron, dan telt de melding opnieuw op de nieuwe bron en blijft ze staan zolang er iets vervalt. De
+flag uitzetten haalt haar weg. Regel A: na het schrijven meldt `state/foreignChangesWrittenNotice.ts` per geslaagde
+schrijfactie met een niet-lege lijst één eigen gewone melding (info, blijvend, geen `dedupeKey`) met de naam van het
+geschreven doel uit de schrijfuitkomst (pad, handlenaam of de naam die de site teruggeeft) en het aantal, op elke
+schrijfroute: `commitSavedDocument` (ook AutoSave en de site), de downloadtakken van Ctrl+S en Opslaan
 als (een eigen zin: "in de download"), de IFC-export en `planner_export_ifc` (in het antwoord). Die melding deelt de
 grenzen van de stapel van main; wat ze niet kan, staat in knownbug 2357. Weigeren blijft: een verwijzing naar een R-stuk
 (`verwijzing-naar-p`, het krijgt een nieuw id) en naar een D-stuk dat de planning niet kent (`verwijderd`).
