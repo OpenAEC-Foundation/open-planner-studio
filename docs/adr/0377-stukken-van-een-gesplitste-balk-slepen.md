@@ -11,12 +11,13 @@ stuk 0, en rekent elk oppervlak via `splitEdit.ts` (regel `gantt-splits`).
 - `prepareSplitDrag` bevriest bij het grijpen de stukkenlijst (`SplitDragContext.pieces0`). Elke beweging rekent
   vanaf die lijst en niet vanaf de vorige beweging, anders maakt terugslepen niets ongedaan. Elke beweging schrijft
   via `setTaskSplits`, de enige schrijfweg voor gebruikerssplits, met de sleutel van het gebaar (ADR 0370).
-  Zonder `setTaskSplits` (tests) sleept een gesplitste balk als geheel.
+  Zonder `setTaskSplits` (tests) sleept een gesplitste balk als geheel. Het einde dat `applyTaskSplits` daarbij
+  meteen schrijft, is voorlopig (`splitScheduleFinish`); bij een taak in de dagenmaat kan de getekende rand tot F5
+  afwijken van het einde dat de solver geeft (knownbug 2348).
 - `editableSplitPieces` geeft `null`, en dan sleept de balk als één geheel, als de taak niet splitsbaar is
-  (`canSplitTask`; ook een niet-welgevormde importsplit, die alleen-lezen is) of als de renderer een ander aantal
-  stukken tekende dan de stukkenlijst telt. Dat laatste gebeurt in de dagtak van `computeSplitSegments`
-  (`splitWalk.ts`), die een pauze afrondt op hele werkdagen, zodat een korte pauze geen stuk tekent; een stukindex
-  zou dan naar het verkeerde werkstuk wijzen. Coördinator en sleep gebruiken deze ene functie.
+  (`canSplitTask`; ook een niet-welgevormde importsplit, die alleen-lezen is) of als het aantal getekende stukken
+  (`segmentCount`) niet gelijk is aan het aantal werkstukken in de stukkenlijst. Een stukindex zou dan naar het
+  verkeerde werkstuk wijzen. Coördinator en sleep gebruiken deze ene functie.
 - De as van de stuksleep (`axisKind`) volgt de maat van de taak, met dezelfde keuze als de Gantt-stukken
   (`taskSplitMeasure`): hele werkdagen voor een taak met alleen datums, dagslots in de dagenmaat, anders werkminuten.
   Bij dagzoom valt het grijppunt op het begin van de werkdag onder de muis (`splitWorkdayStart`), voor elke taak met
@@ -31,8 +32,8 @@ stuk 0, en rekent elk oppervlak via `splitEdit.ts` (regel `gantt-splits`).
 - Een stuksleep kiest geen richting: alleen stuk 0 draagt de verticale rijsleep, zoals een ongesplitste balk
   (ADR 0371). Een voltooide balk heeft geen stukgrepen (ADR 0375).
 - Het sleeplabel (`SplitDragLabel`, in `GanttCanvas`) leest de nieuwe lengte uit de uitkomst van `setGapLength` of
-  `setWorkLength`, dus gesnapt en geklemd, en niet uit de ruwe muisafstand. Een samengevoegde pauze bestaat niet meer
-  en toont 0. De eenheid is werkdagen, of uren bij een urentaak op de minutenas buiten dagzoom (bij kwartierzoom
+  `setWorkLength`, dus gesnapt en geklemd, en niet uit de ruwe muisafstand. Een samengevoegde pauze bestaat niet meer:
+  de hook geeft dan 0 door en het label toont `task:split.merged` (*Samenvoegen*). De eenheid is werkdagen, of uren bij een urentaak op de minutenas buiten dagzoom (bij kwartierzoom
   knownbug 2346).
 - De browsertests in `tests/browser/task-split.spec.ts` slepen een stuk en een stukrand met de muis, ook het
   samenvoegen tegen het vorige stuk.

@@ -871,7 +871,7 @@ en noem het in je rapport of PR-tekst.
      pauze van 480 minuten na het eerste werkstuk, ma 07:00 – vr 16:00: de linkergreep één dag naar rechts, in
      twee muisbewegingen, eindigt op di 09:00; de contourherschaling maakt van de pauze 360 minuten. Terugslepen
      laat ma 09:00 staan, en F5 zet het einde op ma 8 juni 09:00. Eén undo herstelt de beginstand
-     (`src/components/canvas/hooks/useBarDrag.ts:353`, `src/engine/renderer/hourBarDragMath.ts:218`,
+     (`splitGaps` in `useBarDrag`, `src/components/canvas/hooks/useBarDrag.ts`; `src/engine/renderer/hourBarDragMath.ts:218`,
      `src/utils/taskDefaults.ts:774`). Op `9a636ec69` ook fout (na terugslepen en F5 ma 8 juni 16:00).
      Voorstel: de pauzegegevens bij het grijpen bevriezen en sleepberekening en store dezelfde herschaalregel
      laten volgen. Gevonden in de review van de fix voor aanval a09 (GPT-6.1-Sol). — B
@@ -879,7 +879,7 @@ en noem het in je rapport of PR-tekst.
 371. **De linkergreep springt bij een taak met alleen nivelleerpauzes.** Vier werkdagen plus één
      nivelleerpauzedag, ma–vr: de linkergreep één dag naar rechts geeft wo 07:00 en duur 3 d. De sleep filtert
      de pauze weg, maar rekent terug vanaf het oorspronkelijke einde mét pauze
-     (`src/components/canvas/hooks/useBarDrag.ts:353`, `src/engine/renderer/hourBarDragMath.ts:218`). De
+     (`splitGaps` in `useBarDrag`, `src/components/canvas/hooks/useBarDrag.ts`; `src/engine/renderer/hourBarDragMath.ts:218`). De
      bodyverplaatsing werkt wel. Al zo op `9a636ec69`. Voorstel: de vaste rand en de resterende spanne bepalen
      vanuit dezelfde toestand zonder vervallen nivelleerpauzes. Gevonden in de review van de fix voor aanval a09
      (GPT-6.1-Sol). — B
@@ -1554,14 +1554,35 @@ en noem het in je rapport of PR-tekst.
     (`ReportPaperView.tsx`) maakt voor elk blad een element en de vectorpagineerder (`paginateVector.ts`) voegt elk
     blad toe aan de PDF. Tijd en geheugen bij dat aantal zijn niet gemeten. Issue #1238. — B
 
-2346. **Het sleeplabel van een stuksleep op een urentaak kan bij kwartierzoom kwartieren als uren tellen.**
+2346. **Het sleeplabel van een stuksleep op een urentaak telt bij kwartierzoom kwartieren als uren.**
     `handleSplitDrag` in `useBarDrag` (`src/components/canvas/hooks/useBarDrag.ts`) zet het label op
     `Math.round(lengte / unitMinutes)`, met `unitMinutes` uit `splitUnitMinutes`: bij een urentaak de snapstap van de
     zoom (`hourSnapMinutesFor`, 60 of 15). Het label staat dan in uren (`hourMode`) en `GanttCanvas` toont het met
     `task:split.gapHours` of `task:split.pieceHours`. Bij een snapstap van 15 minuten (*Kwartieren tonen bij ver
-    inzoomen* aan en ver ingezoomd) telt het getal dus kwartieren; een stuk van 2 uur zou "Stuk: 8 uur" tonen.
-    Alleen in de code gelezen, niet in de app nagespeeld; de browsertests in `task-split.spec.ts` lezen het label
-    niet bij kwartierzoom. — S
+    inzoomen* aan en ver ingezoomd) geeft een stuk van 120 minuten 120 / 15 = 8 en toont het label "Stuk: 8 uur".
+    Bereikbaar via de gewone stuksleep met de kwartieroptie aan. In de code bevestigd door een tweede lezer, niet in
+    de app nagespeeld; de browsertests in `task-split.spec.ts` lezen het label niet bij kwartierzoom. — B
+
+2347. **Een bodysleep van nul kolommen in de dagenmaat overschrijft stil het startanker.** `handleDayMeasureDrag` in
+    `useBarDrag` (`src/components/canvas/hooks/useBarDrag.ts`) rekent vanaf de getoonde start (`originalStart`, uit
+    `shownStart` in `useGanttPointerCoordinator`) en schrijft niets alleen als `scheduleStart`, `scheduleFinish` en
+    `scheduleDuration` al gelijk zijn aan de uitkomst. Bij een taak die een voorganger opschuift, ligt het anker
+    `scheduleStart` vóór de getoonde start, dus ook nul stappen schrijven de getoonde start als anker, met een
+    undo-stap en zonder SNET (`constraintForDraggedStart` geeft niets als de start gelijk is aan de berekende start).
+    Route: dagzoom op 60 px per dag, een gewone opvolgertaak met anker 7 september, getoond op 9 september en 5 dagen
+    lang; de body 5 px bewegen en loslaten. De balk blijft op 9 september en de duur op 5 dagen, maar de store zet het
+    anker op 9 september. Verwijder daarna de voorganger en druk F5: de taak blijft op 9 september, terwijl ze zonder
+    het korte gebaar terugvalt op 7 september. Proef uit de review van #1249, met gesimuleerde muisgebeurtenissen in
+    Node en de echte store, niet in de browser. `handleHourDrag` vergelijkt op dezelfde manier met `scheduleStart`;
+    die route is niet nagespeeld. Issue #1250. — B
+
+2348. **Een stukrand in de dagenmaat toont tot F5 een te laat einde.** Na een stuksleep schrijft `applyTaskSplits`
+    (`src/state/splitMutations.ts`) het einde voorlopig met `splitScheduleFinish` (`src/engine/scheduler/splitEdit.ts`).
+    Bij een dagtaak met tijden is dat het laatste blokeinde van de werkdag die `addWorkDays` voor de spanne geeft, ook
+    als de spanne op een breuk van een werkdag eindigt; de solver neemt die breuk wel mee. Route: een taak in het
+    OPS-profiel van twee werkdagen met één werkdag pauze ertussen, ingezoomd tot uren, de rechterrand van het laatste
+    stuk één uur korter. De store schrijft meteen 1,875 d, maar de getekende rand blijft op woensdag 16:00; pas F5
+    zet hem op 15:00. Proef uit de review van #1249, niet in de browser. — B
 
 ## Kalenders
 
@@ -5740,8 +5761,8 @@ en noem het in je rapport of PR-tekst.
     ingedrukte muisknop. Ook: balk vastpakken, F2 opent Taak bewerken, Escape. De window-capture in `useBarDrag` stopt
     het event vóór `useDialogKeys`. Popover en inline-editor liggen ook achter deze luisteraar. VERVOLG uit review #704
     (GPT-6.1-Sol) op `d90cb289d`. — B
-586. **Een verdwenen taak laat de sleepsessie hangen.** `src/components/canvas/hooks/useBarDrag.ts:387` stopt het effect
-    als de taak ontbreekt. Bij een gewijzigde takenlijst ruimt React eerst de oude luisteraars op, en de nieuwe mouseup-
+586. **Een verdwenen taak laat de sleepsessie hangen.** Het sleepeffect in `useBarDrag` (`src/components/canvas/hooks/useBarDrag.ts`) keert vroeg terug
+    (`if (!draggedTask) return`) als de taak ontbreekt. Bij een gewijzigde takenlijst ruimt React eerst de oude luisteraars op, en de nieuwe mouseup-
     en Escape-luisteraars worden niet geregistreerd. Sleep schrijft, verwijder de geselecteerde taak terwijl de muisknop
     ingedrukt blijft, laat los: `active=true`, `isAutoCalcHeld()=true`, nul mouseup-luisteraars, en een latere bewerking
     krijgt dezelfde `sessionKey`. Richting: sluit bij een ontbrekende taak de sessie en wis de sleeptoestand; één extra

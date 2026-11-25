@@ -18,6 +18,8 @@ na de volgende berekening anders staat dan de planner losliet.
 - `handleMouseMove` slaat een beweging alleen over als het aantal kolommen niet veranderde sinds de vorige
   schrijfactie (`lastAppliedDeltaRef`, begint op 0), en niet zodra het 0 is. Een toets op 0 zou de beginduur
   onbereikbaar maken: na een beweging terug naar 0 werd niets geschreven en bleef de balk op de buurwaarde staan.
+  Deze toets hoort alleen bij deze dagsleep. De uursleep en de dagenmaatsleep (ADR 0372) vergelijken hun uitkomst met
+  de opgeslagen velden en schrijven ook bij nul stappen als die verschillen (knownbug 2347).
 - Het aantal kolommen wordt een datum via de projectkalender, dezelfde kalender waarmee `GanttCanvas` de gedeelde
   as bouwt (`resolveGanttAxis`); de duur telt op de kalender van de taak. Onder werkdagencompressie
   (`isCompressedEffective`: de instelling staat aan en de projectkalender heeft werkdagen, net als bij de as) is een kolom een werkdag van de projectkalender

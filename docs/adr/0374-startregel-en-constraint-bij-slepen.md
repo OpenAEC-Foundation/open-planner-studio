@@ -22,5 +22,4 @@ welke taken hij niet geldt (`startRuleApplies`), staat in `constraintForDraggedS
   start tegenhield als de planner de start echt probeerde te verzetten. Het zijn dezelfde meldingen als bij typen
   (`notifyStartEdit`, `startEditNotifications` in `state/startConstraintNotice.ts`); bij een groepsruitje komen die
   van de meeschuivers erbij. Escape en een documentwissel melden niets.
-- `check-milestone-drag.ts` speelt de mijlpaalsleep na met `constraintForDraggedStart` en de echte store en
-  controleert dat de mijlpaal na F5 op het gesleepte moment staat; het roept de hook niet aan.
+- Wat de SNET bij een gesleepte mijlpaal na F5 betekent en welke toets dat dekt, staat in ADR 0376.
