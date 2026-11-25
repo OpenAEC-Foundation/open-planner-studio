@@ -2021,12 +2021,12 @@ en noem het in je rapport of PR-tekst.
      dat volgt uit dezelfde weigering. OPS zelf maakt zo'n paar niet (één resource per taak,
      `assignResource`). Richting: de lezer laat elke toewijzing haar bronrelatie dragen (GlobalId), dan is het wissen
      eenduidig. Review ronde 2 van #1205 (Sol); `check-ifc-foreign-regel-c.ts`. — B
-2369. **Een hulpstuk dat twee planningsstukken van een ander programma delen, weigert elke opslag.** Flag aan, een
+2369. **Een hulpstuk dat twee planningsstukken van een ander programma delen, weigert elke opslag met een wijziging.** Flag aan, een
      bestand waarin twee `IfcRelSequence` één `IfcLagTime` delen, of twee taken één `IfcTaskTime`, ook als één van de twee
      eigenaren van OPS-herkomst is. De writer schrijft zo'n hulpstuk per verwijzer opnieuw, dus de opslag zou het gedeelde
      stuk splitsen. De merge weigert daarom vooraf met `niet-eenduidig` (`sharedHelpers` in `prepareIfcWrite`,
      `mergeWriter.ts`), ook bij een bewerking elders. Een lag die gedeeld wordt met een reeks buiten de planning (geen
-     P-stuk) schrijft wel. Richting: het gedeelde hulpstuk één keer schrijven en elke verwijzer laten wijzen naar die ene
+     P-stuk) schrijft wel, en een opslag zonder wijziging in de planning geeft de bronbytes terug. Richting: het gedeelde hulpstuk één keer schrijven en elke verwijzer laten wijzen naar die ene
      regel, en alleen splitsen als de planner het veld van één verwijzer wijzigt. Review ronde 2 van #1205 (Sol);
      `check-ifc-foreign-regel-c.ts`. — B
 

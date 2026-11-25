@@ -373,8 +373,8 @@ verdwijnen.
   uit een oude lay-out, of uit een stuk met de oude letterlijke codering (`'0.1'`, §4.9), worden niet bewaard.
 - **Vier soorten slots.** Elk slot in elke descriptortabel heeft een soort; een test faalt bij een slot zonder soort.
   - **Domein**: de lezer vertaalt het naar een domeinveld. Eigen herkomst: altijd de waarde van de writer. Vreemde
-    herkomst: het brontoken als het domeinveld nog gelijk is aan wat de lezer eruit las, én het token in de codering van
-    de uitvoer dezelfde waarde geeft; anders de waarde van de writer. Zo blijft een Bonsai-`Status` staan.
+    herkomst: regel A in `.claude/rules/tauri-ifc.md`, de enige uitgewerkte beschrijving van de schrijfbeslissing. Zo
+    blijft een Bonsai-`Status` staan.
   - **Afgeleid**: de writer berekent het uit andere gegevens. Altijd de waarde van de writer. Voorbeelden:
     `IfcTaskTime.StatusTime` (`ifcWriter.ts:1542`), `IfcTaskTime.Name`, de naam van `IfcRelNests` bij eigen herkomst (`:1600`),
     StartTime/FinishTime/CreationDate van werkplan en werkschema (`:447-449`), naam en datums van de baselineschema's
@@ -383,8 +383,8 @@ verdwijnen.
   - **Constant**: de writer schrijft een vaste waarde (vaak `$`) en de lezer leest het slot niet. Dan het brontoken.
     Voorbeelden: `LongDescription`, `WorkMethod`, `IfcWorkPlan.Name` bij vreemde herkomst. In een bestand van de huidige
     writer is het brontoken al de constante.
-  - **Verwijzing** (`OwnerHistory` bij eigen herkomst, `TaskTime`, `Recurrence`, `WorkingTimes`): altijd de
-    eigen verwijzing van de writer.
+  - **Verwijzing** (`OwnerHistory` bij eigen herkomst, `TaskTime`, `Recurrence`, `WorkingTimes`): de eigen
+    verwijzing van de writer, met de uitzondering van regel B in `.claude/rules/tauri-ifc.md`.
   - Een brontoken met een `#` blijft alleen staan in een constant slot uit een vaste lijst: `OwnerHistory` bij vreemde
     herkomst, `Creators` van werkplan en werkschema (de writer zet daar `$`, `ifcWriter.ts:208`; besluit wrakko,
     9 november 2026, na fase 0), `IfcConstructionResource.Usage`,

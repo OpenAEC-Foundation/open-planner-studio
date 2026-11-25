@@ -384,8 +384,10 @@ De merge schrijft met de kaart (deel 2 van PR 2, `foreign/sourceSlotWrite.ts`, �
 een stuk van de kaart krijgt per slot het brontoken of de waarde van de writer. Constant: het brontoken (een `#` alleen
 op de vaste lijst, `bronverwijzing`); domein: het brontoken zolang de planner geen veld wijzigde waar de writer dat slot
 uit schrijft (regel A: één slot, één beslissing, één veldenlijst; `slotFieldChanged` en `slotHasFields` in `lossCheck.ts`,
-dezelfde tabel als de uitleg van O1 voor een stuk uit de kaart); alleen een slot zonder veldenlijst kijkt of de writer er
-hetzelfde schrijft als bij openen (O0). Afgeleid: de writer. Verwijzing: de writer, behalve een gevulde verwijzing naar
+dezelfde tabel als de uitleg van O1 voor een stuk uit de kaart, die ook dezelfde wijzigingen leest: `plannerChanged`,
+tegenover wat de app na openen liet zien); alleen een slot zonder veldenlijst kijkt of de writer er hetzelfde schrijft als
+bij openen (O0). De waarde van een lag volgt de schrijfkeuze van de writer: houdt die de dagvorm van de bron
+(`sourceDayLagIds`), dan hangt de waarde niet van de eenheid af en blijft `P0.50D` staan. Afgeleid: de writer. Verwijzing: de writer, behalve een gevulde verwijzing naar
 een stuk dat de writer niet draagt (niet P, zoals een `IfcTaskTimeRecurring`; regel B, `keepsTarget`): die houdt haar
 brontoken zolang de velden van het slot gelijk blijven, en de regel die de writer ernaast schreef vervalt
 (`dropReleased`); anders weigert de verliescontrole (`releasesKeptTarget`). Een afhankelijk slot (`volgt`) gaat samen met
@@ -420,7 +422,13 @@ toewijzing is de enige bronrelatie met die taak en die resource (`assignmentOrig
 toewijzingen van dat paar, dan weigert de merge met `niet-eenduidig` (`foreignRelations` in `mergeWriter.ts`) en
 verklaart de verliescontrole niets (`expectedProcessMembers` in `lossCheck.ts`); knownbug 2368. Een P-hulpstuk achter
 een verwijzingsslot van een stuk uit de kaart dat twee verwijzers deelt, weigert de merge vooraf met `niet-eenduidig`
-(`sharedHelpers` in `prepareIfcWrite`; knownbug 2369). Proef: `check-ifc-foreign-regel-c.ts` bouwt de verwijzingsgraaf
+(`sharedHelpers` in `prepareIfcWrite`; knownbug 2369); een opslag zonder wijziging in de planning (ook na ongedaan maken)
+komt daar niet: de merge geeft dan de bronbytes terug (`planningCanon` gelijk aan wat de app na openen liet zien). De
+volgorde telt per geordend slot: de kinderen van een `IfcRelNests` blijven in hun volgorde, behalve bij de ouder waar de
+planner ze versleepte. Een nieuwe toewijzingsrelatie staat in de uitvoer na de bewaarde toewijzingsrelaties van de taken
+die in het domein vóór haar taak staan (`assignmentPlacement` in `mergeWriter.ts`), zodat herlezen de toewijzingen in de
+volgorde van de planner geeft; die volgorde tussen taken is zichtbaar (de optelvolgorde van belasting en van de totalen per
+resource in MCP, `getAssignments` voor extensies, de UID's van MSPDI). Proef: `check-ifc-foreign-regel-c.ts` bouwt de verwijzingsgraaf
 van bron en uitvoer (`tests/planning/ifcRegelC.ts`) over twaalf bronnen en elke bewerking op elke plek waar ze kan; de
 pinproef gebruikt dezelfde toets.
 
