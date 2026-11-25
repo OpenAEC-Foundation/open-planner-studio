@@ -1086,9 +1086,9 @@ is werk van fase 3 en staat in de schema's.
   omdat een ander programma een node kopieerde), dan krijgt het volgende object `-dup-N`, zoals bij dubbele ids in STEP
   (`ifcReader.ts:1731-1734`). Die UUID is
   het domein-id en de GlobalId. `ifcSource` bewaart per
-  domein-id het bronpad, en `detached` bewaart het bronpad van een verwijderd object. Dit is het enige deel van de bron
-  bij IFCX dat blijft: de bronopslag voor het herschrijven van gemengde IFCX (§6.6) vervalt, deze padkaart niet. Naast
-  de padkaart blijft per bekend veld bewaard of het bij openen ontbrak, en welke waarde het direct na openen had. De writer kiest het pad uit
+  domein-id het bronpad, en `detached` bewaart het bronpad van een verwijderd object. Van de bron bij IFCX
+  blijven twee dingen: deze padkaart, en per bekend veld of het bij openen ontbrak en welke waarde het direct na openen
+  had. De bronopslag voor het herschrijven van gemengde IFCX (§6.6) vervalt. De writer kiest het pad uit
   `ifcSource`, dan uit `detached`, en pas daarna een nieuw pad. Zo bevat geen domein-id een `/`, en blijft de identiteit
   gelijk na elke ronde, ook na Ctrl+Z na opslaan en bij opslaan als STEP. Ook de paden in het taakveld van een
   baseline gaan in die kaart, zodat een verwijderde baselinetaak bij elk opslaan hetzelfde pad houdt.
