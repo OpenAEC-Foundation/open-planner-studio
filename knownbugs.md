@@ -2272,7 +2272,7 @@ en noem het in je rapport of PR-tekst.
      `lag: 0` slaagt het. Laat de assistent `lag` weg, dan maakt `planner_add_dependencies` een relatie met nul
      dagen, maar houdt `planner_update_dependencies` de bestaande lag: een SS-relatie met `+2d` werd zo `FS+2d`, met
      de opvolger op 10 juni 07:00 in plaats van 8 juni 07:00. Een relatie met 240 minuten lag leest ook als `lag: ""`
-     (knownbug 354), dus de lege waarde zegt niet dat de lag nul is. — B
+     (knownbug 354), dus de lege waarde zegt niet dat de lag nul is. Issue #1269. — B
 
 ## Bestanden en herstel
 
