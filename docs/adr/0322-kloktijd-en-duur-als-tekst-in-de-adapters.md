@@ -1,11 +1,13 @@
 # Kloktijd en duur als tekst in de adapters
 
 De IFC-, MSPDI-, P6 XML- en XER-adapters zetten minuten om in kloktijden en duurteksten en terug. De gedeelde
-omzettingen staan één keer in `src/services/subdayIo.ts`, zodat dezelfde waarde in elke aanroeper dezelfde tekst
-geeft en dezelfde tekst dezelfde waarde. Het zijn losse functies met eigen aanroepers: welke een adapter gebruikt en
-wat hij eromheen doet, verschilt per formaat. De IFC-writer bewaart een ongewijzigde kloktijd uit de bron letterlijk,
-ook met seconden of fijnere precisie (`calendarPeriodClocks` in `ifcWriter.ts`); de P6 XML-lezer telt bij een
-blokeinde onder voorwaarden een minuut op (`p6FinishClockToMinutes` in `p6xmlReader.ts`); de XER-lezer leest
+omzettingen staan één keer in `src/services/subdayIo.ts`, zodat de adapters geen eigen kopie van die regels houden.
+Dezelfde minuutwaarde kan verschillende tekst geven: 1440 wordt met `endOfDay` `24:00:00` en zonder `00:00:00`. Het
+zijn losse functies met eigen aanroepers: welke een adapter gebruikt en wat hij eromheen doet, verschilt per formaat.
+De IFC-writer bewaart een ongewijzigd begin uit de bron letterlijk, ook met seconden of fijnere precisie
+(`calendarPeriodClocks` in `ifcWriter.ts`); een ongewijzigd einde alleen als het samen met het geschreven begin
+dezelfde periodeduur geeft (ADR 0144), of als het blok gelijk is aan de scalaire bronperiode. De P6 XML-lezer telt
+bij een blokeinde onder voorwaarden een minuut op (`p6FinishClockToMinutes` in `p6xmlReader.ts`); de XER-lezer leest
 kalenderklokken met een eigen functie en weigert seconden die niet nul zijn (`parseXerClock` in `xerCalendarData.ts`,
 `XER_CALENDAR_NONZERO_SECONDS`). Een kloktijd is in minuten sinds middernacht; een duur in minuten.
 
@@ -19,8 +21,8 @@ kalenderklokken met een eigen functie en weigert seconden die niet nul zijn (`pa
   `check-ifc-calendar-identity.ts` §11 (elke `IFCTIMEPERIOD` een geldige `hh:mm:ss` met begin vóór einde, en een
   rondgang die gelijk terugkomt). De MSPDI-writer schrijft een blokeinde zonder `endOfDay`, de P6 XML-writer schrijft
   het einde min één minuut (`p6FinishClock`). `calendarClock` neemt de tekst van `minutesToClock` alleen als
-  `parseIfcClock` daaruit precies de minuten terugleest; anders probeert hij een nauwkeuriger tekst met de seconden
-  van de minuten zelf, en pas als ook die de invoer niet exact teruggeeft, weigert hij
+  `parseIfcClock` daaruit modulo 1440 precies de minuten terugleest; anders probeert hij een nauwkeuriger tekst met de
+  seconden van de minuten zelf, en pas als ook die de invoer modulo 1440 niet exact teruggeeft, weigert hij
   (`IfcCalendarTimePrecisionError`).
 - `clockToMinutes` leest alleen uren en minuten aan het begin van de tekst; seconden vallen weg, een andere vorm geeft
   `null` (knownbug 1031). `scalarHourFromClock` geeft de uren van `parseIfcClock`, met minuten en seconden, en `NaN`

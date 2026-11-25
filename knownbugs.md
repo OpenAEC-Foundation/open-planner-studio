@@ -803,6 +803,14 @@ en noem het in je rapport of PR-tekst.
      één keten, en `src/services/mcp/tools/readTools.ts` meldt bij de projectoptie `floatPaths` met `FREE_FLOAT` dat
      parallelle ketens beschikbaar zijn, terwijl de reconstructie één lijst met gemarkeerde taken geeft. In de code
      bevestigd door twee lezers, niet nagespeeld. — B
+2335. **Een leeg datumslot (`''`) in een IFC komt als lege datum in "datums zoals opgeslagen".** `recordedSlotsOf`
+     (`src/services/ifc/ifcReader.ts`) telt `''` als aanwezig, `parseDateFromIFC` geeft er een lege tekst voor terug,
+     en `captureRecordedDates` (`src/engine/scheduler/recordedDates.ts`) neemt die over. Nagespeeld met zelfgemaakte
+     IFC-bestanden via `parseOpenedFile` en `openAsDocument`, niet in de browser: met een lege vroege start gaat de
+     modus aan, telt één taak als verschoven en is de projectduur 0 werkdagen; met een leeg vroeg einde krijgt de balk
+     een einde vóór haar begin, is het projecteinde leeg en de projectduur 0 werkdagen. Met `$` op dezelfde plek valt
+     het vroege paar uit de vastlegging en geeft de berekening één werkdag. In 5021 `IfcTaskTime`-regels uit 141
+     bestanden in de repo schrijft geen enkel programma `''` in deze slots. — B
 
 ## Tabel, invoer en bediening
 
