@@ -26,10 +26,14 @@ minutenomzetting. Een taak zonder record blijft onaangeroerd, op de stappen hier
 - Verzameltaken zonder eigen record rollen op uit hun kinderen met `rollupSummaryTasks`, met `skip` voor taken met
   een record en `projectCalendar` voor de afgeleide duur, zonder `progressCalendars`, dus zonder voortgangsrollup.
   Anders hield een fasebalk de datums van de verworpen berekening. De rollup leest de terugvallen van de kinderen als
-  hun waarden. Een verzameltaak met eigen record (de IFC-route) blijft zoals het bestand haar gaf
-  (`check-recorded-dates.ts` §15). Dat P6 alleen op TASK-rijen een vastlegging schrijft en een WBS-rij er dus nooit
-  een heeft, komt uit het weggehaalde commentaar.
+  hun waarden. Een handmatige fase (`manuallyScheduled`) houdt daarbij haar eigen plandatums en duur. Een
+  verzameltaak met eigen record (de IFC-route) blijft zoals het bestand haar gaf (`check-recorded-dates.ts` §15).
+  Dat P6 alleen op TASK-rijen een vastlegging schrijft en een WBS-rij er dus nooit een heeft, komt uit het
+  weggehaalde commentaar. Een fase zonder record krijgt, wat haar afgeleide speling ook is, geen markering *Niet
+  vastgelegd* (`unrecordedAxes` geeft zonder record niets). Het projecteinde telt alleen taken met een record, de
+  rollup van een fase alle kinderen, dus een fase kan later eindigen dan het projecteinde (knownbug 2328, issue #1231).
 - `interferingFloat`, `isNearCritical` en `floatPath` worden gewist op elke taak met record en op elke taak die geen
-  blad is en geen record heeft: ze komen uit de verworpen berekening (`check-recorded-dates.ts` 3ab tot en met 3ad,
-  15c). `applyCpmResult` zet `isNearCritical` en `floatPath` op dezelfde manier op `undefined` als een resultaat ze
-  niet draagt (ADR 0300).
+  blad is en geen record heeft: ze komen uit de verworpen berekening (`check-recorded-dates.ts` 3ab tot en met 3ad, op
+  een blad met record). Op een fase zonder record bewijst 15c alleen het wissen van `interferingFloat`: daar
+  begint de fase met `isNearCritical` en `floatPath` al op `undefined`. `applyCpmResult` zet `isNearCritical` en
+  `floatPath` op dezelfde manier op `undefined` als een resultaat ze niet draagt (ADR 0300).

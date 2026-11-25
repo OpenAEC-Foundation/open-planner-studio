@@ -803,6 +803,14 @@ en noem het in je rapport of PR-tekst.
      één keten, en `src/services/mcp/tools/readTools.ts` meldt bij de projectoptie `floatPaths` met `FREE_FLOAT` dat
      parallelle ketens beschikbaar zijn, terwijl de reconstructie één lijst met gemarkeerde taken geeft. In de code
      bevestigd door twee lezers, niet nagespeeld. — B
+2335. **Een leeg datumslot (`''`) in een IFC komt als lege datum in "datums zoals opgeslagen".** `recordedSlotsOf`
+     (`src/services/ifc/ifcReader.ts`) telt `''` als aanwezig, `parseDateFromIFC` geeft er een lege tekst voor terug,
+     en `captureRecordedDates` (`src/engine/scheduler/recordedDates.ts`) neemt die over. Nagespeeld met zelfgemaakte
+     IFC-bestanden via `parseOpenedFile` en `openAsDocument`, niet in de browser: met een lege vroege start gaat de
+     modus aan, telt één taak als verschoven en is de projectduur 0 werkdagen; met een leeg vroeg einde krijgt de balk
+     een einde vóór haar begin, is het projecteinde leeg en de projectduur 0 werkdagen. Met `$` op dezelfde plek valt
+     het vroege paar uit de vastlegging en geeft de berekening één werkdag. In 5021 `IfcTaskTime`-regels uit 141
+     bestanden in de repo schrijft geen enkel programma `''` in deze slots. — B
 
 ## Tabel, invoer en bediening
 
@@ -1524,6 +1532,27 @@ en noem het in je rapport of PR-tekst.
     `src/services/print/printPreview.ts`) is volgens het weggehaalde commentaar de breedte waarop de langste curvenaam
     van veertien talen past; de app heeft er nu 28. `measureCurveColumnWidth` begrenst de kolom op die breedte, dus een
     langere vertaalde curvenaam wordt in de cel afgekapt. Niet gemeten. — S
+2336. **Op vaste schaal met een tabel die minstens zo breed is als de afdrukbare breedte, valt de tijdas van de afdruk
+    weg.** `computeTileLayout` (`src/services/print/tileLayout.ts`) geeft bij `mode: 'actual'` één kolom als
+    er naast de herhaalde tabel geen ruimte overblijft (`(printW − frozenPtW) / scale` niet groter dan 0), ook als de bron
+    breder is dan één blad. Proef met de functie zelf: A4 staand, `mode: 'actual'`, `logicalWidth` 2000,
+    `logicalHeight` 500, `frozenColumnWidthPx` 800 geeft `cols` 1 met één venster van x = 0 tot 729,7; de bron van 729,7
+    tot 2000 komt op geen blad. Met `frozenColumnWidthPx` 700 zijn het 44 kolommen. Op de Gantt-afdruk is
+    `frozenColumnWidthPx` de tabelbreedte, en de naamkolom alleen mag tot `NAME_COLUMN_AUTO_MAX` (800 px) breed zijn;
+    Nagespeeld met de rapporttekenaar, het afdrukvoorbeeld en de lettermeting van Inter, niet in de browser: A4
+    staand, *Vaste schaal* en *Taaknaam → Volledig* gaf een naamkolom van 800 logische px en één blad, met x = 729,71
+    als uiterste bronpositie; de hele tijdas viel weg. Met de standaardkolommen, de naamkolom handmatig op 400 px en
+    de rapportletter op 125 % was de tabel 810 px; met de volledige naam en 125 % 1310 px, ook te breed voor A4
+    liggend en A3 staand (grens 1058,52 px). De app waarschuwt dan dat de tijdlijn smal wordt en laat de export
+    doorgaan. Zie ADR 0351. Issue #1238. — B
+
+2337. **Op vaste schaal met een tabel net smaller dan de afdrukbare breedte ontstaan duizenden bladen.**
+    `computeTileLayout` (`src/services/print/tileLayout.ts`) rekent het aantal kolommen uit de ruimte die naast de
+    herhaalde tabel overblijft. Nagespeeld met de rapporttekenaar en het afdrukvoorbeeld, niet in de browser: A4
+    staand, *Vaste schaal*, een automatisch gemeten tabel van 729 px en een planning van januari tot oktober op 22 px
+    per dag gaf 9496 bladen; na het eerste blad komt er per blad 0,71 logische px tijdas bij. Het afdrukvoorbeeld
+    (`ReportPaperView.tsx`) maakt voor elk blad een element en de vectorpagineerder (`paginateVector.ts`) voegt elk
+    blad toe aan de PDF. Tijd en geheugen bij dat aantal zijn niet gemeten. Issue #1238. — B
 
 ## Kalenders
 
@@ -2056,6 +2085,42 @@ en noem het in je rapport of PR-tekst.
      taak verlengd zonder te rekenen; een batch hernoemde die taak en probeerde daarna een taak met een onbekend id te
      lezen. De batch gaf `NOT_FOUND` en de oude naam kwam terug, terwijl de berekende start van de opvolger van 11 naar
      16 maart ging. Zie ADR 0240. — B
+2330. **Een element in een pool dat geen object is, blijft staan en laat de vergelijking met de bibliotheek vastlopen.**
+     `normalizePoolShape` (`src/services/library/libraryOps.ts`) zorgt dat `calendars` en `resources` lijsten zijn,
+     maar laat een element dat geen object is (zoals `null`) erin staan; `readPoolIFC`
+     (`src/services/library/libraryIfc.ts`) laat zo'n element in `resources` ook door (`poolResourceFromFile` geeft het
+     ongewijzigd terug). Nagespeeld in een los script: `normalizePoolShape('c1', { calendars: [null], resources: [null] },
+     [])` geeft `{"calendars":[null],"resources":[null]}`; daarna gooit `diffCalendarVsPool` met een gestempelde
+     projectkalender (`libraryItemId: 'x'`) een `TypeError` (`Cannot read properties of null (reading 'id')`), en
+     `copyResourceToProject(pool, 'x', …)` ook. Nagespeeld met een zelfgemaakt IFC: een bestand met `null` in beide
+     lijsten komt door `readPoolIFC` en kan als bibliotheek worden toegevoegd (`PoolImportDialog` telt het element
+     mee); ook de normalisatie van opgeslagen bibliotheekgegevens houdt het. Het openen van een gekoppeld project gaf
+     daarna "Bestand openen mislukt", en vervangen met een gestempelde kopie in het actieve project gooide vóór de
+     publicatie. Niet in de browser nagespeeld. — B
+2331. **Een nieuwe bibliotheek met een naam van alleen bepaalde onzichtbare tekens krijgt die naam.** `addCompany`
+     (`src/state/slices/librarySlice.ts`) valt alleen terug op de standaardnaam als `name.trim()` leeg is, en de aanroep
+     in `ProjectInfoPanelContent.tsx` geeft `newCompanyName.trim()` mee. `trim()` laat bijvoorbeeld U+200B staan (U+FEFF
+     haalt het wel weg), dus zo'n naam komt er ongewijzigd in. `resolveUniqueCompanyName` (`libraryOps.ts`) toetst een geïmporteerde naam
+     daarom met `normalizeName` (ADR 0343). Nagespeeld via de store: `addCompany` bewaart een naam van alleen U+200B,
+     en de import kiest voor dezelfde invoer een standaardnaam. Of de rij in Backstage er dan leeg uitziet, is niet
+     nagegaan. — B
+2332. **Een projectbestand met een `companyId` als `constructor` laat het resourcepaneel vastlopen.** De poolimport
+     toetst een id uit een bestand (`isSafeFileCompanyId`, ADR 0340), maar *Bestand → Openen* en MCP
+     `planner_import_schedule` (`src/services/mcp/tools/fileTools.ts`) bewaren `project.companyId` uit het bestand
+     zonder die toets. `ResourcePanel.tsx` leest daarna `pools[project.companyId]`; bij `constructor` is dat een
+     geërfde eigenschap van het object, en het paneel loopt vast op `pool.resources.filter`. Nagespeeld met een
+     zelfgemaakt projectbestand, niet in de browser. Issue #1234. — B
+2333. **Een `null` in de werkblokken van een opgeslagen bibliotheekkalender zet het bewaren van de bibliotheek stil.**
+     `normalizePoolShape` (`src/services/library/libraryOps.ts`) gooit zelf bij een `null` in de werkblokken van de
+     eerste werkdag met blokken van een kalender (`workDayFromBlocks`); een `null` op een latere werkdag gooit daar niet. Bij het laden uit opslag blijft `libraryLoaded` dan onwaar, en `persistLibrary`
+     (`src/state/slices/librarySlice.ts`) slaat elke latere bewerking van de bibliotheek over bij het wegschrijven.
+     Bij importeren vertaalt de dialoog dezelfde fout naar "Dit IFC-bestand bevat geen resourcebibliotheek".
+     Nagespeeld met zelfgemaakte gegevens, niet met echte opslag via Tauri of IndexedDB. Issue #1235. — B
+2334. **Het versienummer van een bibliotheek kan vanaf 9007199254740992 blijven steken.** `normalizePoolShape` laat
+     zo'n `poolVersion` door, en `bumpPool` (`libraryOps.ts`) telt er 1 bij op; bij precies die waarde geeft dat
+     hetzelfde getal. `isPoolNewer`
+     vergelijkt dan alleen nog op `modifiedAt`. Nagespeeld met een los script; zo'n nummer komt alleen uit een
+     zelfgemaakt bestand. — B
 
 ## Bestanden en herstel
 
@@ -3280,9 +3345,9 @@ en noem het in je rapport of PR-tekst.
      ook in de oude lagindeling. Richting: die verschillende dagmaten in de bestaande regressie opnemen.
      Uit #892, review ronde 3 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
 
-1154. **VERVOLG: uitleg van de IFC-duurvormen loopt achter op de lezer.**
+1154. **VERVOLG: commentaar over de IFC-duurvormen loopt achter op de lezer.**
      `src/services/ifc/foreign/durationForms.ts` beschrijft nog afronding van seconden en de oude spelings- en
-     laginterpretatie. `docs/ifc-round-trip.md` zegt nog dat de lezer nergens spelingminuten afleidt. De lezer
+     laginterpretatie. De lezer
      leest tijdslots inmiddels exact; de conservatieve lijst zelf blijft veilig (1152). Richting: de uitleg
      bijwerken en het verschil tussen leesgedrag en de toegestane bronvormen voor schrijven toelichten.
      Uit #892, review ronde 3 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — S
