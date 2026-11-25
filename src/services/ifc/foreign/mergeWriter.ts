@@ -998,12 +998,12 @@ export interface OwnOutputCheck extends RestoredOwnSlots {
 /** Alleen voor proeven: de volledige uitvoercontrole van `prepareIfcWrite` op gegeven uitvoerbytes (ook een gemuteerde
  *  uitvoer). Gooit `MergeNeedsPhase2Error` zoals bij opslaan. */
 export async function checkMergeOutput(bytes: Uint8Array, input: WriteIFCInput, source: IfcSource,
-  own?: Omit<OwnOutputCheck, 'sourceRowGuid'>): Promise<void> {
+  own?: Omit<OwnOutputCheck, 'sourceRowGuid'>, changes: readonly ForeignChange[] = []): Promise<void> {
   const index = scanForeignStep(source.bytes), cls = classify(index);
   assertSameSource(index, cls, source);
   // Zoals bij opslaan: de GlobalId van een weesrij uit de lezing van de bron.
   const checked = own && { ...own, sourceRowGuid: assumedRowGuid(await pristineDomain(index, cls, source)) };
-  await checkedBytes(bytes, freeze(structuredClone(input), true), source, index, cls, source.opened ?? input, undefined, checked);
+  await checkedBytes(bytes, freeze(structuredClone(input), true), source, index, cls, source.opened ?? input, undefined, checked, changes);
 }
 
 /** Eén buffer uit de stukken van `assemble`: de enige kopie van de hele uitvoer. */

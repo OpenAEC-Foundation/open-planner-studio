@@ -6,6 +6,7 @@ import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { taskMinutesPerDay } from '@/services/ifc/dayMeasureIo';
 import { checkMergeOutput, MergeNeedsPhase2Error, prepareIfcWrite, type OwnOutputCheck } from '@/services/ifc/foreign/mergeWriter';
+import type { ForeignChange } from '@/services/ifc/foreign/changeList';
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import { TASKTIME_SLOT } from '@/services/ifc/ifcTaskSlots';
 import { parseIfcDuration } from '@/services/ifc/isoDuration';
@@ -155,8 +156,8 @@ function withSlot(text: string, task: string, slot: number, token: string): Uint
 }
 
 async function verdict(bytes: Uint8Array, input: WriteIFCInput, source: NonNullable<ReturnType<Store['getState']>['ifcSource']>,
-  own?: OwnOutputCheck): Promise<string> {
-  try { await checkMergeOutput(bytes, input, source, own); return 'aanvaard'; }
+  own?: OwnOutputCheck, changes?: readonly ForeignChange[]): Promise<string> {
+  try { await checkMergeOutput(bytes, input, source, own, changes); return 'aanvaard'; }
   catch (error) {
     return error instanceof MergeNeedsPhase2Error ? [...new Set(error.cases.map(c => c.kind))].sort().join('+') : `fout: ${String(error)}`;
   }
@@ -165,9 +166,9 @@ async function verdict(bytes: Uint8Array, input: WriteIFCInput, source: NonNulla
 async function preparedWithOwn(store: Store) {
   const s = store.getState(), input = buildWriteIFCInput(s, 'merge');
   let own: OwnOutputCheck | undefined;
-  const { bytes } = await prepareIfcWrite(input, s.ifcSource!, undefined, observed => { own = observed; });
+  const { bytes, foreignChanges } = await prepareIfcWrite(input, s.ifcSource!, undefined, observed => { own = observed; });
   assert(own, 'de merge schreef de uitvoer zelf');
-  return { input, source: s.ifcSource!, bytes, own };
+  return { input, source: s.ifcSource!, bytes, own, foreignChanges };
 }
 
 await check('2231 een nagebootste fout in de writer (een andere opgeslagen vroege start) weigert nog met planning-na-openen', async () => {
@@ -272,6 +273,28 @@ await check('2231 de twee kandidaten van review ronde 3: een andere kloktijd van
   assert.equal(await verdictOf(withSlot(text, task, TASKTIME_SLOT.statusTime, `'${statusDate.slice(0, 10)}T13:45:00'`)),
     'planning-na-openen', 'een andere kloktijd op dezelfde dag');
   assert.equal(await verdictOf(withSlot(text, task, TASKTIME_SLOT.durationType, '.NOTDEFINED.')), 'planning-na-openen', 'een onbepaald duurtype');
+});
+
+await check('2231 een opslag in de modus waarin de merge een koppeling naar het gebouwmodel laat vervallen (#1199): de geldige uitvoer slaagt, een ander tijdslot weigert', async () => {
+  const source = dec.decode(await recordedExample());
+  const resourceLine = source.split('\n').find(l => /=IFCLABORRESOURCE\('[^']*',#\d+,'Tilers'/.test(l));
+  assert(resourceLine, 'de resource Tilers');
+  const at = source.lastIndexOf('ENDSEC;');
+  const link = `#90007=IFCRELASSIGNSTOPRODUCT('${'2231Koppeling'.padEnd(22, '0')}',$,$,$,(#${/^#(\d+)=/.exec(resourceLine)![1]}),$,#90006);`;
+  const store = await opened(enc.encode(`${source.slice(0, at)}${link}\n${source.slice(at)}`));
+  store.getState().removeResource(store.getState().resources.find(r => r.name === 'Tilers')!.id);
+  assert.equal(store.getState().datesAsRecorded, true, 'een resource wissen laat de modus staan');
+  const written = await preparedWithOwn(store);
+  assert.deepEqual(written.foreignChanges?.map(c => `${c.kind} #${c.id}`), ['vervallen #90007'], 'de merge laat de koppeling vervallen');
+  assert(written.own.domain?.recordedSourceFormat, 'de slottoets draait');
+  const text = dec.decode(written.bytes), { args } = taskTimeArgs(text, 'Set up site');
+  assert(!text.includes('#90007='), 'de koppeling staat niet in de uitvoer');
+  const verdictOf = (bytes: Uint8Array) => verdict(bytes, written.input, written.source, written.own, written.foreignChanges);
+  assert.equal(await verdictOf(written.bytes), 'aanvaard', 'de geldige uitvoer');
+  const earlyStart = args[TASKTIME_SLOT.earlyStart];
+  assert.equal(await verdictOf(withSlot(text, 'Set up site', TASKTIME_SLOT.earlyStart, earlyStart.replace(/T\d\d:\d\d/, 'T13:45'))),
+    'planning-na-openen', 'een andere kloktijd van de vroege start');
+  assert.equal(await verdictOf(withSlot(text, 'Set up site', TASKTIME_SLOT.durationType, '.NOTDEFINED.')), 'planning-na-openen', 'een onbepaald duurtype');
 });
 
 const PROBED_SLOTS = [
