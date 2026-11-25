@@ -13,6 +13,7 @@ import {
   binaryExtensions, isReadableFileName, openDialogFilters, readFormatForFile, readOptionsFor, readsAsBytes,
 } from '@/services/formatRegistry';
 import { splitDroppedFiles } from '@/services/fileAccess/fileDrop';
+import { classifyIfcxTarget, rememberOwnIfcxDigest } from '@/services/ifc/ifcxOwnBytes';
 import { documentFileFilters, documentFileFormat } from '@/state/ifcxGuard';
 import { computeIfcOutputHere, documentSaveCompute, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { readIfcx, classifyIfcx } from '@/services/ifc/ifcx';
@@ -401,6 +402,13 @@ await check('doelbescherming: een bestaand IFCX van een ander of onleesbaar blij
       assert.equal(store.getState().isDirty, true);
     } finally { ipc.dispose(); }
   }
+});
+
+await check('bytes die de app als IFCX las of schreef, toetst de doelcontrole niet opnieuw', async () => {
+  const notIfcx = new TextEncoder().encode('{"geen":"ifcx"}');
+  assert.equal(await classifyIfcxTarget(notIfcx), 'not-ifcx');
+  rememberOwnIfcxDigest(createHash('sha256').update(notIfcx).digest('hex'));
+  assert.equal(await classifyIfcxTarget(notIfcx), 'own', 'een herkende vingerafdruk gaat niet opnieuw door de kern');
 });
 
 await check('resources: de kern weigert het schrijven, er wordt niets geschreven, één melding (ook uit de worker)', async () => {
