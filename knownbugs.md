@@ -4114,8 +4114,8 @@ en noem het in je rapport of PR-tekst.
 2250. **VERVOLG (#1199): Ctrl+Z na het opslaan, of tijdens het opslaan na de momentopname, brengt de taak terug, niet
       de koppeling van het andere programma.** Na het opslaan is `ifcSource` de uitvoer zonder de vervallen stukken, en
       undo zet de bron niet terug (documentveld zonder momentopname). Een opslag die haar momentopname al had, schrijft
-      en commit die uitvoer ook als de planner intussen Ctrl+Z drukt. De knop *Ongedaan maken* in de wismelding staat er
-      in die periode niet meer (regel B, fixronde 2), maar Ctrl+Z op het toetsenbord werkt wel. De melding na het opslaan
+      en commit die uitvoer ook als de planner intussen Ctrl+Z drukt. De wismelding heeft in deze PR geen knop (die komt
+      in PR 7); Ctrl+Z op het toetsenbord werkt wel. De melding na het opslaan
       zegt dat de gegevens zijn aangepast of verwijderd, maar niet dat Ctrl+Z ze niet terugbrengt. Richting: PR 7 van #804 (`detached`, de soort *teruggezet*) bewaart de oude bytes van
       de wijzigingslijst en kan ze bij undo terugzetten. Afgeleid uit de code, niet nagespeeld. — S
 2251. **Veel taken wissen in een bestand met een gebouwmodel, en dan opslaan, weigert met `planning-na-openen`.** Met
@@ -4141,7 +4141,16 @@ en noem het in je rapport of PR-tekst.
       Dit is een voorwaarde voor het standaard aanzetten van de flag *IFC met gebouwmodel openen*: de planner mist de
       telling van een opslag niet. De richting is een keuze van de eigenaar: vragen vóór het schrijven, of de uitkomst
       duurzaam vastleggen en opnieuw tonen. Knownbug 2250 blijft staan. Besluit technisch eigenaar bij het opknippen van
-      #1199 (fixronde 3). — S
+      #1199 (fixronde 3).
+
+      De waarschuwing bij het wissen (`notifyForeignLinksDropped` in `src/state/foreignLinksNotice.ts`) is ook een gewone
+      melding: een info van main zonder knop, met het aantal van die ene wisstap. Ze deelt dezelfde grenzen. Staan er al
+      drie meldingen open (bijvoorbeeld drie schrijffouten of drie tellingen van eerdere opslagen), dan haalt de stapel
+      haar volgens de regels van main meteen weer weg en ziet de planner haar niet; het opslaan laat de gegevens daarna
+      toch vervallen. Ze verdwijnt na de gewone tijd van main en hangt alleen aan het wissen van taken en resources
+      (knownbug 2249). De knop *Ongedaan maken* komt in PR 7 (`detached`). Dit is de twaalfde voorwaarde voor het
+      standaard aanzetten van de flag: de planner mist de waarschuwing bij het wissen niet en kan vanuit die waarschuwing
+      ongedaan maken. Besluit technisch eigenaar, 25 november 2026 (fixronde 5). — S
 
 2303. **De P6 XML-lezer rekent de eenheden van een materiaaltoewijzing om alsof het uren zijn.** In de toewijzingslezer
       van `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) worden `PlannedUnits`, `ActualUnits` en `RemainingUnits`
