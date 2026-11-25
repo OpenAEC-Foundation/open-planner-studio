@@ -178,7 +178,8 @@ for (const schema of IFC_SCHEMAS) assert(seen.schemas.has(schema), `dekking: gee
 // ── 5. Volledigheid van de tabel t.o.v. de writerbronnen ─────────────────────────────────────────
 const writerSources = ['ifcWriter.ts', 'ifcPsets.ts', 'ifcTaskSlots.ts']
   .map(f => readFileSync(join(ROOT, 'src', 'services', 'ifc', f), 'utf8'));
-const writerTokens = new Set<string>(Object.values(RESOURCE_TYPE_TO_IFC));
+const TYPED_REAL_TOKENS = ['IFCREAL', 'IFCMONETARYMEASURE'];
+const writerTokens = new Set<string>([...Object.values(RESOURCE_TYPE_TO_IFC), ...TYPED_REAL_TOKENS]);
 for (const src of writerSources) for (const m of src.matchAll(/\b(IFC[A-Z0-9]{3,})\(/g)) writerTokens.add(m[1]);
 assert(JSON.stringify(Object.keys(IFC_SCHEMA_TABLES).sort()) === JSON.stringify([...IFC_SCHEMAS].sort()),
   `tabel: de schematabel kent ${Object.keys(IFC_SCHEMA_TABLES).join(', ')}, de app schrijft ${IFC_SCHEMAS.join(', ')} (genereer de tabel opnieuw)`);

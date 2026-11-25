@@ -154,6 +154,12 @@ Besluiten van de writer: `docs/adr/0140-ifc-schrijven-globalids-uniek-per-bestan
 `0145-ifc-schrijven-datums-duren-en-lags.md`, `0146-ifc-schrijven-met-een-vreemd-deel.md`,
 `0147-ifc-schrijven-resources-en-toewijzingen.md` en `0148-ifc-schrijven-een-invoerobject.md`.
 
+### Het register van de eigen psets (`ifcPsets.ts`)
+
+Besluiten van het register en de descriptors per taak: `docs/adr/0420-ifc-eigen-psets-een-register.md`,
+`0421-ifc-eigen-taakpset-alleen-als-hij-iets-zegt.md`, `0422-ifc-eigen-taakpset-lezen.md` en
+`0423-ifc-waarden-in-een-eigen-property.md`.
+
 ### Gedeelde helpers binnen een dag (`subdayIo.ts`)
 
 Besluiten van de helpers voor de IFC-, MSPDI-, P6 XML-, XER- en `.mpp`-adapters en het kalendervenster:

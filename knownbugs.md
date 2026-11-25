@@ -4724,6 +4724,32 @@ en noem het in je rapport of PR-tekst.
       overgeslagen, staat in de code; of apart geboekt overwerk in een gewoon bestand daardoor in de contour of de
       wandeling ontbreekt, is niet vastgesteld. — B (87), S (51)
 
+2481. **`mandatory` en `milestoneKind` van een taak die geen mijlpaal is, zijn na opslaan als IFC en heropenen weg.**
+      De descriptor van `OPS_Milestone` in `PER_TASK_PSETS` (`src/services/ifc/ifcPsets.ts`) schrijft alleen bij
+      `isMilestone`. Nagespeeld met `updateTask` op een gewone taak (`mandatory: true`, `milestoneKind: 'START'`), dan
+      `writeIFC` en `readIFC`: beide velden ontbreken na het lezen. In de code gelezen, niet nagespeeld: de MCP-velden
+      (`taskFields.ts`) en de extensie-API (`extMappers.ts`) zetten beide zonder toets op `isMilestone`. Het taakraster
+      weigert die invoer en de taakdialoog toont de velden alleen bij een mijlpaal. De IFCX-schrijver doet eerst een
+      rondgang door STEP (`ifcx/ifcxWriter.ts`), dus ook daar ontbreken beide velden. Open vraag: mag een taak
+      zonder mijlpaal deze velden dragen; `taskMilestoneTransition.ts` wist ze bij de overgang naar een gewone taak.
+      — B (STEP), S (de routes)
+
+2482. **Een `levelingDelay` met een breuk komt na opslaan als IFC en heropenen afgerond terug.** De descriptor van
+      `OPS_Leveling` (`src/services/ifc/ifcPsets.ts`) schrijft `IFCINTEGER(Math.round(...))` en rondt bij het lezen ook
+      af. Nagespeeld met `updateTask` (`levelingDelay: 2.5`), `writeIFC` en `readIFC`: terug kwam 3. In de code gelezen,
+      niet nagespeeld: de extensie-API (`extMappers.ts`) neemt `levelingDelay` zonder toets over, zodat daar een breuk
+      kan ontstaan. De nivelleerder levert hele dagen en bewaart de fijnere maat in `levelingDelayMinutes`, en de
+      `.mpp`-lezer zet alleen het minutenveld (`ResourceLeveler.ts`; gelezen in de review van #1273): in de app
+      zelf is geen invoer gevonden die een breuk in het dagenveld zet. — B (STEP), S (de route)
+
+2483. **De lezer leest elke property in `OPS_StructureMeta` als definitie-JSON, ook een die het register een vreemd lid
+      noemt.** `extractStructure` (`src/services/ifc/ifcReader.ts`) loopt over alle `IFCPROPERTYSINGLEVALUE`-leden van
+      de pset en neemt van elk de lijsten `activityCodeTypes` en `customFieldDefs` over; de voorrang geldt per lijst:
+      de laatste property met een array voor die lijst wint, en een latere property zonder die array laat de eerdere
+      definities staan. `PROP.StructureMeta` noemt alleen `structure`, dus `foreign/classify.ts` deelt een ander lid
+      in als vreemd lid terwijl de lezer het wel leest. Proef uit de review van #1273, met een property buiten het
+      register. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
