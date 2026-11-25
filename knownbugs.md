@@ -2028,17 +2028,19 @@ en noem het in je rapport of PR-tekst.
 2256. **Een taak zonder volledige taaktijd in de bron weigert de merge als wat de planner zag, afgeleid was.** Flag aan.
      De merge houdt een taaktijdslot dat de planner niet wijzigde in de vorm van de bron; ontbreekt daar de taaktijd of
      haar duur, dan leidt herlezen de waarde anders af dan de planner haar zag. Geen verlies (de merge weigert), wel een
-     opslag die niet lukt. Drie reproducties in `check-ifc-foreign-regel-c.ts`: (1) de council-bron
+     opslag die niet lukt. Alleen nog in een zelfgemaakte bron: de council-bron
      `tests/fixtures/ifc-foreign/council/r6opus-twee-werkplannen.na.ifc` met `IfcTask` en `IfcLaborResource` opgevuld tot
-     de lengte van IFC4: taak `#32 Sub` heeft geen taaktijd en opent op 08:00; na een hernoeming leest de kandidaat
-     `scheduleStart`, `earlyStart` en `lateStart` op 07:00 en weigert met `bronvorm-leest-anders` (47 bewerkingen; met een
-     expliciete taaktijd met start 08:00 aan `#32` schrijft de hernoeming, review ronde 3 van #1205, Sol). (2) Dezelfde
-     bron, `#32 Sub` gewist: `#30 Root` wordt een taak zonder kinderen, haar taaktijd `#31` heeft de duur in het slot van
-     `DurationType` en `$` als `ScheduleDuration`, en herlezen geeft duur 0 in plaats van 5: `planning-na-openen`. (3)
-     `tests/fixtures/ifc-foreign/bonsai-4d.ifc`, beide kinderen van `Ruwbouw` gewist: `Ruwbouw` had geen taaktijd en
-     herlezen geeft `durationUnit` `days` in plaats van `hours`: `planning-na-openen`. Bij (2) leest een eigen bestand
-     (`writeIFC`) de duur wel als 5. Richting: een taak die geen kinderen meer heeft of geen taaktijd in de bron had, krijgt bij opslaan haar
-     taaktijd in de vorm van de writer, met de start gelijk aan de geopende. — B
+     de lengte van IFC4. Twee reproducties in `check-ifc-foreign-regel-c.ts`: (1) taak `#32 Sub` heeft geen taaktijd en
+     opent op 08:00; na een hernoeming leest de kandidaat `scheduleStart`, `earlyStart` en `lateStart` op 07:00 en weigert
+     met `bronvorm-leest-anders` (47 bewerkingen; met een expliciete taaktijd met start 08:00 aan `#32` schrijft de
+     hernoeming, review ronde 3 van #1205, Sol). (2) `#32 Sub` gewist: `#30 Root` wordt een taak zonder kinderen, haar
+     taaktijd `#31` heeft de duur in het slot van `DurationType` en `$` als `ScheduleDuration`, en herlezen geeft duur 0 in
+     plaats van 5: `planning-na-openen`; een eigen bestand (`writeIFC`) leest de duur wel als 5. Opgelost in herstelronde 4
+     van #1205: een fase die al haar kinderen verliest en geen taaktijd in de bron had (`Ruwbouw` in
+     `tests/fixtures/ifc-foreign/bonsai-4d.ifc`) schrijft nu de taaktijd van de planner (`candidates` in
+     `src/services/ifc/foreign/sourceForm.ts`). Richting voor de rest: een taak die geen kinderen meer heeft, krijgt ook
+     een bestaande taaktijd in de vorm van de writer, en een taak zonder taaktijd in de bron krijgt bij opslaan haar
+     taaktijd met de start gelijk aan de geopende. — B
 2368. **Een toewijzing wissen weigert als dezelfde ploeg twee keer aan die taak hangt.** Flag aan, een bestand van een
      ander programma met twee `IfcRelAssignsToProcess` die dezelfde resource aan dezelfde taak koppelen (twee inzetten met
      elk een eigen hoeveelheid). De lezer maakt er twee toewijzingen van zonder vast te leggen uit welke relatie elk kwam,
