@@ -3940,18 +3940,20 @@ en noem het in je rapport of PR-tekst.
 2358. **Ctrl+S weigert een eigen IFC met een UTF-8-BOM als het tabblad de versie van dat bestand niet kent (#804, flag aan).**
      Sinds PR #1213 gedraagt een eigen bestand met een BOM zich bij Ctrl+S, *Opslaan* in de sluitvraag en Automatisch
      opslaan als hetzelfde bestand zonder BOM op main, zolang `knownTargetFingerprint` bij het begin van de opslagpoging
-     de versie met BOM kent (`utf8Bom`, `ownBom` in `writeActiveDocument` en `fileAutoSave.ts`). Kent het tabblad de
+     de versie met BOM kent (`utf8Bom`, `ownBomVersion` in `writeActiveDocument` en `fileAutoSave.ts`). Kent het tabblad de
      versie niet (na crashherstel, na een mislukte schrijfactie naar het eigen pad, of als de flag pas na het openen
      aanging), dan blijft de BOM de doelscan onleesbaar maken: Ctrl+S weigert met *onleesbaar doel*, waar main hetzelfde
      bestand zonder BOM schrijft. Opslaan als naar een nieuwe naam werkt; heropenen geeft het tabblad de versie weer.
      Nagespeeld op pad en handle (`check-ifc-bom-eigen-bestand.ts`, grensgeval `onbekende versie na flag uit en aan`).
      Voorwaarde voor standaard aan: elk tabblad kent zijn versie zodra de flag aan is, ook voor crashherstel en een
      mislukte schrijfbeurt.
-     Verwante grens (review van #1213 ronde 2), als grensgevallen in dezelfde proef: de toestemming hangt aan de bekende
-     versie, niet aan de bytes op het doel. Schrijft een ander programma een andere planning mét BOM naar het doel, dan
-     weigert main met *onleesbaar doel* en de PR met *doel gewijzigd*. Zet een ander de geopende planning terug zónder
+     Verwante grens (review van #1213 rondes 2 en 3), als grensgevallen in dezelfde proef: de toestemming is de
+     vastgelegde eigen versie met BOM. Schrijft een ander programma een andere planning mét BOM naar het doel, dan weigeren
+     main en de PR allebei met *onleesbaar doel*, ook bij een flagwissel (fixronde 3). Vergelijk je met main in de
+     wereld zonder BOM, waar die ander dezelfde planning zónder BOM schreef, dan meldt main *doel gewijzigd* en de PR
+     *onleesbaar doel*: de PR krijgt in beide gevallen dezelfde bytes. Zet een ander de geopende planning terug zónder
      BOM, dan schrijft main verder (de bytes zijn zijn bekende versie) en weigert de PR met *doel gewijzigd* (de bekende
-     versie begint met een BOM). In beide gevallen blijft de versie van de ander staan. — B
+     versie begint met een BOM). In al deze gevallen blijft de versie van de ander staan. — B
 
 2359. **Ctrl+S weigert een eigen sitebestand met een UTF-8-BOM als onleesbaar doel (#804, flag aan).** Reproductie
      (review van #1213 ronde 2; nagespeeld in `check-ifc-bom-eigen-bestand.ts`, grensgeval `site`): een site
