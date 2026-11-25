@@ -1651,7 +1651,7 @@ en noem het in je rapport of PR-tekst.
       MSPDI-lezer doet. Een resourcekalender die alleen via een toewijzing wordt gebruikt, met maandag 08:00 tot
       16:00 en vrijdag 08:00 tot 12:00, krijgt geen taaksignaal (`readTasks`) en promoveert dus niet; haar enkelvoudige
       werkdag komt van de eerste werkdag en toont de korte vrijdag niet. Door twee lezers in de code bevestigd, niet
-      met een bronbestand nagespeeld. — B
+      met een bronbestand nagespeeld. Issue #1228. — B
 
 ## Bibliotheek, bezetting, extensies, AI
 
