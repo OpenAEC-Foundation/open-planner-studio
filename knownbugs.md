@@ -4379,7 +4379,7 @@ en noem het in je rapport of PR-tekst.
       exportmelding geen regel. Wat de P6-client met dubbele activiteit-`Id`'s doet, is niet beproefd. Issue #1242. — B
 
 2342. **De kalenderkeuze van een samenvattingstaak verdwijnt na P6 XML-export en heropenen, en de kalender zelf ook
-      als verder niets haar gebruikt.** `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) maakt een kalender
+      als geen activiteit of resource ernaar verwijst.** `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) maakt een kalender
       `Global` als een taak haar in `calendarId` noemt, ook een samenvattingstaak, maar een `<WBS>` draagt geen
       `CalendarObjectId`. De keuze valt dus altijd weg: na heropenen heeft de samenvattingstaak de projectkalender, ook
       als een bladtaak dezelfde kalender via `CalendarObjectId` houdt (gelezen in de code, niet nagespeeld).
