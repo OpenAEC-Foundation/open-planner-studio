@@ -27,9 +27,10 @@ U+200E vóór een minteken. Een stuurteken telt in geen enkele weg mee voor de d
 - Dekking buiten weg 1 (`checkCoverage`): een teken is gedekt als de rapportletter in het gewicht van de tekst het
   heeft, of Noto Sans Arabic, of een terugvalletter (`fallbackIndexFor`: haar `covers` en een glyph in haar gewone
   letter). Uitzondering: weg 2 en 3 tekenen nooit met Noto. Een teken dat de rapportletter mist en Noto heeft, geldt
-  als gedekt en laat zelf geen terugvalletter laden. Elk teken waarvoor geen terugvalletter is gekozen, blijft in de
-  rapportletter, in weg 2 en in weg 3; mist die het, dan komt het zonder fout als `.notdef` in de PDF. Zo wordt de
-  smalle vaste spatie U+202F met Liberation Mono een vakje (knownbug 2452).
+  als gedekt en laat zelf geen terugvalletter laden. Zo'n teken passeert de dekkingspoort en wordt getekend in de
+  rapportletter, in weg 2 en in weg 3, want er is geen terugvalletter voor gekozen; het komt dan zonder fout als
+  `.notdef` in de PDF. Zo wordt de smalle vaste spatie U+202F met Liberation Mono een vakje (knownbug 2452). Een teken
+  dat ook Noto en elke terugvalletter mist, is ongedekt en geeft de rasterexport.
 - Dekking in weg 1 (`checkCoverageComplex`): per teken de letter die de shaping-kern kiest (`fontClassFor`): Arabisch
   schrift moet in Noto staan, een neutraal teken (`isNeutralCp`) in de rapportletter of Noto, elk ander teken in de
   rapportletter. Een terugvalletter telt hier niet mee, want weg 1 tekent nooit met een terugvalletter. Een Chinees
