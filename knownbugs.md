@@ -2228,6 +2228,13 @@ en noem het in je rapport of PR-tekst.
       een taaktijd die haar laatste kind verliest. Vastgelegd in `tests/planning/check-ifc-foreign-gemengde-relaties.ts` met
       de reden van vandaag; dezelfde wortel vermoedelijk ook in reeks 804d stap 5 (`durationUnit`) en stap 6 (`lateStart`)
       daar. — B
+2484. **`foreignChangesIfSaved` telt de leden niet die de merge uit een gemengde relatie haalt.** Flag aan,
+      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: de toewijzing van de Metselploeg aan *Wand A bouwen* wissen.
+      `foreignChangesIfSaved` (`src/state/foreignLinksNotice.ts`) geeft dan 0, de merge schrijft `gewijzigd #120` (1). De
+      functie telt alleen de regel voor verdwenen objecten (`applyForeignRule`), niet de leden die `departuresOf` (#1262)
+      uit een relatie haalt. In de app gebruikt niets haar: de vraag vóór het opslaan en de melding erna tellen uit
+      `prepared.foreignChanges`. `check-ifc-foreign-telling-vooraf.ts` wist alleen objecten en ziet het verschil daarom
+      niet. Richting: de functie pas gebruiken als ze ook de vertrekkende leden telt, of haar weghalen. — B
 
 2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
      `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
