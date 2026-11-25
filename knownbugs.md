@@ -1749,6 +1749,16 @@ en noem het in je rapport of PR-tekst.
       werkdag komt van de eerste werkdag en toont de korte vrijdag niet. Door twee lezers in de code bevestigd, niet
       met een bronbestand nagespeeld. Issue #1228. — B
 
+2460. **Een XER-activiteit zonder geplande start op een kalender met lege `clndr_data` kan een andere duur krijgen
+      dan het bestand zegt.** `readXerProject` (`src/services/xer/xerReader.ts`) zet de start van zo'n activiteit op
+      de statusdatum en herstelt daarna de duur uit het venster van start tot `target_end_date` als dat hoogstens één
+      werkdag van `target_drtn_hr_cnt` afwijkt (ADR 0392 en 0394); de rest blijft `remain_drtn_hr_cnt`. Nagespeeld
+      met `readXER` op een fixture: kalender `C1` met lege `clndr_data` en `day_hr_cnt` 8, twee taken van 08:00 tot
+      17:00 waaruit de lezer de blokken 08:00 tot 12:00 en 13:00 tot 17:00 afleidt, `last_recalc_date` 2026-04-01
+      08:00, en een taak zonder `target_start_date` met `target_end_date` 2026-04-03 17:00 en 16 uur duur en rest. Die
+      taak krijgt `durationMinutes` 1440 en `remainingMinutes` 960; dezelfde taak met start 2026-04-02 08:00 houdt 960
+      en 960. Open vraag: of het venster de duur mag herstellen als de lezer de start zelf invulde. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met

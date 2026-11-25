@@ -80,21 +80,16 @@ import {
 } from './xerTables';
 
 export interface XerReadResult extends ImportResult {
-  /** Importtijd-metadata; externe relaties blijven hier brondata en sturen de solver niet. */
   xer: XerImportMetadata;
 }
 
-/** Eén XER kan één payload óf een geordende verzameling documentpayloads opleveren. */
 export type XerOpenResult = XerReadResult | XerMultiProjectImport;
 
-/** Eén bestandsbrede partitionering vóór per-projectmaterialisatie. */
 export interface XerProjectRowsIndex {
   tasksByProject: ReadonlyMap<string, readonly XerRow[]>;
   wbsByProject: ReadonlyMap<string, readonly XerRow[]>;
   relationsByProject: ReadonlyMap<string, readonly XerRow[]>;
-  /** Testbaar operatiebewijs: iedere relevante bronrij precies éénmaal bezocht. */
   visitCount: number;
-  /** Ongescopeerde relaties die zonder gok niet aan precies één lokaal project zijn toe te wijzen. */
   relationResolutionIssues: readonly {
     reason: 'ambiguous' | 'dangling';
     line: number;
@@ -134,8 +129,6 @@ export function indexXerProjectRows(tables: XerTables): XerProjectRowsIndex {
     const successorProjectId = (row.cells.proj_id ?? '').trim();
     const predecessorProjectId = (row.cells.pred_proj_id ?? '').trim();
     if (successorProjectId || predecessorProjectId) {
-      // Eén expliciete projectscope maakt een ontbrekende andere scope lokaal; twee verschillende
-      // scopes materialiseren dezelfde externe relatie aan beide documentzijden.
       const projects = new Set([successorProjectId || predecessorProjectId, predecessorProjectId || successorProjectId]);
       for (const projectId of projects) append(relationsByProject, projectId, row);
       continue;
@@ -152,9 +145,6 @@ export function indexXerProjectRows(tables: XerTables): XerProjectRowsIndex {
           field: !successorProjects?.size ? 'task_id' : 'pred_task_id',
         };
       } else {
-        // Doorsnede wordt per endpointpaar hoogstens éénmaal berekend. Daarmee kosten de 30
-        // herhaalde A→B-relaties in de schaalfixture één resolutie en 29 O(1)-cachehits, nooit
-        // 30×12 projectscans of 360 materialisaties.
         const [smallest, other] = successorProjects.size <= predecessorProjects.size
           ? [successorProjects, predecessorProjects]
           : [predecessorProjects, successorProjects];
@@ -236,11 +226,6 @@ function hasClock(raw: string): boolean {
   return /^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}/.test(raw.trim());
 }
 
-/**
- * `last_recalc_date` is de canonieke XER-invoer voor de projectstatusdatum. Sommige compatibele
- * PROJECT-dialecten bieden uitsluitend `data_date`; lees die cel alleen als de canonieke *kolom*
- * ontbreekt. Een lege of ongeldige canonieke waarde is bewust geen reden om data_date te lezen.
- */
 function projectStatusDate(tables: XerTables, projectRow: XerRow, hourMode: boolean): string | undefined {
   const fields = tables.tables.get('PROJECT')?.fields ?? [];
   const raw = fields.includes('last_recalc_date')
@@ -251,8 +236,6 @@ function projectStatusDate(tables: XerTables, projectRow: XerRow, hourMode: bool
   return sourceInstant(raw, hourMode);
 }
 
-/** Plaatshouder voor een ontbrekende geplande start zonder enig projectanker; leeft alleen tussen de
- *  activiteitenlus en `resolveMissingScheduleDates`, die hem altijd vervangt (missing.start). */
 const MISSING_START_PLACEHOLDER = '0001-01-01';
 
 function clockMinute(raw: string): number | undefined {
@@ -264,14 +247,6 @@ function clockMinute(raw: string): number | undefined {
   return hour * 60 + minute;
 }
 
-/**
- * Een lege `CALENDAR.clndr_data` verliest de bandvorm, terwijl P6 de toegestane geplande
- * `target_start_date`/`target_end_date` en `target_drtn_hr_cnt` wel bewaart. Voor activiteiten
- * met een geheel aantal kalenderdagen is het modale start/eind-klokpaar daardoor bronbewijs voor
- * de standaardwerkdag van die effectieve kalender. Alleen twee beslisbare vormen worden hersteld:
- * een aaneengesloten band (klokspan === netto daguren) en P6's standaard lunchpauze 12:00-13:00.
- * Geen early/late/float-output komt in deze afleiding voor.
- */
 function inferBlankCalendarBands(
   tables: XerTables,
   calendar: WorkCalendar,
@@ -328,7 +303,6 @@ function inferBlankCalendarBands(
   return true;
 }
 
-/** Broninstant: de vorm hoort bij dit ene veld, niet bij de kalender die een buurveld promoveert. */
 function sourceX7Instant(raw: string): string | undefined {
   return sourceInstant(raw, hasClock(raw));
 }
@@ -365,8 +339,6 @@ function durationTypeOf(
   return defaultType;
 }
 
-/** Leest een INGEVULDE `status_code`. Een lege cel of een ontbrekende kolom gaat via
- *  `statusFromProgress` (knownbugs 117); hier komt alleen een niet-lege waarde. */
 function statusOf(raw: string, row: XerRow, issues: XerEnumFallback[]): TaskStatus {
   const token = raw.trim().toLowerCase();
   if (token === 'tk_notstart') return 'NOT_STARTED';
@@ -376,13 +348,6 @@ function statusOf(raw: string, row: XerRow, issues: XerEnumFallback[]): TaskStat
   return 'NOT_STARTED';
 }
 
-/**
- * Status van een activiteit ZONDER `status_code` (kolom ontbreekt of cel leeg; knownbugs 117).
- * Dezelfde regel als `normalizeImportedProgress` (`services/importNormalize.ts`): werkelijk einde of
- * 100 % ⇒ voltooid; werkelijke start of voortgang > 0 ⇒ lopend; anders niet gestart. Vroeger las de
- * lezer een lege status stil als niet gestart, ook met een werkelijk einde en 100 %. Een INGEVULDE
- * status blijft leidend, ook als hij de datums tegenspreekt (knownbugs 115).
- */
 function statusFromProgress(
   completion: number,
   actualStart: string | undefined,
@@ -465,8 +430,6 @@ function relationTypeOf(
     PR_SS: { sequence: 'START_START', source: 'SS' },
     PR_FF: { sequence: 'FINISH_FINISH', source: 'FF' },
     PR_SF: { sequence: 'START_FINISH', source: 'SF' },
-    // Kale dialecttokens (pseudo-XER-exporteurs): alle vier, niet alleen FS/SS (een kaal `FF` mag
-    // niet op de FS-terugval vallen).
     FS: { sequence: 'FINISH_START', source: 'FS' },
     SS: { sequence: 'START_START', source: 'SS' },
     FF: { sequence: 'FINISH_FINISH', source: 'FF' },
@@ -482,7 +445,6 @@ function wbsTaskId(projectId: string, wbsId: string): string {
   return `xer-wbs:${projectId}:${wbsId}`;
 }
 
-/** Unicode-codepointvolgorde, onafhankelijk van hostlocale en ICU-versie. */
 function compareCodePoints(left: string, right: string): number {
   const a = Array.from(left, char => char.codePointAt(0) ?? 0);
   const b = Array.from(right, char => char.codePointAt(0) ?? 0);
@@ -493,12 +455,6 @@ function compareCodePoints(left: string, right: string): number {
   return a.length - b.length;
 }
 
-/**
- * Projectnaam: `PROJECT.proj_name` als het bestand die kolom heeft, anders de naam van de WBS-wortel
- * van dit project — de PROJWBS-rij waarvan de ouder niet tot het project behoort (P6's
- * projectknoop). Alleen bij precies één wortel; anders '' (dan blijft het ID). Leest uitsluitend al
- * gewhiteliste kolommen (PROJECT.proj_name, PROJWBS.wbs_id/parent_wbs_id/wbs_name).
- */
 export function xerProjectName(projectRow: XerRow, wbsRows: readonly XerRow[]): string {
   const direct = (projectRow.cells.proj_name ?? '').trim();
   if (direct) return direct;
@@ -507,13 +463,6 @@ export function xerProjectName(projectRow: XerRow, wbsRows: readonly XerRow[]): 
   return roots.length === 1 ? (roots[0].cells.wbs_name ?? '').trim() : '';
 }
 
-/**
- * Volgorde van twee P6-sleutels (`wbs_id`, `parent_wbs_id`). P6 nummert die als gehele getallen, dus
- * vergelijken we ze numeriek: `'2'` vóór `'10'`, zoals MPXJ's `WbsRowComparatorXER` (INTEGER-
- * kolommen). Op tekst stond `'10'` vóór `'2'`, en kwam MER.W10 bij gelijke `seq_num` vóór MER.W02.
- * Een niet-numerieke sleutel (handgemaakt bestand) volgt de codepuntvolgorde, ná de numerieke.
- * Lengte-dan-tekst vergelijkt willekeurig lange getallen exact, zonder afronding door `Number`.
- */
 function compareP6Keys(left: string, right: string): number {
   const leftNumeric = /^\d+$/.test(left);
   const rightNumeric = /^\d+$/.test(right);
@@ -526,23 +475,11 @@ function compareP6Keys(left: string, right: string): number {
   return compareCodePoints(left, right);
 }
 
-/**
- * De ouder van een PROJWBS-rij binnen dit project, of `null` als die ouder geen WBS-rij van dit
- * project is. Dat laatste is het normale geval voor de bovenste rij: in een P6-export wijst de
- * projectknoop (`proj_node_flag = Y`) naar een EPS-knoop die niet in het bestand staat, en andere
- * generatoren gebruiken `0`. Zo'n ouder is geen taak; de rij is dan een wortel, net als bij MPXJ
- * (`TableProjectReader`: ouder onvindbaar ⇒ topniveau).
- */
 function localParentWbsId(row: XerRow, localWbsIds: ReadonlySet<string>): string | null {
   const parent = row.cells.parent_wbs_id;
   return parent && localWbsIds.has(parent) ? parent : null;
 }
 
-/**
- * Siblingvolgorde van de WBS: per ouder op `seq_num`, bij gelijke `seq_num` op `wbs_id` (numeriek,
- * {@link compareP6Keys}), en pas daarna op bronregel. Alle wortels delen één groep. De volgorde hangt
- * zo niet af van de rijvolgorde in het bestand.
- */
 function stableWbsRows(rows: readonly XerRow[], projectId: string, localWbsIds: ReadonlySet<string>): XerRow[] {
   return rows
     .filter(row => row.cells.proj_id === projectId)
@@ -565,7 +502,6 @@ function assertUniqueId(
   const firstLineById = new Map<string, number>();
   for (const row of rows) {
     const id = row.cells[field]?.trim() ?? '';
-    // TASKPRED-id is in sommige exports leeg; de regelgebonden fallback blijft intrinsiek uniek.
     if (!id) continue;
     const firstLine = firstLineById.get(id);
     if (firstLine !== undefined) {
@@ -579,8 +515,6 @@ function assertUniqueId(
   }
 }
 
-/** Map precies één reeds getokenized, niet-leeg P6-project. De meerprojectenroute roept deze kern één
- * keer per PROJECT-rij aan; zo blijft de mapping zelf één implementatie. */
 function readXerProject(
   tables: XerTables,
   scheduleOptionsIndex: XerScheduleOptionsIndex,
@@ -610,9 +544,7 @@ function readXerProject(
   const rawWbsRows = projectRowsIndex.wbsByProject.get(projectId) ?? [];
   const relationRows = projectRowsIndex.relationsByProject.get(projectId) ?? [];
 
-  // Identiteit en lokale eindpunten moeten vaststaan vóór maps, WBS-boom of relaties ontstaan.
   assertUniqueId(rawWbsRows, 'PROJWBS', 'wbs_id');
-  // De WBS-rijen van dít project: alleen daarnaar mag een `parentId` wijzen (zie `localParentWbsId`).
   const localWbsIds = new Set(
     rawWbsRows.filter(row => row.cells.proj_id === projectId).map(row => row.cells.wbs_id),
   );
@@ -638,9 +570,6 @@ function readXerProject(
 
   const calendars = readXerCalendars(tables);
   const calendarList: WorkCalendar[] = [...calendars.calendars];
-  // P6 kan een geldige project-/taakexport zonder CALENDAR-tabel leveren. De projectverwijzing
-  // blijft dan bruikbaar als id en krijgt de smalle default ma-vr 08:00-16:00; geen lokale
-  // appinstelling of feestdagenbron mag zo'n import machine-afhankelijk maken.
   if (calendarList.length === 0) {
     calendarList.push({
       id: projectRow.cells.clndr_id || `xer-calendar:${projectId}`,
@@ -657,8 +586,6 @@ function readXerProject(
   const fallbackCalendar = calendarList[0];
   const projectCalendar = calendarById.get(projectRow.cells.clndr_id) ?? fallbackCalendar;
 
-  // Een expliciet TASK-tijdstip is bronbewijs voor uurmodus. Dit gebeurt vóór datum-/duurmapping,
-  // zodat geen minuut wordt afgerond en lege clndr_data via de bestaande kalenderbanden promoveert.
   const hourSignalCalendarIds = new Set<string>();
   for (const row of activityRows) {
     const calendarId = row.cells.clndr_id || projectCalendar.id;
@@ -681,8 +608,6 @@ function readXerProject(
     if (inferBlankCalendarBands(tables, calendar, activityRows, projectCalendar.id)) {
       plannedWindowCalendarIds.add(calendar.id);
     }
-    // De periodewaarde uit de kalender (`day_hr_cnt`) is leidend, zoals bij de eerste promotie in
-    // `xerCalendarData.ts`: na de promotie gaat hij terug.
     const periodHoursPerDay = calendar.hoursPerDay;
     if (promoteHourCalendar(
       calendar,
@@ -706,20 +631,10 @@ function readXerProject(
     'PROJECT',
   );
   const mappedActivities: Task[] = [];
-  /** `task_id` → de geërfde werkregel uit `OPS_InheritedWorkRule` die nog bij `duration_type` past. */
   const inheritedRuleByTaskId = new Map<string, WorkRule>();
   let hasExplicitTaskFinish = false;
-  // Ontbrekende geplande start/finish (review PR #109, N1): vroeger '1970-01-01' en daarmee ook
-  // projectstart 1970, zonder melding. Nu de gedeelde regel van alle lezers
-  // (`resolveMissingScheduleDates`). Het projectstart-anker is voor XER de statusdatum
-  // (`last_recalc_date`, of `data_date` als die kolom ontbreekt — P6 plant onbegonnen werk vanaf de
-  // data date, en dit was al de terugval), anders `PROJECT.plan_start_date`. Dat anker zetten we hier
-  // zelf, met de tijd-van-de-dag in uurmodus (de gedeelde functie kent alleen het datumdeel); zonder
-  // enig anker kiest de gedeelde functie de vroegste aanwezige taakstart, anders vandaag.
   const missingDates = emptyMissingScheduleDates();
   let missingPlannedStarts = 0;
-  // Activiteiten zonder `status_code` die uit hun voortgang VOLTOOID zijn afgeleid. Hun ontbrekende
-  // werkelijke start/einde vult de lezer ná `resolveMissingScheduleDates` aan (zie daar).
   const derivedCompleted: Task[] = [];
   for (const row of activityRows) {
     const effectiveCalendar = calendarById.get(row.cells.clndr_id) ?? projectCalendar;
@@ -737,14 +652,8 @@ function readXerProject(
       if (anchorStart === undefined) missingDates.start.add(row.cells.task_id);
     }
     if (explicitTargetFinish === undefined) missingDates.finish.add(row.cells.task_id);
-    // Plaatshouder alleen voor het geval zonder anker; `resolveMissingScheduleDates` vervangt hem.
     let start = explicitTargetStart ?? anchorStart ?? MISSING_START_PLACEHOLDER;
     let finish = explicitTargetFinish ?? start;
-    // P6 XER kan een TT_FinMile op de eerste minuut ná een werkbandgrens serialiseren met gelijke
-    // target start/finish. Voor deze nulduur-activiteit is die minuut een grenscodering, geen werk:
-    // de mijlpaal hoort bij de bandstart en de finishzijde bij het vorige werkbandeinde. De regel is
-    // bewust gesloten op TT_FinMile + start===finish + exact bandstart+1; een gewone activiteit,
-    // een andere minuut of een reeds exacte bandgrens blijft letterlijk zoals aangeleverd.
     if (hourMode && start === finish
       && row.cells.task_type?.trim().toLowerCase() === 'tt_finmile') {
       const engine = calendarEngines.get(effectiveCalendar.id);
@@ -759,9 +668,6 @@ function readXerProject(
     }
     const durationHours = numberOf(tables, row, 'target_drtn_hr_cnt') ?? 0;
     const remainingHours = numberOf(tables, row, 'remain_drtn_hr_cnt');
-    // Zelfde regel als de lag (§3.10; review #591 r6): XER schrijft uren met zes decimalen, dus 1600 min staat er
-    // als 26,666667 u (1600,00002 min); die ruis wordt de hele minuut. Met de ruis werden 29 P6-cellen onexact
-    // (regel A, meting 2026-10-26; was knownbug 385). Een echte breuk blijft: 40,33 u = 2419,8 min.
     const sourceDurationMinutes = sixDecimalHoursToMinutes(durationHours);
     const hoursPerDay = effectiveCalendar.hoursPerDay > 0 ? effectiveCalendar.hoursPerDay : 8;
     const activityType = activityTypeOf(row.cells.task_type ?? '', row, enumFallbacks);
@@ -771,7 +677,6 @@ function readXerProject(
     const rawStatus = row.cells.status_code ?? '';
     const statusToken = rawStatus.trim().toLowerCase();
     const hasSourceStatus = statusToken !== '';
-    // Op dezelfde plek als vroeger, zodat de volgorde van de enum-meldingen gelijk blijft.
     const sourceStatus = hasSourceStatus ? statusOf(rawStatus, row, enumFallbacks) : undefined;
     const actualStart = sourceInstant(row.cells.act_start_date ?? '', hourMode);
     const actualFinish = sourceInstant(row.cells.act_end_date ?? '', hourMode);
@@ -780,13 +685,6 @@ function readXerProject(
       ? undefined
       : completePctTypeOf(rawCompletePctType, row, enumFallbacks);
     const statusForcesCompletion = statusToken === 'tk_notstart' || statusToken === 'tk_complete';
-    // Status is de leidende P6-toestand. Percentagekolommen verklaren uitsluitend de voortgang
-    // van een actieve taak; ze mogen een expliciete TK_NotStart nooit de solver-in-progressroute
-    // in trekken. CP_Drtn en CP_Units lezen complete_pct, CP_Phys leest uitsluitend
-    // phys_complete_pct — geen familie valt terug op de percentagekolom van een andere familie.
-    // Lees uitsluitend de percentagefamilie die de expliciete P6-status en -methode werkelijk
-    // gebruiken. Anders kan bijvoorbeeld een corrupte `complete_pct` een CP_Phys-taak (waar
-    // uitsluitend `phys_complete_pct` betekenis heeft) ten onrechte onopenbaar maken.
     const durationCompletionPercent = !statusForcesCompletion
       && (completePctType === 'CP_Drtn' || completePctType === 'CP_Units')
       ? numberOf(tables, row, 'complete_pct')
@@ -804,13 +702,8 @@ function readXerProject(
       : statusToken === 'tk_notstart'
         ? 0
         : Math.max(0, Math.min(1, completionPercent / 100));
-    // Zonder status leidt de lezer hem af uit de voortgang (knownbugs 117). Een werkelijk einde
-    // maakt de activiteit dan voltooid op 100 %, net als `normalizeImportedProgress`. Mét status
-    // verandert hier niets: `status` en `completion` zijn dan byte-gelijk aan vroeger.
     const status = sourceStatus ?? statusFromProgress(sourceCompletion, actualStart, actualFinish);
     const completion = !hasSourceStatus && actualFinish ? 1 : sourceCompletion;
-    // Een activiteit onder een WBS die dit project niet heeft, hangt op topniveau (MPXJ doet hetzelfde):
-    // een `parentId` naar een niet-bestaande taak maakt de boom in raster en rollup onvindbaar.
     const parentId = row.cells.wbs_id && localWbsIds.has(row.cells.wbs_id)
       ? wbsTaskId(projectId, row.cells.wbs_id)
       : null;
@@ -819,29 +712,12 @@ function readXerProject(
         parseInstant(start), parseInstant(finish),
       )
       : undefined;
-    // Alleen bij een lege bronkalender mag het target-venster de door ontbrekende banddata verloren
-    // fractionele slotdag herstellen. De expliciete targetduur blijft autoritair zodra vensterwerk
-    // en bronduur meer dan één effectieve dag verschillen: target_start/target_end mogen immers
-    // planningsruimte omvatten en zijn dan geen alternatieve duurkolom. Zo is de positieve vorm
-    // kalender-afleidbaar en de negatieve vorm gesloten zonder stored P6-rekenuitvoer te lezen.
     const plannedWindowRepairsFractionalDay = plannedWindowMinutes !== undefined
       && plannedWindowMinutes > 0
       && Math.abs(plannedWindowMinutes - sourceDurationMinutes) <= hoursPerDay * 60;
     const durationMinutes = plannedWindowRepairsFractionalDay
       ? plannedWindowMinutes
       : sourceDurationMinutes;
-    // Altijd de urenmaat (alleen uren §3.10, T15; F5b): P6 kent alleen werkuren, en een XER-bestand draagt
-    // nooit de OPS-markering voor de dagenmaat. Duur en rest zijn de minuten uit het bestand, zonder
-    // afronding op hele dagen (de ruis van zes decimalen wel, zie hierboven). Vroeger kreeg een taak op een
-    // kalender zonder tijdsignaal de dagenmaat (`durationMinutes / (day_hr_cnt × 60)` dagen); dat is weg, ook op
-    // een dagkalender.
-    // LET OP: `createDefaultTaskTime` leest zijn tweede argument als UREN zodra de eenheid
-    // 'hours' is, en zet dan zelf `durationMinutes = dat getal * 60`. Wij geven hier bewust
-    // DAGEN mee omdat `scheduleDuration` dagen hoort te zijn; de daaruit volgende foutieve
-    // `durationMinutes` wordt hieronder overschreven met de echte bronminuten. Die overschrijving is
-    // dus dragend — haal 'm niet weg.
-    // Het dagengetal via `hourTaskScheduleDuration` (de blokken, niet `day_hr_cnt`; die blijft wel op de
-    // kalender staan).
     const time = createDefaultTaskTime(
       start,
       hourTaskScheduleDuration(durationMinutes, effectiveCalendar),
@@ -860,20 +736,10 @@ function readXerProject(
       : remainingHours;
     time.durationMinutes = durationMinutes;
     if (p6RemainingHours !== null) {
-      // Een rest uit het bestand: zelfde regel als de duur (de ruis van zes decimalen wordt de hele minuut, een
-      // echte breuk blijft). Een rest uit de percentagetak is berekend, geen bronwaarde: die blijft op de hele
-      // minuut, zoals op main (review #591 r6 en r7). Met de oude kalenderwandeling sprong LS bij 1613,28066 min
-      // (40,33 u bij 33,33 %) een dag terug (was knownbug 385).
       time.remainingMinutes = remainingFromPercent
         ? Math.round(p6RemainingHours * 60)
         : sixDecimalHoursToMinutes(p6RemainingHours);
     }
-    // De uitzondering op de urenmaat (T15, zoals de P6 XML-lezer): een activiteit met de OPS-eenheid uit een
-    // eigen export (`xerOpsMarkers.ts`) leest volgens `readMeasure`. De dagenmaat komt terug in de werktijd per
-    // dag van haar kalender (T13), met het record zolang duur en rest nog de geschreven minuten dragen (T21).
-    // Zonder eenheid blijft alles hierboven staan, precies als op main; de andere activiteiten merken niets.
-    // Een geërfde werkregel uit een eigen export (`OPS_InheritedWorkRule`, ronde 3, punt 2): alleen zolang
-    // `duration_type` nog het token van die regel draagt. De projectstandaard toetst de lezer hieronder.
     const inheritedRule = opsFields.inheritedWorkRuleByTask.get(row.cells.task_id);
     if (inheritedRule && XER_DURATION_TYPE_TOKEN[inheritedRule] === row.cells.duration_type?.trim()) {
       inheritedRuleByTaskId.set(row.cells.task_id, inheritedRule);
@@ -889,7 +755,6 @@ function readXerProject(
         calendar: effectiveCalendar,
         dayRecords: opsUnit === 'days' ? parseFieldRecords(opsFields.dayRecordsByTask.get(row.cells.task_id), XER_DURATION_FIELDS) : {},
         exactRecords: opsUnit === 'hours' ? parseFieldRecords(opsFields.exactRecordsByTask.get(row.cells.task_id), XER_DURATION_FIELDS) : {},
-        // Zonder geldig record de minuten zoals hierboven gelezen: een echte bronbreuk blijft (ronde 3, punt 3).
         keepSourceMinutes: true,
       });
       time.durationUnit = measure.durationUnit;
@@ -961,9 +826,6 @@ function readXerProject(
   resolveMissingScheduleDates(mappedActivities, missingDates, '', task =>
     calendarById.get(task.calendarId ?? '') ?? projectCalendar);
 
-  // De standaardwerkregel uit een eigen export (`OPS_DefaultWorkRule`, review PR #393 ronde 2, punt E2): alleen
-  // zolang `def_duration_type` nog het geschreven token draagt. Een bestand uit P6 heeft de UDF niet; daar
-  // blijft `def_duration_type` alleen de terugval per activiteit (hierboven), zoals op main.
   const opsDefaultWorkRule = opsFields.defaultWorkRuleByProject.get(projectId);
   const defaultWorkRule = opsDefaultWorkRule
     && XER_DURATION_TYPE_TOKEN[opsDefaultWorkRule] === projectRow.cells.def_duration_type?.trim()
@@ -979,10 +841,6 @@ function readXerProject(
     progressMode,
     schedulingOptions,
   } = derivedSchedule;
-  // Vastgelegde P6-rekenuitvoer (bak 4) — uitsluitend weergave/meetlat, nooit solverinvoer. Leest
-  // dezelfde `activityRows`, maar schrijft nergens in `Task`/`Task.time`. Zie `xerRecordedTimes.ts`.
-  // Staat ná `deriveXerScheduleOptions` omdat de kritiekafleiding dezelfde `criticalDefinition`
-  // gebruikt als de solver krijgt.
   const recordedTimes = readXerRecordedTimes(activityRows, {
     numberOf: (row, field) => numberOf(tables, row, field),
     effectiveCalendarOf: (row) => {
@@ -997,9 +855,6 @@ function readXerProject(
     taskIdOf: (row) => row.cells.task_id,
     criticalDefinition: schedulingOptions.criticalDefinition,
   });
-  // De solver krijgt alleen de finale opties; de documentmetadata krijgt uitsluitend de
-  // bestaande, archive/IFC-compatibele provenancevelden. Zo kan een later toegevoegd intern
-  // afleidingsveld niet per ongeluk als opgeslagen P6-invoer worden bewaard of meegestuurd.
   const scheduleOptionsMetadata: XerImportMetadata['scheduleOptions'] = {
     source: derivedSchedule.source,
     retainedSource: derivedSchedule.retainedSource,
@@ -1013,22 +868,10 @@ function readXerProject(
   const finishes = mappedActivities.map(task => task.time.scheduleFinish).filter(Boolean).sort();
   const projectStart = starts[0];
   const taskDerivedProjectEnd = finishes[finishes.length - 1] ?? projectStart;
-  // PROJECT.plan_end_date is allowed project input, but changes the late pass only when P6's
-  // corresponding SCHEDOPTIONS switch is explicitly Y. Without that switch, the task-derived project
-  // range remains unchanged for XER and every other format.
-  // Y zonder plan_end_date: de optie blijft aan — dat is wat het bestand zegt — maar de lezer
-  // verzint geen anker uit het maximum van de geplande taakeinden. Het projecteinde blijft leeg en de
-  // solver rekent de late pass vanaf het netwerkeinde, max(EF), zoals P6 zonder "Must Finish By" doet
-  // (`withEffectiveProjectEndAnchor` in CPMSolver).
   const projectEnd = schedulingOptions.useProjectEndDateForFloat
     ? sourceProjectEnd ?? ''
     : taskDerivedProjectEnd;
   const statusDate = projectStatusDate(tables, projectRow, projectHourMode);
-  // Afgeleid voltooid zonder status (knownbugs 117): dezelfde AS/AF-defaults als
-  // `normalizeImportedProgress`, ná `resolveMissingScheduleDates` zodat geen plaatshouder-datum
-  // meetelt. Werkelijk einde zonder start ⇒ start = einde. 100 % zonder einde ⇒ start = eigen geplande
-  // start, einde = statusdatum (anders het geplande einde), en de volgorde-regel van de store. Zo is
-  // de taak na een IFC-round-trip gelijk aan de import. Mét status blijft dit pad dicht.
   for (const task of derivedCompleted) {
     const t = task.time;
     if (t.actualFinish) {
@@ -1062,11 +905,8 @@ function readXerProject(
       resourceIds: [],
     };
   });
-  // BOOMVOLGORDE (diepte-eerst), zoals de P6 XML-lezer: elke activiteit staat direct onder haar WBS.
-  // Per ouder blijft de volgorde gelijk (eerst de WBS-kinderen, dan de activiteiten in bestandsvolgorde),
-  // dus `childIds` hieronder is dezelfde als bij "eerst alle WBS, dan alle activiteiten".
   const allTasks = [...flattenOrder([...wbsTasks, ...mappedActivities])];
-  deriveImportedWorkRules(mappedActivities); // werkregel uit duration_type
+  deriveImportedWorkRules(mappedActivities);
   const taskById = new Map(allTasks.map(task => [task.id, task]));
   for (const task of allTasks) {
     if (!task.parentId) continue;
@@ -1074,9 +914,6 @@ function readXerProject(
     if (parent && !parent.childIds.includes(task.id)) parent.childIds.push(task.id);
   }
 
-  // Metadata wordt pas ná de bestandsbrede mapping geprojecteerd. Daardoor kunnen identieke task_id's
-  // uit verschillende PROJECT-rijen nooit metadata naar elkaar lekken; de catalogus zelf blijft als
-  // readonly bronreferentie gedeeld.
   const metadata = materializeXerMetadata(metadataCatalog, projectId);
   for (const [taskId, taskMetadata] of metadata.taskMetadata) {
     const task = taskById.get(taskId);
@@ -1086,8 +923,6 @@ function readXerProject(
     if (taskMetadata.notes) task.notes = taskMetadata.notes;
   }
 
-  // Projectresources zijn bewust mutable kopieën; de raw catalogus en TASKRSRC-cellen blijven één maal
-  // geparseerde, bevroren bestandsdata. Dit voorkomt P×52.640 structuredClone-kopieën.
   const resourceResult = materializeXerResources(resourceCatalog, tables, {
     projectId,
     projectCalendarId: projectCalendar.id,
@@ -1095,18 +930,12 @@ function readXerProject(
     availableCalendarIds: new Set(calendarList.map(calendar => calendar.id)),
     calendarHoursPerDay: new Map(calendarList.map(calendar => [calendar.id, calendar.hoursPerDay])),
     taskIds: new Set(mappedActivities.map(task => task.id)),
-    // Geplande werkminuten per activiteit voor de werkveld-afleiding. Een urentaak telt haar eigen minuten;
-    // een dagenmaat-taak (alleen uit een eigen export, `xerOpsMarkers.ts`) de werktijd per dag van haar
-    // kalender, zoals de werkregelbrug (T14). Voor een bestand uit P6 (alleen urentaken) verandert dit niets.
     taskWorkMinutes: new Map(mappedActivities.map(task => [
       task.id,
       activityWorkMinutes(task, task.time.durationUnit === 'days'
         ? effHoursPerDay(calendarById.get(task.calendarId ?? '') ?? projectCalendar)
         : calendarById.get(task.calendarId ?? '')?.hoursPerDay ?? projectCalendar.hoursPerDay),
     ])),
-    // Per urentaak de dag van haar dagengetal (dezelfde taakkalender als bij `hourTaskScheduleDuration`
-    // hierboven: `clndr_id`, anders de projectkalender). Materiaal op een urentaak rekent zijn tempo per
-    // uur daarmee om naar een tempo per dag.
     hourTaskHoursPerDay: new Map(mappedActivities.flatMap(task => {
       if (task.time.durationUnit !== 'hours') return [];
       const hoursPerDay = effHoursPerDay(calendarById.get(task.calendarId ?? '') ?? projectCalendar);
@@ -1120,10 +949,6 @@ function readXerProject(
 
   const sequences: Sequence[] = [];
   const externalRelations: XerExternalRelation[] = [];
-  // Lagrecords uit een eigen export (`OPS_DayMeasureLags` op de opvolger, `xerOpsMarkers.ts`; T21, I7): de
-  // dagenmaat van een lag komt terug zolang `lag_hr_cnt` nog de geschreven minuten draagt en de lagkalender
-  // van dit project nog dezelfde werktijd per dag geeft. Anders, en zonder record, blijft de lag urenmaat.
-  // Een sleutel die bij één opvolger twee keer voorkomt, is dubbelzinnig en telt niet.
   const lagRecordsBySuccessor = new Map<string, Map<string, LagRecord>>();
   const lagKeyCount = new Map<string, number>();
   const lagKeyOf = (row: XerRow) => lagRecordKey(row.cells.pred_task_id, relationTypeOf(row.cells.pred_type, row, []).sequence);
@@ -1151,9 +976,6 @@ function readXerProject(
     const successorProjectId = row.cells.proj_id || projectId;
     const predecessorProjectId = row.cells.pred_proj_id || successorProjectId;
     const relationType = relationTypeOf(row.cells.pred_type, row, enumFallbacks);
-    // Een echte breuk blijft (§3.10; review #591 r3, was knownbug 307): 0,33 u blijft 19,8 min. De ruis van zes
-    // decimalen wordt de hele minuut: 0,666667 u wordt 40 min, niet 40,00002 (review #591 r6, was knownbug 386).
-    // Zelfde regel als de P6 XML-lezer (`sixDecimalHoursToMinutes`).
     const lagMinutes = sixDecimalHoursToMinutes(numberOf(tables, row, 'lag_hr_cnt', 'TASKPRED') ?? 0);
     const relationId = row.cells.task_pred_id || `xer-rel:${row.line}`;
     const predecessorLocal = predecessorProjectId === projectId && taskById.has(row.cells.pred_task_id);
@@ -1217,9 +1039,6 @@ function readXerProject(
     }
   }
 
-  // De geërfde werkregel (hierboven gemarkeerd): de taak erft weer, als de regel nog de projectstandaard is
-  // zoals de lezer die teruglas. `deriveImportedWorkRules` gaf haar een eigen regel met dezelfde waarde; alle
-  // afleidingen hierboven zagen dus dezelfde effectieve regel. Zonder markering blijft de eigen regel, als op main.
   if (inheritedRuleByTaskId.size > 0) {
     const projectRule = defaultWorkRule ?? DEFAULT_WORK_RULE;
     for (const task of mappedActivities) {
@@ -1243,8 +1062,6 @@ function readXerProject(
       ...(statusDate ? { statusDate } : {}),
       progressMode,
       schedulingOptions,
-      // Rekenprofielen: XER ⇒ P6 zonder afwijkingen. A19 staat in de P6-basis;
-      // PROJECT.rem_target_link_flag stuurt geen conventie.
       schedulingProfile: builtInProfile('p6'),
       ...(defaultWorkRule ? { defaultWorkRule } : {}),
     },
@@ -1269,9 +1086,6 @@ function readXerProject(
       scheduleOptions: scheduleOptionsMetadata,
       externalRelations,
       externalLinks: [],
-      // `assembleXerMultiProjectImport` vervangt dit vóór de reader retourneert door het echte,
-      // bestandsbrede verslag. De verplichte vorm voorkomt dat een XER-document zonder rapport door
-      // een nieuwe codeweg kan ontsnappen.
       report: {
         projectsSeen: 1,
         documentsOpened: 1,
@@ -1293,17 +1107,10 @@ function readXerProject(
   };
 }
 
-/** Geplande werkminuten van een activiteit (uurmodus: de bronminuten; dagmodus: dagen × uren/dag). */
 function activityWorkMinutes(task: Task, hoursPerDay: number): number {
   return activityWorkMinutesOf(task.time, hoursPerDay);
 }
 
-/**
- * Lees de oorspronkelijke XER-bytes. Eén PROJECT behoudt de enkelvoudige returnvorm, maar krijgt
- * hetzelfde rapportcontract; meerdere PROJECT-rijen waaieren uit naar losse payloads. De
- * baselinebeslissing zit vóór de openroute: die krijgt dus uitsluitend documenten die echt als tab
- * geopend mogen worden.
- */
 export function readXER(bytes: Uint8Array): XerOpenResult {
   const tables = parseXerTables(bytes);
   const scheduleOptionsIndex = indexXerScheduleOptions(tables);
@@ -1313,7 +1120,6 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
     const calendarId = row.cells.clndr_id?.trim();
     if (calendarId) availableCalendarIds.add(calendarId);
   }
-  // De OPS-UDF's van een eigen export (`xerOpsMarkers.ts`); leeg, en zonder effect, in elk bestand uit P6.
   const opsFields = readXerOpsFields(tables);
   const resourceCatalog = buildXerResourceCatalog(tables, availableCalendarIds, opsFields);
   const metadataCatalog = buildXerMetadataCatalog(tables);
@@ -1348,8 +1154,6 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
       opsFields,
     ),
   );
-  // Precies één frozen bytearchief per ingelezen bestand. De projectmappers leveren alleen views;
-  // hier, ná alle projectdiagnostics, delen alle werkelijk geopende documenten dezelfde referentie.
   const presentation = detectXerSourcePresentation(bytes);
   const documentViews = Object.fromEntries(assembled.documents.map(document => [
     document.projectId,
@@ -1387,8 +1191,6 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
     document.result.xer = bindXerImportMetadataToArchive(archive, document.projectId);
   }
   if (assembled.results.length > 0) {
-    // De openvorm blijft compatibel: één PROJECT levert één ImportResult. Alleen de
-    // rapportberekening loopt uniform door dezelfde kern als een meervoudig bestand.
     return projectRows.length === 1 ? assembled.documents[0].result : assembled;
   }
   throw new XerImportError(
@@ -1398,18 +1200,6 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
   );
 }
 
-/**
- * Herbouw de volledige runtimegrafiek uit uitsluitend de canonieke XER-bronbytes.
- *
- * Levert naast het archief óók de vastgelegde P6-rekenuitvoer per project. Die komt gratis mee —
- * deze functie draait een volledige `readXER` — en is per constructie identiek aan het oorspronkelijke
- * openen (zelfde bytes, zelfde code). Er wordt hier NIETS opnieuw afgeleid; zie
- * `XerSourceReconstruction`.
- *
- * Bij een meerprojectenbestand krijgt élk project zijn eigen entry (de IFC-lezer kiest daaruit met
- * `OPS_XerDocument`'s selector). Het archief zelf is bestandsbreed en voor alle resultaten dezelfde
- * referentie.
- */
 export function reconstructXerSourceFromBytes(bytes: Uint8Array): XerSourceReconstruction {
   const opened = readXER(bytes);
   const results = 'kind' in opened ? opened.results : [opened];
