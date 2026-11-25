@@ -2363,9 +2363,10 @@ en noem het in je rapport of PR-tekst.
 480. **Een paar zeldzamere exportweglatingen staan nog alleen in de console, niet in de verliesenvelope.**
      `src/services/xerExportLoss.ts` (`categoriesFor`) kent sinds #727 notities, datumconstraints die het doelformaat niet schrijft,
      handmatige planning en hammock-taken ook voor een native project. Nog niet: een soft MSO/MFO die MSPDI als
-     SNET/FNET schrijft (`mspdiWriter.ts`, `softLossCount`), `levelingDelayMinutes` (MSPDI en P6),
-     resume/stop (MSPDI) en een ELAPSEDTIME-taakduur naar P6 (`p6xmlWriter.ts`, `elapsedTaskCount`). Gelezen in
-     de writers, niet nagespeeld. Voorstel: per geval een categorie en een capability in dezelfde matrix. — S
+     SNET/FNET schrijft (`mspdiWriter.ts`, `softLossCount`), `levelingDelayMinutes` (MSPDI) en resume/stop (MSPDI).
+     Voor P6 XML telt de exportmelding de nivelleervertraging en de kalendertijd wel
+     (`levelingDelays`, `elapsedDurations` in `p6XmlExportNotice.ts`, ADR 0367). Gelezen in de writers, niet
+     nagespeeld. Voorstel: per geval een categorie en een capability in dezelfde matrix. — S
 
 482. **De exportverliestest bewaakt een primaire constraint op een P6-verzameltaak niet apart.**
      `tests/planning/check-xer-export-loss.ts` (scenario "Native verzameltaak met constraints") geeft de
