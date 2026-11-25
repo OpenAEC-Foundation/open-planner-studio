@@ -99,7 +99,9 @@ class Tracker {
     this.withBomOutput = addBom(bytes);
   }
   digest(data: Uint8Array) {
-    if (this.output && (sameBytes(data, this.output) || sameBytes(data, this.withBomOutput!))) this.note('hash-uitvoer', 'hash');
+    const plain = !!this.output && sameBytes(data, this.output);
+    const bom = !!this.withBomOutput && sameBytes(data, this.withBomOutput);
+    if (plain || bom) this.note('hash-uitvoer', (this.withBom ? bom : plain) ? 'hash' : undefined);
     else if (!this.inCompute) this.note('hash');
   }
   take() {
