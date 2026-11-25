@@ -1635,9 +1635,23 @@ en noem het in je rapport of PR-tekst.
       naar `workTime.byWeekday` van de kalender. Een anker op het begin of einde van een blok van een werkende
       uitzondering met eigen blokken krijgt dus alleen een soort als die minuut ook een grens van de weekblokken van die
       weekdag is, bijvoorbeeld geen soort op een werkende zaterdag zonder weekblokken. Een anker op een feestdag krijgt
-      een soort als de minuut een grens van de weekblokken van die weekdag is. Het weggehaalde commentaar zei dat een mijlpaal nooit op een
-      feestdag landt; dat is niet nagegaan, en ook niet of MS Project zulke mijlpalen schrijft. Gelezen in de code,
-      niet nagespeeld. — S
+      een soort als de minuut een grens van de weekblokken van die weekdag is, of het einde van een nachtblok van de
+      vorige weekdag. De twee lezers vragen de soort voor een nulduurmijlpaal op een gepromoveerde kalender; in
+      `readMSPDI` gaat een expliciete OPS-markering voor. Krijgt een mijlpaal om 12:00 op een werkende zaterdag van
+      08:00 tot 12:00 zo geen `FINISH`, dan kan een FS-relatie zonder lag bij herberekenen naar het volgende werkmoment
+      gaan, waar de `FINISH`-tak van `forwardHour` (`relationMath.ts`) het einde van de voorganger houdt; de solver
+      gebruikt de blokken van de uitzondering zelf wel. Het weggehaalde commentaar zei dat een mijlpaal nooit op een
+      feestdag landt; dat is niet nagegaan, en ook niet of MS Project zulke mijlpalen schrijft. Door twee lezers in
+      de code bevestigd, niet nagespeeld. — B
+
+2325. **Een `.mpp`-kalender met één blok per dag dat per weekdag verschilt, wordt zonder taaksignaal geen
+      uurkalender.** `canonicalizeBands` (`src/services/subdayIo.ts`) telt een kalender alleen als afwijkend bij meer
+      dan één blok op een dag, een blok over middernacht of een blok van 1440 minuten of meer; `buildCalendarFromDays`
+      (`src/services/mpp/mppCalendars.ts`) geeft die uitkomst door, zonder de vergelijking tussen weekdagen die de
+      MSPDI-lezer doet. Een resourcekalender die alleen via een toewijzing wordt gebruikt, met maandag 08:00 tot
+      16:00 en vrijdag 08:00 tot 12:00, krijgt geen taaksignaal (`readTasks`) en promoveert dus niet; haar enkelvoudige
+      werkdag komt van de eerste werkdag en toont de korte vrijdag niet. Door twee lezers in de code bevestigd, niet
+      met een bronbestand nagespeeld. — B
 
 ## Bibliotheek, bezetting, extensies, AI
 
