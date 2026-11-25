@@ -787,7 +787,7 @@ en noem het in je rapport of PR-tekst.
      als 0, zodat een werkproject van één dag zonder opgeslagen duur duur 0 krijgt. Nagespeeld met een zelfgemaakt
      IFC via `readIFC` en `openAsDocument`, in de modus doordat de opgeslagen vroege datums afwijken: één taak (geen
      mijlpaal) van 07:00 tot 16:00 gaf met `ScheduleDuration=$` een projectduur van 0 werkdagen en met `P1D` 1
-     werkdag. De statusbalk (`StatusBar.tsx`) toont die waarde. — B
+     werkdag. De statusbalk (`StatusBar.tsx`) toont die waarde. Issue #1231. — B
 
 2328. **In "datums zoals opgeslagen" kan een fase later eindigen dan het projecteinde in de statusbalk.**
      `cpmResultFromRecorded` (`src/engine/scheduler/recordedDates.ts`) bepaalt `projectEnd` alleen uit taken met een
@@ -795,7 +795,7 @@ en noem het in je rapport of PR-tekst.
      een kind zonder vroeg paar dat zijn berekende datums houdt. Nagespeeld met een zelfgemaakt IFC door de echte
      laadroute: een fase zonder eigen vastlegging, een kind met opgeslagen vroeg einde op 10 maart en een kind zonder
      vroeg paar dat de solver op 13 maart laat eindigen. De fasebalk en haar resultaatrij eindigden op 13 maart,
-     *Einde* in de statusbalk gaf 10 maart. — B
+     *Einde* in de statusbalk gaf 10 maart. Issue #1231. — B
 
 2329. **In "datums zoals opgeslagen" melden het rapport en MCP een ketenstructuur die de vastlegging niet kent.**
      `cpmResultFromRecorded` levert `criticalPaths` altijd als één lijst (`[criticalPath]`), ook als die leeg is. Het
