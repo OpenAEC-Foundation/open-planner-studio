@@ -667,6 +667,96 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
           await expect(linksNotice).toHaveAttribute('data-ops-task-element-links-not-found', '0');
         }
       }
+      const question = page.locator('[data-ops-foreign-changes-question]');
+      const state = () => page.evaluate(async () => {
+        const s = window.__OPS__!.store.getState();
+        return { tasks: s.tasks.length, dirty: s.isDirty, ask: s.ui.foreignChangesQuestion, file: await (await s.fileHandle!.getFile()).text(),
+          counts: s.ui.notifications.filter(n => n.messageKey === 'notifications.foreignChangesWritten').length };
+      });
+      await nameCell('Wand A bouwen').click({ button: 'right' });
+      await page.getByRole('button', { name: /^(Delete|Verwijderen)$/ }).last().click();
+      await expect(nameCell('Wand A bouwen')).toHaveCount(0);
+      const expectedCount = await page.evaluate(async () => {
+        const noticePath = '/src/state/foreignLinksNotice.ts';
+        const { foreignChangesIfSaved } = await import(/* @vite-ignore */ noticePath);
+        return foreignChangesIfSaved(window.__OPS__!.store.getState()) as number;
+      });
+      expect(expectedCount).toBeGreaterThan(0);
+      const deleted = await state();
+      await page.keyboard.press('Control+s');
+      await expect(question).toBeVisible();
+      await expect(question).toHaveAttribute('data-ops-foreign-changes-question', 'own');
+      await expect(question).toHaveAttribute('data-ops-foreign-changes-count', String(expectedCount));
+      await expect(question.locator('#foreign-changes-question-title')).toHaveText(/^(Save to|Opslaan in) bonsai-4d\.ifc$/);
+      await expect(question.locator('[data-ops-foreign-changes-cancel]')).toBeFocused();
+      await page.keyboard.press('Delete');
+      await page.keyboard.press('Control+s');
+      await expect(question).toHaveCount(1);
+      expect((await state()).tasks, 'Delete doet niets terwijl de vraag staat').toBe(deleted.tasks);
+      await page.keyboard.press('Enter');
+      await expect(question).toHaveCount(0);
+      await expectOneFreshMergeWorker(/^result:merge$/, 'de geannuleerde vraag');
+      expect(await state(), 'Enter annuleert: niets geschreven, het document blijft gewijzigd')
+        .toEqual({ ...deleted, dirty: true, file: text, counts: 0 });
+      await page.keyboard.press('Control+s');
+      await expect(question).toBeVisible();
+      await question.locator('[data-ops-foreign-changes-dont-ask]').check();
+      await question.locator('[data-ops-foreign-changes-save]').click();
+      await expect(question).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
+      await expectOneFreshMergeWorker(/^result:merge$/, 'Opslaan in de vraag');
+      const savedAfterQuestion = await state();
+      expect(savedAfterQuestion.file).not.toBe(text);
+      const named = (file: string) => file.split("'Wand A bouwen'").length - 1;
+      expect(named(savedAfterQuestion.file), 'de gewiste taak staat niet meer in het bestand').toBe(named(text) - 1);
+      expect(savedAfterQuestion.counts, 'na de beantwoorde vraag geen telling').toBe(0);
+      expect(savedAfterQuestion.ask).toBe(false);
+      await expect.poll(() => page.evaluate(() => localStorage.getItem('ops-foreignChangesQuestion'))).toBe('false');
+      await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
+      const noticesDialog = page.locator('.settings-dialog');
+      const changedFilter = noticesDialog.locator('[data-ops-settings-changed-only]');
+      const changedRows = async () => {
+        const counted = Number(/\((\d+)\)$/.exec((await changedFilter.textContent()) ?? '')?.[1]);
+        if (counted === 0) {
+          await expect(changedFilter).toBeDisabled();
+          return { counted, ids: [] as string[] };
+        }
+        await changedFilter.click();
+        await expect(changedFilter).toHaveAttribute('aria-pressed', 'true');
+        const ids = await noticesDialog.locator('[data-ops-setting]').evaluateAll(rows => rows.map(r => r.getAttribute('data-ops-setting')!));
+        await changedFilter.click();
+        await expect(changedFilter).toHaveAttribute('aria-pressed', 'false');
+        return { counted, ids };
+      };
+      const flagToggle = noticesDialog.locator('[data-ops-experimental-settings] [data-ops-feature-flag="ifcForeignContent"]');
+      const questionSetting = noticesDialog.locator('[data-ops-setting="foreignChangesQuestion"]');
+      const questionBox = questionSetting.locator('[data-ops-setting-foreign-changes-question]');
+      const withQuestionOff = await changedRows();
+      expect(withQuestionOff.ids).toContain('foreignChangesQuestion');
+      expect(withQuestionOff.ids.length, 'de teller telt wat de lijst toont').toBe(withQuestionOff.counted);
+      await group(noticesDialog, 'about').click();
+      await flagToggle.uncheck();
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.featureFlags.ifcForeignContent)).toBe(false);
+      const flagOff = await changedRows();
+      expect(flagOff.ids, 'met de flag uit staat de vraag niet in de lijst').not.toContain('foreignChangesQuestion');
+      expect(flagOff.counted, 'en de teller telt haar niet mee').toBe(flagOff.ids.length);
+      expect(flagOff.counted).toBe(withQuestionOff.counted - 1);
+      await group(noticesDialog, 'notices').click();
+      await expect(questionSetting).toHaveCount(0);
+      expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.foreignChangesQuestion), 'de keuze blijft bewaard').toBe(false);
+      expect(await page.evaluate(() => localStorage.getItem('ops-foreignChangesQuestion'))).toBe('false');
+      await group(noticesDialog, 'about').click();
+      await flagToggle.check();
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.featureFlags.ifcForeignContent)).toBe(true);
+      expect(await changedRows(), 'met de flag weer aan geldt de bewaarde keuze weer').toEqual(withQuestionOff);
+      await group(noticesDialog, 'notices').click();
+      await expect(questionBox).not.toBeChecked();
+      await expect(questionSetting).toHaveAttribute('data-ops-setting-changed', 'true');
+      await questionSetting.locator('[data-ops-setting-reset="foreignChangesQuestion"]').click();
+      await expect(questionBox).toBeChecked();
+      await expect.poll(() => page.evaluate(() => localStorage.getItem('ops-foreignChangesQuestion'))).toBe('true');
+      await noticesDialog.locator('.modal-close-btn').click();
+      await expect(noticesDialog).toBeHidden();
     }
     if (!fixture.foreign) {
       // #804 stap 6: een gewoon bestand rekent ook in de opslagworker van de app. Een echte bewerking, Ctrl+S; de statusbalk

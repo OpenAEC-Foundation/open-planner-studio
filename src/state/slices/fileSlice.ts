@@ -54,7 +54,9 @@ import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
 import { hasBuildingModel, hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
-import { notifyForeignChangesWritten } from '../foreignChangesWrittenNotice';
+import { notifyForeignChangesWritten, writtenForeignChangeCount } from '../foreignChangesWrittenNotice';
+import { askForeignChanges } from '@/services/ifc/foreignChangesQuestion';
+import { saveForeignChangesQuestion } from '@/utils/settingsStore';
 import { castDraft } from 'immer';
 import {
   bomMark, documentSaveCompute, prepareIfcOutput, planOnlyQuestionApplies, withUtf8Bom, writtenFingerprint, IfcWriteBlockedError,
@@ -909,6 +911,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return state.documents.find(document => document.id === documentId)?.payload ?? null;
   };
 
+  const countShownBeforeWrite = new WeakSet<PreparedIfcWrite>();
+  const notifyWritten = (prepared: PreparedIfcWrite | undefined, file: () => string, downloaded = false) => {
+    if (prepared && countShownBeforeWrite.has(prepared)) return;
+    notifyForeignChangesWritten(get().notify, prepared, file, downloaded);
+  };
+
   const commitSavedDocument = (
     document: DocumentContentRef,
     savedSource: IFCSaveSource,
@@ -918,7 +926,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     written: TargetFingerprint | null = null,
     writtenName?: string,
   ): boolean => {
-    notifyForeignChangesWritten(get().notify, prepared, () => writtenName ?? destination?.filePath ?? '');
+    notifyWritten(prepared, () => writtenName ?? destination?.filePath ?? '');
     if (!sameDocumentContent(get(), document)) return false;
     const documentId = document.id;
     const currentSource = saveSourceForDocument(get(), documentId);
@@ -1372,6 +1380,19 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return save.finally(() => set(s => { changeSaving(s, requested, -1); }));
   };
 
+  const confirmForeignChanges = async (state: AppState, write: IfcOutput, file: string | null): Promise<boolean> => {
+    const count = writtenForeignChangeCount(write.prepared);
+    if (count === 0 || !state.ui.foreignChangesQuestion) return true;
+    const answer = await askForeignChanges({ count, file });
+    if (!answer.save) return false;
+    countShownBeforeWrite.add(write.prepared!);
+    if (answer.dontAskAgain) {
+      get().setUI({ foreignChangesQuestion: false });
+      void saveForeignChangesQuestion(false);
+    }
+    return !refuseChangedDocumentWrite(state, write);
+  };
+
   let saveAttemptSequence = 0;
   const writeActiveDocument = (requested: DocumentContentRef, onTurn: () => void): Promise<boolean> => runProjectFileWrite(async () => {
     onTurn();
@@ -1424,6 +1445,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, 'merge'));
       if (!write || refuseChangedDocumentWrite(state, write)) return false;
+      const questionFile = ownPath ? basename(ownPath.path) : ownHandle ? ownHandle.handle.name
+        : ref?.kind === 'site' && siteStorageAvailable() ? documentFileName(state) : null;
+      if (!(await confirmForeignChanges(state, write, questionFile))) return false;
       const ownWritten = ref && !handleRefused && !write.prepared ? writtenKnownTarget(start, ref) : null;
       const bomData = ownBomVersion && !handleRefused && !write.prepared ? withUtf8Bom(writerData(write)) : null;
       const bomHashing = bomData && write.sha256 !== undefined ? writtenFingerprint(state.ui.featureFlags, format, write, bomData) : null;
@@ -1499,11 +1523,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return false;
       if (write.prepared && outcome.viaDownload && ref?.kind === 'handle' && hasBuildingModel(state.ifcSource)) {
         get().notify(downloadCopyNotice(outcome.name));
-        notifyForeignChangesWritten(get().notify, write.prepared, () => outcome.name, true);
+        notifyWritten(write.prepared, () => outcome.name, true);
         return false;
       }
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
-      if (write.prepared && outcome.viaDownload) notifyForeignChangesWritten(get().notify, write.prepared, () => outcome.name, true);
+      if (write.prepared && outcome.viaDownload) notifyWritten(write.prepared, () => outcome.name, true);
       const saved = write.prepared && outcome.viaDownload
         ? commitSavedDocument(snapshotContent(state), state)
         : commitSavedDocument(snapshotContent(state), state, localDestination(outcome, format), write.prepared, false, fingerprint);
@@ -1554,6 +1578,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     try {
       const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, missingSourceSaveAs ? 'planOnly' : 'merge'), planOnly);
       if (!write || refuseChangedDocumentWrite(state, write, missingSourceSaveAs)) return;
+      if (!(await confirmForeignChanges(state, write, null))) return;
       if (siteStorageAvailable()) {
         const choice = await askSiteSave({ defaultName: siteDefaultName(state) });
         if (!choice) return;
@@ -1577,7 +1602,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return;
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
       if (write.prepared && outcome.viaDownload) {
-        notifyForeignChangesWritten(get().notify, write.prepared, () => outcome.name, true);
+        notifyWritten(write.prepared, () => outcome.name, true);
         commitSavedDocument(snapshotContent(state), state);
       } else commitSavedDocument(snapshotContent(state), state, localDestination(outcome, attemptFormat(state)), write.prepared, missingSourceSaveAs, fingerprint);
       if (!sameDocumentContent(get(), snapshotContent(state))) return;

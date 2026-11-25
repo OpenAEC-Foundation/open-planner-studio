@@ -1,4 +1,6 @@
-import { applyForeignRule, emptyForeignReferences, goneStepIds, newForeignChangeCount } from '@/services/ifc/foreign/changeList';
+import {
+  applyForeignRule, emptyForeignReferences, foreignChangeCount, goneStepIds, newForeignChangeCount, type ForeignRuleOutcome,
+} from '@/services/ifc/foreign/changeList';
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import type { AppState } from './appStore';
@@ -12,13 +14,20 @@ function linkedSource(state: AppState): IfcSource | undefined {
   return source.foreignReferences || source.unusedKeys ? source : undefined;
 }
 
+function ruleOutcome(source: IfcSource, domain: DomainBeforeEdit): ForeignRuleOutcome {
+  return applyForeignRule(source.foreignReferences ?? emptyForeignReferences(),
+    goneStepIds(source.stepIds, { ...domain, resourceCalendars: domain.calendars }), source.unusedKeys);
+}
+
 export function foreignLinksDroppedSince(state: AppState, before: DomainBeforeEdit): number {
   const source = linkedSource(state);
   if (!source) return 0;
-  const references = source.foreignReferences ?? emptyForeignReferences();
-  const outcome = (domain: DomainBeforeEdit) => applyForeignRule(references,
-    goneStepIds(source.stepIds, { ...domain, resourceCalendars: domain.calendars }), source.unusedKeys);
-  return newForeignChangeCount(outcome(before), outcome(state));
+  return newForeignChangeCount(ruleOutcome(source, before), ruleOutcome(source, state));
+}
+
+export function foreignChangesIfSaved(state: AppState): number {
+  const source = linkedSource(state);
+  return source ? foreignChangeCount(ruleOutcome(source, state)) : 0;
 }
 
 export function notifyForeignLinksDropped(store: { getState: () => AppState }, before: DomainBeforeEdit, sequence: number): void {

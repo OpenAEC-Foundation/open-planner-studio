@@ -1572,6 +1572,14 @@ test('dialoog-guard: een open modaal blokkeert de document-/bestands-tools en de
   } finally {
     useAppStore.setState({ ui: { ...S().ui, pendingPlanOnlyQuestion: null } });
   }
+  useAppStore.setState({ ui: { ...S().ui, pendingForeignChangesQuestion: { count: 3, file: 'model.ifc' } } });
+  try {
+    const tool = await callErr('planner_list_documents');
+    assertEq(tool.code, 'DIALOG_OPEN', 'een tool wacht op de vraag vóór opslaan');
+    assert(tool.error.includes('pendingForeignChangesQuestion'), 'de fout noemt de vraag bij naam');
+  } finally {
+    useAppStore.setState({ ui: { ...S().ui, pendingForeignChangesQuestion: null } });
+  }
 
   // Dialoog dicht ⇒ dezelfde call slaagt weer (bewijst dat de vlag de oorzaak was).
   await callOk('planner_list_documents');

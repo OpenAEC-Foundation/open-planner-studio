@@ -8,13 +8,14 @@
 
 import { createDefaultUI } from '@/state/slices/uiSlice';
 import type { UIState, UITheme } from '@/state/slices/types';
+import type { AppState } from '@/state/appStore';
 import {
   BAR_SPLIT_MODES, DATE_NOTATIONS, DISSOLVE_SUMMARY_MODES, DURATION_DISPLAYS, TIME_NOTATIONS, UI_FONT_FAMILIES, UI_FONT_SCALES,
 } from '@/state/slices/types';
 import {
   saveAiAutostart, saveAllowMixedDayHour, saveAutoFitColumns, saveBarSplitMode, saveCompressNonWorkdays,
   saveConstructionMode, saveDateNotation, saveDebugTerminalEnabled, saveDissolveSummaryMode, saveDocumentChromeStyle, saveDurationDisplay,
-  saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs, saveShowClassicViewControls, saveShowTaskTypes,
+  saveForeignChangesQuestion, saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs, saveShowClassicViewControls, saveShowTaskTypes,
   saveTimeNotation, saveUIFontFamily, saveUIFontScale, saveZoomSettings, startTheme,
 } from '@/utils/settingsStore';
 import { profileCountsWorkdays } from '@/utils/taskDuration';
@@ -23,6 +24,7 @@ import { AI_MODE_AVAILABLE, DOWNLOAD_STATS_AVAILABLE } from '@/utils/buildFlags'
 import { displayDate } from '@/utils/displayDate';
 import { localTodayIso } from '@/utils/dateUtils';
 import { FORMAT_NOTICE_KINDS } from '@/services/formatNoticeKinds';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { applyAutoCalcCPM, applySetting, applyTheme } from '../applySetting';
 import { LANGUAGE_OPTIONS, LanguageSelect } from '../settingControls';
 import {
@@ -218,6 +220,13 @@ const ENTRIES: readonly SettingEntry[] = [
     binding: bind('formatNoticeHidden', saveFormatNoticeHidden),
     searchTexts: t => FORMAT_NOTICE_KINDS.map(kind => t(`formatNotice.formats.${kind}.name`)),
   },
+  {
+    kind: 'toggle', id: 'foreignChangesQuestion', group: 'notices', labelKey: 'settings.foreignChangesQuestion',
+    hintKey: 'settings.foreignChangesQuestionHint', keywordsKey: 'settings.keywords.foreignChangesQuestion',
+    binding: bind('foreignChangesQuestion', saveForeignChangesQuestion),
+    requires: { met: s => ifcForeignContentEnabled(s.ui.featureFlags), reasonKey: 'settings.ifcForeignContent', hide: 'always' },
+    inputProps: { 'data-ops-setting-foreign-changes-question': '' },
+  },
 
   // Geavanceerd
   {
@@ -332,6 +341,14 @@ export function isSettingChanged(entry: SettingEntry, ui: UIState): boolean {
   const binding = entry.binding;
   if (!binding) return false;
   return !sameValue(ui[binding.field], defaultSettingValue(binding));
+}
+
+export function settingMet(entry: SettingEntry, state: AppState): boolean {
+  return !entry.requires || entry.requires.met(state);
+}
+
+export function settingHidden(entry: SettingEntry, met: boolean): boolean {
+  return entry.requires?.hide === 'always' && !met;
 }
 
 export function resetSetting(entry: SettingEntry): void {

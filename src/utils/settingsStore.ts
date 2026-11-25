@@ -891,3 +891,7 @@ export function saveMcpToken(value: string): void {
 export async function saveFormatNoticeHidden(value: readonly FormatNoticeKind[]): Promise<void> {
   await setSetting('formatNoticeHidden', [...value]);
 }
+
+export async function saveForeignChangesQuestion(value: boolean): Promise<void> {
+  await setSetting('foreignChangesQuestion', value);
+}

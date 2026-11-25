@@ -36,6 +36,7 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     // (`refusedWriteTarget` in src/state/ifcForeignGuard.ts).
     texts: [
       'common:documents.changedOnDisk',
+      'common:foreignChangesQuestion.*',
       'common:ifcExportWithoutModel.*',
       'common:ifcMissingSourceSaveAs.*',
       'common:notifications.exportPlanOnly',
@@ -74,6 +75,9 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
       'common:notifications.ifcUnreadableTargetAutoSave',
       'common:notifications.ifcUnreadableTargetExport',
       'common:notifications.ifcUnreadableTargetSave',
+      'common:settings.foreignChangesQuestion',
+      'common:settings.foreignChangesQuestionHint',
+      'common:settings.keywords.foreignChangesQuestion',
       'menu:projectInfo.ifcSchema.foreignLocked',
       'task:properties.elementLinks.*',
     ],
