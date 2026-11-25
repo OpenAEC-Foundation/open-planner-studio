@@ -101,7 +101,7 @@ import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerEx
 import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementSettled } from '@/services/fileAccess/writeCoordinator';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
-  changeSaving, clearChangedOnDisk, holdSnapshotEvent, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
+  changeSaving, clearChangedOnDisk, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
   sameDocumentContent, stampSaved, type DocumentContentRef,
 } from '../documentSaveState';
 import { saveQuestionOpen } from '@/state/blockingDialogs';
@@ -116,7 +116,7 @@ import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
 import { exportFileSuffix } from '@/i18n/exportFileSuffix';
-import { invalidateDocumentRedo, removeSessionHistoryForDocumentFromState, selectUndoHistoryEvent } from '../sessionHistory';
+import { invalidateDocumentRedo, removeSessionHistoryForDocumentFromState } from '../sessionHistory';
 import { scheduleFailedNotice } from '../scheduleErrorNotice';
 import { browserSaveNotice } from '../browserSaveNotice';
 import { basename, ensureExtension } from '@/utils/filePath';
@@ -400,7 +400,6 @@ export interface FileSlice {
   saveFileForDocument: (documentId: string) => Promise<boolean>;
   saveFileAs: () => Promise<void>;
   commitSavedDocument: (document: DocumentContentRef, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite, missingSourceSaveAs?: boolean, written?: TargetFingerprint | null, writtenName?: string) => boolean;
-  captureDocumentWrite: (document: DocumentContentRef, snapshot: Pick<AppState, 'historyEvents'>) => () => void;
   exportAs: (format: ExportFormat, options?: ExportOptions) => Promise<ExportResult>;
   exportProjectWithPool: () => Promise<ExportResult>;
   recordLiteralCalendarsWritten: (documentId: string, ids: readonly string[]) => void;
@@ -878,13 +877,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return state.documents.find(document => document.id === documentId)?.payload ?? null;
   };
 
-  const captureDocumentWrite = (document: DocumentContentRef, snapshot: Pick<AppState, 'historyEvents'>): (() => void) => {
-    const eventId = selectUndoHistoryEvent(snapshot.historyEvents, document.id)?.id;
-    if (eventId === undefined) return () => {};
-    set(s => { holdSnapshotEvent(s, document, eventId); });
-    return () => set(s => { holdSnapshotEvent(s, document, undefined); });
-  };
-
   const commitSavedDocument = (
     document: DocumentContentRef,
     savedSource: IFCSaveSource,
@@ -1355,7 +1347,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const state = get();
     if (state.activeDocumentId !== documentId || !sameDocumentContent(state, requested)) return false;
     if (refuseForeignDocumentWrite(state)) return false;
-    const releaseCapture = hasForeignContent(state.ifcSource) && ifcForeignContentEnabled(state.ui.featureFlags) ? captureDocumentWrite(requested, state) : () => {};
     let siteName: string | null = null;
     let handleWriteFailed = false;
     const failureNoticeKey = `project-save:${++saveAttemptSequence}`;
@@ -1486,8 +1477,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       notifyWriteError(err);
       return false;
-    } finally {
-      releaseCapture();
     }
   }, () => false);
 
@@ -1516,7 +1505,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!missingSourceSaveAsAllowed(state) || state.foreignSourceMark !== before.foreignSourceMark
         || state.ifcSource !== before.ifcSource) return;
     } else if (refuseForeignDocumentWrite(state)) return;
-    const releaseCapture = hasForeignContent(state.ifcSource) && ifcForeignContentEnabled(state.ui.featureFlags) ? captureDocumentWrite(requested, state) : () => {};
     let siteName: string | null = null;
 
     try {
@@ -1559,8 +1547,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       console.error('Save As failed:', err);
       get().notify(newTargetWriteNotice(err)
         ?? { severity: 'error', messageKey: 'notifications.saveFailed', detail: saveErrorDetail(err) });
-    } finally {
-      releaseCapture();
     }
   };
 
@@ -1581,7 +1567,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   const slice: FileSlice = {
     commitSavedDocument,
-    captureDocumentWrite,
     applyProjectEdit: (parsed, opts) => get().applyLoadedProject(parsed, {
       intent: 'edit',
       recompute: true,

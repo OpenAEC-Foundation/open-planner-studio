@@ -14,7 +14,7 @@ import type { AppState } from './appStore';
 import { DOCUMENT_FIELDS } from './documentContract';
 import { selectUndoHistoryEvent } from './sessionHistory';
 import type { Snapshot } from './snapshot';
-import type { AppNotification, NotifyInput } from './slices/types';
+import type { NotifyInput } from './slices/types';
 import { TASK_TYPES_HELP_ARTICLE_ID } from './helpArticles';
 import { isHourTask, workRuleApplies } from '@/engine/work/workRuleApply';
 import { shownRemainingWorkMinutes, shownWorkHours } from '@/engine/work/shownWork';
@@ -29,7 +29,7 @@ export const OTHER_WORK_NOTICE_KEY = 'other-work-changed';
 const OTHER_WORK_NOTICE_MS = 12000;
 
 type WorkState = Pick<Snapshot, 'tasks' | 'assignments' | 'resources' | 'calendars' | 'calendar'>;
-export type NoticeStore = Pick<StoreApi<AppState>, 'getState' | 'subscribe'>;
+type NoticeStore = Pick<StoreApi<AppState>, 'getState' | 'subscribe'>;
 
 /** Wat *Werk (u)* per werkresource van de taak toont, in minuten. Materiaal en kosten tonen een
  *  streepje en tellen niet mee; zonder werkregel op de taak (fase, mijlpaal) is de lijst leeg. */
@@ -67,35 +67,16 @@ function noticeData(state: AppState): unknown[] {
  *  wijziging die dat breekt (een nieuwere stap, Ctrl+Z, een ander document, een bibliotheekverversing) haalt
  *  haar definitief weg, dus ook Ctrl+Z van wat daarna kwam brengt haar niet terug (review #1120 ronde 4
  *  en 5). Zo kloppen haar cijfers zolang ze er staat, en zet haar knop alleen haar eigen stap terug. */
-export function watchNotice(
-  store: NoticeStore,
-  eventId: string,
-  stillValid: (state: AppState) => boolean = () => true,
-  suspended: (state: AppState) => boolean = () => false,
-): void {
+function watchNotice(store: NoticeStore, eventId: string): void {
   const data = noticeData(store.getState());
-  const ours = (n: AppNotification) => n.action?.kind === 'undoHistoryEvent' && n.action.eventId === eventId;
-  let held: AppNotification | undefined;
-  const check = (s: AppState) => {
-    const notice = s.ui.notifications.find(ours);
-    if (!notice && !held) { stop(); return; } // tijd om, kruisje of vervangen
+  const stop = store.subscribe((s) => {
+    const notice = s.ui.notifications.find((n) => n.action?.kind === 'undoHistoryEvent' && n.action.eventId === eventId);
+    if (!notice) { stop(); return; } // tijd om, kruisje of vervangen
     if (selectUndoHistoryEvent(s.historyEvents, s.activeDocumentId)?.id === eventId
-      && noticeData(s).every((value, i) => value === data[i]) && stillValid(s)) {
-      if (notice && suspended(s)) {
-        held = notice;
-        s.dismissNotification(notice.id);
-      } else if (held && !suspended(s)) {
-        const shown = held;
-        held = undefined;
-        s.notify(shown);
-      }
-      return;
-    }
+      && noticeData(s).every((value, i) => value === data[i])) return;
     stop();
-    if (notice) s.dismissNotification(notice.id);
-  };
-  const stop = store.subscribe(check);
-  check(store.getState());
+    s.dismissNotification(notice.id);
+  });
 }
 
 /**
