@@ -96,6 +96,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { scalarHourFromClock } from '@/services/subdayIo';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { WriteIFCInput } from '../ifcWriter';
+import type { TaskTimeReading } from '../ifcReader';
 import { PER_TASK_PSET_BY_NAME, PROP, PSET, asciiJson, ifcJson } from '../ifcPsets';
 import { WORK_CALENDAR_ARITY, workCalendarSlots, workControlSlots } from '../ifcWorkControlSlots';
 import { lagValueSlot } from '../ifcLagTimeSlots';
@@ -254,9 +255,9 @@ export function pristineDomain(index: StepIndex, cls: Classification, source: If
 /** Idem, met een scan die er al is. */
 export function pristineFromScan(scan: ForeignScanResult, bytes: Uint8Array,
   projectTimestampFallback?: Pick<WriteIFCInput['project'], 'createdAt' | 'modifiedAt'>,
-  unusedAssignmentKeysOut?: Map<string, string[]>): Promise<ImportResult> {
+  unusedAssignmentKeysOut?: Map<string, string[]>, taskTimeReadingsOut?: Map<string, TaskTimeReading>): Promise<ImportResult> {
   const text = new TextDecoder('utf-8').decode(readerBytes(bytes, scan));
-  return readIFCWithXerReconstruction(text, {}, { ...readerOptions(scan), projectTimestampFallback, unusedAssignmentKeysOut });
+  return readIFCWithXerReconstruction(text, {}, { ...readerOptions(scan), projectTimestampFallback, unusedAssignmentKeysOut, taskTimeReadingsOut });
 }
 
 /**

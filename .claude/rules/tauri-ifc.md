@@ -113,7 +113,7 @@ downloadt een Blob, ook met FSA (1130). De sitefuncties `saveNewSiteFileBytes` e
 behoudt de conflictkopie van de host. De aanroeper houdt de buffer ongewijzigd tot voltooiing.
 PR 11a sluit de documentroutes aan: nieuwe lokale naam, download en siteversie met basis.
 PR 11b sluit IFC-export en app-MCP aan op dezelfde `state/prepareIfcOutput.ts`, zonder documentcommit.
-De MCP-naad `writeNewUserBytes` gebruikt dezelfde exclusieve byte-ingang; headless biedt haar nog niet, net zo min als `replaceUserBytes` (de vervanging van een bestaande naam, zie `mcp.md`). Bestaande tekst-/PDF-routes
+De MCP-naad `writeNewUserBytes` gebruikt dezelfde exclusieve byte-ingang; headless levert haar zelf (`nodeFs.ts`: eigen halffabricaat, `fsync`, `link` naar de nieuwe naam), maar niet `replaceUserBytes` (de vervanging van een bestaande naam, zie `mcp.md`). Bestaande tekst-/PDF-routes
 veranderen niet. Bestaande vreemde lokale doelen en de bronhash horen bij fase 2 (1131).
 
 The application's persistence model is IFC 4.3 (buildingSMART). Loading a project = parsing IFC via `src/services/ifc/ifcReader`; saving = serializing the entire app state via `ifcWriter`. There is no separate JSON project format. When adding new domain data (tasks, sequences, resources, assignments, calendar), it must round-trip through the IFC layer or it will be lost on save/reload. CSV/MS Project/P6 services in `src/services/` are import/export adapters, not the source of truth. The other `src/services/` areas — `fileAccess/` (Tauri↔web bestands-I/O + handle-backed recents), `recovery/` (auto-save/restore, Tauri fs + web IndexedDB), `actualAutosave/` (opt-in, promptvrije writes to an existing project file), `benchmark/` (ingebouwde benchmark-tool via Instellingen), `print/` (printvoorbeeld), `pdf/` (vector-PDF-export via `pdf-lib`; Arabic and Persian stay vector, while CJK rasterizes only without an optional `pdf-fonts` extension), `updater/`, `feedback/` (feedbackdialoog + screenshot-annotator), `mcp/` (AI-assistent, zie `.claude/rules/mcp.md`) and `debug/appLog` (log-bus achter de DebugTerminal) — are app plumbing with no IFC impact. `library/` is de uitzondering: bibliotheekdata is app-globaal, maar herkomststempels round-trippen wél door het project-IFC (zie *Resourcebibliotheken*).
@@ -146,6 +146,14 @@ Besluiten van de helpers voor de IFC-, MSPDI-, P6 XML-, XER- en `.mpp`-adapters 
 `0322-kloktijd-en-duur-als-tekst-in-de-adapters.md`, `0323-werkdag-en-uren-per-dag-uit-werkblokken.md`,
 `0324-werkdagen-wisselen-in-een-uurkalender.md`, `0325-soort-mijlpaal-op-een-blokgrens.md` en
 `0326-kalender-en-duur-van-een-taak-bij-het-schrijven.md`.
+
+### De P6 XML-writer (`p6/p6xmlWriter.ts`)
+
+Besluiten van de writer van P6 XML: `docs/adr/0360-p6xml-schrijven-indeling-objectids-en-volgorde.md`,
+`0361-p6xml-schrijven-eigen-ops-velden.md`, `0362-p6xml-schrijven-kalenders.md`,
+`0363-p6xml-schrijven-duur-rest-en-lag.md`, `0364-p6xml-schrijven-voortgang-type-duursoort-en-datums.md`,
+`0365-p6xml-schrijven-resources-toewijzingen-en-curves.md`, `0366-p6xml-schrijven-project-naam-id-en-rekenopties.md` en
+`0367-p6xml-schrijven-wat-niet-meegaat.md`. De lezer staat in de regel `xer`.
 
 ### Bestandsschema per project
 
@@ -287,6 +295,41 @@ zonder levende taak de GlobalId waarmee hij haar zocht in `ImportResult.baseline
 van een pset, template of relatie niet. Een pset of `IfcRelDeclares` met een niet-lege ledenlijst van uitsluitend
 vreemde leden (die de merge schrijft om ze te bewaren) is geen groep; een lege lijst of minstens één eigen lid wel. Een slot dat (b) terugzette, toetst (c) apart (hieronder, per slot). Niet getoetst: een groep waarin (c) zo'n slot niet eenduidig aanwijst, en de bronbytes zelf.
 Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren. Proef: `check-ifc-foreign-eigen-uitvoer.ts`.
+
+**De toets op de taaktijden** (knownbug 2231, fixronde 4 van #1216). De maat is "niet blinder dan main": geen bron buiten
+het bestand mag iets verbergen wat de controle van main wel ziet. Binnen "datums zoals opgeslagen" weigerde main elke opslag,
+dus daar is deze toets de bewaker; buiten de modus blijft de controle die van main (knownbug 2360). Alleen voor uitvoer die de
+writer zelf schreef, in de modus (`recordedSourceFormat` van de invoer), direct na de ongewijzigde vergelijking na heropenen,
+met dezelfde soort `planning-na-openen`. `taskTimeSlotProblem` (`foreign/taskTimeExpectation.ts`) leest per taak de
+argumenten 3 tot en met 19 van `IFCTASKTIME` strikt: alles wat de gewone lezer zou herstellen, aanvullen, afronden of uit een
+hulprecord terugzetten, weigert, tenzij het een letterlijk teruggezette bronwaarde is. De verwachting is de momentopname van
+wat de planner zag (de invoer van de merge), niet de bronvorm; die bepaalt alleen wat de merge schrijft.
+
+Leeg hoort een slot volgens `withheldTaskTimeFields` van de momentopname, bij gereedheid 0 (`ifcCompletionReal`), zonder
+werkelijke datum, duur of rest, en de statustijd alleen bij een werkelijke datum. Een bronwaarde van de herleestoets (b)
+(`sourceTokens`) moet er letterlijk staan, en ook een rekenslot dat in de bron leeg was en dat de planner niet wijzigde: de
+bronvorm laat het leeg (`emptySlots` van `sourceFormWhereUnchanged`, alleen in de modus), en de toets eist daar `$`. Strikt per
+argument: de regel heeft precies twintig argumenten, elk expliciet. Een tijdstip is `'JJJJ-MM-DDTuu:mm:00'` zonder zone, een
+bestaande datum en kloktijd (`isStrictIsoDateTime`); op de dagweg (de lezer leest de dag) alleen om 07:00 (`IFC_TIME_ANCHOR`);
+een datum zonder tijd gaat aan beide kanten door `normalizeTaskDate`, zoals bij laden, want de momentopname draagt tijdstippen.
+De statustijd telt tot op de minuut, en bij een peildatum zonder tijd is het de dag om 07:00 (dagtaak) of 00:00 (urentaak).
+Het duurtype en de kritieke vlag zijn het geschreven lid; de gereedheid is een STEP REAL met hetzelfde decimale getal
+(`sameNumber`). Een duur staat tussen aanhalingstekens en geeft de dagen, de eenheid en de minuten die de planner zag
+(dezelfde duur in een andere ISO 8601-schrijfwijze, en de werkdag van de taakkalender). Een hulprecord (`DayMeasureDurations`,
+`ExactMinutes`, `ExactFloat`) telt alleen als het geschreven slot zijn drager is: de minuten van het slot zijn het tweede getal
+van het record, en dat getal hoort bij het eerste (`dayMeasureMinutes` met de werkdag van de taak, `exactMinutesRecord`; bij
+`ExactFloat` de hele dagen van het slot, `wholeFloatDays`). Anders weigert de toets, ook als de lezer het record zou negeren.
+
+Het geschreven slot leest de lezer zelf, in de lezing die de controle al doet: `taskTimeReadingsOut` van `readIFC` legt per
+taak de ruwe argumenten vast, alleen de velden van de taaktijd die de toets vergelijkt, de werkdag van de taak en de
+hulprecords zoals de lezer ze las, na `applyTaskTimeRecords`. Op dat moment is al gebeurd: de slotlezing (`parseTaskTime`),
+de nulduur van een mijlpaal in `extractTasks` (de vastlegging zet de duur uit het slot terug bij een dagtaak), de uurmodus
+(`applyHourModeIFC`), `fillEmptyComputedDateSlots` (een leeg vroeg of laat slot heeft dan al de geplande datum; de aanwezigheid
+oordeelt daarom op het argument) en de hulp-psets. Daarna komen nog `reconcileP6SuspendResume`, `resolveMissingScheduleDates`,
+`normalizeImportedProgress` en de berekening bij het laden; die ziet de toets niet. De toets voegt geen schrijf-, scan- of
+parseerronde toe. Proef: `check-ifc-foreign-opgeslagen-datums.ts` (de eigenschapsproef: per stand in de modus, per taaksoort
+en per tijdslot een vaste reeks soorten verschil per soort slot, ook een onbestaande datum, een argument te weinig of te veel
+en een hulprecord dat met het slot meeverandert of zonder bijpassend slot staat).
 
 De andere toets in de verliescontrole (PR 12b, `ownGroups` in `LossCheckInput`, `openedOwnGroups` in `mergeWriter.ts`):
 een verschil in O1 in een eigen groep op projectniveau (dezelfde indeling, op de bronregels) hoeft geen bewerking te
@@ -493,7 +536,7 @@ grens; een bestand dat door opslaan boven de drempel komt, opent daarna met de w
 `check-ifc-foreign-grens.ts` (de drempel verlaagd met de proefnaad `lowerForeignOpenWarnBytesForTests`, door de echte
 routes en de echte herstelvraag; boven de technische grens met een nagebootste lengte), `check-one-file-one-tab.ts` (een
 al open model boven de drempel), `tests/mcp/cases-doc-file.ts` (de app) en `tests/mcp/cases-headless-server.ts`
-(headless zoals main).
+(headless zonder waarschuwing).
 
 ### Auteur en bedrijf (#804 fase 1c)
 

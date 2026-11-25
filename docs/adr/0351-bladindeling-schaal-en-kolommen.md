@@ -16,19 +16,21 @@ tabel), dan is de schaal 1 in plaats van oneindig.
 - Kolom 0 toont de bron vanaf x = 0, met de tabel erin. Elke volgende kolom begint met de tabel (`srcX` 0, op
   `marginPt`) zolang `frozenPx` en `frozenPtW` groter zijn dan 0, en daarna het stuk bron dat aansluit op de vorige
   kolom, zonder gat of overlap. Bij `fit-width` eindigt de laatste kolom wiskundig precies op `logicalWidth`, als de
-  bron minstens zo breed is als de herhaalde strook. Bij een smallere bron krijgen de latere kolommen een negatieve
-  bronbreedte; de lege Gantt-render (`renderReport` in `printPreview.ts`) is 600 px breed en geeft toch de volle
-  tabelbreedte door, die tot 800 px kan zijn.
+  bron minstens zo breed is als de herhaalde strook. Bij een smallere bron krijgt het tijdasvenster van elke latere
+  kolom een negatieve bronbreedte; de lege Gantt-render (`renderReport` in `printPreview.ts`) is 600 px breed en geeft
+  toch de volle tabelbreedte door, en die kan breder zijn: de 800 px van `NAME_COLUMN_AUTO_MAX` begrenst alleen de
+  naamkolom, vóór de letterschaal (knownbug 2336 noemt tabellen van 810 en 1310 px).
 - Bij `actual` is het aantal kolommen `1 + ⌈(logicalWidth − printW / scale) / ((printW − frozenPtW) / scale)⌉` als de
   bron breder is dan één blad en er naast de tabel ruimte overblijft; anders één kolom. Een tabel die minstens zo breed
-  is als de afdrukbare breedte laat zo de tijdas wegvallen, en net daaronder ontstaan duizenden bladen (knownbugs 2336
-  en 2337, issue #1238).
+  is als de afdrukbare breedte laat zo de tijdas wegvallen, en net daaronder kunnen duizenden bladen ontstaan
+  (knownbugs 2336 en 2337, issue #1238).
 - `timelineColumns` geldt alleen bij `fit-width`. De functie neemt er het gehele deel van, minstens 1 en hoogstens
   `MAX_TIMELINE_COLUMNS` (32); een niet-eindige waarde wordt 1. Bij vaste bronmaten en een kleine of geen herhaalde
   strook groeit de schaal en daarmee het aantal bladrijen mee met N, zodat het paginatotaal ongeveer kwadratisch in N
-  oploopt. In de gewone Gantt-route verbreedt de render de bron met N en blijft de schaal op 0,75 (ADR 0234). Zonder de
-  bovengrens bouwde
-  een doorgegeven 1e6 volgens het weggehaalde commentaar een miljoen kolomobjecten. Het Rapport-tabblad biedt 1 tot en met 8
+  oploopt. In de gewone Gantt-route verbreedt de render de bron met N en blijft de schaal op 0,75 zolang er naast de
+  tabel minstens 1 px overblijft; anders verkleint de pagineerder de hele bron (ADR 0234). Op A4 staand met een tabel
+  van 810 px is de bron bij één blad breed 811 px en de schaal ongeveer 0,675. Zonder de bovengrens bouwde een doorgegeven 1e6 volgens
+  het weggehaalde commentaar een miljoen kolomobjecten. Het Rapport-tabblad biedt 1 tot en met 8
   (`TIMELINE_COLUMNS_MAX` in `reportSettings.ts` en de knoppen in `GanttReportStudio.tsx`); 32 laat daarboven ruim
   marge voor elke andere aanroeper.
 - Een niet-eindige of negatieve `logicalWidth` of `logicalHeight` wordt 0, omdat schaal, aantallen en vensters delingen

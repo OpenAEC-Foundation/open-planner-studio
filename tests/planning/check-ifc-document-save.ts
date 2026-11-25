@@ -24,6 +24,8 @@ import { replaceRecordId } from '@/services/fileAccess/replaceRecords';
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
 import { openInStore, loadStore } from './ifcAppRoute';
+import { recordedExample } from './opgeslagenDatumsVoorbeeld';
+import { shownFinish, shownStart } from '@/utils/taskDates';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { openSecondTabOn } from './sameFileTabFixture';
 import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
@@ -1113,6 +1115,34 @@ await check('handle Ctrl+S drie keer (taak, duur, relatie; de derde via de sluit
       assert.equal((await loadRecovery()).docs.find(d => d.id === now.activeDocumentId)?.ifcSource?.sha256, hash(output));
       previous = output;
     }
+    assert.equal(browser.downloads.length, 0, 'geen download');
+  } finally { unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+await check('handle Ctrl+S in "datums zoals opgeslagen" (knownbug 2231): ongewijzigd de bron byte voor byte, na hernoemen geschreven, het tabblad schoon, dezelfde getoonde datums', async () => {
+  const source = await recordedExample();
+  const { store, name } = await openHandle(source), unregister = recoveryRounds(store), browser = browserDownload();
+  const errors = () => store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey);
+  const dates = (s: Store) => s.getState().tasks.map(t => [t.id, t.name, shownStart(t), shownFinish(t)]);
+  try {
+    assert.equal(store.getState().datesAsRecorded, true, 'geopend in "datums zoals opgeslagen"');
+    clearNotices(store);
+    assert.equal(await ctrlS(store), true, 'Ctrl+S zonder bewerking');
+    assert.equal(hash(fileOf(name)), hash(source), 'de bron byte voor byte terug');
+    assert.deepEqual(errors(), []);
+    const task = leaf(store);
+    store.getState().updateTask(task.id, { name: `${task.name} (hernoemd)` });
+    assert.equal(store.getState().datesAsRecorded, true, 'een naam laat de modus staan');
+    const before = dates(store);
+    writableLog.length = 0;
+    assert.equal(await ctrlS(store), true, 'Ctrl+S na hernoemen');
+    assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`], 'één vervanging, de hele buffer in één write');
+    assert.notEqual(hash(fileOf(name)), hash(source), 'de merge schreef de wijziging');
+    assert.equal(store.getState().isDirty, false, 'het tabblad is schoon');
+    assert.deepEqual(errors(), []);
+    const { store: reopened } = await openInStore(fileOf(name), name);
+    assert.equal(reopened.getState().datesAsRecorded, true, 'heropend in "datums zoals opgeslagen"');
+    assert.deepEqual(dates(reopened), before, 'dezelfde getoonde datums');
     assert.equal(browser.downloads.length, 0, 'geen download');
   } finally { unregister(); browser.dispose(); await clearRecovery(); }
 });

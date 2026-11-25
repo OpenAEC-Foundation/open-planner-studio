@@ -1,6 +1,5 @@
 // X9 — P6XML is geen gelijkwaardige XER-archiefadapter. Deze smoke bewaakt de zichtbare asymmetrie.
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
-import { readFileSync } from 'node:fs';
 import { readP6XML } from '@/services/p6/p6xmlReader';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { createDefaultProject } from '@/state/defaults';
@@ -44,10 +43,9 @@ expect('2 P6XML claimt geen XER/P6-veldpariteit (behalve DurationType, taaktypes
   && roundTripped?.p6ActivityType === 'TT_Task'
   && roundTripped?.p6ProjectId !== undefined && roundTripped?.p6ProjectId !== 'XER-PROJ'
   && roundTripped?.p6TaskId !== undefined && roundTripped?.p6TaskId !== 'XER-TASK');
-expect('3 de asymmetrie is als TODO in de writer vastgelegd',
+expect('3 P6XML schrijft de geplande duur zonder waarschuwing',
   warnings.length === 0
-  && xml.includes('<PlannedDuration>')
-  && readFileSync(new URL('../../src/services/p6/p6xmlWriter.ts', import.meta.url), 'utf8').includes('TODO(X9/P6XML)'));
+  && xml.includes('<PlannedDuration>'));
 // Contour-engine-vervolgafspraak (2026-09, taaktypes-etappe): `<DurationType>` is de ENE asymmetrie
 // die niet langer tweerichtingsverkeer mist op de lezer — writeP6XML schrijft het element niet (zie
 // hierboven, assertie 2/3 blijven onveranderd waar), maar readP6XML leest het nu wél wanneer een
