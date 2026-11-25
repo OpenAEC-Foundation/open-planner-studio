@@ -2015,6 +2015,87 @@ en noem het in je rapport of PR-tekst.
      aantallen C, A en V. Dat is extra werk bij het openen van een groot bestand, geen fout in de uitkomst. Richting:
      dit pad de gewone workersessie en `scanForeign` geven. Gezien in de code door de reviewer van #1180
      (GPT-6.2-Sol, ronde 2). — B (code)
+2232. **Een `LongDescription` (of een ander constant slot) van een ander programma in een bestand zonder vreemd deel gaat bij
+     opslaan verloren.** Flag aan, een eigen bestand waarin een ander programma een `LongDescription` op een taak zette
+     (zonder iets anders van zichzelf: dan is er geen vreemd deel). De gewone writer schrijft daar `$`, net als op main;
+     `ifcSource.sourceSlots` bestaat alleen bij een vreemd deel (`scanForeignToOpen` in
+     `src/services/ifc/foreign/foreignScan.ts`), en zonder vreemd deel loopt opslaan via `writeIFCWithChoices` in
+     `prepareIfcWrite` (`src/services/ifc/foreign/mergeWriter.ts`). Behoud vraagt de kaart ook zonder vreemd deel, plus de
+     schrijfregel op dat pad. Gemeten (#804 fase 2 PR 2 deel 2, `scanSourceSlots` over alle D- en R-stukken, heap na GC):
+     `showcase-appartementencomplex.ifc` (0,46 MiB, 1.630 stukken) 19 ms en 1,4 MiB; een gegenereerd eigen plan van
+     10.000 taken (11,3 MiB, 53.481 stukken) 366 ms en 50,2 MiB, bovenop de scan en indeling van 654 ms. Dat pad heeft nu
+     geen extra werk en is bytegelijk aan main; daarom bewust niet gebouwd. Richting: de kaart alleen voor stukken met een
+     niet-leeg constant slot, of de tokens bij opslaan uit `ifcSource.bytes` lezen zoals (b). Het verlies volgt uit de code
+     (de schrijffunctie van het slot is `() => '$'` in `ifcTaskSlots.ts`); de kosten zijn gemeten. — B (code)
+2233. **Een `IfcRelDeclares` of `IfcRelDefinesByProperties` van een ander programma draagt de merge niet.** Flag aan, een
+     bestand waarin een ander programma de owner history van zo'n eigen relatie zette (de council-fixture
+     `fix2-vendor-ops.ifc`: een applicatie met identifier `'/*vendor*/OPS'`, dus vreemde herkomst op elk stuk). De kaart
+     bewaart hun tokens, maar `foreignRelations` in `src/services/ifc/foreign/mergeWriter.ts` schrijft alleen `Nests`,
+     `Aggregates`, `AssignsToControl` en `AssignsToProcess` opnieuw; deze twee houden de weigering `vreemde-herkomst`,
+     zoals vóór #804 fase 2 PR 2. Richting: de pset-relatie paren op eigenaar en psetnaam, net als de verliescontrole
+     (`relKeySource`), en de pset zelf ook met haar bewaarde owner history schrijven. Gezien met de meetproef over het
+     corpus (#804 fase 2 PR 2 deel 2). Twee verwante grenzen bij de kalenderhulpstukken van een ander programma (review
+     ronde 2 van #1205): een vrije dag (`IfcWorkTime` in `ExceptionTimes`) met een eigen herkomstlabel
+     (`DataOrigin .USERDEFINED.`, `UserDefinedDataOrigin`) weigert bij het verlengen van die vrije dag met `niet-eenduidig`
+     op die twee slots, want de writer schrijft `.PREDICTED.` en `$`; een werkweek (`IfcWorkTime` in `WorkingTimes`) die
+     haar `IfcRecurrencePattern` deelt met een terugkerende taaktijd weigert elke opslag met `niet-gedragen` op
+     `IfcWorkTime.Recurrence`, omdat de writer een eigen patroon schrijft. Main weigert beide bestanden al op herkomst.
+     Richting: de herhaling gekoppeld houden, en aparte slotbeslissingen voor de datum en de herkomstmetadata. Beide staan
+     als bron in `check-ifc-foreign-regel-c.ts`. — B
+2234. **Een taak tot mijlpaal maken weigert de merge met `bronvorm-leest-anders`, ook bij een eigen planning.** Flag aan,
+     `public/examples/showcase-verbouwing-eengezinswoning.ifc` met een wand van Revit erbij (een vreemd deel), de eerste
+     taak zonder kinderen `isMilestone: true` via `updateTask` en doorrekenen: de opslag weigert, met
+     `time.scheduleFinish: "2027-05-07T07:00" na herlezen in plaats van "2027-05-07T16:00"` (ook `earlyFinish` en
+     `lateFinish`). Het einde in de vorm van de bron (`sourceFormWhereUnchanged`, `src/services/ifc/foreign/sourceForm.ts`)
+     leest na heropenen anders dan wat de planner zag. Geen verlies (de merge weigert), wel een opslag die niet lukt.
+     Nagespeeld met een proef (#804 fase 2 PR 2 deel 2). Dezelfde wortel bij taken van een ander programma (fixronde 1
+     van #1205): wordt de projectkalender bij een opslag letterlijk (een mijlpaal, of een taak met verstreken duur), dan
+     houdt elk ongewijzigd datumslot van zo'n taak zijn brontoken (regel A), en een einde als `'2027-05-12T07:00'` leest
+     in een letterlijke kalender als 07:00 in plaats van 16:00. De merge weigert dan met `bronvorm-leest-anders`; vóór de
+     fixronde schreef hij alle datums van die taken in de vorm van de writer, ook waar de planner niets wijzigde. Een
+     mijlpaal een dag langer maken weigert om dezelfde reden. De pinproef `check-ifc-source-slot-write.ts` legt beide
+     weigeringen vast; `check-ifc-foreign-regel-c.ts` telt ze onder deze grens. — B
+2256. **Een taak zonder volledige taaktijd in de bron weigert de merge als wat de planner zag, afgeleid was.** Flag aan.
+     De merge houdt een taaktijdslot dat de planner niet wijzigde in de vorm van de bron; ontbreekt daar de taaktijd of
+     haar duur, dan leidt herlezen de waarde anders af dan de planner haar zag. Geen verlies (de merge weigert), wel een
+     opslag die niet lukt. Alleen nog in een zelfgemaakte bron: de council-bron
+     `tests/fixtures/ifc-foreign/council/r6opus-twee-werkplannen.na.ifc` met `IfcTask` en `IfcLaborResource` opgevuld tot
+     de lengte van IFC4. Twee reproducties in `check-ifc-foreign-regel-c.ts`: (1) taak `#32 Sub` heeft geen taaktijd en
+     opent op 08:00; na een hernoeming leest de kandidaat `scheduleStart`, `earlyStart` en `lateStart` op 07:00 en weigert
+     met `bronvorm-leest-anders` (47 bewerkingen; met een expliciete taaktijd met start 08:00 aan `#32` schrijft de
+     hernoeming, review ronde 3 van #1205, Sol). (2) `#32 Sub` gewist: `#30 Root` wordt een taak zonder kinderen, haar
+     taaktijd `#31` heeft de duur in het slot van `DurationType` en `$` als `ScheduleDuration`, en herlezen geeft duur 0 in
+     plaats van 5: `planning-na-openen`; een eigen bestand (`writeIFC`) leest de duur wel als 5. Opgelost in herstelronde 4
+     van #1205: een fase die al haar kinderen verliest en geen taaktijd in de bron had (`Ruwbouw` in
+     `tests/fixtures/ifc-foreign/bonsai-4d.ifc`) schrijft nu de taaktijd van de planner (`candidates` in
+     `src/services/ifc/foreign/sourceForm.ts`). Richting voor de rest: een taak die geen kinderen meer heeft, krijgt ook
+     een bestaande taaktijd in de vorm van de writer, en een taak zonder taaktijd in de bron krijgt bij opslaan haar
+     taaktijd met de start gelijk aan de geopende. — B
+2368. **Een toewijzing wissen weigert als dezelfde ploeg twee keer aan die taak hangt.** Flag aan, een bestand van een
+     ander programma met twee `IfcRelAssignsToProcess` die dezelfde resource aan dezelfde taak koppelen (twee inzetten met
+     elk een eigen hoeveelheid). De lezer maakt er twee toewijzingen van zonder vast te leggen uit welke relatie elk kwam,
+     dus bij het wissen van één van de twee is niet vast te stellen welke relatie weg moet. De merge weigert dan met
+     `niet-eenduidig` (`assignmentOrigin` in `src/services/ifc/foreign/assignmentOrigin.ts`, `foreignRelations` in
+     `mergeWriter.ts`); hernoemen en andere bewerkingen schrijven. Ook alle exemplaren wissen vóór één opslag weigert zo,
+     want de verzameling toewijzingen veranderde. Naast `niet-eenduidig` meldt de verliescontrole de stukken die alleen
+     aan de tweede relatie hangen als niet gedragen (haar hoeveelheid, of bij een relatie van OPS haar eigenaarsgegevens);
+     dat volgt uit dezelfde weigering. OPS zelf maakt zo'n paar niet (één resource per taak,
+     `assignResource`). Richting: de lezer laat elke toewijzing haar bronrelatie dragen (GlobalId), dan is het wissen
+     eenduidig. Review ronde 2 van #1205 (Sol); `check-ifc-foreign-regel-c.ts`. — B
+2369. **Een hulpstuk dat twee planningsstukken van een ander programma delen, weigert elke opslag met een wijziging.** Flag aan, een
+     bestand waarin twee `IfcRelSequence` één `IfcLagTime` delen, of twee taken één `IfcTaskTime`, ook als één van de twee
+     eigenaren van OPS-herkomst is. De writer schrijft zo'n hulpstuk per verwijzer opnieuw, dus de opslag zou het gedeelde
+     stuk splitsen. De merge weigert daarom vooraf met `niet-eenduidig` (`sharedHelpers` in `prepareIfcWrite`,
+     `mergeWriter.ts`), ook bij een bewerking elders. Een lag die gedeeld wordt met een reeks buiten de planning (geen
+     P-stuk) schrijft wel, en een opslag zonder wijziging in de planning geeft de bronbytes terug. Richting: het gedeelde hulpstuk één keer schrijven en elke verwijzer laten wijzen naar die ene
+     regel, en alleen splitsen als de planner het veld van één verwijzer wijzigt. Review ronde 2 van #1205 (Sol);
+     `check-ifc-foreign-regel-c.ts`. — B
+2370. **Doorrekenen op een Bonsai-bestand verschuift geen enkele datum.** Flag aan,
+      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: na `schedule()` krijgt *Wand A* (5 dagen) een vroege en late start
+      en een vroeg en laat einde die alle vier op 2026-02-02 09:00 staan. Het ligt niet aan de opslag: na heropenen ziet de
+      planner wat hij zag. Gezien door de bouwer van #1205 tijdens de vaste lijst gewone bewerkingen; niet uitgezocht of het
+      een fout is of bedoeld gedrag (een taak uit een ander programma wordt bij inlezen handmatig gepland). Wordt apart
+      uitgezocht (besluit van de technisch eigenaar, 25 november 2026). — S
 
 2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
      `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
@@ -4206,16 +4287,6 @@ en noem het in je rapport of PR-tekst.
      weg (de writer telt de oorspronkelijke houders en neemt elke uitgegeven rij mee met haar upsert). Richting: een
      integriteitscontrole over de lijst zelf. Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B (proef van de
      reviewer)
-
-2209. **VERVOLG (#1182): de verliescontrole kent de oude lay-outs los van de slottabellen.** `alignment` in
-     `src/services/ifc/foreign/lossCheck.ts` legt zelf vast hoe een regel in een oude eigen lay-out op de uitvoer past
-     (`IfcTask` met 12 argumenten, resources met 9 via `OLD_RESOURCE_TYPES` en `RESOURCE_ARITY`, werkplan en kalender
-     via `workControlSlots` en `workCalendarSlots`), en noemt het argumentaantal per type nog eens bij de `slot:`-wortels.
-     Sinds #1182 staan die lay-outs in de slottabellen (`taskSlots`, `resourceSlots`, `lagTimeSlots`, `IFC_SLOT_TABLES`
-     in `ifcSlotTables.ts`). Eén verschil: bij een `IfcLagTime` in de oude OPS-indeling (waarde en type duur verwisseld)
-     paart `alignment` per positie, de tabel verwisselt de twee. Of de verliescontrole daardoor een verkeerd slot
-     vergelijkt, is niet nagegaan; de lagwaarde zelf vergelijkt `durationTexts` via `lagValueSlot`. Voorstel: fase 2
-     PR 2 (`sourceSlots`), die `lossCheck.ts` toch aanpast, leidt `alignment` af uit `IFC_SLOT_TABLES`. — S
 
 2210. **VERVOLG (#804 fase 2, PR 3): ongebruikte sleutels in `OPS_Assignments` blijven alleen in de merge bewaard, en
      een paar bronvormen weigeren nog.** De merge (een document met een vreemd deel, flag `ifcForeignContent` aan) schrijft

@@ -487,7 +487,7 @@ let pickerCalls = 0;
 win.showOpenFilePicker = () => { throw new Error('niet in deze test'); };
 win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('geannuleerd', 'AbortError'); };
 {
-  const store = await open(true, 'bonsai-4d.ifc', bonsai);
+  const store = await open(true, 'proef-bonsai-achtig.ifc', fileBytes(`${FOREIGN}/council/proef-bonsai-achtig.ifc`));
   const S = () => store.getState();
   S().addTask({ name: 'Nieuwe taak' });
   const dirty = S().isDirty;
@@ -510,7 +510,7 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
     [{ ok: true, warnings: [], cancelled: true }, ['exportWithPool']]);
   eq('opslaan: drie mergeweigeringen en geen opslagweigering', [mergeNotices()[0]?.count, blockedNotices().length], [3, 0]);
   eq('opslaan: geen opslagdialoog geopend', pickerCalls, 0);
-  eq('opslaan: het document blijft gewijzigd en houdt zijn doel', [S().isDirty, S().filePath], [dirty, 'bonsai-4d.ifc']);
+  eq('opslaan: het document blijft gewijzigd en houdt zijn doel', [S().isDirty, S().filePath], [dirty, 'proef-bonsai-achtig.ifc']);
   // Andere formaten dragen alleen planning en blijven mogelijk: de CSV-export komt tot de opslagdialoog.
   await S().exportAs('csv');
   eq('opslaan: CSV-export komt tot de opslagdialoog, zonder nieuwe melding', [pickerCalls, blockedNotices().length], [1, 0]);

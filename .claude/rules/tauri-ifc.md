@@ -420,6 +420,96 @@ De nieuwe bron neemt de lijst uit die herlezing. Een gewiste taak neemt haar sle
 in PR 6 en 7. Zonder vreemd deel schrijft de gewone writer ze niet, zoals op main; een paar bronvormen weigeren nog
 (knownbug 2210). Proef: `check-ifc-foreign-ongebruikte-sleutels.ts`.
 
+### Tokens per slot van een ander programma (#804 fase 2, `sourceSlots`)
+
+`ifcSource.sourceSlots` (ontwerp §4.5) bewaart van elk D- en R-stuk van vreemde herkomst (`cls.foreignOrigin`: de owner
+history wijst niet naar de applicatie `'OPS'`) het entiteittype, de tabel en de ruwe tokens per slotnaam, als `Map` op het
+bron-`#id`; de `IfcTaskTime` van een taak en de `IfcLagTime` van een relatie staan onder `owned` van hun eigenaar,
+alleen bij een directe verwijzing met het id zoals het er staat (zoals de lezer: een lijst of een voorloopnul geeft geen
+taaktijd en geen `owned`).
+`foreign/sourceSlots.ts` leest ze met het register (`slotTableOf` in `ifcSlotTables.ts`: per bronregel precies één
+tabel, een werkschema op `isBaselineWorkControl`). Een stuk in een oude lay-out of met de oude letterlijke codering
+(§4.9) krijgt geen tokens. Alleen op twee plekken: bij openen van een bron met een vreemd deel (`scanForeignToOpen`, ook
+in de Worker) en voor de bron die de writer teruggeeft (`writtenSource` in `mergeWriter.ts`: alleen de regels die de
+writer schreef, met een owner history van een ander programma). Een bron zonder vreemd deel heeft het veld niet, zoals op
+main; de doelcontrole, de headless routes en de interne scans van de merge verzamelen niets. De scanrunner en de
+opslagworker eisen bij een vreemd deel een kaart (een lege is geldig) en weigeren er een zonder vreemd deel
+(`isSourceSlots`, in `foreignScanRunner.ts` en `resultFits`). Het crashherstel opent de bronbytes opnieuw en krijgt ze zo
+terug; het herstelrecord heeft er geen veld voor. Proef: `check-ifc-source-slots.ts`.
+
+De merge schrijft met de kaart (deel 2 van PR 2, `foreign/sourceSlotWrite.ts`, één regel over de soort uit het register):
+een stuk van de kaart krijgt per slot het brontoken of de waarde van de writer. Constant: het brontoken (een `#` alleen
+op de vaste lijst, `bronverwijzing`); domein: het brontoken zolang de planner geen veld wijzigde waar de writer dat slot
+uit schrijft (regel A: één slot, één beslissing, één veldenlijst; `slotFieldChanged` en `slotHasFields` in `lossCheck.ts`,
+dezelfde tabel als de uitleg van O1 voor een stuk uit de kaart, die ook dezelfde wijzigingen leest: `plannerChanged`,
+tegenover wat de app na openen liet zien); alleen een slot zonder veldenlijst kijkt of de writer er hetzelfde schrijft als
+bij openen (O0). Een tijdveld dat alleen het openen veranderde, krijgt de waarde uit de bronlezing terug
+(`sourceFormWhereUnchanged`), behalve bij een taak die bij openen kinderen had en nu geen meer: heropenen telt haar
+tijd dan niet meer op uit de kinderen, dus schrijft de writer de taaktijd van de planner, met de duur-eenheid. De
+waarde van een lag volgt de schrijfkeuze van de writer: houdt die de dagvorm van de bron
+(`sourceDayLagIds`), dan hangt de waarde niet van de eenheid af en blijft `P0.50D` staan. Afgeleid: de writer. Verwijzing: de writer, behalve een gevulde verwijzing naar
+een stuk dat de writer niet draagt (niet P, zoals een `IfcTaskTimeRecurring`; regel B, `keepsTarget`): die houdt haar
+brontoken zolang de velden van het slot gelijk blijven, en de regel die de writer ernaast schreef vervalt
+(`dropReleased`); anders weigert de verliescontrole (`releasesKeptTarget`). Een afhankelijk slot (`volgt`) gaat samen met
+zijn hoofdslot. Het entiteittype komt uit de bron als het domein het niet onderscheidt (`sameDomainEntity`: een
+`IfcConstructionProductResource` blijft dat). Dat geldt voor de D-stukken met hun vaste id (ook een baselinekop die zijn
+id via zijn GlobalId houdt) en hun taaktijd of lag, in O0 en O1 (`buildLines` in `mergeWriter.ts`). Relaties van een
+ander programma (`IfcRelNests`, `IfcRelAggregates`, `IfcRelAssignsToControl`, `IfcRelAssignsToProcess`) schrijft de merge
+opnieuw met hun bewaarde slots; de leden komen uit wat de writer voor dezelfde relating schreef: een enige `Nests` van
+Bonsai volgt de ouder (alle kinderen, in de volgorde van het domein), anders houdt elke bewaarde relatie haar leden die
+het domein nog koppelt, en houdt de eigen relatie de rest. Een relatie met de projectkalender (de lezer slaat die over)
+houdt de leden zonder eigen kalender. Zonder leden vervalt de relatie. De verliescontrole laat een afgeleid slot en een
+verwijzing buiten een relatierol en een groep aan de writer (`writerAlwaysWrites`), een verwijzing alleen als haar doel
+P is; de rest toetst zij zoals bij een eigen stuk. Een relatie uit de kaart met een unieke GlobalId paart alleen op die
+GlobalId (`guidIsIdentity`): een verdwenen relatie paart niet met een buur, en de ledencontrole verklaart haar. Controle
+(c) krijgt de slots die de kaart koos (`chosen`, vastgelegd waar `sourceSlotArgs` beslist); de owner history van een
+IfcRoot telt daar niet mee, en `checkedOutput` toetst elke gekozen verwijzing op de hernummerde regel. Een verwijzing
+naar een bewaard stuk houdt bij het hernummeren haar token (ook `#00107`). Een stuk met een token dat niet verliesvrij
+te lezen is (een rauwe Latin-1-byte), komt niet in de kaart. De nieuwe bron na een opslag neemt haar klassen uit de
+uitvoerscan en toetst dat precies de geschreven regels P zijn. `vreemde-herkomst` blijft voor wat de
+kaart niet draagt: een oude lay-out, de oude letterlijke codering, een vorm buiten het register (een
+`IfcLaborResource` met 10 argumenten) en een `IfcRelDeclares` of `IfcRelDefinesByProperties` van een ander programma
+(knownbug 2233). `entiteittype` blijft als de planner het type van een resource wijzigt. Proef:
+`check-ifc-source-slot-write.ts` (de regel en de rest per slot over het hele register).
+
+Regel C, waar regel A en B onder vallen: de opslag verandert de verwijzingen tussen bewaarde stukken van een ander
+programma niet, behalve waar de bewerking het verklaart. Elk stuk dat ernaar wees, wijst er nog naar (ook een eigen
+stuk; geeft OPS dat opnieuw uit met een nieuwe GlobalId, dan neemt een nieuw eigen stuk van hetzelfde type die rol in
+hetzelfde slot over), een gedeeld hulpstuk blijft gedeeld, en het stuk wijst nog naar dezelfde stukken. Verklaard is
+alleen wat bij een gewiste toewijzing, relatie of taak hoort, en de verwijzer van een gewijzigd veld. De herkomst van een
+toewijzing is de enige bronrelatie met die taak en die resource (`assignmentOrigin` in `foreign/assignmentOrigin.ts`:
+één beslissing voor de writer en de verliescontrole). Staat het paar in meer dan één relatie en veranderden de
+toewijzingen van dat paar, dan weigert de merge met `niet-eenduidig` (`foreignRelations` in `mergeWriter.ts`) en
+verklaart de verliescontrole niets (`expectedProcessMembers` in `lossCheck.ts`); knownbug 2368. Een P-hulpstuk achter
+een verwijzingsslot van een stuk uit de kaart dat twee verwijzers deelt, weigert de merge vooraf met `niet-eenduidig`
+(`sharedHelpers` in `prepareIfcWrite`; knownbug 2369); een opslag zonder wijziging in de planning (ook na ongedaan maken)
+komt daar niet: de merge geeft dan de bronbytes terug (`planningCanon` gelijk aan wat de app na openen liet zien). De
+volgorde telt per geordend slot: de kinderen van een `IfcRelNests` blijven in hun volgorde, behalve bij de ouder waar de
+planner ze versleepte. Een nieuwe toewijzingsrelatie staat in de uitvoer na de bewaarde toewijzingsrelaties van de taken
+die in het domein vóór haar taak staan (`assignmentPlacement` in `mergeWriter.ts`), zodat herlezen de toewijzingen in de
+volgorde van de planner geeft; die volgorde tussen taken is zichtbaar (de optelvolgorde van belasting en van de totalen per
+resource in MCP, `getAssignments` voor extensies, de UID's van MSPDI). Proef: `check-ifc-foreign-regel-c.ts` bouwt de verwijzingsgraaf
+van bron en uitvoer (`tests/planning/ifcRegelC.ts`) over twaalf bronnen en elke bewerking op elke plek waar ze kan; de
+pinproef gebruikt dezelfde toets.
+
+Kosten: evenredig met het aantal stukken van een ander programma én met de gedecodeerde lengte van hun regels
+(`argTokens` decodeert en splitst de hele regel, ook een ledenlijst van 50.000). De reviewer van #1196 (GPT-6.2-Sol) mat
+bij 10.000 vreemde taken met taaktijden ongeveer 18,7 MiB extra V8-heap na GC, bij een IFC van 1,51 MiB; bij
+`fix2-vendor-ops.ifc` (369 stukken) ongeveer 335 KiB. De kaart reist gekloond naar en van de opslagworker. Gemeten in
+deel 2 (aia09-mp50 onder zware belasting, dus ruwe tijden): 10.000 vreemde taken met taaktijden (2,09 MiB) openen 3,0 s,
+opslaan 27,3 s met een piek-RSS van 1.157 MiB; vóór de writer weigerde die opslag na 50,6 s met een piek van 686 MiB,
+vóór het herlezen van de uitvoer. `bonsai-4d.ifc` opslaan 141 ms. Fixronde 1 van #1205, twee geslaagde opslagen van
+dezelfde invoer naast elkaar: vóór het herstel 28,3 s en een piek-RSS van 1.115 MiB, erna 28,3 s en 947 MiB (één meting per kant onder wisselende
+belasting; O1 houdt nu geen tweede kaart met de argumenten van de writer meer vast).
+
+Voor een eigen stuk blijft (b) in de verliescontrole (`planRestores` in `lossCheck.ts`): die leest de bronwaarden bij
+elke merge opnieuw uit `ifcSource.bytes`; een stuk van de kaart heeft na de writer geen verschil meer in O0. Bij (b) geldt de waarde van
+de planner als hij het veld wijzigde; bij een slot van de soort `lijst`, `json` of `samengesteld` (de lezer draagt er een
+deel van) weigert de merge dan, want per lid, per sleutel of per deel samenvoegen volgt met `jsonExtras` en `unusedKeys`.
+Paart het stuk in O1 niet eenduidig, of heeft de regel in O1 een ander type of een andere vorm, dan weigert de merge ook.
+De merge leest de planning met de bronwaarden erin terug (`mergeWriter.ts`); geeft dat een andere planning dan zonder,
+dan weigert hij.
+
 ### Vergelijkingsklok (#804 fase 1c)
 
 `planningCanon` gebruikt alleen `writeIFCForComparison`: één vaste datum via de interne schrijfkern,

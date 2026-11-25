@@ -758,6 +758,89 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   }
 }
 
+{
+  const villa = walled(`${OLD}/v2026.43.0-10-villa-wassenaar.ifc`);
+  const schemaLag = "#178=IFCLAGTIME('Lag',.PREDICTED.,$,IFCDURATION('P3D'),.WORKTIME.);";
+  ok('oude lagvorm: de villa heeft een lag van drie dagen in de vorm van het schema', villa.includes(schemaLag));
+  const src = villa.replace(schemaLag, "#178=IFCLAGTIME('Lag',.PREDICTED.,$,.WORKTIME.,'P0Y0M3D');");
+  const relation = /#(\d+)=IFCRELSEQUENCE\([^;]*,#178,/.exec(src)?.[1] ?? '';
+  ok('oude lagvorm: de relatie met die lag gevonden', relation !== '');
+  const lagTokens = (out: string) => {
+    const index = scanStep(latin1(out));
+    const rel = index.chunkOf(relation);
+    const lag = rel < 0 ? -1 : index.refAt(rel, 6);
+    return lag < 0 ? undefined : index.argTokens(lag);
+  };
+  const lagTokensAre = (...want: string[]) => (out: string) => {
+    const got = JSON.stringify(lagTokens(out));
+    return got === JSON.stringify(want) ? undefined : `lag ${got}, verwacht ${JSON.stringify(want)}`;
+  };
+  const lagIs = (value: string) => lagTokensAre("'Lag'", '.PREDICTED.', '$', value, '.WORKTIME.');
+  const describeProject = (d: Domain) => { d.project.description = `${d.project.description} (lagproef)`; };
+  await proof('oude lagvorm', 'een andere bewerking: de lag op de plek van zijn slotnaam, met dezelfde waarde', src, 'schrijft',
+    describeProject, lagIs("IFCDURATION('P3D')"));
+  const sequenceOf = (d: Domain, o: Opened) => {
+    const id = Object.entries(o.ifcSource!.stepIds).find(([key, stepId]) => key.startsWith('seq:') && String(stepId) === relation)?.[0].slice(4);
+    return d.sequences.find(s => s.id === id)!;
+  };
+  await proof('oude lagvorm', 'de planner verlengt de lag tot vijf dagen', src, 'schrijft', (d, o) => {
+    const sequence = sequenceOf(d, o);
+    if (sequence.lagMinutes !== undefined) sequence.lagMinutes = (sequence.lagMinutes / 3) * 5;
+    else sequence.lagDays = 5;
+  }, lagIs("IFCDURATION('P5D')"));
+
+  const precise = "'P0Y0M0.10000000000000001D'";
+  await proof('oude lagvorm', 'extra precisie die de writer niet exact schrijft, een taak hernoemd: de lag blijft zoals in de bron',
+    villa.replace(schemaLag, `#178=IFCLAGTIME('Lag',.PREDICTED.,$,.WORKTIME.,${precise});`), 'schrijft', renameOther(''),
+    lagTokensAre("'Lag'", '.PREDICTED.', '$', '.WORKTIME.', precise));
+
+  for (const [value, extra] of [[precise, '$'], ["'P0Y0M3D'", '$'], ["'P0Y0M3D'", "'extra'"]] as const) {
+    const src = villa.replace(schemaLag, `#178=IFCLAGTIME('Lag',.PREDICTED.,$,.WORKTIME.,${value},${extra});`);
+    const o = await openForeign(latin1(src));
+    const d = cloneDomain(o);
+    renameOther('')(d);
+    let outcome: string;
+    try { outcome = (await tryMerge(d, o.ifcSource!)).ok ? 'schrijft' : 'weigert'; }
+    catch (e) { outcome = `fout: ${(e as Error).message}`; }
+    const refused = outcome === 'weigert' ? (await tryMerge(d, o.ifcSource!)) : undefined;
+    const details = refused && !refused.ok ? refused.error.cases.map(c => `${c.kind}: ${c.detail}`) : [];
+    ok(`oude lagvorm met zes argumenten (${value}, ${extra}): zoals main, geen bekende lay-out (kreeg ${outcome}: ${details.slice(0, 2).join(' | ')})`,
+      outcome === 'weigert' && details.some(x => /^niet-gedragen: IFCLAGTIME #178: 6 argumenten → 5 argumenten, geen bekende lay-out/.test(x)));
+  }
+
+  const withArgs = (src: string, id: number, change: (args: string[]) => string[]) => {
+    const line = new RegExp(`^#${id}=(IFC[A-Z0-9_]+)\\((.*)\\);$`, 'm').exec(src);
+    if (!line) throw new Error(`geen #${id}`);
+    return src.replace(line[0], `#${id}=${line[1]}(${change(splitArgs(line[2])).join(',')});`);
+  };
+  const argCount = (id: string, want: number) => (out: string) => {
+    const index = scanStep(latin1(out));
+    const got = index.argTokens(index.chunkOf(id))?.length;
+    return got === want ? undefined : `#${id} heeft ${got} argumenten`;
+  };
+  await proof('afwijkend aantal', 'een werkplan met 13 argumenten, een taak hernoemd', withArgs(villa, 39, a => a.slice(0, -1)), 'schrijft',
+    renameOther(''), argCount('39', 14));
+  await proof('afwijkend aantal', 'een werkschema met 13 argumenten, een taak hernoemd', withArgs(villa, 40, a => a.slice(0, -1)), 'schrijft',
+    renameOther(''), argCount('40', 14));
+  await proof('afwijkend aantal', 'een kalender met 10 argumenten, een taak hernoemd', withArgs(villa, 35, a => [...a, '$']), 'schrijft',
+    renameOther(''), argCount('35', 9));
+
+  const calendar = /#35=IFCWORKCALENDAR\(([^;]*)\);/.exec(villa);
+  ok('kalender: de villa heeft de projectkalender als #35', calendar !== null);
+  if (calendar) {
+    const args = splitArgs(calendar[1]);
+    ok('kalender: in de vorm van het schema, zonder Identification', args.length === 9 && args[5] === '$');
+    const identified = villa.replace(calendar[0], `#35=IFCWORKCALENDAR(${args.map((a, k) => (k === 5 ? "'KAL-1'" : a)).join(',')});`);
+    const identification = (out: string) => {
+      const index = scanStep(latin1(out));
+      const got = index.argTokens(index.chunkOf('35'))?.[5];
+      return got === "'KAL-1'" ? undefined : `Identification ${got}`;
+    };
+    await proof('kalender', 'een Identification van de bron blijft op haar slot bij een andere bewerking', identified, 'schrijft',
+      describeProject, identification);
+  }
+}
+
 console.log('| proef | uitkomst |');
 console.log('|---|---|');
 for (const r of rows) console.log(r);
