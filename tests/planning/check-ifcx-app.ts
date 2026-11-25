@@ -19,6 +19,7 @@ import { computeIfcOutputHere, documentSaveCompute, type IfcOutputCompute } from
 import { readIfcx, classifyIfcx } from '@/services/ifc/ifcx';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { documentDataFromImport } from '@/services/documentData';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
@@ -212,6 +213,27 @@ for (const name of FIXTURES) {
       }
       console.log(`  MAAT ${name}: ${JSON.stringify(results)}`);
     } finally { ipc.dispose(); }
+  });
+}
+
+for (const name of FIXTURES) {
+  await check(`na openen, ook na doorrekenen, heeft de app dezelfde planning als na openen van de STEP-versie (${name})`, async () => {
+    const bytes = fixture(name);
+    const step = new TextEncoder().encode(writeIFC(buildWriteIFCInput(documentDataFromImport(structuredClone(readIfcx(bytes))), 'planOnly')));
+    const asIfcx = join(dir, `gelijk-${name}`), asStep = join(dir, `gelijk-${name}.ifc`);
+    writeFileSync(asIfcx, bytes); writeFileSync(asStep, step);
+    const fromIfcx = await openAt(asIfcx, IFCX_ON), fromStep = await openAt(asStep, IFCX_ON);
+    assert.deepEqual(errors(fromIfcx), []); assert.deepEqual(errors(fromStep), []);
+    const planning = (store: Store) => {
+      const { project, ...rest } = JSON.parse(JSON.stringify(buildWriteIFCInput(store.getState(), 'planOnly')));
+      return { ...rest, project: { ...project, modifiedAt: undefined } };
+    };
+    const a = planning(fromIfcx), b = planning(fromStep);
+    for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+      assert.deepEqual(a[key], b[key], `het veld ${key} van de opgeslagen planning`);
+    }
+    assert.equal(shown(fromIfcx.getState().tasks), shown(fromStep.getState().tasks), 'de getoonde datums');
+    assert.deepEqual(fromIfcx.getState().cpmResult?.criticalPath, fromStep.getState().cpmResult?.criticalPath, 'het kritieke pad');
   });
 }
 
