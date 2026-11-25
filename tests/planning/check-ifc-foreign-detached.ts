@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { castDraft } from 'immer';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ForeignChange } from '@/services/ifc/foreign/changeList';
 import { classify } from '@/services/ifc/foreign/classify';
 import { validateMergeOutput } from '@/services/ifc/foreign/mergeValidation';
+import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { resetPlanOnlyAsker, setPlanOnlyAsker } from '@/services/ifc/planOnlyQuestion';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -13,7 +15,7 @@ import { elementLinkCounts, taskElementLinks } from '@/state/taskElementLinks';
 import { prepareIfcOutput } from '@/state/prepareIfcOutput';
 import { loadStore, openInStore } from './ifcAppRoute';
 import { bonsaiPlanning, PIN_FILE } from './ifcBonsaiPin';
-import { desktopRoute, endDifferences } from './ifcDetachedRoute';
+import { desktopRoute, endDifferences, refusalText } from './ifcDetachedRoute';
 import { openForeign } from './ifcMergeKern';
 import { installDeterminism } from './ifcPariteitKern';
 import { twoTasksAndChain } from './ifcTwoTasksChain';
@@ -110,72 +112,101 @@ class Player {
   }
 }
 
-const errors = (store: Store) => store.getState().ui.notifications.filter(n => n.severity === 'error')
-  .map(n => `${n.messageKey}${n.detail ? `: ${String(n.detail).slice(0, 300)}` : ''}`);
+const MERGE_REFUSED: ReadonlySet<string> = new Set(['notifications.ifcForeignMergeRefused', 'notifications.autoSaveFailed']);
+const errorKeys = (store: Store) => store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey);
+const withoutDetached = (store: Store) => store.setState(s => {
+  if (s.ifcSource?.detached) s.ifcSource = castDraft({ ...s.ifcSource, detached: undefined });
+});
 
-async function refusedWithoutDetached(bytes: Uint8Array, plan: readonly Step[]): Promise<boolean> {
-  const { store } = await openInStore(bytes);
-  const save = async () => {
-    const prepared = (await prepareIfcOutput(store.getState(), buildWriteIFCInput(store.getState(), 'merge'))).prepared;
-    if (prepared) store.setState(s => { s.ifcSource = castDraft({ ...prepared.source, detached: undefined }); });
-  };
-  const replay = new Player({ store, ctrlS: save, autoSave: save });
-  for (const step of plan.slice(0, -1)) {
-    try { await replay.play(step); } catch { return false; }
-  }
-  try { await replay.play(plan.at(-1)!); return false; } catch { return true; }
+interface SaveOutcome { readonly at: number; readonly file?: Uint8Array; readonly refusal?: string; readonly otherErrors: readonly string[] }
+
+async function playRoute(bytes: Uint8Array, plan: readonly Step[], baseSource = false) {
+  const doc = await route.open(bytes), player = new Player(doc);
+  const labels: string[] = [], saves: SaveOutcome[] = [];
+  try {
+    for (let i = 0; i < plan.length; i++) {
+      const recorded = doc.refusals.length, before = errorKeys(doc.store).length;
+      labels.push(await player.play(plan[i]));
+      if (!SAVES.has(plan[i].kind)) continue;
+      if (baseSource) withoutDetached(doc.store);
+      const refusal = [...new Set(doc.refusals.slice(recorded))].join('\n') || undefined;
+      const otherErrors = errorKeys(doc.store).slice(before).filter(key => refusal === undefined || !MERGE_REFUSED.has(key));
+      saves.push({ at: i, otherErrors, ...(refusal === undefined ? { file: doc.file() } : { refusal }) });
+      if (refusal !== undefined || otherErrors.length > 0) break;
+    }
+  } finally { doc.close(); }
+  return { labels, saves };
 }
 
-async function oneSaveAtTheEnd(bytes: Uint8Array, plan: readonly Step[]): Promise<Uint8Array | string> {
+async function oneSaveAtTheEnd(bytes: Uint8Array, plan: readonly Step[]): Promise<{ readonly bytes: Uint8Array } | { readonly refusal: string }> {
   const { store } = await openInStore(bytes), replay = new Player({ store });
   for (const step of plan) await replay.play(step);
   try {
     const output = await prepareIfcOutput(store.getState(), buildWriteIFCInput(store.getState(), 'merge'));
-    return output.prepared?.bytes ?? encode(output.content!);
+    return { bytes: output.prepared?.bytes ?? encode(output.content!) };
   } catch (error) {
-    return error instanceof Error ? error.message : String(error);
+    if (error instanceof MergeNeedsPhase2Error) return { refusal: refusalText(error) };
+    throw error;
   }
+}
+
+type Base = 'één opslag aan het eind' | 'de bron zonder detached';
+interface KnownRefusal { readonly bug: string; readonly kind: string; readonly base: Base }
+const KNOWN_REFUSALS: readonly KnownRefusal[] = [
+  { bug: 'knownbug 2371', kind: 'niet-eenduidig', base: 'de bron zonder detached' },
+  { bug: 'alle taken van bonsai-4d.ifc gewist', kind: 'planning-na-openen', base: 'één opslag aan het eind' },
+];
+const knownAs = (refusal: string, base: Base) =>
+  KNOWN_REFUSALS.find(k => k.base === base && refusal.split('\n').every(line => line.startsWith(`${k.kind}: `)));
+
+async function refusalProblem(bytes: Uint8Array, prefix: readonly Step[], save: SaveOutcome,
+  expected: Awaited<ReturnType<typeof oneSaveAtTheEnd>>): Promise<string | KnownRefusal> {
+  const shown = (text: string) => text.slice(0, 600);
+  if ('refusal' in expected) {
+    if (save.refusal === undefined) return `de reeks schrijft, één opslag aan het eind weigert: ${shown(expected.refusal)}`;
+    if (save.refusal !== expected.refusal) return `de reeks weigert anders dan één opslag aan het eind:\n    ${shown(save.refusal)}\n    tegenover ${shown(expected.refusal)}`;
+    return knownAs(save.refusal, 'één opslag aan het eind') ?? `een onbekende weigering, ook bij één opslag aan het eind: ${shown(save.refusal)}`;
+  }
+  const base = (await playRoute(bytes, prefix, true)).saves.at(-1);
+  if (base?.at !== save.at || base.refusal !== save.refusal) {
+    return `de reeks weigert, de bron zonder detached ${base?.refusal === undefined ? 'schrijft' : `weigert anders: ${shown(base.refusal)}`}: ${shown(save.refusal!)}`;
+  }
+  return knownAs(save.refusal!, 'de bron zonder detached') ?? `een onbekende weigering, ook met de bron zonder detached: ${shown(save.refusal!)}`;
 }
 
 const SEEDS = Array.from({ length: 12 }, (_, i) => 11 + i);
 const LENGTH = 12;
 for (const [name, bytes] of FIXTURES) {
   await check(`de regel op ${name}: na elke opslag is het bestand gelijk aan één opslag aan het eind (zaden ${SEEDS[0]} tot en met ${SEEDS.at(-1)}, ${LENGTH} stappen en een laatste Ctrl+S)`, async () => {
-    const found: string[] = [];
-    let refusedBoth = 0, compared = 0, refusedLikeMain = 0;
+    const found: string[] = [], stopped = new Map<string, number>();
+    let compared = 0;
     for (const seed of SEEDS) {
       const plan: Step[] = [...randomSteps(seed, LENGTH), { kind: 'opslaan', pick: 0 }];
-      const doc = await route.open(bytes), player = new Player(doc);
-      const labels: string[] = [];
-      for (let i = 0; i < plan.length; i++) {
-        const before = errors(doc.store).length;
-        labels.push(await player.play(plan[i]));
-        if (!SAVES.has(plan[i].kind)) continue;
-        const expected = await oneSaveAtTheEnd(bytes, plan.slice(0, i + 1));
-        const refused = errors(doc.store).slice(before);
-        if (typeof expected === 'string') {
-          if (refused.length === 0) found.push(`zaad ${seed}, na ${labels.join(' → ')}: de reeks schrijft, één opslag aan het eind weigert: ${expected.slice(0, 300)}`);
-          else refusedBoth++;
+      const { labels, saves } = await playRoute(bytes, plan);
+      const where = (at: number) => `zaad ${seed}, na ${labels.slice(0, at + 1).join(' → ')}`;
+      for (const save of saves) {
+        if (save.otherErrors.length > 0) { found.push(`${where(save.at)}: een andere fout: ${save.otherErrors.join(', ')}`); break; }
+        const expected = await oneSaveAtTheEnd(bytes, plan.slice(0, save.at + 1));
+        if ('refusal' in expected || save.refusal !== undefined) {
+          const outcome = await refusalProblem(bytes, plan.slice(0, save.at + 1), save, expected);
+          if (typeof outcome === 'string') found.push(`${where(save.at)}: ${outcome}`);
+          else {
+            stopped.set(outcome.bug, (stopped.get(outcome.bug) ?? 0) + 1);
+            console.log(`  zaad ${seed}: gestopt op ${outcome.bug}, gelijk aan ${outcome.base}`);
+          }
           break;
         }
+        const problems = await endDifferences(expected.bytes, save.file!);
         compared++;
-        if (refused.length > 0 && await refusedWithoutDetached(bytes, plan.slice(0, i + 1))) {
-          console.log(`  zaad ${seed}: weigert ook met de bron zonder detached, zoals main (knownbug 2371): ${labels.join(' → ')}`);
-          refusedLikeMain++;
-          break;
-        }
-        const problems = [...refused.map(e => `de reeks weigert: ${e}`), ...await endDifferences(expected, doc.file())];
         if (problems.length > 0) {
-          found.push(`zaad ${seed}, na ${labels.join(' → ')}:\n    ${problems.slice(0, 8).join('\n    ')}`);
+          found.push(`${where(save.at)}:\n    ${problems.slice(0, 8).join('\n    ')}`);
           break;
         }
       }
-      doc.close();
       console.log(`  zaad ${seed}: ${labels.join(' → ')}`);
     }
-    console.log(`  ${compared} keer vergeleken na een opslag`);
-    if (refusedLikeMain > 0) console.log(`  ${refusedLikeMain} reeks(en) gestopt waar de tussentijdse opslag ook zonder detached weigert`);
-    if (refusedBoth > 0) console.log(`  ${refusedBoth} reeks(en) gestopt waar ook één opslag aan het eind weigert`);
+    console.log(`  ${compared} keer twee bestanden vergeleken na een opslag`);
+    for (const [bug, n] of stopped) console.log(`  ${n} reeks(en) gestopt op ${bug}`);
     if (found.length > 0) throw new Error(`\n  ${found.join('\n  ')}`);
   });
 }
@@ -195,6 +226,45 @@ async function atTheEnd(bytes: Uint8Array, edit: (store: Store) => void): Promis
   return (await prepareIfcOutput(store.getState(), buildWriteIFCInput(store.getState(), 'merge'))).prepared!.bytes;
 }
 const deleteAndUndo = (name: string) => (store: Store) => { store.getState().deleteTask(taskNamed(store, name)); store.getState().undo(); };
+
+interface Pinned { readonly lines: number; readonly first: string; readonly sha256: string }
+const pinnedOf = (text: string): Pinned =>
+  ({ lines: text.split('\n').length, first: text.split('\n')[0].slice(0, 160), sha256: createHash('sha256').update(text).digest('hex') });
+
+await check('knownbug 2371 vastgelegd: Wand A bouwen wissen, Ctrl+S, Wand B bouwen wissen, Ctrl+S weigert met precies de fout van de bron zonder detached; zonder tussentijdse opslag schrijft het', async () => {
+  const pinned: Pinned = {
+    lines: 29, first: 'niet-eenduidig: IFCRELASSIGNSTOCONTROL #248, argument 1 na de bewerking: #232 → #101',
+    sha256: 'ec188c754240d53653f621cc160432ea46f077f9bd95eef01e1cc080597391dc',
+  };
+  for (const base of [false, true]) {
+    const doc = await route.open(B4D);
+    try {
+      doc.store.getState().deleteTask(taskNamed(doc.store, 'Wand A bouwen'));
+      assert.equal(await doc.ctrlS(), true);
+      if (base) withoutDetached(doc.store);
+      doc.store.getState().deleteTask(taskNamed(doc.store, 'Wand B bouwen'));
+      assert.equal(await doc.ctrlS(), false);
+      assert.equal(doc.refusals.length, 1);
+      assert.deepEqual(pinnedOf(doc.refusals[0]), pinned, `${base ? 'de bron zonder detached' : 'de route'}:\n${doc.refusals[0]}`);
+    } finally { doc.close(); }
+  }
+  await atTheEnd(B4D, store => { for (const name of ['Wand A bouwen', 'Wand B bouwen']) store.getState().deleteTask(taskNamed(store, name)); });
+});
+
+await check('alle taken van bonsai-4d.ifc wissen en opslaan weigert met planning-na-openen (Ruwbouw is na heropenen terug), met precies de fout van één opslag aan het eind', async () => {
+  const pinned: Pinned = {
+    lines: 1, first: 'planning-na-openen: planning.tasks.0: undefined → {"id":"task-ifc-2XY6ipXO2O0kN0H4kEt7RW","name":"Ruwbouw","description":"","wbsCode":"1","taskType":"CONSTRUCTI',
+    sha256: '85fa0b0fdff3cbcdb724b2e3405afceb082044f6e2312d0eefa1667546e97809',
+  };
+  const doc = await route.open(B4D);
+  try {
+    for (const name of ['Ruwbouw', 'Stucwerk']) doc.store.getState().deleteTask(taskNamed(doc.store, name));
+    assert.deepEqual(doc.store.getState().tasks, []);
+    assert.equal(await doc.ctrlS(), false);
+    assert.equal(doc.refusals.length, 1);
+    assert.deepEqual(pinnedOf(doc.refusals[0]), pinned, doc.refusals[0]);
+  } finally { doc.close(); }
+});
 
 await check('bonsai-4d.ifc: wissen, opslaan, Ctrl+Z, opslaan, heropenen: de taak en de vijf vreemde stukken zijn terug, met de verwijzing naar het huidige #id', async () => {
   const doc = await route.open(B4D);

@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
+import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { refsOutsideText, replaceRefsOutsideText } from '@/services/ifc/foreign/lossCheck';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
@@ -10,6 +11,7 @@ import { planningCanon } from '@/services/ifc/foreign/planningCanon';
 import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
 import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
+import { computeIfcOutputHere, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { recoverySourceDocument } from '@/state/recoverySourceDocument';
 import { loadStore } from './ifcAppRoute';
 import { cloneDomain, firstDiff, openForeign } from './ifcMergeKern';
@@ -23,8 +25,11 @@ export interface DesktopDocument {
   readonly file: () => Uint8Array;
   readonly ctrlS: () => Promise<boolean>;
   readonly autoSave: () => Promise<void>;
+  readonly refusals: readonly string[];
   readonly close: () => void;
 }
+
+export const refusalText = (error: MergeNeedsPhase2Error) => error.cases.map(c => `${c.kind}: ${c.detail}`).join('\n');
 
 export function desktopRoute() {
   const appDataDir = mkdtempSync(join(tmpdir(), 'ops-detached-appdata-'));
@@ -36,7 +41,12 @@ export function desktopRoute() {
   win.__TAURI_INTERNALS__.invoke = async (...args) => (args[0] === 'plugin:dialog|save' ? chosen : invoke(...args));
   let files = 0;
   async function open(bytes: Uint8Array, flag = true): Promise<DesktopDocument> {
-    const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
+    const refusals: string[] = [];
+    const compute: IfcOutputCompute = async job => {
+      try { return await computeIfcOutputHere(job); }
+      catch (error) { if (error instanceof MergeNeedsPhase2Error) refusals.push(refusalText(error)); throw error; }
+    };
+    const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext({ ifcSaveCompute: compute });
     const path = join(dir, `bestand-${++files}.ifc`);
     writeFileSync(path, bytes);
     store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; });
@@ -55,12 +65,13 @@ export function desktopRoute() {
       autoSave: async () => {
         if (!controller) {
           store.getState().setAutoSaveToFile(true);
-          controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true, now: () => clock });
+          controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true, now: () => clock, compute });
         }
         controller.observe();
         clock += 31_000;
         await controller.flushModels();
       },
+      refusals,
       close: () => { unregister(); },
     };
   }
