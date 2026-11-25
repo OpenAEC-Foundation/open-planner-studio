@@ -1,7 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { classify } from '@/services/ifc/foreign/classify';
+import { join } from 'node:path';
 import { refsOutsideText } from '@/services/ifc/foreign/lossCheck';
 import { checkMergeOutput, MergeNeedsPhase2Error, prepareIfcWrite, type OwnOutputCheck } from '@/services/ifc/foreign/mergeWriter';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
@@ -18,11 +16,11 @@ import type { OutLine } from '@/services/ifc/foreign/lossCheck';
 import { lengthen, loadStore, openInStore, recalculated, storeEdit } from './ifcAppRoute';
 import { installDeterminism } from './ifcPariteitKern';
 import { InProcessWorker } from './inProcessSaveWorker';
-import { IFC_SCHEMA_TABLES } from './ifcSchemaTable';
+import { regelCOf } from './ifcRegelC';
+import { bonsaiPlanning, groupOf, NOT_CARRIED, PIN_FILE, ROOT, SAME_AS_WRITER, soort } from './ifcBonsaiPin';
 import { localTodayIso } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installDeterminism();
 const dump = (name: string, bytes: Uint8Array) => {
   const dir = process.env.OPS_MERGE_UITVOER;
@@ -38,13 +36,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   ok(same ? label : `${label}: kreeg ${JSON.stringify(got)}, verwacht ${JSON.stringify(want)}`, same);
 };
 
-const soort = (table: IfcSlotTable, k: number) => table.slots[k].soortVreemd ?? table.slots[k].soort;
-function groupOf(table: IfcSlotTable, k: number): number[] | undefined {
-  const main = table.slots[k].volgt ?? table.slots[k].key;
-  const members = table.slots.flatMap((slot, j) => (slot.key === main || slot.volgt === main ? [j] : []));
-  if (members.length < 2) return undefined;
-  return [members.find(j => table.slots[j].key === main)!, ...members.filter(j => table.slots[j].key !== main)];
-}
 function wantsSource(table: IfcSlotTable, k: number, changed: ReadonlySet<number>): boolean {
   const own = (j: number) => soort(table, j) === 'constant' || (soort(table, j) === 'domein' && !changed.has(j));
   const group = groupOf(table, k);
@@ -76,101 +67,8 @@ for (const table of IFC_SLOT_TABLES) {
   });
 }
 
-const NOT_CARRIED: ReadonlySet<string> = new Set(['IfcRelDeclares', 'IfcRelDefinesByProperties']);
-const SAME_AS_WRITER: Readonly<Record<string, string>> = {
-  'IfcWorkSchedule (baseline).globalId': 'de kop van een baseline houdt zijn id via zijn GlobalId',
-  'IfcWorkSchedule (baseline).name': 'een baselinekop hoort bij de planning via naam en datum in OPS_Baselines',
-  'IfcWorkSchedule (baseline).creationDate': 'een baselinekop hoort bij de planning via naam en datum in OPS_Baselines',
-  'IfcWorkSchedule (baseline).predefinedType': 'een ander type maakt er geen baseline meer van',
-  'IfcWorkSchedule (live).predefinedType': 'BASELINE maakt er een baseline van; elke andere waarde laat de proef staan',
-  'IfcRelAssignsToControl.relatedObjectsType': 'in IFC 4.3 (het schema van het voorbeeld) een attribuut dat leeg moet zijn',
-  'IfcRelAssignsToProcess.relatedObjectsType': 'in IFC 4.3 (het schema van het voorbeeld) een attribuut dat leeg moet zijn',
-};
-const BONSAI = [
-  "#990001=IFCPERSON($,'Bonsai',$,$,$,$,$,$);",
-  "#990002=IFCORGANIZATION($,'Bonsai Org',$,$,$);",
-  '#990003=IFCPERSONANDORGANIZATION(#990001,#990002,$);',
-  "#990004=IFCAPPLICATION(#990002,'0.8','Bonsai','Bonsai');",
-  '#990005=IFCOWNERHISTORY(#990003,#990004,.READWRITE.,.ADDED.,1767268800,#990003,#990004,1767268800);',
-  "#990010=IFCRESOURCETIME('Inzet van Bonsai',$,$,$,$,$,$,$,$,$,$,$,$,$,$,$,$,$);",
-  "#990011=IFCCOSTVALUE('Prijs van Bonsai',$,$,$,$,$,$,$,$,$);",
-  "#990012=IFCQUANTITYCOUNT('Aantal van Bonsai',$,$,3.,$);",
-  '#990013=IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.);',
-  '#990014=IFCMEASUREWITHUNIT(IFCCOUNTMEASURE(2.),#990013);',
-  "#990020=IFCRELASSIGNSTOCONTROL('0Bonsaiprojectkalender',#990005,'Kalender van Bonsai',$,(#51,#53),$,#38);",
-];
-const BONSAI_REFERENCE: Readonly<Record<string, string>> = {
-  ownerHistory: '#990005', creators: '(#990001)', usage: '#990010', baseCosts: '(#990011)', baseQuantity: '#990012',
-  quantityInProcess: '#990014',
-};
-const codeOf = (type: string, k: number) => {
-  const attribute = IFC_SCHEMA_TABLES.IFC4X3_ADD2.attributes[type]?.[k];
-  return attribute?.slice(attribute.indexOf(':') + 1).replace(/\?$/, '');
-};
-function ownToken(code: string | undefined, current: string, key: string): string | undefined {
-  if (code === 'S') return `'Bonsai ${key}'`;
-  if (code === 'DT') return "'2001-02-03T04:05:00'";
-  if (code === 'DU') return "'P9D'";
-  if (code === 'G') return `'0Bonsai${current.trim().slice(8)}`;
-  const literals = code?.startsWith('E=') ? code.slice(2).split('|') : undefined;
-  const other = literals?.find(l => `.${l}.` !== current.trim() && l !== 'USERDEFINED' && l !== 'NOTDEFINED');
-  return other ? `.${other}.` : undefined;
-}
-const otherForm = (token: string) => (/^'[A-Za-z]/.test(token)
-  ? `'\\X2\\${token.charCodeAt(1).toString(16).toUpperCase().padStart(4, '0')}\\X0\\${token.slice(2)}` : undefined);
 
-interface Fixture { readonly text: string; readonly distinct: ReadonlySet<string>; readonly carried: ReadonlySet<number> }
-function bonsaiPlanning(file: string): Fixture {
-  const original = readFileSync(join(ROOT, file), 'latin1');
-  const index = scanForeignStep(new TextEncoder().encode(original));
-  const cls = classify(index);
-  const lines = new Map<string, string[]>();
-  const distinct = new Set<string>();
-  const carried = new Set<number>();
-  const rewrite = (chunk: number, table: IfcSlotTable, foreign: boolean) => {
-    const args = [...index.argTokens(chunk)!];
-    table.slots.forEach((slot, k) => {
-      const at = `${table.naam}.${slot.key}`;
-      const kind = foreign ? soort(table, k) : slot.soort;
-      if (groupOf(table, k) || slot.rol) return;
-      let next: string | undefined;
-      if (slot.bronverwijzing) next = BONSAI_REFERENCE[slot.key];
-      else if (kind === 'constant' || kind === 'afgeleid') next = SAME_AS_WRITER[at] ? undefined : ownToken(codeOf(index.type(chunk), k), args[k], slot.key);
-      else if (kind === 'domein' && table.naam === 'IfcTask' && slot.key === 'status') next = "'Bonsai: in uitvoering'";
-      else if (kind === 'domein' && codeOf(index.type(chunk), k) === 'S' && args[k].trim() !== '$') next = otherForm(args[k].trim());
-      else if (kind === 'domein' && /^'P0Y0M\d+D'$/.test(args[k].trim())) next = `'P${args[k].trim().slice(6)}`;
-      else if (kind === 'domein' && /^'\d{4}-\d\d-\d\dT\d\d:\d\d:00'$/.test(args[k].trim())) next = `${args[k].trim().slice(0, -4)}'`;
-      else if (kind === 'domein' && args[k].trim() === '.WORKTIME.') next = '.NOTDEFINED.';
-      else if (kind === 'domein' && table.naam === 'IfcTask' && slot.key === 'priority' && args[k].trim() === '$') next = '500';
-      if (next === undefined || next === args[k].trim()) return;
-      args[k] = next;
-      distinct.add(at);
-    });
-    lines.set(index.id(chunk), args);
-  };
-  for (let chunk = 0; chunk < index.count; chunk++) {
-    if (!index.isEntity(chunk) || (!cls.selection.inD[chunk] && !cls.inR[chunk])) continue;
-    const args = index.argTokens(chunk)!;
-    const table = slotTableOf(index.type(chunk), args);
-    if (!table || NOT_CARRIED.has(table.naam) || args.length !== table.slots.length) continue;
-    carried.add(Number(index.id(chunk)));
-    rewrite(chunk, table, true);
-    const ownedSlot = table.naam === 'IfcTask' ? 'taskTime' : table.naam === 'IfcRelSequence' ? 'timeLag' : undefined;
-    const owned = ownedSlot ? index.refAt(chunk, table.slots.findIndex(s => s.key === ownedSlot)) : -1;
-    if (owned >= 0) rewrite(owned, slotTableOf(index.type(owned), index.argTokens(owned)!)!, true);
-  }
-  let product = false;
-  const text = original.split(/\r?\n/).map(line => {
-    const m = /^#(\d+)=([A-Z0-9_]+)\(/.exec(line);
-    const args = m ? lines.get(m[1]) : undefined;
-    const type = m?.[2] === 'IFCLABORRESOURCE' && !product && (product = true) ? 'IFCCONSTRUCTIONPRODUCTRESOURCE' : m?.[2];
-    return args ? `#${m![1]}=${type}(${args.join(',')});` : line;
-  }).join('\n').replace('ENDSEC;\nEND-ISO', `${BONSAI.join('\n')}\nENDSEC;\nEND-ISO`);
-  return { text, distinct, carried };
-}
-
-const FILE = 'public/examples/showcase-verbouwing-eengezinswoning.ifc';
-const fixture = bonsaiPlanning(FILE);
+const fixture = bonsaiPlanning(PIN_FILE);
 const sourceBytes = new TextEncoder().encode(fixture.text);
 const sourceIndex = scanForeignStep(sourceBytes);
 const opened = await openForeign(sourceBytes);
@@ -211,31 +109,6 @@ function counterparts(out: Uint8Array): (chunk: number) => number {
   return self;
 }
 
-function lostReferences(before: Uint8Array, after: Uint8Array): string[] {
-  const a = scanForeignStep(before), b = scanForeignStep(after), classes = classify(a).classes;
-  const guid = (index: Index, c: number) => {
-    const t = index.argTokens(c)?.[0]?.trim();
-    return t && /^'[0-9A-Za-z_$]{22}'$/.test(t) ? t : undefined;
-  };
-  const guids = new Set<string>();
-  for (let c = 0; c < b.count; c++) { const g = b.isEntity(c) ? guid(b, c) : undefined; if (g) guids.add(g); }
-  const present = (c: number) => {
-    const g = guid(a, c);
-    if (g) return guids.has(g);
-    const o = b.chunkOf(a.id(c));
-    return o >= 0 && b.type(o) === a.type(c);
-  };
-  const lost: string[] = [];
-  for (let t = 0; t < a.count; t++) {
-    if (!a.isEntity(t) || classes[t] === 1 || a.inEnd(t) === a.inStart(t)) continue;
-    const o = b.chunkOf(a.id(t));
-    if (o < 0 || b.type(o) !== a.type(t) || b.inEnd(o) > b.inStart(o)) continue;
-    const referrers = Array.from({ length: a.inEnd(t) - a.inStart(t) }, (_, k) => a.inSource(a.inStart(t) + k));
-    if (referrers.some(r => r >= 0 && present(r))) lost.push(`${a.type(t)} #${a.id(t)}`);
-  }
-  return lost;
-}
-
 function sourceTokenDifferences(out: Uint8Array): string[] {
   const outIndex = scanForeignStep(out), counterpart = counterparts(out), diffs: string[] = [];
   for (const [chunk, piece] of pieces) {
@@ -250,14 +123,15 @@ function sourceTokenDifferences(out: Uint8Array): string[] {
 }
 
 const innocent = (d: Domain) => storeEdit(d, s => { s.setProject({ name: `${d.project.name} (elders gewijzigd)` }); });
-const first = await tryMerge(await innocent(cloneDomain(opened)), source);
+const innocentEdit = await innocent(cloneDomain(opened));
+const first = await tryMerge(innocentEdit, source);
 dump('bron.ifc', sourceBytes);
 if (first.ok) dump('na-onschuldige-wijziging.ifc', first.bytes);
 ok(`na een onschuldige wijziging elders schrijft de merge${first.ok ? '' : ` (${first.error.cases.slice(0, 3).map(c => `${c.kind}: ${c.detail}`).join(' | ')})`}`, first.ok);
 const tested = new Set<string>();
 if (first.ok) {
   eq('na een onschuldige wijziging elders: elk slot van Bonsai houdt zijn brontoken', sourceTokenDifferences(first.bytes), []);
-  eq('na een onschuldige wijziging elders: geen stuk van Bonsai verliest zijn laatste verwijzing', lostReferences(sourceBytes, first.bytes), []);
+  eq('na een onschuldige wijziging elders: regel C', regelCOf(sourceBytes, source, first.bytes, opened, innocentEdit), []);
   const outIndex = scanForeignStep(first.bytes);
   const counterpart = counterparts(first.bytes);
   for (const [chunk, piece] of pieces) {
@@ -440,7 +314,7 @@ for (const [at, entry] of Object.entries(EDITS)) {
   if (o < 0) { ok(`${at}: het stuk staat in de uitvoer`, false); continue; }
   const was = argsAt(sourceIndex, chunk)[k], now = argsAt(outIndex, o)[k];
   ok(`${at}: de nieuwe waarde van de writer, niet het brontoken (${was} → ${now})`, now !== was);
-  eq(`${at}: geen stuk van Bonsai verliest zijn laatste verwijzing`, lostReferences(sourceBytes, result.bytes), []);
+  eq(`${at}: regel C`, regelCOf(sourceBytes, source, result.bytes, opened, edited), []);
 }
 
 interface SingleEdit {
@@ -494,7 +368,7 @@ const SINGLE: Readonly<Record<string, SingleEdit>> = {
     slots: ['IfcRelSequence.sequenceType', 'IfcRelSequence.userDefinedSequenceType'],
   },
   'sequence.lagDays': { object: lagStep, edit: sync(d => { plainLag(d).lagDays += 3; }), slots: ['IfcLagTime.lagValue'] },
-  'sequence.lagUnit': { object: lagStep, edit: sync(d => { plainLag(d).lagUnit = 'ELAPSEDTIME'; }), slots: ['IfcLagTime.durationType', 'IfcLagTime.lagValue'] },
+  'sequence.lagUnit': { object: lagStep, edit: sync(d => { plainLag(d).lagUnit = 'ELAPSEDTIME'; }), slots: ['IfcLagTime.durationType'] },
 };
 const NOT_SINGLE: Readonly<Record<string, string>> = {
   'resources.predefinedType': 'een ander type geeft een andere entiteit; de merge weigert dat (entiteittype)',
@@ -521,7 +395,7 @@ for (const [field, entry] of Object.entries(SINGLE)) {
   }));
   eq(`${field} gewijzigd: alleen de slots van dat veld krijgen de waarde van de writer`, sourceTokenDifferences(result.bytes).filter(d => !allowed.has(d)), []);
   eq(`${field} gewijzigd: invarianten`, mergeProblems(sourceBytes, result.bytes), []);
-  eq(`${field} gewijzigd: geen stuk van Bonsai verliest zijn laatste verwijzing`, lostReferences(sourceBytes, result.bytes), []);
+  eq(`${field} gewijzigd: regel C`, regelCOf(sourceBytes, source, result.bytes, opened, edited), []);
 }
 
 const { buildWriteIFCInput } = await loadStore();
@@ -535,6 +409,7 @@ const SAVE_SOURCES: readonly (readonly [string, Uint8Array])[] = [
 for (const [route, compute] of ROUTES) for (const [label, bytes] of SAVE_SOURCES) {
   const at = `${route}, ${label}`;
   const { store } = await openInStore(bytes);
+  const original = store.getState().ifcSource!;
   const commit = async (): Promise<Uint8Array | string> => {
     const state = store.getState();
     try {
@@ -560,7 +435,7 @@ for (const [route, compute] of ROUTES) for (const [label, bytes] of SAVE_SOURCES
   ok(`${at}: tweemaal opslaan zonder wijziging: bytegelijk`, once instanceof Uint8Array && twice instanceof Uint8Array && sameBytes(once, twice));
   for (const [what, out] of [['de tweede opslag', second], ['de derde opslag', third]] as const) {
     if (!(out instanceof Uint8Array)) continue;
-    eq(`${at}: na ${what} verliest geen stuk van Bonsai zijn laatste verwijzing`, lostReferences(bytes, out), []);
+    eq(`${at}: na ${what} regel C tegenover de oorspronkelijke bron`, regelCOf(bytes, original, out), []);
     eq(`${at}: na ${what} de invarianten tegenover de oorspronkelijke bron`, mergeProblems(bytes, out), []);
     if (bytes !== sourceBytes) continue;
     if (route === ROUTES[0][0]) dump(what === 'de tweede opslag' ? 'tweede-opslag.ifc' : 'derde-opslag.ifc', out);
@@ -638,7 +513,7 @@ for (const [n, { label, edit, expect }] of RELATION_EDITS.entries()) {
   dump(`relatie-${n + 1}.ifc`, result.bytes);
   eq(`${label}: invarianten`, mergeProblems(sourceBytes, result.bytes), []);
   eq(`${label}: geen lid dubbel`, doubleMemberships(result.bytes).filter(k => !doubleMemberships(sourceBytes).includes(k)), []);
-  eq(`${label}: geen stuk van Bonsai verliest zijn laatste verwijzing`, lostReferences(sourceBytes, result.bytes), []);
+  eq(`${label}: regel C`, regelCOf(sourceBytes, source, result.bytes, opened, edited), []);
   const index = scanForeignStep(result.bytes), counterpart = counterparts(result.bytes);
   for (const [chunk, piece] of relationPieces) {
     const table = slotTableNamed(piece.table)!;
@@ -675,7 +550,9 @@ type StoreEdit = Parameters<typeof storeEdit>[1];
 const rename = (from: string, to: string): StoreEdit => s => { s.updateTask(s.tasks.find(t => t.name === from)!.id, { name: to }); };
 async function saveOn(bytes: Uint8Array, edit: StoreEdit) {
   const o = await openForeign(bytes);
-  return { o, result: await tryMerge(await storeEdit(cloneDomain(o), edit), o.ifcSource!) };
+  const edited = await storeEdit(cloneDomain(o), edit);
+  const result = await tryMerge(edited, o.ifcSource!);
+  return { o, edited, result, rule: () => (result.ok ? regelCOf(bytes, o.ifcSource!, result.bytes, o, edited) : []) };
 }
 const outArgs = (out: Uint8Array, id: number) => { const index = scanForeignStep(out); return argsAt(index, index.chunkOf(String(id))); };
 const typeIn = (out: Uint8Array, id: number) => { const index = scanForeignStep(out); const c = index.chunkOf(String(id)); return c < 0 ? '' : index.type(c); };
@@ -690,13 +567,13 @@ const RECURRING = atEnd(B4D.replace(/^#110=IFCTASKTIME\((.*)\);$/m, '#110=IFCTAS
 for (const [label, text] of [['een gewone taaktijd', B4D], ['een terugkerende taaktijd', RECURRING]] as const) {
   const bytes = encode(text);
   for (const [what, edit] of [['een andere taak hernoemd', rename('Wand A bouwen', 'Wand A (review)')], ['de taak zelf hernoemd', rename('Wand B bouwen', 'Wand B (review)')]] as const) {
-    const { result } = await saveOn(bytes, edit);
+    const { result, rule } = await saveOn(bytes, edit);
     ok(`${label}, ${what}: schrijft (${refusal(result)})`, result.ok);
     if (!result.ok) continue;
     eq(`${label}, ${what}: #108 wijst nog naar #110`, outArgs(result.bytes, 108)[11], '#110');
     eq(`${label}, ${what}: #110 houdt zijn entiteittype`, typeIn(result.bytes, 110), typeIn(bytes, 110));
     eq(`${label}, ${what}: elke taaktijd in de uitvoer heeft een verwijzing`, unreferenced(result.bytes, 'IFCTASKTIME'), []);
-    eq(`${label}, ${what}: geen stuk van Bonsai verliest zijn laatste verwijzing`, lostReferences(bytes, result.bytes), []);
+    eq(`${label}, ${what}: regel C`, rule(), []);
   }
 }
 {
@@ -708,24 +585,28 @@ for (const [label, text] of [['een gewone taaktijd', B4D], ['een terugkerende ta
 
 const WITH_LAG = atEnd(B4D.replace(/(,#104,#108),\$,(\.FINISH_START\.,\$\);)/, '$1,#8010,$2'),
   "#8010=IFCLAGTIME('Bonsai lag',.MEASURED.,$,IFCDURATION('P2D'),.NOTDEFINED.);");
-for (const [what, change, want] of [
-  ['de lagwaarde van twee naar drie dagen', { lagDays: 3 }, ["'Bonsai lag'", '.MEASURED.', '$', "IFCDURATION('P3D')", '.NOTDEFINED.']],
-  ['de lageenheid naar verstreken tijd', { lagUnit: 'ELAPSEDTIME' as const }, ["'Bonsai lag'", '.MEASURED.', '$', "IFCDURATION('P2D')", '.ELAPSEDTIME.']],
+for (const spelling of ['P2D', 'P02D']) for (const [what, change, value, unit] of [
+  ['de lagwaarde van twee naar drie dagen', { lagDays: 3 }, 'P3D', '.NOTDEFINED.'],
+  ['de lageenheid naar verstreken tijd', { lagUnit: 'ELAPSEDTIME' as const }, spelling, '.ELAPSEDTIME.'],
 ] as const) {
-  const { result } = await saveOn(encode(WITH_LAG), s => { s.updateSequence(s.sequences.find(q => q.lagDays === 2)!.id, change); });
-  ok(`een lag van Bonsai, ${what}: schrijft (${refusal(result)})`, result.ok);
-  if (result.ok) eq(`een lag van Bonsai, ${what}: alleen het slot van dat veld verandert`, outArgs(result.bytes, Number(outArgs(result.bytes, 112)[6].slice(1))), [...want]);
+  const at = `een lag van Bonsai in de spelling ${spelling}, ${what}`;
+  const { result, rule } = await saveOn(encode(WITH_LAG.replace("'P2D'", `'${spelling}'`)), s => { s.updateSequence(s.sequences.find(q => q.lagDays === 2)!.id, change); });
+  ok(`${at}: schrijft (${refusal(result)})`, result.ok);
+  if (!result.ok) continue;
+  eq(`${at}: alleen het slot van dat veld verandert`, outArgs(result.bytes, Number(outArgs(result.bytes, 112)[6].slice(1))),
+    ["'Bonsai lag'", '.MEASURED.', '$', `IFCDURATION('${value}')`, unit]);
+  eq(`${at}: regel C`, rule(), []);
 }
 
 const SHARED_LAG = atEnd(WITH_LAG, "#8013=IFCEVENT('2Bonsaigebeurtenis0001',#111,'Oplevering',$,$,$,$,.ENDEVENT.,.NOTDEFINED.,$,$);\n"
   + "#8014=IFCRELSEQUENCE('3Bonsaigebeurtenisvolg',#111,$,$,#108,#8013,#8010,.FINISH_START.,$);");
 {
-  const { result } = await saveOn(encode(SHARED_LAG), rename('Wand A bouwen', 'Wand A (review)'));
+  const { result, rule } = await saveOn(encode(SHARED_LAG), rename('Wand A bouwen', 'Wand A (review)'));
   ok(`een lag die Bonsai deelt met een reeks buiten de planning, een taak hernoemd: schrijft (${refusal(result)})`, result.ok);
   if (result.ok) {
     eq('een gedeelde lag: #112 wijst nog naar #8010', outArgs(result.bytes, 112)[6], '#8010');
     eq('een gedeelde lag: elke lag in de uitvoer heeft een verwijzing', unreferenced(result.bytes, 'IFCLAGTIME'), []);
-    eq('een gedeelde lag: geen stuk van Bonsai verliest zijn laatste verwijzing', lostReferences(encode(SHARED_LAG), result.bytes), []);
+    eq('een gedeelde lag: regel C', rule(), []);
   }
   const { result: changed } = await saveOn(encode(SHARED_LAG), s => { s.updateSequence(s.sequences.find(q => q.lagDays === 2)!.id, { lagDays: 3 }); });
   ok(`een gedeelde lag, de lagwaarde gewijzigd: getypeerd geweigerd op #112 (${refusal(changed)})`,
@@ -747,7 +628,7 @@ for (const [removed, left] of [
   [['Andere ploeg'], ["'3rmDhv9f7mdZ0AEONco1oi' (#118)"]],
   [['Metselploeg', 'Andere ploeg'], []],
 ] as const) {
-  const { result } = await saveOn(encode(TWO_ASSIGNMENTS), s => {
+  const { result, rule } = await saveOn(encode(TWO_ASSIGNMENTS), s => {
     const task = s.tasks.find(t => t.name === 'Wand A bouwen')!;
     for (const name of removed) {
       const resource = s.resources.find(r => r.name === name)!;
@@ -757,7 +638,25 @@ for (const [removed, left] of [
   ok(`twee toewijzingen van Bonsai, ${removed.join(' en ')} weg: schrijft (${refusal(result)})`, result.ok);
   if (!result.ok) continue;
   eq(`twee toewijzingen van Bonsai, ${removed.join(' en ')} weg: de overgebleven relatie op haar GlobalId`, assignmentsOf104(result.bytes), [...left]);
-  eq(`twee toewijzingen van Bonsai, ${removed.join(' en ')} weg: geen stuk van Bonsai verliest zijn laatste verwijzing`, lostReferences(encode(TWO_ASSIGNMENTS), result.bytes), []);
+  eq(`twee toewijzingen van Bonsai, ${removed.join(' en ')} weg: regel C`, rule(), []);
+}
+
+{
+  const bytes = encode(TWO_ASSIGNMENTS);
+  const { edited, result } = await saveOn(bytes, s => {
+    const task = s.tasks.find(t => t.name === 'Wand A bouwen')!, resource = s.resources.find(r => r.name === 'Metselploeg')!;
+    s.unassignResource(s.assignments.find(a => a.taskId === task.id && a.resourceId === resource.id)!.id);
+  });
+  if (result.ok) {
+    const probe = await lossProbe(bytes, edited, result.bytes);
+    const named = (chunks: readonly number[]) => chunks.map(c => `${probe.index.type(c)} #${probe.index.id(c)}`);
+    eq('twee toewijzingen van Bonsai, Metselploeg weg: de verliescontrole op de echte uitvoer meldt niets', named(probe.run(probe.o1)), []);
+    const other = probe.o1.find(l => l.type === 'IFCRELASSIGNSTOPROCESS' && l.args[0] === "'1rmDhv9f7mdZ0AEONco1oi'");
+    ok('de proef: de relatie van de andere ploeg staat in de uitvoer', other !== undefined);
+    const flagged = named(probe.run(probe.o1.filter(l => l !== other)));
+    ok(`ook de relatie van de andere ploeg weg, terwijl alleen de toewijzing van de Metselploeg wijzigde: de controle meldt haar (${flagged.join(', ')})`,
+      flagged.includes('IFCRELASSIGNSTOPROCESS #8002'));
+  }
 }
 
 const PADDED = B4D.replace(/#107(?!\d)/g, '#00107');
