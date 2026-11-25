@@ -1544,7 +1544,7 @@ en noem het in je rapport of PR-tekst.
     als uiterste bronpositie; de hele tijdas viel weg. Met de standaardkolommen, de naamkolom handmatig op 400 px en
     de rapportletter op 125 % was de tabel 810 px; met de volledige naam en 125 % 1310 px, ook te breed voor A4
     liggend en A3 staand (grens 1058,52 px). De app waarschuwt dan dat de tijdlijn smal wordt en laat de export
-    doorgaan. Zie ADR 0351. — B
+    doorgaan. Zie ADR 0351. Issue #1238. — B
 
 2337. **Op vaste schaal met een tabel net smaller dan de afdrukbare breedte ontstaan duizenden bladen.**
     `computeTileLayout` (`src/services/print/tileLayout.ts`) rekent het aantal kolommen uit de ruimte die naast de
@@ -1552,7 +1552,7 @@ en noem het in je rapport of PR-tekst.
     staand, *Vaste schaal*, een automatisch gemeten tabel van 729 px en een planning van januari tot oktober op 22 px
     per dag gaf 9496 bladen; na het eerste blad komt er per blad 0,71 logische px tijdas bij. Het afdrukvoorbeeld
     (`ReportPaperView.tsx`) maakt voor elk blad een element en de vectorpagineerder (`paginateVector.ts`) voegt elk
-    blad toe aan de PDF. Tijd en geheugen bij dat aantal zijn niet gemeten. — B
+    blad toe aan de PDF. Tijd en geheugen bij dat aantal zijn niet gemeten. Issue #1238. — B
 
 ## Kalenders
 
