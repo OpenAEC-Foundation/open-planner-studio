@@ -193,6 +193,10 @@ opslagpoging (0073) en de keuzes van de exportroute (0074).
 een proefkopie (0151), de vraag bij een nieuwe samenvattingstaak (0152), een taakbewerking telt op haar uitkomst
 (0153), voortgang invullen en inlezen (0154), taken opheffen (0155) en taken toevoegen, invoegen en verwijderen (0156).
 
+**Besluiten in `gridTransaction.ts`** staan in `docs/adr/`: voorbereiden op een kopie en één keer vastleggen (0440), de
+kolomcontext volgt het raster (0441), de volgorde van writes rond een overgang (0442), alleen-lezen cellen (0443), een
+celbewerking toepassen (0444), toewijzingen (0445), relaties (0446) en voortgang (0447).
+
 **Besluiten in `utils/taskDefaults.ts`** staan in `docs/adr/`: het ingevoerde einde van een urentaak (0210), de verse
 tijd en de velden van een nieuwe taak (0211), een tijdpatch samenvoegen (0212), een bewerking laat afgeleide sturing
 los (0213), de gevolgen van een duurwijziging (0214) en MSP-herkomst in bewerkregels (0215).
