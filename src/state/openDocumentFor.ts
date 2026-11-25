@@ -1,10 +1,13 @@
 import type { FileRef } from '@/services/fileAccess';
 import { sameEntry } from '@/services/fileAccess/foreignSourceTarget';
+import { readFormatForFile, type FormatReadOptions } from '@/services/formatRegistry';
 import { isMultiDocumentImport, type OpenedImport } from '@/services/importTypes';
 import type { AppState } from './appStoreFactory';
 import type { DocumentPayload, TargetFingerprint } from './documentContract';
 import { hasChangedOnDisk } from './documentSaveState';
-import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
+import { isIfcxName } from '@/utils/filePath';
+import { versionGuarded } from './versionGuard';
 
 type Tabs = Pick<AppState, 'getOpenDocumentPayloads'>;
 type TabFile = Pick<DocumentPayload, 'filePath' | 'fileHandle' | 'siteFileId' | 'siteFileVersion' | 'knownTargetFingerprint'>;
@@ -12,6 +15,11 @@ export type HandleRef = Extract<FileRef, { kind: 'handle' }>;
 
 export interface OpenLookup {
   readonly hits: readonly { readonly id: string; readonly handle: FileSystemFileHandle }[];
+}
+
+export function looksUpOpenTab(readOptions: FormatReadOptions, name: string): boolean {
+  if (readOptions.ifcx && isIfcxName(name)) return true;
+  return !!readOptions.ifcBytes && !!readFormatForFile(name).canBeSaveTarget;
 }
 
 export function startOpenLookup(s: Tabs, ref: HandleRef): OpenLookup {
@@ -28,9 +36,19 @@ export type ReadVersion =
   | { readonly kind: 'site'; readonly version: string }
   | { readonly kind: 'bytes'; readonly fingerprint: Pick<TargetFingerprint, 'sha256' | 'byteLength'> };
 
+export function readsOwnIfcx(parsed: OpenedImport): boolean {
+  return !isMultiDocumentImport(parsed) && !!parsed.ifcxRead;
+}
+
+export function oneTabPerFile(featureFlags: Readonly<FeatureFlagValues>, parsed: OpenedImport): boolean {
+  return ifcForeignContentEnabled(featureFlags) || readsOwnIfcx(parsed);
+}
+
 export function readVersionOf(ref: FileRef, parsed: OpenedImport, siteVersion?: string | null): ReadVersion | null {
   if (ref.kind === 'site') return siteVersion ? { kind: 'site', version: siteVersion } : null;
-  const source = isMultiDocumentImport(parsed) ? undefined : parsed.ifcSource;
+  if (isMultiDocumentImport(parsed)) return null;
+  if (parsed.ifcxRead) return { kind: 'bytes', fingerprint: parsed.ifcxRead };
+  const source = parsed.ifcSource;
   return source ? { kind: 'bytes', fingerprint: { sha256: source.sha256, byteLength: source.bytes.byteLength } } : null;
 }
 
@@ -81,6 +99,6 @@ export function switchToOpenDocument(s: Pick<AppState, 'switchDocument' | 'markC
   else if (tab.provenSame) s.forgetChangedOnDisk(tab.id);
 }
 
-export function changedOnDiskShown(s: Pick<AppState, 'ui' | 'documents' | 'activeDocumentId'>): boolean {
-  return ifcForeignContentEnabled(s.ui.featureFlags) && hasChangedOnDisk(s, s.activeDocumentId);
+export function changedOnDiskShown(s: Pick<AppState, 'ui' | 'documents' | 'activeDocumentId' | 'fileFormat'>): boolean {
+  return versionGuarded(s.ui.featureFlags, s.fileFormat) && hasChangedOnDisk(s, s.activeDocumentId);
 }

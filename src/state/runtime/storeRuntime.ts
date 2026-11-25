@@ -14,6 +14,7 @@ import { emitExtensionEvent, type HostEventName } from '@/services/extensionEven
 import type { RecomputedRemainingWork } from '@/engine/work/workRuleApply';
 import { createPendingTextEdits, type PendingTextEdits } from '../pendingTextEdits';
 import type { IfcOutputCompute } from '../prepareIfcOutput';
+import type { IfcxClassify } from '@/services/fileAccess/foreignSourceTarget';
 
 /** Bestaande publieke naam; de grens wordt per session-historyscope afgedwongen. */
 export const MAX_UNDO = MAX_SESSION_HISTORY_EVENTS_PER_SCOPE;
@@ -35,6 +36,7 @@ export interface StoreRuntimeOptions {
    *  `appStoreContext` krijgt de opslagworker van de gemounte app; headless-, scratch- en testcontexten (en de app-MCP,
    *  die `prepareIfcOutput` zelf aanroept) rekenen op deze thread. */
   ifcSaveCompute?: IfcOutputCompute;
+  ifcxClassify?: IfcxClassify;
 }
 
 interface ActiveMcpLease extends McpTransactionLease {
@@ -84,6 +86,7 @@ export interface StoreRuntime {
   finishPendingTextEdits(): void;
   /** Zie `StoreRuntimeOptions.ifcSaveCompute`; `undefined` = deze thread. */
   readonly ifcSaveCompute: IfcOutputCompute | undefined;
+  readonly ifcxClassify: IfcxClassify | undefined;
   /**
    * Open een bewerksessie (de taakdialoog). Zolang hij open staat krijgt elk
    * event dat via de interactieve route (`finishUndoable`, dus buiten batch en MCP-lease) ontstaat
@@ -316,6 +319,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
       pendingTextEdits.finish();
     },
     ifcSaveCompute: opts?.ifcSaveCompute,
+    ifcxClassify: opts?.ifcxClassify,
     resetUndoCoalescing() {
       coalesce = null;
     },

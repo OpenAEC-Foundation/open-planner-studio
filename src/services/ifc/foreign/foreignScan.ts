@@ -11,6 +11,7 @@ import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
 import { scanForeignStep } from './oldOwnHeader';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { scanElementLinks, type StepElementLink } from './elementLinks';
+import { scanSourceSlots, type SourceSlots } from './sourceSlots';
 import type { ForeignReferences } from './changeList';
 import { foreignReferences } from './foreignReferences';
 
@@ -62,6 +63,7 @@ export interface ForeignScanResult {
 
 export interface OpenedForeignScan extends ForeignScanResult {
   readonly stepElementLinks: readonly StepElementLink[];
+  readonly sourceSlots?: SourceSlots;
   readonly foreignReferences?: ForeignReferences;
 }
 
@@ -92,6 +94,7 @@ export function scanForeignToOpen(bytes: Uint8Array): OpenedForeignScanOutcome {
   const foreign = scan.counts.C + scan.counts.A + scan.counts.V > 0;
   return {
     ...scan, stepElementLinks: scanElementLinks(index),
+    ...(foreign ? { sourceSlots: scanSourceSlots(index, cls.foreignOrigin) } : {}),
     ...(foreign ? { foreignReferences: foreignReferences(index, cls.classes, bytes, cls.selection.inD) } : {}),
   };
 }

@@ -78,6 +78,13 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
       'task:properties.elementLinks.*',
     ],
   },
+  {
+    id: 'ifcx',
+    nameKey: 'settings.ifcx',
+    descriptionKey: 'settings.ifcxHint',
+    writesNewIfcData: true,
+    texts: ['common:ifcx.*'],
+  },
 ];
 
 export type FeatureFlagValues = Record<string, boolean>;
@@ -97,4 +104,8 @@ export function parseFeatureFlagValues(raw: unknown): FeatureFlagValues | undefi
 /** Staat de flag `ifcForeignContent` aan (#804)? Eén plek voor de open-routes; zie `FormatReadOptions.ifcBytes`. */
 export function ifcForeignContentEnabled(values: Readonly<FeatureFlagValues>): boolean {
   return isFeatureEnabled(values, 'ifcForeignContent');
+}
+
+export function ifcxEnabled(values: Readonly<FeatureFlagValues>): boolean {
+  return isFeatureEnabled(values, 'ifcx');
 }

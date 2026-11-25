@@ -206,3 +206,8 @@ bron; daarom leidt `tests/planning/run.sh` die ene import (`#binary-trie`) naar 
 **Besluiten van de bladindeling** (`src/services/print/tileLayout.ts`):
 `docs/adr/0350-bladindeling-een-pure-functie-met-kant-en-klare-vensters.md`, `0351-bladindeling-schaal-en-kolommen.md`,
 `0352-bladindeling-herhaalde-kop-en-voet.md` en `0353-bladindeling-waar-een-blad-eindigt.md`.
+
+**Besluiten van de tekenlaag van de vector-PDF** (`src/services/pdf/pdfVectorDraw2d.ts`):
+`docs/adr/0380-vector-pdf-coordinaten-en-eenheden.md`, `0381-vector-pdf-paden-en-afgeronde-rechthoeken.md`,
+`0382-vector-pdf-kleur-en-doorzichtigheid.md`, `0383-vector-pdf-tekst-buiten-het-xobject-en-plaatsing.md`,
+`0384-vector-pdf-tekstwegen-en-de-dekkingspoort.md` en `0385-vector-pdf-letters-inbedden-alleen-wat-getekend-is.md`.

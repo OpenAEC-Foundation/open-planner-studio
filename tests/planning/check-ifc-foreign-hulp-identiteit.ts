@@ -8,6 +8,7 @@ import { planningCanon } from '@/services/ifc/foreign/planningCanon';
 import { sourceFormProblems } from '@/services/ifc/foreign/sourceForm';
 import { classify } from '@/services/ifc/foreign/classify';
 import { preserveAuxiliaryIdentities, pristineDomain, replaceRefsOutsideText, parseOutLine, type LossCheckInput } from '@/services/ifc/foreign/lossCheck';
+import { assignmentOrigin } from '@/services/ifc/foreign/assignmentOrigin';
 import { mergeIdPlan, MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { MAX_STEP_ID } from '@/services/ifc/foreign/stepScanner';
@@ -260,7 +261,8 @@ const relation = lines.find(l => l.type === 'IFCRELDEFINESBYPROPERTIES' && l.arg
 const last = Math.max(...lines.map(l => l.id));
 const duplicates = [...lines, { ...pset, id: last + 1 }, { ...relation, id: last + 2, args: relation.args.map((v, k) => k === 5 ? `#${last + 1}` : v) }];
 const pairingInput: LossCheckInput = { index: idx, cls, fixed: new Set([...plan.bySource.keys(), ...plan.baselineHeads.values()]), bySource: plan.bySource,
-  o0: duplicates, o1: duplicates, pristine: await pristineDomain(idx, cls, source), domain: cloneDomain(officeDomain) };
+  o0: duplicates, o1: duplicates, pristine: await pristineDomain(idx, cls, source), domain: cloneDomain(officeDomain),
+  assignmentOrigin: assignmentOrigin(idx, plan.bySource, officeDomain, undefined) };
 const ambiguous = preserveAuxiliaryIdentities(pairingInput, duplicates);
 const owner = Number(relation.args[4].replace(/[()#]/g, ''));
 const sourcePset = Array.from({ length: idx.count }, (_, c) => c).find(c => idx.type(c) === 'IFCPROPERTYSET' && idx.name(c) === 'OPS_Resource' && psetOwners(idx, c).some(o => Number(idx.id(o)) === owner))!;

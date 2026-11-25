@@ -499,7 +499,9 @@ export interface MultiDocumentImport {
 }
 
 /** Het resultaat van een reader op de centrale open-pijplijn. */
-export type OpenedImport = ImportResult | MultiDocumentImport;
+export type ReadImportResult = ImportResult & { readonly ifcxRead?: { readonly sha256: string; readonly byteLength: number } };
+
+export type OpenedImport = ReadImportResult | MultiDocumentImport;
 
 export function isMultiDocumentImport(value: OpenedImport): value is MultiDocumentImport {
   return 'kind' in value && value.kind === 'multi-document';

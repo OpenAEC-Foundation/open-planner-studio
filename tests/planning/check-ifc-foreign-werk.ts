@@ -154,14 +154,17 @@ function withLags(n: number): string {
   return writeIFC(d);
 }
 
+const bonsai4d = () => readFileSync(new URL('../fixtures/ifc-foreign/bonsai-4d.ifc', import.meta.url), 'latin1');
+const latin1 = (text: string) => Uint8Array.from(text, c => c.charCodeAt(0));
+const GUID_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$';
+const guid = (k: number, prefix: number) => {
+  let tail = '';
+  for (let x = k, j = 0; j < 8; j++, x = Math.floor(x / 64)) tail = GUID_ALPHABET[x % 64] + tail;
+  return `${prefix}${'A'.repeat(13)}${tail}`;
+};
+
 function bonsaiWithTasks(n: number): Uint8Array {
-  const text = readFileSync(new URL('../fixtures/ifc-foreign/bonsai-4d.ifc', import.meta.url), 'latin1');
-  const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$';
-  const guid = (k: number, prefix: number) => {
-    let tail = '';
-    for (let x = k, j = 0; j < 8; j++, x = Math.floor(x / 64)) tail = alphabet[x % 64] + tail;
-    return `${prefix}${'A'.repeat(13)}${tail}`;
-  };
+  const text = bonsai4d();
   const swap = (t: string, from: string, to: string) => {
     const parts = t.split(from);
     if (parts.length !== 2) throw new Error(`bonsai-4d.ifc: ${from} staat er niet precies één keer in`);
@@ -180,7 +183,12 @@ function bonsaiWithTasks(n: number): Uint8Array {
     '(#104,#108,#144,#160),$,#98);', `(#104,#108,#144,#160,${tasks.join(',')}),$,#98);`);
   const end = big.lastIndexOf('ENDSEC;');
   big = `${big.slice(0, end)}${added.join('\n')}\n${big.slice(end)}`;
-  return Uint8Array.from(big, c => c.charCodeAt(0));
+  return latin1(big);
+}
+
+function bonsaiWithRelationsOnOneTask(n: number): Uint8Array {
+  const rows = Array.from({ length: n }, (_, k) => `#${200000 + k}=IFCRELASSIGNSTOPROCESS('${guid(k, 3)}',#119,$,$,(#118),$,#104,#121);`);
+  return latin1(bonsai4d().replace(/^#120=.*$/m, () => rows.join('\n')));
 }
 
 const grownTasks = new Map<number, Uint8Array>();
@@ -198,6 +206,13 @@ await linear('lezen van relaties met een lag in uren', 'relatie', [1000, 2000, 4
   return counted(async () => readIFC(text));
 });
 await linear('gemengde toewijzingen zoals Bonsai', 'taak', [1000, 2000, 4000], n => saveAfter(bonsaiWithTasks(n), rename, true));
+await linear('veel toewijzingsrelaties van Bonsai aan één taak, dezelfde ploeg', 'relatie', [250, 500, 1000], async n => {
+  const bytes = bonsaiWithRelationsOnOneTask(n);
+  const reopened = await openForeign(bytes);
+  const task = reopened.tasks.find(t => t.name === 'Wand A bouwen')!;
+  check(`veel relaties aan één taak, ${n}: de lezer leest elke relatie als een toewijzing`, reopened.assignments.filter(a => a.taskId === task.id).length === n);
+  return saveAfter(bytes, d => { d.tasks.find(t => t.id === task.id)!.name = 'Wand A gewijzigd'; });
+});
 
 {
   const d = cloneDomain(opened);

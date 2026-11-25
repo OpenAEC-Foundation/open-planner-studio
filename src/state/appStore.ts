@@ -19,7 +19,7 @@ const ifcSaveWorker = createIfcSaveWorker();
 
 /** De gemounte productinterface blijft exact één appcontext gebruiken. */
 export const appStoreContext = createAppStoreContext({
-  pendingTextEdits: mountedPendingTextEdits, ifcSaveCompute: ifcSaveWorker.compute,
+  pendingTextEdits: mountedPendingTextEdits, ifcSaveCompute: ifcSaveWorker.compute, ifcxClassify: ifcSaveWorker.classifyIfcx,
 });
 export const useAppStore = appStoreContext.store;
 bindDefaultGridTransactionStore(useAppStore.getState, useAppStore.setState);
