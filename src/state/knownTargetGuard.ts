@@ -15,22 +15,12 @@ export function guardedKnownTarget(state: KnownTargetState, ref: FileRef): Targe
   return ifcForeignContentEnabled(state.featureFlags) && state.known !== null && ref.kind !== 'site' ? state.known : null;
 }
 
-export function writtenKnownTarget(state: KnownTargetState, ref: FileRef): TargetFingerprint | null {
-  const known = guardedKnownTarget(state, ref);
-  return known?.origin === 'written' ? known : null;
-}
-
 export function contentLeftToKnownTarget(identity: WriteTargetRefusal | null | 'check-content'): WriteTargetRefusal | null {
   return identity === 'check-content' ? null : identity;
 }
 
 export async function stillWrittenKnownTarget(written: TargetFingerprint, ref: FileRef): Promise<boolean> {
   return ref.kind !== 'site' && await knownTargetContent(ref, written) === 'same';
-}
-
-export function knownBomVersion(state: KnownTargetState, ref: FileRef): TargetFingerprint | null {
-  const known = guardedKnownTarget(state, ref);
-  return known?.utf8Bom ? known : null;
 }
 
 export async function changedKnownTarget(

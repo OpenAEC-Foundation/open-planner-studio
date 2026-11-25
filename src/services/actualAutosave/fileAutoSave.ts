@@ -25,7 +25,7 @@ import {
 } from '@/services/fileAccess/writeCoordinator';
 import { pendingReplaceFor, tauriReplaceRecords } from '@/services/fileAccess/replaceRecords';
 import { tightAnchorsIfSaved } from '@/state/dependentCandidates';
-import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, knownBomVersion, stillWrittenKnownTarget, writtenKnownTarget, type KnownTargetState } from '@/state/knownTargetGuard';
+import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, stillWrittenKnownTarget, type KnownTargetState } from '@/state/knownTargetGuard';
 import {
   ifcFullWriteBlocked, ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_SAVE_WORKER_FAILED_NOTICE,
   IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedTargetIdentity, refusedWriteTarget, type WriteTargetDeps,
@@ -376,8 +376,11 @@ export function createFileAutoSaveController(deps: {
       // #804 fixronde 2: dezelfde doelcontrole als Opslaan, onder dezelfde lock. Fixronde 1 van #1027 (review Sol): ná het
       // rekenen, vlak vóór het schrijven, zoals Ctrl+S: een gebouwmodel dat tijdens het rekenen op het doel verscheen,
       // wordt niet overschreven. Eén doelscan; daarna beslist alleen nog de synchrone inhoudscontrole hieronder.
-      const ownWritten = writtenKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
-      const bomVersion = knownBomVersion(knownTargetOf(candidate.id), candidate.ref!);
+      const version = guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
+      const ownWritten = version?.origin === 'written' ? version : null;
+      const bomVersion = version?.utf8Bom ? version : null;
+      const bomData = bomVersion ? withUtf8Bom(output.bytes ?? output.content) : null;
+      const bomHashing = bomData && output.sha256 !== undefined ? writtenFingerprint(ui.featureFlags, output, bomData) : null;
       const ownDeps: WriteTargetDeps = bomVersion ? {
         ...targetDeps, ownBomVersion: { stillKnown: () => guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!) === bomVersion },
       } : targetDeps;
@@ -404,11 +407,10 @@ export function createFileAutoSaveController(deps: {
       let replaced = false;
       const contentReplaced = () => (replaced = !sameDocumentContent(getState(), document));
       if (contentReplaced()) return 'stale';
-      const data = bomVersion ? withUtf8Bom(output.bytes ?? output.content) : output.bytes ?? output.content;
-      const hashing = writtenFingerprint(ui.featureFlags, output, bomVersion ? data : undefined);
+      const hashing = bomData ? bomHashing ?? writtenFingerprint(ui.featureFlags, output, bomData) : writtenFingerprint(ui.featureFlags, output);
       let written: Awaited<ReturnType<typeof saveToRefWithoutPrompt>>;
       try {
-        written = await saveToRefWithoutPrompt(candidate.ref!, data, contentReplaced);
+        written = await saveToRefWithoutPrompt(candidate.ref!, bomData ?? output.bytes ?? output.content, contentReplaced);
       } catch (error) {
         if (candidate.ref?.kind === 'path') getState().forgetKnownTargetFingerprint(candidate.id);
         throw error;
