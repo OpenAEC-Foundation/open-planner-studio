@@ -29,7 +29,7 @@ tabel), dan is de schaal 1 in plaats van oneindig.
   strook groeit de schaal en daarmee het aantal bladrijen mee met N, zodat het paginatotaal ongeveer kwadratisch in N
   oploopt. In de gewone Gantt-route verbreedt de render de bron met N en blijft de schaal op 0,75 zolang er naast de
   tabel minstens 1 px overblijft; anders verkleint de pagineerder de hele bron (ADR 0234). Op A4 staand met een tabel
-  van 810 px is de bron 811 px en de schaal ongeveer 0,675. Zonder de bovengrens bouwde een doorgegeven 1e6 volgens
+  van 810 px is de bron bij één blad breed 811 px en de schaal ongeveer 0,675. Zonder de bovengrens bouwde een doorgegeven 1e6 volgens
   het weggehaalde commentaar een miljoen kolomobjecten. Het Rapport-tabblad biedt 1 tot en met 8
   (`TIMELINE_COLUMNS_MAX` in `reportSettings.ts` en de knoppen in `GanttReportStudio.tsx`); 32 laat daarboven ruim
   marge voor elke andere aanroeper.
