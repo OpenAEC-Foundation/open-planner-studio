@@ -108,6 +108,13 @@ Een geweigerde opslag laat het veld staan.
 Een mislukte schrijfactie naar het eigen pad (Ctrl+S, Automatisch opslaan) en een onzekere vervanging met herstel
 (`unknown`, `previous-stranded`, `target-taken`) maken het `null`; een rekenfout vóór het schrijven niet.
 Proef: `check-tabblad-schijfversie.ts` (de A2-tabel); grenzen: knownbug 2065, 2066 en 2200.
+**Een IFCX-document (regel F, #804 F3-4).** `fileFormat` (`DOCUMENT_FIELDS`, `snapshot: 'none'`, vers `'ifc'`) zet de lezer
+bij openen (`applyLoadedProject`: `ReadImportResult.ifcxRead` → `'ifcx'`; IFC toepassen en laden zonder nieuw doel houden het
+oude formaat); een kopie houdt het, `commitSavedDocument` met een nieuw doel zet het geschreven formaat
+(`SaveDestination.fileFormat`). Voor een IFCX-document geldt alles hierboven ook met de flag `ifcForeignContent` uit: de
+versie komt dan van de gelezen bytes (`ifcxRead`), het herstelmanifest bewaart haar (`ifcx`), de flag uitzetten wist haar
+niet, en de open-tabcontrole en de strook "gewijzigd op schijf" gelden (`oneTabPerFile`, `changedOnDiskShown`). Eén plek
+beslist dat: `versionGuarded` (`src/state/versionGuard.ts`). Voor een als STEP gelezen document verandert er niets.
 **De bewaking die het leest** (`knownTargetGuard.ts`): met de flag toetst Ctrl+S zonder `prepared`
 (`writeActiveDocument`, vlak vóór `refuseChangedDocumentWrite`; ook *Opslaan* in de sluitvraag) en elke gewone ronde van
 Automatisch opslaan (na `refusedWriteTarget`) het eigen pad of de eigen handle tegen de actuele waarde van het veld, niet

@@ -6968,30 +6968,14 @@ en noem het in je rapport of PR-tekst.
      bij de tweede opslag na openen stil vallen; dat is een eigen fout van main. De andere kalendervelden van de
      veldtabel (70 velden, 428 mutaties) zijn bij één en twee keer rondgang gelijk. Proef: `check-ifcx-kern.ts`, "2352". — B
 
-2364. **Met de flag `ifcx` uit weigert Ctrl+S een document met een doel op `.ifcx`, ook als het bestand STEP is.** De regel
-     "met de flag uit schrijft de app een IFCX-document niet" (#804 F3-4, `ifcxWriteBlocked` in `src/state/ifcxGuard.ts`)
-     kijkt naar de extensie van het opslagdoel, niet naar de inhoud. Op main schreef Ctrl+S in een STEP-bestand met de
-     naam `.ifcx` gewoon STEP. Zo'n document ontstaat met de flag uit alleen als een STEP-bestand `.ifcx` heet en via
-     `planner_import_schedule`, de dev-link of een open-venster zonder filter opent. Ctrl+S en Automatisch opslaan geven
-     dan de melding `ifcx.flagOff`; Opslaan als naar `.ifc` werkt. Geen verlies. — B (`check-ifcx-app.ts`)
+2365. **De doelcontrole van IFCX classificeert een onbekend bestaand doel met een volledige lezing.** Schrijft een
+     IFCX-document naar een bestaand doel dat niet zijn eigen bekende versie is (Opslaan als over een bestaand `.ifcx`, of
+     het eigen doel nadat de versie na een mislukte schrijfactie vergeten is), dan leest `classifyIfcx` dat bestand in de
+     opslagworker helemaal (`ifcxTargetRefusal`). Het venster blijft reageren; de opslag wacht, bij 10.000 taken in de orde
+     van seconden (niet gemeten in de app). Het eigen doel met een bekende versie toetst alleen de versie. — B (code), duur S
 
-2365. **De doelbescherming voor IFCX kijkt alleen naar een doel op `.ifcx`, en toetst een onbekend doel op de
-     hoofdthread.** `ifcxTargetRefusal` (`src/services/fileAccess/foreignSourceTarget.ts`) leest een bestaand pad of een
-     handle alleen als de naam op `.ifcx` eindigt (op de site: als de inhoud met `{` begint). Een IFCX van een ander
-     programma onder de naam `.ifc` beschermt ze met alleen de flag `ifcx` niet (met `ifcForeignContent` aan zegt de
-     STEP-scan daar "geen IFC", zoals main). Een doel dat de app in deze sessie niet zelf als IFCX las of schreef, toetst
-     `classifyIfcx` op de hoofdthread: ongeveer een volledige lezing, bij 10.000 taken in de orde van seconden (niet
-     gemeten in de app). Komt voor bij Opslaan als over een bestaand `.ifcx` en bij Ctrl+S nadat een ander programma het
-     bestand veranderde. — B (code), duur S
-
-2366. **Opslaan als in de browser met een andere extensie dan `.ifcx`.** Bij een IFCX-document biedt de kiezer alleen het
-     IFCX-filter en de naam op `.ifcx`; op de desktop maakt `ensureExtension` van elke getypte naam een `.ifcx`, op de
-     site doet `saveAsNewSiteFile` dat. Of de opslaankiezer van Chromium een getypte naam op een andere extensie laat
-     staan, is niet nagegaan; dan krijgt dat bestand IFCX-inhoud, en de volgende Ctrl+S volgt de naam (STEP). Een type
-     kiezen bij Opslaan als is F3-5. — S
-
-2367. **Automatisch opslaan van een IFCX-document dat de kern weigert, rekent elke ronde opnieuw.** Heeft een
-     IFCX-document gegevens die de kern nog niet draagt (resources, toewijzingen, baselines tot F3-2 en F3-3), dan weigert
-     `writeIfcx` met `IfcxWriteRefusedError`. Automatisch opslaan toont één melding (`ifcx.writeRefused`, ontdubbeld), maar
-     probeert het elke ronde van 10 s opnieuw, met een volledige schrijfbeurt in de opslagworker, tot de planner de
-     gegevens weghaalt of Exporteren → IFC kiest. Het venster blijft reageren. — B (code)
+2366. **In de browser leegt de opslaankiezer een gekozen bestaand bestand vóór elke controle, ook bij een naam die niet
+     bij het formaat past.** Een IFC-document dat met de flag `ifcx` aan in de kiezer een naam op `.ifcx` kiest (via "alle
+     bestanden"), krijgt de melding `ifcx.nameMismatch` en de app schrijft niets; het gekozen bestand heeft de browser dan
+     al leeg gemaakt of aangemaakt. Dat is de grens van main bij elk bestaand doel in die kiezer (knownbug 1899). Een
+     IFCX-document gebruikt de kiezer niet: een nieuw doel krijgt het als download met de naam op het formaat. — B (code)

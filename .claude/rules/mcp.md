@@ -112,10 +112,12 @@ register via `src/hooks/useMcpDiscovery.ts`, opruimen bij afsluiten in `useAppCl
 uit het initialisatiescript `ops-process-info` in `main.rs` (geen command). Detail: `docs/mcp-ontdekking.md`;
 test `tests/mcp/cases-discovery.ts` en de echte-app-run.
 
-**IFCX (#804 F3-4, keuze T6).** Met de flag `ifcx` aan weigert `planner_export_ifc` een pad op `.ifcx` (geen STEP met
-een IFCX-naam); IFCX schrijft MCP in fase 3 niet. `planner_import_schedule` leest een eigen `.ifcx` met de flag aan via
-dezelfde leesopties als Bestand → Openen (`readOptionsFor`). Met de flag uit is alles zoals main; de headless MCP-server
-kent geen flag en blijft ongewijzigd.
+**IFCX (#804 F3-4, keuze T6, regel F).** `planner_export_ifc` schrijft STEP en weigert een pad op `.ifcx` zolang namen
+het formaat volgen (de flag `ifcx` aan, of het actieve document is een IFCX-document); ook met `overwrite: true` weigert
+het het bestand van een open IFCX-document, onder elke naam (`isOpenIfcxFile` in `refusedTargetIdentity`). IFCX schrijft
+MCP in fase 3 niet. `planner_import_schedule` leest een eigen `.ifcx` met de flag aan via dezelfde leesopties als
+Bestand → Openen (`readOptionsFor`) en meldt dan `format: 'IFCX'`. Met de flag uit en zonder IFCX-document is alles
+zoals main; de headless MCP-server kent geen flag en blijft ongewijzigd.
 
 **IFC-export van de app (#804, 1c PR 11b).** `planner_export_ifc` deelt `state/prepareIfcOutput.ts` met
 de documentroute en Exporteren → IFC. Vreemde inhoud schrijft met de flag aan naar een nieuw doel via de optionele

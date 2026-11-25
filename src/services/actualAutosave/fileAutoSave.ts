@@ -103,7 +103,7 @@ export function createFileAutoSaveController(deps: {
   // #804 fase 1a: één melding per document als AutoSave aanstaat maar het vreemde deel opslaan verhindert.
   const foreignNotified = new Set<string>();
   const ifcxFlagOffNotified = new Set<string>();
-  const ifcxRefusedContent = new Map<string, string>();
+  const ifcxRefusedContent = new Map<string, number>();
   // #804 fixronde 2: per document het doel dat de doelcontrole weigerde (de bron van een ander open document met een
   // vreemd deel, of een bestaand bestand met een gebouwmodel). AutoSave probeert daar niet opnieuw naartoe tot de
   // planner zelf opslaat (het document is dan niet meer gewijzigd) of een ander doel kiest. De melding één keer per

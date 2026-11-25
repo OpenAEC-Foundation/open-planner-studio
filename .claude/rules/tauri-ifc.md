@@ -119,14 +119,18 @@ veranderen niet. Bestaande vreemde lokale doelen en de bronhash horen bij fase 2
 The application's persistence model is IFC 4.3 (buildingSMART). Loading a project = parsing IFC via `src/services/ifc/ifcReader`; saving = serializing the entire app state via `ifcWriter`. There is no separate JSON project format. When adding new domain data (tasks, sequences, resources, assignments, calendar), it must round-trip through the IFC layer or it will be lost on save/reload. CSV/MS Project/P6 services in `src/services/` are import/export adapters, not the source of truth. The other `src/services/` areas — `fileAccess/` (Tauri↔web bestands-I/O + handle-backed recents), `recovery/` (auto-save/restore, Tauri fs + web IndexedDB), `actualAutosave/` (opt-in, promptvrije writes to an existing project file), `benchmark/` (ingebouwde benchmark-tool via Instellingen), `print/` (printvoorbeeld), `pdf/` (vector-PDF-export via `pdf-lib`; Arabic and Persian stay vector, while CJK rasterizes only without an optional `pdf-fonts` extension), `updater/`, `feedback/` (feedbackdialoog + screenshot-annotator), `mcp/` (AI-assistent, zie `.claude/rules/mcp.md`) and `debug/appLog` (log-bus achter de DebugTerminal) — are app plumbing with no IFC impact. `library/` is de uitzondering: bibliotheekdata is app-globaal, maar herkomststempels round-trippen wél door het project-IFC (zie *Resourcebibliotheken*).
 
 **IFCX achter de flag `ifcx` (#804 fase 3, F3-4).** Met de flag leest de registry `.ifcx` als bytes (`FormatReadOptions.ifcx`,
-`readOptionsFor`), lui via `src/services/ifc/ifcxOwnBytes.ts` naar de kern (`readIfcx`). Het formaat van een document is
-`documentFileFormat` (`src/state/ifcxGuard.ts`): doel op `.ifcx` en de flag aan. De documentopslag zet dan `format: 'ifcx'`
-op de writer-job; de opslagworker en de hoofdthread rekenen `writeIfcx` en geven de letterlijke kalenders van de gewone
-writer mee (`plainWriteLiteralCalendarIds`), zodat een IFCX-document door precies de route van een gewone eigen `.ifc` gaat.
-De doelcontrole (`refusedWriteTarget`) weigert met de flag een bestaand `.ifcx`-doel dat de kern `foreign` of `unreadable`
-noemt (`ifcxTargetRefusal` in `foreignSourceTarget.ts`; `TargetReaders.readPath` leest het pad helemaal); bytes die de app
-in deze sessie als IFCX las of schreef, herkent ze aan hun SHA-256 zonder opnieuw te toetsen. Met de flag uit weigert een
-document op `.ifcx` Ctrl+S en Automatisch opslaan (`ifcxWriteBlocked`); Opslaan als naar `.ifc` mag.
+`readOptionsFor`; `isIfcxName`, een naam zonder punt is nooit IFCX), lui via `src/services/ifc/ifcxOpen.ts` naar de kern
+(`readIfcx`). **Regel F:** het formaat is een eigenschap van het document. De lezer legt het vast (`fileFormat`) en geeft
+lengte en SHA-256 van de gelezen bytes mee (`ReadImportResult.ifcxRead`); `applyLoadedProject` maakt daarvan de bekende
+versie van het doel, ook met `ifcForeignContent` uit (`versionGuarded`, `src/state/versionGuard.ts`). De naam van het doel
+beslist niets over een bestaand document. Een poging legt formaat en flag vast bij haar begin (`outputFormat`); met de flag
+aan zet de documentopslag dan `format: 'ifcx'` op de writer-job, die alleen de opslagworker rekent (`writeIfcx`, met de
+letterlijke kalenders van de gewone writer, `plainWriteLiteralCalendarIds`). Het eigen doel toetst de bekende versie
+(#1174); een ander bestaand doel classificeert de worker (`classifyIfcx` via `ifcxTargetRefusal`, `TargetReaders.readPath`
+leest het pad helemaal) en alleen een eigen IFCX, een leeg bestand of een nieuwe naam mag. Met de flag uit weigert een
+IFCX-document elke schrijfactie naar zijn eigen doel (`ifcxWriteBlocked`); Opslaan als schrijft STEP naar een naam op
+`.ifc`. Een STEP-schrijfactie naar het bestand van een open IFCX-document weigert (`isOpenIfcxFile`). In de browser
+schrijft een IFCX-document een nieuw doel alleen als download (`saveNewBytesDialog`, zoals een merge).
 
 **Tekst in IFC is STEP-gecodeerd** (audit 2026-09-26). Elke stringliteral gaat door `ifcStr` → `encodeStepText` (`ifcPsets.ts`): alleen afdrukbaar ASCII letterlijk, `'` → `''`, `\` → `\\`, de rest `\X2\…\X0\` / `\X4\…\X0\`. Schrijf nooit een literal met de hand (`'${x}'`) behalve voor vaste ASCII (datums, tijden). `IFCAPPLICATION.Version` is een formaatteken, geen appversie: vanaf `'0.2'` (`OPS_APP_VERSION`) decodeert `readIFC` de strings (`decodeStepText`), net als bij elk bestand van een ander pakket; een eigen bestand met `'0.1'` schreef letterlijk en wordt ongedecodeerd gelezen (anders breekt een `\\` in een JSON-pset). De voorbeelden in `public/examples/` zijn sinds audit 2026-09-26 opnieuw gegenereerd (`'0.2'`); het oude letterlijke formaat toetst `check-ifc-step-encoding` met een eigen fixture. JSON-psets gaan via `ifcJson`/`asciiJson` (niet-ASCII als JSON-`\uXXXX`, dan pas STEP-gecodeerd), eigenaarsbesluit 2026-09-28: een app van vóór `'0.2'` leest letterlijk en gooide een pset met `\X2\` erin als ongeldige JSON helemaal weg (alle baselines); zo blijft het blok daar geldig en verliest die oude versie alleen nog een pset met `"` of `\` in een waarde. Nieuwe JSON-psets dus nooit met kale `ifcStr(JSON.stringify(…))`. Toets: `check-ifc-step-encoding`.
 

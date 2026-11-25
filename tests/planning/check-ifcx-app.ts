@@ -618,7 +618,7 @@ await check('zonder classificatie in de worker weigert een IFCX-document een onb
   } finally { ipc.dispose(); }
 });
 
-await check('resources: de kern weigert het schrijven, één melding; Automatisch opslaan rekent dezelfde inhoud niet opnieuw (2367)', async () => {
+await check('resources: de kern weigert het schrijven, één melding; Automatisch opslaan rekent dezelfde inhoud niet opnieuw (was knownbug 2367)', async () => {
   const ipc = desktop();
   try {
     const path = join(dir, 'resource.ifcx'); writeFileSync(path, own);
@@ -771,7 +771,7 @@ await check('Exporteren → IFC van een IFCX-document blijft STEP; het eigen IFC
   } finally { ipc.dispose(); }
 });
 
-await check('een STEP-bestand met de naam .ifcx is een IFC-document: met de flag uit én daarna aan schrijft Ctrl+S STEP, zoals main (2364 dicht)', async () => {
+await check('een STEP-bestand met de naam .ifcx is een IFC-document: met de flag uit én daarna aan schrijft Ctrl+S STEP, zoals main (was knownbug 2364)', async () => {
   const path = join(dir, 'step-met-ifcx-naam.ifcx'); writeFileSync(path, ownStep);
   const ipc = desktop();
   try {

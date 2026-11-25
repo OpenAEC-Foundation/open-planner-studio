@@ -319,16 +319,27 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `classifyIfcx`, profile in `docs/ifcx-profiel.md`) imports nothing from `src/state/` and reaches no store, slice,
   component or hook (`verify:store-boundaries`); the load boundary it shares with the app (`documentDataFromImport`,
   `buildWriteIFCInput`) lives in `src/services/documentData.ts`. Only with the flag the registry knows the format `ifcx`
-  (`FormatReadOptions.ifcx`, one place for every open route: `readOptionsFor(flags)`). The format of a document is one
-  function, `documentFileFormat` (`src/state/ifcxGuard.ts`): target extension `.ifcx` and the flag on. A document save
-  (Ctrl+S, Save As, Auto-save to the file, site, download) of such a document puts `format: 'ifcx'` on the writer job
-  (`documentSaveCompute`), so the save worker (or the main-thread fallback) writes IFCX through exactly the route of a
-  plain own `.ifc`; dialogs, filters and names follow the format; exports and a merge stay STEP. With the flag off a
-  document whose target is `.ifcx` refuses Ctrl+S and Auto-save (`ifcxWriteBlocked`, one notice); Save As to `.ifc`
-  works. A refusal of the core (`IfcxWriteRefusedError`, also across the worker) is one notice. With the flag on every
-  document write route refuses an existing `.ifcx` target that is foreign or unreadable (`ifcxTargetRefusal`); bytes the
-  app read or wrote as IFCX in this session are not checked again (`ifcxOwnBytes.ts`). `planner_export_ifc` refuses a
-  `.ifcx` path with the flag on. Proof: `check-ifcx-app.ts`.
+  (`FormatReadOptions.ifcx`). The app's open routes (dialog, Recent, site, drop, launch files, MCP import and
+  external links, dev link) take their options from `readOptionsFor(flags)`; the launch route passes only its `ifcx`
+  part on, and the dev bridge (`window.__OPS__`) builds `{ ifcx: true }` itself, both only with the flag on. One name
+  rule, `isIfcxName` (a name without a dot is never IFCX), serves the registry and the write routes. **Rule F: the
+  format is a property of the document.** The reader that opened the file records it (`fileFormat` in
+  `DOCUMENT_FIELDS`, default `ifc`), and for IFCX also the read version (length and SHA-256 of the read bytes) as
+  `knownTargetFingerprint`; both survive a tab switch, duplicating and crash recovery (manifest field `ifcx`,
+  `recoveryIfcx.ts`). The #1174 version guard always applies to an IFCX document, also with `ifcForeignContent` off;
+  for a document read as STEP it stays as on main (`versionGuarded` in `src/state/versionGuard.ts`, the one place).
+  The name of a target never decides the format of an existing document: a document read as STEP writes STEP, also
+  when it is called `.ifcx`. A write attempt fixes the document format and the flags at its start (`outputFormat` in
+  `src/state/ifcxGuard.ts`, from the state it captures); a flag switch counts from the next attempt. An IFCX document
+  writes IFCX to its own target with the flag on and refuses with it off (`ifcxWriteBlocked`, one notice); Save As
+  then writes STEP to a name on `.ifc`. A new target gets a name in the written format (`nameWithFormat`); in the
+  browser an IFCX document writes a new target only as a download, like a merge (the save picker has already emptied
+  an existing file). A STEP write (export, `planner_export_ifc` with `overwrite: true`, dev bridge) to the file of an
+  open IFCX document refuses (`isOpenIfcxFile`), and `planner_export_ifc` refuses a `.ifcx` path while names follow the
+  format. An IFCX writer job runs only in the save worker (no main-thread fallback; without a worker the existing save
+  error); an existing target that is not the own known version is classified by the worker (`classifyIfcx`), and only
+  an own IFCX, an empty file or a new name may be replaced. A refusal of the core (`IfcxWriteRefusedError`, also across
+  the worker) is one notice; Auto-save does not compute the same refused content again. Proof: `check-ifcx-app.ts`.
 - **Document contract.** New project data belongs in `DOCUMENT_FIELDS` (`src/state/documentContract.ts`),
   otherwise it does not survive a document switch, undo, crash recovery or save. A `DocumentPayload` field
   missing from that list is a compile error.
@@ -679,7 +690,7 @@ Design docs: start at `docs/superpowers/README.md` — read them as *why*, not a
 | CPM solver / calendar engine | `src/engine/scheduler/`, `src/engine/calendar/` |
 | Canvas renderer | `src/engine/renderer/` |
 | IFC read/write | `src/services/ifc/ifcReader`, `ifcWriter` |
-| IFCX (flag `ifcx`) | core `src/services/ifc/ifcx/`, load boundary `src/services/documentData.ts`, document format `src/state/ifcxGuard.ts` |
+| IFCX (flag `ifcx`) | core `src/services/ifc/ifcx/`, load boundary `src/services/documentData.ts`, reader `src/services/ifc/ifcxOpen.ts`, document format `fileFormat` + `src/state/ifcxGuard.ts`, version guard `src/state/versionGuard.ts` |
 | File I/O (Tauri↔web↔site) | `src/services/fileAccess/` (+ `recentFiles.ts`; site contract `siteHost.ts`) |
 | Auto-save / recovery | `src/hooks/useAutoSave.ts`, `src/services/recovery/recoveryStore.ts` |
 | Rust commands (thin) | `src-tauri/src/commands/mod.rs` (`install_kind`), `src-tauri/src/commands/place_file.rs` (`place_file_exclusive`), `src-tauri/src/mcp_bridge.rs` (`mcp_bridge_start`/`mcp_bridge_stop`) |
