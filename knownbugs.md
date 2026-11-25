@@ -4109,8 +4109,11 @@ en noem het in je rapport of PR-tekst.
       `removeResource` en Opnieuw van zo'n stap. Wist de planner een relatie (`removeSequence`) of een kalender (de
       kalenderdialoog), of wist hij via MCP, het IFC-paneel of een extensie, dan hoort hij pas na het opslaan hoeveel
       gegevens van een ander programma zijn aangepast of verwijderd (`notifyForeignChangesWritten`). Gezien in de code;
-      `check-ifc-document-save.ts` toetst voor die routes alleen de melding na het opslaan. Richting: dezelfde aanroep in
-      `removeSequence` en `commitCalendarLibrary`. — S
+      `check-ifc-document-save.ts` toetst voor die routes alleen de melding na het opslaan. Opnieuw (Ctrl+Y) geeft elke
+      herstelde undo-stap door aan dezelfde teller: wist de planner een losse gekoppelde relatie of wiste hij via MCP
+      (`planner_delete_tasks`), dan komt er bij die eerste wissing geen wismelding, maar na Ctrl+Z en Ctrl+Y alsnog wel,
+      als die stap een stuk van een ander programma laat vervallen (gezien in de code door de reviewer van #1199,
+      ronde 6; niet nagespeeld). Richting: dezelfde aanroep in `removeSequence` en `commitCalendarLibrary`. — S
 2250. **VERVOLG (#1199): Ctrl+Z na het opslaan, of tijdens het opslaan na de momentopname, brengt de taak terug, niet
       de koppeling van het andere programma.** Na het opslaan is `ifcSource` de uitvoer zonder de vervallen stukken, en
       undo zet de bron niet terug (documentveld zonder momentopname). Een opslag die haar momentopname al had, schrijft
@@ -4145,9 +4148,11 @@ en noem het in je rapport of PR-tekst.
 
       De waarschuwing bij het wissen (`notifyForeignLinksDropped` in `src/state/foreignLinksNotice.ts`) is ook een gewone
       melding: een info van main zonder knop, met het aantal van die ene wisstap. Ze deelt dezelfde grenzen. Staan er al
-      drie meldingen open (bijvoorbeeld drie schrijffouten of drie tellingen van eerdere opslagen), dan haalt de stapel
-      haar volgens de regels van main meteen weer weg en ziet de planner haar niet; het opslaan laat de gegevens daarna
-      toch vervallen. Ze verdwijnt na de gewone tijd van main en hangt alleen aan het wissen van taken en resources
+      drie meldingen open, dan kan ze ontbreken: het meldingenkanaal van main bepaalt welke melding plaatsmaakt. Zijn
+      het drie schrijffouten of drie tellingen van eerdere opslagen, dan haalt de stapel de wismelding meteen weer weg
+      en ziet de planner haar niet; staat er een gewone info of een passende weigering tussen, dan wijkt die en blijft
+      de wismelding zichtbaar. Het opslaan laat de gegevens in beide gevallen vervallen.
+      Ze verdwijnt na de gewone tijd van main en hangt alleen aan het wissen van taken en resources
       (knownbug 2249). De knop *Ongedaan maken* komt in PR 7 (`detached`). Dit is de twaalfde voorwaarde voor het
       standaard aanzetten van de flag: de planner mist de waarschuwing bij het wissen niet en kan vanuit die waarschuwing
       ongedaan maken. Besluit technisch eigenaar, 25 november 2026 (fixronde 5). — S
