@@ -593,9 +593,20 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
   ok('14 fixture: een Bonsai-planning met een vroege start die de berekening niet geeft', stale !== text);
   const doc = await openIfcBytes(encoded(stale));
   ok('14a de planning van het andere programma is te berekenen', doc.schedule().foreignContent?.objectCount === 155);
+  const written = await doc.toIfcBytes();
+  const line120 = (t: string) => t.match(/^#120=.*$/m)?.[0];
+  ok('14b na doorrekenen behoudt de merge het vreemde deel: heropend hetzelfde vreemde deel, #120 byte voor byte',
+    (await openIfcBytes(written)).schedule().foreignContent?.objectCount === 155 && line120(new TextDecoder().decode(written)) === line120(text));
+  const council = readFileSync(foreignFixture('council/r6opus-twee-werkplannen.na.ifc'), 'utf8');
+  const timeOfRoot = "#31=IFCTASKTIME($,.NOTDEFINED.,$,'P5D',$,'2026-01-05T08:00:00','2026-01-09T17:00:00',$,$,";
+  const staleCouncil = council.replace(timeOfRoot,
+    "#31=IFCTASKTIME($,.NOTDEFINED.,$,'P5D',$,'2026-01-05T08:00:00','2026-01-09T17:00:00','2026-03-02T08:00:00','2026-03-06T17:00:00',");
+  ok('14c fixture: een planning van een ander programma in een oude lay-out met een vroege start die de berekening niet geeft', staleCouncil !== council);
+  const old = await openIfcBytes(encoded(staleCouncil));
+  old.schedule();
   let error: unknown;
-  try { await doc.toIfcBytes(); } catch (e) { error = e; }
-  ok('14b de merge kan het vreemde deel niet behouden ⇒ IFC_WRITE_FAILED met reason merge-needs-phase2, vóór uitvoer',
+  try { await old.toIfcBytes(); } catch (e) { error = e; }
+  ok('14c de merge kan het vreemde deel niet behouden ⇒ IFC_WRITE_FAILED met reason merge-needs-phase2, vóór uitvoer',
     error instanceof PlannerCoreError && error.code === 'IFC_WRITE_FAILED' && error.details.reason === 'merge-needs-phase2', String(error));
 }
 
