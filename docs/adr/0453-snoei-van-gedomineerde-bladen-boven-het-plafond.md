@@ -27,9 +27,8 @@ andere weergave (16:00 van de ene werkdag in plaats van 08:00 van de volgende).
 - `pruneDominated` snoeit niets en de relatie valt weg als de relatie zelf een procentuele lag heeft die niet 0 is
   (die rekent per voorgangerblad, knownbug 2479), als haar lag niet in de dagmaat staat (een minutenlag of
   `ELAPSEDTIME`), als een blad aan een van de kanten de duursoort `ELAPSEDTIME` heeft, of als de bladen niet allemaal
-  dezelfde duureenheid hebben (`taskDurationUnit`). Een minutenlag telt voor een dagvoorganger in afgeronde dagen en
-  voor een uurvoorganger exact, en een lag in `ELAPSEDTIME` telt 24 uur per dag; dan houdt de dominantie niet in elk
-  geval stand. In zulke gevallen vond de review van 2026-09-28 een gesnoeide uitkomst die een dag afweek.
+  dezelfde duureenheid hebben (`taskDurationUnit`). Een minutenlag telt in minuten en een lag in
+  `ELAPSEDTIME` telt 24 uur per dag; dan houdt de dominantie niet in elk geval stand. In zulke gevallen vond de review van 2026-09-28 een gesnoeide uitkomst die een dag afweek.
 - `check-summary-relation-prune.ts` vergelijkt in 900 willekeurige projecten (dag, uur en gemengd, in de profielen
   ops, p6 en msproject, alle relatietypen, met mijlpalen, handmatige taken en constraints) de berekening met het
   volledige kruisproduct en met de snoei, bij een plafond net onder het kruisproduct: elke taakdatum en speling, de
