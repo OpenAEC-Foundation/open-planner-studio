@@ -1070,7 +1070,13 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     }
   }
   async function checkedOutput(candidate: readonly OutLine[]): Promise<PreparedIfcWrite> {
-    const assembled = concatParts(assemble(source, index, cls, candidate.map(line => 'text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`), undefined, pieceEdits));
+    if (candidate.length !== block.length) throw new Error('mergeWriter: hernummering veranderde de regelaantallen');
+    const remap = new Map(block.map((line, i) => [line.id, candidate[i].id]));
+    const stepIds = writerStepIds(input, built.idMap, id => remap.get(id) ?? id);
+    const textOf = (line: OutLine) => ('text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`);
+    const placed = assignmentPlacement(input, index, cls, bySource, stepIds, candidate, pieceEdits);
+    const assembled = concatParts(assemble(source, index, cls, placed.block.map(textOf), undefined, pieceEdits,
+      new Map([...placed.after].map(([chunk, moved]) => [chunk, moved.map(textOf)]))));
     // De vingerafdruk nu, vóór de uitvoerindex er is: `crypto.subtle.digest` neemt een kopie van de bytes, en als laatste
     // stap stond die kopie bovenop de hele uitvoercontrole (#804). `precomputeSha256` onthoudt hem per buffer; niets
     // verandert deze bytes nog, dus `writtenSource` krijgt dezelfde waarde zonder tweede berekening. Bij een weigering
@@ -1078,9 +1084,6 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     await precomputeSha256(assembled);
     // PR 7 behoudt de regelvolgorde. Draag zijn hernummering door naar de writerkaart,
     // zonder een tweede koppelalgoritme of domein-ids van een nieuwe lezing te gebruiken.
-    if (candidate.length !== block.length) throw new Error('mergeWriter: hernummering veranderde de regelaantallen');
-    const remap = new Map(block.map((line, i) => [line.id, candidate[i].id]));
-    const stepIds = writerStepIds(input, built.idMap, id => remap.get(id) ?? id);
     // De regel van elk slot van (b) in de uitvoer, door dezelfde hernummering. Een regel buiten de kaart: (c) slaat zijn groep
     // over, zoals vóór PR A.
     const unmapped = new Set(restored.slots.filter(s => !remap.has(s.id)).map(s => s.group));
@@ -1553,8 +1556,42 @@ function readPlanning(source: IfcSource, index: StepIndex, cls: Classification, 
   });
 }
 
+function assignmentPlacement(input: WriteIFCInput, index: StepIndex, cls: Classification, bySource: ReadonlyMap<number, { kind: string; id: string }>,
+  stepIds: Readonly<Record<string, number>>, candidate: readonly OutLine[], edits: ReadonlyMap<number, Uint8Array | null>):
+  { block: OutLine[]; after: Map<number, OutLine[]> } {
+  const roles = relationRoles(PROCESS)!;
+  const rank = new Map<string, number>();
+  for (const a of input.assignments ?? []) if (!rank.has(a.taskId)) rank.set(a.taskId, rank.size);
+  let insertAt = -1;
+  for (let i = 0; i < index.count && insertAt < 0; i++) if (cls.classes[i] === 1) insertAt = i;
+  const kept: [number, number][] = [];
+  for (let c = 0; c < index.count; c++) {
+    if (!index.isEntity(c) || cls.classes[c] === 1 || index.type(c) !== PROCESS || edits.get(c) === null) continue;
+    const relating = index.refAt(c, roles.relating);
+    const task = relating >= 0 ? bySource.get(Number(index.id(relating))) : undefined;
+    const g = task?.kind === 'task' ? rank.get(task.id) : undefined;
+    if (g === undefined) continue;
+    if (index.refsAt(c, roles.related).some(m => m >= 0 && bySource.get(Number(index.id(m)))?.kind === 'res')) kept.push([c, g]);
+  }
+  const block: OutLine[] = [], after = new Map<number, OutLine[]>();
+  if (kept.length === 0 || insertAt < 0) return { block: [...candidate], after };
+  const taskOf = new Map<number, string>();
+  for (const [key, id] of Object.entries(stepIds)) if (key.startsWith('task:')) taskOf.set(id, key.slice(5));
+  for (const line of candidate) {
+    const task = line.type === PROCESS ? taskOf.get(refOf(line.args[roles.relating])) : undefined;
+    const g = task === undefined ? undefined : rank.get(task);
+    let target = -1;
+    if (g !== undefined) for (const [c, other] of kept) if (other < g && c > target) target = c;
+    if (target <= insertAt) { block.push(line); continue; }
+    const list = after.get(target);
+    if (list) list.push(line); else after.set(target, [line]);
+  }
+  return { block, after };
+}
+
 function assemble(source: IfcSource, index: StepIndex, cls: Classification, block: readonly string[],
-  skip: (i: number) => boolean = () => false, edits: ReadonlyMap<number, Uint8Array | null> = new Map()): Uint8Array[] {
+  skip: (i: number) => boolean = () => false, edits: ReadonlyMap<number, Uint8Array | null> = new Map(),
+  after: ReadonlyMap<number, readonly string[]> = new Map()): Uint8Array[] {
   const n = index.count;
   const bytes = source.bytes;
   const starts = source.chunkStarts;
@@ -1571,6 +1608,11 @@ function assemble(source: IfcSource, index: StepIndex, cls: Classification, bloc
   const le = source.lineEnding;
   const BATCH = 2000;
   for (let i = 0; i < n; i++) {
+    const moved = i > 0 ? after.get(i - 1) : undefined;
+    if (moved) {
+      flush(i);
+      parts.push(enc.encode(le + moved.join(le)));
+    }
     if (i === insertAt) {
       flush(i);
       for (let b = 0; b < block.length; b += BATCH) parts.push(enc.encode(le + block.slice(b, b + BATCH).join(le)));
