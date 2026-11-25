@@ -588,6 +588,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  IFCFOREIGNOPENNOTICE="$DIR/.ifc-foreign-open-notice.mjs"
+  if bundle_check "$DIR/check-ifc-foreign-open-notice.ts" "$IFCFOREIGNOPENNOTICE"; then
+    TZ=Europe/Amsterdam node "$IFCFOREIGNOPENNOTICE" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # #804 fase 2, PR 11: reeksen van stappen op één crashherstel-tracker (eigenschapsproef). Rekent niet met datums:
   # één keer, buiten de matrix, met dezelfde vaste tijdzone als de andere checks van #804 hierboven.
   RECOVERYREEKSEN="$DIR/.recovery-identiteit-reeksen.mjs"

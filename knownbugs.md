@@ -3607,8 +3607,11 @@ en noem het in je rapport of PR-tekst.
      complexe instantie zonder modeltype krijgt dus de zin "alleen de planning" bij een export, en na een download bij
      geweigerde schrijftoestemming blijft het document gewijzigd. Dat is de veilige kant; Open Planner Studio schrijft zelf
      geen complexe instanties. Richting: de index geeft de deeltypen van een complexe instantie, met de eigen tokenlezer
-     van de scanner (geen tweede lezer). — S (code gelezen; de drie varianten met een wand staan als proef in
-     `check-ifc-document-save.ts`)
+     van de scanner (geen tweede lezer). Gevolg bij openen (#1197): de telmelding mag daar niet stellig "een gebouwmodel"
+     zeggen. De scan geeft daarom `buildingModelUncertain` mee als alleen een complexe instantie het model maakt, en
+     dan krijgt de planner de algemene tekst ("IFC-gegevens buiten de planning"); de veilige kant bij export en download
+     blijft. Proef: `check-ifc-foreign-open-notice.ts` (een eigen planning met één complexe eenheid). — S (code gelezen; de
+     drie varianten met een wand staan als proef in `check-ifc-document-save.ts`)
 
 1846. **VERVOLG (meldingen): een ververste melding houdt haar oude plek en kan direct daarna uit de stapel vallen.**
      Browser. De store vouwt een herhaalde melding samen op haar oude plek (`notify` in `uiSlice.ts`, stap 1: de positie
@@ -5696,6 +5699,13 @@ en noem het in je rapport of PR-tekst.
       schrijftoestemming), met de proeven van alle drie de rondes als bewaking. Of die regel dan houdt, is niet
       bewezen. — S
 
+2239. **Haperende browserproef: het slepen van een mijlpaal in `gantt-drag-undo.spec.ts`.** Browser (CI). In *Gantt bodydrag
+      wijzigt de datum en Ctrl+Z herstelt exact één handeling* wacht de proef na het slepen van de ruit 5 s op een andere
+      startdatum (`tests/browser/gantt-drag-undo.spec.ts:106`) en kreeg ze die één keer niet. Gezien in run 45400160281
+      (browserjobs van PR #1197 op `25326fb05`, 24 november 2026): deel 3 van 4 rood op die stap, dezelfde job opnieuw
+      gestart op dezelfde commit groen. De proef zet haar project neer met `seedProject` en opent geen bestand, dus de
+      wijziging van die PR raakt haar niet. Oorzaak niet onderzocht. — B (twee runs op dezelfde commit)
+
 2254. **VERVOLG (#804 fase 2, PR 11, testdubbel): de IndexedDB-dubbel draait een afgebroken transactie niet terug.**
      In `tests/planning/fakeRecoveryIndexedDb.ts` past `put` een record meteen toe, en `abort` roept alleen `onabort`
      aan. Een echte IndexedDB schrijft bij een fout in dezelfde transactie niets. Faalt in de dubbel de manifestschrijf
@@ -6978,3 +6988,5 @@ en noem het in je rapport of PR-tekst.
 2292. **VERVOLG (review #1191 ronde 1): dezelfde koppeling opnieuw aanroepen zet een schoon document op *Niet opgeslagen*.** `linkRecognizedItems` (`src/state/slices/librarySlice.ts`) vervangt het item ook als alle waarden en de herkomststempel al gelijk zijn, dus `finishMutation` zet `isDirty` en er komt een extra undo-stap. Het afwijkingenscherm biedt een koppeling na de eerste keer niet meer aan, dus dit vraagt een rechtstreekse aanroep (bijvoorbeeld via MCP). Richting: het bijgewerkte item, met stempel, vergelijken vóór de toewijzing, en bij nul echte wijzigingen ook de herberekening van resourcebelasting en rijen overslaan. Review #1191 ronde 1 (GPT-6.2-Sol, xhigh). — S
 2293. **VERVOLG (review #1193 ronde 1): een uitzondering buiten `scratch-failed` kan de melding over verloren minuten alsnog opmaken.** `applyDistribution` (`src/state/slices/librarySlice.ts`) zet de vastgelegde meldingsclaims alleen terug bij `scratch-failed`. Gooit het laden van een tweede tijdelijke payload (`src/state/runtime/scratchDocument.ts`) of het schrijven naar de echte store een uitzondering, dan blijft de claim van het eerste document bezet terwijl het zijn minuten nog heeft. Geen route met een gewoon bestand gevonden. Richting: de melding pas claimen nadat het document echt is bijgewerkt; dan kan ook de snapshot voor tijdgefaseerde sturing weg, die `applyLeveling` niet raakt. ADR 0175 verwijst nog naar het verwijderde punt 1992. Review #1193 ronde 1 (GPT-6.2-Sol, xhigh). — S
 2294. **VERVOLG (review #1193 ronde 1, test): de proef kan een dubbele melding missen.** `tests/library/check-distribution-loss-notice.ts` telt alleen de lengte van de meldingenlijst, maar `notify` verhoogt bij dezelfde `dedupeKey` de teller op de bestaande melding (`src/state/slices/uiSlice.ts`). Richting: de eerste melding sluiten vóór de tweede schrijfronde en daarna nul meldingen verwachten. Review #1193 ronde 1 (GPT-6.2-Sol, xhigh). — S (test)
+2242. **VERVOLG (#804 PR 12, §4.5 "vreemde vormen van tijdsperioden"): de lezer neemt een werktijd in een andere vorm stil over als gewone werkweek, en de melding bij openen noemt dat niet.** `buildCalendarFromEntity` (`src/services/ifc/ifcReader.ts`) leest van een `IfcRecurrencePattern` in `WorkingTimes` alleen de weekdagen en de tijdsperioden; het soort herhaling, `DayComponent`, `MonthComponent`, `Position`, `Interval` en `Occurrences` laat hij weg, en een werktijd met een begin- en einddatum naast de gewone week slaat hij over. Nagespeeld met een script op `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` via de bytes-route: de week met `Interval` 2, dezelfde week als `.MONTHLY_BY_DAY_OF_MONTH.` en een extra zaterdag van 1 juni tot 31 augustus geven alle drie dezelfde kalender als de gewone week (ma–vr, 7–16 uur). Opslaan verliest het niet stil: de merge weigert zo'n slot (`check-ifc-foreign-preserve.ts`, geval *IfcRecurrencePattern: Interval*). Het ontwerp zegt niet welke vormen "vreemd" zijn; PR 12 bouwt daarom voor dit punt geen regel. Alleen gelezen, niet nagespeeld: een tijd die `readPeriod` niet kan lezen valt weg, en een werkende uitzondering zonder eigen pset komt binnen als feestdag. Voorstel: eerst de lijst van vormen vastleggen, dan per vorm een regel onder de melding van `src/state/ifcForeignOpenNotice.ts`. — B
+2243. **VERVOLG (#804 PR 12, tekst): het aantal objecten in de melding bij openen staat zonder scheidingsteken voor duizendtallen.** Het ontwerp (§4.15) schrijft "12.345 objecten"; de melding toont "12345 objecten", want `numberParams` gaat door `formatReportNumber` (`src/utils/reportNumber.ts`, `useGrouping: false`), zoals elk getal in een melding. Een scheidingsteken vraagt een tweede soort getalparameter in `NotificationHost`. Keuze voor de eigenaar bij het beoordelen van de teksten. — B

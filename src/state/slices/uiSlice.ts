@@ -1,4 +1,4 @@
-import type { UIState, AppSlice, AppNotification, NotifyInput } from './types';
+import type { UIState, AppSlice, AppNotification, NotificationDetailLine, NotifyInput } from './types';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
 import type { McpServerStatus } from '@/services/mcp/contracts';
 import { loadFeatureFlags, MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
@@ -56,6 +56,7 @@ export interface UiSlice {
    *  samen tot één regel met een teller — nodig omdat de auto-save herhaaldelijk kan falen en
    *  anders meldingen zouden stapelen. Een `error` verdwijnt niet uit zichzelf (klik = weg). */
   notify: (n: NotifyInput) => void;
+  addNotificationLines: (id: string, lines: NotificationDetailLine[]) => void;
   dismissNotification: (id: string) => void;
   /** Open Backstage → Help op een specifiek artikel ("lees meer"-link vanuit
    *  een melding of het eigenschappenpaneel). Zet dezelfde twee velden die de Help-navigatie al
@@ -409,6 +410,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           if (n.refusal !== undefined) existing.refusal = n.refusal;
           existing.detailKey = n.detailKey;
           existing.detailParams = n.detailParams;
+          delete existing.addedLines;
           return;
         }
       }
@@ -433,13 +435,20 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
         const list = s.ui.notifications;
         const newest = list.length - 1;
         const plainInfo = (x: AppNotification) => x.severity === 'info' && !x.sticky;
-        let idx = list.findIndex((x, i) => i !== newest && plainInfo(x));
+        let idx = list.findIndex((x, i) => i !== newest && x.yieldsPlace === true);
+        if (idx < 0) idx = list.findIndex((x, i) => i !== newest && plainInfo(x));
         if (idx < 0) idx = list.findIndex((x) => x.refusal);
         if (idx < 0 && plainInfo(list[newest])) idx = newest;
         if (idx < 0) idx = list.findIndex((x) => x.severity === 'info');
         if (idx >= 0) list.splice(idx, 1);
         else list.shift();
       }
+    }),
+
+  addNotificationLines: (id, lines) =>
+    set((s) => {
+      const notice = s.ui.notifications.find((x) => x.id === id);
+      if (notice) notice.addedLines = lines.map((line) => ({ ...line }));
     }),
 
   dismissNotification: (id) =>

@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { brokenNameFiles, dataKopBestanden, paramDataFile } from './ifcDoelBestanden';
 import { fakeScanWorker, fakeScanWorkerStats, type FakeScanWorkerMode } from './fakeScanWorker';
-import { oldHeaderTable, compareOldHeaderTable, type OldHeaderRow } from './ifcOudeKopVergelijking';
+import { oldHeaderCases, oldHeaderTable, compareOldHeaderTable, type OldHeaderRow } from './ifcOudeKopVergelijking';
 import { oudeKop, oudeKopVelden, oudeWand } from './ifcOudeKop';
 import { indexOfStepDataSection } from '@/services/ifc/stepDataSection';
 
@@ -66,6 +66,8 @@ const enc = new TextEncoder();
 const dec = (b: Uint8Array) => new TextDecoder('utf-8').decode(b);
 const FOREIGN = 'tests/fixtures/ifc-foreign';
 const SAVE_BLOCKED_KEY = 'notifications.ifcForeignSaveBlocked';
+const OPENED_WITH_MODEL_KEY = 'notifications.ifcForeignOpenedWithModel';
+const foreignObjectsOf = (bytes: Uint8Array) => { const scan = scanForeign(bytes); return scan.ok ? scan.counts.C + scan.counts.A + scan.counts.V : -1; };
 
 // ── 1. De flag ──────────────────────────────────────────────────────────────────────────────────────────────────
 const flag = FEATURE_FLAGS.find(f => f.id === 'ifcForeignContent');
@@ -174,7 +176,10 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
     if (wall) {
       // Knownbug 1131 stap 2: Ctrl+S via de handle weigert niet meer vóór de merge. Deze proef registreert geen
       // herstelronde, dus de komende versie ligt niet vast in het herstelmanifest en de app schrijft niet (1764).
-      eq(`${label}: zonder herstelronde geen vervanging van het modeldoel`, store.getState().ui.notifications.map(n => n.messageKey), ['notifications.ifcForeignReplaceNotRecorded']);
+      eq(`${label}: na openen de telmelding met gebouwmodel, zonder herstelronde geen vervanging van het modeldoel`,
+        store.getState().ui.notifications.map(n => [n.messageKey, n.params ?? null, n.numberParams ?? null, n.detailLines ?? null, n.sticky ?? null]),
+        [[OPENED_WITH_MODEL_KEY, { count: foreignObjectsOf(enc.encode(text)) }, { objects: foreignObjectsOf(enc.encode(text)) }, [], false],
+          ['notifications.ifcForeignReplaceNotRecorded', null, null, null, null]]);
       eq(`${label}: volledige bron inclusief wand intact`, data, text);
     }
     // Ctrl+S bevestigt ook de bestaande minutenomzetting; vergelijk met de daardoor vastgelegde toestand.
@@ -263,7 +268,25 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
   // bestaande byte-/payloadvergelijking, en alle andere flag-aan-rijen houden de oorspronkelijke drie strenge eisen.
   const comparable = (rows: OldHeaderRow[]) => rows.map(row => scannerRefusals.has(row.name)
     ? { ...row, routes: row.routes.filter(route => !route.flag) } : row);
-  const table = compareOldHeaderTable(comparable(reference.rows), comparable(rows));
+  const openNoticeRows = ['Terra-wand-1', 'Terra-wand-2', 'Terra-wand-5', 'Terra-wand-6', 'controle-wand'];
+  const foreignOpened = rows.filter(row => row.routes.some(route => route.flag && route.foreign && route.opened)).map(row => row.name);
+  eq('PR 12 oude koppentabel: de vijf gevallen die op main met de flag een vreemd deel openden, doen dat nog',
+    openNoticeRows.filter(name => foreignOpened.includes(name)), openNoticeRows);
+  const caseTexts = new Map(oldHeaderCases(ROOT).map(c => [c.name, c.text]));
+  const mainOpenNotices = (name: string) => reference.rows.find(row => row.name === name)!.routes.find(route => route.flag)!.notices;
+  eq('PR 12 oude koppentabel: op main hadden de vijf gevallen na openen geen melding', openNoticeRows.map(mainOpenNotices), openNoticeRows.map(() => []));
+  for (const name of foreignOpened) {
+    const text = caseTexts.get(name)!;
+    const on = rows.find(row => row.name === name)!.routes.find(route => route.flag)!;
+    const objects = foreignObjectsOf(enc.encode(text));
+    const messageKey = text.includes('IFCWALL(') ? OPENED_WITH_MODEL_KEY : 'notifications.ifcForeignOpenedOtherData';
+    eq(`PR 12 ${name}: na openen met de flag precies de telmelding`, on.notices,
+      [{ count: 1, dedupeKey: 'ifc-foreign-opened', detailLines: [], messageKey, numberParams: { objects }, params: { count: objects },
+        replaceOnDedupe: true, severity: 'info', sticky: false, yieldsPlace: true }]);
+  }
+  const withMainOpenNotices = (rows: OldHeaderRow[]) => rows.map(row => !openNoticeRows.includes(row.name) ? row
+    : { ...row, routes: row.routes.map(route => route.flag ? { ...route, notices: mainOpenNotices(row.name) } : route) });
+  const table = compareOldHeaderTable(comparable(reference.rows), comparable(withMainOpenNotices(rows)));
 
   eq('fix2 algemene vergelijking: nul anders', table.problems, []);
   eq('fix2 algemene vergelijking: ieder geval ingedeeld', table.same + table.repaired + table.safer + table.protectedTarget, table.cases);
