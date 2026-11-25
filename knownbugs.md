@@ -2007,13 +2007,13 @@ en noem het in je rapport of PR-tekst.
      `planner_import_schedule` (`src/services/mcp/tools/fileTools.ts`) bewaren `project.companyId` uit het bestand
      zonder die toets. `ResourcePanel.tsx` leest daarna `pools[project.companyId]`; bij `constructor` is dat een
      geërfde eigenschap van het object, en het paneel loopt vast op `pool.resources.filter`. Nagespeeld met een
-     zelfgemaakt projectbestand, niet in de browser. — B
+     zelfgemaakt projectbestand, niet in de browser. Issue #1234. — B
 2333. **Een `null` in de werkblokken van een opgeslagen bibliotheekkalender zet het bewaren van de bibliotheek stil.**
      `normalizePoolShape` (`src/services/library/libraryOps.ts`) gooit zelf bij een `null` in de werkblokken van een
      kalender. Bij het laden uit opslag blijft `libraryLoaded` dan onwaar, en `persistLibrary`
      (`src/state/slices/librarySlice.ts`) slaat elke latere bewerking van de bibliotheek over bij het wegschrijven.
      Bij importeren vertaalt de dialoog dezelfde fout naar "Dit IFC-bestand bevat geen resourcebibliotheek".
-     Nagespeeld met zelfgemaakte gegevens, niet met echte opslag via Tauri of IndexedDB. — B
+     Nagespeeld met zelfgemaakte gegevens, niet met echte opslag via Tauri of IndexedDB. Issue #1235. — B
 2334. **Het versienummer van een bibliotheek loopt vanaf 9007199254740992 niet meer op.** `normalizePoolShape` laat
      die `poolVersion` door, en `bumpPool` (`libraryOps.ts`) telt er 1 bij op, wat hetzelfde getal geeft. `isPoolNewer`
      vergelijkt dan alleen nog op `modifiedAt`. Nagespeeld met een los script; zo'n nummer komt alleen uit een
