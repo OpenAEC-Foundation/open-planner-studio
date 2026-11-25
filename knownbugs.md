@@ -1653,6 +1653,38 @@ en noem het in je rapport of PR-tekst.
       `updateTask` werd het restwerk 960 minuten en was de walk weg. Dezelfde rasterwissel zonder die drie velden gaf
       960 minuten. Issue #1280. — B
 
+2500. **Plakken in het datumveld leest dag-maand-jaar, ook bij een andere Datumnotatie.** `handlePaste` in
+      `DateTextInput` (`src/components/common/DateTextInput.tsx`) leest de geplakte tekst met `parseFlexibleDate`, dat
+      `parsePersonalDate(raw, 'dmy')` is. De celeditor van het raster leest met de ingestelde notatie
+      (`parsePersonalDate(text, notation)` in `src/engine/taskGrid/editors.ts`). Nagespeeld in Node met
+      `parsePersonalDate`: `07-06-2026` geeft met `'dmy'` 2026-06-07, met `'mdy'` 2026-07-06 en met `'ymd'` `null`. Met
+      de Datumnotatie maand-dag-jaar legt het datumveld na het plakken van `07-06-2026` dus 7 juni vast (een volledige
+      datum plakken legt meteen vast), terwijl het raster dezelfde tekst als 6 juli leest. Open vraag: hoort plakken de
+      Datumnotatie te volgen? De plakroute is in de code gelezen, niet in de browser nagespeeld. — B
+
+2501. **Een geplakte tekst die geen volledige datum is, komt als cijfers in één datumvakje.** In `handlePaste`
+      (`DateTextInput`, `src/components/common/DateTextInput.tsx`) geeft `parseFlexibleDate` `null` voor een datum met
+      tijd. Nagespeeld in Node: `13-05-2027 07:00` (de vorm van `displayDateTime` bij dag-maand-jaar, zoals het raster
+      een datum met tijd toont) en `2027-05-13T07:00` geven allebei `null`. Het veld laat dan het gewone plakken in het
+      vakje met de focus toe, en `nextSegmentState` houdt daarvan alleen de cijfers, afgekapt op de lengte van het
+      vakje. Zo kan bijvoorbeeld het jaarvakje een ander jaar krijgen dan de geplakte datum terwijl dag en maand
+      blijven staan, en dan legt het veld bij het verlaten zonder melding een andere datum vast. Welke cijfers
+      overblijven, hangt af van wat de browser met `maxLength` en de selectie doet; dat is niet in de browser
+      nagespeeld. — S
+
+2502. **De Hongaarse hints staan in de verkeerde datumvakjes.** `placeholders` in `DateTextInput`
+      (`src/components/common/DateTextInput.tsx`) neemt aan dat `dateInput.placeholder` in dag-maand-jaar-volgorde
+      staat: het eerste deel gaat naar het dagvakje, het tweede naar het maandvakje, het derde naar het jaarvakje. De
+      Hongaarse vertaling (`src/i18n/locales/hu/common.json`) is `éééé.hh.nn.`, in de volgorde jaar, maand, dag.
+      Nagespeeld in Node met dezelfde splitsing: het dagvakje krijgt de hint `éééé` en het jaarvakje `nn`. De andere 27
+      talen staan in dag-maand-jaar-volgorde. — B
+
+2503. **Een jaar van vier cijfers onder 0100 wordt 20xx.** `parsePersonalDate` (`src/utils/displayDate.ts`) telt 2000
+      op bij elk jaar onder 100, ook als het met vier cijfers is getypt. Nagespeeld in Node: `01-06-0026` en `0026-06-01`
+      geven 2026-06-01, terwijl `01-06-203` 0203-06-01 geeft. In het datumveld (`DateTextInput`) wordt een getypt jaar
+      `0026` bij het afronden dus 2026, zonder melding; dezelfde functie leest ook de datumcellen van het raster
+      (`src/engine/taskGrid/editors.ts`). Open vraag: hoort `0026` 2026 te worden of geweigerd? — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
