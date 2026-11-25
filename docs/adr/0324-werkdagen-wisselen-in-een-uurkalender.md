@@ -10,8 +10,12 @@ afwijkende `hoursPerDay` blijft daarbij staan (`docs/ifc-round-trip.md`, "Uren p
 
 - De beginstand (`WorkTimeSessionStart`: `workTime` en `hoursPerDay`) is de kalender zoals het kalendervenster hem in
   deze sessie opende, of zoals de laatste preset hem zette. `CalendarDialog` bewaart hem per kalender in zijn eigen
-  state, niet in de store; één MCP-aanroep is één sessie. De regel van de uren per dag wordt één keer op de
-  beginstand bepaald, zodat alle wissels in een sessie samen als één wissel tellen en de klikvolgorde niets uitmaakt.
+  state, niet in de store; één MCP-aanroep is één sessie. De beginstand bepaalt één keer per sessie óf de uren per dag
+  de blokken volgen, zodat die keuze niet van de klikvolgorde afhangt. De blokken van een dag die aan gaat, kunnen wel
+  uit de actuele kalender komen (terugval 2 hieronder), en dan hangen die blokken en de modale dagsom van de volgorde
+  af. Voorbeeld: een uurkalender met alleen maandag (08:00 tot 18:00) en vrijdag (08:00 tot 16:00) als werkdag en 10
+  uur per dag. Eerst zaterdag aan en dan maandag uit: zaterdag kopieert maandag en de modale dagsom blijft 10 uur. Eerst
+  maandag uit en dan zaterdag aan: zaterdag kopieert vrijdag en de modale dagsom wordt 8 uur.
 - `hoursPerDayFollowsBlocks` is waar zonder `workTime` in de beginstand, en waar als die blokken geen dagsom hebben
   (geen enkel blok, `deriveHoursPerDay` geeft `NaN`). Een dagkalender krijgt zijn uren per dag uit begin, einde en
   pauze, en een week zonder blok heeft niets om van af te wijken; zo maakt een wissel nooit zelf een afwijking. Anders
@@ -20,14 +24,15 @@ afwijkende `hoursPerDay` blijft daarbij staan (`docs/ifc-round-trip.md`, "Uren p
 - `workDayTogglePatch` zet bij een dagkalender, of bij een dag buiten 1 tot en met 7, alleen `workDays`. Bij een
   uurkalender krijgt een dag die uit gaat lege blokken, en een dag die aan gaat, in deze volgorde: (1) zijn eigen
   blokken uit de beginstand, als die er zijn (een korte vrijdag komt zo als korte vrijdag terug); (2) een kopie van de
-  eerste weekdag met blokken (`firstBlockedDay`, zondag eerst); (3) de eerste weekdag met blokken van de beginstand;
+  eerste weekdag met blokken (`firstBlockedDay`, zondag eerst); (3) de eerste weekdag met blokken van de beginstand
+  (`check-urenperdag-dagwissel.ts` §6b: alles uit en dan zaterdag aan);
   (4) de blokken uit de enkelvoudige werkdag (`seedScalarBands` met begin, einde, uren per dag en pauze); (5) als dat
   niets geeft, `STANDARD_DAY_BLOCKS`. Zo krijgt een dag die aan gaat altijd minstens één blok. Toetsen:
   `check-werkdag-einde.ts` §6, §6b, §6c en §6e, en `check-urenperdag-dagwissel.ts` §1.
 - `STANDARD_DAY_BLOCKS` is 07:00 tot 12:00 en 13:00 tot 16:00: de effectieve blokken van een nieuwe kalender
   (`createDefaultCalendar`: 07:00 tot 16:00, 8 uur, en `seedScalarBands` legt het uur pauze op 12:00) en van de knop
-  *Ma–vr* bij een kalender zonder blokken (`applyWeekdaysPreset` in `CalendarForm`), dus een werkdag die de planner
-  kent.
+  *Ma–vr* bij een scalaire kalender zonder `workTime` (`applyWeekdaysPreset` in `CalendarForm` zet daar 07:00 tot
+  16:00 met 8 uur; bij een uurkalender gaat de knop via `workDaysSetPatch`), dus een werkdag die de planner kent.
 - `workDaysSetPatch` zet eerst de dagen aan en daarna de andere uit, zodat een dag die aan gaat nog van een bestaande
   werkdag kan kopiëren. De uren per dag komen uit de beginstand, of zonder sessie uit de kalender van vóór de zet, dus
   de hele zet is één wissel. Toetsen: `check-urenperdag-dagwissel.ts` §2 en `check-werkdag-einde.ts` §6d.

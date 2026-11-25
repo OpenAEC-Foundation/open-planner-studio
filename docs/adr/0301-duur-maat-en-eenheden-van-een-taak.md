@@ -42,8 +42,8 @@ urenmaat, `scheduleDuration` maal werktijd per dag maal 60.
   voor de totale speling en voor de vrije speling van een eindtaak (`scheduleAnalysis.ts`). Via een relatie meet de
   gewone regel de vrije speling over de opvolgerkalender in werktijd, ook voor een kalendertijdtaak (ADR 0016, geval
   `msp-21`). Een conventie kan dat per relatie vervangen: zo past C2 (`p6FreeFloatOnOwnCalendar`) de vrije speling van
-  de taak aan. Bij een open taak met eigen werkblokken, ook in kalendertijd, meet het een relatie met een berekende
-  vrije speling, bijvoorbeeld FS zonder lag, in werktijd op de eigen kalender; een relatie zonder berekende vrije
-  speling slaat het over.
+  de taak aan. Bij een open taak met eigen werkblokken, ook in kalendertijd, meet C2 alleen de toepasselijke relaties
+  met een berekende vrije speling opnieuw, in werktijd op de eigen kalender; welke relaties toepasselijk zijn (voor een
+  gestarte taak alleen FS zonder lag), staat in ADR 0182 en volledig bij `inScope` in `scheduleAnalysis.ts`.
   `interferingFloat` is `totalFloat` min `freeFloat`, met teken.
 - `completion` is een fractie van 0 tot en met 1, geen percentage; de weergave vermenigvuldigt met 100.
