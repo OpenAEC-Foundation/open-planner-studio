@@ -1546,7 +1546,7 @@ en noem het in je rapport of PR-tekst.
     liggend en A3 staand (grens 1058,52 px). De app waarschuwt dan dat de tijdlijn smal wordt en laat de export
     doorgaan. Zie ADR 0351. Issue #1238. — B
 
-2337. **Op vaste schaal met een tabel net smaller dan de afdrukbare breedte ontstaan duizenden bladen.**
+2337. **Op vaste schaal met een tabel net smaller dan de afdrukbare breedte kunnen duizenden bladen ontstaan.**
     `computeTileLayout` (`src/services/print/tileLayout.ts`) rekent het aantal kolommen uit de ruimte die naast de
     herhaalde tabel overblijft. Nagespeeld met de rapporttekenaar en het afdrukvoorbeeld, niet in de browser: A4
     staand, *Vaste schaal*, een automatisch gemeten tabel van 729 px en een planning van januari tot oktober op 22 px
