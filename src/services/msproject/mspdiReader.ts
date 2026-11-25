@@ -634,11 +634,14 @@ export function readMSPDI(content: string): ImportResult {
       const unitsPerDay = Number.isFinite(units) && unitsText ? units : 1;
       const workTask = taskById.get(taskId);
       const derivedWork = workTask ? taskWorkMinutes(workTask.time, effHpdByTaskId.get(taskId) ?? hoursPerDay) * unitsPerDay : 0;
+      const plannedWork = mspDurationMinutes(getElementText(asgnEl, 'Work')) ?? undefined;
       const workFields = importedWorkFields({
-        plannedMinutes: mspDurationMinutes(getElementText(asgnEl, 'Work')) ?? undefined,
+        plannedMinutes: plannedWork,
         actualMinutes: mspDurationMinutes(getElementText(asgnEl, 'ActualWork')) ?? undefined,
         remainingMinutes: mspDurationMinutes(getElementText(asgnEl, 'RemainingWork')) ?? undefined,
       }, derivedWork);
+      const keepExplicitWork = plannedWork !== undefined && plannedWork > 0 && derivedWork === 0
+        && workTask !== undefined && !workTask.time.durationMinutes;
 
       assignments.push({
         id: generateId('asgn'),
@@ -647,6 +650,7 @@ export function readMSPDI(content: string): ImportResult {
         unitsPerDay,
         ...(curve && curve !== 'UNIFORM' ? { curve } : {}),
         ...workFields,
+        ...(keepExplicitWork && workFields.plannedWorkMinutes === undefined ? { plannedWorkMinutes: plannedWork } : {}),
       });
 
       const task = taskById.get(taskId);
