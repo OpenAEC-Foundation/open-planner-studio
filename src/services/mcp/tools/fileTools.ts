@@ -57,7 +57,8 @@ import { observeRegularFileTauri, scanTargetPathTauri } from '@/services/fileAcc
 import { replaceOwnPathWithRecovery, type OwnPathReplaceResult } from '@/state/ownFileReplace';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { capturedTargetReaders } from '@/services/fileAccess/foreignSourceTarget';
-import type { TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
+import { textWriteRefusal, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
+import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
 import {
   exportTargetPermission, ifcFullWriteBlocked, refusedTargetContent, refusedTargetIdentity, refusedWriteTarget,
   type WriteTargetDeps, type WriteTargetRefusal,
@@ -69,6 +70,16 @@ import { writtenForeignChangeCount } from '@/state/foreignChangesWrittenNotice';
 /** #804: IFC-uitvoer blijft geweigerd met ontbrekende bronbytes of de flag uit (`state/ifcForeignGuard.ts`). */
 const FOREIGN_CONTENT_REFUSAL = 'The active document contains a building model or data from other programs. The app cannot ' +
   'save or export it as IFC yet, because the IFC would lose that content. Other export formats still work.';
+
+const UNKEPT_SOURCE_REFUSAL = 'The file this document was opened from has, or may have, data from other programs that this ' +
+  'server cannot keep: for example an IFC2X3 file with such data, or a file it could not read completely. An IFC written now ' +
+  'could lose that data, so nothing was written. Reading and changing the schedule still work. To write IFC, the server must ' +
+  'be able to read the whole file: save it again as IFC4 or IFC4X3 in the program that made it, then import it again.';
+
+function foreignContentRefusal(ctx: McpContext): string {
+  return fileToolDeps.mainRouteUnlessForeign && ctx.app.store.getState().foreignSourceMark?.sourceMissing
+    ? UNKEPT_SOURCE_REFUSAL : FOREIGN_CONTENT_REFUSAL;
+}
 
 /** #804 fase 1a, fixronde 1: het pad is het bronbestand van een open document met een vreemd deel. Blijft na fase 1c. */
 const FOREIGN_SOURCE_TARGET_REFUSAL = (path: string) => `'${path}' is the source file of an open document that also ` +
@@ -242,6 +253,24 @@ async function keptForeignContent(input: FormatInput): Promise<OpenedImport | nu
   }
 }
 
+interface HeadlessIfcRead {
+  readonly input: FormatInput;
+  readonly kept: OpenedImport | null;
+  readonly unkept: ForeignSourceMark | null;
+}
+
+async function headlessIfcRead(path: string, input: FormatInput, bytes: Uint8Array): Promise<HeadlessIfcRead> {
+  const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes);
+  if (textWriteRefusal(text) === null) return { input: { name: input.name, text }, kept: null, unkept: null };
+  const kept = await keptForeignContent(input);
+  if (kept) return { input, kept, unkept: null };
+  return {
+    input: { name: input.name, text },
+    kept: null,
+    unkept: { sha256: await precomputeSha256(bytes), byteLength: bytes.length, filePath: path, siteFileId: null, handle: null, sourceMissing: true },
+  };
+}
+
 // --- Padnormalisatie + scope ---------------------------------------------------------------------
 
 /**
@@ -412,7 +441,7 @@ export const fileTools: McpToolDef[] = [
       // Volle guard incl. drift: we schrijven de inhoud van het ACTIEVE document weg.
       const blocked = guardNonTransactional(ctx);
       if (blocked) return blocked;
-      if (ifcFullWriteBlocked(ctx.app.store.getState())) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
+      if (ifcFullWriteBlocked(ctx.app.store.getState())) return toolError(ctx, 'VALIDATION', foreignContentRefusal(ctx));
       const raw = (args ?? {}) as { path?: unknown; overwrite?: unknown };
       if (typeof raw.path !== 'string' || raw.path.trim() === '') {
         return toolError(ctx, 'VALIDATION', 'Parameter \'path\' (text) is required: the absolute target path of the IFC file.');
@@ -496,14 +525,14 @@ export const fileTools: McpToolDef[] = [
       if (refused) return refused;
       const targetError = writeTargetError(ctx, path, foreignTarget);
       if (targetError) return targetError;
-      if (ifcFullWriteBlocked(state)) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
+      if (ifcFullWriteBlocked(state)) return toolError(ctx, 'VALIDATION', foreignContentRefusal(ctx));
       // Gedeelde state→writer-invoer (dezelfde bron als opslaan/auto-save), zodat deze route nooit
       // stil velden kan laten vallen. Een export: zonder een open schemavraag die niet bij de kop past.
       const input = buildExportIFCInput(state, 'merge');
       let output: Awaited<ReturnType<typeof prepareIfcOutput>>;
       try { output = await prepareIfcOutput(state, input); }
       catch (error) {
-        if (error instanceof IfcWriteBlockedError) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
+        if (error instanceof IfcWriteBlockedError) return toolError(ctx, 'VALIDATION', foreignContentRefusal(ctx));
         if (error instanceof MergeNeedsPhase2Error) return toolError(ctx, 'VALIDATION',
           `IFC export refused (${error.message}): the building model or data from other programs would not be fully preserved. ` +
           'Undo the last change or export the schedule to another format.');
@@ -515,7 +544,7 @@ export const fileTools: McpToolDef[] = [
       if (output.prepared && !replacement && (existed || !fs.writeNewUserBytes)) return toolError(ctx, 'VALIDATION',
         existed ? 'IFC export with a building model or data from other programs requires a new file name, even with overwrite: true.'
           : 'This file host cannot create an exclusive new byte file. Nothing was written.');
-      const ifcSchema = projectIfcSchema(input.project);
+      const ifcSchema = output.prepared?.source.schemaName ?? projectIfcSchema(input.project);
       const question = ifcSchemaQuestionFor(state.project, state.ifcSource);
       // Knownbug 1026 (review #872 ronde 3 en 4, Terra): een export over het eigen bestand legt de letterlijke kalenders
       // vast, zoals Opslaan; een aantoonbaar ander bestand niet (`exportHitsOwnFile`). Schrijven en vastleggen staan onder
@@ -530,7 +559,7 @@ export const fileTools: McpToolDef[] = [
           || now.filePath !== state.filePath || now.fileHandle !== state.fileHandle || now.siteFileId !== state.siteFileId) {
           return toolError(ctx, 'VALIDATION', 'The document changed while the export waited for another save. Nothing was written. Retry the export.');
         }
-        return ifcFullWriteBlocked(now) ? toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL) : null;
+        return ifcFullWriteBlocked(now) ? toolError(ctx, 'VALIDATION', foreignContentRefusal(ctx)) : null;
       };
       const writeError = await runProjectFileWrite(async () => {
         // Review #872 ronde 5 (Terra): wachten op de lock is ook een await. Pauze, alleen-lezen, dialoog en documentdrift
@@ -561,7 +590,8 @@ export const fileTools: McpToolDef[] = [
         } catch (e) {
           // Knownbug 1131 stap 4: de nieuwe naam bestond intussen, of de plaatsing liet een onbekende stand achter.
           if (e instanceof ByteWriteError && e.reason === 'create-new') return toolError(ctx, 'VALIDATION',
-            `'${path}' exists now; it did not exist when the export checked it. Nothing was written there. Check that file, and export again with overwrite: true if you mean to replace it.`);
+            `'${path}' exists now; it did not exist when the export checked it. Nothing was written there. Check that file, and ${fs.replaceUserBytes
+              ? 'export again with overwrite: true if you mean to replace it.' : 'export again to a new file name.'}`);
           if (e instanceof ByteWriteError && e.reason === 'source-changed') return toolError(ctx, 'INTERNAL',
             `The app does not know whether '${path}' was written correctly: something changed in the folder during the write. ` +
             'Nothing was restored or cleaned up. Check the file, or export again to a new file name.');
@@ -677,10 +707,9 @@ export const fileTools: McpToolDef[] = [
         const code = e instanceof ScopeEscapeError ? 'SCOPE' : e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND';
         return toolError(ctx, code, `Could not read '${path}': ${e instanceof Error ? e.message : String(e)}`);
       }
-      const read = keepsForeignOnly ? input.bytes : undefined;
-      const kept = read ? await keptForeignContent(input) : null;
-      if (read && !kept) {
-        input = { name: input.name, text: new TextDecoder('utf-8', { ignoreBOM: true }).decode(read) };
+      const decided = keepsForeignOnly && input.bytes ? await headlessIfcRead(path, input, input.bytes) : null;
+      if (decided && !decided.kept) {
+        input = decided.input;
         readOptions = {};
       }
       const content = input.text ?? '';
@@ -690,7 +719,7 @@ export const fileTools: McpToolDef[] = [
         // Geen `labels`: dienstlaag zonder `t(...)` — de MCP-laag is AI-facing en kent geen UI-taal.
         // `readIFC` valt dan terug op de Engelse default voor een bestand zonder IFCPROJECT (zie
         // ImportLabels).
-        parsed = kept ?? await parseOpenedFile(input, undefined, readOptions);
+        parsed = decided?.kept ?? await parseOpenedFile(input, undefined, readOptions);
       } catch (e) {
         return toolError(ctx, 'VALIDATION', `'${path}' could not be read as a schedule: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -716,6 +745,8 @@ export const fileTools: McpToolDef[] = [
         ? openTabFor(ctx.app.store.getState(), ref, null, readVersionOf(ref, parsed)) : null;
       if (tab !== null) switchToOpenDocument(ctx.app.store.getState(), tab);
       const opened = tab !== null ? null : ctx.app.store.getState().openAsDocument(parsed, { name: path, ref });
+      const unkept = opened ? decided?.unkept : null;
+      if (unkept) ctx.app.store.setState((s) => { s.foreignSourceMark = unkept; });
       // Drift-anker naar het RESULTERENDE document — anders zou de eerstvolgende
       // mutatie op het importdocument als drift falen en zet de import zichzelf klem.
       bindExpectedDoc(ctx);

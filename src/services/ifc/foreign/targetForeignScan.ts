@@ -31,6 +31,11 @@ export function scanForeignTargetBytes(bytes: Uint8Array): TargetForeignScan {
   return bytes.length > IFC_FOREIGN_SCAN_MAX_BYTES || utf8BomLength(bytes) > 0 ? 'unreadable' : targetOf(scanForeign(bytes));
 }
 
+export function textWriteRefusal(text: string): Exclude<TargetForeignScan, 'no-model' | 'not-ifc'> | null {
+  const scan = scanForeignTargetBytes(new TextEncoder().encode(text.replace(/^\uFEFF/, '').trimStart()));
+  return scan === 'no-model' || scan === 'not-ifc' ? null : scan;
+}
+
 /** De hele bron vanaf het begin; `null` boven de grens van 300 MiB (zonder verder te lezen). */
 async function readWhole(source: Pick<TargetSource, 'next' | 'seek'>): Promise<Uint8Array | null> {
   await source.seek(0);

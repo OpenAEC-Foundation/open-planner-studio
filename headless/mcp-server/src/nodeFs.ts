@@ -364,7 +364,6 @@ export async function createNodeFileFs(
       throw changed(target);
     }
     if (!sameId(placed, tmpId)) throw changed(target);
-    unlinkSync(tmpName);
   }
 
   function writeHere(c: Checked, target: string, content: string | Uint8Array, exclusive: boolean): void {
@@ -401,8 +400,16 @@ export async function createNodeFileFs(
       if (!sameId(here, asked) || !sameId(tmpNow, tmpId)) throw changed(target);
       hooks.afterCheck?.('commit', c.real);
       hooks.fault?.('rename');
-      if (exclusive) placeExclusive(tmpName, c.base, tmpId, target);
-      else {
+      if (exclusive) {
+        placeExclusive(tmpName, c.base, tmpId, target);
+        renamed = true;
+        try {
+          unlinkSync(tmpName);
+        } catch (error) {
+          throw new Error(`'${target}' was written, but its temporary name '${tmpName}' next to it could not be removed `
+            + `(${String(error)}). Until that name is deleted, the file has two names and the server refuses to read it.`);
+        }
+      } else {
         renameSync(tmpName, c.base);
         renamed = true;
       }

@@ -2,11 +2,11 @@ import { test, assert, assertEq, run } from './harness';
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ReadBuffer, serializeMessage } from '@modelcontextprotocol/sdk/shared/stdio.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
-import { brokenNameFiles, dataKopBestanden } from '../planning/ifcDoelBestanden';
+import { ownCorpus, type HeadlessStand } from './headlessCorpus';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const MAIN = process.env.OPS_MAIN_WORKTREE;
@@ -25,25 +25,13 @@ let seed = 20261120;
 Math.random = () => { seed = (seed * 48271) % 2147483647; return seed / 2147483647; };
 `;
 
-interface Case { name: string; bytes: Buffer }
+interface Case { name: string; bytes: Buffer; stand: HeadlessStand }
 
 function corpus(): Case[] {
-  const files = [join(ROOT, 'examples'), join(ROOT, 'public', 'examples')]
-    .flatMap(dir => readdirSync(dir).filter(name => name.endsWith('.ifc')).sort().map(name => join(dir, name)));
-  const cases: Case[] = files.map(file => ({ name: `${basename(dirname(file))}-${basename(file)}`, bytes: readFileSync(file) }));
-  const villa = readFileSync(join(ROOT, 'public', 'examples', '10-villa-wassenaar.ifc'));
-  const at = villa.indexOf("'New-Build Villa") + 1;
-  assert(at > 0, 'de projectnaam van de villa');
-  const rawByte = Buffer.concat([villa.subarray(0, at), Buffer.from([0xe9]), villa.subarray(at)]);
-  cases.push(
-    { name: 'villa-met-bom.ifc', bytes: Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), villa]) },
-    { name: 'villa-met-bom-en-spatie.ifc', bytes: Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf, 0x20]), villa]) },
-    { name: 'villa-met-los-byte.ifc', bytes: rawByte },
-    { name: 'model-ifc2x3.ifc', bytes: readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/model-ifc2x3.ifc')) },
-    ...[...dataKopBestanden(villa.toString('utf8')), ...brokenNameFiles(villa.toString('utf8'))]
-      .map(([name, text]) => ({ name: `villa-${name}.ifc`, bytes: Buffer.from(text, 'utf8') })),
-  );
-  return cases;
+  return [
+    ...ownCorpus(ROOT),
+    { name: 'model-ifc2x3.ifc', bytes: readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/model-ifc2x3.ifc')), stand: 'onzeker' },
+  ];
 }
 
 function build(repo: string, out: string): string {
@@ -93,11 +81,12 @@ class Session {
   }
 }
 
-interface Run { transcript: string[]; files: Map<string, Buffer> }
+interface Step { readonly tool: string; readonly response: string }
+interface Run { head: string[]; cases: Step[][]; files: Map<string, Buffer> }
 
-function renamedIds(transcript: readonly string[]): string[] {
+function renamedIds(lines: readonly string[]): string[] {
   const names = new Map<string, string>();
-  return transcript.map(line => line.replace(GENERATED_ID, (id) => {
+  return lines.map(line => line.replace(GENERATED_ID, (id) => {
     if (!names.has(id)) names.set(id, `<id ${names.size}>`);
     return names.get(id)!;
   }));
@@ -111,19 +100,20 @@ async function replay(server: string, work: string, cases: Case[], preload: stri
     writeFileSync(join(work, String(i), 'plan.ifc'), c.bytes);
   });
   const session = new Session(server, work, preload, home);
-  const transcript: string[] = [];
-  const call = async (name: string, args: Record<string, unknown>) => {
-    const response = await session.request('tools/call', { name, arguments: args });
-    transcript.push(JSON.stringify(response));
-    return (response as { result?: { structuredContent?: { ok?: boolean; data?: Record<string, unknown> } } }).result?.structuredContent;
-  };
+  const head: string[] = [];
+  const steps: Step[][] = cases.map(() => []);
   try {
-    transcript.push(JSON.stringify(await session.request('initialize', {
+    head.push(JSON.stringify(await session.request('initialize', {
       protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'ops-pariteit', version: '1.0.0' },
     })));
     session.notify('notifications/initialized');
-    transcript.push(JSON.stringify(await session.request('tools/list')));
+    head.push(JSON.stringify(await session.request('tools/list')));
     for (const [i] of cases.entries()) {
+      const call = async (tool: string, args: Record<string, unknown>) => {
+        const response = await session.request('tools/call', { name: tool, arguments: args });
+        steps[i].push({ tool, response: JSON.stringify(response) });
+        return (response as { result?: { structuredContent?: { ok?: boolean; data?: Record<string, unknown> } } }).result?.structuredContent;
+      };
       const dir = join(work, String(i));
       const opened = await call('planner_import_schedule', { path: join(dir, 'plan.ifc') });
       if (opened?.ok !== true) continue;
@@ -144,13 +134,15 @@ async function replay(server: string, work: string, cases: Case[], preload: stri
   cases.forEach((_, i) => {
     for (const name of readdirSync(join(work, String(i))).sort()) files.set(`${i}/${name}`, readFileSync(join(work, String(i), name)));
   });
-  return { transcript, files };
+  return { head, cases: steps, files };
 }
+
+const codeOf = (response: string) => (JSON.parse(response) as { result?: { structuredContent?: { code?: string } } }).result?.structuredContent?.code;
 
 if (!MAIN) {
   console.log('  overgeslagen: OPS_MAIN_WORKTREE is niet gezet (een werkmap van main met node_modules; de proef draait lokaal)');
 } else {
-  test('pariteit met main: elk bestand zonder vreemd deel geeft dezelfde antwoorden en dezelfde bytes als de headless server van main', async () => {
+  test('pariteit met main: een bewezen eigen bestand geeft de antwoorden en bytes van main, een onzeker bestand opent zoals main en schrijft geen IFC', async () => {
     assert(existsSync(join(MAIN, 'headless/mcp-server/src/main.ts')), `${MAIN} is geen werkmap van Open Planner Studio`);
     const commit = spawnSync('git', ['-C', MAIN, 'log', '-1', '--format=%H %s'], { encoding: 'utf8' }).stdout.trim()
       || process.env.OPS_MAIN_COMMIT || '(commit onbekend)';
@@ -166,17 +158,36 @@ if (!MAIN) {
       const work = join(tmp, 'werkmap');
       const expected = await replay(mainServer, work, cases, preload, tmp);
       const actual = await replay(branchServer, work, cases, preload, tmp);
-      const [mainLines, branchLines] = [renamedIds(expected.transcript), renamedIds(actual.transcript)];
-      const differs = Array.from({ length: Math.max(mainLines.length, branchLines.length) }, (_, i) => i)
-        .find(i => branchLines[i] !== mainLines[i]) ?? -1;
-      assert(differs < 0, `antwoord ${differs} verschilt:\nmain:   ${mainLines[differs]?.slice(0, 1500)}\nbranch: ${branchLines[differs]?.slice(0, 1500)}`);
-      const generated = new Set(expected.transcript.flatMap(line => line.match(GENERATED_ID) ?? [])).size;
-      assertEq([...actual.files.keys()], [...expected.files.keys()], 'dezelfde bestanden');
-      for (const [key, bytes] of expected.files) {
-        assert(actual.files.get(key)!.equals(bytes), `${key} (${cases[Number(key.split('/')[0])].name}): andere bytes dan main`);
+      assertEq(renamedIds(actual.head), renamedIds(expected.head), 'initialize en tools/list');
+      const tally = { eigen: 0, onzeker: 0, nietGeopend: 0 };
+      for (const [i, c] of cases.entries()) {
+        const [main, branch] = [expected.cases[i], actual.cases[i]];
+        const label = `${i} ${c.name}`;
+        const mainOpened = codeOf(main[0].response) === undefined;
+        if (!mainOpened || c.stand === 'eigen') {
+          const [m, b] = [renamedIds(main.map(s => s.response)), renamedIds(branch.map(s => s.response))];
+          const differs = Array.from({ length: Math.max(m.length, b.length) }, (_, k) => k).find(k => m[k] !== b[k]) ?? -1;
+          assert(differs < 0, `${label}, stap ${differs} (${main[differs]?.tool ?? branch[differs]?.tool}) verschilt:\nmain:   ${m[differs]?.slice(0, 1200)}\nbranch: ${b[differs]?.slice(0, 1200)}`);
+          for (const name of ['plan.ifc', 'kopie.ifc']) {
+            const [mainFile, branchFile] = [expected.files.get(`${i}/${name}`), actual.files.get(`${i}/${name}`)];
+            assert(mainFile === undefined ? branchFile === undefined : branchFile?.equals(mainFile) === true, `${label}: ${name} anders dan main`);
+          }
+          tally[mainOpened ? 'eigen' : 'nietGeopend']++;
+          continue;
+        }
+        const [m, b] = [renamedIds(main.slice(0, 4).map(s => s.response)), renamedIds(branch.slice(0, 4).map(s => s.response))];
+        assertEq(b, m, `${label}: openen, lezen, wijzigen en rekenen zoals main`);
+        const exports = branch.filter(s => s.tool === 'planner_export_ifc');
+        assertEq(exports.map(s => codeOf(s.response)), ['VALIDATION', 'VALIDATION'], `${label}: elke IFC-export weigert`);
+        assertEq(actual.files.get(`${i}/kopie.ifc`), undefined, `${label}: geen kopie`);
+        assert(actual.files.get(`${i}/plan.ifc`)!.equals(c.bytes), `${label}: de bron is bytegelijk`);
+        assert(expected.files.has(`${i}/kopie.ifc`), `${label}: main schreef hier wel (anders hoort het bestand niet in deze lijst)`);
+        tally.onzeker++;
       }
-      const opened = expected.transcript.filter(line => line.includes('"documentsOpened"')).length;
-      console.log(`  ${Math.round((Date.now() - started) / 1000)} s; ${cases.length} bestanden, ${expected.transcript.length} antwoorden, ${expected.files.size} bestanden op schijf, ${opened} keer geopend, ${generated} gegenereerde id's hernoemd`);
+      const generated = new Set(expected.cases.flat().flatMap(s => s.response.match(GENERATED_ID) ?? [])).size;
+      console.log(`  ${Math.round((Date.now() - started) / 1000)} s; ${cases.length} bestanden: ${tally.eigen} eigen zoals main, `
+        + `${tally.onzeker} onzeker zonder IFC-uitvoer, ${tally.nietGeopend} door beide geweigerd; ${generated} gegenereerde id's hernoemd per bestand`);
+      console.log(`  onzeker: ${cases.filter(c => c.stand === 'onzeker').map(c => c.name).join(', ')}`);
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }

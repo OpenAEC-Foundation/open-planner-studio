@@ -40,6 +40,7 @@ import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { externalClientChecks, connectClient, type AppProbe } from './externalClient';
+import { foreignCorpus, oldOwnSource, ownCorpus, OLD_TASK_NAME } from './headlessCorpus';
 
 // Lokaal alleen bronproeven; de zelfstandige bundel en CLI draaien volledig in CI.
 function test(name: string, fn: () => void | Promise<void>): void {
@@ -728,6 +729,78 @@ test('A knownbug 1136: een externe pset gaat mee naar een nieuwe naam; over de b
     assert(reopened.ifcSource?.foreign === true && reopened.tasks.some(t => t.name === 'Hernoemd headless'),
       'de kopie opent opnieuw met de externe pset en de wijziging');
   } finally { await client.close(); }
+});
+
+test('A 1136 ronde 1: een externe pset met ids boven de scannergrens en een IFC2X3 met een externe pset weigeren vóór I/O', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  const original = fileToolDeps.getFs;
+  try {
+    const cases = foreignCorpus(ROOT).filter(c =>
+      ['pset-aan-project-IFC4X3_ADD2-ids-boven-scannergrens.ifc', 'pset-aan-project-IFC2X3-gewone-ids.ifc'].includes(c.name));
+    assertEq(cases.length, 2, 'de twee gevallen van de review');
+    for (const c of cases) {
+      const source = join(rootA, `onzeker-${c.name}`);
+      const copy = join(rootA, `onzeker-kopie-${c.name}`);
+      writeFileSync(source, c.bytes);
+      const opened = await ok(client, 'planner_import_schedule', { path: source });
+      assert(opened.tasks > 0, `${c.name}: de planning opent zoals main`);
+      assertEq(app.store.getState().foreignSourceMark?.sourceMissing, true, `${c.name}: het document staat als niet vast te stellen`);
+      let fileCalls = 0;
+      fileToolDeps.getFs = async () => { fileCalls++; return original(); };
+      for (const args of [{ path: copy }, { path: copy, overwrite: true }, { path: source, overwrite: true }]) {
+        const r = await refused(client, 'planner_export_ifc', args, 'VALIDATION', `${c.name} ${JSON.stringify(args)}`);
+        assert(String(r.s.error).includes('cannot keep') && String(r.s.error).includes('nothing was written'), `${c.name}: de fout zegt waarom: ${r.s.error}`);
+      }
+      fileToolDeps.getFs = original;
+      assertEq(fileCalls, 0, `${c.name}: de export raakt de bestandslaag niet`);
+      assertEq(existsSync(copy), false, `${c.name}: geen kopie`);
+      assert(readFileSync(source).equals(c.bytes), `${c.name}: de bron is bytegelijk`);
+    }
+  } finally {
+    fileToolDeps.getFs = original;
+    await client.close();
+  }
+});
+
+test('A eigenschap (1136 ronde 1): elk vreemd stuk staat bytegelijk in de kopie, of de export weigert en er is geen kopie', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  const dir = join(rootA, 'eigenschap');
+  mkdirSync(dir);
+  const tally = { geschreven: 0, geweigerd: 0, nietGeopend: 0 };
+  const byStand = new Map<string, number>();
+  const broken: string[] = [];
+  try {
+    const all = [
+      ...ownCorpus(ROOT).map(c => ({ name: c.name, bytes: c.bytes, pieces: [] as readonly string[], stand: c.stand as string | undefined })),
+      ...foreignCorpus(ROOT).map(c => ({ name: c.name, bytes: c.bytes, pieces: c.pieces, stand: undefined as string | undefined })),
+    ];
+    for (const [i, c] of all.entries()) {
+      const source = join(dir, `${i}-bron.ifc`);
+      const copy = join(dir, `${i}-kopie.ifc`);
+      writeFileSync(source, c.bytes);
+      const opened = await call(client, 'planner_import_schedule', { path: source });
+      if (opened.isError) {
+        tally.nietGeopend++;
+        continue;
+      }
+      const exported = await call(client, 'planner_export_ifc', { path: copy });
+      const written = existsSync(copy) ? readFileSync(copy).toString('latin1') : null;
+      const missing = written === null ? [] : c.pieces.filter(piece => !written.includes(piece));
+      if (!exported.isError && written !== null && missing.length === 0) tally.geschreven++;
+      else if (exported.isError && exported.s.code === 'VALIDATION' && written === null) tally.geweigerd++;
+      else broken.push(`${c.name}: ${exported.isError ? exported.s.code : 'ok'}, kopie ${written === null ? 'ontbreekt' : `mist ${missing.length} vreemde regel(s)`}`);
+      if (c.stand === 'eigen' && exported.isError) broken.push(`${c.name}: bewezen eigen, maar de export weigert (${exported.s.error})`);
+      if (c.stand === 'onzeker' && !exported.isError) broken.push(`${c.name}: niet vast te stellen, maar de export schreef`);
+      if (!readFileSync(source).equals(c.bytes)) broken.push(`${c.name}: de bron veranderde`);
+      const key = `${c.stand ?? 'vreemd'} ${exported.isError ? 'geweigerd' : 'geschreven'}`;
+      byStand.set(key, (byStand.get(key) ?? 0) + 1);
+    }
+    console.log(`  eigenschap: ${all.length} bestanden, ${tally.geschreven} geschreven, ${tally.geweigerd} geweigerd, ${tally.nietGeopend} niet geopend`
+      + ` (${[...byStand].map(([k, n]) => `${k} ${n}`).join(', ')})`);
+    assertEq(broken, [], 'nooit ok met een vreemd stuk minder, nooit een kopie na een weigering, elk bestand in zijn stand');
+  } finally {
+    await client.close();
+  }
 });
 
 test('A gebouwmodel: openen bewaart het model, een nieuwe naam krijgt het bytegelijk, een ongedragen wijziging weigert getypeerd', async () => {
