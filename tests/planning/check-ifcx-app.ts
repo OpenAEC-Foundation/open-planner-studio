@@ -23,6 +23,7 @@ import { payloadFromImport } from '@/state/documentContract';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { documentDataFromImport } from '@/services/documentData';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
+import { readXER } from '@/services/xer/xerReader';
 import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
 import { loadRecovery, clearRecovery } from '@/services/recovery/recoveryStore';
@@ -592,17 +593,22 @@ await check('zonder classificatie in de worker weigert een IFCX-document een onb
   } finally { ipc.dispose(); }
 });
 
-await check('resources: de kern weigert het schrijven, één melding; Automatisch opslaan rekent dezelfde inhoud niet opnieuw (was knownbug 2367)', async () => {
+await check('het P6-bronarchief van een XER-import: STEP weigert het compacte archief, de kern weigert het schrijven met één melding over de planning; Automatisch opslaan rekent dezelfde inhoud niet opnieuw (was knownbug 2367)', async () => {
   const ipc = desktop();
   try {
     const path = join(dir, 'resource.ifcx'); writeFileSync(path, own);
     const store = await openAt(path, IFCX_ON);
     const sw = workerOf.get(store)!;
-    store.getState().addResource({ name: 'Kraan', type: 'EQUIPMENT', description: '', maxUnits: 1, costPerHour: 10 });
+    const imported = readXER(new Uint8Array(readFileSync(join(root, 'tests/browser/fixtures/xer/zonder-bijzonderheden.xer'))));
+    assert(!('kind' in imported) && imported.xerSourceArchive && imported.xer, 'het XER-bestand geeft één document met bronarchief');
+    store.setState({
+      xerSourceArchive: imported.xerSourceArchive, xerImportMetadata: imported.xer, xerSourceProjectId: imported.xer.sourceProjectId ?? null,
+    });
+    shiftFirstTask(store);
     clearNotices(store);
     assert.equal(await save(store), false);
     assert.deepEqual(errors(store), ['ifcx.writeRefused']);
-    assert(store.getState().ui.notifications[0].detail?.includes('resources'), 'de melding noemt het veld');
+    assert.equal(store.getState().ui.notifications[0].detail, 'planning');
     assert.equal(hash(bytesAt(path)), hash(own));
     assert.equal(store.getState().isDirty, true);
     store.setState(s => { s.autoSaveToFile = true; }); clearNotices(store);

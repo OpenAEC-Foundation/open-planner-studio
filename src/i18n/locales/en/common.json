@@ -520,7 +520,7 @@
     "foreignChangesQuestion": "Ask before saving when IFC items outside the schedule are removed",
     "foreignChangesQuestionHint": "For a file with a building model. When off, the app saves right away and reports the number afterwards.",
     "ifcx": "Open and save IFCX",
-    "ifcxHint": "Opens an IFCX file that Open Planner Studio wrote itself, and saves such a file as IFCX again: with Save, Save As and Auto-save. IFCX is a new format under development; a later version of the app may refuse a file you save now. The app does not yet keep all data in IFCX, such as resources, assignments and baselines; it does not save a schedule with such data as IFCX. Keep it with Export → IFC. The app cannot open an IFCX file from another program yet.",
+    "ifcxHint": "Opens an IFCX file that Open Planner Studio wrote itself, and saves such a file as IFCX again: with Save, Save As and Auto-save. IFCX is a new format under development; a later version of the app may refuse a file you save now. The app does not yet keep all data in IFCX, such as the source file of a P6 import (XER) and an embedded resource library; it does not save a schedule with such data as IFCX. Keep it with Export → IFC. The app cannot open an IFCX file from another program yet.",
     "tourHint": "Take the app's introductory tour again.",
     "theme": "Theme",
     "themeHint": "The interface's colour scheme.",

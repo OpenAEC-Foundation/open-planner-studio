@@ -7499,3 +7499,44 @@ en noem het in je rapport of PR-tekst.
      Richting: deel binnen de poging één classificatie van de vastgelegde bytes, en laat beide identiteitscontroles en
      de vergelijking met de verwachte bytes bij vervangen staan. Gemeld door de review van #1223 ronde 2
      (GPT-6.2-Sol). — B
+
+2373. **IFCX (F3-2, onder 2353): een zelfgemaakt bestand met een resource-, toewijzings- of baselinewaarde die STEP nooit
+     teruggeeft, opent.** Voorbeelden: een exacte curve (`curveValues`) die niet aan het contourcontract voldoet (twee
+     punten in plaats van 21; de belasting rekent er dan mee als exacte curve), een `costAmount` op een werktoewijzing,
+     werkvelden op een kostentoewijzing, of een kostenresource met een tarief. Een bestand van de schrijver heeft ze nooit:
+     STEP laat ze vallen (`normalizeCurveValues`, `normalizeAssignmentForResource`, `clearCostResourceFields`), en een
+     tweede opslag zet ze recht zoals STEP. Een zelfgemaakt bestand dat precies de projectie is, opent wel, net als de
+     gevallen van 2353. Richting als het nodig wordt: dezelfde als 2353, geen eigen toets per veld. Gemeld door de review
+     van #1189 ronde 1 (blokkade 4, GPT-6.2-Sol); vastgelegd bij de herschrijving op de kern. — S
+
+2374. **IFCX (F3-2): een toewijzing heeft geen eigen identiteit; haar id en pad volgen uit taak, resource en plaats.** STEP
+     bewaart geen id per toewijzing (één `IfcRelAssignsToProcess` per taak; in de metadata `<GlobalId van de resource>#<plaats>`)
+     en de STEP-lezer geeft elke toewijzing een willekeurig nieuw id. IFCX geeft haar na de STEP-rondgang het id
+     `asgn-<taak>/<GlobalId van de resource>#<plaats>` (de aanvulling op R6), zodat twee opslagen byte-gelijk zijn.
+     Verwijdert de planner een toewijzing, verandert de volgorde onder een taak of krijgt een toewijzing een andere
+     resource, dan veranderen id en pad, zoals in STEP de naam in de metadata. De app gebruikt een toewijzings-id alleen binnen een geopend document (bewerkingen, MCP), en
+     na openen van een STEP-bestand is het ook nieuw; een ander programma dat een toewijzing op haar pad volgt, of het
+     crashherstel van F3-4 met twee toewijzingen aan dezelfde resource, kan het verschuiven wel merken. Richting: bij F3-4
+     beslissen of een toewijzing een eigen identiteit krijgt (dan ook in STEP) en het herstelscenario met twee toewijzingen aan één resource vastleggen. Gemeld door de review van #1189
+     ronde 1 (VERVOLG "Toewijzingsidentiteit verdwijnt over STEP", GPT-6.2-Sol). — B
+
+2375. **Openen en opnieuw opslaan als IFC verliest de GlobalId van een verwijderde taak waar een baseline naar wijst;
+     IFCX doet hetzelfde.** De STEP-lezer geeft die GlobalId terug als `baselineOrphanGuids` (uit `TaskGuids`), maar de
+     app houdt haar bij openen niet vast (`documentDataFromImport` neemt `baselineOrphanGuids` niet over), en de volgende
+     opslag schrijft voor die rij de afgeleide GlobalId van het taak-id. Gemeten op aia09-mp50 met een baselinerij naar
+     de verwijderde taak `weg` met GlobalId `oud-weg`: eerste lezing `{"weg":"oud-weg"}`, na openen en opslaan de
+     afgeleide GlobalId. IFCX draagt de eerste lezing precies (`openaec::ops::document.removedTasks`) en volgt STEP bij de
+     tweede opslag (R6, punt 3), dus ook daar valt `oud-weg` weg. Een baselinerij die via die GlobalId weer aan een taak
+     moest koppelen, koppelt dan niet meer. Richting: `baselineOrphanGuids` meenemen in de documentgegevens en de
+     STEP-writer de GlobalId van een weesrij daaruit laten nemen; IFCX volgt dan vanzelf. Gevonden bij de herschrijving
+     van #1189 op de kern. — B
+2382. **IFCX: een planning uit een XER-import weigert op te slaan met alleen "planning" in de melding.** Dat ze niet
+      opslaat is bedoeld: het P6-bronarchief (`xerSourceArchive` en wat daaruit volgt) draagt IFCX nog niet. Maar de
+      weigering komt binnen als `invalid` met als veld `planning`, niet als `unsupported` met de veldnamen: de
+      STEP-schrijver zet het compacte archief in het bestand, de lage STEP-lezer gooit zonder XER-reconstructie een
+      fout, en de IFCX-schrijver vangt die vóór `unsupportedContent` af. `docs/ifcx-profiel.md` belooft bij het
+      bronarchief een `unsupported`-weigering met veldnamen; de planner ziet alleen "planning" en niet waarom. Het
+      bestand blijft bytegelijk en het document blijft gewijzigd (app-proef van 2367, met een echte XER-import). Zit
+      al in main; gevonden bij de herstelronde van #1189 en bevestigd in review ronde 3 (Sol). Richting: het
+      bronarchief herkennen vóór de STEP-rondgang en weigeren met `unsupported` en de veldnamen, of het profiel
+      aanpassen aan wat er gebeurt. — B
