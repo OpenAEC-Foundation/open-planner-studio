@@ -41,10 +41,16 @@ Registreren doen `ifcReader`, `mspdiReader`, `p6xmlReader`, `mppCalendars`, `xer
   (`xerCalendarData` en `xerReader`) gebeurt dat ook.
 - De blokken zijn de geregistreerde. Zonder registratie, of met `preferCanonicalWhenEmpty` onwaar en geregistreerde
   blokken zonder enige werkdag, maakt `synthBandsFromScalar` er één blok van `workStartHour` tot `workEndHour` van op
-  elke dag in `workDays`. `ifcReader` geeft `preferCanonicalWhenEmpty` waar mee; `mspdiReader`, `p6xmlReader`,
-  `mppCalendars`, `xerReader` en `xerCalendarData` onwaar. Het verschil raakt alleen een kalender met geregistreerde
-  maar lege blokken die door een signaal promoveert: in IFC krijgt die lege blokken. Het weggehaalde commentaar noemde
-  dit een bewust verschil tussen de formaten, zonder reden; wat dat in v2026.9.0 gaf, staat in knownbug 150.
+  elke dag in `workDays`. `mspdiReader`, `p6xmlReader`, `mppCalendars`, `xerReader` en `xerCalendarData` geven
+  `preferCanonicalWhenEmpty` onwaar mee, en `ifcReader` ook bij de promotie na de taken (`applyHourModeIFC`). Een
+  `IfcWorkCalendar` zonder `WorkingTimes` registreert voor elke werkdag lege blokken; promoveert hij door een signaal,
+  dan krijgt hij zo één blok van `workStartHour` tot `workEndHour` op elke werkdag, net als in de andere formaten.
+  Tot issue #1251 gaf `applyHourModeIFC` waar mee; zo'n kalender werd dan een uurkalender zonder werktijd en elke
+  taak erop eindigde op haar start, zonder melding (een Bonsai-bestand met taken om 09:00; wat het in v2026.9.0 gaf,
+  staat in knownbug 150). Alleen de promotie die `ifcReader` al bij het lezen van de kalender doet
+  (`IsHourCalendar = .T.`, seconden of de oude bandvorm, zie hierboven) geeft nog waar mee; een kalender die daar
+  promoveert met geregistreerde maar lege blokken, krijgt lege blokken. Proef:
+  `tests/planning/check-ifc-kalender-zonder-werktijden.ts`.
 - `promoteHourCalendars` loopt over alle kalenders die de lezer meegeeft, ook over kalenders die geen taak gebruikt,
   omdat afwijkende blokken alleen al genoeg zijn. Het geeft de sleutels terug waaronder de lezer de gepromoveerde
   kalenders kent.
