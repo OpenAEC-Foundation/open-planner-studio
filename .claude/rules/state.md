@@ -183,3 +183,7 @@ en draait bij een fout terug (0240), de draftprimitieven (0241), taken in bulk a
 voor een taak (0243).
 
 **De WBS-nummering van een geladen bestand** (`Project.wbsAutoNumber`): `docs/adr/0185-wbs-nummering-van-een-geladen-bestand.md`.
+
+**Besluiten in `engine/scheduler/recordedDates.ts`** staan in `docs/adr/`: de vastlegging zegt alleen wat het bestand
+zei (0330), het rekenresultaat uit de vastlegging (0331), de vastlegging terug in de taken (0332), de verschuiving op
+de getoonde datums en de tellers (0333) en de bouwstenen voor de lezers (0334).

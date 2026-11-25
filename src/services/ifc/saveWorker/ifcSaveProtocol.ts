@@ -63,8 +63,12 @@ export async function runIfcSaveJob(job: IfcSaveJob): Promise<IfcSaveResult> {
 /** De buffers die terug overgedragen worden; elke buffer één keer (een dubbele geeft `DataCloneError`). */
 export function resultTransfer(result: IfcSaveResult): ArrayBuffer[] {
   if (result.kind === 'merge-unchanged') return [];
+  const references = result.kind === 'merge' ? result.prepared.source.foreignReferences : undefined;
+  const changes = result.kind === 'merge' ? result.prepared.foreignChanges ?? [] : [];
   const views = result.kind === 'writer' ? [result.bytes] : [result.prepared.bytes, result.prepared.source.bytes,
-    result.prepared.source.chunkStarts, result.prepared.source.chunkIds, result.prepared.source.classes];
+    result.prepared.source.chunkStarts, result.prepared.source.chunkIds, result.prepared.source.classes,
+    ...(references ? [references.stepIds, references.groupStart, references.groupSize, references.targetStart, references.targets] : []),
+    ...changes.flatMap(change => change.kind === 'gewijzigd' ? [change.oldBytes, change.newBytes] : [change.oldBytes])];
   return [...new Set(views.map(view => view.buffer as ArrayBuffer))];
 }
 

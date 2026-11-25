@@ -2,10 +2,13 @@
 
 Bijna elk bestand van een ander programma geeft per werkdag werktijden. Zou een lezer die altijd als werkblokken
 (`workTime`) overnemen, dan werd elk geïmporteerd project een uurplanning en kwam een dagbestand na een rondgang anders
-terug. Een lezer zet `workTime` daarom alleen bij een afwijking van één enkelvoudige werkdag, of bij informatie binnen
-een dag elders in het bestand (de normatieve regel in `docs/superpowers/specs/2026-07-06-uren-scheduling-design.md`
-§7, punten (a), (b) en (c)). De helpers voor die regel staan één keer in `src/services/subdayIo.ts`; welke velden en
-welk anker een lezer gebruikt, staat in ADR 0043 (IFC), 0252 (MSPDI), 0264 (P6 XML) en 0283 (`.mpp`).
+terug. De gedeelde regel zet `workTime` daarom alleen bij een afwijking van één enkelvoudige werkdag, of bij informatie
+binnen een dag elders in het bestand (de normatieve regel in
+`docs/superpowers/specs/2026-07-06-uren-scheduling-design.md` §7, punten (a), (b) en (c)). De helpers voor die regel
+staan één keer in `src/services/subdayIo.ts`. Ze beslissen niet voor een lezer: elke lezer vult de regel zelf in, met
+eigen voorwaarden zoals een vergelijking tussen weekdagen, een eigen markering in het bestand of een promotie al bij
+het lezen van de kalender. Wanneer welke lezer promoveert, staat in ADR 0321; welke velden en welk anker een lezer
+gebruikt, staat in ADR 0043 (IFC), 0252 en 0253 (MSPDI), 0262 en 0264 (P6 XML) en 0283 (`.mpp`).
 
 ## Gevolgen
 
