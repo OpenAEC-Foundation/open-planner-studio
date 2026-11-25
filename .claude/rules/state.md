@@ -137,6 +137,11 @@ de scanner van openen aanvaardt meer dan de doelscan (twee datasecties, `stepSca
 en datasectie* in `tauri-ifc.md` (knownbug 2212); `utf8Bom` zegt of de bekende bytes met een BOM beginnen. Ctrl+S en
 Automatisch opslaan leggen die versie één keer per poging vast als waarde, vóór het rekenen (`ownBomVersion`); de
 doelscan vergelijkt zijn eigen bytes daarmee, en de uitvoer krijgt dan de BOM.
+**Een opslagpoging leest de flag `ifcForeignContent` en de bekende versie één keer, aan haar begin** (`start`, een
+`KnownTargetState`: Ctrl+S bij de momentopname van `writeActiveDocument`, Automatisch opslaan als veld van de kandidaat
+in `listPlain`). Elke beslissing van die poging (de BOM, de zelfgeschreven versie, de doelcontrole, de toets van #1174,
+de vingerafdruk bij het vastleggen van een gewone planning) gebruikt die stand; een flagwissel geldt pas vanaf de
+volgende poging (besluit van de technisch eigenaar, 25 november 2026, PR #1213).
 De stop van Automatisch opslaan vervalt zodra `guardedKnownTarget` een
 andere waarde geeft: een vastgelegde eigen opslag of een export die het eigen doel schreef (`settleFingerprintAfterExport`;
 een nieuw object, ook als er intussen nieuw werk is), de flag uit (`setUI` wist het veld) of een onbekende versie;

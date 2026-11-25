@@ -4034,7 +4034,11 @@ en noem het in je rapport of PR-tekst.
      wereld zonder BOM, waar die ander dezelfde planning zónder BOM schreef, dan meldt main *doel gewijzigd* en de PR
      *onleesbaar doel*: de PR krijgt in beide gevallen dezelfde bytes. Zet een ander de geopende planning terug zónder
      BOM, dan schrijft main verder (de bytes zijn zijn bekende versie) en weigert de PR met *doel gewijzigd* (de bekende
-     versie begint met een BOM). In al deze gevallen blijft de versie van de ander staan. — B
+     versie begint met een BOM). In al deze gevallen blijft de versie van de ander staan. Met geweigerd schrijfrecht in de
+     browser (review van #1213 ronde 4) geldt hetzelfde voor de terugval: staat er een andere planning met BOM op de oude
+     handle, dan weigert de PR die handle als *onleesbaar doel* vóór de bestandskiezer; main, met dezelfde planning
+     zonder BOM, opent de kiezer en slaat op onder de nieuwe naam. Beide oude bestanden blijven staan en Opslaan als
+     werkt. Grensgeval in `check-ifc-bom-eigen-bestand.ts`. — B
 
 2359. **Ctrl+S weigert een eigen sitebestand met een UTF-8-BOM als onleesbaar doel (#804, flag aan).** Reproductie
      (review van #1213 ronde 2; nagespeeld in `check-ifc-bom-eigen-bestand.ts`, grensgeval `site`): een site
