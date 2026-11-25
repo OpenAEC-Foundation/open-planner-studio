@@ -2,17 +2,15 @@
  * Scanner en verliesbewaking leveren de bestaande STEP- en IfcRoot-kennis; hier staat alleen
  * de vergelijking met de bron (ontwerp §4.10, controles 1 en 2).
  */
-import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
-import { relationRoles } from '../ifcSlotTables';
-import { changedScopes, isRootLine, refsOutsideText } from './lossCheck';
-import { planningIdentities, planningIdentityInput } from './planningIdentity';
+import { classify, type Classification } from './classify';
+import { isRootLine, refsOutsideText } from './lossCheck';
+import { departuresOf, type PlanningChange } from './departures';
 import { ACTIVITY_CODE_ID_SUFFIX } from '../ifcPsets';
 import type { WriteIFCInput } from '../ifcWriter';
-import type { ImportResult } from '@/services/importTypes';
 import type { StepIndex } from './stepScanner';
 import { scanForeignStep } from './oldOwnHeader';
 import type { ForeignChange } from './changeList';
-import { entityValue, losesItsPlace, placeTriggers, serializeStepValue, withoutRemovedMembers, type StepValue } from './stepValue';
+import { entityValue, losesItsPlace, placeTriggers, serializeStepValue, withoutRemovedMembers } from './stepValue';
 
 /** De eigenaren van een pset via IfcRelDefinesByProperties, als stuknummers. */
 export function psetOwners(index: StepIndex, pset: number): number[] {
@@ -71,121 +69,61 @@ function goneFromOutput(source: StepIndex, sourceClasses: Classification, index:
   return gone;
 }
 
-const STRUCTURAL = new Set(['IFCRELAGGREGATES', 'IFCRELASSIGNSTOCONTROL', 'IFCRELASSIGNSTOPROCESS']);
-
-export interface PlanningChange {
-  readonly stepIds: Readonly<Record<string, number>>;
-  readonly before: WriteIFCInput;
-  readonly after: WriteIFCInput;
-}
-
-interface Departures {
-  readonly mayLeave: (relation: number, member: number) => boolean;
+interface Checks {
+  readonly leaving: (relation: number) => ReadonlySet<number>;
   readonly newNames: ReadonlySet<string>;
 }
 
-function planningView(input: WriteIFCInput) {
-  const d = planningIdentityInput(input);
-  const tasks = new Map(d.tasks.map(t => [t.id, t])), resources = new Map(d.resources.map(r => [r.id, r]));
-  const assigned = new Map<string, string[]>();
-  for (const a of d.assignments) {
-    const list = assigned.get(a.taskId);
-    if (list) list.push(a.resourceId); else assigned.set(a.taskId, [a.resourceId]);
-  }
-  return {
-    parent: (kind: string, id: string) => (kind === 'task' ? tasks.get(id)?.parentId : resources.get(id)?.parentId) ?? null,
-    children: (id: string) => tasks.get(id)?.childIds ?? [],
-    assigned: (id: string) => assigned.get(id) ?? [],
-    calendar: (kind: string, id: string) => (kind === 'task' ? tasks.get(id)?.calendarId : resources.get(id)?.calendarId) ?? d.calendar.id,
-  };
-}
-
-function plannedDepartures(source: StepIndex, planning: PlanningChange | undefined): Departures {
-  if (!planning) return { mayLeave: () => false, newNames: new Set() };
-  const ids = planningIdentities(planning.before);
-  const objects = new Map<number, { readonly seed: string; readonly kind: string; readonly id: string }>();
-  for (const [seed, stepId] of Object.entries(planning.stepIds)) {
-    if (objects.has(stepId)) continue;
-    const at = seed.indexOf(':'), kind = seed.slice(0, at), raw = seed.slice(at + 1);
-    objects.set(stepId, { seed, kind, id: kind === 'res' ? ids.resource.get(raw) ?? raw : kind === 'cal' ? ids.calendar.get(raw) ?? raw : raw });
-  }
-  const [was, now] = [planningView(planning.before), planningView(planning.after)];
-  const differs = (f: (view: typeof was) => unknown) => JSON.stringify(f(was)) !== JSON.stringify(f(now));
-  const changed = changedScopes(planning.after, planning.before as unknown as ImportResult).keys;
-  const mayLeave = (relation: number, member: number): boolean => {
-    const object = objects.get(member), type = source.type(relation);
-    if (!object) return false;
-    if (type === 'IFCRELDEFINESBYPROPERTIES') return changed.has(object.seed);
-    const roles = relationRoles(type), relating = roles ? source.refAt(relation, roles.relating) : -1;
-    const owner = relating >= 0 ? objects.get(Number(source.id(relating))) : undefined;
-    if (type === 'IFCRELNESTS') {
-      if (object.kind !== 'task' && object.kind !== 'res') return false;
-      return differs(v => v.parent(object.kind, object.id)) || (owner?.kind === 'task' && differs(v => v.children(owner.id)));
+function checksFor(source: StepIndex, sourceClasses: Classification, planning: PlanningChange | undefined): Checks {
+  const departure = departuresOf(source, sourceClasses.selection.inD, planning);
+  const cache = new Map<number, ReadonlySet<number>>();
+  const leaving = (relation: number) => {
+    let set = cache.get(relation);
+    if (!set) {
+      const d = departure(relation);
+      cache.set(relation, set = 'leave' in d ? d.leave : new Set());
     }
-    if (type === 'IFCRELASSIGNSTOPROCESS') return object.kind === 'res' && owner?.kind === 'task' && differs(v => v.assigned(owner.id));
-    if (type === 'IFCRELASSIGNSTOCONTROL') return owner?.kind === 'cal' && (object.kind === 'task' || object.kind === 'res') && differs(v => v.calendar(object.kind, object.id));
-    return false;
+    return set;
   };
+  if (!planning) return { leaving, newNames: new Set() };
   const names = (d: WriteIFCInput) => new Set([...(d.customFieldDefs ?? []).map(f => f.name), ...(d.activityCodeTypes ?? []).map(t => t.name)]);
   const before = names(planning.before);
-  return { mayLeave, newNames: new Set([...names(planning.after)].filter(name => !before.has(name))) };
+  return { leaving, newNames: new Set([...names(planning.after)].filter(name => !before.has(name))) };
 }
 
-function releasableMembers(source: StepIndex, sourceClasses: Classification, chunk: number, departures: Departures): ReadonlySet<number> {
-  const inD = sourceClasses.selection.inD, type = source.type(chunk);
-  let related = -1;
-  if (type === 'IFCRELNESTS') related = relationRoles(type)!.related;
-  else if (STRUCTURAL.has(type)) {
-    const roles = relationRoles(type)!, relating = source.refAt(chunk, roles.relating);
-    if (relating >= 0 && inD[relating] === 1) related = roles.related;
-  } else if (type === 'IFCRELDEFINESBYPROPERTIES') {
-    const pset = source.refAt(chunk, 5);
-    if (pset >= 0 && source.type(pset) === 'IFCPROPERTYSET' && REGISTER_PSET_NAMES.has(source.name(pset) ?? '')) related = 4;
-  }
-  return new Set(related < 0 ? [] : source.refsAt(chunk, related).filter(m => inD[m] === 1).map(m => Number(source.id(m)))
-    .filter(id => departures.mayLeave(chunk, id)));
-}
-
-function ownNameInOutput(source: StepIndex, sourceClasses: Classification, index: StepIndex, classes: Classification, chunk: number,
-  departures: Departures): boolean {
-  if (!sourceClasses.foreignMembers.includes(chunk)) return false;
-  const name = source.name(chunk) ?? '';
-  const codeType = name.endsWith(ACTIVITY_CODE_ID_SUFFIX) ? name.slice(0, -ACTIVITY_CODE_ID_SUFFIX.length) : name;
-  if (!departures.newNames.has(name) && !departures.newNames.has(codeType)) return false;
+function replacements(index: StepIndex, classes: Classification, name: string): Map<string, number> {
+  const out = new Map<string, number>();
   const named = (container: number, arg: number) => index.refsAt(container, arg).some(p => index.name(p) === name && classes.classes[p] === 1);
-  let parents = 0;
-  for (let k = source.inStart(chunk); k < source.inEnd(chunk); k++) {
-    const parent = source.inSource(k), type = source.type(parent), setName = source.name(parent);
-    if (type === 'IFCPROPERTYSET' && source.inArg(k) === 4) {
-      const owners = psetOwners(source, parent);
-      if (owners.length !== 1) return false;
-      const owner = source.id(owners[0]);
-      let found = false;
-      for (let r = 0; r < index.count && !found; r++) {
-        if (!index.isEntity(r) || index.type(r) !== 'IFCRELDEFINESBYPROPERTIES') continue;
-        const pset = index.refAt(r, 5);
-        found = pset >= 0 && index.name(pset) === setName && index.refsAt(r, 4).some(o => index.id(o) === owner) && named(pset, 4);
-      }
-      if (!found) return false;
-      parents++;
-    } else if (type === 'IFCPROPERTYSETTEMPLATE' && source.inArg(k) === 6) {
-      let found = false;
-      for (let t = 0; t < index.count && !found; t++) found = index.isEntity(t) && index.type(t) === type && index.name(t) === setName && named(t, 6);
-      if (!found) return false;
-      parents++;
-    }
+  for (let i = 0; i < index.count; i++) {
+    if (!index.isEntity(i)) continue;
+    const type = index.type(i);
+    if (type === 'IFCRELDEFINESBYPROPERTIES') {
+      const pset = index.refAt(i, 5);
+      if (pset < 0 || index.type(pset) !== 'IFCPROPERTYSET' || !named(pset, 4)) continue;
+      for (const owner of index.refsAt(i, 4)) add(out, JSON.stringify([index.id(owner), index.name(pset)]));
+    } else if (type === 'IFCPROPERTYSETTEMPLATE' && named(i, 6)) add(out, JSON.stringify(['template', index.name(i)]));
   }
-  return parents > 0;
-}
-
-function listRefs(value: StepValue): Set<number> {
-  const out = new Set<number>();
-  for (const list of placeTriggers(value).lists) for (const id of list) out.add(id);
   return out;
 }
 
+function ownNameInOutput(source: StepIndex, sourceClasses: Classification, index: StepIndex, classes: Classification, chunk: number,
+  checks: Checks): boolean {
+  if (!sourceClasses.foreignMembers.includes(chunk)) return false;
+  const name = source.name(chunk) ?? '';
+  const codeType = name.endsWith(ACTIVITY_CODE_ID_SUFFIX) ? name.slice(0, -ACTIVITY_CODE_ID_SUFFIX.length) : name;
+  if (!checks.newNames.has(name) && !checks.newNames.has(codeType)) return false;
+  for (let k = source.inStart(chunk); k < source.inEnd(chunk); k++) {
+    const parent = source.inSource(k);
+    if (source.type(parent) === 'IFCPROPERTYSET' && source.inArg(k) === 4 && psetOwners(source, parent).length !== 1) return false;
+  }
+  const expected = bindings(source, source.id(chunk));
+  if (expected.size === 0) return false;
+  const shown = replacements(index, classes, name);
+  return [...expected].every(([key, count]) => (shown.get(key) ?? 0) >= count);
+}
+
 function changeListProblems(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array, index: StepIndex, classes: Classification,
-  bytes: Uint8Array, listed: ReadonlyMap<number, ForeignChange>, gone: ReadonlySet<number>, departures: Departures): string[] {
+  bytes: Uint8Array, listed: ReadonlyMap<number, ForeignChange>, gone: ReadonlySet<number>, checks: Checks): string[] {
   const problems: string[] = [];
   const removed = new Set(gone);
   const valueOf = (ix: StepIndex, b: Uint8Array, chunk: number) => chunk < 0 ? undefined : entityValue(b, ix.entityStart(chunk), ix.end(chunk));
@@ -216,10 +154,10 @@ function changeListProblems(source: StepIndex, sourceClasses: Classification, so
   const chunkOfId = new Map([...listed].map(([chunk, change]) => [change.id, chunk]));
   for (const piece of pending) {
     if (justified.has(piece.id)) continue;
-    const releasable = releasableMembers(source, sourceClasses, chunkOfId.get(piece.id)!, departures);
+    const leaving = checks.leaving(chunkOfId.get(piece.id)!);
     const lists = piece.value ? placeTriggers(piece.value).lists : [];
-    if (releasable.size > 0 && lists.some(list => list.every(id => removed.has(id) || releasable.has(id)))) continue;
-    if (ownNameInOutput(source, sourceClasses, index, classes, chunkOfId.get(piece.id)!, departures)) continue;
+    if (leaving.size > 0 && lists.some(list => list.every(id => removed.has(id) || leaving.has(id)))) continue;
+    if (ownNameInOutput(source, sourceClasses, index, classes, chunkOfId.get(piece.id)!, checks)) continue;
     problems.push(`wijzigingslijst: #${piece.id} vervalt, maar geen verwijderd stuk laat het vervallen`);
   }
   for (const [chunk, change] of listed) {
@@ -229,15 +167,25 @@ function changeListProblems(source: StepIndex, sourceClasses: Classification, so
       problems.push(`wijzigingslijst: gewijzigd stuk #${change.id} is niet te lezen`);
       continue;
     }
-    const releasable = releasableMembers(source, sourceClasses, chunk, departures), kept = listRefs(after);
-    const lost = new Set(removed);
-    for (const id of listRefs(before)) if (releasable.has(id) && !kept.has(id)) lost.add(id);
+    const lost = new Set([...removed, ...checks.leaving(chunk)]);
     const want = serializeStepValue(withoutRemovedMembers(before, lost));
     if (losesItsPlace(before, lost)) problems.push(`wijzigingslijst: #${change.id} staat als gewijzigd op de lijst, maar vervalt volgens §4.7`);
     else if (want === serializeStepValue(before)) problems.push(`wijzigingslijst: #${change.id} staat als gewijzigd op de lijst, maar verliest geen lid`);
     else if (want !== serializeStepValue(after)) {
-      problems.push(`gewijzigd niet-P-stuk #${change.id}: in de uitvoer niet hetzelfde stuk met alleen de leden naar verwijderde of verplaatste planningsleden eruit`);
+      problems.push(`gewijzigd niet-P-stuk #${change.id}: in de uitvoer niet hetzelfde stuk met precies de leden naar verwijderde stukken en de vertrekkende planningsleden eruit`);
     }
+  }
+  const inD = sourceClasses.selection.inD, candidates = new Set<number>();
+  for (let d = 0; d < source.count; d++) {
+    if (inD[d] !== 1) continue;
+    for (let k = source.inStart(d); k < source.inEnd(d); k++) {
+      const from = source.inSource(k);
+      if (from >= 0 && sourceClasses.classes[from] !== 1 && !listed.has(from)) candidates.add(from);
+    }
+  }
+  for (const chunk of [...candidates].sort((a, b) => a - b)) {
+    const missing = [...checks.leaving(chunk)].filter(id => !removed.has(id));
+    if (missing.length > 0) problems.push(`#${source.id(chunk)} staat niet op de wijzigingslijst, maar ${missing.map(id => `#${id}`).join(', ')} hoort er volgens de planning uit`);
   }
   return problems;
 }
@@ -463,7 +411,7 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
   // Vond de lus hierboven niets, dan staat elk niet-P-stuk byte-gelijk op zijn plek: dan telt alleen het verschil.
   const counting = problems.length === 0 && !options.full ? 'verschil' : 'volledig';
   for (const problem of changeListProblems(source, sourceClasses, sourceBytes, index, classification, bytes, listed, gone,
-    plannedDepartures(source, options.planning))) problems.push(problem);
+    checksFor(source, sourceClasses, options.planning))) problems.push(problem);
   for (const member of sourceClasses.foreignMembers) {
     if (listed.get(member)?.kind === 'vervallen') continue;
     const id = source.id(member), expected = bindings(source, id), shown = bindings(index, id);

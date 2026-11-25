@@ -73,6 +73,7 @@ import { openMergePlanning } from '@/state/ifcMergePlanning';
 import { taskTimeSlotProblem, type LiteralSourceSlots } from './taskTimeExpectation';
 import type { TaskTimeReading } from '../ifcReader';
 import { psetOwners, validateMergeOutput } from './mergeValidation';
+import { departuresOf, type Departure } from './departures';
 import { applyForeignRule, emptyForeignReferences, goneStepIds, NOTHING_GONE, type ForeignChange, type ForeignReferences, type ForeignRuleOutcome } from './changeList';
 import { foreignChangeList, foreignReferences } from './foreignReferences';
 import {
@@ -506,20 +507,9 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // doet dit voor het bewerkte domein (O1) en voor het domein zoals de lezer het las (O0, de verliesbewaking). ──
   const keptD = new Set(keep.values());
   function buildLines(input: WriteIFCInput, caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void, rule: ForeignRuleOutcome,
-    before?: ReadonlyMap<number, WrittenPiece>, changed: ReadonlySet<string> = new Set()) {
+    departures: (relation: number) => Departure, before?: ReadonlyMap<number, WrittenPiece>, changed: ReadonlySet<string> = new Set()) {
     // ── 2. Het domein ──
     const comparison = planningIdentityInput(input);
-    let resourcesByTask: Map<string, string[]> | undefined;
-    const resourcesOfTask = () => {
-      if (!resourcesByTask) {
-        resourcesByTask = new Map();
-        for (const a of comparison.assignments) {
-          const list = resourcesByTask.get(a.taskId);
-          if (list) list.push(a.resourceId); else resourcesByTask.set(a.taskId, [a.resourceId]);
-        }
-      }
-      return resourcesByTask;
-    };
     const sourceIds = planningIdentities(source.opened ?? pristine);
     const resourceId = (id: string) => sourceIds.resource.get(id) ?? id;
     const calendarId = (id: string) => sourceIds.calendar.get(id) ?? id;
@@ -593,10 +583,6 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     /** D-taken in een relatie van een ander werkschema (niet D). */
     const otherScheduleTasks = new Set<number>();
     const domainOf = (chunk: number) => bySource.get(sid(chunk));
-    const taskOf = (chunk: number) => {
-      const d = domainOf(chunk);
-      return d?.kind === 'task' ? tasks.get(d.id) : undefined;
-    };
     const leaving = new Map<number, Set<number>>();
     const leave = (r: number, away: readonly number[]) => {
       if (away.length === 0) return;
@@ -604,8 +590,6 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       if (!set) leaving.set(sid(r), set = new Set());
       for (const m of away) set.add(sid(m));
     };
-    const inOrder = (domain: readonly string[], kept: readonly string[]) =>
-      domain.join('\u0000') === [...domain.filter(id => !kept.includes(id)), ...kept].join('\u0000');
 
     for (let r = 0; r < n; r++) {
       if (!index.isEntity(r) || isP(r) || rule.dropped.has(sid(r))) continue;
@@ -621,63 +605,26 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       }
       // Bewaarde relatie met een relating buiten D: haar D-leden houden hun plek.
       const relatingIsSchedule = relating >= 0 && index.type(relating) === 'IFCWORKSCHEDULE';
+      const departure = departures(r);
       for (const m of members) {
-        if (type === NESTS) {
-          const d = domainOf(m);
-          const moved = d?.kind === 'task' ? !!tasks.get(d.id)?.parentId : d?.kind === 'res' ? resources.get(resourceId(d.id))?.parentId != null : false;
-          if (moved) { leave(r, [m]); continue; }
-        }
+        if ('leave' in departure && departure.leave.has(sid(m))) { leave(r, [m]); continue; }
         if (SINGLE_MEMBERSHIP.has(type)) noOwnRel.get(type)!.add(sid(m));
         if ((type === NESTS || type === CONTROL) && relatingIsSchedule && index.type(m) === 'IFCTASK') otherScheduleTasks.add(sid(m));
       }
     }
 
     function mixedRelation(r: number, type: string, relating: number, members: number[]): void {
-      const relType = index.type(relating);
-      const relatingDomain = domainOf(relating);
       const bag = bagFor(type, sid(relating));
       // Een lid dat niet meer bestaat (of dat de planning niet kent): dat meldt de controle op verwijzingen (stap 7).
       const missing = members.some(m => (!domainOf(m) && !keptHeads.has(sid(m))) || (domainOf(m)?.kind === 'task' ? !tasks.has(domainOf(m)!.id)
         : domainOf(m)?.kind === 'res' ? !resources.has(resourceId(domainOf(m)!.id)) : false));
       if (missing) return;
-      let away: readonly number[] = [];
-      if (type === NESTS && relType === 'IFCTASK' && relatingDomain?.kind === 'task') {
-        const parent = tasks.get(relatingDomain.id);
-        const s = members.map(m => taskOf(m)?.id);
-        if (!parent || s.some(id => id === undefined)) {
-          caseAt('gemengde-relatie', r, `${label(r)}: een D-lid is geen taak van de planning`);
-          return;
-        }
-        const stay = members.filter((_, k) => tasks.get(s[k]!)!.parentId === parent.id);
-        away = inOrder(parent.childIds, stay.map(m => taskOf(m)!.id)) ? members.filter(m => !stay.includes(m)) : members;
-      } else if (type === NESTS && relType === 'IFCWORKSCHEDULE') {
-        away = members.filter(m => !!taskOf(m)?.parentId);
-      } else if (type === AGGREGATES && relType === 'IFCWORKPLAN') {
-        // Het D-schema hangt altijd onder het D-werkplan, en een eigen baselinekop houdt zijn id (`keptHeads`).
-      } else if (type === CONTROL && relType === 'IFCWORKSCHEDULE') {
-        // Elke taak hangt aan het D-schema; de leden bestaan nog (hierboven).
-      } else if (type === CONTROL && relType === 'IFCWORKCALENDAR' && relatingDomain?.kind === 'cal') {
-        const calId = calendarId(relatingDomain.id);
-        away = members.filter(m => {
-          const d = domainOf(m)!;
-          const own = d.kind === 'task' ? tasks.get(d.id)?.calendarId : d.kind === 'res' ? resources.get(resourceId(d.id))?.calendarId : undefined;
-          return calId === input.calendar.id ? !(!own || own === input.calendar.id) : own !== calId;
-        });
-      } else if (type === PROCESS && relType === 'IFCTASK' && relatingDomain?.kind === 'task') {
-        const taskId = relatingDomain.id;
-        const domainRes = resourcesOfTask().get(taskId) ?? [];
-        const s = members.map(m => { const d = domainOf(m); return d?.kind === 'res' ? resourceId(d.id) : d?.id; });
-        const count = (list: readonly (string | undefined)[], id: string | undefined) => list.filter(x => x === id).length;
-        if (members.some(m => domainOf(m)?.kind !== 'res') || s.some(id => count(s, id) > 1)) {
-          caseAt('gemengde-relatie', r, `${label(r)}: een D-lid is geen resource, of dezelfde resource staat meer dan eens in de relatie`);
-          return;
-        }
-        const stay = members.filter((_, k) => count(domainRes, s[k]) === 1);
-        away = inOrder(domainRes, stay.map(m => s[members.indexOf(m)]!)) ? members.filter(m => !stay.includes(m)) : members;
-      } else {
-        caseAt('gemengde-relatie', r, `${label(r)} met relating ${label(relating)}: deze vorm kan pas in fase 2`);
+      const departure = departures(r);
+      if ('unknown' in departure) {
+        caseAt('gemengde-relatie', r, `${label(r)} met relating ${label(relating)}: ${departure.unknown}`);
         return;
       }
+      const away = members.filter(m => departure.leave.has(sid(m)));
       for (const m of members) if (!away.includes(m)) bag.add(sid(m));
       leave(r, away);
     }
@@ -823,16 +770,16 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       const name = index.name(pset) ?? '';
       // Alleen bij een pset van het register is een gemengde pset mogelijk.
       if (!REGISTER_PSET_NAMES.has(name)) continue;
+      const departure = departures(r);
       for (const owner of index.refsAt(r, 4).filter(x => x >= 0 && inD[x] && !rule.gone.has(sid(x)))) {
-        const own = ownPsetsOf.get(`${sid(owner)}|${name}`);
-        const want = sourceProps(index, pset);
-        const d = domainOf(owner);
-        if (own && !sameProps(own.props, want) && d && changed.has(`${d.kind}:${d.id}`)) {
+        if ('leave' in departure && departure.leave.has(sid(owner))) {
           leave(r, [owner]);
           continue;
         }
+        const own = ownPsetsOf.get(`${sid(owner)}|${name}`);
+        const want = sourceProps(index, pset);
         if (!own || own.rels.some(rel => refList(rel.args[4]).length !== 1) || !sameProps(own.props, want)) {
-          caseAt('gemengde-relatie', r, `${label(r)}: de pset ${name} van ${label(owner)} veranderde zonder wijziging in de planning, of de writer schrijft of deelt haar niet`);
+          caseAt('gemengde-relatie', r, `${label(r)}: de pset ${name} van ${label(owner)} veranderde zonder wijziging in een veld van die pset, of de writer schrijft of deelt haar niet`);
           continue;
         }
         own.pset.drop = true;
@@ -948,7 +895,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // de lezing van de bron (#886). Wat alleen het openen veranderde, schrijft de merge in de vorm van de bron
   // (`sourceForm.ts`); de verliesbewaking blijft met de bron vergelijken.
   // O0: het domein zoals de lezer het uit de bron las (de verliesbewaking hieronder).
-  const built0 = buildLines(pristine, () => {}, NOTHING_GONE);
+  const built0 = buildLines(pristine, () => {}, NOTHING_GONE, departuresOf(index, inD, undefined));
+  const departures = departuresOf(index, inD, { stepIds: source.stepIds, before: source.opened ?? pristine, after: input });
   const pristineIds = planningIdentities(pristine).calendar, domainIds = planningIdentities(input).calendar;
   const literal0 = new Set(built0.literalCalendarIds.map(id => pristineIds.get(id) ?? id));
   // Was knownbug 1102 (besluit van Trias, 10 november 2026): een kalender die bij deze opslag letterlijk wordt (letterlijk in O1,
@@ -959,7 +907,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   let form = sourceFormWhereUnchanged(input, source.opened, pristine);
   let pending: Parameters<typeof caseAt>[] = [];
   const plannerChanged = changedScopes(input, (source.opened ?? pristine) as unknown as ImportResult).keys;
-  let built = buildLines(form.input, (...a) => { pending.push(a); }, rule, built0.raw, plannerChanged);
+  let built = buildLines(form.input, (...a) => { pending.push(a); }, rule, departures, built0.raw, plannerChanged);
   for (let round = 0; ; round++) {
     const next = new Set([...newlyLiteral, ...built.literalCalendarIds.filter(id => !literal0.has(domainIds.get(id) ?? id))]);
     if (next.size === newlyLiteral.size) break;
@@ -967,7 +915,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     newlyLiteral = next;
     form = sourceFormWhereUnchanged(input, source.opened, pristine, newlyLiteral);
     pending = [];
-    built = buildLines(form.input, (...a) => { pending.push(a); }, rule, built0.raw, plannerChanged);
+    built = buildLines(form.input, (...a) => { pending.push(a); }, rule, departures, built0.raw, plannerChanged);
   }
   for (const a of pending) caseAt(...a);
   const changes = foreignChangeList(withLeaving(rule, built.leaving, built.readAsOwnMembers, index), index, source.bytes);

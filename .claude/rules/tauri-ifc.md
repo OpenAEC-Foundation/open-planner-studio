@@ -513,28 +513,30 @@ dan weigert hij.
 
 ### Gemengde en bewaarde relaties (#804 fase 2, PR 8)
 
-Eén regel in stap 4 en 5 van `buildLines` (`mergeWriter.ts`): een planningslid blijft in een relatie van een ander
-programma die geen R is (gemengd, of bewaard met een relating buiten D), zolang de koppeling die de lezer eruit leest in
-het domein gelijk is en de writer voor dat lid geen eigen `IfcRelNests` schrijft. Anders gaat het eruit (`leave`), en de
-writer schrijft de plek of koppeling van het domein in een eigen relatie of pset. Per vorm: Nests onder een taak (andere
-ouder, of de volgorde na herlezen klopt niet: dan gaan alle planningsleden eruit), Nests onder een schema (geen wortel
-meer), Process onder een taak (het aantal toewijzingen van die resource veranderde, of de volgorde: alle), Control onder
-een kalender (andere kalender), een bewaarde Nests buiten D (de taak of resource heeft een ouder) en de gedeelde pset (b)
-(de writer schrijft andere waarden; het vreemde object houdt de oude pset). Aggregates onder het werkplan en Control onder
-het schema hebben geen wijziging die het domein kan uitdrukken. Een vreemd lid dat de lezer na opslaan als eigen veld of
-code zou lezen, vervalt (`readAsOwnMembers`). `withLeaving` voegt dit bij de uitkomst van `applyForeignRule`: één
-wijzigingslijst, één telling (§4.7); een relatie zonder leden vervalt. Controle 1 (`changeListProblems` in
-`mergeValidation.ts`) aanvaardt een verdwenen lid dat nog bestaat alleen als planningslid in de lijst van een
-`IfcRelNests`, of van een `IfcRelAggregates`, `IfcRelAssignsToControl` of `IfcRelAssignsToProcess` met een relating in
-D, of van een `IfcRelDefinesByProperties` met een pset uit het register, en alleen als de planning bij openen en de te
-bewaren planning zeggen dat het mocht (`plannedDepartures`, per relatierol: een andere ouder of andere kinderen van de
-ouder, andere toewijzingen van de taak, een andere kalender, een gewijzigd object bij de pset), los van wat in de uitvoer
-ontbreekt (review ronde 1 van #1262). Een vervallen vreemd lid alleen als zijn pset één eigenaar heeft, de planning een
-nieuw veld of codetype met die naam heeft, en de uitvoer bij elke oorspronkelijke binding een eigen property met die naam
-heeft; bij meer eigenaren weigert de writer met `vreemd-lid`. Een relatie met een vreemde relating
-(bijvoorbeeld een kostenpost) valt daar niet onder. De Control van een tweede schema houdt een verplaatste taak, zoals op
-main (knownbug 2356). Ctrl+Z na het opslaan zet een lid niet terug (knownbug 2355). Proef:
-`check-ifc-foreign-gemengde-relaties.ts` (per vorm en soort wijziging, vaste reeksen, zes gemuteerde uitvoeren).
+Eén functie bepaalt welke planningsleden een relatie van een ander programma verlaten die geen R is (gemengd, of bewaard
+met een relating buiten D): `departuresOf` in `departures.ts`. Ze rekent uit de bronrelatie, de planning bij openen en de
+te bewaren planning precies uit wie vertrekt. De writer (stap 4 en 5 van `buildLines` in `mergeWriter.ts`) haalt precies
+die leden eruit en schrijft hun plek of koppeling in een eigen relatie of pset; controle 1 (`changeListProblems` in
+`mergeValidation.ts`) eist dat de uitvoer precies die leden mist, niet meer en niet minder, ook bij een stuk dat niet op
+de wijzigingslijst staat (review ronde 2 van #1262: eerst een toestemming, nu een exacte uitkomst). Per vorm vertrekt een
+lid als zijn eigen koppeling veranderde: Nests onder een taak (andere ouder), Nests onder een schema (geen wortel meer),
+Process onder een taak (het aantal toewijzingen van die resource bij de taak veranderde), Control onder een kalender
+(andere kalender), een bewaarde Nests buiten D (andere ouder) en de gedeelde pset (b) (een veld van die pset veranderde,
+`psetFieldsChanged`; het vreemde object houdt de oude pset). Bij Nests en Process onder een taak vertrekt een gebleven lid
+ook als de volgorde het onmogelijk maakt: de lezer leest de eigen relatie vóór de gemengde, dus alleen de langste staart
+van de kinderen of toewijzingen van het domein die in dezelfde volgorde in de bronrelatie staat, kan blijven
+(`keptTail`). Is die lijst ongewijzigd, dan vertrekt niemand: de bron had die vorm al. Kan de functie het niet eenduidig
+zeggen (een D-lid van een andere soort, dezelfde resource twee keer in één relatie, of een gebleven resource met meer dan
+één toewijzing bij een gewijzigde lijst), dan weigert de writer met `gemengde-relatie`. Aggregates onder het werkplan en
+Control onder het schema hebben geen wijziging die het domein kan uitdrukken. Een vreemd lid dat de lezer na opslaan als
+eigen veld of code zou lezen, vervalt (`readAsOwnMembers`). `withLeaving` voegt dit bij de uitkomst van
+`applyForeignRule`: één wijzigingslijst, één telling (§4.7); een relatie zonder leden vervalt. Een vervallen vreemd lid
+alleen als zijn pset één eigenaar heeft, de planning een nieuw veld of codetype met die naam heeft, en de uitvoer bij elke
+oorspronkelijke binding minstens zo vaak een eigen property met die naam heeft; bij meer eigenaren weigert de writer met
+`vreemd-lid`. Een relatie met een vreemde relating (bijvoorbeeld een kostenpost) valt daar niet onder. De Control van een
+tweede schema houdt een verplaatste taak, zoals op main (knownbug 2356). Ctrl+Z na het opslaan zet een lid niet terug
+(knownbug 2355). Proef:
+`check-ifc-foreign-gemengde-relaties.ts` (per vorm en soort wijziging, vaste reeksen, tien gemuteerde uitvoeren).
 
 ### Vergelijkingsklok (#804 fase 1c)
 

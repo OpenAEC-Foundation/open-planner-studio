@@ -2198,8 +2198,10 @@ en noem het in je rapport of PR-tekst.
       De `QuantityInProcess` van Bonsai blijft dan op `#120`, bij de wand. Een gewiste toewijzing gaat net zo.
       (d) Vormen die blijven weigeren met `gemengde-relatie`: een gemengde relatie met een relating in de planning buiten
       de bekende vormen (bijvoorbeeld `IfcRelNests` onder een resource of `IfcRelAssignsToControl` onder het werkplan),
-      dezelfde resource twee keer in één gemengde `IfcRelAssignsToProcess`, een niet-resource als planningslid daarin, en
-      een gedeelde pset die de writer voor het planningsobject niet schrijft of deelt terwijl de waarden gelijk bleven.
+      een niet-resource als planningslid in een gemengde `IfcRelAssignsToProcess`, en bij een gewijzigde lijst van
+      toewijzingen van die taak ook dezelfde resource twee keer in één zo'n relatie of een gebleven resource met meer dan
+      één toewijzing bij die taak (welke toewijzing in welke relatie hoort, is dan niet eenduidig), en een gedeelde pset
+      die de writer voor het planningsobject niet schrijft of deelt terwijl de waarden gelijk bleven.
       Een schema onder een ander werkplan kan de planning niet uitdrukken (één werkplan). — B
 2378. **Een taak van Bonsai een eigen kalender geven en doorrekenen weigert de opslag met `bronvorm-leest-anders`.** Flag
       aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: *Wand A bouwen* een eigen kalender (een kopie van de projectkalender)

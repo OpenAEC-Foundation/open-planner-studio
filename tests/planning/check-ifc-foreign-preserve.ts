@@ -640,6 +640,15 @@ await expectRelease('een taak uit het tweede schema verplaatsen', secondSchedule
   });
 }
 {
+  const src = enc.encode(withLines(replaceLine(showcaseApp, '#1572=',
+    "#1572=IFCPROPERTYSETTEMPLATE('21BEfWwU0ulhEEz0WA5oeQ',#6,'OPS_CustomFields',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask',(#1569,#1570,#1571,#9001));"),
+  ["#9001=IFCSIMPLEPROPERTYTEMPLATE('0vreemdVeld00000000000',#6,'VendorVeld',$,.P_SINGLEVALUE.,'IfcLabel',$,$,$,$,$,$);",
+    "#9003=IFCPROPERTYSETTEMPLATE('0tweedeVeldTemplate000',#90005,'OPS_CustomFields',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask',(#9001));"]));
+  await expectRefusal('een veld met de naam van een vreemd lid in twee gelijknamige templates', src, 'uitvoer-controle', (d) => {
+    d.customFieldDefs = [...(d.customFieldDefs ?? []), { ...structuredClone(d.customFieldDefs![0]), id: 'veld-1d', name: 'VendorVeld' }];
+  }, /#9001 vervalt, maar geen verwijderd stuk laat het vervallen/);
+}
+{
   const src = enc.encode(withLines(replaceLine(replaceLine(showcaseApp, '#1588=',
     "#1588=IFCPROPERTYSET('3mAZv15nM_xFcVBM3NvzzE',#6,'OPS_CustomFields',$,(#1587,#9002));"), '#1589=',
   "#1589=IFCRELDEFINESBYPROPERTIES('188lZ8h7Yy31YDHz5LPkqd',#6,$,$,(#58,#60),#1588);"), ["#9002=IFCPROPERTYSINGLEVALUE('VendorVeld',$,IFCLABEL('Revit'),$);"]));

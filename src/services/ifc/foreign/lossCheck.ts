@@ -1775,6 +1775,14 @@ const TASK_PSET_OPTION_FIELDS: Readonly<Record<string, readonly string[]>> = {
   [PSET.Analysis]: ['time'], [PSET.WorkRule]: ['time'], [PSET.Milestone]: ['time', 'isMilestone'],
 };
 
+export function psetFieldsChanged(pset: string, object: string, changed: ReadonlySet<string>): boolean | undefined {
+  const fields = pset === PSET.Calendar ? Object.values(CAL_PROP_FIELDS).flat() : pset === PSET.Resource ? Object.values(RES_PROP_FIELDS).flat()
+    : TASK_PSET_FIELDS[pset] ?? TASK_PSET_OPTION_FIELDS[pset];
+  if (!fields) return undefined;
+  if (changed.has(`${object}#@`) || changed.has(`${object}#*`)) return true;
+  return fields.some(field => (field.startsWith('@') ? changed.has(field.slice(1)) : changed.has(`${object}#${field}`)));
+}
+
 /**
  * Slots die de writer altijd als dezelfde constante schrijft (fixronde 5): DataOrigin en UserDefinedDataOrigin van een
  * werktijd en een taaktijd (`.PREDICTED.`, `$`), de naam en herkomst van een `IfcLagTime` (`'Lag'`, `.PREDICTED.`, `$`), de
