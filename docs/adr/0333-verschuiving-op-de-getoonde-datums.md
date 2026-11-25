@@ -8,8 +8,10 @@ datums. Eigenaarsbesluit 2026-10-12, optie 1: een verschil dat de gebruiker nooi
 Een blad met een werkelijke start telt dus niet om haar vroege start, en een voltooid blad (`isPinnedComplete`) telt
 nooit; een lopend blad met een werkelijke start telt alleen als haar (rest)einde verschuift. Dat P6 voor zo'n taak een
 vroege start op de statusdatum vastlegt en P3 zelfs een vroeg einde vóór die start, komt uit het weggehaalde
-commentaar; de vorm van P3 staat in `check-recorded-dates.ts` 2g (rehab-2). Een lopend blad zonder werkelijke start
-(alleen voortgang) toont haar berekende start en kan dus ook op alleen haar start meetellen. Toets: 2g tot en met 2l.
+commentaar; de vorm van P3 staat in `check-recorded-dates.ts` 2g (rehab-2). Toets: 2g tot en met 2l (een voltooid
+blad, een lopend blad met een werkelijke start, een blad dat nog moet beginnen met een startverschil, een samenvatting
+en de lijst per taak). Een lopend blad zonder werkelijke start (alleen voortgang) toont haar berekende start en kan dus
+ook op alleen haar start meetellen.
 
 ## Gevolgen
 
