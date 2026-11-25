@@ -4407,8 +4407,8 @@ en noem het in je rapport of PR-tekst.
       werkende uitzondering zonder eigen blokken overschrijft daar een eerdere met blokken, met haar terugvalblokken: die
       van haar weekdag, op een vrije weekdag die van de eerste werkdag, en anders het blok van `workStartHour` tot
       `workEndHour`. De motor houdt dan de blokken van de eerdere (`buildWorkingExceptions`, knownbug 2004). Wijken de
-      terugvalblokken daarvan af, dan draagt die datum na export en heropenen andere blokken dan de motor in de app
-      gebruikte. Gelezen in de code. — B
+      terugvalblokken daarvan af, dan kan die datum na export en heropenen andere werktijden dragen dan de motor in de
+      app gebruikte (aansluitende blokken voegt de lezer samen). Gelezen in de code. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
