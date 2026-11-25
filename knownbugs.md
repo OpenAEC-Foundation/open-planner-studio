@@ -4615,6 +4615,15 @@ en noem het in je rapport of PR-tekst.
       2026-06-01 en einde `0001-01-01`, en na het laden start 2026-06-01T08:00 en einde 1901-01-01T16:00. De
       berekende datums zijn niet nagespeeld. Issue #1258. — B
 
+2480. **Verricht overwerk en irregulier werk uit een `.mpp` komen niet in de contour en niet in het werk van een
+      wandeling.** `readAssignmentTimephasedRaw` (`src/services/mpp/mppEntities.ts`) leest de blokken
+      `ActualOvertimeWork` (51) en `ActualIrregularWork` (87), maar `computeShiftedAssignmentPeriods` en
+      `decodeAssignmentWorkMinutes` (`src/services/mpp/mppReader.ts`) decoderen alleen `actualRegularWork` en
+      `remainingRegularWork`; 51 en 87 tellen alleen mee in `hasAnyTimephasedData` (ADR 0410). Een toewijzing met
+      verricht overwerk krijgt zo een contour zonder die uren, en bij een taak met meer kandidaten voor een wandeling
+      (ADR 0288) ook een werk zonder die uren. Het importverslag (`mppImportLoss.ts`) noemt deze blokken niet. Gelezen in
+      de code, niet nagespeeld; of MS Project overwerk in de verdeling of de duur meetelt, is niet nagegaan. — S
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
