@@ -112,7 +112,7 @@ import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
-import { launchTabFor, oneTabPerFile, openTabFor, readVersionOf, startOpenLookup, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
+import { launchTabFor, looksUpOpenTab, oneTabPerFile, openTabFor, readVersionOf, startOpenLookup, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -1876,8 +1876,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         readOptions = formatReadOptions();
         opened = await openFileDialog(openDialogFilters(readOptions), {
           binaryExtensions: binaryExtensions(readOptions),
-          ...(readOptions.ifcBytes ? { beforeRead: (ref: Extract<FileRef, { kind: 'handle' }>) => {
-            if (readFormatForFile(ref.handle.name).canBeSaveTarget) found.lookup = startOpenLookup(get(), ref);
+          ...(readOptions.ifcBytes || readOptions.ifcx ? { beforeRead: (ref: Extract<FileRef, { kind: 'handle' }>) => {
+            if (looksUpOpenTab(readOptions, ref.handle.name)) found.lookup = startOpenLookup(get(), ref);
           } } : {}),
         });
       } catch (err) {
@@ -2546,7 +2546,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       try {
         const readOptions = formatReadOptions();
-        const lookup = readOptions.ifcBytes && entry.ref.kind === 'handle' && readFormatForFile(entry.name).canBeSaveTarget
+        const lookup = entry.ref.kind === 'handle' && looksUpOpenTab(readOptions, entry.name)
           ? startOpenLookup(get(), entry.ref) : null;
         const opened = await readLocalRef(entry.ref, entry.name, readOptions);
         if (!opened) return;

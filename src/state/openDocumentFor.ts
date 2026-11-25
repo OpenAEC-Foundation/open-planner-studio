@@ -1,10 +1,12 @@
 import type { FileRef } from '@/services/fileAccess';
 import { sameEntry } from '@/services/fileAccess/foreignSourceTarget';
+import { readFormatForFile, type FormatReadOptions } from '@/services/formatRegistry';
 import { isMultiDocumentImport, type OpenedImport } from '@/services/importTypes';
 import type { AppState } from './appStoreFactory';
 import type { DocumentPayload, TargetFingerprint } from './documentContract';
 import { hasChangedOnDisk } from './documentSaveState';
 import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
+import { isIfcxName } from '@/utils/filePath';
 import { versionGuarded } from './versionGuard';
 
 type Tabs = Pick<AppState, 'getOpenDocumentPayloads'>;
@@ -13,6 +15,11 @@ export type HandleRef = Extract<FileRef, { kind: 'handle' }>;
 
 export interface OpenLookup {
   readonly hits: readonly { readonly id: string; readonly handle: FileSystemFileHandle }[];
+}
+
+export function looksUpOpenTab(readOptions: FormatReadOptions, name: string): boolean {
+  if (readOptions.ifcx && isIfcxName(name)) return true;
+  return !!readOptions.ifcBytes && !!readFormatForFile(name).canBeSaveTarget;
 }
 
 export function startOpenLookup(s: Tabs, ref: HandleRef): OpenLookup {

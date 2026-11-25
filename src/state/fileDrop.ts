@@ -8,9 +8,9 @@
 import type { AppState } from '@/state/appStoreFactory';
 import type { ImportLabels } from '@/services/importTypes';
 import { splitDroppedFiles, type DroppedFile } from '@/services/fileAccess/fileDrop';
-import { readFormatForFile, type FormatReadOptions } from '@/services/formatRegistry';
+import type { FormatReadOptions } from '@/services/formatRegistry';
 import { openFailureNotices } from '@/state/slices/fileSlice';
-import { startOpenLookup, type HandleRef, type OpenLookup } from '@/state/openDocumentFor';
+import { looksUpOpenTab, startOpenLookup, type HandleRef, type OpenLookup } from '@/state/openDocumentFor';
 
 /** De namen in de melding: hoogstens vijf, daarna "…", zodat een sleep met een hele map de melding
  *  niet over het scherm laat lopen. Bestandsnamen blijven zoals ze zijn (geen vertaling). */
@@ -69,7 +69,7 @@ export async function openDroppedFiles(
   const readOptions = options.readOptions;
   for (const file of openable) {
     let lookup: OpenLookup | null = null;
-    const beforeRead = readOptions?.ifcBytes && readFormatForFile(file.name).canBeSaveTarget
+    const beforeRead = readOptions && looksUpOpenTab(readOptions, file.name)
       ? (ref: HandleRef) => { lookup = startOpenLookup(store.getState(), ref); }
       : undefined;
     let opened;

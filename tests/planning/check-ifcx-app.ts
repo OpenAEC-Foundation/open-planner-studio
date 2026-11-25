@@ -675,6 +675,74 @@ await check('browser: een IFCX-document slaat een nieuw doel op als download met
   }
 });
 
+await check('browser: Openen, Recent en slepen met een andere handle voor hetzelfde IFCX-bestand maken met alleen ifcx aan het bestaande tabblad actief, met zijn wijziging; een gewone .ifc opent zoals main een tweede tabblad', async () => {
+  const { buildImportLabels } = await import('@/i18n/importLabels');
+  const { openDroppedFiles } = await import('@/state/fileDrop');
+  const labels = buildImportLabels((key) => key);
+  const win = window as unknown as Record<string, unknown>;
+  const handlesTo = (name: string, bytes: Uint8Array) => {
+    const entry = {};
+    return () => ({ kind: 'file', name, entry,
+      getFile: async () => new File([bytes], name),
+      queryPermission: async () => 'granted', requestPermission: async () => 'granted',
+      isSameEntry: async (other: { entry?: object }) => other?.entry === entry,
+    }) as unknown as FileSystemFileHandle;
+  };
+  let picked: FileSystemFileHandle | null = null;
+  win.showOpenFilePicker = async () => [picked];
+  type Route = 'Openen' | 'Recent' | 'slepen';
+  const openVia = async (store: Store, route: Route, handle: FileSystemFileHandle) => {
+    if (route === 'Openen') { picked = handle; await store.getState().openFile(labels); return; }
+    if (route === 'Recent') {
+      store.setState(s => { s.recentFiles = [{ id: 'r', ref: { kind: 'handle', handle }, name: handle.name, addedAt: 1 }]; });
+      await store.getState().openRecentFile('r', labels);
+      return;
+    }
+    const readOptions = readOptionsFor(store.getState().ui.featureFlags);
+    const data = new Uint8Array(await (await handle.getFile()).arrayBuffer());
+    await openDroppedFiles(store, [{ name: handle.name, read: async (beforeRead) => {
+      const ref = { kind: 'handle', handle } as const;
+      beforeRead?.(ref);
+      return { name: handle.name, ...(readsAsBytes(handle.name, readOptions) ? { content: '', bytes: data } : { content: text(data) }), ref };
+    } }], labels, () => false, { readOptions });
+  };
+  const opened = async (flags: FeatureFlagValues, name: string, bytes: Uint8Array, route: Route) => {
+    const handles = handlesTo(name, bytes);
+    const store = (await newApp(flags)).store;
+    await openVia(store, 'Openen', handles());
+    const first = store.getState().activeDocumentId;
+    const taskId = shiftFirstTask(store);
+    const edited = store.getState().tasks.find(t => t.id === taskId)!.time.scheduleDuration;
+    store.getState().newDocument();
+    await openVia(store, route, handles());
+    return { store, first, taskId, edited };
+  };
+  const fileTabs = (store: Store) => store.getState().getOpenDocumentPayloads().filter(d => d.payload.fileHandle !== null).length;
+  try {
+    for (const route of ['Openen', 'Recent', 'slepen'] as const) {
+      const { store, first, taskId, edited } = await opened(IFCX_ON, 'plan.ifcx', own, route);
+      assert.deepEqual(errors(store), [], route);
+      assert.equal(fileTabs(store), 1, `${route}: geen tweede tabblad voor hetzelfde bestand`);
+      assert.equal(store.getState().activeDocumentId, first, `${route}: het bestaande tabblad is actief`);
+      assert.equal(store.getState().fileFormat, 'ifcx');
+      assert.equal(store.getState().tasks.find(t => t.id === taskId)!.time.scheduleDuration, edited, `${route}: de wijziging blijft`);
+      assert.equal(store.getState().isDirty, true, route);
+      assert.equal(changedOnDiskShown(store.getState()), false, `${route}: het bestand op schijf is niet veranderd`);
+    }
+    for (const flags of [{}, IFCX_ON] as FeatureFlagValues[]) {
+      for (const route of ['Openen', 'Recent', 'slepen'] as const) {
+        const { store, first } = await opened(flags, 'plan.ifc', ownStep, route);
+        assert.deepEqual(errors(store), [], route);
+        assert.equal(fileTabs(store), 2, `${route}, ${JSON.stringify(flags)}: zoals main met ifcForeignContent uit een tweede tabblad`);
+        assert.notEqual(store.getState().activeDocumentId, first, route);
+        assert.equal(store.getState().fileFormat, 'ifc');
+      }
+    }
+  } finally {
+    delete win.showOpenFilePicker;
+  }
+});
+
 await check('site: Ctrl+S schrijft IFCX naar het eigen bestand; Opslaan als normaliseert de naam op het formaat', async () => {
   const win = window as unknown as Record<string, unknown>;
   const requests: { id?: string; data: Blob; name?: string; baseVersion?: string }[] = [];
