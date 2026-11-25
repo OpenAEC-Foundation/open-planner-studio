@@ -23,7 +23,9 @@ eenheid en de vorm waarin de taak ze draagt, en legt een verschil uit dat er zon
   het werkbare moment ervoor; een agent die de twee velden zonder uitleg naast elkaar ziet, concludeert anders dat de
   herberekening kapot is. Toetsen: `cases-statusdatum.ts`, "get_task meldt het verschil tussen de gerekende finish
   en de actualFinish" (een werkelijke finish in het bouwvak; de toets eist het blok, de ongewijzigde actual en de
-  reden met de uitweg) en "valt de actualFinish gewoon op een werkdag, dan is er niets te melden".
+  reden met de uitweg) en "valt de actualFinish gewoon op een werkdag, dan is er niets te melden". De voorwaarde is
+  alleen dat de twee datums verschillen; de reden noemt een kalenderoorzaak ook als die niet is vastgesteld
+  (knownbug 2474).
 - Naast de eigen externe koppelingen (`externalLinks`, ook leeg) geeft de tool de koppelingen van de fasen erboven
   als `inheritedExternalLinks`, met `fromTaskId` en `fromWbs`, alleen als er zijn: een koppeling op een fase geldt
   voor elke taak in die fase (keuze 11 in `docs/relaties-tussen-projecten.md`). Toets: `cases-externe-relaties.ts`.

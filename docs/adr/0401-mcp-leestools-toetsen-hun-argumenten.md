@@ -3,8 +3,10 @@
 Een fout argument geeft bij een leestool geen kapotte data maar een plausibel, onjuist antwoord, waarop de agent zijn
 volgende stap bouwt. `kritiek: "true"` is noch `true` noch `false`, dus zonder toets komt de hele takenlijst terug
 als "de kritieke taken"; `status: "started"` zou een lege lijst geven die leest als "geen gestarte taken". Elke
-leestool in `readTools.ts` toetst daarom haar argumenten zelf, vóór ze iets leest, en geeft bij een fout `VALIDATION`
-met de toegestane waarden. Dat geldt ook voor onbekende sleutels (`requireOnlyKeys`, ook op de tools zonder
+leestool in `readTools.ts` toetst daarom haar argumenten zelf, vóór ze het antwoord samenstelt, en geeft bij een fout
+`VALIDATION` met de toegestane waarden. Een tool met `FRESH` rekent een verouderde planning daarbij eerst door
+(`runReadTool` roept `freshen` aan vóór de tool), ook als het argument daarna geweigerd wordt; alleen het histogram
+toetst vóór het doorrekenen (hieronder). Dat geldt ook voor onbekende sleutels (`requireOnlyKeys`, ook op de tools zonder
 argumenten), al weigert de schemapoort van de dispatcher die ook: de tool moet kloppen langs elk pad dat haar
 `handler` aanroept.
 

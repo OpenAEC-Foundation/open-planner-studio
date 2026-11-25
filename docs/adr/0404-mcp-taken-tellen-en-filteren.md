@@ -1,17 +1,20 @@
 # Hoe de leestools taken tellen en filteren
 
-Een agent vergelijkt wat hij via MCP leest met wat de planner op het scherm ziet. Waar de app al een telling of een
-filter heeft, gebruiken `planner_get_project_info` en `planner_list_tasks` daarom dezelfde functie, en waar ze bewust
-afwijken, zegt de beschrijving van de tool dat.
+Een agent vergelijkt wat hij via MCP leest met wat de planner op het scherm ziet. Waar de app al een filter heeft,
+gebruikt `planner_list_tasks` daarom dezelfde functie, en waar een telling of filter bewust afwijkt, zegt de
+beschrijving van de tool dat.
 
 ## Gevolgen
 
-- `statistics.criticalTasks` telt alleen bladtaken (`countCriticalActivities`, dezelfde teller als het
-  Rapportpaneel): een verzameltaak draagt een opgerolde kritieke vlag, maar is geen activiteit. Het filter `kritiek`
-  van `planner_list_tasks` geeft wel elke taak met `isCritical`, ook een fase, met `summary: true` op de rij. Beide
-  beschrijvingen zeggen dat. Toets: `cases-read.ts`, "get_project_info: criticalTasks telt alleen bladtaken, …" (een
-  fase met A → B en een losse C; de toets eist 2 in de projectinformatie, gelijk aan `cpmResult.criticalPath` en aan
-  `countCriticalActivities`, 3 in de lijst met `summary` op de fase, en de zinnen in beide beschrijvingen).
+- `statistics.criticalTasks` telt alleen bladtaken (`countCriticalActivities`): een verzameltaak draagt een
+  opgerolde kritieke vlag, maar is geen activiteit. Het rapport *Kritieke en near-critical activiteiten* telt zijn
+  eigen rijen (`computeCriticalReport` in `src/engine/reports/criticalReport.ts`, zonder voltooide taken en hammocks),
+  dus die twee tellingen kunnen verschillen zodra een voltooide taak of een hammock `isCritical` draagt. Het filter
+  `kritiek` van `planner_list_tasks` geeft wel elke taak met `isCritical`, ook een fase, met `summary: true` op de rij.
+  Beide beschrijvingen zeggen dat. Toets: `cases-read.ts`, "get_project_info: criticalTasks telt alleen bladtaken, …"
+  (een fase met A → B en een losse C, niets voltooid; de toets eist 2 in de projectinformatie, gelijk aan de lengte
+  van `cpmResult.criticalPath` en aan `countCriticalActivities`, 3 in de lijst met `summary` op de fase, en de zinnen
+  in beide beschrijvingen).
 - `van` en `tot` filteren op overlap van de getoonde spanne met het venster, op dagniveau, beide grenzen inbegrepen
   (`shownSpanOverlapsDays`, dezelfde test als het filter "Actief tussen" in `filterEval.ts` en de rapportvensters in
   `reportCommon.ts`). Als tekst is `2026-06-03T08:00` groter dan `2026-06-03`, dus een vergelijking van teksten mist
