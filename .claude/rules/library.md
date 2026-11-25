@@ -40,3 +40,7 @@ geen sync tussen machines of vensters (zie `docs/library.md` en de in-app gids
 naar de bibliotheek promoveren (0171), verversen uit de bibliotheek wist de redo per gekoppeld document (0172),
 bibliotheekacties op het project die niets veranderen (0173), de demobibliotheek met inhoudsversie (0174) en een
 verdeling toepassen en terugdraaien (0175).
+
+**Besluiten in `services/library/libraryOps.ts`** staan in `docs/adr/`: een companyId uit een poolbestand (0340), de
+vorm van een pool bij laden en importeren (0341), een poolitem naar het project kopiëren (0342) en namen genormaliseerd
+herkennen maar veldwaarden letterlijk vergelijken (0343).
