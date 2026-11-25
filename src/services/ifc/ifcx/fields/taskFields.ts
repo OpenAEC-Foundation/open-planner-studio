@@ -1,4 +1,4 @@
-import { TASK_TYPES, type Task, type TaskStatus, type TaskTime } from '@/types/task';
+import { TASK_TYPES, type Task, type TaskStatus, type TaskTime, type TaskTimephasedContour } from '@/types/task';
 import { DEFAULT_PRIORITY } from '../../ifcConstants';
 import {
   arrayOf, BOOLEAN, CALENDAR_DATE, enumOf, FRACTION, integer, LOCAL_MOMENT_OR_EMPTY, membersOf, NON_EMPTY_TEXT, objectOf,
@@ -81,6 +81,40 @@ export const TASK_TIME_FIELDS: readonly TimeField[] = [
 
 function setOptional<K extends keyof Task>(task: Task, key: K, value: Task[K] | undefined): void {
   if (value !== undefined) task[key] = value;
+}
+
+interface ContourValue {
+  readonly resourceUid?: number;
+  readonly resourceId?: string;
+  readonly periods: TaskTimephasedContour['periods'];
+}
+
+const CONTOURS: IfcxValue = arrayOf(objectOf({
+  resourceUid: { value: REAL, optional: true },
+  resourceId: { value: TEXT, optional: true },
+  periods: { value: arrayOf(objectOf({
+    afterMinutes: { value: REAL }, minutes: { value: REAL }, workMinutes: { value: REAL }, kind: { value: enumOf(['actual', 'remaining']) },
+  })) },
+}));
+
+const periodsOf = (periods: TaskTimephasedContour['periods']) => periods.map(period => ({
+  afterMinutes: period.afterMinutes, minutes: period.minutes, workMinutes: period.workMinutes, kind: period.kind,
+}));
+
+function contoursOut(contours: readonly TaskTimephasedContour[]): ContourValue[] {
+  return contours.map(contour => ({
+    ...(contour.resourceUid !== null ? { resourceUid: contour.resourceUid } : {}),
+    ...(contour.resourceId !== undefined ? { resourceId: contour.resourceId } : {}),
+    periods: periodsOf(contour.periods),
+  }));
+}
+
+function contoursIn(contours: readonly ContourValue[]): TaskTimephasedContour[] {
+  return contours.map(contour => ({
+    resourceUid: contour.resourceUid ?? null,
+    ...(contour.resourceId !== undefined ? { resourceId: contour.resourceId } : {}),
+    periods: periodsOf(contour.periods),
+  }));
 }
 
 export const TASK_SHARED_FIELDS: readonly SharedField<TaskWriteSource>[] = [
@@ -191,6 +225,11 @@ export const TASK_FIELDS: readonly TaskField[] = [
     read: (v, t) => { t.calendarPath = v as string | undefined; },
   },
   {
+    key: 'timephasedContours', value: CONTOURS, optional: true,
+    write: s => (s.task.timephasedContours ? contoursOut(s.task.timephasedContours) : undefined),
+    read: (v, t) => setOptional(t.task, 'timephasedContours', v ? contoursIn(v as ContourValue[]) : undefined),
+  },
+  {
     key: 'unrecorded', value: arrayOf(enumOf(ALL_RECORDED_SLOT_KEYS)), optional: true,
     write: s => (s.unrecorded.length > 0 ? [...s.unrecorded] : undefined),
     read: (v, t) => { t.unrecorded = (v as RecordedFieldKey[] | undefined) ?? []; },
@@ -202,6 +241,7 @@ export const TASK_KEYS_CARRIED: readonly (keyof Task)[] = [
   'id', 'name', 'description', 'wbsCode', 'taskType', 'status', 'isMilestone', 'milestoneKind', 'mandatory', 'priority',
   'isSummary', 'parentId', 'childIds', 'time', 'calendarId', 'manuallyScheduled',
   ...STRUCTURE_TASK_KEYS_CARRIED, ...TASK_SCHEDULE_KEYS_CARRIED, ...TASK_NOTE_KEYS_CARRIED, ...TASK_SOURCE_KEYS_CARRIED,
+  'resourceIds', 'timephasedContours',
 ];
 
 export const TASK_TIME_KEYS_CARRIED: readonly (keyof TaskTime)[] = [

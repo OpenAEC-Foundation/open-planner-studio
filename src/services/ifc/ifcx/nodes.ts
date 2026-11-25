@@ -5,8 +5,11 @@ import { DOCUMENT_FIELDS, PROJECT_KEYS_CARRIED, SCHEDULE_SHARED_FIELDS, WORKPLAN
 import { CALENDAR_FIELDS, CALENDAR_KEYS_CARRIED, CALENDAR_SHARED_FIELDS } from './fields/calendarFields';
 import { TASK_FIELDS, TASK_KEYS_CARRIED, TASK_SHARED_FIELDS, TASK_TIME_KEYS_CARRIED } from './fields/taskFields';
 import { SEQUENCE_FIELDS, SEQUENCE_KEYS_CARRIED, SEQUENCE_SHARED_FIELDS } from './fields/sequenceFields';
+import { RESOURCE_FIELDS, RESOURCE_KEYS_CARRIED, RESOURCE_SHARED_FIELDS } from './fields/resourceFields';
+import { ASSIGNMENT_FIELDS, ASSIGNMENT_KEYS_CARRIED, ASSIGNMENT_SHARED_FIELDS } from './fields/assignmentFields';
+import { BASELINE_FIELDS, BASELINE_KEYS_CARRIED, BASELINE_SHARED_FIELDS, BASELINE_TASK_KEYS_CARRIED } from './fields/baselineFields';
 
-export type NodeKind = 'workplan' | 'schedule' | 'calendar' | 'task' | 'sequence';
+export type NodeKind = 'workplan' | 'schedule' | 'calendar' | 'task' | 'sequence' | 'resource' | 'assignment' | 'baseline';
 export type ModelKey = keyof WriteIFCInput;
 
 export interface AttributeRegistration {
@@ -66,6 +69,33 @@ export const NODES: readonly NodeRegistration[] = [
     attributes: [{ name: ATTRIBUTE.sequence, fields: SEQUENCE_SHARED_FIELDS }, { name: ATTRIBUTE.opsSequence, fields: SEQUENCE_FIELDS }],
     modelKeys: ['sequences'],
     objectKeys: [{ object: 'sequence', instances: model => model.sequences.map(sequence => [`relatie ${sequence.id}`, sequence] as const), keys: SEQUENCE_KEYS_CARRIED }],
+  },
+  {
+    kind: 'resource',
+    attributes: [{ name: ATTRIBUTE.resource, fields: RESOURCE_SHARED_FIELDS }, { name: ATTRIBUTE.opsResource, fields: RESOURCE_FIELDS }],
+    modelKeys: ['resources'],
+    objectKeys: [{ object: 'resource', instances: model => (model.resources ?? []).map(resource => [`resource ${resource.id}`, resource] as const), keys: RESOURCE_KEYS_CARRIED }],
+  },
+  {
+    kind: 'assignment',
+    attributes: [{ name: ATTRIBUTE.assignment, fields: ASSIGNMENT_SHARED_FIELDS }, { name: ATTRIBUTE.opsAssignment, fields: ASSIGNMENT_FIELDS }],
+    modelKeys: ['assignments'],
+    objectKeys: [{
+      object: 'assignment', keys: ASSIGNMENT_KEYS_CARRIED,
+      instances: model => (model.assignments ?? []).map(assignment => [`toewijzing ${assignment.id}`, assignment] as const),
+    }],
+  },
+  {
+    kind: 'baseline',
+    attributes: [{ name: ATTRIBUTE.baseline, fields: BASELINE_SHARED_FIELDS }, { name: ATTRIBUTE.opsBaseline, fields: BASELINE_FIELDS }],
+    modelKeys: ['baselines', 'activeBaselineId', 'comparedBaselineIds', 'baselineOrphanGuids'],
+    objectKeys: [
+      { object: 'baseline', instances: model => (model.baselines ?? []).map(baseline => [`baseline ${baseline.id}`, baseline] as const), keys: BASELINE_KEYS_CARRIED },
+      {
+        object: 'baseline.tasks', keys: BASELINE_TASK_KEYS_CARRIED,
+        instances: model => (model.baselines ?? []).flatMap(baseline => baseline.tasks.map(row => [`baseline ${baseline.id}`, row] as const)),
+      },
+    ],
   },
 ];
 

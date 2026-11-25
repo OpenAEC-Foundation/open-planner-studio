@@ -605,6 +605,45 @@
                   }
                 }
               }
+            },
+            "activeBaseline": {
+              "dataType": "Reference",
+              "optional": true
+            },
+            "comparedBaselines": {
+              "dataType": "Object",
+              "optional": true,
+              "objectRestrictions": {
+                "values": {
+                  "1": {
+                    "dataType": "Reference",
+                    "optional": true
+                  },
+                  "2": {
+                    "dataType": "Reference",
+                    "optional": true
+                  }
+                }
+              }
+            },
+            "removedTasks": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "id": {
+                        "dataType": "String"
+                      },
+                      "globalId": {
+                        "dataType": "String"
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -1292,6 +1331,57 @@
             "calendar": {
               "dataType": "Reference",
               "optional": true
+            },
+            "timephasedContours": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "resourceUid": {
+                        "dataType": "Real",
+                        "optional": true
+                      },
+                      "resourceId": {
+                        "dataType": "String",
+                        "optional": true
+                      },
+                      "periods": {
+                        "dataType": "Array",
+                        "arrayRestrictions": {
+                          "value": {
+                            "dataType": "Object",
+                            "objectRestrictions": {
+                              "values": {
+                                "afterMinutes": {
+                                  "dataType": "Real"
+                                },
+                                "minutes": {
+                                  "dataType": "Real"
+                                },
+                                "workMinutes": {
+                                  "dataType": "Real"
+                                },
+                                "kind": {
+                                  "dataType": "Enum",
+                                  "enumRestrictions": {
+                                    "options": [
+                                      "actual",
+                                      "remaining"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             },
             "unrecorded": {
               "dataType": "Array",
