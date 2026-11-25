@@ -1983,6 +1983,20 @@ en noem het in je rapport of PR-tekst.
      taak verlengd zonder te rekenen; een batch hernoemde die taak en probeerde daarna een taak met een onbekend id te
      lezen. De batch gaf `NOT_FOUND` en de oude naam kwam terug, terwijl de berekende start van de opvolger van 11 naar
      16 maart ging. Zie ADR 0240. — B
+2330. **Een element in een pool dat geen object is, blijft staan en laat de vergelijking met de bibliotheek vastlopen.**
+     `normalizePoolShape` (`src/services/library/libraryOps.ts`) zorgt dat `calendars` en `resources` lijsten zijn,
+     maar laat een element dat geen object is (zoals `null`) erin staan; `readPoolIFC`
+     (`src/services/library/libraryIfc.ts`) laat zo'n element in `resources` ook door (`poolResourceFromFile` geeft het
+     ongewijzigd terug). Nagespeeld in een los script: `normalizePoolShape('c1', { calendars: [null], resources: [null] },
+     [])` geeft `{"calendars":[null],"resources":[null]}`; daarna gooit `diffCalendarVsPool` met een gestempelde
+     projectkalender (`libraryItemId: 'x'`) een `TypeError` (`Cannot read properties of null (reading 'id')`), en
+     `copyResourceToProject(pool, 'x', …)` ook. De route via een echt poolbestand en de dialoog is niet nagespeeld. — B
+2331. **Een nieuwe bibliotheek met een naam van alleen onzichtbare tekens krijgt die naam.** `addCompany`
+     (`src/state/slices/librarySlice.ts`) valt alleen terug op de standaardnaam als `name.trim()` leeg is, en de aanroep
+     in `ProjectInfoPanelContent.tsx` geeft `newCompanyName.trim()` mee. `trim()` laat bijvoorbeeld U+200B staan, dus
+     zo'n naam komt er ongewijzigd in. `resolveUniqueCompanyName` (`libraryOps.ts`) toetst een geïmporteerde naam
+     daarom met `normalizeName` (ADR 0343). Of de rij in Backstage er dan leeg uitziet, is niet nagegaan; alleen in de
+     code gelezen. — S
 
 ## Bestanden en herstel
 
