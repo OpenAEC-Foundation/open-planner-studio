@@ -4699,6 +4699,18 @@ en noem het in je rapport of PR-tekst.
       2026-06-01 en einde `0001-01-01`, en na het laden start 2026-06-01T08:00 en einde 1901-01-01T16:00. De
       berekende datums zijn niet nagespeeld. Issue #1258. — B
 
+2480. **Een `.mpp`-import gebruikt de tijdstempels van irregulier werk niet, en slaat verricht overwerk over.**
+      `readAssignmentTimephasedRaw` (`src/services/mpp/mppEntities.ts`) leest de blokken `ActualIrregularWork` (87)
+      en `ActualOvertimeWork` (51), maar `computeShiftedAssignmentPeriods` en `decodeAssignmentWorkMinutes`
+      (`src/services/mpp/mppReader.ts`) decoderen alleen `actualRegularWork` en `remainingRegularWork`; 87 en 51
+      tellen alleen mee in `hasAnyTimephasedData` (ADR 0410). Het importverslag (`mppImportLoss.ts`) noemt deze blokken
+      niet. Categorie 87: nagespeeld met een publiek MS Project-bestand (MPXJ issue 929) met 126 irreguliere periodes
+      voor één toewijzing. De import gebruikte hun tijdstempels niet en meldde dat niet; de contour en de invoer voor
+      de wandeling bevatten allebei 3369 werkminuten, gelijk aan het gepubliceerde totaal aan verricht werk. Verloren
+      gaat daar de tijdsverdeling van de irreguliere periodes, niet het werk. Categorie 51: dat het blok wordt
+      overgeslagen, staat in de code; of apart geboekt overwerk in een gewoon bestand daardoor in de contour of de
+      wandeling ontbreekt, is niet vastgesteld. — B (87), S (51)
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
