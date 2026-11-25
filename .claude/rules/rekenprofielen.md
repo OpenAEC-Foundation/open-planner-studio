@@ -73,6 +73,7 @@ P6: voltooid werk (0027), lopende taken (0028), relatie- en mijlpaalgrenzen (002
 uitzondering wint van een feestdag (0221), een werkblok hoort bij zijn begindag (0222), werkminuten heen en terug als
 elkaars spiegel (0223) en de lopers van de dagenmaat (0224). Besluiten in de relatiewiskunde (`relationMath.ts`): een ingang per richting (0270), mijlpaalgrenzen (0271), FS zonder lag tussen twee kalenders (0272), kalendertijd (0273), een taak in de dagenmaat op een relatiegrens (0274) en de SF-finishvloer alleen voor SF (0275). Besluiten bij de typen in `src/types/project.ts`: nivelleerinstellingen als data (0180), projectopties uit het
 P6-bronbestand (0181), het bewijs achter de conventies (0182) en het rekenprofiel en zijn typen (0183).
+Besluiten bij de taakvelden in `src/types/task.ts` staan in `docs/adr/0300` tot en met `0305`.
 
 ### Het nivelleringsfundament (projectoptie `leveling`)
 

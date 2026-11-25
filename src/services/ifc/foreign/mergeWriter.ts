@@ -437,6 +437,17 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   function buildLines(input: WriteIFCInput, caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void) {
     // ── 2. Het domein ──
     const comparison = planningIdentityInput(input);
+    let resourcesByTask: Map<string, string[]> | undefined;
+    const resourcesOfTask = () => {
+      if (!resourcesByTask) {
+        resourcesByTask = new Map();
+        for (const a of comparison.assignments) {
+          const list = resourcesByTask.get(a.taskId);
+          if (list) list.push(a.resourceId); else resourcesByTask.set(a.taskId, [a.resourceId]);
+        }
+      }
+      return resourcesByTask;
+    };
     const sourceIds = planningIdentities(source.opened ?? pristine);
     const resourceId = (id: string) => sourceIds.resource.get(id) ?? id;
     const calendarId = (id: string) => sourceIds.calendar.get(id) ?? id;
@@ -545,7 +556,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
         }
       } else if (type === PROCESS && relType === 'IFCTASK' && relatingDomain?.kind === 'task') {
         const taskId = relatingDomain.id;
-        const domainRes = comparison.assignments.filter(a => a.taskId === taskId).map(a => a.resourceId);
+        const domainRes = resourcesOfTask().get(taskId) ?? [];
         const s = members.map(m => { const d = domainOf(m); return d?.kind === 'res' ? resourceId(d.id) : d?.id; });
         const count = (list: readonly (string | undefined)[], id: string | undefined) => list.filter(x => x === id).length;
         for (const id of new Set(s)) {

@@ -22,6 +22,9 @@ Besluiten van dit onderdeel: `docs/adr/0002-contour-is-data-op-de-taakas.md`,
 Besluiten van de nivelleerder (`src/engine/scheduler/ResourceLeveler.ts`, zonder commentaar): `docs/adr/0160` tot en
 met `0165` (eigen verse planning, vaste last en pins, kandidaten op de taakkalender, het poolgrootboek, venster en
 reden, onderbrekingen).
+Besluiten van de belastingmotor (`src/engine/scheduler/ResourceLoad.ts`, zonder commentaar): `docs/adr/0310` tot en
+met `0314` (de formule `distributeUnits`, vorm en totaal van de dagslots, boeken op de plaatsing, capaciteit en reden
+van overbezetting, het histogramrapport).
 
 `src/engine/contour/contourEngine.ts` (puur, 2026-09) is de rekenkern voor **resource-contouring**:
 een contourprofiel (`Task.timephasedContours`, periodes op de cumulatieve werkminuten-as van de taak

@@ -11,6 +11,7 @@ import type { CustomTaskType, CustomTaskTypeDraft } from '@/types/taskType';
 import { isTaskTypeColor, withTaskTypeColors } from '@/services/taskTypes/customTaskTypeColors';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
+import { firstById } from '@/utils/firstById';
 import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve, isResourceCurve, clearCostResourceFields, normalizeAssignmentForResource, type ResourceType } from '@/types/resource';
@@ -216,6 +217,7 @@ export function readIFC(
   const { baselines, activeBaselineId, comparedBaselineIds, orphanGuids } = extractBaselines(entities, entityMap, taskStepIdMap);
 
   const schedulingOptions = extractSchedulingOptions(entities, entityMap);
+  let tasksById: Map<string, Task> | undefined;
   const sequences = extractSequences(
     entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, dayMeasureLags, exactMinuteLags, calendar.hoursPerDay, guidLog,
     stepLog,
@@ -223,7 +225,8 @@ export function readIFC(
       const mode = schedulingOptions?.lagCalendar;
       if (mode === '24hour') return 24;
       const id = mode === 'successor' ? succId : predId;
-      const task = tasks.find(t => t.id === id);
+      tasksById ??= firstById(tasks);
+      const task = tasksById.get(id);
       return effHoursPerDay(mode === 'projectDefault' ? calendar : resolveCalendar(task?.calendarId, resourceCalendars, calendar));
     },
   );
