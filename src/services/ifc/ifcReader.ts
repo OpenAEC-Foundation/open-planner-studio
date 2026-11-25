@@ -1138,7 +1138,7 @@ function applyHourModeIFC(
   promoteHourCalendars(
     [projectCal, ...resourceCalendars].filter(cal => !declaredScalarCalendars.has(cal)).map(cal => [cal, cal] as const),
     cal => subDayCals.has(cal),
-    true,
+    false,
   );
 
   for (const t of tasks) {
