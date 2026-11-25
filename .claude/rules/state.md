@@ -83,7 +83,7 @@ de geschreven momentopname. `markAutoSaveVersionSaved` verwijst naar dezelfde co
 
 **De versie op het eigen doel** (#804, knownbug 1957 en 2064; gelezen door `openTabFor` bij het openen):
 `knownTargetFingerprint` (`DOCUMENT_FIELDS`, `snapshot: 'none'`, buiten `IFC_SAVE_KEYS`/`IFC_DIRTY_KEYS` en het
-herstelmanifest) is `{ sha256, byteLength, origin }` van de bytes waarvan de app weet dat ze op het eigen pad of de eigen
+herstelmanifest) is `{ sha256, byteLength, origin, utf8Bom }` van de bytes waarvan de app weet dat ze op het eigen pad of de eigen
 handle staan, of `null` (onbekend). Hash en grootte komen van dezelfde bytes en worden altijd samen gezet; de grootte laat
 een latere bewaking een ander bestand zonder lezen herkennen. `origin` zegt waar de bytes vandaan komen: `'opened'` als
 openen ze van het doel las, `'written'` als de app ze zelf schreef (elke `commitSavedDocument`, ook de merge, en
@@ -117,11 +117,10 @@ niet, en de open-tabcontrole en de strook "gewijzigd op schijf" gelden (`oneTabP
 beslist dat: `versionGuarded` (`src/state/versionGuard.ts`). Voor een als STEP gelezen document verandert er niets.
 **De bewaking die het leest** (`knownTargetGuard.ts`): met de flag toetst Ctrl+S zonder `prepared`
 (`writeActiveDocument`, vlak vóór `refuseChangedDocumentWrite`; ook *Opslaan* in de sluitvraag) en elke gewone ronde van
-Automatisch opslaan (na `refusedWriteTarget`) het eigen pad of de eigen handle tegen de actuele waarde van het veld, niet
-die van de momentopname. Eerst synchroon `guardedKnownTarget`: flag uit, `null` of de site geeft `null` en dan wacht de
+Automatisch opslaan (na `refusedWriteTarget`) het eigen pad of de eigen handle tegen de bekende versie van de poging
+(`start`, zie hieronder). Eerst synchroon `guardedKnownTarget`: flag uit, `null` of de site geeft `null` en dan wacht de
 aanroeper nergens op, zoals main. Anders `changedKnownTarget`: het bestand weg is schrijven zoals main; een andere
-grootte is veranderd; dezelfde grootte is lezen en SHA-256 (`knownTargetContent` in `fileAccess`). Na de vergelijking
-telt een weigering alleen als `guardedKnownTarget` nog dezelfde versie geeft (de flag ging niet uit). Veranderd of
+grootte is veranderd; dezelfde grootte is lezen en SHA-256 (`knownTargetContent` in `fileAccess`). Veranderd of
 onleesbaar: niet schrijven, de melding van een gebouwmodel (`ownTargetContentNotice`; Automatisch opslaan
 `MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE` en `stopFor` met die versie). De toets is de laatste inhoudstoets vóór het
 schrijven, ná de broncontrole en ná elke doelscan (fixronde 1 van #1194).
@@ -140,7 +139,17 @@ document met een vreemd deel komt hier niet langs: zijn opslag vergelijkt de bro
 vingerafdruk (Opslaan als met ontbrekende bron zet een nieuwe, van de geschreven planning, op het nieuwe doel; IFC
 toepassen staat dicht). Een geopende versie (`'opened'`) en een onbekende houden de volgorde en de stroomscan van main:
 de scanner van openen aanvaardt meer dan de doelscan (twee datasecties, `stepScanner.ts`), en bij twijfel weigert de app
-(besluit Trias, 10 november 2026).
+(besluit Trias, 10 november 2026). Uitzondering voor een geopende versie met een UTF-8-BOM: zie *Oude eigen kop, scan
+en datasectie* in `tauri-ifc.md` (knownbug 2212); `utf8Bom` zegt of de bekende bytes met een BOM beginnen. Ctrl+S en
+Automatisch opslaan leggen die versie één keer per poging vast als waarde, vóór het rekenen (`ownBomVersion`); de
+doelscan vergelijkt zijn eigen bytes daarmee, en de uitvoer krijgt dan de BOM.
+**Een opslagpoging legt haar stand één keer vast, aan haar begin:** de flags `ifcForeignContent` en `ifcx`, het formaat
+en de bekende versie (`start`, een `KnownTargetState`). Ctrl+S leidt hem af van de momentopname van `writeActiveDocument`,
+net als het formaat van de uitvoer (`attemptFormat`); Automatisch opslaan legt hem vast als veld van de kandidaat in
+`listPlain`. Elke beslissing van die poging (het formaat van de uitvoer, de BOM, de zelfgeschreven versie, de
+doelcontrole, de toets van #1174, de toets bij de beurt in de rij, de vingerafdruk bij het vastleggen van een gewone
+planning) gebruikt die stand; een flagwissel geldt pas vanaf de volgende poging (besluit van de technisch eigenaar,
+25 november 2026, PR #1213 en #1223).
 De stop van Automatisch opslaan vervalt zodra `guardedKnownTarget` een
 andere waarde geeft: een vastgelegde eigen opslag of een export die het eigen doel schreef (`settleFingerprintAfterExport`;
 een nieuw object, ook als er intussen nieuw werk is), de flag uit (`setUI` wist het veld) of een onbekende versie;

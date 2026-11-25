@@ -170,6 +170,7 @@ check-i18n-tools.ts matrix
 check-icon-accent-text.ts matrix
 check-icon-family.ts matrix
 check-ifc-arity.ts matrix
+check-ifc-bom-eigen-bestand.ts los
 check-ifc-building-model-guard.ts matrix
 check-ifc-calendar-identity.ts matrix
 check-ifc-calendar-index.ts matrix
@@ -238,6 +239,7 @@ check-ifc-xer-archive-container.ts matrix
 check-ifcx-app.ts matrix
 check-ifcx-kern.ts matrix
 check-ifcx-meting.ts los
+check-ifcx-velden.ts matrix
 check-import-datum-zonder-tijd.ts matrix
 check-import-explicit-rest.ts matrix
 check-import-missing-schedule-dates.ts matrix
@@ -302,13 +304,16 @@ check-mpp-relations.ts matrix
 check-mpp-summary-relations.ts matrix
 check-mpp-walk-units.ts matrix
 check-mspdi-baseline-export.ts matrix
+check-mspdi-baseline-kloktijden.ts matrix
 check-mspdi-cross-project.ts matrix
 check-mspdi-export-klok-capaciteit-drempel.ts matrix
 check-mspdi-export-kritiek-uren-melding.ts matrix
 check-mspdi-feestdagen.ts matrix
+check-mspdi-geneste-velden.ts matrix
 check-mspdi-hierarchy-export.ts matrix
 check-mspdi-hour-baseline.ts matrix
 check-mspdi-open-notice.ts matrix
+check-mspdi-resource-tarief.ts matrix
 check-mspdi-uitzondering-hele-dag.ts matrix
 check-mspdi-werktijd-minuten.ts matrix
 check-msproject-float-default.ts matrix

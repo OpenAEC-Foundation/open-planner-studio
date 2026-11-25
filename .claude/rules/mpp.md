@@ -54,6 +54,12 @@ Besluiten van `readMPP`: `docs/adr/0280-mpp-lezen-taakrecords-en-bitvlaggen.md`,
 `0286-mpp-lezen-soort-mijlpaal.md`, `0287-mpp-lezen-toewijzingen-koppelen-splits-en-contouren.md`,
 `0288-mpp-lezen-tijdgefaseerd-venster-en-duurwandeling.md` en `0289-mpp-lezen-melding-over-de-planning-van-ms-project.md`.
 
+### De decoder van de tijdgefaseerde gegevens (`mppTimephased.ts`)
+
+Besluiten van de decoder: `docs/adr/0410-mpp-tijdgefaseerd-categorieen-en-byte-indeling.md`,
+`0411-mpp-tijdgefaseerd-eenheden-afronding-en-plafond.md`, `0412-mpp-tijdgefaseerd-grenzen-bij-corrupte-invoer.md`,
+`0413-mpp-tijdgefaseerd-werkminuten-zonder-kalender.md` en `0414-mpp-tijdgefaseerd-splits-afleiden.md`.
+
 ### De kalenderherhaling (`calendarRecurrence.ts`)
 
 Besluiten van de gedeelde kern voor uitzonderingen van de `.mpp`- en de MSPDI-lezer:

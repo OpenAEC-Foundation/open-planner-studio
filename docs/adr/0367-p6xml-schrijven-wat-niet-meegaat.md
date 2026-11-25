@@ -10,8 +10,7 @@ broninformatie geeft zij twee categorienamen rechtstreeks aan de melding en verw
 P6-profiel verwacht zij voor `schedule-options-and-provenance` geen regel. Onderbrekingen, ingekorte namen en
 ongeldige tekens hebben een eigen melding in `exportAs`. De writer zet bij een deel van de weglatingen daarnaast een
 regel in de console; voor elke soort daarvan heeft de melding een regel, of bij onderbrekingen de eigen melding, ook
-voor de nivelleervertraging (`levelingDelays`) en de kalendertijd (`elapsedDurations`), die knownbug 480 nog als
-alleen in de console noemt.
+voor de nivelleervertraging (`levelingDelays`) en de kalendertijd (`elapsedDurations`).
 
 ## Gevolgen
 

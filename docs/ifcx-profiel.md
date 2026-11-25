@@ -15,9 +15,9 @@ veranderen; vanaf het moment dat de flag eraf gaat of een ander programma het pr
 een nieuwe naam (ontwerp §5.3). Wat een planner met de flag aan in die tijd als IFCX opslaat, kan een latere versie
 van de app weigeren.
 
-Deze versie (fase 3, F3-1) draagt project, werkplan, werkschema, kalenders, taken en relaties. Resources,
-toewijzingen en baselines komen in F3-2, de overige velden in F3-3. Wat de kern nog niet draagt en STEP wel bewaart,
-weigert de writer (zie *Wat de writer weigert*).
+Deze versie (fase 3, F3-1 en F3-3) draagt project, werkplan, werkschema, kalenders, taken en relaties, met de velden
+die STEP daarvan bewaart (*De overige velden*). Resources, toewijzingen en baselines komen in F3-2. Wat IFCX nog niet
+draagt en STEP wel bewaart, weigert de writer (zie *Wat de writer weigert*).
 
 **De profielversie.** Verandert later de projectie van de writer (wat de writer voor een planning in het bestand zet,
 gedeeld of precies), dan gaat de profielversie (`formatVersion`) omhoog, en moet de lezer voor een bestand met de oude
@@ -280,6 +280,93 @@ bij de afgeleide uurtaak (R4 weigert het daar).
 
 `openaec::planning::sequence` (projectie): `relatingProcess`, `relatedProcess`, `sequenceType` (`IfcSequenceEnum`),
 `timeLag` of `timeLagRatio` (zie *Lag*), `lagDurationType`.
+
+## De overige velden (F3-3)
+
+Deze velden staan alleen in de precieze kant (`openaec::ops::`). IFC 4.3 heeft er in de gedeelde attributen geen
+woorden voor, dus er is geen projectie. Elk gebied heeft een eigen veldbestand in `src/services/ifc/ifcx/fields/`, dat
+met één regel in de lijst van de kern staat. De writer schrijft een veld als de planning het heeft, ook een lege
+tekst, `false` of een lege lijst, en laat het weg als het ontbreekt; zo komt het onderscheid tussen afwezig en leeg
+terug zoals STEP het teruggeeft. In een object of een element van een lijst staan alleen de leden die het profiel
+noemt, en alleen als ze er zijn. Een tekst heeft de vorm *tekst*, ook waar STEP een datum of id als tekst bewaart
+(`IFCTEXT` of JSON in een pset); een datum die STEP als datum leest, heeft de vorm *moment*.
+
+`openaec::ops::document`, de projectinstellingen en de herkomst (`projectSettingsFields.ts`): `progressMode` (keuze
+`RETAINED_LOGIC`, `PROGRESS_OVERRIDE`), `defaultWorkRule` (keuze uit de vier werkregels), `companyId`, `companyName`,
+`p6ProjectCode`, `dependentProjectsFolder` (tekst), `anchorsFromOpenDocuments` (ja/nee), en `recordedSourceFormat`
+(keuze `xer`, `p6xml`, `mspdi`, `mpp`, `ifc`: het bronformaat van "datums zoals opgeslagen", dat STEP in
+`OPS_ImportProvenance` bewaart).
+
+`openaec::ops::document`, de rekenopties en het rekenprofiel (`schedulingFields.ts`): `schedulingOptions`, een object
+met de projectopties (`lagCalendar`, `criticalDefinition` met `mode`, `threshold`, `thresholdHours`, `totalFloatMode`,
+`makeOpenEndedCritical`, `useExpectedFinishDates`, `useProjectEndDateForFloat`, `nearCriticalThreshold`, `floatPaths`
+met `enabled`, `method`, `maxPaths`, `p6CompletedLateFromRemainingWindow`, `startToStartLagFrom`, `leveling` met
+`preserveScheduledDates`, `levelAllResources`, `priority` en `resources`), en `schedulingProfile` (`baseId` keuze `p6`,
+`msproject`, `ops`, `id`, `name`, `overrides` met een ja/nee per conventie). Een nieuwe projectoptie of conventie in
+`src/types/project.ts` zonder lid hier is een compileerfout.
+
+`openaec::ops::document`, de structuur (`structureFields.ts`): `activityCodeTypes` (lijst van `{ id, name, values }`,
+een waarde `{ id, code, description, color }`), `customFieldDefs` (lijst van `{ id, name, type }`, `type` keuze `text`,
+`number`, `integer`, `cost`, `date`, `boolean`) en `customTaskTypes` (lijst van `{ id, name, color }`). Een lege lijst
+schrijft de writer niet; de lezer geeft dan een lege lijst terug, zoals de laadgrens.
+
+`openaec::ops::task`, de structuur per taak (`structureFields.ts`): `customTaskTypeId` (tekst), `activityCodes` (lijst
+van `{ type, value }`: het id van de codesoort en van de waarde) en `customFields` (lijst van `{ field, text }`,
+`{ field, number }` of `{ field, boolean }`, naar het soort van de waarde). Zij verwijzen met het interne id, zoals STEP
+ze bewaart; codes, eigen velden en werksoorten zijn geen objecten met een pad. STEP schrijft voor codes en eigen velden ook
+een `IfcSimplePropertyTemplate` met een GlobalId, maar bij herlezen komt die GlobalId niet als identiteit van de definitie
+terug (niet in `ifcGlobalIds`): de lijsten komen uit het JSON-pset `OPS_StructureMeta`, de waarden per taak koppelt de
+lezer via de definities aan de interne id's, en de gebruikte werksoorten komen uit `OPS_TaskTypes`. De templates leest
+STEP alleen als terugval zonder dat pset, met nieuwe id's. Een identiteitspad (een soort in `IDENTITY_KINDS`) zou dus
+identiteit toevoegen die de STEP-lezing niet heeft.
+
+`openaec::ops::task`, rekenen (`taskScheduleFields.ts`): `constraint` (`{ type, date, hard }`, `type` keuze `ASAP`,
+`ALAP`, `SNET`, `SNLT`, `FNET`, `FNLT`, `MSO`, `MFO`, `date` een moment), `constraint2` (`{ type, date }`: STEP bewaart
+bij de tweede constraint geen harde vlag), `deadline` (moment), `isHammock`, `workRule` (keuze uit de vier
+werkregels), `levelingDelay` en `levelingDelayMinutes` (gehele getallen), `levelingDelayElapsed`, `splitGaps` (lijst
+van `{ afterMinutes, gapMinutes, source }`, `source` keuze `leveling`, `user`), `timephasedFinishFloor` en
+`timephasedStartAnchor` (tekst), `timephasedDurationWalks` (lijst van `{ anchor, resourceCalendarId, workMinutes }`).
+
+`openaec::ops::task`, weergave en koppelingen (`taskNoteFields.ts`): `notes` (lijst van `{ id, text, done }`), `color`
+(tekst), `externalLinks` (lijst van `{ id, direction, relType, lagDays, lagMinutes, anchorDate, sourceRef,
+sourceMissing, sourceVersion, anchorReadAt }`, met `sourceRef` als `{ projectId, projectName, taskId, taskName,
+filePath, siteFileId }`).
+
+`openaec::ops::task`, MS Project en P6 (`taskSourceFields.ts`): `mspTaskType` (keuze `FIXED_UNITS`, `FIXED_DURATION`,
+`FIXED_WORK`), `effortDriven`, `p6DurationType`, `p6ActivityType`, `p6CompletePctType` (keuzes uit de P6-waarden),
+`p6ProjectId`, `p6TaskId`, `p6ExpectedFinish` (tekst), `p6ExplicitTargetWindow` en `p6SuspendResume` (ja/nee).
+
+`openaec::ops::calendar` (`calendarSourceFields.ts`): `p6Source` (keuze `XER`), `p6NonWorkPenaltyDates` (lijst van
+dagen), `p6NonWorkPenaltyDatesState` (keuze `ABSENT`, `VALID_EMPTY`, `VALID_VALUES`, `REJECTED`) en `libraryOrigin`
+(`{ companyId, libraryItemId, poolVersion, syncedHash }`).
+
+`openaec::ops::sequence` (`sequenceSourceFields.ts`): `p6StartAtPredecessorFinishBoundary` (ja/nee).
+
+Wat STEP laat vallen, laat IFCX ook vallen, omdat de planning van het bestand de STEP-lezing is: een werksoort die
+geen taak gebruikt, een code of eigen veld zonder definitie, `time.progressBeforeRecalculation`. Een lid dat STEP in
+een JSON-pset doorgeeft maar dat het profiel niet noemt (een notitie of koppeling met een extra lid), draagt IFCX niet;
+de zelfcontrole weigert dan met het veld (knownbug 2363).
+
+**De typepoort.** `IFCX_PLACE_OF_SAVE_KEY` in `saveKeyPlaces.ts` geeft elk veld van `IFC_SAVE_KEYS` een plek: de
+sleutels van de schrijverinvoer die het in IFCX draagt (`calendars` als `resourceCalendars`, `recordedDates` en
+`datesAsRecorded` als de ingevulde tijdvelden en `recordedSourceFormat`), of een benoemde uitzondering: het
+P6-bronarchief (`xerImportMetadata`, `xerSourceArchive`, `xerSourceProjectId`) en wat de STEP-schrijver niet krijgt
+(`foreignSourceMark`, `ifcSource`). Een nieuw veld in `IFC_SAVE_KEYS` zonder plek is een compileerfout;
+`check-ifcx-velden.ts` toetst dat elke plek gedragen wordt of nog bij F3-2 hoort.
+
+**De volledigheidspoort.** `tests/planning/check-ifcx-velden.ts` toetst elk voorbeeld in `public/examples`, de elf eigen
+bestanden van oudere releases in `tests/planning/fixtures/oude-tags/` en de maximaal gevulde fixture van
+`check-ifc-roundtrip.ts` (`tests/planning/ifcRoundtripFixture.ts`), op twee routes: rechtstreeks met de lezing van STEP,
+en geopend in de app (`openOpenedFile` met de flag `ifcx`, dus met de laadgrens, de minutenomzetting en de activering) met
+de opslaginvoer van Ctrl+S (`buildWriteIFCInput`). Met resources, toewijzingen en baselines weigert de writer met
+`unsupported` en alleen de velden van F3-2, en noemt hij minstens één veld; zonder die gegevens (in de app verwijderd met
+de acties van de store) opent IFCX als de eerste STEP-lezing na de laadgrens, is het bestand de projectie van wat de lezer
+teruggeeft, en doet een tweede opslag wat STEP doet. De vergelijking is die van de kernproef (`tests/planning/ifcxProof.ts`).
+Daarnaast een gewone bewerking in de app, op `v2026.9.0-urentaak-10-villa-wassenaar.ifc` en
+`showcase-rijwoningen-de-akkers.ifc`: een code en een eigen veld toevoegen en op een taak invullen, en vast werk als
+werkregel kiezen. Uit dezelfde opslaginvoer schrijft de proef STEP en IFCX, opent beide in de app, slaat elk opnieuw op
+vanuit de geopende toestand en opent weer; beide keren geven de twee bestanden in de app dezelfde opslaginvoer, met de
+bewerking erin.
 
 ## Lag
 
@@ -579,7 +666,8 @@ De velden die tot fixronde 4 buiten de vergelijking bleven:
 | `recordedTimesOrigin` | vast `ifc-own`: een IFCX-bestand is altijd een eigen bestand | de laadgrens kiest daarmee tussen verse import en heropening |
 | `importPristine` | `openaec::ops::document.importPristine` | "datums zoals opgeslagen" gaat bij een ongewijzigde import vanzelf aan |
 | `minuteModelPending` | `openaec::ops::document.minuteModelPending` (sinds fixronde 8) | de laadgrens zet de vlag, ook bij een planning mét `TimeModel` als ze een taak onder vast werk naar de urenmaat zet; de lezer gaat niet door de laadgrens, dus het bestand draagt haar |
-| `recordedTimes`, `xerOrigin`, `xerArchiveIssue`, `baselineOrphanGuids` | nog niet gedragen, weigert de writer | volgen uit het XER-archief en de baselines (F3-2 en F3-3); zonder die inhoud geeft STEP ze niet terug |
+| `recordedSourceFormat` | `openaec::ops::document.recordedSourceFormat` (sinds F3-3) | de laadgrens kiest met de herkomst of "datums zoals opgeslagen" aangaat |
+| `recordedTimes`, `xerOrigin`, `xerArchiveIssue`, `baselineOrphanGuids` | nog niet gedragen, weigert de writer | volgen uit het XER-archief en de baselines (F3-2); zonder die inhoud geeft STEP ze niet terug |
 | `xerMissingPlannedStarts`, `p6xmlReport`, `msProjectReport`, `sourceScheduleNotes`, `suggestedProfileId`, `ifcLegacySchemaLoss` | nog niet gedragen, weigert de writer | meldingen van andere lezers over hun bronbestand; de STEP-lezer geeft ze voor een eigen bestand niet terug, dus ze zijn er nooit |
 
 **`recordedFields` en R4.** De maat is de toestand van de app direct na openen, met de geschiedenis erbij (besluit
@@ -634,8 +722,8 @@ het veranderde bestand is en dat van het oude model verschilt, of weigert met he
 - `invalid`: STEP weigert of breekt af (`planning`, met de reden van STEP), of een waarde in de projectie valt buiten
   haar domein (attribuut en veld in `fields`, het precieze veld eerst); ook een ongeldig moment van schrijven
   (`header.timestamp`);
-- `unsupported`: de planning van het bestand heeft iets wat dit profiel nog niet draagt: resources, toewijzingen, baselines, codes,
-  eigen velden, gebruikte taaktypes, de bibliotheek, het P6-bronarchief, en elk veld van project, kalender, taak of
+- `unsupported`: de planning van het bestand heeft iets wat dit profiel nog niet draagt: resources, toewijzingen, baselines,
+  de bibliotheek, het P6-bronarchief, en elk veld van project, kalender, taak of
   relatie dat geen veldgroep draagt (`unsupportedContent.ts`), met de veldnamen in `fields`;
 - `self-check`: de eigen uitvoer leest niet terug, of geeft een andere planning dan de planning van het bestand
   (`fields` noemt de paden van de eerste verschillen).
@@ -733,6 +821,13 @@ opslaan 8,14 en openen 3,36. Een schrijver die een invoer die niet canoniek is c
 nodig, en twee STEP-rondgangen kosten al ruim vier keer opslaan als IFC. Daarom meldt de proef opslaan en dwingt ze het
 niet af; het snelheidswerk is een eigen stap na deze PR (knownbug 2350).
 
+**Met F3-3** (een melding, op aia09-mp50 met een belasting rond 3 à 4, één run per head, CPU-tijd, mediaan van vijf):
+vóór F3-3 (`cbc340f1a`) opslaan 4,78 (1.104 tegen 5.283 ms) en openen 0,80 (1.375 tegen 1.100 ms); met F3-3 opslaan 4,33
+(1.185 tegen 5.129 ms) en openen 0,99 (1.257 tegen 1.243 ms). Met de velden van F3-3 gevuld op elke taak (constraint,
+deadline, notitie, code, eigen velden, kleur, werkregel en P6-id, plus rekenopties) opslaan 3,14 (3.634 tegen 11.413 ms)
+en openen 0,34 (4.518 tegen 1.555 ms): STEP zelf wordt met de extra psets trager. Die laatste planning staat niet in
+`check-ifcx-meting.ts`.
+
 ## Uitbreiden (F3-2 en F3-3)
 
 Elke node heeft één registratie in `NODES` (`nodes.ts`): zijn attributen met hun velden, de sleutels van het model die
@@ -752,6 +847,12 @@ hij draagt (`modelKeys`) en de domeinvelden per object (`objectKeys`). Daaruit v
   `STEP_CASES` (de R1-lus) en in `maximalPlan` of `variantPlan`: de veldproef, de R2-lus, de R3-lus en de proef die
   elk precies veld weghaalt, lopen over alle geregistreerde attributen en falen bij een veld zonder proefgegevens. Voor
   F3-2: een kostenresource met een toewijzing. Voor F3-3: een geval per nieuwe betekenis.
+- **Een veld op een bestaand object** (sinds F3-3) komt in het veldbestand van zijn gebied in `fields/`, dat met één
+  regel in de lijst van de kern staat (`TASK_FIELDS`, `DOCUMENT_FIELDS`, `CALENDAR_FIELDS`, `SEQUENCE_FIELDS`, met de
+  sleutels in de bijbehorende `*_KEYS_CARRIED`). De veldproef zoekt elk lid van een object in het eerste element van
+  een lijst, en de mutatieproef in de eerste drie objecten van een soort: daar zet `maximalPlan` de proefwaarden
+  (`withOtherFields` in `check-ifcx-kern.ts`). Een nieuwe sleutel in `IFC_SAVE_KEYS` krijgt een plek in
+  `IFCX_PLACE_OF_SAVE_KEY` (*De typepoort*).
 
 Geen eigen normalisatie, geen tabel van dubbele voorstellingen en geen uitzondering in de zelfcontrole: de precieze
 kant draagt wat STEP teruggeeft, en wat bij openen hoort, doet de laadgrens. Een nieuw attribuut hoeft aan de leeskant
@@ -759,5 +860,6 @@ geen eigen toets: de projectie is de toets (R4). De eigenschapsproef van R4 loop
 faalt bij een veld of vorm zonder uitgevoerde mutatie, en bij een vorm zonder geldige proefwaarde (`FORM_SAMPLES`).
 
 De proef is `tests/planning/check-ifcx-kern.ts`; de voorbeeldbestanden in `tests/fixtures/ifcx/eigen/` maak je opnieuw
-met `OPS_IFCX_FIXTURES_WRITE=1 bash tests/planning/run.sh check-ifcx-kern.ts`. De meting is
+met `OPS_IFCX_FIXTURES_WRITE=1 bash tests/planning/run.sh check-ifcx-kern.ts` (de BOM-proef leest het voorbeeldbestand
+vóór het opnieuw geschreven is; draai daarna nog één keer zonder de variabele). De meting is
 `tests/planning/check-ifcx-meting.ts`; met `OPS_IFCX_MEASURE=1` geeft ze ook de tabel per stuk.

@@ -1584,6 +1584,45 @@ en noem het in je rapport of PR-tekst.
     stuk één uur korter. De store schrijft meteen 1,875 d, maar de getekende rand blijft op woensdag 16:00; pas F5
     zet hem op 15:00. Proef uit de review van #1249, niet in de browser. — B
 
+2450. **Een tekst in een terugvalletter kan zonder melding uit de vector-PDF wegvallen als er een tweede terugvalletter
+    geladen is die niets tekent.** `paginateVectorToPdfBytes` (`src/services/print/paginateVector.ts`) laadt elke
+    terugvalletter (de `fallbackFonts` van de aanroeper en de CJK-aanbieders van een extensie) waarvan `covers` een
+    ongedekt teken raakt, en geeft na de eerste render alleen een letter met gebruikte tekens een `embed`.
+    `PdfVectorDraw2D.fillText` (`src/services/pdf/pdfVectorDraw2d.ts`) zet tekst langs de weg van de terugvalletters alleen
+    in de PDF als elke geladen letter een `embed` heeft (`cjkEmbedReady`). Nagespeeld met `paginateVectorToPdfBytes` en
+    één `fillText` (A4 staand, op de breedte), in twee opstellingen. (1) Rapportletter Carlito, Inter als `fallbackFonts`,
+    plus een aanbieder via `registerCjkFontProvider` met de Inter-bytes en een `covers` die voor elk teken waar geeft;
+    tekst `Fase 1 ↩ 2` (U+21A9 mist in Carlito, staat in Inter). Zonder die aanbieder heeft de laatste render één
+    tekstplaatsing, met de aanbieder nul, en de PDF komt er zonder fout. (2) Rapportletter Inter en aanbieders met
+    Noto Sans Coptic (`tests/planning/fixtures/fonts/`) en `covers` = de glyphs van die letter; tekst `Ⲁⲃⲅ fase`. Met één
+    aanbieder één plaatsing, met twee gelijke aanbieders nul, zonder fout. Op het blad staat de tekst dan niet, en er
+    komt geen rasterexport; de terugvalletter met tekens is dan wel ingebed. Treft de Gantt-afdruk en de tabelrapporten
+    (beide via `paginateVectorToPdfBytes`). Beide exportpaden (`exportGanttReportPdf.ts`, `ReportPanel.tsx`) geven zelf
+    hoogstens één terugvalletter mee (Inter, als de rapportletter niet Inter is); in de app treedt dit dus alleen op met
+    een extensie die een aanbieder registreert (`api.pdfFonts.register`). — B
+
+2451. **De dekking van een teken wordt voor beide gewichten één keer bepaald, met één gewicht.** `checkCoverage` en
+    `checkCoverageComplex` (`src/services/pdf/pdfVectorDraw2d.ts`) bewaren per teken één uitkomst voor gewoon en vet:
+    het gewicht van de eerste tekst met dat teken beslist. `collectCjkCodepoints` en in
+    `src/services/pdf/reportTextMeasure.ts` `fallbackIndexFor`, `needsFallback` en `splitFallbackRuns` kijken alleen in
+    de gewone letter, ook voor vette tekst. Bij de zes meegeleverde paren (Inter, Carlito, Liberation Sans, Serif en
+    Mono, Noto Sans Arabic) hebben gewoon en vet dezelfde tekenset (fontkit `characterSet`, nagemeten); voor een eigen
+    lettertype (`customReportFont.ts` kiest gewoon en vet per familie) en de vette letter van een CJK-aanbieder is dat
+    door niemand nagegaan. Mist het vette bestand een teken dat het gewone heeft, dan kan vette tekst in de PDF een leeg
+    vakje tonen zonder rasterexport; niet nagespeeld. — S
+
+2452. **Een teken dat de rapportletter mist en Noto Sans Arabic wel heeft, kan in een tekst zonder Arabisch of
+    Hebreeuws een vakje worden in de vector-PDF.** `checkCoverage` (`src/services/pdf/pdfVectorDraw2d.ts`) telt zo'n teken als
+    gedekt door Noto Sans Arabic, maar een tekst zonder Arabisch of Hebreeuws tekent `fillText` nooit met Noto. Zo blijft
+    zo'n teken buiten de ongedekte tekens van de eerste render, laadt `paginateVectorToPdfBytes`
+    (`src/services/print/paginateVector.ts`) daarvoor geen terugvalletter, en zet de rapportletter het op glyph 0.
+    Proef uit de review van #1252, met `renderReport` en de pagineerder in Node, niet in de browser: het meegeleverde
+    Zuidas-project, een taak hernoemd naar `Repère « lot A »` met de smalle vaste spatie U+202F binnen de
+    aanhalingstekens, Liberation Mono als rapportletter, de voortgangsweergave uit. De PDF kwam er zonder fout; de
+    paginastroom heeft voor beide smalle spaties glyph `0000`. Met een `✓` erbij in dezelfde export laadde Inter wel als
+    terugval en kwamen de spaties uit F4. Nagemeten met fontkit: Liberation Mono heeft U+202F niet, Noto Sans Arabic en
+    Inter wel. Zie ADR 0384. Issue #1255. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
@@ -1748,6 +1787,32 @@ en noem het in je rapport of PR-tekst.
       16:00 en vrijdag 08:00 tot 12:00, krijgt geen taaksignaal (`readTasks`) en promoveert dus niet; haar enkelvoudige
       werkdag komt van de eerste werkdag en toont de korte vrijdag niet. Door twee lezers in de code bevestigd, niet
       met een bronbestand nagespeeld. Issue #1228. — B
+
+2460. **Een XER-activiteit zonder geplande start op een kalender met lege `clndr_data` kan een andere duur krijgen
+      dan het bestand zegt.** `readXerProject` (`src/services/xer/xerReader.ts`) zet de start van zo'n activiteit op
+      de statusdatum en herstelt daarna de duur uit het venster van start tot `target_end_date` als dat hoogstens één
+      werkdag van `target_drtn_hr_cnt` afwijkt (ADR 0392 en 0394). Bij de niet-gestarte taak hieronder blijft de rest
+      `remain_drtn_hr_cnt`; bij een lopende `CP_Drtn`-taak met `complete_pct` rekent de lezer de rest met de bronduur
+      uit het bestand, niet met de herstelde duur (ADR 0394). Nagespeeld
+      met `readXER` op een fixture: kalender `C1` met lege `clndr_data` en `day_hr_cnt` 8, twee taken van 08:00 tot
+      17:00 waaruit de lezer de blokken 08:00 tot 12:00 en 13:00 tot 17:00 afleidt, `last_recalc_date` 2026-04-01
+      08:00, en een taak zonder `target_start_date` met `target_end_date` 2026-04-03 17:00 en 16 uur duur en rest. Die
+      taak krijgt `durationMinutes` 1440 en `remainingMinutes` 960; dezelfde taak met start 2026-04-02 08:00 houdt 960
+      en 960. Open vraag: of het venster de duur mag herstellen als de lezer de start zelf invulde. — B
+
+2461. **Een XER-activiteit met een `clndr_id` zonder gelezen kalender kan haar geplande kloktijden verliezen.**
+      `readXerProject` (`src/services/xer/xerReader.ts`) rekent zo'n activiteit met de projectkalender, maar telt
+      haar kloktijden als uursignaal voor het kalender-id uit de rij (`hourSignalCalendarIds`). Die kalender bestaat
+      niet, dus de projectkalender wordt geen uurkalender en de lezer leest de geplande datums zonder tijd; de
+      activiteit houdt `calendarId` met het ontbrekende id (ADR 0392). Nagespeeld met `readXER` en `payloadFromImport`
+      op een fixture: projectkalender `C1` met lege `clndr_data` en `day_hr_cnt` 8, `last_recalc_date` 2026-06-01
+      08:00, één activiteit van 2 uur op `clndr_id` `C2` (niet in CALENDAR) van 2026-06-01 10:30 tot 12:30. `readXER`
+      geeft start en einde 2026-06-01 zonder tijd, na het laden staan ze op 08:00 en 16:00, en `xer.calendarIssues` is
+      leeg. Met `clndr_id` `C1` blijven 10:30 en 12:30 staan. De tijden vallen alleen weg zolang de projectkalender in
+      dagmodus blijft: geeft een andere activiteit `C1` wel een uursignaal, dan houdt ook de activiteit op `C2` haar
+      10:30 en 12:30 (proef uit de review van #1256). De berekende datums zijn niet nagespeeld. In de drie
+      XER-testbestanden van de repo (`tests/browser/fixtures/xer/`, samen vier taken) wijst geen taak naar een
+      ontbrekende kalender; hoe vaak P6 dat exporteert, is niet nagegaan. — B
 
 ## Bibliotheek, bezetting, extensies, AI
 
@@ -2090,12 +2155,26 @@ en noem het in je rapport of PR-tekst.
      P-stuk) schrijft wel, en een opslag zonder wijziging in de planning geeft de bronbytes terug. Richting: het gedeelde hulpstuk één keer schrijven en elke verwijzer laten wijzen naar die ene
      regel, en alleen splitsen als de planner het veld van één verwijzer wijzigt. Review ronde 2 van #1205 (Sol);
      `check-ifc-foreign-regel-c.ts`. — B
-2370. **Doorrekenen op een Bonsai-bestand verschuift geen enkele datum.** Flag aan,
-      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: na `schedule()` krijgt *Wand A* (5 dagen) een vroege en late start
-      en een vroeg en laat einde die alle vier op 2026-02-02 09:00 staan. Het ligt niet aan de opslag: na heropenen ziet de
-      planner wat hij zag. Gezien door de bouwer van #1205 tijdens de vaste lijst gewone bewerkingen; niet uitgezocht of het
-      een fout is of bedoeld gedrag (een taak uit een ander programma wordt bij inlezen handmatig gepland). Wordt apart
-      uitgezocht (besluit van de technisch eigenaar, 25 november 2026). — S
+2370. **Een IFC-kalender zonder werktijden rekent met nul werktijd.** Ook met de flag uit (issue #1251). Een
+      `IfcWorkCalendar` zonder werkblokken (Bonsai schrijft `WorkingTimes = $`) met een taak met werkduur op een
+      kloktijd die niet 07:00 is: na F5 eindigt elke zulke taak op haar begin, zonder melding. Voorbeeld:
+      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`, waar *Wand A bouwen* (5 dagen) een vroege en late start en een vroeg
+      en laat einde krijgt die alle vier op 2026-02-02 09:00 staan. Het ligt niet aan de opslag: na heropenen ziet de
+      planner wat hij zag. Oorzaak: `applyHourModeIFC` (`src/services/ifc/ifcReader.ts`) maakt van de kalender een
+      urenkalender en houdt de lege werkblokken (`preferCanonicalWhenEmpty = true`); de lezers voor MSPDI, P6 XML,
+      `.mpp` en XER vallen daar terug op 07:00–16:00. Een stille terugval in de IFC-lezer is drie keer geprobeerd (PR
+      #1253, geparkeerd) en verschoof elke keer een planning die op main goed rekent: (1) een eigen bestand van
+      v2026.8.1 met een lege werkweek en twee werkende uitzonderingen, waarvan de taak op 3 februari 10:00 eindigde in
+      plaats van 9 februari 12:00; (2) een eigen bestand van v2026.8.1 met een werkweek zonder werkblokken en twee
+      kloktijdtaken (`ELAPSEDTIME`) met een relatie einde–begin, waarvan de tweede naar maandag 07:00 schoof in plaats
+      van direct aan te sluiten; (3) een geldig IFC4-bestand uit IfcOpenShell met `WorkingTimes = $` en dezelfde
+      kloktijdketen. De reden: kloktijdtaken sluiten op een kalender zonder werkblokken direct aan, en met werkblokken
+      zet de relatie de opvolger op het volgende werkblok; zolang de lezer stil een werkweek toevoegt, verschuift er
+      een bestand dat nu goed rekent. De richting is daarom een melding aan de planner in plaats van een stille
+      werkweek; die keuze is van de eigenaar en staat op de eindlijst van #804, vóór de flag standaard aan gaat
+      (besluit van de technisch eigenaar, 25 november 2026). De proefbestanden en de proef staan op de branch van
+      #1253. Niet nagegaan: of werktijden instellen in de kalenderdialoog en opnieuw rekenen het Bonsai-bestand goed
+      laat rekenen. — B
 2355. **VERVOLG (#804 fase 2, PR 8): Ctrl+Z na het opslaan zet een lid niet terug in de relatie van een ander programma.**
       Flag aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: de toewijzing van de Metselploeg aan *Wand A bouwen* wissen
       en opslaan haalt de ploeg uit `#120` (de `IfcRelAssignsToProcess` van Bonsai met de ploeg en de wand); `#120` houdt
@@ -2128,9 +2207,10 @@ en noem het in je rapport of PR-tekst.
       "2026-02-06T17:00" na herlezen in plaats van "2026-02-02T09:00"`, en zo ook `lateFinish`. Main (`4f9c435c9`) weigerde
       dezelfde bewerking eerder, met `gemengde-relatie` op `#122` (gemeten op 25 november 2026); sinds #1262 haalt de merge
       de taak uit `#122` en komt hij bij deze controle. Een taak buiten `#122` met een taaktijd weigert net zo; *Stucwerk*
-      (zonder taaktijd) schrijft. Geen verlies (de merge weigert), wel een opslag die niet lukt. Vermoeden, niet nagegaan:
-      het einde in de vorm van de bron (`sourceFormWhereUnchanged`) leest na heropenen met de andere kalender anders, en
-      doorrekenen zet de datums van *Wand A* op 2026-02-02 09:00 (2370). Richting: eerst 2370 uitzoeken; daarna een andere
+      (zonder taaktijd) schrijft. Geen verlies (de merge weigert), wel een opslag die niet lukt. De datums komen uit
+      2370: de kopie van de projectkalender van Bonsai heeft geen werktijden, dus doorrekenen zet *Wand A* met nul
+      werktijd op 2026-02-02 09:00; het einde in de vorm van de bron (`sourceFormWhereUnchanged`) leest na heropenen dan
+      anders. Richting: eerst de keuze van 2370 (een melding in plaats van een stille werkweek); daarna een andere
       kalender laten tellen als wijziging van de datumslots van die taak (regel A), zodat de writer ze in zijn eigen vorm
       schrijft. Vastgelegd in `tests/planning/check-ifc-foreign-gemengde-relaties.ts` met de reden van vandaag (een andere
       reden, of schrijven, maakt de proef rood); ook reeks 804a stap 2 en 804b stap 5 daar. — B
@@ -2209,6 +2289,62 @@ en noem het in je rapport of PR-tekst.
      hetzelfde getal. `isPoolNewer`
      vergelijkt dan alleen nog op `modifiedAt`. Nagespeeld met een los script; zo'n nummer komt alleen uit een
      zelfgemaakt bestand. — B
+2470. **De weigering van `levelingDelayMinutes` zegt dat er geen leestool voor is, maar `planner_get_task` geeft het
+     veld.** `REJECT_HINTS` in `src/services/mcp/tools/taskFields.ts` weigert `levelingDelayMinutes` in `fields` van
+     `planner_update_tasks` terecht, maar licht dat toe met "no read-tool counterpart, see `levelingDelay`". `getTask` in
+     `src/services/mcp/tools/readTools.ts` geeft `levelingDelayMinutes` mee zodra het gezet is. Nagespeeld via de
+     dispatcher: `levelingDelayMinutes: 30` gelezen met `planner_get_task`, en bij terugschrijven kwam de weigering met
+     die toelichting. Alleen de toelichting is fout. — B
+2471. **Een gelezen voortgang ongewijzigd terugschrijven kan haar veranderen en een lopende taak afmelden.** `pct` in
+     `src/services/mcp/tools/readTools.ts` geeft `Math.round(completion × 100)`, voor `prog` in het overzicht en in
+     `planner_list_tasks` en voor `progress.completion` in `planner_get_task`; `progress.completion` van
+     `planner_update_tasks` neemt elk getal van 0 tot en met 100 aan (`applyProgressUpdate` in
+     `src/state/mcpValidation.ts`). Proef uit de review van #1261, via de dispatcher met de app-store: een gestarte taak
+     zonder werkelijk einde op 99,6 % (ingelezen via de verwerking van een voortgangsblad) leest als `100`; het gelezen
+     `progress`-blok ongewijzigd naar `planner_update_tasks` zet de taak van `STARTED` op `COMPLETED`, het restwerk op
+     nul, en de app vult een werkelijk einde in. Een taak op 33,33 % werd bij terugschrijven 33 %. Onder 0,5 % ontbreekt
+     `prog` op de rij. Issue #1263. — B
+2472. **Een onderbreking die niet op een hele eenheid valt, leest als een fractie die `planner_set_task_splits`
+     weigert.** `interruptionsOf` in `src/services/mcp/tools/splitFields.ts` geeft de onderbrekingen van een wélgevormde
+     gatenlijst met drie decimalen, zonder `splitsEditable: false`. `planTaskSplits` weigert elke niet-hele `after*` of
+     `pause*` ("nothing is silently rounded") en vervangt altijd de hele lijst, dus zo'n taak kan via MCP geen
+     onderbreking toevoegen of wijzigen zonder die bestaande op te geven. Nagespeeld langs twee routes: een gat na 4 uur
+     op een dagtaak met 8 uur per dag leest als `afterWorkDays: 0.5`; en de opslagroute van het splitsgebaar in de Gantt
+     op kwartierzoom bewaarde op een urentaak een pauze van 15 minuten na 2 uur en 15 minuten werk, die leest als
+     `afterWorkHours: 2.25` en `pauseHours: 0.25`. In beide gevallen weigerde de schrijftool de gelezen waarden en bleef
+     de pauze staan. Issue #1264. — B
+2473. **Een onderbreking in verricht werk blokkeert het toevoegen van een nieuwe onderbreking via MCP.**
+     `planTaskSplits` in `src/services/mcp/tools/splitFields.ts` haalt alle bestaande gaten weg en zet elke opgegeven
+     onderbreking opnieuw met `splitAt`; die weigert een positie vóór het verrichte werk (`before-completed-work`,
+     `completedWorkMinutes`). Een al verstreken pauze staat in het verrichte werk, dus een lijst die haar meestuurt, wordt
+     geweigerd; een lijst zonder haar wordt aangenomen en wist haar. Nagespeeld via de dispatcher: een dagtaak van tien
+     werkdagen
+     met een pauze na dag drie, voortgang 60 %, de gelezen onderbrekingen plus een nieuwe na dag acht naar
+     `planner_set_task_splits`: geweigerd, de opgeslagen lijst bleef ongewijzigd. Dat geldt ook bij hele werkdagen.
+     Issue #1264. — B
+2474. **`actualFinishAdjusted` schrijft elk verschil met de werkelijke finish toe aan onwerkbare tijd.** `getTask` in
+     `src/services/mcp/tools/readTools.ts` geeft het blok zodra een voltooide taak een `actualFinish` heeft die niet
+     gelijk is aan `earlyFinish`, met een reden die zegt dat de werkelijke finish buiten de werktijd van de kalender valt
+     en naar `planner_update_calendar` verwijst. Nagespeeld met een geïmporteerde, voltooide P6-taak met een werkelijk
+     einde op 8 mei 15:00, binnen werktijd: de berekening plaatste haar op de peildatum, 1 juni 08:00 (de tak voor een
+     voltooide taak in `CPMSolver.ts`, `isPinnedComplete`), en de leestool gaf toch die reden. Het advies kan een
+     assistent zo naar een onnodige kalenderwijziging sturen. — B
+2475. **Een relatie zonder lag leest via MCP als `lag: ""`, en die waarde weigeren de schrijftools.** `lagLabel` in
+     `src/services/mcp/tools/sequenceFields.ts` geeft bij nul dagen een lege tekst; `parseLag` neemt een lege tekst
+     niet aan. Proef uit de review van #1261, via de dispatcher: twee taken gekoppeld met de standaardrelatie lezen in
+     `planner_get_task` als `type: "FS", lag: ""`; geeft een assistent beide waarden door, dan weigeren
+     `planner_add_dependencies` en `planner_update_dependencies` het item en blijft de doelrelatie ongewijzigd. Met
+     `lag: 0` slaagt het. Laat de assistent `lag` weg, dan maakt `planner_add_dependencies` een relatie met nul
+     dagen, maar houdt `planner_update_dependencies` de bestaande lag: een SS-relatie met `+2d` werd zo `FS+2d`, met
+     de opvolger op 10 juni 07:00 in plaats van 8 juni 07:00. Een relatie met 240 minuten lag leest ook als `lag: ""`
+     (knownbug 354), dus de lege waarde zegt niet dat de lag nul is. Issue #1269. — B
+2476. **Een kalender uit een IFC met een pauze kan via MCP worden geweigerd op de netto uren per dag.**
+     `netHoursReason` in `src/services/mcp/tools/calendarResourceTools.ts` eist dat `hoursPerDay` gelijk is aan de
+     werktijd min de pauze. Proef uit de review van #1272, via de dispatcher: de fixture
+     `tests/planning/fixtures/periode-0730.ifc` zonder `ifcTimePeriods` leest met `planner_get_calendars` als 07:30 tot
+     16:00 met 60 minuten pauze en `hoursPerDay: 8`; de schrijfvalidatie rekent 7,5 uur en `planner_update_calendar`
+     met `create: true` weigert de gelezen kalender in een leeg document. Er gaat niets verloren; de kalender is zo
+     alleen niet over te zetten (ADR 0104). — B
 
 ## Bestanden en herstel
 
@@ -4184,8 +4320,43 @@ en noem het in je rapport of PR-tekst.
      gebouwmodel heeft daar de vervanging met een tweede vergelijking vlak vóór het plaatsen
      (`replaceOwnPathWithRecovery`); die route is voor een gewone planning bewust niet overgenomen (opdracht #804). Bij
      een versie die het tabblad zelf schreef (PR #1194) vervalt de doelscan, maar de toets blijft de laatste lezing vóór
-     het schrijven: hetzelfde gat als hier beschreven, niet groter. —
-     S (code gelezen, niet nagespeeld)
+     het schrijven: hetzelfde gat als hier beschreven, niet groter. Het geldt ook voor een eigen bestand met een UTF-8-BOM
+     (knownbug 2212, PR #1213): dat krijgt dezelfde laatste lezing vóór het schrijven als hetzelfde bestand zonder BOM. —
+     S (code gelezen; voor het BOM-bestand nagespeeld in `check-ifc-bom-eigen-bestand.ts`, gevallen `… op het doel bij
+     schrijven`, en zonder opslagworker `… bij hash`: daar hasht main de te schrijven bytes ná de laatste lezing, en
+     overschrijven main en de PR allebei)
+
+2358. **Ctrl+S weigert een eigen IFC met een UTF-8-BOM als het tabblad de versie van dat bestand niet kent (#804, flag aan).**
+     Sinds PR #1213 gedraagt een eigen bestand met een BOM zich bij Ctrl+S, *Opslaan* in de sluitvraag en Automatisch
+     opslaan als hetzelfde bestand zonder BOM op main, zolang `knownTargetFingerprint` bij het begin van de opslagpoging
+     de versie met BOM kent (`utf8Bom`, `ownBomVersion` in `writeActiveDocument` en `fileAutoSave.ts`). Kent het tabblad de
+     versie niet (na crashherstel, na een mislukte schrijfactie naar het eigen pad, of als de flag pas na het openen
+     aanging), dan blijft de BOM de doelscan onleesbaar maken: Ctrl+S weigert met *onleesbaar doel*, waar main hetzelfde
+     bestand zonder BOM schrijft. Opslaan als naar een nieuwe naam werkt; heropenen geeft het tabblad de versie weer.
+     Nagespeeld op pad en handle (`check-ifc-bom-eigen-bestand.ts`, grensgeval `onbekende versie na flag uit en aan`).
+     Voorwaarde voor standaard aan: elk tabblad kent zijn versie zodra de flag aan is, ook voor crashherstel en een
+     mislukte schrijfbeurt.
+     Verwante grens (review van #1213 rondes 2 en 3), als grensgevallen in dezelfde proef: de toestemming is de
+     vastgelegde eigen versie met BOM. Schrijft een ander programma een andere planning mét BOM naar het doel, dan weigeren
+     main en de PR allebei met *onleesbaar doel*, ook bij een flagwissel (fixronde 3). Vergelijk je met main in de
+     wereld zonder BOM, waar die ander dezelfde planning zónder BOM schreef, dan meldt main *doel gewijzigd* en de PR
+     *onleesbaar doel*: de PR krijgt in beide gevallen dezelfde bytes. Zet een ander de geopende planning terug zónder
+     BOM, dan schrijft main verder (de bytes zijn zijn bekende versie) en weigert de PR met *doel gewijzigd* (de bekende
+     versie begint met een BOM). In al deze gevallen blijft de versie van de ander staan. Met geweigerd schrijfrecht in de
+     browser (review van #1213 ronde 4) geldt hetzelfde voor de terugval: staat er een andere planning met BOM op de oude
+     handle, dan weigert de PR die handle als *onleesbaar doel* vóór de bestandskiezer; main, met dezelfde planning
+     zonder BOM, opent de kiezer en slaat op onder de nieuwe naam. Beide oude bestanden blijven staan en Opslaan als
+     werkt. Grensgeval in `check-ifc-bom-eigen-bestand.ts`. — B
+
+2359. **Ctrl+S weigert een eigen sitebestand met een UTF-8-BOM als onleesbaar doel (#804, flag aan).** Reproductie
+     (review van #1213 ronde 2; nagespeeld in `check-ifc-bom-eigen-bestand.ts`, grensgeval `site`): een site
+     (`window.openaecHost`) met een eigen planning met BOM als versie `v1`; openen van de site, één taak hernoemen,
+     Ctrl+S. Main slaat hetzelfde bestand zonder BOM op als `v2` (met `baseVersion: 'v1'`); de PR weigert met
+     *onleesbaar doel* voordat de host een aanroep krijgt. De regel van #1213 geldt voor de site dus nog niet. Oorzaak:
+     een sitebestand krijgt geen `knownTargetFingerprint` (`onOwnFile` en `guardedKnownTarget` slaan de site bewust
+     over), dus het tabblad weet niet dat zijn eigen versie met een BOM begon. Richting (reviewer): de eigen siteversie en
+     het bestaande hostcontract (`baseVersion`) de toestemming laten dragen, en bij het openen onthouden dat die versie
+     een BOM had. Voorwaarde voor standaard aan. — B
 
 2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): de eerste opslag na openen leest het eigen bestand
      nog drie keer, een opslag zonder bekende versie twee keer.** Sinds PR #1194 vervalt de doelscan als op het eigen pad of
@@ -4387,14 +4558,6 @@ en noem het in je rapport of PR-tekst.
       werk van een toewijzing. Of een schrijver met `P2D` twee werkdagen of 48 uur bedoelt, en of zo'n schrijver bestaat,
       is niet nagegaan; daarvan hangt af of 2880 minuten klopt. — B
 
-2011. **Een veld dat op een MSPDI-taak ontbreekt, kan de lezer uit een genest element halen.** `getElementText` in
-      `src/services/msproject/mspdiReader.ts` neemt het eerste element met die naam ergens onder de taak
-      (`descendantText`), ook binnen `<PredecessorLink>` of `<Baseline>`. Nagespeeld met een script via `readMSPDI`, en
-      in de review van #1200 ook via `parseOpenedFile`: een taak zonder `<Type>` met een `<PredecessorLink>` met
-      `<Type>2</Type>` krijgt `mspTaskType` `FIXED_WORK`, en een taak zonder `<Duration>` met een `<Baseline>` met
-      `<Duration>PT40H0M0S</Duration>` krijgt 2400 minuten. Volgens die review maakt het MSPDI-schema `<Type>` en
-      `<Duration>` op een taak optioneel, dus geldige XML van een andere schrijver kan dit raken; of MS Project zelf die
-      velden weglaat, is niet nagegaan. Welke andere velden zo kunnen verschuiven, ook niet. — B
 2249. **VERVOLG (#1199): de melding bij het wissen komt alleen bij taken en resources.** `notifyForeignLinksDropped`
       (`src/state/foreignLinksNotice.ts`) hangt aan `deleteTask`, `deleteTasksBulk`, `dissolveTasksBulk`,
       `removeResource` en Opnieuw van zo'n stap. Wist de planner een relatie (`removeSequence`) of een kalender (de
@@ -4587,6 +4750,31 @@ en noem het in je rapport of PR-tekst.
       terugvalblokken daarvan af, dan kan die datum na export en heropenen andere werktijden dragen dan de motor in de
       app gebruikte (aansluitende blokken voegt de lezer samen). Gelezen in de code. — B
 
+2462. **Een XER-activiteit zonder geplande start en einde kan na openen een gepland einde in 1901 krijgen.** Zonder
+      statusdatum en `PROJECT.plan_start_date` krijgt zo'n activiteit in `readXerProject`
+      (`src/services/xer/xerReader.ts`) de tijdelijke start `0001-01-01` en hetzelfde einde.
+      `resolveMissingScheduleDates` (`src/services/importDates.ts`) vervangt de start door het anker, maar
+      `finishFromStartAndDuration` rekent onder meer geen einde voor een positieve urentaak op een uurkalender of voor
+      een duur die geen geheel aantal dagen is, en dan blijft het einde `0001-01-01`; een nulduur en een taak in de
+      dagenmaat met hele werkdagen en een start zonder kloktijd krijgen wel een einde (proef uit de review van #1256). De openingsmelding telt alleen de ontbrekende start
+      (`xerMissingPlannedStarts`). Nagespeeld met `readXER` en `payloadFromImport` op een fixture: kalender `C1` met
+      lege `clndr_data`, PROJECT zonder `last_recalc_date` en `plan_start_date`, een taak van 8 uur op 2026-06-01 en
+      een taak van 2 uur zonder `target_start_date` en `target_end_date`. Die tweede taak krijgt in `readXER` start
+      2026-06-01 en einde `0001-01-01`, en na het laden start 2026-06-01T08:00 en einde 1901-01-01T16:00. De
+      berekende datums zijn niet nagespeeld. Issue #1258. — B
+
+2480. **Een `.mpp`-import gebruikt de tijdstempels van irregulier werk niet, en slaat verricht overwerk over.**
+      `readAssignmentTimephasedRaw` (`src/services/mpp/mppEntities.ts`) leest de blokken `ActualIrregularWork` (87)
+      en `ActualOvertimeWork` (51), maar `computeShiftedAssignmentPeriods` en `decodeAssignmentWorkMinutes`
+      (`src/services/mpp/mppReader.ts`) decoderen alleen `actualRegularWork` en `remainingRegularWork`; 87 en 51
+      tellen alleen mee in `hasAnyTimephasedData` (ADR 0410). Het importverslag (`mppImportLoss.ts`) noemt deze blokken
+      niet. Categorie 87: nagespeeld met een publiek MS Project-bestand (MPXJ issue 929) met 126 irreguliere periodes
+      voor één toewijzing. De import gebruikte hun tijdstempels niet en meldde dat niet; de contour en de invoer voor
+      de wandeling bevatten allebei 3369 werkminuten, gelijk aan het gepubliceerde totaal aan verricht werk. Verloren
+      gaat daar de tijdsverdeling van de irreguliere periodes, niet het werk. Categorie 51: dat het blok wordt
+      overgeslagen, staat in de code; of apart geboekt overwerk in een gewoon bestand daardoor in de contour of de
+      wandeling ontbreekt, is niet vastgesteld. — B (87), S (51)
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
@@ -4616,6 +4804,20 @@ en noem het in je rapport of PR-tekst.
       artikel `public/docs/es/howto-feestdagen-genereren.md` toont de oude landenlijst. De Help kiest dit
       artikel boven de bijgewerkte Engelse versie. Bevestigd in reviewronde 1. Werk het bij via de
       bestaande vertaalroute voor Help. — B
+
+2011. **Duur, datums en overige velden van een MSPDI-taak kunnen nog uit een genest element komen.**
+      `getElementText` in `src/services/msproject/mspdiReader.ts` neemt het eerste element met die naam ergens onder
+      de taak (`descendantText`), ook binnen `<PredecessorLink>` of `<Baseline>`. Sinds #1202 leest `Type` van een taak
+      alleen uit de directe kinderen van `<Task>`, en `Duration` eerst daar; ontbreekt de taakduur of is ze leeg, dan
+      valt de lezer terug op die zoekwijze en kan de duur uit een `<Baseline>` komen. Nagespeeld met een script via
+      `readMSPDI`, en in de review van #1200 ook via `parseOpenedFile`: een taak zonder `<Duration>` met een
+      `<Baseline>` met `<Duration>PT40H0M0S</Duration>` krijgt 2400 minuten. `Start`, `Finish` en de andere velden
+      lezen nog via `descendantText`, dus een taak zonder eigen `Start` kan `Baseline/Start` oppakken (net als
+      `TimephasedData`-datums). De kalenderkeuze (uurmodus), het startanker van de werkverdeling en de betekenis van
+      een einddatum leunen daarop; daarom is dat deel van de lezer bewust niet veranderd. Volgens de review van #1200
+      maakt het MSPDI-schema `<Duration>` op een taak optioneel, dus geldige XML van een andere schrijver kan dit
+      raken; of MS Project zelf dat veld weglaat, is niet nagegaan. Welke andere velden zo kunnen verschuiven, ook
+      niet. — B
 
 ## Teksten en helpteksten
 
@@ -4779,17 +4981,6 @@ en noem het in je rapport of PR-tekst.
      weer in dezelfde verwerking belanden, en is *Verwerpen* niet bereikbaar. Geen gevolg van PR #1127. Bevestigd via de
      code en de echte herstelcallback (reviewer van #1127); een processtop is niet opgewekt. — B (code en proef van de
      reviewer; geen processtop nagespeeld)
-
-2212. **Ctrl+S naar een bestaand IFC met een UTF-8-BOM weigert met de flag aan (#804).** Sinds fixronde 1 van #1184 opent
-     een IFC met een BOM vóór de kop met de flag `ifcForeignContent` aan (de scanner en de oude-kopherkenning van de
-     C/A/V-scan slaan een BOM op byte 0 over); main weigerde het openen. De doelcontrole houdt bewust de uitkomst van main:
-     een bestaand doel dat met een BOM begint en geen model heeft, is 'unreadable' (`targetForeignScan.ts`, `targetOf`),
-     want anders zou de gewone schrijver (zonder BOM) een bestand overschrijven dat main liet staan (review van #1184
-     ronde 2). Daardoor weigert Ctrl+S van een geopend gewoon document met BOM naar zijn eigen bestand
-     (`documentTargetCheck` → `refusedWriteTarget`, regel 2, melding "onleesbaar doel"); Opslaan als naar een nieuwe naam
-     gaat wel. Met de flag uit verandert er niets. Richting: het eigen bestand van het document met dezelfde lengte en
-     SHA-256 als de geopende bron als doel toelaten, en de BOM bij de gewone schrijver bewaren. Voorwaarde voor standaard
-     aan. — B (code en de proef van de doelcontrole, `check-ifc-foreign-target.ts` 9c; Ctrl+S zelf niet nagespeeld)
 
 2360. **Bekende grens (#804, flag aan): buiten "datums zoals opgeslagen" ziet `planning-na-openen` een verkeerde of
      ontbrekende waarde in een rekenslot, en een onterecht werkelijk einde of percentage op een fase, niet als de writer die
@@ -6188,7 +6379,7 @@ en noem het in je rapport of PR-tekst.
      (GPT-6.1-Sol, xhigh, VERVOLG). Voorstel: de werkelijke glyphplaatsing toetsen bij het verdere fontwerk. — B
 
 934. **De tekstlaag van een PDF-rapport is niet trouw aan de bron voor Arabisch en voor sommige ligaturen.**
-     `pdfVectorDraw2d.ts:547–571` zet de geshapte glyphs rechtstreeks in de PDF (vooral regel 566). `pdftotext` geeft de
+     `fillTextComplex` (`pdfVectorDraw2d.ts`) zet de geshapte glyphs rechtstreeks in de PDF. `pdftotext` geeft de
      Arabische naam dan niet als de oorspronkelijke tekst terug, en met Carlito wordt `bouwlogistiek` in een gemengde naam
      `bouwlogis ek`. Op het blad staat het woord wel goed; kopiëren en zoeken in de PDF gaan mis. Zat al in main en
      verandert niet door #847 (24 PDF's per letter en richting byte-gelijk uitgelezen op merge-base en #847). Uit
@@ -7183,6 +7374,13 @@ en noem het in je rapport of PR-tekst.
      gemeten, niet voor een grote eigen en niet voor een grote vreemde bron: de meting paste niet in het rekenslot van
      deze ronde. Richting: één grote eigen en één grote vreemde bron meten (`measure:large-plans` meet opslaan, niet deze
      import). Gemeld door de review van #1219 ronde 2 (Sol, VERMOED). — S
+2246. **VERVOLG (#804, F3-3): de velden van F3-3 hebben geen gedeelde projectie.** Rekenopties, rekenprofiel, codes,
+     eigen velden, werksoorten, constraints, notities, koppelingen en de MSP- en P6-velden staan alleen in de precieze
+     kant (`openaec::ops::`); een ander programma ziet ze in `openaec::planning::activity` niet. IFC 4.3 heeft er in de
+     gedeelde attributen geen woorden voor, behalve misschien de naam van een eigen werksoort (`IfcTask.ObjectType`, die
+     STEP al schrijft). Richting: met de afspraken over de gedeelde schema's (ontwerp §5.3, §11) bekijken of
+     `objectType` in `openaec::planning::activity` komt; dan schrijft `projection.ts` de naam uit de werksoort van de taak.
+     Gezien bij het bouwen van F3-3 (`src/services/ifc/ifcx/fields/`). — S
 
 2350. **Voorwaarde vóór "IFCX standaard aan": opslaan als IFCX hoogstens vier keer IFC en hoogstens 4 s bij 10.000 taken.**
      Besluit van de technisch eigenaar (#1183, ronde 7b), letterlijk: "De grens van vier op openen blijft hard. Opslaan
@@ -7253,6 +7451,15 @@ en noem het in je rapport of PR-tekst.
      mutaties van de kernproef; de vorige head noemde het veld). Richting als het nodig wordt: de domeinen in de
      veldtabel nauwer maken waar STEP een waarde laat vallen (een fractie in een minutenveld); geen toetsen per object
      die STEP nabootsen, want die sluit R6 uit. Gemeten in #1183 ronde 8. — B
+
+2363. **VERVOLG (#804, F3-3): een notitie of externe koppeling met een lid dat het profiel niet kent, slaat niet op als
+     IFCX.** STEP bewaart notities en koppelingen als JSON in een pset en geeft ze bij lezen met elk lid terug
+     (`task.notes = parsed` en `storedExternalLinks` met `...raw` in `ifcPsets.ts` en `src/engine/externalLinks.ts`).
+     IFCX draagt alleen de leden van het type (`taskNoteFields.ts`), dus de zelfcontrole weigert zo'n planning met
+     `self-check` en het veld (`tasks[1].notes[0].prioriteit: "hoog" → afwezig`); niets gaat stil verloren. De app maakt
+     zulke leden zelf niet; ze kunnen uit een extensie of een met de hand veranderd bestand komen. Richting als het nodig
+     wordt: de onbekende leden als tekst in het precieze veld meenemen, of ze bij de laadgrens laten vallen zoals STEP
+     dat bij andere JSON-psets doet. Nagegaan met een script op het voorbeeld `10-villa-wassenaar.ifc`. — B
 
 2365. **De doelcontrole van IFCX classificeert een onbekend bestaand doel met een volledige lezing.** Schrijft een
      IFCX-document naar een bestaand doel dat niet zijn eigen bekende versie is (Opslaan als over een bestaand `.ifcx`, of

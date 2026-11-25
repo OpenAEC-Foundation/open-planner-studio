@@ -631,30 +631,31 @@ await check('stop van de bewaking × een onleesbaar bestand: dezelfde stop, en h
   } finally { stopped.ipc.dispose(); }
 });
 
-await check('de flag gaat uit terwijl de vergelijking loopt: Automatisch opslaan legt geen stop vast en Ctrl+S weigert niet', async () => {
+await check('de flag gaat uit terwijl de vergelijking loopt: de poging houdt de stand van haar begin, dus Automatisch opslaan stopt en Ctrl+S weigert; de volgende poging loopt met de flag uit', async () => {
   const ipc = desktop();
   try {
+    const other = sameSizeOtherContent(plainBytes());
     const autoPath = fileAt('tijdens-auto.ifc', plainBytes());
     const { store: auto } = await openAt({ kind: 'path', path: autoPath }, plainBytes());
     const controller = autoSave(auto);
-    const work = edit(auto);
-    writeFileSync(autoPath, sameSizeOtherContent(plainBytes()));
+    edit(auto);
+    writeFileSync(autoPath, other);
     ipc.once(/^plugin:fs\|read_file$/, () => { auto.setState(s => { s.ui.featureFlags = {}; }); });
     await controller.flush();
-    assert(holds(autoPath, work), 'de ronde schrijft zoals main');
-    assert.equal(auto.getState().isDirty, false);
-    assert.equal(notices(auto, AUTOSAVE_CHANGED), 0);
+    assert.deepEqual(new Uint8Array(readFileSync(autoPath)), other, 'de ronde laat de versie van de ander staan');
+    assert.equal(auto.getState().isDirty, true);
+    assert.equal(notices(auto, AUTOSAVE_CHANGED), 1);
     const later = edit(auto);
     await controller.flush();
-    assert(holds(autoPath, later), 'en er staat geen stop');
+    assert(holds(autoPath, later), 'de volgende ronde begint met de flag uit en schrijft zoals main');
     const savePath = fileAt('tijdens-ctrl-s.ifc', plainBytes());
     const { store } = await openAt({ kind: 'path', path: savePath }, plainBytes());
-    const saved = edit(store);
-    writeFileSync(savePath, sameSizeOtherContent(plainBytes()));
+    edit(store);
+    writeFileSync(savePath, other);
     ipc.once(/^plugin:fs\|read_file$/, () => { store.setState(s => { s.ui.featureFlags = {}; }); });
-    assert.equal(await ctrlS(store), true);
-    assert(holds(savePath, saved));
-    assert.deepEqual(errors(store), []);
+    assert.equal(await ctrlS(store), false);
+    assert.deepEqual(new Uint8Array(readFileSync(savePath)), other, 'Ctrl+S laat de versie van de ander staan');
+    assert.deepEqual(errors(store), ['notifications.ifcForeignTargetChanged']);
   } finally { ipc.dispose(); }
 });
 
@@ -1074,6 +1075,100 @@ for (const from of ['opened', 'written'] as const) {
     });
   }
 }
+
+const BOM = [0xef, 0xbb, 0xbf] as const;
+const withBom = (data: Uint8Array) => new Uint8Array([...BOM, ...data]);
+const hasBom = (data: Uint8Array) => BOM.every((b, i) => data[i] === b);
+const UNREADABLE_EXPORT = 'notifications.ifcUnreadableTargetExport';
+const KINDS = ['pad', 'handle'] as const;
+type Kind = typeof KINDS[number];
+let bomFiles = 0;
+const placed = (kind: Kind, data: Uint8Array) => {
+  const name = `bom-${++bomFiles}.ifc`;
+  if (kind === 'pad') {
+    const path = fileAt(name, data);
+    return { ref: { kind: 'path', path } as FileRef, bytes: () => new Uint8Array(readFileSync(path)), put: (next: Uint8Array) => writeFileSync(path, next) };
+  }
+  const handle = newHandle(data);
+  return { ref: handleRef(handle), bytes: () => handleFiles.get(handle.name)!, put: (next: Uint8Array) => { handleFiles.set(handle.name, next); } };
+};
+const onPlatform = async (kind: Kind, action: (files: ReturnType<typeof desktop> | null) => Promise<void>) => {
+  const ipc = kind === 'pad' ? desktop() : null;
+  try { await action(ipc); } finally { ipc?.dispose(); }
+};
+const rename = (store: Store, name: string) => {
+  const task = store.getState().tasks.find(t => !t.isSummary)!;
+  store.getState().updateTask(task.id, { name });
+};
+const ownPlanning = await (async () => {
+  const handle = newHandle(plainBytes());
+  const { store } = await openAt(handleRef(handle), plainBytes());
+  assert.equal(await ctrlS(store), true);
+  const first = handleFiles.get(handle.name)!;
+  const again = newHandle(first);
+  const { store: reopened } = await openAt(handleRef(again), first);
+  assert.equal(await ctrlS(reopened), true);
+  assert.deepEqual(handleFiles.get(again.name), first, 'de schrijver geeft een ongewijzigde eigen planning byte voor byte terug');
+  assert(!hasBom(first));
+  return first;
+})();
+
+for (const kind of KINDS) {
+  await check(`2212 ${kind}: een eigen BOM-bestand met twee datasecties weigert Ctrl+S zoals zonder BOM (de doelscan blijft)`, () => onPlatform(kind, async () => {
+    const split = withBom(twoDataSections(ownPlanning)), own = placed(kind, split);
+    const { store } = await openAt(own.ref, split);
+    assert.equal(origin(store), 'opened');
+    rename(store, 'Twee datasecties');
+    assert.equal(await ctrlS(store), false);
+    assert.deepEqual(errors(store), [UNREADABLE_TARGET]);
+    assert.deepEqual(own.bytes(), split);
+  }));
+}
+
+await check('2212 pad: Opslaan als en Exporteren → IFC over een bestaand BOM-bestand weigeren zoals main, ook over het eigen bestand', async () => {
+  const ipc = desktop();
+  try {
+    const own = placed('pad', withBom(ownPlanning)), other = withBom(otherPlainBytes()), elsewhere = placed('pad', other);
+    const { store } = await openAt(own.ref, withBom(ownPlanning));
+    rename(store, 'Opslaan als over een BOM-bestand');
+    const ownPath = (own.ref as Extract<FileRef, { kind: 'path' }>).path;
+    for (const target of [elsewhere, own]) {
+      const path = (target.ref as Extract<FileRef, { kind: 'path' }>).path, before = target.bytes();
+      ipc.choose(path);
+      store.setState(s => { s.ui.notifications = []; });
+      await store.getState().saveFileAs();
+      assert.deepEqual(errors(store), [UNREADABLE_TARGET], `Opslaan als over ${basename(path)}`);
+      assert.deepEqual(target.bytes(), before);
+      assert.equal(store.getState().filePath, ownPath);
+      ipc.choose(path);
+      store.setState(s => { s.ui.notifications = []; });
+      assert.deepEqual(await store.getState().exportAs('ifc'), { ok: true, warnings: [], cancelled: true }, `export over ${basename(path)}`);
+      assert.deepEqual(errors(store), [UNREADABLE_EXPORT]);
+      assert.deepEqual(target.bytes(), before);
+    }
+    assert.equal(store.getState().isDirty, true);
+  } finally { ipc.dispose(); }
+});
+
+await check('2212 met de flag uit: Ctrl+S en Automatisch opslaan op een BOM-bestand doen wat main doet en lezen het doel niet', async () => {
+  const ipc = desktop();
+  try {
+    const own = placed('pad', withBom(ownPlanning)), twin = placed('pad', ownPlanning);
+    const { store } = await openAt(own.ref, withBom(ownPlanning), undefined, false);
+    const { store: main } = await openAt(twin.ref, ownPlanning, undefined, false);
+    const read = ipc.bytesRead();
+    for (const s of [store, main]) rename(s, 'Flag uit met BOM');
+    assert.equal(await ctrlS(main), true);
+    assert.equal(await ctrlS(store), true);
+    assert.deepEqual(own.bytes(), twin.bytes(), 'zoals main: de gewone schrijver zonder BOM');
+    for (const s of [store, main]) rename(s, 'Flag uit met BOM, automatisch');
+    for (const s of [store, main]) await autoSave(s).flush();
+    assert.equal(store.getState().isDirty, false);
+    assert.deepEqual(own.bytes(), twin.bytes());
+    assert.equal(ipc.bytesRead(), read, 'met de flag uit las de app geen byte van het doel');
+    assert.deepEqual(errors(store), []);
+  } finally { ipc.dispose(); }
+});
 
 rmSync(dir, { recursive: true, force: true });
 console.log(`Bewaakte opslag: ${passed} geslaagd, ${failed} mislukt.`);

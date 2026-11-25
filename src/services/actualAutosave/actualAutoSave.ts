@@ -1,5 +1,6 @@
 import type { FileRef } from '@/services/fileAccess';
 import type { IFCSaveSource } from '@/state/ifcSaveInput';
+import type { KnownTargetState } from '@/state/knownTargetGuard';
 
 /** Herkenbare weigering; de UI vertaalt de melding pas bij het tonen. */
 export class AutoSaveTargetUnavailableError extends Error {
@@ -26,6 +27,7 @@ export interface ActualAutoSaveCandidate {
   dirty: boolean;
   ref: FileRef | null;
   source: IFCSaveSource;
+  start?: KnownTargetState;
 }
 
 /** De uitkomst van één ronde voor één kandidaat (zie `write` hieronder). */

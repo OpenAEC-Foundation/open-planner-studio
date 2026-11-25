@@ -1,5 +1,6 @@
 import type { LagUnit, Sequence, SequenceType } from '@/types/sequence';
 import { enumOf, NON_EMPTY_TEXT, objectOf, REAL, REFERENCE, type IfcxField, type IfcxValue, type SharedField } from '../fieldTable';
+import { SEQUENCE_SOURCE_FIELDS, SEQUENCE_SOURCE_KEYS_CARRIED } from './sequenceSourceFields';
 
 export interface SequenceWriteSource {
   readonly sequence: Sequence;
@@ -108,10 +109,11 @@ export const SEQUENCE_FIELDS: readonly SequenceField[] = [
     write: s => preciseLagOf(s.sequence),
     read: (v, t) => applyPreciseLag(t.sequence, v as PreciseLag | undefined),
   },
+  ...SEQUENCE_SOURCE_FIELDS,
 ];
 
 export const SEQUENCE_KEYS_CARRIED: readonly (keyof Sequence)[] = [
-  'id', 'predecessorId', 'successorId', 'type', 'lagDays', 'lagMinutes', 'lagUnit', 'lagPercent',
+  'id', 'predecessorId', 'successorId', 'type', 'lagDays', 'lagMinutes', 'lagUnit', 'lagPercent', ...SEQUENCE_SOURCE_KEYS_CARRIED,
 ];
 
 export function emptySequence(): Sequence {

@@ -134,6 +134,477 @@
                   "dataType": "Reference"
                 }
               }
+            },
+            "progressMode": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "RETAINED_LOGIC",
+                  "PROGRESS_OVERRIDE"
+                ]
+              }
+            },
+            "defaultWorkRule": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "FIXED_DURATION_RATE",
+                  "FIXED_DURATION_WORK",
+                  "FIXED_WORK",
+                  "FIXED_RATE"
+                ]
+              }
+            },
+            "companyId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "companyName": {
+              "dataType": "String",
+              "optional": true
+            },
+            "p6ProjectCode": {
+              "dataType": "String",
+              "optional": true
+            },
+            "dependentProjectsFolder": {
+              "dataType": "String",
+              "optional": true
+            },
+            "anchorsFromOpenDocuments": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "recordedSourceFormat": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "xer",
+                  "p6xml",
+                  "mspdi",
+                  "mpp",
+                  "ifc"
+                ]
+              }
+            },
+            "schedulingOptions": {
+              "dataType": "Object",
+              "optional": true,
+              "objectRestrictions": {
+                "values": {
+                  "lagCalendar": {
+                    "dataType": "Enum",
+                    "optional": true,
+                    "enumRestrictions": {
+                      "options": [
+                        "predecessor",
+                        "successor",
+                        "24hour",
+                        "projectDefault"
+                      ]
+                    }
+                  },
+                  "criticalDefinition": {
+                    "dataType": "Object",
+                    "optional": true,
+                    "objectRestrictions": {
+                      "values": {
+                        "mode": {
+                          "dataType": "Enum",
+                          "enumRestrictions": {
+                            "options": [
+                              "totalFloat",
+                              "longestPath"
+                            ]
+                          }
+                        },
+                        "threshold": {
+                          "dataType": "Real",
+                          "optional": true
+                        },
+                        "thresholdHours": {
+                          "dataType": "Real",
+                          "optional": true
+                        }
+                      }
+                    }
+                  },
+                  "totalFloatMode": {
+                    "dataType": "Enum",
+                    "optional": true,
+                    "enumRestrictions": {
+                      "options": [
+                        "start",
+                        "finish",
+                        "smallest"
+                      ]
+                    }
+                  },
+                  "makeOpenEndedCritical": {
+                    "dataType": "Boolean",
+                    "optional": true
+                  },
+                  "useExpectedFinishDates": {
+                    "dataType": "Boolean",
+                    "optional": true
+                  },
+                  "useProjectEndDateForFloat": {
+                    "dataType": "Boolean",
+                    "optional": true
+                  },
+                  "nearCriticalThreshold": {
+                    "dataType": "Real",
+                    "optional": true
+                  },
+                  "floatPaths": {
+                    "dataType": "Object",
+                    "optional": true,
+                    "objectRestrictions": {
+                      "values": {
+                        "enabled": {
+                          "dataType": "Boolean"
+                        },
+                        "method": {
+                          "dataType": "Enum",
+                          "enumRestrictions": {
+                            "options": [
+                              "FREE_FLOAT",
+                              "TOTAL_FLOAT"
+                            ]
+                          }
+                        },
+                        "maxPaths": {
+                          "dataType": "Real"
+                        }
+                      }
+                    }
+                  },
+                  "p6CompletedLateFromRemainingWindow": {
+                    "dataType": "Boolean",
+                    "optional": true
+                  },
+                  "startToStartLagFrom": {
+                    "dataType": "Enum",
+                    "optional": true,
+                    "enumRestrictions": {
+                      "options": [
+                        "earlyStart",
+                        "actualStart"
+                      ]
+                    }
+                  },
+                  "leveling": {
+                    "dataType": "Object",
+                    "optional": true,
+                    "objectRestrictions": {
+                      "values": {
+                        "preserveScheduledDates": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "levelAllResources": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "priority": {
+                          "dataType": "Array",
+                          "optional": true,
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "field": {
+                                    "dataType": "String"
+                                  },
+                                  "direction": {
+                                    "dataType": "Enum",
+                                    "enumRestrictions": {
+                                      "options": [
+                                        "ASC",
+                                        "DESC"
+                                      ]
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "resources": {
+                          "dataType": "Array",
+                          "optional": true,
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "resourceId": {
+                                    "dataType": "String"
+                                  },
+                                  "maxUnitsPerHour": {
+                                    "dataType": "Real",
+                                    "optional": true
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "schedulingProfile": {
+              "dataType": "Object",
+              "optional": true,
+              "objectRestrictions": {
+                "values": {
+                  "baseId": {
+                    "dataType": "Enum",
+                    "enumRestrictions": {
+                      "options": [
+                        "p6",
+                        "msproject",
+                        "ops"
+                      ]
+                    }
+                  },
+                  "id": {
+                    "dataType": "String"
+                  },
+                  "name": {
+                    "dataType": "String"
+                  },
+                  "overrides": {
+                    "dataType": "Object",
+                    "objectRestrictions": {
+                      "values": {
+                        "milestoneWithoutPredecessorAtDayEnd": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "preserveActualDatesInBackwardPass": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "clampNegativeFreeFloat": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6ZeroDurationUsesPlannedBoundary": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6UseTaskPlannedStartFloor": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6FinishMilestoneBoundaryWindow": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6PreserveActualInstants": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6PreserveZeroDurationConstraintInstants": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6UseRemainingStartForProgress": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "resumeFromActualElapsed": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "unstartedIgnoresStatusDate": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6RelationFinishBoundary": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6BackwardLagFinishBoundary": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6CompletedDataDateWindow": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6CompletedLoeActualFinish": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6OpenLoeTargetSpan": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6CompletedPredecessorAtDataDate": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6FreeFloatOnOwnCalendar": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6CompletedRemainingLag": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6CompletedOutOfSequenceWindow": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6CompletedPhysicalAtDataDate": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6InProgressStartLagElapsed": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6FinishFinishStartMilestoneLateFinish": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6StartedTaskIgnoresPlannedStartFloor": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6LateFinishOnOwnCalendar": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6ProgressOverrideIgnoresStartedSuccessor": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6FinishNotBeforeFinishFinishBound": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "p6AlapPositionedFromSuccessors": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "workdayDurationMeasure": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "activityCodeTypes": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "id": {
+                        "dataType": "String"
+                      },
+                      "name": {
+                        "dataType": "String"
+                      },
+                      "values": {
+                        "dataType": "Array",
+                        "arrayRestrictions": {
+                          "value": {
+                            "dataType": "Object",
+                            "objectRestrictions": {
+                              "values": {
+                                "id": {
+                                  "dataType": "String"
+                                },
+                                "code": {
+                                  "dataType": "String"
+                                },
+                                "description": {
+                                  "dataType": "String",
+                                  "optional": true
+                                },
+                                "color": {
+                                  "dataType": "String",
+                                  "optional": true
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "customFieldDefs": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "id": {
+                        "dataType": "String"
+                      },
+                      "name": {
+                        "dataType": "String"
+                      },
+                      "type": {
+                        "dataType": "Enum",
+                        "enumRestrictions": {
+                          "options": [
+                            "text",
+                            "number",
+                            "integer",
+                            "cost",
+                            "date",
+                            "boolean"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "customTaskTypes": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "id": {
+                        "dataType": "String"
+                      },
+                      "name": {
+                        "dataType": "String"
+                      },
+                      "color": {
+                        "dataType": "String"
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -513,6 +984,57 @@
                   }
                 }
               }
+            },
+            "p6Source": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "XER"
+                ]
+              }
+            },
+            "p6NonWorkPenaltyDates": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "DateTime"
+                }
+              }
+            },
+            "p6NonWorkPenaltyDatesState": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "ABSENT",
+                  "VALID_EMPTY",
+                  "VALID_VALUES",
+                  "REJECTED"
+                ]
+              }
+            },
+            "libraryOrigin": {
+              "dataType": "Object",
+              "optional": true,
+              "objectRestrictions": {
+                "values": {
+                  "companyId": {
+                    "dataType": "String"
+                  },
+                  "libraryItemId": {
+                    "dataType": "String"
+                  },
+                  "poolVersion": {
+                    "dataType": "Real"
+                  },
+                  "syncedHash": {
+                    "dataType": "String",
+                    "optional": true
+                  }
+                }
+              }
             }
           }
         }
@@ -792,6 +1314,392 @@
                   }
                 }
               }
+            },
+            "customTaskTypeId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "activityCodes": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "type": {
+                        "dataType": "String"
+                      },
+                      "value": {
+                        "dataType": "String"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "customFields": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "field": {
+                        "dataType": "String"
+                      },
+                      "text": {
+                        "dataType": "String",
+                        "optional": true
+                      },
+                      "number": {
+                        "dataType": "Real",
+                        "optional": true
+                      },
+                      "boolean": {
+                        "dataType": "Boolean",
+                        "optional": true
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "constraint": {
+              "dataType": "Object",
+              "optional": true,
+              "objectRestrictions": {
+                "values": {
+                  "type": {
+                    "dataType": "Enum",
+                    "enumRestrictions": {
+                      "options": [
+                        "ASAP",
+                        "ALAP",
+                        "SNET",
+                        "SNLT",
+                        "FNET",
+                        "FNLT",
+                        "MSO",
+                        "MFO"
+                      ]
+                    }
+                  },
+                  "date": {
+                    "dataType": "String",
+                    "optional": true
+                  },
+                  "hard": {
+                    "dataType": "Boolean",
+                    "optional": true
+                  }
+                }
+              }
+            },
+            "constraint2": {
+              "dataType": "Object",
+              "optional": true,
+              "objectRestrictions": {
+                "values": {
+                  "type": {
+                    "dataType": "Enum",
+                    "enumRestrictions": {
+                      "options": [
+                        "ASAP",
+                        "ALAP",
+                        "SNET",
+                        "SNLT",
+                        "FNET",
+                        "FNLT",
+                        "MSO",
+                        "MFO"
+                      ]
+                    }
+                  },
+                  "date": {
+                    "dataType": "String",
+                    "optional": true
+                  }
+                }
+              }
+            },
+            "deadline": {
+              "dataType": "String",
+              "optional": true
+            },
+            "isHammock": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "workRule": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "FIXED_DURATION_RATE",
+                  "FIXED_DURATION_WORK",
+                  "FIXED_WORK",
+                  "FIXED_RATE"
+                ]
+              }
+            },
+            "levelingDelay": {
+              "dataType": "Integer",
+              "optional": true
+            },
+            "levelingDelayMinutes": {
+              "dataType": "Integer",
+              "optional": true
+            },
+            "levelingDelayElapsed": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "splitGaps": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "afterMinutes": {
+                        "dataType": "Real"
+                      },
+                      "gapMinutes": {
+                        "dataType": "Real"
+                      },
+                      "source": {
+                        "dataType": "Enum",
+                        "optional": true,
+                        "enumRestrictions": {
+                          "options": [
+                            "leveling",
+                            "user"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "timephasedFinishFloor": {
+              "dataType": "String",
+              "optional": true
+            },
+            "timephasedStartAnchor": {
+              "dataType": "String",
+              "optional": true
+            },
+            "timephasedDurationWalks": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "anchor": {
+                        "dataType": "String"
+                      },
+                      "resourceCalendarId": {
+                        "dataType": "String"
+                      },
+                      "workMinutes": {
+                        "dataType": "Real",
+                        "optional": true
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "notes": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "id": {
+                        "dataType": "String"
+                      },
+                      "text": {
+                        "dataType": "String"
+                      },
+                      "done": {
+                        "dataType": "Boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "color": {
+              "dataType": "String",
+              "optional": true
+            },
+            "externalLinks": {
+              "dataType": "Array",
+              "optional": true,
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "id": {
+                        "dataType": "String"
+                      },
+                      "direction": {
+                        "dataType": "Enum",
+                        "enumRestrictions": {
+                          "options": [
+                            "predecessor",
+                            "successor"
+                          ]
+                        }
+                      },
+                      "relType": {
+                        "dataType": "Enum",
+                        "enumRestrictions": {
+                          "options": [
+                            "FS",
+                            "SS",
+                            "FF",
+                            "SF"
+                          ]
+                        }
+                      },
+                      "lagDays": {
+                        "dataType": "Real",
+                        "optional": true
+                      },
+                      "lagMinutes": {
+                        "dataType": "Real",
+                        "optional": true
+                      },
+                      "anchorDate": {
+                        "dataType": "String"
+                      },
+                      "sourceRef": {
+                        "dataType": "Object",
+                        "objectRestrictions": {
+                          "values": {
+                            "projectId": {
+                              "dataType": "String"
+                            },
+                            "projectName": {
+                              "dataType": "String",
+                              "optional": true
+                            },
+                            "taskId": {
+                              "dataType": "String"
+                            },
+                            "taskName": {
+                              "dataType": "String",
+                              "optional": true
+                            },
+                            "filePath": {
+                              "dataType": "String",
+                              "optional": true
+                            },
+                            "siteFileId": {
+                              "dataType": "String",
+                              "optional": true
+                            }
+                          }
+                        }
+                      },
+                      "sourceMissing": {
+                        "dataType": "Boolean"
+                      },
+                      "sourceVersion": {
+                        "dataType": "String",
+                        "optional": true
+                      },
+                      "anchorReadAt": {
+                        "dataType": "String",
+                        "optional": true
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "mspTaskType": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "FIXED_UNITS",
+                  "FIXED_DURATION",
+                  "FIXED_WORK"
+                ]
+              }
+            },
+            "effortDriven": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "p6DurationType": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "DT_FixedDrtn",
+                  "DT_FixedDUR2",
+                  "DT_FixedRate",
+                  "DT_FixedQty"
+                ]
+              }
+            },
+            "p6ActivityType": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "TT_Task",
+                  "TT_Rsrc",
+                  "TT_LOE",
+                  "TT_Mile",
+                  "TT_FinMile",
+                  "TT_WBS"
+                ]
+              }
+            },
+            "p6ProjectId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "p6TaskId": {
+              "dataType": "String",
+              "optional": true
+            },
+            "p6ExplicitTargetWindow": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "p6CompletePctType": {
+              "dataType": "Enum",
+              "optional": true,
+              "enumRestrictions": {
+                "options": [
+                  "CP_Drtn",
+                  "CP_Phys",
+                  "CP_Units"
+                ]
+              }
+            },
+            "p6ExpectedFinish": {
+              "dataType": "String",
+              "optional": true
+            },
+            "p6SuspendResume": {
+              "dataType": "Boolean",
+              "optional": true
             }
           }
         }
@@ -897,6 +1805,10 @@
                   }
                 }
               }
+            },
+            "p6StartAtPredecessorFinishBoundary": {
+              "dataType": "Boolean",
+              "optional": true
             }
           }
         }

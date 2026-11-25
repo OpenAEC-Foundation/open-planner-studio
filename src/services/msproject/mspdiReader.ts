@@ -379,11 +379,11 @@ export function readMSPDI(content: string): ImportResult {
     const effHpd = effCal.hoursPerDay;
     effHpdByTaskId.set(id, workdayIsWorkTime ? effHoursPerDay(effCal) : effHpd);
     effCalByTaskId.set(id, effCal);
-    const mspTaskType = mspTaskTypeFromCode(getElementInt(te, 'Type', -1));
+    const mspTaskType = mspTaskTypeFromCode(toInt(directChildText(te, 'Type'), -1));
     const effortDrivenRaw = getElementText(te, 'EffortDriven').trim().toLowerCase();
     const effortDriven = mspTaskType !== undefined && (effortDrivenRaw === '1' || effortDrivenRaw === 'true');
 
-    const durationStr = getElementText(te, 'Duration');
+    const durationStr = directChildText(te, 'Duration') || getElementText(te, 'Duration');
     const remainingRaw = getElementText(te, 'RemainingDuration');
     const markerUnit = taskDurationUnit(te, durationUnitMarkerFieldId);
     const dayMinutesPerDay = workdayIsWorkTime

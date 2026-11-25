@@ -57,7 +57,7 @@ import { hasBuildingModel, hasForeignContent, type PreparedIfcWrite } from '@/se
 import { notifyForeignChangesWritten } from '../foreignChangesWrittenNotice';
 import { castDraft } from 'immer';
 import {
-  documentSaveCompute, prepareIfcOutput, planOnlyQuestionApplies, writtenFingerprint, IfcWriteBlockedError,
+  bomMark, documentSaveCompute, prepareIfcOutput, planOnlyQuestionApplies, withUtf8Bom, writtenFingerprint, IfcWriteBlockedError,
   type IfcOutput, type IfcOutputCompute,
 } from '../prepareIfcOutput';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
@@ -600,9 +600,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  `WriteTargetDeps.chosenTarget`): het gekozen pad en zijn gelezen versie. */
   const documentTargetCheck = (
     snapshot: AppState, write?: IfcOutput, ownTarget = false,
-    { readers = writeTargetReaders, openDocumentsExcept, chosenTarget, missingSourceSaveAs, leaveContentToKnownTarget = false }: {
+    { readers = writeTargetReaders, openDocumentsExcept, chosenTarget, missingSourceSaveAs, leaveContentToKnownTarget = false, ownKnown = null }: {
       readers?: () => TargetReaders; openDocumentsExcept?: string; chosenTarget?: PickedSaveTarget; missingSourceSaveAs?: boolean;
-      leaveContentToKnownTarget?: boolean;
+      leaveContentToKnownTarget?: boolean; ownKnown?: TargetFingerprint | null;
     } = {},
   ): SaveTargetCheck => async target => {
     if (write && refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs)) return true;
@@ -617,11 +617,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       get().notify(IFCX_NAME_MISMATCH_NOTICE);
       return true;
     }
-    const knownVersion = ownTarget && !!guardedKnownTarget(knownTargetOf(snapshot.activeDocumentId), target);
-    const ifcx = format === 'ifcx' ? { writesIfcx: true, knownVersion, classifyIfcx: runtime.ifcxClassify } : {};
-    const deps = { identityFs: fileIdentityFs, readers, openDocumentsExcept, ...(chosenTarget ? { chosenTarget } : {}), ...ifcx };
-    const reason = leaveContentToKnownTarget ? contentLeftToKnownTarget(await refusedTargetIdentity(get(), target, deps, ownVersion))
-      : await refusedWriteTarget(get(), target, deps, ownVersion);
+    const known = ownTarget && target.kind !== 'site' ? ownKnown : null;
+    const ifcx = format === 'ifcx' ? { writesIfcx: true, knownVersion: !!known, classifyIfcx: runtime.ifcxClassify } : {};
+    const deps = {
+      identityFs: fileIdentityFs, readers, openDocumentsExcept, ...(chosenTarget ? { chosenTarget } : {}), ...ifcx,
+      ...(known?.utf8Bom ? { ownBomVersion: known } : {}),
+    };
+    const at = { getOpenDocumentPayloads: () => get().getOpenDocumentPayloads(), ui: { featureFlags: snapshot.ui.featureFlags } };
+    const reason = leaveContentToKnownTarget ? contentLeftToKnownTarget(await refusedTargetIdentity(at, target, deps, ownVersion))
+      : await refusedWriteTarget(at, target, deps, ownVersion);
     if (reason) {
       get().notify(reason === 'open-document' ? IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE
         : hasForeignContent(snapshot.ifcSource) && reason === 'open-source' && target.kind !== 'site'
@@ -940,8 +944,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       target.foreignSourceMark = foreignSourceMarkFor(prepared.source, target);
     };
     const literalIds = prepared?.literalCalendarIds ?? literalCalendarIdsWritten(savedSource);
-    const fingerprint: TargetFingerprint | null = !versionGuarded(get().ui.featureFlags, destination?.fileFormat ?? currentSource.fileFormat) ? null
-      : prepared ? { sha256: prepared.sha256, byteLength: prepared.bytes.byteLength, origin: 'written' } : written;
+    const fingerprint: TargetFingerprint | null = !prepared ? written
+      : !versionGuarded(get().ui.featureFlags, destination?.fileFormat ?? currentSource.fileFormat) ? null
+      : { sha256: prepared.sha256, byteLength: prepared.bytes.byteLength, origin: 'written', ...bomMark(prepared.bytes) };
     const applyKnownTarget = (target: Pick<AppState, keyof SaveDestination | 'knownTargetFingerprint'>) => {
       target.knownTargetFingerprint = onOwnFile(target, fingerprint);
     };
@@ -1161,13 +1166,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const ownTargetContentNotice = (content: Exclude<SourceTargetContent, 'same'>): NotifyInput =>
     content === 'changed' ? IFC_FOREIGN_TARGET_CHANGED_NOTICE : IFC_FOREIGN_TARGET_GONE_NOTICE;
 
-  const knownTargetOf = (documentId: string): KnownTargetState => {
-    const app = get();
+  const knownTargetOf = (documentId: string, app: AppState): KnownTargetState => {
     const source = saveSourceForDocument(app, documentId);
     return { featureFlags: app.ui.featureFlags, format: source?.fileFormat ?? 'ifc', known: source?.knownTargetFingerprint ?? null };
   };
-  const refuseChangedKnownTarget = async (documentId: string, ref: FileRef, known: TargetFingerprint): Promise<boolean> => {
-    const change = await changedKnownTarget(() => knownTargetOf(documentId), known, ref);
+  const refuseChangedKnownTarget = async (ref: FileRef, known: TargetFingerprint, start: KnownTargetState): Promise<boolean> => {
+    const change = await changedKnownTarget(() => start, known, ref);
     if (change) get().notify(ownTargetContentNotice(change));
     return change !== null;
   };
@@ -1353,7 +1357,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         source: { bytes: current, sha256: await precomputeSha256(current) }, stopBeforeWrite,
         refuseBeforePlace: placement.refuseBeforePlace,
         planningChanged: replacement.planningChanged, replaceAllowed: replacement.replaceAllowed,
-        commit: () => replacement.commit(path, { sha256: prepared.sha256, byteLength: bytes.byteLength, origin: 'written' }),
+        commit: () => replacement.commit(path, { sha256: prepared.sha256, byteLength: bytes.byteLength, origin: 'written', ...bomMark(bytes) }),
       });
       for (const notice of replacement.notices(result, path)) get().notify(notice);
       return result.code === 'replaced';
@@ -1397,6 +1401,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     try {
       const ref = saveTargetRef(state);
+      const start = knownTargetOf(documentId, state);
+      const ownVersion = ref && !hasForeignContent(state.ifcSource) ? guardedKnownTarget(start, ref) : null;
+      const ownBomVersion = ownVersion?.utf8Bom ? ownVersion : null;
       let ownHandle: Extract<FileRef, { kind: 'handle' }> | null = null;
       let ownPath: Extract<FileRef, { kind: 'path' }> | null = null;
       let handleRefused = false;
@@ -1417,8 +1424,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, 'merge'));
       if (!write || refuseChangedDocumentWrite(state, write)) return false;
-      const ownWritten = ref && !handleRefused && !write.prepared ? writtenKnownTarget(knownTargetOf(documentId), ref) : null;
-      if (ref && await documentTargetCheck(state, write, true, { leaveContentToKnownTarget: !!ownWritten })(ref)) return false;
+      const ownWritten = ref && !handleRefused && !write.prepared ? writtenKnownTarget(start, ref) : null;
+      const bomData = ownBomVersion && !handleRefused && !write.prepared ? withUtf8Bom(writerData(write)) : null;
+      const bomHashing = bomData && write.sha256 !== undefined ? writtenFingerprint(state.ui.featureFlags, format, write, bomData) : null;
+      if (ref && await documentTargetCheck(state, write, true, { leaveContentToKnownTarget: !!ownWritten, ownKnown: ownVersion })(ref)) return false;
       if (ownHandle && write.prepared) return await replaceOwnHandle(documentId, state, write.prepared, write, ownHandle, failureNoticeKey);
       if (ownPath) return write.prepared ? await replaceOwnPath(documentId, state, write.prepared, write, ownPath, failureNoticeKey) : false;
       if (ref?.kind === 'site' && siteStorageAvailable()) {
@@ -1445,15 +1454,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (ref && !handleRefused && !(write.prepared && ref.kind === 'handle')) {
         try {
           const stable = !!ownWritten && await stillWrittenKnownTarget(ownWritten, ref);
-          if (!stable && ownWritten && await documentTargetCheck(state, write, true)(ref)) return false;
-          const known = stable || write.prepared ? null : guardedKnownTarget(knownTargetOf(documentId), ref);
-          if (known && await refuseChangedKnownTarget(documentId, ref, known)) return false;
+          if (!stable && ownWritten && await documentTargetCheck(state, write, true, { ownKnown: ownVersion })(ref)) return false;
+          const known = stable || write.prepared ? null : guardedKnownTarget(start, ref);
+          if (known && await refuseChangedKnownTarget(ref, known, start)) return false;
           if (refuseChangedDocumentWrite(state, write)) return false;
           const last = lastWriteCheck(state, write);
-          const hashing = writtenFingerprint(state.ui.featureFlags, format, write);
+          const hashing = bomData ? bomHashing ?? writtenFingerprint(state.ui.featureFlags, format, write, bomData) : writtenFingerprint(state.ui.featureFlags, format, write);
           const saved = write.prepared
             ? await saveNewBytesToRef(ref, write.prepared.bytes, last.refuse)
-            : await saveToRef(ref, writerData(write), last.refuse, ref.kind === 'handle');
+            : await saveToRef(ref, bomData ?? writerData(write), last.refuse, ref.kind === 'handle');
           if (last.refused()) return false;
           if (saved) {
             const fingerprint = hashing instanceof Promise ? await hashing : hashing;
@@ -1666,7 +1675,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       payload.fileFormat = editing || inheritsTarget ? current.fileFormat : parsed.ifcxRead ? 'ifcx' : 'ifc';
       const read = parsed.ifcxRead ?? (ownSource && ifcForeignContentEnabled(current.ui.featureFlags)
-        ? { sha256: ownSource.sha256, byteLength: ownSource.bytes.byteLength } : null);
+        ? { sha256: ownSource.sha256, byteLength: ownSource.bytes.byteLength, ...bomMark(ownSource.bytes) } : null);
       payload.knownTargetFingerprint = editing ? current.knownTargetFingerprint
         : inheritsTarget || !read ? null : onOwnFile(payload, { ...read, origin: 'opened' });
       if (!opts.linkedOpen && !editing) {
@@ -2162,7 +2171,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           const target = documentFields(s);
           const now = target ? saveTargetRef(target) : null;
           if (!target || !now || !sameFileRef(now, own) || !sameDocumentContent(s, content)) return;
-          target.knownTargetFingerprint = { sha256, byteLength: bytes.byteLength, origin: 'written' };
+          target.knownTargetFingerprint = { sha256, byteLength: bytes.byteLength, origin: 'written', ...bomMark(bytes) };
           clearChangedOnDisk(s, documentId);
         });
       })();

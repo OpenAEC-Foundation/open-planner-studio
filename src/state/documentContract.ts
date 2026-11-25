@@ -157,6 +157,7 @@ export interface TargetFingerprint {
   readonly sha256: string;
   readonly byteLength: number;
   readonly origin: 'opened' | 'written';
+  readonly utf8Bom?: true;
 }
 
 export type DocumentFileFormat = 'ifc' | 'ifcx';
