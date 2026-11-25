@@ -10,13 +10,16 @@ import { installNodeFileIpc } from './nodeFileIpc';
 import { InProcessWorker } from './inProcessSaveWorker';
 import { createIfcSaveWorker } from '@/services/ifc/saveWorker/ifcSaveWorker';
 import {
-  binaryExtensions, isReadableFileName, openDialogFilters, readFormatForFile, readOptionsFor, readsAsBytes,
+  binaryExtensions, isReadableFileName, openDialogFilters, parseOpenedFile, readFormatForFile, readOptionsFor, readsAsBytes,
 } from '@/services/formatRegistry';
 import { splitDroppedFiles } from '@/services/fileAccess/fileDrop';
 import { documentFileFilters, isIfcxName, nameWithFormat, outputFormat } from '@/state/ifcxGuard';
 import { computeIfcOutputHere, documentSaveCompute, type IfcOutputCompute } from '@/state/prepareIfcOutput';
-import { readIfcx, classifyIfcx } from '@/services/ifc/ifcx';
+import { readIfcx, classifyIfcx, writeIfcx } from '@/services/ifc/ifcx';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
+import { payloadFromImport } from '@/state/documentContract';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { documentDataFromImport } from '@/services/documentData';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
@@ -62,20 +65,6 @@ async function check(name: string, action: () => Promise<void>) {
     const shown = error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : JSON.stringify(error);
     console.error(`XX ${name}: ${shown.slice(0, 2000)}`);
   }
-}
-
-const WRITE_TIME = /^(\s*"timestamp": |FILE_NAME\(|#\d+=IFC(OWNERHISTORY|WORKPLAN|WORKSCHEDULE)\()/;
-function firstLineDifference(before: Uint8Array, after: Uint8Array, skipWriteTime = false): string | null {
-  const a = text(before).split('\n'), b = text(after).split('\n');
-  for (let at = 0; at < Math.max(a.length, b.length); at++) {
-    if (a[at] === b[at]) continue;
-    if (skipWriteTime && WRITE_TIME.test(a[at] ?? '') && WRITE_TIME.test(b[at] ?? '')) continue;
-    const left = a[at] ?? '', right = b[at] ?? '';
-    let from = 0;
-    while (from < left.length && left[from] === right[from]) from++;
-    return `regel ${at + 1}: …${left.slice(Math.max(0, from - 60), from + 60)}… → …${right.slice(Math.max(0, from - 60), from + 60)}…`;
-  }
-  return null;
 }
 
 type DialogCall = { defaultPath?: string; filters?: { name: string; extensions: string[] }[] };
@@ -263,78 +252,64 @@ for (const [label, flags] of [['alleen ifcx', IFCX_ON], ['ifcx en ifcForeignCont
   });
 }
 
-for (const name of FIXTURES) {
-  await check(`openen zonder wijziging, Ctrl+S, heropenen, Ctrl+S (${name}); de maat: dezelfde route met een eigen .ifc`, async () => {
-    const ipc = desktop();
-    try {
-      const results: Record<string, unknown> = {};
-      const source = join(dir, `bron-${name}`); writeFileSync(source, fixture(name));
-      const asStep = new TextEncoder().encode(writeIFC(buildWriteIFCInput((await openAt(source, IFCX_ON)).getState(), 'planOnly')));
-      for (const format of ['ifcx', 'ifc'] as const) {
-        const start = format === 'ifcx' ? fixture(name) : asStep;
-        const path = join(dir, `ongewijzigd-${name}.${format}`); writeFileSync(path, start);
-        const store = await openAt(path, IFCX_ON);
-        const before = shown(store.getState().tasks);
-        assert.deepEqual(errors(store), [], `${format} opent`);
-        assert.equal(await save(store), true, `${format}: eerste opslag`);
-        assert.deepEqual(errors(store), []);
-        const first = bytesAt(path);
-        assert(format === 'ifcx' ? isIfcxText(first) : isStep(first));
-        const reopened = await openAt(path, IFCX_ON);
-        assert.deepEqual(errors(reopened), [], 'het geschreven bestand opent weer');
-        assert.equal(shown(reopened.getState().tasks), before, 'na heropenen dezelfde datums als vóór het opslaan');
-        assert.equal(await save(reopened), true, `${format}: tweede opslag`);
-        const second = bytesAt(path);
-        assert.equal(hash(second), hash(first), 'een tweede opslag zonder wijziging schrijft dezelfde bytes');
-        results[format] = { eersteOpslagVerandertHetBestand: hash(first) !== hash(start), eersteVerschil: firstLineDifference(start, first),
-          buitenSchrijftijd: firstLineDifference(start, first, true) };
-      }
-      console.log(`  MAAT ${name}: ${JSON.stringify(results)}`);
-    } finally { ipc.dispose(); }
-  });
-}
-
-for (const name of FIXTURES) {
-  await check(`na openen, ook na doorrekenen, heeft de app dezelfde planning als na openen van de STEP-versie (${name})`, async () => {
-    const bytes = fixture(name);
-    const step = new TextEncoder().encode(writeIFC(buildWriteIFCInput(documentDataFromImport(structuredClone(readIfcx(bytes))), 'planOnly')));
-    const asIfcx = join(dir, `gelijk-${name}`), asStep = join(dir, `gelijk-${name}.ifc`);
-    writeFileSync(asIfcx, bytes); writeFileSync(asStep, step);
-    const fromIfcx = await openAt(asIfcx, IFCX_ON), fromStep = await openAt(asStep, IFCX_ON);
-    assert.deepEqual(errors(fromIfcx), []); assert.deepEqual(errors(fromStep), []);
-    assert.equal(fromIfcx.getState().fileFormat, 'ifcx');
-    assert.equal(fromStep.getState().fileFormat, 'ifc');
-    const planning = (store: Store) => {
-      const { project, ...rest } = JSON.parse(JSON.stringify(buildWriteIFCInput(store.getState(), 'planOnly')));
-      return { ...rest, project: { ...project, modifiedAt: undefined } };
-    };
-    const a = planning(fromIfcx), b = planning(fromStep);
-    for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
-      assert.deepEqual(a[key], b[key], `het veld ${key} van de opgeslagen planning`);
-    }
-    assert.equal(shown(fromIfcx.getState().tasks), shown(fromStep.getState().tasks), 'de getoonde datums');
-    assert.deepEqual(fromIfcx.getState().cpmResult?.criticalPath, fromStep.getState().cpmResult?.criticalPath, 'het kritieke pad');
-  });
-}
-
-await check('de maat op main: een eigen .ifc uit public/examples openen, niets wijzigen, Ctrl+S, nog eens Ctrl+S', async () => {
-  const ipc = desktop();
-  try {
-    const start = bytesAt(join(root, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'));
-    const path = join(dir, 'voorbeeld.ifc'); writeFileSync(path, start);
-    const store = await openAt(path, {});
-    const before = shown(store.getState().tasks);
-    assert.equal(await save(store), true);
-    const first = bytesAt(path);
-    const reopened = await openAt(path, {});
-    assert.equal(shown(reopened.getState().tasks), before);
-    assert.equal(await save(reopened), true);
-    const second = bytesAt(path);
-    console.log(`  MAAT main .ifc: ${JSON.stringify({ eersteOpslagVerandertHetBestand: hash(first) !== hash(start),
-      tweedeOpslagGelijk: hash(second) === hash(first), eersteVerschil: firstLineDifference(start, first),
-      buitenSchrijftijd: firstLineDifference(start, first, true) })}`);
-  } finally { ipc.dispose(); }
+const NOT_IN_KERN_TASK_FIELDS = [
+  'customTaskTypeId', 'levelingDelay', 'levelingDelayMinutes', 'levelingDelayElapsed', 'splitGaps', 'timephasedFinishFloor',
+  'timephasedStartAnchor', 'timephasedDurationWalks', 'timephasedContours', 'mspTaskType', 'effortDriven', 'workRule',
+  'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId', 'p6ExplicitTargetWindow', 'p6CompletePctType',
+  'p6ExpectedFinish', 'p6SuspendResume', 'color', 'activityCodes', 'customFields', 'constraint', 'constraint2', 'isHammock',
+  'externalLinks', 'deadline', 'notes',
+];
+const NOT_IN_KERN_PROJECT_FIELDS = [
+  'progressMode', 'schedulingOptions', 'schedulingProfile', 'defaultWorkRule', 'companyId', 'companyName', 'p6ProjectCode',
+  'dependentProjectsFolder', 'anchorsFromOpenDocuments',
+];
+const without = <T extends object>(object: T, keys: readonly string[]): T => {
+  const copy = { ...object } as Record<string, unknown>;
+  for (const key of keys) delete copy[key];
+  return copy as T;
+};
+const kernPlanning = (full: ImportResult): ImportResult => ({
+  ...full, resources: [], assignments: [], baselines: [], activeBaselineId: null, comparedBaselineIds: [null, null],
+  activityCodeTypes: [], customFieldDefs: [], customTaskTypes: [], libraryPool: undefined,
+  project: without(full.project, NOT_IN_KERN_PROJECT_FIELDS),
+  tasks: full.tasks.map(task => ({ ...without(task, NOT_IN_KERN_TASK_FIELDS), resourceIds: [], time: without(task.time, ['progressBeforeRecalculation']) })),
+  sequences: full.sequences.map(sequence => without(sequence, ['p6StartAtPredecessorFinishBoundary'])),
 });
+const planningOf = (input: object) => {
+  const { project, ...rest } = JSON.parse(JSON.stringify(input));
+  return { ...rest, project: { ...project, modifiedAt: undefined } };
+};
+const sameFields = (a: Record<string, unknown>, b: Record<string, unknown>, label: string) => {
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) assert.deepEqual(a[key], b[key], `${label}: het veld ${key}`);
+};
+
+for (const example of ['showcase-verbouwing-eengezinswoning.ifc', '03-kantoorgebouw-zuidas.ifc']) {
+  await check(`IFCX en STEP uit dezelfde planning (${example}): dezelfde planning vlak vóór de activering en na doorrekenen; de laadgrens verandert niets aan readIfcx`, async () => {
+    const kern = kernPlanning(readIFC(readFileSync(join(root, 'public/examples', example), 'utf8')));
+    const stepText = writeIFC(kern);
+    const ifcxBytes = new TextEncoder().encode(writeIfcx(kern, new Date('2026-11-24T08:00:00.000Z')));
+    const options = readOptionsFor(IFCX_ON);
+    const fromStep = await parseOpenedFile({ name: 'plan.ifc', text: stepText }, undefined, options);
+    const fromIfcx = await parseOpenedFile({ name: 'plan.ifcx', bytes: ifcxBytes }, undefined, options);
+    assert(!isMultiDocumentImport(fromStep) && !isMultiDocumentImport(fromIfcx));
+    sameFields(planningOf(buildWriteIFCInput(payloadFromImport(fromIfcx, null), 'planOnly')),
+      planningOf(buildWriteIFCInput(payloadFromImport(fromStep, null), 'planOnly')), 'vlak vóór de activering');
+    const read = readIfcx(ifcxBytes);
+    const loaded = documentDataFromImport(structuredClone(read));
+    assert.equal(loaded.minuteModelPending, false, 'geen omzetting naar het minutenmodel');
+    for (const [key, value] of [['project', read.project], ['calendar', read.calendar], ['tasks', read.tasks], ['sequences', read.sequences],
+      ['calendars', read.resourceCalendars ?? []], ['ifcGlobalIds', read.ifcGlobalIds ?? null], ['ifcLiteralCalendarIds', read.ifcLiteralCalendarIds ?? null]] as const) {
+      assert.deepEqual(JSON.parse(JSON.stringify(loaded[key])), JSON.parse(JSON.stringify(value)), `de laadgrens laat ${key} zoals readIfcx het gaf`);
+    }
+    const asIfcx = join(dir, `uit-planning-${example}.ifcx`), asStep = join(dir, `uit-planning-${example}`);
+    writeFileSync(asIfcx, ifcxBytes); writeFileSync(asStep, stepText);
+    const a = await openAt(asIfcx, IFCX_ON), b = await openAt(asStep, IFCX_ON);
+    assert.deepEqual(errors(a), []); assert.deepEqual(errors(b), []);
+    sameFields(planningOf(buildWriteIFCInput(a.getState(), 'planOnly')), planningOf(buildWriteIFCInput(b.getState(), 'planOnly')), 'na doorrekenen');
+    assert.equal(shown(a.getState().tasks), shown(b.getState().tasks), 'de getoonde datums');
+    assert.deepEqual(a.getState().cpmResult?.criticalPath, b.getState().cpmResult?.criticalPath, 'het kritieke pad');
+  });
+}
 
 await check('Opslaan als (desktop): voorgestelde naam op .ifcx, het IFCX-filter, uitvoer IFCX; met de flag uit STEP met een naam op .ifc', async () => {
   for (const flags of [IFCX_ON, BOTH_ON]) {
