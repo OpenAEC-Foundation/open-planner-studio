@@ -365,7 +365,7 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
   await expect(experimental).toBeVisible();
   await expect(experimental).toContainText('Demo: animatie in de bovenbalk');
   // Elke echte flag is kiesbaar, ook ifcForeignContent met de technische IFC-markering.
-  await expect(experimental.getByRole('checkbox')).toHaveCount(2);
+  await expect(experimental.getByRole('checkbox')).toHaveCount(3);
   expect(await page.evaluate(() => localStorage.getItem('ops-experimentalSettingsVisible'))).toBe('true');
   await page.clock.resume();
 
@@ -378,7 +378,7 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
   const demo = gearExperimental.locator('[data-ops-feature-flag="demo-topbar-animation"]');
   await expect(gearExperimental).toBeVisible();
   await expect(demo).not.toBeChecked();
-  await expect(gearExperimental.getByRole('checkbox')).toHaveCount(2);
+  await expect(gearExperimental.getByRole('checkbox')).toHaveCount(3);
   await expect(gearExperimental.locator('[data-ops-feature-flag="ifcForeignContent"]')).not.toBeChecked();
   await demo.check();
   expect(await enabledDemo(page)).toBe(true);
@@ -502,6 +502,11 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
   await expect(ifcToggle).toBeChecked();
   expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.featureFlags.ifcForeignContent)).toBe(true);
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('ops-featureFlags') ?? '{}').ifcForeignContent)).toBe(true);
+  const ifcxToggle = gearExperimental.locator('[data-ops-feature-flag="ifcx"]');
+  await expect(ifcxToggle).not.toBeChecked();
+  await ifcxToggle.check();
+  await expect(ifcxToggle).toBeChecked();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.featureFlags.ifcx)).toBe(true);
   await gearDialog.locator('.modal-close-btn').click();
 
   // #804 stap 5 (knownbug 1849): de app start de opslagworker zelf, via zijn eigen constructor, bij de eerste opslag met
@@ -912,5 +917,43 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
     }
 
   }
+
+  await page.keyboard.press('Escape');
+  const ifcxText = await readFile('tests/fixtures/ifcx/eigen/verbouwing-eengezinswoning-kern.ifcx', 'utf8');
+  await page.evaluate(async ({ text }) => {
+    const root = await navigator.storage.getDirectory();
+    const handle = await root.getFileHandle('plan.ifcx', { create: true });
+    const writer = await handle.createWritable();
+    await writer.write(text);
+    await writer.close();
+    await window.__OPS__!.store.getState().openOpenedFile({
+      name: 'plan.ifcx', content: '', bytes: new TextEncoder().encode(text), ref: { kind: 'handle', handle },
+    });
+  }, { text: ifcxText });
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().filePath)).toBe('plan.ifcx');
+  const ifcxTask = await editFirstLeafDuration();
+  await expect(page.locator('[data-ops-save-status]')).toHaveAttribute('data-ops-save-status', 'unsaved');
+  const ifcxWorkersBefore = await saveWorkerLog();
+  const ifcxAnswersBefore = ifcxWorkersBefore.at(-1)?.messages.length ?? 0;
+  await watchSaveStatus();
+  await page.keyboard.press('Control+s');
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
+  await expectSavingThenSaved();
+  const ifcxWorker = (await saveWorkerLog()).at(-1)!;
+  expect(ifcxWorker.messages.slice(ifcxAnswersBefore), 'IFCX rekende in de opslagworker').toEqual(['result:writer']);
+  const ifcxSaved = await page.evaluate(async (id) => {
+    const state = window.__OPS__!.store.getState();
+    const file = new Uint8Array(await (await state.fileHandle!.getFile()).arrayBuffer());
+    const kernPath = '/src/services/ifc/ifcx/index.ts';
+    const { readIfcx } = await import(/* @vite-ignore */ kernPath);
+    const reread = readIfcx(file) as { tasks: { id: string; time: { scheduleDuration: number } }[] };
+    return { file: Array.from(file), header: JSON.parse(new TextDecoder().decode(file)).header.ifcxVersion as string,
+      duration: reread.tasks.find(t => t.id === id)!.time.scheduleDuration,
+      refusals: state.ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey) };
+  }, ifcxTask.id);
+  expect(ifcxSaved.refusals).toEqual([]);
+  expect(ifcxSaved.header).toBe('ifcx_alpha');
+  expect(ifcxSaved.duration).toBe(ifcxTask.duration + 1);
+  expect(Buffer.from(ifcxSaved.file).equals(Buffer.from(ifcxWorker.writerBytes!)), 'het bestand is de bytes van de worker').toBe(true);
 
 });

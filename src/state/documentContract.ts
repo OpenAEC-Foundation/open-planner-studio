@@ -1,5 +1,5 @@
-import { assertMinuteModelTaskDates, migrateToMinuteModel } from './migrations/minuteModel';
-import { hasTaskTypeData } from '@/state/taskTypesVisibility';
+import { assertMinuteModelTaskDates } from './migrations/minuteModel';
+import { documentDataFromImport } from '@/services/documentData';
 import type { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
@@ -11,7 +11,8 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { normalizeComparedBaselines, noComparedBaselines, type Baseline, type ComparedBaselineIds } from '@/types/baseline';
-import type { ImportResult, RecordedTimesOrigin } from '@/services/importTypes';
+export { isFreshImportOrigin } from '@/services/documentData';
+import type { ImportResult } from '@/services/importTypes';
 import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
@@ -92,6 +93,7 @@ export interface DocumentPayload {
    *  crashherstel bewaart hem in het manifest. */
   siteFileVersion: string | null;
   knownTargetFingerprint: TargetFingerprint | null;
+  fileFormat: DocumentFileFormat;
   /** Persoonlijke sessiekeuze: echte bestands-AutoSave, geen IFC-data en geen crashherstel. */
   autoSaveToFile: boolean;
   isDirty: boolean;
@@ -157,6 +159,12 @@ export interface TargetFingerprint {
   readonly origin: 'opened' | 'written';
 }
 
+export type DocumentFileFormat = 'ifc' | 'ifcx';
+
+export interface RecoveryIfcxMark {
+  readonly known: TargetFingerprint | null;
+}
+
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.
  *  Alleen de IFC-round-trip-velden + identiteit; view/history/cpm worden vers
  *  opgebouwd (zijn niet kritiek na een crash).
@@ -180,6 +188,7 @@ export type RecoveryDocInput = ImportResult & {
   isDirty: boolean;
   /** Zie `RecoveryDocMeta.datesAsRecorded`. */
   datesAsRecorded: boolean;
+  ifcx?: RecoveryIfcxMark;
 };
 
 /** Document-identiteit rond een herstelde snapshot: alles wat NIET uit de IFC komt maar uit de
@@ -209,6 +218,7 @@ export interface RecoveryDocMeta {
    * stand is geen projectdata. Oudere manifesten kennen het veld niet en leveren `false`.
    */
   datesAsRecorded: boolean;
+  ifcx?: RecoveryIfcxMark;
 }
 
 /**
@@ -340,6 +350,7 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'siteFileId', get: (s) => s.siteFileId, set: (s, v) => { s.siteFileId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.siteFileId ?? null }),
   field({ key: 'siteFileVersion', get: (s) => s.siteFileVersion, set: (s, v) => { s.siteFileVersion = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.siteFileVersion ?? null }),
   field({ key: 'knownTargetFingerprint', get: (s) => s.knownTargetFingerprint, set: (s, v) => { s.knownTargetFingerprint = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.knownTargetFingerprint ?? null }),
+  field({ key: 'fileFormat', get: (s) => s.fileFormat, set: (s, v) => { s.fileFormat = v; }, fresh: (): DocumentFileFormat => 'ifc', snapshot: 'none', fromPayload: (p) => p.fileFormat ?? 'ifc' }),
   // Runtime-only: rijdt mee tussen open tabbladen, maar nooit door IFC of recoverymetadata.
   field({ key: 'autoSaveToFile', get: (s) => s.autoSaveToFile, set: (s, v) => { s.autoSaveToFile = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.autoSaveToFile ?? false }),
   field({ key: 'isDirty', get: (s) => s.isDirty, set: (s, v) => { s.isDirty = v; }, fresh: () => false, snapshot: 'none' }),
@@ -528,6 +539,7 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
     fileHandle: d.sourceRestored ? d.fileHandle ?? null : null,
     siteFileId,
     siteFileVersion: siteFileId ? d.siteFileVersion ?? null : null,
+    ...(d.ifcx ? { fileFormat: 'ifcx' as const, knownTargetFingerprint: siteFileId ? null : d.ifcx.known } : {}),
     isDirty: d.isDirty,
     scheduleStale: true,
   };
@@ -538,47 +550,5 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
  *  worden overgenomen; selectie/cpm/history/scheduleStale starten vers. `view`/`collapsedTaskIds`
  *  vult de aanroeper (`applyLoadedProject` behoudt die van het huidige document — load-semantiek). */
 export function payloadFromImport(parsed: ImportResult, filePath: string | null): DocumentPayload {
-  const payload: DocumentPayload = {
-    ...freshPayload(),
-    project: parsed.project,
-    calendar: parsed.calendar,
-    tasks: parsed.tasks,
-    sequences: parsed.sequences,
-    resources: parsed.resources,
-    assignments: parsed.assignments,
-    calendars: parsed.resourceCalendars ?? [],
-    activityCodeTypes: parsed.activityCodeTypes ?? [],
-    customFieldDefs: parsed.customFieldDefs ?? [],
-    customTaskTypes: parsed.customTaskTypes ?? [],
-    baselines: parsed.baselines ?? [],
-    activeBaselineId: parsed.activeBaselineId ?? null,
-    comparedBaselineIds: normalizeComparedBaselines(parsed.comparedBaselineIds, parsed.baselines ?? [], parsed.activeBaselineId ?? null),
-    xerImportMetadata: parsed.xer ?? null,
-    xerSourceArchive: parsed.xerSourceArchive ?? null,
-    xerSourceProjectId: parsed.xer?.sourceProjectId ?? parsed.xerSourceProjectId ?? null,
-    ifcSource: parsed.ifcSource ?? null,
-    // Het kenmerk zet `applyLoadedProject` (hij kent het doel) of `payloadFromInput` (herstel).
-    foreignSourceMark: null,
-    // Het geladen bestand ontsluit de werkregel-UI voor zichzelf.
-    taskTypesVisible: hasTaskTypeData(parsed.tasks, parsed.assignments, parsed.project),
-    // Een VERSE import (xer/p6xml/mspdi/mpp/csv/ifc-uit-ander-pakket) is
-    // per definitie ongewijzigd; een HEROPENING (eigen IFC: 'ifc-own'/'xer-archive') draagt de
-    // vlag alleen als het bestand haar zelf zegt (`OPS_ImportProvenance`), anders `false`. Zonder
-    // herkomst (extensie-importer) `false`: nooit een gok richting automatisch aan.
-    importPristine: parsed.importPristine ?? isFreshImportOrigin(parsed.recordedTimesOrigin),
-    xerArchiveIssue: parsed.xerArchiveIssue ?? null,
-    ifcGlobalIds: parsed.ifcGlobalIds ?? null,
-    ifcLiteralCalendarIds: parsed.ifcLiteralCalendarIds ?? null,
-    filePath,
-    isDirty: false,
-  };
-  const migrated = migrateToMinuteModel(payload, { timeModel: parsed.timeModel, milestonesAtDayEnd: parsed.milestonesAtDayEnd });
-  return { ...migrated.payload, minuteModelPending: migrated.report.conversionPending };
-}
-
-/** Zie `ImportResult.recordedTimesOrigin`: verse import (automatisch aan bij afwijkingen) versus
- *  heropening van een eigen IFC (automatisch aan bij `importPristine` of opslaan in de modus). Eén definitie,
- *  gedeeld door `payloadFromImport` en `applyRecordedDatesOnLoad`. */
-export function isFreshImportOrigin(origin: RecordedTimesOrigin | undefined): boolean {
-  return origin === 'xer' || origin === 'p6xml' || origin === 'mspdi' || origin === 'mpp' || origin === 'csv' || origin === 'ifc';
+  return { ...freshPayload(), ...documentDataFromImport(parsed), filePath, isDirty: false };
 }

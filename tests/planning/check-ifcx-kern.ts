@@ -1864,7 +1864,7 @@ test('R6: precies één plek roept de STEP-rondgang en de laadgrens aan, in de s
   const sources = new Map(readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter(name => name.endsWith('.ts'))
     .map(name => [name, readFileSync(join(dir, name), 'utf8')] as const));
   const calls = (call: string) => [...sources].flatMap(([name, text]) => [...text.matchAll(new RegExp(`(?<!function )\\b${call}\\(`, 'g'))].map(() => name));
-  for (const call of ['writeIFC', 'readIFC', 'payloadFromImport', 'buildWriteIFCInput', 'filePlanning']) assert.deepEqual(calls(call), ['ifcxWriter.ts'], call);
+  for (const call of ['writeIFC', 'readIFC', 'documentDataFromImport', 'buildWriteIFCInput', 'filePlanning']) assert.deepEqual(calls(call), ['ifcxWriter.ts'], call);
   assert.deepEqual(calls('composeIfcxDocument'), ['ownFile.ts']);
   assert.deepEqual(calls('ownFileFor').sort(), ['ifcxReader.ts', 'ifcxWriter.ts']);
   const importsOf = (file: string) => [...sources.get(file)!.matchAll(/from '(\.[^']+)'/g)].map(match => join(dirname(file), `${match[1]}.ts`));
@@ -1878,7 +1878,7 @@ test('R6: precies één plek roept de STEP-rondgang en de laadgrens aan, in de s
   }
   assert.ok(reached.has('ownFile.ts') && reached.has('projection.ts') && !reached.has('ifcxWriter.ts'), [...reached].join(', '));
   for (const file of reached) {
-    assert.doesNotMatch(sources.get(file)!, /\bwriteIFC\(|\breadIFC\(|payloadFromImport|buildWriteIFCInput|from '\.\.\/ifcReader'|from '@\/state\//, file);
+    assert.doesNotMatch(sources.get(file)!, /\bwriteIFC\(|\breadIFC\(|payloadFromImport|documentDataFromImport|buildWriteIFCInput|from '\.\.\/ifcReader'|from '@\/state\//, file);
   }
   const reader = sources.get('ifcxReader.ts')!, writer = sources.get('ifcxWriter.ts')!;
   assert.match(reader, /writerRefusal\(\(\) => ownFileFor\(read, new Date\(0\), 'deferred'\)\)/);

@@ -137,7 +137,7 @@ async function replace(
   c: Case, fs?: OwnFileReplaceFs, records?: ReplaceRecordStore, target?: OtherTarget,
 ): Promise<{ result: OwnPathReplaceResult; committed: boolean }> {
   let committed = false;
-  const destination = target && { filePath: target.path, fileHandle: null, siteFileId: null, siteFileVersion: null };
+  const destination = target && { filePath: target.path, fileHandle: null, siteFileId: null, siteFileVersion: null, fileFormat: 'ifc' as const };
   const result = await runProjectFileWrite(() => replaceOwnPathWithRecovery({
     documentId: c.id, path: target?.path ?? c.path, prepared: c.prepared,
     source: target ? { bytes: target.content, sha256: hash(target.content) }

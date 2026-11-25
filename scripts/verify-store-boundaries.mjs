@@ -122,6 +122,82 @@ for (const file of saveWorkerFiles) {
 // De headless MCP-server (`headless/mcp-server/src/`, issue #570) en de MCP-modules die hij bundelt
 // buiten `tools/` om, bouwen op een eigen storecontext. Elke waarde-import uit `appStore` laadt de
 // app-singleton mee, dus die is daar verboden; transitieve lekken vangt `npm run build:mcp-server`.
+const stateRoot = slash(resolve(root, 'src/state'));
+const ifcxCoreFiles = sourceFiles(resolve(root, 'src/services/ifc/ifcx'));
+for (const file of ifcxCoreFiles) {
+  const sourceFile = parse(file);
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement) && !ts.isExportDeclaration(statement)) continue;
+    const specifier = statement.moduleSpecifier;
+    if (!specifier || !ts.isStringLiteral(specifier)) continue;
+    const target = normalizedModule(file, specifier.text);
+    if (target === stateRoot || target.startsWith(`${stateRoot}/`)) {
+      report(file, sourceFile, statement,
+        `import '${specifier.text}' uit src/state in de IFCX-kern (de laadgrens staat in src/services/documentData.ts)`);
+    }
+  }
+}
+
+function runtimeSpecifiers(sourceFile) {
+  const found = [];
+  for (const statement of sourceFile.statements) {
+    if (ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier)) {
+      const clause = statement.importClause;
+      if (!clause || valueBindings(clause).length > 0) found.push({ node: statement, text: statement.moduleSpecifier.text });
+    } else if (ts.isExportDeclaration(statement) && statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier)
+        && !statement.isTypeOnly) {
+      const clause = statement.exportClause;
+      const values = !clause || !ts.isNamedExports(clause) || clause.elements.some(element => !element.isTypeOnly);
+      if (values) found.push({ node: statement, text: statement.moduleSpecifier.text });
+    }
+  }
+  function visit(node) {
+    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword
+        && node.arguments.length > 0 && ts.isStringLiteral(node.arguments[0])) {
+      found.push({ node, text: node.arguments[0].text });
+    }
+    ts.forEachChild(node, visit);
+  }
+  ts.forEachChild(sourceFile, visit);
+  return found;
+}
+
+function moduleFile(modulePath) {
+  for (const candidate of [`${modulePath}.ts`, `${modulePath}.tsx`, `${modulePath}/index.ts`]) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+const storeModules = ['src/state/appStore', 'src/state/appStoreFactory'].map(path => slash(resolve(root, path)));
+const storeFolders = ['src/state/slices', 'src/components', 'src/hooks'].map(path => slash(resolve(root, path)));
+const isStoreOrUi = (modulePath) => storeModules.includes(modulePath)
+  || storeFolders.some(folder => modulePath === folder || modulePath.startsWith(`${folder}/`));
+const ifcxClosureEntries = ['src/services/ifc/ifcx/index.ts', 'src/services/documentData.ts']
+  .map(path => resolve(root, path)).filter(file => existsSync(file));
+const reached = new Map(ifcxClosureEntries.map(file => [file, null]));
+const pending = [...ifcxClosureEntries];
+while (pending.length > 0) {
+  const file = pending.pop();
+  const sourceFile = parse(file);
+  for (const { node, text } of runtimeSpecifiers(sourceFile)) {
+    const modulePath = normalizedModule(file, text);
+    if (modulePath === text) continue;
+    if (isStoreOrUi(modulePath)) {
+      const chain = [];
+      for (let at = file; at; at = reached.get(at)) chain.unshift(ownPath(at));
+      report(file, sourceFile, node,
+        `de IFCX-kern bereikt '${ownPath(modulePath)}' via ${chain.join(' → ')}`);
+      continue;
+    }
+    const target = moduleFile(modulePath);
+    if (target && !reached.has(target)) {
+      reached.set(target, file);
+      pending.push(target);
+    }
+  }
+}
+
 const headlessMcpFiles = [
   ...sourceFiles(resolve(root, 'headless/mcp-server/src')),
   ...['src/services/mcp/freshness.ts', 'src/services/mcp/requestHandler.ts', 'src/services/mcp/context.ts',
@@ -223,7 +299,7 @@ for (const relativeAdapter of ['src/state/batchTransaction.ts', 'src/state/mcpTr
 }
 
 if (violations.length === 0) {
-  console.log(`OK — store-runtimegrenzen bewaakt in ${strictFiles.length} storegebonden modules, ${coreFiles.length} kernmodules, ${saveWorkerFiles.length} modules van de opslagworker en ${headlessMcpFiles.length} modules van de headless MCP-server.`);
+  console.log(`OK — store-runtimegrenzen bewaakt in ${strictFiles.length} storegebonden modules, ${coreFiles.length} kernmodules, ${saveWorkerFiles.length} modules van de opslagworker, ${headlessMcpFiles.length} modules van de headless MCP-server en ${reached.size} modules die de IFCX-kern bij het draaien laadt.`);
   process.exit(0);
 }
 

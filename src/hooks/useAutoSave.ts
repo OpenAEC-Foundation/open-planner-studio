@@ -136,6 +136,7 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       enabled: () => autoSaveEnabled.current,
       // #804 stap 6: dezelfde berekenfunctie als Ctrl+S, dus de opslagworker.
       compute: appStoreContext.runtime.ifcSaveCompute,
+      classifyIfcx: appStoreContext.runtime.ifcxClassify,
     });
 
     // De wekkers (het gewone ritme van 10 s en, #804 stap 8, dat van een document met een gebouwmodel) staan in

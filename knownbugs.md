@@ -2373,9 +2373,10 @@ en noem het in je rapport of PR-tekst.
 480. **Een paar zeldzamere exportweglatingen staan nog alleen in de console, niet in de verliesenvelope.**
      `src/services/xerExportLoss.ts` (`categoriesFor`) kent sinds #727 notities, datumconstraints die het doelformaat niet schrijft,
      handmatige planning en hammock-taken ook voor een native project. Nog niet: een soft MSO/MFO die MSPDI als
-     SNET/FNET schrijft (`mspdiWriter.ts`, `softLossCount`), `levelingDelayMinutes` (MSPDI en P6),
-     resume/stop (MSPDI) en een ELAPSEDTIME-taakduur naar P6 (`p6xmlWriter.ts`, `elapsedTaskCount`). Gelezen in
-     de writers, niet nagespeeld. Voorstel: per geval een categorie en een capability in dezelfde matrix. — S
+     SNET/FNET schrijft (`mspdiWriter.ts`, `softLossCount`), `levelingDelayMinutes` (MSPDI) en resume/stop (MSPDI).
+     Voor P6 XML telt de exportmelding de nivelleervertraging en de kalendertijd wel
+     (`levelingDelays`, `elapsedDurations` in `p6XmlExportNotice.ts`, ADR 0367). Gelezen in de writers, niet
+     nagespeeld. Voorstel: per geval een categorie en een capability in dezelfde matrix. — S
 
 482. **De exportverliestest bewaakt een primaire constraint op een P6-verzameltaak niet apart.**
      `tests/planning/check-xer-export-loss.ts` (scenario "Native verzameltaak met constraints") geeft de
@@ -7096,7 +7097,7 @@ en noem het in je rapport of PR-tekst.
      en zonder de hint `milestonesAtDayEnd`. Maakt de openroute van F3-4 daar met de laadgrens van de app de payload van,
      dan verandert die bij een bestand van de schrijver niets (getoetst voor de 49 bestanden en de 327 datumvormen van de
      kernproef). Bij een bestand dat de schrijver nooit maakt, kan ze wel iets veranderen, zoals bij STEP: een werkplan
-     zonder `timeModel` en zonder `minuteModelPending` krijgt `minuteModelPending`.
+     zonder `timeModel` en zonder `minuteModelPending` krijgt `minuteModelPending` (welke zulke bestanden openen: 2353).
      Daarnaast rekent de Openen-route van de app door (`prepareLoadedPayload` met `recompute: true`,
      `src/state/documentActivation.ts`); dan verschuift bijvoorbeeld bij de datumfixture de vroege finish van de taak
      `einde-middernacht` van `2027-06-03T00:00` naar `2027-06-02T16:00`, en de volgende opslag schrijft andere bytes. Ook
@@ -7141,3 +7142,23 @@ en noem het in je rapport of PR-tekst.
      mutaties van de kernproef; de vorige head noemde het veld). Richting als het nodig wordt: de domeinen in de
      veldtabel nauwer maken waar STEP een waarde laat vallen (een fractie in een minutenveld); geen toetsen per object
      die STEP nabootsen, want die sluit R6 uit. Gemeten in #1183 ronde 8. — B
+
+2365. **De doelcontrole van IFCX classificeert een onbekend bestaand doel met een volledige lezing.** Schrijft een
+     IFCX-document naar een bestaand doel dat niet zijn eigen bekende versie is (Opslaan als over een bestaand `.ifcx`, of
+     het eigen doel nadat de versie na een mislukte schrijfactie vergeten is), dan leest `classifyIfcx` dat bestand in de
+     opslagworker helemaal (`ifcxTargetRefusal`). Het venster blijft reageren; de opslag wacht, bij 10.000 taken in de orde
+     van seconden (niet gemeten in de app). Het eigen doel met een bekende versie toetst alleen de versie. — B (code), duur S
+
+2366. **In de browser leegt de opslaankiezer een gekozen bestaand bestand vóór elke controle, ook bij een naam die niet
+     bij het formaat past.** Een IFC-document dat met de flag `ifcx` aan in de kiezer een naam op `.ifcx` kiest (via "alle
+     bestanden"), krijgt de melding `ifcx.nameMismatch` en de app schrijft niets; het gekozen bestand heeft de browser dan
+     al leeg gemaakt of aangemaakt. Dat is de grens van main bij elk bestaand doel in die kiezer (knownbug 1899). Een
+     IFCX-document gebruikt de kiezer niet: een nieuw doel krijgt het als download met de naam op het formaat. — B (code)
+
+2372. **Opslaan als over een bestaand eigen IFCX classificeert op desktop dezelfde doelbytes twee keer.** Met beide
+     flags aan toetst `placeOnDesktop` het gekozen doel na de kiezer en nog eens na het herstelrecord
+     (`src/state/ownFileReplace.ts`). `capturedTargetReaders` deelt de STEP-scan van die vastgelegde bytes, maar de
+     IFCX-classificatie start per controle opnieuw: één volledige lezing van het doel te veel (de duur staat bij 2365).
+     Richting: deel binnen de poging één classificatie van de vastgelegde bytes, en laat beide identiteitscontroles en
+     de vergelijking met de verwachte bytes bij vervangen staan. Gemeld door de review van #1223 ronde 2
+     (GPT-6.2-Sol). — B
