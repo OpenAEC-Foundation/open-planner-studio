@@ -12,7 +12,7 @@ een gat een werkperiode maken of omgekeerd. Een eigen, voor beide formaten gelij
   INT van 32 bits met teken) in tachtigsten van een minuut; gedeeld door 80 geeft dat werkminuten. Indeling en
   breedte in ADR 0410.
 - Bij formaat A en B begint de vorige waarde van het werk en van de verstreken tijd op 0, niet op het totaalrecord of
-  het samenvattingsblok: de eerste periode loopt van werkminuut 0 tot haar eigen cumulatieve waarde. Na elk record
+  het samenvattingsblok: 0 is de beginwaarde vóór het eerste record. Na elk record
   worden de vorige waarden die van dat record, ook als het geen periode gaf (ADR 0412): bij formaat A het afgekapte
   ruwe werk en de verstreken tijd na het plafond, bij formaat B het werk en de verstreken tijd na het delen.
 - Formaat A (`decodeRegularTimephasedWork`), werk, in deze volgorde: de ruwe DOUBLE van elk record gaat door
@@ -32,7 +32,8 @@ een gat een werkperiode maken of omgekeerd. Een eigen, voor beide formaten gelij
   afronding; volgens het weggehaalde commentaar mist `getPlannedWork` de afkapping en poort de decoder dat
   letterlijk. De gatdetectie (ADR 0414) vergelijkt dus het verschil van de twee omgerekende waarden met 0: twee ruwe
   waarden die na het delen door 1000 hetzelfde getal geven, zoals 1000.0000000000001 en 1000.0000000000002, geven
-  werk 0 en dus een gat, ook al verschillen ze ruw.
+  werk 0, ook al verschillen ze ruw. Een periode met werk 0 valt uit de gewerkte periodes; een gat ontstaat pas als
+  er daarna nog een gewerkte periode volgt (ADR 0414).
 - Formaat B, verstreken tijd: de INT op relatieve byte 24 wordt zonder plafond en zonder toets op het teken gedeeld
   door 80. Een waarde die lager is dan de vorige, geeft een negatieve lengte en dus geen periode (ADR 0412).
 - Formaat B met N 0: het totale werk van de toewijzing is de DOUBLE op byte 16 gedeeld door 1000, zonder afkapping of

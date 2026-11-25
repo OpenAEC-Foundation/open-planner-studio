@@ -1,4 +1,4 @@
-# De leestools geven een compact antwoord, met id's en notaties die de schrijftools aannemen
+# De leestools geven een compact antwoord, met id's en de notaties van de schrijfkant
 
 De leestools in `src/services/mcp/tools/readTools.ts` geven JSON die over de bridge gaat, en het overzicht en de
 lijsten groeien met het project mee. Een optioneel veld komt daarom alleen mee als het iets zegt. Op de rijen van
@@ -28,14 +28,14 @@ beschrijvingen). De bekende gevallen waarin een gelezen waarde niet zo terug kan
   is niet nagegaan. Toets: `cases-read.ts`, "get_project_overview: rijen in boomvolgorde met depth en parentId …"
   (R, S1, a; de toets eist die volgorde, diepte 1, 2 en 3, geen `depth` op de wortel, `parentId` als id en `parent`
   als WBS-code).
-- Relatietype en lag komen uit `seqAbbrev` en `lagLabel` in `sequenceFields.ts`, waar ook `normalizeSeqType` en
-  `parseLag` staan, die die vormen aannemen. Toetsen: `cases-stille-noops-taken.ts`, "H1: de KORTE typenotatie van de
+- Relatietype en lag komen uit `seqAbbrev` en `lagLabel` in `sequenceFields.ts`, de module waar ook
+  `normalizeSeqType` en `parseLag` van de schrijfkant staan. Toetsen: `cases-stille-noops-taken.ts`, "H1: de KORTE typenotatie van de
   leeskant …" en "H2: leeskant-lagvormen …" en "H2: procent-lag …" (ze geven vaste waarden in die vormen aan de
   schrijftools). Een relatie zonder lag leest als `lag: ""`, en die lege tekst neemt `parseLag` niet aan (knownbug
   2475). Een lag in minuten leest ook als leeg, en de eenheid van een lag in kalendertijd staat er niet bij
   (knownbug 354).
-- Een kalender uit `planner_get_calendars` is over te zetten zoals ADR 0104 beschrijft (`cases-kalender-roundtrip.ts`),
-  behalve met bewaarde IFC-bronklokken (knownbug 1969).
+- Wat `planner_get_calendars` van een kalender geeft, staat in ADR 0406; onder welke voorwaarden die lezing aan
+  `planner_update_calendar` te geven is, staat in ADR 0104 (grens: bewaarde IFC-bronklokken, knownbug 1969).
 - De onderbrekingen van `planner_get_task` komen uit `interruptionsOf` in `splitFields.ts`, naast `planTaskSplits`
   van `planner_set_task_splits`. Een gatenlijst die het bewerkmodel niet draagt, geeft geen `interruptions` maar
   `splitsEditable: false`, naast de rauwe `splitGaps`. Een gelezen lijst is niet altijd terug te geven: een

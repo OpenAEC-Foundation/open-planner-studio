@@ -1,8 +1,8 @@
 # Resources, belasting en kalenders lezen
 
-`planner_list_resources` en `planner_get_calendars` geven de velden die de schrijftools aannemen, met dezelfde
-namen (ADR 0100, 0101 en 0104), plus een paar afgeleide velden die de agent anders zelf zou moeten tellen. Waar de
-schrijfkant iets weigert, laat de leeskant de reden al zien, zodat de agent die niet pas bij de weigering ontdekt.
+`planner_list_resources` en `planner_get_calendars` geven hun velden onder dezelfde namen als de schrijftools (ADR
+0100, 0101 en 0104), plus een paar afgeleide velden die de agent anders zelf zou moeten tellen. Voor de weigeringen
+die hieronder staan, laat de leeskant de reden al zien, zodat de agent die niet pas bij de weigering ontdekt.
 
 ## Gevolgen
 
