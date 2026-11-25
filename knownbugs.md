@@ -4366,8 +4366,9 @@ en noem het in je rapport of PR-tekst.
       verloren.** `writeP6XMLWithReport`
       (`src/services/p6/p6xmlWriter.ts`) schrijft de JSON van `OPS_DayMeasureLags`, `OPS_DayMeasureDurations`,
       `OPS_ExactMinutes` en `OPS_LiteralCalendars` helemaal, zonder lengtegrens. Oracle documenteert 255 tekens voor
-      `UDFValue.Text` in de Web Services API (P6 EPPM Web Services Reference, "UDFValue"; aangedragen in de review van
-      #1240, niet zelf gelezen); of de XML-import van P6 een langere waarde weigert of afkapt, is niet beproefd. Kort P6
+      `UDFValue.Text` in de Web Services API (P6 EPPM Web Services Reference, "UDFValue",
+      `docs.oracle.com/cd/F88966_01/English/Integration_Documentation/p6_eppm_web_services_reference/42371.htm`;
+      aangedragen in de review van #1240, niet zelf gelezen); of de XML-import van P6 een langere waarde weigert of afkapt, is niet beproefd. Kort P6
       een waarde in, dan is ze ongeldige JSON en leest OPS haar als geen record (`parseFieldRecords`, `parseLagRecords` in
       `xmlDayMeasure.ts`); een ongeldige lijst `OPS_LiteralCalendars` laat de lezer terugvallen op het tijdsignaal (ADR
       0264). Dezelfde grens in MSPDI: 290 en 304. Gelezen in de code. — S
@@ -4433,9 +4434,11 @@ en noem het in je rapport of PR-tekst.
 
 2345. **Twee werkende uitzonderingen op één datum: in P6 XML wint de laatste, ook zonder eigen blokken.**
       `holidayOrExceptionsNode` (`src/services/p6/p6xmlWriter.ts`) zet per datum één element in een kaart; een latere
-      werkende uitzondering zonder eigen blokken overschrijft daar een eerdere met blokken, met de terugvalblokken van
-      haar weekdag. De motor houdt dan de blokken van de eerdere (`buildWorkingExceptions`, knownbug 2004). Na export
-      en heropenen draagt die datum dus andere blokken dan de motor in de app gebruikte. Gelezen in de code. — B
+      werkende uitzondering zonder eigen blokken overschrijft daar een eerdere met blokken, met haar terugvalblokken: die
+      van haar weekdag, op een vrije weekdag die van de eerste werkdag, en anders het blok van `workStartHour` tot
+      `workEndHour`. De motor houdt dan de blokken van de eerdere (`buildWorkingExceptions`, knownbug 2004). Wijken de
+      terugvalblokken daarvan af, dan kan die datum na export en heropenen andere werktijden dragen dan de motor in de
+      app gebruikte (aansluitende blokken voegt de lezer samen). Gelezen in de code. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -4641,18 +4644,32 @@ en noem het in je rapport of PR-tekst.
      SHA-256 als de geopende bron als doel toelaten, en de BOM bij de gewone schrijver bewaren. Voorwaarde voor standaard
      aan. — B (code en de proef van de doelcontrole, `check-ifc-foreign-target.ts` 9c; Ctrl+S zelf niet nagespeeld)
 
-2231. **VERVOLG, zo op main: opslaan weigert in "datums zoals opgeslagen" met `planning-na-openen` (#804, flag aan).**
-     Reproductie (review van #1184 ronde 2): het eigen IFC-voorbeeld, met de gewone writer geschreven met MSPDI-herkomst
-     (`OPS_ImportProvenance.SourceFormat`), één wand erbij, en opgeslagen vroege datums van `Set up site` die afwijken van
-     de berekening. Met de flag aan opent de app alle 20 taken in "datums zoals opgeslagen"; Ctrl+S zonder bewerking geeft
-     `notifications.ifcForeignMergeRefused` en schrijft nul bytes. De gedeelde schrijfroute geeft `planning-na-openen`, met
-     een verschil in `earlyStart` van `2027-05-06T07:00` naar `2027-05-07T07:00`. Gelijk op main en op de PR, met en
-     zonder `importPristine`; zonder datumafwijking geeft de merge de bron byte-gelijk terug. Plekken:
-     `src/state/documentActivation.ts` (`recordedDatesSource`), `src/state/ifcSaveInput.ts` (`buildWriteIFCInput`),
-     `src/state/ifcMergePlanning.ts` (`openMergePlanning`), `src/services/ifc/foreign/mergeWriter.ts` (de controle na
-     openen), `src/state/slices/fileSlice.ts` (`prepareAppIfcWrite`). Richting van de reviewer: geef de twee kanten van de
-     heropening gelijkwaardige informatie over de opgeslagen datums en behoud de vergelijking. Geen voorkomend exemplaar
-     in het onbewerkte corpus. Review van #1184 ronde 2 (GPT-6.2-Sol, xhigh). — B (proef van de reviewer)
+2360. **Bekende grens (#804, flag aan): buiten "datums zoals opgeslagen" ziet `planning-na-openen` een verkeerde of
+     ontbrekende waarde in een rekenslot, en een onterecht werkelijk einde of percentage op een fase, niet als de writer die
+     zelf zou schrijven.** Buiten de modus rekent de app na het laden opnieuw (`prepareLoadedPayload` in
+     `src/state/documentActivation.ts`) en rolt ze de voortgang van de kinderen op naar de fasen (`rollupSummaryTasks` in
+     `src/engine/scheduler/applyCpmResult.ts`). De vergelijking na heropenen (`checkedBytes` in
+     `src/services/ifc/foreign/mergeWriter.ts`) ziet daardoor de berekening, niet het slot. Main doet hetzelfde: deze PR
+     houdt buiten de modus de controle van main (de maat is "niet blinder dan main"); de toets op de slots
+     (`taskTimeSlotProblem`) draait alleen in de modus. Een fout die pas na het schrijven in de bytes komt, weigert buiten
+     de modus alleen als de heropening er iets van merkt. De vier gevallen van review ronde 2 van #1216, op het
+     verbouwingsvoorbeeld met wand buiten de modus, een bladtaak hernoemd, en in de uitvoer van de writer: (1) de vroege
+     start van fase *1. Preparation* van 7 mei 07.00 uur naar 5 mei 07.00 uur, of leeg; (2) hetzelfde voor mijlpaal
+     *Start of refurbishment*; (3) een werkelijk einde op 5 mei op de fase, die nog niet begonnen is; (4) 37% gereedheid op
+     die fase. De app toont na heropenen weer 7 mei 07.00 uur en de opgerolde voortgang; een IFC-lezer die `IFCTASKTIME`
+     leest, ziet de andere waarde. De toets op de slots gaat over de tijdslots 3 tot en met 19 van `IFCTASKTIME`; de
+     argumenten 0 tot en met 2 (naam en herkomst) leest de planningslezer niet, en een kopie met een andere taaktijdnaam
+     passeert de controle zonder dat de zichtbare planning verandert (review ronde 3 van #1216). Binnen de modus gelden twee
+     benoemde grenzen (stopregel van de technisch eigenaar, 25 november 2026: een geval dat alleen ontstaat door bytes na het
+     schrijven te veranderen, of door een bron die zichzelf tegenspreekt). (a) Bytes die na het schrijven veranderen buiten de
+     argumenten 3 tot en met 19 van `IFCTASKTIME` en hun hulprecords ziet de slottoets niet; de vergelijking na heropenen ziet
+     ze alleen als de planning verandert. (b) Een bron die zichzelf tegenspreekt: een XER-bron waarin het IFC-slot een andere
+     datum draagt dan het bronarchief (de app toont het archief), of een eigen IFC waarvan de opgerolde fase niet past bij de
+     peildatum in `OPS_ProjectSettings` (de app rolt bij openen opnieuw op, review ronde 4 van #1216). Opslaan in de modus
+     weigert dan met `planning-na-openen`, en de bron blijft staan; main weigert elke opslag in de modus. Een leeg bronslot
+     dat de planner niet wijzigde, blijft leeg (`emptySlots` in `sourceForm.ts`). Richting: een eigen PR die
+     buiten de modus de slots met de momentopname vergelijkt (een nieuwe bewaker, niet nodig voor knownbug 2231). — B (review
+     ronde 2 van #1216)
 
 2219. **VERVOLG (review van #1184): de geheugenpiek van `openIfcBytes` bij een groot IFC is niet gemeten (#804).**
      `openIfcBytes` (`src/core/index.ts`) maakt eerst een eigen kopie van zijn invoer (het publieke pakket moet een
