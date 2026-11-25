@@ -1554,6 +1554,31 @@ en noem het in je rapport of PR-tekst.
     (`ReportPaperView.tsx`) maakt voor elk blad een element en de vectorpagineerder (`paginateVector.ts`) voegt elk
     blad toe aan de PDF. Tijd en geheugen bij dat aantal zijn niet gemeten. Issue #1238. — B
 
+2450. **Een tekst in een terugvalletter kan zonder melding uit de vector-PDF wegvallen als er een tweede terugvalletter
+    geladen is die niets tekent.** `paginateVectorToPdfBytes` (`src/services/print/paginateVector.ts`) laadt elke
+    terugvalletter (de `fallbackFonts` van de aanroeper en de CJK-aanbieders van een extensie) waarvan `covers` een
+    ongedekt teken raakt, en geeft na de eerste render alleen een letter met gebruikte tekens een `embed`.
+    `PdfVectorDraw2D.fillText` (`src/services/pdf/pdfVectorDraw2d.ts`) zet tekst langs de weg van de terugvalletters alleen
+    in de PDF als elke geladen letter een `embed` heeft (`cjkEmbedReady`). Nagespeeld met `paginateVectorToPdfBytes` en
+    één `fillText` (A4 staand, op de breedte), in twee opstellingen. (1) Rapportletter Carlito, Inter als `fallbackFonts`,
+    plus een aanbieder via `registerCjkFontProvider` met de Inter-bytes en een `covers` die voor elk teken waar geeft;
+    tekst `Fase 1 ↩ 2` (U+21A9 mist in Carlito, staat in Inter). Zonder die aanbieder heeft de laatste render één
+    tekstplaatsing, met de aanbieder nul, en de PDF komt er zonder fout. (2) Rapportletter Inter en aanbieders met
+    Noto Sans Coptic (`tests/planning/fixtures/fonts/`) en `covers` = de glyphs van die letter; tekst `Ⲁⲃⲅ fase`. Met één
+    aanbieder één plaatsing, met twee gelijke aanbieders nul, zonder fout. Op het blad staat de tekst dan niet, en er
+    komt geen rasterexport. Treft de Gantt-afdruk en de tabelrapporten (beide via `paginateVectorToPdfBytes`); in de app
+    alleen met een extensie die een aanbieder registreert (`api.pdfFonts.register`). — B
+
+2451. **De dekking van een teken wordt voor beide gewichten één keer bepaald, met één gewicht.** `checkCoverage` en
+    `checkCoverageComplex` (`src/services/pdf/pdfVectorDraw2d.ts`) bewaren per teken één uitkomst voor gewoon en vet:
+    het gewicht van de eerste tekst met dat teken beslist. `collectCjkCodepoints` en in
+    `src/services/pdf/reportTextMeasure.ts` `fallbackIndexFor`, `needsFallback` en `splitFallbackRuns` kijken alleen in
+    de gewone letter, ook voor vette tekst. Bij de zes meegeleverde paren (Inter, Carlito, Liberation Sans, Serif en
+    Mono, Noto Sans Arabic) hebben gewoon en vet dezelfde tekenset (fontkit `characterSet`, nagemeten); voor een eigen
+    lettertype (`customReportFont.ts` kiest gewoon en vet per familie) en de vette letter van een CJK-aanbieder is dat
+    door niemand nagegaan. Mist het vette bestand een teken dat het gewone heeft, dan kan vette tekst in de PDF een leeg
+    vakje tonen zonder rasterexport; niet nagespeeld. — S
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
