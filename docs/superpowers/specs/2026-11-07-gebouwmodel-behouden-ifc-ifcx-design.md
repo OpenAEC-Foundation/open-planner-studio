@@ -1,9 +1,10 @@
 # Gebouwmodel behouden in IFC en IFCX — ontwerp
 
-Status: ontwerp, versie 21 (9 november 2026: council-rondes 1–13, Opus en Sol gaven een 9; daarna fixrondes 1 tot en met
+Status: ontwerp, versie 22 (9 november 2026: council-rondes 1–13, Opus en Sol gaven een 9; daarna fixrondes 1 tot en met
 4 van de review van PR #839 door Sol en Terra, §12; daarna de uitkomst van fase 0, met drie besluiten van wrakko, §11;
 17 november 2026: de besluiten van de eigenaar van 16 en 17 november in §11, met de namen van de kopieën in §4.10 en
-het ritme van Automatisch opslaan en de export in §4.12).
+het ritme van Automatisch opslaan en de export in §4.12; 25 november 2026: het besluit van de eigenaar over IFCX met een
+gebouwmodel in §6, §8 en §11).
 Wordt in dezelfde sessie gebouwd.
 Issue #804 (IFCX naast IFC4X3). Raakt #748 (lokale 4D-workflow). Vervangt de weigering van PR #547
 (commit `5b2812f94`, 2026-10-23; de vroegere knownbug 110).
@@ -1194,6 +1195,23 @@ staan, zolang het object bestaat waar het bij hoort (§6.2).
 
 ## 6. IFCX: alles wat geen planning is, behouden
 
+**Besluit van de eigenaar (25 november 2026): de planning staat in IFCX in een eigen bestand naast het model.** De app
+schrijft een IFCX-bestand met alleen de planning, als eigen laag, en herschrijft het bestand met het gebouwmodel niet. Dat
+is dezelfde keuze als voor IFC (STEP) op 16 november 2026 (§11): standaard een eigen bestand, met het bestand van de
+architect als modelbron. De eigenaar koos dit boven "alles in één bestand".
+
+Wat dat voor deze paragraaf betekent:
+
+- §6.1 tot en met §6.4 en §6.6 beschrijven "alles in één bestand": een IFCX-bestand met vreemde inhoud openen, bewerken en
+  byte-gelijk terugschrijven. Dat wordt **niet gebouwd**. De tekst blijft staan als vastlegging van wat is onderzocht en
+  waarom het groot is (tokenizer, eigendom per bijdrage, de bron bij IFCX).
+- Wat overblijft, staat in §8 bij fase 4: de planningslaag verwijst naar het modelbestand, en de planner kan taken koppelen
+  aan bouwdelen uit dat model.
+- **Niet nagegaan:** hoe andere IFCX-programma's een verwijzing naar een los bestand op schijf lezen. §5.1 en §6.5 gaan er
+  nog van uit dat de app nooit een import toevoegt, omdat ifcx-explorer eist dat elke import een document in het pakket is
+  (`MISSING_IMPORT`). Fase 4 begint daarom met een korte proef op die verwijzing; pas daarna worden §5.1 en §6.5
+  herschreven.
+
 ### 6.1 Entries als tokens
 
 - Een JSON-tokenizer op bytes vindt de grenzen van `header`, `imports`, `schemas` en elke entry in `data`.
@@ -1332,7 +1350,7 @@ ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden
 | 1 | Bytes-openroutes, scanner, indeling, `ifcSource`, lezer met C-context, writer met behouden ids, controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan. Achter de flag. | 3 PR's | hoog |
 | 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, `jsonExtras` en `unusedKeys` (§4.2), de controle op een vervangen bestand en de exclusieve schrijfroute met `place_file_exclusive` (§4.10; Rust-code apart gereviewd door Sol, §11; in de eerste PR daarvan bewaart herstel elke volledige kandidaat met `pendingSha256` zolang die niet op het doel staat, ook bij een crash vóór stap 3, met een test voor een crash tijdens het herstel zelf: VERVOLG uit ronde 5 van #839, voor Terra blokkerend), herkomstmerken (`ifcOrigin`, §4.2), A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6, `idExceptions` in het manifest en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
 | 3 | IFCX-planning zonder vreemde inhoud: voorstel gedeelde schema's aan Bjorn (§5.3), profiel `openaec::ops::` 1.0.0, schema's, lezer, writer, dialogen, keuze, vraag bij opslaan, round-trip STEP↔IFCX, handleiding over IFCX (nl/en; de andere talen via de vertaalstraat). Achter de flag. | 4–6 PR's | hoog: veel velden, alfa-formaat |
-| 4 | IFCX met vreemde inhoud: tokenizer, eigendom per bijdrage, planning van een ander programma (§5.5), onbekende velden als token, de lege entry bij verwijzingen, `openaec::links`, `ifcSource` voor IFCX (§6.6), handleiding en `docs/ifc-round-trip.md` bijwerken. Flag eraf. | 2–3 PR's | middel |
+| 4 | IFCX naast een gebouwmodel (besluit van 25 november 2026, §6): de planning blijft een eigen IFCX-bestand en verwijst naar het modelbestand; de app herschrijft het model niet. Eerste stap: een proef op de verwijzing naar een los bestand (§6, §11). Daarna: de verwijzing schrijven en lezen, koppelingen naar bouwdelen uit het model, handleiding en `docs/ifc-round-trip.md` bijwerken. Vervallen: tokenizer, eigendom per bijdrage, onbekende velden als token en `ifcSource` voor IFCX (§6.1–§6.4, §6.6). Flag eraf. | opnieuw schatten na de proef | middel |
 
 Hoe moeilijk: dit is groot werk, ongeveer 15 tot 19 PR's. Het knippen zelf is niet het lastige deel. Het lastige deel is
 waar de planning en de rest elkaar raken: de indeling, vreemde gegevens op taken, gemengde relaties, verwijderen en
@@ -1540,6 +1558,11 @@ De besluiten zijn genomen (Ethan, 9 november 2026):
    gebruikt (advies Bjorn, §5.2).
 2. **`openaec::activity` meeschrijven**: vervalt; ifcx-explorer leest `openaec::planning::activity` (§5.3).
 3. **Planning van een ander programma in `openaec::planning::`**: openen en bewerken (§5.5).
+
+**Besluit van de eigenaar, 25 november 2026: IFCX met een gebouwmodel.** De planning als eigen bestand naast het model,
+niet alles in één bestand (§6, §8 fase 4). Open na dit besluit: de proef op de verwijzing naar een los bestand, als eerste
+stap van fase 4. Tot die proef is niet bekend welke vorm de verwijzing krijgt (een import, een pakket of een eigen veld)
+en of andere IFCX-programma's haar lezen.
 
 **Besluiten van de eigenaar, 16 en 17 november 2026.** Genomen tijdens de bouw van fase 1, elk op een voorgelegde
 keuze. Waar een besluit eerdere tekst vervangt, staat dat erbij. Nog niet herschreven naar deze besluiten: §4.10 (het
