@@ -4336,8 +4336,9 @@ en noem het in je rapport of PR-tekst.
       verloren.** `writeP6XMLWithReport`
       (`src/services/p6/p6xmlWriter.ts`) schrijft de JSON van `OPS_DayMeasureLags`, `OPS_DayMeasureDurations`,
       `OPS_ExactMinutes` en `OPS_LiteralCalendars` helemaal, zonder lengtegrens. Oracle documenteert 255 tekens voor
-      `UDFValue.Text` in de Web Services API (P6 EPPM Web Services Reference, "UDFValue"; aangedragen in de review van
-      #1240, niet zelf gelezen); of de XML-import van P6 een langere waarde weigert of afkapt, is niet beproefd. Kort P6
+      `UDFValue.Text` in de Web Services API (P6 EPPM Web Services Reference, "UDFValue",
+      `docs.oracle.com/cd/F88966_01/English/Integration_Documentation/p6_eppm_web_services_reference/42371.htm`;
+      aangedragen in de review van #1240, niet zelf gelezen); of de XML-import van P6 een langere waarde weigert of afkapt, is niet beproefd. Kort P6
       een waarde in, dan is ze ongeldige JSON en leest OPS haar als geen record (`parseFieldRecords`, `parseLagRecords` in
       `xmlDayMeasure.ts`); een ongeldige lijst `OPS_LiteralCalendars` laat de lezer terugvallen op het tijdsignaal (ADR
       0264). Dezelfde grens in MSPDI: 290 en 304. Gelezen in de code. — S
@@ -4403,9 +4404,11 @@ en noem het in je rapport of PR-tekst.
 
 2345. **Twee werkende uitzonderingen op één datum: in P6 XML wint de laatste, ook zonder eigen blokken.**
       `holidayOrExceptionsNode` (`src/services/p6/p6xmlWriter.ts`) zet per datum één element in een kaart; een latere
-      werkende uitzondering zonder eigen blokken overschrijft daar een eerdere met blokken, met de terugvalblokken van
-      haar weekdag. De motor houdt dan de blokken van de eerdere (`buildWorkingExceptions`, knownbug 2004). Na export
-      en heropenen draagt die datum dus andere blokken dan de motor in de app gebruikte. Gelezen in de code. — B
+      werkende uitzondering zonder eigen blokken overschrijft daar een eerdere met blokken, met haar terugvalblokken: die
+      van haar weekdag, op een vrije weekdag die van de eerste werkdag, en anders het blok van `workStartHour` tot
+      `workEndHour`. De motor houdt dan de blokken van de eerdere (`buildWorkingExceptions`, knownbug 2004). Wijken de
+      terugvalblokken daarvan af, dan kan die datum na export en heropenen andere werktijden dragen dan de motor in de
+      app gebruikte (aansluitende blokken voegt de lezer samen). Gelezen in de code. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
