@@ -585,12 +585,12 @@ for (const [label, text] of [['een gewone taaktijd', B4D], ['een terugkerende ta
 
 const WITH_LAG = atEnd(B4D.replace(/(,#104,#108),\$,(\.FINISH_START\.,\$\);)/, '$1,#8010,$2'),
   "#8010=IFCLAGTIME('Bonsai lag',.MEASURED.,$,IFCDURATION('P2D'),.NOTDEFINED.);");
-for (const spelling of ['P2D', 'P02D']) for (const [what, change, value, unit] of [
+for (const [spelling, days] of [['P2D', 2], ['P02D', 2], ['P0.50D', 0.5]] as const) for (const [what, change, value, unit] of [
   ['de lagwaarde van twee naar drie dagen', { lagDays: 3 }, 'P3D', '.NOTDEFINED.'],
   ['de lageenheid naar verstreken tijd', { lagUnit: 'ELAPSEDTIME' as const }, spelling, '.ELAPSEDTIME.'],
 ] as const) {
   const at = `een lag van Bonsai in de spelling ${spelling}, ${what}`;
-  const { result, rule } = await saveOn(encode(WITH_LAG.replace("'P2D'", `'${spelling}'`)), s => { s.updateSequence(s.sequences.find(q => q.lagDays === 2)!.id, change); });
+  const { result, rule } = await saveOn(encode(WITH_LAG.replace("'P2D'", `'${spelling}'`)), s => { s.updateSequence(s.sequences.find(q => q.lagDays === days)!.id, change); });
   ok(`${at}: schrijft (${refusal(result)})`, result.ok);
   if (!result.ok) continue;
   eq(`${at}: alleen het slot van dat veld verandert`, outArgs(result.bytes, Number(outArgs(result.bytes, 112)[6].slice(1))),

@@ -512,7 +512,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 
     // ── 3. De writer ──
     // Wat de planner niet wijzigde, in de vorm van de bron (fixronde 7, `SourceTaskTime`).
-    const written = writeIfcMergeLines(withOrphanRowGuids(input, rowGuid), sourceFormPlan(plan, pristine, input, index, source.stepIds), writtenAt);
+    const formPlan = sourceFormPlan(plan, pristine, input, index, source.stepIds);
+    const written = writeIfcMergeLines(withOrphanRowGuids(input, rowGuid), formPlan, writtenAt);
     const lines = written.lines.map(parseLine);
     const byId = new Map<number, OwnLine>();
     for (const line of lines) {
@@ -538,7 +539,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       const writtenArgs = line.args, type = line.type;
       line.type = sourceEntity(table, piece, line.type);
       setArgs(line, sourceSlotArgs(table, piece, writtenArgs, prior,
-        k => (object === undefined ? false : slotFieldChanged(type, k, object, changed, input) || (slotHasFields(type, k) ? false : undefined)), carried));
+        k => (object === undefined ? false : slotFieldChanged(type, k, object, changed, input, formPlan.sourceDayLagIds) || (slotHasFields(type, k) ? false : undefined)), carried));
       line.args.forEach((token, arg) => {
         if (token === writtenArgs[arg]) return;
         chosen.push({ id: line.id, arg, token });
@@ -920,7 +921,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       if (m) objects.set(id, m[1] === 'calendar' ? `cal:${m[2]}` : m[1] === '_baseline_ws' ? 'baselines' : `${m[1]}:${m[2]}`);
       else if (key === '_calendar') objects.set(id, `cal:${input.calendar.id}`);
     }
-    return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds, objects, idMap: written.idMap, literalCalendarIds: written.literalCalendarIds, raw, chosen };
+    return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds, objects, idMap: written.idMap, literalCalendarIds: written.literalCalendarIds, raw, chosen,
+      sourceDayLagIds: formPlan.sourceDayLagIds };
   }
   // Het domein zoals de lezer het uit de bron las (O0 hieronder), al vóór O1: de writer vergelijkt de taken ermee
   // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
@@ -1002,7 +1004,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   const lossInput: LossCheckInput = {
     index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain, opened: source.opened,
     ...(sourceSlots ? { sourceSlots } : {}),
-    owner0: built0.owner, owner1: owner, objects1: objects, literalCalendarIds: newlyLiteral,
+    owner0: built0.owner, owner1: owner, objects1: objects, literalCalendarIds: newlyLiteral, sourceDayLagIds: built.sourceDayLagIds,
     // Fixronde 1 van #886: "de planner wijzigde dit" tegenover wat de app na het openen liet zien, met de invoer van de
     // planner (niet `domain`, waarin de bronvorm al staat).
     ...(source.opened ? { plannerChanged } : {}),

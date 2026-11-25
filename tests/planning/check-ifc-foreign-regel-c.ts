@@ -160,8 +160,8 @@ function casesOf(o: Opened): Case[] {
 }
 
 const refusal = (r: MergeOutcome) => (r.ok ? 'schrijft' : r.error.cases.slice(0, 2).map(c => `${c.kind} #${c.sourceId}: ${c.detail}`).join(' | '));
-type Case = MergeNeedsPhase2Error['cases'][number];
-interface Boundary { readonly id: string; readonly reason: string; readonly fits: (c: Case, source: string, label: string) => boolean }
+type Refused = MergeNeedsPhase2Error['cases'][number];
+interface Boundary { readonly id: string; readonly reason: string; readonly fits: (c: Refused, source: string, label: string) => boolean }
 const SHARED = new Set(['een gedeelde lag', 'een gedeelde lag, de tweede reeks van OPS', 'een gedeelde taaktijd', 'een gedeelde taaktijd, de tweede taak van OPS']);
 const ONLY_SECOND = [120, 8002, 8011];
 const OPS_OWNER_IDS = [...OPS_OWNER.matchAll(/^#(\d+)=/gm)].map(m => Number(m[1]));
@@ -175,8 +175,10 @@ const BOUNDARIES: readonly Boundary[] = [
     fits: (c, source) => source.startsWith('een kalender') && ((c.sourceId === 8110 && c.kind === 'niet-eenduidig') || (c.sourceId === 8100 && c.kind === 'niet-gedragen')) },
   { id: '2234', reason: 'de projectkalender wordt letterlijk (mijlpaal of verstreken duur)',
     fits: (c, source, label) => source === 'de pinbron' && c.kind === 'bronvorm-leest-anders' && /: ((mijlpaal|durationType) gewijzigd|duur een dag langer \(een mijlpaal\))$/.test(label) },
-  { id: '2256', reason: 'r6 met de IFC4-lengtes: taaktijden buiten de vorm van IFC4 en een taak zonder taaktijd',
-    fits: (c, source) => source === R6_LONG && (c.kind === 'bronvorm-leest-anders' || (c.kind === 'planning-na-openen' && /^taak task-ifc-0task0+\.time\.scheduleDuration/.test(c.detail))) },
+  { id: '2256', reason: 'een taak zonder volledige taaktijd in de bron, met een afgeleide waarde die herlezen anders afleidt',
+    fits: (c, source) => (source === R6_LONG && ((c.kind === 'bronvorm-leest-anders' && /anders: taak task-ifc-0sub0+, time\./.test(c.detail))
+      || (c.kind === 'planning-na-openen' && /^taak task-ifc-0task0+\.time\.scheduleDuration: 5 → 0$/.test(c.detail))))
+      || (source === 'bonsai-4d.ifc' && c.kind === 'planning-na-openen' && c.detail.startsWith('taak task-ifc-2lNOVVAc3x$DPP3aHgo958.time.durationUnit:')) },
   { id: 'PR 8', reason: 'een gemengde relatie: resources en producten in één IfcRelAssignsToProcess, of een gemengde kalenderrelatie',
     fits: c => c.kind === 'gemengde-relatie' },
   { id: 'main', reason: 'een taak en een resource in een oude lay-out buiten het register; main weigert het bestand op herkomst',
@@ -186,7 +188,7 @@ const unnamed = (r: MergeOutcome, source: string, label: string) => (r.ok ? '' :
   .filter(c => !BOUNDARIES.some(b => b.fits(c, source, label))).slice(0, 3).map(c => `${c.kind} #${c.sourceId}: ${c.detail}`).join(' | '));
 const boundaryOf = (r: MergeOutcome, source: string, label: string): Boundary | undefined => {
   if (r.ok) return undefined;
-  const fit = (c: Case) => BOUNDARIES.find(b => b.fits(c, source, label));
+  const fit = (c: Refused) => BOUNDARIES.find(b => b.fits(c, source, label));
   return r.error.cases.every(c => fit(c) !== undefined) ? fit(r.error.cases[0]) : undefined;
 };
 const perBoundary = new Map<string, number>();
@@ -395,6 +397,15 @@ for (const [name, text] of [['de pinbron', SOURCES[0][1]], ['bonsai-4d.ifc', B4D
     ok('de proef van regel C ziet een verwisseling van de kinderen in een IfcRelNests',
       regelC(o.ifcSource!, graph, referenceGraph(swapped), editScope(graph, o.ifcSource!, o, edited, result.changes)).some(p => p.includes('IFCRELNESTS #106 heeft in slot 5 een andere volgorde')));
   }
+}
+
+{
+  const o = await openForeign(new TextEncoder().encode(B4D));
+  const label = 'beide kinderen van Ruwbouw gewist';
+  const result = await tryMerge(await storeEdit(cloneDomain(o), s => { for (const n of ['Wand A bouwen', 'Wand B bouwen']) s.deleteTask(taskNamed(s, n).id); }), o.ifcSource!);
+  const boundary = boundaryOf(result, 'bonsai-4d.ifc', label);
+  ok(`bonsai-4d.ifc, ${label}: weigert onder grens 2256 (${refusal(result)})`, boundary?.id === '2256');
+  if (boundary) perBoundary.set(boundary.id, (perBoundary.get(boundary.id) ?? 0) + 1);
 }
 
 for (const [name, list] of ordinary) console.log(`   gewoon werk op ${name}:\n${list.map(x => `     ${x}`).join('\n')}`);

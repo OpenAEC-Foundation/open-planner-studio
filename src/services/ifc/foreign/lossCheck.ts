@@ -225,6 +225,7 @@ export interface LossCheckInput {
   /** De kalenders die bij deze opslag letterlijk worden: letterlijk in O1 en niet in O0 (was knownbug 1102,
    *  `literalWriterForm`). */
   readonly literalCalendarIds?: ReadonlySet<string>;
+  readonly sourceDayLagIds?: ReadonlySet<string>;
   /** Wat de planner wijzigde: de sleutels van `changedScopes` tegenover wat de app na het openen liet zien
    *  (`ifcSource.opened`; fixronde 1 van #886). Zonder: tegenover de lezing van de bron (`changed`). */
   readonly plannerChanged?: ReadonlySet<string>;
@@ -1702,8 +1703,8 @@ const SEQ_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
 const RES_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = { 2: ['name'], 3: ['description'], 4: ['type'], 10: ['type'] };
 const LAG_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = { 3: LAG_VALUE_FIELDS, 4: ['lagUnit'] };
 const SEQUENCES = new WeakMap<WriteIFCInput, ReadonlyMap<string, WriteIFCInput['sequences'][number]>>();
-function lagValueFields(domain: WriteIFCInput | undefined, object: string): readonly string[] {
-  if (!domain || !object.startsWith('seq:')) return LAG_SLOT_FIELDS[3];
+function lagValueFields(domain: WriteIFCInput | undefined, object: string, sourceDays?: ReadonlySet<string>): readonly string[] {
+  if (!domain || !object.startsWith('seq:') || sourceDays?.has(object.slice(4))) return LAG_SLOT_FIELDS[3];
   let byId = SEQUENCES.get(domain);
   if (!byId) SEQUENCES.set(domain, byId = new Map(domain.sequences.map(seq => [seq.id, seq])));
   const seq = byId.get(object.slice(4));
@@ -1735,9 +1736,10 @@ export function slotHasFields(type: string, arg: number): boolean {
   return (SLOT_FIELDS_BY_TYPE.get(type)?.[arg]?.length ?? 0) > 0;
 }
 
-export function slotFieldChanged(type: string, arg: number, object: string, changed: ReadonlySet<string>, domain?: WriteIFCInput): boolean {
+export function slotFieldChanged(type: string, arg: number, object: string, changed: ReadonlySet<string>, domain?: WriteIFCInput,
+  sourceDays?: ReadonlySet<string>): boolean {
   if (changed.has(`${object}#@`) || changed.has(`${object}#*`)) return true;
-  return (type === 'IFCLAGTIME' && arg === 3 ? lagValueFields(domain, object) : SLOT_FIELDS_BY_TYPE.get(type)?.[arg] ?? [])
+  return (type === 'IFCLAGTIME' && arg === 3 ? lagValueFields(domain, object, sourceDays) : SLOT_FIELDS_BY_TYPE.get(type)?.[arg] ?? [])
     .some(field => (field.startsWith('@') ? changed.has(field.slice(1)) : changed.has(`${object}#${field}`)));
 }
 
@@ -2160,7 +2162,7 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   if (kind === 'seq') {
     if (way === 'self') return type === 'IFCRELSEQUENCE' && !d.whole ? any(SEQ_SLOT_FIELDS[arg]) : undefined;
     if (type === 'IFCLAGTIME' && way === 'slot:6') {
-      return any(d.whole || !mappedTables(input).has(d.chunk) ? LAG_FIELDS : arg === 3 ? lagValueFields(input.domain, obj) : LAG_SLOT_FIELDS[arg]);
+      return any(d.whole || !mappedTables(input).has(d.chunk) ? LAG_FIELDS : arg === 3 ? lagValueFields(input.domain, obj, input.sourceDayLagIds) : LAG_SLOT_FIELDS[arg]);
     }
     return undefined;
   }
