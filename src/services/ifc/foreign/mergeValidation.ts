@@ -2,12 +2,13 @@
  * Scanner en verliesbewaking leveren de bestaande STEP- en IfcRoot-kennis; hier staat alleen
  * de vergelijking met de bron (ontwerp §4.10, controles 1 en 2).
  */
-import { classify, type Classification } from './classify';
+import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
+import { relationRoles } from '../ifcSlotTables';
 import { isRootLine, refsOutsideText } from './lossCheck';
 import type { StepIndex } from './stepScanner';
 import { scanForeignStep } from './oldOwnHeader';
 import type { ForeignChange } from './changeList';
-import { entityValue, losesItsPlace, placeTriggers, serializeStepValue, withoutRemovedMembers } from './stepValue';
+import { entityValue, losesItsPlace, placeTriggers, serializeStepValue, withoutRemovedMembers, type StepValue } from './stepValue';
 
 /** De eigenaren van een pset via IfcRelDefinesByProperties, als stuknummers. */
 export function psetOwners(index: StepIndex, pset: number): number[] {
@@ -66,7 +67,29 @@ function goneFromOutput(source: StepIndex, sourceClasses: Classification, index:
   return gone;
 }
 
-function changeListProblems(source: StepIndex, sourceBytes: Uint8Array, index: StepIndex, bytes: Uint8Array,
+const STRUCTURAL = new Set(['IFCRELAGGREGATES', 'IFCRELASSIGNSTOCONTROL', 'IFCRELASSIGNSTOPROCESS']);
+
+function releasableMembers(source: StepIndex, sourceClasses: Classification, chunk: number): ReadonlySet<number> {
+  const inD = sourceClasses.selection.inD, type = source.type(chunk);
+  let related = -1;
+  if (type === 'IFCRELNESTS') related = relationRoles(type)!.related;
+  else if (STRUCTURAL.has(type)) {
+    const roles = relationRoles(type)!, relating = source.refAt(chunk, roles.relating);
+    if (relating >= 0 && inD[relating] === 1) related = roles.related;
+  } else if (type === 'IFCRELDEFINESBYPROPERTIES') {
+    const pset = source.refAt(chunk, 5);
+    if (pset >= 0 && source.type(pset) === 'IFCPROPERTYSET' && REGISTER_PSET_NAMES.has(source.name(pset) ?? '')) related = 4;
+  }
+  return new Set(related < 0 ? [] : source.refsAt(chunk, related).filter(m => inD[m] === 1).map(m => Number(source.id(m))));
+}
+
+function listRefs(value: StepValue): Set<number> {
+  const out = new Set<number>();
+  for (const list of placeTriggers(value).lists) for (const id of list) out.add(id);
+  return out;
+}
+
+function changeListProblems(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array, index: StepIndex, bytes: Uint8Array,
   listed: ReadonlyMap<number, ForeignChange>, gone: ReadonlySet<number>): string[] {
   const problems: string[] = [];
   const removed = new Set(gone);
@@ -95,18 +118,29 @@ function changeListProblems(source: StepIndex, sourceBytes: Uint8Array, index: S
       if (!removed.has(id)) { removed.add(id); queue.push(id); }
     }
   }
+  const chunkOfId = new Map([...listed].map(([chunk, change]) => [change.id, chunk]));
   for (const piece of pending) {
-    if (!justified.has(piece.id)) problems.push(`wijzigingslijst: #${piece.id} vervalt, maar geen verwijderd stuk laat het vervallen`);
+    if (justified.has(piece.id)) continue;
+    const releasable = releasableMembers(source, sourceClasses, chunkOfId.get(piece.id)!);
+    const lists = piece.value ? placeTriggers(piece.value).lists : [];
+    if (releasable.size > 0 && lists.some(list => list.every(id => removed.has(id) || releasable.has(id)))) continue;
+    problems.push(`wijzigingslijst: #${piece.id} vervalt, maar geen verwijderd stuk laat het vervallen`);
   }
   for (const [chunk, change] of listed) {
     if (change.kind !== 'gewijzigd') continue;
     const before = valueOf(source, sourceBytes, chunk), after = valueOf(index, bytes, index.chunkOf(String(change.id)));
-    const want = before && serializeStepValue(withoutRemovedMembers(before, removed));
-    if (!before || !after) problems.push(`wijzigingslijst: gewijzigd stuk #${change.id} is niet te lezen`);
-    else if (losesItsPlace(before, removed)) problems.push(`wijzigingslijst: #${change.id} staat als gewijzigd op de lijst, maar vervalt volgens §4.7`);
+    if (!before || !after) {
+      problems.push(`wijzigingslijst: gewijzigd stuk #${change.id} is niet te lezen`);
+      continue;
+    }
+    const releasable = releasableMembers(source, sourceClasses, chunk), kept = listRefs(after);
+    const lost = new Set(removed);
+    for (const id of listRefs(before)) if (releasable.has(id) && !kept.has(id)) lost.add(id);
+    const want = serializeStepValue(withoutRemovedMembers(before, lost));
+    if (losesItsPlace(before, lost)) problems.push(`wijzigingslijst: #${change.id} staat als gewijzigd op de lijst, maar vervalt volgens §4.7`);
     else if (want === serializeStepValue(before)) problems.push(`wijzigingslijst: #${change.id} staat als gewijzigd op de lijst, maar verliest geen lid`);
     else if (want !== serializeStepValue(after)) {
-      problems.push(`gewijzigd niet-P-stuk #${change.id}: in de uitvoer niet hetzelfde stuk met alleen de leden naar verwijderde stukken eruit`);
+      problems.push(`gewijzigd niet-P-stuk #${change.id}: in de uitvoer niet hetzelfde stuk met alleen de leden naar verwijderde of verplaatste planningsleden eruit`);
     }
   }
   return problems;
@@ -332,7 +366,7 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
   }
   // Vond de lus hierboven niets, dan staat elk niet-P-stuk byte-gelijk op zijn plek: dan telt alleen het verschil.
   const counting = problems.length === 0 && !options.full ? 'verschil' : 'volledig';
-  for (const problem of changeListProblems(source, sourceBytes, index, bytes, listed, gone)) problems.push(problem);
+  for (const problem of changeListProblems(source, sourceClasses, sourceBytes, index, bytes, listed, gone)) problems.push(problem);
   for (const member of sourceClasses.foreignMembers) {
     const id = source.id(member), expected = bindings(source, id), shown = bindings(index, id);
     for (const key of [...expected.keys()]) if (gone.has(Number(JSON.parse(key)[0]))) expected.delete(key);

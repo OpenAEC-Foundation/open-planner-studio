@@ -253,6 +253,23 @@ function editedPieces(index: StepIndex, changes: readonly ForeignChange[]): Read
   return edits;
 }
 
+function withLeaving(rule: ForeignRuleOutcome, leaving: ReadonlyMap<number, ReadonlySet<number>>, index: StepIndex): ForeignRuleOutcome {
+  if (leaving.size === 0) return rule;
+  const dropped = new Set(rule.dropped), trimmed = new Map(rule.trimmed);
+  for (const [id, away] of leaving) {
+    if (dropped.has(id)) continue;
+    const chunk = index.chunkOf(String(id));
+    const type = index.type(chunk);
+    const lost = new Set([...(rule.trimmed.get(id) ?? []), ...away]);
+    const related = index.refsAt(chunk, type === DEFINES ? 4 : relationRoles(type)!.related);
+    if (related.every(m => lost.has(Number(index.id(m))))) {
+      dropped.add(id);
+      trimmed.delete(id);
+    } else trimmed.set(id, lost);
+  }
+  return { ...rule, dropped, trimmed };
+}
+
 /** Een multiset van ids. */
 class Bag {
   readonly #m = new Map<number, number>();
@@ -447,8 +464,6 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   const gone = goneStepIds(source.stepIds, input);
   const references = gone.size > 0 ? foreignReferences(index, cls.classes, source.bytes, cls.selection.inD) : emptyForeignReferences();
   const rule = applyForeignRule(references, gone, source.unusedKeys);
-  const changes = foreignChangeList(rule, index, source.bytes);
-  const pieceEdits = editedPieces(index, changes);
   // Een verstopt stuk vóór een P-stuk (#886): het commentaar ervóór gaat met het P-stuk weg.
   for (let i = 0; i < n; i++) {
     if (!index.isEntity(i) || !isP(i)) continue;
@@ -583,6 +598,15 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       const d = domainOf(chunk);
       return d?.kind === 'task' ? tasks.get(d.id) : undefined;
     };
+    const leaving = new Map<number, Set<number>>();
+    const leave = (r: number, away: readonly number[]) => {
+      if (away.length === 0) return;
+      let set = leaving.get(sid(r));
+      if (!set) leaving.set(sid(r), set = new Set());
+      for (const m of away) set.add(sid(m));
+    };
+    const inOrder = (domain: readonly string[], kept: readonly string[]) =>
+      domain.join('\u0000') === [...domain.filter(id => !kept.includes(id)), ...kept].join('\u0000');
 
     for (let r = 0; r < n; r++) {
       if (!index.isEntity(r) || isP(r) || rule.dropped.has(sid(r))) continue;
@@ -599,12 +623,12 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       // Bewaarde relatie met een relating buiten D: haar D-leden houden hun plek.
       const relatingIsSchedule = relating >= 0 && index.type(relating) === 'IFCWORKSCHEDULE';
       for (const m of members) {
-        if (SINGLE_MEMBERSHIP.has(type)) noOwnRel.get(type)!.add(sid(m));
         if (type === NESTS) {
           const d = domainOf(m);
           const moved = d?.kind === 'task' ? !!tasks.get(d.id)?.parentId : d?.kind === 'res' ? resources.get(resourceId(d.id))?.parentId != null : false;
-          if (moved) caseAt('verplaatst', m, `${label(m)} staat in ${label(r)} van een ander, maar heeft in de planning een ouder`);
+          if (moved) { leave(r, [m]); continue; }
         }
+        if (SINGLE_MEMBERSHIP.has(type)) noOwnRel.get(type)!.add(sid(m));
         if ((type === NESTS || type === CONTROL) && relatingIsSchedule && index.type(m) === 'IFCTASK') otherScheduleTasks.add(sid(m));
       }
     }
@@ -617,61 +641,46 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       const missing = members.some(m => (!domainOf(m) && !keptHeads.has(sid(m))) || (domainOf(m)?.kind === 'task' ? !tasks.has(domainOf(m)!.id)
         : domainOf(m)?.kind === 'res' ? !resources.has(resourceId(domainOf(m)!.id)) : false));
       if (missing) return;
+      let away: readonly number[] = [];
       if (type === NESTS && relType === 'IFCTASK' && relatingDomain?.kind === 'task') {
         const parent = tasks.get(relatingDomain.id);
         const s = members.map(m => taskOf(m)?.id);
-        if (!parent || s.some(id => id === undefined || tasks.get(id)!.parentId !== parent.id)) {
-          caseAt('gemengde-relatie', r, `${label(r)}: een D-lid heeft een andere ouder`);
+        if (!parent || s.some(id => id === undefined)) {
+          caseAt('gemengde-relatie', r, `${label(r)}: een D-lid is geen taak van de planning`);
           return;
         }
-        // De lezer leest de eigen relatie (in het blok) vóór de gemengde (erna): de volgorde moet dan die van het domein zijn.
-        const others = parent.childIds.filter(id => !s.includes(id));
-        if (parent.childIds.join('\u0000') !== [...others, ...s].join('\u0000')) {
-          caseAt('gemengde-relatie', r, `${label(r)}: de volgorde van de kinderen zou na herlezen anders zijn`);
-          return;
-        }
+        const stay = members.filter((_, k) => tasks.get(s[k]!)!.parentId === parent.id);
+        away = inOrder(parent.childIds, stay.map(m => taskOf(m)!.id)) ? members.filter(m => !stay.includes(m)) : members;
       } else if (type === NESTS && relType === 'IFCWORKSCHEDULE') {
-        if (members.some(m => !!taskOf(m)?.parentId)) {
-          caseAt('gemengde-relatie', r, `${label(r)}: een D-lid is geen wortel-taak meer`);
-          return;
-        }
+        away = members.filter(m => !!taskOf(m)?.parentId);
       } else if (type === AGGREGATES && relType === 'IFCWORKPLAN') {
         // Het D-schema hangt altijd onder het D-werkplan, en een eigen baselinekop houdt zijn id (`keptHeads`).
       } else if (type === CONTROL && relType === 'IFCWORKSCHEDULE') {
         // Elke taak hangt aan het D-schema; de leden bestaan nog (hierboven).
       } else if (type === CONTROL && relType === 'IFCWORKCALENDAR' && relatingDomain?.kind === 'cal') {
         const calId = calendarId(relatingDomain.id);
-        for (const m of members) {
+        away = members.filter(m => {
           const d = domainOf(m)!;
           const own = d.kind === 'task' ? tasks.get(d.id)?.calendarId : d.kind === 'res' ? resources.get(resourceId(d.id))?.calendarId : undefined;
-          const same = calId === input.calendar.id ? !own || own === input.calendar.id : own === calId;
-          if (!same) {
-            caseAt('gemengde-relatie', r, `${label(r)}: ${label(m)} heeft een andere kalender`);
-            return;
-          }
-        }
+          return calId === input.calendar.id ? !(!own || own === input.calendar.id) : own !== calId;
+        });
       } else if (type === PROCESS && relType === 'IFCTASK' && relatingDomain?.kind === 'task') {
         const taskId = relatingDomain.id;
         const domainRes = resourcesOfTask().get(taskId) ?? [];
         const s = members.map(m => { const d = domainOf(m); return d?.kind === 'res' ? resourceId(d.id) : d?.id; });
         const count = (list: readonly (string | undefined)[], id: string | undefined) => list.filter(x => x === id).length;
-        for (const id of new Set(s)) {
-          // Meer toewijzingen van dezelfde resource: de wachtrij van `OPS_Assignments` kan dan schuiven.
-          if (count(s, id) > 1 || count(domainRes, id) !== 1) {
-            caseAt('gemengde-relatie', r, `${label(r)}: de toewijzingen van de taak veranderden`);
-            return;
-          }
-        }
-        const others = domainRes.filter(id => !s.includes(id));
-        if (domainRes.join('\u0000') !== [...others, ...s].join('\u0000')) {
-          caseAt('gemengde-relatie', r, `${label(r)}: de volgorde van de toewijzingen zou na herlezen anders zijn`);
+        if (members.some(m => domainOf(m)?.kind !== 'res') || s.some(id => count(s, id) > 1)) {
+          caseAt('gemengde-relatie', r, `${label(r)}: een D-lid is geen resource, of dezelfde resource staat meer dan eens in de relatie`);
           return;
         }
+        const stay = members.filter((_, k) => count(domainRes, s[k]) === 1);
+        away = inOrder(domainRes, stay.map(m => s[members.indexOf(m)]!)) ? members.filter(m => !stay.includes(m)) : members;
       } else {
         caseAt('gemengde-relatie', r, `${label(r)} met relating ${label(relating)}: deze vorm kan pas in fase 2`);
         return;
       }
-      for (const m of members) bag.add(sid(m));
+      for (const m of members) if (!away.includes(m)) bag.add(sid(m));
+      leave(r, away);
     }
 
     // De taken die niet aan het D-schema mogen: zelf of via een voorouder in een relatie van een ander werkschema.
@@ -818,8 +827,12 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       for (const owner of index.refsAt(r, 4).filter(x => x >= 0 && inD[x] && !rule.gone.has(sid(x)))) {
         const own = ownPsetsOf.get(`${sid(owner)}|${name}`);
         const want = sourceProps(index, pset);
-        if (!own || own.rels.some(rel => refList(rel.args[4]).length !== 1) || !sameProps(own.props, want)) {
-          caseAt('gemengde-relatie', r, `${label(r)}: de pset ${name} van ${label(owner)} veranderde (of de writer deelt haar)`);
+        if (own && !sameProps(own.props, want)) {
+          leave(r, [owner]);
+          continue;
+        }
+        if (!own || own.rels.some(rel => refList(rel.args[4]).length !== 1)) {
+          caseAt('gemengde-relatie', r, `${label(r)}: de writer schrijft de pset ${name} van ${label(owner)} niet, of deelt haar`);
           continue;
         }
         own.pset.drop = true;
@@ -924,7 +937,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       else if (key === '_calendar') objects.set(id, `cal:${input.calendar.id}`);
     }
     return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds, objects, idMap: written.idMap, literalCalendarIds: written.literalCalendarIds, raw, chosen,
-      sourceDayLagIds: formPlan.sourceDayLagIds, origin };
+      sourceDayLagIds: formPlan.sourceDayLagIds, origin, leaving };
   }
   // Het domein zoals de lezer het uit de bron las (O0 hieronder), al vóór O1: de writer vergelijkt de taken ermee
   // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
@@ -959,6 +972,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     built = buildLines(form.input, (...a) => { pending.push(a); }, rule, built0.raw, plannerChanged);
   }
   for (const a of pending) caseAt(...a);
+  const changes = foreignChangeList(withLeaving(rule, built.leaving, index), index, source.bytes);
+  const pieceEdits = editedPieces(index, changes);
   const domain = form.input;
   const { lines, byId, keptHeads, owner, taskIds, objects } = built;
 
