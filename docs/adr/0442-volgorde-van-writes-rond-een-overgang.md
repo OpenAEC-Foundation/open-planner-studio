@@ -20,9 +20,12 @@ oorspronkelijke volgorde. De rangorde staat in `rank` in die functie; de keuzes 
   een `readOnly`-functie, zoals `task.constraint.hard`, dan volgt de route van ADR 0443: bij Ctrl+V slaat de
   transactie die cel over met een melding en schrijft ze de rest, als de cel vóór het plakken al alleen-lezen was: op
   een taak zonder constraint geven een nieuwe naam, `SNET` met een datum en *Hard* op `Ja` de naam en `SNET`, zonder
-  *Hard*. Was *Hard* vóór het plakken schrijfbaar (een taak met `MSO` of `MFO`), dan gaat de cel het plan in en
-  weigert `planTaskCellEdits` na de overgang naar `SNET` de hele plakactie met `constraintHardUnavailable`; de naam
-  en de oude constraint blijven dan staan. Bij een losse celbewerking weigert ze. Heeft de kolom geen
+  *Hard*. Was *Hard* vóór het plakken schrijfbaar (een taak met `MSO` of `MFO`), dan hangt het van de huidige
+  waarde af. Stond *Hard* op `Nee`, dan gaat de cel het plan in en weigert `planTaskCellEdits` na de overgang naar
+  `SNET` de hele plakactie met `constraintHardUnavailable`; de naam en de oude constraint blijven dan staan. Stond
+  *Hard* al op `Ja`, dan laat de klembordplanner de gelijke waarde weg (`planTaskGridPaste` in `clipboard.ts`: een
+  waarde die gelijk is aan de cel is geen bewerking): de naam en `SNET` worden toegepast, *Hard* vervalt met de
+  overgang en er komt geen melding over een overgeslagen cel. Bij een losse celbewerking weigert ze. Heeft de kolom geen
   `readOnly`-functie, zoals `task.constraint.date`, dan weigert het plan van de taak (`planTaskCellEdits`) en daarmee
   de hele transactie, ook bij Ctrl+V: een datum naast `ASAP` geeft `constraintDateUnavailable` en de taak blijft zoals
   ze was.
