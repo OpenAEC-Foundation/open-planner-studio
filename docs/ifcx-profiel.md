@@ -107,6 +107,11 @@ opslag zelf nog dingen. Besluit van de technisch eigenaar (25 november), letterl
   zonder normalisatie; R4 vergelijkt het bestand byte voor byte met de projectie van de gelezen planning."
 - **Punt 3:** "de pauzeweigering vervalt; IFCX volgt STEP, ook bij de tweede opslag. Het stille verlies blijft een fout
   van main in 2352."
+- **Aanvulling op R6 (F3-2, besluit van de technisch eigenaar, 25 november), letterlijk:** "Het toewijzings-id is de enige
+  waarde die de STEP-lezing niet uit het bestand haalt. De IFCX-schrijver leidt het af zoals STEP een toewijzing herkent:
+  taak, resource-GlobalId en plaats. Het profiel benoemt dat. Een eigen proef legt vast dat alles behalve dit id gelijk
+  is aan de STEP-lezing, en dat twee opslagen van dezelfde planning byte-gelijk zijn." Zie *Toewijzing*; de proef is
+  "aanvulling op R6" in `check-ifcx-kern.ts`.
 
 R4 en de tweede richting van R5 gelden daarmee voor de projectie, niet meer voor de hele schrijver. Voor de hele
 schrijver kunnen ze niet gelden zolang IFCX gelijk moet zijn aan STEP: IFCX doet bij een tweede opslag precies wat STEP
@@ -321,12 +326,16 @@ punten), laat STEP vallen, en IFCX dus ook.
 `openaec::planning::assignment` (projectie): `relatingProcess` (pad van de taak), `relatedResource` (pad van de resource),
 `scheduleUsage` (`unitsPerDay`), `scheduleContour` (`curve`).
 
-**Het id van een toewijzing.** STEP bewaart geen id per toewijzing: het schrijft per taak één `IfcRelAssignsToProcess` en
-noemt een toewijzing in de metadata `<GlobalId van de resource>#<plaats onder de taak>`. De STEP-lezer geeft haar een
-willekeurig nieuw id (`generateId('asgn')`). De schrijver geeft haar na de STEP-rondgang het id
-`asgn-<id van de taak>#<plaats onder de taak>`: dezelfde identiteit die STEP gebruikt, en zonder toeval, zodat twee keer
-opslaan dezelfde bytes geeft. Het pad volgt uit dat id. Verandert de volgorde van de toewijzingen van een taak, dan
-verschuift het id, zoals in STEP de naam in de metadata.
+**Het id van een toewijzing** (de aanvulling op R6). STEP bewaart geen id per toewijzing: het schrijft per taak één
+`IfcRelAssignsToProcess` en herkent een toewijzing in de metadata van de taak aan `<GlobalId van de resource>#<plaats>`
+(`assignmentKeyName` in `assignmentKeys.ts`; de plaats telt alle toewijzingen van de taak die STEP schrijft, in hun
+volgorde). De STEP-lezer geeft haar een willekeurig nieuw id (`generateId('asgn')`); dat is de enige waarde die de lezing
+niet uit het bestand haalt. De schrijver geeft haar na de STEP-rondgang het id
+`asgn-<id van de taak>/<GlobalId van de resource>#<plaats>`, met dezelfde naam en dezelfde telling als STEP
+(`withStepAssignmentIds` in `ifcxWriter.ts`), zodat twee opslagen van dezelfde planning byte-gelijk zijn. Het pad volgt
+uit dat id. Verandert de resource of de volgorde van de toewijzingen van een taak, dan verandert het id, zoals in STEP de
+naam in de metadata. De proeven houden dit id uitdrukkelijk buiten de vergelijking met de STEP-lezing
+(`withoutAssignmentIds` in `check-ifcx-kern.ts`) en toetsen het apart.
 
 ### Baseline
 
@@ -397,7 +406,7 @@ bereikt die module niet, ook niet via een andere module van de kern.
    houdt de feiten van de lezing die de app bij openen gebruikt (de ingevulde velden, `timeModel`, de herkomst), neemt
    de gegevens na de laadgrens (de taken, de kalenders en `minuteModelPending` als die aan staat), en laat de hint
    `milestonesAtDayEnd` vallen: na de laadgrens zijn alle datums momenten, en daarop heeft de hint geen invloed meer.
-   De toewijzingen krijgen hun afgeleide id (zie *Toewijzing*). Dit is de canonieke planning van R5.
+   De toewijzingen krijgen hun afgeleide id (de aanvulling op R6, zie *Toewijzing*). Dit is de canonieke planning van R5.
 3. `unsupportedContent` op die planning: wat STEP bewaart en IFCX nog niet draagt, weigert de writer met `unsupported`
    en de veldnamen.
 4. De projectie: `ownFileFor` in `ownFile.ts` (R0, `composeIfcxDocument` en de waardetoets met dezelfde functie als de

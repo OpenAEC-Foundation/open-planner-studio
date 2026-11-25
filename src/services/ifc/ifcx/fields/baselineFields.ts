@@ -1,4 +1,4 @@
-import type { Baseline, BaselineTask } from '@/types/baseline';
+import { baselineStart, type Baseline, type BaselineTask } from '@/types/baseline';
 import type { MilestoneKind } from '@/types/task';
 import {
   arrayOf, BOOLEAN, CALENDAR_DATE, enumOf, NON_EMPTY_TEXT, objectOf, REAL, REFERENCE, TEXT, type IfcxField, type IfcxValue,
@@ -81,15 +81,9 @@ function rowIn(value: RowValue): BaselineTask {
   };
 }
 
-function firstStart(baseline: Baseline): string {
-  let first = '';
-  for (const row of baseline.tasks) if (row.start && (!first || row.start < first)) first = row.start;
-  return first;
-}
-
 export const BASELINE_SHARED_FIELDS: readonly SharedField<BaselineWriteSource>[] = [
   { key: 'name', value: TEXT, write: s => s.baseline.name },
-  { key: 'start', value: CALENDAR_DATE, optional: true, write: s => existingDatePart(firstStart(s.baseline)) },
+  { key: 'start', value: CALENDAR_DATE, optional: true, write: s => existingDatePart(baselineStart(s.baseline)) },
   { key: 'finish', value: CALENDAR_DATE, optional: true, write: s => existingDatePart(s.baseline.projectEnd) },
 ];
 

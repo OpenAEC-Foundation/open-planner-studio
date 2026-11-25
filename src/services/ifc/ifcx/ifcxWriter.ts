@@ -1,5 +1,6 @@
 import { readIFC } from '../ifcReader';
-import { writeIFC, type WriteIFCInput } from '../ifcWriter';
+import { ifcObjectSeed, writeIFC, type WriteIFCInput } from '../ifcWriter';
+import { assignmentKeyName } from '../assignmentKeys';
 import type { ImportResult } from '@/services/importTypes';
 import type { ResourceAssignment } from '@/types/resource';
 import { buildWriteIFCInput, documentDataFromImport } from '@/services/documentData';
@@ -15,12 +16,14 @@ export type { IfcxDocument, IfcxEntry, IfcxHeader } from './projection';
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-function withStepAssignmentIds(assignments: readonly ResourceAssignment[]): ResourceAssignment[] {
-  const counts = new Map<string, number>();
-  return assignments.map(assignment => {
-    const index = counts.get(assignment.taskId) ?? 0;
-    counts.set(assignment.taskId, index + 1);
-    return { ...assignment, id: `asgn-${assignment.taskId}#${index}` };
+function withStepAssignmentIds(read: ImportResult): ResourceAssignment[] {
+  const globalIds = intendedGlobalIds(read);
+  const places = new Map<string, number>();
+  return read.assignments.map(assignment => {
+    const place = places.get(assignment.taskId) ?? 0;
+    places.set(assignment.taskId, place + 1);
+    const resourceGuid = globalIds.get(ifcObjectSeed('res', assignment.resourceId))!;
+    return { ...assignment, id: `asgn-${assignment.taskId}/${assignmentKeyName(resourceGuid, place)}` };
   });
 }
 
@@ -32,7 +35,7 @@ function stepReading(given: WriteIFCInput): ImportResult {
   } catch (error) {
     throw new IfcxWriteRefusedError('invalid', `Opslaan als IFC weigert deze planning: ${messageOf(error)}`, ['planning']);
   }
-  const step = { ...read, assignments: withStepAssignmentIds(read.assignments) };
+  const step = { ...read, assignments: withStepAssignmentIds(read) };
   const ifcGlobalIds: Record<string, string> = { ...step.ifcGlobalIds };
   for (const [seed, globalId] of intendedGlobalIds(step)) if (!ifcGlobalIds[seed]) ifcGlobalIds[seed] = globalId;
   const recordedFields = Object.fromEntries(step.tasks.map(task => {

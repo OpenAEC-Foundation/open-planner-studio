@@ -7311,15 +7311,15 @@ en noem het in je rapport of PR-tekst.
      gevallen van 2353. Richting als het nodig wordt: dezelfde als 2353, geen eigen toets per veld. Gemeld door de review
      van #1189 ronde 1 (blokkade 4, GPT-6.2-Sol); vastgelegd bij de herschrijving op de kern. — S
 
-2374. **IFCX (F3-2): een toewijzing heeft geen eigen identiteit; haar id en pad volgen uit taak en plaats.** STEP bewaart
-     geen id per toewijzing (één `IfcRelAssignsToProcess` per taak; in de metadata `<GlobalId van de resource>#<plaats>`)
+2374. **IFCX (F3-2): een toewijzing heeft geen eigen identiteit; haar id en pad volgen uit taak, resource en plaats.** STEP
+     bewaart geen id per toewijzing (één `IfcRelAssignsToProcess` per taak; in de metadata `<GlobalId van de resource>#<plaats>`)
      en de STEP-lezer geeft elke toewijzing een willekeurig nieuw id. IFCX geeft haar na de STEP-rondgang het id
-     `asgn-<taak>#<plaats onder de taak>`, zodat twee keer opslaan dezelfde bytes geeft. Verwijdert de planner een
-     toewijzing of verandert de volgorde onder een taak, dan schuiven id en pad van de volgende toewijzingen, zoals in STEP
-     de naam in de metadata. De app gebruikt een toewijzings-id alleen binnen een geopend document (bewerkingen, MCP), en
+     `asgn-<taak>/<GlobalId van de resource>#<plaats>` (de aanvulling op R6), zodat twee opslagen byte-gelijk zijn.
+     Verwijdert de planner een toewijzing, verandert de volgorde onder een taak of krijgt een toewijzing een andere
+     resource, dan veranderen id en pad, zoals in STEP de naam in de metadata. De app gebruikt een toewijzings-id alleen binnen een geopend document (bewerkingen, MCP), en
      na openen van een STEP-bestand is het ook nieuw; een ander programma dat een toewijzing op haar pad volgt, of het
-     crashherstel van F3-4 met twee toewijzingen aan dezelfde resource, kan het verschuiven wel merken. Richting: bij F3-4 beslissen of een toewijzing een eigen identiteit krijgt (dan ook in
-     STEP) en het herstelscenario met twee toewijzingen aan één resource vastleggen. Gemeld door de review van #1189
+     crashherstel van F3-4 met twee toewijzingen aan dezelfde resource, kan het verschuiven wel merken. Richting: bij F3-4
+     beslissen of een toewijzing een eigen identiteit krijgt (dan ook in STEP) en het herstelscenario met twee toewijzingen aan één resource vastleggen. Gemeld door de review van #1189
      ronde 1 (VERVOLG "Toewijzingsidentiteit verdwijnt over STEP", GPT-6.2-Sol). — B
 
 2375. **Openen en opnieuw opslaan als IFC verliest de GlobalId van een verwijderde taak waar een baseline naar wijst;

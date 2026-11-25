@@ -13,7 +13,7 @@ import { legacyOptionsBlobFor } from '@/services/ifc/schedulingProfileMigration'
 import { holidayEndDate, WorkCalendar, type WorkTimeBands } from '@/types/calendar';
 import { DEFAULT_CALENDAR_ID } from '@/engine/calendar/defaultCalendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
-import { Baseline } from '@/types/baseline';
+import { Baseline, baselineStart } from '@/types/baseline';
 import type { CustomTaskType } from '@/types/taskType';
 import { savedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
 import {
@@ -23,7 +23,7 @@ import {
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes';
 import type { ForeignSourceRecord } from './foreign/foreignSourceMark';
-import { unusedAssignmentKeyNames, type UnusedAssignmentKey } from './assignmentKeys';
+import { assignmentKeyName, unusedAssignmentKeyNames, type UnusedAssignmentKey } from './assignmentKeys';
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
@@ -147,12 +147,6 @@ function ifcDuration(days: number): string {
 
 function ifcDurationHour(minutes: number): string {
   return `'${minutesToIsoDuration(minutes)}'`;
-}
-
-function baselineStart(b: Baseline): string {
-  let first = '';
-  for (const t of b.tasks ?? []) if (t.start && (!first || t.start < first)) first = t.start;
-  return first;
 }
 
 export interface WriteContext {
@@ -1500,14 +1494,14 @@ function writeAssignmentMeta(
     if (list.length === 0 && unused.length === 0) continue;
     const props = list.map((a, index) => {
       const resGuid = objectGuid(ctx, 'res', a.resourceId);
-      const propName = `${resGuid}#${index}`;
+      const propName = assignmentKeyName(resGuid, index);
       const val = `${a.unitsPerDay}|${a.curve ?? 'UNIFORM'}`;
       const propId = addLine(ctx, `_asgn_${task.id}_${a.id}`,
         `IFCPROPERTYSINGLEVALUE(${ifcStr(propName)},$,IFCTEXT(${ifcStr(val)}),$)`);
       return `#${propId}`;
     });
     if (unused.length > 0) {
-      const ownNames = list.map((a, index) => `${objectGuid(ctx, 'res', a.resourceId)}#${index}`);
+      const ownNames = list.map((a, index) => assignmentKeyName(objectGuid(ctx, 'res', a.resourceId), index));
       const unusedNames = unusedAssignmentKeyNames(ownNames, unused.map(key => key.name),
         ctx.merge?.foreignAssignmentKeyNames?.get(task.id) ?? []);
       unused.forEach((key, k) => {
@@ -1541,7 +1535,7 @@ function writeTimephasedMeta(
         && a.plannedWorkMinutes === undefined && a.actualWorkMinutes === undefined && a.remainingWorkMinutes === undefined
         && a.plannedUnitsPerDay === undefined && a.costAmount === undefined) return;
       const resGuid = objectGuid(ctx, 'res', a.resourceId);
-      const propName = `${resGuid}#${index}`;
+      const propName = assignmentKeyName(resGuid, index);
       windows[propName] = {
         ...(a.workWindowStart !== undefined ? { workWindowStart: a.workWindowStart } : {}),
         ...(a.workWindowFinish !== undefined ? { workWindowFinish: a.workWindowFinish } : {}),

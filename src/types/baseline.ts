@@ -37,6 +37,12 @@ export interface Baseline {
   projectDuration: number; // werkdagen
 }
 
+export function baselineStart(b: Baseline): string {
+  let first = '';
+  for (const t of b.tasks ?? []) if (t.start && (!first || t.start < first)) first = t.start;
+  return first;
+}
+
 /** Bouw de taak-id-index van de actieve baseline; geen actieve of onbekende baseline = geen overlay. */
 export function buildBaselineOverlay(
   baselines: Baseline[],

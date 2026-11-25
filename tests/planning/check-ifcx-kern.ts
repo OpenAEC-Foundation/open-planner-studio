@@ -42,6 +42,7 @@ import { minuteModelTransition } from '@/state/minuteModelTransition';
 import { recordedGridBinding, unrecordedExportGate } from '@/state/recordedDatesSelectors';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { ALL_RECORDED_SLOT_KEYS, type WithheldTaskTimeField } from '@/services/ifc/ifcTaskSlots';
+import { fixture as roundtripFixture } from './ifcRoundtripFixture';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const examplesDir = join(root, 'public/examples');
@@ -67,6 +68,8 @@ const NOT_IN_KERN_PROJECT_FIELDS = [
   'dependentProjectsFolder', 'anchorsFromOpenDocuments',
 ];
 
+const NOT_IN_KERN_CALENDAR_FIELDS = ['p6Source', 'p6NonWorkPenaltyDates', 'p6NonWorkPenaltyDatesState', 'libraryOrigin'];
+
 function without<T extends object>(object: T, keys: readonly string[]): T {
   const copy = { ...object } as Record<string, unknown>;
   for (const key of keys) delete copy[key];
@@ -77,6 +80,8 @@ function kernOf(full: ImportResult): ImportResult {
   return {
     ...full, activityCodeTypes: [], customFieldDefs: [], customTaskTypes: [], libraryPool: undefined,
     project: without(full.project, NOT_IN_KERN_PROJECT_FIELDS),
+    calendar: without(full.calendar, NOT_IN_KERN_CALENDAR_FIELDS),
+    ...(full.resourceCalendars ? { resourceCalendars: full.resourceCalendars.map(calendar => without(calendar, NOT_IN_KERN_CALENDAR_FIELDS)) } : {}),
     tasks: full.tasks.map(task => ({ ...without(task, NOT_IN_KERN_TASK_FIELDS), time: without(task.time, ['progressBeforeRecalculation']) })),
     sequences: full.sequences.map(sequence => without(sequence, ['p6StartAtPredecessorFinishBoundary'])),
   };
@@ -102,13 +107,7 @@ function stepGlobalId(kind: IfcObjectKind, id: string, projectId: string): strin
 }
 
 function stepReopened(input: WriteIFCInput): ImportResult {
-  const read = stepRoundtrip(input);
-  const perTask = new Map<string, number>();
-  const step = { ...read, assignments: read.assignments.map(assignment => {
-    const index = perTask.get(assignment.taskId) ?? 0;
-    perTask.set(assignment.taskId, index + 1);
-    return { ...assignment, id: `asgn-${assignment.taskId}#${index}` };
-  }) };
+  const step = stepRoundtrip(input);
   const ifcGlobalIds: Record<string, string> = { ...step.ifcGlobalIds };
   const objects: [IfcObjectKind, string][] = [
     ['proj', step.project.id], ['wp', step.project.id], ['ws', step.project.id],
@@ -116,7 +115,6 @@ function stepReopened(input: WriteIFCInput): ImportResult {
     ...step.tasks.map(task => ['task', task.id] as [IfcObjectKind, string]),
     ...step.sequences.map(sequence => ['seq', sequence.id] as [IfcObjectKind, string]),
     ...step.resources.map(resource => ['res', resource.id] as [IfcObjectKind, string]),
-    ...step.assignments.map(assignment => ['asgn', assignment.id] as [IfcObjectKind, string]),
     ...(step.baselines ?? []).map(baseline => ['bl', baseline.id] as [IfcObjectKind, string]),
   ];
   for (const [kind, id] of objects) {
@@ -148,8 +146,18 @@ function comparableModel(value: unknown): unknown {
   return value;
 }
 
+const ASSIGNMENT_ID_NOT_COMPARED = 'het toewijzings-id staat buiten de vergelijking (aanvulling op R6)';
+
+function withoutAssignmentIds(model: ImportResult): ImportResult {
+  const ifcGlobalIds = model.ifcGlobalIds && Object.fromEntries(Object.entries(model.ifcGlobalIds).filter(([seed]) => !seed.startsWith('asgn:')));
+  return {
+    ...model, assignments: model.assignments.map(assignment => ({ ...assignment, id: ASSIGNMENT_ID_NOT_COMPARED })),
+    ...(ifcGlobalIds ? { ifcGlobalIds } : {}),
+  };
+}
+
 function modelDifferences(expected: ImportResult, actual: ImportResult, limit = 5): string[] {
-  const left = comparableModel(expected), right = comparableModel(actual);
+  const left = comparableModel(withoutAssignmentIds(expected)), right = comparableModel(withoutAssignmentIds(actual));
   if (isDeepStrictEqual(left, right)) return [];
   const named = selfCheckDifferences(left as ImportResult, right as ImportResult, limit);
   return named.length > 0 ? named : ['een verschil zonder pad'];
@@ -204,15 +212,6 @@ for (const [name, full] of fullExamples) {
     assert.equal(writeIfcx(kern, CLOCK), text, 'twee keer schrijven geeft dezelfde bytes');
   });
 
-  test(`${name}: het volledige voorbeeld komt terug zoals de STEP-rondgang het geeft, of wordt geweigerd in plaats van verloren`, () => {
-    const outcome = attempt(() => writeIfcx(full, CLOCK));
-    if (outcome.ok) {
-      assert.deepEqual(publicRouteProblems(name, full, outcome.value), []);
-      return;
-    }
-    assert.ok(outcome.error instanceof IfcxWriteRefusedError && outcome.error.code === 'unsupported', String(outcome.error));
-    assert.ok(outcome.error.fields.length > 0);
-  });
 }
 
 const kern03 = kernOf(fullExamples.get('03-kantoorgebouw-zuidas.ifc')!);
@@ -465,6 +464,63 @@ const NOT_CARRIED_YET = [
   'xerSourceProjectId', 'xerArchiveIssue', 'xerMissingPlannedStarts', 'p6xmlReport', 'msProjectReport', 'withheldTaskTimeFields',
   'xerSourceArchiveStorage',
 ];
+
+const F3_3_FIELDS = new Set<string>([
+  ...NOT_CARRIED_YET, ...NOT_IN_KERN_TASK_FIELDS.map(key => `task.${key}`), ...NOT_IN_KERN_PROJECT_FIELDS.map(key => `project.${key}`),
+  ...NOT_IN_KERN_CALENDAR_FIELDS.map(key => `calendar.${key}`),
+  'task.time.progressBeforeRecalculation', 'sequence.p6StartAtPredecessorFinishBoundary',
+]);
+
+const FULLY_CARRIED_EXAMPLES = [
+  '03-kantoorgebouw-zuidas.ifc', '05-brugvervanging-n279.ifc', '08-zorgcentrum-de-linde.ifc', '10-villa-wassenaar.ifc', '15-datacentrum-agriport.ifc',
+];
+
+function assertRefusedOnlyForF3_3(input: WriteIFCInput): void {
+  const refusal = writeRefusal(input);
+  assert.equal(refusal.code, 'unsupported', refusal.message);
+  assert.ok(refusal.fields.length > 0);
+  assert.deepEqual(refusal.fields.filter(field => !F3_3_FIELDS.has(field)), [], refusal.message);
+}
+
+for (const [name, full] of fullExamples) {
+  const carried = FULLY_CARRIED_EXAMPLES.includes(name);
+  test(`${name}: het volledige voorbeeld ${carried ? 'slaat op en komt terug zoals de STEP-rondgang het geeft' : 'wordt alleen om velden van F3-3 geweigerd'}`, () => {
+    if (carried) assert.deepEqual(publicRouteProblems(name, full, writeIfcx(full, CLOCK)), []);
+    else assertRefusedOnlyForF3_3(full);
+  });
+}
+
+test('de maximale STEP-fixture van check-ifc-roundtrip.ts: zonder F3-3-inhoud slaat ze op en komt ze terug zoals de STEP-rondgang haar geeft, direct en via de app; met die inhoud alleen om velden van F3-3 geweigerd', () => {
+  for (const input of [maximalStepFixture(), saveInputViaApp(maximalStepFixture())]) {
+    assert.deepEqual(publicRouteProblems('maximale STEP-fixture', input, writeIfcx(input, CLOCK)), []);
+  }
+  assertRefusedOnlyForF3_3(structuredClone(roundtripFixture));
+});
+
+function stepAssignmentIds(step: ImportResult): string[] {
+  const places = new Map<string, number>();
+  return step.assignments.map(assignment => {
+    const place = places.get(assignment.taskId) ?? 0;
+    places.set(assignment.taskId, place + 1);
+    return `asgn-${assignment.taskId}/${step.ifcGlobalIds![ifcObjectSeed('res', assignment.resourceId)]}#${place}`;
+  });
+}
+
+test('aanvulling op R6: alles behalve het toewijzings-id is de STEP-lezing, het id volgt uit taak, resource-GlobalId en plaats, en twee opslagen van dezelfde planning zijn byte-gelijk', () => {
+  const plans: [string, WriteIFCInput][] = [
+    ['maximalPlan', maximalPlan()], ['maximale STEP-fixture', maximalStepFixture()],
+    ...[...fullExamples].filter(([name]) => FULLY_CARRIED_EXAMPLES.includes(name)),
+  ];
+  for (const [name, input] of plans) {
+    const text = writeIfcx(input, CLOCK);
+    const back = readIfcx(encode(text));
+    const step = openedAsStep(input);
+    assert.ok(step.assignments.length > 0, `${name} heeft toewijzingen`);
+    assert.deepEqual(modelDifferences(step, back), [], `${name}: ${ASSIGNMENT_ID_NOT_COMPARED}, de rest is gelijk`);
+    assert.deepEqual(back.assignments.map(assignment => assignment.id), stepAssignmentIds(step), `${name}: het id van elke toewijzing`);
+    assert.equal(writeIfcx(input, CLOCK), text, `${name}: twee opslagen zijn byte-gelijk`);
+  }
+});
 
 test('R1 volledig: elk veld dat de STEP-lezer naast het model teruggeeft, is ingedeeld; wat IFCX nog niet draagt, weigert de writer', () => {
   assert.deepEqual([...STEP_WRITER_INPUT_NOT_CARRIED].sort(), [...NOT_CARRIED_YET].sort());
@@ -912,6 +968,11 @@ function textWith(document: unknown, holder: Record<string, unknown>, key: strin
   const text = JSON.stringify(document).replace(`"${INFINITE}"`, '1e999');
   holder[key] = previous;
   return text;
+}
+
+function maximalStepFixture(): WriteIFCInput {
+  const { recordedSourceFormat, ...kern } = kernOf(structuredClone(roundtripFixture));
+  return kern;
 }
 
 function maximalPlan(): WriteIFCInput {

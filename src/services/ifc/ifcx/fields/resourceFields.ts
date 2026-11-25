@@ -1,5 +1,6 @@
 import { RESOURCE_TYPES, type AvailabilityStep, type Resource, type ResourceType } from '@/types/resource';
 import type { LibraryOrigin } from '@/types/library';
+import { RESOURCE_TYPE_TO_IFC } from '../../ifcConstants';
 import {
   arrayOf, enumOf, NON_EMPTY_TEXT, objectOf, REAL, REFERENCE, TEXT, type IfcxField, type SharedField,
 } from '../fieldTable';
@@ -20,14 +21,15 @@ export interface ResourceReadTarget {
 
 type ResourceField = IfcxField<ResourceWriteSource, ResourceReadTarget>;
 
-const RESOURCE_CLASS: Readonly<Record<ResourceType, string>> = {
-  LABOR: 'IfcLaborResource',
-  EQUIPMENT: 'IfcConstructionEquipmentResource',
-  MATERIAL: 'IfcConstructionMaterialResource',
-  SUBCONTRACTOR: 'IfcSubContractResource',
-  CREW: 'IfcCrewResource',
-  COST: 'IfcConstructionMaterialResource',
+const IFC_CLASS_SPELLING: Readonly<Record<string, string>> = {
+  IFCLABORRESOURCE: 'IfcLaborResource',
+  IFCCONSTRUCTIONEQUIPMENTRESOURCE: 'IfcConstructionEquipmentResource',
+  IFCCONSTRUCTIONMATERIALRESOURCE: 'IfcConstructionMaterialResource',
+  IFCSUBCONTRACTRESOURCE: 'IfcSubContractResource',
+  IFCCREWRESOURCE: 'IfcCrewResource',
 };
+
+const resourceClassOf = (type: ResourceType) => IFC_CLASS_SPELLING[RESOURCE_TYPE_TO_IFC[type]];
 
 const DEFAULT_MAX_UNITS = 1;
 
@@ -53,7 +55,7 @@ function setOptional<K extends keyof Resource>(resource: Resource, key: K, value
 export const RESOURCE_SHARED_FIELDS: readonly SharedField<ResourceWriteSource>[] = [
   { key: 'name', value: TEXT, write: s => s.resource.name },
   { key: 'description', value: TEXT, optional: true, write: s => s.resource.description || undefined },
-  { key: 'resourceClass', value: enumOf([...new Set(Object.values(RESOURCE_CLASS))]), write: s => RESOURCE_CLASS[s.resource.type] },
+  { key: 'resourceClass', value: enumOf([...new Set(RESOURCE_TYPES.map(resourceClassOf))]), write: s => resourceClassOf(s.resource.type) },
 ];
 
 export const RESOURCE_FIELDS: readonly ResourceField[] = [

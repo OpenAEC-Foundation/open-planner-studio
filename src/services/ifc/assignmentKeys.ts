@@ -5,6 +5,10 @@ export interface UnusedAssignmentKey {
 
 const NUMBERED_KEY = /^(.+)#(\d+)$/;
 
+export function assignmentKeyName(resourceGuid: string, place: number): string {
+  return `${resourceGuid}#${place}`;
+}
+
 export function isAssignmentKeyName(name: string): boolean {
   return /^[0-9A-Za-z_$]{22}(#\d+)?$/.test(name);
 }
