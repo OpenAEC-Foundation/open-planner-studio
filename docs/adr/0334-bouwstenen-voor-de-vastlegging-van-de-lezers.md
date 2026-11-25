@@ -13,7 +13,11 @@ gelijk aan de kernregel van ADR 0330: een record bevat alleen wat de bron gaf.
     terugval.
   - CSV (`csvReader.ts`) levert de invoerkolommen start en einde, met speling en kritiek als die er zijn; de herkomst
     `csv` komt de moduspoort (`recordedDatesSource`) niet door.
-  - P6 XML en MSPDI lezen `isCritical` uit het bestand; XER en `.mpp` leiden het af uit de totale speling.
+  - P6 XML en MSPDI lezen `isCritical` uit het bestand; XER en `.mpp` leiden het af uit de totale speling. Twee
+    uitzonderingen: bij een XER-project met *Longest Path* blijft `isCritical` leeg, ook bij totale speling 0
+    (`recordedIsCritical` in `xerRecordedTimes.ts`; toets 9f in `check-xer-recorded-times.ts` vergelijkt precies dat),
+    en bij `.mpp` krijgt een taak met een werkelijk einde of minstens 100 % voortgang `false`, ook zonder totale speling
+    (ADR 0285).
 - `buildRecordedTime` geeft `undefined` zonder start of zonder einde (ook bij een lege tekst): dan is er geen
   uitspraak en geen terugval. Een andere as komt alleen in het record als ze er is: een late datum als niet-lege
   tekst, speling en `isCritical` als ze niet `undefined` zijn. Een ontbrekende as wordt nooit 0 of een gekopieerde
