@@ -90,6 +90,7 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
   const documentSource: DocumentWriteSource = {
     project, projectPath, workplanPath, projectCalendarPath: calendars[0].path,
     ...(input.timeModel !== undefined ? { timeModel: input.timeModel } : {}),
+    minuteModelPending: input.minuteModelPending === true,
     importPristine: input.importPristine === true,
     literalCalendarPaths: (input.ifcLiteralCalendarIds ?? []).flatMap(id => calendarPathById.get(id) ?? []),
   };
@@ -113,7 +114,6 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
     const source: TaskWriteSource = {
       task, path: taskPaths[index], span: taskWindow(task),
       derivesDays: hourDurationIsDerived(task, resolveCalendar(task.calendarId, resourceCalendars, input.calendar)),
-      atDayEnd: input.milestonesAtDayEnd?.has(task.id) === true,
       unrecorded: unrecordedOf(task, input.recordedFields?.[task.id]),
       ...(parentPath !== undefined ? { parentPath } : {}),
       ...(calendarPath !== undefined ? { calendarPath } : {}),

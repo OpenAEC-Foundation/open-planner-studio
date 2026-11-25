@@ -53,7 +53,7 @@ export const NODES: readonly NodeRegistration[] = [
   {
     kind: 'task',
     attributes: [{ name: ATTRIBUTE.activity, fields: TASK_SHARED_FIELDS }, { name: ATTRIBUTE.opsTask, fields: TASK_FIELDS }],
-    modelKeys: ['tasks', 'milestonesAtDayEnd', 'recordedFields'],
+    modelKeys: ['tasks', 'recordedFields'],
     objectKeys: [
       { object: 'task', instances: model => model.tasks.map(task => [`taak ${task.id}`, task] as const), keys: TASK_KEYS_CARRIED },
       { object: 'task.time', instances: model => model.tasks.map(task => [`taak ${task.id}`, task.time] as const), keys: TASK_TIME_KEYS_CARRIED },
@@ -69,6 +69,8 @@ export const NODES: readonly NodeRegistration[] = [
 
 export const PATH_MODEL_KEYS: readonly ModelKey[] = ['ifcGlobalIds'];
 
+export const LOAD_BOUNDARY_MODEL_KEYS: readonly ModelKey[] = ['milestonesAtDayEnd'];
+
 const MODEL_KEYS = {
   project: true, calendar: true, tasks: true, sequences: true, resources: true, assignments: true, resourceCalendars: true,
   activityCodeTypes: true, customFieldDefs: true, customTaskTypes: true, baselines: true, activeBaselineId: true,
@@ -82,7 +84,7 @@ const MODEL_KEYS = {
 
 export const ALL_MODEL_KEYS = Object.keys(MODEL_KEYS) as ModelKey[];
 
-const CARRIED_MODEL_KEYS = new Set<ModelKey>([...NODES.flatMap(node => node.modelKeys), ...PATH_MODEL_KEYS]);
+const CARRIED_MODEL_KEYS = new Set<ModelKey>([...NODES.flatMap(node => node.modelKeys), ...PATH_MODEL_KEYS, ...LOAD_BOUNDARY_MODEL_KEYS]);
 
 export const STEP_WRITER_INPUT_NOT_CARRIED: readonly ModelKey[] = ALL_MODEL_KEYS.filter(key => !CARRIED_MODEL_KEYS.has(key));
 

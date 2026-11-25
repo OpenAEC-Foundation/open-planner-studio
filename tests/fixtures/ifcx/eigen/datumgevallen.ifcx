@@ -118,6 +118,10 @@
               "dataType": "String",
               "optional": true
             },
+            "minuteModelPending": {
+              "dataType": "Boolean",
+              "optional": true
+            },
             "importPristine": {
               "dataType": "Boolean",
               "optional": true
@@ -765,10 +769,6 @@
             },
             "calendar": {
               "dataType": "Reference",
-              "optional": true
-            },
-            "atDayEnd": {
-              "dataType": "Boolean",
               "optional": true
             },
             "unrecorded": {
