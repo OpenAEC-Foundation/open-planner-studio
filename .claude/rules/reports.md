@@ -202,3 +202,7 @@ bron; daarom leidt `tests/planning/run.sh` die ene import (`#binary-trie`) naar 
 `0233-afdruk-tabelkolommen-op-papier.md`, `0234-afdruk-tijdas-en-schaal.md`, `0235-afdruk-relatielijnen.md`,
 `0236-afdruk-bladgrenzen-voet-en-legenda.md`, `0237-afdruk-datums-bij-balken-en-mijlpalenreeks.md` en
 `0238-afdruk-grote-planningen.md`.
+
+**Besluiten van de bladindeling** (`src/services/print/tileLayout.ts`):
+`docs/adr/0350-bladindeling-een-pure-functie-met-kant-en-klare-vensters.md`, `0351-bladindeling-schaal-en-kolommen.md`,
+`0352-bladindeling-herhaalde-kop-en-voet.md` en `0353-bladindeling-waar-een-blad-eindigt.md`.
