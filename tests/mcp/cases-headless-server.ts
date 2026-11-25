@@ -827,7 +827,8 @@ function mutationSteps(dir: string, source: string): ToolStep[] {
   const st = () => app.store.getState();
   const leaf = () => st().tasks.find(t => t.childIds.length === 0 && !t.isMilestone && t.time.scheduleDuration >= 2)!.id;
   const parent = () => st().tasks.find(t => t.childIds.length > 0)!.id;
-  const added = () => st().tasks.find(t => t.name === 'Eigenschap nieuw')?.id ?? leaf();
+  const added = () => st().tasks.find(t => t.name === 'Eigenschap nieuw')?.id
+    ?? [...st().tasks].reverse().find(t => t.childIds.length === 0 && !t.isMilestone && t.id !== leaf())!.id;
   const dependency = () => st().sequences[0].id;
   const baseline = () => st().baselines[0].id;
   const shifted = () => new Date(Date.parse(String(st().project.startDate).slice(0, 10)) + 7 * 86_400_000).toISOString().slice(0, 10);
@@ -841,15 +842,18 @@ function mutationSteps(dir: string, source: string): ToolStep[] {
     { tool: 'planner_move_task', args: () => ({ id: added(), newParentId: parent() }) },
     { tool: 'planner_set_task_splits', args: () => ({ taskId: leaf(), interruptions: [{ afterWorkDays: 1, pauseDays: 1 }] }) },
     { tool: 'planner_update_calendar', args: () => ({ calendars: [{ id: st().calendar.id, name: 'Eigenschap kalender' }] }) },
-    { tool: 'planner_manage_resources', args: () => ({ actions: [{ action: 'create', tempId: 'r1', name: 'Eigenschap resource', type: 'LABOR' }] }) },
+    { tool: 'planner_manage_resources', args: () => ({ actions: [{ action: 'create', tempId: 'tmp-r1', name: 'Eigenschap resource', type: 'LABOR' }] }) },
     { tool: 'planner_manage_assignments', args: () => ({ actions: [{ action: 'add', taskId: leaf(), resourceId: st().resources[0].id, unitsPerDay: 8 }] }) },
     { tool: 'planner_level_resources', args: () => ({}) },
-    { tool: 'planner_clear_leveling', args: () => ({}) },
+    { tool: 'planner_clear_leveling', args: () => { st().updateTask(leaf(), { levelingDelay: 1 }); return {}; } },
     { tool: 'planner_update_project', args: () => ({ description: 'Eigenschap' }) },
     { tool: 'planner_move_project', args: () => ({ newStartDate: shifted() }) },
     { tool: 'planner_save_baseline', args: () => ({ name: 'Eigenschap' }) },
     { tool: 'planner_rename_baseline', args: () => ({ baselineId: baseline(), name: 'Eigenschap hernoemd' }) },
-    { tool: 'planner_activate_baseline', args: () => ({ baselineId: baseline() }) },
+    { tool: 'planner_activate_baseline', args: () => {
+      st().saveBaseline('Eigenschap tweede');
+      return { baselineId: st().baselines.find(b => b.id !== st().activeBaselineId)!.id };
+    } },
     { tool: 'planner_delete_baseline', args: () => ({ baselineId: baseline() }) },
     { tool: 'planner_refresh_external_links', args: () => ({}) },
     { tool: 'planner_batch', args: () => ({ steps: [{ tool: 'planner_update_tasks', args: { updates: [{ id: leaf(), fields: { name: 'Eigenschap batch' } }] } }] }) },
@@ -885,11 +889,13 @@ test('A eigenschap (1136 ronde 2): in stand 3 schrijft geen enkele wijzigende to
   const original = fileToolDeps.getFs;
   try {
     const mutating = getTools().filter(t => !t.annotations.readOnlyHint).map(t => t.name).sort();
+    const backsUp = new Set(getTools().filter(t => t.kind === 'mutate' || t.kind === 'batch').map(t => t.name));
     const stepsFor = (sub: string, source: string) => mutationSteps(join(dir, sub), source);
     assertEq([...new Set(stepsFor('x', 'x').map(s => s.tool))].sort(), mutating, 'elke wijzigende tool uit de registry heeft een proefaanroep');
 
     const kept = foreignCorpus(ROOT).find(c => c.name === 'pset-aan-project-IFC4X3_ADD2-gewone-ids.ifc')!;
     const reportsBackup = new Set<string>();
+    const referenceOutcome: string[] = [];
     for (const [i, step] of stepsFor('ref', 'x').entries()) {
       const sub = join(dir, `ref-${i}`);
       mkdirSync(sub);
@@ -899,8 +905,11 @@ test('A eigenschap (1136 ronde 2): in stand 3 schrijft geen enkele wijzigende to
       if (step.tool.includes('baseline') && step.tool !== 'planner_save_baseline') app.store.getState().saveBaseline('Referentie');
       const r = await call(client, step.tool, step.tool === 'planner_import_schedule' ? { path: source } : step.args());
       if (r.s.envelope?.backupCreated) reportsBackup.add(step.tool);
+      else referenceOutcome.push(`${step.tool} ${r.isError ? `${r.s.code} ${String(r.s.error).slice(0, 100)}` : 'ok'}`);
     }
+    console.log(`  zonder back-up in stand 2: ${referenceOutcome.join(' | ')}`);
     assert(reportsBackup.has('planner_update_tasks') && reportsBackup.has('planner_batch'), `stand 2 maakt een back-up: ${[...reportsBackup].join(', ')}`);
+    assertEq([...reportsBackup].filter(t => !backsUp.has(t)), [], 'alleen tools van soort mutate of batch maken in stand 2 een back-up');
 
     const uncertain = [
       ...ownCorpus(ROOT).filter(c => c.stand === 'onzeker' && c.opens),
@@ -931,7 +940,7 @@ test('A eigenschap (1136 ronde 2): in stand 3 schrijft geen enkele wijzigende to
         const label = `${c.name} ${step.tool}`;
         if (step.refused ? !(r.isError && r.s.code === 'VALIDATION') : r.isError) problems.push(`${label}: ${r.isError ? r.s.code : 'ok'} ${String(r.s.error ?? '').slice(0, 120)}`);
         if (r.s.envelope?.backupCreated) problems.push(`${label}: backupCreated ${r.s.envelope.backupCreated}`);
-        if (!r.isError && reportsBackup.has(step.tool) && app.store.getState().foreignSourceMark?.sourceMissing && !String(r.s.envelope?.backupWithheld ?? '').includes('No AI backup was made')) {
+        if (!r.isError && backsUp.has(step.tool) && app.store.getState().foreignSourceMark?.sourceMissing && !String(r.s.envelope?.backupWithheld ?? '').includes('No AI backup was made')) {
           problems.push(`${label}: het antwoord zegt niet dat er geen back-up is`);
         }
       }
