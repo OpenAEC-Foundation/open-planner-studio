@@ -774,15 +774,35 @@ en noem het in je rapport of PR-tekst.
      op de standaardkalender, zonder `workTime`: record a van 2026-03-09 tot 2026-03-10 en record b van
      2026-03-09T08:00 tot 2026-03-10T12:00 gaven `projectEnd` 2026-03-10T12:00. Open: op de laadroute zet
      `normalizeRecordedTimes` (`minuteModelTransition.ts`) een datum zonder tijd eerst om in een moment, behalve waar
-     `normalizeTaskDate` geen moment geeft; of zo'n mix daar deze functie bereikt, is niet nagegaan. — B
+     `normalizeTaskDate` geen moment geeft. In een laadproef met een zelfgemaakt IFC door de echte lezer leverde één
+     kalender beide datumvormen; `normalizeRecordedTimes` zette het dageinde om naar 16:00 en de reconstructie koos
+     16:00. Een bestand dat de mix voorbij die omzetting brengt, is niet gevonden. Met een nachtkalender verkortte de
+     tekstvergelijking in de losse functie ook de projectduur van 2 naar 1 werkdag. — B
 
 2327. **De projectduur in "datums zoals opgeslagen" leest de duur van de taak, niet de vastlegging.**
      `cpmResultFromRecorded` (`src/engine/scheduler/recordedDates.ts`) geeft de taken door aan `projectDurationOf`,
      waarvan de mijlpaaluitzondering `task.time.scheduleDuration > 0` leest. Een proef op de standaardkalender met één
      vastgelegde taak (geen mijlpaal) van 2026-03-09 tot 2026-03-09 gaf `projectDuration` 0 bij `scheduleDuration` 0
      en 1 bij `scheduleDuration` 1. Volgens het weggehaalde commentaar leest de IFC-lezer een `$` in `ScheduleDuration`
-     als 0, zodat een werkproject van één dag zonder opgeslagen duur duur 0 krijgt; die route via de lezer is niet
-     nagespeeld. — S
+     als 0, zodat een werkproject van één dag zonder opgeslagen duur duur 0 krijgt. Nagespeeld met een zelfgemaakt
+     IFC via `readIFC` en `openAsDocument`, in de modus doordat de opgeslagen vroege datums afwijken: één taak (geen
+     mijlpaal) van 07:00 tot 16:00 gaf met `ScheduleDuration=$` een projectduur van 0 werkdagen en met `P1D` 1
+     werkdag. De statusbalk (`StatusBar.tsx`) toont die waarde. — B
+
+2328. **In "datums zoals opgeslagen" kan een fase later eindigen dan het projecteinde in de statusbalk.**
+     `cpmResultFromRecorded` (`src/engine/scheduler/recordedDates.ts`) bepaalt `projectEnd` alleen uit taken met een
+     record, terwijl de rollup (`rollupSummaryTasks` in `applyCpmResult.ts`) alle kinderen van een fase gebruikt, ook
+     een kind zonder vroeg paar dat zijn berekende datums houdt. Nagespeeld met een zelfgemaakt IFC door de echte
+     laadroute: een fase zonder eigen vastlegging, een kind met opgeslagen vroeg einde op 10 maart en een kind zonder
+     vroeg paar dat de solver op 13 maart laat eindigen. De fasebalk en haar resultaatrij eindigden op 13 maart,
+     *Einde* in de statusbalk gaf 10 maart. — B
+
+2329. **In "datums zoals opgeslagen" melden het rapport en MCP een ketenstructuur die de vastlegging niet kent.**
+     `cpmResultFromRecorded` levert `criticalPaths` altijd als één lijst (`[criticalPath]`), ook als die leeg is. Het
+     rapport *Kritieke en near-critical activiteiten* (`src/engine/reports/criticalReport.ts`) telt die ene lijst als
+     één keten, en `src/services/mcp/tools/readTools.ts` meldt bij de projectoptie `floatPaths` met `FREE_FLOAT` dat
+     parallelle ketens beschikbaar zijn, terwijl de reconstructie één lijst met gemarkeerde taken geeft. In de code
+     bevestigd door twee lezers, niet nagespeeld. — B
 
 ## Tabel, invoer en bediening
 
