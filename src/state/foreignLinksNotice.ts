@@ -4,7 +4,8 @@ import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import type { AppState } from './appStore';
 import { watchNotice, type NoticeStore } from './otherWorkNotice';
 import { selectUndoHistoryEvent } from './sessionHistory';
-import { writeCaptures } from './documentSaveState';
+import { snapshotHolds } from './documentSaveState';
+import type { NotifyInput } from './slices/types';
 
 export const FOREIGN_LINKS_NOTICE_KEY = 'foreign-links-dropped';
 
@@ -32,9 +33,9 @@ export function notifyForeignLinksDropped(store: NoticeStore, before: DomainBefo
   if (!linkedSource(state)) return;
   const event = selectUndoHistoryEvent(state.historyEvents, state.activeDocumentId);
   if (!event || event.sequence !== sequence || event.sessionKey) return;
-  const count = foreignLinksDroppedSince(state, before);
-  if (count === 0) return;
-  state.notify({
+  let shown = foreignLinksDroppedSince(state, before);
+  if (shown === 0) return;
+  const notice = (count: number): NotifyInput => ({
     severity: 'info',
     messageKey: 'notifications.foreignLinksDropped',
     params: { count },
@@ -43,6 +44,18 @@ export function notifyForeignLinksDropped(store: NoticeStore, before: DomainBefo
     replaceOnDedupe: true,
     durationMs: FOREIGN_LINKS_NOTICE_MS,
   });
-  const source = state.ifcSource, documentId = state.activeDocumentId;
-  watchNotice(store, event.id, s => s.ifcSource === source && ifcForeignContentEnabled(s.ui.featureFlags), s => writeCaptures(s, documentId));
+  state.notify(notice(shown));
+  const documentId = state.activeDocumentId;
+  const captured = (s: AppState) => snapshotHolds(s, documentId, event.id);
+  let source = state.ifcSource;
+  const stillValid = (s: AppState): boolean => {
+    if (!ifcForeignContentEnabled(s.ui.featureFlags)) return false;
+    if (s.ifcSource === source) return true;
+    if (captured(s)) return false;
+    source = s.ifcSource;
+    const count = foreignLinksDroppedSince(s, before);
+    if (count > 0 && count !== shown) { shown = count; s.notify(notice(count)); }
+    return count > 0;
+  };
+  watchNotice(store, event.id, stillValid, captured);
 }
