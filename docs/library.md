@@ -174,9 +174,10 @@ geen verouderde inhoud achter.
 Elke projectkopie draagt naast de gewone herkomststempel een `syncedHash`: een hash van de gevolgde
 velden (zie de overzichtstabel hierboven — dit zijn precies de identiteitsvelden, niet max.
 eenheden/beschikbaarheid/kalenderkeuze) op het moment van materialiseren/laatste verversing, met
-**exact dezelfde normalisatie** als de diff-vergelijking (dezelfde veldenlijst, dezelfde
-array-als-multiset-sortering, dezelfde NFC/witruimte-behandeling). Dat maakt het verschil tussen twee
-heel verschillende situaties:
+dezelfde vergelijking als de diff: `diffKey` per veld, lijsten als multiset, en dezelfde veldenlijst op de twee
+hashvormen voor kalenders hieronder na. Hash en diff vergelijken de ruwe waarden, zonder de NFC- en
+witruimtebehandeling van `normalizeName` die het herkennen op naam gebruikt (ADR 0343). Dat maakt het verschil
+tussen twee heel verschillende situaties:
 
 - **`behind`** — het bestand is sinds de laatste synchronisatie **niet** lokaal bewerkt (huidige hash
   == `syncedHash`), maar de pool is intussen bijgewerkt. Dit wordt **stil** ververst — geen vraag.

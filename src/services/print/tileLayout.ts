@@ -1,47 +1,7 @@
-/**
- * Gedeelde tegel-/schaalwiskunde voor de print-pagineerders.
- *
- * Zowel de raster-pagineerder (`paginate.ts` → `paginateCanvasToTile`, `drawImage`-crops) als de
- * vector-pagineerder (`paginateVector.ts`, één Form-XObject dat per pagina onder een eigen clip
- * ge-`Do`'d wordt) moeten EXACT dezelfde pagina-indeling produceren — anders wijkt de preview af van
- * de export. Deze module is de enige bron van waarheid: een PURE functie zonder canvas-, DOM- of pdf-lib-
- * afhankelijkheid, zodat hij ook headless testbaar is.
- *
- * Het resultaat is bewust volledig "uitgerekend": de backends krijgen kant-en-klare bron-vensters
- * (in LOGISCHE px) plus hun plek op de pagina (in punten) en hoeven zelf geen enkele afgeleide meer
- * te berekenen. Daarom levert `columns` per kolom een LIJST horizontale vensters (`xWindows`) in
- * plaats van een "herhaal de bevroren strip"-vlag: de herhaling van de bevroren naam-kolom is dan
- * gewoon een extra venster in die lijst, en beide backends lopen er met dezelfde lus overheen.
- *
- * Drie assen van tegeling:
- *   1. VERTICAAL — de body wordt over `rows` pagina's verdeeld. Is `repeatHeaderHeightPx` gezet, dan
- *      wordt de bronstrook `y ∈ [0, repeatHeaderHeightPx)` (project-/tijdschaalkop) op ELKE
- *      verticale tegel bovenaan de pagina herhaald en begint de body daaronder.
- *      Is `repeatFooterHeightPx` gezet én telt de afdruk meer dan één pagina, dan wordt de
- *      bronstrook `y ∈ [logicalHeight - repeatFooterHeightPx, logicalHeight)` (projectnaam, datum,
- *      legenda) op elke pagina onderaan het printgebied herhaald — uit het vaste bronvenster
- *      `footerWindow` (x vanaf 0, één paginabreedte), níét per kolom gesneden, zodat de legenda op
- *      elke kolompagina staat ("een blad per persoon").
- *   2. HORIZONTAAL in `'actual'`-modus — vaste CSS→papierverhouding (0,75 pt per CSS-px), dus
- *      zoveel kolommen als de bron breed is zonder de tabel groter te drukken dan in auto-fit.
- *   3. HORIZONTAAL in `'fit-width'`-modus — normaal 1 kolom (alles op één paginabreedte geperst),
- *      maar met `timelineColumns: N` wordt de tijdlijn bewust over N paginabreedtes uitgesmeerd
- *      zodat hij leesbaar blijft.
- *
- * De defaults `repeatHeaderHeightPx: 0`, `repeatFooterHeightPx: 0` en `timelineColumns: 1` zijn de
- * gedragsneutrale ENGINE-defaults (geen herhaling, één paginabreedte).
- *
- * Dat is uitdrukkelijk geen belofte over wat de gebruiker ziet: het rapportpaneel
- * (`ReportPanel.tsx`) zet de knop "kop herhalen" bewust standaard AAN en
- * geeft dus standaard een `repeatHeaderHeightPx > 0` door. De defaults hier houden alleen deze
- * module gedragsneutraal voor aanroepers die niets meegeven.
- */
-
 export type PaperSize = 'a4' | 'a3' | 'a2' | 'a1';
 export type Orientation = 'portrait' | 'landscape';
 export type PaginateMode = 'fit-width' | 'actual';
 
-/** Paginamaten in PDF-punten (1/72 inch), portret; landscape = omgewisseld. */
 export const PAPER_PT: Record<PaperSize, { width: number; height: number }> = {
   a4: { width: 595.28, height: 841.89 },
   a3: { width: 841.89, height: 1190.55 },
@@ -49,13 +9,10 @@ export const PAPER_PT: Record<PaperSize, { width: number; height: number }> = {
   a1: { width: 1683.78, height: 2383.94 },
 };
 
-/** Standaard witruimte rond een rapportpagina, in PDF-punten. */
 export const DEFAULT_MARGIN_PT = 24;
 
-/** Eén logische CSS-pixel meet 0,75 PDF-punt (96 CSS-px per inch versus 72 pt per inch). */
 export const LOGICAL_PX_TO_PT = 72 / 96;
 
-/** De bruikbare horizontale ruimte van één rapportpagina, in PDF-punten. */
 export function printableWidthPt(
   paperSize: PaperSize,
   orientation: Orientation,
@@ -66,11 +23,6 @@ export function printableWidthPt(
   return Math.max(0, pageWidthPt - 2 * marginPt);
 }
 
-/**
- * De bruikbare horizontale ruimte van één rapportpagina, omgerekend naar logische render-pixels.
- * De rapport-renderer gebruikt dit om de tijdlijn te comprimeren zonder de tabeltekst alsnog via
- * de pagineerder mee te schalen.
- */
 export function printableWidthLogicalPx(
   paperSize: PaperSize,
   orientation: Orientation,
@@ -79,111 +31,44 @@ export function printableWidthLogicalPx(
   return printableWidthPt(paperSize, orientation, marginPt) / LOGICAL_PX_TO_PT;
 }
 
-/** Ruimte onderaan (punten) gereserveerd voor het paginanummer in de marge — niet te verwarren met
- *  de herhaalde voetstrook van het rapport (`repeatFooter*`), die bóven deze ruimte staat. */
 export const PAGE_NUMBER_PT = 14;
 
-/** Bovengrens voor {@link TileLayoutInput.timelineColumns}. Zie de afdwinging in
- *  {@link computeTileLayout}: het paginatotaal loopt kwadratisch in N, dus een ongebonden waarde
- *  laat deze pure functie ontsporen. De UI biedt 1..8; dit is de harde vangrail eromheen. */
 export const MAX_TIMELINE_COLUMNS = 32;
 
-/** Invoer voor {@link computeTileLayout}; alle px-maten zijn LOGISCHE (CSS-)px van de bron-render. */
 export interface TileLayoutInput {
   paperSize: PaperSize;
   orientation: Orientation;
   mode: PaginateMode;
-  /** Logische breedte van de broninhoud (= `renderReport().width`). */
   logicalWidth: number;
-  /** Logische hoogte van de broninhoud (= `renderReport().height`). */
   logicalHeight: number;
-  /**
-   * Breedte (logische px) van de linker bevroren naam-kolom die op elke volgende horizontale tegel
-   * herhaald wordt. Default 0 (geen bevroren kolom).
-   */
   frozenColumnWidthPx?: number;
-  /**
-   * Hoogte (logische px, gemeten vanaf de BOVENkant van de bron) van de kopstrook die op elke
-   * verticale tegel bovenaan de pagina herhaald moet worden. Default 0 = geen herhaling; dat is de
-   * gedragsneutrale ENGINE-default, niet wat de UI standaard kiest (die herhaalt wél — zie de
-   * module-doc hierboven).
-   */
   repeatHeaderHeightPx?: number;
-  /**
-   * Hoogte (logische px, gemeten vanaf de ONDERkant van de bron) van de voetstrook — projectnaam,
-   * afdrukdatum, legenda — die op elke pagina onderaan het printgebied herhaald wordt. Default 0 =
-   * geen herhaling: de voet blijft dan onder de laatste rij hangen en komt alleen op de laatste
-   * pagina terecht. De body-tegels lopen dan tot `logicalHeight`;
-   * mét herhaling tot `logicalHeight - repeatFooterHeightPx`, en elke pagina krijgt de strook apart
-   * uit `footerWindow`. Past de hele afdruk op één pagina (en dwingt niets een tweede af), dan valt
-   * er niets te herhalen en blijft de voet gewoon onder de laatste rij — anders zou de meest
-   * voorkomende afdruk ineens twintig centimeter wit tussen tabel en voet krijgen.
-   * Reden ("een blad per persoon"): een uitdeelvel zonder legenda is onleesbaar.
-   */
   repeatFooterHeightPx?: number;
-  /**
-   * OPTIONEEL — toegestane breekposities (y in logische px vanaf de bovenkant van de bron) waar een
-   * pagina mag eindigen; typisch de onderrand van elke tabelrij. Zie de rij-bewuste tegeling in
-   * `computeTileLayout`. Afwezig/leeg ⇒ vaste tegeling op paginahoogte.
-   */
   breakOffsetsPx?: readonly number[];
-  /**
-   * OPTIONEEL — GEDWONGEN breekposities (y in logische px): een body-tegel eindigt op de EERSTE
-   * gedwongen positie die binnen de paginahoogte valt, óók als de pagina daardoor grotendeels leeg
-   * blijft (resourcediagram, "een blad per persoon" — een resource met één taak krijgt
-   * bewust een bijna lege pagina). Een gedwongen positie die niet op de pagina past gedraagt zich
-   * als een gewone: de pagina breekt dan op de laatste toegestane positie ervoor. Afwezig/leeg ⇒
-   * geen gedwongen breuken.
-   */
   forcedBreakOffsetsPx?: readonly number[];
-  /**
-   * Aantal paginabreedtes waarover de tijdlijn uitgesmeerd wordt. Alleen van toepassing in
-   * `'fit-width'`; in `'actual'` volgt het kolom-aantal uit de bronbreedte en wordt dit genegeerd.
-   * Default 1 = alles op één paginabreedte.
-   */
   timelineColumns?: number;
-  /** Paginamarge in punten (rondom). Default 24. */
   marginPt?: number;
 }
 
-/** Eén horizontaal bron-venster op een pagina: welk stuk bron-x komt waar op de pagina terecht. */
 export interface TileXWindow {
-  /** Linkerrand van het bron-venster (logische px). */
   srcX: number;
-  /** Breedte van het bron-venster (logische px). Kan 0/negatief zijn ⇒ overslaan. */
   srcW: number;
-  /** x op de pagina in punten, gerekend vanaf de LINKERrand van het papier (dus incl. marge). */
   pageX: number;
 }
 
-/** Eén horizontale tegel-kolom = de vensters die samen één paginabreedte vullen. */
 export interface TileColumn {
-  /**
-   * Van links naar rechts. Kolom 0 heeft één venster (bron-x vanaf 0). Elke volgende kolom begint
-   * met de herhaalde bevroren naam-strip (srcX 0) en daarna het aansluitende body-venster.
-   */
   xWindows: TileXWindow[];
 }
 
-/** Eén verticale body-tegel (kop- en voetstrook zitten hier NIET in; die worden per pagina apart herhaald). */
 export interface TileBodyRow {
-  /** Bovenrand van het bron-venster (logische px). */
   srcY: number;
-  /** Hoogte van het bron-venster (logische px). */
   srcH: number;
 }
 
-/**
- * De breedte waarbinnen de render de voetinhoud moet leggen (`PrintOptions.footerLayoutWidth`),
- * of `undefined` wanneer de voet niet herhaald wordt — dan hangt hij aan de body en hoort hij, net
- * als de body, over de volle canvasbreedte te liggen. Eén helper voor preview, raster- én
- * vector-pagineerder, zodat de drie paden niet uiteenlopen.
- */
 export function footerLayoutWidthFor(layout: Pick<TileLayout, 'repeatFooterPx' | 'footerLayoutWidthPx'>): number | undefined {
   return layout.repeatFooterPx > 0 ? layout.footerLayoutWidthPx : undefined;
 }
 
-/** De maten van een rapportrender die de tegeling nodig heeft (de velden van `RenderReportResult`). */
 export interface ReportTileDims {
   width: number;
   height: number;
@@ -194,7 +79,6 @@ export interface ReportTileDims {
   forcedBreakOffsets?: readonly number[];
 }
 
-/** De keuzes van de afdruk die de tegeling bepalen. */
 export interface ReportTileOptions {
   paperSize: PaperSize;
   orientation: Orientation;
@@ -205,10 +89,6 @@ export interface ReportTileOptions {
   marginPt?: number;
 }
 
-/**
- * De tegelinvoer van een rapportrender. Eén bron voor de vector-PDF (`paginateVectorToPdfBytes`) en het
- * papier op het scherm (nieuw Rapport-tabblad, #817), zodat scherm en PDF dezelfde bladen tonen.
- */
 export function reportTileInput(dims: ReportTileDims, opts: ReportTileOptions): TileLayoutInput {
   return {
     paperSize: opts.paperSize,
@@ -217,7 +97,6 @@ export function reportTileInput(dims: ReportTileDims, opts: ReportTileOptions): 
     logicalWidth: dims.width,
     logicalHeight: dims.height,
     frozenColumnWidthPx: dims.tableWidth,
-    // De kop- en voetstrookhoogte komen uit de render zelf.
     repeatHeaderHeightPx: opts.repeatHeader ? dims.headerHeight : 0,
     repeatFooterHeightPx: opts.repeatFooter ? dims.footerHeight : 0,
     timelineColumns: opts.timelineColumns,
@@ -227,80 +106,35 @@ export function reportTileInput(dims: ReportTileDims, opts: ReportTileOptions): 
   };
 }
 
-/**
- * De voetbreedte waarmee een tweede render nodig is, of `undefined`. Alleen als die breedte écht kleiner
- * is dan de render: in fit-width met één kolom zijn ze analytisch gelijk, maar als floats soms 1e-13 uit
- * elkaar (zie de toelichting in `paginateVectorToPdfBytes`).
- */
 export function footerRelayoutWidth(layout: Pick<TileLayout, 'repeatFooterPx' | 'footerLayoutWidthPx'>, renderWidth: number): number | undefined {
   const width = footerLayoutWidthFor(layout);
   return width !== undefined && width < renderWidth - 0.5 ? width : undefined;
 }
 
-/** Volledig uitgerekende pagina-indeling; beide backends tekenen hier 1:1 uit. */
 export interface TileLayout {
-  /** Papierbreedte in punten (honoreert oriëntatie). */
   pageWidthPt: number;
-  /** Papierhoogte in punten (honoreert oriëntatie). */
   pageHeightPt: number;
-  /** Gebruikte paginamarge in punten. */
   marginPt: number;
-  /** Breedte van het printgebied in punten (papier minus linker+rechter marge). */
   printW: number;
-  /** Hoogte van het printgebied in punten (papier minus boven+onder marge minus voetruimte). */
   printH: number;
-  /** Punten per LOGISCHE bron-px. */
   scale: number;
-  /** Aantal verticale tegels. */
   rows: number;
-  /** Aantal horizontale tegels. */
   cols: number;
-  /** Effectieve breedte van de bevroren naam-kolom (logische px); 0 als er niets herhaald wordt. */
   frozenPx: number;
-  /** Diezelfde bevroren kolom in punten op de pagina (`frozenPx * scale`). */
   frozenPtW: number;
-  /** Effectieve kopstrookhoogte (logische px); 0 = geen kopherhaling. */
   repeatHeaderPx: number;
-  /** Diezelfde kopstrook in punten op de pagina (`repeatHeaderPx * scale`). */
   repeatHeaderPtH: number;
-  /** Effectieve voetstrookhoogte (logische px); 0 = geen voetherhaling. */
   repeatFooterPx: number;
-  /** Diezelfde voetstrook in punten op de pagina (`repeatFooterPx * scale`). */
   repeatFooterPtH: number;
-  /** Bovenrand van de voetstrook in de BRON (logische px) = `logicalHeight - repeatFooterPx`. */
   repeatFooterSrcY: number;
-  /**
-   * Het horizontale bronvenster van de voetstrook: altijd vanaf x = 0, één paginabreedte breed
-   * (`min(logicalWidth, footerLayoutWidthPx)`), op `marginPt` — op ELKE pagina hetzelfde, ook in
-   * kolom 2..N. De render legt de voetinhoud binnen `footerLayoutWidthPx` (zie
-   * `PrintOptions.footerLayoutWidth`), zodat naam, legenda en merk op elk vel compleet zijn.
-   */
   footerWindow: TileXWindow;
-  /** Breedte (logische px) die op één pagina past = de breedte waarbinnen de voet gelegd hoort. */
   footerLayoutWidthPx: number;
-  /**
-   * y (punten, vanaf de BOVENkant van het papier) waar de herhaalde voetstrook begint: onderaan het
-   * printgebied, boven de paginanummer-marge. Zonder voetherhaling gelijk aan de onderrand van het
-   * printgebied (nergens gebruikt).
-   */
   footerTopPt: number;
-  /**
-   * y (punten, gerekend vanaf de BOVENkant van het papier) waar de body-tegel begint: onder de
-   * marge én onder de eventueel herhaalde kopstrook. De kopstrook zelf begint op `marginPt`.
-   */
   bodyTopPt: number;
-  /** Horizontale tegels, van links naar rechts. Lengte === `cols`. */
   columns: TileColumn[];
-  /** Verticale body-tegels, van boven naar onder. Lengte === `rows`. */
   bodyRows: TileBodyRow[];
 }
 
-/**
- * Reken de volledige pagina-indeling uit. Puur: geen canvas, geen DOM, geen pdf-lib.
- *
- * @see TileLayoutInput voor de defaults die het historische gedrag reproduceren.
- */
-/** Minimale vulgraad van een body-tegel voordat een breekpositie de pagina mag verkorten. */
 const MIN_BREAK_FILL = 0.5;
 
 export function computeTileLayout(input: TileLayoutInput): TileLayout {
@@ -314,58 +148,26 @@ export function computeTileLayout(input: TileLayoutInput): TileLayout {
   const printW = pageWidthPt - 2 * marginPt;
   const printH = pageHeightPt - 2 * marginPt - PAGE_NUMBER_PT;
 
-  // Bron-afmetingen in LOGISCHE px — alle tegel-wiskunde gebeurt in deze eenheid.
-  //
-  // Contract-afdwinging: deze functie is de bron van waarheid voor BEIDE pagineer-backends, en elke
-  // afgeleide hieronder (rows, cols, de vensterlijsten) is een deling of een `ceil` op deze twee
-  // getallen. Een NaN/Infinity die hier binnenkomt plant zich daardoor stil voort: `rows` wordt NaN
-  // en de tegel-lus levert nul pagina's op — een lege PDF zonder ook maar één foutmelding. Vandaar
-  // een expliciete finite-check; niet-eindige of negatieve maten worden 0, wat verderop netjes door
-  // de bestaande degeneratie-vangnetten wordt afgevangen.
   const cw = Number.isFinite(input.logicalWidth) ? Math.max(0, input.logicalWidth) : 0;
   const ch = Number.isFinite(input.logicalHeight) ? Math.max(0, input.logicalHeight) : 0;
 
-  // Gevraagd aantal tijdlijn-kolommen (alleen zinvol in fit-width). Defensief geklemd: een
-  // niet-eindig of < 1 getal zou de schaalformule hieronder laten ontsporen. De BOVENgrens is er
-  // omdat `rows` meegroeit met de schaal en het paginatotaal dus kwadratisch in N loopt: een
-  // doorgegeven 1e6 bouwt een miljoen kolomobjecten en rapporteert honderden miljarden pagina's.
-  // De UI biedt 1..8; MAX_TIMELINE_COLUMNS laat ruim marge en houdt de functie eindig voor elke
-  // aanroeper.
   const requestedCols = input.timelineColumns ?? 1;
   const timelineCols = Number.isFinite(requestedCols)
     ? Math.min(MAX_TIMELINE_COLUMNS, Math.max(1, Math.floor(requestedCols)))
     : 1;
 
-  // ---- Horizontale schaal + kolom-aantal --------------------------------------------------------
-  //
-  // 'actual': vaste CSS→papierverhouding, zoveel kolommen als nodig (hieronder afgeleid).
-  // 'fit-width' met N kolommen: de bron wordt over N paginabreedtes uitgesmeerd. Er wordt dan in
-  //   totaal `cw + (N-1)*frozenPx` bron-px getekend (de bevroren naam-strip komt N-1 keer extra
-  //   terug) op `N * printW` punten, dus scale = N*printW / (cw + (N-1)*frozenPx). Bij N = 1 valt dit
-  //   terug op `printW / cw`.
-  //
-  // De `cw > 0`-guard is een degeneratie-vangnet: bij een lege bron zou de deling Infinity opleveren
-  // en `rows`/`cols` naar oneindig laten lopen (= vastloper). Echte renders hebben altijd cw > 0.
   let scale: number;
   if (input.mode === 'fit-width') {
     const virtualWidth = cw + (timelineCols - 1) * frozenRequestedPx;
     scale = virtualWidth > 0 ? (printW * timelineCols) / virtualWidth : 1;
   } else {
-    // De bronmaten zijn CSS-pixels, geen PDF-punten. De handmatige tijdzoom verandert alleen de
-    // tijdas; de fysieke tabelmaat moet gelijk blijven aan de Auto-fit-preview.
     scale = LOGICAL_PX_TO_PT;
   }
 
-  // De bevroren strip wordt herhaald zodra er meer dan één kolom is — in 'actual'-modus én bij een
-  // fit-width-export met timelineColumns > 1. In 'actual' kennen we `cols` pas ná deze berekening (hij
-  // hangt van `frozenPtW` af), dus daar rekenen we de strip-breedte onvoorwaardelijk uit; blijft het
-  // toch bij één kolom, dan wordt `frozenPtW` simpelweg nergens gebruikt (kolom 0 herhaalt niets).
   const repeatsFrozen = input.mode === 'actual' || timelineCols > 1;
   const frozenPx = repeatsFrozen ? frozenRequestedPx : 0;
   const frozenPtW = frozenPx * scale;
 
-  // Bron-px die kolom 0 in beeld brengt (inclusief de bevroren strip) resp. die elke VOLGENDE kolom
-  // aan body toevoegt (die kolom offert `frozenPtW` punten op aan de herhaalde strip).
   const col0Bodypx = printW / scale;
   const laterColBodypx = (printW - frozenPtW) / scale;
 
@@ -379,27 +181,12 @@ export function computeTileLayout(input: TileLayoutInput): TileLayout {
   }
   cols = Math.max(1, cols);
 
-  // ---- Verticale tegeling (met eventuele kopherhaling) ------------------------------------------
-  //
-  // Zonder kopherhaling past er `printH / scale` bron-px op één pagina. Herhalen we de kopstrook,
-  // dan gaat daar `repeatHeaderPx` bron-px vanaf: de body krijgt per pagina nog maar
-  // `printH/scale - repeatHeaderPx` bron-px, en de te verdelen bron loopt van `repeatHeaderPx` tot
-  // `ch` in plaats van van 0 tot `ch`.
   const pageSrcHpx = printH / scale;
   const repeatRequestedPx = Math.max(0, input.repeatHeaderHeightPx ?? 0);
-  // Degeneratie-vangnet: een kopstrook die net zo hoog is als het printgebied (of als de hele bron)
-  // laat geen body over en zou `rows` naar oneindig laten lopen. Dan herhalen we de kop niet.
   const repeatHeaderPx = repeatRequestedPx > 0 && repeatRequestedPx < pageSrcHpx && repeatRequestedPx < ch
     ? repeatRequestedPx
     : 0;
   const repeatHeaderPtH = repeatHeaderPx * scale;
-  // Voetherhaling: dezelfde degeneratie-vangnetten als de kop, nu gegeven de (al toegepaste) kop —
-  // er moet body overblijven, op de pagina én in de bron. En alleen als er écht iets te herhalen
-  // valt: past de bron (kop meegerekend) op één pagina, tegelt hij niet horizontaal (`cols > 1` is
-  // óók meer dan één vel) en dwingt geen gedwongen breekpositie een tweede
-  // pagina af, dan blijft de voet aan de laatste rij hangen zoals altijd. De gedwongen posities
-  // worden hier getoetst tegen `ch - voet`: een positie ín de voetstrook zou de herhaling aanzetten
-  // maar daarna als breekpositie wegvallen (`inBody` filtert op `bodyEnd`), en dat gat mag niet.
   const footerRequestedPx = Math.max(0, input.repeatFooterHeightPx ?? 0);
   const forcesSecondPage = (input.forcedBreakOffsetsPx ?? [])
     .some(y => Number.isFinite(y) && y > repeatHeaderPx && y < ch - footerRequestedPx);
@@ -412,34 +199,19 @@ export function computeTileLayout(input: TileLayoutInput): TileLayout {
     : 0;
   const repeatFooterPtH = repeatFooterPx * scale;
   const repeatFooterSrcY = ch - repeatFooterPx;
-  // De body loopt van onder de kop tot boven de voet; zonder voetherhaling is dat tot `ch`.
   const bodyEnd = repeatFooterSrcY;
   const bodyRowHpx = pageSrcHpx - repeatHeaderPx - repeatFooterPx;
   const bodyRows: TileBodyRow[] = [];
-  // Rij-bewuste paginering: levert de render toegestane breekposities (y in
-  // logische px, bv. de onderrand van elke tabelrij), dan eindigt een body-tegel op de LAATSTE
-  // breekpositie die nog op de pagina past, zodat geen tabelrij over twee pagina's wordt gesneden.
-  // Past er binnen de paginahoogte geen enkele breekpositie (één rij hoger dan een pagina), dan
-  // valt die tegel terug op de volle paginahoogte — eindigheid gaat vóór netheid. Een breek die de
-  // pagina voor minder dan `MIN_BREAK_FILL` zou vullen telt óók niet: anders volgt op zo'n gedwongen
-  // snede een flinterdunne restpagina. Voor gewone tabel-/Gantt-rijen (tientallen
-  // px op een pagina van honderden) is die drempel nooit bindend. Zonder breekposities (de
-  // DOM-screenshot-fallback) is dit de vaste tegeling op paginahoogte.
   const inBody = (y: number) => Number.isFinite(y) && y > repeatHeaderPx && y < bodyEnd;
   const breaks = (input.breakOffsetsPx ?? []).filter(inBody).sort((x, y) => x - y);
-  // Gedwongen posities zijn ook toegestane posities: wie hier breekt, mag daar breken.
   const forced = (input.forcedBreakOffsetsPx ?? []).filter(inBody).sort((x, y) => x - y);
   const allowed = forced.length > 0 ? [...new Set([...breaks, ...forced])].sort((x, y) => x - y) : breaks;
   let srcY = repeatHeaderPx;
-  // `srcY` loopt alleen op en beide lijsten zijn gesorteerd: twee wijzers in plaats van per tegel
-  // opnieuw vanaf het begin zoeken (bij 5000 rijen en 100 bladen scheelde dat een half miljoen stappen).
   let fi = 0;
   let ai = 0;
   while (srcY < bodyEnd || bodyRows.length === 0) {
     const maxEnd = Math.min(bodyEnd, srcY + bodyRowHpx);
     let end = maxEnd;
-    // Eerste gedwongen positie ná de tegelstart: past hij op de pagina, dan eindigt de tegel dáár —
-    // zonder vulgraaddrempel, want een dunne pagina is hier precies de bedoeling.
     while (fi < forced.length && forced[fi] <= srcY) fi++;
     const nextForced = forced[fi];
     if (nextForced !== undefined && nextForced <= maxEnd) {
@@ -455,27 +227,21 @@ export function computeTileLayout(input: TileLayoutInput): TileLayout {
       if (best > srcY && best - srcY >= MIN_BREAK_FILL * bodyRowHpx) end = best;
     }
     bodyRows.push({ srcY, srcH: end - srcY });
-    if (end <= srcY) break; // degeneratie-vangnet (ch === srcY): precies één lege tegel
+    if (end <= srcY) break;
     srcY = end;
   }
   const rows = bodyRows.length;
 
-  // ---- Horizontale vensters per kolom -----------------------------------------------------------
   const columns: TileColumn[] = [];
   for (let c = 0; c < cols; c++) {
     if (c === 0) {
-      // Kolom 0 laat de bron vanaf x = 0 zien; de bevroren strip zit daar al in.
       columns.push({ xWindows: [{ srcX: 0, srcW: Math.min(col0Bodypx, cw), pageX: marginPt }] });
       continue;
     }
     const xWindows: TileXWindow[] = [];
-    // De bevroren naam-strip herhalen, zodat elke pagina zelfstandig leesbaar blijft.
     if (frozenPx > 0 && frozenPtW > 0) {
       xWindows.push({ srcX: 0, srcW: frozenPx, pageX: marginPt });
     }
-    // Body-venster: kolom 0 dekte [0 .. col0Bodypx]; elke volgende kolom schuift `laterColBodypx`
-    // verder, aansluitend zonder gat of overlap. Voor fit-width met N kolommen geldt exact
-    // col0Bodypx + (N-1)*laterColBodypx === cw (zie de scale-afleiding hierboven).
     const bodySrcX = col0Bodypx + (c - 1) * laterColBodypx;
     xWindows.push({
       srcX: bodySrcX,

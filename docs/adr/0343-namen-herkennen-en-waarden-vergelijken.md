@@ -7,7 +7,10 @@ normalisatie dat is (NFC, onzichtbare tekens weg, witruimte, `toLowerCase`), sta
 `syncedHash` (`hashFields`) gebruiken `normalizeName` niet: ze vergelijken per veld `diffKey` van de ruwe waarde. Een
 naam die alleen in hoofdletters of witruimte verschilt, is dus een verschil voor diff en hash, terwijl de herkenning
 hem als dezelfde naam ziet. Diff en hash delen `diffKey` en de veldlijsten, zodat een gelijke hash en een lege diff
-over dezelfde waarden gaan.
+over dezelfde waarden gaan. Uitzondering bij kalenders: `diffCalendarVsPool` vergelijkt de pauze- en
+uitzonderingsvelden altijd, `computeCalendarHash` neemt ze alleen mee als de kalender er een van heeft, en
+`calendarMatchesStamp` vergelijkt ze bij een oude stempel apart met de pool (de twee hashvormen in `docs/library.md`,
+*Waarom `syncedHash` bestaat*).
 
 ## Gevolgen
 

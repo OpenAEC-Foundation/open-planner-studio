@@ -33,7 +33,10 @@ de berekening bij het laden, die `prepareLoadedPayload` niet verandert omdat die
   (`lateDatesInFile` in `externalSource.ts` en de vastlegging voor de minutenomzetting in `applyLoadedProject` en in
   het crashherstel van `documentSlice.ts`) geven geen opties mee en gebruiken de standaard `true`. Een eigen IFC
   (`ifc-own`) zonder bronformaat (`recordedSourceFormat`) krijgt van `recordedDatesSource` geen bron en dus geen
-  vastlegging bij het laden; alleen het crashherstel van een bewaarde modus laat het toe (`captureAllowed`).
+  automatische activering bij het laden; alleen het crashherstel van een bewaarde modus laat het toe (`captureAllowed`).
+  Bij het openen van zo'n bestand van vóór het minutenmodel kan de minutenomzetting wel datums vastleggen voor
+  *Ongedaan maken* (`minuteModelTransition` in `applyLoadedProject`, `fileSlice.ts`): in
+  `check-minute-model-transition.ts` geeft Ongedaan maken na de laadroute de opgeslagen datum terug, in de modus.
 - `lateStart`, `lateFinish`, `totalFloat`, `freeFloat` en `isCritical` komen elk alleen mee als hun eigen slot
   aanwezig is, los van de gekozen laag. De spelingminuten komen alleen mee als het slot van hun dagen-as aanwezig is
   én de taak minuten draagt. De IFC-lezer (`applyTaskTimeRecords` in `ifcReader.ts`) neemt ze rechtstreeks uit een
