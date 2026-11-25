@@ -764,7 +764,8 @@ en noem het in je rapport of PR-tekst.
      dat model. Nagespeeld via de store: een taak van vijf dagen, één arbeidsresource op inzet 1, 32 % voortgang en
      *Vaste duur en werk*; de toewijzing had 12,8 uur verricht en 27,2 uur resterend werk. *Urenverdeling…* rekende
      40 uur resterend en toonde geen verricht werk. Na ongewijzigd *Toepassen*, IFC schrijven en teruglezen had de
-     contour alle 40 uur als `remaining`, naast de twee ongewijzigde werkvelden. Niet in de browser nagespeeld. — B
+     contour alle 40 uur als `remaining`, naast de twee ongewijzigde werkvelden. Niet in de browser nagespeeld.
+     Issue #1224. — B
 
 ## Tabel, invoer en bediening
 
