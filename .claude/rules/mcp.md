@@ -133,4 +133,13 @@ eigen bestand van het document weigert met een eigen tekst; een versie van een a
 schrijven ontstaat en `source-changed` krijgen elk een eigen antwoord. Het antwoord bevat
 `byteLength` voor bytes en `characters` alleen voor de gewone tekstuitvoer. De export verandert bron, kenmerk,
 doel, dirty-vlag en letterlijke kalenders niet. Scope, lease, drift, readonly en schrijfslot blijven gelden.
-Headless biedt de nieuwe bytenaad niet en blijft op zijn bestaande tekstgedrag (1136, fase 2).
+Headless (fase 2 PR 10b) zet de flag in zijn eigen store en `fileToolDeps.mainRouteUnlessForeign`; `headlessIfcRead` in
+`fileTools.ts` geeft elke geopende IFC één stand: bewezen eigen (de schrijfpoort van de kern, `textWriteCheck` in
+`targetForeignScan.ts`, vindt geen model, C, A of V, en na het openen geeft de gewone writer elk slot van elk stuk met
+een slottabel terug, #1219: de tekstroute van main, één lezing), bewaarde vreemde bron (de bytes-route en de merge), of niet vast te
+stellen (openen zoals main, met het kenmerk "bron ontbreekt", zodat `ifcFullWriteBlocked` elke IFC-uitvoer vóór I/O
+weigert; eigen tekst `UNKEPT_SOURCE_REFUSAL`). In die stand maakt de headless host ook geen MCP-backup: de back-upbinding
+heeft de optionele controle `withheld` (in de app leeg), `runMutateTool` slaat `ensureBackup` dan over en zet
+`envelope.backupWithheld`. `appForeignContentRoute(ctx)` (flag aan en niet headless) beslist over de
+tooltekst, het open tabblad en de externe bronnen. Headless levert `writeNewUserBytes` (`nodeFs.ts`, `link` naar de nieuwe naam), niet `replaceUserBytes`: een
+bestaande naam blijft voor een document met een vreemd deel geweigerd (knownbug 2240).
