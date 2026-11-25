@@ -1154,6 +1154,10 @@ de planner kan die bewerken. Voorbeeld: IFCCAD slaat een gebouw op met tien take
 planner opent het bestand, ziet de tien taken in de Gantt, verschuift er een en slaat op. Wat de app niet kent, blijft
 staan, zolang het object bestaat waar het bij hoort (§6.2).
 
+Na het besluit van 25 november 2026 (§6): de planner kan de ondersteunde planningsgegevens uit een gecombineerd
+IFCX-bestand openen en bewerken. Opslaan gebeurt in een eigen planningsbestand. §10 test dat de modelbron bytegelijk
+blijft en dat de losse planning opnieuw opent. De tests voor het terugschrijven van gemengde IFCX vervallen.
+
 - **Welke objecten**: zoals `selectPlanning` in STEP (§4.2). Het eerste werkplan in bestandsvolgorde is de planning;
   elke activity wordt een taak, ongeacht het werkplan (zoals `ifcReader.ts:1749`). Een baseline verwijst naar levende
   taken (`BaselineTask.taskId`, `src/types/baseline.ts:2-5`) en maakt een taak dus niet tot baselinekopie; kalenders en
@@ -1205,8 +1209,11 @@ Wat dat voor deze paragraaf betekent:
 - §6.1 tot en met §6.4 en §6.6 beschrijven "alles in één bestand": een IFCX-bestand met vreemde inhoud openen, bewerken en
   byte-gelijk terugschrijven. Dat wordt **niet gebouwd**. De tekst blijft staan als vastlegging van wat is onderzocht en
   waarom het groot is (tokenizer, eigendom per bijdrage, de bron bij IFCX).
-- Wat overblijft, staat in §8 bij fase 4: de planningslaag verwijst naar het modelbestand, en de planner kan taken koppelen
-  aan bouwdelen uit dat model.
+- Wat overblijft, staat in §8 bij fase 4: de planningslaag verwijst naar het modelbestand. Fase 4 leest bestaande
+  taak-bouwdeelkoppelingen via het gekoppelde model en houdt ze zichtbaar. Koppelingen aanmaken en bewerken valt onder
+  #748.
+- De bronopslag voor het herschrijven van gemengde IFCX vervalt. §5.2 blijft eisen dat bestaande planningspaden bij
+  opslaan en heropenen gelijk blijven.
 - **Niet nagegaan:** hoe andere IFCX-programma's een verwijzing naar een los bestand op schijf lezen. §5.1 en §6.5 gaan er
   nog van uit dat de app nooit een import toevoegt, omdat ifcx-explorer eist dat elke import een document in het pakket is
   (`MISSING_IMPORT`). Fase 4 begint daarom met een korte proef op die verwijzing; pas daarna worden §5.1 en §6.5
@@ -1350,7 +1357,7 @@ ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden
 | 1 | Bytes-openroutes, scanner, indeling, `ifcSource`, lezer met C-context, writer met behouden ids, controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan. Achter de flag. | 3 PR's | hoog |
 | 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, `jsonExtras` en `unusedKeys` (§4.2), de controle op een vervangen bestand en de exclusieve schrijfroute met `place_file_exclusive` (§4.10; Rust-code apart gereviewd door Sol, §11; in de eerste PR daarvan bewaart herstel elke volledige kandidaat met `pendingSha256` zolang die niet op het doel staat, ook bij een crash vóór stap 3, met een test voor een crash tijdens het herstel zelf: VERVOLG uit ronde 5 van #839, voor Terra blokkerend), herkomstmerken (`ifcOrigin`, §4.2), A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6, `idExceptions` in het manifest en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
 | 3 | IFCX-planning zonder vreemde inhoud: voorstel gedeelde schema's aan Bjorn (§5.3), profiel `openaec::ops::` 1.0.0, schema's, lezer, writer, dialogen, keuze, vraag bij opslaan, round-trip STEP↔IFCX, handleiding over IFCX (nl/en; de andere talen via de vertaalstraat). Achter de flag. | 4–6 PR's | hoog: veel velden, alfa-formaat |
-| 4 | IFCX naast een gebouwmodel (besluit van 25 november 2026, §6): de planning blijft een eigen IFCX-bestand en verwijst naar het modelbestand; de app herschrijft het model niet. Eerste stap: een proef op de verwijzing naar een los bestand (§6, §11). Daarna: de verwijzing schrijven en lezen, koppelingen naar bouwdelen uit het model, handleiding en `docs/ifc-round-trip.md` bijwerken. Vervallen: tokenizer, eigendom per bijdrage, onbekende velden als token en `ifcSource` voor IFCX (§6.1–§6.4, §6.6). Flag eraf. | opnieuw schatten na de proef | middel |
+| 4 | IFCX naast een gebouwmodel (besluit van 25 november 2026, §6): de planning blijft een eigen IFCX-bestand en verwijst naar het modelbestand; de app herschrijft het model niet. Eerste stap: een proef op de verwijzing naar een los bestand (§6, §11). Daarna: de verwijzing schrijven en lezen, bestaande taak-bouwdeelkoppelingen lezen via het gekoppelde model en zichtbaar houden (aanmaken en bewerken valt onder #748), handleiding en `docs/ifc-round-trip.md` bijwerken. Vervallen: tokenizer, eigendom per bijdrage en onbekende velden als token (§6.1–§6.4). De bronopslag voor het herschrijven van gemengde IFCX vervalt. §5.2 blijft eisen dat bestaande planningspaden bij opslaan en heropenen gelijk blijven. Flag eraf. | opnieuw schatten na de proef | middel |
 
 Hoe moeilijk: dit is groot werk, ongeveer 15 tot 19 PR's. Het knippen zelf is niet het lastige deel. Het lastige deel is
 waar de planning en de rest elkaar raken: de indeling, vreemde gegevens op taken, gemengde relaties, verwijderen en
@@ -1509,6 +1516,10 @@ daarom staat alles achter de flags tot het compleet is.
     en 4: de nieuwe planning staat als herstelkopie naast het doel, met de melding. Browser: een wijziging vóór de controle bij `close()` stopt het opslaan.
 - **Controles zelf testen**: een writer die bewust een vreemd stuk weglaat, verdubbelt of verschuift, moet door controle 1
   worden tegengehouden; `planningCanon` met dubbele namen en WBS-codes.
+- **Na het besluit van 25 november 2026 (§6):** opslaan van een planning uit een gecombineerd IFCX-bestand gebeurt in een
+  eigen planningsbestand. De test eist dat de modelbron bytegelijk blijft en dat de losse planning opnieuw opent. De
+  tests hieronder voor het terugschrijven van gemengde IFCX (onbekende velden byte-gelijk, vreemde compositie gelijk)
+  vervallen.
 - `check-ifcx-roundtrip.ts`: elk voorbeeldproject IFC → IFCX → IFC zonder verschil volgens `planningCanon` (drie hebben
   een baseline); de veldentest uit §5.4; de compositie per pad met de IFC5-flattener; planning van een ander programma openen, één taak verschuiven, opslaan: alleen de
   velden van die taak veranderen, onbekende velden zijn byte-gelijk, ongewijzigde velden houden hun waarde, afwezige velden blijven
