@@ -14,10 +14,14 @@ de vorm).
 
 - Het totaal bij opgeslagen werk is verricht plus resterend werk (`storedTotalUnits`): `remainingWorkMinutes` plus
   `actualWorkMinutes` als de toewijzing dat veld heeft, anders een verricht deel dat de functie afleidt als de duur min
-  de restduur (`remainingDaysOf`), maal de inzet. Reden: een typewissel legt alleen het restwerk vast, en zonder het
-  afgeleide deel zou de belasting van een half gedane taak halveren (`check-work-rule-store.ts`, h1 en h2; g4 voor een
-  meegegeven verricht deel). Negatieve werkvelden tellen als 0. `remainingDaysOf` rondt de afgeleide rest af, de
-  solver en `remainingMinutesOf` (`workRuleApply.ts`) niet; het gevolg staat in knownbug 2322.
+  de restduur (`remainingDaysOf`), maal de inzet. Reden: een toewijzing kan restwerk dragen zonder
+  `actualWorkMinutes`, en zonder het afgeleide deel zou de belasting van een gestarte taak dan alleen het restwerk
+  tellen. `check-work-rule-store.ts` toetst in h1 na een typewissel alleen `remainingWorkMinutes` en in h2 dat
+  `assignmentDayUnits` na de typewissel op zes decimalen dezelfde slots geeft als ervoor; g4 toetst een meegegeven
+  verricht deel. Negatieve werkvelden tellen als 0. `remainingDaysOf` rondt de afgeleide rest af; de solver in de
+  dagenmaat (`progressWork` in `CPMSolver.ts`) en `remainingMinutesOf` (`workRuleApply.ts`) ronden niet af; in de
+  minutentak rondt de solver de rest uit `completion` wel af op hele minuten. Het gevolg voor de afronding staat in
+  knownbug 2322.
 - Opgeslagen werk telt alleen als `remainingWorkMinutes` eindig is en de duur groter dan 0; `curveValues` telt alleen
   bij een duur groter dan 0. Opgeslagen werk zonder `curveValues` spreidt zonder afronding met de tabelvorm van de
   curve (`CONTOUR_SHAPE_VALUES` via `CURVE_TO_SHAPE`; een toewijzing zonder curve krijgt *Gelijkmatig*), niet met de

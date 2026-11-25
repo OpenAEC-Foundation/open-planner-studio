@@ -3,8 +3,9 @@
 Elke taak heeft een eigen maat, `time.durationUnit` (besluit B1 van de eigenaar, 2026-10-20; spec
 `docs/superpowers/specs/2026-10-20-alleen-uren-design.md`, §3.2). Bij `'days'` (dagenmaat) is `scheduleDuration` de
 bron: werkdagen op de taakkalender, een breuk mag (2,5). Bij `'hours'` (urenmaat) is `durationMinutes` de bron, in
-werkminuten, en is `scheduleDuration` daarvan afgeleid: `minuten / (urenPerDag × 60)`, met de uren per dag van de
-kalender (`hourTaskScheduleDuration`). Twee bronnen voor dezelfde duur zouden uit elkaar lopen; daarom is per maat
+werkminuten, en is `scheduleDuration` daarvan afgeleid: `minuten / (urenPerDag × 60)`, met de effectieve uren per dag
+van de kalender (`effHoursPerDay`); bij nul werkuren per dag geeft de deling 0 (`hourTaskScheduleDuration` in
+`utils/taskDuration.ts`). Twee bronnen voor dezelfde duur zouden uit elkaar lopen; daarom is per maat
 één veld de invoer en het andere de afgeleide. Of een taak in de dagenmaat ook in werkdagen rekent, beslist de
 conventie `workdayDurationMeasure` (`taskCountsInWorkdays`); onder het P6- en het MS Project-profiel telt ze als
 urenmaat, `scheduleDuration` maal werktijd per dag maal 60.
@@ -31,13 +32,17 @@ urenmaat, `scheduleDuration` maal werktijd per dag maal 60.
 - De rest volgt dezelfde maat (besluit B3, spec §3.5): `remainingTime` in werkdagen, de bron bij de dagenmaat en exact
   (een breuk mag); `remainingMinutes` in werkminuten, de bron bij de urenmaat, met `remainingTime` als afgeleide.
   `applyRemainingDuration` rondt een rest uit een percentage bij de urenmaat af op een hele minuut. Bij kalendertijd
-  staat de rest in klokdagen en klokminuten (ADR 0016). Ingelezen restminuten kunnen een breuk hebben: `readMeasure`
-  (`xmlDayMeasure.ts`) houdt ze met `keepSourceMinutes` zoals de XER-lezer ze gaf. Bij de urenmaat geeft
-  `readMeasure` alleen `remainingMinutes`, dus na een import kan `remainingTime` ontbreken terwijl
-  `remainingMinutes` gevuld is.
+  staat de rest in klokdagen en klokminuten (ADR 0016). Ingelezen restminuten kunnen een breuk hebben: alleen de
+  XER-lezer zet `keepSourceMinutes`, en dan houdt `readMeasure` (`xmlDayMeasure.ts`) in de urenmaat de duur- en
+  restminuten zoals de lezer ze gaf, als er geen geldig `ExactMinutes`-record voorgaat; zonder die vlag rondt hij ze
+  in dat geval af op hele minuten. Bij de urenmaat geeft `readMeasure` alleen `remainingMinutes`, dus na een import
+  kan `remainingTime` ontbreken terwijl `remainingMinutes` gevuld is.
 - Speling: `totalFloat` en `freeFloat` in werkdagen, met een deel van een dag; `totalFloatMinutes` en
   `freeFloatMinutes` in werkminuten op de taakkalender, bij kalendertijd in klokminuten (spec §3.4). Dat laatste geldt
-  voor de totale speling; de vrije speling van een kalendertijdtaak via een relatie telt over de opvolgerkalender in
-  werktijd (ADR 0016, geval `msp-21`).
+  voor de totale speling en voor de vrije speling van een eindtaak (`scheduleAnalysis.ts`). Via een relatie meet de
+  gewone regel de vrije speling over de opvolgerkalender in werktijd, ook voor een kalendertijdtaak (ADR 0016, geval
+  `msp-21`). Een conventie kan dat per relatie vervangen: zo meet C2 (`p6FreeFloatOnOwnCalendar`) bij een open taak
+  met eigen werkblokken, ook in kalendertijd, en een FS-relatie zonder lag de vrije speling in werktijd op de eigen
+  kalender.
   `interferingFloat` is `totalFloat` min `freeFloat`, met teken.
 - `completion` is een fractie van 0 tot en met 1, geen percentage; de weergave vermenigvuldigt met 100.

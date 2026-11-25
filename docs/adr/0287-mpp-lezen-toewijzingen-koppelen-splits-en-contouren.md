@@ -41,8 +41,10 @@ van de toewijzing naar de taak, met `CalendarEngine.workMinutesBetween`) staat i
   lezen, dan wordt het `null`. Een gelezen uid zonder gevonden resource blijft een getal, zonder `resourceId`. De
   MSPDI-lezer zet de gelezen `ResourceUID` ook als getal. Contouren uit P6 XML krijgen `null`, en een nieuwe contour
   die de planner maakt ook (`contoursAfterEdit` in `assignmentMutations.ts`); bewerkt de planner een bestaande
-  contour, dan houdt die haar uid. De melding in het taakpaneel (`TaskTimephasedNotice.tsx`) leest een contour met een
-  getal als `resourceUid` als aanwijzing voor herkomst uit MS Project.
+  contour, dan houdt die haar uid. De XER-lezer maakt geen taakcontouren: een resourcecurve uit XER komt als `curve`
+  en `curveValues` op de toewijzing (`xerResourceAssignments.ts`). De melding in het taakpaneel
+  (`TaskTimephasedNotice.tsx`) leest een contour met een getal als `resourceUid` als aanwijzing voor herkomst uit MS
+  Project.
 - `deriveSplitGapsForTasks` heeft geen eigen try/catch: `readAssignmentTimephasedRaw` en `buildAssignmentUidLinks`
   vangen hun fouten zelf, en `CalendarEngine.ts` gooit niet. Een fout hoort bij de bron voorkomen te worden, niet
   weggevangen.
