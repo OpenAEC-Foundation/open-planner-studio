@@ -1,4 +1,5 @@
 import { readMSPDI } from '@/services/msproject/mspdiReader';
+import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import type { ImportResult } from '@/services/importTypes';
 import { hourTaskScheduleDuration } from '@/utils/taskDuration';
 import { installDOMParser } from './xmldom-shim';
@@ -52,6 +53,18 @@ const byName = (r: ImportResult, name: string) => r.tasks.find(t => t.name === n
   eq('4c eigen Duration op de taak wint van de baseline-Duration', byName(r, 'Na')?.time.durationMinutes, 960);
   eq('4d de baseline houdt haar eigen Duration', r.baselines?.[0]?.tasks[0]?.duration,
     hourTaskScheduleDuration(2400, r.calendar));
+}
+
+{
+  const r = readMSPDI(wrap(`<Tasks>${task(1, 'Werk', baseline('PT2H0M0S'), false)}</Tasks>
+    <Resources><Resource><UID>1</UID><ID>1</ID><Name>Kraan</Name><Type>1</Type></Resource></Resources>
+    <Assignments><Assignment><UID>1</UID><TaskUID>1</TaskUID><ResourceUID>1</ResourceUID><Units>1</Units><Work>PT1M</Work></Assignment></Assignments>`));
+  const t = byName(r, 'Werk');
+  const a = r.assignments.find(x => x.taskId === t?.id);
+  eq('5a taak zonder eigen duur (alleen baselineduur) houdt expliciet positief toewijzingswerk', a?.plannedWorkMinutes, 1);
+  const out = writeMSPDI(r.project, r.calendar, r.tasks, r.sequences, r.resources, r.assignments,
+    r.resourceCalendars ?? [], r.baselines ?? [], r.activeBaselineId ?? null);
+  eq('5b na herexport is <Work> één minuut (PT0H1M0S), niet PT0H0M0S', /<Work>([^<]*)<\/Work>/.exec(out)?.[1], 'PT0H1M0S');
 }
 
 if (failures.length) {
