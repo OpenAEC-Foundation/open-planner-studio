@@ -1719,7 +1719,7 @@ test('R4 en R5 zijn één functie: writeIfcx en readIfcx gaan door dezelfde cano
   const source = (file: string) => sources.find(([name]) => name === file)![1];
   assert.deepEqual(callers('stepRoundtrip', 'stepRoundtrip.ts'), ['ownFile.ts']);
   assert.deepEqual(callers('composeIfcxDocument', 'projection.ts'), ['ownFile.ts']);
-  assert.deepEqual(callers('payloadFromImport'), ['ownFile.ts']);
+  assert.deepEqual(callers('documentDataFromImport'), ['ownFile.ts']);
   assert.deepEqual(callers('buildWriteIFCInput'), ['ownFile.ts']);
   assert.deepEqual(callers('ownFileFor', 'ownFile.ts').sort(), ['ifcxReader.ts', 'ifcxWriter.ts']);
   assert.deepEqual([...source('ownFile.ts').matchAll(/^export (?:function|const) (\w+)/gm)].map(match => match[1]).sort(),
