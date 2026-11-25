@@ -1058,6 +1058,13 @@ test('B stdio knownbug 1136: de losse server neemt een externe pset en een gebou
     await refused(stdio, 'planner_export_ifc', { path: `~/${name}-bron.ifc`, overwrite: true }, 'VALIDATION', `${name}: over de bron`);
     assert(readFileSync(join(work, `${name}-bron.ifc`)).equals(bytes), `${name}: de bron is bytegelijk`);
   }
+  writeFileSync(join(work, 'oude-bron.ifc'), oldOwnSource(ROOT));
+  await ok(stdio, 'planner_import_schedule', { path: '~/oude-bron.ifc' });
+  const oldTasks = (await ok(stdio, 'planner_list_tasks', { limit: 1000 })).tasks as Array<{ name: string }>;
+  assertEq(oldTasks.find(t => t.name.startsWith('Set up '))?.name, OLD_TASK_NAME, 'oude eigen bron: de letterlijke taaknaam, zoals main 51b9cac22');
+  const oldExport = await ok(stdio, 'planner_export_ifc', { path: '~/oude-bron-kopie.ifc' });
+  assertEq([oldExport.characters, oldExport.byteLength, readFileSync(join(work, 'oude-bron-kopie.ifc')).byteLength], [59171, undefined, 59171],
+    'oude eigen bron: de tekstroute van main, 59.171 tekens zoals main 51b9cac22');
   assertEq(readdirSync(work).filter(f => f.includes('.ops-')), [], 'geen hulpbestand');
 });
 

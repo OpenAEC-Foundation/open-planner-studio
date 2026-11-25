@@ -115,6 +115,7 @@ async function replay(server: string, work: string, cases: Case[], preload: stri
         return (response as { result?: { structuredContent?: { ok?: boolean; data?: Record<string, unknown> } } }).result?.structuredContent;
       };
       const dir = join(work, String(i));
+      await session.request('tools/call', { name: 'planner_new_document', arguments: {} });
       const opened = await call('planner_import_schedule', { path: join(dir, 'plan.ifc') });
       if (opened?.ok !== true) continue;
       const listed = await call('planner_list_tasks', { limit: 1000 });
@@ -160,6 +161,7 @@ if (!MAIN) {
       const actual = await replay(branchServer, work, cases, preload, tmp);
       assertEq(renamedIds(actual.head), renamedIds(expected.head), 'initialize en tools/list');
       const tally = { eigen: 0, onzeker: 0, nietGeopend: 0 };
+      const refusedOwn: string[] = [];
       for (const [i, c] of cases.entries()) {
         const [main, branch] = [expected.cases[i], actual.cases[i]];
         const label = `${i} ${c.name}`;
@@ -183,11 +185,12 @@ if (!MAIN) {
         assert(actual.files.get(`${i}/plan.ifc`)!.equals(c.bytes), `${label}: de bron is bytegelijk`);
         assert(expected.files.has(`${i}/kopie.ifc`), `${label}: main schreef hier wel (anders hoort het bestand niet in deze lijst)`);
         tally.onzeker++;
+        refusedOwn.push(c.name);
       }
       const generated = new Set(expected.cases.flat().flatMap(s => s.response.match(GENERATED_ID) ?? [])).size;
       console.log(`  ${Math.round((Date.now() - started) / 1000)} s; ${cases.length} bestanden: ${tally.eigen} eigen zoals main, `
         + `${tally.onzeker} onzeker zonder IFC-uitvoer, ${tally.nietGeopend} door beide geweigerd; ${generated} gegenereerde id's hernoemd per bestand`);
-      console.log(`  onzeker: ${cases.filter(c => c.stand === 'onzeker').map(c => c.name).join(', ')}`);
+      console.log(`  geopend en onzeker: ${refusedOwn.join(', ')}`);
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
