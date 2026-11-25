@@ -1532,6 +1532,15 @@ en noem het in je rapport of PR-tekst.
     `src/services/print/printPreview.ts`) is volgens het weggehaalde commentaar de breedte waarop de langste curvenaam
     van veertien talen past; de app heeft er nu 28. `measureCurveColumnWidth` begrenst de kolom op die breedte, dus een
     langere vertaalde curvenaam wordt in de cel afgekapt. Niet gemeten. — S
+2336. **Op vaste schaal met een tabel die minstens zo breed is als het blad, staat de tijdas rechts van het eerste blad op
+    geen enkel blad.** `computeTileLayout` (`src/services/print/tileLayout.ts`) geeft bij `mode: 'actual'` één kolom als
+    er naast de herhaalde tabel geen ruimte overblijft (`(printW − frozenPtW) / scale` niet groter dan 0), ook als de bron
+    breder is dan één blad. Proef met de functie zelf: A4 staand, `mode: 'actual'`, `logicalWidth` 2000,
+    `logicalHeight` 500, `frozenColumnWidthPx` 800 geeft `cols` 1 met één venster van x = 0 tot 729,7; de bron van 729,7
+    tot 2000 komt op geen blad. Met `frozenColumnWidthPx` 700 zijn het 44 kolommen. Op de Gantt-afdruk is
+    `frozenColumnWidthPx` de tabelbreedte, en de naamkolom alleen mag tot `NAME_COLUMN_AUTO_MAX` (800 px) breed zijn;
+    dat het Rapport-tabblad zo'n tabel bij *Vaste schaal* op A4 staand doorgeeft, is in de code gelezen, niet in de app
+    nagespeeld. Zie ADR 0351. — B
 
 ## Kalenders
 
