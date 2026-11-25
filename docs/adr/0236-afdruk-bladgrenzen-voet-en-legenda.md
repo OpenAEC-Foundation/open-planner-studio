@@ -2,7 +2,9 @@
 
 De render bepaalt waar een blad mag eindigen en wat de voet toont; de pagineerders (`paginate.ts`, `paginateVector.ts`,
 met `tileLayout.ts`) delen het rapport in bladen en herhalen kop en voet als daarom gevraagd is. Onder elke rij mag een
-blad eindigen (`breakOffsets`), zodat geen rij over twee bladen wordt gesneden; de voet is één blok na de laatste rij.
+blad eindigen (`breakOffsets`). Dat zijn plekken om te breken: past er geen op het blad, of vult de laatste die past
+het blad voor minder dan de helft, dan snijdt de pagineerder door een rij (ADR 0353). De voet is één blok na de laatste
+rij.
 De gedwongen overgangen van het resourcediagram staan in de regel `reports`. Een band direct onder een band (de
 typelaag) krijgt geen eigen overgang, anders stond de typekop alleen op een verder leeg blad.
 

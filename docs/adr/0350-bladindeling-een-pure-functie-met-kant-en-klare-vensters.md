@@ -12,8 +12,9 @@ pagineerders lopen er met dezelfde lus overheen zonder zelf iets af te leiden.
 
 ## Gevolgen
 
-- Eenheden: de invoer en de bronvensters (`srcX`, `srcW`, `srcY`, `srcH`, `frozenPx`, `repeatHeaderPx`,
-  `repeatFooterPx`, `repeatFooterSrcY`, `footerLayoutWidthPx`) zijn in logische px van de render (ADR 0230). De plek op
+- Eenheden: de bronmaten van de invoer en de bronvensters (`srcX`, `srcW`, `srcY`, `srcH`, `frozenPx`,
+  `repeatHeaderPx`, `repeatFooterPx`, `repeatFooterSrcY`, `footerLayoutWidthPx`) zijn in logische px van de render
+  (ADR 0230); `marginPt` is invoer in punten. De plek op
   het blad (`pageX`, `bodyTopPt`, `footerTopPt`) en de papier- en printmaten zijn in PDF-punten, gemeten vanaf de
   linker- en de bovenrand van het papier, de marge inbegrepen. `scale` is het aantal punten per logische px.
 - Een venster kan een breedte of hoogte van 0 of minder hebben (bijvoorbeeld bij een lege bron); beide pagineerders
@@ -22,7 +23,9 @@ pagineerders lopen er met dezelfde lus overheen zonder zelf iets af te leiden.
   leidt rij en kolom af uit `pageIndex`, `paginateVectorToPdfBytes` loopt over `bodyRows` en daarbinnen over
   `columns`. Het aantal bladen is `rows × cols`.
 - Zonder `frozenColumnWidthPx`, `repeatHeaderHeightPx`, `repeatFooterHeightPx` en `timelineColumns` herhaalt de functie
-  geen tabel, kop of voet en gebruikt ze één paginabreedte; `marginPt` valt terug op `DEFAULT_MARGIN_PT`. Dat zijn de
+  geen tabel, kop of voet, en gebruikt ze bij *Passend maken* één paginabreedte; `marginPt` valt terug op
+  `DEFAULT_MARGIN_PT`. Bij *Vaste schaal* volgt het aantal kolommen ook dan uit de bronbreedte: een bron van 2000 px
+  op A4 staand geeft drie kolommen (ADR 0351). Dat zijn de
   standaarden van de functie, niet van de Gantt-afdruk: `DEFAULT_REPORT_SETTINGS` (`src/utils/reportSettings.ts`) zet
   `repeatHeader` en `repeatFooter` aan.
 - `reportTileInput` maakt de invoer uit een renderresultaat voor de vector-PDF en het papier. De rasterexport van de
