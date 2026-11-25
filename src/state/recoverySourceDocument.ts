@@ -23,5 +23,6 @@ export function recoverySourceDocument(id: string, payload: DocumentPayload, ena
       } } : {}),
     foreignSource: foreignSourceTargetOf(payload.foreignSourceMark),
     isDirty: payload.isDirty, datesAsRecorded: payload.datesAsRecorded,
+    ...(payload.fileFormat === 'ifcx' ? { ifcx: { known: payload.knownTargetFingerprint } } : {}),
   };
 }

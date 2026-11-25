@@ -22,6 +22,7 @@ import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark
 import { scanForeignTargetBlob, scanForeignTargetBytesAsync, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { compareFilePaths, type FileIdentityFs } from './fileIdentity';
+import type { IfcxClassification } from '@/services/ifc/ifcx';
 import type { FileRef } from './index';
 
 export interface ForeignSourceTargetDeps {
@@ -67,6 +68,7 @@ export interface TargetReaders {
   scanPath?: (path: string) => Promise<TargetForeignScan | null>;
   /** Een bestand op de site lezen; `null` = niet leesbaar, dus weigeren. */
   readSite?: (id: string) => Promise<Uint8Array | null>;
+  readPath?: (path: string) => Promise<Uint8Array | null>;
 }
 
 /** De lezers van de doelcontrole voor het doel dat de bestandskiezer vastlegde (was knownbug 1891): één scan van de
@@ -79,6 +81,10 @@ export function capturedTargetReaders(current: Uint8Array | 'unreadable' | null,
   return () => ({
     ...base(),
     scanPath: async () => current === 'unreadable' ? 'unreadable' : (scan ??= scanForeignTargetBytesAsync(current)),
+    readPath: async (path: string) => {
+      if (current === 'unreadable') throw new Error(`Het bestaande doel ${path} is niet leesbaar.`);
+      return current;
+    },
   });
 }
 
@@ -104,6 +110,37 @@ export async function targetRefusal(target: FileRef, readers: TargetReaders = {}
   } catch {
     return 'unreadable';
   }
+}
+
+export type IfcxClassify = (bytes: Uint8Array) => Promise<IfcxClassification>;
+
+export async function ifcxTargetRefusal(
+  target: FileRef, readers: TargetReaders, classify: IfcxClassify | undefined,
+): Promise<'foreign' | 'unreadable' | null> {
+  if (target.kind === 'site') return null;
+  let bytes: Uint8Array | null;
+  try {
+    bytes = await existingTargetBytes(target, readers);
+  } catch {
+    return 'unreadable';
+  }
+  if (bytes === null || bytes.byteLength === 0) return null;
+  if (!classify) return 'unreadable';
+  try {
+    const classification = await classify(bytes);
+    return classification === 'own' ? null : classification === 'foreign' ? 'foreign' : 'unreadable';
+  } catch {
+    return 'unreadable';
+  }
+}
+
+async function existingTargetBytes(target: Exclude<FileRef, { kind: 'site' }>, readers: TargetReaders): Promise<Uint8Array | null> {
+  if (target.kind === 'handle') {
+    const file = await target.handle.getFile();
+    return file.size === 0 ? null : new Uint8Array(await file.arrayBuffer());
+  }
+  if (!readers.readPath) throw new Error('Geen lezer voor een bestaand pad.');
+  return readers.readPath(target.path);
 }
 
 /** Wijzen twee lokale paden naar hetzelfde bestand? Hetzelfde genormaliseerde pad, of (met `identityFs`) dezelfde

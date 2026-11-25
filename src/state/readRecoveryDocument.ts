@@ -9,6 +9,7 @@ import {
   recoveryIdentitiesForSnapshot, reproducesIdentities, snapshotWrittenAt, withRecoveryIdentities, type RecoveryIdentityRow,
 } from '@/services/recovery/recoveryIdentity';
 import { recoverySnapshotInput, writeRecoverySnapshotParts } from '@/services/recovery/recoverySnapshotInput';
+import { ifcxMetaFields } from '@/services/recovery/recoveryIfcx';
 import { isTauri } from '@/utils/platform';
 import { createAppStoreContext } from './appStoreFactory';
 import { payloadFromInput, recoveryInputFromParsed, type RecoveryDocInput } from './documentContract';
@@ -67,7 +68,7 @@ export async function readRecoveryDocument(
   const meta = {
     id: document.id, filePath: document.filePath, siteFileId: document.siteFileId ?? null,
     siteFileVersion: document.siteFileVersion ?? null, foreignSource: document.foreignSource ?? null,
-    isDirty: document.isDirty, datesAsRecorded: document.datesAsRecorded,
+    isDirty: document.isDirty, datesAsRecorded: document.datesAsRecorded, ...ifcxMetaFields(document),
   };
   const applied = rows ? recoveryInputFromParsed(withRecoveryIdentities(read, rows), meta) : null;
   const snapshot = applied && rows && rewritesSnapshot(applied, document.ifc, rows) ? applied : recoveryInputFromParsed(read, meta);

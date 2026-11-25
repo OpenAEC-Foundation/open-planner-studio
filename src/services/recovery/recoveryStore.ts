@@ -1,6 +1,8 @@
 import { cleanupRecoverySourceCopies, sourceCopyReferenceKey, writeRecoverySourceCopy, type RecoverySourceCopy } from './recoverySourceCopies';
 import { ifcSourceMetaFields, type RecoveryIfcSource } from './recoveryIfcSource';
 import { snapshotIdentityFields, type RecoverySnapshotIdentities } from './recoveryIdentity';
+import { ifcxMetaFields } from './recoveryIfcx';
+import type { RecoveryIfcxMark } from '@/state/documentContract';
 import { isTauri } from '@/utils/platform';
 import { IndexedDbUpgradeBlockedError, openDbStores } from '@/utils/idb';
 import {
@@ -25,6 +27,7 @@ export interface RecoveryDocContent {
   foreignSource?: ForeignSourceTarget | null;
   ifcSource?: RecoveryIfcSource;
   snapshotIdentities?: RecoverySnapshotIdentities;
+  ifcx?: RecoveryIfcxMark;
 }
 
 export function recoverySiteMeta(record: object | null | undefined): {
@@ -58,6 +61,7 @@ export interface RecoveryDocMetadata {
   foreignSource?: ForeignSourceTarget | null;
   ifcSource?: RecoveryIfcSource;
   snapshotIdentities?: RecoverySnapshotIdentities;
+  ifcx?: RecoveryIfcxMark;
 }
 
 export type RecoveryArchiveSupplier = () => Uint8Array;
@@ -78,12 +82,13 @@ export function fullRecoverySave(
 ): RecoverySaveInput {
   return {
     activeDocumentId,
-    documents: docs.map(({ id, filePath, isDirty, datesAsRecorded, xerArchive, siteFileId, siteFileVersion, foreignSource, ifcSource, snapshotIdentities }) => ({
+    documents: docs.map(({ id, filePath, isDirty, datesAsRecorded, xerArchive, siteFileId, siteFileVersion, foreignSource, ifcSource, snapshotIdentities, ifcx }) => ({
       id, filePath, isDirty, datesAsRecorded, ...(xerArchive ? { xerArchive } : {}),
       ...siteMetaFields({ siteFileId, siteFileVersion }),
       ...foreignSourceMetaFields({ foreignSource }),
       ...ifcSourceMetaFields({ ifcSource }),
       ...snapshotIdentityFields({ snapshotIdentities }),
+      ...ifcxMetaFields({ ifcx }),
     })),
     upserts: docs,
     ...(archives ? { archives } : {}),
@@ -250,6 +255,7 @@ export function planRecoveryCleanup(input: RecoveryCleanupInput): RecoveryCleanu
         ...foreignSourceMetaFields(d),
         ...ifcSourceMetaFields(d),
         ...snapshotIdentityFields(d),
+        ...ifcxMetaFields(d),
       });
     }
   }
@@ -392,6 +398,7 @@ export function planTauriV3RecoverySave(
         ...foreignSourceMetaFields(metadata),
         ...ifcSourceMetaFields(metadata),
         ...snapshotIdentityFields(metadata),
+        ...ifcxMetaFields(metadata),
       });
       writes.push({ name: ifc, ifc: changed.ifc });
       continue;
@@ -408,6 +415,7 @@ export function planTauriV3RecoverySave(
       ...foreignSourceMetaFields(metadata),
       ...ifcSourceMetaFields(metadata),
       ...snapshotIdentityFields(metadata),
+      ...ifcxMetaFields(metadata),
     });
   }
 
@@ -572,6 +580,7 @@ async function loadTauri(): Promise<LoadedRecovery> {
             ...foreignSourceMetaFields(d),
             ...ifcSourceMetaFields(d),
             ...snapshotIdentityFields(d),
+            ...ifcxMetaFields(d),
           });
         } catch (err) {
           console.error('Recovery: kon documentsnapshot niet lezen:', d.id, err);
@@ -1073,6 +1082,7 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
               ...foreignSourceMetaFields(document),
               ...ifcSourceMetaFields(document),
               ...snapshotIdentityFields(document),
+              ...ifcxMetaFields(document),
             })),
             addedAt: now,
           };
@@ -1176,6 +1186,7 @@ async function loadWeb(): Promise<LoadedRecovery> {
         ...foreignSourceMetaFields(document),
         ...ifcSourceMetaFields(document),
         ...snapshotIdentityFields(document),
+        ...ifcxMetaFields(document),
         mtime: new Date(rec.addedAt),
         ...(typeof document.xerArchive === 'string' ? { xerArchive: document.xerArchive } : {}),
       });

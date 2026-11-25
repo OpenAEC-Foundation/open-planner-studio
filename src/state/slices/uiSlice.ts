@@ -3,6 +3,7 @@ import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
 import type { McpServerStatus } from '@/services/mcp/contracts';
 import { loadFeatureFlags, MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { versionGuarded } from '../versionGuard';
 import { detectSystemPrefersDark } from '@/utils/theme';
 import { DEFAULT_BAR_COLOR_SELECTION } from '@/types/barColor';
 import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
@@ -346,8 +347,11 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
         }
       }
       if (updates.featureFlags && ifcForeignContentEnabled(s.ui.featureFlags) && !ifcForeignContentEnabled(updates.featureFlags)) {
-        s.knownTargetFingerprint = null;
+        const flags = updates.featureFlags;
+        if (!versionGuarded(flags, s.fileFormat)) s.knownTargetFingerprint = null;
         for (const document of s.documents) {
+          const format = document.id === s.activeDocumentId ? s.fileFormat : document.payload?.fileFormat ?? 'ifc';
+          if (versionGuarded(flags, format)) continue;
           if (document.payload) document.payload.knownTargetFingerprint = null;
           delete document.changedOnDisk;
         }

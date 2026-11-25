@@ -7,7 +7,7 @@ import { isDocumentLeaveBlocked } from '@/hooks/keyboard/shortcutRegistry';
 import { tauriOpenIO } from '@/services/fileAccess/tauriOpenPath';
 import { fileIdentityFs } from '@/services/fileAccess';
 import { listenForLaunchFiles, openLaunchFiles } from '@/state/launchFiles';
-import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { readOptionsFor } from '@/services/formatRegistry';
 import { appLog } from '@/services/debug/appLog';
 import type { RecoveryState } from './useRecoveryRestore';
 
@@ -32,7 +32,7 @@ export function useLaunchFiles(recoveryResolved: boolean, recovery: RecoveryStat
         // Taal en leeskeuze per event, zoals bij neerzetten.
         void openLaunchFiles(
           useAppStore, paths, io, buildImportLabels((key) => i18n.t(key, { ns: 'common' })), isDocumentLeaveBlocked,
-          { readOptions: { ifcBytes: ifcForeignContentEnabled(useAppStore.getState().ui.featureFlags) }, identityFs: fileIdentityFs },
+          { readOptions: readOptionsFor(useAppStore.getState().ui.featureFlags), identityFs: fileIdentityFs },
         );
       });
     })().catch((err: unknown) => appLog.emit('error', 'launch-files', 'luisteren naar meegegeven bestanden faalde', err));
