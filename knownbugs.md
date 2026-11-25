@@ -1554,6 +1554,15 @@ en noem het in je rapport of PR-tekst.
     (`ReportPaperView.tsx`) maakt voor elk blad een element en de vectorpagineerder (`paginateVector.ts`) voegt elk
     blad toe aan de PDF. Tijd en geheugen bij dat aantal zijn niet gemeten. Issue #1238. — B
 
+2346. **Het sleeplabel van een stuksleep op een urentaak kan bij kwartierzoom kwartieren als uren tellen.**
+    `handleSplitDrag` in `useBarDrag` (`src/components/canvas/hooks/useBarDrag.ts`) zet het label op
+    `Math.round(lengte / unitMinutes)`, met `unitMinutes` uit `splitUnitMinutes`: bij een urentaak de snapstap van de
+    zoom (`hourSnapMinutesFor`, 60 of 15). Het label staat dan in uren (`hourMode`) en `GanttCanvas` toont het met
+    `task:split.gapHours` of `task:split.pieceHours`. Bij een snapstap van 15 minuten (*Kwartieren tonen bij ver
+    inzoomen* aan en ver ingezoomd) telt het getal dus kwartieren; een stuk van 2 uur zou "Stuk: 8 uur" tonen.
+    Alleen in de code gelezen, niet in de app nagespeeld; de browsertests in `task-split.spec.ts` lezen het label
+    niet bij kwartierzoom. — S
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
