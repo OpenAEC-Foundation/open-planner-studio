@@ -40,3 +40,7 @@ export function ensureExtension(path: string, ext: string): string {
 export function extensionOf(name: string): string {
   return name.split('.').pop()?.toLowerCase() ?? '';
 }
+
+export function isIfcxName(name: string | null | undefined): boolean {
+  return !!name && /\.ifcx$/i.test(name);
+}

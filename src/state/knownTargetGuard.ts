@@ -1,18 +1,20 @@
 import { knownTargetContent, type FileRef } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
-import { ifcForeignContentEnabled } from '@/utils/featureFlags';
-import type { TargetFingerprint } from './documentContract';
+import type { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { versionGuarded } from './versionGuard';
+import type { DocumentFileFormat, TargetFingerprint } from './documentContract';
 import type { WriteTargetRefusal } from './ifcForeignGuard';
 
 type FeatureFlags = Parameters<typeof ifcForeignContentEnabled>[0];
 type KnownTargetChange = Extract<SourceTargetContent, 'changed' | 'unreadable'>;
 export interface KnownTargetState {
   readonly featureFlags: FeatureFlags;
+  readonly format: DocumentFileFormat;
   readonly known: TargetFingerprint | null;
 }
 
 export function guardedKnownTarget(state: KnownTargetState, ref: FileRef): TargetFingerprint | null {
-  return ifcForeignContentEnabled(state.featureFlags) && state.known !== null && ref.kind !== 'site' ? state.known : null;
+  return versionGuarded(state.featureFlags, state.format) && state.known !== null && ref.kind !== 'site' ? state.known : null;
 }
 
 export function writtenKnownTarget(state: KnownTargetState, ref: FileRef): TargetFingerprint | null {

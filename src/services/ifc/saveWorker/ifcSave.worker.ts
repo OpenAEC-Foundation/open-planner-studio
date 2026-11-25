@@ -2,11 +2,11 @@
 // De merge heropent de planning in een eigen storecontext (`ifcMergePlanning.ts`); die fabriek wordt gekoppeld bij het
 // laden van `appStoreFactory.ts`, dus deze import is nodig. Nooit `appStore.ts`: dat maakt de app-singleton.
 import '@/state/appStoreFactory';
-import { handleIfcSaveRequest, type IfcSaveRequest, type IfcSaveResponse } from './ifcSaveProtocol';
+import { handleIfcSaveRequest, type IfcSaveResponse, type IfcSaveWorkerRequest } from './ifcSaveProtocol';
 
 const post = (response: IfcSaveResponse, transfer: ArrayBuffer[] = []) => self.postMessage(response, { transfer });
 
-async function answer(request: IfcSaveRequest): Promise<void> {
+async function answer(request: IfcSaveWorkerRequest): Promise<void> {
   const { response, transfer } = await handleIfcSaveRequest(request);
   try {
     post(response, transfer);
@@ -17,7 +17,7 @@ async function answer(request: IfcSaveRequest): Promise<void> {
   }
 }
 
-self.onmessage = ({ data }: MessageEvent<IfcSaveRequest>) => { void answer(data); };
+self.onmessage = ({ data }: MessageEvent<IfcSaveWorkerRequest>) => { void answer(data); };
 
 // Het script draait en de imports zijn geladen: vanaf nu is een fout of een time-out een fout, geen startprobleem.
 post({ started: true });

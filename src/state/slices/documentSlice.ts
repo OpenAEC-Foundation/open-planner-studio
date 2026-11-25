@@ -465,6 +465,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       siteFileId: null,
       siteFileVersion: null,
       knownTargetFingerprint: null,
+      fileFormat: src.fileFormat,
       autoSaveToFile: false,
       isDirty: true,
       xerImportMetadata: src.xerImportMetadata

@@ -75,7 +75,7 @@ for (const [name, bytes] of sources) for (const sleeping of [false, true]) {
         const current = payload(store, id);
         publications.push({ source: current.ifcSource, dirty: current.isDirty, path: current.filePath });
       });
-      const destination = { filePath: `${name}-${step}.ifc`, fileHandle: null, siteFileId: null, siteFileVersion: null };
+      const destination = { filePath: `${name}-${step}.ifc`, fileHandle: null, siteFileId: null, siteFileVersion: null, fileFormat: 'ifc' as const };
       const unchanged = store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, saved, destination, prepared);
       unsubscribe();
       assert.equal(unchanged, true);

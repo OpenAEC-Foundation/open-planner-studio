@@ -538,6 +538,25 @@ test('export_ifc: schrijft een IFC-bestand binnen de $HOME-scope', async () => {
   assertEq(data.overwritten, false, 'er stond nog niets op dit pad ⇒ overwritten:false');
 });
 
+test('export_ifc: met de flag ifcx aan geen STEP met een IFCX-naam; met de flag uit zoals main (T6, #804 F3-4)', async () => {
+  installFakeFs();
+  resetToSingleEmptyDocument();
+  loadSmallProject('Export');
+  const path = `${HOME}/export/plan.ifcx`;
+  try {
+    useAppStore.setState((s) => { s.ui.featureFlags = { ifcx: true }; });
+    const refused = await callErr('planner_export_ifc', { path });
+    assertEq(refused.code, 'VALIDATION', 'met de flag aan: een validatiefout');
+    assert(refused.error.includes('.ifc'), 'de fout noemt de extensie .ifc');
+    assertEq(files.has(path), false, 'met de flag aan: niets geschreven');
+    useAppStore.setState((s) => { s.ui.featureFlags = {}; });
+    await callOk('planner_export_ifc', { path });
+    assert(files.get(path)!.startsWith('ISO-10303-21'), 'met de flag uit: STEP op dit pad, zoals main');
+  } finally {
+    useAppStore.setState((s) => { s.ui.featureFlags = {}; });
+  }
+});
+
 test('export_ifc: `overwritten` meldt de WERKELIJKHEID, niet de meegestuurde vlag', async () => {
   installFakeFs();
   resetToSingleEmptyDocument();

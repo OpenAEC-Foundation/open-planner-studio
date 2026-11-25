@@ -1,10 +1,13 @@
 // Eén bewaakte voorbereiding voor documentopslag en IFC-export (#804 fase 1c).
 // Geen bestandsactie of documentcommit: alleen de documentroute legt een geslaagde opslag vast.
-import { writeIFCWithChoices } from '@/services/ifc/ifcWriter';
+import { plainWriteLiteralCalendarIds, writeIFCWithChoices, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { hasForeignContent, type IfcSource, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { spendPlanOnlyConfirmation, type PlanOnlyConfirmation, type PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
+import type { DocumentFileFormat } from './documentContract';
+import { versionGuarded } from './versionGuard';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import type { TargetFingerprint } from './documentContract';
 import { ifcFullWriteBlocked } from './ifcForeignGuard';
@@ -17,7 +20,7 @@ export type IfcOutput =
 
 /** De twee gevallen van `prepareIfcOutput` die rekenen, nadat de bewaking hieronder besliste welk. */
 export type IfcSaveJob =
-  | { readonly kind: 'writer'; readonly input: IFCWriteInput; readonly hashBytes?: true }
+  | { readonly kind: 'writer'; readonly input: IFCWriteInput; readonly hashBytes?: true; readonly format?: 'ifcx' }
   | { readonly kind: 'merge'; readonly input: IFCWriteInput; readonly source: IfcSource };
 
 /** Rekent één beslist geval. Standaard op deze thread (`computeIfcOutputHere`); de opslagworker
@@ -26,8 +29,13 @@ export type IfcSaveJob =
  *  op deze thread valt er niets af te breken en controleert de aanroeper het signaal na afloop. */
 export type IfcOutputCompute = (job: IfcSaveJob, stop?: AbortSignal) => Promise<IfcOutput>;
 
+async function writeIfcxOutput(input: WriteIFCInput): Promise<IfcOutput> {
+  const { writeIfcx } = await import('@/services/ifc/ifcx');
+  return { content: writeIfcx(input), literalCalendarIds: plainWriteLiteralCalendarIds(input) };
+}
+
 export async function computeIfcOutputHere(job: IfcSaveJob): Promise<IfcOutput> {
-  if (job.kind === 'writer') return writeIFCWithChoices(job.input);
+  if (job.kind === 'writer') return job.format === 'ifcx' ? writeIfcxOutput(job.input) : writeIFCWithChoices(job.input);
   const prepared = await prepareIfcWrite(job.input, job.source);
   return { prepared, literalCalendarIds: prepared.literalCalendarIds };
 }
@@ -35,13 +43,22 @@ export async function computeIfcOutputHere(job: IfcSaveJob): Promise<IfcOutput> 
 export type WrittenFingerprint = TargetFingerprint | Promise<TargetFingerprint> | null;
 type FeatureFlags = Parameters<typeof ifcForeignContentEnabled>[0];
 
-export function documentSaveCompute(featureFlags: FeatureFlags, compute: IfcOutputCompute = computeIfcOutputHere): IfcOutputCompute {
+export function documentSaveCompute(
+  featureFlags: FeatureFlags, worker: IfcOutputCompute | undefined, format: DocumentFileFormat,
+): IfcOutputCompute {
+  if (format === 'ifcx') {
+    if (!worker) return () => Promise.reject(new IfcSaveWorkerError('not-started', 'IFCX rekent alleen in de opslagworker.'));
+    return (job, stop) => worker(job.kind === 'writer' ? { ...job, hashBytes: true, format } : job, stop);
+  }
+  const compute = worker ?? computeIfcOutputHere;
   if (!ifcForeignContentEnabled(featureFlags)) return compute;
   return (job, stop) => compute(job.kind === 'writer' ? { ...job, hashBytes: true } : job, stop);
 }
 
-export function writtenFingerprint(featureFlags: FeatureFlags, output: IfcOutput, written?: Uint8Array): WrittenFingerprint {
-  if (output.prepared || !ifcForeignContentEnabled(featureFlags)) return null;
+export function writtenFingerprint(
+  featureFlags: FeatureFlags, format: DocumentFileFormat, output: IfcOutput, written?: Uint8Array,
+): WrittenFingerprint {
+  if (output.prepared || !versionGuarded(featureFlags, format)) return null;
   const bytes = written ?? output.bytes ?? new TextEncoder().encode(output.content);
   const byteLength = bytes.byteLength;
   return output.sha256 !== undefined ? { sha256: output.sha256, byteLength, origin: 'written' }

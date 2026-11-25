@@ -231,6 +231,7 @@ check-ifc-urenperdag-blokken.ts matrix
 check-ifc-urenperdag-corpus.ts los
 check-ifc-werktijd-per-dag.ts matrix
 check-ifc-xer-archive-container.ts matrix
+check-ifcx-app.ts matrix
 check-ifcx-kern.ts matrix
 check-ifcx-meting.ts los
 check-import-datum-zonder-tijd.ts matrix

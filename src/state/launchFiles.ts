@@ -123,7 +123,7 @@ export async function openLaunchFiles(
         },
       };
     });
-    await openDroppedFiles(store, files, labels, isBlocked, { waitWhenBlocked: true });
+    await openDroppedFiles(store, files, labels, isBlocked, { waitWhenBlocked: true, ...(options.readOptions?.ifcx ? { readOptions: { ifcx: true } } : {}) });
     pending = reread;
   }
 }
