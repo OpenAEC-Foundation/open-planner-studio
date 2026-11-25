@@ -33,4 +33,5 @@ staan op 0 %: of een voltooid segment blijft staan terwijl het restwerk schuift,
   lege lijst betekent "wel periodes, geen gaten" en maakt de doorsnede leeg; een toewijzing zonder periodes telt niet
   mee (ADR 0287). `[Z4 1d]` en `[Z4 1]` toetsen de doorsnede, een toewijzing zonder gaten, één toewijzing en geen.
 - Samenvattingstaken, onbemande toewijzingen, de verschuiving naar de taakas en het ontbreken van `referenceFinish`
-  staan in ADR 0287.
+  staan in ADR 0287. Volgens het weggehaalde commentaar geeft MPXJ `Task.calculateWorkSplits` voor een
+  samenvattingstaak een lege lijst ("In MS Project, summary tasks do not show splits").
