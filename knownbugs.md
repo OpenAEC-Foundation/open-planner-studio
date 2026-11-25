@@ -2117,15 +2117,35 @@ en noem het in je rapport of PR-tekst.
       (c) Een tweede ploeg aan een taak waarvan `#120` de eerste ploeg en een wand koppelt: de lezer zou de eigen relatie
       vóór die van Bonsai lezen, dus haalt PR 8 de eerste ploeg uit `#120` en schrijft beide ploegen in een eigen relatie.
       De `QuantityInProcess` van Bonsai blijft dan op `#120`, bij de wand. Een gewiste toewijzing gaat net zo.
-      (d) Niet uit PR 8, wel in dezelfde proef op het gewone bestand: een taak van Bonsai met een eigen kalender (en
-      doorrekenen) weigert met `bronvorm-leest-anders` (*Wand A bouwen* in `bonsai-4d.ifc`, ook buiten `#122`; zie 2234 en
-      2370), en wissen, opslaan, een taak erbij, opslaan, *Wand A bouwen* wortel-taak maken en opslaan weigert met
-      `planning-na-openen` (`Ruwbouw.time.durationUnit: "hours" → "days"`; zie 2251 en 2256). Beide weigerden al op main.
-      (e) Vormen die blijven weigeren met `gemengde-relatie`: een gemengde relatie met een relating in de planning buiten
+      (d) Vormen die blijven weigeren met `gemengde-relatie`: een gemengde relatie met een relating in de planning buiten
       de bekende vormen (bijvoorbeeld `IfcRelNests` onder een resource of `IfcRelAssignsToControl` onder het werkplan),
       dezelfde resource twee keer in één gemengde `IfcRelAssignsToProcess`, een niet-resource als planningslid daarin, en
       een gedeelde pset die de writer voor het planningsobject niet schrijft of deelt terwijl de waarden gelijk bleven.
       Een schema onder een ander werkplan kan de planning niet uitdrukken (één werkplan). — B
+2378. **Een taak van Bonsai een eigen kalender geven en doorrekenen weigert de opslag met `bronvorm-leest-anders`.** Flag
+      aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: *Wand A bouwen* een eigen kalender (een kopie van de projectkalender)
+      en doorrekenen, dan opslaan. De merge weigert: `taak task-ifc-22icVZXFsEZ1Ius5rjnii6, time.earlyFinish:
+      "2026-02-06T17:00" na herlezen in plaats van "2026-02-02T09:00"`, en zo ook `lateFinish`. Main (`4f9c435c9`) weigerde
+      dezelfde bewerking eerder, met `gemengde-relatie` op `#122` (gemeten op 25 november 2026); sinds #1262 haalt de merge
+      de taak uit `#122` en komt hij bij deze controle. Een taak buiten `#122` met een taaktijd weigert net zo; *Stucwerk*
+      (zonder taaktijd) schrijft. Geen verlies (de merge weigert), wel een opslag die niet lukt. Vermoeden, niet nagegaan:
+      het einde in de vorm van de bron (`sourceFormWhereUnchanged`) leest na heropenen met de andere kalender anders, en
+      doorrekenen zet de datums van *Wand A* op 2026-02-02 09:00 (2370). Richting: eerst 2370 uitzoeken; daarna een andere
+      kalender laten tellen als wijziging van de datumslots van die taak (regel A), zodat de writer ze in zijn eigen vorm
+      schrijft. Vastgelegd in `tests/planning/check-ifc-foreign-gemengde-relaties.ts` met de reden van vandaag (een andere
+      reden, of schrijven, maakt de proef rood); ook reeks 804a stap 2 en 804b stap 5 daar. — B
+2379. **Wissen, opslaan, een taak erbij, opslaan, een taak tot wortel maken en opslaan weigert met `planning-na-openen`.** Flag
+      aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: *Wand B bouwen* wissen en opslaan (schrijft; `#116` en `#122`
+      gewijzigd, `#178` vervallen), een nieuwe taak boven *Stucwerk* en opslaan (schrijft, lege lijst), *Wand A bouwen*
+      bovenaan als wortel-taak en opslaan. De derde opslag weigert met `taak task-ifc-2lNOVVAc3x$DPP3aHgo958.time.durationUnit:
+      "hours" → "days"` (*Ruwbouw*, dat zo zijn laatste kind verliest). Main (`4f9c435c9`) geeft dezelfde drie uitkomsten,
+      met dezelfde lijsten en dezelfde reden (gemeten op 25 november 2026). Geen verlies (de merge weigert), wel een opslag
+      die niet lukt. Vermoeden, niet nagegaan: na de eerste opslag heeft *Ruwbouw* een taaktijd in de bron, en een fase die
+      daarna haar laatste kind verliest, krijgt niet de taaktijd met de duur-eenheid van de planner; herstelronde 4 van #1205
+      deed dat alleen voor een fase zonder taaktijd in de bron (2256). Richting: dezelfde uitzondering ook voor een fase met
+      een taaktijd die haar laatste kind verliest. Vastgelegd in `tests/planning/check-ifc-foreign-gemengde-relaties.ts` met
+      de reden van vandaag; dezelfde wortel vermoedelijk ook in reeks 804d stap 5 (`durationUnit`) en stap 6 (`lateStart`)
+      daar. — B
 
 2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
      `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de

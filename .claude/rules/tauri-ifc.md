@@ -525,8 +525,12 @@ code zou lezen, vervalt (`readAsOwnMembers`). `withLeaving` voegt dit bij de uit
 wijzigingslijst, één telling (§4.7); een relatie zonder leden vervalt. Controle 1 (`changeListProblems` in
 `mergeValidation.ts`) aanvaardt een verdwenen lid dat nog bestaat alleen als planningslid in de lijst van een
 `IfcRelNests`, of van een `IfcRelAggregates`, `IfcRelAssignsToControl` of `IfcRelAssignsToProcess` met een relating in
-D, of van een `IfcRelDefinesByProperties` met een pset uit het register; een vervallen vreemd lid alleen als de uitvoer bij
-hetzelfde object en dezelfde psetnaam een eigen property met die naam heeft. Een relatie met een vreemde relating
+D, of van een `IfcRelDefinesByProperties` met een pset uit het register, en alleen als de planning bij openen en de te
+bewaren planning zeggen dat het mocht (`plannedDepartures`, per relatierol: een andere ouder of andere kinderen van de
+ouder, andere toewijzingen van de taak, een andere kalender, een gewijzigd object bij de pset), los van wat in de uitvoer
+ontbreekt (review ronde 1 van #1262). Een vervallen vreemd lid alleen als zijn pset één eigenaar heeft, de planning een
+nieuw veld of codetype met die naam heeft, en de uitvoer bij elke oorspronkelijke binding een eigen property met die naam
+heeft; bij meer eigenaren weigert de writer met `vreemd-lid`. Een relatie met een vreemde relating
 (bijvoorbeeld een kostenpost) valt daar niet onder. De Control van een tweede schema houdt een verplaatste taak, zoals op
 main (knownbug 2356). Ctrl+Z na het opslaan zet een lid niet terug (knownbug 2355). Proef:
 `check-ifc-foreign-gemengde-relaties.ts` (per vorm en soort wijziging, vaste reeksen, zes gemuteerde uitvoeren).
