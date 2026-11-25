@@ -1,8 +1,10 @@
 # Resources, belasting en kalenders lezen
 
-`planner_list_resources` en `planner_get_calendars` geven hun velden onder dezelfde namen als de schrijftools (ADR
-0100, 0101 en 0104), plus een paar afgeleide velden die de agent anders zelf zou moeten tellen. Voor de weigeringen
-die hieronder staan, laat de leeskant de reden al zien, zodat de agent die niet pas bij de weigering ontdekt.
+De velden die `planner_list_resources` en `planner_get_calendars` met de schrijftools gemeen hebben, dragen aan beide
+kanten dezelfde naam (ADR 0100, 0101 en 0104). Daarnaast geven de leestools een paar afgeleide velden die de agent
+anders zelf zou moeten tellen, en `planner_get_calendars` geeft het opgeslagen bronveld `ifcTimePeriods`, dat
+`planner_update_calendar` niet kent (knownbug 1969). Voor de weigeringen die hieronder staan, laat de leeskant de
+reden al zien, zodat de agent die niet pas bij de weigering ontdekt.
 
 ## Gevolgen
 
