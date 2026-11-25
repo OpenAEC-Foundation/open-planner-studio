@@ -30,7 +30,10 @@ lopende bewerking (`editHold.ts`) en na een mislukte berekening met ongewijzigde
 `planner_*`-tools staan in `src/services/mcp/tools/` (taken, relaties, resources, kalender, project,
 baselines, documenten/bestanden, leestools, XER/P6-bronprovenance, en `planner_batch` als transactionele executor met
 temp-id-resolutie). Besluiten over de wijzigende tools voor resources, toewijzingen, kalenders, nivelleren en het
-project staan in `docs/adr/0100` tot en met `0107`.
+project staan in `docs/adr/0100` tot en met `0107`. Besluiten over de leestools (`tools/readTools.ts`): `docs/adr/0400`
+(compact en terug te schrijven), `0401` (argumenten toetsen), `0402` (paginering en grenzen), `0403` (niet vastgelegd
+is onbekend), `0404` (taken tellen en filteren), `0405` (één taak lezen), `0406` (resources, belasting en kalenders) en
+`0407` (kritiek pad, baseline en vertraging).
 
 Een MCP-backup bewaart planning plus bronkenmerk, nooit gebouwmodelbytes. Bij openen krijgt dat kenmerk alleen met
 `ifcForeignContent` aan `sourceMissing` (1c PR 9d): dezelfde bestaande weigering van alle IFC-opslag als bij herstel

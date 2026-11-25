@@ -2198,6 +2198,26 @@ en noem het in je rapport of PR-tekst.
      hetzelfde getal. `isPoolNewer`
      vergelijkt dan alleen nog op `modifiedAt`. Nagespeeld met een los script; zo'n nummer komt alleen uit een
      zelfgemaakt bestand. — B
+2470. **De weigering van `levelingDelayMinutes` zegt dat er geen leestool voor is, maar `planner_get_task` geeft het
+     veld.** `REJECT_HINTS` in `src/services/mcp/tools/taskFields.ts` antwoordt op `levelingDelayMinutes` in `fields` van
+     `planner_update_tasks` met "no read-tool counterpart, see `levelingDelay`". `getTask` in
+     `src/services/mcp/tools/readTools.ts` geeft `levelingDelayMinutes` mee zodra het gezet is, en
+     `tests/mcp/cases-read.ts` ("get_task: .mpp-importvelden …") eist dat. Gezien in de code bij het weghalen van het
+     commentaar uit `readTools.ts`; de weigertekst zelf is niet in een aanroep nagespeeld. — S
+2471. **De leestools ronden de voortgang af op een heel procent, de schrijfkant neemt een fractie aan.** `pct` in
+     `src/services/mcp/tools/readTools.ts` geeft `Math.round(completion × 100)`, voor `prog` in het overzicht en in
+     `planner_list_tasks` en voor `progress.completion` in `planner_get_task`; `progress.completion` van
+     `planner_update_tasks` neemt elk getal van 0 tot en met 100 aan (`taskFields.ts`). Een taak op 33,33 % leest dus
+     als 33, en een agent die die waarde terugschrijft, kan haar veranderen; onder 0,5 % ontbreekt `prog` op de rij.
+     Open vraag: of dat in gewoon werk gebeurt (een agent die voortgang overneemt of terugzet). Gelezen in de code,
+     niet nagespeeld. — S
+2472. **Een onderbreking die niet op een hele eenheid valt, leest als een fractie die `planner_set_task_splits`
+     weigert.** `interruptionsOf` in `src/services/mcp/tools/splitFields.ts` geeft de onderbrekingen van een wélgevormde
+     gatenlijst met drie decimalen (bijvoorbeeld `afterWorkDays: 0.5` voor een gat na 4 uur op een dag van 8 uur) en
+     `splitsEditable` blijft dan weg. `planTaskSplits` weigert elke niet-hele `after*` of `pause*` ("nothing is silently
+     rounded") en vervangt altijd de hele lijst, dus zo'n taak kan via MCP geen onderbreking toevoegen of wijzigen
+     zonder die van de import op te geven. Gelezen in de code, niet nagespeeld; of een import zulke gaten maakt, is
+     niet nagegaan. — S
 
 ## Bestanden en herstel
 
