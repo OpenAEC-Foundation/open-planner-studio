@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { loadStore, openInStore } from './ifcAppRoute';
 
@@ -26,12 +27,21 @@ export interface RecordedExampleOptions {
   edit?: (input: WriteIFCInput) => void;
   wall?: boolean;
   progress?: number;
+  halfDay?: boolean;
 }
 
-export async function recordedExample({ edit = () => {}, wall = true, progress }: RecordedExampleOptions = {}): Promise<Uint8Array<ArrayBuffer>> {
+export async function recordedExample({ edit = () => {}, wall = true, progress, halfDay = false }: RecordedExampleOptions = {}): Promise<Uint8Array<ArrayBuffer>> {
   const { buildWriteIFCInput } = await loadStore();
   const example = new Uint8Array(readFileSync(join(root, 'public/examples/showcase-verbouwing-eengezinswoning.ifc')));
   const { store } = await openInStore(example, 'voorbeeld.ifc');
+  if (halfDay) {
+    const task = store.getState().tasks.find(t => t.name === PROGRESS_TASK)!;
+    const calendarId = store.getState().addCalendar({
+      ...createDefaultCalendar(2027), name: 'Halve dag', workTime: undefined, workStartHour: 8, workEndHour: 12, hoursPerDay: 4,
+    });
+    store.getState().updateTask(task.id, { calendarId });
+    store.getState().runCPM();
+  }
   if (progress !== undefined) {
     const task = store.getState().tasks.find(t => t.name === PROGRESS_TASK)!;
     store.getState().setStatusDate(task.time.earlyFinish.slice(0, 10));

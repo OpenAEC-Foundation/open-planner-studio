@@ -91,6 +91,13 @@ export interface IfcReadOptions {
   stepIdsOut?: Record<string, string>;
   unusedAssignmentKeysOut?: Map<string, string[]>;
   projectDataInSettings?: boolean;
+  taskTimeReadingsOut?: Map<string, TaskTimeReading>;
+}
+
+export interface TaskTimeReading {
+  readonly id: string;
+  readonly args: readonly string[];
+  readonly time: TaskTime;
 }
 
 interface StepEntity {
@@ -169,8 +176,9 @@ export function readIFC(
   const baselineTaskStepIds = options.planningTaskStepIds
     ? tasksOutsideSelection(entities, options.planningTaskStepIds)
     : collectBaselineTaskStepIds(entities);
+  const milestoneSlotDurations = options.taskTimeReadingsOut ? new Map<string, number>() : undefined;
   const { tasks, taskStepIdMap, taskTimeEntities, recordedFields, runningStatusIds } = extractTasks(
-    entities, entityMap, baselineTaskStepIds, taskIdentityByStepId, calendar.hoursPerDay,
+    entities, entityMap, baselineTaskStepIds, taskIdentityByStepId, calendar.hoursPerDay, milestoneSlotDurations,
   );
   const { boundaryGuids: p6BoundarySequenceGuids, dayMeasureLags, exactMinuteLags } = extractSequenceMeta(
     entities, entityMap, new Set(taskStepIdMap.keys()),
@@ -209,6 +217,16 @@ export function readIFC(
   const ifcSchemaUnconfirmed = ifcSchemaUnconfirmedOnRead(fileSchemaName, ifcSchemaMarkers);
   if (ifcSchemaUnconfirmed) project.ifcSchemaUnconfirmed = ifcSchemaUnconfirmed;
   applyTaskTimeRecords(tasks, taskTimeEntities, calendar, resourceCalendars);
+  if (options.taskTimeReadingsOut) {
+    for (const task of tasks) {
+      const e = taskTimeEntities.get(task.id);
+      if (!e) continue;
+      const time = structuredClone(task.time);
+      const slotDuration = milestoneSlotDurations?.get(task.id);
+      if (slotDuration !== undefined && time.durationUnit !== 'hours') time.scheduleDuration = slotDuration;
+      options.taskTimeReadingsOut.set(task.id, { id: e.id, args: [...e.args], time });
+    }
+  }
   for (const task of tasks) reconcileP6SuspendResume(task);
   const customTaskTypes = extractTaskTypeMeta(entities, entityMap, tasks, taskStepIdMap);
   extractTimephasedDurationWalksMeta(entities, entityMap, tasks, taskStepIdMap, calendarIdByGuid);
@@ -1314,6 +1332,7 @@ function extractTasks(
   baselineTaskStepIds: Set<string> = new Set(),
   persistedIds: Map<string, string> = new Map(),
   hoursPerDay = 8,
+  milestoneSlotDurations?: Map<string, number>,
 ): {
   tasks: Task[]; taskStepIdMap: Map<string, string>; taskTimeEntities: Map<string, StepEntity>;
   recordedFields: Record<string, RecordedFieldKey[]>; runningStatusIds: Set<string>;
@@ -1341,7 +1360,10 @@ function extractTasks(
     if (ifcSlotText(te.args[slots.status]) === IFC_TASK_STATUS_RUNNING) runningStatusIds.add(id);
 
     const isMilestone = te.args[slots.isMilestone]?.includes('T') || false;
-    if (isMilestone) time.scheduleDuration = 0;
+    if (isMilestone) {
+      milestoneSlotDurations?.set(id, time.scheduleDuration);
+      time.scheduleDuration = 0;
+    }
 
     const priorityRaw = (te.args[slots.priority] || '').trim();
     let priority = DEFAULT_PRIORITY;

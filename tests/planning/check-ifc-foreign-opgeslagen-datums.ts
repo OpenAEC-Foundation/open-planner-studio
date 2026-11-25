@@ -202,10 +202,53 @@ await check('2231 de drie XER-kandidaten van de review: de geldige opslag slaagt
     const app = (await opened(bytes)).getState().tasks.find(t => t.name === name)!;
     assert.equal(app.time.earlyStart, '2026-06-02T08:00', `${label}: het bronarchief geeft de app de datum uit de XER`);
     assert.equal(await verdict(bytes, input, source, own), expected, label);
-    const asWritten = taskTimeArgs(dec.decode(bytes), name).args;
-    const writer: OwnOutputCheck = { ...own, taskTimes: new Map(own.taskTimes).set(recorded.id, asWritten) };
-    assert.equal(await verdict(bytes, input, source, writer), expected, `${label}, ook als de writer het zelf zo schreef`);
   }
+});
+
+async function renamedAndWritten(bytes: Uint8Array, task?: string) {
+  const store = await opened(bytes);
+  const leaves = store.getState().tasks.filter(t => !t.childIds.length && !t.isMilestone);
+  const edited = task ? leaves.find(t => t.name === task)! : leaves[0];
+  store.getState().updateTask(edited.id, { name: `${edited.name} (hernoemd)` });
+  assert.equal(store.getState().datesAsRecorded, true, 'een naam laat de modus staan');
+  return { store, edited, ...await preparedWithOwn(store) };
+}
+
+await check('2231 de gevallen van review ronde 2 binnen de modus: een leeg slot waar de planning een waarde heeft, weigert met planning-na-openen', async () => {
+  const done = await renamedAndWritten(await recordedExample({ progress: 1 }), PROGRESS_TASK);
+  const plain = await renamedAndWritten(await recordedExample());
+  const completed = `${PROGRESS_TASK} (hernoemd)`;
+  const summary = plain.input.tasks.find(t => t.name === '1. Preparation')!;
+  const milestone = plain.input.tasks.find(t => t.name === 'Start of refurbishment')!;
+  assert.equal(summary.time.scheduleDuration, 8, 'de fase duurt acht dagen');
+  assert(milestone.isMilestone && milestone.time.scheduleDuration === 0, 'de mijlpaal heeft een expliciete nulduur');
+  const cases: [string, typeof done, string, ProbedSlot][] = [
+    ['het werkelijke einde van een taak op 100%', done, completed, 'actualFinish'],
+    ['de gereedheid van een taak op 100%', done, completed, 'completion'],
+    ['de rest van een taak op 100%', done, completed, 'remainingTime'],
+    ['de statustijd van een taak op 100%', done, completed, 'statusTime'],
+    ['het duurtype', plain, 'Set up site (hernoemd)', 'durationType'],
+    ['de geplande start', plain, 'Set up site (hernoemd)', 'scheduleStart'],
+    ['de duur van acht dagen van een fase', plain, summary.name, 'scheduleDuration'],
+    ['de nulduur van een mijlpaal', plain, milestone.name, 'scheduleDuration'],
+  ];
+  for (const written of [done, plain]) assert.equal(await verdict(written.bytes, written.input, written.source, written.own), 'aanvaard', 'de geldige uitvoer');
+  for (const [label, written, task, slot] of cases) {
+    const text = dec.decode(written.bytes);
+    assert.notEqual(taskTimeArgs(text, task).args[TASKTIME_SLOT[slot]], '$', `${label}: de merge schreef het slot`);
+    assert.equal(await verdict(withSlot(text, task, TASKTIME_SLOT[slot], '$'), written.input, written.source, written.own), 'planning-na-openen', label);
+  }
+});
+
+await check('2231 een rest op een eigen kalender van vier uur: de lezer rekent met de kalender van de taak', async () => {
+  const running = await renamedAndWritten(await recordedExample({ progress: 0.5, halfDay: true }), PROGRESS_TASK);
+  const text = dec.decode(running.bytes), task = `${PROGRESS_TASK} (hernoemd)`;
+  const domain = running.input.tasks.find(t => t.name === task)!;
+  assert.equal(domain.time.remainingTime, 1.5, 'de rest is anderhalve werkdag');
+  assert.equal(taskTimeArgs(text, task).args[TASKTIME_SLOT.remainingTime], "'PT6H0M0S'", 'anderhalve werkdag van vier uur');
+  assert.equal(await verdict(running.bytes, running.input, running.source, running.own), 'aanvaard', 'de geldige uitvoer');
+  assert.equal(await verdict(withSlot(text, task, TASKTIME_SLOT.remainingTime, "'PT12H0M0S'"), running.input, running.source, running.own),
+    'planning-na-openen', 'twaalf uur is op deze kalender drie werkdagen, geen anderhalve');
 });
 
 const PROBED_SLOTS = [
@@ -216,19 +259,28 @@ type ProbedSlot = typeof PROBED_SLOTS[number];
 const DATE_SLOTS: ReadonlySet<ProbedSlot> = new Set<ProbedSlot>([
   'scheduleStart', 'scheduleFinish', 'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'statusTime', 'actualStart', 'actualFinish',
 ]);
-type Route = 'bytes' | 'writer';
-const ROUTES: readonly Route[] = ['bytes', 'writer'];
-const KNOWNBUG_2361 = 'een leeg slot dat de writer zelf verkeerd schreef en dat de lezer tot dezelfde waarde afleidt, ziet alleen de vergelijking met de regels van de writer (knownbug 2361)';
-const NAMED_EXCEPTIONS: Readonly<Record<Route, Readonly<Record<string, string>>>> = {
-  bytes: {},
-  writer: {
-    'durationType | $': `de lezer leest een leeg duurtype als WORKTIME (de leesregel van durationType in IFC_TASKTIME_SLOTS); ${KNOWNBUG_2361}`,
-    'scheduleStart | $': `de lezer vult een lege geplande start in (resolveMissingScheduleDates in ifcReader.ts); ${KNOWNBUG_2361}`,
-    'statusTime | $': `de lezer leest StatusTime niet: de statusdatum komt uit OPS_ProjectSettings (geen leesregel voor statusTime); ${KNOWNBUG_2361}`,
-    'remainingTime | $': `zonder rest in het bestand leidt de lezer de rest af, een voltooide taak krijgt rest 0 (applyRemainingDuration in importNormalize.ts); ${KNOWNBUG_2361}`,
-    'actualFinish | $': `een taak met gereedheid 1 zonder werkelijk einde krijgt het einde uit de statusdatum (normalizeImportedProgress, defaultImportedActualFinish); ${KNOWNBUG_2361}`,
-    'completion | $': `een werkelijk einde maakt de gereedheid 1 (normalizeImportedProgress in importNormalize.ts); ${KNOWNBUG_2361}`,
-  },
+type DomainTask = WriteIFCInput['tasks'][number];
+const WITHHELD_RULE = 'in de modus houdt de schrijfinvoer dit rekenslot achter (withheldTaskTimeFields, ifcSaveInput.ts)';
+const EMPTY_BY_RULE: Readonly<Record<ProbedSlot, (task: DomainTask, withheld: readonly string[], statusDate?: string) => string | undefined>> = {
+  durationType: () => undefined,
+  scheduleDuration: () => undefined,
+  scheduleStart: t => (t.time.scheduleStart ? undefined : 'de planning heeft geen geplande start'),
+  scheduleFinish: t => (t.time.scheduleFinish ? undefined : 'de planning heeft geen gepland einde'),
+  earlyStart: (_t, w) => (w.includes('earlyStart') ? WITHHELD_RULE : undefined),
+  earlyFinish: (_t, w) => (w.includes('earlyFinish') ? WITHHELD_RULE : undefined),
+  lateStart: (_t, w) => (w.includes('lateStart') ? WITHHELD_RULE : undefined),
+  lateFinish: (_t, w) => (w.includes('lateFinish') ? WITHHELD_RULE : undefined),
+  freeFloat: (_t, w) => (w.includes('freeFloat') ? WITHHELD_RULE : undefined),
+  totalFloat: (_t, w) => (w.includes('totalFloat') ? WITHHELD_RULE : undefined),
+  isCritical: (_t, w) => (w.includes('isCritical') ? WITHHELD_RULE : undefined),
+  statusTime: (t, _w, statusDate) => (t.time.actualStart || t.time.actualFinish
+    ? (statusDate ? undefined : 'het project heeft geen statusdatum')
+    : 'de statustijd staat alleen bij een taak met een werkelijke datum (StatusTime in IFC_TASKTIME_SLOTS)'),
+  actualDuration: t => (t.time.actualDuration == null ? 'de planning heeft geen werkelijke duur' : undefined),
+  actualStart: t => (t.time.actualStart ? undefined : 'de planning heeft geen werkelijke start'),
+  actualFinish: t => (t.time.actualFinish ? undefined : 'de planning heeft geen werkelijk einde'),
+  remainingTime: t => (t.time.remainingTime == null && t.time.remainingMinutes == null ? 'de planning heeft geen rest' : undefined),
+  completion: t => (t.time.completion > 0 ? undefined : 'gereedheid 0 schrijft $, want IfcPositiveRatioMeasure moet groter zijn dan 0 (ifcCompletionReal)'),
 };
 
 function nextDay(token: string): string {
@@ -245,48 +297,44 @@ function otherValue(slot: ProbedSlot, token: string, args: readonly string[]): s
   return token === "'P0Y0M23D'" ? "'P0Y0M24D'" : "'P0Y0M23D'";
 }
 
-const probed = Object.fromEntries(ROUTES.map(route => [route, { copies: 0, refused: 0, named: [] as string[], accepted: [] as string[] }])) as
-  Record<Route, { copies: number; refused: number; named: string[]; accepted: string[] }>;
-for (const { name: stand, make, task: named } of STANDS) {
-  await check(`2231 ${stand}: elk tijdslot dat de merge schrijft of bewust weglaat, telt na openen, ongeacht een bron met voorrang`, async () => {
-    const store = await opened(await make());
-    const leaves = store.getState().tasks.filter(t => !t.childIds.length && !t.isMilestone);
-    const edited = named ? leaves.find(t => t.name === named)! : leaves[0];
-    store.getState().updateTask(edited.id, { name: `${edited.name} (hernoemd)` });
-    assert.equal(store.getState().datesAsRecorded, true, 'een naam laat de modus staan');
-    const { input, source, bytes: good, own } = await preparedWithOwn(store);
+function kindOf(task: DomainTask): string {
+  const shape = task.childIds.length ? 'fase' : task.isMilestone ? 'mijlpaal' : 'bladtaak';
+  const progress = task.time.actualFinish ? 'voltooid' : task.time.actualStart || task.time.completion > 0 ? 'lopend' : 'niet begonnen';
+  return `${shape}, ${progress}`;
+}
+
+const PROPERTY_STANDS: readonly Stand[] = [
+  ...STANDS,
+  { name: 'MSPDI-herkomst met een lopende taak op een kalender van vier uur', make: () => recordedExample({ progress: 0.5, halfDay: true }), task: PROGRESS_TASK },
+];
+const probed = { copies: 0, refused: 0, kinds: new Set<string>(), empty: new Map<string, number>(), accepted: [] as string[] };
+for (const { name: stand, make, task: named } of PROPERTY_STANDS) {
+  await check(`2231 ${stand}: elk tijdslot dat de merge schrijft of bewust leeg laat, toetst de controle tegen de planning`, async () => {
+    const { input, source, bytes: good, own, edited } = await renamedAndWritten(await make(), named);
     assert.equal(await verdict(good, input, source, own), 'aanvaard', 'de geldige uitvoer');
     const withheld = (id: string): readonly string[] => input.withheldTaskTimeFields?.[id] ?? [];
-    const tasks = new Map<string, string>([[JSON.stringify(withheld(edited.id)), edited.id]]);
+    const picked = new Map<string, string>([[`${kindOf(input.tasks.find(t => t.id === edited.id)!)} | ${JSON.stringify(withheld(edited.id))}`, edited.id]]);
     for (const t of input.tasks) {
-      if (t.childIds.length || t.isMilestone) continue;
-      const pattern = JSON.stringify(withheld(t.id));
-      if (!tasks.has(pattern)) tasks.set(pattern, t.id);
+      const key = `${kindOf(t)} | ${JSON.stringify(withheld(t.id))}`;
+      if (!picked.has(key)) picked.set(key, t.id);
     }
     const text = dec.decode(good), deviations: string[] = [];
-    for (const id of tasks.values()) {
+    for (const id of picked.values()) {
       const task = input.tasks.find(t => t.id === id)!, { args } = taskTimeArgs(text, task.name);
-      assert.deepEqual(own.taskTimes?.get(id), args, `de writer schreef de taaktijd van ${task.name} zoals ze in de uitvoer staat`);
+      probed.kinds.add(kindOf(task));
       for (const slot of PROBED_SLOTS) {
         const at = TASKTIME_SLOT[slot], token = args[at];
-        const copies = token !== '$' ? [otherValue(slot, token, args), '$'] : withheld(id).includes(slot) ? [otherValue(slot, token, args)] : [];
-        for (const copy of copies) {
-          const bytes = withSlot(text, task.name, at, copy);
-          const asWritten = [...args];
-          asWritten[at] = copy;
-          const owns: Record<Route, OwnOutputCheck> = { bytes: own, writer: { ...own, taskTimes: new Map(own.taskTimes).set(id, asWritten) } };
-          for (const route of ROUTES) {
-            const label = `${route} | ${stand} | ${task.name} | ${slot} | ${copy === '$' ? '$' : `${token} → ${copy}`}`;
-            const exception = NAMED_EXCEPTIONS[route][`${slot} | ${copy === '$' ? '$' : 'waarde'}`];
-            const result = await verdict(bytes, input, source, owns[route]);
-            const tally = probed[route];
-            tally.copies++;
-            if (result === 'planning-na-openen') tally.refused++;
-            else if (result === 'aanvaard' && exception) tally.named.push(`${label}: ${exception}`);
-            else {
-              if (result === 'aanvaard') tally.accepted.push(label);
-              deviations.push(`${label}: ${result}`);
-            }
+        const rule = EMPTY_BY_RULE[slot](task, withheld(id), input.project.statusDate);
+        if ((token === '$') !== (rule !== undefined)) deviations.push(`${stand} | ${task.name} | ${slot}: de merge schreef ${token}, de regel zegt ${rule ?? 'gevuld'}`);
+        if (rule) probed.empty.set(rule, (probed.empty.get(rule) ?? 0) + 1);
+        for (const copy of token !== '$' ? [otherValue(slot, token, args), '$'] : [otherValue(slot, token, args)]) {
+          const label = `${stand} | ${kindOf(task)} | ${task.name} | ${slot} | ${copy === '$' ? '$' : `${token} → ${copy}`}`;
+          const result = await verdict(withSlot(text, task.name, at, copy), input, source, own);
+          probed.copies++;
+          if (result === 'planning-na-openen') probed.refused++;
+          else {
+            if (result === 'aanvaard') probed.accepted.push(label);
+            deviations.push(`${label}: ${result}`);
           }
         }
       }
@@ -295,11 +343,9 @@ for (const { name: stand, make, task: named } of STANDS) {
   });
 }
 
-for (const route of ROUTES) {
-  const tally = probed[route];
-  console.log(`Eigenschapsproef (${route}): ${tally.copies} kopieën, ${tally.refused} geweigerd met planning-na-openen, ${tally.named.length} benoemde uitzondering, ${tally.accepted.length} aanvaard zonder uitzondering.`);
-  for (const label of tally.named) console.log(`UITZONDERING ${label}`);
-  for (const label of tally.accepted) console.log(`AANVAARD ${label}`);
-}
+console.log(`Eigenschapsproef: ${probed.copies} kopieën, ${probed.refused} geweigerd met planning-na-openen, ${probed.accepted.length} aanvaard.`);
+console.log(`Taaksoorten: ${[...probed.kinds].sort().join('; ')}.`);
+for (const [rule, count] of probed.empty) console.log(`LEEG VOLGENS DE REGEL (${count}×) ${rule}`);
+for (const label of probed.accepted) console.log(`AANVAARD ${label}`);
 console.log(`Opgeslagen datums bij de merge: ${passed} geslaagd, ${failed} mislukt.`);
 if (failed) process.exitCode = 1;

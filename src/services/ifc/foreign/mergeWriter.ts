@@ -65,9 +65,9 @@ import { planningCanon, planningDifference } from './planningCanon';
 import { planningIdentities, planningIdentityInput } from './planningIdentity';
 import { sameValue } from '@/utils/sameValue';
 import { freeze } from 'immer';
-import { openMergePlanning, slotReading } from '@/state/ifcMergePlanning';
-import { IFC_TASKTIME_SLOTS, TASK_SLOT, TASKTIME_SLOT } from '../ifcTaskSlots';
-import { taskTimeSlotMeaning } from './taskTimeMeaning';
+import { openMergePlanning } from '@/state/ifcMergePlanning';
+import { taskTimeSlotProblem } from './taskTimeExpectation';
+import type { TaskTimeReading } from '../ifcReader';
 import { psetOwners, validateMergeOutput } from './mergeValidation';
 import {
   SECOND_FORMS, indexView, linesView, ownGroupMembers, ownGroupTrees, restoredOwnGroupDifference, restoredOwnSlots, type RestoredOwnSlots,
@@ -889,7 +889,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       stepIds, writtenAt, sourceRowGuid: rowGuid, skip: new Set([...restored.skip, ...unmapped]),
       slots: restored.slots.filter(s => !unmapped.has(s.group)).map(s => ({ ...s, id: remap.get(s.id)! })),
       sourceTokens: new Map(edits.map(e => [`${remap.get(e.id) ?? e.id}#${e.arg}`, e.token])),
-      taskTimes: writtenTaskTimes(input, candidate, stepIds),
+      domain,
     };
     observe?.(own);
     const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own);
@@ -963,7 +963,7 @@ export interface OwnOutputCheck extends RestoredOwnSlots {
   /** De GlobalId die de lezer in de bron voor een weesrij aannam (`assumedRowGuid` op de lezing van de bron). */
   readonly sourceRowGuid: (taskId: string) => string | undefined;
   readonly sourceTokens?: ReadonlyMap<string, string>;
-  readonly taskTimes?: ReadonlyMap<string, readonly string[]>;
+  readonly domain?: WriteIFCInput;
 }
 
 /** Alleen voor proeven: de volledige uitvoercontrole van `prepareIfcWrite` op gegeven uitvoerbytes (ook een gemuteerde
@@ -989,21 +989,20 @@ function concatParts(parts: readonly Uint8Array[]): Uint8Array {
 async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: IfcSource,
   index: StepIndex, cls: Classification, opened: WriteIFCInput, probe?: OpenMergePlanning, own?: OwnOutputCheck) {
   let actual: ReturnType<typeof validateMergeOutput>;
-  let shown: WriteIFCInput, wanted: WriteIFCInput, slots: WriteIFCInput | undefined;
+  let shown: WriteIFCInput, wanted: WriteIFCInput;
   let parsed: WriteIFCInput;
   let outputScan: ForeignScanResult;
   const writtenUnusedKeys = new Map<string, string[]>();
+  const slotDomain = own?.domain?.recordedSourceFormat ? own.domain : undefined;
+  const readings = new Map<string, TaskTimeReading>();
   try {
     actual = validateMergeOutput(index, cls, source.bytes, bytes);
     if (actual.problems.length) throw new MergeNeedsPhase2Error(actual.problems.map(detail => ({ kind: 'uitvoer-controle', detail })));
     outputScan = foreignScanFrom(actual.index, actual.classification, bytes);
-    const read = await pristineFromScan(outputScan, bytes, opened.project, writtenUnusedKeys);
-    parsed = read as WriteIFCInput;
+    parsed = await pristineFromScan(outputScan, bytes, opened.project, writtenUnusedKeys, slotDomain && readings) as WriteIFCInput;
     // ImportResult draagt ook TimeModel en opgeslagen datums: de echte openactie beslist daarover.
     shown = openMergePlanning(freeze(structuredClone(parsed), true), 'uitvoer');
     wanted = openMergePlanning(input, 'domein');
-    const reading = own && slotReading(read);
-    slots = reading ? openMergePlanning(freeze(reading as WriteIFCInput, true), 'uitvoer') : undefined;
   } catch (e) {
     if (e instanceof MergeNeedsPhase2Error) throw e;
     throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `uitvoer scannen of heropenen: ${String(e)}` }]);
@@ -1033,8 +1032,8 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   if (planningCanon(wanted) !== planningCanon(shown)) {
     throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(wanted, shown) }]);
   }
-  const slotProblem = own && (taskTimeLineProblem(bytes, actual.index, actual.classification, parsed, input, own)
-    ?? (slots && planningCanon(wanted) !== planningCanon(slots) ? planningDifference(wanted, slots) : undefined));
+  const slotProblem = slotDomain
+    && taskTimeSlotProblem(slotDomain, readings, (parsed as unknown as ImportResult).milestonesAtDayEnd, own?.sourceTokens);
   if (slotProblem) throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: slotProblem }]);
   const numberProblem = unchangedPlanningNumberProblem(input, opened, wanted, shown);
   if (numberProblem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: numberProblem }]);
@@ -1054,53 +1053,6 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
  * precies de bronwaarde (PR A, `restoredOwnGroupDifference`); de rest van zijn groep gewoon. Groepen in `own.skip` toetst
  * (c) helemaal niet: daar was zo'n slot niet eenduidig aan te wijzen.
  */
-function writtenTaskTimes(input: WriteIFCInput, lines: readonly OutLine[], stepIds: Readonly<Record<string, number>>): Map<string, readonly string[]> {
-  const byId = new Map(lines.map(line => [line.id, line]));
-  const argsOf = (line: OutLine | undefined) => line && ('text' in line && typeof line.text === 'string' ? parseOutLine(line.text)?.args : line.args);
-  const out = new Map<string, readonly string[]>();
-  for (const task of input.tasks) {
-    const step = stepIds[`task:${task.id}`];
-    const args = step === undefined ? undefined : argsOf(byId.get(refOf(argsOf(byId.get(step))?.[TASK_SLOT.taskTime])));
-    if (args) out.set(task.id, args);
-  }
-  return out;
-}
-
-function taskTimeLineProblem(bytes: Uint8Array, out: StepIndex, outCls: Classification, parsed: WriteIFCInput, input: WriteIFCInput,
-  own: OwnOutputCheck): string | undefined {
-  const ids = mergeIdPlan(out, outCls, own.stepIds, parsed.calendar.id, bytes);
-  const reread: WriteIFCInput = { ...parsed, withheldTaskTimeFields: input.withheldTaskTimeFields };
-  const lines = new Map<number, OutLine>();
-  for (const text of writeIfcMergeLines(reread, sourceFormPlan(ids.plan, parsed, parsed, out, own.stepIds), own.writtenAt).lines) {
-    const line = parseOutLine(text);
-    if (line) lines.set(line.id, line);
-  }
-  const present = (token: string | undefined) => !!token && token !== '$';
-  for (const task of input.tasks) {
-    const step = own.stepIds[`task:${task.id}`];
-    if (step === undefined) continue;
-    const chunk = out.chunkOf(String(step));
-    const time = chunk < 0 ? -1 : out.refAt(chunk, TASK_SLOT.taskTime);
-    const written = time < 0 ? undefined : out.argTokens(time);
-    const mine = own.taskTimes?.get(task.id);
-    const reading = lines.get(refOf(lines.get(step)?.args[TASK_SLOT.taskTime]))?.args;
-    if (own.taskTimes && !written !== !mine) {
-      return `taak ${task.id}: ${written ? 'de writer schreef geen taaktijd, de uitvoer heeft er een' : 'de uitvoer mist de taaktijd die de writer schreef'}`;
-    }
-    if (!written) continue;
-    for (let k = TASKTIME_SLOT.durationType; k < Math.max(written.length, mine?.length ?? 0); k++) {
-      const where = `taak ${task.id}.time, IFCTASKTIME argument ${k} (${IFC_TASKTIME_SLOTS[k]?.key ?? '?'})`;
-      if (mine && written[k] !== mine[k]) return `${where}: in de uitvoer ${written[k] ?? 'niets'}, de writer schreef ${mine[k] ?? 'niets'}`;
-      if (!present(written[k]) || own.sourceTokens?.has(`${out.id(time)}#${k}`)) continue;
-      const meaning = (token: string | undefined) => taskTimeSlotMeaning(k, token, parsed.calendar.hoursPerDay);
-      if (meaning(written[k]) !== meaning(reading?.[k])) {
-        return `${where}: in de uitvoer ${written[k]}, na lezen en opnieuw schrijven ${reading?.[k] ?? 'niets'}`;
-      }
-    }
-  }
-  return undefined;
-}
-
 function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classification, sourceIndex: StepIndex, sourceCls: Classification,
   parsed: WriteIFCInput, input: WriteIFCInput, own: OwnOutputCheck): string | undefined {
   const output = indexView(out, i => { const original = sourceIndex.chunkOf(out.id(i)); return original < 0 || sourceCls.classes[original] === 1; });
