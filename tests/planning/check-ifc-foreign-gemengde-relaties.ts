@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { classify } from '@/services/ifc/foreign/classify';
 import type { ForeignChange } from '@/services/ifc/foreign/changeList';
-import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
+import { checkMergeOutput, MergeNeedsPhase2Error, prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { splitStepArgs, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import { entityValue, placeTriggers, serializeStepValue, withoutRemovedMembers, type StepValue } from '@/services/ifc/foreign/stepValue';
@@ -270,6 +270,47 @@ for (const c of CASES) {
   ok(`bonsai-4d.ifc: Wand A een eigen kalender weigert niet meer om de gemengde #122 (knownbug 2356; ${outcome.detail})`,
     outcome.kinds.every(kind => !kind.startsWith('gemengde-relatie')));
 }
+
+async function refusesOutput(label: string, source: string, act: (s: State) => void,
+  mutate: (out: string, changes: readonly ForeignChange[]) => readonly [string, readonly ForeignChange[]]) {
+  const store = await opened(SOURCES[source]);
+  act(store.getState());
+  const input = buildWriteIFCInput(store.getState(), 'merge'), ifcSource = store.getState().ifcSource!;
+  const prepared = await prepareIfcWrite(input, ifcSource);
+  const [text, changes] = mutate(decode(prepared.bytes), prepared.foreignChanges ?? []);
+  ok(`mutatie: ${label}: de proef verandert de uitvoer`, text !== decode(prepared.bytes) || changes !== prepared.foreignChanges);
+  let reason = '';
+  try { await checkMergeOutput(encode(text), input, ifcSource, undefined, changes); } catch (e) { if (e instanceof MergeNeedsPhase2Error) reason = e.cases[0]?.detail ?? e.message; }
+  ok(`mutatie: ${label}: de uitvoercontrole houdt haar tegen`, reason !== '');
+  console.log(`   mutatie ${label}: ${reason.slice(0, 200)}`);
+}
+const unassigned = (s: State) => { s.unassignResource(s.assignments[0].id); };
+const line120 = (out: string) => out.match(/^#120=.*$/m)![0];
+await refusesOutput('het lid blijft in de relatie van het andere programma (dubbele Nests)', 'Nests van het tweede schema',
+  s => { s.moveTaskTo(task(s, 'Stucwerk').id, { parentId: task(s, 'Ruwbouw').id, childIndex: 2 }, PHASES); },
+  (out, changes) => [out.replace(/^#8502=.*$/m, lineOf(SOURCES['Nests van het tweede schema'], 8502)), changes.filter(c => c.id !== 8502)]);
+await refusesOutput('het hele stuk vervalt terwijl er vreemde leden over zijn', 'bonsai-4d.ifc', unassigned,
+  (out, changes) => [out.replace(`${line120(out)}\n`, ''), changes.map(c => c.id === 120 ? { kind: 'vervallen' as const, id: c.id, oldBytes: c.oldBytes } : c)]);
+await refusesOutput('de wijziging staat niet op de wijzigingslijst', 'bonsai-4d.ifc', unassigned, (out, changes) => [out, changes.filter(c => c.id !== 120)]);
+await refusesOutput('een vreemd lid gaat mee uit het stuk', 'bonsai-4d.ifc', unassigned, (out, changes) => {
+  const trimmed = line120(out).replace('(#30)', '()');
+  return [out.replace(line120(out), trimmed), changes.map(c => c.id === 120 && c.kind === 'gewijzigd' ? { ...c, newBytes: encode(decode(c.newBytes).replace('(#30)', '()')) } : c)];
+});
+const pieceText = (bytes: Uint8Array, id: number) => {
+  const index = scanForeignStep(bytes), chunk = index.chunkOf(String(id));
+  return decode(bytes.slice(index.start(chunk), index.end(chunk)));
+};
+await refusesOutput('bij (b) wijzigt de pset van het vreemde object mee', 'gedeelde pset (b)', s => { s.setCalendar({ ...s.calendar, hoursPerDay: 7 }); }, (out, changes) => {
+  const was = pieceText(SOURCES['gedeelde pset (b)'], 50), now = was.replace(/IFCREAL\([^)]*\)/, 'IFCREAL(7.)');
+  return [out.replace(was, now), [...changes, { kind: 'gewijzigd' as const, id: 50, oldBytes: encode(was), newBytes: encode(now) }]];
+});
+await refusesOutput('een lege relatie blijft staan', 'Nests van het tweede schema',
+  s => { s.moveTaskTo(task(s, 'Stucwerk').id, { parentId: task(s, 'Ruwbouw').id, childIndex: 2 }, PHASES); s.moveTaskTo(task(s, 'Schilderwerk').id, { parentId: task(s, 'Ruwbouw').id, childIndex: 3 }, PHASES); },
+  (out, changes) => {
+    const was = pieceText(SOURCES['Nests van het tweede schema'], 8502), empty = was.replace('(#131,#8501)', '()');
+    return [out.replace(/ENDSEC;(\s*END-ISO-10303-21;)/, `${empty.replace(/^\s*/, '')}\nENDSEC;$1`),
+      changes.map(c => c.id === 8502 ? { kind: 'gewijzigd' as const, id: c.id, oldBytes: c.oldBytes, newBytes: encode(`\n${empty.replace(/^\s*/, '')}`) } : c)];
+  });
 
 function prng(seed: number) {
   let state = seed | 0;
