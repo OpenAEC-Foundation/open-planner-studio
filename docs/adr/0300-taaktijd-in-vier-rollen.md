@@ -27,6 +27,7 @@ van `TaskTime` in precies één rol staat, zodat een nieuw veld niet zonder rol 
   regel `taaktypes`). `CPMSolver.ts` schrijft er geen. `applyCpmResult` schrijft er wel twee soorten: het wist
   `progressBeforeRecalculation` van elke taak in het resultaat, en bij een automatische verzameltaak schrijft het via
   `writeSummaryProgress` (`summaryProgress.ts`) de opgerolde `completion`, `actualStart` en `actualFinish` uit de
-  bladen. Een handmatige verzameltaak houdt haar opgeslagen voortgang (`isSummaryProgressDerived`).
-  `applyRecordedTimesToTasks` (`recordedDates.ts`) zet bij "datums zoals opgeslagen" met dezelfde functie de
-  bestandswaarde terug. `progressBeforeRecalculation` is sessiedata en geen veld in het IFC-bestand (ADR 0213).
+  bladen. Dezelfde functie schrijft ook `Task.status`, een taakveld buiten `TaskTime`. Een handmatige verzameltaak
+  houdt haar opgeslagen voortgang (`isSummaryProgressDerived`). `applyRecordedTimesToTasks` (`recordedDates.ts`) zet
+  bij "datums zoals opgeslagen" met dezelfde functie de bestandswaarde terug, bij elke taak waarvan het record
+  `summaryProgress` draagt. `progressBeforeRecalculation` is sessiedata en geen veld in het IFC-bestand (ADR 0213).

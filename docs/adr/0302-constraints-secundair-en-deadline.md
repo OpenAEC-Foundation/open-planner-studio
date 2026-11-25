@@ -6,12 +6,15 @@ de secundaire constraint zou twee barrières op één taak geven, die elkaar kun
 `hard` daarom alleen van `task.constraint`, en alleen bij MSO of MFO (`hardPinStart`, `hardPinFinish` in
 `CPMSolver.ts`); de secundaire constraint is altijd een zachte grens. Welke combinaties van primair en secundair
 geldig zijn, beslist `validateConstraintPair` (`engine/scheduler/constraintValidation.ts`). Die toets kijkt naar de
-typen en naar `hard`, niet naar de datumwaarden. Het taakpaneel toont een ongeldige combinatie rood, het taakraster
-weigert haar (`taskEditPlan.ts`) en de MCP-tools weigeren haar bij een wijziging van de primaire constraint
-(`taskFields.ts`). Toetsen: `check-advanced-cpm.ts` (§7) legt de uitkomst van `validateConstraintPair` vast voor
-paren van typen en `hard`; `tests/mcp/cases-constraint-pair.ts` legt via de echte dispatcher vast dat wissen, ASAP en
+typen en naar `hard`, niet naar de datumwaarden. Het taakpaneel toont een ongeldige combinatie rood, maar alleen
+waar het het secundaire veld toont: bij een primaire constraint die geen ASAP, ALAP of harde pin is
+(`TaskConstraintFields.tsx`). Een ingelezen taak met alleen een secundaire SNET toont daar ASAP, zonder secundair veld
+en zonder waarschuwing, terwijl de solver die grens wel toepast. Het taakraster weigert een ongeldige combinatie
+(`taskEditPlan.ts`) en de MCP-tools weigeren haar bij een wijziging van de primaire constraint (`taskFields.ts`).
+Toetsen: `check-advanced-cpm.ts` (§7) legt de uitkomst van `validateConstraintPair` vast voor paren van typen en
+`hard`; `tests/mcp/cases-constraint-pair.ts` legt via de echte dispatcher vast dat wissen, ASAP en
 ALAP de secundaire constraint meenemen, dat een geldig paar landt en dat een ongeldig paar bij een nieuwe primaire
-constraint geweigerd wordt zonder iets te veranderen.
+constraint geweigerd wordt, met beide constraints ongewijzigd.
 
 ## Gevolgen
 
@@ -25,8 +28,12 @@ constraint geweigerd wordt zonder iets te veranderen.
 - Zonder `constraint` rekent een taak als ASAP.
 - De deadline (`deadline`) is een bovengrens voor de late finish, naast de late constraints (`applyBackwardBound`;
   ADR 0021). Een harde pin keert in `applyBackwardBound` terug vóór de deadlinetoets, dus bij een harde pin begrenst
-  de deadline de late finish niet. De vroege datums bewegen door de deadline niet, behalve bij ALAP:
-  `placeUnstartedAlap` legt een niet-gestarte ALAP-taak niet later dan de begrensde `lateFinish`, dus daar verschuift
-  de deadline ook de vroege datums. In een proef uit de review van #1220 eindigde dezelfde ALAP-taak zonder deadline op
-  vrijdag 16:00 en met een deadline op woensdag 16:00. Een taak die haar deadline overschrijdt, staat in
-  `missedDeadlineTaskIds`, dat de statusbalk telt.
+  de deadline de late finish niet. De vroege datums bewegen door de deadline niet, behalve bij ALAP: een bindende
+  deadline kan de gewone ALAP-verschuiving begrenzen. `placeUnstartedAlap` schuift een niet-gestarte ALAP-taak naar
+  later tot hoogstens de begrensde `lateFinish`; ligt die niet na de vroege finish, dan schuift de taak niet, en
+  vroeger dan haar vroege datums legt de functie haar nooit. Deel 6 van `check-alap-maatplaatsing.ts` toetst dat een
+  ALAP-taak met een opvolger binnen haar deadline blijft (OPS en MSP op een scalaire kalender en met eigen
+  werkblokken, P6 op een scalaire kalender). In de P6-route met eigen werkblokken (conventie C14,
+  `positionAlapFromSuccessors`) kiest een ALAP-taak met een opvolger haar finish zonder die deadlinegrens; dat is
+  knownbug 384, en hetzelfde deel legt die uitkomst alleen vast in een samenvatting. Een taak die haar deadline
+  overschrijdt, staat in `missedDeadlineTaskIds`, dat de statusbalk telt.

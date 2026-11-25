@@ -66,7 +66,10 @@ bewerkmodel `contourEdit.ts` (dagslots ↔ periodes met gat-herinvoeging; de OPS
 aaneensluitende stukken van een dag zijn één periode, een onderbreking midden op de dag geeft er twee) en de store-actie `resourceSlice.setAssignmentContour` (undo, `isDirty`, GEEN
 `scheduleStale`: een contour raakt geen datum en maakt geen split; een 0-inzet-fase blijft binnen de duur;
 een aanwezig werkveld van de toewijzing volgt de contoursom, `syncAssignmentWorkToContour`).
-Dagenlijst via `ResourceLoad.ts`'s `taskWorkDayIsos` — dezelfde als het histogram. Regressie:
+Dagenlijst via `contourDayModel` (`src/engine/contour/contourDays.ts`), dat de dagen van `taskLoadPlacement` neemt,
+dezelfde plaatsing als histogram en nivelleerder op een kalender met werkblokken (ADR 0312); deel 7 van
+`check-f4b-contourdagen.ts` toetst in de broncode van de dialoog dat die `contourDayModel` aanroept en `taskWorkDayIsos`
+niet. Regressie:
 `tests/planning/check-contour-engine.ts` en `tests/browser/contour-dialog.spec.ts`; gidsen:
 `public/docs/{nl,en}/howto-urenverdeling-aanpassen.md` en, voor wat er bij import en export
 meegaat, `ref-import-exportformaten.md`.

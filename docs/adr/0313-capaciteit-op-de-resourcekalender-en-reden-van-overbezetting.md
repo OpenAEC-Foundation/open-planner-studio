@@ -2,10 +2,12 @@
 
 `computeResourceLoad` (`src/engine/scheduler/ResourceLoad.ts`) rekent de capaciteit van een resource op haar eigen
 kalender (`resolveCalendar`: haar `calendarId`, zonder of bij een onbekende id de projectkalender), niet op de
-taakkalender: op een werkdag `maxUnitsOn`, op een andere dag 0. Werkt een taak op haar eigen kalender op een dag die
-de resourcekalender geen werkdag noemt, dan is die dag dus overbezet. Dat is bewust: de resource kan daar niet werken,
-dus het conflict is echt. Een dag is overbezet als `exceedsCapacity(belasting, capaciteit)` waar is
-(`capacityTolerance.ts`). `overallocatedReasons` geeft per overbezette dag `non-working-day` als de resourcekalender
+taakkalender: op een werkdag `maxUnitsOn`, op een andere dag 0. Een dag is overbezet als
+`exceedsCapacity(belasting, capaciteit)` waar is (`capacityTolerance.ts`): de belasting ligt meer dan de marge
+`CAPACITY_EPS` boven de capaciteit. Boekt een taak op haar eigen kalender belasting op een dag die de resourcekalender
+geen werkdag noemt, dan is die dag dus overbezet zodra die belasting boven de marge komt; een geboekt slot met 0
+eenheden geeft geen conflict. Dat is bewust: de resource kan daar niet werken, dus het conflict is echt.
+`overallocatedReasons` geeft alleen voor een overbezette dag een reden: `non-working-day` als de resourcekalender
 die dag geen werkdag heeft (`isWorkDay`, dezelfde vraag als voor de capaciteit), en anders `over-capacity`. De reden
 komt uit een eigen verzameling niet-werkdagen per resource en niet uit capaciteit 0, omdat een stap in
 `availabilitySteps` naar 0 op een werkdag ook capaciteit 0 geeft en dan `over-capacity` is.
@@ -26,5 +28,12 @@ komt uit een eigen verzameling niet-werkdagen per resource en niet uit capacitei
   in `levelResources`).
 - `maxUnitsOn` geeft zonder `availabilitySteps` de vlakke `maxUnits`. Met stappen geeft ze de stap met de grootste
   `from` op of vóór de datum, bij gelijke `from` de laatste in de lijst, en vóór de eerste stap `maxUnits`; de lijst
-  hoeft niet gesorteerd te zijn. Dezelfde functie gebruiken de nivelleerder, het histogramrapport, de
-  bibliotheekbezetting (`occupancy.ts`, `distribute.ts`) en `mspdiAvailability.ts`.
+  hoeft niet gesorteerd te zijn. Ze vindt die stap in één doorloop over de lijst, zonder per aanroep te kopiëren en te
+  sorteren, omdat ze per resource per dag draait; de uitkomst is die van een stabiele sortering op `from`. Dezelfde
+  functie gebruiken de nivelleerder, het histogramrapport en de bibliotheekbezetting (`occupancy.ts`,
+  `distribute.ts`). `mspdiAvailability.ts` roept haar niet aan: `normalizedSteps` bereikt dezelfde voorrang zelf, met
+  een eigen controle van datum en waarde, één stap per dag via `Map.set` en een sortering op `from`.
+- De stappen volgen de capaciteit met ingangsdatum van P6 (`availabilitySteps` in
+  `docs/superpowers/specs/2026-07-03-resources-design.md`: "P6 Units-and-Prices-model, effective-dated"). De
+  XER-lezer leest ze uit de `RSRCRATE`-rijen van een resource, met de ingangsdatum uit `start_date` en de capaciteit
+  afgeleid uit `max_qty_per_hr` (`xerResources.ts`).
