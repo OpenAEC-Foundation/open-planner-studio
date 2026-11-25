@@ -1,7 +1,10 @@
-# Weergave, opslagdoel en sessiestand: per document, buiten undo
+# Weergave, opslagdoel en sessiestand: per document, buiten de undo-snapshot
 
 Een deel van de documentvelden reist mee bij een documentwissel maar staat niet in de undo-snapshot (`snapshot: 'none'`
-in `DOCUMENT_FIELDS`, ADR 0431). Het zijn geen bewerkingen van de planning: ongedaan maken hoort ze niet terug te zetten.
+in `DOCUMENT_FIELDS`, ADR 0431). Het zijn geen bewerkingen van de planning: het terugzetten van een planningssnapshot
+hoort ze niet te raken. Dat gaat alleen over die snapshot: een layoutwijziging heeft haar eigen stap in de
+weergavegeschiedenis (`document-view` in `viewSlice.ts` en `historySlice.ts`), en Ongedaan maken zet zo'n stap wel
+terug, zonder de planningsdata aan te raken.
 Ze zijn wel per document, omdat ze anders na een tabwissel bij het vorige document horen; `resourceLoadResult` liet
 anders het histogram van het vorige document zien.
 

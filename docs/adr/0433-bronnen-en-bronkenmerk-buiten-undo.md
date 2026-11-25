@@ -16,7 +16,9 @@ eerder genomen veilige keuze terugdraaien.
 - `foreignSourceMark` is het kenmerk van een document dat uit een IFC-bestand met een vreemd deel kwam: de vingerafdruk
   en het doel van die bron, zodat Opslaan als en een export dat bestand weigeren, ook als `ifcSource` ontbreekt. Het
   staat buiten undo; `buildWriteIFCInput` leest het niet. Het reist mee bij een documentwissel, een kopie en
-  crashherstel (`payloadFromInput`, ADR 0435).
+  crashherstel (`payloadFromInput`, ADR 0435). `commitSavedDocument` zet het na een voorbereide opslag opnieuw, en de
+  MCP-backup schrijft het mee (`foreignSourceBackupRecord`), behalve als `sourceMissing: false` alleen nog het oude doel
+  beschermt.
 - `xerArchiveIssue` zegt dat het XER-bronarchief bij het openen onbruikbaar was en is weggelaten. Het is sessiestand die
   wel meereist bij een documentwissel en een kopie: anders zeiden MCP en de extensie-API na een tabwissel weer dat er
   nooit een XER-bron was. Het staat niet in `IFC_SAVE_KEYS` en niet in undo, omdat er niets terug te schrijven is.

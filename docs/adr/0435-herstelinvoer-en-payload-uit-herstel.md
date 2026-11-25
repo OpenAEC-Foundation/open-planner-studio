@@ -25,8 +25,11 @@ veldmapping en standaardwaarden hebben (ADR 0434), en zet daarna alleen wat bij 
   projectdata (ADR 0195).
 - `foreignSourceMark`: met `sourceRestored` (alleen gezet nadat de herstelroute de volledige bron teruglas en de hash
   controleerde; geen manifestveld) komt het kenmerk uit de teruggelezen bron, met het doel uit de metadata. Anders komt
-  de vingerafdruk uit de herstel-IFC (`ImportResult.recoveryForeignSource`) en het doel uit het manifest
-  (`RecoveryDocMeta.foreignSource`), en blijft de bron als ontbrekend gemarkeerd (`restoredMark`): alleen een expliciete
+  de vingerafdruk uit `recoveryForeignSource` en het doel uit het manifest (`RecoveryDocMeta.foreignSource`). Welke
+  vingerafdruk dat is, bepaalt `readRecoveryDocument`: draagt het manifest een bronverwijzing (`ifcSource`) en staat
+  de featureflag aan, dan wint de hash en grootte uit het manifest, ook als de herstel-IFC een oudere noemt (de
+  planningstekst is na een opslag van de bron niet altijd opnieuw geschreven); zonder bronverwijzing of met de flag
+  uit komt ze uit de herstel-IFC. In beide gevallen blijft de bron als ontbrekend gemarkeerd (`restoredMark`): alleen een expliciete
   `sourceMissing: false` blijft onwaar. Die waarde betekent alleen nog doelbescherming na een bewuste opslag van alleen
   de planning (#804 PR 9e, regel `settings-autosave`); oude metadata zonder de waarde blijft dicht.
 - `fileHandle` komt alleen terug met `sourceRestored`. `siteFileVersion` alleen met een `siteFileId`: zonder die basis

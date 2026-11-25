@@ -24,6 +24,6 @@ en een batchstap gebruiken haar om te beslissen of er iets veranderde (ADR 0240)
   huidige `calendar` tot bibliotheekregel (`promoteProjectCalendarToLibrary`). Zonder eigen snapshotwaarde zou dat de nieuwe
   kopie zijn in plaats van de herstelde.
 - `recordedDates` en `datesAsRecorded` zijn `'derived'`, net als `cpmResult` en `scheduleStale`: ze worden als geheel
-  vervangen, en samen met `tasks` draait één undo de datums en de modus terug. Die rol rust op de voorwaarde dat elke
-  mutator van deze velden een undo-stap maakt; de ene situatie waarin `runCPM` daarom wel een snapshot maakt, staat in
-  de regel `state` (*Datums zoals opgeslagen*).
+  vervangen, en samen met `tasks` draait één undo de datums en de modus terug. Daarom maakt `runCPM` een undo-stap
+  als het de modus *Datums zoals opgeslagen* verlaat (regel `state`, *Datums zoals opgeslagen*). Een gewone berekening
+  buiten die modus vervangt `cpmResult` en `scheduleStale` zonder undo-stap.
