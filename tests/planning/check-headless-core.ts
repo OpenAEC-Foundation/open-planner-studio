@@ -416,7 +416,7 @@ for (const name of ['ohara', 'data']) {
   for (const file of oldOwn) {
     const source = readFileSync(join(root, 'tests/planning/fixtures/oude-tags', file));
     ok(`20 ${file}: het lopende werkschema heet nog Bouwplanning v1.0`, source.includes("'Bouwplanning v1.0'"));
-    for (const [form, shape] of FORMS as Array<[string, (bytes: Buffer) => Buffer]>) {
+    for (const [form, shape] of FORMS) {
       const body = shape(source);
       const label = `oude-tags/${file}, ${form}`;
       const main = reference.cases[label]?.ifc;
