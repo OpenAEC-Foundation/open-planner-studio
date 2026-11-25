@@ -3,8 +3,9 @@
 Een deel van de documentvelden reist mee bij een documentwissel maar staat niet in de undo-snapshot (`snapshot: 'none'`
 in `DOCUMENT_FIELDS`, ADR 0431). Het zijn geen bewerkingen van de planning: het terugzetten van een planningssnapshot
 hoort ze niet te raken. Dat gaat alleen over die snapshot: een layoutwijziging heeft haar eigen stap in de
-weergavegeschiedenis (`document-view` in `viewSlice.ts` en `historySlice.ts`), en Ongedaan maken zet zo'n stap wel
-terug, zonder de planningsdata aan te raken.
+weergavegeschiedenis (`viewSlice.ts`, `historySlice.ts`): `document-view` voor de weergave van het document en
+`grid-preference` voor de kolommen en de schuifstand van het raster. Ongedaan maken zet zo'n stap wel terug, zonder
+de planningsdata aan te raken.
 Ze zijn wel per document, omdat ze anders na een tabwissel bij het vorige document horen; `resourceLoadResult` liet
 anders het histogram van het vorige document zien.
 

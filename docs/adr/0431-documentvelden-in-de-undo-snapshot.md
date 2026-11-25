@@ -25,5 +25,8 @@ en een batchstap gebruiken haar om te beslissen of er iets veranderde (ADR 0240)
   kopie zijn in plaats van de herstelde.
 - `recordedDates` en `datesAsRecorded` zijn `'derived'`, net als `cpmResult` en `scheduleStale`: ze worden als geheel
   vervangen, en samen met `tasks` draait één undo de datums en de modus terug. Daarom maakt `runCPM` een undo-stap
-  als het de modus *Datums zoals opgeslagen* verlaat (regel `state`, *Datums zoals opgeslagen*). Een gewone berekening
-  buiten die modus vervangt `cpmResult` en `scheduleStale` zonder undo-stap.
+  als het de modus *Datums zoals opgeslagen* verlaat (regel `state`, *Datums zoals opgeslagen*). Een tweede geval is
+  de minutenomzetting van een ouder document: verschuift de berekening daarbij datums en loopt ze niet binnen een
+  bewerking (`withinEvent`), dan legt `runCPM` die omzetting als eigen stap vast (`recordMinuteModelTransition`), en
+  Ongedaan maken zet de datums terug. Een gewone berekening daarbuiten vervangt `cpmResult` en `scheduleStale` zonder
+  undo-stap.
