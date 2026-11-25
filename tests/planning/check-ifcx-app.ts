@@ -599,10 +599,10 @@ await check('het P6-bronarchief van een XER-import: de kern weigert het schrijve
     const path = join(dir, 'resource.ifcx'); writeFileSync(path, own);
     const store = await openAt(path, IFCX_ON);
     const sw = workerOf.get(store)!;
-    store.setState(s => {
-      s.xerSourceArchive = createXerSourceArchive(new Uint8Array(), {
+    store.setState({
+      xerSourceArchive: createXerSourceArchive(new Uint8Array(), {
         encoding: 'utf-8', bom: 'none', newline: 'none', diagnostics: createEmptyXerArchiveDiagnostics(), readModel: createEmptyXerArchiveReadModel(),
-      });
+      }),
     });
     shiftFirstTask(store);
     clearNotices(store);
