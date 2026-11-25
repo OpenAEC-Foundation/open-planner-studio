@@ -28,9 +28,10 @@ export interface RecordedExampleOptions {
   wall?: boolean;
   progress?: number;
   halfDay?: boolean;
+  statusClock?: string;
 }
 
-export async function recordedExample({ edit = () => {}, wall = true, progress, halfDay = false }: RecordedExampleOptions = {}): Promise<Uint8Array<ArrayBuffer>> {
+export async function recordedExample({ edit = () => {}, wall = true, progress, halfDay = false, statusClock }: RecordedExampleOptions = {}): Promise<Uint8Array<ArrayBuffer>> {
   const { buildWriteIFCInput } = await loadStore();
   const example = new Uint8Array(readFileSync(join(root, 'public/examples/showcase-verbouwing-eengezinswoning.ifc')));
   const { store } = await openInStore(example, 'voorbeeld.ifc');
@@ -44,7 +45,7 @@ export async function recordedExample({ edit = () => {}, wall = true, progress, 
   }
   if (progress !== undefined) {
     const task = store.getState().tasks.find(t => t.name === PROGRESS_TASK)!;
-    store.getState().setStatusDate(task.time.earlyFinish.slice(0, 10));
+    store.getState().setStatusDate(`${task.time.earlyFinish.slice(0, 10)}${statusClock ? `T${statusClock}` : ''}`);
     for (const step of progress === 1 ? [0.5, 1] : [progress]) {
       assert(store.getState().setTaskProgress(task.id, step), 'de voortgang is gezet');
       store.getState().runCPM();
