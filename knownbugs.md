@@ -4645,6 +4645,13 @@ en noem het in je rapport of PR-tekst.
       artikel boven de bijgewerkte Engelse versie. Bevestigd in reviewronde 1. Werk het bij via de
       bestaande vertaalroute voor Help. — B
 
+2011. **Datums en overige velden van een MSPDI-taak kunnen nog uit een genest element komen.** In #1202
+      (reviewronden 1 t/m 5) lezen alleen `Type` en `Duration` van een taak uit de directe kinderen van
+      `<Task>`; `Start`, `Finish` en de andere velden lezen nog via `descendantText`, dus een taak zonder
+      eigen `Start` kan `Baseline/Start` oppakken (net als `TimephasedData`-datums). De kalenderkeuze
+      (uurmodus), het startanker van de werkverdeling en de betekenis van een einddatum leunen daarop.
+      Daarom is dat deel van de lezer bewust niet veranderd. — B
+
 ## Teksten en helpteksten
 
 2051. **VERVOLG (tekst, review van #1123): de voorbeelden bij het taaktype zeggen niet welke invoer verandert.**

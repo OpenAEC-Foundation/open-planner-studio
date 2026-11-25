@@ -301,13 +301,16 @@ check-mpp-relations.ts matrix
 check-mpp-summary-relations.ts matrix
 check-mpp-walk-units.ts matrix
 check-mspdi-baseline-export.ts matrix
+check-mspdi-baseline-kloktijden.ts matrix
 check-mspdi-cross-project.ts matrix
 check-mspdi-export-klok-capaciteit-drempel.ts matrix
 check-mspdi-export-kritiek-uren-melding.ts matrix
 check-mspdi-feestdagen.ts matrix
+check-mspdi-geneste-velden.ts matrix
 check-mspdi-hierarchy-export.ts matrix
 check-mspdi-hour-baseline.ts matrix
 check-mspdi-open-notice.ts matrix
+check-mspdi-resource-tarief.ts matrix
 check-mspdi-uitzondering-hele-dag.ts matrix
 check-mspdi-werktijd-minuten.ts matrix
 check-msproject-float-default.ts matrix
