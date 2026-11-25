@@ -406,8 +406,9 @@ export async function createNodeFileFs(
         try {
           unlinkSync(tmpName);
         } catch (error) {
-          throw new Error(`'${target}' was written, but its temporary name '${tmpName}' next to it could not be removed `
-            + `(${String(error)}). Until that name is deleted, the file has two names and the server refuses to read it.`);
+          throw new Error(`'${target}' was placed, but removing its temporary name '${tmpName}' next to it failed `
+            + `(${String(error)}). The final folder check and the folder sync did not run, so crash durability is unconfirmed. `
+            + `If '${tmpName}' still exists, the file has two names and the server refuses to read it until that name is deleted.`);
         }
       } else {
         renameSync(tmpName, c.base);

@@ -8,12 +8,14 @@ export interface OwnCase {
   readonly name: string;
   readonly bytes: Buffer;
   readonly stand: HeadlessStand;
+  readonly opens: boolean;
 }
 
 export interface ForeignCase {
   readonly name: string;
   readonly bytes: Buffer;
   readonly pieces: readonly string[];
+  readonly kept: boolean;
 }
 
 export const OLD_TASK_NAME = String.raw`Set up \X2\00E9\X0\ site`;
@@ -42,24 +44,27 @@ export function oldOwnSource(root: string): string {
 export function ownCorpus(root: string): OwnCase[] {
   const files = [join(root, 'examples'), join(root, 'public', 'examples')]
     .flatMap(dir => readdirSync(dir).filter(name => name.endsWith('.ifc')).sort().map(name => join(dir, name)));
-  const cases: OwnCase[] = files.map(file => ({ name: `${basename(dirname(file))}-${basename(file)}`, bytes: readFileSync(file), stand: 'eigen' }));
+  const cases: OwnCase[] = files.map(file => ({ name: `${basename(dirname(file))}-${basename(file)}`, bytes: readFileSync(file), stand: 'eigen', opens: true }));
   const villa = Buffer.from(villaText(root));
   const text = villa.toString('utf8');
   const at = villa.indexOf("'New-Build Villa") + 1;
   if (at <= 0) throw new Error('de projectnaam van de villa');
   const rawByte = Buffer.concat([villa.subarray(0, at), Buffer.from([0xe9]), villa.subarray(at)]);
   cases.push(
-    { name: 'villa-met-bom.ifc', bytes: Buffer.concat([BOM, villa]), stand: 'eigen' },
-    { name: 'villa-met-bom-en-spatie.ifc', bytes: Buffer.concat([BOM, Buffer.from(' '), villa]), stand: 'eigen' },
-    { name: 'villa-met-los-byte.ifc', bytes: rawByte, stand: 'eigen' },
-    { name: 'villa-met-bom-en-los-byte.ifc', bytes: Buffer.concat([BOM, rawByte]), stand: 'eigen' },
-    { name: 'villa-ifc2x3.ifc', bytes: Buffer.from(text.replace(SCHEMA, "FILE_SCHEMA(('IFC2X3'));")), stand: 'eigen' },
-    { name: 'villa-oude-bron.ifc', bytes: Buffer.from(oldOwnSource(root)), stand: 'eigen' },
-    { name: 'villa-id-boven-scannergrens.ifc', bytes: Buffer.from(withId(text, 52, SCANNER_ID_LIMIT + 52)), stand: 'onzeker' },
+    { name: 'villa-met-bom.ifc', bytes: Buffer.concat([BOM, villa]), stand: 'eigen', opens: true },
+    { name: 'villa-met-bom-en-spatie.ifc', bytes: Buffer.concat([BOM, Buffer.from(' '), villa]), stand: 'eigen', opens: true },
+    { name: 'villa-met-los-byte.ifc', bytes: rawByte, stand: 'eigen', opens: true },
+    { name: 'villa-met-bom-en-los-byte.ifc', bytes: Buffer.concat([BOM, rawByte]), stand: 'eigen', opens: true },
+    { name: 'villa-ifc2x3.ifc', bytes: Buffer.from(text.replace(SCHEMA, "FILE_SCHEMA(('IFC2X3'));")), stand: 'eigen', opens: true },
+    { name: 'villa-oude-bron.ifc', bytes: Buffer.from(oldOwnSource(root)), stand: 'eigen', opens: true },
+    { name: 'villa-id-boven-scannergrens.ifc', bytes: Buffer.from(withId(text, 52, SCANNER_ID_LIMIT + 52)), stand: 'onzeker', opens: true },
     ...DATA_KOP_VORMEN.map((vorm): OwnCase => ({
       name: `villa-${vorm.id}.ifc`, bytes: Buffer.from(metDataKop(text, vorm), 'utf8'), stand: vorm.scannerWeigert ? 'onzeker' : 'eigen',
+      opens: vorm.kop.toUpperCase() === 'DATA;' && vorm.overgang === undefined && vorm.naam === undefined,
     })),
-    ...brokenNameFiles(text).map(([name, variant]): OwnCase => ({ name: `villa-${name}.ifc`, bytes: Buffer.from(variant, 'utf8'), stand: 'onzeker' })),
+    ...brokenNameFiles(text).map(([name, variant]): OwnCase => ({
+      name: `villa-${name}.ifc`, bytes: Buffer.from(variant, 'utf8'), stand: 'onzeker', opens: true,
+    })),
   );
   return cases;
 }
@@ -85,6 +90,7 @@ export function foreignCorpus(root: string): ForeignCase[] {
             name: `pset-aan-${owner}-${schema}-${ids}${bom ? '-bom' : ''}.ifc`,
             bytes: bom ? Buffer.concat([BOM, Buffer.from(text)]) : Buffer.from(text),
             pieces,
+            kept: schema !== 'IFC2X3' && first === 99001,
           });
         }
       }

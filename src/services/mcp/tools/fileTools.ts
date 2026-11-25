@@ -73,8 +73,11 @@ const FOREIGN_CONTENT_REFUSAL = 'The active document contains a building model o
 
 const UNKEPT_SOURCE_REFUSAL = 'The file this document was opened from has, or may have, data from other programs that this ' +
   'server cannot keep: for example an IFC2X3 file with such data, or a file it could not read completely. An IFC written now ' +
-  'could lose that data, so nothing was written. Reading and changing the schedule still work. To write IFC, the server must ' +
-  'be able to read the whole file: save it again as IFC4 or IFC4X3 in the program that made it, then import it again.';
+  'could lose that data, so nothing was written. Reading and changing the schedule still work. What the user can do: if the ' +
+  'file holds only a schedule (for example one with an unusual header), open it in the Open Planner Studio app with the ' +
+  'experimental setting "Open IFC with a building model" off and save it there. If it does hold data from other programs, ' +
+  'saving in the app also keeps only the schedule; to keep that data, save the file again as IFC4 or IFC4X3 in the program ' +
+  'that made it and import it again.';
 
 function foreignContentRefusal(ctx: McpContext): string {
   return fileToolDeps.mainRouteUnlessForeign && ctx.app.store.getState().foreignSourceMark?.sourceMissing
@@ -254,19 +257,18 @@ async function keptForeignContent(input: FormatInput): Promise<OpenedImport | nu
 }
 
 interface HeadlessIfcRead {
-  readonly input: FormatInput;
-  readonly kept: OpenedImport | null;
+  readonly parsed: OpenedImport;
   readonly unkept: ForeignSourceMark | null;
 }
 
-async function headlessIfcRead(path: string, input: FormatInput, bytes: Uint8Array): Promise<HeadlessIfcRead> {
+async function headlessIfcRead(path: string, name: string, bytes: Uint8Array): Promise<HeadlessIfcRead> {
   const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes);
-  if (textWriteRefusal(text) === null) return { input: { name: input.name, text }, kept: null, unkept: null };
-  const kept = await keptForeignContent(input);
-  if (kept) return { input, kept, unkept: null };
+  const mainRoute = () => parseOpenedFile({ name, text });
+  if (textWriteRefusal(text) === null) return { parsed: await mainRoute(), unkept: null };
+  const kept = await keptForeignContent({ name, bytes });
+  if (kept) return { parsed: kept, unkept: null };
   return {
-    input: { name: input.name, text },
-    kept: null,
+    parsed: await mainRoute(),
     unkept: { sha256: await precomputeSha256(bytes), byteLength: bytes.length, filePath: path, siteFileId: null, handle: null, sourceMissing: true },
   };
 }
@@ -544,7 +546,7 @@ export const fileTools: McpToolDef[] = [
       if (output.prepared && !replacement && (existed || !fs.writeNewUserBytes)) return toolError(ctx, 'VALIDATION',
         existed ? 'IFC export with a building model or data from other programs requires a new file name, even with overwrite: true.'
           : 'This file host cannot create an exclusive new byte file. Nothing was written.');
-      const ifcSchema = output.prepared?.source.schemaName ?? projectIfcSchema(input.project);
+      const ifcSchema = fileToolDeps.mainRouteUnlessForeign && output.prepared ? output.prepared.source.schemaName : projectIfcSchema(input.project);
       const question = ifcSchemaQuestionFor(state.project, state.ifcSource);
       // Knownbug 1026 (review #872 ronde 3 en 4, Terra): een export over het eigen bestand legt de letterlijke kalenders
       // vast, zoals Opslaan; een aantoonbaar ander bestand niet (`exportHitsOwnFile`). Schrijven en vastleggen staan onder
@@ -707,19 +709,17 @@ export const fileTools: McpToolDef[] = [
         const code = e instanceof ScopeEscapeError ? 'SCOPE' : e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND';
         return toolError(ctx, code, `Could not read '${path}': ${e instanceof Error ? e.message : String(e)}`);
       }
-      const decided = keepsForeignOnly && input.bytes ? await headlessIfcRead(path, input, input.bytes) : null;
-      if (decided && !decided.kept) {
-        input = decided.input;
-        readOptions = {};
-      }
       const content = input.text ?? '';
+      const headlessBytes = keepsForeignOnly ? input.bytes : undefined;
 
       let parsed: OpenedImport;
+      let unkept: ForeignSourceMark | null = null;
       try {
         // Geen `labels`: dienstlaag zonder `t(...)` — de MCP-laag is AI-facing en kent geen UI-taal.
         // `readIFC` valt dan terug op de Engelse default voor een bestand zonder IFCPROJECT (zie
         // ImportLabels).
-        parsed = decided?.kept ?? await parseOpenedFile(input, undefined, readOptions);
+        if (headlessBytes) ({ parsed, unkept } = await headlessIfcRead(path, input.name, headlessBytes));
+        else parsed = await parseOpenedFile(input, undefined, readOptions);
       } catch (e) {
         return toolError(ctx, 'VALIDATION', `'${path}' could not be read as a schedule: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -745,8 +745,10 @@ export const fileTools: McpToolDef[] = [
         ? openTabFor(ctx.app.store.getState(), ref, null, readVersionOf(ref, parsed)) : null;
       if (tab !== null) switchToOpenDocument(ctx.app.store.getState(), tab);
       const opened = tab !== null ? null : ctx.app.store.getState().openAsDocument(parsed, { name: path, ref });
-      const unkept = opened ? decided?.unkept : null;
-      if (unkept) ctx.app.store.setState((s) => { s.foreignSourceMark = unkept; });
+      if (opened && unkept) {
+        const mark = unkept;
+        ctx.app.store.setState((s) => { s.foreignSourceMark = mark; });
+      }
       // Drift-anker naar het RESULTERENDE document — anders zou de eerstvolgende
       // mutatie op het importdocument als drift falen en zet de import zichzelf klem.
       bindExpectedDoc(ctx);
