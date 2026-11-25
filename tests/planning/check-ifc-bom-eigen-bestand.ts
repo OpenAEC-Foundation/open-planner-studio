@@ -81,16 +81,17 @@ try {
     const kinds = ['pad', 'handle'] as const, routes = ['Ctrl+S', 'Automatisch opslaan'] as const;
     const twelve = kinds.flatMap(kind => routes.flatMap(how => ['', ...SWITCHES.map(flip => `; wissel ${flip} bij lezing-1`)].map(flip =>
       `LF | ${kind} | hier | ${how}, geopend, flag aan: een andere planning met BOM bij lezing-1${flip}`)));
+    const eight = kinds.flatMap(kind => (['hier', 'worker'] as const).flatMap(compute => routes.map(how =>
+      `LF | ${kind} | ${compute} | ${how}, geopend, flag aan: een gebouwmodel zonder BOM bij bomversie; wissel uit bij lezing-1`)))
+      .filter(name => !only || only.test(name));
+    check(`2212 de acht gevallen van de review van ronde 4 (${eight.length} gedraaid): het gebouwmodel dat tijdens de BOM-hash verschijnt, blijft byte voor byte staan`,
+      eight.filter(name => extern(pr[name]?.at(-1)) !== 'byte voor byte').map(name => `PR ${name}`));
     if (!only) {
       check('2212 de twaalf gevallen van de review van ronde 3: weigeren en de andere planning met BOM laten staan, op main en de PR',
         twelve.flatMap(name => [expectation(name), pr[name]].flatMap((steps, side) => {
           const last = steps?.at(-1);
           return last && last.outcome === false && extern(last) === 'byte voor byte' ? [] : [`${side ? 'PR' : 'main'} ${name}`];
         })));
-      const eight = kinds.flatMap(kind => routes.flatMap(how => SWITCHES.map(flip =>
-        `LF | ${kind} | hier | ${how}, geopend, flag aan: een gebouwmodel zonder BOM bij bomversie; wissel ${flip} bij lezing-1`)));
-      check('2212 de acht gevallen van de review van ronde 4: het gebouwmodel dat tijdens de BOM-hash verschijnt, blijft byte voor byte staan',
-        eight.filter(name => extern(pr[name]?.at(-1)) !== 'byte voor byte').map(name => `PR ${name}`));
       const atHash = names.filter(atBomVersion).map(name => extern(pr[name]?.at(-1)) ?? 'geen');
       console.log(`..  ingreep bij de hash van de BOM-versie: ${atHash.length} gevallen, ${atHash.filter(e => e === 'byte voor byte').length} met de bytes van de ander nog op het doel, ${atHash.filter(e => e === 'niet geplaatst').length} zonder die hash`);
     }

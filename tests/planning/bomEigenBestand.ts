@@ -388,7 +388,7 @@ function attempt(
   return {
     name: `${how}, ${origin}, flag ${startOn ? 'aan' : 'uit'}: ${what}${flip ? `; wissel ${flip} bij ${flipAt}` : ''}`, opening: false,
     kinds: moments.includes('recht') ? ['handle'] : undefined,
-    computes: moments.every(m => m === 'rekenen' || m === 'hash') ? undefined : ['hier'],
+    computes: at === 'bomversie' || moments.every(m => m === 'rekenen' || m === 'hash') ? undefined : ['hier'],
     run: async r => {
       await fromOrigin(r, origin);
       if (!startOn) r.attemptWithFlagOff();
