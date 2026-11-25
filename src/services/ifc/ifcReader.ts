@@ -1136,8 +1136,9 @@ function applyHourModeIFC(
 
   for (const cal of [projectCal, ...resourceCalendars]) {
     if (declaredScalarCalendars.has(cal)) continue;
-    const workingExceptionHours = (cal.workingExceptions ?? []).some(e => (e.bands?.length ?? 0) > 0);
-    promoteHourCalendar(cal, getCalendarBands(cal), subDayCals.has(cal), workingExceptionHours);
+    const keepRegisteredBands = !calendarsWithoutWorkingTimes.has(cal)
+      || (cal.workingExceptions ?? []).some(e => (e.bands?.length ?? 0) > 0);
+    promoteHourCalendar(cal, getCalendarBands(cal), subDayCals.has(cal), keepRegisteredBands);
   }
 
   for (const t of tasks) {
@@ -2206,6 +2207,7 @@ function legacyScalarFromEffectiveBands(
 
 const declaredScalarCalendars = new WeakSet<WorkCalendar>();
 const literalTimeCalendars = new WeakSet<WorkCalendar>();
+const calendarsWithoutWorkingTimes = new WeakSet<WorkCalendar>();
 
 function extractCalendarExceptionMetadata(
   calStepId: string,
@@ -2311,6 +2313,7 @@ function buildCalendarFromEntity(
   const hourMeta = extractCalendarHourMeta(cal.id, entities, entityMap);
 
   const workTimeRefs = parseRefs(cal.args[calSlots.workingTimes] || '');
+  if (workTimeRefs.length === 0) calendarsWithoutWorkingTimes.add(calendar);
   const recurrences: StepEntity[] = [];
   const datedRecurrences: StepEntity[] = [];
   for (const wtRef of workTimeRefs) {
