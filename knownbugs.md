@@ -4248,8 +4248,43 @@ en noem het in je rapport of PR-tekst.
      gebouwmodel heeft daar de vervanging met een tweede vergelijking vlak vóór het plaatsen
      (`replaceOwnPathWithRecovery`); die route is voor een gewone planning bewust niet overgenomen (opdracht #804). Bij
      een versie die het tabblad zelf schreef (PR #1194) vervalt de doelscan, maar de toets blijft de laatste lezing vóór
-     het schrijven: hetzelfde gat als hier beschreven, niet groter. —
-     S (code gelezen, niet nagespeeld)
+     het schrijven: hetzelfde gat als hier beschreven, niet groter. Het geldt ook voor een eigen bestand met een UTF-8-BOM
+     (knownbug 2212, PR #1213): dat krijgt dezelfde laatste lezing vóór het schrijven als hetzelfde bestand zonder BOM. —
+     S (code gelezen; voor het BOM-bestand nagespeeld in `check-ifc-bom-eigen-bestand.ts`, gevallen `… op het doel bij
+     schrijven`, en zonder opslagworker `… bij hash`: daar hasht main de te schrijven bytes ná de laatste lezing, en
+     overschrijven main en de PR allebei)
+
+2358. **Ctrl+S weigert een eigen IFC met een UTF-8-BOM als het tabblad de versie van dat bestand niet kent (#804, flag aan).**
+     Sinds PR #1213 gedraagt een eigen bestand met een BOM zich bij Ctrl+S, *Opslaan* in de sluitvraag en Automatisch
+     opslaan als hetzelfde bestand zonder BOM op main, zolang `knownTargetFingerprint` bij het begin van de opslagpoging
+     de versie met BOM kent (`utf8Bom`, `ownBomVersion` in `writeActiveDocument` en `fileAutoSave.ts`). Kent het tabblad de
+     versie niet (na crashherstel, na een mislukte schrijfactie naar het eigen pad, of als de flag pas na het openen
+     aanging), dan blijft de BOM de doelscan onleesbaar maken: Ctrl+S weigert met *onleesbaar doel*, waar main hetzelfde
+     bestand zonder BOM schrijft. Opslaan als naar een nieuwe naam werkt; heropenen geeft het tabblad de versie weer.
+     Nagespeeld op pad en handle (`check-ifc-bom-eigen-bestand.ts`, grensgeval `onbekende versie na flag uit en aan`).
+     Voorwaarde voor standaard aan: elk tabblad kent zijn versie zodra de flag aan is, ook voor crashherstel en een
+     mislukte schrijfbeurt.
+     Verwante grens (review van #1213 rondes 2 en 3), als grensgevallen in dezelfde proef: de toestemming is de
+     vastgelegde eigen versie met BOM. Schrijft een ander programma een andere planning mét BOM naar het doel, dan weigeren
+     main en de PR allebei met *onleesbaar doel*, ook bij een flagwissel (fixronde 3). Vergelijk je met main in de
+     wereld zonder BOM, waar die ander dezelfde planning zónder BOM schreef, dan meldt main *doel gewijzigd* en de PR
+     *onleesbaar doel*: de PR krijgt in beide gevallen dezelfde bytes. Zet een ander de geopende planning terug zónder
+     BOM, dan schrijft main verder (de bytes zijn zijn bekende versie) en weigert de PR met *doel gewijzigd* (de bekende
+     versie begint met een BOM). In al deze gevallen blijft de versie van de ander staan. Met geweigerd schrijfrecht in de
+     browser (review van #1213 ronde 4) geldt hetzelfde voor de terugval: staat er een andere planning met BOM op de oude
+     handle, dan weigert de PR die handle als *onleesbaar doel* vóór de bestandskiezer; main, met dezelfde planning
+     zonder BOM, opent de kiezer en slaat op onder de nieuwe naam. Beide oude bestanden blijven staan en Opslaan als
+     werkt. Grensgeval in `check-ifc-bom-eigen-bestand.ts`. — B
+
+2359. **Ctrl+S weigert een eigen sitebestand met een UTF-8-BOM als onleesbaar doel (#804, flag aan).** Reproductie
+     (review van #1213 ronde 2; nagespeeld in `check-ifc-bom-eigen-bestand.ts`, grensgeval `site`): een site
+     (`window.openaecHost`) met een eigen planning met BOM als versie `v1`; openen van de site, één taak hernoemen,
+     Ctrl+S. Main slaat hetzelfde bestand zonder BOM op als `v2` (met `baseVersion: 'v1'`); de PR weigert met
+     *onleesbaar doel* voordat de host een aanroep krijgt. De regel van #1213 geldt voor de site dus nog niet. Oorzaak:
+     een sitebestand krijgt geen `knownTargetFingerprint` (`onOwnFile` en `guardedKnownTarget` slaan de site bewust
+     over), dus het tabblad weet niet dat zijn eigen versie met een BOM begon. Richting (reviewer): de eigen siteversie en
+     het bestaande hostcontract (`baseVersion`) de toestemming laten dragen, en bij het openen onthouden dat die versie
+     een BOM had. Voorwaarde voor standaard aan. — B
 
 2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): de eerste opslag na openen leest het eigen bestand
      nog drie keer, een opslag zonder bekende versie twee keer.** Sinds PR #1194 vervalt de doelscan als op het eigen pad of
@@ -4865,17 +4900,6 @@ en noem het in je rapport of PR-tekst.
      weer in dezelfde verwerking belanden, en is *Verwerpen* niet bereikbaar. Geen gevolg van PR #1127. Bevestigd via de
      code en de echte herstelcallback (reviewer van #1127); een processtop is niet opgewekt. — B (code en proef van de
      reviewer; geen processtop nagespeeld)
-
-2212. **Ctrl+S naar een bestaand IFC met een UTF-8-BOM weigert met de flag aan (#804).** Sinds fixronde 1 van #1184 opent
-     een IFC met een BOM vóór de kop met de flag `ifcForeignContent` aan (de scanner en de oude-kopherkenning van de
-     C/A/V-scan slaan een BOM op byte 0 over); main weigerde het openen. De doelcontrole houdt bewust de uitkomst van main:
-     een bestaand doel dat met een BOM begint en geen model heeft, is 'unreadable' (`targetForeignScan.ts`, `targetOf`),
-     want anders zou de gewone schrijver (zonder BOM) een bestand overschrijven dat main liet staan (review van #1184
-     ronde 2). Daardoor weigert Ctrl+S van een geopend gewoon document met BOM naar zijn eigen bestand
-     (`documentTargetCheck` → `refusedWriteTarget`, regel 2, melding "onleesbaar doel"); Opslaan als naar een nieuwe naam
-     gaat wel. Met de flag uit verandert er niets. Richting: het eigen bestand van het document met dezelfde lengte en
-     SHA-256 als de geopende bron als doel toelaten, en de BOM bij de gewone schrijver bewaren. Voorwaarde voor standaard
-     aan. — B (code en de proef van de doelcontrole, `check-ifc-foreign-target.ts` 9c; Ctrl+S zelf niet nagespeeld)
 
 2360. **Bekende grens (#804, flag aan): buiten "datums zoals opgeslagen" ziet `planning-na-openen` een verkeerde of
      ontbrekende waarde in een rekenslot, en een onterecht werkelijk einde of percentage op een fase, niet als de writer die

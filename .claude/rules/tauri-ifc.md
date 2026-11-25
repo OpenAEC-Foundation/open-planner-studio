@@ -123,7 +123,8 @@ The application's persistence model is IFC 4.3 (buildingSMART). Loading a projec
 (`readIfcx`). **Regel F:** het formaat is een eigenschap van het document. De lezer legt het vast (`fileFormat`) en geeft
 lengte en SHA-256 van de gelezen bytes mee (`ReadImportResult.ifcxRead`); `applyLoadedProject` maakt daarvan de bekende
 versie van het doel, ook met `ifcForeignContent` uit (`versionGuarded`, `src/state/versionGuard.ts`). De naam van het doel
-beslist niets over een bestaand document. Een poging legt formaat en flag vast bij haar begin (`outputFormat`); met de flag
+beslist niets over een bestaand document. Een poging legt formaat en flag vast bij haar begin (`outputFormat`; één stand
+per poging, zie `state.md`); met de flag
 aan zet de documentopslag dan `format: 'ifcx'` op de writer-job, die alleen de opslagworker rekent (`writeIfcx`, met de
 letterlijke kalenders van de gewone writer, `plainWriteLiteralCalendarIds`). Het eigen doel toetst de bekende versie
 (#1174); een ander bestaand doel classificeert de worker (`classifyIfcx` via `ifcxTargetRefusal`, `TargetReaders.readPath`
@@ -579,8 +580,25 @@ bestand volgt de gewone grammatica. IFC schrijven met een vreemd deel gebruikt u
 Een UTF-8-BOM op byte 0 slaat de scanner (`stepScanner.ts`) over: hij hoort bij het kopstuk, dat de merge byte-gelijk
 terugschrijft (fixronde 1 van #1184). Elders buiten tekst blijft een BOM een scanfout. De oude-kopherkenning van de
 C/A/V-scan (`foreign/oldOwnHeader.ts`) kijkt na die BOM en maskeert op absolute posities; `recognizeOldOwnHeader`
-zelf, de datasectievinder en de doelscan als stroom zijn ongewijzigd. De doelcontrole (`targetForeignScan.ts`) houdt
-een bestaand doel dat met een BOM begint 'unreadable', zoals main (knownbug 2212).
+zelf, de datasectievinder en de doelscan als stroom zijn ongewijzigd. De doelscan (`targetForeignScan.ts`) houdt
+een bestaand doel dat met een BOM begint 'unreadable', zoals main. Regel voor het eigen bestand (knownbug 2212, PR
+#1213): een eigen bestand met een BOM gedraagt zich bij Ctrl+S, *Opslaan* in de sluitvraag en Automatisch opslaan als
+hetzelfde bestand zonder BOM op main; alleen blijft de BOM staan. Het contract (fixronde 3): aan het begin van de
+poging legt de app de versie van het eigen bestand vast als waarde (`ownBomVersion`: de bekende versie in
+`knownTargetFingerprint` als die met een BOM begint, `utf8Bom`; Ctrl+S bij de momentopname van `writeActiveDocument`,
+Automatisch opslaan bij het kiezen van de kandidaat in `listPlain`). Die ene waarde bepaalt twee dingen. De doelscan laat
+een BOM alleen door als de bytes die hij zelf las precies die versie zijn: lengte en SHA-256, in de scan
+(`isOwnBomVersion` in `targetForeignScan.ts`). Daarnaast komt de BOM direct na het antwoord van de writer vóór zijn bytes
+(`withUtf8Bom`; met de opslagworker ook de hash van die bytes), dus vóór de eerste lezing van het doel. Na het vastleggen
+leest de poging hiervoor niets meer uit de store; een flagwissel of een gewiste vingerafdruk verandert de toestemming
+niet. Verder is de route letterlijk die van main, met dezelfde lezingen, redenen en meldingen; tussen de laatste lezing
+en de bestandslaag gebeurt niets wat main daar niet doet (het gat van knownbug 2069). Opslaan als en export over een
+BOM-bestand blijven 'unreadable', net als elke andere BOM-versie op het eigen doel; zonder bekende versie ook Ctrl+S
+(knownbug 2358), en op de site (knownbug 2359). De
+merge houdt de BOM zelf, in het kopstuk. Proef van de regel: `check-ifc-bom-eigen-bestand.ts` tegen een opname van main
+(`scripts/proef/maak-main-bom-eigen-bestand.mjs` schrijft `tests/planning/fixtures/main-bom-eigen-bestand.json`; de
+gevallen staan in `bomEigenBestand.ts`). Verandert de writer of de opslagroute op main bewust, maak de opname dan
+opnieuw met een nieuwe `BASIS` en zeg dat in de PR.
 Proeven: `check-ifc-foreign-classify.ts`, `-open.ts`, `-target.ts`, `check-ifc-target-model-scan.ts` en de herleestoets.
 
 ### Opslaan als bij ontbrekend gebouwmodel (#804, PR 9e)

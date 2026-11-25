@@ -3820,6 +3820,24 @@ await check('Exporteren → IFC over een bestaande naam, de flag uit terwijl het
   } finally { await tidy(c); }
 });
 
+await check('2212: Ctrl+S op het eigen pad van een gebouwmodel met een UTF-8-BOM: de merge houdt de BOM, ook de tweede keer', async () => {
+  const source = new Uint8Array([0xef, 0xbb, 0xbf, ...bytes]), c = await opened(source);
+  try {
+    for (const round of ['eerste', 'tweede'] as const) {
+      if (round === 'tweede') renameTask(c, 'Tweede Ctrl+S met BOM');
+      clearNotices(c);
+      await c.store.getState().saveFile();
+      const output = new Uint8Array(readFileSync(c.path));
+      assert.deepEqual(errorKeys(c), [], `${round}: geen melding`);
+      assert.deepEqual([...output.subarray(0, 3)], [0xef, 0xbb, 0xbf], `${round}: de BOM staat er nog`);
+      assert.deepEqual(mergeProblems(source, output), [], `${round}: het gebouwmodel bytegelijk behouden`);
+      assert.equal(c.store.getState().isDirty, false, `${round}: niet meer gewijzigd`);
+      assert.deepEqual(files(c), ['model.ifc'], `${round}: geen hulpbestand`);
+    }
+    assert(latin1(c.path).includes('Tweede Ctrl+S met BOM'), 'de tweede bewerking staat in het bestand');
+  } finally { await tidy(c); }
+});
+
 ipc.dispose();
 rmSync(work, { recursive: true, force: true });
 console.log(`Eigen bestand vervangen: ${passed} geslaagd, ${failed} mislukt.`);

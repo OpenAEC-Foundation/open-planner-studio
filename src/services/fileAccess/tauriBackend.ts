@@ -4,7 +4,7 @@ import {
   isForbiddenPathError, writeUserFileTauri, writeNewUserBytesTauri,
 } from '@/services/fileAccess/atomicWrite';
 import { missingTarget, type FileIdentityFs } from './fileIdentity';
-import { scanForeignTargetSource, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
+import { scanForeignTargetSource, type OwnBomVersion, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { IFC_FOREIGN_SCAN_MAX_BYTES } from '@/services/ifc/foreign/foreignScan';
 import { compareTargetChunks, TARGET_CHUNK_BYTES, type SourceTargetContent } from './sourceTargetContent';
 import { compareKnownTarget } from './knownTargetContent';
@@ -62,10 +62,10 @@ async function openPathChunksTauri(path: string): Promise<PathChunksTauri | null
  * mislukte entiteit, of de tweede lezing vanaf het regel-verankerde `DATA;`, spoelt terug).
  * `null` uitsluitend bij bewezen ontbreken. Een bestaand of onzeker doel met een leesfout is 'unreadable'.
  */
-export async function scanTargetPathTauri(path: string): Promise<TargetForeignScan | null> {
+export async function scanTargetPathTauri(path: string, ownBomVersion: OwnBomVersion | null = null): Promise<TargetForeignScan | null> {
   const chunks = await openPathChunksTauri(path);
   if (chunks === null || chunks === 'unreadable') return chunks;
-  return scanForeignTargetSource(chunks);
+  return scanForeignTargetSource(chunks, { ownBomVersion });
 }
 
 export async function readTargetPathTauri(path: string): Promise<Uint8Array | null> {

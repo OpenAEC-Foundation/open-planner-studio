@@ -9,6 +9,8 @@ import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError
 import type { DocumentFileFormat } from './documentContract';
 import { versionGuarded } from './versionGuard';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
+import { utf8BomLength } from '@/services/ifc/foreign/stepScanner';
+import type { FileData } from '@/services/fileAccess';
 import type { TargetFingerprint } from './documentContract';
 import { ifcFullWriteBlocked } from './ifcForeignGuard';
 import type { IFCSaveSource, IFCWriteInput } from './ifcSaveInput';
@@ -56,13 +58,29 @@ export function documentSaveCompute(
 }
 
 export function writtenFingerprint(
-  featureFlags: FeatureFlags, format: DocumentFileFormat, output: IfcOutput, written?: Uint8Array,
+  featureFlags: FeatureFlags, format: DocumentFileFormat, output: IfcOutput, written?: FileData,
 ): WrittenFingerprint {
   if (output.prepared || !versionGuarded(featureFlags, format)) return null;
-  const bytes = written ?? output.bytes ?? new TextEncoder().encode(output.content);
-  const byteLength = bytes.byteLength;
-  return output.sha256 !== undefined ? { sha256: output.sha256, byteLength, origin: 'written' }
-    : precomputeSha256(bytes).then((sha256): TargetFingerprint => ({ sha256, byteLength, origin: 'written' }));
+  const data = written ?? output.bytes ?? output.content;
+  const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  const byteLength = bytes.byteLength, bom = bomMark(bytes);
+  const known = written === undefined || written === output.bytes ? output.sha256 : undefined;
+  return known !== undefined ? { sha256: known, byteLength, origin: 'written', ...bom }
+    : precomputeSha256(bytes).then((sha256): TargetFingerprint => ({ sha256, byteLength, origin: 'written', ...bom }));
+}
+
+export function bomMark(bytes: Uint8Array): { readonly utf8Bom?: true } {
+  return utf8BomLength(bytes) > 0 ? { utf8Bom: true } : {};
+}
+
+const UTF8_BOM = Uint8Array.of(0xef, 0xbb, 0xbf);
+
+export function withUtf8Bom(data: FileData): FileData {
+  if (typeof data === 'string') return `\uFEFF${data}`;
+  const bytes = new Uint8Array(UTF8_BOM.length + data.byteLength);
+  bytes.set(UTF8_BOM);
+  bytes.set(data, UTF8_BOM.length);
+  return bytes;
 }
 
 export class IfcWriteBlockedError extends Error {

@@ -170,6 +170,7 @@ check-i18n-tools.ts matrix
 check-icon-accent-text.ts matrix
 check-icon-family.ts matrix
 check-ifc-arity.ts matrix
+check-ifc-bom-eigen-bestand.ts los
 check-ifc-building-model-guard.ts matrix
 check-ifc-calendar-identity.ts matrix
 check-ifc-calendar-index.ts matrix
