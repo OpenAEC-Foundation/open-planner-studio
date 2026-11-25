@@ -15,7 +15,8 @@ dag-maand-jaar achter elkaar en leest dat met `parseFlexibleDate`, dat `parsePer
   leest als jaar-maand-dag; omdat het dagvakje hoogstens twee cijfers houdt, komt dat alleen via plakken voor
   (ADR 0461). Een datum die niet bestaat, zoals 31-02-2026, geeft `null`; in drie gevulde vakjes toont het veld dan
   bij het afronden een fout (ADR 0461).
-- Plakken leest ook dag-maand-jaar, los van de Datumnotatie: knownbug 2500. Een jaar van vier cijfers onder 0100 wordt
+- Plakken leest ook dag-maand-jaar, los van de Datumnotatie: knownbug 2500. Het weggehaalde commentaar noemde
+  dag-maand-jaar de gangbare volgorde voor de Nederlandse doelgroep. Een jaar van vier cijfers onder 0100 wordt
   20xx: knownbug 2503.
 - De hints in de vakjes komen uit één vertaalsleutel, `dateInput.placeholder`, die in dag-maand-jaar-volgorde hoort
   te staan (`dd-mm-jjjj`). `placeholders` splitst de hint op `-`, `/`, `.` en witruimte en geeft de drie delen per
