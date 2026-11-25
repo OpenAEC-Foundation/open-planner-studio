@@ -14,7 +14,7 @@ import {
 import {
   saveAiAutostart, saveAllowMixedDayHour, saveAutoFitColumns, saveBarSplitMode, saveCompressNonWorkdays,
   saveConstructionMode, saveDateNotation, saveDebugTerminalEnabled, saveDissolveSummaryMode, saveDocumentChromeStyle, saveDurationDisplay,
-  saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs, saveShowClassicViewControls, saveShowTaskTypes,
+  saveForeignChangesQuestion, saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs, saveShowClassicViewControls, saveShowTaskTypes,
   saveTimeNotation, saveUIFontFamily, saveUIFontScale, saveZoomSettings, startTheme,
 } from '@/utils/settingsStore';
 import { profileCountsWorkdays } from '@/utils/taskDuration';
@@ -23,6 +23,7 @@ import { AI_MODE_AVAILABLE, DOWNLOAD_STATS_AVAILABLE } from '@/utils/buildFlags'
 import { displayDate } from '@/utils/displayDate';
 import { localTodayIso } from '@/utils/dateUtils';
 import { FORMAT_NOTICE_KINDS } from '@/services/formatNoticeKinds';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { applyAutoCalcCPM, applySetting, applyTheme } from '../applySetting';
 import { LANGUAGE_OPTIONS, LanguageSelect } from '../settingControls';
 import {
@@ -217,6 +218,13 @@ const ENTRIES: readonly SettingEntry[] = [
     keywordsKey: 'settings.keywords.formatNotices', Control: FormatNoticesControl,
     binding: bind('formatNoticeHidden', saveFormatNoticeHidden),
     searchTexts: t => FORMAT_NOTICE_KINDS.map(kind => t(`formatNotice.formats.${kind}.name`)),
+  },
+  {
+    kind: 'toggle', id: 'foreignChangesQuestion', group: 'notices', labelKey: 'settings.foreignChangesQuestion',
+    hintKey: 'settings.foreignChangesQuestionHint', keywordsKey: 'settings.keywords.foreignChangesQuestion',
+    binding: bind('foreignChangesQuestion', saveForeignChangesQuestion),
+    requires: { met: s => ifcForeignContentEnabled(s.ui.featureFlags), reasonKey: 'settings.ifcForeignContent', hide: 'always' },
+    inputProps: { 'data-ops-setting-foreign-changes-question': '' },
   },
 
   // Geavanceerd

@@ -28,7 +28,7 @@ export function isBlockingDialogOpen(ui: UIState): boolean {
     ui.pendingSiteOpen !== null || ui.pendingSiteSave !== null ||
     // De schemavraag bij opslaan wacht op een keuze; de opslaanroute houdt intussen de
     // schrijfvergrendeling vast.
-    ui.pendingIfcSchemaQuestion !== null || ui.pendingPlanOnlyQuestion !== null ||
+    ui.pendingIfcSchemaQuestion !== null || ui.pendingPlanOnlyQuestion !== null || ui.pendingForeignChangesQuestion !== null ||
     // De vraag over te krappe ankers van afhankelijke projecten (stap 1.11) wacht op een keuze; de
     // opslaanroute houdt intussen de schrijfvergrendeling vast.
     ui.pendingDependentAnchorWarning !== null ||
@@ -52,5 +52,5 @@ export function isBlockingDialogOpen(ui: UIState): boolean {
  *  het wachten hangt dan aan het antwoord van de planner (#804 stap 3). */
 export function saveQuestionOpen(ui: UIState): boolean {
   return ui.pendingSiteSave !== null || ui.pendingSiteOpen !== null || ui.pendingIfcSchemaQuestion !== null
-    || ui.pendingDependentAnchorWarning !== null || ui.pendingPlanOnlyQuestion !== null;
+    || ui.pendingDependentAnchorWarning !== null || ui.pendingPlanOnlyQuestion !== null || ui.pendingForeignChangesQuestion !== null;
 }

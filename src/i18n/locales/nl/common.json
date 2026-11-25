@@ -517,6 +517,8 @@
     "demoTopbarAnimationHint": "Een rustige oranje glansgolf in de bovenbalk. Laat zien hoe een experimentele schakelaar werkt.",
     "ifcForeignContent": "IFC met gebouwmodel openen",
     "ifcForeignContentHint": "Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Je kunt Opslaan als naar een nieuw bestand, opslaan op de site, downloaden in de browser en Exporteren → IFC gebruiken, ook zonder gebouwmodel of met de resourcebibliotheek ernaast (dan met alleen de planning). In Chrome en Edge slaat Opslaan ook het geopende bestand zelf op. Wijzigt een ander programma dit bestand precies tijdens het opslaan, dan kan die wijziging verloren gaan. In de desktop-app slaat Opslaan het geopende bestand zelf op als het in je thuismap staat. Wijzigde een ander programma het bestand intussen, dan stopt het opslaan of bewaart de app die versie als aparte kopie naast het bestand; alleen een wijziging op precies hetzelfde ogenblik kan nog verloren gaan. Opslaan als over een ander bestaand bestand in je thuismap vervangt dat bestand op dezelfde manier, ook als het zelf een gebouwmodel of gegevens van een ander programma bevat. Ook een planning zonder gebouwmodel mag zo'n bestand vervangen. Exporteren → IFC vervangt op dezelfde manier een bestaand bestand dat je in het venster kiest, behalve het bestand van de planning zelf. Niet vervangen worden een bestand dat de app niet kan lezen en een bestand met een tweede naam (een link). Vlak voor het vervangen vergelijkt de app het bestand met de versie die ze na je keuze las: is het veranderd, dan stopt het opslaan en blijft het bestand zoals het is. Blijkt de versie die de app opzijzette toch anders, dan bewaart ze die als aparte kopie naast het bestand, met een melding. Herstel van het gebouwmodel na een crash vraagt toegang tot het oorspronkelijke bestand of een bewaarde kopie in de browser.",
+    "foreignChangesQuestion": "Vragen vóór opslaan als IFC-gegevens buiten de planning vervallen",
+    "foreignChangesQuestionHint": "Bij een bestand met een gebouwmodel. Staat dit uit, dan slaat de app meteen op en meldt het aantal daarna.",
     "ifcx": "IFCX openen en opslaan",
     "ifcxHint": "Opent een IFCX-bestand dat Open Planner Studio zelf schreef, en slaat zo'n bestand weer op als IFCX: met Opslaan, Opslaan als en Automatisch opslaan. IFCX is een nieuw formaat in ontwikkeling; een latere versie van de app kan een bestand dat je nu opslaat weigeren. De app bewaart nog niet alle gegevens in IFCX, zoals resources, toewijzingen en baselines; een planning met zulke gegevens slaat ze niet op als IFCX. Bewaar die met Exporteren → IFC. Een IFCX-bestand van een ander programma opent de app nog niet.",
     "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
@@ -670,6 +672,7 @@
       "mixedDayHour": "uren, dagen, duureenheid, urenplanning",
       "dissolveSummaryMode": "opheffen, samenvattingstaak, fase, subtaken, keten, relaties",
       "formatNotices": "uitleg, melding, importeren, openen, XER, MPP, P6, MS Project, CSV",
+      "foreignChangesQuestion": "opslaan, vragen, gebouwmodel, IFC, koppeling",
       "aiMode": "AI, MCP, assistent, Claude, bridge, koppeling",
       "aiAutostart": "AI, MCP, bridge, opstarten, automatisch",
       "debugTerminal": "debug, log, terminal, console, probleem",
@@ -2101,5 +2104,17 @@
     "writeRefused": "Het IFCX-bestand is niet geschreven. Deze planning bevat gegevens die de app nog niet in IFCX bewaart, of de controle na het schrijven vond een verschil. Bewaar de planning met Exporteren → IFC.",
     "flagOff": "Dit is een IFCX-bestand. Zet de experimentele functie IFCX openen en opslaan aan om het op te slaan, of sla de planning op als IFC met Opslaan als.",
     "nameMismatch": "Deze naam past niet bij het formaat van de planning. Kies een naam op .ifc voor IFC of op .ifcx voor IFCX. In dit bestand is niets geschreven."
+  },
+  "foreignChangesQuestion": {
+    "title": "Opslaan in {{file}}",
+    "titleNew": "Opslaan als",
+    "body_one": "{{count}} IFC-gegeven buiten de planning verwijst naar iets wat uit de planning is verwijderd. Bij opslaan wordt het aangepast of verwijderd.",
+    "body_other": "{{count}} IFC-gegevens buiten de planning verwijzen naar iets wat uit de planning is verwijderd. Bij opslaan worden ze aangepast of verwijderd.",
+    "bodyNew_one": "{{count}} IFC-gegeven buiten de planning verwijst naar iets wat uit de planning is verwijderd. In het nieuwe bestand wordt het aangepast of verwijderd. Het bestand dat je opende, verandert niet.",
+    "bodyNew_other": "{{count}} IFC-gegevens buiten de planning verwijzen naar iets wat uit de planning is verwijderd. In het nieuwe bestand worden ze aangepast of verwijderd. Het bestand dat je opende, verandert niet.",
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "dontAskAgain": "Niet meer vragen",
+    "dontAskAgainHint": "Weer aan te zetten in Instellingen → Meldingen."
   }
 }
