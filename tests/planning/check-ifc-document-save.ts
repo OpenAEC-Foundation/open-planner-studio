@@ -5000,6 +5000,40 @@ await check('vraag vóór opslaan: Annuleren in de vraag uit de sluitvraag bij a
   } finally { resetForeignChangesAsker(); quit.dispose(); unregister(); await clearRecovery(); }
 });
 
+const routeGuids = (data: Uint8Array | undefined) =>
+  [...new TextDecoder().decode(data).matchAll(/'(1KoppelingRoute\d{8})'/g)].map(m => m[1]).sort();
+
+await check('PR 7 en de vraag vóór opslaan: wissen, Ctrl+S, de vraag, Opslaan, dan Ctrl+Z en Ctrl+S zet de stukken terug zonder vraag; wissen, Ctrl+S, de vraag, Annuleren, Ongedaan maken via de knop: de volgende opslag vraagt niets', async () => {
+  for (const cancel of [false, true]) {
+    const route = await onHandle(store => ctrlS(store));
+    try {
+      const { store } = route;
+      askOn(store);
+      const asked = askerOn(store, () => cancel ? CANCEL_FOREIGN_CHANGES : SAVE_ANSWER);
+      store.getState().deleteTask(taskNamed(store, 'Set up site'));
+      const notice = deleteNotices(store)[0], action = notice?.action;
+      assert(action?.kind === 'undoHistoryEvent', 'de wismelding met de knop');
+      assert.equal(await route.write(), !cancel);
+      assert.equal(asked.length, 1, 'de vraag kwam');
+      assert(asked[0].count > 0);
+      const first = await route.written();
+      if (cancel) {
+        assert.equal(hash(first!), hash(LINKED), 'Annuleren schrijft niets');
+        assert.deepEqual(deleteNotices(store).map(n => n.id), [notice.id], 'de wismelding met de knop staat er nog');
+        store.getState().undoHistoryEvent(action.eventId);
+        store.getState().dismissNotification(notice.id);
+      } else {
+        assert.notDeepEqual(routeGuids(first), routeGuids(LINKED), 'Opslaan liet stukken van het andere programma vervallen');
+        store.getState().undo();
+      }
+      assert(store.getState().tasks.some(t => t.name === 'Set up site'), 'de taak is terug');
+      assert.notEqual(await route.write(), false);
+      assert.equal(asked.length, 1, 'geen tweede vraag: er vervalt niets');
+      assert.deepEqual(routeGuids(await route.written()), routeGuids(LINKED), 'de stukken van het andere programma staan er weer');
+    } finally { resetForeignChangesAsker(); await route.dispose(); }
+  }
+});
+
 rmSync(dir, { recursive: true, force: true });
 console.log(`Documentopslag: ${passed} geslaagd, ${failed} mislukt.`);
 if (failed) process.exitCode = 1;
