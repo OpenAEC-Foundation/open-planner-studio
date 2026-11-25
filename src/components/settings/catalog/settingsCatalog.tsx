@@ -8,6 +8,7 @@
 
 import { createDefaultUI } from '@/state/slices/uiSlice';
 import type { UIState, UITheme } from '@/state/slices/types';
+import type { AppState } from '@/state/appStore';
 import {
   BAR_SPLIT_MODES, DATE_NOTATIONS, DISSOLVE_SUMMARY_MODES, DURATION_DISPLAYS, TIME_NOTATIONS, UI_FONT_FAMILIES, UI_FONT_SCALES,
 } from '@/state/slices/types';
@@ -340,6 +341,14 @@ export function isSettingChanged(entry: SettingEntry, ui: UIState): boolean {
   const binding = entry.binding;
   if (!binding) return false;
   return !sameValue(ui[binding.field], defaultSettingValue(binding));
+}
+
+export function settingMet(entry: SettingEntry, state: AppState): boolean {
+  return !entry.requires || entry.requires.met(state);
+}
+
+export function settingHidden(entry: SettingEntry, met: boolean): boolean {
+  return entry.requires?.hide === 'always' && !met;
 }
 
 export function resetSetting(entry: SettingEntry): void {
