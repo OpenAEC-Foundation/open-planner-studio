@@ -12,31 +12,7 @@ import {
   type DayMeasureDurationRecords, type ExactFloatRecords, type ExactMinutesRecords,
 } from './dayMeasureIo';
 
-/**
- * IFC-pset-registry: het OPS_*-round-trip-contract met per pset één bron. Een typo in een naam of
- * een divergentie tussen write en read faalt anders STIL (de reader matcht gewoon niet).
- *
- *  - `PSET`: elke pset-NAAM als gedeelde constante. Writer én reader importeren die; nergens staat
- *    een los `'OPS_...'`-literal in de code (alleen in prozacommentaar).
- *  - `PER_TASK_PSETS`: de per-taak-psets die exact hetzelfde stramien volgen. Hun
- *    write- én read-kant zijn hier GECO-LOKEERD in één descriptor: `write(task)` levert de
- *    property-lijst (of `null`/`[]` = golden rule ⇒ niets schrijven), `apply(task, props)` zet de
- *    gelezen properties terug. De writer itereert over de lijst; de reader dispatcht per naam via
- *    `PER_TASK_PSET_BY_NAME`. Zo kunnen naam-koppeling én write/read-paring niet divergeren.
- *
- * De niet-taak-psets (ProjectSettings/StructureMeta/CustomFields/ActivityCodes op project-niveau;
- * Resource/Assignments per resource/taak-in-eigen-vorm; Baselines/SchedulingOptions op de
- * IfcWorkSchedule; Calendar per kalender) hebben elk een AFWIJKENDE vorm — project-globaal, een
- * autoritaire JSON-blob, of read-logica die cross-object-maps (typeByName/defByName/guidToTaskId)
- * nodig heeft. Die delen daarom alléén de NAAM-constante; hun write/read blijft in
- * ifcWriter/ifcReader. Over-abstractie zou daar niets winnen.
- *
- * Dit bestand importeert alleen uit `@/types` ⇒ geen import-cyclus met reader/writer (die
- * importeren úit dit bestand).
- */
 export const PSET = {
-  // Per-taak (met een descriptor in PER_TASK_PSETS).
-  /** Stabiel intern taak-id voor externe bronverversing over herhaald lezen en herschrijven heen. */
   TaskIdentity: 'OPS_TaskIdentity',
   Constraints: 'OPS_Constraints',
   ExternalLink: 'OPS_ExternalLink',
@@ -46,99 +22,43 @@ export const PSET = {
   TaskNotes: 'OPS_TaskNotes',
   TaskAppearance: 'OPS_TaskAppearance',
   Analysis: 'OPS_Analysis',
-  /** Werkonderbrekingen (`Task.splitGaps`) — één autoritatief JSON-veld, ExternalLink/TaskNotes-patroon. */
   Splits: 'OPS_TaskSplits',
-  /** Handmatig-gepland-vlag (`Task.manuallyScheduled`) — losse getypte prop, Hammock/Milestone-patroon. */
   Manual: 'OPS_ManualScheduling',
-  /** MSP's eigen resume/stop-instanten (`TaskTime.resume`/`stop`) — losse getypte props. */
   Resume: 'OPS_Resume',
-  /** Het timephased-venster (`Task.timephasedFinishFloor`/`timephasedStartAnchor`) — AFGELEIDE sturing,
-   * wordt bij een inhoudelijke bewerking weer ontkoppeld (zie `taskDefaults.ts`'s
-   * `clearTimephasedWindow`). NIET hetzelfde pset als `Timephased` hierboven
-   *  (dat draagt het PER-ASSIGNMENT `workWindowStart`/`Finish`-paar, een ander veld). */
   Window: 'OPS_TimephasedWindow',
-  /** `Task.timephasedDurationWalks` — AFWIJKENDE vorm (alleen naam gedeeld, geen
-   *  `PerTaskPset`-descriptor): `resourceCalendarId` is een kalender-verwijzing die bij inlezen een
-   *  ander id kan krijgen (afgeleid uit het GlobalId), dus write/read hebben allebei toegang tot de kalender-bibliotheek nodig — die
-   *  heeft de generieke `PerTaskPset`-vorm niet. Zie `ifcWriter.writeTimephasedDurationWalksMeta`/
-   *  `ifcReader.extractTimephasedDurationWalksMeta`. */
   DurationWalks: 'OPS_TimephasedDurationWalks',
-  /** De RAUWE, gedecodeerde .mpp-contourperiodes (`Task.timephasedContours`) — de bron ONDER het
-   *  timephased-venster; wordt NOOIT door een bewerking gewist. */
   Contours: 'OPS_TimephasedContours',
-  /** MSP's eigen Task Type + Effort-Driven-vlag (`Task.mspTaskType`/`effortDriven`) — puur data,
-   *  geen rekengedrag. */
   MspTaskType: 'OPS_MspTaskType',
-  /** De neutrale werkregel van de taak (`Task.workRule`). Eigen
-   *  pset naast `OPS_MspTaskType`: de importvelden blijven onaangeraakt, de regel is een afgeleide
-   *  die de gebruiker later los kan wijzigen. */
   WorkRule: 'OPS_WorkRule',
-  /** P6-bronidentiteit, voortgangsfamilie, verwacht einde en suspend/resume-firewall. */
   P6Progress: 'OPS_P6Progress',
-  /** Expliciete samenvattingsidentiteit voor een WBS-taak zonder kinderen. */
   Summary: 'OPS_Summary',
-  // Structuur/waarden op project- of taak-niveau (afwijkende vorm — alleen naam gedeeld).
   ProjectSettings: 'OPS_ProjectSettings',
   StructureMeta: 'OPS_StructureMeta',
-  /** Projectcatalogus voor eigen taaktypen, inclusief per-taak stabile id-map. */
   TaskTypes: 'OPS_TaskTypes',
   CustomFields: 'OPS_CustomFields',
   ActivityCodes: 'OPS_ActivityCodes',
-  // Per-resource / per-taak-assignment (afwijkende vorm — alleen naam gedeeld).
   Resource: 'OPS_Resource',
   Assignments: 'OPS_Assignments',
-  /** Per-assignment timephased-venster (`ResourceAssignment.workWindowStart`/`Finish`), eigen
-   *  JSON-blob-pset op de taak (zelfde `writeBaselineMeta`-vorm), NAAST (niet in) `OPS_Assignments`
-   *  — dat pipe-formaat blijft ongewijzigd. */
   Timephased: 'OPS_Timephased',
-  // Op de IfcWorkSchedule (autoritaire JSON-blob — alleen naam gedeeld).
   Baselines: 'OPS_Baselines',
   SchedulingOptions: 'OPS_SchedulingOptions',
-  /** Rekenprofielen: `{ id, baseId, conventions, overrides, name? }` — alle negenentwintig conventies opgelost plus de letterlijke afwijkingen. */
   SchedulingProfile: 'OPS_SchedulingProfile',
-  /** Heropen-beleid: `UnchangedSinceImport` op de IfcWorkSchedule — alleen geschreven als `true`
-   *  (golden rule: afwezig ⇒ `false`). Zie `ImportResult.importPristine`. */
   ImportProvenance: 'OPS_ImportProvenance',
-  /** Eén projectcontainer met de exacte oorspronkelijke XER-bytes. */
   XerSourceArchive: 'OPS_XerSourceArchive',
-  /** Selector welk XER-PROJECT het zelfstandige IFC-document vertegenwoordigt. */
   XerDocument: 'OPS_XerDocument',
-  /** #804 fixronde 1: alleen in een crashherstel-snapshot en een MCP-backup. Het document kwam uit een IFC-bestand met
-   *  een vreemd deel; lengte en SHA-256 van die bron, zonder bytes, en in een backup ook het doel (fixronde 3). */
   RecoveryForeignSource: 'OPS_RecoveryForeignSource',
-  /** Relatie-eigen XER-herkomst, als een geldige pset op de IfcWorkSchedule met relationele GUIDs.
-   *  IFC laat een IfcPropertySet niet rechtstreeks aan IfcRelSequence hangen; de GUIDs maken de
-   *  koppeling toch exact, zonder een schema-ongeldige relatie te serialiseren. */
   Sequences: 'OPS_Sequences',
-  // Per kalender (afwijkende vorm — alleen naam gedeeld).
   Calendar: 'OPS_Calendar',
-  // Resourcebibliotheek-pool als autoritatief JSON-blob op het IfcProject.
   Library: 'OPS_Library',
-  /** Het tijdmodel (`TimeModel`) op het IfcProject. */
   Project: 'OPS_Project',
 } as const;
 
-/** `{ Naam: 'Naam' }` uit een lijst namen: de code gebruikt `PROP.<pset>.Naam`, het register `Object.values`. */
 function propNames<const N extends string>(...names: N[]): { readonly [K in N]: K } {
   const out: Record<string, string> = {};
   for (const name of names) out[name] = name;
   return Object.freeze(out) as { readonly [K in N]: K };
 }
 
-/**
- * Register van #804 (ontwerp "Gebouwmodel behouden", §4.2): per pset in `PSET` de property-namen die de lezer echt
- * leest. Een andere property in zo'n pset is een vreemd lid. Ook oude namen die de writer niet meer schrijft maar de
- * lezer nog leest, staan hier.
- *
- * Writer en lezer gebruiken alleen deze constanten (afwijking 8 van fase 0): `PROP.Calendar.HoursPerDay`, nooit de
- * tekst `'HoursPerDay'`. `check-ifc-pset-register.ts` leest de bron van writer, lezer en descriptors en is rood bij een
- * propertynaam als losse tekst, en bij een nieuwe tekst in een vergelijking van de lezer. Een nieuwe property komt dus
- * eerst hier.
- *
- * Vier psets hebben (ook) sleutels uit de data; hun herkenner staat in `foreign/classify.ts`: `OPS_Assignments`
- * (GlobalId-sleutels), `OPS_CustomFields` en `OPS_ActivityCodes` (namen uit `OPS_StructureMeta` of de templates) en
- * `OPS_XerSourceArchive` (`ByteChunk000000`, `DiagnosticsChunk000000`).
- */
 export const PROP = {
   TaskIdentity: propNames('InternalTaskId'),
   Constraints: propNames('ConstraintType', 'ConstraintDate', 'Hard', 'ConstraintType2', 'ConstraintDate2', 'Deadline'),
@@ -166,10 +86,8 @@ export const PROP = {
     'InternalProjectId', 'wbsAutoNumber', 'DefaultTaskDurationUnit', 'DefaultWorkRule', 'StatusDate', 'ProgressMode',
     'ProjectStartDate', 'ProjectEndDate', 'CreatedAt', 'ModifiedAt', 'CompanyId', 'CompanyName', 'IfcSchemaConfirmed',
     'IfcSchemaUnconfirmed', 'P6ProjectCode', 'DependentProjectsFolder', 'AnchorsFromOpenDocuments',
-    // #804 §4.4: alleen als de writer geen eigen IfcProject schrijft (een model met een vreemd project).
     'ProjectName', 'ProjectDescription', 'Author', 'Organization',
   ),
-  // De lezer leest elke enkelvoudige property van deze pset als JSON; de writer schrijft er één.
   StructureMeta: propNames('structure'),
   TaskTypes: propNames('TaskTypes'),
   CustomFields: propNames(),
@@ -197,81 +115,41 @@ export const PROP = {
   Project: propNames('TimeModel'),
 } as const satisfies { readonly [K in keyof typeof PSET]: Readonly<Record<string, string>> };
 
-/** `OPS_XerSourceArchive` heeft ook sleutels uit de data: de stukken heten `<voorvoegsel><zes cijfers>`
- *  (`ByteChunk000000`, `DiagnosticsChunk000000`). Writer, lezer en indeling gebruiken deze drie. */
 export const XER_ARCHIVE_CHUNK = { bytes: 'ByteChunk', diagnostics: 'DiagnosticsChunk' } as const;
 export type XerArchiveChunkPrefix = typeof XER_ARCHIVE_CHUNK[keyof typeof XER_ARCHIVE_CHUNK];
 export function xerArchiveChunkName(prefix: XerArchiveChunkPrefix, index: number): string {
   return `${prefix}${String(index).padStart(6, '0')}`;
 }
-/** Is `name` een stuk van het archief (met dit voorvoegsel, of met een van de twee)? */
 export function isXerArchiveChunkName(name: string, prefix?: XerArchiveChunkPrefix): boolean {
   return (prefix ? [prefix] : Object.values(XER_ARCHIVE_CHUNK)).some(p =>
     name.length === p.length + 6 && name.startsWith(p) && /^\d{6}$/.test(name.slice(p.length)));
 }
 
-/** De namen van één pset uit `PROP`, in registervolgorde. */
 const propList = (names: Readonly<Record<string, string>>): readonly string[] => Object.freeze(Object.values(names));
 
-/**
- * Gedeelde STEP-waarde-formatters, hier zodat de per-taak-descriptors hun eigen getypte IFC-waarden
- * kunnen opbouwen. De writer importeert ze HIERvandaan — één bron, geen duplicaat dat kan divergeren.
- */
 export function ifcStr(s: string): string {
   if (!s) return '$';
   return `'${encodeStepText(s)}'`;
 }
 
-/**
- * JSON-tekst met elk niet-ASCII-teken als JSON-escape (`é` → `\u00e9`). Voor een JSON-pset
- * (notities, baselines, …): de STEP-codering heeft er dan niets meer aan behalve de backslash.
- * Reden (eigenaarsbesluit 2026-09-28, "beperken"): een app van vóór het formaatteken '0.2' leest
- * STEP-tekst letterlijk, en een `\X2\…\X0\` midden in JSON is voor JSON.parse een ongeldige
- * escape — die versie gooide dan het HELE blok weg (alle baselines, alle notities van een taak).
- * Met deze schrijfwijze blijft het blok daar geldig en ziet de gebruiker alleen `\u00e9`-tekst.
- * Een `"` of `\` in de JSON-waarden breekt daar nog wel: daarvoor bestaat geen schrijfwijze die
- * zowel correcte STEP is als door die oude lezer begrepen wordt. Onze lezer: JSON.parse decodeert
- * de escapes, verliesvrij (ook losse surrogaten).
- */
 export function asciiJson(json: string): string {
   return json.replace(/[\u007f-\uffff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
 }
 
-/** Een waarde als JSON-IFCTEXT-inhoud (`asciiJson`, dan STEP-gecodeerd). */
 export function ifcJson(value: unknown): string {
-  const json: string | undefined = JSON.stringify(value); // undefined bij een undefined waarde ⇒ `$`
+  const json: string | undefined = JSON.stringify(value);
   return ifcStr(json === undefined ? '' : asciiJson(json));
 }
 
-// ── Datums in een property (StatusDate, ProjectStartDate/-EndDate, ConstraintDate/-2, Deadline, een
-//    eigen veld van het type datum). Eén regel voor elke schrijver en elke lezer: zie
-//    docs/ifc-round-trip.md, "Datums in een property". ─────────────────────────────────────────────
-
-// Alleen de twee vormen van de store, en alleen met een kalenderdatum die bestaat: precies de waarden
-// die de lezer ongewijzigd teruggeeft (zie `readIfcDate`).
 const IFC_DATE_FORM = /^(\d{4})-(\d{2})-(\d{2})$/;
 const IFC_DATE_TIME_FORM = /^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d$/;
 
-/** Bestaat de kalenderdatum (geen maand 13, geen 30 februari)? Jaren onder 100 tellen niet mee:
- *  `Date.UTC` leest die als 19xx, en zo'n waarde gaat dus als tekst. */
 function isCalendarDate(m: RegExpExecArray): boolean {
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
   const date = new Date(Date.UTC(y, mo - 1, d));
   return date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
 }
 
-/**
- * Een datum uit de store als getypte waarde voor een property:
- *  - `YYYY-MM-DD` ⇒ `IFCDATE(...)`;
- *  - `YYYY-MM-DDTHH:mm` ⇒ `IFCDATETIME(...)` met seconden `:00`;
- *  - elke andere tekst ⇒ `IFCTEXT(...)`, letterlijk. Bijvoorbeeld een onleesbare tijd (`T7:00`), een
- *    spatie in plaats van `T`, seconden, een fractie of een zone (`+02:00`, uit een extensie of MCP),
- *    een datum die niet bestaat (`2026-13-45`), of leeg.
- * Zo geeft de lezer elke waarde ongewijzigd terug. IFCDATETIME met seconden of een zone zou de lezer
- * naar `HH:mm` afronden en de zone laten vallen; een onmogelijke datum zou hij doorrollen
- * (`2026-13-45` ⇒ 2027-02-14). IfcDate kent geen tijd, en een IfcDateTime zonder seconden is een
- * schemafout; als tekst blijft het bestand geldig en gaat niets verloren.
- */
 export function ifcDateValue(value: string): string {
   const date = IFC_DATE_FORM.exec(value);
   if (date && isCalendarDate(date)) return `IFCDATE(${ifcStr(value)})`;
@@ -280,42 +158,16 @@ export function ifcDateValue(value: string): string {
   return `IFCTEXT(${value ? ifcStr(value) : "''"})`;
 }
 
-/**
- * Leesrichting van {@link ifcDateValue}. `rawArg` is de ruwe STEP-waarde (`IFCDATETIME('…')`),
- * `value` de tekst erin.
- *  - IFCDATETIME ⇒ de store-vorm `YYYY-MM-DDTHH:mm` (`importStatusDate`). Onze writer schrijft daar
- *    alleen `YYYY-MM-DDTHH:mm:00`, dus dat komt ongewijzigd terug. Bij een bestand van een ander
- *    pakket valt een zone weg en geeft een onleesbare tijd de datum. Geen OPS-versie schreef
- *    IFCDATETIME bij ConstraintDate, Deadline of een eigen veld, dus geen oud bestand leest daardoor
- *    anders.
- *  - Elke andere waarde (IFCDATE, IFCTEXT) ⇒ `legacy(value)`: per veld precies wat de lezer altijd
- *    deed, ook met een tijd in IFCDATE. Dat verschilt per veld (standaard letterlijk; StatusDate
- *    houdt de tijd, de projectdatums nemen de datum), zodat elk oud bestand exact gelijk leest.
- */
 export function readIfcDate(rawArg: string, value: string, legacy: (v: string) => string = (v) => v): string {
   return /^IFCDATETIME\s*\(/i.test(rawArg.trim()) ? importStatusDate(value) : legacy(value);
 }
 
-/**
- * IFCAPPLICATION.Version van onze writer. Het is geen appversie maar een formaatteken: vanaf
- * '0.2' zijn stringliterals volgens ISO 10303-21 gecodeerd (`encodeStepText`). Bestanden van
- * vóór audit 2026-09-26 dragen '0.1' en schreven tekst letterlijk; de lezer decodeert die niet.
- */
 export const OPS_APP_VERSION = '0.2';
 export const OPS_LEGACY_LITERAL_APP_VERSION = '0.1';
 
-// Letterlijk toegestaan: afdrukbaar ASCII (0x20–0x7E) behalve de apostrof en de backslash.
 const STEP_PLAIN = /^[\x20-\x26\x28-\x5B\x5D-\x7E]*$/;
 const hex = (n: number, width: number) => n.toString(16).toUpperCase().padStart(width, '0');
 
-/**
- * Tekst als inhoud van een STEP-stringliteral (ISO 10303-21 §6.4.3, "Unicode-string"): `'` wordt
- * `''`, `\` wordt `\\`, en elk teken buiten afdrukbaar ASCII (ook regeleindes en tabs) wordt
- * `\X2\hhhh…\X0\` (UTF-16-eenheden binnen het BMP) of `\X4\hhhhhhhh…\X0\` (tekens daarbuiten, bv.
- * emoji). Zonder die codering tonen andere IFC-pakketten namen verminkt, en kan een backslash in
- * een naam het bestand voor hen onleesbaar maken (audit 2026-09-26). De tegenhanger is
- * `decodeStepText` in de lezer.
- */
 export function encodeStepText(s: string): string {
   if (STEP_PLAIN.test(s)) return s;
   const parts: string[] = [];
@@ -347,14 +199,13 @@ export function encodeStepText(s: string): string {
       }
       parts.push(run + '\\X0\\');
     } else {
-      // Een losse surrogaathelft komt hier ook terecht: als UTF-16-eenheid, dus verliesvrij.
       let run = '\\X2\\';
       while (i < n) {
         const q = s.charCodeAt(i);
         if (q >= 0x20 && q <= 0x7E) break;
         if (q >= 0xD800 && q <= 0xDBFF && i + 1 < n) {
           const lo = s.charCodeAt(i + 1);
-          if (lo >= 0xDC00 && lo <= 0xDFFF) break; // echt astraal teken: eigen \X4\-reeks
+          if (lo >= 0xDC00 && lo <= 0xDFFF) break;
         }
         run += hex(q, 4);
         i++;
@@ -368,13 +219,6 @@ export function ifcBool(b: boolean): string {
   return b ? '.T.' : '.F.';
 }
 
-/**
- * Een getal als STEP-REAL (ISO 10303-21 §6.3.3: `[teken] cijfers "." [cijfers] [E [teken] cijfers]`).
- * De decimale punt is verplicht: `5` is een INTEGER en dus geen geldige waarde voor een REAL-type als
- * `IfcReal` of `IfcMonetaryMeasure` (IfcOpenShell-validatie 2026-10-13: 158 fouten in de voorbeelden).
- * Basis is de kortste exacte vorm (`String`), dus `parseFloat` leest exact hetzelfde getal terug:
- * `5` ⇒ `5.`, `2.5` ⇒ `2.5`, `1e-7` ⇒ `1.E-7`. STEP kent geen NaN of oneindig: dan `undefined`.
- */
 export function stepReal(n: number): string | undefined {
   if (!Number.isFinite(n)) return undefined;
   const [mantissa, exponent] = String(n).split('e');
@@ -382,75 +226,43 @@ export function stepReal(n: number): string | undefined {
   return exponent === undefined ? withPoint : `${withPoint}E${exponent}`;
 }
 
-/**
- * Getypte REAL-waarde voor een select als `IfcValue`, bv. `IFCREAL(5.)`. Een niet-eindig getal heeft
- * geen STEP-vorm; dan `$` (geen waarde). Gebruik dit alleen op een OPTIONAL plek, zoals
- * `IfcPropertySingleValue.NominalValue`. De lezer behandelt `$` daar gelijk aan het vroegere
- * `IFCREAL(NaN)`: geen getal, dus de standaardwaarde.
- */
 export function ifcTypedReal(type: 'IFCREAL' | 'IFCMONETARYMEASURE', n: number): string {
   const real = stepReal(n);
   return real === undefined ? '$' : `${type}(${real})`;
 }
 
-/** Eén IFCPROPERTYSINGLEVALUE binnen een pset. `value` is de REEDS-geformatteerde getypte IFC-waarde
- *  (bv. `IFCLABEL('SNET')`); de writer verpakt 'm als `IFCPROPERTYSINGLEVALUE(name,$,value,$)`. */
 export interface PropSpec {
   name: string;
   value: string;
 }
 
-/** Een gelezen property zoals de reader 'm aanlevert: naam + reeds-geparste waarde, en de ruwe
- *  STEP-waarde (`IFCDATE('…')`) voor wie het type nodig heeft ({@link readIfcDate}). */
 export interface ReadProp {
   name: string;
   value: unknown;
   raw: string;
 }
 
-/** Descriptor voor één per-taak-pset: NAAM + GUID-seeds + geco-lokeerde write/read. */
-/** Wat de writer per taak berekent en een descriptor niet zelf kan weten (kalender, schrijfvorm). */
 export interface PerTaskWriteOptions {
-  /** Losse mijlpaal op het einde van de werkdag (D7, `OPS_Milestone.AtDayEnd`). */
   atDayEnd?: boolean;
-  /** Records `[dagen, geschreven minuten]` voor de IfcTaskTime-duren die als `PT…` gingen (T21). */
   dayMeasureDurations?: DayMeasureDurationRecords;
-  /** Exacte speling naast de hele dagen in IfcTaskTime (T5). */
   exactFloat?: ExactFloatRecords;
-  /** Records `[exacte minuten, geschreven minuten]` voor een urenmaat-duur of -rest met een breuk (T14). */
   exactMinutes?: ExactMinutesRecords;
 }
 
 export interface PerTaskPset {
   name: string;
-  /** ifcGuid-seed-prefix voor de IFCPROPERTYSET-GlobalId (writer appended `task.id`). */
   psetSeed: string;
-  /** ifcGuid-seed-prefix voor de IFCRELDEFINESBYPROPERTIES-GlobalId. */
   relSeed: string;
-  /** De property-namen die `apply` (of, bij `OPS_TaskIdentity`, de lezer vooraf) echt leest: het
-   *  register van #804 §4.2. Een andere property in deze pset is een vreemd lid. Ook oude namen die de
-   *  writer niet meer schrijft maar de lezer nog leest, staan hier. */
   readProps: readonly string[];
-  /** Golden rule: `null` of lege lijst ⇒ niets geschreven. */
   write(task: Task, options?: PerTaskWriteOptions): PropSpec[] | null;
-  /** Zet de gelezen (reeds naar {name,value} geparste) IFCPROPERTYSINGLEVALUE-props terug op de taak. */
   apply(task: Task, props: ReadProp[]): void;
 }
 
-/** Geldige constraint-types (writer schrijft ASAP niet; reader valideert hiertegen). */
 const CONSTRAINT_VALID: ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
 
-/**
- * De per-taak-psets. VOLGORDE IS BINDEND: de writer schrijft ze in deze volgorde, zodat de
- * STEP-uitvoer stabiel blijft. De reader dispatcht op naam en is volgorde-ongevoelig.
- */
 const milestonesAtDayEnd = new WeakSet<Task>();
-/** Alleen een leeshint van dit bestand; reist niet mee naar de store. */
 export const milestoneWasAtDayEnd = (task: Task): boolean => milestonesAtDayEnd.has(task);
 
-/** Gelezen records van de dagenmaat en de exacte speling. Alleen een leeshint van dit bestand, net als
- *  `milestonesAtDayEnd`: de lezer past ze toe in een eigen pas (`applyTaskTimeRecords` in ifcReader),
- *  omdat de leesregel de RUWE IfcTaskTime-slots en de kalender van de taak nodig heeft. */
 const dayMeasureDurationsRead = new WeakMap<Task, DayMeasureDurationRecords>();
 const exactFloatRead = new WeakMap<Task, ExactFloatRecords>();
 const exactMinutesRead = new WeakMap<Task, ExactMinutesRecords>();
@@ -458,7 +270,6 @@ export const readDayMeasureDurations = (task: Task): DayMeasureDurationRecords |
 export const readExactFloat = (task: Task): ExactFloatRecords | undefined => exactFloatRead.get(task);
 export const readExactMinutes = (task: Task): ExactMinutesRecords | undefined => exactMinutesRead.get(task);
 
-/** Records als JSON-object in een vaste sleutelvolgorde (byte-stabiel). */
 function recordsJson<K extends string>(keys: readonly K[], records: Partial<Record<K, unknown>>): Record<string, unknown> | null {
   const out: Record<string, unknown> = {};
   for (const key of keys) if (records[key] !== undefined) out[key] = records[key];
@@ -466,9 +277,6 @@ function recordsJson<K extends string>(keys: readonly K[], records: Partial<Reco
 }
 
 export const PER_TASK_PSETS: PerTaskPset[] = [
-  // 0. Stabiele taakidentiteit. De reader consumeert deze property al vóór `extractTasks`, omdat
-  //    relaties en alle latere psets meteen het definitieve taak-id nodig hebben. `apply` is daarom
-  //    bewust een no-op; de descriptor blijft wél de enige bron voor naam en schrijfvorm.
   {
     name: PSET.TaskIdentity, psetSeed: 'pset_tid_', relSeed: 'rel_tid_',
     readProps: propList(PROP.TaskIdentity),
@@ -476,11 +284,8 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       return [{ name: PROP.TaskIdentity.InternalTaskId, value: `IFCTEXT(${ifcStr(task.id)})` }];
     },
     apply() {
-      // Al toegepast door extractTaskIdentityByStepId vóór de taakobjecten worden gebouwd.
     },
   },
-  // 1. Datum-constraint (+ harde pin + secundaire, P6-native soft) + deadline. IfcTaskTime
-  //    heeft geen constraint-/deadline-slots. ASAP (default) wordt niet geschreven.
   {
     name: PSET.Constraints, psetSeed: 'pset_cst_', relSeed: 'rel_cst_',
     readProps: propList(PROP.Constraints),
@@ -504,7 +309,6 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       let ctype: string | undefined; let cdate: string | undefined; let hard = false;
       let ctype2: string | undefined; let cdate2: string | undefined;
       for (const { name, value, raw } of props) {
-        // Hard is een IFCBOOLEAN — niet overslaan met de string-guard hieronder.
         if (name === PROP.Constraints.Hard) { if (value === true) hard = true; continue; }
         if (typeof value !== 'string') continue;
         if (name === PROP.Constraints.ConstraintType) ctype = value;
@@ -520,13 +324,11 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
           ...(hard ? { hard: true } : {}),
         };
       }
-      // Secundaire constraint is altijd soft (geen hard-veld).
       if (ctype2 && CONSTRAINT_VALID.includes(ctype2 as ConstraintType)) {
         task.constraint2 = { type: ctype2 as ConstraintType, ...(cdate2 ? { date: cdate2 } : {}) };
       }
     },
   },
-  // 2. Externe (cross-project) dependencies als één autoritatief JSON-veld.
   {
     name: PSET.ExternalLink, psetSeed: 'pset_extl_', relSeed: 'rel_extl_',
     readProps: propList(PROP.ExternalLink),
@@ -539,15 +341,12 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       for (const { name, value } of props) {
         if (name !== PROP.ExternalLink.Links || typeof value !== 'string' || !value) continue;
         try {
-          // Alleen koppelingen die de app aankan (`storedExternalLinks`); een kapotte liet laden,
-          // rekenen en de relatiecel vastlopen.
           const links = storedExternalLinks(JSON.parse(value));
           if (links) task.externalLinks = links;
-        } catch { /* corrupte JSON: negeren i.p.v. de load te breken. */ }
+        } catch { }
       }
     },
   },
-  // 3. Hammock/LOE-vlag (geen native IfcTaskTypeEnum-waarde).
   {
     name: PSET.Hammock, psetSeed: 'pset_hmk_', relSeed: 'rel_hmk_',
     readProps: propList(PROP.Hammock),
@@ -558,7 +357,6 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       for (const { name, value } of props) if (name === PROP.Hammock.IsHammock && value === true) task.isHammock = true;
     },
   },
-  // 4. Mijlpaalsoort + verplicht-vlag (IfcTaskTypeEnum kent geen start/finish-onderscheid).
   {
     name: PSET.Milestone, psetSeed: 'pset_ms_', relSeed: 'rel_ms_',
     readProps: propList(PROP.Milestone),
@@ -580,10 +378,6 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 5. Nivelleer-vertraging (geen native per-taak-slot; undefined/0 schrijft niets), plus de
-  //    subdag-precisie (`levelingDelayMinutes`/`levelingDelayElapsed`) als twee optionele props die
-  //    alleen verschijnen wanneer ze gezet zijn. Een taak met alleen `levelingDelay` (hele werkdagen)
-  //    schrijft ÉÉN property.
   {
     name: PSET.Leveling, psetSeed: 'pset_lvl_', relSeed: 'rel_lvl_',
     readProps: propList(PROP.Leveling),
@@ -598,8 +392,6 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
     },
     apply(task, props) {
       for (const { name, value } of props) {
-        // Boolean-guard vóór een eventuele string-guard (precedent: `Hard` in PSET.Constraints) —
-        // hier zijn alle drie de props al zelf-discriminerend per naam, dus geen gedeelde continue-guard.
         if (name === PROP.Leveling.LevelingDelay) {
           if (typeof value === 'number' && Number.isFinite(value)) task.levelingDelay = Math.round(value);
         } else if (name === PROP.Leveling.LevelingDelayMinutes) {
@@ -610,7 +402,6 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 6. Taak-aantekeningen (checklist) als één autoritatief JSON-veld.
   {
     name: PSET.TaskNotes, psetSeed: 'pset_notes_', relSeed: 'rel_notes_',
     readProps: propList(PROP.TaskNotes),
@@ -625,11 +416,10 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
         try {
           const parsed = JSON.parse(value);
           if (Array.isArray(parsed) && parsed.length > 0) task.notes = parsed;
-        } catch { /* corrupte JSON: negeren i.p.v. de load te breken. */ }
+        } catch { }
       }
     },
   },
-  // 7. Taak-kleur (IfcTask heeft geen native kleur-attribuut).
   {
     name: PSET.TaskAppearance, psetSeed: 'pset_appear_', relSeed: 'rel_appear_',
     readProps: propList(PROP.TaskAppearance),
@@ -640,11 +430,6 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       for (const { name, value } of props) if (name === PROP.TaskAppearance.Color && typeof value === 'string' && value) task.color = value;
     },
   },
-  // 8. Analyse-uitvoer. De writer schrijft hier alleen de exacte speling (`ExactFloat`, alleen uren
-  //    §3.4, T5): IfcTaskTime draagt de speling in hele dagen, dit record de exacte dagen en de minuten.
-  //    Interfererende float, bijna-kritiek en float-path schrijft hij bewust NIET meer (afgeleide
-  //    runCPM-uitvoer, zie `ifcWriter.ts` bij `emitPerTaskPsets`); de lezer leest ze nog uit oudere
-  //    bestanden. Golden rule: zonder record geen pset.
   {
     name: PSET.Analysis, psetSeed: 'pset_ana_', relSeed: 'rel_ana_',
     readProps: propList(PROP.Analysis),
@@ -664,9 +449,6 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 9. Werkonderbrekingen (`Task.splitGaps`, o.a. uit de timephased-werksegmenten van .mpp).
-  //    ExternalLink/TaskNotes-patroon: één autoritatief JSON-veld, golden rule (leeg/afwezig ⇒ niets
-  //    geschreven), corrupte of verkeerd-gevormde JSON wordt genegeerd i.p.v. de load te breken.
   {
     name: PSET.Splits, psetSeed: 'pset_splits_', relSeed: 'rel_splits_',
     readProps: propList(PROP.Splits),
@@ -685,20 +467,14 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
             && typeof (g as TaskSplitGap).afterMinutes === 'number'
             && typeof (g as TaskSplitGap).gapMinutes === 'number';
           if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(isValidGap)) {
-            // `source` is een GESLOTEN verzameling (`'leveling'`
-            // en `'user'`). Een onbekende waarde (handgemaakt/vijandig IFC) wordt WEGGELATEN — het
-            // gat zelf blijft staan, zelfde conservatieve lat als de corrupte-JSON-catch hieronder:
-            // liever een gat zonder herkomst dan een geweigerde load.
             task.splitGaps = parsed.map(g => g.source === 'leveling' || g.source === 'user'
               ? { afterMinutes: g.afterMinutes, gapMinutes: g.gapMinutes, source: g.source }
               : { afterMinutes: g.afterMinutes, gapMinutes: g.gapMinutes });
           }
-        } catch { /* corrupte JSON: negeren i.p.v. de load te breken. */ }
+        } catch { }
       }
     },
   },
-  // 10. Handmatig-gepland-vlag (`Task.manuallyScheduled`, gewoon taakveld zoals isHammock, altijd
-  //     round-trippend). Kopieert het Hammock-stramien (één boolean, golden rule).
   {
     name: PSET.Manual, psetSeed: 'pset_man_', relSeed: 'rel_man_',
     readProps: propList(PROP.Manual),
@@ -707,16 +483,10 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
     },
     apply(task, props) {
       for (const { name, value } of props) {
-        // Boolean-guard (precedent: `Hard` in PSET.Constraints) — hier is er maar één prop, maar
-        // dezelfde vorm aanhouden voorkomt dat een latere uitbreiding met een string-prop de
-        // boolean per ongeluk achter een `typeof value !== 'string'`-continue verstopt.
         if (name === PROP.Manual.ManuallyScheduled) { if (value === true) task.manuallyScheduled = true; }
       }
     },
   },
-  // 11. MSP's eigen resume/stop-instanten (`TaskTime.resume`/`stop`).
-  //     Losse getypte props, zelfde vorm als `Deadline` in PSET.Constraints (optionele ISO-datum(tijd)
-  //     als IFCTEXT — geen aparte dag/uur-typering nodig, de string is al in de juiste vorm).
   {
     name: PSET.Resume, psetSeed: 'pset_resume_', relSeed: 'rel_resume_',
     readProps: propList(PROP.Resume),
@@ -734,16 +504,6 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 12. Het timephased-venster, ALLEEN `timephasedFinishFloor`/`timephasedStartAnchor` (twee platte
-  //     ISO-strings, geen cross-object-verwijzing). AFGELEIDE sturing:
-  //     `taskDefaults.ts`'s `clearTimephasedWindow` wist ze bij een inhoudelijke bewerking, dus een
-  //     bewerkt-en-opnieuw-opgeslagen taak schrijft dan geen (of minder) props hier — dat is het
-  //     bedoelde gedrag, niet een gat. `timephasedDurationWalks` NIET hier: dat veld draagt
-  //     `resourceCalendarId`, een APP-INTERNE kalender-verwijzing die bij inlezen een ander id
-  //     kan krijgen (afgeleid uit het GlobalId) — een generieke `PerTaskPset` heeft geen toegang tot de kalender-
-  //     bibliotheek om die verwijzing (via de kalendernaam, de natuurlijke sleutel) te vertalen.
-  //     Zie `writeTimephasedDurationWalksMeta`/`extractTimephasedDurationWalksMeta` (eigen, kleine
-  //     JSON-pset `OPS_TimephasedDurationWalks`, spiegelt `OPS_Baselines`' taskId-GUID-remap-precedent).
   {
     name: PSET.Window, psetSeed: 'pset_win_', relSeed: 'rel_win_',
     readProps: propList(PROP.Window),
@@ -760,10 +520,6 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 13. De RAUWE, gedecodeerde contourperiodes
-  //     (`Task.timephasedContours`). Eén autoritatief JSON-veld, ExternalLink/TaskNotes/Splits-
-  //     patroon — NOOIT gewist door een edit (dat is precies waarom dit een APART pset is van
-  //     `Window` hierboven, dat wél kan leeglopen).
   {
     name: PSET.Contours, psetSeed: 'pset_contours_', relSeed: 'rel_contours_',
     readProps: propList(PROP.Contours),
@@ -782,7 +538,6 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       const isValidContour = (c: unknown): c is TaskTimephasedContour =>
         !!c && typeof c === 'object'
         && (typeof (c as TaskTimephasedContour).resourceUid === 'number' || (c as TaskTimephasedContour).resourceUid === null)
-        // Optioneel OPS-resource-id; afwezig blijft geldig (oudere bestanden).
         && ((c as TaskTimephasedContour).resourceId === undefined || typeof (c as TaskTimephasedContour).resourceId === 'string')
         && Array.isArray((c as TaskTimephasedContour).periods)
         && (c as TaskTimephasedContour).periods.every(isValidPeriod);
@@ -793,13 +548,10 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
           if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(isValidContour)) {
             task.timephasedContours = parsed;
           }
-        } catch { /* corrupte JSON: negeren i.p.v. de load te breken. */ }
+        } catch { }
       }
     },
   },
-  // 14. MSP's Task Type + Effort-Driven-vlag. Losse
-  //     getypte props, zelfde vorm als PSET.Manual (boolean-guard vóór de string-guard, precedent:
-  //     `Hard` in PSET.Constraints).
   {
     name: PSET.MspTaskType, psetSeed: 'pset_mtt_', relSeed: 'rel_mtt_',
     readProps: propList(PROP.MspTaskType),
@@ -819,9 +571,6 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 15. Precies de vijf velden die P6-voortgang en de resume-firewall na save/reload
-  //     betekenisvast houden. Een smalle per-taak-pset; het ruwe XER-archief is `XerSourceArchive`.
-  //     Golden rule: een taak zonder één van deze velden schrijft geen pset.
   {
     name: PSET.P6Progress, psetSeed: 'pset_p6prog_', relSeed: 'rel_p6prog_',
     readProps: propList(PROP.P6Progress),
@@ -857,8 +606,6 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 16. Expliciete WBS-identiteit — nodig om een lege PROJWBS-samenvatting door IFC te bewaren.
-  //     Alleen `true` schrijft iets.
   {
     name: PSET.Summary, psetSeed: 'pset_sum_', relSeed: 'rel_sum_',
     readProps: propList(PROP.Summary),
@@ -873,13 +620,6 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 17. De neutrale werkregel. Zelfde vorm als 14; `WORK_RULES` (satisfies-afgedwongen lijst) is de
-  //     geldigheidscheck, een onbekende waarde blijft stil weg. Staat NAAST
-  //     `OPS_MspTaskType` en `OPS_P6Progress`: de importvelden blijven onaangeraakt, de regel is
-  //     een afgeleide die de gebruiker later los kan wijzigen.
-  //     Daarnaast de records van de dagenmaat voor duur, rest en werkelijke duur (`DayMeasureDurations`,
-  //     alleen uren §3.10, T21) en de exacte urenmaat voor duur en rest (`ExactMinutes`, T14): de
-  //     werkregelbrug beheert duur en werk, en er komt geen nieuwe pset.
   {
     name: PSET.WorkRule, psetSeed: 'pset_wrl_', relSeed: 'rel_wrl_',
     readProps: propList(PROP.WorkRule),
@@ -908,22 +648,15 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   },
 ];
 
-/** Naam → descriptor, voor de reader-dispatch in `extractStructure`. */
 export const PER_TASK_PSET_BY_NAME: Map<string, PerTaskPset> =
   new Map(PER_TASK_PSETS.map(d => [d.name, d]));
 
-/**
- * Het register (zie `PROP`), deel 2: per pset ZONDER descriptor in `PER_TASK_PSETS` de property-namen die de lezer echt
- * leest. Samen met `readProps` van de descriptors dekt dit elke naam in `PSET`. Afgeleid uit `PROP`: geen eigen lijst.
- */
 export const OWN_PSET_PROPERTY_NAMES: Readonly<Record<string, readonly string[]>> = Object.freeze(Object.fromEntries(
   (Object.keys(PROP) as (keyof typeof PROP)[])
     .filter(key => !PER_TASK_PSET_BY_NAME.has(PSET[key]))
     .map(key => [PSET[key], propList(PROP[key])]),
 ));
 
-/** De property-set-templates die de writer schrijft (`writeStructure`), gedeclareerd aan het project. */
-/** Achtervoegsel van de extra property in `OPS_ActivityCodes` die het waarde-id draagt (alleen bij dubbele codetekst in één type). */
 export const ACTIVITY_CODE_ID_SUFFIX = ' #id';
 
 export const OWN_TEMPLATE_NAMES: readonly string[] = [PSET.CustomFields, PSET.ActivityCodes];
