@@ -36,9 +36,9 @@ alleen datums loopt via de dagsleep (ADR 0373), die begin en einde gelijk versch
   (ADR 0375).
 - `check-milestone-drag.ts` roept de rekenstappen rechtstreeks aan en speelt het gebaar na met de echte store
   (dezelfde velden, kant en SNET als de hook, zonder compressie in de ketenstap), gevolgd door F5; het roept de hook
-  niet aan. Het vergelijkt het moment na F5 met het neergezette moment. Met een voorganger (FS of FF) sleept het
-  alleen naar rechts, één en twee stappen; zonder voorganger ook één stap naar links, vanaf een week na de
-  projectstart. Slepen vóór de grens van de voorganger slaat het bewust over, omdat F5 de mijlpaal daar terugzet. De
+  niet aan. Het vergelijkt het moment na F5 met het neergezette moment. De matrix toetst alleen bewegingen naar
+  rechts, met en zonder voorganger (FS of FF). Slepen vóór de grens van de voorganger slaat het bewust over, omdat F5
+  de mijlpaal daar terugzet. De
   24/7-gevallen toetsen de B6-landing van één dag plus een uur onder het OPS-profiel en middernacht onder P6.
   `tests/browser/mijlpalenreeks.spec.ts` sleept een groepsruitje met de muis en controleert dat beide leden op
   dezelfde nieuwe dag staan.
