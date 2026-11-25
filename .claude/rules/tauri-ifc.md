@@ -258,26 +258,22 @@ van een pset, template of relatie niet. Een pset of `IfcRelDeclares` met een nie
 vreemde leden (die de merge schrijft om ze te bewaren) is geen groep; een lege lijst of minstens één eigen lid wel. Een slot dat (b) terugzette, toetst (c) apart (hieronder, per slot). Niet getoetst: een groep waarin (c) zo'n slot niet eenduidig aanwijst, en de bronbytes zelf.
 Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren. Proef: `check-ifc-foreign-eigen-uitvoer.ts`.
 
-**De toets op de taaktijden** (knownbug 2231, fixronde 1 van #1216): de controle na openen ziet wat er in het geschreven
-bestand staat; geen bron buiten het slot kan een geschreven datum of een ontbrekend slot voor haar verbergen. Alleen voor
-uitvoer die de writer zelf schreef (met `own`; de bronbytes zelf terug, stuk 1, niet), direct na de ongewijzigde
-vergelijking na heropenen, met dezelfde soort `planning-na-openen`. Drie delen, in `taskTimeLineProblem` en `checkedBytes`
-(`mergeWriter.ts`): (1) elk slot van de `IFCTASKTIME` van elke taak staat letterlijk zoals de merge het schreef
-(`own.taskTimes`: de momentopname met de bronvormregels en de bronwaarden van (b)); in een echte opslag ziet dit alleen een
-verschil tussen de geschreven regels en de bytes. (2) Elk gevuld slot betekent wat de lezer van de taak maakt: de writer
-schrijft de taaktijd opnieuw uit `parsed` (in de bronvorm van de uitvoer, zoals (c), met de slots die de momentopname
-weglaat), en per slot vergelijkt `taskTimeSlotMeaning` (`foreign/taskTimeMeaning.ts`, de leesregel van het slot uit
-`IFC_TASKTIME_SLOTS`, datum op de minuut, duur in dagen zoals de lezer rekent, aanwezigheid waar de lezer die bijhoudt)
-de twee; een bronwaarde van (b) (`own.sourceTokens`) telt hier niet. Zo verbergt geen afleiding in de lezer een geschreven
-waarde: de voortgangsregels (`normalizeImportedProgress`, `applyRemainingDuration`), de statustijd die de lezer uit
-`OPS_ProjectSettings` neemt, een weggelaten slot dat gevuld is. (3) `slotReading` (`ifcMergePlanning.ts`): heeft de
-lezing een bron met voorrang op de slots (nu alleen de datums uit het XER-bronarchief, `recordedTimes`), dan opent de
-controle de uitvoer ook zonder die bron en vergelijkt ze met het domein. Delen (2) en (3) zien ook een fout die de writer
-zelf maakte. Grenzen: buiten "datums zoals opgeslagen" herberekent het laden de rekenslots, dus een andere waarde daar ziet
-de controle niet (knownbug 2360); een leeg slot dat de writer zelf verkeerd liet en dat de lezer tot dezelfde waarde
-afleidt, ziet alleen (1) (knownbug 2361). Proef: `check-ifc-foreign-opgeslagen-datums.ts` (de eigenschapsproef: per
-stand en per tijdslot een kopie met een andere waarde en met `$`, eens alleen in de bytes en eens zoals de writer het
-schreef).
+**De toets op de taaktijden** (knownbug 2231, fixronde 2 van #1216). De maat is "niet blinder dan main": geen bron buiten
+het bestand mag iets verbergen wat de controle van main wel ziet. Binnen "datums zoals opgeslagen" weigerde main elke opslag,
+dus daar is deze toets de bewaker; buiten de modus blijft de controle die van main (knownbug 2360). Alleen voor uitvoer die de
+writer zelf schreef, in de modus (`own.domain.recordedSourceFormat`), direct na de ongewijzigde vergelijking na heropenen,
+met dezelfde soort `planning-na-openen`. `taskTimeSlotProblem` (`foreign/taskTimeExpectation.ts`) vergelijkt per taak en per
+tijdslot (argument 3 tot en met 19 van `IFCTASKTIME`) wat er geschreven staat met wat de planner zag, waarde en aanwezigheid.
+De verwachting komt uit het domein van de merge (`own.domain`: de momentopname met de bronvormregels van `sourceForm.ts`),
+nooit uit de regels die de merge schrijft. Leeg hoort een slot alleen volgens een bestaande regel: `withheldTaskTimeFields`,
+gereedheid 0 (`ifcCompletionReal`), geen werkelijke datum, duur of rest in het domein, de statustijd alleen bij een werkelijke
+datum. Een bronwaarde die de herleestoets (b) terugzette (`own.sourceTokens`), moet er letterlijk staan. Het slot leest de
+lezer zelf, in de lezing die de controle al doet: `taskTimeReadingsOut` van `readIFC` legt per taak de argumenten en de
+taaktijd vast na de uurmodus en de hulp-psets (`applyTaskTimeRecords`) en vóór elke afleiding (de nulduur van een mijlpaal,
+`resolveMissingScheduleDates`, `normalizeImportedProgress`); een datum zonder tijd gaat aan beide kanten door
+`normalizeTaskDate` met de kalender van de taak, zoals bij laden. De toets voegt geen schrijf-, scan- of parseerronde toe.
+Proef: `check-ifc-foreign-opgeslagen-datums.ts` (de eigenschapsproef: per stand in de modus, per taaksoort en per tijdslot
+een kopie met een andere waarde, met `$` waar een waarde hoort en met een waarde waar het slot volgens een regel leeg is).
 
 De andere toets in de verliescontrole (PR 12b, `ownGroups` in `LossCheckInput`, `openedOwnGroups` in `mergeWriter.ts`):
 een verschil in O1 in een eigen groep op projectniveau (dezelfde indeling, op de bronregels) hoeft geen bewerking te

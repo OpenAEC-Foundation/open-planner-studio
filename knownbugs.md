@@ -4370,29 +4370,21 @@ en noem het in je rapport of PR-tekst.
      SHA-256 als de geopende bron als doel toelaten, en de BOM bij de gewone schrijver bewaren. Voorwaarde voor standaard
      aan. — B (code en de proef van de doelcontrole, `check-ifc-foreign-target.ts` 9c; Ctrl+S zelf niet nagespeeld)
 
-2360. **Bekende grens (#804, flag aan): buiten "datums zoals opgeslagen" ziet `planning-na-openen` een andere waarde in
-     een rekenslot niet.** Een document buiten de modus heropent met de berekening: het laden rekent de vroege en late
-     datums, de speling en `IsCritical` opnieuw uit (`prepareLoadedPayload` in `src/state/documentActivation.ts`), dus wat
-     in die slots staat, telt bij heropenen niet mee. Schrijft de merge daar een andere waarde dan de planner zag, dan toont
-     de app na heropenen toch de berekening en aanvaardt de controle het bestand; een IFC-lezer die `IFCTASKTIME` leest,
-     ziet de andere waarde. Een leeg slot (`$`) weigert sinds #1216 wel (de toets op de taaktijdregels,
-     `taskTimeLineProblem` in `src/services/ifc/foreign/mergeWriter.ts`); op main kwam ook dat door. In de modus bewaakt
-     de controle deze slots wel. Nagebootst in fixronde 1 van #1216: het eigen voorbeeld zonder `recordedSourceFormat`,
-     `Set up site` hernoemd, en in de uitvoer een andere vroege start, late finish of totale speling: aanvaard. Richting: de
-     rekenslots van de uitvoer ook buiten de modus vergelijken met die van de momentopname, na dezelfde normalisatie als
-     bij openen. — B (nagebootst)
-
-2361. **Bekende grens (#804, flag aan): een leeg slot dat de writer zelf verkeerd laat en dat de lezer tot dezelfde waarde
-     afleidt, ziet de controle in een echte opslag niet.** De toets op de taaktijden (`taskTimeLineProblem` in
-     `src/services/ifc/foreign/mergeWriter.ts`, sinds #1216) vergelijkt de uitvoer letterlijk met de regels die de merge
-     schreef; een fout in de writer zelf staat in beide. Is de waarde gevuld, dan zien de lezing (deel 2) en de vergelijking
-     na heropenen haar. Is het slot leeg, dan vult de lezer het in, en komt hij op de waarde die de planner zag, dan ziet
-     niets het: het duurtype (de lezer leest `$` als `WORKTIME`), de geplande start (`resolveMissingScheduleDates`), de
-     statustijd (de lezer leest haar niet), de rest (`applyRemainingDuration`), het werkelijke einde en de gereedheid van
-     een voltooide taak (`normalizeImportedProgress`). Voor de app gaat er niets verloren; een IFC-lezer die `IFCTASKTIME`
-     leest, mist het slot. Nagebootst in de eigenschapsproef van `check-ifc-foreign-opgeslagen-datums.ts` (de route
-     `writer`, 30 benoemde uitzonderingen). Richting: de aanwezigheid per slot toetsen tegen het domein van de merge (de
-     momentopname met de bronvormregels), zonder de writer. — B (nagebootst)
+2360. **Bekende grens (#804, flag aan): buiten "datums zoals opgeslagen" ziet `planning-na-openen` een verkeerde of
+     ontbrekende waarde in een rekenslot, en een onterecht werkelijk einde of percentage op een fase, niet als de writer die
+     zelf zou schrijven.** Buiten de modus rekent de app na het laden opnieuw (`prepareLoadedPayload` in
+     `src/state/documentActivation.ts`) en rolt ze de voortgang van de kinderen op naar de fasen (`rollupSummaryTasks` in
+     `src/engine/scheduler/applyCpmResult.ts`). De vergelijking na heropenen (`checkedBytes` in
+     `src/services/ifc/foreign/mergeWriter.ts`) ziet daardoor de berekening, niet het slot. Main doet hetzelfde: deze PR
+     houdt buiten de modus de controle van main (de maat is "niet blinder dan main"); de toets op de slots
+     (`taskTimeSlotProblem`) draait alleen in de modus. Een fout die pas na het schrijven in de bytes komt, weigert buiten
+     de modus alleen als de heropening er iets van merkt. De vier gevallen van review ronde 2 van #1216, op het
+     verbouwingsvoorbeeld met wand buiten de modus, een bladtaak hernoemd, en in de uitvoer van de writer: (1) de vroege
+     start van fase *1. Preparation* van 7 mei 07.00 uur naar 5 mei 07.00 uur, of leeg; (2) hetzelfde voor mijlpaal
+     *Start of refurbishment*; (3) een werkelijk einde op 5 mei op de fase, die nog niet begonnen is; (4) 37% gereedheid op
+     die fase. De app toont na heropenen weer 7 mei 07.00 uur en de opgerolde voortgang; een IFC-lezer die `IFCTASKTIME`
+     leest, ziet de andere waarde. Richting: een eigen PR die buiten de modus de slots met de momentopname vergelijkt (een
+     nieuwe bewaker, niet nodig voor knownbug 2231). — B (review ronde 2 van #1216)
 
 2219. **VERVOLG (review van #1184): de geheugenpiek van `openIfcBytes` bij een groot IFC is niet gemeten (#804).**
      `openIfcBytes` (`src/core/index.ts`) maakt eerst een eigen kopie van zijn invoer (het publieke pakket moet een
