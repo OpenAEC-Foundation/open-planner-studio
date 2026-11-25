@@ -593,7 +593,7 @@ await check('zonder classificatie in de worker weigert een IFCX-document een onb
   } finally { ipc.dispose(); }
 });
 
-await check('het P6-bronarchief van een XER-import: de kern weigert het schrijven, één melding; Automatisch opslaan rekent dezelfde inhoud niet opnieuw (was knownbug 2367)', async () => {
+await check('het P6-bronarchief van een XER-import: STEP weigert het compacte archief, de kern weigert het schrijven met één melding over de planning; Automatisch opslaan rekent dezelfde inhoud niet opnieuw (was knownbug 2367)', async () => {
   const ipc = desktop();
   try {
     const path = join(dir, 'resource.ifcx'); writeFileSync(path, own);
@@ -608,7 +608,7 @@ await check('het P6-bronarchief van een XER-import: de kern weigert het schrijve
     clearNotices(store);
     assert.equal(await save(store), false);
     assert.deepEqual(errors(store), ['ifcx.writeRefused']);
-    assert(store.getState().ui.notifications[0].detail?.includes('OPS_XerSourceArchive'), 'de melding noemt het bronarchief');
+    assert.equal(store.getState().ui.notifications[0].detail, 'planning');
     assert.equal(hash(bytesAt(path)), hash(own));
     assert.equal(store.getState().isDirty, true);
     store.setState(s => { s.autoSaveToFile = true; }); clearNotices(store);
