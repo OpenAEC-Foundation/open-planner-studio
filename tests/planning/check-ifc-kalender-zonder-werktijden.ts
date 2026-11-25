@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
+import type { FileRef } from '@/services/fileAccess';
 import { loadStore, openInStore } from './ifcAppRoute';
 
 declare const process: { exit(code: number): never };
@@ -31,14 +32,30 @@ const week = (c: WorkCalendar) => c.workTime
   : null;
 const MA_VR_07_16 = { 1: '420-960', 2: '420-960', 3: '420-960', 4: '420-960', 5: '420-960', 6: '', 7: '' };
 
-async function openPlain(text: string): Promise<Store> {
+function memoryFile(name: string, initial: string) {
+  let content = initial;
+  const writes: string[] = [];
+  const handle = {
+    kind: 'file', name,
+    isSameEntry: async (other: unknown) => other === handle,
+    queryPermission: async () => 'granted', requestPermission: async () => 'granted',
+    getFile: async () => new File([content], name),
+    createWritable: async () => {
+      let buffer = '';
+      return { write: async (s: string) => { buffer = s; }, close: async () => { content = buffer; writes.push(buffer); } };
+    },
+  } as unknown as FileSystemFileHandle;
+  return { handle, writes };
+}
+
+async function openPlain(text: string, ref: FileRef | null = null): Promise<Store> {
   const { createAppStoreContext } = await loadStore();
   const { store } = createAppStoreContext();
   let failure: unknown;
   const realError = console.error;
   console.error = (...args: unknown[]) => { if (args[0] === 'Failed to open file:') failure = args[1]; else realError(...args); };
   try {
-    await store.getState().openOpenedFile({ name: 'oud-eigen.ifc', content: text, ref: null });
+    await store.getState().openOpenedFile({ name: 'oud-eigen.ifc', content: text, ref });
   } finally {
     console.error = realError;
   }
@@ -88,6 +105,45 @@ async function bothMoments(store: Store, assert: (moment: string) => void): Prom
       const t = timing(find(store, 'Set up site'));
       same(`${label}: de urentaak Set up site houdt haar 4 uur, 07:00 tot 11:00`, t && { duur: t.duur, vroeg: t.vroeg }, setUp);
     });
+  }
+}
+
+{
+  const rel = 'tests/planning/fixtures/kalendertijd-oud/v2026.8.1-alleen-werkende-uitzonderingen.ifc';
+  const own = readText(rel);
+  const calendarLine = "'Alleen werkende uitzonderingen',$,$,(#15),(#18,#21),.FIRSTSHIFT.);";
+  same('(c) voorwaarde: v2026.8.1 schreef een week zonder tijdvak, twee werkende uitzonderingen en geen IsHourCalendar', [
+    own.split(calendarLine).length, own.includes('#14=IFCRECURRENCEPATTERN(.WEEKLY.,$,(1,2,3,4,5),$,$,$,$,());'),
+    own.includes("'WorkingExceptionIds',$,IFCTEXT('[\"18\",\"21\"]')"), own.includes('IsHourCalendar'),
+  ], [2, true, true, false]);
+  const withoutWorkingTimes = own.replace(calendarLine, "'Alleen werkende uitzonderingen',$,$,$,(#18,#21),.FIRSTSHIFT.);");
+  const exceptions = [
+    { name: 'Eerste werkvenster', startDate: '2026-02-02', endDate: '2026-02-02', bands: [{ start: 540, end: 600 }] },
+    { name: 'Tweede werkvenster', startDate: '2026-02-09', endDate: '2026-02-09', bands: [{ start: 540, end: 780 }] },
+  ];
+  const emptyWeek = { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '' };
+  const wallTask = {
+    duur: [0.5, 'hours', 240], vroeg: ['2026-02-02T09:00', '2026-02-09T12:00'], laat: ['2026-02-02T09:00', '2026-02-09T12:00'],
+  };
+  const shown = (store: Store, label: string) => {
+    const calendar = store.getState().calendar;
+    same(`${label}: geen rekenfout`, store.getState().cpmResult?.error ?? null, null);
+    same(`${label}: de week blijft zonder werkblokken, met de twee werkende uitzonderingen`,
+      { week: week(calendar), urenPerDag: calendar.hoursPerDay, uitzonderingen: calendar.workingExceptions ?? [] },
+      { week: emptyWeek, urenPerDag: 8, uitzonderingen: exceptions });
+    same(`${label}: Wand A bouwen werkt 1 uur op 2 feb en 3 uur op 9 feb, tot 9 feb 12:00`, timing(find(store, 'Wand A bouwen')), wallTask);
+  };
+  for (const [variant, text] of [['zoals opgeslagen', own], ['zonder WorkingTimes in de kalender', withoutWorkingTimes]] as const) {
+    const label = `(c) ${rel.split('/').pop()} ${variant}`;
+    const file = memoryFile('uitzonderingen.ifc', text);
+    const store = await openPlain(text, { kind: 'handle', handle: file.handle });
+    await bothMoments(store, (moment) => shown(store, `${label}, ${moment}`));
+    await store.getState().saveFile();
+    same(`${label}: opslaan schrijft het bestand één keer`, file.writes.length, 1);
+    const saved = file.writes[0] ?? '';
+    same(`${label}: het opgeslagen bestand krijgt geen werkweek van 07:00 tot 16:00`, saved.includes("IFCTIMEPERIOD('07:00:00','16:00:00')"), false);
+    const reopened = await openPlain(saved);
+    await bothMoments(reopened, (moment) => shown(reopened, `${label}, na opslaan en heropenen, ${moment}`));
   }
 }
 
