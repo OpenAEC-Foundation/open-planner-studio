@@ -14,9 +14,10 @@ normaliseren daarom aan de ingangen, met `normalizePoolShape` in `src/services/l
   doorlaten, want dat is niet `null`. De elementen zelf worden niet op vorm getoetst: een element dat geen object is,
   blijft in de lijst staan (knownbug 2330).
 - `poolVersion`: een geheel getal wordt minstens 1 (`Math.max(1, …)`); elke andere waarde (tekst, ontbrekend, `NaN`,
-  een breuk) wordt 1. Een geheel getal vanaf 9007199254740992 komt er ongewijzigd door, en `bumpPool` laat het dan
-  niet meer oplopen (knownbug 2334). `modifiedAt` blijft als het tekst is, anders het tijdstip van nu. `companyName`
-  blijft als het tekst is, anders de naam van de bibliotheek met dat id in `companies`, anders het id zelf.
+  een breuk) wordt 1. Een geheel getal vanaf 9007199254740992 komt er ongewijzigd door, en daar kan `bumpPool` blijven
+  steken: bij precies 9007199254740992 geeft `+ 1` hetzelfde getal (knownbug 2334). `modifiedAt` blijft als het
+  tekst is, anders het tijdstip van nu. `companyName` blijft als het tekst is, anders de naam van de bibliotheek met
+  dat id in `companies`, anders het id zelf.
   `importPoolAsNewCompany` en `replacePool` zetten daarna hun eigen naam. Toets voor `poolVersion` 1 en `modifiedAt`
   bij een kapotte pool: het blok "initLibrary-normalisatie" in `tests/library/check-library-slice.ts`.
 - `seedVersion` blijft alleen als het een geheel getal van 0 of meer is, en valt anders weg. `seedDemoLibrary` leest
@@ -26,7 +27,9 @@ normaliseren daarom aan de ingangen, met `normalizePoolShape` in `src/services/l
   stond een ongewijzigde projectkopie na het openen op `deviated`. `poolCalendarById` doet hetzelfde bij elke opzoeking
   op id, voor een kalender die niet langs `normalizePoolShape` in de pool kwam; `diffCalendarVsPool`,
   `classifyCalendarOnOpen`, `copyCalendarToProject` en `applyCalendarUpdate` lezen de poolkalender via die functie.
-- Een `null` in de werkblokken van een kalender laat `normalizePoolShape` zelf gooien (knownbug 2333). Bij importeren
+- Een `null` in de werkblokken van de eerste werkdag met blokken (`firstBlockedDay` in `src/utils/effectiveWorkTime.ts`,
+  die dag gaat naar `workDayFromBlocks` in `src/services/subdayIo.ts`) laat `normalizePoolShape` zelf gooien; een
+  `null` op een latere werkdag niet (knownbug 2333). Bij importeren
   meldt `PoolImportDialog` dan "Dit IFC-bestand bevat geen resourcebibliotheek"; bij laden uit opslag blijft
   `libraryLoaded` onwaar.
 - Andere velden van de pool vallen weg (`docs/library.md`, *Bekende kleine punten*).

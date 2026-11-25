@@ -371,9 +371,17 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   atomic save with no direct-write fallback), content checks of existing write targets independent of the app flag
   (`scanForeign` C/A/V; unreadable targets refused, historical own headers use the shared recognition), no replacing of an existing file while the desktop app runs (`appLock.ts`
   reads `open-files*.json` from the app's data folders or `--discovery-dir` on every write), its own XML parser as `DOMParser` (`xmlDom.ts`, for MSPDI/P6 XML) and
-  MCP backups in its own data folder. It reuses the
-  dispatcher, registry, `runtime.ts`, the tools and `requestHandler.ts` unchanged; host functions go through seams
-  (`fileToolDeps`, `McpFileFs.confine`, `guideToolDeps`, `createAppBackupService` overrides). Code it bundles imports
+  MCP backups in its own data folder. IFC follows the core's `openIfcBytes` rule (#804, knownbug 1136): the host sets
+  `ifcForeignContent` in its own store plus `fileToolDeps.mainRouteUnlessForeign`, and `planner_import_schedule` gives every
+  IFC one of three states: proven own (the core's write gate `textWriteCheck` finds no model, C, A or V, and the plain writer gives back every
+  slot of every piece with a slot table, #1219) opens on main's text route with main's answers and bytes; kept foreign content (the bytes route preserves it) exports by merge, only to a new
+  name (`McpFileFs.writeNewUserBytes`: own temp file, `fsync`, then `link`; knownbug 2240); anything else opens like main but
+  gets the existing "source missing" mark, so every IFC output refuses with `VALIDATION` before any I/O and the MCP backup is
+  skipped (`withheld` on the backup binding; the envelope says `backupWithheld`)
+  (`tests/mcp/cases-headless-server.ts`; `cases-headless-pariteit.ts` against a main worktree via `OPS_MAIN_WORKTREE`). It reuses the
+  dispatcher, registry, `runtime.ts`, the tools and `requestHandler.ts`; what differs from the app goes through seams that
+  the app leaves empty (`fileToolDeps` with `mainRouteUnlessForeign`, the backup binding's `withheld`, `McpFileFs.confine`,
+  `guideToolDeps`, `createAppBackupService` overrides). Code it bundles imports
   no value from `appStore.ts` (`verify:store-boundaries`); `npm run build:mcp-server` fails on React, Tauri, the
   singleton, `src/components/`, `src/hooks/` or the i18n UI config in the bundle. `tests/mcp/bridgeMirror.ts` uses its
   `http.ts`, so a change to `mcp_bridge.rs`'s HTTP layer means changing `headless/mcp-server/src/http.ts`.

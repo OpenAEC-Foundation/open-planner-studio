@@ -1546,7 +1546,7 @@ en noem het in je rapport of PR-tekst.
     liggend en A3 staand (grens 1058,52 px). De app waarschuwt dan dat de tijdlijn smal wordt en laat de export
     doorgaan. Zie ADR 0351. Issue #1238. — B
 
-2337. **Op vaste schaal met een tabel net smaller dan de afdrukbare breedte ontstaan duizenden bladen.**
+2337. **Op vaste schaal met een tabel net smaller dan de afdrukbare breedte kunnen duizenden bladen ontstaan.**
     `computeTileLayout` (`src/services/print/tileLayout.ts`) rekent het aantal kolommen uit de ruimte die naast de
     herhaalde tabel overblijft. Nagespeeld met de rapporttekenaar en het afdrukvoorbeeld, niet in de browser: A4
     staand, *Vaste schaal*, een automatisch gemeten tabel van 729 px en een planning van januari tot oktober op 22 px
@@ -2168,13 +2168,11 @@ en noem het in je rapport of PR-tekst.
      zoals `dayRecordFits`/`contextLost` in `xmlDayMeasure.ts`; anders de urenmaat voor duur en rest.
      Nagespeeld door de reviewer van #585 r2 (Sol, VERVOLG). — B
 
-296. **De exportmeldingen zeggen dat de lagkalender verloren gaat, terwijl OPS hem bewaart.**
-     `mspdiWriter.ts:503` meldt "scheduling-opties lagCalendar niet native uitdrukbaar — weggelaten, alleen via
-     IFC OPS_SchedulingOptions" (de lijst komt uit `:479`). `p6xmlWriter.ts:304` meldt "scheduling-opties niet
-     geëxporteerd". Sinds #585 schrijven beide writers `OPS_LagCalendar`, en `successor` komt bij heropenen in
-     OPS goed terug. MS Project en P6 kennen de optie zelf niet. Richting: een melding die beide zegt: het
-     andere programma rekent er niet mee, OPS bewaart hem wel. Gezien door de reviewer van #585 r2 (Sol,
-     VERVOLG). — B
+296. **De MSPDI-export meldt in de console dat de lagkalender wegvalt, terwijl OPS hem bewaart.**
+     `writeMSPDI` (`src/services/msproject/mspdiWriter.ts`) schrijft een eigen keuze voor de lagkalender in het
+     OPS-veld `OPS_LagCalendar`, en zet bij een andere keuze dan `predecessor` toch "scheduling-opties lagCalendar
+     niet native uitdrukbaar — weggelaten" in de console. Bij heropenen in OPS komt de keuze terug. Gezien door de
+     reviewer van #585 r2 (VERVOLG). — B
 
 300. **Een oude OPS-export die daarna van vorm veranderde, leest als vreemd bestand.** OPS v2026.6.0 tot en met
      v2026.8.1 schreef nog geen OPS-markering. De lezer herkent zo'n MSPDI- of P6 XML-export aan de vorm van die
@@ -2371,15 +2369,6 @@ en noem het in je rapport of PR-tekst.
      lezer dit bestand leest, is getoetst (`check-xer-writer.ts`, V10–V11); dat P6 het zonder verminkte tekens
      importeert, niet. Voorstel: een export met bijvoorbeeld `Ł` in P6 importeren en de naam nakijken. Uit de
      review van PR #393 (punt 10, VERVOLG). — S
-467. **De P6 XML-export draait de keuze *Projectstandaard* voor het taaktype terug.** Een taak uit P6 houdt het
-     oude duurtype in `p6DurationType`. Kiest de gebruiker bij die taak *Projectstandaard*, dan schrijft
-     `src/services/p6/p6xmlWriter.ts` (`durationTypeLabel`, rond regel 605) zonder eigen regel toch dat oude type.
-     Na heropenen heeft de taak weer een eigen regel. Nagespeeld met een script: een XER met `DT_FixedQty`,
-     `DT_FixedRate` of `DT_FixedDUR2`, openen, *Projectstandaard* (`settleRuleChange` met `undefined`), export naar
-     P6 XML en heropenen geeft weer `FIXED_WORK`, `FIXED_RATE` of `FIXED_DURATION_WORK` in plaats van de
-     standaard `FIXED_DURATION_RATE` (3 van 3). De XER-export had dezelfde fout; die is in PR #393 (review
-     ronde 4) hersteld door het duurtype uit de effectieve regel te schrijven. Voorstel: in de P6 XML-schrijver
-     hetzelfde doen. Gevonden bij die fix. — B
 475. **Het advies "Kies Primavera P6" verschijnt ook als het project al met Primavera P6 rekent.** De verliesregel
      *Rekenregels* (`schedulingRules`, `xerWriter.ts`, `schedulingRulesDiffer`) meldt ook afwijkende projectopties,
      niet alleen een ander profiel. Nagespeeld met De Akkers: profiel Primavera P6 met de P6-standaardopties geeft
@@ -4368,6 +4357,84 @@ en noem het in je rapport of PR-tekst.
       op die dag gaf de vergelijker `false`; dezelfde 120 werkminuten eindigden op de twee kalenders om 10:00 en 12:00.
       De lezer levert dan voor die taak geen wandeling. Of MS Project daar over de resourcekalender plant, is niet nagegaan. — B
 
+2338. **Een OPS-tekstveld in P6 XML heeft geen lengtegrens; bewaart P6 bij XML-import minder, dan gaat het veld
+      verloren.** `writeP6XMLWithReport`
+      (`src/services/p6/p6xmlWriter.ts`) schrijft de JSON van `OPS_DayMeasureLags`, `OPS_DayMeasureDurations`,
+      `OPS_ExactMinutes` en `OPS_LiteralCalendars` helemaal, zonder lengtegrens. Oracle documenteert 255 tekens voor
+      `UDFValue.Text` in de Web Services API (P6 EPPM Web Services Reference, "UDFValue",
+      `docs.oracle.com/cd/F88966_01/English/Integration_Documentation/p6_eppm_web_services_reference/42371.htm`;
+      aangedragen in de review van #1240, niet zelf gelezen); of de XML-import van P6 een langere waarde weigert of afkapt, is niet beproefd. Kort P6
+      een waarde in, dan is ze ongeldige JSON en leest OPS haar als geen record (`parseFieldRecords`, `parseLagRecords` in
+      `xmlDayMeasure.ts`); een ongeldige lijst `OPS_LiteralCalendars` laat de lezer terugvallen op het tijdsignaal (ADR
+      0264). Dezelfde grens in MSPDI: 290 en 304. Gelezen in de code. — S
+
+2339. **De P6 XML-export schrijft een toewijzing op een samenvattingstaak met het `ObjectId` van een WBS als
+      activiteit.** `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) neemt het `ActivityObjectId` van een
+      toewijzing uit `taskObjMap`, dat ook de WBS-elementen nummert, en slaat alleen een toewijzing zonder taak of
+      resource over. Nagespeeld met een script op `tests/planning/fixtures/p6xml-genest-meerdere-projecten.xml` (via
+      `readP6XML`): met een extra toewijzing op de samenvattingstaak `Ruwbouw` staat er een `<ResourceAssignment>` met
+      `ActivityObjectId` 1, het `ObjectId` van een `<WBS>` en van geen `<Activity>`; terug inlezen geeft alleen de
+      toewijzing op de bladtaak. De exportmelding telt zo'n toewijzing als verlies (`summaryAssignments`,
+      `p6XmlExportNotice.ts`); de XER-writer slaat haar over (`xerWriter.ts`). Zo'n toewijzing komt in de app via een
+      MSPDI-import. Het taakpaneel weigert haar (`assignResource` in `src/state/slices/resourceSlice.ts`, met
+      `isSummaryTask`); het raster toetst alleen `childIds` (`planTaskAssignmentSet` in
+      `src/engine/taskGrid/assignmentPlan.ts`), zodat een lege WBS uit XER (`isSummary` zonder kinderen) daar wel een
+      toewijzing krijgt. Proef uit de review van #1240: een toewijzing op een samenvatting via een MSPDI-import valt na
+      P6 XML-export en heropenen weg, en de exportmelding telt één verlies. Wat P6 met zo'n verwijzing doet, is niet
+      getoetst. — B
+
+2340. **De P6 XML-export schrijft een relatie met een samenvattingstaak met het `ObjectId` van een WBS als
+      activiteit.** `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) neemt `PredecessorActivityObjectId` en
+      `SuccessorActivityObjectId` uit `taskObjMap`, dat ook de WBS-elementen nummert; ook het lagrecord van zo'n
+      relatie komt op de opvolger. Nagespeeld met een script op `tests/planning/fixtures/p6xml-genest-meerdere-projecten.xml`
+      (via `readP6XML`): een extra FS-relatie van de samenvattingstaak `Ruwbouw` naar een bladtaak geeft een
+      `<Relationship>` met `PredecessorActivityObjectId` 1, het `ObjectId` van een `<WBS>`; terug inlezen geeft alleen
+      de drie relaties van de bron. In die proef was de bladtaak een kind van `Ruwbouw`, een relatie die de app bij
+      gewoon aanmaken weigert. Een relatie van een samenvatting naar een taak buiten haar eigen tak accepteert de app
+      wel (`relationVerdict` in `src/state/relationRules.ts` weigert alleen een eigen voorouder); proef uit de review
+      van #1240: zo'n relatie gaf één verliesregel (`summaryRelations`, "P6 kent die relatie niet") en na heropenen
+      nul relaties. Wat P6 met zo'n verwijzing doet, is niet getoetst. — B
+
+2341. **Twee bladtaken met dezelfde korte WBS-code krijgen in P6 XML hetzelfde activiteit-`Id`.**
+      `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) schrijft `wbsCode` (anders het taak-id) als `<Id>`, en
+      `renderP6XmlWithReport` (`p6xmlSchemaOrder.ts`) maakt alleen een waarde uniek die hij inkort tot 40 tekens.
+      Nagespeeld met een script op `tests/planning/fixtures/p6xml-genest-meerdere-projecten.xml` (via `readP6XML`): twee
+      bladtaken met `wbsCode` `DUP` geven twee `<Activity>` met `<Id>DUP</Id>`. De XER-writer maakt elke code uniek
+      (`uniqueCode`). Proef uit de review van #1240: met *WBS auto* uit en twee bladtaken die in het taakpaneel of het
+      raster de code `DUP` krijgen, bevat de export beide codes, opent OPS beide met aparte interne ids, en geeft de
+      exportmelding geen regel. Wat de P6-client met dubbele activiteit-`Id`'s doet, is niet beproefd. Issue #1242. — B
+
+2342. **De kalenderkeuze van een samenvattingstaak verdwijnt na P6 XML-export en heropenen, en de kalender zelf ook
+      als geen activiteit of resource ernaar verwijst.** `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) maakt een kalender
+      `Global` als een taak haar in `calendarId` noemt, ook een samenvattingstaak, maar een `<WBS>` draagt geen
+      `CalendarObjectId`. De keuze valt dus altijd weg: na heropenen heeft de samenvattingstaak de projectkalender, ook
+      als een bladtaak dezelfde kalender via `CalendarObjectId` houdt (gelezen in de code, niet nagespeeld).
+      `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) neemt een `Global`-kalender alleen mee als een activiteit
+      of resource ernaar verwijst, dus zonder zo'n verwijzing verdwijnt ook de kalender zelf. De exportmelding geeft
+      voor geen van beide een regel (`exportP6XmlLossNotice`). Proef uit de review van #1240: een bibliotheekkalender,
+      in het taakpaneel gekozen voor een samenvattingstaak terwijl kinderen en resources hun eigen kalender houden,
+      staat na export als `Global` in het XML en ontbreekt na heropenen. Issue #1241. — B
+
+2343. **Een feestdag of werkende uitzondering van meer dan 3660 dagen wordt in P6 XML zonder melding ingekort.**
+      `isoDaysInclusive` (`src/services/p6/p6xmlWriter.ts`) geeft per feestdag of werkende uitzondering hoogstens 3660
+      datums, vanaf de begindatum; `holidayOrExceptionsNode` schrijft alleen die. De exportmelding geeft er geen regel
+      voor. Proef uit de review van #1240: een uitzondering die op 12 januari 2000 eindigt, eindigde na heropenen op 8
+      januari 2000; met de grens van 3660 datums hoort daar de begindatum 1 januari 1990 bij. — B
+
+2344. **Een lege WBS-rij uit P6 XML komt bij de volgende P6 XML-export terug als activiteit.**
+      `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) maakt van elke `<WBS>` een taak zonder `isSummary`, en een
+      `<WBS>` zonder kinderen houdt lege `childIds`. `writeP6XMLWithReport` schrijft een taak waarvoor `isLeafTask` waar
+      is als `<Activity>`, dus zo'n rij gaat bij de volgende export als activiteit en verliest haar WBS-identiteit. De
+      XER-lezer zet `isSummary` wel (`xerReader.ts`). Gelezen in de code. Issue #1242. — B
+
+2345. **Twee werkende uitzonderingen op één datum: in P6 XML wint de laatste, ook zonder eigen blokken.**
+      `holidayOrExceptionsNode` (`src/services/p6/p6xmlWriter.ts`) zet per datum één element in een kaart; een latere
+      werkende uitzondering zonder eigen blokken overschrijft daar een eerdere met blokken, met haar terugvalblokken: die
+      van haar weekdag, op een vrije weekdag die van de eerste werkdag, en anders het blok van `workStartHour` tot
+      `workEndHour`. De motor houdt dan de blokken van de eerdere (`buildWorkingExceptions`, knownbug 2004). Wijken de
+      terugvalblokken daarvan af, dan kan die datum na export en heropenen andere werktijden dragen dan de motor in de
+      app gebruikte (aansluitende blokken voegt de lezer samen). Gelezen in de code. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
@@ -4572,18 +4639,32 @@ en noem het in je rapport of PR-tekst.
      SHA-256 als de geopende bron als doel toelaten, en de BOM bij de gewone schrijver bewaren. Voorwaarde voor standaard
      aan. — B (code en de proef van de doelcontrole, `check-ifc-foreign-target.ts` 9c; Ctrl+S zelf niet nagespeeld)
 
-2231. **VERVOLG, zo op main: opslaan weigert in "datums zoals opgeslagen" met `planning-na-openen` (#804, flag aan).**
-     Reproductie (review van #1184 ronde 2): het eigen IFC-voorbeeld, met de gewone writer geschreven met MSPDI-herkomst
-     (`OPS_ImportProvenance.SourceFormat`), één wand erbij, en opgeslagen vroege datums van `Set up site` die afwijken van
-     de berekening. Met de flag aan opent de app alle 20 taken in "datums zoals opgeslagen"; Ctrl+S zonder bewerking geeft
-     `notifications.ifcForeignMergeRefused` en schrijft nul bytes. De gedeelde schrijfroute geeft `planning-na-openen`, met
-     een verschil in `earlyStart` van `2027-05-06T07:00` naar `2027-05-07T07:00`. Gelijk op main en op de PR, met en
-     zonder `importPristine`; zonder datumafwijking geeft de merge de bron byte-gelijk terug. Plekken:
-     `src/state/documentActivation.ts` (`recordedDatesSource`), `src/state/ifcSaveInput.ts` (`buildWriteIFCInput`),
-     `src/state/ifcMergePlanning.ts` (`openMergePlanning`), `src/services/ifc/foreign/mergeWriter.ts` (de controle na
-     openen), `src/state/slices/fileSlice.ts` (`prepareAppIfcWrite`). Richting van de reviewer: geef de twee kanten van de
-     heropening gelijkwaardige informatie over de opgeslagen datums en behoud de vergelijking. Geen voorkomend exemplaar
-     in het onbewerkte corpus. Review van #1184 ronde 2 (GPT-6.2-Sol, xhigh). — B (proef van de reviewer)
+2360. **Bekende grens (#804, flag aan): buiten "datums zoals opgeslagen" ziet `planning-na-openen` een verkeerde of
+     ontbrekende waarde in een rekenslot, en een onterecht werkelijk einde of percentage op een fase, niet als de writer die
+     zelf zou schrijven.** Buiten de modus rekent de app na het laden opnieuw (`prepareLoadedPayload` in
+     `src/state/documentActivation.ts`) en rolt ze de voortgang van de kinderen op naar de fasen (`rollupSummaryTasks` in
+     `src/engine/scheduler/applyCpmResult.ts`). De vergelijking na heropenen (`checkedBytes` in
+     `src/services/ifc/foreign/mergeWriter.ts`) ziet daardoor de berekening, niet het slot. Main doet hetzelfde: deze PR
+     houdt buiten de modus de controle van main (de maat is "niet blinder dan main"); de toets op de slots
+     (`taskTimeSlotProblem`) draait alleen in de modus. Een fout die pas na het schrijven in de bytes komt, weigert buiten
+     de modus alleen als de heropening er iets van merkt. De vier gevallen van review ronde 2 van #1216, op het
+     verbouwingsvoorbeeld met wand buiten de modus, een bladtaak hernoemd, en in de uitvoer van de writer: (1) de vroege
+     start van fase *1. Preparation* van 7 mei 07.00 uur naar 5 mei 07.00 uur, of leeg; (2) hetzelfde voor mijlpaal
+     *Start of refurbishment*; (3) een werkelijk einde op 5 mei op de fase, die nog niet begonnen is; (4) 37% gereedheid op
+     die fase. De app toont na heropenen weer 7 mei 07.00 uur en de opgerolde voortgang; een IFC-lezer die `IFCTASKTIME`
+     leest, ziet de andere waarde. De toets op de slots gaat over de tijdslots 3 tot en met 19 van `IFCTASKTIME`; de
+     argumenten 0 tot en met 2 (naam en herkomst) leest de planningslezer niet, en een kopie met een andere taaktijdnaam
+     passeert de controle zonder dat de zichtbare planning verandert (review ronde 3 van #1216). Binnen de modus gelden twee
+     benoemde grenzen (stopregel van de technisch eigenaar, 25 november 2026: een geval dat alleen ontstaat door bytes na het
+     schrijven te veranderen, of door een bron die zichzelf tegenspreekt). (a) Bytes die na het schrijven veranderen buiten de
+     argumenten 3 tot en met 19 van `IFCTASKTIME` en hun hulprecords ziet de slottoets niet; de vergelijking na heropenen ziet
+     ze alleen als de planning verandert. (b) Een bron die zichzelf tegenspreekt: een XER-bron waarin het IFC-slot een andere
+     datum draagt dan het bronarchief (de app toont het archief), of een eigen IFC waarvan de opgerolde fase niet past bij de
+     peildatum in `OPS_ProjectSettings` (de app rolt bij openen opnieuw op, review ronde 4 van #1216). Opslaan in de modus
+     weigert dan met `planning-na-openen`, en de bron blijft staan; main weigert elke opslag in de modus. Een leeg bronslot
+     dat de planner niet wijzigde, blijft leeg (`emptySlots` in `sourceForm.ts`). Richting: een eigen PR die
+     buiten de modus de slots met de momentopname vergelijkt (een nieuwe bewaker, niet nodig voor knownbug 2231). — B (review
+     ronde 2 van #1216)
 
 2219. **VERVOLG (review van #1184): de geheugenpiek van `openIfcBytes` bij een groot IFC is niet gemeten (#804).**
      `openIfcBytes` (`src/core/index.ts`) maakt eerst een eigen kopie van zijn invoer (het publieke pakket moet een
@@ -6428,17 +6509,21 @@ en noem het in je rapport of PR-tekst.
      Opslaan als, CSV-export en AutoSave weigeren die nu veilig met 'unreadable', via handle en Tauri-pad.
      De 26 ondersteunde eigen kopvormen en de echte oude releasebestanden blijven schrijfbaar. Geen lexer- of
      lezerreparatie in #915; vlag uit blijft main. Hoort bij 1054/1061. Uit de bouw van #804 fase 1c PR 4,
-     na de nieuwe werkwijze van de eigenaar (13 november 2026, GPT-6.1-Sol via Codex). — B
-
-1136. **VERVOLG, bestaand op main: de headless MCP-server bewaart gegevens van een ander programma niet bij export
-     naar een nieuwe naam.** De headless server leest IFC als tekst (de keuze voor de bytes-route in
-     `src/services/mcp/tools/fileTools.ts` hangt aan de appflag, en die staat headless uit). Een bestand zonder
-     gebouwmodel maar met een externe pset (de villa-fixture met `ExternPset`) opent; export over de bron wordt sinds
-     #915 geweigerd (`VALIDATION`, bron byte voor byte gelijk), maar `planner_export_ifc` naar een nieuwe naam geeft
-     `ok: true` en een bestand zonder `ExternPset`; `ifcSource` en het bronkenmerk blijven leeg. De bron zelf blijft
-     heel. Main doet hetzelfde, en de app met de flag uit ook (1133). De getypeerde weigering van de kern
-     (`toIfc()`, `IFC_WRITE_FAILED`) geldt hier niet. Richting (Trias, 14 november 2026): headless export naar een nieuwe naam weigert bij ongedragen vreemde invoer. Hoort bij fase 2 (besluit T3: volledige bytes voor headless, kern en HTTP), vóór de flag eraf gaat. Gevonden door de
-     review van #915 (Sol), met een proef via de echte headless host en dispatcher. — B
+     na de nieuwe werkwijze van de eigenaar (13 november 2026, GPT-6.1-Sol via Codex).
+     Importgrens van de headless MCP-server (#1219, fase 2 PR 10b): vijftien gemaakte eigen vormen vallen daar bij het
+     openen in stand 3 (niet vast te stellen), omdat de schrijfpoort van de kern (`textWriteCheck`) ze niet volledig
+     leest: `data;` in kleine letters, een eigen bestand met STEP-ids vanaf 2147483648 en de dertien kapotte
+     bestandsnamen uit `brokenNameFiles`. Main schreef ze; headless opent ze zoals main en weigert elke IFC-uitvoer met
+     `VALIDATION`, zonder bestand en zonder back-up, met de melding dat de gebruiker zo'n bestand met alleen een planning
+     in de app (de experimentele instelling uit) kan openen en opslaan. Een benoemde grens (besluit van de technisch
+     eigenaar, na de review van #1219 ronde 2): Open Planner Studio schrijft die vormen zelf niet, de weigering is
+     getypeerd en verliest niets, en deze grens geldt al voor de doelcontrole.
+     Sinds herstelronde 3 van #1219 is "bewezen eigen" per slot: de gewone writer moet elk slot van elk stuk met een
+     slottabel (`IFC_SLOT_TABLES`) teruggeven; voor de naam van het lopende werkschema telt ook de eerdere vaste waarde
+     `Bouwplanning v1.0` van de eigen writer (besluit van Trias, herstelronde 4). Twee grenzen van de slottoets: een domeinslot van een stuk met eigen herkomst telt als gedragen (vergelijken zou 41 eigen bestanden uit
+     stand 1 halen, door de omrekening naar minuten, herberekende datums en oude notaties), en stukken zonder slottabel
+     op main (toewijzing, onderdelen van een kalender, psets, project, owner history, de andere relaties, de kop) toetst
+     alleen de scan. Zie `docs/headless-mcp.md`, *Bewezen eigen, per slot*. — B
 
 1588. **VERVOLG, gemaakte bron: een opgeslagen maar ongebruikt eigen taaktype laat ook ander werk weigeren.**
      Voeg in een kopie van de opgeslagen beginstand van PR 7d aan `TaskTypes.definitions` een extra
@@ -6785,10 +6870,11 @@ en noem het in je rapport of PR-tekst.
      `isSameEntry` van de tweede startte vóór het tabblad van de eerste bestond: dan komen er twee tabbladen, zoals main
      altijd doet. Via een ander pad op de desktop: 2063. Alleen in de code gelezen voor de browser. — S
 
-2042. **De headless MCP-server heeft geen featureflag: `planner_import_schedule` opent daar een bestand dat al open is opnieuw.**
-     De toets "staat al open" (knownbug 1957) staat achter de flag `ifcForeignContent`, en de headless server zet geen
-     flags (`headless/mcp-server/`). Dezelfde code draait daar, dus `planner_import_schedule` op een pad dat al open is
-     geeft daar een tweede document, zoals main. Gaat de flag standaard aan, dan geldt het daar ook; de proef
+2042. **De headless MCP-server wisselt niet naar een open tabblad: `planner_import_schedule` opent daar een bestand dat al open is opnieuw.**
+     De toets "staat al open" (knownbug 1957) hangt aan `appForeignContentRoute` in `src/services/mcp/tools/fileTools.ts`:
+     de flag `ifcForeignContent` aan en geen headless host. De headless server zet de flag in zijn eigen store (#804,
+     fase 2 PR 10b) maar ook `fileToolDeps.mainRouteUnlessForeign`, dus `planner_import_schedule` op een pad dat al open
+     is geeft daar een tweede document, zoals main. Gaat de flag standaard aan, beslis dan of headless meegaat; de proef
      "B stdio … opslaan, heropenen, vergelijken" in `tests/mcp/cases-headless-server.ts` heropent hetzelfde pad om de
      round-trip te toetsen en moet dan een eigen manier krijgen (een tweede pad of een nieuw document). In de code
      gelezen. — B (code)
@@ -6925,6 +7011,26 @@ en noem het in je rapport of PR-tekst.
 2292. **VERVOLG (review #1191 ronde 1): dezelfde koppeling opnieuw aanroepen zet een schoon document op *Niet opgeslagen*.** `linkRecognizedItems` (`src/state/slices/librarySlice.ts`) vervangt het item ook als alle waarden en de herkomststempel al gelijk zijn, dus `finishMutation` zet `isDirty` en er komt een extra undo-stap. Het afwijkingenscherm biedt een koppeling na de eerste keer niet meer aan, dus dit vraagt een rechtstreekse aanroep (bijvoorbeeld via MCP). Richting: het bijgewerkte item, met stempel, vergelijken vóór de toewijzing, en bij nul echte wijzigingen ook de herberekening van resourcebelasting en rijen overslaan. Review #1191 ronde 1 (GPT-6.2-Sol, xhigh). — S
 2293. **VERVOLG (review #1193 ronde 1): een uitzondering buiten `scratch-failed` kan de melding over verloren minuten alsnog opmaken.** `applyDistribution` (`src/state/slices/librarySlice.ts`) zet de vastgelegde meldingsclaims alleen terug bij `scratch-failed`. Gooit het laden van een tweede tijdelijke payload (`src/state/runtime/scratchDocument.ts`) of het schrijven naar de echte store een uitzondering, dan blijft de claim van het eerste document bezet terwijl het zijn minuten nog heeft. Geen route met een gewoon bestand gevonden. Richting: de melding pas claimen nadat het document echt is bijgewerkt; dan kan ook de snapshot voor tijdgefaseerde sturing weg, die `applyLeveling` niet raakt. ADR 0175 verwijst nog naar het verwijderde punt 1992. Review #1193 ronde 1 (GPT-6.2-Sol, xhigh). — S
 2294. **VERVOLG (review #1193 ronde 1, test): de proef kan een dubbele melding missen.** `tests/library/check-distribution-loss-notice.ts` telt alleen de lengte van de meldingenlijst, maar `notify` verhoogt bij dezelfde `dedupeKey` de teller op de bestaande melding (`src/state/slices/uiSlice.ts`). Richting: de eerste melding sluiten vóór de tweede schrijfronde en daarna nul meldingen verwachten. Review #1193 ronde 1 (GPT-6.2-Sol, xhigh). — S (test)
+2240. **VERVOLG (#804 fase 2 PR 10b): de headless MCP-server schrijft een document met een vreemd deel alleen naar een nieuwe naam.**
+     `planner_export_ifc` over een bestaande naam weigert voor zo'n document, ook met `overwrite: true` en ook over de eigen
+     bron (`src/services/mcp/tools/fileTools.ts`: zonder `McpFileFs.replaceUserBytes` geeft de export "requires a new
+     file name", en de eigen bron geeft `'open-source'`). Een planner die headless een bestand met een gebouwmodel of een
+     externe pset bijwerkt, kan het bestand dus niet ter plekke opslaan; de bron blijft heel en de nieuwe versie komt
+     onder een andere naam. De tekst bij de eigen bron zegt "ask the user to save in the app", wat headless niet helpt:
+     de wijzigingen staan in het geheugen van de server. (De fout bij een naam die tijdens de export bezet raakte, noemt
+     headless sinds fixronde 1 van #1219 een nieuwe naam in plaats van `overwrite: true`.) Richting: een Node-variant van
+     de vervanging met herstelrecord (`replaceOwnPathWithRecovery`) in `nodeFs.ts`, of een eigen headless tekst. Geproefd
+     in `tests/mcp/cases-headless-server.ts` ("A knownbug 1136"). — B
+2241. **VERVOLG (#1219, snelheid, niet gemeten): headless opent een grote eigen IFC met een extra volledige scan.**
+     `planner_import_schedule` op de headless server decodeert de bytes, codeert de tekst opnieuw en draait de
+     schrijfpoort van de kern (`textWriteCheck`: de modelcontrole en de volledige indeling) vóór de ene tekstparse van
+     main; een bestand met een vreemd deel gaat daarna ook door de bytes-route (`headlessIfcRead` in
+     `src/services/mcp/tools/fileTools.ts`). Sinds herstelronde 3 schrijft hij een bestand zonder vreemd stuk na het openen
+     ook één keer met de gewone writer en scant hij die uitvoer, voor de slottoets; de kern doet dat pas bij de eerste
+     `toIfc()`. De bron wordt één keer van schijf gelezen. Opentijd en piekgeheugen zijn niet
+     gemeten, niet voor een grote eigen en niet voor een grote vreemde bron: de meting paste niet in het rekenslot van
+     deze ronde. Richting: één grote eigen en één grote vreemde bron meten (`measure:large-plans` meet opslaan, niet deze
+     import). Gemeld door de review van #1219 ronde 2 (Sol, VERMOED). — S
 
 2350. **Voorwaarde vóór "IFCX standaard aan": opslaan als IFCX hoogstens vier keer IFC en hoogstens 4 s bij 10.000 taken.**
      Besluit van de technisch eigenaar (#1183, ronde 7b), letterlijk: "De grens van vier op openen blijft hard. Opslaan

@@ -36,8 +36,12 @@ export type ReadVersion =
   | { readonly kind: 'site'; readonly version: string }
   | { readonly kind: 'bytes'; readonly fingerprint: Pick<TargetFingerprint, 'sha256' | 'byteLength'> };
 
+export function readsOwnIfcx(parsed: OpenedImport): boolean {
+  return !isMultiDocumentImport(parsed) && !!parsed.ifcxRead;
+}
+
 export function oneTabPerFile(featureFlags: Readonly<FeatureFlagValues>, parsed: OpenedImport): boolean {
-  return ifcForeignContentEnabled(featureFlags) || (!isMultiDocumentImport(parsed) && !!parsed.ifcxRead);
+  return ifcForeignContentEnabled(featureFlags) || readsOwnIfcx(parsed);
 }
 
 export function readVersionOf(ref: FileRef, parsed: OpenedImport, siteVersion?: string | null): ReadVersion | null {

@@ -388,7 +388,10 @@ verworpen berekening. Zo schrijft opslaan in de modus nooit de dagen uit het bes
 solve (regressie: `check-recorded-dates.ts` §19).
 
 **De leesregel.** Een record telt alleen als het standaardveld nog precies de geschreven minuten draagt (op
-de hele minuut); bij de speling: als het slot nog de afgeronde dagen van het record draagt. Wijzigde een
+de hele minuut). Bij de speling telt `ExactFloat` alleen bij een aanwezig slot zonder tijddeel waarvan de dagen
+gelijk zijn aan de afgeronde dagen van het record (`wholeFloatDays`, in `applyTaskTimeRecords`). Een slot met een
+tijddeel gaat voor: op een kalender van acht uur leest `PT24H` als 3 d en 1440 min, ook als een oud record van 2,5 d
+naar 3 d afrondt (toets (8) in `tests/planning/check-ifc-dagenmaat.ts`). Wijzigde een
 ander programma de lengte, dan geldt het standaardveld. Een lag `PT4H0M0S` die `PT6H0M0S` werd, leest als
 360 min in de urenmaat (bij kalendertijd in kalenderminuten), zoals in v2026.9.0. Een duur wordt een
 urentaak; een rest of werkelijke duur van een dagtaak wordt minuten ÷ minuten per dag; een speling blijft

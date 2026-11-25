@@ -12,7 +12,7 @@ import { ScopeEscapeError } from '../fileScopeError';
 import { refreshFromSources, type ExternalSourceDoc } from '@/engine/externalLinks';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { readExternalSource } from '@/state/externalSource';
-import { checkScope, fileToolDeps, type McpFileFs } from './fileTools';
+import { appForeignContentRoute, checkScope, fileToolDeps, type McpFileFs } from './fileTools';
 import { guardNonTransactional, runMutateTool, toolError } from './runtime';
 import { WRITE_ANNOTATIONS } from './helpers';
 import { readOptionsFor } from '@/services/formatRegistry';
@@ -98,7 +98,7 @@ export const externalLinkTools: McpToolDef[] = [
           const read = await readExternalSource(filePath, {
             readTextFile: () => fs.readTextFile(scope.path),
             readFile: () => fs.readFile(scope.path),
-          }, undefined, readOptionsFor(ctx.app.store.getState().ui.featureFlags));
+          }, undefined, { ...readOptionsFor(ctx.app.store.getState().ui.featureFlags), ifcBytes: appForeignContentRoute(ctx) });
           const source = { ...read, ...(version ? { version } : {}), readAt: new Date().toISOString() };
           sources.push(source);
           readPaths.add(normalized);
