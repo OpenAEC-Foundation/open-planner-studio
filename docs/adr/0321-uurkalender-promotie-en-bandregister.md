@@ -43,20 +43,29 @@ Registreren doen `ifcReader`, `mspdiReader`, `p6xmlReader`, `mppCalendars`, `xer
   blokken zonder enige werkdag, maakt `synthBandsFromScalar` er één blok van `workStartHour` tot `workEndHour` van op
   elke dag in `workDays`. `mspdiReader`, `p6xmlReader`, `mppCalendars`, `xerReader` en `xerCalendarData` geven
   `preferCanonicalWhenEmpty` onwaar mee.
-- `ifcReader` kiest het bij de promotie na de taken (`applyHourModeIFC`) per kalender: waar als de kalender een
-  werkende uitzondering met eigen werkblokken heeft, anders onwaar. Een `IfcWorkCalendar` zonder `WorkingTimes`, of
-  met een week zonder tijdvak, registreert voor elke werkdag lege blokken. Promoveert zo'n kalender door een signaal,
-  dan krijgt hij één blok van `workStartHour` tot `workEndHour` op elke werkdag, net als in de andere formaten,
-  behalve als hij werkende uitzonderingen met werkblokken heeft: dan blijft de week leeg en werkt hij alleen op die
-  uitzonderingen (een eigen bestand van v2026.8.1 met een week zonder blokken en twee werkende uitzonderingen). Een
-  werkende uitzondering zonder eigen blokken telt niet mee, want op een lege week geeft die geen werktijd. De keuze
-  staat in de IFC-lezer en niet in `promoteHourCalendar`, zodat de andere lezers niet veranderen.
-- Tot issue #1251 gaf `applyHourModeIFC` altijd waar mee; een kalender zonder werkblokken en zonder werkende
-  uitzonderingen werd dan een uurkalender zonder werktijd en elke taak erop eindigde op haar start, zonder melding
-  (een Bonsai-bestand met taken om 09:00; wat het in v2026.9.0 gaf, staat in knownbug 150). De promotie die
-  `ifcReader` al bij het lezen van de kalender doet (`IsHourCalendar = .T.`, seconden of de oude bandvorm, zie
-  hierboven) geeft nog altijd waar mee; een kalender die daar promoveert met geregistreerde maar lege blokken, krijgt
-  lege blokken. Proef: `tests/planning/check-ifc-kalender-zonder-werktijden.ts`.
+- `ifcReader` kiest het bij de promotie na de taken (`applyHourModeIFC`) per kalender, op wat het bestand zegt. Onwaar
+  alleen als de `IfcWorkCalendar` in het bestand geen `WorkingTimes` heeft (`$` of een lege lijst,
+  `calendarsWithoutWorkingTimes`, vastgelegd in `buildCalendarFromEntity`) én geen werkende uitzondering met eigen
+  werkblokken; anders waar, zoals voor issue #1251. Zo'n kalender registreert voor elke werkdag lege blokken; promoveert
+  hij door een signaal, dan krijgt hij één blok van `workStartHour` tot `workEndHour` op elke werkdag, net als in de
+  andere formaten. Zo schrijft Bonsai (de API van IfcOpenShell) een kalender: zonder werktijden, met taken om 09:00.
+- Een kalender met een `WorkingTimes`-ingang blijft zoals voor issue #1251, ook als die ingang een week zonder tijdvak
+  heeft: dan blijft de week leeg. Zo schrijft de writer van OPS een kalender met een lege week (bijvoorbeeld die van
+  v2026.8.1): werkdagen ma–vr zonder blokken, eventueel met werkende uitzonderingen. Daarop kunnen taken in kloktijd
+  (`ELAPSEDTIME`) of op de uitzonderingen goed rekenen; een terugval op 07:00–16:00 zou die verschuiven. Geen
+  schrijver van OPS schreef een kalender zonder `WorkingTimes`: van v2026.2.0 tot en met v2026.9.0 altijd precies één
+  `IfcWorkTime`, daarna altijd minstens één. Alleen de merge (`foreign/mergeWriter.ts`) laat de regel van een
+  ongewijzigde vreemde kalender staan, zoals die van Bonsai.
+- Een werkende uitzondering met eigen blokken houdt ook een kalender zonder `WorkingTimes` leeg: die werkt dan alleen
+  op de uitzonderingen. Een werkende uitzondering zonder eigen blokken telt niet mee, want op een lege week geeft die
+  geen werktijd. De keuze staat in de IFC-lezer en niet in `promoteHourCalendar`, zodat de andere lezers niet
+  veranderen.
+- Tot issue #1251 gaf `applyHourModeIFC` altijd waar mee; een kalender zonder `WorkingTimes` werd dan een uurkalender
+  zonder werktijd en elke taak erop eindigde op haar start, zonder melding (wat het in v2026.9.0 gaf, staat in
+  knownbug 150). De promotie die `ifcReader` al bij het lezen van de kalender doet (`IsHourCalendar = .T.`, seconden of
+  de oude bandvorm, zie hierboven) geeft nog altijd waar mee; een kalender die daar promoveert met geregistreerde maar
+  lege blokken, krijgt lege blokken. Proef: `tests/planning/check-ifc-kalender-zonder-werktijden.ts`, met de eigen
+  bestanden van v2026.8.1 in `tests/planning/fixtures/kalendertijd-oud/`.
 - `promoteHourCalendars` loopt over alle kalenders die de lezer meegeeft, ook over kalenders die geen taak gebruikt,
   omdat afwijkende blokken alleen al genoeg zijn. Het geeft de sleutels terug waaronder de lezer de gepromoveerde
   kalenders kent. `applyHourModeIFC` loopt zelf op dezelfde manier over alle kalenders, met `promoteHourCalendar` per

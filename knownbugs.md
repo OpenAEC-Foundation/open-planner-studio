@@ -2124,9 +2124,10 @@ en noem het in je rapport of PR-tekst.
     `preferCanonicalWhenEmpty`, `src/services/subdayIo.ts` op tag v2026.9.0). Nagemeten met de lezer en de
     solver van v2026.9.0 in Node: een urentaak van 480 min heeft na doorrekenen duur 0 (begin en einde
     do 07:00); een dagenmaat-taak met een breuk (0,5d) ook (review r1 van #600). Wat overblijft, geldt
-    alleen voor de uitgebrachte v2026.9.0: de lezer van nu kiest bij die promotie alleen nog lege werkblokken
-    als de kalender werkende uitzonderingen met eigen werkblokken heeft, en werkt dan op die uitzonderingen
-    (issue #1251, ADR 0321). `docs/ifc-round-trip.md` noemt alleen "werkuren terug naar 07–16"; dit
+    alleen voor de uitgebrachte v2026.9.0: de lezer van nu leest `WorkingTimes` op de goede plek, en een
+    kalender die in het bestand echt geen `WorkingTimes` heeft, krijgt bij die promotie zijn eigen werktijd,
+    tenzij hij werkende uitzonderingen met eigen werkblokken heeft (issue #1251, ADR 0321).
+    `docs/ifc-round-trip.md` noemt alleen "werkuren terug naar 07–16"; dit
     gevolg staat er niet bij. Voorstel: de releasetekst noemt het, naast het aanvaarde verlies van de
     kalenders. Gevonden bij fixronde 2 van de spec `2026-10-20-alleen-uren-design.md` (§5.4). — B
 
