@@ -20,8 +20,11 @@ a7c en b6 toetsen de hele eenheden bij tempo 1.
   de som. *Dubbele piek* en *Schildpad* hebben er geen; hun gewichten komen uit de tabel (`CONTOUR_SHAPE_VALUES`, via
   `slotWeightsFromValues`), zoals bij `curveValues`.
 - Op twee dagen vallen de monsterpunten van *Klok*, *Vroege piek* en *Late piek* op hun twee randpunten (gewicht
-  0,2), dus is de verdeling daar vlak. Dat is aanvaard: een bult in het midden is met twee slots niet te tonen. ADR
-  0002 noemt hetzelfde: de formule interpoleert en vervlakt korte taken.
+  0,2), dus verdwijnt de piek uit de gewichten: beide slots wegen even zwaar. De grootste-restmethode kan daarna nog
+  een afrondingsstap aan één slot geven, waardoor de afgeronde slots toch verschillen: `distributeUnits(0.334, 2,
+  'BELL')` geeft [0,34, 0,33]: elk slot krijgt eerst 33 van zijn 33,4 honderdsten, het afgeronde totaal is 67
+  honderdsten, en bij gelijke rest krijgt het eerste slot de stap. Dat is aanvaard: een bult in het midden is met
+  twee slots niet te tonen. ADR 0002 noemt hetzelfde: de formule interpoleert en vervlakt korte taken.
 - Op een kalender met werkblokken bepalen deze slots alleen de vorm: `assignmentPlacementLoad` (`workPlacement.ts`)
   legt ze naar rato op de dagen van de plaatsing, en zonder opgeslagen werk volgt het totaal de plaatsing (ADR 0312).
   Op de dagslotroute (`dayslotLoad`) boekt de belasting de slots zoals ze zijn.
