@@ -22,6 +22,9 @@ Besluiten van dit onderdeel: `docs/adr/0002-contour-is-data-op-de-taakas.md`,
 Besluiten van de nivelleerder (`src/engine/scheduler/ResourceLeveler.ts`, zonder commentaar): `docs/adr/0160` tot en
 met `0165` (eigen verse planning, vaste last en pins, kandidaten op de taakkalender, het poolgrootboek, venster en
 reden, onderbrekingen).
+Besluiten van de belastingmotor (`src/engine/scheduler/ResourceLoad.ts`, zonder commentaar): `docs/adr/0310` tot en
+met `0314` (de formule `distributeUnits`, vorm en totaal van de dagslots, boeken op de plaatsing, capaciteit en reden
+van overbezetting, het histogramrapport).
 
 `src/engine/contour/contourEngine.ts` (puur, 2026-09) is de rekenkern voor **resource-contouring**:
 een contourprofiel (`Task.timephasedContours`, periodes op de cumulatieve werkminuten-as van de taak
@@ -63,7 +66,10 @@ bewerkmodel `contourEdit.ts` (dagslots ↔ periodes met gat-herinvoeging; de OPS
 aaneensluitende stukken van een dag zijn één periode, een onderbreking midden op de dag geeft er twee) en de store-actie `resourceSlice.setAssignmentContour` (undo, `isDirty`, GEEN
 `scheduleStale`: een contour raakt geen datum en maakt geen split; een 0-inzet-fase blijft binnen de duur;
 een aanwezig werkveld van de toewijzing volgt de contoursom, `syncAssignmentWorkToContour`).
-Dagenlijst via `ResourceLoad.ts`'s `taskWorkDayIsos` — dezelfde als het histogram. Regressie:
+Dagenlijst via `contourDayModel` (`src/engine/contour/contourDays.ts`), dat de dagen van `taskLoadPlacement` neemt,
+dezelfde plaatsing als histogram en nivelleerder op een kalender met werkblokken (ADR 0312); deel 7 van
+`check-f4b-contourdagen.ts` toetst in de broncode van de dialoog dat die `contourDayModel` aanroept en `taskWorkDayIsos`
+niet. Regressie:
 `tests/planning/check-contour-engine.ts` en `tests/browser/contour-dialog.spec.ts`; gidsen:
 `public/docs/{nl,en}/howto-urenverdeling-aanpassen.md` en, voor wat er bij import en export
 meegaat, `ref-import-exportformaten.md`.

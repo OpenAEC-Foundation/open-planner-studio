@@ -5,12 +5,18 @@ hetzelfde betekenen; leest de ene route leeg als "standaard" en de andere als "o
 dezelfde taak verschillend. Deze betekenissen gelden; voor de precieze regel verwijst elke regel naar de functie of de
 ADR die hem draagt.
 
-- `calendarId` leeg, of een id dat niet in de kalenderbibliotheek staat: de taak rekent in de projectkalender
-  (`resolveCalendar`). Die kalender telt de duur en de constraints van de taak.
+- `calendarId` leeg, of een id dat niet in de kalenderbibliotheek staat: `resolveCalendar` valt terug op de
+  projectkalender, en die telt de duur en de constraints van de taak. Een uitzondering staat in `CPMSolver.ts`: heeft
+  een taak precies één duurwandeling (`timephasedDurationWalks`) en is de resourcekalender daarvan in de urenmodus,
+  dan rekent de voortgangsroute van een lopende taak haar restwerk op die resourcekalender (`progressCalendarFor`).
 - `constraint` leeg: ASAP (ADR 0302).
 - `milestoneKind` leeg: de mijlpaal heeft geen vaste soort, en de relatie bepaalt welke kant een grens is (ADR 0014,
-  ADR 0271).
-- `workRule` leeg: de standaardregel van het project, en zonder die `FIXED_DURATION_RATE` (regel `taaktypes`).
+  ADR 0271). Ook een FNET- of MFO-constraint op het moment van de grens, of de P6-conventie
+  `p6ZeroDurationUsesPlannedBoundary` (`p6ZeroDurationUsesFinishBoundary` in `CPMSolver.ts`), kan zo'n mijlpaal een
+  finishgrens laten volgen (`snapSuccessorEarlyStart`).
+- `workRule` leeg: waar de werkregel van toepassing is (`workRuleApplies`: een taak zonder kinderen die geen mijlpaal,
+  hammock of kalendertijdtaak is), geldt de standaardregel van het project, en zonder die `FIXED_DURATION_RATE`
+  (`effectiveWorkRule`, regel `taaktypes`).
 - `mspTaskType` leeg: onbekend, niet Fixed Units (ADR 0303).
 - `levelingDelay`, `levelingDelayMinutes` en `levelingDelayElapsed` leeg: geen nivelleervertraging; welke van de
   twee waarden wint, staat in ADR 0017. `leveledEarlyStart` telt de vertraging op bij de vroege start die de
@@ -28,7 +34,9 @@ ADR die hem draagt.
 - `priority` stuurt alleen de nivelleerder, van 0 tot en met 1000 met 500 als standaard voor een nieuwe taak
   (`buildNewTask`); 1000 pint de taak vast (ADR 0161).
 - Een hammock is nooit kritiek (`scheduleAnalysis.ts`); haar afgeleide duur staat in ADR 0023.
-- `notes` verandert via `updateTask` met `{ notes }`; er is geen eigen store-actie voor.
+- `notes` verandert via `updateTask` met `{ notes }`; er is geen eigen store-actie voor. Het taakraster wijzigt
+  `notes` ook rechtstreeks (`task.notes` in `taskEditPlan.ts`): de tekst van de eerste notitie, of een nieuwe notitie
+  als er geen is; bij meer dan één notitie is de cel alleen-lezen.
 - Een externe koppeling rekent altijd op haar bevroren `anchorDate`, ook met `sourceMissing` (ADR 0022). De velden
   `sourceRef.siteFileId`, `sourceVersion` en `anchorReadAt` zijn herkomst van het anker; ze zijn optioneel, en hun
   betekenis, de randgevallen bij een oudere versie en het besluit van de eigenaar (keuze 4, 3 november 2026) staan in
