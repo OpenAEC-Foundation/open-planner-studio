@@ -150,6 +150,9 @@ verzoek (`stop` van `IfcOutputCompute`); een geweken ronde laat niets achter (re
 melding, opnieuw na de volgende rust. Na de grens loopt de ronde af. De ronde vraagt nooit iets: zonder
 schrijftoestemming slaat ze het document over, en waar Ctrl+S naar een te krap anker van een afhankelijk project zou
 vragen ook (dezelfde beoordeling, `tightAnchorsIfSaved` in `dependentCandidates.ts`; een ruim anker houdt niets tegen).
+De vraag vóór het opslaan bij vervallende IFC-gegevens (`tauri-ifc.md`) stelt de ronde ook niet: ze schrijft en meldt
+het aantal daarna, zoals vóór die vraag. Wat de ronde daar moet doen, wacht op een besluit van de eigenaar (A: het
+document overslaan tot de planner zelf opsloeg; B: schrijven zoals nu).
 Veilig stoppen, met één melding per document per sessie en geen nieuwe poging tot de planner zelf opslaat (een nieuwe
 bron) of een ander doel kiest: eigen bestand gewijzigd of weg, buiten de thuismap (`save-as-only`), geen herstelrecord
 of manifest vast te leggen, een record van een eerdere onderbroken vervanging (`pendingReplaceFor`, het beleid van

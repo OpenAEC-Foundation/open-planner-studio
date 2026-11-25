@@ -2031,7 +2031,7 @@ en noem het in je rapport of PR-tekst.
      zet het veld op `ignored` maar stuurt het in de proef niet mee. Gezien in de review van #1083 (GPT-6.2-Sol) en
      in de code nagelopen. Voorstel: het veld in `CAL_READONLY_KEYS` opnemen (meegestuurd, gemeld in
      `ignoredFields`, niet geschreven, want de bronklokken horen bij het bronbestand), en de proef het veld laten
-     meesturen. — B
+     meesturen. Issue #1274. — B
 1970. **`planner_update_calendar` meldt `taskDurationsPreserved: true` terwijl de duur verandert.** De rij met
      `modeChangedFrom` (`updateCalendarCore` in `src/services/mcp/tools/calendarResourceTools.ts`) en de waarschuwing
      over de moduswissel zeggen dat alleen de planning kan verschuiven. `draft.updateCalendar`
@@ -2346,7 +2346,7 @@ en noem het in je rapport of PR-tekst.
      `tests/planning/fixtures/periode-0730.ifc` zonder `ifcTimePeriods` leest met `planner_get_calendars` als 07:30 tot
      16:00 met 60 minuten pauze en `hoursPerDay: 8`; de schrijfvalidatie rekent 7,5 uur en `planner_update_calendar`
      met `create: true` weigert de gelezen kalender in een leeg document. Er gaat niets verloren; de kalender is zo
-     alleen niet over te zetten (ADR 0104). — B
+     alleen niet over te zetten (ADR 0104). Issue #1274. — B
 
 ## Bestanden en herstel
 
@@ -4586,10 +4586,14 @@ en noem het in je rapport of PR-tekst.
       uitkomst; het komt dus niet uit #1199. Op die branch weigert het ook na `runCPM` (F5), met een koppeling erbij; of
       main na F5 ook weigert, is niet nagegaan. Vermoeden: de geschreven late datum van een samenvattingstaak en wat het
       heropenen ervan maakt, lopen uiteen als veel kinderen weg zijn. — B
-2357. **VERVOLG (#1199): de telling na het opslaan is een gewone melding, en de planner kan haar missen.** Elke geslaagde
-      schrijfactie met een niet-lege wijzigingslijst meldt haar eigen telling met de naam van het geschreven bestand
-      (`notifyForeignChangesWritten` in `src/state/foreignChangesWrittenNotice.ts`, een blijvende info zoals
-      `notifications.siteSaveConflictCopy`). Ze deelt de grenzen van de meldingen van main:
+2357. **VERVOLG (#1199): de telling na het opslaan is een gewone melding, en de planner kan haar missen.** Met de vraag
+      vóór het opslaan aan (#804, besluit eigenaar 25 november 2026) ziet de planner bij elke opslag van het document het
+      aantal vóór het schrijven, en komt er geen telling achteraf. De telling achteraf (`notifyForeignChangesWritten` in
+      `src/state/foreignChangesWrittenNotice.ts`, een blijvende info zoals `notifications.siteSaveConflictCopy`, met de
+      naam van het geschreven bestand) blijft alleen bij een opslag met de vraag uit ("Niet meer vragen", terug te zetten
+      in Instellingen → Meldingen), bij een export (Exporteren → IFC en de export met de resourcebibliotheek;
+      `planner_export_ifc` geeft het aantal in zijn antwoord) en bij Automatisch opslaan, dat schrijft zoals vóór de
+      vraag. Daar deelt ze de grenzen van de meldingen van main:
       - de telling is weg na herladen in de browser, na een crash, na een herstart door de updater en na afsluiten, als de
         planner haar nog niet las; het bestand is dan al zonder de vervallen gegevens geschreven;
       - bij meer dan drie meldingen tegelijk verdringt de stapel volgens de regels van main (knownbug 2253); een telling
@@ -4597,10 +4601,13 @@ en noem het in je rapport of PR-tekst.
       - de planner krijgt de telling in het venster waarin hij opsloeg; een tweede venster toont haar niet;
       - in de browser kent de app de map van een bestand niet: twee bestanden met dezelfde naam in verschillende mappen
         krijgen dezelfde regel als hun aantal gelijk is (de desktop-app noemt het volledige pad).
-      Dit is een voorwaarde voor het standaard aanzetten van de flag *IFC met gebouwmodel openen*: de planner mist de
-      telling van een opslag niet. De richting is een keuze van de eigenaar: vragen vóór het schrijven, of de uitkomst
-      duurzaam vastleggen en opnieuw tonen. Knownbug 2250 blijft staan. Besluit technisch eigenaar bij het opknippen van
-      #1199 (fixronde 3).
+      De vraag uit en een export zijn geen gemiste telling in de zin van de tiende voorwaarde: de vraag uit is een
+      uitdrukkelijke keuze die terug te zetten is, en een export verandert het document en het geopende bestand niet.
+      Automatisch opslaan wel: zolang het zonder vraag schrijft, is de tiende voorwaarde voor het standaard aanzetten van
+      de flag *IFC met gebouwmodel openen* (de planner mist de telling van een opslag niet) voor die route niet gehaald.
+      Wat het moet doen, wacht op een keuze van de eigenaar: A, het document overslaan tot de planner zelf opsloeg; of B,
+      schrijven zoals nu. Knownbug 2250 blijft staan. Besluit technisch eigenaar bij het opknippen van #1199 (fixronde 3);
+      de vraag vóór het opslaan is gebouwd achter de flag.
 
       De waarschuwing bij het wissen (`notifyForeignLinksDropped` in `src/state/foreignLinksNotice.ts`) is ook een gewone
       melding: een info van main zonder knop, met het aantal van die ene wisstap. Ze deelt dezelfde grenzen. Staan er al
@@ -4612,6 +4619,13 @@ en noem het in je rapport of PR-tekst.
       (knownbug 2249). De knop *Ongedaan maken* komt in PR 7 (`detached`). Dit is de twaalfde voorwaarde voor het
       standaard aanzetten van de flag: de planner mist de waarschuwing bij het wissen niet en kan vanuit die waarschuwing
       ongedaan maken. Besluit technisch eigenaar, 25 november 2026 (fixronde 5). — S
+
+2376. **Terwijl de vraag vóór het opslaan staat, toont de statusbalk "Opslaan…".** De opslag telt als lopend vanaf
+      Ctrl+S (`trackSave` in `src/state/slices/fileSlice.ts` verhoogt `saveState.saving` vóór de poging), dus ook terwijl
+      de app op het antwoord wacht. Achter de modale vraag staat dan "Opslaan…"; na Annuleren wordt het weer "Niet
+      opgeslagen". Zo werkt het nu ook bij de schemavraag en de waarschuwing over te krappe ankers, die hun vraag ook
+      binnen de poging stellen. Gezien in de code (`saveStatusOf` in `src/state/documentSaveState.ts`), niet in de app
+      bekeken. Eén regel voor alle vragen binnen een opslagpoging hoort in een eigen PR. — S
 
 2303. **De P6 XML-lezer rekent de eenheden van een materiaaltoewijzing om alsof het uren zijn.** In de toewijzingslezer
       van `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) worden `PlannedUnits`, `ActualUnits` en `RemainingUnits`
@@ -4776,6 +4790,32 @@ en noem het in je rapport of PR-tekst.
       gaat daar de tijdsverdeling van de irreguliere periodes, niet het werk. Categorie 51: dat het blok wordt
       overgeslagen, staat in de code; of apart geboekt overwerk in een gewoon bestand daardoor in de contour of de
       wandeling ontbreekt, is niet vastgesteld. — B (87), S (51)
+
+2481. **`mandatory` en `milestoneKind` van een taak die geen mijlpaal is, zijn na opslaan als IFC en heropenen weg.**
+      De descriptor van `OPS_Milestone` in `PER_TASK_PSETS` (`src/services/ifc/ifcPsets.ts`) schrijft alleen bij
+      `isMilestone`. Nagespeeld met `updateTask` op een gewone taak (`mandatory: true`, `milestoneKind: 'START'`), dan
+      `writeIFC` en `readIFC`: beide velden ontbreken na het lezen. In de code gelezen, niet nagespeeld: de MCP-velden
+      (`taskFields.ts`) en de extensie-API (`extMappers.ts`) zetten beide zonder toets op `isMilestone`. Het taakraster
+      weigert die invoer en de taakdialoog toont de velden alleen bij een mijlpaal. De IFCX-schrijver doet eerst een
+      rondgang door STEP (`ifcx/ifcxWriter.ts`), dus ook daar ontbreken beide velden. Open vraag: mag een taak
+      zonder mijlpaal deze velden dragen; `taskMilestoneTransition.ts` wist ze bij de overgang naar een gewone taak.
+      — B (STEP), S (de routes)
+
+2482. **Een `levelingDelay` met een breuk komt na opslaan als IFC en heropenen afgerond terug.** De descriptor van
+      `OPS_Leveling` (`src/services/ifc/ifcPsets.ts`) schrijft `IFCINTEGER(Math.round(...))` en rondt bij het lezen ook
+      af. Nagespeeld met `updateTask` (`levelingDelay: 2.5`), `writeIFC` en `readIFC`: terug kwam 3. In de code gelezen,
+      niet nagespeeld: de extensie-API (`extMappers.ts`) neemt `levelingDelay` zonder toets over, zodat daar een breuk
+      kan ontstaan. De nivelleerder levert hele dagen en bewaart de fijnere maat in `levelingDelayMinutes`, en de
+      `.mpp`-lezer zet alleen het minutenveld (`ResourceLeveler.ts`; gelezen in de review van #1273): in de app
+      zelf is geen invoer gevonden die een breuk in het dagenveld zet. — B (STEP), S (de route)
+
+2483. **De lezer leest elke property in `OPS_StructureMeta` als definitie-JSON, ook een die het register een vreemd lid
+      noemt.** `extractStructure` (`src/services/ifc/ifcReader.ts`) loopt over alle `IFCPROPERTYSINGLEVALUE`-leden van
+      de pset en neemt van elk de lijsten `activityCodeTypes` en `customFieldDefs` over; de voorrang geldt per lijst:
+      de laatste property met een array voor die lijst wint, en een latere property zonder die array laat de eerdere
+      definities staan. `PROP.StructureMeta` noemt alleen `structure`, dus `foreign/classify.ts` deelt een ander lid
+      in als vreemd lid terwijl de lezer het wel leest. Proef uit de review van #1273, met een property buiten het
+      register. — B
 
 ## Rondleiding, Help en extensie-gidsen
 

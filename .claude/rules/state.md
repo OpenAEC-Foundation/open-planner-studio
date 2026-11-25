@@ -56,6 +56,11 @@ Scheduling is **manual, not reactive**: the actual solve — leaf-filter → `CP
 
 Voeg je projectdata toe, dan hoort die dus in `DOCUMENT_FIELDS` — anders overleeft hij geen documentwissel, geen undo, geen crashherstel en geen opslaan. `tests/planning/check-document-contract.ts` bewaakt de keten.
 
+**Besluiten in `documentContract.ts`** staan in `docs/adr/`: één lijst en twee compilepoorten (0430), de rollen
+`data` en `derived` in de undo-snapshot (0431), weergave, opslagdoel en sessiestand buiten undo (0432), bronnen,
+bronkenmerk en eenrichtingsvlaggen buiten undo (0433), een payload laden en normaliseren (0434) en de herstelinvoer
+met de payload uit herstel (0435).
+
 **De opslagstand** (#804 stap 5, besluit eigenaar 17 november 2026, voor elk document): de statusbalk toont "Opslaan…"
 zolang een gevraagde opslag van het document loopt of wacht (`trackSave` in `fileSlice.ts`, van de vraag tot en met het
 einde van de hele werkgang, ook na annuleren, weigering of fout weg), daarna "Opgeslagen 14:32" en "Niet opgeslagen"
@@ -149,7 +154,8 @@ net als het formaat van de uitvoer (`attemptFormat`); Automatisch opslaan legt h
 `listPlain`. Elke beslissing van die poging (het formaat van de uitvoer, de BOM, de zelfgeschreven versie, de
 doelcontrole, de toets van #1174, de toets bij de beurt in de rij, de vingerafdruk bij het vastleggen van een gewone
 planning) gebruikt die stand; een flagwissel geldt pas vanaf de volgende poging (besluit van de technisch eigenaar,
-25 november 2026, PR #1213 en #1223).
+25 november 2026, PR #1213 en #1223). De vraag vóór het opslaan (`tauri-ifc.md`) leest haar instelling
+(`ui.foreignChangesQuestion`) uit dezelfde momentopname.
 De stop van Automatisch opslaan vervalt zodra `guardedKnownTarget` een
 andere waarde geeft: een vastgelegde eigen opslag of een export die het eigen doel schreef (`settleFingerprintAfterExport`;
 een nieuw object, ook als er intussen nieuw werk is), de flag uit (`setUI` wist het veld) of een onbekende versie;

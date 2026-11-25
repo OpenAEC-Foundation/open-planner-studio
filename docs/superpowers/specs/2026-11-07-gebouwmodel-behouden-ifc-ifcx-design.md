@@ -497,6 +497,11 @@ IFC-gegevens buiten de planning verwezen naar iets wat uit de planning is verwij
 of verwijderd." Elke geslaagde schrijfactie met een niet-lege lijst meldt haar eigen telling als gewone melding
 (fixronde 3 van #1199); wat die melding niet kan, staat in knownbug 2357. De melding bij het wissen is in
 deel 1 een gewone melding zonder knop; de knop *Ongedaan maken* komt in PR 7 (fixronde 5 van #1199, knownbug 2357).
+Vóór elke opslag van het document met een niet-lege lijst vraagt de app eerst of het mag, met het aantal van die lijst
+(besluit van de eigenaar, 25 november 2026: "1 maar wel met een optie om het niet meer te tonen"). Met die vraag aan
+komt er geen telling achteraf: de vraag is de telling. Met de vraag uit ("Niet meer vragen", een instelling per
+apparaat) en bij een export blijft de telling na het opslaan. Automatisch opslaan wacht op een besluit van de eigenaar.
+Detail: "De vraag vóór het opslaan" in `.claude/rules/tauri-ifc.md`.
 
 Dezelfde regel geldt voor vreemde gegevens **binnen** een eigen stuk: de onbekende JSON-sleutels (§4.2) en de
 ongebruikte sleutels in `OPS_Assignments` horen bij hun object en vervallen met dat object. Ze staan dan ook op de
@@ -905,7 +910,7 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 
 | Route | Waar | Gedrag met een vreemd deel |
 |---|---|---|
-| Opslaan, Opslaan als in hetzelfde formaat | `fileSlice.ts` | Volledig bestand (§4.10). |
+| Opslaan, Opslaan als in hetzelfde formaat | `fileSlice.ts` | Volledig bestand (§4.10). Laat de opslag IFC-gegevens buiten de planning vervallen, dan eerst de vraag met het aantal (§4.7), ook in de sluitvraag, bij afsluiten, op de site en bij een download. |
 | `exportAs('ifc')` | `fileSlice.ts:1396-1399` | Volledig bestand, zelfde controles; vervangt `ifcSource` niet (§4.8). |
 | Exporteren → IFC zonder gebouwmodel | `fileSlice.ts`, nieuw | Modus `planOnly`: alleen P (de huidige uitvoer). Vraag vooraf die dat zegt. |
 | `exportProjectWithPool` | `fileSlice.ts:1474` | Een export voor uitwisseling van resources: alleen planning en pool, zonder model, met een vraag vooraf. |
@@ -1010,7 +1015,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 - Na openen, in de statusbalk: "Dit bestand bevat ook een gebouwmodel en gegevens van andere programma's
   (12.345 objecten). Bij opslaan blijven die ongewijzigd."
 - Bij openen, als de overname van planning uit een ander programma iets niet meeneemt: de lijst uit §4.5.
-- Na opslaan, alleen als de wijzigingslijst niet leeg is: de melding uit §4.7.
+- Vóór het opslaan van het document, alleen als de wijzigingslijst niet leeg is: de vraag uit §4.7, met Opslaan,
+  Annuleren en "Niet meer vragen". Na opslaan met de vraag uit, en na een export: de melding uit §4.7.
 - Handleiding: `howto-ifc-schema-kiezen` ("Voeg samen als laatste stap") en `docs/ifc-round-trip.md` herschrijven. Nieuwe
   how-to: "Een planning maken in een IFC-bestand met gebouwmodel".
 
@@ -1675,8 +1681,9 @@ profiel); daar geldt deze lijst.
 8. **Een taak van een ander programma die de planner wijzigt**: de herkomst blijft zoals hij was (§4.5). Een eigen
    "laatst gewijzigd met Open Planner Studio" is een wens (knownbug 1757), pas te bouwen als iemand erom vraagt.
    **Koppelingen van een ander programma naar een taak die de planner wist** (§4.7): meteen bij het wissen een melding
-   met het aantal koppelingen dat bij het opslaan vervalt en een knop *Ongedaan maken*, zonder vraag; na het opslaan
-   dezelfde melding als nu. Fase 2.
+   met het aantal koppelingen dat bij het opslaan vervalt en een knop *Ongedaan maken*, zonder vraag. Bij het opslaan
+   van het document daarna een vraag met het aantal, met "Niet meer vragen" (besluit van de eigenaar, 25 november
+   2026); met de vraag uit en na een export de melding achteraf. Fase 2.
 9. **De namen van de kopieën**: §4.10. De overige teksten beoordeelt de eigenaar in de app, als ze definitief zijn.
 10. **Sluiten tijdens een opslag** (document of app): de app wacht, toont "Wordt nog opgeslagen…" en sluit daarna
     vanzelf.

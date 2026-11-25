@@ -49,6 +49,7 @@ export const SETTING_IDS = [
   'dissolveSummaryMode',
   // Meldingen
   'formatNotices',
+  'foreignChangesQuestion',
   // Geavanceerd
   'aiMode',
   'aiAutostart',
