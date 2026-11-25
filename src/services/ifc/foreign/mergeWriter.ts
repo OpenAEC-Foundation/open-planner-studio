@@ -58,7 +58,7 @@ import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource, PreparedIfcWrite, UnusedKeysOfTask } from './ifcSource';
 import {
-  duplicateAssignmentKeyProblem, foreignAssignmentKeyNamesForWriter, unusedKeysForWriter, unusedKeysFromRead, unusedKeysProblem,
+  droppedUnusedKeysProblem, duplicateAssignmentKeyProblem, foreignAssignmentKeyNamesForWriter, unusedKeysForWriter, unusedKeysFromRead, unusedKeysProblem,
 } from './unusedKeys';
 import { readFileSchemaName } from '../ifcReader';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
@@ -71,6 +71,8 @@ import { sameValue } from '@/utils/sameValue';
 import { freeze } from 'immer';
 import { openMergePlanning } from '@/state/ifcMergePlanning';
 import { psetOwners, validateMergeOutput } from './mergeValidation';
+import { applyForeignRule, emptyForeignReferences, goneStepIds, NOTHING_GONE, type ForeignChange, type ForeignReferences, type ForeignRuleOutcome } from './changeList';
+import { foreignChangeList, foreignReferences } from './foreignReferences';
 import {
   SECOND_FORMS, indexView, linesView, ownGroupMembers, ownGroupTrees, restoredOwnGroupDifference, restoredOwnSlots, type RestoredOwnSlots,
 } from './ownGroups';
@@ -238,6 +240,15 @@ function dropReleased(lines: readonly OwnLine[], byId: ReadonlyMap<number, OwnLi
       stack.push(target);
     }
   }
+}
+
+function editedPieces(index: StepIndex, changes: readonly ForeignChange[]): ReadonlyMap<number, Uint8Array | null> {
+  const edits = new Map<number, Uint8Array | null>();
+  for (const change of changes) {
+    if (change.kind === 'vervallen' && change.unusedKeyOfTask !== undefined) continue;
+    edits.set(index.chunkOf(String(change.id)), change.kind === 'gewijzigd' ? change.newBytes : null);
+  }
+  return edits;
 }
 
 /** Een multiset van ids. */
@@ -431,6 +442,11 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     foreignAssignmentKeyNames: foreignAssignmentKeyNamesForWriter(source, index),
   };
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
+  const gone = goneStepIds(source.stepIds, input);
+  const references = gone.size > 0 ? foreignReferences(index, cls.classes, source.bytes, cls.selection.inD) : emptyForeignReferences();
+  const rule = applyForeignRule(references, gone, source.unusedKeys);
+  const changes = foreignChangeList(rule, index, source.bytes);
+  const pieceEdits = editedPieces(index, changes);
   // Een verstopt stuk vóór een P-stuk (#886): het commentaar ervóór gaat met het P-stuk weg.
   for (let i = 0; i < n; i++) {
     if (!index.isEntity(i) || !isP(i)) continue;
@@ -473,7 +489,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // ── 2–6. De regels van de writer voor een domein, met de bewaarde en gemengde relaties en de vreemde leden. De merge
   // doet dit voor het bewerkte domein (O1) en voor het domein zoals de lezer het las (O0, de verliesbewaking). ──
   const keptD = new Set(keep.values());
-  function buildLines(input: WriteIFCInput, caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void,
+  function buildLines(input: WriteIFCInput, caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void, rule: ForeignRuleOutcome,
     before?: ReadonlyMap<number, WrittenPiece>, changed: ReadonlySet<string> = new Set()) {
     // ── 2. Het domein ──
     const comparison = planningIdentityInput(input);
@@ -566,12 +582,12 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     };
 
     for (let r = 0; r < n; r++) {
-      if (!index.isEntity(r) || isP(r)) continue;
+      if (!index.isEntity(r) || isP(r) || rule.dropped.has(sid(r))) continue;
       const type = index.type(r);
       const pos = relArgs(type);
       if (!pos) continue;
       const relating = index.refAt(r, pos.relating);
-      const members = index.refsAt(r, pos.related).filter(x => x >= 0 && inD[x]);
+      const members = index.refsAt(r, pos.related).filter(x => x >= 0 && inD[x] && !rule.gone.has(sid(x)));
       if (members.length === 0) continue;
       if (relating >= 0 && inD[relating]) {
         mixedRelation(r, type, relating, members);
@@ -790,13 +806,13 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // ── 5. Gemengde psets (§4.6 b): ongewijzigd ⇒ geen eigen pset voor dat D-object ──
     const ownPsetsOf = indexOwnPsets(lines, byId);
     for (let r = 0; r < n; r++) {
-      if (!index.isEntity(r) || isP(r) || index.type(r) !== DEFINES) continue;
+      if (!index.isEntity(r) || isP(r) || index.type(r) !== DEFINES || rule.dropped.has(sid(r))) continue;
       const pset = index.refAt(r, 5);
       if (pset < 0 || index.type(pset) !== 'IFCPROPERTYSET') continue;
       const name = index.name(pset) ?? '';
       // Alleen bij een pset van het register is een gemengde pset mogelijk.
       if (!REGISTER_PSET_NAMES.has(name)) continue;
-      for (const owner of index.refsAt(r, 4).filter(x => x >= 0 && inD[x])) {
+      for (const owner of index.refsAt(r, 4).filter(x => x >= 0 && inD[x] && !rule.gone.has(sid(x)))) {
         const own = ownPsetsOf.get(`${sid(owner)}|${name}`);
         const want = sourceProps(index, pset);
         if (!own || own.rels.some(rel => refList(rel.args[4]).length !== 1) || !sameProps(own.props, want)) {
@@ -854,7 +870,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
             const owner = owners[0];
             const exists = !isP(owner) || (byId.has(sid(owner)) && !byId.get(sid(owner))!.drop);
             if (!exists) {
-              caseAt('verwijderd', m, `${label(m)} hoort bij ${name} van ${label(owner)}, dat niet meer bestaat`);
+              if (!rule.gone.has(sid(owner))) caseAt('verwijderd', m, `${label(m)} hoort bij ${name} van ${label(owner)}, dat de planning niet kent`);
               continue;
             }
             // De writer schrijft deze pset niet (golden rule: niets eigens te schrijven). Dan een pset met alleen de vreemde
@@ -917,7 +933,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // de lezing van de bron (#886). Wat alleen het openen veranderde, schrijft de merge in de vorm van de bron
   // (`sourceForm.ts`); de verliesbewaking blijft met de bron vergelijken.
   // O0: het domein zoals de lezer het uit de bron las (de verliesbewaking hieronder).
-  const built0 = buildLines(pristine, () => {});
+  const built0 = buildLines(pristine, () => {}, NOTHING_GONE);
   const pristineIds = planningIdentities(pristine).calendar, domainIds = planningIdentities(input).calendar;
   const literal0 = new Set(built0.literalCalendarIds.map(id => pristineIds.get(id) ?? id));
   // Was knownbug 1102 (besluit van Trias, 10 november 2026): een kalender die bij deze opslag letterlijk wordt (letterlijk in O1,
@@ -928,7 +944,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   let form = sourceFormWhereUnchanged(input, source.opened, pristine);
   let pending: Parameters<typeof caseAt>[] = [];
   const plannerChanged = changedScopes(input, (source.opened ?? pristine) as unknown as ImportResult).keys;
-  let built = buildLines(form.input, (...a) => { pending.push(a); }, built0.raw, plannerChanged);
+  let built = buildLines(form.input, (...a) => { pending.push(a); }, rule, built0.raw, plannerChanged);
   for (let round = 0; ; round++) {
     const next = new Set([...newlyLiteral, ...built.literalCalendarIds.filter(id => !literal0.has(domainIds.get(id) ?? id))]);
     if (next.size === newlyLiteral.size) break;
@@ -936,7 +952,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     newlyLiteral = next;
     form = sourceFormWhereUnchanged(input, source.opened, pristine, newlyLiteral);
     pending = [];
-    built = buildLines(form.input, (...a) => { pending.push(a); }, built0.raw, plannerChanged);
+    built = buildLines(form.input, (...a) => { pending.push(a); }, rule, built0.raw, plannerChanged);
   }
   for (const a of pending) caseAt(...a);
   const domain = form.input;
@@ -953,13 +969,18 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   }
   // Een vast id: een domeinobject uit `stepIds`, of de kop van een eigen baseline (`baselineHeads`).
   const fixedIds = new Set<number>([...bySource.keys(), ...baselineHeads.values()]);
+  for (const id of rule.gone) {
+    if (emitted.has(id)) caseAt('uitvoer-controle', index.chunkOf(String(id)), `#${id} is volgens de planning verwijderd, maar de writer schrijft het`);
+  }
   for (let c = 0; c < n; c++) {
-    if (!index.isEntity(c) || isP(c)) continue;
+    if (!index.isEntity(c) || isP(c) || rule.dropped.has(sid(c))) continue;
+    const lost = rule.trimmed.get(sid(c));
     for (let k = index.outStart(c); k < index.outEnd(c); k++) {
       const t = index.outTarget(k);
       if (t < 0 || !isP(t)) continue;
       const id = sid(t);
       if (fixedIds.has(id) && emitted.has(id)) continue;
+      if (lost?.has(id)) continue;
       if (inD[t] && !emitted.has(id)) {
         caseAt('verwijderd', c, `${label(c)} wijst naar ${label(t)}, dat ${fixedIds.has(id) ? 'niet meer bestaat' : 'de planning niet kent'}`);
       }
@@ -995,7 +1016,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // `IfcProject` van een ander programma), leest het type uit de bron.
   const chosen = built.chosen.filter(e => byId.get(e.id)?.drop === false);
   const restored = restoredOwnSlots(linesView(lines.filter(l => !l.drop), id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; }), edits, chosen);
-  const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds);
+  const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds, pieceEdits);
   if (cases.length === 0 && edits.length > 0) {
     const plain = lines.filter(l => !l.drop).map(l => l.text);
     for (const e of edits) {
@@ -1049,7 +1070,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     }
   }
   async function checkedOutput(candidate: readonly OutLine[]): Promise<PreparedIfcWrite> {
-    const assembled = concatParts(assemble(source, index, cls, candidate.map(line => 'text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`)));
+    const assembled = concatParts(assemble(source, index, cls, candidate.map(line => 'text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`), undefined, pieceEdits));
     // De vingerafdruk nu, vóór de uitvoerindex er is: `crypto.subtle.digest` neemt een kopie van de bytes, en als laatste
     // stap stond die kopie bovenop de hele uitvoercontrole (#804). `precomputeSha256` onthoudt hem per buffer; niets
     // verandert deze bytes nog, dus `writtenSource` krijgt dezelfde waarde zonder tweede berekening. Bij een weigering
@@ -1075,7 +1096,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       slots: restored.slots.filter(s => !unmapped.has(s.group)).map(s => ({ ...s, id: remap.get(s.id)! })),
     };
     observe?.(own);
-    const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own);
+    const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own, changes);
     const written = new Set(candidate.map(line => line.id));
     const ids = actual.scan.chunkIds, classes = actual.scan.classes;
     for (let k = 0; k < ids.length; k++) {
@@ -1084,11 +1105,14 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
         ? `#${ids[k]} is in de uitvoer een eigen stuk, maar de writer schreef het niet`
         : `#${ids[k]} schreef de writer, maar in de uitvoer is het geen eigen stuk` }]);
     }
-    const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c)));
+    const stillMembers = new Set(actual.classification.foreignMembers);
+    const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c))).filter(c => stillMembers.has(c));
+    const nextReferences = foreignReferences(actual.index, classes, actual.bytes, actual.classification.selection.inD);
     const next = await writtenSource(input, actual.bytes, actual.index, actual.scan, stepIds, classes, members, actual.unusedKeys,
-      candidate.map(line => actual.index.chunkOf(String(line.id))));
+      candidate.map(line => actual.index.chunkOf(String(line.id))), nextReferences);
     // Alleen de nieuwe buffer blijft via het resultaat vastgehouden; de oude bron kan na commit weg.
-    return { bytes: actual.bytes, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds };
+    return { bytes: actual.bytes, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds,
+      ...(changes.length > 0 ? { foreignChanges: changes } : {}) };
   }
   const block = lines.filter(l => !l.drop);
   let preserved: readonly OutLine[] | undefined;
@@ -1126,7 +1150,7 @@ function writerStepIds(input: WriteIFCInput, idMap: ReadonlyMap<string, number>,
 /** De scanner levert grenzen; eigendom, leden en sessie-identiteit komen van het schrijfplan. */
 async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, index: StepIndex, scan: ForeignScanResult,
   stepIds: Readonly<Record<string, number>>, classes: Uint8Array, foreignMembers: readonly number[],
-  unusedKeys?: readonly UnusedKeysOfTask[], writtenChunks: readonly number[] = []): Promise<IfcSource> {
+  unusedKeys?: readonly UnusedKeysOfTask[], writtenChunks: readonly number[] = [], references?: ForeignReferences): Promise<IfcSource> {
   const schemaName = readFileSchemaName(new TextDecoder().decode(bytes.subarray(0, scan.chunkStarts[1])));
   if (!schemaName) throw new Error('mergeWriter: de geschreven kop mist het schema');
   const foreignObjectCount = classes.reduce((count, c) => count + (c > 1 ? 1 : 0), 0);
@@ -1136,6 +1160,7 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, index: Ste
     elementLinks: elementLinksByTask(scanElementLinks(index), stepIds),
     ...(unusedKeys && foreignObjectCount > 0 ? { unusedKeys } : {}),
     ...(foreignObjectCount > 0 ? { sourceSlots: scanSourceSlots(index, foreignOriginAmong(index, writtenChunks)) } : {}),
+    ...(references && references.stepIds.length > 0 && foreignObjectCount > 0 ? { foreignReferences: references } : {}),
     foreign: foreignObjectCount > 0, foreignObjectCount, buildingModel: scan.buildingModel, lineEnding: scan.lineEnding, opened: input,
   };
 }
@@ -1171,14 +1196,15 @@ function concatParts(parts: readonly Uint8Array[]): Uint8Array {
 
 /** De vaste uitvoercontrole van #918, ook voor ongewijzigd teruggegeven bronbytes. */
 async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: IfcSource,
-  index: StepIndex, cls: Classification, opened: WriteIFCInput, probe?: OpenMergePlanning, own?: OwnOutputCheck) {
+  index: StepIndex, cls: Classification, opened: WriteIFCInput, probe?: OpenMergePlanning, own?: OwnOutputCheck,
+  changes: readonly ForeignChange[] = []) {
   let actual: ReturnType<typeof validateMergeOutput>;
   let shown: WriteIFCInput, wanted: WriteIFCInput;
   let parsed: WriteIFCInput;
   let outputScan: ForeignScanResult;
   const writtenUnusedKeys = new Map<string, string[]>();
   try {
-    actual = validateMergeOutput(index, cls, source.bytes, bytes);
+    actual = validateMergeOutput(index, cls, source.bytes, bytes, { changes });
     if (actual.problems.length) throw new MergeNeedsPhase2Error(actual.problems.map(detail => ({ kind: 'uitvoer-controle', detail })));
     outputScan = foreignScanFrom(actual.index, actual.classification, bytes);
     parsed = await pristineFromScan(outputScan, bytes, opened.project, writtenUnusedKeys) as WriteIFCInput;
@@ -1191,8 +1217,9 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   }
   const unusedKeys = unusedKeysFromRead(writtenUnusedKeys);
   const taskIds = input.tasks.map(t => t.id);
-  const unusedProblem = own && (unusedKeysProblem(source, index, taskIds, unusedKeys, actual.index, own.stepIds)
-    ?? duplicateAssignmentKeyProblem(source, index, taskIds, actual.index, own.stepIds));
+  const unusedProblem = droppedUnusedKeysProblem(source, index, changes, actual.index)
+    ?? (own && (unusedKeysProblem(source, index, taskIds, unusedKeys, actual.index, own.stepIds)
+    ?? duplicateAssignmentKeyProblem(source, index, taskIds, actual.index, own.stepIds)));
   if (unusedProblem) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: unusedProblem }]);
   if (probe) {
     for (const [side, probeOpened] of [['uitvoer', shown], ['domein', wanted]] as const) {
@@ -1219,7 +1246,7 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   // (c), als laatste: wat hiervoor al weigerde, houdt zijn soort.
   const problem = own ? ownOutputProblem(bytes, actual.index, actual.classification, index, cls, parsed, input, own) : undefined;
   if (problem) throw new MergeNeedsPhase2Error([{ kind: 'eigen-uitvoer', detail: problem }]);
-  return { bytes, index: actual.index, scan: outputScan, unusedKeys };
+  return { bytes, index: actual.index, classification: actual.classification, scan: outputScan, unusedKeys };
 }
 
 /**
@@ -1515,10 +1542,10 @@ function assertSameSource(index: StepIndex, cls: Classification, source: IfcSour
  * en dezelfde leesopties als de bytes-route. De regels van de writer zijn nooit letterlijk gecodeerd.
  */
 function readPlanning(source: IfcSource, index: StepIndex, cls: Classification, scan: ForeignScanResult,
-  block: readonly string[], taskIds: readonly number[]) {
+  block: readonly string[], taskIds: readonly number[], edits: ReadonlyMap<number, Uint8Array | null>) {
   const alsoRead = new Set(scan.mixedPsetChunks);
   const skip = (i: number) => cls.classes[i] === 4 && i !== scan.projectContext && !alsoRead.has(i);
-  const bytes = concatParts(assemble(source, index, cls, block, skip));
+  const bytes = concatParts(assemble(source, index, cls, block, skip, edits));
   const literalStepIds = new Set<string>();
   for (let i = 0; i < scan.literal.length; i++) if (scan.literal[i] === 1 && cls.classes[i] !== 1) literalStepIds.add(String(scan.chunkIds[i]));
   return readIFCWithXerReconstruction(new TextDecoder('utf-8').decode(bytes), {}, {
@@ -1527,7 +1554,7 @@ function readPlanning(source: IfcSource, index: StepIndex, cls: Classification, 
 }
 
 function assemble(source: IfcSource, index: StepIndex, cls: Classification, block: readonly string[],
-  skip: (i: number) => boolean = () => false): Uint8Array[] {
+  skip: (i: number) => boolean = () => false, edits: ReadonlyMap<number, Uint8Array | null> = new Map()): Uint8Array[] {
   const n = index.count;
   const bytes = source.bytes;
   const starts = source.chunkStarts;
@@ -1549,6 +1576,12 @@ function assemble(source: IfcSource, index: StepIndex, cls: Classification, bloc
       for (let b = 0; b < block.length; b += BATCH) parts.push(enc.encode(le + block.slice(b, b + BATCH).join(le)));
     }
     if (cls.classes[i] === 1 || skip(i)) { flush(i); continue; }
+    const edited = edits.get(i);
+    if (edited !== undefined) {
+      flush(i);
+      if (edited) parts.push(edited);
+      continue;
+    }
     if (runStart < 0) runStart = i;
   }
   flush(n);

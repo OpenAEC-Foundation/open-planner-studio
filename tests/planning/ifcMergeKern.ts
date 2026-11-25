@@ -21,6 +21,7 @@ import { StepScanError, scanStep, type StepIndex } from '@/services/ifc/foreign/
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
+import type { ForeignChange } from '@/services/ifc/foreign/changeList';
 import { planningCanon } from '@/services/ifc/foreign/planningCanon';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import type { Task } from '@/types/task';
@@ -150,17 +151,18 @@ const latin1Text = (b: Uint8Array) => { let s = ''; for (let i = 0; i < b.length
 const latin1Bytes = (s: string) => Uint8Array.from(s, c => c.charCodeAt(0));
 
 /** De uitkomst van één merge: de bytes, of de weigering met haar gevallen. Een andere fout gooit door. */
-export type MergeOutcome = { ok: true; bytes: Uint8Array; shown: Domain } | { ok: false; kinds: string[]; error: MergeNeedsPhase2Error };
+export type MergeOutcome = { ok: true; bytes: Uint8Array; shown: Domain; changes: readonly ForeignChange[] }
+  | { ok: false; kinds: string[]; error: MergeNeedsPhase2Error };
 export async function tryMerge(d: Domain, source: IfcSource): Promise<MergeOutcome> {
   try {
     let shown: Domain | undefined;
-    const bytes = await writeIfcMerge(d, source, async (parsed, side) => {
+    const prepared = await prepareIfcWrite(d, source, async (parsed, side) => {
       const result = structuredClone(parsed);
       if (side === 'uitvoer') shown = result;
       return result;
     });
     if (!shown) throw new Error('merge gaf geen planning aan de naad');
-    return { ok: true, bytes, shown };
+    return { ok: true, bytes: prepared.bytes, shown, changes: prepared.foreignChanges ?? [] };
   } catch (e) {
     if (e instanceof MergeNeedsPhase2Error) return { ok: false, kinds: [...new Set(e.cases.map(c => c.kind))].sort(), error: e };
     throw e;
@@ -172,7 +174,8 @@ function scanOrReason(bytes: Uint8Array): StepIndex | string {
 }
 
 /** De invarianten van de merge-uitvoer tegen de bron. Leeg = alles klopt. */
-export function mergeProblems(source: Uint8Array, out: Uint8Array): string[] {
+export function mergeProblems(source: Uint8Array, out: Uint8Array, changes: readonly ForeignChange[] = []): string[] {
+  const listed = new Map(changes.filter(c => c.kind === 'gewijzigd' || c.unusedKeyOfTask === undefined).map(c => [String(c.id), c]));
   const problems: string[] = [];
   const si = scanForeignStep(source);
   const sc = classify(si);
@@ -197,8 +200,14 @@ export function mergeProblems(source: Uint8Array, out: Uint8Array): string[] {
     const id = si.id(i);
     sourceNonP.add(id);
     const j = outById.get(id);
+    const change = listed.get(id);
+    if (change?.kind === 'vervallen') {
+      if (j !== undefined) problems.push(`#${id} (${si.type(i)}) staat als vervallen op de wijzigingslijst, maar staat er nog`);
+      continue;
+    }
     if (j === undefined) { problems.push(`#${id} (${si.type(i)}) ontbreekt`); continue; }
-    if (!sameBytes(chunk(si, source, i), chunk(oi, out, j))) problems.push(`#${id} (${si.type(i)}) heeft andere bytes`);
+    const want = change?.kind === 'gewijzigd' ? change.newBytes : chunk(si, source, i);
+    if (!sameBytes(want, chunk(oi, out, j))) problems.push(`#${id} (${si.type(i)}) heeft andere bytes${change ? ' dan de wijzigingslijst' : ''}`);
     if (j < last) problems.push(`#${id} (${si.type(i)}) staat op een andere plek in de volgorde`);
     last = Math.max(last, j);
   }

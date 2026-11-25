@@ -229,7 +229,7 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
         console.log('LEESWEG VERSCHIL ' + JSON.stringify({ bestand: where, bewerking: edit.label, difference }));
         fail('naad en volledige bytes-route: ' + difference); continue;
       }
-      const problems = mergeProblems(source.bytes, outcome.bytes);
+      const problems = mergeProblems(source.bytes, outcome.bytes, edit.kind === 'taak-wissen' ? outcome.changes : []);
       if (problems.length > 0) { fail(`invariant: ${problems[0]}`); continue; }
       const doubles = doubleMemberships(outcome.bytes).filter(k => !sourceDoubles.includes(k));
       if (doubles.length > 0) { fail(`dubbel lidmaatschap: ${doubles[0]}`); continue; }

@@ -21,6 +21,7 @@ import { assignmentsByTask, captureCalendarLibraryChange, settleCalendarLibraryC
 import type { Task } from '@/types/task';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import { notifyOtherWorkChanged, type AssignmentEdit } from '../otherWorkNotice';
+import { notifyForeignLinksDropped } from '../foreignLinksNotice';
 import type { AppSliceFactory } from './types';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import type { AppState } from '../appStore';
@@ -158,6 +159,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     // van deze resource krijgt de toewijzingen-trigger, zie `purgeResource`), dus tellen zoals
     // `moveAssignment`/`removeCalendar`; melden buiten de producer.
     let lostCount = 0;
+    const before = get();
     set((s) => {
       if (!s.resources.some(r => r.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
       runtime.beginUndoable(s);
@@ -166,6 +168,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       runtime.finishMutation(s, { stale: outcome.durationChanged });
     });
     if (lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
+    notifyForeignLinksDropped(store, before, before.nextHistorySequence);
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
   },

@@ -12,6 +12,8 @@ import { scanForeignStep } from './oldOwnHeader';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { scanElementLinks, type StepElementLink } from './elementLinks';
 import { scanSourceSlots, type SourceSlots } from './sourceSlots';
+import type { ForeignReferences } from './changeList';
+import { foreignReferences } from './foreignReferences';
 
 export const IFC_FOREIGN_SCAN_MAX_BYTES = 300 * 1024 * 1024;
 
@@ -62,6 +64,7 @@ export interface ForeignScanResult {
 export interface OpenedForeignScan extends ForeignScanResult {
   readonly stepElementLinks: readonly StepElementLink[];
   readonly sourceSlots?: SourceSlots;
+  readonly foreignReferences?: ForeignReferences;
 }
 
 /** De scanner weigerde de invoer (ongeschikte of onvolledige STEP); de bytes-route valt dan terug (afwijking 7). */
@@ -88,10 +91,11 @@ export function scanForeignToOpen(bytes: Uint8Array): OpenedForeignScanOutcome {
   if (!(index instanceof StepIndex)) return index;
   const cls = classify(index);
   const scan = foreignScanFrom(index, cls, bytes);
-  const { C, A, V } = scan.counts;
+  const foreign = scan.counts.C + scan.counts.A + scan.counts.V > 0;
   return {
     ...scan, stepElementLinks: scanElementLinks(index),
-    ...(C + A + V > 0 ? { sourceSlots: scanSourceSlots(index, cls.foreignOrigin) } : {}),
+    ...(foreign ? { sourceSlots: scanSourceSlots(index, cls.foreignOrigin) } : {}),
+    ...(foreign ? { foreignReferences: foreignReferences(index, cls.classes, bytes, cls.selection.inD) } : {}),
   };
 }
 
@@ -238,9 +242,11 @@ export function readerOptions(scan: ForeignScanResult): {
 export function foreignScanTransferables(outcome: ForeignScanOutcome): ArrayBuffer[] {
   if (!outcome.ok) return [];
   const s = outcome.selection;
+  const r = 'foreignReferences' in outcome ? (outcome as OpenedForeignScan).foreignReferences : undefined;
   const arrays = [
     outcome.chunkStarts, outcome.chunkIds, outcome.classes, outcome.literal, outcome.foreignMembers, outcome.mixedPsetChunks,
     s.tasks, s.resources, s.calendars, s.sequences,
+    ...(r ? [r.stepIds, r.groupStart, r.groupSize, r.targetStart, r.targets] : []),
   ];
   const buffers = new Set<ArrayBuffer>();
   for (const a of arrays) if (a.buffer instanceof ArrayBuffer) buffers.add(a.buffer);
