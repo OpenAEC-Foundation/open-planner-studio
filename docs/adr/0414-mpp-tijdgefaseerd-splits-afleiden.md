@@ -25,13 +25,18 @@ staan op 0 %: of een voltooid segment blijft staan terwijl het restwerk schuift,
   (`computeShiftedAssignmentPeriods` in `mppReader.ts`). Verricht overwerk niet: dat loopt naast de reguliere uren en
   volgens het weggehaalde commentaar is er geen corpusdata om die samenloop na te gaan. Irregulier werk niet: dat heeft
   absolute momenten en geen positie in werkminuten (ADR 0413). Zie knownbug 2480.
-- Per taak (`deriveTaskSplitGaps`, gelijk aan `intersectAssignmentGaps` in `contourIo.ts`): de doorsnede van de gaten
-  van de toewijzingen, want een taak ligt alleen stil waar al haar toewijzingen tegelijk stilliggen. Volgens het
-  weggehaalde commentaar neemt MPXJ (`Task.calculateWorkSplits`, `reduceWorkSplits`) de vereniging van de werkperiodes,
-  wat volgens De Morgan dezelfde uitkomst geeft. MPXJ rekent op kalendermomenten en deze code op werkminuten; dat is
-  gelijk zolang alle toewijzingen op dezelfde as van de taak staan, en daarvoor zorgt de verschuiving in ADR 0287. Een
-  lege lijst betekent "wel periodes, geen gaten" en maakt de doorsnede leeg; een toewijzing zonder periodes telt niet
-  mee (ADR 0287). `[Z4 1d]` en `[Z4 1]` toetsen de doorsnede, een toewijzing zonder gaten, één toewijzing en geen.
+- Per taak (`deriveTaskSplitGaps`, gelijk aan `intersectAssignmentGaps` in `contourIo.ts`): de doorsnede van de
+  gaten van de toewijzingen: een gat telt voor de taak alleen waar elke toewijzing in haar eigen periodes een gat
+  heeft. Volgens het weggehaalde commentaar neemt MPXJ (`Task.calculateWorkSplits`, `reduceWorkSplits`) de
+  vereniging van de werkperiodes. De doorsnede geeft alleen dezelfde uitkomst als de gaten van alle toewijzingen
+  over hetzelfde venster bepaald zijn: `gapsBetweenWorkedSpans` ziet alleen gaten tussen de werkperiodes van één
+  toewijzing. Werken twee toewijzingen op werkminuut 0 tot 60 en 120 tot 180, dan heeft geen van beide een gat en
+  geeft de doorsnede geen gat, terwijl tussen de verenigde werkperiodes een gat van 60 minuten ligt. Of een `.mpp`
+  dit verschil laat zien, is niet vastgesteld. Daarnaast rekent MPXJ op kalendermomenten en deze code op
+  werkminuten; dat vraagt dat alle toewijzingen op dezelfde as van de taak staan, en daarvoor zorgt de verschuiving
+  in ADR 0287. Een lege lijst betekent "wel periodes, geen gaten" en maakt de doorsnede leeg; een toewijzing zonder
+  periodes telt niet mee (ADR 0287). `[Z4 1d]` en `[Z4 1]` vergelijken de doorsnede van twee verschillende gaten,
+  een toewijzing zonder gaten die de doorsnede leeg maakt, één toewijzing en geen toewijzing.
 - Samenvattingstaken, onbemande toewijzingen, de verschuiving naar de taakas en het ontbreken van `referenceFinish`
   staan in ADR 0287. Volgens het weggehaalde commentaar geeft MPXJ `Task.calculateWorkSplits` voor een
   samenvattingstaak een lege lijst ("In MS Project, summary tasks do not show splits").
