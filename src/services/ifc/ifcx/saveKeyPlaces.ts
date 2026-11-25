@@ -1,4 +1,4 @@
-import type { IFCSaveSource } from '@/state/ifcSaveInput';
+import type { IFCSaveSource } from '@/services/documentData';
 import type { ModelKey } from './nodes';
 
 export type IfcxSaveKeyPlace =
