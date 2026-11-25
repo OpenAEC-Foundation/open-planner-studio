@@ -1,4 +1,5 @@
 import { hasOwnOrigin } from '@/services/ifc/foreign/classify';
+import type { ForeignChange } from '@/services/ifc/foreign/changeList';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { PSET } from '@/services/ifc/ifcPsets';
 import { refsOutsideText } from '@/services/ifc/foreign/lossCheck';
@@ -108,7 +109,7 @@ const holding = (graph: ReferenceGraph, type: string, relating: number, member: 
 const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const lagOf = (q: Domain['sequences'][number]) => Object.fromEntries(Object.entries(q).filter(([k]) => k.startsWith('lag')).sort());
 
-export function editScope(graph: ReferenceGraph, source: IfcSource, before: Domain, after: Domain): EditScope {
+export function editScope(graph: ReferenceGraph, source: IfcSource, before: Domain, after: Domain, changes: readonly ForeignChange[] = []): EditScope {
   const step = (key: string) => {
     const id = source.stepIds[key];
     return id === undefined ? -1 : graph.index.chunkOf(String(id));
@@ -163,6 +164,10 @@ export function editScope(graph: ReferenceGraph, source: IfcSource, before: Doma
     const relations = holding(graph, PROCESS, task, resource);
     if (relations.length === 1) edges.add(edgeKey(relations[0][0], relations[0][1], resource));
   }
+  for (const change of changes) {
+    const c = change.kind === 'vervallen' ? graph.index.chunkOf(String(change.id)) : -1;
+    if (c >= 0) removed.add(c);
+  }
   return { removed, edges, added, released };
 }
 
@@ -202,6 +207,8 @@ export function regelC(source: IfcSource, graph: ReferenceGraph, out: ReferenceG
   const sourceByKey = new Map<string, number>();
   for (let c = 0; c < graph.index.count; c++) if (graph.index.isEntity(c)) sourceByKey.set(sk(c), c);
   const { gone, vanish } = mayVanish(graph, scope);
+  const touched = (x: number, k: number) => scope.released.has(`${x}.${k}`)
+    || [...scope.edges, ...scope.added].some(e => e.startsWith(`${x}.${k}>`));
   const own = ownOrigin(graph);
   const problems = [...out.dangling];
   for (const x of checked) {
@@ -214,15 +221,20 @@ export function regelC(source: IfcSource, graph: ReferenceGraph, out: ReferenceG
     const y = found[0];
     const inOut = new Set(out.referrers[y].map(([r, k]) => `${ok(r)}.${k}`));
     const inSource = new Set(graph.referrers[x].map(([r, k]) => `${sk(r)}.${k}`));
+    const roleOf = (g: ReferenceGraph, key: (c: number) => string, r: number, k: number) => {
+      const roles = relationRoles(g.index.type(r));
+      const relating = roles && roles.relating !== k ? g.targets[r][roles.relating]?.[0] ?? -1 : -1;
+      return `${g.index.type(r)}.${k}.${relating >= 0 ? key(relating) : ''}`;
+    };
     const reissued = new Map<string, number>();
     for (const [r, k] of out.referrers[y]) {
       if (sourceByKey.has(ok(r))) continue;
-      const role = `${out.index.type(r)}.${k}`;
+      const role = roleOf(out, ok, r, k);
       reissued.set(role, (reissued.get(role) ?? 0) + 1);
     }
     for (const [r, k] of graph.referrers[x]) {
       if (inOut.has(`${sk(r)}.${k}`) || gone(r, k, x)) continue;
-      const role = `${graph.index.type(r)}.${k}`;
+      const role = roleOf(graph, sk, r, k);
       if (own(r) && !byKey.has(sk(r)) && (reissued.get(role) ?? 0) > 0) { reissued.set(role, reissued.get(role)! - 1); continue; }
       problems.push(`${label(graph, x)} verliest verwijzer ${label(graph, r)} (slot ${k})`);
     }
@@ -242,11 +254,21 @@ export function regelC(source: IfcSource, graph: ReferenceGraph, out: ReferenceG
       if (target === undefined && (graph.targets[x][k]?.length ?? 0) === 0) return;
       if (!scope.added.has(target === undefined ? `${x}.${k}>+` : edgeKey(x, k, target))) problems.push(`${label(graph, x)} wijst in slot ${k} nu ook naar ${label(out, t)}`);
     }));
+    graph.targets[x].forEach((ts, k) => {
+      if (ts.length < 2 || touched(x, k)) return;
+      const after = out.targets[y][k]?.filter(t => t >= 0).map(ok) ?? [];
+      const common = new Set(after);
+      const was = ts.filter(t => t >= 0).map(sk).filter(key => common.has(key));
+      const kept = new Set(was);
+      const now = after.filter(key => kept.has(key));
+      if (was.join('\u0000') !== now.join('\u0000')) problems.push(`${label(graph, x)} heeft in slot ${k} een andere volgorde`);
+    });
   }
   return problems;
 }
 
-export function regelCOf(sourceBytes: Uint8Array, source: IfcSource, out: Uint8Array, before?: Domain, after?: Domain): string[] {
+export function regelCOf(sourceBytes: Uint8Array, source: IfcSource, out: Uint8Array, before?: Domain, after?: Domain,
+  changes: readonly ForeignChange[] = []): string[] {
   const graph = referenceGraph(sourceBytes);
-  return regelC(source, graph, referenceGraph(out), before && after ? editScope(graph, source, before, after) : NOTHING);
+  return regelC(source, graph, referenceGraph(out), before && after ? editScope(graph, source, before, after, changes) : NOTHING);
 }

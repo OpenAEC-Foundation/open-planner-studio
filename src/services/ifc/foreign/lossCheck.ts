@@ -2139,9 +2139,10 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   }
   if (obj === 'baselines') return changed.keys.has('baselines') ? 'baselines' : undefined;
   const kind = obj.slice(0, obj.indexOf(':'));
-  const has = (f: string) => changed.keys.has(`${obj}#${f}`) || changed.keys.has(`${obj}#*`);
+  const keys = mappedTables(input).has(d.chunk) ? ctx.plannerChanged : changed.keys;
+  const has = (f: string) => keys.has(`${obj}#${f}`) || keys.has(`${obj}#*`);
   const any = (fields: readonly string[] | undefined) => {
-    const f = fields?.find(x => (x.startsWith('@') ? changed.keys.has(x.slice(1)) : has(x)));
+    const f = fields?.find(x => (x.startsWith('@') ? keys.has(x.slice(1)) : has(x)));
     return f === undefined ? undefined : `${obj}#${f}`;
   };
   if (has('@')) return undefined; // het object kwam erbij of verdween; dan is dit stuk geen stuk van hetzelfde object

@@ -1,10 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { constraintBlockingStart, predecessorDrivenTaskIds, startConstraintAfterEdit } from '@/engine/startEditConstraint';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { splitStepArgs } from '@/services/ifc/foreign/stepScanner';
+import { documentContentOf } from '@/state/documentSaveState';
+import { computeIfcOutputHere, prepareIfcOutput } from '@/state/prepareIfcOutput';
 import type { Task } from '@/types/task';
 import { localTodayIso } from '@/utils/dateUtils';
-import { lengthen, storeEdit } from './ifcAppRoute';
+import { shownStart, startAnchorAfterEdit } from '@/utils/taskDates';
+import { lengthen, loadStore, openInStore, storeEdit } from './ifcAppRoute';
 import { bonsaiPlanning, PIN_FILE, ROOT } from './ifcBonsaiPin';
 import { cloneDomain, openForeign, sameBytes, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
 import { installDeterminism } from './ifcPariteitKern';
@@ -47,6 +52,7 @@ const TWO_CREW_OPS = append(patch(patch(B4D, 120, 4, '(#118)'), 120, 2, "'Eerste
   `#8002=IFCRELASSIGNSTOPROCESS('1rmDhv9f7mdZ0AEONco1oi',#8013,$,$,(#118),$,#104,$);\n${OPS_OWNER}`);
 const SHARED_TIME = patch(B4D, 108, 11, '#109').replace(/^#110=IFCTASKTIME.*\n/m, '');
 const R6 = read('tests/fixtures/ifc-foreign/council/r6opus-twee-werkplannen.na.ifc');
+const R6_LONG = 'r6opus-twee-werkplannen.na.ifc met IfcTask en IfcLaborResource in de lengte van IFC4';
 const CALENDAR = append(patch(patch(B4D, 98, 6, '(#8100)'), 98, 7, '(#8110)'), ["#8100=IFCWORKTIME('Standard work week',.PREDICTED.,$,#8101,$,$);",
   '#8101=IFCRECURRENCEPATTERN(.WEEKLY.,$,(1,2,3,4,5),$,$,$,$,(#8102));', "#8102=IFCTIMEPERIOD('07:00:00','16:00:00');",
   "#8110=IFCWORKTIME('Vrij',.USERDEFINED.,'Bonsai oorsprong',$,'2026-02-18','2026-02-18');"].join('\n'));
@@ -54,7 +60,7 @@ const SOURCES: readonly (readonly [string, string])[] = [
   ['de pinbron', bonsaiPlanning(PIN_FILE).text],
   ['bonsai-4d.ifc', B4D],
   ['r6opus-twee-werkplannen.na.ifc', R6],
-  ['r6opus-twee-werkplannen.na.ifc met IfcTask en IfcLaborResource in de lengte van IFC4', R6
+  [R6_LONG, R6
     .replace(/^(#\d+=IFCTASK\('[^']*',#2,'[^']*',\$,\$,'[^']*',\$,\$,)/gm, '$1$,').replace(/^(#\d+=IFCLABORRESOURCE\('[^']*',#2,'[^']*',)/gm, '$1$,')],
   ['twee inzetten van dezelfde ploeg', TWO_CREW],
   ['een kalender met een eigen werkweek en een vrije dag met herkomstlabel', CALENDAR],
@@ -154,6 +160,34 @@ function casesOf(o: Opened): Case[] {
 }
 
 const refusal = (r: MergeOutcome) => (r.ok ? 'schrijft' : r.error.cases.slice(0, 2).map(c => `${c.kind} #${c.sourceId}: ${c.detail}`).join(' | '));
+type Case = MergeNeedsPhase2Error['cases'][number];
+interface Boundary { readonly id: string; readonly reason: string; readonly fits: (c: Case, source: string, label: string) => boolean }
+const SHARED = new Set(['een gedeelde lag', 'een gedeelde lag, de tweede reeks van OPS', 'een gedeelde taaktijd', 'een gedeelde taaktijd, de tweede taak van OPS']);
+const BOUNDARIES: readonly Boundary[] = [
+  { id: '2369', reason: 'een hulpstuk dat twee planningsstukken delen; de writer zou het splitsen',
+    fits: (c, source) => SHARED.has(source) && [8010, 8012, 109, 108].includes(c.sourceId ?? -1) },
+  { id: '2368', reason: 'dezelfde ploeg twee keer aan één taak; welke inzet de planner wiste, is niet vast te stellen',
+    fits: (c, source, label) => source.startsWith('twee inzetten') && /^toewijzing [12] \(taak #104, resource #118\) gewist$/.test(label)
+      && [120, 8002, 8011].includes(c.sourceId ?? -1) },
+  { id: '2233', reason: 'een kalenderhulpstuk van een ander programma met een herkomstlabel of een gedeelde herhaling',
+    fits: (c, source) => source.startsWith('een kalender') && ((c.sourceId === 8110 && c.kind === 'niet-eenduidig') || (c.sourceId === 8100 && c.kind === 'niet-gedragen')) },
+  { id: '2234', reason: 'de projectkalender wordt letterlijk (mijlpaal of verstreken duur)',
+    fits: (c, source, label) => source === 'de pinbron' && c.kind === 'bronvorm-leest-anders' && /: (mijlpaal|durationType) gewijzigd$/.test(label) },
+  { id: '2256', reason: 'r6 met de IFC4-lengtes: taaktijden buiten de vorm van IFC4 en een taak zonder taaktijd',
+    fits: (c, source) => source === R6_LONG && (c.kind === 'bronvorm-leest-anders' || (c.kind === 'planning-na-openen' && /^taak task-ifc-0task0+\.time\.scheduleDuration/.test(c.detail))) },
+  { id: 'PR 8', reason: 'een gemengde relatie: resources en producten in één IfcRelAssignsToProcess, of een gemengde kalenderrelatie',
+    fits: c => c.kind === 'gemengde-relatie' },
+  { id: 'main', reason: 'een taak en een resource in een oude lay-out buiten het register; main weigert het bestand op herkomst',
+    fits: (_c, source) => source === 'r6opus-twee-werkplannen.na.ifc' },
+];
+const unnamed = (r: MergeOutcome, source: string, label: string) => (r.ok ? '' : r.error.cases
+  .filter(c => !BOUNDARIES.some(b => b.fits(c, source, label))).slice(0, 3).map(c => `${c.kind} #${c.sourceId}: ${c.detail}`).join(' | '));
+const boundaryOf = (r: MergeOutcome, source: string, label: string): Boundary | undefined => {
+  if (r.ok) return undefined;
+  const fit = (c: Case) => BOUNDARIES.find(b => b.fits(c, source, label));
+  return r.error.cases.every(c => fit(c) !== undefined) ? fit(r.error.cases[0]) : undefined;
+};
+const perBoundary = new Map<string, number>();
 interface Outcome { readonly written: number; readonly refused: number; readonly idle: number; readonly kinds: Readonly<Record<string, number>> }
 const outcomes = new Map<string, Outcome>();
 const detail = process.env.OPS_REGEL_C_VERSLAG === '1';
@@ -179,12 +213,15 @@ for (const [name, text] of SOURCES) {
       refused++;
       for (const kind of result.kinds) kinds[kind] = (kinds[kind] ?? 0) + 1;
       ok(`${at}: geweigerd, en de bron staat er byte voor byte`, sameBytes(source.bytes, pristine));
+      const boundary = boundaryOf(result, name, c.label);
+      ok(`${at}: de weigering hoort bij een benoemde grens (zonder grens: ${unnamed(result, name, c.label)})`, boundary !== undefined);
+      if (boundary) perBoundary.set(boundary.id, (perBoundary.get(boundary.id) ?? 0) + 1);
       if (detail) console.log(`   geweigerd  ${at}: ${refusal(result)}`);
       continue;
     }
     written++;
     if (detail) console.log(`   geschreven ${at}`);
-    eq(`${at}: regel C`, regelC(source, graph, referenceGraph(result.bytes), editScope(graph, source, o, edited)), []);
+    eq(`${at}: regel C`, regelC(source, graph, referenceGraph(result.bytes), editScope(graph, source, o, edited, result.changes)), []);
   }
   outcomes.set(name, { written, refused, idle, kinds });
 }
@@ -214,6 +251,152 @@ const renameA = (o: Opened) => sync(d => { d.tasks.find(t => t.id === o.tasks.fi
 await reproduction('Sol r2, reproductie 2: een gedeelde lag, een taak hernoemd', SHARED_LAG, renameA, 8010);
 await reproduction('Sol r2, reproductie 2: een gedeelde taaktijd, een taak hernoemd', SHARED_TIME, renameA, 109);
 
+type State = Parameters<Parameters<typeof storeEdit>[1]>[0];
+type Act = (s: State) => void;
+function view(d: Domain): string {
+  const tasks = new Map(d.tasks.map(t => [t.id, t])), resources = new Map(d.resources.map(r => [r.id, r]));
+  const name = (id: string | null | undefined) => (id ? tasks.get(id)?.name ?? '?' : '-');
+  return JSON.stringify({
+    tasks: d.tasks.map(t => [t.name, name(t.parentId), t.time.scheduleDuration, t.time.durationUnit, t.time.completion ?? 0, t.isMilestone]).sort(),
+    assignments: d.assignments.map(a => [name(a.taskId), resources.get(a.resourceId)?.name ?? '?', a.unitsPerDay]),
+    sequences: d.sequences.map(q => [name(q.predecessorId), name(q.successorId), q.type, q.lagDays ?? 0, q.lagMinutes ?? null]).sort(),
+    holidays: d.calendar.holidays.map(h => [h.startDate, h.endDate]).sort(),
+    resources: d.resources.map(r => r.name).sort(),
+  });
+}
+const taskNamed = (s: State, name: string) => s.tasks.find(t => t.name === name)!;
+const startLater = (s: State, id: string) => {
+  const task = s.tasks.find(t => t.id === id)!;
+  const anchor = startAnchorAfterEdit(task, dayLater(shownStart(task)));
+  if (anchor === undefined) throw new Error('de start verschuift niet');
+  const driven = predecessorDrivenTaskIds(s.tasks, s.sequences).has(id);
+  if (constraintBlockingStart(task, driven)) throw new Error('een constraint houdt de start tegen');
+  const snet = startConstraintAfterEdit(task, anchor, driven);
+  s.updateTask(id, { time: { ...task.time, scheduleStart: anchor }, ...(snet ? { constraint: snet.constraint } : {}) });
+};
+const withProgress = (s: State, id: string) => {
+  const edit = { field: 'completion', value: 0.5 } as const, opts = { today: localTodayIso() };
+  let result = s.enterTaskProgress(id, edit, opts);
+  if (!result.ok && result.reason === 'needsActualStart') result = s.enterTaskProgress(id, edit, { ...opts, actualStart: result.question.latest });
+  if (!result.ok) throw new Error(`voortgang: ${result.reason}`);
+};
+const NEW_RESOURCE = { name: 'Nieuwe ploeg', description: '', type: 'LABOR' as const, maxUnits: 1 };
+function ordinaryWork(o: Opened): { readonly edits: readonly (readonly [string, (d: Domain) => Promise<Domain>])[]; readonly assign: Act } {
+  const leaves = o.tasks.filter(t => t.childIds.length === 0 && !t.isMilestone);
+  const assigned = o.assignments[0];
+  const crew = o.resources.find(r => r.id === assigned.resourceId)!.name;
+  const free = leaves.find(t => !o.assignments.some(a => a.taskId === t.id))!;
+  const [first, second] = leaves;
+  const child = leaves.find(t => t.parentId !== null)!;
+  const day = dayLater(first.time.scheduleStart).slice(0, 10);
+  const assign: Act = s => { s.assignResource(taskNamed(s, free.name).id, s.resources.find(r => r.name === crew)!.id, 2); };
+  const newRelation: Act = s => {
+    for (const a of leaves) for (const b of leaves) {
+      if (a.id === b.id || s.sequences.some(q => [q.predecessorId, q.successorId].includes(a.id) && [q.predecessorId, q.successorId].includes(b.id))) continue;
+      if (s.addSequence({ predecessorId: a.id, successorId: b.id, type: 'FINISH_START', lagDays: 0 }) !== null) return;
+    }
+    throw new Error('geen nieuwe relatie mogelijk');
+  };
+  const acts: readonly (readonly [string, Act])[] = [
+    ['een taak hernoemd', s => { s.updateTask(first.id, { name: `${first.name} (hernoemd)` }); }],
+    ['de start van een taak een dag later', s => { startLater(s, free.id); }],
+    ['voortgang 50 % op een taak', s => { withProgress(s, second.id); }],
+    ['doorrekenen', s => { s.runCPM(); }],
+    [`de bestaande ${crew} ook aan "${free.name}"`, assign],
+    ['een nieuwe ploeg gemaakt en toegewezen', s => { const id = s.addResource(NEW_RESOURCE); s.assignResource(taskNamed(s, free.name).id, id, 1); }],
+    ['een toewijzing gewist', s => { s.unassignResource(assigned.id); }],
+    ['een relatie toegevoegd', newRelation],
+    ...(o.sequences.length > 0 ? [
+      ['een relatie van soort gewijzigd', (s: State) => { s.updateSequence(o.sequences[0].id, { type: o.sequences[0].type === 'START_START' ? 'FINISH_START' : 'START_START' }); }],
+      ['een relatie gewist', (s: State) => { s.removeSequence(o.sequences[0].id); }],
+    ] as const : []),
+    ['een taak toegevoegd', s => { s.addTask({ name: 'Nieuwe taak', position: { anchorId: first.id, where: 'below' } }, { phaseAssignments: 'move', answered: true }); }],
+    ['een taak een niveau hoger', s => { s.outdentTasks([child.id], { phaseAssignments: 'move', answered: true }); }],
+    ['een taak gewist', s => { s.deleteTask(free.id); }],
+    ['een vrije dag toegevoegd', s => { s.setCalendar({ ...s.calendar, holidays: [...s.calendar.holidays, { name: 'Extra vrije dag', startDate: day, endDate: day }] }); }],
+    ['een taak hernoemd en een ploeg toegewezen, in één opslag', s => { s.updateTask(first.id, { name: `${first.name} (hernoemd)` }); assign(s); }],
+  ];
+  return {
+    edits: [['de duur van een taak een dag langer', d => lengthen(d, first.id)], ...acts.map(([label, act]) => [label, (d: Domain) => storeEdit(d, act)] as const)],
+    assign,
+  };
+}
+const { buildWriteIFCInput } = await loadStore();
+const ordinary = new Map<string, string[]>();
+for (const [name, text] of [['de pinbron', SOURCES[0][1]], ['bonsai-4d.ifc', B4D]] as const) {
+  const bytes = new TextEncoder().encode(text), graph = referenceGraph(bytes);
+  const o = await openForeign(bytes);
+  const outcomes: string[] = [];
+  const work = ordinaryWork(o);
+  for (const [label, edit] of work.edits) {
+    const at = `gewoon werk op ${name}: ${label}`;
+    let edited: Domain;
+    try { edited = await edit(cloneDomain(o)); }
+    catch (e) { ok(`${at}: de bewerking lukt (${(e as Error).message})`, false); continue; }
+    ok(`${at}: de bewerking veranderde de planning`, JSON.stringify(edited) !== JSON.stringify(cloneDomain(o)) || label === 'doorrekenen');
+    const result = await tryMerge(edited, o.ifcSource!);
+    if (!result.ok) {
+      const boundary = boundaryOf(result, name, label);
+      outcomes.push(`${label}: geweigerd (${boundary ? `grens ${boundary.id}` : refusal(result)})`);
+      ok(`${at}: schrijft, of weigert op een benoemde grens (zonder grens: ${unnamed(result, name, label)})`, boundary !== undefined);
+      continue;
+    }
+    outcomes.push(`${label}: geschreven`);
+    eq(`${at}: regel C`, regelC(o.ifcSource!, graph, referenceGraph(result.bytes), editScope(graph, o.ifcSource!, o, edited, result.changes)), []);
+    eq(`${at}: na heropenen ziet de planner wat hij zag`, view(await openForeign(result.bytes)), view(edited));
+  }
+  {
+    const { store } = await openInStore(bytes);
+    const opened = store.getState().ifcSource!;
+    const commit = async (): Promise<Uint8Array | string> => {
+      const state = store.getState();
+      try {
+        const prepared = (await prepareIfcOutput(state, buildWriteIFCInput(state, 'merge'), undefined, computeIfcOutputHere)).prepared!;
+        store.getState().commitSavedDocument(documentContentOf(state, state.activeDocumentId!)!, state, undefined, prepared);
+        return prepared.bytes;
+      } catch (e) {
+        return e instanceof MergeNeedsPhase2Error ? e.cases.slice(0, 2).map(c => `${c.kind}: ${c.detail}`).join(' | ') : String(e);
+      }
+    };
+    work.assign(store.getState());
+    const once = await commit();
+    store.getState().updateTask(store.getState().tasks.find(t => t.childIds.length === 0 && !t.isMilestone)!.id, { name: 'Na de eerste opslag' });
+    const twice = await commit();
+    const label = 'opslaan, nog een bewerking, weer opslaan';
+    ok(`gewoon werk op ${name}: ${label}: beide opslagen schrijven (${typeof once === 'string' ? once : ''}${typeof twice === 'string' ? twice : ''})`,
+      once instanceof Uint8Array && twice instanceof Uint8Array);
+    outcomes.push(`${label}: ${once instanceof Uint8Array && twice instanceof Uint8Array ? 'geschreven' : 'geweigerd'}`);
+    if (twice instanceof Uint8Array) {
+      eq(`gewoon werk op ${name}: ${label}: regel C tegenover de oorspronkelijke bron`, regelC(opened, graph, referenceGraph(twice)), []);
+      eq(`gewoon werk op ${name}: ${label}: na heropenen ziet de planner wat hij zag`,
+        view(await openForeign(twice)), view(buildWriteIFCInput(store.getState(), 'merge')));
+    }
+  }
+  ordinary.set(name, outcomes);
+}
+
+{
+  const bytes = new TextEncoder().encode(B4D);
+  const o = await openForeign(bytes);
+  const edited = await storeEdit(cloneDomain(o), s => { s.assignResource(taskNamed(s, 'Wand B bouwen').id, s.resources.find(r => r.name === 'Metselploeg')!.id, 2); });
+  const result = await tryMerge(edited, o.ifcSource!);
+  const label = 'Sol r3: in het ongewijzigde bonsai-4d.ifc de Metselploeg ook aan Wand B';
+  ok(`${label}: geschreven (${refusal(result)})`, result.ok);
+  if (result.ok) {
+    const line = (text: string) => text.match(/^#120=.*$/m)?.[0];
+    eq(`${label}: #120 byte voor byte`, line(new TextDecoder().decode(result.bytes)), line(B4D));
+    const reopened = await openForeign(result.bytes);
+    const perTask = (d: Domain) => d.assignments.map(a => `${d.tasks.find(t => t.id === a.taskId)!.name}: ${d.resources.find(r => r.id === a.resourceId)!.name} ${a.unitsPerDay}`);
+    eq(`${label}: na heropenen dezelfde twee toewijzingen met dezelfde inzet per taak`, perTask(reopened), ['Wand A bouwen: Metselploeg 1', 'Wand B bouwen: Metselploeg 2']);
+    const swapped = new TextEncoder().encode(new TextDecoder().decode(result.bytes).replace(/^(#106=IFCRELNESTS\(.*)\(#104,#108\)/m, '$1(#108,#104)'));
+    const graph = referenceGraph(bytes);
+    ok('de proef van regel C ziet een verwisseling van de kinderen in een IfcRelNests',
+      regelC(o.ifcSource!, graph, referenceGraph(swapped), editScope(graph, o.ifcSource!, o, edited, result.changes)).some(p => p.includes('IFCRELNESTS #106 heeft in slot 5 een andere volgorde')));
+  }
+}
+
+for (const [name, list] of ordinary) console.log(`   gewoon werk op ${name}:\n${list.map(x => `     ${x}`).join('\n')}`);
+for (const b of BOUNDARIES) console.log(`   grens ${b.id} (${b.reason}): ${perBoundary.get(b.id) ?? 0} weigering(en)`);
 for (const [name, { written, refused, idle, kinds }] of outcomes) {
   console.log(`   ${name}: ${written + refused} gevallen, ${written} geschreven, ${refused} geweigerd${refused ? ` (${Object.entries(kinds).map(([k, v]) => `${k} ${v}`).join(', ')})` : ''}`
     + `${idle ? `; ${idle} bewerking(en) liet de app niet toe` : ''}`);
