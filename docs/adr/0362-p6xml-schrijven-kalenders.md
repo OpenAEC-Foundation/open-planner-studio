@@ -12,8 +12,9 @@ de keuzes hieronder zijn de spiegel daarvan.
 - `<Type>` is `Global` voor de projectkalender en voor elke kalender die een taak in `calendarId` noemt, ook een
   samenvattingstaak, anders `Resource`. De lezer neemt van de andere kalenders een `Resource`-kalender mee, en een
   `Global`-kalender alleen als een activiteit of resource ernaar verwijst; een kalender met een ongeldig of al gelezen
-  `ObjectId` slaat hij over (ADR 0262). Een kalender die alleen een samenvattingstaak gebruikt, gaat daardoor
-  verloren (knownbug 2342). Toets (9) heeft alleen de projectkalender en kalenders van bladtaken, en onderscheidt
+  `ObjectId` slaat hij over (ADR 0262). Een `<WBS>` krijgt geen `CalendarObjectId`, dus de kalenderkeuze van een
+  samenvattingstaak valt altijd weg; de kalender zelf gaat verloren als geen activiteit of resource ernaar verwijst
+  (knownbug 2342). Toets (9) heeft alleen de projectkalender en kalenders van bladtaken, en onderscheidt
   `Global` van `Resource` dus niet. Dat P6 een activiteit alleen een Global- of Project-kalender laat hebben, komt uit
   het weggehaalde commentaar en is niet nagegaan.
 - Een activiteit en een resource verwijzen met `CalendarObjectId` naar hun kalender; zonder `calendarId`, of met een

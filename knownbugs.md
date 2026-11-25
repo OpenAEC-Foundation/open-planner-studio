@@ -4332,7 +4332,8 @@ en noem het in je rapport of PR-tekst.
       op die dag gaf de vergelijker `false`; dezelfde 120 werkminuten eindigden op de twee kalenders om 10:00 en 12:00.
       De lezer levert dan voor die taak geen wandeling. Of MS Project daar over de resourcekalender plant, is niet nagegaan. — B
 
-2338. **Een OPS-tekstveld in P6 XML kan langer worden dan wat P6 in een Text-UDF bewaart.** `writeP6XMLWithReport`
+2338. **Een OPS-tekstveld in P6 XML heeft geen lengtegrens; bewaart P6 bij XML-import minder, dan gaat het veld
+      verloren.** `writeP6XMLWithReport`
       (`src/services/p6/p6xmlWriter.ts`) schrijft de JSON van `OPS_DayMeasureLags`, `OPS_DayMeasureDurations`,
       `OPS_ExactMinutes` en `OPS_LiteralCalendars` helemaal, zonder lengtegrens. Oracle documenteert 255 tekens voor
       `UDFValue.Text` in de Web Services API (P6 EPPM Web Services Reference, "UDFValue"; aangedragen in de review van
@@ -4377,13 +4378,16 @@ en noem het in je rapport of PR-tekst.
       raster de code `DUP` krijgen, bevat de export beide codes, opent OPS beide met aparte interne ids, en geeft de
       exportmelding geen regel. Wat de P6-client met dubbele activiteit-`Id`'s doet, is niet beproefd. Issue #1242. — B
 
-2342. **Een kalender die alleen een samenvattingstaak gebruikt, verdwijnt na P6 XML-export en heropenen.**
-      `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) maakt een kalender `Global` als een taak haar in
-      `calendarId` noemt, ook een samenvattingstaak, maar een `<WBS>` draagt geen `CalendarObjectId`. `readP6XmlProject`
-      (`src/services/p6/p6xmlReader.ts`) neemt een `Global`-kalender alleen mee als een activiteit of resource ernaar
-      verwijst. De exportmelding geeft er geen regel voor (`exportP6XmlLossNotice`). Proef uit de review van #1240: een
-      bibliotheekkalender, in het taakpaneel gekozen voor een samenvattingstaak terwijl kinderen en resources hun eigen
-      kalender houden, staat na export als `Global` in het XML en ontbreekt na heropenen. Issue #1241. — B
+2342. **De kalenderkeuze van een samenvattingstaak verdwijnt na P6 XML-export en heropenen, en de kalender zelf ook
+      als verder niets haar gebruikt.** `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) maakt een kalender
+      `Global` als een taak haar in `calendarId` noemt, ook een samenvattingstaak, maar een `<WBS>` draagt geen
+      `CalendarObjectId`. De keuze valt dus altijd weg: na heropenen heeft de samenvattingstaak de projectkalender, ook
+      als een bladtaak dezelfde kalender via `CalendarObjectId` houdt (gelezen in de code, niet nagespeeld).
+      `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) neemt een `Global`-kalender alleen mee als een activiteit
+      of resource ernaar verwijst, dus zonder zo'n verwijzing verdwijnt ook de kalender zelf. De exportmelding geeft
+      voor geen van beide een regel (`exportP6XmlLossNotice`). Proef uit de review van #1240: een bibliotheekkalender,
+      in het taakpaneel gekozen voor een samenvattingstaak terwijl kinderen en resources hun eigen kalender houden,
+      staat na export als `Global` in het XML en ontbreekt na heropenen. Issue #1241. — B
 
 2343. **Een feestdag of werkende uitzondering van meer dan 3660 dagen wordt in P6 XML zonder melding ingekort.**
       `isoDaysInclusive` (`src/services/p6/p6xmlWriter.ts`) geeft per feestdag of werkende uitzondering hoogstens 3660
