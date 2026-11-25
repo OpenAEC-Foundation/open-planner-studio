@@ -4202,6 +4202,31 @@ en noem het in je rapport of PR-tekst.
      schreef de merge twee properties met dezelfde naam (review 1 van #1181). Een ongebruikte sleutel slaat zo'n naam wel
      over. Gemeten in `check-ifc-foreign-ongebruikte-sleutels.ts` (blokken "grens" en "review 1, vangnet"). — B
 
+2257. **Een bestaand IFC met twee identiteiten of twee ouders komt via Openen met het conflict in de store.** Gemeld in
+     de review van #1183 ronde 4 (GPT-6.2-Sol), als route in de app, met een synthetisch beschadigd eigen IFC. Twee
+     gevallen. (1) Twee verschillende `IFCTASK`-records met dezelfde GlobalId: Openen houdt beide taken, want de interne
+     id's zijn al uniek en `ensureUniqueImportIds` (`src/services/importNormalize.ts`) kijkt niet naar `ifcGlobalIds`.
+     Opslaan als IFC geeft de tweede taak stil een andere GlobalId; `writeIfcx` weigert met `inconsistent` en noemt
+     beide taken en de GlobalId. (2) Eén kind in de kinderlijsten van twee `IFCRELNESTS`: Openen houdt beide lijsten en
+     zet de laatst gelezen ouder in `parentId` (`extractNesting` in `src/services/ifc/ifcReader.ts`). Opslaan als IFC
+     bewaart beide lijsten; `writeIfcx` weigert met `inconsistent` en noemt het kind en beide ouders. Geen gewone
+     schermbewerking maakt deze toestand. Niet opgelost in #1183 (besluit van Trias bij fixronde 4). Voorstel: bij
+     Openen het conflict melden en laten rechtzetten, voor STEP en IFCX gelijk. — B
+
+2223. **IFCX: de vastgepinde schema's van IFC5-development en hun eigen voorbeeld Hello Wall spreken elkaar tegen.**
+     Open Planner Studio schrijft in de kop `ifcxVersion: "ifcx_alpha"` en `dataVersion: "1.0.0"`, en kale UUID's als
+     pad (`src/services/ifc/ifcx/ifcxWriter.ts`, docs/ifcx-profiel.md). Op commit `1a63082` van
+     buildingSMART/IFC5-development heeft de TypeSpec-kop die twee velden (`schema/ifcx.tsp`, regels 7–24), net als het
+     voorbeeld Hello Wall (`examples/Hello Wall/hello-wall.ifcx`, regels 1–12). Het gegenereerde OpenAPI-bestand
+     (`schema/out/@typespec/openapi3/openapi.yaml`, regels 64–79) eist in de kop `version` in plaats daarvan. Het
+     padpatroon `</[A-Za-z0-9_/.:]+>` staat in beide weergaven (`ifcx.tsp` en `openapi.yaml`, regels 168–170) en
+     verwerpt een kale UUID, zowel die van Open Planner Studio als die van Hello Wall (regels 95–99). De functie
+     `Validate` in `src/ifcx-core/schema/schema-validation.ts` (regels 124–151) toetst alleen attribuutwaarden tegen
+     hun schema, niet de kop of de paden. Zelf nagelezen op die commit, na de review van #1183 ronde 2 (GPT-6.2-Sol).
+     Gevolg: een letterlijke toets van het bestand tegen `openapi.yaml` of het padpatroon breekt af op de kop of op
+     elk pad, ook bij Hello Wall. Voorstel: in F3-6 vastleggen welke ingang echt valideert (de functie `Validate`, de
+     TypeSpec of het OpenAPI-bestand), en Hello Wall als controle voor dat referentiecontract gebruiken. — B
+
 2010. **De MSPDI-lezer telt een dag vóór de `T` in een taakduur als 1440 minuten, ook in werktijd; wat een schrijver
       daarmee bedoelt, is niet nagegaan.** `mspDurationMinutes` (`src/services/msproject/mspdiReader.ts`) rekent een
       dagcomponent als 1440 minuten. Nagespeeld met een script op een kalender van 8 uur per dag, taak zonder
@@ -7006,3 +7031,73 @@ en noem het in je rapport of PR-tekst.
      gemeten, niet voor een grote eigen en niet voor een grote vreemde bron: de meting paste niet in het rekenslot van
      deze ronde. Richting: één grote eigen en één grote vreemde bron meten (`measure:large-plans` meet opslaan, niet deze
      import). Gemeld door de review van #1219 ronde 2 (Sol, VERMOED). — S
+
+2350. **Voorwaarde vóór "IFCX standaard aan": opslaan als IFCX hoogstens vier keer IFC en hoogstens 4 s bij 10.000 taken.**
+     Besluit van de technisch eigenaar (#1183, ronde 7b), letterlijk: "De grens van vier op openen blijft hard. Opslaan
+     als IFCX wordt in deze PR gemeten en in de CI-log gemeld, niet afgedwongen. "Opslaan als IFCX hoogstens vier keer
+     IFC en hoogstens 4 s bij 10.000 taken, zonder dat de app blokkeert" wordt een harde voorwaarde in knownbug 2350
+     voor standaard aan, met het snelheidswerk als eigen stap na vrijdag, met eigen meting. Weg 4 niet: de
+     zelfcontrole blijft in de opslag zolang F3-2 en F3-3 niet af zijn. Automatisch opslaan volgt dezelfde gemelde
+     verhouding; geen stapeling blijft hard." `tests/planning/check-ifcx-meting.ts` toetst openen als IFCX hard
+     (hoogstens vier keer openen als IFC, mediaan van vijf, volgorde om en om, in de alleenloop van de planningspool) en
+     meldt opslaan als IFCX met de regel `IFCX-verhouding opslaan: …` en de uitsplitsing per stap (`IFCX-stap opslaan,
+     …`). De meting van nu: in de CI 8,14 (715 tegen 5.822 ms, `27ea25c32`), op aia09-mp50 8,4 tot 9,0. De opbouw: met R5
+     doet opslaan drie STEP-rondgangen (een lezing van de invoer, het eigen bestand van de canonieke planning, en de
+     zelfcontrole met de publieke lezer); één rondgang kost al ongeveer twee keer opslaan als IFC. Richting voor de
+     eigen stap: de schrijver schrijft eerst het eigen bestand van zijn ruwe invoer en maakt pas canoniek als de
+     publieke lezer het weigert (twee rondgangen in het gewone geval), en de rondgang zelf sneller. De marge op openen
+     verschilt per runner: openen als IFC kostte in de CI 502 tot 698 ms; met de noemer van `9894f6236` was de groene
+     3,18 van `23814bad4` ongeveer 4,23. De meetregels staan in het planningsdeel dat de proef draait. — B
+
+2351. **IFCX in de app (F3-4): de lezer geeft de planning na de laadgrens terug, en past de laadgrens zelf niet meer
+     toe.** Sinds #1183 ronde 8 (R6) gaan alleen de schrijver en zijn ene STEP-rondgang door de laadgrens
+     (`payloadFromImport`, `buildWriteIFCInput`). `readIfcx` geeft de planning terug zoals ze in het bestand staat; bij
+     een bestand van de schrijver is dat de eerste STEP-lezing na de laadgrens, met `minuteModelPending` uit het bestand
+     en zonder de hint `milestonesAtDayEnd`. Maakt de openroute van F3-4 daar met de laadgrens van de app de payload van,
+     dan verandert die bij een bestand van de schrijver niets (getoetst voor de 49 bestanden en de 327 datumvormen van de
+     kernproef). Bij een bestand dat de schrijver nooit maakt, kan ze wel iets veranderen, zoals bij STEP: een werkplan
+     zonder `timeModel` en zonder `minuteModelPending` krijgt `minuteModelPending`.
+     Daarnaast rekent de Openen-route van de app door (`prepareLoadedPayload` met `recompute: true`,
+     `src/state/documentActivation.ts`); dan verschuift bijvoorbeeld bij de datumfixture de vroege finish van de taak
+     `einde-middernacht` van `2027-06-03T00:00` naar `2027-06-02T16:00`, en de volgende opslag schrijft andere bytes. Ook
+     draagt de opslagroute van de app (`buildWriteIFCInput` op de toestand na openen) de afwezige tijdslots niet, net als
+     bij STEP buiten de modus "datums zoals opgeslagen". F3-4 beslist of en wanneer de IFCX-openroute doorrekent en pint
+     de echte route in één proef. Wat een tweede opslag verandert, staat in 2352. Gemeld door de review van #1183 ronde 7
+     (GPT-6.2-Sol). — B
+
+2352. **Een tweede opslag als IFC verandert de planning stil; IFCX doet hetzelfde.** Opslaan als IFC houdt bij de eerste
+     opslag wat de planner invoerde, maar verandert bij de tweede opslag na openen stil (bij een werkdag van 07:00 tot
+     16:00):
+     - een eenvoudige pauze (`simpleBreakStartMinute`, `simpleBreakDurationMinutes`) die niet helemaal binnen de
+       werktijd ligt (vanaf 00:01, vanaf 06:40 over het begin heen, vanaf 15:40 over het einde heen, of vanaf 16:40):
+       de tweede opslag laat haar vallen;
+     - een pauze met een begin of een duur met een fractie: de eerste opslag houdt alleen het andere deel, de tweede
+       laat de pauze vallen;
+     - een pauze precies op het begin van de werktijd (vanaf 07:00): na de omzetting naar het minutenmodel houdt de
+       tweede opslag de pauze, maar verandert ze de werktijden van de kalender; vóór de omzetting zet de
+       laadnormalisatie de kalender bij de eerste opslag al recht, en verandert de tweede opslag niets;
+     - een gestarte dagtaak zonder vastgelegde restduur: de eerste lezing leidt de restduur af uit duur en voortgang
+       (0,75 dag bij 25 %), en daardoor schrijft de tweede opslag de projectkalender letterlijk; zo bij 8, 8½, 9 en 9½
+       nominale uren, vóór en na de omzetting;
+     - een kalender met 9½ nominale uren, na de omzetting: de tweede opslag maakt er 9 uur van, met werktijden.
+
+     Een pauze helemaal binnen de werktijd, tot het einde ervan, of met alleen een begin of alleen een duur, blijft bij
+     elke opslag. Dit is een fout van main. **IFCX** volgt STEP, ook bij de tweede opslag (besluit van de technisch
+     eigenaar, #1183 ronde 8, letterlijk: "de pauzeweigering vervalt; IFCX volgt STEP, ook bij de tweede opslag. Het
+     stille verlies blijft een fout van main in 2352."); de weigering van ronde 7b is weg. Proef: `check-ifcx-kern.ts`,
+     "2352" en "ronde 8, het geval van Sol". Gemeld door de review van #1183 ronde 7 en 8 (GPT-6.2-Sol). — B
+
+2353. **IFCX (F3-1, R6): de lezer opent een bestand dat precies de projectie is van een planning die de schrijver nooit
+     maakt.** Sinds #1183 ronde 8 vergelijkt R4 met de projectie van de gelezen planning; de lezer doet geen
+     STEP-rondgang en gaat niet door de laadgrens. Een zelfgemaakt of na het schrijven veranderd bestand opent daarom
+     zoals het er staat, als elke waarde binnen haar domein valt en de schrijfwijze die van de schrijver is. Gemeten: een
+     duur van 0,25 minuut, een werkplan zonder `timeModel` en zonder `minuteModelPending`, een kalender vanaf 07:15 met
+     taken om 07:00, een onderbreking op een taak die niet gestart is, en de gevallen van ronde 6 en punt 8 (een tweede
+     duur in minuten naast een dagduur, `remainingMinutes` naast een restduur in dagen, een werkelijk einde met 50 %
+     voortgang, lege vroege en late datums). In de kernproef openen zo 231 mutaties die tot ronde 8 niet openden. Een
+     tweede opslag zet zo'n planning recht zoals STEP (de 0,25 minuut valt weg, het `timeModel` komt terug), en de
+     laadgrens van de app zet bij openen `minuteModelPending`, zoals bij STEP. Staat een veld niet op de plek waar de
+     schrijver het zet, dan weigert de lezer, maar de melding noemt alleen het object en het teken, niet het veld (83
+     mutaties van de kernproef; de vorige head noemde het veld). Richting als het nodig wordt: de domeinen in de
+     veldtabel nauwer maken waar STEP een waarde laat vallen (een fractie in een minutenveld); geen toetsen per object
+     die STEP nabootsen, want die sluit R6 uit. Gemeten in #1183 ronde 8. — B
