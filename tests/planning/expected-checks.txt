@@ -238,6 +238,7 @@ check-ifc-xer-archive-container.ts matrix
 check-ifcx-app.ts matrix
 check-ifcx-kern.ts matrix
 check-ifcx-meting.ts los
+check-ifcx-velden.ts matrix
 check-import-datum-zonder-tijd.ts matrix
 check-import-explicit-rest.ts matrix
 check-import-missing-schedule-dates.ts matrix

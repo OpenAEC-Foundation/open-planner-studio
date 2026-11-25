@@ -7305,6 +7305,13 @@ en noem het in je rapport of PR-tekst.
      gemeten, niet voor een grote eigen en niet voor een grote vreemde bron: de meting paste niet in het rekenslot van
      deze ronde. Richting: één grote eigen en één grote vreemde bron meten (`measure:large-plans` meet opslaan, niet deze
      import). Gemeld door de review van #1219 ronde 2 (Sol, VERMOED). — S
+2246. **VERVOLG (#804, F3-3): de velden van F3-3 hebben geen gedeelde projectie.** Rekenopties, rekenprofiel, codes,
+     eigen velden, werksoorten, constraints, notities, koppelingen en de MSP- en P6-velden staan alleen in de precieze
+     kant (`openaec::ops::`); een ander programma ziet ze in `openaec::planning::activity` niet. IFC 4.3 heeft er in de
+     gedeelde attributen geen woorden voor, behalve misschien de naam van een eigen werksoort (`IfcTask.ObjectType`, die
+     STEP al schrijft). Richting: met de afspraken over de gedeelde schema's (ontwerp §5.3, §11) bekijken of
+     `objectType` in `openaec::planning::activity` komt; dan schrijft `projection.ts` de naam uit de werksoort van de taak.
+     Gezien bij het bouwen van F3-3 (`src/services/ifc/ifcx/fields/`). — S
 
 2350. **Voorwaarde vóór "IFCX standaard aan": opslaan als IFCX hoogstens vier keer IFC en hoogstens 4 s bij 10.000 taken.**
      Besluit van de technisch eigenaar (#1183, ronde 7b), letterlijk: "De grens van vier op openen blijft hard. Opslaan
@@ -7375,6 +7382,15 @@ en noem het in je rapport of PR-tekst.
      mutaties van de kernproef; de vorige head noemde het veld). Richting als het nodig wordt: de domeinen in de
      veldtabel nauwer maken waar STEP een waarde laat vallen (een fractie in een minutenveld); geen toetsen per object
      die STEP nabootsen, want die sluit R6 uit. Gemeten in #1183 ronde 8. — B
+
+2363. **VERVOLG (#804, F3-3): een notitie of externe koppeling met een lid dat het profiel niet kent, slaat niet op als
+     IFCX.** STEP bewaart notities en koppelingen als JSON in een pset en geeft ze bij lezen met elk lid terug
+     (`task.notes = parsed` en `storedExternalLinks` met `...raw` in `ifcPsets.ts` en `src/engine/externalLinks.ts`).
+     IFCX draagt alleen de leden van het type (`taskNoteFields.ts`), dus de zelfcontrole weigert zo'n planning met
+     `self-check` en het veld (`tasks[1].notes[0].prioriteit: "hoog" → afwezig`); niets gaat stil verloren. De app maakt
+     zulke leden zelf niet; ze kunnen uit een extensie of een met de hand veranderd bestand komen. Richting als het nodig
+     wordt: de onbekende leden als tekst in het precieze veld meenemen, of ze bij de laadgrens laten vallen zoals STEP
+     dat bij andere JSON-psets doet. Nagegaan met een script op het voorbeeld `10-villa-wassenaar.ifc`. — B
 
 2365. **De doelcontrole van IFCX classificeert een onbekend bestaand doel met een volledige lezing.** Schrijft een
      IFCX-document naar een bestaand doel dat niet zijn eigen bekende versie is (Opslaan als over een bestaand `.ifcx`, of

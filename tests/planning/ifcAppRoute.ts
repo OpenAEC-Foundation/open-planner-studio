@@ -8,6 +8,7 @@
 // - De toets van Trias (besluit over knownbug 1102): `TRIAS_FILES`, `withoutModel` en `plainSaveAfterF5`, de gewone
 //   opslag van het bestand zonder model na de duurwijziging en F5.
 import type { AppState } from '@/state/appStoreFactory';
+import type { FeatureFlagValues } from '@/utils/featureFlags';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -44,15 +45,17 @@ export function loadStore(): Promise<StoreModules> {
  * gooit dit de fout die `openOpenedFile` meldde (die vangt hij zelf en meldt hem via het meldingenkanaal en
  * `console.error`). `snapshot` geeft wat Opslaan aan de writer geeft (`buildWriteIFCInput`), met `ifcSource` erbij.
  */
-export async function openInStore(bytes: Uint8Array, name = 'bron.ifc') {
+export async function openInStore(bytes: Uint8Array, name = 'bron.ifc', flags: FeatureFlagValues = { ifcForeignContent: true }) {
   const { createAppStoreContext, buildWriteIFCInput } = await loadStore();
+  const { readOptionsFor, readsAsBytes } = await import('@/services/formatRegistry');
   const { store } = createAppStoreContext();
-  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  store.setState(s => { s.ui.featureFlags = { ...flags }; });
+  const opened = readsAsBytes(name, readOptionsFor(flags)) ? { content: '', bytes } : { content: new TextDecoder().decode(bytes) };
   let failure: unknown;
   const realError = console.error;
   console.error = (...args: unknown[]) => { if (args[0] === 'Failed to open file:') failure = args[1]; else realError(...args); };
   try {
-    await store.getState().openOpenedFile({ name, content: '', bytes, ref: null });
+    await store.getState().openOpenedFile({ name, ...opened, ref: null });
   } finally {
     console.error = realError;
   }
