@@ -15,6 +15,9 @@ import type { Sequence } from '@/types/sequence';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { loadStore } from './ifcAppRoute';
 import { installNodeFileIpc } from './nodeFileIpc';
+import { InProcessWorker } from './inProcessSaveWorker';
+import { createIfcSaveWorker } from '@/services/ifc/saveWorker/ifcSaveWorker';
+import type { IfcOutputCompute } from '@/state/prepareIfcOutput';
 
 const MAX_RATIO = 4;
 const SIZE = 10000;
@@ -235,10 +238,13 @@ async function appRatioTest(
     const input = plan(SIZE);
     const files = { ifc: encode(writeIFC(input)), ifcx: encode(writeIfcx(input, CLOCK)) };
     const stores = {} as Record<'ifc' | 'ifcx', ReturnType<typeof createAppStoreContext>['store']>;
+    const computes = {} as Record<'ifc' | 'ifcx', IfcOutputCompute>;
     for (const format of ['ifc', 'ifcx'] as const) {
       const path = join(appData, `meting.${format}`);
       writeFileSync(path, files[format]);
-      const { store } = createAppStoreContext();
+      const worker = createIfcSaveWorker({ createWorker: () => new InProcessWorker('auto') });
+      const { store } = createAppStoreContext({ ifcSaveCompute: worker.compute, ifcxClassify: worker.classifyIfcx });
+      computes[format] = worker.compute;
       store.setState(s => { s.ui.featureFlags = { ifcx: true }; });
       const opened = format === 'ifcx' ? { content: '', bytes: files[format] } : { content: new TextDecoder().decode(files[format]) };
       await store.getState().openOpenedFile({ name: `meting.${format}`, ...opened, ref: { kind: 'path', path } });
@@ -257,7 +263,7 @@ async function appRatioTest(
       });
     await appRatioTest(`een ronde Automatisch opslaan van een IFCX-document kost bij ${SIZE} taken hoogstens ${MAX_RATIO} keer die van een IFC-document`,
       'Automatisch opslaan', edit('automatisch'), async (format) => {
-        await createFileAutoSaveController({ getState: stores[format].getState, enabled: () => true }).flush();
+        await createFileAutoSaveController({ getState: stores[format].getState, enabled: () => true, compute: computes[format] }).flush();
         assert.equal(stores[format].getState().isDirty, false, `Automatisch opslaan van het ${format}-document`);
       });
     for (const format of ['ifc', 'ifcx'] as const) {
