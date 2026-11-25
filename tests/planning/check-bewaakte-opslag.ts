@@ -631,30 +631,31 @@ await check('stop van de bewaking × een onleesbaar bestand: dezelfde stop, en h
   } finally { stopped.ipc.dispose(); }
 });
 
-await check('de flag gaat uit terwijl de vergelijking loopt: Automatisch opslaan legt geen stop vast en Ctrl+S weigert niet', async () => {
+await check('de flag gaat uit terwijl de vergelijking loopt: de poging houdt de stand van haar begin, dus Automatisch opslaan stopt en Ctrl+S weigert; de volgende poging loopt met de flag uit', async () => {
   const ipc = desktop();
   try {
+    const other = sameSizeOtherContent(plainBytes());
     const autoPath = fileAt('tijdens-auto.ifc', plainBytes());
     const { store: auto } = await openAt({ kind: 'path', path: autoPath }, plainBytes());
     const controller = autoSave(auto);
-    const work = edit(auto);
-    writeFileSync(autoPath, sameSizeOtherContent(plainBytes()));
+    edit(auto);
+    writeFileSync(autoPath, other);
     ipc.once(/^plugin:fs\|read_file$/, () => { auto.setState(s => { s.ui.featureFlags = {}; }); });
     await controller.flush();
-    assert(holds(autoPath, work), 'de ronde schrijft zoals main');
-    assert.equal(auto.getState().isDirty, false);
-    assert.equal(notices(auto, AUTOSAVE_CHANGED), 0);
+    assert.deepEqual(new Uint8Array(readFileSync(autoPath)), other, 'de ronde laat de versie van de ander staan');
+    assert.equal(auto.getState().isDirty, true);
+    assert.equal(notices(auto, AUTOSAVE_CHANGED), 1);
     const later = edit(auto);
     await controller.flush();
-    assert(holds(autoPath, later), 'en er staat geen stop');
+    assert(holds(autoPath, later), 'de volgende ronde begint met de flag uit en schrijft zoals main');
     const savePath = fileAt('tijdens-ctrl-s.ifc', plainBytes());
     const { store } = await openAt({ kind: 'path', path: savePath }, plainBytes());
-    const saved = edit(store);
-    writeFileSync(savePath, sameSizeOtherContent(plainBytes()));
+    edit(store);
+    writeFileSync(savePath, other);
     ipc.once(/^plugin:fs\|read_file$/, () => { store.setState(s => { s.ui.featureFlags = {}; }); });
-    assert.equal(await ctrlS(store), true);
-    assert(holds(savePath, saved));
-    assert.deepEqual(errors(store), []);
+    assert.equal(await ctrlS(store), false);
+    assert.deepEqual(new Uint8Array(readFileSync(savePath)), other, 'Ctrl+S laat de versie van de ander staan');
+    assert.deepEqual(errors(store), ['notifications.ifcForeignTargetChanged']);
   } finally { ipc.dispose(); }
 });
 

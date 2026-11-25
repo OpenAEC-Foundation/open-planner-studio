@@ -598,8 +598,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       identityFs: fileIdentityFs, readers, openDocumentsExcept, ...(chosenTarget ? { chosenTarget } : {}),
       ...(ownTarget && ownBomVersion && target.kind !== 'site' ? { ownBomVersion } : {}),
     };
-    const reason = leaveContentToKnownTarget ? contentLeftToKnownTarget(await refusedTargetIdentity(get(), target, deps, ownVersion))
-      : await refusedWriteTarget(get(), target, deps, ownVersion);
+    const at = { getOpenDocumentPayloads: () => get().getOpenDocumentPayloads(), ui: { featureFlags: snapshot.ui.featureFlags } };
+    const reason = leaveContentToKnownTarget ? contentLeftToKnownTarget(await refusedTargetIdentity(at, target, deps, ownVersion))
+      : await refusedWriteTarget(at, target, deps, ownVersion);
     if (reason) {
       get().notify(reason === 'open-document' ? IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE
         : hasForeignContent(snapshot.ifcSource) && reason === 'open-source' && target.kind !== 'site'
@@ -915,8 +916,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       target.foreignSourceMark = foreignSourceMarkFor(prepared.source, target);
     };
     const literalIds = prepared?.literalCalendarIds ?? literalCalendarIdsWritten(savedSource);
-    const fingerprint: TargetFingerprint | null = !ifcForeignContentEnabled(get().ui.featureFlags) ? null
-      : prepared ? { sha256: prepared.sha256, byteLength: prepared.bytes.byteLength, origin: 'written', utf8Bom: utf8BomLength(prepared.bytes) > 0 } : written;
+    const fingerprint: TargetFingerprint | null = !prepared ? written : !ifcForeignContentEnabled(get().ui.featureFlags) ? null
+      : { sha256: prepared.sha256, byteLength: prepared.bytes.byteLength, origin: 'written', utf8Bom: utf8BomLength(prepared.bytes) > 0 };
     const applyKnownTarget = (target: Pick<AppState, keyof SaveDestination | 'knownTargetFingerprint'>) => {
       target.knownTargetFingerprint = onOwnFile(target, fingerprint);
     };
@@ -1138,8 +1139,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const app = get();
     return { featureFlags: app.ui.featureFlags, known: saveSourceForDocument(app, documentId)?.knownTargetFingerprint ?? null };
   };
-  const refuseChangedKnownTarget = async (documentId: string, ref: FileRef, known: TargetFingerprint): Promise<boolean> => {
-    const change = await changedKnownTarget(() => knownTargetOf(documentId), known, ref);
+  const refuseChangedKnownTarget = async (ref: FileRef, known: TargetFingerprint, start: KnownTargetState): Promise<boolean> => {
+    const change = await changedKnownTarget(() => start, known, ref);
     if (change) get().notify(ownTargetContentNotice(change));
     return change !== null;
   };
@@ -1366,7 +1367,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     try {
       const ref = saveTargetRef(state);
-      const ownVersion = ref && !hasForeignContent(state.ifcSource) ? guardedKnownTarget(knownTargetOf(documentId), ref) : null;
+      const start = knownTargetOf(documentId);
+      const ownVersion = ref && !hasForeignContent(state.ifcSource) ? guardedKnownTarget(start, ref) : null;
       const ownBomVersion = ownVersion?.utf8Bom ? ownVersion : null;
       let ownHandle: Extract<FileRef, { kind: 'handle' }> | null = null;
       let ownPath: Extract<FileRef, { kind: 'path' }> | null = null;
@@ -1388,7 +1390,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, 'merge'));
       if (!write || refuseChangedDocumentWrite(state, write)) return false;
-      const ownWritten = ref && !handleRefused && !write.prepared ? writtenKnownTarget(knownTargetOf(documentId), ref) : null;
+      const ownWritten = ref && !handleRefused && !write.prepared ? writtenKnownTarget(start, ref) : null;
       const bomData = ownBomVersion && !handleRefused && !write.prepared ? withUtf8Bom(writerData(write)) : null;
       const bomHashing = bomData && write.sha256 !== undefined ? writtenFingerprint(state.ui.featureFlags, write, bomData) : null;
       if (ref && await documentTargetCheck(state, write, true, { leaveContentToKnownTarget: !!ownWritten, ownBomVersion })(ref)) return false;
@@ -1419,8 +1421,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         try {
           const stable = !!ownWritten && await stillWrittenKnownTarget(ownWritten, ref);
           if (!stable && ownWritten && await documentTargetCheck(state, write, true, { ownBomVersion })(ref)) return false;
-          const known = stable || write.prepared ? null : guardedKnownTarget(knownTargetOf(documentId), ref);
-          if (known && await refuseChangedKnownTarget(documentId, ref, known)) return false;
+          const known = stable || write.prepared ? null : guardedKnownTarget(start, ref);
+          if (known && await refuseChangedKnownTarget(ref, known, start)) return false;
           if (refuseChangedDocumentWrite(state, write)) return false;
           const last = lastWriteCheck(state, write);
           const hashing = bomData ? bomHashing ?? writtenFingerprint(state.ui.featureFlags, write, bomData) : writtenFingerprint(state.ui.featureFlags, write);

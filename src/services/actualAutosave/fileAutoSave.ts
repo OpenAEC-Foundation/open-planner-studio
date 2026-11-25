@@ -307,7 +307,6 @@ export function createFileAutoSaveController(deps: {
    * modelronde aan en schrijft direct daarna, zonder haar te laten wijken (`runAutoSaveTickWrite`, fixronde 3 van de review
    * van #1033). Alleen een handmatige actie in de rij laat de tik deze keer overslaan, zoals vóór stap 8.
    */
-  const listedBomVersion = new WeakMap<ActualAutoSaveCandidate, TargetFingerprint>();
   const listPlain = (): ActualAutoSaveCandidate[] => {
     // Tijdens de herstelkeuze bestaat de live state nog niet betrouwbaar uit de gekozen
     // documenten. Geen bestand overschrijven vóór die blokkerende fase klaar is.
@@ -324,11 +323,8 @@ export function createFileAutoSaveController(deps: {
         getState().notify(ifcWriteBlockedNotice(payload));
       }
       const enabled = plainTakesPart(id, payload);
-      const candidate = { id, content: documentContentOf(state, id)!.content, enabled, dirty: payload.isDirty,
-        ref: autoSaveRef(payload), source: payload };
-      const ownVersion = candidate.ref ? guardedKnownTarget({ featureFlags: state.ui.featureFlags, known: payload.knownTargetFingerprint }, candidate.ref) : null;
-      if (ownVersion?.utf8Bom) listedBomVersion.set(candidate, ownVersion);
-      candidates.push(candidate);
+      candidates.push({ id, content: documentContentOf(state, id)!.content, enabled, dirty: payload.isDirty,
+        ref: autoSaveRef(payload), source: payload, start: { featureFlags: state.ui.featureFlags, known: payload.knownTargetFingerprint } });
     }
     return candidates;
   };
@@ -373,22 +369,25 @@ export function createFileAutoSaveController(deps: {
       // #804 stap 6: de momentopname en het rekenen onder het schrijfslot, via dezelfde berekenfunctie als Ctrl+S
       // (de opslagworker). Typt de planner intussen, dan schrijft de ronde deze momentopname en blijft het document
       // gewijzigd (`commitSavedDocument`); de volgende ronde neemt het latere werk mee.
-      const ui = getState().ui;
-      const ownBomVersion = listedBomVersion.get(candidate) ?? null;
+      const start = candidate.start ?? knownTargetOf(candidate.id);
+      const ui = { ...getState().ui, featureFlags: start.featureFlags };
+      const at = { getOpenDocumentPayloads: () => getState().getOpenDocumentPayloads(), ui };
+      const ownVersion = guardedKnownTarget(start, candidate.ref!);
+      const ownBomVersion = ownVersion?.utf8Bom ? ownVersion : null;
       const output = await prepareIfcOutput({ ...current, ui }, buildWriteIFCInput(current, 'merge'), undefined,
         documentSaveCompute(ui.featureFlags, compute));
       if (output.prepared) return 'refused';
       // #804 fixronde 2: dezelfde doelcontrole als Opslaan, onder dezelfde lock. Fixronde 1 van #1027 (review Sol): ná het
       // rekenen, vlak vóór het schrijven, zoals Ctrl+S: een gebouwmodel dat tijdens het rekenen op het doel verscheen,
       // wordt niet overschreven. Eén doelscan; daarna beslist alleen nog de synchrone inhoudscontrole hieronder.
-      const ownWritten = writtenKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
+      const ownWritten = writtenKnownTarget(start, candidate.ref!);
       const bomData = ownBomVersion ? withUtf8Bom(output.bytes ?? output.content) : null;
       const bomHashing = bomData && output.sha256 !== undefined ? writtenFingerprint(ui.featureFlags, output, bomData) : null;
       const ownDeps: WriteTargetDeps = ownBomVersion ? { ...targetDeps, ownBomVersion } : targetDeps;
-      let reason = ownWritten ? contentLeftToKnownTarget(await refusedTargetIdentity(getState(), candidate.ref!, targetDeps))
-        : await refusedWriteTarget(getState(), candidate.ref!, ownDeps);
+      let reason = ownWritten ? contentLeftToKnownTarget(await refusedTargetIdentity(at, candidate.ref!, targetDeps))
+        : await refusedWriteTarget(at, candidate.ref!, ownDeps);
       const stable = !reason && !!ownWritten && await stillWrittenKnownTarget(ownWritten, candidate.ref!);
-      if (!reason && ownWritten && !stable) reason = await refusedWriteTarget(getState(), candidate.ref!, ownDeps);
+      if (!reason && ownWritten && !stable) reason = await refusedWriteTarget(at, candidate.ref!, ownDeps);
       if (reason) {
         refusedTarget.set(candidate.id, { ref: candidate.ref!, source: current.ifcSource, known: null });
         if (!targetNotified.has(candidate.id)) {
@@ -398,8 +397,8 @@ export function createFileAutoSaveController(deps: {
         }
         return 'refused';
       }
-      const known = stable ? null : guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
-      if (known && await changedKnownTarget(() => knownTargetOf(candidate.id), known, candidate.ref!)) {
+      const known = stable ? null : guardedKnownTarget(start, candidate.ref!);
+      if (known && await changedKnownTarget(() => start, known, candidate.ref!)) {
         stopFor(candidate.id, candidate.ref!, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE, known);
         return 'refused';
       }
