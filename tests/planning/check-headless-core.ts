@@ -30,6 +30,7 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { taskDepths } from '@/utils/wbs';
 import type { Task } from '@/types/task';
 import { foreignWorkMethodSource, oldOwnSource, OLD_TASK_NAME } from '../mcp/headlessCorpus';
+import { answerDigest, FORMS } from '../../headless/server/smoke-corpus.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const diffs: string[] = [];
@@ -384,13 +385,9 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
 // De blokkade op de historische eigen kop (1132) is weg, ook voor echte kernuitvoer.
 for (const name of ['ohara', 'data']) {
   const text = readFileSync(join(root, `tests/planning/fixtures/oude-tags/v2026.7.12-${name}-showcase-verbouwing-eengezinswoning.ifc`), 'utf8');
-  eqText(`8 ${name}: de oude naam van het live-werkschema geeft de huidige writer niet terug (#1219)`,
-    await refusalOf(async () => (await openIfc(text)).toIfc()), 'IFC_WRITE_FAILED:foreign');
-  const current = text.replace("'Bouwplanning v1.0'", "'Construction schedule v1.0'");
-  ok(`8 ${name}: het bestand heeft de oude naam één keer`, current !== text && !current.includes("'Bouwplanning v1.0'"));
-  const doc = await openIfc(current);
+  const doc = await openIfc(text);
   const written = doc.toIfc();
-  ok(`8 ${name}: met de naam van de huidige writer schrijft de oude eigen planning en heropent met alle twintig taken`,
+  ok(`8 ${name}: oude eigen planning schrijft en heropent met alle twintig taken`,
     doc.schedule().counts.tasks === 20 && (await openIfc(written)).schedule().counts.tasks === 20);
 }
 
@@ -409,6 +406,32 @@ for (const name of ['ohara', 'data']) {
   const reopened = await openIfc(old.toIfc());
   ok('19 de oude eigen bron heropent met alle taken en de oude taaknaam', reopened.schedule().counts.tasks === 47
     && reopened.schedule().tasks.some(t => t.name === OLD_TASK_NAME), JSON.stringify(reopened.schedule().counts));
+}
+
+{
+  const reference = JSON.parse(readFileSync(join(root, 'headless/server/main-reference.json'), 'utf8')) as
+    { main: string; cases: Record<string, { ifc?: { status: number; sha256?: string } }> };
+  const oldOwn = ['v2026.7.7-urentaak-10-villa-wassenaar.ifc', 'v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc',
+    'v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc'];
+  for (const file of oldOwn) {
+    const source = readFileSync(join(root, 'tests/planning/fixtures/oude-tags', file));
+    ok(`20 ${file}: het lopende werkschema heet nog Bouwplanning v1.0`, source.includes("'Bouwplanning v1.0'"));
+    for (const [form, shape] of FORMS as Array<[string, (bytes: Buffer) => Buffer]>) {
+      const body = shape(source);
+      const label = `oude-tags/${file}, ${form}`;
+      const main = reference.cases[label]?.ifc;
+      const viaText = await openIfc(body.toString('utf8'));
+      viaText.schedule();
+      const viaBytes = await openIfcBytes(new Uint8Array(body));
+      viaBytes.schedule();
+      const fromText = await refusalOf(() => viaText.toIfc());
+      ok(`20 ${label}: toIfc() schrijft wat main ${reference.main.slice(0, 9)} schrijft (main-reference.json)`, main?.status === 200
+        && fromText === 'geschreven' && answerDigest(viaText.toIfc(), 'ifc', 200, body) === main.sha256, fromText);
+      const fromBytes = await refusalOf(() => viaBytes.toIfcBytes());
+      ok(`20 ${label}: toIfcBytes() schrijft hetzelfde`, main?.status === 200 && fromBytes === 'geschreven'
+        && answerDigest(utf8(await viaBytes.toIfcBytes()), 'ifc', 200, body) === main.sha256, fromBytes);
+    }
+  }
 }
 
 const foreignFixture = (name: string): string => join(root, 'tests/fixtures/ifc-foreign', name);
@@ -642,17 +665,11 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
 }
 
 {
-  const oldOpsFile = readFileSync(join(root, 'tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc'));
-  const oldOps = encoded(utf8(new Uint8Array(oldOpsFile)).replace("'Bouwplanning v1.0'", "'Construction schedule v1.0'"));
-  const oldOpsWithBom = new Uint8Array([...UTF8_BOM, ...oldOpsFile]);
-  eqText('17 oude OPS-export uit v2026.7.12 met BOM en de oude schemanaam: toIfc() weigert (#1219)',
-    await refusalOf(async () => (await openIfc(Buffer.from(oldOpsWithBom).toString('utf8'))).toIfc()), 'IFC_WRITE_FAILED:foreign');
-  eqText('17 oude OPS-export uit v2026.7.12 met BOM en de oude schemanaam: openIfcBytes weigert gelijk',
-    await refusalOf(async () => (await openIfcBytes(oldOpsWithBom)).toIfcBytes()), 'IFC_WRITE_FAILED:foreign');
+  const oldOps = readFileSync(join(root, 'tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc'));
   const own = readFileSync(files[0]);
   const nbsp = encoded('\u00a0');
   const leads: Array<[string, Uint8Array]> = [
-    ['oude OPS-export uit v2026.7.12 met BOM en de schemanaam van de huidige writer', new Uint8Array([...UTF8_BOM, ...oldOps])],
+    ['oude OPS-export uit v2026.7.12 met BOM', new Uint8Array([...UTF8_BOM, ...oldOps])],
     ['dubbele BOM', new Uint8Array([...UTF8_BOM, ...UTF8_BOM, ...own])],
     ['BOM na een spatie', new Uint8Array([0x20, ...UTF8_BOM, ...own])],
     ['U+00A0 na een BOM', new Uint8Array([...UTF8_BOM, ...nbsp, ...own])],

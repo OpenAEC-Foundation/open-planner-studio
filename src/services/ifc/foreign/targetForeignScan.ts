@@ -16,7 +16,7 @@ import { StepScanError, utf8BomLength, type StepIndex } from './stepScanner';
 import { scanForeignStep } from './oldOwnHeader';
 import { classify, hasOwnOrigin } from './classify';
 import { IFC_SLOT_TABLES, type IfcSlotTable } from '../ifcSlotTables';
-import { IFC_BASELINE_SCHEDULE_SLOTS, workControlSlots } from '../ifcWorkControlSlots';
+import { IFC_BASELINE_SCHEDULE_SLOTS, IFC_LIVE_SCHEDULE_SLOTS, workControlSlots } from '../ifcWorkControlSlots';
 import type { SlotPositions } from '../ifcSlotSoort';
 import { OPS_LEGACY_LITERAL_APP_VERSION } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
@@ -126,6 +126,9 @@ function valueOf(row: SlotRow, key: string, text: (row: SlotRow, token: string) 
   return token!.startsWith("'") ? `'${text(row, token!)}` : token!;
 }
 
+const LIVE_SCHEDULE_NAME_SLOT = `${IFC_SLOT_TABLES.find(table => table.slots === IFC_LIVE_SCHEDULE_SLOTS)!.naam}.name`;
+const EARLIER_LIVE_SCHEDULE_NAME = "'Bouwplanning v1.0";
+
 function writerKeepsEverySlot(source: StepIndex, written: StepIndex): boolean {
   const out = slotRows(written);
   const writtenText = (row: SlotRow, token: string) => written.tokenText(row.chunk, token);
@@ -134,7 +137,7 @@ function writerKeepsEverySlot(source: StepIndex, written: StepIndex): boolean {
     const body = token.slice(1, -1).replace(/''/g, "'");
     return literal ? body : decodeStepText(body);
   };
-  const constants = new Map<string, Set<string>>();
+  const constants = new Map<string, Set<string>>([[LIVE_SCHEDULE_NAME_SLOT, new Set([EARLIER_LIVE_SCHEDULE_NAME])]]);
   const twins = new Map<string, SlotRow>();
   for (const row of out.rows) {
     const key = out.keyOf.get(row.chunk);
