@@ -77,8 +77,7 @@ import { seedScalarBands } from '@/utils/effectiveWorkTime';
 import { hourRemainingDays } from '@/engine/taskMutationRules';
 import {
   canonicalizeBands, clockToMinutes, firstBlockedDay, getCalendarBands, hasNonAnchorTime,
-  isoDurationToMinutes, isSubDayMinutes, promoteHourCalendar, promoteHourCalendars,
-  registerCalendarBands, workDayFromBlocks,
+  isoDurationToMinutes, isSubDayMinutes, promoteHourCalendar, registerCalendarBands, workDayFromBlocks,
 } from '@/services/subdayIo';
 
 export type XerArchiveReconstructor = (bytes: Uint8Array) => XerSourceReconstruction;
@@ -1135,11 +1134,11 @@ function applyHourModeIFC(
     if (durSignal || dateSignal) subDayCals.add(effCal);
   }
 
-  promoteHourCalendars(
-    [projectCal, ...resourceCalendars].filter(cal => !declaredScalarCalendars.has(cal)).map(cal => [cal, cal] as const),
-    cal => subDayCals.has(cal),
-    false,
-  );
+  for (const cal of [projectCal, ...resourceCalendars]) {
+    if (declaredScalarCalendars.has(cal)) continue;
+    const workingExceptionHours = (cal.workingExceptions ?? []).some(e => (e.bands?.length ?? 0) > 0);
+    promoteHourCalendar(cal, getCalendarBands(cal), subDayCals.has(cal), workingExceptionHours);
+  }
 
   for (const t of tasks) {
     const effCal = effCalOf(t);
