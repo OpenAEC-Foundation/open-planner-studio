@@ -683,7 +683,7 @@ await check('browser: Openen, Recent en slepen met een andere handle voor hetzel
   const handlesTo = (name: string, bytes: Uint8Array) => {
     const entry = {};
     return () => ({ kind: 'file', name, entry,
-      getFile: async () => new File([bytes], name),
+      getFile: async () => new File([bytes.slice()], name),
       queryPermission: async () => 'granted', requestPermission: async () => 'granted',
       isSameEntry: async (other: { entry?: object }) => other?.entry === entry,
     }) as unknown as FileSystemFileHandle;
