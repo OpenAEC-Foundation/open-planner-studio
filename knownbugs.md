@@ -743,6 +743,30 @@ en noem het in je rapport of PR-tekst.
      relatielogica, een statusdatum op donderdag 13:00 en acht uur restwerk: de SF-relatie verschoof de finish van
      vrijdag 12:00 naar vrijdag 17:00, terwijl de SF-eis op maandag 13:00 lag. Zie ADR 0275. — B
 
+2322. **De belasting van opgeslagen werk kan bij een gestarte dagtaak een ander totaal tellen dan verricht plus
+     resterend.**
+     `assignmentDayUnits` (`src/engine/scheduler/ResourceLoad.ts`) leidt bij een toewijzing met `remainingWorkMinutes`
+     en zonder `actualWorkMinutes` het verrichte deel af als de duur min `remainingDaysOf`. Die functie rondt zonder
+     `remainingTime` de rest `scheduleDuration × (1 − completion)` af op hele dagen (en een urentaak zonder
+     `remainingMinutes` op hele minuten); de solver in de dagenmaat en `remainingMinutesOf` (`workRuleApply.ts`) ronden niet af (in de minutentak rondt de
+     solver wel af), zodat het afgeleide deel te groot of te klein kan uitvallen. Een
+     proef met `assignmentDayUnits`: een dagtaak van 5 dagen uit `createDefaultTaskTime`, `completion` 0,32,
+     `actualStart` gezet, geen `remainingTime`, inzet 1, `remainingWorkMinutes` 1632 (3,4 dagslots van 480 minuten)
+     en geen `actualWorkMinutes` gaf een som van 5,4 dagslots in plaats van 5. Met `remainingTime` 3,4 of met
+     `actualWorkMinutes` 768 was de som 5. Nagespeeld op een kalender van acht uur met dezelfde invoer: `computeResourceLoad` gaf
+     43,2 uur, het histogramrapport vijf overbezette dagen bij capaciteit 1, en `contourDayModel` dezelfde verhoogde
+     inzet. Een bestand of invoerroute die een taak zonder `remainingTime` én een toewijzing zonder
+     `actualWorkMinutes` oplevert, is niet gevonden; de getoetste voortgangsinvoer vult `remainingTime` zelf in. — B
+
+2323. **De urendialoog telt bij een toewijzing zonder contour het verrichte werk als resterend.** `contourDayModel`
+     (`src/engine/contour/contourDays.ts`) neemt zonder bestaande contour voor het verrichte deel nul en voor het
+     resterende deel de hele belasting van de toewijzing; `ContourDialog.tsx` schrijft bij *Toepassen* de perioden uit
+     dat model. Nagespeeld via de store: een taak van vijf dagen, één arbeidsresource op inzet 1, 32 % voortgang en
+     *Vaste duur en werk*; de toewijzing had 12,8 uur verricht en 27,2 uur resterend werk. *Urenverdeling…* rekende
+     40 uur resterend en toonde geen verricht werk. Na ongewijzigd *Toepassen*, IFC schrijven en teruglezen had de
+     contour alle 40 uur als `remaining`, naast de twee ongewijzigde werkvelden. Niet in de browser nagespeeld.
+     Issue #1224. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -1605,6 +1629,29 @@ en noem het in je rapport of PR-tekst.
       niet-herhalend bereik van `FromDate` tot `ToDate`, en slaat het zonder `ToDate` over; `readRawExceptions` (`mppCalendars.ts`) zet bij `null`
       `contributesNothing` en neemt het record niet op. Gelezen in de code, niet nagespeeld. Welke van de twee MS
       Project volgt, is niet nagegaan. — S
+
+2324. **De soort van een mijlpaal op een werkende uitzondering of een feestdag volgt de gewone weekblokken.**
+      `milestoneKindAt` (`src/services/subdayIo.ts`), voor `readMSPDI` en `readTasks` van de `.mpp`-lezer, kijkt alleen
+      naar `workTime.byWeekday` van de kalender. Een anker op het begin of einde van een blok van een werkende
+      uitzondering met eigen blokken krijgt dus alleen een soort als die minuut ook een grens van de weekblokken van die
+      weekdag is, bijvoorbeeld geen soort op een werkende zaterdag zonder weekblokken. Een anker op een feestdag krijgt
+      een soort als de minuut een grens van de weekblokken van die weekdag is, of het einde van een nachtblok van de
+      vorige weekdag. De twee lezers vragen de soort voor een nulduurmijlpaal op een gepromoveerde kalender; in
+      `readMSPDI` gaat een expliciete OPS-markering voor. Krijgt een mijlpaal om 12:00 op een werkende zaterdag van
+      08:00 tot 12:00 zo geen `FINISH`, dan kan een FS-relatie zonder lag bij herberekenen naar het volgende werkmoment
+      gaan, waar de `FINISH`-tak van `forwardHour` (`relationMath.ts`) het einde van de voorganger houdt; de solver
+      gebruikt de blokken van de uitzondering zelf wel. Het weggehaalde commentaar zei dat een mijlpaal nooit op een
+      feestdag landt; dat is niet nagegaan, en ook niet of MS Project zulke mijlpalen schrijft. Door twee lezers in
+      de code bevestigd, niet nagespeeld. — B
+
+2325. **Een `.mpp`-kalender met één blok per dag dat per weekdag verschilt, wordt zonder taaksignaal geen
+      uurkalender.** `canonicalizeBands` (`src/services/subdayIo.ts`) telt een kalender alleen als afwijkend bij meer
+      dan één blok op een dag, een blok over middernacht of een blok van 1440 minuten of meer; `buildCalendarFromDays`
+      (`src/services/mpp/mppCalendars.ts`) geeft die uitkomst door, zonder de vergelijking tussen weekdagen die de
+      MSPDI-lezer doet. Een resourcekalender die alleen via een toewijzing wordt gebruikt, met maandag 08:00 tot
+      16:00 en vrijdag 08:00 tot 12:00, krijgt geen taaksignaal (`readTasks`) en promoveert dus niet; haar enkelvoudige
+      werkdag komt van de eerste werkdag en toont de korte vrijdag niet. Door twee lezers in de code bevestigd, niet
+      met een bronbestand nagespeeld. Issue #1228. — B
 
 ## Bibliotheek, bezetting, extensies, AI
 
