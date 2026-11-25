@@ -5,8 +5,9 @@ import {
 } from '../fieldTable';
 import { OPS_PROFILE_VERSION } from '../profile';
 import { existingDatePart } from '../dateProjection';
+import { BASELINE_SET_FIELDS, type BaselineSetReadTarget, type BaselineSetWriteSource } from './baselineFields';
 
-export interface DocumentWriteSource {
+export interface DocumentWriteSource extends BaselineSetWriteSource {
   readonly project: Project;
   readonly projectPath: string;
   readonly projectCalendarPath: string;
@@ -17,7 +18,7 @@ export interface DocumentWriteSource {
   readonly literalCalendarPaths: readonly string[];
 }
 
-export interface DocumentReadTarget {
+export interface DocumentReadTarget extends BaselineSetReadTarget {
   readonly project: Project;
   readonly projectPath: string;
   calendarPath: string;
@@ -146,6 +147,7 @@ export const DOCUMENT_FIELDS: readonly DocumentField[] = [
     write: s => (s.literalCalendarPaths.length > 0 ? [...s.literalCalendarPaths] : undefined),
     read: (v, t) => { t.literalCalendarPaths = [...((v as string[] | undefined) ?? [])]; },
   },
+  ...BASELINE_SET_FIELDS,
 ];
 
 export const PROJECT_KEYS_CARRIED: readonly (keyof Project)[] = [

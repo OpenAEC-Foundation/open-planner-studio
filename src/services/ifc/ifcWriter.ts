@@ -208,7 +208,7 @@ function issueGuid(ctx: WriteContext, key: string, hashSeed: string): string {
   return guid;
 }
 
-export type IfcObjectKind = 'task' | 'res' | 'cal' | 'seq' | 'proj' | 'wp' | 'ws';
+export type IfcObjectKind = 'task' | 'res' | 'cal' | 'seq' | 'proj' | 'wp' | 'ws' | 'asgn' | 'bl';
 
 export function ifcObjectSeed(kind: IfcObjectKind, id: string): string {
   return `${kind}:${id}`;

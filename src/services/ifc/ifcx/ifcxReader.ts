@@ -5,6 +5,7 @@ import { ifcObjectSeed } from '../ifcWriter';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { hourRemainingDays } from '@/engine/taskMutationRules';
 import { hourTaskScheduleDuration } from '@/utils/taskDuration';
+import { reconstructResourceIds } from '@/services/importNormalize';
 import { checkValue, hasKey, readFields } from './fieldTable';
 import { globalIdOfPath } from './identityPath';
 import { childrenInPlace } from './childOrder';
@@ -17,6 +18,9 @@ import { DOCUMENT_FIELDS, emptyProject, type DocumentReadTarget } from './fields
 import { CALENDAR_FIELDS, emptyCalendar, type CalendarReadTarget } from './fields/calendarFields';
 import { emptyTask, remainingIsDerived, TASK_FIELDS, type TaskReadTarget } from './fields/taskFields';
 import { emptySequence, SEQUENCE_FIELDS, type SequenceReadTarget } from './fields/sequenceFields';
+import { emptyResource, RESOURCE_FIELDS, type ResourceReadTarget } from './fields/resourceFields';
+import { ASSIGNMENT_FIELDS, emptyAssignment, type AssignmentReadTarget } from './fields/assignmentFields';
+import { BASELINE_FIELDS, emptyBaseline, type BaselineReadTarget } from './fields/baselineFields';
 import { attributeValueProblem, schemaDefinitionProblems, type IfcxCheckProblem } from './schemaCheck';
 import { IfcxReadError, IfcxWriteRefusedError, type IfcxErrorPlace } from './ifcxErrors';
 import {
@@ -313,6 +317,7 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   const project = emptyProject();
   const documentTarget: DocumentReadTarget = {
     project, projectPath: header.projectPath, calendarPath: '', minuteModelPending: false, importPristine: false, literalCalendarPaths: [],
+    comparedBaselinePaths: [undefined, undefined], removedTasks: {},
   };
   readFields(DOCUMENT_FIELDS, workplan.attributes.get(ATTRIBUTE.document)!, documentTarget);
   const documentPlace = { path: workplan.path, attribute: ATTRIBUTE.document };
@@ -365,8 +370,54 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
     return target;
   });
 
+  const resourceTargets: ResourceReadTarget[] = of('resource').map(node => {
+    const target: ResourceReadTarget = { resource: emptyResource(), path: node.path };
+    readFields(RESOURCE_FIELDS, node.attributes.get(ATTRIBUTE.opsResource)!, target);
+    return target;
+  });
+  const resourceIdAt = new Map(resourceTargets.map(target => [target.path, target.resource.id]));
+  for (const target of resourceTargets) {
+    const place = { path: target.path, attribute: ATTRIBUTE.opsResource };
+    const parentPath = reference(target.parentPath, 'resource', { ...place, field: 'parent' });
+    if (parentPath !== undefined) target.resource.parentId = resourceIdAt.get(parentPath)!;
+    const calendarPath = reference(target.calendarPath, 'calendar', { ...place, field: 'calendar' });
+    if (calendarPath !== undefined) target.resource.calendarId = calendarIdAt.get(calendarPath)!;
+  }
+
+  const assignmentTargets: AssignmentReadTarget[] = of('assignment').map(node => {
+    const target: AssignmentReadTarget = { assignment: emptyAssignment(), path: node.path, taskPath: '', resourcePath: '' };
+    readFields(ASSIGNMENT_FIELDS, node.attributes.get(ATTRIBUTE.opsAssignment)!, target);
+    const place = { path: node.path, attribute: ATTRIBUTE.opsAssignment };
+    target.assignment.taskId = taskIdAt.get(reference(target.taskPath, 'task', { ...place, field: 'task' })!)!;
+    target.assignment.resourceId = resourceIdAt.get(reference(target.resourcePath, 'resource', { ...place, field: 'resource' })!)!;
+    return target;
+  });
+
+  const baselineTargets: BaselineReadTarget[] = of('baseline').map(node => {
+    const target: BaselineReadTarget = { baseline: emptyBaseline(), path: node.path, rowTaskPaths: [] };
+    readFields(BASELINE_FIELDS, node.attributes.get(ATTRIBUTE.opsBaseline)!, target);
+    target.rowTaskPaths.forEach((path, index) => {
+      const taskPath = reference(path, 'task', { path: node.path, attribute: ATTRIBUTE.opsBaseline, field: `tasks[${index}].task` });
+      if (taskPath !== undefined) target.baseline.tasks[index].taskId = taskIdAt.get(taskPath)!;
+    });
+    return target;
+  });
+  const baselineIdAt = new Map(baselineTargets.map(target => [target.path, target.baseline.id]));
+  const baselineIdOf = (path: string | undefined, field: string): string | null => {
+    const at = reference(path, 'baseline', { ...documentPlace, field });
+    return at === undefined ? null : baselineIdAt.get(at)!;
+  };
+  const activeBaselineId = baselineIdOf(documentTarget.activeBaselinePath, 'activeBaseline');
+  const [comparedFirst, comparedSecond] = documentTarget.comparedBaselinePaths;
+  const comparedBaselineIds: [string | null, string | null] = [
+    baselineIdOf(comparedFirst, 'comparedBaselines.1'), baselineIdOf(comparedSecond, 'comparedBaselines.2'),
+  ];
+
   const tasks = taskTargets.map(target => target.task);
   const sequences: Sequence[] = sequenceTargets.map(target => target.sequence);
+  const resources = resourceTargets.map(target => target.resource);
+  const assignments = assignmentTargets.map(target => target.assignment);
+  reconstructResourceIds(tasks, assignments);
   const ifcGlobalIds: Record<string, string> = {
     [ifcObjectSeed('proj', project.id)]: header.projectGlobalId,
     [ifcObjectSeed('wp', project.id)]: workplan.globalId,
@@ -376,18 +427,22 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   for (const target of calendarTargets) ifcGlobalIds[ifcObjectSeed('cal', target.calendar.id)] = globalIdAt.get(target.path)!;
   for (const target of taskTargets) ifcGlobalIds[ifcObjectSeed('task', target.task.id)] = globalIdAt.get(target.path)!;
   for (const target of sequenceTargets) ifcGlobalIds[ifcObjectSeed('seq', target.sequence.id)] = globalIdAt.get(target.path)!;
+  for (const target of resourceTargets) ifcGlobalIds[ifcObjectSeed('res', target.resource.id)] = globalIdAt.get(target.path)!;
+  for (const target of assignmentTargets) ifcGlobalIds[ifcObjectSeed('asgn', target.assignment.id)] = globalIdAt.get(target.path)!;
+  for (const target of baselineTargets) ifcGlobalIds[ifcObjectSeed('bl', target.baseline.id)] = globalIdAt.get(target.path)!;
 
   const recordedFields: ImportResult['recordedFields'] = {};
   for (const target of taskTargets) recordedFields[target.task.id] = recordedFieldsOf(target.task, target.unrecorded);
 
   const read: IfcxImportResult = {
-    project, calendar: projectCalendar, tasks, sequences, resources: [], assignments: [],
+    project, calendar: projectCalendar, tasks, sequences, resources, assignments,
     ...(documentTarget.timeModel !== undefined ? { timeModel: documentTarget.timeModel } : {}),
     ...(documentTarget.minuteModelPending ? { minuteModelPending: true } : {}),
     activityCodeTypes: [], customFieldDefs: [], customTaskTypes: [], resourceCalendars,
-    baselines: [], activeBaselineId: null, comparedBaselineIds: [null, null],
+    baselines: baselineTargets.map(target => target.baseline), activeBaselineId, comparedBaselineIds,
     recordedFields, recordedTimesOrigin: 'ifc-own', importPristine: documentTarget.importPristine,
     ifcGlobalIds,
+    ...(Object.keys(documentTarget.removedTasks).length > 0 ? { baselineOrphanGuids: documentTarget.removedTasks } : {}),
     ...(ifcLiteralCalendarIds.length > 0 ? { ifcLiteralCalendarIds } : {}),
   };
   if (checked) assertOwnProjection(text, document, read);
