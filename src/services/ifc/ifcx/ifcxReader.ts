@@ -9,8 +9,7 @@ import { checkValue, hasKey, readFields } from './fieldTable';
 import { globalIdOfPath } from './identityPath';
 import { childrenInPlace } from './childOrder';
 import { hourDurationIsDerived, objectLabels, serializeIfcx, type IfcxDocument } from './projection';
-import { canonicalPlanning, ownFileFor, type CanonicalPlanning, type OwnFile } from './ownFile';
-import { selfCheckDifferences } from './selfCheck';
+import { ownFileFor, type CanonicalPlanning, type OwnFile } from './ownFile';
 import { HEADER_VALUE } from './ownAttributes';
 import { NODE_SHAPES, type NodeKind } from './nodes';
 import { recordedFieldsOf } from './recordedFields';
@@ -277,17 +276,11 @@ function differenceFrom(text: string, document: Record<string, unknown>, own: Ow
     ?? firstDifference(document, own.document, 'missing') ?? (ownText === text ? undefined : firstTextDifference(text, ownText));
 }
 
-function ownPlanning(text: string, document: Record<string, unknown>, read: ImportResult): CanonicalPlanning {
-  const planning = canonicalPlanning(read);
-  const own = writerRefusal(() => ownFileFor(planning, new Date(0), 'deferred'));
-  const difference = differenceFrom(text, document, own);
-  if (difference) {
-    const labels = objectLabels(read, (kind, id) => read.ifcGlobalIds![ifcObjectSeed(kind, id)]);
-    throw invalid(difference.detail(path => labels.get(path) ?? path), difference.place);
-  }
-  const [model] = selfCheckDifferences(own.planning, read, 1);
-  if (model !== undefined) throw invalid(`Het bestand geeft een andere planning dan de eigen schrijver opslaat: ${model}`, { field: model.slice(0, model.indexOf(': ')) });
-  return planning;
+function assertOwnProjection(text: string, document: Record<string, unknown>, read: IfcxImportResult): void {
+  const difference = differenceFrom(text, document, writerRefusal(() => ownFileFor(read, new Date(0), 'deferred')));
+  if (!difference) return;
+  const labels = objectLabels(read, (kind, id) => read.ifcGlobalIds![ifcObjectSeed(kind, id)]);
+  throw invalid(difference.detail(path => labels.get(path) ?? path), difference.place);
 }
 
 export function readIfcxText(text: string, checked = true): IfcxImportResult {
@@ -319,7 +312,7 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   const schedule = of('schedule')[0];
   const project = emptyProject();
   const documentTarget: DocumentReadTarget = {
-    project, projectPath: header.projectPath, calendarPath: '', importPristine: false, literalCalendarPaths: [],
+    project, projectPath: header.projectPath, calendarPath: '', minuteModelPending: false, importPristine: false, literalCalendarPaths: [],
   };
   readFields(DOCUMENT_FIELDS, workplan.attributes.get(ATTRIBUTE.document)!, documentTarget);
   const documentPlace = { path: workplan.path, attribute: ATTRIBUTE.document };
@@ -338,7 +331,7 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
     reference(path, 'calendar', { ...documentPlace, field: `literalCalendars[${index}]` })!)!);
 
   const taskTargets: TaskReadTarget[] = of('task').map(node => {
-    const target: TaskReadTarget = { task: emptyTask(), path: node.path, atDayEnd: false, unrecorded: [] };
+    const target: TaskReadTarget = { task: emptyTask(), path: node.path, unrecorded: [] };
     readFields(TASK_FIELDS, node.attributes.get(ATTRIBUTE.opsTask)!, target);
     return target;
   });
@@ -387,20 +380,24 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   const recordedFields: ImportResult['recordedFields'] = {};
   for (const target of taskTargets) recordedFields[target.task.id] = recordedFieldsOf(target.task, target.unrecorded);
 
-  const read: ImportResult = {
+  const read: IfcxImportResult = {
     project, calendar: projectCalendar, tasks, sequences, resources: [], assignments: [],
     ...(documentTarget.timeModel !== undefined ? { timeModel: documentTarget.timeModel } : {}),
-    milestonesAtDayEnd: new Set(taskTargets.filter(target => target.atDayEnd).map(target => target.task.id)),
+    ...(documentTarget.minuteModelPending ? { minuteModelPending: true } : {}),
     activityCodeTypes: [], customFieldDefs: [], customTaskTypes: [], resourceCalendars,
     baselines: [], activeBaselineId: null, comparedBaselineIds: [null, null],
     recordedFields, recordedTimesOrigin: 'ifc-own', importPristine: documentTarget.importPristine,
     ifcGlobalIds,
     ...(ifcLiteralCalendarIds.length > 0 ? { ifcLiteralCalendarIds } : {}),
   };
-  return checked ? ownPlanning(text, document, read) : read;
+  if (checked) assertOwnProjection(text, document, read);
+  return read;
 }
 
 export function readIfcx(bytes: Uint8Array): IfcxImportResult {
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    throw invalid('Het bestand begint met een UTF-8-BOM, die de eigen schrijver niet schrijft', { offset: 0 });
+  }
   let text: string;
   try {
     text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);

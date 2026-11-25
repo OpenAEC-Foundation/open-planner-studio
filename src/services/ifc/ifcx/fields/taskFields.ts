@@ -15,7 +15,6 @@ export interface TaskWriteSource {
   readonly place?: number;
   readonly span: SharedSpan;
   readonly derivesDays: boolean;
-  readonly atDayEnd: boolean;
   readonly unrecorded: readonly RecordedFieldKey[];
 }
 
@@ -25,7 +24,6 @@ export interface TaskReadTarget {
   parentPath?: string;
   calendarPath?: string;
   place?: number;
-  atDayEnd: boolean;
   unrecorded: readonly RecordedFieldKey[];
 }
 
@@ -187,11 +185,6 @@ export const TASK_FIELDS: readonly TaskField[] = [
     key: 'calendar', value: REFERENCE, optional: true,
     write: s => s.calendarPath,
     read: (v, t) => { t.calendarPath = v as string | undefined; },
-  },
-  {
-    key: 'atDayEnd', value: BOOLEAN, optional: true,
-    write: s => (s.atDayEnd ? true : undefined),
-    read: (v, t) => { t.atDayEnd = v === true; },
   },
   {
     key: 'unrecorded', value: arrayOf(enumOf(ALL_RECORDED_SLOT_KEYS)), optional: true,

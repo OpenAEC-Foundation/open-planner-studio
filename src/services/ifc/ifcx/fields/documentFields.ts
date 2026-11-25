@@ -12,6 +12,7 @@ export interface DocumentWriteSource {
   readonly projectCalendarPath: string;
   readonly workplanPath: string;
   readonly timeModel?: string;
+  readonly minuteModelPending: boolean;
   readonly importPristine: boolean;
   readonly literalCalendarPaths: readonly string[];
 }
@@ -21,6 +22,7 @@ export interface DocumentReadTarget {
   readonly projectPath: string;
   calendarPath: string;
   timeModel?: string;
+  minuteModelPending: boolean;
   importPristine: boolean;
   literalCalendarPaths: string[];
 }
@@ -128,6 +130,11 @@ export const DOCUMENT_FIELDS: readonly DocumentField[] = [
     key: 'timeModel', value: NON_EMPTY_TEXT, optional: true,
     write: s => s.timeModel,
     read: (v, t) => { t.timeModel = v as string | undefined; },
+  },
+  {
+    key: 'minuteModelPending', value: BOOLEAN, optional: true,
+    write: s => (s.minuteModelPending ? true : undefined),
+    read: (v, t) => { t.minuteModelPending = v === true; },
   },
   {
     key: 'importPristine', value: BOOLEAN, optional: true,

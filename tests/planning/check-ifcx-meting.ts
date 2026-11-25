@@ -7,9 +7,9 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { readIfcx, writeIfcx } from '@/services/ifc/ifcx';
 import { serializeIfcx } from '@/services/ifc/ifcx/projection';
-import { canonicalFor, ownFileFor } from '@/services/ifc/ifcx/ownFile';
+import { ownFileFor } from '@/services/ifc/ifcx/ownFile';
+import { filePlanning } from '@/services/ifc/ifcx/ifcxWriter';
 import { selfCheckDifferences } from '@/services/ifc/ifcx/selfCheck';
-import { stepRoundtrip } from '@/services/ifc/ifcx/stepRoundtrip';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
@@ -92,7 +92,7 @@ function test(name: string, action: () => void): void {
 function pieces(size: number): void {
   const input = plan(size);
   const names = [
-    'STEP-writer (opslaan als IFC)', 'canonieke planning (STEP-rondgang en laadgrens)', 'eigen bestand (STEP-rondgang, projectie, waardetoets)',
+    'STEP-writer (opslaan als IFC)', 'planning van het bestand (één STEP-rondgang en de laadgrens)', 'projectie en waardetoets',
     'serialiseren', 'zelfcontrole met de publieke lezer', 'vergelijking van de zelfcontrole', 'writeIfcx in één stuk',
     'openen als IFC (bytes, STEP-lezer)', 'readIfcx (openen als IFCX)',
   ];
@@ -101,7 +101,7 @@ function pieces(size: number): void {
   const before = loadNow();
   for (let round = 0; round < ROUNDS; round++) {
     const stepText = timed(() => writeIFC(input));
-    const canonical = timed(() => canonicalFor(input));
+    const canonical = timed(() => filePlanning(input));
     const own = timed(() => ownFileFor(canonical.value, CLOCK));
     const ifcxText = timed(() => serializeIfcx(own.value.document));
     const reread = timed(() => readIfcx(encode(ifcxText.value)));
@@ -163,11 +163,11 @@ function ratioTest(name: string, label: keyof typeof GATES, prepare: () => { ste
 }
 
 function saveSteps(input: WriteIFCInput, stepMedian: number): void {
-  const names = ['canonieke planning (STEP-rondgang en laadgrens)', 'eigen bestand (STEP-rondgang, projectie, waardetoets)', 'serialiseren',
+  const names = ['planning van het bestand (één STEP-rondgang en de laadgrens)', 'projectie en waardetoets', 'serialiseren',
     'zelfcontrole met de publieke lezer', 'vergelijking van de zelfcontrole'];
   const cpu: number[][] = names.map(() => []);
   for (let round = 0; round < ROUNDS; round++) {
-    const canonical = timed(() => canonicalFor(input));
+    const canonical = timed(() => filePlanning(input));
     const own = timed(() => ownFileFor(canonical.value, CLOCK));
     const text = timed(() => serializeIfcx(own.value.document));
     const reread = timed(() => readIfcx(encode(text.value)));
@@ -181,7 +181,7 @@ function saveSteps(input: WriteIFCInput, stepMedian: number): void {
 
 const saveInput = plan(SIZE);
 ratioTest(`opslaan als IFCX bij ${SIZE} taken wordt gemeten en gemeld met de uitsplitsing per stap, niet afgedwongen (hoogstens ${MAX_RATIO} keer IFC is een voorwaarde vóór standaard aan, knownbug 2350)`, 'opslaan', () => {
-  assert.equal(stepRoundtrip(saveInput).tasks.length, SIZE);
+  assert.equal(readIFC(writeIFC(saveInput)).tasks.length, SIZE);
   return { step: () => writeIFC(saveInput), ifcx: () => writeIfcx(saveInput, CLOCK) };
 }, 'opslaan als IFC', 'opslaan als IFCX', stepMedian => saveSteps(saveInput, stepMedian));
 
