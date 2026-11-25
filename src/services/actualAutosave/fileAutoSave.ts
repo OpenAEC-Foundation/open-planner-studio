@@ -103,7 +103,7 @@ export function createFileAutoSaveController(deps: {
   // #804 fase 1a: één melding per document als AutoSave aanstaat maar het vreemde deel opslaan verhindert.
   const foreignNotified = new Set<string>();
   const ifcxFlagOffNotified = new Set<string>();
-  const ifcxRefusedContent = new Map<string, number>();
+  const ifcxRefusedSource = new Map<string, IFCSaveSource>();
   // #804 fixronde 2: per document het doel dat de doelcontrole weigerde (de bron van een ander open document met een
   // vreemd deel, of een bestaand bestand met een gebouwmodel). AutoSave probeert daar niet opnieuw naartoe tot de
   // planner zelf opslaat (het document is dan niet meer gewijzigd) of een ander doel kiest. De melding één keer per
@@ -299,7 +299,11 @@ export function createFileAutoSaveController(deps: {
    *  in de rij (`write`, fixronde 4 van de review van #1033): een document met een vreemd deel schrijft deze route nooit. */
   const plainTakesPart = (id: string, payload: DocumentPayload): boolean => takesPart(id, payload) && !ifcSaveBlocked(payload)
     && !ifcxWriteBlocked(payload, getState().ui.featureFlags)
-    && ifcxRefusedContent.get(id) !== documentContentOf(getState(), id)?.content;
+    && !sameRefusedIfcx(id, payload);
+  const sameRefusedIfcx = (id: string, payload: DocumentPayload): boolean => {
+    const refused = ifcxRefusedSource.get(id);
+    return !!refused && sameIFCSource(refused, payload);
+  };
 
   /** Fixronde 2 van de review van #1033: is dit document met een gebouwmodel nu (nog) aan de beurt? */
   const stillDue = (id: string): boolean => {
@@ -385,7 +389,7 @@ export function createFileAutoSaveController(deps: {
       const format = outputFormat(current, ui.featureFlags);
       const output = await prepareIfcOutput({ ...current, ui }, buildWriteIFCInput(current, 'merge'), undefined,
         documentSaveCompute(ui.featureFlags, deps.compute, format)).catch((error: unknown) => {
-        if (error instanceof IfcxWriteRefusedError) ifcxRefusedContent.set(candidate.id, candidate.content);
+        if (error instanceof IfcxWriteRefusedError) ifcxRefusedSource.set(candidate.id, current);
         throw error;
       });
       if (output.prepared) return 'refused';

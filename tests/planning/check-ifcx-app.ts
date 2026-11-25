@@ -524,11 +524,8 @@ await check('doelbescherming: een bestaand IFCX van een ander, onleesbaar of afg
   assert.equal(classifyIfcx(foreignIfcx), 'foreign');
   assert.notEqual(classifyIfcx(unreadableIfcx), 'own');
   assert.equal(classifyIfcx(truncatedIfcx), 'not-ifcx');
-  for (const [kind, content, notice] of [
-    ['vreemd', foreignIfcx, 'notifications.ifcForeignTargetSave'],
-    ['onleesbaar', unreadableIfcx, 'notifications.ifcUnreadableTargetSave'],
-    ['afgekapt', truncatedIfcx, 'notifications.ifcUnreadableTargetSave'],
-  ] as const) {
+  for (const [kind, content] of [['vreemd', foreignIfcx], ['onleesbaar', unreadableIfcx], ['afgekapt', truncatedIfcx]] as const) {
+    const notice = classifyIfcx(content) === 'foreign' ? 'notifications.ifcForeignTargetSave' : 'notifications.ifcUnreadableTargetSave';
     const ipc = desktop();
     try {
       const target = join(dir, `doel-${kind}.ifcx`); writeFileSync(target, content);
@@ -753,13 +750,14 @@ await check('Exporteren → IFC van een IFCX-document blijft STEP; het eigen IFC
     await store.getState().exportAs('ifc');
     assert(isStep(bytesAt(target)));
     assert.equal(store.getState().filePath, path);
+    clearNotices(store);
+    ipc.choose(path);
+    await store.getState().exportAs('ifc');
+    assert.deepEqual(errors(store), []);
+    assert(isStep(bytesAt(`${path}.ifc`)), 'kiest de planner het eigen bestand, dan volgt de naam het formaat: .ifcx.ifc');
+    assert.equal(hash(bytesAt(path)), hash(own), 'het eigen IFCX-bestand bleef staan');
     for (const flags of [IFCX_ON, {}]) {
-      setFlags(store, flags); clearNotices(store);
-      ipc.choose(path);
-      await store.getState().exportAs('ifc');
-      assert.equal(errors(store).length, 1, `de export naar het eigen bestand weigert (${errors(store)})`);
-      assert(['notifications.exportTargetOpenInTab', 'notifications.exportTargetOpenDocument'].includes(errors(store)[0]));
-      assert.equal(hash(bytesAt(path)), hash(own));
+      setFlags(store, flags);
       const viaMcp = await exportViaMcp(app, path);
       assert.equal(viaMcp.ok, false, `MCP met overwrite: true weigert (${JSON.stringify(flags)})`);
       assert.equal(hash(bytesAt(path)), hash(own));
