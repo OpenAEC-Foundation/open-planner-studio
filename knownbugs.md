@@ -6240,7 +6240,15 @@ en noem het in je rapport of PR-tekst.
      Opslaan als, CSV-export en AutoSave weigeren die nu veilig met 'unreadable', via handle en Tauri-pad.
      De 26 ondersteunde eigen kopvormen en de echte oude releasebestanden blijven schrijfbaar. Geen lexer- of
      lezerreparatie in #915; vlag uit blijft main. Hoort bij 1054/1061. Uit de bouw van #804 fase 1c PR 4,
-     na de nieuwe werkwijze van de eigenaar (13 november 2026, GPT-6.1-Sol via Codex). — B
+     na de nieuwe werkwijze van de eigenaar (13 november 2026, GPT-6.1-Sol via Codex).
+     Importgrens van de headless MCP-server (#1219, fase 2 PR 10b): vijftien gemaakte eigen vormen vallen daar bij het
+     openen in stand 3 (niet vast te stellen), omdat de schrijfpoort van de kern (`textWriteRefusal`) ze niet volledig
+     leest: `data;` in kleine letters, een eigen bestand met STEP-ids vanaf 2147483648 en de dertien kapotte
+     bestandsnamen uit `brokenNameFiles`. Main schreef ze; headless opent ze zoals main en weigert elke IFC-uitvoer met
+     `VALIDATION`, zonder bestand en zonder back-up, met de melding dat de gebruiker zo'n bestand met alleen een planning
+     in de app (de experimentele instelling uit) kan openen en opslaan. Een benoemde grens (besluit van de technisch
+     eigenaar, na de review van #1219 ronde 2): Open Planner Studio schrijft die vormen zelf niet, de weigering is
+     getypeerd en verliest niets, en deze grens geldt al voor de doelcontrole. — B
 
 1588. **VERVOLG, gemaakte bron: een opgeslagen maar ongebruikt eigen taaktype laat ook ander werk weigeren.**
      Voeg in een kopie van de opgeslagen beginstand van PR 7d aan `TaskTypes.definitions` een extra
@@ -6738,3 +6746,11 @@ en noem het in je rapport of PR-tekst.
      headless sinds fixronde 1 van #1219 een nieuwe naam in plaats van `overwrite: true`.) Richting: een Node-variant van
      de vervanging met herstelrecord (`replaceOwnPathWithRecovery`) in `nodeFs.ts`, of een eigen headless tekst. Geproefd
      in `tests/mcp/cases-headless-server.ts` ("A knownbug 1136"). — B
+2241. **VERVOLG (#1219, snelheid, niet gemeten): headless opent een grote eigen IFC met een extra volledige scan.**
+     `planner_import_schedule` op de headless server decodeert de bytes, codeert de tekst opnieuw en draait de
+     schrijfpoort van de kern (`textWriteRefusal`: de modelcontrole en de volledige indeling) vóór de ene tekstparse van
+     main; een bestand met een vreemd deel gaat daarna ook door de bytes-route (`headlessIfcRead` in
+     `src/services/mcp/tools/fileTools.ts`). De bron wordt één keer van schijf gelezen. Opentijd en piekgeheugen zijn niet
+     gemeten, niet voor een grote eigen en niet voor een grote vreemde bron: de meting paste niet in het rekenslot van
+     deze ronde. Richting: één grote eigen en één grote vreemde bron meten (`measure:large-plans` meet opslaan, niet deze
+     import). Gemeld door de review van #1219 ronde 2 (Sol, VERMOED). — S

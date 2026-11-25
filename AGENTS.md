@@ -350,7 +350,8 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   IFC one of three states: proven own (the core's write gate `textWriteRefusal` finds nothing foreign) opens on main's text
   route with main's answers and bytes; kept foreign content (the bytes route preserves it) exports by merge, only to a new
   name (`McpFileFs.writeNewUserBytes`: own temp file, `fsync`, then `link`; knownbug 2240); anything else opens like main but
-  gets the existing "source missing" mark, so every IFC output refuses with `VALIDATION` before any I/O
+  gets the existing "source missing" mark, so every IFC output refuses with `VALIDATION` before any I/O and the MCP backup is
+  skipped (`withheld` on the backup binding; the envelope says `backupWithheld`)
   (`tests/mcp/cases-headless-server.ts`; `cases-headless-pariteit.ts` against a main worktree via `OPS_MAIN_WORKTREE`). It reuses the
   dispatcher, registry, `runtime.ts`, the tools and `requestHandler.ts` unchanged; host functions go through seams
   (`fileToolDeps`, `McpFileFs.confine`, `guideToolDeps`, `createAppBackupService` overrides). Code it bundles imports
