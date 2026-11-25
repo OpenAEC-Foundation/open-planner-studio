@@ -64,6 +64,7 @@ import {
 } from '@/state/ifcForeignGuard';
 import { openTabFor, readVersionOf, switchToOpenDocument } from '@/state/openDocumentFor';
 import { ifcForeignContentEnabled, ifcxEnabled } from '@/utils/featureFlags';
+import { writtenForeignChangeCount } from '@/state/foreignChangesWrittenNotice';
 
 /** #804: IFC-uitvoer blijft geweigerd met ontbrekende bronbytes of de flag uit (`state/ifcForeignGuard.ts`). */
 const FOREIGN_CONTENT_REFUSAL = 'The active document contains a building model or data from other programs. The app cannot ' +
@@ -566,6 +567,7 @@ export const fileTools: McpToolDef[] = [
         return null;
       }, () => toolError(ctx, 'VALIDATION', 'The app is closing or installing an update. Nothing was written.'));
       if (writeError) return writeError;
+      const foreignDataChanged = writtenForeignChangeCount(output.prepared);
       return {
         ok: true,
         envelope: buildEnvelope(ctx),
@@ -580,6 +582,11 @@ export const fileTools: McpToolDef[] = [
           /** Werkelijke uitkomst: stond er al een bestand op dit pad dat nu vervangen is? */
           overwritten: existed,
           ...(replaceNotice ? { replaceNotice } : {}),
+          ...(foreignDataChanged > 0 ? {
+            foreignDataChanged,
+            foreignDataNotice: `${foreignDataChanged} IFC item(s) outside the schedule referred to something that was deleted from the schedule. `
+              + 'They were adjusted or removed in this file.',
+          } : {}),
           /** Het schema in de kop van het geschreven bestand (issue #292). */
           ifcSchema,
           // Alleen als het document als een ander schema geopend was dan dit bestand nu heeft.

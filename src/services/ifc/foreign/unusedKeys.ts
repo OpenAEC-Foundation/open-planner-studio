@@ -1,6 +1,7 @@
 import { isAssignmentKeyName, unusedAssignmentKeyNames, type UnusedAssignmentKey } from '../assignmentKeys';
 import { PSET } from '../ifcPsets';
 import { ifcObjectSeed } from '../ifcWriter';
+import type { ForeignChange } from './changeList';
 import type { IfcSource, UnusedKeysOfTask } from './ifcSource';
 import type { StepIndex } from './stepScanner';
 
@@ -98,4 +99,31 @@ export function duplicateAssignmentKeyProblem(
     }
   }
   return undefined;
+}
+
+const sameBytes = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((byte, k) => byte === b[k]);
+
+export function droppedUnusedKeysProblem(
+  source: IfcSource, sourceIndex: StepIndex, changes: readonly ForeignChange[], outputIndex: StepIndex,
+): string | undefined {
+  const listed = new Map<number, ForeignChange>();
+  for (const change of changes) if (change.kind === 'vervallen' && change.unusedKeyOfTask !== undefined) listed.set(change.id, change);
+  for (const { taskStepId, propertyStepIds } of source.unusedKeys ?? []) {
+    const taskGone = outputIndex.chunkOf(String(taskStepId)) < 0;
+    for (const id of propertyStepIds) {
+      const change = listed.get(id);
+      listed.delete(id);
+      if (!taskGone && change) return `taak #${taskStepId} bestaat nog, maar haar ongebruikte sleutel #${id} staat als vervallen op de wijzigingslijst`;
+      if (!taskGone) continue;
+      if (change?.kind !== 'vervallen' || change.unusedKeyOfTask !== taskStepId) {
+        return `taak #${taskStepId} is verwijderd, maar haar ongebruikte sleutel #${id} staat niet als vervallen op de wijzigingslijst`;
+      }
+      const chunk = sourceIndex.chunkOf(String(id));
+      if (chunk < 0 || !sameBytes(change.oldBytes, source.bytes.subarray(sourceIndex.start(chunk), sourceIndex.end(chunk)))) {
+        return `de oude bytes van de ongebruikte sleutel #${id} op de wijzigingslijst zijn niet die van de bron`;
+      }
+    }
+  }
+  const unknown = [...listed.keys()][0];
+  return unknown === undefined ? undefined : `#${unknown} staat als ongebruikte sleutel op de wijzigingslijst, maar de bron kent die sleutel niet`;
 }

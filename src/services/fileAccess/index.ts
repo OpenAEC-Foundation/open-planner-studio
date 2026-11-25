@@ -194,6 +194,10 @@ export function writeTargetReaders(): TargetReaders {
  *  download hebben geen doel om op inhoud te vergelijken. */
 export type LocalTargetRef = Extract<FileRef, { kind: 'path' | 'handle' }>;
 
+export function localTargetName(ref: LocalTargetRef): string {
+  return ref.kind === 'path' ? ref.path : ref.handle.name;
+}
+
 /** #804, knownbug 1131 stap 1: staat op het eigen doel nog precies `expected` (de bronbytes)? Zie
  *  `sourceTargetContent.ts`. Een pad is alleen op de desktop een doel. */
 export function sourceTargetContent(ref: LocalTargetRef, expected: Uint8Array): Promise<SourceTargetContent> {

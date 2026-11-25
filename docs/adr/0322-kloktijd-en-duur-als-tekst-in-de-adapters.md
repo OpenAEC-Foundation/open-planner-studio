@@ -1,8 +1,13 @@
 # Kloktijd en duur als tekst in de adapters
 
-De IFC-, MSPDI-, P6 XML- en XER-adapters zetten minuten om in kloktijden en duurteksten en terug. Die omzettingen
-staan één keer in `src/services/subdayIo.ts`, zodat elke schrijver dezelfde tekst maakt en elke lezer dezelfde
-waarde leest. Een kloktijd is in minuten sinds middernacht; een duur in minuten.
+De IFC-, MSPDI-, P6 XML- en XER-adapters zetten minuten om in kloktijden en duurteksten en terug. De gedeelde
+omzettingen staan één keer in `src/services/subdayIo.ts`, zodat dezelfde waarde in elke aanroeper dezelfde tekst
+geeft en dezelfde tekst dezelfde waarde. Het zijn losse functies met eigen aanroepers: welke een adapter gebruikt en
+wat hij eromheen doet, verschilt per formaat. De IFC-writer bewaart een ongewijzigde kloktijd uit de bron letterlijk,
+ook met seconden of fijnere precisie (`calendarPeriodClocks` in `ifcWriter.ts`); de P6 XML-lezer telt bij een
+blokeinde onder voorwaarden een minuut op (`p6FinishClockToMinutes` in `p6xmlReader.ts`); de XER-lezer leest
+kalenderklokken met een eigen functie en weigert seconden die niet nul zijn (`parseXerClock` in `xerCalendarData.ts`,
+`XER_CALENDAR_NONZERO_SECONDS`). Een kloktijd is in minuten sinds middernacht; een duur in minuten.
 
 ## Gevolgen
 
@@ -13,14 +18,17 @@ waarde leest. Een kloktijd is in minuten sinds middernacht; een duur in minuten.
   `00:00:00` eindigt een einde vóór haar begin heeft, en ook `calendarExceptionKey`; ADR 0144 en
   `check-ifc-calendar-identity.ts` §11 (elke `IFCTIMEPERIOD` een geldige `hh:mm:ss` met begin vóór einde, en een
   rondgang die gelijk terugkomt). De MSPDI-writer schrijft een blokeinde zonder `endOfDay`, de P6 XML-writer schrijft
-  het einde min één minuut (`p6FinishClock`). Een tijd die fijner is dan een milliseconde, toetst `calendarClock`
-  apart (`IfcCalendarTimePrecisionError`).
+  het einde min één minuut (`p6FinishClock`). `calendarClock` neemt de tekst van `minutesToClock` alleen als
+  `parseIfcClock` daaruit precies de minuten terugleest; anders probeert hij een nauwkeuriger tekst met de seconden
+  van de minuten zelf, en pas als ook die de invoer niet exact teruggeeft, weigert hij
+  (`IfcCalendarTimePrecisionError`).
 - `clockToMinutes` leest alleen uren en minuten aan het begin van de tekst; seconden vallen weg, een andere vorm geeft
   `null` (knownbug 1031). `scalarHourFromClock` geeft de uren van `parseIfcClock`, met minuten en seconden, en `NaN`
   als die de tekst niet leest; die leest ook de oude eigen vorm met een uurbreuk (`7.5:00:00`, ADR 0253). Gebruikers:
   `mspdiReader` en `foreign/lossCheck.ts`.
-- `minutesToIsoDuration` rondt af op hele minuten en schrijft `PT{h}H{m}M0S`, met een `-` vooraan bij een negatieve
-  waarde (een lead). Er staat geen dagdeel in, zodat de tekst niet afhangt van de uren per dag van een kalender.
+- `minutesToIsoDuration` rondt af op hele minuten en schrijft `PT{h}H{m}M0S`, met een `-` vooraan als de afgeronde
+  waarde negatief is (een lead); -0,4 minuut wordt dus `PT0H0M0S`. Er staat geen dagdeel in, zodat de tekst niet
+  afhangt van de uren per dag van een kalender.
   Gebruikers: `ifcWriter`, `dayMeasureIo.ts`, `foreign/durationForms.ts` en `mspdiWriter`.
 - `sixDecimalHoursToMinutes` (voor `xerReader` en `p6xmlReader`) leest uren met zes decimalen. Ligt `uren × 60`
   binnen `SIX_DECIMAL_HOUR_NOISE_MINUTES` (0,00003 minuut, de grootste ruis van zes decimalen: 0,5 × 10⁻⁶ uur × 60)

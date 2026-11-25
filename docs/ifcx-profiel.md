@@ -82,6 +82,16 @@ eigen schrijver het voor de gelezen planning precies zo zou schrijven, als toets
 blijft. Het past bij "de kern opent uitsluitend het eigen profiel"." Zie *R4: het bestand is een vast punt van de eigen
 schrijver*.
 
+**Fixronde 7: R5.** Zeven rondes naast elkaar laten zien waar het na R4 nog schuurt: er waren in de kern meer planningen
+in omloop dan één. De rauwe eerste lezing, de planning na de laadgrens, wat de schrijver in zijn zelfcontrole terugleest,
+en wat STEP na een tweede opslag teruggeeft. R4 vergelijkt tegen de ene, de schrijver toetste zichzelf tegen een andere,
+en de keuze voor `recordedFields` in ronde 6 nam een derde als maat. Elke blokkade van ronde 6 en 7 is een plek waar twee
+partijen een andere planning als "de" planning namen. Regel R5, letterlijk: "De kern kent één canonieke planning: de
+planning zoals de app haar na het laden heeft. De schrijver schrijft die, de lezer geeft die terug, en R4 vergelijkt
+daartegen. Niets in de kern leest of controleert langs een andere." Besluit van de technisch eigenaar, letterlijk: "R5
+(één canonieke planning: zoals de app haar na het laden heeft; schrijver, lezer en R4 gebruiken alleen die), met de proef
+in twee richtingen: ja." Zie *R5: één canonieke planning*.
+
 ## Het bestand
 
 ```json
@@ -224,8 +234,10 @@ daarna de cache en de ene bibliotheekrij met hetzelfde id als één kalender.
 (keuze `WORKTIME`, `ELAPSEDTIME`), `completion` (getal 0–1), `time` (verplicht, hieronder), `milestoneKind` (keuze
 `START`, `FINISH`), `mandatory`, `isSummary`, `manuallyScheduled` (ja/nee), `calendar` (pad), en de laadgegevens van
 R1 volledig: `atDayEnd` (ja: STEP geeft de taak terug als mijlpaal aan het eind van de dag, `OPS_Milestone.AtDayEnd`;
-de laadgrens zet zo'n mijlpaal zonder soort op 16:00 in plaats van 07:00). Welke tijdvelden ingevuld zijn
-(`recordedFields`), volgt uit de velden met een waarde (zie *Wat de STEP-lezer naast het model teruggeeft*).
+de laadgrens zet zo'n mijlpaal zonder soort op 16:00 in plaats van 07:00) en `unrecorded` (een lijst met keuzes uit de
+negen tijdslots van `ALL_RECORDED_SLOT_KEYS`, in die volgorde, alleen als ze er zijn: de slots met een waarde die het
+bestand niet als ingevuld noemt). Welke tijdvelden ingevuld zijn (`recordedFields`), volgt uit de velden met een waarde,
+min `unrecorded` (zie *Wat de STEP-lezer naast het model teruggeeft*).
 
 `time` draagt de precieze tijden: `durationUnit` (keuze `days`, `hours`), `scheduleDuration` (werkdagen; bij een uurtaak
 met minuten op een kalender met werktijd ontbreekt het, want STEP leidt het dan uit de minuten af en de lezer doet
@@ -316,6 +328,44 @@ de uurmaat uit de minuten, de voortgang en status uit de werkelijke datums, een 
 2 maart), een oneindige lag (wordt 0), en de nieuwe id's van relaties en bibliotheekkalenders (`seq-ifc-<GlobalId>`,
 `rescal-ifc-<GlobalId>`).
 
+## R5: één canonieke planning
+
+De canonieke planning is de planning zoals de app haar na het laden heeft: `canonicalPlanning` in `ownFile.ts` haalt een
+lezing door de laadgrens van de app (`payloadFromImport`, daarna `buildWriteIFCInput`). Ze houdt de feiten van de lezing
+die de app bij openen gebruikt (de ingevulde velden, `timeModel`, de herkomst) en neemt de gegevens na de laadgrens (de
+taken, kalenders en de omzettingsvlag `minuteModelPending` als die aan staat). De hint `milestonesAtDayEnd` valt weg: na de
+laadgrens zijn alle datums momenten, en daarop heeft de hint geen invloed meer.
+
+- **De schrijver** (`writeIfcx`) maakt van zijn invoer eerst een lezing, de STEP-rondgang (`canonicalFor`), haalt die door
+  `canonicalPlanning`, en schrijft het eigen bestand van die planning (`ownFileFor`). Daarna leest hij zijn uitvoer terug
+  met de publieke lezer (`readIfcx`) en vergelijkt wat die teruggeeft met de canonieke planning. Weigert de lezer of is er
+  een verschil, dan weigert de schrijver met `self-check`.
+- **De lezer** (`readIfcx`) geeft de canonieke planning van het bestand terug, en R4 vergelijkt het bestand met het eigen
+  bestand van die planning.
+
+De eigenschap geldt in twee richtingen op de publieke route, zonder iets ertussen:
+
+1. Voor elke planning x die de schrijver aanvaardt, opent `readIfcx(writeIfcx(x))` en geeft het de canonieke planning
+   van x: na de laadgrens hetzelfde als het STEP-bestand van x na openen. Een stop of hervatting zonder tijd, een lege
+   geplande datum of een tijd buiten de werkdag staat in het bestand zoals de app haar na het laden heeft
+   (`time.stop: "2027-06-01"` wordt `2027-06-01T16:00`).
+2. Voor elk bestand b dat de lezer aanvaardt, geeft `writeIfcx(readIfcx(b))` de bytes van b, op `header.timestamp` na.
+
+**Waarom via de laadgrens.** De STEP-rondgang op haar eigen uitkomst is niet altijd een vast punt: de D7-mijlpaal
+verliest `AtDayEnd` en een oude planning krijgt een `TimeModel`, omdat de STEP-writer de planning na de laadgrens
+verwacht. Daarom is de canonieke planning die van na de laadgrens, en geeft de lezer die terug: `writeIfcx(readIfcx(b))`
+krijgt zo een planning in de vorm die de STEP-writer verwacht.
+
+**Tot waar het vaste punt geldt.** De canonieke planning is de planning na de laadgrens, zonder doorrekenen. De Openen-route
+van de app rekent daarna door (`prepareLoadedPayload` met `recompute: true`); dan kan een datum verschuiven, zoals de
+vroege finish van een taak die om 00:00 eindigt (`2027-06-03T00:00` wordt `2027-06-02T16:00`). Of en wanneer de
+IFCX-openroute doorrekent, beslist F3-4 (knownbug 2351).
+
+**Waar R5 niet te halen is.** Een kalender met een eenvoudige pauze buiten de werkdag (bijvoorbeeld begin minuut 1, duur
+30): de eerste STEP-rondgang zet de werktijden letterlijk neer en houdt de pauze, de tweede laat de pauze vallen. Twee keer
+canoniek maken geeft dan iets anders dan één keer. De kern bouwt daar geen uitzondering voor: de schrijver weigert zo'n
+planning met `self-check`. STEP zelf laat de pauze bij de tweede opslag na openen vallen.
+
 ## R4: het bestand is een vast punt van de eigen schrijver
 
 `readIfcx` doet, in deze volgorde:
@@ -327,18 +377,26 @@ de uurmaat uit de minuten, de voortgang en status uit de werkelijke datums, een 
    verwijzing.
 2. **Het model** uit de precieze kant, met de afleiding die het bestand niet draagt (de dagwaarden van een uurtaak, de
    status, de ingevulde tijdvelden).
-3. **R4**: de lezer zet het gelezen model door de laadgrens en de opslaginvoer van de app (`savedAfterOpening`:
-   `documentDataFromImport`, daarna `buildWriteIFCInput`, allebei in `src/services/documentData.ts`, dezelfde functies
-   als openen en opslaan in de app), en geeft dat aan dezelfde functie als `writeIfcx`
-   (`ownFileFor` in `ownFile.ts`: R0, de STEP-rondgang, de planning na heropenen, de weigering van wat de kern nog niet
-   draagt, de projectie en de waardetoets). Daarna vergelijkt hij het resultaat met het bestand: de kop (`id`,
-   `ifcxVersion`, `dataVersion`, `author`), de schema's, en elk object in volgorde, elk attribuut, gedeeld en precies,
-   elk veld, ook wat het bestand méér of minder heeft. Ten slotte vergelijkt hij het model dat de schrijver zou opslaan
-   met het gelezen model.
+3. **R4**: de lezer maakt de canonieke planning van het gelezen model (`canonicalPlanning`) en geeft die aan dezelfde
+   functie als `writeIfcx` (`ownFileFor` in `ownFile.ts`: R0, de STEP-rondgang, de planning na heropenen, de weigering
+   van wat de kern nog niet draagt, de projectie en de waardetoets). Daarna vergelijkt hij het eigen bestand met het
+   bestand, tot op de byte. Ten slotte vergelijkt hij het model dat de schrijver zou opslaan met het gelezen model.
 4. Bij een verschil weigert hij met `invalid` en het eerste verschil: het object en het veld in `place` en in de
    melding, met wat het bestand had en wat de eigen schrijver schrijft. Hij repareert niets. Weigert de schrijver de
-   gelezen planning zelf (R0), dan noemt de melding de namen zoals bij schrijven.
-5. Is er geen verschil, dan geeft hij het gelezen model terug. Het is dan gelijk aan wat de schrijver opslaat.
+   gelezen planning zelf, dan noemt de melding de namen zoals bij schrijven, en `place` het pad, het attribuut en het
+   veld waar de schrijver weigert.
+5. Is er geen verschil, dan geeft hij de canonieke planning terug.
+
+**De vergelijking tot op de byte.** De lezer serialiseert het eigen document zoals `writeIfcx` het doet
+(`serializeIfcx` in `projection.ts`), met alleen `header.timestamp` uit het bestand, en vergelijkt die tekst met het
+bestand. Daarmee opent geen enkele andere schrijfwijze: geen ander getal dat na `JSON.parse` hetzelfde is
+(`1.0000000000000001` voor een voortgang van 1, `10e-1` voor 1), geen dubbele sleutel, geen andere witruimte en geen
+andere volgorde van sleutels. Een getal rond een harde grens (een voortgang van 0 tot 1, een geheel getal) heeft dus
+precies één schrijfwijze: die van `JSON.stringify` op de waarde die de schrijver schrijft. Dat is een verscherping:
+tot fixronde 7 vielen witruimte en de volgorde van sleutels buiten de vergelijking. Fase 3 opent alleen eigen
+bestanden, dus dat mag (besluit van de technisch eigenaar, fixronde 7). Zit het verschil alleen in de schrijfwijze (de
+drie rondes hieronder vinden geen verschil in waarden), dan weigert de lezer met een eigen plaats: `place.offset`, het
+teken waar het bestand van de eigen schrijfwijze afwijkt, en `place.path` als die regel een object is.
 
 **Het eerste verschil** zoekt de lezer in drie rondes over het hele bestand: eerst een veld of object dat het bestand
 draagt en dat de schrijver voor deze planning helemaal niet schrijft, dan een veld met een andere waarde, en dan wat
@@ -348,34 +406,29 @@ vóór de gedeelde. Zo wijst de melding naar wat het bestand zelf zegt, en niet 
 melding noemt `time.remainingMinutes` van de taak.
 
 **Eerst één snelle doorgang.** Vóór die drie rondes kijkt de lezer in één doorgang of het bestand precies het eigen
-bestand is (`sameFile` in `ifcxReader.ts`): de vier kopvelden, en de schema's en de data als JSON, met dezelfde
-sleutels, even lange lijsten en elke waarde gelijk (`===`). Pas als die doorgang een verschil ziet, volgen de
-waardetoets van de schrijver op de attributen en de drie rondes. De doorgang vergelijkt dezelfde paren als de rondes en
-is strenger, dus ziet zij geen verschil, dan vinden de rondes er ook geen. Is het bestand precies het eigen bestand, dan
-geeft de waardetoets van de schrijver op elke waarde dezelfde uitkomst als de waardetoets van de lezer op het bestand,
-en die slaagde al. De kop toetst de schrijver altijd. Oordeel en melding zijn daardoor dezelfde als zonder snelle
-doorgang: voor de 48 bestanden en 2089 mutaties van de kernproef byte voor byte vastgelegd tegen de head ervóór.
-
-**Waarom via de laadgrens.** De STEP-rondgang op haar eigen uitkomst is niet altijd een vast punt: de D7-mijlpaal
-verliest `AtDayEnd` en een oude planning krijgt een `TimeModel`, omdat de STEP-writer de planning na de laadgrens
-verwacht. Met de route van de app (openen, dan opslaan) is ze dat wel, voor alle voorbeelden en gevallen van de
-kernproef. R4 toetst dus precies wat een planner doet: openen en weer opslaan geeft hetzelfde bestand.
+bestand is: de vier kopvelden, de schema's en de data als JSON, met dezelfde sleutels, even lange lijsten en elke
+waarde gelijk (`===`, `sameFile` in `ifcxReader.ts`), en de bytes gelijk. Pas als die doorgang een verschil ziet,
+volgen de waardetoets van de schrijver op de attributen en de drie rondes. De doorgang vergelijkt dezelfde paren als
+de rondes en is strenger, dus ziet zij geen verschil, dan vinden de rondes er ook geen. Is het bestand precies het
+eigen bestand, dan geeft de waardetoets van de schrijver op elke waarde dezelfde uitkomst als de waardetoets van de
+lezer op het bestand, en die slaagde al. Gelijke bytes alleen zijn daarvoor niet genoeg: een lid met `undefined` in
+het eigen document verdwijnt bij het serialiseren, terwijl de waardetoets van de schrijver het zou weigeren. Daarom
+blijft de strikte vergelijking naast de bytes. De kop toetst de schrijver altijd.
 
 **Wat buiten de vergelijking valt**, met de reden:
 
 - `header.timestamp`: het moment van schrijven, geen planningsgegeven; elke schrijfactie geeft een ander.
-- De opmaak van de JSON: witruimte en de volgorde van sleutels binnen een object (JSON kent die volgorde geen betekenis
-  toe). De volgorde van lijsten en van de objecten in `data` telt wel.
 - Het leesmoment: dat komt niet in de vergelijking, want de STEP-rondgang krijgt de aanmaak- en wijzigingsdatum van het
   bestand als terugval.
 
-Alles daarbuiten is een verschil.
+Alles daarbuiten is een verschil, ook de schrijfwijze.
 
 **Wat een schrijver van een ander programma moet doen.** Het profiel eist een vast punt: een bestand opent alleen als
-de schrijver van Open Planner Studio voor de planning die erin staat precies dat bestand schrijft. Een ander programma
-moet dus dezelfde paden, dezelfde precieze en gedeelde velden met dezelfde waarden (de standaardwaarden weggelaten, de
-afgeleide waarden niet geschreven), dezelfde schema's en dezelfde volgorde schrijven; in de praktijk: via deze kern. Een
-bestand dat een ander programma wijzigde, opent niet. Bestanden van anderen horen bij fase 4.
+de schrijver van Open Planner Studio voor de planning die erin staat precies dat bestand schrijft, tot op de byte. Een
+ander programma moet dus dezelfde paden, dezelfde precieze en gedeelde velden met dezelfde waarden (de standaardwaarden
+weggelaten, de afgeleide waarden niet geschreven), dezelfde schema's, dezelfde volgorde en dezelfde opmaak schrijven; in
+de praktijk: via deze kern. Een bestand dat een ander programma wijzigde, opent niet. Bestanden van anderen horen bij
+fase 4.
 
 **Welke losse toetsen aan de leeskant opgingen in R4**, en welke bleven:
 
@@ -424,6 +477,14 @@ waarin ze ingevuld zijn. Sinds fixronde 6 opent zo'n bestand daarom niet; de mel
 - `DocumentReadTarget.formatVersion`, de tweede keuze van de lageenheid (de gedeelde lag volgt nu uit de ene precieze)
   en de tweede decodering van elk pad.
 
+## Wat verviel in fixronde 7
+
+- `documentFor` en `savedAfterOpening`: een tweede route langs de projectie en een tweede naam voor de laadgrens. Er
+  is één functie die canoniek maakt (`canonicalPlanning`) en één die het eigen bestand maakt (`ownFileFor`).
+- De zelfcontrole van de schrijver met `readIfcxText(text, false)`: de schrijver toetst zich nu met de publieke lezer.
+- De keuze van ronde 6 voor `recordedFields` (de velden met een waarde); zie *`recordedFields` en R4* hieronder.
+- De vergelijking die witruimte en de volgorde van sleutels negeerde; R4 vergelijkt nu de bytes.
+
 ## Wat de STEP-lezer naast het model teruggeeft
 
 R1 volledig vraagt een indeling van elk veld dat de STEP-lezer teruggeeft. Die staat op één plek: `MODEL_KEYS` in
@@ -440,20 +501,34 @@ De velden die tot fixronde 4 buiten de vergelijking bleven:
 | `timeModel` | `openaec::ops::document.timeModel` | de laadgrens zet zonder `MINUTES-1` een omzetting naar het minutenmodel open |
 | `milestonesAtDayEnd` | `openaec::ops::task.atDayEnd` | de laadgrens zet een mijlpaal zonder soort aan het eind van de dag (16:00) |
 | `ifcLiteralCalendarIds` | `openaec::ops::document.literalCalendars` | een volgende opslag houdt die kalenders letterlijk |
-| `recordedFields` | de velden met een waarde (sinds fixronde 6; in fixronde 5 `openaec::ops::task.recorded`) | zie hieronder |
+| `recordedFields` | de velden met een waarde, min `openaec::ops::task.unrecorded` (sinds fixronde 7) | zie hieronder |
 | `recordedTimesOrigin` | vast `ifc-own`: een IFCX-bestand is altijd een eigen bestand | de laadgrens kiest daarmee tussen verse import en heropening |
 | `importPristine` | `openaec::ops::document.importPristine` | "datums zoals opgeslagen" gaat bij een ongewijzigde import vanzelf aan |
 | `minuteModelPending` | via `timeModel` (STEP laat `TimeModel` weg, IFCX ook) | alleen invoer van de writer; de STEP-lezer geeft het niet terug |
 | `recordedTimes`, `xerOrigin`, `xerArchiveIssue`, `baselineOrphanGuids` | nog niet gedragen, weigert de writer | volgen uit het XER-archief en de baselines (F3-2 en F3-3); zonder die inhoud geeft STEP ze niet terug |
 | `xerMissingPlannedStarts`, `p6xmlReport`, `msProjectReport`, `sourceScheduleNotes`, `suggestedProfileId`, `ifcLegacySchemaLoss` | nog niet gedragen, weigert de writer | meldingen van andere lezers over hun bronbestand; de STEP-lezer geeft ze voor een eigen bestand niet terug, dus ze zijn er nooit |
 
-**`recordedFields` en R4.** De eerste STEP-lezing kan voor een taak minder ingevulde velden noemen dan er waarden zijn:
-STEP vult lege vroege en late datums bij het lezen in, en noemt ze dan niet als ingevuld. Dat overleeft openen en
-opnieuw opslaan niet: de opslaginvoer van de app draagt `recordedFields` niet, dus de volgende STEP-opslag schrijft
-alle waarden en de lezing daarna noemt ze alle. Met `recorded` in het bestand was een eigen bestand daarom geen vast
-punt, en R4 zou het weigeren. Sinds fixronde 6 draagt IFCX de ingevulde velden zoals STEP ze na één keer opnieuw
-opslaan teruggeeft: de velden met een waarde. Bij openen heeft het verschil voor een eigen bestand geen gevolg zolang
-`recordedSourceFormat` niet gedragen wordt ("datums zoals opgeslagen" gaat dan niet aan).
+**`recordedFields` en R4.** De maat is de toestand van de app direct na openen, met de geschiedenis erbij (besluit
+van de technisch eigenaar, fixronde 7, letterlijk: "De maat is de toestand van de app direct na openen, met de
+geschiedenis erbij; IFCX draagt uitdrukkelijk welke tijdslots afwezig zijn."). Dezelfde planning één keer uit een
+STEP-bestand en één keer uit een IFCX-bestand geopend geeft dus dezelfde ingevulde velden, en na Ongedaan maken van de
+minutenomzetting ook dezelfde tabel, dezelfde exportselectie en dezelfde achtergehouden velden in de opslaginvoer.
+
+Waar de afwezigheid verdween: de eerste STEP-lezing noemt een slot dat het bestand leeg liet (`$`) niet als ingevuld en
+vult het in (een vroege of late datum met de geplande datum, een speling met 0, kritiek met onwaar). De laadgrens
+(`payloadFromImport`, `buildWriteIFCInput`) draagt `recordedFields` niet door; de app gebruikt ze bij openen apart
+(`captureRecordedDates` voor de geschiedenis van de minutenomzetting, `applyRecordedDatesOnLoad` voor "datums zoals
+opgeslagen"). Een opslag na openen schrijft daarom alle slots, en de lezing daarna noemt ze alle; alleen in de modus
+"datums zoals opgeslagen", ook in de toestand die Ongedaan maken van de minutenomzetting terugzet, houdt de opslaginvoer
+de afwezige rekenslots achter. Een afwezige geplande start of geplande finish kan STEP niet achterhouden; een leeg
+gepland einde leest STEP als de dag van het lezen.
+
+Sinds fixronde 7 draagt IFCX de afwezigheid uitdrukkelijk: `openaec::ops::task.unrecorded` noemt de slots met een
+waarde die het bestand niet als ingevuld noemt, in de volgorde van `ALL_RECORDED_SLOT_KEYS`, en ontbreekt als er geen
+zijn. De ingevulde velden van de schrijver zijn wat de STEP-lezing van zijn invoer bewaart, en een slot dat de invoer
+zelf als afwezig noemt (een lezing met `recordedFields`), blijft afwezig. Zo schrijft de canonieke opslagroute de
+afwezigheid opnieuw, en geeft `writeIfcx(readIfcx(b))` dezelfde bytes. De opslagroute van de app (`buildWriteIFCInput`
+op de toestand na openen) draagt haar niet, net als bij STEP; dat is een punt voor F3-4.
 
 Het leesmoment zelf (de aanmaak- en wijzigingsdatum die de STEP-lezer invult als het bestand ze leeg laat) staat niet
 in die lijst: de STEP-rondgang krijgt de datums van de invoer als terugval (`projectTimestampFallback`), dus het is
@@ -510,8 +585,9 @@ het veranderde bestand is en dat van het oude model verschilt, of weigert met he
   gelezen planning schrijft (R4, ook R0).
 
 `classifyIfcx` gebruikt dezelfde regel: `own` als de lezer het bestand leest, `foreign` bij `foreign`, `not-ifcx` bij
-`not-ifcx`, en `unreadable` bij de andere codes. De lezer leest met `JSON.parse` (keuze T1); een dubbele sleutel ziet
-hij niet (knownbug 2220).
+`not-ifcx`, en `unreadable` bij de andere codes. De lezer leest met `JSON.parse` (keuze T1). Een dubbele sleutel of een
+getal dat `JSON.parse` afrondt, ziet `JSON.parse` niet, maar R4 wel: het eigen bestand heeft één schrijfwijze, en de
+lezer vergelijkt de bytes (sinds fixronde 7; daarvoor knownbug 2220).
 
 ## Controle van de schema's
 
@@ -522,9 +598,9 @@ de echte validator van IFC5-development en met ifcx-explorer draait in een eigen
 
 ## Zelfcontrole
 
-Na het schrijven leest `writeIfcx` zijn eigen uitvoer één keer terug (zonder R4, want de uitvoer is de STEP-uitkomst
-zelf) en legt het teruggelezen model rechtstreeks naast
-de hele STEP-uitkomst (`selfCheck.ts`). De vergelijking is algemeen: elk veld telt mee, op elk niveau, met de volgorde
+Na het schrijven leest `writeIfcx` zijn eigen uitvoer terug met de publieke lezer (`readIfcx`, met R4), en legt wat die
+teruggeeft rechtstreeks naast de canonieke planning (`selfCheck.ts`). Weigert de lezer, of is er een verschil, dan
+weigert de schrijver met `self-check`. De vergelijking is algemeen: elk veld telt mee, op elk niveau, met de volgorde
 van lijsten; alleen een ontbrekend veld en `undefined` zijn hetzelfde. Er zijn geen uitzonderingen.
 
 Een proef haalt elk precies veld één voor één uit de veldtabel en eist dat `writeIfcx` dan weigert: in de
@@ -556,12 +632,24 @@ CPU-tijd in één proces (`process.cpuUsage`), mediaan van vijf, 10.000 taken, i
 | fixronde 5 (`847669d4c`, lezer zonder rondgang) | 898 ms | 2.946 ms | 3,28 | 856 ms | 954 ms | 1,11 |
 | fixronde 6 (`e732f3324`, R4) | 720 ms | 2.243 ms | 3,12 | 600 ms | 2.232 ms | 3,72 |
 | fixronde 6 (`9894f6236`, R4 met main) | 609 ms | 2.045 ms | 3,36 | 502 ms | 2.138 ms | 4,26 |
+| fixronde 6 (`23814bad4`, snelle doorgang) | 675 ms | 2.045 ms | 3,03 | 667 ms | 2.125 ms | 3,18 |
 
 Met R4 kost openen weer ongeveer een STEP-rondgang: de lezer zet de gelezen planning door dezelfde schrijffunctie als
 opslaan. Het verwachte niveau was rond 3,5 keer openen als IFC (besluit van de technisch eigenaar). De snelle doorgang
 van R4 haalt de drie rondes en de waardetoets van de schrijver uit het gewone geval: op aia09-mp50 ging openen daarmee
 van 3,35 naar 2,8 tot 2,9 keer openen als IFC (een melding; de CI-meting staat in #1183). De STEP-rondgang zelf kost
 ongeveer twee keer openen als IFC.
+
+De noemer verschilt per runner: openen als IFC kostte in de CI 502 tot 667 ms, openen als IFCX 2.125 tot 2.232 ms. Met de
+noemer van `9894f6236` zou 2.125 ms ongeveer 4,23 zijn; één groene run zegt dus nog niets over de herhaalbaarheid op een
+andere runner (knownbug 2350). De meetregels staan in de log van het planningsdeel dat de proef draait (in run 45510345490
+was dat `verify (planning 1-5)`).
+
+**Met R5 (fixronde 7)** doet opslaan drie STEP-rondgangen: één om een lezing van de invoer te maken, één voor het eigen
+bestand van de canonieke planning, en één in de zelfcontrole met de publieke lezer. Op aia09-mp50 (een melding) kost
+opslaan als IFCX daarmee 8,4 tot 9,0 keer opslaan als IFC en openen 3,1 tot 3,6 keer openen als IFC; de CI-meting staat in
+#1183. Een schrijver die een invoer die niet canoniek is canoniek maakt, heeft er minstens twee nodig, en twee
+STEP-rondgangen kosten al ruim vier keer opslaan als IFC.
 
 ## Uitbreiden (F3-2 en F3-3)
 

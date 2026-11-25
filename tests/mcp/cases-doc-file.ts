@@ -1703,6 +1703,37 @@ test('export_ifc: volledige bytes, exclusief nieuw doel, bron en document intact
   } finally { useAppStore.setState(s => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument(); }
 });
 
+test('export_ifc: na het wissen van een taak met een koppeling van een ander programma noemt het antwoord het aantal (#804 fase 2)', async () => {
+  const fs = installFakeFs(); resetToSingleEmptyDocument();
+  fs.writeNewUserBytes = async (p, bytes) => {
+    if (await fs.exists(p)) throw new Error('EEXIST');
+    binFiles.set(p, new Uint8Array(bytes));
+  };
+  fs.scanTarget = async p => {
+    const data = binFiles.get(p) ?? (files.has(p) ? new TextEncoder().encode(files.get(p)!) : null);
+    return data ? scanForeignTargetBytes(data) : null;
+  };
+  useAppStore.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  try {
+    const raw = readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc'), 'utf8');
+    const end = raw.lastIndexOf('ENDSEC;');
+    const bytes = new TextEncoder().encode(`${raw.slice(0, end)}#9001=IFCRELASSIGNSTOPRODUCT('1KoppelingMcp0000000000',$,$,$,(#51),$,#393);\n${raw.slice(end)}`);
+    const original = `${HOME}/koppeling.ifc`; setBinaryFile(original, bytes);
+    const ctx = makeCtx();
+    await callOk('planner_import_schedule', { path: original }, ctx);
+    const plain = await exportRpc(`${HOME}/zonder-wissen.ifc`, false, ctx);
+    assert(plain.ok, `export zonder wissen slaagt: ${plain.ok ? '' : plain.error}`);
+    assertEq(((plain as McpToolOk).data as { foreignDataChanged?: number }).foreignDataChanged, undefined, 'zonder wissen geen telling');
+    S().deleteTask(S().tasks.find(t => t.name === 'Set up site')!.id);
+    const target = `${HOME}/na-wissen.ifc`, result = await exportRpc(target, false, ctx);
+    assert(result.ok, `export na wissen slaagt: ${result.ok ? '' : result.error}`);
+    const data = (result as McpToolOk).data as { foreignDataChanged?: number; foreignDataNotice?: string };
+    assertEq(data.foreignDataChanged, 1, 'het antwoord noemt de ene vervallen koppeling');
+    assert(data.foreignDataNotice?.startsWith('1 IFC item(s) outside the schedule referred to something that was deleted') ?? false, 'met een zin voor de assistent');
+    assert(!new TextDecoder().decode(binFiles.get(target)!).includes('#9001='), 'de koppeling staat niet in het bestand');
+  } finally { useAppStore.setState(s => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument(); }
+});
+
 // Knownbug 1131 stap 4: de bestandsnaad van de app zelf (`realFs`), niet een nagebootste, op echte bestanden via de
 // plugin-fs-client en de nagebootste IPC. Een nieuwe naam ontstaat via het eigen tijdelijke bestand en
 // `place_file_exclusive`; een intussen verschenen bestand blijft staan; `source-changed` krijgt een eigen antwoord.

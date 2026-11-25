@@ -19,7 +19,7 @@ import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError
 import { IfcxWriteRefusedError } from '@/services/ifc/ifcx/ifcxErrors';
 import { documentFileFormat, IFCX_FLAG_OFF_NOTICE, ifcxWriteBlocked, ifcxWriteRefusedNotice } from '@/state/ifcxGuard';
 import {
-  canWriteToRefWithoutPrompt, fileIdentityFs, sameFileRef, saveTargetRef, saveToRefWithoutPrompt, sourceTargetContent,
+  canWriteToRefWithoutPrompt, fileIdentityFs, localTargetName, sameFileRef, saveTargetRef, saveToRefWithoutPrompt, sourceTargetContent,
   writeTargetReaders, type FileRef,
 } from '@/services/fileAccess';
 import {
@@ -206,7 +206,7 @@ export function createFileAutoSaveController(deps: {
     const after = await guard();
     if (after) return after;
     if (yielded.aborted) return 'yielded';
-    const commit = () => getState().markAutoSaveVersionSaved(document, current, prepared);
+    const commit = () => getState().markAutoSaveVersionSaved(document, current, prepared, null, localTargetName(ref));
 
     // De grens van de voorrang ligt in de gedeelde vervanging (`stopBeforeWrite`): pas als het herstel vastligt (browser:
     // de komende versie in het herstelmanifest; desktop: het herstelrecord en het manifest) en vóór de eerste schrijfactie
