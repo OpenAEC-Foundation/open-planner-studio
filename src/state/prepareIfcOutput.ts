@@ -5,8 +5,9 @@ import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { hasForeignContent, type IfcSource, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { spendPlanOnlyConfirmation, type PlanOnlyConfirmation, type PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
-import { rememberOwnIfcxBytes, rememberOwnIfcxDigest } from '@/services/ifc/ifcxOwnBytes';
-import type { DocumentFileFormat } from './ifcxGuard';
+import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
+import type { DocumentFileFormat } from './documentContract';
+import { versionGuarded } from './versionGuard';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import type { TargetFingerprint } from './documentContract';
 import { ifcFullWriteBlocked } from './ifcForeignGuard';
@@ -43,25 +44,21 @@ export type WrittenFingerprint = TargetFingerprint | Promise<TargetFingerprint> 
 type FeatureFlags = Parameters<typeof ifcForeignContentEnabled>[0];
 
 export function documentSaveCompute(
-  featureFlags: FeatureFlags, compute: IfcOutputCompute = computeIfcOutputHere, format: DocumentFileFormat = 'ifc',
+  featureFlags: FeatureFlags, worker: IfcOutputCompute | undefined, format: DocumentFileFormat,
 ): IfcOutputCompute {
-  if (format === 'ifcx') return ifcxDocumentCompute(compute);
+  if (format === 'ifcx') {
+    if (!worker) return () => Promise.reject(new IfcSaveWorkerError('not-started', 'IFCX rekent alleen in de opslagworker.'));
+    return (job, stop) => worker(job.kind === 'writer' ? { ...job, hashBytes: true, format } : job, stop);
+  }
+  const compute = worker ?? computeIfcOutputHere;
   if (!ifcForeignContentEnabled(featureFlags)) return compute;
   return (job, stop) => compute(job.kind === 'writer' ? { ...job, hashBytes: true } : job, stop);
 }
 
-function ifcxDocumentCompute(compute: IfcOutputCompute): IfcOutputCompute {
-  return async (job, stop) => {
-    if (job.kind !== 'writer') return compute(job, stop);
-    const output = await compute({ ...job, hashBytes: true, format: 'ifcx' }, stop);
-    if (output.sha256 !== undefined) rememberOwnIfcxDigest(output.sha256);
-    else if (!output.prepared) await rememberOwnIfcxBytes(output.bytes ?? new TextEncoder().encode(output.content));
-    return output;
-  };
-}
-
-export function writtenFingerprint(featureFlags: FeatureFlags, output: IfcOutput, written?: Uint8Array): WrittenFingerprint {
-  if (output.prepared || !ifcForeignContentEnabled(featureFlags)) return null;
+export function writtenFingerprint(
+  featureFlags: FeatureFlags, format: DocumentFileFormat, output: IfcOutput, written?: Uint8Array,
+): WrittenFingerprint {
+  if (output.prepared || !versionGuarded(featureFlags, format)) return null;
   const bytes = written ?? output.bytes ?? new TextEncoder().encode(output.content);
   const byteLength = bytes.byteLength;
   return output.sha256 !== undefined ? { sha256: output.sha256, byteLength, origin: 'written' }

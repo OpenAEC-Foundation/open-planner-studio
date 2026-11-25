@@ -45,7 +45,7 @@ import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { ifcSchemaBlocksSilentWrite, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { DEFAULT_IFC_SCHEMA, projectIfcSchema } from '@/types/project';
 import { extensionOf, isIfcxName } from '@/utils/filePath';
-import type { OpenedImport } from '@/services/importTypes';
+import { isMultiDocumentImport, type OpenedImport } from '@/services/importTypes';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, postAwaitGuards, toolError } from './runtime';
 import { guardBridgeFlags } from './documentTools';
 import type { McpContext, McpToolAnnotations, McpToolDef, McpToolResult } from '../contracts';
@@ -62,8 +62,9 @@ import {
   exportTargetPermission, ifcFullWriteBlocked, refusedTargetContent, refusedTargetIdentity, refusedWriteTarget,
   type WriteTargetDeps, type WriteTargetRefusal,
 } from '@/state/ifcForeignGuard';
-import { openTabFor, readVersionOf, switchToOpenDocument } from '@/state/openDocumentFor';
-import { ifcForeignContentEnabled, ifcxEnabled } from '@/utils/featureFlags';
+import { oneTabPerFile, openTabFor, readVersionOf, switchToOpenDocument } from '@/state/openDocumentFor';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { namesFollowFormat } from '@/state/ifcxGuard';
 import { writtenForeignChangeCount } from '@/state/foreignChangesWrittenNotice';
 
 /** #804: IFC-uitvoer blijft geweigerd met ontbrekende bronbytes of de flag uit (`state/ifcForeignGuard.ts`). */
@@ -409,7 +410,8 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'VALIDATION', 'Parameter \'overwrite\' must be true or false.');
       }
       const overwrite = raw.overwrite === true;
-      if (ifcxEnabled(ctx.app.store.getState().ui.featureFlags) && isIfcxName(raw.path.trim())) {
+      const asked = ctx.app.store.getState();
+      if (namesFollowFormat(asked, asked.ui.featureFlags) && isIfcxName(raw.path.trim())) {
         return toolError(ctx, 'VALIDATION', IFCX_EXPORT_REFUSAL);
       }
 
@@ -696,7 +698,7 @@ export const fileTools: McpToolDef[] = [
       const lateBlocked = postAwaitGuards(ctx);
       if (lateBlocked) return lateBlocked;
       const ref: FileRef = { kind: 'path', path };
-      const tab = ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) && readFormatForFile(path).canBeSaveTarget
+      const tab = oneTabPerFile(ctx.app.store.getState().ui.featureFlags, parsed) && readFormatForFile(path).canBeSaveTarget
         ? openTabFor(ctx.app.store.getState(), ref, null, readVersionOf(ref, parsed)) : null;
       if (tab !== null) switchToOpenDocument(ctx.app.store.getState(), tab);
       const opened = tab !== null ? null : ctx.app.store.getState().openAsDocument(parsed, { name: path, ref });
@@ -781,7 +783,7 @@ export const fileTools: McpToolDef[] = [
           documentsOpened: opened ? documents.length : 0,
           documents,
           path,
-          format,
+          format: isMultiDocumentImport(parsed) || !parsed.ifcxRead ? format : 'IFCX',
           reusedActiveTab: opened?.reusedActiveTab ?? false,
           ...(tab !== null ? { alreadyOpen: true, ...(tab.changedOnDisk ? { changedOnDisk: true } : {}) } : {}),
           /** Opslagdoel van het document: het bronpad bij IFC, anders null (zie hierboven). */

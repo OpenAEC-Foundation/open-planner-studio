@@ -34,8 +34,10 @@
  * van de merge, een fout van de writer) komt als dezelfde foutsoort aan.
  */
 import { computeIfcOutputHere, type IfcOutputCompute, type IfcSaveJob } from '@/state/prepareIfcOutput';
+import type { IfcxClassification } from '@/services/ifc/ifcx';
 import {
-  errorFromWire, outputFromResult, resultFits, wireErrorFits, type IfcSaveRequest, type IfcSaveResponse, type IfcSaveResult,
+  classificationFits, errorFromWire, outputFromResult, resultFits, wireErrorFits, type IfcSaveRequest, type IfcSaveRequestBody,
+  type IfcSaveResponse,
 } from './ifcSaveProtocol';
 import { IfcSaveWorkerError } from './ifcSaveWorkerError';
 
@@ -45,6 +47,7 @@ export type IfcSaveWorkerPort = Pick<Worker, 'postMessage' | 'terminate' | 'onme
  *  knownbug 1759 voor de scanner). Een gewoon verzoek valt dan terug (nooit fout, alleen trager); een merge na een eerdere
  *  start wordt een mislukte opslag die de planner opnieuw kan proberen. */
 export const IFC_SAVE_START_TIMEOUT_MS = 10_000;
+const IFCX_CLASSIFY_TIMEOUT_MS = 60_000;
 
 /** De rekentijd: 60 s plus 1 s per begonnen MiB bron (een merge van 300 MB krijgt zo ruim zes minuten). */
 export function ifcSaveTimeoutMs(job: IfcSaveJob): number {
@@ -65,6 +68,7 @@ export interface IfcSaveWorkerOptions {
 export interface IfcSaveWorker {
   /** Voor `prepareIfcOutput(state, input, planOnly, compute)`: dezelfde uitkomst, berekend in de worker. */
   readonly compute: IfcOutputCompute;
+  readonly classifyIfcx: (bytes: Uint8Array) => Promise<IfcxClassification>;
   /** Stopt de worker; een lopend en elk later verzoek eindigt met `IfcSaveWorkerError` (`disposed`). */
   dispose(): void;
 }
@@ -98,11 +102,13 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
   const disposedError = () => new IfcSaveWorkerError('disposed', 'De opslagworker is gestopt.');
   const notStartedError = (message: string) => new IfcSaveWorkerError('not-started', message);
 
-  const ask = (port: IfcSaveWorkerPort, job: IfcSaveJob, stop?: AbortSignal): Promise<IfcSaveResult> => {
+  const ask = <T,>(
+    port: IfcSaveWorkerPort, body: IfcSaveRequestBody, fits: (data: IfcSaveResponse) => T | undefined, limitMs: number, stop?: AbortSignal,
+  ): Promise<T> => {
     const id = ++nextId;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let onStop: (() => void) | undefined;
-    return new Promise<IfcSaveResult>((resolve, reject) => {
+    return new Promise<T>((resolve, reject) => {
       // #804 stap 8: Automatisch opslaan wijkt. Deze worker stopt (het rekenen valt niet anders af te breken); het volgende
       // verzoek start een nieuwe. Geen fout van de worker, dus de client blijft bruikbaar.
       onStop = () => {
@@ -113,7 +119,7 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       const arm = () => {
         clearTimeout(timer);
         timer = started
-          ? setTimeout(() => reject(new IfcSaveWorkerError('timeout', `De opslagworker antwoordde niet binnen ${timeoutMs(job)} ms.`)), timeoutMs(job))
+          ? setTimeout(() => reject(new IfcSaveWorkerError('timeout', `De opslagworker antwoordde niet binnen ${limitMs} ms.`)), limitMs)
           : setTimeout(() => reject(new IfcSaveWorkerNotStarted('De opslagworker startte niet op tijd.')), startTimeoutMs);
       };
       abortActive = reject;
@@ -124,8 +130,9 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
         }
         if (data.id !== id) return;
         // Het juiste nummer, maar een antwoord dat niet bij dit verzoek past: transport, nooit een uitkomst.
+        const value = 'error' in data ? undefined : fits(data);
         if ('error' in data && wireErrorFits(data.error)) reject(errorFromWire(data.error));
-        else if ('result' in data && resultFits(job, data.result)) resolve(data.result);
+        else if (value !== undefined) resolve(value);
         else reject(new IfcSaveWorkerError('transport', 'De opslagworker gaf een antwoord dat niet bij het verzoek past.'));
       };
       port.onerror = (event) => {
@@ -137,7 +144,7 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       arm();
       try {
         // Een kopie, nooit een overdracht: de hoofdthread blijft eigenaar van de bronbytes.
-        port.postMessage({ id, job } satisfies IfcSaveRequest);
+        port.postMessage({ id, ...body } satisfies IfcSaveRequest);
       } catch (error) {
         reject(new IfcSaveWorkerError('transport', `Het opslagverzoek kon niet naar de worker: ${error instanceof Error ? error.message : String(error)}`));
       }
@@ -157,7 +164,7 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       // Week de ronde al terwijl ze op haar beurt in de worker wachtte, dan rekent ze niet.
       if (stop?.aborted) throw stop.reason;
       // Een merge na een eerdere start rekent alleen in een worker; elk ander verzoek doet bij een startprobleem wat main deed.
-      const workerOnly = job.kind === 'merge' && startedOnce;
+      const workerOnly = (job.kind === 'merge' && startedOnce) || (job.kind === 'writer' && job.format === 'ifcx');
       if (!worker && (!unavailable || workerOnly)) {
         try { worker = createWorker(); } catch { worker = null; }
         started = false;
@@ -169,7 +176,8 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       if (!worker) return computeIfcOutputHere(job);
       const port = worker;
       try {
-        return outputFromResult(job, await ask(port, job, stop));
+        const fits = (data: IfcSaveResponse) => 'result' in data && resultFits(job, data.result) ? data.result : undefined;
+        return outputFromResult(job, await ask(port, { job }, fits, timeoutMs(job), stop));
       } catch (error) {
         if (stop?.aborted) throw error;
         if (error instanceof IfcSaveWorkerNotStarted) {
@@ -192,8 +200,31 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
     return run;
   };
 
+  const classifyIfcx = (bytes: Uint8Array): Promise<IfcxClassification> => {
+    const run = tail.then(async () => {
+      if (disposed) throw disposedError();
+      if (!worker) {
+        try { worker = createWorker(); } catch { worker = null; }
+        started = false;
+        if (!worker) throw notStartedError('De opslagworker kon niet worden aangemaakt.');
+      }
+      const port = worker;
+      const fits = (data: IfcSaveResponse) => 'classification' in data && classificationFits(data.classification) ? data.classification : undefined;
+      try {
+        return await ask(port, { classify: bytes }, fits, IFCX_CLASSIFY_TIMEOUT_MS);
+      } catch (error) {
+        if (worker === port && (error instanceof IfcSaveWorkerNotStarted || error instanceof IfcSaveWorkerError)) stopWorker();
+        if (disposed) throw disposedError();
+        throw error instanceof IfcSaveWorkerNotStarted ? notStartedError(error.message) : error;
+      }
+    });
+    tail = run.catch(() => undefined);
+    return run;
+  };
+
   return {
     compute,
+    classifyIfcx,
     dispose: () => {
       disposed = true;
       const abort = abortActive;

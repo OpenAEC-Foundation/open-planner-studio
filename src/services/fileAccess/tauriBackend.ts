@@ -78,7 +78,7 @@ export async function readTargetPathTauri(path: string): Promise<Uint8Array | nu
     for (let chunk = await chunks.next(); chunk !== null; chunk = await chunks.next()) {
       size += chunk.length;
       if (size > IFC_FOREIGN_SCAN_MAX_BYTES) throw new Error(`Het bestaande doel ${path} is te groot om te lezen.`);
-      parts.push(chunk.slice());
+      parts.push(chunk);
     }
     const bytes = new Uint8Array(size);
     let at = 0;

@@ -213,6 +213,7 @@ export type NotificationMessageKey =
   | 'ifcx.open.notIfcx'
   | 'ifcx.writeRefused'
   | 'ifcx.flagOff'
+  | 'ifcx.nameMismatch'
   // Rapport-tabblad (#861): de gekozen layout is verwijderd; het rapport valt terug op alle taken.
   | 'notifications.reportLayoutGone'
   // Eigen rapportlettertype (#770): zonder vette variant (vet in de gewone letter), of de kopie is weg (terug op Inter).

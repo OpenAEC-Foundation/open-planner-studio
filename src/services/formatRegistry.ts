@@ -10,7 +10,7 @@ import { readCSV } from '@/services/csv/csvReader';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import type { ImportLabels, ImportResult, OpenedImport } from '@/services/importTypes';
 import type { FileFilter, FileRef } from '@/services/fileAccess';
-import { basename, extensionOf } from '@/utils/filePath';
+import { basename, extensionOf, isIfcxName } from '@/utils/filePath';
 import { ifcForeignContentEnabled, ifcxEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 
 /** Invoer voor een reader: tekstformaten krijgen `text`, binaire formaten `bytes`. */
@@ -193,7 +193,7 @@ const IFCX_FORMAT: ReadFormat = {
   id: 'ifcx', extensions: ['ifcx'], kind: 'binary', filterName: 'IFCX Files', canBeSaveTarget: true,
   read: async (i) => {
     if (!i.bytes) throw new Error('IFCX requires binary content');
-    const { openOwnIfcx } = await import('@/services/ifc/ifcxOwnBytes');
+    const { openOwnIfcx } = await import('@/services/ifc/ifcxOpen');
     return openOwnIfcx(i.bytes);
   },
 };
@@ -207,7 +207,7 @@ function readFormats(opts?: FormatReadOptions): readonly ReadFormat[] {
 /** Extensie-match; onbekende extensie ⇒ de default (IFC). */
 export function readFormatForFile(name: string, opts?: FormatReadOptions): ReadFormat {
   const ext = extensionOf(name);
-  return readFormats(opts).find((f) => f.extensions.includes(ext)) ?? IFC_FORMAT;
+  return readFormats(opts).find((f) => f.extensions.includes(ext) && (f !== IFCX_FORMAT || isIfcxName(name))) ?? IFC_FORMAT;
 }
 
 export const IFCX_FILE_FILTERS: readonly FileFilter[] = [{ name: IFCX_FORMAT.filterName, extensions: IFCX_FORMAT.extensions }];

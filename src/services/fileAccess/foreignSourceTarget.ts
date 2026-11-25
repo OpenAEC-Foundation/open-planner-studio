@@ -22,7 +22,7 @@ import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark
 import { scanForeignTargetBlob, scanForeignTargetBytesAsync, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { compareFilePaths, type FileIdentityFs } from './fileIdentity';
-import { isIfcxName } from '@/utils/filePath';
+import type { IfcxClassification } from '@/services/ifc/ifcx';
 import type { FileRef } from './index';
 
 export interface ForeignSourceTargetDeps {
@@ -112,44 +112,35 @@ export async function targetRefusal(target: FileRef, readers: TargetReaders = {}
   }
 }
 
-export async function ifcxTargetRefusal(target: FileRef, readers: TargetReaders = {}): Promise<'foreign' | 'unreadable' | null> {
+export type IfcxClassify = (bytes: Uint8Array) => Promise<IfcxClassification>;
+
+export async function ifcxTargetRefusal(
+  target: FileRef, readers: TargetReaders, classify: IfcxClassify | undefined,
+): Promise<'foreign' | 'unreadable' | null> {
+  if (target.kind === 'site') return null;
+  let bytes: Uint8Array | null;
   try {
-    const bytes = await existingIfcxTargetBytes(target, readers);
-    if (bytes === null) return null;
-    const { classifyIfcxTarget } = await import('@/services/ifc/ifcxOwnBytes');
-    const classification = await classifyIfcxTarget(bytes);
-    return classification === 'foreign' ? 'foreign' : classification === 'unreadable' ? 'unreadable' : null;
+    bytes = await existingTargetBytes(target, readers);
+  } catch {
+    return 'unreadable';
+  }
+  if (bytes === null || bytes.byteLength === 0) return null;
+  if (!classify) return 'unreadable';
+  try {
+    const classification = await classify(bytes);
+    return classification === 'own' ? null : classification === 'foreign' ? 'foreign' : 'unreadable';
   } catch {
     return 'unreadable';
   }
 }
 
-async function existingIfcxTargetBytes(target: FileRef, readers: TargetReaders): Promise<Uint8Array | null> {
-  switch (target.kind) {
-    case 'handle': {
-      if (!isIfcxName(target.handle.name)) return null;
-      const file = await target.handle.getFile();
-      return file.size === 0 ? null : new Uint8Array(await file.arrayBuffer());
-    }
-    case 'path':
-      if (!isIfcxName(target.path)) return null;
-      if (!readers.readPath) throw new Error('Geen lezer voor een bestaand pad.');
-      return readers.readPath(target.path);
-    case 'site': {
-      const bytes = readers.readSite ? await readers.readSite(target.id) : null;
-      if (bytes === null) throw new Error('Het bestand op de site is niet leesbaar.');
-      return firstByteIsBrace(bytes) ? bytes : null;
-    }
+async function existingTargetBytes(target: Exclude<FileRef, { kind: 'site' }>, readers: TargetReaders): Promise<Uint8Array | null> {
+  if (target.kind === 'handle') {
+    const file = await target.handle.getFile();
+    return file.size === 0 ? null : new Uint8Array(await file.arrayBuffer());
   }
-}
-
-function firstByteIsBrace(bytes: Uint8Array): boolean {
-  for (let at = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? 3 : 0; at < bytes.length; at++) {
-    const byte = bytes[at];
-    if (byte === 0x20 || byte === 0x09 || byte === 0x0a || byte === 0x0d) continue;
-    return byte === 0x7b;
-  }
-  return false;
+  if (!readers.readPath) throw new Error('Geen lezer voor een bestaand pad.');
+  return readers.readPath(target.path);
 }
 
 /** Wijzen twee lokale paden naar hetzelfde bestand? Hetzelfde genormaliseerde pad, of (met `identityFs`) dezelfde

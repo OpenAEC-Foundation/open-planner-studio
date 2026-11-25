@@ -14,11 +14,13 @@ import { IfcCalendarTimePrecisionError, IfcParseError } from '@/services/ifc/ifc
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { StepScanError } from '@/services/ifc/foreign/stepScanner';
 import { IfcxWriteRefusedError } from '@/services/ifc/ifcx/ifcxErrors';
+import type { IfcxClassification } from '@/services/ifc/ifcx';
 import type { PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { precomputeSha256, XerSourceArchiveValidationError } from '@/services/xerSourceArchive';
 import { computeIfcOutputHere, type IfcOutput, type IfcSaveJob } from '@/state/prepareIfcOutput';
 
-export type IfcSaveRequest = { readonly id: number; readonly job: IfcSaveJob };
+export type IfcSaveRequestBody = { readonly job: IfcSaveJob } | { readonly classify: Uint8Array };
+export type IfcSaveRequest = { readonly id: number } & IfcSaveRequestBody;
 
 export type IfcSaveResult =
   | { readonly kind: 'writer'; readonly bytes: Uint8Array; readonly literalCalendarIds: readonly string[]; readonly sha256?: string }
@@ -30,6 +32,7 @@ export type IfcSaveResult =
 export type IfcSaveResponse =
   | { readonly started: true }
   | { readonly id: number; readonly result: IfcSaveResult }
+  | { readonly id: number; readonly classification: IfcxClassification }
   | { readonly id: number; readonly error: IfcSaveWireError };
 
 /** Inhoudelijke fouten die oversteken als dezelfde foutsoort met dezelfde gegevens. Specifiek vóór algemeen. */
@@ -76,6 +79,10 @@ export function resultTransfer(result: IfcSaveResult): ArrayBuffer[] {
 /** Het verzoek in de worker: nooit een gegooide fout, altijd een antwoord met zijn overdrachtslijst. */
 export async function handleIfcSaveRequest(request: IfcSaveRequest): Promise<{ response: IfcSaveResponse; transfer: ArrayBuffer[] }> {
   try {
+    if ('classify' in request) {
+      const { classifyIfcx } = await import('@/services/ifc/ifcx');
+      return { response: { id: request.id, classification: classifyIfcx(request.classify) }, transfer: [] };
+    }
     const result = await runIfcSaveJob(request.job);
     return { response: { id: request.id, result }, transfer: resultTransfer(result) };
   } catch (error) {
@@ -110,6 +117,9 @@ export function resultFits(job: IfcSaveJob, result: unknown): result is IfcSaveR
     && typeof source.foreignObjectCount === 'number' && typeof source.buildingModel === 'boolean'
     && (source.lineEnding === '\n' || source.lineEnding === '\r\n') && (source.opened === undefined || isRecord(source.opened));
 }
+
+const IFCX_CLASSIFICATIONS: readonly unknown[] = ['own', 'foreign', 'not-ifcx', 'unreadable'] satisfies readonly IfcxClassification[];
+export const classificationFits = (value: unknown): value is IfcxClassification => IFCX_CLASSIFICATIONS.includes(value);
 
 /** Een fout van een bekende soort, met tekst, naam en velden. Anders: een transportfout. */
 export function wireErrorFits(error: unknown): error is IfcSaveWireError {

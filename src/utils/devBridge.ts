@@ -3,7 +3,7 @@ import { appLog } from '@/services/debug/appLog';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { ifcSaveBlocked, refusedWriteTarget, type WriteTargetDeps } from '@/state/ifcForeignGuard';
-import { isIfcxName } from '@/state/ifcxGuard';
+import { isIfcxName, namesFollowFormat } from '@/state/ifcxGuard';
 import { ifcxEnabled } from '@/utils/featureFlags';
 import { fileIdentityFs, writeTargetReaders } from '@/services/fileAccess';
 import {
@@ -96,7 +96,7 @@ export async function saveToPathWithIO(
   const s = useAppStore.getState();
   // #804 fase 1a (§4.12): een document met een vreemd deel schrijft deze dev-route niet; de writer liet het model weg.
   if (ifcSaveBlocked(s)) throw new Error('saveToPath: het document heeft een vreemd deel (gebouwmodel); opslaan is nog niet mogelijk.');
-  if (ifcxEnabled(s.ui.featureFlags) && isIfcxName(path)) throw new Error('saveToPath: deze route schrijft IFC; kies een pad op .ifc.');
+  if (namesFollowFormat(s, s.ui.featureFlags) && isIfcxName(path)) throw new Error('saveToPath: deze route schrijft IFC; kies een pad op .ifc.');
   // #804 fixronde 2: dezelfde doelcontrole als Opslaan als, vóór de write. Het pad is de bron van een open document met
   // een vreemd deel, of een bestaande IFC met een gebouwmodel (flag aan): dan schrijft deze route niet.
   if (await refusedWriteTarget(s, { kind: 'path', path }, targetDeps)) {
