@@ -592,17 +592,18 @@ await check('zonder classificatie in de worker weigert een IFCX-document een onb
   } finally { ipc.dispose(); }
 });
 
-await check('resources: de kern weigert het schrijven, één melding; Automatisch opslaan rekent dezelfde inhoud niet opnieuw (was knownbug 2367)', async () => {
+await check('een notitie op een taak (F3-3): de kern weigert het schrijven, één melding; Automatisch opslaan rekent dezelfde inhoud niet opnieuw (was knownbug 2367)', async () => {
   const ipc = desktop();
   try {
     const path = join(dir, 'resource.ifcx'); writeFileSync(path, own);
     const store = await openAt(path, IFCX_ON);
     const sw = workerOf.get(store)!;
-    store.getState().addResource({ name: 'Kraan', type: 'EQUIPMENT', description: '', maxUnits: 1, costPerHour: 10 });
+    const noted = store.getState().tasks.find(t => t.childIds.length === 0)!;
+    store.getState().updateTask(noted.id, { notes: [{ id: 'n1', text: 'Let op', done: false }] });
     clearNotices(store);
     assert.equal(await save(store), false);
     assert.deepEqual(errors(store), ['ifcx.writeRefused']);
-    assert(store.getState().ui.notifications[0].detail?.includes('resources'), 'de melding noemt het veld');
+    assert(store.getState().ui.notifications[0].detail?.includes('task.notes'), 'de melding noemt het veld');
     assert.equal(hash(bytesAt(path)), hash(own));
     assert.equal(store.getState().isDirty, true);
     store.setState(s => { s.autoSaveToFile = true; }); clearNotices(store);
