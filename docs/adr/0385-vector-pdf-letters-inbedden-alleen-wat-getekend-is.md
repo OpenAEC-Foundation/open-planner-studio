@@ -23,7 +23,8 @@ beslist wat er wordt ingebed:
   (`embed`) krijgt hij pas na de inventarisatie. Tekst langs de weg van de terugvalletters (ADR 0384, weg 2) komt alleen
   in de PDF als elke letter in de lijst ingebed is (`cjkEmbedReady`); anders verzamelt `fillText` alleen de tekens. Zag
   de inventarisatie zulke tekst (`usedCjk`), dan tekent de pagineerder na het inbedden opnieuw, en die render levert de
-  PDF. Bleef een geladen letter zonder tekens, dan tekent die render de tekst niet, terwijl de andere letters al
+  PDF, tenzij een smallere voet daarna nog een render afdwingt: dan levert die de PDF, met de letters die al ingebed
+  zijn. Bleef een geladen letter zonder tekens, dan tekent die render de tekst niet, terwijl de andere letters al
   ingebed zijn (knownbug 2450).
 - De pagineerder laadt een aanbieder pas als haar `covers` een teken raakt dat de eerste render zonder terugvalletters
   ongedekt liet; een aanbieder die niet laadt, wordt overgeslagen en haar tekens blijven ongedekt.
@@ -33,6 +34,7 @@ beslist wat er wordt ingebed:
 - De tekenaar leest de fontkit-letter van een ingebedde rapportletter uit een intern veld van pdf-lib (`fontkitOf`),
   net als `embedReportFont`; om die interne velden staat pdf-lib exact op 1.17.1 (regel `reports`).
 - `check-report-font.ts`: B1 en B4 eisen bij Inter zonder Arabisch alleen de twee Inter-letters en geen subset; B3 eist
-  bij een smalle letter met Inter als terugval F4 op de eerste bladzijde, en in de subset van Inter `Ф`, `≤` en `a` maar
-  geen spatie of cijfer; C2 eist per meegeleverde letter behalve Inter dat het vinkje (U+2713) in de subset van Inter
-  staat.
+  bij een smalle letter met Inter als terugval F4 op de eerste bladzijde, en dat de subsetter voor Inter `Ф`, `≤` en `a`
+  krijgt maar geen spatie of cijfer; C2 eist per meegeleverde letter behalve Inter dat de subsetter voor Inter het
+  vinkje (U+2713) krijgt. De subsetter van de toets geeft de hele letter terug, dus wat er in een echte subset staat,
+  toetst zij niet.

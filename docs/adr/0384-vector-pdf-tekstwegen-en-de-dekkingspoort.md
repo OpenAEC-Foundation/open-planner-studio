@@ -27,9 +27,9 @@ U+200E vóór een minteken. Een stuurteken telt in geen enkele weg mee voor de d
 - Dekking buiten weg 1 (`checkCoverage`): een teken is gedekt als de rapportletter in het gewicht van de tekst het
   heeft, of Noto Sans Arabic, of een terugvalletter (`fallbackIndexFor`: haar `covers` en een glyph in haar gewone
   letter). Uitzondering: weg 2 en 3 tekenen nooit met Noto. Een teken dat de rapportletter mist en Noto heeft, geldt
-  als gedekt en laat zelf geen terugvalletter laden. Heeft geen geladen terugvalletter het, dan komt het in weg 3
-  zonder fout als `.notdef` in de PDF; zo wordt de smalle vaste spatie U+202F met Liberation Mono een vakje
-  (knownbug 2452).
+  als gedekt en laat zelf geen terugvalletter laden. Elk teken waarvoor geen terugvalletter is gekozen, blijft in de
+  rapportletter, in weg 2 en in weg 3; mist die het, dan komt het zonder fout als `.notdef` in de PDF. Zo wordt de
+  smalle vaste spatie U+202F met Liberation Mono een vakje (knownbug 2452).
 - Dekking in weg 1 (`checkCoverageComplex`): per teken de letter die de shaping-kern kiest (`fontClassFor`): Arabisch
   schrift moet in Noto staan, een neutraal teken (`isNeutralCp`) in de rapportletter of Noto, elk ander teken in de
   rapportletter. Een terugvalletter telt hier niet mee, want weg 1 tekent nooit met een terugvalletter. Een Chinees
@@ -39,5 +39,4 @@ U+200E vóór een minteken. Een stuurteken telt in geen enkele weg mee voor de d
   Volgens het weggehaalde commentaar tekent een grote planning duizenden labels met steeds dezelfde tekens en zocht
   zonder cache elke tekst al zijn tekens opnieuw op. Een cache geldt voor beide gewichten (knownbug 2451).
 - `check-report-font.ts`: B2 eist `VectorUnsupportedError` met `Ф` en `≤` bij de ongedekte tekens voor een letter
-  zonder die tekens en zonder terugval; B3 eist met Inter als terugval een vector-PDF waarin `Ф`, `≤` en `a` in de
-  subset van Inter staan.
+  zonder die tekens en zonder terugval. De toets met Inter als terugval (B3) staat in ADR 0385.
