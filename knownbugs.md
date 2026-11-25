@@ -643,6 +643,14 @@ en noem het in je rapport of PR-tekst.
      `CEILING_UNREACHABLE`, terwijl alleen het poolgrootboek die kandidaat afwees; met 60 dagen schoof de taak één
      werkdag en verdween het tekort. Een resourcekalender die op 20 juli weer opengaat, gaf bij een scan vanaf 1 juni
      `CALENDAR_MISMATCH`, terwijl dezelfde taak op 20 juli paste. Zie ook 1982. — B
+2321. **Na het wissen van een nivelleerpauze kan een splitgat uit een import op een latere plek blijven staan.**
+     `scatterSlot` (`src/engine/scheduler/ResourceLeveler.ts`) telt een ingevoegde pauze op bij de `afterMinutes` van
+     elk later gat, ook van een gat zonder `source: 'leveling'`. `clearLevelingGaps` (`src/utils/taskDefaults.ts`)
+     haalt daarna alleen de gaten met `source: 'leveling'` weg en zet de andere niet terug. Nagespeeld met een
+     zelfgemaakt IFC door de echte lezer en schrijver, met `allowSplits` en een uitloopplafond: de nivelleerder voegde
+     een pauze in vóór een bestaand importgat, waardoor dat van 960 naar 1440 minuten ging; na toepassen, de
+     nivellering wissen, opslaan en heropenen stond er nog 1440, en de taak werkte op woensdag in plaats van
+     donderdag. De nivelleerdialoog en MCP bieden `allowSplits` samen met een uitloopplafond niet aan. — B
 1993. **De gewone ALAP-stap met de duur van een niet-gestarte taak is niet tegen het P6-corpus gemeten.**
      `placeUnstartedAlap` (`src/engine/scheduler/CPMSolver.ts`) plaatst een niet-gestarte ALAP-taak sinds de aanval
      na #600 met haar duur tot de grens van haar opvolgers, niet meer in hele werkdagen. Onder het P6-profiel volgt
@@ -698,6 +706,111 @@ en noem het in je rapport of PR-tekst.
      een opvolger buiten de scope pas donderdag machinevraag heeft. De pincontrole van `ResourceLeveler` telt de
      machinevraag van de opvolger mee uit de voorlopige dinsdagboeking en laat die conflictmelding staan. Toets
      de lokale pinmelding op de proefbezetting met behoud van de afzonderlijke pooltoets. — S
+
+2306. **Een mijlpaal met duur en een expliciete mijlpaalsoort krijgt als opvolger de grensregels van een
+     nulduurmijlpaal.** `relationBoundaryFlags` (`src/engine/scheduler/relationMath.ts`) leest voor de voorganger de
+     duur (`scheduleDuration <= 0`), maar voor de opvolger `isMilestone` met `milestoneKind`. Een proef door de solver:
+     een START-mijlpaal van 1 uur kreeg na een FF-relatie een venster van 10:00 tot 11:00; met dezelfde duur en een
+     automatische soort was het 09:00 tot 10:00. Haar eigen FS-opvolger volgde in beide gevallen haar echte finish. In
+     de code is dat de FF-tak van `forwardHour`, die bij `succIsStartMs` de start op de geëiste finish zet (strikt
+     erna, of bij een voorganger in de dagenmaat midden in een werkblok op dat moment zelf), zonder de duur af te
+     trekken. De combinatie kan ontstaan via IFC (`ifcPsets.ts` schrijft en
+     leest `MilestoneKind` voor elke taak met `isMilestone`, zonder duurtoets; zie ook 1042), via MCP (`taskFields.ts`
+     zet `milestoneKind` zonder duurtoets) en via de MSPDI-lezer met een expliciete OPS-markering
+     (`explicitOpsMilestoneKind` in `mspdiReader.ts`, zonder duurtoets). Elders plant de solver een mijlpaal met duur
+     als duurtaak (`isZeroDurationMilestone`). De volledige voorwaarden van die grensregels staan in ADR 0271. — B
+
+2307. **Een opvolger in kalendertijd na FS met een lag in werktijd komt op het volgende werkmoment van haar eigen
+     kalender.** Bij SS, FF en SF slaat `forwardHour` (`src/engine/scheduler/relationMath.ts`) voor een opvolger in
+     kalendertijd de normalisatie op haar kalender over (ADR 0273); bij FS gaat de grens door
+     `finishStartLaggedStart` naar `se.nextWorkInstant`. `msp-42-z11-punt2-elapsed-opvolger-uitgesloten` in
+     `cases-msp-pariteit.json` legt bij lag 0 maandag 08:00 vast. Een proef door de solver met 30 werkminuten lag op
+     een 24-uurslagkalender gaf na de lag vrijdag 17:30; daarna zette de kalender van de opvolger haar op zaterdag
+     08:00. Die tweede stap wijkt af van ADR 0016: een kalendertijdtaak snapt niet naar werktijd waar het om haar eigen
+     planning gaat. Of FS zonder lag ook de eerste normalisatie op de lagkalender hoort over te slaan, is open. Zie ook
+     155 (lag in kalendertijd). — B
+
+2308. **Een SF-relatie naar een hammock krijgt geen finishvloer, en de hammock kan vóór de SF-eis eindigen.**
+     `hammockEarlyFinish` (`src/engine/scheduler/CPMSolver.ts`) zet de SF-grens met `forwardConstraint` om naar een
+     start en die met `finishFromStart` naar een finish, zonder `forwardFinishFloor`. Een proef door de solver met
+     dezelfde SF-driver als `msp-35-z10-sf-weekendgrens`: de gewone taak eindigt maandag 08:00, dezelfde taak als
+     hammock vrijdag 17:00. Dat schendt de finishgrens van de driver, die volgens ADR 0023 ook voor een hammock geldt
+     (haar vroege finish is het maximum van de grenzen uit haar FF- en SF-voorgangers). — B
+
+2309. **Een lopende opvolger van een SF-relatie krijgt de SF-finishvloer niet.** De voortgangstak van `forwardPass`
+     (`src/engine/scheduler/CPMSolver.ts`, `isPinnedInProgress`) gebruikt de relatiegrens voor het restwerk, maar legt
+     de vroege finish vast zonder de al berekende `sfFinishFloor`. Een proef door de solver, met behoud van
+     relatielogica, een statusdatum op donderdag 13:00 en acht uur restwerk: de SF-relatie verschoof de finish van
+     vrijdag 12:00 naar vrijdag 17:00, terwijl de SF-eis op maandag 13:00 lag. Zie ADR 0275. — B
+
+2322. **De belasting van opgeslagen werk kan bij een gestarte dagtaak een ander totaal tellen dan verricht plus
+     resterend.**
+     `assignmentDayUnits` (`src/engine/scheduler/ResourceLoad.ts`) leidt bij een toewijzing met `remainingWorkMinutes`
+     en zonder `actualWorkMinutes` het verrichte deel af als de duur min `remainingDaysOf`. Die functie rondt zonder
+     `remainingTime` de rest `scheduleDuration × (1 − completion)` af op hele dagen (en een urentaak zonder
+     `remainingMinutes` op hele minuten); de solver in de dagenmaat en `remainingMinutesOf` (`workRuleApply.ts`) ronden niet af (in de minutentak rondt de
+     solver wel af), zodat het afgeleide deel te groot of te klein kan uitvallen. Een
+     proef met `assignmentDayUnits`: een dagtaak van 5 dagen uit `createDefaultTaskTime`, `completion` 0,32,
+     `actualStart` gezet, geen `remainingTime`, inzet 1, `remainingWorkMinutes` 1632 (3,4 dagslots van 480 minuten)
+     en geen `actualWorkMinutes` gaf een som van 5,4 dagslots in plaats van 5. Met `remainingTime` 3,4 of met
+     `actualWorkMinutes` 768 was de som 5. Nagespeeld op een kalender van acht uur met dezelfde invoer: `computeResourceLoad` gaf
+     43,2 uur, het histogramrapport vijf overbezette dagen bij capaciteit 1, en `contourDayModel` dezelfde verhoogde
+     inzet. Een bestand of invoerroute die een taak zonder `remainingTime` én een toewijzing zonder
+     `actualWorkMinutes` oplevert, is niet gevonden; de getoetste voortgangsinvoer vult `remainingTime` zelf in. — B
+
+2323. **De urendialoog telt bij een toewijzing zonder contour het verrichte werk als resterend.** `contourDayModel`
+     (`src/engine/contour/contourDays.ts`) neemt zonder bestaande contour voor het verrichte deel nul en voor het
+     resterende deel de hele belasting van de toewijzing; `ContourDialog.tsx` schrijft bij *Toepassen* de perioden uit
+     dat model. Nagespeeld via de store: een taak van vijf dagen, één arbeidsresource op inzet 1, 32 % voortgang en
+     *Vaste duur en werk*; de toewijzing had 12,8 uur verricht en 27,2 uur resterend werk. *Urenverdeling…* rekende
+     40 uur resterend en toonde geen verricht werk. Na ongewijzigd *Toepassen*, IFC schrijven en teruglezen had de
+     contour alle 40 uur als `remaining`, naast de twee ongewijzigde werkvelden. Niet in de browser nagespeeld.
+     Issue #1224. — B
+
+2326. **In "datums zoals opgeslagen" kan het projecteinde een moment noemen dat vóór het einde van een dagtaak ligt.**
+     `cpmResultFromRecorded` (`src/engine/scheduler/recordedDates.ts`) kiest `projectEnd` als het grootste `finish`
+     met een tekstvergelijking, zodat bij een mix van datums zonder tijd en momenten een moment op dezelfde dag wint.
+     Een einde zonder tijd geldt elders als het einde van die werkdag (`projectDurationOf`). Nagespeeld met een proef
+     op de standaardkalender, zonder `workTime`: record a van 2026-03-09 tot 2026-03-10 en record b van
+     2026-03-09T08:00 tot 2026-03-10T12:00 gaven `projectEnd` 2026-03-10T12:00. Open: op de laadroute zet
+     `normalizeRecordedTimes` (`minuteModelTransition.ts`) een datum zonder tijd eerst om in een moment, behalve waar
+     `normalizeTaskDate` geen moment geeft. In een laadproef met een zelfgemaakt IFC door de echte lezer leverde één
+     kalender beide datumvormen; `normalizeRecordedTimes` zette het dageinde om naar 16:00 en de reconstructie koos
+     16:00. Een bestand dat de mix voorbij die omzetting brengt, is niet gevonden. Met een nachtkalender verkortte de
+     tekstvergelijking in de losse functie ook de projectduur van 2 naar 1 werkdag. — B
+
+2327. **De projectduur in "datums zoals opgeslagen" leest de duur van de taak, niet de vastlegging.**
+     `cpmResultFromRecorded` (`src/engine/scheduler/recordedDates.ts`) geeft de taken door aan `projectDurationOf`,
+     waarvan de mijlpaaluitzondering `task.time.scheduleDuration > 0` leest. Een proef op de standaardkalender met één
+     vastgelegde taak (geen mijlpaal) van 2026-03-09 tot 2026-03-09 gaf `projectDuration` 0 bij `scheduleDuration` 0
+     en 1 bij `scheduleDuration` 1. Volgens het weggehaalde commentaar leest de IFC-lezer een `$` in `ScheduleDuration`
+     als 0, zodat een werkproject van één dag zonder opgeslagen duur duur 0 krijgt. Nagespeeld met een zelfgemaakt
+     IFC via `readIFC` en `openAsDocument`, in de modus doordat de opgeslagen vroege datums afwijken: één taak (geen
+     mijlpaal) van 07:00 tot 16:00 gaf met `ScheduleDuration=$` een projectduur van 0 werkdagen en met `P1D` 1
+     werkdag. De statusbalk (`StatusBar.tsx`) toont die waarde. Issue #1231. — B
+
+2328. **In "datums zoals opgeslagen" kan een fase later eindigen dan het projecteinde in de statusbalk.**
+     `cpmResultFromRecorded` (`src/engine/scheduler/recordedDates.ts`) bepaalt `projectEnd` alleen uit taken met een
+     record, terwijl de rollup (`rollupSummaryTasks` in `applyCpmResult.ts`) alle kinderen van een fase gebruikt, ook
+     een kind zonder vroeg paar dat zijn berekende datums houdt. Nagespeeld met een zelfgemaakt IFC door de echte
+     laadroute: een fase zonder eigen vastlegging, een kind met opgeslagen vroeg einde op 10 maart en een kind zonder
+     vroeg paar dat de solver op 13 maart laat eindigen. De fasebalk en haar resultaatrij eindigden op 13 maart,
+     *Einde* in de statusbalk gaf 10 maart. Issue #1231. — B
+
+2329. **In "datums zoals opgeslagen" melden het rapport en MCP een ketenstructuur die de vastlegging niet kent.**
+     `cpmResultFromRecorded` levert `criticalPaths` altijd als één lijst (`[criticalPath]`), ook als die leeg is. Het
+     rapport *Kritieke en near-critical activiteiten* (`src/engine/reports/criticalReport.ts`) telt die ene lijst als
+     één keten, en `src/services/mcp/tools/readTools.ts` meldt bij de projectoptie `floatPaths` met `FREE_FLOAT` dat
+     parallelle ketens beschikbaar zijn, terwijl de reconstructie één lijst met gemarkeerde taken geeft. In de code
+     bevestigd door twee lezers, niet nagespeeld. — B
+2335. **Een leeg datumslot (`''`) in een IFC komt als lege datum in "datums zoals opgeslagen".** `recordedSlotsOf`
+     (`src/services/ifc/ifcReader.ts`) telt `''` als aanwezig, `parseDateFromIFC` geeft er een lege tekst voor terug,
+     en `captureRecordedDates` (`src/engine/scheduler/recordedDates.ts`) neemt die over. Nagespeeld met zelfgemaakte
+     IFC-bestanden via `parseOpenedFile` en `openAsDocument`, niet in de browser: met een lege vroege start gaat de
+     modus aan, telt één taak als verschoven en is de projectduur 0 werkdagen; met een leeg vroeg einde krijgt de balk
+     een einde vóór haar begin, is het projecteinde leeg en de projectduur 0 werkdagen. Met `$` op dezelfde plek valt
+     het vroege paar uit de vastlegging en geeft de berekening één werkdag. In 5021 `IfcTaskTime`-regels uit 141
+     bestanden in de repo schrijft geen enkel programma `''` in deze slots. — B
 
 ## Tabel, invoer en bediening
 
@@ -1419,6 +1532,27 @@ en noem het in je rapport of PR-tekst.
     `src/services/print/printPreview.ts`) is volgens het weggehaalde commentaar de breedte waarop de langste curvenaam
     van veertien talen past; de app heeft er nu 28. `measureCurveColumnWidth` begrenst de kolom op die breedte, dus een
     langere vertaalde curvenaam wordt in de cel afgekapt. Niet gemeten. — S
+2336. **Op vaste schaal met een tabel die minstens zo breed is als de afdrukbare breedte, valt de tijdas van de afdruk
+    weg.** `computeTileLayout` (`src/services/print/tileLayout.ts`) geeft bij `mode: 'actual'` één kolom als
+    er naast de herhaalde tabel geen ruimte overblijft (`(printW − frozenPtW) / scale` niet groter dan 0), ook als de bron
+    breder is dan één blad. Proef met de functie zelf: A4 staand, `mode: 'actual'`, `logicalWidth` 2000,
+    `logicalHeight` 500, `frozenColumnWidthPx` 800 geeft `cols` 1 met één venster van x = 0 tot 729,7; de bron van 729,7
+    tot 2000 komt op geen blad. Met `frozenColumnWidthPx` 700 zijn het 44 kolommen. Op de Gantt-afdruk is
+    `frozenColumnWidthPx` de tabelbreedte, en de naamkolom alleen mag tot `NAME_COLUMN_AUTO_MAX` (800 px) breed zijn;
+    Nagespeeld met de rapporttekenaar, het afdrukvoorbeeld en de lettermeting van Inter, niet in de browser: A4
+    staand, *Vaste schaal* en *Taaknaam → Volledig* gaf een naamkolom van 800 logische px en één blad, met x = 729,71
+    als uiterste bronpositie; de hele tijdas viel weg. Met de standaardkolommen, de naamkolom handmatig op 400 px en
+    de rapportletter op 125 % was de tabel 810 px; met de volledige naam en 125 % 1310 px, ook te breed voor A4
+    liggend en A3 staand (grens 1058,52 px). De app waarschuwt dan dat de tijdlijn smal wordt en laat de export
+    doorgaan. Zie ADR 0351. Issue #1238. — B
+
+2337. **Op vaste schaal met een tabel net smaller dan de afdrukbare breedte ontstaan duizenden bladen.**
+    `computeTileLayout` (`src/services/print/tileLayout.ts`) rekent het aantal kolommen uit de ruimte die naast de
+    herhaalde tabel overblijft. Nagespeeld met de rapporttekenaar en het afdrukvoorbeeld, niet in de browser: A4
+    staand, *Vaste schaal*, een automatisch gemeten tabel van 729 px en een planning van januari tot oktober op 22 px
+    per dag gaf 9496 bladen; na het eerste blad komt er per blad 0,71 logische px tijdas bij. Het afdrukvoorbeeld
+    (`ReportPaperView.tsx`) maakt voor elk blad een element en de vectorpagineerder (`paginateVector.ts`) voegt elk
+    blad toe aan de PDF. Tijd en geheugen bij dat aantal zijn niet gemeten. Issue #1238. — B
 
 ## Kalenders
 
@@ -1526,6 +1660,64 @@ en noem het in je rapport of PR-tekst.
       bibliotheekkalenders (`MAX_MSPDI_CALENDARS`); de `.mpp`-lezer stopt bij 1024 unieke ruwe kalenderrecords
       (`MAX_CALENDARS`, `mppCalendars.ts`). Nagespeeld met een script via `readP6XMLDocuments`: een bestand met 1200
       Resource-kalenders met verschillende geldige `ObjectId`'s zonder verwijzing geeft 1200 bibliotheekkalenders. — B
+
+2318. **Een maandelijkse of jaarlijkse herhaling kan een datum na haar einddatum opleveren.**
+      De vier generatoren `getMonthlyAbsoluteDates`, `getMonthlyRelativeDates`, `getYearlyAbsoluteDates` en
+      `getYearlyRelativeDates` (`src/services/calendarRecurrence.ts`, via `expandRecurrence`) toetsen de einddatum
+      (`moreDates`) op de eerste van de maand en voegen daarna de dag in die maand toe; de twee relatieve stoppen pas na
+      het toevoegen. `getYearlyAbsoluteDates` schuift bovendien een datum vóór het begin nog een jaar op. Nagespeeld
+      met een script via `expandRecurrence`: jaarlijks op 1 januari (`relative: false`, `dayNumber` 1, `monthNumber` 1),
+      begin 2020-06-01, einde 2020-12-31, `occurrences` 0, geeft `2021-01-01`. Dezelfde opzet als eerste maandag van
+      januari (`relative: true`) geeft niets. Nagespeeld via `readMSPDI` en `CalendarEngine`, zonder jaaropschuiving:
+      een maandelijkse en een jaarlijkse uitzondering op de 31e met einde 15 januari maken 31 januari vrij; een
+      maandelijkse en een jaarlijkse op de derde vrijdag met einde 3 januari maken 17 januari vrij. Het weggehaalde
+      commentaar noemde dit overgenomen gedrag van MPXJ; of MPXJ en MS Project zo'n datum opleveren, is niet
+      nagegaan. — B
+
+2319. **Als het gedeelde budget voor uitzonderingsdagen opraakt, kan juist de uitzondering met de hoogste voorrang
+      wegvallen.** `buildContributions` stopt bij een leeg budget in de volgorde van het bestand, en
+      `resolveContributions`
+      vult de kaart per datum in de volgorde van de voorrang (ADR 0291) tot het budget op is; wat dan nog komt, telt
+      niet mee. In `mergeInherited` gaan de dagen van de basiskalender vóór de eigen uitzonderingen in dat budget.
+      Nagespeeld met een script, steeds met een wekelijkse herhaling op alle dagen van 2020-01-01 tot 2020-01-10 en
+      daarna in het bestand een werkende uitzondering op 2020-01-05: met budget 100 is 5 januari werkend en het vrije
+      bereik gesplitst; met budget 10 is 1 tot en met 10 januari één vrij bereik en is er geen werkende uitzondering;
+      met budget 5 is alleen 1 tot en met 5 januari vrij. Staat de werkende uitzondering in het bestand vóór de
+      herhaling, dan blijft met budget 10 5 januari werkend en valt 10 januari weg: welke wegvalt, volgt de volgorde
+      van het bestand. Twee uitzonderingen op dezelfde datum kosten elk een plaats in het budget. Via `mergeInherited` met een basis die 1 tot en met
+      10 januari vrij heeft en dezelfde werkende uitzondering als eigen uitzondering: met budget 100 werkend, met
+      budget 10 vrij. Het budget is 100.000 dagen (`MAX_TOTAL_HOLIDAY_SLOTS`, ADR 0293); of een echt bestand het
+      bereikt, is niet nagegaan. — B
+
+2320. **Een onbekend herhalingstype leest de MSPDI-lezer als gewoon bereik, de `.mpp`-lezer slaat het record over.**
+      `RECURRENCE_TYPES` (`src/services/calendarRecurrence.ts`) kent de waarden 1 tot en met 7 (0 is geen herhaling).
+      Voor een waarde buiten 0 tot en met 7 geeft `readMspdiRecurringData` (`mspdiReader.ts`) `null`, en `readRawMspdiExceptions` houdt het record dan als
+      niet-herhalend bereik van `FromDate` tot `ToDate`, en slaat het zonder `ToDate` over; `readRawExceptions` (`mppCalendars.ts`) zet bij `null`
+      `contributesNothing` en neemt het record niet op. Gelezen in de code, niet nagespeeld. Welke van de twee MS
+      Project volgt, is niet nagegaan. — S
+
+2324. **De soort van een mijlpaal op een werkende uitzondering of een feestdag volgt de gewone weekblokken.**
+      `milestoneKindAt` (`src/services/subdayIo.ts`), voor `readMSPDI` en `readTasks` van de `.mpp`-lezer, kijkt alleen
+      naar `workTime.byWeekday` van de kalender. Een anker op het begin of einde van een blok van een werkende
+      uitzondering met eigen blokken krijgt dus alleen een soort als die minuut ook een grens van de weekblokken van die
+      weekdag is, bijvoorbeeld geen soort op een werkende zaterdag zonder weekblokken. Een anker op een feestdag krijgt
+      een soort als de minuut een grens van de weekblokken van die weekdag is, of het einde van een nachtblok van de
+      vorige weekdag. De twee lezers vragen de soort voor een nulduurmijlpaal op een gepromoveerde kalender; in
+      `readMSPDI` gaat een expliciete OPS-markering voor. Krijgt een mijlpaal om 12:00 op een werkende zaterdag van
+      08:00 tot 12:00 zo geen `FINISH`, dan kan een FS-relatie zonder lag bij herberekenen naar het volgende werkmoment
+      gaan, waar de `FINISH`-tak van `forwardHour` (`relationMath.ts`) het einde van de voorganger houdt; de solver
+      gebruikt de blokken van de uitzondering zelf wel. Het weggehaalde commentaar zei dat een mijlpaal nooit op een
+      feestdag landt; dat is niet nagegaan, en ook niet of MS Project zulke mijlpalen schrijft. Door twee lezers in
+      de code bevestigd, niet nagespeeld. — B
+
+2325. **Een `.mpp`-kalender met één blok per dag dat per weekdag verschilt, wordt zonder taaksignaal geen
+      uurkalender.** `canonicalizeBands` (`src/services/subdayIo.ts`) telt een kalender alleen als afwijkend bij meer
+      dan één blok op een dag, een blok over middernacht of een blok van 1440 minuten of meer; `buildCalendarFromDays`
+      (`src/services/mpp/mppCalendars.ts`) geeft die uitkomst door, zonder de vergelijking tussen weekdagen die de
+      MSPDI-lezer doet. Een resourcekalender die alleen via een toewijzing wordt gebruikt, met maandag 08:00 tot
+      16:00 en vrijdag 08:00 tot 12:00, krijgt geen taaksignaal (`readTasks`) en promoveert dus niet; haar enkelvoudige
+      werkdag komt van de eerste werkdag en toont de korte vrijdag niet. Door twee lezers in de code bevestigd, niet
+      met een bronbestand nagespeeld. Issue #1228. — B
 
 ## Bibliotheek, bezetting, extensies, AI
 
@@ -1820,6 +2012,42 @@ en noem het in je rapport of PR-tekst.
      taak verlengd zonder te rekenen; een batch hernoemde die taak en probeerde daarna een taak met een onbekend id te
      lezen. De batch gaf `NOT_FOUND` en de oude naam kwam terug, terwijl de berekende start van de opvolger van 11 naar
      16 maart ging. Zie ADR 0240. — B
+2330. **Een element in een pool dat geen object is, blijft staan en laat de vergelijking met de bibliotheek vastlopen.**
+     `normalizePoolShape` (`src/services/library/libraryOps.ts`) zorgt dat `calendars` en `resources` lijsten zijn,
+     maar laat een element dat geen object is (zoals `null`) erin staan; `readPoolIFC`
+     (`src/services/library/libraryIfc.ts`) laat zo'n element in `resources` ook door (`poolResourceFromFile` geeft het
+     ongewijzigd terug). Nagespeeld in een los script: `normalizePoolShape('c1', { calendars: [null], resources: [null] },
+     [])` geeft `{"calendars":[null],"resources":[null]}`; daarna gooit `diffCalendarVsPool` met een gestempelde
+     projectkalender (`libraryItemId: 'x'`) een `TypeError` (`Cannot read properties of null (reading 'id')`), en
+     `copyResourceToProject(pool, 'x', …)` ook. Nagespeeld met een zelfgemaakt IFC: een bestand met `null` in beide
+     lijsten komt door `readPoolIFC` en kan als bibliotheek worden toegevoegd (`PoolImportDialog` telt het element
+     mee); ook de normalisatie van opgeslagen bibliotheekgegevens houdt het. Het openen van een gekoppeld project gaf
+     daarna "Bestand openen mislukt", en vervangen met een gestempelde kopie in het actieve project gooide vóór de
+     publicatie. Niet in de browser nagespeeld. — B
+2331. **Een nieuwe bibliotheek met een naam van alleen bepaalde onzichtbare tekens krijgt die naam.** `addCompany`
+     (`src/state/slices/librarySlice.ts`) valt alleen terug op de standaardnaam als `name.trim()` leeg is, en de aanroep
+     in `ProjectInfoPanelContent.tsx` geeft `newCompanyName.trim()` mee. `trim()` laat bijvoorbeeld U+200B staan (U+FEFF
+     haalt het wel weg), dus zo'n naam komt er ongewijzigd in. `resolveUniqueCompanyName` (`libraryOps.ts`) toetst een geïmporteerde naam
+     daarom met `normalizeName` (ADR 0343). Nagespeeld via de store: `addCompany` bewaart een naam van alleen U+200B,
+     en de import kiest voor dezelfde invoer een standaardnaam. Of de rij in Backstage er dan leeg uitziet, is niet
+     nagegaan. — B
+2332. **Een projectbestand met een `companyId` als `constructor` laat het resourcepaneel vastlopen.** De poolimport
+     toetst een id uit een bestand (`isSafeFileCompanyId`, ADR 0340), maar *Bestand → Openen* en MCP
+     `planner_import_schedule` (`src/services/mcp/tools/fileTools.ts`) bewaren `project.companyId` uit het bestand
+     zonder die toets. `ResourcePanel.tsx` leest daarna `pools[project.companyId]`; bij `constructor` is dat een
+     geërfde eigenschap van het object, en het paneel loopt vast op `pool.resources.filter`. Nagespeeld met een
+     zelfgemaakt projectbestand, niet in de browser. Issue #1234. — B
+2333. **Een `null` in de werkblokken van een opgeslagen bibliotheekkalender zet het bewaren van de bibliotheek stil.**
+     `normalizePoolShape` (`src/services/library/libraryOps.ts`) gooit zelf bij een `null` in de werkblokken van de
+     eerste werkdag met blokken van een kalender (`workDayFromBlocks`); een `null` op een latere werkdag gooit daar niet. Bij het laden uit opslag blijft `libraryLoaded` dan onwaar, en `persistLibrary`
+     (`src/state/slices/librarySlice.ts`) slaat elke latere bewerking van de bibliotheek over bij het wegschrijven.
+     Bij importeren vertaalt de dialoog dezelfde fout naar "Dit IFC-bestand bevat geen resourcebibliotheek".
+     Nagespeeld met zelfgemaakte gegevens, niet met echte opslag via Tauri of IndexedDB. Issue #1235. — B
+2334. **Het versienummer van een bibliotheek kan vanaf 9007199254740992 blijven steken.** `normalizePoolShape` laat
+     zo'n `poolVersion` door, en `bumpPool` (`libraryOps.ts`) telt er 1 bij op; bij precies die waarde geeft dat
+     hetzelfde getal. `isPoolNewer`
+     vergelijkt dan alleen nog op `modifiedAt`. Nagespeeld met een los script; zo'n nummer komt alleen uit een
+     zelfgemaakt bestand. — B
 
 ## Bestanden en herstel
 
@@ -2492,12 +2720,19 @@ en noem het in je rapport of PR-tekst.
      (`/tmp/fase1b-v2-scope/echte-invoer/resultaten.json` op aia09-mp50, 11 november 2026). — B
 
 
-1570. **VERVOLG (#804, gemaakt geval): id-afleiding bij een `-dup-N`-object na crashherstel nog beproeven.**
-     PR 9a gebruikt de gewone bytes-route, zonder `idExceptions`: de echte keten met een in de app
-     toegevoegde resource, Opslaan als, verder bewerken, crashherstel en opnieuw Opslaan als behoudt
-     de GlobalId en het vreemde deel. Een geconstrueerd dubbel-GlobalId-geval (`-dup-N`) is niet
-     in die herstelketen gemeten. Alleen dit gemaakte geval blijft vervolg; geen claim van verlies
-     of van herstel van zulke id-uitzonderingen. — S
+2236. **VERVOLG (#804 fase 2, PR 11): main weigert de opslag na het verwijderen van de eerste houder van een gedeelde GlobalId.**
+     Gemeten in `check-recovery-gedeelde-globalids.ts` (deel 3): een bron met vier paren gedeelde GlobalIds in het eigen
+     deel; na het verwijderen van de eerste resource van een paar weigert de merge met `niet-gedragen`, in de sessie en
+     na herstel gelijk. Een ongewijzigde planning slaat letterlijk op (deel 1 en 6). Meer is niet gemeten. Ontwerp §4.3
+     wil dat de writer de tweede houder een nieuwe GlobalId geeft. Komt die opslag er, dan leidt de lezer uit de nieuwe
+     bron een ander id af dan het document draagt, en is het lijstje per bronversie uit §4.14 nodig (`idExceptions`, met
+     `pendingIdExceptions` in stap 0). Het eerste element van zo'n paar is het id waaronder het herstelde document het
+     object draagt: na PR 11 het id van de sessie bij een gedeelde GlobalId, en het van de GlobalId afgeleide id bij een
+     in de app gemaakte resource (proef 2 in `check-recovery-ifc-source.ts`). — B
+2237. **VERVOLG (#804, 9c): een MCP-backup draagt de koppeling van PR 11 niet.** De backup schrijft de planning met
+     dezelfde writer als de herstelsnapshot (`backupService.ts`), maar zonder `snapshotIdentities`: een object met een
+     gedeelde GlobalId komt bij terugzetten terug met het id van zijn nieuwe GlobalId, zoals op main. Wat de planner
+     daarvan merkt, is niet gemeten. 9c (knownbug 1575) kan de koppeling van `recoveryIdentity.ts` meenemen. — S
 1575. **VERVOLG (#804, 9c): een MCP-backup op het open document terugzetten met de actuele gebouwmodelbron.**
      §4.12/E31 blijft een eigen onderdeel 9c op de eindlijst, niet verplicht vóór de flag standaard aan mag.
      De backup bevat planning en een bronkenmerk, geen gebouwmodelbytes. De kleine stap 9d zet bij het openen
@@ -3037,9 +3272,9 @@ en noem het in je rapport of PR-tekst.
      ook in de oude lagindeling. Richting: die verschillende dagmaten in de bestaande regressie opnemen.
      Uit #892, review ronde 3 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
 
-1154. **VERVOLG: uitleg van de IFC-duurvormen loopt achter op de lezer.**
+1154. **VERVOLG: commentaar over de IFC-duurvormen loopt achter op de lezer.**
      `src/services/ifc/foreign/durationForms.ts` beschrijft nog afronding van seconden en de oude spelings- en
-     laginterpretatie. `docs/ifc-round-trip.md` zegt nog dat de lezer nergens spelingminuten afleidt. De lezer
+     laginterpretatie. De lezer
      leest tijdslots inmiddels exact; de conservatieve lijst zelf blijft veilig (1152). Richting: de uitleg
      bijwerken en het verschil tussen leesgedrag en de toegestane bronvormen voor schrijven toelichten.
      Uit #892, review ronde 3 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — S
@@ -3828,21 +4063,38 @@ en noem het in je rapport of PR-tekst.
      `getFile()` en lezen. Gevonden door de review van #1174 (Sol, ronde 1). — S (niet nagespeeld met een echte
      Chromium-handle)
 
-2244. **VERVOLG (#804, featureflag aan): opslaan na een wijziging van een bestand met een gebouwmodel en veel taken
-     duurt lang, en de tijd groeit sneller dan het aantal taken.** Het gaat om de gewijzigde merge: een bestand met een
-     gebouwmodel openen, een taak wijzigen en opslaan. Gemeten in Node op aia09-mp50 (24 november 2026, wandkloktijd,
-     één run per regel, op main van die dag) met `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` waaraan gewone taken
-     zijn toegevoegd: bij 1.000 taken (1,2 MB) 7,0 s, bij 5.000 taken (5,8 MB) 55,8 s, bij 10.000 taken (11,9 MB)
-     147,6 s. Openen van dat laatste bestand kost 4,3 s. Met één onbekende JSON-sleutel per taaknotitie: 5,8 s bij 1.000
-     en 183,1 s bij 5.000 taken. De metingen bij 1.000 en 5.000 taken liepen terwijl de machine zwaar belast was (load
-     20 tot 36); die bij 10.000 taken bij een load rond 3. Een eerdere run van 10.000 taken onder zware belasting kwam
-     op 513,8 s. Niets hiervan is in rust of in CPU-tijd gemeten, en niet in de app zelf (de opslag-Worker). Welke stap
-     sneller groeit dan het aantal taken, is nog niet uitgezocht. Er gaat niets verloren; de opslag slaagt. Met de
-     flag uit, en bij een planning zonder gebouwmodel of gegevens van een ander programma, loopt deze route niet.
-     Besluit technisch beslisser (24 november 2026): dit hoort bij de voorwaarden voordat de flag standaard aan mag;
-     opslaan na een wijziging mag bij 10.000 taken niet meer dan enkele seconden kosten, en een kwadratische stap is
-     een bug, geen grens. Gezien door de bouwer van #1188 bij het meten van die PR. — S (gemeten door de bouwer,
-     meetlogs `opslag-main-1k.log`, `opslag-main-5k.log` en `opslag-main-10k-rustig.log` van #1188; niet nagemeten)
+2244. **VERVOLG (#804, featureflag aan): opslaan na een wijziging van een bestand met een gebouwmodel kost bij veel
+     taken nog ongeveer 20 tot 25 keer een gewone opslag.** Het gaat om de gewijzigde merge: een bestand met een
+     gebouwmodel openen, een taak wijzigen en opslaan. Gemeten in Node op aia09-mp50 (24 november 2026, CPU van de
+     hoofdthread, onder het gedeelde slot) met `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` plus gewone taken en
+     één gewijzigde taaknaam, bij 1.000 / 2.000 / 5.000 / 10.000 taken: vóór #1210 6,9 / 13,3 / 46,0 / 136,8 s, na #1210
+     5,6 / 10,2 / 23,8 / 47,0 s. De gewone writer schrijft dezelfde planning in 0,18 / 0,39 / 0,91 / 1,9 tot 2,5 s.
+     #1210 haalde de stappen weg die sneller groeiden dan het aantal taken (een opzoeking door alle taken of door een
+     hele lijst per taak of per lid); in de gemeten gevallen (een naamswijziging bij 1.000 tot 10.000 taken, veel
+     feestdagen in één kalender, lags in uren, gemengde toewijzingen met twee leden per relatie) groeit het werk
+     sindsdien ongeveer lineair, en de uitvoer is byte voor byte die van main.
+     Wat overblijft is lineair werk dat vaak gebeurt: de merge schrijft, leest en vergelijkt de hele planning ongeveer
+     twintig keer (vijf keer de merge-writer, vier keer de canon-writer, drie keer de lezer, zes keer paren, drie keer
+     vergelijken en twee keer openen in een store). Besluit technisch beslisser (24 november 2026): dit hoort bij de
+     voorwaarden voordat de flag standaard aan mag; opslaan na een wijziging mag bij 10.000 taken niet meer dan enkele
+     seconden kosten. Die voorwaarde blijft open tot het aantal volledige rondes omlaag is; dat is een ontwerpstap, geen
+     losse bug. Er gaat niets verloren; de opslag slaagt. Met de flag uit, en bij een planning zonder gebouwmodel of
+     gegevens van een ander programma, loopt deze route niet. Alleen gelezen, niet gemeten, met hetzelfde patroon: in
+     `mergeWriter.ts` `parent.childIds.filter(id => !s.includes(id))` bij een gemengde `IfcRelNests` onder een eigen
+     taak en `lines.find` per vreemd lid van een eigen template; in `lossCheck.ts` `candidates.filter` en
+     `candidates.find` in `pairRelations` per relatie met dezelfde sleutel, en `[...p1.out.values()].find` in
+     `bareKeyInWriterForm` per teruggezette kale sleutel in `OPS_Assignments`. Uit de review van #1210 (ronde 1),
+     nog open: (a) één gemengde `IfcRelAssignsToProcess` met veel verschillende resources op één taak blijft
+     kwadratisch (`count(s, id)` en `count(domainRes, id)` per id en de volgordetoets met `s.includes(id)` in
+     `mergeWriter.ts`: 1.000.000 vergelijkingen bij 1.000 resources, 4.000.000 bij 2.000; stond zo op main);
+     (b) de IFC-lezer bouwt sinds #1210 bij `lagCalendar = projectDefault` een takenindex die hij niet gebruikt, ook
+     met de flag uit (één taakvergelijking op main, 2.000 indexeringen bij 2.000 taken; dezelfde leesuitkomst, de
+     doorlooptijd is niet gemeten), en `sourceFormWhereUnchanged` indexeert ook als er geen geconverteerde velden zijn;
+     (c) `src/utils/firstById.ts` doet hetzelfde als de private functie in `taskTree.ts`, die kan vervallen;
+     (d) de werkproef `check-ifc-foreign-werk.ts` telt voor `includes`, `indexOf` en `shift` de hele lijstlengte, dus
+     haar verhoudingen zijn een schatting van lijstwerk, geen telling van bezochte elementen. — S (gemeten in #1210
+     met de meetscripts van de meting van knownbug 2244, mediaan van twee runs per grootte; niet in de app of in de
+     opslag-Worker gemeten)
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
@@ -3900,7 +4152,40 @@ en noem het in je rapport of PR-tekst.
      Route in een proef van de reviewer (GPT-6.2-Sol, review van #1170): gedeeltelijk herstel (`holdWeb` houdt de hele
      generatie vast, ook de herstelde versie), doorwerken aan dat document, en bij de volgende herstelvraag uitstellen; daarna
      kwamen de oude IFC-bytes terug. `check-recovery-web-hold.ts` toetst bij een dubbel document alleen dat het één keer
-     verschijnt, niet welke versie. — B
+     verschijnt, niet welke versie. Ook gezien in een tussenversie van `check-recovery-identiteit-reeksen.ts` (#1198, reeks 17:
+     twee keer `holdRecoveryForLater` met hetzelfde open document); de definitieve proef eist het eigen herstel daarom
+     alleen bij de laatst geschreven versie. — B
+
+2314. **Bekende grens (#804, flag aan): de toets van het crashherstel bewijst alleen wat de writer schrijft.** Het herstel
+     aanvaardt een koppeling van identiteiten (`snapshotIdentities`) alleen als het herstelde document, opnieuw
+     geschreven, byte voor byte de gelezen snapshot oplevert (`rewritesSnapshot`, `src/state/readRecoveryDocument.ts`).
+     Velden die de writer niet schrijft of zelf afleidt, ziet die vergelijking niet: `Task.parentId` (de writer nest via
+     `childIds`), `Task.resourceIds` (afgeleid uit de toewijzingen), de toewijzings-id's (ontstaan bij elke lezing) en
+     een bewaarde GlobalId die de writer toch afleidt. De proef verschuift ze met de hand: van 313 verschuivingen
+     aanvaardt de toets er 51 (`check-recovery-gedeelde-globalids.ts`, deel 13). De hernoeming van vandaag schrijft geen van deze
+     velden, dus er is geen aangetoonde route naar verlies. Gaat de hernoeming later meer velden aanpassen, dan hoort
+     daar eerst een gerichte proef via de gewone herstelroute bij. Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B
+     (proef 13 en de code)
+2315. **Bekende grens (#804, flag aan): het crashherstel valt in drie gevallen terug op het herstel van main, terwijl de
+     koppeling bruikbaar was.** Het document blijft heel; alleen een object met een gedeelde GlobalId (een
+     `-dup-N`-object) krijgt dan de identiteit die main bij herstel geeft, zoals vóór #1198. (1) Na het toevoegen en
+     toewijzen van een resourcekalender: de lezer zet kalenders met toewijzingen vóór kalenders zonder, en leest de
+     nieuwe kalender terug als `rescal-ifc-…` waar de sessie `cal-…` gebruikte; de writer gebruikt dat id in
+     hulp-GlobalIds, dus de bytes verschillen en de hele tabel vervalt. (2) Een snapshot in de stand "Datums zoals
+     opgeslagen" (rekenslots als `$`, of `recordedSourceFormat`): de toets bouwt de schrijfinvoer vóór de stap die die
+     stand activeert (langs de code gevolgd, niet gedraaid). (3) Een snapshot waarvan `FILE_NAME` en
+     `IFCOWNERHISTORY` aan weerszijden van een secondegrens zijn geschreven: de writer leest de klok twee keer en de
+     toets gebruikt de seconde uit de kop voor beide. Richting: één tijdstip voor beide velden bij het schrijven van
+     een snapshot; voor (1) en (2) een vergelijking die objecten en hun verbindingen bewaakt in plaats van bytes.
+     Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B (proef van de reviewer voor 1 en 3; 2 uit de code)
+2316. **Bekende grens (#804, flag aan): een beschadigde lijst identiteiten zonder één rij wordt deels toegepast.** De
+     toets van het crashherstel verwerpt elke rij die het herstelde document oplevert en die niet in de lijst staat,
+     maar eist niet dat de lijst volledig is (een verwijderde houder laat terecht een rij minder achter). Met één
+     taakrij met de hand uit acht geldige rijen gehaald, bij dezelfde IFC en SHA-256, aanvaardt de toets de overige
+     zeven; de taak zonder rij houdt de GlobalId uit de snapshot, zoals op main. De gewone schrijfroute laat geen rij
+     weg (de writer telt de oorspronkelijke houders en neemt elke uitgegeven rij mee met haar upsert). Richting: een
+     integriteitscontrole over de lijst zelf. Review van #1198 ronde 4 (GPT-6.2-Sol, xhigh). — B (proef van de
+     reviewer)
 
 2209. **VERVOLG (#1182): de verliescontrole kent de oude lay-outs los van de slottabellen.** `alignment` in
      `src/services/ifc/foreign/lossCheck.ts` legt zelf vast hoe een regel in een oude eigen lay-out op de uitvoer past
@@ -3936,6 +4221,67 @@ en noem het in je rapport of PR-tekst.
       werk van een toewijzing. Of een schrijver met `P2D` twee werkdagen of 48 uur bedoelt, en of zo'n schrijver bestaat,
       is niet nagegaan; daarvan hangt af of 2880 minuten klopt. — B
 
+2011. **Een veld dat op een MSPDI-taak ontbreekt, kan de lezer uit een genest element halen.** `getElementText` in
+      `src/services/msproject/mspdiReader.ts` neemt het eerste element met die naam ergens onder de taak
+      (`descendantText`), ook binnen `<PredecessorLink>` of `<Baseline>`. Nagespeeld met een script via `readMSPDI`, en
+      in de review van #1200 ook via `parseOpenedFile`: een taak zonder `<Type>` met een `<PredecessorLink>` met
+      `<Type>2</Type>` krijgt `mspTaskType` `FIXED_WORK`, en een taak zonder `<Duration>` met een `<Baseline>` met
+      `<Duration>PT40H0M0S</Duration>` krijgt 2400 minuten. Volgens die review maakt het MSPDI-schema `<Type>` en
+      `<Duration>` op een taak optioneel, dus geldige XML van een andere schrijver kan dit raken; of MS Project zelf die
+      velden weglaat, is niet nagegaan. Welke andere velden zo kunnen verschuiven, ook niet. — B
+2249. **VERVOLG (#1199): de melding bij het wissen komt alleen bij taken en resources.** `notifyForeignLinksDropped`
+      (`src/state/foreignLinksNotice.ts`) hangt aan `deleteTask`, `deleteTasksBulk`, `dissolveTasksBulk`,
+      `removeResource` en Opnieuw van zo'n stap. Wist de planner een relatie (`removeSequence`) of een kalender (de
+      kalenderdialoog), of wist hij via MCP, het IFC-paneel of een extensie, dan hoort hij pas na het opslaan hoeveel
+      gegevens van een ander programma zijn aangepast of verwijderd (`notifyForeignChangesWritten`). Gezien in de code;
+      `check-ifc-document-save.ts` toetst voor die routes alleen de melding na het opslaan. Opnieuw (Ctrl+Y) geeft elke
+      herstelde undo-stap door aan dezelfde teller: wist de planner een losse gekoppelde relatie of wiste hij via MCP
+      (`planner_delete_tasks`), dan komt er bij die eerste wissing geen wismelding, maar na Ctrl+Z en Ctrl+Y alsnog wel,
+      als die stap een stuk van een ander programma laat vervallen (gezien in de code door de reviewer van #1199,
+      ronde 6; niet nagespeeld). Richting: dezelfde aanroep in `removeSequence` en `commitCalendarLibrary`. — S
+2250. **VERVOLG (#1199): Ctrl+Z na het opslaan, of tijdens het opslaan na de momentopname, brengt de taak terug, niet
+      de koppeling van het andere programma.** Na het opslaan is `ifcSource` de uitvoer zonder de vervallen stukken, en
+      undo zet de bron niet terug (documentveld zonder momentopname). Een opslag die haar momentopname al had, schrijft
+      en commit die uitvoer ook als de planner intussen Ctrl+Z drukt. De wismelding heeft in deze PR geen knop (die komt
+      in PR 7); Ctrl+Z op het toetsenbord werkt wel. De melding na het opslaan
+      zegt dat de gegevens zijn aangepast of verwijderd, maar niet dat Ctrl+Z ze niet terugbrengt. Richting: PR 7 van #804 (`detached`, de soort *teruggezet*) bewaart de oude bytes van
+      de wijzigingslijst en kan ze bij undo terugzetten. Afgeleid uit de code, niet nagespeeld. — S
+2251. **Veel taken wissen in een bestand met een gebouwmodel, en dan opslaan, weigert met `planning-na-openen`.** Met
+      de flag *IFC met gebouwmodel openen* aan: een gegenereerde planning van 10.000 taken
+      (`generateBenchmarkProject(10_000, { seed: 0x5eed })` via `writeIFC`, met één `IfcWall` erbij en geen koppeling),
+      5.000 bladtaken wissen met `deleteTasksBulk` en dan `prepareIfcWrite`: de merge weigert met
+      `planning-na-openen`, `taak bm-top-16.time.lateStart: "2028-07-04T07:00" → "2030-11-26T07:00"`. Eén bladtaak
+      wissen schrijft wel. Nagespeeld met een script op main `ee9281b5d` en op de branch van #1199, met dezelfde
+      uitkomst; het komt dus niet uit #1199. Op die branch weigert het ook na `runCPM` (F5), met een koppeling erbij; of
+      main na F5 ook weigert, is niet nagegaan. Vermoeden: de geschreven late datum van een samenvattingstaak en wat het
+      heropenen ervan maakt, lopen uiteen als veel kinderen weg zijn. — B
+2357. **VERVOLG (#1199): de telling na het opslaan is een gewone melding, en de planner kan haar missen.** Elke geslaagde
+      schrijfactie met een niet-lege wijzigingslijst meldt haar eigen telling met de naam van het geschreven bestand
+      (`notifyForeignChangesWritten` in `src/state/foreignChangesWrittenNotice.ts`, een blijvende info zoals
+      `notifications.siteSaveConflictCopy`). Ze deelt de grenzen van de meldingen van main:
+      - de telling is weg na herladen in de browser, na een crash, na een herstart door de updater en na afsluiten, als de
+        planner haar nog niet las; het bestand is dan al zonder de vervallen gegevens geschreven;
+      - bij meer dan drie meldingen tegelijk verdringt de stapel volgens de regels van main (knownbug 2253); een telling
+        kan zo een andere melding verdringen of zelf verdrongen worden;
+      - de planner krijgt de telling in het venster waarin hij opsloeg; een tweede venster toont haar niet;
+      - in de browser kent de app de map van een bestand niet: twee bestanden met dezelfde naam in verschillende mappen
+        krijgen dezelfde regel als hun aantal gelijk is (de desktop-app noemt het volledige pad).
+      Dit is een voorwaarde voor het standaard aanzetten van de flag *IFC met gebouwmodel openen*: de planner mist de
+      telling van een opslag niet. De richting is een keuze van de eigenaar: vragen vóór het schrijven, of de uitkomst
+      duurzaam vastleggen en opnieuw tonen. Knownbug 2250 blijft staan. Besluit technisch eigenaar bij het opknippen van
+      #1199 (fixronde 3).
+
+      De waarschuwing bij het wissen (`notifyForeignLinksDropped` in `src/state/foreignLinksNotice.ts`) is ook een gewone
+      melding: een info van main zonder knop, met het aantal van die ene wisstap. Ze deelt dezelfde grenzen. Staan er al
+      drie meldingen open, dan kan ze ontbreken: het meldingenkanaal van main bepaalt welke melding plaatsmaakt. Zijn
+      het drie schrijffouten of drie tellingen van eerdere opslagen, dan haalt de stapel de wismelding meteen weer weg
+      en ziet de planner haar niet; staat er een gewone info of een passende weigering tussen, dan wijkt die en blijft
+      de wismelding zichtbaar. Het opslaan laat de gegevens in beide gevallen vervallen.
+      Ze verdwijnt na de gewone tijd van main en hangt alleen aan het wissen van taken en resources
+      (knownbug 2249). De knop *Ongedaan maken* komt in PR 7 (`detached`). Dit is de twaalfde voorwaarde voor het
+      standaard aanzetten van de flag: de planner mist de waarschuwing bij het wissen niet en kan vanuit die waarschuwing
+      ongedaan maken. Besluit technisch eigenaar, 25 november 2026 (fixronde 5). — S
+
 2303. **De P6 XML-lezer rekent de eenheden van een materiaaltoewijzing om alsof het uren zijn.** In de toewijzingslezer
       van `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) worden `PlannedUnits`, `ActualUnits` en `RemainingUnits`
       voor elke soort resource keer 60 genomen en aan `importedWorkFields` gegeven; wijken ze af van de afgeleide, dan
@@ -3962,6 +4308,40 @@ en noem het in je rapport of PR-tekst.
       `childIds` van de ouder in de documentvolgorde. Nagespeeld met een script via `readP6XMLDocuments`: onder WBS `R`
       staan in het bestand eerst `A` (`SequenceNumber` 2) en dan `B` (`SequenceNumber` 1); de takenlijst geeft `R, B, A`,
       `childIds` van `R` geeft `A, B`. Welke delen van de app de volgorde uit `childIds` halen, is niet nagegaan. — B
+
+2310. **Een `.mpp`-kalender die op een half uur begint, wordt een uurkalender door een taak op dat halve uur.**
+      `mppAnchorClock` (`src/services/mpp/mppReader.ts`) maakt het anker uit `workStartHour` als heel uur, en
+      `mppCalendars.ts` zet dat bij één blok per dag op het hele uur eronder (`Math.floor`). In een proef kreeg een
+      kalender met één blok vanaf 07:30 bij `readMPP` ankeruur 7: een taak om 07:30 gaf in `readTasks` het signaal van
+      `hasNonAnchorTime`, de kalender werd een uurkalender en de taak hield 07:30. Met een blok vanaf 07:00 hield de
+      taak alleen de datum. De promotie bewaart hier de tijd uit het bestand; een nadeel voor de planner is niet
+      vastgesteld. — B
+
+2312. **Zonder `RESUME` begint het restwerk van een `.mpp`-toewijzing direct na haar verrichte werk.**
+      `computeShiftedAssignmentPeriods` (`src/services/mpp/mppReader.ts`) schuift de resterende periodes van een
+      toewijzing waarvoor de decoder minstens één werkelijke periode oplevert naar haar `RESUME` als `CalendarEngine.isHourMode`
+      waar is, en zonder `RESUME` of bij een onware `isHourMode` naar het einde van haar laatste verschoven werkelijke
+      periode. Dat geldt voor splits en contouren. In een proef met een taakstart om 08:00 en een
+      toewijzingsstart om 09:00 begon het restwerk zonder `RESUME` op taakminuut 180, en met een hervatting op de
+      volgende werkdag op minuut 480. Volgens het weggehaalde commentaar heeft die terugval geen steun in MPXJ
+      (`AssignmentField.RESUME` heeft daar geen standaardplek in de veldkaart). Wat MS Project bij een ontbrekend
+      `RESUME` doet, is niet getoetst. — B
+
+2313. **Een `.mpp`-taak wandelt ook over een resourcekalender waarvan feestdag en werkende uitzondering elkaar bij de
+      opgeslagen duur opheffen; of het einde na een duurwijziging klopt met MS Project, is onbekend.**
+      `calendarDiffersIncludingExceptions` (`src/services/mpp/mppReader.ts`) telt zo'n kalender als afwijkend (als beide kalenders `workTime` hebben), dus bij
+      één kandidaat levert `deriveTimephasedWindowsForTasks` een wandeling over de resourcekalender (ADR 0288). In een
+      proef met een vrije dinsdag en een werkende zaterdag gaf 4800 minuten op beide kalenders hetzelfde einde; bij 960
+      en 1920 minuten eindigde de resourcekalender één werkdag later. Volgens het weggehaalde commentaar gebeurt dat in
+      `mpp14timephasedsegments(manual).mpp` ("Task Seven", "Task Eight"). Het corpus heeft geen uitkomst van MS Project
+      voor een bewerkte duur. — B
+
+2317. **Een resourcekalender die alleen in de werktijden van een werkende uitzondering afwijkt, geeft een `.mpp`-taak
+      met één toewijzing geen wandeling.** `calendarDiffersIncludingExceptions` (`src/services/mpp/mppReader.ts`)
+      vergelijkt alleen als beide kalenders `workTime` hebben, en dan de weekblokken en de datumbereiken van feestdagen en
+      werkende uitzonderingen, niet de blokken binnen een werkende uitzondering. In een proef met één werkresource, dezelfde uitzonderingsdatum en een latere start
+      op die dag gaf de vergelijker `false`; dezelfde 120 werkminuten eindigden op de twee kalenders om 10:00 en 12:00.
+      De lezer levert dan voor die taak geen wandeling. Of MS Project daar over de resourcekalender plant, is niet nagegaan. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -4162,6 +4542,54 @@ en noem het in je rapport of PR-tekst.
      weer in dezelfde verwerking belanden, en is *Verwerpen* niet bereikbaar. Geen gevolg van PR #1127. Bevestigd via de
      code en de echte herstelcallback (reviewer van #1127); een processtop is niet opgewekt. — B (code en proef van de
      reviewer; geen processtop nagespeeld)
+
+2212. **Ctrl+S naar een bestaand IFC met een UTF-8-BOM weigert met de flag aan (#804).** Sinds fixronde 1 van #1184 opent
+     een IFC met een BOM vóór de kop met de flag `ifcForeignContent` aan (de scanner en de oude-kopherkenning van de
+     C/A/V-scan slaan een BOM op byte 0 over); main weigerde het openen. De doelcontrole houdt bewust de uitkomst van main:
+     een bestaand doel dat met een BOM begint en geen model heeft, is 'unreadable' (`targetForeignScan.ts`, `targetOf`),
+     want anders zou de gewone schrijver (zonder BOM) een bestand overschrijven dat main liet staan (review van #1184
+     ronde 2). Daardoor weigert Ctrl+S van een geopend gewoon document met BOM naar zijn eigen bestand
+     (`documentTargetCheck` → `refusedWriteTarget`, regel 2, melding "onleesbaar doel"); Opslaan als naar een nieuwe naam
+     gaat wel. Met de flag uit verandert er niets. Richting: het eigen bestand van het document met dezelfde lengte en
+     SHA-256 als de geopende bron als doel toelaten, en de BOM bij de gewone schrijver bewaren. Voorwaarde voor standaard
+     aan. — B (code en de proef van de doelcontrole, `check-ifc-foreign-target.ts` 9c; Ctrl+S zelf niet nagespeeld)
+
+2231. **VERVOLG, zo op main: opslaan weigert in "datums zoals opgeslagen" met `planning-na-openen` (#804, flag aan).**
+     Reproductie (review van #1184 ronde 2): het eigen IFC-voorbeeld, met de gewone writer geschreven met MSPDI-herkomst
+     (`OPS_ImportProvenance.SourceFormat`), één wand erbij, en opgeslagen vroege datums van `Set up site` die afwijken van
+     de berekening. Met de flag aan opent de app alle 20 taken in "datums zoals opgeslagen"; Ctrl+S zonder bewerking geeft
+     `notifications.ifcForeignMergeRefused` en schrijft nul bytes. De gedeelde schrijfroute geeft `planning-na-openen`, met
+     een verschil in `earlyStart` van `2027-05-06T07:00` naar `2027-05-07T07:00`. Gelijk op main en op de PR, met en
+     zonder `importPristine`; zonder datumafwijking geeft de merge de bron byte-gelijk terug. Plekken:
+     `src/state/documentActivation.ts` (`recordedDatesSource`), `src/state/ifcSaveInput.ts` (`buildWriteIFCInput`),
+     `src/state/ifcMergePlanning.ts` (`openMergePlanning`), `src/services/ifc/foreign/mergeWriter.ts` (de controle na
+     openen), `src/state/slices/fileSlice.ts` (`prepareAppIfcWrite`). Richting van de reviewer: geef de twee kanten van de
+     heropening gelijkwaardige informatie over de opgeslagen datums en behoud de vergelijking. Geen voorkomend exemplaar
+     in het onbewerkte corpus. Review van #1184 ronde 2 (GPT-6.2-Sol, xhigh). — B (proef van de reviewer)
+
+2219. **VERVOLG (review van #1184): de geheugenpiek van `openIfcBytes` bij een groot IFC is niet gemeten (#804).**
+     `openIfcBytes` (`src/core/index.ts`) maakt eerst een eigen kopie van zijn invoer (het publieke pakket moet een
+     buffer bezitten die de afnemer niet meer wijzigt). Daarna houdt het tegelijk het werkgeheugen van de scanner, de
+     indeling en de lezer vast, en bij `toIfcBytes()` dat van de merge en de uitvoer; de kern kopieert de uitvoer alleen als
+     de merge de bronbuffer zelf teruggeeft. Bewaart de bytes-route niets, dan leest de tekstroute dezelfde bytes daarna
+     nog eens (zie de vervolglijst van #1184). De scan stopt bij 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`). Niet gemeten:
+     piek en herstel bij een groot model. De HTTP-API gebruikt `openIfcBytes` niet. Review van #1184 ronde 1 (GPT-6.2-Sol,
+     xhigh). — S
+2252. **De headless kern: `openIfcBytes` kan een bestand met vreemde inhoud anders lezen dan `openIfc` (#804).**
+     Bewaart de bytes-route een vreemd deel, dan leest `openIfcBytes` (`src/core/index.ts`) het bestand volgens de regels
+     van de app voor zulke bestanden (de app met de flag `ifcForeignContent` aan); `openIfc` volgt de tekstroute van main.
+     Voor dezelfde bytes kan dat een andere planning geven. Vier voorbeelden uit de reviews van #1184:
+     (1) `examples/01-grachtenpand-amsterdam.ifc` met een leeg eigen werkschema, een baseline en één losse taak: de
+     tekstlezer leest 52 taken en einde `2028-01-12T16:00`, de bytes-route één taak en `2027-03-05T16:00`, omdat de regel
+     voor een leeg eigen werkschema de baselineboom uitsluit; (2) de woningfixture uit
+     `tests/planning/fixtures/projectnaam-in-settings/` met een externe pset aan het project: de tekstlezer neemt de
+     projectnaam uit `IfcProject`, de bytes-route uit `OPS_ProjectSettings`; (3) dezelfde woning met de naam gelijk en
+     een andere `ProjectDescription` in `OPS_ProjectSettings`; (4) het voorbeeld met een tweede `OPS_ProjectSettings` aan
+     een vreemde pset: de tekstlezer leest haar `CreatedAt`, de bytes-lezer niet. De HTTP-API gebruikt alleen de
+     tekstroute, dus daar speelt dit niet; een latere terugval naar de bytes-route in de API moet er wel rekening mee
+     houden. Richting: de lezing van de bytes-route en de tekstlezer voor bestanden met vreemde inhoud gelijktrekken.
+     Review van #1184 ronde 4, 5 en 6 (GPT-6.2-Sol, xhigh). — B
+2258. **Een IFC met meer dan 4 KiB witruimte of commentaar na `END-ISO-10303-21;` wordt als afgekapt geweigerd (zo op main).** De lezer zoekt de sluitmarkering alleen in de laatste 4096 tekens (`TERMINATOR_PROBE` in `src/services/ifc/ifcReader.ts`). Staat daarna meer witruimte of commentaar, dan meldt hij "afgekapt" (reden `truncated`; via de headless API 422 `IFC_READ_FAILED`), terwijl het bestand volledig is. Gevonden bij #1184 met een bestand met 5000 spaties na de sluitmarkering; op main is het gedrag hetzelfde. Richting: van achteren af witruimte en commentaar overslaan vóór de toets op de sluitmarkering, zonder het hele bestand te doorzoeken. — B
 
 
 
@@ -5196,6 +5624,17 @@ en noem het in je rapport of PR-tekst.
       plek; een handmatige actie gaat alleen voor op wat nog niet begon; geen vastgehouden rij tijdens de
       schrijftoestemming), met de proeven van alle drie de rondes als bewaking. Of die regel dan houdt, is niet
       bewezen. — S
+
+2254. **VERVOLG (#804 fase 2, PR 11, testdubbel): de IndexedDB-dubbel draait een afgebroken transactie niet terug.**
+     In `tests/planning/fakeRecoveryIndexedDb.ts` past `put` een record meteen toe, en `abort` roept alleen `onabort`
+     aan. Een echte IndexedDB schrijft bij een fout in dezelfde transactie niets. Faalt in de dubbel de manifestschrijf
+     ná de snapshotrecords, dan staan die records er toch: een gemengde toestand die in de browser niet kan bestaan. Een
+     browserproef met een schrijffout halverwege een ronde kan daardoor onterecht rood worden (een toestand die A nooit
+     maakt), of groen terwijl ze alleen laat zien dat de leestoets die gemengde toestand afwijst, niet dat de opslag
+     klopt. `check-recovery-identiteit-reeksen.ts` bootst het terugdraaien zelf na (een kopie van de opslag bij het begin
+     van elke schrijftransactie); deel 9 van `check-recovery-gedeelde-globalids.ts` laat de fout afgaan bij de eerste
+     put, vóór er iets veranderd is. Fouten die alleen bij echte asynchrone verzoeken, commit of herstart zichtbaar
+     worden, dekt de dubbel niet. — B
 
 ## Wensen en open taken (geen bug)
 

@@ -75,7 +75,7 @@ function isDigit(c: number): boolean {
 }
 /** Witruimte en commentaar overslaan: de lezer strippt commentaar vóór hij entiteiten leest, dus
  *  `#1= IFCTASK /* x *\/ (…);` is daar een gewone entiteit. */
-function skipBlank(b: Uint8Array, i: number): number {
+export function skipBlank(b: Uint8Array, i: number): number {
   const n = b.length;
   for (;;) {
     while (i < n && isSpace(b[i])) i++;
@@ -89,7 +89,7 @@ function skipBlank(b: Uint8Array, i: number): number {
  * dan de index direct erna; anders -1. Niet afgesloten: tot het einde. Spiegel van
  * `skipQuotedOrComment` in `ifcReader.ts`, op bytes.
  */
-function skipQuotedOrComment(b: Uint8Array, i: number): number {
+export function skipQuotedOrComment(b: Uint8Array, i: number): number {
   const n = b.length;
   const c = b[i];
   if (c === CH_QUOTE) {
@@ -629,6 +629,10 @@ function skipQuotedOrCommentStrict(b: Uint8Array, i: number): number {
   }
   return -1;
 }
+export function utf8BomLength(b: Uint8Array): number {
+  return b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf ? 3 : 0;
+}
+
 /** Witruimte en commentaar overslaan; gooit bij commentaar zonder einde. */
 function skipBlankStrict(b: Uint8Array, i: number): number {
   const n = b.length;
@@ -810,7 +814,7 @@ export function scanStep(bytes: Uint8Array): StepIndex {
   let lastIsEnd = false;
   let pending = 0;
   let firstData = true;
-  let i = 0;
+  let i = utf8BomLength(b);
   for (;;) {
     i = skipBlankStrict(b, i);
     if (i >= n) break;

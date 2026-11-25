@@ -64,6 +64,7 @@ import { planTaskCellEdits } from '@/engine/taskGrid/taskEditPlan';
 import { buildProgressImportPlan } from '@/services/progressImport';
 import type { ProgressConflictChoices, ProgressImportPlan, ProgressOverrides, ProgressRow } from '@/services/progressImport';
 import type { ProgressPlanDeps } from '@/services/progressImport';
+import { notifyForeignLinksDropped } from '../foreignLinksNotice';
 
 export interface PhaseAssignmentOptions {
   phaseAssignments?: PhaseAssignmentMode;
@@ -618,7 +619,7 @@ function finishStructural(get: () => AppState, outcome: StructuralOutcome): void
   if (outcome.assignmentsMoved) get().recomputeResourceLoad();
 }
 
-export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, get) => {
+export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, get, store) => {
   let pendingPhaseChoice: ((choice: PhaseAssignmentChoice) => void) | null = null;
   let recheckPhaseQuestion: (() => PhaseAssignmentQuestion | null) | null = null;
   const askPhaseAssignments: AskPhaseAssignments = (question, onChoice, recheck) => {
@@ -957,7 +958,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
   },
 
   deleteTask: (id) => {
-    const { viewRows: rowsBefore, selectedTaskIds: selectedBefore, ui: { gridActiveRowKey } } = get();
+    const before = get();
+    const { viewRows: rowsBefore, selectedTaskIds: selectedBefore, ui: { gridActiveRowKey } } = before;
     set((s) => {
       const task = s.tasks.find(t => t.id === id);
       if (!task) return;
@@ -968,6 +970,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     });
     get().recomputeViewRows();
     set((s) => { selectNeighbourAfterRemoval(s, rowsBefore, selectedBefore, gridActiveRowKey); });
+    notifyForeignLinksDropped(store, before, before.nextHistorySequence);
   },
 
   deleteTasksBulk: (ids) => {
@@ -978,7 +981,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       return;
     }
 
-    const { viewRows: rowsBefore, selectedTaskIds: selectedBefore, ui: { gridActiveRowKey } } = get();
+    const before = get();
+    const { viewRows: rowsBefore, selectedTaskIds: selectedBefore, ui: { gridActiveRowKey } } = before;
     set((s) => {
       const existing = new Set(s.tasks.map((task) => task.id));
       const roots = frozen.filter((id) => existing.has(id));
@@ -990,13 +994,15 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     });
     get().recomputeViewRows();
     set((s) => { selectNeighbourAfterRemoval(s, rowsBefore, selectedBefore, gridActiveRowKey); });
+    notifyForeignLinksDropped(store, before, before.nextHistorySequence);
   },
 
   dissolveTasksBulk: (ids) => {
     const existing = new Set(get().tasks.map(task => task.id));
     const known = ids.filter(id => existing.has(id));
     if (known.length === 0) return;
-    const headerOnly = get().ui.dissolveSummaryMode === 'header';
+    const before = get();
+    const headerOnly = before.ui.dissolveSummaryMode === 'header';
     const refused: string[] = [];
     set((s) => {
       runtime.beginUndoable(s);
@@ -1025,6 +1031,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true });
     });
     get().recomputeViewRows();
+    notifyForeignLinksDropped(store, before, before.nextHistorySequence);
     if (refused.length > 0) {
       get().notify(refusalNotice({
         messageKey: 'notifications.relationsSkippedOnDissolve',
