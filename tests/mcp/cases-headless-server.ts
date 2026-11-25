@@ -1013,12 +1013,15 @@ test('A eigenschap (1136 ronde 3): elk slot uit de slottabel met een waarde van 
       const fresh = [...filesBelow(backups).keys()].filter(p => !before.has(p));
       const envelope = edited.s.envelope ?? {};
       if (edited.isError) broken.push(`${label}: de taakwijziging faalt (${edited.s.code} ${String(edited.s.error).slice(0, 120)})`);
-      else if (envelope.backupWithheld) {
-        if (fresh.length > 0 || envelope.backupCreated) broken.push(`${label}: backupWithheld, maar toch ${fresh.length} nieuw bestand in de back-upmap`);
-      } else if (fresh.length === 1 && envelope.backupCreated) {
+      else if (stand === 'stand 3') {
+        if (!envelope.backupWithheld || envelope.backupCreated || fresh.length > 0) {
+          broken.push(`${label}: stand 3, backupWithheld ${envelope.backupWithheld ? 'ja' : 'nee'}, ${fresh.length} nieuw bestand in de back-upmap`);
+        }
+      } else if (fresh.length === 1 && envelope.backupCreated && !envelope.backupWithheld) {
         const backup = readFileSync(fresh[0], 'utf8');
-        if (!backup.includes(PSET.RecoveryForeignSource) && slotValueIn(backup, c) !== c.value) broken.push(`${label}: de back-up heeft het slot niet (${String(slotValueIn(backup, c))}) en is geen vastgelegde planningsback-up`);
-      } else broken.push(`${label}: de taakwijziging meldt ${fresh.length} nieuwe back-up(s), backupCreated ${String(envelope.backupCreated)}`);
+        const kept = stand === 'stand 2' ? backup.includes(PSET.RecoveryForeignSource) : slotValueIn(backup, c) === c.value;
+        if (!kept) broken.push(`${label}: ${stand}, de back-up ${stand === 'stand 2' ? 'mist OPS_RecoveryForeignSource' : `heeft ${String(slotValueIn(backup, c))} in het slot`}`);
+      } else broken.push(`${label}: ${stand}, ${fresh.length} nieuwe back-up(s), backupCreated ${String(envelope.backupCreated)}`);
       if (!readFileSync(source).equals(c.bytes)) broken.push(`${label}: de bron veranderde`);
     }
     const tally = new Map<string, number>();
