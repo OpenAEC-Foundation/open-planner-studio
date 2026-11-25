@@ -1,32 +1,29 @@
 import type { ImportResult } from '@/services/importTypes';
-import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Sequence } from '@/types/sequence';
-import { ALL_RECORDED_SLOT_KEYS, type RecordedFieldKey } from '../ifcTaskSlots';
 import { ifcObjectSeed } from '../ifcWriter';
-import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
-import { startIsActual } from '@/utils/taskDates';
-import { isPinnedComplete } from '@/engine/scheduler/duration';
-import { checkValue, readFields } from './fieldTable';
-import { globalIdOfIdentity, isUuidPath, nameBasedUuid } from './globalIdUuid';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { hourRemainingDays } from '@/engine/taskMutationRules';
+import { hourTaskScheduleDuration } from '@/utils/taskDuration';
+import { checkValue, hasKey, readFields } from './fieldTable';
+import { globalIdOfPath } from './identityPath';
 import { childrenInPlace } from './childOrder';
-import { momentOfSharedDate, taskWindow, type SharedSpan } from './dateProjection';
-import { attributeRuleProblem, planningRuleProblems } from './consistency';
+import { hourDurationIsDerived, objectLabels, serializeIfcx, type IfcxDocument } from './projection';
+import { ownFileFor, type CanonicalPlanning, type OwnFile } from './ownFile';
 import { HEADER_VALUE } from './ownAttributes';
-import { CALENDAR_AREA, DOCUMENT_AREA, SEQUENCE_AREA, TASK_AREA } from './fieldGroups';
-import { SCHEDULE_FIELDS, emptyProject, type DocumentReadTarget } from './fields/documentFields';
-import { emptyCalendar, type CalendarReadTarget } from './fields/calendarFields';
-import { emptyTask, type TaskReadTarget } from './fields/taskFields';
-import { emptySequence, type SequenceReadTarget } from './fields/sequenceFields';
+import { NODE_SHAPES, type NodeKind } from './nodes';
+import { recordedFieldsOf } from './recordedFields';
+import { DOCUMENT_FIELDS, emptyProject, type DocumentReadTarget } from './fields/documentFields';
+import { CALENDAR_FIELDS, emptyCalendar, type CalendarReadTarget } from './fields/calendarFields';
+import { emptyTask, remainingIsDerived, TASK_FIELDS, type TaskReadTarget } from './fields/taskFields';
+import { emptySequence, SEQUENCE_FIELDS, type SequenceReadTarget } from './fields/sequenceFields';
 import { attributeValueProblem, schemaDefinitionProblems, type IfcxCheckProblem } from './schemaCheck';
-import { readResourceNodes } from './ifcxResourceReader';
-import { globalIdKey } from './stepGlobalIds';
-import { IfcxReadError, type IfcxErrorPlace } from './ifcxErrors';
+import { IfcxReadError, IfcxWriteRefusedError, type IfcxErrorPlace } from './ifcxErrors';
 import {
-  ATTRIBUTE, IFCX_VERSION, OPS_PROFILE_MAJOR, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
+  ATTRIBUTE, IFCX_VERSION, OPS_NAMESPACE, OPS_PROFILE_MAJOR, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
 } from './profile';
 
-export type IfcxImportResult = ImportResult & { readonly ifcxSharedDatesApplied?: number };
+export type IfcxImportResult = CanonicalPlanning;
 
 export type IfcxClassification = 'own' | 'foreign' | 'not-ifcx' | 'unreadable';
 
@@ -34,24 +31,13 @@ type Attributes = Map<IfcxAttributeName, Record<string, unknown>>;
 
 interface IfcxNode {
   readonly path: string;
+  readonly globalId: string;
   readonly attributes: Attributes;
 }
 
-type NodeKind = 'workplan' | 'schedule' | 'calendar' | 'task' | 'sequence' | 'resource' | 'assignment' | 'baseline';
-
-const NODE_SHAPES: readonly { kind: NodeKind; required: readonly IfcxAttributeName[]; optional: readonly IfcxAttributeName[] }[] = [
-  { kind: 'workplan', required: [ATTRIBUTE.workplan, ATTRIBUTE.document], optional: [] },
-  { kind: 'schedule', required: [ATTRIBUTE.schedule], optional: [] },
-  { kind: 'calendar', required: [ATTRIBUTE.calendar, ATTRIBUTE.opsCalendar], optional: [] },
-  { kind: 'task', required: [ATTRIBUTE.activity, ATTRIBUTE.opsTask], optional: [] },
-  { kind: 'sequence', required: [ATTRIBUTE.sequence], optional: [ATTRIBUTE.opsSequence] },
-  { kind: 'resource', required: [ATTRIBUTE.resource], optional: [ATTRIBUTE.opsResource] },
-  { kind: 'assignment', required: [ATTRIBUTE.assignment], optional: [ATTRIBUTE.opsAssignment] },
-  { kind: 'baseline', required: [ATTRIBUTE.baseline], optional: [ATTRIBUTE.opsBaseline] },
-];
-
 const TOP_LEVEL_KEYS = new Set(['header', 'imports', 'schemas', 'data']);
-const HEADER_KEYS = new Set(['id', 'ifcxVersion', 'dataVersion', 'author', 'timestamp']);
+const COMPARED_HEADER_KEYS = ['id', 'ifcxVersion', 'dataVersion', 'author'] as const;
+const HEADER_KEYS = new Set<string>([...COMPARED_HEADER_KEYS, 'timestamp']);
 const ENTRY_KEYS = new Set(['path', 'attributes', 'children', 'inherits']);
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -85,18 +71,18 @@ function parseDocument(text: string): Record<string, unknown> {
   return document;
 }
 
-function headerOf(document: Record<string, unknown>): { uuid: string; author: string } {
+function headerOf(document: Record<string, unknown>): { projectPath: string; projectGlobalId: string } {
   const header = document.header as Record<string, unknown>;
   if (typeof header.id !== 'string' || !header.id.startsWith(OWN_HEADER_ID_PREFIX)) {
     throw foreign(`Het bestand is niet door Open Planner Studio begonnen (${JSON.stringify(header.id)})`);
   }
   const problem = checkValue(HEADER_VALUE, header);
   if (problem) throw invalid(`Ongeldige kop: ${problem.kind === 'invalid' ? problem.detail : 'onbekend veld'}`, { field: `header.${problem.field}` });
-  const uuid = header.id.slice(OWN_HEADER_ID_PREFIX.length);
+  const projectPath = header.id.slice(OWN_HEADER_ID_PREFIX.length);
   if (!Array.isArray(document.imports)) throw invalid('Het bestand heeft geen lijst imports', { field: 'imports' });
-  if (document.imports.length > 0) throw foreign('Het bestand importeert andere bestanden');
+  if (document.imports.length > 0) throw foreign('Het bestand importeert andere bestanden', { field: 'imports' });
   if (!isPlainObject(document.schemas)) throw invalid('Het bestand heeft geen schemas', { field: 'schemas' });
-  return { uuid, author: header.author as string };
+  return { projectPath, projectGlobalId: globalIdOfPath(projectPath)! };
 }
 
 function thrown(problem: IfcxCheckProblem): IfcxReadError {
@@ -104,7 +90,7 @@ function thrown(problem: IfcxCheckProblem): IfcxReadError {
 }
 
 function nodesOf(data: readonly unknown[]): IfcxNode[] {
-  const nodes = new Map<string, Attributes>();
+  const nodes = new Map<string, { globalId: string; attributes: Attributes }>();
   for (const entry of data) {
     if (!isPlainObject(entry) || typeof entry.path !== 'string') throw invalid('Een entry heeft geen pad');
     const path = entry.path;
@@ -112,21 +98,23 @@ function nodesOf(data: readonly unknown[]): IfcxNode[] {
     if ('children' in entry) throw foreign('Het bestand gebruikt children', { path });
     if ('inherits' in entry) throw foreign('Het bestand gebruikt inherits', { path });
     if (!isPlainObject(entry.attributes)) throw foreign('Een entry zonder attributen', { path });
-    if (!isUuidPath(path)) throw foreign('Een pad dat geen UUID is', { path });
-    const attributes = nodes.get(path) ?? new Map();
+    const node = nodes.get(path) ?? { globalId: globalIdOfPath(path), attributes: new Map() };
+    if (node.globalId === undefined) throw foreign('Een pad dat geen identiteitspad van Open Planner Studio is', { path });
     for (const [name, value] of Object.entries(entry.attributes)) {
-      if (attributes.has(name as IfcxAttributeName)) throw foreign('Twee bijdragen van hetzelfde attribuut op één pad', { path, attribute: name });
-      attributes.set(name as IfcxAttributeName, value as Record<string, unknown>);
+      if (node.attributes.has(name as IfcxAttributeName)) throw foreign('Twee bijdragen van hetzelfde attribuut op één pad', { path, attribute: name });
+      node.attributes.set(name as IfcxAttributeName, value as Record<string, unknown>);
     }
-    nodes.set(path, attributes);
+    nodes.set(path, node as { globalId: string; attributes: Attributes });
   }
-  return [...nodes].map(([path, attributes]) => ({ path, attributes }));
+  return [...nodes].map(([path, node]) => ({ path, globalId: node.globalId, attributes: node.attributes }));
 }
 
 function assertProfileVersion(nodes: readonly IfcxNode[]): void {
   for (const node of nodes) {
     const document = node.attributes.get(ATTRIBUTE.document);
+    if (document === undefined) continue;
     const version = isPlainObject(document) ? document.formatVersion : undefined;
+    if (typeof version !== 'string') throw invalid('Het bestand noemt geen profielversie', { path: node.path, attribute: ATTRIBUTE.document, field: 'formatVersion' });
     const major = typeof version === 'string' ? /^(\d+)\./.exec(version)?.[1] : undefined;
     if (major !== undefined && Number(major) > OPS_PROFILE_MAJOR) {
       throw new IfcxReadError('newer-profile', `Profielversie ${version} is nieuwer dan deze app kent`, { path: node.path, attribute: ATTRIBUTE.document });
@@ -139,15 +127,7 @@ function assertValues(nodes: readonly IfcxNode[]): void {
     for (const [name, value] of node.attributes) {
       const problem = attributeValueProblem(node.path, name, value);
       if (problem) throw thrown(problem);
-      const rule = attributeRuleProblem(name, value);
-      if (rule) throw invalid(rule.detail, { path: node.path, attribute: name, field: rule.field });
     }
-  }
-}
-
-function assertIdentityPath(path: string, globalIdOutsidePath: string | undefined, place: IfcxErrorPlace): void {
-  if (globalIdOutsidePath !== undefined && nameBasedUuid(globalIdOutsidePath) !== path) {
-    throw invalid('Het pad hoort niet bij de GlobalId die het object draagt', { ...place, field: 'globalId' });
   }
 }
 
@@ -159,48 +139,156 @@ function assertSchemas(schemas: unknown, nodes: readonly IfcxNode[]): void {
 
 function kindOf(node: IfcxNode): NodeKind {
   for (const shape of NODE_SHAPES) {
-    if (!shape.required.every(name => node.attributes.has(name))) continue;
-    const allowed = new Set([...shape.required, ...shape.optional]);
-    if ([...node.attributes.keys()].every(name => allowed.has(name))) return shape.kind;
+    if (shape.attributes.size === node.attributes.size && [...node.attributes.keys()].every(name => shape.attributes.has(name))) return shape.kind;
   }
   throw foreign(`Een pad met attributen die samen geen planningsobject vormen: ${[...node.attributes.keys()].join(', ')}`, { path: node.path });
 }
 
-function recordedFieldsOf(tasks: readonly Task[]): Record<string, RecordedFieldKey[]> {
-  const out: Record<string, RecordedFieldKey[]> = {};
-  for (const task of tasks) {
-    out[task.id] = ALL_RECORDED_SLOT_KEYS.filter(key => {
-      const value = task.time[key];
-      return typeof value === 'string' ? value !== '' : value !== undefined;
-    });
-  }
-  return out;
+const shown = (value: unknown) => (value === undefined ? 'afwezig' : JSON.stringify(value));
+
+interface FieldDifference {
+  readonly field: string;
+  readonly inFile: unknown;
+  readonly wanted: unknown;
 }
 
-function applySharedSpan(task: Task, span: SharedSpan): boolean {
-  if (span.start === undefined || span.endExclusive === undefined) return false;
-  const original = taskWindow(task);
-  const startMoves = span.start !== original.start && !startIsActual(task);
-  const endMoves = span.endExclusive !== original.endExclusive && !isPinnedComplete(task.time);
-  if (!startMoves && !endMoves) return false;
-  if (startMoves) {
-    const moment = momentOfSharedDate(span.start);
-    task.time.scheduleStart = task.time.earlyStart = task.time.lateStart = moment;
+type Kind = 'extra' | 'changed' | 'missing';
+
+const differenceKind = (inFile: unknown, wanted: unknown): Kind => (wanted === undefined ? 'extra' : inFile === undefined ? 'missing' : 'changed');
+
+function fieldDifference(inFile: unknown, wanted: unknown, field: string, kind: Kind): FieldDifference | undefined {
+  const at = (key: string) => (field ? `${field}.${key}` : key);
+  if (isPlainObject(inFile) && isPlainObject(wanted)) {
+    for (const key of new Set([...Object.keys(wanted), ...Object.keys(inFile)])) {
+      const difference = fieldDifference(inFile[key], wanted[key], at(key), kind);
+      if (difference) return difference;
+    }
+    return undefined;
   }
-  if (endMoves || (startMoves && task.isMilestone)) {
-    const moment = task.isMilestone ? task.time.scheduleStart : momentOfSharedDate(span.endExclusive);
-    task.time.scheduleFinish = task.time.earlyFinish = task.time.lateFinish = moment;
+  if (Array.isArray(inFile) && Array.isArray(wanted)) {
+    for (let i = 0; i < Math.max(inFile.length, wanted.length); i++) {
+      const difference = fieldDifference(inFile[i], wanted[i], `${field}[${i}]`, kind);
+      if (difference) return difference;
+    }
+    return undefined;
   }
-  task.manuallyScheduled = true;
-  return true;
+  return inFile === wanted || differenceKind(inFile, wanted) !== kind ? undefined : { field, inFile, wanted };
 }
 
-export function readIfcxText(text: string, checkValues = true): IfcxImportResult {
+type Entry = { readonly path: string; readonly attributes: Readonly<Record<string, unknown>> };
+
+function sameValue(inFile: unknown, wanted: unknown): boolean {
+  if (Array.isArray(wanted)) {
+    if (!Array.isArray(inFile) || inFile.length !== wanted.length) return false;
+    for (let i = 0; i < wanted.length; i++) if (!sameValue(inFile[i], wanted[i])) return false;
+    return true;
+  }
+  if (isPlainObject(wanted)) {
+    if (!isPlainObject(inFile)) return false;
+    const keys = Object.keys(wanted);
+    if (keys.length !== Object.keys(inFile).length) return false;
+    for (const key of keys) if (!hasKey(inFile, key) || !sameValue(inFile[key], wanted[key])) return false;
+    return true;
+  }
+  return inFile === wanted;
+}
+
+function sameFile(document: Record<string, unknown>, own: IfcxDocument): boolean {
+  const header = document.header as Record<string, unknown>;
+  return COMPARED_HEADER_KEYS.every(key => header[key] === own.header[key])
+    && sameValue(document.schemas, own.schemas) && sameValue(document.data, own.data);
+}
+
+const preciseFirst = (names: readonly string[]) => [...names.filter(name => name.startsWith(OPS_NAMESPACE)), ...names.filter(name => !name.startsWith(OPS_NAMESPACE))];
+
+interface Located {
+  readonly place: IfcxErrorPlace;
+  readonly detail: (objectAt: (path: string) => string) => string;
+}
+
+function firstDifference(document: Record<string, unknown>, own: IfcxDocument, kind: Kind): Located | undefined {
+  const differs = (inFile: unknown, wanted: unknown) => inFile !== wanted && differenceKind(inFile, wanted) === kind;
+  const header = document.header as Record<string, unknown>;
+  for (const key of COMPARED_HEADER_KEYS) {
+    if (!differs(header[key], own.header[key])) continue;
+    return { place: { field: `header.${key}` }, detail: () => `Het project: de kop heeft ${key} ${shown(header[key])}, de eigen schrijver schrijft ${shown(own.header[key])}` };
+  }
+  const schemas = fieldDifference(document.schemas, own.schemas, '', kind);
+  if (schemas) {
+    return { place: { field: `schemas.${schemas.field}` }, detail: () => `De schema's: ${schemas.field} is ${shown(schemas.inFile)}, de eigen schrijver schrijft ${shown(schemas.wanted)}` };
+  }
+  const data = document.data as Entry[];
+  for (let index = 0; index < Math.max(data.length, own.data.length); index++) {
+    const inFile = data[index], wanted = own.data[index] as Entry | undefined;
+    if (wanted === undefined) {
+      if (kind !== 'extra') continue;
+      return { place: { path: inFile.path }, detail: objectAt => `${objectAt(inFile.path)} schrijft de eigen schrijver niet` };
+    }
+    if (inFile === undefined) {
+      if (kind !== 'missing') continue;
+      return { place: { path: wanted.path }, detail: objectAt => `Het bestand mist ${objectAt(wanted.path)}` };
+    }
+    if (inFile.path !== wanted.path) {
+      if (kind !== 'changed') continue;
+      return { place: { path: inFile.path, field: 'path' }, detail: objectAt => `${objectAt(inFile.path)} staat op plaats ${index}, waar de eigen schrijver ${objectAt(wanted.path)} schrijft` };
+    }
+    for (const name of preciseFirst([...new Set([...Object.keys(wanted.attributes), ...Object.keys(inFile.attributes)])])) {
+      const difference = fieldDifference(inFile.attributes[name], wanted.attributes[name], '', kind);
+      if (!difference) continue;
+      return {
+        place: { path: inFile.path, attribute: name, ...(difference.field ? { field: difference.field } : {}) },
+        detail: objectAt => `${objectAt(inFile.path)}: ${difference.field || name} is ${shown(difference.inFile)}, de eigen schrijver schrijft ${shown(difference.wanted)}`,
+      };
+    }
+  }
+  return undefined;
+}
+
+function writerRefusal<T>(action: () => T): T {
+  try {
+    return action();
+  } catch (error) {
+    if (!(error instanceof IfcxWriteRefusedError)) throw error;
+    throw invalid(`De eigen schrijver schrijft deze planning niet: ${error.message}`, error.place.path || error.place.field ? error.place : { field: error.fields[0] });
+  }
+}
+
+function firstTextDifference(text: string, own: string): Located {
+  let offset = 0;
+  while (offset < text.length && text[offset] === own[offset]) offset++;
+  const line = text.slice(text.lastIndexOf('\n', offset - 1) + 1, text.indexOf('\n', offset) === -1 ? text.length : text.indexOf('\n', offset));
+  let path: string | undefined;
+  try {
+    const entry: unknown = JSON.parse(line.trim().replace(/,$/, ''));
+    if (isPlainObject(entry) && typeof entry.path === 'string') path = entry.path;
+  } catch { path = undefined; }
+  return {
+    place: { ...(path !== undefined ? { path } : {}), offset },
+    detail: objectAt => `${path === undefined ? 'Het bestand' : objectAt(path)} is anders geschreven dan de eigen schrijver het schrijft, vanaf teken ${offset}`,
+  };
+}
+
+function differenceFrom(text: string, document: Record<string, unknown>, own: OwnFile): Located | undefined {
+  const ownText = serializeIfcx({ ...own.document, header: { ...own.document.header, timestamp: (document.header as Record<string, unknown>).timestamp as string } });
+  if (sameFile(document, own.document) && ownText === text) return undefined;
+  writerRefusal(own.assertAttributeValues);
+  return firstDifference(document, own.document, 'extra') ?? firstDifference(document, own.document, 'changed')
+    ?? firstDifference(document, own.document, 'missing') ?? (ownText === text ? undefined : firstTextDifference(text, ownText));
+}
+
+function assertOwnProjection(text: string, document: Record<string, unknown>, read: IfcxImportResult): void {
+  const difference = differenceFrom(text, document, writerRefusal(() => ownFileFor(read, new Date(0), 'deferred')));
+  if (!difference) return;
+  const labels = objectLabels(read, (kind, id) => read.ifcGlobalIds![ifcObjectSeed(kind, id)]);
+  throw invalid(difference.detail(path => labels.get(path) ?? path), difference.place);
+}
+
+export function readIfcxText(text: string, checked = true): IfcxImportResult {
   const document = parseDocument(text);
   const header = headerOf(document);
   const nodes = nodesOf(document.data as unknown[]);
   assertProfileVersion(nodes);
-  if (checkValues) assertValues(nodes);
+  if (checked) assertValues(nodes);
   assertSchemas(document.schemas, nodes);
   const byKind = new Map<NodeKind, IfcxNode[]>();
   const kindAt = new Map<string, NodeKind>();
@@ -211,8 +299,9 @@ export function readIfcxText(text: string, checkValues = true): IfcxImportResult
     if (list) list.push(node); else byKind.set(kind, [node]);
   }
   const of = (kind: NodeKind) => byKind.get(kind) ?? [];
-  if (of('workplan').length !== 1) throw foreign(`Het bestand heeft ${of('workplan').length} werkplannen van Open Planner Studio`);
-  if (of('schedule').length !== 1) throw invalid(`Het bestand heeft ${of('schedule').length} werkschema's`);
+  const single = (kind: NodeKind) => (of(kind).length > 1 ? { path: of(kind)[1].path } : { field: 'data' });
+  if (of('workplan').length !== 1) throw foreign(`Het bestand heeft ${of('workplan').length} werkplannen van Open Planner Studio`, single('workplan'));
+  if (of('schedule').length !== 1) throw invalid(`Het bestand heeft ${of('schedule').length} werkschema's`, single('schedule'));
   const reference = (path: string | undefined, kind: NodeKind, place: IfcxErrorPlace): string | undefined => {
     if (path === undefined) return undefined;
     if (kindAt.get(path) !== kind) throw invalid(`Verwijzing naar ${path} is geen ${kind}`, place);
@@ -220,52 +309,36 @@ export function readIfcxText(text: string, checkValues = true): IfcxImportResult
   };
 
   const workplan = of('workplan')[0];
-  const project = emptyProject();
-  const documentTarget: DocumentReadTarget = { project, headerUuid: header.uuid, headerAuthor: header.author, formatVersion: '' };
-  readFields(DOCUMENT_AREA.planning, workplan.attributes.get(ATTRIBUTE.workplan)!, documentTarget);
-  readFields(DOCUMENT_AREA.ops, workplan.attributes.get(ATTRIBUTE.document)!, documentTarget);
-  assertIdentityPath(header.uuid, documentTarget.projectGlobalIdOutsidePath, { path: workplan.path, attribute: ATTRIBUTE.document });
   const schedule = of('schedule')[0];
-  const scheduleTarget: { workplanPath?: string } = {};
-  readFields(SCHEDULE_FIELDS, schedule.attributes.get(ATTRIBUTE.schedule)!, scheduleTarget);
-  if (scheduleTarget.workplanPath !== workplan.path) {
-    throw invalid('Het werkschema hoort niet bij het werkplan', { path: schedule.path, attribute: ATTRIBUTE.schedule, field: 'workplan' });
-  }
+  const project = emptyProject();
+  const documentTarget: DocumentReadTarget = {
+    project, projectPath: header.projectPath, calendarPath: '', minuteModelPending: false, importPristine: false, literalCalendarPaths: [],
+  };
+  readFields(DOCUMENT_FIELDS, workplan.attributes.get(ATTRIBUTE.document)!, documentTarget);
+  const documentPlace = { path: workplan.path, attribute: ATTRIBUTE.document };
 
-  const calendarNodes = of('calendar');
-  const projectCalendarPath = reference(documentTarget.calendarPath, 'calendar', { path: workplan.path, attribute: ATTRIBUTE.workplan, field: 'calendar' })
-    ?? calendarNodes[0]?.path;
-  if (projectCalendarPath === undefined) throw invalid('Het bestand heeft geen kalender');
-  const calendarTargets: CalendarReadTarget[] = calendarNodes.map(node => {
+  const projectCalendarPath = reference(documentTarget.calendarPath, 'calendar', { ...documentPlace, field: 'calendar' })!;
+  const calendarTargets: CalendarReadTarget[] = of('calendar').map(node => {
     const target: CalendarReadTarget = { calendar: emptyCalendar(), isProjectCalendar: node.path === projectCalendarPath, path: node.path };
-    readFields(CALENDAR_AREA.planning, node.attributes.get(ATTRIBUTE.calendar)!, target);
-    readFields(CALENDAR_AREA.ops, node.attributes.get(ATTRIBUTE.opsCalendar)!, target);
-    assertIdentityPath(node.path, target.globalIdOutsidePath, { path: node.path, attribute: ATTRIBUTE.opsCalendar });
+    readFields(CALENDAR_FIELDS, node.attributes.get(ATTRIBUTE.opsCalendar)!, target);
     return target;
   });
   const calendarIdAt = new Map(calendarTargets.map(target => [target.path, target.calendar.id]));
   const projectCalendar = calendarTargets.find(target => target.isProjectCalendar)!.calendar;
-  project.calendarId = documentTarget.calendarIdOverride ?? projectCalendar.id;
+  project.calendarId = projectCalendar.id;
   const resourceCalendars: WorkCalendar[] = calendarTargets.filter(target => !target.isProjectCalendar).map(target => target.calendar);
-  for (const target of calendarTargets) {
-    if (target.libraryPlace === undefined) continue;
-    if (!target.isProjectCalendar || target.libraryPlace > resourceCalendars.length) {
-      throw invalid('Een plaats in de bibliotheek die niet klopt', { path: target.path, attribute: ATTRIBUTE.opsCalendar, field: 'libraryPlace' });
-    }
-    resourceCalendars.splice(target.libraryPlace, 0, projectCalendar);
-  }
+  const ifcLiteralCalendarIds = documentTarget.literalCalendarPaths.map((path, index) => calendarIdAt.get(
+    reference(path, 'calendar', { ...documentPlace, field: `literalCalendars[${index}]` })!)!);
 
   const taskTargets: TaskReadTarget[] = of('task').map(node => {
-    const target: TaskReadTarget = { task: emptyTask(), path: node.path, span: {} };
-    readFields(TASK_AREA.planning, node.attributes.get(ATTRIBUTE.activity)!, target);
-    readFields(TASK_AREA.ops, node.attributes.get(ATTRIBUTE.opsTask)!, target);
-    assertIdentityPath(node.path, target.globalIdOutsidePath, { path: node.path, attribute: ATTRIBUTE.opsTask });
+    const target: TaskReadTarget = { task: emptyTask(), path: node.path, unrecorded: [] };
+    readFields(TASK_FIELDS, node.attributes.get(ATTRIBUTE.opsTask)!, target);
     return target;
   });
   const taskIdAt = new Map(taskTargets.map(target => [target.path, target.task.id]));
   const childrenOf = new Map<string, TaskReadTarget[]>();
   for (const target of taskTargets) {
-    const place = { path: target.path, attribute: ATTRIBUTE.activity };
+    const place = { path: target.path, attribute: ATTRIBUTE.opsTask };
     const parentPath = reference(target.parentPath, 'task', { ...place, field: 'parent' });
     target.task.parentId = parentPath === undefined ? null : taskIdAt.get(parentPath)!;
     if (parentPath !== undefined) {
@@ -276,61 +349,55 @@ export function readIfcxText(text: string, checkValues = true): IfcxImportResult
     if (calendarPath !== undefined) target.task.calendarId = calendarIdAt.get(calendarPath)!;
   }
   for (const target of taskTargets) {
-    target.task.childIds = childrenInPlace(childrenOf.get(target.path) ?? [], child => child.place).map(child => child.task.id);
+    const { task } = target;
+    task.childIds = childrenInPlace(childrenOf.get(target.path) ?? [], child => child.place).map(child => child.task.id);
+    const calendar = resolveCalendar(task.calendarId, resourceCalendars, projectCalendar);
+    if (hourDurationIsDerived(task, calendar)) task.time.scheduleDuration = hourTaskScheduleDuration(task.time.durationMinutes!, calendar);
+    if (remainingIsDerived(task.time)) task.time.remainingTime = hourRemainingDays(task.time, task.time.remainingMinutes!);
   }
-  let sharedDatesApplied = 0;
-  for (const target of taskTargets) if (applySharedSpan(target.task, target.span)) sharedDatesApplied++;
 
   const sequenceTargets: SequenceReadTarget[] = of('sequence').map(node => {
-    const target: SequenceReadTarget = { sequence: emptySequence(), path: node.path, predecessorPath: '', successorPath: '', shared: {} };
-    readFields(SEQUENCE_AREA.planning, node.attributes.get(ATTRIBUTE.sequence)!, target);
-    readFields(SEQUENCE_AREA.ops, node.attributes.get(ATTRIBUTE.opsSequence) ?? {}, target);
-    const place = { path: node.path, attribute: ATTRIBUTE.sequence };
-    target.sequence.predecessorId = taskIdAt.get(reference(target.predecessorPath, 'task', { ...place, field: 'relatingProcess' })!)!;
-    target.sequence.successorId = taskIdAt.get(reference(target.successorPath, 'task', { ...place, field: 'relatedProcess' })!)!;
-    assertIdentityPath(node.path, target.globalIdOutsidePath, { path: node.path, attribute: ATTRIBUTE.opsSequence });
+    const target: SequenceReadTarget = { sequence: emptySequence(), path: node.path, predecessorPath: '', successorPath: '' };
+    readFields(SEQUENCE_FIELDS, node.attributes.get(ATTRIBUTE.opsSequence)!, target);
+    const place = { path: node.path, attribute: ATTRIBUTE.opsSequence };
+    target.sequence.predecessorId = taskIdAt.get(reference(target.predecessorPath, 'task', { ...place, field: 'predecessor' })!)!;
+    target.sequence.successorId = taskIdAt.get(reference(target.successorPath, 'task', { ...place, field: 'successor' })!)!;
     return target;
-  });
-
-  const planned = readResourceNodes({
-    nodes: of, reference, kindAt: path => kindAt.get(path), calendarIdAt, taskTargets, assertIdentityPath,
   });
 
   const tasks = taskTargets.map(target => target.task);
   const sequences: Sequence[] = sequenceTargets.map(target => target.sequence);
   const ifcGlobalIds: Record<string, string> = {
-    [ifcObjectSeed('proj', project.id)]: globalIdOfIdentity(header.uuid, documentTarget.projectGlobalIdOutsidePath),
+    [ifcObjectSeed('proj', project.id)]: header.projectGlobalId,
+    [ifcObjectSeed('wp', project.id)]: workplan.globalId,
+    [ifcObjectSeed('ws', project.id)]: schedule.globalId,
   };
-  for (const target of calendarTargets) {
-    ifcGlobalIds[ifcObjectSeed('cal', target.calendar.id)] = globalIdOfIdentity(target.path, target.globalIdOutsidePath);
-  }
-  for (const target of taskTargets) ifcGlobalIds[ifcObjectSeed('task', target.task.id)] = globalIdOfIdentity(target.path, target.globalIdOutsidePath);
-  for (const target of sequenceTargets) {
-    ifcGlobalIds[ifcObjectSeed('seq', target.sequence.id)] = globalIdOfIdentity(target.path, target.globalIdOutsidePath);
-  }
-  for (const [kind, node] of [['wp', workplan], ['ws', schedule]] as const) {
-    ifcGlobalIds[ifcObjectSeed(kind, project.id)] = globalIdOfIdentity(node.path, undefined);
-  }
-  Object.assign(ifcGlobalIds, planned.globalIds);
+  const globalIdAt = new Map(nodes.map(node => [node.path, node.globalId]));
+  for (const target of calendarTargets) ifcGlobalIds[ifcObjectSeed('cal', target.calendar.id)] = globalIdAt.get(target.path)!;
+  for (const target of taskTargets) ifcGlobalIds[ifcObjectSeed('task', target.task.id)] = globalIdAt.get(target.path)!;
+  for (const target of sequenceTargets) ifcGlobalIds[ifcObjectSeed('seq', target.sequence.id)] = globalIdAt.get(target.path)!;
 
-  const result: IfcxImportResult = {
-    project, calendar: projectCalendar, tasks, sequences, resources: planned.resources, assignments: planned.assignments,
-    timeModel: MINUTE_MODEL_TIME_MODEL,
+  const recordedFields: ImportResult['recordedFields'] = {};
+  for (const target of taskTargets) recordedFields[target.task.id] = recordedFieldsOf(target.task, target.unrecorded);
+
+  const read: IfcxImportResult = {
+    project, calendar: projectCalendar, tasks, sequences, resources: [], assignments: [],
+    ...(documentTarget.timeModel !== undefined ? { timeModel: documentTarget.timeModel } : {}),
+    ...(documentTarget.minuteModelPending ? { minuteModelPending: true } : {}),
     activityCodeTypes: [], customFieldDefs: [], customTaskTypes: [], resourceCalendars,
-    baselines: planned.baselines, activeBaselineId: planned.activeBaselineId, comparedBaselineIds: planned.comparedBaselineIds,
-    recordedFields: recordedFieldsOf(tasks), recordedTimesOrigin: 'ifc-own',
+    baselines: [], activeBaselineId: null, comparedBaselineIds: [null, null],
+    recordedFields, recordedTimesOrigin: 'ifc-own', importPristine: documentTarget.importPristine,
     ifcGlobalIds,
-    ...(sharedDatesApplied > 0 ? { ifcxSharedDatesApplied: sharedDatesApplied } : {}),
+    ...(ifcLiteralCalendarIds.length > 0 ? { ifcLiteralCalendarIds } : {}),
   };
-  const windowOf = new Map(taskTargets.map(target => [target.task, target.span]));
-  const [problem] = planningRuleProblems({
-    model: result, windowOf: task => windowOf.get(task) ?? {}, globalIdOf: (kind, id) => ifcGlobalIds[globalIdKey(kind, id)],
-  });
-  if (problem) throw invalid(problem.detail, { field: problem.field });
-  return result;
+  if (checked) assertOwnProjection(text, document, read);
+  return read;
 }
 
 export function readIfcx(bytes: Uint8Array): IfcxImportResult {
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    throw invalid('Het bestand begint met een UTF-8-BOM, die de eigen schrijver niet schrijft', { offset: 0 });
+  }
   let text: string;
   try {
     text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);

@@ -53,6 +53,7 @@ import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { byteWrite, installNodeFileIpc } from './nodeFileIpc';
+import { openSecondTabOn } from './sameFileTabFixture';
 import { fakeScanWorker, fakeScanWorkerStats, LATE_MS } from './fakeScanWorker';
 import { brokenNameFiles, commentFile, dataKopBestanden, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile, verstopteWandBestanden } from './ifcDoelBestanden';
 
@@ -689,9 +690,10 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   const S = () => store.getState();
   const aId = S().activeDocumentId;
   S().setAutoSaveToFile(true);
-  // Een ander programma vervangt het bestand door een versie met model; de planner opent die als document B.
   shared.replace(bonsai);
-  await open('planning.ifc', bonsai, { kind: 'handle', handle: shared.handle }, store);
+  const copyOfB = fakeHandle('planning-kopie.ifc', bonsai);
+  await openSecondTabOn(store, { kind: 'handle', handle: shared.handle, name: 'planning.ifc' },
+    () => open('planning.ifc', bonsai, { kind: 'handle', handle: copyOfB.handle }, store));
   const bId = S().activeDocumentId;
   ok('AutoSave: B is het modelbestand, met een vreemd deel en dezelfde handle',
     bId !== aId && S().ifcSource?.foreign === true && S().foreignSourceMark?.handle === shared.handle);
@@ -1861,6 +1863,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       ['geen Worker', () => null],
     ] as const;
     const csv = enc.encode('Naam;Duur\nFundering;5\n');
+    const startsWithBom = (bytes: Uint8Array) => bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
     const cases: Array<{ name: string; bytes: Uint8Array; want?: Scan }> = [
       { name: 'eigen planning', bytes: showcase, want: 'no-model' },
       { name: 'vreemde inhoud', bytes: externalPset, want: 'foreign' },
@@ -1868,6 +1871,9 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       { name: 'gebouwmodel', bytes: modelIfc4, want: 'model' },
       { name: 'kapotte kop (Terra)', bytes: enc.encode(terraFile(dec(modelIfc4))), want: 'unreadable' },
       { name: 'leeg bestand', bytes: new Uint8Array(0), want: 'not-ifc' },
+      { name: 'eigen planning met UTF-8-BOM, onleesbaar zoals main', bytes: new Uint8Array([0xef, 0xbb, 0xbf, ...showcase]), want: 'unreadable' },
+      { name: 'UTF-8-BOM, witruimte en commentaar vóór de kop, onleesbaar zoals main',
+        bytes: new Uint8Array([0xef, 0xbb, 0xbf, ...enc.encode(`\n  /* kop */ ${dec(showcase)}`)]), want: 'unreadable' },
       { name: 'CSV', bytes: csv, want: 'not-ifc' },
       // De STEP-scanner van de indeling weigert, de modelscan niet: 'unreadable' uit de indeling zelf.
       ...dataKopBestanden(dec(showcase), 'scannerWeigert').slice(0, 2)
@@ -1876,7 +1882,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
     for (const c of cases) {
       const sync = scanForeignTargetBytes(c.bytes);
       eq(`9c ${c.name}: synchrone uitkomst`, sync, c.want);
-      const classifies = scanTargetBytes(c.bytes) === 'no-model';
+      const classifies = scanTargetBytes(c.bytes) === 'no-model' && !startsWithBom(c.bytes);
       for (const [mode, createWorker] of modes) {
         // Korte grenzen alleen waar de modus erop wacht; 9d toetst de productiewaarde van de starttimer.
         const opts: RunOptions = { createWorker, startTimeoutMs: mode === 'stil' || mode === 'laat' ? 20 : 2_000,
@@ -1922,7 +1928,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       for (const c of cases) {
         const refusal = (scan: Scan) => (scan === 'model' || scan === 'foreign' || scan === 'unreadable' ? scan : null);
         const want = refusal(scanForeignTargetBytes(c.bytes));
-        const classifies = scanTargetBytes(c.bytes) === 'no-model';
+        const classifies = scanTargetBytes(c.bytes) === 'no-model' && !startsWithBom(c.bytes);
         globalThis.Worker = class { constructor() { return fakeScanWorker('ok', stats); } } as unknown as typeof Worker;
         const workers = stats.workers;
         const classify = stats.classify;

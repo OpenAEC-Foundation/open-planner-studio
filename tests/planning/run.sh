@@ -565,10 +565,26 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # Knownbug 2244: het werk van opslaan met gebouwmodel groeit lineair (geteld, geen tijd). Ruim een minuut: één keer,
+  # buiten de matrix, met dezelfde vaste tijdzone als de andere checks van #804 hierboven.
+  IFCFOREIGNWERK="$DIR/.ifc-foreign-werk.mjs"
+  if bundle_check "$DIR/check-ifc-foreign-werk.ts" "$IFCFOREIGNWERK"; then
+    TZ=Europe/Amsterdam node "$IFCFOREIGNWERK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # 1107: één groot model, niet vijf keer in de tijdzonematrix (tijd/geheugen meten).
   IFCFOREIGNGROOT="$DIR/.ifc-foreign-groot.mjs"
   if bundle_check "$DIR/check-ifc-foreign-groot.ts" "$IFCFOREIGNGROOT"; then
     TZ=Europe/Amsterdam node "$IFCFOREIGNGROOT" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # #804 F3-1: opslaan en openen als IFCX tegen IFC op dezelfde 10.000 taken, in CPU-tijd en in één proces (besluit van
+  # de technisch eigenaar, 24 november 2026). Een prestatiepoort: één keer, buiten de matrix, alleen in de pool.
+  IFCXMETING="$DIR/.ifcx-meting.mjs"
+  if bundle_check "$DIR/check-ifcx-meting.ts" "$IFCXMETING"; then
+    TZ=Europe/Amsterdam OPS_RELAX_PERF=0 node "$IFCXMETING" || STATUS=1
     unset 'BUNDLES[-1]'
   fi
 
@@ -577,6 +593,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   IFCFOREIGNTELLINGVERSCHIL="$DIR/.ifc-foreign-telling-verschil.mjs"
   if bundle_check "$DIR/check-ifc-foreign-telling-verschil.ts" "$IFCFOREIGNTELLINGVERSCHIL"; then
     TZ=Europe/Amsterdam node "$IFCFOREIGNTELLINGVERSCHIL" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # #804 fase 2, PR 11: reeksen van stappen op één crashherstel-tracker (eigenschapsproef). Rekent niet met datums:
+  # één keer, buiten de matrix, met dezelfde vaste tijdzone als de andere checks van #804 hierboven.
+  RECOVERYREEKSEN="$DIR/.recovery-identiteit-reeksen.mjs"
+  if bundle_check "$DIR/check-recovery-identiteit-reeksen.ts" "$RECOVERYREEKSEN"; then
+    TZ=Europe/Amsterdam node "$RECOVERYREEKSEN" || STATUS=1
     unset 'BUNDLES[-1]'
   fi
 

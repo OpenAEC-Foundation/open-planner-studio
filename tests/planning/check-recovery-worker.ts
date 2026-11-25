@@ -44,7 +44,7 @@ const normalize = (ifc: string) => {
   return (stamp ? ifc.split(`'${stamp}'`).join("'<tijd>'") : ifc)
     .replace(/^(#\d+=IFCOWNERHISTORY\((?:[^,]*,){7})\d+\)/m, '$1<tijd>)');
 };
-const parity = (source: IFCSaveSource, actual: string) => assert.equal(normalize(actual), normalize(
+const parity = (source: IFCSaveSource, actual: string | { ifc: string }) => assert.equal(normalize(typeof actual === 'string' ? actual : actual.ifc), normalize(
   writeIFC({ ...buildWriteIFCInput(source, 'planOnly'), xerSourceArchiveStorage: 'recovery-reference' }),
 ));
 

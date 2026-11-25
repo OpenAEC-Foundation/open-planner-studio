@@ -85,6 +85,7 @@ export interface OpenedFile {
 export interface OpenDialogOpts {
   /** Extensies (zonder punt, lowercase) die als bytes gelezen moeten worden i.p.v. tekst. */
   binaryExtensions?: string[];
+  beforeRead?: (ref: Extract<FileRef, { kind: 'handle' }>) => void;
 }
 
 /** Extra sturing voor `saveFileDialog` — optioneel (o.a. de voortgangsblad-export).
@@ -192,6 +193,10 @@ export function writeTargetReaders(): TargetReaders {
 /** Een lokaal doel om te vervangen: een pad (desktop) of een bestandshandle (browser). Een site-bestand en een
  *  download hebben geen doel om op inhoud te vergelijken. */
 export type LocalTargetRef = Extract<FileRef, { kind: 'path' | 'handle' }>;
+
+export function localTargetName(ref: LocalTargetRef): string {
+  return ref.kind === 'path' ? ref.path : ref.handle.name;
+}
 
 /** #804, knownbug 1131 stap 1: staat op het eigen doel nog precies `expected` (de bronbytes)? Zie
  *  `sourceTargetContent.ts`. Een pad is alleen op de desktop een doel. */

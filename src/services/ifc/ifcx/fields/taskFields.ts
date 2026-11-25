@@ -1,52 +1,59 @@
 import { TASK_TYPES, type Task, type TaskStatus, type TaskTime } from '@/types/task';
 import { DEFAULT_PRIORITY } from '../../ifcConstants';
 import {
-  BOOLEAN, CALENDAR_DATE, enumOf, FRACTION, GLOBAL_ID_OUTSIDE_PATH, integer, LOCAL_MOMENT_OR_EMPTY, NON_EMPTY_TEXT, objectOf, membersOf,
-  readFields, REAL, REFERENCE, TEXT,
-  writeFields, type IfcxField, type IfcxValue,
+  arrayOf, BOOLEAN, CALENDAR_DATE, enumOf, FRACTION, integer, LOCAL_MOMENT_OR_EMPTY, membersOf, NON_EMPTY_TEXT, objectOf,
+  readFields, REAL, REFERENCE, TEXT, writeFields, type IfcxField, type IfcxValue, type SharedField,
 } from '../fieldTable';
-import type { IfcxIdentity } from '../globalIdUuid';
 import type { SharedSpan } from '../dateProjection';
+import { ALL_RECORDED_SLOT_KEYS, type RecordedFieldKey } from '../../ifcTaskSlots';
 
 export interface TaskWriteSource {
   readonly task: Task;
-  readonly identity: IfcxIdentity;
+  readonly path: string;
   readonly parentPath?: string;
   readonly calendarPath?: string;
   readonly place?: number;
   readonly span: SharedSpan;
-  readonly assignedResourceIds: readonly string[];
+  readonly derivesDays: boolean;
+  readonly unrecorded: readonly RecordedFieldKey[];
 }
 
 export interface TaskReadTarget {
   readonly task: Task;
   readonly path: string;
-  globalIdOutsidePath?: string;
   parentPath?: string;
   calendarPath?: string;
   place?: number;
-  span: { start?: string; endExclusive?: string };
-  resourceIdsOverride?: string[];
+  unrecorded: readonly RecordedFieldKey[];
+}
+
+interface TimeWriteSource {
+  readonly time: TaskTime;
+  readonly derivesDays: boolean;
 }
 
 type TaskField = IfcxField<TaskWriteSource, TaskReadTarget>;
-type TimeField = IfcxField<TaskTime, TaskTime>;
+type TimeField = IfcxField<TimeWriteSource, TaskTime>;
 
 export function derivedTaskStatus(time: Pick<TaskTime, 'actualStart' | 'actualFinish' | 'completion'>): TaskStatus {
   return time.actualFinish ? 'COMPLETED' : time.actualStart || time.completion > 0 ? 'STARTED' : 'NOT_STARTED';
 }
 
-function timeField<K extends keyof TaskTime>(key: K, value: IfcxValue, optional = false): TimeField {
+export function remainingIsDerived(time: Pick<TaskTime, 'durationUnit' | 'remainingMinutes'>): boolean {
+  return time.durationUnit === 'hours' && time.remainingMinutes !== undefined;
+}
+
+function timeField<K extends keyof TaskTime>(key: K, value: IfcxValue, optional = false,
+  write: (source: TimeWriteSource) => unknown = source => source.time[key]): TimeField {
   return {
-    key, value, optional,
-    write: time => time[key],
+    key, value, optional, write,
     read: (v, time) => { if (v !== undefined) (time as unknown as Record<string, unknown>)[key] = v; },
   };
 }
 
 export const TASK_TIME_FIELDS: readonly TimeField[] = [
   timeField('durationUnit', enumOf(['days', 'hours'])),
-  timeField('scheduleDuration', REAL),
+  timeField('scheduleDuration', REAL, true, s => (s.derivesDays ? undefined : s.time.scheduleDuration)),
   timeField('durationMinutes', REAL, true),
   timeField('scheduleStart', LOCAL_MOMENT_OR_EMPTY),
   timeField('scheduleFinish', LOCAL_MOMENT_OR_EMPTY),
@@ -61,13 +68,10 @@ export const TASK_TIME_FIELDS: readonly TimeField[] = [
   timeField('totalFloatMinutes', REAL, true),
   timeField('freeFloatMinutes', REAL, true),
   timeField('isCritical', BOOLEAN),
-  timeField('interferingFloat', REAL, true),
-  timeField('isNearCritical', BOOLEAN, true),
-  timeField('floatPath', REAL, true),
   timeField('actualStart', LOCAL_MOMENT_OR_EMPTY, true),
   timeField('actualFinish', LOCAL_MOMENT_OR_EMPTY, true),
   timeField('actualDuration', REAL, true),
-  timeField('remainingTime', REAL, true),
+  timeField('remainingTime', REAL, true, s => (remainingIsDerived(s.time) ? undefined : s.time.remainingTime)),
   timeField('remainingMinutes', REAL, true),
 ];
 
@@ -75,7 +79,30 @@ function setOptional<K extends keyof Task>(task: Task, key: K, value: Task[K] | 
   if (value !== undefined) task[key] = value;
 }
 
-export const TASK_ACTIVITY_FIELDS: readonly TaskField[] = [
+export const TASK_SHARED_FIELDS: readonly SharedField<TaskWriteSource>[] = [
+  { key: 'name', value: TEXT, write: s => s.task.name },
+  { key: 'description', value: TEXT, optional: true, write: s => s.task.description || undefined },
+  { key: 'identification', value: TEXT, optional: true, write: s => s.task.wbsCode || undefined },
+  { key: 'parent', value: REFERENCE, optional: true, write: s => s.parentPath },
+  { key: 'predefinedType', value: enumOf(TASK_TYPES), write: s => s.task.taskType },
+  { key: 'isMilestone', value: BOOLEAN, optional: true, write: s => (s.task.isMilestone ? true : undefined) },
+  { key: 'priority', value: integer(), optional: true, write: s => (s.task.priority !== DEFAULT_PRIORITY ? s.task.priority : undefined) },
+  { key: 'calendar', value: REFERENCE, optional: true, write: s => s.calendarPath },
+  {
+    key: 'durationType', value: enumOf(['WORKTIME', 'ELAPSEDTIME']), optional: true,
+    write: s => (s.task.time.durationType !== 'WORKTIME' ? s.task.time.durationType : undefined),
+  },
+  { key: 'completion', value: FRACTION, optional: true, write: s => (s.task.time.completion !== 0 ? s.task.time.completion : undefined) },
+  { key: 'start', value: CALENDAR_DATE, optional: true, write: s => s.span.start },
+  { key: 'endExclusive', value: CALENDAR_DATE, optional: true, write: s => s.span.endExclusive },
+];
+
+export const TASK_FIELDS: readonly TaskField[] = [
+  {
+    key: 'id', value: NON_EMPTY_TEXT, optional: true,
+    write: s => (s.task.id !== s.path ? s.task.id : undefined),
+    read: (v, t) => { t.task.id = (v as string | undefined) ?? t.path; },
+  },
   {
     key: 'name', value: TEXT,
     write: s => s.task.name,
@@ -87,17 +114,12 @@ export const TASK_ACTIVITY_FIELDS: readonly TaskField[] = [
     read: (v, t) => { t.task.description = (v as string | undefined) ?? ''; },
   },
   {
-    key: 'identification', value: TEXT, optional: true,
+    key: 'wbsCode', value: TEXT, optional: true,
     write: s => s.task.wbsCode || undefined,
     read: (v, t) => { t.task.wbsCode = (v as string | undefined) ?? ''; },
   },
   {
-    key: 'parent', value: REFERENCE, optional: true,
-    write: s => s.parentPath,
-    read: (v, t) => { t.parentPath = v as string | undefined; },
-  },
-  {
-    key: 'predefinedType', value: enumOf(TASK_TYPES),
+    key: 'taskType', value: enumOf(TASK_TYPES),
     write: s => s.task.taskType,
     read: (v, t) => { t.task.taskType = v as Task['taskType']; },
   },
@@ -112,9 +134,14 @@ export const TASK_ACTIVITY_FIELDS: readonly TaskField[] = [
     read: (v, t) => { t.task.priority = (v as number | undefined) ?? DEFAULT_PRIORITY; },
   },
   {
-    key: 'calendar', value: REFERENCE, optional: true,
-    write: s => s.calendarPath,
-    read: (v, t) => { t.calendarPath = v as string | undefined; },
+    key: 'parent', value: REFERENCE, optional: true,
+    write: s => s.parentPath,
+    read: (v, t) => { t.parentPath = v as string | undefined; },
+  },
+  {
+    key: 'place', value: integer(0), optional: true,
+    write: s => s.place,
+    read: (v, t) => { t.place = v as number | undefined; },
   },
   {
     key: 'durationType', value: enumOf(['WORKTIME', 'ELAPSEDTIME']), optional: true,
@@ -127,42 +154,12 @@ export const TASK_ACTIVITY_FIELDS: readonly TaskField[] = [
     read: (v, t) => { t.task.time.completion = (v as number | undefined) ?? 0; },
   },
   {
-    key: 'start', value: CALENDAR_DATE, optional: true,
-    write: s => s.span.start,
-    read: (v, t) => { t.span.start = v as string | undefined; },
-  },
-  {
-    key: 'endExclusive', value: CALENDAR_DATE, optional: true,
-    write: s => s.span.endExclusive,
-    read: (v, t) => { t.span.endExclusive = v as string | undefined; },
-  },
-];
-
-export const TASK_OPS_FIELDS: readonly TaskField[] = [
-  {
-    key: 'id', value: NON_EMPTY_TEXT, optional: true,
-    write: s => (s.task.id !== s.identity.path ? s.task.id : undefined),
-    read: (v, t) => { t.task.id = (v as string | undefined) ?? t.path; },
-  },
-  {
-    key: 'globalId', value: GLOBAL_ID_OUTSIDE_PATH, optional: true,
-    write: s => s.identity.globalIdOutsidePath,
-    read: (v, t) => { t.globalIdOutsidePath = v as string | undefined; },
-  },
-  {
-    key: 'place', value: integer(0), optional: true,
-    write: s => s.place,
-    read: (v, t) => { t.place = v as number | undefined; },
-  },
-  {
     key: 'time', value: objectOf(membersOf(TASK_TIME_FIELDS)),
-    write: s => writeFields(TASK_TIME_FIELDS, s.task.time),
-    read: (v, t) => readFields(TASK_TIME_FIELDS, v as Record<string, unknown>, t.task.time),
-  },
-  {
-    key: 'status', value: enumOf(['NOT_STARTED', 'STARTED', 'COMPLETED']), optional: true,
-    write: s => (s.task.status !== derivedTaskStatus(s.task.time) ? s.task.status : undefined),
-    read: (v, t) => { t.task.status = (v as TaskStatus | undefined) ?? derivedTaskStatus(t.task.time); },
+    write: s => writeFields(TASK_TIME_FIELDS, { time: s.task.time, derivesDays: s.derivesDays }),
+    read: (v, t) => {
+      readFields(TASK_TIME_FIELDS, v as Record<string, unknown>, t.task.time);
+      t.task.status = derivedTaskStatus(t.task.time);
+    },
   },
   {
     key: 'milestoneKind', value: enumOf(['START', 'FINISH']), optional: true,
@@ -185,9 +182,14 @@ export const TASK_OPS_FIELDS: readonly TaskField[] = [
     read: (v, t) => setOptional(t.task, 'manuallyScheduled', v as boolean | undefined),
   },
   {
-    key: 'calendarId', value: NON_EMPTY_TEXT, optional: true,
-    write: s => (s.task.calendarId !== undefined && s.calendarPath === undefined ? s.task.calendarId : undefined),
-    read: (v, t) => setOptional(t.task, 'calendarId', v as string | undefined),
+    key: 'calendar', value: REFERENCE, optional: true,
+    write: s => s.calendarPath,
+    read: (v, t) => { t.calendarPath = v as string | undefined; },
+  },
+  {
+    key: 'unrecorded', value: arrayOf(enumOf(ALL_RECORDED_SLOT_KEYS)), optional: true,
+    write: s => (s.unrecorded.length > 0 ? [...s.unrecorded] : undefined),
+    read: (v, t) => { t.unrecorded = (v as RecordedFieldKey[] | undefined) ?? []; },
   },
 ];
 

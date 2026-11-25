@@ -194,6 +194,7 @@ check-ifc-foreign-klok.ts matrix
 check-ifc-foreign-merge-telling.ts los
 check-ifc-foreign-ongebruikte-sleutels.ts matrix
 check-ifc-foreign-open.ts matrix
+check-ifc-foreign-opgeslagen-datums.ts matrix
 check-ifc-foreign-oude-eigen.ts matrix
 check-ifc-foreign-pariteit.ts los
 check-ifc-foreign-preserve.ts matrix
@@ -201,6 +202,8 @@ check-ifc-foreign-slotplaats.ts matrix
 check-ifc-foreign-strikt.ts matrix
 check-ifc-foreign-target.ts matrix
 check-ifc-foreign-telling-verschil.ts los
+check-ifc-foreign-verwijderen.ts matrix
+check-ifc-foreign-werk.ts los
 check-ifc-foreign-werksoortkleur.ts matrix
 check-ifc-globalid.ts matrix
 check-ifc-kalendertijd.ts matrix
@@ -229,7 +232,7 @@ check-ifc-urenperdag-corpus.ts los
 check-ifc-werktijd-per-dag.ts matrix
 check-ifc-xer-archive-container.ts matrix
 check-ifcx-kern.ts matrix
-check-ifcx-resources.ts matrix
+check-ifcx-meting.ts los
 check-import-datum-zonder-tijd.ts matrix
 check-import-explicit-rest.ts matrix
 check-import-missing-schedule-dates.ts matrix
@@ -310,6 +313,7 @@ check-native-menu.ts matrix
 check-new-project-view-rows.ts matrix
 check-new-task-measure.ts matrix
 check-notifications.ts matrix
+check-one-file-one-tab.ts matrix
 check-open-failure-detail.ts matrix
 check-p6-ff-day-hour.ts matrix
 check-p6-verified-cases-engine.ts matrix
@@ -354,6 +358,8 @@ check-recorded-dates.ts matrix
 check-recorded-times-formats.ts matrix
 check-recovery-content.ts matrix
 check-recovery-delta.ts matrix
+check-recovery-gedeelde-globalids.ts matrix
+check-recovery-identiteit-reeksen.ts los
 check-recovery-ifc-source.ts matrix
 check-recovery-integrity.ts matrix
 check-recovery-isolation.ts matrix

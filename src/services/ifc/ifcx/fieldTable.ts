@@ -1,5 +1,5 @@
 import { isExistingYmd, isStrictIsoDateTime } from '@/utils/dateUtils';
-import { isCompactGlobalId, isUuidPath } from './globalIdUuid';
+import { isIdentityPath } from './identityPath';
 
 export type IfcxValue =
   | { readonly dataType: 'String'; readonly form: IfcxForm }
@@ -23,9 +23,12 @@ export interface IfcxMember {
   readonly optional?: boolean;
 }
 
-export interface IfcxField<W, R> extends IfcxMember {
+export interface SharedField<W> extends IfcxMember {
   readonly key: string;
   readonly write: (source: W) => unknown;
+}
+
+export interface IfcxField<W, R> extends SharedField<W> {
   readonly read: (value: unknown, target: R) => void;
 }
 
@@ -52,23 +55,18 @@ export const ISO_MOMENT_FORM: IfcxForm = {
   pattern: /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}:\d{2})?)?$/,
   accepts: value => isStrictIsoDateTime(value, { maxFractionDigits: 9 }),
 };
-export const GLOBAL_ID_OUTSIDE_PATH_FORM: IfcxForm = {
-  name: 'een GlobalId zonder 128-bitsvorm', pattern: /^[\s\S]+$/, accepts: value => !isCompactGlobalId(value),
-};
 export const VERSION_FORM: IfcxForm = { name: 'MAJOR.MINOR.PATCH', pattern: /^\d+\.\d+\.\d+$/ };
 
 export const TEXT: IfcxValue = { dataType: 'String', form: FREE_TEXT_FORM };
 export const NON_EMPTY_TEXT: IfcxValue = { dataType: 'String', form: NON_EMPTY_TEXT_FORM };
 export const REAL: IfcxValue = { dataType: 'Real' };
 export const FRACTION: IfcxValue = { dataType: 'Real', min: 0, max: 1 };
-export const NON_NEGATIVE: IfcxValue = { dataType: 'Real', min: 0 };
 export const BOOLEAN: IfcxValue = { dataType: 'Boolean' };
 export const REFERENCE: IfcxValue = { dataType: 'Reference' };
 export const CALENDAR_DATE: IfcxValue = { dataType: 'DateTime', form: CALENDAR_DATE_FORM };
 export const LOCAL_MOMENT_OR_EMPTY: IfcxValue = { dataType: 'String', form: LOCAL_MOMENT_OR_EMPTY_FORM };
 export const ISO_DATE_OR_MOMENT_OR_EMPTY: IfcxValue = { dataType: 'String', form: ISO_DATE_OR_MOMENT_OR_EMPTY_FORM };
 export const ISO_MOMENT: IfcxValue = { dataType: 'DateTime', form: ISO_MOMENT_FORM };
-export const GLOBAL_ID_OUTSIDE_PATH: IfcxValue = { dataType: 'String', form: GLOBAL_ID_OUTSIDE_PATH_FORM };
 export const VERSION_TEXT: IfcxValue = { dataType: 'String', form: VERSION_FORM };
 
 export function integer(min?: number, max?: number): IfcxValue {
@@ -96,7 +94,7 @@ export function membersOf(fields: readonly (IfcxMember & { readonly key: string 
   return members;
 }
 
-export function writeFields<W, R>(fields: readonly IfcxField<W, R>[], source: W): Record<string, unknown> {
+export function writeFields<W>(fields: readonly SharedField<W>[], source: W): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const field of fields) {
     const value = field.write(source);
@@ -128,7 +126,7 @@ export type IfcxValueProblem =
 
 export function carriesValue(value: unknown): boolean {
   if (value === undefined || value === null) return false;
-  if (Array.isArray(value)) return value.length > 0;
+  if (Array.isArray(value)) return value.some(carriesValue);
   if (typeof value === 'object') return Object.keys(value).length > 0;
   return true;
 }
@@ -153,32 +151,32 @@ function within(problem: Problem | undefined, step: string): Problem | undefined
 }
 
 function problemOf(spec: IfcxValue, value: unknown): Problem | undefined {
-  const found = () => JSON.stringify(value);
+  const found = JSON.stringify;
   switch (spec.dataType) {
     case 'String':
     case 'DateTime':
-      if (typeof value !== 'string') return invalidValue(`verwacht tekst, gevonden ${found()}`);
-      if (!spec.form.pattern.test(value) || spec.form.accepts?.(value) === false) return invalidValue(`verwacht de vorm ${spec.form.name}, gevonden ${found()}`);
+      if (typeof value !== 'string') return invalidValue(`verwacht tekst, gevonden ${found(value)}`);
+      if (!spec.form.pattern.test(value) || spec.form.accepts?.(value) === false) return invalidValue(`verwacht de vorm ${spec.form.name}, gevonden ${found(value)}`);
       return;
     case 'Reference':
-      return typeof value === 'string' && isUuidPath(value) ? undefined : invalidValue(`verwacht een pad (UUID), gevonden ${found()}`);
+      return typeof value === 'string' && isIdentityPath(value) ? undefined : invalidValue(`verwacht een pad, gevonden ${found(value)}`);
     case 'Boolean':
-      return typeof value === 'boolean' ? undefined : invalidValue(`verwacht waar of onwaar, gevonden ${found()}`);
+      return typeof value === 'boolean' ? undefined : invalidValue(`verwacht waar of onwaar, gevonden ${found(value)}`);
     case 'Real':
-      if (typeof value !== 'number' || !Number.isFinite(value)) return invalidValue(`verwacht een eindig getal, gevonden ${found()}`);
+      if (typeof value !== 'number' || !Number.isFinite(value)) return invalidValue(`verwacht een eindig getal, gevonden ${found(value)}`);
       if (spec.min !== undefined && value < spec.min) return invalidValue(`kleiner dan ${spec.min}`);
       if (spec.max !== undefined && value > spec.max) return invalidValue(`groter dan ${spec.max}`);
       return;
     case 'Integer':
-      if (typeof value !== 'number' || !Number.isSafeInteger(value)) return invalidValue(`verwacht een geheel getal, gevonden ${found()}`);
+      if (typeof value !== 'number' || !Number.isSafeInteger(value)) return invalidValue(`verwacht een geheel getal, gevonden ${found(value)}`);
       if (spec.min !== undefined && value < spec.min) return invalidValue(`kleiner dan ${spec.min}`);
       if (spec.max !== undefined && value > spec.max) return invalidValue(`groter dan ${spec.max}`);
       return;
     case 'Enum':
       return typeof value === 'string' && spec.options.includes(value) ? undefined
-        : invalidValue(`verwacht een van ${spec.options.join(', ')}, gevonden ${found()}`);
+        : invalidValue(`verwacht een van ${spec.options.join(', ')}, gevonden ${found(value)}`);
     case 'Array': {
-      if (!Array.isArray(value)) return invalidValue(`verwacht een lijst, gevonden ${found()}`);
+      if (!Array.isArray(value)) return invalidValue(`verwacht een lijst, gevonden ${found(value)}`);
       for (let i = 0; i < value.length; i++) {
         const problem = within(problemOf(spec.item, value[i]), `[${i}]`);
         if (problem) return problem;
@@ -186,7 +184,7 @@ function problemOf(spec: IfcxValue, value: unknown): Problem | undefined {
       return;
     }
     case 'Object': {
-      if (!isPlainObject(value)) return invalidValue(`verwacht een object, gevonden ${found()}`);
+      if (!isPlainObject(value)) return invalidValue(`verwacht een object, gevonden ${found(value)}`);
       for (const key in value) {
         if (!hasKey(spec.members, key)) return { kind: 'unknown-field', path: [key], detail: 'onbekend veld' };
       }

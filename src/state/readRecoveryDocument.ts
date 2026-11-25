@@ -5,9 +5,15 @@ import type { ImportLabels } from '@/services/importTypes';
 import type { LoadedRecoveryDoc } from '@/services/recovery/recoveryStore';
 import type { RecoveryIfcSource } from '@/services/recovery/recoveryIfcSource';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
+import {
+  recoveryIdentitiesForSnapshot, reproducesIdentities, snapshotWrittenAt, withRecoveryIdentities, type RecoveryIdentityRow,
+} from '@/services/recovery/recoveryIdentity';
+import { recoverySnapshotInput, writeRecoverySnapshotParts } from '@/services/recovery/recoverySnapshotInput';
 import { isTauri } from '@/utils/platform';
 import { createAppStoreContext } from './appStoreFactory';
-import { recoveryInputFromParsed, type RecoveryDocInput } from './documentContract';
+import { payloadFromInput, recoveryInputFromParsed, type RecoveryDocInput } from './documentContract';
+import { prepareLoadedPayload } from './documentActivation';
+import { recoverySourceDocument } from './recoverySourceDocument';
 
 /** Bronbytes + planningstekst: dezelfde bytes-openroute als Bestand → Openen, daarna de
  * snapshot als bewerkte stand, los van bron-I/O. De MCP-backup is een apart onderdeel 9c.
@@ -26,7 +32,7 @@ export async function recoveryDocumentWithSource(
   if (!known) throw mismatch();
   const { store } = createAppStoreContext();
   store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
-  await store.getState().openOpenedFile({ name: 'herstelbron.ifc', content: '', bytes, ref: null }, labels, { restoringVerifiedIfcSource: true });
+  await store.getState().openOpenedFile({ name: 'herstelbron.ifc', content: '', bytes, ref: null }, labels);
   const source = store.getState().ifcSource;
   if (!source?.foreign || !source.opened) throw new Error('Herstelbron kon niet als volledig IFC worden geopend.');
   return { ...snapshot, ifcSource: source, sourceRestored: true,
@@ -37,18 +43,34 @@ export async function recoveryDocumentWithSource(
   };
 }
 
+export function rewritesSnapshot(candidate: RecoveryDocInput, ifc: string, rows: readonly RecoveryIdentityRow[]): boolean {
+  const writtenAt = snapshotWrittenAt(ifc);
+  if (!writtenAt) return false;
+  try {
+    const payload = prepareLoadedPayload(payloadFromInput(candidate), { recompute: false });
+    const again = writeRecoverySnapshotParts(recoverySnapshotInput(recoverySourceDocument(candidate.id, payload, true).source, true), writtenAt);
+    return again.ifc === ifc && reproducesIdentities(rows, again.input, again.issuedGlobalIds);
+  } catch {
+    return false;
+  }
+}
+
 /** De hook gebruikt precies deze lezing; een ontbrekende/gewijzigde bron bewaart de planning. */
 export async function readRecoveryDocument(
   document: LoadedRecoveryDoc, archives: ReadonlyMap<string, Uint8Array>, enabled: boolean, labels?: ImportLabels,
 ): Promise<RecoveryDocInput> {
-  const parsed = await readIfcFromText(document.ifc, labels, {
+  const read = await readIfcFromText(document.ifc, labels, {
     ifcBytes: enabled, resolveXerArchiveReference: sha => archives.get(sha),
   });
-  const snapshot = recoveryInputFromParsed(parsed, {
+  const rows = enabled && document.snapshotIdentities !== undefined
+    ? await recoveryIdentitiesForSnapshot(document.ifc, document.snapshotIdentities, read.ifcSource?.sha256) : null;
+  const meta = {
     id: document.id, filePath: document.filePath, siteFileId: document.siteFileId ?? null,
     siteFileVersion: document.siteFileVersion ?? null, foreignSource: document.foreignSource ?? null,
     isDirty: document.isDirty, datesAsRecorded: document.datesAsRecorded,
-  });
+  };
+  const applied = rows ? recoveryInputFromParsed(withRecoveryIdentities(read, rows), meta) : null;
+  const snapshot = applied && rows && rewritesSnapshot(applied, document.ifc, rows) ? applied : recoveryInputFromParsed(read, meta);
   if (!enabled) return snapshot;
   if (!document.ifcSource) {
     // De planningstekst is geen bewezen actuele schijfbron (1555).

@@ -460,7 +460,6 @@
     "reportFontMissing": "Vaš font {{name}} više nije na ovom uređaju. Izvješće ponovo koristi Inter.",
     "layoutsNotSaved": "Izgledi nisu mogli biti spremljeni. Ništa nije promijenjeno. Pokušajte ponovo.",
     "ifcForeignOpenSchema": "Ova IFC-datoteka sadrži podatke drugog programa i ima nepoznatu ili nedostajuću shemu. Otvaranje je zaustavljeno kako bi se spriječio gubitak podataka pri spremanju.",
-    "ifcForeignOpenTooLarge": "Ova IFC datoteka veća je od {{limit}} MB. IFC datoteka s modelom zgrade ili s podacima drugog programa može se otvoriti do {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Ova IFC-datoteka ne može se sigurno razvrstati. Otvaranje je zaustavljeno kako bi se spriječio gubitak podataka pri spremanju.",
     "ifc2x3PlanningOnly": "IFC2X3 je otvoren kao raspored. Podaci drugih programa neće biti uključeni pri spremanju.",
     "ifcForeignReplaceBlocked": "Nije spremljeno. Ovo je datoteka koju imate otvorenu. Upotrijebite „Spremi“ za ažuriranje ili „Spremi kao“ s novim nazivom za kopiju.",

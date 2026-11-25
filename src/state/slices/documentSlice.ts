@@ -82,6 +82,7 @@ export interface DocumentEntry {
   /** De identiteit van de inhoud (fixronde 1 van #1020, `documentSaveState.ts`): omhoog als een andere inhoud dit
    *  tabblad hergebruikt (`replaceDocumentContent`); `undefined` = 0. Sessiegegeven, geen documentdata. */
   content?: number;
+  changedOnDisk?: true;
 }
 
 /**
@@ -223,7 +224,7 @@ export interface DocumentSlice {
   /** Zet alleen voor het actieve document de persoonlijke, niet-IFC AutoSave-keuze. */
   setAutoSaveToFile: (enabled: boolean) => void;
   /** Markeer uitsluitend de documentversie die de writer daadwerkelijk heeft weggeschreven schoon. */
-  markAutoSaveVersionSaved: (document: DocumentContentRef, source: IFCSaveSource, prepared?: PreparedIfcWrite, written?: TargetFingerprint | null) => void;
+  markAutoSaveVersionSaved: (document: DocumentContentRef, source: IFCSaveSource, prepared?: PreparedIfcWrite, written?: TargetFingerprint | null, writtenName?: string) => void;
 }
 
 /** Diepe JSON-kloon (de projectdata is JSON-veilig). */
@@ -665,8 +666,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     set((s) => { s.autoSaveToFile = enabled; });
   },
 
-  markAutoSaveVersionSaved: (document, source, prepared, written = null) => {
-    get().commitSavedDocument(document, source, undefined, prepared, false, written);
+  markAutoSaveVersionSaved: (document, source, prepared, written = null, writtenName) => {
+    get().commitSavedDocument(document, source, undefined, prepared, false, written, writtenName);
   },
 
   restoreDocuments: (docs, activeId) => {

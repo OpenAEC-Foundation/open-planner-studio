@@ -11,6 +11,7 @@ import type { CustomTaskType, CustomTaskTypeDraft } from '@/types/taskType';
 import { isTaskTypeColor, withTaskTypeColors } from '@/services/taskTypes/customTaskTypeColors';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
+import { firstById } from '@/utils/firstById';
 import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve, isResourceCurve, clearCostResourceFields, normalizeAssignmentForResource, type ResourceType } from '@/types/resource';
@@ -45,7 +46,8 @@ import {
 } from './ifcPsets';
 import {
   DAY_MEASURE_LAGS_PROP, EXACT_MINUTE_LAGS_PROP, parseDayMeasureLags, taskMinutesPerDay,
-  wholeFloatDays, type DayMeasureRecord, type ExactMinutesRecord,
+  wholeFloatDays, type DayMeasureDurationRecords, type DayMeasureRecord, type ExactFloatRecords, type ExactMinutesRecord,
+  type ExactMinutesRecords,
 } from './dayMeasureIo';
 import {
   IFC_TASKTIME_SLOTS, ALL_RECORDED_SLOT_KEYS, TASK_SLOT, TASKTIME_SLOT, IFC_TASK_STATUS_RUNNING, taskSlots,
@@ -90,6 +92,25 @@ export interface IfcReadOptions {
   stepIdsOut?: Record<string, string>;
   unusedAssignmentKeysOut?: Map<string, string[]>;
   projectDataInSettings?: boolean;
+  taskTimeReadingsOut?: Map<string, TaskTimeReading>;
+}
+
+export const TASK_TIME_READING_FIELDS = [
+  'scheduleStart', 'scheduleFinish', 'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'actualStart', 'actualFinish',
+  'durationUnit', 'scheduleDuration', 'durationMinutes', 'remainingTime', 'remainingMinutes', 'actualDuration',
+  'totalFloat', 'totalFloatMinutes', 'freeFloat', 'freeFloatMinutes',
+] as const satisfies readonly (keyof TaskTime)[];
+
+export interface TaskTimeReading {
+  readonly id: string;
+  readonly args: readonly string[];
+  readonly time: Pick<TaskTime, typeof TASK_TIME_READING_FIELDS[number]>;
+  readonly minutesPerDay: number;
+  readonly records: {
+    readonly dayMeasure?: DayMeasureDurationRecords;
+    readonly exactMinutes?: ExactMinutesRecords;
+    readonly exactFloat?: ExactFloatRecords;
+  };
 }
 
 interface StepEntity {
@@ -168,8 +189,9 @@ export function readIFC(
   const baselineTaskStepIds = options.planningTaskStepIds
     ? tasksOutsideSelection(entities, options.planningTaskStepIds)
     : collectBaselineTaskStepIds(entities);
+  const milestoneSlotDurations = options.taskTimeReadingsOut ? new Map<string, number>() : undefined;
   const { tasks, taskStepIdMap, taskTimeEntities, recordedFields, runningStatusIds } = extractTasks(
-    entities, entityMap, baselineTaskStepIds, taskIdentityByStepId, calendar.hoursPerDay,
+    entities, entityMap, baselineTaskStepIds, taskIdentityByStepId, calendar.hoursPerDay, milestoneSlotDurations,
   );
   const { boundaryGuids: p6BoundarySequenceGuids, dayMeasureLags, exactMinuteLags } = extractSequenceMeta(
     entities, entityMap, new Set(taskStepIdMap.keys()),
@@ -208,6 +230,18 @@ export function readIFC(
   const ifcSchemaUnconfirmed = ifcSchemaUnconfirmedOnRead(fileSchemaName, ifcSchemaMarkers);
   if (ifcSchemaUnconfirmed) project.ifcSchemaUnconfirmed = ifcSchemaUnconfirmed;
   applyTaskTimeRecords(tasks, taskTimeEntities, calendar, resourceCalendars);
+  if (options.taskTimeReadingsOut) {
+    for (const task of tasks) {
+      const e = taskTimeEntities.get(task.id);
+      if (!e) continue;
+      const time = Object.fromEntries(TASK_TIME_READING_FIELDS.map(f => [f, task.time[f]])) as TaskTimeReading['time'];
+      const slotDuration = milestoneSlotDurations?.get(task.id);
+      if (slotDuration !== undefined && time.durationUnit !== 'hours') time.scheduleDuration = slotDuration;
+      const minutesPerDay = taskMinutesPerDay(task, effHoursPerDay(resolveCalendar(task.calendarId, resourceCalendars, calendar)));
+      const records = { dayMeasure: readDayMeasureDurations(task), exactMinutes: readExactMinutes(task), exactFloat: readExactFloat(task) };
+      options.taskTimeReadingsOut.set(task.id, { id: e.id, args: [...e.args], time, minutesPerDay, records });
+    }
+  }
   for (const task of tasks) reconcileP6SuspendResume(task);
   const customTaskTypes = extractTaskTypeMeta(entities, entityMap, tasks, taskStepIdMap);
   extractTimephasedDurationWalksMeta(entities, entityMap, tasks, taskStepIdMap, calendarIdByGuid);
@@ -216,6 +250,7 @@ export function readIFC(
   const { baselines, activeBaselineId, comparedBaselineIds, orphanGuids } = extractBaselines(entities, entityMap, taskStepIdMap);
 
   const schedulingOptions = extractSchedulingOptions(entities, entityMap);
+  let tasksById: Map<string, Task> | undefined;
   const sequences = extractSequences(
     entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, dayMeasureLags, exactMinuteLags, calendar.hoursPerDay, guidLog,
     stepLog,
@@ -223,7 +258,8 @@ export function readIFC(
       const mode = schedulingOptions?.lagCalendar;
       if (mode === '24hour') return 24;
       const id = mode === 'successor' ? succId : predId;
-      const task = tasks.find(t => t.id === id);
+      tasksById ??= firstById(tasks);
+      const task = tasksById.get(id);
       return effHoursPerDay(mode === 'projectDefault' ? calendar : resolveCalendar(task?.calendarId, resourceCalendars, calendar));
     },
   );
@@ -1311,6 +1347,7 @@ function extractTasks(
   baselineTaskStepIds: Set<string> = new Set(),
   persistedIds: Map<string, string> = new Map(),
   hoursPerDay = 8,
+  milestoneSlotDurations?: Map<string, number>,
 ): {
   tasks: Task[]; taskStepIdMap: Map<string, string>; taskTimeEntities: Map<string, StepEntity>;
   recordedFields: Record<string, RecordedFieldKey[]>; runningStatusIds: Set<string>;
@@ -1338,7 +1375,10 @@ function extractTasks(
     if (ifcSlotText(te.args[slots.status]) === IFC_TASK_STATUS_RUNNING) runningStatusIds.add(id);
 
     const isMilestone = te.args[slots.isMilestone]?.includes('T') || false;
-    if (isMilestone) time.scheduleDuration = 0;
+    if (isMilestone) {
+      milestoneSlotDurations?.set(id, time.scheduleDuration);
+      time.scheduleDuration = 0;
+    }
 
     const priorityRaw = (te.args[slots.priority] || '').trim();
     let priority = DEFAULT_PRIORITY;

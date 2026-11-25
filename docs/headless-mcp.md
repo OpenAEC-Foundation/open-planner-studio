@@ -83,9 +83,20 @@ Claude Code: `claude mcp add --transport http open-planner http://127.0.0.1:3878
 
 - **Eén planning in het geheugen.** De server begint met één leeg document. `planner_import_schedule`
   opent een bestand als document; `planner_new_document`, `planner_switch_document` en de andere
-  documenttools werken zoals in de app.
+  documenttools werken zoals in de app. In de app gaat `planner_import_schedule` met de featureflag
+  `ifcForeignContent` naar het tabblad dat een pad al open heeft en antwoordt met `alreadyOpen: true`
+  (knownbug 1957). Alleen dezelfde padtekst telt, na de omzetting van het invoerpad binnen de thuismap
+  (`checkScope`: `~/./kantoor.ifc` en het absolute pad zijn dan dezelfde tekst), na het parsen, zonder
+  naar de schijf te kijken: een link of een anders geschreven pad naar hetzelfde bestand opent een eigen
+  document, zoals main (knownbug 2063). Verschilt de gelezen versie (SHA-256 en grootte) van wat dat
+  tabblad als versie op schijf kent (`knownTargetFingerprint`), dan staat er ook `changedOnDisk: true`
+  in het antwoord en staat er in de app een strook boven dat tabblad. Kent het
+  tabblad zijn versie niet, dan opent het pad als nieuw document, zoals main. Een CSV, XER, MS Project- of P6 XML-bestand opent altijd als nieuw document. Is
+  dat tabblad gesloten of heeft het intussen een ander bestand, dan opent het pad als nieuw document. De
+  import leest buiten de schrijfrij van de app om, zoals main (knownbug 2060). De headless server wisselt niet naar een
+  open tabblad: een tweede import van hetzelfde pad opent een tweede document, zoals main (knownbug 2042).
 - **Opslaan.** Er is geen opslagcommando en geen automatisch opslaan. De agent schrijft het actieve
-  document met `planner_export_ifc`; `overwrite: true` vervangt alleen een doel zonder gebouwmodel of gegevens van een ander programma, en nooit het bestand van een ander open document (knownbug 1907). Wat niet
+  document met `planner_export_ifc`; `overwrite: true` vervangt alleen een doel zonder gebouwmodel of gegevens van een ander programma, en nooit het bestand van een ander open document (knownbug 1907). Een document dat een gebouwmodel of gegevens van een ander programma bewaart, schrijft alleen naar een nieuwe naam (zie *Gegevens van een ander programma*). Wat niet
   geëxporteerd is, is weg als de server stopt.
 - **Paden.** In de toolbeschrijvingen staat "home folder". In de headless server is dat de werkmap:
   `~/plan.ifc` is `<werkmap>/plan.ifc`. Een absoluut pad moet in de werkmap liggen. Een relatief pad
@@ -150,7 +161,8 @@ weigert; alleen bewezen ontbreken is een nieuw doel. De indeling gebruikt `scanF
 300 MiB-grens; er is geen kleinere grens uit het ontwerp overgenomen. De gemeten oude eigen kop gebruikt de
 gedeelde herkenning; de ongewijzigde v2026.7.12-fixtures met een apostrof of DATA; in de naam blijven gewone doelen.
 De zestien gemaakte kopvormen die de bestaande scanner niet ondersteunt, weigeren veilig (knownbug 1134).
-De headless server leest IFC als tekst; gegevens van een ander programma zonder gebouwmodel (bijvoorbeeld een externe pset) komen bij `planner_export_ifc` naar een nieuwe naam nu nog niet mee; de bron blijft ongewijzigd (knownbug 1136). Richting voor fase 2, vóór de flag eraf gaat: export naar een nieuwe naam weigert bij ongedragen vreemde invoer. De app met de flag aan exporteert volledige bytes; dit is nog geen belofte voor de headless tekstserver.
+Gegevens van een ander programma gaan sinds #804 fase 2 (PR 10b) niet meer stil verloren; zie *Gegevens van een ander
+programma* hieronder.
 
 Lokaal kan `OPS_HEADLESS_SOURCE_ONLY=1 bash tests/mcp/run.sh cases-headless-server.ts` de bron-/HTTP-proeven uitvoeren
 zonder de zelfstandige bundel te bouwen. Zonder die variabele blijft deel B volledig onderdeel van CI.
@@ -236,13 +248,138 @@ geen rollback na de `rename`. Windows houdt alleen de bestands-fsync; deze POSIX
 daar niet uitgevoerd. Dit is geen bewijs tegen echte stroomuitval of weigerende opslaghardware, en
 synchroniseert niet de hele keten van eventueel nieuw aangemaakte bovenmappen.
 Een link naar een bestand binnen de werkmap blijft een link: het echte doel wordt vervangen.
+Een nieuwe naam voor bytes (`writeNewUserBytes`, alleen een document met een vreemd deel) gaat langs dezelfde poorten,
+hetzelfde slot en hetzelfde halffabricaat met `fsync`, maar plaatst exclusief: `link` van het halffabricaat naar de nieuwe
+naam (bestaat die al, ook als hij pas na de controle verscheen, dan `create-new` en blijft dat bestand staan), een controle
+dat op de naam het eigen bestand staat, dan `unlink` van het halffabricaat en de `fsync` van de map. Een bestandssysteem
+zonder harde links weigert; er is geen terugval op direct schrijven.
 Mislukt schrijven of `rename` (volle schijf, afgebroken proces), dan geeft de tool een fout en blijft
 het origineel byte-gelijk. De server probeert het halffabricaat op te ruimen, in dezelfde map en alleen
 als de naam nog naar het eigen bestand wijst. Is die map verdwenen of stopt het proces hard (zoals bij
-een crash), dan kan een halffabricaat (`.<willekeurig>.ops-save.tmp`) blijven staan. Anders dan
+een crash), dan kan een halffabricaat (`.<willekeurig>.ops-save.tmp`) blijven staan. Bij een nieuwe naam voor bytes
+kan dat ook ná de `link`: dan staat het volledige bestand op de nieuwe naam én onder de naam van het halffabricaat, met
+twee harde links, en weigert de volgende import het met `SCOPE` (een bestand met meer dan één harde link). Verwijder dan
+het halffabricaat; de nieuwe naam is het geschreven bestand. Lukt bij een draaiende server het opruimen niet, dan zegt de
+fout dat het bestand geschreven is en welke tijdelijke naam nog weg moet. Anders dan
 in de app is er geen terugval op direct schrijven (die terugval in `replaceUserFile` blijft voor de
 desktop-app ongewijzigd). De bestaande controle tegen een stille schemawissel via bestandsaliassen
 (#519) werkt ook hier: de server levert `dev`/`ino` van het doel.
+
+**Gegevens van een ander programma (#804, fase 2 PR 10b).** De server schrijft nooit een bestand waaruit een gebouwmodel
+of gegevens van een ander programma stil verdwenen zijn: hij bewaart ze, of hij weigert met een fout. Elke geopende IFC
+krijgt bij `planner_import_schedule` precies één van drie standen, en `planner_export_ifc` beslist alleen daarop:
+
+1. **Bewezen eigen.** De schrijfpoort van de kern (`textWriteCheck` in `targetForeignScan.ts`, dezelfde controle als
+   `openIfc`/`toIfc()` in [headless-kern.md](headless-kern.md)) leest het hele bestand en vindt geen gebouwmodel en geen
+   stuk van een ander programma (C, A of V), én de gewone writer geeft elk slot van de planning terug (zie *Bewezen eigen,
+   per slot*). Het bestand opent via precies de tekstroute van main (UTF-8 met de BOM erin, zoals `Buffer.toString`), met
+   één lezing, en geeft op elk tool dezelfde antwoorden en dezelfde geschreven bytes als main.
+2. **Bewaarde vreemde bron.** De poort vindt een vreemd deel en de bytes-route van de app (`parseOpenedFile` met
+   `ifcBytes`, de scanner zonder Worker) bewaart het. Het document opent met die bron, ook een bestand met een gebouwmodel
+   dat main weigert (knownbug 110). De export gebruikt de merge (`prepareIfcOutput`, zoals Ctrl+S in de app) en schrijft naar
+   een nieuwe naam via `McpFileFs.writeNewUserBytes` (zie *Opslaan is altijd atomair*); `ifcSchema` in het antwoord is dan
+   de kop van de bron. Kan de merge het vreemde deel bij de wijziging niet bewaren, dan weigert de export met `VALIDATION`
+   (`merge-needs-phase2` in de fout) en schrijft hij niets. Een bestaande naam weigert hij, ook met `overwrite: true` en ook
+   de bron zelf: de server heeft geen veilige vervanging van zo'n bestand (`replaceUserBytes` bestaat alleen in de app;
+   knownbug 2240).
+3. **Niet vast te stellen.** Al het andere: de poort weigert en de bytes-route bewaart het vreemde deel niet (een IFC2X3 met
+   zo'n deel, STEP-ids vanaf 2147483648, een kopvorm die de scanner niet leest, een kapotte bestandsnaam, een leesfout, een
+   waarde van een ander programma in een slot dat de gewone writer niet teruggeeft).
+   Het bestand opent zoals main het opent, met dezelfde antwoorden. Het document krijgt het bestaande kenmerk "bron ontbreekt"
+   (`foreignSourceMark` met `sourceMissing`), zodat `ifcFullWriteBlocked` elke IFC-uitvoer van dat document weigert met
+   `VALIDATION`, als eerste controle van `planner_export_ifc` en dus vóór enige bestandsactie. Er staat daarna geen
+   uitvoerbestand. De fout zegt waarom en wat de gebruiker kan doen: "… nothing was written. Reading and changing the
+   schedule still work, but the changes made through this server stay in its memory only: neither route below includes
+   them, so make them again after the new import. What the user can do: if the file holds only a schedule (for example one
+   with an unusual header, or one saved by an older version), open it in the Open Planner Studio app with the experimental
+   setting "Open IFC with a building model" off and save it there. That setting is in Settings > Advanced > Experimental;
+   if that block is hidden, the setting keeps its last choice, and clicking the version number there at least twice a
+   second for 5 seconds (or holding Enter on it) shows the block. If the file does hold data from other programs, saving
+   in the app also keeps only the schedule; to keep that data, save the file again as IFC4 or IFC4X3 in the program that
+   made it and import it again."
+   Er komt ook geen MCP-backup: de headless host geeft de back-upbinding de controle `withheld` (dezelfde poort
+   `ifcFullWriteBlocked`), `runMutateTool` slaat de back-up dan over en de wijziging gaat gewoon door. Elk antwoord van een
+   wijzigende tool dat anders een back-up zou kunnen melden, zegt in de omhulling `backupWithheld`: "No AI backup was made:
+   … The source file is untouched and stays the unchanged version." Dat is veilig: in deze stand schrijft de server nooit
+   over de bron en nooit een IFC, dus de bron zelf is de onaangetaste versie. Een duplicaat draagt het kenmerk mee.
+
+Eigen bestanden die zo in stand 3 vallen en die main wel schreef: de kopvormen uit ISO 10303-21 die de scanner niet leest
+en die de lezer van main toch opent (`data;` in kleine letters), een eigen bestand met STEP-ids vanaf 2147483648, en de
+dertien kapotte bestandsnamen uit `brokenNameFiles` (een losse apostrof in `FILE_NAME`). Deze vijftien vormen zijn een
+benoemde grens (besluit van de technisch eigenaar, na de review van #1219 ronde 2): Open Planner Studio schrijft ze zelf niet,
+de weigering is getypeerd en verliest niets, en knownbug 1134 legt dezelfde grens al vast voor de doelcontrole en `openIfc`
+van de kern. Wat de app met zulke bestanden doet (nagegaan met de openroute en de schrijfvoorbereiding van de store): met de
+experimentele instelling uit opent de app ze en schrijft Opslaan de planning; met de instelling aan weigert de app ze te
+openen (`ifcForeignOpenUnsafe`). Een bestand met gegevens van een ander programma in stand 3 opent de app met de instelling
+uit ook, maar Opslaan laat die gegevens weg (knownbug 1133); met de instelling aan weigert ze een bestand met ids vanaf de
+grens, en opent ze een IFC2X3 met de melding dat alleen de planning blijft. De andere kopvormen, een BOM, een BOM met een spatie, een los byte, een
+IFC2X3 en een oude eigen bron (versie `0.1`) zijn bewezen eigen. De proeven: `cases-headless-server.ts` ("A eigenschap" en
+"A 1136 ronde 1") en, tegen een werkmap van main, `cases-headless-pariteit.ts`.
+
+**Bewezen eigen, per slot (#1219, herstelronde 3).** Drie reviewrondes vonden telkens een bestand dat "bewezen eigen" heette
+terwijl de gewone writer er iets uit liet vallen: een bestand dat de scanner niet kon lezen (ronde 1), de automatische
+back-up van zo'n bestand (ronde 2), en een taak zonder `OwnerHistory` met een `WorkMethod` van een ander programma (ronde 3:
+geen los vreemd stuk, wel een vreemde waarde ín een taak; de export gaf `ok: true` en schreef `WorkMethod = $`). Het bewijs
+was telkens een toets op iets wat in de buurt van de eis ligt: de bytes-route faalde niet, of de scan vond geen C, A of V.
+De eis is dat de gewone writer alles schrijft wat in de bron staat. Daarom is de maat nu per slot, met de bestaande
+slottabellen (`IFC_SLOT_TABLES` in `ifcSlotTables.ts`; de soort per slot staat in `ifcTaskSlots.ts`,
+`ifcWorkControlSlots.ts`, `ifcResourceSlots.ts` en `ifcSequenceSlots.ts`). Na het openen schrijft de server het document
+één keer met de gewone writer (`writeIFC`, zoals de export) en vergelijkt hij elk stuk met een slottabel, slot voor slot:
+
+- leeg (`$`), een verwijzing of een afgeleid slot: gedragen; de writer schrijft daar zijn eigen verwijzing of berekening, en
+  ontwerp §4.5 schrijft in een afgeleid slot altijd de waarde van de writer;
+- constant: de waarde moet een waarde zijn die de gewone writer voor dit document in hetzelfde slot van dezelfde tabel
+  schrijft; een `#` in een constant slot is nooit van de writer;
+- domein, bij eigen herkomst (de owner history wijst naar `OPS`): gedragen, want OPS schreef de waarde en de lezer leest wat
+  OPS schrijft;
+- domein, bij vreemde herkomst (ook `OwnerHistory = $`): de writer moet in het gepaarde stuk (dezelfde GlobalId; een
+  `IfcTaskTime` of `IfcLagTime` via zijn taak of relatie) dezelfde waarde schrijven;
+- een argument dat in de lay-out van de bron geen slot heeft, moet leeg zijn.
+
+Bij vreemde herkomst geldt `soortVreemd` uit de tabel. Tekst in de bron leest de toets zoals de tekstlezer: letterlijk in
+een oud eigen bestand (versie `0.1`), anders gedecodeerd. Kan de bytes-route het bestand bewaren (er is een C, A of V), dan
+stand 2; anders stand 3. De tekstroute met de gewone writer krijgt zo'n bestand niet meer. De tabel zoals de toets hem leest
+(`#` = een constant slot waarin een verwijzing kan staan):
+
+| tabel | slots |
+|---|---|
+| `IfcTask` | domein: globalId, name, description, identification, status, isMilestone, priority, predefinedType; verwijzing (eigen) / constant (vreemd): ownerHistory#; afgeleid: objectType; constant: longDescription, workMethod; verwijzing: taskTime |
+| `IfcTaskTime` | afgeleid: name, statusTime; constant: dataOrigin, userDefinedDataOrigin; domein: durationType, scheduleDuration, scheduleStart, scheduleFinish, earlyStart, earlyFinish, lateStart, lateFinish, freeFloat, totalFloat, isCritical, actualDuration, actualStart, actualFinish, remainingTime, completion |
+| `IfcWorkPlan` | domein: globalId, description; verwijzing (eigen) / constant (vreemd): ownerHistory#; afgeleid (eigen) / constant (vreemd): name; constant: objectType, identification, creators#, purpose, duration, totalFloat, predefinedType; afgeleid: creationDate, startTime, finishTime |
+| `IfcWorkSchedule` (live) | domein: globalId; verwijzing (eigen) / constant (vreemd): ownerHistory#; constant: name, description, objectType, identification, creators#, purpose, duration, totalFloat, predefinedType; afgeleid: creationDate, startTime, finishTime |
+| `IfcWorkSchedule` (baseline) | afgeleid: globalId, name, creationDate, startTime, finishTime; verwijzing (eigen) / constant (vreemd): ownerHistory#; constant: description, objectType, identification, creators#, purpose, duration, totalFloat, predefinedType |
+| `IfcWorkCalendar` | domein: globalId, name, description, predefinedType; verwijzing (eigen) / constant (vreemd): ownerHistory#; afgeleid: objectType; constant: identification; verwijzing: workingTimes, exceptionTimes |
+| resources | domein: globalId, name, description, objectType, predefinedType; verwijzing (eigen) / constant (vreemd): ownerHistory#; constant: identification, longDescription, usage#, baseCosts#, baseQuantity# |
+| `IfcRelSequence` | domein: globalId, sequenceType; verwijzing (eigen) / constant (vreemd): ownerHistory#; constant: name, description, userDefinedSequenceType; verwijzing: relatingProcess, relatedProcess, timeLag |
+| `IfcLagTime` | constant: name, dataOrigin, userDefinedDataOrigin; domein: lagValue, durationType |
+
+Twee grenzen, met opzet:
+
+- Een domeinslot van een stuk met eigen herkomst telt als gedragen. Gemeten: zou de toets ook die slots met de uitvoer
+  vergelijken, dan vielen 41 eigen bestanden uit de repo uit stand 1, door de omrekening naar het minutenmodel,
+  herberekende datums en oude notaties. Een ander programma dat een eigen stuk wijzigt en de owner history van OPS laat
+  staan, valt daardoor niet op als het een domeinslot vult dat de lezer maar deels leest (bijv. een `Status` anders dan
+  `STARTED`).
+- Stukken zonder slottabel op main toetst de server niet per slot: de toewijzing (`IfcRelAssignsToProcess`), de onderdelen
+  van een kalender (`IfcWorkTime`, `IfcRecurrencePattern`, `IfcTimePeriod`), psets en properties, het project, de owner
+  history met persoon, organisatie en applicatie, de andere relaties en de kop. Wat daar van een ander programma staat,
+  vangt alleen de scan (C, A of V). De toets leest elke tabel in `IFC_SLOT_TABLES`; een nieuwe tabel (zoals de relatietabellen
+  van #1205) telt dus vanzelf mee.
+
+Oude eigen bestanden: OPS schreef tot #39 (28 juli 2026) de naam `Bouwplanning v1.0` op het lopende werkschema; de huidige
+writer schrijft daar `Construction schedule v1.0`, een constant slot. Eigen bestanden die main schreef, moeten blijven
+schrijven (besluit van Trias, #1219 herstelronde 4). Daarom kent de toets voor dat ene slot ook die eerdere vaste waarde van de
+eigen writer (`EARLIER_LIVE_SCHEDULE_NAME` in `targetForeignScan.ts`, naast de vaste waarden uit de uitvoer van de writer).
+Zulke bestanden blijven in stand 1, en de kern, de HTTP-API en de headless server schrijven ze zoals main
+(`check-headless-core.ts` punt 20 vergelijkt met de vastgelegde antwoorden van main in `headless/server/main-reference.json`).
+
+Daarvoor zet de host de flag `ifcForeignContent` in zijn eigen store, zoals de kern in de context van elk document, en
+`fileToolDeps.mainRouteUnlessForeign`. Dat tweede houdt drie dingen van de app met de flag buiten de headless server: de
+tooltekst van `planner_export_ifc` (die van main), het wisselen naar een open tabblad (knownbug 2042) en het lezen van
+externe bronnen als bytes in `planner_refresh_external_links` (dat blijft de tekstroute van main). Een bestand in stand 2
+of 3 gaat door de poort, de bytes-route en zo nodig de tekstroute; een bestand in stand 1 door de poort en één lezing. De
+MCP-backup van een document in stand 2 bevat de planning en het bronkenmerk, geen modelbytes, zoals in de app (`mcp.md`);
+wie die backup opent, krijgt een document zonder bron dat geen IFC schrijft.
 
 **Importformaten.** Node heeft geen `DOMParser`. De MSPDI- en P6-XML-lezers van de app gebruiken hem;
 de server zet daarom een eigen kleine XML-parser als `DOMParser` (`headless/mcp-server/src/xmlDom.ts`),
@@ -253,9 +390,25 @@ De byte-decoding van andere bestandstypen blijft ongewijzigd. Een DOCTYPE met ei
 entiteit-expansie, geen externe entiteiten). CSV, XER en `.mpp` gebruiken geen browserglobals die in
 Node 22 ontbreken (nagelopen: `TextDecoder`, `crypto.subtle` en `structuredClone` bestaan).
 
+**Alle wegen waarlangs de server een IFC maakt** (nagelopen in de modules van de bundel, `// src/…`-regels in `server.mjs`):
+
+| weg | waar | stand 3 |
+|---|---|---|
+| `planner_export_ifc` | `prepareIfcOutput` en `writeTextFile`/`writeNewUserBytes` in `fileTools.ts` | dicht: `ifcFullWriteBlocked` als eerste controle, vóór de bestandslaag |
+| MCP-backup vóór een wijziging | `ensureBackup` in `runMutateTool` (`runtime.ts`), `writeIFC` in `backupService.ts`, `backupFs.ts` | dicht: `withheld` op de back-upbinding (`host.ts`), met dezelfde poort |
+| opslaan, Opslaan als, automatisch opslaan, de export met bibliotheek | `fileSlice.ts`, `fileAutoSave.ts` | onbereikbaar: geen tool roept ze aan, en ze schrijven via Tauri of de browser |
+| tekst om koppelingen terug te lezen | `dependentCandidates.ts`, `openSourceDocument.ts` | geen bestand: alleen tekst in het geheugen, en alleen vanuit `fileSlice.ts` |
+| bibliotheekbestand | `writePoolIFC` in `libraryIfc.ts` | onbereikbaar: alleen de knop in de app; de bibliotheek zelf is JSON en in Node een no-op |
+
+De andere tools schrijven geen bestand. `planner_refresh_external_links` leest alleen; dupliceren, wisselen, ongedaan maken
+en een nieuw document blijven in het geheugen. `tests/mcp/cases-headless-server.ts` ("A eigenschap (1136 ronde 2)") draait elke
+wijzigende tool uit de registry op elk bestand in stand 3 en controleert dat er daarna in de werkmap en de gegevensmap geen
+nieuw bestand staat dat met `ISO-10303-21` begint.
+
 **MCP-backups.** Vóór de eerste wijziging per document schrijft de server een IFC-backup naar
 `<data-dir>/ai-backups/<document>/`, met hetzelfde uitdunbeleid (`BACKUP_RETENTION`) als de app. De
-agent kiest die map niet.
+agent kiest die map niet. Een document in stand 3 krijgt geen back-up; het antwoord zegt dat in `backupWithheld` (zie
+*Gegevens van een ander programma*).
 
 ## Tool-inventaris
 
@@ -301,6 +454,8 @@ naden die de app al had of die er voor deze server bij kwamen:
 | naad | app | headless |
 |---|---|---|
 | `fileToolDeps.getFs` (`fileTools.ts`) | Tauri plugin-fs, scope `$HOME` | `nodeFs.ts`, scope = werkmap |
+| `fileToolDeps.mainRouteUnlessForeign` (nieuw) | `false` | `true`: bytes alleen voor een vreemd deel, anders de route van main |
+| `McpFileFs.writeNewUserBytes` | `place_file_exclusive` | `link` naar de nieuwe naam in `nodeFs.ts` |
 | `McpFileFs.confine` (optioneel, nieuw) | ontbreekt: de Tauri-capability is de harde grens | `realpath`-controle |
 | `globalThis.DOMParser` | de browser of webview | `xmlDom.ts` |
 | `guideToolDeps.fetchImpl` (nieuw) | ontbreekt: `fetch` op de eigen bundel | ingebedde teksten |
@@ -336,6 +491,9 @@ werkmap uit het installatievenster, als de desktop-app niet draait. Uitleg: `doc
 |---|---|
 | `tests/mcp/cases-headless-server.ts` (deel A) | De host achter `http.ts` doorstaat dezelfde controles als de bridge (`externalClient.ts`): sessies, 400/404, token, Origin, alleen lezen, pauze, documentanker. Verder: de MCP-backup en de opties. Het slot (A1): de echte `createAppLock` in `createNodeFileFs` met een tijdelijke registermap: open bestand geweigerd en byte-gelijk, lezen mag, ander bestand vrij, symlink en andere schrijfwijze geweigerd, dood pid vrij, onbruikbaar register (met levend pid, zonder pid, onleesbare map) weigert alles, `.tmp` genegeerd, `open-files.<slug>.json` telt, doel en registerpad allebei niet bestaand en gelijk geweigerd, dode link in het register geweigerd. |
 | `tests/mcp/cases-headless-server.ts` (deel B) | Bouwt `server.mjs`, kopieert de uitvoer naar een lege map buiten de repo en start hem daar. Over stdio met de officiële SDK-client: `tools/list` = de registry, gids en skills ingebed, een voorbeeld openen → taken en relaties toevoegen → rekenen → opslaan → opnieuw openen → vergelijken, de backup, en de padbeveiliging (buiten de werkmap, `..`, symlinks, dode link, relatief pad), en het slot met `OPS_MCP_DISCOVERY_DIR` op een tijdelijke map (`planner_export_ifc` met `overwrite: true` op een open bestand geweigerd en byte-gelijk, lezen mag, symlink, dev-register, `.tmp`, dood pid, onbruikbaar register). Over HTTP: `tools/list`, fout token, Origin, ontbrekende en onbekende sessie-id, en de startweigeringen. |
+| `tests/mcp/cases-headless-server.ts` (vreemd deel) | Deel A: een externe pset gaat mee naar een nieuwe naam met de wijziging, over de bron, de kopie en een gewoon bestand weigert de export bytegelijk; een gebouwmodel komt bytegelijk terug; een Bonsai-wijziging die de merge niet draagt weigert met `merge-needs-phase2` zonder bestand; de twee gevallen uit de review van #1219 (ids vanaf 2147483648, IFC2X3 met een externe pset) weigeren met `VALIDATION` zonder één aanroep van de bestandslaag; een eerste taakwijziging in het IFC2X3-geval geeft `backupWithheld` en geen back-up; de eigenschapsproef over 142 bestanden, met de verwachte importuitkomst per bestand en de tellingen als assertie, (`headlessCorpus.ts`: de eigen reeks met de verwachte stand per bestand en 48 bestanden met een externe pset aan project, taak of kalender, in IFC4X3_ADD2, IFC4X3_ADD1, IFC4 en IFC2X3, met gewone ids en ids vanaf de scannergrens, met en zonder BOM): de kopie bevat elke regel van de pset, of de export weigert met `VALIDATION` en er is geen kopie, en elk eigen bestand staat in zijn stand; `writeNewUserBytes` direct (nieuwe naam, bestaand doel, een doel dat vlak vóór de plaatsing verschijnt, schrijf- en plaatsingsfout). Deel B: dezelfde export met de gebouwde server, en een oude eigen bron (versie `0.1`) met de letterlijke taaknaam en de 59.171 tekens van main 51b9cac22. Ook in deel A: elke wijzigende tool uit de registry (28) op elk bestand in stand 3 (45): de verwachte uitkomst, geen `backupCreated`, `backupWithheld` bij elke tool van soort `mutate` of `batch` (in stand 2 maakt precies elk van die 21 tools een back-up; de proef vergelijkt die set exact), de export in een duplicaat vóór het terugwisselen, het verversen met een echte externe koppeling naar de bron, geen schrijfaanroep van de bestandslaag en geen nieuw bestand met `ISO-10303-21` in de werkmap en de gegevensmap. |
+| `tests/mcp/cases-headless-server.ts` (slots) | Deel A, "A eigenschap (1136 ronde 3)": per slot uit `IFC_SLOT_TABLES` een geval (`slotCorpus` in `headlessCorpus.ts`): elk constant slot bij eigen en bij vreemde herkomst, en elk domeinslot bij vreemde herkomst, met een waarde van een ander programma naar wat het schema toelaat (tekst, verwijzing, enumeratie, getal, datum, duur). 117 gevallen; een nieuw slot krijgt vanzelf een geval, en de proef faalt als een constant slot er geen heeft. Per geval: de kopie heeft het slot byte voor byte, of de export geeft `VALIDATION` en er is geen kopie; na een eerste taakwijziging in stand 3 `backupWithheld` en geen nieuw bestand, in stand 2 een planningsback-up met `OPS_RecoveryForeignSource`, in stand 1 een back-up met het slot. Deel B: het geval van de review (taak #52 met `OwnerHistory = $` en een `WorkMethod`) via stdio met de gebouwde server: export naar een nieuwe naam en over de bron `VALIDATION`, de eerste wijziging `backupWithheld`, geen bestand erbij, de bron bytegelijk. |
+| `tests/mcp/cases-headless-pariteit.ts` | Alleen met `OPS_MAIN_WORKTREE` (een werkmap van main met `node_modules`, bijvoorbeeld een `git archive`; anders slaat hij over). Bouwt de server van main en van deze werkmap en speelt over stdio met een vaste klok en een vaste `Math.random` per bestand vanaf een nieuw document dezelfde reeks af (openen, taken, een taak wijzigen, rekenen, exporteren naar een nieuwe naam, opslaan, heropenen) op de eigen reeks uit `headlessCorpus.ts` en een IFC2X3-model. Een bewezen eigen bestand: dezelfde antwoorden (gegenereerde id's per bestand één-op-één hernoemd) en dezelfde geschreven bytes. Een eigen bestand dat niet vast te stellen is: openen, lezen, wijzigen en rekenen zoals main, op één vastgelegde afwijking na (het antwoord van de wijziging heeft `backupWithheld` met de afgesproken tekst; de rest van dat antwoord is gelijk aan main), elke IFC-export `VALIDATION`, geen kopie en de bron bytegelijk. |
 | `cases-externe-client.ts` | Ongewijzigd; draait nu via `http.ts`. |
 
 ## Niet getest

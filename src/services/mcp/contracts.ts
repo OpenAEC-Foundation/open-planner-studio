@@ -23,6 +23,7 @@ export interface McpEnvelope {
   readOnly: boolean;
   /** Pad van de zojuist geschreven AI-backup; alleen gezet op de call die hem maakte. */
   backupCreated?: string;
+  backupWithheld?: string;
   /** Additieve contractuitbreiding: aantal taken waarvan DEZE mutatie de MSP-timephased-
    *  sturing losliet (`clearTimephasedWindow`/`clearTimephasedDurationWalks` gaven `true` terug —
    *  zie `taskDefaults.ts`). Alleen gezet, en > 0, op de call die het verlies veroorzaakte. De
@@ -96,6 +97,7 @@ export type MarkDuplicateBornFn = (docId: string) => void;
 export interface McpBackupBinding {
   ensureBackup: EnsureBackupFn;
   markDuplicateBorn: MarkDuplicateBornFn;
+  withheld?: () => string | null;
 }
 
 export interface McpContext {
@@ -111,6 +113,7 @@ export interface McpContext {
   paused: boolean;
   readOnly: boolean;
   ensureBackup: EnsureBackupFn;
+  backupWithheld?: () => string | null;
   /** Registreert een duplicaat bij exact dezelfde service als `ensureBackup`. */
   markDuplicateBorn: MarkDuplicateBornFn;
 }
@@ -130,6 +133,7 @@ export interface McpToolDef {
    * tools op beschrijving.
    */
   description: string;
+  describe?: (ctx: McpContext) => string;
   /** Stuurt guards + backup-trigger. */
   kind: 'read' | 'mutate' | 'document' | 'other' | 'batch';
   /** Mag deze tool als batch-stap draaien? */

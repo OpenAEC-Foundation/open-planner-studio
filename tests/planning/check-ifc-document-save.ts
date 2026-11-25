@@ -10,7 +10,7 @@ import { buildExportIFCInput, buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { writeIFC, writeIFCWithChoices } from '@/services/ifc/ifcWriter';
 import { askPlanOnly, resetPlanOnlyAsker, setPlanOnlyAsker, type PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
-import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
+import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
 import { computeIfcOutputHere, prepareIfcOutput, IfcWriteBlockedError, type IfcOutputCompute } from '@/state/prepareIfcOutput';
@@ -20,10 +20,14 @@ import { refusedWriteTarget, ifcFullWriteBlocked, ifcSaveBlocked } from '@/state
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { scheduleFileAutoSave } from '@/services/actualAutosave/fileAutoSaveTimers';
 import { closeProjectFileWrites, isProjectFileWriteBusy } from '@/services/fileAccess/writeCoordinator';
+import { replaceRecordId } from '@/services/fileAccess/replaceRecords';
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
 import { openInStore, loadStore } from './ifcAppRoute';
+import { recordedExample } from './opgeslagenDatumsVoorbeeld';
+import { shownFinish, shownStart } from '@/utils/taskDates';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
+import { openSecondTabOn } from './sameFileTabFixture';
 import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
 import { loadRecovery, clearRecovery } from '@/services/recovery/recoveryStore';
@@ -35,6 +39,11 @@ import { installDeterminism } from './ifcPariteitKern';
 import { canon, firstDiff, mergeProblems, openForeign, shownAfterOpen } from './ifcMergeKern';
 import { InProcessWorker } from './inProcessSaveWorker';
 import { createExtensionApi } from '@/extensions/extensionApi';
+import type { NotifyInput } from '@/state/slices/types';
+import { createAppQuitController } from '@/services/appQuit/appQuitController';
+import { appQuitDependencies } from '@/services/appQuit/appQuitDependencies';
+import { loadExtensionProject } from '@/extensions/retainActiveDocument';
+import { toExtAssignment, toExtCalendar, toExtProject, toExtResource, toExtSequence, toExtTask } from '@/extensions/extMappers';
 
 const reseed = installDeterminism();
 await loadStore();
@@ -290,16 +299,16 @@ await check('Opslaan als met een tabbladwissel tijdens de bestandskiezer: het sl
 function browserDownload() {
   const win = window as unknown as Record<string, unknown>;
   const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
-  const create = URL.createObjectURL, revoke = URL.revokeObjectURL, downloads: Blob[] = [];
+  const create = URL.createObjectURL, revoke = URL.revokeObjectURL, downloads: Blob[] = [], names: string[] = [];
   URL.createObjectURL = blob => { assert(blob instanceof Blob); downloads.push(blob); return 'blob:document-test'; };
   URL.revokeObjectURL = () => {};
   Object.defineProperty(globalThis, 'document', { configurable: true, value: {
-    createElement: () => ({ href: '', download: '', click: () => {} }),
+    createElement: () => { const link = { href: '', download: '', click: () => { names.push(link.download); } }; return link; },
     // Het voortgangsblad laadt `@/i18n/config`, dat de taalrichting op het document zet.
     documentElement: {},
   } });
   win.showSaveFilePicker = () => { throw new Error('een vreemde browseropslag moet downloaden'); };
-  return { downloads, dispose: () => {
+  return { downloads, names, dispose: () => {
     URL.createObjectURL = create; URL.revokeObjectURL = revoke; delete win.showSaveFilePicker;
     if (previousDocument) Object.defineProperty(globalThis, 'document', previousDocument);
     else Reflect.deleteProperty(globalThis, 'document');
@@ -518,11 +527,35 @@ await check('IFC-export desktop: volledig bestand, document intact, daarna Opsla
   } finally { ipc.dispose(); }
 });
 
-for (const kind of ['bestaand', 'eigen-bron', 'andere-bron'] as const) await check(`IFC-export ${kind}: nul bytes, één melding`, async () => {
-  const target = join(dir, `export-${kind}.ifc`);
+await check('IFC-export bestaand: de planning op die naam vervangen, het document intact', async () => {
+  const target = join(dir, 'export-bestaand.ifc');
   const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
-  writeFileSync(target, kind === 'bestaand' ? plain : bytes);
-  const store = kind === 'bestaand' ? (await openInStore(bytes)).store : await openAt({ kind: 'path', path: target });
+  writeFileSync(target, plain);
+  const appData = mkdtempSync(join(tmpdir(), 'ops-804-appdata-'));
+  const { store } = await openInStore(bytes);
+  longer(store); const before = preserved(store), literal = store.getState().ifcLiteralCalendarIds, ipc = desktop(appData);
+  ipc.choose(target);
+  try {
+    clearNotices(store);
+    const expected = await prepareIfcWrite(buildExportIFCInput(store.getState(), 'merge'), before.source!);
+    const result = await store.getState().exportAs('ifc');
+    assert(result.ok && !result.cancelled, 'de export slaagt');
+    const output = new Uint8Array(readFileSync(target));
+    assert.equal(hash(output), hash(expected.bytes), 'precies de uitvoer van de export');
+    assert.deepEqual(mergeProblems(bytes, output), []);
+    unchanged(store, before);
+    assert(store.getState().ifcLiteralCalendarIds === literal, 'export legt geen letterlijke kalenders vast');
+    assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
+    assert(store.getState().recentFiles.some(r => r.ref.kind === 'path' && r.ref.path === target), 'Recent kent het exportbestand');
+    assert.deepEqual(readdirSync(dir).filter(name => name.includes('.ops-')), [], 'geen hulpbestand');
+    assert.deepEqual(readdirSync(appData).filter(name => replaceRecordId(name) !== null), [], 'geen herstelrecord');
+  } finally { ipc.dispose(); }
+});
+
+for (const kind of ['eigen-bron', 'andere-bron'] as const) await check(`IFC-export ${kind}: nul bytes, één melding`, async () => {
+  const target = join(dir, `export-${kind}.ifc`);
+  writeFileSync(target, bytes);
+  const store = await openAt({ kind: 'path', path: target });
   if (kind === 'andere-bron') {
     store.getState().newDocument();
     await store.getState().openOpenedFile({ name: 'ander.ifc', content: '', bytes, ref: null });
@@ -533,12 +566,10 @@ for (const kind of ['bestaand', 'eigen-bron', 'andere-bron'] as const) await che
     clearNotices(store); const result = await store.getState().exportAs('ifc');
     assert(result.ok && result.cancelled); unchanged(store, before);
     assert.equal(hash(new Uint8Array(readFileSync(target))), oldHash);
-    // Een bestaand doel: alleen het eigen tijdelijke bestand werd geschreven, de plaatsing weigerde en het is weer weg.
-    assert.deepEqual(ipc.calls.filter(c => c.wrote).map(c => isTemp(c.path)), kind === 'bestaand' ? [true] : []);
+    assert.deepEqual(ipc.calls.filter(c => c.wrote).map(c => isTemp(c.path)), []);
     assert.deepEqual(tempLeft(), []);
     // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad.
-    assertNotice(store, kind === 'bestaand' ? 'notifications.ifcForeignNewTargetOnly'
-      : kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab' : 'notifications.ifcForeignTargetExport');
+    assertNotice(store, kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab' : 'notifications.exportTargetOwnFile');
   } finally { ipc.dispose(); }
 });
 
@@ -702,9 +733,13 @@ for (const flag of [true, false]) await check(`gewone IFC-export, flag ${flag}: 
   try {
     const { buildExportIFCInput } = await import('@/state/ifcSaveInput');
     const expected = new TextEncoder().encode(writeIFC(buildExportIFCInput(store.getState(), 'merge')));
+    const from = ipc.calls.length;
     const result = await store.getState().exportAs('ifc'); assert(result.ok && !result.cancelled);
     const output = new Uint8Array(readFileSync(target)); assert.equal(hash(output), hash(expected)); await openForeign(output);
     unchanged(store, before);
+    if (!flag) assert.deepEqual(ipc.calls.slice(from).map(c => [c.command, c.path === target ? 'doel' : isTemp(c.path) ? 'eigen hulpbestand' : c.path ?? null, c.wrote]),
+      [['plugin:fs|lstat', 'doel', false], ['plugin:fs|write_text_file', 'eigen hulpbestand', true], ['plugin:fs|rename', null, false],
+        ['plugin:fs|stat', 'doel', false], ['plugin:fs|stat', 'bron.ifc', false]], 'flag uit: precies de aanroepen aan de bestandsrand van main');
   } finally { ipc.dispose(); }
 });
 
@@ -828,7 +863,8 @@ for (const kind of ['eigen-bron', 'andere-bron', 'bestaand-model'] as const) for
       assert.equal(hash(new Uint8Array(readFileSync(target))), oldHash, 'het bestand met gebouwmodel blijft heel');
       assert.equal(writeCalls(ipc), 0); unchanged(store, before);
       // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad.
-      assertNotice(store, kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab' : 'notifications.ifcForeignTargetExport');
+      assertNotice(store, kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab'
+        : kind === 'eigen-bron' ? 'notifications.exportTargetOwnFile' : 'notifications.ifcForeignTargetExport');
     } finally { ipc.dispose(); resetPlanOnlyAsker(); }
   });
 }
@@ -1079,6 +1115,34 @@ await check('handle Ctrl+S drie keer (taak, duur, relatie; de derde via de sluit
       assert.equal((await loadRecovery()).docs.find(d => d.id === now.activeDocumentId)?.ifcSource?.sha256, hash(output));
       previous = output;
     }
+    assert.equal(browser.downloads.length, 0, 'geen download');
+  } finally { unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+await check('handle Ctrl+S in "datums zoals opgeslagen" (knownbug 2231): ongewijzigd de bron byte voor byte, na hernoemen geschreven, het tabblad schoon, dezelfde getoonde datums', async () => {
+  const source = await recordedExample();
+  const { store, name } = await openHandle(source), unregister = recoveryRounds(store), browser = browserDownload();
+  const errors = () => store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey);
+  const dates = (s: Store) => s.getState().tasks.map(t => [t.id, t.name, shownStart(t), shownFinish(t)]);
+  try {
+    assert.equal(store.getState().datesAsRecorded, true, 'geopend in "datums zoals opgeslagen"');
+    clearNotices(store);
+    assert.equal(await ctrlS(store), true, 'Ctrl+S zonder bewerking');
+    assert.equal(hash(fileOf(name)), hash(source), 'de bron byte voor byte terug');
+    assert.deepEqual(errors(), []);
+    const task = leaf(store);
+    store.getState().updateTask(task.id, { name: `${task.name} (hernoemd)` });
+    assert.equal(store.getState().datesAsRecorded, true, 'een naam laat de modus staan');
+    const before = dates(store);
+    writableLog.length = 0;
+    assert.equal(await ctrlS(store), true, 'Ctrl+S na hernoemen');
+    assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`], 'één vervanging, de hele buffer in één write');
+    assert.notEqual(hash(fileOf(name)), hash(source), 'de merge schreef de wijziging');
+    assert.equal(store.getState().isDirty, false, 'het tabblad is schoon');
+    assert.deepEqual(errors(), []);
+    const { store: reopened } = await openInStore(fileOf(name), name);
+    assert.equal(reopened.getState().datesAsRecorded, true, 'heropend in "datums zoals opgeslagen"');
+    assert.deepEqual(dates(reopened), before, 'dezelfde getoonde datums');
     assert.equal(browser.downloads.length, 0, 'geen download');
   } finally { unregister(); browser.dispose(); await clearRecovery(); }
 });
@@ -1454,7 +1518,8 @@ await check('handle: een ander open document met hetzelfde bestand als bron blij
   const { store, name } = await openHandle(), unregister = recoveryRounds(store);
   try {
     store.getState().newDocument();
-    await store.getState().openOpenedFile({ name, content: '', bytes, ref: { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle } });
+    await openSecondTabOn(store, { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle, name },
+      () => store.getState().openOpenedFile({ name, content: '', bytes, ref: { kind: 'handle', handle: new FakeHandle(`${name}.kopie`) as unknown as FileSystemFileHandle } }));
     longer(store); clearNotices(store); writableLog.length = 0;
     const before = preserved(store);
     assert.equal(await ctrlS(store), false);
@@ -1492,7 +1557,8 @@ await check('doelcontrole: de uitzondering "eigen doel" alleen voor de eigen han
     'een ander pad: geen uitzondering (zonder lezer is het doel onleesbaar)');
   // Een ander open document met hetzelfde bestand als bron.
   onPath.getState().newDocument();
-  await onPath.getState().openOpenedFile({ name: 'bron.ifc', content: '', bytes, ref: { kind: 'path', path } });
+  await openSecondTabOn(onPath, { kind: 'path', path },
+    () => onPath.getState().openOpenedFile({ name: 'bron.ifc', content: '', bytes, ref: { kind: 'path', path: `${path}.kopie` } }));
   const twice = onPath.getState();
   // Fixronde 1 van #1071, punt 3: de reden noemt het open tabblad (was 'open-source').
   assert.equal(await refusedWriteTarget(twice, { kind: 'path', path }, deps, { documentId: twice.activeDocumentId, source: twice.ifcSource! }),
@@ -1533,7 +1599,8 @@ function midSave() {
   return { set: (a: () => void) => { action = a; }, run: () => { const a = action; action = undefined; a?.(); } };
 }
 const turnUntil = async (done: () => boolean, what = 'de opslag bereikte het verwachte punt') => {
-  for (let i = 0; i < 2000 && !done(); i++) await new Promise(r => setImmediate(r));
+  const stuck = performance.now() + 10_000;
+  while (!done() && performance.now() < stuck) await new Promise(r => setImmediate(r));
   assert(done(), what);
 };
 
@@ -4207,6 +4274,514 @@ await check('stap 8, fixronde 2: het ritme geldt bij de beurt; een al gekozen mo
     assert.deepEqual(autoErrors(store), []);
   } finally { timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
 });
+
+const COUNT_KEYS: readonly string[] = ['notifications.foreignChangesWritten', 'notifications.foreignChangesDownloaded'];
+const writtenNotices = (store: Store) => store.getState().ui.notifications.filter(n => COUNT_KEYS.includes(n.messageKey));
+function recordCounts(store: Store): string[] {
+  const calls: string[] = [], notify = store.getState().notify;
+  store.setState({ notify: (n: NotifyInput) => {
+    if (COUNT_KEYS.includes(n.messageKey)) calls.push(`${n.messageKey === COUNT_KEYS[1] ? 'download ' : ''}${n.params?.file}:${n.params?.count}`);
+    notify(n);
+  } });
+  return calls;
+}
+const DELETE_KEY = 'notifications.foreignLinksDropped';
+const deleteNotices = (store: Store) => store.getState().ui.notifications.filter(n => n.messageKey === DELETE_KEY);
+const taskNamed = (store: Store, name: string) => store.getState().tasks.find(t => t.name === name)!.id;
+const writtenCount = async (store: Store) =>
+  (await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!)).foreignChanges?.length ?? 0;
+const LINKED = await (async () => {
+  const { store } = await openInStore(bytes);
+  const second = { ...structuredClone(store.getState().calendar), id: 'cal-tweede', name: 'Tweede kalender' };
+  store.getState().commitCalendarLibrary([...store.getState().calendars, second], store.getState().project.calendarId);
+  const written = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+  const calendar = written.source.stepIds['cal:cal-tweede'];
+  assert(calendar !== undefined, 'de tweede kalender staat in de geschreven bron');
+  const content = new TextDecoder().decode(written.bytes), end = content.lastIndexOf('ENDSEC;');
+  return new TextEncoder().encode(content.slice(0, end) + [
+    "#990001=IFCRELASSIGNSTOPRODUCT('1KoppelingRoute00000001',$,$,$,(#51),$,#393);",
+    "#990002=IFCRELASSIGNSTOPRODUCT('1KoppelingRoute00000002',$,$,$,(#53),$,#354);",
+    "#990003=IFCRELASSIGNSTOPRODUCT('1KoppelingRoute00000003',$,$,$,(#110),$,#393);",
+    "#990004=IFCRELASSIGNSTOPRODUCT('1KoppelingRoute00000004',$,$,$,(#92),$,#354);",
+    "#990005=IFCPROPERTYSINGLEVALUE('Opmerking',$,IFCLABEL('kalender'),$);",
+    "#990006=IFCPROPERTYSET('1KoppelingRoute00000006',$,'Pset_Kalender',$,(#990005));",
+    `#990007=IFCRELDEFINESBYPROPERTIES('1KoppelingRoute00000007',$,$,$,(#${calendar}),#990006);`,
+  ].join('\n') + '\n' + content.slice(end));
+})();
+
+type WriteRoute = {
+  readonly store: Store;
+  readonly write: () => Promise<boolean | void>;
+  readonly written: () => Promise<Uint8Array | undefined>;
+  readonly file: () => string;
+  readonly prepare?: () => Promise<PreparedIfcWrite>;
+  readonly dispose: () => Promise<void>;
+};
+let routeFiles = 0;
+const preparedWrite = (store: Store) => prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+const onDesktop = async (write: (store: Store, ipc: ReturnType<typeof desktop>, target: (path?: string) => string) => Promise<boolean | void>,
+  exported = false): Promise<WriteRoute> => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-route-appdata-')), ipc = desktop(appData);
+  const path = join(dir, `route-${++routeFiles}.ifc`); writeFileSync(path, LINKED);
+  const store = await openAt({ kind: 'path', path }, LINKED), unregister = recoveryRounds(store);
+  let last = path;
+  const target = (chosen?: string) => { if (chosen) { last = chosen; ipc.choose(chosen); } return last; };
+  return {
+    store, write: () => write(store, ipc, target), written: async () => existsSync(last) ? new Uint8Array(readFileSync(last)) : undefined,
+    file: () => last,
+    ...(exported ? { prepare: async () => {
+      if (store.getState().scheduleStale) store.getState().runCPM();
+      return (await prepareIfcOutput(store.getState(), buildExportIFCInput(store.getState(), 'merge'))).prepared!;
+    } } : {}),
+    dispose: async () => { unregister(); await clearRecovery(); ipc.dispose(); rmSync(appData, { recursive: true, force: true }); },
+  };
+};
+const onHandle = async (write: (store: Store) => Promise<boolean | void>, fail = false): Promise<WriteRoute> => {
+  const { store, name } = await openHandle(LINKED), unregister = recoveryRounds(store);
+  if (fail) handleFaults.set(name, { writeErrorAt: 0 });
+  return { store, write: () => write(store), written: async () => fileOf(name), file: () => name,
+    dispose: async () => { handleFaults.delete(name); unregister(); await clearRecovery(); } };
+};
+const downloaded = async (browser: ReturnType<typeof browserDownload>) => {
+  const last = browser.downloads.at(-1);
+  return last ? new Uint8Array(await last.arrayBuffer()) : undefined;
+};
+const onDownload = async (write: (store: Store) => Promise<boolean | void>): Promise<WriteRoute> => {
+  const browser = browserDownload(), { store } = await openInStore(LINKED);
+  return { store, write: () => write(store), written: () => downloaded(browser), file: () => browser.names.at(-1) ?? '',
+    dispose: async () => { browser.dispose(); } };
+};
+const onRefusedHandle = async (write: (store: Store) => Promise<boolean | void>): Promise<WriteRoute> => {
+  const browser = browserDownload(), { store, name } = await openHandle(LINKED), unregister = recoveryRounds(store);
+  handleFaults.set(name, { permission: 'denied' });
+  return { store, write: () => write(store), written: () => downloaded(browser), file: () => browser.names.at(-1) ?? '',
+    dispose: async () => { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); } };
+};
+const onSite = async (): Promise<WriteRoute> => {
+  const win = window as unknown as Record<string, unknown>, requests: { data: Blob }[] = [];
+  let version = 1;
+  win.openaecHost = { storage: {
+    list: async () => [], versions: async () => [], open: async () => ({ data: new Blob([LINKED.buffer]), name: 'site-bron.ifc', version: 'v1' }),
+    save: async (request: { id?: string; data: Blob }) => { requests.push(request); return { id: request.id ?? 'site', name: 'site-hernoemd.ifc', version: `v${++version}` }; },
+  } };
+  const store = await openAt({ kind: 'site', id: 'site' }, LINKED);
+  store.setState(s => { s.siteFileVersion = 'v1'; });
+  return { store, write: () => store.getState().saveFile(),
+    written: async () => { const last = requests.at(-1); return last ? new Uint8Array(await last.data.arrayBuffer()) : undefined; },
+    file: () => 'site-hernoemd.ifc', dispose: async () => { delete win.openaecHost; resetSiteAskers(); } };
+};
+const closePromptSave = (store: Store) => {
+  const id = store.getState().activeDocumentId;
+  return createCloseDocumentDialogActions({
+    pendingId: id, getActiveDocumentId: () => store.getState().activeDocumentId,
+    switchDocument: store.getState().switchDocument, closeDocument: () => {},
+    saveFile: () => ctrlS(store), clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+  }).save();
+};
+const WRITE_ROUTES: readonly [string, () => Promise<WriteRoute>, boolean?][] = [
+  ['Ctrl+S, bestand op de desktop', () => onDesktop(store => ctrlS(store))],
+  ['Automatisch opslaan, desktop', () => onDesktop(store => modelAutoSave(store).round().then(() => undefined))],
+  ['Opslaan als, desktop', () => onDesktop((store, _ipc, target) => { target(join(dir, `als-${++routeFiles}.ifc`)); return store.getState().saveFileAs(); })],
+  ['Exporteren als IFC, desktop, nieuw bestand', () => onDesktop((store, _ipc, target) => {
+    target(join(dir, `export-${++routeFiles}.ifc`)); return store.getState().exportAs('ifc').then(() => undefined);
+  }, true)],
+  ['Exporteren als IFC, desktop, over een bestaand bestand', () => onDesktop((store, _ipc, target) => {
+    writeFileSync(target(join(dir, `bestaand-${++routeFiles}.ifc`)), plainBytes()); return store.getState().exportAs('ifc').then(() => undefined);
+  }, true)],
+  ['Ctrl+S, browser met handle', () => onHandle(store => ctrlS(store))],
+  ['Automatisch opslaan, browser met handle', () => onHandle(store => modelAutoSave(store).round().then(() => undefined))],
+  ['de sluitvraag met Opslaan', () => onHandle(store => closePromptSave(store))],
+  ['Ctrl+S naar de site', () => onSite()],
+  ['Opslaan als, download', () => onDownload(store => store.getState().saveFileAs())],
+  ['Ctrl+S, download', () => onDownload(store => ctrlS(store))],
+  ['Ctrl+S, handle geweigerd: kopie als download', () => onRefusedHandle(store => ctrlS(store))],
+  ['Ctrl+S, de schrijfactie mislukt', () => onHandle(store => ctrlS(store), true), true],
+];
+
+await check('fixronde 3 van #1199: elke schrijfroute meldt per geslaagde schrijfactie één eigen telling met de naam uit de schrijfuitkomst; een lege of mislukte niets', async () => {
+  for (const [name, open, fails = false] of WRITE_ROUTES) {
+    const route = await open();
+    try {
+      clearNotices(route.store);
+      const lines: string[] = [], calls = recordCounts(route.store), download = name.includes('download');
+      for (const remove of [false, true]) {
+        if (remove) route.store.getState().deleteTask(taskNamed(route.store, 'Set up site')); else longer(route.store);
+        const expected = await (route.prepare ?? (() => preparedWrite(route.store)))();
+        const count = expected.foreignChanges?.length ?? 0;
+        assert.equal(count > 0, remove, `${name}: alleen het wissen laat iets vervallen`);
+        const outcome = await route.write();
+        const after = await route.written();
+        const wrote = after !== undefined && hash(after) === expected.sha256;
+        if (wrote === fails) {
+          const again = await (route.prepare ?? (() => preparedWrite(route.store)))();
+          assert.fail(`${name}, ${remove ? 'na het wissen' : 'na een langere duur'}: ${fails ? 'de schrijfactie mislukt niet' : 'niet de voorbereide uitvoer'}; `
+            + `daarna voorbereid ${after && hash(after) === again.sha256 ? 'wel' : 'ook niet'} gelijk; `
+            + (after ? firstDiff(new TextDecoder().decode(expected.bytes), new TextDecoder().decode(after)) : 'geen bestand'));
+        }
+        if (typeof outcome === 'boolean' && !name.includes('download')) assert.equal(outcome, !fails, `${name}: de uitkomst van de schrijfactie`);
+        if (wrote && count > 0) lines.push(`${download ? 'download ' : ''}${route.file()}:${count}`);
+        assert.deepEqual(calls, lines, `${name}: na ${remove ? 'het wissen' : 'een langere duur'}`);
+      }
+      if (fails) assert(route.store.getState().ui.notifications.some(n => n.severity === 'error'), `${name}: de fout zelf staat er`);
+    } finally { await route.dispose(); }
+  }
+});
+
+const DISAPPEARANCES: readonly [string, (store: Store) => void][] = [
+  ['taak wissen', store => store.getState().deleteTask(taskNamed(store, 'Set up site'))],
+  ['meer taken wissen', store => store.getState().deleteTasksBulk([taskNamed(store, 'Set up site'), taskNamed(store, 'Demolish existing extension')])],
+  ['taak opheffen', store => store.getState().dissolveTasksBulk([taskNamed(store, 'Set up site')])],
+  ['resource wissen', store => store.getState().removeResource(store.getState().resources.find(r => r.name === 'Bricklayers')!.id)],
+  ['Opnieuw na Ctrl+Z', store => { store.getState().deleteTask(taskNamed(store, 'Set up site')); store.getState().undo(); store.getState().redo(); }],
+  ['relatie wissen', store => store.getState().removeSequence(Object.entries(store.getState().ifcSource!.stepIds).find(([, id]) => id === 92)![0].slice('seq:'.length))],
+  ['kalenderdialoog', store => {
+    store.getState().commitCalendarLibrary(store.getState().calendars.filter(c => c.name !== 'Tweede kalender'), store.getState().project.calendarId);
+  }],
+];
+
+await check('fixronde 1 van #1199: elke manier van verdwijnen geeft na Ctrl+S de melding met het aantal van de lijst', async () => {
+  for (const [name, disappear] of DISAPPEARANCES) {
+    const route = await onHandle(store => ctrlS(store));
+    try {
+      disappear(route.store);
+      const expected = await writtenCount(route.store);
+      assert(expected > 0, `${name}: er vervalt iets`);
+      if (name === 'Opnieuw na Ctrl+Z') assert.equal(deleteNotices(route.store).at(-1)?.params?.count, expected, `${name}: ook de melding bij het wissen`);
+      clearNotices(route.store);
+      assert.equal(await route.write(), true, `${name}: Ctrl+S schrijft`);
+      assert.deepEqual(writtenNotices(route.store).map(n => n.params?.count), [expected], `${name}: de melding na het opslaan`);
+    } finally { await route.dispose(); }
+  }
+  const { store } = await openHandle(LINKED), unregister = recoveryRounds(store);
+  try {
+    const id = store.getState().activeDocumentId;
+    store.getState().deleteTask(taskNamed(store, 'Set up site'));
+    await flushRecoveryNow();
+    const restored = await restoreFrom(await loadRecovery());
+    unregister();
+    restored.getState().switchDocument(id);
+    const restoredRounds = recoveryRounds(restored);
+    try {
+      const expected = await writtenCount(restored);
+      assert(expected > 0, 'herstelset: de onopgeslagen wisactie laat iets vervallen');
+      clearNotices(restored);
+      assert.equal(await ctrlS(restored), true, 'herstelset: Ctrl+S schrijft');
+      assert.deepEqual(writtenNotices(restored).map(n => n.params?.count), [expected], 'herstelset: de melding na het opslaan');
+    } finally { restoredRounds(); }
+  } finally { unregister(); await clearRecovery(); }
+});
+
+await check('fixronde 1 van #1199: Automatisch opslaan meldt één keer', async () => {
+  const auto = await onHandle(async () => undefined);
+  try {
+    const rounds = modelAutoSave(auto.store);
+    auto.store.getState().deleteTask(taskNamed(auto.store, 'Set up site'));
+    const expected = await writtenCount(auto.store);
+    assert(expected > 0);
+    clearNotices(auto.store); await rounds.round();
+    assert.deepEqual(writtenNotices(auto.store).map(n => n.params?.count), [expected], 'de ronde die laat vervallen meldt');
+    longer(auto.store); clearNotices(auto.store); await rounds.round();
+    assert.equal(auto.store.getState().isDirty, false, 'de volgende ronde schreef');
+    assert.deepEqual(writtenNotices(auto.store), [], 'de volgende ronde meldt niets: de bron is de uitvoer');
+  } finally { await auto.dispose(); }
+});
+
+function rng(seed: number) {
+  let a = seed >>> 0;
+  return (n: number) => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return Math.floor((((t ^ (t >>> 14)) >>> 0) / 4294967296) * n);
+  };
+}
+async function linkedDocuments(count: number, flag = true) {
+  const { createAppStoreContext } = await loadStore(), context = createAppStoreContext();
+  const { store } = context;
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; });
+  const docs: { id: string; name: string }[] = [];
+  for (let k = 0; k < count; k++) {
+    const name = `telling-${++handleCount}.ifc`;
+    handleFiles.set(name, LINKED);
+    await store.getState().openOpenedFile({ name, content: '', bytes: LINKED,
+      ref: { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle } });
+    store.getState().setAutoSaveToFile(true);
+    docs.push({ id: store.getState().activeDocumentId, name });
+  }
+  clearNotices(store);
+  return { context, store, docs, unregister: recoveryRounds(store) };
+}
+const deleteLinked = (store: Store) => {
+  const s = store.getState();
+  const task = ['Set up site', 'Demolish existing extension'].find(name => s.tasks.some(t => t.name === name));
+  if (task) { s.deleteTask(taskNamed(store, task)); return true; }
+  const resource = s.resources.find(r => r.name === 'Bricklayers');
+  if (resource) { s.removeResource(resource.id); return true; }
+  const sequence = Object.entries(s.ifcSource?.stepIds ?? {}).find(([key, id]) => id === 92 && key.startsWith('seq:'))?.[0].slice('seq:'.length);
+  if (sequence && s.sequences.some(q => q.id === sequence)) { s.removeSequence(sequence); return true; }
+  return false;
+};
+const expectedFor = async (store: Store, id: string) => {
+  const payload = store.getState().getOpenDocumentPayloads().find(d => d.id === id)!.payload;
+  return prepareIfcWrite(buildWriteIFCInput(payload, 'merge'), payload.ifcSource!);
+};
+
+for (const [seed, count] of [[11, 2], [12, 3], [13, 5]] as const) {
+  await check(`fixronde 2 van #1199, regel A: willekeurige schrijfacties over ${count} documenten (zaad ${seed}): per geslaagde niet-lege schrijfactie precies één melding met naam en aantal`, async () => {
+    const { store, docs, unregister } = await linkedDocuments(count), next = rng(seed), browser = browserDownload();
+    const auto = modelAutoSave(store);
+    const lines: string[] = [], calls = recordCounts(store);
+    const log: string[] = [];
+    const record = async (doc: { id: string; name: string }, expected: PreparedIfcWrite | null, written: Uint8Array | undefined, download = false) => {
+      const n = expected?.foreignChanges?.length ?? 0;
+      if (expected && written && hash(written) === expected.sha256 && n > 0) lines.push(`${download ? 'download ' : ''}${doc.name}:${n}`);
+    };
+    try {
+      for (let step = 0; step < 28; step++) {
+        const ops = ['wis', 'wis', 'langer', 'ctrlS', 'ctrlS', 'fout', 'auto', 'auto', 'als', 'zien'] as const;
+        const doc = docs[next(docs.length)]!, op = ops[next(ops.length)]!;
+        log.push(`${op}:${doc.name}`);
+        store.getState().switchDocument(doc.id);
+        if (op === 'wis') { if (!deleteLinked(store)) longer(store); }
+        else if (op === 'langer') longer(store);
+        else if (op === 'ctrlS' || op === 'fout') {
+          const expected = await expectedFor(store, doc.id);
+          if (op === 'fout') handleFaults.set(doc.name, { writeErrorAt: 0 });
+          try { await ctrlS(store); } finally { handleFaults.delete(doc.name); }
+          await record(doc, expected, fileOf(doc.name));
+        } else if (op === 'auto') {
+          const expected = new Map<string, PreparedIfcWrite>();
+          for (const d of docs) expected.set(d.id, await expectedFor(store, d.id));
+          await auto.round();
+          for (const d of docs) await record(d, expected.get(d.id)!, fileOf(d.name));
+        } else if (op === 'als') {
+          const expected = await expectedFor(store, doc.id), before = browser.downloads.length;
+          await store.getState().saveFileAs();
+          const blob = browser.downloads.length > before ? browser.downloads.at(-1)! : undefined;
+          await record(doc, expected, blob ? new Uint8Array(await blob.arrayBuffer()) : undefined, true);
+        } else {
+          const notice = writtenNotices(store)[next(Math.max(1, writtenNotices(store).length))];
+          if (notice) store.getState().dismissNotification(notice.id);
+        }
+        assert.deepEqual(calls, lines, `na ${log.join(' ')}`);
+      }
+      assert(lines.length >= 2, `de reeks had ${lines.length} geslaagde niet-lege schrijfactie(s): ${log.join(' ')}`);
+    } finally { browser.dispose(); unregister(); await clearRecovery(); }
+  });
+}
+
+await check('fixronde 3 van #1199: een telling sluiten sluit alleen die telling, ook als er net een tweede bij kwam', async () => {
+  const { store, docs, unregister } = await linkedDocuments(2);
+  try {
+    store.getState().switchDocument(docs[0]!.id); deleteLinked(store); await ctrlS(store);
+    const [first] = writtenNotices(store);
+    assert(first, 'de eerste telling');
+    store.getState().switchDocument(docs[1]!.id); deleteLinked(store); await ctrlS(store);
+    assert.equal(writtenNotices(store).length, 2, 'twee eigen meldingen');
+    store.getState().dismissNotification(first.id);
+    assert.deepEqual(writtenNotices(store).map(n => n.params?.file), [docs[1]!.name], 'de tweede staat er nog');
+  } finally { unregister(); await clearRecovery(); }
+});
+
+const MAIN_STACKS: readonly [string, NotifyInput[]][] = [
+  ['drie fouten', [1, 2, 3].map(k => ({ severity: 'error', messageKey: 'notifications.saveFailed', dedupeKey: `fout-${k}` }))],
+  ['drie blijvende meldingen', [1, 2, 3].map(k => ({ severity: 'info', sticky: true, messageKey: 'notifications.siteFileReadOnly', params: { name: `b${k}` }, dedupeKey: `blijvend-${k}` }))],
+  ['een weigering, een fout en een gewone melding', [
+    { severity: 'error', refusal: true, messageKey: 'notifications.saveFailed', dedupeKey: 'weigering' },
+    { severity: 'error', messageKey: 'notifications.saveFailed', dedupeKey: 'fout' },
+    { severity: 'info', messageKey: 'notifications.siteFileReadOnly', params: { name: 'g' }, dedupeKey: 'gewoon' },
+  ]],
+];
+for (const [label, existing] of MAIN_STACKS) {
+  await check(`fixronde 3 van #1199: de stapel met ${label} en een telling doet wat main doet met een vierde blijvende melding`, async () => {
+    const { store, unregister } = await linkedDocuments(1);
+    try {
+      deleteLinked(store);
+      clearNotices(store);
+      for (const n of existing) store.getState().notify(n);
+      await ctrlS(store);
+      const { createAppStoreContext } = await loadStore(), reference = createAppStoreContext().store;
+      for (const n of existing) reference.getState().notify(n);
+      reference.getState().notify({ severity: 'info', sticky: true, messageKey: 'notifications.siteSaveConflictCopy', params: { name: 'kopie.ifc', original: 'bron.ifc' } });
+      const shape = (list: readonly { dedupeKey?: string }[]) => list.map(n => n.dedupeKey ?? 'nieuw');
+      assert.deepEqual(shape(store.getState().ui.notifications), shape(reference.getState().ui.notifications));
+      assert.equal(writtenNotices(store).length, shape(reference.getState().ui.notifications).includes('nieuw') ? 1 : 0);
+    } finally { unregister(); await clearRecovery(); }
+  });
+}
+
+async function quitting(context: Awaited<ReturnType<typeof linkedDocuments>>['context']) {
+  let destroyed = false;
+  const controller = createAppQuitController({ ...appQuitDependencies(context, {
+    stopRecovery: () => () => {}, clearRecovery: async () => {}, destroyWindow: async () => { destroyed = true; },
+  }), claimShutdown: () => () => {} });
+  const stop = context.store.subscribe(() => { if (controller.active) controller.step(); });
+  const answerSave = async () => {
+    const store = context.store, id = store.getState().ui.pendingCloseDocId!;
+    assert(id, 'de sluitvraag staat open');
+    store.getState().switchDocument(id);
+    await createCloseDocumentDialogActions({
+      pendingId: id, getActiveDocumentId: () => store.getState().activeDocumentId, switchDocument: store.getState().switchDocument,
+      closeDocument: () => { store.getState().closeDocument(id); }, saveFile: () => ctrlS(store),
+      clearPending: () => store.getState().setUI({ pendingCloseDocId: null }), restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+    }).save();
+  };
+  return { controller, destroyed: () => destroyed, answerSave, dispose: stop };
+}
+
+await check('fixronde 3 van #1199, afsluiten: met een openstaande telling sluit het venster zoals op main', async () => {
+  const { context, store, docs, unregister } = await linkedDocuments(2);
+  const quit = await quitting(context), calls = recordCounts(store);
+  try {
+    for (const doc of docs) { store.getState().switchDocument(doc.id); store.getState().deleteTask(taskNamed(store, 'Set up site')); }
+    clearNotices(store);
+    quit.controller.requestQuit();
+    await quit.answerSave();
+    await someTurns();
+    await quit.answerSave();
+    await someTurns();
+    assert.equal(calls.length, 2, 'beide opslagen meldden hun telling');
+    assert.equal(quit.destroyed(), true, 'het venster gaat dicht zoals op main');
+  } finally { quit.dispose(); unregister(); await clearRecovery(); }
+});
+
+async function plainDocument(flag: boolean) {
+  const { createAppStoreContext } = await loadStore(), context = createAppStoreContext(), name = `gewoon-${++handleCount}.ifc`;
+  context.store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; });
+  handleFiles.set(name, plainBytes());
+  await context.store.getState().openOpenedFile({ name, content: plainText(plainBytes()),
+    ref: { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle } });
+  return { context, store: context.store, unregister: recoveryRounds(context.store) };
+}
+
+await check('fixronde 3 van #1199, afsluiten: een lege lijst, de flag uit of een document zonder vreemd deel sluit direct, zoals main', async () => {
+  for (const variant of ['lege lijst', 'flag uit', 'zonder vreemd deel'] as const) {
+    const { context, store, unregister } = variant === 'lege lijst' ? await linkedDocuments(1) : await plainDocument(variant === 'zonder vreemd deel');
+    const quit = await quitting(context);
+    try {
+      if (variant === 'lege lijst') longer(store); else store.getState().deleteTask(leaf(store).id);
+      assert.deepEqual(deleteNotices(store), [], `${variant}: geen wismelding`);
+      clearNotices(store);
+      quit.controller.requestQuit();
+      await quit.answerSave();
+      await someTurns();
+      assert.deepEqual(writtenNotices(store), [], `${variant}: geen telling`);
+      assert.equal(quit.destroyed(), true, `${variant}: het venster gaat direct dicht`);
+    } finally { quit.dispose(); unregister(); await clearRecovery(); }
+  }
+});
+
+await check('fixronde 2 van #1199: de extensieroute laadt dezelfde taak met een nieuw id terug; Ctrl+S weigert en het bestand blijft gelijk, zoals op main', async () => {
+  const { store, name } = await openHandle(LINKED), unregister = recoveryRounds(store);
+  try {
+    const state = store.getState(), oldId = taskNamed(store, 'Set up site');
+    const ext = { project: toExtProject(state.project), calendar: toExtCalendar(state.calendar), tasks: state.tasks.map(t => toExtTask(t)),
+      sequences: state.sequences.map(toExtSequence), resources: state.resources.map(toExtResource), assignments: state.assignments.map(toExtAssignment) };
+    loadExtensionProject(store, JSON.parse(JSON.stringify(ext).split(`"${oldId}"`).join('"taak-met-nieuw-id"')));
+    assert.equal(store.getState().ifcSource, state.ifcSource, 'de bron blijft gekoppeld');
+    clearNotices(store);
+    assert.equal(await ctrlS(store), false, 'Ctrl+S weigert');
+    assert.equal(hash(fileOf(name)), hash(LINKED), 'het bestand bytegelijk');
+    assert(store.getState().ui.notifications.some(n => n.severity === 'error'), 'met een weigering');
+    assert.deepEqual(writtenNotices(store), [], 'en zonder telling');
+  } finally { unregister(); await clearRecovery(); }
+});
+
+await check('fixronde 3 van #1199: zonder vreemd deel, of met de flag uit, meldt Ctrl+S en Opslaan als niets', async () => {
+  for (const [label, source, flag, written] of [['zonder vreemd deel', plainBytes(), true, 2], ['zonder vreemd deel, flag uit', plainBytes(), false, 2], ['met vreemd deel, flag uit', LINKED, false, 0]] as const) {
+    const browser = browserDownload(), { store } = await openInStore(source);
+    if (!flag) store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    const calls = recordCounts(store);
+    try {
+      store.getState().deleteTask(store.getState().tasks.find(t => !t.childIds.length)!.id);
+      await ctrlS(store);
+      longer(store);
+      await store.getState().saveFileAs();
+      assert.equal(browser.downloads.length, written, `${label}: geschreven zoals op main`);
+      assert.deepEqual(calls, [], `${label}: geen telling`);
+      assert.deepEqual(writtenNotices(store), [], `${label}: geen melding`);
+    } finally { browser.dispose(); }
+  }
+});
+
+await check('fixronde 4 van #1199: een extensie die na de plaatsing een ander project in het tabblad laadt; de telling noemt het geschreven bestand', async () => {
+  const { createAppStoreContext } = await loadStore(), context = createAppStoreContext(), { store } = context;
+  const name = `geschreven-${++handleCount}.ifc`;
+  handleFiles.set(name, LINKED);
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  await store.getState().openOpenedFile({ name, content: '', bytes: LINKED,
+    ref: { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle } });
+  const unregister = recoveryRounds(store);
+  try {
+    deleteLinked(store);
+    const expected = await preparedWrite(store);
+    assert(expected.foreignChanges?.length);
+    handleFaults.set(name, { afterClose: async () => { loadThroughExtension(context, false); } });
+    await ctrlS(store);
+    assert.equal(hash(fileOf(name)), expected.sha256, 'de merge staat op de handle');
+    assert.deepEqual(writtenNotices(store).map(n => [n.params?.file, n.params?.count]), [[name, expected.foreignChanges.length]]);
+  } finally { handleFaults.delete(name); unregister(); await clearRecovery(); }
+});
+
+function recordDeletes(store: Store): NotifyInput[] {
+  const calls: NotifyInput[] = [], notify = store.getState().notify;
+  store.setState({ notify: (n: NotifyInput) => { if (n.messageKey === DELETE_KEY) calls.push(n); notify(n); } });
+  return calls;
+}
+const plainDelete = (count: number): NotifyInput => ({ severity: 'info', messageKey: DELETE_KEY, params: { count } });
+
+await check('fixronde 5 van #1199: wissen meldt één gewone melding zonder knop met het aantal van die wisstap; Ctrl+Z trekt niets in, Ctrl+Y meldt opnieuw', async () => {
+  const { store } = await openHandle(LINKED), unregister = recoveryRounds(store);
+  try {
+    const calls = recordDeletes(store);
+    store.getState().deleteTask(taskNamed(store, 'Set up site'));
+    const first = await writtenCount(store);
+    assert(first > 0);
+    assert.deepEqual(calls, [plainDelete(first)], 'één aanroep, het aantal van die wisstap, geen actie');
+    store.getState().deleteTask(taskNamed(store, 'Demolish existing extension'));
+    const second = await writtenCount(store) - first;
+    assert(second > 0);
+    assert.deepEqual(calls, [plainDelete(first), plainDelete(second)], 'de tweede wisstap meldt haar eigen aantal');
+    assert.equal(deleteNotices(store).length, 2, 'twee eigen meldingen');
+    store.getState().undo();
+    assert.equal(calls.length, 2, 'Ctrl+Z meldt niets');
+    assert.equal(deleteNotices(store).length, 2, 'en trekt niets in');
+    store.getState().redo();
+    assert.deepEqual(calls.at(-1), plainDelete(second), 'Ctrl+Y meldt de wisstap opnieuw');
+    store.getState().removeResource(store.getState().resources.find(r => r.name === 'Bricklayers')!.id);
+    const third = await writtenCount(store) - first - second;
+    assert(third > 0);
+    assert.deepEqual(calls.at(-1), plainDelete(third), 'een resource wissen');
+    const before = calls.length;
+    store.getState().deleteTask(taskNamed(store, 'Apply roofing'));
+    assert.equal(calls.length, before, 'een taak zonder koppeling: geen melding');
+  } finally { unregister(); await clearRecovery(); }
+  for (const [label, source, flag] of [['flag uit', LINKED, false], ['zonder vreemd deel', plainBytes(), true]] as const) {
+    const { store } = await openInStore(source);
+    if (!flag) store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    const calls = recordDeletes(store);
+    const task = store.getState().tasks.find(t => t.name === 'Set up site') ?? store.getState().tasks.find(t => !t.childIds.length)!;
+    store.getState().deleteTask(task.id);
+    assert.deepEqual(calls, [], `${label}: geen melding`);
+  }
+});
+
+for (const [label, existing] of MAIN_STACKS) {
+  await check(`fixronde 5 van #1199: de stapel met ${label} en een wisstap doet wat main doet met een vierde gewone melding`, async () => {
+    const { store } = await openHandle(LINKED), unregister = recoveryRounds(store);
+    try {
+      clearNotices(store);
+      for (const n of existing) store.getState().notify(n);
+      store.getState().deleteTask(taskNamed(store, 'Set up site'));
+      const { createAppStoreContext } = await loadStore(), reference = createAppStoreContext().store;
+      for (const n of existing) reference.getState().notify(n);
+      reference.getState().notify({ severity: 'info', messageKey: 'notifications.reportLayoutGone' });
+      const shape = (list: readonly { dedupeKey?: string }[]) => list.map(n => n.dedupeKey ?? 'nieuw');
+      assert.deepEqual(shape(store.getState().ui.notifications), shape(reference.getState().ui.notifications));
+      assert.equal(deleteNotices(store).length, shape(reference.getState().ui.notifications).includes('nieuw') ? 1 : 0);
+    } finally { unregister(); await clearRecovery(); }
+  });
+}
 
 rmSync(dir, { recursive: true, force: true });
 console.log(`Documentopslag: ${passed} geslaagd, ${failed} mislukt.`);

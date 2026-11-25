@@ -8,6 +8,7 @@ paths:
   - "src/state/xerExportNotice.ts"
   - "src/utils/xerDocumentName.ts"
   - "src/services/formatRegistry.ts"
+  - "src/services/p6/p6xmlReader.ts"
   - "src/services/mcp/tools/xerProvenanceTools.ts"
   - "src/engine/scheduler/p6*"
   - "src/engine/scheduler/CPMSolver.ts"
@@ -145,3 +146,12 @@ projectnaam (geen `OPS:`-code; `xerProjectCode` filtert niets; botsing: knownbug
 eerst normaliseren, dan lengte (40) en uniciteit (`uniqueCode`). Bewijs: `tests/planning/check-xer-writer.ts` (rondgang, zelfde datums en
 speling na `solveProject`, XER → OPS → XER → OPS op `tests/browser/fixtures/xer`, byte-gelijke tweede en
 derde export). Een import in P6 zelf is niet getest.
+
+### De P6 XML-lezer (`p6xmlReader.ts`)
+
+Besluiten van de lezer van P6 XML: `docs/adr/0260-p6xml-lezen-export-van-ops-en-oude-vormen.md`,
+`0261-p6xml-lezen-projecten-baselines-en-wbs.md`, `0262-p6xml-lezen-kalenders-werkweek-en-eindtijd.md`,
+`0263-p6xml-lezen-uitzonderingen-en-feestdagen.md`, `0264-p6xml-lezen-uurkalender-en-tijd-van-een-datum.md`,
+`0265-p6xml-lezen-duur-rest-en-lag.md`, `0266-p6xml-lezen-voortgang-en-status.md`,
+`0267-p6xml-lezen-p6-herkomst-duursoort-en-constraints.md`, `0268-p6xml-lezen-rekenuitvoer-van-p6.md` en
+`0269-p6xml-lezen-resources-en-toewijzingen.md`.

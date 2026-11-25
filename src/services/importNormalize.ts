@@ -277,18 +277,13 @@ export function rebuildImportedHierarchy(tasks: Task[], levels: readonly (number
  * dubbele opslag/waarheid). Gedeeld door de lezers die toewijzingen kennen. Volgorde is deterministisch: eerste-zien in de
  * assignments-volgorde, met deduplicatie (één resource kan meerdere assignments op één taak hebben).
  */
-export function resourceIdsByTask(assignments: readonly ResourceAssignment[]): Map<string, string[]> {
+export function reconstructResourceIds(tasks: Task[], assignments: ResourceAssignment[]): void {
   const byTask = new Map<string, string[]>();
   for (const a of assignments) {
     let list = byTask.get(a.taskId);
     if (!list) { list = []; byTask.set(a.taskId, list); }
     if (!list.includes(a.resourceId)) list.push(a.resourceId);
   }
-  return byTask;
-}
-
-export function reconstructResourceIds(tasks: Task[], assignments: ResourceAssignment[]): void {
-  const byTask = resourceIdsByTask(assignments);
   for (const t of tasks) {
     const ids = byTask.get(t.id);
     if (ids) t.resourceIds = ids;

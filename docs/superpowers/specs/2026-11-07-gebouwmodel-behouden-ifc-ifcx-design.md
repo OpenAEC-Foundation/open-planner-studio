@@ -1,9 +1,10 @@
 # Gebouwmodel behouden in IFC en IFCX — ontwerp
 
-Status: ontwerp, versie 21 (9 november 2026: council-rondes 1–13, Opus en Sol gaven een 9; daarna fixrondes 1 tot en met
+Status: ontwerp, versie 22 (9 november 2026: council-rondes 1–13, Opus en Sol gaven een 9; daarna fixrondes 1 tot en met
 4 van de review van PR #839 door Sol en Terra, §12; daarna de uitkomst van fase 0, met drie besluiten van wrakko, §11;
 17 november 2026: de besluiten van de eigenaar van 16 en 17 november in §11, met de namen van de kopieën in §4.10 en
-het ritme van Automatisch opslaan en de export in §4.12).
+het ritme van Automatisch opslaan en de export in §4.12; 25 november 2026: het besluit van de eigenaar over IFCX met een
+gebouwmodel in §1, §5.0, §6, §8, §10 en §11).
 Wordt in dezelfde sessie gebouwd.
 Issue #804 (IFCX naast IFC4X3). Raakt #748 (lokale 4D-workflow). Vervangt de weigering van PR #547
 (commit `5b2812f94`, 2026-10-23; de vroegere knownbug 110).
@@ -26,8 +27,9 @@ IFC-formaat en in IFCX. IFCX wordt in deze sessie volledig ingebouwd: alles uit 
 
 1. Een IFC4/IFC4X3-bestand openen, de planning bewerken en opslaan. Alles wat geen planning is, komt **byte-gelijk**
    terug: het model, de geometrie, gegevens van andere programma's.
-2. Hetzelfde voor een `.ifcx`-bestand (§6 zegt precies wat byte-gelijk is). Een planning die een ander programma in
-   `openaec::planning::` schreef, opent de app en is te bewerken (§5.5).
+2. Een `.ifcx`-bestand met een gebouwmodel blijft byte-gelijk, omdat de app het niet herschrijft: de planning staat in
+   een eigen bestand naast het model (besluit van 25 november 2026, §6). Een planning die een ander programma in
+   `openaec::planning::` schreef, opent de app en is te bewerken (§5.5); opslaan gebeurt in het eigen planningsbestand.
 3. Een planning als `.ifcx` opslaan en weer openen, zonder verlies van de gegevens in §5.4.
 4. Bestaande koppelingen taak↔bouwdeel blijven bestaan en zijn zichtbaar (alleen lezen).
 5. Een bestaand eigen IFC-project werkt precies zoals nu (eis uit #804).
@@ -38,9 +40,12 @@ IFC-formaat en in IFCX. IFCX wordt in deze sessie volledig ingebouwd: alles uit 
 - Een gebouwmodel omzetten tussen STEP en IFCX.
 - IFC2X3-bestanden met een model (§4.11). Dat is een echte beperking: veel modellen uit Revit en ArchiCAD in
   Nederland zijn nog IFC2X3.
-- Datalagen van een IFCX-bestand oplossen die via `imports` uit andere bestanden komen (§6.5).
-- De oude naam `openaec::activity` (huidige ifcx-explorer) als planning lezen. Die bijdrage blijft als vreemde bijdrage
-  staan (§6.2).
+- Datalagen van een IFCX-bestand oplossen die via `imports` uit andere bestanden komen (§6.5). De verwijzing van de
+  eigen planning naar het modelbestand is daar een uitzondering op en volgt uit de proef van fase 4 (§6).
+- De oude naam `openaec::activity` (huidige ifcx-explorer) als planning lezen. De app leest die bijdrage niet en schrijft
+  het bestand waarin ze staat niet terug (§5.0).
+- Een IFCX-bestand met inhoud van een ander programma bewerken en byte-gelijk terugschrijven (§6.1 tot en met §6.4 en
+  §6.6; besluit van 25 november 2026).
 
 ## 2. Wat we leerden uit het ecosysteem
 
@@ -197,7 +202,8 @@ anders niet (`IfcRelSequence` is D, stap 1):
     schrijft alleen die terug (voorbeeld: een extra `vendorCoordinationId` in `OPS_StructureMeta` gaat nu verloren,
     `ifcReader.ts:2211-2213`, `ifcWriter.ts:789`; Sol, review #839). De property is P, dus `sourceSlots` en controle 1
     zagen dat niet. Regel: het register noemt elke JSON-property met de sleutels die de lezer leest. Een **onbekende
-    JSON-sleutel** bewaart de app als ruw token (JSON-tokenizer van §6.1, na het decoderen van de STEP-tekst;
+    JSON-sleutel** bewaart de app als ruw token (JSON-tokenizer van §6.1, na het decoderen van de STEP-tekst; dit gebruik in STEP blijft, ook nu de tokenizer voor
+     IFCX-entries vervalt (§6);
     `ifcSource.jsonExtras`, per domeinobject, property en object in de JSON). De writer zet ze terug in hetzelfde
     object, na de bekende sleutels, in hun oorspronkelijke volgorde.
   - **Identiteit per JSON-structuur** (Sol en Terra, review #839, ronde 2: positie als sleutel koppelde vreemde velden aan
@@ -480,8 +486,11 @@ Een A-stuk verwijst naar een D- of R-stuk dat in de uitvoer niet meer bestaat. D
 
 Elk gewijzigd of vervallen vreemd stuk staat in de **wijzigingslijst** (id, oude bytes, nieuwe bytes of "vervallen").
 Of een attribuut optioneel is, toetst de app niet zelf; `ifcopenshell.validate` in CI vangt de rest (§10). Melding na
-opslaan, via het meldingenkanaal: "3 gegevens van andere programma's hingen aan verwijderde taken of resources. Ze zijn
-aangepast of verwijderd."
+opslaan, via het meldingenkanaal, per geslaagde schrijfactie met de naam van het geschreven bestand: "bron.ifc: 3
+IFC-gegevens buiten de planning verwezen naar iets wat uit de planning is verwijderd. Ze zijn bij het opslaan aangepast
+of verwijderd." Elke geslaagde schrijfactie met een niet-lege lijst meldt haar eigen telling als gewone melding
+(fixronde 3 van #1199); wat die melding niet kan, staat in knownbug 2357. De melding bij het wissen is in
+deel 1 een gewone melding zonder knop; de knop *Ongedaan maken* komt in PR 7 (fixronde 5 van #1199, knownbug 2357).
 
 Dezelfde regel geldt voor vreemde gegevens **binnen** een eigen stuk: de onbekende JSON-sleutels (§4.2) en de
 ongebruikte sleutels in `OPS_Assignments` horen bij hun object en vervallen met dat object. Ze staan dan ook op de
@@ -767,15 +776,18 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     van wat de app gezien heeft); een leesbaar bestand dat geen IFC is, is een gewoon doel. Eén scan van de vastgelegde
     bytes, gedeeld door de controle na de kiezer en die na de eerste herstelronde (was knownbug 1891). De eigen bron
     blijft geweigerd, met een verwijzing naar *Opslaan*; het bestand of de bron van een ander open document krijgt de
-    melding van een open tabblad, net als bij Exporteren. Een link naar een modelbestand blijft geweigerd. Exporteren,
-    Ctrl+S met een opslagdoel, Automatisch opslaan en MCP krijgen die toestemming niet. Daarbij weigert
+    melding van een open tabblad, net als bij Exporteren. Een link naar een modelbestand blijft geweigerd. Ctrl+S met
+    een opslagdoel en Automatisch opslaan krijgen die toestemming niet. Daarbij weigert
     de vervanging ook een bestand dat in een ander tabblad open staat, ook een gewone planning zonder vreemd deel
     (fixronde 1 van #1019): na de eerste herstelronde en vóór de eerste schrijfactie in de map. Een vrije naam die een
     ander tabblad nog als pad onthoudt, blijft een vrije naam (fixronde 2). Of er een bestand staat, stelt de app direct na de
     terugkeer van de bestandskiezer vast; een toen leeg pad houdt de exclusieve aanmaak (knownbug 1890). Waar de vervanging
     niet kan (buiten de scope van de kiezer, knownbug 1762; een link of een harde link; een bestandssysteem zonder
     exclusieve stap), blijft de melding dat alleen een nieuwe naam kan; geen terugval. Met de flag uit is alles zoals
-    voorheen, ook de volgorde van de weigerredenen. Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
+    voorheen, ook de volgorde van de weigerredenen. Exporteren → IFC (de planner in het venster) en `planner_export_ifc`
+    (alleen met `overwrite: true`) vervangen een bestaande naam bij een document met een vreemd deel langs dezelfde weg
+    (besluit van de eigenaar, 21 november 2026; #1179): zonder manifeststap, zonder vastleggen op het document, en niet
+    over het eigen bestand van het document.
   - **Stappen.** 0: een eigen herstelrecord voor deze vervanging, `recovery[.<slug>].replace.<id>.json` in de
     appDataDir, met `{ id, path, vorigeSha256, pendingSha256 }`, en in het manifest `pendingSha256` (§4.14). Het record
     staat bewust buiten het manifest (besluit van de technisch beslisser, 18 november 2026, na de review van #991): het
@@ -906,24 +918,30 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 - Bronbytes één keer in het geheugen (§4.8). Uitvoer = verwijzingen naar de bron plus de P-stukken.
 - De Tauri-app draait op WebKit (JavaScriptCore) op Linux en macOS en op WebView2 (V8) op Windows; de browserbuild op V8.
 - Twee grenzen, elk op één plek (besluit van de technisch beslisser, 21 november 2026, route A; knownbug 1936):
-  - **De productgrens**: 150 MiB (binair, 157.286.400 bytes), `IFC_MODEL_OPEN_MAX_BYTES` in `modelOpenLimit.ts`. Besluit
-    van de eigenaar: "tot 150 mb, later kunnen we dat nog uitbouwen, zorg dat de architectuur flexibel genoeg is om dat
-    alsnog te doen later." Openen weigert een bestand dat volgens de leesroute een gebouwmodel of vreemde gegevens heeft
-    en groter is dan 150 MiB, met een melding die de grens noemt. Dat gebeurt na het lezen: een model tussen 150 en
-    300 MiB wordt eerst gescand en dan geweigerd. Een planning zonder gebouwmodel en zonder vreemde gegevens heeft deze
-    grens niet, en een IFC2X3-bestand zonder gebouwmodel evenmin: dat opent via de schematerugval zonder `ifcSource`,
-    met de bestaande verliesmelding (§4.11). Alleen bij openen in de app: `openOpenedFile` toetst altijd, het
-    crashherstel valt erbuiten met een benoemde optie voor zijn eigen, gecontroleerde bron, en de site en
-    `planner_import_schedule` in de app toetsen zelf. Niet bij het crashherstel, de doelscan, opslaan of headless.
+  - **De drempel voor de waarschuwing**: 150 MiB (binair, 157.286.400 bytes), `IFC_FOREIGN_OPEN_WARN_BYTES` in
+    `foreignOpenSize.ts`. Eerste besluit van de eigenaar (21 november 2026): "tot 150 mb, later kunnen we dat nog
+    uitbouwen, zorg dat de architectuur flexibel genoeg is om dat alsnog te doen later." Openen weigerde toen daarboven.
+    Besluit van de eigenaar van 24 november 2026: "zo laten, kunnen we niet maken dat het toch kan en dan gewoon hier een
+    warning van maken dat het heel gevaarlijk is?", met de vorm "Het bestand opent meteen. De waarschuwing blijft staan
+    tot je haar wegklikt." Een bestand dat volgens de leesroute een gebouwmodel of vreemde gegevens heeft en groter is
+    dan 150 MiB, opent dus gewoon, met een openingsmelding zonder timer die zegt dat opslaan kan mislukken doordat het
+    geheugen opraakt en dat recente wijzigingen dan verloren kunnen gaan. Dat het bestand op schijf gelijk blijft, belooft
+    ze niet: dat is alleen gemeten voor een stop tijdens het rekenen, vóór het schrijven (knownbug 1936). Zonder timer is
+    niet hetzelfde als staan tot je haar wegklikt: de stapel van drie kan haar verdringen (knownbug 2253). De toets
+    gebruikt wat de leesroute al weet; geen tweede scan. Een planning zonder gebouwmodel en zonder vreemde gegevens krijgt de waarschuwing niet, en een
+    IFC2X3-bestand zonder gebouwmodel evenmin: dat opent via de schematerugval zonder `ifcSource`, met de bestaande
+    verliesmelding (§4.11). Elke route die in de app een nieuw document opent, toont haar, en `planner_import_schedule`
+    in de app zet haar ook in zijn antwoord. Niet bij het crashherstel (dat opent zijn bron in een eigen context), de
+    doelscan, opslaan of headless.
   - **De technische grens van de bytes-route**: 300 MiB, `IFC_FOREIGN_SCAN_MAX_BYTES` in `foreignScan.ts` (de meting van
     fase 0). Daarboven de terugval `te-groot` (§4.9 punt 6). De doelscan, het crashherstel en headless gebruiken alleen
     deze grens.
   Waarom twee: opslaan van een model van 157 MB piekte in de desktopapp op Linux na #1111 op 3,44 / 3,54 / 3,69 GB over
-  drie opslagen, bij een maat van 4 GB (meting van 21 november 2026 op main `2d585a295`, knownbug 1936); de eigenaar wil
-  een model tot 150 MB. Eén
+  drie opslagen, bij een maat van 4 GB (meting van 21 november 2026 op main `2d585a295`, knownbug 1936); de eigenaar wilde
+  op 21 november een model tot 150 MB, en sinds 24 november daarboven een waarschuwing in plaats van een weigering. Eén
   verlaagde technische grens schoof ook de terugval voor een planning zonder model, het herstel en de doelscan naar
   150 MiB, en daar verloor de app wat main bewaart (review van #1127, ronde 1 tot 3). De uitvoer van opslaan heeft geen
-  grens (knownbug 2043).
+  grens; een bestand dat door opslaan boven de drempel komt, opent daarna met de waarschuwing.
 
 ### 4.14 Herstel en een ontbrekende bron
 
@@ -988,17 +1006,44 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 
 ## 5. IFCX: planning lezen en schrijven
 
+### 5.0 Na het besluit van 25 november 2026
+
+De eigenaar besloot op 25 november 2026 dat de planning in IFCX in een eigen bestand naast het model staat (§6). De app
+schrijft dus alleen haar eigen planningsbestand en schrijft nooit terug in een bestand met inhoud van een ander programma.
+Voor de rest van §5 betekent dat:
+
+- **Blijft gelden:** alles over het eigen planningsbestand (de kop die de app schrijft, de profielversie, de namespaces,
+  de paden, de tabel met nodes, de gedeelde schema's, de vaste vorm en de projectie, §5.4), en de leesregels voor een
+  planning van een ander programma (§5.5: welke objecten, de afbeelding op het importcontract, de volgorde, de
+  leesregel voor datums, de weigeringen).
+- **Vervalt voor het schrijven:** elke regel die zegt dat iets van een ander bij opslaan byte-gelijk in hetzelfde bestand
+  blijft staan. Dat zijn: de kop van een andere bron (§5.1), `imports` en `schemas` van de bron (§5.1), vreemde
+  bijdragen en `children`-bijdragen van een ander (§5.2), een onbekend veld als token (§5.3, §5.5), `openaec::label` dat
+  blijft staan (§5.3), een ander werkplan dat blijft staan (§5.5), verwijderen dat andere attributen op het pad laat staan
+  (§5.5), en de twee meldingen die beloven dat gegevens "ongewijzigd" of "bij opslaan in het bestand" blijven (§5.5).
+  Het bestand van de ander verandert niet, omdat de app het niet schrijft. Waar zo'n regel hieronder staat, staat erbij:
+  *Vervalt voor het schrijven (§5.0).*
+- **Open tot de proef van fase 4** (§6, §11), niet besloten: (a) de vorm van de verwijzing van het planningsbestand naar
+  het modelbestand (een import, een pakket of een eigen veld), en dus of de zin "de app voegt nooit een import toe" in
+  §5.1 blijft; (b) wat er gebeurt met planningsgegevens die de app niet kent als de planning naar het eigen bestand gaat:
+  een onbekend veld in een gedeeld attribuut, een onbekend `openaec::planning::`-attribuut, en een hogere tussenversie
+  van het eigen profiel. De keuzes zijn: als ruwe waarde meenemen, in het bestand van de ander laten, of het opslaan
+  weigeren. Waar zo'n regel hieronder staat, staat erbij: *Open tot de proef van fase 4 (§5.0).*
+- **Wat nu gebouwd is (fase 3):** de lezer opent alleen een IFCX-bestand dat helemaal van Open Planner Studio is, en
+  weigert al het andere bij openen (`docs/ifcx-profiel.md`). Tot fase 4 komt een planning van een ander programma dus
+  niet verder dan die weigering.
+
 ### 5.1 Kop, versie en imports
 
 - **Door de app begonnen**: een nieuw document, of een bron waarvan `header.id` begint met `urn:openaec:planner:`. De app
   schrijft de kop: `ifcxVersion: "ifcx_alpha"`, `dataVersion: "1.0.0"` (de versie van deze dataset, zoals IFC5 het
   bedoelt), `id: "urn:openaec:planner:<project-uuid>"`, `author`, `timestamp` (ISO 8601).
 - **Elke andere bron**: de kop blijft byte-gelijk, ook `id`, `timestamp` en extra kopvelden (ifcx-explorer leest
-  bijvoorbeeld `openaecComposition`, `graph.rs:78`, en weigert een andere `id` in een pakket, `package.rs:104`).
+  bijvoorbeeld `openaecComposition`, `graph.rs:78`, en weigert een andere `id` in een pakket, `package.rs:104`). *Vervalt voor het schrijven (§5.0).*
 - `ifcxVersion` anders dan `ifcx_alpha`: openen geweigerd, met de gevonden waarde in de melding.
 - **Versie van het OPS-profiel**: alleen `openaec::ops::document.formatVersion` op het werkplan. Een hogere hoofdversie dan de app
   kent: openen geweigerd ("gemaakt met een nieuwere versie van Open Planner Studio"). Een hogere tussenversie: openen
-  mag; onbekende `openaec::ops::`-attributen blijven als vreemde bijdrage staan (§6.2). Regel voor het profiel: een
+  mag; onbekende `openaec::ops::`-attributen blijven als vreemde bijdrage staan (§6.2). *Open tot de proef van fase 4 (§5.0).* Regel voor het profiel: een
   tussenversie voegt alleen nieuwe attributen toe, nooit velden binnen een bestaand attribuut. Vindt de lezer toch een
   onbekend veld in een bekend `openaec::ops::`-attribuut, dan behandelt hij het bestand als een nieuwere hoofdversie en
   weigert hij het. Voor de gedeelde `openaec::planning::`-attributen geldt een andere regel (§5.3). Schrijft de app een
@@ -1008,7 +1053,9 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   (`SCHEMA_CONFLICT`).
 - De weigeringen in deze paragraaf en in §5.3 gelden alleen voor attributen op een pad dat een domeinobject wordt
   (§5.5). Een tweede werkplan met een onbekend veld is vreemd en geeft geen weigering.
-- `imports` en `schemas` van de bron blijven staan. De app voegt nooit een import toe: ifcx-explorer eist dat elke
+- `imports` en `schemas` van de bron blijven staan. *Vervalt voor het schrijven (§5.0).* De app voegt nooit een import
+  toe; of dat zo blijft voor de verwijzing naar het modelbestand, is *open tot de proef van fase 4 (§5.0)*. De reden
+  voor de regel: ifcx-explorer eist dat elke
   import een document in het pakket is (`MISSING_IMPORT`, `graph.rs:24`), en het IFC-kernschema heet daar anders
   (`"id": "ifc"`). Schema's voegt zij **per attribuutnaam** toe: voor elke naam die zij schrijft en die nog niet in
   `schemas` staat, zet zij de definitie erbij: de `openaec::ops::`-schema's zelf geschreven, de
@@ -1039,7 +1086,9 @@ is werk van fase 3 en staat in de schema's.
   omdat een ander programma een node kopieerde), dan krijgt het volgende object `-dup-N`, zoals bij dubbele ids in STEP
   (`ifcReader.ts:1731-1734`). Die UUID is
   het domein-id en de GlobalId. `ifcSource` bewaart per
-  domein-id het bronpad, en `detached` bewaart het bronpad van een verwijderd object (§6.6). De writer kiest het pad uit
+  domein-id het bronpad, en `detached` bewaart het bronpad van een verwijderd object. Van de bron bij IFCX
+  blijven twee dingen: deze padkaart, en per bekend veld of het bij openen ontbrak en welke waarde het direct na openen
+  had. De bronopslag voor het herschrijven van gemengde IFCX (§6.6) vervalt. De writer kiest het pad uit
   `ifcSource`, dan uit `detached`, en pas daarna een nieuw pad. Zo bevat geen domein-id een `/`, en blijft de identiteit
   gelijk na elke ronde, ook na Ctrl+Z na opslaan en bij opslaan als STEP. Ook de paden in het taakveld van een
   baseline gaan in die kaart, zodat een verwijderde baselinetaak bij elk opslaan hetzelfde pad houdt.
@@ -1070,7 +1119,8 @@ is werk van fase 3 en staat in de schema's.
 | Baseline | `<bl-uuid>` | `openaec::planning::baseline` |
 
 - De app schrijft geen `bsi::ifc::class`. Daarvoor zou een import van het IFC-kernschema nodig zijn (§5.1), en de
-  planningsattributen zeggen al wat een node is. Een `bsi::ifc::class` in de bron is altijd een vreemde bijdrage.
+  planningsattributen zeggen al wat een node is. Een `bsi::ifc::class` in de bron is altijd een vreemde bijdrage; de app
+  neemt haar niet over in het eigen planningsbestand (§5.0).
 - De app schrijft een `openaec::ops::`-attribuut alleen als zijn inhoud afwijkt van wat de lezer zonder dat attribuut
   zou afleiden (§5.5): "afwezig blijft afwezig" geldt ook voor een heel attribuut. Lezer en writer gebruiken daarvoor
   één gedeelde afleidfunctie. Een vreemde taak die de planner niet
@@ -1084,7 +1134,7 @@ is werk van fase 3 en staat in de schema's.
   toewijzing en baseline verwijzen ook met een pad-veld. De app schrijft geen `children`. Reden: `children` en
   paden met een `/` erin werken niet samen in de IFC5-composer (een pad met voorloop-`/` is nooit een wortel,
   `cycles.ts:50`; `children` naar `/planning/work-0` geeft `Unknown node`, `compose.ts:167`). Zo blijft ook elke
-  `children`-bijdrage van een ander byte-gelijk.
+  `children`-bijdrage van een ander byte-gelijk. *Vervalt voor het schrijven (§5.0).*
 - De `openaec::ops::`-schema's worden met de hand geschreven, met volledige `objectRestrictions`. Een test valideert de
   eigen attributen van elke uitvoer met de validator van IFC5-development.
 
@@ -1119,10 +1169,10 @@ is werk van fase 3 en staat in de schema's.
   `openaec::planning::sequence`, niet in de taak.
 - Er komt geen aparte kopie in `openaec::activity` (dat was open besluit 2; het vervalt).
 - **Onbekend veld in een gedeeld attribuut** (een ander programma voegde het toe): de lezer weigert het bestand niet.
-  Het veld blijft als byte-gelijk token in hetzelfde attribuut staan (§6.2). Een bekend veld met een ongeldige waarde
+  Het veld blijft als byte-gelijk token in hetzelfde attribuut staan (§6.2). *Open tot de proef van fase 4 (§5.0).* Een bekend veld met een ongeldige waarde
   (verkeerd type of vorm) geeft wel een weigering, met pad en veld in de melding.
 - **Naam van een taak**: het afgesproken naamveld in `openaec::planning::activity` gaat voor op `openaec::label`. De app
-  schrijft een nieuwe naam in dat veld; `openaec::label` is vreemd en blijft staan.
+  schrijft een nieuwe naam in dat veld; `openaec::label` is vreemd en blijft staan. *Vervalt voor het schrijven (§5.0).*
 - **Afwezige velden blijven afwezig.** Een bekend optioneel veld dat in de bron ontbrak, schrijft de app niet zolang
   het domein de waarde na openen houdt. Velden buiten de afgesproken kern zijn optioneel.
 
@@ -1138,15 +1188,19 @@ is werk van fase 3 en staat in de schema's.
 
 Besluit (Ethan, 9 november 2026): de app opent een planning die een ander programma in `openaec::planning::` schreef, en
 de planner kan die bewerken. Voorbeeld: IFCCAD slaat een gebouw op met tien taken in `openaec::planning::activity`. De
-planner opent het bestand, ziet de tien taken in de Gantt, verschuift er een en slaat op. Wat de app niet kent, blijft
-staan, zolang het object bestaat waar het bij hoort (§6.2).
+planner opent het bestand, ziet de tien taken in de Gantt en verschuift er een.
+
+Na het besluit van 25 november 2026 (§6, §5.0): de planner kan de ondersteunde planningsgegevens uit een gecombineerd
+IFCX-bestand openen en bewerken. Opslaan gebeurt in een eigen planningsbestand; het bestand van IFCCAD verandert niet.
+§10 test dat de modelbron bytegelijk blijft en dat de losse planning opnieuw opent. De tests voor het terugschrijven van
+gemengde IFCX vervallen. De punten hieronder zijn leesregels, tenzij er iets anders bij staat.
 
 - **Welke objecten**: zoals `selectPlanning` in STEP (§4.2). Het eerste werkplan in bestandsvolgorde is de planning;
   elke activity wordt een taak, ongeacht het werkplan (zoals `ifcReader.ts:1749`). Een baseline verwijst naar levende
   taken (`BaselineTask.taskId`, `src/types/baseline.ts:2-5`) en maakt een taak dus niet tot baselinekopie; kalenders en
-  resources allemaal. Een ander werkplan wordt geen domeinobject; zijn attributen zijn dus vreemd (§6.2) en blijven
-  staan. **Geen werkplan in de bron** (zo schrijft ifcx-explorer nu: 22 taken, nul werkplannen): de app maakt bij
-  opslaan een nieuw werkplanpad.
+  resources allemaal. Een ander werkplan wordt geen domeinobject; zijn attributen zijn dus vreemd (§6.2) en gaan niet mee
+  naar het eigen planningsbestand (§5.0). **Geen werkplan in de bron** (zo schrijft ifcx-explorer nu: 22 taken, nul
+  werkplannen): de app maakt bij opslaan een nieuw werkplanpad in het eigen planningsbestand.
 - **Afbeelding op het importcontract.** Een taak zonder `openaec::ops::task` leest de app zoals de bestaande brug van
   ifcx-explorer haar nu al aanlevert (`adapters.ts:375-417`): handmatig gepland, met `start` en `endExclusive` als vaste
   datums en de duur als verstreken tijd. Openen verandert die datums dus niet. Verder: het document krijgt
@@ -1161,26 +1215,50 @@ staan, zolang het object bestaat waar het bij hoort (§6.2).
   kiest hij eerst de taken die toch al een `openaec::ops::task` krijgen, daarna de latere entry. Voorbeeld: taken `work-0..3` zonder volgnummer; de planner voegt N in tussen `work-1` en `work-2`. Alleen N
   krijgt volgnummer 2; de andere vullen plaats 0, 1, 3 en 4. Taken die de planner niet aanraakte, houden hun onderlinge
   volgorde en krijgen zo weinig mogelijk volgnummers.
-- **Opslaan**: de app schrijft de bekende velden van elk planningsattribuut uit het domein, in de vaste vorm (§5.3), en
-  de onbekende velden als token (§6.2). Een veld dat de planner niet aanraakte, houdt zijn waarde, ook na opslaan,
-  sluiten, heropenen en opnieuw opslaan.
+- **Opslaan**: de app schrijft de bekende velden van elk planningsattribuut uit het domein, in de vaste vorm (§5.3), naar
+  het eigen planningsbestand. Een bekend veld dat de planner niet aanraakte, houdt zijn waarde, ook na opslaan, sluiten,
+  heropenen en opnieuw opslaan. De onbekende velden schreef het ontwerp als token (§6.2); dat wordt niet gebouwd. *Open tot de proef van fase 4 (§5.0).*
 - **Voorgangers**: zolang de afspraak met Bjorn er niet is (§11), heeft de testfixture haar `predecessor`-velden
   omgezet naar `openaec::planning::sequence`-nodes; een `predecessor` in de activity is een onbekend veld.
-- **Verwijderen**: verwijdert de planner zo'n taak, dan gaan de planningsattributen weg; andere attributen op het pad
-  blijven byte-gelijk staan (§6.2, laatste punt).
-- **Onbekend `openaec::planning::`-attribuut** (bijvoorbeeld een nieuwere gedeelde naam uit een ander programma): de app
-  opent het bestand, laat het attribuut staan als vreemde bijdrage, en meldt: "Dit bestand bevat planningsgegevens in een
-  nieuwere vorm die deze versie niet kent; die blijven ongewijzigd staan."
-- **Melding bij openen**: heeft het gekozen werkplan geen `openaec::ops::document` (of is er geen werkplan), dan toont
-  de app één keer: "Deze planning komt uit <author uit de kop>. Gegevens die Open Planner Studio niet kent, blijven bij
-  opslaan in het bestand." Na opslaan heeft het werkplan dat attribuut en komt de melding niet terug.
+- **Verwijderen**: verwijdert de planner zo'n taak, dan staat ze niet meer in het eigen planningsbestand. Het ontwerp liet
+  de andere attributen op het pad byte-gelijk staan (§6.2, laatste punt); dat wordt niet gebouwd, want de app schrijft
+  het bestand van de ander niet. *Vervalt voor het schrijven (§5.0).*
+- **Onbekend `openaec::planning::`-attribuut** (bijvoorbeeld een nieuwere gedeelde naam uit een ander programma): het
+  ontwerp opende het bestand, liet het attribuut staan als vreemde bijdrage, en meldde: "Dit bestand bevat
+  planningsgegevens in een nieuwere vorm die deze versie niet kent; die blijven ongewijzigd staan." Die melding en dat
+  gedrag worden niet zo gebouwd. *Open tot de proef van fase 4 (§5.0).*
+- **Melding bij openen**: heeft het gekozen werkplan geen `openaec::ops::document` (of is er geen werkplan), dan toonde
+  het ontwerp één keer: "Deze planning komt uit <author uit de kop>. Gegevens die Open Planner Studio niet kent, blijven
+  bij opslaan in het bestand." Die belofte klopt niet meer: opslaan gaat naar een eigen planningsbestand. De tekst van de
+  melding wordt opnieuw vastgesteld in fase 4, na de proef. *Vervalt voor het schrijven (§5.0).*
 - **Grens**: een programma dat geen vreemde IFCX terugschrijft (IFCCAD kan dat nog niet,
   `docs/experiments/ifccad-document-lifecycle.md:281-288`), laat bij een rondgang de `openaec::ops::`-gegevens vallen.
-  Wat het van `openaec::planning::` terugschrijft, leest de app zoals hierboven. Een verzegeld pakket van ifcx-explorer
-  weigert na opslaan met `CHECKSUM_MISMATCH` (`package.rs:100`) tot iemand het opnieuw verzegelt; de app verzegelt niet.
-  Verwijzingen uit andere documenten van zo'n pakket naar een verwijderde taak ziet de app niet.
+  Wat het van `openaec::planning::` terugschrijft, leest de app zoals hierboven. De zin over een verzegeld pakket van
+  ifcx-explorer dat na opslaan weigert met `CHECKSUM_MISMATCH` (`package.rs:100`) vervalt: de app schrijft niet in zo'n
+  pakket (§5.0). Of het eigen planningsbestand in een pakket kan staan, hoort bij de proef van fase 4.
 
 ## 6. IFCX: alles wat geen planning is, behouden
+
+**Besluit van de eigenaar (25 november 2026): de planning staat in IFCX in een eigen bestand naast het model.** De app
+schrijft een IFCX-bestand met alleen de planning, als eigen laag, en herschrijft het bestand met het gebouwmodel niet. Dat
+is dezelfde keuze als voor IFC (STEP) op 16 november 2026 (§11): standaard een eigen bestand, met het bestand van de
+architect als modelbron. De eigenaar koos dit boven "alles in één bestand".
+
+Wat dat voor deze paragraaf betekent:
+
+- §6.1 tot en met §6.4 en §6.6 beschrijven "alles in één bestand": een IFCX-bestand met vreemde inhoud openen, bewerken en
+  byte-gelijk terugschrijven. Dat wordt **niet gebouwd**. De tekst blijft staan als vastlegging van wat is onderzocht en
+  waarom het groot is (tokenizer voor IFCX-entries, eigendom per bijdrage, de bron bij IFCX). De JSON-tokenizer zelf
+  blijft nodig voor één STEP-tekstwaarde (`jsonExtras`, §4.2). Wat dit besluit in §5 verandert, staat in §5.0.
+- Wat overblijft, staat in §8 bij fase 4: de planningslaag verwijst naar het modelbestand. Fase 4 leest bestaande
+  taak-bouwdeelkoppelingen via het gekoppelde model en houdt ze zichtbaar. Koppelingen aanmaken en bewerken valt onder
+  #748.
+- De bronopslag voor het herschrijven van gemengde IFCX vervalt. §5.2 blijft eisen dat bestaande planningspaden bij
+  opslaan en heropenen gelijk blijven.
+- **Niet nagegaan:** hoe andere IFCX-programma's een verwijzing naar een los bestand op schijf lezen. §5.1 en §6.5 gaan er
+  nog van uit dat de app nooit een import toevoegt, omdat ifcx-explorer eist dat elke import een document in het pakket is
+  (`MISSING_IMPORT`). Fase 4 begint daarom met een korte proef op die verwijzing; pas daarna worden §5.1 en §6.5
+  herschreven.
 
 ### 6.1 Entries als tokens
 
@@ -1320,7 +1398,7 @@ ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden
 | 1 | Bytes-openroutes, scanner, indeling, `ifcSource`, lezer met C-context, writer met behouden ids, controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan. Achter de flag. | 3 PR's | hoog |
 | 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, `jsonExtras` en `unusedKeys` (§4.2), de controle op een vervangen bestand en de exclusieve schrijfroute met `place_file_exclusive` (§4.10; Rust-code apart gereviewd door Sol, §11; in de eerste PR daarvan bewaart herstel elke volledige kandidaat met `pendingSha256` zolang die niet op het doel staat, ook bij een crash vóór stap 3, met een test voor een crash tijdens het herstel zelf: VERVOLG uit ronde 5 van #839, voor Terra blokkerend), herkomstmerken (`ifcOrigin`, §4.2), A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6, `idExceptions` in het manifest en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
 | 3 | IFCX-planning zonder vreemde inhoud: voorstel gedeelde schema's aan Bjorn (§5.3), profiel `openaec::ops::` 1.0.0, schema's, lezer, writer, dialogen, keuze, vraag bij opslaan, round-trip STEP↔IFCX, handleiding over IFCX (nl/en; de andere talen via de vertaalstraat). Achter de flag. | 4–6 PR's | hoog: veel velden, alfa-formaat |
-| 4 | IFCX met vreemde inhoud: tokenizer, eigendom per bijdrage, planning van een ander programma (§5.5), onbekende velden als token, de lege entry bij verwijzingen, `openaec::links`, `ifcSource` voor IFCX (§6.6), handleiding en `docs/ifc-round-trip.md` bijwerken. Flag eraf. | 2–3 PR's | middel |
+| 4 | IFCX naast een gebouwmodel (besluit van 25 november 2026, §6): de planning blijft een eigen IFCX-bestand en verwijst naar het modelbestand; de app herschrijft het model niet. Eerste stap: een proef op de verwijzing naar een los bestand (§6, §11). Daarna: de verwijzing schrijven en lezen, bestaande taak-bouwdeelkoppelingen lezen via het gekoppelde model en zichtbaar houden (aanmaken en bewerken valt onder #748), handleiding en `docs/ifc-round-trip.md` bijwerken. Vervallen: de tokenizer voor IFCX-entries, eigendom per bijdrage en onbekende velden als token (§6.1–§6.4); wat er met onbekende planningsgegevens gebeurt, beslist de proef (§5.0). De bronopslag voor het herschrijven van gemengde IFCX vervalt. §5.2 blijft eisen dat bestaande planningspaden bij opslaan en heropenen gelijk blijven. Flag eraf. | opnieuw schatten na de proef | middel |
 
 Hoe moeilijk: dit is groot werk, ongeveer 15 tot 19 PR's. Het knippen zelf is niet het lastige deel. Het lastige deel is
 waar de planning en de rest elkaar raken: de indeling, vreemde gegevens op taken, gemengde relaties, verwijderen en
@@ -1345,7 +1423,9 @@ daarom staat alles achter de flags tot het compleet is.
   gemengde entry gevolgd door een vreemde `null`-child, een ontsnapte attribuutnaam en een groot geheel getal; een
   planning van een ander programma in `openaec::planning::` zonder `openaec::ops::`, met een onbekend veld, een datum
   zonder tijd en een groot geheel getal in een gedeeld attribuut; het voorbeeld `work-packages.ifcx` van ifcx-explorer
-  (`openaec::activity`) en een kopie met de nieuwe attribuutnaam.
+  (`openaec::activity`) en een kopie met de nieuwe attribuutnaam. De IFCX-bestanden met inhoud van een ander dienen na
+  het besluit van 25 november 2026 als leesgeval en als bewijs dat de bron bytegelijk blijft, niet meer als geval voor
+  terugschrijven (§5.0).
 - **Poort: eigen bestanden = 100 % P en uitvoer zoals nu.** Elk `public/examples/*.ifc`, de echte writer-uitvoer in
   `tests/planning/fixtures/` (niet de fixtures met bewust hernoemde properties, zoals `werkdag-einde-tussenwaarde.ifc`, en
   niet die met een model), de uitvoer van de writer voor elk voorbeeldproject, en uitvoer van oudere release-tags geven
@@ -1479,6 +1559,18 @@ daarom staat alles achter de flags tot het compleet is.
     en 4: de nieuwe planning staat als herstelkopie naast het doel, met de melding. Browser: een wijziging vóór de controle bij `close()` stopt het opslaan.
 - **Controles zelf testen**: een writer die bewust een vreemd stuk weglaat, verdubbelt of verschuift, moet door controle 1
   worden tegengehouden; `planningCanon` met dubbele namen en WBS-codes.
+- **Na het besluit van 25 november 2026 (§6, §5.0):** opslaan van een planning uit een gecombineerd IFCX-bestand gebeurt
+  in een eigen planningsbestand. De test eist dat de modelbron bytegelijk blijft en dat de losse planning opnieuw opent
+  met dezelfde `planningCanon`. Van het punt hieronder **blijven**: de rondgang IFC → IFCX → IFC van elk
+  voorbeeldproject, de veldentest uit §5.4, `planningCanon(open(x)) === planningCanon(open(save(open(x))))`, openen
+  zonder bewerken verandert geen datum, de taak uit STEP met `OPS_TaskIdentity`, een baseline zetten en heropenen, de
+  volgorde na heropenen, de IFC5-validator op de eigen attributen en de projectcontrole van ifcx-explorer op de eigen
+  uitvoer. **Vervallen**, omdat ze terugschrijven in het bestand van een ander eisen: onbekende velden byte-gelijk,
+  de vreemde compositie gelijk, `openaec::label` ongewijzigd, de lege entry bij een vreemde `children`- of
+  `openaec::links`-verwijzing, twee bijdragen op één pad, werkplan W1 en W2, de kop van een andere bron byte-gelijk, de
+  melding bij een onbekend attribuut, verwijderen dat vreemde attributen laat staan, Ctrl+Z dat onbekende velden
+  terugzet, `openaec::activity` byte-gelijk, een tweede werkplan en een losse `openaec::ops::task` byte-gelijk, en het
+  crashherstel van een vreemd IFCX-bestand met onbekende velden.
 - `check-ifcx-roundtrip.ts`: elk voorbeeldproject IFC → IFCX → IFC zonder verschil volgens `planningCanon` (drie hebben
   een baseline); de veldentest uit §5.4; de compositie per pad met de IFC5-flattener; planning van een ander programma openen, één taak verschuiven, opslaan: alleen de
   velden van die taak veranderen, onbekende velden zijn byte-gelijk, ongewijzigde velden houden hun waarde, afwezige velden blijven
@@ -1528,6 +1620,13 @@ De besluiten zijn genomen (Ethan, 9 november 2026):
    gebruikt (advies Bjorn, §5.2).
 2. **`openaec::activity` meeschrijven**: vervalt; ifcx-explorer leest `openaec::planning::activity` (§5.3).
 3. **Planning van een ander programma in `openaec::planning::`**: openen en bewerken (§5.5).
+
+**Besluit van de eigenaar, 25 november 2026: IFCX met een gebouwmodel.** De planning als eigen bestand naast het model,
+niet alles in één bestand (§6, §8 fase 4). Open na dit besluit: de proef op de verwijzing naar een los bestand, als eerste
+stap van fase 4. Tot die proef is niet bekend welke vorm de verwijzing krijgt (een import, een pakket of een eigen veld)
+en of andere IFCX-programma's haar lezen. Ook open tot dan: wat er gebeurt met planningsgegevens die de app niet kent
+als de planning naar het eigen bestand gaat (§5.0, punt b). In §5 staat bij elke regel die door dit besluit vervalt of
+open is een verwijzing naar §5.0.
 
 **Besluiten van de eigenaar, 16 en 17 november 2026.** Genomen tijdens de bouw van fase 1, elk op een voorgelegde
 keuze. Waar een besluit eerdere tekst vervangt, staat dat erbij. Nog niet herschreven naar deze besluiten: §4.10 (het
