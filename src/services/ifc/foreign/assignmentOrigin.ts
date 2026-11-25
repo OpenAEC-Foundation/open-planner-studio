@@ -42,13 +42,16 @@ export function assignmentOrigin(index: StepIndex, objects: Objects, domain: Ass
   const same = (key: string) => {
     const a = now.get(key) ?? [];
     if (!before) return a.length === (inSource.get(key) ?? 0);
-    const b = before.get(key) ?? [];
-    return a.length === b.length && a.every(id => b.includes(id));
+    const b = new Set(before.get(key));
+    return a.length === b.size && a.every(id => b.has(id));
   };
+  const decided = new Map<string, boolean>();
   return {
     unclear: (taskId, resourceId) => {
       const key = pairKey(taskId, resourceId);
-      return (inSource.get(key) ?? 0) > 1 && !same(key);
+      let unclear = decided.get(key);
+      if (unclear === undefined) decided.set(key, unclear = (inSource.get(key) ?? 0) > 1 && !same(key));
+      return unclear;
     },
     remaining: (taskId, resourceId) => now.get(pairKey(taskId, resourceId))?.length ?? 0,
   };

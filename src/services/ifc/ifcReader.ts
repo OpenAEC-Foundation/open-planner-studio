@@ -2690,6 +2690,8 @@ function extractAssignments(
     }
   }
 
+  for (const { queues } of metaByTask.values()) for (const queue of queues.values()) queue.reverse();
+  for (const windows of windowsByTask.values()) for (const queue of windows.values()) queue.reverse();
   const assignEntities = entities.filter(e => e.type === 'IFCRELASSIGNSTOPROCESS');
   const assignments: ResourceAssignment[] = [];
 
@@ -2707,9 +2709,9 @@ function extractAssignments(
 
       const resEntity = entityMap.get(resRef);
       const resGuid = resEntity ? stripQuotes(resEntity.args[RESOURCE_SLOT.globalId] || '') : '';
-      const meta = taskMeta?.queues.get(resGuid)?.shift() ?? taskMeta?.legacy.get(resGuid);
+      const meta = taskMeta?.queues.get(resGuid)?.pop() ?? taskMeta?.legacy.get(resGuid);
       if (meta && keysByTask) usedMeta.add(meta);
-      const window = windowsByTask.get(taskRef)?.get(resGuid)?.shift();
+      const window = windowsByTask.get(taskRef)?.get(resGuid)?.pop();
 
       assignments.push({
         id: generateId('asgn'),
