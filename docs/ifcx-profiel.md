@@ -501,7 +501,8 @@ nu met de projectie van de gelezen planning. Een bestand dat precies de projecti
 zelf nooit maakt, opent daarom: lege vroege en late datums (punt 8), een tweede duur in minuten naast een dagduur,
 `remainingMinutes` naast een restduur in dagen, of een werkelijk einde met 50 % voortgang (ronde 6). Ook bijvoorbeeld een
 duur van 0,25 minuut, een werkplan zonder `timeModel` en zonder `minuteModelPending`, een kalender vanaf 07:15 met taken
-om 07:00, en een onderbreking op een taak die niet gestart is. De vormtoets houdt alleen elke waarde binnen haar domein.
+om 07:00, en een onderbreking op een taak die niet gestart is. De vormtoets houdt alleen elke waarde binnen haar domein
+(knownbug 2353).
 De lezer geeft die planning terug zoals ze in het bestand staat; een tweede opslag gaat door de ene STEP-rondgang en geeft
 wat STEP ervan maakt (de datums ingevuld, de voortgang 1, de duur van 0,25 minuut weg, het `timeModel` terug). In elke
 andere schrijfwijze opent zo'n bestand niet, en de melding noemt het object en het teken. Het project

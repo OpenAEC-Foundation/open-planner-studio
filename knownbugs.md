@@ -6981,6 +6981,21 @@ en noem het in je rapport of PR-tekst.
      stille verlies blijft een fout van main in 2352."); de weigering van ronde 7b is weg. Proef: `check-ifcx-kern.ts`,
      "2352" en "ronde 8, het geval van Sol". Gemeld door de review van #1183 ronde 7 en 8 (GPT-6.2-Sol). — B
 
+2353. **IFCX (F3-1, R6): de lezer opent een bestand dat precies de projectie is van een planning die de schrijver nooit
+     maakt.** Sinds #1183 ronde 8 vergelijkt R4 met de projectie van de gelezen planning; de lezer doet geen
+     STEP-rondgang en gaat niet door de laadgrens. Een zelfgemaakt of na het schrijven veranderd bestand opent daarom
+     zoals het er staat, als elke waarde binnen haar domein valt en de schrijfwijze die van de schrijver is. Gemeten: een
+     duur van 0,25 minuut, een werkplan zonder `timeModel` en zonder `minuteModelPending`, een kalender vanaf 07:15 met
+     taken om 07:00, een onderbreking op een taak die niet gestart is, en de gevallen van ronde 6 en punt 8 (een tweede
+     duur in minuten naast een dagduur, `remainingMinutes` naast een restduur in dagen, een werkelijk einde met 50 %
+     voortgang, lege vroege en late datums). In de kernproef openen zo 231 mutaties die tot ronde 8 niet openden. Een
+     tweede opslag zet zo'n planning recht zoals STEP (de 0,25 minuut valt weg, het `timeModel` komt terug), en de
+     laadgrens van de app zet bij openen `minuteModelPending`, zoals bij STEP. Staat een veld niet op de plek waar de
+     schrijver het zet, dan weigert de lezer, maar de melding noemt alleen het object en het teken, niet het veld (83
+     mutaties van de kernproef; de vorige head noemde het veld). Richting als het nodig wordt: de domeinen in de
+     veldtabel nauwer maken waar STEP een waarde laat vallen (een fractie in een minutenveld); geen toetsen per object
+     die STEP nabootsen, want die sluit R6 uit. Gemeten in #1183 ronde 8. — B
+
 2365. **De doelcontrole van IFCX classificeert een onbekend bestaand doel met een volledige lezing.** Schrijft een
      IFCX-document naar een bestaand doel dat niet zijn eigen bekende versie is (Opslaan als over een bestaand `.ifcx`, of
      het eigen doel nadat de versie na een mislukte schrijfactie vergeten is), dan leest `classifyIfcx` dat bestand in de
