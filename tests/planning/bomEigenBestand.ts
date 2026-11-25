@@ -5,6 +5,7 @@ import { createCloseDocumentDialogActions } from '@/components/layout/DocumentCh
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import type { FileRef } from '@/services/fileAccess';
 import type { SiteStorage } from '@/services/fileAccess/siteHost';
+import { resetBrowserSaveNoticeForTests } from '@/state/browserSaveNotice';
 import type { AppNotification } from '@/state/slices/types';
 import { outputFromResult, runIfcSaveJob } from '@/services/ifc/saveWorker/ifcSaveProtocol';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
@@ -30,7 +31,7 @@ export type Compute = 'hier' | 'worker';
 export type How = 'Ctrl+S' | 'Automatisch opslaan' | 'sluitvraag';
 export const MOMENTS = ['recht', 'rekenen', 'hash', 'lezing-1', 'lezing-2', 'lezing-3', 'schrijven'] as const;
 export const FLAG_MOMENTS = ['recht', 'rekenen', 'lezing-1', 'lezing-2', 'lezing-3', 'schrijven'] as const;
-export type Moment = typeof MOMENTS[number] | 'bomversie';
+export type Moment = typeof MOMENTS[number] | 'bomversie' | 'kiezer';
 export type Fingerprint = 'klopt' | 'anders' | 'geen';
 
 export interface StepTrace {
@@ -411,6 +412,19 @@ function attempt(
   };
 }
 
+function withSwitch(base: Scenario, flip: Switch, at: Moment): Scenario {
+  return {
+    ...base, name: `${base.name}; wissel ${flip} bij ${at}`,
+    run: async r => {
+      r.at(at, () => {
+        r.flag(flip === 'aan');
+        if (flip === 'uit en weer aan') r.flag(true);
+      });
+      await base.run(r);
+    },
+  };
+}
+
 async function fromOrigin(r: Run, origin: typeof ORIGINS[number]) {
   if (origin === 'geopend') return;
   r.rename();
@@ -528,6 +542,19 @@ export function scenarios(): Scenario[] {
       },
     },
   ];
+  list.push({
+    name: 'recht geweigerd, de kiezer kiest een nieuw bestand, één poging', kinds: ['handle'],
+    run: async r => {
+      const handle = (r.place as ReturnType<typeof placeInBrowser>).handle;
+      handle.query = 'prompt';
+      handle.request = 'denied';
+      r.picker('nieuw bestand');
+      r.rename(); await r.save('Ctrl+S', 'Ctrl+S');
+    },
+  });
+  for (const base of list.filter(c => c.name === 'recht geweigerd, de kiezer kiest een nieuw bestand, één poging' || c.name === 'het rechtverzoek faalt')) {
+    for (const flip of SWITCHES) list.push(withSwitch(base, flip, 'kiezer'));
+  }
   for (const how of ROUTES) {
     for (const origin of ORIGINS) {
       for (const [content, change] of VOORAF) {
@@ -567,7 +594,7 @@ export function scenarios(): Scenario[] {
         });
       }
       for (const failure of ['schijf vol', 'hernoemen', 'schrijfstroom'] as const) {
-        list.push({
+        const failed: Scenario = {
           name: `${how}, ${origin}: ${failure} mislukt`,
           kinds: failure === 'schrijfstroom' ? ['handle'] : ['pad'],
           run: async r => {
@@ -577,7 +604,9 @@ export function scenarios(): Scenario[] {
             if (failure === 'schrijfstroom') r.picker('nieuw bestand');
             await r.save(how, how);
           },
-        });
+        };
+        list.push(failed);
+        if (failure === 'schrijfstroom' && how === 'Ctrl+S') for (const flip of SWITCHES) list.push(withSwitch(failed, flip, 'kiezer'));
       }
     }
   }
@@ -595,6 +624,7 @@ async function runScenario(
   const control = { fail: false };
   const win = browserWindow();
   active = tracker;
+  resetBrowserSaveNoticeForTests();
   try {
     const computeOut = computeFor(compute, tracker, control);
     const store = await openStore(start, place.ref, computeOut);
@@ -654,7 +684,7 @@ async function runScenario(
       picker: answer => {
         win.showOpenFilePicker = async () => [];
         win.showSaveFilePicker = async () => {
-          tracker.note('kiezer');
+          tracker.note('kiezer', 'kiezer');
           if (answer === 'geannuleerd') throw new DOMException('geannuleerd', 'AbortError');
           const chosen = placeInBrowser(tracker, new Uint8Array(), false);
           places.push(chosen);

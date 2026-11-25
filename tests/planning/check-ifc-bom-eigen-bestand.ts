@@ -110,7 +110,8 @@ try {
       expect(`2358 grens ${onbekend}: de PR weigert het als onleesbaar doel`, 'PR', edges[onbekend], { outcome: false, notices: UNREADABLE });
     }
     const kiezer = 'handle | recht geweigerd, een andere planning met BOM in de wereld van het bestand';
-    expect(`2358 grens ${kiezer}: main opent de kiezer en slaat op`, 'main', recording.boundaries[kiezer], { outcome: true, notices: [] });
+    expect(`2358 grens ${kiezer}: main opent de kiezer en slaat op`, 'main', recording.boundaries[kiezer],
+      { outcome: true, notices: ['info:notifications.browserCannotOverwrite'] });
     expect(`2358 grens ${kiezer}: de PR weigert het oude bestand als onleesbaar doel`, 'PR', edges[kiezer], { outcome: false, notices: UNREADABLE });
     expect('2359 grens site: main slaat een nieuwe versie op', 'main', recording.boundaries['site | Ctrl+S'], { outcome: true, notices: [] });
     expect('2359 grens site: de PR weigert het als onleesbaar doel', 'PR', edges['site | Ctrl+S'], { outcome: false, notices: UNREADABLE });
