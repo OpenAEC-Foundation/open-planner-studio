@@ -18,8 +18,11 @@ oorspronkelijke volgorde. De rangorde staat in `rank` in die functie; de keuzes 
   tweede type leeg, `ASAP` of `ALAP` is. Zo'n lege cel komt mee als een volledige taakrij geplakt wordt.
 - Een niet-lege waarde die met de overgang botst, blijft staan. Wat er dan gebeurt, hangt af van de kolom. Heeft ze
   een `readOnly`-functie, zoals `task.constraint.hard`, dan volgt de route van ADR 0443: bij Ctrl+V slaat de
-  transactie die cel over met een melding en schrijft ze de rest (een nieuwe naam, `SNET` met een datum en *Hard* op
-  `Ja` geven de naam en `SNET`, zonder *Hard*); bij een losse celbewerking weigert ze. Heeft de kolom geen
+  transactie die cel over met een melding en schrijft ze de rest, als de cel vóór het plakken al alleen-lezen was: op
+  een taak zonder constraint geven een nieuwe naam, `SNET` met een datum en *Hard* op `Ja` de naam en `SNET`, zonder
+  *Hard*. Was *Hard* vóór het plakken schrijfbaar (een taak met `MSO` of `MFO`), dan gaat de cel het plan in en
+  weigert `planTaskCellEdits` na de overgang naar `SNET` de hele plakactie met `constraintHardUnavailable`; de naam
+  en de oude constraint blijven dan staan. Bij een losse celbewerking weigert ze. Heeft de kolom geen
   `readOnly`-functie, zoals `task.constraint.date`, dan weigert het plan van de taak (`planTaskCellEdits`) en daarmee
   de hele transactie, ook bij Ctrl+V: een datum naast `ASAP` geeft `constraintDateUnavailable` en de taak blijft zoals
   ze was.
