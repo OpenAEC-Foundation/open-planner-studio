@@ -4495,8 +4495,11 @@ en noem het in je rapport of PR-tekst.
      start van fase *1. Preparation* van 7 mei 07.00 uur naar 5 mei 07.00 uur, of leeg; (2) hetzelfde voor mijlpaal
      *Start of refurbishment*; (3) een werkelijk einde op 5 mei op de fase, die nog niet begonnen is; (4) 37% gereedheid op
      die fase. De app toont na heropenen weer 7 mei 07.00 uur en de opgerolde voortgang; een IFC-lezer die `IFCTASKTIME`
-     leest, ziet de andere waarde. Richting: een eigen PR die buiten de modus de slots met de momentopname vergelijkt (een
-     nieuwe bewaker, niet nodig voor knownbug 2231). — B (review ronde 2 van #1216)
+     leest, ziet de andere waarde. De toets op de slots gaat over de tijdslots 3 tot en met 19 van `IFCTASKTIME`; de
+     argumenten 0 tot en met 2 (naam en herkomst) leest de planningslezer niet, en een kopie met een andere taaktijdnaam
+     passeert de controle zonder dat de zichtbare planning verandert (review ronde 3 van #1216). Richting: een eigen PR die
+     buiten de modus de slots met de momentopname vergelijkt (een nieuwe bewaker, niet nodig voor knownbug 2231). — B (review
+     ronde 2 van #1216)
 
 2219. **VERVOLG (review van #1184): de geheugenpiek van `openIfcBytes` bij een groot IFC is niet gemeten (#804).**
      `openIfcBytes` (`src/core/index.ts`) maakt eerst een eigen kopie van zijn invoer (het publieke pakket moet een

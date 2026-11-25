@@ -288,22 +288,37 @@ van een pset, template of relatie niet. Een pset of `IfcRelDeclares` met een nie
 vreemde leden (die de merge schrijft om ze te bewaren) is geen groep; een lege lijst of minstens één eigen lid wel. Een slot dat (b) terugzette, toetst (c) apart (hieronder, per slot). Niet getoetst: een groep waarin (c) zo'n slot niet eenduidig aanwijst, en de bronbytes zelf.
 Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren. Proef: `check-ifc-foreign-eigen-uitvoer.ts`.
 
-**De toets op de taaktijden** (knownbug 2231, fixronde 2 van #1216). De maat is "niet blinder dan main": geen bron buiten
+**De toets op de taaktijden** (knownbug 2231, fixronde 3 van #1216). De maat is "niet blinder dan main": geen bron buiten
 het bestand mag iets verbergen wat de controle van main wel ziet. Binnen "datums zoals opgeslagen" weigerde main elke opslag,
 dus daar is deze toets de bewaker; buiten de modus blijft de controle die van main (knownbug 2360). Alleen voor uitvoer die de
 writer zelf schreef, in de modus (`own.domain.recordedSourceFormat`), direct na de ongewijzigde vergelijking na heropenen,
 met dezelfde soort `planning-na-openen`. `taskTimeSlotProblem` (`foreign/taskTimeExpectation.ts`) vergelijkt per taak en per
 tijdslot (argument 3 tot en met 19 van `IFCTASKTIME`) wat er geschreven staat met wat de planner zag, waarde en aanwezigheid.
-De verwachting komt uit het domein van de merge (`own.domain`: de momentopname met de bronvormregels van `sourceForm.ts`),
-nooit uit de regels die de merge schrijft. Leeg hoort een slot alleen volgens een bestaande regel: `withheldTaskTimeFields`,
-gereedheid 0 (`ifcCompletionReal`), geen werkelijke datum, duur of rest in het domein, de statustijd alleen bij een werkelijke
-datum. Een bronwaarde die de herleestoets (b) terugzette (`own.sourceTokens`), moet er letterlijk staan. Het slot leest de
-lezer zelf, in de lezing die de controle al doet: `taskTimeReadingsOut` van `readIFC` legt per taak de argumenten en de
-taaktijd vast na de uurmodus en de hulp-psets (`applyTaskTimeRecords`) en vóór elke afleiding (de nulduur van een mijlpaal,
-`resolveMissingScheduleDates`, `normalizeImportedProgress`); een datum zonder tijd gaat aan beide kanten door
-`normalizeTaskDate` met de kalender van de taak, zoals bij laden. De toets voegt geen schrijf-, scan- of parseerronde toe.
-Proef: `check-ifc-foreign-opgeslagen-datums.ts` (de eigenschapsproef: per stand in de modus, per taaksoort en per tijdslot
-een kopie met een andere waarde, met `$` waar een waarde hoort en met een waarde waar het slot volgens een regel leeg is).
+De verwachting komt uit het domein van de merge (`own.domain`: de momentopname in de schrijfvorm, met de bronvormregels van
+`sourceForm.ts`), nooit uit de regels die de merge schrijft. Leeg hoort een slot alleen volgens een bestaande regel:
+`withheldTaskTimeFields`, gereedheid 0 (`ifcCompletionReal`), geen werkelijke datum, duur of rest in het domein, de
+statustijd alleen bij een werkelijke datum. Een bronwaarde die de herleestoets (b) terugzette (`own.sourceTokens`, alleen in de
+modus en alleen voor `IFCTASKTIME`), moet er letterlijk staan.
+
+Het geschreven slot leest de lezer zelf, in de lezing die de controle al doet: `taskTimeReadingsOut` van `readIFC` legt per
+taak de argumenten en de taaktijd vast na `applyTaskTimeRecords`. Op dat moment is al gebeurd: de slotlezing
+(`parseTaskTime`: een datum als dag, een duur met de uren per dag van het project, de vorm van de duur kiest de eenheid), de
+nulduur van een mijlpaal in `extractTasks` (de vastlegging zet de duur uit het slot terug bij een dagtaak), de uurmodus
+(`applyHourModeIFC`: op een kalender die de lezer op de minuut leest de kloktijd, een uurduur met de taakkalender),
+`fillEmptyComputedDateSlots` (een leeg vroeg of laat slot heeft al de geplande datum; de aanwezigheid oordeelt daarom op
+het argument) en de hulp-psets (dagmaat, exacte minuten, exacte speling, minuten met de taakkalender). Daarna komen nog
+`reconcileP6SuspendResume`, `resolveMissingScheduleDates`, `normalizeImportedProgress` en de berekening bij het laden; die
+ziet de toets niet. Twee verschillende geschreven waarden zijn alleen gelijk als een regel van de lijst dat zegt:
+een tijdstip staat er als `'JJJJ-MM-DDTuu:mm:00'` zonder zone; op de dagweg (de lezer leest de dag) alleen om 07:00
+(`IFC_TIME_ANCHOR`, de datum zonder tijd); een datum zonder tijd gaat aan beide kanten door `normalizeTaskDate`, zoals bij
+laden; de statustijd telt tot op de minuut, en bij een peildatum zonder tijd is het de dag om 07:00 (dagtaak) of 00:00
+(urentaak). Het duurtype en de kritieke vlag zijn het geschreven lid (`.WORKTIME.`/`.ELAPSEDTIME.`, `.T.`/`.F.`), zonder de
+terugval van de lezer. De gereedheid is een STEP REAL met hetzelfde getal. Een duur staat tussen aanhalingstekens en geeft
+de dagen van de lezer, met de eenheid en de minuten van een urentaak en de minuten van een speling (ISO 8601-vormen van
+dezelfde duur, de werkdag van de taakkalender en het dagmaatrecord zijn de regels die de lezer daar toepast). De toets voegt
+geen schrijf-, scan- of parseerronde toe. Proef: `check-ifc-foreign-opgeslagen-datums.ts` (de eigenschapsproef: per stand
+in de modus, per taaksoort en per tijdslot een vaste reeks soorten verschil per soort slot; wat doorgaat, staat met zijn
+regel op de lijst in die proef).
 
 De andere toets in de verliescontrole (PR 12b, `ownGroups` in `LossCheckInput`, `openedOwnGroups` in `mergeWriter.ts`):
 een verschil in O1 in een eigen groep op projectniveau (dezelfde indeling, op de bronregels) hoeft geen bewerking te
