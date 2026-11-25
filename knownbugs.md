@@ -1566,8 +1566,22 @@ en noem het in je rapport of PR-tekst.
     tekstplaatsing, met de aanbieder nul, en de PDF komt er zonder fout. (2) Rapportletter Inter en aanbieders met
     Noto Sans Coptic (`tests/planning/fixtures/fonts/`) en `covers` = de glyphs van die letter; tekst `Ⲁⲃⲅ fase`. Met één
     aanbieder één plaatsing, met twee gelijke aanbieders nul, zonder fout. Op het blad staat de tekst dan niet, en er
-    komt geen rasterexport. Treft de Gantt-afdruk en de tabelrapporten (beide via `paginateVectorToPdfBytes`); in de app
-    alleen met een extensie die een aanbieder registreert (`api.pdfFonts.register`). — B
+    komt geen rasterexport; de terugvalletter met tekens is dan wel ingebed. Treft de Gantt-afdruk en de tabelrapporten
+    (beide via `paginateVectorToPdfBytes`). Beide exportpaden (`exportGanttReportPdf.ts`, `ReportPanel.tsx`) geven zelf
+    hoogstens één terugvalletter mee (Inter, als de rapportletter niet Inter is); in de app treedt dit dus alleen op met
+    een extensie die een aanbieder registreert (`api.pdfFonts.register`). — B
+
+2452. **Een teken dat de rapportletter mist en Noto Sans Arabic wel heeft, kan in een tekst zonder Arabisch of
+    Hebreeuws een vakje worden in de vector-PDF.** `checkCoverage` (`src/services/pdf/pdfVectorDraw2d.ts`) telt zo'n teken als
+    gedekt door Noto Sans Arabic, maar een tekst zonder Arabisch of Hebreeuws tekent `fillText` nooit met Noto. Zo blijft
+    zo'n teken buiten de ongedekte tekens van de eerste render, laadt `paginateVectorToPdfBytes`
+    (`src/services/print/paginateVector.ts`) daarvoor geen terugvalletter, en zet de rapportletter het op glyph 0.
+    Proef uit de review van #1252, met `renderReport` en de pagineerder in Node, niet in de browser: het meegeleverde
+    Zuidas-project, een taak hernoemd naar `Repère « lot A »` met de smalle vaste spatie U+202F binnen de
+    aanhalingstekens, Liberation Mono als rapportletter, de voortgangsweergave uit. De PDF kwam er zonder fout; de
+    paginastroom heeft voor beide smalle spaties glyph `0000`. Met een `✓` erbij in dezelfde export laadde Inter wel als
+    terugval en kwamen de spaties uit F4. Nagemeten met fontkit: Liberation Mono heeft U+202F niet, Noto Sans Arabic en
+    Inter wel. Zie ADR 0384. Issue #1255. — B
 
 2451. **De dekking van een teken wordt voor beide gewichten één keer bepaald, met één gewicht.** `checkCoverage` en
     `checkCoverageComplex` (`src/services/pdf/pdfVectorDraw2d.ts`) bewaren per teken één uitkomst voor gewoon en vet:
@@ -6036,7 +6050,7 @@ en noem het in je rapport of PR-tekst.
      (GPT-6.1-Sol, xhigh, VERVOLG). Voorstel: de werkelijke glyphplaatsing toetsen bij het verdere fontwerk. — B
 
 934. **De tekstlaag van een PDF-rapport is niet trouw aan de bron voor Arabisch en voor sommige ligaturen.**
-     `pdfVectorDraw2d.ts:547–571` zet de geshapte glyphs rechtstreeks in de PDF (vooral regel 566). `pdftotext` geeft de
+     `fillTextComplex` (`pdfVectorDraw2d.ts`) zet de geshapte glyphs rechtstreeks in de PDF. `pdftotext` geeft de
      Arabische naam dan niet als de oorspronkelijke tekst terug, en met Carlito wordt `bouwlogistiek` in een gemengde naam
      `bouwlogis ek`. Op het blad staat het woord wel goed; kopiëren en zoeken in de PDF gaan mis. Zat al in main en
      verandert niet door #847 (24 PDF's per letter en richting byte-gelijk uitgelezen op merge-base en #847). Uit
