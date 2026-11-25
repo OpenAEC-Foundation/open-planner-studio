@@ -2224,6 +2224,55 @@ en noem het in je rapport of PR-tekst.
      hetzelfde getal. `isPoolNewer`
      vergelijkt dan alleen nog op `modifiedAt`. Nagespeeld met een los script; zo'n nummer komt alleen uit een
      zelfgemaakt bestand. — B
+2470. **De weigering van `levelingDelayMinutes` zegt dat er geen leestool voor is, maar `planner_get_task` geeft het
+     veld.** `REJECT_HINTS` in `src/services/mcp/tools/taskFields.ts` weigert `levelingDelayMinutes` in `fields` van
+     `planner_update_tasks` terecht, maar licht dat toe met "no read-tool counterpart, see `levelingDelay`". `getTask` in
+     `src/services/mcp/tools/readTools.ts` geeft `levelingDelayMinutes` mee zodra het gezet is. Nagespeeld via de
+     dispatcher: `levelingDelayMinutes: 30` gelezen met `planner_get_task`, en bij terugschrijven kwam de weigering met
+     die toelichting. Alleen de toelichting is fout. — B
+2471. **Een gelezen voortgang ongewijzigd terugschrijven kan haar veranderen en een lopende taak afmelden.** `pct` in
+     `src/services/mcp/tools/readTools.ts` geeft `Math.round(completion × 100)`, voor `prog` in het overzicht en in
+     `planner_list_tasks` en voor `progress.completion` in `planner_get_task`; `progress.completion` van
+     `planner_update_tasks` neemt elk getal van 0 tot en met 100 aan (`applyProgressUpdate` in
+     `src/state/mcpValidation.ts`). Proef uit de review van #1261, via de dispatcher met de app-store: een gestarte taak
+     zonder werkelijk einde op 99,6 % (ingelezen via de verwerking van een voortgangsblad) leest als `100`; het gelezen
+     `progress`-blok ongewijzigd naar `planner_update_tasks` zet de taak van `STARTED` op `COMPLETED`, het restwerk op
+     nul, en de app vult een werkelijk einde in. Een taak op 33,33 % werd bij terugschrijven 33 %. Onder 0,5 % ontbreekt
+     `prog` op de rij. Issue #1263. — B
+2472. **Een onderbreking die niet op een hele eenheid valt, leest als een fractie die `planner_set_task_splits`
+     weigert.** `interruptionsOf` in `src/services/mcp/tools/splitFields.ts` geeft de onderbrekingen van een wélgevormde
+     gatenlijst met drie decimalen, zonder `splitsEditable: false`. `planTaskSplits` weigert elke niet-hele `after*` of
+     `pause*` ("nothing is silently rounded") en vervangt altijd de hele lijst, dus zo'n taak kan via MCP geen
+     onderbreking toevoegen of wijzigen zonder die bestaande op te geven. Nagespeeld langs twee routes: een gat na 4 uur
+     op een dagtaak met 8 uur per dag leest als `afterWorkDays: 0.5`; en de opslagroute van het splitsgebaar in de Gantt
+     op kwartierzoom bewaarde op een urentaak een pauze van 15 minuten na 2 uur en 15 minuten werk, die leest als
+     `afterWorkHours: 2.25` en `pauseHours: 0.25`. In beide gevallen weigerde de schrijftool de gelezen waarden en bleef
+     de pauze staan. Issue #1264. — B
+2473. **Een onderbreking in verricht werk blokkeert het toevoegen van een nieuwe onderbreking via MCP.**
+     `planTaskSplits` in `src/services/mcp/tools/splitFields.ts` haalt alle bestaande gaten weg en zet elke opgegeven
+     onderbreking opnieuw met `splitAt`; die weigert een positie vóór het verrichte werk (`before-completed-work`,
+     `completedWorkMinutes`). Een al verstreken pauze staat in het verrichte werk, dus een lijst die haar meestuurt, wordt
+     geweigerd; een lijst zonder haar wordt aangenomen en wist haar. Nagespeeld via de dispatcher: een dagtaak van tien
+     werkdagen
+     met een pauze na dag drie, voortgang 60 %, de gelezen onderbrekingen plus een nieuwe na dag acht naar
+     `planner_set_task_splits`: geweigerd, de opgeslagen lijst bleef ongewijzigd. Dat geldt ook bij hele werkdagen.
+     Issue #1264. — B
+2474. **`actualFinishAdjusted` schrijft elk verschil met de werkelijke finish toe aan onwerkbare tijd.** `getTask` in
+     `src/services/mcp/tools/readTools.ts` geeft het blok zodra een voltooide taak een `actualFinish` heeft die niet
+     gelijk is aan `earlyFinish`, met een reden die zegt dat de werkelijke finish buiten de werktijd van de kalender valt
+     en naar `planner_update_calendar` verwijst. Nagespeeld met een geïmporteerde, voltooide P6-taak met een werkelijk
+     einde op 8 mei 15:00, binnen werktijd: de berekening plaatste haar op de peildatum, 1 juni 08:00 (de tak voor een
+     voltooide taak in `CPMSolver.ts`, `isPinnedComplete`), en de leestool gaf toch die reden. Het advies kan een
+     assistent zo naar een onnodige kalenderwijziging sturen. — B
+2475. **Een relatie zonder lag leest via MCP als `lag: ""`, en die waarde weigeren de schrijftools.** `lagLabel` in
+     `src/services/mcp/tools/sequenceFields.ts` geeft bij nul dagen een lege tekst; `parseLag` neemt een lege tekst
+     niet aan. Proef uit de review van #1261, via de dispatcher: twee taken gekoppeld met de standaardrelatie lezen in
+     `planner_get_task` als `type: "FS", lag: ""`; geeft een assistent beide waarden door, dan weigeren
+     `planner_add_dependencies` en `planner_update_dependencies` het item en blijft de doelrelatie ongewijzigd. Met
+     `lag: 0` slaagt het. Laat de assistent `lag` weg, dan maakt `planner_add_dependencies` een relatie met nul
+     dagen, maar houdt `planner_update_dependencies` de bestaande lag: een SS-relatie met `+2d` werd zo `FS+2d`, met
+     de opvolger op 10 juni 07:00 in plaats van 8 juni 07:00. Een relatie met 240 minuten lag leest ook als `lag: ""`
+     (knownbug 354), dus de lege waarde zegt niet dat de lag nul is. — B
 
 ## Bestanden en herstel
 
