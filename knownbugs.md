@@ -4402,14 +4402,6 @@ en noem het in je rapport of PR-tekst.
       werk van een toewijzing. Of een schrijver met `P2D` twee werkdagen of 48 uur bedoelt, en of zo'n schrijver bestaat,
       is niet nagegaan; daarvan hangt af of 2880 minuten klopt. — B
 
-2011. **Een veld dat op een MSPDI-taak ontbreekt, kan de lezer uit een genest element halen.** `getElementText` in
-      `src/services/msproject/mspdiReader.ts` neemt het eerste element met die naam ergens onder de taak
-      (`descendantText`), ook binnen `<PredecessorLink>` of `<Baseline>`. Nagespeeld met een script via `readMSPDI`, en
-      in de review van #1200 ook via `parseOpenedFile`: een taak zonder `<Type>` met een `<PredecessorLink>` met
-      `<Type>2</Type>` krijgt `mspTaskType` `FIXED_WORK`, en een taak zonder `<Duration>` met een `<Baseline>` met
-      `<Duration>PT40H0M0S</Duration>` krijgt 2400 minuten. Volgens die review maakt het MSPDI-schema `<Type>` en
-      `<Duration>` op een taak optioneel, dus geldige XML van een andere schrijver kan dit raken; of MS Project zelf die
-      velden weglaat, is niet nagegaan. Welke andere velden zo kunnen verschuiven, ook niet. — B
 2249. **VERVOLG (#1199): de melding bij het wissen komt alleen bij taken en resources.** `notifyForeignLinksDropped`
       (`src/state/foreignLinksNotice.ts`) hangt aan `deleteTask`, `deleteTasksBulk`, `dissolveTasksBulk`,
       `removeResource` en Opnieuw van zo'n stap. Wist de planner een relatie (`removeSequence`) of een kalender (de
@@ -4645,14 +4637,19 @@ en noem het in je rapport of PR-tekst.
       artikel boven de bijgewerkte Engelse versie. Bevestigd in reviewronde 1. Werk het bij via de
       bestaande vertaalroute voor Help. — B
 
-2011. **Datums en overige velden van een MSPDI-taak kunnen nog uit een genest element komen.** In #1202
-      (reviewronden 1 t/m 5) leest `Type` van een taak alleen uit de directe kinderen van `<Task>`, en
-      `Duration` eerst daar; ontbreekt de taakduur of is ze leeg, dan valt de lezer terug op de oude
-      zoekwijze (`getElementText`) en kan de duur uit een `<Baseline>` komen. `Start`, `Finish` en de
-      andere velden lezen nog via `descendantText`, dus een taak zonder
-      eigen `Start` kan `Baseline/Start` oppakken (net als `TimephasedData`-datums). De kalenderkeuze
-      (uurmodus), het startanker van de werkverdeling en de betekenis van een einddatum leunen daarop.
-      Daarom is dat deel van de lezer bewust niet veranderd. — B
+2011. **Duur, datums en overige velden van een MSPDI-taak kunnen nog uit een genest element komen.**
+      `getElementText` in `src/services/msproject/mspdiReader.ts` neemt het eerste element met die naam ergens onder
+      de taak (`descendantText`), ook binnen `<PredecessorLink>` of `<Baseline>`. Sinds #1202 leest `Type` van een taak
+      alleen uit de directe kinderen van `<Task>`, en `Duration` eerst daar; ontbreekt de taakduur of is ze leeg, dan
+      valt de lezer terug op die zoekwijze en kan de duur uit een `<Baseline>` komen. Nagespeeld met een script via
+      `readMSPDI`, en in de review van #1200 ook via `parseOpenedFile`: een taak zonder `<Duration>` met een
+      `<Baseline>` met `<Duration>PT40H0M0S</Duration>` krijgt 2400 minuten. `Start`, `Finish` en de andere velden
+      lezen nog via `descendantText`, dus een taak zonder eigen `Start` kan `Baseline/Start` oppakken (net als
+      `TimephasedData`-datums). De kalenderkeuze (uurmodus), het startanker van de werkverdeling en de betekenis van
+      een einddatum leunen daarop; daarom is dat deel van de lezer bewust niet veranderd. Volgens de review van #1200
+      maakt het MSPDI-schema `<Duration>` op een taak optioneel, dus geldige XML van een andere schrijver kan dit
+      raken; of MS Project zelf dat veld weglaat, is niet nagegaan. Welke andere velden zo kunnen verschuiven, ook
+      niet. — B
 
 ## Teksten en helpteksten
 
