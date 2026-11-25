@@ -156,6 +156,10 @@ export function applyForeignRule(references: ForeignReferences, gone: ReadonlySe
 const sameTargets = (a: ReadonlySet<number> | undefined, b: ReadonlySet<number>) =>
   a !== undefined && a.size === b.size && [...b].every(target => a.has(target));
 
+export function foreignChangeCount(outcome: ForeignRuleOutcome): number {
+  return outcome.dropped.size + outcome.trimmed.size + outcome.droppedUnusedKeys.length;
+}
+
 export function newForeignChangeCount(before: ForeignRuleOutcome, after: ForeignRuleOutcome): number {
   let count = 0;
   for (const id of after.dropped) if (!before.dropped.has(id)) count++;

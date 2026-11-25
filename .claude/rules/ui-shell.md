@@ -40,6 +40,18 @@ Enter en Escape annuleren). Het is een wachtende modale vraag: `isGlobalShortcut
 schil is inert, `isBlockingDialogOpen` en `BLOCKING_UI_FLAGS` (MCP) blokkeren. Het vinkje "Zonder gebouwmodel" op de
 IFC-kaart van Bestand → Exporteren staat er alleen bij een document met gebouwmodel en de flag `ifcForeignContent` aan.
 
+### De vraag vóór het opslaan (#804)
+
+`ForeignChangesQuestionDialog` (`src/components/dialogs/`) toont `ui.pendingForeignChangesQuestion` (`{ count, file }`;
+`file: null` is een nieuw bestand: titel "Opslaan als" en de zin dat het geopende bestand niet verandert). De bedrading
+staat in `state/foreignChangesQuestionBridge.ts`, de regel in `.claude/rules/tauri-ifc.md` ("De vraag vóór het opslaan").
+Knoppen Opslaan en Annuleren, met het vinkje "Niet meer vragen" en eronder waar het terug kan. Annuleren is de
+standaardknop (beginfocus; Enter zonder knopfocus, Escape en het kruisje annuleren); die keuze is één regel
+(`SAVE_IS_DEFAULT`), de eigenaar kiest nog tussen Annuleren en Opslaan. Laag `z-[90]`, boven de sluitvraag. Een
+wachtende modale vraag zoals hierboven: `isGlobalShortcutFrozen`, inerte schil, `isBlockingDialogOpen`,
+`saveQuestionOpen` en `BLOCKING_UI_FLAGS`. De instelling `foreignChangesQuestion` staat onder Instellingen → Meldingen,
+alleen met de flag aan (`requires` met `hide: 'always'`).
+
 ### "Wordt nog opgeslagen…" (#804 stap 3)
 
 Afsluiten, het kruisje van een tabblad (`requestCloseDocument`) en de keuzes van de sluitvraag (`closeDocumentAfterSaves`)

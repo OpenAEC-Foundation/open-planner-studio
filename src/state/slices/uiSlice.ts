@@ -202,6 +202,8 @@ export function createDefaultUI(): UIState {
     pendingSiteSave: null,
     pendingIfcSchemaQuestion: null,
     pendingPlanOnlyQuestion: null,
+    pendingForeignChangesQuestion: null,
+    foreignChangesQuestion: true,
     pendingFormatNotice: null,
     formatNoticeHidden: [],
     showPoolImportDialog: false,
