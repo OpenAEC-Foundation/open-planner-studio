@@ -24,11 +24,15 @@ resourcebibliotheek, zodat ze niet uit elkaar lopen.
   (`writeCalendarGenerationMeta`; `docs/ifc-round-trip.md`, "Uren per dag bij een blokkenkalender"), of het
   kalendervenster het blok over de eigen uren per dag uit het bestand toont (`showFileHoursNotice` in `CalendarForm`,
   besluit van de eigenaar van 2026-10-20, punt 8, optie 2), en of de uren per dag de blokken volgen
-  (`hoursPerDayFollowsBlocks`, ADR 0324, die het geval zonder dagsom zelf afvangt).
+  (`hoursPerDayFollowsBlocks`, ADR 0324, die het geval zonder dagsom zelf afvangt). Het venster eist daarnaast
+  minstens één dag in `workDays`, en vergelijkt de opgeslagen uren per dag met `effHoursPerDay` (`taskDuration.ts`):
+  bij een uurkalender de modale dagsom van de blokken, bij een dagkalender de opgeslagen waarde zelf, die dus nooit
+  afwijkt.
 - De resourcebibliotheek bewaart kalenders als JSON, ook kalenders die een MSPDI- of `.mpp`-lezer van vóór de fix
   importeerde, met als einde dat van het eerste blok. `withRepairedFirstBlockScalar` zet het einde op dat van het
   laatste blok, alleen als de eerste weekdag met blokken (`firstBlockedDay`, zondag eerst) er minstens twee heeft,
   het begin gelijk is aan `startHour`, het einde gelijk aan `firstBlockEndHour` en het laatste blok later eindigt;
   anders blijft de kalender gelijk. `firstBlockScalarVariant` geeft omgekeerd de oude vorm, voor de vergelijking
   met een stempel uit een oud bestand. Gebruikers: `normalizePoolShape`, `poolCalendarById` en
-  `calendarMatchesStamp` in `libraryOps.ts`. Toets: `check-werkdag-einde.ts` §5.
+  `calendarMatchesStamp` in `libraryOps.ts`. Toetsen: `check-werkdag-einde.ts` §5 (het herstel bij het laden van de
+  bibliotheek en de vergelijking met de stempel uit een oud bestand) en §7 (de zondagvolgorde, ook voor het herstel).
