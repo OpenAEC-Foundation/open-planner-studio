@@ -252,7 +252,8 @@ export function withReturnedMembers(relations: ReadonlyMap<string, DetachedRelat
     const wanted = relation.members.flatMap(m => idOf(m) ?? []);
     const available = own.flatMap(i => membersAt(i, roles.related));
     const follows = relation.type === NESTS && line < 0;
-    const take = follows ? available : wanted.filter(m => !current.includes(m) && available.includes(m));
+    const inCurrent = new Set(current), inAvailable = new Set(available), inWanted = new Set(wanted);
+    const take = follows ? available : wanted.filter(m => !inCurrent.has(m) && inAvailable.has(m));
     if (take.length === 0) continue;
     const pool = [...take];
     for (const i of own) {
@@ -263,7 +264,7 @@ export function withReturnedMembers(relations: ReadonlyMap<string, DetachedRelat
       else withMembers(i, roles.related, left);
     }
     const joined = new Set([...current, ...take]);
-    const members = follows ? take : [...wanted.filter(m => joined.has(m)), ...current.filter(m => !wanted.includes(m))];
+    const members = follows ? take : [...wanted.filter(m => joined.has(m)), ...current.filter(m => !inWanted.has(m))];
     if (line >= 0) { withMembers(line, roles.related, members); continue; }
     const template = own.length > 0 && lines[own[0]].args.length === table.slots.length ? [...lines[own[0]].args]
       : table.slots.map(slot => relation.slots.slots.get(slot.key) ?? '$');
@@ -320,7 +321,9 @@ export function detachedAfterWrite(input: DetachedAfterWrite): Detached | undefi
   const relations = new Map<string, DetachedRelation>();
   const complete = (key: string, relation: DetachedRelation) => {
     const written = input.membersOf(key, relation.type);
-    return written !== undefined && relation.members.every(m => written.includes(m));
+    if (written === undefined) return false;
+    const members = new Set(written);
+    return relation.members.every(m => members.has(m));
   };
   for (const [key, relation] of input.previous?.relations ?? []) if (!complete(key, relation)) relations.set(key, relation);
   for (const { key, ...relation } of input.carried) if (!relations.has(key) && !complete(key, relation)) relations.set(key, relation);
