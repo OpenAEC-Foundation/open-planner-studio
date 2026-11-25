@@ -1,10 +1,3 @@
-// Belasting-/overallocatie-engine. Twee bouwstenen:
-// de plaatsing per taak met haar deel per werkdag (`workPlacement.ts`: `taskWorkPlacement`,
-// `workPlacement`, `assignmentPlacementLoad` — de ENE verdeling die zowel het histogram als de
-// nivelleerder voedt, spec §3.11) en `computeResourceLoad` (dag-granulaire
-// belasting/capaciteit/overallocatie over alle resources+toewijzingen). `distributeUnits` en
-// `assignmentDayUnits` blijven het dagslotcontract: de vorm van een curve of opgeslagen werk, en de
-// contourdialoog (F4b).
 import { contourSiblings, costResourceIds, resourceHasLoad, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import { exceedsCapacity } from '@/engine/scheduler/capacityTolerance';
 import { groupBy } from '@/utils/collections';
@@ -29,8 +22,6 @@ import {
 import { parseDate, formatDate, addCalendarDays, addCalendarMonths, getMonthStart, getWeekStart } from '@/utils/dateUtils';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 
-/** Controlepunten per curve: (t ∈ [0,1] = positie in de duur, gewicht). Lineair geïnterpoleerd
- *  tussen punten; niet genormaliseerd (distributeUnits normaliseert zelf via Σraw). */
 const CURVE_POINTS: Partial<Record<ResourceCurve, [number, number][]>> = {
   UNIFORM: [[0, 1.0], [1, 1.0]],
   FRONT_LOADED: [[0, 1.0], [1, 0.2]],
@@ -38,33 +29,10 @@ const CURVE_POINTS: Partial<Record<ResourceCurve, [number, number][]>> = {
   BELL: [[0, 0.2], [0.5, 1.0], [1, 0.2]],
   EARLY_PEAK: [[0, 0.2], [1 / 3, 1.0], [1, 0.2]],
   LATE_PEAK: [[0, 0.2], [2 / 3, 1.0], [1, 0.2]],
-  // DOUBLE_PEAK en TURTLE hebben GEEN controlepunten: die twee curves bestaan alleen als MS
-  // Project-/P6-tabelvorm en worden hieronder rechtstreeks uit de exacte 21-punts tabel
-  // (`CONTOUR_SHAPE_VALUES`) bemonsterd.
 };
 
-/**
- * Verdeelt `unitsPerDay × durationDays` totale eenheden over `durationDays` werkdagen volgens
- * `curve`, met lineaire interpolatie tussen controlepunten en grootste-rest-afronding zodat de
- * som EXACT klopt (geen 0.1-drift door floating point of afronding per dag). 0 < D ≤ 1 → alles
- * op dag 0 (`unitsPerDay × D`, dus een fractie bij een korte urentaak), voor elke curve; D = 0 → `[]`.
- *
- * Deze ENE functie voedt (via `assignmentDayUnits`) zowel het histogram (`computeResourceLoad`) als
- * de nivelleerder — nooit een tweede, "simpelere" verdeelfunctie voor de leveler.
- *
- * LET OP — curve-vervlakking op korte taken: de piek-curves (BELL, EARLY_PEAK,
- * LATE_PEAK) worden bemonsterd op t = i/(D−1). Bij D=2 zijn de enige monsterpunten t=0 en t=1;
- * die vallen precies op de dal-controlepunten (0.2) van BELL/EARLY_PEAK/LATE_PEAK, dus beide dagen
- * krijgen gelijk gewicht en de "piek" verdwijnt — de verdeling is voor D≤2 dan de facto UNIFORM.
- * Dit is inherent aan lineaire interpolatie op zo weinig punten en bewust niet "gerepareerd": een
- * bult in het midden van een 2-daagse taak is niet zinvol te representeren.
- */
 export function distributeUnits(unitsPerDay: number, durationDays: number, curve: ResourceCurve = 'UNIFORM'): number[] {
   const total = unitsPerDay * durationDays;
-  // Korter dan één werkdag (een urentaak van bv. 5 u op een 8-urige dag ⇒ 0,625): het hele werk
-  // valt op die ene dag, als fractie van een dag — dezelfde uitkomst als de opgeslagen-werk-laag in
-  // `assignmentDayUnits`. Vroeger viel zo'n taak hier stil weg (`[]`) en telde hij in histogram,
-  // overbezetting en nivelleren niet mee, tenzij er toevallig opgeslagen werk of een contour was.
   if (durationDays <= 1) return durationDays > 0 ? [total] : [];
 
   const points = CURVE_POINTS[curve];
@@ -78,15 +46,9 @@ export function distributeUnits(unitsPerDay: number, durationDays: number, curve
     const sumRaw = raw.reduce((a, b) => a + b, 0);
     weights = raw.map(r => r / sumRaw);
   } else {
-    // Tabelvorm (DOUBLE_PEAK/TURTLE): integratie van de 5%-slices over `durationDays` slots —
-    // dezelfde bemonstering als een geïmporteerde `curveValues`-lijst in `assignmentDayUnits`.
     weights = slotWeightsFromValues(CONTOUR_SHAPE_VALUES[CURVE_TO_SHAPE[curve]], durationDays);
   }
 
-  // Grootste-rest-methode: eerst afronden naar beneden, dan de grootste fractionele resten
-  // ophogen tot de som weer exact `total` is. De precisie (hele eenheden/dag bij een geheel TEMPO,
-  // anders honderdsten) wordt bepaald in `largestRemainderRound` (hele mensen/machines per dag bij
-  // geheel tempo; een fractioneel tempo als 0,5 kracht/dag blijft fractioneel).
   return largestRemainderRound(weights.map(w => w * total), total, unitsPerDay);
 }
 
@@ -103,20 +65,6 @@ function interpolate(points: [number, number][], t: number): number {
 }
 
 function largestRemainderRound(values: number[], targetSum: number, unitsPerDay: number): number[] {
-  // Heel TEMPO (unitsPerDay) ⇒ hele eenheden/dag; fractioneel tempo ⇒ fracties.
-  // Een resource-spreiding gaat over echte eenheden per dag: is het TEMPO geheel (bv. 2 kracht/dag),
-  // dan verdelen we in GEHELE eenheden per dag (scale=1) — een halve machinist of 0,67 kraan op één
-  // dag is praktisch onzin, en de grootste-rest-methode garandeert dat de som EXACT op het gehele
-  // totaal uitkomt (remainder = round(targetSum×scale) − Σvloer). Is het tempo fractie (bv. 0,5
-  // kracht/dag), dan behouden we de honderdsten-precisie (scale=100) zodat de som exact klopt op
-  // 2 decimalen — fractioneel tempo is expliciet ondersteund (UnitsInput step=any, P6/MSPDI-imports)
-  // en mag niet worden afgerond naar hele eenheden.
-  //
-  // De gate is op unitsPerDay, NIET op het totaal: anders vervormt een fractioneel tempo dat
-  // toevallig op een geheel totaal uitkomt. Bv. distributeUnits(0,5, 4, UNIFORM) → totaal 2 → een
-  // totaal-gate kiest dan scale=1 en levert [1,1,0,0] i.p.v. de juiste [0,5,0,5,0,5,0,5]; en
-  // distributeUnits(0,1, 10, UNIFORM) → totaal 0,9999999999999999 → binnen 1e-9 van 1 → [1,0,…,0].
-  // Drempel 1e-9 dekt floating-point-ruis.
   const scale = Math.abs(unitsPerDay - Math.round(unitsPerDay)) < 1e-9 ? 1 : 100;
   const floors = values.map(v => Math.floor(v * scale));
   let remainder = Math.round(targetSum * scale) - floors.reduce((a, b) => a + b, 0);
@@ -130,34 +78,6 @@ function largestRemainderRound(values: number[], targetSum: number, unitsPerDay:
   return result.map(v => v / scale);
 }
 
-/**
- * Contour-engine — de verdeling per toewijzing in DAGSLOTS: eenheden per werkdag-slot van de taak,
- * index-uitgelijnd op `enumerateTaskWorkDays(task.splitGaps, …)` (slot i ⇒ i-de werkdag vanaf
- * `earlyStart`, pauzedagen overgeslagen). Sinds F3c boeken histogram en nivelleerder op de plaatsing
- * (`assignmentPlacementLoad` in `workPlacement.ts`); die leest deze slots als BRON voor een curve,
- * een exacte importcurve of opgeslagen werk, en legt ze naar rato op de bezette dagdelen. Direct
- * lezen deze slots nog: de contourdialoog (F4b) en een kalender zonder werkblokken (`dayslotLoad`).
- * Vier bronnen, in deze volgorde:
- *   1. een OPGESLAGEN contour (`Task.timephasedContours`, gekoppeld via `resourceId` —
- *      `contourEngine.ts`'s `matchContoursToAssignments`): werkminuten per slot ÷ `mpd` = eenheden
- *      per dag. DATA, dus GEEN hele-eenheden-afronding (een fractie in een contour is bedoelde
- *      data). Een contour met méér slots dan `scheduleDuration` levert een langere array;
- *      de aanroeper enumereert daarom `Math.max(durationDays, units.length)` werkdagen — het TOTAAL
- *      blijft behouden (dezelfde garantie als het earlyFinish-besluit hieronder).
- *   2. `ResourceAssignment.curveValues` (exacte 21-punts P6-/MSPDI-curve): `slotWeightsFromValues`
- *      × (unitsPerDay × duur) — ook data-achtig, dus eveneens zonder de formule-afronding. Staat er
- *      óók opgeslagen werk (laag 3), dan levert de curve de VORM en het werk het TOTAAL.
- *   3. OPGESLAGEN WERK: staat er een
- *      `remainingWorkMinutes` (uit een import die van duur × inzet afweek, of vastgelegd door een
- *      werkbeschermende regel), dan is verricht + resterend werk het totaal en wordt dát — als
- *      data, zonder de hele-eenheden-afronding — met de curvevorm (`CONTOUR_SHAPE_VALUES`) over de
- *      duur gespreid. Zo boekt een niet-sturende toewijzing (W_i / I_i < R) haar eigen werk en niet
- *      inzet × restduur.
- *   4. anders de formule `distributeUnits` (curve-vorm + hele-eenheden-afronding).
- * `contour` mag door de aanroeper vooraf zijn opgezocht (één `matchContoursToAssignments` per
- * taak); ontbreekt het argument, dan zoekt deze functie 'm zelf op uit `task.timephasedContours`
- * en `siblings` (alle toewijzingen van de taak — nodig voor de volgorderegel van de koppeling).
- */
 export function assignmentDayUnits(
   task: Task,
   assignment: ResourceAssignment,
@@ -175,10 +95,6 @@ export function assignmentDayUnits(
     if (slotWork.length > 0) return slotWork.map((w) => w / slotMinutes);
   }
   const storedWork = assignment.remainingWorkMinutes !== undefined && Number.isFinite(assignment.remainingWorkMinutes) && durationDays > 0;
-  // Het te verdelen TOTAAL bij opgeslagen werk (laag 3): verricht + resterend. Het VERRICHTE deel:
-  // `actualWorkMinutes` als de bron 'm gaf, anders afgeleid als verrichte duur × inzet (de
-  // werkdriehoek schrijft alleen `remainingWorkMinutes`, en een typewissel op een half gedane taak
-  // mag de belasting niet halveren).
   const storedTotalUnits = (): number => {
     const slotMinutes = Math.max(1, mpd);
     const doneUnits = assignment.actualWorkMinutes !== undefined
@@ -187,8 +103,6 @@ export function assignmentDayUnits(
     return Math.max(0, assignment.remainingWorkMinutes!) / slotMinutes + doneUnits;
   };
   if (assignment.curveValues && durationDays > 0) {
-    // Vorm en totaal zijn orthogonaal: de 21-punts curve levert de VORM, opgeslagen werk — als dat
-    // er is — het TOTAAL (vorm-als-data, werk als schaal). Zonder werkveld is het totaal inzet × duur.
     const weights = slotWeightsFromValues(assignment.curveValues, durationDays);
     const total = storedWork ? storedTotalUnits() : assignment.unitsPerDay * durationDays;
     return weights.map((w) => w * total);
@@ -201,9 +115,6 @@ export function assignmentDayUnits(
   return distributeUnits(assignment.unitsPerDay, durationDays, assignment.curve ?? 'UNIFORM');
 }
 
-/** Resterende duur van de taak in werkdagen (dezelfde afleiding als de solver en
- *  `workRuleApply.ts`'s `remainingMinutesOf`): uurmodus `remainingMinutes ?? duur × (1 − voortgang)`
- *  (÷ slot), dagmodus `remainingTime ?? duur × (1 − voortgang)`. */
 function remainingDaysOf(task: Task, slotMinutes: number): number {
   const t = task.time;
   if (t.durationUnit === 'hours' && typeof t.durationMinutes === 'number' && Number.isFinite(t.durationMinutes)) {
@@ -213,8 +124,6 @@ function remainingDaysOf(task: Task, slotMinutes: number): number {
   return Math.max(0, t.remainingTime ?? Math.round(t.scheduleDuration * (1 - (t.completion ?? 0))));
 }
 
-/** Hulpje voor de lastlezers: één `matchContoursToAssignments`-uitslag per taak (gecachet per
- *  aanroep), zodat de volgorderegel van de koppeling over álle toewijzingen van de taak gaat. */
 export function contourLookup(
   assignments: readonly ResourceAssignment[],
 ): (task: Task, assignment: ResourceAssignment) => TaskTimephasedContour | null {
@@ -231,38 +140,14 @@ export function contourLookup(
   };
 }
 
-/**
- * Het DAGSLOTcontract: de werkdagen van `task`, index-uitgelijnd op `assignmentDayUnits` (slot i ⇒
- * `isos[i]`). Sinds F3c boeken histogram en nivelleerder op de plaatsing (`taskLoadPlacement`), sinds
- * F4b ook de contourdialoog (`contourDayModel`); deze dagenlijst blijft voor een kalender zonder
- * werkblokken (`dayslotLoad`). Drie takken:
- *  - ELAPSEDTIME: `scheduleDuration` is KALENDERdagen, niet werkdagen (zie het docblok bij
- *    `computeResourceLoad`) — de op `earlyFinish` geklemde mapping i.p.v. `enumerateTaskWorkDays`,
- *    die het getal als werkdagen-telling zou lezen en voorbij `earlyFinish` zou doorlopen;
- *  - VOLTOOID (`completion >= 1 && actualFinish`): `earlyFinish` is dan
- *    GEZAGHEBBEND, niet stale — dezelfde geklemde vorm, andere reden (zie datzelfde docblok);
- *  - anders `enumerateTaskWorkDays(task.splitGaps, …)`: `durationDays` werkdagen vanaf
- *    `earlyStart`, pauzedagen van de splits overgeslagen.
- */
 export function taskWorkDayIsos(task: Task, taskEngine: CalendarEngine, durationDays: number): string[] {
   return task.time.durationType === 'ELAPSEDTIME' || isPinnedComplete(task.time)
     ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
     : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
 }
 
-/** De maatconventie die de verdeling leest (§3.14): `effectiveSchedulingOptions(project)`, zodat
- *  histogram, nivelleerder en solver dezelfde maat lezen. Verplicht in elke aanroep: een stille
- *  terugval op het OPS-profiel liet een P6- of MSP-project in de belasting als OPS tellen (een dagtaak
- *  over een korte vrijdag landde dan helemaal op vrijdag, terwijl de solver op maandag eindigt). */
 export type LoadOptions = PlacementOptions;
 
-/**
- * De gezaghebbende plaatsing van `task` op haar eigen kalender, vanaf `start` (een kandidaat van de
- * nivelleerder) of anders vanaf `earlyStart` — de ENE bron voor histogram en nivelleerder (spec
- * §3.11; `taskWorkPlacement` in `workPlacement.ts`). `null` ⇒ de kalender heeft geen werkblokken
- * (dagmodus): de aanroeper valt terug op het dagslotcontract (`assignmentDayUnits` +
- * `taskWorkDayIsos`). Een ongeldige datum geeft een lege plaatsing.
- */
 export function taskLoadPlacement(
   task: Task,
   engine: CalendarEngine,
@@ -274,8 +159,6 @@ export function taskLoadPlacement(
   return placement ? workPlacement(engine, placement) : { days: [], finish: start ?? new Date(NaN) };
 }
 
-/** Eenheden per werkdag van één toewijzing op een plaatsing; `units[i]` hoort bij `days[i]`.
- *  `contour` komt van de aanroeper (`contourLookup` over alle toewijzingen van de taak, ook `null`). */
 export function assignmentLoadOnPlacement(
   task: Task,
   assignment: ResourceAssignment,
@@ -287,8 +170,6 @@ export function assignmentLoadOnPlacement(
   return assignmentPlacementLoad(assignment, days, mpd, contour, () => assignmentDayUnits(task, assignment, mpd, null));
 }
 
-/** Het dagslotcontract van vóór F3c, alleen nog voor een kalender zonder werkblokken: hele
- *  werkdagen vanaf `earlyStart` (`taskWorkDayIsos`), index-uitgelijnd op `assignmentDayUnits`. */
 export function dayslotLoad(
   task: Task,
   assignment: ResourceAssignment,
@@ -301,8 +182,6 @@ export function dayslotLoad(
   return { isos: isos.slice(0, n), units: units.slice(0, n) };
 }
 
-/** Belasting per werkdag van één toewijzing: op de plaatsing van haar taak (`placed`, één keer per
- *  taak berekend), of in dagmodus op het dagslotcontract. */
 function assignmentDaily(
   task: Task,
   assignment: ResourceAssignment,
@@ -317,36 +196,20 @@ function assignmentDaily(
   };
 }
 
-/** ISO-datum → belaste/beschikbare eenheden. Alleen dagen met >0 belasting of capaciteit
- *  (dag-granulair) — geen volledige-projectspanne-vulling met nul-dagen. */
 export interface DailyLoad {
   [isoDate: string]: number;
 }
 
-/**
- * Reden van een overbezette dag. `non-working-day`: de
- * resourcekalender kent deze dag geen werkdag (capaciteit 0, ongeacht de vraag). `over-capacity`:
- * de resource werkt deze dag wél, maar de gevraagde inzet overschrijdt zijn capaciteit (>0).
- */
 export type OverallocationReason = 'non-working-day' | 'over-capacity';
 
 export interface ResourceLoadResult {
-  /** resourceId → per-dag-belasting (som over alle assignments van deze resource op deze dag). */
   load: Record<string, DailyLoad>;
-  /** resourceId → per-dag-capaciteit (kalender × maxUnits/availabilitySteps; 0 op niet-werkdagen). */
   capacity: Record<string, DailyLoad>;
-  /** resourceId → ISO-datums waar `exceedsCapacity(load, capacity)` (marge tegen rekenruis). */
   overallocatedDays: Record<string, string[]>;
-  /** resourceId → ISO-datum → reden, uitsluitend voor de datums in `overallocatedDays`. */
   overallocatedReasons: Record<string, Record<string, OverallocationReason>>;
-  /** resourceId → belaste werkuren: per toewijzing de geboekte eenheden × de uren per dag van de
-   *  TAAKkalender (dezelfde engine als de dagverdeling hierboven, de contourdialoog en `<Work>` in de
-   *  MSPDI-export). De kostenkolom van het resourcepaneel rekent hiermee (uren × tarief), niet met de
-   *  uren per dag van de projectkalender (die wijken af bij een taak op een eigen kalender). */
   hours: Record<string, number>;
 }
 
-/** Eén plaatsing per taak per aanroep: meerdere toewijzingen van dezelfde taak delen haar. */
 function taskPlacementCache(
   engineForTask: (task: Task) => CalendarEngine,
   options: LoadOptions,
@@ -360,43 +223,6 @@ function taskPlacementCache(
   };
 }
 
-/**
- * Berekent dag-granulaire belasting/capaciteit/overallocatie over alle resources+toewijzingen.
- * Logica:
- *  1. Filter assignments op leaf-taken zonder milestone (defensieve dubbele bewaking t.o.v.
- *     de assignResource-enforcement — mocht een oud bestand toch een ongeldige assignment
- *     bevatten).
- *  2-3. Per taak één plaatsing (`taskLoadPlacement`, spec §3.11) op de kalender van de TAAK
- *     (`engineForTask`, dezelfde engine als de CPM-duur/-splits): de werkdagen met hun deel, uit
- *     het start- en eindmoment op de werkblokken, met de splits (`splitGaps`). Per toewijzing
- *     verdeelt `assignmentPlacementLoad` het werk over die dagen (contour, curve, opgeslagen werk
- *     of uniform), en dat accumuleert per resource per dag. Een taak die midden op een dag begint,
- *     boekt dus een deel van die dag (knownbugs 143 is daarmee weg).
- *
- *     De plaatsing telt de ACTUELE duur vanaf `earlyStart`; een verouderd `earlyFinish` begrenst
- *     haar niet (acceptatie-eis 3 van F3b). Bij een STALE taak blijft zo het totaal behouden; de
- *     dagindeling is dan een hybride van oud en nieuw.
- *
- *     UITZONDERINGEN (`placementFollowsSpan`): kalendertijd, een voltooide taak, een lopende taak,
- *     een handmatig geplande taak en een hamer volgen hun berekende spanne `earlyStart`..
- *     `earlyFinish`. Kalendertijd en voltooid krijgen hun bewaarde splits niet opnieuw (de spanne
- *     bevat ze al; showcase "rijwoningen-de-akkers": geen fantoomoverallocatie na een
- *     feestdagenblok). Een lopende taak heeft zo één gezaghebbende plaatsing, gelijk aan die van de
- *     nivelleerder (acceptatie-eis 4).
- *  4. Capaciteit per resource per dag: maxUnits (met availabilitySteps) op werkdagen van de
- *     resource-kalender (of de projectkalender als geen calendarId gezet is), 0 op niet-werkdagen.
- *     Dit is de RESOURCE-kalender, niet per se de taakkalender: werkt een taak (op haar eigen
- *     kalender) op een dag die de resource-kalender niet als werkdag kent, dan is capaciteit daar 0
- *     en telt de dag automatisch mee in `overallocatedDays` — bewust: de resource kán daar simpelweg
- *     niet werken, dus is dat een echt (en niet een vals-positief) conflict.
- *  5. Materiaal telt gewoon mee voor overallocatie (de nivelleerder slaat het over, deze functie
- *     bewust niet).
- *  6. overallocatedDays = dagen waar load > capacity (met de marge uit `capacityTolerance.ts`), met per dag de reden in `overallocatedReasons`:
- *     `non-working-day` als de resourcekalender die dag geen werkdag is (punt 4), anders
- *     `over-capacity`. De reden komt uit dezelfde `isWorkDay`-vraag als de capaciteit — geen tweede
- *     definitie van "werkdag".
- * `options`: de maatconventie van het project (zie `LoadOptions`).
- */
 export function computeResourceLoad(
   resources: Resource[],
   assignments: ResourceAssignment[],
@@ -411,21 +237,11 @@ export function computeResourceLoad(
   const overallocatedDays: Record<string, string[]> = {};
   const overallocatedReasons: Record<string, Record<string, OverallocationReason>> = {};
   const hours: Record<string, number> = {};
-  // resourceId → ISO-datums die GEEN werkdag zijn op de RESOURCE-kalender. Bijgehouden naast
-  // `capacity` (punt 4) zodat de redenbepaling (punt 6) niet op `capacity === 0` hoeft te gokken —
-  // een 0-stap in `availabilitySteps` op een echte werkdag is ook capaciteit 0, maar géén
-  // `non-working-day`. Een Set van alleen de niet-werkdagen (i.p.v. een volledig boolean-record)
-  // scheelt een entry per belaste werkdag — verreweg de meerderheid.
   const nonWorkingDaysByResource: Record<string, Set<string>> = {};
 
   const taskById = new Map(tasks.map(t => [t.id, t]));
-  // De dag-mapping volgt de TAAKkalender (dezelfde engine waarmee de CPM duur en splits
-  // rekent — zie `createTaskEngineCache`), niet onvoorwaardelijk de projectkalender. Eén cache per
-  // aanroep van deze functie.
   const { forTask: engineForTask } = createTaskEngineCache(resourceCalendars, projectCalendar);
 
-  // 1. Leaf-only, geen mijlpalen (dubbele bewaking t.o.v. resourceSlice.assignResource). Een
-  //    kostenresource (issue #815) heeft geen belasting: zijn toewijzingen tellen nergens mee.
   const costIds = costResourceIds(resources);
   const validAssignments = assignments.filter(a => {
     if (costIds.has(a.resourceId)) return false;
@@ -433,7 +249,6 @@ export function computeResourceLoad(
     return !!task && isLeafTask(task) && !task.isMilestone;
   });
 
-  // 2-3. Plaats elke taak één keer, verdeel per toewijzing en accumuleer per resource per dag.
   const contourOf = contourLookup(validAssignments);
   const placedOf = taskPlacementCache(engineForTask, options);
   for (const a of validAssignments) {
@@ -454,14 +269,10 @@ export function computeResourceLoad(
       bucket[iso] = (bucket[iso] ?? 0) + days[i];
       units += days[i];
     }
-    // Uren van precies de geboekte eenheden, op de uren per dag van de taakkalender. Op een plaatsing telt
-    // ook een rest van het bronwerk buiten de afgeronde spanne mee: werk, geen belasting
-    // (`assignmentPlacementWork`, `PlacementDay.residueMinutes`).
     const work = placed ? assignmentPlacementWork(days, placed.days, contour, taskEngine.hoursPerDay * 60) : units;
     hours[a.resourceId] = (hours[a.resourceId] ?? 0) + work * taskEngine.hoursPerDay;
   }
 
-  // 4. Capaciteit — alleen op de dagen waar ook belasting bestaat (zie DailyLoad-doc hierboven).
   for (const resource of resources) {
     const bucket = load[resource.id];
     if (!bucket) continue;
@@ -481,16 +292,6 @@ export function computeResourceLoad(
     }
   }
 
-  // 6. Overallocatie: load > capacity (materiaal telt gewoon mee), met per dag de
-  //    reden — zie het docblok hierboven. Default is `over-capacity`, niet `non-working-day`: een
-  //    VERWEESDE toewijzing (resourceId niet in `resources` — kan via import binnenkomen,
-  //    `payloadFromImport` filtert niet) krijgt bij punt 4 hierboven nooit een entry in
-  //    `nonWorkingDaysByResource`, dus `nonWorkingDays` is hier `undefined` en `.has(iso)` op
-  //    `undefined` zou een crash zijn — vandaar de optional chaining. Zonder die chaining (of met een
-  //    `!workDays[iso]`-achtige inversie op een lege fallback) zou het spookgeval stil als "geen
-  //    werkdag" gelezen worden — een niet-onderbouwde `non-working-day`-claim over een kalender die
-  //    nooit is opgezocht. `nonWorkingDays?.has(iso)` levert voor het spookgeval `undefined` (falsy),
-  //    dus valt bewust op `over-capacity` — de juiste, want kalenderloze verklaring.
   for (const resId of Object.keys(load)) {
     const bucket = load[resId];
     const cap = capacity[resId] ?? {};
@@ -512,12 +313,6 @@ export function computeResourceLoad(
   return { load, capacity, overallocatedDays, overallocatedReasons, hours };
 }
 
-/**
- * Eén gedeelde betrouwbaarheidspoort voor afgeleide belasting. Een CPM-fout betekent dat de
- * taakdatums niet als geldige planning mogen worden behandeld; callers publiceren dan `null`.
- * Een nog niet berekende planning (`cpmResult === null`) behoudt het bestaande gedrag en leidt de
- * belasting af uit de aanwezige taakdatums.
- */
 export function computeReliableResourceLoad(
   cpmResult: CPMResult | null,
   resources: Resource[],
@@ -532,16 +327,9 @@ export function computeReliableResourceLoad(
     : computeResourceLoad(resources, assignments, tasks, projectCalendar, resourceCalendars, options);
 }
 
-/** Vlakke `maxUnits`, tenzij `availabilitySteps` een latere stap ≤ `iso` heeft — dan geldt de
- *  laatste zo'n stap (effective-dated, P6 Units-and-Prices-model). Geëxporteerd zodat de
- *  nivelleerder (`ResourceLeveler.ts`) exact dezelfde capaciteitsdefinitie hergebruikt — één
- *  bron van waarheid voor histogram én leveler. */
 export function maxUnitsOn(resource: Resource, iso: string): number {
   const steps = resource.availabilitySteps;
   if (!steps || steps.length === 0) return resource.maxUnits;
-  // Wat de gesorteerde doorloop gaf (laatste stap in `localeCompare`-volgorde, stabiel, met
-  // `from <= iso`) zonder per aanroep te kopiëren en te sorteren: dit draait per resource per dag.
-  // Gelijke `from` ⇒ de latere in de lijst wint, net als na een stabiele sortering.
   let best: (typeof steps)[number] | undefined;
   for (const step of steps) {
     if (!(step.from <= iso)) continue;
@@ -550,43 +338,19 @@ export function maxUnitsOn(resource: Resource, iso: string): number {
   return best ? best.maxUnits : resource.maxUnits;
 }
 
-// ── Histogram-rapport (MCP-tool `get_resource_histogram`) ─────────────────────────────────────────
-//
-// Een aparte, gescopete engine-pass bovenop dezelfde bouwstenen als `computeResourceLoad`
-// (de plaatsing per taak en `assignmentPlacementLoad`), met drie dingen die de UI-load-pass NIET levert:
-//   1. Bucketing (dag/week/maand) — week- en maandbucket leveren zowel de periodesom (`load`) als
-//      de piekdag (`peakDayLoad`), zodat een eendaagse piek niet in de som verdwijnt.
-//   2. Venster-capaciteit — een EIGEN enumeratie over ÁLLE werkdagen van het bucketvenster (ook
-//      onbelaste). De load-pass levert capaciteit enkel op belaste dagen; dat zou een week-som
-//      onderschatten. Kalender per resource: `resource.calendarId` → bibliotheek,
-//      anders de projectkalender — exact zoals `computeResourceLoad`.
-//   3. Veroorzaker-attributie (`causes`) — ALLÉÉN voor buckets met minstens één overbelaste dag
-//      (gescopet, O(assignments×duur + pieken)); bijdrage = de units die de assignment op de
-//      overbelaste dag(en) van die bucket levert.
-//
-// `overallocatedDays` is ALTIJD dag-granulair, ook in week-modus. `computeResourceLoad` (waar de UI
-// op leunt) staat hier los van.
-
 export interface HistogramCause {
   assignmentId: string;
   taskId: string;
-  /** Units die deze assignment levert op de overbelaste dag(en) binnen dit bucketvenster. */
   contribution: number;
 }
 
 export interface HistogramBucket {
-  /** ISO-grenzen van het bucketvenster (inclusief). Dagbucket: start == end. */
   start: string;
   end: string;
-  /** Week-/maandbucket: som van de belasting over de periode. Dagbucket: gelijk aan `peakDayLoad`. */
   load: number;
-  /** Hoogste dag-belasting binnen het venster (dagbucket: gelijk aan `load`). */
   peakDayLoad: number;
-  /** Som van de capaciteit over ÁLLE werkdagen van het bucketvenster (ook onbelaste). */
   capacity: number;
-  /** Dag-granulaire overbelaste dagen binnen het venster (altijd, ook in week-modus). */
   overallocatedDays: string[];
-  /** Alleen aanwezig als `overallocatedDays` niet leeg is: de veroorzakende assignments. */
   causes?: HistogramCause[];
 }
 
@@ -602,33 +366,19 @@ export interface HistogramInput {
   calendar: WorkCalendar;
   calendars: WorkCalendar[];
   cpmResult: CPMResult | null;
-  /** Alleen deze resources rapporteren (volgorde = `resources`-volgorde). Leeg/undefined = alle. */
   resourceIds?: string[];
-  /** Vensterstart/-einde (ISO). Default = projectspanne uit de taakdatums (min earlyStart..max
-   *  earlyFinish), verbreed tot alle belaste dagen (bij een verouderde planning loopt de belasting
-   *  voorbij het oude einde, knownbugs 234). */
   from?: string;
   to?: string;
   bucket: 'dag' | 'week' | 'maand';
-  /** De maatconventie van het project (zie `LoadOptions`). Verplicht. */
   schedulingOptions: LoadOptions;
 }
 
-/**
- * Bereken het histogram-rapport (zie blokcommentaar hierboven). Deelt de plaatsing per taak en de
- * verdeling per toewijzing met `computeResourceLoad`, zodat load én attributie exact consistent zijn;
- * capaciteit is een aparte venster-enumeratie.
- */
 export function computeHistogramReport(input: HistogramInput): HistogramReport {
   const { tasks, assignments, resources, calendar, calendars, resourceIds, from, to, bucket } = input;
 
   const taskById = new Map(tasks.map(t => [t.id, t]));
-  // Zelfde taakkalender-mapping als computeResourceLoad — één definitie, gecachet per
-  // calendarId voor deze aanroep.
   const { forTask: engineForTask } = createTaskEngineCache(calendars, calendar);
 
-  // 1. Per-assignment dag-verdeling — dezelfde filter/mapping als computeResourceLoad (leaf, geen
-  //    milestone), zodat de veroorzaker-bijdragen exact optellen tot de per-resource-dagbelasting.
   interface AssignDaily {
     assignmentId: string;
     taskId: string;
@@ -636,9 +386,6 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
     daily: Map<string, number>;
   }
   const perAssignment: AssignDaily[] = [];
-  // Kostenresources (issue #815) hebben geen belasting: geen verdeling en geen rapportregel, ook
-  // ongescopeerd (MCP `planner_get_resource_histogram` zonder `resourceIds`). Ze doen ook niet mee
-  // aan de contourkoppeling (`contourSiblings`), net als in `computeResourceLoad`.
   const costIds = costResourceIds(resources);
   const contourOf = contourLookup(contourSiblings(assignments, costIds));
   const placedOf = taskPlacementCache(engineForTask, input.schedulingOptions);
@@ -663,7 +410,6 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
     perAssignment.push({ assignmentId: a.id, taskId: a.taskId, resourceId: a.resourceId, daily });
   }
 
-  // Per-resource dag-belasting = som over de assignments van die resource.
   const loadByResource = new Map<string, Map<string, number>>();
   for (const pa of perAssignment) {
     let m = loadByResource.get(pa.resourceId);
@@ -671,12 +417,9 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
     for (const [iso, u] of pa.daily) m.set(iso, (m.get(iso) ?? 0) + u);
   }
 
-  // 2./3. Vensterspanne en bucketvensters (gedeeld met de MCP-begrenzing), verbreed tot de belaste
-  //       dagen (knownbugs 234).
   const windows = histogramWindows(tasks, from, to, bucket,
     firstLoadDay && lastLoadDay ? { first: firstLoadDay, last: lastLoadDay } : undefined);
 
-  // 4. Rapport per (gescopete) resource.
   const idSet = resourceIds && resourceIds.length > 0 ? new Set(resourceIds) : null;
   const reported = (idSet ? resources.filter(r => idSet.has(r.id)) : resources).filter(resourceHasLoad);
 
@@ -687,7 +430,6 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
       resolveCalendar(resource.calendarId, calendars, calendar),
     ));
 
-    // Dag-granulaire overbelaste dagen: load > capaciteit (resource-kalender), over de belaste dagen.
     const overDays = new Set<string>();
     for (const [iso, l] of dailyLoad) {
       const cap = engine.isWorkDay(parseDate(iso)) ? maxUnitsOn(resource, iso) : 0;
@@ -695,10 +437,6 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
     }
     const resAssignments = perAssignment.filter(pa => pa.resourceId === resource.id);
 
-    // Elke belaste dag één keer naar zijn venster (de vensters tegelen [from,to] oplopend en zonder
-    // overlap), in de invoegvolgorde van `dailyLoad` — per venster dus exact dezelfde optelvolgorde
-    // als de oude doorloop van álle dagen per venster (vensters × dagen per resource; een dag-
-    // histogram over vijf jaar was zo miljoenen stappen per resource).
     const winLoad = new Array<number>(windows.length).fill(0);
     const winPeak = new Array<number>(windows.length).fill(0);
     for (const [iso, l] of dailyLoad) {
@@ -718,7 +456,6 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
       const w = windows[wi];
       const load = winLoad[wi];
       const peak = winPeak[wi];
-      // Venster-capaciteit: EIGEN enumeratie over álle werkdagen van het venster (ook onbelaste).
       let capacity = 0;
       for (const iso of enumerateWorkDays(engine, w.start, w.end)) capacity += maxUnitsOn(resource, iso);
 
@@ -748,14 +485,6 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
   return report;
 }
 
-/**
- * De bucketvensters van een histogram: de spanne `[from,to]` (default uit de taakdatums, min
- * earlyStart .. max earlyFinish) dicht getegeld per dag, ISO-week (ma..zo) of kalendermaand, oplopend
- * en zonder overlap. Geëxporteerd zodat een aanroeper (MCP) de omvang kan begrenzen vóór het rekenen.
- * `loadSpan` (eerste en laatste belaste dag) verbreedt alleen een DEFAULT-grens: bij een verouderde
- * planning loopt de belasting voorbij het oude `earlyFinish` (knownbugs 234). Een expliciete grens
- * blijft staan.
- */
 export function histogramWindows(
   tasks: readonly Task[],
   from: string | undefined,
@@ -763,7 +492,6 @@ export function histogramWindows(
   bucket: HistogramInput['bucket'],
   loadSpan?: { first: string; last: string },
 ): Array<{ start: string; end: string }> {
-  // 2. Vensterspanne — default uit de taakdatums (min earlyStart .. max earlyFinish).
   let fromIso = from;
   let toIso = to;
   if (!fromIso || !toIso) {
@@ -781,8 +509,6 @@ export function histogramWindows(
     if (loadSpan && !to && (!toIso || loadSpan.last > toIso.slice(0, 10))) toIso = loadSpan.last;
   }
 
-  // 3. Bucketvensters — dichte tegeling van [from,to]. Week = ISO-week (ma..zo); maand =
-  //    kalendermaand; dag = één dag.
   const windows: Array<{ start: string; end: string }> = [];
   if (fromIso && toIso && fromIso <= toIso) {
     const toDate = parseDate(toIso);
@@ -795,7 +521,7 @@ export function histogramWindows(
         ms = next;
       }
     } else if (bucket === 'week') {
-      let ws = getWeekStart(parseDate(fromIso)); // maandag van de week rond `from`
+      let ws = getWeekStart(parseDate(fromIso));
       let guard = 0;
       while (ws <= toDate && guard++ < 100_000) {
         const we = addCalendarDays(ws, 6);
@@ -816,8 +542,6 @@ export function histogramWindows(
   return windows;
 }
 
-/** Het venster (index) waar `iso` binnen valt (`start <= iso <= end`, stringvergelijking zoals de
- *  vensterfilter), of −1. `windows` is oplopend en overlapt niet (de tegeling hierboven). */
 function windowIndexOf(windows: ReadonlyArray<{ start: string; end: string }>, iso: string): number {
   let lo = 0;
   let hi = windows.length - 1;
@@ -830,15 +554,13 @@ function windowIndexOf(windows: ReadonlyArray<{ start: string; end: string }>, i
   return -1;
 }
 
-/** Alle werkdagen (volgens `engine`) tussen `startIso` en `finishIso`, inclusief. Geëxporteerd
- *  voor hergebruik door de nivelleerder (dag-mapping van een taak op de projectkalender). */
 export function enumerateWorkDays(engine: CalendarEngine, startIso: string, finishIso: string): string[] {
   const start = parseDate(startIso);
   const finish = parseDate(finishIso);
   const isos: string[] = [];
   let current = new Date(start.getTime());
   let guard = 0;
-  const MAX_DAYS = 200_000; // zelfde veiligheidsgrens als CalendarEngine
+  const MAX_DAYS = 200_000;
   while (current <= finish) {
     if (engine.isWorkDay(current)) isos.push(formatDate(current));
     current = addCalendarDays(current, 1);
