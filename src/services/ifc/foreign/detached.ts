@@ -228,6 +228,14 @@ export function withReturnedMembers(relations: ReadonlyMap<string, DetachedRelat
   idOf: (seed: string) => number | undefined, carried: ReadonlySet<string>, nextId: () => number): readonly OutLine[] {
   if (!relations || relations.size === 0) return lines;
   const out = [...lines], dropped = new Set<number>(), before = new Map<number, OutLine[]>();
+  const byRelating = new Map<string, number[]>(), byGuid = new Map<string, number>();
+  lines.forEach((l, i) => {
+    const roles = relationRoles(l.type);
+    if (!roles) return;
+    const key = `${l.type}|${refOf(l.args[roles.relating])}`, list = byRelating.get(key);
+    if (list) list.push(i); else byRelating.set(key, [i]);
+    byGuid.set(`${l.type}|${l.args[0]?.trim()}`, i);
+  });
   const membersAt = (i: number, related: number) => refList(out[i].args[related]);
   const withMembers = (i: number, related: number, members: readonly number[]) => {
     const args = [...out[i].args];
@@ -237,9 +245,9 @@ export function withReturnedMembers(relations: ReadonlyMap<string, DetachedRelat
   for (const [key, relation] of relations) {
     const roles = relationRoles(relation.type), table = slotTableNamed(relation.slots.table), relating = idOf(relation.relating);
     if (!roles || !table || relating === undefined) continue;
-    const live = (i: number) => !dropped.has(i) && out[i].type === relation.type;
-    const own = out.flatMap((l, i) => (live(i) && refOf(l.args[roles.relating]) === relating && !carried.has(l.args[0]?.trim()) ? [i] : []));
-    const line = out.findIndex((l, i) => live(i) && l.args[0]?.trim() === key);
+    const own = (byRelating.get(`${relation.type}|${relating}`) ?? []).filter(i => !dropped.has(i) && !carried.has(out[i].args[0]?.trim()));
+    const found = byGuid.get(`${relation.type}|${key}`);
+    const line = found !== undefined && !dropped.has(found) ? found : -1;
     const current = line >= 0 ? membersAt(line, roles.related) : [];
     const wanted = relation.members.flatMap(m => idOf(m) ?? []);
     const available = own.flatMap(i => membersAt(i, roles.related));

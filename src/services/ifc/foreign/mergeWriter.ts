@@ -1101,12 +1101,13 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c))).filter(c => stillMembers.has(c));
     const nextReferences = foreignReferences(actual.index, classes, actual.bytes, actual.classification.selection.inD);
     const seedOfOutput = new Map(Object.entries(stepIds).map(([seed, id]) => [id, seed]));
+    const lineByGuid = new Map(outLines.map(l => [`${l.type}|${l.args[0]?.trim()}`, l]));
     const detached = detachedAfterWrite({
       previous: source.detached, restorable: returning, placed: back.placed, changes,
       objectOf: id => { const d = bySource.get(id); return d && isP(index.chunkOf(String(id))) ? `${d.kind}:${d.id}` : undefined; },
       gone: goneObjects(source, gone, bySource), present: seed => stepIds[seed] !== undefined,
       carried: carriedRelations, membersOf: (key, type) => {
-        const line = outLines.find(l => l.type === type && l.args[0]?.trim() === key), roles = relationRoles(type);
+        const line = lineByGuid.get(`${type}|${key}`), roles = relationRoles(type);
         return line && roles ? refList(line.args[roles.related]).flatMap(id => seedOfOutput.get(id) ?? []) : undefined;
       },
     });
