@@ -1765,16 +1765,21 @@ test('R6, deel 1, deel 2 en de tweede opslag voor de datumvormen: ook als x niet
   console.log(`   ${cases} gevallen, ${written} geschreven; elk geeft de eerste STEP-lezing na de laadgrens, is de projectie van wat de lezer teruggeeft, en de tweede opslag geeft de tweede STEP-lezing na de laadgrens`);
 });
 
-test('ronde 6 en punt 8 onder R6: in een andere schrijfwijze opent geen van de gevallen; als precieze projectie opent wat de projectie draagt, precies zoals het in het bestand staat, en een tweede opslag doet wat STEP doet', () => {
+test('ronde 6 en punt 8 onder R6: in een andere schrijfwijze opent geen van de gevallen; als precieze projectie opent elk, precies zoals het in het bestand staat, en een tweede opslag doet wat STEP doet', () => {
   const plan = readIfcx(encode(writeIfcx(datePlan(), CLOCK)));
-  const withTime = (change: (time: Task['time']) => Partial<Task['time']>) => ({ ...plan, tasks: plan.tasks.map((task, index) => (index === 0 ? { ...task, time: { ...task.time, ...change(task.time) } } : task)) });
-  const opening: readonly [string, (time: Task['time']) => Partial<Task['time']>][] = [
+  const withTime = (change: (time: Task['time']) => Partial<Task['time']>, status?: Task['status']) => ({ ...plan, tasks: plan.tasks.map((task, index) => (index === 0
+    ? { ...task, ...(status ? { status } : {}), time: { ...task.time, ...change(task.time) } } : task)) });
+  const opening: readonly [string, (time: Task['time']) => Partial<Task['time']>, Task['status']?][] = [
+    ['blokkade 1: durationMinutes naast een dagduur', () => ({ durationMinutes: 9999 })],
     ['blokkade 1: remainingMinutes naast een restduur in dagen', () => ({ remainingTime: 0.5, remainingMinutes: 999 })],
-    ['blokkade 3: werkelijk einde met 50 %', time => ({ actualStart: time.scheduleStart, actualFinish: time.scheduleFinish, completion: 0.5 })],
+    ['blokkade 3: werkelijk einde met 50 %', time => ({ actualStart: time.scheduleStart, actualFinish: time.scheduleFinish, completion: 0.5 }), 'COMPLETED'],
     ['punt 8: lege vroege en late datums', () => ({ earlyStart: '', earlyFinish: '', lateStart: '', lateFinish: '' })],
   ];
-  for (const [name, change] of opening) {
-    const odd = withTime(change);
+  for (const [name, change, status] of opening) {
+    const changed = withTime(change, status);
+    const task = changed.tasks[0];
+    const emptied = Object.keys(change(task.time)).filter(key => (task.time as unknown as Record<string, unknown>)[key] === '');
+    const odd = { ...changed, recordedFields: { ...changed.recordedFields, [task.id]: (changed.recordedFields?.[task.id] ?? []).filter(key => !emptied.includes(key)) } };
     const exact = serializeIfcx(ownFileFor(odd, CLOCK).document);
     const other = attempt(() => readIfcx(encode(JSON.stringify(JSON.parse(exact)))));
     assert.ok(!other.ok && other.error instanceof IfcxReadError && other.error.code === 'invalid' && other.error.place.offset === 1, `${name}: een andere schrijfwijze`);
@@ -1784,15 +1789,12 @@ test('ronde 6 en punt 8 onder R6: in een andere schrijfwijze opent geen van de g
     assert.equal(projectionOf(back.value, CLOCK), exact, `${name}: deel 2`);
     assert.deepEqual(modelDifferences(openedAsStep(back.value), readIfcx(encode(writeIfcx(back.value, CLOCK)))), [], `${name}: de tweede opslag is wat STEP ervan maakt`);
   }
-  const ownText = writeIfcx(datePlan(), CLOCK);
-  assert.equal(projectionOf(withTime(() => ({ durationMinutes: 9999 })), CLOCK), ownText, 'blokkade 1: bij een dagtaak draagt de projectie geen tweede duur');
-  const minutes = documentOf(ownText);
+  const minutes = documentOf(writeIfcx(datePlan(), CLOCK));
   const minutesEntry = entryWith(minutes, 'openaec::ops::task');
   (minutesEntry.attributes['openaec::ops::task'].time as Record<string, unknown>).durationMinutes = 9999;
-  const secondDuration = readError(serializeIfcx(minutes as unknown as IfcxDocument));
-  assert.equal(secondDuration.code, 'invalid', secondDuration.message);
-  assert.ok(secondDuration.place.path === minutesEntry.path && typeof secondDuration.place.offset === 'number', JSON.stringify(secondDuration.place));
-  assert.match(secondDuration.message, /taak binnen-een-dag/);
+  const misplaced = readError(serializeIfcx(minutes as unknown as IfcxDocument));
+  assert.ok(misplaced.code === 'invalid' && misplaced.place.path === minutesEntry.path && typeof misplaced.place.offset === 'number', JSON.stringify(misplaced.place));
+  assert.match(misplaced.message, /taak binnen-een-dag/, 'een veld op een andere plek dan de projectie het zet, opent niet en noemt taak en teken');
   const document = documentOf(writeIfcx(datePlan(), CLOCK));
   document.header.id = 'urn:openaec:planner:t-';
   const emptyPath = readError(serializeIfcx(document as unknown as IfcxDocument));
