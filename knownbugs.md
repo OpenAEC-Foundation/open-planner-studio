@@ -6943,12 +6943,14 @@ en noem het in je rapport of PR-tekst.
      verschilt per runner: openen als IFC kostte in de CI 502 tot 698 ms; met de noemer van `9894f6236` was de groene
      3,18 van `23814bad4` ongeveer 4,23. De meetregels staan in het planningsdeel dat de proef draait. — B
 
-2351. **IFCX in de app (F3-4): de lezer geeft de planning na de laadgrens terug; de openroute mag de laadgrens niet nog
-     eens toepassen op een manier die iets verandert.** Sinds #1183 ronde 8 (R6) gaan alleen de schrijver en zijn ene
-     STEP-rondgang door de laadgrens (`payloadFromImport`, `buildWriteIFCInput`). `readIfcx` past haar zelf niet meer
-     toe: het geeft de planning terug zoals ze in het bestand staat, en dat is de eerste STEP-lezing na de laadgrens, met
-     `minuteModelPending` uit het bestand en zonder de hint `milestonesAtDayEnd`. De openroute van F3-4 maakt daar de
-     payload van, en mag de laadgrens niet nog eens toepassen op een manier die iets verandert.
+2351. **IFCX in de app (F3-4): de lezer geeft de planning na de laadgrens terug, en past de laadgrens zelf niet meer
+     toe.** Sinds #1183 ronde 8 (R6) gaan alleen de schrijver en zijn ene STEP-rondgang door de laadgrens
+     (`payloadFromImport`, `buildWriteIFCInput`). `readIfcx` geeft de planning terug zoals ze in het bestand staat; bij
+     een bestand van de schrijver is dat de eerste STEP-lezing na de laadgrens, met `minuteModelPending` uit het bestand
+     en zonder de hint `milestonesAtDayEnd`. Maakt de openroute van F3-4 daar met de laadgrens van de app de payload van,
+     dan verandert die bij een bestand van de schrijver niets (getoetst voor de 49 bestanden en de 327 datumvormen van de
+     kernproef). Bij een bestand dat de schrijver nooit maakt, kan ze wel iets veranderen, zoals bij STEP: een werkplan
+     zonder `timeModel` en zonder `minuteModelPending` krijgt `minuteModelPending`.
      Daarnaast rekent de Openen-route van de app door (`prepareLoadedPayload` met `recompute: true`,
      `src/state/documentActivation.ts`); dan verschuift bijvoorbeeld bij de datumfixture de vroege finish van de taak
      `einde-middernacht` van `2027-06-03T00:00` naar `2027-06-02T16:00`, en de volgende opslag schrijft andere bytes. Ook

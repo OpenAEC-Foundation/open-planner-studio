@@ -391,8 +391,10 @@ geplande datum of een tijd buiten de werkdag staat in het bestand zoals de app h
 **Tot waar het vaste punt geldt.** De canonieke planning is de planning na de laadgrens, zonder doorrekenen. De Openen-route
 van de app rekent daarna door (`prepareLoadedPayload` met `recompute: true`); dan kan een datum verschuiven, zoals de
 vroege finish van een taak die om 00:00 eindigt (`2027-06-03T00:00` wordt `2027-06-02T16:00`). De lezer past de laadgrens
-zelf niet meer toe. Of en wanneer de IFCX-openroute doorrekent, en dat ze de laadgrens niet nog eens toepast op een
-manier die iets verandert, is voor F3-4 (knownbug 2351).
+zelf niet meer toe. Bij een bestand van de schrijver verandert de laadgrens van de app de gelezen planning niet (getoetst
+voor de bestanden en de datumvormen van de kernproef). Bij een bestand dat de schrijver nooit maakt, kan ze wel iets
+veranderen, zoals bij STEP: een werkplan zonder `timeModel` en zonder `minuteModelPending` krijgt `minuteModelPending`.
+Of en wanneer de IFCX-openroute doorrekent, is voor F3-4 (knownbug 2351).
 
 ## Wat een tweede opslag verandert
 
@@ -497,10 +499,13 @@ fase 4.
 **Punt 8 en ronde 6 onder R6.** Tot fixronde 8 vergeleek R4 met wat de schrijver na een STEP-rondgang zou schrijven;
 nu met de projectie van de gelezen planning. Een bestand dat precies de projectie is van een planning die de schrijver
 zelf nooit maakt, opent daarom: lege vroege en late datums (punt 8), een tweede duur in minuten naast een dagduur,
-`remainingMinutes` naast een restduur in dagen, of een werkelijk einde met 50 % voortgang (ronde 6). De lezer geeft die
-planning terug zoals ze in het bestand staat; een tweede opslag gaat door de ene STEP-rondgang en geeft wat STEP ervan
-maakt (de datums ingevuld, de voortgang 1). In elke andere schrijfwijze opent zo'n bestand niet, en de melding noemt het
-object en het teken. Het project op het lege tekstpad opent niet (`header.id`).
+`remainingMinutes` naast een restduur in dagen, of een werkelijk einde met 50 % voortgang (ronde 6). Ook bijvoorbeeld een
+duur van 0,25 minuut, een werkplan zonder `timeModel` en zonder `minuteModelPending`, een kalender vanaf 07:15 met taken
+om 07:00, en een onderbreking op een taak die niet gestart is. De vormtoets houdt alleen elke waarde binnen haar domein.
+De lezer geeft die planning terug zoals ze in het bestand staat; een tweede opslag gaat door de ene STEP-rondgang en geeft
+wat STEP ervan maakt (de datums ingevuld, de voortgang 1, de duur van 0,25 minuut weg, het `timeModel` terug). In elke
+andere schrijfwijze opent zo'n bestand niet, en de melding noemt het object en het teken. Het project
+op het lege tekstpad opent niet (`header.id`).
 
 ## Wat verviel in fixronde 4
 
