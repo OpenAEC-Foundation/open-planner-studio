@@ -9,8 +9,8 @@ waarde leest. Een kloktijd is in minuten sinds middernacht; een duur in minuten.
 - `minutesToClock` schrijft `HH:MM:SS` van de minuten modulo 1440, afgerond op hele milliseconden
   (`Math.round(m * 60_000)`), met hoogstens drie decimalen in de seconden en zonder nullen aan het eind. Zo wordt 1440
   `00:00:00`, en een einde na middernacht (boven 1440) de tijd van die dag. Alleen met `endOfDay` wordt precies 1440
-  `24:00:00`. Dat gebruiken de IFC-writer voor het einde van een periode (`calendarClock`) en `calendarExceptionKey`,
-  omdat een periode die op `00:00:00` eindigt een einde vóór haar begin heeft; ADR 0144 en
+  `24:00:00`. Dat gebruikt de IFC-writer voor het einde van een periode (`calendarClock`), omdat een periode die op
+  `00:00:00` eindigt een einde vóór haar begin heeft, en ook `calendarExceptionKey`; ADR 0144 en
   `check-ifc-calendar-identity.ts` §11 (elke `IFCTIMEPERIOD` een geldige `hh:mm:ss` met begin vóór einde, en een
   rondgang die gelijk terugkomt). De MSPDI-writer schrijft een blokeinde zonder `endOfDay`, de P6 XML-writer schrijft
   het einde min één minuut (`p6FinishClock`). Een tijd die fijner is dan een milliseconde, toetst `calendarClock`

@@ -17,5 +17,5 @@ daarvoor de helpers in `src/services/subdayIo.ts`, zodat de formaten dezelfde ta
   minuten, met de uren per dag die de writer meegeeft. Het is dezelfde regel als `durationMinutesOf` in
   `duration.ts`, maar met afronding en zonder de rekenmotor.
 - In `taskMinutesForWrite`, `exportCalendarLayout` en `fileHasHourData` komt de maat van een taak uit
-  `taskDurationUnit`, met dezelfde regel als het laden voor een taak zonder
-  `durationUnit` (ADR 0301), omdat een writer ook taakobjecten zonder `durationUnit` krijgt, uit tests en extensies.
+  `taskDurationUnit`, met dezelfde regel als het laden voor een taak zonder `durationUnit` (ADR 0301), omdat een
+  writer ook taakobjecten zonder `durationUnit` krijgt, uit tests en extensies.

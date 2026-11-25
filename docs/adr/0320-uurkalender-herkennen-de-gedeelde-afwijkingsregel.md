@@ -21,9 +21,9 @@ welk anker een lezer gebruikt, staat in ADR 0043 (IFC), 0252 (MSPDI), 0264 (P6 X
   resourcekalenders in `mpp14timephased.mpp` zo zijn, komt uit het weggehaalde commentaar en het commentaar in die
   toets; dat corpusbestand staat niet in de repo.
 - De helpers voor (c) bij een duur: `isoDurationToMinutes` geeft `null` bij een lege waarde, `$` of een duur zonder
-  `T`, en anders de minuten van het tijddeel (ADR 0050 over de dagen vóór de `T`). `isSubDayMinutes` is waar als de
-  afgeronde minuten geen veelvoud zijn van de afgeronde minuten per dag; bij 0 of minder minuten per dag is het altijd
-  waar.
+  `T`, en anders de minuten van het tijddeel (ADR 0050 over de dagen vóór de `T`); een vorm die `parseIfcDuration`
+  niet leest, geeft diens fout. `isSubDayMinutes` is waar als de afgeronde minuten geen veelvoud zijn van de
+  afgeronde minuten per dag; bij 0 of minder minuten per dag is het altijd waar.
 - De helper voor (c) bij een datum: `hasNonAnchorTime` is onwaar zonder `T`. Anders haalt hij een `Z` met alles
   erachter en een zone van de vorm `+hh:mm` of `+hhmm` (ook met `-`) aan het eind weg, en vergelijkt hij alleen de
   eerste vijf tekens (uren en minuten) met die van het anker. Seconden tellen dus niet mee.

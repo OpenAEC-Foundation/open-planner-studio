@@ -20,7 +20,7 @@ afwijkende `hoursPerDay` blijft daarbij staan (`docs/ifc-round-trip.md`, "Uren p
 - `workDayTogglePatch` zet bij een dagkalender, of bij een dag buiten 1 tot en met 7, alleen `workDays`. Bij een
   uurkalender krijgt een dag die uit gaat lege blokken, en een dag die aan gaat, in deze volgorde: (1) zijn eigen
   blokken uit de beginstand, als die er zijn (een korte vrijdag komt zo als korte vrijdag terug); (2) een kopie van de
-  eerste werkdag met blokken (`firstBlockedDay`, zondag eerst); (3) de eerste werkdag met blokken van de beginstand;
+  eerste weekdag met blokken (`firstBlockedDay`, zondag eerst); (3) de eerste weekdag met blokken van de beginstand;
   (4) de blokken uit de enkelvoudige werkdag (`seedScalarBands` met begin, einde, uren per dag en pauze); (5) als dat
   niets geeft, `STANDARD_DAY_BLOCKS`. Zo krijgt een dag die aan gaat altijd minstens één blok. Toetsen:
   `check-werkdag-einde.ts` §6, §6b, §6c en §6e, en `check-urenperdag-dagwissel.ts` §1.

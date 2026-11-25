@@ -27,8 +27,8 @@ resourcebibliotheek, zodat ze niet uit elkaar lopen.
   (`hoursPerDayFollowsBlocks`, ADR 0324, die het geval zonder dagsom zelf afvangt).
 - De resourcebibliotheek bewaart kalenders als JSON, ook kalenders die een MSPDI- of `.mpp`-lezer van vóór de fix
   importeerde, met als einde dat van het eerste blok. `withRepairedFirstBlockScalar` zet het einde op dat van het
-  laatste blok, alleen als de eerste werkdag met blokken (`firstBlockedDay`) er minstens twee heeft, het begin gelijk
-  is aan `startHour`, het einde gelijk aan `firstBlockEndHour` en het laatste blok later eindigt; anders blijft de
-  kalender gelijk. `firstBlockScalarVariant` geeft omgekeerd de oude vorm, voor de vergelijking met een stempel uit
-  een oud bestand. Gebruikers: `normalizePoolShape`, `poolCalendarById` en `calendarMatchesStamp` in
-  `libraryOps.ts`. Toets: `check-werkdag-einde.ts` §5.
+  laatste blok, alleen als de eerste weekdag met blokken (`firstBlockedDay`, zondag eerst) er minstens twee heeft,
+  het begin gelijk is aan `startHour`, het einde gelijk aan `firstBlockEndHour` en het laatste blok later eindigt;
+  anders blijft de kalender gelijk. `firstBlockScalarVariant` geeft omgekeerd de oude vorm, voor de vergelijking
+  met een stempel uit een oud bestand. Gebruikers: `normalizePoolShape`, `poolCalendarById` en
+  `calendarMatchesStamp` in `libraryOps.ts`. Toets: `check-werkdag-einde.ts` §5.

@@ -14,8 +14,8 @@ te gaan; dat is in de solver niet nagegaan.
   -minuten van het anker, omdat de motor in UTC-momenten rekent; seconden tellen niet mee.
 - Volgorde: een blok van die weekdag dat op die minuut begint, geeft `START`; anders een blok van die weekdag dat daar
   eindigt `FINISH`; anders een blok van de weekdag ervoor met een einde van 1440 of meer, waarvan het einde min 1440
-  die minuut is, `FINISH`; anders niets. Twee blokken die op elkaar aansluiten, geven dus `START`; volgens het weggehaalde
-  commentaar maakt dat voor de datum niets uit, omdat het gat tussen die blokken nul is (niet nagegaan).
+  die minuut is, `FINISH`; anders niets. Twee blokken die op elkaar aansluiten, geven dus `START`; volgens het
+  weggehaalde commentaar maakt dat voor de datum niets uit, omdat het gat tussen die blokken nul is (niet nagegaan).
 - Een blok over middernacht staat bij de weekdag waarop het begint (`WorkTimeBands` in `src/types/calendar.ts`), dus
   zijn einde valt op de dag erna. De grens is 1440 of meer en niet meer dan 1440, omdat een blok dat precies om
   middernacht eindigt (20:00 tot 24:00) een gewone vorm is: `canonicalizeBands` ziet het niet als afwijking (ADR
