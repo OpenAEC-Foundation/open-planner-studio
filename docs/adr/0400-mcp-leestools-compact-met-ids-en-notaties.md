@@ -10,11 +10,10 @@ gezet zijn.
 
 Een agent geeft wat hij leest vaak door aan een schrijftool. De id's en notaties die een leestool geeft, komen
 daarom uit dezelfde bron als die de schrijfkant leest: elke rij draagt het `id` waarop de wijzigende tools
-sleutelen, en de notatie van relaties en onderbrekingen staat in dezelfde module als de schrijfkant. Dat maakt niet
-elke gelezen waarde verliesvrij terug te schrijven. Met een toets aangetoond terug te geven zijn de id's, het
-relatietype, een lag die niet leeg leest, en een kalender uit `planner_get_calendars`, elk met de grenzen hieronder.
-Voor andere velden is dat niet aangetoond, en voor een lege lag, de voortgang en de onderbrekingen is het niet waar
-(hieronder).
+sleutelen, en de notatie van relaties en onderbrekingen staat in dezelfde module als de schrijfkant. Dit besluit
+gaat over wat de leestools geven. Het belooft niet dat een gelezen waarde ongewijzigd terug te schrijven is: wat een
+schrijftool aanneemt en wat ze daarmee doet, staat bij de schrijftools (ADR 0100, 0104 en 0243, en hun
+beschrijvingen). De bekende gevallen waarin een gelezen waarde niet zo terug kan, staan hieronder met hun knownbug.
 
 ## Gevolgen
 
@@ -31,10 +30,9 @@ Voor andere velden is dat niet aangetoond, en voor een lege lag, de voortgang en
   als WBS-code).
 - Relatietype en lag komen uit `seqAbbrev` en `lagLabel` in `sequenceFields.ts`, waar ook `normalizeSeqType` en
   `parseLag` staan, die die vormen aannemen. Toetsen: `cases-stille-noops-taken.ts`, "H1: de KORTE typenotatie van de
-  leeskant …" en "H2: leeskant-lagvormen …" en "H2: procent-lag …". Grenzen: een relatie zonder lag leest als
-  `lag: ""`, en die lege tekst weigert `parseLag`, dus `planner_add_dependencies` en `planner_update_dependencies`
-  nemen haar niet aan; een nullag schrijft de agent als `0` of door `lag` weg te laten. Een lag in minuten leest ook
-  als leeg, dus een lege lag is niet altijd nul, en de eenheid van een lag in kalendertijd staat er niet bij
+  leeskant …" en "H2: leeskant-lagvormen …" en "H2: procent-lag …" (ze geven vaste waarden in die vormen aan de
+  schrijftools). Een relatie zonder lag leest als `lag: ""`, en die lege tekst neemt `parseLag` niet aan (knownbug
+  2475). Een lag in minuten leest ook als leeg, en de eenheid van een lag in kalendertijd staat er niet bij
   (knownbug 354).
 - Een kalender uit `planner_get_calendars` is over te zetten zoals ADR 0104 beschrijft (`cases-kalender-roundtrip.ts`),
   behalve met bewaarde IFC-bronklokken (knownbug 1969).

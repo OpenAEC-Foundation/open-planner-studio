@@ -2264,6 +2264,15 @@ en noem het in je rapport of PR-tekst.
      einde op 8 mei 15:00, binnen werktijd: de berekening plaatste haar op de peildatum, 1 juni 08:00 (de tak voor een
      voltooide taak in `CPMSolver.ts`, `isPinnedComplete`), en de leestool gaf toch die reden. Het advies kan een
      assistent zo naar een onnodige kalenderwijziging sturen. — B
+2475. **Een relatie zonder lag leest via MCP als `lag: ""`, en die waarde weigeren de schrijftools.** `lagLabel` in
+     `src/services/mcp/tools/sequenceFields.ts` geeft bij nul dagen een lege tekst; `parseLag` neemt een lege tekst
+     niet aan. Proef uit de review van #1261, via de dispatcher: twee taken gekoppeld met de standaardrelatie lezen in
+     `planner_get_task` als `type: "FS", lag: ""`; geeft een assistent beide waarden door, dan weigeren
+     `planner_add_dependencies` en `planner_update_dependencies` het item en blijft de doelrelatie ongewijzigd. Met
+     `lag: 0` slaagt het. Laat de assistent `lag` weg, dan maakt `planner_add_dependencies` een relatie met nul
+     dagen, maar houdt `planner_update_dependencies` de bestaande lag: een SS-relatie met `+2d` werd zo `FS+2d`, met
+     de opvolger op 10 juni 07:00 in plaats van 8 juni 07:00. Een relatie met 240 minuten lag leest ook als `lag: ""`
+     (knownbug 354), dus de lege waarde zegt niet dat de lag nul is. — B
 
 ## Bestanden en herstel
 
