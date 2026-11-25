@@ -37,6 +37,7 @@ import {
   type Domain, type Opened,
 } from './ifcMergeKern';
 import { applyTaskProgress, openInStore, storeEdit } from './ifcAppRoute';
+import { assignmentOrigin } from '@/services/ifc/foreign/assignmentOrigin';
 import { MergeNeedsPhase2Error, prepareIfcWrite, mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { changedScopes, lossCheck, parseOutLine, pristineDomain, sameDuration, sameNumber, type OutLine } from '@/services/ifc/foreign/lossCheck';
 import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
@@ -1312,7 +1313,7 @@ async function lossSetup(bytes: Uint8Array) {
     const { edits } = lossCheck({
       index, cls, fixed: new Set([...ids.bySource.keys(), ...ids.baselineHeads.values()]), bySource: ids.bySource, o0: lines0, o1: lines1,
       pristine, domain, opened: source.opened, plannerChanged: changedScopes(edited, source.opened ?? pristine).keys,
-      owner0: ownerOut, owner1: ownerOut,
+      assignmentOrigin: assignmentOrigin(index, ids.bySource, domain, source.opened), owner0: ownerOut, owner1: ownerOut,
     }, f => found.push(f.detail));
     return { found, edits };
   };

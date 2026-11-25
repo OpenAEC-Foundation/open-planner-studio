@@ -14,6 +14,7 @@
 //   hebben die de leesverliestoets doorstaat (fixronde 2 van #867).
 // - `editsFor`: de gewone bewerkingen van een planner op het domein, per taak of per paar (bijsturing 1, punt 2).
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
+import { assignmentOrigin } from '@/services/ifc/foreign/assignmentOrigin';
 import { MergeNeedsPhase2Error, mergeIdPlan, openedOwnGroups, prepareIfcWrite, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { changedScopes, lossCheck, parseOutLine, pristineDomain, type OutLine } from '@/services/ifc/foreign/lossCheck';
 import { sourceFormWhereUnchanged } from '@/services/ifc/foreign/sourceForm';
@@ -546,8 +547,9 @@ export async function lossProbe(bytes: Uint8Array, input: Domain, output: Uint8A
   const own: Partial<ReturnType<typeof openedOwnGroups>> = toets && source.opened ? openedOwnGroups(index, cls, plan.plan, pristine, source.opened, source.stepIds, new Date()) : {};
   const run = (o1Lines: OutLine[], edited = input, lines0 = o0, explained?: (chunk: number, why: string) => void) => {
     const found: number[] = [];
+    const domain = sourceFormWhereUnchanged(edited, source.opened, pristine).input;
     lossCheck({ index, cls, fixed: new Set([...plan.bySource.keys(), ...plan.baselineHeads.values()]), bySource: plan.bySource,
-      o0: lines0, o1: o1Lines, pristine, domain: sourceFormWhereUnchanged(edited, source.opened, pristine).input, opened: source.opened, objects1,
+      o0: lines0, o1: o1Lines, pristine, domain, opened: source.opened, objects1, assignmentOrigin: assignmentOrigin(index, plan.bySource, domain, source.opened),
       plannerChanged: changedScopes(edited, source.opened ?? pristine).keys,
       ...(source.sourceSlots ? { sourceSlots: source.sourceSlots } : {}),
       owner0: ownOwnerHistory(o0), owner1: ownOwnerHistory(o1, new Set(o0.map(l => l.id))),

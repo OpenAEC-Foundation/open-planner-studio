@@ -116,7 +116,7 @@ import { splitStepArgs, type StepIndex } from './stepScanner';
 import type { MergePhase2Kind } from './mergeWriter';
 import { mappedChunks, type SourceSlots } from './sourceSlots';
 import { keepsTarget, writerAlwaysWrites } from './sourceSlotWrite';
-import { assignmentOrigin, type AssignmentOrigin } from './assignmentOrigin';
+import type { AssignmentOrigin } from './assignmentOrigin';
 
 /** Een regel van de writer, ontleed. */
 export interface OutLine { readonly id: number; readonly type: string; readonly args: readonly string[] }
@@ -226,6 +226,7 @@ export interface LossCheckInput {
    *  `literalWriterForm`). */
   readonly literalCalendarIds?: ReadonlySet<string>;
   readonly sourceDayLagIds?: ReadonlySet<string>;
+  readonly assignmentOrigin: AssignmentOrigin;
   /** Wat de planner wijzigde: de sleutels van `changedScopes` tegenover wat de app na het openen liet zien
    *  (`ifcSource.opened`; fixronde 1 van #886). Zonder: tegenover de lezing van de bron (`changed`). */
   readonly plannerChanged?: ReadonlySet<string>;
@@ -972,16 +973,13 @@ function mappedTables(input: LossCheckInput): ReadonlyMap<number, IfcSlotTable> 
   return tables;
 }
 
-const ORIGINS = new WeakMap<LossCheckInput, AssignmentOrigin>();
-
 function expectedProcessMembers(input: LossCheckInput, r: number): number[] | undefined {
   const { index, bySource } = input;
   const roles = relationRoles('IFCRELASSIGNSTOPROCESS')!;
   const relating = index.refAt(r, roles.relating);
   const task = relating >= 0 ? bySource.get(Number(index.id(relating))) : undefined;
   if (task?.kind !== 'task') return undefined;
-  let origin = ORIGINS.get(input);
-  if (!origin) ORIGINS.set(input, origin = assignmentOrigin(index, bySource, input.domain, input.opened));
+  const origin = input.assignmentOrigin;
   const kept: number[] = [];
   for (const m of index.refsAt(r, roles.related)) {
     const resource = m >= 0 ? bySource.get(Number(index.id(m))) : undefined;

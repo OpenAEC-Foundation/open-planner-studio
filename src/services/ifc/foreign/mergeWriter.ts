@@ -703,6 +703,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       }
     }
 
+    const origin = assignmentOrigin(index, bySource, input, source.opened);
     if (sourceSlots) foreignRelations(sourceSlots);
     function foreignRelations(slots: NonNullable<IfcSource['sourceSlots']>): void {
       const byRelating = new Map<string, { type: string; relating: number; rels: number[] }>();
@@ -715,7 +716,6 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
         if (group) group.rels.push(r); else byRelating.set(key, { type, relating, rels: [r] });
       }
       if (byRelating.size === 0) return;
-      const origin = before ? assignmentOrigin(index, bySource, input, source.opened) : undefined;
       const outOf = (chunk: number) => (chunk >= 0 && byId.get(sid(chunk))?.drop === false ? sid(chunk) : undefined);
       const ownRels = new Map<string, OwnLine[]>();
       for (const line of lines) {
@@ -754,7 +754,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
           return cal !== null && (!cal || cal === input.calendar.id) ? id : undefined;
         };
         const task = domainOf(relating);
-        if (origin && type === PROCESS && task?.kind === 'task') {
+        if (before && type === PROCESS && task?.kind === 'task') {
           for (const r of rels) {
             for (const m of index.refsAt(r, roles.related)) {
               const resource = m >= 0 ? domainOf(m) : undefined;
@@ -922,7 +922,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       else if (key === '_calendar') objects.set(id, `cal:${input.calendar.id}`);
     }
     return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds, objects, idMap: written.idMap, literalCalendarIds: written.literalCalendarIds, raw, chosen,
-      sourceDayLagIds: formPlan.sourceDayLagIds };
+      sourceDayLagIds: formPlan.sourceDayLagIds, origin };
   }
   // Het domein zoals de lezer het uit de bron las (O0 hieronder), al vóór O1: de writer vergelijkt de taken ermee
   // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
@@ -1005,6 +1005,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain, opened: source.opened,
     ...(sourceSlots ? { sourceSlots } : {}),
     owner0: built0.owner, owner1: owner, objects1: objects, literalCalendarIds: newlyLiteral, sourceDayLagIds: built.sourceDayLagIds,
+    assignmentOrigin: built.origin,
     // Fixronde 1 van #886: "de planner wijzigde dit" tegenover wat de app na het openen liet zien, met de invoer van de
     // planner (niet `domain`, waarin de bronvorm al staat).
     ...(source.opened ? { plannerChanged } : {}),
