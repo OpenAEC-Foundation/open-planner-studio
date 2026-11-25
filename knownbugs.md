@@ -6413,11 +6413,8 @@ en noem het in je rapport of PR-tekst.
      eigenaar, na de review van #1219 ronde 2): Open Planner Studio schrijft die vormen zelf niet, de weigering is
      getypeerd en verliest niets, en deze grens geldt al voor de doelcontrole.
      Sinds herstelronde 3 van #1219 is "bewezen eigen" per slot: de gewone writer moet elk slot van elk stuk met een
-     slottabel (`IFC_SLOT_TABLES`) teruggeven. Daardoor vallen ook echte oude eigen bestanden van vóór #39 (28 juli 2026)
-     in stand 3, en weigert ook de kern ze met `IFC_WRITE_FAILED:foreign`: de naam `Bouwplanning v1.0` op het lopende
-     werkschema (een constant slot) schrijft de huidige writer als `Construction schedule v1.0` (in de repo de bestanden
-     van v2026.7.7 en v2026.7.12 in `oude-tags/`). Opslaan in de app schrijft de nieuwe naam. Twee grenzen van de
-     slottoets: een domeinslot van een stuk met eigen herkomst telt als gedragen (vergelijken zou 41 eigen bestanden uit
+     slottabel (`IFC_SLOT_TABLES`) teruggeven; voor de naam van het lopende werkschema telt ook de eerdere vaste waarde
+     `Bouwplanning v1.0` van de eigen writer (besluit van Trias, herstelronde 4). Twee grenzen van de slottoets: een domeinslot van een stuk met eigen herkomst telt als gedragen (vergelijken zou 41 eigen bestanden uit
      stand 1 halen, door de omrekening naar minuten, herberekende datums en oude notaties), en stukken zonder slottabel
      op main (toewijzing, onderdelen van een kalender, psets, project, owner history, de andere relaties, de kop) toetst
      alleen de scan. Zie `docs/headless-mcp.md`, *Bewezen eigen, per slot*. — B

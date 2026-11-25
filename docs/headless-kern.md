@@ -76,9 +76,9 @@ Daarom is de keuze van de ingang hier de flag:
   Voorbeeld: het villavoorbeeld met taak #52 als `#52=IFCTASK('1tOTGtWTg8bYqp7BjjuF0J',$,'Set up site',$,$,'1.1',$,$,'Werkwijze uit ander pakket',.F.,$,#51,.LOGISTIC.);`
   (`OwnerHistory = $`, een `WorkMethod` van een ander programma). Main schreef met `toIfc()` een IFC met
   `#52=IFCTASK('1tOTGtWTg8bYqp7BjjuF0J',#6,'Set up site',$,$,'1.1',$,$,$,.F.,$,#51,.LOGISTIC.);`, dus zonder de werkwijze;
-  nu weigert `toIfc()` (ook na `openIfcBytes`) vóór uitvoer met `IFC_WRITE_FAILED:foreign`. Om dezelfde reden weigert de kern
-  oude eigen bestanden uit de tijd vóór #39 (28 juli 2026): de naam `Bouwplanning v1.0` op het lopende werkschema schrijft de
-  huidige writer als `Construction schedule v1.0`. Openen, rekenen en de samenvatting blijven die van main.
+  nu weigert `toIfc()` (ook na `openIfcBytes`) vóór uitvoer met `IFC_WRITE_FAILED:foreign`. Openen, rekenen en de
+  samenvatting blijven die van main. Oude eigen bestanden schrijven zoals op main: de toets kent voor de naam van het
+  lopende werkschema ook de eerdere vaste waarde `Bouwplanning v1.0`, die OPS tot #39 (28 juli 2026) schreef.
 - **`openIfcBytes(bytes)` kiest de bytes-route alleen voor een bestand waarvan ze een vreemd deel bewaart** (`src/core/index.ts`,
   `openIfcBytes` en `documentKeepingForeignContent`). De kern maakt één eigen kopie van de invoer; wie zijn buffer
   daarna wijzigt, verandert niets. Met die kopie probeert hij de bytes-route van de app met de flag aan

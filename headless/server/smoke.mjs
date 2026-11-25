@@ -53,13 +53,6 @@ const IFC = { 'Content-Type': 'application/x-step' };
 const reference = JSON.parse(readFileSync(join(here, 'main-reference.json'), 'utf8'));
 const describe = (r) => `${r.status} ${r.headers.get('content-type')}${r.status === 200 ? '' : ` ${r.text.slice(0, 160)}`}`;
 const describeMain = (m) => `${m.status} ${m.type}${m.body === undefined ? '' : ` ${m.body.slice(0, 160)}`}`;
-const SLOT_REFUSED_SINCE_1219 = [
-  'oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc',
-  'oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc',
-  'oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc',
-];
-const REFUSED_LIKE_MAIN = 'het voorbeeld met een externe pset, kaal';
-
 function sameAsMain(r, main, kind, source) {
   if (r.status !== main.status || r.headers.get('content-type') !== main.type) return false;
   if ((r.headers.get('retry-after') ?? undefined) !== main.retryAfter) return false;
@@ -121,24 +114,17 @@ try {
   console.log(`    referentie van main ${reference.main}, ${cases.length} gevallen`);
   ok('de referentie van main dekt het hele corpus en niets anders', unrecorded.length === 0 && Object.keys(reference.cases).length === cases.length,
     `${unrecorded.length} ontbreken (${unrecorded.slice(0, 3).join(' | ')}), referentie ${Object.keys(reference.cases).length}, corpus ${cases.length}`);
-  const slotRefused = cases.filter(c => SLOT_REFUSED_SINCE_1219.some(file => c.label.startsWith(`${file}, `)));
-  ok('#1219: de oude bestanden met de schemanaam Bouwplanning v1.0 staan in het corpus, elk in drie vormen',
-    slotRefused.length === 3 * SLOT_REFUSED_SINCE_1219.length && slotRefused.every(c => c.body.includes("'Bouwplanning v1.0'")),
-    slotRefused.map(c => c.label).join(' | '));
   for (const c of cases) {
     const record = reference.cases[c.label];
     if (!record) continue;
-    const refusedNow = slotRefused.includes(c);
-    const expected = kind => (refusedNow && kind === 'ifc' ? reference.cases[REFUSED_LIKE_MAIN].ifc : record[kind]);
     const problems = [];
     for (const type of [...c.textTypes, BYTES_TYPE]) {
       for (const [path, kind] of REQUESTS) {
         const r = await call(path, { method: 'POST', body: c.body, headers: { 'Content-Type': type } });
-        if (!sameAsMain(r, expected(kind), kind, c.body)) problems.push(`${type} ${path}: ${describe(r)} ≠ main ${describeMain(expected(kind))}`);
+        if (!sameAsMain(r, record[kind], kind, c.body)) problems.push(`${type} ${path}: ${describe(r)} ≠ main ${describeMain(record[kind])}`);
       }
     }
-    ok(refusedNow ? `${c.label}: elk antwoord is dat van main, op output=ifc na: dat weigert zoals main een externe pset (#1219)`
-      : `${c.label}: elk antwoord is dat van main`, problems.length === 0, problems.join('; '));
+    ok(`${c.label}: elk antwoord is dat van main`, problems.length === 0, problems.join('; '));
   }
 
   // 6. Ongeldige invoer.

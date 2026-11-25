@@ -366,11 +366,12 @@ Twee grenzen, met opzet:
   vangt alleen de scan (C, A of V). De toets leest elke tabel in `IFC_SLOT_TABLES`; een nieuwe tabel (zoals de relatietabellen
   van #1205) telt dus vanzelf mee.
 
-Gevolg voor oude eigen bestanden: OPS schreef tot #39 (28 juli 2026) de naam `Bouwplanning v1.0` op het lopende werkschema; de
-huidige writer schrijft daar `Construction schedule v1.0`, een constant slot. Zulke bestanden staan nu in stand 3 (in de repo:
-de bestanden van v2026.7.7 en v2026.7.12 in `tests/planning/fixtures/oude-tags/`). Ze openen zoals main; de export weigert
-met de melding hierboven, en opslaan in de app schrijft de nieuwe naam. De kern weigert ze op dezelfde manier
-([headless-kern.md](headless-kern.md)), en daarmee ook de HTTP-API bij `?output=ifc` ([headless-api.md](headless-api.md)).
+Oude eigen bestanden: OPS schreef tot #39 (28 juli 2026) de naam `Bouwplanning v1.0` op het lopende werkschema; de huidige
+writer schrijft daar `Construction schedule v1.0`, een constant slot. Eigen bestanden die main schreef, moeten blijven
+schrijven (besluit van Trias, #1219 herstelronde 4). Daarom kent de toets voor dat ene slot ook die eerdere vaste waarde van de
+eigen writer (`EARLIER_LIVE_SCHEDULE_NAME` in `targetForeignScan.ts`, naast de vaste waarden uit de uitvoer van de writer).
+Zulke bestanden blijven in stand 1, en de kern, de HTTP-API en de headless server schrijven ze zoals main
+(`check-headless-core.ts` punt 20 vergelijkt met de vastgelegde antwoorden van main in `headless/server/main-reference.json`).
 
 Daarvoor zet de host de flag `ifcForeignContent` in zijn eigen store, zoals de kern in de context van elk document, en
 `fileToolDeps.mainRouteUnlessForeign`. Dat tweede houdt drie dingen van de app met de flag buiten de headless server: de

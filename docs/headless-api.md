@@ -255,14 +255,9 @@ kernbouw, `headless/`, `deploy/aws/`, de lockfile of de workflow raakt:
 
 ### Vergelijking met main
 
-De smoke-test vergelijkt elk antwoord met het antwoord dat de code van main op hetzelfde verzoek geeft, met één benoemde
-afwijking. Zo bewijst hij dat wijzigingen in de kern (bijv. `openIfcBytes`, [headless-kern.md](headless-kern.md))
-geen HTTP-antwoord raken. De afwijking komt uit #1219: de kern schrijft een IFC zonder bronbytes alleen als de gewone
-writer elk slot van de planning teruggeeft. Drie oude bestanden in `oude-tags/` (v2026.7.12 data en ohara, v2026.7.7
-urentaak) hebben de naam `Bouwplanning v1.0` op het lopende werkschema, die OPS tot #39 (28 juli 2026) schreef; de huidige
-writer schrijft daar `Construction schedule v1.0`. Voor die drie, in elke vorm, eist de test bij `?output=ifc` precies het
-antwoord dat main op een bestand met een externe pset geeft (500, `IFC_WRITE_FAILED` met `reason` `foreign`); de andere
-antwoorden blijven die van main (`SLOT_REFUSED_SINCE_1219` in `smoke.mjs`). Het corpus staat in `headless/server/smoke-corpus.mjs`: alle voorbeelden, de
+De smoke-test vergelijkt elk antwoord met het antwoord dat de code van main op hetzelfde verzoek geeft, zonder
+uitzonderingen. Zo bewijst hij dat wijzigingen in de kern (bijv. `openIfcBytes`, [headless-kern.md](headless-kern.md))
+geen HTTP-antwoord raken. Het corpus staat in `headless/server/smoke-corpus.mjs`: alle voorbeelden, de
 oude-tags-bestanden, IFC2X3, de bestanden in `tests/fixtures/ifc-foreign/`, bestanden die de bytes-route van de kern
 anders leest, een opgeslagen `CreatedAt` in STEP-escapes, voorloopbytes en een lijst leesfouten. Per geval stuurt hij
 de body als `application/x-step` en als `application/octet-stream`, voor een geslaagd voorbeeld en een modelbestand ook
