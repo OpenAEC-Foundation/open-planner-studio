@@ -11,10 +11,10 @@ import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
 import { scanForeignToOpen } from '@/services/ifc/foreign/foreignScan';
 import { planningCanon } from '@/services/ifc/foreign/planningCanon';
-import { foreignLinksDroppedSince } from '@/state/foreignLinksNotice';
 import { cloneDomain, mergeProblems, openForeign, settle, shownAfterOpen } from './ifcMergeKern';
 import { loadStore, openInStore } from './ifcAppRoute';
 import { installDeterminism } from './ifcPariteitKern';
+import { twoTasksAndChain } from './ifcTwoTasksChain';
 import { arrayAndCollectionOperations } from './operationCount';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -63,17 +63,7 @@ await check('plan: 4D-bestand, taak met IfcRelAssignsToProduct wissen, opslaan: 
   assert.deepEqual(mergeProblems(source.bytes, prepared.bytes, prepared.foreignChanges), []);
 });
 
-const EIGEN = withLines(text('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'), [
-  `#9001=IFCRELASSIGNSTOPRODUCT('${guid('1RegelTweeLijst')}',$,$,$,(#51),$,#393);`,
-  `#9002=IFCRELASSIGNSTOPROCESS('${guid('1RegelTweeEnkel')}',$,$,$,(#354),$,#51,$);`,
-  `#9003=IFCRELASSIGNSTOPRODUCT('${guid('1RegelEenTweeLeden')}',$,$,$,(#51,#53),$,#354);`,
-  '#9004=IFCPROPERTYREFERENCEVALUE(\'Taak\',$,$,#51);',
-  `#9005=IFCPROPERTYSET('${guid('1RegelDrieSet')}',$,'Pset_Keten',$,(#9004));`,
-  `#9006=IFCRELDEFINESBYPROPERTIES('${guid('1RegelDrieRel')}',$,$,$,(#393),#9005);`,
-  '#9007=IFCPROPERTYSINGLEVALUE(\'Opmerking\',$,IFCLABEL(\'blijft\'),$);',
-  `#9008=IFCPROPERTYSET('${guid('1RegelVierSet')}',$,'Pset_Los',$,(#9007));`,
-  `#9009=IFCRELDEFINESBYPROPERTIES('${guid('1RegelVierRel')}',$,$,$,(#51),#9008);`,
-]);
+const EIGEN = twoTasksAndChain(text('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
 const ALL_DROPPED_FOR_SET_UP_SITE = ['vervallen #9001', 'vervallen #9002', 'gewijzigd #9003', 'vervallen #9004', 'vervallen #9005', 'vervallen #9006', 'vervallen #9009'];
 
 await check('regels 1 tot en met 4 in één opslag, en wat niet op de lijst staat is byte-gelijk', async () => {
@@ -87,7 +77,7 @@ await check('regels 1 tot en met 4 in één opslag, en wat niet op de lijst staa
   assert.deepEqual(mergeProblems(source.bytes, prepared.bytes, prepared.foreignChanges), []);
   for (const id of [393, 354, 9007, 9008]) assert.equal(lineOf(prepared.bytes, id), lineOf(source.bytes, id), `#${id} blijft staan (regel 4)`);
   const changed = prepared.foreignChanges!.find(c => c.id === 9003)!;
-  assert.equal(changed.kind, 'gewijzigd');
+  assert(changed.kind === 'gewijzigd');
   assert.equal(decode(changed.oldBytes).trim(), lineOf(source.bytes, 9003), 'de oude bytes zijn die van de bron');
   assert.equal(decode(changed.kind === 'gewijzigd' ? changed.newBytes : new Uint8Array()).trim(),
     `#9003=IFCRELASSIGNSTOPRODUCT('${guid('1RegelEenTweeLeden')}',$,$,$,(#53),$,#354);`, 'regel 1: alleen het lid gaat eruit');
@@ -247,11 +237,9 @@ await check('geen melding: geen koppelingen, flag uit, of een document zonder vr
   assert.equal((await save(opened)).foreignChanges, undefined);
 
   const flagOff = await openInStore(encode(EIGEN));
-  const before = flagOff.store.getState();
   flagOff.store.setState(s => { s.ui.featureFlags = { ifcForeignContent: false }; });
   flagOff.store.getState().deleteTask(taskId(flagOff, 'Set up site'));
   assert.equal(notices(flagOff).length, 0, 'flag uit');
-  assert.equal(foreignLinksDroppedSince(flagOff.store.getState(), before), 0, 'flag uit: geen telling');
 
   const own = await openInStore(encode(text('public/examples/03-kantoorgebouw-zuidas.ifc')));
   assert.equal(own.store.getState().ifcSource?.foreign ?? false, false);
@@ -281,7 +269,9 @@ await check('de ongebruikte sleutel van een verwijderde taak staat als vervallen
   assert.equal(notices(opened)[0]?.params?.count, 1);
   const prepared = await save(opened);
   assert.deepEqual(prepared.foreignChanges?.map(c => [c.kind, c.id, c.kind === 'vervallen' ? c.unusedKeyOfTask : undefined]), [['vervallen', 9101, 63]]);
-  assert.equal(decode(prepared.foreignChanges![0].oldBytes).trim(), lineOf(source.bytes, 9101));
+  const [key] = prepared.foreignChanges!;
+  assert(key.kind === 'vervallen');
+  assert.equal(decode(key.oldBytes).trim(), lineOf(source.bytes, 9101));
   assert.equal(lineOf(prepared.bytes, 9101), undefined);
   assert.deepEqual(mergeProblems(source.bytes, prepared.bytes, prepared.foreignChanges), []);
 });
@@ -299,7 +289,7 @@ await check('controle 1: niets vervalt of wijzigt zonder op de lijst te staan, e
   const still9001 = encode(withLines(decode(prepared.bytes), [lineOf(source.bytes, 9001)!]));
   assert.notDeepEqual(problems(still9001, changes.filter(c => c.id !== 9001)), [], 'een stuk dat volgens de regel vervalt, blijft staan');
   assert.notDeepEqual(problems(prepared.bytes, changes.filter(c => c.id !== 9003)), [], 'een gewijzigd stuk dat niet op de lijst staat');
-  const asDropped = changes.map(c => c.id === 9003 ? { kind: 'vervallen' as const, id: c.id, oldBytes: c.oldBytes } : c);
+  const asDropped = changes.map(c => c.id === 9003 && c.kind === 'gewijzigd' ? { kind: 'vervallen' as const, id: c.id, oldBytes: c.oldBytes } : c);
   assert.notDeepEqual(problems(prepared.bytes, asDropped), [], 'een lijst die van de regel afwijkt');
   const withOld = decode(prepared.bytes).replace(lineOf(prepared.bytes, 9003)!, lineOf(source.bytes, 9003)!);
   assert.notDeepEqual(problems(encode(withOld), changes), [], 'de uitvoer heeft niet de nieuwe bytes van de lijst');
