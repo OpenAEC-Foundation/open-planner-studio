@@ -37,8 +37,11 @@ die getallen ruim zijn, komt uit het weggehaalde commentaar, met de corpustellin
   op 366 datums.
 - `MAX_TOTAL_HOLIDAY_SLOTS` (100.000): het gedeelde budget (`HolidayBudget`, nieuw vol via `newHolidayBudget`) voor
   alle uitgeschreven dagen van de kalenders die een lezer erop laat lopen, ook de overerving. De crawl-basislijn in
-  `check-mpp-calendars.ts` (`CRAWL_HOLIDAY_BASELINE`, alleen met corpus) is de ondergrens van 2968 feestdagreeksen die
-  de toets over 49 bestanden samen eist. Per kalender begrenzen
+  `check-mpp-calendars.ts` (`CRAWL_HOLIDAY_BASELINE`, alleen met corpus) is de ondergrens van 2968 eigen
+  feestdagreeksen: per kalender de eigen reeksen (`ownHolidayCountByUniqueId`), zonder de geërfde reeksen van een
+  basiskalender opnieuw te tellen, opgeteld over alle kalenders. De 2968 is gemeten op 49 bestanden (2026-08-15); de
+  toets past de ondergrens toe op de som over alle `.mpp`-bestanden in de ingestelde corpusmap, ook in submappen
+  (`resolveMppCrawlScopes`: `OPS_MPP_CRAWL_SMOKE`, anders `crawl-mpp` onder de crawlwortel). Per kalender begrenzen
   alleen gaat niet, omdat veel kalenders elk binnen hun grenzen samen onbegrensd veel dagen kunnen vragen (ADR 0254
   voor MSPDI). `buildContributions` telt vanaf een momentopname van `budget.remaining` af en stopt de opbouw als die
   op is (het record dat loopt wordt afgekapt, de rest overgeslagen), zodat ook de piek in het geheugen begrensd is;
