@@ -31,7 +31,7 @@ lopende bewerking (`editHold.ts`) en na een mislukte berekening met ongewijzigde
 baselines, documenten/bestanden, leestools, XER/P6-bronprovenance, en `planner_batch` als transactionele executor met
 temp-id-resolutie). Besluiten over de wijzigende tools voor resources, toewijzingen, kalenders, nivelleren en het
 project staan in `docs/adr/0100` tot en met `0107`. Besluiten over de leestools (`tools/readTools.ts`): `docs/adr/0400`
-(compact, met id's en notaties die de schrijftools aannemen), `0401` (argumenten toetsen), `0402` (paginering en
+(compact, met id's en de notaties van de schrijfkant), `0401` (argumenten toetsen), `0402` (paginering en
 grenzen), `0403` (niet vastgelegd is onbekend), `0404` (taken tellen en filteren), `0405` (één taak lezen), `0406`
 (resources, belasting en kalenders) en `0407` (kritiek pad, baseline en vertraging).
 

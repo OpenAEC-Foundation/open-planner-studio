@@ -2273,6 +2273,13 @@ en noem het in je rapport of PR-tekst.
      dagen, maar houdt `planner_update_dependencies` de bestaande lag: een SS-relatie met `+2d` werd zo `FS+2d`, met
      de opvolger op 10 juni 07:00 in plaats van 8 juni 07:00. Een relatie met 240 minuten lag leest ook als `lag: ""`
      (knownbug 354), dus de lege waarde zegt niet dat de lag nul is. Issue #1269. — B
+2476. **Een kalender uit een IFC met een pauze kan via MCP worden geweigerd op de netto uren per dag.**
+     `netHoursReason` in `src/services/mcp/tools/calendarResourceTools.ts` eist dat `hoursPerDay` gelijk is aan de
+     werktijd min de pauze. Proef uit de review van #1272, via de dispatcher: de fixture
+     `tests/planning/fixtures/periode-0730.ifc` zonder `ifcTimePeriods` leest met `planner_get_calendars` als 07:30 tot
+     16:00 met 60 minuten pauze en `hoursPerDay: 8`; de schrijfvalidatie rekent 7,5 uur en `planner_update_calendar`
+     met `create: true` weigert de gelezen kalender in een leeg document. Er gaat niets verloren; de kalender is zo
+     alleen niet over te zetten (ADR 0104). — B
 
 ## Bestanden en herstel
 
