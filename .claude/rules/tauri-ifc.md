@@ -123,7 +123,8 @@ The application's persistence model is IFC 4.3 (buildingSMART). Loading a projec
 (`readIfcx`). **Regel F:** het formaat is een eigenschap van het document. De lezer legt het vast (`fileFormat`) en geeft
 lengte en SHA-256 van de gelezen bytes mee (`ReadImportResult.ifcxRead`); `applyLoadedProject` maakt daarvan de bekende
 versie van het doel, ook met `ifcForeignContent` uit (`versionGuarded`, `src/state/versionGuard.ts`). De naam van het doel
-beslist niets over een bestaand document. Een poging legt formaat en flag vast bij haar begin (`outputFormat`); met de flag
+beslist niets over een bestaand document. Een poging legt formaat en flag vast bij haar begin (`outputFormat`; één stand
+per poging, zie `state.md`); met de flag
 aan zet de documentopslag dan `format: 'ifcx'` op de writer-job, die alleen de opslagworker rekent (`writeIfcx`, met de
 letterlijke kalenders van de gewone writer, `plainWriteLiteralCalendarIds`). Het eigen doel toetst de bekende versie
 (#1174); een ander bestaand doel classificeert de worker (`classifyIfcx` via `ifcxTargetRefusal`, `TargetReaders.readPath`
