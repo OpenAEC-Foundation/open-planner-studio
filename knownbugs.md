@@ -743,6 +743,30 @@ en noem het in je rapport of PR-tekst.
      relatielogica, een statusdatum op donderdag 13:00 en acht uur restwerk: de SF-relatie verschoof de finish van
      vrijdag 12:00 naar vrijdag 17:00, terwijl de SF-eis op maandag 13:00 lag. Zie ADR 0275. — B
 
+2322. **De belasting van opgeslagen werk kan bij een gestarte dagtaak een ander totaal tellen dan verricht plus
+     resterend.**
+     `assignmentDayUnits` (`src/engine/scheduler/ResourceLoad.ts`) leidt bij een toewijzing met `remainingWorkMinutes`
+     en zonder `actualWorkMinutes` het verrichte deel af als de duur min `remainingDaysOf`. Die functie rondt zonder
+     `remainingTime` de rest `scheduleDuration × (1 − completion)` af op hele dagen (en een urentaak zonder
+     `remainingMinutes` op hele minuten); de solver in de dagenmaat en `remainingMinutesOf` (`workRuleApply.ts`) ronden niet af (in de minutentak rondt de
+     solver wel af), zodat het afgeleide deel te groot of te klein kan uitvallen. Een
+     proef met `assignmentDayUnits`: een dagtaak van 5 dagen uit `createDefaultTaskTime`, `completion` 0,32,
+     `actualStart` gezet, geen `remainingTime`, inzet 1, `remainingWorkMinutes` 1632 (3,4 dagslots van 480 minuten)
+     en geen `actualWorkMinutes` gaf een som van 5,4 dagslots in plaats van 5. Met `remainingTime` 3,4 of met
+     `actualWorkMinutes` 768 was de som 5. Nagespeeld op een kalender van acht uur met dezelfde invoer: `computeResourceLoad` gaf
+     43,2 uur, het histogramrapport vijf overbezette dagen bij capaciteit 1, en `contourDayModel` dezelfde verhoogde
+     inzet. Een bestand of invoerroute die een taak zonder `remainingTime` én een toewijzing zonder
+     `actualWorkMinutes` oplevert, is niet gevonden; de getoetste voortgangsinvoer vult `remainingTime` zelf in. — B
+
+2323. **De urendialoog telt bij een toewijzing zonder contour het verrichte werk als resterend.** `contourDayModel`
+     (`src/engine/contour/contourDays.ts`) neemt zonder bestaande contour voor het verrichte deel nul en voor het
+     resterende deel de hele belasting van de toewijzing; `ContourDialog.tsx` schrijft bij *Toepassen* de perioden uit
+     dat model. Nagespeeld via de store: een taak van vijf dagen, één arbeidsresource op inzet 1, 32 % voortgang en
+     *Vaste duur en werk*; de toewijzing had 12,8 uur verricht en 27,2 uur resterend werk. *Urenverdeling…* rekende
+     40 uur resterend en toonde geen verricht werk. Na ongewijzigd *Toepassen*, IFC schrijven en teruglezen had de
+     contour alle 40 uur als `remaining`, naast de twee ongewijzigde werkvelden. Niet in de browser nagespeeld.
+     Issue #1224. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -4085,13 +4109,16 @@ en noem het in je rapport of PR-tekst.
       `removeResource` en Opnieuw van zo'n stap. Wist de planner een relatie (`removeSequence`) of een kalender (de
       kalenderdialoog), of wist hij via MCP, het IFC-paneel of een extensie, dan hoort hij pas na het opslaan hoeveel
       gegevens van een ander programma zijn aangepast of verwijderd (`notifyForeignChangesWritten`). Gezien in de code;
-      `check-ifc-document-save.ts` toetst voor die routes alleen de melding na het opslaan. Richting: dezelfde aanroep in
-      `removeSequence` en `commitCalendarLibrary`. — S
+      `check-ifc-document-save.ts` toetst voor die routes alleen de melding na het opslaan. Opnieuw (Ctrl+Y) geeft elke
+      herstelde undo-stap door aan dezelfde teller: wist de planner een losse gekoppelde relatie of wiste hij via MCP
+      (`planner_delete_tasks`), dan komt er bij die eerste wissing geen wismelding, maar na Ctrl+Z en Ctrl+Y alsnog wel,
+      als die stap een stuk van een ander programma laat vervallen (gezien in de code door de reviewer van #1199,
+      ronde 6; niet nagespeeld). Richting: dezelfde aanroep in `removeSequence` en `commitCalendarLibrary`. — S
 2250. **VERVOLG (#1199): Ctrl+Z na het opslaan, of tijdens het opslaan na de momentopname, brengt de taak terug, niet
       de koppeling van het andere programma.** Na het opslaan is `ifcSource` de uitvoer zonder de vervallen stukken, en
       undo zet de bron niet terug (documentveld zonder momentopname). Een opslag die haar momentopname al had, schrijft
-      en commit die uitvoer ook als de planner intussen Ctrl+Z drukt. De knop *Ongedaan maken* in de wismelding staat er
-      in die periode niet meer (regel B, fixronde 2), maar Ctrl+Z op het toetsenbord werkt wel. De melding na het opslaan
+      en commit die uitvoer ook als de planner intussen Ctrl+Z drukt. De wismelding heeft in deze PR geen knop (die komt
+      in PR 7); Ctrl+Z op het toetsenbord werkt wel. De melding na het opslaan
       zegt dat de gegevens zijn aangepast of verwijderd, maar niet dat Ctrl+Z ze niet terugbrengt. Richting: PR 7 van #804 (`detached`, de soort *teruggezet*) bewaart de oude bytes van
       de wijzigingslijst en kan ze bij undo terugzetten. Afgeleid uit de code, niet nagespeeld. — S
 2251. **Veel taken wissen in een bestand met een gebouwmodel, en dan opslaan, weigert met `planning-na-openen`.** Met
@@ -4117,7 +4144,18 @@ en noem het in je rapport of PR-tekst.
       Dit is een voorwaarde voor het standaard aanzetten van de flag *IFC met gebouwmodel openen*: de planner mist de
       telling van een opslag niet. De richting is een keuze van de eigenaar: vragen vóór het schrijven, of de uitkomst
       duurzaam vastleggen en opnieuw tonen. Knownbug 2250 blijft staan. Besluit technisch eigenaar bij het opknippen van
-      #1199 (fixronde 3). — S
+      #1199 (fixronde 3).
+
+      De waarschuwing bij het wissen (`notifyForeignLinksDropped` in `src/state/foreignLinksNotice.ts`) is ook een gewone
+      melding: een info van main zonder knop, met het aantal van die ene wisstap. Ze deelt dezelfde grenzen. Staan er al
+      drie meldingen open, dan kan ze ontbreken: het meldingenkanaal van main bepaalt welke melding plaatsmaakt. Zijn
+      het drie schrijffouten of drie tellingen van eerdere opslagen, dan haalt de stapel de wismelding meteen weer weg
+      en ziet de planner haar niet; staat er een gewone info of een passende weigering tussen, dan wijkt die en blijft
+      de wismelding zichtbaar. Het opslaan laat de gegevens in beide gevallen vervallen.
+      Ze verdwijnt na de gewone tijd van main en hangt alleen aan het wissen van taken en resources
+      (knownbug 2249). De knop *Ongedaan maken* komt in PR 7 (`detached`). Dit is de twaalfde voorwaarde voor het
+      standaard aanzetten van de flag: de planner mist de waarschuwing bij het wissen niet en kan vanuit die waarschuwing
+      ongedaan maken. Besluit technisch eigenaar, 25 november 2026 (fixronde 5). — S
 
 2303. **De P6 XML-lezer rekent de eenheden van een materiaaltoewijzing om alsof het uren zijn.** In de toewijzingslezer
       van `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) worden `PlannedUnits`, `ActualUnits` en `RemainingUnits`

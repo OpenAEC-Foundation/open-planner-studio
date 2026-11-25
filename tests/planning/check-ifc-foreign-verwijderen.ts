@@ -11,7 +11,7 @@ import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
 import { scanForeignToOpen } from '@/services/ifc/foreign/foreignScan';
 import { planningCanon } from '@/services/ifc/foreign/planningCanon';
-import { FOREIGN_LINKS_NOTICE_KEY, foreignLinksDroppedSince } from '@/state/foreignLinksNotice';
+import { foreignLinksDroppedSince } from '@/state/foreignLinksNotice';
 import { cloneDomain, mergeProblems, openForeign, settle, shownAfterOpen } from './ifcMergeKern';
 import { loadStore, openInStore } from './ifcAppRoute';
 import { installDeterminism } from './ifcPariteitKern';
@@ -44,7 +44,7 @@ const taskId = (opened: Opened, name: string) => {
   return task.id;
 };
 const save = (opened: Opened) => prepareIfcWrite(cloneDomain(opened.snapshot(opened.store)), opened.store.getState().ifcSource!);
-const notices = (opened: Opened) => opened.store.getState().ui.notifications.filter(n => n.dedupeKey === FOREIGN_LINKS_NOTICE_KEY);
+const notices = (opened: Opened) => opened.store.getState().ui.notifications.filter(n => n.messageKey === 'notifications.foreignLinksDropped');
 
 const R4 = decode(await settle(encode(text('tests/fixtures/ifc-foreign/council/r4-k1.ifc'))));
 
@@ -240,19 +240,6 @@ await check('verwijderen en Ctrl+Z vóór het opslaan: er vervalt niets', async 
   for (const id of [9001, 9002, 9003, 9004, 9005, 9006, 9009]) assert.equal(lineOf(prepared.bytes, id), lineOf(source.bytes, id));
 });
 
-await check('de knop Ongedaan maken voert de undo van de wisstap uit', async () => {
-  const opened = await openInStore(encode(EIGEN));
-  const id = taskId(opened, 'Set up site');
-  opened.store.getState().deleteTask(id);
-  const [notice] = notices(opened);
-  assert(notice?.action?.kind === 'undoHistoryEvent', 'de melding heeft de knop');
-  assert.equal(notice.action.labelKey, 'notifications.actions.undo');
-  opened.store.getState().undoHistoryEvent(notice.action.eventId);
-  assert(opened.store.getState().tasks.some(t => t.id === id), 'de taak is terug');
-  assert.equal(notices(opened).length, 0, 'de melding verdwijnt met haar stap');
-  assert.equal((await save(opened)).foreignChanges, undefined);
-});
-
 await check('geen melding: geen koppelingen, flag uit, of een document zonder vreemd deel', async () => {
   const opened = await openInStore(encode(EIGEN));
   opened.store.getState().deleteTask(taskId(opened, 'Apply roofing'));
@@ -279,7 +266,7 @@ await check('geen melding: geen koppelingen, flag uit, of een document zonder vr
   finally { console.error = realError; }
   assert.equal(store.getState().ifcSource ?? null, null, 'met de flag uit heeft de app geen bron, zoals main');
   assert(!store.getState().tasks.some(t => t.name === 'Set up site'), 'met de flag uit weigert de app een bestand met gebouwmodel, zoals main');
-  assert.equal(store.getState().ui.notifications.filter(n => n.dedupeKey === FOREIGN_LINKS_NOTICE_KEY).length, 0);
+  assert.equal(store.getState().ui.notifications.filter(n => n.messageKey === 'notifications.foreignLinksDropped').length, 0);
 });
 
 const ASSIGNMENTS = text('tests/fixtures/ifc-foreign/eigen-plus-model.ifc')

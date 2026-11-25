@@ -139,12 +139,10 @@ export function createFileAutoSaveController(deps: {
     // ze op haar beurt wachtte, dan telt dat ook als geweken (opnieuw na de volgende rustperiode).
     rhythm.roundStarted(candidate.id);
     let outcome: ActualAutoSaveWrite | undefined;
-    const releaseCapture = getState().captureDocumentWrite({ id: candidate.id, content: candidate.content }, getState());
     try {
       outcome = turn.yielded.aborted ? 'yielded' : await modelRound(candidate, turn);
       return outcome;
     } finally {
-      releaseCapture();
       rhythm.roundEnded(candidate.id, outcome === true ? 'written' : outcome === 'yielded' ? 'yielded' : 'other');
     }
   }, () => 'refused');

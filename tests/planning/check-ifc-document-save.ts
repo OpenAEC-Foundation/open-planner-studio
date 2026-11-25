@@ -38,9 +38,6 @@ import { canon, firstDiff, mergeProblems, openForeign, shownAfterOpen } from './
 import { InProcessWorker } from './inProcessSaveWorker';
 import { createExtensionApi } from '@/extensions/extensionApi';
 import type { NotifyInput } from '@/state/slices/types';
-import { FOREIGN_LINKS_NOTICE_KEY } from '@/state/foreignLinksNotice';
-import { selectUndoHistoryEvent } from '@/state/sessionHistory';
-import { handleIfcSaveRequest } from '@/services/ifc/saveWorker/ifcSaveProtocol';
 import { createAppQuitController } from '@/services/appQuit/appQuitController';
 import { appQuitDependencies } from '@/services/appQuit/appQuitDependencies';
 import { loadExtensionProject } from '@/extensions/retainActiveDocument';
@@ -4258,7 +4255,8 @@ function recordCounts(store: Store): string[] {
   } });
   return calls;
 }
-const deleteNotices = (store: Store) => store.getState().ui.notifications.filter(n => n.dedupeKey === FOREIGN_LINKS_NOTICE_KEY);
+const DELETE_KEY = 'notifications.foreignLinksDropped';
+const deleteNotices = (store: Store) => store.getState().ui.notifications.filter(n => n.messageKey === DELETE_KEY);
 const taskNamed = (store: Store, name: string) => store.getState().tasks.find(t => t.name === name)!.id;
 const writtenCount = async (store: Store) =>
   (await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!)).foreignChanges?.length ?? 0;
@@ -4418,7 +4416,7 @@ await check('fixronde 1 van #1199: elke manier van verdwijnen geeft na Ctrl+S de
       disappear(route.store);
       const expected = await writtenCount(route.store);
       assert(expected > 0, `${name}: er vervalt iets`);
-      if (name === 'Opnieuw na Ctrl+Z') assert.equal(deleteNotices(route.store)[0]?.params?.count, expected, `${name}: ook de melding bij het wissen`);
+      if (name === 'Opnieuw na Ctrl+Z') assert.equal(deleteNotices(route.store).at(-1)?.params?.count, expected, `${name}: ook de melding bij het wissen`);
       clearNotices(route.store);
       assert.equal(await route.write(), true, `${name}: Ctrl+S schrijft`);
       assert.deepEqual(writtenNotices(route.store).map(n => n.params?.count), [expected], `${name}: de melding na het opslaan`);
@@ -4443,14 +4441,7 @@ await check('fixronde 1 van #1199: elke manier van verdwijnen geeft na Ctrl+S de
   } finally { unregister(); await clearRecovery(); }
 });
 
-await check('fixronde 1 van #1199: de knop Ongedaan maken verdwijnt met de bron; Automatisch opslaan meldt één keer', async () => {
-  const route = await onHandle(store => ctrlS(store));
-  try {
-    route.store.getState().deleteTask(taskNamed(route.store, 'Set up site'));
-    assert.equal(deleteNotices(route.store)[0]?.action?.kind, 'undoHistoryEvent', 'vóór het opslaan staat de knop er');
-    assert.equal(await route.write(), true);
-    assert.deepEqual(deleteNotices(route.store), [], 'na het opslaan is de knop weg');
-  } finally { await route.dispose(); }
+await check('fixronde 1 van #1199: Automatisch opslaan meldt één keer', async () => {
   const auto = await onHandle(async () => undefined);
   try {
     const rounds = modelAutoSave(auto.store);
@@ -4463,59 +4454,6 @@ await check('fixronde 1 van #1199: de knop Ongedaan maken verdwijnt met de bron;
     assert.equal(auto.store.getState().isDirty, false, 'de volgende ronde schreef');
     assert.deepEqual(writtenNotices(auto.store), [], 'de volgende ronde meldt niets: de bron is de uitvoer');
   } finally { await auto.dispose(); }
-});
-
-const knobOf = (store: Store) => deleteNotices(store)[0]?.action;
-const clickKnob = (store: Store) => {
-  const action = knobOf(store);
-  assert(action?.kind === 'undoHistoryEvent', 'de knop staat er');
-  store.getState().undoHistoryEvent(action.eventId);
-};
-for (const via of ['Ctrl+S', 'Automatisch opslaan'] as const) {
-  await check(`fixronde 2 van #1199, regel B (${via}): na de momentopname geen knop; na een mislukte schrijfactie is ze terug en werkt ze`, async () => {
-    const sw = saveWorker('manual'), { store, name } = await openHandle(LINKED, sw.compute), unregister = recoveryRounds(store);
-    const auto = via === 'Automatisch opslaan' ? modelAutoSave(store, sw.compute) : null;
-    try {
-      store.getState().deleteTask(taskNamed(store, 'Set up site'));
-      assert.equal(knobOf(store)?.kind, 'undoHistoryEvent', 'vóór de opslag staat de knop er');
-      handleFaults.set(name, { writeErrorAt: 0 });
-      const writing: Promise<unknown> = auto ? auto.round() : ctrlS(store);
-      await mergeArrives(sw, 1);
-      assert.equal(knobOf(store), undefined, 'de schrijfactie heeft haar momentopname: geen knop');
-      assert.equal(deleteNotices(store).length, 0, 'zolang de schrijfactie vastlegt, staat de wismelding er niet');
-      await finishMerge(sw);
-      const outcome = await writing;
-      if (!auto) assert.equal(outcome, false, 'de schrijfactie mislukt');
-      assert.equal(hash(fileOf(name)), hash(LINKED), 'het bestand is niet veranderd');
-      assert.equal(knobOf(store)?.kind, 'undoHistoryEvent', 'dezelfde bron en wisstap: de knop is terug');
-      clickKnob(store);
-      assert(store.getState().tasks.some(t => t.name === 'Set up site'), 'de knop zet de taak terug');
-      assert.deepEqual(deleteNotices(store), [], 'en de melding gaat weg');
-    } finally { handleFaults.delete(name); unregister(); sw.client.dispose(); await clearRecovery(); }
-  });
-}
-
-await check('fixronde 2 van #1199, regel B: een geslaagde schrijfactie haalt de knop weg vanaf de momentopname, en hij komt niet terug', async () => {
-  const sw = saveWorker('manual'), { store } = await openHandle(LINKED, sw.compute), unregister = recoveryRounds(store);
-  try {
-    store.getState().deleteTask(taskNamed(store, 'Set up site'));
-    const writing = ctrlS(store);
-    await mergeArrives(sw, 1);
-    assert.equal(knobOf(store), undefined);
-    await finishMerge(sw);
-    assert.equal(await writing, true);
-    assert.deepEqual(deleteNotices(store), [], 'na de commit is de melding weg');
-  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
-});
-
-await check('fixronde 2 van #1199: de flag uitzetten haalt een lopende wismelding weg', async () => {
-  const { store } = await openHandle(LINKED), unregister = recoveryRounds(store);
-  try {
-    store.getState().deleteTask(taskNamed(store, 'Set up site'));
-    assert.equal(deleteNotices(store).length, 1);
-    store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
-    assert.deepEqual(deleteNotices(store), []);
-  } finally { unregister(); await clearRecovery(); }
 });
 
 function rng(seed: number) {
@@ -4719,12 +4657,10 @@ await check('fixronde 2 van #1199: de extensieroute laadt dezelfde taak met een 
   } finally { unregister(); await clearRecovery(); }
 });
 
-await check('fixronde 3 van #1199: zonder vreemd deel, of met de flag uit, legt Ctrl+S en Opslaan als niets vast en meldt niets', async () => {
+await check('fixronde 3 van #1199: zonder vreemd deel, of met de flag uit, meldt Ctrl+S en Opslaan als niets', async () => {
   for (const [label, source, flag, written] of [['zonder vreemd deel', plainBytes(), true, 2], ['zonder vreemd deel, flag uit', plainBytes(), false, 2], ['met vreemd deel, flag uit', LINKED, false, 0]] as const) {
     const browser = browserDownload(), { store } = await openInStore(source);
     if (!flag) store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
-    let captured = false;
-    const stop = store.subscribe(s => { if (s.documents.some(d => d.saveState?.snapshotEvent !== undefined)) captured = true; });
     const calls = recordCounts(store);
     try {
       store.getState().deleteTask(store.getState().tasks.find(t => !t.childIds.length)!.id);
@@ -4732,58 +4668,11 @@ await check('fixronde 3 van #1199: zonder vreemd deel, of met de flag uit, legt 
       longer(store);
       await store.getState().saveFileAs();
       assert.equal(browser.downloads.length, written, `${label}: geschreven zoals op main`);
-      assert.equal(captured, false, `${label}: geen vastlegging`);
       assert.deepEqual(calls, [], `${label}: geen telling`);
       assert.deepEqual(writtenNotices(store), [], `${label}: geen melding`);
-    } finally { stop(); browser.dispose(); }
+    } finally { browser.dispose(); }
   }
 });
-
-const headOf = (store: Store) => selectUndoHistoryEvent(store.getState().historyEvents, store.getState().activeDocumentId)?.id;
-for (const via of ['Ctrl+S', 'Automatisch opslaan'] as const) for (const then of ['de knop', 'een volgende momentopname'] as const) {
-  await check(`fixronde 4 van #1199, regel B (${via}, daarna ${then}): een wisstap tijdens een oudere opslag houdt haar melding en knop, ook na die commit`, async () => {
-    const sw = saveWorker('manual'), { store, name } = await openHandle(LINKED, sw.compute), unregister = recoveryRounds(store);
-    const auto = via === 'Automatisch opslaan' ? modelAutoSave(store, sw.compute) : null;
-    const write = () => auto ? auto.round() : ctrlS(store);
-    try {
-      longer(store);
-      const older = write();
-      await mergeArrives(sw, 1);
-      store.getState().deleteTask(taskNamed(store, 'Set up site'));
-      const event = headOf(store);
-      assert.equal(knobOf(store)?.kind, 'undoHistoryEvent', 'tijdens de oudere opslag: de melding met knop');
-      await finishMerge(sw);
-      await older;
-      assert.match(plainText(fileOf(name)), /^#990001=IFCRELASSIGNSTOPRODUCT/m, 'de oudere opslag bevat de koppeling nog');
-      assert.deepEqual(writtenNotices(store), [], 'de oudere opslag liet niets vervallen');
-      const knob = knobOf(store);
-      assert(knob?.kind === 'undoHistoryEvent' && knob.eventId === event, 'na de commit van de oudere opslag: dezelfde melding met knop');
-      const expected = await writtenCount(store);
-      assert(expected > 0);
-      assert.equal(deleteNotices(store)[0]?.params?.count, expected, 'met het aantal van de nieuwe bron');
-      if (then === 'de knop') {
-        clickKnob(store);
-        assert(store.getState().tasks.some(t => t.name === 'Set up site'), 'de knop zet de taak terug');
-        assert.deepEqual(deleteNotices(store), [], 'en de melding gaat weg');
-        const next = write();
-        await mergeArrives(sw, 2);
-        await finishMerge(sw);
-        await next;
-        assert.match(plainText(fileOf(name)), /^#990001=IFCRELASSIGNSTOPRODUCT/m, 'de volgende opslag laat de koppeling staan');
-        assert.deepEqual(writtenNotices(store), [], 'en verwijdert niets');
-      } else {
-        const next = write();
-        await mergeArrives(sw, 2);
-        assert.equal(knobOf(store), undefined, 'de momentopname van de volgende opslag bevat de wisstap: geen knop');
-        await finishMerge(sw);
-        await next;
-        assert.doesNotMatch(plainText(fileOf(name)), /^#990001=IFCRELASSIGNSTOPRODUCT/m, 'de volgende opslag laat de koppeling vervallen');
-        assert.deepEqual(writtenNotices(store).map(n => n.params?.count), [expected], 'met de telling');
-        assert.deepEqual(deleteNotices(store), [], 'en de knop komt niet terug');
-      }
-    } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
-  });
-}
 
 await check('fixronde 4 van #1199: een extensie die na de plaatsing een ander project in het tabblad laadt; de telling noemt het geschreven bestand', async () => {
   const { createAppStoreContext } = await loadStore(), context = createAppStoreContext(), { store } = context;
@@ -4804,96 +4693,63 @@ await check('fixronde 4 van #1199: een extensie die na de plaatsing een ander pr
   } finally { handleFaults.delete(name); unregister(); await clearRecovery(); }
 });
 
-async function answering<T>(sw: SaveWorker, run: Promise<T>): Promise<T> {
-  let done = false;
-  const out = run.finally(() => { done = true; });
-  const answered = new Map<InProcessWorker, number>();
-  while (!done) {
-    for (const w of sw.workers) {
-      const k = answered.get(w) ?? 0;
-      if (w.requests.length > k) { answered.set(w, k + 1); w.start(); await w.answer(k); }
-    }
-    await new Promise(resolve => setImmediate(resolve));
-  }
-  return out;
+function recordDeletes(store: Store): NotifyInput[] {
+  const calls: NotifyInput[] = [], notify = store.getState().notify;
+  store.setState({ notify: (n: NotifyInput) => { if (n.messageKey === DELETE_KEY) calls.push(n); notify(n); } });
+  return calls;
 }
-const linkLines = (data: Uint8Array, step: number) =>
-  plainText(data).split('\n').filter(line => /^#9900\d\d=/.test(line) && line.includes(`(#${step})`)).map(line => line.slice(0, line.indexOf('=')));
-const deleteWithStep = (store: Store): number | undefined => {
-  const s = store.getState(), ids = s.ifcSource?.stepIds ?? {};
-  const task = s.tasks.find(t => ['Set up site', 'Demolish existing extension'].includes(t.name) && ids[`task:${t.id}`] !== undefined);
-  if (task) { s.deleteTask(task.id); return ids[`task:${task.id}`]; }
-  const resource = s.resources.find(r => r.name === 'Bricklayers' && ids[`res:${r.id}`] !== undefined);
-  if (resource) { s.removeResource(resource.id); return ids[`res:${resource.id}`]; }
-  return undefined;
-};
+const plainDelete = (count: number): NotifyInput => ({ severity: 'info', messageKey: DELETE_KEY, params: { count } });
 
-for (const seed of [41, 42, 43]) {
-  await check(`fixronde 4 van #1199, regel B als eigenschap (zaad ${seed}): de knop staat er precies zolang geen geslaagde of lopende momentopname de wisstap bevat`, async () => {
-    const sw = saveWorker('manual');
-    const { createAppStoreContext } = await loadStore(), context = createAppStoreContext({ ifcSaveCompute: sw.compute }), { store } = context;
-    store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
-    const docs: { id: string; name: string }[] = [];
-    for (let k = 0; k < 2; k++) {
-      const name = `regelb-${seed}-${++handleCount}.ifc`;
-      handleFiles.set(name, LINKED);
-      await store.getState().openOpenedFile({ name, content: '', bytes: LINKED,
-        ref: { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle } });
-      docs.push({ id: store.getState().activeDocumentId, name });
-    }
-    clearNotices(store);
-    const unregister = recoveryRounds(store), auto = modelAutoSave(store, sw.compute), next = rng(seed);
-    const log: string[] = [];
-    let alive: { doc: string; event: string; step: number } | null = null;
-    let doc = docs[1]!, shown = 0;
-    const visibleNow = (running?: Uint8Array) => alive !== null && alive.doc === doc.id && headOf(store) === alive.event
-      && linkLines(fileOf(doc.name), alive.step).length > 0 && !(running && linkLines(running, alive.step).length === 0);
-    const expectKnob = (what: string, running?: Uint8Array) => {
-      const want = visibleNow(running), notices = deleteNotices(store);
-      const got = notices.length === 1 && notices[0]!.action?.kind === 'undoHistoryEvent' && notices[0]!.action.eventId === alive?.event;
-      assert.equal(got, want, `${what}, na ${log.join(' ')}: knop ${want ? 'verwacht' : 'niet verwacht'}, gezien ${JSON.stringify(notices.map(n => n.action))}`);
-      if (!want) assert.deepEqual(notices, [], `${what}: geen wismelding`);
-      if (want) shown++;
-    };
-    const wis = () => {
-      const step = deleteWithStep(store);
-      if (step === undefined) { longer(store); alive = null; return; }
-      alive = linkLines(fileOf(doc.name), step).length > 0 ? { doc: doc.id, event: headOf(store)!, step } : null;
-    };
+await check('fixronde 5 van #1199: wissen meldt één gewone melding zonder knop met het aantal van die wisstap; Ctrl+Z trekt niets in, Ctrl+Y meldt opnieuw', async () => {
+  const { store } = await openHandle(LINKED), unregister = recoveryRounds(store);
+  try {
+    const calls = recordDeletes(store);
+    store.getState().deleteTask(taskNamed(store, 'Set up site'));
+    const first = await writtenCount(store);
+    assert(first > 0);
+    assert.deepEqual(calls, [plainDelete(first)], 'één aanroep, het aantal van die wisstap, geen actie');
+    store.getState().deleteTask(taskNamed(store, 'Demolish existing extension'));
+    const second = await writtenCount(store) - first;
+    assert(second > 0);
+    assert.deepEqual(calls, [plainDelete(first), plainDelete(second)], 'de tweede wisstap meldt haar eigen aantal');
+    assert.equal(deleteNotices(store).length, 2, 'twee eigen meldingen');
+    store.getState().undo();
+    assert.equal(calls.length, 2, 'Ctrl+Z meldt niets');
+    assert.equal(deleteNotices(store).length, 2, 'en trekt niets in');
+    store.getState().redo();
+    assert.deepEqual(calls.at(-1), plainDelete(second), 'Ctrl+Y meldt de wisstap opnieuw');
+    store.getState().removeResource(store.getState().resources.find(r => r.name === 'Bricklayers')!.id);
+    const third = await writtenCount(store) - first - second;
+    assert(third > 0);
+    assert.deepEqual(calls.at(-1), plainDelete(third), 'een resource wissen');
+    const before = calls.length;
+    store.getState().deleteTask(taskNamed(store, 'Apply roofing'));
+    assert.equal(calls.length, before, 'een taak zonder koppeling: geen melding');
+  } finally { unregister(); await clearRecovery(); }
+  for (const [label, source, flag] of [['flag uit', LINKED, false], ['zonder vreemd deel', plainBytes(), true]] as const) {
+    const { store } = await openInStore(source);
+    if (!flag) store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    const calls = recordDeletes(store);
+    const task = store.getState().tasks.find(t => t.name === 'Set up site') ?? store.getState().tasks.find(t => !t.childIds.length)!;
+    store.getState().deleteTask(task.id);
+    assert.deepEqual(calls, [], `${label}: geen melding`);
+  }
+});
+
+for (const [label, existing] of MAIN_STACKS) {
+  await check(`fixronde 5 van #1199: de stapel met ${label} en een wisstap doet wat main doet met een vierde gewone melding`, async () => {
+    const { store } = await openHandle(LINKED), unregister = recoveryRounds(store);
     try {
-      for (let i = 0; i < 40; i++) {
-        if (next(4) === 0) { doc = docs.find(d => d !== doc)!; store.getState().switchDocument(doc.id); alive = null; log.push('wissel'); }
-        const ops = ['wis', 'wis', 'ctrlZ', 'ctrlS', 'fout', 'auto', 'stil', 'stil', 'langer'] as const;
-        const op = ops[next(ops.length)]!;
-        log.push(op);
-        if (op === 'wis') wis();
-        else if (op === 'langer') { longer(store); alive = null; }
-        else if (op === 'ctrlZ') { store.getState().undo(); alive = null; }
-        else if (op === 'ctrlS' || op === 'fout') {
-          if (op === 'fout') handleFaults.set(doc.name, { writeErrorAt: 0 });
-          try { await answering(sw, ctrlS(store)); } finally { handleFaults.delete(doc.name); }
-        } else if (op === 'auto') await answering(sw, auto.round());
-        else {
-          if (!store.getState().isDirty) { longer(store); alive = null; }
-          const before = sw.requests().length, writing = ctrlS(store);
-          await mergeArrives(sw, before + 1);
-          const request = sw.requests().at(-1)!;
-          const { response } = await handleIfcSaveRequest(structuredClone(request));
-          const running = 'result' in response && response.result.kind === 'merge' ? response.result.prepared.bytes : undefined;
-          expectKnob('tijdens de stilgezette opslag', running);
-          const inner = (['wis', 'ctrlZ', 'niets'] as const)[next(3)]!;
-          log.push(`(${inner})`);
-          if (inner === 'wis') wis();
-          else if (inner === 'ctrlZ') { store.getState().undo(); alive = null; }
-          expectKnob('tijdens de stilgezette opslag, na de stap erin', running);
-          await answering(sw, writing);
-        }
-        expectKnob(`stap ${i}`);
-        for (const other of store.getState().ui.notifications.filter(n => n.dedupeKey !== FOREIGN_LINKS_NOTICE_KEY)) store.getState().dismissNotification(other.id);
-      }
-      console.log(`zaad ${seed}: ${log.join(' ')}; knop ${shown} keer gezien`);
-      assert(shown >= 3, `de reeks liet de knop maar ${shown} keer zien`);
-    } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+      clearNotices(store);
+      for (const n of existing) store.getState().notify(n);
+      store.getState().deleteTask(taskNamed(store, 'Set up site'));
+      const { createAppStoreContext } = await loadStore(), reference = createAppStoreContext().store;
+      for (const n of existing) reference.getState().notify(n);
+      reference.getState().notify({ severity: 'info', messageKey: 'notifications.reportLayoutGone' });
+      const shape = (list: readonly { dedupeKey?: string }[]) => list.map(n => n.dedupeKey ?? 'nieuw');
+      assert.deepEqual(shape(store.getState().ui.notifications), shape(reference.getState().ui.notifications));
+      assert.equal(deleteNotices(store).length, shape(reference.getState().ui.notifications).includes('nieuw') ? 1 : 0);
+    } finally { unregister(); await clearRecovery(); }
   });
 }
 

@@ -11,8 +11,15 @@ gaten meetelt, niet op de as van de zuivere werkduur (ADR 0002, ADR 0015).
 - Nivelleergaten schrijft een nieuwe nivellering opnieuw (`writeLevelingResult`, ADR 0165). Ze vallen weg bij
   nivellering wissen (`clearLevelingOutput`) en bij een bewerking die de tijdbasis verzet (ADR 0213), beide via
   `clearLevelingGaps`; die functie laat gaten zonder `source` en met `'user'` staan.
-- Bewerkt de planner de onderbrekingen (`setTaskSplits`), dan worden de nivelleergaten van die taak gebruikersgaten
-  (`adoptLevelingGaps` in `splitMutations.ts`).
+- Bewerkt de planner de onderbrekingen, dan maakt `applyTaskSplits` (`splitMutations.ts`) de nivelleergaten van die
+  taak tot gebruikersgaten (`adoptLevelingGaps` in `splitEdit.ts`). De store-actie `setTaskSplits` (`taskSlice.ts`)
+  en de MCP-transactie roepen die functie aan.
+- Een importgat houdt bij zo'n bewerking niet altijd zijn plek. Verandert de planner het werkstuk vóór een importgat
+  (`setWorkLength` in `splitEdit.ts`), dan rekent `fromSplitPieces` de offset van dat gat opnieuw uit en blijft
+  `source` leeg. Een importgat krijgt `'user'` pas bij een directe wijziging van zijn pauzeduur (`setGapLength`).
+- Een gat behouden is iets anders dan zijn oorspronkelijke plek herstellen. `clearLevelingGaps` haalt alleen de
+  nivelleergaten weg en zet de andere niet terug. Verschoof een nivelleerpauze een later importgat (`scatterSlot` in
+  `ResourceLeveler.ts`), dan blijft dat gat na het wissen op de latere plek staan (knownbug 2321).
 - De nivelleerder knipt een taak met een gebruikersgat niet verder op; een importgat houdt dat niet tegen (ADR 0165).
 - Bij een duurwijziging met contour herschaalt `rescaleSplitGaps` de importgaten en de gebruikersgaten, niet de
   nivelleergaten (ADR 0003). Een gebruikersgat rondt het daarbij af op de eenheid van `splitUnitMinutes`: een uur bij
