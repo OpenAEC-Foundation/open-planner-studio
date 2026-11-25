@@ -149,7 +149,8 @@ net als het formaat van de uitvoer (`attemptFormat`); Automatisch opslaan legt h
 `listPlain`. Elke beslissing van die poging (het formaat van de uitvoer, de BOM, de zelfgeschreven versie, de
 doelcontrole, de toets van #1174, de toets bij de beurt in de rij, de vingerafdruk bij het vastleggen van een gewone
 planning) gebruikt die stand; een flagwissel geldt pas vanaf de volgende poging (besluit van de technisch eigenaar,
-25 november 2026, PR #1213 en #1223).
+25 november 2026, PR #1213 en #1223). De vraag vóór het opslaan (`tauri-ifc.md`) leest haar instelling
+(`ui.foreignChangesQuestion`) uit dezelfde momentopname.
 De stop van Automatisch opslaan vervalt zodra `guardedKnownTarget` een
 andere waarde geeft: een vastgelegde eigen opslag of een export die het eigen doel schreef (`settleFingerprintAfterExport`;
 een nieuw object, ook als er intussen nieuw werk is), de flag uit (`setUI` wist het veld) of een onbekende versie;

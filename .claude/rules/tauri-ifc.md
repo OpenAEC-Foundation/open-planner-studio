@@ -214,6 +214,24 @@ als (een eigen zin: "in de download"), de IFC-export en `planner_export_ifc` (in
 grenzen van de stapel van main; wat ze niet kan, staat in knownbug 2357. Weigeren blijft: een verwijzing naar een R-stuk
 (`verwijzing-naar-p`, het krijgt een nieuw id) en naar een D-stuk dat de planning niet kent (`verwijderd`).
 
+**De vraag vóór het opslaan** (#804, besluit eigenaar 25 november 2026). Met de instelling `ui.foreignChangesQuestion` aan
+(standaard; `ops-foreignChangesQuestion`, per apparaat) vraagt een documentopslag met een niet-lege
+`prepared.foreignChanges` eerst of het mag (`askForeignChanges` in `services/ifc/foreignChangesQuestion.ts`), met de
+lengte van die lijst: in `writeActiveDocument` direct na de merge en de controle erna, vóór de doelcontrole, de
+site-keuze en de kiezer (met de naam van het eigen pad, de eigen handle of het bestand op de site; zonder eigen doel en
+bij een geweigerde schrijftoestemming de vorm "nieuw bestand"); in `saveDocumentAsOnTurn` direct na de merge, vóór de
+site-keuze en de kiezer (altijd "nieuw bestand"). Zo vragen Ctrl+S, *Opslaan* in de sluitvraag, afsluiten, de site,
+Opslaan als en de download; er wordt na de vraag niets opnieuw gerekend. Annuleren: de poging geeft `false`, schrijft
+niets en meldt niets. Opslaan: de route toetst de inhoud opnieuw (`refuseChangedDocumentWrite`) en daarna lopen alle
+controles zoals zonder vraag. Na een beantwoorde vraag komt geen telling achteraf (de route onthoudt het
+`PreparedIfcWrite`-object, `countShownBeforeWrite`). De vraag hangt alleen aan `write.prepared` en leest de flag dus
+niet zelf; de instelling komt uit de momentopname van de poging. Het vinkje "Niet meer vragen" telt alleen met Opslaan
+en zet de instelling uit. Met de vraag uit, bij een export (ook `planner_export_ifc`) en bij Automatisch opslaan geldt
+regel A hierboven zoals vóór de vraag (Automatisch opslaan wacht op een besluit, `settings-autosave.md`). Wat er bij
+opslaan vervalt, is ook vooraf te tellen: `foreignChangesIfSaved` (`state/foreignLinksNotice.ts`, dezelfde regel als de
+wismelding) geeft hetzelfde aantal als de merge (`check-ifc-foreign-telling-vooraf.ts`). Proeven: de blokken "vraag
+vóór opslaan" in `check-ifc-document-save.ts` en de stap met `bonsai-4d.ifc` in `settings-tabs.spec.ts`.
+
 **De opslagworker** (#804 stap 4 tot en met 6, `src/services/ifc/saveWorker/`) rekent wat `prepareIfcOutput` rekent (de
 gewone writer of `prepareIfcWrite`) in een Web Worker. De gewone writer hergebruikt hem; na elk antwoord op een merge (een
 uitkomst of een weigering) stopt hij en start het volgende verzoek een nieuwe (knownbug 1936: een worker houdt het afval
