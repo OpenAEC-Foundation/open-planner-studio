@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { constraintBlockingStart, predecessorDrivenTaskIds, startConstraintAfterEdit } from '@/engine/startEditConstraint';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
+import { planningCanon } from '@/services/ifc/foreign/planningCanon';
 import { splitStepArgs } from '@/services/ifc/foreign/stepScanner';
 import { documentContentOf } from '@/state/documentSaveState';
 import { computeIfcOutputHere, prepareIfcOutput } from '@/state/prepareIfcOutput';
@@ -431,6 +432,27 @@ for (const [name, text] of [['de pinbron', SOURCES[0][1]], ['bonsai-4d.ifc', B4D
     const swapped = patch(text, nest.id, 5, `(${[members[1], members[0], ...members.slice(2)].join(',')})`);
     ok(`${label}: een verwisseling bij ${JSON.stringify(q.name)} blijft rood`, regelC(o.ifcSource!, graph, referenceGraph(new TextEncoder().encode(swapped)), scope)
       .some(x => x === `IFCRELNESTS #${nest.id} heeft in slot 5 een andere volgorde`));
+  }
+}
+
+{
+  const o = await openForeign(new TextEncoder().encode(B4D));
+  const edited = await storeEdit(cloneDomain(o), s => {
+    const task = taskNamed(s, 'Wand B bouwen').id;
+    s.assignResource(task, s.resources.find(r => r.name === 'Metselploeg')!.id, 2);
+    s.assignResource(task, s.addResource(NEW_RESOURCE), 1);
+  });
+  const label = 'bonsai-4d.ifc, twee ploegen aan "Wand B bouwen"';
+  const wandB = edited.tasks.find(t => t.name === 'Wand B bouwen')!.id, onB = edited.assignments.filter(a => a.taskId === wandB);
+  const swapped = cloneDomain(edited as Opened);
+  const at = swapped.assignments.findIndex(a => a.id === onB[0].id), next = swapped.assignments.findIndex(a => a.id === onB[1].id);
+  [swapped.assignments[at], swapped.assignments[next]] = [swapped.assignments[next], swapped.assignments[at]];
+  ok(`${label}: de herleestoets ziet een andere volgorde binnen een taak`, onB.length === 2 && planningCanon(swapped) !== planningCanon(edited));
+  const result = await tryMerge(edited, o.ifcSource!);
+  ok(`${label}: geschreven (${refusal(result)})`, result.ok);
+  if (result.ok) {
+    const perTask = (d: Domain) => d.assignments.map(a => `${d.tasks.find(t => t.id === a.taskId)!.name}: ${d.resources.find(r => r.id === a.resourceId)!.name} ${a.unitsPerDay}`);
+    eq(`${label}: na heropenen dezelfde toewijzingen in dezelfde volgorde`, perTask(await openForeign(result.bytes)), perTask(edited));
   }
 }
 
