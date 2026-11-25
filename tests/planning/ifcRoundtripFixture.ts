@@ -299,4 +299,3 @@ export const fixture: ImportResult = {
   importPristine: true,
   recordedSourceFormat: 'mspdi',
 };
-

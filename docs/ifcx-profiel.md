@@ -313,7 +313,12 @@ schrijft de writer niet; de lezer geeft dan een lege lijst terug, zoals de laadg
 `openaec::ops::task`, de structuur per taak (`structureFields.ts`): `customTaskTypeId` (tekst), `activityCodes` (lijst
 van `{ type, value }`: het id van de codesoort en van de waarde) en `customFields` (lijst van `{ field, text }`,
 `{ field, number }` of `{ field, boolean }`, naar het soort van de waarde). Zij verwijzen met het interne id, zoals STEP
-ze bewaart; codes, eigen velden en werksoorten zijn geen objecten met een pad.
+ze bewaart; codes, eigen velden en werksoorten zijn geen objecten met een pad. STEP schrijft voor codes en eigen velden ook
+een `IfcSimplePropertyTemplate` met een GlobalId, maar bij herlezen komt die GlobalId niet als identiteit van de definitie
+terug (niet in `ifcGlobalIds`): de lijsten komen uit het JSON-pset `OPS_StructureMeta`, de waarden per taak koppelt de
+lezer via de definities aan de interne id's, en de gebruikte werksoorten komen uit `OPS_TaskTypes`. De templates leest
+STEP alleen als terugval zonder dat pset, met nieuwe id's. Een identiteitspad (een soort in `IDENTITY_KINDS`) zou dus
+identiteit toevoegen die de STEP-lezing niet heeft.
 
 `openaec::ops::task`, rekenen (`taskScheduleFields.ts`): `constraint` (`{ type, date, hard }`, `type` keuze `ASAP`,
 `ALAP`, `SNET`, `SNLT`, `FNET`, `FNLT`, `MSO`, `MFO`, `date` een moment), `constraint2` (`{ type, date }`: STEP bewaart
@@ -349,11 +354,19 @@ P6-bronarchief (`xerImportMetadata`, `xerSourceArchive`, `xerSourceProjectId`) e
 (`foreignSourceMark`, `ifcSource`). Een nieuw veld in `IFC_SAVE_KEYS` zonder plek is een compileerfout;
 `check-ifcx-velden.ts` toetst dat elke plek gedragen wordt of nog bij F3-2 hoort.
 
-**De volledigheidspoort.** `tests/planning/check-ifcx-velden.ts` toetst elk voorbeeld in `public/examples` en de
-maximaal gevulde fixture van `check-ifc-roundtrip.ts` (`tests/planning/ifcRoundtripFixture.ts`), rechtstreeks en via de
-app: met resources, toewijzingen en baselines weigert de writer met `unsupported` en alleen de velden van F3-2; zonder
-die gegevens opent IFCX als de eerste STEP-lezing na de laadgrens, is het bestand de projectie van wat de lezer
+**De volledigheidspoort.** `tests/planning/check-ifcx-velden.ts` toetst elk voorbeeld in `public/examples`, de elf eigen
+bestanden van oudere releases in `tests/planning/fixtures/oude-tags/` en de maximaal gevulde fixture van
+`check-ifc-roundtrip.ts` (`tests/planning/ifcRoundtripFixture.ts`), op twee routes: rechtstreeks met de lezing van STEP,
+en geopend in de app (`openOpenedFile` met de flag `ifcx`, dus met de laadgrens, de minutenomzetting en de activering) met
+de opslaginvoer van Ctrl+S (`buildWriteIFCInput`). Met resources, toewijzingen en baselines weigert de writer met
+`unsupported` en alleen de velden van F3-2, en noemt hij minstens één veld; zonder die gegevens (in de app verwijderd met
+de acties van de store) opent IFCX als de eerste STEP-lezing na de laadgrens, is het bestand de projectie van wat de lezer
 teruggeeft, en doet een tweede opslag wat STEP doet. De vergelijking is die van de kernproef (`tests/planning/ifcxProof.ts`).
+Daarnaast een gewone bewerking in de app, op `v2026.9.0-urentaak-10-villa-wassenaar.ifc` en
+`showcase-rijwoningen-de-akkers.ifc`: een code en een eigen veld toevoegen en op een taak invullen, en vast werk als
+werkregel kiezen. Uit dezelfde opslaginvoer schrijft de proef STEP en IFCX, opent beide in de app, slaat elk opnieuw op
+vanuit de geopende toestand en opent weer; beide keren geven de twee bestanden in de app dezelfde opslaginvoer, met de
+bewerking erin.
 
 ## Lag
 

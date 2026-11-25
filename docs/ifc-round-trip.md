@@ -236,8 +236,10 @@ nieuw veld ook een plek in IFCX:
   niet krijgt).
 - **De proeven.** De waarde komt in `maximalPlan` van `tests/planning/check-ifcx-kern.ts` (dan doen de veldproef,
   de mutatieproef en de proef die elk precies veld weghaalt het werk) en in de fixture hierboven. De
-  volledigheidspoort `tests/planning/check-ifcx-velden.ts` eist dat elk voorbeeld in `public/examples` en de
-  fixture als IFCX opslaan en openen als de eerste STEP-lezing na de laadgrens.
+  volledigheidspoort `tests/planning/check-ifcx-velden.ts` eist dat elk voorbeeld in `public/examples`, de bestanden
+  van oudere releases in `tests/planning/fixtures/oude-tags/` en de fixture als IFCX opslaan en openen als de eerste
+  STEP-lezing na de laadgrens, ook geopend in de app met de opslaginvoer van Ctrl+S, en dat een code, een eigen veld en
+  een werkregel die in de app zijn toegevoegd na heropenen en opnieuw opslaan gelijk zijn aan STEP.
 
 ## Als een veld bewust níét round-trippt
 
