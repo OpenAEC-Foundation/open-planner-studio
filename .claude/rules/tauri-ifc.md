@@ -203,15 +203,29 @@ rekent de lijst na met een eigen lezer (`foreign/stepValue.ts`), los van de rege
 stuk moet vanuit de ontbrekende D-stukken te verklaren zijn, een gewijzigd stuk is precies de bron zonder de leden naar
 verwijderde stukken. Een vreemd lid van een eigen pset van een verwijderd object blijft als los stuk staan en staat niet
 op de lijst (§4.2 stap 3). Bij het wissen van een taak of resource, en bij Opnieuw van zo'n stap, meldt
-`state/foreignLinksNotice.ts` met dezelfde regel hoeveel er bij opslaan verandert: één gewone info van main, zonder knop,
-eigen duur of `dedupeKey`, met het aantal van die ene wisstap (fixronde 5 van #1199). Ze deelt de grenzen van de stapel
-van main; de knop *Ongedaan maken* komt in PR 7 (knownbug 2357). Regel A: na het schrijven meldt `state/foreignChangesWrittenNotice.ts` per geslaagde
+`state/foreignLinksNotice.ts` met dezelfde regel hoeveel er bij opslaan verandert: één info van main met het aantal van
+die ene wisstap en de knop *Ongedaan maken* (`undoHistoryEvent`, 12 s, zonder `dedupeKey`), bewaakt door `watchNotice`
+uit `otherWorkNotice.ts`: weg bij een nieuwere stap, Ctrl+Z of een ander tabblad (PR 7). Ze deelt de grenzen van de
+stapel van main (knownbug 2357). Regel A: na het schrijven meldt `state/foreignChangesWrittenNotice.ts` per geslaagde
 schrijfactie met een niet-lege lijst één eigen gewone melding (info, blijvend, geen `dedupeKey`) met de naam van het
 geschreven doel uit de schrijfuitkomst (pad, handlenaam of de naam die de site teruggeeft) en het aantal, op elke
 schrijfroute: `commitSavedDocument` (ook AutoSave en de site), de downloadtakken van Ctrl+S en Opslaan
 als (een eigen zin: "in de download"), de IFC-export en `planner_export_ifc` (in het antwoord). Die melding deelt de
 grenzen van de stapel van main; wat ze niet kan, staat in knownbug 2357. Weigeren blijft: een verwijzing naar een R-stuk
 (`verwijzing-naar-p`, het krijgt een nieuw id) en naar een D-stuk dat de planning niet kent (`verwijderd`).
+
+**`detached`** (PR 7, `foreign/detached.ts`, ontwerp §4.7). De bron van een geslaagde merge (`writtenSource`) draagt in
+`ifcSource.detached` de oude bytes van elk stuk op de wijzigingslijst (eigen kopie, de oudste versie, met per verwijzing
+naar een D-object de seed), de `sourceSlots` en koppelingen van verdwenen objecten, en per GlobalId de bewaarde relaties
+van een ander programma die een lid kwijtraakten, met hun oudste ledenlijst. Alleen als het niet leeg is en de uitvoer een
+vreemd deel heeft; zonder wissen is de bron dus gelijk aan die van main. Komt een object met dezelfde domein-id terug,
+dan zet `prepareIfcWrite` terug: de constante slots op de regel van de writer (`withReturnedSlots`), de D-leden van een
+teruggezette gemengde relatie uit de eigen relatie (`withoutRestoredMembers`), en in `checkedOutput` (na de
+verliesbewaking) de leden van bewaarde relaties (`withReturnedMembers`) en de stukken met de huidige ids: op hun plek of
+direct na het P-blok (`renderedRestorations`, de `appended` van `assemble`). De wijzigingslijst krijgt dan soort
+`teruggezet`; controle 1 eist de bytes en `countedForeignChanges` telt ze niet. De opslagworker draagt de buffers terug
+over en `resultFits` eist de vorm (`isDetached`). Het taakpaneel valt terug op de koppelingen in `detached`. Wat nog niet
+meegaat: knownbug 2354. Proef: `check-ifc-foreign-detached.ts`.
 
 **De opslagworker** (#804 stap 4 tot en met 6, `src/services/ifc/saveWorker/`) rekent wat `prepareIfcOutput` rekent (de
 gewone writer of `prepareIfcWrite`) in een Web Worker. De gewone writer hergebruikt hem; na elk antwoord op een merge (een
@@ -416,8 +430,8 @@ pset met twee properties met dezelfde naam is ongeldige IFC. Heeft de taak geen 
 met alleen deze sleutels. In `checkedBytes` eist `unusedKeysProblem` per bestaande taak in de herlezing van de uitvoer
 dezelfde waarden onder de namen die de regel geeft, en weigert `duplicateAssignmentKeyProblem` elke naam die in
 `OPS_Assignments` vaker voorkomt dan in de bron, ook een eigen sleutel naast een vreemd lid (beide `uitvoer-controle`).
-De nieuwe bron neemt de lijst uit die herlezing. Een gewiste taak neemt haar sleutels mee; melding en `detached` volgen
-in PR 6 en 7. Zonder vreemd deel schrijft de gewone writer ze niet, zoals op main; een paar bronvormen weigeren nog
+De nieuwe bron neemt de lijst uit die herlezing. Een gewiste taak neemt haar sleutels mee (op de wijzigingslijst);
+na Ctrl+Z komen ze nog niet terug (knownbug 2354). Zonder vreemd deel schrijft de gewone writer ze niet, zoals op main; een paar bronvormen weigeren nog
 (knownbug 2210). Proef: `check-ifc-foreign-ongebruikte-sleutels.ts`.
 
 ### Tokens per slot van een ander programma (#804 fase 2, `sourceSlots`)

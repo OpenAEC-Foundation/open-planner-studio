@@ -4354,14 +4354,9 @@ en noem het in je rapport of PR-tekst.
       herstelde undo-stap door aan dezelfde teller: wist de planner een losse gekoppelde relatie of wiste hij via MCP
       (`planner_delete_tasks`), dan komt er bij die eerste wissing geen wismelding, maar na Ctrl+Z en Ctrl+Y alsnog wel,
       als die stap een stuk van een ander programma laat vervallen (gezien in de code door de reviewer van #1199,
-      ronde 6; niet nagespeeld). Richting: dezelfde aanroep in `removeSequence` en `commitCalendarLibrary`. — S
-2250. **VERVOLG (#1199): Ctrl+Z na het opslaan, of tijdens het opslaan na de momentopname, brengt de taak terug, niet
-      de koppeling van het andere programma.** Na het opslaan is `ifcSource` de uitvoer zonder de vervallen stukken, en
-      undo zet de bron niet terug (documentveld zonder momentopname). Een opslag die haar momentopname al had, schrijft
-      en commit die uitvoer ook als de planner intussen Ctrl+Z drukt. De wismelding heeft in deze PR geen knop (die komt
-      in PR 7); Ctrl+Z op het toetsenbord werkt wel. De melding na het opslaan
-      zegt dat de gegevens zijn aangepast of verwijderd, maar niet dat Ctrl+Z ze niet terugbrengt. Richting: PR 7 van #804 (`detached`, de soort *teruggezet*) bewaart de oude bytes van
-      de wijzigingslijst en kan ze bij undo terugzetten. Afgeleid uit de code, niet nagespeeld. — S
+      ronde 6; niet nagespeeld). Richting: dezelfde aanroep in `removeSequence` en `commitCalendarLibrary`. Sinds PR 7
+      van #804 heeft de melding de knop *Ongedaan maken*; die geldt dus ook alleen bij taken en resources. Ctrl+Z en de
+      volgende opslag zetten de stukken van een ander programma wel bij elke manier van wissen terug. — S
 2251. **Veel taken wissen in een bestand met een gebouwmodel, en dan opslaan, weigert met `planning-na-openen`.** Met
       de flag *IFC met gebouwmodel openen* aan: een gegenereerde planning van 10.000 taken
       (`generateBenchmarkProject(10_000, { seed: 0x5eed })` via `writeIFC`, met één `IfcWall` erbij en geen koppeling),
@@ -4384,19 +4379,46 @@ en noem het in je rapport of PR-tekst.
         krijgen dezelfde regel als hun aantal gelijk is (de desktop-app noemt het volledige pad).
       Dit is een voorwaarde voor het standaard aanzetten van de flag *IFC met gebouwmodel openen*: de planner mist de
       telling van een opslag niet. De richting is een keuze van de eigenaar: vragen vóór het schrijven, of de uitkomst
-      duurzaam vastleggen en opnieuw tonen. Knownbug 2250 blijft staan. Besluit technisch eigenaar bij het opknippen van
-      #1199 (fixronde 3).
+      duurzaam vastleggen en opnieuw tonen. Besluit technisch eigenaar bij het opknippen van #1199 (fixronde 3). Sinds
+      PR 7 van #804 brengt Ctrl+Z na het opslaan de stukken bij de volgende opslag terug, zolang het document open is;
+      de telling zegt dat niet.
 
       De waarschuwing bij het wissen (`notifyForeignLinksDropped` in `src/state/foreignLinksNotice.ts`) is ook een gewone
-      melding: een info van main zonder knop, met het aantal van die ene wisstap. Ze deelt dezelfde grenzen. Staan er al
+      melding: een info van main met het aantal van die ene wisstap en, sinds PR 7 van #804, de knop *Ongedaan maken*
+      (de bewaking van de knop van main, `watchNotice`: ze staat er zolang de wisstap de stap van Ctrl+Z is, 12 s). Ze
+      deelt dezelfde grenzen. Staan er al
       drie meldingen open, dan kan ze ontbreken: het meldingenkanaal van main bepaalt welke melding plaatsmaakt. Zijn
       het drie schrijffouten of drie tellingen van eerdere opslagen, dan haalt de stapel de wismelding meteen weer weg
       en ziet de planner haar niet; staat er een gewone info of een passende weigering tussen, dan wijkt die en blijft
       de wismelding zichtbaar. Het opslaan laat de gegevens in beide gevallen vervallen.
-      Ze verdwijnt na de gewone tijd van main en hangt alleen aan het wissen van taken en resources
-      (knownbug 2249). De knop *Ongedaan maken* komt in PR 7 (`detached`). Dit is de twaalfde voorwaarde voor het
+      Ze verdwijnt na 12 s, bij een nieuwere stap en bij Ctrl+Z, en hangt alleen aan het wissen van taken en resources
+      (knownbug 2249). Dit is de twaalfde voorwaarde voor het
       standaard aanzetten van de flag: de planner mist de waarschuwing bij het wissen niet en kan vanuit die waarschuwing
       ongedaan maken. Besluit technisch eigenaar, 25 november 2026 (fixronde 5). — S
+2354. **VERVOLG (#804 PR 7): wat `detached` nog niet meeneemt.** Ctrl+Z na het opslaan zet de stukken van de
+      wijzigingslijst, de constante slots van een teruggekomen object en de leden van een bewaarde relatie van een ander
+      programma terug (`src/services/ifc/foreign/detached.ts`). Nog niet, gezien in de code:
+      - de onbekende JSON-sleutels van een verdwenen object: die zijn er pas met #1188;
+      - de ongebruikte sleutels in `OPS_Assignments` van een verwijderde taak: ze staan op de wijzigingslijst, maar de
+        writer krijgt ze na Ctrl+Z niet terug (`unusedKeysForWriter` leest alleen de bron);
+      - een vreemd lid van een eigen pset van een verwijderd object: het blijft als los stuk staan (§4.2 stap 3), maar
+        hangt na Ctrl+Z niet weer aan de pset van het object;
+      - de domeinslots van een teruggekomen object van een ander programma: die schrijft de writer in zijn eigen vorm,
+        met dezelfde waarden (de constante slots, zoals de owner history, komen wel terug);
+      - laat een opslag geen vreemd deel meer over (alles van het andere programma wees naar wat gewist is), dan heeft
+        de bron geen vreemd deel en dus geen `detached`; Ctrl+Z brengt het dan niet terug;
+      - een stuk dat bij terugzetten een nieuw `#id` kreeg en nog een lid mist, terwijl een ander bewaard stuk naar zijn
+        oude `#id` verwijst: die verwijzing vindt het later niet meer.
+      Geen van deze gevallen zit in `bonsai-4d.ifc` of de pinbron; `check-ifc-foreign-detached.ts` toetst ze niet. — S
+2371. **Na een opslag een tweede taak onder dezelfde ouder wissen en opslaan weigert met `niet-eenduidig`.** Flag aan,
+      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: *Wand A bouwen* wissen, opslaan, *Wand B bouwen* wissen, opslaan. De
+      tweede opslag weigert (`ifcForeignMergeRefused`); de verliesbewaking koppelt de gewiste taak `#108` aan de regel
+      van *Ruwbouw* (`IFCTASK #108 … heeft in de uitvoer na de bewerking dezelfde tegenhanger (#100) als een ander stuk
+      van de bron`). Zonder de tussentijdse opslag schrijft dezelfde reeks wel. Nagespeeld met een script op main
+      `4f9c435c9` en op de branch van PR 7, met dezelfde uitkomst; het komt niet uit `detached`. Er gaat niets verloren
+      (de opslag weigert), maar de planner kan zo niet opslaan; *Exporteren zonder gebouwmodel* blijft de uitweg. De
+      eigenschapsproef van PR 7 vond het (zaad 18) en laat zo'n reeks alleen door als dezelfde reeks met een bron zonder
+      `detached` op dezelfde stap ook weigert. Dit raakt gewoon werk met een gewoon bestand. — B
 
 2303. **De P6 XML-lezer rekent de eenheden van een materiaaltoewijzing om alsof het uren zijn.** In de toewijzingslezer
       van `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) worden `PlannedUnits`, `ActualUnits` en `RemainingUnits`
