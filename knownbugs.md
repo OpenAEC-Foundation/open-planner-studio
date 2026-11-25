@@ -4562,7 +4562,15 @@ en noem het in je rapport of PR-tekst.
      die fase. De app toont na heropenen weer 7 mei 07.00 uur en de opgerolde voortgang; een IFC-lezer die `IFCTASKTIME`
      leest, ziet de andere waarde. De toets op de slots gaat over de tijdslots 3 tot en met 19 van `IFCTASKTIME`; de
      argumenten 0 tot en met 2 (naam en herkomst) leest de planningslezer niet, en een kopie met een andere taaktijdnaam
-     passeert de controle zonder dat de zichtbare planning verandert (review ronde 3 van #1216). Richting: een eigen PR die
+     passeert de controle zonder dat de zichtbare planning verandert (review ronde 3 van #1216). Binnen de modus gelden twee
+     benoemde grenzen (stopregel van de technisch eigenaar, 25 november 2026: een geval dat alleen ontstaat door bytes na het
+     schrijven te veranderen, of door een bron die zichzelf tegenspreekt). (a) Bytes die na het schrijven veranderen buiten de
+     argumenten 3 tot en met 19 van `IFCTASKTIME` en hun hulprecords ziet de slottoets niet; de vergelijking na heropenen ziet
+     ze alleen als de planning verandert. (b) Een bron die zichzelf tegenspreekt: een XER-bron waarin het IFC-slot een andere
+     datum draagt dan het bronarchief (de app toont het archief), of een eigen IFC waarvan de opgerolde fase niet past bij de
+     peildatum in `OPS_ProjectSettings` (de app rolt bij openen opnieuw op, review ronde 4 van #1216). Opslaan in de modus
+     weigert dan met `planning-na-openen`, en de bron blijft staan; main weigert elke opslag in de modus. Een leeg bronslot
+     dat de planner niet wijzigde, blijft leeg (`emptySlots` in `sourceForm.ts`). Richting: een eigen PR die
      buiten de modus de slots met de momentopname vergelijkt (een nieuwe bewaker, niet nodig voor knownbug 2231). — B (review
      ronde 2 van #1216)
 
