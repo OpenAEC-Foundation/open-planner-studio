@@ -1993,14 +1993,18 @@ en noem het in je rapport of PR-tekst.
      van #1205): wordt de projectkalender bij een opslag letterlijk (een mijlpaal, of een taak met verstreken duur), dan
      houdt elk ongewijzigd datumslot van zo'n taak zijn brontoken (regel A), en een einde als `'2027-05-12T07:00'` leest
      in een letterlijke kalender als 07:00 in plaats van 16:00. De merge weigert dan met `bronvorm-leest-anders`; vóór de
-     fixronde schreef hij alle datums van die taken in de vorm van de writer, ook waar de planner niets wijzigde. De
-     pinproef `check-ifc-source-slot-write.ts` legt beide weigeringen vast. — B
+     fixronde schreef hij alle datums van die taken in de vorm van de writer, ook waar de planner niets wijzigde. Een
+     mijlpaal een dag langer maken weigert om dezelfde reden. De pinproef `check-ifc-source-slot-write.ts` legt beide
+     weigeringen vast; `check-ifc-foreign-regel-c.ts` telt ze onder deze grens. — B
 2368. **Een toewijzing wissen weigert als dezelfde ploeg twee keer aan die taak hangt.** Flag aan, een bestand van een
      ander programma met twee `IfcRelAssignsToProcess` die dezelfde resource aan dezelfde taak koppelen (twee inzetten met
      elk een eigen hoeveelheid). De lezer maakt er twee toewijzingen van zonder vast te leggen uit welke relatie elk kwam,
      dus bij het wissen van één van de twee is niet vast te stellen welke relatie weg moet. De merge weigert dan met
      `niet-eenduidig` (`assignmentOrigin` in `src/services/ifc/foreign/assignmentOrigin.ts`, `foreignRelations` in
-     `mergeWriter.ts`); hernoemen en andere bewerkingen schrijven. OPS zelf maakt zo'n paar niet (één resource per taak,
+     `mergeWriter.ts`); hernoemen en andere bewerkingen schrijven. Ook alle exemplaren wissen vóór één opslag weigert zo,
+     want de verzameling toewijzingen veranderde. Naast `niet-eenduidig` meldt de verliescontrole de stukken die alleen
+     aan de tweede relatie hangen als niet gedragen (haar hoeveelheid, of bij een relatie van OPS haar eigenaarsgegevens);
+     dat volgt uit dezelfde weigering. OPS zelf maakt zo'n paar niet (één resource per taak,
      `assignResource`). Richting: de lezer laat elke toewijzing haar bronrelatie dragen (GlobalId), dan is het wissen
      eenduidig. Review ronde 2 van #1205 (Sol); `check-ifc-foreign-regel-c.ts`. — B
 2369. **Een hulpstuk dat twee planningsstukken van een ander programma delen, weigert elke opslag.** Flag aan, een

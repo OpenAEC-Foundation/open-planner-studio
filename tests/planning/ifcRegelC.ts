@@ -28,6 +28,9 @@ const PROCESS = 'IFCRELASSIGNSTOPROCESS';
 const slotOf = (table: string, key: string) => slotTableNamed(table)!.slots.findIndex(s => s.key === key);
 const TASK_TIME = slotOf('IfcTask', 'taskTime');
 const TIME_LAG = slotOf('IfcRelSequence', 'timeLag');
+const CALENDAR = slotTableNamed('IfcWorkCalendar')!;
+const WORK_WEEK = ['workDays', 'workStartHour', 'workEndHour', 'hoursPerDay', 'simpleBreakStartMinute', 'simpleBreakDurationMinutes',
+  'workTime', 'ifcTimePeriods', 'workingExceptions'] as const;
 const edgeKey = (r: number, k: number, t: number) => `${r}.${k}>${t}`;
 
 export function referenceGraph(bytes: Uint8Array): ReferenceGraph {
@@ -145,6 +148,15 @@ export function editScope(graph: ReferenceGraph, source: IfcSource, before: Doma
     const now = sequences.get(q.id);
     if (!now) removed.add(c);
     else if (!sameJson(lagOf(now), lagOf(q))) released.add(`${c}.${TIME_LAG}`);
+  }
+  const calendarsOf = (d: Domain) => new Map([d.calendar, ...(d.resourceCalendars ?? [])].map(k => [k.id, k]));
+  const calendars = calendarsOf(after);
+  for (const [id, k] of calendarsOf(before)) {
+    const c = step(`cal:${id}`), now = calendars.get(id);
+    if (c < 0 || !now) continue;
+    const at = CALENDAR.positions(graph.index.argTokens(c) ?? []);
+    if (!sameJson(k.holidays, now.holidays)) released.add(`${c}.${at.exceptionTimes}`);
+    if (WORK_WEEK.some(f => !sameJson(k[f], now[f]))) released.add(`${c}.${at.workingTimes}`);
   }
   const kept = new Set(after.assignments.map(a => a.id));
   const assigned = new Set(after.assignments.map(a => a.taskId));

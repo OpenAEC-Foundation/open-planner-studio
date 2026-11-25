@@ -11,7 +11,7 @@ import { localTodayIso } from '@/utils/dateUtils';
 import { shownStart, startAnchorAfterEdit } from '@/utils/taskDates';
 import { lengthen, loadStore, openInStore, storeEdit } from './ifcAppRoute';
 import { bonsaiPlanning, PIN_FILE, ROOT } from './ifcBonsaiPin';
-import { cloneDomain, openForeign, sameBytes, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
+import { cloneDomain, openForeign, sameBytes, shownAfterOpen, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
 import { installDeterminism } from './ifcPariteitKern';
 import { editScope, referenceGraph, regelC } from './ifcRegelC';
 
@@ -117,7 +117,7 @@ function casesOf(o: Opened): Case[] {
       const now = s.tasks.find(x => x.id === t.id)!;
       s.updateTask(t.id, taskMilestoneTransition(now, !now.isMilestone));
     }) });
-    out.push({ label: `${at}: duur een dag langer`, edit: d => lengthen(d, t.id) });
+    out.push({ label: `${at}: duur een dag langer${t.isMilestone ? ' (een mijlpaal)' : ''}`, edit: d => lengthen(d, t.id) });
     for (const [field, change] of Object.entries(TIME_FIELDS)) {
       if (DATES.some(key => key === field) && !t.time[field as typeof DATES[number]]) continue;
       out.push({ label: `${at}: ${field} gewijzigd`, edit: sync(d => change(task(d, t.id).time)) });
@@ -163,16 +163,18 @@ const refusal = (r: MergeOutcome) => (r.ok ? 'schrijft' : r.error.cases.slice(0,
 type Case = MergeNeedsPhase2Error['cases'][number];
 interface Boundary { readonly id: string; readonly reason: string; readonly fits: (c: Case, source: string, label: string) => boolean }
 const SHARED = new Set(['een gedeelde lag', 'een gedeelde lag, de tweede reeks van OPS', 'een gedeelde taaktijd', 'een gedeelde taaktijd, de tweede taak van OPS']);
+const ONLY_SECOND = [120, 8002, 8011];
+const OPS_OWNER_IDS = [...OPS_OWNER.matchAll(/^#(\d+)=/gm)].map(m => Number(m[1]));
 const BOUNDARIES: readonly Boundary[] = [
   { id: '2369', reason: 'een hulpstuk dat twee planningsstukken delen; de writer zou het splitsen',
     fits: (c, source) => SHARED.has(source) && [8010, 8012, 109, 108].includes(c.sourceId ?? -1) },
   { id: '2368', reason: 'dezelfde ploeg twee keer aan één taak; welke inzet de planner wiste, is niet vast te stellen',
     fits: (c, source, label) => source.startsWith('twee inzetten') && /^toewijzing [12] \(taak #104, resource #118\) gewist$/.test(label)
-      && [120, 8002, 8011].includes(c.sourceId ?? -1) },
+      && (ONLY_SECOND.includes(c.sourceId ?? -1) || (c.kind === 'niet-gedragen' && OPS_OWNER_IDS.includes(c.sourceId ?? -1))) },
   { id: '2233', reason: 'een kalenderhulpstuk van een ander programma met een herkomstlabel of een gedeelde herhaling',
     fits: (c, source) => source.startsWith('een kalender') && ((c.sourceId === 8110 && c.kind === 'niet-eenduidig') || (c.sourceId === 8100 && c.kind === 'niet-gedragen')) },
   { id: '2234', reason: 'de projectkalender wordt letterlijk (mijlpaal of verstreken duur)',
-    fits: (c, source, label) => source === 'de pinbron' && c.kind === 'bronvorm-leest-anders' && /: (mijlpaal|durationType) gewijzigd$/.test(label) },
+    fits: (c, source, label) => source === 'de pinbron' && c.kind === 'bronvorm-leest-anders' && /: ((mijlpaal|durationType) gewijzigd|duur een dag langer \(een mijlpaal\))$/.test(label) },
   { id: '2256', reason: 'r6 met de IFC4-lengtes: taaktijden buiten de vorm van IFC4 en een taak zonder taaktijd',
     fits: (c, source) => source === R6_LONG && (c.kind === 'bronvorm-leest-anders' || (c.kind === 'planning-na-openen' && /^taak task-ifc-0task0+\.time\.scheduleDuration/.test(c.detail))) },
   { id: 'PR 8', reason: 'een gemengde relatie: resources en producten in één IfcRelAssignsToProcess, of een gemengde kalenderrelatie',
@@ -343,7 +345,7 @@ for (const [name, text] of [['de pinbron', SOURCES[0][1]], ['bonsai-4d.ifc', B4D
     }
     outcomes.push(`${label}: geschreven`);
     eq(`${at}: regel C`, regelC(o.ifcSource!, graph, referenceGraph(result.bytes), editScope(graph, o.ifcSource!, o, edited, result.changes)), []);
-    eq(`${at}: na heropenen ziet de planner wat hij zag`, view(await openForeign(result.bytes)), view(edited));
+    eq(`${at}: na heropenen ziet de planner wat hij zag`, view(await openForeign(result.bytes)), view(await shownAfterOpen(edited)));
   }
   {
     const { store } = await openInStore(bytes);
@@ -369,7 +371,7 @@ for (const [name, text] of [['de pinbron', SOURCES[0][1]], ['bonsai-4d.ifc', B4D
     if (twice instanceof Uint8Array) {
       eq(`gewoon werk op ${name}: ${label}: regel C tegenover de oorspronkelijke bron`, regelC(opened, graph, referenceGraph(twice)), []);
       eq(`gewoon werk op ${name}: ${label}: na heropenen ziet de planner wat hij zag`,
-        view(await openForeign(twice)), view(buildWriteIFCInput(store.getState(), 'merge')));
+        view(await openForeign(twice)), view(await shownAfterOpen(buildWriteIFCInput(store.getState(), 'merge'))));
     }
   }
   ordinary.set(name, outcomes);
