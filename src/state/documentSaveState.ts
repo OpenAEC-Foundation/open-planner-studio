@@ -20,7 +20,7 @@ export interface DocumentSaveState {
   readonly saving: number;
   /** Wanneer een opslag dit document het laatst vastlegde (`commitSavedDocument`), in ms sinds 1970; `null`: nog niet. */
   readonly savedAt: number | null;
-  readonly capturing?: number;
+  readonly snapshotEvent?: string;
 }
 
 type Registry = { documents: Array<{ id: string; content?: number; saveState?: DocumentSaveState; changedOnDisk?: true }> };
@@ -57,7 +57,7 @@ function update(s: Registry, ref: DocumentContentRef, change: (state: DocumentSa
   // Een opslag van een vervangen inhoud raakt de stand van de nieuwe inhoud niet.
   if (!entry || (entry.content ?? 0) !== ref.content) return;
   const next = change(entry.saveState ?? { saving: 0, savedAt: null });
-  if (next.saving === 0 && next.savedAt === null && !next.capturing) delete entry.saveState;
+  if (next.saving === 0 && next.savedAt === null && next.snapshotEvent === undefined) delete entry.saveState;
   else entry.saveState = next;
 }
 
@@ -67,15 +67,12 @@ export function changeSaving(s: Registry, ref: DocumentContentRef, delta: 1 | -1
   update(s, ref, state => ({ ...state, saving: Math.max(0, state.saving + delta) }));
 }
 
-export function changeCapturing(s: Registry, ref: DocumentContentRef, delta: 1 | -1): void {
-  update(s, ref, ({ capturing = 0, ...state }) => {
-    const next = Math.max(0, capturing + delta);
-    return next > 0 ? { ...state, capturing: next } : state;
-  });
+export function holdSnapshotEvent(s: Registry, ref: DocumentContentRef, eventId: string | undefined): void {
+  update(s, ref, ({ saving, savedAt }) => eventId === undefined ? { saving, savedAt } : { saving, savedAt, snapshotEvent: eventId });
 }
 
-export function writeCaptures(s: Readonly<Registry>, documentId: string): boolean {
-  return (s.documents.find(document => document.id === documentId)?.saveState?.capturing ?? 0) > 0;
+export function snapshotHolds(s: Readonly<Registry>, documentId: string, eventId: string): boolean {
+  return s.documents.find(document => document.id === documentId)?.saveState?.snapshotEvent === eventId;
 }
 
 /** Een opslag legde deze inhoud vast (`commitSavedDocument`). */

@@ -22,9 +22,12 @@ tabellen delen en niets hoeven te vertalen behalve wat hieronder staat.
 - `frequency` en `occurrences` staan ongeklemd in de spec, zoals het bestand ze geeft, omdat een lezer op de ruwe
   waarde beslist of een herhaling een gewoon bereik wordt (`isFlattenedNonRecurring` in `mppCalendars.ts`). Pas bij
   het uitrekenen wordt een waarde onder 1 als 1 genomen: `frequency` in `expandRecurrence`, `occurrences` in
-  `moreDates`. De jaarlijkse generatoren krijgen geen `frequency`.
-- Einde: met een `finishDate` loopt een patroon tot en met die datum en telt `occurrences` niet; zonder `finishDate`
-  bepaalt `occurrences` het aantal (`moreDates`).
+  `moreDates`. De jaarlijkse generatoren krijgen geen `frequency`. Wat
+  in `frequency` staat, bepaalt de lezer: bij type 1 zet de `.mpp`-lezer altijd 1 (en leest het record dan als gewoon
+  bereik), de MSPDI-lezer `<Period>`.
+- Einde: met een `finishDate` toetst `moreDates` de cursor van de generator tegen die datum en telt `occurrences`
+  niet; zonder `finishDate` bepaalt `occurrences` het aantal. Bij de maand- en jaarpatronen is die cursor de eerste
+  van de maand, zodat een datum na het einde kan volgen (knownbug 2318).
 - Een jaarlijkse herhaling op een vaste datum met een dag die in de maand niet bestaat (29 februari in een gewoon
   jaar), wordt de laatste dag van de maand. Valt die datum vóór het begin, dan schuift `getYearlyAbsoluteDates` haar
   een jaar op en klemt de al geklemde dag opnieuw, niet de gevraagde dag: met begin 2019-06-01 en dag 29 februari wordt

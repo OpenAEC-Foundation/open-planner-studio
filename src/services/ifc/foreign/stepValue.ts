@@ -88,11 +88,24 @@ export function serializeStepValue(value: StepValue): string {
 const memberRef = (value: StepValue) => value.kind === 'atom' && /^#\d+$/.test(value.text) ? Number(value.text.slice(1)) : undefined;
 const looseRefs = (text: string) => text.startsWith(QUOTE) ? [] : [...text.matchAll(/#(\d+)/g)].map(m => Number(m[1]));
 
-export function stepValueRefs(value: StepValue): number[] {
-  if (value.kind === 'atom') return looseRefs(value.text);
-  const refs: number[] = [];
-  for (const item of value.items) for (const ref of stepValueRefs(item)) refs.push(ref);
-  return refs;
+export interface PlaceTriggers {
+  readonly direct: number[];
+  readonly lists: number[][];
+}
+
+export function placeTriggers(value: StepValue, into: PlaceTriggers = { direct: [], lists: [] }): PlaceTriggers {
+  if (value.kind === 'atom') {
+    for (const id of looseRefs(value.text)) into.direct.push(id);
+    return into;
+  }
+  if (value.kind === 'list') {
+    const refs = value.items.map(memberRef);
+    if (refs.length > 0 && refs.every(id => id !== undefined)) into.lists.push(refs as number[]);
+    else value.items.forEach((item, k) => { if (refs[k] === undefined) placeTriggers(item, into); });
+    return into;
+  }
+  for (const item of value.items) placeTriggers(item, into);
+  return into;
 }
 
 export function losesItsPlace(value: StepValue, removed: ReadonlySet<number>): boolean {

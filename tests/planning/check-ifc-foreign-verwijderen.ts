@@ -451,6 +451,26 @@ await check('een lange keten in omgekeerde bronvolgorde: de uitvoercontrole doet
   assert(large / small < 2.6, `twee keer zo lang geeft ${(large / small).toFixed(2)} keer zoveel werk; lineair is 2, kwadratisch 4`);
 });
 
+await check('een lange keten met één brede pset over alle leden: de uitvoercontrole telt elke vervallen verwijzing één keer', async () => {
+  const work = async (length: number) => {
+    const members = Array.from({ length }, (_, k) => `#${9100 + k}`).join(',');
+    const opened = await openInStore(encode(withLines(reversedChain(length),
+      [`#9000=IFCPROPERTYSET('0BredeKeten000000000000',$,'Pset_Keten',$,(${members}));`])));
+    const source = opened.store.getState().ifcSource!;
+    opened.store.getState().deleteTask(taskId(opened, 'Set up site'));
+    const prepared = await save(opened);
+    assert.equal((prepared.foreignChanges ?? []).filter(c => c.kind === 'vervallen' && c.id >= 9000).length, length + 1, 'de keten en de pset vervallen');
+    const index = scanForeignStep(source.bytes), cls = classify(index);
+    const { result, operations } = arrayAndCollectionOperations(() =>
+      validateMergeOutput(index, cls, source.bytes, prepared.bytes, { changes: prepared.foreignChanges }));
+    assert.deepEqual(result.problems, []);
+    return operations;
+  };
+  const small = await work(400), large = await work(800);
+  console.log(`   werk van de uitvoercontrole met een brede pset bij 400: ${small}; bij 800: ${large}`);
+  assert(large / small < 2.6, `twee keer zo lang geeft ${(large / small).toFixed(2)} keer zoveel werk; lineair is 2, kwadratisch 4`);
+});
+
 function historySteps(run: () => void): number {
   const prototype = Array.prototype as unknown as Record<symbol, (this: unknown[]) => Iterator<unknown>>;
   const original = prototype[Symbol.iterator]!;

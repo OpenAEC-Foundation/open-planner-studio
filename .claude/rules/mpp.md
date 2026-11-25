@@ -19,9 +19,9 @@ externe bibliotheek. `src/services/mpp/` is een eigen, in TypeScript geschreven 
 parser (`cfb.ts`) plus een MPP14-fieldmap-laag (`fieldMap14.ts`, `mppContainer.ts`, `mppEntities.ts`,
 `mppCalendars.ts`, `mppPrimitives.ts`, `mppTimephased.ts`), structureel afgeleid van MPXJ
 (`github.com/joniles/mpxj`, LGPL-2.1) zonder de Java-afhankelijkheid. Entry point `readMPP()`
-(`mppReader.ts`) levert hetzelfde `ImportResult`-contract als de andere lezers en wordt — net als
-CSV/MSPDI/P6-XML/IFC — via `src/services/formatRegistry.ts` (`READ_FORMATS`, één registry voor alle
-open-dispatches en de exportlijst) achter een dynamic import geladen, zodat de CFB/fieldmap-code
+(`mppReader.ts`) levert hetzelfde `ImportResult`-contract als de andere lezers en wordt via
+`src/services/formatRegistry.ts` (`READ_FORMATS`, één registry voor alle open-dispatches en de exportlijst, ook voor
+CSV/MSPDI/P6-XML/IFC) achter een dynamic import geladen, zodat de CFB/fieldmap-code
 buiten de hoofdbundel blijft. De import is **alleen-lezen**: er is geen `.mpp`-schrijfpad, opslaan
 gaat altijd via IFC (zie `.claude/rules/tauri-ifc.md`); oudere `.mpp`-versies (MPP8/9/12) en wachtwoord-versleutelde
 bestanden worden herkend maar geweigerd met een duidelijke foutmelding.

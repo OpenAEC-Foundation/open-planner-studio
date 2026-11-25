@@ -16,7 +16,7 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type RefuseBeforePlace, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, localTargetName, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type RefuseBeforePlace, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import {
   exportReplaceFailedNotice, exportReplaceNotices, ownPathReplaceNotices, remnantNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery,
@@ -101,7 +101,7 @@ import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerEx
 import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementSettled } from '@/services/fileAccess/writeCoordinator';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
-  changeCapturing, changeSaving, clearChangedOnDisk, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
+  changeSaving, clearChangedOnDisk, holdSnapshotEvent, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
   sameDocumentContent, stampSaved, type DocumentContentRef,
 } from '../documentSaveState';
 import { saveQuestionOpen } from '@/state/blockingDialogs';
@@ -116,7 +116,7 @@ import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
 import { exportFileSuffix } from '@/i18n/exportFileSuffix';
-import { invalidateDocumentRedo, removeSessionHistoryForDocumentFromState } from '../sessionHistory';
+import { invalidateDocumentRedo, removeSessionHistoryForDocumentFromState, selectUndoHistoryEvent } from '../sessionHistory';
 import { scheduleFailedNotice } from '../scheduleErrorNotice';
 import { browserSaveNotice } from '../browserSaveNotice';
 import { basename, ensureExtension } from '@/utils/filePath';
@@ -400,7 +400,7 @@ export interface FileSlice {
   saveFileForDocument: (documentId: string) => Promise<boolean>;
   saveFileAs: () => Promise<void>;
   commitSavedDocument: (document: DocumentContentRef, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite, missingSourceSaveAs?: boolean, written?: TargetFingerprint | null, writtenName?: string) => boolean;
-  captureDocumentWrite: (document: DocumentContentRef) => () => void;
+  captureDocumentWrite: (document: DocumentContentRef, snapshot: Pick<AppState, 'historyEvents'>) => () => void;
   exportAs: (format: ExportFormat, options?: ExportOptions) => Promise<ExportResult>;
   exportProjectWithPool: () => Promise<ExportResult>;
   recordLiteralCalendarsWritten: (documentId: string, ids: readonly string[]) => void;
@@ -878,21 +878,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return state.documents.find(document => document.id === documentId)?.payload ?? null;
   };
 
-  const writtenFileName = (documentId: string, destination?: SaveDestination): string => {
-    const s = get();
-    const path = destination?.filePath
-      ?? (s.activeDocumentId === documentId ? s.filePath : s.documents.find(d => d.id === documentId)?.payload?.filePath);
-    return path || documentFileName(s);
-  };
-
-  const captureDocumentWrite = (document: DocumentContentRef): (() => void) => {
-    set(s => { changeCapturing(s, document, 1); });
-    let released = false;
-    return () => {
-      if (released) return;
-      released = true;
-      set(s => { changeCapturing(s, document, -1); });
-    };
+  const captureDocumentWrite = (document: DocumentContentRef, snapshot: Pick<AppState, 'historyEvents'>): (() => void) => {
+    const eventId = selectUndoHistoryEvent(snapshot.historyEvents, document.id)?.id;
+    if (eventId === undefined) return () => {};
+    set(s => { holdSnapshotEvent(s, document, eventId); });
+    return () => set(s => { holdSnapshotEvent(s, document, undefined); });
   };
 
   const commitSavedDocument = (
@@ -904,7 +894,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     written: TargetFingerprint | null = null,
     writtenName?: string,
   ): boolean => {
-    notifyForeignChangesWritten(get().notify, prepared, () => writtenName ?? writtenFileName(document.id, destination));
+    notifyForeignChangesWritten(get().notify, prepared, () => writtenName ?? destination?.filePath ?? '');
     if (!sameDocumentContent(get(), document)) return false;
     const documentId = document.id;
     const currentSource = saveSourceForDocument(get(), documentId);
@@ -1168,7 +1158,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         documentId, ref, prepared, source: state.ifcSource!.bytes,
         stopBeforeWrite: () => refuseChangedDocumentWrite(state, write),
         refuseBeforePlace: () => refuseChangedDocumentWrite(state, write),
-        commit: () => { committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared); },
+        commit: () => { committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared, false, null, localTargetName(ref)); },
       });
       if (result.code === 'replaced') return committed;
       if (result.code === 'not-recorded') get().notify(IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE);
@@ -1196,7 +1186,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         source: { bytes: state.ifcSource!.bytes, sha256: state.ifcSource!.sha256 },
         stopBeforeWrite: () => documentTargetCheck(state, write, true)(ref),
         refuseBeforePlace: () => refuseChangedDocumentWrite(state, write),
-        commit: () => { committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared); },
+        commit: () => { committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared, false, null, localTargetName(ref)); },
       });
       for (const notice of ownPathReplaceNotices(result, ref.path)) get().notify(notice);
       if (result.code === 'unknown' || result.code === 'previous-stranded' || result.code === 'target-taken') {
@@ -1365,7 +1355,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const state = get();
     if (state.activeDocumentId !== documentId || !sameDocumentContent(state, requested)) return false;
     if (refuseForeignDocumentWrite(state)) return false;
-    const releaseCapture = hasForeignContent(state.ifcSource) && ifcForeignContentEnabled(state.ui.featureFlags) ? captureDocumentWrite(requested) : () => {};
+    const releaseCapture = hasForeignContent(state.ifcSource) && ifcForeignContentEnabled(state.ui.featureFlags) ? captureDocumentWrite(requested, state) : () => {};
     let siteName: string | null = null;
     let handleWriteFailed = false;
     const failureNoticeKey = `project-save:${++saveAttemptSequence}`;
@@ -1441,7 +1431,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           if (last.refused()) return false;
           if (saved) {
             const fingerprint = hashing instanceof Promise ? await hashing : hashing;
-            return commitSavedDocument(snapshotContent(state), state, undefined, write.prepared, false, fingerprint);
+            return commitSavedDocument(snapshotContent(state), state, undefined, write.prepared, false, fingerprint,
+              ref.kind === 'site' ? undefined : localTargetName(ref));
           }
         } catch (err) {
           if (ref.kind === 'path') get().forgetKnownTargetFingerprint(documentId);
@@ -1525,7 +1516,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!missingSourceSaveAsAllowed(state) || state.foreignSourceMark !== before.foreignSourceMark
         || state.ifcSource !== before.ifcSource) return;
     } else if (refuseForeignDocumentWrite(state)) return;
-    const releaseCapture = hasForeignContent(state.ifcSource) && ifcForeignContentEnabled(state.ui.featureFlags) ? captureDocumentWrite(requested) : () => {};
+    const releaseCapture = hasForeignContent(state.ifcSource) && ifcForeignContentEnabled(state.ui.featureFlags) ? captureDocumentWrite(requested, state) : () => {};
     let siteName: string | null = null;
 
     try {
