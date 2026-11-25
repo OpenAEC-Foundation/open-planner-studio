@@ -2168,13 +2168,11 @@ en noem het in je rapport of PR-tekst.
      zoals `dayRecordFits`/`contextLost` in `xmlDayMeasure.ts`; anders de urenmaat voor duur en rest.
      Nagespeeld door de reviewer van #585 r2 (Sol, VERVOLG). — B
 
-296. **De exportmeldingen zeggen dat de lagkalender verloren gaat, terwijl OPS hem bewaart.**
-     `mspdiWriter.ts:503` meldt "scheduling-opties lagCalendar niet native uitdrukbaar — weggelaten, alleen via
-     IFC OPS_SchedulingOptions" (de lijst komt uit `:479`). `p6xmlWriter.ts:304` meldt "scheduling-opties niet
-     geëxporteerd". Sinds #585 schrijven beide writers `OPS_LagCalendar`, en `successor` komt bij heropenen in
-     OPS goed terug. MS Project en P6 kennen de optie zelf niet. Richting: een melding die beide zegt: het
-     andere programma rekent er niet mee, OPS bewaart hem wel. Gezien door de reviewer van #585 r2 (Sol,
-     VERVOLG). — B
+296. **De MSPDI-export meldt in de console dat de lagkalender wegvalt, terwijl OPS hem bewaart.**
+     `writeMSPDI` (`src/services/msproject/mspdiWriter.ts`) schrijft een eigen keuze voor de lagkalender in het
+     OPS-veld `OPS_LagCalendar`, en zet bij een andere keuze dan `predecessor` toch "scheduling-opties lagCalendar
+     niet native uitdrukbaar — weggelaten" in de console. Bij heropenen in OPS komt de keuze terug. Gezien door de
+     reviewer van #585 r2 (VERVOLG). — B
 
 300. **Een oude OPS-export die daarna van vorm veranderde, leest als vreemd bestand.** OPS v2026.6.0 tot en met
      v2026.8.1 schreef nog geen OPS-markering. De lezer herkent zo'n MSPDI- of P6 XML-export aan de vorm van die
@@ -2371,15 +2369,6 @@ en noem het in je rapport of PR-tekst.
      lezer dit bestand leest, is getoetst (`check-xer-writer.ts`, V10–V11); dat P6 het zonder verminkte tekens
      importeert, niet. Voorstel: een export met bijvoorbeeld `Ł` in P6 importeren en de naam nakijken. Uit de
      review van PR #393 (punt 10, VERVOLG). — S
-467. **De P6 XML-export draait de keuze *Projectstandaard* voor het taaktype terug.** Een taak uit P6 houdt het
-     oude duurtype in `p6DurationType`. Kiest de gebruiker bij die taak *Projectstandaard*, dan schrijft
-     `src/services/p6/p6xmlWriter.ts` (`durationTypeLabel`, rond regel 605) zonder eigen regel toch dat oude type.
-     Na heropenen heeft de taak weer een eigen regel. Nagespeeld met een script: een XER met `DT_FixedQty`,
-     `DT_FixedRate` of `DT_FixedDUR2`, openen, *Projectstandaard* (`settleRuleChange` met `undefined`), export naar
-     P6 XML en heropenen geeft weer `FIXED_WORK`, `FIXED_RATE` of `FIXED_DURATION_WORK` in plaats van de
-     standaard `FIXED_DURATION_RATE` (3 van 3). De XER-export had dezelfde fout; die is in PR #393 (review
-     ronde 4) hersteld door het duurtype uit de effectieve regel te schrijven. Voorstel: in de P6 XML-schrijver
-     hetzelfde doen. Gevonden bij die fix. — B
 475. **Het advies "Kies Primavera P6" verschijnt ook als het project al met Primavera P6 rekent.** De verliesregel
      *Rekenregels* (`schedulingRules`, `xerWriter.ts`, `schedulingRulesDiffer`) meldt ook afwijkende projectopties,
      niet alleen een ander profiel. Nagespeeld met De Akkers: profiel Primavera P6 met de P6-standaardopties geeft
@@ -4345,11 +4334,12 @@ en noem het in je rapport of PR-tekst.
 
 2338. **Een OPS-tekstveld in P6 XML kan langer worden dan wat P6 in een Text-UDF bewaart.** `writeP6XMLWithReport`
       (`src/services/p6/p6xmlWriter.ts`) schrijft de JSON van `OPS_DayMeasureLags`, `OPS_DayMeasureDurations`,
-      `OPS_ExactMinutes` en `OPS_LiteralCalendars` helemaal, zonder lengtegrens. Dat een Text-UDF in P6 hoogstens 255
-      tekens houdt, komt uit het weggehaalde commentaar (daar al als vermoeden) en is niet nagegaan. Kort P6 een waarde
-      in, dan is ze ongeldige JSON en leest OPS haar als geen record (`parseFieldRecords`, `parseLagRecords` in
+      `OPS_ExactMinutes` en `OPS_LiteralCalendars` helemaal, zonder lengtegrens. Oracle documenteert 255 tekens voor
+      `UDFValue.Text` in de Web Services API (P6 EPPM Web Services Reference, "UDFValue"; aangedragen in de review van
+      #1240, niet zelf gelezen); of de XML-import van P6 een langere waarde weigert of afkapt, is niet beproefd. Kort P6
+      een waarde in, dan is ze ongeldige JSON en leest OPS haar als geen record (`parseFieldRecords`, `parseLagRecords` in
       `xmlDayMeasure.ts`); een ongeldige lijst `OPS_LiteralCalendars` laat de lezer terugvallen op het tijdsignaal (ADR
-      0264). Dezelfde grens in MSPDI: 290 en 304. Gelezen in de code, niet in P6 getoetst. — S
+      0264). Dezelfde grens in MSPDI: 290 en 304. Gelezen in de code. — S
 
 2339. **De P6 XML-export schrijft een toewijzing op een samenvattingstaak met het `ObjectId` van een WBS als
       activiteit.** `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) neemt het `ActivityObjectId` van een
@@ -4358,25 +4348,60 @@ en noem het in je rapport of PR-tekst.
       `readP6XML`): met een extra toewijzing op de samenvattingstaak `Ruwbouw` staat er een `<ResourceAssignment>` met
       `ActivityObjectId` 1, het `ObjectId` van een `<WBS>` en van geen `<Activity>`; terug inlezen geeft alleen de
       toewijzing op de bladtaak. De exportmelding telt zo'n toewijzing als verlies (`summaryAssignments`,
-      `p6XmlExportNotice.ts`); de XER-writer slaat haar over (`xerWriter.ts`). Wat P6 met zo'n verwijzing doet, is niet
+      `p6XmlExportNotice.ts`); de XER-writer slaat haar over (`xerWriter.ts`). Zo'n toewijzing komt in de app via een
+      MSPDI-import. Het taakpaneel weigert haar (`assignResource` in `src/state/slices/resourceSlice.ts`, met
+      `isSummaryTask`); het raster toetst alleen `childIds` (`planTaskAssignmentSet` in
+      `src/engine/taskGrid/assignmentPlan.ts`), zodat een lege WBS uit XER (`isSummary` zonder kinderen) daar wel een
+      toewijzing krijgt. Proef uit de review van #1240: een toewijzing op een samenvatting via een MSPDI-import valt na
+      P6 XML-export en heropenen weg, en de exportmelding telt één verlies. Wat P6 met zo'n verwijzing doet, is niet
       getoetst. — B
 
 2340. **De P6 XML-export schrijft een relatie met een samenvattingstaak met het `ObjectId` van een WBS als
       activiteit.** `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) neemt `PredecessorActivityObjectId` en
       `SuccessorActivityObjectId` uit `taskObjMap`, dat ook de WBS-elementen nummert; ook het lagrecord van zo'n
       relatie komt op de opvolger. Nagespeeld met een script op `tests/planning/fixtures/p6xml-genest-meerdere-projecten.xml`
-      (via `readP6XML`): een FS-relatie met 0,5 dag lag van de samenvattingstaak `Ruwbouw` naar de bladtaak `Grondwerk`
-      geeft een `<Relationship>` met `PredecessorActivityObjectId` 1, het `ObjectId` van een `<WBS>`; terug inlezen
-      geeft de drie relaties van de bron, zonder deze. De exportmelding telt zo'n relatie als verlies
-      (`summaryRelations`, "P6 kent die relatie niet"). Wat P6 met zo'n verwijzing doet, is niet getoetst. — B
+      (via `readP6XML`): een extra FS-relatie van de samenvattingstaak `Ruwbouw` naar een bladtaak geeft een
+      `<Relationship>` met `PredecessorActivityObjectId` 1, het `ObjectId` van een `<WBS>`; terug inlezen geeft alleen
+      de drie relaties van de bron. In die proef was de bladtaak een kind van `Ruwbouw`, een relatie die de app bij
+      gewoon aanmaken weigert. Een relatie van een samenvatting naar een taak buiten haar eigen tak accepteert de app
+      wel (`relationVerdict` in `src/state/relationRules.ts` weigert alleen een eigen voorouder); proef uit de review
+      van #1240: zo'n relatie gaf één verliesregel (`summaryRelations`, "P6 kent die relatie niet") en na heropenen
+      nul relaties. Wat P6 met zo'n verwijzing doet, is niet getoetst. — B
 
 2341. **Twee bladtaken met dezelfde korte WBS-code krijgen in P6 XML hetzelfde activiteit-`Id`.**
       `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) schrijft `wbsCode` (anders het taak-id) als `<Id>`, en
       `renderP6XmlWithReport` (`p6xmlSchemaOrder.ts`) maakt alleen een waarde uniek die hij inkort tot 40 tekens.
       Nagespeeld met een script op `tests/planning/fixtures/p6xml-genest-meerdere-projecten.xml` (via `readP6XML`): twee
       bladtaken met `wbsCode` `DUP` geven twee `<Activity>` met `<Id>DUP</Id>`. De XER-writer maakt elke code uniek
-      (`uniqueCode`). Dat P6 een bestand met twee gelijke activiteit-`Id`'s weigert, staat in `p6xmlSchemaOrder.ts` en is
-      niet in P6 getoetst; of twee gelijke codes in een gewone planning voorkomen, is niet nagegaan. — B
+      (`uniqueCode`). Proef uit de review van #1240: met *WBS auto* uit en twee bladtaken die in het taakpaneel of het
+      raster de code `DUP` krijgen, bevat de export beide codes, opent OPS beide met aparte interne ids, en geeft de
+      exportmelding geen regel. Wat de P6-client met dubbele activiteit-`Id`'s doet, is niet beproefd. Issue #1242. — B
+
+2342. **Een kalender die alleen een samenvattingstaak gebruikt, verdwijnt na P6 XML-export en heropenen.**
+      `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) maakt een kalender `Global` als een taak haar in
+      `calendarId` noemt, ook een samenvattingstaak, maar een `<WBS>` draagt geen `CalendarObjectId`. `readP6XmlProject`
+      (`src/services/p6/p6xmlReader.ts`) neemt een `Global`-kalender alleen mee als een activiteit of resource ernaar
+      verwijst. De exportmelding geeft er geen regel voor (`exportP6XmlLossNotice`). Proef uit de review van #1240: een
+      bibliotheekkalender, in het taakpaneel gekozen voor een samenvattingstaak terwijl kinderen en resources hun eigen
+      kalender houden, staat na export als `Global` in het XML en ontbreekt na heropenen. Issue #1241. — B
+
+2343. **Een feestdag of werkende uitzondering van meer dan 3660 dagen wordt in P6 XML zonder melding ingekort.**
+      `isoDaysInclusive` (`src/services/p6/p6xmlWriter.ts`) geeft per feestdag of werkende uitzondering hoogstens 3660
+      datums, vanaf de begindatum; `holidayOrExceptionsNode` schrijft alleen die. De exportmelding geeft er geen regel
+      voor. Proef uit de review van #1240: een uitzondering die op 12 januari 2000 eindigt, eindigde na heropenen op 8
+      januari 2000; met de grens van 3660 datums hoort daar de begindatum 1 januari 1990 bij. — B
+
+2344. **Een lege WBS-rij uit P6 XML komt bij de volgende P6 XML-export terug als activiteit.**
+      `readP6XmlProject` (`src/services/p6/p6xmlReader.ts`) maakt van elke `<WBS>` een taak zonder `isSummary`, en een
+      `<WBS>` zonder kinderen houdt lege `childIds`. `writeP6XMLWithReport` schrijft een taak waarvoor `isLeafTask` waar
+      is als `<Activity>`, dus zo'n rij gaat bij de volgende export als activiteit en verliest haar WBS-identiteit. De
+      XER-lezer zet `isSummary` wel (`xerReader.ts`). Gelezen in de code. Issue #1242. — B
+
+2345. **Twee werkende uitzonderingen op één datum: in P6 XML wint de laatste, ook zonder eigen blokken.**
+      `holidayOrExceptionsNode` (`src/services/p6/p6xmlWriter.ts`) zet per datum één element in een kaart; een latere
+      werkende uitzondering zonder eigen blokken overschrijft daar een eerdere met blokken, met de terugvalblokken van
+      haar weekdag. De motor houdt dan de blokken van de eerdere (`buildWorkingExceptions`, knownbug 2004). Na export
+      en heropenen draagt die datum dus andere blokken dan de motor in de app gebruikte. Gelezen in de code. — B
 
 ## Rondleiding, Help en extensie-gidsen
 

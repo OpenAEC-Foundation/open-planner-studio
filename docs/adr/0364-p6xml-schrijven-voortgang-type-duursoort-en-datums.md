@@ -2,9 +2,10 @@
 
 Een P6 XML-bestand opent als Primavera P6, en de P6-regels van de motor hangen aan de herkomstvelden van een activiteit
 (ADR 0267). `writeP6XMLWithReport` schrijft die velden daarom zo terug dat dezelfde planning na een rondgang hetzelfde
-rekent; `check-p6xml-xer-parity.ts` R1 tot en met R7 opent een XER, schrijft P6 XML, opent die weer en vergelijkt de
-P6-velden, de datums, speling en kritiek. De status deelt hij met de XER-writer (`xerWriter.ts`); het activiteittype
-en de voortgangssoort volgen daar dezelfde regels in eigen code.
+rekent. `check-p6xml-xer-parity.ts` R1 tot en met R6 opent een XER, schrijft P6 XML, opent die weer en vergelijkt de
+P6-velden, de datums, speling en kritiek; R7 bewaakt de eigen of geërfde werkregel na de rondgang en een verdubbeling
+van de inzet daarna. De status deelt hij met de XER-writer (`xerWriter.ts`); het activiteittype en de voortgangssoort
+volgen daar dezelfde regels in eigen code.
 
 ## Gevolgen
 
@@ -14,11 +15,12 @@ en de voortgangssoort volgen daar dezelfde regels in eigen code.
   `Not Started`. Een taak met status `STARTED` zonder werkelijk einde blijft `In Progress`, ook op 100 %; de lezer
   houdt zo'n taak lopend (`runningAtFullIds`, ADR 0266). Dat P6 haar met `Completed` als klaar zag en met
   `In Progress` haar rest nog inplant, komt uit het weggehaalde commentaar (bij knownbug 114) en is niet nagegaan.
-  Toets 4b in `check-p6xml-writer-p6.ts`.
-- `<PercentCompleteType>` komt uit `p6CompletePctType` (`P6_XML_PERCENT_COMPLETE`), zonder soort `Physical`, zoals de
-  XER-writer `CP_Phys` schrijft; het percentage staat als fractie in de kolom van die soort, alleen bij `completion`
-  boven 0 (toets 4a). Reden: de motor leest de soort, en een voltooide Duration-taak die als Physical terugkwam, viel
-  op de statusdatum (review Sol #781 punt 1, R1).
+  Toets 4b in `check-p6xml-writer-p6.ts` controleert een taak op 50 % in uitvoering; de export van een lopende taak
+  op 100 % zonder werkelijk einde toetst `check-import-explicit-rest.ts` (blok 12).
+- `<PercentCompleteType>` komt uit `p6CompletePctType` (`P6_XML_PERCENT_COMPLETE`), met `Physical` als terugval bij een
+  ontbrekende soort, zoals de XER-writer dan `CP_Phys` schrijft; het percentage staat als fractie in de kolom van die
+  soort, alleen bij `completion` boven 0 (toets 4a). Reden: de motor leest de soort, en een voltooide Duration-taak die
+  als Physical terugkwam, viel op de statusdatum (review Sol #781 punt 1, R1).
 - `<Type>` (`taskTypeToP6`): een nulduur-mijlpaal wordt `Finish Milestone` bij `milestoneKind` `FINISH` en anders
   `Start Milestone`, ook bij een automatische soort; dat dit de keuze van P6 zelf bij import is, komt uit het
   weggehaalde commentaar en is niet nagegaan. Een mijlpaal met duur blijft een gewone activiteit met haar duur

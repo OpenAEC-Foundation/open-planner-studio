@@ -4,7 +4,8 @@ P6 XML zegt niet of een activiteit in werkdagen of in uren bedoeld is, en draagt
 en geen letterlijke kalenders. `writeP6XMLWithReport` schrijft die daarom als Text-UDF's, zodat OPS zijn eigen export
 weer exact leest. Een UDF-type staat als `<UDFType>` op het hoogste niveau, de waarde als `<UDF>` met `TypeObjectId`
 en `TextValue` binnen de activiteit of het project, niet als los `<UDFValue>` (`check-p6xml-writer-p6.ts` (1) en
-4d). De lezer herkent ze aan titel, SubjectArea en DataType (ADR 0260).
+4d). De lezer herkent de duureenheid, de maatrecords en de twee projectvelden aan titel, SubjectArea en DataType; het
+eigen taaktype alleen aan de titel en een geldig `ObjectId`, waarna `decodeCustomTaskType` de waarde toetst (ADR 0260).
 
 ## Gevolgen
 

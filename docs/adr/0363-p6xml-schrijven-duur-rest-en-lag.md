@@ -12,8 +12,9 @@ XER-writer volgt dezelfde lijn (regel `xer`).
 
 - Een urentaak (`taskDurationUnit` is `hours`) schrijft de minuten van `taskMinutesForWrite` via `writeMinutes`: op de
   hele minuut, met een `OPS_ExactMinutes`-record bij een breuk (T14). Een andere taak schrijft `scheduleDuration`
-  via `writeDays` met `dayMeasureMinutesPerDay(effectieve kalender, false)`, met een
-  `OPS_DayMeasureDurations`-record bij een breuk in dagen (T21).
+  via `writeDays` met `dayMeasureMinutesPerDay(effectieve kalender, false)`: het product, afgerond op hele minuten,
+  met een `OPS_DayMeasureDurations`-record bij een breuk in dagen (T21). Alleen een geldig record dat nog bij de duur
+  en de kalender past, herstelt bij het lezen de oorspronkelijke maat (`readMeasure`, ADR 0265).
 - Een taak in kalendertijd (`isElapsedTask`) telt in P6 als werktijd: een dagtaak met dezelfde werktijd per dag, een
   urentaak met haar minuten als uren. Haar record draagt dan altijd de eenheid, `ed` of `eu`, ook bij hele dagen of
   minuten (`withElapsedUnit`, review #585 r1 punt 3), zodat OPS de kalendertijd terugleest (ADR 0265). Dat P6 geen
@@ -35,12 +36,15 @@ XER-writer volgt dezelfde lijn (regel `xer`).
   - een lag in dagen gaat via `writeDays` met de werktijd per dag van de lagkalender (`lagWorkMinutesPerDay`, I7), met
     het record `[dagen, minuten]`, ook bij hele dagen, omdat een relatie geen eigen eenheidsveld heeft. In kalendertijd
     telt de dag op dezelfde manier en krijgt het record de eenheid `ed`. De dagen in het record zijn die van
-    `dayMeasureRecord` en verklaren de geschreven minuten (aanval a06 na #600). Een lag van 0 dagen in werktijd geeft 0 uur zonder record.
+    `dayMeasureRecord` en verklaren de geschreven minuten (aanval a06 na #600). Een lag van 0 dagen in werktijd geeft 0
+    uur zonder record.
 - Dat P6 geen lag in procenten en geen lageenheid per relatie kent, komt uit het weggehaalde commentaar en is niet
   nagegaan; de lagkalender is in P6 XML een projectoptie (`RelationshipLagCalendar` in `<ScheduleOptions>`, ADR
   0361). `p6Lag` meldt de procentlag en de lag in kalendertijd in de console; de XER-writer telt zijn verlies zelf.
 - De lagrecords gaan per opvolger in één UDF (`OPS_DayMeasureLags`, `LagRecordCollector`), met als sleutel het
   `ObjectId` van de voorganger en het relatietype (`lagRecordKey`). De writer rekent daarom alle lags uit vóór hij de
-  activiteiten schrijft. Een relatie waarvan de voorganger of opvolger niet in het bestand staat, slaat hij over. Het
-  relatietype is het label van `P6_LINK_TYPE` (`check-p6xml-writer-p6.ts` 4c); dat dit de vorm van P6 en MPXJ is, komt
-  uit het weggehaalde commentaar en is niet nagegaan.
+  activiteiten schrijft. Een record komt alleen op een opvolger die als `<Activity>` gaat, en een sleutel die bij één
+  opvolger twee keer voorkomt, vervalt voor beide relaties (`LagRecordCollector`). Een relatie waarvan de voorganger of
+  opvolger niet in het bestand staat, slaat hij over. Het relatietype is het label van `P6_LINK_TYPE`
+  (`check-p6xml-writer-p6.ts` 4c); dat dit de vorm van P6 en MPXJ is, komt uit het weggehaalde commentaar en is niet
+  nagegaan.

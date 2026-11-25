@@ -9,10 +9,15 @@ de keuzes hieronder zijn de spiegel daarvan.
 - `HoursPerDay` is de opgeslagen `hoursPerDay` van de kalender, niet de werktijd van de blokken; `HoursPerWeek` is die
   maal het aantal werkdagen en `HoursPerMonth` die maal 20 (`check-dag-is-werktijd.ts` §4 toetst `HoursPerDay` 8 bij
   blokken van 10 uur).
-- `<Type>` is `Global` voor de projectkalender en voor elke kalender die een taak in `calendarId` noemt, anders
-  `Resource` (`check-p6xml-writer-p6.ts` (9)). De lezer neemt een `Resource`-kalender altijd mee en een gebruikte
-  `Global`-kalender ook (ADR 0262). Dat P6 een activiteit alleen een Global- of Project-kalender laat hebben, komt uit
+- `<Type>` is `Global` voor de projectkalender en voor elke kalender die een taak in `calendarId` noemt, ook een
+  samenvattingstaak, anders `Resource`. De lezer neemt van de andere kalenders een `Resource`-kalender mee, en een
+  `Global`-kalender alleen als een activiteit of resource ernaar verwijst; een kalender met een ongeldig of al gelezen
+  `ObjectId` slaat hij over (ADR 0262). Een kalender die alleen een samenvattingstaak gebruikt, gaat daardoor
+  verloren (knownbug 2342). Toets (9) heeft alleen de projectkalender en kalenders van bladtaken, en onderscheidt
+  `Global` van `Resource` dus niet. Dat P6 een activiteit alleen een Global- of Project-kalender laat hebben, komt uit
   het weggehaalde commentaar en is niet nagegaan.
+- Een activiteit en een resource verwijzen met `CalendarObjectId` naar hun kalender; zonder `calendarId`, of met een
+  die niet in de nummering staat, is dat 1, de projectkalender.
 - De werkweek (`standardWorkWeekNode`) heeft per dag één `<StandardWorkHours>`. De blokken komen uit `cal.workTime`,
   anders uit `effectiveWorkTimeBands`, dus een dagkalender gaat met zijn effectieve blokken en daarmee met zijn pauze,
   zoals de MSPDI-writer (`mspdiWriter.ts`); pas zonder effectieve blokken wordt het één blok van `workStartHour` tot
@@ -31,10 +36,13 @@ de keuzes hieronder zijn de spiegel daarvan.
   blokken van haar weekdag, anders die van de werkdag met het laagste ISO-nummer, anders het blok van `workStartHour`
   tot `workEndHour`; een blok van een hele dag gaat als twee blokken (`splitWholeDay`, ADR 0263). De XER-writer heeft
   dezelfde terugval (`xerWriter.ts`). Valt een werkende uitzondering op een datum van een feestdag, dan wint de werkende
-  uitzondering, omdat ze daarna in dezelfde kaart wordt gezet. Een reeks telt hoogstens 3660 datums
-  (`isoDaysInclusive`). De naam van een feestdag gaat verloren (toets 6c; ADR 0367).
+  uitzondering, omdat ze daarna in dezelfde kaart wordt gezet; bij twee werkende uitzonderingen op één datum wint de
+  laatste, ook zonder eigen blokken (knownbug 2345). Elke feestdag en werkende uitzondering telt hoogstens 3660 datums
+  (`isoDaysInclusive`); de rest valt weg zonder verliesregel (knownbug 2343). De naam van een feestdag gaat verloren
+  (toets 6c; ADR 0367).
 - De datums van een taak gaan met hun echte tijd (`minuteModelWriteView` met `realTimes` en
   `literalAutomaticMilestones`, dezelfde opties als de MSPDI-writer; spec alleen-uren I8 en F5b). De letterlijke
   kalenders van de export staan als lijst van kalender-`ObjectId`'s in `OPS_LiteralCalendars`
   (`literalCalendarsJson`, ADR 0361), zodat de lezer voor die kalenders niet op een tijdsignaal hoeft te raden (ADR
-  0264). Projectdatums en uitzonderingsdatums krijgen 08:00 (`toXmlDateTime`, knownbug 302 en 303).
+  0264). `toXmlDateTime` zet alleen op een datum zonder tijd 08:00: zo komen een uitzonderingsdatum en een
+  projectdatum zonder tijd in het bestand (knownbug 302 en 303).
