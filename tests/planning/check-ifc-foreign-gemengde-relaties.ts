@@ -276,7 +276,11 @@ async function refusesOutput(label: string, source: string, act: (s: State) => v
   const store = await opened(SOURCES[source]);
   act(store.getState());
   const input = buildWriteIFCInput(store.getState(), 'merge'), ifcSource = store.getState().ifcSource!;
-  const prepared = await prepareIfcWrite(input, ifcSource);
+  let prepared: PreparedIfcWrite;
+  try { prepared = await prepareIfcWrite(input, ifcSource); } catch (e) {
+    ok(`mutatie: ${label}: de merge schrijft de juiste uitvoer (${e instanceof MergeNeedsPhase2Error ? e.cases[0]?.detail : String(e)})`, false);
+    return;
+  }
   const [text, changes] = mutate(decode(prepared.bytes), prepared.foreignChanges ?? []);
   ok(`mutatie: ${label}: de proef verandert de uitvoer`, text !== decode(prepared.bytes) || changes !== prepared.foreignChanges);
   let reason = '';
