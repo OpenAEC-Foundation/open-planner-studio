@@ -4343,6 +4343,41 @@ en noem het in je rapport of PR-tekst.
       op die dag gaf de vergelijker `false`; dezelfde 120 werkminuten eindigden op de twee kalenders om 10:00 en 12:00.
       De lezer levert dan voor die taak geen wandeling. Of MS Project daar over de resourcekalender plant, is niet nagegaan. — B
 
+2338. **Een OPS-tekstveld in P6 XML kan langer worden dan wat P6 in een Text-UDF bewaart.** `writeP6XMLWithReport`
+      (`src/services/p6/p6xmlWriter.ts`) schrijft de JSON van `OPS_DayMeasureLags`, `OPS_DayMeasureDurations`,
+      `OPS_ExactMinutes` en `OPS_LiteralCalendars` helemaal, zonder lengtegrens. Dat een Text-UDF in P6 hoogstens 255
+      tekens houdt, komt uit het weggehaalde commentaar (daar al als vermoeden) en is niet nagegaan. Kort P6 een waarde
+      in, dan is ze ongeldige JSON en leest OPS haar als geen record (`parseFieldRecords`, `parseLagRecords` in
+      `xmlDayMeasure.ts`); een ongeldige lijst `OPS_LiteralCalendars` laat de lezer terugvallen op het tijdsignaal (ADR
+      0264). Dezelfde grens in MSPDI: 290 en 304. Gelezen in de code, niet in P6 getoetst. — S
+
+2339. **De P6 XML-export schrijft een toewijzing op een samenvattingstaak met het `ObjectId` van een WBS als
+      activiteit.** `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) neemt het `ActivityObjectId` van een
+      toewijzing uit `taskObjMap`, dat ook de WBS-elementen nummert, en slaat alleen een toewijzing zonder taak of
+      resource over. Nagespeeld met een script op `tests/planning/fixtures/p6xml-genest-meerdere-projecten.xml` (via
+      `readP6XML`): met een extra toewijzing op de samenvattingstaak `Ruwbouw` staat er een `<ResourceAssignment>` met
+      `ActivityObjectId` 1, het `ObjectId` van een `<WBS>` en van geen `<Activity>`; terug inlezen geeft alleen de
+      toewijzing op de bladtaak. De exportmelding telt zo'n toewijzing als verlies (`summaryAssignments`,
+      `p6XmlExportNotice.ts`); de XER-writer slaat haar over (`xerWriter.ts`). Wat P6 met zo'n verwijzing doet, is niet
+      getoetst. — B
+
+2340. **De P6 XML-export schrijft een relatie met een samenvattingstaak met het `ObjectId` van een WBS als
+      activiteit.** `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) neemt `PredecessorActivityObjectId` en
+      `SuccessorActivityObjectId` uit `taskObjMap`, dat ook de WBS-elementen nummert; ook het lagrecord van zo'n
+      relatie komt op de opvolger. Nagespeeld met een script op `tests/planning/fixtures/p6xml-genest-meerdere-projecten.xml`
+      (via `readP6XML`): een FS-relatie met 0,5 dag lag van de samenvattingstaak `Ruwbouw` naar de bladtaak `Grondwerk`
+      geeft een `<Relationship>` met `PredecessorActivityObjectId` 1, het `ObjectId` van een `<WBS>`; terug inlezen
+      geeft de drie relaties van de bron, zonder deze. De exportmelding telt zo'n relatie als verlies
+      (`summaryRelations`, "P6 kent die relatie niet"). Wat P6 met zo'n verwijzing doet, is niet getoetst. — B
+
+2341. **Twee bladtaken met dezelfde korte WBS-code krijgen in P6 XML hetzelfde activiteit-`Id`.**
+      `writeP6XMLWithReport` (`src/services/p6/p6xmlWriter.ts`) schrijft `wbsCode` (anders het taak-id) als `<Id>`, en
+      `renderP6XmlWithReport` (`p6xmlSchemaOrder.ts`) maakt alleen een waarde uniek die hij inkort tot 40 tekens.
+      Nagespeeld met een script op `tests/planning/fixtures/p6xml-genest-meerdere-projecten.xml` (via `readP6XML`): twee
+      bladtaken met `wbsCode` `DUP` geven twee `<Activity>` met `<Id>DUP</Id>`. De XER-writer maakt elke code uniek
+      (`uniqueCode`). Dat P6 een bestand met twee gelijke activiteit-`Id`'s weigert, staat in `p6xmlSchemaOrder.ts` en is
+      niet in P6 getoetst; of twee gelijke codes in een gewone planning voorkomen, is niet nagegaan. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
