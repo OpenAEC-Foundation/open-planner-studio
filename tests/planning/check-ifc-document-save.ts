@@ -40,6 +40,8 @@ import { canon, firstDiff, mergeProblems, openForeign, shownAfterOpen } from './
 import { InProcessWorker } from './inProcessSaveWorker';
 import { createExtensionApi } from '@/extensions/extensionApi';
 import type { NotifyInput } from '@/state/slices/types';
+import { OTHER_WORK_NOTICE_MS } from '@/state/otherWorkNotice';
+import { selectUndoHistoryEvent } from '@/state/sessionHistory';
 import { createAppQuitController } from '@/services/appQuit/appQuitController';
 import { appQuitDependencies } from '@/services/appQuit/appQuitDependencies';
 import { loadExtensionProject } from '@/extensions/retainActiveDocument';
@@ -4728,33 +4730,38 @@ function recordDeletes(store: Store): NotifyInput[] {
   store.setState({ notify: (n: NotifyInput) => { if (n.messageKey === DELETE_KEY) calls.push(n); notify(n); } });
   return calls;
 }
-const plainDelete = (count: number): NotifyInput => ({ severity: 'info', messageKey: DELETE_KEY, params: { count } });
+const undoStep = (store: Store) => selectUndoHistoryEvent(store.getState().historyEvents, store.getState().activeDocumentId)!.id;
+const deleteNotice = (count: number, eventId: string): NotifyInput => ({ severity: 'info', messageKey: DELETE_KEY, params: { count },
+  action: { kind: 'undoHistoryEvent', eventId, labelKey: 'notifications.actions.undo' }, durationMs: OTHER_WORK_NOTICE_MS });
 
-await check('fixronde 5 van #1199: wissen meldt één gewone melding zonder knop met het aantal van die wisstap; Ctrl+Z trekt niets in, Ctrl+Y meldt opnieuw', async () => {
+await check('PR 7: wissen meldt één melding met het aantal van die wisstap en de knop Ongedaan maken; Ctrl+Z haalt haar weg, Ctrl+Y meldt opnieuw', async () => {
   const { store } = await openHandle(LINKED), unregister = recoveryRounds(store);
   try {
     const calls = recordDeletes(store);
     store.getState().deleteTask(taskNamed(store, 'Set up site'));
-    const first = await writtenCount(store);
+    const first = await writtenCount(store), firstStep = undoStep(store);
     assert(first > 0);
-    assert.deepEqual(calls, [plainDelete(first)], 'één aanroep, het aantal van die wisstap, geen actie');
+    const one = [deleteNotice(first, firstStep)];
+    assert.deepEqual(calls, one, 'één aanroep, het aantal van die wisstap, de knop voor die stap');
     store.getState().deleteTask(taskNamed(store, 'Demolish existing extension'));
-    const second = await writtenCount(store) - first;
+    const second = await writtenCount(store) - first, secondStep = undoStep(store);
     assert(second > 0);
-    assert.deepEqual(calls, [plainDelete(first), plainDelete(second)], 'de tweede wisstap meldt haar eigen aantal');
-    assert.equal(deleteNotices(store).length, 2, 'twee eigen meldingen');
+    const two = [...one, deleteNotice(second, secondStep)];
+    assert.deepEqual(calls, two, 'de tweede wisstap meldt haar eigen aantal');
+    assert.deepEqual(deleteNotices(store).map(n => n.action), [two[1].action], 'alleen de melding van de stap van Ctrl+Z staat er');
     store.getState().undo();
-    assert.equal(calls.length, 2, 'Ctrl+Z meldt niets');
-    assert.equal(deleteNotices(store).length, 2, 'en trekt niets in');
+    assert.deepEqual(calls, two, 'Ctrl+Z meldt niets');
+    assert.deepEqual(deleteNotices(store), [], 'Ctrl+Z haalt de melding met haar knop weg');
     store.getState().redo();
-    assert.deepEqual(calls.at(-1), plainDelete(second), 'Ctrl+Y meldt de wisstap opnieuw');
+    const three = [...two, deleteNotice(second, secondStep)];
+    assert.deepEqual(calls, three, 'Ctrl+Y meldt de wisstap opnieuw, met de knop voor dezelfde stap');
     store.getState().removeResource(store.getState().resources.find(r => r.name === 'Bricklayers')!.id);
     const third = await writtenCount(store) - first - second;
     assert(third > 0);
-    assert.deepEqual(calls.at(-1), plainDelete(third), 'een resource wissen');
-    const before = calls.length;
+    const four = [...three, deleteNotice(third, undoStep(store))];
+    assert.deepEqual(calls, four, 'een resource wissen');
     store.getState().deleteTask(taskNamed(store, 'Apply roofing'));
-    assert.equal(calls.length, before, 'een taak zonder koppeling: geen melding');
+    assert.deepEqual(calls, four, 'een taak zonder koppeling: geen melding');
   } finally { unregister(); await clearRecovery(); }
   for (const [label, source, flag] of [['flag uit', LINKED, false], ['zonder vreemd deel', plainBytes(), true]] as const) {
     const { store } = await openInStore(source);

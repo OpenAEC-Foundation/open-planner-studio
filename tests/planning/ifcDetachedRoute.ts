@@ -30,6 +30,10 @@ export function desktopRoute() {
   const appDataDir = mkdtempSync(join(tmpdir(), 'ops-detached-appdata-'));
   const dir = mkdtempSync(join(tmpdir(), 'ops-detached-'));
   const ipc = installNodeFileIpc({ appDataDir });
+  const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
+  const invoke = win.__TAURI_INTERNALS__.invoke;
+  let chosen: string | null = null;
+  win.__TAURI_INTERNALS__.invoke = async (...args) => (args[0] === 'plugin:dialog|save' ? chosen : invoke(...args));
   let files = 0;
   async function open(bytes: Uint8Array, flag = true): Promise<DesktopDocument> {
     const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
@@ -61,7 +65,8 @@ export function desktopRoute() {
     };
   }
   return {
-    open,
+    open, ipc,
+    choose: (name: string) => { chosen = join(dir, name); return chosen; },
     dispose: () => { ipc.dispose(); rmSync(dir, { recursive: true, force: true }); rmSync(appDataDir, { recursive: true, force: true }); },
   };
 }

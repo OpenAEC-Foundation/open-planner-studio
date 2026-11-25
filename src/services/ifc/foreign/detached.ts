@@ -5,6 +5,7 @@ import { pieceReferences, pieceRefs, renumberedPiece, withoutReferences } from '
 import {
   CONTROL, formatRefs, NESTS, refList, refOf, relArgs, setArgs, SINGLE_MEMBERSHIP, type OwnLine,
 } from './ownLine';
+import type { OutLine } from './lossCheck';
 import { OWNED_BY_TABLE, type SourcePieceSlots } from './sourceSlots';
 import { sourceEntity, sourceSlotArgs } from './sourceSlotWrite';
 import { skipBlank, splitStepArgs } from './stepScanner';
@@ -223,45 +224,47 @@ export function withReturnedSlots(objects: ReadonlyMap<string, DetachedObject> |
   }
 }
 
-export function withReturnedMembers(relations: ReadonlyMap<string, DetachedRelation> | undefined, lines: OwnLine[], byId: Map<number, OwnLine>,
-  idOf: (seed: string) => number | undefined, carried: ReadonlySet<string>, nextId: () => number): void {
-  for (const [key, relation] of relations ?? []) {
+export function withReturnedMembers(relations: ReadonlyMap<string, DetachedRelation> | undefined, lines: readonly OutLine[],
+  idOf: (seed: string) => number | undefined, carried: ReadonlySet<string>, nextId: () => number): readonly OutLine[] {
+  if (!relations || relations.size === 0) return lines;
+  const out = [...lines], dropped = new Set<number>(), before = new Map<number, OutLine[]>();
+  const membersAt = (i: number, related: number) => refList(out[i].args[related]);
+  const withMembers = (i: number, related: number, members: readonly number[]) => {
+    const args = [...out[i].args];
+    args[related] = formatRefs(members);
+    out[i] = { id: out[i].id, type: out[i].type, args };
+  };
+  for (const [key, relation] of relations) {
     const roles = relationRoles(relation.type), table = slotTableNamed(relation.slots.table), relating = idOf(relation.relating);
     if (!roles || !table || relating === undefined) continue;
-    const own = lines.filter(l => !l.drop && l.type === relation.type && refOf(l.args[roles.relating]) === relating && !carried.has(l.args[0]?.trim()));
-    const line = lines.find(l => !l.drop && l.type === relation.type && l.args[0]?.trim() === key);
-    const current = line ? refList(line.args[roles.related]) : [];
+    const live = (i: number) => !dropped.has(i) && out[i].type === relation.type;
+    const own = out.flatMap((l, i) => (live(i) && refOf(l.args[roles.relating]) === relating && !carried.has(l.args[0]?.trim()) ? [i] : []));
+    const line = out.findIndex((l, i) => live(i) && l.args[0]?.trim() === key);
+    const current = line >= 0 ? membersAt(line, roles.related) : [];
     const wanted = relation.members.flatMap(m => idOf(m) ?? []);
-    const available = own.flatMap(l => refList(l.args[roles.related]));
-    const take = relation.type === NESTS && !line ? available : wanted.filter(m => !current.includes(m) && available.includes(m));
+    const available = own.flatMap(i => membersAt(i, roles.related));
+    const follows = relation.type === NESTS && line < 0;
+    const take = follows ? available : wanted.filter(m => !current.includes(m) && available.includes(m));
     if (take.length === 0) continue;
     const pool = [...take];
-    for (const l of own) {
-      const before = refList(l.args[roles.related]);
-      const after = before.filter(m => { const at = pool.indexOf(m); if (at < 0) return true; pool.splice(at, 1); return false; });
-      if (after.length === before.length) continue;
-      if (after.length === 0) { l.drop = true; continue; }
-      const args = [...l.args];
-      args[roles.related] = formatRefs(after);
-      setArgs(l, args);
+    for (const i of own) {
+      const members = membersAt(i, roles.related);
+      const left = members.filter(m => { const at = pool.indexOf(m); if (at < 0) return true; pool.splice(at, 1); return false; });
+      if (left.length === members.length) continue;
+      if (left.length === 0) dropped.add(i);
+      else withMembers(i, roles.related, left);
     }
     const joined = new Set([...current, ...take]);
-    const members = relation.type === NESTS && !line ? take : [...wanted.filter(m => joined.has(m)), ...current.filter(m => !wanted.includes(m))];
-    if (line) {
-      const args = [...line.args];
-      args[roles.related] = formatRefs(members);
-      setArgs(line, args);
-      continue;
-    }
-    const template = own[0]?.args.length === table.slots.length ? [...own[0].args] : table.slots.map(slot => relation.slots.slots.get(slot.key) ?? '$');
+    const members = follows ? take : [...wanted.filter(m => joined.has(m)), ...current.filter(m => !wanted.includes(m))];
+    if (line >= 0) { withMembers(line, roles.related, members); continue; }
+    const template = own.length > 0 && lines[own[0]].args.length === table.slots.length ? [...lines[own[0]].args]
+      : table.slots.map(slot => relation.slots.slots.get(slot.key) ?? '$');
     template[roles.relating] = `#${relating}`;
     template[roles.related] = formatRefs(members);
-    const added: OwnLine = { id: nextId(), type: sourceEntity(table, relation.slots, relation.type), args: [], text: '', drop: false };
-    setArgs(added, sourceSlotArgs(table, relation.slots, template));
-    byId.set(added.id, added);
-    const at = own[0] ? lines.indexOf(own[0]) : lines.length;
-    lines.splice(at, 0, added);
+    const at = own.length > 0 ? own[0] : out.length;
+    before.set(at, [...(before.get(at) ?? []), { id: nextId(), type: sourceEntity(table, relation.slots, relation.type), args: sourceSlotArgs(table, relation.slots, template) }]);
   }
+  return [...out.flatMap((l, i) => [...(before.get(i) ?? []), ...(dropped.has(i) ? [] : [l])]), ...(before.get(out.length) ?? [])];
 }
 
 export interface CarriedRelation extends DetachedRelation {

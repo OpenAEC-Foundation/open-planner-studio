@@ -924,11 +924,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   withoutRestoredMembers(returning, { lines, idOf: seed => writerIds[seed], scheduleSeed: `ws:${input.project.id}`, tasks: input.tasks }, sourceView);
   withReturnedSlots(source.detached?.objects, byId, seed => writerIds[seed], id => isP(index.chunkOf(String(id))));
   const carriedRelations = carriedRelationsOf(index, cls, sourceSlots, bySource);
-  let nextLineId = plan.firstId;
-  for (const line of lines) if (line.id >= nextLineId) nextLineId = line.id + 1;
-  withReturnedMembers(source.detached?.relations, lines, byId, seed => writerIds[seed],
-    new Set([...carriedRelations.map(r => r.key), ...(source.detached?.relations.keys() ?? [])]),
-    () => { while (reserved.has(nextLineId)) nextLineId++; return nextLineId++; });
+  const carriedKeys = new Set([...carriedRelations.map(r => r.key), ...(source.detached?.relations.keys() ?? [])]);
   let highestSourceId = 0;
   for (const id of source.chunkIds) if (id > highestSourceId) highestSourceId = id;
   const firstFreeId = (ids: Iterable<number>) => {
@@ -1057,10 +1053,12 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     const remap = new Map(block.map((line, i) => [line.id, candidate[i].id]));
     const stepIds = writerStepIds(input, built.idMap, id => remap.get(id) ?? id);
     const textOf = (line: OutLine) => ('text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`);
-    const back = renderedRestorations(returning, seed => stepIds[seed], firstFreeId(candidate.map(l => l.id)), sourceView);
+    let nextLineId = firstFreeId(candidate.map(l => l.id));
+    const outLines = withReturnedMembers(source.detached?.relations, candidate, seed => stepIds[seed], carriedKeys, () => nextLineId++);
+    const back = renderedRestorations(returning, seed => stepIds[seed], firstFreeId(outLines.map(l => l.id)), sourceView);
     const outputEdits = withInPlace(index, pieceEdits, back.inPlace);
     const written = [...changes, ...back.entries];
-    const placed = assignmentPlacement(input, index, cls, bySource, stepIds, candidate, outputEdits);
+    const placed = assignmentPlacement(input, index, cls, bySource, stepIds, outLines, outputEdits);
     const assembled = concatParts(assemble(source, index, cls, placed.block.map(textOf), undefined, outputEdits,
       new Map([...placed.after].map(([chunk, moved]) => [chunk, moved.map(textOf)])), back.appended));
     // De vingerafdruk nu, vóór de uitvoerindex er is: `crypto.subtle.digest` neemt een kopie van de bytes, en als laatste
@@ -1091,7 +1089,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     };
     observe?.(own);
     const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own, written);
-    const writerLines = new Set(candidate.map(line => line.id));
+    const writerLines = new Set(outLines.map(line => line.id));
     const ids = actual.scan.chunkIds, classes = actual.scan.classes;
     for (let k = 0; k < ids.length; k++) {
       if (ids[k] < 0 || (classes[k] === 1) === writerLines.has(ids[k])) continue;
@@ -1108,12 +1106,12 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       objectOf: id => { const d = bySource.get(id); return d && isP(index.chunkOf(String(id))) ? `${d.kind}:${d.id}` : undefined; },
       gone: goneObjects(source, gone, bySource), present: seed => stepIds[seed] !== undefined,
       carried: carriedRelations, membersOf: (key, type) => {
-        const line = candidate.find(l => l.type === type && l.args[0]?.trim() === key), roles = relationRoles(type);
+        const line = outLines.find(l => l.type === type && l.args[0]?.trim() === key), roles = relationRoles(type);
         return line && roles ? refList(line.args[roles.related]).flatMap(id => seedOfOutput.get(id) ?? []) : undefined;
       },
     });
     const next = await writtenSource(input, actual.bytes, actual.index, actual.scan, stepIds, classes, members, actual.unusedKeys,
-      candidate.map(line => actual.index.chunkOf(String(line.id))), nextReferences, detached);
+      outLines.map(line => actual.index.chunkOf(String(line.id))), nextReferences, detached);
     // Alleen de nieuwe buffer blijft via het resultaat vastgehouden; de oude bron kan na commit weg.
     return { bytes: actual.bytes, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds,
       ...(written.length > 0 ? { foreignChanges: written } : {}) };
