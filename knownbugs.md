@@ -6950,7 +6950,7 @@ en noem het in je rapport of PR-tekst.
      en zonder de hint `milestonesAtDayEnd`. Maakt de openroute van F3-4 daar met de laadgrens van de app de payload van,
      dan verandert die bij een bestand van de schrijver niets (getoetst voor de 49 bestanden en de 327 datumvormen van de
      kernproef). Bij een bestand dat de schrijver nooit maakt, kan ze wel iets veranderen, zoals bij STEP: een werkplan
-     zonder `timeModel` en zonder `minuteModelPending` krijgt `minuteModelPending`.
+     zonder `timeModel` en zonder `minuteModelPending` krijgt `minuteModelPending` (welke zulke bestanden openen: 2353).
      Daarnaast rekent de Openen-route van de app door (`prepareLoadedPayload` met `recompute: true`,
      `src/state/documentActivation.ts`); dan verschuift bijvoorbeeld bij de datumfixture de vroege finish van de taak
      `einde-middernacht` van `2027-06-03T00:00` naar `2027-06-02T16:00`, en de volgende opslag schrijft andere bytes. Ook
@@ -7007,3 +7007,11 @@ en noem het in je rapport of PR-tekst.
      bestanden"), krijgt de melding `ifcx.nameMismatch` en de app schrijft niets; het gekozen bestand heeft de browser dan
      al leeg gemaakt of aangemaakt. Dat is de grens van main bij elk bestaand doel in die kiezer (knownbug 1899). Een
      IFCX-document gebruikt de kiezer niet: een nieuw doel krijgt het als download met de naam op het formaat. — B (code)
+
+2372. **Opslaan als over een bestaand eigen IFCX classificeert op desktop dezelfde doelbytes twee keer.** Met beide
+     flags aan toetst `placeOnDesktop` het gekozen doel na de kiezer en nog eens na het herstelrecord
+     (`src/state/ownFileReplace.ts`). `capturedTargetReaders` deelt de STEP-scan van die vastgelegde bytes, maar de
+     IFCX-classificatie start per controle opnieuw: één volledige lezing van het doel te veel (de duur staat bij 2365).
+     Richting: deel binnen de poging één classificatie van de vastgelegde bytes, en laat beide identiteitscontroles en
+     de vergelijking met de verwachte bytes bij vervangen staan. Gemeld door de review van #1223 ronde 2
+     (GPT-6.2-Sol). — B
