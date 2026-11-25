@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const BASIS = '51b9cac2240ab2071ace391ec24ecfc5d3d2c04b';
+const BASIS = 'fd554de40558aca148f6daa12d944c0b42f0bae7';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT = join(ROOT, 'tests/planning/fixtures/main-bom-eigen-bestand.json');
 const option = name => {

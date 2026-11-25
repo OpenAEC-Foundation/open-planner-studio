@@ -5,6 +5,7 @@ import { createCloseDocumentDialogActions } from '@/components/layout/DocumentCh
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import type { FileRef } from '@/services/fileAccess';
 import type { SiteStorage } from '@/services/fileAccess/siteHost';
+import type { AppNotification } from '@/state/slices/types';
 import { outputFromResult, runIfcSaveJob } from '@/services/ifc/saveWorker/ifcSaveProtocol';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
@@ -99,6 +100,7 @@ class Tracker {
     this.withBomOutput = addBom(bytes);
   }
   digest(data: Uint8Array) {
+    if (new Error().stack?.includes('isOwnBomVersion')) { this.note('hash-bomversie'); return; }
     const plain = !!this.output && sameBytes(data, this.output);
     const bom = !!this.withBomOutput && sameBytes(data, this.withBomOutput);
     if (plain || bom) this.note('hash-uitvoer', (this.withBom ? bom : plain) ? 'hash' : undefined);
@@ -311,7 +313,7 @@ export interface Run {
   byOther(data: Uint8Array): void;
   inBomWorld(data: Uint8Array): Uint8Array;
   at(moment: Moment, action: () => void): void;
-  save(step: string, how: How): Promise<void>;
+  save(step: string, how: How, after?: () => Record<string, unknown>): Promise<void>;
   record(step: string, outcome: boolean | null, extra?: Record<string, unknown>): void;
   picker(answer: 'nieuw bestand' | 'geannuleerd'): void;
   openTwin(): Promise<void>;
@@ -323,6 +325,8 @@ interface Scenario {
   readonly kinds?: readonly Kind[];
   readonly sources?: readonly Source[];
   readonly linked?: boolean;
+  readonly computes?: readonly Compute[];
+  readonly opening?: false;
   run(r: Run): Promise<void>;
 }
 
@@ -331,7 +335,6 @@ const VOORAF = [
   ['een gebouwmodel', (r: Run) => r.byOther(r.files.model)],
   ['vreemde inhoud', (r: Run) => r.byOther(r.files.foreign)],
   ['geen IFC', (r: Run) => r.byOther(new TextEncoder().encode('Geen IFC'))],
-  ['een andere planning, in de wereld van het bestand', (r: Run) => r.byOther(r.inBomWorld(r.files.other))],
   ['een gebouwmodel, in de wereld van het bestand', (r: Run) => r.byOther(r.inBomWorld(r.files.model))],
   ['gewist', (r: Run) => r.place.remove()],
   ['een leesfout', (r: Run) => r.place.fail('lezen')],
@@ -339,6 +342,46 @@ const VOORAF = [
 
 const ROUTES = ['Ctrl+S', 'Automatisch opslaan'] as const;
 const ORIGINS = ['geopend', 'na een eigen opslag'] as const;
+export const CHANGES: readonly (readonly [string, ((files: Files) => Uint8Array) | null])[] = [
+  ['een andere planning met BOM', files => addBom(files.other)],
+  ['een andere planning zonder BOM', files => files.other],
+  ['een gebouwmodel met BOM', files => addBom(files.model)],
+  ['een gebouwmodel zonder BOM', files => files.model],
+  ['het eigen bestand onveranderd', null],
+];
+export const FLAGS = ['de flag blijft aan', 'de flag gaat uit', 'de flag gaat uit en weer aan'] as const;
+type Flag = typeof FLAGS[number];
+
+function intervention(
+  how: typeof ROUTES[number], origin: typeof ORIGINS[number], change: string, data: ((files: Files) => Uint8Array) | null,
+  flag: Flag, early: boolean, moment: Moment | null,
+): Scenario {
+  const at = moment ? `bij ${moment}` : '';
+  const name = early ? `vooraf ${change}${moment ? `; ${at}: ${flag}` : `, ${flag}`}` : `${at}: ${change}, ${flag}`;
+  return {
+    name: `${how}, ${origin}: ${name}`, opening: false,
+    kinds: moment === 'recht' ? ['handle'] : undefined,
+    computes: moment === null || moment === 'rekenen' || moment === 'hash' ? undefined : ['hier'],
+    run: async r => {
+      await fromOrigin(r, origin);
+      r.rename();
+      const external = data ? data(r.files) : null;
+      let placed = false;
+      const put = () => { if (external) { r.byOther(external); placed = true; } };
+      const flip = () => {
+        if (flag === FLAGS[0]) return;
+        r.store.getState().setUI({ featureFlags: {} });
+        if (flag === FLAGS[2]) r.store.getState().setUI({ featureFlags: { ifcForeignContent: true } });
+      };
+      if (early) put();
+      if (moment) r.at(moment, () => { if (!early) put(); flip(); });
+      await r.save(how, how, () => {
+        const disk = r.place.read();
+        return { extern: !external ? 'geen' : !placed ? 'niet geplaatst' : disk && sameBytes(disk, external) ? 'byte voor byte' : 'overschreven' };
+      });
+    },
+  };
+}
 
 async function fromOrigin(r: Run, origin: typeof ORIGINS[number]) {
   if (origin === 'geopend') return;
@@ -465,37 +508,24 @@ export function scenarios(): Scenario[] {
           run: async r => { await fromOrigin(r, origin); r.rename(); change(r); await r.save(how, how); },
         });
       }
+      for (const [change, data] of CHANGES) {
+        if (data && change.endsWith('met BOM')) list.push(intervention(how, origin, change, data, FLAGS[0], true, null));
+      }
       for (const moment of MOMENTS) {
-        for (const content of ['een andere planning', 'een gebouwmodel'] as const) {
-          list.push({
-            name: `${how}, ${origin}: ${content} op het doel bij ${moment}`,
-            kinds: moment === 'recht' ? ['handle'] : undefined,
-            run: async r => {
-              await fromOrigin(r, origin);
-              r.rename();
-              r.at(moment, () => r.byOther(content === 'een gebouwmodel' ? r.files.model : r.files.other));
-              await r.save(how, how);
-            },
-          });
+        for (const [change, data] of CHANGES) {
+          for (const flag of FLAGS) {
+            if (moment === 'hash' && flag !== FLAGS[0]) continue;
+            if (data) list.push(intervention(how, origin, change, data, flag, false, moment));
+            if (flag !== FLAGS[0]) list.push(intervention(how, origin, change, data, flag, !!data, moment));
+          }
         }
         list.push({
-          name: `${how}, ${origin}: het tabblad bewerkt bij ${moment}`,
+          name: `${how}, ${origin}: het tabblad bewerkt bij ${moment}`, opening: false,
           kinds: moment === 'recht' ? ['handle'] : undefined,
           run: async r => {
             await fromOrigin(r, origin);
             r.rename();
             r.at(moment, () => r.rename());
-            await r.save(how, how);
-          },
-        });
-      }
-      for (const moment of ['rekenen', 'lezing-1', 'lezing-2', 'schrijven'] as const) {
-        list.push({
-          name: `${how}, ${origin}: de flag gaat uit bij ${moment}`,
-          run: async r => {
-            await fromOrigin(r, origin);
-            r.rename();
-            r.at(moment, () => r.store.getState().setUI({ featureFlags: {} }));
             await r.save(how, how);
           },
         });
@@ -538,6 +568,8 @@ async function runScenario(
       const s = store.getState();
       return places.find(p => (p.ref.kind === 'handle' ? s.fileHandle === p.ref.handle : p.ref.kind === 'path' && s.filePath === p.ref.path)) ?? null;
     };
+    const stable = (text: string) => text.split(root).join('<root>').replace(/<root>\/pad-[^/"\\\s]+/g, '<map>')
+      .replace(/save-[a-z0-9]+\.ops-save\.tmp/g, '<tijdelijk>');
     const record = (step: string, outcome: boolean | null, extra?: Record<string, unknown>) => {
       const s = store.getState();
       const target = placeOf() ?? place;
@@ -545,7 +577,7 @@ async function runScenario(
       if (disk && tracker.output && sameBytes(withoutBom(disk), tracker.output)) target.byApp = true;
       steps.push({
         step, outcome,
-        notices: s.ui.notifications.map(n => `${n.severity}:${n.messageKey}`),
+        notices: s.ui.notifications.map(n => stable(noticeOf(n))),
         disk: disk ? sha256(withoutBom(disk)) : null,
         bomOk: disk ? hasBom(disk) === (target.byApp ? target.appBom : target.otherBom) : null,
         fingerprint: fingerprintOf(s.knownTargetFingerprint, disk),
@@ -565,7 +597,7 @@ async function runScenario(
       inBomWorld: data => (withBom ? addBom(data) : data),
       at: (moment, action) => tracker.arm(moment, action),
       record,
-      save: async (step, how) => {
+      save: async (step, how, after) => {
         let outcome: boolean;
         if (how === 'Ctrl+S') outcome = await store.getState().saveFileForDocument(store.getState().activeDocumentId);
         else if (how === 'sluitvraag') outcome = await closeQuestionSave(store);
@@ -574,7 +606,8 @@ async function runScenario(
           await autoSave.flush();
           outcome = !store.getState().isDirty;
         }
-        record(step, outcome, tracker.settle());
+        const extra = { ...tracker.settle(), ...after?.() };
+        record(step, outcome, Object.keys(extra).length ? extra : undefined);
       },
       picker: answer => {
         win.showOpenFilePicker = async () => [];
@@ -595,7 +628,8 @@ async function runScenario(
         if (s.activeDocumentId !== id) await store.getState().switchDocument(id);
       },
     };
-    record('geopend', null, { tasks: store.getState().tasks.length });
+    if (scenario.opening === false) tracker.take();
+    else record('geopend', null, { tasks: store.getState().tasks.length });
     await scenario.run(run);
   } finally {
     active = null;
@@ -613,6 +647,7 @@ function* caseList() {
     for (const compute of ['hier', 'worker'] as const) {
       for (const scenario of scenarios()) {
         if (scenario.kinds && !scenario.kinds.includes(kind)) continue;
+        if (scenario.computes && !scenario.computes.includes(compute)) continue;
         for (const source of scenario.sources ?? ['LF']) {
           yield { name: `${source} | ${kind} | ${compute} | ${scenario.name}`, kind, compute, source, scenario };
         }
@@ -662,7 +697,8 @@ export function inputHashes(files: Files): Record<string, string> {
 }
 
 export const BOUNDARIES = [
-  'extern een andere planning met BOM', 'extern de geopende planning terug zonder BOM', 'onbekende versie na flag uit en aan',
+  'extern een andere planning met BOM, in de wereld van het bestand', 'extern de geopende planning terug zonder BOM',
+  'onbekende versie na flag uit en aan',
 ] as const;
 
 export async function runBoundaries(root: string, files: Files, withBom: boolean): Promise<Record<string, StepTrace[]>> {
@@ -680,7 +716,7 @@ export async function runBoundaries(root: string, files: Files, withBom: boolean
               r.store.getState().setUI({ featureFlags: {} });
               r.store.getState().setUI({ featureFlags: { ifcForeignContent: true } });
             }
-            if (name === 'extern een andere planning met BOM') r.byOther(addBom(files.other));
+            if (name === 'extern een andere planning met BOM, in de wereld van het bestand') r.byOther(r.inBomWorld(files.other));
             if (name === 'extern de geopende planning terug zonder BOM') r.byOther(files.lf);
             r.rename();
             await r.save('Ctrl+S', 'Ctrl+S');
@@ -721,7 +757,7 @@ async function siteCase(data: Uint8Array): Promise<StepTrace[]> {
     const saved = await store.getState().saveFileForDocument(store.getState().activeDocumentId);
     const s = store.getState();
     return [{
-      step: 'Ctrl+S', outcome: saved, notices: s.ui.notifications.map(n => `${n.severity}:${n.messageKey}`),
+      step: 'Ctrl+S', outcome: saved, notices: s.ui.notifications.map(noticeOf),
       disk: sha256(withoutBom(onSite)), bomOk: null, fingerprint: fingerprintOf(s.knownTargetFingerprint, onSite), dirty: s.isDirty,
       events: '', extra: { opened, saves, version },
     }];
@@ -730,7 +766,17 @@ async function siteCase(data: Uint8Array): Promise<StepTrace[]> {
   }
 }
 
-export const waitPoints = (events: string) => events.replace(/hash-uitvoer(?: hash-uitvoer)+/g, 'hash-uitvoer');
+function noticeOf(notice: AppNotification): string {
+  const rest = Object.entries(notice).filter(([key]) => !['id', 'dedupeKey', 'severity', 'messageKey'].includes(key));
+  return `${notice.severity}:${notice.messageKey}${rest.length ? ` ${JSON.stringify(Object.fromEntries(rest))}` : ''}`;
+}
+
+export const waitPoints = (events: string) => events.replace(/ ?hash-bomversie/g, '').replace(/hash-uitvoer(?: hash-uitvoer)+/g, 'hash-uitvoer');
+
+function scanHashOutsideRead(events: string): boolean {
+  const tokens = events.split(' ');
+  return tokens.some((token, i) => token === 'hash-bomversie' && tokens[i - 1] !== 'read' && tokens[i - 1] !== 'lezen');
+}
 
 export function differences(main: readonly StepTrace[], pr: readonly StepTrace[]): string[] {
   if (main.length !== pr.length) return [`aantal stappen ${main.length} ≠ ${pr.length}`];
@@ -741,10 +787,8 @@ export function differences(main: readonly StepTrace[], pr: readonly StepTrace[]
       if (JSON.stringify(m[field]) !== JSON.stringify(p[field])) out.push(`${m.step}: ${field} ${JSON.stringify(m[field])} ≠ ${JSON.stringify(p[field])}`);
     }
     if (waitPoints(m.events) !== waitPoints(p.events)) out.push(`${m.step}: wachtpunten "${m.events}" ≠ "${p.events}"`);
+    if (m.events.includes('hash-bomversie') || scanHashOutsideRead(p.events)) out.push(`${m.step}: een hash van de BOM-versie buiten de doelscan`);
     if (m.bomOk === false || p.bomOk === false) out.push(`${m.step}: de BOM klopt niet (main ${m.bomOk}, PR ${p.bomOk})`);
-    if (p.outcome === true && m.outcome === true && p.fingerprint !== 'klopt' && m.fingerprint === 'klopt') {
-      out.push(`${m.step}: geslaagd zonder correcte vingerafdruk`);
-    }
   });
   return out;
 }

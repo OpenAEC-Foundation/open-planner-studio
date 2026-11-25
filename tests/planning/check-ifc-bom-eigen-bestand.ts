@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { differences, inputHashes, loadFiles, runBoundaries, runCases, sha256, type Recording, type StepTrace } from './bomEigenBestand';
+import { differences, FLAGS, inputHashes, loadFiles, runBoundaries, runCases, sha256, type Recording, type StepTrace } from './bomEigenBestand';
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const recording = JSON.parse(readFileSync(join(repo, 'tests/planning/fixtures/main-bom-eigen-bestand.json'), 'utf8')) as Recording;
@@ -19,7 +19,8 @@ function expect(name: string, side: string, steps: readonly StepTrace[] | undefi
   if (!last) return check(`${name} (${side})`, ['geen uitkomst']);
   const found: string[] = [];
   if (last.outcome !== expected.outcome) found.push(`uitkomst ${last.outcome}`);
-  if (JSON.stringify(last.notices) !== JSON.stringify(expected.notices)) found.push(`meldingen ${JSON.stringify(last.notices)}`);
+  const keys = last.notices.map(notice => notice.split(' ')[0]);
+  if (JSON.stringify(keys) !== JSON.stringify(expected.notices)) found.push(`meldingen ${JSON.stringify(last.notices)}`);
   if (expected.disk && last.disk !== expected.disk) found.push(`doel ${last.disk}`);
   check(`${name} (${side})`, found);
 }
@@ -40,13 +41,27 @@ try {
       check(`2212 ${name}: met BOM zoals main zonder BOM`, !main ? ['niet in de opname van main'] : !mine ? ['niet gedraaid'] : differences(main, mine));
     }
 
+    const left = Object.entries(recording.cases).flatMap(([name, steps]) => steps.flatMap((step, i) => (
+      (step.extra as { extern?: string } | undefined)?.extern === 'byte voor byte' ? [{ name, i }] : [])));
+    check(`2212 waar main de bytes van een ander liet staan, staan ze er na de PR byte voor byte nog (${left.length} gevallen)`,
+      left.filter(({ name, i }) => (pr[name]?.[i]?.extra as { extern?: string } | undefined)?.extern !== 'byte voor byte').map(({ name }) => name));
+
+    const twelve = (['pad', 'handle'] as const).flatMap(kind => (['Ctrl+S', 'Automatisch opslaan'] as const).flatMap(how => FLAGS.map(flag =>
+      `LF | ${kind} | hier | ${how}, geopend: bij lezing-1: een andere planning met BOM, ${flag}`)));
+    check(`2212 de twaalf gevallen van de review van ronde 3: main en de PR weigeren en laten de andere planning met BOM staan`,
+      twelve.flatMap(name => [recording.cases[name], pr[name]].flatMap((steps, side) => {
+        const last = steps?.at(-1);
+        const extern = (last?.extra as { extern?: string } | undefined)?.extern;
+        return last && last.outcome === false && extern === 'byte voor byte' ? [] : [`${side ? 'PR' : 'main'} ${name}`];
+      })));
+
     const edges = await runBoundaries(root, files, true);
-    const other = sha256(files.other), opened = sha256(files.lf);
+    const opened = sha256(files.lf), other = sha256(files.other);
     for (const kind of ['pad', 'handle'] as const) {
       const at = (name: string) => `${kind} | ${name}`;
-      const andere = at('extern een andere planning met BOM');
-      expect(`2212 grens ${andere}: main weigert het als onleesbaar doel`, 'main', recording.boundaries[andere], { outcome: false, notices: UNREADABLE, disk: other });
-      expect(`2212 grens ${andere}: de PR weigert het als gewijzigd doel`, 'PR', edges[andere], { outcome: false, notices: CHANGED, disk: other });
+      const wereld = at('extern een andere planning met BOM, in de wereld van het bestand');
+      expect(`2212 grens ${wereld}: main weigert het als gewijzigd doel`, 'main', recording.boundaries[wereld], { outcome: false, notices: CHANGED, disk: other });
+      expect(`2212 grens ${wereld}: de PR weigert het als onleesbaar doel`, 'PR', edges[wereld], { outcome: false, notices: UNREADABLE, disk: other });
       const terug = at('extern de geopende planning terug zonder BOM');
       expect(`2212 grens ${terug}: main schrijft`, 'main', recording.boundaries[terug], { outcome: true, notices: [] });
       expect(`2212 grens ${terug}: de PR weigert het als gewijzigd doel`, 'PR', edges[terug], { outcome: false, notices: CHANGED, disk: opened });
