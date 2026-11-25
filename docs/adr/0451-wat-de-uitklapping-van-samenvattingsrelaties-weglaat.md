@@ -17,8 +17,10 @@ ongewijzigd door. Die tweede laat de constructor van `CPMSolver` vallen, met een
 - `solveProject` voegt de weggelaten ids samen met die van de solver in `CPMResult.droppedSequenceIds`, zonder
   dubbele ids. Daaruit lezen het waarschuwingenpaneel (`collectScheduleWarnings`, soort `droppedSequence`) en het
   Relaties-paneel (`relationIndex.ts`). Na het openen van een bestand telt `fileSlice.ts` ze voor de melding
-  `notifications.summaryRelationsDropped`. De andere aanroepers van `expandSummaryRelations` gebruiken alleen de
-  uitgeschreven relaties.
+  `notifications.summaryRelationsDropped`. De eindcontrole van het taakraster (`validateFinalRelationGraph` in
+  `relationPlan.ts`, voor relatiecellen en plakken) vergelijkt de weggelaten ids vóór en na de bewerking en weigert
+  een bewerking die er een nieuwe bij maakt (`unrepresentableSummaryRelation`). De XER-export leest ze niet (knownbug
+  2489).
 - `leafDescendantsOf` slaat een onbekend kind-id en een al bezochte taak over. Een tak met daarnaast echte bladen
   geeft die bladen gewoon; alleen een tak zonder bladen valt weg. `check-summary-relation-expansion.ts` toetst de
   lege tak, een samenvatting die zichzelf als kind heeft en twee samenvattingen die elkaars kind zijn.

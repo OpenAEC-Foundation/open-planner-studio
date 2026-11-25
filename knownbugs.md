@@ -812,8 +812,8 @@ en noem het in je rapport of PR-tekst.
      het vroege paar uit de vastlegging en geeft de berekening één werkdag. In 5021 `IfcTaskTime`-regels uit 141
      bestanden in de repo schrijft geen enkel programma `''` in deze slots. — B
 
-2477. **Met een samenvattingstaak als voorganger bij SS of SF rekent de opvolger met de laatste kindstart, niet met de
-     start van de samenvatting.** `expandSummaryRelations` (`src/engine/scheduler/expandSummaryRelations.ts`) maakt per
+2477. **Met een samenvattingstaak als voorganger bij SS of SF rekent de opvolger met de start van elk kind, niet met
+     de start van de samenvatting.** `expandSummaryRelations` (`src/engine/scheduler/expandSummaryRelations.ts`) maakt per
      blad een relatie, en de vroege start neemt het maximum over de voorgangers (ADR 0450). Gepind in
      `tests/planning/cases-edge.json`: in `wbs-summary-relation-conservative-ss-pred-01` (fase P met K1 van 3 dagen op
      het anker en K2 van 5 dagen na Q, P naar X met SS zonder lag) rolt P op tot een start op 1 juni en start X op
@@ -830,15 +830,22 @@ en noem het in je rapport of PR-tekst.
      taak hoeft alleen het laatst klare kind de eis te halen. Het weggehaalde commentaar noemde dit een vorm die MS
      Project op een samenvatting ontmoedigt of verbiedt; dat is niet nagegaan. — B
 
-2479. **Een procentuele lag op een relatie met een samenvattingstaak als voorganger rekent met de duur van elk blad,
-     niet met die van de samenvatting.** Na `expandSummaryRelations` is de voorganger van elke bladrelatie het blad, en
-     `resolveEffectiveLagDays` en `resolveLagMinutes` (`CPMSolver.ts`) nemen de duur van de voorganger. Nagespeeld met
-     `solveProject` (profiel ops, een dagkalender ma tot en met vr van 8 tot 16 uur zonder `workTime`, projectstart
-     1 juni 2026): fase P met K1 van 2 dagen en K2 van 4 dagen met FS na K1, en P naar X met FS en `lagPercent` 50. K2
-     eindigt op 8 juni en X start op 11 juni, twee werkdagen later (de helft van K2). P beslaat zes werkdagen; met een
-     vaste lag van 3 dagen start X op 12 juni. Bladen met een verschillende duur krijgen zo elk een andere lag. Welke
-     duur MS Project als basis neemt, is niet nagegaan; het weggehaalde commentaar schreef "vermoedelijk" één duur
-     voor de samenvatting als geheel. — B
+2479. **Een lag op een relatie met een samenvattingstaak als voorganger rekent per blad: een procentuele lag met de
+     duur van het blad, een lag in werktijd in de kalender van het blad.** Na `expandSummaryRelations` is de voorganger
+     van elke bladrelatie het blad; `resolveEffectiveLagDays` en `resolveLagMinutes` (`CPMSolver.ts`) nemen de duur van
+     de voorganger, en een lag in werktijd telt in de kalender die `lagEngine` uit de projectoptie `lagCalendar` kiest,
+     standaard die van de voorganger (ADR 0450). Nagespeeld met `solveProject` (profiel ops, projectkalender ma tot en
+     met vr van 8 tot 16 uur zonder `workTime`, projectstart 1 juni 2026). Procentueel: fase P met K1 van 2 dagen en K2
+     van 4 dagen met FS na K1, en P naar X met FS en `lagPercent` 50. K2 eindigt op 8 juni en X start op 11 juni 08:00,
+     twee werkdagen later (de helft van K2). P beslaat zes werkdagen; met een vaste lag van 3 dagen start X op 12 juni
+     08:00. Het waarschuwingenpaneel meldt niets (proef uit de review van #1281). De gids *Relaties leggen*
+     (`public/docs/nl/howto-relaties-leggen.md`) omschrijft `50%` als de helft van de duur van de voorganger, zodat een
+     planner met zo'n lag op een fase ongemerkt een werkdag te vroeg kan uitkomen. Lagkalender: fase P met K1 van 1 dag
+     op een kalender die alleen op maandag werkt (K1 eindigt op maandag 1 juni) en K2 van 5 dagen op de projectkalender
+     (eindigt op vrijdag 5 juni), en P naar X met FS en een lag van 2 dagen. X start op 16 juni: de lag van K1 telt twee
+     maandagen. Dezelfde relatie vanaf alleen K2 geeft 10 juni. Welke duur of kalender MS Project als basis neemt, is
+     niet nagegaan; het weggehaalde commentaar schreef "vermoedelijk" één duur voor de samenvatting als geheel. Issue
+     #1282. — B
 
 2487. **Welke samenvattingsrelatie boven het plafond wegvalt, hangt af van de volgorde van de relaties.**
      `expandSummaryRelations` (`src/engine/scheduler/expandSummaryRelations.ts`): zodra één relatie niet meer in
@@ -853,8 +860,26 @@ en noem het in je rapport of PR-tekst.
      achtervoegsel van elk id, ook van een relatie die de uitklapping niet maakte (ADR 0454). Nagespeeld met
      `solveProject` (profiel ops, dagkalender, twee bladtaken A en B van 2 dagen, één FS-relatie A naar B met id
      `r::exp-1`): `drivingSequenceIds` is `['r']` en `sequenceFreeFloat` heeft alleen de sleutel `r`, een id dat geen
-     relatie heeft. Bestaat er ook een relatie `r`, dan vallen de twee volgens de code onder één id samen; dat is niet
-     nagespeeld. Of een lezer of de app zulke ids maakt, is niet nagegaan. — B (rekenresultaat), S (samenvallen met `r`)
+     relatie heeft. Bij een relatie op een fase met datzelfde id `r::exp-1` geeft het terugvouwen in `solveProject`
+     `r::exp-1`, en een tweede keer terugvouwen `r` (nagespeeld met een script). Bestaat er ook een relatie `r`, dan
+     vallen de twee volgens de code onder één id samen; dat is niet nagespeeld. Zo'n id kan binnenkomen via IFCX met de
+     vlag `ifcx` aan: het veld `id` van een relatie (`SEQUENCE_FIELDS` in
+     `src/services/ifc/ifcx/fields/sequenceFields.ts`) neemt elke niet-lege tekst over. Na inlezen van zo'n bladrelatie
+     had het rekenresultaat `r` als drijvend id en als sleutel voor de vrije speling, en de Relaties-weergave
+     (`relationIndex.ts`) las voor de relatie `driving: false` (proef uit de review van #1281). Of een andere lezer zulke
+     ids maakt, is niet nagegaan. — B (rekenresultaat), S (samenvallen met `r`)
+
+2489. **De XER-export kan een relatie tussen twee fasen verliezen, terwijl de exportmelding onjuist zegt dat ze is
+     omgezet.** `writeXER` (`src/services/xer/xerWriter.ts`) telt elke opgeslagen relatie met een samenvattingskant als
+     verlies `summaryRelations` (`notifications.exportXerLossItem.summaryRelations`: "is omgezet naar relaties tussen de
+     taken eronder") en schrijft alleen de bladrelaties uit `expandSummaryRelations(...).sequences`; `droppedSequenceIds`
+     leest hij niet (ADR 0452). Nagespeeld met een script, in het geheugen en niet in de browser (projectkalender ma tot
+     en met vr, twee fasen van elk 300 parallelle bladtaken van 1 dag, één FS-relatie tussen de fasen): `solveProject`
+     zet de relatie in `droppedSequenceIds`, `writeXER` meldt het verlies `summaryRelations` met aantal 1, en `readXER`
+     op de geschreven bytes geeft 0 relaties terug. De app accepteert zo'n koppeling (`relationRules.ts`), en het
+     waarschuwingenpaneel toont haar bij het rekenen als weggelaten. Volgens de code telt de melding ook een relatie met
+     de eigen fase of met een lege tak als omgezet (ADR 0451); dat is niet nagespeeld. — B (plafond), S (andere
+     weglatingen)
 
 ## Tabel, invoer en bediening
 

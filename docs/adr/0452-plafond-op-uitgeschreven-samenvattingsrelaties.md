@@ -4,11 +4,12 @@ Een relatie tussen twee samenvattingen met N en M bladen geeft N×M bladrelaties
 elk 500 bladen geven er al 250.000. `MAX_EXPANDED_RELATIONS` (50.000) begrenst daarom het totaal dat
 `expandSummaryRelations` in één aanroep over alle relaties samen uitschrijft, zodat de solver niet vastloopt of
 zonder geheugen raakt, zoals de grenzen `MAX_SCAN` en `MAX_DAYS` in `CalendarEngine` een kalenderzoektocht begrenzen.
-Past een relatie niet meer in wat er over is, ook niet na de snoei (ADR 0453), dan valt ze in haar geheel weg, nooit
-een deel van haar bladrelaties: een deel zou een andere logica geven dan de relatie. Daarna valt elke volgende
-relatie die uitgeschreven moet worden ook weg, ook een kleinere die nog zou passen. Zo slaagt een latere relatie niet
-soms wel en soms niet afhankelijk van de volgorde. Welke relatie als eerste over het plafond gaat, hangt wel van de
-volgorde af (knownbug 2487).
+Past een relatie niet meer in wat er over is, ook niet na de snoei (ADR 0453), dan valt ze in haar geheel weg. Buiten
+de snoei, die alleen bladen weglaat die de grens niet bepalen, schrijft de functie geen deel van haar bladrelaties
+uit: een deel zou een andere logica geven dan de relatie. Daarna valt elke volgende relatie die uitgeschreven moet
+worden ook weg, ook een kleinere die nog zou passen. Zo slaagt een latere relatie niet soms wel en soms niet
+afhankelijk van de volgorde. Welke relatie als eerste over het plafond gaat, hangt wel van de volgorde af (knownbug
+2487).
 
 ## Gevolgen
 
@@ -22,3 +23,7 @@ volgorde af (knownbug 2487).
   onder het kruisproduct mee om de snoei af te dwingen. Geen aanroeper in `src/` geeft hem mee.
 - `check-summary-relation-expansion.ts` toetst een relatie van 300×300 bladen: ze valt in haar geheel weg, binnen
   een tijdgrens, en een kleinere relatie die vóór haar in de lijst staat, wordt volledig uitgeschreven.
+- Wie alleen `sequences` leest, ziet niet dat de relatie wegviel (ADR 0451). De XER-export (`writeXER` in
+  `xerWriter.ts`) schrijft alleen de bladrelaties uit `sequences` en telt elke relatie met een samenvattingskant als
+  omgezet (verlies `summaryRelations`), ook een die boven het plafond wegviel; zo'n relatie komt niet in het bestand
+  (knownbug 2489).
