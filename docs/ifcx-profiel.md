@@ -15,9 +15,9 @@ veranderen; vanaf het moment dat de flag eraf gaat of een ander programma het pr
 een nieuwe naam (ontwerp §5.3). Wat een planner met de flag aan in die tijd als IFCX opslaat, kan een latere versie
 van de app weigeren.
 
-Deze versie (fase 3, F3-1) draagt project, werkplan, werkschema, kalenders, taken en relaties. Resources,
-toewijzingen en baselines komen in F3-2, de overige velden in F3-3. Wat de kern nog niet draagt en STEP wel bewaart,
-weigert de writer (zie *Wat de writer weigert*).
+Deze versie (fase 3, F3-1 en F3-2) draagt project, werkplan, werkschema, kalenders, taken, relaties, resources,
+toewijzingen en baselines. De overige velden komen in F3-3. Wat de kern nog niet draagt en STEP wel bewaart, weigert de
+writer (zie *Wat de writer weigert*).
 
 **De profielversie.** Verandert later de projectie van de writer (wat de writer voor een planning in het bestand zet,
 gedeeld of precies), dan gaat de profielversie (`formatVersion`) omhoog, en moet de lezer voor een bestand met de oude
@@ -133,7 +133,8 @@ bij een tweede opslag doet. Zie *De route onder R6* en *Wat een tweede opslag ve
 - **`schemas`** bevat voor elk attribuut dat in het bestand voorkomt de definitie. Die komt uit dezelfde tabel als het
   schrijven en lezen (de registratie per node in `nodes.ts`).
 - **`data`**: één entry per object, in deze volgorde: werkplan, werkschema, projectkalender, de andere kalenders,
-  taken (in de volgorde van de takenlijst), relaties. Elke entry staat op één regel.
+  taken (in de volgorde van de takenlijst), relaties, resources, toewijzingen en baselines (elk in de volgorde van de
+  planning). Elke entry staat op één regel.
 
 ## Twee kanten: precies en gedeeld
 
@@ -172,16 +173,20 @@ ruim 1.500 paren die onder de oude afbeelding botsten.
 
 - Het interne id van een object staat in het veld `id` van zijn `openaec::ops::`-attribuut als het afwijkt van het
   pad.
-- Verwijzingen tussen objecten zijn paden: `parent`, `calendar` (van een taak en van het werkplan), `literalCalendars`,
-  `predecessor`, `successor` en `workplan`. De gedeelde kant draagt dezelfde paden als projectie (`parent`,
-  `calendar`, `relatingProcess`, `relatedProcess`).
+- Verwijzingen tussen objecten zijn paden: `parent` (van een taak en van een resource), `calendar` (van een taak, een
+  resource en het werkplan), `literalCalendars`, `predecessor`, `successor`, `workplan`, `task` en `resource` (van een
+  toewijzing), `task` in een baselinerij, `activeBaseline` en `comparedBaselines`. De gedeelde kant draagt dezelfde paden
+  als projectie (`parent`, `calendar`, `relatingProcess`, `relatedProcess`, `relatedResource`).
 
 **R0, één regel voor alle soorten** (`IDENTITY_KINDS` en `identityProblems` in `identity.ts`): het interne id is uniek
 binnen de soort, en binnen de kalenderbibliotheek; de GlobalId is uniek over alle objecten samen, project, werkplan en werkschema inbegrepen; een relatie
-heeft een voorganger en een opvolger die bestaan; en een taak staat in de kinderlijst van hoogstens één ouder. De writer
-weigert een botsing met `inconsistent`, met het veld (`<soort>.id`, `<soort>.globalId`, `sequence.predecessorId`,
-`sequence.successorId` of `task.childIds`) en een melding met de namen: het dubbele id, de GlobalId met beide
-eigenaren, de relatie met het ontbrekende doel, of het kind met beide ouders. Hij rekent nooit een vervangende
+heeft een voorganger en een opvolger die bestaan, en een toewijzing een taak en een resource die bestaan; en een taak
+staat in de kinderlijst van hoogstens één ouder. De soorten zijn project, werkplan, werkschema, kalender, taak, relatie,
+resource, toewijzing en baseline. De writer weigert een botsing met `inconsistent`, met het veld (`<soort>.id`,
+`<soort>.globalId`, `sequence.predecessorId`, `sequence.successorId`, `assignment.taskId`, `assignment.resourceId` of
+`task.childIds`) en een melding met de namen: het dubbele id, de GlobalId met beide eigenaren, de relatie of toewijzing
+met het ontbrekende doel, of het kind met beide ouders. STEP laat zo'n toewijzing stil vallen; IFCX mag haar weigeren
+(de uitzondering op de maat). Hij rekent nooit een vervangende
 GlobalId uit. De lezer toetst hetzelfde op het model dat hij las en weigert met `invalid`.
 
 De boom zelf (een kind dat niet bestaat, een ouder die het kind niet in zijn lijst heeft) valt niet onder R0: de
@@ -214,7 +219,10 @@ Een veld zonder "verplicht" mag ontbreken; `null` is nooit een geldige waarde.
 verplicht: de projectkalender), `projectId`, `startDate` en `endDate` (de projectdatums zoals ingevoerd), `createdAt`,
 `modifiedAt`, `author`, `company`, `ifcSchema` (keuze `IFC4X3_ADD2`, `IFC4X3`, `IFC4`: het schema voor een opslag als
 STEP), `ifcSchemaUnconfirmed`, `wbsAutoNumber` (ja/nee), `defaultTaskDurationUnit` (keuze `days`, `hours`),
-`statusDate`, en de laadgegevens van R1 volledig: `timeModel` (het tijdmodel dat STEP teruggeeft, nu `MINUTES-1`; het
+`statusDate`, de baselines van het document (`activeBaseline`: pad van de actieve baseline; `comparedBaselines`:
+`{ "1": pad, "2": pad }`, de twee vergelijkingsplaatsen, elke plaats alleen als ze bezet is; `removedTasks`: lijst van
+`{ id, globalId }`, de GlobalId die STEP teruggeeft voor een taak die niet meer bestaat en waar een baselinerij naar
+wijst, `baselineOrphanGuids` in het model), en de laadgegevens van R1 volledig: `timeModel` (het tijdmodel dat STEP teruggeeft, nu `MINUTES-1`; het
 ontbreekt bij een oude planning met een openstaande omzetting naar het minutenmodel, zoals STEP het dan ook weglaat),
 `minuteModelPending` (ja, als de laadgrens de omzetting naar het minutenmodel openzet: bij een oude planning zonder
 `MINUTES-1`, of als ze een taak onder vast werk naar de urenmaat zet; sinds fixronde 8, want de lezer haalt de vlag
@@ -256,7 +264,10 @@ daarna de cache en de ene bibliotheekrij met hetzelfde id als één kalender.
 (keuze `WORKTIME`, `ELAPSEDTIME`), `completion` (getal 0–1), `time` (verplicht, hieronder), `milestoneKind` (keuze
 `START`, `FINISH`), `mandatory`, `isSummary`, `manuallyScheduled` (ja/nee), `calendar` (pad), en `unrecorded` (een lijst met keuzes uit de
 negen tijdslots van `ALL_RECORDED_SLOT_KEYS`, in die volgorde, alleen als ze er zijn: de slots met een waarde die het
-bestand niet als ingevuld noemt). Welke tijdvelden ingevuld zijn (`recordedFields`), volgt uit de velden met een waarde,
+bestand niet als ingevuld noemt), en `timephasedContours` (lijst van `{ resourceUid, resourceId, periods }`;
+`resourceUid` ontbreekt als het `null` is, `resourceId` is de tekst die STEP teruggeeft, `periods` is een lijst van
+`{ afterMinutes, minutes, workMinutes, kind }` met `kind` `actual` of `remaining`). `resourceIds` staat er niet: de lezer
+leidt het af uit de toewijzingen met dezelfde functie als de STEP-lezer (`reconstructResourceIds`). Welke tijdvelden ingevuld zijn (`recordedFields`), volgt uit de velden met een waarde,
 min `unrecorded` (zie *Wat de STEP-lezer naast het model teruggeeft*).
 
 `time` draagt de precieze tijden: `durationUnit` (keuze `days`, `hours`), `scheduleDuration` (werkdagen; bij een uurtaak
@@ -280,6 +291,54 @@ bij de afgeleide uurtaak (R4 weigert het daar).
 
 `openaec::planning::sequence` (projectie): `relatingProcess`, `relatedProcess`, `sequenceType` (`IfcSequenceEnum`),
 `timeLag` of `timeLagRatio` (zie *Lag*), `lagDurationType`.
+
+### Resource
+
+`openaec::ops::resource`: `id`, `name` (verplicht), `type` (keuze `LABOR`, `EQUIPMENT`, `MATERIAL`, `SUBCONTRACTOR`,
+`CREW`, `COST`, verplicht), `description`, `maxUnits` (getal; ontbreekt bij 1), `costPerHour` (getal), `calendar` (pad),
+`availabilitySteps` (lijst van `{ from, maxUnits }`, `from` tekst), `unitOfMeasure`, `parent` (pad: de ploeg), `color`
+(tekst), `libraryOrigin` (`{ companyId, libraryItemId, poolVersion, syncedHash }`, `syncedHash` mag ontbreken). Elk getal
+is een eindig getal zonder eigen grens: een negatief uurtarief, een capaciteit van 0,5 en een tarief van een kostenresource
+staan er zoals STEP ze bewaart. Een kostenresource heeft na de STEP-rondgang geen tarief, kalender, stappen, eenheid of
+ploeg en capaciteit 1 (`clearCostResourceFields`); zo staat ze er ook.
+
+`openaec::planning::resource` (projectie): `name`, `description`, `resourceClass` (de IFC-klasse die STEP schrijft:
+`IfcLaborResource`, `IfcConstructionEquipmentResource`, `IfcConstructionMaterialResource`, `IfcSubContractResource`,
+`IfcCrewResource`; een kostenresource is zoals in STEP een `IfcConstructionMaterialResource`). Ploeg, capaciteit en
+capaciteitsstappen staan alleen in het app-deel; of ze een gedeeld woord krijgen (een algemene `parent` voor de
+resourcehiërarchie, de capaciteit die andere planners kunnen lezen), is een keuze voor het profiel vóór de flag eraf gaat
+(VERVOLG van de review van #1189 ronde 1).
+
+### Toewijzing
+
+`openaec::ops::assignment`: `id`, `task` en `resource` (paden, verplicht), `unitsPerDay` (getal; ontbreekt bij 1),
+`plannedUnitsPerDay`, `curve` (keuze uit de acht curves), `curveValues` (lijst van getallen), `workWindowStart` en
+`workWindowFinish` (tekst), `plannedWorkMinutes`, `actualWorkMinutes`, `remainingWorkMinutes` en `costAmount` (getallen).
+Elk veld staat er alleen als de STEP-lezing het teruggeeft; een negatieve inzet en een curve met een waarde boven 100
+staan er zoals STEP ze bewaart. Een exacte curve die niet aan het contourcontract voldoet (`normalizeCurveValues`: 21
+punten), laat STEP vallen, en IFCX dus ook.
+
+`openaec::planning::assignment` (projectie): `relatingProcess` (pad van de taak), `relatedResource` (pad van de resource),
+`scheduleUsage` (`unitsPerDay`), `scheduleContour` (`curve`).
+
+**Het id van een toewijzing.** STEP bewaart geen id per toewijzing: het schrijft per taak één `IfcRelAssignsToProcess` en
+noemt een toewijzing in de metadata `<GlobalId van de resource>#<plaats onder de taak>`. De STEP-lezer geeft haar een
+willekeurig nieuw id (`generateId('asgn')`). De schrijver geeft haar na de STEP-rondgang het id
+`asgn-<id van de taak>#<plaats onder de taak>`: dezelfde identiteit die STEP gebruikt, en zonder toeval, zodat twee keer
+opslaan dezelfde bytes geeft. Het pad volgt uit dat id. Verandert de volgorde van de toewijzingen van een taak, dan
+verschuift het id, zoals in STEP de naam in de metadata.
+
+### Baseline
+
+`openaec::ops::baseline`: `id`, `sourceProjectId`, `name`, `createdAt`, `tasks`, `projectEnd` (tekst), `projectDuration`
+(getal), alle verplicht behalve `id` en `sourceProjectId`. `tasks` is een lijst van rijen `{ task | removedTask,
+sourceTaskId, sourceTaskCode, start, finish, duration, isMilestone, milestoneKind }`: `task` is het pad van een taak die
+bestaat, `removedTask` het id van een taak die niet meer bestaat (de GlobalId daarvan staat in
+`openaec::ops::document.removedTasks`); `isMilestone` ontbreekt bij onwaar. Datums en tekst staan er zoals STEP ze in
+`OPS_Baselines` bewaart.
+
+`openaec::planning::baseline` (projectie): `name`, `start` (de datum van de vroegste start van de rijen) en `finish` (de
+datum van `projectEnd`), zoals STEP het baselineschema schrijft.
 
 ## Lag
 
@@ -338,7 +397,7 @@ bereikt die module niet, ook niet via een andere module van de kern.
    houdt de feiten van de lezing die de app bij openen gebruikt (de ingevulde velden, `timeModel`, de herkomst), neemt
    de gegevens na de laadgrens (de taken, de kalenders en `minuteModelPending` als die aan staat), en laat de hint
    `milestonesAtDayEnd` vallen: na de laadgrens zijn alle datums momenten, en daarop heeft de hint geen invloed meer.
-   Dit is de canonieke planning van R5.
+   De toewijzingen krijgen hun afgeleide id (zie *Toewijzing*). Dit is de canonieke planning van R5.
 3. `unsupportedContent` op die planning: wat STEP bewaart en IFCX nog niet draagt, weigert de writer met `unsupported`
    en de veldnamen.
 4. De projectie: `ownFileFor` in `ownFile.ts` (R0, `composeIfcxDocument` en de waardetoets met dezelfde functie als de
@@ -372,8 +431,12 @@ naast werkblokken, werkblokken op een dag die geen werkdag is, `interferingFloat
 (die schrijft STEP bewust niet meer), de kalender van een taak die niet bestaat, en `project.calendarId` als het niet
 de projectkalender is. Wat STEP bij heropenen invult of rechtzet, staat er precies zo in: lege vroege en late datums,
 de uurmaat uit de minuten, de voortgang en status uit de werkelijke datums, een dag die niet bestaat (30 februari wordt
-2 maart), een oneindige lag (wordt 0), en de nieuwe id's van relaties en bibliotheekkalenders (`seq-ifc-<GlobalId>`,
-`rescal-ifc-<GlobalId>`).
+2 maart), een oneindige lag (wordt 0), en de nieuwe id's van relaties, bibliotheekkalenders en resources
+(`seq-ifc-<GlobalId>`, `rescal-ifc-<GlobalId>`, `res-ifc-<GlobalId>`). Wat STEP van resources, toewijzingen en baselines
+laat vallen, laat IFCX ook vallen: een toewijzing aan een resource die niet bestaat (R0 weigert die al op de invoer), een
+ploeg of kalender van een resource die niet bestaat, een vergelijkingsplaats met een baseline die niet bestaat, en de
+velden die een kostenresource of kostentoewijzing niet draagt (`normalizeAssignmentForResource`). Een actieve baseline
+die niet bestaat, wordt zoals in STEP de laatste baseline.
 
 ## R5: één canonieke planning
 
@@ -579,7 +642,8 @@ De velden die tot fixronde 4 buiten de vergelijking bleven:
 | `recordedTimesOrigin` | vast `ifc-own`: een IFCX-bestand is altijd een eigen bestand | de laadgrens kiest daarmee tussen verse import en heropening |
 | `importPristine` | `openaec::ops::document.importPristine` | "datums zoals opgeslagen" gaat bij een ongewijzigde import vanzelf aan |
 | `minuteModelPending` | `openaec::ops::document.minuteModelPending` (sinds fixronde 8) | de laadgrens zet de vlag, ook bij een planning mét `TimeModel` als ze een taak onder vast werk naar de urenmaat zet; de lezer gaat niet door de laadgrens, dus het bestand draagt haar |
-| `recordedTimes`, `xerOrigin`, `xerArchiveIssue`, `baselineOrphanGuids` | nog niet gedragen, weigert de writer | volgen uit het XER-archief en de baselines (F3-2 en F3-3); zonder die inhoud geeft STEP ze niet terug |
+| `recordedTimes`, `xerOrigin`, `xerArchiveIssue` | nog niet gedragen, weigert de writer | volgen uit het XER-archief (F3-3); zonder die inhoud geeft STEP ze niet terug |
+| `baselineOrphanGuids` | `openaec::ops::document.removedTasks` (F3-2) | de GlobalId van een taak die niet meer bestaat en waar een baselinerij naar wijst; STEP geeft haar terug uit `TaskGuids` |
 | `xerMissingPlannedStarts`, `p6xmlReport`, `msProjectReport`, `sourceScheduleNotes`, `suggestedProfileId`, `ifcLegacySchemaLoss` | nog niet gedragen, weigert de writer | meldingen van andere lezers over hun bronbestand; de STEP-lezer geeft ze voor een eigen bestand niet terug, dus ze zijn er nooit |
 
 **`recordedFields` en R4.** De maat is de toestand van de app direct na openen, met de geschiedenis erbij (besluit
@@ -634,9 +698,9 @@ het veranderde bestand is en dat van het oude model verschilt, of weigert met he
 - `invalid`: STEP weigert of breekt af (`planning`, met de reden van STEP), of een waarde in de projectie valt buiten
   haar domein (attribuut en veld in `fields`, het precieze veld eerst); ook een ongeldig moment van schrijven
   (`header.timestamp`);
-- `unsupported`: de planning van het bestand heeft iets wat dit profiel nog niet draagt: resources, toewijzingen, baselines, codes,
-  eigen velden, gebruikte taaktypes, de bibliotheek, het P6-bronarchief, en elk veld van project, kalender, taak of
-  relatie dat geen veldgroep draagt (`unsupportedContent.ts`), met de veldnamen in `fields`;
+- `unsupported`: de planning van het bestand heeft iets wat dit profiel nog niet draagt: codes, eigen velden, gebruikte
+  taaktypes, de bibliotheek, het P6-bronarchief, en elk veld van project, kalender, taak, relatie, resource, toewijzing,
+  baseline of baselinerij dat geen veldgroep draagt (`unsupportedContent.ts`), met de veldnamen in `fields`;
 - `self-check`: de eigen uitvoer leest niet terug, of geeft een andere planning dan de planning van het bestand
   (`fields` noemt de paden van de eerste verschillen).
 
@@ -750,8 +814,10 @@ hij draagt (`modelKeys`) en de domeinvelden per object (`objectKeys`). Daaruit v
   `projection.ts` en `ifcxReader.ts`.
 - **De proef.** `NOT_CARRIED_YET` in `check-ifcx-kern.ts` gaat mee omlaag. Een planning met de nieuwe gegevens komt in
   `STEP_CASES` (de R1-lus) en in `maximalPlan` of `variantPlan`: de veldproef, de R2-lus, de R3-lus en de proef die
-  elk precies veld weghaalt, lopen over alle geregistreerde attributen en falen bij een veld zonder proefgegevens. Voor
-  F3-2: een kostenresource met een toewijzing. Voor F3-3: een geval per nieuwe betekenis.
+  elk precies veld weghaalt, lopen over alle geregistreerde attributen en falen bij een veld zonder proefgegevens. F3-2
+  zette in `maximalPlan` een kostenresource met een bedrag, een werkresource in een ploeg met kalender, stappen en
+  contour, drie baselines (actief en twee vergelijkingen) en een rij naar een verwijderde taak; `kernOf` houdt de
+  resources, toewijzingen en baselines van de voorbeelden. Voor F3-3: een geval per nieuwe betekenis.
 
 Geen eigen normalisatie, geen tabel van dubbele voorstellingen en geen uitzondering in de zelfcontrole: de precieze
 kant draagt wat STEP teruggeeft, en wat bij openen hoort, doet de laadgrens. Een nieuw attribuut hoeft aan de leeskant

@@ -7131,3 +7131,23 @@ en noem het in je rapport of PR-tekst.
      mutaties van de kernproef; de vorige head noemde het veld). Richting als het nodig wordt: de domeinen in de
      veldtabel nauwer maken waar STEP een waarde laat vallen (een fractie in een minutenveld); geen toetsen per object
      die STEP nabootsen, want die sluit R6 uit. Gemeten in #1183 ronde 8. — B
+
+2373. **IFCX (F3-2, onder 2353): een zelfgemaakt bestand met een resource-, toewijzings- of baselinewaarde die STEP nooit
+     teruggeeft, opent.** Voorbeelden: een exacte curve (`curveValues`) die niet aan het contourcontract voldoet (twee
+     punten in plaats van 21; de belasting rekent er dan mee als exacte curve), een `costAmount` op een werktoewijzing,
+     werkvelden op een kostentoewijzing, of een kostenresource met een tarief. Een bestand van de schrijver heeft ze nooit:
+     STEP laat ze vallen (`normalizeCurveValues`, `normalizeAssignmentForResource`, `clearCostResourceFields`), en een
+     tweede opslag zet ze recht zoals STEP. Een zelfgemaakt bestand dat precies de projectie is, opent wel, net als de
+     gevallen van 2353. Richting als het nodig wordt: dezelfde als 2353, geen eigen toets per veld. Gemeld door de review
+     van #1189 ronde 1 (blokkade 4, GPT-6.2-Sol); vastgelegd bij de herschrijving op de kern. — S
+
+2374. **IFCX (F3-2): een toewijzing heeft geen eigen identiteit; haar id en pad volgen uit taak en plaats.** STEP bewaart
+     geen id per toewijzing (één `IfcRelAssignsToProcess` per taak; in de metadata `<GlobalId van de resource>#<plaats>`)
+     en de STEP-lezer geeft elke toewijzing een willekeurig nieuw id. IFCX geeft haar na de STEP-rondgang het id
+     `asgn-<taak>#<plaats onder de taak>`, zodat twee keer opslaan dezelfde bytes geeft. Verwijdert de planner een
+     toewijzing of verandert de volgorde onder een taak, dan schuiven id en pad van de volgende toewijzingen, zoals in STEP
+     de naam in de metadata. De app gebruikt een toewijzings-id alleen binnen een geopend document (bewerkingen, MCP), en
+     na openen van een STEP-bestand is het ook nieuw; een ander programma dat een toewijzing op haar pad volgt, of het
+     crashherstel van F3-4 met twee toewijzingen aan dezelfde resource, kan het verschuiven wel merken. Richting: bij F3-4 beslissen of een toewijzing een eigen identiteit krijgt (dan ook in
+     STEP) en het herstelscenario met twee toewijzingen aan één resource vastleggen. Gemeld door de review van #1189
+     ronde 1 (VERVOLG "Toewijzingsidentiteit verdwijnt over STEP", GPT-6.2-Sol). — B
