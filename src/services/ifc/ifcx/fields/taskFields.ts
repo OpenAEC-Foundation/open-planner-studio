@@ -6,6 +6,10 @@ import {
 } from '../fieldTable';
 import type { SharedSpan } from '../dateProjection';
 import { ALL_RECORDED_SLOT_KEYS, type RecordedFieldKey } from '../../ifcTaskSlots';
+import { STRUCTURE_TASK_FIELDS, STRUCTURE_TASK_KEYS_CARRIED } from './structureFields';
+import { TASK_SCHEDULE_FIELDS, TASK_SCHEDULE_KEYS_CARRIED } from './taskScheduleFields';
+import { TASK_NOTE_FIELDS, TASK_NOTE_KEYS_CARRIED } from './taskNoteFields';
+import { TASK_SOURCE_FIELDS, TASK_SOURCE_KEYS_CARRIED } from './taskSourceFields';
 
 export interface TaskWriteSource {
   readonly task: Task;
@@ -191,11 +195,13 @@ export const TASK_FIELDS: readonly TaskField[] = [
     write: s => (s.unrecorded.length > 0 ? [...s.unrecorded] : undefined),
     read: (v, t) => { t.unrecorded = (v as RecordedFieldKey[] | undefined) ?? []; },
   },
+  ...STRUCTURE_TASK_FIELDS, ...TASK_SCHEDULE_FIELDS, ...TASK_NOTE_FIELDS, ...TASK_SOURCE_FIELDS,
 ];
 
 export const TASK_KEYS_CARRIED: readonly (keyof Task)[] = [
   'id', 'name', 'description', 'wbsCode', 'taskType', 'status', 'isMilestone', 'milestoneKind', 'mandatory', 'priority',
   'isSummary', 'parentId', 'childIds', 'time', 'calendarId', 'manuallyScheduled',
+  ...STRUCTURE_TASK_KEYS_CARRIED, ...TASK_SCHEDULE_KEYS_CARRIED, ...TASK_NOTE_KEYS_CARRIED, ...TASK_SOURCE_KEYS_CARRIED,
 ];
 
 export const TASK_TIME_KEYS_CARRIED: readonly (keyof TaskTime)[] = [

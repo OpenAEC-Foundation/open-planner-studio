@@ -4,6 +4,7 @@ import { HOLIDAY_COUNTRIES } from '@/engine/calendar/holidays';
 import {
   arrayOf, CALENDAR_DATE, enumOf, integer, NON_EMPTY_TEXT, objectOf, REAL, TEXT, type IfcxField, type IfcxValue, type SharedField,
 } from '../fieldTable';
+import { CALENDAR_SOURCE_FIELDS, CALENDAR_SOURCE_KEYS_CARRIED } from './calendarSourceFields';
 
 export interface CalendarWriteSource {
   readonly calendar: WorkCalendar;
@@ -170,11 +171,13 @@ export const CALENDAR_FIELDS: readonly CalendarField[] = [
     write: s => (s.calendar.generation ? generationOut(s.calendar.generation) : undefined),
     read: (v, t) => setOptional(t.calendar, 'generation', v ? generationOut(v as CalendarGeneration) as CalendarGeneration : undefined),
   },
+  ...CALENDAR_SOURCE_FIELDS,
 ];
 
 export const CALENDAR_KEYS_CARRIED: readonly (keyof WorkCalendar)[] = [
   'id', 'name', 'description', 'workDays', 'workStartHour', 'workEndHour', 'hoursPerDay',
   'simpleBreakStartMinute', 'simpleBreakDurationMinutes', 'holidays', 'generation', 'workTime', 'workingExceptions', 'shift',
+  ...CALENDAR_SOURCE_KEYS_CARRIED,
 ];
 
 export function emptyCalendar(): WorkCalendar {
