@@ -14,22 +14,25 @@
  */
 const active = new Set<() => void>();
 
-export function listenWindowDrag({ onMove, onUp, onKeyDown, keyCapture = false, onDocumentSwitch }: {
+export function listenWindowDrag({ onMove, onUp, onKeyDown, keyCapture = false, onBlur, onDocumentSwitch }: {
   onMove: (event: MouseEvent) => void;
   onUp: (event: MouseEvent) => void;
   onKeyDown?: (event: KeyboardEvent) => void;
   keyCapture?: boolean;
+  onBlur?: () => void;
   /** Ruim het gebaar op zonder nog in een document te schrijven; de listeners zijn dan al weg. */
   onDocumentSwitch: () => void;
 }): () => void {
   window.addEventListener('mousemove', onMove);
   window.addEventListener('mouseup', onUp);
   if (onKeyDown) window.addEventListener('keydown', onKeyDown, keyCapture);
+  if (onBlur) window.addEventListener('blur', onBlur);
   const stop = () => {
     active.delete(endForSwitch);
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
     if (onKeyDown) window.removeEventListener('keydown', onKeyDown, keyCapture);
+    if (onBlur) window.removeEventListener('blur', onBlur);
   };
   const endForSwitch = () => {
     stop();

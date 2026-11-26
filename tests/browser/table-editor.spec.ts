@@ -310,20 +310,99 @@ test('table surface: rowdrag Escape annuleert zonder mutatie', async ({ page, op
   ]);
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   const before = await state(page);
+  const tableGrid = page.locator('[data-task-grid-surface-id="full-task-grid"] [role="grid"]');
   const source = await rowPoint(taskRow(page, firstId));
   const targetRow = taskRow(page, secondId);
+  const secondLabel = targetRow.locator('.full-task-grid-name-label');
   const target = await rowPoint(targetRow, 'after');
 
   await page.mouse.move(source.x, source.y);
   await page.mouse.down();
-  await page.mouse.move(target.x, target.y);
+  await page.mouse.move(target.x, target.y, { steps: 6 });
   await expect(targetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
   await expect(page.locator('html')).toHaveAttribute('data-ops-row-dragging', 'true');
+  await expect(secondLabel).toHaveCSS('user-select', 'none');
   await page.keyboard.press('Escape');
+  await expect(page.locator('html')).not.toHaveAttribute('data-ops-row-dragging', 'true');
+  await expect(tableGrid).not.toHaveAttribute('data-grid-row-dragging', 'true');
+  await expect(targetRow).not.toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
+  await expect(secondLabel).not.toHaveCSS('user-select', 'none');
+  await page.mouse.up();
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
+
+  await page.mouse.move(source.x, source.y);
+  await page.mouse.down();
+  await page.mouse.move(target.x, target.y, { steps: 6 });
+  await expect(targetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
+  await expect(page.locator('html')).toHaveAttribute('data-ops-row-dragging', 'true');
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await expect(page.locator('html')).not.toHaveAttribute('data-ops-row-dragging', 'true');
+  await expect(tableGrid).not.toHaveAttribute('data-grid-row-dragging', 'true');
+  await expect(targetRow).not.toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
+  await expect(secondLabel).not.toHaveCSS('user-select', 'none');
   await page.mouse.up();
 
+  await page.mouse.move(source.x, source.y);
+  await page.mouse.down();
+  await page.mouse.move(target.x, target.y, { steps: 6 });
+  await expect(targetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
+  await expect(page.locator('html')).toHaveAttribute('data-ops-row-dragging', 'true');
+  await page.evaluate(({ x, y }) => {
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: x, clientY: y, buttons: 0 }));
+  }, target);
+  await expect(page.locator('html')).not.toHaveAttribute('data-ops-row-dragging', 'true');
+  await expect(tableGrid).not.toHaveAttribute('data-grid-row-dragging', 'true');
+  await expect(targetRow).not.toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
+  await expect(secondLabel).not.toHaveCSS('user-select', 'none');
+  await page.mouse.up();
+
+  await page.evaluate(() => window.__OPS__!.store.getState().setSort([
+    { field: { src: 'builtin', key: 'name' }, dir: 'asc' },
+  ]));
+  const sortedSourceRow = taskRow(page, secondId);
+  const sortedTargetRow = taskRow(page, firstId);
+  const sortedTargetLabel = sortedTargetRow.locator('.full-task-grid-name-label');
+  const startBlockedDrag = async () => {
+    const start = await rowPoint(sortedSourceRow);
+    const end = await rowPoint(sortedTargetRow, 'after');
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 6 });
+    return end;
+  };
+
+  await startBlockedDrag();
+  await expect(sortedTargetRow).not.toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
+  await expect(page.locator('html')).toHaveAttribute('data-ops-row-dragging', 'true');
+  await expect(sortedTargetLabel).toHaveCSS('user-select', 'none');
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('html')).not.toHaveAttribute('data-ops-row-dragging', 'true');
+  await expect(sortedTargetLabel).not.toHaveCSS('user-select', 'none');
+  await page.mouse.up();
+
+  await startBlockedDrag();
+  await expect(page.locator('html')).toHaveAttribute('data-ops-row-dragging', 'true');
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await expect(page.locator('html')).not.toHaveAttribute('data-ops-row-dragging', 'true');
+  await expect(sortedTargetLabel).not.toHaveCSS('user-select', 'none');
+  await page.mouse.up();
+
+  const sortedTarget = await startBlockedDrag();
+  await expect(page.locator('html')).toHaveAttribute('data-ops-row-dragging', 'true');
+  await page.evaluate(({ x, y }) => {
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: x, clientY: y, buttons: 0 }));
+  }, sortedTarget);
+  await expect(page.locator('html')).not.toHaveAttribute('data-ops-row-dragging', 'true');
+  await expect(sortedTargetLabel).not.toHaveCSS('user-select', 'none');
+  await page.mouse.up();
+
+  await startBlockedDrag();
+  await expect(page.locator('html')).toHaveAttribute('data-ops-row-dragging', 'true');
+  await page.mouse.up();
   await expect(page.locator('html')).not.toHaveAttribute('data-ops-row-dragging', 'true');
   expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
+
   const after = await state(page);
   expect(after.tasks.map(task => task.id)).toEqual(before.tasks.map(task => task.id));
   expect(after.undoDepth).toBe(before.undoDepth);

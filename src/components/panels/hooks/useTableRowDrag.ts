@@ -191,6 +191,10 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
     const handleMouseMove = (e: MouseEvent) => {
       const currentCandidate = candidateRef.current;
       if (!currentCandidate) return;
+      if ((e.buttons & 1) === 0) {
+        setCandidate(null);
+        return;
+      }
       const dy = e.clientY - currentCandidate.startClientY;
       const dx = e.clientX - currentCandidate.startClientX;
       if (!shouldPromoteToRowDrag(dx, dy, ROW_DRAG_THRESHOLD)) return;
@@ -200,8 +204,21 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       if (!currentOptions.enabled) {
         blockedDragReleaseRef.current?.();
         blockedDragReleaseRef.current = listenWindowDrag({
-          onMove: clearNonEmptySelection,
+          onMove: (event) => {
+            if ((event.buttons & 1) === 0) {
+              releaseBlockedDrag();
+              return;
+            }
+            clearNonEmptySelection();
+          },
           onUp: releaseBlockedDrag,
+          onKeyDown: (event) => {
+            if (event.key !== 'Escape') return;
+            event.stopImmediatePropagation();
+            releaseBlockedDrag();
+          },
+          keyCapture: true,
+          onBlur: releaseBlockedDrag,
           onDocumentSwitch: releaseBlockedDrag,
         });
         currentOptions.onBlocked?.();
@@ -219,7 +236,9 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
 
     const handleMouseUp = () => setCandidate(null);
 
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onDocumentSwitch: handleMouseUp });
+    return listenWindowDrag({
+      onMove: handleMouseMove, onUp: handleMouseUp, onBlur: handleMouseUp, onDocumentSwitch: handleMouseUp,
+    });
   }, [candidateActive, candidateRef, optionsRef, computeHover, acquireSelectionLock, releaseBlockedDrag]);
 
   // Opruimen van de "net-gesleept"-vlag, met een EXTRA vangnet dat een canvas niet nodig zou
@@ -291,14 +310,38 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       });
     };
 
+    let stopped = false;
+    let stopListening: () => void = () => {};
+
+    // Stoppen ZONDER mutatie: bij Escape, en bij een documentwissel (review #1004, ronde 12), want de
+    // verplaatsing hoort bij het document waarin de sleep begon.
+    const stop = () => {
+      if (stopped) return;
+      stopped = true;
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      pending = null;
+      stopListening();
+      releaseSelectionLock();
+      setDragState(null);
+    };
+
     const handleMouseMove = (e: MouseEvent) => {
-      if (!dragStateRef.current) return;
+      if (stopped || !dragStateRef.current) return;
+      if ((e.buttons & 1) === 0) {
+        stop();
+        return;
+      }
       clearNonEmptySelection();
       pending = { x: e.clientX, y: e.clientY };
       if (!frame) frame = requestAnimationFrame(applyPending);
     };
 
     const handleMouseUp = () => {
+      if (stopped) return;
+      stopped = true;
+      stopListening();
+      releaseSelectionLock();
       const current = dragStateRef.current;
       const options = optionsRef.current;
       // Staat er nog een beweging in de wachtrij, dan telt die: het doel van de laatste
@@ -325,15 +368,6 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       setDragState(null);
     };
 
-    // Stoppen ZONDER mutatie: bij Escape, en bij een documentwissel (review #1004, ronde 12), want de
-    // verplaatsing hoort bij het document waarin de sleep begon.
-    const stop = () => {
-      if (frame) cancelAnimationFrame(frame);
-      frame = 0;
-      pending = null;
-      setDragState(null);
-    };
-
     // Escape: capture-fase + stopImmediatePropagation, net als bij het canvas: anders kan een globale
     // Escape-sneltoets er eerst tussen komen. De muis is nog ingedrukt; de click van het loslaten
     // mag niets selecteren.
@@ -345,10 +379,16 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       stop();
     };
 
-    const stopListening = listenWindowDrag({
-      onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true, onDocumentSwitch: stop,
+    stopListening = listenWindowDrag({
+      onMove: handleMouseMove,
+      onUp: handleMouseUp,
+      onKeyDown: handleKeyDown,
+      keyCapture: true,
+      onBlur: stop,
+      onDocumentSwitch: stop,
     });
     return () => {
+      stopped = true;
       if (frame) cancelAnimationFrame(frame);
       stopListening();
       releaseSelectionLock();
