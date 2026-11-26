@@ -573,6 +573,23 @@ test('generatiehint noemt het doeljaar inclusief buffer, niet een verzonnen proj
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().calendar.generation?.generatedToYear)).toBe(2032);
   expect(await page.evaluate(() => window.__OPS__!.store.getState().calendar.holidays.some(h => h.name === 'Rain delay'))).toBe(false);
 
+  await page.locator('[data-ops-ribbon-item="calendar"]').first().click();
+  await boliviaDialog.getByRole('button', { name: 'Generate holidays…', exact: true }).click();
+  await boliviaDialog.getByLabel('Country', { exact: true }).click();
+  await page.getByRole('option', { name: 'Canada', exact: true }).click();
+  await expect(boliviaDialog.getByLabel('Region', { exact: true })).toHaveText('Federal');
+  await boliviaDialog.getByLabel('Region', { exact: true }).click();
+  await page.getByRole('option', { name: 'Québec', exact: true }).click();
+  await boliviaDialog.getByRole('button', { name: 'Generate', exact: true }).click();
+  await boliviaDialog.locator('[data-ops-cal-apply]').click();
+  await expect(boliviaDialog).toBeHidden();
+  const quebec = await page.evaluate(() => window.__OPS__!.store.getState().calendar);
+  expect(quebec.generation).toMatchObject({ ruleSetId: 'CA', region: 'QC' });
+  expect(quebec.holidays).toContainEqual({
+    name: 'Fête nationale du Québec', startDate: '2026-06-24', endDate: '2026-06-24',
+  });
+  expect(quebec.holidays.some(h => h.startDate === '2026-09-30')).toBe(false);
+
   for (const endDate of ['2029-12-31', '']) {
     await page.evaluate(async endDate => {
       const modulePath = '/src/engine/calendar/generateCalendarHolidays.ts';

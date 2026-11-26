@@ -9,6 +9,7 @@ import {
   NL_SET, DE_SET, UK_SET, US_SET, type HolidayCountry,
 } from '@/engine/calendar/holidays';
 import { formatDate } from '@/utils/dateUtils';
+import { materializeHolidays } from '@/engine/calendar/generateCalendarHolidays';
 
 const diffs: string[] = [];
 const eq = (label: string, got: unknown, want: unknown) => {
@@ -233,7 +234,58 @@ for (const country of ['DK', 'NO'] as const) {
 
 eq('HOLIDAY_COUNTRIES = sleutels van HOLIDAY_SETS',
   [...HOLIDAY_COUNTRIES].sort().join(','), Object.keys(HOLIDAY_SETS).sort().join(','));
-eq('aantal ondersteunde landen', HOLIDAY_COUNTRIES.length, 18);
+eq('aantal ondersteunde landen', HOLIDAY_COUNTRIES.length, 19);
+
+const canada = Object.values(HOLIDAY_SETS).find(set => String(set.country) === 'CA');
+eq('Canada beschikbaar in de feestdagengenerator', Boolean(canada), true);
+if (canada) {
+  const common = '01-01 04-03 07-01 09-07 12-25';
+  const regional2026 = {
+    AB: '02-16 05-18 10-12 11-11',
+    BC: '02-16 05-18 08-03 09-30 10-12 11-11',
+    MB: '02-16 05-18 09-30 10-12',
+    NB: '02-16 08-03 11-11',
+    NL: '11-11',
+    NS: '02-16',
+    NT: '05-18 06-21 08-03 09-30 10-12 11-11',
+    NU: '05-18 07-09 08-03 09-30 10-12 11-11',
+    ON: '02-16 05-18 10-12 12-26',
+    PE: '02-16 09-30 11-11',
+    QC: '05-18 06-24 10-12',
+    SK: '02-16 05-18 08-03 10-12 11-11',
+    YT: '05-18 06-21 08-17 09-30 10-12 11-11',
+  };
+  const dates = (region: string | undefined, year: number) =>
+    generateHolidays(canada, region, year, year);
+  eq('CA alle provincies en territoria', canada.regions?.map(r => r.id).sort().join(), Object.keys(regional2026).join());
+  for (const [region, extra] of [...Object.entries(regional2026), [undefined, '05-18 09-30 10-12 11-11 12-28']] as const) {
+    const result = dates(region, 2026);
+    eq(`CA ${region ?? 'federaal'} 2026: alle datums en geen dubbelen`,
+      result.map(h => h.startDate).sort().join(' '),
+      `${common} ${extra}`.split(' ').sort().map(d => `2026-${d}`).join(' '));
+    eq(`CA ${region ?? 'federaal'} 2026: eendaags`, result.every(h => h.startDate === h.endDate), true);
+  }
+  eq('CA-QC patriottendag', startOf(dates('QC', 2026), 'Journée nationale des patriotes'), '2026-05-18');
+  eq('CA-NL Memorial Day', startOf(dates('NL', 2026), 'Memorial Day (Canada Day)'), '2026-07-01');
+  eq('CA-ON Canada Day op zondag', startOf(dates('ON', 2029), 'Canada Day'), '2029-07-02');
+  eq('CA-ON Canada Day op zaterdag', startOf(dates('ON', 2028), 'Canada Day'), '2028-07-01');
+  eq('CA-federaal Canada Day op zaterdag', startOf(dates(undefined, 2028), 'Canada Day'), '2028-07-03');
+  for (const [year, christmas, boxing] of [[2021, '27', '28'], [2022, '26', '27'], [2023, '25', '26']] as const) {
+    eq(`CA-federaal Kerst ${year}`, startOf(dates(undefined, year), 'Christmas Day'), `${year}-12-${christmas}`);
+    eq(`CA-federaal Boxing Day ${year}`, startOf(dates(undefined, year), 'Boxing Day'), `${year}-12-${boxing}`);
+  }
+  eq('CA-BC tweede maandag 2018', startOf(dates('BC', 2018), 'Family Day'), '2018-02-12');
+  eq('CA-BC derde maandag 2019', startOf(dates('BC', 2019), 'Family Day'), '2019-02-18');
+  for (const [region, year] of [[undefined, 2021], ['NT', 2022], ['NU', 2022], ['PE', 2022], ['BC', 2023], ['YT', 2023], ['MB', 2024]] as const) {
+    eq(`CA ${region ?? 'federaal'} 30 september vóór invoering`, dates(region, year - 1).some(h => h.startDate === `${year - 1}-09-30`), false);
+    eq(`CA ${region ?? 'federaal'} 30 september vanaf invoering`,
+      dates(region, year).some(h => h.name === (region === 'MB' ? 'Orange Shirt Day' : 'National Day for Truth and Reconciliation')), true);
+  }
+  const { generation, holidays } = materializeHolidays({ country: canada.country, region: 'NU', bouwvak: 'geen' }, 2026, 2027);
+  eq('CA herkomst bewaart regio en jaarspanne', JSON.stringify(generation),
+    JSON.stringify({ ruleSetId: 'CA', region: 'NU', generatedFromYear: 2026, generatedToYear: 2027 }));
+  eq('CA herkomst werkt voor meer dan één jaar', holidays.filter(h => h.name === 'Nunavut Day').map(h => h.startDate).join(), '2026-07-09,2027-07-09');
+}
 
 if (diffs.length === 0) {
   console.log('OK  holidays-check: alle checks groen');

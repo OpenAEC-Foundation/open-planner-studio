@@ -1214,6 +1214,7 @@
       "country": "Land",
       "region": "Regio",
       "regionNone": "Landelijk",
+      "regionFederal": "Federaal",
       "bouwvakLabel": "Bouwvak",
       "bouwvak": {
         "none": "Geen",
@@ -1241,6 +1242,7 @@
       "AT": "Oostenrijk",
       "CH": "Zwitserland",
       "US": "Verenigde Staten",
+      "CA": "Canada",
       "BO": "Bolivia",
       "ES": "Spanje",
       "IT": "Italië",

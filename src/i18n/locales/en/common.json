@@ -1214,6 +1214,7 @@
       "country": "Country",
       "region": "Region",
       "regionNone": "National",
+      "regionFederal": "Federal",
       "bouwvakLabel": "Construction holiday",
       "bouwvak": {
         "none": "None",
@@ -1241,6 +1242,7 @@
       "AT": "Austria",
       "CH": "Switzerland",
       "US": "United States",
+      "CA": "Canada",
       "BO": "Bolivia",
       "ES": "Spain",
       "IT": "Italy",
