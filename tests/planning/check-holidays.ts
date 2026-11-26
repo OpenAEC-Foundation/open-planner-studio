@@ -8,8 +8,9 @@ import {
   easterSunday, generateHolidays, HOLIDAY_COUNTRIES, HOLIDAY_SETS,
   NL_SET, DE_SET, UK_SET, US_SET, type HolidayCountry,
 } from '@/engine/calendar/holidays';
-import { formatDate } from '@/utils/dateUtils';
+import { formatDate, parseDate } from '@/utils/dateUtils';
 import { materializeHolidays } from '@/engine/calendar/generateCalendarHolidays';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 
 const diffs: string[] = [];
 const eq = (label: string, got: unknown, want: unknown) => {
@@ -270,6 +271,19 @@ if (canada) {
   eq('CA-ON Canada Day op zondag', startOf(dates('ON', 2029), 'Canada Day'), '2029-07-02');
   eq('CA-ON Canada Day op zaterdag', startOf(dates('ON', 2028), 'Canada Day'), '2028-07-01');
   eq('CA-federaal Canada Day op zaterdag', startOf(dates(undefined, 2028), 'Canada Day'), '2028-07-03');
+  eq('CA-NS Canada Day op zondag vóór 2018', startOf(dates('NS', 2012), 'Canada Day'), '2012-07-02');
+  eq('CA-NS Canada Day op zondag in 2018', startOf(dates('NS', 2018), 'Canada Day'), '2018-07-01');
+  for (const [region, sunday, monday] of [
+    ['NS', '2029-07-01', '2029-07-02'],
+    ['QC', '2029-06-24', '2029-06-25'],
+  ] as const) {
+    const engine = new CalendarEngine({
+      id: region, name: region, description: '', workDays: [1, 2, 3, 4, 5, 7],
+      workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: dates(region, 2029),
+    });
+    eq(`CA-${region} zondag ${sunday} is vrij`, engine.isWorkDay(parseDate(sunday)), false);
+    eq(`CA-${region} maandag ${monday} blijft een werkdag`, engine.isWorkDay(parseDate(monday)), true);
+  }
   for (const [year, christmas, boxing] of [[2021, '27', '28'], [2022, '26', '27'], [2023, '25', '26']] as const) {
     eq(`CA-federaal Kerst ${year}`, startOf(dates(undefined, year), 'Christmas Day'), `${year}-12-${christmas}`);
     eq(`CA-federaal Boxing Day ${year}`, startOf(dates(undefined, year), 'Boxing Day'), `${year}-12-${boxing}`);
