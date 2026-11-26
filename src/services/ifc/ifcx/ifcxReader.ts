@@ -22,7 +22,7 @@ import { emptySequence, SEQUENCE_FIELDS, type SequenceReadTarget } from './field
 import { emptyResource, RESOURCE_FIELDS, type ResourceReadTarget } from './fields/resourceFields';
 import { ASSIGNMENT_FIELDS, emptyAssignment, type AssignmentReadTarget } from './fields/assignmentFields';
 import { BASELINE_FIELDS, emptyBaseline, type BaselineReadTarget } from './fields/baselineFields';
-import { attributeValueProblem, schemaDefinitionProblems, type IfcxCheckProblem } from './schemaCheck';
+import { attributeValueProblem, hasCanadianGeneration, schemaDefinitionProblems, type IfcxCheckProblem } from './schemaCheck';
 import { IfcxReadError, IfcxWriteRefusedError, type IfcxErrorPlace } from './ifcxErrors';
 import {
   ATTRIBUTE, IFCX_VERSION, OPS_NAMESPACE, OPS_PROFILE_MAJOR, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
@@ -138,7 +138,8 @@ function assertValues(nodes: readonly IfcxNode[]): void {
 
 function assertSchemas(schemas: unknown, nodes: readonly IfcxNode[]): void {
   const used = new Set<string>(nodes.flatMap(node => [...node.attributes.keys()]));
-  const [problem] = schemaDefinitionProblems(schemas, used);
+  const canadianGeneration = nodes.some(node => hasCanadianGeneration(node.attributes.get(ATTRIBUTE.opsCalendar)));
+  const [problem] = schemaDefinitionProblems(schemas, used, canadianGeneration);
   if (problem) throw thrown(problem);
 }
 

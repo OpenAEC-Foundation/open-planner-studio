@@ -18,7 +18,8 @@ import { BASELINE_FIELDS, BASELINE_SHARED_FIELDS } from './fields/baselineFields
 import { ownSchemas } from './nodes';
 import { taskWindow } from './dateProjection';
 import {
-  ATTRIBUTE, DEFAULT_HEADER_AUTHOR, IFCX_DATA_VERSION, IFCX_VERSION, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
+  ATTRIBUTE, CANADIAN_CALENDAR_PROFILE_VERSION, DEFAULT_HEADER_AUTHOR, IFCX_DATA_VERSION, IFCX_VERSION,
+  OPS_PROFILE_VERSION, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
 } from './profile';
 
 export interface IfcxHeader {
@@ -87,6 +88,7 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
     { calendar: input.calendar, isProjectCalendar: true, path: pathOfGlobalId(globalIdOf('cal', input.calendar.id)) },
     ...resourceCalendars.map(calendar => ({ calendar, isProjectCalendar: false, path: pathOfGlobalId(globalIdOf('cal', calendar.id)) })),
   ];
+  const canadianGeneration = calendars.some(({ calendar }) => calendar.generation?.ruleSetId === 'CA');
   const calendarPathById = new Map<string, string>();
   for (const node of calendars) if (!calendarPathById.has(node.calendar.id)) calendarPathById.set(node.calendar.id, node.path);
 
@@ -103,6 +105,7 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
 
   const data: IfcxEntry[] = [];
   const documentSource: DocumentWriteSource = {
+    formatVersion: canadianGeneration ? CANADIAN_CALENDAR_PROFILE_VERSION : OPS_PROFILE_VERSION,
     project, projectPath, workplanPath, projectCalendarPath: calendars[0].path,
     ...(input.timeModel !== undefined ? { timeModel: input.timeModel } : {}),
     minuteModelPending: input.minuteModelPending === true,
@@ -199,7 +202,7 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
       author: project.author || DEFAULT_HEADER_AUTHOR, timestamp: writtenAt.toISOString(),
     },
     imports: [],
-    schemas: ownSchemas(used),
+    schemas: ownSchemas(used, canadianGeneration),
     data,
   };
 }

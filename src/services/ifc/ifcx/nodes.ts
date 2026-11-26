@@ -2,7 +2,7 @@ import type { WriteIFCInput } from '../ifcWriter';
 import { ifc5ValueDescription, membersOf, objectOf, type IfcxMember, type IfcxValue } from './fieldTable';
 import { ATTRIBUTE, type IfcxAttributeName } from './profile';
 import { DOCUMENT_FIELDS, PROJECT_KEYS_CARRIED, SCHEDULE_SHARED_FIELDS, WORKPLAN_SHARED_FIELDS } from './fields/documentFields';
-import { CALENDAR_FIELDS, CALENDAR_KEYS_CARRIED, CALENDAR_SHARED_FIELDS } from './fields/calendarFields';
+import { CALENDAR_FIELDS, CALENDAR_KEYS_CARRIED, CALENDAR_SHARED_FIELDS, CALENDAR_VALUE_1_0 } from './fields/calendarFields';
 import { TASK_FIELDS, TASK_KEYS_CARRIED, TASK_SHARED_FIELDS, TASK_TIME_KEYS_CARRIED } from './fields/taskFields';
 import { SEQUENCE_FIELDS, SEQUENCE_KEYS_CARRIED, SEQUENCE_SHARED_FIELDS } from './fields/sequenceFields';
 import { RESOURCE_FIELDS, RESOURCE_KEYS_CARRIED, RESOURCE_SHARED_FIELDS } from './fields/resourceFields';
@@ -132,8 +132,12 @@ export function isOwnAttributeName(name: string): name is IfcxAttributeName {
   return OWN_ATTRIBUTE_VALUES.has(name as IfcxAttributeName);
 }
 
-export function ownSchemas(used: ReadonlySet<string>): Record<string, { value: Record<string, unknown> }> {
+export function ownSchemas(used: ReadonlySet<string>, canadianGeneration: boolean): Record<string, { value: Record<string, unknown> }> {
   const schemas: Record<string, { value: Record<string, unknown> }> = {};
-  for (const [name, value] of OWN_ATTRIBUTE_VALUES) if (used.has(name)) schemas[name] = { value: ifc5ValueDescription(value) };
+  for (const [name, value] of OWN_ATTRIBUTE_VALUES) {
+    if (!used.has(name)) continue;
+    const definition = name === ATTRIBUTE.opsCalendar && !canadianGeneration ? CALENDAR_VALUE_1_0 : value;
+    schemas[name] = { value: ifc5ValueDescription(definition) };
+  }
   return schemas;
 }
