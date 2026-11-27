@@ -1,5 +1,3 @@
-// Termbase: schema-controle, samenvoegen van concepten en het verwerken van gekozen termen (§4).
-// Pure functies; de CLI (cli.ts) leest en schrijft de bestanden.
 import {
   CONCEPT_KINDS, TERM_STATUSES, termEntries,
   type Concept, type LangTermbase, type Style, type TermEntry,
@@ -9,8 +7,6 @@ const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const isStr = (v: unknown): v is string => typeof v === 'string' && v.trim() !== '';
 const isStrList = (v: unknown): v is string[] => Array.isArray(v) && v.every(isStr);
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
-
-// ── Stam ─────────────────────────────────────────────────────────────────────────────────────
 
 function longestCommonSubstring(a: string[], b: string[]): number {
   let best = 0;
@@ -27,12 +23,6 @@ function longestCommonSubstring(a: string[], b: string[]): number {
   return best;
 }
 
-/**
- * Deelt `form` een stam met `term`? Een heuristiek, bewust ruim: de langste gemeenschappelijke
- * reeks tekens (hoofdletterongevoelig) is minstens min(4, ⌈lengte van term / 2⌉). Zo passen
- * verbuigingen (cs *celková časová rezerva* → *celkové časové rezervy*, fi *polku* → *polun*) en
- * lidwoord-voorvoegsels (ar *المسار*), maar geen ander woord.
- */
 export function sharesStem(term: string, form: string): boolean {
   const a = Array.from(term.trim().toLocaleLowerCase());
   const b = Array.from(form.trim().toLocaleLowerCase());
@@ -40,9 +30,6 @@ export function sharesStem(term: string, form: string): boolean {
   return longestCommonSubstring(a, b) >= Math.min(4, Math.ceil(a.length / 2));
 }
 
-// ── Schema ───────────────────────────────────────────────────────────────────────────────────
-
-/** Fouten in één concept (leeg = goed). */
 export function conceptErrors(c: unknown, where: string): string[] {
   if (!isRecord(c)) return [`${where}: geen object`];
   const e: string[] = [];
@@ -68,7 +55,6 @@ export function conceptErrors(c: unknown, where: string): string[] {
   return e;
 }
 
-/** Fouten in de hele conceptenlijst: per concept, plus dubbele id's en dode seeAlso-verwijzingen. */
 export function conceptsErrors(list: unknown): string[] {
   if (!Array.isArray(list)) return ['concepts.json: verwacht een lijst concepten'];
   const errors = list.flatMap((c, i) => conceptErrors(c, `concept[${i}]`));
@@ -94,11 +80,9 @@ export function styleErrors(s: unknown, where: string): string[] {
   return e;
 }
 
-/** Fouten in één termregel (leeg = goed). */
 export function termEntryErrors(t: unknown, at: string): string[] {
   if (!isRecord(t)) return [`${at}: geen object`];
   const e: string[] = [];
-  // Een term met alleen witruimte, stuurtekens of onzichtbare opmaak is inhoudelijk leeg. Opmaak ín een woord mag wel.
   if (!isStr(t.term) || t.term.replace(/[\p{Default_Ignorable_Code_Point}\p{Cc}]/gu, '').trim() === '') e.push(`${at}: term ontbreekt`);
   if (!isStrList(t.forms) || t.forms.length === 0) e.push(`${at}: forms moet een niet-lege lijst zijn`);
   else if (isStr(t.term)) {
@@ -112,10 +96,6 @@ export function termEntryErrors(t: unknown, at: string): string[] {
 
 export interface TermbaseReport { errors: string[]; missing: string[] }
 
-/**
- * Controleer één taalbestand tegen de concepten. Elk term-concept vereist een geldige regel;
- * tokens en keep-concepten niet. `missing` geeft de ontbrekende id's ook apart voor de telling.
- */
 export function validateLangTermbase(lang: string, tb: unknown, concepts: Concept[]): TermbaseReport {
   const missing = concepts.filter(c => c.kind === 'term' && (!isRecord(tb) || !Object.prototype.hasOwnProperty.call(tb, c.id))).map(c => c.id);
   const errors = missing.map(id => `${lang}.${id}: term ontbreekt`);
@@ -128,9 +108,6 @@ export function validateLangTermbase(lang: string, tb: unknown, concepts: Concep
     if (!byId.has(id)) { errors.push(`${lang}.${id}: onbekend concept`); continue; }
     errors.push(...termEntryErrors(entry, `${lang}.${id}`));
   }
-  // Een avoid-variant mag geen term (of los woord van een vorm) van een ánder concept zijn: anders
-  // markeert de straat elke correcte tekst met dat andere begrip als fout (hr: "zadatak" = taak stond
-  // als avoid bij toewijzing en gaf 175 valse treffers).
   const owners = new Map<string, string[]>();
   for (const [id, entry] of Object.entries(tb)) {
     if (id === '_style' || !isRecord(entry)) continue;
@@ -150,11 +127,8 @@ export function validateLangTermbase(lang: string, tb: unknown, concepts: Concep
   return { errors, missing };
 }
 
-// ── Concepten samenvoegen (concepts-merge) ───────────────────────────────────────────────────
-
 const sameConcept = (a: Concept, b: Concept) => JSON.stringify(normalizeConcept(a)) === JSON.stringify(normalizeConcept(b));
 
-/** Vaste veldvolgorde, zodat de bestanden stabiel blijven. */
 export function normalizeConcept(c: Concept): Concept {
   const bySource = c.enBySource && Object.keys(c.enBySource).length > 0
     ? Object.fromEntries(Object.entries(c.enBySource).sort(([a], [b]) => a.localeCompare(b)))
@@ -169,11 +143,6 @@ export function normalizeConcept(c: Concept): Concept {
 
 export interface MergeResult { concepts: Concept[]; added: number; conflicts: string[] }
 
-/**
- * Voeg nieuwe concepten toe aan de bestaande lijst. Dedup op id: gelijk = één keer; verschillend =
- * een conflict (de eerste versie blijft, de andere wordt gemeld). Bestaande concepten winnen altijd.
- * Uitkomst gesorteerd op id.
- */
 export function mergeConcepts(existing: Concept[], incoming: { file: string; concepts: Concept[] }[]): MergeResult {
   const byId = new Map<string, { c: Concept; from: string }>();
   for (const c of existing) byId.set(c.id, { c: normalizeConcept(c), from: 'concepts.json' });
@@ -191,13 +160,8 @@ export function mergeConcepts(existing: Concept[], incoming: { file: string; con
   return { concepts, added, conflicts };
 }
 
-// ── Gekozen termen verwerken (apply-terms) ───────────────────────────────────────────────────
-
-/** Een regel in `terms-NN.out.json`: een termregel, plus meldingen voor het inconsistentierapport. */
 export interface TermOut extends TermEntry {
-  /** Andere vertalingen van hetzelfde concept die de bestaande UI ook gebruikt (§4.4). */
   uiVariants?: string[];
-  /** De TBX-term als de UI iets anders gebruikt dan de vakterm. */
   tbxTerm?: string;
   note?: string;
 }
@@ -210,10 +174,6 @@ const stripReport = (t: TermOut): TermEntry => ({
   source: t.source, status: t.status,
 });
 
-/**
- * Zet goedgekeurde termregels in een taalbestand. `_style` uit de uitvoer geldt alleen als het
- * bestand er nog geen heeft. Volgorde: `_style`, daarna de concepten in de volgorde van concepts.json.
- */
 export function applyTerms(tb: LangTermbase, outs: TermsOut[], concepts: Concept[]): LangTermbase {
   const entries = new Map(termEntries(tb));
   let style = tb._style;
@@ -234,7 +194,6 @@ export function applyTerms(tb: LangTermbase, outs: TermsOut[], concepts: Concept
   return result;
 }
 
-/** Het inconsistentierapport voor een bestaande taal (Markdown), uit de meldingen in de uitvoer. */
 export function inconsistencyReport(lang: string, outs: TermsOut[], concepts: Concept[]): string {
   const byId = new Map(concepts.map(c => [c.id, c]));
   const variants: string[] = [];

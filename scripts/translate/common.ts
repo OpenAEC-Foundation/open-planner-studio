@@ -1,12 +1,7 @@
-// Gedeelde kern van de vertaalstraat (ontwerp: docs/superpowers/specs/2026-10-09-vertaalstraat-design.md).
-// Alleen pure functies en typen, zonder bestands-I/O: de tests in tests/planning/check-translate-*.ts
-// toetsen ze rechtstreeks, en check.ts bundelt ze tot een zelfstandig bestand (geen node_modules).
 import { createHash } from 'node:crypto';
 import { pluralCategories, type Json, type JsonObject } from '../i18n-tools';
 
 export { pluralCategories };
-
-// ── Termbase-datamodel (§4.1) ────────────────────────────────────────────────────────────────
 
 export type ConceptKind = 'term' | 'token' | 'keep';
 export const CONCEPT_KINDS: readonly ConceptKind[] = ['term', 'token', 'keep'];
@@ -15,7 +10,6 @@ export interface Concept {
   id: string;
   kind: ConceptKind;
   nl: string;
-  /** Synoniemen: MS Project zegt "slack", P6 en de app zeggen "float". */
   en: string[];
   enBySource?: Record<string, string>;
   definition: string;
@@ -37,19 +31,12 @@ export interface Style {
   address: 'formal' | 'informal';
   note?: string;
   commands?: string;
-  /** De aanhalingstekens van de taal voor UI-namen in een zin, bv. `„…“` of `«…»`. */
   quotes?: string;
-  /**
-   * Schrijfwijze van de in-app gidsen (docs-straat): aanspreekvorm plus drie voorbeelden in de taal —
-   * een stapzin met een UI-label in de nominatief (en een draagwoord), een uitlegzin en de aanspreekvorm.
-   */
   docs?: string;
 }
 
-/** Eén taalbestand `i18n/termbase/<taal>.json`: `_style` plus per concept-id een regel. */
 export type LangTermbase = { _style?: Style } & { [conceptId: string]: TermEntry | Style | undefined };
 
-/** `_style` voor een UI- of termpakket: zonder `docs` (dat is alleen voor de gidsen). */
 export function uiStyle(s: Style | undefined): Style | undefined {
   if (!s) return undefined;
   const { docs: _docs, ...rest } = s;
@@ -59,35 +46,15 @@ export function uiStyle(s: Style | undefined): Style | undefined {
 export const termEntries = (tb: LangTermbase): [string, TermEntry][] =>
   Object.entries(tb).filter(([k]) => k !== '_style') as [string, TermEntry][];
 
-// ── Talen ────────────────────────────────────────────────────────────────────────────────────
-
-/** De dertien bestaande doeltalen naast nl/en: daar volgt de termbase eerst de bestaande UI (§4.4). */
 export const EXISTING_TARGETS = ['fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'lo', 'fa'] as const;
 
-/**
- * De doeltalen met een UI-basislijn: hun tekst is door de straat gegaan of was er al vóór de straat.
- * Sinds PR #316 (2026-10-12) zijn dat alle 26 doeltalen. Een nieuwe taal staat eerst met Engels als
- * tijdelijke inhoud; zet hem hier pas bij als zijn eerste `prepare ui --missing` + `apply ui` klaar is.
- */
 export const UI_BASELINE = [
   ...EXISTING_TARGETS, 'ru', 'uk', 'cs', 'sk', 'sr', 'hr', 'bg', 'hu', 'ro', 'sv', 'nb', 'da', 'fi',
 ] as const;
 
-/**
- * Heeft deze taal een UI-basislijn (§9)? `en` en de talen in `UI_BASELINE`. In een taal zonder
- * basislijn (een nieuwe taal met Engelse vulling) is alleen een bron-hash (van `apply ui`) het bewijs
- * van een vertaling: een sleutel zonder hash telt daar als ontbrekend, ook als er tekst staat. In een
- * taal met basislijn telt zo'n sleutel als "zonder hash": `--stale` pakt hem op mét de oude tekst, en
- * de releasepoort laat hem niet door.
- */
 export const hasUiBaseline = (lang: string): boolean =>
   lang === 'en' || (UI_BASELINE as readonly string[]).includes(lang);
 
-/**
- * Taal → bestand in de Microsoft Terminology Collection. `pt` = Portugal: de bestaande pt-UI is
- * overwegend Europees-Portugees (ficheiro 77×, Guardar, ecrã, Eliminar; alleen de XER-meldingen
- * zeggen "arquivo"). `sr` = Cyrillisch (voorstel B1, nog niet besloten).
- */
 export const TBX_FILES: Record<string, string> = {
   fr: 'FRENCH.tbx', de: 'GERMAN.tbx', es: 'SPANISH.tbx', zh: 'CHINESE (SIMPLIFIED).tbx', it: 'ITALIAN.tbx',
   pt: 'PORTUGUESE (PORTUGAL).tbx', pl: 'POLISH.tbx', tr: 'TURKISH.tbx', ar: 'ARABIC.tbx', ja: 'JAPANESE.tbx',
@@ -96,12 +63,9 @@ export const TBX_FILES: Record<string, string> = {
   sv: 'SWEDISH.tbx', nb: 'NORWEGIAN BOKMÅL.tbx', da: 'DANISH.tbx', fi: 'FINNISH.tbx', lo: 'LAO.tbx', nl: 'DUTCH.tbx',
 };
 
-// ── UI-eenheden: een gewone sleutel of een hele meervoudsfamilie ─────────────────────────────
-
 const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
 export const CATEGORY_ORDER = ['zero', 'one', 'two', 'few', 'many', 'other'] as const;
 
-/** Tekst van één eenheid: een string, of { categorie: tekst } voor een meervoudsfamilie. */
 export type UnitText = string | Record<string, string>;
 
 export interface Unit { key: string; plural: boolean; text: UnitText }
@@ -109,10 +73,6 @@ export interface Unit { key: string; plural: boolean; text: UnitText }
 export const isObject = (v: Json | undefined): v is JsonObject =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
-/**
- * Alle eenheden van een locale-object, in bestandsvolgorde. Een meervoudsfamilie (`x_one`, `x_other`)
- * wordt één eenheid `x` met { one, other }.
- */
 export function unitsOf(obj: JsonObject, prefix = ''): Unit[] {
   const out: Unit[] = [];
   const families = new Map<string, Unit>();
@@ -134,10 +94,8 @@ export function unitsOf(obj: JsonObject, prefix = ''): Unit[] {
 
 export const unitMap = (obj: JsonObject): Map<string, Unit> => new Map(unitsOf(obj).map(u => [u.key, u]));
 
-/** Alle teksten van een eenheid (één, of alle meervoudsvormen). */
 export const textsOf = (t: UnitText): string[] => typeof t === 'string' ? [t] : Object.values(t);
 
-/** Hash van de nl-bron van één eenheid; een familie = één hash over alle vormen in CLDR-volgorde. */
 export function hashUnit(t: UnitText): string {
   const canon = typeof t === 'string'
     ? `s:${t}`
@@ -145,10 +103,6 @@ export function hashUnit(t: UnitText): string {
   return createHash('sha256').update(canon, 'utf8').digest('hex').slice(0, 16);
 }
 
-/**
- * Is deze eenheid in de doeltaal compleet? Een gewone sleutel: er staat een tekst. Een familie: elke
- * CLDR-categorie van de doeltaal staat er (een halve familie telt als ontbrekend).
- */
 export function isComplete(target: Unit | undefined, src: Unit, lang: string): boolean {
   if (!target || target.plural !== src.plural) return false;
   if (!src.plural) return typeof target.text === 'string';
@@ -156,16 +110,9 @@ export function isComplete(target: Unit | undefined, src: Unit, lang: string): b
   return pluralCategories(lang).every(c => typeof t[c] === 'string');
 }
 
-// ── Meervoud: voorbeeldgetallen per categorie (§5.1) ─────────────────────────────────────────
-
 const INTEGER_PROBES = [...Array.from({ length: 201 }, (_, i) => i), 1000, 10000, 100000, 1000000, 2000000];
 const DECIMAL_PROBES = [0.5, 1.5, 2.5, 3.5, 5.5, 10.5, 0.1, 1.1, 2.1, 1.25];
 
-/**
- * Voorbeeldgetallen per CLDR-categorie uit `Intl.PluralRules`: tot vier gehele getallen, en een
- * decimaal als een categorie alleen decimalen heeft (cs/sk `many` = 1.5). Zo ziet de agent wat een
- * categorie in díé taal betekent (ru `many` = 0 en 5–20, ro `few` = 0 en 2–19).
- */
 export function pluralExamples(lang: string): Record<string, number[]> {
   const rules = new Intl.PluralRules(lang);
   const out: Record<string, number[]> = {};
@@ -176,29 +123,18 @@ export function pluralExamples(lang: string): Record<string, number[]> {
   return out;
 }
 
-// ── Tekst zoeken ─────────────────────────────────────────────────────────────────────────────
-
-/** Een tekst letterlijk in een RegExp. */
 export const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/**
- * Komt `term` als los woord (of woordgroep) voor in `text`? Hoofdletterongevoelig, met een
- * woordgrens aan beide kanten; een meervoudsuitgang (s, es, en, n) mag erachter ("baselines",
- * "basislijnen").
- */
 export function containsTerm(text: string, term: string): boolean {
   if (term.trim() === '') return false;
   const re = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(term.trim())}(?:s|es|en|n)?(?![\\p{L}\\p{N}])`, 'iu');
   return re.test(text);
 }
 
-/** Schriften zonder spaties tussen woorden (zh, ja, th, lo): daar zoeken we op deeltekst. */
 export const NO_SPACE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}]/u;
 export const ARABIC = /\p{Script=Arabic}/u;
-/** Tekens die bij een woord horen (voor een woordgrens). */
 export const L = '\\p{L}\\p{M}\\p{N}';
 
-/** Komt `word` als los woord voor (hoofdletterongevoelig)? Zonder spaties: als deeltekst. */
 export function hasWord(text: string, word: string): boolean {
   const w = word.trim();
   if (w === '') return false;
@@ -206,13 +142,6 @@ export function hasWord(text: string, word: string): boolean {
   return new RegExp(`(?<![${L}])${escapeRe(w)}(?![${L}])`, 'iu').test(text);
 }
 
-/**
- * De avoid-varianten die als los woord in `text` staan, nadat de vormen van de term zelf zijn
- * weggestreept (een avoid-variant kan in de eigen term zitten). Een vorm verdwijnt alleen als los woord
- * (anders maakt "na" van "nakonec" een los "konec"); in schriften zonder spaties en in Arabisch schrift
- * (voorvoegsels plakken vast) als deeltekst. Dezelfde regel voor de docs-poort, de zachte UI-poort en
- * `prepare ui --avoid`.
- */
 export function avoidWords(text: string, forms: string[], avoid: string[]): string[] {
   const rest = forms.map(f => f.trim()).filter(f => f !== '').sort((a, b) => b.length - a.length)
     .reduce((s, f) => (NO_SPACE.test(f) || ARABIC.test(f)
@@ -221,22 +150,16 @@ export function avoidWords(text: string, forms: string[], avoid: string[]): stri
   return avoid.filter(a => hasWord(rest, a));
 }
 
-/** Aantal keer dat een token (hoofdlettergevoelig, los woord) in de tekst staat. */
 export function countToken(text: string, token: string): number {
-  // Een grens telt alleen tegen letters van hetzelfde schrift: ko "Microsoft Project에서" (partikel eraan vast)
-  // bevat de naam, "FSx" niet.
   const edge = (c: string) => /\p{Script=Latin}/u.test(c) ? '\\p{Script=Latin}\\p{N}' : '\\p{L}\\p{N}';
   const re = new RegExp(`(?<![${edge(token[0] ?? '')}])${escapeRe(token)}(?![${edge(token.at(-1) ?? '')}])`, 'gu');
   return (text.match(re) ?? []).length;
 }
 
-/** De `{{invulplekken}}` van een tekst, uniek en gesorteerd (zelfde regel als i18n-tools). */
 export const placeholders = (text: string): string[] =>
   [...new Set([...text.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)].map(m => m[1]))].sort();
 
-/** De `$t(…)`-nestings van een tekst, letterlijk, gesorteerd. */
 export const nestings = (text: string): string[] =>
   [...text.matchAll(/\$t\((?:[^()]|\([^()]*\))*\)/g)].map(m => m[0]).sort();
 
-/** Canonieke JSON-tekst (twee spaties, regeleinde) — dezelfde vorm als `serialize` uit i18n-tools. */
 export const toJson = (v: unknown): string => `${JSON.stringify(v, null, 2)}\n`;

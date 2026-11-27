@@ -1,6 +1,3 @@
-// De poorten van de vertaalstraat (§7): pure controle van de uitvoer van een agent tegen zijn pakket.
-// Hard (rood, exit 1) en zacht (waarschuwing voor de nalezer). check.ts is de dunne I/O-schil
-// eromheen; `translate prepare` bundelt die tot build/translate/check.mjs.
 import {
   countToken, containsTerm, escapeRe, nestings, placeholders, pluralCategories, textsOf, type UnitText,
 } from './common';
@@ -17,7 +14,6 @@ export interface CheckResult { errors: string[]; warnings: string[] }
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const list = (xs: string[]) => xs.length ? xs.map(x => `{{${x}}}`).join(', ') : '(geen)';
 
-/** Controleer één tekst tegen de nl-bron: invulplekken, $t-nesting, leeg, tokens. */
 function checkText(at: string, text: unknown, nl: string[], tokens: string[], allowCount: boolean, errors: string[]): void {
   if (typeof text !== 'string') { errors.push(`${at}: verwacht tekst`); return; }
   if (text.trim() === '') { errors.push(`${at}: lege tekst`); return; }
@@ -35,11 +31,6 @@ function checkText(at: string, text: unknown, nl: string[], tokens: string[], al
   }
 }
 
-/**
- * Labelpoort: noemt de nl-tekst een andere UI-tekst letterlijk (een knop, tab of blok), dan moet de
- * vertaling de huidige vertaling van dat label letterlijk bevatten (hard). Nog geen vertaling van het
- * label: alleen een waarschuwing. Alleen labels die in deze nl-vorm staan tellen.
- */
 function checkLabels(at: string, text: string, nl: string[], labels: UiLabel[] | undefined, errors: string[], warnings: string[]): void {
   for (const l of labels ?? []) {
     if (!nl.some(s => s.includes(l.nl))) continue;
@@ -53,7 +44,6 @@ function checkLabels(at: string, text: string, nl: string[], labels: UiLabel[] |
   }
 }
 
-/** Zachte controles op één vertaalde tekst. */
 function softText(at: string, text: string, nl: string[], en: string, pkg: UiPackage, warnings: string[]): void {
   const low = text.toLocaleLowerCase();
   for (const t of pkg.terms) {
@@ -70,7 +60,6 @@ function softText(at: string, text: string, nl: string[], en: string, pkg: UiPac
   if (text.length > 20 && text.length > 1.6 * en.length) warnings.push(`${at}: ${text.length} tekens, en ${en.length} (>1,6×)`);
 }
 
-/** De UI-poorten: sleutels, CLDR-categorieën, invulplekken, $t, leeg, tokens; plus waarschuwingen. */
 export function checkUi(pkg: UiPackage, out: unknown): CheckResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -81,7 +70,6 @@ export function checkUi(pkg: UiPackage, out: unknown): CheckResult {
   for (const item of pkg.items) {
     const v = out[item.key];
     if (v === undefined) { errors.push(`${item.key}: ontbreekt`); continue; }
-    // De regel komt uit de straat zelf, niet uit bewerkbare pakketmetadata (ook oude pakketten).
     const fixedError = uiFixedTextError(pkg.lang, pkg.namespace, item.key, v);
     if (fixedError) errors.push(fixedError);
     const nl = textsOf(item.nl);
@@ -102,8 +90,6 @@ export function checkUi(pkg: UiPackage, out: unknown): CheckResult {
       errors.push(`${item.key}: meervoudsvormen moeten precies [${cats.join(', ')}] zijn`
         + `${missing.length ? ` — ontbreekt ${missing.join(', ')}` : ''}${extra.length ? ` — overbodig ${extra.join(', ')}` : ''}`);
     }
-    // Elke vorm vergelijkt met de nl-vorm voor dezelfde getallen: `one` met nl `one`, de rest met nl `other`.
-    // Een vorm mag het getal uitschrijven (bijv. Arabisch); naam versus verzameling heeft eigen sleutels.
     const nlFor = (c: string): string[] => {
       if (typeof item.nl === 'string') return nl;
       const src = c === 'one' && item.nl.one !== undefined ? item.nl.one : item.nl.other;
@@ -120,7 +106,6 @@ export function checkUi(pkg: UiPackage, out: unknown): CheckResult {
   return { errors, warnings };
 }
 
-/** Schema van `candidates-NN.out.json`: een lijst concepten (§4.1). */
 export function checkConceptsOut(out: unknown): CheckResult {
   if (!Array.isArray(out)) return { errors: ['uitvoer: verwacht een lijst concepten'], warnings: [] };
   const errors = out.flatMap((c, i) => conceptErrors(c, `concept[${i}]`));
@@ -133,7 +118,6 @@ export function checkConceptsOut(out: unknown): CheckResult {
   return { errors, warnings: [] };
 }
 
-/** Schema van `terms-NN.out.json`: per concept uit het pakket precies één termregel. */
 export function checkTermsOut(pkg: TermsPackage, out: unknown): CheckResult {
   if (!isRecord(out)) return { errors: ['uitvoer: verwacht een object { concept-id: termregel }'], warnings: [] };
   const errors: string[] = [];
@@ -162,7 +146,6 @@ export function checkTermsOut(pkg: TermsPackage, out: unknown): CheckResult {
   return { errors, warnings };
 }
 
-/** Schema van `terms-check-NN.out.json`: per item terugvertaling + oordeel. */
 export function checkTermsCheckOut(pkg: TermsCheckPackage, out: unknown): CheckResult {
   if (!isRecord(out)) return { errors: ['uitvoer: verwacht een object { id: oordeel }'], warnings: [] };
   const errors: string[] = [];
@@ -178,8 +161,6 @@ export function checkTermsCheckOut(pkg: TermsCheckPackage, out: unknown): CheckR
   return { errors, warnings: [] };
 }
 
-// ── Docs (§7) ────────────────────────────────────────────────────────────────────────────────
-
 const bag = (xs: string[]): Map<string, number> => {
   const m = new Map<string, number>();
   for (const x of xs) m.set(x, (m.get(x) ?? 0) + 1);
@@ -193,17 +174,11 @@ const short = (s: string) => (s.length > 60 ? `${s.slice(0, 57)}…` : s);
 const NON_ASCII_DIGIT = /(?![0-9])\p{Nd}/u;
 const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
 
-/** Aanhalingstekens die in een doc-tekst voor elkaar mogen staan (de UI schrijft 'x', een taal typografisch „x“ of «x»). */
 const QUOTE_CHARS = `'"‘’‚‛“”„‟«»‹›`;
 
-/**
- * Patroon van een UI-tekst met `{{…}}` als open plek (labelsoort b). De plek past ook op `{naam}` (de en-docs
- * schrijven een enkele accolade); aanhalingstekens rond de plek mogen typografisch anders zijn.
- */
 const fillRe = (target: string): RegExp =>
   new RegExp(target.split(/\{\{\s*[\w.-]+\s*\}\}/).map(p => [...p].map(ch => (QUOTE_CHARS.includes(ch) ? `[${QUOTE_CHARS}]` : escapeRe(ch))).join('')).join('.+?'), 'u');
 
-/** Cursieve stukken die een a/b-label zijn (bron: de en-tekst; vertaling: een doelkandidaat) uit de tekst halen. */
 function withoutLabelSpans(text: string, labels: DocsPackage['labels'], side: 'src' | 'out'): string {
   if (labels.length === 0) return text;
   let rest = text;
@@ -212,24 +187,11 @@ function withoutLabelSpans(text: string, labels: DocsPackage['labels'], side: 's
     const hit = (p: string) => labels.some(l => side === 'src'
       ? normLabel(l.en) === p
       : (l.targets ?? []).some(t => (placeholders(t).length ? fillRe(t).test(p) : normLabel(t) === p)));
-    // Alleen het hele cursieve stuk (`*span*`), lange stukken eerst: een kort label als "Critical" mag niet
-    // binnen een langer stuk ("Critical path: 21 tasks") wegvallen. Niet binnen vet (`**span**`): dat is
-    // geen cursief label.
     if (parts.some(hit)) rest = rest.replace(new RegExp(`(?<!\\*)\\*${escapeRe(span)}\\*(?!\\*)`, 'gu'), ' ');
   }
   return rest;
 }
 
-/**
- * Staat een label met cijfers ("DCMA 14-point assessment") in de bron ook buiten cursief, en schrijft de vertaling
- * het label cursief (of andersom), dan telt het cijfer aan één kant niet mee. De labelregel controleert het label zelf.
- * Haalt daarom de gewone (niet-cursieve) voorkomens van zulke labels weg, aan beide kanten. In de vertaling hooguit
- * zo vaak als het label in de bron voorkomt (gewoon + cursief) min de cursieve voorkomens in de vertaling: twee
- * en-labels met dezelfde vertaling (cs "(F5)" in knop én tooltip) strepen anders de vertaling twee keer weg, en een
- * label dat in de vertaling vet staat in plaats van cursief mag geen weggelaten getal elders afdekken. Grens: staat
- * de labeltekst in de vertaling één keer extra, dan is dat niet te onderscheiden van het F5-geval.
- * `src`/`out` zijn al zonder cursieve labels (`withoutLabelSpans`); `srcRaw`/`outRaw` zijn de teksten ervoor.
- */
 function withoutPlainLabelNumbers(
   src: string, out: string, labels: DocsPackage['labels'], srcRaw: string, outRaw: string,
 ): [string, string] {
@@ -249,14 +211,12 @@ function withoutPlainLabelNumbers(
   return [s, o];
 }
 
-/** Harde en zachte poorten voor één sectie: bron (en) tegen vertaling. */
 function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: DocSection, errors: string[], warnings: string[]): void {
   const at = `sectie ${idx}${src.heading ? ` (${short(src.heading)})` : ''}`;
   const o = out.text;
   const s = src.text;
   if (o.trim() === '') { errors.push(`${at}: leeg`); return; }
 
-  // Opbouw: dezelfde blokken in dezelfde volgorde (koppen, alinea's, lijsten, afbeeldingen).
   const sb = blocksOf(s);
   const ob = blocksOf(o);
   for (let i = 0; i < Math.max(sb.length, ob.length); i++) {
@@ -275,8 +235,6 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
     }
     break;
   }
-  // Een regel "18. června" midden in een alinea wordt een genummerde lijst (ook als de opbouw al eerder afweek).
-  // Niet binnen een codeblok: daar maakt miniMarkdown geen lijst (een promptblok heeft "1. …" na een zin).
   const lines = o.split('\n');
   let inFence = false;
   lines.forEach((line, i) => {
@@ -295,7 +253,6 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
   if (ss.images.join('\n') !== os.images.join('\n')) errors.push(`${at}: afbeeldingen ${os.images.join(' ') || '(geen)'} ≠ bron ${ss.images.join(' ') || '(geen)'}`);
   if (ss.listItems !== os.listItems) errors.push(`${at}: ${os.listItems} lijstitem(s), de bron ${ss.listItems}`);
 
-  // Inline code: byte-gelijk, behalve de display-voorbeelden.
   const sc = codesOf(s);
   const oc = codesOf(o);
   if (sc.length !== oc.length) errors.push(`${at}: ${oc.length} inline-code-stuk(ken), de bron ${sc.length}`);
@@ -305,15 +262,11 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
     if ((have.get(code) ?? 0) < n) errors.push(`${at}: inline code \`${code}\` ontbreekt of is veranderd (byte-gelijk overnemen)`);
   }
 
-  // Codeblokken (```): dezelfde openingsregel (een ```prompt-blok blijft er een, anders verliest Help de knop
-  // Prompt kopiëren). Een gewoon codeblok blijft gelijk; alleen voorbeeldpaden mogen de taal volgen (nl schrijft
-  // `/pad/naar/werkmap`), dus een verschil is een waarschuwing. Een promptblok wordt vertaald, maar houdt zijn
-  // regels, lege regels en lijsttekens, en zijn technische stukken (`techTokens`) letterlijk.
   const sf = fencesOf(s);
   const of = fencesOf(o);
   sf.forEach((a, k) => {
     const b = of[k];
-    if (!b) return; // het ontbrekende blok meldt de opbouwregel al
+    if (!b) return;
     const which = `codeblok ${k + 1} (${a.opener})`;
     if (a.opener !== b.opener) { errors.push(`${at}: ${which} opent in de vertaling met ${b.opener} — neem de openingsregel letterlijk over`); return; }
     if (a.opener !== '```prompt') {
@@ -330,11 +283,8 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
     }
   });
 
-  // Cijfers: elke cijferreeks van de bron staat er, alleen ASCII-cijfers.
   const bad = o.match(new RegExp(NON_ASCII_DIGIT.source, 'gu'));
   if (bad) errors.push(`${at}: niet-ASCII-cijfers ${[...new Set(bad)].join(' ')} — schrijf 0-9`);
-  // Getallen binnen een herkend UI-label (soort a/b) tellen niet mee: de labelregel controleert het label zelf
-  // (de ar-vorm van "1 task shows …" schrijft het getal uit).
   const sectionLabelsHere = pkg.labels.filter(x => x.section === idx && (x.kind === 'a' || x.kind === 'b'));
   const [sPlain, oPlain] = withoutPlainLabelNumbers(
     withoutLabelSpans(s, sectionLabelsHere, 'src'), withoutLabelSpans(o, sectionLabelsHere, 'out'), sectionLabelsHere, s, o);
@@ -344,15 +294,11 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
   const extra = [...od].filter(([d, n]) => n > (sd.get(d) ?? 0)).map(([d]) => d);
   if (extra.length) warnings.push(`${at}: getallen die de bron niet heeft: ${extra.join(', ')}`);
 
-  // Placeholders: een `{{…}}` die de bron niet heeft, is een UI-tekst met een open plek die in de proza belandde.
   const sp = bag((s.match(/\{\{[^{}]*\}\}/g) ?? []).map(x => x.replace(/\s+/g, '')));
   for (const [ph, n] of bag((o.match(/\{\{[^{}]*\}\}/g) ?? []).map(x => x.replace(/\s+/g, '')))) {
     if (n > (sp.get(ph) ?? 0)) errors.push(`${at}: invulplek ${ph} staat niet in de bron — schrijf de tekst zoals de bron hem toont (bv. "…" of het getal)`);
   }
 
-  // Labels (§5.3).
-  // Tabbladplekken in de vertaling: een heel cursief stuk, of het eerste deel van een pad (niet een later deel:
-  // cs *Domů › Plán › Přepočítat* is de groep Plán, niet het tabblad).
   const parts = italicsOf(o).map(x => normLabel(x.split(/\s*›\s*/)[0]));
   for (const l of pkg.labels.filter(x => x.section === idx)) {
     const what = `label *${short(l.en)}*${l.keys ? ` (${l.keys.slice(0, 2).join(', ')}${l.keys.length > 2 ? ', …' : ''})` : ''}`;
@@ -363,7 +309,6 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
     const targets = l.targets ?? [];
     if (targets.length === 0) { warnings.push(`${at}: ${what} heeft nog geen vertaling in de UI; vertaal het als korte UI-naam`); continue; }
     if (l.role === 'tab') {
-      // Een tabblad: precies één van de tabbladnamen, als eigen cursief deel (niet als deel van een langer woord).
       const want = new Set(targets.map(normLabel));
       const got = parts.filter(p => want.has(p)).length;
       const need = l.count ?? 1;
@@ -378,25 +323,18 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
     }
   }
 
-  // Tokens en keep-namen.
   for (const t of pkg.tokens) if (countToken(s, t) > 0 && countToken(o, t) === 0) errors.push(`${at}: token "${t}" ontbreekt (nooit vertalen)`);
   for (const k of pkg.keep) if (countToken(s, k) > 0 && countToken(o, k) === 0) errors.push(`${at}: naam "${k}" ontbreekt (niet vertalen)`);
   for (const k of pkg.keepSoft ?? []) if (countToken(s, k) > 0 && countToken(o, k) === 0) warnings.push(`${at}: naam "${k}" niet letterlijk (mag in deze taal)`);
 
-  // Termen: niet gevonden is zacht (de bron kan het woord in een andere betekenis gebruiken). Een avoid-woord
-  // als los woord is hard: buiten inline code, buiten UI-labels en buiten de vormen van alle termen.
   const allForms = pkg.terms.flatMap(t => (t.forms.length ? t.forms : [t.target]));
   const labelTexts = pkg.labels.filter(x => x.section === idx).flatMap(l => l.targets ?? []);
-  // Een avoid-woord binnen een herkend label is geen fout: het label komt uit de UI.
   const prose = withoutLabelSpans(o, sectionLabelsHere, 'out').replace(/`[^`]+`/g, ' ');
   const avoidSoft = new Set((pkg.avoidSoft ?? []).map(a => a.toLocaleLowerCase()));
   for (const t of pkg.terms) {
     if (!t.en.some(e => hasStem(s, e))) continue;
     const forms = t.forms.length ? t.forms : [t.target];
     if (!forms.some(f => hasStem(o, f))) warnings.push(`${at}: term "${t.target}" (${t.id}) niet gevonden`);
-    // Staat het avoid-woord zelf in de Engelse bron (een afkorting uitgeschreven: "Critical Path Method"), dan is het overgenomen.
-    // Alleen vormen en labels die het avoid-woord zelf bevatten worden weggestreept ("konec projektu" ⊃ "konec");
-    // een korte vorm als "المهام" mag "قائمة المهام" niet opbreken.
     const hits = (t.avoid ?? []).filter(a => avoidWords(prose, [...allForms, ...labelTexts].filter(f => hasWord(f, a)), [a]).length > 0)
       .filter(a => !hasWord(s, a));
     for (const a of hits) {
@@ -410,21 +348,12 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
   if (sectionHash(o) === sectionHash(s)) warnings.push(`${at}: gelijk aan en`);
 }
 
-/** Geen kop twee keer (behalve als de bron hem ook twee keer heeft). */
 function duplicateHeadings(src: string, out: string): string[] {
   const heads = (md: string) => blocksOf(md).filter(b => b.kind.startsWith('h')).map(b => b.text.trim());
   const sb = bag(heads(src));
   return [...bag(heads(out))].filter(([h, n]) => n > 1 && n > (sb.get(h) ?? 0)).map(([h]) => `kop "${short(h)}" staat ${'meer dan één'} keer in de vertaling`);
 }
 
-/**
- * De docs-poort (§7): `.out.md` tegen `.src.md` en het pakket. Hard: dezelfde secties, blokken,
- * kopniveaus, links, afbeeldingen en lijstitems; de miniMarkdown-subset; geen dubbele kop; labels a/b/c
- * (een tabblad: precies een tabbladnaam als eigen cursief deel); inline code byte-gelijk (behalve `display`);
- * dezelfde cijferreeksen, alleen ASCII-cijfers; geen `{{…}}` die de bron niet heeft; tokens en keep-namen;
- * een avoid-woord als los woord (buiten code, labels en termvormen). Zacht: term niet gevonden, lengte,
- * gelijk aan en.
- */
 export function checkDocs(pkg: DocsPackage, srcMd: string, outMd: string): CheckResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -439,10 +368,6 @@ export function checkDocs(pkg: DocsPackage, srcMd: string, outMd: string): Check
   return { errors, warnings };
 }
 
-/**
- * De poort op een samengevoegd artikel (`apply docs`): alleen wat over het hele artikel gaat — de
- * opbouw gelijk aan de en-bron, de subset, geen dubbele kop, een H1.
- */
 export function checkDocsArticle(enMd: string, md: string): string[] {
   const errors: string[] = [];
   const a = structureOf(enMd);
@@ -455,7 +380,6 @@ export function checkDocsArticle(enMd: string, md: string): string[] {
   return errors;
 }
 
-/** Kies de poort op basis van `kind` in het pakket. */
 export function checkPackage(pkg: unknown, out: unknown): CheckResult {
   if (!isRecord(pkg)) return { errors: ['pakket: geen object'], warnings: [] };
   switch (pkg.kind) {
@@ -468,7 +392,6 @@ export function checkPackage(pkg: unknown, out: unknown): CheckResult {
   }
 }
 
-/** Korte uitvoer: één regel per fout of waarschuwing, en een slotregel. */
 export function formatResult(id: string, r: CheckResult): string[] {
   const lines = [...r.errors.map(e => `XX ${e}`), ...r.warnings.map(w => `WW ${w}`)];
   lines.push(r.errors.length
