@@ -1779,7 +1779,10 @@ en noem het in je rapport of PR-tekst.
       `computeEffectiveViewStart` die invoer terug (ADR 0501), en die levert daarna `NaN`. In de code gelezen, niet in de
       app nagespeeld: Ctrl/Cmd+Home (`nav.scrollToToday` in `shortcutRegistry.ts`) geeft de uitkomst aan `setScroll`
       (`viewSlice.ts`); `Math.max(0, NaN)` is `NaN`, en `clampGanttScroll` met `NaN` en een bovengrens geeft in Node
-      `NaN` terug. Open vraag: kan een importer of de wizard zo'n datum opleveren? — B
+      `NaN` terug. Een IFC-bestand kan zo'n datum opleveren: in een kopie van het voorbeeld *Rijwoningen De Akkers* met
+      `StatusDate` `onzin` kwam die tekst via `readIFC` in de store, en de actie achter Ctrl/Cmd+Home zette `scrollX`
+      op `NaN` (in Node, zonder canvas); met een herstelde statusdatum gaf dezelfde actie weer een getal. De wizard
+      en een nieuw leeg project geven een geldige oorsprong. — B
 
 2541. **De fit van het project geeft een onbruikbare zoom als een taakdatum geen datum is maar wel als tekst wordt
       vergeleken.** `computeFitToProject` (`src/utils/ganttViewport.ts`) kiest de vroegste start en het laatste einde
@@ -1790,7 +1793,10 @@ en noem het in je rapport of PR-tekst.
       zoom 0,5 (de ondergrens) en scroll 7: `parseDate` leest `0` in Node als 2000-01-01. In de code gelezen, niet in de
       app nagespeeld: Ctrl+0 (`fitToProject`) en de fit na het openen (`pendingFit`) in
       `useGanttViewportCoordinator.ts` geven de zoom aan `setZoom`, en `Math.max(0.5, Math.min(max, NaN))` is `NaN`.
-      Open vraag: kan een importer zo'n datum opleveren? — B
+      Via een IFC-bestand, in Node zonder canvas: met `x2026` als taakeinde neemt `readIFC` de tekst over, maar stopt
+      het activeren van het document met een `RangeError` vóór de fit, zodat de `NaN` alleen voor de losse functie is
+      gezien; met taakstart `0` slaagt het openen en begint de berekende fit op 1999-12-31 met zoom 0,5, een verkeerde
+      uitsnede. — B
 
 ## Kalenders
 
