@@ -7992,3 +7992,13 @@ en noem het in je rapport of PR-tekst.
 2407. **Overgeslagen werkschema’s ontbreken in de opgave van wat in de IFCX-bron achterblijft.**
       De lezer kiest één werkschema bij het eerste werkplan. Neem de overige werkschema’s mee in
       `leftBehind`, zodat de planner ze vóór de eerste eigen opslag terugziet. — S
+
+2415. **Een hoofdtaak met een lege vroege eindtijd kan na openen tot het einde van haar kinderen lopen.**
+      In een variant van `precieze-taken.ifcx` heeft Pakket 0 een vroege start van 07:00, een geplande start
+      van 09:00, een leeg vroeg einde en een gepland einde op 1 maart 16:00. Na openen begint de taak om 07:00 en eindigt ze
+      op 5 maart 00:00. De 09:00 blijft de geplande invoer. De proef ziet dit bij beide herkomsten, ook als een
+      andere taak ‘datums zoals opgeslagen’ aanzet. De gedeelde IFC-laadroute geeft `captureRecordedDates`
+      alleen een volledig vroeg paar als rekenuitvoer (ADR 0330). Ook de eigen IFCX-lezer met bronformaat en de
+      STEP-lezer zonder XER-brontijden volgen die regel bij dezelfde velden (lege IFCX-tijd of STEP-slot `$`).
+      Richting: in de gedeelde functie de vastlegging per kant beoordelen, met de vroege start van het restwerk
+      en de eerdere werkelijke start van een lopende taak als proef. — B
