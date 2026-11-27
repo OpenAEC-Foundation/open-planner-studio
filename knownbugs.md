@@ -1736,7 +1736,9 @@ en noem het in je rapport of PR-tekst.
       tijd. Nagespeeld in Node: `13-05-2027 07:00` (de vorm van `displayDateTime` bij dag-maand-jaar, zoals het raster
       een datum met tijd toont) en `2027-05-13T07:00` geven allebei `null`. Het veld laat dan het gewone plakken in het
       vakje met de focus toe, en `nextSegmentState` houdt daarvan alleen de cijfers, afgekapt op de lengte van het
-      vakje. De andere vakjes blijven staan, en het veld legt bij het verlaten zonder melding een andere datum vast.
+      vakje. De andere vakjes blijven staan. Vormen de vakjes zo een bestaande datum die van de oude afwijkt, dan legt
+      het veld die bij het verlaten zonder melding vast; is het overgebleven dagnummer gelijk aan de dag die er stond,
+      dan verandert er niets.
       Proef uit de review van #1284, in Node met gesimuleerde tekstvakjes: met `20-07-2026 08:00` in het veld (waarde `2026-07-20T08:00`) en
       het dagvakje geselecteerd geeft plakken van `13-05-2027 07:00` het dagvakje `13`, en het veld legt
       `2026-07-13T08:00` vast (13-07-2026 08:00). Wat de browser bij echt plakken met de selectie en `maxLength` doet, is
