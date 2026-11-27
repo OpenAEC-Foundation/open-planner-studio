@@ -20,7 +20,6 @@ const paints: Record<GanttPaintSurface, {
   histogram: { count: 0, last: null },
 };
 
-/** Registreert uitsluitend refs; rendererdata blijft eigendom van de gemounte Gantt. */
 export function registerGanttTestSurface(
   surface: GanttTestSurface,
   refs: GanttTestRefs,
@@ -31,7 +30,6 @@ export function registerGanttTestSurface(
   };
 }
 
-/** Leest een renderer-eigen balkpunt en zet canvas-CSS-coördinaten om naar clientcoördinaten. */
 export function taskBarPoint(
   taskId: string,
   edge: 'left' | 'body' | 'right' = 'body',
@@ -54,22 +52,16 @@ export function taskBarPoint(
   return { x: bounds.left + canvasX, y: bounds.top + canvasY };
 }
 
-/** Observer-only: canvas-x (CSS-px, 0 = linkerrand van de tijdlijn) waar de renderer `isoDate`
- *  tekent, via zijn eigen as (`GanttRenderer.dateToX`). Zo leest een test welke datum links in beeld
- *  staat zonder de asformule na te bouwen. Start zelf geen paint. */
 export function dateX(isoDate: string, surface: GanttTestSurface = 'primary'): number | null {
   const renderer = surfaces.get(surface)?.renderer.current;
   return renderer ? renderer.dateToX(parseDate(isoDate)) : null;
 }
 
-/** Observer-only: aantal balkstukken dat de laatste paint voor een taak tekende (zie
- *  `GanttRenderer.getDrawnSegmentCount`). Start zelf geen paint. */
 export function taskSegmentCount(taskId: string, surface: GanttTestSurface = 'primary'): number | null {
   const renderer = surfaces.get(surface)?.renderer.current;
   return renderer ? renderer.getDrawnSegmentCount(taskId) : null;
 }
 
-/** Observer-only: wordt na een bestaande draw aangeroepen en kan zelf geen paint starten. */
 export function recordGanttPaint(surface: GanttPaintSurface, width: number, height: number): void {
   const paint = paints[surface];
   paint.count += 1;

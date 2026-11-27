@@ -1,4 +1,3 @@
-/** De bytes uit een base64-`data:`-URL (`data:image/png;base64,…`); gooit bij een ander formaat. */
 export function dataUrlToBytes(dataUrl: string): Uint8Array<ArrayBuffer> {
   const marker = ';base64,';
   const idx = dataUrl.indexOf(marker);

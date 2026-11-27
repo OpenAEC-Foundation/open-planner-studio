@@ -7,32 +7,17 @@ import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { nameWithProjectCode } from '@/utils/projectCodeName';
 import { maxOf, minOf } from '@/utils/collections';
 
-/**
- * Afgeleide identiteit + statistieken per geopend document, voor de
- * multi-document-chrome (tabstrip / projectbalk / wisselaar + overzicht).
- * Puur — geen store-afhankelijkheid; de hook `useDocumentCards` voedt deze
- * met de juiste payload per document.
- *
- * Kleuren zijn bewust afgeleid van een stabiele seed (de project-id).
- */
-
-// Onderling goed onderscheidbare identiteitskleuren (amber/blauw/groen/paars/…).
-// Geëxporteerd zodat weergaven die zelf een unieke (in plaats van hash-gebaseerde) toewijzing
-// nodig hebben — zie `ResourceOccupancyView` — hetzelfde palet hergebruiken i.p.v. een tweede
-// definitie te introduceren.
 export const DOC_PALETTE = [
   '#D97706', '#2563EB', '#16A34A', '#7C3AED',
   '#DB2777', '#0891B2', '#CA8A04', '#0D9488',
 ];
 
-/** Stabiele identiteitskleur uit een seed (project-id). */
 export function documentColor(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   return DOC_PALETTE[h % DOC_PALETTE.length];
 }
 
-/** 2-letter-code uit de titel (eerste letters van de eerste twee woorden). */
 export function documentCode(title: string): string {
   const words = title.trim().split(/[\s\-_]+/).filter(Boolean);
   if (words.length === 0) return '–';
@@ -40,8 +25,6 @@ export function documentCode(title: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
-/** Afgeleide titel: bestandsnaam zonder extensie, anders de projectnaam. `projectCode` is de P6
- *  Project-ID van het document (`documentProjectCode`: XER of P6 XML). */
 export function documentTitle(
   filePath: string | null,
   projectName: string,
@@ -50,52 +33,19 @@ export function documentTitle(
   if (filePath) {
     return basename(filePath).replace(/\.[^.]+$/, '');
   }
-  // P6-import (XER of P6 XML) zonder opslagdoel: "Projectnaam (P6 Project-ID)" — zie `nameWithProjectCode`.
   if (projectCode) return nameWithProjectCode(projectName, projectCode);
   return projectName || '';
 }
 
-/**
- * Neutrale, TAALONAFHANKELIJKE basis voor bestandsnamen van een naamloos project.
- *
- * Bewust géén vertaalde terugval (`common:project.untitled`): een bestandsnaam is technische
- * metadata die op een schijf belandt en door andere systemen gelezen wordt. `新しい計画.ifc` of
- * `طرح جدید.ifc` is geen verbetering — het maakt het bestand juist lastiger uitwisselbaar, terwijl
- * de gebruiker in de opslaan-dialoog toch zelf een naam kiest. Eén helper zodat opslaan (fileSlice),
- * rapport-export (ReportPanel), de STEP-header en de uitwisselingsformaten dezelfde terugval
- * gebruiken.
- *
- * Trimt bewust: een naam van alleen spaties leverde anders `   .ifc`.
- */
 export const DEFAULT_PROJECT_FILE_BASE = 'project';
 export function projectFileBase(projectName: string): string {
   return (projectName ?? '').trim() || DEFAULT_PROJECT_FILE_BASE;
 }
 
-/**
- * Voorgestelde bestandsnaambasis bij opslaan/"Opslaan als"/exporteren: dezelfde naam als de tab en
- * de titelbalk vóór het opslaan. Bij een XER- of P6 XML-document is dat "Projectnaam (P6 Project-ID)"
- * (`nameWithProjectCode`), zodat tab en titelbalk ná het opslaan — dan afgeleid van de bestandsnaam —
- * dezelfde naam houden. Zonder code gelijk aan `projectFileBase(projectName)`.
- */
 export function documentFileBase(projectName: string, projectCode?: string | null): string {
   return projectFileBase(projectCode ? nameWithProjectCode(projectName, projectCode) : projectName);
 }
 
-/**
- * Volgnummers om NAAMLOZE documenten onderling te onderscheiden.
- *
- * Invoer: de rauwe titels (`documentTitle(...)`) van álle open documenten, in tabvolgorde. Uitvoer:
- * per document `undefined` (het heeft een echte titel, óf het is het énige naamloze document) of een
- * 1-gebaseerd volgnummer onder de naamloze documenten — waarbij de eerste bewust `undefined` blijft,
- * zodat de nummering pas zichtbaar wordt zodra er iets te onderscheiden valt: `Nieuwe planning`,
- * `Nieuwe planning (2)`, `Nieuwe planning (3)`, …
- *
- * Waarom hier en niet in de projectnaam: dupliceren van een naamloos project mocht géén taalgebonden
- * string (`' (variant 2)'`) in de projectdata — en dus in het IFC — stempelen. Het onderscheid is
- * puur weergave, dus hoort het in de weergave-afleiding. Het nummer zelf is taalonafhankelijk; alleen
- * het label eromheen wordt vertaald door de aanroeper.
- */
 export function untitledOrdinals(rawTitles: string[]): (number | undefined)[] {
   const untitledCount = rawTitles.filter((t) => !t).length;
   let seen = 0;
@@ -106,8 +56,6 @@ export function untitledOrdinals(rawTitles: string[]): (number | undefined)[] {
   });
 }
 
-/** `raw` indien niet-leeg; anders het (al vertaalde) label, met het volgnummer uit
- *  `untitledOrdinals` erachter. De aanroeper levert het label — deze module kent geen i18n. */
 export function displayDocumentTitle(
   raw: string,
   ordinal: number | undefined,
@@ -141,18 +89,12 @@ export interface ThumbBar {
   color: string;
 }
 
-/**
- * Low-fidelity mini-Gantt: balkjes binnen het tijdvenster van het document.
- * Leesbaar zonder dat CPM gedraaid hoeft te zijn (valt terug op scheduleStart).
- */
 export function buildThumbnail(tasks: Task[], identityColor: string, maxBars = 9): ThumbBar[] {
   const points: { start: number; end: number; ms: boolean; crit: boolean }[] = [];
   for (const t of tasks) {
-    if (isSummaryTask(t)) continue; // alleen bladtaken/mijlpalen
+    if (isSummaryTask(t)) continue;
     const startStr = shownStart(t);
     if (!startStr) continue;
-    // `parseInstant`, niet `Date.parse`: die leest een datetime zonder offset als LOKALE tijd,
-    // terwijl de app (en `Date.parse` zelf voor een date-only string) in UTC rekent.
     const start = parseInstant(startStr).getTime();
     if (Number.isNaN(start)) continue;
     const finStr = shownFinish(t);

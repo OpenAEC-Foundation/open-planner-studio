@@ -30,7 +30,6 @@ function parseFieldRef(raw: unknown): FieldRef | undefined {
   }
 }
 
-/** Structurele parser; projectcontext-validatie gebeurt later tegen de actuele Group-catalogus. */
 export function parseBarColorSelection(raw: unknown): BarColorSelection | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const selection = raw as Record<string, unknown>;
@@ -67,10 +66,6 @@ function legacySelection(mode: LegacyBarColorMode | undefined): BarColorSelectio
   }
 }
 
-/**
- * Zet de twee tijdelijke branch-instellingen om naar één keuze. Een expliciete, niet-standaard
- * schermkeuze wint; anders een niet-standaard rapportkeuze; anders het kritiek-pad-default.
- */
 export function migrateLegacyBarColorSelection(
   screenRaw: unknown,
   reportRaw: unknown,
@@ -97,7 +92,6 @@ export async function loadBarColorSelection(): Promise<BarColorSelection> {
     await getSetting<unknown>('screenBarColorMode'),
     await getSetting<unknown>('reportSettings'),
   );
-  // Migratie of standaardwaarde bij het laden: geen keuze van de gebruiker (#818).
   await saveBarColorSelection(migrated, 'start');
   return migrated;
 }
