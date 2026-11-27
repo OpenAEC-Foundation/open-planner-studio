@@ -1,31 +1,3 @@
-// MCP-toolmodule — BASELINEBEHEER: opsommen, activeren, hernoemen, verwijderen.
-//
-// WAAROM DEZE MODULE BESTAAT: `planner_save_baseline` (calendarResourceTools) MAAKT een baseline, en
-// `planner_compare_baseline`/`planner_analyze_delay` (readTools) weigeren zonder ACTIEVE baseline met
-// "activeer er een". Die instructie moet een weg hebben: deze module levert opsommen, activeren,
-// hernoemen en verwijderen.
-//
-// GEEN TWEEDE MODEL. De store kán dit alles al: `baselineSlice` heeft `saveBaseline`,
-// `deleteBaseline`, `renameBaseline` en `setActiveBaseline`, en de BaselineDialog gebruikt precies
-// die vier. Deze module legt daar alleen het MCP-oppervlak op — er is dus GEEN nieuwe slice-actie
-// bijgekomen en de UI en de bridge blijven op één waarheid werken (inclusief de terugval-regel bij
-// het verwijderen van de actieve baseline, die in de slice woont).
-//
-// CONVENTIES (zie de kop van `taskTools.ts`): `planner_`-prefix, een description waarop de AI kiest,
-// de standaard-annotaties, en per muterende tool de driedeling `parseX` (pure vormvalidatie ⇒ args of
-// een foutstring) / `xCore` (synchrone, transactie-vrije mutatie ⇒ `MutationOutcome`) / `handler`
-// (guards + backup + eigen transactie via `runMutateTool`). Daardoor draait elke tool zowel los als
-// als `batchStep` binnen `planner_batch`, met exact ÉÉN implementatie van de mutatie.
-//
-// NOOIT `ok` ZONDER EFFECT — en ook nooit een spurious undo-stap. Een activatie/hernoeming die
-// niets verandert (al actief, zelfde naam) gaat NIET door `runInMcpTransaction` (geen AI-backup
-// voor een no-op; de transactie zelf legt ook geen undo-stap vast zonder datawijziging).
-// Zo'n call komt terug via `okDirect` met `changed: false` en een reden — geslaagd én eerlijk.
-//
-// VERSHEID SPEELT HIER GEEN ROL. Anders dan `save_baseline` (die een SNAPSHOT van de planning maakt
-// en daarom `ensureFreshSchedule()` nodig heeft) raken deze vier tools alleen metadata: welke
-// baseline bestaat, hoe hij heet en welke actief is. Een stale planning maakt die antwoorden niet
-// onjuist, dus er wordt hier bewust niet herrekend.
 import type { AppState } from '@/state/appStore';
 import type { Baseline } from '@/types/baseline';
 import type { McpContext, McpToolDef } from '../contracts';
@@ -40,16 +12,8 @@ import {
   type MutationOutcome,
 } from './runtime';
 
-/** Standaardverwijzing in elke weigering: waar haalt de agent geldige id's vandaan? */
 const LIST_HINT = 'get valid ids with planner_list_baselines';
 
-// ── Gedeelde vormcontrole ────────────────────────────────────────────────────────────────────────
-//
-// Onbekende argumentsleutels weigert elke tool ZELF (`unknownArgsReason`), niet alleen via de
-// schemapoort in de dispatcher: een genegeerde sleutel is een antwoord dat plausibel lijkt maar iets
-// anders deed dan gevraagd.
-
-/** Compacte, leesbare regel per baseline voor in een foutmelding (max 5, daarna "…"). */
 function knownBaselinesHint(s: AppState): string {
   if (s.baselines.length === 0) return 'there are no baselines yet — create one with planner_save_baseline';
   const shown = s.baselines.slice(0, 5).map((b) => `${b.id} ('${b.name}')`);
@@ -57,30 +21,22 @@ function knownBaselinesHint(s: AppState): string {
   return `known baselines: ${shown.join(', ')}${rest > 0 ? ` (+${rest} more)` : ''}`;
 }
 
-/** Weigering voor een onbekend baseline-id, met de verwijzing naar de geldige id's. */
 function unknownBaselineReason(s: AppState, baselineId: string): string {
   return `unknown baseline id '${baselineId}' — ${LIST_HINT} (${knownBaselinesHint(s)})`;
 }
 
-/** Weigering voor een `baselineId` die geen niet-lege string is. */
 function baselineIdShapeReason(value: unknown): string {
   return `\`baselineId\` must be a non-empty string (${LIST_HINT}), got ${value === undefined ? 'nothing' : `${typeof value} '${String(value)}'`}`;
 }
 
-/** Zoek een baseline; `null` wanneer onbekend. */
 function findBaseline(s: AppState, id: string): Baseline | null {
   return s.baselines.find((b) => b.id === id) ?? null;
 }
 
-/** Naam van een baseline-id, of null (voor de before/after-rapportage). */
 function nameOf(s: AppState, id: string | null): string | null {
   if (!id) return null;
   return findBaseline(s, id)?.name ?? null;
 }
-
-// =================================================================================================
-// 1. planner_list_baselines  (LEESTOOL)
-// =================================================================================================
 
 function listBaselinesCore(s: AppState) {
   const active = s.activeBaselineId;
@@ -93,7 +49,6 @@ function listBaselinesCore(s: AppState) {
     projectDuration: b.projectDuration,
     isActive: b.id === active,
   }));
-  // De hint is het antwoord op "en nu?".
   let hint: string | undefined;
   if (baselines.length === 0) {
     hint = 'There are no baselines yet. Record one with planner_save_baseline; only then can planner_compare_baseline and planner_analyze_delay measure.';
@@ -124,14 +79,6 @@ const listBaselines: McpToolDef = {
   },
 };
 
-// =================================================================================================
-// 2. planner_activate_baseline
-//
-// `baselineId: null` is bewust geldig: "meet nergens tegen af". Dat is de enige manier om terug te
-// komen in de toestand waarin compare_baseline/analyze_delay weigeren, en de store ondersteunt hem
-// (`setActiveBaseline(null)`). Zonder die mogelijkheid zou de bridge minder kunnen dan de UI.
-// =================================================================================================
-
 interface ActivateArgs { baselineId: string | null }
 
 function parseActivate(args: unknown): ActivateArgs | string {
@@ -148,7 +95,6 @@ function parseActivate(args: unknown): ActivateArgs | string {
   return { baselineId: a.baselineId };
 }
 
-/** Beschrijft wat een activatie zou doen — gedeeld door de handler (no-op-snelpad) en de kern. */
 function activatePlan(s: AppState, p: ActivateArgs): { error: string } | { changed: boolean; data: unknown } {
   if (p.baselineId !== null && !findBaseline(s, p.baselineId)) {
     return { error: unknownBaselineReason(s, p.baselineId) };
@@ -181,8 +127,6 @@ function activateCore(ctx: McpContext, p: ActivateArgs): MutationOutcome {
   const s = ctx.app.store.getState();
   const plan = activatePlan(s, p);
   if ('error' in plan) throw new McpStepError('VALIDATION', plan.error);
-  // Ook binnen een batch: geen wijziging ⇒ geen store-aanroep (setActiveBaseline is dan zelf al een
-  // no-op, maar we melden het expliciet i.p.v. te doen alsof er iets gebeurde).
   if (plan.changed) ctx.app.store.getState().setActiveBaseline(p.baselineId);
   return { data: plan.data };
 }
@@ -193,7 +137,6 @@ const activateBaseline: BatchStepTool = {
     'Make a baseline the active yardstick of planner_compare_baseline and planner_analyze_delay; `null` = none.',
   kind: 'mutate',
   batchable: true,
-  // Idempotent: dezelfde baseline nogmaals activeren levert dezelfde toestand op.
   annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
   inputSchema: {
     type: 'object',
@@ -213,17 +156,11 @@ const activateBaseline: BatchStepTool = {
 
     const plan = activatePlan(ctx.app.store.getState(), parsed);
     if ('error' in plan) return toolError(ctx, 'VALIDATION', plan.error);
-    // No-op-snelpad (zelfde patroon als move_project met Δ=0): geen transactie, dus geen
-    // undo-snapshot en geen gewiste redo-stack voor een AI-call die niets veranderde.
     if (!plan.changed) return okDirect(ctx, plan.data, []);
 
     return await runMutateTool(ctx, 'mutate', (): MutationOutcome => activateCore(ctx, parsed));
   },
 };
-
-// =================================================================================================
-// 3. planner_rename_baseline
-// =================================================================================================
 
 interface RenameArgs { baselineId: string; name: string }
 
@@ -237,8 +174,6 @@ function parseRename(args: unknown): RenameArgs | string {
   if (typeof a.name !== 'string') {
     return `\`name\` must be a string, got ${a.name === undefined ? 'nothing' : `${typeof a.name} '${String(a.name)}'`}`;
   }
-  // Een lege/witruimte-naam maakt de baseline in de lijst en de dialoog onherkenbaar; hem stil
-  // accepteren zou een geslaagde call zijn die de agent zijn eigen referentiepunt kost.
   if (a.name.trim() === '') return '`name` must not be empty — give a recognizable name';
   return { baselineId: a.baselineId, name: a.name };
 }
@@ -258,8 +193,6 @@ function renamePlan(s: AppState, p: RenameArgs): { error: string } | { changed: 
       previousName: b.name,
       changed,
       ...(changed ? {} : { reason: 'the baseline already had that name — nothing was changed' }),
-      // Dubbele namen zijn toegestaan (de UI staat ze ook toe) maar maken de lijst dubbelzinnig;
-      // dat melden we, i.p.v. het stil te laten gebeuren of het onnodig te weigeren.
       ...(duplicate ? { warning: `Another baseline is also called '${p.name}'; they can now only be told apart by id.` } : {}),
     },
   };
@@ -304,24 +237,6 @@ const renameBaseline: BatchStepTool = {
   },
 };
 
-// =================================================================================================
-// 4. planner_delete_baseline
-//
-// VERWIJDEREN IS GEVAARLIJK WERK — daarom drie bewuste keuzes:
-//   1. ÉÉN id per call, geen bulk. De andere verwijdertool (`delete_tasks`) is bulk omdat taken met
-//      tientallen tegelijk sneuvelen; baselines zijn schaars, kostbaar (een nulmeting is niet te
-//      reconstrueren uit het huidige plan) en het verwijderen ervan verschuift bovendien de
-//      MEETLAT. Eén per call houdt elke verwijdering een expliciete beslissing.
-//   2. Onbekend id ⇒ HARDE weigering, geen zachte per-item-melding en zeker geen `ok`. Er valt bij
-//      één id niets deels te slagen.
-//   3. De respons meldt het ECHTE voor/na-verschil, inclusief het NEVENEFFECT op de actieve
-//      baseline. De slice laat `activeBaselineId` bij het verwijderen van de actieve terugvallen op
-//      de LAATST OVERGEBLEVEN baseline (en anders op null) — dat is bestaand, door de UI gedeeld
-//      gedrag, en het betekent dat compare_baseline/analyze_delay dáárna tegen een ANDERE meetlat
-//      meten. Dat stil laten gebeuren zou onderrapportage zijn (zie ook `delete_tasks`), dus het staat
-//      expliciet in `activeBaselineId`/`note`.
-// =================================================================================================
-
 interface DeleteArgs { baselineId: string }
 
 function parseDelete(args: unknown): DeleteArgs | string {
@@ -345,8 +260,6 @@ function deleteCore(ctx: McpContext, p: DeleteArgs): MutationOutcome {
 
   ctx.app.store.getState().deleteBaseline(p.baselineId);
 
-  // NA-staat vers uit de store lezen: de terugval-regel woont in de slice, dus we RAPPORTEREN wat er
-  // gebeurd is in plaats van hem hier na te rekenen (twee waarheden zouden gaan divergeren).
   const after = ctx.app.store.getState();
   if (findBaseline(after, p.baselineId)) {
     throw new McpStepError('INTERNAL', `baseline '${p.baselineId}' is still there after deleting it`);
@@ -401,12 +314,10 @@ const deleteBaseline: BatchStepTool = {
   async handler(args, ctx) {
     const parsed = parseDelete(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
-    // Geen no-op-snelpad: een bekend id verwijdert altijd iets, een onbekend id is een fout.
     return await runMutateTool(ctx, 'mutate', (): MutationOutcome => deleteCore(ctx, parsed));
   },
 };
 
-/** Alle baselinebeheer-tools als vlakke module-array (registreer via één regel in toolRegistry.MODULES). */
 export const baselineTools: McpToolDef[] = [
   listBaselines,
   activateBaseline,
@@ -414,5 +325,4 @@ export const baselineTools: McpToolDef[] = [
   deleteBaseline,
 ];
 
-/** Losse export voor gerichte tests/tooling. */
 export { listBaselines, activateBaseline, renameBaseline, deleteBaseline };

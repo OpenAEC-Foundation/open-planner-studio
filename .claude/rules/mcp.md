@@ -35,7 +35,9 @@ project staan in `docs/adr/0100` tot en met `0107`. Besluiten over de leestools 
 grenzen), `0403` (niet vastgelegd is onbekend), `0404` (taken tellen en filteren), `0405` (één taak lezen), `0406`
 (resources, belasting en kalenders) en `0407` (kritiek pad, baseline en vertraging). Besluiten over de schrijftools
 voor taken en relaties (`tools/taskTools.ts`): `docs/adr/0490` (de vorm vooraf, alles of niets of per item, undo en
-redo), `0491` (taken toevoegen), `0492` (taken wijzigen), `0493` (verwijderen en verplaatsen) en `0494` (relaties).
+redo), `0491` (taken toevoegen), `0492` (taken wijzigen), `0493` (verwijderen en verplaatsen) en `0494` (relaties). Verder: `docs/adr/0660` (`planner_batch`: een draaiboek zonder scripttaal, schemapoort per stap,
+tempId's), `0661` (`planner_inspect_xer_provenance`: alles dicht tenzij toegestaan), `0662` (documenttools en
+baselinebeheer) en `0663` (relaties wijzigen, de planningsgids).
 
 Een MCP-backup bewaart planning plus bronkenmerk, nooit gebouwmodelbytes. Bij openen krijgt dat kenmerk alleen met
 `ifcForeignContent` aan `sourceMissing` (1c PR 9d): dezelfde bestaande weigering van alle IFC-opslag als bij herstel
