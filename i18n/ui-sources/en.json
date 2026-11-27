@@ -394,7 +394,7 @@
     "settings.foreignChangesQuestion": "6a0b0ca01ba47a57",
     "settings.foreignChangesQuestionHint": "16f8bdc9878cce2f",
     "settings.ifcx": "1faf115a38a71a1f",
-    "settings.ifcxHint": "7b7898cba33ead70",
+    "settings.ifcxHint": "0b6606598f63ebc9",
     "settings.tourHint": "2b8a2be9ad3ea59c",
     "settings.theme": "7cae0f1e7924acba",
     "settings.themeHint": "b09bc5411de8477d",
@@ -1663,6 +1663,12 @@
     "ifcx.writeRefused": "acc83425dd22cebf",
     "ifcx.flagOff": "5a72f62fb7ed3f11",
     "ifcx.nameMismatch": "0f32c5150a7c238d",
+    "ifcx.saveAs.title": "5c30c154397ec551",
+    "ifcx.saveAs.planOnlyBody": "92f4d94f39a3466e",
+    "ifcx.saveAs.planOnlyContinue": "8df1f537305d8a6e",
+    "ifcx.saveAs.xerArchiveBody": "8f59c2aed0f671ed",
+    "ifcx.saveAs.xerArchiveContinue": "8e96f6cbfdb2b0e3",
+    "ifcx.saveAs.cancel": "84acae277a776e6c",
     "foreignChangesQuestion.title": "df9b2fb7d7ae6a52",
     "foreignChangesQuestion.titleNew": "0b5f4c131e5f8768",
     "foreignChangesQuestion.body": "9b0b20ba45c5ac01",
@@ -3393,6 +3399,9 @@
     "native.cut": "08f8688ee1465ec6",
     "native.fullscreen": "0d437514081c9047",
     "native.bringAllToFront": "51f1f7bf243f7f34",
+    "ifcx.projectInfo.fileType": "425c6393d576d873",
+    "ifcx.projectInfo.fileTypeHint": "acc8a9eddaabd29b",
+    "ifcx.projectInfo.schemaForIfcx": "fc8ab124fa6e489a",
     "ribbon.calendarDialog.netHoursPerDay": "71f69c021582c154"
   }
 }

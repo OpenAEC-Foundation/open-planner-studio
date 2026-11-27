@@ -116,11 +116,6 @@ export const DOCUMENT_FIELDS: readonly DocumentField[] = [
     read: (v, t) => setOptional(t.project, 'ifcSchema', v as Project['ifcSchema']),
   },
   {
-    key: 'ifcSchemaUnconfirmed', value: TEXT, optional: true,
-    write: s => s.project.ifcSchemaUnconfirmed,
-    read: (v, t) => setOptional(t.project, 'ifcSchemaUnconfirmed', v as string | undefined),
-  },
-  {
     key: 'wbsAutoNumber', value: BOOLEAN, optional: true,
     write: s => s.project.wbsAutoNumber,
     read: (v, t) => setOptional(t.project, 'wbsAutoNumber', v as boolean | undefined),
@@ -161,7 +156,7 @@ export const DOCUMENT_FIELDS: readonly DocumentField[] = [
 
 export const PROJECT_KEYS_CARRIED: readonly (keyof Project)[] = [
   'id', 'name', 'description', 'startDate', 'endDate', 'calendarId', 'createdAt', 'modifiedAt', 'author', 'company',
-  'ifcSchema', 'ifcSchemaUnconfirmed', 'wbsAutoNumber', 'defaultTaskDurationUnit', 'statusDate',
+  'ifcSchema', 'wbsAutoNumber', 'defaultTaskDurationUnit', 'statusDate',
   ...PROJECT_SETTINGS_KEYS_CARRIED, ...SCHEDULING_KEYS_CARRIED,
 ];
 

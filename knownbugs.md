@@ -1736,8 +1736,9 @@ en noem het in je rapport of PR-tekst.
       tijd. Nagespeeld in Node: `13-05-2027 07:00` (de vorm van `displayDateTime` bij dag-maand-jaar, zoals het raster
       een datum met tijd toont) en `2027-05-13T07:00` geven allebei `null`. Het veld laat dan het gewone plakken in het
       vakje met de focus toe, en `nextSegmentState` houdt daarvan alleen de cijfers, afgekapt op de lengte van het
-      vakje. De andere vakjes blijven staan. Vormen de vakjes zo een bestaande datum die van de oude afwijkt, dan legt
-      het veld die bij het verlaten zonder melding vast; is het overgebleven dagnummer gelijk aan de dag die er stond,
+      vakje. De andere vakjes blijven staan. Vormen de vakjes zo een bestaande datum die van de oude afwijkt, dan biedt
+      het veld die bij het verlaten zonder eigen melding aan, en ze wordt vastgelegd tenzij de aanroeper haar weigert
+      (`onCommit`); is het overgebleven dagnummer gelijk aan de dag die er stond,
       dan verandert er niets.
       Proef uit de review van #1284, in Node met gesimuleerde tekstvakjes: met `20-07-2026 08:00` in het veld (waarde `2026-07-20T08:00`) en
       het dagvakje geselecteerd geeft plakken van `13-05-2027 07:00` het dagvakje `13`, en het veld legt
@@ -1769,6 +1770,30 @@ en noem het in je rapport of PR-tekst.
       (`commitOnInputEnter` en haar layout-effect in `src/components/dialogs/CalendarDialog.tsx`) neemt die datum aan
       en schrijft de feestdag naar het project. Voorstel: laat de scheidingstoets de bestaande selectie staan als het
       veld zojuist automatisch is doorgesprongen. Issue #1296. — B
+2520. **Verwijderen en Dissolve in het lint staan aan onder het volledige resourcepaneel, en verwijderen dan een
+      taak die niet in beeld is.** De sneltoetsen Delete en Backspace zijn daar dicht (`isTaskListOutOfView` in
+      `src/hooks/keyboard/shortcutRegistry.ts`, op `isTaskListInView`). In het relatiemenu (`RelationDropdown` in
+      `ribbonWidgets.tsx`) zijn koppelen en toewijzen daar dicht (`relationActionAvailability`) en tekenen ook
+      (`isGanttWorkspaceVisible`); het menu zelf gaat wel open, en bij één geselecteerde taak blijft *Externe relatie
+      toevoegen…* beschikbaar. De lintknop Verwijderen (`COMMANDS.delete`,
+      alleen `hasSelection`) en de knop Dissolve (`editGroup` in `ribbonConfig.tsx`, alleen
+      `selectedTaskIds.length > 0`) kijken niet naar `isTaskListInView`. Proef in Node met een eigen store-context
+      (`createAppStoreContext`): nieuw project met taken A en B, A geselecteerd, op Resources
+      `setUI({ showResourcePanel: true, resourcePanelDocked: false })`, dan naar Start en naar Tabel. Op beide
+      tabbladen is `isGanttWorkspaceVisible` en `isTaskListInView` onwaar (de werkruimte toont dan `ResourcePanel`,
+      `App.tsx`), de selectie blijft staan en `isCommandEnabled(COMMANDS.delete)` is waar; `COMMANDS.delete.run`
+      brengt het aantal taken van 2 naar 1, met één nieuw event in de sessiegeschiedenis, en één `undo()` zet A
+      terug. Het klikken zelf is niet in de browser nagespeeld. Issue #1305. — B
+2521. **Waarschuwingspaneel en Verschuivingen in het lint zetten hun paneel uit als je op de niet-actieve knop klikt
+      terwijl het paneel aan staat maar niet in beeld is.** De knoppen (`warningsPanelButton` en
+      `scheduleShiftPanelButton` in `ribbonConfig.tsx`) zijn alleen actief als de rail in beeld is, maar hun klik keert
+      de vlag om (`COMMANDS.toggleWarningsPanel`, `setUI({ showScheduleShiftPanel: !showScheduleShiftPanel })`).
+      Eigenschappen en Resourcedock kiezen op de getoonde stand. Proef in Node met een eigen store-context: nieuw
+      project, `showWarningsPanel` en `showScheduleShiftPanel` aan, dan (a) `rightPanelCollapsed: true`, of (b) op
+      Beeld het volledige resourcepaneel (`showResourcePanel: true`, `resourcePanelDocked: false`). In beide gevallen
+      zijn de knoppen niet actief; na de klik van elk staan beide vlaggen uit, blijft de rail uit beeld en is (a) nog
+      ingeklapt. Met Eigenschappen in dezelfde opzet komt de rail na één klik in beeld met het paneel aan. Ctrl+Shift+L
+      voert dezelfde opdracht uit als de knop Waarschuwingspaneel. Niet in de browser nagespeeld. — B
 
 ## Kalenders
 
@@ -2329,6 +2354,107 @@ en noem het in je rapport of PR-tekst.
       (besluit van de technisch eigenaar, 25 november 2026). De proefbestanden en de proef staan op de branch van
       #1253. Niet nagegaan: of werktijden instellen in de kalenderdialoog en opnieuw rekenen het Bonsai-bestand goed
       laat rekenen. — B
+2355. **VERVOLG (#804 fase 2, PR 8): Ctrl+Z na het opslaan zet een lid niet terug in de relatie van een ander programma.**
+      Flag aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: de toewijzing van de Metselploeg aan *Wand A bouwen* wissen
+      en opslaan haalt de ploeg uit `#120` (de `IfcRelAssignsToProcess` van Bonsai met de ploeg en de wand); `#120` houdt
+      de wand en haar `QuantityInProcess`. Ctrl+Z en weer opslaan geeft de planning die de planner zag (na heropenen heeft
+      *Wand A bouwen* de ploeg weer), maar de ploeg komt in een eigen toewijzingsrelatie van OPS en niet terug in `#120`;
+      de tweede opslag heeft een lege wijzigingslijst. Hetzelfde geldt voor elk lid dat PR 8 uit een bewaarde of gemengde
+      relatie haalt (een verplaatste taak, een andere kalender). Ook met `detached` (#1265, PR 7) in main: `detached`
+      onthoudt alleen wat de regel van §4.7 uit een stuk haalt (`ruleChangesOnly` in `mergeWriter.ts`). Zou het ook de
+      vertrekkers onthouden, dan zette het ze bij de volgende opslag terug zodra het object bestaat, ook als de koppeling
+      niet terugkwam: de ploeg wissen, opslaan, een andere taak hernoemen en opslaan weigerde dan met
+      `planning-na-openen`, en in reeks 804c (Schilderwerk onder Stucwerk, opslaan, kinderen van Ruwbouw omkeren) kwam
+      Schilderwerk terug in `#8502` terwijl de planning het onder Stucwerk had (gemeten op 27 november 2026). Het ontwerp
+      (§4.6) wil dat Ctrl+Z het lid ook na het opslaan terugzet. Richting: een stuk dat `departuresOf` inkortte, net zo
+      terugzetten als de bewaarde relaties van `detached`: alleen als het lid terugkomt onder dezelfde relating (de
+      koppeling, niet alleen het object). Vóór het opslaan werkt Ctrl+Z wel: de bron is dan nog dezelfde. Vastgelegd in
+      `check-ifc-foreign-gemengde-relaties.ts` (met heropenen, en het geval met hernoemen). — B
+2356. **VERVOLG (#804 fase 2, PR 8): wat na PR 8 bij gemengde en bewaarde relaties nog anders gaat dan het ontwerp.** Flag
+      aan. Gevonden met `tests/planning/check-ifc-foreign-gemengde-relaties.ts` op `tests/fixtures/ifc-foreign/bonsai-4d.ifc`
+      en afgeleide bronnen.
+      (a) Een wortel-taak van een tweede live-schema die een kind wordt van een taak van het eerste schema, blijft staan in
+      de `IfcRelAssignsToControl` van het tweede schema (`#133` in `bonsai-4d.ifc`), zoals op main. Het ontwerp (§10) wil
+      haar daar ook uit. PR 8 verandert alleen wat main weigerde; uit een `IfcRelNests` van het tweede schema gaat ze wel.
+      (b) Een taak van het eerste schema onder een taak van het tweede schema zetten weigert, ook op main: op
+      `bonsai-4d.ifc` *Ruwbouw* onder *Stucwerk* geeft `niet-gedragen` op `#102` (de Bonsai-relatie van het D-schema raakt
+      haar enige lid kwijt en de verliescontrole verklaart dat niet: `memberMoved` in `lossCheck.ts` kent bij
+      `IfcRelAssignsToControl` alleen een andere kalender), en na een eerdere opslag `niet-eenduidig`.
+      (c) Een tweede ploeg aan een taak waarvan `#120` de eerste ploeg en een wand koppelt: de lezer zou de eigen relatie
+      vóór die van Bonsai lezen, dus haalt PR 8 de eerste ploeg uit `#120` en schrijft beide ploegen in een eigen relatie.
+      De `QuantityInProcess` van Bonsai blijft dan op `#120`, bij de wand. Een gewiste toewijzing gaat net zo.
+      (d) Vormen die blijven weigeren met `gemengde-relatie`: een gemengde relatie met een relating in de planning buiten
+      de bekende vormen (bijvoorbeeld `IfcRelNests` onder een resource of `IfcRelAssignsToControl` onder het werkplan),
+      een niet-resource als planningslid in een gemengde `IfcRelAssignsToProcess`, en bij een gewijzigde lijst van
+      toewijzingen van die taak ook dezelfde resource twee keer in één zo'n relatie of een gebleven resource met meer dan
+      één toewijzing bij die taak (welke toewijzing in welke relatie hoort, is dan niet eenduidig). De gedeelde pset (b)
+      gaat zoals op main: zie 2385.
+      Een schema onder een ander werkplan kan de planning niet uitdrukken (één werkplan). — B
+2378. **Een taak van Bonsai een eigen kalender geven en doorrekenen weigert de opslag met `bronvorm-leest-anders`.** Flag
+      aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: *Wand A bouwen* een eigen kalender (een kopie van de projectkalender)
+      en doorrekenen, dan opslaan. De merge weigert: `taak task-ifc-22icVZXFsEZ1Ius5rjnii6, time.earlyFinish:
+      "2026-02-06T17:00" na herlezen in plaats van "2026-02-02T09:00"`, en zo ook `lateFinish`. Main (`4f9c435c9`) weigerde
+      dezelfde bewerking eerder, met `gemengde-relatie` op `#122` (gemeten op 25 november 2026); sinds #1262 haalt de merge
+      de taak uit `#122` en komt hij bij deze controle. Een taak buiten `#122` met een taaktijd weigert net zo; *Stucwerk*
+      (zonder taaktijd) schrijft. Geen verlies (de merge weigert), wel een opslag die niet lukt. De datums komen uit
+      2370: de kopie van de projectkalender van Bonsai heeft geen werktijden, dus doorrekenen zet *Wand A* met nul
+      werktijd op 2026-02-02 09:00; het einde in de vorm van de bron (`sourceFormWhereUnchanged`) leest na heropenen dan
+      anders. Richting: eerst de keuze van 2370 (een melding in plaats van een stille werkweek); daarna een andere
+      kalender laten tellen als wijziging van de datumslots van die taak (regel A), zodat de writer ze in zijn eigen vorm
+      schrijft. Vastgelegd in `tests/planning/check-ifc-foreign-gemengde-relaties.ts` met de reden van vandaag (een andere
+      reden, of schrijven, maakt de proef rood); ook reeks 804a stap 2 en 804b stap 5 daar. — B
+2379. **Wissen, opslaan, een taak erbij, opslaan, een taak tot wortel maken en opslaan weigert met `planning-na-openen`.** Flag
+      aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: *Wand B bouwen* wissen en opslaan (schrijft; `#116` en `#122`
+      gewijzigd, `#178` vervallen), een nieuwe taak boven *Stucwerk* en opslaan (schrijft, lege lijst), *Wand A bouwen*
+      bovenaan als wortel-taak en opslaan. De derde opslag weigert met `taak task-ifc-2lNOVVAc3x$DPP3aHgo958.time.durationUnit:
+      "hours" → "days"` (*Ruwbouw*, dat zo zijn laatste kind verliest). Main (`4f9c435c9`) geeft dezelfde drie uitkomsten,
+      met dezelfde lijsten en dezelfde reden (gemeten op 25 november 2026). Geen verlies (de merge weigert), wel een opslag
+      die niet lukt. Vermoeden, niet nagegaan: na de eerste opslag heeft *Ruwbouw* een taaktijd in de bron, en een fase die
+      daarna haar laatste kind verliest, krijgt niet de taaktijd met de duur-eenheid van de planner; herstelronde 4 van #1205
+      deed dat alleen voor een fase zonder taaktijd in de bron (2256). Richting: dezelfde uitzondering ook voor een fase met
+      een taaktijd die haar laatste kind verliest. Vastgelegd in `tests/planning/check-ifc-foreign-gemengde-relaties.ts` met
+      de reden van vandaag; dezelfde wortel vermoedelijk ook in reeks 804d stap 5 (`durationUnit`) en stap 6 (`lateStart`)
+      daar. — B
+2383. **`foreignChangesIfSaved` telt de leden niet die de merge uit een gemengde relatie haalt.** Flag aan,
+      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: de toewijzing van de Metselploeg aan *Wand A bouwen* wissen.
+      `foreignChangesIfSaved` (`src/state/foreignLinksNotice.ts`) geeft dan 0, de merge schrijft `gewijzigd #120` (1). De
+      functie telt alleen de regel voor verdwenen objecten (`applyForeignRule`), niet de leden die `departuresOf` (#1262)
+      uit een relatie haalt. In de app gebruikt niets haar: de vraag vóór het opslaan en de melding erna tellen uit
+      `prepared.foreignChanges`. `check-ifc-foreign-telling-vooraf.ts` wist alleen objecten en ziet het verschil daarom
+      niet. Richting: de functie pas gebruiken als ze ook de vertrekkende leden telt, of haar weghalen. — B
+2385. **Een gewijzigde gedeelde pset weigert met `gemengde-relatie`.** Flag aan,
+      `tests/fixtures/ifc-foreign/council/r5sol-gedeelde-calendar-pset.ifc`: kalender `#46` en wand `#904` delen via `#52`
+      één `OPS_Calendar` (`#51`). Andere uren per dag op de kalender en opslaan weigert met `gemengde-relatie #52:
+      IFCRELDEFINESBYPROPERTIES #52: de pset OPS_Calendar van IFCWORKCALENDAR #46 veranderde (of de writer deelt haar)`,
+      zoals op main. Wat wel schrijft, ook zoals op main: alleen de naam van een feestdag anders (*Kerst* van 2028): lege
+      wijzigingslijst, `#50`, `#51` en `#52` bytegelijk, na heropenen de nieuwe naam; en een andere kalendernaam. Het
+      ontwerp (§4.6, geval b) wil bij andere waarden dat de writer het planningsobject uit de gedeelde relatie haalt en een
+      eigen pset schrijft, terwijl het vreemde object de oude pset houdt; bij gelijke waarden blijft de relatie bytegelijk.
+      Beslissen moet op de waarden die de writer voor die ene pset schrijft, niet op de velden die de pset kunnen raken:
+      een eerdere versie van #1262 telde een feestdagnaam mee (via `WorkingExceptionIds`) en haalde de kalender bij gelijke
+      waarden uit `#52` (review ronde 3). Komt alleen uit de proefbron; geen gangbare export gevonden die een
+      `OPS_Calendar` met een ander object deelt. Vastgelegd in `check-ifc-foreign-gemengde-relaties.ts` (de weigering met
+      haar reden, en de feestdag) en `check-ifc-foreign-preserve.ts`. Eindlijst (besluit van Trias, 25 november 2026). — B
+2386. **De volgorderegel van `departuresOf` kijkt naar één relatie.** Flag aan. `keptTail`
+      (`src/services/ifc/foreign/departures.ts`) neemt aan dat de lezer de eigen relatie van de writer vóór de gemengde
+      relatie leest, en kijkt per gemengde relatie alleen naar haar eigen leden. (a) Twee gemengde `IfcRelNests` onder
+      dezelfde taak, *A* in de eerste en *B* in de tweede, en de planner zet een nieuw kind vooraan: bij (nieuw, *A*, *B*)
+      kunnen beide relaties blijven, maar de regel ziet *B* niet in de eerste relatie en laat *A* onnodig vertrekken (naar
+      een eigen relatie; de eerste relatie vervalt). Bij `IfcRelAssignsToProcess` net zo. (b) Een gemengde relatie die in
+      de bron vóór het eerste P-stuk staat, leest de lezer vóór de eigen relatie: komt *B* achter *A*, dan kan *A* blijven,
+      maar de regel haalt *A* eruit; wil de planner *B* juist vóór *A*, dan houdt de regel *A* vast en weigert de
+      herleestoets de opslag (de uitvoer leest als (*A*, *B*)). Bij Process kan `assignmentPlacement` eigen stukken ook
+      later zetten. Geen verlies: in (a) staat het lid daarna in een eigen relatie, in (b) weigert de opslag. Gevolgd in de
+      code (review ronde 3 van #1262), niet nagespeeld; geen proef. Geen gangbare export met zo'n vorm gevonden: Bonsai
+      gebruikt een bestaande nest- of procesrelatie en IfcOpenShell schrijft op id-volgorde; IFC staat wel meer `Nests`
+      per ouder toe. Richting: de staart nemen over alle gemengde relaties van dezelfde ouder in bestandsvolgorde, met de
+      plek van het P-blok. Eindlijst, vóór de flag standaard aan gaat (besluit van Trias, 25 november 2026). — S
+2391. **Wordt hetzelfde vreemde stuk in één opslag ingekort én teruggezet, dan krijgen de herstelbytes voorrang.**
+       Flag aan. Een stuk dat `detached` terugzet (Ctrl+Z na opslaan) en waaruit `departuresOf` in dezelfde opslag een
+       lid laat vertrekken: bij het samenvoegen van de bytes in `mergeWriter.ts` wint de teruggezette versie. De
+       voorrang is in de code gezien; de precieze uitkomst van die samenloop is niet gemeten en geen proef bouwt die
+       vorm. Gezien door de review van #1262, ronde 4 (Sol). Richting: de samenloop in de proef opnemen en vastleggen
+       wat er hoort te staan. — S
 
 2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
      `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
@@ -4983,6 +5109,31 @@ en noem het in je rapport of PR-tekst.
       definities staan. `PROP.StructureMeta` noemt alleen `structure`, dus `foreign/classify.ts` deelt een ander lid
       in als vreemd lid terwijl de lezer het wel leest. Proef uit de review van #1273, met een property buiten het
       register. — B
+
+2510. **Een kopie van een document gaat ervan uit dat de projectdata een JSON-rondgang ongewijzigd doorstaat.**
+      `duplicateDocument` (`src/state/slices/documentSlice.ts`) kloont project, kalenders, taken, relaties, resources,
+      toewijzingen, activity codes, eigen velden, eigen taaktypes, baselines, `view` en `collapsedTaskIds` met
+      `deepClone` (`JSON.parse(JSON.stringify(…))`). `cloneXerImportMetadata` doet hetzelfde met de XER-metadata buiten
+      de catalogi als er geen archief is, en ook als er een archief is maar de metadata geen `sourceProjectId` draagt.
+      Een getal `NaN` of `Infinity` wordt daarin `null`, en `undefined` in een array ook. De typen van die velden in
+      `src/types/` en `src/services/importTypes.ts` bevatten geen `Map`, `Set`, `Date` of bytes; of zulke waarden in een
+      echt document kunnen voorkomen, is niet nagegaan. De aanname stond als commentaar bij `deepClone`. — S
+
+2511. **Een herstelde kopie van een document met een gebouwmodel kan het bestand van het origineel overschrijven.**
+      Met de flag `ifcForeignContent` aan krijgt de kopie van `duplicateDocument` (`src/state/slices/documentSlice.ts`)
+      geen opslagdoel, maar wel hetzelfde bronkenmerk `foreignSourceMark` als het origineel, met de browserhandle van
+      het bronbestand erin. `recoveryIfcSourceFields` (`src/services/recovery/recoveryIfcSource.ts`) neemt in de
+      herstelmetadata van een document de handle uit dat bronkenmerk op, dus ook voor de kopie. Bij herstel leest
+      `readRecoveryDocument` (`src/state/readRecoveryDocument.ts`) de bron via die handle, en `recoveryDocumentWithSource`
+      zet dezelfde handle als `fileHandle` van het herstelde document, dus als opslagdoel. Proef in Node met de bestaande
+      IFC-fixture, de echte store-, herstel- en opslagroute, en browserhandle en IndexedDB in het geheugen (niet met een
+      echte browserherstart, en niet op de desktop- of siteroute): (1) met de flag aan in de browser een IFC met een
+      gebouwmodel openen, met een browserhandle voor het bronbestand; (2) de planning dupliceren en in de variant een
+      taak wijzigen; de variant heeft geen opslagdoel; (3) beide tabbladen herstellen na een crash: de variant krijgt de
+      browserhandle van het origineel als eigen opslagdoel; (4) Ctrl+S in de variant weigert zolang het ongewijzigde
+      origineel openstaat; na het sluiten van het origineel slaagt de opslag met één schrijfactie naar het originele
+      bestand. Bij herlezen stond de gewijzigde taaknaam van de variant erin, was de oorspronkelijke taaknaam weg en was
+      het gebouwmodel behouden. Ook op main. Issue #1302. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -7729,7 +7880,44 @@ en noem het in je rapport of PR-tekst.
       bestand blijft bytegelijk en het document blijft gewijzigd (app-proef van 2367, met een echte XER-import). Zit
       al in main; gevonden bij de herstelronde van #1189 en bevestigd in review ronde 3 (Sol). Richting: het
       bronarchief herkennen vóór de STEP-rondgang en weigeren met `unsupported` en de veldnamen, of het profiel
-      aanpassen aan wat er gebeurt. — B
+      aanpassen aan wat er gebeurt. Sinds F3-5 komt de app hier bij Opslaan als niet meer langs: een
+      XER-import vraagt eerst of het P6-bronarchief mag ontbreken en geeft de schrijver het archief dan niet mee
+      (`ifcxInputWithoutXerArchive`); de weigering met "planning" geeft alleen nog de kern zelf, voor een invoer met
+      archief. — B
+
+2389. **Het bestandstype (IFC of IFCX) kies je alleen in het opslagvenster van de desktop-app.** Alleen
+      `saveDocumentAsOnTurn` op de desktop met de flag `ifcx` biedt twee filters (`typeChoice`, `saveAsFileFilters` in
+      `src/state/slices/fileSlice.ts`). Waar het niet kan: (a) de browser: Chromium maakt het gekozen bestand in de
+      opslaankiezer al aan of leeg voordat de app iets controleert (knownbug 1899, 2366), en een IFCX-document schrijft
+      een nieuw doel daar alleen als download (F3-4); de kiezer biedt dus alleen het type van het document, en omzetten
+      kan in de browser niet; (b) een site-host: het opslagvenster van de site heeft geen type; (c) Ctrl+S zonder doel
+      (een nieuw document) biedt alleen het type van het document, want Ctrl+S houdt het formaat.
+      (d) Op de drie desktopplatforms geeft plugin-dialog 2.7.0 (RFD 0.16.0) alleen het gekozen pad terug. De extensie
+      in dat pad bepaalt het bestandstype. Op Linux (GTK3) krijgt de planner bij een IFC-document ook na het kiezen van
+      het IFCX-filter een IFC-bestand als hij `.ifc` laat staan of een naam zonder extensie opgeeft. In dat laatste
+      geval vult de app `.ifc` aan (`withOneOfExtensions` in `pickSavePathTauri`). Met `planning.ifcx` wordt het IFCX.
+      Op macOS heeft het opslagvenster geen typekeuzelijst. Geef daar de naam inclusief `.ifcx` op om naar IFCX om te
+      zetten. Op Windows past het venster bij een filterwissel de standaardextensie aan. De app volgt het teruggegeven pad.
+      Richting voor de browser is een eigen typekeuze vóór de kiezer met IFCX als download. Op Linux kan de app het
+      gekozen filter gebruiken zodra plugin-dialog dat teruggeeft. Gevonden bij F3-5. — B (bibliotheekcode en
+      platformdocumentatie, zonder proef met de native vensters)
+
+2390. **Opslaan als naar een ander type stelt eerst de vragen van het type van het document, vóór het venster.** Het
+      type kiest de planner in het venster, en Opslaan als rekent en vraagt zoals main vóór het venster, voor het type
+      van het document (eis van F3-5: hetzelfde type doet precies wat main doet); pas na het venster rekent
+      `saveAsInFormat` opnieuw in het gekozen type. Bij IFC naar IFCX geeft dat: (a) een open schemavraag (een
+      IFC-bestand in een ander schema dat nog niet expliciet is opgeslagen) komt vóór het venster, ook als de planner
+      daarna IFCX kiest; het antwoord zet `ifcSchema` en geldt voor een latere opslag als IFC; (b) een document met een
+      gebouwmodel en vervallen koppelingen krijgt de vraag vóór het opslaan (#1270) over de IFC-merge die niet geschreven
+      wordt, en na het kiezen van IFCX nog "alleen de planning": twee vragen na elkaar; (c) bij een ontbrekende bron komt
+      "alleen de planning" vóór het venster (`missingSourceSaveAs`) en na het kiezen van IFCX nog eens (`ifcxSaveAs`),
+      want een bevestiging geldt één keer (`spendPlanOnlyConfirmation`); (d) de merge van een groot gebouwmodel rekent
+      vóór het venster voor niets als de planner IFCX kiest. Na omzetting van een IFC2X3-bron naar IFCX gebruikt een
+      latere opslag als IFC het schema uit Projectinstellingen, standaard IFC4X3_ADD2. IFC2X3 is geen schrijfbare keuze.
+      Richting: met de flag `ifcx` het type vóór het rekenen
+      kennen (bijvoorbeeld de vragen en de merge na het venster), wat de volgorde van main voor hetzelfde type verandert;
+      een keuze van de eigenaar. Gevonden bij F3-5. — B (code; (a) tot en met (c) niet in een proef nagespeeld)
+
 2394. **IFCX in de browser: Opslaan als verbreekt de koppeling met het geopende bestand.** Met de experimentele
       instelling voor IFCX aan opent Chrome of Edge een eigen `.ifcx`-bestand met een schrijfbare verwijzing, en
       Ctrl+S werkt dat bestand bij. Kiest de planner daarna *Opslaan als*, dan downloadt de app een kopie (in

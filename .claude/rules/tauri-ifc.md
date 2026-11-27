@@ -133,6 +133,28 @@ IFCX-document elke schrijfactie naar zijn eigen doel (`ifcxWriteBlocked`); Opsla
 `.ifc`. Een STEP-schrijfactie naar het bestand van een open IFCX-document weigert (`isOpenIfcxFile`). In de browser
 schrijft een IFCX-document een nieuw doel alleen als download (`saveNewBytesDialog`, zoals een merge).
 
+**Het bestandstype kiezen bij Opslaan als (#804 F3-5, besluit eigenaar 27 november 2026).** Eén plek per keuze: het
+bestandstype (IFC of IFCX) kiest de planner alleen in het opslagvenster van Opslaan als, het IFC-schema alleen in
+Projectinstellingen. Alleen op de desktop en met de flag `ifcx` (`typeChoice` in `saveDocumentAsOnTurn`, uit de
+momentopname van de poging) biedt het venster beide filters, het type van het document voorop (`saveAsFileFilters`);
+Ctrl+S, ook de kiezer van Ctrl+S zonder doel, de browser (de kiezer schrijft daar meteen in het gekozen bestand, en een
+IFCX-document downloadt) en de site houden het formaat van het document. Het venster vult een naam zonder een van de
+extensies van zijn filters aan met de eerste (`withOneOfExtensions` in `pickSavePathTauri`; met één filter zoals
+`ensureExtension`: `plan.ifcx` wordt met de flag uit `plan.ifcx.ifc`). Het gekozen type is het type van de naam
+(`formatOfName`). Opslaan als rekent zoals main de uitvoer van het document vóór het venster; wijkt het gekozen type af,
+dan rekent `saveAsInFormat` na het venster opnieuw, op dezelfde momentopname, en wordt dat type deel van de ene stand
+van de poging (`SaveAsAttempt`: uitvoer, formaat, `missingSourceSaveAs`), die de doelcontrole (ook de IFCX-classificatie
+van #1223), de vingerafdruk en de commit gebruiken. Daarom kiest de desktop eerst het pad en schrijft daarna
+(`pickSaveTarget` + `placePicked` met de flag `ifcForeignContent` of een merge, anders `pickSavePath` +
+`saveDataToPath`); dezelfde aanroepen van Tauri als `saveDataDialogTauri`. IFC naar IFCX: bij een gebouwmodel of een
+ontbrekende bron eerst de vraag "alleen de planning" (`ifcxSaveAs`, planOnly naar IFCX), bij een XER-import de melding
+"Het P6-bronarchief gaat niet mee naar IFCX." met doorgaan of annuleren (`ifcxXerArchive`; de invoer zonder
+`xer`, `xerSourceArchive` en `xerSourceProjectId`, `ifcxInputWithoutXerArchive`); geen schemavraag na het venster.
+IFCX naar IFC: geen vraag; de writer schrijft `Project.ifcSchema`. De vragen van het type van het document (de
+schemavraag, de vraag vóór het opslaan, "alleen de planning" bij een ontbrekende bron) blijven vóór het venster
+(knownbug 2390). Wat het niet kan: knownbug 2389. Proef: de blokken "omzetten", "hetzelfde type" en "de extensie" in
+`check-ifcx-app.ts`; Projectinstellingen in `ifc-schema.spec.ts`.
+
 **Tekst in IFC is STEP-gecodeerd** (audit 2026-09-26). Elke stringliteral gaat door `ifcStr` → `encodeStepText` (`ifcPsets.ts`): alleen afdrukbaar ASCII letterlijk, `'` → `''`, `\` → `\\`, de rest `\X2\…\X0\` / `\X4\…\X0\`. Schrijf nooit een literal met de hand (`'${x}'`) behalve voor vaste ASCII (datums, tijden). `IFCAPPLICATION.Version` is een formaatteken, geen appversie: vanaf `'0.2'` (`OPS_APP_VERSION`) decodeert `readIFC` de strings (`decodeStepText`), net als bij elk bestand van een ander pakket; een eigen bestand met `'0.1'` schreef letterlijk en wordt ongedecodeerd gelezen (anders breekt een `\\` in een JSON-pset). De voorbeelden in `public/examples/` zijn sinds audit 2026-09-26 opnieuw gegenereerd (`'0.2'`); het oude letterlijke formaat toetst `check-ifc-step-encoding` met een eigen fixture. JSON-psets gaan via `ifcJson`/`asciiJson` (niet-ASCII als JSON-`\uXXXX`, dan pas STEP-gecodeerd), eigenaarsbesluit 2026-09-28: een app van vóór `'0.2'` leest letterlijk en gooide een pset met `\X2\` erin als ongeldige JSON helemaal weg (alle baselines); zo blijft het blok daar geldig en verliest die oude versie alleen nog een pset met `"` of `\` in een waarde. Nieuwe JSON-psets dus nooit met kale `ifcStr(JSON.stringify(…))`. Toets: `check-ifc-step-encoding`.
 
 **GlobalIds** (audit 2026-09-26). Eén uitgiftepunt: `guidOf` in `ifcWriter.ts`, voor objecten via `objectGuid(ctx, soort, id)` met seed `ifcObjectSeed(soort, id)` (`task:`, `res:`, `cal:`, `seq:`, `proj:`): uit XER kunnen taak, relatie en kalender hetzelfde kale getal als id dragen, en zonder soort deelden ze een GlobalId. Elk object uit een ingelezen IFC houdt zijn GlobalId uit dat bestand: `readIFC` levert `ifcGlobalIds` (seed → GlobalId), dat reist als documentveld mee en `buildWriteIFCInput` geeft het aan de writer. Nieuwe objecten krijgen `ifcGuid128(seed)`: 128 bits, IFC-vorm, deterministisch (dus bij elk opslaan gelijk). Hulpentiteiten (`guidOf`: psets, rels, werkschema's) en de projectkalender (`cal-default`, in elk project hetzelfde id) hashen met het project-id als zout (`auxSalt`), zodat twee projecten geen GlobalId delen; geen lezer rekent die na. Id's: taken via OPS_TaskIdentity of `task-ifc-<GlobalId>`; resources, bibliotheekkalenders en relaties via `stableIdFromGuid` (`res-ifc-`, `rescal-ifc-`, `seq-ifc-<GlobalId>`, dubbel ⇒ `-dup-N`), dus gelijk bij elk openen; de projectkalender blijft `cal-default`. Een in de app gemaakt object krijgt bij het eerste heropenen zo nog één keer een ander id; verwijzingen daarnaar in JSON (contour, nivelleren) lopen via `mappedResourceId` (zelfde id, anders `ifcGuid128`, anders de oude 32-bits `ifcGuid` voor bestanden van vóór deze wijziging). Toets: `check-ifc-globalid`.
@@ -238,8 +260,11 @@ teruggezette gemengde relatie uit de eigen relatie (`withoutRestoredMembers`), e
 verliesbewaking) de leden van bewaarde relaties (`withReturnedMembers`) en de stukken met de huidige ids: op hun plek of
 direct na het P-blok (`renderedRestorations`, de `appended` van `assemble`). De wijzigingslijst krijgt dan soort
 `teruggezet`; controle 1 eist de bytes en `countedForeignChanges` telt ze niet. De opslagworker draagt de buffers terug
-over en `resultFits` eist de vorm (`isDetached`). Het taakpaneel valt terug op de koppelingen in `detached`. Wat nog niet
-meegaat: knownbug 2354. Proef: `check-ifc-foreign-detached.ts`.
+over en `resultFits` eist de vorm (`isDetached`). Het taakpaneel valt terug op de koppelingen in `detached`. `detached`
+onthoudt alleen wat de regel van §4.7 uit een stuk haalt (`ruleChangesOnly`): een stuk dat alleen `departuresOf` of een
+botsende naam veranderde (#1262), niet; een stuk dat de regel ook raakte, zonder de vertrekkende leden. Terugzetten op
+aanwezigheid van het object zou anders een vertrokken lid terugzetten terwijl de koppeling niet terugkwam (knownbug 2355).
+Wat nog niet meegaat: knownbug 2354. Proef: `check-ifc-foreign-detached.ts`.
 
 **De vraag vóór het opslaan** (#804, besluit eigenaar 25 november 2026). Met de instelling `ui.foreignChangesQuestion` aan
 (standaard; `ops-foreignChangesQuestion`, per apparaat) vraagt een documentopslag met gewijzigde of vervallen stukken in
@@ -556,6 +581,35 @@ deel van) weigert de merge dan, want per lid, per sleutel of per deel samenvoege
 Paart het stuk in O1 niet eenduidig, of heeft de regel in O1 een ander type of een andere vorm, dan weigert de merge ook.
 De merge leest de planning met de bronwaarden erin terug (`mergeWriter.ts`); geeft dat een andere planning dan zonder,
 dan weigert hij.
+
+### Gemengde en bewaarde relaties (#804 fase 2, PR 8)
+
+Eén functie bepaalt welke planningsleden een relatie van een ander programma verlaten die geen R is (gemengd, of bewaard
+met een relating buiten D): `departuresOf` in `departures.ts`. Ze rekent uit de bronrelatie, de planning bij openen en de
+te bewaren planning precies uit wie vertrekt. De writer (stap 4 van `buildLines` in `mergeWriter.ts`) haalt precies
+die leden eruit en schrijft hun plek of koppeling in een eigen relatie; controle 1 (`changeListProblems` in
+`mergeValidation.ts`) eist dat de uitvoer precies die leden mist, niet meer en niet minder, ook bij een stuk dat niet op
+de wijzigingslijst staat (review ronde 2 van #1262: eerst een toestemming, nu een exacte uitkomst). Per vorm vertrekt een
+lid als zijn eigen koppeling veranderde: Nests onder een taak (andere ouder), Nests onder een schema (geen wortel meer),
+Process onder een taak (het aantal toewijzingen van die resource bij de taak veranderde), Control onder een kalender
+(andere kalender) en een bewaarde Nests buiten D (andere ouder). De gedeelde pset (b, stap 5) gaat zoals op main: bij
+gelijke waarden blijft de gedeelde relatie bytegelijk en vervalt de eigen pset, bij andere waarden weigert de writer met
+`gemengde-relatie` (knownbug 2385; besluit van Trias na review ronde 3). Bij Nests en Process onder een taak vertrekt een gebleven lid
+ook als de volgorde het onmogelijk maakt: de lezer leest de eigen relatie vóór de gemengde, dus alleen de langste staart
+van de kinderen of toewijzingen van het domein die in dezelfde volgorde in de bronrelatie staat, kan blijven
+(`keptTail`; die kijkt per relatie, knownbug 2386). Is die lijst ongewijzigd, dan vertrekt niemand: de bron had die vorm al. Kan de functie het niet eenduidig
+zeggen (een D-lid van een andere soort, dezelfde resource twee keer in één relatie, of een gebleven resource met meer dan
+één toewijzing bij een gewijzigde lijst), dan weigert de writer met `gemengde-relatie`. Aggregates onder het werkplan en
+Control onder het schema hebben geen wijziging die het domein kan uitdrukken. Een vreemd lid dat de lezer na opslaan als
+eigen veld of code zou lezen, vervalt (`readAsOwnMembers`). `withLeaving` voegt dit bij de uitkomst van
+`applyForeignRule`: één wijzigingslijst, één telling (§4.7); een relatie zonder leden vervalt. Een vervallen vreemd lid
+alleen als zijn pset één eigenaar heeft, de planning een nieuw veld of codetype met die naam heeft, en de uitvoer bij elke
+oorspronkelijke binding minstens zo vaak een eigen property met die naam heeft; bij meer eigenaren weigert de writer met
+`vreemd-lid`. Een relatie met een vreemde relating (bijvoorbeeld een kostenpost) valt daar niet onder. De Control van een
+tweede schema houdt een verplaatste taak, zoals op main (knownbug 2356). Ctrl+Z na het opslaan zet een lid niet terug:
+`detached` onthoudt de vertrekkers niet (`ruleChangesOnly`, knownbug 2355). Controle 1 eist bij een teruggezet stuk de
+bytes van `detached` en laat het buiten de toets op stukken die niet op de lijst staan. Proef:
+`check-ifc-foreign-gemengde-relaties.ts` (per vorm en soort wijziging, vaste reeksen, tien gemuteerde uitvoeren).
 
 ### Vergelijkingsklok (#804 fase 1c)
 

@@ -49,6 +49,7 @@ function stepReading(given: WriteIFCInput): ImportResult {
 export function filePlanning(given: WriteIFCInput): CanonicalPlanning {
   assertIdentity(given);
   const reading = stepReading(given);
+  delete reading.project.ifcSchemaUnconfirmed;
   const { writeMode, minuteModelPending, ...loaded } = buildWriteIFCInput(documentDataFromImport(structuredClone(reading)), 'planOnly');
   const { milestonesAtDayEnd, ...hintsLeft } = reading;
   const planning: CanonicalPlanning = { ...hintsLeft, ...loaded, ...(minuteModelPending ? { minuteModelPending } : {}), recordedFields: reading.recordedFields };

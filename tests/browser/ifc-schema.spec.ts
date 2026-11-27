@@ -55,6 +55,7 @@ test('IFC-schema: kiezen en opslaan, undo houdt het schema; schrijffout vóór t
     expect(await schemaOf(page)).toBeNull();
 
     await toProjectInfo(page);
+    await expect(page.locator('[data-ops-project-file-type]')).toHaveCount(0);
     // De standaard is IFC 4.3 ADD2 (besluit eigenaar 2026-10-13).
     await expect(trigger(page)).toHaveText(/^(IFC 4\.3 ADD2 \(default\)|IFC 4\.3 ADD2 \(standaard\))$/);
     if (SHOTS) {
@@ -173,4 +174,23 @@ test('IFC-schema: kiezen en opslaan, undo houdt het schema; schrijffout vóór t
     expect(copy).toContain('Bewaar na fout');
     // Een nieuw project kreeg nooit een schemavraag.
     await expect(page.locator('[data-ops-ifc-schema-question]')).toHaveCount(0);
+
+    await page.evaluate(() => {
+      const s = window.__OPS__!.store.getState();
+      s.setUI({ featureFlags: { ...s.ui.featureFlags, ifcx: true } });
+    });
+    await toProjectInfo(page);
+    const fileType = page.locator('[data-ops-project-file-type]');
+    const fileTypeField = fileType.getByRole('button', { name: /^(File type|Bestandstype)$/ });
+    await expect(fileType).toHaveAttribute('data-ops-project-file-type', 'ifc');
+    await expect(fileTypeField).toHaveText(/^IFC$/);
+    await expect(fileTypeField).toBeDisabled();
+    await expect(fileType).toContainText(/(File → Save As|Bestand → Opslaan als)/);
+    await expect(page.locator('[data-ops-project-ifc-schema-ifcx]')).toHaveCount(0);
+    await expect(trigger(page)).toBeEnabled();
+    await page.evaluate(() => window.__OPS__!.store.setState({ fileFormat: 'ifcx' } as never));
+    await expect(fileType).toHaveAttribute('data-ops-project-file-type', 'ifcx');
+    await expect(fileTypeField).toHaveText(/^IFCX$/);
+    await expect(page.locator('[data-ops-project-ifc-schema-ifcx]')).toContainText(/(IFCX has no IFC schema|IFCX heeft geen IFC-schema)/);
+    await expect(trigger(page)).toBeEnabled();
   });

@@ -22,8 +22,8 @@ als `relatedTarget` buiten de groep en buiten het paneel ligt, want het paneel h
   een vol vakje door naar een gevuld volgend vakje, dan staat daar de inhoud geselecteerd. Een scheidingsteken in dat
   vakje, als het niet het laatste is, vervangt de selectie niet, maar zet de focus met een lege cursor aan het begin van het vakje daarna
   (`focusSeg` met `'start'`); is dat vakje al vol, dan neemt het door `maxLength` geen cijfer meer aan. Het overgeslagen
-  vakje houdt zijn oude waarde. Vormen de vakjes zo een bestaande datum, dan legt het afronden die zonder fout vast
-  (knownbug 2504); vormen ze een onbestaande datum, zoals `31-02-2026`, dan is het afronden tegengehouden als
+  vakje houdt zijn oude waarde. Vormen de vakjes zo een bestaande datum, dan biedt het afronden die zonder fout aan, en ze
+  wordt vastgelegd tenzij de aanroeper haar weigert (`onCommit`, ADR 0461; knownbug 2504); vormen ze een onbestaande datum, zoals `31-02-2026`, dan is het afronden tegengehouden als
   onbestaand (ADR 0461).
 - Een muisklik in de groep naast de vakjes en naast de kalenderknop zet de focus op het eerste lege vakje, of aan het
   eind van het laatste als alles gevuld is (`focusEntry`).

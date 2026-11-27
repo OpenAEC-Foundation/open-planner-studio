@@ -21,6 +21,10 @@ The shell is a Microsoft Office-style ribbon (`src/components/layout/Ribbon`) pl
 
 Tabbladen (`RibbonTab`): `file`, `start`, `planning`, `resources`, `beeld`, `instellingen`, `table`, `ifc`, `report`, `ai` — die laatste verschijnt alleen als `ui.aiMode` aan staat. Relatieacties staan als dropdown in de taakgroepen van Start, Planning en Tabel; er is geen afzonderlijk Relaties-tabblad.
 
+**Besluiten in `Ribbon/ribbonConfig.tsx`** staan in `docs/adr/`: het lint als data (0480), de indeling per tabblad
+(0481), een lintknop en zijn opdracht (0482), paneelschakelaars (0483), wanneer een lintknop uit staat (0484) en
+relatielijnen en balkdatums op Beeld (0485).
+
 Bij een smal venster maakt `useRibbonAutoFit` (`Ribbon.tsx`) lintknoppen van rechts naar links mini. Een lintgroep met invoervelden gebruikt `RibbonCollapsible` (`ribbonPrimitives.tsx`): die klapt als geheel in tot één grote knop met ▾ en popover, nadat de knoppen buiten de eerste groep mini zijn en vóór de knoppen van de eerste groep (zoals Bereken). Daarna zoekt de automaat de knoppenstand opnieuw, zodat de vrije ruimte terug gaat naar labels. Een groep met de focus erin of een open popover blijft in zijn stand. Animeer op `.ribbon-btn` geen maten; de automaat meet direct na het zetten van `data-ribbon-mini`.
 
 Backstage-secties (`BackstageSection`): `recent`, `examples`, `export`, `import`, `print`, `project-info`, `settings`, `extensions`, `library`, `help` — waarvan `help` een compleet documentatiesubsysteem is (zie `.claude/rules/docs-help.md`).
@@ -34,7 +38,8 @@ The active tab is in `ui.activeRibbonTab`. De rechterrail bevat conditioneel `Ta
 ### De vraag "alleen de planning" (#804)
 
 `PlanOnlyQuestionDialog` (`src/components/dialogs/`) toont één vraag met de tekst per reden uit
-`ui.pendingPlanOnlyQuestion` (`missingSourceSaveAs`, `export`, `exportWithPool`); de bedrading staat in
+`ui.pendingPlanOnlyQuestion` (`missingSourceSaveAs`, `export`, `exportWithPool`, en bij Opslaan als IFCX `ifcxSaveAs`
+en `ifcxXerArchive`, de melding over het P6-bronarchief; die laatste is geen planOnly-bevestiging); de bedrading staat in
 `state/planOnlyQuestionBridge.ts`, de regel in `.claude/rules/state.md`. Annuleren is de standaardknop (beginfocus;
 Enter en Escape annuleren). Het is een wachtende modale vraag: `isGlobalShortcutFrozen` bevriest de sneltoetsen, de
 schil is inert, `isBlockingDialogOpen` en `BLOCKING_UI_FLAGS` (MCP) blokkeren. Het vinkje "Zonder gebouwmodel" op de
