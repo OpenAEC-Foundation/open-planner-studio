@@ -6,30 +6,8 @@ import {
   round1, scheduleSlip, statusMoment, taskFinish, taskStart,
 } from './reportCommon';
 
-/**
- * Voortgangscurve (issue #689): vier kerncijfers en een S-curve van de cumulatieve voortgang.
- * Spec: `docs/superpowers/specs/2026-10-27-voortgangscurve-rapport.md`.
- *
- * Alleen-lezen: het rapport leest wat de laatste berekening op de taken zette (getoonde data,
- * laatste data, speling, kritiek) en rekent niets door.
- *
- * Een CURVE telt per dag elke bladtaak mee met gewicht × het verstreken deel van haar venster
- * (`elapsedWorkFraction`), op de kalender van de taak. Het gewicht is de duur
- * in werkdagen (`durationDays`), net als de gewogen voortgang van het voortgangsrapport; mijlpalen
- * wegen 0. De waarde op een dag is de stand aan het EINDE van die dag (de dag telt als gewerkt), dezelfde
- * telling als de geplande voortgang van `computeProgressReport`. Een statusdatum mét tijd op een
- * uur-projectkalender is een moment (`statusMoment`): een eigen meetpunt vóór het einde van die dag.
- * Kerncijfer en curve lezen dan hetzelfde moment.
- *
- * De WERKELIJKE curve is een benadering: de app bewaart alleen de stand van nu. Per taak loopt de
- * voortgang lineair van de werkelijke start naar de huidige voltooiing — tot het werkelijke einde bij
- * een voltooide taak, tot de statusdatum bij een lopende taak.
- */
-
 export interface CurvePoint {
-  /** ISO-dag. */
   day: string;
-  /** 0–100. */
   pct: number;
 }
 
@@ -39,11 +17,9 @@ export interface ProgressCurveRiskRow {
   name: string;
   baselineFinish?: string;
   finish: string;
-  /** Werkdagen, getekend (+ = later dan de baseline); alleen met een baseline-einde. */
   finishVarianceDays?: number;
   totalFloat: number;
   isCritical: boolean;
-  /** Te laat (achterstallig of later dan de baseline). */
   late: boolean;
 }
 
@@ -51,7 +27,6 @@ export interface ProgressCurveNextMilestone {
   taskId: string;
   name: string;
   day: string;
-  /** Kalenderdagen vanaf de statusdatum; negatief = al voorbij. */
   daysUntil: number;
 }
 
@@ -59,25 +34,17 @@ export interface ProgressCurveResult {
   statusDate: string;
   statusDateMissing: boolean;
   hasBaseline: boolean;
-  /** Waar *Gepland* vandaan komt: de baseline, of zonder baseline de curve op vroegste data. */
   plannedBasis: 'baseline' | 'current';
-  /** Gepland % op de statusdatum (één decimaal). */
   plannedPct: number;
-  /** Werkelijk % op de statusdatum: de gewogen voltooiing (één decimaal). */
   actualPct: number;
-  /** Is er bij enige taak voortgang ingevoerd? */
   hasProgress: boolean;
-  /** Zijn de laatste data bruikbaar (planning berekend zonder fout)? */
   hasLateDates: boolean;
-  /** Aantal taken met duur (die in de curve meetellen). */
   weightedTasks: number;
-  /** As van de grafiek (ISO-dagen); afwezig zonder taken met duur. */
   axis?: { from: string; to: string };
   plannedCurve?: CurvePoint[];
   earlyCurve: CurvePoint[];
   lateCurve?: CurvePoint[];
   actualCurve: CurvePoint[];
-  /** Asstrepen: eerste dag van een maand, of maandag bij een kort project. */
   ticks: { day: string; kind: 'month' | 'week' }[];
   lateTasks: { count: number; critical: number; basis: 'baseline' | 'schedule' };
   negativeFloat: { count: number; minDays?: number };
@@ -88,11 +55,9 @@ export interface ProgressCurveResult {
   riskRows: ProgressCurveRiskRow[];
 }
 
-/** Hoogstens zoveel meetpunten op de as; daarboven ligt er meer dan één dag tussen. */
 export const PROGRESS_CURVE_MAX_SAMPLES = 240;
 
 const DAY_MS = 86_400_000;
-/** Dagnummer (dagen sinds 1970-01-01, UTC) van de dag-component van een ISO-datum. */
 export function isoDayNumber(iso: string): number {
   const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
   return Math.round(Date.UTC(y, m - 1, d) / DAY_MS);
@@ -101,16 +66,10 @@ function isoOfDayNum(n: number): string {
   return new Date(n * DAY_MS).toISOString().slice(0, 10);
 }
 
-/** Een venster op dagniveau (ISO-dagen), met de oorspronkelijke momenten voor de fractie. */
 interface Window { start: string; finish: string; startAt: string; finishAt: string }
 
 interface Weighted { task: Task; weight: number; eng: CalendarEngine }
 
-/**
- * Cumulatieve curve over de meetpunten. Buiten het venster is het deel 0 of 1 (goedkoop, via een
- * verschilrij); alleen de meetpunten binnen het venster rekenen werkdagen. Zo blijft het O(punten +
- * Σ punten-in-venster), ook bij duizenden taken.
- */
 function curveOver(
   items: readonly Weighted[], windowOf: (w: Weighted) => Window | undefined, valueScale: (w: Weighted) => number,
   samples: readonly string[], totalWeight: number,
@@ -125,7 +84,6 @@ function curveOver(
     if (!win) continue;
     const amount = it.weight * valueScale(it);
     if (amount <= 0) continue;
-    // Eerste punt op of na de startdag; vanaf het eerste punt op of na de einddag is de taak "vol".
     const i0 = Math.max(0, Math.ceil((isoDayNumber(win.start) - first) / step));
     const iFull = Math.max(0, Math.ceil((isoDayNumber(win.finish) - first) / step));
     for (let i = i0; i < Math.min(iFull, n); i++) sums[i] += amount * elapsedWorkFraction(it.eng, win.startAt, win.finishAt, samples[i]);
@@ -147,7 +105,6 @@ function valueAt(items: readonly Weighted[], windowOf: (w: Weighted) => Window |
   return totalWeight > 0 ? (sum / totalWeight) * 100 : 0;
 }
 
-/** Een venster op dagniveau, met een einde nooit vóór de start. */
 function win(start: string | undefined, finish: string | undefined): Window | undefined {
   if (!start || !finish) return undefined;
   const s = dayOf(start);
@@ -161,7 +118,6 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-/** Asstrepen: maandstarts (uitgedund tot ±12), of maandagen bij minder dan drie maandstarts. */
 function axisTicks(from: number, to: number): { day: string; kind: 'month' | 'week' }[] {
   const months: string[] = [];
   const f = isoOfDayNum(from);
@@ -179,7 +135,6 @@ function axisTicks(from: number, to: number): { day: string; kind: 'month' | 'we
     return months.filter((_, i) => i % k === 0).map(day => ({ day, kind: 'month' as const }));
   }
   const mondays: string[] = [];
-  // 1970-01-01 (dag 0) was een donderdag ⇒ maandag = dag ≡ 4 (mod 7).
   let d = from + ((4 - (from % 7) + 7) % 7);
   for (; d <= to; d += 7) mondays.push(isoOfDayNum(d));
   const k = Math.max(1, Math.ceil(mondays.length / 12));
@@ -231,12 +186,10 @@ export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
   };
   const actualScale = (w: Weighted) => (progressState(w.task) === 'complete' ? 1 : Math.min(1, Math.max(0, w.task.time.completion)));
 
-  // ── As en meetpunten ──
   let lo = Infinity;
   let hi = -Infinity;
   const span = (w: Window | undefined) => {
     if (!w) return;
-    // Eén dag vóór de eerste start, zodat elke curve op 0 % begint; tot de laatste einddag (100 %).
     lo = Math.min(lo, isoDayNumber(w.start) - 1);
     hi = Math.max(hi, isoDayNumber(w.finish));
   };
@@ -258,9 +211,6 @@ export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
     axis = { from: samples[0], to: samples[samples.length - 1] };
   }
 
-  // Elke curve krijgt naast het raster een exact punt OP de statusdatum: bij een lang project ligt de
-  // statusdag tussen twee meetpunten, en dan moet *Gepland* toch gelijk zijn aan het punt in de grafiek.
-  // Een statusmoment met tijd is een ander punt dan het einde van die dag; dat einde blijft erachter staan.
   const one = () => 1;
   const curve = (windowOf: (w: Weighted) => Window | undefined): CurvePoint[] => {
     const pts = curveOver(items, windowOf, one, samples, totalWeight).map((pct, i) => ({ day: samples[i], pct: round2(pct) }));
@@ -275,7 +225,6 @@ export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
   const plannedCurve = hasBaseline && samples.length ? curve(plannedWin) : undefined;
   const lateCurve = hasLateDates && samples.length ? curve(lateWin) : undefined;
 
-  // Werkelijk: de meetpunten vóór de statusdatum, plus een exact punt OP de statusdatum.
   const actualPct = totalWeight > 0 ? (actualSum / totalWeight) * 100 : 0;
   let actualCurve: CurvePoint[] = [];
   if (samples.length) {
@@ -287,7 +236,6 @@ export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
 
   const plannedPct = valueAt(items, hasBaseline ? plannedWin : earlyWin, ref, moment, totalWeight);
 
-  // ── Kerncijfers en risicotaken ──
   let lateCount = 0;
   let lateCritical = 0;
   let negCount = 0;

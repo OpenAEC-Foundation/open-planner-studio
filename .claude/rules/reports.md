@@ -215,3 +215,6 @@ bron; daarom leidt `tests/planning/run.sh` die ene import (`#binary-trie`) naar 
 **Besluiten van de vector-pagineerder** (`src/services/print/paginateVector.ts`):
 `docs/adr/0510-vector-pdf-glyph-ids-van-de-gemeten-bytes.md` en `0511-vector-pdf-weigering-herkend-aan-haar-naam.md`;
 het gedeelde XObject en de tekst per blad staan in ADR 0383 en 0350, de renders en de letters in ADR 0384 en 0385.
+
+**Besluiten van de rekenlaag van de rapporten** (`src/engine/reports/`):
+`docs/adr/0560-dcma-kritiek-padtest-en-ongeldige-datums.md` en `0561-tabelrapporten-gewicht-vensters-en-tellingen.md`.
