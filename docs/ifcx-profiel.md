@@ -828,8 +828,27 @@ lezer vergelijkt de bytes (sinds fixronde 7; daarvoor knownbug 2220).
 
 `schemaCheck.ts` is de ene plek voor twee controles: elke attribuutwaarde tegen de veldtabel (een onbekend veld, een
 verkeerd type, een getal dat geen geheel getal is en `null` gelden als fout), en elke definitie in `schemas` tegen die
-van het profiel. `ifcxSchemaProblems` geeft dezelfde controles als lijst, voor proeven en gereedschap. De controle met
-de echte validator van IFC5-development en met ifcx-explorer draait in een eigen workflow (F3-6).
+van het profiel. `ifcxSchemaProblems` geeft dezelfde controles als lijst, voor proeven en gereedschap.
+
+## Controle van buiten
+
+De workflow `.github/workflows/ifcx.yml` toetst de uitvoer met code van anderen, op een vaste commit:
+IFC5-development van buildingSMART op `1a63082ada967c683cfacee2005f8f749c8e1b79` en ifcx-explorer op
+`ae3aba5c9c5df41b78d3673f10ac65fd874047d2`. De bestanden zijn de twee in `tests/fixtures/ifcx/eigen/` en de uitvoer van
+`writeIfcx` voor elk voorbeeldproject in `public/examples` (`scripts/ifcx/maak-uitvoer.ts`, met dezelfde aanroep als
+`check-ifcx-velden.ts`). Drie controles, elk in een eigen stap:
+
+1. De validator van IFC5-development: `LoadIfcxFile` met schemacontrole (`scripts/ifcx/ifc5-controle.mjs validator`).
+2. De compositie van IFC5-development, zonder schemacontrole: elk pad blijft een eigen node met precies zijn eigen
+   attributen (`… compositie`). Een pad met een `/` verdwijnt daar stil.
+3. De projectcontrole van ifcx-explorer: elk bestand als pakket van één document door `seal_files` en `load_files` van
+   `crates/ifcx-project`, zonder fout en zonder melding (`scripts/ifcx/ifcx-project-controle`).
+
+Elke controle krijgt ook de bewust kapotte varianten van `scripts/ifcx/kapot.mjs` (een ontbrekend schema, een pad met
+een `/`, een verkeerde waarde), en `scripts/ifcx/eis-afgekeurd.sh` eist dat ze afkeurt om de verwachte reden. Wat elke
+controle niet ziet, staat in knownbug 2388. Daarnaast weigert de lezer de vreemde bestanden uit
+`tests/fixtures/ifcx/vreemd/` en de opgehaalde voorbeelden (`scripts/ifcx/vreemd.ts`); de README daar noemt herkomst en
+licentie.
 
 ## Zelfcontrole
 

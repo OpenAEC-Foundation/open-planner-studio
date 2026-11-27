@@ -66,3 +66,7 @@ output/
 
 # Platformbouw (`npm run build:platform`, issue #307)
 dist-platform/
+
+/.ifcx-bron/
+/scripts/ifcx/ifcx-project-controle/target/
+/scripts/ifcx/ifcx-project-controle/Cargo.lock

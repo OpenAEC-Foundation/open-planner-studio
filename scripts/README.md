@@ -617,6 +617,24 @@ Let op in Git Bash op Windows: die zet een argument als `/pad/` om naar een Wind
 | `release-check.sh` | `.github/workflows/release-verify.yml` | boekhouding per job: `run`/`alive`/`record` leggen een controle vast zonder de job te stoppen; `finish` schrijft de tabel naar de job-samenvatting en faalt alleen bij een FOUT in strenge modus (`RELEASE_VERIFY_STRICT=1`); `valid-tag` keurt een tag als hele waarde. Exit 3 = kapotte infrastructuur (commando weg, exit 126/127, syntaxfout), ook in rapportmodus hard. Test: `tests/dev-server/release-check.test.mjs` |
 | `publish-stats-branch.sh` | `.github/workflows/download-stats.yml`, direct na het genereren | schrijft `download-stats.json` als `downloads.json` naar de `stats`-databranch met git-plumbing (`hash-object` → `mktree` → `commit-tree` → gewone push, dus geen checkout en geen force). Vaste leeslocatie: `https://raw.githubusercontent.com/OpenAEC-Foundation/open-planner-studio/stats/downloads.json` — hetzelfde raw-patroon als de extensiecatalogus, CORS-vrij, en een push naar `stats` triggert geen CI of deploy. Regressietest tegen een tijdelijke bare repo: `tests/dev-server/publish-stats-branch.test.mjs` |
 
+## IFCX-controle van buiten (`scripts/ifcx/`, niet in `verify`)
+
+De workflow `ifcx.yml` gebruikt deze scripts; de opzet staat in `docs/ifcx-profiel.md`, *Controle van buiten*.
+
+- `maak-uitvoer.ts <uitmap>` — schrijft elk voorbeeldproject in `public/examples` als IFCX (`writeIfcx` na `readIFC`,
+  vaste klok). Uitgang 1 als de schrijver een voorbeeld weigert.
+- `kapot.mjs <goed.ifcx> <uitmap>` — maakt `kapot-schema.ifcx`, `kapot-pad.ifcx` en `kapot-waarde.ifcx`, elk met één
+  fout.
+- `ifc5-controle.mjs <validator|compositie> <map van IFC5-development> <bestand>...` — bundelt `LoadIfcxFile` uit die
+  map met esbuild en draait controle 1 of 2. Er hoeft niets in die map geïnstalleerd te zijn.
+- `ifcx-project-controle/` — een klein Rust-programma op `crates/ifcx-project` van ifcx-explorer, dat het verwacht in
+  `.ifcx-bron/ifcx-explorer` (controle 3). De workflow kopieert de `Cargo.lock` van ifcx-explorer erin, zodat dezelfde
+  versies meedoen.
+- `vreemd.ts <bestand of map>...` — eist dat `readIfcx` en `classifyIfcx` elk bestand als vreemd weigeren.
+- `eis-afgekeurd.sh <reden> <opdracht>...` — slaagt alleen als de opdracht met uitgang 1 eindigt en de reden noemt.
+
+Alle controles geven uitgang 0 als alles goed is, 1 als een bestand is afgekeurd en 2 bij een fout in de opzet.
+
 ## Overig
 
 - `run-ts.mjs` — de TypeScript-runner waarmee de `.ts`-scripts hierboven draaien (esbuild → Node).
