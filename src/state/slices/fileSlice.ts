@@ -1,5 +1,6 @@
 import { normalizeTaskDates } from '../migrations/minuteModel';
 import { bindIfcxModel, findIfcxModel, ifcxModelSession } from '@/services/ifc/ifcxModelSession';
+import { writerOutput } from '@/services/ifc/saveWorker/ifcSaveProtocol';
 import { isIfcxModelPath } from '../ifcForeignGuard';
 import { exportHitsOwnFile, literalCalendarIdsWritten, mergeLiteralCalendarIds, rememberLiteralCalendarsWritten } from '../savedLiteralCalendars';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
@@ -84,7 +85,7 @@ import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, still
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
-import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource, type IFCSaveSource, type IFCWriteInput } from '../ifcSaveInput';
+import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource, unchangedSaveFields, type IFCSaveSource, type IFCWriteInput } from '../ifcSaveInput';
 import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import {
@@ -127,7 +128,7 @@ import { browserSaveNotice } from '../browserSaveNotice';
 import { basename, ensureExtension } from '@/utils/filePath';
 import {
   documentFileFilters, fileNameWithFormat, formatOfName, IFC_FILE_FILTERS, IFCX_FLAG_OFF_NOTICE, IFCX_NAME_MISMATCH_NOTICE,
-  ifcxInputWithoutXerArchive, ifcxWriteBlocked, ifcxWriteRefusedNotice, nameFitsFormat, namesFollowFormat, nameWithFormat,
+  ifcxImportNotice, ifcxInputWithoutXerArchive, ifcxWriteBlocked, ifcxWriteRefusedNotice, nameFitsFormat, namesFollowFormat, nameWithFormat,
   outputFormat, saveAsFileFilters, type DocumentFileFormat,
 } from '../ifcxGuard';
 import { IfcxWriteRefusedError } from '@/services/ifc/ifcx/ifcxErrors';
@@ -568,6 +569,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return await run();
     } finally { release(); }
   };
+  const ifcxCopies = new WeakMap<NonNullable<DocumentPayload['ifcxReferences']>, {
+    matches: ReturnType<typeof unchangedSaveFields>;
+    output: Extract<IfcOutput, { readonly content: string }>;
+  }>();
   const prepareDocumentWrite = async (
     state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation, format: DocumentFileFormat = attemptFormat(state),
   ): Promise<IfcOutput | null> => {
@@ -575,9 +580,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       get().notify(refusalNotice({ messageKey: 'ifcx.model.saveAsIfc', dedupeKey: 'ifcx-model-save-ifc' }));
       return null;
     }
-    const write = await prepareAppIfcWrite(state, state.ifcxReferences ? { ...input, ...state.ifcxReferences } : input,
-      planOnly, documentSaveCompute(state.ui.featureFlags, runtime.ifcSaveCompute, format));
-    if (write && !write.prepared) rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
+    const refs = state.ifcxReferences;
+    const copy = refs && ifcxCopies.get(refs);
+    const compute = documentSaveCompute(state.ui.featureFlags, runtime.ifcSaveCompute, format);
+    const write = await prepareAppIfcWrite(state, refs ? { ...input, ...refs } : input, planOnly,
+      (job, stop) => job.kind === 'writer' && copy?.matches(state) ? Promise.resolve(copy.output) : compute(job, stop));
+    if (write && !write.prepared) {
+      rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
+      if (refs?.modelSource) ifcxCopies.set(refs, { matches: unchangedSaveFields(state), output: write });
+    }
     return write;
   };
 
@@ -1016,6 +1027,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       entry.payload.ifcLiteralCalendarIds = mergeLiteralCalendarIds(entry.payload.ifcLiteralCalendarIds, literalIds);
       if (unchanged) entry.payload.isDirty = false;
     });
+    const refs = savedSource.ifcxReferences;
+    const copy = refs && ifcxCopies.get(refs);
+    if (unchanged && copy?.matches(savedSource)) {
+      const saved = saveSourceForDocument(get(), documentId);
+      if (saved && saved.ifcxReferences === refs) copy.matches = unchangedSaveFields(saved);
+    }
     return unchanged;
   };
 
@@ -1842,6 +1859,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
         if (editing) runtime.finishMutation(s);
       });
+      if (parsed.ownIfcxPlanBytes && parsed.ifcxRead && !editing && opts.linkedOpen && !payload.minuteModelPending && !activation.signals.refreshed) {
+        const opened = get();
+        if (opened.ifcxReferences) ifcxCopies.set(opened.ifcxReferences, {
+          matches: unchangedSaveFields(opened),
+          output: writerOutput(parsed.ownIfcxPlanBytes, parsed.ifcLiteralCalendarIds ?? [], parsed.ifcxRead.sha256),
+        });
+      }
       for (const cal of [payload.calendar, ...payload.calendars].filter((cal, i, all) => all.findIndex(c => c.id === cal.id) === i)) {
         const source = cal.id === parsed.calendar.id ? parsed.calendar : parsed.resourceCalendars?.find(c => c.id === cal.id);
         if (source && (source.workEndHour !== cal.workEndHour || source.simpleBreakStartMinute !== cal.simpleBreakStartMinute
@@ -1922,7 +1946,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         openedDocumentIds.push(get().activeDocumentId);
         const conversion = get().applyLoadedProject(result, { ...opts, deferTaskTypesNotice: true });
         const source = result.ifcxReferences?.modelSource;
-        if (source && (result.ifcxModel || !ifcxModelSession(result.ifcxReferences)?.elements)) {
+        if (source && result.ifcxImport) {
+          get().notify(ifcxImportNotice(source.fileName, result.ifcxImport));
+        } else if (source && (result.ifcxModel || !ifcxModelSession(result.ifcxReferences)?.elements)) {
           get().notify({ severity: 'info', messageKey: result.ifcxModel ? 'ifcx.model.opened' : 'ifcx.model.unchecked',
             params: { file: source.fileName }, sticky: !result.ifcxModel });
         }

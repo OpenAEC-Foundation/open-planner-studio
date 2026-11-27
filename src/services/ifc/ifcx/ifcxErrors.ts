@@ -1,4 +1,4 @@
-export type IfcxReadErrorCode = 'not-ifcx' | 'version' | 'newer-profile' | 'foreign' | 'invalid';
+export type IfcxReadErrorCode = 'not-ifcx' | 'version' | 'newer-profile' | 'foreign' | 'invalid' | 'no-planning';
 
 export interface IfcxErrorPlace {
   readonly path?: string;

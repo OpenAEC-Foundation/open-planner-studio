@@ -8030,3 +8030,13 @@ en noem het in je rapport of PR-tekst.
       langs moet (`buildWriteIFCInput`). Neem daarbij het heropenen mee: een IFCX-backup staat in de
       backupmap en niet naast het model, dus de zoekactie naar het buurmodel vindt het model daar niet.
       Gevolgd in de code bij de review van #1320, ronde 3 en 4. — S
+
+2425. **Een vreemd IFCX-taakpad in de vorm van een eigen tekstpad kan de eerste opslag blokkeren.**
+      Met het pad `t-0061` voor de eerste taak in `uitbreidingen.ifcx` opent de planning. Bij
+      opslaan leest de eigen lezer uit dat pad een andere GlobalId dan de vreemde lezer eraan gaf.
+      De zelfcontrole weigert de kopie. Gezien via Openen en Opslaan met de schakelaar IFCX aan. — B
+
+2426. **Na verwijderen van de eerste van twee taken met dezelfde UUID kan de IFCX-kopie worden geweigerd.**
+      Open `planningsimport/gevel.ifcx`, verwijder Metselen en sla op. Afwerken heeft een pad met
+      dezelfde UUID als de verwijderde taak, met een andere schrijfwijze. Bij teruglezen krijgt Afwerken
+      een andere GlobalId en de zelfcontrole weigert de opslag. Gezien op de eerste opslag naast de bron. — B

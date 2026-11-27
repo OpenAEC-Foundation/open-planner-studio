@@ -2098,11 +2098,12 @@
   },
   "ifcx": {
     "open": {
-      "foreign": "The app cannot open this IFCX file. A new schedule requires a model with local building elements and no scheduling data.",
+      "foreign": "The app cannot open this IFCX file as a schedule or building model.",
       "newer": "This IFCX file has a newer version than this app knows. Open it with a newer version of Open Planner Studio.",
       "unsupportedVersion": "This IFCX file has an IFCX version this app does not support, so it does not open.",
-      "invalid": "This IFCX file differs from what Open Planner Studio writes, so it does not open.",
-      "notIfcx": "This file is not an IFCX file."
+      "invalid": "The IFCX file contains invalid data and cannot be opened.",
+      "notIfcx": "This file is not an IFCX file.",
+      "noPlanning": "This IFCX file contains no supported scheduling data or local building elements."
     },
     "writeRefused": "The IFCX file was not written. This schedule contains data that the app does not yet keep in IFCX, or the check after writing found a difference. Keep the schedule with Export → IFC.",
     "flagOff": "This is an IFCX file. Turn on the experimental feature Open and save IFCX to save it, or save the schedule as IFC with Save As.",
@@ -2122,6 +2123,14 @@
       "unchecked": "The model {{file}} is missing or has changed. The element links are unchecked.",
       "saveAsIfc": "Save this schedule as IFCX to keep its model references.",
       "ifcExportLoss": "The model reference and element links stay in the IFCX schedule. The IFC export omits them."
+    },
+    "import": {
+      "opened": "Opened the schedule from {{file}}. Saving creates a separate schedule file.",
+      "origin": "Source listed in the file header: {{origin}}.",
+      "leftBehind": "Only in {{file}}: {{items}}.",
+      "workplans": "Other work plans in the source file ({{total}}): {{paths}}.",
+      "manual": "Tasks switched to manual scheduling because a date changed: {{total}}.",
+      "noTasks": "No supported scheduling data found."
     }
   },
   "foreignChangesQuestion": {

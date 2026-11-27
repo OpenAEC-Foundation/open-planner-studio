@@ -151,7 +151,7 @@ export function outputFromResult(job: IfcSaveJob, result: IfcSaveResult): IfcOut
 }
 
 /** De gewone writer: de bytes zoals ze zijn; de tekst pas als een route erom vraagt, en dan één keer. */
-function writerOutput(bytes: Uint8Array, literalCalendarIds: readonly string[], sha256: string | undefined): IfcOutput {
+export function writerOutput(bytes: Uint8Array, literalCalendarIds: readonly string[], sha256: string | undefined): Extract<IfcOutput, { readonly content: string }> {
   let content: string | undefined;
   return { bytes, literalCalendarIds, ...(sha256 === undefined ? {} : { sha256 }), get content() { return content ??= new TextDecoder().decode(bytes); } };
 }

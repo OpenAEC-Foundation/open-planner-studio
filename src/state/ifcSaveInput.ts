@@ -55,6 +55,17 @@ export function sameIFCSource(a: IFCSaveSource, b: IFCSaveSource): boolean {
     || (k === 'customTaskTypes' && a.tasks === b.tasks && sameSavedCustomTaskTypes(a, b)));
 }
 
+export function unchangedSaveFields(source: IFCSaveSource): (current: IFCSaveSource) => boolean {
+  const fields = IFC_SAVE_KEYS.map(key => {
+    const value = source[key];
+    return value && typeof value === 'object' ? new WeakSet<object>([value]) : value;
+  });
+  return current => IFC_SAVE_KEYS.every((key, i) => {
+    const value = current[key], field = fields[i];
+    return field instanceof WeakSet ? !!value && typeof value === 'object' && field.has(value) : field === value;
+  });
+}
+
 /** Zoals de schrijver ze vastlegt (`JSON.stringify` van de definities): elk veld telt mee. */
 function sameSavedCustomTaskTypes(a: IFCSaveSource, b: IFCSaveSource): boolean {
   return JSON.stringify(savedCustomTaskTypes(a.tasks, a.customTaskTypes))

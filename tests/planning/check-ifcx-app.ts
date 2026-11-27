@@ -16,6 +16,10 @@ import { splitDroppedFiles } from '@/services/fileAccess/fileDrop';
 import { documentFileFilters, isIfcxName, nameWithFormat, outputFormat } from '@/state/ifcxGuard';
 import { computeIfcOutputHere, documentSaveCompute, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { readIfcx, classifyIfcx, writeIfcx } from '@/services/ifc/ifcx';
+import { ATTRIBUTE } from '@/services/ifc/ifcx/profile';
+import { isUuidPath } from '@/services/ifc/ifcx/identityPath';
+import type { IfcxEntry } from '@/services/ifc/ifcx/ifcxWriter';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
@@ -242,12 +246,12 @@ await check('een onbekende IFCX-versie meldt ifcx.open.unsupportedVersion; een n
 
   const profileDoc = JSON.parse(text(own));
   const documentEntry = profileDoc.data.find((entry: { attributes?: Record<string, unknown> }) => entry.attributes?.['openaec::ops::document']);
-  (documentEntry.attributes['openaec::ops::document'] as Record<string, unknown>).formatVersion = '2.0.0';
   const profilePath = join(dir, 'nieuwer-profiel.ifcx');
-  writeFileSync(profilePath, JSON.stringify(profileDoc));
-  const profileStore = await openAt(profilePath, IFCX_ON);
-  assert.deepEqual(errors(profileStore), ['ifcx.open.newer']);
-
+  for (const future of ['1.3.0', '2.0.0']) {
+    documentEntry.attributes[ATTRIBUTE.document].formatVersion = future;
+    writeFileSync(profilePath, JSON.stringify(profileDoc));
+    assert.deepEqual(errors(await openAt(profilePath, IFCX_ON)), ['ifcx.open.newer']);
+  }
 });
 
 await check('modelbron openen en een eigen planning ernaast opslaan en heropenen', async () => {
@@ -311,11 +315,194 @@ await check('modelbron openen en een eigen planning ernaast opslaan en heropenen
     mixed.data.push({ path: 'taak', attributes: { 'openaec::planning::activity': {} } });
     const mixedPath = join(dir, 'gemengd.ifcx');
     writeFileSync(mixedPath, JSON.stringify(mixed));
-    assert.deepEqual(errors(await openAt(mixedPath, IFCX_ON)), ['ifcx.open.foreign']);
-    mixed.data = [];
+    assert.equal((await openAt(mixedPath, IFCX_ON)).getState().tasks.length, 1);
+    const unknown = { path: 'weer', attributes: { 'openaec::planning::weather': {} } };
+    mixed.data = [...mixed.data.slice(0, -1), unknown];
     writeFileSync(mixedPath, JSON.stringify(mixed));
-    assert.deepEqual(errors(await openAt(mixedPath, IFCX_ON)), ['ifcx.open.foreign']);
+    const unknownWithModel = await openAt(mixedPath, IFCX_ON);
+    assert.equal(unknownWithModel.getState().tasks.length, 0);
+    assert(unknownWithModel.getState().ui.notifications.find(n => n.messageKey === 'ifcx.model.opened')
+      ?.detailLines?.some(line => line.messageKey === 'ifcx.import.noTasks'));
+    mixed.data = [unknown];
+    writeFileSync(mixedPath, JSON.stringify(mixed));
+    const unknownAlone = await openAt(mixedPath, IFCX_ON);
+    assert.deepEqual(errors(unknownAlone), ['ifcx.open.noPlanning']);
+    assert.match(unknownAlone.getState().ui.notifications.find(n => n.severity === 'error')?.detail ?? '', /openaec::planning::weather/);
   } finally { ipc.dispose(); }
+});
+
+function foreignFile(name: string) {
+  const bytes = bytesAt(join(root, 'tests/fixtures/ifcx/planningsimport', name + '.ifcx'));
+  const folder = mkdtempSync(join(dir, 'import-'));
+  const path = join(folder, name + '.ifcx');
+  writeFileSync(path, bytes);
+  return { path, bytes, plan: join(folder, name + ' - planning.ifcx') };
+}
+
+await check('vreemde planning zonder bewerking: de eerste opslag maakt een nieuw bestand en weigert de bron als doel', async () => {
+  const ipc = desktop();
+  try {
+    const { path, bytes, plan } = foreignFile('werkpakketten');
+    const store = await openAt(path, IFCX_ON);
+    ipc.choose(path);
+    const before = ipc.calls.length;
+    const savedToSource = await save(store);
+    assert(Buffer.from(bytes).equals(bytesAt(path)), 'de bron moet bytegelijk blijven');
+    assert(!ipc.calls.slice(before).some(c => /write|rename|place_file/.test(c.command)), 'geweigerd vóór schrijven');
+    assert.equal(savedToSource, false);
+    ipc.choose(plan);
+    assert.equal(await save(store), true);
+    assert.equal(store.getState().filePath, plan);
+    const saved = bytesAt(plan);
+    const reopened = await openAt(plan, IFCX_ON);
+    const dates = (s: Store) => s.getState().tasks.map(t => [t.id, t.name, shownStart(t), shownFinish(t), t.parentId, ...t.childIds]);
+    assert.deepEqual(dates(reopened), dates(store));
+    assert.equal(await save(reopened), true);
+    assert.deepEqual(bytesAt(plan), saved);
+    assert.deepEqual(bytesAt(path), bytes);
+  } finally { ipc.dispose(); }
+});
+
+await check('vreemde planning zonder model: datums, hiërarchie en bronpaden bij bewerken, opslaan en heropenen', async () => {
+  const ipc = desktop();
+  try {
+    const { path, bytes, plan } = foreignFile('werkpakketten');
+    assert.deepEqual(errors(await openAt(path, {})), ['notifications.openFailed']);
+    const store = await openAt(path, IFCX_ON);
+    assert.deepEqual(errors(store), []);
+    const [parent, first, second] = store.getState().tasks;
+    const dates = (s: Store) => s.getState().tasks.slice(0, 3).map(t => [shownStart(t), shownFinish(t)]);
+    const windows = dates(store);
+    assert.deepEqual(windows, [['2027-03-06T00:00', '2027-03-11T00:00'], ['2027-03-06T00:00', '2027-03-08T00:00'], ['2027-03-08T00:00', '2027-03-11T00:00']]);
+    const hierarchy = (s: Store) => {
+      const [head, a, b] = s.getState().tasks;
+      assert.deepEqual(head.childIds, [first.id, second.id]);
+      assert.deepEqual([a.parentId, b.parentId], [parent.id, parent.id]);
+      const [relation] = s.getState().sequences;
+      assert.deepEqual([relation.predecessorId, relation.successorId, relation.lagMinutes], [a.id, b.id, -30]);
+    };
+    hierarchy(store);
+    assert.equal(store.getState().fileFormat, 'ifcx');
+    assert.equal(store.getState().filePath, null);
+    assert.equal(store.getState().knownTargetFingerprint, null);
+    const tab = store.getState().activeDocumentId;
+    store.getState().newDocument();
+    store.getState().switchDocument(tab);
+    store.getState().deleteTask(first.id);
+    store.getState().undo();
+    assert.deepEqual(dates(store), windows);
+    store.getState().updateTask(first.id, { name: 'Stellen noordzijde' });
+    const added = store.getState().addTask({ name: 'Opleveren' });
+    ipc.choose(path);
+    const before = ipc.calls.length;
+    const savedToSource = await save(store);
+    assert(Buffer.from(bytes).equals(bytesAt(path)), 'de oorspronkelijke bron is overschreven');
+    assert(!ipc.calls.slice(before).some(c => /write|rename|place_file/.test(c.command)));
+    assert.equal(savedToSource, false);
+    ipc.choose(plan);
+    assert.equal(await save(store), true, JSON.stringify(store.getState().ui.notifications));
+    assert.equal(ipc.dialogs[0].defaultPath, plan);
+    const saved = bytesAt(plan);
+    const data: IfcxEntry[] = JSON.parse(text(saved)).data;
+    assert.deepEqual(data.filter(e => e.attributes[ATTRIBUTE.activity]).map(e => e.path).slice(0, 3),
+      ['/planning/work-0', '/planning/work-1', '/planning/work-2']);
+    assert.equal(data.find(e => e.path === '/planning/work-1')?.attributes[ATTRIBUTE.activity]?.name, 'Stellen noordzijde');
+    assert(isUuidPath(data.find(e => e.attributes[ATTRIBUTE.activity]?.name === 'Opleveren')!.path));
+    assert.equal(data.find(e => e.attributes[ATTRIBUTE.sequence])?.path, '/planning/rel-1');
+    const reopened = await openAt(plan, IFCX_ON);
+    assert.deepEqual(errors(reopened), []);
+    assert.deepEqual(reopened.getState().ifcxReferences?.modelSource, { fileName: basename(path), sha256: hash(bytes) });
+    assert.deepEqual(dates(reopened), windows);
+    hierarchy(reopened);
+    assert.equal(reopened.getState().tasks.find(t => t.id === added)?.name, 'Opleveren');
+    assert.equal(await save(reopened), true);
+    assert.deepEqual(bytesAt(plan), saved);
+    reopened.getState().updateTask(first.id, { name: 'Stellen zuidzijde' });
+    assert.equal(await save(reopened), true);
+    const updated: IfcxEntry[] = JSON.parse(text(bytesAt(plan))).data;
+    assert.equal(updated.find(e => e.path === '/planning/work-1')?.attributes[ATTRIBUTE.activity]?.name, 'Stellen zuidzijde');
+    assert.deepEqual(updated.map(e => e.path), data.map(e => e.path));
+    assert.deepEqual(bytesAt(path), bytes);
+  } finally { ipc.dispose(); }
+});
+
+await check('vreemde planning met model: muur en alle planningsobjecten houden hun bronpad', async () => {
+  const ipc = desktop();
+  try {
+    const { path, bytes, plan } = foreignFile('gevel');
+    const store = await openAt(path, IFCX_ON);
+    assert.deepEqual(errors(store), []);
+    const wall = store.getState().tasks[0];
+    const notice = store.getState().ui.notifications.find(n => n.messageKey === 'ifcx.import.opened');
+    assert.deepEqual(notice?.detailLines?.find(l => l.messageKey === 'ifcx.import.workplans')?.params, { total: 1, paths: '/ander' });
+    assert.match(String(notice?.detailLines?.find(l => l.messageKey === 'ifcx.import.leftBehind')?.params?.items), /inspects \(×1\)/);
+    const linked = (s: Store) => assert.deepEqual(taskElementLinks(s.getState(), wall.id),
+      [{ direction: 'output', target: '/bouw/Muur-01', found: true }]);
+    const checkPlanning = (s: Store) => {
+      const { calendar, calendars, resources, assignments, baselines } = s.getState();
+      assert.equal(calendar.name, 'Ploegweek');
+      assert.equal(calendars.find(c => c.id === wall.calendarId)?.name, 'Algemene week');
+      assert.equal(resources[0].name, 'Metselaars');
+      assert.deepEqual(assignments.map(a => [a.taskId, a.resourceId, a.unitsPerDay]), [[wall.id, resources[0].id, 0.5]]);
+      assert.deepEqual(baselines.map(b => b.name), ['Contract']);
+      linked(s);
+    };
+    checkPlanning(store);
+    ipc.choose(plan);
+    assert.equal(await save(store), true, JSON.stringify(store.getState().ui.notifications));
+    const data: IfcxEntry[] = JSON.parse(text(bytesAt(plan))).data;
+    const paths = (attribute: keyof IfcxEntry['attributes']) => data.filter(e => e.attributes[attribute]).map(e => e.path).sort();
+    assert.deepEqual(paths(ATTRIBUTE.workplan), ['/werk']);
+    assert.deepEqual(paths(ATTRIBUTE.calendar), ['/ploegweek', '/week']);
+    assert.deepEqual(paths(ATTRIBUTE.activity), ['/' + wall.id, wall.id]);
+    assert.deepEqual(paths(ATTRIBUTE.resource), ['/metselaars']);
+    assert.deepEqual(paths(ATTRIBUTE.assignment), ['/inzet']);
+    assert.deepEqual(paths(ATTRIBUTE.baseline), ['/nulmeting']);
+    assert.deepEqual(data.find(e => e.path === '/nulmeting')?.attributes[ATTRIBUTE.baseline],
+      { name: 'Contract', start: '2027-03-01', finish: '2027-03-05' });
+    const reopened = await openAt(plan, IFCX_ON);
+    checkPlanning(reopened);
+    const saved = bytesAt(plan);
+    assert.equal(await save(reopened), true);
+    assert.deepEqual(bytesAt(plan), saved);
+    reopened.getState().updateTask(wall.id, { name: 'Buitenmuur metselen' });
+    assert.equal(await save(reopened), true);
+    const changed: IfcxEntry[] = JSON.parse(text(bytesAt(plan))).data;
+    assert.deepEqual(changed.map(e => e.path), data.map(e => e.path));
+    assert.deepEqual(changed.find(e => e.path === '/' + wall.id)?.attributes[ATTRIBUTE.links],
+      [{ relation: 'schedules', target: '/bouw/Muur-01' }]);
+    assert.deepEqual(bytesAt(path), bytes);
+  } finally { ipc.dispose(); }
+});
+
+await check('vreemde planning met uitbreidingen: de melding vóór opslaan noemt de namen en aantallen', async () => {
+  const { path, bytes, plan } = foreignFile('uitbreidingen');
+  const store = await openAt(path, IFCX_ON);
+  const notice = store.getState().ui.notifications.find(n => n.messageKey === 'ifcx.import.opened');
+  assert.equal(notice?.sticky, true);
+  assert.deepEqual(notice?.detailLines, [
+    { messageKey: 'ifcx.import.origin', params: { origin: 'Planbureau · urn:voorbeeld:uitbreidingen' } },
+    { messageKey: 'ifcx.import.leftBehind', params: { file: basename(path),
+      items: 'openaec::planning::weather (×2), openaec::planning::activity.predecessor (×2)' } },
+  ]);
+  assert.equal(existsSync(plan), false);
+  assert.deepEqual(bytesAt(path), bytes);
+});
+
+await check('vreemde planning met gewijzigde datums: twee taken zijn omgezet naar handmatig', async () => {
+  const { path } = foreignFile('precieze-taken');
+  const store = await openAt(path, IFCX_ON);
+  assert.equal(store.getState().recordedDates, null);
+  assert.deepEqual(store.getState().ui.notifications.find(n => n.messageKey === 'ifcx.import.opened')?.detailLines,
+    [{ messageKey: 'ifcx.import.manual', params: { total: 2 } }]);
+});
+
+await check('vreemde planning met alleen de oude attribuutnaam of een ongeldig bekend veld: reden bij openen', async () => {
+  const old = await openAt(foreignFile('oud-attribuut').path, IFCX_ON);
+  assert.deepEqual(errors(old), ['ifcx.open.noPlanning']);
+  const invalid = await openAt(foreignFile('ongeldig-veld').path, IFCX_ON);
+  assert.deepEqual(errors(invalid), ['ifcx.open.invalid']);
+  assert.match(invalid.getState().ui.notifications.find(n => n.severity === 'error')?.detail ?? '', /\/planning\/work-0 openaec::planning::activity start/);
 });
 
 await check('modelkoppelingen bij het heropenen met een gelijk, gewijzigd of ontbrekend buurmodel', async () => {
@@ -1308,6 +1495,21 @@ await check('browser: een IFCX-document slaat een nieuw doel op als download met
       assert.equal(step.getState().fileHandle, pickedHandle, 'de gekozen kopie is het nieuwe schrijfdoel');
       assert.equal(downloads.length, beforeModel + 1);
     }
+    const imported = (await newApp(IFCX_ON)).store;
+    const source = foreignFile('werkpakketten');
+    await imported.getState().openOpenedFile({ name: basename(source.path), content: '', bytes: source.bytes, ref: null });
+    assert.equal(await save(imported), true);
+    const copy = downloads.at(-1)!;
+    assert.equal(copy.name, basename(source.plan));
+    const firstCopy = await copy.blob.text();
+    assert.equal(await save(imported), true);
+    assert.equal(await downloads.at(-1)!.blob.text(), firstCopy);
+    const older = firstCopy.replace(JSON.parse(firstCopy).header.timestamp, '2026-01-01T12:00:00.000Z');
+    const reopened = (await newApp(IFCX_ON)).store;
+    await reopened.getState().openOpenedFile({ name: copy.name, content: '', bytes: new TextEncoder().encode(older), ref: null });
+    assert.deepEqual(errors(reopened), []);
+    assert.equal(await save(reopened), true);
+    assert(Buffer.from(await downloads.at(-1)!.blob.arrayBuffer()).equals(Buffer.from(older)), 'de heropende download blijft bytegelijk');
   } finally {
     URL.createObjectURL = create; URL.revokeObjectURL = revoke;
     delete win.showOpenFilePicker; delete win.showSaveFilePicker;
