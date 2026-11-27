@@ -124,8 +124,9 @@ export async function oldHeaderTable(root: string): Promise<OldHeaderRow[]> {
   // Bron/vingerafdruk/handle horen bij de concrete invoerbytes, niet bij de planning onder de controlekop.
   // Opslagblokkade en volledige bronintegriteit worden hieronder apart via writes en intact vergeleken.
   const payload = (store: ReturnType<typeof createAppStoreContext>['store']) => {
-    const { ifcSource: _source, foreignSourceMark: _mark, fileHandle: _handle, knownTargetFingerprint: _known, fileFormat, ...rest } = capturePayload(store.getState());
+    const { ifcSource: _source, foreignSourceMark: _mark, fileHandle: _handle, knownTargetFingerprint: _known, fileFormat, ifcxReferences, ...rest } = capturePayload(store.getState());
     if (fileFormat !== 'ifc') throw new Error(`oude kop: een STEP-bestand werd een ${fileFormat}-document`);
+    if (ifcxReferences !== null) throw new Error('oude kop: een STEP-bestand kreeg IFCX-verwijzingen');
     return sha(JSON.stringify(stable({ ...rest, assignments: rest.assignments.map(({ id: _id, ...a }) => a) })));
   };
   const open = async (text: string, flag: boolean, file: ReturnType<typeof memoryFile>) => {
