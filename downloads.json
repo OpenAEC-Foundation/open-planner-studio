@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "source": "github-releases",
   "repo": "OpenAEC-Foundation/open-planner-studio",
-  "generatedAt": "2026-11-27T12:01:33.062Z",
-  "downloads": 5386,
+  "generatedAt": "2026-11-27T14:01:29.849Z",
+  "downloads": 5395,
   "releases": [
     {
       "tag": "v2026.48.0",
@@ -11,12 +11,12 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 165,
-          "update": 268,
+          "install": 169,
+          "update": 270,
           "both": 0,
           "byKind": {
-            "exe": 165,
-            "nsis.zip": 268
+            "exe": 169,
+            "nsis.zip": 270
           }
         },
         "macos": {
@@ -31,16 +31,16 @@
         "linux": {
           "install": 4,
           "update": 0,
-          "both": 110,
+          "both": 114,
           "byKind": {
             "snap": 4,
             "rpm": 11,
-            "AppImage": 67,
+            "AppImage": 71,
             "deb": 32
           }
         }
       },
-      "polls": 2450
+      "polls": 2514
     },
     {
       "tag": "v2026.47.0",
@@ -85,11 +85,11 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 492,
+          "install": 493,
           "update": 263,
           "both": 0,
           "byKind": {
-            "exe": 492,
+            "exe": 493,
             "nsis.zip": 263
           }
         },
@@ -1002,12 +1002,12 @@
   ],
   "totals": {
     "windows": {
-      "install": 3150,
-      "update": 1416,
+      "install": 3155,
+      "update": 1418,
       "both": 0,
       "byKind": {
-        "exe": 3150,
-        "nsis.zip": 1416
+        "exe": 3155,
+        "nsis.zip": 1418
       }
     },
     "macos": {
@@ -1022,16 +1022,16 @@
     "linux": {
       "install": 126,
       "update": 0,
-      "both": 1555,
+      "both": 1559,
       "byKind": {
         "snap": 126,
         "rpm": 219,
-        "AppImage": 848,
+        "AppImage": 852,
         "deb": 488
       }
     }
   },
-  "polls": 16607,
+  "polls": 16671,
   "unknown": [
     "v2026.48.0: open-planner-studio-2026.48.0.mcpb",
     "v2026.47.0: open-planner-studio-2026.47.0.mcpb",
