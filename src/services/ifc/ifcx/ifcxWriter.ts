@@ -1,11 +1,10 @@
 import { readIFC } from '../ifcReader';
 import { ifcObjectSeed, writeIFC, type WriteIFCInput } from '../ifcWriter';
-import { assignmentKeyName } from '../assignmentKeys';
 import type { ImportResult } from '@/services/importTypes';
-import type { ResourceAssignment } from '@/types/resource';
 import { baselineStart } from '@/types/baseline';
 import { buildWriteIFCInput, documentDataFromImport } from '@/services/documentData';
 import { intendedGlobalIds, type PlanningModel } from './identity';
+import { stepAssignmentIds } from '../assignmentKeys';
 import { selfCheckDifferences } from './selfCheck';
 import { unsupportedContent } from './unsupportedContent';
 import { IfcxWriteRefusedError } from './ifcxErrors';
@@ -18,15 +17,9 @@ export type { IfcxDocument, IfcxEntry, IfcxHeader } from './projection';
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-function withStepAssignmentIds(read: PlanningModel): ResourceAssignment[] {
-  const globalIds = intendedGlobalIds(read);
-  const places = new Map<string, number>();
-  return (read.assignments ?? []).map(assignment => {
-    const place = places.get(assignment.taskId) ?? 0;
-    places.set(assignment.taskId, place + 1);
-    const resourceGuid = globalIds.get(ifcObjectSeed('res', assignment.resourceId))!;
-    return { ...assignment, id: `asgn-${assignment.taskId}/${assignmentKeyName(resourceGuid, place)}` };
-  });
+function assignmentIds(model: PlanningModel): string[] {
+  const globalIds = intendedGlobalIds(model);
+  return stepAssignmentIds(model.assignments ?? [], id => globalIds.get(ifcObjectSeed('res', id))!);
 }
 
 function stepReading(given: WriteIFCInput & IfcxModelReferences): ImportResult {
@@ -37,13 +30,14 @@ function stepReading(given: WriteIFCInput & IfcxModelReferences): ImportResult {
   } catch (error) {
     throw new IfcxWriteRefusedError('invalid', `Opslaan als IFC weigert deze planning: ${messageOf(error)}`, ['planning']);
   }
-  const step = { ...read, assignments: withStepAssignmentIds(read) };
+  const ids = assignmentIds(read);
+  const step = { ...read, assignments: read.assignments.map((a, i) => ({ ...a, id: ids[i] })) };
   const ifcGlobalIds: Record<string, string> = { ...step.ifcGlobalIds };
   if (given.modelSource && given.ifcGlobalIds) {
     const inputIds = given.ifcGlobalIds;
-    withStepAssignmentIds(given).forEach((canonical, index) => {
+    assignmentIds(given).forEach((canonical, index) => {
       const guid = inputIds[ifcObjectSeed('asgn', given.assignments![index].id)];
-      if (guid) ifcGlobalIds[ifcObjectSeed('asgn', canonical.id)] = guid;
+      if (guid) ifcGlobalIds[ifcObjectSeed('asgn', canonical)] = guid;
     });
     for (const baseline of step.baselines ?? []) {
       const seed = ifcObjectSeed('bl', baseline.id);

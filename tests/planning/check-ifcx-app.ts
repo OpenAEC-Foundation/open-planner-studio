@@ -45,6 +45,7 @@ import { fixture as maximalFixture } from './ifcRoundtripFixture';
 import { getTool } from '@/services/mcp/toolRegistry';
 import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
 import type { FeatureFlagValues } from '@/utils/featureFlags';
+import { loadFeatureFlags, saveFeatureFlags } from '@/utils/settingsStore';
 import type { FileRef } from '@/services/fileAccess';
 import type { Task } from '@/types/task';
 
@@ -339,7 +340,7 @@ function foreignFile(name: string) {
   return { path, bytes, plan: join(folder, name + ' - planning.ifcx') };
 }
 
-await check('vreemde planning zonder bewerking: de eerste opslag maakt een nieuw bestand en weigert de bron als doel', async () => {
+await check('vreemde planning zonder bewerking: eerste opslag naast de bron en na een relatiewijziging de herberekende datum opslaan', async () => {
   const ipc = desktop();
   try {
     const { path, bytes, plan } = foreignFile('werkpakketten');
@@ -360,6 +361,28 @@ await check('vreemde planning zonder bewerking: de eerste opslag maakt een nieuw
     assert.equal(await save(reopened), true);
     assert.deepEqual(bytesAt(plan), saved);
     assert.deepEqual(bytesAt(path), bytes);
+
+    const planning = reopened.getState();
+    assert.equal(planning.ui.autoCalcCPM, false);
+    const first = planning.addTask({ name: 'Bekisten' });
+    const second = planning.addTask({ name: 'Ontkisten' });
+    const relation = planning.addSequence({ predecessorId: first, successorId: second, type: 'FINISH_START', lagDays: 0 });
+    assert(relation);
+    planning.runCPM();
+    const successorStart = (tasks: readonly Task[]) => shownStart(tasks.find(task => task.id === second)!);
+    const beforeLag = successorStart(reopened.getState().tasks);
+    assert.equal(planning.updateSequence(relation, { lagDays: 4 }), true);
+    assert.equal(reopened.getState().scheduleStale, true);
+    assert.equal(await save(reopened), true);
+    assert.equal(successorStart(readIfcx(bytesAt(plan)).tasks), beforeLag);
+    const calculated = await openAt(plan, IFCX_ON);
+    const shifted = successorStart(calculated.getState().tasks);
+    assert(shifted > beforeLag, `De opvolger moet na heropenen verschuiven vanaf ${beforeLag}, getoond ${shifted}`);
+    assert.equal(await save(calculated), true);
+    const current = bytesAt(plan);
+    assert.equal(successorStart(readIfcx(current).tasks), shifted, 'Ctrl+S schrijft de verschoven start uit de Gantt');
+    assert.equal(await save(calculated), true);
+    assert.deepEqual(bytesAt(plan), current);
   } finally { ipc.dispose(); }
 });
 
@@ -393,6 +416,7 @@ await check('vreemde planning zonder model: datums, hiërarchie en bronpaden bij
     assert.deepEqual(dates(store), windows);
     store.getState().updateTask(first.id, { name: 'Stellen noordzijde' });
     const added = store.getState().addTask({ name: 'Opleveren' });
+    store.getState().runCPM();
     ipc.choose(path);
     const before = ipc.calls.length;
     const savedToSource = await save(store);
@@ -474,6 +498,34 @@ await check('vreemde planning met model: muur en alle planningsobjecten houden h
       [{ relation: 'schedules', target: '/bouw/Muur-01' }]);
     assert.deepEqual(bytesAt(path), bytes);
   } finally { ipc.dispose(); }
+});
+
+await check('vreemde planning met model na crashherstel: de eerste opslag behoudt de paden van inzet en nulmeting', async () => {
+  const ipc = desktop();
+  const previousFlags = loadFeatureFlags();
+  try {
+    await saveFeatureFlags(IFCX_ON);
+    const { path, bytes, plan } = foreignFile('gevel');
+    const store = await openAt(path, IFCX_ON);
+    const wall = store.getState().tasks.find(task => task.name === 'Metselen')!;
+    store.getState().updateTask(wall.id, { name: 'Buitenmuur metselen' });
+    const restored = await recoverInto(store, IFCX_ON);
+    assert.equal(restored.getState().filePath, null);
+    ipc.choose(plan);
+    assert.equal(await save(restored), true);
+    assert.equal(ipc.dialogs.at(-1)?.defaultPath, plan);
+    const reopened = await openAt(plan, IFCX_ON);
+    const { assignments, baselines, ifcxReferences, ifcGlobalIds, tasks } = reopened.getState();
+    assert.equal(tasks.find(task => task.id === wall.id)?.name, 'Buitenmuur metselen');
+    assert.deepEqual([
+      ifcxReferences?.sourcePaths?.[ifcGlobalIds![`asgn:${assignments[0].id}`]],
+      ifcxReferences?.sourcePaths?.[ifcGlobalIds![`bl:${baselines[0].id}`]],
+    ], ['/inzet', '/nulmeting']);
+    assert.deepEqual(bytesAt(path), bytes);
+  } finally {
+    await saveFeatureFlags(previousFlags);
+    ipc.dispose();
+  }
 });
 
 await check('vreemde planning met uitbreidingen: de melding vóór opslaan noemt de namen en aantallen', async () => {

@@ -68,15 +68,16 @@ export async function readRecoveryDocument(
   const read = await readIfcFromText(document.ifc, labels, {
     ifcBytes: enabled, resolveXerArchiveReference: sha => archives.get(sha),
   });
-  const rows = enabled && document.snapshotIdentities !== undefined
+  const ifcxIdentities = !!document.ifcx?.references;
+  const rows = (enabled || ifcxIdentities) && document.snapshotIdentities !== undefined
     ? await recoveryIdentitiesForSnapshot(document.ifc, document.snapshotIdentities, read.ifcSource?.sha256) : null;
   const meta = {
     id: document.id, filePath: document.filePath, siteFileId: document.siteFileId ?? null,
     siteFileVersion: document.siteFileVersion ?? null, foreignSource: document.foreignSource ?? null,
     isDirty: document.isDirty, datesAsRecorded: document.datesAsRecorded, ...ifcxMetaFields(document),
   };
-  const applied = rows ? recoveryInputFromParsed(withRecoveryIdentities(read, rows), meta) : null;
-  let snapshot = applied && rows && rewritesSnapshot(applied, document.ifc, rows) ? applied : recoveryInputFromParsed(read, meta);
+  const applied = rows ? recoveryInputFromParsed(withRecoveryIdentities(read, rows, ifcxIdentities), meta) : null;
+  let snapshot = applied && rows && (ifcxIdentities || rewritesSnapshot(applied, document.ifc, rows)) ? applied : recoveryInputFromParsed(read, meta);
   if (document.ifcx?.references) {
     const references = readIfcxReferences(document.ifcx.references);
     if (references.modelSource && checkValue(MODEL_SOURCE_VALUE, references.modelSource)) throw new RecoveryManifestError('invalid-shape');

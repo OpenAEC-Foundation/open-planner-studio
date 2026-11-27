@@ -2,6 +2,11 @@ import { isRecord } from '@/utils/guards';
 import { IfcxReadError } from './ifcxErrors';
 import { IFCX_VERSION } from './profile';
 
+export function sameOwnIfcxContent(left: string, right: string): boolean {
+  const writeTime = /\n    "timestamp": "[^"\n]+"(?=\n  },\n  "imports":)/;
+  return left === right || left.replace(writeTime, '') === right.replace(writeTime, '');
+}
+
 export function decodeIfcx(bytes: Uint8Array): string {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes);

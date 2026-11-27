@@ -1,6 +1,7 @@
 import { normalizeTaskDates } from '../migrations/minuteModel';
 import { bindIfcxModel, findIfcxModel, ifcxModelSession } from '@/services/ifc/ifcxModelSession';
 import { writerOutput } from '@/services/ifc/saveWorker/ifcSaveProtocol';
+import { sameOwnIfcxContent } from '@/services/ifc/ifcx/ifcxInput';
 import { flushRecoveryNow } from '@/services/recovery/recoveryFlush';
 import { isIfcxModelPath } from '../ifcForeignGuard';
 import { exportHitsOwnFile, literalCalendarIdsWritten, mergeLiteralCalendarIds, rememberLiteralCalendarsWritten } from '../savedLiteralCalendars';
@@ -579,7 +580,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const ifcxCopies = new WeakMap<NonNullable<DocumentPayload['ifcxReferences']>, {
     matches: ReturnType<typeof unchangedSaveFields>;
     output: Extract<IfcOutput, { readonly content: string }>;
-  }>();
+  } | { openedBytes: Uint8Array; sha256: string }>();
   const prepareDocumentWrite = async (
     state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation, format: DocumentFileFormat = attemptFormat(state),
   ): Promise<IfcOutput | null> => {
@@ -591,7 +592,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const copy = refs && ifcxCopies.get(refs);
     const worker = runtime.ifcSaveCompute;
     const reuse: IfcOutputCompute | undefined = copy && worker
-      ? (job, stop) => job.kind === 'writer' && copy.matches(state) ? Promise.resolve(copy.output) : worker(job, stop)
+      ? async (job, stop) => {
+        if (job.kind !== 'writer') return worker(job, stop);
+        if ('matches' in copy) return copy.matches(state) ? copy.output : worker(job, stop);
+        const calculated = await worker(job, stop);
+        return !calculated.prepared && sameOwnIfcxContent(new TextDecoder().decode(copy.openedBytes), calculated.content)
+          ? writerOutput(copy.openedBytes, calculated.literalCalendarIds, copy.sha256) : calculated;
+      }
       : worker;
     const write = await prepareAppIfcWrite(state, input, planOnly, format, reuse);
     if (write && !write.prepared) {
@@ -1044,7 +1051,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     });
     const refs = savedSource.ifcxReferences;
     const copy = refs && ifcxCopies.get(refs);
-    if (unchanged && copy?.matches(savedSource)) {
+    if (unchanged && copy && 'matches' in copy && copy.matches(savedSource)) {
       const saved = saveSourceForDocument(get(), documentId);
       if (saved && saved.ifcxReferences === refs) copy.matches = unchangedSaveFields(saved);
     }
@@ -1898,8 +1905,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (parsed.ownIfcxPlanBytes && parsed.ifcxRead && !editing && opts.linkedOpen && !payload.minuteModelPending && !activation.signals.refreshed) {
         const opened = get();
         if (opened.ifcxReferences) ifcxCopies.set(opened.ifcxReferences, {
-          matches: unchangedSaveFields(opened),
-          output: writerOutput(parsed.ownIfcxPlanBytes, parsed.ifcLiteralCalendarIds ?? [], parsed.ifcxRead.sha256),
+          openedBytes: parsed.ownIfcxPlanBytes, sha256: parsed.ifcxRead.sha256,
         });
       }
       for (const cal of [payload.calendar, ...payload.calendars].filter((cal, i, all) => all.findIndex(c => c.id === cal.id) === i)) {
