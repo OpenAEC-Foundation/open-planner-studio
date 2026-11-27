@@ -15,42 +15,27 @@ export interface ContextMenuGroupInfo {
 export interface ContextMenuProps {
   x: number;
   y: number;
-  /** Taak-rij-context (ook gezet bij een balk-klik — zie `barHit`). Uitsluitend `null` als de
-   *  rechtsklik een bandkop (`group`) of leeg canvas raakte. */
   task: Task | null;
-  /** Rechtsklik landde op de Gantt-BALK zelf (niet alleen de rij) — toont het
-   *  balk-specifieke item (relatie leggen vanaf hier) bovenaan het taakmenu. */
   barHit: boolean;
-  /** Rechtsklik op een bandkop-rij (gegroepeerde weergave) — apart, klein menu. */
   group: ContextMenuGroupInfo | null;
   traceActive: boolean;
-  /** Pure boommodus (zelfde conditie als de indent/outdent-sneltoets) — bepaalt of indent/outdent
-   *  in het taakmenu getoond wordt. */
   isTreeMode: boolean;
-  /** Kalenderbibliotheek voor het "Kalender toewijzen"-submenu. */
   calendars: WorkCalendar[];
-  /** Klembord leeg? (bepaalt of "Plakken" in het lege-canvas-menu enabled is). */
   canPaste: boolean;
   onClose: () => void;
   onEdit: () => void;
   onAddSubtask: () => void;
   onAddMilestone: () => void;
   onAddRelation: () => void;
-  /** "Relatie toevoegen" zet de tekenmodus aan en die werkt alleen in de Gantt. Het
-   *  taakraster zonder Gantt in beeld geeft hier de uitleg mee; aanwezig = item uitgeschakeld. */
   addRelationDisabledReason?: string;
-  /** Voorgangers of opvolgers toewijzen in het relatiepaneel (issue #1000, Assign in Primavera).
-   *  Werkt ook zonder Gantt: het paneel staat in de rail naast Gantt én Tabel. */
   onAssignRelation: (direction: RelationAssignDirection) => void;
   onTracePath: () => void;
   onSaveTemplate: () => void;
-  /** APARTE in-/uitklap-acties (geen toggle) — zie het commentaar bij het menu-item. */
   onCollapse: () => void;
   onExpand: () => void;
   onDelete: () => void;
   onDissolve: () => void;
   onAddTask: () => void;
-  // Golf 2 — taakrij
   onInsertAbove: () => void;
   onInsertBelow: () => void;
   onIndent: () => void;
@@ -59,24 +44,16 @@ export interface ContextMenuProps {
   onSetCalendar: (calendarId: string | undefined) => void;
   onSetProgress: (completion: number) => void;
   onSetPriority: (priority: number) => void;
-  // Golf 2 — balk
   onStartRelationFromBar: () => void;
-  /** Pauze-index voor "Onderbreking opheffen" (alleen bij een balk-klik op een
-   *  bewerkbare split, niet op stuk 0). Ontbreekt of `null` ⇒ dat item staat er niet. */
   splitGapIndex?: number | null;
   onRemoveSplitGap?: (gapIndex: number) => void;
-  /** "Alle onderbrekingen opheffen" — ook op een alleen-lezen importsplit. */
   onRemoveAllSplitGaps?: () => void;
-  // Golf 2 — leeg canvas
   onPaste: () => void;
   onZoomReset: () => void;
   onFitToProject: () => void;
-  // Golf 2 — bandkop
   onToggleGroupCollapse: () => void;
   onExpandAll: () => void;
   onCollapseAll: () => void;
-  /** Zoom terugzetten en Passend maken in het menu op lege ruimte. Het taakraster zet dit uit: daar
-   *  is geen tijdlijn om te zoomen. Standaard aan (Gantt). */
   showViewItems?: boolean;
 }
 
@@ -84,18 +61,8 @@ const PRIORITY_LOW = 100;
 const PRIORITY_NORMAL = 500;
 const PRIORITY_HIGH = 900;
 
-// Het kolomkop-contextmenu (DataGridHeader.tsx) rendert in een createPortal(..., document.body); met
-// `font: inherit` zou het de `body`-rol `--text-large` (12px × --ui-font-scale) erven i.p.v. de
-// `text-small leading-4` (10px) van dít menu — zichtbaar te groot. Eén bron voor beide menu's i.p.v.
-// twee losse maatvoeringen die uit elkaar kunnen groeien: exporteer de klassen hier, laat DataGridHeader ze hergebruiken
-// op zijn EIGEN role="menu"/role="menuitem"-opbouw (dat menu is al toegankelijker dan dít — dit
-// exporteert dus alleen het VISUELE token, niet de semantiek).
 export const CONTEXT_MENU_CONTAINER_CLASS =
   'fixed z-[var(--z-contextmenu)] bg-surface border border-border rounded-[8px] shadow-[var(--shadow-pop)] py-1 min-w-[180px]';
-// Bewust GEEN tekstkleur hierin: de "danger"-variant (zie MenuItem hieronder) zet `text-red-400`
-// i.p.v. `text-text-primary`, en twee kleurklassen van gelijke specificiteit op één element laten
-// de uitkomst afhangen van Tailwinds GEGENEREERDE bronvolgorde, niet van de volgorde in de
-// className-string — elke aanroeper kiest daarom zijn eigen kleur bovenop deze basis.
 export const CONTEXT_MENU_ITEM_CLASS =
   'w-full text-left px-3 py-1.5 text-small leading-4 hover:bg-surface-hover transition-colors flex items-center gap-1.5';
 
@@ -110,28 +77,12 @@ export function ContextMenu({
   onToggleGroupCollapse, onExpandAll, onCollapseAll,
   showViewItems = true,
 }: ContextMenuProps) {
-  // `common` blijft de standaard-namespace; `menu` staat erbij zodat het in-/uitklap-item exact
-  // dezelfde labels draagt als de Beeld-tab in plaats van een tweede, eigen vertaling
-  // die daar stilletjes van weg kan lopen.
   const { t } = useTranslation(['common', 'menu']);
   const menuRef = useRef<HTMLDivElement>(null);
-  // Welk submenu (bv. "calendar"/"progress"/"priority") momenteel opengeklapt is. Eén op een
-  // moment — hoveren over een ander item/submenu-trigger sluit het vorige (zie SubMenuTrigger).
   const [openSub, setOpenSub] = useState<string | null>(null);
 
-  // Sluit bij klik-buiten, rechtsklik-buiten of Escape. `defer` zorgt dat de openende
-  // rechtsklik-event-reeks het menu niet meteen weer sluit; de hook houdt `onClose` via een
-  // interne ref actueel zodat parent-renders (muisbeweging/hover op het canvas) de defer-timer
-  // niet resetten.
-  // Escape sluit ALTIJD het hele menu (incl. een eventueel open submenu) — geen aparte
-  // "sluit alleen het submenu"-stap, consistent met de rest van de app (zie shortcutRegistry).
   useClickOutside(menuRef, onClose, true, { escape: true, contextmenu: true, defer: true });
 
-  // Positie binnen het venster houden. Het menu's hoogte varieert sterk met de context (rij-menu
-  // met indent/outdent/samenvatting-items kan 400+ px worden) — een vaste aanname (bv. "-300")
-  // klopt dan niet en laat het menu (vooral bij een klik onderin lange taaklijsten, zoals een
-  // afsluitende mijlpaal) voorbij de vensterrand vallen. Meet daarom de ECHTE afmeting na mount en
-  // klem daarop; `useLayoutEffect` draait vóór de browser schildert, dus geen zichtbare sprong.
   const [pos, setPos] = useState({ left: x, top: y });
   useLayoutEffect(() => {
     const el = menuRef.current;
@@ -142,8 +93,6 @@ export function ContextMenu({
       top: Math.max(0, Math.min(y, window.innerHeight - h)),
     });
   }, [x, y]);
-  // Submenu's flippen naar links als de trigger te dicht bij de rechterrand van het venster staat
-  // (anders valt de flyout goeddeels buiten beeld).
   const flipSub = pos.left > window.innerWidth - 380;
 
   const isSummary = isSummaryTask(task ?? undefined);
@@ -266,15 +215,6 @@ export function ContextMenu({
           {isSummary && (
             <>
               <Separator />
-              {/* TWEE aparte items i.p.v. één "In-/uitklappen"-toggle, gelijk aan de
-                  Beeld-tab (zie `outlineGroup` in ribbonConfig.tsx). Reden om apart te zijn: de
-                  actie werkt op de hele selectie zodra de aangeklikte taak daarin zit, en een
-                  toggle kan een gemengde selectie nooit in één keer dezelfde kant op zetten.
-                  BEIDE items zijn ALTIJD zichtbaar en nooit uitgeschakeld — ook "Uitklappen" op een
-                  al-uitgeklapte tak. Een contextmenu waarvan de itemlijst per rij verspringt kost
-                  meer dan het oplevert (spiermemorie, en bij een selectie is "al ingeklapt?" per
-                  taak verschillend, dus er is geen eerlijk enkelvoudig antwoord). Idempotent
-                  klikken is hier onschadelijk. */}
               <MenuItem label={t('menu:ribbon.collapseTasks')} onClick={() => { onCollapse(); closeAll(); }} onEnter={() => setOpenSub(null)} />
               <MenuItem label={t('menu:ribbon.expandTasks')} onClick={() => { onExpand(); closeAll(); }} onEnter={() => setOpenSub(null)} />
               <MenuItem label={t('context.saveTemplate')} onClick={() => { onSaveTemplate(); closeAll(); }} onEnter={() => setOpenSub(null)} />
@@ -312,11 +252,9 @@ function MenuItem({
   label, onClick, danger, checked, disabled, onEnter, title,
 }: {
   label: string;
-  /** Tooltip, bv. waarom het item uitgeschakeld is. */
   title?: string;
   onClick: () => void;
   danger?: boolean;
-  /** Toont een vinkje vóór het label — voor submenu-presets (huidige kalender/voortgang/prioriteit). */
   checked?: boolean;
   disabled?: boolean;
   onEnter?: () => void;
@@ -340,9 +278,6 @@ function MenuItem({
   );
 }
 
-/** Klein, generiek submenu-mechanisme: hover opent een flyout naast het item.
- *  Blijft binnen dezelfde buitenste menu-container (geen eigen mousedown/Escape-afhandeling nodig —
- *  die van het bovenliggende menu dekt ook de flyout, want de flyout is een kind-element ervan). */
 function SubMenuTrigger({
   label, open, flip, onEnter, children,
 }: {
@@ -356,7 +291,6 @@ function SubMenuTrigger({
     <div className="relative" onMouseEnter={onEnter}>
       <div className="w-full flex items-center justify-between gap-3 px-3 py-1.5 text-small leading-4 text-text-primary hover:bg-surface-hover transition-colors cursor-default select-none">
         <span>{label}</span>
-        {/* Wijst naar de kant waar het submenu opent (`flip`: links), ook in rechts-naar-links. */}
         <Icon id="menu.submenu" size={16} className={flip ? '-scale-x-100' : undefined} />
       </div>
       {open && (
