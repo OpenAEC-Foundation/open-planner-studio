@@ -8045,6 +8045,24 @@ en noem het in je rapport of PR-tekst.
       De lezer kiest één werkschema bij het eerste werkplan. Neem de overige werkschema’s mee in
       `leftBehind`, zodat de planner ze vóór de eerste eigen opslag terugziet. — S
 
+2409. **Een ongebruikelijke alias van een IFCX-model kan buiten de bestandsvergelijking vallen.**
+      De app herkent het bronpad en de bestandsidentiteit die het platform teruggeeft. Controleer vóór
+      het standaard aanzetten ook aliassen op volumes zonder betrouwbare bestandsidentiteit en een
+      externe vervanging tussen de laatste controle en het plaatsen. — S (ontwerpstap fase 4, §6)
+
+2410. **Bij opnieuw kiezen van een open IFCX-planning toont het tabblad de vorige modelcontrole.**
+      De app controleert het buurmodel opnieuw. Als dezelfde versie van de planning al open is, activeert
+      ze het bestaande tabblad en vervalt de nieuwe controle. Een inmiddels gewijzigd model wordt pas
+      zichtbaar na sluiten en heropenen. Leg bij stuk 5 vast hoe de modelcontrole op het open tabblad
+      wordt ververst met behoud van de onopgeslagen planning. Gevolgd in de code bij de review. — S
+
+2411. **Chromium kan een IFCX-model leegmaken als het als doel voor een ander document wordt gekozen.**
+      Kiest de planner bij *Opslaan als* via *Alle bestanden* een bestaand IFCX-model, dan kapt de
+      browser het bestand af voordat de app de handle krijgt en het doel kan weigeren. Dezelfde grens
+      als bij 1899 en 2366 geldt ook voor een model van een ander. Gevolgd in de code, niet gemeten in
+      de browser. Vóór de flag `ifcx` standaard aan gaat: een kiezer die het bestand intact laat, of
+      een bevestiging vóór de kiezer. — S
+
 2415. **Een hoofdtaak met een lege vroege eindtijd kan na openen tot het einde van haar kinderen lopen.**
       In een variant van `precieze-taken.ifcx` heeft Pakket 0 een vroege start van 07:00, een geplande start
       van 09:00, een leeg vroeg einde en een gepland einde op 1 maart 16:00. Na openen begint de taak om 07:00 en eindigt ze
@@ -8054,3 +8072,15 @@ en noem het in je rapport of PR-tekst.
       STEP-lezer zonder XER-brontijden volgen die regel bij dezelfde velden (lege IFCX-tijd of STEP-slot `$`).
       Richting: in de gedeelde functie de vastlegging per kant beoordelen, met de vroege start van het restwerk
       en de eerdere werkelijke start van een lopende taak als proef. — B
+
+2422. **Een MCP-backup of `planner_export_ifc` van een planning bij een IFCX-model laat de modelverwijzing stil weg.**
+      *MCP → Veiligheid → Nu backup maken*, de automatische backup langs dezelfde schrijfroute en de tool
+      `planner_export_ifc` schrijven een STEP-kopie van de planning. Die kopie bevat de modelverwijzing en de
+      bouwdeelkoppelingen niet, en de app meldt dat niet (de backupknop zegt *Backup gemaakt*). De
+      IFCX-planning zelf en het model blijven ongewijzigd. Alleen *Exporteren → IFC*, met en zonder
+      bibliotheekbestand, meldt het verlies. Nog na te gaan: *Toepassen* in het IFC-paneel op zo'n planning.
+      Vóór de flag `ifcx` standaard aan gaat: de backup van zo'n planning als IFCX schrijven, de tool het
+      verlies in haar antwoord laten melden, en één plek kiezen waar elke STEP-kopie van zo'n document
+      langs moet (`buildWriteIFCInput`). Neem daarbij het heropenen mee: een IFCX-backup staat in de
+      backupmap en niet naast het model, dus de zoekactie naar het buurmodel vindt het model daar niet.
+      Gevolgd in de code bij de review van #1320, ronde 3 en 4. — S

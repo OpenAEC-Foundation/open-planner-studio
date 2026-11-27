@@ -1,3 +1,4 @@
+import { castDraft } from 'immer';
 import { markDocumentUnsaved } from '../documentEdited';
 import { capturePayload } from '../documentContract';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition } from '../minuteModelTransition';
@@ -250,9 +251,9 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       s.scheduleShift = {
         documentId: s.activeDocumentId,
         report,
-        before: createSnapshot(before),
+        before: castDraft(createSnapshot(before)),
         beforeResourceLoad: before.resourceLoadResult,
-        after: createSnapshot(after),
+        after: castDraft(createSnapshot(after)),
         historyEventId,
         refreshedHistoryEvent: historyEventId === null && before.scheduleStale && !before.datesAsRecorded,
       };

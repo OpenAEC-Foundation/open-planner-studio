@@ -1,4 +1,6 @@
 import { normalizeTaskDates } from '../migrations/minuteModel';
+import { bindIfcxModel, findIfcxModel, ifcxModelSession } from '@/services/ifc/ifcxModelSession';
+import { isIfcxModelPath } from '../ifcForeignGuard';
 import { exportHitsOwnFile, literalCalendarIdsWritten, mergeLiteralCalendarIds, rememberLiteralCalendarsWritten } from '../savedLiteralCalendars';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
@@ -141,6 +143,7 @@ export function isActivePristine(s: AppState): boolean {
     s.sequences.length === 0 &&
     s.resources.length === 0 &&
     s.filePath === null &&
+    !s.ifcxReferences &&
     s.siteFileId === null &&
     !s.isDirty
   );
@@ -310,6 +313,10 @@ export function exportSplitsLostNotice(format: ExportFormat, tasks: readonly Tas
   if (format !== 'mspdi' && format !== 'p6') return null;
   const count = countSplitTasksWithoutContour(tasks);
   return count > 0 ? { severity: 'info', messageKey: 'notifications.exportSplitsLost', params: { count } } : null;
+}
+
+export function exportModelReferencesLostNotice(format: ExportFormat, state: Pick<AppState, 'ifcxReferences'>): NotifyInput | null {
+  return format === 'ifc' && state.ifcxReferences?.modelSource ? { severity: 'info', messageKey: 'ifcx.model.ifcExportLoss' } : null;
 }
 
 export function exportCostResourcesLostNotice(format: ExportFormat, resources: readonly Pick<Resource, 'type'>[]): NotifyInput | null {
@@ -488,6 +495,13 @@ export interface SaveDestination {
 
 export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get) => {
   const formatReadOptions = (): FormatReadOptions => readOptionsFor(get().ui.featureFlags);
+  const proposedPlanName = (state: AppState, format: DocumentFileFormat): string => {
+    const source = state.ifcxReferences?.modelSource;
+    if (!source || saveTargetRef(state)) return fileNameWithFormat(suggestedFileBase(state), format);
+    const ref = ifcxModelSession(state.ifcxReferences)?.ref;
+    const model = ref?.kind === 'path' ? ref.path : source.fileName;
+    return model.slice(0, -5) + ' - planning.ifcx';
+  };
   const attemptFormat = (state: AppState): DocumentFileFormat => outputFormat(state, state.ui.featureFlags);
   const newTargetName = (state: AppState, name: string): string =>
     namesFollowFormat(state, state.ui.featureFlags) ? nameWithFormat(name, attemptFormat(state)) : name;
@@ -557,7 +571,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const prepareDocumentWrite = async (
     state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation, format: DocumentFileFormat = attemptFormat(state),
   ): Promise<IfcOutput | null> => {
-    const write = await prepareAppIfcWrite(state, input, planOnly, documentSaveCompute(state.ui.featureFlags, runtime.ifcSaveCompute, format));
+    if (state.ifcxReferences && format !== 'ifcx') {
+      get().notify(refusalNotice({ messageKey: 'ifcx.model.saveAsIfc', dedupeKey: 'ifcx-model-save-ifc' }));
+      return null;
+    }
+    const write = await prepareAppIfcWrite(state, state.ifcxReferences ? { ...input, ...state.ifcxReferences } : input,
+      planOnly, documentSaveCompute(state.ui.featureFlags, runtime.ifcSaveCompute, format));
     if (write && !write.prepared) rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
     return write;
   };
@@ -1107,8 +1126,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const readOptions = formatReadOptions();
     const opened = await openSiteFile(choice.id, { binaryExtensions: binaryExtensions(readOptions), version: choice.version });
     const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, readOptions);
+    const modelRef = !isMultiDocumentImport(parsed) && parsed.ifcxModel ? { kind: 'site' as const, id: choice.id } : null;
     if (choice.version === undefined && opened.readOnly) {
-      get().openAsDocument(parsed, { name: opened.name, ref: null });
+      get().openAsDocument(parsed, { name: opened.name, ref: modelRef });
       offerFormatNotice(opened.name, opened.content);
       await pushRecent({ kind: 'site', id: choice.id }, opened.name);
       get().notify({ severity: 'info', sticky: true, messageKey: 'notifications.siteFileReadOnly', params: { name: opened.name } });
@@ -1127,7 +1147,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       await pushRecent(opened.ref, opened.name);
       return;
     }
-    get().openAsDocument(parsed, { name: siteVersionCopyName(opened.name, choice.version, choice.copyName), ref: null });
+    get().openAsDocument(parsed, { name: siteVersionCopyName(opened.name, choice.version, choice.copyName), ref: modelRef });
     offerFormatNotice(opened.name, opened.content);
   };
 
@@ -1285,6 +1305,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     if (!picked) return null;
     const attempt = typeChoice ? await saveAsInFormat(state, own, picked.path) : own;
     if (!attempt) return null;
+    const firstModelSave = !!state.ifcxReferences?.modelSource && !saveTargetRef(state);
+    if (firstModelSave && picked.current !== null) {
+      get().notify(IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE);
+      return null;
+    }
     let committed = false;
     const outcome = await placePicked(picked, {
       bytes: () => writeBytes(attempt.write),
@@ -1292,7 +1317,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         readers: capturedTargetReaders(chosen.current, writeTargetReaders), openDocumentsExcept: documentId, chosenTarget: chosen,
         missingSourceSaveAs: attempt.missingSourceSaveAs, format: attempt.format,
       }),
-      refuseBeforePlace: () => refuseChangedDocumentWrite(state, attempt.write, attempt.missingSourceSaveAs),
+      refuseBeforePlace: () => {
+        if (firstModelSave && isIfcxModelPath(get(), picked.path)) {
+          get().notify(IFC_FOREIGN_TARGET_SAVE_NOTICE);
+          return true;
+        }
+        return refuseChangedDocumentWrite(state, attempt.write, attempt.missingSourceSaveAs);
+      },
       replacement: {
         documentId: attempt.write.prepared ? documentId : null,
         sha256: bytes => attempt.write.prepared?.sha256 ?? attempt.write.sha256 ?? precomputeSha256(bytes),
@@ -1560,14 +1591,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
       const hadFile = !isTauri() && (state.fileHandle !== null || !!state.filePath);
       // Fixronde 1 van #1071: de bestandskiezer van Ctrl+S is Opslaan als, op de desktop met dezelfde bevestigde doelroute.
-      if (isTauri() && (write.prepared || ifcForeignContentEnabled(state.ui.featureFlags))) {
-        const saved = await saveAsOnDesktop(documentId, state, write, fileNameWithFormat(suggestedFileBase(state), format));
+      if (isTauri() && (state.ifcxReferences || write.prepared || ifcForeignContentEnabled(state.ui.featureFlags))) {
+        const saved = await saveAsOnDesktop(documentId, state, write, proposedPlanName(state, format));
         if (!saved || !sameDocumentContent(get(), snapshotContent(state))) return false;
         await pushRecent(saved.outcome.ref, saved.outcome.name);
         return saved.committed;
       }
       const hashing = writtenFingerprint(state.ui.featureFlags, format, write);
-      const outcome = await documentSaveDialog(state, write, fileNameWithFormat(suggestedFileBase(state), format));
+      const outcome = await documentSaveDialog(state, write, proposedPlanName(state, format));
       if (!outcome) return false;
       if (write.prepared && outcome.viaDownload && ref?.kind === 'handle' && hasBuildingModel(state.ifcSource)) {
         get().notify(downloadCopyNotice(outcome.name));
@@ -1636,11 +1667,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           return;
         }
       }
-      const defaultName = state.filePath ? newTargetName(state, state.filePath) : fileNameWithFormat(suggestedFileBase(state), attemptFormat(state));
+      const defaultName = state.filePath ? newTargetName(state, state.filePath) : proposedPlanName(state, attemptFormat(state));
       const typeChoice = isTauri() && ifcxEnabled(state.ui.featureFlags);
       // Met de flag ook een gewone planning: de toestemming van de kiezer hoort bij het gekozen doel en zijn gelezen
       // versie (fixronde 1 van #1071, A). Met de flag uit de route van main hieronder.
-      if (isTauri() && (write.prepared || ifcForeignContentEnabled(state.ui.featureFlags))) {
+      if (isTauri() && (state.ifcxReferences || write.prepared || ifcForeignContentEnabled(state.ui.featureFlags))) {
         const saved = await saveAsOnDesktop(documentId, state, write, defaultName, missingSourceSaveAs, typeChoice);
         // Zie hieronder: een vervangen inhoud krijgt geen Recent (knownbug 1899).
         if (saved && sameDocumentContent(get(), snapshotContent(state))) await pushRecent(saved.outcome.ref, saved.outcome.name);
@@ -1711,6 +1742,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const payload = payloadFromImport(uniqueParsed, filePath);
       const replacesContent = !editing && payload.project.id !== current.project.id;
       const inheritsTarget = opts.filePath === undefined && opts.fileHandle === undefined && opts.siteFileId === undefined;
+      if (editing || inheritsTarget) payload.ifcxReferences = current.ifcxReferences;
       const ownSource = payload.ifcSource;
       if (!payload.ifcSource && inheritsTarget) payload.ifcSource = current.ifcSource;
       if (editing) {
@@ -1758,7 +1790,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         payload.siteFileId = null;
         payload.siteFileVersion = null;
       }
-      payload.fileFormat = editing || inheritsTarget ? current.fileFormat : parsed.ifcxRead ? 'ifcx' : 'ifc';
+      payload.fileFormat = editing || inheritsTarget ? current.fileFormat : parsed.ifcxRead || parsed.ifcxModel ? 'ifcx' : 'ifc';
+      if (parsed.ifcxModel) {
+        payload.filePath = null;
+        payload.fileHandle = null;
+        payload.siteFileId = null;
+        payload.siteFileVersion = null;
+      }
       const read = parsed.ifcxRead ?? (ownSource && ifcForeignContentEnabled(current.ui.featureFlags)
         ? { sha256: ownSource.sha256, byteLength: ownSource.bytes.byteLength, ...bomMark(ownSource.bytes) } : null);
       payload.knownTargetFingerprint = editing ? current.knownTargetFingerprint
@@ -1869,19 +1907,25 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     },
 
     applyOpenedImport: (parsed, opts) => {
-      const results = isMultiDocumentImport(parsed) ? parsed.results : [parsed];
+      const results: readonly ReadImportResult[] = isMultiDocumentImport(parsed) ? parsed.results : [parsed];
       if (results.length === 0) throw new Error('Openroute ontving geen projectdocumenten');
 
-      const reusedActiveTab = isActivePristine(get());
+      const opensModel = !isMultiDocumentImport(parsed) && !!parsed.ifcxModel;
+      const reusedActiveTab = !opensModel && isActivePristine(get());
       const openedDocumentIds: string[] = [];
       const minuteModelConversions: AppliedOpenedImport['minuteModelConversions'] = [];
       let datesAsRecordedShownTotal = 0;
       let taskTypesUnlockedDocs = 0;
       let freshShownTotal = 0;
       for (const result of results) {
-        if (!isActivePristine(get())) get().newDocument();
+        if (opensModel || !isActivePristine(get())) get().newDocument();
         openedDocumentIds.push(get().activeDocumentId);
         const conversion = get().applyLoadedProject(result, { ...opts, deferTaskTypesNotice: true });
+        const source = result.ifcxReferences?.modelSource;
+        if (source && (result.ifcxModel || !ifcxModelSession(result.ifcxReferences)?.elements)) {
+          get().notify({ severity: 'info', messageKey: result.ifcxModel ? 'ifcx.model.opened' : 'ifcx.model.unchecked',
+            params: { file: source.fileName }, sticky: !result.ifcxModel });
+        }
         if (conversion && conversion.shifted.length > 0) {
           minuteModelConversions.push({ documentId: get().activeDocumentId,
             shifted: [...conversion.shifted], maxWorkdays: conversion.maxWorkdays });
@@ -1937,7 +1981,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     },
 
     openAsDocument: (parsed, source) => {
-      const target = source.saveTarget === false
+      const model = !isMultiDocumentImport(parsed) && parsed.ifcxModel;
+      if (model && parsed.ifcxReferences) bindIfcxModel(parsed.ifcxReferences, source.ref, model);
+      const target = model || source.saveTarget === false
         ? { filePath: null, fileHandle: null, siteFileId: null }
         : saveTargetFor(readFormatForFile(source.name, formatReadOptions()), source.ref, source.name);
 
@@ -1986,6 +2032,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       try {
         for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
+        if (!isMultiDocumentImport(parsed) && parsed.ifcxRead && parsed.ifcxReferences?.modelSource) {
+          const handles = get().getOpenDocumentPayloads().flatMap(({ payload }) => {
+            const ref = ifcxModelSession(payload.ifcxReferences)?.ref;
+            return ref?.kind === 'handle' ? [ref.handle] : [];
+          });
+          handles.push(...get().recentFiles.flatMap(entry => entry.ref.kind === 'handle' ? [entry.ref.handle] : []));
+          await findIfcxModel(parsed.ifcxReferences, opened.ref, handles,
+            path => readBytesFromRef({ kind: 'path', path }), await fileIdentityFs());
+        }
         if (options?.waitWhile) {
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
         }
@@ -2225,6 +2280,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           });
         }
         notices.push(exportSplitsLostNotice(format, state.tasks));
+        notices.push(exportModelReferencesLostNotice(format, state));
         notices.push(exportCostResourcesLostNotice(format, state.resources));
         notices.push(exportP6TruncatedNotice(format, p6Truncated));
         notices.push(exportInvalidXmlCharsNotice(format, invalidXmlChars));
@@ -2311,6 +2367,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
+      const referencesLost = exportModelReferencesLostNotice('ifc', state);
+      if (referencesLost) get().notify(referencesLost);
       const companyId = state.project.companyId;
       if (!companyId) return { ok: true, warnings: [] };
       const poolContent = state.exportPoolIFC(companyId);

@@ -520,7 +520,7 @@
     "foreignChangesQuestion": "Ask before saving when IFC items outside the schedule are removed",
     "foreignChangesQuestionHint": "For a file with a building model. When off, the app saves right away and reports the number afterwards.",
     "ifcx": "Open and save IFCX",
-    "ifcxHint": "Opens an IFCX file that Open Planner Studio wrote itself, and saves such a file as IFCX again: with Save, Save As and Auto-save. In the desktop app, Save As also lets you choose the file type, IFC or IFCX; this is how you convert a schedule. IFCX is a new format under development; a later version of the app may refuse a file you save now. The app does not yet keep all data in IFCX: the source file of a P6 import (XER) is left out, and the app does not save a schedule with an embedded resource library as IFCX. Keep such data with Export → IFC. The app cannot open an IFCX file from another program yet.",
+    "ifcxHint": "Opens and saves IFCX schedules. You can open a model from another program with local building elements and no scheduling data to start a separate schedule file. Save that schedule manually as IFCX. Auto-save and crash recovery skip schedules with model references. For schedules without model references, Save As on desktop lets you choose between IFC and IFCX. IFCX is under development. A later version may refuse a file you save today. Use Export → IFC to keep a P6 source archive (XER) or an embedded resource library.",
     "tourHint": "Take the app's introductory tour again.",
     "theme": "Theme",
     "themeHint": "The interface's colour scheme.",
@@ -2098,7 +2098,7 @@
   },
   "ifcx": {
     "open": {
-      "foreign": "This IFCX file was not written by Open Planner Studio. The app cannot open files from other programs yet.",
+      "foreign": "The app cannot open this IFCX file. A new schedule requires a model with local building elements and no scheduling data.",
       "newer": "This IFCX file has a newer version than this app knows. Open it with a newer version of Open Planner Studio.",
       "unsupportedVersion": "This IFCX file has an IFCX version this app does not support, so it does not open.",
       "invalid": "This IFCX file differs from what Open Planner Studio writes, so it does not open.",
@@ -2115,7 +2115,14 @@
       "xerArchiveContinue": "Continue",
       "cancel": "Cancel"
     },
-    "fileDropRefused": "Not opened: {{names}}. The app only opens IFC, IFCX, XML, MPP, XER and CSV."
+    "fileDropRefused": "Not opened: {{names}}. The app only opens IFC, IFCX, XML, MPP, XER and CSV.",
+    "planSuffix": "schedule",
+    "model": {
+      "opened": "New schedule for {{file}}. The model stays unchanged.",
+      "unchecked": "The model {{file}} is missing or has changed. The element links are unchecked.",
+      "saveAsIfc": "Save this schedule as IFCX to keep its model references.",
+      "ifcExportLoss": "The model reference and element links stay in the IFCX schedule. The IFC export omits them."
+    }
   },
   "foreignChangesQuestion": {
     "title": "Save to {{file}}",

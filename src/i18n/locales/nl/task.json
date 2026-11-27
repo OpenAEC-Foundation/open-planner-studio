@@ -556,7 +556,8 @@
       "linked_one": "Gekoppeld aan {{count}} bouwdeel",
       "linked_other": "Gekoppeld aan {{count}} bouwdelen",
       "notFound_one": "{{count}} daarvan niet gevonden in dit bestand",
-      "notFound_other": "{{count}} daarvan niet gevonden in dit bestand"
+      "notFound_other": "{{count}} daarvan niet gevonden in dit bestand",
+      "unchecked": "De bouwdeelkoppelingen zijn ongecontroleerd."
     }
   },
   "relations": {
