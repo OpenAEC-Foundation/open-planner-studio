@@ -84,29 +84,37 @@ function pathsById<T extends { readonly id: string }>(items: readonly T[], pathO
   return out;
 }
 
+function pathsOf(input: IfcxModelReferences, globalIdOf: GlobalIdOfObject): GlobalIdOfObject {
+  return (kind, id) => {
+    const guid = globalIdOf(kind, id);
+    return input.sourcePaths?.[guid] ?? pathOfGlobalId(guid);
+  };
+}
+
 export function composeIfcxDocument(input: PlanningModel & IfcxModelReferences, writtenAt: Date, globalIdOf: GlobalIdOfObject): IfcxDocument {
+  const pathOf = pathsOf(input, globalIdOf);
   const { project, modelSource, elementLinks } = input;
-  const projectPath = pathOfGlobalId(globalIdOf('proj', project.id));
-  const workplanPath = pathOfGlobalId(globalIdOf('wp', project.id));
-  const schedulePath = pathOfGlobalId(globalIdOf('ws', project.id));
+  const projectPath = pathOf('proj', project.id);
+  const workplanPath = pathOf('wp', project.id);
+  const schedulePath = pathOf('ws', project.id);
   const resourceCalendars = input.resourceCalendars ?? [];
 
   const calendars: { calendar: WorkCalendar; isProjectCalendar: boolean; path: string }[] = [
-    { calendar: input.calendar, isProjectCalendar: true, path: pathOfGlobalId(globalIdOf('cal', input.calendar.id)) },
-    ...resourceCalendars.map(calendar => ({ calendar, isProjectCalendar: false, path: pathOfGlobalId(globalIdOf('cal', calendar.id)) })),
+    { calendar: input.calendar, isProjectCalendar: true, path: pathOf('cal', input.calendar.id) },
+    ...resourceCalendars.map(calendar => ({ calendar, isProjectCalendar: false, path: pathOf('cal', calendar.id) })),
   ];
   const canadianGeneration = calendars.some(({ calendar }) => calendar.generation?.ruleSetId === 'CA');
   const calendarPathById = new Map<string, string>();
   for (const node of calendars) if (!calendarPathById.has(node.calendar.id)) calendarPathById.set(node.calendar.id, node.path);
 
-  const taskPaths = input.tasks.map(task => pathOfGlobalId(globalIdOf('task', task.id)));
+  const taskPaths = input.tasks.map(task => pathOf('task', task.id));
   const taskPathById = new Map<string, string>();
   input.tasks.forEach((task, index) => { if (!taskPathById.has(task.id)) taskPathById.set(task.id, taskPaths[index]); });
   const places = childPlaces(input.tasks, taskPathById);
   const resources = input.resources ?? [];
-  const resourcePathById = pathsById(resources, resource => pathOfGlobalId(globalIdOf('res', resource.id)));
+  const resourcePathById = pathsById(resources, resource => pathOf('res', resource.id));
   const baselines = input.baselines ?? [];
-  const baselinePathById = pathsById(baselines, baseline => pathOfGlobalId(globalIdOf('bl', baseline.id)));
+  const baselinePathById = pathsById(baselines, baseline => pathOf('bl', baseline.id));
   const [comparedFirst, comparedSecond] = input.comparedBaselineIds ?? [null, null];
   const baselinePath = (id: string | null | undefined) => (id ? baselinePathById.get(id) : undefined);
 
@@ -166,7 +174,7 @@ export function composeIfcxDocument(input: PlanningModel & IfcxModelReferences, 
 
   for (const sequence of input.sequences) {
     const source = {
-      sequence, path: pathOfGlobalId(globalIdOf('seq', sequence.id)),
+      sequence, path: pathOf('seq', sequence.id),
       predecessorPath: taskPathById.get(sequence.predecessorId)!, successorPath: taskPathById.get(sequence.successorId)!,
       shared: sharedLagOf(sequence),
     };
@@ -192,7 +200,7 @@ export function composeIfcxDocument(input: PlanningModel & IfcxModelReferences, 
 
   for (const assignment of input.assignments ?? []) {
     const source = {
-      assignment, path: pathOfGlobalId(globalIdOf('asgn', assignment.id)),
+      assignment, path: pathOf('asgn', assignment.id),
       taskPath: taskPathById.get(assignment.taskId)!, resourcePath: resourcePathById.get(assignment.resourceId)!,
     };
     data.push({ path: source.path, attributes: attributesOf([
@@ -202,7 +210,7 @@ export function composeIfcxDocument(input: PlanningModel & IfcxModelReferences, 
   }
 
   for (const baseline of baselines) {
-    const source = { baseline, path: baselinePathById.get(baseline.id)!, taskPathById };
+    const source = { baseline, path: baselinePathById.get(baseline.id)!, taskPathById, sourceStart: input.baselineStarts?.[baseline.id] };
     data.push({ path: source.path, attributes: attributesOf([
       [ATTRIBUTE.baseline, writeFields(BASELINE_SHARED_FIELDS, source)],
       [ATTRIBUTE.opsBaseline, writeFields(BASELINE_FIELDS, source)],
@@ -221,17 +229,18 @@ export function composeIfcxDocument(input: PlanningModel & IfcxModelReferences, 
   };
 }
 
-export function objectLabels(input: PlanningModel, globalIdOf: GlobalIdOfObject): Map<string, string> {
+export function objectLabels(input: PlanningModel & IfcxModelReferences, globalIdOf: GlobalIdOfObject): Map<string, string> {
+  const pathOf = pathsOf(input, globalIdOf);
   const labels = new Map<string, string>([
-    [pathOfGlobalId(globalIdOf('wp', input.project.id)), 'het werkplan'],
-    [pathOfGlobalId(globalIdOf('ws', input.project.id)), 'het werkschema'],
+    [pathOf('wp', input.project.id), 'het werkplan'],
+    [pathOf('ws', input.project.id), 'het werkschema'],
   ]);
-  for (const calendar of [input.calendar, ...(input.resourceCalendars ?? [])]) labels.set(pathOfGlobalId(globalIdOf('cal', calendar.id)), `kalender ${calendar.id}`);
-  for (const task of input.tasks) labels.set(pathOfGlobalId(globalIdOf('task', task.id)), `taak ${task.id} (${task.name})`);
-  for (const sequence of input.sequences) labels.set(pathOfGlobalId(globalIdOf('seq', sequence.id)), `relatie ${sequence.id}`);
-  for (const resource of input.resources ?? []) labels.set(pathOfGlobalId(globalIdOf('res', resource.id)), `resource ${resource.id} (${resource.name})`);
-  for (const assignment of input.assignments ?? []) labels.set(pathOfGlobalId(globalIdOf('asgn', assignment.id)), `toewijzing ${assignment.id}`);
-  for (const baseline of input.baselines ?? []) labels.set(pathOfGlobalId(globalIdOf('bl', baseline.id)), `baseline ${baseline.id} (${baseline.name})`);
+  for (const calendar of [input.calendar, ...(input.resourceCalendars ?? [])]) labels.set(pathOf('cal', calendar.id), `kalender ${calendar.id}`);
+  for (const task of input.tasks) labels.set(pathOf('task', task.id), `taak ${task.id} (${task.name})`);
+  for (const sequence of input.sequences) labels.set(pathOf('seq', sequence.id), `relatie ${sequence.id}`);
+  for (const resource of input.resources ?? []) labels.set(pathOf('res', resource.id), `resource ${resource.id} (${resource.name})`);
+  for (const assignment of input.assignments ?? []) labels.set(pathOf('asgn', assignment.id), `toewijzing ${assignment.id}`);
+  for (const baseline of input.baselines ?? []) labels.set(pathOf('bl', baseline.id), `baseline ${baseline.id} (${baseline.name})`);
   return labels;
 }
 

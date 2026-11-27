@@ -2098,11 +2098,12 @@
   },
   "ifcx": {
     "open": {
-      "foreign": "De app opent dit IFCX-bestand niet. Voor een nieuwe planning is een model met lokale bouwdelen zonder planningsgegevens nodig.",
+      "foreign": "De app kan dit IFCX-bestand niet als planning of bouwmodel openen.",
       "newer": "Dit IFCX-bestand heeft een nieuwere versie dan deze app kent. Open het met een nieuwere versie van Open Planner Studio.",
       "unsupportedVersion": "Dit IFCX-bestand heeft een IFCX-versie die deze app niet ondersteunt, dus het opent niet.",
-      "invalid": "Dit IFCX-bestand wijkt af van wat Open Planner Studio schrijft en opent daarom niet.",
-      "notIfcx": "Dit bestand is geen IFCX-bestand."
+      "invalid": "Het IFCX-bestand bevat ongeldige gegevens en kan niet worden geopend.",
+      "notIfcx": "Dit bestand is geen IFCX-bestand.",
+      "noPlanning": "Dit IFCX-bestand bevat geen ondersteunde planningsgegevens of lokale bouwdelen."
     },
     "writeRefused": "Het IFCX-bestand is niet geschreven. Deze planning bevat gegevens die de app nog niet in IFCX bewaart, of de controle na het schrijven vond een verschil. Bewaar de planning met Exporteren → IFC.",
     "flagOff": "Dit is een IFCX-bestand. Zet de experimentele functie IFCX openen en opslaan aan om het op te slaan, of sla de planning op als IFC met Opslaan als.",
@@ -2123,6 +2124,14 @@
       "unchecked": "Het model {{file}} ontbreekt of is gewijzigd. De bouwdeelkoppelingen zijn ongecontroleerd.",
       "saveAsIfc": "Sla deze planning als IFCX op om de modelverwijzingen te bewaren.",
       "ifcExportLoss": "De modelverwijzing en de bouwdeelkoppelingen staan alleen in de IFCX-planning. De IFC-export bevat ze niet."
+    },
+    "import": {
+      "opened": "Planning uit {{file}} geopend. Bij opslaan maak je een eigen planningsbestand.",
+      "origin": "Herkomst volgens de bestandskop: {{origin}}.",
+      "leftBehind": "Alleen in {{file}}: {{items}}.",
+      "workplans": "Overige werkplannen in het bronbestand ({{total}}): {{paths}}.",
+      "manual": "Taken die door een gewijzigde datum nu handmatig zijn gepland: {{total}}.",
+      "noTasks": "Geen ondersteunde planningsgegevens gevonden."
     }
   },
   "foreignChangesQuestion": {

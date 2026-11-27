@@ -1,16 +1,17 @@
 import type { ImportResult } from '@/services/importTypes';
 import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { withRenamedPlanningIds } from '@/services/ifc/foreign/planningIdentity';
+import { stepAssignmentIds } from '@/services/ifc/assignmentKeys';
 import { precomputeSha256, sha256Hex } from '@/services/xerSourceArchive';
 
-export type RecoveryIdentityRow = readonly [seed: string, sessionGlobalId: string, writtenGlobalId: string];
+export type RecoveryIdentityRow = readonly [seed: string, sessionGlobalId: string, writtenIdentity: string];
 
 export interface RecoverySnapshotIdentities {
   readonly sha256: string;
   readonly rows: readonly RecoveryIdentityRow[];
 }
 
-const KINDS = ['task', 'res', 'cal', 'seq'] as const;
+const KINDS = ['task', 'res', 'cal', 'seq', 'asgn', 'bl'] as const;
 type Kind = typeof KINDS[number];
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 const isKind = (kind: string): kind is Kind => (KINDS as readonly string[]).includes(kind);
@@ -28,6 +29,13 @@ function objectIds(planning: Planning): ReadonlyMap<Kind, readonly string[]> {
     ['cal', (planning.resourceCalendars ?? []).filter(c => c.id !== planning.calendar.id).map(c => c.id)],
     ['seq', planning.sequences.map(s => s.id)],
   ]);
+}
+
+function ifcxStepKeys(input: ImportResult, resourceGuid: (id: string) => string): Map<string, string> {
+  const keys = new Map<string, string>();
+  stepAssignmentIds(input.assignments, resourceGuid).forEach((key, i) => keys.set(`asgn:${input.assignments[i].id}`, key));
+  for (const baseline of input.baselines ?? []) keys.set(`bl:${baseline.id}`, baseline.id);
+  return keys;
 }
 
 function filledText(row: readonly unknown[], position: number): string | null {
@@ -103,10 +111,20 @@ function identityRows(input: WriteIFCInput, issuedGlobalIds: ReadonlyMap<string,
   return rows;
 }
 
+function ifcxRows(input: WriteIFCInput, keys: ReadonlyMap<string, string>): RecoveryIdentityRow[] {
+  const rows: RecoveryIdentityRow[] = [];
+  const kept = input.ifcGlobalIds ?? {};
+  for (const [seed, key] of keys) {
+    const globalId = ownValue(kept, seed);
+    if (globalId !== undefined) rows.push([seed, globalId, key]);
+  }
+  return rows;
+}
+
 export function snapshotIdentities(
-  input: WriteIFCInput, issuedGlobalIds: ReadonlyMap<string, string>, ifc: string,
+  input: WriteIFCInput, issuedGlobalIds: ReadonlyMap<string, string>, ifc: string, ifcx = false,
 ): RecoverySnapshotIdentities | undefined {
-  const rows = identityRows(input, issuedGlobalIds);
+  const rows = ifcx ? ifcxRows(input, ifcxStepKeys(input, id => issuedGlobalIds.get(`res:${id}`)!)) : identityRows(input, issuedGlobalIds);
   return rows.length > 0 && recoveryIdentityRows(rows) ? { sha256: textSha256(ifc), rows } : undefined;
 }
 
@@ -119,16 +137,22 @@ export function reproducesIdentities(
     && identityRows(input, issuedGlobalIds).every(row => coupled.has(JSON.stringify(row)));
 }
 
-export function withRecoveryIdentities<T extends ImportResult>(parsed: T, rows: readonly RecoveryIdentityRow[]): T {
+export function withRecoveryIdentities<T extends ImportResult>(parsed: T, rows: readonly RecoveryIdentityRow[], ifcx = false): T {
   const globalIds = parsed.ifcGlobalIds ?? {};
-  const ids = objectIds(parsed);
   const byWritten = new Map<Kind, Map<string, string[]>>(KINDS.map(kind => [kind, new Map()]));
-  for (const [kind, list] of ids) {
-    for (const id of list) {
-      const written = ownValue(globalIds, `${kind}:${id}`);
-      if (written === undefined) continue;
-      const holders = byWritten.get(kind)!;
-      holders.set(written, [...(holders.get(written) ?? []), id]);
+  const index = (kind: Kind, id: string, written: string | undefined) => {
+    if (written === undefined) return;
+    const holders = byWritten.get(kind)!;
+    holders.set(written, [...(holders.get(written) ?? []), id]);
+  };
+  if (ifcx) {
+    for (const [seed, written] of ifcxStepKeys(parsed, id => globalIds[`res:${id}`])) {
+      const kind = kindOf(seed) as Kind;
+      index(kind, seed.slice(kind.length + 1), written);
+    }
+  } else {
+    for (const [kind, ids] of objectIds(parsed)) {
+      for (const id of ids) index(kind, id, ownValue(globalIds, `${kind}:${id}`));
     }
   }
   const renames = new Map<Kind, Map<string, string>>(KINDS.map(kind => [kind, new Map()]));
@@ -137,12 +161,18 @@ export function withRecoveryIdentities<T extends ImportResult>(parsed: T, rows: 
     const kind = kindOf(seed) as Kind, sessionId = seed.slice(kind.length + 1);
     const found = byWritten.get(kind)!.get(written);
     if (found?.length !== 1) return parsed;
-    renames.get(kind)!.set(found[0], sessionId);
-    removedSeeds.add(`${kind}:${found[0]}`);
-    restoredGlobalIds.set(seed, sessionGlobalId);
+    const readSeed = `${kind}:${found[0]}`;
+    if (ifcx) {
+      restoredGlobalIds.set(readSeed, sessionGlobalId);
+    } else {
+      renames.get(kind)!.set(found[0], sessionId);
+      removedSeeds.add(readSeed);
+      restoredGlobalIds.set(seed, sessionGlobalId);
+    }
   }
   const nextGlobalIds = new Map(Object.entries(globalIds).filter(([seed]) => !removedSeeds.has(seed)));
   for (const [seed, globalId] of restoredGlobalIds) nextGlobalIds.set(seed, globalId);
+  if (ifcx) return { ...parsed, ifcGlobalIds: Object.fromEntries(nextGlobalIds) };
   const resource = renames.get('res')!, calendar = renames.get('cal')!, sequence = renames.get('seq')!;
   const renamed = withRenamedPlanningIds(parsed, {
     resource: id => resource.get(id) ?? id,

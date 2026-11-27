@@ -1,3 +1,5 @@
+import type { ResourceAssignment } from '@/types/resource';
+
 export interface UnusedAssignmentKey {
   readonly name: string;
   readonly value: string;
@@ -7,6 +9,15 @@ const NUMBERED_KEY = /^(.+)#(\d+)$/;
 
 export function assignmentKeyName(resourceGuid: string, place: number): string {
   return `${resourceGuid}#${place}`;
+}
+
+export function stepAssignmentIds(assignments: readonly ResourceAssignment[], resourceGuid: (id: string) => string): string[] {
+  const places = new Map<string, number>();
+  return assignments.map(assignment => {
+    const place = places.get(assignment.taskId) ?? 0;
+    places.set(assignment.taskId, place + 1);
+    return `asgn-${assignment.taskId}/${assignmentKeyName(resourceGuid(assignment.resourceId), place)}`;
+  });
 }
 
 export function isAssignmentKeyName(name: string): boolean {

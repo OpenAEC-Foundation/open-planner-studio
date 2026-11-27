@@ -21,7 +21,10 @@ wel bewaart, weigert de writer (zie *Wat de writer weigert*).
 
 Sinds profiel `1.2.0` kan het eigen planningsbestand ook verwijzen naar een los IFCX-model en naar bouwdelen
 in dat model. De bronverwijzing staat op het werkplan en elke bouwdeelkoppeling op de bijbehorende taak.
-Het lezen en opslaan van deze gegevens vanuit de app volgt in een volgend deel van fase 4.
+Met de schakelaar IFCX opent de app ook een bestand van een ander programma met bekende attributen in
+`openaec::planning::`. De eerste opslag maakt een eigen planningsbestand naast de bron. Ook zonder bouwdelen
+houdt de planning de naam en SHA-256 van het oorspronkelijke bestand. Bij openen toont de app welke onbekende
+gegevens en overige werkplannen alleen in de bron staan.
 
 **De profielversie.** Verandert later de projectie van de writer (wat de writer voor een planning in het bestand zet,
 gedeeld of precies), dan gaat de profielversie (`formatVersion`) omhoog, en moet de lezer voor een bestand met de oude
@@ -164,15 +167,19 @@ teruggeeft.
 
 ## Paden en identiteit
 
-Het pad van een object volgt uit zijn GlobalId, met één functie heen en terug (`pathOfGlobalId` en `globalIdOfPath` in
+Het pad van een nieuw object volgt uit zijn GlobalId, met één functie heen en terug (`pathOfGlobalId` en `globalIdOfPath` in
 `identityPath.ts`). De GlobalId is die van de STEP-uitkomst (R1), dus wat STEP bij heropenen teruggeeft.
 
 - Een **compacte IFC-GlobalId** (22 tekens uit het IFC-alfabet, eerste teken `0`–`3`: precies 128 bits) krijgt als pad
   de UUID van die 128 bits, in kleine letters met streepjes.
 - **Elke andere tekst** (een oude `ifcGuid`, een GlobalId van een ander programma) krijgt als pad `t-` gevolgd door
   vier kleine hexcijfers per UTF-16-teken: `oud-1` wordt `t-006f00750064002d0031`.
-- De lezer kent alleen deze twee vormen. Een `t-`-pad dat een compacte GlobalId uitspelt, is geen pad: die GlobalId
+- Voor een eigen bestand zonder bronverwijzing kent de lezer alleen deze twee vormen. Een `t-`-pad dat een compacte GlobalId uitspelt, is geen pad: die GlobalId
   heeft haar UUID als enige pad. Een UUID met hoofdletters is ook geen pad.
+- In een eigen planningsbestand met bronverwijzing houden overgenomen objecten hun exacte IFCX-pad, ook
+  `/planning/work-0`. Onderlinge verwijzingen gebruiken hetzelfde pad. De app bewaart afwijkende paden bij
+  de GlobalIds in `ifcxReferences.sourcePaths`. Zo blijft een pad bruikbaar als STEP tijdens het schrijven
+  een intern id afleidt. De strikte toets op de eigen schrijfvorm geldt ook voor dit bestand.
 
 **Waarom dat één-op-één is.** Binnen de eerste vorm is de afbeelding een omzetting van dezelfde 128 bits, heen en
 terug. Binnen de tweede vorm geeft elk teken vier vaste cijfers, dus verschillende teksten geven verschillende paden en
@@ -690,7 +697,9 @@ blijft de strikte vergelijking naast de bytes. De kop toetst de schrijver altijd
 
 **Wat buiten de vergelijking valt**, met de reden:
 
-- `header.timestamp`: het moment van schrijven, geen planningsgegeven; elke schrijfactie geeft een ander.
+- `header.timestamp` is het moment van schrijven. Voor een planning met bronverwijzing bewaart de app de
+  eigen planningsbytes van de laatste opslag of opening. Zolang de opslagvelden gelijk blijven, gebruikt
+  ook een volgende download dezelfde bytes en tijdstempel. De gewone doelcontrole geldt bij elke opslag.
 
 Een leesmoment komt er niet in: de lezer gaat niet door STEP en vult niets in.
 

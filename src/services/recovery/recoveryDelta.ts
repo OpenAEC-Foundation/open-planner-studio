@@ -142,6 +142,8 @@ function snapshotOf(output: string | RecoverySnapshot, tracked: boolean): { ifc:
 const identitiesOf = ({ tracked, identities }: SnapshotIdentities): SnapshotIdentities =>
   identities ? { tracked, identities } : { tracked };
 
+const tracksIdentities = (doc: RecoverySourceDocument) => doc.ifcSource !== undefined || !!doc.ifcx?.references;
+
 /** De vergelijkingscache heeft de bronbytes niet nodig (IFC_DIRTY_KEYS). */
 function comparisonSource(source: IFCSaveSource): IFCSaveSource {
   return source.ifcSource ? { ...source, ifcSource: null } : source;
@@ -179,7 +181,7 @@ export class RecoveryDeltaTracker {
     // Eén worker houdt het geheugengebruik begrensd; andere documenten wachten op hun beurt.
     for (const document of delta.changedDocuments) {
       if (!this.cachedSnapshot(document)) {
-        const tracked = document.ifcSource !== undefined;
+        const tracked = tracksIdentities(document);
         try {
           const snapshot = snapshotOf(await serialize(document.source, tracked), tracked);
           this.serialized.set(document.id, { source: comparisonSource(document.source), ...snapshot });
@@ -217,12 +219,12 @@ export class RecoveryDeltaTracker {
 
   private cachedSnapshot(document: RecoverySourceDocument): ({ ifc: string } & SnapshotIdentities) | undefined {
     const cached = this.serialized.get(document.id);
-    if (!cached || !sameIFCSource(cached.source, document.source) || (document.ifcSource !== undefined && !cached.tracked)) return undefined;
+    if (!cached || !sameIFCSource(cached.source, document.source) || (tracksIdentities(document) && !cached.tracked)) return undefined;
     return { ifc: cached.ifc, ...identitiesOf(cached) };
   }
 
   private manifestDocument(document: RecoverySourceDocument): RecoveryDocMetadata {
-    const identities = document.ifcSource ? (this.upserted.get(document.id) ?? this.committed.get(document.id))?.identities : undefined;
+    const identities = tracksIdentities(document) ? (this.upserted.get(document.id) ?? this.committed.get(document.id))?.identities : undefined;
     return { ...metadataOf(document), ...(identities ? { snapshotIdentities: identities } : {}) };
   }
 
@@ -254,7 +256,7 @@ export class RecoveryDeltaTracker {
     if (!delta.needsPersist) return null;
     this.upserted = new Map();
     const upserts: RecoveryDocContent[] = delta.changedDocuments.map((document) => {
-      const tracked = document.ifcSource !== undefined;
+      const tracked = tracksIdentities(document);
       const snapshot = this.cachedSnapshot(document) ?? snapshotOf(serialize(document.source, tracked), tracked);
       this.serialized.set(document.id, { ...snapshot, source: comparisonSource(document.source) });
       this.upserted.set(document.id, identitiesOf(snapshot));

@@ -6,7 +6,8 @@ import { isIfcxName } from '@/utils/filePath';
 import type { DocumentFileFormat } from './documentContract';
 import type { IFCWriteInput } from './ifcSaveInput';
 import { refusalNotice } from './refusalNotice';
-import type { NotifyInput } from './slices/types';
+import type { NotificationDetailLine, NotifyInput } from './slices/types';
+import type { ReadImportResult } from '@/services/importTypes';
 
 export type { DocumentFileFormat };
 
@@ -65,4 +66,23 @@ export const IFCX_NAME_MISMATCH_NOTICE: NotifyInput = refusalNotice({ messageKey
 export function ifcxWriteRefusedNotice(error: IfcxWriteRefusedError): NotifyInput {
   const detail = error.fields.length > 0 ? error.fields.join(', ') : error.message;
   return refusalNotice({ messageKey: 'ifcx.writeRefused', detail, dedupeKey: 'ifcx-write-refused', replaceOnDedupe: true });
+}
+
+export function ifcxImportNotice(file: string, summary: NonNullable<ReadImportResult['ifcxImport']>): NotifyInput {
+  const { leftBehind, convertedToManual, origin, planningContent } = summary;
+  const detailLines: NotificationDetailLine[] = [];
+  const header = [origin.author, origin.id].filter(Boolean).join(' · ');
+  if (!origin.hasOpsDocument && header) detailLines.push({ messageKey: 'ifcx.import.origin', params: { origin: header } });
+  if (planningContent === 'unknown-only') detailLines.push({ messageKey: 'ifcx.import.noTasks' });
+  const items = [
+    ...leftBehind.attributes.map(({ attribute, count }) => `${attribute} (×${count})`),
+    ...leftBehind.fields.map(({ attribute, field, count }) => `${attribute}.${field} (×${count})`),
+    ...leftBehind.linkRelations.map(({ relation, count }) => `openaec::links/${relation} (×${count})`),
+  ];
+  if (items.length) detailLines.push({ messageKey: 'ifcx.import.leftBehind', params: { file, items: items.join(', ') } });
+  if (leftBehind.workplans.length) detailLines.push({ messageKey: 'ifcx.import.workplans',
+    params: { total: leftBehind.workplans.length, paths: leftBehind.workplans.join(', ') } });
+  if (convertedToManual) detailLines.push({ messageKey: 'ifcx.import.manual', params: { total: convertedToManual } });
+  return { severity: 'info', messageKey: planningContent === 'known' ? 'ifcx.import.opened' : 'ifcx.model.opened',
+    params: { file }, detailLines, sticky: true };
 }
