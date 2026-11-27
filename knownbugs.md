@@ -1769,6 +1769,27 @@ en noem het in je rapport of PR-tekst.
       (`commitOnInputEnter` en haar layout-effect in `src/components/dialogs/CalendarDialog.tsx`) neemt die datum aan
       en schrijft de feestdag naar het project. Voorstel: laat de scheidingstoets de bestaande selectie staan als het
       veld zojuist automatisch is doorgesprongen. Issue #1296. — B
+2520. **Verwijderen en Dissolve in het lint staan aan onder het volledige resourcepaneel, en verwijderen dan een
+      taak die niet in beeld is.** De sneltoetsen Delete en Backspace zijn daar dicht (`isTaskListOutOfView` in
+      `src/hooks/keyboard/shortcutRegistry.ts`, op `isTaskListInView`), het relatiemenu ook
+      (`relationActionAvailability` in `ribbonWidgets.tsx`). De lintknop Verwijderen (`COMMANDS.delete`, alleen
+      `hasSelection`) en de knop Dissolve (`editGroup` in `ribbonConfig.tsx`, alleen `selectedTaskIds.length > 0`)
+      kijken daar niet naar. Proef in Node met een eigen store-context (`createAppStoreContext`): nieuw project met
+      taken A en B, A geselecteerd, op Resources `setUI({ showResourcePanel: true, resourcePanelDocked: false })`, dan
+      naar Start en naar Tabel. Op beide tabbladen is `isGanttWorkspaceVisible` en `isTaskListInView` onwaar (de
+      werkruimte toont dan `ResourcePanel`, `App.tsx`), de selectie blijft staan en `isCommandEnabled(COMMANDS.delete)`
+      is waar; `COMMANDS.delete.run` brengt het aantal taken van 2 naar 1. Het klikken zelf is niet in de browser
+      nagespeeld. — B
+2521. **Waarschuwingspaneel en Verschuivingen in het lint zetten hun paneel uit als je op de niet-actieve knop klikt
+      terwijl het paneel aan staat maar niet in beeld is.** De knoppen (`warningsPanelButton` en
+      `scheduleShiftPanelButton` in `ribbonConfig.tsx`) zijn alleen actief als de rail in beeld is, maar hun klik keert
+      de vlag om (`COMMANDS.toggleWarningsPanel`, `setUI({ showScheduleShiftPanel: !showScheduleShiftPanel })`).
+      Eigenschappen en Resourcedock kiezen op de getoonde stand. Proef in Node met een eigen store-context: nieuw
+      project, `showWarningsPanel` en `showScheduleShiftPanel` aan, dan (a) `rightPanelCollapsed: true`, of (b) op
+      Beeld het volledige resourcepaneel (`showResourcePanel: true`, `resourcePanelDocked: false`). In beide gevallen
+      zijn de knoppen niet actief; na de klik van elk staan beide vlaggen uit, blijft de rail uit beeld en is (a) nog
+      ingeklapt. Met Eigenschappen in dezelfde opzet komt de rail na één klik in beeld met het paneel aan. Ctrl+Shift+L
+      voert dezelfde opdracht uit als de knop Waarschuwingspaneel. Niet in de browser nagespeeld. — B
 
 ## Kalenders
 
