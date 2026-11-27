@@ -7971,6 +7971,16 @@ en noem het in je rapport of PR-tekst.
       verliezen noemt die de app herkent. Richting: een regel in de verliesmelding voor de ingevulde einddatum, of de
       datum meeschrijven. — S
 
+2396. **Een IFCX-bouwdeel waarvan de klasse alleen via lokale erfenis geldt, ontbreekt in de bronindex.**
+      `readIfcxModelSource` leest bijdragen op hun letterlijk opgegeven pad. Het volgt geen `inherits` of
+      `children` om een klasse op een ander pad te bepalen. Vóór de IFCX-flag standaard aan gaat, de samengestelde
+      kindpaden en erfenis over meerdere lagen toetsen, ook bij een cyclus. — S (ontwerpstap fase 4, §6)
+
+2397. **De leestijd en het piekgeheugen voor een groot extern IFCX-model zijn onbekend.** De proef van
+      `readIfcxModelSource` gebruikt kleine bestanden. Meet vóór het standaard aanzetten van IFCX in CI
+      hoeveel tijd en geheugen het hashen, decoderen en indexeren van echte modellen met geometrie kost.
+      De meting onder 2350 gaat over het opslaan van een planning. — S (ontwerpstap fase 4, §4 en §6)
+
 2408. **Gids: niet elke regel in de XER-verliesmelding noemt een aantal.** *Import- en exportformaten*
       (`public/docs/nl/ref-import-exportformaten.md` en de Engelse) zegt dat de melding na een export naar `.xer` per
       soort een regel met een aantal toont, bijvoorbeeld *2 deadlines*. De regels over rekeninstellingen en
