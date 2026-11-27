@@ -29,8 +29,8 @@ export async function runRecoveryTick(
   onSourceCopyFailure?: (documentId: string) => void,
 ): Promise<boolean> {
   return tracker.runExclusive(async () => {
-    const retained = documents.filter(document => !document.source.ifcxReferences);
-    const active = activeDocumentId && documents.some(doc => doc.id === activeDocumentId && doc.source.ifcxReferences)
+    const retained = documents.filter(document => !document.source.ifcxReferences || document.ifcx?.references);
+    const active = activeDocumentId && documents.some(doc => doc.id === activeDocumentId && doc.source.ifcxReferences && !doc.ifcx?.references)
       ? retained[0]?.id ?? null : activeDocumentId;
     try {
       if (!enabled()) return false;

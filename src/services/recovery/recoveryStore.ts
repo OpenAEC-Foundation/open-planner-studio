@@ -12,7 +12,7 @@ import {
 import { writeBytesFileAtomic, writeTextFileAtomic } from '@/services/fileAccess/atomicWrite';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { parseForeignSourceTarget, sameForeignSourceTarget, type ForeignSourceTarget } from '@/services/ifc/foreign/foreignSourceMark';
-import { checkRecoveryDocumentIds, checkRecoveryDocuments, checkRecoveryManifestVersion, RecoveryManifestError, RECOVERY_MANIFEST_VERSION } from './recoveryManifest';
+import { checkRecoveryDocumentIds, checkRecoveryDocuments, checkRecoveryManifestVersion, RecoveryManifestError, recoveryManifestVersion } from './recoveryManifest';
 export { RECOVERY_MANIFEST_VERSION, RecoveryManifestError } from './recoveryManifest';
 
 export interface RecoveryDocContent {
@@ -480,13 +480,11 @@ async function saveTauri(input: RecoverySaveInput): Promise<void> {
   for (const d of plan.carryOver) adoptedIfc.add(d.ifc);
 
   const currentIds = new Set(snapshotPlan.documents.map((document) => document.id));
+  const documents = [...snapshotPlan.documents, ...plan.carryOver.filter(document => !currentIds.has(document.id))];
   const manifest: RecoveryManifest = {
-    version: RECOVERY_MANIFEST_VERSION,
+    version: recoveryManifestVersion(documents),
     activeDocumentId: input.activeDocumentId,
-    documents: [
-      ...snapshotPlan.documents,
-      ...plan.carryOver.filter((document) => !currentIds.has(document.id)),
-    ],
+    documents,
     ownerId: instanceId,
     heartbeatAt: Date.now(),
   };
@@ -529,7 +527,7 @@ export function parseRecoveryManifest(raw: string): RecoveryManifest | null {
   }
   const m = parsed as RecoveryManifest;
   checkRecoveryManifestVersion(m.version);
-  checkRecoveryDocuments(m.documents);
+  checkRecoveryDocuments(m.documents, m.version);
   return m;
 }
 
@@ -654,6 +652,7 @@ async function clearOwnTauri(): Promise<void> {
     try { await remove(manifestPath); } catch { }
   } else if (plan.manifest !== 'keep' && manifest) {
     const next: RecoveryManifest = { ...manifest, documents: plan.manifest, heartbeatAt: Date.now() };
+    if (next.version > 5) next.version = recoveryManifestVersion(next.documents);
     if (!plan.manifest.some((d) => d.id === next.activeDocumentId)) next.activeDocumentId = plan.manifest[0].id;
     await writeTextFileAtomic(dir, manifestName, JSON.stringify(next), TMP_SUFFIX);
   }
@@ -868,7 +867,7 @@ function checkWebManifest(value: unknown): WebManifestRecord {
     if (m.documents !== undefined) throw new RecoveryManifestError('invalid-shape');
     checkRecoveryDocumentIds(m.docIds);
   } else {
-    checkRecoveryDocuments(m.documents);
+    checkRecoveryDocuments(m.documents, m.version);
   }
   return m;
 }
@@ -1069,7 +1068,7 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
 
           const manifest: WebManifestRecord = {
             id: manifestKey(sid), kind: 'manifest', sessionId: sid,
-            version: RECOVERY_MANIFEST_VERSION,
+            version: recoveryManifestVersion(input.documents),
             activeDocumentId: input.activeDocumentId,
             documents: input.documents.map((document) => ({
               id: document.id,
