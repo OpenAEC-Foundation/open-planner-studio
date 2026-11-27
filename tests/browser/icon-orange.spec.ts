@@ -14,6 +14,7 @@
 // van de plek eromheen.
 import type { Page } from '@playwright/test';
 import { FORMAT_NOTICE_KINDS } from '@/services/formatNoticeKinds';
+import { RELEASES_API } from '@/services/updater/releaseInfo';
 import { expect, seedProject, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 
 test.beforeEach(async ({ page, ops: _ops }) => {
@@ -85,6 +86,7 @@ for (const theme of ['light', 'dark'] as const) {
 
 for (const theme of ['light', 'dark'] as const) {
   test(`iconen (${theme}): nooit helemaal oranje in meldingen, taakvelden, dialogen en het menu Bestand`, async ({ page, ops: _ops }) => {
+    await page.route(RELEASES_API, route => route.fulfill({ json: [] }));
     await setTheme(page, theme);
     const [first, second] = await seedProject(page, [
       { name: 'Fundering', start: '2026-06-01', finish: '2026-06-12', durationDays: 10 },
