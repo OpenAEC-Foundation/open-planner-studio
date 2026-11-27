@@ -1,48 +1,26 @@
-// Eén tekenregel voor de baselinestrook onder een taakbalk, gedeeld door het scherm
-// (`GanttRenderer`) en de afdruk/PDF (`printPreview`), net als `paintProgressBarPiece` voor de balk.
-//
-// De Gantt toont de actieve baseline plus tot twee vergelijkingsbaselines (issue #391) in ÉÉN strook.
-// Elke baseline is een eigen lijn binnen die strook (issue #741), in een vaste volgorde van boven naar
-// onder (plaats 0, 1, 2):
-//   - loopt er één baseline: die heeft de volle dikte, en begin en einde zijn recht afgesneden;
-//   - lopen er meer tegelijk: ze delen de hoogte, en de overgang is vloeiend (`baselineLanes`);
-//   - raken baselines elkaar niet: losse lijnen.
-// Mijlpalen krijgen een ruit per datum; vallen meerdere baselines op dezelfde datum, dan één gestreepte
-// ruit.
-//
-// Alles wordt als veelhoek getekend (geen canvaspatroon, geen clip), omdat de afdruklaag (`Draw2D`,
-// ook de vector-PDF) die niet kent. Zo zijn scherm en papier per constructie gelijk.
-
 import { MS_PER_DAY, parseDate, parseInstant } from '@/utils/dateUtils';
 import { finishInstant } from '@/utils/taskDates';
 
-/** Kleurplaats van een baseline in de strook: 0 = actief, 1 en 2 = de vergelijkingsbaselines. */
 export type BaselineSlot = 0 | 1 | 2;
 
-/** Eén baseline van één taak als horizontale strook (x in px). */
 export interface BaselineBar {
   slot: BaselineSlot;
   x1: number;
   x2: number;
 }
 
-/** Eén baseline-mijlpaal van één taak (x = midden van de ruit, in px). */
 export interface BaselineMilestone {
   slot: BaselineSlot;
   x: number;
-  /** Het moment van de mijlpaal (`baselineSpanX`). Mijlpalen delen alleen een ruit bij hetzelfde
-   *  moment: op de werkdag-as vallen ook verschillende momenten (za en zo) op dezelfde x. */
   moment: string;
 }
 
-/** Begin en einde van één baseline van één taak, zoals de baseline ze bewaart. */
 export interface BaselineSpan {
   start: string;
   finish: string;
   isMilestone: boolean;
 }
 
-/** Plaats van één baseline op de tijdas: een strook of een mijlpaal. */
 export type BaselineSpanX = { kind: 'bar'; x1: number; x2: number } | { kind: 'milestone'; x: number; moment: string };
 
 export function baselineStart(span: BaselineSpan): { date: Date; hourMode: boolean } | null {
@@ -54,17 +32,6 @@ export function baselineStart(span: BaselineSpan): { date: Date; hourMode: boole
   return Number.isNaN(date.getTime()) ? null : { date, hourMode };
 }
 
-/**
- * Zet één baseline om naar x, met dezelfde regel als de taakbalk (`barGeometry` in de renderer):
- *  - datum mét tijd (urentaak, bv. een MSPDI-baseline van een urentaak): `[start, einde)` op het
- *    tijdstip zelf, zonder een hele dag erbij; een mijlpaal op haar tijdstip;
- *  - datum zonder tijd (dagtaak): de hele dag, `[start, begin van de dag na het einde)`, allebei via
- *    de as; een mijlpaal midden op de dag. Het exclusieve einde gaat via de as en niet als
- *    `dateToX(einde) + dayWidth`: op de werkdag-as vallen za en ma op dezelfde x, en een extra
- *    pixelkolom zou daar overlap verzinnen. Een dag zonder werktijd krijgt zo geen breedte.
- * Scherm en afdruk geven hun eigen as mee (`dateToX`, ook de werkdag-as) en hun daggrootte.
- * Onleesbare datums geven `null`.
- */
 export function baselineSpanX(
   span: BaselineSpan,
   dateToX: (date: Date) => number,
@@ -75,11 +42,9 @@ export function baselineSpanX(
   const { date: start, hourMode } = begin;
   const finishStr = span.finish || span.start;
   if (span.isMilestone) {
-    // Moment: een tijdstip, of een hele dag (dagmijlpaal). Twee mijlpalen met hetzelfde moment delen een ruit.
     const moment = `${hourMode ? 'T' : 'D'}${start.getTime()}`;
     return { kind: 'milestone', x: hourMode ? dateToX(start) : dateToX(start) + dayWidth / 2, moment };
   }
-  // Uur-einde zonder tijd (een dagkind als laatste) loopt tot het einde van die dag: `finishInstant`.
   const end = hourMode ? finishInstant(finishStr) : parseDate(finishStr);
   if (Number.isNaN(end.getTime())) return null;
   const x1 = dateToX(start);
@@ -87,14 +52,12 @@ export function baselineSpanX(
   return { kind: 'bar', x1, x2 };
 }
 
-/** Eén stuk van de strook met de baselines die er liggen (oplopend op plaats). Voor de hover. */
 export interface BaselineStripPiece {
   x1: number;
   x2: number;
   slots: BaselineSlot[];
 }
 
-/** Eén ruit met de baselines die op die datum liggen. */
 export interface BaselineDiamond {
   x: number;
   slots: BaselineSlot[];
@@ -102,10 +65,6 @@ export interface BaselineDiamond {
 
 const bySlot = (a: BaselineSlot, b: BaselineSlot) => a - b;
 
-/**
- * Deelt de strook van één taak op in stukken. Puur: dezelfde invoer geeft op scherm en afdruk
- * dezelfde stukken. Lege of omgekeerde stroken (x2 <= x1) tellen niet mee.
- */
 export function baselineStripPieces(bars: readonly BaselineBar[]): BaselineStripPiece[] {
   const valid = bars.filter(b => b.x2 > b.x1);
   if (valid.length === 0) return [];
@@ -121,13 +80,6 @@ export function baselineStripPieces(bars: readonly BaselineBar[]): BaselineStrip
   return pieces;
 }
 
-/**
- * Minimale zichtbare breedte, toegepast NA de opdeling (scherm en afdruk gelijk). Een groep stukken
- * die op elkaar aansluiten, wordt samen minstens `minWidth` breed: eerst naar rechts tot de volgende
- * groep, de rest naar links tot de vorige. Alleen de buitenste stukken groeien; de naden en de
- * baselines per stuk blijven gelijk, dus er ontstaat nooit een nieuwe streepzone en een stuk loopt
- * nooit over een buur heen. De opdeling zelf en de hover rekenen met de echte grenzen.
- */
 export function widenShortRuns(pieces: readonly BaselineStripPiece[], minWidth: number): BaselineStripPiece[] {
   const out = pieces.map(p => ({ ...p }));
   let i = 0;
@@ -149,36 +101,24 @@ export function widenShortRuns(pieces: readonly BaselineStripPiece[], minWidth: 
   return out;
 }
 
-/**
- * Lengte van de overgang in px: over deze afstand bouwt een baseline zijn dikte op of af. In pixels en
- * niet in dagen, zodat de overgang er bij elke zoom hetzelfde uitziet. Dit is de enige plek voor deze
- * waarde; de afdruk schaalt hem mee met de rapportschaal.
- */
 export const BASELINE_BLEND_PX = 21;
 
-/** Afstand tussen twee meetpunten in een overgang, als deel van de overgangslengte. */
 const BLEND_STEPS = 16;
-/** Zo ver naast een rand meten we: precies op de rand is het gewicht 0. */
 const EDGE_EPSILON = 1e-3;
 
-/** S-curve van 0 naar 1. */
 function sCurve(t: number): number {
   const c = Math.min(1, Math.max(0, t));
   return c * c * (3 - 2 * c);
 }
 
-/** Overgangslengte van één baseline: een korte baseline bereikt midden in zijn lengte zijn volle
- *  gewicht, anders blijft hij naast een lange baseline een onzichtbaar sliertje. */
 const rampOf = (b: BaselineBar, blend: number) => Math.min(blend, (b.x2 - b.x1) / 2);
 
-/** Gewicht op x: bouwt op vanaf het begin, bouwt af naar het einde, buiten de baseline 0. */
 function laneWeight(b: BaselineBar, x: number, blend: number): number {
   if (x <= b.x1 || x >= b.x2) return 0;
   const ramp = rampOf(b, blend);
   return sCurve((x - b.x1) / ramp) * sCurve((b.x2 - x) / ramp);
 }
 
-/** Eén baseline als lijn in de strook: per `x` de boven- en onderkant, gemeten vanaf de strookbovenkant. */
 export interface BaselineLane {
   slot: BaselineSlot;
   x: number[];
@@ -186,20 +126,12 @@ export interface BaselineLane {
   bottom: number[];
 }
 
-/**
- * Rekent de lijnen van één taak uit. Dikte = `height` × eigen gewicht ÷ som van de gewichten; de
- * volgorde in de strook is de plaats (0 boven). Loopt een baseline alleen, dan is zijn gewicht ook de
- * som: volle dikte tot aan de rand. Puur, en buiten de overgangen maar twee punten per stuk.
- * Lege of omgekeerde stroken tellen niet mee.
- */
 export function baselineLanes(bars: readonly BaselineBar[], height: number, blend: number): BaselineLane[] {
   const valid = bars.filter(b => b.x2 > b.x1).sort((a, b) => a.slot - b.slot);
   const edges = [...new Set(valid.flatMap(b => {
     const ramp = rampOf(b, blend);
     return [b.x1, b.x1 + ramp, b.x2 - ramp, b.x2];
   }))].sort((a, b) => a - b);
-  // Meetpunten: alle randen, en fijn verdeeld waar twee of meer baselines naast elkaar lopen en de
-  // dikte dus verandert. Loopt er één, dan blijft de dikte gelijk.
   const grid: number[] = [];
   edges.forEach((a, i) => {
     grid.push(a);
@@ -218,7 +150,6 @@ export function baselineLanes(bars: readonly BaselineBar[], height: number, blen
     const lane: BaselineLane = { slot: bar.slot, x: [], top: [], bottom: [] };
     for (const x of grid) {
       if (x < bar.x1 || x > bar.x2) continue;
-      // Op de eigen rand net binnen de baseline meten: daar is het eigen gewicht nog niet 0.
       const at = x === bar.x1 ? x + EDGE_EPSILON : x === bar.x2 ? x - EDGE_EPSILON : x;
       let above = 0;
       let own = 0;
@@ -238,9 +169,6 @@ export function baselineLanes(bars: readonly BaselineBar[], height: number, blen
   });
 }
 
-/** Past de minimumbreedte van {@link widenShortRuns} toe op de baselines zelf, vóór `baselineLanes`
- *  (scherm en afdruk gelijk). Een baseline volgt de stukken waarin hij ligt, dus twee baselines die op
- *  elkaar aansluiten, gaan niet overlappen. */
 export function widenBars(bars: readonly BaselineBar[], minWidth: number): BaselineBar[] {
   const valid = bars.filter(b => b.x2 > b.x1);
   const real = baselineStripPieces(valid);
@@ -251,10 +179,6 @@ export function widenBars(bars: readonly BaselineBar[], minWidth: number): Basel
   });
 }
 
-/** Groepeert baseline-mijlpalen op hun moment (`moment`): mijlpalen op hetzelfde moment
- *  delen één ruit. Verschillende momenten blijven aparte ruiten, ook als ze op dezelfde x vallen
- *  (lage zoom, of za en zo op de werkdag-as): geen valse overlap. De volgorde is de tekenvolgorde:
- *  op x, en bij gelijke x in de volgorde van de invoer (de laatste ligt bovenop). */
 export function baselineDiamonds(milestones: readonly BaselineMilestone[]): BaselineDiamond[] {
   const byMoment = new Map<string, { x: number; slots: BaselineSlot[]; order: number }>();
   milestones.forEach((m, order) => {
@@ -267,10 +191,8 @@ export function baselineDiamonds(milestones: readonly BaselineMilestone[]): Base
     .map(g => ({ x: g.x, slots: g.slots.sort(bySlot) }));
 }
 
-/** Halve diagonaal van een baseline-mijlpaalruit bij strookhoogte `h` (scherm en afdruk gelijk). */
 export const baselineDiamondSize = (h: number): number => Math.max(2.4, h * 0.8);
 
-/** Het deel van een 2D-context dat de strook nodig heeft (canvas én `Draw2D`). */
 export interface StripPainter {
   fillStyle: string | CanvasGradient | CanvasPattern;
   beginPath(): void;
@@ -282,16 +204,11 @@ export interface StripPainter {
 
 type Pt = readonly [number, number];
 
-/** Snijdt een convexe veelhoek af op een convexe veelhoek (Sutherland–Hodgman, beide met de klok mee
- *  in schermcoördinaten). */
 function clipConvex(subject: readonly Pt[], clip: readonly Pt[]): Pt[] {
   let out: Pt[] = [...subject];
   for (let i = 0; i < clip.length && out.length > 0; i++) {
     const [ax, ay] = clip[i];
     const [bx, by] = clip[(i + 1) % clip.length];
-    // Een punt op de rand telt als binnen, met een kleine marge voor afrondfouten. Strepen en
-    // ruitranden lopen allebei onder 45°: zonder marge geeft een (bijna) evenwijdige rand een
-    // snijpunt ver buiten de vorm.
     const len = Math.hypot(bx - ax, by - ay);
     const inside = ([x, y]: Pt) => (bx - ax) * (y - ay) - (by - ay) * (x - ax) >= -1e-9 * len;
     const cross = ([px, py]: Pt, [qx, qy]: Pt): Pt => {
@@ -325,11 +242,6 @@ function fillPolygon(d: StripPainter, pts: readonly Pt[]): void {
   d.fill();
 }
 
-/**
- * Vult een convexe vorm met schuine strepen in `colors` (band k krijgt kleur k mod n). De band van
- * kleur 0 is de ondergrond; de andere banden komen er als veelhoeken overheen.
- * `xMin`/`xMax`: het deel van de vorm dat getekend moet worden (scherm: alleen het zichtbare deel).
- */
 function fillStriped(
   d: StripPainter, outline: readonly Pt[], colors: readonly string[], stripeWidth: number,
   anchorX: number, top: number, h: number, xMin: number, xMax: number,
@@ -338,7 +250,6 @@ function fillStriped(
   fillPolygon(d, outline);
   if (colors.length < 2 || stripeWidth <= 0) return;
   const n = colors.length;
-  // Band k: (x - anchorX) + (y - top) ∈ [k·w, (k+1)·w).
   const kFrom = Math.floor((xMin - anchorX) / stripeWidth);
   const kTo = Math.ceil((xMax + h - anchorX) / stripeWidth);
   for (let k = kFrom; k <= kTo; k++) {
@@ -355,26 +266,15 @@ function fillStriped(
 }
 
 export interface PaintBaselineStripOptions {
-  /** Bovenkant en hoogte van de strook. */
   top: number;
   height: number;
-  /** Lengte van de overgang in px (`BASELINE_BLEND_PX`, op papier geschaald). */
   blend: number;
-  /** Breedte van één schuine band waar mijlpalen samenvallen (horizontaal gemeten). */
   stripeWidth: number;
-  /** Kleur per baselineplaats. */
   colorOf: (slot: BaselineSlot) => string;
-  /** Halve diagonaal van een mijlpaalruit. */
   diamondSize: number;
-  /** Alleen dit horizontale bereik tekenen (scherm: het zichtbare canvas). Weglaten = alles. */
   visibleX?: readonly [number, number];
 }
 
-/**
- * Tekent de strook van één taak: de lijnen uit {@link baselineLanes} en de ruiten uit
- * {@link baselineDiamonds}. Elke lijn loopt van zijn bovenkant door tot de onderkant van de strook, en
- * de lijnen eronder komen er daarna overheen. Zo valt er tussen twee lijnen geen lichte naad.
- */
 export function paintBaselineStrip(
   d: StripPainter,
   bars: readonly BaselineBar[],
@@ -382,7 +282,6 @@ export function paintBaselineStrip(
   o: PaintBaselineStripOptions,
 ): void {
   const [vMin, vMax] = o.visibleX ?? [-Infinity, Infinity];
-  // Heel ver ingezoomd of in een rapportvenster: alleen tekenen wat in beeld valt.
   const clampX = (x: number) => Math.min(vMax, Math.max(vMin, x));
   const bottom = o.top + o.height;
   for (const lane of baselineLanes(bars, o.height, o.blend)) {
