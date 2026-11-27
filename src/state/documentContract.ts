@@ -12,7 +12,7 @@ import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { normalizeComparedBaselines, noComparedBaselines, type Baseline, type ComparedBaselineIds } from '@/types/baseline';
 export { isFreshImportOrigin } from '@/services/documentData';
-import type { ImportResult } from '@/services/importTypes';
+import type { ImportResult, ReadImportResult } from '@/services/importTypes';
 import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
@@ -89,7 +89,7 @@ export interface RecoveryIfcxMark {
   readonly targetRecentId?: string;
 }
 
-export type RecoveryDocInput = ImportResult & {
+export type RecoveryDocInput = ImportResult & Pick<ReadImportResult, 'ifcxReferences'> & {
   sourceRestored?: true;
   fileHandle?: FileSystemFileHandle | null;
   id: string;
