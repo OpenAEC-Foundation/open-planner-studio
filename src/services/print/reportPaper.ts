@@ -1,14 +1,7 @@
-// Het interactieve rapportpapier (issue #817): bladen als SVG en de klikbare delen van een blad.
-//
-// Alles hier is puur (geen DOM, geen canvas): de bladindeling komt uit dezelfde `TileLayout` als de
-// PDF-pagineerders (`paginateVector.ts`, `paginate.ts`), dus een blad op het scherm heeft dezelfde
-// vensters, dezelfde herhaalde kop en voet en hetzelfde paginanummer als het blad in de PDF.
-
 import type { RenderReportResult } from '@/services/print/printPreview';
 import type { TileLayout } from '@/services/print/tileLayout';
 import { clipOpToWindow, fontClassCss, opsInWindow, opsToSvg, reportFontClass, type RecordedReport, type SvgOp } from '@/services/pdf/svgDraw2d';
 
-/** Eén bronvenster van het rapport en waar het op het blad staat (punten vanaf linksboven). */
 export interface PageWindow {
   srcX: number;
   srcY: number;
@@ -18,10 +11,6 @@ export interface PageWindow {
   dstY: number;
 }
 
-/**
- * De vensters van één blad, in tekenvolgorde: per tegelkolom eerst de herhaalde kop, dan de body;
- * daarna één keer de herhaalde voet. Precies de volgorde en maten van `paginateVectorToPdfBytes`.
- */
 export function pageWindows(layout: TileLayout, pageIndex: number): PageWindow[] {
   const total = layout.rows * layout.cols;
   if (!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex >= total) return [];
@@ -43,7 +32,6 @@ export function pageWindows(layout: TileLayout, pageIndex: number): PageWindow[]
   return windows;
 }
 
-/** Het paginanummer zoals de PDF het zet: `n / totaal`, rechts in de ondermarge, 8 pt grijs. */
 export function pageLabel(layout: TileLayout, pageIndex: number): { text: string; x: number; y: number } {
   return {
     text: `${pageIndex + 1} / ${layout.rows * layout.cols}`,
@@ -53,31 +41,12 @@ export function pageLabel(layout: TileLayout, pageIndex: number): { text: string
 }
 
 export interface ReportPageSvgOptions {
-  /** Schrijfrichting van de rapporttaal (zoals de canvas en de PDF die gebruiken voor gemengde tekst). */
   rtl?: boolean;
-  /** CSS-letter van het paginanummer (8 pt Inter, zoals de PDF). */
   pageLabelFont?: string;
-  /**
-   * `false`: geen `<style>` in het blad; de pagina zet de letterregels één keer zelf neer
-   * (`fontClassCss`/`reportFontRule`). Het papier op het scherm doet dat: een `<style>` per blad laat de
-   * browser bij elk nieuw blad het hele document opnieuw opmaken. Standaard `true`: een los blad is
-   * compleet.
-   */
   embedFontStyle?: boolean;
-  /**
-   * Bewaarde vensterinhoud van eerdere bladen uit dezelfde instellingen, per bronvenster. De herhaalde kop
-   * en voet zijn op elk blad van een tegelkolom hetzelfde venster; zo knipt het papier hun rasterlijnen maar
-   * één keer af in plaats van per blad. Een venster tekent in elke opname van dezelfde render hetzelfde
-   * (rijvenster: kop, raster en voet tekenen altijd; `check-report-svg.ts` sectie 6).
-   */
   windowCache?: Map<string, string[]>;
 }
 
-/**
- * Eén blad als complete `<svg>`-tekst (punten als eenheid, wit papier). Alleen de opdrachten die een
- * venster van dit blad raken komen erin; elk venster is een geneste `<svg>` die op zijn `viewBox`
- * afknipt — net als de clip die de raster- en de vectorpagineerder per venster zetten.
- */
 export function reportPageSvg(
   rec: RecordedReport,
   layout: TileLayout,
@@ -86,8 +55,6 @@ export function reportPageSvg(
 ): string {
   const W = layout.pageWidthPt;
   const H = layout.pageHeightPt;
-  // De letterklasse volgt uit de letter zelf (`reportFontClass`): meerdere bladen en opnamen staan in
-  // hetzelfde document, en een `<style>` geldt documentbreed, maar dezelfde klasse is overal dezelfde letter.
   const classes = rec.fonts.map(reportFontClass);
   const parts: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${num(W)} ${num(H)}" width="100%" height="100%"`
@@ -100,8 +67,6 @@ export function reportPageSvg(
       `<svg x="${num(win.dstX)}" y="${num(win.dstY)}" width="${num(win.srcW * layout.scale)}" height="${num(win.srcH * layout.scale)}"`
         + ` viewBox="${num(win.srcX)} ${num(win.srcY)} ${num(win.srcW)} ${num(win.srcH)}" preserveAspectRatio="none" overflow="hidden">`,
     );
-    // Afgeknipt op het venster: een rasterlijn over de hele hoogte van het rapport kost de browser
-    // anders bij elke schermtegel het rasteren van zijn hele lengte (`clipOpToWindow`).
     const key = `${win.srcX}|${win.srcY}|${win.srcW}|${win.srcH}`;
     let body = options.windowCache?.get(key);
     if (!body) {
@@ -130,27 +95,21 @@ function num(v: number): string {
   return String(Math.round(v * 100) / 100);
 }
 
-// ---- Klikbare delen van het papier ----------------------------------------------------------------
-
-/** De delen van het papier die een eigen stap in de zijbalk hebben. */
 export type PaperRegionId = 'header' | 'columns' | 'chart' | 'footer';
 
 export interface PaperRect { x: number; y: number; w: number; h: number }
 
 export interface PaperRegion {
   id: PaperRegionId;
-  /** Rechthoeken in punten op het blad; een deel kan op één blad in meerdere vensters staan. */
   rects: PaperRect[];
 }
 
 export interface PaperColumnRect extends PaperRect {
-  /** Sleutel uit `RenderReportResult.tableColumnBounds` (ingebouwde soort of registersleutel). */
   key: string;
 }
 
 export interface PageRegions {
   regions: PaperRegion[];
-  /** De tabelkolommen op dit blad (kop plus cellen), voor "welke kolom staat onder de muis". */
   columns: PaperColumnRect[];
 }
 
@@ -170,11 +129,6 @@ function mapBox(box: LogicalBox, win: PageWindow, scale: number): PaperRect | nu
   };
 }
 
-/**
- * De delen van één blad in punten: de kop (projectnaam en datums), de kolommen (kolomkoppen en
- * cellen), de balken met de tijdlijn en de voet met de legenda. De grenzen komen uit de render zelf
- * (`RenderReportResult`), dus ze liggen precies waar het papier ze tekent.
- */
 export function reportPaperRegions(result: RenderReportResult, layout: TileLayout, pageIndex: number): PageRegions {
   const W = result.width;
   const H = result.height;
@@ -207,7 +161,6 @@ export function reportPaperRegions(result: RenderReportResult, layout: TileLayou
   return { regions, columns };
 }
 
-/** Welk deel (en welke kolom) ligt onder een punt van het blad? `null` = de marge (stap Pagina). */
 export function hitPaperRegion(regions: PageRegions, x: number, y: number): { id: PaperRegionId; column?: string } | null {
   const inside = (r: PaperRect) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   for (const region of regions.regions) {

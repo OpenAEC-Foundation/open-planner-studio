@@ -1,5 +1,3 @@
-// Pure kleurengine voor scherm en rapport. De API ontvangt één app-globale selectie en
-// een BarColorContext; geen renderer leest het legacy Task.color-veld.
 import { ensureCustomBarVisible, paletteColorForId, resourceDisplayColor } from '@/engine/renderer/resourcePalette';
 import {
   effectiveBarColorSelection,
@@ -16,7 +14,6 @@ export interface BarPalette {
   normal: string;
   nearCritical: string;
   milestone: string;
-  /** Neutrale kleur voor taken zonder waarde in de gekozen categorie. */
   uncategorized?: string;
 }
 
@@ -27,7 +24,6 @@ export type BarFill =
 export const SEGMENT_MIN_PX = 12;
 const DEFAULT_UNCATEGORIZED = '#94A3B8';
 
-/** Critical-kleuring negeert bewust het legacy Task.color-veld. */
 function criticalFill(task: Task, palette: BarPalette): string {
   if (task.isMilestone) return palette.milestone;
   if (task.time.isCritical) return palette.critical;
@@ -35,15 +31,8 @@ function criticalFill(task: Task, palette: BarPalette): string {
   return palette.normal;
 }
 
-/** Bestaande hulpfunctie voor Resource accent en categorie-resolutie. */
 type AssignmentRow = { color: string; unitsPerDay: number; resourceId: string; name: string };
 
-/**
- * {@link assignmentsFor} voor veel taken over dezelfde lijsten: de Gantt vraagt dit per zichtbare
- * balk per frame op, en elke aanroep bouwde een resourcemap en liep alle toewijzingen door. Per
- * (toewijzingen, resources) — beide bevroren store-lijsten — één groepering; een niet-bevroren lijst
- * (kan nog wijzigen) krijgt geen cache. Zelfde rijen, zelfde volgorde, zelfde resourcekeuze.
- */
 const assignmentRowCache = new WeakMap<ReadonlyArray<ResourceAssignment>, { resources: ReadonlyArray<Resource>; byTask: Map<string, AssignmentRow[]> }>();
 export function assignmentsForTask(
   taskId: string,
@@ -117,14 +106,12 @@ function computeSelectionColors(
   }
 
   const effective = effectiveBarColorSelection(selection, context).effective;
-  // De fallback van een onbeschikbaar veld is altijd category/taskType.
   if (effective.mode !== 'category') {
     return { kind: 'solid', fill: criticalFill(task, palette) };
   }
   const values = resolveBarCategoryValues(task, effective.field, context);
   const firstColor = barCategoryDisplayColor(values[0], palette);
 
-  // Een mijlpaal is één ruit; één waarde en een smalle balk hebben evenmin leesbare segmenten.
   if (task.isMilestone || values.length === 1 || (barPx !== undefined && barPx < SEGMENT_MIN_PX)) {
     return { kind: 'solid', fill: firstColor, outline };
   }

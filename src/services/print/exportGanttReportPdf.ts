@@ -1,6 +1,3 @@
-// De PDF van de Gantt-afdruk (ook met de layout Resourcediagram) voor het Rapport-tabblad (issue #817):
-// vector-PDF met de gekozen rapportletter, met raster als terugval.
-
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
@@ -13,11 +10,6 @@ import type { ReportFontChoice } from '@/services/pdf/reportFont';
 import { RTL_LOCALES, type Locale } from '@/i18n/config';
 import { ganttTileOptions } from '@/services/print/reportPaperModel';
 
-/**
- * Beschrijf waarom de vector-export terugvalt op raster. Herkent de `VectorUnsupportedError`
- * aan z'n `name` — géén eager import van `paginateVector`, zodat pdf-lib/fontkit uit de hoofdbundle
- * blijft — en logt de ongedekte codepoints (bv. een CJK/Arabische taaknaam) i.p.v. tofu te tekenen.
- */
 export function describeVectorFallback(err: unknown): string {
   if (err && typeof err === 'object' && (err as { name?: string }).name === 'VectorUnsupportedError') {
     const cps = (err as { codepoints?: number[] }).codepoints ?? [];
@@ -34,39 +26,22 @@ export interface GanttReportPdfInput {
   calendar: WorkCalendar;
   projectName: string;
   options: PrintOptions;
-  /** Kop per pagina herhalen (pagineerder-zaak, geen `PrintOptions`-veld). */
   repeatHeader: boolean;
-  /** Voet met legenda per pagina herhalen (idem). */
   repeatFooter: boolean;
-  /**
-   * De rapportletter (#770). Moet dezelfde zijn als de stack in `options.fontFamily`: de raster-tak
-   * tekent met die stack, de vector-tak bedt de bytes van deze letter in. Zonder waarde: Inter.
-   */
   fontId?: ReportFontChoice;
 }
 
-/**
- * Bouw de PDF-bytes: een échte vector-PDF met selecteerbare tekst en de ingebedde rapportletter; bij een fout
- * (bv. een glyph buiten de letter) de raster-terugval, zodat de export nooit stukloopt.
- */
 export async function buildGanttReportPdf(input: GanttReportPdfInput): Promise<Uint8Array> {
   const { tasks, sequences, calendar, projectName, options, repeatHeader, repeatFooter, fontId = 'inter' } = input;
   const lowerPaper = options.paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1';
   const orientation = options.orientation;
   const timelineColumns = options.timelineColumns ?? 1;
-  // Basisrichting van de export-taal: stuurt de bidi in het complexe RTL-tekst-pad van de vector-export.
   const exportBaseDir: 'ltr' | 'rtl' =
     RTL_LOCALES.includes((options.locale ?? '') as Locale) ? 'rtl' : 'ltr';
 
-  // Zorg dat de gevendorde rapportletter geladen is vóór de offscreen render, zodat ook de
-  // raster-export die letter gebruikt (measureText-pariteit met de preview).
   await ensureReportFontLoaded(fontId);
   const mode = options.autoFit ? 'fit-width' : 'actual';
 
-  // De raster-tak (JPEG-tegels) als betrouwbare terugval: de vector-tak valt erop terug bij een
-  // fout (bv. een glyph buiten Inter). Render offscreen op een vaste hoge schaal, onafhankelijk van het
-  // scherm van de exporterende gebruiker (window.devicePixelRatio, vaak 1x). Eerste render (schaal
-  // 1) levert de LOGISCHE maten + naam-kolombreedte; de tweede render het high-res raster.
   const exportRaster = (): Uint8Array => {
     const exportCanvas = document.createElement('canvas');
     const {
@@ -75,26 +50,18 @@ export async function buildGanttReportPdf(input: GanttReportPdfInput): Promise<U
     const rasterTile: PaginateOptions = {
       paperSize: lowerPaper, orientation, mode,
       logicalWidth, logicalHeight, frozenColumnWidthPx: tableWidth,
-      // Zelfde kop-/voetherhaling (px) en tijdlijn-spreiding als de preview en de vector-tak,
-      // zodat de raster-terugval WYSIWYG gelijk is aan beide.
       repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
       repeatFooterHeightPx: repeatFooter ? footerHeight : 0,
       timelineColumns,
       breakOffsetsPx: breakOffsets,
       forcedBreakOffsetsPx: forcedBreakOffsets,
     };
-    // De high-res render legt de voet binnen één paginabreedte (zie `footerLayoutWidth`) — alleen
-    // wanneer hij herhaald wordt.
     const exportScale = computeHighResScale(logicalWidth, logicalHeight);
     renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName,
       { ...options, footerLayoutWidth: footerLayoutWidthFor(computeTileLayout(rasterTile)) }, exportScale);
     return paginateCanvasToPdfBytes(exportCanvas, rasterTile);
   };
 
-  // Vector-tak: lazy import houdt pdf-lib/fontkit uit de hoofdbundle. De bytes: de gekozen letter, Noto
-  // Sans Arabic voor RTL, en bij elke andere letter dan Inter óók Inter als terugval voor de tekens die
-  // die letter mist (zie `fallbackFonts` in paginateVector.ts). Zonder terugval valt de hele PDF om één
-  // zo'n teken terug op raster.
   try {
     const [{ paginateVectorToPdfBytes }, { subsetFont }, regular, bold, arabicRegular, arabicBold, fallbackFonts] = await Promise.all([
       import('@/services/print/paginateVector'),
@@ -111,8 +78,6 @@ export async function buildGanttReportPdf(input: GanttReportPdfInput): Promise<U
     return await paginateVectorToPdfBytes(
       (make, footerLayoutWidth) => renderReport(make, tasks, sequences, calendar, projectName, { ...options, footerLayoutWidth }),
       {
-        // Papier, passing, kop/voet per pagina en tijdlijn over N pagina's: dezelfde keuzes als het
-        // papier op het scherm (`ganttTileOptions`, #817).
         ...ganttTileOptions(options, repeatHeader, repeatFooter),
         baseDir: exportBaseDir,
         subsetFont,
