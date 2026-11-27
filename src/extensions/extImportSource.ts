@@ -1,8 +1,3 @@
-/**
- * Publieke read-only XER-bronroute. Deze module vertaalt de immutable interne bronretentie naar
- * kleine, losse ext-facing DTO's. De summary kloont geen grote catalogi; pagina's klonen alleen hun
- * eigen records en chunks decoderen steeds naar een nieuwe Uint8Array.
- */
 import {
   EXT_IMPORT_SOURCE_PAGE_SIZE_MAX,
   type ExtImportSourceCatalogPage,
@@ -55,35 +50,10 @@ function validatePageOptions(options?: ExtImportSourcePageOptions): { offset: nu
   return { offset, limit };
 }
 
-/**
- * Canoniseer `offset` tegen de werkelijke collectiegrootte, VÓÓR de slice.
- *
- * `validatePageOptions` bewijst alleen dat `offset` zelf een safe integer is — niet dat
- * `offset + limit` dat ook blijft. Begrens `offset` daarom op `total` (een lege, geldige laatste
- * pagina in plaats van een fout); `offset + limit` blijft dan altijd ruim binnen het safe
- * integer-bereik, want `total` is het aantal records dat al in het geheugen staat.
- */
 function resolvePageOffset(offset: number, total: number): number {
-  // `+ 0` normaliseert een `-0`-offset naar `+0`: `Number.isSafeInteger(-0)`
-  // is `true` en `-0 < 0` is `false`, dus `validatePageOptions` liet 'm ongewijzigd door. Cosmetisch
-  // voor JSON (`JSON.stringify(-0) === '0'`), maar een extensie die `Object.is()` gebruikt of de
-  // offset als objectsleutel neemt zou anders `-0` kunnen zien.
   return (offset > total ? total : offset) + 0;
 }
 
-/**
- * Fail-closed documentdriftbewaking. `getImportSourceCatalogPage` werkt op het
- * ACTIEVE document — er is geen intern paginasessie-object dat aan één document vastzit. Pagineren
- * is per definitie meerdere aanroepen over tijd; wisselt de gebruiker tussen twee van die aanroepen
- * van document (`switchDocument`), dan combineert een extensie zonder deze bewaking in stilte
- * pagina 1 van project A met pagina 2 van project B — of ziet een lege pagina en concludeert ten
- * onrechte "klaar". `getImportSourceChunk`/`getImportSourceInfo` hebben dezelfde documentbinding,
- * maar zijn doorgaans één aanroep; bij pagineren over meerdere aanroepen zit het risico.
- *
- * Vergelijkbaar met het `expectedDocId`-driftanker in `src/services/mcp/tools/runtime.ts`, maar
- * hier expliciet door de AANROEPER meegegeven (geen sessiestate in de host) omdat de extensie-API
- * stateless is per aanroep.
- */
 export class ExtImportSourceDriftError extends Error {
   constructor(expected: string, actual: string | null) {
     super(
@@ -95,9 +65,6 @@ export class ExtImportSourceDriftError extends Error {
   }
 }
 
-/** Gooit `ExtImportSourceDriftError` wanneer de aanroeper een `expectedSourceProjectId` opgaf die
- *  niet overeenkomt met de bronselector van het huidige actieve document (`actual`, of `null` als
- *  het actieve document geen retained XER-bron heeft). Geen opgegeven verwachting ⇒ geen check. */
 export function assertNoImportSourceDrift(expected: string | undefined, actual: string | null): void {
   if (expected !== undefined && expected !== actual) {
     throw new ExtImportSourceDriftError(expected, actual);
