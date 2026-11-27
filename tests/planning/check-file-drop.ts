@@ -18,7 +18,7 @@ const g = globalThis as unknown as Record<string, unknown>;
 g.window = g.window ?? {}; // geen __TAURI_INTERNALS__, geen showOpenFilePicker
 g.document = { documentElement: { dir: 'ltr', lang: 'en' } };
 
-const { isReadableFileName } = await import('@/services/formatRegistry');
+const { isReadableFileName, readOptionsFor } = await import('@/services/formatRegistry');
 const {
   dragCarriesFiles, droppedFilesFromDataTransfer, droppedFilesFromPaths, splitDroppedFiles,
 } = await import('@/services/fileAccess/fileDrop');
@@ -183,6 +183,23 @@ check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '
   check(reads.length === 0 && same(documentNames(), before), 'alleen onbekende formaten: niets gelezen of geopend');
   check(refusedNotes.length === 1 && refusedNotes[0].params?.names === 'tekening.pdf, notities',
     `één melding voor alle onbekende bestanden (${JSON.stringify(refusedNotes.map((n) => n.params))})`);
+}
+
+{
+  // Met de flag `ifcx` aan noemt de weigeringsmelding IFCX in de lijst (#804, knownbug 2392).
+  clearNotices();
+  const before = documentNames();
+  reads.length = 0;
+  await openDroppedFiles(useAppStore, [dropFile('tekening.pdf', 'x')], labels, () => false, { readOptions: readOptionsFor({ ifcx: true }) });
+  const ifcxRefused = noticesOf('ifcx.fileDropRefused');
+  check(reads.length === 0 && same(documentNames(), before), 'flag ifcx aan: het onbekende formaat is niet gelezen of geopend');
+  check(ifcxRefused.length === 1 && ifcxRefused[0].severity === 'error' && ifcxRefused[0].params?.names === 'tekening.pdf'
+    && ifcxRefused[0].helpArticleId === 'howto-bestand-openen-en-opslaan' && noticesOf('notifications.fileDropRefused').length === 0,
+  `flag ifcx aan: de melding is ifcx.fileDropRefused (${JSON.stringify(ifcxRefused)})`);
+  clearNotices();
+  await openDroppedFiles(useAppStore, [dropFile('tekening.pdf', 'x')], labels, () => false);
+  check(noticesOf('notifications.fileDropRefused').length === 1 && noticesOf('ifcx.fileDropRefused').length === 0,
+    'flag ifcx uit: de melding blijft notifications.fileDropRefused');
 }
 
 {

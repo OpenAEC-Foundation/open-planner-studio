@@ -2100,12 +2100,14 @@
     "open": {
       "foreign": "Dit IFCX-bestand komt niet van Open Planner Studio. Bestanden van andere programma's kan de app nog niet openen.",
       "newer": "Dit IFCX-bestand heeft een nieuwere versie dan deze app kent. Open het met een nieuwere versie van Open Planner Studio.",
+      "unsupportedVersion": "Dit IFCX-bestand heeft een IFCX-versie die deze app niet ondersteunt, dus het opent niet.",
       "invalid": "Dit IFCX-bestand wijkt af van wat Open Planner Studio schrijft en opent daarom niet.",
       "notIfcx": "Dit bestand is geen IFCX-bestand."
     },
     "writeRefused": "Het IFCX-bestand is niet geschreven. Deze planning bevat gegevens die de app nog niet in IFCX bewaart, of de controle na het schrijven vond een verschil. Bewaar de planning met Exporteren → IFC.",
     "flagOff": "Dit is een IFCX-bestand. Zet de experimentele functie IFCX openen en opslaan aan om het op te slaan, of sla de planning op als IFC met Opslaan als.",
-    "nameMismatch": "Deze naam past niet bij het formaat van de planning. Kies een naam op .ifc voor IFC of op .ifcx voor IFCX. In dit bestand is niets geschreven."
+    "nameMismatch": "Deze naam past niet bij het formaat van de planning. Kies een naam op .ifc voor IFC of op .ifcx voor IFCX. In dit bestand is niets geschreven.",
+    "fileDropRefused": "Niet geopend: {{names}}. De app opent alleen IFC, IFCX, XML, MPP, XER en CSV."
   },
   "foreignChangesQuestion": {
     "title": "Opslaan in {{file}}",

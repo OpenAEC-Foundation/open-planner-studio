@@ -2100,12 +2100,14 @@
     "open": {
       "foreign": "This IFCX file was not written by Open Planner Studio. The app cannot open files from other programs yet.",
       "newer": "This IFCX file has a newer version than this app knows. Open it with a newer version of Open Planner Studio.",
+      "unsupportedVersion": "This IFCX file has an IFCX version this app does not support, so it does not open.",
       "invalid": "This IFCX file differs from what Open Planner Studio writes, so it does not open.",
       "notIfcx": "This file is not an IFCX file."
     },
     "writeRefused": "The IFCX file was not written. This schedule contains data that the app does not yet keep in IFCX, or the check after writing found a difference. Keep the schedule with Export → IFC.",
     "flagOff": "This is an IFCX file. Turn on the experimental feature Open and save IFCX to save it, or save the schedule as IFC with Save As.",
-    "nameMismatch": "This name does not match the file format of the schedule. Choose a name ending in .ifc for IFC or .ifcx for IFCX. Nothing was written to this file."
+    "nameMismatch": "This name does not match the file format of the schedule. Choose a name ending in .ifc for IFC or .ifcx for IFCX. Nothing was written to this file.",
+    "fileDropRefused": "Not opened: {{names}}. The app only opens IFC, IFCX, XML, MPP, XER and CSV."
   },
   "foreignChangesQuestion": {
     "title": "Save to {{file}}",

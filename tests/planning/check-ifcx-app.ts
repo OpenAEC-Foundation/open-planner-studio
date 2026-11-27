@@ -218,6 +218,23 @@ await check('flag uit: een .ifcx opent niet als IFCX', async () => {
   assert.deepEqual(errors(store), ['notifications.openFailed']);
 });
 
+await check('een onbekende IFCX-versie meldt ifcx.open.unsupportedVersion; een nieuwer profiel ifcx.open.newer (#804, knownbug 2393)', async () => {
+  const versionDoc = JSON.parse(text(own));
+  versionDoc.header.ifcxVersion = 'ifcx_beta';
+  const versionPath = join(dir, 'andere-versie.ifcx');
+  writeFileSync(versionPath, JSON.stringify(versionDoc));
+  const versionStore = await openAt(versionPath, IFCX_ON);
+  assert.deepEqual(errors(versionStore), ['ifcx.open.unsupportedVersion']);
+
+  const profileDoc = JSON.parse(text(own));
+  const documentEntry = profileDoc.data.find((entry: { attributes?: Record<string, unknown> }) => entry.attributes?.['openaec::ops::document']);
+  (documentEntry.attributes['openaec::ops::document'] as Record<string, unknown>).formatVersion = '2.0.0';
+  const profilePath = join(dir, 'nieuwer-profiel.ifcx');
+  writeFileSync(profilePath, JSON.stringify(profileDoc));
+  const profileStore = await openAt(profilePath, IFCX_ON);
+  assert.deepEqual(errors(profileStore), ['ifcx.open.newer']);
+});
+
 for (const [label, flags] of [['alleen ifcx', IFCX_ON], ['ifcx en ifcForeignContent', BOTH_ON]] as const) {
   await check(`${label}: openen legt formaat en versie vast; Ctrl+S schrijft IFCX in de worker, met de bekende versie en zonder classificatie`, async () => {
     const ipc = desktop();
