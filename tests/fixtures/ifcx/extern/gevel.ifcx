@@ -1,0 +1,15 @@
+{
+  "header": {
+    "id": "urn:voorbeeld:atelier:gevel", "author": "Atelier Gevel",
+    "ifcxVersion": "ifcx_alpha", "dataVersion": "1.0.0", "timestamp": "2026-11-27T09:00:00Z"
+  },
+  "imports": [],
+  "schemas": {
+    "bsi::ifc::class": {"value": {"dataType": "Object", "objectRestrictions": {"values": {"code": {"dataType": "String"}}}}},
+    "openaec::label": {"value": {"dataType": "String"}}
+  },
+  "data": [
+    {"path": "Gevel/West", "attributes": {"bsi::ifc::class": {"code": "IfcWall"}, "openaec::label": "Buitenmuur"}},
+    {"path": "Gevel/west", "attributes": {"bsi::ifc::class": {"code": "IfcWindow"}}}
+  ]
+}
