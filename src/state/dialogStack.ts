@@ -21,7 +21,7 @@ export function registerDialog(id: symbol): () => void {
 }
 
 export function isTopDialog(id: symbol): boolean {
-  return dialogs.at(-1) === id;
+  return dialogs[dialogs.length - 1] === id;
 }
 
 export function isAnyDialogOpen(): boolean {
