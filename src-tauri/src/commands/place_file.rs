@@ -2262,7 +2262,7 @@ mod tests {
                 .collect();
             if command == "rename" || command == "remove" {
                 verboden.sort();
-                verboten.dedup();
+                verboden.dedup();
                 assert_eq!(verboden, verwacht_verbod, "{command}");
             } else {
                 assert!(verboden.is_empty(), "{command}: {verboden:?}");

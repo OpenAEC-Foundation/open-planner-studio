@@ -66,7 +66,7 @@ Het verbod op de webviewgegevens komt van twee kanten. `fs:default` van plugin-f
 `map/**` en op Linux de bestanden `cookies` en `hsts-storage.sqlite` (`deny-webview-data.toml`, werkzaam sinds 2.5.2);
 de capabilities `webviewgegevens-linux.json` en `webviewgegevens-windows.json` (per platform via `platforms`) voegen toe
 wat upstream niet dekt: de map zelf en `rename`/`remove` van `$APPLOCALDATA` zelf. Zet daar geen regel die `fs:default`
-al levert: hij staat dan dubbel en `place_file_scope_volgt_plugin_fs` faalt. `backupmap.json` (#1245) is daarop de bedoelde uitzondering: die capability zet op alle platforms een deny op `fs:allow-rename`/`fs:allow-remove` voor `$APPDATA/ai-backups` zelf en `$APPDATA` zelf, zodat de webview de backupmap niet tussentijds kan vervangen tussen de controle van `open_backup_folder` en het openen; wat eronder ligt blijft toegestaan. Proef: `place_file_backupmap_vervangen_verboden`. De grens (besluit van de technisch beslisser, 16 november 2026). Binnen de grens: per beschermde map
+al levert: hij staat dan dubbel en `place_file_scope_volgt_plugin_fs` faalt. De grens (besluit van de technisch beslisser, 16 november 2026). Binnen de grens: per beschermde map
 óók de map zelf: geen fs-commando mag de map of iets eronder bereiken (`map/**` uit `fs:default`, `map` uit de capability
 met `fs:scope`, want `map/**` matcht `map` niet en `rename`/`remove` van plugin-fs toetsen alleen de opgegeven paden;
 plus de bestanden `cookies` en `hsts-storage.sqlite` uit `fs:default`); `rename` en `remove` van `$APPLOCALDATA` zelf (de app-datamap) zijn verboden
@@ -87,6 +87,8 @@ hieronder (1131 stap 4) en de vervanging van het eigen bestand met haar afhandel
 door de IPC naar plugin-fs `rename` en dit commando, ook via een link naar buiten de scope en met een verbod dat een
 link noemt; `place_file_fs_default_verbiedt_zelf` toont wat `fs:default` zonder de eigen capabilities verbiedt; workflow
 `rust-tests.yml` op Linux, macOS en Windows) en `check-place-file-exclusive.ts`.
+
+`backupmap.json` (#1245) zet op alle platforms een deny op `fs:allow-rename`/`fs:allow-remove` voor `$APPDATA/ai-backups` zelf en `$APPDATA` zelf, zodat de webview de backupmap niet tussentijds kan vervangen tussen de controle van `open_backup_folder` en het openen; wat eronder ligt blijft toegestaan (herstel, `mcp/`, `ops-test/`, de bibliotheek en de backups zelf blijven gewoon leesbaar/schrijfbaar). Proef: `place_file_backupmap_vervangen_verboden` in `place_file.rs`.
 
 ## IFC is the native file format, not a sidecar
 
