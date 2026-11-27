@@ -1802,7 +1802,7 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
         reden: 'waarde in datzelfde history-doel; de live state wordt via restoreSnapshot gemarkeerd' },
       { file: 'state/slices/documentSlice.ts', fragment: 'isDirty: true,',
         reden: 'kopie van een document: zet in dezelfde literal expliciet importPristine: false' },
-      { file: 'state/slices/librarySlice.ts', fragment: '...r.before, isDirty: true, resourceLoadResult: null',
+      { file: 'state/slices/librarySlice.ts', fragment: '...castDraft(r.before), isDirty: true, resourceLoadResult: null',
         reden: 'undoDistribution op een slapend document: de verdeling zelf liep via applyLeveling → finishMutation '
           + '(vlag al false in de payload); r.before is een Snapshot zonder importPristine, dus de vlag blijft false '
           + '— zelfde uitkomst als restoreSnapshot op het actieve pad (16l)' },

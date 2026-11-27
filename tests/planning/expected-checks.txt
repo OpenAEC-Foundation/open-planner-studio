@@ -244,6 +244,7 @@ check-ifcx-kern.ts matrix
 check-ifcx-meting.ts los
 check-ifcx-modelbron.ts matrix
 check-ifcx-velden.ts matrix
+check-ifcx-vreemde-planning.ts matrix
 check-import-datum-zonder-tijd.ts matrix
 check-import-explicit-rest.ts matrix
 check-import-missing-schedule-dates.ts matrix
