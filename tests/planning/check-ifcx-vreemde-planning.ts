@@ -153,6 +153,11 @@ function openPrecise(source: { data: { attributes: Record<string, unknown> }[] }
   store.getState().openAsDocument(imported, { name: 'Precieze taken', ref: null });
   return store.getState();
 }
+const withoutSourceFormat = openPrecise(preciseSource, 'ifc-own');
+assert.equal(withoutSourceFormat.recordedDates, null);
+assert.equal(shownFinish(withoutSourceFormat.tasks[0]), '2027-03-05T00:00');
+assert.deepEqual(dates(withoutSourceFormat.tasks.slice(1)), dates(precise.planning.tasks.slice(1)));
+preciseSource.data[0].attributes[ATTRIBUTE.document].recordedSourceFormat = 'ifc';
 for (const tasks of [precise.planning.tasks, ...origins.map(origin => openPrecise(preciseSource, origin).tasks)]) {
   assert(!tasks[0].manuallyScheduled);
   assert.deepEqual(tasks.map(shownStart), Array(4).fill('2027-03-01T07:00'));
@@ -160,7 +165,6 @@ for (const tasks of [precise.planning.tasks, ...origins.map(origin => openPrecis
   assert(tasks.slice(1).every(task => task.manuallyScheduled && task.time.scheduleFinish === shownFinish(task)));
 }
 const inProgress = structuredClone(preciseSource);
-inProgress.data[0].attributes[ATTRIBUTE.document].recordedSourceFormat = 'ifc';
 const leaf = inProgress.data[2].attributes;
 leaf[ATTRIBUTE.activity].completion = 0.4;
 Object.assign(leaf[ATTRIBUTE.opsTask].time, {
