@@ -1831,13 +1831,12 @@ en noem het in je rapport of PR-tekst.
 2571. **In het donkere thema is paletkleur 1 van een resource bijna kritiek-rood.** `ensureThemeVisible`
       (`src/engine/renderer/resourcePalette.ts`) verlicht rood-700 `#B91C1C` uit `RESOURCE_PALETTE` naar ongeveer
       `#e03232`, vlak bij kritiek-rood `#DC2626`; een resourcebalk of -accent in die kleur is dan nauwelijks van een
-      kritieke taak te onderscheiden. `check-bar-colors` toetst alleen op letterlijke gelijkheid met `#DC2626`. Uit het
-      weggehaalde commentaar in dat bestand, niet nagemeten. — S
+      kritieke taak te onderscheiden. Uit het weggehaalde commentaar in dat bestand,
+      niet nagemeten. — S
 2572. **Tekst in `text-critical` haalt in het donkere thema geen AA-contrast.** Tailwind leidt `text-critical` af van
       `--color-critical` (`#DC2626`, `src/styles/globals.css`), en die tekst staat in `ExtensionConsentDialog`,
-      `BenchmarkDialog`, `TaskCpmResultSection` en `SiteOpenDialog`. Op de donkere kaart is het contrast rond 2,7:1.
-      Voorstel: die plekken naar `--theme-critical-text`, dat per thema bestaat. Uit het weggehaalde commentaar in
-      `themePalette.ts`, niet nagemeten. — S
+      `BenchmarkDialog`, `TaskCpmResultSection` en `SiteOpenDialog`. Op de donkere kaart blijft het contrast onder de 4,5:1
+      van AA. Uit het weggehaalde commentaar in `themePalette.ts`, niet nagemeten. — S
 2573. **De mijlpaalkleur valt samen met een documentkleur.** `BRAND.milestone` in `themePalette.ts` is `#7C3AED`,
       dezelfde tint als `GANTT_TRACE_COLORS.successorDriving` en als `DOC_PALETTE[3]` (`src/utils/documents.ts`). Bij
       een op de acht documenten is de identiteitskleur van het document dus de kleur van een mijlpaal. Uit het
