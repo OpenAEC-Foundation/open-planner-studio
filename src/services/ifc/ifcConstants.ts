@@ -18,6 +18,8 @@ export const DEFAULT_PRIORITY = 500;
  *  De reader herkent een afwijkende tijd-van-de-dag als sub-dag-signaal (discriminator c). */
 export const IFC_TIME_ANCHOR = '07:00:00';
 
+export const MINUTE_MODEL_TIME_MODEL = 'MINUTES-1';
+
 /** IFC-measure-type per custom-field-type (writer: `IfcSimplePropertyTemplate.PrimaryMeasureType`
  *  + het getypeerde `NominalValue`). Autoritair; de reader leidt de inverse hieruit af. */
 export const FIELD_MEASURE: Record<CustomFieldType, string> = {

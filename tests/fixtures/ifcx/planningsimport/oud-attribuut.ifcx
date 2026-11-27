@@ -1,0 +1,19 @@
+{
+  "header": {
+    "id": "urn:voorbeeld:oud-attribuut",
+    "ifcxVersion": "ifcx_alpha",
+    "dataVersion": "1.0.0",
+    "author": "Planbureau"
+  },
+  "imports": [],
+  "schemas": {},
+  "data": [
+    {
+      "path": "/planning/work-0",
+      "attributes": {
+        "openaec::label": "Bekisting",
+        "openaec::activity": {"start":"2027-03-01","endExclusive":"2027-03-02"}
+      }
+    }
+  ]
+}

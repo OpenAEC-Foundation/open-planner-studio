@@ -19,6 +19,14 @@ export function isCompactGlobalId(globalId: string): boolean {
   return true;
 }
 
+export function isUuidPath(path: string): boolean {
+  return UUID_FORM.test(path);
+}
+
+export function uuidOfHex(hex: string): string {
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 export function compactGlobalIdToUuid(globalId: string): string {
   if (!isCompactGlobalId(globalId)) throw new Error(`Geen GlobalId van 128 bits: ${globalId}`);
   let hex = '';
@@ -32,7 +40,7 @@ export function compactGlobalIdToUuid(globalId: string): string {
     }
     buffer &= (1 << bits) - 1;
   }
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  return uuidOfHex(hex);
 }
 
 export function uuidToCompactGlobalId(uuid: string): string {

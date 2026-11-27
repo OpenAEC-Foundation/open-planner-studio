@@ -8,6 +8,7 @@ import { hourTaskScheduleDuration } from '@/utils/taskDuration';
 import { reconstructResourceIds } from '@/services/importNormalize';
 import { checkValue, hasKey, readFields, VERSION_FORM } from './fieldTable';
 import { globalIdOfPath, isIdentityPath } from './identityPath';
+import { decodeIfcx, parseIfcx } from './ifcxInput';
 import { childrenInPlace } from './childOrder';
 import { hourDurationIsDerived, objectLabels, serializeIfcx, type IfcxAttributes, type IfcxDocument } from './projection';
 import type { IfcxModelReferences } from './modelReferences';
@@ -30,7 +31,7 @@ import {
 import { legacyDocumentProjection } from './legacyDocument';
 import { IfcxReadError, IfcxWriteRefusedError, type IfcxErrorPlace } from './ifcxErrors';
 import {
-  ATTRIBUTE, IFCX_VERSION, MODEL_PROFILE_VERSION, OPS_NAMESPACE, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
+  ATTRIBUTE, MODEL_PROFILE_VERSION, OPS_NAMESPACE, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
 } from './profile';
 
 export type IfcxImportResult = CanonicalPlanning & IfcxModelReferences;
@@ -65,19 +66,7 @@ function invalid(detail: string, place?: IfcxErrorPlace): IfcxReadError {
 }
 
 function parseDocument(text: string): { document: Record<string, unknown>; profileVersion?: string } {
-  let document: unknown;
-  try {
-    document = JSON.parse(text);
-  } catch {
-    throw new IfcxReadError('not-ifcx', 'Het bestand is geen JSON');
-  }
-  if (!isPlainObject(document) || !isPlainObject(document.header) || typeof document.header.ifcxVersion !== 'string'
-    || !Array.isArray(document.data)) {
-    throw new IfcxReadError('not-ifcx', 'Het bestand heeft geen IFCX-kop en -data');
-  }
-  if (document.header.ifcxVersion !== IFCX_VERSION) {
-    throw new IfcxReadError('version', `Onbekende IFCX-versie ${JSON.stringify(document.header.ifcxVersion)}`);
-  }
+  const document = parseIfcx(text);
   const profileVersion = typeof document.header.id === 'string' && document.header.id.startsWith(OWN_HEADER_ID_PREFIX)
     ? ownProfileVersion(document.data) : undefined;
   for (const key of Object.keys(document)) if (!TOP_LEVEL_KEYS.has(key)) throw foreign(`Onbekend veld ${key} bovenin het bestand`);
@@ -485,13 +474,7 @@ export function readIfcx(bytes: Uint8Array): IfcxImportResult {
   if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
     throw invalid('Het bestand begint met een UTF-8-BOM, die de eigen schrijver niet schrijft', { offset: 0 });
   }
-  let text: string;
-  try {
-    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-  } catch {
-    throw new IfcxReadError('not-ifcx', 'Het bestand is geen UTF-8-tekst');
-  }
-  return readIfcxText(text);
+  return readIfcxText(decodeIfcx(bytes));
 }
 
 export function classifyIfcx(bytes: Uint8Array): IfcxClassification {

@@ -1,0 +1,118 @@
+{
+  "header": {
+    "id": "urn:voorbeeld:precieze-taken",
+    "ifcxVersion": "ifcx_alpha",
+    "dataVersion": "1.0.0",
+    "author": "Planbureau"
+  },
+  "imports": [],
+  "schemas": {},
+  "data": [
+    {
+      "path": "/plan",
+      "attributes": {
+        "openaec::planning::workplan": {"name":"Werkplan"},
+        "openaec::ops::document": {"formatVersion":"1.0.0","projectId":"project-uit-bron"}
+      }
+    },
+    {
+      "path": "/planning/work-0",
+      "attributes": {
+        "openaec::planning::activity": {"name":"Pakket 0","start":"2027-03-01","endExclusive":"2027-03-02"},
+        "openaec::ops::task": {
+          "id": "pakket-0",
+          "name": "Oude naam",
+          "taskType": "CONSTRUCTION",
+          "time": {
+            "durationUnit": "days",
+            "scheduleDuration": 1,
+            "scheduleStart": "2027-03-01T07:00",
+            "scheduleFinish": "2027-03-01T16:00",
+            "earlyStart": "2027-03-01T07:00",
+            "earlyFinish": "2027-03-01T16:00",
+            "lateStart": "",
+            "lateFinish": "",
+            "totalFloat": 0,
+            "freeFloat": 0,
+            "isCritical": false
+          }
+        }
+      }
+    },
+    {
+      "path": "/planning/work-1",
+      "attributes": {
+        "openaec::planning::activity": {"name":"Pakket 1","start":"2027-03-01","endExclusive":"2027-03-03","parent":"/planning/work-0"},
+        "openaec::ops::task": {
+          "id": "pakket-1",
+          "name": "Oude naam",
+          "taskType": "CONSTRUCTION",
+          "time": {
+            "durationUnit": "days",
+            "scheduleDuration": 1,
+            "scheduleStart": "2027-03-01T07:00",
+            "scheduleFinish": "2027-03-01T16:00",
+            "earlyStart": "2027-03-01T07:00",
+            "earlyFinish": "2027-03-01T16:00",
+            "lateStart": "",
+            "lateFinish": "",
+            "totalFloat": 0,
+            "freeFloat": 0,
+            "isCritical": false
+          }
+        }
+      }
+    },
+    {
+      "path": "/planning/work-2",
+      "attributes": {
+        "openaec::planning::activity": {"name":"Pakket 2","start":"2027-03-01","endExclusive":"2027-03-04","parent":"/planning/work-0"},
+        "openaec::ops::task": {
+          "id": "pakket-2",
+          "name": "Oude naam",
+          "taskType": "CONSTRUCTION",
+          "place": 0,
+          "time": {
+            "durationUnit": "days",
+            "scheduleDuration": 1,
+            "scheduleStart": "2027-03-01T07:00",
+            "scheduleFinish": "2027-03-01T16:00",
+            "earlyStart": "2027-03-01T07:00",
+            "earlyFinish": "2027-03-01T16:00",
+            "lateStart": "",
+            "lateFinish": "",
+            "totalFloat": 0,
+            "freeFloat": 0,
+            "isCritical": false
+          }
+        }
+      }
+    },
+    {
+      "path": "/planning/work-3",
+      "attributes": {
+        "openaec::planning::activity": {"name":"Pakket 3","start":"2027-03-01","endExclusive":"2027-03-05","parent":"/planning/work-0"},
+        "openaec::ops::task": {
+          "id": "pakket-2",
+          "name": "Oude naam",
+          "taskType": "CONSTRUCTION",
+          "place": 100,
+          "manuallyScheduled": true,
+          "time": {
+            "durationUnit": "days",
+            "scheduleDuration": 1,
+            "scheduleStart": "2027-03-01T07:00",
+            "scheduleFinish": "2027-03-01T16:00",
+            "earlyStart": "2027-03-01T07:00",
+            "earlyFinish": "2027-03-01T16:00",
+            "lateStart": "",
+            "lateFinish": "",
+            "totalFloat": 0,
+            "freeFloat": 0,
+            "isCritical": false
+          }
+        }
+      }
+    }
+  ]
+}
