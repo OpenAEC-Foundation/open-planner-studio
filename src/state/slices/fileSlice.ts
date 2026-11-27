@@ -1,6 +1,6 @@
 import { normalizeTaskDates } from '../migrations/minuteModel';
 import { bindIfcxModel, findIfcxModel, ifcxModelSession } from '@/services/ifc/ifcxModelSession';
-import { hasOpenIfcxModel, isIfcxModelPath } from '../ifcForeignGuard';
+import { isIfcxModelPath } from '../ifcForeignGuard';
 import { exportHitsOwnFile, literalCalendarIdsWritten, mergeLiteralCalendarIds, rememberLiteralCalendarsWritten } from '../savedLiteralCalendars';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
@@ -684,7 +684,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       refuseTarget: documentTargetCheck(snapshot, write, false, {
         openDocumentsExcept: snapshot.activeDocumentId, missingSourceSaveAs, format: picked?.format,
       }),
-      downloadOnly: hasOpenIfcxModel(get()),
       refuseDownload: () => refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs),
       // Niet op de handle uit de opslaankiezer van de browser: die is al leeg, een weigering liet 0 bytes (knownbug 1899).
       refuseBeforePlace: isTauri() ? () => refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs) : null,
@@ -720,7 +719,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   // In de ene schrijfrij, zoals elke schrijfactie naar een projectbestand (inclusief de kiezer, zoals `exportAs`): een
   // startbestand dat intussen gelezen werd, leest de app dan opnieuw (`projectFileWriteTurns`, review ronde 5 van #1116).
   const saveLibraryFile = (documentId: string, name: string, content: string) => runProjectFileWrite(async () => {
-    const outcome = await saveFileDialog(name, content, IFC_FILE_FILTERS, { refuseTarget: foreignTargetCheck(null), downloadOnly: hasOpenIfcxModel(get()) });
+    const outcome = await saveFileDialog(name, content, IFC_FILE_FILTERS, { refuseTarget: foreignTargetCheck(null) });
     const settling = outcome ? settleAfterExport(documentId, outcome, content) : undefined;
     if (settling) await settling;
     return outcome;
@@ -2215,8 +2214,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         const { refuseTarget, refuseBeforePlace } = ext === 'ifc'
           ? exportTargetChecks(state) : { refuseTarget: foreignTargetCheck(state.activeDocumentId), refuseBeforePlace: null };
         return format === 'progress-xlsx'
-          ? { preferDownloads: true, mime, refuseTarget, refuseDownload, downloadOnly: hasOpenIfcxModel(get()) }
-          : { refuseTarget, refuseDownload, refuseBeforePlace, downloadOnly: hasOpenIfcxModel(get()) };
+          ? { preferDownloads: true, mime, refuseTarget, refuseDownload }
+          : { refuseTarget, refuseDownload, refuseBeforePlace };
       };
       const writeAndRecord = async () => {
         if (ext === 'ifc' && refuseExportBeforePicker(state)) return null;
@@ -2354,7 +2353,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const outcome = await runProjectFileWrite(async () => {
         if (refuseExportBeforePicker(state)) return null;
         const written = await saveDataDialog(`${base}.ifc`, projectData, IFC_FILE_FILTERS,
-          { refuseTarget, refuseDownload: () => refuseExportBeforePicker(state), refuseBeforePlace, downloadOnly: hasOpenIfcxModel(get()) });
+          { refuseTarget, refuseDownload: () => refuseExportBeforePicker(state), refuseBeforePlace });
         if (written) await recordOwnFileExport(state, written, planOnly ? [] : project.literalCalendarIds, projectData);
         if (written && exportContentReplaced(state)) return null;
         return written;

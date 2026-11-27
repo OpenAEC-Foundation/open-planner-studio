@@ -395,10 +395,6 @@ export async function refusedWriteTarget(
 
 export type WriteTargetRefusal = 'open-source' | 'open-document' | 'building-model' | 'foreign-content' | 'unreadable-target';
 
-export function hasOpenIfcxModel(s: WriteTargetState): boolean {
-  return s.getOpenDocumentPayloads().some(({ payload }) => !!payload.ifcxReferences?.modelSource);
-}
-
 function modelRefs(s: WriteTargetState): FileRef[] {
   return s.getOpenDocumentPayloads().flatMap(({ payload }) => ifcxModelSession(payload.ifcxReferences)?.ref ?? []);
 }

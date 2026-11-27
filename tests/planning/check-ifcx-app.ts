@@ -1203,7 +1203,7 @@ await check('browser: een IFCX-document slaat een nieuw doel op als download met
     documentElement: {},
   } });
   let pickerCalls = 0, writes = 0;
-  const pickedHandle = { kind: 'file', name: 'kopie.ifcx',
+  let pickedHandle = { kind: 'file', name: 'kopie.ifcx',
     getFile: async () => new File([], 'kopie.ifcx'),
     createWritable: async () => { writes++; return { write: async () => {}, close: async () => {}, abort: async () => {} }; },
     queryPermission: async () => 'granted', requestPermission: async () => 'granted', isSameEntry: async () => false };
@@ -1236,6 +1236,7 @@ await check('browser: een IFCX-document slaat een nieuw doel op als download met
     assert.equal(pickerCalls, 0);
     const step = (await newApp(IFCX_ON)).store;
     await step.getState().openOpenedFile({ name: 'stap.ifc', content: text(ownStep), ref: null });
+    const stepTab = step.getState().activeDocumentId;
     assert.equal(step.getState().fileFormat, 'ifc');
     await step.getState().saveFileAs();
     assert.equal(pickerCalls, 1, 'een IFC-document gebruikt de kiezer zoals main');
@@ -1249,11 +1250,20 @@ await check('browser: een IFCX-document slaat een nieuw doel op als download met
     assert.equal(downloads[beforeModel].name, 'gevel - planning.ifcx');
     assert.deepEqual(readIfcx(new Uint8Array(await downloads[beforeModel].blob.arrayBuffer())).modelSource,
       { fileName: 'gevel.ifcx', sha256: hash(facade) });
-    step.getState().newDocument();
-    await step.getState().saveFileAs();
-    assert.equal(downloads.length, beforeModel + 2);
-    assert.equal(pickerCalls, 1, 'ook de andere planning krijgt een download zolang het model open is');
-    assert.equal(writes, 0);
+    step.getState().switchDocument(stepTab);
+    assert.equal(step.getState().fileFormat, 'ifc');
+    for (const flags of [IFCX_ON, {}]) {
+      setFlags(step, flags);
+      pickedHandle = { ...pickedHandle, name: 'kopie.ifc' };
+      const beforePicker = pickerCalls, beforeWrites = writes;
+      clearNotices(step);
+      await step.getState().saveFileAs();
+      assert.deepEqual(errors(step), []);
+      assert.equal(pickerCalls, beforePicker + 1, 'de gewone planning gebruikt de kiezer terwijl het model open is');
+      assert.equal(writes, beforeWrites + 1);
+      assert.equal(step.getState().fileHandle, pickedHandle, 'de gekozen kopie is het nieuwe schrijfdoel');
+      assert.equal(downloads.length, beforeModel + 1);
+    }
   } finally {
     URL.createObjectURL = create; URL.revokeObjectURL = revoke;
     delete win.showOpenFilePicker; delete win.showSaveFilePicker;

@@ -2,7 +2,6 @@ import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, use
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconId } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
-import { hasOpenIfcxModel } from '@/state/ifcForeignGuard';
 import { Select } from '@/components/common/Select';
 import { HelpButton } from '@/components/common/HelpButton';
 import { REPORT_HELP_ARTICLE_ID } from '@/state/helpArticles';
@@ -528,7 +527,6 @@ export function GanttReportStudio() {
         // Zelfde doelcontrole als het oude rapportpaneel (#804): geen PDF over een geopend bestand heen, ook niet over dat
         // van het actieve document (review van #1064).
         refuseTarget: useAppStore.getState().foreignTargetCheck(null),
-        downloadOnly: hasOpenIfcxModel(useAppStore.getState()),
       });
     } catch (err) {
       useAppStore.getState().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
