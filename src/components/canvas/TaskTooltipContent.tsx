@@ -7,10 +7,6 @@ import { durationSuffixesFrom, effectiveCalendarOf, formatTaskDurationDisplay, f
 import { Task } from '@/types/task';
 import { shownFinish, shownStart } from '@/utils/taskDates';
 
-/**
- * Eén label/waarde-regel van een hovertooltip. `colon={false}` voor een label dat zijn eigen
- * leesteken draagt; zonder `value` staat alleen het label er (bv. "sturend").
- */
 export function TooltipRow({ label, value, valueClassName = 'tooltip-value', colon = true }: {
   label: string;
   value?: ReactNode;
@@ -25,19 +21,11 @@ export function TooltipRow({ label, value, valueClassName = 'tooltip-value', col
   );
 }
 
-/**
- * Inhoud van de taak-hovertooltip (naam, WBS, duur, start/finish, status, kritiek, total float) —
- * gedeeld tussen `GanttCanvas` en het eigenschappenpaneel: hover op de WBS-sprongknop bij een
- * afhankelijkheid moet exact dezelfde
- * details tonen als hover over de taakbalk op het canvas. Puur een `{ task }`-in, JSX-uit —
- * de positionering (`HoverTooltip`) blijft aan de aanroeper.
- */
 export function TaskTooltipContent({ task }: { task: Task }) {
   const { t: tTask, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const projectCalendar = useAppStore((s) => s.calendar);
   const calendars = useAppStore((s) => s.calendars);
-  // B9: in een profiel met de dagenmaat toont elke taak haar eigen maat.
   const durationDisplay = useEffectiveDurationDisplay();
 
   const taskDate = useTaskDateText();
@@ -49,7 +37,6 @@ export function TaskTooltipContent({ task }: { task: Task }) {
     suffixes,
     i18n.language,
   );
-  // Tooltip-datums volgen de datumnotatie-instelling en B4 (een tijd alleen midden op de werkdag); leeg → '-'.
   const formatTooltipDate = (dateStr: string, side: 'start' | 'end') => taskDate(task, dateStr, side) || '-';
 
   return (
@@ -74,10 +61,6 @@ export function TaskTooltipContent({ task }: { task: Task }) {
   );
 }
 
-/**
- * Issue #868: de tooltip van een groepsruitje in een ingeklapte mijlpalenreeks — alle mijlpalen op die
- * dag, elk met zijn naam en moment.
- */
 export function MilestoneGroupTooltipContent({ tasks }: { tasks: readonly Task[] }) {
   const { t: tTask } = useTranslation('task');
   const taskDate = useTaskDateText();
