@@ -22,8 +22,8 @@ import { createFileAutoSaveController } from '@/services/actualAutosave/fileAuto
 import { hasPendingIfcSource } from '@/services/recovery/recoveryPendingSource';
 import { RecoveryManifestError } from '@/services/recovery/recoveryManifest';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
-import { recoverySourceDocument } from '@/state/recoverySourceDocument';
-import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import * as recoverySource from '@/state/recoverySourceDocument';
+import * as featureFlags from '@/utils/featureFlags';
 import type { UpdateStatus } from '@/services/updater/updaterService';
 import { loadStore } from './ifcAppRoute';
 import { installNodeFileIpc } from './nodeFileIpc';
@@ -91,8 +91,8 @@ export async function checkRecoveryUpdateFlush(failWrites: (error?: Error) => vo
     '@/services/fileAccess/writeCoordinator': {},
     '@/state/recoveryManifestNotice': { notifyRecoveryError },
     // #804 1c: dezelfde momentopname en flagpoort als de echte hook.
-    '@/state/recoverySourceDocument': { recoverySourceDocument },
-    '@/utils/featureFlags': { ifcForeignContentEnabled },
+    '@/state/recoverySourceDocument': recoverySource,
+    '@/utils/featureFlags': featureFlags,
   }, {
     setTimeout: (callback: () => void) => { timers.set(++timerId, callback); return timerId; },
     clearTimeout: (id: number) => timers.delete(id),

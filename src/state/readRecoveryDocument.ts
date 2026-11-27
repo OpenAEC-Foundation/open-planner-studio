@@ -1,6 +1,10 @@
 import { readRecoverySourceCopy } from '@/services/recovery/recoverySourceCopies';
 import { readIfcFromText } from '@/services/formatRegistry';
-import { readBytesFromRef } from '@/services/fileAccess';
+import { fileIdentityFs, readBytesFromRef, saveTargetRef } from '@/services/fileAccess';
+import { loadRecents } from '@/services/fileAccess/recentFiles';
+import { findIfcxModel } from '@/services/ifc/ifcxModelSession';
+import { checkValue } from '@/services/ifc/ifcx/fieldTable';
+import { MODEL_SOURCE_VALUE } from '@/services/ifc/ifcx/modelReferences';
 import type { ImportLabels } from '@/services/importTypes';
 import type { LoadedRecoveryDoc } from '@/services/recovery/recoveryStore';
 import type { RecoveryIfcSource } from '@/services/recovery/recoveryIfcSource';
@@ -9,7 +13,8 @@ import {
   recoveryIdentitiesForSnapshot, reproducesIdentities, snapshotWrittenAt, withRecoveryIdentities, type RecoveryIdentityRow,
 } from '@/services/recovery/recoveryIdentity';
 import { recoverySnapshotInput, writeRecoverySnapshotParts } from '@/services/recovery/recoverySnapshotInput';
-import { ifcxMetaFields } from '@/services/recovery/recoveryIfcx';
+import { ifcxMetaFields, readIfcxReferences } from '@/services/recovery/recoveryIfcx';
+import { RecoveryManifestError } from '@/services/recovery/recoveryManifest';
 import { isTauri } from '@/utils/platform';
 import { createAppStoreContext } from './appStoreFactory';
 import { payloadFromInput, recoveryInputFromParsed, type RecoveryDocInput } from './documentContract';
@@ -71,7 +76,18 @@ export async function readRecoveryDocument(
     isDirty: document.isDirty, datesAsRecorded: document.datesAsRecorded, ...ifcxMetaFields(document),
   };
   const applied = rows ? recoveryInputFromParsed(withRecoveryIdentities(read, rows), meta) : null;
-  const snapshot = applied && rows && rewritesSnapshot(applied, document.ifc, rows) ? applied : recoveryInputFromParsed(read, meta);
+  let snapshot = applied && rows && rewritesSnapshot(applied, document.ifc, rows) ? applied : recoveryInputFromParsed(read, meta);
+  if (document.ifcx?.references) {
+    const references = readIfcxReferences(document.ifcx.references);
+    if (references.modelSource && checkValue(MODEL_SOURCE_VALUE, references.modelSource)) throw new RecoveryManifestError('invalid-shape');
+    const recent = isTauri() ? [] : await loadRecents();
+    const target = recent.find(entry => entry.id === document.ifcx?.targetRecentId)?.ref;
+    const fileHandle = target?.kind === 'handle' ? target.handle : null;
+    const plan = saveTargetRef({ siteFileId: snapshot.siteFileId ?? null, filePath: snapshot.filePath, fileHandle });
+    await findIfcxModel(references, plan, recent.flatMap(entry => entry.ref.kind === 'handle' ? [entry.ref.handle] : []),
+      path => readBytesFromRef({ kind: 'path', path }), await fileIdentityFs(), document.ifcx.modelLocation);
+    snapshot = { ...snapshot, fileHandle, ifcxReferences: references };
+  }
   if (!enabled) return snapshot;
   if (!document.ifcSource) {
     // De planningstekst is geen bewezen actuele schijfbron (1555).

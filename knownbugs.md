@@ -1776,20 +1776,6 @@ en noem het in je rapport of PR-tekst.
       (`commitOnInputEnter` en haar layout-effect in `src/components/dialogs/CalendarDialog.tsx`) neemt die datum aan
       en schrijft de feestdag naar het project. Voorstel: laat de scheidingstoets de bestaande selectie staan als het
       veld zojuist automatisch is doorgesprongen. Issue #1296. — B
-2520. **Verwijderen en Dissolve in het lint staan aan onder het volledige resourcepaneel, en verwijderen dan een
-      taak die niet in beeld is.** De sneltoetsen Delete en Backspace zijn daar dicht (`isTaskListOutOfView` in
-      `src/hooks/keyboard/shortcutRegistry.ts`, op `isTaskListInView`). In het relatiemenu (`RelationDropdown` in
-      `ribbonWidgets.tsx`) zijn koppelen en toewijzen daar dicht (`relationActionAvailability`) en tekenen ook
-      (`isGanttWorkspaceVisible`); het menu zelf gaat wel open, en bij één geselecteerde taak blijft *Externe relatie
-      toevoegen…* beschikbaar. De lintknop Verwijderen (`COMMANDS.delete`,
-      alleen `hasSelection`) en de knop Dissolve (`editGroup` in `ribbonConfig.tsx`, alleen
-      `selectedTaskIds.length > 0`) kijken niet naar `isTaskListInView`. Proef in Node met een eigen store-context
-      (`createAppStoreContext`): nieuw project met taken A en B, A geselecteerd, op Resources
-      `setUI({ showResourcePanel: true, resourcePanelDocked: false })`, dan naar Start en naar Tabel. Op beide
-      tabbladen is `isGanttWorkspaceVisible` en `isTaskListInView` onwaar (de werkruimte toont dan `ResourcePanel`,
-      `App.tsx`), de selectie blijft staan en `isCommandEnabled(COMMANDS.delete)` is waar; `COMMANDS.delete.run`
-      brengt het aantal taken van 2 naar 1, met één nieuw event in de sessiegeschiedenis, en één `undo()` zet A
-      terug. Het klikken zelf is niet in de browser nagespeeld. Issue #1305. — B
 2521. **Waarschuwingspaneel en Verschuivingen in het lint zetten hun paneel uit als je op de niet-actieve knop klikt
       terwijl het paneel aan staat maar niet in beeld is.** De knoppen (`warningsPanelButton` en
       `scheduleShiftPanelButton` in `ribbonConfig.tsx`) zijn alleen actief als de rail in beeld is, maar hun klik keert
@@ -8073,6 +8059,12 @@ en noem het in je rapport of PR-tekst.
       Richting: in de gedeelde functie de vastlegging per kant beoordelen, met de vroege start van het restwerk
       en de eerdere werkelijke start van een lopende taak als proef. — B
 
+2419. **Een uit Recent verdwenen IFCX-planning herstelt in de browser zonder schrijfdoel.**
+      Crashherstel bewaart de id van de planning in Recent. Verwijdert de planner die vermelding of
+      verdringen tien andere bestanden haar, dan zijn na herstel de taken en de modelverwijzingen
+      beschikbaar en vraagt Opslaan opnieuw om een doel. Het verwijderen van de vermelding is
+      nagegaan in `check-ifcx-herstel.ts`. — B
+
 2422. **Een MCP-backup van een planning bij een IFCX-model laat de modelverwijzing stil weg.**
       *MCP → Veiligheid → Nu backup maken* en de automatische backup langs dezelfde schrijfroute schrijven
       een STEP-kopie van de planning. Die kopie bevat de modelverwijzing en de bouwdeelkoppelingen niet, en de
@@ -8091,3 +8083,19 @@ en noem het in je rapport of PR-tekst.
       STEP-uitvoer en weigert pas daarna het doel. Er wordt niets geschreven; de planner beantwoordt een
       overbodige vraag. Gevolgd in de code bij de review van #1324, ronde 1. Richting: het gekozen doel
       en de documentidentiteit vóór de vraag toetsen en de laatste controle vlak vóór plaatsing houden. — S
+
+2424. **Valt de app uit tussen de opslag van een IFCX-planning en de vernieuwde herstelset, dan kan crashherstel de oudere stand aanbieden.**
+      Op de desktop schrijft *Opslaan* eerst het planningsbestand en vraagt daarna een actuele
+      herstelronde. Stopt het hele proces daartussen en ligt er al een herstelset van versie 6, dan laadt
+      de app na herstart die oudere stand, zonder haar te vergelijken met de nieuwere planning op het
+      schrijfdoel. Het opgeslagen bestand zelf is goed. Gevolgd in de code bij de review van #1325,
+      ronde 1; de proef onderbreekt vóór de manifestwrite en niet erna. Vóór de flag `ifcx` standaard
+      aan gaat: bij herstel de herstelde stand vergelijken met het schrijfdoel, met een proef die na de
+      plaatsing onderbreekt. — S
+
+2431. **Zet de planner de flag `ifcx` uit terwijl een ronde van Automatisch opslaan wacht, dan kan die ronde nog één keer IFCX schrijven.**
+      Een al gekozen ronde gebruikt de flag van het moment waarop ze begon. Wacht ze nog op schrijfrecht
+      of op haar beurt, en is de planning ongewijzigd met hetzelfde schrijfdoel, dan schrijft ze de
+      IFCX-planning nog één keer met de verwijzingen. Gevolgd in de code bij de review van #1325, ronde 3.
+      Vóór de flag `ifcx` standaard aan gaat: de actuele flag ook vlak vóór de plaatsing toetsen, met een
+      wachtende ronde als proef. — S

@@ -15,6 +15,11 @@ const DB = 'ops-recent-files';
 const STORE = 'recents';
 const MAX = 10;
 const LEGACY_KEY = 'open-planner-studio-recent-files';
+const handleIds = new WeakMap<FileSystemFileHandle, string>();
+
+export function recentIdForHandle(handle: FileSystemFileHandle): string | undefined {
+  return handleIds.get(handle);
+}
 
 /** Ref-identiteit voor dedupe: paden op string, handles op isSameEntry, site-bestanden op id. */
 export async function sameRef(a: FileRef, b: FileRef): Promise<boolean> {
@@ -55,17 +60,22 @@ async function migrateLegacy(existing: RecentEntry[]): Promise<RecentEntry[]> {
 export async function loadRecents(): Promise<RecentEntry[]> {
   const all = await idbGetAll<RecentEntry>(DB, STORE);
   const migrated = await migrateLegacy(all);
-  return [...migrated].sort((a, b) => b.addedAt - a.addedAt).slice(0, MAX);
+  const entries = [...migrated].sort((a, b) => b.addedAt - a.addedAt).slice(0, MAX);
+  for (const entry of entries) if (entry.ref.kind === 'handle') handleIds.set(entry.ref.handle, entry.id);
+  return entries;
 }
 
 /** Voeg een bestand toe (MRU, dedupe op ref-identiteit, cap op MAX). Geeft de nieuwe lijst terug. */
-export async function addRecent(ref: FileRef, name: string): Promise<RecentEntry[]> {
+export async function addRecent(ref: FileRef, name: string, preserveHandleId = false): Promise<RecentEntry[]> {
   const existing = await loadRecents();
   const kept: RecentEntry[] = [];
+  let existingId: string | undefined;
   for (const e of existing) {
     if (!(await sameRef(e.ref, ref))) kept.push(e);
+    else if (preserveHandleId && ref.kind === 'handle') existingId = e.id;
   }
-  const entry: RecentEntry = { id: generateId('recent'), name, ref, addedAt: Date.now() };
+  const entry: RecentEntry = { id: existingId ?? generateId('recent'), name, ref, addedAt: Date.now() };
+  if (ref.kind === 'handle') handleIds.set(ref.handle, entry.id);
   const next = [entry, ...kept].slice(0, MAX);
 
   // Persisteer: nieuwe entry erin, verdrongen/gededupte entries eruit.
