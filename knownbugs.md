@@ -2578,10 +2578,12 @@ en noem het in je rapport of PR-tekst.
      `addTasksCore` in `src/services/mcp/tools/taskTools.ts` maakt bij een tijddeel zonder duur zelf de tijd, met 5 in
      de dagenmaat; zonder tijddeel kiest `draft.addTask` (`src/state/runtime/createMcpTransactions.ts`) 5 in de maat
      van `newTaskTimeUnit`. Nagespeeld via de handler met de app-store: een nieuw project met zijn eigen rekenprofiel, de
-     projectkalender (8 uur per dag) en `defaultTaskDurationUnit: 'hours'`; `{ name: 'A' }` werd een urentaak van 300
-     minuten (07:00 tot 12:00), `{ name: 'B', durationType: 'WORKTIME' }` een dagtaak van 5 werkdagen. Met de
-     standaard `days` gaven beide 5 werkdagen. Met de standaard `days` en `workRule: 'FIXED_WORK'` op beide items werden
-     beide, met en zonder `durationType`, een urentaak van 2.400 minuten: daar beslist `settleNewTaskMeasure` de maat. ADR 0491. Issue #1312. — B
+     projectkalender (8 uur per dag) en `defaultTaskDurationUnit: 'hours'`; in `tasks` werd het item
+     `{ tempId: 'a', name: 'A' }` een urentaak van 300 minuten (07:00 tot 12:00) en het item
+     `{ tempId: 'b', name: 'B', durationType: 'WORKTIME' }` een dagtaak van 5 werkdagen. Met de standaard `days` gaven
+     beide 5 werkdagen. Met de standaard `days` en `workRule: 'FIXED_WORK'` op beide items werden beide, met en zonder
+     `durationType`, een urentaak van 2.400 minuten: daar beslist `settleNewTaskMeasure` de maat. ADR 0491.
+     Issue #1312. — B
 2531. **`planner_remove_dependencies` noemt een relatie twee keer in `removed` als haar id twee keer in `ids` staat.**
      `removeDependenciesCore` in `src/services/mcp/tools/taskTools.ts` zet elk gevonden id in `removed`, ook een
      herhaling. Nagespeeld via de handler: één FS-relatie, `ids: [id, id]`; de relatie was weg, `removed` bevatte het
