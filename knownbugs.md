@@ -1623,6 +1623,12 @@ en noem het in je rapport of PR-tekst.
     (`ReportPaperView.tsx`) maakt voor elk blad een element en de vectorpagineerder (`paginateVector.ts`) voegt elk
     blad toe aan de PDF. Tijd en geheugen bij dat aantal zijn niet gemeten. Issue #1238. — B
 
+2400. **Een rechtermuisklik onder de kolomknop (+) op de hoogte van een taak opent geen menu voor lege ruimte.**
+    Sinds PR #1248 (issue #1246) loopt elke rij in de taaktabel door de kolomknopstrook (32 px) heen tot aan
+    de rand van het paneel (`.task-grid-data-row`, `margin-inline-end` in `src/styles/globals.css`). Een klik in die
+    strook valt dus op de rij, en `onContextMenu` in `DataGridCore.tsx` roept `onEmptyContextMenu` alleen aan
+    buiten een rij. Vóór die PR kwam een rechtermuisklik daar wel bij het menu voor lege ruimte. Bevestigd in de
+    review van PR #1248. — B
 2346. **Het sleeplabel van een stuksleep op een urentaak telt bij kwartierzoom kwartieren als uren.**
     `handleSplitDrag` in `useBarDrag` (`src/components/canvas/hooks/useBarDrag.ts`) zet het label op
     `Math.round(lengte / unitMinutes)`, met `unitMinutes` uit `splitUnitMinutes`: bij een urentaak de snapstap van de
@@ -3349,13 +3355,6 @@ en noem het in je rapport of PR-tekst.
      twee gewone opslagacties bewaakt bytepariteit en bronidentiteit. PR 9 mag een bron zonder vreemd deel niet als
      huidige schijfversie gebruiken; verversen zou een extra scan/heropening per gewone opslag vragen. Bewezen in
      `check-ifc-saved-source.ts` en `check-ifc-document-save.ts`. — B
-1557. **VERVOLG (#804, test opruimen): de testhelper `recalculated<D>` belooft meer dan hij teruggeeft.**
-     `tests/planning/ifcAppRoute.ts` geeft bij `recalculated<D>(d): Promise<D>` altijd een nieuw resultaat van
-     `buildWriteIFCInput(…, 'merge')` terug, via `as WriteIFCInput as D`. Bij een `D` met `writeMode: 'planOnly'`
-     zegt het type dus `planOnly` terwijl de invoer `merge` draagt. De te ruime generieke belofte bestond al; #926
-     voegde de tussen-cast toe. De huidige aanroepers hebben er geen last van. Richting: de helper niet-generiek maken
-     en zijn werkelijke type laten teruggeven; dan vervallen de typeparameter en beide casts. Gevonden door de review
-     van #926. — B
 1566. **VERVOLG (#804, documentatie): handleiding nl/en vóór vrijgeven van de flag.**
      Fase 1c PR 11b voegt bewust geen gids in `public/docs/` toe: `ifcForeignContent` staat standaard uit.
      De PR die de flag aanzet moet de handleiding nl/en en de manifestvermelding toevoegen, met de
@@ -3415,10 +3414,6 @@ en noem het in je rapport of PR-tekst.
      melding. Alleen uit de code gelezen. Richting: verdwijnt als de flag eraf gaat; anders een tweede tekst zonder die
      zin voor de flag uit. — S
 
-1598. **VERVOLG (#804, docs): `.claude/rules/state.md` zegt te algemeen dat een download het openingsdoel, de bron en het kenmerk houdt.**
-     Dat geldt voor een download op de mergeroute. De bevestigde Opslaan als zonder gebouwmodel van PR 9e (planOnly) legt
-     bij een download juist het nieuwe doel en `sourceMissing: false` vast. Richting: de regel beperken tot de
-     mergeroute en de uitzondering noemen. Gevonden door de review van #935. — B
 
 1770. **VERVOLG (#804, gebouwmodel): op een baseline van OPS v2026.7.4 tot v2026.7.14 krijgt een weesrij na de eerste merge de interne id uit de bron.**
      Op de oude showcase (`v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc` met een wand) zet de herleestoets (b)
@@ -7271,13 +7266,11 @@ en noem het in je rapport of PR-tekst.
      Reproductie `1588 ongebruikte brondefinitie bij alleen projectbeschrijving` in
      `check-ifc-foreign-preserve.ts`; basisbewijs in `/tmp/fase1c-pr7d-bewijs/ongebruikt-main.log`. — B
 
-1590. **VERVOLG (#804, structuur en opruimen): regel B is niet één gedeelde controle, en twee restjes uit PR 7d.**
+1590. **VERVOLG (#804, structuur en opruimen): regel B is niet één gedeelde controle.**
      Regel A (`ownDefinitionsGrow`) is gedeeld door codes en taaktypes. Regel B (een bestaande waarde volgt een
      bewerking) staat er twee keer in eigen vorm: de typewissel via verwachte kaartparen en `ownMapGrows`, de actieve
-     baseline in `explainActiveBaseline`. Beide zijn smal; de review vond geen ruimere vrijstelling. Verder: de
-     ongebruikte parameter van `fixedCatalogEdits` in `tests/planning/ifcMergeKern.ts` (vijf nutteloze argumenten bij
-     de aanroepen) en de lokale `isObj` in `lossCheck.ts`, die `jsonObject` herhaalt. Gevonden door de review van
-     #932. — B
+     baseline in `explainActiveBaseline`. Beide zijn smal; de review vond geen ruimere vrijstelling. Gevonden door
+     de review van #932. — B
 
 1591. **VERVOLG (#804): de vormcontrole voor codetemplates in de verliescontrole blijft tot stap 5.**
      De lezer haalt codedefinities uit `OPS_StructureMeta` en gebruikt de templates (`IFCSIMPLEPROPERTYTEMPLATE`,
@@ -7980,13 +7973,6 @@ en noem het in je rapport of PR-tekst.
       `readIfcxModelSource` gebruikt kleine bestanden. Meet vóór het standaard aanzetten van IFCX in CI
       hoeveel tijd en geheugen het hashen, decoderen en indexeren van echte modellen met geometrie kost.
       De meting onder 2350 gaat over het opslaan van een planning. — S (ontwerpstap fase 4, §4 en §6)
-
-2408. **Gids: niet elke regel in de XER-verliesmelding noemt een aantal.** *Import- en exportformaten*
-      (`public/docs/nl/ref-import-exportformaten.md` en de Engelse) zegt dat de melding na een export naar `.xer` per
-      soort een regel met een aantal toont, bijvoorbeeld *2 deadlines*. De regels over rekeninstellingen en
-      projectgegevens hebben geen aantal (`src/state/xerExportNotice.ts`). De zin stond al zo op main. Gevonden in de
-      code door de reviewer van de gids voor IFCX (#1303, ronde 4), niet nagespeeld in de app. Richting: in de gids het
-      aantal alleen noemen waar de app het toont. — S
 
 2409. **Een ongebruikelijke alias van een IFCX-model kan buiten de bestandsvergelijking vallen.**
       De app herkent het bronpad en de bestandsidentiteit die het platform teruggeeft. Controleer vóór
