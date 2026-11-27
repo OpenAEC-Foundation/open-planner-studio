@@ -42,14 +42,18 @@ import { ifcGuid, ifcObjectSeed, writeIFCWithChoices, writeIfcMergeLines, type S
 import { ACTIVITY_CODE_ID_SUFFIX, PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { workCalendarSlots } from '../ifcWorkControlSlots';
+import { relationRoles, slotTableNamed, slotTableOf } from '../ifcSlotTables';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
 import { assumedRowGuid, orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged, withOrphanRowGuids } from './sourceForm';
 import {
-  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, taskField,
-  taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine,
+  changedScopes, dateTimeTexts, decimalKey, slotFieldChanged, slotHasFields, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, refsOutsideText, taskField,
+  taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine, type SlotEdit,
 } from './lossCheck';
 import { elementLinksByTask, scanElementLinks } from './elementLinks';
+import { foreignOriginAmong, OWNED_BY_TABLE, scanSourceSlots, type SourcePieceSlots } from './sourceSlots';
+import { keepsTarget, sourceEntity, sourceSlotArgs, writerReferences } from './sourceSlotWrite';
+import { assignmentOrigin } from './assignmentOrigin';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource, PreparedIfcWrite, UnusedKeysOfTask } from './ifcSource';
@@ -59,16 +63,27 @@ import {
 import { readFileSchemaName } from '../ifcReader';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { scanForeignStep } from './oldOwnHeader';
-import { MAX_STEP_ID, splitStepArgs, type StepIndex } from './stepScanner';
+import { MAX_STEP_ID, type StepIndex } from './stepScanner';
 import type { DayMeasureDurationKey } from '../dayMeasureIo';
 import { planningCanon, planningDifference } from './planningCanon';
 import { planningIdentities, planningIdentityInput } from './planningIdentity';
 import { sameValue } from '@/utils/sameValue';
 import { freeze } from 'immer';
 import { openMergePlanning } from '@/state/ifcMergePlanning';
+import { taskTimeSlotProblem, type LiteralSourceSlots } from './taskTimeExpectation';
+import type { TaskTimeReading } from '../ifcReader';
 import { psetOwners, validateMergeOutput } from './mergeValidation';
+import { departuresOf, type Departure } from './departures';
+import {
+  detachedAfterWrite, renderedRestorations, restorablePieces, withoutRestoredMembers, withReturnedMembers, withReturnedSlots, type CarriedRelation, type Detached,
+  type DetachedObject, type SourceView,
+} from './detached';
+import {
+  AGGREGATES, CARRIED_RELATIONS, CONTROL, DECLARES, DEFINES, formatRefs, NESTS, parseLine, PROCESS, refList, refOf, relArgs, setArgs, SINGLE_MEMBERSHIP,
+  type OwnLine,
+} from './ownLine';
 import { applyForeignRule, emptyForeignReferences, goneStepIds, NOTHING_GONE, type ForeignChange, type ForeignReferences, type ForeignRuleOutcome } from './changeList';
-import { foreignChangeList, foreignReferences } from './foreignReferences';
+import { foreignChangeList, foreignReferences, withoutReferences } from './foreignReferences';
 import {
   SECOND_FORMS, indexView, linesView, ownGroupMembers, ownGroupTrees, restoredOwnGroupDifference, restoredOwnSlots, type RestoredOwnSlots,
 } from './ownGroups';
@@ -87,8 +102,6 @@ export type MergePhase2Kind =
   | 'verwijderd'
   /** Een niet-P-stuk wijst naar een P-stuk zonder vast id (een relatie of hulpstuk, §4.3). */
   | 'verwijzing-naar-p'
-  /** Een D-object kreeg een andere plek dan in een bewaarde relatie (§4.6, verplaatsen uit een bewaarde relatie). */
-  | 'verplaatst'
   /** De D-leden van een gemengde relatie veranderden, of de volgorde na herlezen zou anders zijn (§4.6). */
   | 'gemengde-relatie'
   /** Een vreemd lid zonder eigen pset (of template) om aan te hangen. */
@@ -167,61 +180,25 @@ export class MergeNeedsPhase2Error extends Error {
   }
 }
 
-const NESTS = 'IFCRELNESTS';
-const AGGREGATES = 'IFCRELAGGREGATES';
-const DECLARES = 'IFCRELDECLARES';
-const CONTROL = 'IFCRELASSIGNSTOCONTROL';
-const PROCESS = 'IFCRELASSIGNSTOPROCESS';
-const DEFINES = 'IFCRELDEFINESBYPROPERTIES';
+interface WrittenPiece { readonly args: readonly string[]; readonly owned?: readonly string[] }
 
-/** Argumentposities van relating en related per structureel relatietype. */
-const REL_ARGS: Readonly<Record<string, { relating: number; related: number }>> = {
-  [NESTS]: { relating: 4, related: 5 },
-  [AGGREGATES]: { relating: 4, related: 5 },
-  [DECLARES]: { relating: 4, related: 5 },
-  [CONTROL]: { relating: 6, related: 4 },
-  [PROCESS]: { relating: 6, related: 4 },
-};
-/** Typen waarvan het lid maar in één relatie mag staan (inverse SET [0:1]): `Nests`, `Decomposes`, `HasContext`. */
-const SINGLE_MEMBERSHIP: ReadonlySet<string> = new Set([NESTS, AGGREGATES, DECLARES]);
-
-/** Een regel van de writer: `#id=TYPE(args);`. */
-interface OwnLine {
-  readonly id: number;
-  readonly type: string;
-  args: string[];
-  text: string;
-  drop: boolean;
+function dropReleased(lines: readonly OwnLine[], byId: ReadonlyMap<number, OwnLine>, released: readonly number[],
+  reserved: ReadonlySet<number>): void {
+  if (released.length === 0) return;
+  const referrers = new Map<number, number>();
+  for (const line of lines) if (!line.drop) for (const id of refsInText(line.text)) referrers.set(id, (referrers.get(id) ?? 0) + 1);
+  const stack = [...released];
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    const line = byId.get(id);
+    if (!line || line.drop || reserved.has(id) || (referrers.get(id) ?? 0) > 0) continue;
+    line.drop = true;
+    for (const target of refsInText(line.text)) {
+      referrers.set(target, (referrers.get(target) ?? 1) - 1);
+      stack.push(target);
+    }
+  }
 }
-
-const LINE = /^#(\d+)=([A-Z0-9_]+)\(([\s\S]*)\);$/;
-
-function parseLine(text: string): OwnLine {
-  const m = LINE.exec(text);
-  if (!m) throw new Error(`mergeWriter: onverwachte regel van de writer: ${text.slice(0, 80)}`);
-  return { id: Number(m[1]), type: m[2], args: splitStepArgs(m[3]), text, drop: false };
-}
-
-function setArgs(line: OwnLine, args: string[]): void {
-  line.args = args;
-  line.text = `#${line.id}=${line.type}(${args.join(',')});`;
-}
-
-/** `#12` → 12; anders -1. */
-function refOf(token: string | undefined): number {
-  const m = /^#(\d+)$/.exec((token ?? '').trim());
-  return m ? Number(m[1]) : -1;
-}
-
-/** `(#1,#2)` → [1, 2]. */
-function refList(token: string | undefined): number[] {
-  const t = (token ?? '').trim();
-  if (!t.startsWith('(') || !t.endsWith(')')) return [];
-  return splitStepArgs(t.slice(1, -1)).map(refOf).filter(id => id >= 0);
-}
-
-const formatRefs = (ids: readonly number[]) => `(${ids.map(id => `#${id}`).join(',')})`;
-
 
 function editedPieces(index: StepIndex, changes: readonly ForeignChange[]): ReadonlyMap<number, Uint8Array | null> {
   const edits = new Map<number, Uint8Array | null>();
@@ -230,6 +207,40 @@ function editedPieces(index: StepIndex, changes: readonly ForeignChange[]): Read
     edits.set(index.chunkOf(String(change.id)), change.kind === 'gewijzigd' ? change.newBytes : null);
   }
   return edits;
+}
+
+function withLeaving(rule: ForeignRuleOutcome, leaving: ReadonlyMap<number, ReadonlySet<number>>, readAsOwn: ReadonlySet<number>,
+  index: StepIndex): ForeignRuleOutcome {
+  if (leaving.size === 0 && readAsOwn.size === 0) return rule;
+  const dropped = new Set([...rule.dropped, ...readAsOwn]), trimmed = new Map(rule.trimmed);
+  for (const [id, away] of leaving) {
+    if (dropped.has(id)) continue;
+    const chunk = index.chunkOf(String(id));
+    const type = index.type(chunk);
+    const lost = new Set([...(rule.trimmed.get(id) ?? []), ...away]);
+    const related = index.refsAt(chunk, type === DEFINES ? 4 : relationRoles(type)!.related);
+    if (related.every(m => lost.has(Number(index.id(m))))) {
+      dropped.add(id);
+      trimmed.delete(id);
+    } else trimmed.set(id, lost);
+  }
+  return { ...rule, dropped, trimmed };
+}
+
+function ruleChangesOnly(changes: readonly ForeignChange[], rule: ForeignRuleOutcome, leaving: ReadonlyMap<number, ReadonlySet<number>>,
+  readAsOwn: ReadonlySet<number>, index: StepIndex, bytes: Uint8Array): ForeignChange[] {
+  return changes.flatMap((change): ForeignChange[] => {
+    if (change.kind === 'teruggezet' || (change.kind === 'vervallen' && change.unusedKeyOfTask !== undefined)) return [change];
+    if (readAsOwn.has(change.id)) return [];
+    const away = leaving.get(change.id);
+    if (!away) return [change];
+    const dropped = rule.dropped.has(change.id);
+    if (!dropped && !rule.trimmed.has(change.id)) return [];
+    const chunk = index.chunkOf(String(change.id));
+    let oldBytes: Uint8Array;
+    try { oldBytes = withoutReferences(bytes, index.start(chunk), index.entityStart(chunk), index.end(chunk), away); } catch { return []; }
+    return [dropped || change.kind === 'vervallen' ? { kind: 'vervallen', id: change.id, oldBytes } : { ...change, oldBytes }];
+  });
 }
 
 /** Een multiset van ids. */
@@ -355,7 +366,7 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, pro
  *  `observe`, alleen voor proeven: wat (c) bij deze opslag doet met de slots die (b) terugzette, precies zoals de opslag het
  *  aan (c) geeft. */
 export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, probe?: OpenMergePlanning,
-  observe?: (restored: RestoredOwnSlots) => void): Promise<PreparedIfcWrite> {
+  observe?: (restored: OwnOutputCheck) => void): Promise<PreparedIfcWrite> {
   input = freeze(structuredClone(input), true);
   if (!source.foreign) {
     const written = writeIFCWithChoices(input);
@@ -395,7 +406,27 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   const label = (chunk: number) => `${index.type(chunk)} #${index.id(chunk)}`;
 
   // ── 1. Wat de bron zelf al uitsluit ──
-  for (const i of cls.foreignOrigin) caseAt('vreemde-herkomst', i, `${label(i)} heeft de owner history van een ander programma`);
+  const sourceSlots = source.sourceSlots;
+  const carried = (i: number) => sourceSlots?.has(sid(i)) === true && (inD[i] === 1 || CARRIED_RELATIONS.has(index.type(i)));
+  for (const i of cls.foreignOrigin) {
+    if (!carried(i)) caseAt('vreemde-herkomst', i, `${label(i)} heeft de owner history van een ander programma`);
+  }
+  const sharedHelpers = new Set<number>();
+  for (const [, piece] of sourceSlots ?? []) {
+    const table = slotTableNamed(piece.table);
+    if (!table) continue;
+    table.slots.forEach((slot, k) => {
+      for (const ref of writerReferences(table, k, piece.slots.get(slot.key))) {
+        const t = index.chunkOf(String(ref));
+        if (t < 0 || !isP(t) || sharedHelpers.has(t)) continue;
+        const referrers = new Set<number>();
+        for (let j = index.inStart(t); j < index.inEnd(t); j++) if (index.inSource(j) >= 0) referrers.add(index.inSource(j));
+        if (referrers.size < 2) continue;
+        sharedHelpers.add(t);
+        caseAt('niet-eenduidig', t, `${label(t)} is gedeeld door ${[...referrers].map(label).join(' en ')}, en de writer schrijft voor elke verwijzer een eigen ${index.type(t)}`);
+      }
+    });
+  }
   const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
   const { keep, bySource, reserved, baselineHeads, projects } = ids;
   const plan: WriterMergeIds = {
@@ -406,8 +437,6 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   const gone = goneStepIds(source.stepIds, input);
   const references = gone.size > 0 ? foreignReferences(index, cls.classes, source.bytes, cls.selection.inD) : emptyForeignReferences();
   const rule = applyForeignRule(references, gone, source.unusedKeys);
-  const changes = foreignChangeList(rule, index, source.bytes);
-  const pieceEdits = editedPieces(index, changes);
   // Een verstopt stuk vóór een P-stuk (#886): het commentaar ervóór gaat met het P-stuk weg.
   for (let i = 0; i < n; i++) {
     if (!index.isEntity(i) || !isP(i)) continue;
@@ -449,20 +478,11 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 
   // ── 2–6. De regels van de writer voor een domein, met de bewaarde en gemengde relaties en de vreemde leden. De merge
   // doet dit voor het bewerkte domein (O1) en voor het domein zoals de lezer het las (O0, de verliesbewaking). ──
-  function buildLines(input: WriteIFCInput, caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void, rule: ForeignRuleOutcome) {
+  const keptD = new Set(keep.values());
+  function buildLines(input: WriteIFCInput, caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void, rule: ForeignRuleOutcome,
+    departures: (relation: number) => Departure, before?: ReadonlyMap<number, WrittenPiece>, changed: ReadonlySet<string> = new Set()) {
     // ── 2. Het domein ──
     const comparison = planningIdentityInput(input);
-    let resourcesByTask: Map<string, string[]> | undefined;
-    const resourcesOfTask = () => {
-      if (!resourcesByTask) {
-        resourcesByTask = new Map();
-        for (const a of comparison.assignments) {
-          const list = resourcesByTask.get(a.taskId);
-          if (list) list.push(a.resourceId); else resourcesByTask.set(a.taskId, [a.resourceId]);
-        }
-      }
-      return resourcesByTask;
-    };
     const sourceIds = planningIdentities(source.opened ?? pristine);
     const resourceId = (id: string) => sourceIds.resource.get(id) ?? id;
     const calendarId = (id: string) => sourceIds.calendar.get(id) ?? id;
@@ -471,7 +491,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 
     // ── 3. De writer ──
     // Wat de planner niet wijzigde, in de vorm van de bron (fixronde 7, `SourceTaskTime`).
-    const written = writeIfcMergeLines(withOrphanRowGuids(input, rowGuid), sourceFormPlan(plan, pristine, input, index, source.stepIds), writtenAt);
+    const formPlan = sourceFormPlan(plan, pristine, input, index, source.stepIds);
+    const written = writeIfcMergeLines(withOrphanRowGuids(input, rowGuid), formPlan, writtenAt);
     const lines = written.lines.map(parseLine);
     const byId = new Map<number, OwnLine>();
     for (const line of lines) {
@@ -480,9 +501,46 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     }
     const outIdOf = (key: string) => written.idMap.get(key);
     const scheduleOut = outIdOf('_worksched');
+
     /** De baseline-koppen die met hun bron-id in de uitvoer staan (`baselineHeads`). */
     const keptHeads = new Set<number>();
     for (const [key, id] of written.idMap) if (key.startsWith('_baseline_ws_') && reserved.has(id)) keptHeads.add(id);
+
+    const raw = new Map<number, WrittenPiece>();
+    const chosen: Pick<SlotEdit, 'id' | 'arg' | 'token'>[] = [];
+    const released: number[] = [];
+    const carried = (id: number) => isP(index.chunkOf(String(id)));
+    const fromSource = (line: OwnLine, piece: SourcePieceSlots, prior: readonly string[] | undefined, object: string | undefined)
+      : readonly string[] | undefined => {
+      const table = slotTableOf(line.type, line.args);
+      if (!table || table.naam !== piece.table || line.args.length !== table.slots.length) return undefined;
+      if (before && prior?.length !== line.args.length) return undefined;
+      const writtenArgs = line.args, type = line.type;
+      line.type = sourceEntity(table, piece, line.type);
+      setArgs(line, sourceSlotArgs(table, piece, writtenArgs, prior,
+        k => (object === undefined ? false : slotFieldChanged(type, k, object, changed, input, formPlan.sourceDayLagIds) || (slotHasFields(type, k) ? false : undefined)), carried));
+      line.args.forEach((token, arg) => {
+        if (token === writtenArgs[arg]) return;
+        chosen.push({ id: line.id, arg, token });
+        if (keepsTarget(table, arg, token, carried)) released.push(...refsOutsideText(writtenArgs[arg]));
+      });
+      return writtenArgs;
+    };
+    for (const line of lines) {
+      const piece = sourceSlots && (keptD.has(line.id) || keptHeads.has(line.id)) ? sourceSlots.get(line.id) : undefined;
+      if (!piece || line.drop) continue;
+      const prior = before?.get(line.id);
+      const owner = OWNED_BY_TABLE.get(piece.table);
+      const ownedRef = owner && piece.owned ? refOf(line.args[slotTableNamed(piece.table)!.slots.findIndex(slot => slot.key === owner.slot)]) : -1;
+      const d = bySource.get(line.id);
+      const object = !before ? undefined : d ? `${d.kind}:${d.id}` : '';
+      const args = fromSource(line, piece, prior?.args, object);
+      if (!args) continue;
+      const ownedLine = byId.get(ownedRef);
+      const owned = ownedLine && !ownedLine.drop ? fromSource(ownedLine, piece.owned!, prior?.owned, object) : undefined;
+      if (!before) raw.set(line.id, { args, ...(owned ? { owned } : {}) });
+    }
+    dropReleased(lines, byId, released, reserved);
 
     // ── 4. Bewaarde en gemengde relaties ──
     /** Leden die in geen eigen relatie van dit type mogen staan (SET [0:1]). */
@@ -498,15 +556,18 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     /** D-taken in een relatie van een ander werkschema (niet D). */
     const otherScheduleTasks = new Set<number>();
     const domainOf = (chunk: number) => bySource.get(sid(chunk));
-    const taskOf = (chunk: number) => {
-      const d = domainOf(chunk);
-      return d?.kind === 'task' ? tasks.get(d.id) : undefined;
+    const leaving = new Map<number, Set<number>>();
+    const leave = (r: number, away: readonly number[]) => {
+      if (away.length === 0) return;
+      let set = leaving.get(sid(r));
+      if (!set) leaving.set(sid(r), set = new Set());
+      for (const m of away) set.add(sid(m));
     };
 
     for (let r = 0; r < n; r++) {
       if (!index.isEntity(r) || isP(r) || rule.dropped.has(sid(r))) continue;
       const type = index.type(r);
-      const pos = REL_ARGS[type];
+      const pos = relArgs(type);
       if (!pos) continue;
       const relating = index.refAt(r, pos.relating);
       const members = index.refsAt(r, pos.related).filter(x => x >= 0 && inD[x] && !rule.gone.has(sid(x)));
@@ -517,80 +578,28 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       }
       // Bewaarde relatie met een relating buiten D: haar D-leden houden hun plek.
       const relatingIsSchedule = relating >= 0 && index.type(relating) === 'IFCWORKSCHEDULE';
+      const departure = departures(r);
       for (const m of members) {
+        if ('leave' in departure && departure.leave.has(sid(m))) { leave(r, [m]); continue; }
         if (SINGLE_MEMBERSHIP.has(type)) noOwnRel.get(type)!.add(sid(m));
-        if (type === NESTS) {
-          const d = domainOf(m);
-          const moved = d?.kind === 'task' ? !!tasks.get(d.id)?.parentId : d?.kind === 'res' ? resources.get(resourceId(d.id))?.parentId != null : false;
-          if (moved) caseAt('verplaatst', m, `${label(m)} staat in ${label(r)} van een ander, maar heeft in de planning een ouder`);
-        }
         if ((type === NESTS || type === CONTROL) && relatingIsSchedule && index.type(m) === 'IFCTASK') otherScheduleTasks.add(sid(m));
       }
     }
 
     function mixedRelation(r: number, type: string, relating: number, members: number[]): void {
-      const relType = index.type(relating);
-      const relatingDomain = domainOf(relating);
       const bag = bagFor(type, sid(relating));
       // Een lid dat niet meer bestaat (of dat de planning niet kent): dat meldt de controle op verwijzingen (stap 7).
       const missing = members.some(m => (!domainOf(m) && !keptHeads.has(sid(m))) || (domainOf(m)?.kind === 'task' ? !tasks.has(domainOf(m)!.id)
         : domainOf(m)?.kind === 'res' ? !resources.has(resourceId(domainOf(m)!.id)) : false));
       if (missing) return;
-      if (type === NESTS && relType === 'IFCTASK' && relatingDomain?.kind === 'task') {
-        const parent = tasks.get(relatingDomain.id);
-        const s = members.map(m => taskOf(m)?.id);
-        if (!parent || s.some(id => id === undefined || tasks.get(id)!.parentId !== parent.id)) {
-          caseAt('gemengde-relatie', r, `${label(r)}: een D-lid heeft een andere ouder`);
-          return;
-        }
-        // De lezer leest de eigen relatie (in het blok) vóór de gemengde (erna): de volgorde moet dan die van het domein zijn.
-        const others = parent.childIds.filter(id => !s.includes(id));
-        if (parent.childIds.join('\u0000') !== [...others, ...s].join('\u0000')) {
-          caseAt('gemengde-relatie', r, `${label(r)}: de volgorde van de kinderen zou na herlezen anders zijn`);
-          return;
-        }
-      } else if (type === NESTS && relType === 'IFCWORKSCHEDULE') {
-        if (members.some(m => !!taskOf(m)?.parentId)) {
-          caseAt('gemengde-relatie', r, `${label(r)}: een D-lid is geen wortel-taak meer`);
-          return;
-        }
-      } else if (type === AGGREGATES && relType === 'IFCWORKPLAN') {
-        // Het D-schema hangt altijd onder het D-werkplan, en een eigen baselinekop houdt zijn id (`keptHeads`).
-      } else if (type === CONTROL && relType === 'IFCWORKSCHEDULE') {
-        // Elke taak hangt aan het D-schema; de leden bestaan nog (hierboven).
-      } else if (type === CONTROL && relType === 'IFCWORKCALENDAR' && relatingDomain?.kind === 'cal') {
-        const calId = calendarId(relatingDomain.id);
-        for (const m of members) {
-          const d = domainOf(m)!;
-          const own = d.kind === 'task' ? tasks.get(d.id)?.calendarId : d.kind === 'res' ? resources.get(resourceId(d.id))?.calendarId : undefined;
-          const same = calId === input.calendar.id ? !own || own === input.calendar.id : own === calId;
-          if (!same) {
-            caseAt('gemengde-relatie', r, `${label(r)}: ${label(m)} heeft een andere kalender`);
-            return;
-          }
-        }
-      } else if (type === PROCESS && relType === 'IFCTASK' && relatingDomain?.kind === 'task') {
-        const taskId = relatingDomain.id;
-        const domainRes = resourcesOfTask().get(taskId) ?? [];
-        const s = members.map(m => { const d = domainOf(m); return d?.kind === 'res' ? resourceId(d.id) : d?.id; });
-        const count = (list: readonly (string | undefined)[], id: string | undefined) => list.filter(x => x === id).length;
-        for (const id of new Set(s)) {
-          // Meer toewijzingen van dezelfde resource: de wachtrij van `OPS_Assignments` kan dan schuiven.
-          if (count(s, id) > 1 || count(domainRes, id) !== 1) {
-            caseAt('gemengde-relatie', r, `${label(r)}: de toewijzingen van de taak veranderden`);
-            return;
-          }
-        }
-        const others = domainRes.filter(id => !s.includes(id));
-        if (domainRes.join('\u0000') !== [...others, ...s].join('\u0000')) {
-          caseAt('gemengde-relatie', r, `${label(r)}: de volgorde van de toewijzingen zou na herlezen anders zijn`);
-          return;
-        }
-      } else {
-        caseAt('gemengde-relatie', r, `${label(r)} met relating ${label(relating)}: deze vorm kan pas in fase 2`);
+      const departure = departures(r);
+      if ('unknown' in departure) {
+        caseAt('gemengde-relatie', r, `${label(r)} met relating ${label(relating)}: ${departure.unknown}`);
         return;
       }
-      for (const m of members) bag.add(sid(m));
+      const away = members.filter(m => departure.leave.has(sid(m)));
+      for (const m of members) if (!away.includes(m)) bag.add(sid(m));
+      leave(r, away);
     }
 
     // De taken die niet aan het D-schema mogen: zelf of via een voorouder in een relatie van een ander werkschema.
@@ -607,7 +616,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     }
 
     for (const line of lines) {
-      const pos = REL_ARGS[line.type];
+      const pos = relArgs(line.type);
       if (!pos) continue;
       const relating = refOf(line.args[pos.relating]);
       const before = refList(line.args[pos.related]);
@@ -622,6 +631,107 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
         args[pos.related] = formatRefs(after);
         setArgs(line, args);
       }
+    }
+
+    const origin = assignmentOrigin(index, bySource, input, source.opened);
+    if (sourceSlots) foreignRelations(sourceSlots);
+    function foreignRelations(slots: NonNullable<IfcSource['sourceSlots']>): void {
+      const byRelating = new Map<string, { type: string; relating: number; rels: number[] }>();
+      for (const r of cls.foreignOrigin) {
+        const type = index.type(r);
+        if (inD[r] || !cls.inR[r] || !CARRIED_RELATIONS.has(type) || !slots.has(sid(r))) continue;
+        const relating = index.refAt(r, relationRoles(type)!.relating);
+        const key = `${type}|${relating}`;
+        const group = byRelating.get(key);
+        if (group) group.rels.push(r); else byRelating.set(key, { type, relating, rels: [r] });
+      }
+      if (byRelating.size === 0) return;
+      const outOf = (chunk: number) => (chunk >= 0 && byId.get(sid(chunk))?.drop === false ? sid(chunk) : undefined);
+      const ownRels = new Map<string, OwnLine[]>();
+      for (const line of lines) {
+        const roles = CARRIED_RELATIONS.has(line.type) ? relationRoles(line.type) : undefined;
+        if (!roles || line.drop) continue;
+        const key = `${line.type}|${refOf(line.args[roles.relating])}`;
+        const list = ownRels.get(key);
+        if (list) list.push(line); else ownRels.set(key, [line]);
+      }
+      const ownCalendar = (chunk: number): string | undefined | null => {
+        const d = domainOf(chunk);
+        if (d?.kind === 'task') return tasks.has(d.id) ? tasks.get(d.id)!.calendarId : null;
+        if (d?.kind === 'res') return resources.has(resourceId(d.id)) ? resources.get(resourceId(d.id))!.calendarId : null;
+        return null;
+      };
+      let next = plan.firstId;
+      for (const line of lines) if (line.id >= next) next = line.id + 1;
+      const nextId = () => { while (reserved.has(next)) next++; return next++; };
+      const inserted = new Map<OwnLine | undefined, OwnLine[]>();
+      for (const { type, relating, rels } of byRelating.values()) {
+        const relatingOut = outOf(relating);
+        if (relatingOut === undefined) continue;
+        const roles = relationRoles(type)!;
+        const own = ownRels.get(`${type}|${relatingOut}`) ?? [];
+        const ownMembers = own.flatMap(line => refList(line.args[roles.related]));
+        const pool = new Bag();
+        for (const m of ownMembers) pool.add(m);
+        const relatingCal = domainOf(relating);
+        const projectCalendar = type === CONTROL && relatingCal?.kind === 'cal' && calendarId(relatingCal.id) === input.calendar.id;
+        const fromPool = new Bag();
+        const take = (m: number): number | undefined => {
+          const id = outOf(m);
+          if (id === undefined) return undefined;
+          if (pool.take(id)) { fromPool.add(id); return id; }
+          const cal = projectCalendar ? ownCalendar(m) : null;
+          return cal !== null && (!cal || cal === input.calendar.id) ? id : undefined;
+        };
+        const task = domainOf(relating);
+        if (before && type === PROCESS && task?.kind === 'task') {
+          for (const r of rels) {
+            for (const m of index.refsAt(r, roles.related)) {
+              const resource = m >= 0 ? domainOf(m) : undefined;
+              if (resource?.kind !== 'res' || !origin.unclear(task.id, resource.id)) continue;
+              caseAt('niet-eenduidig', r, `${label(r)}: ${label(m)} staat bij ${label(relating)} in meer dan één toewijzing, en welke de planner wijzigde, is niet vast te stellen`);
+            }
+          }
+        }
+        const nestsFollowParent = type === NESTS && rels.length === 1;
+        if (nestsFollowParent) for (const m of ownMembers) fromPool.add(m);
+        const taken = nestsFollowParent ? [ownMembers]
+          : rels.map(r => index.refsAt(r, roles.related).map(take).filter((id): id is number => id !== undefined));
+        for (const line of own) {
+          const members = refList(line.args[roles.related]);
+          const after = members.filter(m => !fromPool.take(m));
+          if (after.length === members.length) continue;
+          if (after.length === 0) line.drop = true;
+          else {
+            const args = [...line.args];
+            args[roles.related] = formatRefs(after);
+            setArgs(line, args);
+          }
+        }
+        rels.forEach((r, i) => {
+          const piece = slots.get(sid(r))!;
+          const table = slotTableNamed(piece.table);
+          if (!table || taken[i].length === 0) return;
+          const writtenArgs = own[0]?.args.length === table.slots.length ? [...own[0].args] : table.slots.map(slot => piece.slots.get(slot.key) ?? '$');
+          writtenArgs[roles.relating] = `#${relatingOut}`;
+          writtenArgs[roles.related] = formatRefs(taken[i]);
+          const line: OwnLine = { id: nextId(), type: sourceEntity(table, piece, type), args: [], text: '', drop: false };
+          setArgs(line, sourceSlotArgs(table, piece, writtenArgs));
+          byId.set(line.id, line);
+          const anchor = own[0];
+          const list = inserted.get(anchor);
+          if (list) list.push(line); else inserted.set(anchor, [line]);
+        });
+      }
+      if (inserted.size === 0) return;
+      const ordered: OwnLine[] = [];
+      for (const line of lines) {
+        for (const added of inserted.get(line) ?? []) ordered.push(added);
+        ordered.push(line);
+      }
+      for (const added of inserted.get(undefined) ?? []) ordered.push(added);
+      lines.length = 0;
+      for (const line of ordered) lines.push(line);
     }
 
     // ── 5. Gemengde psets (§4.6 b): ongewijzigd ⇒ geen eigen pset voor dat D-object ──
@@ -648,9 +758,6 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 
     // ── 6. Vreemde leden aan de eigen pset of template hangen ──
     const extraPsets = new Map<string, { owner: number; pset: number; rel: number; members: number[] }>();
-    // De velden en codes die de uitvoer in `OPS_StructureMeta` krijgt: een vreemd lid met zo'n naam (of code) leest de
-    // lezer na opslaan als eigen (§10: een veld "Zone" dat de planner later maakt). Dat vraagt een melding (fase 2); tot dan
-    // schrijft de merge niets.
     const outFields = new Set((input.customFieldDefs ?? []).map(d => d.name));
     const outCodes = new Map((input.activityCodeTypes ?? []).map(t => [t.name, new Set(t.values.map(v => v.code))]));
     // Dezelfde regels als `ownProperty` en `ownTemplateProperty` in `classify.ts`, met de structuur van de uitvoer.
@@ -670,22 +777,23 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       }
       return false;
     };
+    const readAsOwnMembers = new Set<number>();
     for (const m of cls.foreignMembers) {
       for (let k = index.inStart(m); k < index.inEnd(m); k++) {
         const parent = index.inSource(k);
         if (parent < 0 || !isP(parent)) continue;
         const ptype = index.type(parent);
         const name = index.name(parent) ?? '';
-        if (readAsOwn(m, name, ptype === 'IFCPROPERTYSETTEMPLATE')) {
-          caseAt('vreemd-lid', m, `${label(m)} in ${name} zou na opslaan als eigen gelezen worden: de planning heeft nu een veld of code met die naam`);
+        const owners = ptype === 'IFCPROPERTYSET' && index.inArg(k) === 4 ? psetOwners(index, parent) : undefined;
+        if (owners && owners.length !== 1) {
+          caseAt('vreemd-lid', m, `${label(m)} hoort bij ${label(parent)} met ${owners.length} eigenaren`);
           continue;
         }
-        if (ptype === 'IFCPROPERTYSET' && index.inArg(k) === 4) {
-          const owners = psetOwners(index, parent);
-          if (owners.length !== 1) {
-            caseAt('vreemd-lid', m, `${label(m)} hoort bij ${label(parent)} met ${owners.length} eigenaren`);
-            continue;
-          }
+        if (readAsOwn(m, name, ptype === 'IFCPROPERTYSETTEMPLATE')) {
+          readAsOwnMembers.add(sid(m));
+          continue;
+        }
+        if (owners) {
           const own = ownPsetsOf.get(`${sid(owners[0])}|${name}`);
           if (!own || own.pset.drop) {
             const owner = owners[0];
@@ -741,7 +849,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       if (m) objects.set(id, m[1] === 'calendar' ? `cal:${m[2]}` : m[1] === '_baseline_ws' ? 'baselines' : `${m[1]}:${m[2]}`);
       else if (key === '_calendar') objects.set(id, `cal:${input.calendar.id}`);
     }
-    return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds, objects, idMap: written.idMap, literalCalendarIds: written.literalCalendarIds };
+    return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds, objects, idMap: written.idMap, literalCalendarIds: written.literalCalendarIds, raw, chosen,
+      sourceDayLagIds: formPlan.sourceDayLagIds, origin, leaving, readAsOwnMembers };
   }
   // Het domein zoals de lezer het uit de bron las (O0 hieronder), al vóór O1: de writer vergelijkt de taken ermee
   // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
@@ -754,7 +863,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // de lezing van de bron (#886). Wat alleen het openen veranderde, schrijft de merge in de vorm van de bron
   // (`sourceForm.ts`); de verliesbewaking blijft met de bron vergelijken.
   // O0: het domein zoals de lezer het uit de bron las (de verliesbewaking hieronder).
-  const built0 = buildLines(pristine, () => {}, NOTHING_GONE);
+  const built0 = buildLines(pristine, () => {}, NOTHING_GONE, departuresOf(index, inD, undefined));
+  const departures = departuresOf(index, inD, { stepIds: source.stepIds, before: source.opened ?? pristine, after: input });
   const pristineIds = planningIdentities(pristine).calendar, domainIds = planningIdentities(input).calendar;
   const literal0 = new Set(built0.literalCalendarIds.map(id => pristineIds.get(id) ?? id));
   // Was knownbug 1102 (besluit van Trias, 10 november 2026): een kalender die bij deze opslag letterlijk wordt (letterlijk in O1,
@@ -764,7 +874,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   let newlyLiteral = new Set<string>();
   let form = sourceFormWhereUnchanged(input, source.opened, pristine);
   let pending: Parameters<typeof caseAt>[] = [];
-  let built = buildLines(form.input, (...a) => { pending.push(a); }, rule);
+  const plannerChanged = changedScopes(input, (source.opened ?? pristine) as unknown as ImportResult).keys;
+  let built = buildLines(form.input, (...a) => { pending.push(a); }, rule, departures, built0.raw, plannerChanged);
   for (let round = 0; ; round++) {
     const next = new Set([...newlyLiteral, ...built.literalCalendarIds.filter(id => !literal0.has(domainIds.get(id) ?? id))]);
     if (next.size === newlyLiteral.size) break;
@@ -772,11 +883,28 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     newlyLiteral = next;
     form = sourceFormWhereUnchanged(input, source.opened, pristine, newlyLiteral);
     pending = [];
-    built = buildLines(form.input, (...a) => { pending.push(a); }, rule);
+    built = buildLines(form.input, (...a) => { pending.push(a); }, rule, departures, built0.raw, plannerChanged);
   }
   for (const a of pending) caseAt(...a);
+  const changes = foreignChangeList(withLeaving(rule, built.leaving, built.readAsOwnMembers, index), index, source.bytes);
+  const pieceEdits = editedPieces(index, changes);
   const domain = form.input;
   const { lines, byId, keptHeads, owner, taskIds, objects } = built;
+  const writerIds = writerStepIds(input, built.idMap);
+  const sourceView = sourceViewOf(source, index, cls, rule.dropped);
+  const returning = restorablePieces(source.detached, seed => writerIds[seed] !== undefined, sourceView);
+  withoutRestoredMembers(returning, { lines, idOf: seed => writerIds[seed], scheduleSeed: `ws:${input.project.id}`, tasks: input.tasks }, sourceView);
+  withReturnedSlots(source.detached?.objects, byId, seed => writerIds[seed], id => isP(index.chunkOf(String(id))));
+  const carriedRelations = carriedRelationsOf(index, cls, sourceSlots, bySource);
+  const carriedKeys = new Set([...carriedRelations.map(r => r.key), ...(source.detached?.relations.keys() ?? [])]);
+  let highestSourceId = 0;
+  for (const id of source.chunkIds) if (id > highestSourceId) highestSourceId = id;
+  const firstFreeId = (ids: Iterable<number>) => {
+    let max = highestSourceId;
+    for (const id of ids) if (id > max) max = id;
+    for (const [key, piece] of source.detached?.pieces ?? []) max = Math.max(max, key, piece.at ?? 0);
+    return max + 1;
+  };
 
   // ── 7. Verwijzingen van buiten P: alleen naar een D-object dat met zijn bron-id in de uitvoer staat ──
   const emitted = new Set<number>();
@@ -818,16 +946,15 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 
   // ── 8. De verliesbewaking (`lossCheck.ts`): O0, het domein zoals de lezer het uit de bron las, moet elk P-stuk van de
   // bron veld voor veld teruggeven; O1 mag daar alleen van afwijken waar het domein veranderde. ──
-  // (b), het slotdeel van `sourceSlots` (fixronde 3 van #867): de slots die de lezer niet draagt, krijgen in O1 de
-  // bronwaarde terug zolang de planner dat veld niet wijzigde (`lossCheck`, `edits`). De bronwaarden komen uit
-  // `ifcSource.bytes`: geen tweede kopie, en niets nieuws in het document, undo, herstel of de MCP-backup.
   const o0 = built0.lines.filter(l => !l.drop);
   const lossInput: LossCheckInput = {
     index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain, opened: source.opened,
-    owner0: built0.owner, owner1: owner, objects1: objects, literalCalendarIds: newlyLiteral,
+    ...(sourceSlots ? { sourceSlots } : {}),
+    owner0: built0.owner, owner1: owner, objects1: objects, literalCalendarIds: newlyLiteral, sourceDayLagIds: built.sourceDayLagIds,
+    assignmentOrigin: built.origin,
     // Fixronde 1 van #886: "de planner wijzigde dit" tegenover wat de app na het openen liet zien, met de invoer van de
     // planner (niet `domain`, waarin de bronvorm al staat).
-    ...(source.opened ? { plannerChanged: changedScopes(input, source.opened as unknown as ImportResult).keys } : {}),
+    ...(source.opened ? { plannerChanged } : {}),
     // De andere toets (PR 12b) alleen met wat de app na het openen liet zien: zonder kan (a′) niet getoetst worden.
     ...(source.opened ? openedOwnGroups(index, cls, plan, pristine, source.opened, source.stepIds, writtenAt) : {}),
   };
@@ -836,8 +963,11 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // en de bronwaarde), en de rest van de groep gewoon; is het slot niet eenduidig aan te wijzen, dan slaat (c) de hele groep
   // over (`restoredOwnSlots`, op O1 vóór de bewerkingen). Een verwijzing naar een stuk dat de writer niet schrijft (het
   // `IfcProject` van een ander programma), leest het type uit de bron.
-  const restored = restoredOwnSlots(linesView(lines.filter(l => !l.drop), id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; }), edits);
-  const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds, pieceEdits);
+  const chosen = built.chosen.filter(e => byId.get(e.id)?.drop === false);
+  const restored = restoredOwnSlots(linesView(lines.filter(l => !l.drop), id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; }), edits, chosen);
+  const preview = renderedRestorations(returning, seed => writerIds[seed], firstFreeId(lines.map(l => l.id)), sourceView);
+  const readEdits = withInPlace(index, pieceEdits, preview.inPlace);
+  const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds, readEdits, preview.appended);
   if (cases.length === 0 && edits.length > 0) {
     const plain = lines.filter(l => !l.drop).map(l => l.text);
     for (const e of edits) {
@@ -891,7 +1021,18 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     }
   }
   async function checkedOutput(candidate: readonly OutLine[]): Promise<PreparedIfcWrite> {
-    const assembled = concatParts(assemble(source, index, cls, candidate.map(line => 'text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`), undefined, pieceEdits));
+    if (candidate.length !== block.length) throw new Error('mergeWriter: hernummering veranderde de regelaantallen');
+    const remap = new Map(block.map((line, i) => [line.id, candidate[i].id]));
+    const stepIds = writerStepIds(input, built.idMap, id => remap.get(id) ?? id);
+    const textOf = (line: OutLine) => ('text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`);
+    let nextLineId = firstFreeId(candidate.map(l => l.id));
+    const outLines = withReturnedMembers(source.detached?.relations, candidate, seed => stepIds[seed], carriedKeys, () => nextLineId++);
+    const back = renderedRestorations(returning, seed => stepIds[seed], firstFreeId(outLines.map(l => l.id)), sourceView);
+    const outputEdits = withInPlace(index, pieceEdits, back.inPlace);
+    const written = [...changes, ...back.entries];
+    const placed = assignmentPlacement(input, index, cls, bySource, stepIds, outLines, outputEdits);
+    const assembled = concatParts(assemble(source, index, cls, placed.block.map(textOf), undefined, outputEdits,
+      new Map([...placed.after].map(([chunk, moved]) => [chunk, moved.map(textOf)])), back.appended));
     // De vingerafdruk nu, vóór de uitvoerindex er is: `crypto.subtle.digest` neemt een kopie van de bytes, en als laatste
     // stap stond die kopie bovenop de hele uitvoercontrole (#804). `precomputeSha256` onthoudt hem per buffer; niets
     // verandert deze bytes nog, dus `writtenSource` krijgt dezelfde waarde zonder tweede berekening. Bij een weigering
@@ -899,32 +1040,55 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     await precomputeSha256(assembled);
     // PR 7 behoudt de regelvolgorde. Draag zijn hernummering door naar de writerkaart,
     // zonder een tweede koppelalgoritme of domein-ids van een nieuwe lezing te gebruiken.
-    if (candidate.length !== block.length) throw new Error('mergeWriter: hernummering veranderde de regelaantallen');
-    const remap = new Map(block.map((line, i) => [line.id, candidate[i].id]));
-    const stepIds = writerStepIds(input, built.idMap, id => remap.get(id) ?? id);
     // De regel van elk slot van (b) in de uitvoer, door dezelfde hernummering. Een regel buiten de kaart: (c) slaat zijn groep
     // over, zoals vóór PR A.
     const unmapped = new Set(restored.slots.filter(s => !remap.has(s.id)).map(s => s.group));
+    const renumbered = new Map(candidate.map(line => [line.id, line]));
+    for (const e of chosen) {
+      if (refsOutsideText(e.token).length === 0) continue;
+      const line = renumbered.get(remap.get(e.id) ?? -1);
+      if (line?.args[e.arg]?.trim() === e.token.trim()) continue;
+      throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `#${line?.id ?? e.id} argument ${e.arg} draagt na het hernummeren niet meer de bronwaarde ${e.token.trim()}` }]);
+    }
     const own: OwnOutputCheck = {
       stepIds, writtenAt, sourceRowGuid: rowGuid, skip: new Set([...restored.skip, ...unmapped]),
       slots: restored.slots.filter(s => !unmapped.has(s.group)).map(s => ({ ...s, id: remap.get(s.id)! })),
+      ...(input.recordedSourceFormat ? {
+        sourceTokens: new Map(edits.filter(e => byId.get(e.id)?.type === 'IFCTASKTIME')
+          .map(e => [`${remap.get(e.id) ?? e.id}#${e.arg}`, e.token])),
+        emptySourceSlots: form.emptySlots,
+      } : {}),
     };
     observe?.(own);
-    const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own, changes);
-    const written = new Set(candidate.map(line => line.id));
-    // Een gewone lus: `Uint8Array.from` met een functie maakt bij een groot model miljoenen tijdelijke waarden (#804).
-    const ids = actual.scan.chunkIds, classes = new Uint8Array(ids.length), outputClasses = actual.classification.classes;
+    const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own, written);
+    const writerLines = new Set(outLines.map(line => line.id));
+    const ids = actual.scan.chunkIds, classes = actual.scan.classes;
     for (let k = 0; k < ids.length; k++) {
-      const id = ids[k];
-      if (id >= 0) classes[k] = written.has(id) ? 1 : changes.length > 0 ? outputClasses[k] : cls.classes[index.chunkOf(String(id))];
+      if (ids[k] < 0 || (classes[k] === 1) === writerLines.has(ids[k])) continue;
+      throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: classes[k] === 1
+        ? `#${ids[k]} is in de uitvoer een eigen stuk, maar de writer schreef het niet`
+        : `#${ids[k]} schreef de writer, maar in de uitvoer is het geen eigen stuk` }]);
     }
     const stillMembers = new Set(actual.classification.foreignMembers);
     const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c))).filter(c => stillMembers.has(c));
     const nextReferences = foreignReferences(actual.index, classes, actual.bytes, actual.classification.selection.inD);
-    const next = await writtenSource(input, actual.bytes, actual.index, actual.scan, stepIds, classes, members, actual.unusedKeys, nextReferences);
+    const seedOfOutput = new Map(Object.entries(stepIds).map(([seed, id]) => [id, seed]));
+    const lineByGuid = new Map(outLines.map(l => [`${l.type}|${l.args[0]?.trim()}`, l]));
+    const detached = detachedAfterWrite({
+      previous: source.detached, restorable: returning, placed: back.placed,
+      changes: ruleChangesOnly(changes, rule, built.leaving, built.readAsOwnMembers, index, source.bytes),
+      objectOf: id => { const d = bySource.get(id); return d && isP(index.chunkOf(String(id))) ? `${d.kind}:${d.id}` : undefined; },
+      gone: goneObjects(source, gone, bySource), present: seed => stepIds[seed] !== undefined,
+      carried: carriedRelations, membersOf: (key, type) => {
+        const line = lineByGuid.get(`${type}|${key}`), roles = relationRoles(type);
+        return line && roles ? refList(line.args[roles.related]).flatMap(id => seedOfOutput.get(id) ?? []) : undefined;
+      },
+    });
+    const next = await writtenSource(input, actual.bytes, actual.index, actual.scan, stepIds, classes, members, actual.unusedKeys,
+      outLines.map(line => actual.index.chunkOf(String(line.id))), nextReferences, detached);
     // Alleen de nieuwe buffer blijft via het resultaat vastgehouden; de oude bron kan na commit weg.
     return { bytes: actual.bytes, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds,
-      ...(changes.length > 0 ? { foreignChanges: changes } : {}) };
+      ...(written.length > 0 ? { foreignChanges: written } : {}) };
   }
   const block = lines.filter(l => !l.drop);
   let preserved: readonly OutLine[] | undefined;
@@ -937,6 +1101,43 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // gaat door dezelfde volledige bytes-, open-, canon- en getalcontrole.
     return checkedOutput(block);
   }
+}
+
+function sourceViewOf(source: IfcSource, index: StepIndex, cls: Classification, dropped: ReadonlySet<number>): SourceView {
+  const foreignChunk = (id: number) => { const c = index.chunkOf(String(id)); return c >= 0 && cls.classes[c] !== 1 ? c : -1; };
+  return {
+    kept: id => foreignChunk(id) >= 0 && !dropped.has(id),
+    chunkBytes: id => { const c = foreignChunk(id); return c >= 0 ? source.bytes.subarray(index.start(c), index.end(c)) : undefined; },
+    type: id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; },
+  };
+}
+
+function carriedRelationsOf(index: StepIndex, cls: Classification, sourceSlots: IfcSource['sourceSlots'],
+  bySource: ReadonlyMap<number, { kind: string; id: string }>): CarriedRelation[] {
+  if (!sourceSlots) return [];
+  const seed = (chunk: number) => { const d = chunk >= 0 ? bySource.get(Number(index.id(chunk))) : undefined; return d && `${d.kind}:${d.id}`; };
+  return [...cls.foreignOrigin].flatMap(r => {
+    const type = index.type(r), slots = sourceSlots.get(Number(index.id(r))), roles = relationRoles(type);
+    if (cls.selection.inD[r] || !cls.inR[r] || !CARRIED_RELATIONS.has(type) || !slots || !roles) return [];
+    const relating = seed(index.refAt(r, roles.relating)), key = slots.slots.get('globalId')?.trim();
+    return relating && key ? [{ key, type, relating, members: index.refsAt(r, roles.related).flatMap(m => seed(m) ?? []), slots }] : [];
+  });
+}
+
+function withInPlace(index: StepIndex, edits: ReadonlyMap<number, Uint8Array | null>, inPlace: ReadonlyMap<number, Uint8Array>): ReadonlyMap<number, Uint8Array | null> {
+  if (inPlace.size === 0) return edits;
+  const all = new Map(edits);
+  for (const [id, bytes] of inPlace) all.set(index.chunkOf(String(id)), bytes);
+  return all;
+}
+
+function goneObjects(source: IfcSource, gone: ReadonlySet<number>, bySource: ReadonlyMap<number, { kind: string; id: string }>): [string, DetachedObject][] {
+  return [...gone].flatMap(stepId => {
+    const d = bySource.get(stepId);
+    if (!d) return [];
+    const slots = source.sourceSlots?.get(stepId), links = d.kind === 'task' ? source.elementLinks.get(d.id) : undefined;
+    return [[`${d.kind}:${d.id}`, { ...(slots ? { slots } : {}), ...(links ? { links } : {}) }]];
+  });
 }
 
 /** De domeinsleutels van deze sessie, uit de daadwerkelijke writerkaart en haar hernummering. */
@@ -962,7 +1163,8 @@ function writerStepIds(input: WriteIFCInput, idMap: ReadonlyMap<string, number>,
 /** De scanner levert grenzen; eigendom, leden en sessie-identiteit komen van het schrijfplan. */
 async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, index: StepIndex, scan: ForeignScanResult,
   stepIds: Readonly<Record<string, number>>, classes: Uint8Array, foreignMembers: readonly number[],
-  unusedKeys?: readonly UnusedKeysOfTask[], references?: ForeignReferences): Promise<IfcSource> {
+  unusedKeys?: readonly UnusedKeysOfTask[], writtenChunks: readonly number[] = [], references?: ForeignReferences,
+  detached?: Detached): Promise<IfcSource> {
   const schemaName = readFileSchemaName(new TextDecoder().decode(bytes.subarray(0, scan.chunkStarts[1])));
   if (!schemaName) throw new Error('mergeWriter: de geschreven kop mist het schema');
   const foreignObjectCount = classes.reduce((count, c) => count + (c > 1 ? 1 : 0), 0);
@@ -971,7 +1173,9 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, index: Ste
     chunkStarts: scan.chunkStarts, chunkIds: scan.chunkIds, classes, stepIds, foreignMembers,
     elementLinks: elementLinksByTask(scanElementLinks(index), stepIds),
     ...(unusedKeys && foreignObjectCount > 0 ? { unusedKeys } : {}),
+    ...(foreignObjectCount > 0 ? { sourceSlots: scanSourceSlots(index, foreignOriginAmong(index, writtenChunks)) } : {}),
     ...(references && references.stepIds.length > 0 && foreignObjectCount > 0 ? { foreignReferences: references } : {}),
+    ...(detached && foreignObjectCount > 0 ? { detached } : {}),
     foreign: foreignObjectCount > 0, foreignObjectCount, buildingModel: scan.buildingModel, lineEnding: scan.lineEnding, opened: input,
   };
 }
@@ -979,7 +1183,7 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, index: Ste
 /** Wat de uitvoercontrole (c) nodig heeft: de sessiekaart van de uitvoer, de schrijfklok van O1 en wat (c) doet met de slots
  *  die (b) herstelde (`RestoredOwnSlots`, met de ids van de uitvoer). Zonder (de bronbytes zelf terug, stuk 1) loopt (c)
  *  niet: die bytes schreef deze writer niet. */
-export interface OwnOutputCheck extends RestoredOwnSlots {
+export interface OwnOutputCheck extends RestoredOwnSlots, LiteralSourceSlots {
   readonly stepIds: Readonly<Record<string, number>>;
   readonly writtenAt: Date;
   /** De GlobalId die de lezer in de bron voor een weesrij aannam (`assumedRowGuid` op de lezing van de bron). */
@@ -989,12 +1193,12 @@ export interface OwnOutputCheck extends RestoredOwnSlots {
 /** Alleen voor proeven: de volledige uitvoercontrole van `prepareIfcWrite` op gegeven uitvoerbytes (ook een gemuteerde
  *  uitvoer). Gooit `MergeNeedsPhase2Error` zoals bij opslaan. */
 export async function checkMergeOutput(bytes: Uint8Array, input: WriteIFCInput, source: IfcSource,
-  own?: Omit<OwnOutputCheck, 'sourceRowGuid'>): Promise<void> {
+  own?: Omit<OwnOutputCheck, 'sourceRowGuid'>, changes: readonly ForeignChange[] = []): Promise<void> {
   const index = scanForeignStep(source.bytes), cls = classify(index);
   assertSameSource(index, cls, source);
   // Zoals bij opslaan: de GlobalId van een weesrij uit de lezing van de bron.
   const checked = own && { ...own, sourceRowGuid: assumedRowGuid(await pristineDomain(index, cls, source)) };
-  await checkedBytes(bytes, freeze(structuredClone(input), true), source, index, cls, source.opened ?? input, undefined, checked);
+  await checkedBytes(bytes, freeze(structuredClone(input), true), source, index, cls, source.opened ?? input, undefined, checked, changes);
 }
 
 /** Eén buffer uit de stukken van `assemble`: de enige kopie van de hele uitvoer. */
@@ -1011,14 +1215,16 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   changes: readonly ForeignChange[] = []) {
   let actual: ReturnType<typeof validateMergeOutput>;
   let shown: WriteIFCInput, wanted: WriteIFCInput;
-  let parsed: WriteIFCInput;
+  let parsed: ImportResult;
   let outputScan: ForeignScanResult;
   const writtenUnusedKeys = new Map<string, string[]>();
+  const slotInput = own && input.recordedSourceFormat ? input : undefined;
+  const readings = new Map<string, TaskTimeReading>();
   try {
-    actual = validateMergeOutput(index, cls, source.bytes, bytes, { changes });
+    actual = validateMergeOutput(index, cls, source.bytes, bytes, { changes, planning: { stepIds: source.stepIds, before: opened, after: input } });
     if (actual.problems.length) throw new MergeNeedsPhase2Error(actual.problems.map(detail => ({ kind: 'uitvoer-controle', detail })));
     outputScan = foreignScanFrom(actual.index, actual.classification, bytes);
-    parsed = await pristineFromScan(outputScan, bytes, opened.project, writtenUnusedKeys) as WriteIFCInput;
+    parsed = await pristineFromScan(outputScan, bytes, opened.project, writtenUnusedKeys, slotInput && readings);
     // ImportResult draagt ook TimeModel en opgeslagen datums: de echte openactie beslist daarover.
     shown = openMergePlanning(freeze(structuredClone(parsed), true), 'uitvoer');
     wanted = openMergePlanning(input, 'domein');
@@ -1052,6 +1258,8 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   if (planningCanon(wanted) !== planningCanon(shown)) {
     throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(wanted, shown) }]);
   }
+  const slotProblem = slotInput && own && taskTimeSlotProblem(slotInput, readings, parsed.milestonesAtDayEnd, own);
+  if (slotProblem) throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: slotProblem }]);
   const numberProblem = unchangedPlanningNumberProblem(input, opened, wanted, shown);
   if (numberProblem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: numberProblem }]);
   // (c), als laatste: wat hiervoor al weigerde, houdt zijn soort.
@@ -1353,10 +1561,10 @@ function assertSameSource(index: StepIndex, cls: Classification, source: IfcSour
  * en dezelfde leesopties als de bytes-route. De regels van de writer zijn nooit letterlijk gecodeerd.
  */
 function readPlanning(source: IfcSource, index: StepIndex, cls: Classification, scan: ForeignScanResult,
-  block: readonly string[], taskIds: readonly number[], edits: ReadonlyMap<number, Uint8Array | null>) {
+  block: readonly string[], taskIds: readonly number[], edits: ReadonlyMap<number, Uint8Array | null>, appended: readonly Uint8Array[] = []) {
   const alsoRead = new Set(scan.mixedPsetChunks);
   const skip = (i: number) => cls.classes[i] === 4 && i !== scan.projectContext && !alsoRead.has(i);
-  const bytes = concatParts(assemble(source, index, cls, block, skip, edits));
+  const bytes = concatParts(assemble(source, index, cls, block, skip, edits, new Map(), appended));
   const literalStepIds = new Set<string>();
   for (let i = 0; i < scan.literal.length; i++) if (scan.literal[i] === 1 && cls.classes[i] !== 1) literalStepIds.add(String(scan.chunkIds[i]));
   return readIFCWithXerReconstruction(new TextDecoder('utf-8').decode(bytes), {}, {
@@ -1364,8 +1572,42 @@ function readPlanning(source: IfcSource, index: StepIndex, cls: Classification, 
   });
 }
 
+function assignmentPlacement(input: WriteIFCInput, index: StepIndex, cls: Classification, bySource: ReadonlyMap<number, { kind: string; id: string }>,
+  stepIds: Readonly<Record<string, number>>, candidate: readonly OutLine[], edits: ReadonlyMap<number, Uint8Array | null>):
+  { block: OutLine[]; after: Map<number, OutLine[]> } {
+  const roles = relationRoles(PROCESS)!;
+  const rank = new Map<string, number>();
+  for (const a of input.assignments ?? []) if (!rank.has(a.taskId)) rank.set(a.taskId, rank.size);
+  let insertAt = -1;
+  for (let i = 0; i < index.count && insertAt < 0; i++) if (cls.classes[i] === 1) insertAt = i;
+  const kept: [number, number][] = [];
+  for (let c = 0; c < index.count; c++) {
+    if (!index.isEntity(c) || cls.classes[c] === 1 || index.type(c) !== PROCESS || edits.get(c) === null) continue;
+    const relating = index.refAt(c, roles.relating);
+    const task = relating >= 0 ? bySource.get(Number(index.id(relating))) : undefined;
+    const g = task?.kind === 'task' ? rank.get(task.id) : undefined;
+    if (g === undefined) continue;
+    if (index.refsAt(c, roles.related).some(m => m >= 0 && bySource.get(Number(index.id(m)))?.kind === 'res')) kept.push([c, g]);
+  }
+  const block: OutLine[] = [], after = new Map<number, OutLine[]>();
+  if (kept.length === 0 || insertAt < 0) return { block: [...candidate], after };
+  const taskOf = new Map<number, string>();
+  for (const [key, id] of Object.entries(stepIds)) if (key.startsWith('task:')) taskOf.set(id, key.slice(5));
+  for (const line of candidate) {
+    const task = line.type === PROCESS ? taskOf.get(refOf(line.args[roles.relating])) : undefined;
+    const g = task === undefined ? undefined : rank.get(task);
+    let target = -1;
+    if (g !== undefined) for (const [c, other] of kept) if (other < g && c > target) target = c;
+    if (target <= insertAt) { block.push(line); continue; }
+    const list = after.get(target);
+    if (list) list.push(line); else after.set(target, [line]);
+  }
+  return { block, after };
+}
+
 function assemble(source: IfcSource, index: StepIndex, cls: Classification, block: readonly string[],
-  skip: (i: number) => boolean = () => false, edits: ReadonlyMap<number, Uint8Array | null> = new Map()): Uint8Array[] {
+  skip: (i: number) => boolean = () => false, edits: ReadonlyMap<number, Uint8Array | null> = new Map(),
+  after: ReadonlyMap<number, readonly string[]> = new Map(), appended: readonly Uint8Array[] = []): Uint8Array[] {
   const n = index.count;
   const bytes = source.bytes;
   const starts = source.chunkStarts;
@@ -1382,9 +1624,15 @@ function assemble(source: IfcSource, index: StepIndex, cls: Classification, bloc
   const le = source.lineEnding;
   const BATCH = 2000;
   for (let i = 0; i < n; i++) {
+    const moved = i > 0 ? after.get(i - 1) : undefined;
+    if (moved) {
+      flush(i);
+      parts.push(enc.encode(le + moved.join(le)));
+    }
     if (i === insertAt) {
       flush(i);
       for (let b = 0; b < block.length; b += BATCH) parts.push(enc.encode(le + block.slice(b, b + BATCH).join(le)));
+      for (const piece of appended) parts.push(enc.encode(le), piece);
     }
     if (cls.classes[i] === 1 || skip(i)) { flush(i); continue; }
     const edited = edits.get(i);

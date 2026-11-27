@@ -1941,6 +1941,18 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
         eq(`9c ${c.name}: een fout uit de Worker geeft dezelfde weigering`, failing, want);
       }
     } finally { globalThis.Worker = originalWorker; }
+    const { refusedTargetContent } = await import('@/state/ifcForeignGuard');
+    const asHandle = (bytes: Uint8Array) => ({ kind: 'handle', handle: fakeHandle('doel.ifc', bytes).handle } as const);
+    for (const c of cases) {
+      const withoutBom = await refusedTargetContent(asHandle(startsWithBom(c.bytes) ? c.bytes.subarray(3) : c.bytes), { readers: () => ({}) });
+      const version = { sha256: createHash('sha256').update(c.bytes).digest('hex'), byteLength: c.bytes.byteLength };
+      const own = await refusedTargetContent(asHandle(c.bytes), { readers: () => ({}), ownBomVersion: version });
+      const other = await refusedTargetContent(asHandle(c.bytes), { readers: () => ({}), ownBomVersion: { ...version, sha256: '0'.repeat(64) } });
+      const none = await refusedTargetContent(asHandle(c.bytes), { readers: () => ({}) });
+      const unreadable = startsWithBom(c.bytes) ? 'unreadable-target' : withoutBom;
+      eq(`9c ${c.name}: knownbug 2212, het doel met precies de vastgelegde eigen BOM-versie scant zoals hetzelfde bestand zonder BOM; elke andere BOM-versie en een doel zonder vastgelegde versie blijven onleesbaar`,
+        [own, other, none], [withoutBom, unreadable, unreadable]);
+    }
   }
   // 9d. Fixronde 1 van #985 (Sol): een Worker die niet start, houdt de opslag niet twee minuten op. De runner wacht kort
   // op de startbevestiging (`FOREIGN_SCAN_START_TIMEOUT_MS`) en daarna pas de ruime rekentijd.

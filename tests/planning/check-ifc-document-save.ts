@@ -22,8 +22,13 @@ import { scheduleFileAutoSave } from '@/services/actualAutosave/fileAutoSaveTime
 import { closeProjectFileWrites, isProjectFileWriteBusy } from '@/services/fileAccess/writeCoordinator';
 import { replaceRecordId } from '@/services/fileAccess/replaceRecords';
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
+import {
+  CANCEL_FOREIGN_CHANGES, resetForeignChangesAsker, setForeignChangesAsker, type ForeignChangesAnswer, type ForeignChangesQuestion,
+} from '@/services/ifc/foreignChangesQuestion';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
 import { openInStore, loadStore } from './ifcAppRoute';
+import { recordedExample } from './opgeslagenDatumsVoorbeeld';
+import { shownFinish, shownStart } from '@/utils/taskDates';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { openSecondTabOn } from './sameFileTabFixture';
 import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
@@ -38,6 +43,8 @@ import { canon, firstDiff, mergeProblems, openForeign, shownAfterOpen } from './
 import { InProcessWorker } from './inProcessSaveWorker';
 import { createExtensionApi } from '@/extensions/extensionApi';
 import type { NotifyInput } from '@/state/slices/types';
+import { OTHER_WORK_NOTICE_MS } from '@/state/otherWorkNotice';
+import { selectUndoHistoryEvent } from '@/state/sessionHistory';
 import { createAppQuitController } from '@/services/appQuit/appQuitController';
 import { appQuitDependencies } from '@/services/appQuit/appQuitDependencies';
 import { loadExtensionProject } from '@/extensions/retainActiveDocument';
@@ -401,7 +408,7 @@ for (const cause of ['flag-uit', 'sourceMissing'] as const) await check(`${cause
 });
 
 await check('mergeweigering vóór bestandskiezer: nul bytes en ongewijzigd document', async () => {
-  const unsupported = new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc')));
+  const unsupported = new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/council/proef-bonsai-achtig.ifc')));
   const { store } = await openInStore(unsupported);
   longer(store);
   const before = preserved(store), ipc = desktop(); ipc.choose(join(dir, 'weigering.ifc'));
@@ -658,7 +665,7 @@ await check('export mspdi met vijf meldingen: na afloop staat de zin er nog, pre
 });
 
 for (const cause of ['flag-uit', 'sourceMissing', 'mergeweigering'] as const) await check(`IFC-export ${cause}: nul bytes vóór kiezer`, async () => {
-  const data = cause === 'mergeweigering' ? new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc'))) : bytes;
+  const data = cause === 'mergeweigering' ? new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/council/proef-bonsai-achtig.ifc'))) : bytes;
   const { store } = await openInStore(data); longer(store);
   store.setState(s => {
     if (cause === 'flag-uit') s.ui.featureFlags = {};
@@ -1113,6 +1120,34 @@ await check('handle Ctrl+S drie keer (taak, duur, relatie; de derde via de sluit
       assert.equal((await loadRecovery()).docs.find(d => d.id === now.activeDocumentId)?.ifcSource?.sha256, hash(output));
       previous = output;
     }
+    assert.equal(browser.downloads.length, 0, 'geen download');
+  } finally { unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+await check('handle Ctrl+S in "datums zoals opgeslagen" (knownbug 2231): ongewijzigd de bron byte voor byte, na hernoemen geschreven, het tabblad schoon, dezelfde getoonde datums', async () => {
+  const source = await recordedExample();
+  const { store, name } = await openHandle(source), unregister = recoveryRounds(store), browser = browserDownload();
+  const errors = () => store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey);
+  const dates = (s: Store) => s.getState().tasks.map(t => [t.id, t.name, shownStart(t), shownFinish(t)]);
+  try {
+    assert.equal(store.getState().datesAsRecorded, true, 'geopend in "datums zoals opgeslagen"');
+    clearNotices(store);
+    assert.equal(await ctrlS(store), true, 'Ctrl+S zonder bewerking');
+    assert.equal(hash(fileOf(name)), hash(source), 'de bron byte voor byte terug');
+    assert.deepEqual(errors(), []);
+    const task = leaf(store);
+    store.getState().updateTask(task.id, { name: `${task.name} (hernoemd)` });
+    assert.equal(store.getState().datesAsRecorded, true, 'een naam laat de modus staan');
+    const before = dates(store);
+    writableLog.length = 0;
+    assert.equal(await ctrlS(store), true, 'Ctrl+S na hernoemen');
+    assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`], 'één vervanging, de hele buffer in één write');
+    assert.notEqual(hash(fileOf(name)), hash(source), 'de merge schreef de wijziging');
+    assert.equal(store.getState().isDirty, false, 'het tabblad is schoon');
+    assert.deepEqual(errors(), []);
+    const { store: reopened } = await openInStore(fileOf(name), name);
+    assert.equal(reopened.getState().datesAsRecorded, true, 'heropend in "datums zoals opgeslagen"');
+    assert.deepEqual(dates(reopened), before, 'dezelfde getoonde datums');
     assert.equal(browser.downloads.length, 0, 'geen download');
   } finally { unregister(); browser.dispose(); await clearRecovery(); }
 });
@@ -4258,6 +4293,7 @@ function recordCounts(store: Store): string[] {
 const DELETE_KEY = 'notifications.foreignLinksDropped';
 const deleteNotices = (store: Store) => store.getState().ui.notifications.filter(n => n.messageKey === DELETE_KEY);
 const taskNamed = (store: Store, name: string) => store.getState().tasks.find(t => t.name === name)!.id;
+const askNot = (store: Store) => { store.getState().setUI({ foreignChangesQuestion: false }); return store; };
 const writtenCount = async (store: Store) =>
   (await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!)).foreignChanges?.length ?? 0;
 const LINKED = await (async () => {
@@ -4293,7 +4329,7 @@ const onDesktop = async (write: (store: Store, ipc: ReturnType<typeof desktop>, 
   exported = false): Promise<WriteRoute> => {
   const appData = mkdtempSync(join(tmpdir(), 'ops-route-appdata-')), ipc = desktop(appData);
   const path = join(dir, `route-${++routeFiles}.ifc`); writeFileSync(path, LINKED);
-  const store = await openAt({ kind: 'path', path }, LINKED), unregister = recoveryRounds(store);
+  const store = askNot(await openAt({ kind: 'path', path }, LINKED)), unregister = recoveryRounds(store);
   let last = path;
   const target = (chosen?: string) => { if (chosen) { last = chosen; ipc.choose(chosen); } return last; };
   return {
@@ -4307,7 +4343,7 @@ const onDesktop = async (write: (store: Store, ipc: ReturnType<typeof desktop>, 
   };
 };
 const onHandle = async (write: (store: Store) => Promise<boolean | void>, fail = false): Promise<WriteRoute> => {
-  const { store, name } = await openHandle(LINKED), unregister = recoveryRounds(store);
+  const { store, name } = await openHandle(LINKED), unregister = recoveryRounds(askNot(store));
   if (fail) handleFaults.set(name, { writeErrorAt: 0 });
   return { store, write: () => write(store), written: async () => fileOf(name), file: () => name,
     dispose: async () => { handleFaults.delete(name); unregister(); await clearRecovery(); } };
@@ -4318,11 +4354,12 @@ const downloaded = async (browser: ReturnType<typeof browserDownload>) => {
 };
 const onDownload = async (write: (store: Store) => Promise<boolean | void>): Promise<WriteRoute> => {
   const browser = browserDownload(), { store } = await openInStore(LINKED);
+  askNot(store);
   return { store, write: () => write(store), written: () => downloaded(browser), file: () => browser.names.at(-1) ?? '',
     dispose: async () => { browser.dispose(); } };
 };
 const onRefusedHandle = async (write: (store: Store) => Promise<boolean | void>): Promise<WriteRoute> => {
-  const browser = browserDownload(), { store, name } = await openHandle(LINKED), unregister = recoveryRounds(store);
+  const browser = browserDownload(), { store, name } = await openHandle(LINKED), unregister = recoveryRounds(askNot(store));
   handleFaults.set(name, { permission: 'denied' });
   return { store, write: () => write(store), written: () => downloaded(browser), file: () => browser.names.at(-1) ?? '',
     dispose: async () => { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); } };
@@ -4334,7 +4371,7 @@ const onSite = async (): Promise<WriteRoute> => {
     list: async () => [], versions: async () => [], open: async () => ({ data: new Blob([LINKED.buffer]), name: 'site-bron.ifc', version: 'v1' }),
     save: async (request: { id?: string; data: Blob }) => { requests.push(request); return { id: request.id ?? 'site', name: 'site-hernoemd.ifc', version: `v${++version}` }; },
   } };
-  const store = await openAt({ kind: 'site', id: 'site' }, LINKED);
+  const store = askNot(await openAt({ kind: 'site', id: 'site' }, LINKED));
   store.setState(s => { s.siteFileVersion = 'v1'; });
   return { store, write: () => store.getState().saveFile(),
     written: async () => { const last = requests.at(-1); return last ? new Uint8Array(await last.data.arrayBuffer()) : undefined; },
@@ -4427,7 +4464,7 @@ await check('fixronde 1 van #1199: elke manier van verdwijnen geeft na Ctrl+S de
     const id = store.getState().activeDocumentId;
     store.getState().deleteTask(taskNamed(store, 'Set up site'));
     await flushRecoveryNow();
-    const restored = await restoreFrom(await loadRecovery());
+    const restored = askNot(await restoreFrom(await loadRecovery()));
     unregister();
     restored.getState().switchDocument(id);
     const restoredRounds = recoveryRounds(restored);
@@ -4469,6 +4506,7 @@ async function linkedDocuments(count: number, flag = true) {
   const { createAppStoreContext } = await loadStore(), context = createAppStoreContext();
   const { store } = context;
   store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; });
+  askNot(store);
   const docs: { id: string; name: string }[] = [];
   for (let k = 0; k < count; k++) {
     const name = `telling-${++handleCount}.ifc`;
@@ -4679,6 +4717,7 @@ await check('fixronde 4 van #1199: een extensie die na de plaatsing een ander pr
   const name = `geschreven-${++handleCount}.ifc`;
   handleFiles.set(name, LINKED);
   store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  askNot(store);
   await store.getState().openOpenedFile({ name, content: '', bytes: LINKED,
     ref: { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle } });
   const unregister = recoveryRounds(store);
@@ -4698,33 +4737,38 @@ function recordDeletes(store: Store): NotifyInput[] {
   store.setState({ notify: (n: NotifyInput) => { if (n.messageKey === DELETE_KEY) calls.push(n); notify(n); } });
   return calls;
 }
-const plainDelete = (count: number): NotifyInput => ({ severity: 'info', messageKey: DELETE_KEY, params: { count } });
+const undoStep = (store: Store) => selectUndoHistoryEvent(store.getState().historyEvents, store.getState().activeDocumentId)!.id;
+const deleteNotice = (count: number, eventId: string): NotifyInput => ({ severity: 'info', messageKey: DELETE_KEY, params: { count },
+  action: { kind: 'undoHistoryEvent', eventId, labelKey: 'notifications.actions.undo' }, durationMs: OTHER_WORK_NOTICE_MS });
 
-await check('fixronde 5 van #1199: wissen meldt één gewone melding zonder knop met het aantal van die wisstap; Ctrl+Z trekt niets in, Ctrl+Y meldt opnieuw', async () => {
+await check('PR 7: wissen meldt één melding met het aantal van die wisstap en de knop Ongedaan maken; Ctrl+Z haalt haar weg, Ctrl+Y meldt opnieuw', async () => {
   const { store } = await openHandle(LINKED), unregister = recoveryRounds(store);
   try {
     const calls = recordDeletes(store);
     store.getState().deleteTask(taskNamed(store, 'Set up site'));
-    const first = await writtenCount(store);
+    const first = await writtenCount(store), firstStep = undoStep(store);
     assert(first > 0);
-    assert.deepEqual(calls, [plainDelete(first)], 'één aanroep, het aantal van die wisstap, geen actie');
+    const one = [deleteNotice(first, firstStep)];
+    assert.deepEqual(calls, one, 'één aanroep, het aantal van die wisstap, de knop voor die stap');
     store.getState().deleteTask(taskNamed(store, 'Demolish existing extension'));
-    const second = await writtenCount(store) - first;
+    const second = await writtenCount(store) - first, secondStep = undoStep(store);
     assert(second > 0);
-    assert.deepEqual(calls, [plainDelete(first), plainDelete(second)], 'de tweede wisstap meldt haar eigen aantal');
-    assert.equal(deleteNotices(store).length, 2, 'twee eigen meldingen');
+    const two = [...one, deleteNotice(second, secondStep)];
+    assert.deepEqual(calls, two, 'de tweede wisstap meldt haar eigen aantal');
+    assert.deepEqual(deleteNotices(store).map(n => n.action), [two[1].action], 'alleen de melding van de stap van Ctrl+Z staat er');
     store.getState().undo();
-    assert.equal(calls.length, 2, 'Ctrl+Z meldt niets');
-    assert.equal(deleteNotices(store).length, 2, 'en trekt niets in');
+    assert.deepEqual(calls, two, 'Ctrl+Z meldt niets');
+    assert.deepEqual(deleteNotices(store), [], 'Ctrl+Z haalt de melding met haar knop weg');
     store.getState().redo();
-    assert.deepEqual(calls.at(-1), plainDelete(second), 'Ctrl+Y meldt de wisstap opnieuw');
+    const three = [...two, deleteNotice(second, secondStep)];
+    assert.deepEqual(calls, three, 'Ctrl+Y meldt de wisstap opnieuw, met de knop voor dezelfde stap');
     store.getState().removeResource(store.getState().resources.find(r => r.name === 'Bricklayers')!.id);
     const third = await writtenCount(store) - first - second;
     assert(third > 0);
-    assert.deepEqual(calls.at(-1), plainDelete(third), 'een resource wissen');
-    const before = calls.length;
+    const four = [...three, deleteNotice(third, undoStep(store))];
+    assert.deepEqual(calls, four, 'een resource wissen');
     store.getState().deleteTask(taskNamed(store, 'Apply roofing'));
-    assert.equal(calls.length, before, 'een taak zonder koppeling: geen melding');
+    assert.deepEqual(calls, four, 'een taak zonder koppeling: geen melding');
   } finally { unregister(); await clearRecovery(); }
   for (const [label, source, flag] of [['flag uit', LINKED, false], ['zonder vreemd deel', plainBytes(), true]] as const) {
     const { store } = await openInStore(source);
@@ -4734,6 +4778,16 @@ await check('fixronde 5 van #1199: wissen meldt één gewone melding zonder knop
     store.getState().deleteTask(task.id);
     assert.deepEqual(calls, [], `${label}: geen melding`);
   }
+  const flagged = await openHandle(LINKED), stopRounds = recoveryRounds(flagged.store);
+  try {
+    const { store } = flagged, flag = (on: boolean) => store.getState().setUI({ featureFlags: { ...store.getState().ui.featureFlags, ifcForeignContent: on } });
+    store.getState().deleteTask(taskNamed(store, 'Set up site'));
+    assert.equal(deleteNotices(store).length, 1);
+    flag(false);
+    assert.deepEqual(deleteNotices(store), [], 'de flag uit haalt de melding met haar knop weg');
+    flag(true);
+    assert.deepEqual(deleteNotices(store), [], 'de flag weer aan brengt haar niet terug');
+  } finally { stopRounds(); await clearRecovery(); }
 });
 
 for (const [label, existing] of MAIN_STACKS) {
@@ -4752,6 +4806,233 @@ for (const [label, existing] of MAIN_STACKS) {
     } finally { unregister(); await clearRecovery(); }
   });
 }
+
+await check('2212: handle Ctrl+S van een gebouwmodel met een UTF-8-BOM: de merge houdt de BOM, zonder wijziging byte voor byte, ook de tweede keer', async () => {
+  const source = new Uint8Array([0xef, 0xbb, 0xbf, ...bytes]);
+  const { store, name } = await openHandle(source), unregister = recoveryRounds(store);
+  try {
+    clearNotices(store);
+    assert.equal(await ctrlS(store), true, 'zonder wijziging');
+    assert.deepEqual(fileOf(name), source, 'zonder wijziging de bron byte voor byte');
+    for (const round of [1, 2]) {
+      store.getState().updateTask(leaf(store).id, { name: `Merge met BOM ${round}` });
+      assert.equal(await ctrlS(store), true, `ronde ${round}`);
+      const output = fileOf(name);
+      assert.deepEqual([...output.subarray(0, 3)], [0xef, 0xbb, 0xbf], `ronde ${round}: de BOM staat er nog`);
+      assert.deepEqual(mergeProblems(source, output), [], `ronde ${round}: het gebouwmodel bytegelijk behouden`);
+      assert.equal((await openForeign(output)).tasks.some(t => t.name === `Merge met BOM ${round}`), true);
+    }
+    assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
+  } finally { unregister(); await clearRecovery(); }
+});
+
+const askOn = (store: Store) => { store.getState().setUI({ foreignChangesQuestion: true }); return store; };
+const SAVE_ANSWER: ForeignChangesAnswer = { save: true, dontAskAgain: false };
+function askerOn(store: Store, answer: (question: ForeignChangesQuestion) => ForeignChangesAnswer | Promise<ForeignChangesAnswer>) {
+  const asked: ForeignChangesQuestion[] = [];
+  setForeignChangesAsker(async question => {
+    asked.push(question);
+    store.getState().setUI({ pendingForeignChangesQuestion: question });
+    try { return await answer(question); } finally { store.getState().setUI({ pendingForeignChangesQuestion: null }); }
+  });
+  return asked;
+}
+const leafName = (path: string) => path.split(/[\\/]/).pop()!;
+const QUESTION_ROUTES: readonly [string, () => Promise<WriteRoute>, (route: WriteRoute) => string | null][] = [
+  ['Ctrl+S, bestand op de desktop', () => onDesktop(store => ctrlS(store)), route => leafName(route.file())],
+  ['Ctrl+S, browser met handle', () => onHandle(store => ctrlS(store)), route => route.file()],
+  ['Ctrl+S naar de site', () => onSite(), () => 'bron.ifc'],
+  ['de sluitvraag met Opslaan', () => onHandle(store => closePromptSave(store)), route => route.file()],
+  ['Opslaan als, desktop', () => onDesktop((store, _ipc, target) => { target(join(dir, `vraag-als-${++routeFiles}.ifc`)); return store.getState().saveFileAs(); }), () => null],
+  ['Opslaan als, download', () => onDownload(store => store.getState().saveFileAs()), () => null],
+  ['Ctrl+S zonder eigen bestand, download', () => onDownload(store => ctrlS(store)), () => null],
+  ['Ctrl+S, handle geweigerd: kopie als download', () => onRefusedHandle(store => ctrlS(store)), () => null],
+];
+
+await check('de vraag vóór opslaan staat standaard aan', async () => {
+  const { createAppStoreContext } = await loadStore();
+  assert.equal(createAppStoreContext().store.getState().ui.foreignChangesQuestion, true);
+});
+
+await check('vraag vóór opslaan, proef 1 en 3: elke opslag van het document vraagt één keer met het aantal van de merge en de naam; Opslaan schrijft de voorbereide bytes, zonder telling achteraf', async () => {
+  for (const [name, open, fileName] of QUESTION_ROUTES) {
+    const route = await open();
+    try {
+      askOn(route.store);
+      const calls = recordCounts(route.store);
+      route.store.getState().deleteTask(taskNamed(route.store, 'Set up site'));
+      const expected = await preparedWrite(route.store);
+      const count = expected.foreignChanges?.length ?? 0;
+      assert(count > 0, `${name}: er vervalt iets`);
+      const file = fileName(route);
+      const asked = askerOn(route.store, () => SAVE_ANSWER);
+      await route.write();
+      assert.deepEqual(asked, [{ count, file }], `${name}: één vraag met het aantal en de naam`);
+      const after = await route.written();
+      assert.equal(after && hash(after), expected.sha256, `${name}: de voorbereide bytes geschreven`);
+      assert.deepEqual(calls, [], `${name}: geen telling achteraf`);
+    } finally { resetForeignChangesAsker(); await route.dispose(); }
+  }
+});
+
+await check('vraag vóór opslaan, proef 2: Annuleren schrijft niets, het document blijft gewijzigd, geen telling en geen melding, de uitkomst is false', async () => {
+  for (const [name, open] of QUESTION_ROUTES) {
+    const route = await open();
+    try {
+      askOn(route.store);
+      route.store.getState().deleteTask(taskNamed(route.store, 'Set up site'));
+      clearNotices(route.store);
+      const asked = askerOn(route.store, () => CANCEL_FOREIGN_CHANGES);
+      const outcome = await route.write();
+      assert.equal(asked.length, 1, `${name}: gevraagd`);
+      const after = await route.written();
+      assert(after === undefined || hash(after) === hash(LINKED), `${name}: niets geschreven`);
+      assert.equal(route.store.getState().isDirty, true, `${name}: het document blijft gewijzigd`);
+      assert.equal(statusOf(route.store), 'unsaved', `${name}: de statusbalk zegt Niet opgeslagen`);
+      assert.deepEqual(route.store.getState().ui.notifications, [], `${name}: geen melding`);
+      if (typeof outcome === 'boolean') assert.equal(outcome, false, `${name}: de uitkomst`);
+    } finally { resetForeignChangesAsker(); await route.dispose(); }
+  }
+});
+
+await check('vraag vóór opslaan, proef 4: Niet meer vragen met Annuleren laat de vraag aan; met Opslaan zet het haar uit, en de volgende opslag vraagt niet en meldt de telling zoals main', async () => {
+  const route = await onHandle(store => ctrlS(store));
+  try {
+    askOn(route.store);
+    const calls = recordCounts(route.store);
+    route.store.getState().deleteTask(taskNamed(route.store, 'Set up site'));
+    askerOn(route.store, () => ({ save: false, dontAskAgain: true }));
+    assert.equal(await route.write(), false);
+    assert.equal(route.store.getState().ui.foreignChangesQuestion, true, 'met Annuleren blijft de vraag aan');
+    let asked = askerOn(route.store, () => ({ save: true, dontAskAgain: true }));
+    assert.equal(await route.write(), true);
+    assert.equal(asked.length, 1);
+    assert.equal(route.store.getState().ui.foreignChangesQuestion, false, 'met Opslaan staat de vraag uit');
+    await someTurns();
+    assert.equal(localStorage.getItem('ops-foreignChangesQuestion'), 'false', 'en de keuze is bewaard');
+    assert.deepEqual(calls, [], 'na de beantwoorde vraag geen telling');
+    route.store.getState().deleteTask(taskNamed(route.store, 'Demolish existing extension'));
+    const expected = await preparedWrite(route.store);
+    assert(expected.foreignChanges?.length, 'ook de tweede wissing laat iets vervallen');
+    asked = askerOn(route.store, () => SAVE_ANSWER);
+    assert.equal(await route.write(), true);
+    assert.deepEqual(asked, [], 'de volgende opslag vraagt niet');
+    assert.deepEqual(calls, [`${route.file()}:${expected.foreignChanges.length}`], 'en meldt de telling zoals main');
+  } finally { localStorage.removeItem('ops-foreignChangesQuestion'); resetForeignChangesAsker(); await route.dispose(); }
+});
+
+await check('vraag vóór opslaan, proef 5: geen vraag met de flag uit, zonder vreemd deel of met een lege lijst', async () => {
+  for (const [label, source, flag, change] of [
+    ['flag uit, met vreemd deel', LINKED, false, 'wis'], ['flag uit, zonder vreemd deel', plainBytes(), false, 'wis'],
+    ['zonder vreemd deel', plainBytes(), true, 'wis'], ['lege lijst', LINKED, true, 'langer'],
+  ] as const) {
+    const browser = browserDownload(), { store } = await openInStore(source);
+    if (!flag) store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    try {
+      askOn(store);
+      if (change === 'wis') store.getState().deleteTask((store.getState().tasks.find(t => t.name === 'Set up site') ?? leaf(store)).id);
+      else longer(store);
+      const asked = askerOn(store, () => CANCEL_FOREIGN_CHANGES);
+      await ctrlS(store);
+      await store.getState().saveFileAs();
+      assert.deepEqual(asked, [], `${label}: geen vraag`);
+      assert.equal(browser.downloads.length, label === 'flag uit, met vreemd deel' ? 0 : 2, `${label}: geschreven zoals op main`);
+    } finally { resetForeignChangesAsker(); browser.dispose(); }
+  }
+});
+
+await check('vraag vóór opslaan, proef 6: verandert het doel terwijl de vraag staat, dan weigert de opslag zoals nu en is er niets geschreven', async () => {
+  const other = new Uint8Array(LINKED); other[Buffer.from(other).indexOf("FILE_NAME('") + 11] ^= 1;
+  for (const [name, open, change] of [
+    ['desktop', () => onDesktop(store => ctrlS(store)), (route: WriteRoute) => writeFileSync(route.file(), other)],
+    ['handle', () => onHandle(store => ctrlS(store)), (route: WriteRoute) => { handleFiles.set(route.file(), other); }],
+  ] as const) {
+    const route = await open();
+    try {
+      askOn(route.store);
+      route.store.getState().deleteTask(taskNamed(route.store, 'Set up site'));
+      clearNotices(route.store);
+      askerOn(route.store, () => { change(route); return SAVE_ANSWER; });
+      assert.equal(await route.write(), false, `${name}: niet opgeslagen`);
+      assert.equal(hash((await route.written())!), hash(other), `${name}: het bestand van het andere programma staat er nog`);
+      assertNotice(route.store, 'notifications.ifcForeignTargetChanged');
+      assert.equal(route.store.getState().isDirty, true);
+    } finally { resetForeignChangesAsker(); await route.dispose(); }
+  }
+});
+
+await check('vraag vóór opslaan, proef 7 en 8: een tweede Ctrl+S terwijl de vraag staat doet niets; een vervangen inhoud weigert met ifcSaveChangedWhileWaiting', async () => {
+  const { context, store, docs, unregister } = await linkedDocuments(1);
+  try {
+    askOn(store);
+    deleteLinked(store);
+    let second: boolean | undefined;
+    const asked = askerOn(store, async () => {
+      second = await ctrlS(store);
+      loadThroughExtension(context, false);
+      return SAVE_ANSWER;
+    });
+    assert.equal(await ctrlS(store), false, 'niet opgeslagen');
+    assert.equal(second, false, 'de tweede Ctrl+S geeft meteen false');
+    assert.equal(asked.length, 1, 'geen tweede vraag');
+    assert.equal(hash(fileOf(docs[0]!.name)), hash(LINKED), 'niets geschreven');
+    assertNotice(store, 'notifications.ifcSaveChangedWhileWaiting');
+    assert.deepEqual(writtenNotices(store), [], 'geen telling');
+  } finally { resetForeignChangesAsker(); unregister(); await clearRecovery(); }
+});
+
+await check('vraag vóór opslaan: Annuleren in de vraag uit de sluitvraag bij afsluiten breekt het afsluiten af; het document blijft open en gewijzigd', async () => {
+  const { context, store, docs, unregister } = await linkedDocuments(1);
+  const quit = await quitting(context);
+  try {
+    askOn(store);
+    deleteLinked(store);
+    const asked = askerOn(store, () => CANCEL_FOREIGN_CHANGES);
+    quit.controller.requestQuit();
+    await quit.answerSave();
+    await someTurns();
+    assert.equal(asked.length, 1, 'de vraag kwam');
+    assert.equal(quit.destroyed(), false, 'het venster blijft open');
+    assert.equal(quit.controller.active, false, 'het afsluiten is afgebroken');
+    assert.deepEqual(store.getState().getOpenDocumentPayloads().map(d => d.id), [docs[0]!.id], 'het document is nog open');
+    assert.equal(store.getState().isDirty, true, 'en gewijzigd');
+    assert.equal(hash(fileOf(docs[0]!.name)), hash(LINKED), 'niets geschreven');
+  } finally { resetForeignChangesAsker(); quit.dispose(); unregister(); await clearRecovery(); }
+});
+
+const routeGuids = (data: Uint8Array | undefined) =>
+  [...new TextDecoder().decode(data).matchAll(/'(1KoppelingRoute\d{8})'/g)].map(m => m[1]).sort();
+
+await check('PR 7 en de vraag vóór opslaan: wissen, Ctrl+S, de vraag, Opslaan, dan Ctrl+Z en Ctrl+S zet de stukken terug zonder vraag; wissen, Ctrl+S, de vraag, Annuleren, Ongedaan maken via de knop: de volgende opslag vraagt niets', async () => {
+  for (const cancel of [false, true]) {
+    const route = await onHandle(store => ctrlS(store));
+    try {
+      const { store } = route;
+      askOn(store);
+      const asked = askerOn(store, () => cancel ? CANCEL_FOREIGN_CHANGES : SAVE_ANSWER);
+      store.getState().deleteTask(taskNamed(store, 'Set up site'));
+      const notice = deleteNotices(store)[0], action = notice?.action;
+      assert(action?.kind === 'undoHistoryEvent', 'de wismelding met de knop');
+      assert.equal(await route.write(), !cancel);
+      assert.equal(asked.length, 1, 'de vraag kwam');
+      assert(asked[0].count > 0);
+      const first = await route.written();
+      if (cancel) {
+        assert.equal(hash(first!), hash(LINKED), 'Annuleren schrijft niets');
+        assert.deepEqual(deleteNotices(store).map(n => n.id), [notice.id], 'de wismelding met de knop staat er nog');
+        store.getState().undoHistoryEvent(action.eventId);
+        store.getState().dismissNotification(notice.id);
+      } else {
+        assert.notDeepEqual(routeGuids(first), routeGuids(LINKED), 'Opslaan liet stukken van het andere programma vervallen');
+        store.getState().undo();
+      }
+      assert(store.getState().tasks.some(t => t.name === 'Set up site'), 'de taak is terug');
+      assert.notEqual(await route.write(), false);
+      assert.equal(asked.length, 1, 'geen tweede vraag: er vervalt niets');
+      assert.deepEqual(routeGuids(await route.written()), routeGuids(LINKED), 'de stukken van het andere programma staan er weer');
+    } finally { resetForeignChangesAsker(); await route.dispose(); }
+  }
+});
 
 rmSync(dir, { recursive: true, force: true });
 console.log(`Documentopslag: ${passed} geslaagd, ${failed} mislukt.`);

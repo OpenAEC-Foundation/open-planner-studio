@@ -33,12 +33,19 @@ import { createNodeFileFs, isInside, ScopeEscapeError, WorkingDirectoryRestoreEr
 import { XmlDomParser } from '../../headless/mcp-server/src/xmlDom';
 import { decodeXmlBytes } from '../../headless/mcp-server/src/xmlEncoding';
 import { FileTextDecodingError } from '@/services/mcp/fileTextError';
+import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import { createAppStoreContext } from '@/state/appStoreFactory';
 import { parseOpenedFile } from '@/services/formatRegistry';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { externalClientChecks, connectClient, type AppProbe } from './externalClient';
+import {
+  foreignCorpus, foreignWorkMethodSource, oldOwnSource, ownCorpus, slotCaseLabel, slotCaseSpecs, slotCorpus, slotValueIn, OLD_TASK_NAME,
+  REVIEW_WORK_METHOD,
+} from './headlessCorpus';
+import { IFC_SLOT_TABLES } from '@/services/ifc/ifcSlotTables';
+import { PSET } from '@/services/ifc/ifcPsets';
 
 // Lokaal alleen bronproeven; de zelfstandige bundel en CLI draaien volledig in CI.
 function test(name: string, fn: () => void | Promise<void>): void {
@@ -52,6 +59,10 @@ const EXAMPLE = join(PUBLIC, 'examples', '10-villa-wassenaar.ifc');
 const appVersion = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version as string;
 const tmp = mkdtempSync(join(tmpdir(), 'ops-headless-mcp-'));
 const TOKEN = 'b'.repeat(64);
+const FOREIGN_FIXTURES = join(ROOT, 'tests/fixtures/ifc-foreign');
+const withExternPset = (own: string) => own.replace('ENDSEC;\nEND-ISO-10303-21;',
+  "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
+  "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;");
 
 function publicAssets(): Record<string, string> {
   const assets: Record<string, string> = {};
@@ -335,6 +346,39 @@ test('knownbug 216: lange geldige doelnamen blijven schrijfbaar en fouten houden
   }
 });
 
+test('A2 nieuwe naam als bytes: exclusief en atomair, ook als het doel vlak voor de plaatsing verschijnt', async () => {
+  mkdirSync(fsRoot, { recursive: true });
+  const bytes = new Uint8Array([0xef, 0xbb, 0xbf, ...Buffer.from('ISO-10303-21;\n'), 0xe9, 0x0a]);
+  const createNew = async (promise: Promise<void>, label: string) => {
+    let caught: unknown = null;
+    try { await promise; } catch (e) { caught = e; }
+    assert(caught instanceof ByteWriteError && caught.reason === 'create-new', `${label}: verwacht create-new, kreeg ${String(caught)}`);
+  };
+  const fs = await createNodeFileFs(fsRoot);
+  const fresh = join(fsRoot, 'nieuw', 'bytes.ifc');
+  await fs.writeNewUserBytes!(fresh, bytes);
+  assert(readFileSync(fresh).equals(Buffer.from(bytes)), 'de bytes staan ongewijzigd op de nieuwe naam');
+  assertEq([lstatSync(fresh).nlink, tmpFiles(join(fsRoot, 'nieuw'))], [1, []], 'één naam, geen halffabricaat');
+  const existing = join(fsRoot, 'bestaand-bytes.ifc');
+  writeFileSync(existing, ORIGINAL);
+  await createNew(fs.writeNewUserBytes!(existing, bytes), 'bestaand doel');
+  assertEq(readFileSync(existing, 'utf8'), ORIGINAL, 'bestaand doel: byte-gelijk');
+  const late = join(fsRoot, 'laat.ifc');
+  const racing = await createNodeFileFs(fsRoot, undefined, {
+    afterCheck: (phase) => { if (phase === 'commit') writeFileSync(late, 'VAN EEN ANDER'); },
+  });
+  await createNew(racing.writeNewUserBytes!(late, bytes), 'doel verschijnt vlak voor de plaatsing');
+  assertEq([readFileSync(late, 'utf8'), tmpFiles(fsRoot)], ['VAN EEN ANDER', []], 'het bestand van een ander blijft staan, geen halffabricaat');
+  for (const phase of ['write', 'rename'] as const) {
+    const target = join(fsRoot, `fout-${phase}.ifc`);
+    const failing = await createNodeFileFs(fsRoot, undefined, { fault: (p) => { if (p === phase) throw new Error(`nagebootste ${p}-fout`); } });
+    await expectReject(failing.writeNewUserBytes!(target, bytes), `${phase}-fout`);
+    assertEq([existsSync(target), tmpFiles(fsRoot)], [false, []], `${phase}-fout: niets geschreven, halffabricaat opgeruimd`);
+  }
+  for (const name of ['laat.ifc', 'bestaand-bytes.ifc']) unlinkSync(join(fsRoot, name));
+  rmSync(join(fsRoot, 'nieuw'), { recursive: true });
+});
+
 test('A2 (215): doelmap synchroniseren na rename, met expliciete fout als het bestand al vervangen is', async () => {
   if (process.platform === 'win32') return; // Deze POSIX-route beweert geen Windows-durability.
   const folder = join(tmp, 'directory-sync');
@@ -579,42 +623,32 @@ test('A2 late scopeweigering bereikt de MCP-client bij import en export zonder b
   }
 });
 
-test('A drempel voor de waarschuwing: headless opent met en zonder flag zoals main, zonder waarschuwing', async () => {
+test('A drempel voor de waarschuwing: headless opent een model met zijn bron, zonder waarschuwing', async () => {
   const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
   const model = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
   const path = join(rootA, 'productgrens-model.ifc');
   writeFileSync(path, model);
-  const flags = app.store.getState().ui.featureFlags;
   try {
     lowerForeignOpenWarnBytesForTests(model.length - 1);
-    // Met de flag uit (de standaard van headless): de bestaande modelweigering, zoals main.
-    const off = await refused(client, 'planner_import_schedule', { path }, 'VALIDATION', 'flag uit');
-    assert(String(off.s.error).includes('building model') && !String(off.s.error).includes('above the limit'),
-      `flag uit: de modelweigering van main (${off.s.error})`);
-    // Met de flag aan (zoals de host hem uit `ops-featureFlags` inleest): het model opent met zijn bron, zoals main.
-    app.store.setState((s) => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: true }; });
     const opened = await ok(client, 'planner_import_schedule', { path });
     const source = app.store.getState().ifcSource;
     assertEq([source?.foreign, source?.sha256], [true, createHash('sha256').update(model).digest('hex')],
-      'flag aan: het model opent met zijn geverifieerde bron, ook boven de drempel');
-    assert(!JSON.stringify(opened).includes('larger than'), `flag aan: geen waarschuwing in het antwoord, zoals main (${JSON.stringify(opened).slice(0, 300)})`);
+      'het model opent met zijn geverifieerde bron, ook boven de drempel');
+    assert(!JSON.stringify(opened).includes('larger than'), `geen waarschuwing in het antwoord, zoals main (${JSON.stringify(opened).slice(0, 300)})`);
   } finally {
     lowerForeignOpenWarnBytesForTests();
-    app.store.setState((s) => { s.ui.featureFlags = flags; });
     await client.close();
   }
 });
 
-test('A doelbescherming: model en externe pset blijven bytegelijk zonder flag of draaiende app', async () => {
+test('A doelbescherming: model en externe pset blijven bytegelijk zonder draaiende app', async () => {
   const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
   try {
     const own = readFileSync(EXAMPLE, 'utf8');
-    const foreign = own.replace('ENDSEC;\nEND-ISO-10303-21;',
-      "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
-      "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;");
+    const foreign = withExternPset(own);
     writeFileSync(join(rootA, 'eigen-bron.ifc'), own);
     await ok(client, 'planner_import_schedule', { path: join(rootA, 'eigen-bron.ifc') });
-    assertEq(app.store.getState().ui.featureFlags.ifcForeignContent, undefined, 'headless zet geen flag');
+    assertEq(app.store.getState().ui.featureFlags.ifcForeignContent, true, 'headless zet de flag in zijn eigen store');
     for (const [name, bytes] of [
       ['model', readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/model-ifc4.ifc'))],
       ['externe-pset', Buffer.from(foreign)],
@@ -659,6 +693,384 @@ test('A knownbug 1907: export_ifc over het bestand van een ander open document w
     await ok(client, 'planner_export_ifc', { path: join(rootA, 'open-vrij.ifc') });
     assert(readFileSync(join(rootA, 'open-vrij.ifc'), 'utf8').includes('IFCTASK('), 'een vrije naam: geschreven');
     assert(readFileSync(fileA).equals(before), 'A blijft bytegelijk');
+  } finally { await client.close(); }
+});
+
+test('A knownbug 1136: een externe pset gaat mee naar een nieuwe naam; over de bron en een bestaande naam weigert de export', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  try {
+    const sourceBytes = Buffer.from(withExternPset(readFileSync(EXAMPLE, 'utf8')));
+    const source = join(rootA, 'extern-bron.ifc');
+    writeFileSync(source, sourceBytes);
+    const opened = await ok(client, 'planner_import_schedule', { path: source });
+    assertEq(opened.filePath, source, 'de bron is het bestand van het document');
+    const kept = app.store.getState().ifcSource;
+    assertEq([kept?.foreign, kept?.buildingModel, kept?.sha256], [true, false, createHash('sha256').update(sourceBytes).digest('hex')],
+      'het document bewaart de bron met de externe pset');
+    const leaf = app.store.getState().tasks.find(t => t.childIds.length === 0)!;
+    await ok(client, 'planner_update_tasks', { updates: [{ id: leaf.id, fields: { name: 'Hernoemd headless' } }] });
+
+    const copy = join(rootA, 'extern-kopie.ifc');
+    const exported = await ok(client, 'planner_export_ifc', { path: copy });
+    const written = readFileSync(copy);
+    assertEq([exported.overwritten, exported.byteLength, exported.characters], [false, written.byteLength, undefined],
+      'de export schrijft bytes naar de nieuwe naam');
+    const text = written.toString('latin1');
+    assert(text.includes("'ExternPset'") && text.includes("IFCTEXT('behouden')"), 'de externe pset staat in de uitvoer');
+    assert(text.includes('Hernoemd headless'), 'de wijziging van de planning staat in de uitvoer');
+    assertEq(readdirSync(rootA).filter(f => f.includes('.ops-')), [], 'geen hulpbestand');
+
+    const again = await refused(client, 'planner_export_ifc', { path: copy }, 'VALIDATION', 'dezelfde naam zonder overwrite');
+    assert(String(again.s.error).includes('already exists'), `de bestaande naam: ${again.s.error}`);
+    for (const target of [source, copy, join(rootA, 'eigen-bron.ifc')]) {
+      const before = readFileSync(target);
+      const r = await refused(client, 'planner_export_ifc', { path: target, overwrite: true }, 'VALIDATION', `over ${target}`);
+      assert(readFileSync(target).equals(before), `${target}: bytegelijk na ${r.s.error}`);
+    }
+    assert(readFileSync(source).equals(sourceBytes), 'de bron is bytegelijk');
+
+    await ok(client, 'planner_import_schedule', { path: copy });
+    const reopened = app.store.getState();
+    assert(reopened.ifcSource?.foreign === true && reopened.tasks.some(t => t.name === 'Hernoemd headless'),
+      'de kopie opent opnieuw met de externe pset en de wijziging');
+  } finally { await client.close(); }
+});
+
+test('A 1136 ronde 1: een externe pset met ids boven de scannergrens en een IFC2X3 met een externe pset weigeren vóór I/O', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  const original = fileToolDeps.getFs;
+  try {
+    const cases = foreignCorpus(ROOT).filter(c =>
+      ['pset-aan-project-IFC4X3_ADD2-ids-boven-scannergrens.ifc', 'pset-aan-project-IFC2X3-gewone-ids.ifc'].includes(c.name));
+    assertEq(cases.length, 2, 'de twee gevallen van de review');
+    for (const c of cases) {
+      const source = join(rootA, `onzeker-${c.name}`);
+      const copy = join(rootA, `onzeker-kopie-${c.name}`);
+      writeFileSync(source, c.bytes);
+      const opened = await ok(client, 'planner_import_schedule', { path: source });
+      assert(opened.tasks > 0, `${c.name}: de planning opent zoals main`);
+      assertEq(app.store.getState().foreignSourceMark?.sourceMissing, true, `${c.name}: het document staat als niet vast te stellen`);
+      const backups = join(dataA, 'ai-backups');
+      const backupsBefore = filesBelow(backups);
+      const leaf = app.store.getState().tasks.find(t => t.childIds.length === 0)!;
+      const edited = await call(client, 'planner_update_tasks', { updates: [{ id: leaf.id, fields: { name: 'Eerste wijziging' } }] });
+      assert(!edited.isError, `${c.name}: de taakwijziging gaat door (${JSON.stringify(edited.s).slice(0, 200)})`);
+      assertEq(edited.s.envelope?.backupCreated, undefined, `${c.name}: geen backupCreated`);
+      assert(String(edited.s.envelope?.backupWithheld).includes('No AI backup was made'), `${c.name}: het antwoord zegt dat er geen back-up is`);
+      assertEq([...filesBelow(backups).keys()], [...backupsBefore.keys()], `${c.name}: geen nieuw bestand in de back-upmap`);
+      let fileCalls = 0;
+      fileToolDeps.getFs = async () => { fileCalls++; return original(); };
+      for (const args of [{ path: copy }, { path: copy, overwrite: true }, { path: source, overwrite: true }]) {
+        const r = await refused(client, 'planner_export_ifc', args, 'VALIDATION', `${c.name} ${JSON.stringify(args)}`);
+        assert(String(r.s.error).includes('cannot keep') && String(r.s.error).includes('nothing was written'), `${c.name}: de fout zegt waarom: ${r.s.error}`);
+      }
+      fileToolDeps.getFs = original;
+      assertEq(fileCalls, 0, `${c.name}: de export raakt de bestandslaag niet`);
+      assertEq(existsSync(copy), false, `${c.name}: geen kopie`);
+      assert(readFileSync(source).equals(c.bytes), `${c.name}: de bron is bytegelijk`);
+    }
+  } finally {
+    fileToolDeps.getFs = original;
+    await client.close();
+  }
+});
+
+test('A eigenschap (1136 ronde 1): elk vreemd stuk staat bytegelijk in de kopie, of de export weigert en er is geen kopie', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  const dir = join(rootA, 'eigenschap');
+  mkdirSync(dir);
+  const tally = { geschreven: 0, geweigerd: 0, nietGeopend: 0 };
+  const byStand = new Map<string, number>();
+  const broken: string[] = [];
+  try {
+    const all = [
+      ...ownCorpus(ROOT).map(c => ({ name: c.name, bytes: c.bytes, pieces: [] as readonly string[], stand: c.stand as string | undefined,
+        opens: c.opens, writes: c.opens && c.stand === 'eigen' })),
+      ...foreignCorpus(ROOT).map(c => ({ name: c.name, bytes: c.bytes, pieces: c.pieces, stand: undefined as string | undefined,
+        opens: true, writes: c.kept })),
+    ];
+    const expected = {
+      geschreven: all.filter(c => c.opens && c.writes).length,
+      geweigerd: all.filter(c => c.opens && !c.writes).length,
+      nietGeopend: all.filter(c => !c.opens).length,
+    };
+    for (const [i, c] of all.entries()) {
+      const source = join(dir, `${i}-bron.ifc`);
+      const copy = join(dir, `${i}-kopie.ifc`);
+      writeFileSync(source, c.bytes);
+      const opened = await call(client, 'planner_import_schedule', { path: source });
+      if (opened.isError) {
+        tally.nietGeopend++;
+        if (c.opens) broken.push(`${c.name}: opent niet (${opened.s.code} ${String(opened.s.error).slice(0, 120)})`);
+        continue;
+      }
+      if (!c.opens) broken.push(`${c.name}: opent, maar hoort niet te openen`);
+      const exported = await call(client, 'planner_export_ifc', { path: copy });
+      const written = existsSync(copy) ? readFileSync(copy).toString('latin1') : null;
+      const missing = written === null ? [] : c.pieces.filter(piece => !written.includes(piece));
+      if (!exported.isError && written !== null && missing.length === 0) tally.geschreven++;
+      else if (exported.isError && exported.s.code === 'VALIDATION' && written === null) tally.geweigerd++;
+      else broken.push(`${c.name}: ${exported.isError ? exported.s.code : 'ok'}, kopie ${written === null ? 'ontbreekt' : `mist ${missing.length} vreemde regel(s)`}`);
+      if (c.writes && exported.isError) broken.push(`${c.name}: hoort te schrijven, maar de export weigert (${exported.s.error})`);
+      if (!c.writes && !exported.isError) broken.push(`${c.name}: hoort te weigeren, maar de export schreef`);
+      if (!readFileSync(source).equals(c.bytes)) broken.push(`${c.name}: de bron veranderde`);
+      const key = `${c.stand ?? 'vreemd'} ${exported.isError ? 'geweigerd' : 'geschreven'}`;
+      byStand.set(key, (byStand.get(key) ?? 0) + 1);
+    }
+    console.log(`  eigenschap: ${all.length} bestanden, ${tally.geschreven} geschreven, ${tally.geweigerd} geweigerd, ${tally.nietGeopend} niet geopend`
+      + ` (${[...byStand].map(([k, n]) => `${k} ${n}`).join(', ')})`);
+    assertEq(broken, [], 'nooit ok met een vreemd stuk minder, nooit een kopie na een weigering, elk bestand in zijn stand');
+    assertEq(tally, expected, 'de tellingen per uitkomst');
+  } finally {
+    await client.close();
+  }
+});
+
+interface ToolStep { readonly tool: string; readonly args: () => Record<string, unknown>; readonly refused?: true }
+
+function mutationSteps(dir: string, source: string): ToolStep[] {
+  const st = () => app.store.getState();
+  const leaf = () => st().tasks.find(t => t.childIds.length === 0 && !t.isMilestone && t.time.scheduleDuration >= 2)!.id;
+  const parent = () => st().tasks.find(t => t.childIds.length > 0)!.id;
+  const added = () => st().tasks.find(t => t.name === 'Eigenschap nieuw')?.id
+    ?? [...st().tasks].reverse().find(t => t.childIds.length === 0 && !t.isMilestone && t.id !== leaf())!.id;
+  const dependency = () => st().sequences[0].id;
+  const baseline = () => st().baselines[0].id;
+  const shifted = () => new Date(Date.parse(String(st().project.startDate).slice(0, 10)) + 7 * 86_400_000).toISOString().slice(0, 10);
+  let original = '';
+  return [
+    { tool: 'planner_update_tasks', args: () => ({ updates: [{ id: leaf(), fields: { name: 'Eigenschap gewijzigd' } }] }) },
+    { tool: 'planner_add_tasks', args: () => ({ tasks: [{ tempId: 'tmp-e1', name: 'Eigenschap nieuw', duration: 2 }] }) },
+    { tool: 'planner_add_dependencies', args: () => ({ dependencies: [{ predecessorId: leaf(), successorId: added(), type: 'FS' }] }) },
+    { tool: 'planner_update_dependencies', args: () => ({ updates: [{ seqId: dependency(), lag: 1 }] }) },
+    { tool: 'planner_remove_dependencies', args: () => ({ ids: [dependency()] }) },
+    { tool: 'planner_move_task', args: () => ({ id: added(), newParentId: parent() }) },
+    { tool: 'planner_set_task_splits', args: () => ({ taskId: leaf(), interruptions: [{ afterWorkDays: 1, pauseDays: 1 }] }) },
+    { tool: 'planner_update_calendar', args: () => ({ calendars: [{ id: st().calendar.id, name: 'Eigenschap kalender' }] }) },
+    { tool: 'planner_manage_resources', args: () => ({ actions: [{ action: 'create', tempId: 'tmp-r1', name: 'Eigenschap resource', type: 'LABOR' }] }) },
+    { tool: 'planner_manage_assignments', args: () => ({ actions: [{ action: 'add', taskId: leaf(), resourceId: st().resources[0].id, unitsPerDay: 8 }] }) },
+    { tool: 'planner_level_resources', args: () => ({}) },
+    { tool: 'planner_clear_leveling', args: () => { st().updateTask(leaf(), { levelingDelay: 1 }); return {}; } },
+    { tool: 'planner_update_project', args: () => ({ description: 'Eigenschap' }) },
+    { tool: 'planner_move_project', args: () => ({ newStartDate: shifted() }) },
+    { tool: 'planner_save_baseline', args: () => ({ name: 'Eigenschap' }) },
+    { tool: 'planner_rename_baseline', args: () => ({ baselineId: baseline(), name: 'Eigenschap hernoemd' }) },
+    { tool: 'planner_activate_baseline', args: () => {
+      st().saveBaseline('Eigenschap tweede');
+      return { baselineId: st().baselines.find(b => b.id !== st().activeBaselineId)!.id };
+    } },
+    { tool: 'planner_delete_baseline', args: () => ({ baselineId: baseline() }) },
+    { tool: 'planner_refresh_external_links', args: () => {
+      st().addExternalLink(leaf(), {
+        direction: 'predecessor', relType: 'FS', anchorDate: '2020-01-01T08:00:00', sourceMissing: false,
+        sourceRef: { projectId: st().project.id, taskId: parent(), filePath: source },
+      });
+      return {};
+    } },
+    { tool: 'planner_batch', args: () => ({ steps: [{ tool: 'planner_update_tasks', args: { updates: [{ id: leaf(), fields: { name: 'Eigenschap batch' } }] } }] }) },
+    { tool: 'planner_delete_tasks', args: () => ({ ids: [added()] }) },
+    { tool: 'planner_undo', args: () => ({}) },
+    { tool: 'planner_redo', args: () => ({}) },
+    { tool: 'planner_duplicate_document', args: () => { original = st().activeDocumentId; return {}; } },
+    { tool: 'planner_export_ifc', args: () => ({ path: join(dir, 'export-duplicaat.ifc') }), refused: true },
+    { tool: 'planner_switch_document', args: () => ({ documentId: original }) },
+    { tool: 'planner_export_ifc', args: () => ({ path: join(dir, 'export.ifc') }), refused: true },
+    { tool: 'planner_new_document', args: () => ({}) },
+    { tool: 'planner_import_schedule', args: () => ({ path: source }) },
+    { tool: 'planner_export_ifc', args: () => ({ path: join(dir, 'export-na-heropenen.ifc'), overwrite: true }), refused: true },
+  ];
+}
+
+function filesBelow(dir: string): Map<string, string> {
+  const found = new Map<string, string>();
+  if (!existsSync(dir)) return found;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) for (const [p, v] of filesBelow(path)) found.set(p, v);
+    else if (entry.isFile()) found.set(path, createHash('sha256').update(readFileSync(path)).digest('hex'));
+  }
+  return found;
+}
+
+const isStep = (bytes: Buffer) => bytes.subarray(bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? 3 : 0).toString('latin1').trimStart().startsWith('ISO-10303-21');
+
+test('A eigenschap (1136 ronde 2): in stand 3 schrijft geen enkele wijzigende tool een IFC, en elke tool die een back-up zou melden zegt dat er geen is', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  const dir = join(rootA, 'alle-tools');
+  mkdirSync(dir);
+  const original = fileToolDeps.getFs;
+  try {
+    const mutating = getTools().filter(t => !t.annotations.readOnlyHint).map(t => t.name).sort();
+    const backsUp = new Set(getTools().filter(t => t.kind === 'mutate' || t.kind === 'batch').map(t => t.name));
+    const stepsFor = (sub: string, source: string) => mutationSteps(join(dir, sub), source);
+    assertEq([...new Set(stepsFor('x', 'x').map(s => s.tool))].sort(), mutating, 'elke wijzigende tool uit de registry heeft een proefaanroep');
+
+    const kept = foreignCorpus(ROOT).find(c => c.name === 'pset-aan-project-IFC4X3_ADD2-gewone-ids.ifc')!;
+    const reportsBackup = new Set<string>();
+    const referenceErrors: string[] = [];
+    const stepCount = stepsFor('ref', 'x').length;
+    for (let i = 0; i < stepCount; i++) {
+      const sub = join(dir, `ref-${i}`);
+      mkdirSync(sub);
+      const source = join(sub, 'bron.ifc');
+      writeFileSync(source, kept.bytes);
+      const step = stepsFor(`ref-${i}`, source)[i];
+      await ok(client, 'planner_import_schedule', { path: source });
+      if (step.tool.includes('baseline') && step.tool !== 'planner_save_baseline') app.store.getState().saveBaseline('Referentie');
+      const r = await call(client, step.tool, step.args());
+      if (r.s.envelope?.backupCreated) reportsBackup.add(step.tool);
+      if (r.isError && backsUp.has(step.tool)) referenceErrors.push(`${step.tool} ${r.s.code} ${String(r.s.error).slice(0, 100)}`);
+    }
+    const expectedBackups = [...new Set(stepsFor('x', 'x').map(s => s.tool))].filter(t => backsUp.has(t)).sort();
+    assertEq(referenceErrors, [], 'in stand 2 slaagt elke tool van soort mutate of batch');
+    assertEq([...reportsBackup].sort(), expectedBackups, 'in stand 2 maakt precies elke tool van soort mutate of batch een back-up');
+
+    const uncertain = [
+      ...ownCorpus(ROOT).filter(c => c.stand === 'onzeker' && c.opens),
+      ...foreignCorpus(ROOT).filter(c => !c.kept),
+    ];
+    const before = new Map([...filesBelow(rootA), ...filesBelow(dataA)]);
+    const sources = uncertain.map((c, i) => {
+      mkdirSync(join(dir, `s3-${i}`));
+      const source = join(dir, `s3-${i}`, 'bron.ifc');
+      writeFileSync(source, c.bytes);
+      return source;
+    });
+    for (const source of sources) before.set(source, createHash('sha256').update(readFileSync(source)).digest('hex'));
+    let writes = 0;
+    fileToolDeps.getFs = async () => {
+      const fs = await original();
+      return { ...fs, writeTextFile: async (p, c) => { writes++; return fs.writeTextFile(p, c); },
+        writeNewUserBytes: async (p, b) => { writes++; return fs.writeNewUserBytes!(p, b); } };
+    };
+    const problems: string[] = [];
+    let calls = 0;
+    for (const [i, c] of uncertain.entries()) {
+      await ok(client, 'planner_import_schedule', { path: sources[i] });
+      if (app.store.getState().foreignSourceMark?.sourceMissing !== true) problems.push(`${c.name}: niet in stand 3 na openen`);
+      for (const step of stepsFor(`s3-${i}`, sources[i])) {
+        const r = await call(client, step.tool, step.args());
+        calls++;
+        const label = `${c.name} ${step.tool}`;
+        if (step.refused ? !(r.isError && r.s.code === 'VALIDATION') : r.isError) problems.push(`${label}: ${r.isError ? r.s.code : 'ok'} ${String(r.s.error ?? '').slice(0, 120)}`);
+        if (r.s.envelope?.backupCreated) problems.push(`${label}: backupCreated ${r.s.envelope.backupCreated}`);
+        if (!r.isError && backsUp.has(step.tool) && app.store.getState().foreignSourceMark?.sourceMissing && !String(r.s.envelope?.backupWithheld ?? '').includes('No AI backup was made')) {
+          problems.push(`${label}: het antwoord zegt niet dat er geen back-up is`);
+        }
+        if (step.tool === 'planner_refresh_external_links' && !r.isError && !(r.s.data?.sources?.length >= 1)) {
+          problems.push(`${label}: het verversen las geen bron (${JSON.stringify(r.s.data).slice(0, 200)})`);
+        }
+      }
+    }
+    fileToolDeps.getFs = original;
+    const after = new Map([...filesBelow(rootA), ...filesBelow(dataA)]);
+    const written = [...after].filter(([p, hash]) => before.get(p) !== hash && isStep(readFileSync(p))).map(([p]) => p);
+    console.log(`  alle tools: ${mutating.length} wijzigende tools, ${uncertain.length} bestanden in stand 3, ${calls} aanroepen, `
+      + `back-up in stand 2 bij ${reportsBackup.size} tools (${[...reportsBackup].sort().join(', ')}), ${writes} schrijfaanroepen van de bestandslaag`);
+    assertEq(problems, [], 'elke tool in stand 3: verwachte uitkomst, geen backupCreated, wel de melding dat er geen back-up is');
+    assertEq(written, [], 'geen nieuw of gewijzigd bestand dat met ISO-10303-21 begint, in de werkmap en de gegevensmap');
+    assertEq(writes, 0, 'de bestandslaag schreef niets');
+    for (const [i, c] of uncertain.entries()) assert(readFileSync(sources[i]).equals(c.bytes), `${c.name}: de bron is bytegelijk`);
+  } finally {
+    fileToolDeps.getFs = original;
+    await client.close();
+  }
+});
+
+test('A eigenschap (1136 ronde 3): elk slot uit de slottabel met een waarde van een ander programma komt terug in de kopie en de back-up, of er komt geen IFC', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  const dir = join(rootA, 'slots');
+  mkdirSync(dir);
+  const backups = join(dataA, 'ai-backups');
+  try {
+    const cases = slotCorpus(ROOT);
+    const constantSlots = IFC_SLOT_TABLES.flatMap(t => t.slots.filter(s => s.soort === 'constant' || s.soortVreemd === 'constant').map(s => `${t.naam}.${s.key}`));
+    const covered = new Set(cases.map(c => `${c.table.naam}.${c.slot.key}`));
+    assertEq(constantSlots.filter(name => !covered.has(name)), [], 'elk constant slot uit de slottabel heeft een geval');
+    assertEq(cases.map(slotCaseLabel), slotCaseSpecs().map(slotCaseLabel), 'een geval per slot en herkomst uit de tabel');
+    const outcome = new Map<string, string>();
+    const broken: string[] = [];
+    for (const [i, c] of cases.entries()) {
+      const label = slotCaseLabel(c);
+      const source = join(dir, `${i}-bron.ifc`);
+      const copy = join(dir, `${i}-kopie.ifc`);
+      writeFileSync(source, c.bytes);
+      const opened = await call(client, 'planner_import_schedule', { path: source });
+      if (opened.isError) {
+        broken.push(`${label}: opent niet (${opened.s.code} ${String(opened.s.error).slice(0, 120)})`);
+        continue;
+      }
+      const state = app.store.getState();
+      const stand = state.foreignSourceMark?.sourceMissing ? 'stand 3' : state.ifcSource ? 'stand 2' : 'stand 1';
+      const exported = await call(client, 'planner_export_ifc', { path: copy });
+      const written = existsSync(copy) ? readFileSync(copy, 'utf8') : null;
+      if (!exported.isError && written !== null && slotValueIn(written, c) === c.value) outcome.set(label, `${stand} geschreven`);
+      else if (exported.isError && exported.s.code === 'VALIDATION' && written === null) outcome.set(label, `${stand} geweigerd`);
+      else broken.push(`${label}: ${exported.isError ? exported.s.code : 'ok'}, in de kopie ${written === null ? 'geen bestand' : String(slotValueIn(written, c))} in plaats van ${c.value}`);
+      const before = filesBelow(backups);
+      const leaf = app.store.getState().tasks.find(t => t.childIds.length === 0)!;
+      const edited = await call(client, 'planner_update_tasks', { updates: [{ id: leaf.id, fields: { name: 'Eerste wijziging' } }] });
+      const fresh = [...filesBelow(backups).keys()].filter(p => !before.has(p));
+      const envelope = edited.s.envelope ?? {};
+      if (edited.isError) broken.push(`${label}: de taakwijziging faalt (${edited.s.code} ${String(edited.s.error).slice(0, 120)})`);
+      else if (stand === 'stand 3') {
+        if (!envelope.backupWithheld || envelope.backupCreated || fresh.length > 0) {
+          broken.push(`${label}: stand 3, backupWithheld ${envelope.backupWithheld ? 'ja' : 'nee'}, ${fresh.length} nieuw bestand in de back-upmap`);
+        }
+      } else if (fresh.length === 1 && envelope.backupCreated && !envelope.backupWithheld) {
+        const backup = readFileSync(fresh[0], 'utf8');
+        const kept = stand === 'stand 2' ? backup.includes(PSET.RecoveryForeignSource) : slotValueIn(backup, c) === c.value;
+        if (!kept) broken.push(`${label}: ${stand}, de back-up ${stand === 'stand 2' ? 'mist OPS_RecoveryForeignSource' : `heeft ${String(slotValueIn(backup, c))} in het slot`}`);
+      } else broken.push(`${label}: ${stand}, ${fresh.length} nieuwe back-up(s), backupCreated ${String(envelope.backupCreated)}`);
+      if (!readFileSync(source).equals(c.bytes)) broken.push(`${label}: de bron veranderde`);
+    }
+    const tally = new Map<string, number>();
+    for (const value of outcome.values()) tally.set(value, (tally.get(value) ?? 0) + 1);
+    console.log(`  slots: ${cases.length} gevallen uit ${IFC_SLOT_TABLES.length} slottabellen (${[...tally].sort().map(([k, n]) => `${k} ${n}`).join(', ')})`);
+    console.log(`  geschreven met het slot: ${[...outcome].filter(([, v]) => v.endsWith('geschreven')).map(([k]) => k).join(', ')}`);
+    assertEq(broken, [], 'nooit ok met een slot dat niet terugkomt, geen kopie na een weigering, geen back-up zonder het slot');
+    assertEq(outcome.size, cases.length, 'elk geval heeft een uitkomst');
+    assertEq(outcome.get('IfcTask.workMethod vreemd'), 'stand 3 geweigerd', 'het geval van de review: stand 3, geen IFC');
+    assertEq(outcome.get('IfcTask.workMethod eigen'), 'stand 3 geweigerd', 'een werkwijze in een eigen taak: stand 3');
+    assertEq(outcome.get('IfcTask.status vreemd'), 'stand 3 geweigerd', 'een status die de lezer niet draagt: stand 3');
+    assertEq(outcome.get('IfcTask.name vreemd'), 'stand 1 geschreven', 'een naam die de lezer draagt: stand 1, met de naam');
+  } finally {
+    await client.close();
+  }
+});
+
+test('A gebouwmodel: openen bewaart het model, een nieuwe naam krijgt het bytegelijk, een ongedragen wijziging weigert getypeerd', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  try {
+    const model = readFileSync(join(FOREIGN_FIXTURES, 'eigen-plus-model.ifc'));
+    const source = join(rootA, 'eigen-plus-model.ifc');
+    writeFileSync(source, model);
+    await ok(client, 'planner_import_schedule', { path: source });
+    assertEq(app.store.getState().ifcSource?.buildingModel, true, 'het model is bewaard');
+    const copy = join(rootA, 'model-kopie.ifc');
+    const exported = await ok(client, 'planner_export_ifc', { path: copy });
+    assertEq(exported.byteLength, model.byteLength, 'byteLength');
+    assert(readFileSync(copy).equals(model), 'een ongewijzigde planning met model komt bytegelijk terug');
+
+    const longer = async (name: string) => {
+      const bytes = readFileSync(join(FOREIGN_FIXTURES, name));
+      const path = join(rootA, name.replace(/^.*\//, ''));
+      writeFileSync(path, bytes);
+      await ok(client, 'planner_import_schedule', { path });
+      const task = app.store.getState().tasks.find(t => t.childIds.length === 0 && !t.isMilestone)!;
+      await ok(client, 'planner_update_tasks', { updates: [{ id: task.id, fields: { duration: task.time.scheduleDuration + 1 } }] });
+      return { bytes, path };
+    };
+    await longer('bonsai-4d.ifc');
+    const written = join(rootA, 'bonsai-kopie.ifc');
+    await ok(client, 'planner_export_ifc', { path: written });
+    assert(existsSync(written), 'een langere taak in bonsai-4d.ifc schrijft, met het vreemde deel');
+    const council = await longer('council/r6opus-twee-werkplannen.na.ifc');
+    const target = join(rootA, 'r6opus-kopie.ifc');
+    const r = await refused(client, 'planner_export_ifc', { path: target }, 'VALIDATION', 'ongedragen wijziging');
+    assert(String(r.s.error).includes('merge-needs-phase2') && String(r.s.error).includes('another format'), `de fout zegt waarom: ${r.s.error}`);
+    assertEq(existsSync(target), false, 'er is niets geschreven');
+    assert(readFileSync(council.path).equals(council.bytes), 'de bron is bytegelijk');
   } finally { await client.close(); }
 });
 
@@ -874,6 +1286,54 @@ test('B stdio bevinding 4: een link naar een map die alleen in hoofdletters vers
   await refused(stdio, 'planner_import_schedule', { path: '~/naar-hoofdletters/geheim.ifc' }, 'SCOPE', 'lezen via de link');
   await refused(stdio, 'planner_export_ifc', { path: '~/naar-hoofdletters/nieuw.ifc' }, 'SCOPE', 'schrijven via de link');
   assertEq(readdirSync(sibling), ['geheim.ifc'], 'naast de werkmap is niets geschreven');
+});
+
+test('B stdio knownbug 1136: de losse server neemt een externe pset en een gebouwmodel mee naar een nieuwe naam', async () => {
+  const pset = Buffer.from(withExternPset(readFileSync(EXAMPLE, 'utf8')));
+  const model = readFileSync(join(FOREIGN_FIXTURES, 'eigen-plus-model.ifc'));
+  for (const [name, bytes] of [['extern', pset], ['model', model]] as const) {
+    writeFileSync(join(work, `${name}-bron.ifc`), bytes);
+    await ok(stdio, 'planner_import_schedule', { path: `~/${name}-bron.ifc` });
+    const exported = await ok(stdio, 'planner_export_ifc', { path: `~/${name}-kopie.ifc` });
+    const written = readFileSync(join(work, `${name}-kopie.ifc`));
+    assertEq(exported.byteLength, written.byteLength, `${name}: byteLength`);
+    if (name === 'model') assert(written.equals(model), 'model: bytegelijk');
+    else assert(written.toString('latin1').includes("'ExternPset'"), 'extern: de externe pset staat in de uitvoer');
+    await refused(stdio, 'planner_export_ifc', { path: `~/${name}-bron.ifc`, overwrite: true }, 'VALIDATION', `${name}: over de bron`);
+    assert(readFileSync(join(work, `${name}-bron.ifc`)).equals(bytes), `${name}: de bron is bytegelijk`);
+  }
+  writeFileSync(join(work, 'oude-bron.ifc'), oldOwnSource(ROOT));
+  await ok(stdio, 'planner_import_schedule', { path: '~/oude-bron.ifc' });
+  const oldTasks = (await ok(stdio, 'planner_list_tasks', { limit: 1000 })).tasks as Array<{ name: string }>;
+  assertEq(oldTasks.find(t => t.name.startsWith('Set up '))?.name, OLD_TASK_NAME, 'oude eigen bron: de letterlijke taaknaam, zoals main 51b9cac22');
+  const oldExport = await ok(stdio, 'planner_export_ifc', { path: '~/oude-bron-kopie.ifc' });
+  assertEq([oldExport.characters, oldExport.byteLength, readFileSync(join(work, 'oude-bron-kopie.ifc')).byteLength], [59171, undefined, 59171],
+    'oude eigen bron: de tekstroute van main, 59.171 tekens zoals main 51b9cac22');
+  assertEq(readdirSync(work).filter(f => f.includes('.ops-')), [], 'geen hulpbestand');
+});
+
+test('B stdio 1136 ronde 3: een taak zonder OwnerHistory met een werkwijze van een ander programma krijgt geen IFC, ook geen back-up', async () => {
+  const bytes = foreignWorkMethodSource(ROOT);
+  const source = join(work, 'werkwijze-bron.ifc');
+  const copy = join(work, 'werkwijze-kopie.ifc');
+  writeFileSync(source, bytes);
+  const opened = await ok(stdio, 'planner_import_schedule', { path: '~/werkwijze-bron.ifc' });
+  assertEq(opened.tasks, 47, 'de planning opent zoals main');
+  const first = await refused(stdio, 'planner_export_ifc', { path: '~/werkwijze-kopie.ifc' }, 'VALIDATION', 'export naar een nieuwe naam');
+  assert(String(first.s.error).includes('cannot keep') && String(first.s.error).includes('nothing was written'), `de fout zegt waarom: ${first.s.error}`);
+  assertEq(existsSync(copy), false, 'geen kopie');
+  const backups = join(dataB, 'ai-backups');
+  const before = filesBelow(backups);
+  const tasks = (await ok(stdio, 'planner_list_tasks', { limit: 1000 })).tasks as Array<{ id: string; summary?: boolean }>;
+  const edited = await call(stdio, 'planner_update_tasks', { updates: [{ id: tasks.find(t => !t.summary)!.id, fields: { name: 'Eerste wijziging' } }] });
+  assert(!edited.isError, `de taakwijziging gaat door: ${JSON.stringify(edited.s).slice(0, 300)}`);
+  assertEq(edited.s.envelope?.backupCreated, undefined, 'geen backupCreated');
+  assert(String(edited.s.envelope?.backupWithheld).includes('No AI backup was made'), 'het antwoord zegt dat er geen back-up is');
+  assertEq([...filesBelow(backups).keys()].filter(p => !before.has(p)), [], 'geen nieuw bestand in de back-upmap');
+  await refused(stdio, 'planner_export_ifc', { path: '~/werkwijze-kopie.ifc' }, 'VALIDATION', 'export na de wijziging');
+  await refused(stdio, 'planner_export_ifc', { path: '~/werkwijze-bron.ifc', overwrite: true }, 'VALIDATION', 'export over de bron');
+  assertEq(existsSync(copy), false, 'nog steeds geen kopie');
+  assert(readFileSync(source).equals(bytes) && bytes.includes(REVIEW_WORK_METHOD), 'de bron is bytegelijk en houdt de werkwijze');
 });
 
 /** Bladtaken als gesorteerde `naam|startdatum`-regels, voor een vergelijking tussen formaten. */

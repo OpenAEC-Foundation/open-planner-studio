@@ -144,6 +144,7 @@ export type WorkCalendarSlots = SlotPositions<CalendarSlotKey>;
  *  enumeratie WorkControlType op 13); alleen het argumentaantal (15) en de inhoud verschillen. */
 export const WORK_CONTROL_SLOT: WorkControlSlots = slotIndex(IFC_WORK_PLAN_SLOTS);
 const WORK_CONTROL_LEGACY_OPS: WorkControlSlots = { ...WORK_CONTROL_SLOT, startTime: 12, finishTime: 13, predefinedType: 14 };
+const WORK_CONTROL_AFTER_MERGE_PROJECTS: WorkControlSlots = { ...WORK_CONTROL_LEGACY_OPS, predefinedType: ABSENT_SLOT };
 /** Een STEP-enumeratie als `.BASELINE.`. */
 const isStepEnum = (arg: string | undefined): boolean => /^\.[A-Z0-9_]+\.$/i.test((arg ?? '').trim());
 export const CALENDAR_SLOT: WorkCalendarSlots = slotIndex(IFC_CALENDAR_SLOTS);
@@ -162,9 +163,13 @@ export function workControlSlots(args: readonly string[]): WorkControlSlots {
   }
   if (args.length >= LEGACY_OPS_WORK_CONTROL_ARITY) return WORK_CONTROL_LEGACY_OPS;
   if (args.length === WORK_CONTROL_ARITY && (args[WORK_CONTROL_SLOT.predefinedType] ?? '').trim().startsWith("'")) {
-    return WORK_CONTROL_LEGACY_OPS;
+    return WORK_CONTROL_AFTER_MERGE_PROJECTS;
   }
   return WORK_CONTROL_SLOT;
+}
+
+export function isBaselineWorkControl(args: readonly string[]): boolean {
+  return (args[workControlSlots(args).predefinedType] || '').includes('BASELINE');
 }
 
 /** Slotposities van een IfcWorkCalendar met deze argumenten. Oude OPS-lay-out bij 8 of minder

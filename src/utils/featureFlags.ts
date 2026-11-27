@@ -36,6 +36,7 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     // (`refusedWriteTarget` in src/state/ifcForeignGuard.ts).
     texts: [
       'common:documents.changedOnDisk',
+      'common:foreignChangesQuestion.*',
       'common:ifcExportWithoutModel.*',
       'common:ifcMissingSourceSaveAs.*',
       'common:notifications.exportPlanOnly',
@@ -74,9 +75,19 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
       'common:notifications.ifcUnreadableTargetAutoSave',
       'common:notifications.ifcUnreadableTargetExport',
       'common:notifications.ifcUnreadableTargetSave',
+      'common:settings.foreignChangesQuestion',
+      'common:settings.foreignChangesQuestionHint',
+      'common:settings.keywords.foreignChangesQuestion',
       'menu:projectInfo.ifcSchema.foreignLocked',
       'task:properties.elementLinks.*',
     ],
+  },
+  {
+    id: 'ifcx',
+    nameKey: 'settings.ifcx',
+    descriptionKey: 'settings.ifcxHint',
+    writesNewIfcData: true,
+    texts: ['common:ifcx.*', 'menu:ifcx.*'],
   },
 ];
 
@@ -97,4 +108,8 @@ export function parseFeatureFlagValues(raw: unknown): FeatureFlagValues | undefi
 /** Staat de flag `ifcForeignContent` aan (#804)? Eén plek voor de open-routes; zie `FormatReadOptions.ifcBytes`. */
 export function ifcForeignContentEnabled(values: Readonly<FeatureFlagValues>): boolean {
   return isFeatureEnabled(values, 'ifcForeignContent');
+}
+
+export function ifcxEnabled(values: Readonly<FeatureFlagValues>): boolean {
+  return isFeatureEnabled(values, 'ifcx');
 }

@@ -1,0 +1,49 @@
+{
+  "header": {
+    "id": "urn:openaec:voorbeeld:planning",
+    "ifcxVersion": "ifcx_alpha",
+    "dataVersion": "0.1.0",
+    "author": "Voorbeeldplanning voor Open Planner Studio",
+    "timestamp": "2026-11-27T00:00:00Z",
+    "openaecProfile": "openaec-building:0.1"
+  },
+  "imports": [],
+  "schemas": {},
+  "data": [
+    {
+      "path": "/planning/work-0",
+      "attributes": {
+        "openaec::activity": {
+          "start": "2027-03-01",
+          "endExclusive": "2027-03-08",
+          "status": "example"
+        },
+        "openaec::label": "Fundering"
+      }
+    },
+    {
+      "path": "/planning/work-1",
+      "attributes": {
+        "openaec::activity": {
+          "start": "2027-03-08",
+          "endExclusive": "2027-03-22",
+          "status": "example",
+          "predecessor": "/planning/work-0"
+        },
+        "openaec::label": "Draagconstructie"
+      }
+    },
+    {
+      "path": "/planning/work-2",
+      "attributes": {
+        "openaec::activity": {
+          "start": "2027-03-22",
+          "endExclusive": "2027-03-29",
+          "status": "example",
+          "predecessor": "/planning/work-1"
+        },
+        "openaec::label": "Daken"
+      }
+    }
+  ]
+}

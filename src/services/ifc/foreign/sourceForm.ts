@@ -56,6 +56,7 @@ import { inferWbsAutoNumberOnOpen } from '@/utils/wbs';
 import { sameValue } from '@/utils/sameValue';
 import { firstById } from '@/utils/firstById';
 import { ifcObjectSeed, type WriteIFCInput } from '../ifcWriter';
+import { RECORDED_SLOT_KEYS, type WithheldTaskTimeField } from '../ifcTaskSlots';
 import { planningIdentities } from './planningIdentity';
 
 /** Een veld dat de merge in de vorm van de bron schrijft omdat de omzetting het maakte. */
@@ -71,6 +72,7 @@ export interface SourceForm {
   /** De velden die de omzetting maakte en die nu de bronwaarde hebben, en de datums en kalenders die bij deze opslag
    *  letterlijk worden: wat de herleestoets nagaat. */
   readonly checked: readonly SourceFormLeaf[];
+  readonly emptySlots: Readonly<Record<string, readonly WithheldTaskTimeField[]>>;
 }
 
 /** Een veld met de bronwaarde die het krijgt, en of de omzetting het maakte (anders de herberekening). */
@@ -186,6 +188,7 @@ function candidates(domain: WriteIFCInput, opened: WriteIFCInput, pristine: Impo
       if (key === 'time' || key === 'id') continue;
       consider({ kind: 'task', id: d.id, field: key }, fields(d)[key], fields(o)[key], fields(p)[key], fields(mt)[key], false);
     }
+    if (o.childIds.length > 0 && d.childIds.length === 0) continue;
     const td = fields(d.time), to = fields(o.time), tp = fields(p.time), tm = fields(mt.time);
     for (const sub of new Set([...Object.keys(td), ...Object.keys(to), ...Object.keys(tp)])) {
       consider({ kind: 'task', id: d.id, field: 'time', sub }, td[sub], to[sub], tp[sub], tm[sub], true);
@@ -237,10 +240,13 @@ function reopened(input: WriteIFCInput) {
  */
 export function sourceFormWhereUnchanged(domain: WriteIFCInput, opened: WriteIFCInput | undefined, pristine: ImportResult,
   literalCalendarIds: ReadonlySet<string> = new Set()): SourceForm {
-  if (!opened) return { input: domain, checked: [] };
+  if (!opened) return { input: domain, checked: [], emptySlots: {} };
   const literal = literalLeaves(domain, literalCalendarIds);
+  const empty = emptySourceSlots(domain, opened, pristine);
+  const keptEmpty = (leaf: SourceFormLeaf) => leaf.kind === 'task' && leaf.sub !== undefined
+    && (empty[leaf.id] as readonly string[] | undefined)?.includes(leaf.sub) === true;
   let restores = candidates(domain, opened, pristine).filter(r => !(isDateLeaf(r.leaf) && literal.taskIds.has(r.leaf.id))
-    && !(r.leaf.kind === 'baseline' && literal.baselineIds.has(r.leaf.id)));
+    && !(r.leaf.kind === 'baseline' && literal.baselineIds.has(r.leaf.id)) && !keptEmpty(r.leaf));
   // De voortoets (zie de kop): een veld van de omzetting dat met de taak en de kalender van nu niet weer d wordt, blijft d.
   // Elke ronde valt er minstens één af, of de toets is klaar.
   for (;;) {
@@ -254,9 +260,32 @@ export function sourceFormWhereUnchanged(domain: WriteIFCInput, opened: WriteIFC
     restores = restores.filter(r => !failed.has(r) && !(isDateLeaf(r.leaf) && datesOf.has(r.leaf.id)));
   }
   return {
-    input: withProjectSource(withRestores(domain, restores), opened, pristine),
+    input: withEmptySlots(withProjectSource(withRestores(domain, restores), opened, pristine), empty),
     checked: [...restores.filter(r => r.converted).map(r => r.leaf), ...literal.leaves],
+    emptySlots: empty,
   };
+}
+
+function emptySourceSlots(domain: WriteIFCInput, opened: WriteIFCInput, pristine: ImportResult): Record<string, WithheldTaskTimeField[]> {
+  const out: Record<string, WithheldTaskTimeField[]> = {};
+  if (!domain.recordedSourceFormat) return out;
+  const openedTasks = byId(opened.tasks);
+  for (const d of domain.tasks) {
+    const o = openedTasks.get(d.id), present = pristine.recordedFields?.[d.id];
+    if (!o || !present) continue;
+    const withheld = domain.withheldTaskTimeFields?.[d.id] ?? [];
+    const keys = RECORDED_SLOT_KEYS.filter(k => !present.includes(k) && !withheld.includes(k) && sameValue(d.time[k], o.time[k]));
+    if (keys.length > 0) out[d.id] = keys;
+  }
+  return out;
+}
+
+function withEmptySlots(input: WriteIFCInput, empty: Readonly<Record<string, readonly WithheldTaskTimeField[]>>): WriteIFCInput {
+  const ids = Object.keys(empty);
+  if (ids.length === 0) return input;
+  const withheld: Record<string, readonly WithheldTaskTimeField[]> = { ...input.withheldTaskTimeFields };
+  for (const id of ids) withheld[id] = [...(withheld[id] ?? []), ...empty[id]];
+  return { ...input, withheldTaskTimeFields: withheld };
 }
 
 /** De taken en baselines op een kalender die bij deze opslag letterlijk wordt, en wat de herleestoets daar nagaat: elk

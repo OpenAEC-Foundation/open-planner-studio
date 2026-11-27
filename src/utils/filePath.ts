@@ -17,8 +17,13 @@ export function basename(path: string): string {
  * @param ext  de extensie zónder punt, bv. 'ifc'
  */
 export function ensureExtension(path: string, ext: string): string {
-  const suffix = `.${ext.toLowerCase()}`;
-  return path.toLowerCase().endsWith(suffix) ? path : `${path}.${ext}`;
+  return withOneOfExtensions(path, [ext]);
+}
+
+export function withOneOfExtensions(path: string, extensions: readonly string[]): string {
+  const lower = path.toLowerCase();
+  if (extensions.length === 0 || extensions.some(ext => lower.endsWith(`.${ext.toLowerCase()}`))) return path;
+  return `${path}.${extensions[0]}`;
 }
 
 /**
@@ -39,4 +44,8 @@ export function ensureExtension(path: string, ext: string): string {
  */
 export function extensionOf(name: string): string {
   return name.split('.').pop()?.toLowerCase() ?? '';
+}
+
+export function isIfcxName(name: string | null | undefined): boolean {
+  return !!name && /\.ifcx$/i.test(name);
 }

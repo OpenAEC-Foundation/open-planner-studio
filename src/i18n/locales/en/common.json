@@ -517,6 +517,10 @@
     "demoTopbarAnimationHint": "A gentle orange shimmer across the top bar. Demonstrates how an experimental toggle works.",
     "ifcForeignContent": "Open IFC with a building model",
     "ifcForeignContentHint": "Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC, also without the building model or with the resource library alongside (then with the schedule only). In Chrome and Edge, Save also saves the opened file itself. If another program changes this file exactly while saving, that change can be lost. In the desktop app, Save also saves the opened file itself if it is in your home folder. If another program changed the file in the meantime, saving stops or the app keeps that version as a separate copy next to the file; only a change at exactly the same moment can still be lost. Save As over another existing file in your home folder replaces that file in the same way, also when that file itself contains a building model or data from another program. A schedule without a building model can replace such a file too. Export → IFC replaces an existing file you choose in the dialog in the same way, except the schedule's own file. The app does not replace a file it cannot read or a file with a second name (a link). Just before replacing, the app compares the file with the version it read after your choice: if it changed, saving stops and the file stays as it is. If the version the app moved aside turns out to be different after all, the app keeps it as a separate copy next to the file, with a message. Recovering the building model after a crash requires access to the original file or a saved copy in the browser.",
+    "foreignChangesQuestion": "Ask before saving when IFC items outside the schedule are removed",
+    "foreignChangesQuestionHint": "For a file with a building model. When off, the app saves right away and reports the number afterwards.",
+    "ifcx": "Open and save IFCX",
+    "ifcxHint": "Opens an IFCX file that Open Planner Studio wrote itself, and saves such a file as IFCX again: with Save, Save As and Auto-save. In the desktop app, Save As also lets you choose the file type, IFC or IFCX; this is how you convert a schedule. IFCX is a new format under development; a later version of the app may refuse a file you save now. The app does not yet keep all data in IFCX: the source file of a P6 import (XER) is left out, and the app does not save a schedule with an embedded resource library as IFCX. Keep such data with Export → IFC. The app cannot open an IFCX file from another program yet.",
     "tourHint": "Take the app's introductory tour again.",
     "theme": "Theme",
     "themeHint": "The interface's colour scheme.",
@@ -668,6 +672,7 @@
       "mixedDayHour": "hours, days, duration unit, hourly scheduling",
       "dissolveSummaryMode": "dissolve, summary task, phase, subtasks, chain, relationships",
       "formatNotices": "explanation, notice, import, open, XER, MPP, P6, MS Project, CSV",
+      "foreignChangesQuestion": "save, ask, building model, IFC, link",
       "aiMode": "AI, MCP, assistant, Claude, bridge, connection",
       "aiAutostart": "AI, MCP, bridge, startup, automatic",
       "debugTerminal": "debug, log, terminal, console, troubleshooting",
@@ -1209,6 +1214,7 @@
       "country": "Country",
       "region": "Region",
       "regionNone": "National",
+      "regionFederal": "Federal",
       "bouwvakLabel": "Construction holiday",
       "bouwvak": {
         "none": "None",
@@ -1236,6 +1242,7 @@
       "AT": "Austria",
       "CH": "Switzerland",
       "US": "United States",
+      "CA": "Canada",
       "BO": "Bolivia",
       "ES": "Spain",
       "IT": "Italy",
@@ -2088,5 +2095,34 @@
   "replaceCopy": {
     "otherProgram": "version from another program {{when}}",
     "unsavedSchedule": "unsaved schedule {{when}}"
+  },
+  "ifcx": {
+    "open": {
+      "foreign": "This IFCX file was not written by Open Planner Studio. The app cannot open files from other programs yet.",
+      "newer": "This IFCX file has a newer version than this app knows. Open it with a newer version of Open Planner Studio.",
+      "invalid": "This IFCX file differs from what Open Planner Studio writes, so it does not open.",
+      "notIfcx": "This file is not an IFCX file."
+    },
+    "writeRefused": "The IFCX file was not written. This schedule contains data that the app does not yet keep in IFCX, or the check after writing found a difference. Keep the schedule with Export → IFC.",
+    "flagOff": "This is an IFCX file. Turn on the experimental feature Open and save IFCX to save it, or save the schedule as IFC with Save As.",
+    "nameMismatch": "This name does not match the file format of the schedule. Choose a name ending in .ifc for IFC or .ifcx for IFCX. Nothing was written to this file.",
+    "saveAs": {
+      "title": "Save as IFCX",
+      "planOnlyBody": "The IFCX file contains only the schedule, without the building model and without data from other programs. The open IFC file does not change. After saving, you continue working in the IFCX file.",
+      "planOnlyContinue": "Save schedule only",
+      "xerArchiveBody": "The P6 source archive is not included in IFCX. The schedule itself is. The open file does not change. After saving, you continue working in the IFCX file, without the source archive.",
+      "xerArchiveContinue": "Continue",
+      "cancel": "Cancel"
+    }
+  },
+  "foreignChangesQuestion": {
+    "title": "Save to {{file}}",
+    "titleNew": "Save As",
+    "body_one": "{{count}} IFC item outside the schedule refers to something that was deleted from the schedule. Saving will adjust or remove it.",
+    "body_other": "{{count}} IFC items outside the schedule refer to something that was deleted from the schedule. Saving will adjust or remove them.",
+    "bodyNew_one": "{{count}} IFC item outside the schedule refers to something that was deleted from the schedule. It will be adjusted or removed in the new file. The file you opened does not change.",
+    "bodyNew_other": "{{count}} IFC items outside the schedule refer to something that was deleted from the schedule. They will be adjusted or removed in the new file. The file you opened does not change.",
+    "dontAskAgain": "Don't ask again",
+    "dontAskAgainHint": "You can turn this back on in Settings → Notices."
   }
 }

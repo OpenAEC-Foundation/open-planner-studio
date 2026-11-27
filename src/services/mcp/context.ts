@@ -28,5 +28,6 @@ export function createMcpContext(
     readOnly: ui.aiReadOnly,
     ensureBackup: backup.ensureBackup,
     markDuplicateBorn: backup.markDuplicateBorn,
+    ...(backup.withheld ? { backupWithheld: backup.withheld } : {}),
   };
 }

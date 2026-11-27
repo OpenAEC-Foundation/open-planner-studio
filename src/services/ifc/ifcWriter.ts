@@ -13,7 +13,7 @@ import { legacyOptionsBlobFor } from '@/services/ifc/schedulingProfileMigration'
 import { holidayEndDate, WorkCalendar, type WorkTimeBands } from '@/types/calendar';
 import { DEFAULT_CALENDAR_ID } from '@/engine/calendar/defaultCalendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
-import { Baseline } from '@/types/baseline';
+import { Baseline, baselineStart } from '@/types/baseline';
 import type { CustomTaskType } from '@/types/taskType';
 import { savedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
 import {
@@ -23,7 +23,7 @@ import {
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes';
 import type { ForeignSourceRecord } from './foreign/foreignSourceMark';
-import { unusedAssignmentKeyNames, type UnusedAssignmentKey } from './assignmentKeys';
+import { assignmentKeyName, unusedAssignmentKeyNames, type UnusedAssignmentKey } from './assignmentKeys';
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
@@ -149,12 +149,6 @@ function ifcDurationHour(minutes: number): string {
   return `'${minutesToIsoDuration(minutes)}'`;
 }
 
-function baselineStart(b: Baseline): string {
-  let first = '';
-  for (const t of b.tasks ?? []) if (t.start && (!first || t.start < first)) first = t.start;
-  return first;
-}
-
 export interface WriteContext {
   literalCalendarIds?: ReadonlySet<string>;
   milestonesAtDayEnd?: ReadonlySet<string>;
@@ -208,7 +202,7 @@ function issueGuid(ctx: WriteContext, key: string, hashSeed: string): string {
   return guid;
 }
 
-export type IfcObjectKind = 'task' | 'res' | 'cal' | 'seq' | 'proj' | 'wp' | 'ws';
+export type IfcObjectKind = 'task' | 'res' | 'cal' | 'seq' | 'proj' | 'wp' | 'ws' | 'asgn' | 'bl';
 
 export function ifcObjectSeed(kind: IfcObjectKind, id: string): string {
   return `${kind}:${id}`;
@@ -267,6 +261,17 @@ export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds, 
 } {
   const { lines, idMap, literalCalendarIds } = writeIfcParts(input, merge, writtenAt);
   return { lines, idMap, literalCalendarIds };
+}
+
+function writtenLiteralCalendarIds(calendar: WorkCalendar, resourceCalendars: readonly WorkCalendar[], literal: ReadonlySet<string>): string[] {
+  return [...new Set([calendar, ...resourceCalendars].map(cal => cal.id))].filter(id => literal.has(id));
+}
+
+export function plainWriteLiteralCalendarIds(input: WriteIFCInput): string[] {
+  const { tasks, calendar, resourceCalendars = [], baselines = [], ifcLiteralCalendarIds } = input;
+  const writeView = minuteModelWriteView({ tasks, calendar, resourceCalendars, baselines },
+    ifcLiteralCalendarIds ? { keepLiteralCalendarIds: ifcLiteralCalendarIds } : {});
+  return writtenLiteralCalendarIds(calendar, resourceCalendars, writeView.literalCalendarIds);
 }
 
 function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds, comparisonDate?: Date): {
@@ -479,7 +484,7 @@ function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds, comparisonD
   writeSchedulingProfileMeta(ctx, workSchedId, project.schedulingProfile, ownerHistId);
   writeImportProvenanceMeta(ctx, workSchedId, importPristine === true, recordedSourceFormat, ownerHistId);
 
-  const literalCalendarIds = [...new Set([calendar, ...resourceCalendars].map(cal => cal.id))].filter(id => writeView.literalCalendarIds.has(id));
+  const literalCalendarIds = writtenLiteralCalendarIds(calendar, resourceCalendars, writeView.literalCalendarIds);
   if (merge) return { text: '', lines: ctx.lines, idMap: ctx.idMap, literalCalendarIds, issuedGlobalIds: ctx.guids };
 
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
@@ -1489,14 +1494,14 @@ function writeAssignmentMeta(
     if (list.length === 0 && unused.length === 0) continue;
     const props = list.map((a, index) => {
       const resGuid = objectGuid(ctx, 'res', a.resourceId);
-      const propName = `${resGuid}#${index}`;
+      const propName = assignmentKeyName(resGuid, index);
       const val = `${a.unitsPerDay}|${a.curve ?? 'UNIFORM'}`;
       const propId = addLine(ctx, `_asgn_${task.id}_${a.id}`,
         `IFCPROPERTYSINGLEVALUE(${ifcStr(propName)},$,IFCTEXT(${ifcStr(val)}),$)`);
       return `#${propId}`;
     });
     if (unused.length > 0) {
-      const ownNames = list.map((a, index) => `${objectGuid(ctx, 'res', a.resourceId)}#${index}`);
+      const ownNames = list.map((a, index) => assignmentKeyName(objectGuid(ctx, 'res', a.resourceId), index));
       const unusedNames = unusedAssignmentKeyNames(ownNames, unused.map(key => key.name),
         ctx.merge?.foreignAssignmentKeyNames?.get(task.id) ?? []);
       unused.forEach((key, k) => {
@@ -1530,7 +1535,7 @@ function writeTimephasedMeta(
         && a.plannedWorkMinutes === undefined && a.actualWorkMinutes === undefined && a.remainingWorkMinutes === undefined
         && a.plannedUnitsPerDay === undefined && a.costAmount === undefined) return;
       const resGuid = objectGuid(ctx, 'res', a.resourceId);
-      const propName = `${resGuid}#${index}`;
+      const propName = assignmentKeyName(resGuid, index);
       windows[propName] = {
         ...(a.workWindowStart !== undefined ? { workWindowStart: a.workWindowStart } : {}),
         ...(a.workWindowFinish !== undefined ? { workWindowFinish: a.workWindowFinish } : {}),

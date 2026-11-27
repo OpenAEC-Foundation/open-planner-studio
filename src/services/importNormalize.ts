@@ -278,15 +278,15 @@ export function rebuildImportedHierarchy(tasks: Task[], levels: readonly (number
  * assignments-volgorde, met deduplicatie (één resource kan meerdere assignments op één taak hebben).
  */
 export function reconstructResourceIds(tasks: Task[], assignments: ResourceAssignment[]): void {
-  const byTask = new Map<string, string[]>();
+  const byTask = new Map<string, Set<string>>();
   for (const a of assignments) {
-    let list = byTask.get(a.taskId);
-    if (!list) { list = []; byTask.set(a.taskId, list); }
-    if (!list.includes(a.resourceId)) list.push(a.resourceId);
+    let ids = byTask.get(a.taskId);
+    if (!ids) { ids = new Set(); byTask.set(a.taskId, ids); }
+    ids.add(a.resourceId);
   }
   for (const t of tasks) {
     const ids = byTask.get(t.id);
-    if (ids) t.resourceIds = ids;
+    if (ids) t.resourceIds = [...ids];
   }
 }
 

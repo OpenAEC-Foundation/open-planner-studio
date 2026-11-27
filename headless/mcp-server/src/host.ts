@@ -35,6 +35,11 @@ import { createNodeFileFs } from './nodeFs';
 import { installXmlDomParser } from './xmlDom';
 import { createNodeBackupFs } from './backupFs';
 import { createAppLock, platformDiscoveryDirs, type AppLock } from './appLock';
+import { ifcFullWriteBlocked } from '@/state/ifcForeignGuard';
+
+export const BACKUP_WITHHELD = 'No AI backup was made: this document comes from a file whose data from other programs this server ' +
+  'cannot keep, so it writes no IFC for this document, not even a backup. The source file is untouched and stays the ' +
+  'unchanged version.';
 
 export interface HostOptions {
   /** Werkmap; moet bestaan. */
@@ -121,10 +126,12 @@ export async function createHeadlessHost(opts: HostOptions): Promise<HeadlessHos
 
   // Eén document zonder opslagdoel, zoals een nieuwe app-start. Geen host-events: extensies bestaan hier niet.
   const app = createAppStoreContext({ emitHostEvents: false });
+  app.store.setState((s) => { s.ui.featureFlags = { ifcForeignContent: true }; });
 
   const appLock = opts.isPathOpenInApp ?? createAppLock(opts.discoveryDirs ?? platformDiscoveryDirs());
   const fileFs = await createNodeFileFs(root, appLock);
   fileToolDeps.getFs = async () => fileFs;
+  fileToolDeps.mainRouteUnlessForeign = true;
   guideToolDeps.fetchImpl = embeddedAssetFetch(opts.assets);
   registerAllTools();
 
@@ -132,7 +139,11 @@ export async function createHeadlessHost(opts: HostOptions): Promise<HeadlessHos
     getFs: async () => createNodeBackupFs(opts.dataDir),
     autoBackupEnabled: async () => opts.backup,
   });
-  const backup = { ensureBackup: backupService.ensureBackup, markDuplicateBorn: backupService.markDuplicateBorn };
+  const backup = {
+    ensureBackup: backupService.ensureBackup,
+    markDuplicateBorn: backupService.markDuplicateBorn,
+    withheld: () => (ifcFullWriteBlocked(app.store.getState()) ? BACKUP_WITHHELD : null),
+  };
 
   // Zoals `buildMcpContext` in de app voor een eigen storecontext: per request een verse transactiefactory.
   const buildContext = (): McpContext => createMcpContext(app, createMcpTransactions(app), backup);

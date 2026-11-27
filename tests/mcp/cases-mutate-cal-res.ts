@@ -739,6 +739,8 @@ test('registratie: zeven T20-tools met prefix, description, vier annotaties en J
     .inputSchema.properties.calendars.items.properties.generate.properties;
   assert(generator.country.enum.includes('BO'), 'de dispatcher publiceert Bolivia in de landenlijst');
   assert(generator.region.description.includes('P = Potosí'), 'het schema geeft de regiocode voor Potosí');
+  assert(generator.country.enum.includes('CA'), 'de dispatcher publiceert Canada in de landenlijst');
+  assert(generator.region.description.includes('NU = Nunavut'), 'het schema geeft de regiocode voor Nunavut');
   // Reviewfix: spec r65 zet destructiveHint op een GESLOTEN lijst — clear_leveling hoort er niet bij.
   assertEq(tools.find((t) => t.name === 'planner_clear_leveling').annotations.destructiveHint, false,
     'clear_leveling draagt GEEN destructiveHint (afgeleide, herberekenbare waarden)');
@@ -747,7 +749,7 @@ test('registratie: zeven T20-tools met prefix, description, vier annotaties en J
     'level_resources-beschrijving legt uit dat het zelf eerdere nivellering wist');
 });
 
-test('update_calendar: Bolivia accepteert P en weigert Potosí als regiocode', async () => {
+test('update_calendar: accepteert regiocodes voor Bolivia en Canada', async () => {
   reset();
   store.getState().setProject({ startDate: '2026-01-01' });
   const id = store.getState().project.calendarId;
@@ -762,6 +764,28 @@ test('update_calendar: Bolivia accepteert P en weigert Potosí als regiocode', a
   }, ctx);
   assert(rejections(wrongCode)[0]?.reason.includes('P = Potosí'), 'geef bij een weigering de geldige codes');
   assertEq(store.getState().calendar, before, 'ongeldige regio overschrijft de bestaande kalender niet');
+
+  const nunavut = await call('planner_update_calendar', {
+    calendars: [{ id, generate: { country: 'CA', region: 'NU' } }],
+  }, ctx);
+  assertEq(rejections(nunavut).length, 0, 'NU is een geldige regiocode');
+  const regional = store.getState().calendar;
+  assert(regional.holidays.some(h => h.name === 'Nunavut Day' && h.startDate === '2026-07-09'), 'Nunavut Day is vrij');
+  const federal = await call('planner_update_calendar', {
+    calendars: [{ id, generate: { country: 'CA' } }],
+  }, ctx);
+  assertEq(rejections(federal).length, 0, 'Canada zonder regio genereert federale dagen');
+  assert(store.getState().calendar.holidays.some(h => h.name === 'Boxing Day' && h.startDate === '2026-12-28'), 'federale vervangende vrije dag');
+  assert(!store.getState().calendar.holidays.some(h => h.name === 'Nunavut Day'), 'Nunavut Day ontbreekt in de federale kalender');
+  const wrongCanadianCode = await call('planner_update_calendar', {
+    calendars: [{ id, generate: { country: 'CA', region: 'Nunavut' } }],
+  }, ctx);
+  assert(rejections(wrongCanadianCode)[0]?.reason.includes('NU = Nunavut'), 'Canada weigert een ongeldige code');
+  const roundTrip = await call('planner_update_calendar', {
+    calendars: [{ id, holidays: regional.holidays, generation: regional.generation }],
+  }, ctx);
+  assertEq(rejections(roundTrip).length, 0, 'Canada accepteert eerder gegenereerde dagen en herkomst');
+  assertEq(store.getState().calendar.generation, regional.generation, 'de herkomst blijft bewaard');
 });
 
 await run();

@@ -1,5 +1,6 @@
 import type { RecoverySourceCopy } from './recoverySourceCopies';
 import { ifcSourceMetaFields, sameRecoveryIfcSource, type RecoveryIfcSource } from './recoveryIfcSource';
+import { ifcxMetaFields, sameRecoveryIfcx } from './recoveryIfcx';
 import { IfcCalendarTimePrecisionError } from '@/services/ifc/ifcErrors';
 import { sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { foreignSourceTargetOf } from '@/services/ifc/foreign/foreignSourceMark';
@@ -52,6 +53,7 @@ function metadataOf(document: RecoverySourceDocument): RecoveryDocMetadata {
     // zodat manifest en snapshot (de vingerafdruk) per constructie bij elkaar horen. Zonder kenmerk: weggelaten.
     ...foreignSourceMetaFields({ foreignSource: document.foreignSource !== undefined ? document.foreignSource : foreignSourceTargetOf(document.source.foreignSourceMark) }),
     ...ifcSourceMetaFields(document),
+    ...ifcxMetaFields(document),
   };
 }
 
@@ -83,7 +85,8 @@ function sameMetadata(a: readonly RecoveryDocMetadata[], b: readonly RecoveryDoc
       // versie) of een nieuw doel geeft zonder inhoudswijziging een manifest-only schrijfactie.
       && sameRecoverySiteMeta(value, other)
       && sameRecoveryForeignSource(value, other)
-      && sameRecoveryIfcSource(value, other);
+      && sameRecoveryIfcSource(value, other)
+      && sameRecoveryIfcx(value, other);
   });
 }
 

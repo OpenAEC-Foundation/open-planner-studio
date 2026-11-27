@@ -365,7 +365,7 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
   await expect(experimental).toBeVisible();
   await expect(experimental).toContainText('Demo: animatie in de bovenbalk');
   // Elke echte flag is kiesbaar, ook ifcForeignContent met de technische IFC-markering.
-  await expect(experimental.getByRole('checkbox')).toHaveCount(2);
+  await expect(experimental.getByRole('checkbox')).toHaveCount(3);
   expect(await page.evaluate(() => localStorage.getItem('ops-experimentalSettingsVisible'))).toBe('true');
   await page.clock.resume();
 
@@ -378,7 +378,7 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
   const demo = gearExperimental.locator('[data-ops-feature-flag="demo-topbar-animation"]');
   await expect(gearExperimental).toBeVisible();
   await expect(demo).not.toBeChecked();
-  await expect(gearExperimental.getByRole('checkbox')).toHaveCount(2);
+  await expect(gearExperimental.getByRole('checkbox')).toHaveCount(3);
   await expect(gearExperimental.locator('[data-ops-feature-flag="ifcForeignContent"]')).not.toBeChecked();
   await demo.check();
   expect(await enabledDemo(page)).toBe(true);
@@ -502,6 +502,11 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
   await expect(ifcToggle).toBeChecked();
   expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.featureFlags.ifcForeignContent)).toBe(true);
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('ops-featureFlags') ?? '{}').ifcForeignContent)).toBe(true);
+  const ifcxToggle = gearExperimental.locator('[data-ops-feature-flag="ifcx"]');
+  await expect(ifcxToggle).not.toBeChecked();
+  await ifcxToggle.check();
+  await expect(ifcxToggle).toBeChecked();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.featureFlags.ifcx)).toBe(true);
   await gearDialog.locator('.modal-close-btn').click();
 
   // #804 stap 5 (knownbug 1849): de app start de opslagworker zelf, via zijn eigen constructor, bij de eerste opslag met
@@ -662,6 +667,96 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
           await expect(linksNotice).toHaveAttribute('data-ops-task-element-links-not-found', '0');
         }
       }
+      const question = page.locator('[data-ops-foreign-changes-question]');
+      const state = () => page.evaluate(async () => {
+        const s = window.__OPS__!.store.getState();
+        return { tasks: s.tasks.length, dirty: s.isDirty, ask: s.ui.foreignChangesQuestion, file: await (await s.fileHandle!.getFile()).text(),
+          counts: s.ui.notifications.filter(n => n.messageKey === 'notifications.foreignChangesWritten').length };
+      });
+      await nameCell('Wand A bouwen').click({ button: 'right' });
+      await page.getByRole('button', { name: /^(Delete|Verwijderen)$/ }).last().click();
+      await expect(nameCell('Wand A bouwen')).toHaveCount(0);
+      const expectedCount = await page.evaluate(async () => {
+        const noticePath = '/src/state/foreignLinksNotice.ts';
+        const { foreignChangesIfSaved } = await import(/* @vite-ignore */ noticePath);
+        return foreignChangesIfSaved(window.__OPS__!.store.getState()) as number;
+      });
+      expect(expectedCount).toBeGreaterThan(0);
+      const deleted = await state();
+      await page.keyboard.press('Control+s');
+      await expect(question).toBeVisible();
+      await expect(question).toHaveAttribute('data-ops-foreign-changes-question', 'own');
+      await expect(question).toHaveAttribute('data-ops-foreign-changes-count', String(expectedCount));
+      await expect(question.locator('#foreign-changes-question-title')).toHaveText(/^(Save to|Opslaan in) bonsai-4d\.ifc$/);
+      await expect(question.locator('[data-ops-foreign-changes-cancel]')).toBeFocused();
+      await page.keyboard.press('Delete');
+      await page.keyboard.press('Control+s');
+      await expect(question).toHaveCount(1);
+      expect((await state()).tasks, 'Delete doet niets terwijl de vraag staat').toBe(deleted.tasks);
+      await page.keyboard.press('Enter');
+      await expect(question).toHaveCount(0);
+      await expectOneFreshMergeWorker(/^result:merge$/, 'de geannuleerde vraag');
+      expect(await state(), 'Enter annuleert: niets geschreven, het document blijft gewijzigd')
+        .toEqual({ ...deleted, dirty: true, file: text, counts: 0 });
+      await page.keyboard.press('Control+s');
+      await expect(question).toBeVisible();
+      await question.locator('[data-ops-foreign-changes-dont-ask]').check();
+      await question.locator('[data-ops-foreign-changes-save]').click();
+      await expect(question).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
+      await expectOneFreshMergeWorker(/^result:merge$/, 'Opslaan in de vraag');
+      const savedAfterQuestion = await state();
+      expect(savedAfterQuestion.file).not.toBe(text);
+      const named = (file: string) => file.split("'Wand A bouwen'").length - 1;
+      expect(named(savedAfterQuestion.file), 'de gewiste taak staat niet meer in het bestand').toBe(named(text) - 1);
+      expect(savedAfterQuestion.counts, 'na de beantwoorde vraag geen telling').toBe(0);
+      expect(savedAfterQuestion.ask).toBe(false);
+      await expect.poll(() => page.evaluate(() => localStorage.getItem('ops-foreignChangesQuestion'))).toBe('false');
+      await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
+      const noticesDialog = page.locator('.settings-dialog');
+      const changedFilter = noticesDialog.locator('[data-ops-settings-changed-only]');
+      const changedRows = async () => {
+        const counted = Number(/\((\d+)\)$/.exec((await changedFilter.textContent()) ?? '')?.[1]);
+        if (counted === 0) {
+          await expect(changedFilter).toBeDisabled();
+          return { counted, ids: [] as string[] };
+        }
+        await changedFilter.click();
+        await expect(changedFilter).toHaveAttribute('aria-pressed', 'true');
+        const ids = await noticesDialog.locator('[data-ops-setting]').evaluateAll(rows => rows.map(r => r.getAttribute('data-ops-setting')!));
+        await changedFilter.click();
+        await expect(changedFilter).toHaveAttribute('aria-pressed', 'false');
+        return { counted, ids };
+      };
+      const flagToggle = noticesDialog.locator('[data-ops-experimental-settings] [data-ops-feature-flag="ifcForeignContent"]');
+      const questionSetting = noticesDialog.locator('[data-ops-setting="foreignChangesQuestion"]');
+      const questionBox = questionSetting.locator('[data-ops-setting-foreign-changes-question]');
+      const withQuestionOff = await changedRows();
+      expect(withQuestionOff.ids).toContain('foreignChangesQuestion');
+      expect(withQuestionOff.ids.length, 'de teller telt wat de lijst toont').toBe(withQuestionOff.counted);
+      await group(noticesDialog, 'about').click();
+      await flagToggle.uncheck();
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.featureFlags.ifcForeignContent)).toBe(false);
+      const flagOff = await changedRows();
+      expect(flagOff.ids, 'met de flag uit staat de vraag niet in de lijst').not.toContain('foreignChangesQuestion');
+      expect(flagOff.counted, 'en de teller telt haar niet mee').toBe(flagOff.ids.length);
+      expect(flagOff.counted).toBe(withQuestionOff.counted - 1);
+      await group(noticesDialog, 'notices').click();
+      await expect(questionSetting).toHaveCount(0);
+      expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.foreignChangesQuestion), 'de keuze blijft bewaard').toBe(false);
+      expect(await page.evaluate(() => localStorage.getItem('ops-foreignChangesQuestion'))).toBe('false');
+      await group(noticesDialog, 'about').click();
+      await flagToggle.check();
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.featureFlags.ifcForeignContent)).toBe(true);
+      expect(await changedRows(), 'met de flag weer aan geldt de bewaarde keuze weer').toEqual(withQuestionOff);
+      await group(noticesDialog, 'notices').click();
+      await expect(questionBox).not.toBeChecked();
+      await expect(questionSetting).toHaveAttribute('data-ops-setting-changed', 'true');
+      await questionSetting.locator('[data-ops-setting-reset="foreignChangesQuestion"]').click();
+      await expect(questionBox).toBeChecked();
+      await expect.poll(() => page.evaluate(() => localStorage.getItem('ops-foreignChangesQuestion'))).toBe('true');
+      await noticesDialog.locator('.modal-close-btn').click();
+      await expect(noticesDialog).toBeHidden();
     }
     if (!fixture.foreign) {
       // #804 stap 6: een gewoon bestand rekent ook in de opslagworker van de app. Een echte bewerking, Ctrl+S; de statusbalk
@@ -912,5 +1007,43 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
     }
 
   }
+
+  await page.keyboard.press('Escape');
+  const ifcxText = await readFile('tests/fixtures/ifcx/eigen/verbouwing-eengezinswoning-kern.ifcx', 'utf8');
+  await page.evaluate(async ({ text }) => {
+    const root = await navigator.storage.getDirectory();
+    const handle = await root.getFileHandle('plan.ifcx', { create: true });
+    const writer = await handle.createWritable();
+    await writer.write(text);
+    await writer.close();
+    await window.__OPS__!.store.getState().openOpenedFile({
+      name: 'plan.ifcx', content: '', bytes: new TextEncoder().encode(text), ref: { kind: 'handle', handle },
+    });
+  }, { text: ifcxText });
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().filePath)).toBe('plan.ifcx');
+  const ifcxTask = await editFirstLeafDuration();
+  await expect(page.locator('[data-ops-save-status]')).toHaveAttribute('data-ops-save-status', 'unsaved');
+  const ifcxWorkersBefore = await saveWorkerLog();
+  const ifcxAnswersBefore = ifcxWorkersBefore.at(-1)?.messages.length ?? 0;
+  await watchSaveStatus();
+  await page.keyboard.press('Control+s');
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
+  await expectSavingThenSaved();
+  const ifcxWorker = (await saveWorkerLog()).at(-1)!;
+  expect(ifcxWorker.messages.slice(ifcxAnswersBefore), 'IFCX rekende in de opslagworker').toEqual(['result:writer']);
+  const ifcxSaved = await page.evaluate(async (id) => {
+    const state = window.__OPS__!.store.getState();
+    const file = new Uint8Array(await (await state.fileHandle!.getFile()).arrayBuffer());
+    const kernPath = '/src/services/ifc/ifcx/index.ts';
+    const { readIfcx } = await import(/* @vite-ignore */ kernPath);
+    const reread = readIfcx(file) as { tasks: { id: string; time: { scheduleDuration: number } }[] };
+    return { file: Array.from(file), header: JSON.parse(new TextDecoder().decode(file)).header.ifcxVersion as string,
+      duration: reread.tasks.find(t => t.id === id)!.time.scheduleDuration,
+      refusals: state.ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey) };
+  }, ifcxTask.id);
+  expect(ifcxSaved.refusals).toEqual([]);
+  expect(ifcxSaved.header).toBe('ifcx_alpha');
+  expect(ifcxSaved.duration).toBe(ifcxTask.duration + 1);
+  expect(Buffer.from(ifcxSaved.file).equals(Buffer.from(ifcxWorker.writerBytes!)), 'het bestand is de bytes van de worker').toBe(true);
 
 });

@@ -102,7 +102,7 @@ export function CalendarGeneratorFields({
               value={value.region ?? ''}
               onChange={v => onChange({ region: v || undefined })}
               options={[
-                { value: '', label: tCommon('calendar.generate.regionNone') },
+                { value: '', label: tCommon(value.country === 'CA' ? 'calendar.generate.regionFederal' : 'calendar.generate.regionNone') },
                 ...(set!.regions ?? []).map(r => ({ value: r.id, label: r.name })),
               ]}
             />

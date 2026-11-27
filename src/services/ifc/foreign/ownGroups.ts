@@ -22,7 +22,7 @@
  */
 import { decodeStepText } from '../stepText';
 import { PSET } from '../ifcPsets';
-import { refsOutsideText, type OutLine, type SlotEdit } from './lossCheck';
+import { isRootLine, refsOutsideText, type OutLine, type SlotEdit } from './lossCheck';
 import type { StepIndex } from './stepScanner';
 
 /** De tweede vorm van `OPS_Baselines`: de baselinekoppen en de aggregatie waarin ze staan (die van het eigen werkplan). */
@@ -274,8 +274,9 @@ export interface RestoredOwnSlots {
  * die bronwaarde mee, dus de rest van de groep kan na heropenen anders teruglezen (knownbug 1770). Eén slot zonder plaats
  * zet zijn hele groep in `skip`: dan slaat (c) haar over, zoals vóór PR A.
  */
-export function restoredOwnSlots(view: OwnLinesView, edits: readonly Pick<SlotEdit, 'id' | 'arg' | 'token' | 'partial'>[]): RestoredOwnSlots {
-  if (edits.length === 0) return { skip: new Set(), slots: [] };
+export function restoredOwnSlots(view: OwnLinesView, edits: readonly Pick<SlotEdit, 'id' | 'arg' | 'token' | 'partial'>[],
+  chosen: readonly Pick<SlotEdit, 'id' | 'arg' | 'token'>[] = []): RestoredOwnSlots {
+  if (edits.length === 0 && chosen.length === 0) return { skip: new Set(), slots: [] };
   const members = ownGroupMembers(view);
   const placesOf = new Map<number, string[]>(), holders = new Map<string, number>();
   groupTrees(view, new Set(), (id, at) => {
@@ -283,14 +284,19 @@ export function restoredOwnSlots(view: OwnLinesView, edits: readonly Pick<SlotEd
     holders.set(at, (holders.get(at) ?? 0) + 1);
   });
   const plain = (token: string | undefined) => refsOutsideText(token ?? '').length === 0;
+  const outside = (token: string) => refsOutsideText(token).every(id => view.line(id) === undefined);
   const skip = new Set<string>(), slots: RestoredOwnSlot[] = [];
-  for (const e of edits) {
+  for (const e of [...edits, ...chosen.map(c => ({ ...c, chosen: true }))]) {
     const line = view.line(e.id);
     const group = line && editedOwnGroup(members, line, e.arg);
     if (!line || group === undefined) continue;
+    const fromMap = 'chosen' in e;
+    if (fromMap && e.arg === 1 && isRootLine(line)) continue;
     const [at, ...more] = placesOf.get(e.id) ?? [];
     const inPlace = e.arg === NAME_ARG[line.type] || ((isBaselineHead(line) || line.type === 'IFCTASK') && e.arg === 0);
-    if (!e.partial && at !== undefined && more.length === 0 && holders.get(at) === 1 && !inPlace && plain(e.token) && plain(line.args[e.arg])) {
+    const partial = 'partial' in e && e.partial === true;
+    if (!partial && at !== undefined && more.length === 0 && holders.get(at) === 1 && !inPlace
+      && (fromMap ? outside(e.token) : plain(e.token) && plain(line.args[e.arg]))) {
       slots.push({ group, place: `${at}#${e.arg}`, id: e.id, token: e.token });
     } else skip.add(group);
   }

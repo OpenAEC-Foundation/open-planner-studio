@@ -20,12 +20,6 @@
  *     verschilt: `niet-gedragen`, of `niet-eenduidig` als het stuk niet eenduidig paarde. In O1 krijgt hetzelfde slot de
  *     bronwaarde terug zolang de planner het veld niet wijzigde: "het veld" is het slot zoals de writer het uit het
  *     domein schrijft; is het in O1 gelijk aan O0 (verwijzingen als bronstuk), dan wijzigde de bewerking het niet.
- *     Wijzigde hij het wel, dan geldt zijn waarde; bij een `lijst`, `json` of `samengesteld` (de lezer draagt er een deel
- *     van) weigert de merge dan, want per lid, per sleutel of per deel samenvoegen is fase 2 (`jsonExtras`,
- *     `unusedKeys`). Paart het stuk in O1 niet eenduidig, of heeft de regel in O1 een ander type of een andere vorm, dan
- *     weigert de merge ook. De bronwaarden komen uit de bronbytes van `ifcSource`, bij elke merge opnieuw gelezen; er is
- *     geen documentveld bij. De merge leest de planning met de bronwaarden erin terug (`mergeWriter.ts`); geeft dat een
- *     andere planning dan zonder, dan weigert hij.
  *     (b) zet niet terug: een heel stuk (ontbreekt, ander type, onbekende lay-out), een argument zonder slot in de
  *     uitvoer, structuur (`structural`: GlobalId en owner history van een `IfcRoot`, de leden van een relatie, de
  *     properties van een pset), tekst uit een stuk met de oude letterlijke codering die niet in beide coderingen gelijk
@@ -95,15 +89,20 @@
 import { isStrictIsoDateTime, parseInstant } from '@/utils/dateUtils';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
+import { isWholeDays } from '../dayMeasureIo';
 import { withOpenedColors } from '@/services/taskTypes/customTaskTypeColors';
 import { savedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { scalarHourFromClock } from '@/services/subdayIo';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { WriteIFCInput } from '../ifcWriter';
+import type { TaskTimeReading } from '../ifcReader';
 import { PER_TASK_PSET_BY_NAME, PROP, PSET, asciiJson, ifcJson } from '../ifcPsets';
-import { WORK_CALENDAR_ARITY, WORK_CONTROL_ARITY, workCalendarSlots, workControlSlots } from '../ifcWorkControlSlots';
+import { WORK_CALENDAR_ARITY, workCalendarSlots, workControlSlots } from '../ifcWorkControlSlots';
 import { lagValueSlot } from '../ifcLagTimeSlots';
+import { LAG_TIME_SLOT } from '../ifcSequenceSlots';
+import { knownLayout, relationRoles, schemaArgsOf, slotTableNamed, slotTableOf, type IfcSlotTable } from '../ifcSlotTables';
+import { IFC_TO_RESOURCE_TYPE } from '../ifcConstants';
 import { decodeStepText, stepTextIsValid } from '../stepText';
 import { hasOwnOrigin, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { durationForm, type DurationSlot } from './durationForms';
@@ -116,6 +115,9 @@ import type { IfcSource } from './ifcSource';
 import { planningIdentities, planningIdentityInput } from './planningIdentity';
 import { splitStepArgs, type StepIndex } from './stepScanner';
 import type { MergePhase2Kind } from './mergeWriter';
+import { mappedChunks, type SourceSlots } from './sourceSlots';
+import { keepsTarget, writerAlwaysWrites } from './sourceSlotWrite';
+import type { AssignmentOrigin } from './assignmentOrigin';
 
 /** Een regel van de writer, ontleed. */
 export interface OutLine { readonly id: number; readonly type: string; readonly args: readonly string[] }
@@ -224,6 +226,8 @@ export interface LossCheckInput {
   /** De kalenders die bij deze opslag letterlijk worden: letterlijk in O1 en niet in O0 (was knownbug 1102,
    *  `literalWriterForm`). */
   readonly literalCalendarIds?: ReadonlySet<string>;
+  readonly sourceDayLagIds?: ReadonlySet<string>;
+  readonly assignmentOrigin: AssignmentOrigin;
   /** Wat de planner wijzigde: de sleutels van `changedScopes` tegenover wat de app na het openen liet zien
    *  (`ifcSource.opened`; fixronde 1 van #886). Zonder: tegenover de lezing van de bron (`changed`). */
   readonly plannerChanged?: ReadonlySet<string>;
@@ -240,6 +244,7 @@ export interface LossCheckInput {
    * pset meebewegen.
    */
   readonly secondFormsUnchanged?: ReadonlySet<string>;
+  readonly sourceSlots?: SourceSlots;
 }
 
 /** Het domein zoals de lezer het uit de bron leest: dezelfde bytes, dezelfde opties en dezelfde ingang als de bytes-route
@@ -250,9 +255,9 @@ export function pristineDomain(index: StepIndex, cls: Classification, source: If
 /** Idem, met een scan die er al is. */
 export function pristineFromScan(scan: ForeignScanResult, bytes: Uint8Array,
   projectTimestampFallback?: Pick<WriteIFCInput['project'], 'createdAt' | 'modifiedAt'>,
-  unusedAssignmentKeysOut?: Map<string, string[]>): Promise<ImportResult> {
+  unusedAssignmentKeysOut?: Map<string, string[]>, taskTimeReadingsOut?: Map<string, TaskTimeReading>): Promise<ImportResult> {
   const text = new TextDecoder('utf-8').decode(readerBytes(bytes, scan));
-  return readIFCWithXerReconstruction(text, {}, { ...readerOptions(scan), projectTimestampFallback, unusedAssignmentKeysOut });
+  return readIFCWithXerReconstruction(text, {}, { ...readerOptions(scan), projectTimestampFallback, unusedAssignmentKeysOut, taskTimeReadingsOut });
 }
 
 /**
@@ -283,33 +288,13 @@ const NAME_ONLY: ReadonlySet<string> = new Set(['IFCPROPERTYSINGLEVALUE', 'IFCPR
  *  ook als de writer de blokken anders ordent (de vergelijking ziet dan de andere volgorde). */
 const CONTENT_PAIR: ReadonlySet<string> = new Set(['IFCTIMEPERIOD']);
 
-/**
- * Per relatietype de slots van de relating en van de leden (RelatedObjects; bij `IfcRelDefinesByProperties` zijn de
- * eigenaren de leden en is de pset de relating). Eén tabel voor het paren (`relKeySource`), de structuur (`structural`) en
- * de uitleg in O1 (fixronde 5, VERVOLG van Sol). `members`: welke leden erin staan, volgt uit het domeinobject van de
- * relating (`explainMembers`, `explainRelation`). Een `IfcRelSequence` is zelf een domeinobject (`seq:`): beide slots volgen
- * uit zijn velden (`SEQ_SLOT_FIELDS`).
- */
-const RELATION_SLOTS: Readonly<Record<string, { readonly relating: number; readonly related: number; readonly members: boolean }>> = {
-  IFCRELNESTS: { relating: 4, related: 5, members: true },
-  IFCRELAGGREGATES: { relating: 4, related: 5, members: true },
-  IFCRELDECLARES: { relating: 4, related: 5, members: true },
-  IFCRELASSIGNSTOCONTROL: { relating: 6, related: 4, members: true },
-  IFCRELASSIGNSTOPROCESS: { relating: 6, related: 4, members: true },
-  IFCRELDEFINESBYPROPERTIES: { relating: 5, related: 4, members: true },
-  IFCRELSEQUENCE: { relating: 4, related: 5, members: false },
-};
 /** De relatie met leden die uit het domein van haar relating volgen, of `undefined`. */
-const memberRelation = (type: string) => (RELATION_SLOTS[type]?.members ? RELATION_SLOTS[type] : undefined);
+const memberRelation = (type: string) => {
+  const roles = relationRoles(type);
+  return roles?.members ? roles : undefined;
+};
 
 const LINE = /^#(\d+)=([A-Z0-9_]+)\(([\s\S]*)\);$/;
-
-/** De resources die OPS schrijft (`RESOURCE_TYPE_TO_IFC`), met hun argumentaantal in het schema (11) en in de oude
- *  lay-out van OPS tot `4f5008614` (9). */
-const OLD_RESOURCE_TYPES: ReadonlySet<string> = new Set(['IFCLABORRESOURCE', 'IFCCONSTRUCTIONEQUIPMENTRESOURCE',
-  'IFCCONSTRUCTIONMATERIALRESOURCE', 'IFCSUBCONTRACTRESOURCE', 'IFCCREWRESOURCE']);
-const RESOURCE_ARITY = 11;
-const OLD_RESOURCE_ARITY = 9;
 
 /** `#12=TYPE(args);` → een `OutLine`. */
 export function parseOutLine(text: string): OutLine | undefined {
@@ -317,34 +302,25 @@ export function parseOutLine(text: string): OutLine | undefined {
   return m ? { id: Number(m[1]), type: m[2], args: splitStepArgs(m[3]) } : undefined;
 }
 
-/**
- * Bron-slot → uitvoer-slot (-1: de uitvoer heeft dat slot niet), voor de oude eigen lay-outs die de lezer kent
- * (`ifcWorkControlSlots.ts`, `IfcTask` met 12 argumenten, een resource met 9): de normalisatie `lay-out`. Zelfde aantal: per positie.
- * `undefined`: een ander aantal zonder bekende lay-out.
- */
+const isMovedLagSlot = (type: string, sourceArg: number, outArg: number) => type === 'IFCLAGTIME' && sourceArg !== outArg;
+
+const durationInner = (token: string) => /^IFCDURATION\s*\(\s*('[\s\S]*')\s*\)$/i.exec(token.trim())?.[1] ?? token;
+
+const SIGNED_DAYS = /^(-?)P(?:0Y0M)?(-?)(\d+(?:\.\d+)?(?:e[-+]\d+)?)D$/;
+
+function signedLagDays(text: string): string | undefined {
+  const m = SIGNED_DAYS.exec(text);
+  const days = m && !(m[1] && m[2]) ? decimalKey(m[3]) : undefined;
+  return days === undefined ? undefined : `${m![1] || m![2]}${days}`;
+}
+
+const ANY_SOURCE_ARITY: ReadonlySet<string> = new Set(['IFCWORKPLAN', 'IFCWORKSCHEDULE', 'IFCWORKCALENDAR']);
+
 function alignment(type: string, src: readonly string[], outLength: number): number[] | undefined {
-  if (type === 'IFCWORKPLAN' || type === 'IFCWORKSCHEDULE') {
-    if (outLength !== WORK_CONTROL_ARITY) return undefined;
-    const slots = workControlSlots(src);
-    return src.map((_, k) => k === slots.startTime ? 11 : k === slots.finishTime ? 12 : k === slots.predefinedType ? 13 : k <= 10 ? k : -1);
-  }
-  if (type === 'IFCWORKCALENDAR') {
-    if (outLength !== WORK_CALENDAR_ARITY) return undefined;
-    const slots = workCalendarSlots(src);
-    return src.map((_, k) => k === slots.workingTimes ? 6 : k === slots.exceptionTimes ? 7 : k === slots.predefinedType ? 8 : k <= 4 ? k : -1);
-  }
-  if (type === 'IFCTASK' && src.length === 12 && outLength === 13) {
-    // Zonder WorkMethod (8): de vier slots erna staan één plek eerder (`IFC_TASK_SLOTS`).
-    return src.map((_, k) => (k < 8 ? k : k + 1));
-  }
-  if (OLD_RESOURCE_TYPES.has(type) && src.length === OLD_RESOURCE_ARITY && outLength === RESOURCE_ARITY) {
-    // Fixronde 7 van #867 (was knownbug 1024): OPS tot `4f5008614` (v2026.9.0 en ouder) schreef een resource met 9
-    // argumenten, zonder BaseCosts en BaseQuantity: `(GlobalId,OwnerHistory,Name,Description,$,$,$,$,.USERDEFINED.)`.
-    // De eerste acht staan op hun plek in het schema; PredefinedType (8) staat in het schema op 10.
-    return src.map((_, k) => (k < 8 ? k : 10));
-  }
-  if (src.length === outLength) return src.map((_, k) => k);
-  return undefined;
+  const table = slotTableOf(type, src);
+  if (!table) return src.length === outLength ? src.map((_, k) => k) : undefined;
+  if (outLength !== table.slots.length || !(knownLayout(table, src) || ANY_SOURCE_ARITY.has(type))) return undefined;
+  return schemaArgsOf(table, src);
 }
 
 /**
@@ -587,7 +563,7 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
       if (pset < 0 || owners.some(o => o === undefined)) return undefined;
       return `${t}|${index.type(pset)}|${index.name(pset) ?? ''}|${(owners as number[]).sort((x, y) => x - y).join(',')}`;
     }
-    const pos = RELATION_SLOTS[t]?.relating;
+    const pos = relationRoles(t)?.relating;
     if (pos === undefined) return undefined;
     const relating = outIdOf(index.refAt(r, pos));
     return relating === undefined ? undefined : `${t}|${relating}`;
@@ -600,22 +576,40 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
       const name = pset.type === 'IFCPROPERTYSET' ? outDecode(pset.args[2]) : '';
       return `${line.type}|${pset.type}|${name}|${owners.join(',')}`;
     }
-    const pos = RELATION_SLOTS[line.type]?.relating;
+    const pos = relationRoles(line.type)?.relating;
     return pos === undefined ? undefined : `${line.type}|${refOf(line.args[pos])}`;
   };
   const outRels = new Map<string, number[]>();
+  const outRelGuids = new Map<string, Map<string, number[]>>();
   for (const [id, line] of out) {
     if (fixed.has(id)) continue;
     const key = relKeyOut(line);
     if (key === undefined) continue;
     const list = outRels.get(key);
     if (list) list.push(id); else outRels.set(key, [id]);
+    const guid = unquote(line.args[0]);
+    let guids = outRelGuids.get(key);
+    if (!guids) outRelGuids.set(key, guids = new Map());
+    const same = guids.get(guid);
+    if (same) same.push(id); else guids.set(guid, [id]);
   }
   const relDone = new Uint8Array(n);
   /** Relaties die op hun GlobalId paarden (één kandidaat met hetzelfde GlobalId): dat is een identiteit. */
   const byGuidPair = new Uint8Array(n);
   /** Sleutel → de bronrelaties met die sleutel (voor de eenduidigheid, na het paren). */
   const relKeyOf = new Map<number, string>();
+  let relGuids: Map<string, number> | undefined;
+  const guidIsIdentity = (r: number, guid: string | undefined) => {
+    if (guid === undefined || input.sourceSlots?.has(sid(r)) !== true) return false;
+    if (!relGuids) {
+      relGuids = new Map();
+      for (let c = 0; c < n; c++) {
+        const g = index.isEntity(c) && isP(c) && cls.inR[c] ? index.globalId(c) : undefined;
+        if (g !== undefined) relGuids.set(g, (relGuids.get(g) ?? 0) + 1);
+      }
+    }
+    return relGuids.get(guid) === 1;
+  };
   const pairRelations = () => {
     for (let r = 0; r < n; r++) {
       if (relDone[r] || !index.isEntity(r) || !isP(r) || !cls.inR[r] || fixed.has(sid(r))) continue;
@@ -628,8 +622,9 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
       // Eén kandidaat met hetzelfde GlobalId: de writer gaf de relatie haar GlobalId terug (`ifcGlobalIds`). Anders de
       // eerste nog vrije; met meer kandidaten (of meer bronrelaties met deze sleutel) is dat niet eenduidig (hieronder).
       const guid = index.globalId(r);
-      const byGuid = candidates.filter(o => unquote(out.get(o)!.args[0]) === guid);
+      const byGuid = outRelGuids.get(key)?.get(guid) ?? [];
       if (byGuid.length === 1) { byGuidPair[r] = 1; pair(r, byGuid[0]); continue; }
+      if (guidIsIdentity(r, guid)) continue;
       const free = candidates.find(o => !usedOut.has(o));
       pair(r, free ?? candidates[0]);
     }
@@ -818,7 +813,7 @@ export function preserveAuxiliaryIdentities(input: LossCheckInput, lines: readon
   const remap = (id: number) => ids.get(id) ?? id;
   let changed = false;
   const kept = lines.map(line => {
-    const args = line.args.map(token => replaceRefsOutsideText(token, id => `#${remap(id)}`));
+    const args = line.args.map(token => replaceRefsOutsideText(token, id => (ids.has(id) ? `#${ids.get(id)}` : undefined)));
     if (guids.has(line.id)) args[0] = guids.get(line.id)!;
     // Deze bestaande native property bewaart STEP-ids als JSON-tekst, niet als #verwijzingen.
     if (line.type === 'IFCPROPERTYSINGLEVALUE' && ID_LIST_PROPS.has(decodeStepText(unquote(line.args[0])))) {
@@ -965,6 +960,43 @@ function deletedExceptionItems(input: LossCheckInput, p1: Pairing, changed: Chan
   return out;
 }
 
+const MAPPED_TABLES = new WeakMap<LossCheckInput, ReadonlyMap<number, IfcSlotTable>>();
+
+function mappedTables(input: LossCheckInput): ReadonlyMap<number, IfcSlotTable> {
+  const known = MAPPED_TABLES.get(input);
+  if (known) return known;
+  const tables = new Map<number, IfcSlotTable>();
+  for (const [chunk, piece] of input.sourceSlots ? mappedChunks(input.index, input.sourceSlots) : []) {
+    const table = slotTableNamed(piece.table);
+    if (table) tables.set(chunk, table);
+  }
+  MAPPED_TABLES.set(input, tables);
+  return tables;
+}
+
+function expectedProcessMembers(input: LossCheckInput, r: number): number[] | undefined {
+  const { index, bySource } = input;
+  const roles = relationRoles('IFCRELASSIGNSTOPROCESS')!;
+  const relating = index.refAt(r, roles.relating);
+  const task = relating >= 0 ? bySource.get(Number(index.id(relating))) : undefined;
+  if (task?.kind !== 'task') return undefined;
+  const origin = input.assignmentOrigin;
+  const kept: number[] = [];
+  for (const m of index.refsAt(r, roles.related)) {
+    const resource = m >= 0 ? bySource.get(Number(index.id(m))) : undefined;
+    if (resource?.kind !== 'res' || origin.unclear(task.id, resource.id)) return undefined;
+    if (origin.remaining(task.id, resource.id) > 0) kept.push(m);
+  }
+  return kept;
+}
+
+const carriedTarget = (input: LossCheckInput) => (id: number) => input.cls.classes[input.index.chunkOf(String(id))] === 1;
+
+function releasesKeptTarget(input: LossCheckInput, d: LossDiff): boolean {
+  const table = d.whole || d.outArg === undefined ? undefined : mappedTables(input).get(d.chunk);
+  return table !== undefined && keepsTarget(table, d.outArg!, d.source, carriedTarget(input));
+}
+
 /** Vergelijk elk paar veld voor veld, en meld de P-stukken zonder tegenhanger. `ownerOut`: de eigen owner history van de
  *  writer in deze uitvoer (de schrijfvelden). */
 function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | undefined): LossDiff[] {
@@ -996,6 +1028,13 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
       if (from >= 0 && !isP(from)) return false;
     }
     return true;
+  };
+
+  const mapped = mappedTables(input);
+  const writersSlot = (s: number, k2: number, length: number, token: string) => {
+    const table = mapped.get(s);
+    return table !== undefined && table.slots.length === length && writerAlwaysWrites(table, k2)
+      && !keepsTarget(table, k2, token, carriedTarget(input));
   };
 
   // ── Vergelijken ──
@@ -1069,6 +1108,20 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
     });
   };
 
+  const sameOldLagValue = (s: number, a: string, b: string): boolean => {
+    const source = index.tokenText(s, a);
+    const written = durationInner(b);
+    return durationForm(source, 'lag-oud') !== undefined && written !== b
+      && signedLagDays(source) !== undefined && signedLagDays(source) === signedLagDays(outDecode(written));
+  };
+  const lagAlignment = (s: number, a: readonly string[], b: readonly string[]): number[] | undefined => {
+    const byName = alignment('IFCLAGTIME', a, b.length);
+    if (!byName || byName.every((k2, k) => k2 === k)) return byName;
+    const exact = sameOldLagValue(s, a[byName.indexOf(LAG_TIME_SLOT.lagValue)], b[LAG_TIME_SLOT.lagValue])
+      && same(s, a[byName.indexOf(LAG_TIME_SLOT.durationType)], b[LAG_TIME_SLOT.durationType], false);
+    return exact ? byName : a.map((_, k) => k);
+  };
+
   /** De werksoortkleur (#856): een definitie in `OPS_TaskTypes` zonder `color` (een bron van vóór het veld) krijgt bij
    *  openen een vaste kleur, en de writer schrijft die. Dat telt als dezelfde waarde als de bron met precies die kleur
    *  erbij, en alleen dat (`taskTypesWithOpenedColors`): de uitvoer moet teken voor teken de bron zijn met de ingevoegde
@@ -1088,7 +1141,7 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
     if (line.type !== type) { push({ chunk: s, arg: -1, source: type, out: line.type, whole: 'type' }); continue; }
     const a = index.argTokens(s) ?? [];
     const b = line.args;
-    const map = alignment(type, a, b.length);
+    const map = type === 'IFCLAGTIME' ? lagAlignment(s, a, b) : alignment(type, a, b.length);
     if (!map) { push({ chunk: s, arg: -1, source: String(a.length), out: String(b.length), whole: 'aantal' }); continue; }
     const covered = new Set<number>();
     for (let k = 0; k < a.length; k++) {
@@ -1100,12 +1153,13 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
         continue;
       }
       covered.add(k2);
-      if (saveField(s, o, type, k2)) continue;
+      if (saveField(s, o, type, k2) || writersSlot(s, k2, b.length, at)) continue;
       const bt = b[k2].trim();
       if (k2 === 0 && isGuidToken(at) && isGuidToken(bt) && isRootLine(line) && ownAuxGuid(s)) continue;
       const ok = type === 'IFCPROPERTYSET' && k2 === 4 ? sameMembers(s, at, bt)
         : isIdListSlot(index, s, type, k2) ? sameIdList(s, at, bt)
         : isTaskTypesSlot(s, type, k2) ? sameTaskTypes(s, at, bt)
+        : isMovedLagSlot(type, k, k2) && k2 === LAG_TIME_SLOT.lagValue ? sameOldLagValue(s, at, bt)
         : same(s, at, bt, DURATION_SLOTS[type]?.includes(k2) === true);
       if (!ok) push({ chunk: s, arg: k, source: at, out: bt, outArg: k2 });
     }
@@ -1178,7 +1232,7 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
 function structural(type: string, outArg: number, line: OutLine): boolean {
   if (isRootLine(line) && (outArg === 0 || outArg === 1)) return true;
   if (type === 'IFCPROPERTYSET' && outArg === 4) return true;
-  const rel = RELATION_SLOTS[type];
+  const rel = relationRoles(type);
   if (type.startsWith('IFCREL')) return rel ? outArg === rel.relating || outArg === rel.related : outArg >= 4;
   return false;
 }
@@ -1292,7 +1346,7 @@ function mapToken(input: LossCheckInput, token: string, p: Pairing): string | un
   const out = replaceRefsOutsideText(token, id => {
     const c = input.index.chunkOf(String(id));
     if (c < 0) { ok = false; return `#${id}`; }
-    if (input.cls.classes[c] !== 1) return `#${id}`;
+    if (input.cls.classes[c] !== 1) return undefined;
     const o = p.pairedOut.get(c)?.[0];
     if (o === undefined || p.ambiguous[c]) { ok = false; return `#${id}`; }
     return `#${o}`;
@@ -1333,7 +1387,7 @@ export function refsOutsideText(token: string): number[] {
   return out;
 }
 /** Vervang elke `#id` buiten tekst (`'…'`, met `''` als aanhalingsteken erin). `f` krijgt het id en geeft de vervanging. */
-export function replaceRefsOutsideText(token: string, f: (id: number) => string): string {
+export function replaceRefsOutsideText(token: string, f: (id: number) => string | undefined): string {
   let res = '';
   let i = 0;
   while (i < token.length) {
@@ -1351,7 +1405,7 @@ export function replaceRefsOutsideText(token: string, f: (id: number) => string)
     }
     if (c === '#') {
       const m = /^#(\d+)/.exec(token.slice(i));
-      if (m) { res += f(Number(m[1])); i += m[0].length; continue; }
+      if (m) { res += f(Number(m[1])) ?? m[0]; i += m[0].length; continue; }
     }
     res += c;
     i++;
@@ -1533,11 +1587,8 @@ function sourceScopes(input: LossCheckInput): Map<number, Set<string>> {
       add(i, `${root}|self`);
       // Het slot zoals de writer het schrijft (een oude lay-out: `alignment`).
       const a = index.argTokens(i) ?? [];
-      const type = index.type(i);
-      const arity = type === 'IFCWORKCALENDAR' ? WORK_CALENDAR_ARITY
-        : type === 'IFCWORKPLAN' || type === 'IFCWORKSCHEDULE' ? WORK_CONTROL_ARITY
-        : type === 'IFCTASK' && a.length === 12 ? 13 : a.length;
-      const map = alignment(type, a, arity);
+      const table = slotTableOf(index.type(i), a);
+      const map = table ? alignment(index.type(i), a, table.slots.length) : undefined;
       for (let k = index.outStart(i); k < index.outEnd(i); k++) {
         const t = index.outTarget(k);
         const arg = index.outArg(k);
@@ -1649,6 +1700,16 @@ const SEQ_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
 };
 /** Een resource (`writeResource`): naam, omschrijving, en bij een kostenresource het type. */
 const RES_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = { 2: ['name'], 3: ['description'], 4: ['type'], 10: ['type'] };
+const LAG_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = { 3: LAG_VALUE_FIELDS, 4: ['lagUnit'] };
+const SEQUENCES = new WeakMap<WriteIFCInput, ReadonlyMap<string, WriteIFCInput['sequences'][number]>>();
+function lagValueFields(domain: WriteIFCInput | undefined, object: string, sourceDays?: ReadonlySet<string>): readonly string[] {
+  if (!domain || !object.startsWith('seq:') || sourceDays?.has(object.slice(4))) return LAG_SLOT_FIELDS[3];
+  let byId = SEQUENCES.get(domain);
+  if (!byId) SEQUENCES.set(domain, byId = new Map(domain.sequences.map(seq => [seq.id, seq])));
+  const seq = byId.get(object.slice(4));
+  const perDay = seq !== undefined && !Number.isFinite(seq.lagPercent) && !Number.isFinite(seq.lagMinutes) && !isWholeDays(seq.lagDays);
+  return perDay ? [...LAG_SLOT_FIELDS[3], 'lagUnit'] : LAG_SLOT_FIELDS[3];
+}
 /** `OPS_Resource` (`writeResourceMeta`): property → veld. */
 const RES_PROP_FIELDS: Readonly<Record<string, readonly string[]>> = {
   [PROP.Resource.MaxUnits]: ['maxUnits'], [PROP.Resource.CostPerHour]: ['costPerHour'],
@@ -1663,6 +1724,24 @@ const EXCEPTION_FIELDS = ['holidays', 'workingExceptions'];
 const CAL_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   2: ['name'], 3: ['description'], 4: ['shift'], 6: WEEK_FIELDS, 7: EXCEPTION_FIELDS, 8: ['shift'],
 };
+const TASK_TIME_FIELDS = [...new Set(slotTableNamed('IfcTaskTime')!.slots.flatMap((slot, k) => (slot.soort === 'domein' ? TASKTIME_SLOT_FIELDS[k] ?? [] : [])))];
+const SLOT_FIELDS_BY_TYPE: ReadonlyMap<string, Readonly<Record<number, readonly string[]>>> = new Map([
+  ['IFCTASK', { ...TASK_SLOT_FIELDS, 11: TASK_TIME_FIELDS }], ['IFCTASKTIME', TASKTIME_SLOT_FIELDS], ['IFCRELSEQUENCE', SEQ_SLOT_FIELDS],
+  ['IFCLAGTIME', LAG_SLOT_FIELDS], ['IFCWORKCALENDAR', CAL_SLOT_FIELDS],
+  ...Object.keys(IFC_TO_RESOURCE_TYPE).map(type => [type, RES_SLOT_FIELDS] as const),
+]);
+
+export function slotHasFields(type: string, arg: number): boolean {
+  return (SLOT_FIELDS_BY_TYPE.get(type)?.[arg]?.length ?? 0) > 0;
+}
+
+export function slotFieldChanged(type: string, arg: number, object: string, changed: ReadonlySet<string>, domain?: WriteIFCInput,
+  sourceDays?: ReadonlySet<string>): boolean {
+  if (changed.has(`${object}#@`) || changed.has(`${object}#*`)) return true;
+  return (type === 'IFCLAGTIME' && arg === 3 ? lagValueFields(domain, object, sourceDays) : SLOT_FIELDS_BY_TYPE.get(type)?.[arg] ?? [])
+    .some(field => (field.startsWith('@') ? changed.has(field.slice(1)) : changed.has(`${object}#${field}`)));
+}
+
 /** `OPS_Calendar` (`writeCalendarGenerationMeta`): property → velden. `LiteralTimes` staat er niet in: een kalender die
  *  bij het openen letterlijk was, blijft letterlijk (#872, `ifcLiteralCalendarIds`; knownbug 1026 is daarmee opgelost);
  *  voor een andere kalender kiest de writer het op grond van alle taken (`minuteModelWriteView`). Geen bewerking van de
@@ -1753,7 +1832,7 @@ const OWNER_CHAIN: ReadonlySet<string> = new Set(['IFCOWNERHISTORY', 'IFCPERSONA
  */
 function explainO1(ctx: O1Context, d: LossDiff): string | undefined {
   const { input } = ctx;
-  if (d.whole === 'nieuw') return undefined;
+  if (d.whole === 'nieuw' || releasesKeptTarget(input, d)) return undefined;
   const type = input.index.type(d.chunk);
   const arg = d.whole ? -1 : (d.outArg ?? d.arg);
   if (d.whole === 'gedeeld' || d.slotless) return undefined;
@@ -2061,9 +2140,10 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   }
   if (obj === 'baselines') return changed.keys.has('baselines') ? 'baselines' : undefined;
   const kind = obj.slice(0, obj.indexOf(':'));
-  const has = (f: string) => changed.keys.has(`${obj}#${f}`) || changed.keys.has(`${obj}#*`);
+  const keys = mappedTables(input).has(d.chunk) ? ctx.plannerChanged : changed.keys;
+  const has = (f: string) => keys.has(`${obj}#${f}`) || keys.has(`${obj}#*`);
   const any = (fields: readonly string[] | undefined) => {
-    const f = fields?.find(x => (x.startsWith('@') ? changed.keys.has(x.slice(1)) : has(x)));
+    const f = fields?.find(x => (x.startsWith('@') ? keys.has(x.slice(1)) : has(x)));
     return f === undefined ? undefined : `${obj}#${f}`;
   };
   if (has('@')) return undefined; // het object kwam erbij of verdween; dan is dit stuk geen stuk van hetzelfde object
@@ -2080,7 +2160,9 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   }
   if (kind === 'seq') {
     if (way === 'self') return type === 'IFCRELSEQUENCE' && !d.whole ? any(SEQ_SLOT_FIELDS[arg]) : undefined;
-    if (type === 'IFCLAGTIME' && way === 'slot:6') return any(LAG_FIELDS);
+    if (type === 'IFCLAGTIME' && way === 'slot:6') {
+      return any(d.whole || !mappedTables(input).has(d.chunk) ? LAG_FIELDS : arg === 3 ? lagValueFields(input.domain, obj, input.sourceDayLagIds) : LAG_SLOT_FIELDS[arg]);
+    }
     return undefined;
   }
   if (kind === 'res') {
@@ -2302,6 +2384,9 @@ function explainRelation(ctx: O1Context, d: LossDiff, type: string, arg: number,
   if (type === 'IFCRELNESTS' && arg === 2) return has('name') ? `${obj}#name` : undefined;
   if (d.whole !== 'ontbreekt') return undefined;
   if (type === 'IFCRELNESTS') return has('childIds') ? `${obj}#childIds` : membersGone(ctx, d.chunk, type);
+  if (type === 'IFCRELASSIGNSTOPROCESS' && mappedTables(input).has(d.chunk)) {
+    return expectedProcessMembers(input, d.chunk)?.length === 0 ? `${obj}#assignments` : undefined;
+  }
   if (type === 'IFCRELASSIGNSTOPROCESS') return has('assignments') ? `${obj}#assignments` : undefined;
   if (type === 'IFCRELDEFINESBYPROPERTIES') {
     // De pset verdween: alleen als een veld veranderde dat de writer erin schrijft.
@@ -2444,6 +2529,11 @@ function explainMembers(ctx: O1Context, d: LossDiff): string | undefined {
   const relatingKey = relating >= 0 ? keyOf(relating) : undefined;
   const relHas = (f: string) => !!relatingKey && (changed.keys.has(`${relatingKey}#${f}`) || changed.keys.has(`${relatingKey}#*`));
   if (type === 'IFCRELNESTS' && relatingKey?.startsWith('task:') && relHas('childIds')) return `leden: ${relatingKey}#childIds`;
+  if (type === 'IFCRELASSIGNSTOPROCESS' && mappedTables(input).has(s)) {
+    const expected = expectedProcessMembers(input, s);
+    const actual = refList(line.args[d.outArg]).map(id => sourceChunkOf(input, id, p));
+    return expected && expected.length === actual.length && expected.every((c, i) => c === actual[i]) ? `leden: ${relatingKey}#assignments` : undefined;
+  }
   if (type === 'IFCRELASSIGNSTOPROCESS' && relatingKey?.startsWith('task:') && (relHas('assignments') || relHas('resourceIds'))) {
     return `leden: ${relatingKey}#assignments`;
   }

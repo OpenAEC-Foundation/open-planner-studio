@@ -37,7 +37,8 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeIFC } from '@/services/ifc/ifcWriter';
+import { createHash } from 'node:crypto';
+import { writeIFC, writeIFCForComparison } from '@/services/ifc/ifcWriter';
 import { RESOURCE_TYPE_TO_IFC } from '@/services/ifc/ifcConstants';
 import { DEFAULT_IFC_SCHEMA, IFC_SCHEMAS, type IfcSchemaId } from '@/types/project';
 import type { ImportResult } from '@/services/importTypes';
@@ -108,6 +109,18 @@ for (const [schema, ifc] of richBySchema) {
     `rijk project (${schema}): testvoorwaarde — een kostenresource als IFCCONSTRUCTIONMATERIALRESOURCE met 'COST' en .USERDEFINED.`);
 }
 
+const RICH_COMPARISON_SHA256 = 'a9759ca30903110fa8c03a671851a4490b9595acd5516d523ba1f4a41f513155';
+const RICH_COMPARISON_BASE = 'main e7ffb5f8c';
+{
+  const comparison = writeIFCForComparison(inSchema(rich, DEFAULT_IFC_SCHEMA));
+  assert(/IFCCONSTRUCTIONMATERIALRESOURCE\('[^']{22}',#\d+,'Leges',[^\n]*,'COST',[^\n]*\.USERDEFINED\.\);/.test(comparison),
+    'bytevergelijking: testvoorwaarde — een kostenresource met de COST-markering');
+  assert(rich.baselines?.some(b => b.tasks.length === 0) === true, 'bytevergelijking: testvoorwaarde — een baseline zonder taken');
+  const got = createHash('sha256').update(comparison).digest('hex');
+  assert(got === RICH_COMPARISON_SHA256,
+    `bytevergelijking: het rijke project met vaste klok is byte-gelijk aan de writer van ${RICH_COMPARISON_BASE} (sha256 ${got})`);
+}
+
 // ── 3. De vormtoets zelf: een fout GlobalId en een tijd zonder seconden zijn rood ─────────────────
 {
   const tamper = (from: RegExp, to: string) => {
@@ -165,7 +178,8 @@ for (const schema of IFC_SCHEMAS) assert(seen.schemas.has(schema), `dekking: gee
 // ── 5. Volledigheid van de tabel t.o.v. de writerbronnen ─────────────────────────────────────────
 const writerSources = ['ifcWriter.ts', 'ifcPsets.ts', 'ifcTaskSlots.ts']
   .map(f => readFileSync(join(ROOT, 'src', 'services', 'ifc', f), 'utf8'));
-const writerTokens = new Set<string>(Object.values(RESOURCE_TYPE_TO_IFC));
+const TYPED_REAL_TOKENS = ['IFCREAL', 'IFCMONETARYMEASURE'];
+const writerTokens = new Set<string>([...Object.values(RESOURCE_TYPE_TO_IFC), ...TYPED_REAL_TOKENS]);
 for (const src of writerSources) for (const m of src.matchAll(/\b(IFC[A-Z0-9]{3,})\(/g)) writerTokens.add(m[1]);
 assert(JSON.stringify(Object.keys(IFC_SCHEMA_TABLES).sort()) === JSON.stringify([...IFC_SCHEMAS].sort()),
   `tabel: de schematabel kent ${Object.keys(IFC_SCHEMA_TABLES).join(', ')}, de app schrijft ${IFC_SCHEMAS.join(', ')} (genereer de tabel opnieuw)`);

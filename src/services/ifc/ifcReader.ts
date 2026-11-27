@@ -30,7 +30,7 @@ import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
 import { indexOfStepDataSection, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
 import { stepFileGrammar } from './stepFileGrammar';
-import { CALENDAR_SLOT, WORK_CONTROL_SLOT, workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
+import { CALENDAR_SLOT, WORK_CONTROL_SLOT, isBaselineWorkControl, workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
 import { LAG_SLOT, lagValueSlot } from './ifcLagTimeSlots';
 import { SEQUENCE_SLOT, lagTimeSlots } from './ifcSequenceSlots';
 import { RESOURCE_SLOT } from './ifcResourceSlots';
@@ -46,7 +46,8 @@ import {
 } from './ifcPsets';
 import {
   DAY_MEASURE_LAGS_PROP, EXACT_MINUTE_LAGS_PROP, parseDayMeasureLags, taskMinutesPerDay,
-  wholeFloatDays, type DayMeasureRecord, type ExactMinutesRecord,
+  wholeFloatDays, type DayMeasureDurationRecords, type DayMeasureRecord, type ExactFloatRecords, type ExactMinutesRecord,
+  type ExactMinutesRecords,
 } from './dayMeasureIo';
 import {
   IFC_TASKTIME_SLOTS, ALL_RECORDED_SLOT_KEYS, TASK_SLOT, TASKTIME_SLOT, IFC_TASK_STATUS_RUNNING, taskSlots,
@@ -91,6 +92,25 @@ export interface IfcReadOptions {
   stepIdsOut?: Record<string, string>;
   unusedAssignmentKeysOut?: Map<string, string[]>;
   projectDataInSettings?: boolean;
+  taskTimeReadingsOut?: Map<string, TaskTimeReading>;
+}
+
+export const TASK_TIME_READING_FIELDS = [
+  'scheduleStart', 'scheduleFinish', 'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'actualStart', 'actualFinish',
+  'durationUnit', 'scheduleDuration', 'durationMinutes', 'remainingTime', 'remainingMinutes', 'actualDuration',
+  'totalFloat', 'totalFloatMinutes', 'freeFloat', 'freeFloatMinutes',
+] as const satisfies readonly (keyof TaskTime)[];
+
+export interface TaskTimeReading {
+  readonly id: string;
+  readonly args: readonly string[];
+  readonly time: Pick<TaskTime, typeof TASK_TIME_READING_FIELDS[number]>;
+  readonly minutesPerDay: number;
+  readonly records: {
+    readonly dayMeasure?: DayMeasureDurationRecords;
+    readonly exactMinutes?: ExactMinutesRecords;
+    readonly exactFloat?: ExactFloatRecords;
+  };
 }
 
 interface StepEntity {
@@ -169,8 +189,9 @@ export function readIFC(
   const baselineTaskStepIds = options.planningTaskStepIds
     ? tasksOutsideSelection(entities, options.planningTaskStepIds)
     : collectBaselineTaskStepIds(entities);
+  const milestoneSlotDurations = options.taskTimeReadingsOut ? new Map<string, number>() : undefined;
   const { tasks, taskStepIdMap, taskTimeEntities, recordedFields, runningStatusIds } = extractTasks(
-    entities, entityMap, baselineTaskStepIds, taskIdentityByStepId, calendar.hoursPerDay,
+    entities, entityMap, baselineTaskStepIds, taskIdentityByStepId, calendar.hoursPerDay, milestoneSlotDurations,
   );
   const { boundaryGuids: p6BoundarySequenceGuids, dayMeasureLags, exactMinuteLags } = extractSequenceMeta(
     entities, entityMap, new Set(taskStepIdMap.keys()),
@@ -209,6 +230,18 @@ export function readIFC(
   const ifcSchemaUnconfirmed = ifcSchemaUnconfirmedOnRead(fileSchemaName, ifcSchemaMarkers);
   if (ifcSchemaUnconfirmed) project.ifcSchemaUnconfirmed = ifcSchemaUnconfirmed;
   applyTaskTimeRecords(tasks, taskTimeEntities, calendar, resourceCalendars);
+  if (options.taskTimeReadingsOut) {
+    for (const task of tasks) {
+      const e = taskTimeEntities.get(task.id);
+      if (!e) continue;
+      const time = Object.fromEntries(TASK_TIME_READING_FIELDS.map(f => [f, task.time[f]])) as TaskTimeReading['time'];
+      const slotDuration = milestoneSlotDurations?.get(task.id);
+      if (slotDuration !== undefined && time.durationUnit !== 'hours') time.scheduleDuration = slotDuration;
+      const minutesPerDay = taskMinutesPerDay(task, effHoursPerDay(resolveCalendar(task.calendarId, resourceCalendars, calendar)));
+      const records = { dayMeasure: readDayMeasureDurations(task), exactMinutes: readExactMinutes(task), exactFloat: readExactFloat(task) };
+      options.taskTimeReadingsOut.set(task.id, { id: e.id, args: [...e.args], time, minutesPerDay, records });
+    }
+  }
   for (const task of tasks) reconcileP6SuspendResume(task);
   const customTaskTypes = extractTaskTypeMeta(entities, entityMap, tasks, taskStepIdMap);
   extractTimephasedDurationWalksMeta(entities, entityMap, tasks, taskStepIdMap, calendarIdByGuid);
@@ -319,7 +352,7 @@ function collectIfcGlobalIds(
   const plan = entities.find(e => e.type === 'IFCWORKPLAN');
   const planGuid = plan ? ifcSlotText(plan.args[WORK_CONTROL_SLOT.globalId]) : '';
   if (planGuid) out[ifcObjectSeed('wp', projectId)] = planGuid;
-  const schedule = entities.find(e => e.type === 'IFCWORKSCHEDULE' && !isBaselineSchedule(e));
+  const schedule = entities.find(e => e.type === 'IFCWORKSCHEDULE' && !isBaselineWorkControl(e.args));
   const scheduleGuid = schedule ? ifcSlotText(schedule.args[WORK_CONTROL_SLOT.globalId]) : '';
   if (scheduleGuid) out[ifcObjectSeed('ws', projectId)] = scheduleGuid;
   return Object.keys(out).length > 0 ? out : undefined;
@@ -360,7 +393,7 @@ function collectIfcStepIds(
   if (proj) out[ifcObjectSeed('proj', projectId)] = proj.id;
   const plan = entities.find(e => e.type === 'IFCWORKPLAN');
   if (plan) out[ifcObjectSeed('wp', projectId)] = plan.id;
-  const schedule = entities.find(e => e.type === 'IFCWORKSCHEDULE' && !isBaselineSchedule(e));
+  const schedule = entities.find(e => e.type === 'IFCWORKSCHEDULE' && !isBaselineWorkControl(e.args));
   if (schedule) out[ifcObjectSeed('ws', projectId)] = schedule.id;
   return out;
 }
@@ -880,9 +913,6 @@ export function readFileSchema(content: string): IfcSchemaId | undefined {
   return isIfcSchemaId(name) ? name : undefined;
 }
 
-function isBaselineSchedule(e: StepEntity): boolean {
-  return (e.args[workControlSlots(e.args).predefinedType] || '').includes('BASELINE');
-}
 
 function splitArgs(argsStr: string, literalStrings = true): string[] {
   const args: string[] = [];
@@ -1314,6 +1344,7 @@ function extractTasks(
   baselineTaskStepIds: Set<string> = new Set(),
   persistedIds: Map<string, string> = new Map(),
   hoursPerDay = 8,
+  milestoneSlotDurations?: Map<string, number>,
 ): {
   tasks: Task[]; taskStepIdMap: Map<string, string>; taskTimeEntities: Map<string, StepEntity>;
   recordedFields: Record<string, RecordedFieldKey[]>; runningStatusIds: Set<string>;
@@ -1341,7 +1372,10 @@ function extractTasks(
     if (ifcSlotText(te.args[slots.status]) === IFC_TASK_STATUS_RUNNING) runningStatusIds.add(id);
 
     const isMilestone = te.args[slots.isMilestone]?.includes('T') || false;
-    if (isMilestone) time.scheduleDuration = 0;
+    if (isMilestone) {
+      milestoneSlotDurations?.set(id, time.scheduleDuration);
+      time.scheduleDuration = 0;
+    }
 
     const priorityRaw = (te.args[slots.priority] || '').trim();
     let priority = DEFAULT_PRIORITY;
@@ -1574,14 +1608,14 @@ function extractSequenceMeta(
     if (entity.type === 'IFCRELNESTS') {
       const scheduleId = parseRef(entity.args[4] || '');
       const schedule = scheduleId ? entityMap.get(scheduleId) : undefined;
-      if (schedule?.type === 'IFCWORKSCHEDULE' && !isBaselineSchedule(schedule)
+      if (schedule?.type === 'IFCWORKSCHEDULE' && !isBaselineWorkControl(schedule.args)
         && parseRefs(entity.args[5] || '').some(id => liveTaskStepIds.has(id))) {
         relevantScheduleIds.add(scheduleId!);
       }
     } else if (entity.type === 'IFCRELASSIGNSTOCONTROL') {
       const scheduleId = parseRef(entity.args[6] || '');
       const schedule = scheduleId ? entityMap.get(scheduleId) : undefined;
-      if (schedule?.type === 'IFCWORKSCHEDULE' && !isBaselineSchedule(schedule)
+      if (schedule?.type === 'IFCWORKSCHEDULE' && !isBaselineWorkControl(schedule.args)
         && parseRefs(entity.args[4] || '').some(id => liveTaskStepIds.has(id))) {
         relevantScheduleIds.add(scheduleId!);
       }
@@ -2693,6 +2727,8 @@ function extractAssignments(
     }
   }
 
+  for (const { queues } of metaByTask.values()) for (const queue of queues.values()) queue.reverse();
+  for (const windows of windowsByTask.values()) for (const queue of windows.values()) queue.reverse();
   const assignEntities = entities.filter(e => e.type === 'IFCRELASSIGNSTOPROCESS');
   const assignments: ResourceAssignment[] = [];
 
@@ -2710,9 +2746,9 @@ function extractAssignments(
 
       const resEntity = entityMap.get(resRef);
       const resGuid = resEntity ? stripQuotes(resEntity.args[RESOURCE_SLOT.globalId] || '') : '';
-      const meta = taskMeta?.queues.get(resGuid)?.shift() ?? taskMeta?.legacy.get(resGuid);
+      const meta = taskMeta?.queues.get(resGuid)?.pop() ?? taskMeta?.legacy.get(resGuid);
       if (meta && keysByTask) usedMeta.add(meta);
-      const window = windowsByTask.get(taskRef)?.get(resGuid)?.shift();
+      const window = windowsByTask.get(taskRef)?.get(resGuid)?.pop();
 
       assignments.push({
         id: generateId('asgn'),
@@ -2781,7 +2817,7 @@ function collectBaselineTaskStepIds(entities: StepEntity[]): Set<string> {
   const baselineSchedIds = new Set<string>();
   const liveSchedIds = new Set<string>();
   for (const e of entities) {
-    if (e.type === 'IFCWORKSCHEDULE') (isBaselineSchedule(e) ? baselineSchedIds : liveSchedIds).add(e.id);
+    if (e.type === 'IFCWORKSCHEDULE') (isBaselineWorkControl(e.args) ? baselineSchedIds : liveSchedIds).add(e.id);
   }
   const taskStepIds = new Set<string>();
   if (baselineSchedIds.size === 0 || liveSchedIds.size === 0) return taskStepIds;

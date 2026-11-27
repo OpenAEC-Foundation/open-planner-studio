@@ -14,6 +14,7 @@
 //   hebben die de leesverliestoets doorstaat (fixronde 2 van #867).
 // - `editsFor`: de gewone bewerkingen van een planner op het domein, per taak of per paar (bijsturing 1, punt 2).
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
+import { assignmentOrigin } from '@/services/ifc/foreign/assignmentOrigin';
 import { MergeNeedsPhase2Error, mergeIdPlan, openedOwnGroups, prepareIfcWrite, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { changedScopes, lossCheck, parseOutLine, pristineDomain, type OutLine } from '@/services/ifc/foreign/lossCheck';
 import { sourceFormWhereUnchanged } from '@/services/ifc/foreign/sourceForm';
@@ -175,7 +176,8 @@ function scanOrReason(bytes: Uint8Array): StepIndex | string {
 
 /** De invarianten van de merge-uitvoer tegen de bron. Leeg = alles klopt. */
 export function mergeProblems(source: Uint8Array, out: Uint8Array, changes: readonly ForeignChange[] = []): string[] {
-  const listed = new Map(changes.filter(c => c.kind === 'gewijzigd' || c.unusedKeyOfTask === undefined).map(c => [String(c.id), c]));
+  const listed = new Map(changes.filter(c => c.kind === 'gewijzigd' || (c.kind === 'vervallen' && c.unusedKeyOfTask === undefined)).map(c => [String(c.id), c]));
+  const restored = new Map(changes.flatMap(c => (c.kind === 'teruggezet' ? [[String(c.id), c.newBytes] as const] : [])));
   const problems: string[] = [];
   const si = scanForeignStep(source);
   const sc = classify(si);
@@ -200,19 +202,24 @@ export function mergeProblems(source: Uint8Array, out: Uint8Array, changes: read
     const id = si.id(i);
     sourceNonP.add(id);
     const j = outById.get(id);
-    const change = listed.get(id);
-    if (change?.kind === 'vervallen') {
+    const change = listed.get(id), back = restored.get(id);
+    if (change?.kind === 'vervallen' && !back) {
       if (j !== undefined) problems.push(`#${id} (${si.type(i)}) staat als vervallen op de wijzigingslijst, maar staat er nog`);
       continue;
     }
     if (j === undefined) { problems.push(`#${id} (${si.type(i)}) ontbreekt`); continue; }
-    const want = change?.kind === 'gewijzigd' ? change.newBytes : chunk(si, source, i);
-    if (!sameBytes(want, chunk(oi, out, j))) problems.push(`#${id} (${si.type(i)}) heeft andere bytes${change ? ' dan de wijzigingslijst' : ''}`);
+    const want = back ?? (change?.kind === 'gewijzigd' ? change.newBytes : chunk(si, source, i));
+    if (!sameBytes(want, chunk(oi, out, j))) problems.push(`#${id} (${si.type(i)}) heeft andere bytes${change || back ? ' dan de wijzigingslijst' : ''}`);
     if (j < last) problems.push(`#${id} (${si.type(i)}) staat op een andere plek in de volgorde`);
     last = Math.max(last, j);
   }
   for (let j = 0; j < oi.count; j++) {
     if (!oi.isEntity(j) || sourceNonP.has(oi.id(j)) || oc.classes[j] === 1) continue;
+    const back = restored.get(oi.id(j));
+    if (back) {
+      if (!sameBytes(back, out.subarray(oi.entityStart(j), oi.end(j)))) problems.push(`#${oi.id(j)} (${oi.type(j)}) is teruggezet, maar niet met de bytes van de wijzigingslijst`);
+      continue;
+    }
     problems.push(`#${oi.id(j)} (${oi.type(j)}) is nieuw en geen P (klasse ${oc.classes[j]})`);
   }
   return problems;
@@ -527,6 +534,12 @@ export function fixedCatalogEdits(_d: Domain): Edit[] {
  * (PR 12c), zoals `prepareIfcWrite` hem aanzet (`openedOwnGroups`); zonder: de controle van main. `explained`: elk verschil
  * dat een oude verklaring (`explainO1`) toeliet, met de regel.
  */
+function ownOwnerHistory(lines: readonly OutLine[], kept: ReadonlySet<number> = new Set()): number {
+  const apps = new Set(lines.filter(l => l.type === 'IFCAPPLICATION' && l.args[3]?.trim() === "'OPS'").map(l => `#${l.id}`));
+  const own = lines.filter(l => l.type === 'IFCOWNERHISTORY' && apps.has(l.args[1]?.trim() ?? ''));
+  const chosen = own.find(l => !kept.has(l.id)) ?? own[0];
+  return chosen ? chosen.id : Number(lines.find(l => l.type === 'IFCTASK')!.args[1].slice(1));
+}
 export async function lossProbe(bytes: Uint8Array, input: Domain, output: Uint8Array, toets = false) {
   const lines = (b: Uint8Array) => latin1Text(b).split('\n').map(parseOutLine).filter((l): l is OutLine => !!l);
   const opened = await openForeign(bytes), source = opened.ifcSource!;
@@ -540,11 +553,12 @@ export async function lossProbe(bytes: Uint8Array, input: Domain, output: Uint8A
   const own: Partial<ReturnType<typeof openedOwnGroups>> = toets && source.opened ? openedOwnGroups(index, cls, plan.plan, pristine, source.opened, source.stepIds, new Date()) : {};
   const run = (o1Lines: OutLine[], edited = input, lines0 = o0, explained?: (chunk: number, why: string) => void) => {
     const found: number[] = [];
+    const domain = sourceFormWhereUnchanged(edited, source.opened, pristine).input;
     lossCheck({ index, cls, fixed: new Set([...plan.bySource.keys(), ...plan.baselineHeads.values()]), bySource: plan.bySource,
-      o0: lines0, o1: o1Lines, pristine, domain: sourceFormWhereUnchanged(edited, source.opened, pristine).input, opened: source.opened, objects1,
+      o0: lines0, o1: o1Lines, pristine, domain, opened: source.opened, objects1, assignmentOrigin: assignmentOrigin(index, plan.bySource, domain, source.opened),
       plannerChanged: changedScopes(edited, source.opened ?? pristine).keys,
-      owner0: Number(o0.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
-      owner1: Number(o1.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
+      ...(source.sourceSlots ? { sourceSlots: source.sourceSlots } : {}),
+      owner0: ownOwnerHistory(o0), owner1: ownOwnerHistory(o1, new Set(o0.map(l => l.id))),
       ...own,
       ...(explained ? { explainedO1: (d: { chunk: number }, why: string) => explained(d.chunk, why) } : {}),
     }, f => found.push(f.chunk));

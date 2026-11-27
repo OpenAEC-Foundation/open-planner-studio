@@ -30,7 +30,10 @@ lopende bewerking (`editHold.ts`) en na een mislukte berekening met ongewijzigde
 `planner_*`-tools staan in `src/services/mcp/tools/` (taken, relaties, resources, kalender, project,
 baselines, documenten/bestanden, leestools, XER/P6-bronprovenance, en `planner_batch` als transactionele executor met
 temp-id-resolutie). Besluiten over de wijzigende tools voor resources, toewijzingen, kalenders, nivelleren en het
-project staan in `docs/adr/0100` tot en met `0107`.
+project staan in `docs/adr/0100` tot en met `0107`. Besluiten over de leestools (`tools/readTools.ts`): `docs/adr/0400`
+(compact, met id's en de notaties van de schrijfkant), `0401` (argumenten toetsen), `0402` (paginering en
+grenzen), `0403` (niet vastgelegd is onbekend), `0404` (taken tellen en filteren), `0405` (één taak lezen), `0406`
+(resources, belasting en kalenders) en `0407` (kritiek pad, baseline en vertraging).
 
 Een MCP-backup bewaart planning plus bronkenmerk, nooit gebouwmodelbytes. Bij openen krijgt dat kenmerk alleen met
 `ifcForeignContent` aan `sourceMissing` (1c PR 9d): dezelfde bestaande weigering van alle IFC-opslag als bij herstel
@@ -112,6 +115,13 @@ register via `src/hooks/useMcpDiscovery.ts`, opruimen bij afsluiten in `useAppCl
 uit het initialisatiescript `ops-process-info` in `main.rs` (geen command). Detail: `docs/mcp-ontdekking.md`;
 test `tests/mcp/cases-discovery.ts` en de echte-app-run.
 
+**IFCX (#804 F3-4, keuze T6, regel F).** `planner_export_ifc` schrijft STEP en weigert een pad op `.ifcx` zolang namen
+het formaat volgen (de flag `ifcx` aan, of het actieve document is een IFCX-document); ook met `overwrite: true` weigert
+het het bestand van een open IFCX-document, onder elke naam (`isOpenIfcxFile` in `refusedTargetIdentity`). IFCX schrijft
+MCP in fase 3 niet. `planner_import_schedule` leest een eigen `.ifcx` met de flag aan via dezelfde leesopties als
+Bestand → Openen (`readOptionsFor`) en meldt dan `format: 'IFCX'`. Met de flag uit en zonder IFCX-document is alles
+zoals main; de headless MCP-server kent geen flag en blijft ongewijzigd.
+
 **IFC-export van de app (#804, 1c PR 11b).** `planner_export_ifc` deelt `state/prepareIfcOutput.ts` met
 de documentroute en Exporteren → IFC. Vreemde inhoud schrijft met de flag aan naar een nieuw doel via de optionele
 `McpFileFs.writeNewUserBytes` (Tauri: eigen tijdelijk bestand en `place_file_exclusive`, zie `tauri-ifc.md`; geen
@@ -133,4 +143,13 @@ eigen bestand van het document weigert met een eigen tekst; een versie van een a
 schrijven ontstaat en `source-changed` krijgen elk een eigen antwoord. Het antwoord bevat
 `byteLength` voor bytes en `characters` alleen voor de gewone tekstuitvoer. De export verandert bron, kenmerk,
 doel, dirty-vlag en letterlijke kalenders niet. Scope, lease, drift, readonly en schrijfslot blijven gelden.
-Headless biedt de nieuwe bytenaad niet en blijft op zijn bestaande tekstgedrag (1136, fase 2).
+Headless (fase 2 PR 10b) zet de flag in zijn eigen store en `fileToolDeps.mainRouteUnlessForeign`; `headlessIfcRead` in
+`fileTools.ts` geeft elke geopende IFC één stand: bewezen eigen (de schrijfpoort van de kern, `textWriteCheck` in
+`targetForeignScan.ts`, vindt geen model, C, A of V, en na het openen geeft de gewone writer elk slot van elk stuk met
+een slottabel terug, #1219: de tekstroute van main, één lezing), bewaarde vreemde bron (de bytes-route en de merge), of niet vast te
+stellen (openen zoals main, met het kenmerk "bron ontbreekt", zodat `ifcFullWriteBlocked` elke IFC-uitvoer vóór I/O
+weigert; eigen tekst `UNKEPT_SOURCE_REFUSAL`). In die stand maakt de headless host ook geen MCP-backup: de back-upbinding
+heeft de optionele controle `withheld` (in de app leeg), `runMutateTool` slaat `ensureBackup` dan over en zet
+`envelope.backupWithheld`. `appForeignContentRoute(ctx)` (flag aan en niet headless) beslist over de
+tooltekst, het open tabblad en de externe bronnen. Headless levert `writeNewUserBytes` (`nodeFs.ts`, `link` naar de nieuwe naam), niet `replaceUserBytes`: een
+bestaande naam blijft voor een document met een vreemd deel geweigerd (knownbug 2240).

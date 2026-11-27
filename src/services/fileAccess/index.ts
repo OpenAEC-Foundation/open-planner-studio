@@ -1,8 +1,8 @@
 import { isTauri } from '@/utils/platform';
 import {
   saveDataDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
-  fileIdentityFsTauri, scanTargetPathTauri, sourceTargetContentOfPathTauri, knownTargetContentOfPathTauri,
-  saveNewBytesDialogTauri, saveNewBytesToRefTauri, pickSaveTargetTauri,
+  fileIdentityFsTauri, scanTargetPathTauri, readTargetPathTauri, sourceTargetContentOfPathTauri, knownTargetContentOfPathTauri,
+  saveNewBytesDialogTauri, saveNewBytesToRefTauri, pickSaveTargetTauri, pickSavePathTauri, saveDataToPathTauri,
 } from './tauriBackend';
 import { openFileDialogTauri, readOpenedPathTauri } from './tauriOpenPath';
 import type { FileIdentityFs } from './fileIdentity';
@@ -185,7 +185,7 @@ export function fileIdentityFs(): Promise<FileIdentityFs | undefined> {
  *  het site-bestand. In de browser leest de controle de handle zelf (`getFile()`). */
 export function writeTargetReaders(): TargetReaders {
   return {
-    ...(isTauri() ? { scanPath: scanTargetPathTauri } : {}),
+    ...(isTauri() ? { scanPath: scanTargetPathTauri, readPath: readTargetPathTauri } : {}),
     ...(siteStorageAvailable() ? { readSite: async (id: string) => (await readSiteSourceFile(id)).bytes() } : {}),
   };
 }
@@ -281,6 +281,16 @@ export interface PickedSaveTarget {
 export function pickSaveTarget(defaultName: string, filters: FileFilter[]): Promise<PickedSaveTarget | null> {
   if (!isTauri()) return Promise.reject(new Error('De bestandskiezer zonder schrijven bestaat alleen op de desktop.'));
   return pickSaveTargetTauri(defaultName, filters);
+}
+
+export function pickSavePath(defaultName: string, filters: FileFilter[]): Promise<string | null> {
+  if (!isTauri()) return Promise.reject(new Error('De bestandskiezer zonder schrijven bestaat alleen op de desktop.'));
+  return pickSavePathTauri(defaultName, filters);
+}
+
+export function saveDataToPath(path: string, data: FileData, opts: CheckedSaveDialogOpts): Promise<SaveOutcome | null> {
+  if (!isTauri()) return Promise.reject(new Error('Schrijven naar een gekozen pad bestaat alleen op de desktop.'));
+  return saveDataToPathTauri(path, data, opts);
 }
 
 /** Een nieuw lokaal doel; een bestaand pad of browserhandle geeft een ByteWriteError.

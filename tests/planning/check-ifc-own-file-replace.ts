@@ -137,7 +137,7 @@ async function replace(
   c: Case, fs?: OwnFileReplaceFs, records?: ReplaceRecordStore, target?: OtherTarget,
 ): Promise<{ result: OwnPathReplaceResult; committed: boolean }> {
   let committed = false;
-  const destination = target && { filePath: target.path, fileHandle: null, siteFileId: null, siteFileVersion: null };
+  const destination = target && { filePath: target.path, fileHandle: null, siteFileId: null, siteFileVersion: null, fileFormat: 'ifc' as const };
   const result = await runProjectFileWrite(() => replaceOwnPathWithRecovery({
     documentId: c.id, path: target?.path ?? c.path, prepared: c.prepared,
     source: target ? { bytes: target.content, sha256: hash(target.content) }
@@ -3817,6 +3817,24 @@ await check('Exporteren → IFC over een bestaande naam, de flag uit terwijl het
     const now = exportedFrom(c);
     assert(now.source === before.source && now.mark === before.mark && now.literal === before.literal, 'bron, kenmerk en kalenderkeuzes intact');
     assert.deepEqual([now.path, now.dirty], [c.path, true], 'het document houdt zijn pad en blijft gewijzigd');
+  } finally { await tidy(c); }
+});
+
+await check('2212: Ctrl+S op het eigen pad van een gebouwmodel met een UTF-8-BOM: de merge houdt de BOM, ook de tweede keer', async () => {
+  const source = new Uint8Array([0xef, 0xbb, 0xbf, ...bytes]), c = await opened(source);
+  try {
+    for (const round of ['eerste', 'tweede'] as const) {
+      if (round === 'tweede') renameTask(c, 'Tweede Ctrl+S met BOM');
+      clearNotices(c);
+      await c.store.getState().saveFile();
+      const output = new Uint8Array(readFileSync(c.path));
+      assert.deepEqual(errorKeys(c), [], `${round}: geen melding`);
+      assert.deepEqual([...output.subarray(0, 3)], [0xef, 0xbb, 0xbf], `${round}: de BOM staat er nog`);
+      assert.deepEqual(mergeProblems(source, output), [], `${round}: het gebouwmodel bytegelijk behouden`);
+      assert.equal(c.store.getState().isDirty, false, `${round}: niet meer gewijzigd`);
+      assert.deepEqual(files(c), ['model.ifc'], `${round}: geen hulpbestand`);
+    }
+    assert(latin1(c.path).includes('Tweede Ctrl+S met BOM'), 'de tweede bewerking staat in het bestand');
   } finally { await tidy(c); }
 });
 

@@ -9,7 +9,8 @@
 // Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasBuildingModel, hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { isForeignSourceTarget, sameEntry, sameLocalFile, samePath, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
+import type { OwnBomVersion } from '@/services/ifc/foreign/targetForeignScan';
+import { ifcxTargetRefusal, isForeignSourceTarget, sameEntry, sameLocalFile, samePath, targetRefusal, type IfcxClassify, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 import { missingTarget, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import type { FileRef, PickedSaveTarget } from '@/services/fileAccess';
@@ -286,6 +287,16 @@ async function missingFile(fs: FileIdentityFs, path: string): Promise<boolean> {
   try { await fs.stat(path); return false; } catch (error) { return missingTarget(error); }
 }
 
+async function isOpenIfcxFile(
+  s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, target: Exclude<FileRef, { kind: 'handle' }>,
+  identityFs: () => Promise<FileIdentityFs | undefined>,
+): Promise<boolean> {
+  const ifcx = s.getOpenDocumentPayloads().filter(document => document.payload.fileFormat === 'ifcx');
+  if (ifcx.length === 0) return false;
+  if (target.kind === 'site') return ifcx.some(document => document.payload.siteFileId === target.id);
+  return await openDocumentIdForPath({ getOpenDocumentPayloads: () => ifcx }, target.path, identityFs) !== null;
+}
+
 /** De open documenten zonder het document met deze id (`null`: alle). */
 function allBut(s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, documentId: string | null): Pick<WriteTargetState, 'getOpenDocumentPayloads'> {
   return documentId === null ? s : { getOpenDocumentPayloads: () => s.getOpenDocumentPayloads().filter(d => d.id !== documentId) };
@@ -306,7 +317,7 @@ async function isOwnLocalFile(
 /** Wat de doelcontrole nodig heeft: de open documenten en de flag. */
 export interface WriteTargetState {
   getOpenDocumentPayloads(): readonly { readonly id: string; readonly payload: Pick<DocumentPayload,
-    'foreignSourceMark' | 'ifcSource' | 'siteFileId' | 'siteFileVersion' | 'fileHandle' | 'filePath'> }[];
+    'foreignSourceMark' | 'ifcSource' | 'siteFileId' | 'siteFileVersion' | 'fileHandle' | 'filePath' | 'fileFormat'> }[];
   readonly ui: { readonly featureFlags: Readonly<FeatureFlagValues> };
 }
 
@@ -331,6 +342,10 @@ export interface WriteTargetDeps {
    *  niet. Regel 1 en 3 en een onleesbaar doel blijven weigeren. */
   chosenTarget?: Pick<PickedSaveTarget, 'path' | 'current'>;
   protectModelTargets?: boolean;
+  ownBomVersion?: OwnBomVersion | null;
+  writesIfcx?: boolean;
+  knownVersion?: boolean;
+  classifyIfcx?: IfcxClassify;
 }
 
 /**
@@ -368,6 +383,11 @@ export async function refusedWriteTarget(
   ownVersion?: OwnTargetVersion,
 ): Promise<WriteTargetRefusal | null> {
   const identity = await refusedTargetIdentity(s, target, deps, ownVersion);
+  if (identity !== null && identity !== 'check-content') return identity;
+  if (deps.writesIfcx) {
+    const ifcx = deps.knownVersion ? null : await ifcxTargetRefusal(target, deps.readers(), deps.classifyIfcx);
+    return ifcx === null ? null : ifcx === 'unreadable' ? 'unreadable-target' : 'foreign-content';
+  }
   return identity === 'check-content' ? refusedTargetContent(target, deps) : identity;
 }
 
@@ -377,9 +397,10 @@ type OwnTargetVersion = { readonly documentId: string; readonly baseVersion?: st
 export async function refusedTargetIdentity(
   s: WriteTargetState,
   target: FileRef,
-  deps: Omit<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets'>,
+  deps: Omit<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets' | 'ownBomVersion' | 'knownVersion' | 'classifyIfcx'>,
   ownVersion?: OwnTargetVersion,
 ): Promise<WriteTargetRefusal | null | 'check-content'> {
+  if (!deps.writesIfcx && target.kind !== 'handle' && await isOpenIfcxFile(s, target, deps.identityFs)) return 'open-document';
   const own = ownVersion && s.getOpenDocumentPayloads().find(d => d.id === ownVersion.documentId)?.payload;
   const ownSource = !!own && own.ifcSource === ownVersion.source && hasForeignContent(own.ifcSource)
     && ifcForeignContentEnabled(s.ui.featureFlags)
@@ -414,9 +435,9 @@ export async function refusedTargetIdentity(
 }
 
 export async function refusedTargetContent(
-  target: FileRef, deps: Pick<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets'>,
+  target: FileRef, deps: Pick<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets' | 'ownBomVersion'>,
 ): Promise<WriteTargetRefusal | null> {
-  const refusal = await targetRefusal(target, deps.readers());
+  const refusal = await targetRefusal(target, deps.readers(), deps.ownBomVersion ?? null);
   if (refusal === 'unreadable') return 'unreadable-target';
   if (refusal === null) return null;
   const chosen = deps.chosenTarget;

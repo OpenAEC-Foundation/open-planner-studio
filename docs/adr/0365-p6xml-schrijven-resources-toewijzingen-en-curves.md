@@ -39,7 +39,7 @@ project. De lezer neemt ze terug zoals in ADR 0269; de keuzes hieronder zijn de 
 - De inkomende tabel `P6_NAME_TO_CURVE` (voor de P6 XML- en de XER-lezer) is geen omkering van `P6_CURVE_TO_NAME`:
   hij kent `Linear` als `UNIFORM`, terwijl de writer `UNIFORM` als geen curve schrijft.
 - Een toewijzing met een gekoppelde contour (`timephasedContours`, via `matchContoursToAssignments`) krijgt een
-  spreiding van `contourPeriodsToP6Spread`, alleen met minstens één periode met eindige waarden en een lengte boven 0,
+  spreiding van `contourPeriodsToP6Spread`, alleen met minstens één periode met een eindige positie (`afterMinutes`) en een eindige lengte (`minutes`) boven 0,
   en met een startanker: `<ActualCurve>` met de verrichte periodes, `<RemainingCurve>` met de resterende en
   `<PlannedCurve>` met alle periodes. Elke spreiding staat er met haar ankerveld (`ActualStartDate`,
   `RemainingStartDate`, `PlannedStartDate`, bij de geplande ook `PlannedFinishDate`), en alle drie de ankers zijn de

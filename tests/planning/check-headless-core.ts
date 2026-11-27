@@ -29,6 +29,8 @@ import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { taskDepths } from '@/utils/wbs';
 import type { Task } from '@/types/task';
+import { foreignWorkMethodSource, oldOwnSource, OLD_TASK_NAME } from '../mcp/headlessCorpus';
+import { answerDigest, FORMS } from '../../headless/server/smoke-corpus.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const diffs: string[] = [];
@@ -389,7 +391,59 @@ for (const name of ['ohara', 'data']) {
     doc.schedule().counts.tasks === 20 && (await openIfc(written)).schedule().counts.tasks === 20);
 }
 
+{
+  const review = foreignWorkMethodSource(root);
+  for (const [route, open] of [['openIfc', () => openIfc(review.toString('utf8'))], ['openIfcBytes', () => openIfcBytes(new Uint8Array(review))]] as const) {
+    const doc = await open();
+    ok(`19 ${route}: een taak zonder OwnerHistory met een werkwijze van een ander programma opent en rekent`, doc.schedule().counts.tasks === 47);
+    eqText(`19 ${route}: toIfc() weigert vóór uitvoer, want de gewone writer schrijft WorkMethod als $ (#1219)`,
+      await refusalOf(() => doc.toIfc()), 'IFC_WRITE_FAILED:foreign');
+    eqText(`19 ${route}: toIfcBytes() weigert ook`, await refusalOf(() => doc.toIfcBytes()), 'IFC_WRITE_FAILED:foreign');
+  }
+  const old = await openIfc(oldOwnSource(root));
+  eqText('19 een oude eigen bron met een lege owner history en alleen gedragen slots schrijft zoals main',
+    await refusalOf(() => old.toIfc()), 'geschreven');
+  const reopened = await openIfc(old.toIfc());
+  ok('19 de oude eigen bron heropent met alle taken en de oude taaknaam', reopened.schedule().counts.tasks === 47
+    && reopened.schedule().tasks.some(t => t.name === OLD_TASK_NAME), JSON.stringify(reopened.schedule().counts));
+}
+
+{
+  const reference = JSON.parse(readFileSync(join(root, 'headless/server/main-reference.json'), 'utf8')) as
+    { main: string; cases: Record<string, { ifc?: { status: number; sha256?: string } }> };
+  const oldOwn = ['v2026.7.7-urentaak-10-villa-wassenaar.ifc', 'v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc',
+    'v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc'];
+  for (const file of oldOwn) {
+    const source = readFileSync(join(root, 'tests/planning/fixtures/oude-tags', file));
+    ok(`20 ${file}: het lopende werkschema heet nog Bouwplanning v1.0`, source.includes("'Bouwplanning v1.0'"));
+    for (const [form, shape] of FORMS) {
+      const body = shape(source);
+      const label = `oude-tags/${file}, ${form}`;
+      const main = reference.cases[label]?.ifc;
+      const viaText = await openIfc(body.toString('utf8'));
+      viaText.schedule();
+      const viaBytes = await openIfcBytes(new Uint8Array(body));
+      viaBytes.schedule();
+      const fromText = await refusalOf(() => viaText.toIfc());
+      ok(`20 ${label}: toIfc() schrijft wat main ${reference.main.slice(0, 9)} schrijft (main-reference.json)`, main?.status === 200
+        && fromText === 'geschreven' && answerDigest(viaText.toIfc(), 'ifc', 200, body) === main.sha256, fromText);
+      const fromBytes = await refusalOf(() => viaBytes.toIfcBytes());
+      ok(`20 ${label}: toIfcBytes() schrijft hetzelfde`, main?.status === 200 && fromBytes === 'geschreven'
+        && answerDigest(utf8(await viaBytes.toIfcBytes()), 'ifc', 200, body) === main.sha256, fromBytes);
+    }
+  }
+}
+
 const foreignFixture = (name: string): string => join(root, 'tests/fixtures/ifc-foreign', name);
+
+async function refusalOf(write: () => unknown): Promise<string> {
+  try {
+    await write();
+    return 'geschreven';
+  } catch (e) {
+    return e instanceof PlannerCoreError ? `${e.code}:${String(e.details.reason)}` : String(e);
+  }
+}
 {
   const modelFile = foreignFixture('eigen-plus-model.ifc');
   const source = new Uint8Array(readFileSync(modelFile));
@@ -593,9 +647,20 @@ function modelLinesKeptInOrder(bytes: Uint8Array): boolean {
   ok('14 fixture: een Bonsai-planning met een vroege start die de berekening niet geeft', stale !== text);
   const doc = await openIfcBytes(encoded(stale));
   ok('14a de planning van het andere programma is te berekenen', doc.schedule().foreignContent?.objectCount === 155);
+  const written = await doc.toIfcBytes();
+  const line120 = (t: string) => t.match(/^#120=.*$/m)?.[0];
+  ok('14b na doorrekenen behoudt de merge het vreemde deel: heropend hetzelfde vreemde deel, #120 byte voor byte',
+    (await openIfcBytes(written)).schedule().foreignContent?.objectCount === 155 && line120(new TextDecoder().decode(written)) === line120(text));
+  const council = readFileSync(foreignFixture('council/r6opus-twee-werkplannen.na.ifc'), 'utf8');
+  const timeOfRoot = "#31=IFCTASKTIME($,.NOTDEFINED.,$,'P5D',$,'2026-01-05T08:00:00','2026-01-09T17:00:00',$,$,";
+  const staleCouncil = council.replace(timeOfRoot,
+    "#31=IFCTASKTIME($,.NOTDEFINED.,$,'P5D',$,'2026-01-05T08:00:00','2026-01-09T17:00:00','2026-03-02T08:00:00','2026-03-06T17:00:00',");
+  ok('14c fixture: een planning van een ander programma in een oude lay-out met een vroege start die de berekening niet geeft', staleCouncil !== council);
+  const old = await openIfcBytes(encoded(staleCouncil));
+  old.schedule();
   let error: unknown;
-  try { await doc.toIfcBytes(); } catch (e) { error = e; }
-  ok('14b de merge kan het vreemde deel niet behouden ⇒ IFC_WRITE_FAILED met reason merge-needs-phase2, vóór uitvoer',
+  try { await old.toIfcBytes(); } catch (e) { error = e; }
+  ok('14c de merge kan het vreemde deel niet behouden ⇒ IFC_WRITE_FAILED met reason merge-needs-phase2, vóór uitvoer',
     error instanceof PlannerCoreError && error.code === 'IFC_WRITE_FAILED' && error.details.reason === 'merge-needs-phase2', String(error));
 }
 

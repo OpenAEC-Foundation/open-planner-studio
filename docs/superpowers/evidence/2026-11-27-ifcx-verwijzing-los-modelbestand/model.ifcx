@@ -1,0 +1,12 @@
+{
+  "header": {"id":"urn:voorbeeld:architect:model-A","ifcxVersion":"ifcx_alpha","dataVersion":"1.0.0","author":"IFCX-proef","timestamp":"2026-11-27T00:00:00Z"},
+  "imports": [],
+  "schemas": {
+    "bsi::ifc::class": {"value":{"dataType":"Object","objectRestrictions":{"values":{"code":{"dataType":"String"},"uri":{"dataType":"String"}}}}},
+    "proef::naam": {"value":{"dataType":"String"}}
+  },
+  "data": [
+    {"path":"e671b834-a918-42c4-9901-000000000001","attributes":{"bsi::ifc::class":{"code":"IfcWall","uri":"https://identifier.buildingsmart.org/uri/buildingsmart/ifc/4.3/class/IfcWall"},"proef::naam":"Muur A"}},
+    {"path":"e671b834-a918-42c4-9901-000000000002","attributes":{"bsi::ifc::class":{"code":"IfcWindow","uri":"https://identifier.buildingsmart.org/uri/buildingsmart/ifc/4.3/class/IfcWindow"},"proef::naam":"Raam B"}}
+  ]
+}

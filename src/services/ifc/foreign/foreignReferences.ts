@@ -98,6 +98,68 @@ function entityReferences(bytes: Uint8Array, entityStart: number, end: number): 
   return { single, lists };
 }
 
+function referenceBuilder() {
+  const stepIds: number[] = [], groupStart = [0], groupSize: number[] = [], targetStart = [0], targets: number[] = [];
+  const group = (size: number, ids: readonly number[]) => {
+    groupSize.push(size);
+    for (const id of ids) targets.push(id);
+    targetStart.push(targets.length);
+  };
+  const mapped = (refs: readonly number[], target: (ref: number) => number | undefined) =>
+    refs.flatMap(ref => { const t = target(ref); return t === undefined ? [] : [t]; });
+  return {
+    add(id: number, { single, lists }: EntityReferences, target: (ref: number) => number | undefined): void {
+      const singles = mapped(single, target);
+      if (singles.length > 0) group(SINGLE_REFERENCES, singles);
+      for (const elements of lists) {
+        const members = mapped(elements.filter(e => e.ref >= 0).map(e => e.ref), target);
+        if (members.length > 0) group(elements.length, members);
+      }
+      stepIds.push(id);
+      groupStart.push(groupSize.length);
+    },
+    done: (): ForeignReferences => ({
+      stepIds: Int32Array.from(stepIds), groupStart: Int32Array.from(groupStart), groupSize: Int32Array.from(groupSize),
+      targetStart: Int32Array.from(targetStart), targets: Int32Array.from(targets),
+    }),
+  };
+}
+
+export function pieceReferences(pieces: readonly { readonly id: number; readonly bytes: Uint8Array }[],
+  target: (piece: number, ref: number) => number): ForeignReferences {
+  const builder = referenceBuilder();
+  for (const { id, bytes } of pieces) builder.add(id, entityReferences(bytes, skipBlank(bytes, 0), bytes.length), ref => target(id, ref));
+  return builder.done();
+}
+
+export function pieceRefs(bytes: Uint8Array): number[] {
+  const { single, lists } = entityReferences(bytes, skipBlank(bytes, 0), bytes.length);
+  return [...single, ...lists.flatMap(elements => elements.filter(e => e.ref >= 0).map(e => e.ref))];
+}
+
+export function renumberedPiece(bytes: Uint8Array, id: number, refOf: (ref: number) => number): Uint8Array {
+  const parts: Uint8Array[] = [], encoder = new TextEncoder();
+  const start = skipBlank(bytes, 0);
+  let i = start + 1;
+  while (i < bytes.length && isDigit(bytes[i])) i++;
+  parts.push(bytes.subarray(0, start), encoder.encode(`#${id}`));
+  let copied = i;
+  while (i < bytes.length) {
+    const c = bytes[i];
+    if (c === QUOTE || (c === SLASH && bytes[i + 1] === STAR)) { i = skipQuotedOrComment(bytes, i); continue; }
+    if (c !== HASH || !isDigit(bytes[i + 1])) { i++; continue; }
+    let j = i + 1, ref = 0;
+    while (j < bytes.length && isDigit(bytes[j])) ref = ref * 10 + bytes[j++] - 48;
+    parts.push(bytes.subarray(copied, i), encoder.encode(`#${refOf(ref)}`));
+    copied = i = j;
+  }
+  parts.push(bytes.subarray(copied));
+  const out = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
+  let at = 0;
+  for (const part of parts) { out.set(part, at); at += part.length; }
+  return out;
+}
+
 export function foreignReferences(index: StepIndex, classes: ArrayLike<number>, bytes: Uint8Array,
   inD: ArrayLike<number>): ForeignReferences {
   const inClosure = new Uint8Array(index.count);
@@ -118,30 +180,14 @@ export function foreignReferences(index: StepIndex, classes: ArrayLike<number>, 
     const chunk = index.chunkOf(String(id));
     return chunk >= 0 && (inClosure[chunk] === 1 || inD[chunk] === 1);
   };
-  const stepIds: number[] = [], groupStart = [0], groupSize: number[] = [], targetStart = [0], targets: number[] = [];
-  const group = (size: number, ids: readonly number[]) => {
-    groupSize.push(size);
-    for (const id of ids) targets.push(id);
-    targetStart.push(targets.length);
-  };
+  const builder = referenceBuilder();
   for (const piece of pieces) {
-    const { single, lists } = entityReferences(bytes, index.entityStart(piece), index.end(piece));
-    const singles = single.filter(matters);
-    if (singles.length > 0) group(SINGLE_REFERENCES, singles);
-    for (const elements of lists) {
-      const members = elements.filter(e => e.ref >= 0 && matters(e.ref)).map(e => e.ref);
-      if (members.length > 0) group(elements.length, members);
-    }
-    stepIds.push(Number(index.id(piece)));
-    groupStart.push(groupSize.length);
+    builder.add(Number(index.id(piece)), entityReferences(bytes, index.entityStart(piece), index.end(piece)), ref => (matters(ref) ? ref : undefined));
   }
-  return {
-    stepIds: Int32Array.from(stepIds), groupStart: Int32Array.from(groupStart), groupSize: Int32Array.from(groupSize),
-    targetStart: Int32Array.from(targetStart), targets: Int32Array.from(targets),
-  };
+  return builder.done();
 }
 
-function withoutReferences(bytes: Uint8Array, start: number, entityStart: number, end: number, lost: ReadonlySet<number>): Uint8Array {
+export function withoutReferences(bytes: Uint8Array, start: number, entityStart: number, end: number, lost: ReadonlySet<number>): Uint8Array {
   const { single, lists } = entityReferences(bytes, entityStart, end);
   if (single.some(id => lost.has(id))) throw new Error('wijzigingslijst: een enkele verwijzing kan niet uit een stuk weg');
   const cuts: [number, number][] = [];

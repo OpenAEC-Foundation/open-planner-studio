@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
+import { ifcxEnabled } from '@/utils/featureFlags';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
@@ -132,6 +133,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const project = useAppStore(s => s.project);
     const ifcSource = useAppStore(s => s.ifcSource);
     const schemaLocked = !isNew && hasForeignContent(ifcSource);
+    const fileFormat = useAppStore(s => (ifcxEnabled(s.ui.featureFlags) ? s.fileFormat : null));
     const activeDocumentId = useAppStore(s => s.activeDocumentId);
     const activeRibbonTab = useAppStore(s => s.ui.activeRibbonTab);
     const createNewProject = useAppStore(s => s.createNewProject);
@@ -619,6 +621,20 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
         {/* Issue #292: het schema in de kop bij opslaan. Alleen bij bewerken; Toepassen zet het (één
             undo-stap via applyProjectInfo/setProject, document gewijzigd) en telt als antwoord op de
             schemavraag bij opslaan (`projectInfoPatch`). De standaard, IFC 4.3 ADD2, staat bovenaan. */}
+        {!isNew && fileFormat && (
+          <div className="flex flex-col gap-1" data-ops-project-file-type={fileFormat}>
+            <label className="text-text-secondary font-medium">{tMenu('ifcx.projectInfo.fileType')}</label>
+            <Select
+              aria-label={tMenu('ifcx.projectInfo.fileType')}
+              disabled
+              value={fileFormat}
+              onChange={() => {}}
+              options={[{ value: 'ifc', label: 'IFC' }, { value: 'ifcx', label: 'IFCX' }]}
+            />
+            <p className="settings-hint">{tMenu('ifcx.projectInfo.fileTypeHint')}</p>
+          </div>
+        )}
+
         {!isNew && (
           <div className="flex flex-col gap-1" data-ops-project-ifc-schema>
             <label className="text-text-secondary font-medium">{tMenu('projectInfo.ifcSchema.label')}</label>
@@ -635,6 +651,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
               ]}
             />
             {schemaLocked && <p className="text-caption text-text-secondary">{tMenu('projectInfo.ifcSchema.foreignLocked')}</p>}
+            {fileFormat === 'ifcx' && <p className="settings-hint" data-ops-project-ifc-schema-ifcx>{tMenu('ifcx.projectInfo.schemaForIfcx')}</p>}
           </div>
         )}
 

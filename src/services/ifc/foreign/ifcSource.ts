@@ -14,7 +14,9 @@
  */
 import type { WriteIFCInput } from '../ifcWriter';
 import type { ForeignChange, ForeignReferences } from './changeList';
+import type { Detached } from './detached';
 import type { TaskElementLinks } from './elementLinks';
+import type { SourceSlots } from './sourceSlots';
 import type { StepIndex } from './stepScanner';
 
 /** Eén gecontroleerde schrijfvoorbereiding, nog zonder bestandsschrijf of documentwijziging.
@@ -56,7 +58,9 @@ export interface IfcSource {
   readonly foreignMembers: readonly number[];
   readonly elementLinks: TaskElementLinks;
   readonly unusedKeys?: readonly UnusedKeysOfTask[];
+  readonly sourceSlots?: SourceSlots;
   readonly foreignReferences?: ForeignReferences;
+  readonly detached?: Detached;
   /** Is er een vreemd deel: een entiteit die niet P is (§3)? */
   readonly foreign: boolean;
   /** Aantal entiteiten dat niet P is (C, A en V), voor de melding van §4.15. */

@@ -42,7 +42,7 @@ Scheduling is **manual, not reactive**: the actual solve — leaf-filter → `CP
 
 **Uitleg na F5 (issue #742).** F5, Bereken en de knoppen in de panelen roepen `recalculate` aan: dezelfde `runCPM`, plus `scheduleShift` (sessiestand, geen documentdata) en de melding rechtsonder. Alles wat zelf herrekent (MCP, laden, nivelleren, Automatisch berekenen) blijft `runCPM` aanroepen en meldt niets. De reden komt uit `shiftExplanation.ts`: wat de datums bepaalde staat in het solverspoor `CPMResult.dateDriverByTaskId` (alleen met `traceDateDrivers`, neemt niet deel aan de berekening); bleef de start gelijk, dan vergelijkt hij met de invoer bij de vorige berekening (`previousSolveBasis`, uit de sessiegeschiedenis). Dat geldt ook voor een lopende taak, want haar werkelijke start staat vast (`remainingWorkReason`). Geen enkelvoudige oorzaak ⇒ `unknown`; *Resource* alleen als de werkregel op een kopie van de vorige stand met alleen de toewijzing precies de nieuwe duur oplevert (`durationFollowsAssignments`). Ongedaan maken (`undoScheduleShift`) is bewust geen stap in de geschiedenis: `runCPM` is dat ook niet, en Ctrl+Z na F5 neemt de bewerking terug. Maakte `runCPM` wel een eigen event (datums zoals opgeslagen, urenomzetting), dan herstelt `undoHistoryEvent` precies dat event; `undo()` kiest het nieuwste en dat kan een kolom zijn.
 
-**Datums zoals opgeslagen (issue #63).** Het laden herberekent nog steeds onvoorwaardelijk — die solve ís de detectie — maar de uitkomst kan bewust worden teruggedraaid. Wijkt het rekenresultaat af van wat het bestand vastlegde, dan zet `applyRecordedDatesOnLoad` (`state/documentActivation.ts`) de opgeslagen datums terug via `applyRecordedTimesToTasks` en reconstrueert `cpmResult` uit het bestand (`src/engine/scheduler/recordedDates.ts`), zónder te solven. `RecordedDatesNotice` meldt alleen de modus; er is geen aanbod-stand meer (eigenaar, 2026-10-17): buiten de modus is `recordedDates` `null`. Drie gevolgen die je moet kennen voor je hier iets aanraakt: (1) `runCPM` pusht in déze ene situatie wél een undo-snapshot — buiten de modus geldt de oude invariant onverkort, waar `staleGuard`/`batchTool` op leunen; (2) `scheduleStale` mag nooit `true` zijn terwijl `datesAsRecorded` aanstaat, want in de modus staat het bestand op het scherm en niet een berekening — zet de vlag daarom via `markScheduleStale` (`state/transaction.ts`) en nooit rechtstreeks, wat een broncode-check in `check-recorded-dates.ts` afdwingt; (3) `parseDateFromIFC` maakt van een `$`-slot de datum van vandaag, dus "welke datums gaf het bestand écht" komt uit `ImportResult.recordedFields` en niet uit de gelezen taakvelden. Sinds 2026-09-09 (eigenaarsbesluit "elk formaat zoals XER") levert élke lezer een herkomst (`ImportResult.recordedTimesOrigin`): XER, P6 XML, MSPDI, `.mpp` en CSV leveren de bronuitvoer als `recordedTimes` (bak 4: weergave, nooit solverinvoer — `buildRecordedTime` in `recordedDates.ts`, ontbrekende assen ontbreken), `readIFC` onderscheidt een IFC uit een ander pakket (`'ifc'`) van een eigen bestand (`'ifc-own'`, via `IFCAPPLICATION 'OPS'` of een `OPS_`-pset). `applyRecordedDatesOnLoad` zet de modus automatisch aan bij een verse import mét afwijkingen, en bij een heropening van een eigen IFC (`'ifc-own'`/`'xer-archive'`) als `importPristine` ("ongewijzigd sinds import", pset `OPS_ImportProvenance`, documentveld) nog `true` is óf het bestand in de modus is opgeslagen (`OPS_ImportProvenance.SourceFormat`, alleen in de modus geschreven; eigenaar 2026-10-17, "zoals je het achterliet") — elke mutator wist die vlag via `markDocumentEdited` (`state/documentEdited.ts`, de enige plek met `isDirty = true`; broncodescan in `check-recorded-dates.ts` §16), F5 en opslaan niet. Regressie: `check-recorded-times-formats.ts` (lezers + IFC-herkomst), `check-recorded-dates.ts` §7/7B/16, `recorded-dates.spec.ts`.
+**Datums zoals opgeslagen (issue #63).** Het laden herberekent nog steeds onvoorwaardelijk — die solve ís de detectie — maar de uitkomst kan bewust worden teruggedraaid. Wijkt het rekenresultaat af van wat het bestand vastlegde, dan zet `applyRecordedDatesOnLoad` (`state/documentActivation.ts`) de opgeslagen datums terug via `applyRecordedTimesToTasks` en reconstrueert `cpmResult` uit het bestand (`src/engine/scheduler/recordedDates.ts`), zónder te solven. `RecordedDatesNotice` meldt alleen de modus; er is geen aanbod-stand meer (eigenaar, 2026-10-17): buiten de modus is `recordedDates` `null`. Drie gevolgen die je moet kennen voor je hier iets aanraakt: (1) `runCPM` pusht in deze situatie wél een undo-snapshot — buiten de modus maakt het alleen nog een eigen stap bij de minutenomzetting van een ouder document die datums verschuift en niet binnen een bewerking loopt (`recordMinuteModelTransition`, ADR 0431). Dat kan ook via de MCP-verversing vóór een leestool: `ensureFreshSchedule` (`mcp/freshness.ts`) roept `runCPM()` zonder `withinEvent` aan, dus een leestool op een verouderde of nog nooit berekende planning (`cpmResult: null`) met een openstaande omzetting maakt de stap *Omzetting naar minuten*, alleen als `ensureFreshScheduleForRead` echt herrekent (niet bij `datesAsRecorded`, een lopende bewerking of een mislukte berekening met ongewijzigde invoer) en de omzetting datums verschuift; de tussentijdse berekening in `batchTool` (`recomputeMidBatch`) geeft `withinEvent: true` mee en maakt die stap niet. Verder geldt de oude invariant dat `runCPM` geen undo-snapshot pusht; (2) `scheduleStale` mag nooit `true` zijn terwijl `datesAsRecorded` aanstaat, want in de modus staat het bestand op het scherm en niet een berekening — zet de vlag daarom via `markScheduleStale` (`state/transaction.ts`) en nooit rechtstreeks, wat een broncode-check in `check-recorded-dates.ts` afdwingt; (3) `parseDateFromIFC` maakt van een `$`-slot de datum van vandaag, dus "welke datums gaf het bestand écht" komt uit `ImportResult.recordedFields` en niet uit de gelezen taakvelden. Sinds 2026-09-09 (eigenaarsbesluit "elk formaat zoals XER") levert élke lezer een herkomst (`ImportResult.recordedTimesOrigin`): XER, P6 XML, MSPDI, `.mpp` en CSV leveren de bronuitvoer als `recordedTimes` (bak 4: weergave, nooit solverinvoer — `buildRecordedTime` in `recordedDates.ts`, ontbrekende assen ontbreken), `readIFC` onderscheidt een IFC uit een ander pakket (`'ifc'`) van een eigen bestand (`'ifc-own'`, via `IFCAPPLICATION 'OPS'` of een `OPS_`-pset). `applyRecordedDatesOnLoad` zet de modus automatisch aan bij een verse import mét afwijkingen, en bij een heropening van een eigen IFC (`'ifc-own'`/`'xer-archive'`) als `importPristine` ("ongewijzigd sinds import", pset `OPS_ImportProvenance`, documentveld) nog `true` is óf het bestand in de modus is opgeslagen (`OPS_ImportProvenance.SourceFormat`, alleen in de modus geschreven; eigenaar 2026-10-17, "zoals je het achterliet") — elke mutator wist die vlag via `markDocumentEdited` (`state/documentEdited.ts`, de enige plek met `isDirty = true`; broncodescan in `check-recorded-dates.ts` §16), F5 en opslaan niet. Regressie: `check-recorded-times-formats.ts` (lezers + IFC-herkomst), `check-recorded-dates.ts` §7/7B/16, `recorded-dates.spec.ts`. De controle na openen van de merge (`openMergePlanning`, `planning-na-openen`) opent ook het domein als document; in de modus krijgt dat domein wat de lezer uit de geschreven uitvoer haalt: herkomst `'ifc-own'` en per taak de rekenslots buiten `withheldTaskTimeFields` (knownbug 2231, `check-ifc-foreign-opgeslagen-datums.ts`). In de modus toetst de merge zijn eigen uitvoer ook op de slots zelf, tegen de momentopname (het XER-bronarchief heeft bij openen voorrang op de slots, `recordedTimes`, laag 0 van `captureRecordedDates`, en de lezer leidt lege slots af): zie "De toets op de taaktijden" in `tauri-ifc.md`.
 
 **Het documentcontract — lees dit vóór je een veld aan de state toevoegt.** Naast de slices staan er in `src/state/` vijf modules die samen bepalen wat een "document" ís. Ze bestaan omdat deze afspraken eerder ~50× met de hand herhaald werden en dan stilzwijgend uit elkaar liepen:
 
@@ -51,10 +51,20 @@ Scheduling is **manual, not reactive**: the actual solve — leaf-filter → `CP
 | `documentContract.ts` | `DOCUMENT_FIELDS` — één descriptorlijst met per veld: waar het in de live state woont (`get`/`set`), de verse default (`fresh`), de rol in de undo-snapshot (`data` = muteerbare projectdata, `derived` = afgeleid resultaat/scalar, beide per referentie bewaard; `none` = niet in de snapshot), en optioneel een leesmigratie. `capturePayload`/`hydratePayload`/`freshPayload` lopen key-gedreven over die ene lijst, dus capture en hydrate kúnnen niet divergeren. Een nieuw veld in `DocumentPayload` dat de lijst mist geeft een **compile-fout**. |
 | `snapshot.ts` | de undo/redo-snapshot als expliciete `Pick<>`-subset van datzelfde contract, gestuurd door de `snapshot`-rol per veld. |
 | `transaction.ts` | compatibele re-export (`createStoreRuntime`, `MAX_UNDO`, `markScheduleStale`/`markDateMutation`); het muteer-ritueel zelf zit in `runtime/storeRuntime.ts`: `beginUndoable` legt de vóór-snapshot vast, `finishMutation` roept `markDocumentEdited` (`isDirty`) en bij `stale` `markDateMutation` aan en sluit af via `finishUndoable`, dat het event in de sessiechronologie `historyEvents` zet (geen aparte redo-stapel) — op één plek in plaats van per actie. |
-| `ifcSaveInput.ts` | `IFCSaveSource`/`IFC_SAVE_KEYS` dragen de round-trip-velden en `ifcSource`; `IFC_DIRTY_KEYS` sluit alleen die bronidentiteit uit. Beide lijsten hebben compile-asserts. De gewone writer-invoer bevat geen bronbytes. `buildWriteIFCInput(src, mode)` en `buildExportIFCInput(src, mode)` eisen `'merge'` of `'planOnly'`; het clonebare veld `writeMode` bewaart de keuze tot de schrijver, zonder de huidige uitvoer te veranderen. De modus is routemetadata en telt niet als planningsverschil. De gedeelde ingang `prepareIfcOutput` handelt de modus af: merge met een vreemd deel gaat door de voorbereiding; planOnly met een vreemd deel of een ontbrekende bron gaat alleen door met een ongebruikt ja op de vraag "alleen de planning" (zie hieronder), anders geweigerd. |
+| `ifcSaveInput.ts` | `IFCSaveSource` en `buildWriteIFCInput` wonen in `src/services/documentData.ts` (samen met `documentDataFromImport`, het deel van `payloadFromImport` dat uit het bestand komt), zodat de IFCX-kern ze gebruikt zonder iets uit `src/state/` te importeren (`verify:store-boundaries`); dit bestand exporteert ze opnieuw. `IFCSaveSource`/`IFC_SAVE_KEYS` dragen de round-trip-velden en `ifcSource`; `IFC_DIRTY_KEYS` sluit alleen die bronidentiteit uit. Beide lijsten hebben compile-asserts. De gewone writer-invoer bevat geen bronbytes. `buildWriteIFCInput(src, mode)` en `buildExportIFCInput(src, mode)` eisen `'merge'` of `'planOnly'`; het clonebare veld `writeMode` bewaart de keuze tot de schrijver, zonder de huidige uitvoer te veranderen. De modus is routemetadata en telt niet als planningsverschil. De gedeelde ingang `prepareIfcOutput` handelt de modus af: merge met een vreemd deel gaat door de voorbereiding; planOnly met een vreemd deel of een ontbrekende bron gaat alleen door met een ongebruikt ja op de vraag "alleen de planning" (zie hieronder), anders geweigerd. |
 | `defaults.ts` | de `fresh`-fabrieken (`createDefaultProject`/`createDefaultView`) als **bladmodule**: hij importeert niets uit `slices/`. Dat is geen stijlkeuze — stonden ze in hun slice, dan ontstaat de cyclus `projectSlice → transaction → snapshot → documentContract → projectSlice`, die alleen werkt zolang het function *declarations* zijn (hoisting). `npm run verify:cycles` bewaakt dat. |
 
 Voeg je projectdata toe, dan hoort die dus in `DOCUMENT_FIELDS` — anders overleeft hij geen documentwissel, geen undo, geen crashherstel en geen opslaan. `tests/planning/check-document-contract.ts` bewaakt de keten.
+
+**Besluiten in `documentContract.ts`** staan in `docs/adr/`: één lijst en twee compilepoorten (0430), de rollen
+`data` en `derived` in de undo-snapshot (0431), weergave, opslagdoel en sessiestand buiten undo (0432), bronnen,
+bronkenmerk en eenrichtingsvlaggen buiten undo (0433), een payload laden en normaliseren (0434) en de herstelinvoer
+met de payload uit herstel (0435).
+
+**Besluiten in `slices/documentSlice.ts`** staan in `docs/adr/`: het register met het actieve document zonder payload
+en een eerste id per context (0470), sessiegegevens per tabblad op `DocumentEntry` (0471), de volgorde van een
+documentwissel en `resetDocumentScopedUI` (0472), sluiten (0473), dupliceren met de variantnaam (0474), herstel na een
+crash met de gedeelde XER-archieven (0475) en het doorrekenen van slapende documenten (0476).
 
 **De opslagstand** (#804 stap 5, besluit eigenaar 17 november 2026, voor elk document): de statusbalk toont "Opslaan…"
 zolang een gevraagde opslag van het document loopt of wacht (`trackSave` in `fileSlice.ts`, van de vraag tot en met het
@@ -83,7 +93,7 @@ de geschreven momentopname. `markAutoSaveVersionSaved` verwijst naar dezelfde co
 
 **De versie op het eigen doel** (#804, knownbug 1957 en 2064; gelezen door `openTabFor` bij het openen):
 `knownTargetFingerprint` (`DOCUMENT_FIELDS`, `snapshot: 'none'`, buiten `IFC_SAVE_KEYS`/`IFC_DIRTY_KEYS` en het
-herstelmanifest) is `{ sha256, byteLength, origin }` van de bytes waarvan de app weet dat ze op het eigen pad of de eigen
+herstelmanifest) is `{ sha256, byteLength, origin, utf8Bom }` van de bytes waarvan de app weet dat ze op het eigen pad of de eigen
 handle staan, of `null` (onbekend). Hash en grootte komen van dezelfde bytes en worden altijd samen gezet; de grootte laat
 een latere bewaking een ander bestand zonder lezen herkennen. `origin` zegt waar de bytes vandaan komen: `'opened'` als
 openen ze van het doel las, `'written'` als de app ze zelf schreef (elke `commitSavedDocument`, ook de merge, en
@@ -108,13 +118,22 @@ Een geweigerde opslag laat het veld staan.
 Een mislukte schrijfactie naar het eigen pad (Ctrl+S, Automatisch opslaan) en een onzekere vervanging met herstel
 (`unknown`, `previous-stranded`, `target-taken`) maken het `null`; een rekenfout vóór het schrijven niet.
 Proef: `check-tabblad-schijfversie.ts` (de A2-tabel); grenzen: knownbug 2065, 2066 en 2200.
+**Een IFCX-document (regel F, #804 F3-4).** `fileFormat` (`DOCUMENT_FIELDS`, `snapshot: 'none'`, vers `'ifc'`) zet de lezer
+bij openen (`applyLoadedProject`: `ReadImportResult.ifcxRead` → `'ifcx'`; IFC toepassen en laden zonder nieuw doel houden het
+oude formaat); een kopie houdt het, `commitSavedDocument` met een nieuw doel zet het geschreven formaat
+(`SaveDestination.fileFormat`). Een nieuw doel als IFCX (Opslaan als, F3-5) maakt het document gelijk aan het
+heropende bestand: `ifcSource`, `xerImportMetadata`, `xerSourceArchive` en `xerSourceProjectId` worden `null`, en een
+bronkenmerk blijft met `sourceMissing: false` (zoals Opslaan als bij een ontbrekende bron), zodat het model als doel
+beschermd blijft en Ctrl+S daarna IFCX schrijft. Voor een IFCX-document geldt alles hierboven ook met de flag `ifcForeignContent` uit: de
+versie komt dan van de gelezen bytes (`ifcxRead`), het herstelmanifest bewaart haar (`ifcx`), de flag uitzetten wist haar
+niet, en de open-tabcontrole en de strook "gewijzigd op schijf" gelden (`oneTabPerFile`, `changedOnDiskShown`). Eén plek
+beslist dat: `versionGuarded` (`src/state/versionGuard.ts`). Voor een als STEP gelezen document verandert er niets.
 **De bewaking die het leest** (`knownTargetGuard.ts`): met de flag toetst Ctrl+S zonder `prepared`
 (`writeActiveDocument`, vlak vóór `refuseChangedDocumentWrite`; ook *Opslaan* in de sluitvraag) en elke gewone ronde van
-Automatisch opslaan (na `refusedWriteTarget`) het eigen pad of de eigen handle tegen de actuele waarde van het veld, niet
-die van de momentopname. Eerst synchroon `guardedKnownTarget`: flag uit, `null` of de site geeft `null` en dan wacht de
+Automatisch opslaan (na `refusedWriteTarget`) het eigen pad of de eigen handle tegen de bekende versie van de poging
+(`start`, zie hieronder). Eerst synchroon `guardedKnownTarget`: flag uit, `null` of de site geeft `null` en dan wacht de
 aanroeper nergens op, zoals main. Anders `changedKnownTarget`: het bestand weg is schrijven zoals main; een andere
-grootte is veranderd; dezelfde grootte is lezen en SHA-256 (`knownTargetContent` in `fileAccess`). Na de vergelijking
-telt een weigering alleen als `guardedKnownTarget` nog dezelfde versie geeft (de flag ging niet uit). Veranderd of
+grootte is veranderd; dezelfde grootte is lezen en SHA-256 (`knownTargetContent` in `fileAccess`). Veranderd of
 onleesbaar: niet schrijven, de melding van een gebouwmodel (`ownTargetContentNotice`; Automatisch opslaan
 `MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE` en `stopFor` met die versie). De toets is de laatste inhoudstoets vóór het
 schrijven, ná de broncontrole en ná elke doelscan (fixronde 1 van #1194).
@@ -133,7 +152,18 @@ document met een vreemd deel komt hier niet langs: zijn opslag vergelijkt de bro
 vingerafdruk (Opslaan als met ontbrekende bron zet een nieuwe, van de geschreven planning, op het nieuwe doel; IFC
 toepassen staat dicht). Een geopende versie (`'opened'`) en een onbekende houden de volgorde en de stroomscan van main:
 de scanner van openen aanvaardt meer dan de doelscan (twee datasecties, `stepScanner.ts`), en bij twijfel weigert de app
-(besluit Trias, 10 november 2026).
+(besluit Trias, 10 november 2026). Uitzondering voor een geopende versie met een UTF-8-BOM: zie *Oude eigen kop, scan
+en datasectie* in `tauri-ifc.md` (knownbug 2212); `utf8Bom` zegt of de bekende bytes met een BOM beginnen. Ctrl+S en
+Automatisch opslaan leggen die versie één keer per poging vast als waarde, vóór het rekenen (`ownBomVersion`); de
+doelscan vergelijkt zijn eigen bytes daarmee, en de uitvoer krijgt dan de BOM.
+**Een opslagpoging legt haar stand één keer vast, aan haar begin:** de flags `ifcForeignContent` en `ifcx`, het formaat
+en de bekende versie (`start`, een `KnownTargetState`). Ctrl+S leidt hem af van de momentopname van `writeActiveDocument`,
+net als het formaat van de uitvoer (`attemptFormat`); Automatisch opslaan legt hem vast als veld van de kandidaat in
+`listPlain`. Elke beslissing van die poging (het formaat van de uitvoer, de BOM, de zelfgeschreven versie, de
+doelcontrole, de toets van #1174, de toets bij de beurt in de rij, de vingerafdruk bij het vastleggen van een gewone
+planning) gebruikt die stand; een flagwissel geldt pas vanaf de volgende poging (besluit van de technisch eigenaar,
+25 november 2026, PR #1213 en #1223). De vraag vóór het opslaan (`tauri-ifc.md`) leest haar instelling
+(`ui.foreignChangesQuestion`) uit dezelfde momentopname.
 De stop van Automatisch opslaan vervalt zodra `guardedKnownTarget` een
 andere waarde geeft: een vastgelegde eigen opslag of een export die het eigen doel schreef (`settleFingerprintAfterExport`;
 een nieuw object, ook als er intussen nieuw werk is), de flag uit (`setUI` wist het veld) of een onbekende versie;
@@ -151,7 +181,10 @@ De gewone documentroute onthoudt alleen voor haar commit de letterlijke kalender
 `ifcSaveBlocked` houdt paneel en dev-bridge dicht, en AutoSave met de flag uit of zonder bron; met de flag aan schrijft AutoSave via de vervanging van Ctrl+S (#804 stap 8, `settings-autosave.md`).
 **De vraag "alleen de planning"** (#804 PR 9e en 13) is één vraag met een reden (`PlanOnlyReason` in
 `services/ifc/planOnlyQuestion.ts`): Opslaan als bij een ontbrekend gebouwmodel (`missingSourceSaveAs`), Exporteren → IFC
-met het vinkje Zonder gebouwmodel (`export`) en de export met de resourcebibliotheek (`exportWithPool`). Alleen
+met het vinkje Zonder gebouwmodel (`export`), de export met de resourcebibliotheek (`exportWithPool`) en Opslaan als IFCX
+van een document met een gebouwmodel of een ontbrekende bron (`ifcxSaveAs`, F3-5). Dezelfde dialoog toont ook de melding
+over het P6-bronarchief bij Opslaan als IFCX (`ifcxXerArchive`); `planOnlyQuestionApplies` geeft daarvoor altijd `false`,
+dus dat ja opent geen planOnly. Alleen
 `askPlanOnly` maakt een bevestiging; `prepareIfcOutput(state, input, planOnly)` laat haar één keer gelden en alleen als
 `planOnlyQuestionApplies(state, reason)` klopt (flag aan; bij ontbrekend model alleen Opslaan als, de twee exports alleen
 met een aanwezig model). Zonder bevestiging (MCP, kern, paneel, dev-bridge) blijft planOnly met een vreemd deel
@@ -170,6 +203,10 @@ opslagpoging (0073) en de keuzes van de exportroute (0074).
 **Besluiten in `taskSlice.ts`** staan in `docs/adr/`: de volgorde van taken op drie plekken (0150), verhangen eerst op
 een proefkopie (0151), de vraag bij een nieuwe samenvattingstaak (0152), een taakbewerking telt op haar uitkomst
 (0153), voortgang invullen en inlezen (0154), taken opheffen (0155) en taken toevoegen, invoegen en verwijderen (0156).
+
+**Besluiten in `gridTransaction.ts`** staan in `docs/adr/`: voorbereiden op een kopie en één keer vastleggen (0440), de
+kolomcontext volgt het raster (0441), de volgorde van writes rond een overgang (0442), alleen-lezen cellen (0443), een
+celbewerking toepassen (0444), toewijzingen (0445), relaties (0446) en voortgang (0447).
 
 **Besluiten in `utils/taskDefaults.ts`** staan in `docs/adr/`: het ingevoerde einde van een urentaak (0210), de verse
 tijd en de velden van een nieuwe taak (0211), een tijdpatch samenvoegen (0212), een bewerking laat afgeleide sturing

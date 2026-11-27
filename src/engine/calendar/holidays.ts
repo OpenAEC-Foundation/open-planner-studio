@@ -9,16 +9,17 @@
 // én voorbeeld-generator één bron delen.
 import type { Holiday } from '@/types/calendar';
 import { addCalendarDays, formatDate, isoDayOfWeek } from '@/utils/dateUtils';
+import { CA_SET } from './canadianHolidays';
 
 export const HOLIDAY_COUNTRIES = [
-  'NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US', 'BO',
+  'NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US', 'CA', 'BO',
   'ES', 'IT', 'PL', 'PT', 'CZ', 'SE', 'DK', 'NO', 'FI',
 ] as const;
 export type HolidayCountry = typeof HOLIDAY_COUNTRIES[number];
 
 export type HolidayRule =
   | { kind: 'fixed'; month: number; day: number; days?: number;
-      substitute?: 'nl-kingsday' | 'uk-monday' | 'us-federal' | 'sunday-to-monday' }
+      substitute?: 'nl-kingsday' | 'weekend-to-monday' | 'us-federal' | 'sunday-to-monday' | 'ca-boxing-day' }
   | { kind: 'easter'; offset: number; days?: number }
   | { kind: 'nth-weekday'; month: number; weekday: 1 | 2 | 3 | 4 | 5 | 6 | 7;
       nth: 1 | 2 | 3 | 4 | 'last' }
@@ -49,6 +50,7 @@ export interface HolidaySet {
   country: HolidayCountry;
   regions?: { id: string; name: string }[];
   defs: HolidayDef[];
+  nationalDefs?: HolidayDef[];
 }
 
 /** Aparte DATA-tabel (geen algoritme) voor advies-vakantieperiodes (NL-bouwvak). */
@@ -110,12 +112,16 @@ function materialize(def: HolidayDef, y: number): Holiday | null {
       if (r.substitute === 'nl-kingsday') {
         // Koningsdag 27/4; op zondag → 26/4.
         if (isoDayOfWeek(d) === 7) d = utc(y, 4, 26);
-      } else if (r.substitute === 'uk-monday') {
+      } else if (r.substitute === 'weekend-to-monday') {
         // Weekend → eerstvolgende maandag (New Year / Christmas Day, single-day).
         if (isoDayOfWeek(d) === 6) d = addCalendarDays(d, 2);
         else if (isoDayOfWeek(d) === 7) d = addCalendarDays(d, 1);
       } else if (r.substitute === 'sunday-to-monday') {
         if (isoDayOfWeek(d) === 7) d = addCalendarDays(d, 1);
+      } else if (r.substitute === 'ca-boxing-day') {
+        const weekday = isoDayOfWeek(d);
+        if (weekday === 6 || weekday === 7) d = addCalendarDays(d, 2);
+        else if (weekday === 1) d = addCalendarDays(d, 1);
       } else if (r.substitute === 'us-federal') {
         // Federale regel: zaterdag → vrijdag ervoor (5 U.S.C. § 6103(b)), zondag → maandag erna
         // (Executive Order 11582, § 3(a)). Geldt voor maandag-t/m-vrijdagwerkers; zie de Help-tekst.
@@ -170,8 +176,9 @@ export function generateHolidays(
   set: HolidaySet, region: string | undefined, fromYear: number, toYear: number,
 ): Holiday[] {
   const out: Holiday[] = [];
+  const defs = !region && set.nationalDefs ? set.nationalDefs : set.defs;
   for (let y = fromYear; y <= toYear; y++) {
-    for (const def of set.defs) {
+    for (const def of defs) {
       if (def.regions && def.regions.length > 0) {
         if (!region || !def.regions.includes(region)) continue;
       }
@@ -283,17 +290,17 @@ export const UK_SET: HolidaySet = {
     { id: 'EAW', name: 'England & Wales' }, { id: 'SCT', name: 'Scotland' }, { id: 'NIR', name: 'Northern Ireland' },
   ],
   defs: [
-    { id: 'uk-new-year', name: "New Year's Day", rule: { kind: 'fixed', month: 1, day: 1, substitute: 'uk-monday' } },
-    { id: 'uk-jan2', name: '2 January', rule: { kind: 'fixed', month: 1, day: 2, substitute: 'uk-monday' }, regions: ['SCT'] },
-    { id: 'uk-st-patrick', name: "St Patrick's Day", rule: { kind: 'fixed', month: 3, day: 17, substitute: 'uk-monday' }, regions: ['NIR'] },
+    { id: 'uk-new-year', name: "New Year's Day", rule: { kind: 'fixed', month: 1, day: 1, substitute: 'weekend-to-monday' } },
+    { id: 'uk-jan2', name: '2 January', rule: { kind: 'fixed', month: 1, day: 2, substitute: 'weekend-to-monday' }, regions: ['SCT'] },
+    { id: 'uk-st-patrick', name: "St Patrick's Day", rule: { kind: 'fixed', month: 3, day: 17, substitute: 'weekend-to-monday' }, regions: ['NIR'] },
     { id: 'uk-good-friday', name: 'Good Friday', rule: { kind: 'easter', offset: -2 } },
     { id: 'uk-easter-monday', name: 'Easter Monday', rule: { kind: 'easter', offset: 1 }, regions: ['EAW', 'NIR'] },
     { id: 'uk-early-may', name: 'Early May bank holiday', rule: { kind: 'nth-weekday', month: 5, weekday: 1, nth: 1 } },
     { id: 'uk-spring', name: 'Spring bank holiday', rule: { kind: 'nth-weekday', month: 5, weekday: 1, nth: 'last' } },
     { id: 'uk-summer-eaw', name: 'Summer bank holiday', rule: { kind: 'nth-weekday', month: 8, weekday: 1, nth: 'last' }, regions: ['EAW', 'NIR'] },
     { id: 'uk-summer-sct', name: 'Summer bank holiday', rule: { kind: 'nth-weekday', month: 8, weekday: 1, nth: 1 }, regions: ['SCT'] },
-    { id: 'uk-boyne', name: 'Battle of the Boyne', rule: { kind: 'fixed', month: 7, day: 12, substitute: 'uk-monday' }, regions: ['NIR'] },
-    { id: 'uk-st-andrew', name: "St Andrew's Day", rule: { kind: 'fixed', month: 11, day: 30, substitute: 'uk-monday' }, regions: ['SCT'] },
+    { id: 'uk-boyne', name: 'Battle of the Boyne', rule: { kind: 'fixed', month: 7, day: 12, substitute: 'weekend-to-monday' }, regions: ['NIR'] },
+    { id: 'uk-st-andrew', name: "St Andrew's Day", rule: { kind: 'fixed', month: 11, day: 30, substitute: 'weekend-to-monday' }, regions: ['SCT'] },
   ],
 };
 
@@ -555,7 +562,7 @@ export const FI_SET: HolidaySet = {
 
 /** Alle landensets, geïndexeerd op land-code (voor de wizard/dialoog). */
 export const HOLIDAY_SETS: Record<HolidayCountry, HolidaySet> = {
-  NL: NL_SET, DE: DE_SET, BE: BE_SET, FR: FR_SET, UK: UK_SET, AT: AT_SET, CH: CH_SET, US: US_SET, BO: BO_SET,
+  NL: NL_SET, DE: DE_SET, BE: BE_SET, FR: FR_SET, UK: UK_SET, AT: AT_SET, CH: CH_SET, US: US_SET, CA: CA_SET, BO: BO_SET,
   ES: ES_SET, IT: IT_SET, PL: PL_SET, PT: PT_SET, CZ: CZ_SET, SE: SE_SET, DK: DK_SET, NO: NO_SET, FI: FI_SET,
 };
 

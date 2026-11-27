@@ -1,10 +1,11 @@
 import type { FileData, FileFilter, FileRef, OpenDialogOpts, OpenedFile, PickedSaveTarget, RefuseBeforePlace, SaveDialogOpts, SaveOutcome } from './index';
-import { basename, ensureExtension, extensionOf } from '@/utils/filePath';
+import { basename, extensionOf, withOneOfExtensions } from '@/utils/filePath';
 import {
   isForbiddenPathError, writeUserFileTauri, writeNewUserBytesTauri,
 } from '@/services/fileAccess/atomicWrite';
 import { missingTarget, type FileIdentityFs } from './fileIdentity';
-import { scanForeignTargetSource, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
+import { scanForeignTargetSource, type OwnBomVersion, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
+import { IFC_FOREIGN_SCAN_MAX_BYTES } from '@/services/ifc/foreign/foreignScan';
 import { compareTargetChunks, TARGET_CHUNK_BYTES, type SourceTargetContent } from './sourceTargetContent';
 import { compareKnownTarget } from './knownTargetContent';
 import type { TargetFingerprint } from '@/state/documentContract';
@@ -61,10 +62,31 @@ async function openPathChunksTauri(path: string): Promise<PathChunksTauri | null
  * mislukte entiteit, of de tweede lezing vanaf het regel-verankerde `DATA;`, spoelt terug).
  * `null` uitsluitend bij bewezen ontbreken. Een bestaand of onzeker doel met een leesfout is 'unreadable'.
  */
-export async function scanTargetPathTauri(path: string): Promise<TargetForeignScan | null> {
+export async function scanTargetPathTauri(path: string, ownBomVersion: OwnBomVersion | null = null): Promise<TargetForeignScan | null> {
   const chunks = await openPathChunksTauri(path);
   if (chunks === null || chunks === 'unreadable') return chunks;
-  return scanForeignTargetSource(chunks);
+  return scanForeignTargetSource(chunks, { ownBomVersion });
+}
+
+export async function readTargetPathTauri(path: string): Promise<Uint8Array | null> {
+  const chunks = await openPathChunksTauri(path);
+  if (chunks === null) return null;
+  if (chunks === 'unreadable') throw new Error(`Het bestaande doel ${path} is niet leesbaar.`);
+  try {
+    const parts: Uint8Array[] = [];
+    let size = 0;
+    for (let chunk = await chunks.next(); chunk !== null; chunk = await chunks.next()) {
+      size += chunk.length;
+      if (size > IFC_FOREIGN_SCAN_MAX_BYTES) throw new Error(`Het bestaande doel ${path} is te groot om te lezen.`);
+      parts.push(chunk);
+    }
+    const bytes = new Uint8Array(size);
+    let at = 0;
+    for (const part of parts) { bytes.set(part, at); at += part.length; }
+    return bytes;
+  } finally {
+    await chunks.close();
+  }
 }
 
 /**
@@ -156,7 +178,7 @@ export async function pickOpenPathTauri(filters: FileFilter[]): Promise<string |
  * en is de eindnaam niet vrij of niet toegestaan, dan opent het venster nog eens met die naam
  * (`check-save-dialog-extension.ts`); in het gewone geval blijft het één venster.
  */
-async function pickSavePathTauri(
+export async function pickSavePathTauri(
   defaultName: string, filters: FileFilter[], opts?: SaveDialogOpts,
 ): Promise<string | null> {
   const { save } = await import('@tauri-apps/plugin-dialog');
@@ -170,11 +192,11 @@ async function pickSavePathTauri(
       // net als het bestaande gedrag van elke andere export.
     }
   }
-  const ext = filters[0]?.extensions[0] ?? '';
+  const extensions = filters.flatMap(filter => filter.extensions);
   let picked = await save({ defaultPath, filters });
   while (picked) {
     // Linux/GTK plakt de filter-extensie niet automatisch → normaliseren.
-    const target = ext ? ensureExtension(picked, ext) : picked;
+    const target = withOneOfExtensions(picked, extensions);
     // Het venster gaf toestemming (scope) en stelde de overschrijfvraag voor `picked`, niet voor `target`. Valt
     // `target` buiten de scope of bestaat hij al, dan gaat hij zelf nog een keer door het venster, ingevuld.
     if (target === picked || !(await needsOwnDialogRound(target))) return target;
@@ -202,7 +224,10 @@ export async function saveDataDialogTauri(
   defaultName: string, data: FileData, filters: FileFilter[], opts?: SaveDialogOpts,
 ): Promise<SaveOutcome | null> {
   const savedPath = await pickSavePathTauri(defaultName, filters, opts);
-  if (!savedPath) return null;
+  return savedPath ? saveDataToPathTauri(savedPath, data, opts) : null;
+}
+
+export async function saveDataToPathTauri(savedPath: string, data: FileData, opts?: SaveDialogOpts): Promise<SaveOutcome | null> {
   // #804 fixronde 1: het gekozen pad vóór het schrijven controleren (bijv. het bronbestand van een gebouwmodel).
   if (await opts?.refuseTarget?.({ kind: 'path', path: savedPath })) return null;
   if (!(await writeUserFileTauri(savedPath, data, opts?.refuseBeforePlace))) return null;

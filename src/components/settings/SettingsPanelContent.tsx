@@ -5,7 +5,7 @@ import { Icon } from '@/components/icons';
 import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
 import {
-  GROUP_LABEL_KEYS, SETTINGS_CATALOG, SETTINGS_GROUPS, isSettingChanged, settingEntry,
+  GROUP_LABEL_KEYS, SETTINGS_CATALOG, SETTINGS_GROUPS, isSettingChanged, settingEntry, settingHidden, settingMet,
 } from './catalog/settingsCatalog';
 import type { SettingId, SettingsGroupId } from '@/utils/settingIds';
 import type { SettingEntry } from './catalog/types';
@@ -38,9 +38,9 @@ export function SettingsPanelContent() {
   // Welke instellingen nu beschikbaar en gewijzigd zijn, als tekst zodat de selector alleen bij een
   // echte verandering opnieuw rendert (de ui-state verandert ook om andere redenen).
   const availableIds = useAppStore(s => SETTINGS_CATALOG
-    .filter(e => !e.requires || e.requires.met(s)).map(e => e.id).join(' '));
+    .filter(e => settingMet(e, s)).map(e => e.id).join(' '));
   const changedIds = useAppStore(s => SETTINGS_CATALOG
-    .filter(e => isSettingChanged(e, s.ui)).map(e => e.id).join(' '));
+    .filter(e => !settingHidden(e, settingMet(e, s)) && isSettingChanged(e, s.ui)).map(e => e.id).join(' '));
   const available = useMemo(() => new Set(availableIds.split(' ')), [availableIds]);
   const changed = useMemo(() => new Set(changedIds === '' ? [] : changedIds.split(' ')), [changedIds]);
 
@@ -55,7 +55,7 @@ export function SettingsPanelContent() {
 
   const visible = (entry: SettingEntry): boolean => {
     const met = available.has(entry.id);
-    if (entry.requires?.hide === 'always' && !met) return false;
+    if (settingHidden(entry, met)) return false;
     if (!filtering && entry.id === revealed) return true;
     if (!filtering) return entry.group === group && (met || !entry.requires?.hide);
     if (changedOnly && !changed.has(entry.id)) return false;
@@ -73,7 +73,7 @@ export function SettingsPanelContent() {
     const linked = settingEntry(focusId);
     // Een vergrendeld blok (Experimenteel) blijft verborgen; de link landt dan op het versienummer
     // waarmee je het ontgrendelt.
-    const locked = linked?.requires?.hide === 'always' && !linked.requires.met(useAppStore.getState());
+    const locked = !!linked && settingHidden(linked, settingMet(linked, useAppStore.getState()));
     const entry = locked ? settingEntry('version') : linked;
     if (!entry) return;
     setQuery('');

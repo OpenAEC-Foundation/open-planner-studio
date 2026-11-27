@@ -4,9 +4,12 @@
  */
 import { classify, type Classification } from './classify';
 import { isRootLine, refsOutsideText } from './lossCheck';
+import { departuresOf, type PlanningChange } from './departures';
+import { ACTIVITY_CODE_ID_SUFFIX } from '../ifcPsets';
+import type { WriteIFCInput } from '../ifcWriter';
 import type { StepIndex } from './stepScanner';
 import { scanForeignStep } from './oldOwnHeader';
-import type { ForeignChange } from './changeList';
+import type { ForeignChange, RestoredForeignPiece } from './changeList';
 import { entityValue, losesItsPlace, placeTriggers, serializeStepValue, withoutRemovedMembers } from './stepValue';
 
 /** De eigenaren van een pset via IfcRelDefinesByProperties, als stuknummers. */
@@ -38,16 +41,26 @@ function equalBytes(a: Uint8Array, b: Uint8Array, from: number, to: number): boo
 }
 
 interface ListedPieces {
-  readonly listed: ReadonlyMap<number, ForeignChange>;
+  readonly listed: ReadonlyMap<number, Exclude<ForeignChange, RestoredForeignPiece>>;
+  readonly restored: ReadonlyMap<number, Uint8Array>;
+  readonly added: ReadonlyMap<string, Uint8Array>;
   readonly rewritten: Uint8Array;
 }
 
 function listedPieces(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array, changes: readonly ForeignChange[],
   problems: string[]): ListedPieces {
-  const listed = new Map<number, ForeignChange>(), rewritten = new Uint8Array(source.count);
+  const listed = new Map<number, Exclude<ForeignChange, RestoredForeignPiece>>(), rewritten = new Uint8Array(source.count);
+  const restored = new Map<number, Uint8Array>(), added = new Map<string, Uint8Array>();
   for (const change of changes) {
     if (change.kind === 'vervallen' && change.unusedKeyOfTask !== undefined) continue;
     const chunk = source.chunkOf(String(change.id));
+    if (change.kind === 'teruggezet') {
+      if (chunk >= 0 && sourceClasses.classes[chunk] === 1) problems.push(`wijzigingslijst: teruggezet #${change.id} is een P-stuk van de bron`);
+      else if (restored.has(chunk) || added.has(String(change.id))) problems.push(`wijzigingslijst: teruggezet #${change.id} staat er twee keer op`);
+      else if (chunk >= 0) { restored.set(chunk, change.newBytes); rewritten[chunk] = 1; }
+      else added.set(String(change.id), change.newBytes);
+      continue;
+    }
     if (chunk < 0 || sourceClasses.classes[chunk] === 1 || listed.has(chunk)) {
       problems.push(`wijzigingslijst: #${change.id} is geen niet-P-stuk van de bron, of staat er twee keer op`);
     } else if (!equalBytes(change.oldBytes, sourceBytes, source.start(chunk), source.end(chunk))) {
@@ -57,7 +70,7 @@ function listedPieces(source: StepIndex, sourceClasses: Classification, sourceBy
       rewritten[chunk] = 1;
     }
   }
-  return { listed, rewritten };
+  return { listed, restored, added, rewritten };
 }
 
 function goneFromOutput(source: StepIndex, sourceClasses: Classification, index: StepIndex): Set<number> {
@@ -66,8 +79,62 @@ function goneFromOutput(source: StepIndex, sourceClasses: Classification, index:
   return gone;
 }
 
-function changeListProblems(source: StepIndex, sourceBytes: Uint8Array, index: StepIndex, bytes: Uint8Array,
-  listed: ReadonlyMap<number, ForeignChange>, gone: ReadonlySet<number>): string[] {
+interface Checks {
+  readonly leaving: (relation: number) => ReadonlySet<number>;
+  readonly newNames: ReadonlySet<string>;
+}
+
+function checksFor(source: StepIndex, sourceClasses: Classification, planning: PlanningChange | undefined): Checks {
+  const departure = departuresOf(source, sourceClasses.selection.inD, planning);
+  const cache = new Map<number, ReadonlySet<number>>();
+  const leaving = (relation: number) => {
+    let set = cache.get(relation);
+    if (!set) {
+      const d = departure(relation);
+      cache.set(relation, set = 'leave' in d ? d.leave : new Set());
+    }
+    return set;
+  };
+  if (!planning) return { leaving, newNames: new Set() };
+  const names = (d: WriteIFCInput) => new Set([...(d.customFieldDefs ?? []).map(f => f.name), ...(d.activityCodeTypes ?? []).map(t => t.name)]);
+  const before = names(planning.before);
+  return { leaving, newNames: new Set([...names(planning.after)].filter(name => !before.has(name))) };
+}
+
+function replacements(index: StepIndex, classes: Classification, name: string): Map<string, number> {
+  const out = new Map<string, number>();
+  const named = (container: number, arg: number) => index.refsAt(container, arg).some(p => index.name(p) === name && classes.classes[p] === 1);
+  for (let i = 0; i < index.count; i++) {
+    if (!index.isEntity(i)) continue;
+    const type = index.type(i);
+    if (type === 'IFCRELDEFINESBYPROPERTIES') {
+      const pset = index.refAt(i, 5);
+      if (pset < 0 || index.type(pset) !== 'IFCPROPERTYSET' || !named(pset, 4)) continue;
+      for (const owner of index.refsAt(i, 4)) add(out, JSON.stringify([index.id(owner), index.name(pset)]));
+    } else if (type === 'IFCPROPERTYSETTEMPLATE' && named(i, 6)) add(out, JSON.stringify(['template', index.name(i)]));
+  }
+  return out;
+}
+
+function ownNameInOutput(source: StepIndex, sourceClasses: Classification, index: StepIndex, classes: Classification, chunk: number,
+  checks: Checks): boolean {
+  if (!sourceClasses.foreignMembers.includes(chunk)) return false;
+  const name = source.name(chunk) ?? '';
+  const codeType = name.endsWith(ACTIVITY_CODE_ID_SUFFIX) ? name.slice(0, -ACTIVITY_CODE_ID_SUFFIX.length) : name;
+  if (!checks.newNames.has(name) && !checks.newNames.has(codeType)) return false;
+  for (let k = source.inStart(chunk); k < source.inEnd(chunk); k++) {
+    const parent = source.inSource(k);
+    if (source.type(parent) === 'IFCPROPERTYSET' && source.inArg(k) === 4 && psetOwners(source, parent).length !== 1) return false;
+  }
+  const expected = bindings(source, source.id(chunk));
+  if (expected.size === 0) return false;
+  const shown = replacements(index, classes, name);
+  return [...expected].every(([key, count]) => (shown.get(key) ?? 0) >= count);
+}
+
+function changeListProblems(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array, index: StepIndex, classes: Classification,
+  bytes: Uint8Array, listed: ReadonlyMap<number, Exclude<ForeignChange, RestoredForeignPiece>>, gone: ReadonlySet<number>,
+  restored: ReadonlyMap<number, Uint8Array>, checks: Checks): string[] {
   const problems: string[] = [];
   const removed = new Set(gone);
   const valueOf = (ix: StepIndex, b: Uint8Array, chunk: number) => chunk < 0 ? undefined : entityValue(b, ix.entityStart(chunk), ix.end(chunk));
@@ -95,19 +162,41 @@ function changeListProblems(source: StepIndex, sourceBytes: Uint8Array, index: S
       if (!removed.has(id)) { removed.add(id); queue.push(id); }
     }
   }
+  const chunkOfId = new Map([...listed].map(([chunk, change]) => [change.id, chunk]));
   for (const piece of pending) {
-    if (!justified.has(piece.id)) problems.push(`wijzigingslijst: #${piece.id} vervalt, maar geen verwijderd stuk laat het vervallen`);
+    if (justified.has(piece.id)) continue;
+    const leaving = checks.leaving(chunkOfId.get(piece.id)!);
+    const lists = piece.value ? placeTriggers(piece.value).lists : [];
+    if (leaving.size > 0 && lists.some(list => list.every(id => removed.has(id) || leaving.has(id)))) continue;
+    if (ownNameInOutput(source, sourceClasses, index, classes, chunkOfId.get(piece.id)!, checks)) continue;
+    problems.push(`wijzigingslijst: #${piece.id} vervalt, maar geen verwijderd stuk laat het vervallen`);
   }
   for (const [chunk, change] of listed) {
     if (change.kind !== 'gewijzigd') continue;
     const before = valueOf(source, sourceBytes, chunk), after = valueOf(index, bytes, index.chunkOf(String(change.id)));
-    const want = before && serializeStepValue(withoutRemovedMembers(before, removed));
-    if (!before || !after) problems.push(`wijzigingslijst: gewijzigd stuk #${change.id} is niet te lezen`);
-    else if (losesItsPlace(before, removed)) problems.push(`wijzigingslijst: #${change.id} staat als gewijzigd op de lijst, maar vervalt volgens §4.7`);
-    else if (want === serializeStepValue(before)) problems.push(`wijzigingslijst: #${change.id} staat als gewijzigd op de lijst, maar verliest geen lid`);
-    else if (want !== serializeStepValue(after)) {
-      problems.push(`gewijzigd niet-P-stuk #${change.id}: in de uitvoer niet hetzelfde stuk met alleen de leden naar verwijderde stukken eruit`);
+    if (!before || !after) {
+      problems.push(`wijzigingslijst: gewijzigd stuk #${change.id} is niet te lezen`);
+      continue;
     }
+    const lost = new Set([...removed, ...checks.leaving(chunk)]);
+    const want = serializeStepValue(withoutRemovedMembers(before, lost));
+    if (losesItsPlace(before, lost)) problems.push(`wijzigingslijst: #${change.id} staat als gewijzigd op de lijst, maar vervalt volgens §4.7`);
+    else if (want === serializeStepValue(before)) problems.push(`wijzigingslijst: #${change.id} staat als gewijzigd op de lijst, maar verliest geen lid`);
+    else if (!restored.has(chunk) && want !== serializeStepValue(after)) {
+      problems.push(`gewijzigd niet-P-stuk #${change.id}: in de uitvoer niet hetzelfde stuk met precies de leden naar verwijderde stukken en de vertrekkende planningsleden eruit`);
+    }
+  }
+  const inD = sourceClasses.selection.inD, candidates = new Set<number>();
+  for (let d = 0; d < source.count; d++) {
+    if (inD[d] !== 1) continue;
+    for (let k = source.inStart(d); k < source.inEnd(d); k++) {
+      const from = source.inSource(k);
+      if (from >= 0 && sourceClasses.classes[from] !== 1 && !listed.has(from) && !restored.has(from)) candidates.add(from);
+    }
+  }
+  for (const chunk of [...candidates].sort((a, b) => a - b)) {
+    const missing = [...checks.leaving(chunk)].filter(id => !removed.has(id));
+    if (missing.length > 0) problems.push(`#${source.id(chunk)} staat niet op de wijzigingslijst, maar ${missing.map(id => `#${id}`).join(', ')} hoort er volgens de planning uit`);
   }
   return problems;
 }
@@ -295,33 +384,44 @@ export function differenceCounts(source: StepIndex, sourceClasses: Classificatio
 
 /** `full`: alleen voor proeven, altijd de volledige telling. `counting` zegt welke telling liep. */
 export function validateMergeOutput(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array,
-  bytes: Uint8Array, options: { full?: boolean; changes?: readonly ForeignChange[] } = {}): { index: StepIndex; classification: Classification; problems: string[];
+  bytes: Uint8Array, options: { full?: boolean; changes?: readonly ForeignChange[]; planning?: PlanningChange } = {}): { index: StepIndex; classification: Classification; problems: string[];
   counting: 'verschil' | 'volledig' } {
   // Ook dubbele #ids en ongeldige STEP worden door de bestaande scanner geweigerd.
   const index = scanForeignStep(bytes), classification = classify(index), problems: string[] = [];
-  const { listed, rewritten } = listedPieces(source, sourceClasses, sourceBytes, options.changes ?? [], problems);
+  const { listed, restored, added, rewritten } = listedPieces(source, sourceClasses, sourceBytes, options.changes ?? [], problems);
   const gone = goneFromOutput(source, sourceClasses, index);
   // De stuknummers van de niet-P-stukken van bron en uitvoer, als `Int32Array`: bij een groot model zijn het er miljoenen
   // (#804).
   const preservedAll = new Int32Array(source.count);
   let preservedCount = 0;
   for (let i = 0; i < source.count; i++) {
-    if (sourceClasses.classes[i] !== 1 && listed.get(i)?.kind !== 'vervallen') preservedAll[preservedCount++] = i;
+    if (sourceClasses.classes[i] !== 1 && (listed.get(i)?.kind !== 'vervallen' || restored.has(i))) preservedAll[preservedCount++] = i;
   }
   const preserved = preservedAll.subarray(0, preservedCount);
-  const actualAll = new Int32Array(index.count);
+  const actualAll = new Int32Array(index.count), seen = new Set<string>();
   let actualCount = 0;
   for (let i = 0; i < index.count; i++) {
     const entity = index.isEntity(i), original = entity ? source.chunkOf(index.id(i)) : -1;
     if (!entity || (original >= 0 && sourceClasses.classes[original] !== 1)) actualAll[actualCount++] = i;
-    else if (classification.classes[i] !== 1) problems.push(`extra niet-P-stuk #${index.id(i)}`);
+    else if (added.has(index.id(i))) {
+      const want = added.get(index.id(i))!;
+      if (classification.classes[i] === 1 || !equalBytes(want, bytes, index.entityStart(i), index.end(i))) {
+        problems.push(`teruggezet stuk #${index.id(i)}: in de uitvoer niet met de bytes van de wijzigingslijst`);
+      }
+      seen.add(index.id(i));
+    } else if (classification.classes[i] !== 1) problems.push(`extra niet-P-stuk #${index.id(i)}`);
   }
   const actual = actualAll.subarray(0, actualCount);
+  for (const id of added.keys()) if (!seen.has(id)) problems.push(`teruggezet stuk #${id} ontbreekt in de uitvoer`);
   if (preserved.length !== actual.length) problems.push(`niet-P-stukken: ${preserved.length} → ${actual.length}`);
   for (let j = 0; j < Math.min(preserved.length, actual.length); j++) {
     const before = preserved[j], after = actual[j], change = listed.get(before);
     if (source.id(before) !== index.id(after)) {
       problems.push(`niet-P-stuk op plek ${j}: #${source.id(before)} ontbreekt, is gewijzigd of verplaatst`);
+    } else if (restored.has(before)) {
+      if (!equalBytes(restored.get(before)!, bytes, index.start(after), index.end(after))) {
+        problems.push(`niet-P-stuk op plek ${j}: #${source.id(before)} heeft niet de teruggezette bytes van de wijzigingslijst`);
+      }
     } else if (change?.kind === 'gewijzigd') {
       if (!equalBytes(change.newBytes, bytes, index.start(after), index.end(after))) {
         problems.push(`niet-P-stuk op plek ${j}: #${source.id(before)} heeft niet de nieuwe bytes van de wijzigingslijst`);
@@ -332,8 +432,10 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
   }
   // Vond de lus hierboven niets, dan staat elk niet-P-stuk byte-gelijk op zijn plek: dan telt alleen het verschil.
   const counting = problems.length === 0 && !options.full ? 'verschil' : 'volledig';
-  for (const problem of changeListProblems(source, sourceBytes, index, bytes, listed, gone)) problems.push(problem);
+  for (const problem of changeListProblems(source, sourceClasses, sourceBytes, index, classification, bytes, listed, gone, restored,
+    checksFor(source, sourceClasses, options.planning))) problems.push(problem);
   for (const member of sourceClasses.foreignMembers) {
+    if (listed.get(member)?.kind === 'vervallen') continue;
     const id = source.id(member), expected = bindings(source, id), shown = bindings(index, id);
     for (const key of [...expected.keys()]) if (gone.has(Number(JSON.parse(key)[0]))) expected.delete(key);
     if (expected.size !== shown.size || [...expected].some(([key, count]) => shown.get(key) !== count)) {

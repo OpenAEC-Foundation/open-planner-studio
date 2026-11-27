@@ -14,8 +14,11 @@ import { rememberLiteralCalendarsWritten } from '@/state/savedLiteralCalendars';
 import { ifcSchemaBlocksSilentWrite } from '@/services/ifc/ifcSchemaQuestion';
 import { buildWriteIFCInput, sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { documentContentOf, sameDocumentContent, type DocumentContentRef } from '@/state/documentSaveState';
-import { computeIfcOutputHere, documentSaveCompute, prepareIfcOutput, writtenFingerprint, type IfcOutputCompute } from '@/state/prepareIfcOutput';
+import { computeIfcOutputHere, documentSaveCompute, prepareIfcOutput, withUtf8Bom, writtenFingerprint, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
+import { IfcxWriteRefusedError } from '@/services/ifc/ifcx/ifcxErrors';
+import { IFCX_FLAG_OFF_NOTICE, ifcxWriteBlocked, ifcxWriteRefusedNotice, outputFormat } from '@/state/ifcxGuard';
+import type { IfcxClassify } from '@/services/fileAccess/foreignSourceTarget';
 import {
   canWriteToRefWithoutPrompt, fileIdentityFs, localTargetName, sameFileRef, saveTargetRef, saveToRefWithoutPrompt, sourceTargetContent,
   writeTargetReaders, type FileRef,
@@ -74,6 +77,7 @@ export function createFileAutoSaveController(deps: {
   /** Het rekenen van de IFC-uitvoer (#804 stap 6): in de gemounte app de opslagworker (`useAutoSave` geeft
    *  `appStoreContext.runtime.ifcSaveCompute`), standaard deze thread. */
   compute?: IfcOutputCompute;
+  classifyIfcx?: IfcxClassify;
   /** #804 stap 8: de klok van het ritme met een gebouwmodel; injecteerbaar voor tests. */
   now?: () => number;
 }): FileAutoSaveController {
@@ -98,6 +102,8 @@ export function createFileAutoSaveController(deps: {
   const targetDeps: WriteTargetDeps = deps.targetDeps ?? { identityFs: fileIdentityFs, readers: writeTargetReaders };
   // #804 fase 1a: één melding per document als AutoSave aanstaat maar het vreemde deel opslaan verhindert.
   const foreignNotified = new Set<string>();
+  const ifcxFlagOffNotified = new Set<string>();
+  const ifcxRefusedSource = new Map<string, IFCSaveSource>();
   // #804 fixronde 2: per document het doel dat de doelcontrole weigerde (de bron van een ander open document met een
   // vreemd deel, of een bestaand bestand met een gebouwmodel). AutoSave probeert daar niet opnieuw naartoe tot de
   // planner zelf opslaat (het document is dan niet meer gewijzigd) of een ander doel kiest. De melding één keer per
@@ -117,7 +123,7 @@ export function createFileAutoSaveController(deps: {
   };
   const payloadOf = (id: string) => getState().getOpenDocumentPayloads().find(d => d.id === id)?.payload;
   const knownTargetOf = (id: string): KnownTargetState => ({
-    featureFlags: getState().ui.featureFlags, known: payloadOf(id)?.knownTargetFingerprint ?? null,
+    featureFlags: getState().ui.featureFlags, format: payloadOf(id)?.fileFormat ?? 'ifc', known: payloadOf(id)?.knownTargetFingerprint ?? null,
   });
 
   /**
@@ -270,7 +276,7 @@ export function createFileAutoSaveController(deps: {
   const settleRefusal = (id: string, payload: DocumentPayload, ref: FileRef | null) => {
     const refused = refusedTarget.get(id);
     if (refused && (!payload.isDirty || !ref || !sameFileRef(refused.ref, ref) || payload.ifcSource !== refused.source
-      || (refused.known !== null && guardedKnownTarget({ featureFlags: getState().ui.featureFlags, known: payload.knownTargetFingerprint }, ref) !== refused.known))) {
+      || (refused.known !== null && guardedKnownTarget({ featureFlags: getState().ui.featureFlags, format: payload.fileFormat, known: payload.knownTargetFingerprint }, ref) !== refused.known))) {
       refusedTarget.delete(id);
     }
   };
@@ -291,7 +297,13 @@ export function createFileAutoSaveController(deps: {
 
   /** Doet dit document zonder gebouwmodel mee met de gewone tik? Dezelfde toets bij de keuze (`listPlain`) en bij de beurt
    *  in de rij (`write`, fixronde 4 van de review van #1033): een document met een vreemd deel schrijft deze route nooit. */
-  const plainTakesPart = (id: string, payload: DocumentPayload): boolean => takesPart(id, payload) && !ifcSaveBlocked(payload);
+  const plainTakesPart = (id: string, payload: DocumentPayload, featureFlags: KnownTargetState['featureFlags']): boolean =>
+    takesPart(id, payload) && !ifcSaveBlocked(payload) && !ifcxWriteBlocked(payload, featureFlags)
+    && !sameRefusedIfcx(id, payload);
+  const sameRefusedIfcx = (id: string, payload: DocumentPayload): boolean => {
+    const refused = ifcxRefusedSource.get(id);
+    return !!refused && sameIFCSource(refused, payload);
+  };
 
   /** Fixronde 2 van de review van #1033: is dit document met een gebouwmodel nu (nog) aan de beurt? */
   const stillDue = (id: string): boolean => {
@@ -322,9 +334,14 @@ export function createFileAutoSaveController(deps: {
         foreignNotified.add(id);
         getState().notify(ifcWriteBlockedNotice(payload));
       }
-      const enabled = plainTakesPart(id, payload);
+      if (ifcxWriteBlocked(payload, state.ui.featureFlags) && payload.autoSaveToFile && payload.isDirty && !ifcxFlagOffNotified.has(id)) {
+        ifcxFlagOffNotified.add(id);
+        getState().notify(IFCX_FLAG_OFF_NOTICE);
+      }
+      const enabled = plainTakesPart(id, payload, state.ui.featureFlags);
       candidates.push({ id, content: documentContentOf(state, id)!.content, enabled, dirty: payload.isDirty,
-        ref: autoSaveRef(payload), source: payload });
+        ref: autoSaveRef(payload), source: payload,
+        start: { featureFlags: state.ui.featureFlags, format: payload.fileFormat, known: payload.knownTargetFingerprint } });
     }
     return candidates;
   };
@@ -361,7 +378,8 @@ export function createFileAutoSaveController(deps: {
       // Automatisch opslaan intussen uit, dan schrijft hij niets en meldt hij niets. Fixronde 5: synchroon, zonder wachten
       // tussen deze toets en het voorbereiden; de schrijftoestemming vraagt de controller zoals vóór stap 8 (`canWrite`).
       const target = autoSaveRef(current);
-      if (!deps.enabled() || !current.isDirty || !plainTakesPart(candidate.id, current)
+      const start = candidate.start ?? knownTargetOf(candidate.id);
+      if (!deps.enabled() || !current.isDirty || !plainTakesPart(candidate.id, current, start.featureFlags)
         || !target || !sameFileRef(target, candidate.ref!)) return 'refused';
       const document = { id: candidate.id, content: candidate.content };
       if (!sameDocumentContent(getState(), document)) return 'stale';
@@ -369,18 +387,31 @@ export function createFileAutoSaveController(deps: {
       // #804 stap 6: de momentopname en het rekenen onder het schrijfslot, via dezelfde berekenfunctie als Ctrl+S
       // (de opslagworker). Typt de planner intussen, dan schrijft de ronde deze momentopname en blijft het document
       // gewijzigd (`commitSavedDocument`); de volgende ronde neemt het latere werk mee.
-      const ui = getState().ui;
+      const ui = { ...getState().ui, featureFlags: start.featureFlags };
+      const format = outputFormat({ fileFormat: start.format }, ui.featureFlags);
+      const at = { getOpenDocumentPayloads: () => getState().getOpenDocumentPayloads(), ui };
+      const ownVersion = guardedKnownTarget(start, candidate.ref!);
+      const ownBomVersion = ownVersion?.utf8Bom ? ownVersion : null;
       const output = await prepareIfcOutput({ ...current, ui }, buildWriteIFCInput(current, 'merge'), undefined,
-        documentSaveCompute(ui.featureFlags, compute));
+        documentSaveCompute(ui.featureFlags, deps.compute, format)).catch((error: unknown) => {
+        if (error instanceof IfcxWriteRefusedError) ifcxRefusedSource.set(candidate.id, current);
+        throw error;
+      });
       if (output.prepared) return 'refused';
       // #804 fixronde 2: dezelfde doelcontrole als Opslaan, onder dezelfde lock. Fixronde 1 van #1027 (review Sol): ná het
       // rekenen, vlak vóór het schrijven, zoals Ctrl+S: een gebouwmodel dat tijdens het rekenen op het doel verscheen,
       // wordt niet overschreven. Eén doelscan; daarna beslist alleen nog de synchrone inhoudscontrole hieronder.
-      const ownWritten = writtenKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
-      let reason = ownWritten ? contentLeftToKnownTarget(await refusedTargetIdentity(getState(), candidate.ref!, targetDeps))
-        : await refusedWriteTarget(getState(), candidate.ref!, targetDeps);
+      const ownWritten = writtenKnownTarget(start, candidate.ref!);
+      const bomData = ownBomVersion ? withUtf8Bom(output.bytes ?? output.content) : null;
+      const bomHashing = bomData && output.sha256 !== undefined ? writtenFingerprint(ui.featureFlags, format, output, bomData) : null;
+      const writeDeps: WriteTargetDeps = {
+        ...targetDeps, ...(format === 'ifcx' ? { writesIfcx: true, classifyIfcx: deps.classifyIfcx, knownVersion: !!ownVersion } : {}),
+        ...(ownBomVersion ? { ownBomVersion } : {}),
+      };
+      let reason = ownWritten ? contentLeftToKnownTarget(await refusedTargetIdentity(at, candidate.ref!, writeDeps))
+        : await refusedWriteTarget(at, candidate.ref!, writeDeps);
       const stable = !reason && !!ownWritten && await stillWrittenKnownTarget(ownWritten, candidate.ref!);
-      if (!reason && ownWritten && !stable) reason = await refusedWriteTarget(getState(), candidate.ref!, targetDeps);
+      if (!reason && ownWritten && !stable) reason = await refusedWriteTarget(at, candidate.ref!, writeDeps);
       if (reason) {
         refusedTarget.set(candidate.id, { ref: candidate.ref!, source: current.ifcSource, known: null });
         if (!targetNotified.has(candidate.id)) {
@@ -390,8 +421,8 @@ export function createFileAutoSaveController(deps: {
         }
         return 'refused';
       }
-      const known = stable ? null : guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
-      if (known && await changedKnownTarget(() => knownTargetOf(candidate.id), known, candidate.ref!)) {
+      const known = stable ? null : guardedKnownTarget(start, candidate.ref!);
+      if (known && await changedKnownTarget(() => start, known, candidate.ref!)) {
         stopFor(candidate.id, candidate.ref!, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE, known);
         return 'refused';
       }
@@ -400,10 +431,10 @@ export function createFileAutoSaveController(deps: {
       let replaced = false;
       const contentReplaced = () => (replaced = !sameDocumentContent(getState(), document));
       if (contentReplaced()) return 'stale';
-      const hashing = writtenFingerprint(ui.featureFlags, output);
+      const hashing = bomData ? bomHashing ?? writtenFingerprint(ui.featureFlags, format, output, bomData) : writtenFingerprint(ui.featureFlags, format, output);
       let written: Awaited<ReturnType<typeof saveToRefWithoutPrompt>>;
       try {
-        written = await saveToRefWithoutPrompt(candidate.ref!, output.bytes ?? output.content, contentReplaced);
+        written = await saveToRefWithoutPrompt(candidate.ref!, bomData ?? output.bytes ?? output.content, contentReplaced);
       } catch (error) {
         if (candidate.ref?.kind === 'path') getState().forgetKnownTargetFingerprint(candidate.id);
         throw error;
@@ -420,6 +451,10 @@ export function createFileAutoSaveController(deps: {
       // #804 stap 6: de opslagworker stierf of verliep; niets geschreven, dezelfde melding als bij Ctrl+S.
       if (error instanceof IfcSaveWorkerError) {
         getState().notify(IFC_SAVE_WORKER_FAILED_NOTICE);
+        return;
+      }
+      if (error instanceof IfcxWriteRefusedError) {
+        getState().notify(ifcxWriteRefusedNotice(error));
         return;
       }
       getState().notify({

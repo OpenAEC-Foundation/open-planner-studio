@@ -56,11 +56,31 @@ de taak zelf afleiden). Dat is een keuze die je opschrijft, geen omissie.
 Zo'n tabel heeft elk type dat de lezer tot planning maakt (#804 fase 2, ontwerp §4.5): `IfcTask` en
 `IfcTaskTime` in `ifcTaskSlots.ts`; het werkplan, het live werkschema, het baselineschema en de werkkalender
 in `ifcWorkControlSlots.ts`; de resources in `ifcResourceSlots.ts`; `IfcRelSequence` en `IfcLagTime` in
-`ifcSequenceSlots.ts`. Het register `IFC_SLOT_TABLES` (`ifcSlotTables.ts`) noemt ze allemaal. De writer schrijft
-elke regel van zo'n type met `writeSlots` uit de tabel. De lezer leest de slots op naam (`TASK_SLOT`,
+`ifcSequenceSlots.ts`; de zes relatietypen die een eigen relatie kunnen zijn (`IfcRelNests`, `IfcRelAggregates`,
+`IfcRelAssignsToControl`, `IfcRelAssignsToProcess` met `QuantityInProcess`, `IfcRelDeclares`,
+`IfcRelDefinesByProperties`) in `ifcRelationSlots.ts`. Het register `IFC_SLOT_TABLES` (`ifcSlotTables.ts`) noemt ze
+allemaal. De writer schrijft elke regel van zo'n type met `writeSlots` uit de tabel, behalve de relaties: die
+schrijft hij nog met zijn eigen sjablonen. De lezer leest de slots op naam (`TASK_SLOT`,
 `CALENDAR_SLOT`, `SEQUENCE_SLOT`, …); bij een type met een oude eigen lay-out kiest een functie de plekken op de
 argumenten (`taskSlots`, `workControlSlots`, `workCalendarSlots`, `resourceSlots`, `lagTimeSlots`). Een slot dat
-in een lay-out ontbreekt, staat daar op `-1`.
+in een lay-out ontbreekt, staat daar op `-1`, ook `PredefinedType` van een werkplan of werkschema na `MergeProjects`.
+Per bronregel geeft `slotTableOf` precies één tabel: een werkschema is de baselinetabel als `isBaselineWorkControl`
+(`ifcWorkControlSlots.ts`, dezelfde herkenning als de lezer en de indeling) ja zegt, anders de livetabel.
+`schemaArgsOf` geeft per bronargument de plek in het schema volgens de plekken die de lay-out van de regel kiest;
+`knownLayout` zegt of dat aantal argumenten een bekende lay-out is: het aantal van het schema, of het aantal van de
+oude vorm van die tabel (`legacyArity`: een werkplan of werkschema met 15, een kalender met 8, een taak met 12, een
+resource met 9; de oude `IfcLagTime` en de vormen na `MergeProjects` hebben het aantal van het schema). De verliescontrole van de merge (`alignment` in `foreign/lossCheck.ts`) gebruikt die plekken. Een
+werkplan, werkschema of kalender vergelijkt zij bij elk aantal argumenten op die plekken (13 en 10 ook, zoals vóór het
+register); een ander type met een onbekend aantal geeft `aantal`. De bronkaart neemt alleen regels in de lay-out van
+het schema op (`inSchemaLayout`), en geen regel met een token dat niet verliesvrij te lezen is (een vervangteken na het
+decoderen, zoals bij een rauwe Latin-1-byte); zo'n stuk houdt de weigering `vreemde-herkomst`.
+
+De oude `IfcLagTime` met verwisselde argumenten vergelijkt zij op slotnaam als de writer de waarde exact zo schrijft:
+de oude tekstduur en de `IFCDURATION` van de writer als dagen met teken (de oude vorm kent alleen dagvormen, `lag-oud`
+in `foreign/durationForms.ts`), en hetzelfde type duur. Dan komt de lag in de vorm van het schema. Schrijft de writer
+de waarde niet exact (`'P0Y0M0.10000000000000001D'` wordt `P0.1D`), dan vergelijkt zij op positie, zoals vóór het
+register, en zet (b) het brontoken terug zolang de planner de lag niet wijzigde: de regel blijft zoals in de bron. Een
+oude vorm die niet op de lijst staat, weigert de duurcontrole al vóór het schrijven (`duur-deels-gelezen`).
 
 Elk slot heeft een **soort** (`ifcSlotSoort.ts`):
 
@@ -72,8 +92,12 @@ Elk slot heeft een **soort** (`ifcSlotSoort.ts`):
 Wijkt de soort af bij een stuk van een ander programma, dan staat die in `soortVreemd` (de owner history is
 dan constant). `bronverwijzing` zet een constant slot op de vaste lijst slots waarin een `#`-token uit de bron
 mag blijven staan. `volgt` bindt een afhankelijk slot aan het slot waar het bij hoort (`ObjectType` bij een
-`USERDEFINED`-type). De soorten veranderen nu nog niets aan lezen of schrijven: `sourceSlots` (fase 2, PR 2) kiest
-er per slot mee tussen de bronwaarde en de eigen waarde. `check-ifc-slotsoorten.ts` eist dat elk slot een soort
+`USERDEFINED`-type). `rol` zegt welk slot van een relatie de relating is en welk de leden; de verliescontrole en de
+merge lezen de posities daaruit (`relationRoles`). Bij openen van een bron met een
+vreemd deel bewaart `ifcSource.sourceSlots` (`foreign/sourceSlots.ts`) de tokens per slotnaam van elk D- en R-stuk
+van een ander programma. De merge kiest er per slot mee tussen het brontoken en de waarde van de writer
+(`foreign/sourceSlotWrite.ts`); wat de kaart niet draagt, weigert de merge (`vreemde-herkomst`). De schrijfbeslissing
+per soort (regels A, B en C) staat op één plek uitgewerkt: `.claude/rules/tauri-ifc.md`. `check-ifc-slotsoorten.ts` eist dat elk slot een soort
 heeft, dat de slots de attributen van het schema volgen (in IFC4X3_ADD2, IFC4X3 en IFC4), dat de vaste lijst
 precies de constante slots bevat die volgens het schema een verwijzing kunnen dragen, en de plekken in de oude
 lay-outs.
@@ -159,19 +183,21 @@ alleen als 1 en 2 niet kunnen, en niet omdat het sneller opschiet.
 1. **Voeg het veld toe** aan het domeintype in `src/types/`.
 2. **Kies een route** (hierboven) en schrijf de descriptor — write én read/apply in dezelfde
    descriptor. Kies je route 3, schrijf dan op waarom 1 en 2 niet konden.
-3. **Vul de fixture** in `tests/planning/check-ifc-roundtrip.ts` met een *onderscheidende* waarde.
+3. **Vul de fixture** in `tests/planning/ifcRoundtripFixture.ts` (de maximaal gevulde fixture van
+   `tests/planning/check-ifc-roundtrip.ts`) met een *onderscheidende* waarde.
    Niet de default: een fixture die toevallig de default draagt, kan een writer die niets schrijft
    niet van een writer die het goed doet onderscheiden.
 4. **Zet het veld in de canon-tabel** van datzelfde bestand: meedoen in de vergelijking, of
    gemotiveerd overslaan.
-5. **Draai `npm run verify`.** Ontbreekt er iets, dan valt het daar om — zie hieronder.
+5. **Geef het veld een plek in IFCX** (hieronder, *IFCX: een nieuw veld moet er ook in*).
+6. **Draai `npm run verify`.** Ontbreekt er iets, dan valt het daar om — zie hieronder.
 
 ## De poort
 
 `tests/planning/check-ifc-roundtrip.ts` is de bewaking, en hij is bewust **zelf-uitbreidend**: een
 nieuw domeinveld dwingt twee expliciete keuzes af, allebei op de compiler.
 
-- **De fixtures zijn `satisfies Required<…>`.** Een nieuw veld op `Task`, `Resource`, `Sequence`,
+- **De fixtures zijn `satisfies Required<…>`** (in `tests/planning/ifcRoundtripFixture.ts`). Een nieuw veld op `Task`, `Resource`, `Sequence`,
   `WorkCalendar`, `Project` of `TaskTime` moet een waarde krijgen, anders compileert de test niet.
   (`WorkCalendar` via een typegetuige: geen echte kalender draagt tegelijk een pauzepatroon en
   `workTime`. `workTime` zelf loopt wél door de vergelijking, via de uurkalender `hourCal`.)
@@ -190,6 +216,30 @@ De test doet daarnaast twee dingen die makkelijk te vergeten zijn:
   eerste inlezen krijgen resources, relaties en kalenders een id afgeleid uit hun GlobalId, dus
   anders dan in het schrijvende document (daarna blijft het gelijk; `check-ifc-globalid`). Alle
   kruisverwijzingen worden vóór de vergelijking naar die sleutels herschreven.
+
+## IFCX: een nieuw veld moet er ook in
+
+IFCX (#804, achter de featureflag `ifcx`) schrijft wat STEP na de laadgrens teruggeeft; het profiel staat in
+`docs/ifcx-profiel.md`. Een veld dat STEP bewaart en IFCX niet draagt, laat opslaan als IFCX weigeren: met
+`unsupported` als het veld niet in de lijst van gedragen velden staat (`*_KEYS_CARRIED` in
+`src/services/ifc/ifcx/fields/`), met `self-check` als het er wel staat maar niet terugkomt. Daarom krijgt een
+nieuw veld ook een plek in IFCX:
+
+- **Een veld op project, taak, kalender of relatie** krijgt een veld in het precieze attribuut, in het veldbestand
+  van zijn gebied in `src/services/ifc/ifcx/fields/` (bijvoorbeeld `taskScheduleFields.ts` voor de constraints en
+  werkregels), met een vorm voor elke waarde die STEP teruggeeft. Het veldbestand staat met één regel in de lijst
+  van de kern (`TASK_FIELDS`, `DOCUMENT_FIELDS`, `CALENDAR_FIELDS`, `SEQUENCE_FIELDS`). Een gedeelde projectie
+  (`openaec::planning::`) alleen waar IFC er woorden voor heeft.
+- **Een nieuw veld in `IFC_SAVE_KEYS`** (`src/state/ifcSaveInput.ts`) is een compileerfout tot het een plek heeft in
+  `IFCX_PLACE_OF_SAVE_KEY` (`src/services/ifc/ifcx/saveKeyPlaces.ts`): de sleutels van de schrijverinvoer die het
+  draagt, of een benoemde uitzondering (alleen het P6-bronarchief en wat daaruit volgt, en wat de STEP-schrijver
+  niet krijgt).
+- **De proeven.** De waarde komt in `maximalPlan` van `tests/planning/check-ifcx-kern.ts` (dan doen de veldproef,
+  de mutatieproef en de proef die elk precies veld weghaalt het werk) en in de fixture hierboven. De
+  volledigheidspoort `tests/planning/check-ifcx-velden.ts` eist dat elk voorbeeld in `public/examples`, de bestanden
+  van oudere releases in `tests/planning/fixtures/oude-tags/` en de fixture als IFCX opslaan en openen als de eerste
+  STEP-lezing na de laadgrens, ook geopend in de app met de opslaginvoer van Ctrl+S, en dat een code, een eigen veld en
+  een werkregel die in de app zijn toegevoegd na heropenen en opnieuw opslaan gelijk zijn aan STEP.
 
 ## Als een veld bewust níét round-trippt
 
@@ -691,13 +741,15 @@ eigen besluit.
 | onderwerp | bestand |
 |---|---|
 | native slots (write + read per slot) | `src/services/ifc/ifcTaskSlots.ts`, `ifcWorkControlSlots.ts`, `ifcResourceSlots.ts`, `ifcSequenceSlots.ts` |
-| slotsoorten en het register van de slottabellen | `src/services/ifc/ifcSlotSoort.ts`, `ifcSlotTables.ts`, `tests/planning/check-ifc-slotsoorten.ts` |
+| slotsoorten en het register van de slottabellen | `src/services/ifc/ifcSlotSoort.ts`, `ifcSlotTables.ts`, `ifcRelationSlots.ts`, `tests/planning/check-ifc-slotsoorten.ts` |
 | per-taak-psets (write + apply per descriptor) | `src/services/ifc/ifcPsets.ts` |
 | schrijven | `src/services/ifc/ifcWriter.ts` |
 | lezen | `src/services/ifc/ifcReader.ts` |
 | plekken per indeling (schema, oud, MergeProjects, IFC2X3) | `src/services/ifc/ifcWorkControlSlots.ts`; voor taak, resources en `IfcLagTime`: `taskSlots`, `resourceSlots`, `lagTimeSlots` in hun eigen tabelbestand |
 | schemageldigheid: de poort, de toets per bestand, de tabel, de bronnen | `tests/planning/check-ifc-schema.ts`, `ifcSchemaCheck.ts`, `ifcSchemaTable.ts`, `ifcSchemaFixture.ts` |
-| de poort, de fixture, de canon-tabellen en de `KNOWN_GAPS`-asserties (blok 3) | `tests/planning/check-ifc-roundtrip.ts` |
+| de poort, de canon-tabellen en de `KNOWN_GAPS`-asserties (blok 3) | `tests/planning/check-ifc-roundtrip.ts` |
+| de maximaal gevulde fixture | `tests/planning/ifcRoundtripFixture.ts` |
+| IFCX: de velden per gebied, de typepoort en de volledigheidspoort | `src/services/ifc/ifcx/fields/`, `src/services/ifc/ifcx/saveKeyPlaces.ts`, `tests/planning/check-ifcx-velden.ts` |
 | werkblokken per weekdag (B7): groepen, geen terugvalweek, byte-identiek aan main, de lezer in beide indelingen | `tests/planning/check-ifc-werktijd-per-dag.ts` |
 | welke velden een save meeschrijft | `src/state/ifcSaveInput.ts` |
 | wat een "document" ís (breder dan IFC) | `src/state/documentContract.ts` |

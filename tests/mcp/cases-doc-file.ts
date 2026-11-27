@@ -538,6 +538,25 @@ test('export_ifc: schrijft een IFC-bestand binnen de $HOME-scope', async () => {
   assertEq(data.overwritten, false, 'er stond nog niets op dit pad ⇒ overwritten:false');
 });
 
+test('export_ifc: met de flag ifcx aan geen STEP met een IFCX-naam; met de flag uit zoals main (T6, #804 F3-4)', async () => {
+  installFakeFs();
+  resetToSingleEmptyDocument();
+  loadSmallProject('Export');
+  const path = `${HOME}/export/plan.ifcx`;
+  try {
+    useAppStore.setState((s) => { s.ui.featureFlags = { ifcx: true }; });
+    const refused = await callErr('planner_export_ifc', { path });
+    assertEq(refused.code, 'VALIDATION', 'met de flag aan: een validatiefout');
+    assert(refused.error.includes('.ifc'), 'de fout noemt de extensie .ifc');
+    assertEq(files.has(path), false, 'met de flag aan: niets geschreven');
+    useAppStore.setState((s) => { s.ui.featureFlags = {}; });
+    await callOk('planner_export_ifc', { path });
+    assert(files.get(path)!.startsWith('ISO-10303-21'), 'met de flag uit: STEP op dit pad, zoals main');
+  } finally {
+    useAppStore.setState((s) => { s.ui.featureFlags = {}; });
+  }
+});
+
 test('export_ifc: `overwritten` meldt de WERKELIJKHEID, niet de meegestuurde vlag', async () => {
   installFakeFs();
   resetToSingleEmptyDocument();
@@ -1251,8 +1270,8 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
   };
   resetToSingleEmptyDocument();
   loadSmallProject('Met model');
-  const bonsai = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc')));
-  const bonsaiPath = `${HOME}/bonsai-4d.ifc`;
+  const bonsai = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/council/proef-bonsai-achtig.ifc')));
+  const bonsaiPath = `${HOME}/proef-bonsai-achtig.ifc`;
   setBinaryFile(bonsaiPath, bonsai);
   files.set(bonsaiPath, new TextDecoder().decode(bonsai));
   try {
@@ -1553,6 +1572,14 @@ test('dialoog-guard: een open modaal blokkeert de document-/bestands-tools en de
   } finally {
     useAppStore.setState({ ui: { ...S().ui, pendingPlanOnlyQuestion: null } });
   }
+  useAppStore.setState({ ui: { ...S().ui, pendingForeignChangesQuestion: { count: 3, file: 'model.ifc' } } });
+  try {
+    const tool = await callErr('planner_list_documents');
+    assertEq(tool.code, 'DIALOG_OPEN', 'een tool wacht op de vraag vóór opslaan');
+    assert(tool.error.includes('pendingForeignChangesQuestion'), 'de fout noemt de vraag bij naam');
+  } finally {
+    useAppStore.setState({ ui: { ...S().ui, pendingForeignChangesQuestion: null } });
+  }
 
   // Dialoog dicht ⇒ dezelfde call slaagt weer (bewijst dat de vlag de oorzaak was).
   await callOk('planner_list_documents');
@@ -1671,16 +1698,23 @@ test('export_ifc: volledige bytes, exclusief nieuw doel, bron en document intact
     assertEq(binFiles.get(latinExport)!.length, latin.length, 'dispatcher schrijft de bronlengte');
     assertEq(hash(binFiles.get(latinExport)!), hash(latin), 'dispatcher schrijft exact de bronbytes');
     S().setProject({ name: 'Werkelijk gewijzigde vreemde planning' });
+    const editedLatin = await exportRpc(`${HOME}/latin1-corpus-bewerkt.ifc`, false, latinCtx);
+    assert(editedLatin.ok, 'werkelijke bewerking van de planning van Bonsai exporteert via dispatcher');
+    assertEq(hash(binFiles.get(latinPath)!), hash(latin), 'de bron blijft intact na export');
+    const oldLayout = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/council/proef-bonsai-achtig.ifc')));
+    const oldPath = `${HOME}/proef-bonsai-achtig.ifc`; setBinaryFile(oldPath, oldLayout);
+    const oldCtx = makeCtx(); await callOk('planner_import_schedule', { path: oldPath }, oldCtx);
+    S().setProject({ name: 'Werkelijk gewijzigde vreemde planning' });
     let typedRefusal = false;
     try { await prepareIfcWrite(buildWriteIFCInput(S(), 'merge'), S().ifcSource!); }
     catch (error) { typedRefusal = error instanceof MergeNeedsPhase2Error && error.cases.some(c => c.kind === 'vreemde-herkomst'); }
-    assert(typedRefusal, 'werkelijke bewerking van vreemde corpusplanning weigert getypeerd');
-    const deniedLatin = await exportRpc(`${HOME}/latin1-corpus-bewerkt.ifc`, false, latinCtx);
-    assert(!deniedLatin.ok && deniedLatin.code === 'VALIDATION' && deniedLatin.error.includes('vreemde-herkomst'),
+    assert(typedRefusal, 'een bewerking van een vreemde planning in een lay-out die de kaart niet draagt, weigert getypeerd');
+    const deniedOld = await exportRpc(`${HOME}/proef-bonsai-achtig-bewerkt.ifc`, false, oldCtx);
+    assert(!deniedOld.ok && deniedOld.code === 'VALIDATION' && deniedOld.error.includes('vreemde-herkomst'),
       'corpusweigering getypeerd via dispatcher, nul bytes');
-    assertEq(binFiles.has(`${HOME}/latin1-corpus-bewerkt.ifc`), false, 'geen bewerkte corpusuitvoer');
-    assertEq(hash(binFiles.get(latinPath)!), hash(latin), 'de bron blijft intact na export en weigering');
-    assertEq(byteWrites, 3, 'drie volledige byte-exports'); assertEq(textWrites, 0, 'geen tekstrondgang');
+    assertEq(binFiles.has(`${HOME}/proef-bonsai-achtig-bewerkt.ifc`), false, 'geen bewerkte corpusuitvoer');
+    assertEq(hash(binFiles.get(oldPath)!), hash(oldLayout), 'de bron blijft intact na de weigering');
+    assertEq(byteWrites, 4, 'vier volledige byte-exports'); assertEq(textWrites, 0, 'geen tekstrondgang');
   } finally { useAppStore.setState(s => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument(); }
 });
 

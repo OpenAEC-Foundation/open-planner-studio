@@ -37,6 +37,7 @@ import type { McpServerStatus } from '@/services/mcp/contracts';
 import type { SiteOpenRequest, SiteSaveRequest } from '@/services/fileAccess/siteDialogs';
 import type { IfcSchemaQuestion } from '@/services/ifc/ifcSchemaQuestion';
 import type { PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
+import type { ForeignChangesQuestion } from '@/services/ifc/foreignChangesQuestion';
 import type { FormatNoticeKind } from '@/services/formatNoticeKinds';
 import type { XerWriteLossCode } from '@/services/xerWriteTypes';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
@@ -207,6 +208,13 @@ export type NotificationMessageKey =
   | 'notifications.minuteModelConverted'
   | 'notifications.minuteModelCalendarRepaired'
   | 'notifications.openFailed'
+  | 'ifcx.open.foreign'
+  | 'ifcx.open.newer'
+  | 'ifcx.open.invalid'
+  | 'ifcx.open.notIfcx'
+  | 'ifcx.writeRefused'
+  | 'ifcx.flagOff'
+  | 'ifcx.nameMismatch'
   // Rapport-tabblad (#861): de gekozen layout is verwijderd; het rapport valt terug op alle taken.
   | 'notifications.reportLayoutGone'
   // Eigen rapportlettertype (#770): zonder vette variant (vet in de gewone letter), of de kopie is weg (terug op Inter).
@@ -993,6 +1001,8 @@ export interface UIState {
   /** session — de openstaande vraag "alleen de planning" met haar reden (`services/ifc/planOnlyQuestion.ts`), of `null`.
    *  Het antwoord gaat via `state/planOnlyQuestionBridge.ts`. Een wachtende modale vraag: bevriest sneltoetsen. */
   pendingPlanOnlyQuestion: PlanOnlyReason | null;
+  pendingForeignChangesQuestion: ForeignChangesQuestion | null;
+  foreignChangesQuestion: boolean;
   /** session — de uitleg na het openen van een ander formaat dan IFC (`FormatNoticeDialog`), of
    *  `null`. Alleen de open-routes van de gebruiker zetten hem (`fileSlice`, `formatNoticeToShow`).
    *  Bewust NIET blokkerend in `hasBlockingDialogOpen`: het project staat er al achter, de uitleg

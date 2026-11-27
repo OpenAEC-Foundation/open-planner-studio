@@ -225,8 +225,10 @@ export interface MinuteModelOptions {
   milestonesAtDayEnd?: ReadonlySet<string>;
 }
 
-export interface MinuteModelMigration {
-  payload: DocumentPayload;
+export type MinuteModelPayload = Pick<DocumentPayload, 'project' | 'calendar' | 'calendars' | 'tasks' | 'baselines' | 'resources'>;
+
+export interface MinuteModelMigration<P extends MinuteModelPayload = DocumentPayload> {
+  payload: P;
   report: MinuteModelReport;
 }
 
@@ -455,7 +457,7 @@ function migrateBaseline(
  * bevroren payload mag), onveranderde taken en baselines houden hun identiteit, en twee keer draaien geeft
  * hetzelfde (een moment blijft een moment; een herstelde kalender heeft niets meer te herstellen).
  */
-export function migrateToMinuteModel(payload: DocumentPayload, options: MinuteModelOptions = {}): MinuteModelMigration {
+export function migrateToMinuteModel<P extends MinuteModelPayload>(payload: P, options: MinuteModelOptions = {}): MinuteModelMigration<P> {
   const legacyFile = options.timeModel !== MINUTE_MODEL_TIME_MODEL;
   const report: MinuteModelReport = {
     legacyFile,

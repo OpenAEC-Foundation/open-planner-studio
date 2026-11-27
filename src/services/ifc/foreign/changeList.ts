@@ -29,7 +29,16 @@ export interface DroppedForeignPiece {
   readonly unusedKeyOfTask?: number;
 }
 
-export type ForeignChange = ChangedForeignPiece | DroppedForeignPiece;
+export interface RestoredForeignPiece {
+  readonly kind: 'teruggezet';
+  readonly id: number;
+  readonly newBytes: Uint8Array;
+}
+
+export type ForeignChange = ChangedForeignPiece | DroppedForeignPiece | RestoredForeignPiece;
+
+export const countedForeignChanges = (changes: readonly ForeignChange[] | undefined): number =>
+  (changes ?? []).filter(change => change.kind !== 'teruggezet').length;
 
 export interface DroppedUnusedKey {
   readonly taskStepId: number;
@@ -155,6 +164,10 @@ export function applyForeignRule(references: ForeignReferences, gone: ReadonlySe
 
 const sameTargets = (a: ReadonlySet<number> | undefined, b: ReadonlySet<number>) =>
   a !== undefined && a.size === b.size && [...b].every(target => a.has(target));
+
+export function foreignChangeCount(outcome: ForeignRuleOutcome): number {
+  return outcome.dropped.size + outcome.trimmed.size + outcome.droppedUnusedKeys.length;
+}
 
 export function newForeignChangeCount(before: ForeignRuleOutcome, after: ForeignRuleOutcome): number {
   let count = 0;

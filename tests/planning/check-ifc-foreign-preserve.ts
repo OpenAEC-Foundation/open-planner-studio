@@ -37,11 +37,13 @@ import {
   type Domain, type Opened,
 } from './ifcMergeKern';
 import { applyTaskProgress, openInStore, storeEdit } from './ifcAppRoute';
+import { assignmentOrigin } from '@/services/ifc/foreign/assignmentOrigin';
 import { MergeNeedsPhase2Error, prepareIfcWrite, mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { changedScopes, lossCheck, parseOutLine, pristineDomain, sameDuration, sameNumber, type OutLine } from '@/services/ifc/foreign/lossCheck';
 import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import type { Task } from '@/types/task';
 import { classify } from '@/services/ifc/foreign/classify';
+import { slotTableNamed } from '@/services/ifc/ifcSlotTables';
 import { sourceFormWhereUnchanged } from '@/services/ifc/foreign/sourceForm';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -149,21 +151,18 @@ async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) =>
 
 // ── 1. Het corpus, zonder wijziging ──
 
-/** Een planning van Bonsai: werkplan, werkschema's en taken hebben de owner history van Bonsai (§4.5), en `Creators`
- *  staat in een slot dat de writer leeg schrijft. Behouden kan pas met herkomstmerken (fase 2). */
 /** De modellen met een kleine eigen planning die al vóór fixronde 3 schreven (geen oud eigen bestand). */
 const WRITES_FOREIGN_PLANNING: ReadonlySet<string> = new Set(['complexe-instanties.ifc', 'model-ifc4.ifc', 'model-ifc4x3.ifc']);
+const BONSAI_WRITES: ReadonlySet<string> = new Set(['bonsai-4d.ifc', 'crlf-commentaar.ifc', 'dubbele-globalids.ifc', 'latin1.ifc',
+  'twee-werkplannen.ifc']);
 const BONSAI = ['niet-gedragen', 'vreemde-herkomst'];
 /** Bestanden van een ander programma: ze weigeren met deze gevallen. */
 const REFUSED: Readonly<Record<string, readonly string[]>> = {
-  'bonsai-4d.ifc': BONSAI, 'crlf-commentaar.ifc': BONSAI, 'dubbele-globalids.ifc': BONSAI, 'latin1.ifc': BONSAI,
-  'twee-werkplannen.ifc': BONSAI, 'council/proef-bonsai-achtig.ifc': BONSAI, 'council/r5sol-parallelle-relaties.ifc': BONSAI,
+  'council/proef-bonsai-achtig.ifc': BONSAI, 'council/r5sol-parallelle-relaties.ifc': BONSAI,
   'council/r6opus-twee-werkplannen.ifc': BONSAI, 'council/r6opus-twee-werkplannen.na.ifc': BONSAI,
   'council/r6sol-herkomst-na-eerste-opslag.ifc': BONSAI, 'council/r7fable-eigen-oh-planning.ifc': BONSAI,
-  // Kalender en psets van een ander programma (VendorOps).
   'council/fix2-vendor-ops.ifc': ['niet-gedragen', 'vreemde-herkomst'],
-  // Plus een gemengde IfcRelAssignsToProcess die de writer anders zou schrijven.
-  'council/r6sol-losse-bonsai-toewijzing.ifc': ['gemengde-relatie', 'niet-gedragen', 'vreemde-herkomst'],
+  'council/r6sol-losse-bonsai-toewijzing.ifc': BONSAI,
 };
 /** Eigen bestanden die ook met (b) weigeren (`niet-gedragen`), met het geval. Elk ander eigen bestand haalt zonder
  *  wijziging de hele ronde (`roundTrip`). */
@@ -209,7 +208,31 @@ for (const file of corpus) {
   // Elk ander bestand schrijft: een model met een eigen planning, ook van een oudere versie (fixronde 3).
   if (!await roundTrip(file, bytes)) continue;
   written++;
-  if (!WRITES_FOREIGN_PLANNING.has(file)) ownWritten++;
+  if (BONSAI_WRITES.has(file)) {
+    const edited = await roundTrip(`${file} met gewijzigde projectbeschrijving`, bytes, rewrite);
+    if (edited) {
+      const before = classify(scanStep(bytes)).foreignOrigin.map(c => scanStep(bytes).id(c));
+      const outIndex = scanStep(edited.out);
+      eq(`${file}: elk stuk van Bonsai houdt na opslaan zijn herkomst`, classify(outIndex).foreignOrigin.map(c => outIndex.id(c)).filter(id => before.includes(id)).length,
+        before.filter(id => outIndex.chunkOf(id) >= 0).length);
+    }
+    const leaf = opened.tasks.find(t => t.childIds.length === 0);
+    const renamed = leaf && await roundTrip(`${file} met een hernoemde taak`, bytes, d => storeEdit(d, s => { s.updateTask(leaf.id, { name: `${leaf.name} (hernoemd)` }); }));
+    if (renamed) {
+      const sourceIndex = scanStep(bytes), outIndex = scanStep(renamed.out);
+      const KEPT: Readonly<Record<string, readonly string[]>> = { IfcTask: ['ownerHistory', 'status'], IfcWorkPlan: ['ownerHistory', 'creators'],
+        'IfcWorkSchedule (live)': ['ownerHistory', 'creators'], IfcRelAssignsToProcess: ['ownerHistory', 'quantityInProcess'] };
+      for (const [id, piece] of opened.ifcSource.sourceSlots ?? []) {
+        const o = outIndex.chunkOf(String(id));
+        for (const key of KEPT[piece.table] ?? []) {
+          if (o >= 0 && outIndex.type(o) === sourceIndex.type(sourceIndex.chunkOf(String(id)))) {
+            const k = slotTableNamed(piece.table)!.slots.findIndex(slot => slot.key === key);
+            eq(`${file} met een hernoemde taak: #${id}.${key} byte-gelijk`, outIndex.argTokens(o)![k].trim(), piece.slots.get(key)!.trim());
+          }
+        }
+      }
+    }
+  } else if (!WRITES_FOREIGN_PLANNING.has(file)) ownWritten++;
   // O1 is niet leeg: zonder bewerking is het domein dat de merge schrijft (`sourceFormWhereUnchanged`: wat alleen het openen
   // veranderde, in de vorm van de bron) gelijk aan het domein van de toets (`changedScopes`).
   const index = scanStep(bytes);
@@ -219,7 +242,8 @@ for (const file of corpus) {
     .filter(k => !READ_ONLY_KEYS.has(k));
   eq(`${file}: zonder bewerking verandert er niets (O1)`, changed.slice(0, 3), []);
 }
-eq('corpus: elk bestand uit REFUSED en OWN_REFUSED bestaat', [...Object.keys(REFUSED), ...Object.keys(OWN_REFUSED)].filter(f => !corpus.includes(f)), []);
+eq('corpus: elk bestand uit REFUSED, OWN_REFUSED en BONSAI_WRITES bestaat',
+  [...Object.keys(REFUSED), ...Object.keys(OWN_REFUSED), ...BONSAI_WRITES].filter(f => !corpus.includes(f)), []);
 ok(`corpus: minstens negentien eigen bestanden schrijven zonder wijziging (${ownWritten})`, ownWritten >= 19);
 
 // ── 2. Varianten met een eigen planning ──
@@ -493,7 +517,8 @@ async function expectRefusal(label: string, bytes: Uint8Array, kind: string, edi
 function unnamed(detail: string): string { return detail.replace(/^([A-Z0-9]+ #\d+) \(.*?\)(?=[,:] )/, '$1'); }
 /** `only` voor een proef op één stuk: het begin van `detail` (`^IFCTASK #51`). */
 const pieceOf = (detail: RegExp) => new RegExp(`${/^\^[A-Z0-9]+ #\d+/.exec(detail.source)?.[0] ?? '^$'}\\b`);
-await expectRefusal('vreemde herkomst (bonsai-4d)', read('tests/fixtures/ifc-foreign/bonsai-4d.ifc'), 'vreemde-herkomst');
+await expectRefusal('vreemde herkomst in een lay-out die de kaart niet draagt (taak met 12 argumenten)',
+  read('tests/fixtures/ifc-foreign/council/proef-bonsai-achtig.ifc'), 'vreemde-herkomst', undefined, /^IFCTASK #30\b/);
 // Een veld dat de lezer niet draagt, op een P-stuk: sinds fixronde 3 zet de merge de bronwaarde terug (b, sectie 5h).
 {
   const r = await roundTrip('LongDescription op een eigen taak', enc.encode(replaceLine(baseText, '#57=',
@@ -524,6 +549,22 @@ async function expectDeletion(label: string, bytes: Uint8Array, edit: (d: Domain
   eq(`${label}: invarianten met de wijzigingslijst`, mergeProblems(bytes, r.bytes, r.changes), []);
   for (const id of kept) ok(`${label}: #${id} staat er nog, byte-gelijk (regel 4)`, lineOf(r.bytes, id) === lineOf(bytes, id) && lineOf(bytes, id) !== '');
 }
+async function expectRelease(label: string, bytes: Uint8Array, edit: (d: Domain) => void, changes: string[], check: (out: Uint8Array, reread: Opened) => void) {
+  const opened = await openForeign(bytes);
+  const d = cloneDomain(opened);
+  edit(d);
+  const r = await tryMerge(d, opened.ifcSource!);
+  ok(`${label}: schrijft (§4.6)${r.ok ? '' : `, maar weigert: ${r.error.cases.slice(0, 2).map(c => `${c.kind}: ${c.detail}`).join(' | ')}`}`, r.ok);
+  if (!r.ok) return;
+  eq(`${label}: de wijzigingslijst`, r.changes.map(c => `${c.kind} #${c.id}`), changes);
+  eq(`${label}: invarianten met de wijzigingslijst`, mergeProblems(bytes, r.bytes, r.changes), []);
+  eq(`${label}: geen object met twee Nests of Decomposes`, doubleMemberships(r.bytes), []);
+  const reread = await openForeign(r.bytes);
+  eq(`${label}: herlezen geeft dezelfde planning`, canon(reread, reseed), canon(await shownAfterOpen(d), reseed));
+  check(r.bytes, reread);
+  const second = reread.ifcSource ? await tryMerge(cloneDomain(reread), reread.ifcSource) : undefined;
+  ok(`${label}: een tweede opslag is byte-gelijk`, second?.ok === true && sameBytes(second.bytes, r.bytes));
+}
 await expectDeletion('taak wissen met een wand eraan', enc.encode(r4), (d) => {
   d.tasks = []; d.assignments = []; d.sequences = [];
 }, ['905'], ['904']);
@@ -546,11 +587,15 @@ await expectDeletion('taak wissen met een wand eraan', enc.encode(r4), (d) => {
 await expectRefusal('een vreemde relatie naar een eigen pset (de pset wordt C)',
   enc.encode(withLines(baseText, ["#907=IFCRELDEFINESBYPROPERTIES('0verwijzingNaarPset000',#903,$,$,(#904),#65);"])),
   'niet-gedragen', undefined, /^IFCRELDEFINESBYPROPERTIES #66, argument 5: #65 → #\d+$/);
-await expectRefusal('een taak uit het tweede schema verplaatsen', secondSchedule, 'verplaatst', (d) => {
+await expectRelease('een taak uit het tweede schema verplaatsen', secondSchedule, (d) => {
   const first = d.tasks.find(t => t.name === 'Externe bronactiviteit')!;
   const second = d.tasks.find(t => t.name === 'Taak van het tweede schema')!;
   second.parentId = first.id;
   first.childIds = [second.id];
+}, ['vervallen #910'], (out, reread) => {
+  const second = reread.tasks.find(t => t.name === 'Taak van het tweede schema');
+  ok('een taak uit het tweede schema verplaatsen: na heropenen onder de gekozen ouder', reread.tasks.find(t => t.id === second?.parentId)?.name === 'Externe bronactiviteit');
+  eq('een taak uit het tweede schema verplaatsen: de control van het tweede schema blijft staan, zoals op main', lineOf(out, '911'), lineOf(secondSchedule, '911'));
 });
 await expectRefusal('de gedeelde kalender wijzigen', await settle(read('tests/fixtures/ifc-foreign/council/r5sol-gedeelde-calendar-pset.ifc')), 'gemengde-relatie', (d) => {
   d.calendar.hoursPerDay = 7;
@@ -582,9 +627,29 @@ await expectRefusal('de gedeelde kalender wijzigen', await settle(read('tests/fi
   const src = enc.encode(withLines(replaceLine(showcaseApp, '#1572=',
     "#1572=IFCPROPERTYSETTEMPLATE('21BEfWwU0ulhEEz0WA5oeQ',#6,'OPS_CustomFields',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask',(#1569,#1570,#1571,#9001));"),
   ["#9001=IFCSIMPLEPROPERTYTEMPLATE('0vreemdVeld00000000000',#6,'VendorVeld',$,.P_SINGLEVALUE.,'IfcLabel',$,$,$,$,$,$);"]));
-  await expectRefusal('de planner maakt een veld met de naam van een vreemd lid', src, 'vreemd-lid', (d) => {
+  await expectRelease('de planner maakt een veld met de naam van een vreemd lid', src, (d) => {
     d.customFieldDefs = [...(d.customFieldDefs ?? []), { ...structuredClone(d.customFieldDefs![0]), id: 'veld-1b', name: 'VendorVeld' }];
+  }, ['vervallen #9001'], (out, reread) => {
+    ok('vreemd lid met de naam van een nieuw veld: het eigen template noemt het lid niet meer', !/IFCPROPERTYSETTEMPLATE\('21BEfWwU0ulhEEz0WA5oeQ'[^;]*#9001[,)]/.test(text(out)));
+    ok('vreemd lid met de naam van een nieuw veld: na heropenen is het veld van de planner', reread.customFieldDefs?.some(f => f.name === 'VendorVeld') === true);
   });
+}
+{
+  const src = enc.encode(withLines(replaceLine(showcaseApp, '#1572=',
+    "#1572=IFCPROPERTYSETTEMPLATE('21BEfWwU0ulhEEz0WA5oeQ',#6,'OPS_CustomFields',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask',(#1569,#1570,#1571,#9001));"),
+  ["#9001=IFCSIMPLEPROPERTYTEMPLATE('0vreemdVeld00000000000',#6,'VendorVeld',$,.P_SINGLEVALUE.,'IfcLabel',$,$,$,$,$,$);",
+    "#9003=IFCPROPERTYSETTEMPLATE('0tweedeVeldTemplate000',#90005,'OPS_CustomFields',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask',(#9001));"]));
+  await expectRefusal('een veld met de naam van een vreemd lid in twee gelijknamige templates', src, 'uitvoer-controle', (d) => {
+    d.customFieldDefs = [...(d.customFieldDefs ?? []), { ...structuredClone(d.customFieldDefs![0]), id: 'veld-1d', name: 'VendorVeld' }];
+  }, /#9001 vervalt, maar geen verwijderd stuk laat het vervallen/);
+}
+{
+  const src = enc.encode(withLines(replaceLine(replaceLine(showcaseApp, '#1588=',
+    "#1588=IFCPROPERTYSET('3mAZv15nM_xFcVBM3NvzzE',#6,'OPS_CustomFields',$,(#1587,#9002));"), '#1589=',
+  "#1589=IFCRELDEFINESBYPROPERTIES('188lZ8h7Yy31YDHz5LPkqd',#6,$,$,(#58,#60),#1588);"), ["#9002=IFCPROPERTYSINGLEVALUE('VendorVeld',$,IFCLABEL('Revit'),$);"]));
+  await expectRefusal('een vreemd lid in een pset met twee eigenaren, en een veld met zijn naam', src, 'vreemd-lid', (d) => {
+    d.customFieldDefs = [...(d.customFieldDefs ?? []), { ...structuredClone(d.customFieldDefs![0]), id: 'veld-1c', name: 'VendorVeld' }];
+  }, /met 2 eigenaren/);
 }
 {
   // De laatste notitie van de taak met een vreemd lid in OPS_TaskNotes wissen: de writer schrijft die pset dan niet, en
@@ -647,7 +712,11 @@ await expectRefusal('de gedeelde kalender wijzigen', await settle(read('tests/fi
     const parent = before.reread.tasks.find(t => t.name === 'Externe bronactiviteit');
     eq('gemengde IfcRelNests + kind vooraan: de volgorde na herlezen', parent?.childIds.map(id => before.reread.tasks.find(t => t.id === id)?.name), ['Nieuw kind', 'Kind']);
   }
-  await expectRefusal('gemengde IfcRelNests + kind achteraan', src, 'gemengde-relatie', addChild(false));
+  await expectRelease('gemengde IfcRelNests + kind achteraan', src, addChild(false), ['gewijzigd #911'], (out, reread) => {
+    eq('gemengde IfcRelNests + kind achteraan: de gebeurtenis blijft in de relatie van het andere programma', lineOf(out, '911'), lineOf(src, '911').replace('(#909,#910)', '(#910)'));
+    const parent = reread.tasks.find(t => t.name === 'Externe bronactiviteit');
+    eq('gemengde IfcRelNests + kind achteraan: de volgorde na herlezen', parent?.childIds.map(id => reread.tasks.find(t => t.id === id)?.name), ['Kind', 'Nieuw kind']);
+  });
 }
 {
   // Een nieuwe wortel bovenaan in een bestand met model (§10, volgorde; Opus ronde 7).
@@ -1287,7 +1356,7 @@ async function lossSetup(bytes: Uint8Array) {
     const { edits } = lossCheck({
       index, cls, fixed: new Set([...ids.bySource.keys(), ...ids.baselineHeads.values()]), bySource: ids.bySource, o0: lines0, o1: lines1,
       pristine, domain, opened: source.opened, plannerChanged: changedScopes(edited, source.opened ?? pristine).keys,
-      owner0: ownerOut, owner1: ownerOut,
+      assignmentOrigin: assignmentOrigin(index, ids.bySource, domain, source.opened), owner0: ownerOut, owner1: ownerOut,
     }, f => found.push(f.detail));
     return { found, edits };
   };

@@ -146,7 +146,7 @@ const BLOCKING_UI_FLAGS = [
   'showFilterDialog', 'showLayoutsDialog', 'showProjectOverview', 'presentationMode',
   'showTourOverlay', 'showWelcomeDialog', 'showTutorialOffer', 'showProgressImportDialog', 'pendingActualStartQuestion',
   'pendingPhaseAssignmentQuestion', 'pendingSiteOpen', 'pendingSiteSave', 'pendingIfcSchemaQuestion',
-  'pendingPlanOnlyQuestion', 'pendingDependentAnchorWarning', 'savingBeforeClose', 'appClosing',
+  'pendingPlanOnlyQuestion', 'pendingForeignChangesQuestion', 'pendingDependentAnchorWarning', 'savingBeforeClose', 'appClosing',
 ] as const;
 
 /** Naam van de eerste open blokkerende ui-vlag, of null wanneer er geen open staat. */
@@ -379,9 +379,10 @@ export async function runMutateTool(
   //     eventuele tabwissel gebeurt pas tijdens de await hieronder, en de drift-check daarna vangt
   //     dat af. Mislukt de backup ⇒ weigeren vóór er iets gemuteerd is (geen rollback nodig).
   const backupDocId = ctx.app.store.getState().activeDocumentId;
+  const backupWithheld = ctx.backupWithheld?.() ?? null;
   let backupPath: string | null = null;
   try {
-    backupPath = await ctx.ensureBackup(backupDocId, kind);
+    backupPath = backupWithheld ? null : await ctx.ensureBackup(backupDocId, kind);
   } catch (e) {
     return toolError(ctx, 'BACKUP_FAILED', `AI backup before the change failed: ${e instanceof Error ? e.message : String(e)}`);
   }
@@ -417,6 +418,7 @@ export async function runMutateTool(
 
   const envelope = buildEnvelope(ctx);
   if (backupPath) envelope.backupCreated = backupPath;
+  if (backupWithheld) envelope.backupWithheld = backupWithheld;
   // Zie het docblok bij `McpEnvelope.timephasedGuidanceLost`.
   if (res.timephasedGuidanceLost > 0) envelope.timephasedGuidanceLost = res.timephasedGuidanceLost;
   // Zie het docblok bij `McpEnvelope.remainingWorkRecomputed`.
