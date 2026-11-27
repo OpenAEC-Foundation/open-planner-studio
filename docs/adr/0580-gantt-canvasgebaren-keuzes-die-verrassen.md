@@ -13,14 +13,14 @@ erboven in ADR 0570; hier staat wat daar niet in staat.
   het canvas, dan komt er geen canvasclick die de vlag opruimt. Daarom wist `onMouseDown` in
   `useGanttPointerCoordinator` de vlaggen bij elke nieuwe mousedown, en zet `useBoxSelect` een eenmalige
   click-luisteraar op `window` in de bubble-fase.
-- `useGanttHistogramInteraction` blijft gemount als het histogram uit gaat; alleen het canvas in de portal
+- `useGanttHistogramInteraction` blijft gemount als het histogram uit gaat; alleen de strook in de portal
   verdwijnt. Het effect op `active` sluit de tooltip daarom zelf, anders verscheen hij zonder nieuwe hover weer zodra
-  het histogram terugkwam. `TOOLTIP_SAFETY_NET_MS` sluit een getoonde tooltip hoe dan ook: volgens het weggehaalde
+  het histogram terugkwam. `TOOLTIP_SAFETY_NET_MS` sluit een tooltip die zo lang niet veranderde: volgens het weggehaalde
   commentaar geeft een tik met touch of pen wel een `mousemove` en een `click` maar geen `mouseleave`; niet nagegaan.
-- `useGanttViewportCoordinator` bouwt voor de inhoudsbreedte een eigen as zonder scroll en zoom (`spanAxis`). Die
-  breedte hangt alleen van de dagspanne af; met de gedeelde as, die bij elke scroll verandert, liep de berekening
+- `useGanttViewportCoordinator` bouwt voor de inhoudsbreedte een eigen as zonder scroll en zoom (`spanAxis`). Zo hangt
+  de dagspanne niet van scroll af, en `computeContentWidth` rekent haar daarna met de zoom om in pixels; met de gedeelde as, die bij elke scroll verandert, liep de berekening
   bij elke scroll opnieuw over alle taken, volgens het weggehaalde commentaar het grootste deel van een scrollframe
   bij 8000 taken.
-- De tooltip op de tijdlijn zoekt zijn taak op in de actuele taken (`tooltipTask` in `useGanttPointerCoordinator`) en
+- De tooltip op de primaire tijdlijn zoekt zijn taak op in de actuele taken (`tooltipTask` in `useGanttPointerCoordinator`) en
   gebruikt niet de taak uit de hit. Een hit hoort bij de laatst getekende frame: na F5 kan die achterlopen, en een
   muis die stilstaat levert geen nieuwe hit.
