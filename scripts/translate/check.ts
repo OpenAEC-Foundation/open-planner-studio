@@ -1,11 +1,3 @@
-// `node build/translate/check.mjs <pakket.json> [<uitvoer>]`
-//
-// De poort die een vertaalagent zelf draait (§6, §7). Zonder tweede argument leest hij
-// `<pakket>.out.json` naast het pakket. Een docs-pakket herkent hij aan `<pakket>.src.md` ernaast
-// (of aan een argument dat op `.src.md` eindigt); dan leest hij `<pakket>.out.md`.
-// Exit 0 = groen (waarschuwingen mogen), 1 = harde fouten, 2 = bestand niet te lezen.
-// `translate prepare` bundelt dit bestand met esbuild tot een zelfstandig build/translate/check.mjs:
-// alleen Node-ingebouwde modules, geen node_modules nodig.
 import { existsSync, readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { checkDocs, checkPackage, formatResult } from './gates';

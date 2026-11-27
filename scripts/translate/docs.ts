@@ -1,6 +1,3 @@
-// Docs-straat: werkpakketten voor de in-app gidsen (§5.2, §5.3), samenvoegen (§9), bijhouden (C2, C3)
-// en status. Pure functies; de CLI (cli.ts) leest en schrijft de bestanden. De sectie- en
-// structuurregels komen uit het gedeelde contract C1 (`scripts/lib/docs-structure.ts`).
 import { sectionHash, splitSections, structureHash, type DocSection } from '../lib/docs-structure';
 import {
   ARABIC, L, NO_SPACE, avoidWords, countToken, escapeRe, hasWord, placeholders, nestings, termEntries, textsOf, unitMap, unitsOf,
@@ -10,38 +7,19 @@ import { avoidHitsIn, isTranslated, type AvoidRule, type NsInput, type ReleaseGa
 
 export { avoidWords, hasWord };
 
-// ── Typen ────────────────────────────────────────────────────────────────────────────────────
-
-/** `i18n/docs-literal.json`. */
 export interface DocsLiteral {
-  /** Labelsoort c uit code: bestand → namen die daar als tekst staan. */
   sources: Record<string, string[]>;
-  /** Labelsoort c met de hand. */
   manual: string[];
-  /** Per taal: keep-namen die de taal in lopende tekst wel vertaalt (zacht in plaats van hard). */
   keepTranslated?: Record<string, string[]>;
-  /** Per artikel: inline code die de app per taal anders toont (niet byte-gelijk geëist). */
   display?: Record<string, string[]>;
-  /**
-   * Per taal: avoid-woorden die ook een gewoon woord met een andere betekenis zijn (cs "konec" = het eind
-   * van een lijst, "důležitý" = belangrijk). Daar is een treffer in de docs-poort geen harde fout maar een
-   * waarschuwing die de nalezer naloopt. Alleen toevoegen na een gemeten valse treffer.
-   */
   avoidSoft?: Record<string, string[]>;
 }
 
 export const literalNames = (lit: DocsLiteral): string[] =>
   [...new Set([...Object.values(lit.sources).flat(), ...lit.manual])];
 
-// ── Voorbeeldnamen (labelsoort c) uit het tutorialproject en de voorbeeldprojecten ───────────
-
 const unescapeTs = (x: string): string => x.replace(/\\(.)/g, '$1');
 
-/**
- * De project-, kalender-, fase-, taak- en resourcenamen van het tutorialproject (`scripts/tutorial-project.ts`):
- * elke `name: n('nl', 'en')` plus `PROJECT_NAME` en `CALENDAR_NAME`, nl en en, in bestandsvolgorde, uniek.
- * De naam van de basislijn telt niet (dat is geen voorbeeldnaam in een gids).
- */
 export function tutorialNames(ts: string): string[] {
   const re = /(?:\bname:\s*|\b(?:PROJECT|CALENDAR)_NAME\s*=\s*)n\(\s*'((?:[^'\\]|\\.)*)'\s*,\s*'((?:[^'\\]|\\.)*)'\s*\)/g;
   const out: string[] = [];
@@ -49,60 +27,35 @@ export function tutorialNames(ts: string): string[] {
   return [...new Set(out)];
 }
 
-/** Een IFC-tekst (STEP) terug naar gewone tekst: `''` → `'`, `\X2\…\X0\` (UTF-16, hex) en `\X\hh`. */
 export function decodeIfcString(x: string): string {
   return x.replace(/''/g, "'")
     .replace(/\\X2\\((?:[0-9A-F]{4})+)\\X0\\/gi, (_, hex: string) => String.fromCharCode(...(hex.match(/.{4}/g) ?? []).map(h => parseInt(h, 16))))
     .replace(/\\X\\([0-9A-F]{2})/gi, (_, h: string) => String.fromCharCode(parseInt(h, 16)));
 }
 
-/** IFC-entiteiten waarvan de naam (derde attribuut) een voorbeeldnaam is: project, taak, kalender, resource. */
 const IFC_NAMED = /^#\d+\s*=\s*(IFCPROJECT|IFCTASK|IFCWORKCALENDAR|IFC[A-Z]*RESOURCE)\('[^']*',[^,]*,'((?:[^']|'')*)'/gm;
 
-/** De project-, taak-, kalender- en resourcenamen van een voorbeeldproject (`public/examples/*.ifc`), uniek. */
 export function ifcNames(ifc: string): string[] {
   return [...new Set([...ifc.matchAll(IFC_NAMED)].map(m => decodeIfcString(m[2]).trim()).filter(n => /\p{L}/u.test(n)))];
 }
 
-/**
- * Voorbeeldnamen die soort c mogen zijn: geen en-UI-tekst (die is soort a) en minstens twee tekens.
- * `uiTexts` zijn de genormaliseerde en-UI-teksten (`normLabel`).
- */
 export const literalCandidates = (names: string[], uiTexts: ReadonlySet<string>): string[] =>
   names.filter(n => n.length >= 2 && !uiTexts.has(normLabel(n)));
 
-/**
- * Eén label in een sectie (§5.3). `a`: UI-label, één van `targets` moet letterlijk in de vertaling;
- * `b`: UI-patroon, één van `targets` (met `{{…}}` als open plek) moet passen; `c`: letterlijk, `en` byte-gelijk.
- * `keys` alleen als de doelteksten verschillen (dubbelzinnig).
- */
 export interface DocsLabel {
   section: number;
   kind: 'a' | 'b' | 'c';
   en: string;
   targets?: string[];
   keys?: string[];
-  /**
-   * `tab`: het label staat op een tabbladplek (eerste deel van een pad `*A › B*`, of "tab *X*" / "*X* tab")
-   * en `targets` zijn alleen de tabbladnamen (lint of instellingenvenster). De poort eist er precies één
-   * als eigen cursief (pad)deel; "Plánování" telt dan niet voor "Plán".
-   */
   role?: 'tab';
-  /** Bij `role: 'tab'`: zo vaak staat het label op een tabbladplek in de bronsectie. */
   count?: number;
 }
 
-/** Een term in een pakket; `definition` (uit concepts.json) zegt welke betekenis de term draagt. */
 export interface DocsTerm { id: string; en: string[]; target: string; forms: string[]; avoid?: string[]; definition?: string }
 
-/**
- * Metadata van één sectie in een pakket: de hash van de en-sectie, en `labels` = één hash over de gebruikte
- * UI-sleutels met hun doeltekst-hash (`labelsDigest`). `apply docs` rekent die opnieuw uit en schrijft de
- * sleutels per stuk in C3; zo hoeft de agent geen lijst sleutel-hashes te lezen.
- */
 export interface DocsSectionMeta { index: number; heading: string | null; hash: string; words: number; labels: string }
 
-/** Eén hash over de sleutels van een sectie met hun doeltekst-hash (gesorteerd). */
 export const labelsDigest = (keys: Record<string, string>): string =>
   sectionHash(Object.keys(keys).sort().map(k => `${k}=${keys[k]}`).join('\n'));
 
@@ -120,25 +73,17 @@ export interface DocsPackage {
   terms: DocsTerm[];
   tokens: string[];
   keep: string[];
-  /** Keep-namen die deze taal mag vertalen: alleen een waarschuwing. */
   keepSoft?: string[];
-  /** Inline code die per taal anders mag (display-voorbeelden). */
   display?: string[];
-  /** Avoid-woorden die in deze taal ook een gewoon woord zijn: alleen een waarschuwing, de nalezer kijkt. */
   avoidSoft?: string[];
   labels: DocsLabel[];
-  /** Bij --stale (en --ids op een vertaald artikel): de huidige vertaling per sectie-index. */
   previous?: Record<string, string>;
   sections: DocsSectionMeta[];
 }
 
-/** C3: `i18n/docs-sources/<taal>.json`. */
 export interface DocsSourceEntry { structure: string; sections: { hash: string; labels: Record<string, string> }[] }
 export type DocsSources = Record<string, DocsSourceEntry>;
 
-// ── Markdown: inline-tokens en blokken, zoals src/utils/miniMarkdown.tsx ─────────────────────
-
-/** Dezelfde inline-regex als miniMarkdown (afbeelding, link, vet, cursief, code). */
 const INLINE_RE = /!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`/g;
 const FENCE_RE = /^```/;
 
@@ -153,9 +98,7 @@ function inlineMatches(md: string, group: number): string[] {
   return out;
 }
 
-/** De cursieve stukken (`*…*`), in volgorde. */
 export const italicsOf = (md: string): string[] => inlineMatches(md, 6);
-/** De inline-codestukken (`` `…` ``), in volgorde. */
 export const codesOf = (md: string): string[] => inlineMatches(md, 7);
 
 export type BlockKind = 'h1' | 'h2' | 'h3' | 'p' | 'ul' | 'ol' | 'img' | 'code';
@@ -166,7 +109,6 @@ const UL_RE = /^[-*]\s+(.*)$/;
 const OL_RE = /^\d+\.\s+(.*)$/;
 const IMAGE_LINE_RE = /^!\[([^\]]*)\]\(([^)]+)\)$/;
 
-/** De blokken van een tekst, met dezelfde regels als `renderMiniMarkdown` (regelnummers vanaf 1). */
 export function blocksOf(md: string): Block[] {
   const lines = md.replace(/\r\n/g, '\n').split('\n');
   const out: Block[] = [];
@@ -200,7 +142,6 @@ export function blocksOf(md: string): Block[] {
 }
 
 
-/** De codeblokken (```) van een tekst: de openingsregel (getrimd) en de inhoud, zoals `renderMiniMarkdown`. */
 export function fencesOf(md: string): { opener: string; body: string }[] {
   const lines = md.replace(/\r\n/g, '\n').split('\n');
   const out: { opener: string; body: string }[] = [];
@@ -214,12 +155,6 @@ export function fencesOf(md: string): { opener: string; body: string }[] {
   return out;
 }
 
-/**
- * De technische stukken van een promptblok, die een vertaling letterlijk houdt: URL's, `${…}`, opties
- * (`--scope`, `-e`), commando's met een schuine streep (`/mcp`), woorden met `.`, `/` of `_` erin
- * (`manifest.json`, `Node.js`, `OPS_MCP_ROOT`), namen met twee streepjes (`open-planner-studio`) en
- * `claude mcp <opdracht>`. Leestekens aan het eind tellen niet mee.
- */
 export function techTokens(text: string): string[] {
   const out = [...text.matchAll(/\bclaude mcp [a-z]+\b/g)].map(m => m[0]);
   for (const raw of text.split(/[\s=<>()]+/)) {
@@ -234,7 +169,6 @@ export function techTokens(text: string): string[] {
 
 export const wordCount = (text: string): number => text.split(/\s+/).filter(Boolean).length;
 
-/** De H1 van een artikel als platte tekst (zonder `*`, `` ` `` en linkopmaak). */
 export function titleOf(md: string): string | undefined {
   const m = /^#\s+(.*)$/m.exec(md.replace(/\r\n/g, '\n'));
   if (!m) return undefined;
@@ -242,22 +176,12 @@ export function titleOf(md: string): string | undefined {
     .replace(/`([^`]+)`/g, '$1').trim();
 }
 
-// ── Tekst zoeken op stam ─────────────────────────────────────────────────────────────────────
-
-/** Schriften zonder spaties tussen woorden: daar zoeken we de hele woordgroep als deeltekst. */
-
-/** De stam van één woord: korte woorden heel, langere zonder hun laatste ±30 %. */
 function stem(word: string): string {
   const chars = Array.from(word);
   if (chars.length <= 4) return word;
   return chars.slice(0, Math.max(4, Math.ceil(chars.length * 0.7))).join('');
 }
 
-/**
- * Regex die een woordgroep op stam per woord vindt: elk woord met zijn stam en een vrije uitgang
- * ("relation" ⇒ "relations", cs "následník" ⇒ "následníka"). Zonder spaties (zh, ja): de hele groep
- * als deeltekst. Arabisch schrift: zonder woordgrens vooraan (lidwoord en voorzetsels plakken vast).
- */
 export function stemRe(phrase: string): RegExp {
   const p = phrase.trim();
   if (NO_SPACE.test(p)) return new RegExp(escapeRe(p), 'iu');
@@ -267,14 +191,9 @@ export function stemRe(phrase: string): RegExp {
 
 export const hasStem = (text: string, phrase: string): boolean => phrase.trim() !== '' && stemRe(phrase).test(text);
 
-// ── Labelkaart (§5.3) ────────────────────────────────────────────────────────────────────────
-
-/** Normaliseer een labeltekst: zonder ▾ en zonder afsluitend …, ..., : of punt. */
 export function normLabel(s: string): string {
-  // Losse stukken houden het werk lineair, ook bij veel witruimte zonder ▾.
   const label = s.split('▾').map(part => part.trim()).join(' ').trim();
   let end = label.length;
-  // Achteruit scannen voorkomt ambigu backtracken op lange reeksen punten.
   while (end > 0 && /[\s….:]/u.test(label[end - 1])) end--;
   return label.slice(0, end);
 }
@@ -283,15 +202,11 @@ interface LabelHit { key: string; target?: string }
 interface LabelPattern { re: RegExp; lit: string; hits: LabelHit[] }
 
 export interface EnLabelIndex {
-  /** Genormaliseerde en-tekst → sleutels met hun (bruikbare) doeltekst. */
   exact: Map<string, LabelHit[]>;
-  /** En-teksten met `{{…}}`: een regex op de genormaliseerde en-tekst. */
   patterns: LabelPattern[];
-  /** Per sleutel (`ns:pad`) de hash van de huidige doeltekst (`sectionHash('')` zonder bruikbare vertaling). */
   hashes: Map<string, string>;
 }
 
-/** Minimaal aantal letters buiten de invulplekken voor een patroon (anders past het op alles). */
 const PATTERN_MIN_LETTERS = 8;
 
 function patternRe(text: string, anchored: boolean): { re: RegExp; lit: string } | null {
@@ -303,11 +218,6 @@ function patternRe(text: string, anchored: boolean): { re: RegExp; lit: string }
   return { re: new RegExp(anchored ? `^${body}$` : body, 'u'), lit };
 }
 
-/**
- * De labelindex over alle namespaces, op de en-tekst. Een doeltekst telt alleen als de eenheid in
- * de doeltaal vertaald is (`isTranslated`) en geen avoid-variant uit de termbase bevat (zoals de
- * UI-labelpoort). Meervoudsfamilies: elke vorm.
- */
 export function buildEnLabelIndex(inputs: NsInput[], lang: string, sources: UiSources, rules: AvoidRule[] = []): EnLabelIndex {
   const exact = new Map<string, LabelHit[]>();
   const byPattern = new Map<string, LabelPattern>();
@@ -325,8 +235,6 @@ export function buildEnLabelIndex(inputs: NsInput[], lang: string, sources: UiSo
       hashes.set(key, sectionHash(tTexts.join('\n')));
       if (!e) continue;
       const eTexts = textsOf(e.text);
-      // Meervoud: de categorieën van en en de doeltaal vallen niet samen (en one/other, ar zes vormen,
-      // en de ar-vorm `one` schrijft het getal uit). Elke doelvorm is dan een geldige kandidaat.
       const plural = eTexts.length > 1 || tTexts.length > 1;
       const add = (list: LabelHit[], tt: string | undefined) => {
         const target = tt !== undefined ? normLabel(tt) : undefined;
@@ -355,11 +263,6 @@ export function buildEnLabelIndex(inputs: NsInput[], lang: string, sources: UiSo
   return { exact, patterns: [...byPattern.values()], hashes };
 }
 
-/**
- * De sleutels van de tabbladnamen: de linttabbladen (`RibbonTab` in `src/state/slices/types.ts`; Ribbon.tsx
- * toont `menu:ribbon.<tab>`, met `beeld` → `view` en `instellingen` → `settings`) en de groepen van het
- * instellingenvenster (`SETTINGS_GROUP_IDS` in `src/utils/settingIds.ts`). check-translate-docs.ts bewaakt dat deze lijst de code volgt.
- */
 export const RIBBON_TABS = ['file', 'start', 'planning', 'resources', 'beeld', 'instellingen', 'table', 'ifc', 'report', 'ai'] as const;
 export const ribbonTabKey = (tab: string): string => `menu:ribbon.${tab === 'beeld' ? 'view' : tab === 'instellingen' ? 'settings' : tab}`;
 export const SETTINGS_TAB_KEYS = [
@@ -372,18 +275,11 @@ export const TAB_KEYS: ReadonlySet<string> = new Set([...RIBBON_TABS.map(ribbonT
 interface Classified {
   kind: 'a' | 'b' | 'c';
   en: string;
-  /** Alle sleutels met dit en-label (voor C3: de sectie hangt van al die teksten af). */
   hits: LabelHit[];
-  /** Op een tabbladplek: alleen de tabbladsleutels; die geven de `targets`. */
   role?: 'tab';
   tabHits?: LabelHit[];
 }
 
-/**
- * Soort a/b/c van één cursief stuk; een pad (`A › B`) of een paar (`A → B`) per deel. Vrij (d) = [].
- * `tab`: het stuk staat op een tabbladplek; het eerste deel van een pad met `›` staat er altijd. Heeft
- * een a-label dan een tabbladsleutel, dan krijgt het `role: 'tab'` met alleen die sleutels als kandidaat.
- */
 export function classifyItalic(span: string, index: EnLabelIndex, literals: ReadonlySet<string>, tab = false): Classified[] {
   const n = normLabel(span);
   if (n === '') return [];
@@ -392,14 +288,11 @@ export function classifyItalic(span: string, index: EnLabelIndex, literals: Read
     const tabHits = tab ? a.filter(h => TAB_KEYS.has(h.key)) : [];
     return [{ kind: 'a', en: n, hits: a, ...(tabHits.length ? { role: 'tab' as const, tabHits } : {}) }];
   }
-  // Een invulplek slokt nooit een stuk menupad op: *Resources › Manage › New resource* is een pad, niet
-  // "{{count}} resource" met count = "Resources › Manage › New".
   const b = index.patterns.filter(p => {
     const m = n.includes(p.lit) ? p.re.exec(n) : null;
     return m !== null && !m.slice(1).some(v => v.includes('›'));
   });
   if (b.length) {
-    // De ingevulde plekken van een patroon kunnen zelf letterlijk zijn (taaknamen van het tutorialproject).
     const filled = (b[0].re.exec(n) ?? []).slice(1).flatMap(v => v.split(' → ')).map(v => v.trim()).filter(v => literals.has(v));
     return [{ kind: 'b', en: n, hits: b.flatMap(p => p.hits) }, ...filled.map(v => ({ kind: 'c' as const, en: v, hits: [] }))];
   }
@@ -410,11 +303,9 @@ export function classifyItalic(span: string, index: EnLabelIndex, literals: Read
   return [];
 }
 
-/** Staat een cursief stuk op een tabbladplek: "tab *X*", "*X* tab", "on the *X* tab"? */
 export const TAB_BEFORE = /(?<![\p{L}])tab\s*$/iu;
 export const TAB_AFTER = /^\s*tab(?![\p{L}])/iu;
 
-/** De cursieve stukken van een tekst met hun tabbladplek (buiten codeblokken). */
 function italicsWithPlace(md: string): { span: string; tab: boolean }[] {
   const out: { span: string; tab: boolean }[] = [];
   let fence = false;
@@ -431,13 +322,8 @@ function italicsWithPlace(md: string): { span: string; tab: boolean }[] {
   return out;
 }
 
-/** Aanhalingstekens rond een naam: "…", “…”, „…“, ‘…’, «…». */
 const QUOTED_RE = /["“„‘«]([^"“”„‘’«»\n]{2,120})["”“’»]/gu;
 
-/**
- * Plekken buiten cursief waar een voorbeeldnaam letterlijk moet blijven: tussen aanhalingstekens, en de
- * linktekst van een `examples://`-link (de lijst *File › Examples* toont de naam in het Engels).
- */
 export function quotedNames(md: string, literals: ReadonlySet<string>): string[] {
   const out: string[] = [];
   let fence = false;
@@ -453,7 +339,6 @@ export function quotedNames(md: string, literals: ReadonlySet<string>): string[]
   return out;
 }
 
-/** De labels van één sectie (uniek per soort en tekst) en de gebruikte sleutels met hun hash. */
 export function sectionLabels(section: number, text: string, index: EnLabelIndex, literals: ReadonlySet<string>): { labels: DocsLabel[]; keys: Record<string, string> } {
   const labels: DocsLabel[] = [];
   const keys: Record<string, string> = {};
@@ -468,12 +353,9 @@ export function sectionLabels(section: number, text: string, index: EnLabelIndex
     const id = `${c.kind}\u0000${c.role ?? ''}\u0000${c.en}`;
     if (seen.has(id)) continue;
     seen.add(id);
-    // C3 houdt alle sleutels van het label bij (ook op een tabbladplek): zo verandert de digest niet.
     for (const h of c.hits) keys[h.key] = index.hashes.get(h.key) ?? sectionHash('');
     if (c.kind === 'c') { labels.push({ section, kind: 'c', en: c.en }); continue; }
     const cand = c.tabHits ?? c.hits;
-    // Een a-label is de letterlijke en-tekst ("1 item updated…", de en-`_one`-vorm); een doelvorm met een invulplek
-    // ("{{count}} položka…") krijgt daarom het getal uit die en-tekst.
     const num = c.kind === 'a' ? /\d+/.exec(c.en)?.[0] : undefined;
     const fill = (t: string) => (num !== undefined ? t.replace(/\{\{\s*[\w.-]+\s*\}\}/g, num) : t);
     const targets = [...new Set(cand.map(h => h.target).filter((t): t is string => t !== undefined && t !== '').map(fill))];
@@ -488,9 +370,6 @@ export function sectionLabels(section: number, text: string, index: EnLabelIndex
   return { labels, keys: sorted };
 }
 
-// ── Termen, tokens, keep ─────────────────────────────────────────────────────────────────────
-
-/** Termen uit de termbase waarvan een en-synoniem (op stam per woord) in de tekst staat. */
 export function docsTermsFor(text: string, concepts: Concept[], tb: LangTermbase | undefined): DocsTerm[] {
   if (!tb) return [];
   const entries = new Map(termEntries(tb));
@@ -507,7 +386,6 @@ export function docsTermsFor(text: string, concepts: Concept[], tb: LangTermbase
   return out;
 }
 
-/** Tokens of keep-namen (en-synoniemen en nl, hoofdlettergevoelig, los woord) die in de tekst staan. */
 export function docsLiteralsFor(text: string, concepts: Concept[], kind: 'token' | 'keep'): string[] {
   const found = new Set<string>();
   for (const c of concepts) {
@@ -517,13 +395,6 @@ export function docsLiteralsFor(text: string, concepts: Concept[], kind: 'token'
   return [...found].sort();
 }
 
-// ── Selectie: ontbreekt / verouderd / actueel ────────────────────────────────────────────────
-
-/**
- * Koppel de secties van de oude en de nieuwe en-versie op inhoud (langste gemeenschappelijke reeks
- * van hashes), niet op positie: een ingevoegde sectie maakt de volgende niet verouderd.
- * Geeft per nieuwe sectie de index van de oude sectie, of null. Zie `pairChanged` voor gewijzigde secties.
- */
 export function linkSections(oldHashes: string[], newHashes: string[]): (number | null)[] {
   const n = oldHashes.length;
   const m = newHashes.length;
@@ -542,12 +413,6 @@ export function linkSections(oldHashes: string[], newHashes: string[]): (number 
   return out;
 }
 
-/**
- * Gewijzigde secties: tussen twee gekoppelde secties (of aan het begin of eind) staan evenveel
- * ongekoppelde oude als nieuwe secties ⇒ die horen op volgorde bij elkaar (dezelfde sectie, andere
- * tekst). Bij een ongelijk aantal (invoegen én wijzigen) koppelt niets: liever opnieuw vertalen dan
- * de verkeerde oude vertaling als `previous`.
- */
 export function pairChanged(link: (number | null)[], oldCount: number): (number | null)[] {
   const out = [...link];
   let prevOld = -1;
@@ -571,17 +436,10 @@ export type SectionState = 'missing' | 'stale' | 'current';
 export interface ArticleState {
   id: string;
   state: 'missing' | 'stale' | 'current';
-  /** Per en-sectie: toestand, en de index van de gekoppelde vertaalde sectie. */
   sections: { state: SectionState; old: number | null; reason?: 'new' | 'text' | 'label' }[];
-  /** Vertaalde secties die bij geen en-sectie meer horen (verwijderd of verplaatst). */
   dropped: number;
 }
 
-/**
- * Toestand van één artikel in de doeltaal. Ontbreekt: geen vertaling of geen C3-regel. Een sectie is
- * verouderd als zijn en-hash nergens in C3 terugkomt (nieuw of gewijzigd) of als een gebruikt label een
- * andere doeltekst kreeg (`labelHashes`). Past het aantal vertaalde secties niet bij C3, dan is alles verouderd.
- */
 export function articleState(
   id: string, enMd: string, translated: string | undefined, entry: DocsSourceEntry | undefined, labelHashes: Map<string, string>,
 ): ArticleState {
@@ -609,26 +467,16 @@ export function articleState(
   return { id, state, sections, dropped };
 }
 
-// ── Pakketten maken ──────────────────────────────────────────────────────────────────────────
-
 export const DOCS_MAX_WORDS = 2500;
 
 export interface DocsArticleInput {
   id: string;
-  /** De en-bron. */
   md: string;
-  /** De huidige vertaling, als die er is. */
   translated?: string;
 }
 
-/** De tekst van een reeks secties, zoals in `.src.md` en `.out.md`: elke sectie zonder witruimte aan het eind, één lege regel ertussen. */
 export const joinSections = (texts: string[]): string => `${texts.map(t => t.trimEnd()).join('\n\n')}\n`;
 
-/**
- * Maak de docs-pakketten voor één taal. `--missing`: artikelen zonder vertaling; `--stale`: de verouderde
- * secties van vertaalde artikelen (met de oude vertaling als `previous`); `--ids`: deze artikelen heel.
- * Per artikel één pakket, of bij meer dan `maxWords` woorden een reeks hele `##`-secties.
- */
 export function buildDocsPackages(opts: {
   lang: string;
   articles: DocsArticleInput[];
@@ -665,7 +513,7 @@ export function buildDocsPackages(opts: {
       selected = st.sections.flatMap((s, i) => s.state === 'current' ? [] : [{
         index: i, ...(s.old !== null && trSecs[s.old] ? { previous: trSecs[s.old].text.trimEnd() } : {}),
       }]);
-      if (selected.length === 0) continue; // alleen verwijderd of verschoven: `apply docs` herschikt zonder agent
+      if (selected.length === 0) continue;
     }
     const groups: (typeof selected)[] = [];
     let cur: typeof selected = [];
@@ -716,12 +564,6 @@ export function buildDocsPackages(opts: {
   return out;
 }
 
-// ── Samenvoegen (apply docs) ─────────────────────────────────────────────────────────────────
-
-/**
- * De secties van een `.out.md` bij de secties van zijn pakket: zonder sectie 0 in het pakket moet de
- * uitvoer met een `## `-kop beginnen (een lege sectie 0 valt weg). Null als het aantal niet klopt.
- */
 export function outSections(pkg: Pick<DocsPackage, 'sections'>, outMd: string): DocSection[] | { error: string } {
   let secs = splitSections(outMd);
   const hasIntro = pkg.sections.some(s => s.index === 0);
@@ -737,18 +579,11 @@ export function outSections(pkg: Pick<DocsPackage, 'sections'>, outMd: string): 
 
 export interface MergeResult { md: string; entry: DocsSourceEntry; fromPackages: number; kept: number }
 
-/**
- * Voeg de groene pakketten van één artikel samen met de bestaande vertaling. Elke en-sectie komt uit
- * een pakket, of uit de gekoppelde (actuele of nog verouderde) vertaalde sectie; een verouderde sectie
- * zonder pakket houdt zijn oude C3-hash, zodat ze verouderd blijft. Geeft een fout als een sectie
- * nergens vandaan kan komen, of als een pakket op een oudere en-versie gemaakt is.
- */
 export function mergeArticle(opts: {
   enMd: string;
   translated?: string;
   entry?: DocsSourceEntry;
   labelHashes: Map<string, string>;
-  /** De huidige UI-sleutels met doeltekst-hash van een en-sectie (`sectionLabels(...).keys`). */
   labelsOf: (index: number, text: string) => Record<string, string>;
   packages: { pkg: DocsPackage; out: string }[];
 }): MergeResult | { error: string } {
@@ -782,9 +617,6 @@ export function mergeArticle(opts: {
   return { md: joinSections(texts), entry: { structure: structureHash(opts.enMd), sections }, fromPackages: fromPkg.size, kept };
 }
 
-// ── C2 en C3 ─────────────────────────────────────────────────────────────────────────────────
-
-/** Ids in manifest-volgorde, daarna de rest (wezen) gesorteerd. */
 export function orderIds(ids: Iterable<string>, manifestOrder: string[]): string[] {
   const set = new Set(ids);
   const known = manifestOrder.filter(id => set.has(id));
@@ -792,14 +624,12 @@ export function orderIds(ids: Iterable<string>, manifestOrder: string[]): string
   return [...known, ...rest];
 }
 
-/** C2: `public/docs/<taal>/index.json`, één regel per artikel in manifest-volgorde, alleen titels. */
 export function serializeDocsIndex(titles: Record<string, string>, manifestOrder: string[]): string {
   const ids = orderIds(Object.keys(titles), manifestOrder);
   if (ids.length === 0) return '{}\n';
   return `{\n${ids.map(id => `${JSON.stringify(id)}: {"title": ${JSON.stringify(titles[id])}}`).join(',\n')}\n}\n`;
 }
 
-/** Lees C2 terug naar { id: titel }. */
 export function parseDocsIndex(text: string): Record<string, string> {
   const raw = JSON.parse(text) as Record<string, { title?: unknown }>;
   const out: Record<string, string> = {};
@@ -807,27 +637,17 @@ export function parseDocsIndex(text: string): Record<string, string> {
   return out;
 }
 
-/** C3 in manifest-volgorde. */
 export function orderDocsSources(src: DocsSources, manifestOrder: string[]): DocsSources {
   const out: DocsSources = {};
   for (const id of orderIds(Object.keys(src), manifestOrder)) out[id] = src[id];
   return out;
 }
 
-// ── Hernoemen en verwijderen ─────────────────────────────────────────────────────────────────
-
-/** Vervang `docs://<oud>` (met of zonder `#anker`) door `docs://<nieuw>`. */
 export function renameDocLinks(md: string, from: string, to: string): string {
   return md.replace(new RegExp(`docs://${escapeRe(from)}(?=[#)\\s]|$)`, 'g'), `docs://${to}`);
 }
 
-/**
- * Werk de C3-hashes bij na een hernoeming: een bewaarde sectiehash die precies de huidige en-sectie
- * is, maar dan met de oude link, wordt de hash van de huidige en-sectie (de vertaling krijgt dezelfde
- * linkwijziging). Ook de structuurhash volgt als die van de oude linkvorm was.
- */
 export function renameInEntry(entry: DocsSourceEntry, enMd: string, from: string, to: string): DocsSourceEntry {
-  // De en-bron zoals hij vóór de hernoeming was: dezelfde tekst, met de oude link.
   const before = renameDocLinks(enMd, to, from);
   const map = new Map<string, string>();
   const enNow = splitSections(enMd);
@@ -838,8 +658,6 @@ export function renameInEntry(entry: DocsSourceEntry, enMd: string, from: string
     sections: entry.sections.map(s => ({ ...s, hash: map.get(s.hash) ?? s.hash })),
   };
 }
-
-// ── Status en releasepoort ───────────────────────────────────────────────────────────────────
 
 export interface DocsLangStatus { lang: string; missing: number; stale: number; staleSections: number; current: number }
 
@@ -852,7 +670,6 @@ export function docsStatus(lang: string, states: ArticleState[]): DocsLangStatus
   return s;
 }
 
-/** Alle docs-gaten van één taal voor de releasepoort: `docs:<id>` (ontbreekt / alleen herschikt) of `docs:<id>#<sectie>`. */
 export function docsReleaseGaps(lang: string, states: ArticleState[]): ReleaseGap[] {
   const gaps: ReleaseGap[] = [];
   for (const a of states) {

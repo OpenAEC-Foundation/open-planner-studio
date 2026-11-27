@@ -3,8 +3,6 @@ export const meta = {
   description: 'Haiku past de bevindingen uit de steekproef toe in de vertaalde Help-artikelen',
   phases: [{ title: 'Herstel', model: 'haiku' }],
 }
-// Na docs-spotcheck.js (skill update-docs-lang): per taal één Haiku-agent die de bevindingen toepast.
-// args: { repo, fixdir, langs: [taal…] }; per taal <fixdir>/<taal>.json = [{ article, severity, quote, problem, fix }].
 const R = args.repo
 const res = await parallel(args.langs.map((l) => () => agent(
 `# Task: apply reviewed corrections to translated guides (language "${l}")

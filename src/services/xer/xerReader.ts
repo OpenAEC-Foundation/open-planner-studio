@@ -1,12 +1,4 @@
-/**
- * Semantische XER-project-/taaklezer.
- *
- * Voor begrip van P6's tokenvocabulaire en de betekenis van PROJECT/PROJWBS/TASK/TASKPRED is
- * MPXJ geraadpleegd: https://github.com/joniles/mpxj (Primavera-reader, LGPL-2.1, Jon Iles e.a.).
- * Er is geen MPXJ-code overgenomen. De mapping, fout-/rapportvorm, WBS-opbouw en kalenderkeuzes
- * hieronder zijn zelfstandig voor Open Planner Studio geïmplementeerd en door eigen fixtures
- * vastgelegd.
- */
+// Bron: MPXJ Primavera-reader als referentie, geen code overgenomen (LGPL-2.1, github.com/joniles/mpxj).
 
 import type {
   ImportResult, XerEnumFallback, XerExternalRelation, XerImportMetadata,
