@@ -19,8 +19,8 @@ toestand horen.
   cyclus) of een gegooide fout laat dat document ongewijzigd en de lus gaat verder; het bezettingsoverzicht telt de
   boekingen van zo'n document dan niet mee (`occupancy.ts`).
 - Een payload met `minuteModelPending` slaat de actie over. De omzetting naar minuten van een ouder document
-  (`minuteModelTransition`) doen `runCPM` in `scheduleSlice.ts`, `applyLoadedProject` in `fileSlice.ts` en `restoreDocuments`; deze actie
-  doet haar niet en laat zo'n document verouderd liggen.
+  (`minuteModelTransition`) doen `runCPM` in `scheduleSlice.ts`, `applyLoadedProject` in `fileSlice.ts` en
+  `restoreDocuments`; deze actie doet haar niet en laat zo'n document verouderd liggen.
 - De nieuwe payload is een spread van de oude, zodat elk veld van het contract meegaat, met alleen `tasks`, `cpmResult`,
   `scheduleStale: false`, `resourceLoadResult: null`, `datesAsRecorded: false` en `recordedDates: null` vervangen. De
   belasting blijft leeg omdat de activatie haar toch opnieuw uitrekent (`materializeLibraryBoundary` in

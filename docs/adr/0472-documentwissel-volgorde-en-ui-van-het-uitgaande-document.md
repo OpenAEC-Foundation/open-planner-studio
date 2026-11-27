@@ -18,8 +18,9 @@ komen na die `set`: eerst wissen wat bij het uitgaande document hoort, dan melde
 - `switchDocument` doet niets als het gevraagde document al actief is; voor een onbekend id of een registratie zonder
   payload keert hij terug nadat hij de invoer afrondde en de samenvoegreeks afbrak.
 - Wijzigde de activatie kalenders of resources uit de bibliotheek (`activation.invalidateRedoScope`), dan maken
-  `switchDocument`, `closeDocument` en `restoreDocuments` de redo van het document dat actief wordt ongeldig
-  (`invalidateDocumentRedo`).
+  `switchDocument`, de tak van `closeDocument` die naar een buur wisselt en `restoreDocuments` de redo van het document
+  dat actief wordt ongeldig (`invalidateDocumentRedo`). `newDocument`, `duplicateDocument` en het sluiten van het
+  laatste document doen dat niet: hun nieuwe document heeft nog geen geschiedenis.
 - `ui` is app-globaal (ADR 0430), maar een paar velden erin wijzen naar het uitgaande document. `resetDocumentScopedUI`
   zet ze op één plek terug, en elke route hierboven roept hem aan; een nieuw `ui`-veld dat een taak, resource of
   document aanwijst, hoort daar. Het gaat om de taakdialoog en `editingTaskId` (die wees na een wissel naar een taak die
@@ -32,9 +33,9 @@ komen na die `set`: eerst wissen wat bij het uitgaande document hoort, dan melde
   activatie; op de routes hierboven bepaalt dus de activatie hun waarde.
 - `showProgressImportDialog` en `pendingPhaseAssignmentQuestion` zet `resetDocumentScopedUI` als vangnet terug. Beide
   tellen mee in `isBlockingDialogOpen` (`state/blockingDialogs.ts`), en Ctrl/⌘ 1–9 wisselt niet zolang
-  `isDocumentLeaveBlocked` (`shortcutRegistry.ts`) waar is. De voortgangsimportdialoog houdt koppelwerk aan taak-id's
-  van één document vast.
+  `isDocumentLeaveBlocked` (`shortcutRegistry.ts`, via `hasBlockingDialogOpen`) waar is. De voortgangsimportdialoog
+  houdt koppelwerk aan taak-id's van één document vast.
 - Weigeringen gaan bij elke wissel weg en komen bij terugwisselen niet terug: de meldingen met `refusal` en de strook
-  van een vergrendelde structuur (`clearRefusals`, eigenaarsbesluit 2026-10-19 5b, `refusalNotice.ts`). Van de andere meldingen haalt `resetDocumentScopedUI` alleen de uitleg na F5 weg
-  (de melding met `SCHEDULE_SHIFT_NOTICE_KEY`, samen met `scheduleShift`); echte fouten en de overige meldingen blijven
-  staan.
+  van een vergrendelde structuur (`clearRefusals`, eigenaarsbesluit 2026-10-19 5b, `refusalNotice.ts`). Van de andere
+  meldingen haalt `resetDocumentScopedUI` alleen de uitleg na F5 weg (de melding met `SCHEDULE_SHIFT_NOTICE_KEY`, samen
+  met `scheduleShift`); echte fouten en de overige meldingen blijven staan.
