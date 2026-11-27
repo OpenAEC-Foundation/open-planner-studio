@@ -1,9 +1,3 @@
-// Expliciete naden rond de drie verantwoordelijkheden buiten GanttCanvas (rendererhost,
-// viewport- en pointercoördinator).
-//
-// Dit bestand bevat uitsluitend types. Het koppelt geen store, mount geen DOM en voert geen
-// domeinmutatie uit. Zo krijgt elke coördinator een smal contract in plaats van de hele
-// applicatiestaat als gemaksargument.
 import type { SelectedRow } from '@/state/slices/selectionSlice';
 import type { BaselineReach } from '@/types/baseline';
 import type {
@@ -33,7 +27,6 @@ import type { DependencyDragState } from './useDependencyDraw';
 import type { SplitGestureState } from './useSplitGesture';
 import type { SplitPiece } from '@/engine/scheduler/splitEdit';
 
-/** DOM-eigendom van de viewportlaag; renderer- en pointerlagen lenen exact deze refs. */
 export interface GanttViewportRefs {
   paneRowRef: RefObject<HTMLDivElement | null>;
   primaryContainerRef: RefObject<HTMLDivElement | null>;
@@ -43,16 +36,13 @@ export interface GanttViewportRefs {
   secondaryHScrollRef: RefObject<HTMLDivElement | null>;
 }
 
-/** Histograminvoer zonder afmetingen; de host meet die op het paintmoment aan zijn container. */
 export type HistogramRenderInput = Omit<HistogramRenderOptions, 'canvasWidth' | 'canvasHeight'>;
 
-/** Alle waarden die één hostpaint volledig bepalen. `renderRevision` dekt CSS-gebonden paints. */
 export interface GanttRendererHostInput {
   containers: Pick<
     GanttViewportRefs,
     'primaryContainerRef' | 'secondaryContainerRef' | 'histogramContainerRef'
   > & {
-    /** De histogramstrook mount via een portal ná de eerste render; de node zelf, als React-state. */
     histogramContainer: HTMLDivElement | null;
   };
   primary: GanttRenderOptionsSourceInput;
@@ -63,7 +53,6 @@ export interface GanttRendererHostInput {
   onSecondarySize: (width: number, height: number) => void;
 }
 
-/** Levende canvassen en renderers die de pointerlaag uitsluitend voor hit-tests mag lezen. */
 export interface GanttRendererHost {
   primaryCanvasRef: RefObject<HTMLCanvasElement | null>;
   primaryRendererRef: RefObject<GanttRenderer | null>;
@@ -74,17 +63,13 @@ export interface GanttRendererHost {
   dependencyCanvasRef: RefObject<HTMLCanvasElement | null>;
 }
 
-/** Concrete viewportwaarden en gerichte setters; geen taak- of planningsmutaties. */
 export interface GanttViewportCoordinatorInput {
   tasks: Task[];
-  /** Bereik van de getoonde baselines (actief + vergelijkingen): oorsprong en scrollbereik nemen
-   *  het mee, zodat elke getekende baselinestrook bereikbaar is. */
   baselineReach?: BaselineReach;
   rows: ViewRow[];
   calendar: WorkCalendar;
   view: ViewState;
   histogramPickerWidth: number;
-  /** Kant van de histogramkiezer (= de takenlijst); bepaalt mee waar de histogramas begint. */
   histogramPickerSide: HistogramPickerSide;
   histogramHeight: number;
   rowHeight: number;
@@ -106,11 +91,9 @@ export interface GanttViewportCoordinatorInput {
   persistHistogramHeight: (height: number) => void;
 }
 
-/** Afmetingen en scrolltoestand van één zelfstandig horizontaal tijdvenster. */
 export interface GanttPaneViewport {
   chartWidth: number;
   contentWidth: number;
-  /** Breedte van de scrollbalk-spacer (`contentWidth × scrollbarScale`, zie `scrollbarScale`). */
   scrollbarWidth: number;
   scrollX: number;
   zoom: number;
@@ -131,7 +114,6 @@ export interface GanttViewportMiniMapControllers {
   secondaryScrollTo: (scrollX: number) => void;
 }
 
-/** Volledig afgeleide viewportuitvoer die host en JSX mogen consumeren. */
 export interface GanttViewportCoordinatorOutput {
   refs: GanttViewportRefs;
   primary: GanttPaneViewport;
@@ -155,14 +137,8 @@ export interface GanttContextMenuState {
   task: Task | null;
   barHit: boolean;
   group: { key: string; collapsed: boolean } | null;
-  /** De pauze die "Onderbreking opheffen" opheft — die onder de cursor, of die
-   *  VÓÓR het aangeklikte stuk. `null` op stuk 0, zonder splits, of op een split die niet bewerkbaar
-   *  is (dan blijft alleen "Alle onderbrekingen opheffen" over). */
   splitGapIndex: number | null;
-  /** Rechtsklik op LEGE ruimte (geen balk): de datum onder de cursor (`YYYY-MM-DD`). "Nieuwe taak"
-   *  en "Nieuwe mijlpaal" beginnen dan op die datum (review 2026-10-06, punt 1). */
   clickDate?: string | null;
-  /** De aangeklikte rij: dezelfde taak kan in meer ploegen staan. Toewijzen kiest de taak op deze rij. */
   rowKey?: string;
 }
 
@@ -170,10 +146,7 @@ export interface GanttTooltipState {
   x: number;
   y: number;
   task: Task;
-  /** Issue #391: gezet als de muis op de baselinestrook staat: de baselines in dat stuk
-   *  (0 = actief, 1/2 = vergelijking). */
   baselineSlots?: (0 | 1 | 2)[];
-  /** Issue #868: de mijlpalen op één groepsruitje (de voorman eerst); de tooltip noemt ze allemaal. */
   group?: readonly Task[];
 }
 
@@ -184,23 +157,16 @@ export interface GanttRelationPopoverState {
   y: number;
 }
 
-/** De vijf tijdlijngebaren blijven eigenaar van hun eigen state en windowlisteners. */
 export interface GanttGestureOverlays {
   barDrag: DragState | null;
-  /** Het label bij een stuk- of stukrandsleep op een gesplitste balk. */
   barSplitDrag: SplitDragLabel | null;
   pan: PanState | null;
   boxSelectCandidate: BoxSelectCandidate | null;
   boxSelect: BoxSelectState | null;
   dependency: DependencyDragState | null;
-  /** De geleidelijn van de splits-modus — ook bij hover, dus zonder lopend gebaar. */
   split: SplitGestureState | null;
 }
 
-/**
- * Smalle pointerinvoer: rendererrefs voor hit-tests, viewportwaarden voor prioriteit/geometrie en
- * alleen de acties die een pointergebaar werkelijk mag uitvoeren.
- */
 export interface GanttPointerCoordinatorInput {
   host: Pick<
     GanttRendererHost,
@@ -216,23 +182,17 @@ export interface GanttPointerCoordinatorInput {
   selectedTaskIds: string[];
   headerHeight: number;
   dependencyMode: boolean;
-  /** Splits-modus (`ui.showSplitMode`). Sluit `dependencyMode` uit — `setUI` bewaakt dat. */
   splitMode: boolean;
   scrollMode: ScrollMode;
   enableQuarterHourZoom: boolean;
-  /** Telt het rekenprofiel een dagenmaat in werkdagen (conventie `workdayDurationMeasure`)? Kiest hoe een
-   *  dagtaak sleept en splitst (dagenmaat of uren), zoals de Gantt-stukken. */
   workdayDurationMeasure: boolean;
   compressNonWorkdays: boolean;
   selectTask: (id: string, additive?: boolean, range?: boolean, row?: SelectedRow) => void;
   selectTasks: (ids: string[], additive: boolean) => void;
-  /** Zet de cursorrij van de takenlijst (`ui.gridActiveRowKey`); het kader doet dat net als een klik. */
   setGridActiveRowKey: (rowKey: string) => void;
   deselectAll: () => void;
   updateTask: (id: string, updates: Partial<Task>, options?: { coalesceKey?: string }) => void;
-  /** De ENE schrijfweg voor gebruikerssplits (`taskSlice.setTaskSplits`). */
   setTaskSplits: (taskId: string, pieces: SplitPiece[] | null, options?: { coalesceKey?: string }) => unknown;
-  /** Esc midden in een splitsgebaar draait de lopende coalesce-stap terug. */
   undo: () => void;
   historyMark: () => HistorySessionMark;
   revertHistorySince: (mark: HistorySessionMark) => void;
@@ -240,31 +200,18 @@ export interface GanttPointerCoordinatorInput {
   setScroll: (x: number, y: number) => void;
   openTask: (id: string) => void;
   clearHistogramTooltip: () => void;
-  /** Een overwegend verticale sleep op een balkBODY wordt hieraan overgedragen (de rijsleep van de
-   *  DOM-grid, via `ganttRowDragBridge`). Ontbreekt hij, dus is er geen ingebedde taakgrid, dan
-   *  blijft de body een horizontale datumsleep. Of de structuur bewerkbaar is
-   *  beslist de ONTVANGER (`useTableRowDrag`'s `enabled`/`onBlocked`), niet deze poort: buiten de
-   *  boomweergave krijgt de gebruiker daar dezelfde uitleg als bij een rijsleep. Randen slepen
-   *  altijd duur. */
   startVerticalRowDrag?: (candidate: {
     taskId: string;
     startClientX: number;
     startClientY: number;
   }) => void;
-  /** Bepaalt een voorganger de start van deze taak? Een gesleepte start (body, linkerrand)
-   *  volgt dan dezelfde regel als een getypte: SNET, of — bij een andere constraint — niets toepassen
-   *  en melden (`src/engine/startEditConstraint.ts`). */
   isStartDrivenByPredecessor: (taskId: string) => boolean;
-  /** Zet de motor deze mijlpaal op het dageinde (B6, `isLooseDayEndMilestone`)? Dan landt een gesleepte
-   *  ruit zo dat F5 hem laat staan (`milestoneSitsAtFinish`, `milestoneDragLanding`). */
   looseDayEndMilestone: (taskId: string) => boolean;
-  /** Het ene meldkanaal en de datumnotatie voor die startmelding na het loslaten. */
   notify: (notification: NotifyInput) => void;
   dateNotation: DateNotation;
   timeNotation: TimeNotation;
 }
 
-/** React-bedrading en vluchtige presentatie die uitsluitend bij pointerinteractie hoort. */
 export interface GanttPointerCoordinatorOutput {
   onClick: (event: ReactMouseEvent<HTMLCanvasElement>) => void;
   onDoubleClick: (event: ReactMouseEvent<HTMLCanvasElement>) => void;
@@ -279,8 +226,5 @@ export interface GanttPointerCoordinatorOutput {
   tooltip: GanttTooltipState | null;
   closeContextMenu: () => void;
   closeRelationPopover: () => void;
-  /** Sluit menu en relatiepopover: ze houden taak-id's vast, en een variant draagt dezelfde id's. Na
-   *  een documentwissel landde hun actie anders in het andere document (review #1004, ronde 10). Lopende
-   *  sleepgebaren stopt `listenWindowDrag` zelf. */
   closeForDocumentSwitch: () => void;
 }
