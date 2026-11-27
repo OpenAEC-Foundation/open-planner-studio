@@ -7550,13 +7550,16 @@ en noem het in je rapport of PR-tekst.
       opslaankiezer al aan of leeg voordat de app iets controleert (knownbug 1899, 2366), en een IFCX-document schrijft
       een nieuw doel daar alleen als download (F3-4); de kiezer biedt dus alleen het type van het document, en omzetten
       kan in de browser niet; (b) een site-host: het opslagvenster van de site heeft geen type; (c) Ctrl+S zonder doel
-      (een nieuw document) biedt alleen het type van het document, want Ctrl+S houdt het formaat; (d) Linux: het
-      venster van plugin-dialog geeft alleen een pad terug, niet het gekozen filter. Kiest de planner het filter IFCX en
-      typt hij een naam zonder extensie, dan vult de app de eerste extensie aan, die van het document
-      (`withOneOfExtensions` in `pickSavePathTauri`), en wordt het een IFC-bestand; met `.ifcx` in de naam wordt het IFCX.
-      Richting: in de browser een eigen typekeuze vóór de kiezer met IFCX als download; op Linux de extensie uit het
-      gekozen filter halen zodra plugin-dialog dat teruggeeft. Gevonden bij F3-5. — B (code; (d) niet in de echte app
-      nagespeeld)
+      (een nieuw document) biedt alleen het type van het document, want Ctrl+S houdt het formaat.
+      (d) Op de drie desktopplatforms geeft plugin-dialog 2.7.0 (RFD 0.16.0) alleen het gekozen pad terug. De extensie
+      in dat pad bepaalt het bestandstype. Op Linux (GTK3) krijgt de planner bij een IFC-document ook na het kiezen van
+      het IFCX-filter een IFC-bestand als hij `.ifc` laat staan of een naam zonder extensie opgeeft. In dat laatste
+      geval vult de app `.ifc` aan (`withOneOfExtensions` in `pickSavePathTauri`). Met `planning.ifcx` wordt het IFCX.
+      Op macOS heeft het opslagvenster geen typekeuzelijst. Geef daar de naam inclusief `.ifcx` op om naar IFCX om te
+      zetten. Op Windows past het venster bij een filterwissel de standaardextensie aan. De app volgt het teruggegeven pad.
+      Richting voor de browser is een eigen typekeuze vóór de kiezer met IFCX als download. Op Linux kan de app het
+      gekozen filter gebruiken zodra plugin-dialog dat teruggeeft. Gevonden bij F3-5. — B (bibliotheekcode en
+      platformdocumentatie, zonder proef met de native vensters)
 
 2390. **Opslaan als naar een ander type stelt eerst de vragen van het type van het document, vóór het venster.** Het
       type kiest de planner in het venster, en Opslaan als rekent en vraagt zoals main vóór het venster, voor het type
@@ -7568,6 +7571,8 @@ en noem het in je rapport of PR-tekst.
       wordt, en na het kiezen van IFCX nog "alleen de planning": twee vragen na elkaar; (c) bij een ontbrekende bron komt
       "alleen de planning" vóór het venster (`missingSourceSaveAs`) en na het kiezen van IFCX nog eens (`ifcxSaveAs`),
       want een bevestiging geldt één keer (`spendPlanOnlyConfirmation`); (d) de merge van een groot gebouwmodel rekent
-      vóór het venster voor niets als de planner IFCX kiest. Richting: met de flag `ifcx` het type vóór het rekenen
+      vóór het venster voor niets als de planner IFCX kiest. Na omzetting van een IFC2X3-bron naar IFCX gebruikt een
+      latere opslag als IFC het schema uit Projectinstellingen, standaard IFC4X3_ADD2. IFC2X3 is geen schrijfbare keuze.
+      Richting: met de flag `ifcx` het type vóór het rekenen
       kennen (bijvoorbeeld de vragen en de merge na het venster), wat de volgorde van main voor hetzelfde type verandert;
       een keuze van de eigenaar. Gevonden bij F3-5. — B (code; (a) tot en met (c) niet in een proef nagespeeld)
