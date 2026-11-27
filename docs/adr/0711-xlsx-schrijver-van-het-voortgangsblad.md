@@ -9,7 +9,7 @@ merk je pas bij de terugimport.
 ## Gevolgen
 
 - De kolomstijl staat op `<col>` én op elke cel. Een lege invulcel zonder eigen `<c>` erft de kolomstijl
-  (ontgrendeld, datumopmaak); de stijl per cel blijft nodig omdat een verzamelrij binnen een ontgrendelde kolom
+  (ontgrendeld, met de opmaak van die kolom); de stijl per cel blijft nodig omdat een verzamelrij binnen een ontgrendelde kolom
   vergrendeld moet zijn.
 - De tweede fill is `gray125`; volgens het weggehaalde commentaar (niet nagegaan) eist Excel dat, en anders schuiven
   de fill-indexen op. De grijze markering van de verzamelrijen gebruikt die fill in plaats van een derde.
@@ -26,4 +26,4 @@ merk je pas bij de terugimport.
 - `xmlText.ts` heeft een eigen escaper naast `escapeXml` in `xmlInterchange.ts`: SpreadsheetML schrijft een
   stuurteken als `_xHHHH_` (ECMA-376 `ST_Xstring`), en een letterlijke `_xHHHH_` van de gebruiker krijgt daarom
   `_x005F_` voor het eerste onderstrepingsteken. Samenvoegen met de gewone XML-escaper breekt die round-trip.
-  `unescapeXmlText` keert alles in één pass om, ook `_xHHHH_`, zodat er precies één laag afgaat.
+  `unescapeXml` keert alles in één pass om, ook `_xHHHH_`, zodat er precies één laag afgaat.

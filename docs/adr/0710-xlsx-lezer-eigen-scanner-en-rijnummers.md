@@ -8,10 +8,12 @@ commentaar of CDATA is: een `<!DOCTYPE` of `<!ENTITY` wordt nooit geïnterpretee
 
 ## Gevolgen
 
-- Het rijnummer komt uit het `r`-attribuut, niet uit een teller. Rijen mogen in een `.xlsx` ontbreken, en
-  `rowNumber` is de sleutel van de handmatige koppelingen en van de rijmap van de voortgangsimport: met een teller
+- Het rijnummer komt uit het `r`-attribuut; alleen zonder geldig `r` neemt de lezer het volgende nummer. Rijen
+  mogen in een `.xlsx` ontbreken, en `rowNumber` is de sleutel van de handmatige koppelingen en van de rijmap van de voortgangsimport: met een teller
   zouden die stil op een andere rij landen. Een rij- of celnummer dat niet strikt oploopt, weigert de lezer, want
   anders overschrijft de latere rij of cel de eerdere zonder melding.
+- Staat de werkmap niet op `xl/workbook.xml`, dan weigert de lezer (`noSheet`): de metadata komen in één ronde van
+  vaste paden, en een ander pad zou een derde leesronde vragen. Weigeren is eerlijker dan een leeg blad.
 - De lezer kan `sharedStrings`, ook al schrijft onze schrijver `inlineStr`: volgens het weggehaalde commentaar (niet
   nagegaan) slaat Excel elke tekstcel als gedeelde string op, en dan zou een blad dat in Excel is bewaard leeg
   terugkomen.
