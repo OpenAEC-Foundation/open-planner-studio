@@ -182,9 +182,12 @@ fn main() {
         // (env-read, geen domeinlogica). De twee mcp_bridge-commands sturen de MCP-bridge.
         // `place_file_exclusive` plaatst één bestand exclusief onder een nieuwe naam in dezelfde
         // map, alleen met een eigen hulpnaam en binnen de fs-scope (#804, knownbug 1131).
+        // `open_folder` opent een map binnen de app-datamap in de bestandsbeheerder van het OS
+        // (#1245; plugin-shell `open` staat alleen weblinks toe).
         .invoke_handler(tauri::generate_handler![
             commands::install_kind,
             commands::place_file::place_file_exclusive,
+            commands::open_folder::open_folder,
             mcp_bridge::mcp_bridge_start,
             mcp_bridge::mcp_bridge_stop,
         ])

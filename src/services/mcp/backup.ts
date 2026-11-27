@@ -6,6 +6,7 @@
 import type { EnsureBackupFn } from './contracts';
 import { isTauri } from '@/utils/platform';
 import { appStoreContext } from '@/state/appStore';
+import { openFolder } from '@/services/shell/openFolder';
 import { BACKUP_ROOT, createAppBackupService, type BackupService } from './backupService';
 
 export * from './backupService';
@@ -52,13 +53,14 @@ export function resetBackupSession(): void {
   service().resetSession();
 }
 
-/** Open de ai-backups-map in de bestandsbeheerder (shell-open-plugin); maakt hem eerst aan. */
+/** Open de ai-backups-map in de bestandsbeheerder; maakt hem eerst aan. */
 export async function openBackupFolder(): Promise<void> {
   if (!isTauri()) return;
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const { mkdir } = await import('@tauri-apps/plugin-fs');
-  const { open } = await import('@tauri-apps/plugin-shell');
   const dir = await join(await appDataDir(), BACKUP_ROOT);
   await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet
-  await open(dir);
+  // #1245: via het eigen `open_folder`-commando, niet via plugin-shell `open` — die staat
+  // alleen weblinks toe en weigerde op Windows dit lokale pad.
+  await openFolder(dir);
 }

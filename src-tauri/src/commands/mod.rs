@@ -18,7 +18,13 @@
 //! zonder dat één regel productiecode ze nodig had. Heb je ooit native
 //! bestand-I/O nodig, breid dan `src/services/fileAccess/` uit (of voeg een
 //! command toe MÉT padvalidatie), niet deze module.
+//!
+//! `open_folder` (module [`open_folder`], #1245) is de tweede uitzondering: een map openen in de
+//! bestandsbeheerder van het OS kan geen JS-plugin hier (plugin-shell `open` staat alleen
+//! weblinks toe), dus start dit commando het OS-programma zelf, maar alleen voor een pad binnen
+//! de app-datamap.
 
+pub mod open_folder;
 pub mod place_file;
 
 /// Detecteer hoe de app op deze machine geïnstalleerd is, zodat de frontend kan
