@@ -8073,14 +8073,21 @@ en noem het in je rapport of PR-tekst.
       Richting: in de gedeelde functie de vastlegging per kant beoordelen, met de vroege start van het restwerk
       en de eerdere werkelijke start van een lopende taak als proef. — B
 
-2422. **Een MCP-backup of `planner_export_ifc` van een planning bij een IFCX-model laat de modelverwijzing stil weg.**
-      *MCP → Veiligheid → Nu backup maken*, de automatische backup langs dezelfde schrijfroute en de tool
-      `planner_export_ifc` schrijven een STEP-kopie van de planning. Die kopie bevat de modelverwijzing en de
-      bouwdeelkoppelingen niet, en de app meldt dat niet (de backupknop zegt *Backup gemaakt*). De
-      IFCX-planning zelf en het model blijven ongewijzigd. Alleen *Exporteren → IFC*, met en zonder
-      bibliotheekbestand, meldt het verlies. Nog na te gaan: *Toepassen* in het IFC-paneel op zo'n planning.
-      Vóór de flag `ifcx` standaard aan gaat: de backup van zo'n planning als IFCX schrijven, de tool het
-      verlies in haar antwoord laten melden, en één plek kiezen waar elke STEP-kopie van zo'n document
-      langs moet (`buildWriteIFCInput`). Neem daarbij het heropenen mee: een IFCX-backup staat in de
-      backupmap en niet naast het model, dus de zoekactie naar het buurmodel vindt het model daar niet.
-      Gevolgd in de code bij de review van #1320, ronde 3 en 4. — S
+2422. **Een MCP-backup van een planning bij een IFCX-model laat de modelverwijzing stil weg.**
+      *MCP → Veiligheid → Nu backup maken* en de automatische backup langs dezelfde schrijfroute schrijven
+      een STEP-kopie van de planning. Die kopie bevat de modelverwijzing en de bouwdeelkoppelingen niet, en de
+      app meldt dat niet (de backupknop zegt *Backup gemaakt*). De IFCX-planning zelf en het model blijven
+      ongewijzigd. *Exporteren → IFC*, met en zonder bibliotheekbestand, meldt het verlies; de tool
+      `planner_export_ifc` meldt het in haar antwoord zolang de flag `ifcx` aan staat. Zet de planner de
+      flag uit terwijl zo'n planning nog open is, dan ontbreken de koppelingen in de STEP-export en
+      ontbreekt ook die melding. Nog na te gaan: *Toepassen* in het IFC-paneel op zo'n planning. Vóór de flag `ifcx` standaard aan gaat: de backup van zo'n planning als IFCX schrijven en één
+      plek kiezen waar elke STEP-kopie van zo'n document langs moet (`buildWriteIFCInput`). Neem daarbij het
+      heropenen mee: een IFCX-backup staat in de backupmap en niet naast het model, dus de zoekactie naar het
+      buurmodel vindt het model daar niet. Gevolgd in de code bij de review van #1320, ronde 3 en 4. — S
+
+2423. **Bij Opslaan als IFC kan de omzetvraag verschijnen voor een doel dat de app daarna weigert.**
+      Kiest de planner bij een planning bij een IFCX-model als `.ifc`-doel een alias van het model of van
+      de geopende IFCX-planning, dan stelt de app eerst de vraag *alleen de planning*, berekent bij ja de
+      STEP-uitvoer en weigert pas daarna het doel. Er wordt niets geschreven; de planner beantwoordt een
+      overbodige vraag. Gevolgd in de code bij de review van #1324, ronde 1. Richting: het gekozen doel
+      en de documentidentiteit vóór de vraag toetsen en de laatste controle vlak vóór plaatsing houden. — S

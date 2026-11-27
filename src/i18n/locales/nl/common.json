@@ -520,7 +520,7 @@
     "foreignChangesQuestion": "Vragen vóór opslaan als IFC-gegevens buiten de planning vervallen",
     "foreignChangesQuestionHint": "Bij een bestand met een gebouwmodel. Staat dit uit, dan slaat de app meteen op en meldt het aantal daarna.",
     "ifcx": "IFCX openen en opslaan",
-    "ifcxHint": "Opent en bewaart IFCX-planningen. Een model van een ander programma met lokale bouwdelen en zonder planningsgegevens kun je openen als basis voor een apart planningsbestand. Sla die planning zelf op als IFCX. Automatisch opslaan en crashherstel slaan planningen met modelverwijzingen over. Voor planningen zonder modelverwijzingen kun je op de desktop bij Opslaan als kiezen tussen IFC en IFCX. IFCX is nog in ontwikkeling. Een latere versie kan een bestand weigeren. Een P6-bronarchief (XER) of een meegeleverde resourcebibliotheek bewaar je met Exporteren → IFC.",
+    "ifcxHint": "Opent en bewaart IFCX-planningen. Een model van een ander programma met lokale bouwdelen en zonder planningsgegevens kun je openen als basis voor een apart planningsbestand. Sla die planning zelf op als IFCX om de modelverwijzing en de bouwdeelkoppelingen te bewaren. Automatisch opslaan en crashherstel slaan planningen met modelverwijzingen over. Op de desktop kun je bij Opslaan als kiezen tussen IFC en IFCX. IFCX is nog in ontwikkeling. Een latere versie kan een bestand weigeren. Een P6-bronarchief (XER) of een meegeleverde resourcebibliotheek bewaar je met Exporteren → IFC.",
     "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
     "theme": "Thema",
     "themeHint": "Het kleurenschema van de interface.",
@@ -2113,7 +2113,8 @@
       "planOnlyContinue": "Alleen de planning opslaan",
       "xerArchiveBody": "Het P6-bronarchief gaat niet mee naar IFCX. De planning zelf gaat wel mee. Het geopende bestand verandert niet. Daarna werk je verder in het IFCX-bestand, zonder het bronarchief.",
       "xerArchiveContinue": "Doorgaan",
-      "cancel": "Annuleren"
+      "cancel": "Annuleren",
+      "ifcWithoutLinksBody": "Het IFC-bestand bevat alleen de planning. De verwijzing naar het model en de bouwdeelkoppelingen gaan niet mee. Het model en de eerder opgeslagen IFCX-planning blijven ongewijzigd. Daarna werk je verder in het IFC-bestand."
     },
     "fileDropRefused": "Niet geopend: {{names}}. De app opent alleen IFC, IFCX, XML, MPP, XER en CSV.",
     "planSuffix": "planning",
