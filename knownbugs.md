@@ -2549,6 +2549,17 @@ en noem het in je rapport of PR-tekst.
      16:00 met 60 minuten pauze en `hoursPerDay: 8`; de schrijfvalidatie rekent 7,5 uur en `planner_update_calendar`
      met `create: true` weigert de gelezen kalender in een leeg document. Er gaat niets verloren; de kalender is zo
      alleen niet over te zetten (ADR 0104). Issue #1274. — B
+2530. **`planner_add_tasks` zonder `duration` geeft een andere duur zodra het item `durationType` noemt.**
+     `addTasksCore` in `src/services/mcp/tools/taskTools.ts` maakt bij een tijddeel zonder duur zelf de tijd, met 5 in
+     de dagenmaat; zonder tijddeel kiest `draft.addTask` (`src/state/runtime/createMcpTransactions.ts`) 5 in de maat
+     van `newTaskTimeUnit`. Nagespeeld via de handler met de app-store: een nieuw project met zijn eigen rekenprofiel, de
+     projectkalender (8 uur per dag) en `defaultTaskDurationUnit: 'hours'`; `{ name: 'A' }` werd een urentaak van 300
+     minuten (07:00 tot 12:00), `{ name: 'B', durationType: 'WORKTIME' }` een dagtaak van 5 werkdagen. Met de
+     standaard `days` gaven beide 5 werkdagen. ADR 0491. — B
+2531. **`planner_remove_dependencies` noemt een relatie twee keer in `removed` als haar id twee keer in `ids` staat.**
+     `removeDependenciesCore` in `src/services/mcp/tools/taskTools.ts` zet elk gevonden id in `removed`, ook een
+     herhaling. Nagespeeld via de handler: één FS-relatie, `ids: [id, id]`; de relatie was weg, `removed` bevatte het
+     id twee keer en er was geen weigering. `planner_delete_tasks` meldt een dubbel id wel één keer (ADR 0493). — B
 
 ## Bestanden en herstel
 
