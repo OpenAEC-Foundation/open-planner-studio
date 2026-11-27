@@ -19,7 +19,9 @@ knownbug 2521.
   hetzelfde. Resources (`openResourcePanelButton`) opent het volledige paneel, dat de werkruimte overneemt
   (`resourcePanelDocked: false`); Resourcedock (`dockResourcePanelButton`) zet de compacte lijst in de rail
   (`resourcePanelDocked: true`).
-- Het icoon `resource.dock` zegt waar het paneel komt, `resource.workspace` wat erin staat. Het dock-icoon draagt
+- Het icoon `resource.dock` zegt waar het paneel komt, `resource.workspace` wat erin staat. Volgens het weggehaalde
+  commentaar volgt het dock-icoon (een rechthoek met een afgescheiden zijvak, zonder pijlpunt omdat die in de
+  compacte strip wegvalt) de conventie van VS Code en Figma voor deze schakelaar; dat is niet nagegaan. Het draagt
   `ops-icon-rail` en spiegelt in RTL (`ar`, `fa`) mee in `Ribbon.css`, omdat de rail daar links staat. Het wisselt
   niet van icoon bij aan of uit: de actieve stand van het lint is de terugkoppeling, net als bij Histogram.
   Eigenschappen wisselt wel, tussen `panel.properties` en `panel.properties-hidden`.

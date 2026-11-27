@@ -17,7 +17,9 @@ selectie deelt de Tabel met de Gantt.
   (`menu:ribbon.progressExport`) noemt bewust geen formaat. Volgens het weggehaalde commentaar wordt een `RibbonButtonSpec` naast een
   component-item in dezelfde groep een kaal icoon; dat is niet nagegaan.
 - Het tabblad Rapport heeft geen lintinhoud (`reportTab` is leeg en `Ribbon.tsx` tekent er geen lint): het rapport
-  heeft zijn eigen zijbalk (eigenaarsbesluit 7 november 2026, `docs/superpowers/specs/2026-11-07-rapport-tabblad-bevindingen.md`).
+  heeft zijn eigen zijbalk (eigenaarsbesluit 7 november 2026, `docs/superpowers/specs/2026-11-07-rapport-tabblad-bevindingen.md`). Ctrl+P
+  (`nav.reportTab`) en de knop in Bestand → Afdruk (`PrintSection` in
+  `Backstage.tsx`) openen dit tabblad.
 - Project verplaatsen staat in de groep Planning naast Bereken: het verschuift de hele planning en is geen
   structuur-, kalender- of baselineactie.
 - De splitsknop staat naast het relatiemenu omdat het dezelfde soort schakelaar is: een modus die het slepen vanaf
