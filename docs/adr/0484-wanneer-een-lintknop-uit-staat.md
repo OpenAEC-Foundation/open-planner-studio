@@ -14,8 +14,8 @@ een uitgeschakelde knop of een knop met twee betekenissen zegt, staat in zijn to
   `hasSelection` en `isTreeMode`). Of de structuur dan verandert, beslist `indentTasks`/`outdentTasks` in
   `taskSlice.ts`: met de eerste en enige taak op hoofdniveau geselecteerd staan beide knoppen aan en verandert geen
   van beide de planning of de undo-geschiedenis.
-- Verwijderen staat aan bij een selectie (`COMMANDS.delete.isEnabled`), Dissolve ook (`selectedTaskIds.length > 0`);
-  geen van beide kijkt of de takenlijst in beeld is (knownbug 2520).
+- Verwijderen en Dissolve staan aan bij een taakselectie terwijl de takenlijst in beeld is. Delete en Backspace
+  gebruiken dezelfde voorwaarde voor selectie en zichtbaarheid (`hasEditableSelection`, ADR 0482).
 - Project verplaatsen staat uit zonder `project.startDate`: die datum is het referentiepunt van de verschuiving.
   `MoveProjectDialog` toetst de datums zelf nog.
 - Voortgangsblad exporteren en Voortgang bijwerken uit een blad staan uit zonder taken; Backstage → Importeren
