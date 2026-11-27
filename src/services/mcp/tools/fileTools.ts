@@ -67,7 +67,7 @@ import {
   type WriteTargetDeps, type WriteTargetRefusal,
 } from '@/state/ifcForeignGuard';
 import { openTabFor, readsOwnIfcx, readVersionOf, switchToOpenDocument } from '@/state/openDocumentFor';
-import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { ifcForeignContentEnabled, ifcxEnabled } from '@/utils/featureFlags';
 import { namesFollowFormat } from '@/state/ifcxGuard';
 import { writtenForeignChangeCount } from '@/state/foreignChangesWrittenNotice';
 
@@ -641,6 +641,9 @@ export const fileTools: McpToolDef[] = [
           tasks: state.tasks.length,
           /** Werkelijke uitkomst: stond er al een bestand op dit pad dat nu vervangen is? */
           overwritten: existed,
+          ...(state.ifcxReferences && ifcxEnabled(state.ui.featureFlags) ? {
+            notice: 'The model reference and element links stay in the IFCX schedule. The IFC export omits them.',
+          } : {}),
           ...(replaceNotice ? { replaceNotice } : {}),
           ...(foreignDataChanged > 0 ? {
             foreignDataChanged,

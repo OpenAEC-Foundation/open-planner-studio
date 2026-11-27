@@ -27,6 +27,10 @@ const TEXTS = {
     title: 'ifcx.saveAs.title', body: 'ifcx.saveAs.xerArchiveBody',
     continue: 'ifcx.saveAs.xerArchiveContinue', cancel: 'ifcx.saveAs.cancel',
   },
+  ifcxModelSaveAsIfc: {
+    title: 'ifcMissingSourceSaveAs.title', body: 'ifcx.saveAs.ifcWithoutLinksBody',
+    continue: 'ifcx.saveAs.planOnlyContinue', cancel: 'ifcx.saveAs.cancel',
+  },
 } as const satisfies Record<PlanOnlyReason, Record<'title' | 'body' | 'continue' | 'cancel', string>>;
 
 /** Alleen een bewuste keuze mag een IFC-bestand met alleen de planning schrijven. Annuleren is de standaardknop. */
