@@ -278,8 +278,8 @@ niets en meldt niets. Opslaan: de route toetst de inhoud opnieuw (`refuseChanged
 controles zoals zonder vraag. Na een beantwoorde vraag komt geen telling achteraf (de route onthoudt het
 `PreparedIfcWrite`-object, `countShownBeforeWrite`). De vraag hangt alleen aan `write.prepared` en leest de flag dus
 niet zelf; de instelling komt uit de momentopname van de poging. Het vinkje "Niet meer vragen" telt alleen met Opslaan
-en zet de instelling uit. Met de vraag uit, bij een export (ook `planner_export_ifc`) en bij Automatisch opslaan geldt
-regel A hierboven zoals vóór de vraag (Automatisch opslaan wacht op een besluit, `settings-autosave.md`). Wat er bij
+en zet de instelling uit. Automatisch opslaan stelt dezelfde vraag voor het eigen schrijfdoel (`settings-autosave.md`).
+Met de vraag uit en bij een export (ook `planner_export_ifc`) geldt regel A hierboven. Wat er bij
 opslaan vervalt, is ook vooraf te tellen: `foreignChangesIfSaved` (`state/foreignLinksNotice.ts`, dezelfde regel als de
 wismelding) geeft hetzelfde aantal als de merge (`check-ifc-foreign-telling-vooraf.ts`). Ctrl+Z na een opslag en dan opslaan zet
 de stukken terug zonder vraag: er vervalt niets. Proeven: de blokken "vraag vóór opslaan" in

@@ -147,12 +147,12 @@ planner in een gewoon document doorwerkt. Beide ingangen slaan alleen over als e
 20 november 2026): valt de tik van een gewoon document samen met een modelronde, dan schrijft het hoogstens één
 modelronde later (bij een groot model tot ongeveer 20 s); met de flag uit verandert er niets. De worker stopt dat ene
 verzoek (`stop` van `IfcOutputCompute`); een geweken ronde laat niets achter (record en komende versie weer weg), geen
-melding, opnieuw na de volgende rust. Na de grens loopt de ronde af. De ronde vraagt nooit iets: zonder
+melding, opnieuw na de volgende rust. Na de grens loopt de ronde af. Zonder
 schrijftoestemming slaat ze het document over, en waar Ctrl+S naar een te krap anker van een afhankelijk project zou
 vragen ook (dezelfde beoordeling, `tightAnchorsIfSaved` in `dependentCandidates.ts`; een ruim anker houdt niets tegen).
-De vraag vóór het opslaan bij vervallende IFC-gegevens (`tauri-ifc.md`) stelt de ronde ook niet: ze schrijft en meldt
-het aantal daarna, zoals vóór die vraag. Wat de ronde daar moet doen, wacht op een besluit van de eigenaar (A: het
-document overslaan tot de planner zelf opsloeg; B: schrijven zoals nu).
+Bij vervallende IFC-gegevens stelt de ronde dezelfde vraag als Ctrl+S, met de naam van haar eigen doel
+(`tauri-ifc.md`, besluit eigenaar 27 november 2026). Bij een openstaande dialoog probeert ze het na de volgende rustperiode.
+Annuleren onderbreekt de bestandsopslag van dat document tot de planner zelf opslaat. Crashherstel loopt door.
 Veilig stoppen, met één melding per document per sessie en geen nieuwe poging tot de planner zelf opslaat (een nieuwe
 bron) of een ander doel kiest: eigen bestand gewijzigd of weg, buiten de thuismap (`save-as-only`), geen herstelrecord
 of manifest vast te leggen, een record van een eerdere onderbroken vervanging (`pendingReplaceFor`, het beleid van

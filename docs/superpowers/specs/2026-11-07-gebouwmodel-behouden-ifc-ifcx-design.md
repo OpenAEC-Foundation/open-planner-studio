@@ -510,7 +510,8 @@ Vóór elke opslag van het document met gewijzigde of vervallen stukken op de li
 aantal (besluit van de eigenaar, 25 november 2026: "1 maar wel met een optie om het niet meer te tonen"); teruggezette
 stukken tellen niet mee, dus Ctrl+Z na opslaan en dan opslaan vraagt niets. Met die vraag aan
 komt er geen telling achteraf: de vraag is de telling. Met de vraag uit ("Niet meer vragen", een instelling per
-apparaat) en bij een export blijft de telling na het opslaan. Automatisch opslaan wacht op een besluit van de eigenaar.
+apparaat) en bij een export blijft de telling na het opslaan. Automatisch opslaan stelt zelf de vraag
+(besluit eigenaar 27 november 2026). Na Annuleren wacht het voor dit document tot de planner zelf opslaat.
 Detail: "De vraag vóór het opslaan" in `.claude/rules/tauri-ifc.md`.
 
 Dezelfde regel geldt voor vreemde gegevens **binnen** een eigen stuk: de onbekende JSON-sleutels (§4.2) en de

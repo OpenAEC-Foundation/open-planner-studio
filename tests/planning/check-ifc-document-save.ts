@@ -4839,6 +4839,8 @@ function askerOn(store: Store, answer: (question: ForeignChangesQuestion) => For
 }
 const leafName = (path: string) => path.split(/[\\/]/).pop()!;
 const QUESTION_ROUTES: readonly [string, () => Promise<WriteRoute>, (route: WriteRoute) => string | null][] = [
+  ['Automatisch opslaan, desktop', () => onDesktop(store => modelAutoSave(store).round()), route => leafName(route.file())],
+  ['Automatisch opslaan, browser met handle', () => onHandle(store => modelAutoSave(store).round()), route => route.file()],
   ['Ctrl+S, bestand op de desktop', () => onDesktop(store => ctrlS(store)), route => leafName(route.file())],
   ['Ctrl+S, browser met handle', () => onHandle(store => ctrlS(store)), route => route.file()],
   ['Ctrl+S naar de site', () => onSite(), () => 'bron.ifc'],
@@ -4852,6 +4854,127 @@ const QUESTION_ROUTES: readonly [string, () => Promise<WriteRoute>, (route: Writ
 await check('de vraag vóór opslaan staat standaard aan', async () => {
   const { createAppStoreContext } = await loadStore();
   assert.equal(createAppStoreContext().store.getState().ui.foreignChangesQuestion, true);
+});
+
+await check('Automatisch opslaan wacht op antwoord voor het juiste tabblad en op andere open vragen', async () => {
+  const { store, docs: [first, second], unregister } = await linkedDocuments(2);
+  const auto = modelAutoSave(askOn(store)), answer = gate();
+  const asked = askerOn(store, async () => { await answer.held; return SAVE_ANSWER; });
+  try {
+    for (const doc of [first, second]) {
+      store.getState().switchDocument(doc.id);
+      deleteLinked(store);
+    }
+    const expected = await Promise.all([first, second].map(doc => expectedFor(store, doc.id)));
+    const questions = expected.map((write, i) => ({ count: write.foreignChanges!.length, file: [first, second][i].name }));
+    const otherQuestion = { count: 7, file: 'ander.ifc' };
+    store.getState().setUI({ pendingForeignChangesQuestion: otherQuestion });
+    writableLog.length = 0;
+    const blocked = auto.round();
+    await turnUntil(() => asked.length > 0 || !auto.controller.isSaving());
+    assert.deepEqual(asked, [], 'een open vraag blijft de enige');
+    await blocked;
+    store.getState().setUI({ pendingForeignChangesQuestion: null, showSettingsDialog: true });
+    const settings = auto.round();
+    await turnUntil(() => asked.length > 0 || !auto.controller.isSaving());
+    assert.deepEqual(asked, [], 'Instellingen blijft de enige dialoog');
+    await settings;
+    assert.deepEqual(writableLog, []);
+    store.getState().setUI({ showSettingsDialog: false });
+    const saving = auto.round();
+    await turnUntil(() => asked.length > 0 || !auto.controller.isSaving());
+    const next = auto.controller.flushModels();
+    await someTurns();
+    assert.deepEqual(asked, questions.slice(0, 1), 'alleen de vraag van het niet-actieve tabblad');
+    assert.equal(store.getState().activeDocumentId, second.id);
+    assert.deepEqual(writableLog, [], 'ook bij de volgende ronde wacht de eerste schrijfactie op antwoord');
+    answer.release();
+    await Promise.all([saving, next]);
+    assert.deepEqual(asked, questions);
+    assert.deepEqual([first, second].map(doc => hash(fileOf(doc.name))), expected.map(write => write.sha256));
+    longer(store);
+    const later = await expectedFor(store, second.id);
+    await auto.round();
+    assert.equal(hash(fileOf(second.name)), later.sha256);
+    assert.deepEqual(asked, questions, 'de volgende gewone bewerking schrijft zonder vraag');
+    assert.deepEqual(writtenNotices(store), []);
+  } finally {
+    answer.release();
+    await turnUntil(() => !auto.controller.isSaving());
+    resetForeignChangesAsker(); unregister(); await clearRecovery();
+  }
+});
+
+await check('Annuleren pauzeert automatische bestandsopslag tot Ctrl+S en laat crashherstel doorgaan', async () => {
+  const { store, docs: [doc], unregister } = await linkedDocuments(1);
+  const auto = modelAutoSave(askOn(store));
+  try {
+    deleteLinked(store);
+    const asked = askerOn(store, () => CANCEL_FOREIGN_CHANGES);
+    writableLog.length = 0;
+    await auto.round();
+    assert.equal(hash(fileOf(doc.name)), hash(LINKED), 'Annuleren laat het bestand bytegelijk');
+    longer(store);
+    await auto.round();
+    await auto.round();
+    assert.equal(asked.length, 1, 'na Annuleren komt geen tweede vraag voor het document');
+    assert.deepEqual(writableLog, [], 'geen enkele schrijfactie');
+    assert.equal(store.getState().isDirty, true);
+    await flushRecoveryNow();
+    const recovered = await restoreFrom(await loadRecovery());
+    assert.equal(recovered.getState().tasks.some(t => t.name === 'Set up site'), false);
+    assert.equal(recovered.getState().activeDocumentId, doc.id);
+    const expected = await expectedFor(store, doc.id);
+    const manual = askerOn(store, () => SAVE_ANSWER);
+    assert.equal(await ctrlS(store), true);
+    assert.deepEqual(manual, [{ count: expected.foreignChanges!.length, file: doc.name }]);
+    assert.equal(hash(fileOf(doc.name)), expected.sha256);
+    longer(store);
+    const later = await expectedFor(store, doc.id);
+    await auto.round();
+    assert.equal(hash(fileOf(doc.name)), later.sha256, 'na de handmatige opslag schrijft Automatisch opslaan weer');
+    assert.equal(manual.length, 1);
+  } finally { resetForeignChangesAsker(); unregister(); await clearRecovery(); }
+});
+
+await check('Niet meer vragen bij Automatisch opslaan bewaart de instelling en meldt de volgende telling na het schrijven', async () => {
+  const { store, docs: [doc], unregister } = await linkedDocuments(1);
+  const auto = modelAutoSave(askOn(store));
+  try {
+    const calls = recordCounts(store), asked = askerOn(store, () => ({ save: true, dontAskAgain: true }));
+    deleteLinked(store);
+    await auto.round();
+    assert.equal(asked.length, 1);
+    assert.equal(store.getState().ui.foreignChangesQuestion, false);
+    assert.equal(localStorage.getItem('ops-foreignChangesQuestion'), 'false');
+    assert.deepEqual(calls, []);
+    deleteLinked(store);
+    const later = await expectedFor(store, doc.id);
+    assert(later.foreignChanges?.length);
+    await auto.round();
+    assert.equal(hash(fileOf(doc.name)), later.sha256);
+    assert.equal(asked.length, 1);
+    assert.deepEqual(calls, [`${doc.name}:${later.foreignChanges.length}`]);
+  } finally { localStorage.removeItem('ops-foreignChangesQuestion'); resetForeignChangesAsker(); unregister(); await clearRecovery(); }
+});
+
+await check('Automatisch opslaan volgt met de flag uit de bestaande route voor een gewoon bestand en een bestand met gebouwmodel', async () => {
+  for (const model of [false, true]) {
+    const { store, unregister } = model ? await linkedDocuments(1) : await plainDocument(false);
+    const name = store.getState().fileHandle!.name, original = fileOf(name);
+    try {
+      askOn(store);
+      store.setState(s => { s.ui.featureFlags = {}; });
+      if (model) deleteLinked(store); else longer(store);
+      const asked = askerOn(store, () => CANCEL_FOREIGN_CHANGES);
+      const auto = modelAutoSave(store);
+      await auto.round();
+      await auto.controller.flush();
+      assert.deepEqual(asked, []);
+      assert.equal(hash(fileOf(name)) === hash(original), model);
+      assert.equal(store.getState().isDirty, model);
+    } finally { resetForeignChangesAsker(); unregister(); await clearRecovery(); }
+  }
 });
 
 await check('vraag vóór opslaan, proef 1 en 3: elke opslag van het document vraagt één keer met het aantal van de merge en de naam; Opslaan schrijft de voorbereide bytes, zonder telling achteraf', async () => {

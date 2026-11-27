@@ -35,6 +35,9 @@ import {
 } from '@/state/ifcForeignGuard';
 import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { basename } from '@/utils/filePath';
+import { isBlockingDialogOpen } from '@/state/blockingDialogs';
+import { foreignChangesQuestionFor } from '@/state/foreignChangesWrittenNotice';
 import { ownPathReplaceNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery } from '@/state/ownFileReplace';
 import {
   MODEL_AUTOSAVE_NOT_RECORDED_NOTICE, MODEL_AUTOSAVE_REMNANT_NOTICE, MODEL_AUTOSAVE_SAVE_AS_ONLY_NOTICE,
@@ -87,6 +90,9 @@ export function createFileAutoSaveController(deps: {
   const tracked = new Set<string>();
   const observe = () => {
     const state = getState();
+    for (const id of refusedTarget.keys()) {
+      if (!state.documents.some(doc => doc.id === id)) refusedTarget.delete(id);
+    }
     // Met de flag uit (en niets meer bij te houden) geen werk per wijziging: de app doet wat hij vóór stap 8 deed.
     if (tracked.size === 0 && !ifcForeignContentEnabled(state.ui.featureFlags)) return;
     const seen = new Set<string>();
@@ -209,6 +215,21 @@ export function createFileAutoSaveController(deps: {
     const after = await guard();
     if (after) return after;
     if (yielded.aborted) return 'yielded';
+    const { ui } = getState();
+    const question = foreignChangesQuestionFor(prepared, ui.foreignChangesQuestion,
+      ref.kind === 'path' ? basename(ref.path) : ref.handle.name);
+    if (question) {
+      if (isBlockingDialogOpen(ui)) return 'yielded';
+      if (!await getState().confirmForeignChangesWrite(prepared, question)) {
+        if (!changed()) refusedTarget.set(candidate.id, { ref, source, known: null });
+        return 'refused';
+      }
+      if (yielded.aborted) return 'yielded';
+      if (!deps.enabled() || !payloadOf(candidate.id)?.autoSaveToFile) return 'refused';
+      const afterAnswer = await guard();
+      if (afterAnswer) return afterAnswer;
+      if (yielded.aborted) return 'yielded';
+    }
     const commit = () => getState().markAutoSaveVersionSaved(document, current, prepared, null, localTargetName(ref));
 
     // De grens van de voorrang ligt in de gedeelde vervanging (`stopBeforeWrite`): pas als het herstel vastligt (browser:

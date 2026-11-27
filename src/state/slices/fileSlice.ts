@@ -56,8 +56,8 @@ import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
 import { hasBuildingModel, hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
-import { notifyForeignChangesWritten, writtenForeignChangeCount } from '../foreignChangesWrittenNotice';
-import { askForeignChanges } from '@/services/ifc/foreignChangesQuestion';
+import { foreignChangesQuestionFor, notifyForeignChangesWritten } from '../foreignChangesWrittenNotice';
+import { askForeignChanges, type ForeignChangesQuestion } from '@/services/ifc/foreignChangesQuestion';
 import { saveForeignChangesQuestion } from '@/utils/settingsStore';
 import { castDraft } from 'immer';
 import {
@@ -417,6 +417,7 @@ export interface FileSlice {
   saveFile: () => Promise<void>;
   saveFileForDocument: (documentId: string) => Promise<boolean>;
   saveFileAs: () => Promise<void>;
+  confirmForeignChangesWrite: (prepared: PreparedIfcWrite, question: ForeignChangesQuestion) => Promise<boolean>;
   commitSavedDocument: (document: DocumentContentRef, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite, missingSourceSaveAs?: boolean, written?: TargetFingerprint | null, writtenName?: string) => boolean;
   exportAs: (format: ExportFormat, options?: ExportOptions) => Promise<ExportResult>;
   exportProjectWithPool: () => Promise<ExportResult>;
@@ -1469,17 +1470,21 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return save.finally(() => set(s => { changeSaving(s, requested, -1); }));
   };
 
-  const confirmForeignChanges = async (state: AppState, write: IfcOutput, file: string | null): Promise<boolean> => {
-    const count = writtenForeignChangeCount(write.prepared);
-    if (count === 0 || !state.ui.foreignChangesQuestion) return true;
-    const answer = await askForeignChanges({ count, file });
+  const confirmForeignChangesWrite = async (prepared: PreparedIfcWrite, question: ForeignChangesQuestion): Promise<boolean> => {
+    const answer = await askForeignChanges(question);
     if (!answer.save) return false;
-    countShownBeforeWrite.add(write.prepared!);
+    countShownBeforeWrite.add(prepared);
     if (answer.dontAskAgain) {
       get().setUI({ foreignChangesQuestion: false });
       void saveForeignChangesQuestion(false);
     }
-    return !refuseChangedDocumentWrite(state, write);
+    return true;
+  };
+
+  const confirmForeignChanges = async (state: AppState, write: IfcOutput, file: string | null): Promise<boolean> => {
+    if (!write.prepared) return true;
+    const question = foreignChangesQuestionFor(write.prepared, state.ui.foreignChangesQuestion, file);
+    return !question || (await confirmForeignChangesWrite(write.prepared, question) && !refuseChangedDocumentWrite(state, write));
   };
 
   let saveAttemptSequence = 0;
@@ -1744,6 +1749,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   const slice: FileSlice = {
     commitSavedDocument,
+    confirmForeignChangesWrite,
     applyProjectEdit: (parsed, opts) => get().applyLoadedProject(parsed, {
       intent: 'edit',
       recompute: true,
