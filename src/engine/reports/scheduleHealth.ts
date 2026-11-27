@@ -11,26 +11,6 @@ import {
   type DcmaAssessment, computeDcmaAssessment, invalidDateReasons, isMissedTask, resourceLoadedTaskIds,
 } from './dcmaAssessment';
 
-/**
- * Planningsgezondheid: de geautomatiseerde planningsreview, in de
- * geest van de DCMA 14-punts-controle. Elke check levert een telling plus de betrokken taken of
- * relaties, met een ernst: `error` (de planning klopt niet), `warning` (verdient aandacht),
- * `info` (goed om te weten).
- *
- * De drempels zijn instelbaar; de defaults volgen DCMA (hoge speling en lange duur: 44 werkdagen,
- * ≈ twee maanden) — die zijn onderbouwd en breed bekend. Leads (negatieve lag) worden apart van
- * lags gemeld: DCMA staat leads helemaal niet toe, terwijl een gewone lag boven de drempel alleen ter
- * informatie is.
- *
- * Daarnaast levert het rapport de DCMA 14-puntsbeoordeling zelf (`dcmaAssessment.ts`): per punt
- * het percentage of de index tegen de norm uit het pamflet. De controles hieronder zijn de lijsten
- * achter die percentages, met de instelbare drempels; de DCMA-tabel rekent altijd met de vaste normen.
- *
- * WAT HIER BEWUST NIET STAAT: de dubbele meldingen die het waarschuwingenpaneel al
- * geeft over solverfouten (cyclus, afgekapte leads, hammocks); dit rapport gaat over de KWALITEIT
- * van een rekenbare planning. Geschonden constraints en gemiste deadlines staan er wél in, want
- * die zijn de gebruikelijke oorzaak van negatieve speling en horen in één review bij elkaar.
- */
 export type HealthCheckId =
   | 'noPredecessor'
   | 'noSuccessor'
@@ -61,12 +41,10 @@ export type ProgressExceptionReason =
   | 'forecastFinishBeforeStatusDate';
 
 export interface HealthItem {
-  /** Taak-rij: wbs + naam; relatie-rij: "voorganger → opvolger". */
   taskId?: string;
   sequenceId?: string;
   wbs: string;
   name: string;
-  /** Kind-specifieke feiten; de UI formatteert en vertaalt. */
   detail: {
     float?: number;
     days?: number;
@@ -74,7 +52,6 @@ export interface HealthItem {
     constraintType?: ConstraintType;
     date?: string;
     reason?: ProgressExceptionReason;
-    /** Relatietype (alleen `nonFsRelation`). */
     relationType?: Sequence['type'];
   };
 }
@@ -88,7 +65,6 @@ export interface HealthCheck {
 export interface HealthOptions {
   highFloatDays: number;
   longDurationDays: number;
-  /** Lag boven deze drempel (werkdagen) wordt gemeld; leads (negatief) altijd. */
   lagDays: number;
   nearCriticalDays: number;
 }
@@ -147,7 +123,6 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
 
   for (const t of leaves) {
     const state = progressState(t);
-    // Open einden: alleen niet-mijlpalen (een start-/eindmijlpaal is per definitie een open eind).
     if (!t.isMilestone) {
       if (!hasPred.has(t.id)) add('noPredecessor', taskItem(t));
       if (!hasSucc.has(t.id)) add('noSuccessor', taskItem(t));
@@ -167,11 +142,6 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
         add('hardConstraint', taskItem(t, { constraintType: c.type, date: c.date }));
       }
     }
-    // Voortgangsuitzonderingen: inconsistente actuals, en (DCMA punt 9) een prognose vóór de
-    // statusdatum. Eén definitie met de DCMA-telling (`invalidDateReasons`), met dezelfde taakkalender:
-    // "ná" met dezelfde precisie en dezelfde werkdag als het raster en de store-setters
-    // (`isTaskActualPastStatusDate`). Zonder kalender las de lijst een nachtdienst op de klokdag en
-    // meldde ze een afmelding die de invoer en DCMA goedkeuren.
     const { actualStart, actualFinish, completion } = t.time;
     if (statusDate && statusDay) {
       const taskCalendar = effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[]);
@@ -186,28 +156,22 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
     if (actualFinish && completion < 1) add('progressException', taskItem(t, { reason: 'actualFinishWithoutComplete' }));
     if (completion > 0 && !actualStart) add('progressException', taskItem(t, { reason: 'progressWithoutActualStart' }));
     if (!t.isMilestone) {
-      // Gemiste taak (DCMA punt 11): had volgens de baseline klaar moeten zijn en eindigt later.
       const bt = baseMap.get(t.id);
       if (statusDay && bt && dayOf(bt.finish) <= statusDay && isMissedTask(t, bt)) {
         add('missedTask', taskItem(t, { date: bt.finish }));
       }
-      // Zonder resource (DCMA punt 10): alleen in een project dat resources gebruikt.
       if (resourced.size > 0 && state !== 'complete' && !resourced.has(t.id) && durationDays(ctx, t) > 0) {
         add('missingResource', taskItem(t));
       }
     }
   }
 
-  // Rapporteer per GEMODELLEERDE relatie: een faserelatie vouwt voor de solver uit tot n×m
-  // bladrelaties, maar de planner ziet er één (op de fasenamen) en telt hem één keer.
   const seqItem = (s: Sequence, detail: HealthItem['detail'] = {}): HealthItem => {
     const shown = originalSeqById.get(originalSequenceId(s.id)) ?? s;
     const p = byId.get(shown.predecessorId);
     const q = byId.get(shown.successorId);
     return { sequenceId: shown.id, wbs: `${p?.wbsCode ?? '?'} → ${q?.wbsCode ?? '?'}`, name: `${p?.name ?? '?'} → ${q?.name ?? '?'}`, detail };
   };
-  // Eén lag-definitie met de solver (`resolveEffectiveLagDays`): procent-lag uit de voorgangerduur,
-  // `lagDays` leidend, minuut-lag via de uren/dag van de voorgangerkalender.
   const reportedLag = new Set<string>();
   const reportedType = new Set<string>();
   for (const s of relations) {

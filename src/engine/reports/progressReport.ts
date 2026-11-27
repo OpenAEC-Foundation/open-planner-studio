@@ -7,34 +7,6 @@ import {
 } from './reportCommon';
 import { type ReportingPeriod, periodDays, windowEnd } from './reportingPeriod';
 
-/**
- * Voortgangs-/statusrapport: het periodieke "waar staan we"-overzicht
- * op de statusdatum.
- *
- * SAMENVATTING — statusdatum, baseline- en prognose-einde met het verschil in werkdagen, geplande
- * versus werkelijke voortgang en de tellingen per staat.
- *
- * Geplande en werkelijke voortgang zijn DUURGEWOGEN over de bladtaken (een kaal gemiddelde laat
- * een mijlpaal even zwaar wegen als een maand werk). Gepland = per taak het aandeel van de duur dat
- * op de referentiedag verstreken had
- * moeten zijn, gemeten op de BASELINE-datums als er een actieve baseline is (dat is de afspraak
- * waartegen je meet), anders op de huidige planning (`plannedBasis` vertelt welke). Werkelijk =
- * de ingevoerde completion, gewogen met dezelfde duur.
- *
- * SECTIES — voltooid in de rapportageperiode, in uitvoering, start in de komende periode,
- * achterstallig (had moeten starten/eindigen) en kritieke open activiteiten. Eén taak kan in
- * meerdere secties staan (in uitvoering én kritiek); dat is bewust — elke sectie beantwoordt
- * een eigen vraag.
- *
- * DE PERIODE is de rapportageperiode van het statusrapport — standaard de afgelopen
- * maand t/m de statusdatum. "Voltooid" telt binnen die periode. "Start in de komende periode" kijkt
- * vanaf de statusdatum VOORUIT: ligt de periode (deels) ná de statusdatum, dan tot het einde van de
- * periode. Bij een "afgelopen …"-preset (die per definitie op de statusdatum eindigt) wordt de
- * periode gespiegeld — even ver vooruit als hij terugkijkt ("afgelopen 2 weken" = 2 weken terug,
- * 2 weken vooruit). Een
- * aangepaste of project-periode die helemaal in het verleden ligt wordt NIET gespiegeld (een
- * venster in 2020 zegt niets over de toekomst): de sectie blijft dan leeg.
- */
 export type ProgressRowStatus = 'complete' | 'inProgress' | 'notStarted' | 'overdueStart' | 'overdueFinish';
 
 export interface ProgressRow {
@@ -46,22 +18,16 @@ export interface ProgressRow {
   actualFinish?: string;
   completion: number;
   remainingDays: number;
-  /** De restduur in de maat van de taak (B8), voor de weergave. */
   remaining: MeasuredDuration;
   totalFloat: number;
   isCritical: boolean;
   isNearCritical: boolean;
-  /** Voortgangsstaat — de drie tellingen `complete`/`inProgress`/`notStarted` sommeren tot `total`. */
   state: ProgressState;
-  /** Achterstallig, ORTHOGONAAL aan de staat: een lopende taak die te laat is blijft "in uitvoering"
-   *  én is achterstallig. */
   overdue?: 'start' | 'finish';
-  /** Weergavestatus: achterstallig wint van de staat. */
   status: ProgressRowStatus;
 }
 
 export interface ProgressReportOptions {
-  /** Rapportageperiode; standaard `lastMonth`. */
   period: ReportingPeriod;
   nearCriticalDays: number;
 }
@@ -71,11 +37,9 @@ export interface ProgressSummary {
   statusDateMissing: boolean;
   periodFrom: string;
   periodTo: string;
-  /** Einde van het vooruitkijkvenster van "start in de komende periode" (vanaf de statusdatum). */
   lookAheadTo: string;
   baselineFinish?: string;
   forecastFinish?: string;
-  /** Werkdagen, getekend (+ = later dan de baseline). */
   finishVarianceDays?: number;
   plannedPct: number;
   actualPct: number;
@@ -97,9 +61,6 @@ export interface ProgressReportResult {
 
 export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOptions): ProgressReportResult {
   const { from: periodFrom, to: periodTo, refDay: ref, statusDateMissing } = resolvePeriodFor(ctx, opts.period);
-  // Vooruitkijken vanaf de statusdatum: tot het periode-einde als dat erná ligt; een "afgelopen …"-
-  // preset wordt gespiegeld (2 weken terug ⇒ ref + 14 dagen);
-  // een aangepaste/project-periode in het verleden niet (zie de kop).
   const mirrored = opts.period.preset.startsWith('last');
   const lookAheadTo = periodTo > ref ? periodTo
     : mirrored ? windowEnd(ref, periodDays({ from: periodFrom, to: periodTo }) + 1)
@@ -139,18 +100,12 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
       status,
     });
 
-    // Duurgewogen voortgang. Gewicht = de HUIDIGE duur van de taak in werkdagen (óók mét baseline:
-    // `BaselineTask.duration` is `scheduleDuration`, dat voor een uur-taak niet canoniek is en de
-    // taak 10× te zwaar zou wegen); mijlpalen wegen 0 en tellen dus niet mee.
-    // De GEPLANDE fractie wordt wél op de baseline-DATUMS gemeten wanneer die er zijn.
     const weight = durationDays(ctx, t);
     if (weight <= 0) continue;
     const start = bt ? bt.start : taskStart(t);
     const finish = bt ? bt.finish : taskFinish(t);
     const eng = engines.forTask(t);
     let plannedFrac: number;
-    // Een uur-kalender of een statusmoment meet in het taakvenster zelf, zoals de voortgangscurve; een
-    // dagkalender zonder moment deelt door de duur. Het gewicht blijft in alle gevallen de duur.
     if (onHourCalendar(ctx, t) || (moment && eng.isHourMode)) plannedFrac = elapsedWorkFraction(eng, start, finish, ref, moment);
     else if (refDate < parseDate(start)) plannedFrac = 0;
     else if (refDate >= parseDate(finish)) plannedFrac = 1;

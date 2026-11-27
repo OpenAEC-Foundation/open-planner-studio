@@ -1,6 +1,5 @@
 export type TaskGridMenuNavigationKey = 'ArrowDown' | 'ArrowUp' | 'Home' | 'End';
 
-/** Volgende focuspositie voor een verticaal contextmenu, met omloop aan beide uiteinden. */
 export function nextTaskGridMenuIndex(
   key: TaskGridMenuNavigationKey,
   currentIndex: number,

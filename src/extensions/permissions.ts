@@ -1,20 +1,7 @@
-/**
- * ÉÉN declaratieve bron voor de permissie-afdwinging van de extensie-API.
- *
- * Élk API-methode-pad staat hier met zijn vereiste permissie (of `null` voor de kern-API), en past
- * één generieke wrapper (`applyPermissionGuards`) de checks toe. Wil je het permissiegedrag van een
- * methode weten of wijzigen, dan is dit de enige plek.
- */
 import type { ExtensionPermission } from './types';
 import { appLog } from '@/services/debug/appLog';
-// Zelfde kale instantie als de loader: UI-tekst zonder de DOM-afhankelijke i18n/config te laden.
 import i18next from 'i18next';
 
-/**
- * Afdwing-modus per guard:
- *   • 'throw' — ontbrekende permissie ⇒ gooi een fout naar de extensie (harde grens).
- *   • 'warn'  — ontbrekende permissie ⇒ appLog-warn, mét doorlaten (compat-modus, zie hieronder).
- */
 export type PermissionMode = 'throw' | 'warn';
 
 export interface PermissionCheck {
@@ -22,52 +9,21 @@ export interface PermissionCheck {
   mode: PermissionMode;
 }
 
-/**
- * API-methode-pad → vereiste permissie, of `null` voor de kern-API (altijd toegestaan).
- *
- * Toewijzingen:
- *   • events.*            → 'events'    (throw)
- *   • ui.addRibbonButton  → 'ribbon'    (throw)
- *   • importers.*         → 'backstage' (WARN) — compat: de gepubliceerde referentie-extensie
- *       registreert een importer zonder 'backstage' te declareren. Hard afdwingen zou bestaande,
- *       geïnstalleerde extensies breken; daarom nu warn-modus (deprecatiepad). Zie docs/extensions.md.
- *   • data.getImportSource* → 'importSource' (hard, DEFAULT-DENY) — deze drie methoden geven de
- *       volledige oorspronkelijke bronbytes van een geïmporteerd bestand terug (bv. de rauwe XER),
- *       inclusief velden die de importlaag bewust niet in het projectmodel materialiseert. Dat is
- *       wezenlijk breder dan de rest van `data.*` en dus expliciet GEEN kern-API — zie de
- *       privacyparagraaf in docs/extensions.md. Zonder de permissie gooit de guard vóórdat de
- *       onderliggende functie ooit wordt aangeroepen: er wordt geen enkele byte gelezen.
- *   • help.*              → 'help' (throw, sinds contract 1.4.0) — Help-artikelen registreren, een
- *       meegeleverd projectbestand openen en het begeleidingspaneel aansturen. Geen privacyrisico
- *       zoals `importSource`, maar wel een zichtbare ingreep in de app (een nieuw document, een
- *       paneel dat knoppen aanwijst): daarom een gedeclareerde, hard afgedwongen permissie.
- *   • overige data.*, settings.*, ui.showNotification → null (kern-API, gedocumenteerd).
- *
- * 'filesystem'/'network' staan bewust NIET in deze tabel: ze hebben geen API-oppervlak en zijn in
- * same-context JS niet technisch afdwingbaar. Ze zijn puur installatie-informatief (getoonde intentie),
- * niet een sandbox-garantie — zie de permissie-uitleg in docs/extensions.md.
- */
 export const API_PERMISSIONS: Record<string, PermissionCheck | null> = {
-  // Importers — compat-warn (zie hierboven).
   'importers.register': { perm: 'backstage', mode: 'warn' },
   'importers.unregister': { perm: 'backstage', mode: 'warn' },
 
-  // Event-bus — hard.
   'events.on': { perm: 'events', mode: 'throw' },
   'events.off': { perm: 'events', mode: 'throw' },
   'events.emit': { perm: 'events', mode: 'throw' },
 
-  // UI — ribbon hard, notificatie is kern.
   'ui.addRibbonButton': { perm: 'ribbon', mode: 'throw' },
   'ui.showNotification': null,
 
-  // PDF-font-providers — hard (net als ui.addRibbonButton).
   'pdfFonts.register': { perm: 'pdf-fonts', mode: 'throw' },
 
-  // Assets — kern-API (de extensie leest z'n eigen mee-verpakte bestanden).
   'assets.get': null,
 
-  // Data — kern-API.
   'data.getProject': null,
   'data.getCalendar': null,
   'data.getTasks': null,
@@ -82,25 +38,21 @@ export const API_PERMISSIONS: Record<string, PermissionCheck | null> = {
   'data.recalculate': null,
   'data.batch': null,
 
-  // Read-only XER-bronroute — hard, DEFAULT-DENY (privacy; zie de uitleg hierboven).
   'data.getImportSourceInfo': { perm: 'importSource', mode: 'throw' },
   'data.getImportSourceIssue': { perm: 'importSource', mode: 'throw' },
   'data.getImportSourceChunk': { perm: 'importSource', mode: 'throw' },
   'data.getImportSourceCatalogPage': { perm: 'importSource', mode: 'throw' },
 
-  // Help & begeleiding — hard (contract 1.4.0).
   'help.registerArticles': { perm: 'help', mode: 'throw' },
   'help.unregisterArticles': { perm: 'help', mode: 'throw' },
   'help.openBundledProject': { perm: 'help', mode: 'throw' },
   'help.startGuide': { perm: 'help', mode: 'throw' },
   'help.stopGuide': { perm: 'help', mode: 'throw' },
 
-  // Settings — kern-API.
   'settings.get': null,
   'settings.set': null,
 };
 
-/** Alle permissie-strings die deze app-versie kent (bron van waarheid voor validatie + SDK). */
 export const KNOWN_PERMISSIONS: readonly ExtensionPermission[] = [
   'ribbon',
   'backstage',
@@ -112,13 +64,6 @@ export const KNOWN_PERMISSIONS: readonly ExtensionPermission[] = [
   'help',
 ];
 
-/**
- * Defensieve normalisatie voor de API-opbouw: behoud bekende permissies zonder duplicaten
- * en laat niet-string-invoer weg. Onbekende strings geven een appLog-warn en worden weggelaten.
- * Dit is géén installatiebeleid: parseExtensionManifest weigert onbekende permissies bij verse
- * JS-/ZIP-/catalogusinvoer. Alleen de parser voor al opgeslagen legacyrecords filtert ze met
- * een waarschuwing; bij normale activatie is die parse al afgerond vóór deze extra grens.
- */
 export function sanitizeManifestPermissions(
   raw: unknown,
   extensionId: string,
@@ -141,7 +86,6 @@ export function sanitizeManifestPermissions(
   return out;
 }
 
-/** Voer de permissie-check voor één guarded pad uit: gooi (throw-modus) of waarschuw (warn-modus). */
 function enforce(
   extensionId: string,
   permissions: ExtensionPermission[],
@@ -154,7 +98,6 @@ function enforce(
       ns: 'menu', extensionId, permission: check.perm,
     }));
   }
-  // warn-modus: doorlaten, maar loggen (deprecatiepad).
   appLog.emit(
     'warn',
     `ext:${extensionId}`,
@@ -162,24 +105,19 @@ function enforce(
   );
 }
 
-/**
- * Wikkel de guarded methodes van een reeds opgebouwde API-instantie in één keer in permissie-checks.
- * Alleen paden met een niet-`null` entry in {@link API_PERMISSIONS} worden ingepakt; kern-API
- * (`null`) blijft ongewijzigd. De methode wordt aan zijn groep gebonden zodat `this` klopt.
- */
 export function applyPermissionGuards(
   api: Record<string, unknown>,
   extensionId: string,
   permissions: ExtensionPermission[],
 ): void {
   for (const [path, check] of Object.entries(API_PERMISSIONS)) {
-    if (!check) continue; // kern-API — geen guard
+    if (!check) continue;
     const dot = path.indexOf('.');
     const group = path.slice(0, dot);
     const method = path.slice(dot + 1);
     const target = api[group] as Record<string, unknown> | undefined;
     const original = target?.[method];
-    if (typeof original !== 'function') continue; // pad bestaat niet (defensief)
+    if (typeof original !== 'function') continue;
     const bound = (original as (...a: unknown[]) => unknown).bind(target);
     target![method] = (...args: unknown[]) => {
       enforce(extensionId, permissions, path, check);

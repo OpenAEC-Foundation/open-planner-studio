@@ -11,5 +11,5 @@ document: `view.showRelations`, gezet via `setShowRelations`, en zonder waarde a
 
 Balkdatums (`toggleBarDates`, #868: de begindatum links en de einddatum rechts van een balk) is een instelling van
 de planner (`ops-showBarDates`, via `applySetting` en `saveShowBarDates`), standaard uit zodat de Gantt voor niemand
-ongevraagd verandert, en geen deel van een layout. Ook met de instelling aan laat de tekenaar een datum weg als er
-geen ruimte voor is (`drawStartDate` en `drawOutsideBarName` in `GanttRenderer.ts`).
+ongevraagd verandert, en geen deel van een layout. Of een datum ook getekend wordt, beslist de tekenaar
+(`drawStartDate` en `drawOutsideBarName` in `GanttRenderer.ts`).

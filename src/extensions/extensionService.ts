@@ -1,9 +1,3 @@
-/**
- * Installeren, verwijderen en catalogusbeheer van extensies.
- * ZIP-parsing gebeurt met een minimale eigen parser op basis van DecompressionStream — geen
- * JSZip-dependency (zelfde aanpak als Open Calc Studio). Die parser woont in
- * `src/services/zip/zipReader.ts`; dit bestand is er alleen afnemer van.
- */
 import type { ExtensionManifest, ReadyExtension, CatalogEntry } from './types';
 import { manifestFromJavaScript, parseCatalog, parseExtensionManifest } from './validation';
 import {
@@ -23,30 +17,16 @@ import { EXTENSION_ZIP_LIMITS, parseZipEntries, type ZipEntry } from '@/services
 import { FetchTimeoutError, fetchWithIdleTimeout, fetchWithTimeout, readBodyBytes } from '@/services/fetchWithTimeout';
 import i18next from 'i18next';
 
-// De ZIP-lezer woont in `src/services/zip/`, zodat de `.xlsx`-lezer hem kan delen zonder de hele
-// extensie-/store-laag mee de bundel in te trekken. Hier blijft hij heruitgevoerd omdat afnemers
-// (o.a. `tests/planning/check-ext-integrity.ts`) hem via dit pad importeren.
 export { parseZipEntries };
 export type { ZipEntry };
 
-// ── Catalogus ──
-
 const CATALOG_URL =
   'https://raw.githubusercontent.com/OpenAEC-Foundation/open-planner-studio-extensions/main/catalog.json';
-const CATALOG_CACHE_MS = 30 * 60 * 1000; // 30 min
+const CATALOG_CACHE_MS = 30 * 60 * 1000;
 
-/**
- * Tijdslimieten voor het netwerk (zie `services/fetchWithTimeout.ts`). Zonder limiet bleef een
- * hangende verbinding eeuwig "bezig" — o.a. de Ja-knop van de tutorialvraag.
- *  - Catalogus: een klein JSON-bestand, dus een TOTALE limiet (verzoek + body).
- *  - Extensie-ZIP: tot 48 MiB (`EXTENSION_ZIP_LIMITS`), dus een STILTE-limiet: de timer begint
- *    opnieuw bij elk binnengekomen stuk. Een trage maar gestage download loopt af, hoe lang hij ook
- *    duurt; alleen een download die zo lang niets binnenkrijgt, breekt af.
- */
 export const CATALOG_FETCH_TIMEOUT_MS = 20_000;
 export const EXTENSION_DOWNLOAD_IDLE_TIMEOUT_MS = 30_000;
 
-/** Foutmelding voor de gebruiker/het log; een timeout krijgt een vertaalde tekst. */
 function networkErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof FetchTimeoutError) {
     return i18next.t('extensions.networkTimeout', { ns: 'menu', seconds: Math.ceil(err.timeoutMs / 1000) });
@@ -64,8 +44,6 @@ export async function fetchCatalog(): Promise<void> {
   store.setCatalogError(null);
 
   try {
-    // no-store: omzeil de browser/CDN-HTTP-cache zodat een net-bijgewerkte catalogus
-    // niet stale wordt geserveerd (de store-cache hierboven beperkt de frequentie al).
     const json = await fetchWithTimeout(CATALOG_URL, { cache: 'no-store' }, CATALOG_FETCH_TIMEOUT_MS, async (res) => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json() as Promise<unknown>;
@@ -92,38 +70,14 @@ export async function fetchCatalog(): Promise<void> {
   }
 }
 
-// ── Installeren vanuit de catalogus ──
-
-// Let op: dit downloadt en activeert externe code na een gebruikersklik.
-// Er is geen echte sandbox (zie executeExtensionCode in extensionLoader.ts);
-// de catalogus is een door de Foundation beheerde lijst.
-/**
- * Afloop van een installatiepoging. Een bewuste WEIGERING is nadrukkelijk geen fout: de UI hoort
- * daar geen "installatie mislukt" op te tonen, en met een kale boolean was dat onderscheid er niet.
- */
 export type InstallOutcome = 'installed' | 'declined' | 'failed';
 
 export interface InstallOptions {
-  /** Waar de bytes vandaan komen — bepaalt wat de toestemmingsvraag over herkomst kan zeggen. */
   source?: ConsentSource;
-  /** Verificatiestand van die bytes (zie `verifyCatalogDownload`). */
   verification?: ConsentVerification;
-  /**
-   * Sla de vertrouwensvraag over. UITSLUITEND voor de dev-bridge en geautomatiseerde zelftests: die
-   * testen extensie-GEDRAG en hebben geen mens die een dialoog kan wegklikken. Nooit vanuit een
-   * gebruikerspad meegeven — dat zou de enige stap die om vertrouwen vraagt stil overslaan.
-   * `check-ext-consent.ts` bewaakt met een bron-assert dat alleen `devBridge.ts` dit zet.
-   */
   assumeConsent?: boolean;
 }
 
-/**
- * Manifest + installatiecontext → de vraag die de gebruiker te zien krijgt.
- *
- * Apart en puur, zodat toetsbaar is dát de velden overkomen. Een vraag die de auteur of de
- * declaratie kwijtraakt ziet er in de dialoog nog steeds compleet uit — er staat dan gewoon minder,
- * en niemand die de dialoog nooit eerder zag merkt het verschil.
- */
 export function buildConsentRequest(
   manifest: ExtensionManifest,
   id: string,
@@ -144,12 +98,6 @@ export function buildConsentRequest(
   };
 }
 
-/**
- * De vertrouwensvraag, op één plek voor élk installatiepad.
- *
- * Staat bewust VÓÓR elke schrijfactie: bij een weigering mag er niets in IndexedDB staan, niets in
- * de store geregistreerd zijn, en een al geïnstalleerde vorige versie onaangeroerd blijven.
- */
 async function gateConsent(
   manifest: ExtensionManifest,
   id: string,
@@ -194,28 +142,10 @@ export async function installFromCatalog(entry: CatalogEntry): Promise<InstallOu
 
 export interface DownloadVerdict {
   ok: boolean;
-  /** Gevuld wanneer `ok` onwaar is — gaat rechtstreeks naar de gebruiker/het log. */
   reason?: string;
-  /** True wanneer de entry geen `sha256` draagt: geïnstalleerd, maar ONgeverifieerd. */
   unverified?: boolean;
 }
 
-/**
- * Mag deze download geïnstalleerd worden?
- *
- * De catalogus is een extern JSON-bestand en `downloadUrl` wijst naar een release-asset; zonder
- * hash zijn "wat de catalogus beschrijft" en "wat je installeert" alleen door TLS aan elkaar
- * geknoopt, en een vervangen asset is onzichtbaar. Mét hash faalt de installatie bij het kleinste
- * verschil.
- *
- * Bewust een aparte, pure functie: de installatie zelf heeft IndexedDB en `DecompressionStream`
- * nodig en is daarmee niet headless te draaien; deze beslissing wél
- * (`tests/planning/check-ext-integrity.ts`).
- *
- * Een aanwezige maar ONLEESBARE hash is een weigering, geen "dan maar overslaan": dat laatste zou
- * een typefout in de catalogus stilzwijgend in "niet verifiëren" laten omslaan — precies de
- * degradatie die de controle waardeloos maakt.
- */
 export async function verifyCatalogDownload(
   entry: Pick<CatalogEntry, 'id' | 'sha256'>,
   bytes: Uint8Array,
@@ -235,16 +165,10 @@ export async function verifyCatalogDownload(
   return { ok: true };
 }
 
-/**
- * Hex-gecodeerde SHA-256 van een byte-reeks, via Web Crypto (beschikbaar in de browser, de
- * Tauri-webview én Node ≥ 18 — dus ook headless toetsbaar).
- */
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', bytes as unknown as ArrayBuffer);
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
-
-// ── Installeren vanuit een lokaal ZIP-bestand ──
 
 export async function installFromFile(): Promise<InstallOutcome> {
   return new Promise((resolve) => {
@@ -265,8 +189,6 @@ export async function installFromFile(): Promise<InstallOutcome> {
   });
 }
 
-// ── Installeren vanuit een los .js-bestand (simpele extensies) ──
-
 export async function installFromJsFile(): Promise<InstallOutcome> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
@@ -285,7 +207,6 @@ export async function installFromJsFile(): Promise<InstallOutcome> {
         if (!parsed.ok) throw new Error(parsed.error);
         const manifest = parsed.value;
 
-        // Vertrouwensvraag vóór élke schrijfactie — zie gateConsent.
         if (!await gateConsent(manifest, manifest.id, { source: 'js', verification: 'local' })) {
           input.remove();
           resolve('declined');
@@ -325,11 +246,6 @@ export interface ExpectedExtensionIdentity {
   version: string;
 }
 
-/**
- * Installeer een extensie uit een ZIP-`Blob` via het volledige install-pad (parse → assets bewaren →
- * opslaan → activeren). Ook gebruikt door `installFromCatalog`/`installFromFile`; los geëxporteerd zodat
- * programmatische installatie (o.a. zelftests) hetzelfde pad kan aanroepen zonder bestandskiezer.
- */
 export async function installFromZipBlob(
   blob: Blob,
   expected?: ExpectedExtensionIdentity,
@@ -371,11 +287,6 @@ export async function installFromZipBlob(
       );
     }
 
-    // Overige ZIP-entries (niet main/manifest) bewaren als binaire assets, op naam → bytes. Zo kan
-    // een extensie z'n eigen font-bytes leveren via `api.assets.get(...)`. Grootte begrensd (font-
-    // assets zijn MB's, maar IndexedDB mag niet volgestampt worden). De parser heeft iedere entry
-    // en het totaal al begrensd; hier is alleen nog de expliciete selectie nodig.
-    // Null-prototype: een geldige bestandsnaam als "__proto__" mag de assetmap niet muteren.
     const assets: Record<string, Uint8Array> = Object.create(null);
     for (const f of files) {
       if (f === manifestEntry || f === mainEntry) continue;
@@ -383,11 +294,8 @@ export async function installFromZipBlob(
     }
     const hasAssets = Object.keys(assets).length > 0;
 
-    // Vertrouwensvraag — VÓÓR de eerste schrijfactie, en dus ook vóór het deactiveren van een
-    // eventuele vorige versie: een weigering mag niets achterlaten en niets kapotmaken.
     if (!await gateConsent(manifest, manifest.id, opts)) return 'declined';
 
-    // Al geïnstalleerd? Eerst deactiveren.
     if (getActivePlugins().has(manifest.id)) {
       await disableExtension(manifest.id);
     }
@@ -397,7 +305,6 @@ export async function installFromZipBlob(
       manifest,
       mainCode,
       enabled: true,
-      // Backward-compat: alleen een `assets`-veld schrijven als er echt assets zijn.
       ...(hasAssets ? { assets } : {}),
     });
 
@@ -417,8 +324,6 @@ export async function installFromZipBlob(
   }
 }
 
-// ── Extensie verwijderen ──
-
 export async function removeExtension(
   id: string,
   storage: ExtensionStorage = indexedDbExtensionStorage,
@@ -426,16 +331,12 @@ export async function removeExtension(
   if (getActivePlugins().has(id)) {
     await disableExtension(id, storage);
   }
-  // Loopt de activatie nog (status "laden"), dan annuleren: anders activeert en bewaart
-  // `enableExtension` haar na de lopende `onLoad` alsnog (audit 2026-09-26).
   cancelPendingEnable(id);
 
   await storage.remove(id);
   useAppStore.getState().unregisterExtension(id);
 
-  // Instellingen van deze extensie opruimen
   const prefix = `ops-ext:${id}:`;
-  // Binnen een try: al het lezen van de global kan gooien (afgeschermde opslag, #583).
   try {
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -443,10 +344,9 @@ export async function removeExtension(
       if (key?.startsWith(prefix)) keysToRemove.push(key);
     }
     keysToRemove.forEach((k) => localStorage.removeItem(k));
-  } catch { /* opslag geblokkeerd: niets op te ruimen */ }
+  } catch { }
 }
 
-/** Verwijder een onuitvoerbaar opslagrecord via zijn bewaarde IndexedDB-sleutel. */
 export async function removeQuarantinedExtension(
   quarantineId: string,
   storage: ExtensionStorage = indexedDbExtensionStorage,
