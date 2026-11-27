@@ -1,4 +1,5 @@
 import { createDefaultCalendar, DEFAULT_CALENDAR_ID } from '@/engine/calendar/defaultCalendar';
+import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
 import { reconstructResourceIds } from '@/services/importNormalize';
@@ -104,9 +105,9 @@ export function readForeignIfcxPlanning(input: string | Uint8Array): ForeignIfcx
     planning: {
       project, calendar, resourceCalendars, tasks, sequences, resources, assignments, baselines,
       ...document.structure, timeModel: MINUTE_MODEL_TIME_MODEL, recordedFields,
+      recordedTimes: captureRecordedDates(tasks, recordedFields).times,
       recordedTimesOrigin: ops ? 'ifc-own' : 'ifc', ifcGlobalIds: ids.globalIds,
-      ...(ops ? { importPristine: document.importPristine } : {}),
-      ...(document.recordedSourceFormat ? { recordedSourceFormat: document.recordedSourceFormat } : {}),
+      ...(ops ? { importPristine: document.importPristine, recordedSourceFormat: document.recordedSourceFormat ?? 'ifc' } : {}),
       activeBaselineId: baselineId(document.activeBaselinePath, 'activeBaseline'),
       comparedBaselineIds: [baselineId(first, 'comparedBaselines.1'), baselineId(second, 'comparedBaselines.2')],
       ...(Object.keys(document.removedTasks).length ? { baselineOrphanGuids: document.removedTasks } : {}),

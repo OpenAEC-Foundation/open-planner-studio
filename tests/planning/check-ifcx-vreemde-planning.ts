@@ -124,11 +124,21 @@ assert.deepEqual(summary.childIds, [b.id, a.id, c.id]);
 assert.equal(c.id, b.id + '-dup-2');
 assert.equal(summary.name, 'Pakket 0');
 assert(!summary.manuallyScheduled);
-for (const tasks of [precise.planning.tasks, documentDataFromImport(structuredClone(precise.planning)).tasks]) {
+const preciseStore = createAppStoreContext().store;
+preciseStore.getState().openAsDocument(structuredClone(precise.planning), { name: 'Precieze taken', ref: null });
+for (const tasks of [precise.planning.tasks, preciseStore.getState().tasks]) {
+  assert(!tasks[0].manuallyScheduled);
   assert.deepEqual(tasks.map(shownStart), Array(4).fill('2027-03-01T07:00'));
   assert.deepEqual(tasks.map(shownFinish), ['2027-03-01T16:00', '2027-03-03T00:00', '2027-03-04T00:00', '2027-03-05T00:00']);
   assert(tasks.slice(1).every(task => task.manuallyScheduled && task.time.scheduleFinish === shownFinish(task)));
 }
+const scheduleOnly = JSON.parse(fixture('precieze-taken').toString('utf8'));
+const summaryTime = scheduleOnly.data[1].attributes[ATTRIBUTE.opsTask].time;
+summaryTime.earlyStart = '';
+summaryTime.earlyFinish = '';
+const scheduleOnlyStore = createAppStoreContext().store;
+scheduleOnlyStore.getState().openAsDocument(readForeignIfcxPlanning(JSON.stringify(scheduleOnly)).planning, { name: 'Taakvensters', ref: null });
+assert.deepEqual(dates(scheduleOnlyStore.getState().tasks), dates(precise.planning.tasks));
 const changed = JSON.parse(fixture('precieze-taken').toString('utf8'));
 const activity = changed.data[2].attributes[ATTRIBUTE.activity];
 activity.start = '2027-02-28';
