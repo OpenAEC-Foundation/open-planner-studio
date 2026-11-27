@@ -19,24 +19,12 @@ import type { ReportSettings } from '@/utils/reportSettings';
 import { reportFontStack, type ReportFontChoice } from '@/services/pdf/reportFont';
 import { reportBarColors } from './reportLayouts';
 
-/** De rapportletter die geladen is, met zijn meting (dezelfde als de vector-PDF, `loadReportTextMetrics`). */
 export interface StudioFont {
   id: ReportFontChoice;
-  /** `reportFontKey`: verschilt ook tussen twee eigen lettertypen. */
   key: string;
   metrics: ReportTextMetrics;
 }
 
-/**
- * De `PrintOptions` van de Gantt-afdruk voor het Rapport-tabblad, met de vertaalde teksten van de
- * printlaag en de kolomlijst (`tableColumns`, issue #817 deel B). De kolombreedtes en (bij niet afkappen) de naamkolom worden hier
- * gemeten op de geladen rapportletter — meten hoort in het paneel, niet in de printlaag (`reports.md`).
- *
- * `font`: de rapportletter die geladen is (#770), met de meting van de PDF; `null` zolang er nog geen
- * letter geladen is, dan geeft de hook geen opties. Meten, tekenen en de PDF gebruiken dezelfde stack
- * (`reportFontStack`) en dezelfde meting (`reportTextMeasure.ts`), dus een kolom die hier past, past ook
- * in de PDF.
- */
 export function useStudioPrintOptions(
   settings: ReportSettings,
   companyName: string,
@@ -61,7 +49,6 @@ export function useStudioPrintOptions(
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const comparedBaselineIds = useAppStore(s => s.comparedBaselineIds);
-  // Eigen balkkleuren van het rapport; bij *Zoals de weergave* (of nog geen eigen keuze) die van het scherm.
   const screenBarColors = useAppStore(s => s.ui.barColorSelection);
   const barColorSelection = reportBarColors(settings, screenBarColors);
   const durationDisplay = useEffectiveDurationDisplay();
@@ -106,7 +93,6 @@ export function useStudioPrintOptions(
   const fontReady = font !== null;
   const fontStack = reportFontStack(font?.id ?? 'inter');
   const metrics = font?.metrics ?? null;
-  // Resourcediagram: eenheden per dag en curve van de band op de taak als twee kolommen achter de naam.
   const assignmentColumns = !!rowFields.assignmentColumns;
   const rowAssignments = rowFields.rowAssignments;
   const curveLabels = useCurveLabels();
@@ -117,7 +103,6 @@ export function useStudioPrintOptions(
     [tasks, reportRows, assignmentColumns, rowAssignments],
   );
 
-  // De curvekolom zo breed als de langste curvenaam die dít rapport toont.
   const curveColumnWidth = useMemo(() => {
     if (!metrics || !assignmentColumns || !rowAssignments) return undefined;
     const cellLabels = new Set<string>();
@@ -129,23 +114,18 @@ export function useStudioPrintOptions(
     );
   }, [metrics, assignmentColumns, rowAssignments, curveLabels, curveHeaderLabel, fontStack]);
 
-  // Naamkolom: afkappen op de instelbare breedte, of zo breed als de langste naam (gemeten).
   const autoNameWidth = useMemo(() => {
     if (!metrics || settings.truncateTaskNames) return undefined;
     return measureTaskNameColumnWidth(printRows, (text, bold) => metrics.measure(text, nameCellFont(bold, fontStack)));
   }, [metrics, settings.truncateTaskNames, printRows, fontStack]);
 
-  // De meting per kolom blijft bewaard zolang rijen, opmaak, koppen en letter gelijk zijn. Een kolom
-  // erbij meet dan alleen die kolom over alle rijen, niet de hele tabel opnieuw (5000 taken: ±100 ms).
   const measureCache = useMemo(
     () => createTableColumnMeasureCache(),
-    // De afhankelijkheden zijn bewust de invoer van de meting, op de kolomlijst na.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [metrics, printRows, settings.showCompletion, assignmentColumns, dateNotation, timeNotation, locale, tableHeaders, daySuffix,
       durationDisplay, durationSuffixes, calendar, calendars, fontStack],
   );
 
-  // De datakolommen en de registerkolommen, gemeten op de koppen en cellen van dít rapport.
   const columnWidths = useMemo<TableColumnWidths | undefined>(() => {
     if (!metrics) return undefined;
     return measureTableColumnWidths(
@@ -229,7 +209,6 @@ export function useStudioPrintOptions(
       baselineOverlay,
       baselineComparisons,
       baselineNames,
-      // Rijen, relaties, kritiek pad en de Resourcediagram-velden uit de stap Taken (`studioRowPrintFields`).
       ...rowFields,
       curveLabels,
       curveColumnWidth,
@@ -245,8 +224,6 @@ export function useStudioPrintOptions(
         categoriesMore: (count: number) => t('legend.categoriesMore', { count }),
       },
     };
-    // Alleen de velden die op het papier staan: de zijbalkstand of de kolomlijst zelf (die via
-    // `tableColumns` binnenkomt) mag geen nieuwe opname veroorzaken.
   }, [fontReady, settings.showFloat, settings.showWeekends, settings.showLegend,
     settings.showTaskNames, settings.showCompletion, settings.showBarDates, settings.showBaselineOverlay, settings.autoFit, settings.customZoom,
     settings.paperSize, settings.orientation, settings.truncateTaskNames, settings.taskNameColumnWidth,

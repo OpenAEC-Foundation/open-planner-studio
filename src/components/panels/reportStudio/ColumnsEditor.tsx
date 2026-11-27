@@ -7,35 +7,19 @@ import type { TaskColumnId } from '@/types/taskGrid';
 import { REPORT_MAX_COLUMNS, REPORT_REQUIRED_COLUMN } from '@/utils/reportSettings';
 import { addReportColumn, isDefaultReportColumns, moveReportColumn, placeReportColumn, removeReportColumn } from './reportColumns';
 
-/** Waar "Kolommen overnemen" de kolommen vandaan haalt: het tabblad Tabel of de tabel naast de Gantt. */
 export type ReportColumnsSource = 'table' | 'gantt';
 
-/**
- * De kolommen van de afdruk (stap Kolommen): de lijst in papiervolgorde, met slepen of Alt+↑/↓ om te
- * verplaatsen en Delete om weg te halen. Toevoegen gaat met het kolomvenster van de tabel (`ColumnChooser`,
- * check Ethan 9-11-2026: "dezelfde dialog als in het tabel tab"); twee knoppen nemen de kolommen van het
- * tabblad Tabel of van de tabel naast de Gantt over. De taaknaam is verplicht: zijn kruisje staat uit.
- */
 export function ColumnsEditor({
   ids, onChange, available, recentIds, chooserLabels, onCopy, onReset, focusId, labelFor, readOnlyHint,
 }: {
   ids: readonly string[];
-  /** Alleen tonen, met deze uitleg (*Zoals de weergave*: de kolommen volgen de tabel naast de Gantt). De rijen
-   *  staan grijs en tonen de uitleg meteen als tooltip, bij de muis en bij focus (check Ethan 10-11-2026: "mag
-   *  uitgegrijsd", de melding erboven "kan in een instant tooltip"). Geen toevoegen, overnemen, slepen,
-   *  verplaatsen of weghalen; met de pijltjes door de lijst lopen kan wel. */
   readOnlyHint?: string;
   onChange: (ids: string[], input: string) => void;
   available: readonly TaskGridAdapterColumn[];
-  /** De laatst gebruikte kolommen van de tabel: de kiezer toont ze bovenaan, zoals in de tabel. */
   recentIds: readonly TaskColumnId[];
-  /** De teksten van de kiezer: dezelfde als in de tabel. */
   chooserLabels: ColumnChooserLabels;
-  /** Kolommen overnemen van het tabblad Tabel of van de tabel naast de Gantt (elk met Ongedaan maken). */
   onCopy: (source: ReportColumnsSource) => void;
-  /** "Herstel standaard" onderaan de kiezer: de standaardkolommen, met Ongedaan maken. */
   onReset: () => void;
-  /** Een kolom die op het papier is aangeklikt: die rij licht op en krijgt focus. */
   focusId: string | null;
   labelFor: (id: string) => string;
 }) {
@@ -85,7 +69,6 @@ export function ColumnsEditor({
     }
   };
 
-  // Slepen met de muis of pen: de greep vangt de aanwijzer; de rij onder de aanwijzer bepaalt de plek.
   const onGripDown = (e: ReactPointerEvent<HTMLElement>, id: string) => {
     if (e.button !== 0) return;
     e.preventDefault();
@@ -110,7 +93,6 @@ export function ColumnsEditor({
   const onGripUp = () => {
     if (!drag) return;
     const from = ids.indexOf(drag.id);
-    // `over` telt rijen boven de aanwijzer, inclusief de gesleepte zelf; na het weghalen schuift alles één op.
     const to = drag.over > from ? drag.over - 1 : drag.over;
     if (to !== from) onChange(placeReportColumn(ids, drag.id, to), 'column-drag');
     setDrag(null);
@@ -126,8 +108,6 @@ export function ColumnsEditor({
   return (
     <div className="rs-cols-editor">
       {!readOnly && (<>
-      {/* Toevoegen boven de lijst: op een laag scherm blijft de knop in beeld, ook bij veel kolommen. Na een
-          keuze sluit de kiezer en staat de focus weer op "Kolom toevoegen", zoals in de tabel. */}
       <ColumnChooser
         options={available}
         recentIds={recentIds}
@@ -227,8 +207,6 @@ export function ColumnsEditor({
                     <span aria-hidden="true">↓</span>
                   </button>
                   {required ? (
-                    // Het kruisje van de andere rijen, uitgeschakeld (check Ethan 9-11-2026). `aria-disabled` in
-                    // plaats van `disabled`: zo toont de muis de uitleg nog als tooltip.
                     <button type="button" className="rs-icon-btn" tabIndex={-1} aria-disabled="true"
                       title={t('studio.columns.requiredHint')} aria-label={t('studio.columns.requiredHint')} data-rs-required-slot>
                       <Icon id="list.item-remove" size={14} />
@@ -248,8 +226,6 @@ export function ColumnsEditor({
         })}
         {showDropLine(ids.length) && <div className="rs-drop-line" aria-hidden="true" />}
       </div>
-      {/* De toetsen als vaste regel onder de lijst: hij dekt niets af en niets verspringt als de focus de
-          lijst verlaat. */}
       {!readOnly && <p className="rs-hint rs-cols-hint" id="rs-cols-hint" data-rs-cols-hint>{t('studio.columns.keysHint')}</p>}
     </div>
   );

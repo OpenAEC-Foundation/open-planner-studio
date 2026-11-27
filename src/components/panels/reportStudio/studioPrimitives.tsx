@@ -1,23 +1,14 @@
 import { createContext, Fragment, useContext, useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { Icon, type IconId } from '@/components/icons';
 
-// Bouwstenen van de stappen in de zijbalk van het Rapport-tabblad. Elk onderdeel is een
-// gewoon formulierelement (checkbox, radiogroep) met toetsenbordbediening: Tab, Spatie/Enter en de
-// pijltjes in een keuzegroep.
-
-/** Aan/uit-schakelaar: het vinkje van de app (een echte checkbox). */
 export function StudioSwitch({ checked, onChange, label, sub, title, disabled, dataKey, focusSeq }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: ReactNode;
-  /** Korte uitleg onder het label. */
   sub?: ReactNode;
-  /** Uitleg in de tooltip, als het label op zich duidelijk is en de regel niet hoger mag worden. */
   title?: string;
   disabled?: boolean;
-  /** `data-rs-option` voor tests en het papier. */
   dataKey?: string;
-  /** Een nieuw getal zet de focus op dit vinkje (een klik op het deel van het papier dat het aanzet). */
   focusSeq?: number;
 }) {
   const ref = useRef<HTMLInputElement>(null);
@@ -47,12 +38,10 @@ export function StudioSwitch({ checked, onChange, label, sub, title, disabled, d
 export interface SegmentOption<T extends string> {
   value: T;
   label: ReactNode;
-  /** Toegankelijke naam als `label` een pictogram is. */
   ariaLabel?: string;
   title?: string;
 }
 
-/** Gesegmenteerde keuze (radiogroep): pijltjes links/rechts kiezen, Tab verlaat de groep. */
 export function StudioSegmented<T extends string>({ value, options, onChange, ariaLabel, disabled, dataKey }: {
   value: T;
   options: readonly SegmentOption<T>[];
@@ -96,23 +85,17 @@ export function StudioSegmented<T extends string>({ value, options, onChange, ar
   );
 }
 
-/** Eén keuze in de stap Taken. `text` maakt er een kaart van; zonder `text` is het een regel (een layout). */
 export interface ChoiceOption<T extends string> {
   value: T;
   title: ReactNode;
   text?: ReactNode;
   count?: ReactNode;
-  /** Icoon vóór de titel (de layouts, met hetzelfde icoon als op het lint). */
   icon?: ReactNode;
-  /** Kopje vóór deze keuze (bijv. "Layouts"); hoort bij dezelfde radiogroep, dus de pijltjes lopen door. */
   groupLabel?: ReactNode;
-  /** Een i-icoon naast het kopje met deze uitleg als tooltip (eerste regel vet), en zijn toegankelijke naam. */
   groupInfo?: { text: string; label: string };
-  /** `data-rs-layout` voor tests. */
   dataLayout?: string;
 }
 
-/** Keuzes in één radiogroep (stap Taken): pijltjes kiezen, Tab verlaat de groep. */
 export function StudioChoiceGroup<T extends string>({ value, options, onChange, ariaLabel }: {
   value: T;
   options: readonly ChoiceOption<T>[];
@@ -122,7 +105,6 @@ export function StudioChoiceGroup<T extends string>({ value, options, onChange, 
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const index = Math.max(0, options.findIndex(o => o.value === value));
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    // Alleen vanaf een keuze: de pijltjes op het i-icoon bij een kopje kiezen niets.
     if ((e.target as HTMLElement).getAttribute('role') !== 'radio') return;
     const step = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
     if (!step) return;
@@ -138,7 +120,6 @@ export function StudioChoiceGroup<T extends string>({ value, options, onChange, 
           {option.groupLabel && (
             <div className="ui-card-header rs-group-label rs-choices-label">
               <span aria-hidden="true">{option.groupLabel}</span>
-              {/* Het i-icoon van de app (TooltipHost, `data-tooltip-instant`): hover, focus, klik of tik. */}
               {option.groupInfo && (
                 <button type="button" className="rs-info-btn" title={option.groupInfo.text}
                   aria-label={option.groupInfo.label} data-tooltip-instant="true" data-tooltip-lead="true" data-rs-group-info>
@@ -170,16 +151,8 @@ export function StudioChoiceGroup<T extends string>({ value, options, onChange, 
   );
 }
 
-/**
- * Of de stap al stond toen een melding verscheen. Een melding die later komt dan de stap zelf (na een keuze
- * in de stap) schuift in beeld; een melding die er bij het openen al is, laat de stap bovenaan staan.
- */
 const StepMountedContext = createContext<{ readonly current: boolean } | null>(null);
 
-/**
- * Het scrollvak van een stap (zijbalk en zwevend venster). Een nieuwe melding erin komt vanzelf in beeld,
- * ook als de stap op een laag scherm moet scrollen.
- */
 export function StudioStepScroll({ className, children, ...rest }: {
   className: string;
   children: ReactNode;
@@ -188,8 +161,6 @@ export function StudioStepScroll({ className, children, ...rest }: {
   'data-rs-pop-body'?: boolean;
 }) {
   const mounted = useRef(false);
-  // Na de eerste render: kinderen zetten hun effect vóór dit effect, dus wat er bij het openen al staat,
-  // ziet hier nog `false`.
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; };
@@ -201,10 +172,8 @@ export function StudioStepScroll({ className, children, ...rest }: {
   );
 }
 
-/** De tint van een melding: het blok `.ops-note` van de app, met de accentbalk in de kleur van de toon. */
 const NOTE_TONE = { warn: 'ops-note--warning', info: 'ops-note--info', error: 'rs-note--error' } as const;
 
-/** Melding in de stap waar je hem oplost, direct onder de keuze die hem geeft, met optionele acties. */
 export function StudioNotice({ tone = 'warn', children, actions, dataKey }: {
   tone?: 'warn' | 'info' | 'error';
   children: ReactNode;
@@ -215,7 +184,6 @@ export function StudioNotice({ tone = 'warn', children, actions, dataKey }: {
   const stepMounted = useContext(StepMountedContext);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    // Verschijnt hij na een keuze in een open stap, dan in beeld (de stap kan op een laag scherm scrollen).
     if (stepMounted?.current) ref.current?.scrollIntoView({ block: 'nearest' });
   }, [stepMounted]);
   return (
@@ -229,7 +197,6 @@ export function StudioNotice({ tone = 'warn', children, actions, dataKey }: {
   );
 }
 
-/** Groep met een klein kopje. */
 export function StudioGroup({ label, children }: { label?: ReactNode; children: ReactNode }) {
   const id = useId();
   return (
@@ -240,10 +207,6 @@ export function StudioGroup({ label, children }: { label?: ReactNode; children: 
   );
 }
 
-/**
- * Balk boven het papier voor wat over het hele rapport gaat (de planning is niet doorgerekend, of heeft
- * een fout), met één actie. Staat in beide standen van de zijbalk in beeld.
- */
 export function PaperBanner({ tone, children, action, dataKey }: {
   tone: 'warn' | 'error';
   children: ReactNode;
