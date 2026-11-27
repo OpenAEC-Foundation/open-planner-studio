@@ -176,7 +176,7 @@ function scanOrReason(bytes: Uint8Array): StepIndex | string {
 
 /** De invarianten van de merge-uitvoer tegen de bron. Leeg = alles klopt. */
 export function mergeProblems(source: Uint8Array, out: Uint8Array, changes: readonly ForeignChange[] = []): string[] {
-  const listed = new Map(changes.filter(c => c.kind === 'gewijzigd' || c.unusedKeyOfTask === undefined).map(c => [String(c.id), c]));
+  const listed = new Map(changes.filter(c => c.kind === 'gewijzigd' || (c.kind === 'vervallen' && c.unusedKeyOfTask === undefined)).map(c => [String(c.id), c]));
   const problems: string[] = [];
   const si = scanForeignStep(source);
   const sc = classify(si);

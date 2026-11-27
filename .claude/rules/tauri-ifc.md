@@ -210,9 +210,17 @@ rekent de lijst na met een eigen lezer (`foreign/stepValue.ts`), los van de rege
 stuk moet vanuit de ontbrekende D-stukken te verklaren zijn, een gewijzigd stuk is precies de bron zonder de leden naar
 verwijderde stukken. Een vreemd lid van een eigen pset van een verwijderd object blijft als los stuk staan en staat niet
 op de lijst (§4.2 stap 3). Bij het wissen van een taak of resource, en bij Opnieuw van zo'n stap, meldt
-`state/foreignLinksNotice.ts` met dezelfde regel hoeveel er bij opslaan verandert: één gewone info van main, zonder knop,
-eigen duur of `dedupeKey`, met het aantal van die ene wisstap (fixronde 5 van #1199). Ze deelt de grenzen van de stapel
-van main; de knop *Ongedaan maken* komt in PR 7 (knownbug 2357). Regel A: na het schrijven meldt `state/foreignChangesWrittenNotice.ts` per geslaagde
+`state/foreignLinksNotice.ts` met dezelfde regel hoeveel er bij opslaan verandert: één info van main met het aantal van
+die ene wisstap en de knop *Ongedaan maken* (`undoHistoryEvent`, 12 s, zonder `dedupeKey`), bewaakt door `watchNotice`
+uit `otherWorkNotice.ts` met de flag als extra voorwaarde (PR 7). De regel van de knop: hij staat er zolang de melding
+zichtbaar is, de wisstap de stap van Ctrl+Z van het actieve document is, de projectgegevens sinds het wissen gelijk zijn
+en de flag aan staat; Ctrl+S en Automatisch opslaan halen hem niet weg, een nieuwere stap, Ctrl+Z, een ander tabblad,
+een verversing uit de resourcebibliotheek of de flag uit halen de melding met haar knop definitief weg, en Ctrl+Y van
+de wisstap meldt opnieuw als er dan nog iets vervalt. Staat de vraag vóór het opslaan open, dan is de knop zoals de
+rest van het scherm niet te bedienen (inert, ook Ctrl+Z); na *Annuleren* werkt hij weer zolang de melding er staat.
+Besluit technisch eigenaar, 25 november 2026: met `detached`
+vervalt de reden van de oude regel B (Ctrl+Z na opslaan bracht de koppelingen niet terug). Ze deelt de grenzen van de
+stapel van main (knownbug 2357). Regel A: na het schrijven meldt `state/foreignChangesWrittenNotice.ts` per geslaagde
 schrijfactie met een niet-lege lijst één eigen gewone melding (info, blijvend, geen `dedupeKey`) met de naam van het
 geschreven doel uit de schrijfuitkomst (pad, handlenaam of de naam die de site teruggeeft) en het aantal, op elke
 schrijfroute: `commitSavedDocument` (ook AutoSave en de site), de downloadtakken van Ctrl+S en Opslaan
@@ -220,10 +228,23 @@ als (een eigen zin: "in de download"), de IFC-export en `planner_export_ifc` (in
 grenzen van de stapel van main; wat ze niet kan, staat in knownbug 2357. Weigeren blijft: een verwijzing naar een R-stuk
 (`verwijzing-naar-p`, het krijgt een nieuw id) en naar een D-stuk dat de planning niet kent (`verwijderd`).
 
+**`detached`** (PR 7, `foreign/detached.ts`, ontwerp §4.7). De bron van een geslaagde merge (`writtenSource`) draagt in
+`ifcSource.detached` de oude bytes van elk stuk op de wijzigingslijst (eigen kopie, de oudste versie, met per verwijzing
+naar een D-object de seed), de `sourceSlots` en koppelingen van verdwenen objecten, en per GlobalId de bewaarde relaties
+van een ander programma die een lid kwijtraakten, met hun oudste ledenlijst. Alleen als het niet leeg is en de uitvoer een
+vreemd deel heeft; zonder wissen is de bron dus gelijk aan die van main. Komt een object met dezelfde domein-id terug,
+dan zet `prepareIfcWrite` terug: de constante slots op de regel van de writer (`withReturnedSlots`), de D-leden van een
+teruggezette gemengde relatie uit de eigen relatie (`withoutRestoredMembers`), en in `checkedOutput` (na de
+verliesbewaking) de leden van bewaarde relaties (`withReturnedMembers`) en de stukken met de huidige ids: op hun plek of
+direct na het P-blok (`renderedRestorations`, de `appended` van `assemble`). De wijzigingslijst krijgt dan soort
+`teruggezet`; controle 1 eist de bytes en `countedForeignChanges` telt ze niet. De opslagworker draagt de buffers terug
+over en `resultFits` eist de vorm (`isDetached`). Het taakpaneel valt terug op de koppelingen in `detached`. Wat nog niet
+meegaat: knownbug 2354. Proef: `check-ifc-foreign-detached.ts`.
+
 **De vraag vóór het opslaan** (#804, besluit eigenaar 25 november 2026). Met de instelling `ui.foreignChangesQuestion` aan
-(standaard; `ops-foreignChangesQuestion`, per apparaat) vraagt een documentopslag met een niet-lege
-`prepared.foreignChanges` eerst of het mag (`askForeignChanges` in `services/ifc/foreignChangesQuestion.ts`), met de
-lengte van die lijst: in `writeActiveDocument` direct na de merge en de controle erna, vóór de doelcontrole, de
+(standaard; `ops-foreignChangesQuestion`, per apparaat) vraagt een documentopslag met gewijzigde of vervallen stukken in
+`prepared.foreignChanges` eerst of het mag (`askForeignChanges` in `services/ifc/foreignChangesQuestion.ts`), met hun
+aantal (`writtenForeignChangeCount`; een stuk dat `detached` terugzet, telt niet mee): in `writeActiveDocument` direct na de merge en de controle erna, vóór de doelcontrole, de
 site-keuze en de kiezer (met de naam van het eigen pad, de eigen handle of het bestand op de site; zonder eigen doel en
 bij een geweigerde schrijftoestemming de vorm "nieuw bestand"); in `saveDocumentAsOnTurn` direct na de merge, vóór de
 site-keuze en de kiezer (altijd "nieuw bestand"). Zo vragen Ctrl+S, *Opslaan* in de sluitvraag, afsluiten, de site,
@@ -235,8 +256,9 @@ niet zelf; de instelling komt uit de momentopname van de poging. Het vinkje "Nie
 en zet de instelling uit. Met de vraag uit, bij een export (ook `planner_export_ifc`) en bij Automatisch opslaan geldt
 regel A hierboven zoals vóór de vraag (Automatisch opslaan wacht op een besluit, `settings-autosave.md`). Wat er bij
 opslaan vervalt, is ook vooraf te tellen: `foreignChangesIfSaved` (`state/foreignLinksNotice.ts`, dezelfde regel als de
-wismelding) geeft hetzelfde aantal als de merge (`check-ifc-foreign-telling-vooraf.ts`). Proeven: de blokken "vraag
-vóór opslaan" in `check-ifc-document-save.ts` en de stap met `bonsai-4d.ifc` in `settings-tabs.spec.ts`.
+wismelding) geeft hetzelfde aantal als de merge (`check-ifc-foreign-telling-vooraf.ts`). Ctrl+Z na een opslag en dan opslaan zet
+de stukken terug zonder vraag: er vervalt niets. Proeven: de blokken "vraag vóór opslaan" in
+`check-ifc-document-save.ts` en de stap met `bonsai-4d.ifc` in `settings-tabs.spec.ts`.
 
 **De opslagworker** (#804 stap 4 tot en met 6, `src/services/ifc/saveWorker/`) rekent wat `prepareIfcOutput` rekent (de
 gewone writer of `prepareIfcWrite`) in een Web Worker. De gewone writer hergebruikt hem; na elk antwoord op een merge (een
@@ -441,8 +463,8 @@ pset met twee properties met dezelfde naam is ongeldige IFC. Heeft de taak geen 
 met alleen deze sleutels. In `checkedBytes` eist `unusedKeysProblem` per bestaande taak in de herlezing van de uitvoer
 dezelfde waarden onder de namen die de regel geeft, en weigert `duplicateAssignmentKeyProblem` elke naam die in
 `OPS_Assignments` vaker voorkomt dan in de bron, ook een eigen sleutel naast een vreemd lid (beide `uitvoer-controle`).
-De nieuwe bron neemt de lijst uit die herlezing. Een gewiste taak neemt haar sleutels mee; melding en `detached` volgen
-in PR 6 en 7. Zonder vreemd deel schrijft de gewone writer ze niet, zoals op main; een paar bronvormen weigeren nog
+De nieuwe bron neemt de lijst uit die herlezing. Een gewiste taak neemt haar sleutels mee (op de wijzigingslijst);
+na Ctrl+Z komen ze nog niet terug (knownbug 2354). Zonder vreemd deel schrijft de gewone writer ze niet, zoals op main; een paar bronvormen weigeren nog
 (knownbug 2210). Proef: `check-ifc-foreign-ongebruikte-sleutels.ts`.
 
 ### Tokens per slot van een ander programma (#804 fase 2, `sourceSlots`)
