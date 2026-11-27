@@ -8109,3 +8109,11 @@ en noem het in je rapport of PR-tekst.
       IFCX-planning nog één keer met de verwijzingen. Gevolgd in de code bij de review van #1325, ronde 3.
       Vóór de flag `ifcx` standaard aan gaat: de actuele flag ook vlak vóór de plaatsing toetsen, met een
       wachtende ronde als proef. — S
+
+2432. **Vervangt een extensie het document terwijl de automatische IFC-vraag openstaat, dan blijft de oude vraag staan.**
+      Een extensie kan via `api.data.loadProject` de inhoud van het actieve tabblad vervangen terwijl
+      Automatisch opslaan op een antwoord wacht. De vraag blijft zichtbaar voor het oude bestand, en een
+      sluitverzoek wacht zonder tijdslimiet op dat antwoord. *Annuleren*, Escape of het kruisje beëindigen het
+      wachten; bij *Opslaan* voorkomt de controle op de documentidentiteit dat de oude bytes worden geschreven.
+      Gevolgd in de code bij de review van #1329, ronde 3. Vóór de flag `ifcForeignContent` standaard aan gaat:
+      het vervallen van het document of zijn inhoud annuleert de oude vraag via het bestaande antwoordpunt. — S
