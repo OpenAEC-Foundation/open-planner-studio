@@ -17,9 +17,15 @@ weigert vooraf wat de draft of de eindberekening anders pas later en minder prec
   `ancestorIds` en blijft daardoor ook bij een kring in de `parentId`'s elders in de boom niet hangen. Toets:
   `cases-mutate-tasks.ts`, "move_task: een corrupte parentId-cyclus elders in de boom laat de guard niet hangen".
 - Daarna dezelfde toets als de app (`moveTaskVerdict`): een relatie op een fase geldt voor elke taak erin, dus
-  verhangen kan een kring maken. Die geeft `CYCLE` met de kring en zonder verplaatsing. Zonder deze toets zou pas de
-  eindberekening falen, met de tekst van de solver, en in een batch zonder de stap te noemen. Toetsen:
-  `cases-summary-cycle.ts`, de gevallen met `move_task`.
+  verhangen kan een kring maken. Die geeft `CYCLE` met de kring en zonder verplaatsing. Zonder deze toets vond pas een
+  latere berekening de kring, met de tekst van de solver: de eindberekening, of in een batch ook een tussentijdse
+  (`recomputeMidBatch`, ADR 0240). Toetsen: `cases-summary-cycle.ts`, de gevallen met `move_task` (in de batch faalt de
+  verplaatsstap zelf).
+- Na die toetsen kan `draft.moveTask` de verplaatsing nog weigeren op de regel voor een nieuwe fase
+  (`planPhaseTransitions`, ADR 0242), bijvoorbeeld als de toewijzing van de nieuwe ouder niet naar de eerste nieuwe
+  subtaak kan omdat die dezelfde resource al heeft. De draft gooit dan een gewone fout, de transactie draait terug en
+  de aanroep faalt met de reden van `describePhaseRefusal`; de foutcode kiest `mapTransactionError` (`runtime.ts`) uit
+  die tekst, anders dan bij de toetsen hierboven, die hun code zelf meegeven.
 - `position` moet een geheel getal zijn (`parseMoveTask`, ook in een batch). Een getal buiten het bereik klemt stil
   naar de eerste of de laatste plek tussen de broers, zoals bij de store (`reparentTask`). Toetsen:
   `cases-stille-noops-taken.ts`, de gevallen L3, en `cases-movetask.ts` voor de klem van de store.

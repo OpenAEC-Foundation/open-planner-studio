@@ -2580,11 +2580,24 @@ en noem het in je rapport of PR-tekst.
      van `newTaskTimeUnit`. Nagespeeld via de handler met de app-store: een nieuw project met zijn eigen rekenprofiel, de
      projectkalender (8 uur per dag) en `defaultTaskDurationUnit: 'hours'`; `{ name: 'A' }` werd een urentaak van 300
      minuten (07:00 tot 12:00), `{ name: 'B', durationType: 'WORKTIME' }` een dagtaak van 5 werkdagen. Met de
-     standaard `days` gaven beide 5 werkdagen. ADR 0491. — B
+     standaard `days` gaven beide 5 werkdagen. Met de standaard `days` en `workRule: 'FIXED_WORK'` op beide items werden
+     beide, met en zonder `durationType`, een urentaak van 2.400 minuten: daar beslist `settleNewTaskMeasure` de maat. ADR 0491. Issue #1312. — B
 2531. **`planner_remove_dependencies` noemt een relatie twee keer in `removed` als haar id twee keer in `ids` staat.**
      `removeDependenciesCore` in `src/services/mcp/tools/taskTools.ts` zet elk gevonden id in `removed`, ook een
      herhaling. Nagespeeld via de handler: één FS-relatie, `ids: [id, id]`; de relatie was weg, `removed` bevatte het
      id twee keer en er was geen weigering. `planner_delete_tasks` meldt een dubbel id wel één keer (ADR 0493). — B
+2532. **`progressAdjusted` kan een andere voortgang melden dan de taak na dezelfde `planner_update_tasks` heeft.**
+     `updateTasksCore` in `src/services/mcp/tools/taskTools.ts` legt `progressAdjusted` vast na de duurpatch en vóór het
+     voortgangsblok van hetzelfde item; een aanvaard voortgangsblok bepaalt daarna de eindstand. Nagespeeld via de
+     dispatcher: projectstart 1 juni 2026, statusdatum 3 juni, een dagtaak van 10 werkdagen op 40 %, dan één item met
+     `fields: { duration: 4 }` en `progress: { completion: 50 }`. Het antwoord meldde `progressAdjusted` met
+     `completion: 100` en `remaining: 0`; de taak stond daarna op 50 %, duur 4, status `STARTED`, zonder `actualFinish`.
+     ADR 0492. — B
+2533. **`planner_add_dependencies` negeert een onbekende sleutel in een item, zoals `lagDays`.** Het schema van een item
+     heeft `additionalProperties: false`, maar de schemapoort toetst de binnenkant van array-items niet (ADR 0100), en
+     `classifyDeps` in `src/services/mcp/tools/taskTools.ts` leest alleen `predecessorId`, `successorId`, `type` en
+     `lag`. Nagespeeld via de dispatcher: twee taken en één item `{ predecessorId, successorId, type: 'FS', lagDays: 2 }`;
+     de aanroep slaagde zonder weigering en de relatie kreeg `lagDays: 0`. ADR 0494. — B
 
 ## Bestanden en herstel
 
