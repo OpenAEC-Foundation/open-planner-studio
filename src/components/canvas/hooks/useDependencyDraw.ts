@@ -16,16 +16,9 @@ interface UseDependencyDrawOptions {
   containerRef: RefObject<HTMLElement | null>;
   depLineCanvasRef: RefObject<HTMLCanvasElement | null>;
   rendererRef: RefObject<GanttRenderer | null>;
-  /** Op een geldig eindpunt opent de Gantt hier de conceptrelatie-popover. De projectmutatie
-   *  gebeurt pas wanneer de gebruiker de popover normaal sluit. */
   onRelationDrawn: (sourceTaskId: string, targetTaskId: string, clientX: number, clientY: number) => void;
 }
 
-// Dependency-draw (drag van balk A naar balk B → FS-relatie + correctie-popover). Gearmd door
-// shift ingedrukt te houden ÓF door de relatiemodus (`ui.showDependencyMode` — de
-// lint-knop als "plakkende Shift"); die keuze zit in het centrale mousedown-hittest van de
-// pointercoordinator, die `startDepDraw(...)` aanroept. Deze hook bezit `depDragState`, de
-// window-listeners voor de sleep, én het tekenen van de tijdelijke pijl op het overlay-canvas.
 export function useDependencyDraw({
   canvasRef,
   containerRef,
@@ -35,7 +28,6 @@ export function useDependencyDraw({
 }: UseDependencyDrawOptions) {
   const [depDragState, setDepDragState] = useState<DependencyDragState | null>(null);
 
-  // Dependency drag: draw temporary line and handle release
   useEffect(() => {
     if (!depDragState) return;
 
@@ -52,7 +44,6 @@ export function useDependencyDraw({
         const y = e.clientY - rect.top;
 
         const targetTask = renderer.getTaskAt(x, y);
-        // Op een groepsruitje (#868) landt geen relatie: welke mijlpaal zou het zijn? Uitklappen.
         if (targetTask && targetTask.id !== depDragState.sourceTaskId && !renderer.getMilestoneGroup(targetTask.id)
           && isTimelineCanvasX(x, rect.width)) {
           onRelationDrawn(depDragState.sourceTaskId, targetTask.id, e.clientX, e.clientY);
@@ -64,7 +55,6 @@ export function useDependencyDraw({
     return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onDocumentSwitch: () => setDepDragState(null) });
   }, [depDragState, canvasRef, rendererRef, onRelationDrawn]);
 
-  // Draw temporary dependency line on overlay canvas
   useEffect(() => {
     const depCanvas = depLineCanvasRef.current;
     const container = containerRef.current;
@@ -91,7 +81,6 @@ export function useDependencyDraw({
       ctx.lineTo(endX, endY);
       ctx.stroke();
 
-      // Arrowhead
       const angle = Math.atan2(endY - startY, endX - startX);
       ctx.setLineDash([]);
       ctx.fillStyle = accent;

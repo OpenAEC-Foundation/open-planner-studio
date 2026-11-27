@@ -2,13 +2,11 @@ import type { DateNotation, TimeNotation } from '@/types/view';
 import { displayIsoTime } from '@/utils/displayTime';
 import { isExistingYmd } from '@/utils/dateUtils';
 
-/** Jaren onder 100 vallen af: `parseDate` (via `Date.UTC`) leest die als 1900–1999. */
 function existingIsoDate(year: number, month: number, day: number): string | null {
   if (year < 100 || year > 9999 || !isExistingYmd(year, month, day)) return null;
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-/** Parse persoonlijke datuminvoer strikt; ISO met viercijferig jaar blijft altijd geldig. */
 export function parsePersonalDate(raw: string, notation: DateNotation): string | null {
   const value = raw.trim();
   if (!value) return null;
@@ -31,15 +29,6 @@ export function parsePersonalDate(raw: string, notation: DateNotation): string |
   return existingIsoDate(year, month, day);
 }
 
-/**
- * Weergave-formatter voor datums. Zet een INTERNE ISO-datum om naar de door de
- * gebruiker gekozen notatie. De opslag/serialisatie blijft altijd ISO — deze module raakt
- * uitsluitend wat op het scherm/print verschijnt.
- *
- * `iso` is `YYYY-MM-DD`, of een ISO-datetime (`YYYY-MM-DDTHH:mm…`) waarvan alleen het
- * datumdeel gebruikt wordt. Leeg (`''`) blijft leeg; een niet-ISO string wordt ongewijzigd
- * teruggegeven (zodat placeholders als `'—'` intact blijven wanneer een aanroeper ze meegeeft).
- */
 export function displayDate(iso: string | undefined, notation: DateNotation): string {
   if (!iso) return '';
   const datePart = iso.slice(0, 10);
@@ -49,16 +38,10 @@ export function displayDate(iso: string | undefined, notation: DateNotation): st
   switch (notation) {
     case 'mdy': return `${mo}-${d}-${y}`;
     case 'ymd': return `${y}-${mo}-${d}`;
-    default:    return `${d}-${mo}-${y}`; // 'dmy'
+    default:    return `${d}-${mo}-${y}`;
   }
 }
 
-/**
- * Datetime-variant: `YYYY-MM-DDTHH:mm` ⇒ datum-in-notatie + spatie + tijd-in-notatie (`13:00` of
- * `1:00 PM`, zie `@/utils/displayTime`). Een pure datum (geen `T`) valt terug op {@link displayDate}.
- * Seconden/milliseconden/`Z` (bv. een `createdAt`-timestamp) worden genegeerd behalve de
- * minuut-precieze `HH:mm`.
- */
 export function displayDateTime(iso: string | undefined, notation: DateNotation, timeNotation: TimeNotation): string {
   if (!iso) return '';
   const date = displayDate(iso, notation);

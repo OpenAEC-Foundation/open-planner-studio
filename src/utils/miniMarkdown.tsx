@@ -1,55 +1,17 @@
-// Eigen minimale markdown-subset-parser voor de in-app help-viewer. Geen dependency, geen
-// build-stap: runtime-parser die rechtstreeks veilige React-elementen teruggeeft (GEEN
-// `dangerouslySetInnerHTML`) — alle tekst die niet als herkende syntax matcht komt terecht als
-// gewone React-tekst-node, die React zelf al escaped. Er is dus geen apart escape-mechanisme
-// nodig: het ontbreken van `dangerouslySetInnerHTML` IS de veiligheidsgarantie.
-//
-// Ondersteunde subset (exact wat de docs nodig hebben; `scripts/verify-docs.ts` bewaakt de gidsen):
-//   - koppen #, ##, ###
-//   - paragrafen (regels gescheiden door een lege regel)
-//   - **vet**, *cursief*, inline `code`
-//   - codeblokken (```), en promptblokken (```prompt): een tekst om in een AI-assistent te plakken,
-//     getoond als leesbare tekst met de knop *Prompt kopiëren* (`PromptBlock`; `promptBlocksOf` leest ze)
-//   - ongeordende (- / *) en geordende (1.) lijsten
-//   - links: alléén `docs://<article-id>` of `docs://<article-id>#<anker>` (interne viewer-navigatie,
-//     het anker is de GitHub-vorm van een kop, zie `headingSlug` in helpManifest.ts) en
-//     `examples://<file>` (opent hetzelfde voorbeeld-openpad als Backstage → Voorbeelden) —
-//     en — alleen waar de aanroeper `onOpenProject` meegeeft (een artikel of begeleidingsstap van
-//     een extensie) — `project://<asset>` (opent een meegeleverd projectbestand als nieuw document),
-//     en — alleen waar de aanroeper `onOpenSetting` meegeeft (de Help-viewer) — `settings://<id>`
-//     (opent de app-instellingen op die ene instelling, `openSettingsAt`).
-//     Dit zijn bewust de ENIGE toegestane linkvormen; alles anders, en een schema zonder handler,
-//     wordt als platte tekst getoond (geen externe netwerkaanroepen vanuit help-content).
-//   - afbeeldingen ![alt](pad) — het pad gaat door `handlers.resolveImage` (per bron: een
-//     manifestartikel lost op tegen `${BASE_URL}docs/<pad>` met `{lang}` = de docstaal, een
-//     geregistreerd extensieartikel via de resolver van zijn extensie); zonder resolver geldt
-//     `${BASE_URL}docs/<pad>` met `{lang}` = en. Ontbreekt het bestand, dan valt de afbeelding terug
-//     op een zichtbare placeholder-box met de alt-tekst. Een afbeelding die alléén op een eigen regel
-//     staat wordt een blok (`<figure>`), anders staat hij inline in de tekst.
-//
-// Elke kop krijgt een stabiel anker (`data-help-anchor` + `id="help-<anker>"`), zodat de viewer een
-// `docs://id#anker`-link naar die sectie kan laten scrollen.
-
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { createHeadingSlugger, resolveHelpImagePath } from '@/utils/helpManifest';
 import { PromptBlock } from '@/components/common/PromptBlock';
 
-/** Standaard: een `public/docs`-pad, `{lang}` = en. */
 function defaultResolveImage(src: string): string {
   return `${import.meta.env.BASE_URL}docs/${resolveHelpImagePath(src, 'en')}`;
 }
 
 export interface MiniMarkdownHandlers {
-  /** `target` is het deel na `docs://`: een artikel-id, eventueel met `#anker`. */
   onNavigate: (target: string) => void;
-  /** Weglaten = een `examples://`-link is gewone tekst. */
   onOpenExample?: (file: string) => void;
-  /** `project://<asset>`-link (extensie-inhoud). Weglaten = gewone tekst. */
   onOpenProject?: (assetName: string) => void;
-  /** `settings://<id>`-link: opent de app-instellingen op die instelling. Weglaten = gewone tekst. */
   onOpenSetting?: (settingId: string) => void;
-  /** Afbeeldingspad (zoals in de Markdown) → URL. Weglaten = `public/docs`-pad met `{lang}` = en. */
   resolveImage?: (src: string) => string;
 }
 
@@ -57,13 +19,9 @@ const HEADER_RE = /^(#{1,3})\s+(.*)$/;
 const UL_RE = /^[-*]\s+(.*)$/;
 const OL_RE = /^\d+\.\s+(.*)$/;
 const FENCE_RE = /^```/;
-/** Opent een promptblok in plaats van een codeblok. */
 const PROMPT_FENCE = '```prompt';
-/** Een regel met niets dan één afbeelding ⇒ blokafbeelding. */
 const IMAGE_LINE_RE = /^!\[([^\]]*)\]\(([^)]+)\)$/;
 
-/** Licht, regex-gebaseerd: alleen koppen extraheren voor de titel+koppen-zoekindex.
- *  Geen volledige parse nodig — de index heeft alleen de kop-tekst nodig, niet de opmaak erin. */
 export function extractHeadings(source: string): string[] {
   const headings: string[] = [];
   for (const rawLine of source.replace(/\r\n/g, '\n').split('\n')) {
@@ -73,8 +31,6 @@ export function extractHeadings(source: string): string[] {
   return headings;
 }
 
-/** Eén codeblok vanaf de openingsregel `lines[start]`: de openingsregel (getrimd), de regels ertussen
- *  en de index na de sluitende ``` (ontbreekt die, dan het einde van de tekst). */
 function readFence(lines: string[], start: number): { opener: string; body: string; next: number } {
   const body: string[] = [];
   let i = start + 1;
@@ -85,11 +41,6 @@ function readFence(lines: string[], start: number): { opener: string; body: stri
   return { opener: lines[start].trim(), body: body.join('\n'), next: i + 1 };
 }
 
-/**
- * De promptblokken (```prompt) van een artikel, in volgorde, precies zoals `renderMiniMarkdown` ze
- * toont. Een alinea of lijst slokt nooit een ```-regel op, dus elke ```-regel buiten een codeblok
- * opent er een. Het venster Verbindingsgegevens haalt zo zijn prompt uit het Help-artikel.
- */
 export function promptBlocksOf(source: string): string[] {
   const lines = source.replace(/\r\n/g, '\n').split('\n');
   const prompts: string[] = [];
@@ -105,7 +56,6 @@ export function promptBlocksOf(source: string): string[] {
 
 function MiniMarkdownImage({ alt, src, resolveImage }: { alt: string; src: string; resolveImage?: (src: string) => string }) {
   const [failed, setFailed] = useState(false);
-  // Een resolver mag `''` teruggeven voor "bestaat niet" (bv. een ontbrekende extensie-asset).
   const resolved = (resolveImage ?? defaultResolveImage)(src);
 
   if (failed || !resolved) {
@@ -153,8 +103,6 @@ function renderLink(label: ReactNode, href: string, handlers: MiniMarkdownHandle
       </button>
     );
   }
-  // Onbekend linkschema: bewust geen <a href>/navigatie — alleen docs:// en examples:// zijn
-  // toegestane linkvormen in help-content.
   return (
     <span key={key} className="help-link help-link-unknown" title={href}>
       {label}
@@ -162,8 +110,6 @@ function renderLink(label: ReactNode, href: string, handlers: MiniMarkdownHandle
   );
 }
 
-// Volgorde is betekenisvol: afbeelding vóór link (beide beginnen met `[`, afbeelding heeft de
-// extra `!`-prefix), vet vóór cursief (beide beginnen met `*`, vet heeft er twee).
 const INLINE_RE = /!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`/g;
 
 function parseInline(text: string, handlers: MiniMarkdownHandlers, keyPrefix: string): ReactNode[] {
@@ -194,7 +140,6 @@ function parseInline(text: string, handlers: MiniMarkdownHandlers, keyPrefix: st
   return nodes;
 }
 
-/** Rendert een volledig markdown-brondocument naar een array React-elementen (blok-niveau). */
 export function renderMiniMarkdown(source: string, handlers: MiniMarkdownHandlers): ReactNode[] {
   const lines = source.replace(/\r\n/g, '\n').split('\n');
   const blocks: ReactNode[] = [];
@@ -207,7 +152,6 @@ export function renderMiniMarkdown(source: string, handlers: MiniMarkdownHandler
 
     if (line.trim() === '') { i++; continue; }
 
-    // Codeblok
     if (FENCE_RE.test(line.trim())) {
       const fence = readFence(lines, i);
       i = fence.next;
@@ -223,7 +167,6 @@ export function renderMiniMarkdown(source: string, handlers: MiniMarkdownHandler
       continue;
     }
 
-    // Koppen
     const headerMatch = HEADER_RE.exec(line);
     if (headerMatch) {
       const level = headerMatch[1].length;
@@ -238,7 +181,6 @@ export function renderMiniMarkdown(source: string, handlers: MiniMarkdownHandler
       continue;
     }
 
-    // Blokafbeelding: een regel met alleen een afbeelding.
     const imageLine = IMAGE_LINE_RE.exec(line.trim());
     if (imageLine) {
       blocks.push(
@@ -250,7 +192,6 @@ export function renderMiniMarkdown(source: string, handlers: MiniMarkdownHandler
       continue;
     }
 
-    // Ongeordende lijst
     if (UL_RE.test(line)) {
       const items: string[] = [];
       while (i < lines.length && UL_RE.test(lines[i])) {
@@ -266,7 +207,6 @@ export function renderMiniMarkdown(source: string, handlers: MiniMarkdownHandler
       continue;
     }
 
-    // Geordende lijst
     if (OL_RE.test(line)) {
       const items: string[] = [];
       while (i < lines.length && OL_RE.test(lines[i])) {
@@ -282,7 +222,6 @@ export function renderMiniMarkdown(source: string, handlers: MiniMarkdownHandler
       continue;
     }
 
-    // Paragraaf: regels accumuleren tot lege regel of het begin van een ander blok
     const paraLines: string[] = [];
     while (
       i < lines.length && lines[i].trim() !== '' &&

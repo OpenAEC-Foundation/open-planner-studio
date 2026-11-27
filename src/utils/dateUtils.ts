@@ -1,19 +1,3 @@
-/**
- * Parse an ISO date string to a Date object at midnight UTC.
- *
- * Het kalenderdeel wordt TEKSTUEEL uit de string gelezen en niet via `new Date(iso)`:
- * een date-only string wordt door de engine als UTC-middernacht geïnterpreteerd, en die
- * instant met LOKALE getters uitlezen levert bij elke negatieve UTC-offset (Amerika) de
- * dag ervoor op — "2026-06-01" werd dan 2026-05-31 en de hele planning schoof een dag op.
- * Tekstueel parsen maakt de uitkomst tijdzone-onafhankelijk: dezelfde datum in, dezelfde
- * datum uit, waar de machine ook staat.
- *
- * De fallback (niet-date-only invoer, bv. een volledige datetime met offset) laat `Date`
- * zelf parsen en kapt daarna met UTC-getters af, want de engine rekent overal in
- * UTC-instants — lokale getters zouden hier dezelfde dagverschuiving terugbrengen.
- * Onparsebare invoer geeft bewust de `Invalid Date` ongewijzigd terug; de guards verderop
- * (o.a. `CPMSolver`) leunen op `isNaN(getTime())` om zulke data af te vangen.
- */
 export function parseDate(iso: string): Date {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
@@ -22,36 +6,18 @@ export function parseDate(iso: string): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
-/** Milliseconden per kalenderdag op de UTC-instant-as (de engine kent geen DST, zie `parseInstant`). */
 export const MS_PER_DAY = 86_400_000;
 
-/** UTC-middernacht van de dag waarin `d` valt. Tijdzone-onafhankelijk; een Invalid Date blijft invalid. */
 export function utcDayStart(d: Date): Date {
   return new Date(utcDayIndex(d.getTime()) * MS_PER_DAY);
 }
 
-/** Dagnummer op de UTC-as (dagen sinds 1970-01-01) van een instant in milliseconden. */
 export function utcDayIndex(ms: number): number {
   return Math.floor(ms / MS_PER_DAY);
 }
 
-/** Twee cijfers zonder `padStart` — deze helper draait per dag per taak per toewijzing. */
 const pad2 = (n: number) => (n < 10 ? '0' + n : String(n));
 
-/**
- * Format a Date as ISO date string (YYYY-MM-DD).
- *
- * PRESTATIE. Geen `d.toISOString().split('T')[0]`: dat alloceert per aanroep een string van 24
- * tekens én een array, en deze functie draait per DAG per taak in de werkdagen-enumeraties van de
- * solver en de resourcebelasting (gemeten op 5.000 taken: `runCPM` 677 → 604 ms).
- *
- * Gelijk aan `toISOString`, ook aan de randen. Voor jaren 0…9999 geeft `toISOString` een
- * viercijferig jaartal met UTC-velden — precies wat de snelle tak opbouwt. Daarbuiten (negatieve of
- * uitgebreide jaren, waar `toISOString` `-000001-…` respectievelijk `+275760-…` schrijft) valt hij
- * terug op `toISOString`, en een Invalid Date valt daar óók in en gooit dus dezelfde `RangeError` —
- * `getUTCFullYear()` is dan NaN, en `NaN >= 0` is onwaar. `check-date-format.ts` toetst dat tegen
- * `toISOString` als orakel, over ruim tienduizend datums plus de randgevallen.
- */
 export function formatDate(d: Date): string {
   const y = d.getUTCFullYear();
   if (y >= 0 && y <= 9999) {
@@ -60,24 +26,10 @@ export function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
 }
 
-/**
- * "Vandaag" als datum zonder tijd (`YYYY-MM-DD`): de KALENDERDAG van de gebruiker, dus met de lokale
- * getters en niet `formatDate(new Date())` (dat leest de UTC-dag en geeft in Nederland tussen 00:00
- * en 02:00 nog gisteren). Precies wat het statusdatumveld in het lint oplevert als de gebruiker daar
- * de datum van vandaag intypt: dezelfde vorm, geen tijd. Gebruikt waar de app zelf de statusdatum op
- * vandaag zet (voortgang zonder statusdatum, `engine/progressEntry.ts`). `now` alleen voor tests.
- */
 export function localTodayIso(now: Date = new Date()): string {
   return `${String(now.getFullYear()).padStart(4, '0')}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
 }
 
-/**
- * "Nu" als instant op de UTC-dag-as van de Gantt (de as rekent in UTC-middernachten, §1): de
- * LOKALE wandkloktijd van de gebruiker, genoteerd als UTC-velden. `new Date()` zelf is het echte
- * UTC-moment en landt daardoor in Nederland tussen 00:00 en 02:00 nog in de kolom van gisteren (en
- * in de VS 's avonds al in die van morgen). Voor de vandaag-lijn in scherm en print. `now` alleen
- * voor tests.
- */
 export function localNowOnDayAxis(now: Date = new Date()): Date {
   const d = new Date(0);
   d.setUTCFullYear(now.getFullYear(), now.getMonth(), now.getDate());
@@ -85,21 +37,8 @@ export function localNowOnDayAxis(now: Date = new Date()): Date {
   return d;
 }
 
-/**
- * Serialisatie-modus van een datum-instant. De MODUS is de enige
- * discriminator voor de output-vorm — niet de waarde van de instant.
- */
 export type DateMode = 'day' | 'hour';
 
-/**
- * Parse een ISO-string naar een Date die de TIJD-VAN-DE-DAG behoudt.
- * Tegenhanger van `parseInstant` t.o.v. `parseDate`: `parseDate` kapt altijd naar
- * middernacht (dag-substraat, ongewijzigd); `parseInstant` houdt uren/minuten vast.
- *
- * - Date-only ("YYYY-MM-DD") ⇒ delegeer aan `parseDate` (dag-substraat, middernacht UTC).
- * - Datetime ("...THH:mm") zonder tijdzone ⇒ interpreteer als UTC (de engine rekent in
- *   UTC-instants zonder DST); een expliciete Z/offset wordt gerespecteerd.
- */
 export function parseInstant(iso: string): Date {
   if (iso.includes('T')) {
     const hasTz = /(Z|[+-]\d{2}:?\d{2})$/.test(iso);
@@ -108,37 +47,26 @@ export function parseInstant(iso: string): Date {
   return parseDate(iso);
 }
 
-/**
- * Formatteer een instant volgens de MODUS. De modus is de ENIGE
- * discriminator; er is geen middernacht-uitzondering:
- * - `'day'`  ⇒ altijd `YYYY-MM-DD` via `formatDate`.
- * - `'hour'` ⇒ altijd `YYYY-MM-DDTHH:mm` (minuut-precisie), óók op een rond uur en óók
- *   om middernacht (een uur-taak die op `T00:00` landt behoudt zijn tijd-component).
- */
 export function formatInstant(d: Date, mode: DateMode): string {
   return mode === 'hour' ? d.toISOString().slice(0, 16) : formatDate(d);
 }
 
-/** Get the ISO day of week (1=Monday, 7=Sunday) */
 export function isoDayOfWeek(d: Date): number {
   const day = d.getUTCDay();
   return day === 0 ? 7 : day;
 }
 
-/** Get the difference in calendar days between two dates */
 export function diffCalendarDays(a: Date, b: Date): number {
   const msPerDay = 86400000;
   return Math.round((b.getTime() - a.getTime()) / msPerDay);
 }
 
-/** Add calendar days to a date */
 export function addCalendarDays(d: Date, days: number): Date {
   const result = new Date(d.getTime());
   result.setUTCDate(result.getUTCDate() + days);
   return result;
 }
 
-/** Get the Monday of the week containing the given date */
 export function getWeekStart(d: Date): Date {
   const result = new Date(d.getTime());
   const day = isoDayOfWeek(result);
@@ -146,29 +74,21 @@ export function getWeekStart(d: Date): Date {
   return result;
 }
 
-/** Get the Sunday of the week containing the given date (used when weekStartDay='sunday') */
 export function getWeekStartSunday(d: Date): Date {
   const result = new Date(d.getTime());
-  const dow = result.getUTCDay(); // 0=Sun..6=Sat
+  const dow = result.getUTCDay();
   result.setUTCDate(result.getUTCDate() - dow);
   return result;
 }
 
-/** Get the start of the week respecting the week-start-day preference */
 export function getWeekStartFor(d: Date, startDay: 'monday' | 'sunday'): Date {
   return startDay === 'sunday' ? getWeekStartSunday(d) : getWeekStart(d);
 }
 
-/** Get the first day of the month */
 export function getMonthStart(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
-/**
- * Kalendermaanden optellen met klem op de maandlengte: 31 jan + 1 maand = 28/29 feb, niet 3 mrt.
- * Zo blijft "een maand vanaf de statusdatum" altijd één kalendermaand en lekt de rapportageperiode
- * nooit een paar dagen de volgende maand in. UTC-velden, net als de rest van dit bestand.
- */
 export function addCalendarMonths(d: Date, months: number): Date {
   const y = d.getUTCFullYear();
   const m = d.getUTCMonth() + months;
@@ -176,11 +96,6 @@ export function addCalendarMonths(d: Date, months: number): Date {
   return new Date(Date.UTC(y, m, Math.min(d.getUTCDate(), lastDayOfTarget)));
 }
 
-/**
- * Bestaat deze dag in de (proleptische) Gregoriaanse kalender? Puur rekenkundig, dus onafhankelijk
- * van hoe de JS-engine datums parseert: V8 rolt `2026-02-31` stil door naar 3 maart, WebKit weigert.
- * Het jaarbereik bepaalt de aanroeper.
- */
 export function isExistingYmd(year: number, month: number, day: number): boolean {
   if (month < 1 || month > 12 || day < 1) return false;
   const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
@@ -189,11 +104,6 @@ export function isExistingYmd(year: number, month: number, day: number): boolean
 
 const ISO_DATE_TIME = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(?:Z|[+-](\d{2})(:?)(\d{2}))?)?$/;
 
-/**
- * Strikte ISO-datum of -datumtijd `YYYY-MM-DD[THH:mm[:ss[.f]]][Z|±HH:mm]`: een bestaande dag
- * ({@link isExistingYmd}), uren 00–23, minuten en seconden 00–59 en een offset tot ±14:00. Hoeveel
- * fractiecijfers en of de offset zonder dubbele punt mag, volgt het invoerformaat van de aanroeper.
- */
 export function isStrictIsoDateTime(
   value: string,
   format: { maxFractionDigits: number; offsetColonOptional?: boolean },
@@ -212,12 +122,10 @@ export function isStrictIsoDateTime(
   return true;
 }
 
-/** Difference in calendar days between two ISO date strings */
 export function diffDays(a: string, b: string): number {
   return diffCalendarDays(parseDate(a), parseDate(b));
 }
 
-/** Get week number (ISO 8601) */
 export function getWeekNumber(d: Date): number {
   const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   target.setUTCDate(target.getUTCDate() + 3 - ((target.getUTCDay() + 6) % 7));
@@ -225,25 +133,15 @@ export function getWeekNumber(d: Date): number {
   return 1 + Math.round(((target.getTime() - jan4.getTime()) / 86400000 - 3 + ((jan4.getUTCDay() + 6) % 7)) / 7);
 }
 
-/**
- * Add work days to a date counting only weekends as non-working (Mon–Fri),
- * with the start day counting as day 1. Mirrors CalendarEngine.addWorkDays but
- * without holiday awareness — used for placeholder/default finish dates before
- * CPM runs. The real, calendar-aware schedule is computed by runCPM (F5).
- */
 export function addBusinessDays(start: Date, workDays: number): Date {
-  // Guard tegen een ongeldige datum (bv. uit een corrupte import): isoDayOfWeek(Invalid)=NaN,
-  // NaN<=5 is altijd false → `remaining` daalt nooit → oneindige lus. Geef de (ongeldige) datum
-  // gewoon terug; de CPM-solver vangt de ongeldige startdatum verderop netjes af.
   if (workDays <= 0 || isNaN(start.getTime())) return new Date(start.getTime());
   let current = new Date(start.getTime());
-  // Ensure we start on a weekday (met scan-grens tegen vastlopen)
   let scan = 0;
   while (isoDayOfWeek(current) > 5) {
     current = addCalendarDays(current, 1);
     if (++scan > 366) break;
   }
-  let remaining = workDays - 1; // the start day counts as day 1
+  let remaining = workDays - 1;
   let steps = 0;
   while (remaining > 0) {
     current = addCalendarDays(current, 1);
@@ -253,10 +151,8 @@ export function addBusinessDays(start: Date, workDays: number): Date {
   return current;
 }
 
-/** Get week number with configurable week start. ISO 8601 when 'monday', US-style when 'sunday'. */
 export function getWeekNumberFor(d: Date, startDay: 'monday' | 'sunday' = 'monday'): number {
   if (startDay === 'monday') return getWeekNumber(d);
-  // US-style: week 1 contains Jan 1; weeks start Sunday.
   const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   const jan1 = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
   const dayOfYear = Math.floor((target.getTime() - jan1.getTime()) / 86400000);

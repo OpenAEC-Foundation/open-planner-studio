@@ -7,19 +7,12 @@ interface MeasuredCanvasBox {
   pixels: ResizeObserverSize;
 }
 
-// Ook de overlays gebruiken de gemeten pixelmaat van hun hoofdlaag.
 const measuredBoxes = new WeakMap<HTMLElement, MeasuredCanvasBox>();
 
-/** Lokale timelinegrens: de linker pixel is 0, de eerste pixel buiten beeld is exact `width`. */
 export function isTimelineCanvasX(x: number, width: number): boolean {
   return x >= 0 && x < width;
 }
 
-/**
- * Zet `canvas` op de maat van `container`: dpr-geschaalde pixelmaat, CSS-maat en een context die
- * in CSS-pixels tekent. `null` als er geen 2D-context is. Gedeeld door de canvaslagen hieronder en
- * de overlay-tekenaars (relatiesleep, splits-geleidelijn).
- */
 export function sizeCanvasToContainer(
   canvas: HTMLCanvasElement,
   container: HTMLElement,
@@ -31,7 +24,6 @@ export function sizeCanvasToContainer(
   const pixels = box?.dpr === dpr && box.width === rect.width && box.height === rect.height
     ? box.pixels
     : undefined;
-  // Rond beide randen af: bij een fractionele oorsprong kan round(breedte * dpr) afwijken.
   canvas.width = Math.max(1, pixels?.inlineSize ?? Math.round(rect.right * dpr) - Math.round(rect.left * dpr));
   canvas.height = Math.max(1, pixels?.blockSize ?? Math.round(rect.bottom * dpr) - Math.round(rect.top * dpr));
   canvas.style.width = `${rect.width}px`;
@@ -43,32 +35,13 @@ export function sizeCanvasToContainer(
   return { ctx, width: rect.width, height: rect.height };
 }
 
-/** Accentkleur van het actieve thema voor overlaytekeningen (terugval: amber). */
 export function readAccentColor(): string {
   return getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#F59E0B';
 }
 
-// De gedeelde dpr/resize/render-loop van de drie canvas-lagen (primaire Gantt, secundair
-// split-pane, histogram): dpr-schaling, canvas-pixel/CSS-maat synchroniseren, een teken-callback,
-// plus een rAF-render-op-wijziging én een ResizeObserver.
-//
-// De consument levert alleen een gememoiseerde `draw(ctx, width, height)` (de CSS-maten, ná
-// dpr-schaling — teken dus in CSS-pixels). De hook bezit:
-//   - de dpr-schaling + canvas.width/height/style-synchronisatie;
-//   - de requestAnimationFrame-render zodra `draw` (of een expliciete primitive revision) verandert;
-//   - de ResizeObserver op de container die opnieuw tekent bij een maat-wijziging.
-//
-// `enabled` gate't alles (secundair pane / histogram staan conditioneel aan). `renderRevision` is
-// bewust één primitive: de consumer benoemt zo zijn niet-door-`draw` gelezen invalidatie zonder
-// een verborgen spread-dependency of een lintonderdrukking in deze generieke hook.
 export interface UseCanvasLayerOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   containerRef: RefObject<HTMLElement | null>;
-  /**
-   * De gemounte container als React-state, voor een container die pas ná de eerste commit mount
-   * (het histogram via een portal). Het observer-effect hangt dan aan deze node in plaats van aan
-   * het stabiele ref-object en hecht opnieuw zodra de node verschijnt of wisselt.
-   */
   containerNode?: HTMLElement | null;
   draw: (ctx: CanvasRenderingContext2D, width: number, height: number) => void;
   enabled?: boolean;
@@ -93,7 +66,6 @@ export function useCanvasLayer({
     if (layer) draw(layer.ctx, layer.width, layer.height);
   }, [canvasRef, containerRef, draw, enabled]);
 
-  // Render-op-wijziging (was: `useEffect(() => rAF(render), [render])` per laag).
   useEffect(() => {
     if (!enabled) return;
     const frame = requestAnimationFrame(paint);
@@ -102,7 +74,6 @@ export function useCanvasLayer({
 
   const paintObservedSize = useEffectEvent(paint);
 
-  // Observeer CSS-maat én device-pixels: beide kunnen onafhankelijk wijzigen.
   useEffect(() => {
     if (!enabled) return;
     const container = containerNode === undefined ? containerRef.current : containerNode;
@@ -130,7 +101,6 @@ export function useCanvasLayer({
       pixelObserver.observe(container, { box: 'device-pixel-content-box' });
     }
 
-    // Ook browsers zonder device-pixel-box moeten hertekenen bij een monitorwissel.
     let resolution = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
     const onResolutionChange = () => {
       resolution.removeEventListener('change', onResolutionChange);

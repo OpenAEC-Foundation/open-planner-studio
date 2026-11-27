@@ -21,11 +21,6 @@ import type {
 } from './ganttCoordinatorTypes';
 import { finishIsActual, shownFinish, shownStart, startIsActual } from '@/utils/taskDates';
 
-/**
- * Enige eigenaar van de pointerprioriteit op het primaire tijdlijncanvas. De DOM-grid links bezit
- * rijselectie, disclosure, rijsleep en de workspace-splitter; deze hook coördineert uitsluitend
- * balken, relaties, pannen en kaderselectie binnen de lokale canvascoördinaten.
- */
 export function useGanttPointerCoordinator(
   input: GanttPointerCoordinatorInput,
 ): GanttPointerCoordinatorOutput {
@@ -70,11 +65,6 @@ export function useGanttPointerCoordinator(
   const view = viewport.effectiveView;
 
   const justBoxSelectedRef = useRef(false);
-  // Gezet zodra een balkbody-sleep aan de rijsleep van de DOM-grid is overgedragen, of met Escape is
-  // afgebroken: de mouseup van dat gebaar levert op het canvas nog een click op, en die mag de zojuist
-  // verplaatste taak niet her-selecteren of (naast een balk) de selectie wissen. Gewist bij de eerstvolgende mousedown,
-  // want eindigt de sleep boven de grid, dan komt er op het canvas helemaal geen click (zelfde
-  // vangnet als `useTableRowDrag`'s `justDraggedRef`).
   const justRowDraggedRef = useRef(false);
   const [hoverCursor, setHoverCursor] = useState('default');
   const [contextMenu, setContextMenu] = useState<GanttContextMenuState | null>(null);
@@ -95,9 +85,6 @@ export function useGanttPointerCoordinator(
     deselectAll,
     justBoxSelectedRef,
   });
-  // Verticale balkbody-sleep ⇒ dezelfde rijsleep als de taakrij links (zie `ganttRowDragBridge`).
-  // `useBarDrag` beslist pas ná de drempel over de richting en roept dit hooguit één keer per
-  // gebaar aan; daarna is zijn eigen dragState al gewist, dus er lopen nooit twee gebaren tegelijk.
   const onVerticalBodyDrag = useCallback((candidate: {
     taskId: string;
     startClientX: number;
@@ -135,9 +122,6 @@ export function useGanttPointerCoordinator(
     timeNotation,
     workdayDurationMeasure,
   });
-  // Het splitsgebaar. Bewust ná `useDependencyDraw` gedeclareerd — beide tekenen op
-  // hetzelfde overlay-canvas, en de twee modi sluiten elkaar uit, dus de laatst gemounte teken-
-  // effectlaag is die van het gebaar dat werkelijk aan kan staan.
   const splitGesture = useSplitGesture({
     canvasRef,
     containerRef,
@@ -155,27 +139,11 @@ export function useGanttPointerCoordinator(
     undo,
   });
 
-  /** `null` = splitsbaar. De uren-per-dag komen uit dezelfde effectieve taakkalender die de
-   *  renderer en `setTaskSplits` gebruiken, met dezelfde werktijd per dag (`effHoursPerDay`, zoals
-   *  `taskCalendarHoursPerDay` in de store), zodat de cursor niet iets anders belooft dan de store
-   *  toestaat. */
   const splitRefusalFor = useCallback((task: Task) => {
     const hoursPerDay = effHoursPerDay(effectiveCalendarByTaskId.get(task.id) ?? calendar);
     return canSplitTask(task, hoursPerDay, isSummaryTask(task));
   }, [effectiveCalendarByTaskId, calendar]);
 
-  /**
-   * De hit van `getTaskBarBounds` zoals de BALKSLEEP hem moet lezen. Een
-   * gesplitste balk waarvan de stukken niet bewerkbaar zijn (alleen-lezen importsplit, niet
-   * splitsbaar, of een onzichtbare pauze — zie `editableSplitPieces`) sleept als ÉÉN balk: de
-   * rechterrand van een tussenstuk is dan gewoon body, alleen het laatste stuk houdt de duurgreep.
-   * Zo belooft de cursor nooit een greep die de sleep daarna weigert.
-   *
-   * Werkelijke datums (eigenaarsbesluit 2026-10-12): een VOLTOOIDE balk heeft geen enkele duur- of
-   * stukgreep (begin en einde zijn werkelijke datums, `finishIsActual`); van een GESTARTE balk is de
-   * linkerrand geen greep (`startIsActual`). Zo'n rand is gewoon body: verticaal blijft de rijsleep
-   * werken, horizontaal verschuift de balk niet (`useBarDrag`, met één melding).
-   */
   const dragHit = useCallback((hit: NonNullable<ReturnType<GanttRenderer['getTaskBarBounds']>>) => {
     if (finishIsActual(hit.task)) return { ...hit, edge: 'body' as const, segmentIndex: 0, segmentCount: 1 };
     if (hit.edge === 'left' && startIsActual(hit.task)) hit = { ...hit, edge: 'body' as const };
@@ -220,14 +188,11 @@ export function useGanttPointerCoordinator(
     const y = event.clientY - rect.top;
     if (y < headerHeight) return;
 
-    // Ook de naam rechts achter de balk hoort bij de taak (`getTaskNameAt`).
     const task = renderer.getRelationSourceAt(x, y) ?? renderer.getTaskNameAt(x, y);
     if (!task) {
       deselectAll();
       return;
     }
-    // De aangeklikte rij telt (review #1004): dezelfde taak kan in meer rijen staan (groeperen op
-    // resource). Een groepsruitje (#868) kiest al zijn mijlpalen; Ctrl/Cmd zet ze samen aan of uit.
     const group = renderer.getMilestoneGroup(task.id);
     selectTask(task.id, event.ctrlKey || event.metaKey, event.shiftKey, {
       rowKey: renderer.getRowAtY(y)?.rowKey,
@@ -243,7 +208,6 @@ export function useGanttPointerCoordinator(
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     const task = renderer.getRelationSourceAt(x, y) ?? renderer.getTaskNameAt(x, y);
-    // Eén mijlpaal uit een groepsruitje (#868) open je na uitklappen.
     if (task && !renderer.getMilestoneGroup(task.id)) openTask(task.id);
   }, [canvasRef, rendererRef, openTask]);
 
@@ -258,13 +222,9 @@ export function useGanttPointerCoordinator(
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     if (y < headerHeight) return;
-    // De naam achter de balk hoort bij de taak; staat hij over de balk (bij de canvasrand), dan wint
-    // de naam, net als bij mousedown.
     const nameTask = renderer.getTaskNameAt(x, y);
     const task = nameTask ?? renderer.getRelationSourceAt(x, y);
     if (!task) {
-      // Lege ruimte: het korte menu met "Nieuwe taak" en "Nieuwe mijlpaal", op de datum onder de
-      // cursor (review 2026-10-06, punt 1).
       const clicked = viewport.sharedAxis?.xToDate(x);
       setContextMenu({
         x: event.clientX,
@@ -277,19 +237,13 @@ export function useGanttPointerCoordinator(
       });
       return;
     }
-    // Een groepsruitje (#868) kiest de groep maar opent geen menu, net als de ingeklapte regel in de tabel:
-    // het taakmenu bedient één mijlpaal, en dat doe je na uitklappen. Delete en Ctrl+C werken op de keuze.
     const group = renderer.getMilestoneGroup(task.id);
     if (group) {
       if (!group.every(member => selectedTaskIds.includes(member.id))) selectTasks(group.map(member => member.id), false);
       return;
     }
-    // Op de aangeklikte rij, zoals een linkerklik: dezelfde taak kan in meer ploegen staan.
     const rowKey = renderer.getRowAtY(y)?.rowKey;
     if (!selectedTaskIds.includes(task.id)) selectTask(task.id, false, false, { rowKey });
-    // Welke pauze "Onderbreking opheffen" bedoelt — de pauze onder de cursor,
-    // anders die vóór het aangeklikte stuk. Alleen op een bewerkbare split met evenveel getekende
-    // stukken als werkstukken; anders wijst de index naar de verkeerde pauze.
     let splitGapIndex: number | null = null;
     if (!nameTask && task.splitGaps && task.splitGaps.length > 0) {
       const gap = renderer.getSplitGapAt(x, y);
@@ -322,21 +276,9 @@ export function useGanttPointerCoordinator(
     });
   }, [pan, view.scrollX, view.scrollY]);
 
-  /*
-   * De karakteriseringsmatrix bewaakt deze ene volgorde:
-   * 1 actief gebaar weigert een tweede; 2 middelklik pant overal; 3 header stopt; 3b de naam achter
-   * de balk is geen grijpvlak en wint van alles hierna; 4 relatie wint
-   * van balkdrag; 4b splits-modus kaapt de balk en valt nooit door naar de balkdrag;
-   * 5 Ctrl/Cmd-balk blijft selectie; 6 balkbody/rand sleept; 7 drag-achtergrond pant;
-   * 8 iedere overige achtergrondroute start kaderselectie.
-   */
   const onMouseDown = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
-    // Een nieuwe mousedown is onmiskenbaar een nieuwe interactie: een blijven hangen vlag (sleep
-    // geëindigd buiten het canvas, dus zonder canvas-click) vervalt hier. Dat geldt ook voor die van
-    // kader en pan, die bij een documentwissel kan blijven staan (review #1004, ronde 13).
     justRowDraggedRef.current = false;
     justBoxSelectedRef.current = false;
-    // 1–2. Middelklik pant alleen wanneer geen enkel ander gebaar actief is.
     if (event.button === 1) {
       event.preventDefault();
       if (barDrag.active || dependencyDraw.active || splitGesture.active || boxSelect.active || pan.active) return;
@@ -352,21 +294,15 @@ export function useGanttPointerCoordinator(
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    // 3. Onder de timelineheader bestaat geen taakgebaar.
     if (y < headerHeight) return;
 
-    // 3b. De naam achter de balk is geen grijpvlak: geen relatie-, splits- of balksleep, geen pan
-    // of kaderselectie. Hij wint ook waar hij bij de canvasrand over de balk staat. De
-    // click-handler selecteert de taak (ook met Ctrl/Cmd of Shift).
     if (renderer.getTaskNameAt(x, y)) {
       event.preventDefault();
       return;
     }
 
-    // 4. Shift/dependency-mode gebruikt uitsluitend de publieke relatiehittest en wint van drag.
     if (event.shiftKey || dependencyMode) {
       const source = renderer.getRelationSourceAt(x, y);
-      // Vanaf een groepsruitje (#868) trek je geen relatie: welke mijlpaal zou het zijn? Uitklappen.
       if (source && renderer.getMilestoneGroup(source.id)) {
         event.preventDefault();
         return;
@@ -386,10 +322,6 @@ export function useGanttPointerCoordinator(
 
     const hit = renderer.getTaskBarBounds(x, y);
 
-    // 4b. Splits-modus kaapt de balk vóór elk sleepgebaar. Is de taak niet splitsbaar
-    // (mijlpaal, verzameltaak, te kort, …) of valt de klik in een bestaande pauze, dan gebeurt er
-    // niets: de verbodscursor heeft dat al gezegd. Nooit doorvallen naar de balksleep — in deze
-    // modus mag een klik op een balk geen datum verzetten.
     if (splitMode && hit) {
       if (splitRefusalFor(hit.task) === null) {
         event.preventDefault();
@@ -399,16 +331,10 @@ export function useGanttPointerCoordinator(
       }
       return;
     }
-    // Een pauze is geen grijpvlak (`getTaskBarBounds` geeft er `null`), maar
-    // hoort in de splits-modus nog steeds bij de balk: een klik erin doet niets,
-    // in plaats van een kaderselectie te starten.
     if (splitMode && renderer.getSplitGapAt(x, y)) {
       event.preventDefault();
       return;
     }
-    // Ook buiten de modus is een pauze van de balk en niet van de achtergrond: een klik erin
-    // selecteert de taak en start géén pan of kaderselectie (anders toont de pauze de pan-cursor
-    // van stap 7 zonder dat er iets gebeurt).
     const gapHit = hit ? null : renderer.getSplitGapAt(x, y);
     if (gapHit) {
       event.preventDefault();
@@ -417,16 +343,12 @@ export function useGanttPointerCoordinator(
     }
 
     if (hit) {
-      // 5. Ctrl/Cmd op een balk is selectie; de latere click-handler voert de toggle uit.
       if (event.ctrlKey || event.metaKey) {
         event.preventDefault();
         return;
       }
-      // 6. Gewone balkbody/rand start precies één tijdlijngebaar. Op een gesplitste balk zegt het
-      // stuk welke (zie `useBarDrag`).
       event.preventDefault();
       const grip = dragHit(hit);
-      // Een groepsruitje (#868) sleept alle mijlpalen op die dag mee.
       const group = renderer.getMilestoneGroup(hit.task.id);
       barDrag.startBarDrag({
         taskId: hit.task.id,
@@ -436,11 +358,6 @@ export function useGanttPointerCoordinator(
         segmentCount: grip.segmentCount,
         startX: event.clientX,
         startY: event.clientY,
-        // De datums waarop de renderer de balk tekent (`shownStart`/`shownFinish`): de rechterrand van een lopende
-        // taak rekent zo de duur vanaf haar werkelijke start, net als de Tabel-kolom Einde
-        // (`taskEditPlan.durationForShownFinish`).
-        // Een ruit met maar één datum leent de andere kant, zoals de renderer hem tekent (`milestoneAnchorX`);
-        // voor elke andere hit staan beide datums er al (datumloos-guard in `getTaskBarBounds`).
         originalStart: shownStart(hit.task) || shownFinish(hit.task),
         originalFinish: shownFinish(hit.task) || shownStart(hit.task),
         originalDuration: hit.task.time.scheduleDuration,
@@ -451,13 +368,11 @@ export function useGanttPointerCoordinator(
       return;
     }
 
-    // 7. Kale chartachtergrond pant in drag-mode, behalve met Ctrl/Cmd.
     if (scrollMode === 'drag' && !(event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       beginPan(event, 0);
       return;
     }
-    // 8. Iedere overige achtergrondroute start boxselectie.
     event.preventDefault();
     boxSelect.startBoxSelect({ startClientX: event.clientX, startClientY: event.clientY });
   }, [barDrag, dependencyDraw, splitGesture, boxSelect, pan.active, beginPan, canvasRef, rendererRef, headerHeight, dependencyMode, splitMode, splitRefusalFor, dragHit, selectTask, selectTasks, scrollMode]);
@@ -478,8 +393,6 @@ export function useGanttPointerCoordinator(
       setTooltip(null);
       return;
     }
-    // Zelfde voorrang als mousedown (3b): op de naam geen sleep- of relatiecursor, wel de
-    // taaktooltip (in de splits-modus staat die uit).
     const nameTask = renderer.getTaskNameAt(x, y);
     if (nameTask) {
       setHoverCursor('default');
@@ -492,8 +405,6 @@ export function useGanttPointerCoordinator(
       return;
     }
     const hit = renderer.getTaskBarBounds(x, y);
-    // In de splits-modus staat de gewone taak-tooltip uit: de geleidelijn met datum IS de
-    // terugkoppeling, en twee zwevende doosjes boven elkaar leest niemand.
     if (splitMode) {
       setTooltip(null);
       if (!hit) {
@@ -507,8 +418,6 @@ export function useGanttPointerCoordinator(
       if (!splittable) splitGesture.clearHover();
       return;
     }
-    // Issue #391: op de baselinestrook toont de tooltip welke baselines daar liggen. De balk-
-    // hit-test beslaat de hele rijhoogte, dus deze controle gaat vóór; slepen werkt daar gewoon.
     const baselineHit = renderer.getBaselineAt(x, y);
     if (hit) {
       const grip = dragHit(hit);
@@ -531,7 +440,6 @@ export function useGanttPointerCoordinator(
     } else {
       setTooltip(null);
     }
-    // Een pauze is geen grijpvlak én geen achtergrond: gewone cursor, geen pan-grijphand.
     if (renderer.getSplitGapAt(x, y)) {
       setHoverCursor('default');
       return;
@@ -547,8 +455,6 @@ export function useGanttPointerCoordinator(
     setTooltip(null);
     splitGesture.clearHover();
   }, [splitGesture]);
-  // Een hit bevat de taak van de laatst getekende frame. Na F5 kan die achterlopen en een
-  // stilstaande muis levert geen nieuwe hit. Gebruik daarom live taakdata voor de tooltip (379).
   const tooltipTaskId = tooltip?.task.id;
   const tooltipTask = useMemo(() => tooltipTaskId ? tasks.find(task => task.id === tooltipTaskId) : undefined, [tasks, tooltipTaskId]);
   const tooltipGroupIds = tooltip?.group?.map(task => task.id).join('\u0000');
