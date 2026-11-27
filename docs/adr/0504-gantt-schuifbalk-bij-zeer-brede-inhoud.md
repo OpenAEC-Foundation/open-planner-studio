@@ -11,7 +11,8 @@ getallen.
 
 De omrekening tussen balk en scroll is `scrollLeft = scrollX × scrollbarRangeRatio(inhoud, venster)`, niet de kale
 schaal. De balk loopt maar tot spacer min venster, de inhoud tot inhoud min venster; met de kale schaal haalde de duim
-het einde niet en sprong een scroll naar het einde terug zodra de browser de te grote `scrollLeft` afkapte (review
+het einde niet (een tekort van venster × (1 / schaal - 1), volgens het weggehaalde commentaar bij kwartierzoom
+honderden px) en sprong een scroll naar het einde terug zodra de browser de te grote `scrollLeft` afkapte (review
 2026-09-28). `scrollbarRangeRatio` beeldt die twee bereiken op elkaar af; is een van beide 0 of kleiner, dan geeft hij
 de schaal, en onder de grens 1. Het venster is de breedte van de pane, de ouder van de balk (`hScrollViewportWidth`).
 De browsertest toetst dat het einde bereikbaar blijft met `setScroll` en met de balk helemaal naar rechts;

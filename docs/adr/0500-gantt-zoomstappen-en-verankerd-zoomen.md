@@ -2,7 +2,7 @@
 
 De Gantt kent twee soorten zoomstap. Ctrl+= en Ctrl+- (de commando's `zoomIn` en `zoomOut` in `src/state/commands.ts`)
 en de lintknoppen Inzoomen en Uitzoomen (`ribbonWidgets.tsx`) tellen `ZOOM_STEP` (10 px per dag) bij de zoom op of
-trekken hem eraf, via `setZoom`; de scrollpositie verandert daarbij niet. Het wiel (`ZOOM_FACTOR_PER_TICK` in
+trekken hem eraf, via `setZoom`; de scrollpositie verandert daarbij niet. Zoomen met het wiel (`ZOOM_FACTOR_PER_TICK` in
 `useGanttZoom.ts`) en de kale toetsen + en - (`useZoomShortcuts.ts`) vermenigvuldigen met 1,1, verankerd. In en uit
 delen één stap, zodat één keer in- en weer uitzoomen op de beginzoom uitkomt. De stap stond eerder op drie plekken
 los, en het lint zoomde in met +10 en uit met -5 (kop van `check-zoom-steps.ts`). Dat terugkomen geldt zolang de klem
