@@ -43,6 +43,8 @@ import { canon, firstDiff, mergeProblems, openForeign, shownAfterOpen } from './
 import { InProcessWorker } from './inProcessSaveWorker';
 import { createExtensionApi } from '@/extensions/extensionApi';
 import type { NotifyInput } from '@/state/slices/types';
+import { OTHER_WORK_NOTICE_MS } from '@/state/otherWorkNotice';
+import { selectUndoHistoryEvent } from '@/state/sessionHistory';
 import { createAppQuitController } from '@/services/appQuit/appQuitController';
 import { appQuitDependencies } from '@/services/appQuit/appQuitDependencies';
 import { loadExtensionProject } from '@/extensions/retainActiveDocument';
@@ -4735,33 +4737,38 @@ function recordDeletes(store: Store): NotifyInput[] {
   store.setState({ notify: (n: NotifyInput) => { if (n.messageKey === DELETE_KEY) calls.push(n); notify(n); } });
   return calls;
 }
-const plainDelete = (count: number): NotifyInput => ({ severity: 'info', messageKey: DELETE_KEY, params: { count } });
+const undoStep = (store: Store) => selectUndoHistoryEvent(store.getState().historyEvents, store.getState().activeDocumentId)!.id;
+const deleteNotice = (count: number, eventId: string): NotifyInput => ({ severity: 'info', messageKey: DELETE_KEY, params: { count },
+  action: { kind: 'undoHistoryEvent', eventId, labelKey: 'notifications.actions.undo' }, durationMs: OTHER_WORK_NOTICE_MS });
 
-await check('fixronde 5 van #1199: wissen meldt één gewone melding zonder knop met het aantal van die wisstap; Ctrl+Z trekt niets in, Ctrl+Y meldt opnieuw', async () => {
+await check('PR 7: wissen meldt één melding met het aantal van die wisstap en de knop Ongedaan maken; Ctrl+Z haalt haar weg, Ctrl+Y meldt opnieuw', async () => {
   const { store } = await openHandle(LINKED), unregister = recoveryRounds(store);
   try {
     const calls = recordDeletes(store);
     store.getState().deleteTask(taskNamed(store, 'Set up site'));
-    const first = await writtenCount(store);
+    const first = await writtenCount(store), firstStep = undoStep(store);
     assert(first > 0);
-    assert.deepEqual(calls, [plainDelete(first)], 'één aanroep, het aantal van die wisstap, geen actie');
+    const one = [deleteNotice(first, firstStep)];
+    assert.deepEqual(calls, one, 'één aanroep, het aantal van die wisstap, de knop voor die stap');
     store.getState().deleteTask(taskNamed(store, 'Demolish existing extension'));
-    const second = await writtenCount(store) - first;
+    const second = await writtenCount(store) - first, secondStep = undoStep(store);
     assert(second > 0);
-    assert.deepEqual(calls, [plainDelete(first), plainDelete(second)], 'de tweede wisstap meldt haar eigen aantal');
-    assert.equal(deleteNotices(store).length, 2, 'twee eigen meldingen');
+    const two = [...one, deleteNotice(second, secondStep)];
+    assert.deepEqual(calls, two, 'de tweede wisstap meldt haar eigen aantal');
+    assert.deepEqual(deleteNotices(store).map(n => n.action), [two[1].action], 'alleen de melding van de stap van Ctrl+Z staat er');
     store.getState().undo();
-    assert.equal(calls.length, 2, 'Ctrl+Z meldt niets');
-    assert.equal(deleteNotices(store).length, 2, 'en trekt niets in');
+    assert.deepEqual(calls, two, 'Ctrl+Z meldt niets');
+    assert.deepEqual(deleteNotices(store), [], 'Ctrl+Z haalt de melding met haar knop weg');
     store.getState().redo();
-    assert.deepEqual(calls.at(-1), plainDelete(second), 'Ctrl+Y meldt de wisstap opnieuw');
+    const three = [...two, deleteNotice(second, secondStep)];
+    assert.deepEqual(calls, three, 'Ctrl+Y meldt de wisstap opnieuw, met de knop voor dezelfde stap');
     store.getState().removeResource(store.getState().resources.find(r => r.name === 'Bricklayers')!.id);
     const third = await writtenCount(store) - first - second;
     assert(third > 0);
-    assert.deepEqual(calls.at(-1), plainDelete(third), 'een resource wissen');
-    const before = calls.length;
+    const four = [...three, deleteNotice(third, undoStep(store))];
+    assert.deepEqual(calls, four, 'een resource wissen');
     store.getState().deleteTask(taskNamed(store, 'Apply roofing'));
-    assert.equal(calls.length, before, 'een taak zonder koppeling: geen melding');
+    assert.deepEqual(calls, four, 'een taak zonder koppeling: geen melding');
   } finally { unregister(); await clearRecovery(); }
   for (const [label, source, flag] of [['flag uit', LINKED, false], ['zonder vreemd deel', plainBytes(), true]] as const) {
     const { store } = await openInStore(source);
@@ -4771,6 +4778,16 @@ await check('fixronde 5 van #1199: wissen meldt één gewone melding zonder knop
     store.getState().deleteTask(task.id);
     assert.deepEqual(calls, [], `${label}: geen melding`);
   }
+  const flagged = await openHandle(LINKED), stopRounds = recoveryRounds(flagged.store);
+  try {
+    const { store } = flagged, flag = (on: boolean) => store.getState().setUI({ featureFlags: { ...store.getState().ui.featureFlags, ifcForeignContent: on } });
+    store.getState().deleteTask(taskNamed(store, 'Set up site'));
+    assert.equal(deleteNotices(store).length, 1);
+    flag(false);
+    assert.deepEqual(deleteNotices(store), [], 'de flag uit haalt de melding met haar knop weg');
+    flag(true);
+    assert.deepEqual(deleteNotices(store), [], 'de flag weer aan brengt haar niet terug');
+  } finally { stopRounds(); await clearRecovery(); }
 });
 
 for (const [label, existing] of MAIN_STACKS) {
@@ -4981,6 +4998,40 @@ await check('vraag vóór opslaan: Annuleren in de vraag uit de sluitvraag bij a
     assert.equal(store.getState().isDirty, true, 'en gewijzigd');
     assert.equal(hash(fileOf(docs[0]!.name)), hash(LINKED), 'niets geschreven');
   } finally { resetForeignChangesAsker(); quit.dispose(); unregister(); await clearRecovery(); }
+});
+
+const routeGuids = (data: Uint8Array | undefined) =>
+  [...new TextDecoder().decode(data).matchAll(/'(1KoppelingRoute\d{8})'/g)].map(m => m[1]).sort();
+
+await check('PR 7 en de vraag vóór opslaan: wissen, Ctrl+S, de vraag, Opslaan, dan Ctrl+Z en Ctrl+S zet de stukken terug zonder vraag; wissen, Ctrl+S, de vraag, Annuleren, Ongedaan maken via de knop: de volgende opslag vraagt niets', async () => {
+  for (const cancel of [false, true]) {
+    const route = await onHandle(store => ctrlS(store));
+    try {
+      const { store } = route;
+      askOn(store);
+      const asked = askerOn(store, () => cancel ? CANCEL_FOREIGN_CHANGES : SAVE_ANSWER);
+      store.getState().deleteTask(taskNamed(store, 'Set up site'));
+      const notice = deleteNotices(store)[0], action = notice?.action;
+      assert(action?.kind === 'undoHistoryEvent', 'de wismelding met de knop');
+      assert.equal(await route.write(), !cancel);
+      assert.equal(asked.length, 1, 'de vraag kwam');
+      assert(asked[0].count > 0);
+      const first = await route.written();
+      if (cancel) {
+        assert.equal(hash(first!), hash(LINKED), 'Annuleren schrijft niets');
+        assert.deepEqual(deleteNotices(store).map(n => n.id), [notice.id], 'de wismelding met de knop staat er nog');
+        store.getState().undoHistoryEvent(action.eventId);
+        store.getState().dismissNotification(notice.id);
+      } else {
+        assert.notDeepEqual(routeGuids(first), routeGuids(LINKED), 'Opslaan liet stukken van het andere programma vervallen');
+        store.getState().undo();
+      }
+      assert(store.getState().tasks.some(t => t.name === 'Set up site'), 'de taak is terug');
+      assert.notEqual(await route.write(), false);
+      assert.equal(asked.length, 1, 'geen tweede vraag: er vervalt niets');
+      assert.deepEqual(routeGuids(await route.written()), routeGuids(LINKED), 'de stukken van het andere programma staan er weer');
+    } finally { resetForeignChangesAsker(); await route.dispose(); }
+  }
 });
 
 rmSync(dir, { recursive: true, force: true });

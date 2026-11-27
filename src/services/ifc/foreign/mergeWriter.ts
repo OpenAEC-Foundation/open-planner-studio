@@ -63,7 +63,7 @@ import {
 import { readFileSchemaName } from '../ifcReader';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { scanForeignStep } from './oldOwnHeader';
-import { MAX_STEP_ID, splitStepArgs, type StepIndex } from './stepScanner';
+import { MAX_STEP_ID, type StepIndex } from './stepScanner';
 import type { DayMeasureDurationKey } from '../dayMeasureIo';
 import { planningCanon, planningDifference } from './planningCanon';
 import { planningIdentities, planningIdentityInput } from './planningIdentity';
@@ -73,6 +73,14 @@ import { openMergePlanning } from '@/state/ifcMergePlanning';
 import { taskTimeSlotProblem, type LiteralSourceSlots } from './taskTimeExpectation';
 import type { TaskTimeReading } from '../ifcReader';
 import { psetOwners, validateMergeOutput } from './mergeValidation';
+import {
+  detachedAfterWrite, renderedRestorations, restorablePieces, withoutRestoredMembers, withReturnedMembers, withReturnedSlots, type CarriedRelation, type Detached,
+  type DetachedObject, type SourceView,
+} from './detached';
+import {
+  AGGREGATES, CARRIED_RELATIONS, CONTROL, DECLARES, DEFINES, formatRefs, NESTS, parseLine, PROCESS, refList, refOf, relArgs, setArgs, SINGLE_MEMBERSHIP,
+  type OwnLine,
+} from './ownLine';
 import { applyForeignRule, emptyForeignReferences, goneStepIds, NOTHING_GONE, type ForeignChange, type ForeignReferences, type ForeignRuleOutcome } from './changeList';
 import { foreignChangeList, foreignReferences } from './foreignReferences';
 import {
@@ -172,57 +180,6 @@ export class MergeNeedsPhase2Error extends Error {
     this.cases = cases;
   }
 }
-
-const NESTS = 'IFCRELNESTS';
-const AGGREGATES = 'IFCRELAGGREGATES';
-const DECLARES = 'IFCRELDECLARES';
-const CONTROL = 'IFCRELASSIGNSTOCONTROL';
-const PROCESS = 'IFCRELASSIGNSTOPROCESS';
-const DEFINES = 'IFCRELDEFINESBYPROPERTIES';
-
-/** Argumentposities van relating en related per structureel relatietype. */
-const MIXED_RELATIONS: ReadonlySet<string> = new Set([NESTS, AGGREGATES, DECLARES, CONTROL, PROCESS]);
-const relArgs = (type: string) => (MIXED_RELATIONS.has(type) ? relationRoles(type) : undefined);
-const CARRIED_RELATIONS: ReadonlySet<string> = new Set([NESTS, AGGREGATES, CONTROL, PROCESS]);
-/** Typen waarvan het lid maar in één relatie mag staan (inverse SET [0:1]): `Nests`, `Decomposes`, `HasContext`. */
-const SINGLE_MEMBERSHIP: ReadonlySet<string> = new Set([NESTS, AGGREGATES, DECLARES]);
-
-/** Een regel van de writer: `#id=TYPE(args);`. */
-interface OwnLine {
-  readonly id: number;
-  type: string;
-  args: string[];
-  text: string;
-  drop: boolean;
-}
-
-const LINE = /^#(\d+)=([A-Z0-9_]+)\(([\s\S]*)\);$/;
-
-function parseLine(text: string): OwnLine {
-  const m = LINE.exec(text);
-  if (!m) throw new Error(`mergeWriter: onverwachte regel van de writer: ${text.slice(0, 80)}`);
-  return { id: Number(m[1]), type: m[2], args: splitStepArgs(m[3]), text, drop: false };
-}
-
-function setArgs(line: OwnLine, args: string[]): void {
-  line.args = args;
-  line.text = `#${line.id}=${line.type}(${args.join(',')});`;
-}
-
-/** `#12` → 12; anders -1. */
-function refOf(token: string | undefined): number {
-  const m = /^#(\d+)$/.exec((token ?? '').trim());
-  return m ? Number(m[1]) : -1;
-}
-
-/** `(#1,#2)` → [1, 2]. */
-function refList(token: string | undefined): number[] {
-  const t = (token ?? '').trim();
-  if (!t.startsWith('(') || !t.endsWith(')')) return [];
-  return splitStepArgs(t.slice(1, -1)).map(refOf).filter(id => id >= 0);
-}
-
-const formatRefs = (ids: readonly number[]) => `(${ids.map(id => `#${id}`).join(',')})`;
 
 interface WrittenPiece { readonly args: readonly string[]; readonly owned?: readonly string[] }
 
@@ -961,6 +918,21 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   for (const a of pending) caseAt(...a);
   const domain = form.input;
   const { lines, byId, keptHeads, owner, taskIds, objects } = built;
+  const writerIds = writerStepIds(input, built.idMap);
+  const sourceView = sourceViewOf(source, index, cls, rule.dropped);
+  const returning = restorablePieces(source.detached, seed => writerIds[seed] !== undefined, sourceView);
+  withoutRestoredMembers(returning, { lines, idOf: seed => writerIds[seed], scheduleSeed: `ws:${input.project.id}`, tasks: input.tasks }, sourceView);
+  withReturnedSlots(source.detached?.objects, byId, seed => writerIds[seed], id => isP(index.chunkOf(String(id))));
+  const carriedRelations = carriedRelationsOf(index, cls, sourceSlots, bySource);
+  const carriedKeys = new Set([...carriedRelations.map(r => r.key), ...(source.detached?.relations.keys() ?? [])]);
+  let highestSourceId = 0;
+  for (const id of source.chunkIds) if (id > highestSourceId) highestSourceId = id;
+  const firstFreeId = (ids: Iterable<number>) => {
+    let max = highestSourceId;
+    for (const id of ids) if (id > max) max = id;
+    for (const [key, piece] of source.detached?.pieces ?? []) max = Math.max(max, key, piece.at ?? 0);
+    return max + 1;
+  };
 
   // ── 7. Verwijzingen van buiten P: alleen naar een D-object dat met zijn bron-id in de uitvoer staat ──
   const emitted = new Set<number>();
@@ -1021,7 +993,9 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // `IfcProject` van een ander programma), leest het type uit de bron.
   const chosen = built.chosen.filter(e => byId.get(e.id)?.drop === false);
   const restored = restoredOwnSlots(linesView(lines.filter(l => !l.drop), id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; }), edits, chosen);
-  const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds, pieceEdits);
+  const preview = renderedRestorations(returning, seed => writerIds[seed], firstFreeId(lines.map(l => l.id)), sourceView);
+  const readEdits = withInPlace(index, pieceEdits, preview.inPlace);
+  const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds, readEdits, preview.appended);
   if (cases.length === 0 && edits.length > 0) {
     const plain = lines.filter(l => !l.drop).map(l => l.text);
     for (const e of edits) {
@@ -1079,9 +1053,14 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     const remap = new Map(block.map((line, i) => [line.id, candidate[i].id]));
     const stepIds = writerStepIds(input, built.idMap, id => remap.get(id) ?? id);
     const textOf = (line: OutLine) => ('text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`);
-    const placed = assignmentPlacement(input, index, cls, bySource, stepIds, candidate, pieceEdits);
-    const assembled = concatParts(assemble(source, index, cls, placed.block.map(textOf), undefined, pieceEdits,
-      new Map([...placed.after].map(([chunk, moved]) => [chunk, moved.map(textOf)]))));
+    let nextLineId = firstFreeId(candidate.map(l => l.id));
+    const outLines = withReturnedMembers(source.detached?.relations, candidate, seed => stepIds[seed], carriedKeys, () => nextLineId++);
+    const back = renderedRestorations(returning, seed => stepIds[seed], firstFreeId(outLines.map(l => l.id)), sourceView);
+    const outputEdits = withInPlace(index, pieceEdits, back.inPlace);
+    const written = [...changes, ...back.entries];
+    const placed = assignmentPlacement(input, index, cls, bySource, stepIds, outLines, outputEdits);
+    const assembled = concatParts(assemble(source, index, cls, placed.block.map(textOf), undefined, outputEdits,
+      new Map([...placed.after].map(([chunk, moved]) => [chunk, moved.map(textOf)])), back.appended));
     // De vingerafdruk nu, vóór de uitvoerindex er is: `crypto.subtle.digest` neemt een kopie van de bytes, en als laatste
     // stap stond die kopie bovenop de hele uitvoercontrole (#804). `precomputeSha256` onthoudt hem per buffer; niets
     // verandert deze bytes nog, dus `writtenSource` krijgt dezelfde waarde zonder tweede berekening. Bij een weigering
@@ -1109,11 +1088,11 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       } : {}),
     };
     observe?.(own);
-    const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own, changes);
-    const written = new Set(candidate.map(line => line.id));
+    const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own, written);
+    const writerLines = new Set(outLines.map(line => line.id));
     const ids = actual.scan.chunkIds, classes = actual.scan.classes;
     for (let k = 0; k < ids.length; k++) {
-      if (ids[k] < 0 || (classes[k] === 1) === written.has(ids[k])) continue;
+      if (ids[k] < 0 || (classes[k] === 1) === writerLines.has(ids[k])) continue;
       throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: classes[k] === 1
         ? `#${ids[k]} is in de uitvoer een eigen stuk, maar de writer schreef het niet`
         : `#${ids[k]} schreef de writer, maar in de uitvoer is het geen eigen stuk` }]);
@@ -1121,11 +1100,22 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     const stillMembers = new Set(actual.classification.foreignMembers);
     const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c))).filter(c => stillMembers.has(c));
     const nextReferences = foreignReferences(actual.index, classes, actual.bytes, actual.classification.selection.inD);
+    const seedOfOutput = new Map(Object.entries(stepIds).map(([seed, id]) => [id, seed]));
+    const lineByGuid = new Map(outLines.map(l => [`${l.type}|${l.args[0]?.trim()}`, l]));
+    const detached = detachedAfterWrite({
+      previous: source.detached, restorable: returning, placed: back.placed, changes,
+      objectOf: id => { const d = bySource.get(id); return d && isP(index.chunkOf(String(id))) ? `${d.kind}:${d.id}` : undefined; },
+      gone: goneObjects(source, gone, bySource), present: seed => stepIds[seed] !== undefined,
+      carried: carriedRelations, membersOf: (key, type) => {
+        const line = lineByGuid.get(`${type}|${key}`), roles = relationRoles(type);
+        return line && roles ? refList(line.args[roles.related]).flatMap(id => seedOfOutput.get(id) ?? []) : undefined;
+      },
+    });
     const next = await writtenSource(input, actual.bytes, actual.index, actual.scan, stepIds, classes, members, actual.unusedKeys,
-      candidate.map(line => actual.index.chunkOf(String(line.id))), nextReferences);
+      outLines.map(line => actual.index.chunkOf(String(line.id))), nextReferences, detached);
     // Alleen de nieuwe buffer blijft via het resultaat vastgehouden; de oude bron kan na commit weg.
     return { bytes: actual.bytes, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds,
-      ...(changes.length > 0 ? { foreignChanges: changes } : {}) };
+      ...(written.length > 0 ? { foreignChanges: written } : {}) };
   }
   const block = lines.filter(l => !l.drop);
   let preserved: readonly OutLine[] | undefined;
@@ -1138,6 +1128,43 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // gaat door dezelfde volledige bytes-, open-, canon- en getalcontrole.
     return checkedOutput(block);
   }
+}
+
+function sourceViewOf(source: IfcSource, index: StepIndex, cls: Classification, dropped: ReadonlySet<number>): SourceView {
+  const foreignChunk = (id: number) => { const c = index.chunkOf(String(id)); return c >= 0 && cls.classes[c] !== 1 ? c : -1; };
+  return {
+    kept: id => foreignChunk(id) >= 0 && !dropped.has(id),
+    chunkBytes: id => { const c = foreignChunk(id); return c >= 0 ? source.bytes.subarray(index.start(c), index.end(c)) : undefined; },
+    type: id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; },
+  };
+}
+
+function carriedRelationsOf(index: StepIndex, cls: Classification, sourceSlots: IfcSource['sourceSlots'],
+  bySource: ReadonlyMap<number, { kind: string; id: string }>): CarriedRelation[] {
+  if (!sourceSlots) return [];
+  const seed = (chunk: number) => { const d = chunk >= 0 ? bySource.get(Number(index.id(chunk))) : undefined; return d && `${d.kind}:${d.id}`; };
+  return [...cls.foreignOrigin].flatMap(r => {
+    const type = index.type(r), slots = sourceSlots.get(Number(index.id(r))), roles = relationRoles(type);
+    if (cls.selection.inD[r] || !cls.inR[r] || !CARRIED_RELATIONS.has(type) || !slots || !roles) return [];
+    const relating = seed(index.refAt(r, roles.relating)), key = slots.slots.get('globalId')?.trim();
+    return relating && key ? [{ key, type, relating, members: index.refsAt(r, roles.related).flatMap(m => seed(m) ?? []), slots }] : [];
+  });
+}
+
+function withInPlace(index: StepIndex, edits: ReadonlyMap<number, Uint8Array | null>, inPlace: ReadonlyMap<number, Uint8Array>): ReadonlyMap<number, Uint8Array | null> {
+  if (inPlace.size === 0) return edits;
+  const all = new Map(edits);
+  for (const [id, bytes] of inPlace) all.set(index.chunkOf(String(id)), bytes);
+  return all;
+}
+
+function goneObjects(source: IfcSource, gone: ReadonlySet<number>, bySource: ReadonlyMap<number, { kind: string; id: string }>): [string, DetachedObject][] {
+  return [...gone].flatMap(stepId => {
+    const d = bySource.get(stepId);
+    if (!d) return [];
+    const slots = source.sourceSlots?.get(stepId), links = d.kind === 'task' ? source.elementLinks.get(d.id) : undefined;
+    return [[`${d.kind}:${d.id}`, { ...(slots ? { slots } : {}), ...(links ? { links } : {}) }]];
+  });
 }
 
 /** De domeinsleutels van deze sessie, uit de daadwerkelijke writerkaart en haar hernummering. */
@@ -1163,7 +1190,8 @@ function writerStepIds(input: WriteIFCInput, idMap: ReadonlyMap<string, number>,
 /** De scanner levert grenzen; eigendom, leden en sessie-identiteit komen van het schrijfplan. */
 async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, index: StepIndex, scan: ForeignScanResult,
   stepIds: Readonly<Record<string, number>>, classes: Uint8Array, foreignMembers: readonly number[],
-  unusedKeys?: readonly UnusedKeysOfTask[], writtenChunks: readonly number[] = [], references?: ForeignReferences): Promise<IfcSource> {
+  unusedKeys?: readonly UnusedKeysOfTask[], writtenChunks: readonly number[] = [], references?: ForeignReferences,
+  detached?: Detached): Promise<IfcSource> {
   const schemaName = readFileSchemaName(new TextDecoder().decode(bytes.subarray(0, scan.chunkStarts[1])));
   if (!schemaName) throw new Error('mergeWriter: de geschreven kop mist het schema');
   const foreignObjectCount = classes.reduce((count, c) => count + (c > 1 ? 1 : 0), 0);
@@ -1174,6 +1202,7 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, index: Ste
     ...(unusedKeys && foreignObjectCount > 0 ? { unusedKeys } : {}),
     ...(foreignObjectCount > 0 ? { sourceSlots: scanSourceSlots(index, foreignOriginAmong(index, writtenChunks)) } : {}),
     ...(references && references.stepIds.length > 0 && foreignObjectCount > 0 ? { foreignReferences: references } : {}),
+    ...(detached && foreignObjectCount > 0 ? { detached } : {}),
     foreign: foreignObjectCount > 0, foreignObjectCount, buildingModel: scan.buildingModel, lineEnding: scan.lineEnding, opened: input,
   };
 }
@@ -1559,10 +1588,10 @@ function assertSameSource(index: StepIndex, cls: Classification, source: IfcSour
  * en dezelfde leesopties als de bytes-route. De regels van de writer zijn nooit letterlijk gecodeerd.
  */
 function readPlanning(source: IfcSource, index: StepIndex, cls: Classification, scan: ForeignScanResult,
-  block: readonly string[], taskIds: readonly number[], edits: ReadonlyMap<number, Uint8Array | null>) {
+  block: readonly string[], taskIds: readonly number[], edits: ReadonlyMap<number, Uint8Array | null>, appended: readonly Uint8Array[] = []) {
   const alsoRead = new Set(scan.mixedPsetChunks);
   const skip = (i: number) => cls.classes[i] === 4 && i !== scan.projectContext && !alsoRead.has(i);
-  const bytes = concatParts(assemble(source, index, cls, block, skip, edits));
+  const bytes = concatParts(assemble(source, index, cls, block, skip, edits, new Map(), appended));
   const literalStepIds = new Set<string>();
   for (let i = 0; i < scan.literal.length; i++) if (scan.literal[i] === 1 && cls.classes[i] !== 1) literalStepIds.add(String(scan.chunkIds[i]));
   return readIFCWithXerReconstruction(new TextDecoder('utf-8').decode(bytes), {}, {
@@ -1605,7 +1634,7 @@ function assignmentPlacement(input: WriteIFCInput, index: StepIndex, cls: Classi
 
 function assemble(source: IfcSource, index: StepIndex, cls: Classification, block: readonly string[],
   skip: (i: number) => boolean = () => false, edits: ReadonlyMap<number, Uint8Array | null> = new Map(),
-  after: ReadonlyMap<number, readonly string[]> = new Map()): Uint8Array[] {
+  after: ReadonlyMap<number, readonly string[]> = new Map(), appended: readonly Uint8Array[] = []): Uint8Array[] {
   const n = index.count;
   const bytes = source.bytes;
   const starts = source.chunkStarts;
@@ -1630,6 +1659,7 @@ function assemble(source: IfcSource, index: StepIndex, cls: Classification, bloc
     if (i === insertAt) {
       flush(i);
       for (let b = 0; b < block.length; b += BATCH) parts.push(enc.encode(le + block.slice(b, b + BATCH).join(le)));
+      for (const piece of appended) parts.push(enc.encode(le), piece);
     }
     if (cls.classes[i] === 1 || skip(i)) { flush(i); continue; }
     const edited = edits.get(i);

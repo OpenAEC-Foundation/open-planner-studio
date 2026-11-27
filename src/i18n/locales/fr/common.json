@@ -1304,6 +1304,7 @@
       "country": "Pays",
       "region": "Région",
       "regionNone": "National",
+      "regionFederal": "Fédéral",
       "bouwvakLabel": "Congés du bâtiment",
       "bouwvak": {
         "none": "Aucun",
@@ -1331,6 +1332,7 @@
       "AT": "Autriche",
       "CH": "Suisse",
       "US": "États-Unis",
+      "CA": "Canada",
       "BO": "Bolivie",
       "none": "Aucun jour férié"
     },
