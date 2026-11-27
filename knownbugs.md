@@ -7991,3 +7991,14 @@ en noem het in je rapport of PR-tekst.
       als bij 1899 en 2366 geldt ook voor een model van een ander. Gevolgd in de code, niet gemeten in
       de browser. Vóór de flag `ifcx` standaard aan gaat: een kiezer die het bestand intact laat, of
       een bevestiging vóór de kiezer. — S
+
+2422. **Een MCP-backup van een planning bij een IFCX-model laat de modelverwijzing stil weg.**
+      *MCP → Veiligheid → Nu backup maken* en de automatische backup langs dezelfde schrijfroute schrijven
+      een STEP-kopie van de planning. Die kopie bevat de modelverwijzing en de bouwdeelkoppelingen niet, en de
+      app meldt dat niet (de backupknop zegt *Backup gemaakt*). De IFCX-planning zelf en het model blijven
+      ongewijzigd. *Exporteren → IFC*, met en zonder bibliotheekbestand, meldt het verlies; de tool
+      `planner_export_ifc` meldt het in haar antwoord. Nog na te gaan: *Toepassen* in het IFC-paneel op zo'n
+      planning. Vóór de flag `ifcx` standaard aan gaat: de backup van zo'n planning als IFCX schrijven en één
+      plek kiezen waar elke STEP-kopie van zo'n document langs moet (`buildWriteIFCInput`). Neem daarbij het
+      heropenen mee: een IFCX-backup staat in de backupmap en niet naast het model, dus de zoekactie naar het
+      buurmodel vindt het model daar niet. Gevolgd in de code bij de review van #1320, ronde 3 en 4. — S
