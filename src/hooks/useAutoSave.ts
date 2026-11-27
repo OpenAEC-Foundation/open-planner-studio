@@ -1,5 +1,5 @@
-import { recoverySourceDocument } from '@/state/recoverySourceDocument';
-import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { recoverySourceDocument, unchangedIfcxSaveTargets } from '@/state/recoverySourceDocument';
+import { ifcForeignContentEnabled, ifcxEnabled } from '@/utils/featureFlags';
 import { useEffect, type MutableRefObject } from 'react';
 import { appStoreContext, useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
@@ -37,6 +37,7 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
     // storage-transaction mag hergebruik van IFC-tekst toelaten, maar nooit doen alsof de bron al
     // veilig op schijf staat.
     const recoveryDelta = new RecoveryDeltaTracker();
+    let retryIfcxRound = false;
 
     const saveRound = async () => {
       // Wacht tot de recovery-keuze gemaakt is: anders zou deze schrijfactie de
@@ -52,16 +53,22 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       // document op dat moment dirty is. `isDirty` is dus hoogstens een eerste-eligibilityflag,
       // nooit de identiteit van IFC-inhoud.
       // Een lopende vervanging (knownbug 1131) wacht op haar manifest, ook in een schone sessie.
-      if (!docs.some((d) => d.payload.isDirty) && !recoveryDelta.hasPersistedSnapshot && !hasPendingIfcSource()) return;
+      if (!docs.some((d) => d.payload.isDirty) && !recoveryDelta.hasPersistedSnapshot && !hasPendingIfcSource() && !retryIfcxRound) return;
       try {
         // Vergelijk de echte IFC-bronvelden (Immer-referenties) en niet `isDirty`: zo krijgt één
         // taakbewerking één volledige IFC-upsert, terwijl een actieve-tabwissel manifest-only is.
         const recoveryDocs: RecoverySourceDocument[] = docs.map(({ id, payload }) =>
-          recoverySourceDocument(id, payload, ifcForeignContentEnabled(state.ui.featureFlags)));
+          recoverySourceDocument(id, payload, ifcForeignContentEnabled(state.ui.featureFlags), ifcxEnabled(state.ui.featureFlags)));
         // Backend-keuze (Tauri-bestanden of IndexedDB) zit in recoveryStore. De volledige
         // documentlijst is manifestmetadata; alleen `upserts` bevat IFC-teksten, en die dragen het
         // XER-bronarchief alleen als verwijzing (eigenaarsbesluit plan (9), `serializeRecoverySnapshot`).
-        await runRecoveryTick(recoveryDelta, state.activeDocumentId, recoveryDocs, serializer.serialize, enabled, id => {
+        const current = () => {
+          if (!enabled()) return false;
+          const live = useAppStore.getState();
+          retryIfcxRound = !unchangedIfcxSaveTargets(recoveryDocs, live.getOpenDocumentPayloads, ifcxEnabled(live.ui.featureFlags));
+          return !retryIfcxRound;
+        };
+        await runRecoveryTick(recoveryDelta, state.activeDocumentId, recoveryDocs, serializer.serialize, current, id => {
           useAppStore.getState().notify({ severity: 'error', messageKey: 'notifications.ifcSourceCopyFailed',
             dedupeKey: `ifc-source-copy-${id}` });
         });

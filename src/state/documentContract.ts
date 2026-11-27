@@ -83,6 +83,10 @@ export type DocumentFileFormat = 'ifc' | 'ifcx';
 
 export interface RecoveryIfcxMark {
   readonly known: TargetFingerprint | null;
+  readonly references?: string;
+  readonly format?: 'ifc';
+  readonly modelLocation?: Exclude<import('@/services/fileAccess').FileRef, { kind: 'handle' }>;
+  readonly targetRecentId?: string;
 }
 
 export type RecoveryDocInput = ImportResult & {
@@ -291,10 +295,10 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
     foreignSourceMark: d.sourceRestored
       ? foreignSourceMarkFor(d.ifcSource, { filePath: d.filePath, siteFileId, fileHandle: d.fileHandle ?? null })
       : restoredMark(foreignSourceMarkFromRecovery(d.recoveryForeignSource, d.foreignSource)),
-    fileHandle: d.sourceRestored ? d.fileHandle ?? null : null,
+    fileHandle: d.sourceRestored || d.ifcx?.targetRecentId ? d.fileHandle ?? null : null,
     siteFileId,
     siteFileVersion: siteFileId ? d.siteFileVersion ?? null : null,
-    ...(d.ifcx ? { fileFormat: 'ifcx' as const, knownTargetFingerprint: siteFileId ? null : d.ifcx.known } : {}),
+    ...(d.ifcx ? { fileFormat: d.ifcx.format ?? 'ifcx', knownTargetFingerprint: siteFileId ? null : d.ifcx.known } : {}),
     isDirty: d.isDirty,
     scheduleStale: true,
   };

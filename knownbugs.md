@@ -8005,3 +8005,9 @@ en noem het in je rapport of PR-tekst.
       als bij 1899 en 2366 geldt ook voor een model van een ander. Gevolgd in de code, niet gemeten in
       de browser. Vóór de flag `ifcx` standaard aan gaat: een kiezer die het bestand intact laat, of
       een bevestiging vóór de kiezer. — S
+
+2419. **Een uit Recent verdwenen IFCX-planning herstelt in de browser zonder schrijfdoel.**
+      Crashherstel bewaart de id van de planning in Recent. Verwijdert de planner die vermelding of
+      verdringen tien andere bestanden haar, dan zijn na herstel de taken en de modelverwijzingen
+      beschikbaar en vraagt Opslaan opnieuw om een doel. Het verwijderen van de vermelding is
+      nagegaan in `check-ifcx-herstel.ts`. — B

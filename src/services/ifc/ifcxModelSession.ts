@@ -29,14 +29,18 @@ export function bindIfcxModel(references: IfcxModelReferences, ref: FileRef | nu
 export async function findIfcxModel(
   references: IfcxModelReferences, plan: FileRef | null, knownHandles: readonly FileSystemFileHandle[],
   readPath: (path: string) => Promise<Uint8Array | null>, identityFs: FileIdentityFs | undefined,
+  previousModel?: Exclude<FileRef, { kind: 'handle' }>,
 ): Promise<void> {
   const source = references.modelSource;
+  if (previousModel?.kind === 'site') bindIfcxModel(references, previousModel);
   if (!source || plan?.kind === 'site') return;
   let candidates: Exclude<FileRef, { kind: 'site' }>[];
   if (plan?.kind === 'path') {
     const path = plan.path.slice(0, plan.path.length - basename(plan.path).length) + source.fileName;
     if (await sameLocalFile(plan.path, path, { identityFs })) return;
     candidates = [{ kind: 'path', path }];
+  } else if (!plan && previousModel?.kind === 'path' && basename(previousModel.path) === source.fileName) {
+    candidates = [previousModel];
   } else {
     candidates = [...new Set(knownHandles)].filter(handle => handle.name === source.fileName)
       .map(handle => ({ kind: 'handle', handle }));
