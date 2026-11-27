@@ -16,7 +16,7 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, localTargetName, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type RefuseBeforePlace, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveDataDialog, saveDataToPath, saveNewBytesDialog, saveNewBytesToRef, pickSavePath, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, localTargetName, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type RefuseBeforePlace, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import {
   exportReplaceFailedNotice, exportReplaceNotices, ownPathReplaceNotices, remnantNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery,
@@ -39,7 +39,7 @@ import {
 } from '@/state/helpArticles';
 import { formatNoticeToShow } from '@/services/formatNotice';
 import { openDialogFilters, binaryExtensions, readFormatForFile, readsAsBytes, parseOpenedFile, importErrorMessageKey, saveTargetFor, readIfcFromText, readOptionsFor, writeXerExport, type ExportFormat, type FormatReadOptions } from '@/services/formatRegistry';
-import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { ifcForeignContentEnabled, ifcxEnabled } from '@/utils/featureFlags';
 import { versionGuarded } from '../versionGuard';
 import {
   ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, IFC_UNREADABLE_TARGET_EXPORT_NOTICE,
@@ -124,8 +124,9 @@ import { scheduleFailedNotice } from '../scheduleErrorNotice';
 import { browserSaveNotice } from '../browserSaveNotice';
 import { basename, ensureExtension } from '@/utils/filePath';
 import {
-  documentFileFilters, fileNameWithFormat, IFC_FILE_FILTERS, IFCX_FLAG_OFF_NOTICE, IFCX_NAME_MISMATCH_NOTICE, ifcxWriteBlocked,
-  ifcxWriteRefusedNotice, nameFitsFormat, namesFollowFormat, nameWithFormat, outputFormat, type DocumentFileFormat,
+  documentFileFilters, fileNameWithFormat, formatOfName, IFC_FILE_FILTERS, IFCX_FLAG_OFF_NOTICE, IFCX_NAME_MISMATCH_NOTICE,
+  ifcxInputWithoutXerArchive, ifcxWriteBlocked, ifcxWriteRefusedNotice, nameFitsFormat, namesFollowFormat, nameWithFormat,
+  outputFormat, saveAsFileFilters, type DocumentFileFormat,
 } from '../ifcxGuard';
 import { IfcxWriteRefusedError } from '@/services/ifc/ifcx/ifcxErrors';
 import type { ScheduleErrorInfo } from '@/engine/scheduler/CPMSolver';
@@ -475,6 +476,8 @@ export type ChosenExternalSource =
 const SOURCE_FILE_FILTERS = [{ name: 'IFC', extensions: ['ifc'] }];
 /** De bestandskiezer van een IFC-projectbestand (Opslaan, Opslaan als, de bibliotheek). */
 
+type IfcxDroppedKey = 'xerImportMetadata' | 'xerSourceArchive' | 'xerSourceProjectId';
+
 export interface SaveDestination {
   filePath: string;
   fileHandle: FileSystemFileHandle | null;
@@ -551,8 +554,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return await run();
     } finally { release(); }
   };
-  const prepareDocumentWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<IfcOutput | null> => {
-    const write = await prepareAppIfcWrite(state, input, planOnly, documentSaveCompute(state.ui.featureFlags, runtime.ifcSaveCompute, attemptFormat(state)));
+  const prepareDocumentWrite = async (
+    state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation, format: DocumentFileFormat = attemptFormat(state),
+  ): Promise<IfcOutput | null> => {
+    const write = await prepareAppIfcWrite(state, input, planOnly, documentSaveCompute(state.ui.featureFlags, runtime.ifcSaveCompute, format));
     if (write && !write.prepared) rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
     return write;
   };
@@ -602,9 +607,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  `WriteTargetDeps.chosenTarget`): het gekozen pad en zijn gelezen versie. */
   const documentTargetCheck = (
     snapshot: AppState, write?: IfcOutput, ownTarget = false,
-    { readers = writeTargetReaders, openDocumentsExcept, chosenTarget, missingSourceSaveAs, leaveContentToKnownTarget = false, ownKnown = null }: {
+    {
+      readers = writeTargetReaders, openDocumentsExcept, chosenTarget, missingSourceSaveAs, leaveContentToKnownTarget = false, ownKnown = null,
+      format = attemptFormat(snapshot),
+    }: {
       readers?: () => TargetReaders; openDocumentsExcept?: string; chosenTarget?: PickedSaveTarget; missingSourceSaveAs?: boolean;
-      leaveContentToKnownTarget?: boolean; ownKnown?: TargetFingerprint | null;
+      leaveContentToKnownTarget?: boolean; ownKnown?: TargetFingerprint | null; format?: DocumentFileFormat;
     } = {},
   ): SaveTargetCheck => async target => {
     if (write && refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs)) return true;
@@ -613,7 +621,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const ownVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
       ? { documentId: snapshot.activeDocumentId, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! }
       : ownLocal ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
-    const format = attemptFormat(snapshot);
     if (!ownTarget && target.kind !== 'site' && namesFollowFormat(snapshot, snapshot.ui.featureFlags)
       && !nameFitsFormat(target.kind === 'handle' ? target.handle.name : target.path, format)) {
       get().notify(IFCX_NAME_MISMATCH_NOTICE);
@@ -654,15 +661,21 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  dan een leeg bestand na (knownbug 1899, 1893). Hierlangs gaan de browser en, met de flag uit, de gewone planning op
    *  de desktop (zoals main). De merge op de desktop en met de flag elke planning op de desktop gaan via
    *  `saveAsOnDesktop`, de enige route met de toestemming van #804 keuze 4. */
-  const documentSaveDialog = (snapshot: AppState, write: IfcOutput, name: string, missingSourceSaveAs = false) => {
+  const documentSaveDialog = (
+    snapshot: AppState, write: IfcOutput, name: string, missingSourceSaveAs = false,
+    picked?: { readonly path: string; readonly format: DocumentFileFormat },
+  ) => {
     const options = {
-      refuseTarget: documentTargetCheck(snapshot, write, false, { openDocumentsExcept: snapshot.activeDocumentId, missingSourceSaveAs }),
+      refuseTarget: documentTargetCheck(snapshot, write, false, {
+        openDocumentsExcept: snapshot.activeDocumentId, missingSourceSaveAs, format: picked?.format,
+      }),
       refuseDownload: () => refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs),
       // Niet op de handle uit de opslaankiezer van de browser: die is al leeg, een weigering liet 0 bytes (knownbug 1899).
       refuseBeforePlace: isTauri() ? () => refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs) : null,
     };
     // De merge: alleen een nieuwe naam. De gewone writer overschrijft een bestaand bestand zoals altijd, atomair
     // (`saveDataDialog`, #804 stap 6: met de bytes van de worker).
+    if (picked) return saveDataToPath(picked.path, write.prepared ? write.prepared.bytes : writerData(write), options);
     const filters = documentFileFilters(attemptFormat(snapshot));
     if (write.prepared) return saveNewBytesDialog(name, write.prepared.bytes, filters, options);
     return !isTauri() && snapshot.fileFormat === 'ifcx'
@@ -941,8 +954,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       target.fileFormat = destination.fileFormat;
       if (destination.siteFileId) target.autoSaveToFile = false;
     };
-    const applyPrepared = (target: Pick<AppState, 'ifcSource' | 'foreignSourceMark' | keyof SaveDestination>) => {
-      if (missingSourceSaveAs && savedSource.foreignSourceMark) {
+    const applyPrepared = (target: Pick<AppState, 'project' | 'ifcSource' | 'foreignSourceMark' | IfcxDroppedKey | keyof SaveDestination>) => {
+      if (destination?.fileFormat === 'ifcx') {
+        delete target.project.ifcSchemaUnconfirmed;
+        target.ifcSource = null;
+        target.xerImportMetadata = null;
+        target.xerSourceArchive = null;
+        target.xerSourceProjectId = null;
+      }
+      if ((missingSourceSaveAs || destination?.fileFormat === 'ifcx') && savedSource.foreignSourceMark) {
         target.ifcSource = null;
         target.foreignSourceMark = { ...savedSource.foreignSourceMark, sourceMissing: false };
         return;
@@ -1258,21 +1278,28 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    * (`newTargetWriteNotice`).
    */
   const saveAsOnDesktop = async (
-    documentId: string, state: AppState, write: IfcOutput, name: string, missingSourceSaveAs = false,
+    documentId: string, state: AppState, write: IfcOutput, name: string, missingSourceSaveAs = false, typeChoice = false,
   ): Promise<{ outcome: SaveOutcome; committed: boolean } | null> => {
+    const own: SaveAsAttempt = { write, format: attemptFormat(state), missingSourceSaveAs };
+    const picked = await pickSaveTarget(name, typeChoice ? saveAsFileFilters(own.format) : documentFileFilters(own.format));
+    if (!picked) return null;
+    const attempt = typeChoice ? await saveAsInFormat(state, own, picked.path) : own;
+    if (!attempt) return null;
     let committed = false;
-    const outcome = await placeOnDesktop({
-      name, filters: documentFileFilters(attemptFormat(state)), bytes: () => writeBytes(write),
-      targetCheck: picked => documentTargetCheck(state, write, false, {
-        readers: capturedTargetReaders(picked.current, writeTargetReaders), openDocumentsExcept: documentId, chosenTarget: picked, missingSourceSaveAs,
+    const outcome = await placePicked(picked, {
+      bytes: () => writeBytes(attempt.write),
+      targetCheck: chosen => documentTargetCheck(state, attempt.write, false, {
+        readers: capturedTargetReaders(chosen.current, writeTargetReaders), openDocumentsExcept: documentId, chosenTarget: chosen,
+        missingSourceSaveAs: attempt.missingSourceSaveAs, format: attempt.format,
       }),
-      refuseBeforePlace: () => refuseChangedDocumentWrite(state, write, missingSourceSaveAs),
+      refuseBeforePlace: () => refuseChangedDocumentWrite(state, attempt.write, attempt.missingSourceSaveAs),
       replacement: {
-        documentId: write.prepared ? documentId : null,
-        sha256: bytes => write.prepared?.sha256 ?? write.sha256 ?? precomputeSha256(bytes),
+        documentId: attempt.write.prepared ? documentId : null,
+        sha256: bytes => attempt.write.prepared?.sha256 ?? attempt.write.sha256 ?? precomputeSha256(bytes),
         commit: (path, written) => {
           committed = commitSavedDocument(snapshotContent(state), state,
-            localDestination({ ref: { kind: 'path', path }, name: basename(path) }, attemptFormat(state)), write.prepared ?? undefined, missingSourceSaveAs, written);
+            localDestination({ ref: { kind: 'path', path }, name: basename(path) }, attempt.format), attempt.write.prepared ?? undefined,
+            attempt.missingSourceSaveAs, written);
         },
         notices: (result, path) => result.code === 'save-as-only' ? [IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE] : ownPathReplaceNotices(result, path),
         failed: err => {
@@ -1281,14 +1308,30 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         },
       },
       create: async (place, created, bytes) => {
-        const hashing = writtenFingerprint(state.ui.featureFlags, attemptFormat(state), write, bytes);
+        const hashing = writtenFingerprint(state.ui.featureFlags, attempt.format, attempt.write, bytes);
         if (!(await place())) return false;
         const fingerprint = hashing instanceof Promise ? await hashing : hashing;
-        committed = commitSavedDocument(snapshotContent(state), state, localDestination(created, attemptFormat(state)), write.prepared ?? undefined, missingSourceSaveAs, fingerprint);
+        committed = commitSavedDocument(snapshotContent(state), state, localDestination(created, attempt.format),
+          attempt.write.prepared ?? undefined, attempt.missingSourceSaveAs, fingerprint);
         return true;
       },
     });
     return outcome && { outcome, committed };
+  };
+
+  const carriesXerImport = (state: AppState): boolean =>
+    state.xerSourceArchive !== null || state.xerImportMetadata !== null || state.xerSourceProjectId !== null;
+
+  const saveAsInFormat = async (state: AppState, own: SaveAsAttempt, path: string): Promise<SaveAsAttempt | null> => {
+    const format = formatOfName(path);
+    if (format === own.format) return own;
+    const planOnly = format === 'ifcx' && planOnlyQuestionApplies(state, 'ifcxSaveAs') ? await askPlanOnly('ifcxSaveAs') : undefined;
+    if (planOnly === null) return null;
+    if (format === 'ifcx' && carriesXerImport(state) && !(await askPlanOnly('ifcxXerArchive'))) return null;
+    const input = buildWriteIFCInput(state, planOnly ? 'planOnly' : 'merge');
+    const write = await prepareDocumentWrite(state, format === 'ifcx' ? ifcxInputWithoutXerArchive(input) : input, planOnly, format);
+    if (!write || refuseChangedDocumentWrite(state, write, own.missingSourceSaveAs)) return null;
+    return { write, format, missingSourceSaveAs: own.missingSourceSaveAs };
   };
 
   const exportOnDesktop = (state: AppState, name: string, filters: FileFilter[], prepared: PreparedIfcWrite): Promise<SaveOutcome | null> =>
@@ -1314,6 +1357,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       create: place => place(),
     });
 
+  type SaveAsAttempt = { readonly write: IfcOutput; readonly format: DocumentFileFormat; readonly missingSourceSaveAs: boolean };
+
   type DesktopPlacement = {
     readonly name: string;
     readonly filters: FileFilter[];
@@ -1334,7 +1379,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   const placeOnDesktop = async (placement: DesktopPlacement): Promise<SaveOutcome | null> => {
     const picked = await pickSaveTarget(placement.name, placement.filters);
-    if (!picked) return null;
+    return picked && placePicked(picked, placement);
+  };
+
+  const placePicked = async (picked: PickedSaveTarget, placement: Omit<DesktopPlacement, 'name' | 'filters'>): Promise<SaveOutcome | null> => {
     const ref = { kind: 'path', path: picked.path } as const, outcome = { ref, name: basename(picked.path) };
     const check = placement.targetCheck(picked);
     if (await check(ref)) return null;
@@ -1354,7 +1402,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   const replaceExistingPath = async (
-    placement: DesktopPlacement, bytes: Uint8Array, path: string, current: Uint8Array, stopBeforeWrite: () => Promise<boolean>,
+    placement: Omit<DesktopPlacement, 'name' | 'filters'>, bytes: Uint8Array, path: string, current: Uint8Array, stopBeforeWrite: () => Promise<boolean>,
   ): Promise<boolean> => {
     const { replacement } = placement;
     try {
@@ -1589,22 +1637,34 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
       }
       const defaultName = state.filePath ? newTargetName(state, state.filePath) : fileNameWithFormat(suggestedFileBase(state), attemptFormat(state));
+      const typeChoice = isTauri() && ifcxEnabled(state.ui.featureFlags);
       // Met de flag ook een gewone planning: de toestemming van de kiezer hoort bij het gekozen doel en zijn gelezen
       // versie (fixronde 1 van #1071, A). Met de flag uit de route van main hieronder.
       if (isTauri() && (write.prepared || ifcForeignContentEnabled(state.ui.featureFlags))) {
-        const saved = await saveAsOnDesktop(documentId, state, write, defaultName, missingSourceSaveAs);
+        const saved = await saveAsOnDesktop(documentId, state, write, defaultName, missingSourceSaveAs, typeChoice);
         // Zie hieronder: een vervangen inhoud krijgt geen Recent (knownbug 1899).
         if (saved && sameDocumentContent(get(), snapshotContent(state))) await pushRecent(saved.outcome.ref, saved.outcome.name);
         return;
       }
-      const hashing = writtenFingerprint(state.ui.featureFlags, attemptFormat(state), write);
-      const outcome = await documentSaveDialog(state, write, defaultName, missingSourceSaveAs);
+      const own: SaveAsAttempt = { write, format: attemptFormat(state), missingSourceSaveAs };
+      const ownHashing = writtenFingerprint(state.ui.featureFlags, own.format, write);
+      const path = typeChoice ? await pickSavePath(defaultName, saveAsFileFilters(own.format)) : null;
+      if (typeChoice && !path) return;
+      const attempt = path ? await saveAsInFormat(state, own, path) : own;
+      if (!attempt) return;
+      const hashing = attempt === own ? ownHashing : writtenFingerprint(state.ui.featureFlags, attempt.format, attempt.write);
+      const outcome = await documentSaveDialog(state, attempt.write, defaultName, attempt.missingSourceSaveAs,
+        path ? { path, format: attempt.format } : undefined);
       if (!outcome) return;
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
-      if (write.prepared && outcome.viaDownload) {
-        notifyWritten(write.prepared, () => outcome.name, true);
+      const { prepared } = attempt.write;
+      if (prepared && outcome.viaDownload) {
+        notifyWritten(prepared, () => outcome.name, true);
         commitSavedDocument(snapshotContent(state), state);
-      } else commitSavedDocument(snapshotContent(state), state, localDestination(outcome, attemptFormat(state)), write.prepared, missingSourceSaveAs, fingerprint);
+      } else {
+        commitSavedDocument(snapshotContent(state), state, localDestination(outcome, attempt.format), prepared,
+          attempt.missingSourceSaveAs, fingerprint);
+      }
       if (!sameDocumentContent(get(), snapshotContent(state))) return;
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);

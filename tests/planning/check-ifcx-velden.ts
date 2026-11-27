@@ -10,7 +10,8 @@ import { IFCX_PLACE_OF_SAVE_KEY } from '@/services/ifc/ifcx/saveKeyPlaces';
 import { buildWriteIFCInput, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { freshPayload } from '@/state/documentContract';
 import type { FeatureFlagValues } from '@/utils/featureFlags';
-import { CLOCK, encode, modelDifferences, publicRouteProblems, withFilledGlobalIds } from './ifcxProof';
+import { CLOCK, encode, stepToIfcxDifferences, publicRouteProblems, withFilledGlobalIds } from './ifcxProof';
+import { PROJECT_KEYS_CARRIED } from '@/services/ifc/ifcx/fields/documentFields';
 import { lengthenedTask, openInStore } from './ifcAppRoute';
 import { fixture } from './ifcRoundtripFixture';
 
@@ -98,16 +99,19 @@ for (const planning of EDITED) {
     const first = await reopenedPair(input, input);
     assert.equal(first.ifcx.getState().fileFormat, 'ifcx');
     assertEdited(saveInput(first.ifcx), edit, 'na heropenen van IFCX');
-    assert.deepEqual(modelDifferences(withFilledGlobalIds(saveInput(first.step)), saveInput(first.ifcx)), [], 'na heropenen');
+    assert.deepEqual(stepToIfcxDifferences(withFilledGlobalIds(saveInput(first.step)), saveInput(first.ifcx)), [], 'na heropenen');
     const second = await reopenedPair(saveInput(first.step), saveInput(first.ifcx));
     assertEdited(saveInput(second.ifcx), edit, 'na de tweede opslag');
-    assert.deepEqual(modelDifferences(withFilledGlobalIds(saveInput(second.step)), saveInput(second.ifcx)), [], 'na opnieuw opslaan en heropenen');
+    assert.deepEqual(stepToIfcxDifferences(withFilledGlobalIds(saveInput(second.step)), saveInput(second.ifcx)), [], 'na opnieuw opslaan en heropenen');
   });
 }
 
 const CARRIED = new Set<ModelKey>([...NODES.flatMap(node => node.modelKeys), ...PATH_MODEL_KEYS, ...LOAD_BOUNDARY_MODEL_KEYS]);
 
 await test('elk veld van IFC_SAVE_KEYS heeft een plek in IFCX of een benoemde uitzondering', () => {
+  assert.equal(IFCX_PLACE_OF_SAVE_KEY.project.stepOnlyProjectField, 'ifcSchemaUnconfirmed');
+  assert.ok(!PROJECT_KEYS_CARRIED.includes('ifcSchemaUnconfirmed'));
+  assert.ok(PROJECT_KEYS_CARRIED.includes('ifcSchema'));
   const wrong: string[] = [];
   for (const [saveKey, place] of Object.entries(IFCX_PLACE_OF_SAVE_KEY)) {
     if ('carriedAs' in place) {

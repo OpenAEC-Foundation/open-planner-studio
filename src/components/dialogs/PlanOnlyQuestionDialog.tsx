@@ -19,6 +19,14 @@ const TEXTS = {
     title: 'ifcExportWithoutModel.title', body: 'ifcExportWithoutModel.bodyWithPool',
     continue: 'ifcExportWithoutModel.continue', cancel: 'ifcExportWithoutModel.cancel',
   },
+  ifcxSaveAs: {
+    title: 'ifcx.saveAs.title', body: 'ifcx.saveAs.planOnlyBody',
+    continue: 'ifcx.saveAs.planOnlyContinue', cancel: 'ifcx.saveAs.cancel',
+  },
+  ifcxXerArchive: {
+    title: 'ifcx.saveAs.title', body: 'ifcx.saveAs.xerArchiveBody',
+    continue: 'ifcx.saveAs.xerArchiveContinue', cancel: 'ifcx.saveAs.cancel',
+  },
 } as const satisfies Record<PlanOnlyReason, Record<'title' | 'body' | 'continue' | 'cancel', string>>;
 
 /** Alleen een bewuste keuze mag een IFC-bestand met alleen de planning schrijven. Annuleren is de standaardknop. */

@@ -112,6 +112,8 @@ opslag zelf nog dingen. Besluit van de technisch eigenaar (25 november), letterl
   taak, resource-GlobalId en plaats. Het profiel benoemt dat. Een eigen proef legt vast dat alles behalve dit id gelijk
   is aan de STEP-lezing, en dat twee opslagen van dezelfde planning byte-gelijk zijn." Zie *Toewijzing*; de proef is
   "aanvulling op R6" in `check-ifcx-kern.ts`.
+- Bij omzetten tussen IFC en IFCX (F3-5) blijft de schemakeuze behouden. De open vraag over een STEP-kop hoort
+  alleen bij het STEP-bestand. Zie *Werkplan* voor het lezen van oudere IFCX-bestanden met die markering.
 
 R4 en de tweede richting van R5 gelden daarmee voor de projectie, niet meer voor de hele schrijver. Voor de hele
 schrijver kunnen ze niet gelden zolang IFCX gelijk moet zijn aan STEP: IFCX doet bij een tweede opslag precies wat STEP
@@ -224,7 +226,7 @@ Een veld zonder "verplicht" mag ontbreken; `null` is nooit een geldige waarde.
 `name` (verplicht), `description`, `calendar` (pad,
 verplicht: de projectkalender), `projectId`, `startDate` en `endDate` (de projectdatums zoals ingevoerd), `createdAt`,
 `modifiedAt`, `author`, `company`, `ifcSchema` (keuze `IFC4X3_ADD2`, `IFC4X3`, `IFC4`: het schema voor een opslag als
-STEP), `ifcSchemaUnconfirmed`, `wbsAutoNumber` (ja/nee), `defaultTaskDurationUnit` (keuze `days`, `hours`),
+STEP), `wbsAutoNumber` (ja/nee), `defaultTaskDurationUnit` (keuze `days`, `hours`),
 `statusDate`, de baselines van het document (`activeBaseline`: pad van de actieve baseline; `comparedBaselines`:
 `{ "1": pad, "2": pad }`, de twee vergelijkingsplaatsen, elke plaats alleen als ze bezet is; `removedTasks`: lijst van
 `{ id, globalId }`, de GlobalId die STEP teruggeeft voor een taak die niet meer bestaat en waar een baselinerij naar
@@ -235,6 +237,11 @@ ontbreekt bij een oude planning met een openstaande omzetting naar het minutenmo
 niet meer uit de laadgrens), `importPristine` (ja, als STEP de planning als ongewijzigd sinds een import teruggeeft) en `literalCalendars` (lijst
 van paden: de kalenders waarvan STEP de tijden letterlijk schreef, in de volgorde van STEP). Er is één verwijzing naar
 de projectkalender; `project.calendarId` is het id van die kalender.
+
+De open schemavraag hoort bij een STEP-bestand. Oudere IFCX-bestanden kunnen in het documentschema de optionele
+tekstsleutel `ifcSchemaUnconfirmed` hebben, ook als het werkplan geen waarde voor die sleutel bevat. De lezer toetst
+zo'n bestand aan de oude definitie en schrijfwijze, inclusief de positie en waarde van een aanwezige markering.
+In de geopende planning vervalt de vraag. Bij de volgende opslag gebruikt de schrijver het huidige documentschema.
 
 `openaec::planning::workplan` (projectie): `name`, `description`, `start` en `finish` (de datum van de projectdatums),
 `calendar` (pad).
@@ -423,7 +430,8 @@ de zelfcontrole weigert dan met het veld (knownbug 2363).
 sleutels van de schrijverinvoer die het in IFCX draagt (`calendars` als `resourceCalendars`, `recordedDates` en
 `datesAsRecorded` als de ingevulde tijdvelden en `recordedSourceFormat`), of een benoemde uitzondering: het
 P6-bronarchief (`xerImportMetadata`, `xerSourceArchive`, `xerSourceProjectId`) en wat de STEP-schrijver niet krijgt
-(`foreignSourceMark`, `ifcSource`). Een nieuw veld in `IFC_SAVE_KEYS` zonder plek is een compileerfout;
+(`foreignSourceMark`, `ifcSource`). Binnen `project` is `ifcSchemaUnconfirmed` de benoemde STEP-uitzondering.
+De ingestelde waarde `project.ifcSchema` gaat wel mee. Een nieuw veld in `IFC_SAVE_KEYS` zonder plek is een compileerfout;
 `check-ifcx-velden.ts` toetst dat elke plek gedragen wordt.
 
 **De volledigheidspoort.** `tests/planning/check-ifcx-velden.ts` toetst elk voorbeeld in `public/examples`, de elf eigen
@@ -439,6 +447,8 @@ werkregel kiezen. Uit dezelfde opslaginvoer schrijft de proef STEP en IFCX, open
 vanuit de geopende toestand en opent weer; beide keren geven de twee bestanden in de app dezelfde opslaginvoer, met de
 bewerking erin. Daar staat de GlobalId die de IFCX-schrijver aanvult (*De route onder R6*, stap 2; bij een baseline) aan
 de kant van STEP er ook in (`withFilledGlobalIds` in `ifcxProof.ts`), en het toewijzings-id buiten de vergelijking.
+`stepToIfcxDifferences` haalt alleen de open schemavraag uit de verwachte STEP-planning. Een vraag in de gelezen
+IFCX-planning, verlies van het gekozen schema en elk ander veldverschil laten de proef falen.
 
 ## Lag
 
@@ -497,7 +507,8 @@ bereikt die module niet, ook niet via een andere module van de kern.
    houdt de feiten van de lezing die de app bij openen gebruikt (de ingevulde velden, `timeModel`, de herkomst), neemt
    de gegevens na de laadgrens (de taken, de kalenders en `minuteModelPending` als die aan staat), en laat de hint
    `milestonesAtDayEnd` vallen: na de laadgrens zijn alle datums momenten, en daarop heeft de hint geen invloed meer.
-   De toewijzingen krijgen hun afgeleide id (de aanvulling op R6, zie *Toewijzing*). Dit is de canonieke planning van R5.
+   De open schemavraag uit de STEP-lezing vervalt. De toewijzingen krijgen hun afgeleide id (de aanvulling op R6,
+   zie *Toewijzing*). Dit is de canonieke planning van R5.
 3. `unsupportedContent` op die planning: wat STEP bewaart en IFCX nog niet draagt, weigert de writer met `unsupported`
    en de veldnamen.
 4. De projectie: `ownFileFor` in `ownFile.ts` (R0, `composeIfcxDocument` en de waardetoets met dezelfde functie als de
@@ -509,7 +520,8 @@ planning terug zoals ze in het bestand staat.
 
 **De eigenschap, in twee delen**, voor elke planning x in de proeven:
 
-1. `readIfcx(writeIfcx(x))` is diep gelijk aan de eerste STEP-lezing van x na de laadgrens. De proef maakt die
+1. `readIfcx(writeIfcx(x))` is diep gelijk aan de eerste STEP-lezing van x na de laadgrens, met het afgeleide
+   toewijzings-id en zonder de open schemavraag van STEP. De proef maakt die
    verwachting zelf, met de functies van de app (`writeIFC`, `readIFC`, `payloadFromImport`, `buildWriteIFCInput`) en
    niet met een functie van de kern; zo ziet ze het als de kern en STEP uiteenlopen.
 2. Het bestand is byte voor byte de projectie van wat de lezer teruggeeft, met `header.timestamp` uit het bestand.
@@ -643,7 +655,8 @@ Alles daarbuiten is een verschil, ook de schrijfwijze.
 de planning die erin staat, tot op de byte. Een
 ander programma moet dus dezelfde paden, dezelfde precieze en gedeelde velden met dezelfde waarden (de standaardwaarden
 weggelaten, de afgeleide waarden niet geschreven), dezelfde schema's, dezelfde volgorde en dezelfde opmaak schrijven; in
-de praktijk: via deze kern. Bestanden van anderen horen bij
+de praktijk: via deze kern. Voor de oudere documentdefinitie met `ifcSchemaUnconfirmed` vergelijkt de lezer met de exacte
+oude projectie, ook als de vraag ontbreekt. Bestanden van anderen horen bij
 fase 4.
 
 **Welke losse toetsen aan de leeskant opgingen in R4**, en welke bleven:
