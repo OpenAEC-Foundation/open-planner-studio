@@ -5,9 +5,10 @@ zijn payload terug. Alleen het bezettingsoverzicht roept hem aan, en alleen met 
 (`ResourceOccupancyView.tsx`); zonder die instelling rekent het overzicht op een kopie en schrijft niets terug (regel
 `state`, *Scheduling is manual, not reactive*). Het actieve document valt erbuiten: dat rekent via `useAutoCalcCPM` en
 `runCPM`. De actie maakt geen undo-stap en laat `isDirty` staan: een doorrekening is afgeleide data, geen bewerking.
-`runCPM` (`scheduleSlice.ts`) legt wel een stap vast in twee gevallen: als het *Datums zoals opgeslagen* verlaat, en bij
-de minutenomzetting van een ouder document die datums verschuift buiten een bewerking (ADR 0431, regel `state`, *Datums
-zoals opgeslagen*). Hier slaat de actie een payload met `minuteModelPending` over, en haalt ze de modus zonder stap weg
+`runCPM` (`scheduleSlice.ts`) kan wel een eigen stap vastleggen in twee gevallen: als het *Datums zoals opgeslagen*
+verlaat, en bij de minutenomzetting van een ouder document die datums verschuift buiten een bewerking (ADR 0431, regel
+`state`, *Datums zoals opgeslagen*). Binnen een batch of MCP-transactie maakt `beginUndoable` geen eigen stap en draagt
+de omvattende transactie haar (`storeRuntime.ts`). Hier slaat de actie een payload met `minuteModelPending` over, en haalt ze de modus zonder stap weg
 (hieronder). De sessiegeschiedenis raakt ze niet; bestaande stappen voor het slapende document blijven bij hun eigen
 toestand horen.
 
