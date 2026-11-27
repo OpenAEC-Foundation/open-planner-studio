@@ -212,6 +212,9 @@ bron; daarom leidt `tests/planning/run.sh` die ene import (`#binary-trie`) naar 
 `0382-vector-pdf-kleur-en-doorzichtigheid.md`, `0383-vector-pdf-tekst-buiten-het-xobject-en-plaatsing.md`,
 `0384-vector-pdf-tekstwegen-en-de-dekkingspoort.md` en `0385-vector-pdf-letters-inbedden-alleen-wat-getekend-is.md`.
 
+**Besluiten van de rapportletters en het SVG-papier** (`src/services/pdf/reportFont.ts`, `customReportFont.ts`,
+`svgDraw2d.ts`): `docs/adr/0640-rapportletters-en-het-svg-papier.md`.
+
 **Besluiten van de vector-pagineerder** (`src/services/print/paginateVector.ts`):
 `docs/adr/0510-vector-pdf-glyph-ids-van-de-gemeten-bytes.md` en `0511-vector-pdf-weigering-herkend-aan-haar-naam.md`;
 het gedeelde XObject en de tekst per blad staan in ADR 0383 en 0350, de renders en de letters in ADR 0384 en 0385.
