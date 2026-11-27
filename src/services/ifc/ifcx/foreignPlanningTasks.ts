@@ -1,5 +1,6 @@
 import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { recordedTaskTime, type RecordedTime } from '@/engine/scheduler/recordedDates';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { isPinnedComplete } from '@/engine/scheduler/duration';
 import { hourRemainingDays } from '@/engine/taskMutationRules';
@@ -49,14 +50,16 @@ function readWindow(row: ReturnType<typeof readTask>, calendar: WorkCalendar) {
   const changedEnd = projected.endExclusive !== sharedEnd;
   const useSharedStart = changedStart || (sharedStart !== undefined && !start.includes('T'));
   const useSharedEnd = changedEnd || (sharedEnd !== undefined && !finish.includes('T'));
+  const readStart = useSharedStart ? (sharedStart ? sharedStart + 'T00:00' : '') : start;
+  const readFinish = useSharedEnd ? (sharedEnd ? sharedEnd + 'T00:00' : '') : finish;
   const precise = ops?.time as Record<string, unknown> | undefined;
   const recorded = new Set<RecordedFieldKey>(ALL_RECORDED_SLOT_KEYS.filter(key =>
     precise?.[key] !== undefined && precise[key] !== '' && !target.unrecorded.includes(key)));
   const convert = !task.manuallyScheduled && ((!!start && changedStart) || (!!finish && changedEnd));
   if (useSharedStart || useSharedEnd) {
     if (changedStart || changedEnd) task.manuallyScheduled = true;
-    time.scheduleStart = useSharedStart ? (sharedStart ? sharedStart + 'T00:00' : '') : start;
-    time.scheduleFinish = useSharedEnd ? (sharedEnd ? sharedEnd + 'T00:00' : '') : finish;
+    time.scheduleStart = readStart;
+    time.scheduleFinish = readFinish;
     if (useSharedStart) {
       if (time.earlyStart) time.earlyStart = time.scheduleStart;
       if (time.actualStart || isPinnedComplete(time)) time.actualStart = time.scheduleStart;
@@ -90,7 +93,10 @@ function readWindow(row: ReturnType<typeof readTask>, calendar: WorkCalendar) {
     time.scheduleDuration = hourTaskScheduleDuration(time.durationMinutes!, calendar);
   }
   if (remainingIsDerived(time)) time.remainingTime = hourRemainingDays(time, time.remainingMinutes!);
-  return { recorded: ALL_RECORDED_SLOT_KEYS.filter(key => recorded.has(key)), convert };
+  const hasStart = recorded.has('earlyStart') || recorded.has('scheduleStart');
+  const hasFinish = recorded.has('earlyFinish') || recorded.has('scheduleFinish');
+  const recordedTime = hasStart && hasFinish ? recordedTaskTime(task, recorded, readStart, readFinish) : undefined;
+  return { recorded: ALL_RECORDED_SLOT_KEYS.filter(key => recorded.has(key)), recordedTime, convert };
 }
 
 export function readTasks(nodes: SourceNode[], ids: PlanningIdentities, projectCalendar: WorkCalendar, calendars: WorkCalendar[]) {
@@ -108,16 +114,18 @@ export function readTasks(nodes: SourceNode[], ids: PlanningIdentities, projectC
   const roots = ordered(null);
   const elementLinks = new Map<string, ElementLink[]>();
   const recordedFields: Record<string, RecordedFieldKey[]> = Object.create(null);
+  const recordedTimes: Record<string, RecordedTime> = Object.create(null);
   let convertedToManual = 0;
   let root = 0;
   const tasks = rows.map(row => {
     const { task, node } = row;
     task.childIds = ordered(task.id).map(child => child.task.id);
-    const { recorded, convert } = readWindow(row, resolveCalendar(task.calendarId, calendars, projectCalendar));
+    const { recorded, recordedTime, convert } = readWindow(row, resolveCalendar(task.calendarId, calendars, projectCalendar));
     recordedFields[task.id] = recorded;
+    if (recordedTime) recordedTimes[task.id] = recordedTime;
     if (convert) convertedToManual++;
     if (node.links.length) elementLinks.set(task.id, node.links.map(target => ({ direction: 'output', target, found: false })));
     return task.parentId === null ? roots[root++].task : task;
   });
-  return { tasks, elementLinks, recordedFields, convertedToManual };
+  return { tasks, elementLinks, recordedFields, recordedTimes, convertedToManual };
 }

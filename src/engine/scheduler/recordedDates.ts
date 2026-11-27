@@ -123,30 +123,35 @@ export function captureRecordedDates(
       continue;
     }
 
-    times[task.id] = {
-      start,
-      finish,
-      lateStart: has.has('lateStart') ? t.lateStart : undefined,
-      lateFinish: has.has('lateFinish') ? t.lateFinish : undefined,
-      totalFloat: has.has('totalFloat') ? t.totalFloat : undefined,
-      freeFloat: has.has('freeFloat') ? t.freeFloat : undefined,
-      ...(has.has('totalFloat') && t.totalFloatMinutes !== undefined ? { totalFloatMinutes: t.totalFloatMinutes } : {}),
-      ...(has.has('freeFloat') && t.freeFloatMinutes !== undefined ? { freeFloatMinutes: t.freeFloatMinutes } : {}),
-      isCritical: has.has('isCritical') ? t.isCritical : undefined,
-      ...(task.isHammock ? { hammockDuration: captureHammockDuration(task) } : {}),
-      ...(isSummaryTask(task)
-        ? {
-            summaryProgress: {
-              completion: t.completion,
-              status: task.status,
-              ...(t.actualStart ? { actualStart: t.actualStart } : {}),
-              ...(t.actualFinish ? { actualFinish: t.actualFinish } : {}),
-            },
-          }
-        : {}),
-    };
+    times[task.id] = recordedTaskTime(task, has, start, finish);
   }
   return { times, total: Object.keys(times).length };
+}
+
+export function recordedTaskTime(task: Task, fields: ReadonlySet<keyof Task['time']>, start: string, finish: string): RecordedTime {
+  const t = task.time;
+  return {
+    start,
+    finish,
+    lateStart: fields.has('lateStart') ? t.lateStart : undefined,
+    lateFinish: fields.has('lateFinish') ? t.lateFinish : undefined,
+    totalFloat: fields.has('totalFloat') ? t.totalFloat : undefined,
+    freeFloat: fields.has('freeFloat') ? t.freeFloat : undefined,
+    ...(fields.has('totalFloat') && t.totalFloatMinutes !== undefined ? { totalFloatMinutes: t.totalFloatMinutes } : {}),
+    ...(fields.has('freeFloat') && t.freeFloatMinutes !== undefined ? { freeFloatMinutes: t.freeFloatMinutes } : {}),
+    isCritical: fields.has('isCritical') ? t.isCritical : undefined,
+    ...(task.isHammock ? { hammockDuration: captureHammockDuration(task) } : {}),
+    ...(isSummaryTask(task)
+      ? {
+          summaryProgress: {
+            completion: t.completion,
+            status: task.status,
+            ...(t.actualStart ? { actualStart: t.actualStart } : {}),
+            ...(t.actualFinish ? { actualFinish: t.actualFinish } : {}),
+          },
+        }
+      : {}),
+  };
 }
 
 export function recordedDatesDeviate(task: Task, rec: RecordedTime): boolean {

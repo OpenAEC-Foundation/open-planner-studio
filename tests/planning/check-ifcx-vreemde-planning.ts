@@ -35,11 +35,24 @@ const withoutPlace = JSON.parse(fixture('werkpakketten').toString('utf8'));
 const stellen = withoutPlace.data.find((entry: { path: string }) => entry.path === '/planning/work-1');
 assert.deepEqual(stellen.attributes[ATTRIBUTE.opsTask], { place: 0 });
 delete stellen.attributes[ATTRIBUTE.opsTask];
+const { createAppStoreContext } = await loadStore();
+const dates = (tasks: typeof planning.tasks) => tasks.map(t => [t.id, shownStart(t), shownFinish(t)]);
+function checkStellen(tasks: typeof planning.tasks) {
+  const task = tasks.find(t => t.name === 'Stellen')!;
+  assert.deepEqual([shownStart(task), shownFinish(task), task.manuallyScheduled, task.time.durationType, task.time.scheduleDuration],
+    ['2027-03-06T00:00', '2027-03-08T00:00', true, 'ELAPSEDTIME', 2], 'Stellen met en zonder volgnummer');
+}
 for (const imported of [work, readForeignIfcxPlanning(JSON.stringify(withoutPlace))]) {
-  const task = imported.planning.tasks.find(t => t.name === 'Stellen')!;
-  assert.deepEqual([shownStart(task), shownFinish(task), task.manuallyScheduled, task.time.durationType,
-    task.time.scheduleDuration, imported.convertedToManual],
-  ['2027-03-06T00:00', '2027-03-08T00:00', true, 'ELAPSEDTIME', 2, 0], 'Stellen met en zonder volgnummer');
+  assert.equal(imported.convertedToManual, 0);
+  checkStellen(imported.planning.tasks);
+  const { store } = createAppStoreContext();
+  store.getState().openAsDocument(structuredClone(imported.planning), { name: 'Werkpakketten', ref: null });
+  assert.equal(store.getState().project.id, imported.planning.project.id);
+  checkStellen(store.getState().tasks);
+  assert.deepEqual(dates(store.getState().tasks), dates(imported.planning.tasks));
+  store.getState().runCPM();
+  checkStellen(store.getState().tasks);
+  assert.deepEqual(dates(store.getState().tasks), dates(imported.planning.tasks));
 }
 assert.equal(parent.id, '0a97d170-1e63-55c0-a9d9-504b3a29eb98');
 assert.equal(planning.ifcGlobalIds?.[ifcObjectSeed('task', parent.id)], uuidToCompactGlobalId(parent.id));
@@ -66,15 +79,6 @@ for (const tasks of [planning.tasks, loaded.tasks]) {
   }
 }
 assert.deepEqual(work, readForeignIfcxPlanning(fixture('werkpakketten').toString('utf8')));
-
-const { createAppStoreContext } = await loadStore();
-const { store } = createAppStoreContext();
-store.getState().openAsDocument(structuredClone(planning), { name: 'Werkpakketten', ref: null });
-assert.equal(store.getState().project.id, planning.project.id);
-const dates = (tasks: typeof planning.tasks) => tasks.map(t => [t.id, shownStart(t), shownFinish(t)]);
-assert.deepEqual(dates(store.getState().tasks), dates(planning.tasks));
-store.getState().runCPM();
-assert.deepEqual(dates(store.getState().tasks), dates(planning.tasks));
 
 const facade = read('gevel');
 const building = facade.planning;
@@ -149,6 +153,22 @@ summaryTime.earlyFinish = '';
 const scheduleOnlyStore = createAppStoreContext().store;
 scheduleOnlyStore.getState().openAsDocument(readForeignIfcxPlanning(JSON.stringify(scheduleOnly)).planning, { name: 'Taakvensters', ref: null });
 assert.deepEqual(dates(scheduleOnlyStore.getState().tasks), dates(precise.planning.tasks));
+const openedWindows = ['ifc-own', 'ifc'].map(origin => {
+  const mixedWindow = JSON.parse(fixture('precieze-taken').toString('utf8'));
+  const mixedTime = mixedWindow.data[1].attributes[ATTRIBUTE.opsTask].time;
+  mixedTime.scheduleStart = '2027-03-01T09:00';
+  mixedTime.earlyFinish = '';
+  if (origin === 'ifc') delete mixedWindow.data[0].attributes[ATTRIBUTE.document];
+  const { planning: imported } = readForeignIfcxPlanning(JSON.stringify(mixedWindow));
+  assert.equal(imported.recordedTimesOrigin, origin);
+  const { store } = createAppStoreContext();
+  store.getState().openAsDocument(imported, { name: 'Pakket 0', ref: null });
+  const task = store.getState().tasks.find(t => t.name === 'Pakket 0')!;
+  return [shownStart(task), shownFinish(task), !!task.manuallyScheduled];
+});
+const expectedWindow = ['2027-03-01T07:00', '2027-03-01T16:00', false];
+assert.deepEqual(openedWindows, [expectedWindow, expectedWindow], 'Pakket 0 met vroege start en gepland einde bij beide herkomsten');
+
 const changed = JSON.parse(fixture('precieze-taken').toString('utf8'));
 const activity = changed.data[2].attributes[ATTRIBUTE.activity];
 activity.start = '2027-02-28';
