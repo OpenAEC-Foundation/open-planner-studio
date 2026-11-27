@@ -1,24 +1,3 @@
-/**
- * Canvas → multi-page PDF-tegeling.
- *
- * Snijdt een bron-`HTMLCanvasElement` (het gerenderde rapport/Gantt) in pagina-tegels op een
- * echt papierformaat (A4/A3/A2/A1) en zet die via {@link buildImagePdf} om in één geldige multi-page
- * PDF. Puur browser (gebruikt off-screen `<canvas>`-en + `drawImage`); de PDF-bytelaag zelf is
- * dependency-loos (`src/utils/miniPdf.ts`).
- *
- * Twee modi:
- *   - `fit-width`: schaal de bron zó dat de volledige breedte op één papierbreedte past; alleen
- *     verticaal tegelen (1 kolom). Met `timelineColumns: N` wordt de bron bewust over N
- *     paginabreedtes uitgesmeerd; dán wordt de bevroren naam-strip óók hier herhaald.
- *   - `actual`: vaste CSS→papierverhouding (0,75 pt per logische px, zie `LOGICAL_PX_TO_PT`);
- *     zowel horizontaal als verticaal tegelen. De linker naam-strip (`frozenColumnWidthPx`) wordt
- *     op elke volgende horizontale tegel herhaald zodat elke pagina zelfstandig leesbaar blijft.
- *
- * De tegel-/schaalwiskunde zelf staat NIET hier maar in `tileLayout.ts` — gedeeld met de
- * vector-pagineerder en met het papier van het Rapport-tabblad (`reportPaper.ts`), zodat papier en
- * export gegarandeerd dezelfde indeling krijgen.
- */
-
 import { buildImagePdf, type PdfImagePage } from '@/utils/miniPdf';
 import { computeTileLayout, type PaperSize, type Orientation, type PaginateMode } from './tileLayout';
 import { dataUrlToBytes } from '@/utils/dataUrl';
@@ -27,70 +6,19 @@ export interface PaginateOptions {
   paperSize: PaperSize;
   orientation: Orientation;
   mode: PaginateMode;
-  /**
-   * Logische (CSS-px) breedte van de broninhoud — dezelfde eenheid als `renderPrintCanvas().width`.
-   * ALLE tegel-wiskunde gebeurt in deze logische eenheid; de device-pixels van het canvas
-   * (`canvas.width` = logisch × devicePixelRatio) dienen alléén als high-res bron voor `drawImage`.
-   */
   logicalWidth: number;
-  /** Logische (CSS-px) hoogte van de broninhoud (= `renderPrintCanvas().height`). */
   logicalHeight: number;
-  /** Breedte (LOGISCHE px) van de linker bevroren naam-kolom die op elke volgende horizontale tegel herhaald wordt. */
   frozenColumnWidthPx?: number;
-  /**
-   * Hoogte (LOGISCHE px, vanaf de bovenkant van de bron) van de kopstrook — project-kop +
-   * tijdschaal — die op ELKE pagina bovenaan herhaald moet worden. Vul hier
-   * `renderPrintCanvas().headerHeight` in.
-   *
-   * De ENGINE-default is 0 = niet herhalen. Let op: dat is niet wat de gebruiker ziet — het
-   * rapportpaneel (`ReportPanel.tsx`) zet de knop "kop herhalen" bewust standaard AAN en geeft hier dus
-   * standaard een hoogte > 0 door. De default hier houdt alleen deze module gedragsneutraal voor
-   * andere/toekomstige aanroepers.
-   */
   repeatHeaderHeightPx?: number;
-  /**
-   * Hoogte (LOGISCHE px, vanaf de ONDERkant van de bron) van de voetstrook — projectnaam,
-   * afdrukdatum, legenda — die op ELKE pagina onderaan herhaald wordt. Vul hier
-   * `renderPrintCanvas().footerHeight` in; 0/afwezig = alleen op de laatste pagina.
-   */
   repeatFooterHeightPx?: number;
-  /**
-   * Aantal paginabreedtes waarover de tijdlijn uitgesmeerd wordt. Alleen in
-   * `'fit-width'`; default 1 = alles op één paginabreedte persen.
-   */
   timelineColumns?: number;
-  /** Paginamarge in punten (rondom). Default 24. */
   marginPt?: number;
-  /**
-   * Toegestane paginabreekposities (logische px; `renderPrintCanvas().breakOffsets`): een pagina
-   * eindigt dan op de laatste rijgrens die past i.p.v. dwars door een rij.
-   * Afwezig ⇒ vaste tegeling op paginahoogte.
-   */
   breakOffsetsPx?: readonly number[];
-  /**
-   * Gedwongen paginabreekposities (logische px; `renderPrintCanvas().forcedBreakOffsets`): daar
-   * eindigt een pagina altijd (resourcediagram). Afwezig ⇒ alleen de toegestane posities.
-   */
   forcedBreakOffsetsPx?: readonly number[];
-  /** JPEG-kwaliteit voor elke pagina (0..1). Default 0.9. */
   quality?: number;
-  /**
-   * Dest-pixels per punt op het page-canvas — hoger = scherper maar duurder. Default {@link SUPERSAMPLE}.
-   * De preview kan dit op 1 zetten (goedkoper; wordt toch verkleind weergegeven); de PDF-export
-   * gebruikt de default.
-   */
   supersample?: number;
 }
 
-/**
- * Maak precies één pagina uit het volledige rooster.
- *
- * Dit is de STREAMENDE route: {@link paginateCanvasToPdfBytes} roept dit per pagina-index aan,
- * zet het resultaat meteen om naar JPEG en geeft het canvas daarna vrij vóór de volgende pagina —
- * zodat het piekgeheugen van een export O(1 pagina) blijft in plaats van O(rows × cols) canvassen
- * tegelijk. Bruikbaar voor elke aanroeper die pagina's één voor één wil (streamend of, zoals hier,
- * een enkele losse pagina).
- */
 export function paginateCanvasToTile(
   canvas: HTMLCanvasElement,
   opts: PaginateOptions,
@@ -128,8 +56,6 @@ export function paginateCanvasToTile(
     drawTile(ctx, canvas, srcScale, win.srcX, row.srcY, win.srcW, row.srcH,
       destXpx, layout.bodyTopPt * pxPt, destWpx, row.srcH * layout.scale * pxPt);
   }
-  // Voetstrook: één keer per pagina uit het vaste `footerWindow` (x vanaf 0, één paginabreedte) —
-  // niet per kolomvenster gesneden, anders staat de legenda alleen in de kolom waar hij toevallig valt.
   if (layout.repeatFooterPx > 0) {
     const fw = layout.footerWindow;
     drawTile(ctx, canvas, srcScale, fw.srcX, layout.repeatFooterSrcY, fw.srcW, layout.repeatFooterPx,
@@ -144,33 +70,8 @@ export function paginateCanvasToTile(
   return pageCanvas;
 }
 
-/** Supersample-factor: teken op punt-resolutie × deze factor voor scherpe tekst; MediaBox blijft de echte puntmaat. */
 const SUPERSAMPLE = 2;
 
-/**
- * Tegel een bron-canvas naar multi-page PDF-bytes.
- *
- * STREAMEND: per pagina wordt precies één pagina-canvas getekend ({@link paginateCanvasToTile}),
- * meteen naar JPEG omgezet en daarna vrijgegeven (`width`/`height` op 0) vóór de volgende pagina
- * wordt getekend. Piekgeheugen aan CANVASSEN is zo O(1) in plaats van O(rows × cols).
- *
- * WAAROM DIT ZO MOET. Deze functie is de raster-TERUGVAL van de vector-export in `ReportPanel.tsx`,
- * dus ze slaat precies aan op het moment dat de vector-tak net gefaald is. Een paginalimiet is hier
- * géén optie — een export die pagina's weglaat is stil dataverlies — dus de begrenzing moet uit het
- * geheugengedrag komen. Eerst het VOLLEDIGE array pagina-canvassen opbouwen vóór er één naar JPEG
- * gaat, kost te veel: op `SUPERSAMPLE = 2` is één A3-pagina-canvas ~16 MB, en een A3-rapport met
- * kopherhaling, 300 taken en `timelineColumns: 8` (20 rijen × 8 kolommen = 160 pagina's) zou zo
- * ~2,5 GB tegelijk vasthouden, synchroon op de UI-thread.
- *
- * WAT ER WÉL met het paginatotaal meegroeit zijn de JPEG-BYTES in `pdfPages` — die moeten allemaal
- * in de PDF terecht komen, dus dat is onvermijdelijk. Maar dat is een andere grootteorde: een
- * gecomprimeerde A3-pagina is honderden kB's in plaats van 16 MB, zodat hetzelfde 160-pagina-geval
- * op tientallen MB's uitkomt in plaats van gigabytes. Regressiedekking:
- * `tests/planning/check-print-raster-export-streaming.ts`.
- *
- * @returns Uint8Array met een geldige PDF 1.4 (meerdere pagina's, rij-voor-rij van boven naar
- *          onder, binnen een rij van links naar rechts).
- */
 export function paginateCanvasToPdfBytes(canvas: HTMLCanvasElement, opts: PaginateOptions): Uint8Array {
   const quality = opts.quality ?? 0.9;
   const layout = computeTileLayout(opts);
@@ -179,8 +80,6 @@ export function paginateCanvasToPdfBytes(canvas: HTMLCanvasElement, opts: Pagina
   const pdfPages: PdfImagePage[] = [];
   for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
     const pageCanvas = paginateCanvasToTile(canvas, opts, pageIndex);
-    // Defensief: binnen [0, totalPages) levert paginateCanvasToTile altijd een canvas — totalPages
-    // komt uit dezelfde computeTileLayout die de functie intern ook gebruikt om pageIndex te toetsen.
     if (!pageCanvas) continue;
     const dataUrl = pageCanvas.toDataURL('image/jpeg', quality);
     pdfPages.push({
@@ -190,9 +89,6 @@ export function paginateCanvasToPdfBytes(canvas: HTMLCanvasElement, opts: Pagina
       imageWidthPx: pageCanvas.width,
       imageHeightPx: pageCanvas.height,
     });
-    // Canvas meteen vrijgeven: dit — en niet de JPEG-omzetting zelf — is de reden dat het
-    // piekgeheugen O(1) blijft. Zonder deze twee regels blijft de backing store van elke
-    // pagina tot de volgende GC-cyclus hangen en groeit het geheugen alsnog met het paginatotaal mee.
     pageCanvas.width = 0;
     pageCanvas.height = 0;
   }
@@ -200,11 +96,6 @@ export function paginateCanvasToPdfBytes(canvas: HTMLCanvasElement, opts: Pagina
   return buildImagePdf(pdfPages);
 }
 
-/**
- * Teken een bron-regio → dest-regio; klemt zodat lege/negatieve regio's overgeslagen worden.
- * De bron-argumenten (sx/sy/sw/sh) komen in LOGISCHE px binnen en worden met `srcScale`
- * (device-px per logische px) naar het feitelijke high-res canvas-raster omgezet.
- */
 function drawTile(
   ctx: CanvasRenderingContext2D,
   src: HTMLCanvasElement,
