@@ -1,6 +1,3 @@
-// De kolomherkenning van het voortgangsblad. Niets in dit bestand weet van ZIP of XML: dat hoort bij
-// `parseProgressXlsx.ts`.
-
 import type {
   ProgressFileIssue,
   ProgressImportLimits,
@@ -9,10 +6,6 @@ import type {
   RawProgressRow,
 } from './types';
 
-// Detectie-only kolommen (start/finish) staan bewust in dezelfde tabel: ze worden hieronder
-// herkend als elke andere kolom, maar landen NOOIT in `RawProgressRow` — alleen in
-// `detectionCells`. Dat is een structurele garantie: er bestaat geen veld in het rij-contract dat een
-// Start/Finish-waarde zou kunnen dragen.
 export const PROGRESS_COLUMN_ALIASES: Record<string, readonly string[]> = {
   taskId: ['ops task id', 'ops taskid', 'task id'],
   wbs: ['wbs', 'wbs code', 'wbscode'],
@@ -22,22 +15,11 @@ export const PROGRESS_COLUMN_ALIASES: Record<string, readonly string[]> = {
   actualFinish: ['actual finish', 'actualfinish', 'werkelijk einde', 'werkelijke einde'],
   start: ['start', 'start date', 'begin', 'startdatum'],
   finish: ['finish', 'finish date', 'end', 'end date', 'eind', 'einddatum'],
-  // De exportstand (`exportState.ts`): de verborgen kolom van het eigen blad.
   exportState: ['ops export'],
 };
 
-// Het geëxporteerde voortgangsblad (`writeProgressSheetXLSX`) draagt per kolom een invulinstructie NA
-// de sleutel, gescheiden door ` — ` (`<sleutel> — <instructie>`). De vroegste van deze drie markers
-// snijdt de instructie van de sleutel af.
 export const HEADER_INSTRUCTION_MARKERS = [' — ', ' - ', '('];
 
-/**
- * Matcht één kopcel op zijn kolomsleutel. Eerst EXACT tegen `PROGRESS_COLUMN_ALIASES` (dekt zowel
- * oude bladen als een zelfgebouwd blad). Lukt dat niet, dan is de terugval het PREFIX vóór de
- * vroegste instructiemarker: dat vangt `OPS Task ID — niet wijzigen` op, en ook
- * `Completion (%) — invullen: …` — het haakje van "(%)" ligt vóór de "—", dus de afgesneden prefix
- * wordt "completion", een bestaande alias. Geen van beide treft ⇒ geen kolom.
- */
 export function matchColumnKey(header: string): string | undefined {
   const h = header.toLowerCase().trim();
   for (const [key, aliases] of Object.entries(PROGRESS_COLUMN_ALIASES)) {
@@ -48,7 +30,7 @@ export function matchColumnKey(header: string): string | undefined {
     const idx = h.indexOf(marker);
     if (idx >= 0 && (cut === -1 || idx < cut)) cut = idx;
   }
-  if (cut <= 0) return undefined; // geen marker, of de sleutel zelf zou leeg zijn.
+  if (cut <= 0) return undefined;
   const prefix = h.slice(0, cut).trim();
   for (const [key, aliases] of Object.entries(PROGRESS_COLUMN_ALIASES)) {
     if (aliases.includes(prefix)) return key;
@@ -65,9 +47,6 @@ export function mapColumnIndex(headers: readonly string[]): Record<string, numbe
   return map;
 }
 
-/** Trimt en begrenst een rauwe celwaarde. Overschrijding is een WEIGERING (het veld wordt
- *  afwezig — "telt als leeg"), NOOIT een stille afkapping: een afgekapt id/waarde kan per ongeluk
- *  een andere taak matchen dan de gebruiker bedoelde. */
 export function boundedCell(raw: string | undefined, maxChars: number): string | undefined {
   if (raw === undefined) return undefined;
   const trimmed = raw.trim();
@@ -83,24 +62,16 @@ export function hasControlChar(value: string): boolean {
   });
 }
 
-/** Spiegelt `isValidPersistedIfcId` (ifcReader.ts): een te lang id of een id met een stuurteken telt
- *  als AFWEZIG — nooit afgekapt, want een afgekapt id kan een andere taak matchen dan bedoeld. */
 function boundedTaskId(raw: string | undefined, maxChars: number): string | undefined {
   const trimmed = boundedCell(raw, maxChars);
   if (trimmed === undefined) return undefined;
   return hasControlChar(trimmed) ? undefined : trimmed;
 }
 
-/** Een bestandsbrede weigering: nooit een halfgelezen resultaat. */
 export function refuseSheet(fileIssue: ProgressFileIssue): ProgressSheet {
   return { fileIssue, rawRows: [], detectionCells: [] };
 }
 
-/**
- * De bestandsbrede kopcontrole, in vaste volgorde: een sleutelkolom (id of WBS), minstens één
- * voortgangskolom, en een rij-aantal binnen de grens — dat laatste getoetst vóórdat er ook maar één
- * datarij geparsed wordt (een te groot blad wordt geweigerd, nooit stil afgeknipt).
- */
 export function progressHeaderIssue(
   colMap: Record<string, number>,
   dataRowCount: number,
@@ -114,18 +85,11 @@ export function progressHeaderIssue(
   return undefined;
 }
 
-/** Eén datarij van het blad: het rijnummer in het bronbestand en de celteksten per kolomindex. */
 export interface SheetRow {
   readonly rowNumber: number;
   readonly texts: readonly string[];
 }
 
-/**
- * Datarijen → het `ProgressSheet`-contract: begrensde, getrimde celwaarden per herkende kolom, nog
- * ONGEPARSED. `start`/`finish` landen UITSLUITEND in `detectionCells` — er bestaat geen veld in
- * `RawProgressRow` dat ze zou kunnen dragen, en dat is de structurele garantie dat ze nooit
- * geschreven worden.
- */
 export function collectProgressRows(
   rows: Iterable<SheetRow>,
   colMap: Record<string, number>,
@@ -161,8 +125,6 @@ export function collectProgressRows(
       ...(rawExportState !== undefined ? { rawExportState } : {}),
     });
 
-    // `taskId` op een detectiecel alleen bij een harde id-treffer VAN DEZE RIJ — de ijkpuntregel
-    // (kalibratie) gebruikt niets zwakkers.
     const detectionTaskId = taskId !== undefined ? { taskId } : {};
     if (rawActualStart !== undefined) {
       detectionCells.push({ rowNumber, field: 'actualStart', raw: rawActualStart, ...detectionTaskId });

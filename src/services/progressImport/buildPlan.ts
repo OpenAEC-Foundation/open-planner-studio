@@ -20,7 +20,6 @@ import type {
   ProgressRowReason,
 } from './types';
 
-/** Injecteerbare naad: in productie `planTaskCellEdits` (via `taskSlice.ts`), in de test een stub. */
 export interface ProgressPlanDeps {
   planEdits: (
     task: Task,
@@ -34,60 +33,34 @@ export interface ProgressPlanDeps {
   } | undefined;
 }
 
-/** Plannerfoutcodes die de preview als hun EIGEN reden toont; alle andere plannerfouten vallen op
- *  `'rejected'` terug, met de originele code in `plannerCode`. */
 const KNOWN_PLANNER_REASONS = new Set<string>([
   'actualAfterStatusDate', 'actualFinishBeforeStart', 'conflictingProgressInputs',
-  // Een later geplande taak zonder werkelijke start in het blad.
   'actualStartRequired',
 ]);
 
-/** Rijkop in de preview: WBS en naam, gescheiden door een spatie, zonder em-dash en zonder
- *  bladrijnummer (het taaknummer voegt voor de invuller niets toe). Zelfde vorm als de taakverwijzing
- *  in `RelationCellEditor`. */
 function taskLabel(task: Task): string {
   return `${task.wbsCode} ${task.name}`;
 }
 
-/** Datum-only binnenkomende waarde die exact het datumdeel van de huidige waarde herhaalt, is geen
- *  wijziging — een blad mag een datetime nooit stil tot middernacht degraderen: de vergelijking
- *  gaat de ANDERE kant op (alleen een 10-tekens datum-only invoer telt als mogelijke no-op). */
 function isDateNoop(before: string | undefined, incomingIso: string): boolean {
   return before !== undefined && incomingIso.length === 10 && before.slice(0, 10) === incomingIso;
 }
 
-/**
- * Precisiebewuste no-op-vergelijking op completion. Een vaste float-epsilon werkt niet: 0.335
- * geëxporteerd als "34" geeft `0.34 - 0.335 = 0.005000000000000004`, net boven elke drempel die
- * "45,5" nog als echte wijziging moet doorlaten. De export schrijft hele procenten (een spreadsheet
- * met een andere landinstelling leest "8,38" als 838; `formatCompletionPercent`), dus het bestand kan
- * "99,5%" en "100%" niet uit elkaar houden.
- *
- * Daarom bepaalt het aantal decimalen dat de invuller zelf typte (0–4) de vergelijkingsschaal: "33"
- * vergelijkt op hele procenten (dus ook "100" tegen een taak op 99,5% is een no-op — het bestand kan
- * dat niet beter weten), terwijl "33,4" op tienden vergelijkt en wél een wijziging is wanneer het
- * document op 33% stond.
- */
 function isCompletionUnchanged(before: number, incoming: number): boolean {
-  const percent = Math.round(incoming * 1e6) / 1e4; // percentage, float-ruis eruit (max 4 decimalen)
+  const percent = Math.round(incoming * 1e6) / 1e4;
   const decimalDigits = String(Math.abs(percent)).split('.')[1]?.length ?? 0;
   const scale = 100 * 10 ** decimalDigits;
   return Math.round(before * scale) === Math.round(incoming * scale);
 }
 
-/** Is de voltooiing in de app nog de exportwaarde? Exact op de precisie van de exportstand (vier
- *  decimalen in procenten): anders dan bij een bladwaarde telt hier ook een kleine wijziging. */
 function isCompletionAsExported(app: number, exported: number): boolean {
   return Math.round(app * 1e6) === Math.round(exported * 1e6);
 }
 
-/** Een datum op minuutprecisie: de schrijver zet datums in een seriële cel, en de lezer rondt die op
- *  hele minuten af (`serialToIso`). */
 function minuteKey(iso: string): string {
   return iso.replace(' ', 'T').slice(0, 16);
 }
 
-/** Draagt het blad nog de exportwaarde? Een kale datum op dezelfde dag telt mee (`isDateNoop`). */
 function isSheetDateAsExported(exported: string | undefined, incoming: string): boolean {
   if (exported === undefined) return false;
   return minuteKey(exported) === minuteKey(incoming) || isDateNoop(exported, incoming);
@@ -98,7 +71,6 @@ function isAppDateAsExported(app: string | undefined, exported: string | undefin
   return minuteKey(app) === minuteKey(exported);
 }
 
-/** Een veld dat het blad anders heeft dan de app. Zonder exportstand is dat altijd een wijziging. */
 function verdictFor(
   sheetAsExported: boolean | undefined,
   appAsExported: boolean | undefined,
@@ -108,8 +80,6 @@ function verdictFor(
   return appAsExported ? 'edit' : 'conflict';
 }
 
-/** Staat een veld dat de app houdt na de taakplanner nog op de app-waarde? Niet vanzelfsprekend: de
- *  planner leidt voortgang af. Een werkelijk einde zet 100 %, en een percentage onder 100 wist het einde. */
 function keepsAppValue(app: Task['time'], planned: Task['time'], field: ProgressField): boolean {
   return field === 'completion'
     ? isCompletionAsExported(planned.completion, app.completion)
@@ -128,30 +98,6 @@ function plannedShifts(task: Task, state: ProgressExportState): ProgressPlannedS
   return shifts;
 }
 
-/**
- * Bouwt het voortgangsimportplan. Puur: geen store, geen I/O. `previewProgressImport`/
- * `applyProgressImport` (`taskSlice.ts`) roepen LETTERLIJK dezelfde functie aan — de preview is
- * advies, apply herberekent tegen de live taken.
- *
- * Volgorde per rij (elke `refused` stopt de RIJ, nooit het blad):
- *   1. geen taskId uit de match ⇒ refused (unmatched/ambiguousWbs/duplicateRow)
- *   2. geen enkele voortgangswaarde ⇒ noop (niets ingevuld = niets te beoordelen)
- *   3. een onleesbaar veld ⇒ refused/unreadableDate resp. unreadableNumber/percentOutOfRange
- *   4. verzameltaak (`childIds.length > 0`) ⇒ refused/summaryTask — `planTaskCellEdits` weigert dit
- *      ook zelf (code `summaryProgress`), maar hier vroeg afvangen levert de eigen,
- *      importspecifieke uitkomst op in plaats van een generieke celweigering.
- *   5. no-op-filter (`isCompletionUnchanged` + datum-only-degradatie) — alleen ECHT veranderende
- *      velden worden een `CellEditIntent`; mét exportstand per veld een driewegvergelijking: alleen
- *      in de app veranderd ⇒ `keptApp`, op beide plekken ⇒ `conflicts`. Een botsing zonder keuze in
- *      `conflictChoices` ⇒ `unresolved`, met keuze `app` valt het veld weg; niets over ⇒ noop.
- *   6. `deps.planEdits(task, edits)` — `ok: false` ⇒ refused met `plannerCode`. Verandert de geplande
- *      taak een veld dat de app houdt (`keptApp`, of een botsing met keuze `app`), dan is de rij
- *      tegenstrijdig ⇒ refused/conflictingProgressInputs.
- *   7. `ok: true` ⇒ apply, met de volledig geplande taak en de `changes`-lijst — alleen de velden
- *      die de RIJ ZELF aanleverde, before uit de HUIDIGE taak, after uit de GEPLANDE taak.
- * `needsConfirmation` (⇔ `match === 'wbs'`) wordt op ELKE rij gezet die een taak trof, ongeacht de
- * outcome — ook een geweigerde WBS-match blijft "betwijfeld" totdat hij bevestigd of gecorrigeerd is.
- */
 export function buildProgressImportPlan(
   rows: readonly ProgressRow[],
   tasks: readonly Task[],
@@ -191,7 +137,6 @@ export function buildProgressImportPlan(
     const needsConfirmation = match?.match === 'wbs' ? true : undefined;
     if (needsConfirmation) needsConfirmationCount++;
 
-    // 1. Geen taskId uit de match.
     if (!match?.taskId) {
       const reason: ProgressRowReason = match?.reason ?? 'unmatched';
       if (reason === 'unmatched' || reason === 'ambiguousWbs') needsLinkCount++;
@@ -203,10 +148,6 @@ export function buildProgressImportPlan(
     const task = tasksById.get(taskId)!;
     const label = taskLabel(task);
 
-    // 2. Geen enkele voortgangswaarde ⇒ ONGEWIJZIGD, geen weigering: wat niet is ingevoerd hoeft niet
-    // beoordeeld te worden. Hier landt ook de verzameltaakrij uit het eigen exportblad, waarvan de
-    // drie invulcellen een em-dash-markering dragen (zie `isMarkerCell`, sheetValues.ts) en dus als
-    // afwezig binnenkomen. `noProgressColumns` bestaat alleen als BESTANDSniveau-`fileIssue`.
     if (row.completion === undefined && row.actualStart === undefined && row.actualFinish === undefined) {
       noopCount++;
       return {
@@ -215,7 +156,6 @@ export function buildProgressImportPlan(
       };
     }
 
-    // 3. Een onleesbaar veld.
     if (row.completion?.kind === 'unreadable') {
       refusedCount++;
       return {
@@ -238,7 +178,6 @@ export function buildProgressImportPlan(
       };
     }
 
-    // 4. Verzameltaak.
     if (task.childIds.length > 0) {
       refusedCount++;
       return {
@@ -247,14 +186,6 @@ export function buildProgressImportPlan(
       };
     }
 
-    // 5. No-op-filter — alleen velden die het BLAD zelf echt anders zet, worden een
-    // `CellEditIntent`. Dat voorkomt óók dat een ongewijzigde actualStart alsnog
-    // `actualAfterStatusDate` triggert nadat de statusdatum naar voren is gezet.
-    //
-    // Mét exportstand wordt elk zo'n veld daarna vergeleken met de stand bij de export: draagt het
-    // blad nog de exportwaarde, dan veranderde alleen de app en blijft die waarde staan; veranderden
-    // beide, dan is het een botsing en beslist de planner. De stand hoort bij de taak van deze rij
-    // (`row.taskId`): na een koppeling aan een andere taak zegt hij niets meer.
     const exported = row.exportState !== undefined && row.taskId === taskId ? row.exportState : undefined;
     if (exported !== undefined) {
       if (latestExportedAt === undefined || exported.exportedAt > latestExportedAt) latestExportedAt = exported.exportedAt;
@@ -329,7 +260,6 @@ export function buildProgressImportPlan(
     if (keptApp.length > 0) appNewerCount++;
     if (shifts.length > 0) plannedShiftCount++;
 
-    // Een botsing zonder keuze: de hele rij wacht, want de geplande taak hangt van die keuze af.
     if (conflicts.length > 0 && choice === undefined) {
       unresolvedConflictCount++;
       return {
@@ -350,7 +280,6 @@ export function buildProgressImportPlan(
       };
     }
 
-    // 6. De echte (of gestubde) planner.
     const planned = deps.planEdits(task, edits, placement?.plannedDates);
     if (!planned.ok) {
       const plannerCode = planned.errors[0]?.code;
@@ -364,8 +293,6 @@ export function buildProgressImportPlan(
       };
     }
 
-    // Een veld dat uit de invoer viel, is nog niet veilig: de overige bewerkingen kunnen het via de
-    // voortgangsregels alsnog veranderen. Dan spreekt de rij de app tegen, en schrijft hij niets.
     const appFields = [...keptApp.map(kept => kept.field), ...(choice === 'app' ? conflicts.map(c => c.field) : [])];
     if (appFields.some(field => !keepsAppValue(task.time, planned.value.task.time, field))) {
       refusedCount++;
@@ -375,12 +302,6 @@ export function buildProgressImportPlan(
       };
     }
 
-    // 7. `changes` toont UITSLUITEND de velden die de RIJ ZELF aanleverde. `applyProgressInvariants`
-    // leidt bij een percentage zelf een actualStart af (en bij 100% ook een actualFinish plus de
-    // status); die waarden zitten in `plannedTask` en worden ook echt geschreven, maar horen niet in
-    // de "dit verandert er"-lijst, want de invuller herkent ze niet als eigen invoer. De before/after
-    // komt uit de HUIDIGE resp. de GEPLANDE taak, zodat de preview de echte einduitkomst van dat
-    // veld toont (bv. een completion die de planner nog bijstelde) en niet de rauwe bladwaarde.
     const changes: ProgressFieldChange[] = [];
     const plannedTime = planned.value.task.time;
     if (row.completion?.kind === 'value'
@@ -402,7 +323,6 @@ export function buildProgressImportPlan(
       changes, plannedTask: planned.value.task, ...sinceExport,
     };
   };
-  // Toets de voorganger eerst. De voorvertoning en het uiteindelijke plan houden de bladvolgorde.
   let planRows: ProgressPlanRow[];
   if (placement) {
     const rank = new Map(placement.order.map((id, index) => [id, index]));
