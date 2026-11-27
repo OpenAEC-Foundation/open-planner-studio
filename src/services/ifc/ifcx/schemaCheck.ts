@@ -1,7 +1,8 @@
 import { checkValue, hasKey } from './fieldTable';
 import { isOwnAttributeName, OWN_ATTRIBUTE_VALUES, ownSchemas } from './nodes';
 import type { IfcxErrorPlace, IfcxReadErrorCode } from './ifcxErrors';
-import { OPS_NAMESPACE } from './profile';
+import { ATTRIBUTE, OPS_NAMESPACE } from './profile';
+import { LEGACY_DOCUMENT_SCHEMA, LEGACY_DOCUMENT_VALUE } from './legacyDocument';
 
 export interface IfcxCheckProblem {
   readonly code: IfcxReadErrorCode;
@@ -19,6 +20,11 @@ function canonicalJson(value: unknown): string {
 }
 
 const OWN_SCHEMA_DEFINITIONS = ownSchemas(new Set(OWN_ATTRIBUTE_VALUES.keys()));
+const legacySchemaJson = canonicalJson(LEGACY_DOCUMENT_SCHEMA);
+
+export function usesLegacyDocumentSchema(schemas: unknown): boolean {
+  return isPlainObject(schemas) && canonicalJson(schemas[ATTRIBUTE.document]) === legacySchemaJson;
+}
 
 function unknownAttribute(name: string, place: IfcxErrorPlace, what: string): IfcxCheckProblem {
   return name.startsWith(OPS_NAMESPACE)
@@ -26,13 +32,14 @@ function unknownAttribute(name: string, place: IfcxErrorPlace, what: string): If
     : { code: 'foreign', detail: `${what} dat Open Planner Studio niet schrijft`, place };
 }
 
-export function schemaDefinitionProblems(schemas: unknown, used: ReadonlySet<string>): IfcxCheckProblem[] {
+export function schemaDefinitionProblems(schemas: unknown, used: ReadonlySet<string>, legacyDocument = false): IfcxCheckProblem[] {
   if (!isPlainObject(schemas)) return [{ code: 'invalid', detail: 'Het bestand heeft geen schemas', place: { field: 'schemas' } }];
   const problems: IfcxCheckProblem[] = [];
   for (const name of Object.keys(schemas)) {
     const place = { attribute: name, field: 'schemas' };
     if (!isOwnAttributeName(name)) problems.push(unknownAttribute(name, place, 'Een schema'));
-    else if (canonicalJson(schemas[name]) !== canonicalJson(OWN_SCHEMA_DEFINITIONS[name])) {
+    else if (canonicalJson(schemas[name]) !== (legacyDocument && name === ATTRIBUTE.document
+      ? legacySchemaJson : canonicalJson(OWN_SCHEMA_DEFINITIONS[name]))) {
       problems.push({ code: 'invalid', detail: 'Het schema wijkt af van het profiel', place });
     }
   }
@@ -42,9 +49,10 @@ export function schemaDefinitionProblems(schemas: unknown, used: ReadonlySet<str
   return problems;
 }
 
-export function attributeValueProblem(path: string, name: string, value: unknown): IfcxCheckProblem | undefined {
+export function attributeValueProblem(path: string, name: string, value: unknown, legacyDocument = false): IfcxCheckProblem | undefined {
   if (!isOwnAttributeName(name)) return unknownAttribute(name, { path, attribute: name }, 'Een attribuut');
-  const problem = checkValue(OWN_ATTRIBUTE_VALUES.get(name)!, value);
+  const spec = legacyDocument && name === ATTRIBUTE.document ? LEGACY_DOCUMENT_VALUE : OWN_ATTRIBUTE_VALUES.get(name)!;
+  const problem = checkValue(spec, value);
   if (!problem) return undefined;
   const place = { path, attribute: name, field: problem.field };
   return problem.kind === 'invalid'
@@ -55,15 +63,16 @@ export function attributeValueProblem(path: string, name: string, value: unknown
 export function ifcxSchemaProblems(document: unknown): string[] {
   if (!isPlainObject(document) || !Array.isArray(document.data)) return ['geen IFCX-document met data'];
   const used = new Set<string>();
+  const legacyDocument = usesLegacyDocumentSchema(document.schemas);
   const problems: IfcxCheckProblem[] = [];
   for (const entry of document.data) {
     if (!isPlainObject(entry) || !isPlainObject(entry.attributes)) continue;
     for (const [name, value] of Object.entries(entry.attributes)) {
       used.add(name);
-      const problem = attributeValueProblem(String(entry.path), name, value);
+      const problem = attributeValueProblem(String(entry.path), name, value, legacyDocument);
       if (problem) problems.push(problem);
     }
   }
-  problems.push(...schemaDefinitionProblems(document.schemas, used));
+  problems.push(...schemaDefinitionProblems(document.schemas, used, legacyDocument));
   return problems.map(problem => `${[problem.place.path, problem.place.attribute, problem.place.field].filter(Boolean).join(' ')}: ${problem.detail}`);
 }

@@ -512,6 +512,7 @@ for (const reopen of [false, true]) {
       assert.deepEqual(schemas, []);
       const written = bytesAt(target);
       assert(isIfcxText(written));
+      assert.ok(!text(written).includes('"ifcSchemaUnconfirmed"'), 'ook de IFCX-velddefinitie is weg');
       const planning = readIfcx(written);
       assert.equal(planning.tasks.length, store.getState().tasks.length);
       assert.equal(planning.project.ifcSchemaUnconfirmed, undefined, 'het geschreven IFCX draagt geen schemavraag');
@@ -559,8 +560,19 @@ await check('een eerder geschreven IFCX met een open vraag kan rechtstreeks teru
   setIfcSchemaAsker(async question => { asked.push(question.fileSchema); return null; });
   try {
     const path = join(dir, 'oude-schemavraag.ifcx');
-    writeFileSync(path, writeIfcx(maximalFixture));
-    assert.equal(readIfcx(bytesAt(path)).project.ifcSchemaUnconfirmed, 'IFC4');
+    const legacy = text(own).replace('            "wbsAutoNumber": {', [
+      '            "ifcSchemaUnconfirmed": {', '              "dataType": "String",', '              "optional": true',
+      '            },', '            "wbsAutoNumber": {',
+    ].join('\n'));
+    assert.equal(classifyIfcx(new TextEncoder().encode(legacy)), 'own', 'oud schema zonder open vraag');
+    const marked = legacy.replace('"ifcSchema":"IFC4X3_ADD2"', '"ifcSchema":"IFC4","ifcSchemaUnconfirmed":"IFC4"');
+    writeFileSync(path, marked);
+    const old = readIfcx(bytesAt(path));
+    assert.equal(old.project.ifcSchema, 'IFC4');
+    assert.equal(old.project.ifcSchemaUnconfirmed, undefined);
+    const malformed = marked.replace('"ifcSchemaUnconfirmed":"IFC4"', '"ifcSchemaUnconfirmed":42');
+    assert.equal(classifyIfcx(new TextEncoder().encode(malformed)), 'unreadable');
+    assert.equal(classifyIfcx(new TextEncoder().encode(marked.trimEnd())), 'unreadable', 'ook het oude profiel toetst de bytes');
     const store = await openAt(path, IFCX_ON);
     const back = join(dir, 'oude-schemavraag-terug.ifc');
     ipc.choose(back);
@@ -570,6 +582,20 @@ await check('een eerder geschreven IFCX met een open vraag kan rechtstreeks teru
     assert.equal(headerSchema(bytesAt(back)), 'IFC4');
     assert.equal(readIFC(text(bytesAt(back))).project.ifcSchemaUnconfirmed, undefined);
   } finally { ipc.dispose(); resetIfcSchemaAsker(); }
+});
+
+await check('een oude STEP-herstelsnapshot of IFC-bewerking in een IFCX-tabblad neemt de schemavraag niet over', async () => {
+  const { store } = await newApp(IFCX_ON);
+  const snapshot = readIFC(writeIFC(maximalFixture));
+  assert.equal(snapshot.project.ifcSchemaUnconfirmed, 'IFC4');
+  const recovered = { ...snapshot, id: 'herstel-ifcx', filePath: null, isDirty: true, datesAsRecorded: false, ifcx: { known: null } };
+  assert.deepEqual(store.getState().restoreDocuments([recovered], recovered.id).skippedIds, []);
+  assert.equal(store.getState().fileFormat, 'ifcx');
+  assert.equal(store.getState().project.ifcSchema, 'IFC4');
+  assert.equal(store.getState().project.ifcSchemaUnconfirmed, undefined);
+  store.getState().applyProjectEdit(snapshot);
+  assert.equal(store.getState().fileFormat, 'ifcx');
+  assert.equal(store.getState().project.ifcSchemaUnconfirmed, undefined);
 });
 
 await check('een open schemavraag bij IFC naar IFC komt vóór de kiezer, met de flag aan en uit', async () => {

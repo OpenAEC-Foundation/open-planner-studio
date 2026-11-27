@@ -22,7 +22,8 @@ import { emptySequence, SEQUENCE_FIELDS, type SequenceReadTarget } from './field
 import { emptyResource, RESOURCE_FIELDS, type ResourceReadTarget } from './fields/resourceFields';
 import { ASSIGNMENT_FIELDS, emptyAssignment, type AssignmentReadTarget } from './fields/assignmentFields';
 import { BASELINE_FIELDS, emptyBaseline, type BaselineReadTarget } from './fields/baselineFields';
-import { attributeValueProblem, schemaDefinitionProblems, type IfcxCheckProblem } from './schemaCheck';
+import { attributeValueProblem, schemaDefinitionProblems, usesLegacyDocumentSchema, type IfcxCheckProblem } from './schemaCheck';
+import { legacyDocumentProjection } from './legacyDocument';
 import { IfcxReadError, IfcxWriteRefusedError, type IfcxErrorPlace } from './ifcxErrors';
 import {
   ATTRIBUTE, IFCX_VERSION, OPS_NAMESPACE, OPS_PROFILE_MAJOR, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
@@ -127,18 +128,18 @@ function assertProfileVersion(nodes: readonly IfcxNode[]): void {
   }
 }
 
-function assertValues(nodes: readonly IfcxNode[]): void {
+function assertValues(nodes: readonly IfcxNode[], legacyDocument: boolean): void {
   for (const node of nodes) {
     for (const [name, value] of node.attributes) {
-      const problem = attributeValueProblem(node.path, name, value);
+      const problem = attributeValueProblem(node.path, name, value, legacyDocument);
       if (problem) throw thrown(problem);
     }
   }
 }
 
-function assertSchemas(schemas: unknown, nodes: readonly IfcxNode[]): void {
+function assertSchemas(schemas: unknown, nodes: readonly IfcxNode[], legacyDocument: boolean): void {
   const used = new Set<string>(nodes.flatMap(node => [...node.attributes.keys()]));
-  const [problem] = schemaDefinitionProblems(schemas, used);
+  const [problem] = schemaDefinitionProblems(schemas, used, legacyDocument);
   if (problem) throw thrown(problem);
 }
 
@@ -281,8 +282,10 @@ function differenceFrom(text: string, document: Record<string, unknown>, own: Ow
     ?? firstDifference(document, own.document, 'missing') ?? (ownText === text ? undefined : firstTextDifference(text, ownText));
 }
 
-function assertOwnProjection(text: string, document: Record<string, unknown>, read: IfcxImportResult): void {
-  const difference = differenceFrom(text, document, writerRefusal(() => ownFileFor(read, new Date(0), 'deferred')));
+function assertOwnProjection(text: string, document: Record<string, unknown>, read: IfcxImportResult, legacyDocument: boolean, question: unknown): void {
+  const own = writerRefusal(() => ownFileFor(read, new Date(0), 'deferred'));
+  const expected = legacyDocument ? { ...own, document: legacyDocumentProjection(own.document, question) } : own;
+  const difference = differenceFrom(text, document, expected);
   if (!difference) return;
   const labels = objectLabels(read, (kind, id) => read.ifcGlobalIds![ifcObjectSeed(kind, id)]);
   throw invalid(difference.detail(path => labels.get(path) ?? path), difference.place);
@@ -293,8 +296,9 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   const header = headerOf(document);
   const nodes = nodesOf(document.data as unknown[]);
   assertProfileVersion(nodes);
-  if (checked) assertValues(nodes);
-  assertSchemas(document.schemas, nodes);
+  const legacyDocument = usesLegacyDocumentSchema(document.schemas);
+  if (checked) assertValues(nodes, legacyDocument);
+  assertSchemas(document.schemas, nodes, legacyDocument);
   const byKind = new Map<NodeKind, IfcxNode[]>();
   const kindAt = new Map<string, NodeKind>();
   for (const node of nodes) {
@@ -321,7 +325,8 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
     structure: emptyStructure(),
     comparedBaselinePaths: [undefined, undefined], removedTasks: {},
   };
-  readFields(DOCUMENT_FIELDS, workplan.attributes.get(ATTRIBUTE.document)!, documentTarget);
+  const documentFields = workplan.attributes.get(ATTRIBUTE.document)!;
+  readFields(DOCUMENT_FIELDS, documentFields, documentTarget);
   const documentPlace = { path: workplan.path, attribute: ATTRIBUTE.document };
 
   const projectCalendarPath = reference(documentTarget.calendarPath, 'calendar', { ...documentPlace, field: 'calendar' })!;
@@ -448,7 +453,7 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
     ...(Object.keys(documentTarget.removedTasks).length > 0 ? { baselineOrphanGuids: documentTarget.removedTasks } : {}),
     ...(ifcLiteralCalendarIds.length > 0 ? { ifcLiteralCalendarIds } : {}),
   };
-  if (checked) assertOwnProjection(text, document, read);
+  if (checked) assertOwnProjection(text, document, read, legacyDocument, documentFields.ifcSchemaUnconfirmed);
   return read;
 }
 

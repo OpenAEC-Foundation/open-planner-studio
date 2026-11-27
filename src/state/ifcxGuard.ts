@@ -5,7 +5,6 @@ import { ifcxEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 import { isIfcxName } from '@/utils/filePath';
 import type { DocumentFileFormat } from './documentContract';
 import type { IFCWriteInput } from './ifcSaveInput';
-import { projectForIfcx } from './ifcSchemaChoice';
 import { refusalNotice } from './refusalNotice';
 import type { NotifyInput } from './slices/types';
 
@@ -48,7 +47,7 @@ export function formatOfName(name: string): DocumentFileFormat {
 }
 
 export function ifcxInputWithoutXerArchive(input: IFCWriteInput): IFCWriteInput {
-  return { ...input, project: projectForIfcx(input.project), xer: undefined, xerSourceArchive: undefined, xerSourceProjectId: undefined };
+  return { ...input, xer: undefined, xerSourceArchive: undefined, xerSourceProjectId: undefined };
 }
 
 export function fileNameWithFormat(base: string, format: DocumentFileFormat): string {

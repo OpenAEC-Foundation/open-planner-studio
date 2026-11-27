@@ -45,7 +45,7 @@ import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { ALL_RECORDED_SLOT_KEYS, type WithheldTaskTimeField } from '@/services/ifc/ifcTaskSlots';
 import { fixture as roundtripFixture } from './ifcRoundtripFixture';
 import {
-  ASSIGNMENT_ID_NOT_COMPARED, attempt, CLOCK, documentOf, encode, modelDifferences, openedAsStep, projectionOf, publicRouteProblems,
+  ASSIGNMENT_ID_NOT_COMPARED, attempt, CLOCK, documentOf, encode, modelDifferences, stepToIfcxDifferences, openedAsStep, projectionOf, publicRouteProblems,
   saveInputViaApp, stepRoundtrip, timestampOf,
 } from './ifcxProof';
 
@@ -102,7 +102,7 @@ function domainOf(model: ImportResult): Record<string, unknown> {
 
 
 function assertAsStep(back: ImportResult, input: WriteIFCInput): void {
-  assert.deepEqual(modelDifferences(openedAsStep(input), back), []);
+  assert.deepEqual(stepToIfcxDifferences(openedAsStep(input), back), []);
 }
 
 
@@ -416,7 +416,7 @@ test('aanvulling op R6: alles behalve het toewijzings-id is de STEP-lezing, het 
     const back = readIfcx(encode(text));
     const step = openedAsStep(input);
     assert.ok(step.assignments.length > 0, `${name} heeft toewijzingen`);
-    assert.deepEqual(modelDifferences(step, back), [], `${name}: ${ASSIGNMENT_ID_NOT_COMPARED}, de rest is gelijk`);
+    assert.deepEqual(stepToIfcxDifferences(step, back), [], `${name}: ${ASSIGNMENT_ID_NOT_COMPARED}, de rest is gelijk`);
     assert.deepEqual(back.assignments.map(assignment => assignment.id), stepAssignmentIds(step), `${name}: het id van elke toewijzing`);
     assert.equal(writeIfcx(input, CLOCK), text, `${name}: twee opslagen zijn byte-gelijk`);
   }
@@ -1336,7 +1336,7 @@ test('R1: voor de voorbeelden en de gevallen uit eerdere rondes geeft IFCX heen 
       continue;
     }
     if (!own.ok) { wrong.push(`${entry.name}: ${String(own.error).slice(0, 300)}`); continue; }
-    for (const difference of modelDifferences(openedAsStep(input), own.value, 3)) wrong.push(`${entry.name}: ${difference}`);
+    for (const difference of stepToIfcxDifferences(openedAsStep(input), own.value, 3)) wrong.push(`${entry.name}: ${difference}`);
   }
   assert.deepEqual(wrong, []);
 });
@@ -1521,7 +1521,7 @@ test('ronde 5, blokkade 1 en R6: de lezer geeft de planning na de laadgrens zoal
     const own = readIfcx(encode(writeIfcx(input, CLOCK)));
     assert.deepEqual(plain(pick(step)), expected, `${name}: STEP`);
     assert.deepEqual(plain(pick(own)), expected, `${name}: IFCX`);
-    assert.deepEqual(modelDifferences(step, own), [], `${name}: de hele planning`);
+    assert.deepEqual(stepToIfcxDifferences(step, own), [], `${name}: de hele planning`);
   }
   const d7 = documentOf(writeIfcx(d7Plan(), CLOCK));
   assert.ok(!('atDayEnd' in entryWith(d7, 'openaec::ops::task').attributes['openaec::ops::task']), 'de mijlpaal staat op haar moment; de hint gaat niet mee');
@@ -1686,7 +1686,7 @@ test('ronde 8, het geval van Sol: een gestarte dagtaak zonder vastgelegde restdu
       const first = openedAsStep(input);
       assert.equal(first.tasks[0].time.remainingTime, 0.75, `${name}: de eerste STEP-lezing leidt de restduur af`);
       assert.equal(first.ifcLiteralCalendarIds, undefined, `${name}: de eerste STEP-lezing kiest geen letterlijke kalender`);
-      assert.deepEqual(modelDifferences(first, back), [], `${name}: readIfcx(writeIfcx(x)) is de eerste STEP-lezing na de laadgrens`);
+      assert.deepEqual(stepToIfcxDifferences(first, back), [], `${name}: readIfcx(writeIfcx(x)) is de eerste STEP-lezing na de laadgrens`);
       assert.equal(back.calendar.hoursPerDay, hours, name);
       wrong.push(...publicRouteProblems(name, input, text.value));
       const second = openedAsStep(first);
@@ -1853,7 +1853,7 @@ test('ronde 6 en punt 8 onder R6: in een andere schrijfwijze opent geen van de g
     assert.ok(back.ok, `${name}: ${back.ok ? '' : String(back.error)}`);
     assert.deepEqual(modelDifferences(odd, back.value), [], `${name}: de lezer geeft de planning zoals ze in het bestand staat`);
     assert.equal(projectionOf(back.value, CLOCK), exact, `${name}: deel 2`);
-    assert.deepEqual(modelDifferences(openedAsStep(back.value), readIfcx(encode(writeIfcx(back.value, CLOCK)))), [], `${name}: de tweede opslag is wat STEP ervan maakt`);
+    assert.deepEqual(stepToIfcxDifferences(openedAsStep(back.value), readIfcx(encode(writeIfcx(back.value, CLOCK)))), [], `${name}: de tweede opslag is wat STEP ervan maakt`);
   }
   const minutes = documentOf(writeIfcx(datePlan(), CLOCK));
   const minutesEntry = entryWith(minutes, 'openaec::ops::task');
@@ -1948,7 +1948,7 @@ test('R6: precies één plek roept de STEP-rondgang en de laadgrens aan, in de s
   }
   const reader = sources.get('ifcxReader.ts')!, writer = sources.get('ifcxWriter.ts')!;
   assert.match(reader, /writerRefusal\(\(\) => ownFileFor\(read, new Date\(0\), 'deferred'\)\)/);
-  assert.match(reader, /if \(checked\) assertOwnProjection\(text, document, read\);\n\s+return read;/);
+  assert.match(reader, /if \(checked\) assertOwnProjection\(text, document, read, legacyDocument, documentFields\.ifcSchemaUnconfirmed\);\n\s+return read;/);
   assert.match(writer, /const planning = filePlanning\(given\);\n\s+const text = serializeIfcx\(ownFileFor\(planning, writtenAt\)\.document\);/);
   assert.match(writer, /reread = readIfcx\(new TextEncoder\(\)\.encode\(text\)\)/);
   assert.match(writer, /selfCheckDifferences\(planning, reread\)/);
