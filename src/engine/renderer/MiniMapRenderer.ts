@@ -1,8 +1,3 @@
-// Mini-map-thumbnail-renderer. BEWUST niet de volle GanttRenderer:
-// één fillRect per taakrij, geen labels/pijlen/culling — de hele projectperiode wordt
-// op de strip gemapt, dus de complete planning is altijd zichtbaar ongeacht de hoofd-zoom.
-// Herbruikt de gedeelde `viewRows`, dus filter/groep werken automatisch door.
-
 import { parseDate, diffCalendarDays } from '@/utils/dateUtils';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Task } from '@/types/task';
@@ -13,27 +8,16 @@ export interface MiniMapOptions {
   rows: ViewRow[];
   canvasWidth: number;
   canvasHeight: number;
-  /** Datum die in het hoofdvenster op scrollX = 0 ligt (effectiveViewStart van GanttCanvas). */
   originDate: string;
-  /** Hoofdvenster-state voor het viewport-kader (primaire pane bij split view). */
   scrollX: number;
   zoom: number;
-  /** Breedte van het zichtbare chart-gedeelte van het hoofdvenster (px). */
   chartWidth: number;
-  /** As-dag van een datum t.o.v. `originDate`, zoals de hoofd-Gantt hem tekent. Op de werkdagen-as
-   *  ("alleen werkdagen tonen") telt die in WERKdagen — en `scrollX / zoom` dus ook; zonder deze
-   *  functie rekende de strip taken in kalenderdagen en het kader in werkdagen, zodat kader en
-   *  balken uiteenliepen. Afwezig ⇒ kalenderdagen (`diffCalendarDays`), ongewijzigd. */
   axisDayOf?: (date: Date) => number;
-  /** Geïnjecteerd mini-map-palet. Afwezig ⇒ zelf gelezen via `readMiniMapPalette()`
-   *  op render-moment; meegeven maakt de renderer headless-testbaar. */
   palette?: MiniMapPalette;
 }
 
 interface Span { startDay: number; endDay: number; span: number }
 
-/** Startdag en (exclusieve) einddag van een taak t.o.v. `origin`; null zonder start. Een taak
- *  zonder einde beslaat zijn startdag. */
 type DayOf = (date: Date) => number;
 
 function taskDays(task: Task, dayOf: DayOf): { startDay: number; endDay: number } | null {
@@ -46,8 +30,6 @@ function taskDays(task: Task, dayOf: DayOf): { startDay: number; endDay: number 
   };
 }
 
-/** Dagen van een rij: een taak, of bij een ingeklapte mijlpalenreeks (#868) de vroegste tot de
- *  laatste mijlpaal. Bandrijen hebben geen dagen. */
 function rowDays(row: ViewRow, dayOf: DayOf): { startDay: number; endDay: number } | null {
   if (row.kind === 'task') return taskDays(row.task, dayOf);
   if (row.kind !== 'milestones') return null;
@@ -60,7 +42,6 @@ function rowDays(row: ViewRow, dayOf: DayOf): { startDay: number; endDay: number
   return out;
 }
 
-/** Projectperiode (min start .. max finish) in dagen t.o.v. originDate. */
 function projectSpan(rows: ViewRow[], dayOf: DayOf): Span | null {
   let min = Infinity;
   let max = -Infinity;
@@ -74,12 +55,6 @@ function projectSpan(rows: ViewRow[], dayOf: DayOf): Span | null {
   return { startDay: min, endDay: max, span: max - min };
 }
 
-/**
- * Dagindeling per rij + projectspanne, per (rijenlijst, oorsprong, as) één keer berekend. De strip
- * wordt bij élke scroll opnieuw getekend en parseerde dan voor alle rijen twee keer beide datums
- * (8000 taken: de helft van een scrollframe). Alleen voor een bevroren (store-)lijst; de as-functie
- * telt mee als sleutel (identiteit), de kalender-as via de oorsprong.
- */
 interface Layout { days: Array<{ startDay: number; endDay: number } | null>; span: Span | null }
 const layoutCache = new WeakMap<ViewRow[], { originDate: string; axisDayOf: DayOf | undefined; layout: Layout }>();
 function layoutFor(rows: ViewRow[], originDate: string, axisDayOf: DayOf | undefined): Layout {
@@ -110,13 +85,11 @@ export class MiniMapRenderer {
     this.days = layout.days;
   }
 
-  /** Dag (t.o.v. originDate) → x op de strip. */
   private dayToMiniX(day: number): number {
     if (!this.span) return 0;
     return ((day - this.span.startDay) / this.span.span) * this.opts.canvasWidth;
   }
 
-  /** x op de strip → dag t.o.v. originDate (voor klik-centreren/slepen). */
   miniXToDay(x: number): number | null {
     if (!this.span) return null;
     return this.span.startDay + (x / this.opts.canvasWidth) * this.span.span;
@@ -131,7 +104,6 @@ export class MiniMapRenderer {
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     if (this.span) {
-      // Alle rijen gecomprimeerd op de striphoogte; 1 fillRect per taakrij.
       const taskRowCount = rows.length;
       const miniRowH = taskRowCount > 0 ? canvasHeight / taskRowCount : canvasHeight;
       for (let i = 0; i < rows.length; i++) {
@@ -147,7 +119,6 @@ export class MiniMapRenderer {
         ctx.fillRect(x0, y, Math.max(1, x1 - x0), Math.max(1, miniRowH - 1));
       }
 
-      // Viewport-kader: het huidige hoofdvenster (breedte = zichtbare dagen / totale dagen).
       const frame = this.frameBounds();
       if (frame) {
         ctx.strokeStyle = colors.frame;
@@ -158,7 +129,6 @@ export class MiniMapRenderer {
       }
     }
 
-    // Bovenrand als scheiding met de Gantt erboven.
     ctx.strokeStyle = colors.border;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -167,11 +137,6 @@ export class MiniMapRenderer {
     ctx.stroke();
   }
 
-  /** Grenzen van het viewport-kader op de strip — getekend door render() en gebruikt voor de
-   *  sleep-hit-testing. Geklemd op de strip zelf: buiten-project scrollen of verder
-   *  uitzoomen dan de projectperiode geeft anders een kader dat buiten canvasWidth valt — onzichtbaar
-   *  (de canvas clipt aan zijn eigen randen), maar nooit netjes tegen de rechterrand zodra de
-   *  zichtbare dagen de projectperiode overtreffen. */
   frameBounds(): { x: number; w: number } | null {
     if (!this.span || this.opts.zoom <= 0 || this.opts.chartWidth <= 0) return null;
     const { canvasWidth } = this.opts;

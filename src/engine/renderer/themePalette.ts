@@ -1,102 +1,38 @@
-// Centraal themapalet voor de tekenlaag (GanttRenderer/HistogramRenderer/MiniMapRenderer):
-//   - de merk-hex-constanten (kritiek-rood, normaal-blauw, …) staan één keer in `BRAND`;
-//   - readGanttPalette/readHistogramPalette/readMiniMapPalette lezen de CSS-vars (met per-renderer
-//     fallback) en stellen het palet samen;
-//   - PRINT_PALETTE is de parallelle, DOM-loze print-tabel. Die loopt NIET met `BRAND` mee, maar
-//     houdt eigen literalen: papier is wit en stelt andere eisen dan een scherm met twee thema's
-//     (zie de toelichting bij PRINT_PALETTE zelf).
-// De renderers krijgen hun palet via de constructor-opts geïnjecteerd; ontbreekt dat, dan roepen ze
-// zelf de bijbehorende read*-functie aan. Zo is de renderer puur/headless-testbaar.
-//
-// LET OP: de exacte casing van elke hex is load-bearing — de teken-aanroepen geven de string
-// letterlijk aan `fillStyle`/`strokeStyle` door. Waarden die alleen in casing verschillen
-// blijven daarom apart en worden NIET samengevoegd.
-
-/** Leest een CSS-custom-property van het document-element, met fallback als de var leeg is
- *  (`getComputedStyle(...).getPropertyValue(...).trim() || fallback`). */
 function cssVarReader(): (name: string, fallback: string) => string {
   const s = getComputedStyle(document.documentElement);
   return (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback;
 }
 
-// ── Merk-hex: de vaste, niet-thema-gebonden kleuren, één keer gedefinieerd. ──
 export const GANTT_TRACE_COLORS = {
-  predecessor: '#F59E0B',        // path tracing: voorganger (goud)
-  predecessorDriving: '#D97706', // path tracing: driving voorganger (donkerder goud)
-  successor: '#A78BFA',          // path tracing: opvolger (paars)
-  successorDriving: '#7C3AED',   // path tracing: driving opvolger (donkerder paars)
+  predecessor: '#F59E0B',
+  predecessorDriving: '#D97706',
+  successor: '#A78BFA',
+  successorDriving: '#7C3AED',
 } as const;
 
-// De BALKKLEUREN zijn de verzadigde merktinten, en dat is een bewuste keuze. Een ontzadigde set
-// die met ÉÉN set >=3:1 haalt tegen zowel de lichte kaart (#FAFAFA) als de donkere (#2E3239) kost
-// het merkkarakter (de balken lezen als mat pastel); die contrasteis is voor de balken losgelaten.
-// Gemeten (WCAG 2.x), lichte kaart #FAFAFA / donkere kaart #2E3239 / hoog-contrastkaart #0a0a0a:
-//   critical  #DC2626  4,63 / 2,67 / 4,10
-//   normal    #2563EB  4,95 / 2,49 / 3,83
-//   milestone #7C3AED  5,46 / 2,26 / 3,47
-//   baseline  #1F2937  14,06 / 1,14 / 1,35  (licht; donker en hoog contrast zetten een eigen, lichte tint)
-// Noem het bij de naam in plaats van het weg te redeneren: op de donkere kaart zakken ze naar
-// 2,26-2,67 — dat is formeel non-conform met WCAG 1.4.11 (die kent geen grootte-uitzondering voor
-// grafische objecten), en in `mode: 'critical'` is de balkkleur de enige drager van "kritiek
-// ja/nee", wat ook 1.4.1 raakt. Die afwijking is aanvaard voor licht en donker.
-// Sinds de OpenAEC-tokens 0.4 (huisstijl fase B) is de lichte kaart #FFFFFF en de donkere #2A2A32
-// (`--oa-frame`, bewust donkerder dan de oude #2E3239). Op die kaarten: critical 4,83 / 2,95,
-// normal 5,17 / 2,75, milestone 5,70 / 2,50, baseline 4,83 / 2,94 — overal beter dan hierboven.
-// Elk paar en zijn drempel (nooit lager dan op main) staat in
-// `tests/planning/theme-contrast-thresholds.json`, bewaakt door `check-theme-contrast.ts`.
-// De taakbalk tekent deze tinten effen; alleen het voltooide deel wordt grijs (`doneBarTones`
-// hieronder, getekend via `paintProgressBarPiece` in barPaint.ts).
-// De speling (`float`) is als enige WEL per thema gescheiden gebleven (`--theme-bar-float`): die
-// band is halfdoorzichtig en draagt geen label, dus hij moet het puur van zijn ondergrond winnen.
-// LET OP 1: deze vier waarden plus de spelinggroenen staan óók als CSS-var in
-// `src/styles/globals.css` (`--color-*` / `--theme-bar-float`). De tekenlaag leest die CSS niet in
-// headless tests, dus de twee bronnen moeten met de hand gelijk blijven.
-// LET OP 2: `--color-critical` is niet alléén een balkkleur. Tailwind v4 leidt er de utility
-// `text-critical` uit af, die als ECHTE TEKST wordt gebruikt in ExtensionConsentDialog,
-// BenchmarkDialog en TaskCpmResultSection. Op #DC2626 haalt die tekst 4,83 op wit, maar 2,67 op de
-// donkere kaart en 2,33 op een elevated donker vlak — geen AA. Wie dat wil oplossen verplaatst die
-// zes gebruiken naar `--theme-critical-text`, dat per thema bestaat en precies hiervoor bedoeld is.
-// LET OP 3: enkele tinten vallen samen: `milestone` ==
-// GANTT_TRACE_COLORS.successorDriving (#7C3AED), wat ook DOC_PALETTE[3] in utils/documents.ts is —
-// bij 1 op de 8
-// documenten valt de mijlpaalmarkering daar samen met de identiteitskleur.
 const BRAND = {
-  critical: '#DC2626',          // kritiek (rood)
-  nearCritical: '#F59E0B',      // bijna-kritiek (amber)
-  hammock: '#0E7490',           // hammock/LOE-balk (teal)
-  normal: '#2563EB',            // normale taak (blauw)
-  milestone: '#7C3AED',         // mijlpaal (paars, ruit)
-  // Baseline-onderbalk (actieve baseline). Issue #741, besluit Ethan 2026-11-02: de drie baselines
-  // verschillen ook in helderheid (actief donkerst, dan vergelijking 2, dan vergelijking 1), zodat
-  // ze in grijs uit elkaar blijven. Het donkere thema zet een eigen grijs (`--theme-bar-baseline`).
+  critical: '#DC2626',
+  nearCritical: '#F59E0B',
+  hammock: '#0E7490',
+  normal: '#2563EB',
+  milestone: '#7C3AED',
   baseline: '#1F2937',
-  dependency: '#6B7280',        // afhankelijkheidspijl (grijs)
-  summary: '#475569',           // samenvattingsbalk (slate)
-  ghost: '#94A3B8',             // externe (cross-project) ghost-balk (grijs)
-  constraintEarly: '#3B82F6',   // vroege-zijde constraint (SNET/FNET): blauw
-  constraintLate: '#8B5CF6',    // late-zijde/pinnende constraint (SNLT/FNLT/MSO/MFO): violet
-  deadlineOk: '#10B981',        // deadline-marker (groen; rood bij overschrijding)
+  dependency: '#6B7280',
+  summary: '#475569',
+  ghost: '#94A3B8',
+  constraintEarly: '#3B82F6',
+  constraintLate: '#8B5CF6',
+  deadlineOk: '#10B981',
   tracePred: GANTT_TRACE_COLORS.predecessor,
   tracePredDriving: GANTT_TRACE_COLORS.predecessorDriving,
   traceSucc: GANTT_TRACE_COLORS.successor,
   traceSuccDriving: GANTT_TRACE_COLORS.successorDriving,
 };
 
-// Optionele tint per float-pad: pad 1 = kritiek (rood, elders), paden ≥2 elk een
-// eigen tint. [0]/[1] hergebruiken de merk-blauw/-violet.
 const FLOAT_PATH_TINTS: string[] = [
   BRAND.normal, BRAND.milestone, '#0891B2', '#DB2777', '#65A30D', '#EA580C', '#0D9488', '#9333EA',
 ];
 
-// ── Labelkleur op een gekleurd vlak ──────────────────────────────────────────
-// Een vast balklabel is niet houdbaar zodra de balkkleur niet vaststaat: in de kleurmodi (`auto`,
-// resource-, categorie-kleuring) komt de basiskleur uit projectdata. `barLabelColor` kiest daarom
-// per vlak de beste van twee: bijna-zwart (#111827, hetzelfde als PRINT_PALETTE.text) of wit.
-// De taakbalk vraagt het aan voor de basiskleur; op het grijze, voltooide deel gebruikt hij de
-// gedempte tekstkleur van `doneBarTones`, en de labelkleur wisselt precies op de grens.
-// `check-bar-progress` bewaakt het labelcontrast op het grijs.
-
-/** sRGB-hex ⇒ [r,g,b] (0-255). Accepteert `#rgb` en `#rrggbb`. */
 function hexToRgb(hex: string): [number, number, number] | null {
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return null;
@@ -105,7 +41,6 @@ function hexToRgb(hex: string): [number, number, number] | null {
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
 
-/** WCAG 2.x relatieve luminantie van een sRGB-kleur. */
 function relativeLuminance([r, g, b]: [number, number, number]): number {
   const lin = (c: number): number => {
     const v = c / 255;
@@ -114,25 +49,15 @@ function relativeLuminance([r, g, b]: [number, number, number]): number {
   return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
 }
 
-/** WCAG-contrastverhouding tussen twee sRGB-kleuren (>= 1). */
 export function contrastRatio(a: [number, number, number], b: [number, number, number]): number {
   const la = relativeLuminance(a);
   const lb = relativeLuminance(b);
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
 
-/** Donker labelalternatief — dezelfde bijna-zwart als `PRINT_PALETTE.text`. */
 export const BAR_LABEL_DARK = '#111827';
-/** Licht labelalternatief. */
 export const BAR_LABEL_LIGHT = '#ffffff';
 
-/**
- * De leesbaarste labelkleur op `barColor`: bijna-zwart of wit, wie van de twee de hoogste
- * WCAG-contrastverhouding haalt. Eén gebruiksplek: het TAAKBALK-label in `GanttRenderer`, op de
- * effen basiskleur van de balk. Labels op de
- * CANVAS-achtergrond horen bij `palette.text`/`textSecondary` en niet hier.
- * Onparseerbare invoer (een `rgba()`-string, een CSS-var) ⇒ wit.
- */
 export function barLabelColor(barColor: string): string {
   const rgb = hexToRgb(barColor);
   if (!rgb) return BAR_LABEL_LIGHT;
@@ -141,10 +66,7 @@ export function barLabelColor(barColor: string): string {
   return dark >= light ? BAR_LABEL_DARK : BAR_LABEL_LIGHT;
 }
 
-/** Grijze ondergrond van een voltooide taakbalk per thema; de basiskleur kleurt er nog een fractie
- *  (`DONE_BAR_HUE`) doorheen, zodat een afgeronde kritieke taak niet volledig anoniem wordt. */
 const DONE_BAR_GREY = { light: '#E5E7EB', dark: '#4E5561' } as const;
-/** Label en vinkje op een voltooide balk: gedempt, maar >= 4,5:1 op `DONE_BAR_GREY`. */
 const DONE_BAR_TEXT = { light: '#4B5563', dark: '#E2E5EA' } as const;
 const DONE_BAR_HUE = 0.08;
 
@@ -153,10 +75,6 @@ export interface DoneBarTones {
   text: string;
 }
 
-/**
- * Tinten van een taakbalk die 100% voltooid is: bleek en uitgegrijsd, zodat afgerond werk naar
- * de achtergrond zakt en de blik naar het werk gaat dat nog moet gebeuren.
- */
 export function doneBarTones(base: string, dark: boolean): DoneBarTones {
   const grey = dark ? DONE_BAR_GREY.dark : DONE_BAR_GREY.light;
   const text = dark ? DONE_BAR_TEXT.dark : DONE_BAR_TEXT.light;
@@ -168,18 +86,11 @@ export function doneBarTones(base: string, dark: boolean): DoneBarTones {
   return { fill: `#${mix(0)}${mix(1)}${mix(2)}`, text };
 }
 
-// ── GanttRenderer ────────────────────────────────────────────────────────────
 export interface GanttPalette {
   bg: string;
   surface: string;
   grid: string;
   gridWeekend: string;
-  /** Om-en-om weekband in de GECOMPRIMEERDE modus: de achtergrondtint van de
-   *  dagkolommen van oneven ISO-weken. Onder compressie bestaan weekendkolommen niet meer, dus de
-   *  weekendarcering — de enige visuele weekscheiding — vervalt daar; deze band neemt die rol
-   *  over. Aparte var (géén hergebruik van `gridWeekend`): de band bedekt hele weken (5+ kolommen
-   *  aaneen) i.p.v. losse dagen en moet dus per thema onafhankelijk subtieler afgesteld kunnen
-   *  worden. */
   gridWeekBand: string;
   border: string;
   text: string;
@@ -191,7 +102,6 @@ export interface GanttPalette {
   milestone: string;
   float: string;
   baseline: string;
-  /** Issue #391: kleuren van vergelijkingsbaseline 1 en 2 (naast de actieve, grijze, in dezelfde strook). */
   baselineCompare1: string;
   baselineCompare2: string;
   selected: string;
@@ -208,20 +118,13 @@ export interface GanttPalette {
   tracePredDriving: string;
   traceSucc: string;
   traceSuccDriving: string;
-  /** Tint per float-pad (≥2); pad 1 = kritiek. */
   floatPathTints: string[];
-  /** Tekstkleur ÓP een accent-vlak (`--theme-accent-on`): wit in licht/donker, zwart in
-   *  high-contrast. Zelfde paar dat de DOM-chrome al gebruikt voor accentknoppen — de tekenlaag
-   *  mag daar geen eigen wit-op-oranje van maken. */
   accentOn: string;
 }
 
-/** Leest het Gantt-palet uit de CSS-thema-vars (met fallbacks) + de merk-hex-tabel. */
 export function readGanttPalette(): GanttPalette {
   const v = cssVarReader();
   return {
-    // De Gantt leeft in een witte zwevende kaart, dus de canvas-achtergrond leest het kaart-
-    // oppervlak (--theme-surface), NIET de werkruimte-tint (--theme-bg).
     bg: v('--theme-surface', '#ffffff'),
     surface: v('--theme-surface-alt', '#F6F8FB'),
     grid: v('--theme-border-light', '#EDF0F5'),
@@ -230,12 +133,6 @@ export function readGanttPalette(): GanttPalette {
     border: v('--theme-border', '#E2E7EE'),
     text: v('--theme-text', '#333845'),
     textSecondary: v('--theme-text-dim', '#5B6472'),
-    // De balktinten komen uit BRAND, maar via een thema-var met BRAND als fallback — hetzelfde
-    // patroon dat `--theme-bar-float` al had. Licht en donker definiëren die vars NIET, dus daar
-    // valt alles terug op BRAND en is de uitkomst gelijk aan een directe `BRAND.x`. Alleen
-    // het hoog-contrastthema zet ze, omdat de verzadigde set daar onder 3:1 zakt. Uitzondering
-    // (#741): licht en donker zetten allebei `--theme-bar-baseline`. Het donkere blok geldt ook voor
-    // `:root`, dus het lichte thema moet zijn #1F2937 zelf zetten, anders erft het het donkere grijs.
     critical: v('--theme-bar-critical', BRAND.critical),
     nearCritical: BRAND.nearCritical,
     hammock: BRAND.hammock,
@@ -243,17 +140,13 @@ export function readGanttPalette(): GanttPalette {
     milestone: v('--theme-bar-milestone', BRAND.milestone),
     float: v('--theme-bar-float', '#059669'),
     baseline: v('--theme-bar-baseline', BRAND.baseline),
-    // Vergelijkingsbaselines: per thema een eigen tint; de actieve valt het meest op (#741), zie globals.css.
     baselineCompare1: v('--theme-bar-baseline-compare-1', '#0891B2'),
     baselineCompare2: v('--theme-bar-baseline-compare-2', '#A21CAF'),
     selected: v('--theme-accent', '#B45309'),
     dependency: BRAND.dependency,
     today: v('--theme-accent', '#B45309'),
-    // statusdatum-/voortgangslijn: accent-oranje, zelfde bron als today/selected
     statusDate: v('--theme-accent', '#B45309'),
     headerBg: v('--theme-surface-alt', '#F6F8FB'),
-    // Samenvattingsbalk: het donkere thema zet een lichtere leisteen (`--theme-bar-summary`), anders
-    // valt het grijze, voltooide deel van een fase weg tegen de balk en de balk tegen de kaart.
     summary: v('--theme-bar-summary', BRAND.summary),
     ghost: BRAND.ghost,
     constraintEarly: BRAND.constraintEarly,
@@ -268,7 +161,6 @@ export function readGanttPalette(): GanttPalette {
   };
 }
 
-// ── HistogramRenderer ──────────────────────────────────────────────────────────
 export interface HistogramPalette {
   bg: string;
   surfaceAlt: string;
@@ -284,8 +176,6 @@ export interface HistogramPalette {
   capacity: string;
 }
 
-/** Leest het histogram-palet. De staafkleuren delen de Gantt-merk-hex (normaal-blauw/kritiek-rood).
- *  NB: de `--theme-accent`-fallback is hier `#D97706` (afwijkend van Gantt/MiniMap) — zo gehouden. */
 export function readHistogramPalette(): HistogramPalette {
   const v = cssVarReader();
   return {
@@ -298,15 +188,12 @@ export function readHistogramPalette(): HistogramPalette {
     accent: v('--theme-accent', '#D97706'),
     hover: v('--theme-hover', 'rgba(0,0,0,0.05)'),
     active: v('--theme-active', 'rgba(0,0,0,0.08)'),
-    // Zelfde bron als GanttRenderer's normal/critical, thema-var met BRAND-fallback — zodat de
-    // staven in hoog contrast meelopen met de balken en niet ineens een ander blauw tonen.
     barNormal: v('--theme-bar-normal', BRAND.normal),
     barOver: v('--theme-bar-critical', BRAND.critical),
     capacity: v('--theme-text-dim', '#5B6472'),
   };
 }
 
-// ── MiniMapRenderer ──────────────────────────────────────────────────────────
 export interface MiniMapPalette {
   bg: string;
   border: string;
@@ -315,7 +202,6 @@ export interface MiniMapPalette {
   frame: string;
 }
 
-/** Leest het mini-map-palet (thumbnail-strip). Staaf-/kritiek-kleur delen de Gantt-merk-hex. */
 export function readMiniMapPalette(): MiniMapPalette {
   const v = cssVarReader();
   return {
@@ -327,50 +213,32 @@ export function readMiniMapPalette(): MiniMapPalette {
   };
 }
 
-// ── Print (printPreview.ts) ────────────────────────────────────────────────────
-// Print-vriendelijk schema, DOM-loos (papier-witte achtergrond, donkere greys). Kritiek/normaal/
-// mijlpaal/samenvatting delen de merk-hex; de print-specifieke greys/tinten blijven literalen. De
-// *Dark-varianten staan bewust in lowercase (print-casing) en delen dus NIET met de
-// uppercase Gantt-varianten.
 export const PRINT_PALETTE = {
   bg: '#ffffff',
   surface: '#f8f9fa',
   grid: '#e5e7eb',
   gridWeekend: '#f0f1f3',
-  // Weekbanden horen alleen op de gecomprimeerde werkdagen-as: daar bestaan geen weekendkolommen
-  // meer om de weekgrens te lezen. Lichter dan `gridWeekend`, omdat een heel weekvlak rustiger
-  // moet blijven dan twee losse vrije dagen.
   gridWeekBand: '#f1f4f9',
   gridHoliday: '#fef3c7',
   border: '#d1d5db',
   borderDark: '#9ca3af',
   text: '#111827',
   textSecondary: '#6b7280',
-  // Het printpalet loopt BEWUST niet met `BRAND` mee, ook al zijn de waarden nu identiek. De reden om
-  // ze apart te houden is dat ze op verschillende eisen zijn
-  // gekozen: het scherm weegt twee kaarten (licht/donker) tegen elkaar af, papier is altijd wit en
-  // moet daarnaast in grijstinten nog te onderscheiden zijn — een ontzadigde tint verdwijnt daar
-  // sneller. Wordt het schermpalet ooit opnieuw bijgesteld, dan hoeft de print daar niet in mee.
-  // De lowercase casing hier is load-bearing (zie de kop).
   critical: '#DC2626',
   criticalDark: '#991b1b',
-  // Bijna-kritiek: de 'critical'-kleurmodus van de print deelt deze keuze met barColors.
-  nearCritical: BRAND.nearCritical, // '#F59E0B'
+  nearCritical: BRAND.nearCritical,
   normal: '#2563EB',
   normalDark: '#1d4ed8',
   milestone: '#7C3AED',
-  // Baselines (issue #391, #741): de tinten van het lichte schermthema; papier is wit. De drie
-  // verschillen in helderheid, zodat ze op een zwart-witafdruk te onderscheiden blijven:
-  // grijswaarde (0,299R + 0,587G + 0,114B) 40 / 108 / 85 van 255.
   baseline: '#1F2937',
   baselineCompare1: '#0891B2',
   baselineCompare2: '#A21CAF',
-  uncategorized: BRAND.ghost, // '#94A3B8' — ontbrekende categoriewaarde
+  uncategorized: BRAND.ghost,
   float: '#10B981',
   dependency: '#9CA3AF',
   today: '#F59E0B',
   headerBg: '#f1f5f9',
-  summary: '#7C3AED',         // print-samenvatting is violet (zelfde hex als print-mijlpaal)
+  summary: '#7C3AED',
   rowEven: '#f9fafb',
   rowOdd: '#ffffff',
 };
