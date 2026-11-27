@@ -12,7 +12,7 @@ geeft daar een compileerfout en vraagt een keuze: klonen, delen of vers. Toetsen
 Wat gepubliceerd wordt, is niet die voorbereide kopie zelf maar de uitkomst van de activatie (`materializeLibraryBoundary`
 in `documentActivation.ts`, ADR 0472). Die bepaalt `resourceLoadResult` opnieuw (`computeReliableResourceLoad`): een
 eigen resultaat voor de kopie, of `null` als het `cpmResult` een rekenfout draagt. Hoort het document bij een resourcebibliotheek waarvan kalenders of resources achterlopen, dan
-vervangt ze ook die kalenders of resources en wat daarvan afhangt (`materializeBehindOnlyRefresh`, voor een
+loopt ook de verversing uit de bibliotheek (`materializeBehindOnlyRefresh`, ADR 0342; voor een
 vastlegging met `recountShiftedAfterLibraryRefresh`).
 
 Open veldinvoer rondt `duplicateDocument` af vóór hij de bron vastlegt: die invoer hoort in de bron en daarmee ook in de

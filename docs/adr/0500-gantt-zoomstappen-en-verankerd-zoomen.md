@@ -16,7 +16,7 @@ een tweede declaratie.
 
 ## Verankerd zoomen
 
-`computeTimelineZoom` houdt de as-dag onder `anchorX` op zijn plaats, tenzij de klem van zoom of scroll ingrijpt. `anchorX` is lokaal aan het tijdlijnpaneel:
+`computeTimelineZoom` houdt de as-dag onder `anchorX` op zijn plaats, tenzij de scroll op 0 klemt. `anchorX` is lokaal aan het tijdlijnpaneel:
 x = 0 is de linkerrand van de tijdlijn, er gaat geen tabel- of paneelbreedte af. Aanroepers zijn
 `zoomAt` in `useGanttZoom.ts` (wiel op de cursor, kale + en - in het midden van het paneel) en de wielafhandeling
 van de tweede pane in `useGanttViewportCoordinator.ts`. `check-gantt-coordinate-contracts.ts` vergelijkt de
