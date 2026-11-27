@@ -1458,11 +1458,12 @@ De app vergelijkt eerst het exacte pad in de lokale `data` van het modelbestand.
 moet daar een product of producttype aanduiden volgens dezelfde klassegrens als bij STEP (`IfcProduct` of
 `IfcTypeProduct`). Een doel of klasse die alleen via een import beschikbaar is, telt niet mee (§6.5). Voor een
 verplaatst doel mag de app een GlobalId gebruiken als de conventie van de bekende schrijver die identiteit betrouwbaar
-maakt en één bouwdeel eenduidig overeenkomt. De app bewaart zo’n GlobalId in eigen metadata. Wijzen het exacte pad
-en een bewaarde betrouwbare GlobalId naar verschillende bouwdelen, dan is de koppeling dubbelzinnig: de app toont
-geen van beide als gevonden en bewaart het doelpad. Voorbeeld: in een nieuwe levering staat op het pad van het
-gekoppelde raam een ander raam, en het oorspronkelijke raam staat met zijn GlobalId op een nieuw pad. Koppelingen
-aanmaken of bewerken valt onder #748.
+maakt en één bouwdeel eenduidig overeenkomt. De app bewaart zo’n GlobalId in eigen metadata. Heeft het bouwdeel
+op het exacte pad een betrouwbare GlobalId die afwijkt van de bewaarde, dan is de koppeling dubbelzinnig: de app
+toont dat bouwdeel niet als gevonden en bewaart het doelpad. Dat geldt als het oorspronkelijke bouwdeel met zijn
+GlobalId op een ander pad staat (de app toont dan geen van beide als gevonden), en ook als het nergens meer
+voorkomt. Voorbeeld: in een nieuwe levering staat op het pad van het gekoppelde raam een ander raam; het
+oorspronkelijke raam is verplaatst of verwijderd. Koppelingen aanmaken of bewerken valt onder #748.
 
 ### 6.5 Imports met data
 
@@ -1508,8 +1509,8 @@ ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden
 
 1. **Model lezen.** Begin met een gewoon model met een lokale muur en een raam, bereken de hash van de bronbytes en lees de bouwdelen en bestaande koppelingen volgens B2. Dit stuk kan zelfstandig starten.
 2. **Eigen planning lezen en schrijven.** Na B2 kan profiel 1.2.0 de bronverwijzing en bestaande koppelingen bewaren, ook bij een ontbrekend doel. De oude vormen 1.0.0 en 1.1.0 blijven leesbaar.
-3. **Openen, opslaan en heropenen.** Na 1, 2 en de opslagroute uit #1299 opent de planner op desktop het model zonder schrijfdoel, slaat de planning apart op en heropent haar met het buurmodel. In de browser krijgt hij een download. Automatisch opslaan naar het bestand slaat een planning met een bronverwijzing of modelkoppelingen over tot stuk 7 die gegevens bewaart; anders zou een automatische opslag de eigen planning vervangen door een kopie zonder bronverwijzing en koppelingen.
-4. **Planning van een ander programma importeren.** Na B1 en B2 leest de import de bekende planning en bewaart de eigen kopie ook vreemde planningspaden (§5.2, §5.5). Aansluiten op de app kan na 3. De eigenaar kiest de tekst van de melding over gegevens die in de bron blijven.
+3. **Openen, opslaan en heropenen.** Na 1, 2 en de opslagroute uit #1299 opent de planner op desktop het model zonder schrijfdoel, slaat de planning apart op en heropent haar met het buurmodel. In de browser krijgt hij een download. Automatisch opslaan naar het bestand slaat een IFCX-planning over zolang ze gegevens draagt die deze route nog niet bewaart: een bronverwijzing, modelkoppelingen of bewaarde planningspaden uit een import (stuk 4). Dat duurt tot stuk 7 die gegevens bewaart; anders zou een automatische opslag de eigen planning vervangen door een kopie zonder die gegevens, of met opnieuw afgeleide paden.
+4. **Planning van een ander programma importeren.** Na B1 en B2 leest de import de bekende planning en bewaart de eigen kopie ook vreemde planningspaden (§5.2, §5.5). De uitzondering voor Automatisch opslaan uit stuk 3 geldt ook voor een planning met zulke bewaarde paden. Aansluiten op de app kan na 3. De eigenaar kiest de tekst van de melding over gegevens die in de bron blijven.
 5. **Model opnieuw aanwijzen of controleren.** De vergelijking van een ontbrekend, verplaatst of gewijzigd model kan beginnen na de twee productbesluiten over doorwerken en een nieuwe modelversie (§5.0). De aansluiting op openen en opslaan volgt op 3.
 6. **Opslaan als IFC.** Na 3 en de opslagroute uit #1299 kan de planner na eenmalige bevestiging alleen de planning als IFC opslaan in het gekozen schema. Annuleren schrijft niets.
 7. **Automatisch opslaan en crashherstel.** Na 2, het documentcontract uit 3 en het besluit over een ontbrekend model bewaren beide routes de bronverwijzing, de doelpaden en de planningspaden. Pas daarmee vervalt de uitzondering voor Automatisch opslaan uit stuk 3.
