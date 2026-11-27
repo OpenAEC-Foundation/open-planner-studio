@@ -20,8 +20,6 @@ const BASELINE_FIELDS = new Set<BaselineTaskColumnField>([
   'isMilestone', 'milestoneKind',
 ]);
 
-/** Eén canonieke RFC-3986-segmentencoding. encodeURIComponent laat !'()* ongemoeid; die tekens
- * worden hier alsnog encoded zodat quotes en alle scheidingstekens nooit betekenis lekken. */
 export function encodeTaskColumnIdSegment(value: string): string {
   if (value.length === 0) {
     throw new TypeError('TaskColumnId-segment mag niet leeg zijn');
@@ -72,8 +70,6 @@ export function baselineColumnId(
   return taskColumnId(`baseline:${encodeTaskColumnIdSegment(projectId)}:${encodeTaskColumnIdSegment(baselineId)}:${field}`);
 }
 
-/** Strikte decoder: alleen de drie bekende families, exact het juiste aantal segmenten en de
- * canonieke percentencoding worden geaccepteerd. */
 export function decodeDynamicTaskColumnId(id: string): DynamicTaskColumnIdParts | null {
   const parts = id.split(':');
   if (parts[0] === 'activity-code' && parts.length === 3) {

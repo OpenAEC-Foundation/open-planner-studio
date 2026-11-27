@@ -58,14 +58,6 @@ export function computeVirtualWindow(input: VirtualWindowInput): VirtualWindow {
   };
 }
 
-/**
- * Minimaal nieuwe scrollTop om een absolute rij volledig te tonen.
- *
- * `bottomInset` is een strook onder de laatste rij die wel schuift maar over de onderrand bedekt
- * blijft: de eindstrook voor de zwevende horizontale balk (`OVERLAY_SCROLLBAR_SIZE`). Een rij is
- * pas volledig zichtbaar als hij boven die strook eindigt; het bereik groeit met dezelfde strook.
- * Zonder dit stopte Ctrl+End 8 px vóór het einde, onder de balk (review #362).
- */
 export function minimalScrollTopForRow(
   rowIndex: number,
   currentScrollTop: number,
@@ -93,7 +85,6 @@ export interface VirtualTaskColumn {
   pinned: boolean;
 }
 
-/** Indexwindow voor gewone kolommen; pinned kolommen blijven ongeacht hun index gemount. */
 export function virtualizeTaskColumns<T extends VirtualTaskColumn>(
   columns: readonly T[],
   startIndex: number,

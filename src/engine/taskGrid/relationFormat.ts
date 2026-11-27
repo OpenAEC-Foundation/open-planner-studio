@@ -77,10 +77,6 @@ function resolveSegments(parts: readonly string[], protectedCount: number): stri
   return result;
 }
 
-/**
- * Platformonafhankelijke, uitsluitend lexicale identiteit voor externe bronpaden. Het originele
- * pad blijft elders bewaard voor tonen en lezen; deze vorm is alleen voor vergelijken en hashen.
- */
 export function normalizeExternalSourcePath(filePath: string): string | null {
   if (!filePath || filePath.includes('\0')) return null;
 
@@ -113,8 +109,6 @@ export function normalizeExternalSourcePath(filePath: string): string | null {
   return segments.length ? `/${segments.join('/')}` : '/';
 }
 
-// Synchronous SHA-256 keeps sourceProjectKey usable in clipboard formatters, pure planners and
-// refresh matching without browser-only async Web Crypto or Node-only imports.
 function sha256HexUtf8(value: string): string {
   const bytes = new TextEncoder().encode(value);
   const bitLength = bytes.length * 8;
@@ -184,16 +178,11 @@ export function sourceProjectKeyFor(sourceRef: ExternalSourceRef, origin: Extern
   return externalSourcePathKey(sourceRef.filePath) ?? `id-only:${origin.ownerTaskId}:${origin.linkId}`;
 }
 
-/** Een lag in werkdagen van een externe relatie: eindig en niet onveilig groot. Een breuk mag (I12, zoals
- *  bij een interne relatie). Een lag in minuten blijft een heel getal. Gedeeld door de invoer, het
- *  klembord en het relatieplan, zodat de drie routes dezelfde grens hebben. */
 export function isValidExternalLagValue(key: 'lagDays' | 'lagMinutes', value: unknown): value is number {
   if (typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > MAX_LAG_ABS) return false;
   return key === 'lagDays' || Number.isSafeInteger(value);
 }
 
-/** Een lag in werkdagen op zes decimalen, zoals de lag van een interne relatie (`parseLagInput`) en de
- *  opslag in IFC; zo wordt "1/3" geen lange staart. Zonder `-0`. */
 function externalLagDays(value: number): number {
   return Number(value.toFixed(6)) || 0;
 }
@@ -206,8 +195,6 @@ export function parseExternalLagInput(input: string): ExternalLag | null {
   const value = Number.parseFloat(match[1].replace(',', '.'));
   if (!Number.isFinite(value) || Math.abs(value) > MAX_LAG_ABS) return null;
   const suffix = match[2] ?? 'd';
-  // Uren worden hele minuten. Dagen houden hun breuk (I12): "0,5d" is een halve werkdag, net als bij
-  // een interne relatie. Vroeger rondde deze invoer half van nul af ("0,5d" werd 1 werkdag).
   if (suffix === 'u' || suffix === 'h') {
     const lagMinutes = Math.round(value * 60) || 0;
     return isValidExternalLagValue('lagMinutes', lagMinutes) ? { lagMinutes } : null;
@@ -216,8 +203,6 @@ export function parseExternalLagInput(input: string): ExternalLag | null {
   return isValidExternalLagValue('lagDays', lagDays) ? { lagDays } : null;
 }
 
-/** De lag van een externe relatie is óf minuten óf dagen, nooit beide: minuten winnen zodra ze
- *  gezet zijn (ook 0), anders de dagen (standaard 0). De weergave hieronder volgt dezelfde voorrang. */
 export function exclusiveExternalLag(lag: ExternalLagFields): ExternalLag {
   return lag.lagMinutes !== undefined ? { lagMinutes: lag.lagMinutes } : { lagDays: lag.lagDays ?? 0 };
 }
@@ -227,13 +212,11 @@ function canonicalLag(lag: ExternalLagFields): ExternalLag {
     return { lagMinutes: Math.round(lag.lagMinutes) };
   }
   if (isFiniteNumber(lag.lagDays)) {
-    // De breuk blijft (I12): de weergave en het klembord tonen de lag zoals hij rekent.
     return { lagDays: lag.lagDays || 0 };
   }
   return { lagDays: 0 };
 }
 
-/** Korte lagtekst van een externe relatie; `hourSuffix` volgt de app-taal ("+2u" nl, "+2h" en). */
 export function formatExternalLagShort(lag: ExternalLagFields, hourSuffix: 'u' | 'h' = 'u'): string {
   const canonical = canonicalLag(lag);
   if (canonical.lagMinutes !== undefined) {
@@ -244,10 +227,6 @@ export function formatExternalLagShort(lag: ExternalLagFields, hourSuffix: 'u' |
   return days === 0 ? '' : `${days > 0 ? '+' : ''}${trimNumber(days, 6)}d`;
 }
 
-/**
- * Welke zijde van de brontaak het bevroren anker voedt. Bij een voorganger is dat het eerste
- * typekarakter; bij een opvolger het tweede: FS/FF versus SS/SF, respectievelijk FS/SS versus FF/SF.
- */
 export function externalSourceSide(
   direction: ExternalDirection,
   relType: ExternalRelationType,
@@ -352,7 +331,6 @@ export function formatExternalRelationClipboard(
   return `${visible}${TOKEN_MARKER}${encodeBase64Url(payloadJson(payload))}${TOKEN_END}`;
 }
 
-/** Zichtbare helft van de canonieke clipboardvorm, voor celchips en editortekst. */
 export function formatExternalRelationVisible(link: ExternalLink, hourSuffix: 'u' | 'h' = 'u'): string {
   return `${canonicalExternalSourceLabel(link.sourceRef)} ${link.relType}${formatExternalLagShort(canonicalLag(link), hourSuffix)}`;
 }
