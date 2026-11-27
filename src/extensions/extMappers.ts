@@ -1,20 +1,3 @@
-/**
- * Grensvertaling tussen het interne domeinmodel (`src/types/`) en het publieke extensie-contract
- * (`extTypes.ts`). ALLE conversie tussen die twee werelden loopt hierdoorheen — nergens anders in de
- * extensie-laag mag een interne `Task`/`Project`/… rechtstreeks naar buiten of naar binnen.
- *
- * Twee richtingen:
- *   • `toExt*`   — interne (Immer-BEVROREN) store-objecten → VERSE, MUTEERBARE `Ext*`-kopieën.
- *                  Diep gekopieerd, zodat een extensie z'n kopie mag muteren zónder de store te raken.
- *   • `fromExt*` — `Ext*`-invoer van een extensie → interne vorm voor de store-acties / `loadState`.
- *
- * Elke mapper bouwt zijn resultaat VELD-VOOR-VELD met een expliciet return-type. Zo geldt:
- *   (a) voeg je een VERPLICHT `Ext*`-veld toe zonder het hier te mappen → compileerfout; voor
- *       OPTIONELE velden vangt de compiler dat niet (weglaten uit een object-literal is legaal) —
- *       die moet je bij een DTO-uitbreiding zelf in álle betrokken mappers nalopen (incl. de
- *       `fromExt*Input`/`fromExt*Updates`-paden, die per veld `if (x !== undefined)` doorgeven);
- *   (b) hernoem je een INTERN veld → dat duikt alléén hier op, nooit in extensie-code.
- */
 import { localTodayIso } from '@/utils/dateUtils';
 import { withTaskTypeColors } from '@/services/taskTypes/customTaskTypeColors';
 import type { Project } from '@/types/project';
@@ -48,12 +31,6 @@ import type {
   ExtFontProvider,
 } from './extTypes';
 
-// ── Kleine helpers (diepe kopie van geneste, mogelijk bevroren, waarden) ──
-
-/** De zes publieke reken-opties: de ENE sleutellijst. `toExtProject`/`fromExtProject` kopiëren alleen
- *  deze sleutels, en `retainActiveDocument` vervangt bij lees-wijzig-laad precies deze sleutels. De
- *  typeregel eronder faalt te compileren zodra `ExtSchedulingOptions` een sleutel krijgt die hier
- *  ontbreekt. */
 export const PUBLIC_SCHEDULING_OPTION_KEYS = [
   'lagCalendar', 'criticalDefinition', 'totalFloatMode', 'makeOpenEndedCritical', 'nearCriticalThreshold', 'floatPaths',
 ] as const satisfies readonly (keyof ExtSchedulingOptions)[];
@@ -61,12 +38,6 @@ const _publicOptionKeysComplete: [Exclude<keyof ExtSchedulingOptions, (typeof PU
   ? true : never = true;
 void _publicOptionKeysComplete;
 
-/** Publieke scheduling-options worden sleutel-voor-sleutel gereconstrueerd. Dit is tegelijk een
- *  mutabiliteitsgrens en een beveiligingsgrens: runtime-objecten van JS-extensies kunnen extra
- *  interne `p6*`-sleutels dragen die niet in `ExtSchedulingOptions` staan. Een spread zou die
- *  ongemerkt als solverinvoer activeren. De native XER-lezer zet zulke bronopties rechtstreeks op
- *  het interne model en loopt dus niet door deze generieke extensie-invoer. Geneste objecten
- *  (`criticalDefinition`, `floatPaths`) worden ondiep gekopieerd, zoals voorheen. */
 export function publicSchedulingOptions(o: ExtSchedulingOptions): ExtSchedulingOptions {
   const out: Record<string, unknown> = {};
   for (const key of PUBLIC_SCHEDULING_OPTION_KEYS) {
@@ -148,8 +119,6 @@ function toIntHoliday(h: ExtHoliday): Holiday {
   return { name: h.name, startDate: h.startDate, endDate: h.endDate };
 }
 
-/** `bands` mee-kopiëren (niet spreaden) — een kale spread zou anders het bevroren store-array-object
- *  doorgeven. */
 function copyWorkingException(w: WorkingException): ExtWorkingException {
   return { name: w.name, startDate: w.startDate, endDate: w.endDate, ...(w.bands ? { bands: w.bands.map((b) => ({ start: b.start, end: b.end })) } : {}) };
 }
@@ -163,8 +132,6 @@ function copyAvailStep(s: AvailabilityStep): ExtAvailabilityStep {
 function toIntAvailStep(s: ExtAvailabilityStep): AvailabilityStep {
   return { from: s.from, maxUnits: s.maxUnits };
 }
-
-// ── Project ──
 
 export function toExtProject(p: Project): ExtProject {
   return {
@@ -184,7 +151,6 @@ export function toExtProject(p: Project): ExtProject {
     defaultTaskDurationUnit: p.defaultTaskDurationUnit,
     defaultWorkRule: p.defaultWorkRule,
     schedulingOptions: p.schedulingOptions ? publicSchedulingOptions(p.schedulingOptions) : undefined,
-    // Contract 1.2.0: het opgeloste profiel, alleen-lezen.
     schedulingProfile: {
       id: p.schedulingProfile?.id ?? 'ops',
       baseId: p.schedulingProfile?.baseId ?? 'ops',
@@ -212,12 +178,8 @@ export function fromExtProject(p: ExtProject): Project {
     defaultTaskDurationUnit: p.defaultTaskDurationUnit,
     defaultWorkRule: p.defaultWorkRule,
     schedulingOptions: p.schedulingOptions ? publicSchedulingOptions(p.schedulingOptions) : undefined,
-    // Bewust géén `schedulingProfile` (B29): een extensie zet de rekenregels nooit zelf. Laadt ze
-    // hetzelfde project terug, dan houdt `retainActiveDocument` het profiel van het document vast.
   };
 }
-
-// ── Kalender ──
 
 export function toExtCalendar(c: WorkCalendar): ExtCalendar {
   return {
@@ -257,8 +219,6 @@ export function fromExtCalendar(c: ExtCalendar): WorkCalendar {
   };
 }
 
-// ── Taaktijd ──
-
 export function toExtTaskTime(tt: TaskTime): ExtTaskTime {
   return {
     durationType: tt.durationType,
@@ -283,27 +243,11 @@ export function toExtTaskTime(tt: TaskTime): ExtTaskTime {
     remainingTime: tt.remainingTime,
     remainingMinutes: tt.remainingMinutes,
     completion: tt.completion,
-    // resume/stop: zelfde onvoorwaardelijke doorgifte als de andere optionele
-    // tracking-velden hierboven (`undefined` blijft `undefined`).
     resume: tt.resume,
     stop: tt.stop,
   };
 }
 
-/**
- * Grensverdediging bij `addTask`: `ExtTaskTime` declareert `durationType`/
- * `scheduleDuration`/`scheduleStart`/`scheduleFinish`/`earlyStart`/`earlyFinish`/`lateStart`/
- * `lateFinish`/`freeFloat`/`totalFloat`/`isCritical`/`completion` als VERPLICHT — maar dat is alleen
- * een TS-compileertijd-garantie. Een extensie draait ONGETYPEERD (`new Function`-sandbox, CommonJS);
- * niets valideert op runtime dat een binnenkomend object die velden ook echt draagt. Een ontbrekend
- * `completion` zou tot in `Task.time` doorlopen en `writeIFC` laten crashen op
- * `time.completion.toFixed(1)` (`ifcTaskSlots.ts`). Elk verplicht veld krijgt daarom een expliciete,
- * niet-crashende terugval (`??`, dus `false`/`0` blijven staan): datumvelden vallen terug op `scheduleStart`/
- * `-Finish` (zelf terugvallend op vandaag), getallen op 0, `isCritical` op `false`, `completion` op 0
- * — dezelfde geest als `createDefaultTaskTime`. De bron-laag (`taskSlice`/`mcpTransaction`, zie hun
- * `mergeTaskTime`) herstelt daarna evt. datum-samenhang tegen het echte projectanker; dit is de
- * grensverdediging die voorkomt dat een onvolledig extensie-object hier al een writer-crash veroorzaakt.
- */
 export function fromExtTaskTime(tt: ExtTaskTime): TaskTime {
   const start = tt.scheduleStart ?? localTodayIso();
   const finish = tt.scheduleFinish ?? start;
@@ -330,14 +274,10 @@ export function fromExtTaskTime(tt: ExtTaskTime): TaskTime {
     remainingTime: tt.remainingTime,
     remainingMinutes: tt.remainingMinutes,
     completion: tt.completion ?? 0,
-    // resume/stop hebben geen zinvolle generieke fallback (net als
-    // actualStart/actualFinish hierboven) — afwezig blijft afwezig.
     resume: tt.resume,
     stop: tt.stop,
   };
 }
-
-// ── Taak ──
 
 export function toExtTask(t: Task, customTaskType?: { id: string; name: string }): ExtTask {
   return {
@@ -346,7 +286,6 @@ export function toExtTask(t: Task, customTaskType?: { id: string; name: string }
     description: t.description,
     wbsCode: t.wbsCode,
     taskType: t.taskType,
-    // Het contract kent id en naam; de kleur van de werksoort (#856) hoort er niet bij.
     ...(t.customTaskTypeId ? { customTaskType: customTaskType ? { id: customTaskType.id, name: customTaskType.name } : { id: t.customTaskTypeId } } : {}),
     status: t.status,
     isMilestone: t.isMilestone,
@@ -354,21 +293,13 @@ export function toExtTask(t: Task, customTaskType?: { id: string; name: string }
     mandatory: t.mandatory,
     priority: t.priority,
     levelingDelay: t.levelingDelay,
-    // levelingDelayMinutes/-Elapsed, splitGaps, manuallyScheduled: zelfde onvoorwaardelijke
-    // doorgifte als levelingDelay hierboven.
     levelingDelayMinutes: t.levelingDelayMinutes,
     levelingDelayElapsed: t.levelingDelayElapsed,
     splitGaps: t.splitGaps ? t.splitGaps.map(g => ({ ...g })) : undefined,
     manuallyScheduled: t.manuallyScheduled,
-    // Deze velden reizen WEL mee door de VOLLEDIGE vertaling (`fromExtTask` — het invoerpad van een
-    // extensie-importer mag geen velden laten vallen, contract-poort `check-ext-contract.ts`), maar
-    // blijven buiten de create-/update-paden (`fromExtTaskInput`). `mspTaskType`/`effortDriven` zijn
-    // ook via MCP niet zetbaar (`taskFields.ts` REJECT_HINTS); `workRule` wel.
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
     workRule: t.workRule,
-    // P6/XER-herkomst is READ-ONLY voor extensies. `toExtTask` toont de bronvelden voor
-    // analyse; `fromExtTask` hieronder accepteert ze bewust niet als generieke invoer.
     p6DurationType: t.p6DurationType,
     p6ActivityType: t.p6ActivityType,
     p6ProjectId: t.p6ProjectId,
@@ -399,7 +330,6 @@ export function toExtTask(t: Task, customTaskType?: { id: string; name: string }
   };
 }
 
-/** Volledige Ext→intern taakvertaling (bv. binnen een geladen project). */
 export function fromExtTask(t: ExtTask): Task {
   return {
     id: t.id,
@@ -414,21 +344,13 @@ export function fromExtTask(t: ExtTask): Task {
     mandatory: t.mandatory,
     priority: t.priority,
     levelingDelay: t.levelingDelay,
-    // levelingDelayMinutes/-Elapsed, splitGaps, manuallyScheduled: zelfde onvoorwaardelijke
-    // doorgifte als levelingDelay hierboven.
     levelingDelayMinutes: t.levelingDelayMinutes,
     levelingDelayElapsed: t.levelingDelayElapsed,
     splitGaps: t.splitGaps ? t.splitGaps.map(g => ({ ...g })) : undefined,
     manuallyScheduled: t.manuallyScheduled,
-    // De VOLLEDIGE vertaling vernietigt geen data (contract-poort `check-ext-contract.ts`) — ook de
-    // .mpp-leeskant-velden reizen mee terug. De create-/update-paden (`fromExtTaskInput`,
-    // extensie-API) blijven hier bewust buiten.
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
     workRule: t.workRule,
-    // De P6/XER-velden zijn bronprovenance, geen publieke generieke invoer.
-    // De native XER-reader en het IFC-round-trippad materialiseren ze rechtstreeks op `Task`;
-    // een ongetypeerde extensiepayload mag via deze mapper geen P6-solverroute activeren.
     timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, ...(c.resourceId !== undefined ? { resourceId: c.resourceId } : {}), periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
     timephasedStartAnchor: t.timephasedStartAnchor,
@@ -451,11 +373,6 @@ export function fromExtTask(t: ExtTask): Task {
   };
 }
 
-/**
- * Ext-taakINVOER voor `api.data.addTask` → interne invoer voor de store-actie. Alleen de door de
- * extensie gezette velden worden doorgegeven; de store-actie vult zelf de defaults aan. `name` is
- * verplicht (zoals de store-actie eist); `time` wordt naar interne vorm gemapt indien meegegeven.
- */
 export function fromExtTaskInput(
   input: Partial<ExtTask> & { name: string },
 ): Partial<Task> & { name: string } {
@@ -477,8 +394,6 @@ export function fromExtTaskInput(
   if (input.mandatory !== undefined) out.mandatory = input.mandatory;
   if (input.priority !== undefined) out.priority = input.priority;
   if (input.levelingDelay !== undefined) out.levelingDelay = input.levelingDelay;
-  // levelingDelayMinutes/-Elapsed, splitGaps, manuallyScheduled: zelfde "alleen-als-gezet"-vorm als
-  // levelingDelay hierboven.
   if (input.levelingDelayMinutes !== undefined) out.levelingDelayMinutes = input.levelingDelayMinutes;
   if (input.levelingDelayElapsed !== undefined) out.levelingDelayElapsed = input.levelingDelayElapsed;
   if (input.splitGaps !== undefined) out.splitGaps = input.splitGaps.map(g => ({ ...g }));
@@ -501,21 +416,6 @@ export function fromExtTaskInput(
   return out;
 }
 
-/**
- * `api.data.addTask`-invoer: als `fromExtTaskInput`, maar een
- * URENtaak waarvoor de extensie GEEN `scheduleFinish` meegaf krijgt ook geen einde uit de grensterugval
- * (`fromExtTaskTime` vult `scheduleFinish`/`earlyFinish`/`lateFinish` anders met de start). Zo ziet de
- * store-`addTask` geen "meegegeven einde" en leidt `seedNewHourTaskFinish` het einde af uit start + duur
- * op de taakkalender — dezelfde regel als elke andere nieuwe urentaak. Een meegegeven einde wint; een
- * dagtaak blijft ongewijzigd. Niet voor `sdk.factory.createTask`: die bouwt een volledig DTO zonder
- * document of kalender en kan dus niets afleiden.
- *
- * Alleen voor een taak die meebeweegt (`hourInputFinishFollowsEdits`: niet gestart, niet handmatig,
- * geen samenvatting/hammock/P6-targetvenster) — anders zou de store het einde niet afleiden en viel het
- * op de verse default terug. Ook een meegegeven `earlyFinish`/`lateFinish` zonder `scheduleFinish` wordt
- * genegeerd: dat is rekenuitvoer die de eerstvolgende berekening toch overschrijft,
- * en zo zijn gepland en vroegst einde vóór die berekening coherent.
- */
 export function fromExtTaskAddInput(
   input: Partial<ExtTask> & { name: string },
 ): Partial<Task> & { name: string } {
@@ -527,33 +427,10 @@ export function fromExtTaskAddInput(
   delete time.scheduleFinish;
   delete time.earlyFinish;
   delete time.lateFinish;
-  // Runtime-partieel: `taskSlice.addTask` merget `partial.time` veld-voor-veld met de verse default.
   out.time = time as TaskTime;
   return out;
 }
 
-/**
- * Extensie-rand, UPDATE-pad. `fromExtTaskTime` (hierboven) vult ontbrekende verplichte velden met
- * GENERIEKE defaults — goed voor `addTask`, fout voor `api.data.updateTask`: `mergeTaskTime` zou
- * dan een reeds-compleet object zien en de ECHTE bestaande completion/floats/etc. overschrijven.
- * Deze functie kopieert daarom VELD-VOOR-VELD zonder fallback (ontbrekend blijft ontbrekend);
- * `taskSlice.updateTask`'s `mergeTaskTime` vult het ontbrekende aan uit de bestaande taaktijd.
- *
- * Een object-LITERAL met elke sleutel expliciet genoemd (`{ durationMinutes: tt.durationMinutes, ... }`)
- * zet die sleutel ALTIJD als eigen property, ook als hij op `tt` nooit voorkwam — en `mergeTaskTime`
- * leest sleutel-aanwezigheid als "expliciet gewist". Een partiële `api.data.updateTask({time:
- * {scheduleStart:...}})` zou zo `durationMinutes`/`actualStart`/… wissen (gepind in blok (10b) van
- * check-ifc-roundtrip.ts). Elk optioneel veld wordt daarom pas op `out` gezet als de sleutel ook ECHT
- * op `tt` aanwezig is (`'veld' in tt`, NIET `tt.veld !== undefined` — dat laatste zou een BEWUSTE
- * clear via een expliciete `undefined`-waarde weer verkeerd als "niet genoemd" lezen).
- *
- * Bewust open: `remainingTime`/`remainingMinutes` gaan hier ONGEVALIDEERD door naar `TaskTime`, zonder
- * consistentiecheck tegen `completion`. De MCP-tools weigeren die velden (`taskFields.ts`'s
- * `PROGRESS_REJECT_HINTS`); een extensie kan met een inconsistente `remainingTime` dus een niet-ronde
- * klokstand zetten. Directe veldtoegang is precies het contract dat de extensie-API voor `TaskTime`
- * biedt — een check hier zou legitiem gebruik (een extensie die zelf een precieze restduur bijhoudt)
- * net zo goed blokkeren.
- */
 function fromExtTaskTimePatch(tt: Partial<ExtTaskTime>): Partial<TaskTime> {
   const out: Partial<TaskTime> = {};
   if ('durationType' in tt) out.durationType = tt.durationType;
@@ -577,15 +454,11 @@ function fromExtTaskTimePatch(tt: Partial<ExtTaskTime>): Partial<TaskTime> {
   if ('remainingTime' in tt) out.remainingTime = tt.remainingTime;
   if ('remainingMinutes' in tt) out.remainingMinutes = tt.remainingMinutes;
   if ('completion' in tt) out.completion = tt.completion;
-  // resume/stop volgen dezelfde sleutel-aanwezigheid-conventie als de andere
-  // optionele velden hierboven — cruciaal voor dezelfde reden (zie de docstring boven deze functie):
-  // `mergeTaskTime` (taskDefaults.ts) onderscheidt "niet genoemd" van "bewust gewist" via `in`.
   if ('resume' in tt) out.resume = tt.resume;
   if ('stop' in tt) out.stop = tt.stop;
   return out;
 }
 
-/** Ext-taakWIJZIGINGEN voor `api.data.updateTask` → interne `Partial<Task>`. */
 export function fromExtTaskUpdates(updates: Partial<ExtTask>): Partial<Task> {
   const out: Partial<Task> = {};
   if (updates.name !== undefined) out.name = updates.name;
@@ -605,8 +478,6 @@ export function fromExtTaskUpdates(updates: Partial<ExtTask>): Partial<Task> {
   if (updates.mandatory !== undefined) out.mandatory = updates.mandatory;
   if (updates.priority !== undefined) out.priority = updates.priority;
   if (updates.levelingDelay !== undefined) out.levelingDelay = updates.levelingDelay;
-  // levelingDelayMinutes/-Elapsed, splitGaps, manuallyScheduled: zelfde "alleen-als-gezet"-vorm als
-  // levelingDelay hierboven.
   if (updates.levelingDelayMinutes !== undefined) out.levelingDelayMinutes = updates.levelingDelayMinutes;
   if (updates.levelingDelayElapsed !== undefined) out.levelingDelayElapsed = updates.levelingDelayElapsed;
   if (updates.splitGaps !== undefined) out.splitGaps = updates.splitGaps.map(g => ({ ...g }));
@@ -614,10 +485,6 @@ export function fromExtTaskUpdates(updates: Partial<ExtTask>): Partial<Task> {
   if (updates.parentId !== undefined) out.parentId = updates.parentId;
   if (updates.childIds !== undefined) out.childIds = [...updates.childIds];
   if (updates.isSummary !== undefined) out.isSummary = updates.isSummary;
-  // `fromExtTaskTimePatch`, NIET `fromExtTaskTime` — zie de docstring daarboven. `out.time`
-  // is hier op TS-niveau een volledige `TaskTime`, maar dat is dezelfde bewuste afwijking als
-  // `addTask`'s `partial.time`: de echte volledigheid wordt pas door `taskSlice.updateTask`'s
-  // `mergeTaskTime` (tegen de bestaande taaktijd) gegarandeerd, niet hier.
   if (updates.time !== undefined) out.time = fromExtTaskTimePatch(updates.time) as TaskTime;
   if (updates.resourceIds !== undefined) out.resourceIds = [...updates.resourceIds];
   if (updates.color !== undefined) out.color = updates.color;
@@ -632,8 +499,6 @@ export function fromExtTaskUpdates(updates: Partial<ExtTask>): Partial<Task> {
   if (updates.notes !== undefined) out.notes = updates.notes.map(copyNote);
   return out;
 }
-
-// ── Relatie ──
 
 export function toExtSequence(s: Sequence): ExtSequence {
   return {
@@ -662,7 +527,6 @@ export function fromExtSequence(s: ExtSequence): Sequence {
   };
 }
 
-/** Ext-relatieINVOER voor `api.data.addSequence` (zonder id) → interne invoer. */
 export function fromExtSequenceInput(seq: Omit<ExtSequence, 'id'>): Omit<Sequence, 'id'> {
   return {
     predecessorId: seq.predecessorId,
@@ -674,8 +538,6 @@ export function fromExtSequenceInput(seq: Omit<ExtSequence, 'id'>): Omit<Sequenc
     lagPercent: seq.lagPercent,
   };
 }
-
-// ── Resource + toewijzing ──
 
 export function toExtResource(r: Resource): ExtResource {
   return {
@@ -743,13 +605,6 @@ export function fromExtAssignment(a: ExtAssignment): ResourceAssignment {
   };
 }
 
-// ── Importresultaat ──
-
-/**
- * Ext-importresultaat → interne `ImportResult` (de vorm die `loadState`/de open-paden verwachten).
- * De rijkere optionele velden (resourceCalendars, activityCodeTypes, …) zet een extensie niet; die
- * blijven `undefined` en de store valt terug op zijn defaults.
- */
 export function fromExtImportResult(r: ExtImportResult): ImportResult {
   const catalog = new Map<string, { id: string; name: string }>();
   const names = new Map<string, string>();
@@ -782,16 +637,6 @@ export function fromExtImportResult(r: ExtImportResult): ImportResult {
   };
 }
 
-// ── UI-grens: ribbontabblad ──
-
-/**
- * Ext-facing tabblad-id → intern tabblad-id.
- *
- * De publieke waarde `relations` blijft voor bestaande extensies geldig, maar landt op `table`: er is
- * geen zelfstandig relatiepaneel; de volledige taakgrid bevat alle relatiefunctionaliteit. De
- * `Record` over de volledige `ExtRibbonTab`-unie dwingt af dat een nieuw ext-tabblad ook echt ergens
- * op uitkomt.
- */
 const RIBBON_TAB_MAP: Record<ExtRibbonTab, RibbonTab> = {
   file: 'file',
   start: 'start',
@@ -810,20 +655,6 @@ export function fromExtRibbonTab(tab: ExtRibbonTab): RibbonTab {
   return RIBBON_TAB_MAP[tab];
 }
 
-// ── PDF-fontprovider ──
-
-/**
- * Ext-facing font-provider → interne `CjkFontProvider`.
- *
- * Bewust een NIEUW object en geen doorgeef-referentie: de registry bewaart wat hij krijgt, en een
- * extensie die z'n eigen provider-object naderhand muteert (of er velden aan toevoegt die de
- * pagineerder ooit gaat lezen) zou anders rechtstreeks in de host-registry zitten. De methodes
- * worden gebonden aan het originele object, zodat een provider met interne state (bv. een
- * bytes-cache) gewoon blijft werken.
- *
- * `getBoldBytes` wordt alleen doorgegeven als hij er is — een sleutel met `undefined` erin zou de
- * `getBoldBytes?` -check in de pagineerder laten slagen op een niet-functie.
- */
 export function fromExtFontProvider(p: ExtFontProvider): CjkFontProvider {
   const out: CjkFontProvider = {
     id: p.id,

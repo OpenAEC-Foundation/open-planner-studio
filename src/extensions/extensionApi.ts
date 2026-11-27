@@ -1,10 +1,3 @@
-/**
- * Maakt per extensie een scoped API-instantie. De publieke datavormen zijn de `Ext*`-DTO's
- * (extTypes.ts) — interne domeintypes lekken nooit naar extensie-code; alle conversie loopt via
- * extMappers. Permissie-checks zijn NIET meer verspreid door de methodes maar gecentraliseerd in
- * `permissions.ts`: één tabel (pad → permissie) + één generieke wrapper (`applyPermissionGuards`).
- * Alle registraties worden bijgehouden in cleanupFns zodat disable ze terugdraait.
- */
 import type {
   ExtensionApi,
   ExtensionPermission,
@@ -46,10 +39,8 @@ import {
   fromExtFontProvider,
 } from './extMappers';
 
-// Re-export zodat bestaande importers (index.ts) ongewijzigd blijven werken.
 export { emitExtensionEvent };
 
-/** Appbrede binding voor extensie-UI en meldingen; documentdata loopt hier bewust niet doorheen. */
 export interface ExtensionHostBinding {
   app: AppStoreContext;
   showNotification(
@@ -57,19 +48,9 @@ export interface ExtensionHostBinding {
     message: string,
     type: 'info' | 'warning' | 'error',
   ): void;
-  /**
-   * Vertaalde importlabels (UI-taal) voor een project dat `api.help.openBundledProject` opent.
-   * Optioneel: een headless host laat hem weg en krijgt de standaardlabels van de lezer.
-   */
   importLabels?(): ImportLabels;
 }
 
-/**
- * Na `_cleanup` is de api ingetrokken (audit 2026-09-26): elke methode gooit. Een `onLoad` die pas
- * ná een time-out, een deactivering of een verwijdering verder loopt, kan zo geen knoppen,
- * importers of taken meer registreren die niemand meer opruimt. Een nieuwe activatie krijgt een
- * verse api.
- */
 function revokeApi(api: Record<string, unknown>, extensionId: string): void {
   for (const [groupName, group] of Object.entries(api)) {
     if (groupName === '_cleanup' || !group || typeof group !== 'object') continue;
@@ -119,16 +100,6 @@ export function createExtensionApi(
     return { id, name };
   };
 
-  /**
-   * WBS-ouder vanuit `data.addTask`/`data.updateTask` toetsen VÓÓR er iets gemuteerd wordt. Rauw
-   * via `fromExtTaskUpdates` + `updateTask` (Object.assign) zou `kind.parentId` naar de ouder wijzen
-   * terwijl diens `childIds` van niets weet — na `runCPM` wordt de ouder zo géén samenvattingstaak —
-   * en een onbekende ouder zou gewoon aangenomen worden. De guards zijn die van de store-route
-   * (`moveTaskTo`/`planTaskPlacement`: onbekende ouder, taak onder zichzelf of een eigen
-   * afstammeling), maar de store weigert stil; een extensie krijgt hier een fout, in dezelfde vorm
-   * als de `customTaskType`-weigeringen hierboven. `taskId` ontbreekt bij `addTask`: een nieuwe taak
-   * heeft nog geen afstammelingen, dus een kring kan daar niet.
-   */
   const assertParentAllowed = (taskId: string | undefined, parentId: string): void => {
     const tasks = document.store.getState().tasks;
     if (!tasks.some(task => task.id === parentId)) {
@@ -141,15 +112,6 @@ export function createExtensionApi(
     }
   };
 
-  /**
-   * `resourceIds` van een taak is een AFGELEIDE van de toewijzingen (`assignResource` houdt hem bij,
-   * de lezers reconstrueren hem uit de toewijzingen en hij wordt niet los opgeslagen). Rauw
-   * doorgegeven lijkt de taak toegewezen, maar zonder toewijzing is er geen belasting, en na opslaan
-   * is het weg. MCP weigert het veld ook. Zelfde vorm als de ouderwijziging (`parentId`): gelijk aan
-   * de huidige waarde — een ongewijzigd `getTasks()`-object, of `[]` bij een nieuwe taak — wordt
-   * genegeerd; een andere waarde gooit een fout vóór er iets gewijzigd is, met de route die wél
-   * toewijst. De volgorde telt niet (het is een verzameling).
-   */
   const assertResourceIdsUnchanged = (
     taskLabel: string,
     current: readonly string[],
@@ -182,9 +144,6 @@ export function createExtensionApi(
       },
     },
 
-    /** Lees-/schrijftoegang tot planningsdata. `get*` levert VERSE, MUTEERBARE Ext*-kopieën
-     *  (gemapt uit de Immer-bevroren store) — muteren ervan raakt de store niet. Schrijf via
-     *  addTask/updateTask/addSequence en roep daarna recalculate() aan. */
     data: {
       getSelectedTaskIds: () => [...document.store.getState().selectedTaskIds],
       getProject: () => toExtProject(document.store.getState().project),
@@ -206,8 +165,6 @@ export function createExtensionApi(
       },
       getImportSourceIssue: () => {
         const state = document.store.getState();
-        // Alleen als er GEEN archief is: een bruikbaar archief heeft per definitie geen issue, en
-        // een verse kopie van de code (geen referentie naar store-state).
         return !state.xerSourceArchive && state.xerArchiveIssue
           ? { code: state.xerArchiveIssue.code }
           : null;
@@ -218,11 +175,6 @@ export function createExtensionApi(
       },
       getImportSourceCatalogPage: (collection, options) => {
         const state = document.store.getState();
-        // `getExtImportSourceCatalogPage` bewaakt de drift zelf zodra er een archief is — maar als
-        // het actieve document NA een `switchDocument` helemaal geen XER-bron meer heeft, wordt die
-        // functie hier onder nooit aangeroepen (er is geen `archive` om aan door te geven). Zonder
-        // deze losse check zou een `expectedSourceProjectId` dan stil een `null` terugkrijgen i.p.v.
-        // de bedoelde `ExtImportSourceDriftError`.
         if (!state.xerSourceArchive) {
           assertNoImportSourceDrift(options?.expectedSourceProjectId, null);
           return null;
@@ -231,17 +183,9 @@ export function createExtensionApi(
           state.xerSourceArchive, state.xerImportMetadata, state.xerSourceProjectId, collection, options,
         );
       },
-      // ÁLLE `data.*`-schrijfroutes lopen via
-      // `batch.withTransaction` — één undo-stap per call, en nooit via `finishUndoable` buiten batch.
-      // Die route stempelt tijdens een open bewerksessie (taakdialoog) de `sessionKey`, en dan zou
-      // Annuleren in de dialoog extensiewerk stil terugdraaien (docblok `SessionHistoryEvent.sessionKey`).
       addTask: (task) => {
-        // Een nieuwe taak heeft nog geen toewijzingen: alleen `[]` (bv. uit de SDK-taakfabriek) mag mee.
         const { resourceIds: requestedResourceIds, ...input } = task;
         assertResourceIdsUnchanged('een nieuwe taak', [], requestedResourceIds);
-        // De store-`addTask` weigert (met melding, `''` als id) een mijlpaal als eerste kind van een
-        // taak met toewijzingen: die toewijzingen zouden nergens heen kunnen. Een
-        // extensie krijgt dan een fout in plaats van een id dat niet bestaat.
         const added = (id: string): string => {
           if (!id) {
             throw new Error(`Extensie "${extensionId}": taak '${task.name}' niet toegevoegd — de ouder heeft `
@@ -249,35 +193,21 @@ export function createExtensionApi(
           }
           return id;
         };
-        // Een bestaande ouder hangt de store-`addTask` zelf aan beide kanten op; alleen een
-        // onbekende ouder liet hij als bungelende `parentId` staan. `''` ⇒ wortel, net als daar
-        // (`partial.parentId || null`).
         if (input.parentId) assertParentAllowed(undefined, input.parentId);
         const materialize = customTaskTypeToMaterialize(input.customTaskType);
-        // Catalogus + toewijzing vormen voor de gebruiker één wijziging en dus één undo-stap.
         return batch.withTransaction(() => {
           if (materialize) document.store.getState().ensureProjectTaskType(materialize);
-          // Een extensie kan geen venster tonen: vaste keuze "verplaatsen", het gedrag van vóór de vraag
-          // "Taak wordt een samenvattingstaak" (eigenaarsbesluit 2026-10-17 geldt voor de gebruikersroutes).
           return added(document.store.getState().addTask(fromExtTaskAddInput(input), { phaseAssignments: 'move' }));
         });
       },
       updateTask: (id, updates) => {
-        // `resourceIds` nooit mee in de veldpatch: afgeleid van de toewijzingen (zie
-        // `assertResourceIdsUnchanged`).
         const { resourceIds: requestedResourceIds, ...withoutResourceIds } = updates;
-        // Bestaand API-gedrag voor een onbekend taak-id is een stille no-op; materialiseer in dat
-        // geval ook geen los catalogusitem waar uiteindelijk geen taaktoewijzing tegenover staat.
         const current = document.store.getState().tasks.find(task => task.id === id);
         if (!current) {
           batch.withTransaction(() => document.store.getState().updateTask(id, fromExtTaskUpdates(withoutResourceIds)));
           return;
         }
         assertResourceIdsUnchanged(`taak '${id}'`, current.resourceIds, requestedResourceIds);
-        // Een ouderwijziging is een VERPLAATSING, geen veld: ze loopt via dezelfde store-actie als
-        // rij-slepen (`moveTaskTo`), die `parentId`, beide `childIds` en de rauwe takenvolgorde
-        // samen bijwerkt. Daarom nooit mee in de kale veldpatch. Dezelfde ouder (ook een
-        // `getTasks()`-object dat ongewijzigd terugkomt) is geen verplaatsing; `''` ⇒ wortel.
         const { parentId: requestedParentId, ...fieldUpdates } = withoutResourceIds;
         const move = requestedParentId !== undefined
           && (requestedParentId || null) !== (current.parentId || null)
@@ -286,16 +216,9 @@ export function createExtensionApi(
         if (move?.parentId) assertParentAllowed(id, move.parentId);
         const materialize = customTaskTypeToMaterialize(fieldUpdates.customTaskType);
         const patch = fromExtTaskUpdates(fieldUpdates);
-        // Niets over (bv. alleen een ongewijzigde `resourceIds` of ouder): geen lege undo-stap.
         if (!materialize && !move && Object.keys(patch).length === 0) return;
-        // Catalogus, verplaatsing en veldwijziging vormen voor de gebruiker één wijziging en dus
-        // één undo-stap. Eerst verplaatsen: met WBS-autonummering hernummert `moveTaskTo`, en een
-        // `wbsCode` uit dezelfde aanroep blijft dan staan.
         batch.withTransaction(() => {
           if (materialize) document.store.getState().ensureProjectTaskType(materialize);
-          // Index voorbij het einde wordt in de store geklemd ⇒ achteraan bij de nieuwe ouder, zoals
-          // het wijzigen van de ouder in het taakvenster (`moveTask` zonder positie).
-          // Vaste keuze "verplaatsen", zoals `addTask` hierboven.
           if (move) {
             document.store.getState().moveTaskTo(
               id, { parentId: move.parentId, childIndex: Number.MAX_SAFE_INTEGER }, { phaseAssignments: 'move' },
@@ -307,11 +230,8 @@ export function createExtensionApi(
       addSequence: (seq) => batch.withTransaction(
         () => document.store.getState().addSequence(fromExtSequenceInput(seq)),
       ),
-      // Zie `loadExtensionProject`: hetzelfde project-id houdt vast wat het contract niet draagt.
       loadProject: (result: ExtImportResult) => loadExtensionProject(document.store, result),
       recalculate: () => document.store.getState().runCPM(),
-      // Eén snapshot voor de hele reeks i.p.v. één per mutatie — lineair in plaats van
-      // kwadratisch, en één undo-stap voor wat de gebruiker als één handeling ziet.
       batch: <T,>(fn: () => T): T => batch.withTransaction(fn),
     },
 
@@ -325,7 +245,6 @@ export function createExtensionApi(
         unsubscribeExtensionEvent(event, listener);
       },
       emit(event: string, data?: unknown) {
-        // De host-naamruimte is alleen-lezen voor extensies, inclusief toekomstige host-events.
         if (event.startsWith('host:')) {
           throw new Error('The host: event namespace is reserved for the application.');
         }
@@ -335,7 +254,6 @@ export function createExtensionApi(
 
     ui: {
       addRibbonButton(reg: RibbonButtonRegistration) {
-        // Grensvertaling: ext-facing tabblad-id → intern tabblad-id (zie extMappers).
         host.app.store.getState().addExtensionRibbonButton({
           ...reg,
           tab: fromExtRibbonTab(reg.tab),
@@ -366,8 +284,6 @@ export function createExtensionApi(
 
     pdfFonts: {
       register(provider: ExtFontProvider) {
-        // Valideer de provider-vorm vóór registratie — een extensie-fout mag de export-registry
-        // niet met een half object vervuilen.
         if (!provider || typeof provider !== 'object') {
           throw new Error(`Extensie "${extensionId}": pdfFonts.register vereist een provider-object`);
         }
@@ -383,9 +299,6 @@ export function createExtensionApi(
         if (provider.getBoldBytes !== undefined && typeof provider.getBoldBytes !== 'function') {
           throw new Error(`Extensie "${extensionId}": font-provider 'getBoldBytes' moet een functie zijn`);
         }
-        // registerCjkFontProvider geeft een uitschrijf-functie terug; hang 'm aan cleanupFns zodat
-        // disable/unload de provider automatisch verwijdert (net als importers/ribbon-knoppen).
-        // Grensvertaling: ext-facing provider → interne provider (zie extMappers).
         const unregister = registerCjkFontProvider(fromExtFontProvider(provider));
         cleanupFns.push(unregister);
       },
@@ -394,13 +307,10 @@ export function createExtensionApi(
     assets: {
       get(name: string): Uint8Array | undefined {
         const bytes = assets?.[name];
-        // Kopie: de extensie mag het resultaat niet in de opgeslagen bytes muteren.
         return bytes ? bytes.slice() : undefined;
       },
     },
 
-    // Help & begeleiding (permissie 'help'): zie helpApi.ts. Registreert zijn eigen opruiming in
-    // cleanupFns (artikelen uit Help, blob-URL's intrekken, eigen begeleiding stoppen).
     help: createHelpApi({
       extensionId,
       assets,
@@ -418,10 +328,6 @@ export function createExtensionApi(
     },
   };
 
-  // Centrale permissie-afdwinging: wikkel de guarded methodes (events.*, ui.addRibbonButton,
-  // importers.*, pdfFonts.register, data.getImportSource*, help.*) in checks volgens de tabel in
-  // permissions.ts. De rest van data.*, settings.*, assets.get en ui.showNotification blijven
-  // ongewijzigd kern-API.
   applyPermissionGuards(api as unknown as Record<string, unknown>, extensionId, permissions);
 
   return api;

@@ -16,7 +16,6 @@ import {
 import { isFiniteNumber } from '@/utils/guards';
 
 export const TASK_GRID_COLUMN_MIN_WIDTH = 40;
-/** Alleen een corruptiegrens. Auto-fit heeft later zijn eigen UX-grens van 480 px. */
 export const TASK_GRID_COLUMN_MAX_WIDTH = 2000;
 export const TASK_GRID_AUTOFIT_MAX_WIDTH = 480;
 export const TASK_GRID_RECENT_LIMIT = 10;
@@ -37,9 +36,6 @@ const BUILTIN_TO_COLUMN_ID = {
   wbsCode: 'task.wbsCode',
   name: 'task.name',
   duration: 'task.time.scheduleDuration',
-  // De oude builtin-velden `start`/`finish` betekenden de GETOONDE datums (`resolveField` in
-  // `engine/view/filterEval.ts`: `shownStart`/`shownFinish`), dus migreren ze naar Start/Einde en
-  // niet naar de invoerankers Geplande start/einde.
   start: 'task.time.start',
   finish: 'task.time.finish',
   totalFloat: 'task.time.totalFloat',
@@ -81,9 +77,6 @@ export function createDefaultTaskGridPreferences(
     column('task.wbsCode', 60),
     column('task.name', 240),
     column('task.time.scheduleDuration', 60),
-    // De getoonde datums (zelfde bron als de Gantt-balk), niet de invoerankers "Geplande
-    // start/einde" — die blijven kiesbaar. Breed genoeg voor een datum met tijd (B4, spec "alleen
-    // uren"), ook in 12-uursnotatie: "04-11-2026 11:00 AM".
     column('task.time.start', 130),
     column('task.time.finish', 130),
     column('task.taskType', 80),
@@ -120,11 +113,6 @@ export function createDefaultTaskGridPreferences(
   };
 }
 
-/**
- * De standaardkolommen van één taakoppervlak voor het actieve project: dezelfde bron als de eerste
- * standaard bij opstarten (`createDefaultTaskGridPreferences`). "Herstel standaard" in de
- * kolomkiezer zet de indeling hierop terug, zodat er één definitie van "standaard" is.
- */
 export function defaultTaskGridSurfaceColumns(
   surface: TaskGridSurfaceId,
   fields: TaskGridProjectFields,
@@ -170,9 +158,6 @@ export function normalizeTaskGridColumnPreferences(
   ];
 }
 
-/** De ene vergelijking van twee kolomlijsten (id, breedte, vastgezet en handmatige breedte), voor het
- *  raster én de geschiedenis. Twee eigen lijsten met verschillende velden gaven eerder een
- *  dubbelklik die `manualWidth` niet wiste (de geschiedenis zag "geen wijziging"). */
 export function sameTaskGridColumns(
   left: readonly TaskGridColumnPreference[],
   right: readonly TaskGridColumnPreference[],
@@ -191,7 +176,6 @@ export function cloneColumns(columns: readonly TaskGridColumnPreference[]): Task
   return columns.map(columnPreference => ({ ...columnPreference }));
 }
 
-/** Voeg uitsluitend een nieuwe id toe; de vrije kolom komt na alle bestaande vrije en onbekende ids. */
 export function addTaskGridColumn(
   columns: readonly TaskGridColumnPreference[],
   added: TaskGridColumnPreference,
@@ -243,8 +227,6 @@ export function moveTaskGridColumn(
   return next;
 }
 
-/** `manual`: `true` na slepen aan de rand (de breedte blijft dan staan bij automatisch aanpassen),
- *  `false` na optimale breedte (dubbelklik); weglaten laat de markering zoals ze was. */
 export function resizeTaskGridColumn(
   columns: readonly TaskGridColumnPreference[],
   id: TaskColumnId,
@@ -264,8 +246,6 @@ export function resizeTaskGridColumn(
   });
 }
 
-/** Zet de breedte van elke kolom zonder `manualWidth` op de gemeten optimale breedte. Geeft
- *  dezelfde array-inhoud terug als niets verandert. */
 export function applyAutoFitWidths(
   columns: readonly TaskGridColumnPreference[],
   widths: ReadonlyMap<TaskColumnId, number>,
@@ -290,7 +270,6 @@ export interface TaskGridAutoFitRow {
   rowKey: string;
   valueVersion: string | number;
   text: string;
-  /** Vaste ruimte vóór de tekst die de kolom óók moet bieden (naamkolom: inspringing + triehoekje + plus). */
   leadingWidth?: number;
 }
 
@@ -300,16 +279,12 @@ export interface ComputeTaskGridAutoFitWidthInput {
   rows: readonly TaskGridAutoFitRow[];
   cache: Map<string, number>;
   measureText: (text: string) => number;
-  /** Standaard `true`: de koptekst telt mee. Met `false` bepalen alleen de waarden de breedte
-   *  (de instelling "Kolommen automatisch aanpassen": een korte waarde onder een lange kop blijft smal). */
   includeHeader?: boolean;
   horizontalPadding?: number;
   chunkSize?: number;
   yieldToMain?: () => Promise<void>;
 }
 
-/** Cache-identiteit voor precies de tekst die de gebruiker ziet. De onderliggende domeinwaarde
- * alleen is onvoldoende: taal, resource-naam, actief document en font kunnen de breedte wijzigen. */
 export function taskGridAutoFitValueVersion(
   value: unknown,
   visibleText: string,
@@ -326,7 +301,6 @@ function defaultAutoFitYield(): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, 0));
 }
 
-/** Meet alle aangeleverde rijen in chunks. De cache-identiteit bevat occurrence, kolom en versie. */
 export async function computeTaskGridAutoFitWidth(
   input: ComputeTaskGridAutoFitWidthInput,
 ): Promise<number> {
@@ -428,7 +402,6 @@ export function fieldRefToTaskColumnId(
     return id ? taskColumnId(id) : null;
   }
   if (field.src === 'resource') return taskColumnId('assignment.resources');
-  // Resourcetype is alleen een groepeer-/sorteerveld, er bestaat geen kolom voor.
   if (field.src === 'resourceType') return null;
   if (!projectId) return null;
   return field.src === 'activityCode'
@@ -464,8 +437,6 @@ function isKnownFieldRef(field: unknown): field is FieldRef {
   return false;
 }
 
-/** Canonieke JSON voor een onbekende oude FieldRef. Zo blijft de identiteit behouden zonder dat
- *  deze app hoeft te raden wat een toekomstige of extensie-eigen veldvorm betekent. */
 function canonicalJson(value: unknown): string | null {
   const ancestors = new Set<object>();
   const normalize = (candidate: unknown): unknown => {

@@ -70,7 +70,6 @@ export const TASK_FIELD_COVERAGE = {
   mspTaskType: field('technical', 'task.mspTaskType'),
   effortDriven: field('technical', 'task.effortDriven'),
   workRule: field('direct', 'task.workRule'),
-  // XER/Primavera-herkomst: acht bronvelden, één gebundelde technische kolom (zie registry).
   p6DurationType: field('technical', 'task.p6Provenance'),
   p6ActivityType: field('technical', 'task.p6Provenance'),
   p6ProjectId: field('technical', 'task.p6Provenance'),
@@ -111,7 +110,6 @@ export const TASK_TIME_FIELD_COVERAGE = {
   lateFinish: field('derived', 'task.time.lateFinish'),
   freeFloat: field('derived', 'task.time.freeFloat'),
   totalFloat: field('derived', 'task.time.totalFloat'),
-  // Alleen uren §3.4: de minuten zijn de bron van de spelingkolommen; die kolommen tonen ze.
   totalFloatMinutes: field('derived', 'task.time.totalFloat'),
   freeFloatMinutes: field('derived', 'task.time.freeFloat'),
   isCritical: field('derived', 'task.time.isCritical'),
@@ -124,7 +122,6 @@ export const TASK_TIME_FIELD_COVERAGE = {
   remainingTime: field('direct', 'task.time.remainingTime'),
   remainingMinutes: field('technical', 'task.time.remainingMinutes'),
   completion: field('direct', 'task.time.completion'),
-  // Tijdelijke invoer voor de datumafleiding uit het percentage. Geen eigen kolom.
   progressBeforeRecalculation: field('technical', 'task.time.completion'),
 } satisfies Record<keyof TaskTime, FieldCoverage>;
 
@@ -143,7 +140,6 @@ export const SEQUENCE_FIELD_COVERAGE = {
   lagMinutes: field('composite', 'relation.predecessors', 'relation.successors'),
   lagUnit: field('composite', 'relation.predecessors', 'relation.successors'),
   lagPercent: field('composite', 'relation.predecessors', 'relation.successors'),
-  // P6-grensregel op de relatie zelf: rijdt mee in dezelfde relatiekolommen.
   p6StartAtPredecessorFinishBoundary: field('composite', 'relation.predecessors', 'relation.successors'),
 } satisfies Record<keyof Sequence, FieldCoverage>;
 
@@ -165,18 +161,14 @@ export const ASSIGNMENT_FIELD_COVERAGE = {
   taskId: field('technical', 'assignment.taskId'),
   resourceId: field('composite', 'assignment.resources', 'assignment.resourceId'),
   unitsPerDay: field('direct', 'assignment.unitsPerDay'),
-  // Begroot tempo naast een P6-resttempo: alleen-lezen technische kolom.
   plannedUnitsPerDay: field('technical', 'assignment.plannedUnits'),
   curve: field('direct', 'assignment.curve'),
   workWindowStart: field('technical', 'assignment.workWindowStart'),
   workWindowFinish: field('technical', 'assignment.workWindowFinish'),
   curveValues: field('technical', 'assignment.curve'),
-  // Werkvelden van de werkregels: technische kolommen
   plannedWorkMinutes: field('technical', 'assignment.plannedWork'),
   actualWorkMinutes: field('technical', 'assignment.actualWork'),
   remainingWorkMinutes: field('technical', 'assignment.remainingWork'),
-  // Bedrag van een kostenresource (#815): reist mee in de toewijzingstokens van de resourcekolom;
-  // een eigen bedragkolom komt later.
   costAmount: field('composite', 'assignment.resources'),
 } satisfies Record<keyof ResourceAssignment, FieldCoverage>;
 
@@ -187,7 +179,6 @@ export const BASELINE_TASK_FIELD_COVERAGE = {
   duration: dynamic('direct', 'baseline'),
   isMilestone: dynamic('technical', 'baseline'),
   milestoneKind: dynamic('technical', 'baseline'),
-  // XER-baselineherkomst: geen eigen vaste kolom, maar per baseline dynamisch net als de rest.
   sourceTaskId: dynamic('technical', 'baseline'),
   sourceTaskCode: dynamic('technical', 'baseline'),
 } satisfies Record<keyof BaselineTask, FieldCoverage>;

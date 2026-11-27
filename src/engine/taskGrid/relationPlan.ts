@@ -31,14 +31,12 @@ export interface RelationTokenSource {
 
 interface ParsedRelationTokenBase {
   source: RelationTokenSource;
-  /** Onzichtbare metadata van interactief bewerken; ontbreekt bij volledige tekstvervanging/paste. */
   relationId?: string;
 }
 
 export interface ParsedInternalRelationToken extends ParsedRelationTokenBase {
   kind: 'internal';
   wbsCode: string;
-  /** Onzichtbare metadata van een autocompletekeuze; vrije tekst heeft dit veld niet. */
   taskId?: string;
   relType: ExternalRelationType;
   lagText: string;
@@ -65,7 +63,6 @@ function hasOptionalString(value: Record<string, unknown>, key: string): boolean
   return value[key] === undefined || typeof value[key] === 'string';
 }
 
-/** Runtimegrens voor ongetypeerde grid-/paste-intents; de planner zelf blijft daarna volledig typed. */
 export function isParsedRelationTokenArray(value: unknown): value is readonly ParsedRelationToken[] {
   if (!Array.isArray(value)) return false;
   return value.every(token => {
@@ -146,7 +143,6 @@ export interface RelationSetPlanInput {
   ownerTaskId: string;
   direction: ExternalDirection;
   tokens: readonly ParsedRelationToken[];
-  /** Optioneel gedeeld readmodel voor meerdere planners binnen dezelfde adapter-/transactiecyclus. */
   relationIndex?: TaskRelationIndex;
 }
 
@@ -235,8 +231,6 @@ function canonicalExternal(link: ExternalLink): string {
     relType: link.relType,
     ...exclusiveExternalLag(link),
     anchorDate: link.anchorDate,
-    // Vaste volgorde: dezelfde bron met de velden in een andere volgorde (uit het klembordtoken, een
-    // verversing of een opgeslagen bestand) is geen wijziging.
     sourceRef: {
       projectId: link.sourceRef.projectId,
       projectName: link.sourceRef.projectName,
@@ -296,7 +290,6 @@ function assignMetadataIds<T extends { token: ParsedRelationToken; assignedId?: 
     } else if (allIds.has(id)) {
       errors.push(tokenError(value.token, 'relationIdWrongCell', id));
     }
-    // Een verdwenen/stale metadata-id valt bewust terug op de semantische keys.
   }
 }
 
@@ -348,8 +341,6 @@ function assignUnambiguousTypeChanges<T extends { assignedId?: string }>(
   }
   for (const [key, desiredAtEndpoint] of allDesired) {
     const oldAtEndpoint = allOld.get(key) ?? [];
-    // Meerdere typen op hetzelfde paar blijven bewust remove+add, ook als exacte matches eerst
-    // één kandidaat wegstrepen; anders hangt id-behoud alsnog van arrayvolgorde af.
     if (oldAtEndpoint.length !== 1 || desiredAtEndpoint.length !== 1) continue;
     const old = oldAtEndpoint[0];
     const value = desiredAtEndpoint[0];
@@ -365,17 +356,11 @@ function oldExternalKey(ownerTaskId: string, link: ExternalLink): string {
   });
 }
 
-/** Een interne relatiegraaf: de taken (voor structuur en summary-expansie) plus de relaties. */
 export interface RelationGraph {
   tasks: readonly Task[];
   sequences: readonly Sequence[];
 }
 
-/**
- * Structuur- en duplicaatfouten van één graaf, per sleutel die zegt WAT er mis is (reden + relatie-
- * id + eindpunten, resp. de set dubbele relaties). Zo ziet de eindcontrole of een fout er vóór de
- * bewerking al was.
- */
 function structuralGraphErrors(graph: RelationGraph): Map<string, RelationTokenError> {
   const errors = new Map<string, RelationTokenError>();
   const tasksById = new Map(graph.tasks.map(task => [task.id, task] as const));
@@ -400,22 +385,7 @@ function structuralGraphErrors(graph: RelationGraph): Map<string, RelationTokenE
   return errors;
 }
 
-/**
- * Valideert één uiteindelijke interne relatietoestand. Deze grens wordt zowel door de publieke
- * enkel-celplanner als éénmaal na alle relationele writes van een atomaire paste gebruikt.
- *
- * Alleen fouten die de bewerking zelf TOEVOEGT tellen: de eindgraaf wordt gelegd naast `before`,
- * de graaf van vóór de bewerking. Een bewust bewaarde relatie
- * tussen een taak en zijn eigen fase (uit een import, of doordat verhangen haar zo maakte) of een
- * al bestaande kring zou anders ELKE relatiecel in het document blokkeren — ook tussen taken die er
- * niets mee te maken hebben, met een melding over "de eigen samenvattende taak". Herstellen (een
- * bestaande kring of voorouder-relatie wegnemen) blijft vanzelf toegestaan: dat voegt niets toe.
- *
- * Kosten: zonder fouten in de eindgraaf is dit één controle; de graaf van vóór wordt
- * alleen doorgerekend als de eindgraaf een fout bevat.
- */
 export function validateFinalRelationGraph(input: RelationGraph & {
-  /** De graaf van vóór de bewerking. */
   before: RelationGraph;
 }): GridResult<void, readonly RelationTokenError[]> {
   const structural = structuralGraphErrors(input);
@@ -469,7 +439,6 @@ function planRelationSetCore(
     return relationIndex;
   };
   let endpointsInCell: Set<string> | undefined;
-  /** Eindpunten van de interne relaties die nu al in deze cel staan; pas opgebouwd als nodig. */
   const existingEndpointsInCell = (): ReadonlySet<string> => {
     if (!endpointsInCell) {
       endpointsInCell = new Set();
@@ -506,10 +475,6 @@ function planRelationSetCore(
       const structure = relationStructureVerdict(
         id => tasksById.get(id), { predecessorId, successorId },
       );
-      // Een relatie die al in deze cel stond, is geen nieuwe voorouder-relatie: een bewust bewaarde
-      // (geïmporteerde of door verhangen ontstane) relatie blijft bewerkbaar, zoals MCP
-      // `update_dependencies` dat ook toestaat. Een extra relatie tussen hetzelfde paar komt als
-      // nieuwe relatie alsnog in de eindgraafcontrole terecht.
       const keptAncestor = !structure.ok && structure.reason === 'ancestor'
         && existingEndpointsInCell().has(internalEndpointKey({ predecessorId, successorId }));
       if (!structure.ok && !keptAncestor) {
@@ -593,8 +558,6 @@ function planRelationSetCore(
   );
   if (errors.length > 0) return { ok: false, errors };
 
-  // Een lossless same-cell payload draagt zijn oorsprongs-id. Die wint alleen wanneer de bron-
-  // tuple nog bij dat bestaande record hoort; cross-task plakken erft bewust nooit een id.
   for (const desired of desiredExternal) {
     if (desired.assignedId || desired.token.relationId) continue;
     const origin = desired.token.external.origin;
@@ -690,8 +653,6 @@ function planRelationSetCore(
       continue;
     }
     const old = oldExternalById.get(desired.assignedId);
-    // Het token (klembordformaat v1) draagt de herkomst van het anker niet; die komt van de bestaande
-    // koppeling, zolang brontaak en anker gelijk blijven (keuze 4). Anders wist alleen de lag wijzigen haar.
     const next: ExternalLink = { ...withKeptAnchorProvenance(desired.link, old), id: desired.assignedId };
     if (!old || canonicalExternal(old) !== canonicalExternal(next)) {
       externalUpdates.push({ id: desired.assignedId, link: next });
@@ -722,17 +683,12 @@ function planRelationSetCore(
   };
 }
 
-/** Plant één volledige relatiecel en valideert meteen de uiteindelijke projectgraaf. */
 export function planRelationSet(
   input: RelationSetPlanInput,
 ): GridResult<RelationMutationPlan, readonly RelationTokenError[]> {
   return planRelationSetCore(input, true);
 }
 
-/**
- * Alleen voor de geïsoleerde gridtransactie: laat een tijdelijke tussenstand toe. De transactie
- * moet na alle writes `validateFinalRelationGraph` uitvoeren en elke intent opnieuw verifiëren.
- */
 export function planRelationSetInBatch(
   input: RelationSetPlanInput,
 ): GridResult<RelationMutationPlan, readonly RelationTokenError[]> {
@@ -750,7 +706,6 @@ function nextUniqueId(factory: () => string, used: Set<string>, kind: string): s
   throw new Error(`Kon geen unieke ${kind}-id genereren`);
 }
 
-/** Past een reeds volledig gevalideerd plan toe op een geïsoleerde mutable/Immer-state. */
 export function applyRelationMutationPlan(
   state: RelationPlanState,
   plan: RelationMutationPlan,

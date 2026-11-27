@@ -36,7 +36,6 @@ function roleMap(trace: TaskTrace): ReadonlyMap<string, TaskTraceRole> {
   return roles;
 }
 
-/** De ene pure traceprojectie voor canvas én beide taakrasters. */
 export function buildTrace(
   traceMode: TaskTraceMode,
   selectedTaskIds: readonly string[],
@@ -47,8 +46,6 @@ export function buildTrace(
   const focusId = selectedTaskIds[0];
   const drivingIds = knownDrivingSequenceIds(cpmResult);
   const traced = traceFrom(focusId, sequences, drivingIds === undefined ? undefined : new Set(drivingIds));
-  // Zonder berekening is er geen onderscheid in nadruk: toon het hele pad even sterk.
-  // Een berekende lege lijst blijft juist een pad zonder bepalende keten.
   const drivingPredecessors = drivingIds === undefined ? traced.predecessors : traced.drivingPredecessors;
   const drivenSuccessors = drivingIds === undefined ? traced.successors : traced.drivenSuccessors;
   return {
@@ -60,7 +57,6 @@ export function buildTrace(
   };
 }
 
-/** Eén classificatievolgorde voorkomt verschil tussen raster en canvas bij vreemde grafen. */
 export function classifyTraceTask(
   trace: TaskTrace | null | undefined,
   taskId: string,

@@ -1,15 +1,6 @@
 import type { Task } from '@/types/task';
 import { milestoneAnchorDate as anchorDate, milestonesInDrawnOrder, type ViewRow } from '@/engine/view/visibleRows';
 
-/**
- * Issue #868, punt 3 (keuze Ethan): mijlpalen van een ingeklapte reeks die op dezelfde dag vallen,
- * staan als één ruitje met hun aantal (◆2). Een klik kiest ze allemaal, slepen verplaatst ze allemaal,
- * de tooltip noemt ze allemaal; wie er één apart wil bedienen, klapt de reeks uit.
- *
- * Per taak-id de groep waarin hij staat, alleen voor groepen van twee of meer. De groep staat in
- * tijdvolgorde; het eerste lid is de voorman: zijn ruitje wordt getekend en zijn plek is die van de
- * hele groep (tekenen, hittest, pijlen). Afhankelijk van de rijen alleen, niet van zoom of scroll.
- */
 export type MilestoneGroups = ReadonlyMap<string, readonly Task[]>;
 
 const EMPTY: MilestoneGroups = new Map();

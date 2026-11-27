@@ -1,8 +1,3 @@
-// De kop van een kolom uit het kolomregister, vertaald. Gedeeld door het taakraster (`FullTaskGrid`)
-// en de Gantt-afdruk (Rapport-tabblad, issue #817), zodat een kolom op papier dezelfde kop draagt als
-// in de tabel.
-
-/** Oudere vertaalsleutels die al een tekst hebben voor dezelfde kolomkop. */
 export const COLUMN_LABEL_ALIASES: Readonly<Record<string, string>> = {
   'taskGrid.columns.wbs': 'table.wbs',
   'taskGrid.columns.name': 'table.name',
@@ -32,7 +27,6 @@ export const COLUMN_LABEL_ALIASES: Readonly<Record<string, string>> = {
   'taskGrid.columns.remainingTime': 'properties.progress.remaining',
 };
 
-/** Een leesbare kop uit de laatste sleuteldeel, als er geen vertaling is (`lateStart` → "Late start"). */
 export function humanizeTaskGridKey(labelKey: string): string {
   const parts = labelKey.split('.');
   const leaf = parts[parts.length - 1] ?? labelKey;
@@ -45,9 +39,6 @@ export function humanizeTaskGridKey(labelKey: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-/** Vertaalt de sleutel van een kolomkop, met een leesbare terugval als een vertaling ontbreekt. Krijgt
- *  alleen vertaalsleutels: namen die de gebruiker gaf (codes, eigen velden, baselines) zet
- *  `taskColumnLabel` letterlijk in de kop, zodat ze nooit door `t()` of `humanizeTaskGridKey` gaan. */
 export function resolveColumnLabel(labelKey: string, translate: (key: string) => string): string {
   const direct = translate(labelKey);
   if (direct !== labelKey) return direct;

@@ -1,23 +1,3 @@
-/**
- * `api.help.*` (permissie `help`, contract 1.4.0): Help-artikelen registreren, een meegeleverd
- * projectbestand openen als nieuw document en het begeleidingspaneel aansturen.
- *
- * Een dunne laag: artikelen gaan naar het bestaande register (`utils/helpArticleRegistry.ts`, bron =
- * extensie-id), de begeleiding naar `guideRuntime.ts`. Wat hier wél woont is wat per extensie is:
- *  - de afbeeldingsresolver: een pad uit de tekst (`img/{lang}/x.webp`, `{lang}` al ingevuld) wordt
- *    een blob-URL over de eigen asset-bytes. Eén URL per pad, lui aangemaakt, en bij het opruimen
- *    (uitschakelen/verwijderen) allemaal ingetrokken. Een ontbrekende asset ⇒ `''` ⇒ de viewer toont
- *    de alt-tekst in een placeholder;
- *  - het openen van een meegeleverd `.ifc`: dezelfde route als een voorbeeld (`openExampleFromString`):
- *    nieuw document zonder opslagdoel of bestandshandle, en alleen een leeg, ongewijzigd tabblad wordt
- *    hergebruikt — het actieve document wordt nooit overschreven;
- *  - het opruimen: artikelen uit het register, blob-URL's ingetrokken, eigen begeleiding gestopt. Daarna
- *    is deze groep DOOD (`disposed`): een achtergebleven timer of async-vervolg van een uitgeschakelde
- *    extensie kan geen artikelen of begeleiding meer neerzetten die niemand nog opruimt — elke methode
- *    gooit, en de afbeeldingsresolver geeft `''`.
- *
- * De permissiecontrole zit niet hier maar centraal in `permissions.ts` (`help.*` → `help`, hard).
- */
 import type { AppStoreContext } from '@/state/appStore';
 import { registerHelpArticles, type RegisteredHelpArticleInput } from '@/utils/helpArticleRegistry';
 import type { ExtensionApi, ExtGuide, ExtHelpArticle } from './types';
@@ -25,7 +5,6 @@ import type { ExtensionHostBinding } from './extensionApi';
 import { validateGuide } from './guideModel';
 import { startGuideSession, stopGuideSession } from './guideRuntime';
 
-/** Een fout die de app al zelf gemeld heeft (bv. "Bestand openen mislukt"): niet nog eens melden. */
 export interface AlreadyNotifiedError extends Error {
   alreadyNotified: true;
 }
@@ -55,10 +34,7 @@ export interface HelpApiContext {
   assets: Record<string, Uint8Array> | undefined;
   document: AppStoreContext;
   host: ExtensionHostBinding;
-  /** De volledige API van deze extensie (voor `check(api)`/`prepare(api)`); lui, want hij wordt
-   *  pas ná deze groep afgemaakt. */
   getApi: () => ExtensionApi;
-  /** Opruimacties die `_cleanup` uitvoert. */
   cleanupFns: (() => void)[];
 }
 
@@ -107,7 +83,6 @@ export function createHelpApi(ctx: HelpApiContext): ExtensionApi['help'] {
       error.alreadyNotified = true;
       throw error;
     }
-    // Zoals een voorbeeld uit Backstage: vanuit Backstage (Help) naar het project zelf.
     if (host.app.store.getState().ui.activeRibbonTab === 'file') {
       host.app.store.getState().setUI({ activeRibbonTab: 'start' });
     }
@@ -116,8 +91,6 @@ export function createHelpApi(ctx: HelpApiContext): ExtensionApi['help'] {
   const extensionName = (): string =>
     host.app.store.getState().installedExtensions[extensionId]?.manifest.name ?? extensionId;
 
-  // Een `project://`-link in een Help-artikel. Eigen melding (er loopt dan niet per se een
-  // begeleiding), en een dubbelklik opent niet twee documenten.
   let linkOpening = false;
   const openProjectFromLink = (assetName: string): void => {
     if (linkOpening) return;
@@ -143,7 +116,6 @@ export function createHelpApi(ctx: HelpApiContext): ExtensionApi['help'] {
       messageKey: 'notifications.extGuideCallbackFailed',
       params: { name: extensionName() },
       detail: stepId ? `${stepId}: ${message}` : message,
-      // Een `check` die bij elke wijziging opnieuw gooit, wordt één regel met een teller.
       dedupeKey: `ext-help:${extensionId}:${stepId}`,
     });
   }
@@ -168,8 +140,6 @@ export function createHelpApi(ctx: HelpApiContext): ExtensionApi['help'] {
       if (!Array.isArray(articles)) {
         throw new Error(`Extensie "${extensionId}": registerArticles verwacht een lijst artikelen`);
       }
-      // Alleen de bekende velden, als kopie: een extensie die haar objecten later muteert, verandert
-      // Help niet.
       const input: RegisteredHelpArticleInput[] = articles.map(a => ({
         id: a?.id,
         kind: a?.kind,
