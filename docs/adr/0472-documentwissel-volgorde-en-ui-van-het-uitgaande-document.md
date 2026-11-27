@@ -34,5 +34,7 @@ komen na die `set`: eerst wissen wat bij het uitgaande document hoort, dan melde
   tellen mee in `isBlockingDialogOpen` (`state/blockingDialogs.ts`), en Ctrl/⌘ 1–9 wisselt niet zolang
   `isDocumentLeaveBlocked` (`shortcutRegistry.ts`) waar is. De voortgangsimportdialoog houdt koppelwerk aan taak-id's
   van één document vast.
-- Weigeringen gaan bij elke wissel weg en komen bij terugwisselen niet terug; echte fouten en meldingen die geen weigering
-  zijn blijven staan (`clearRefusals`, eigenaarsbesluit 2026-10-19 5b, `refusalNotice.ts`).
+- Weigeringen gaan bij elke wissel weg en komen bij terugwisselen niet terug: de meldingen met `refusal` en de strook
+  van een vergrendelde structuur (`clearRefusals`, eigenaarsbesluit 2026-10-19 5b, `refusalNotice.ts`). Van de andere meldingen haalt `resetDocumentScopedUI` alleen de uitleg na F5 weg
+  (de melding met `SCHEDULE_SHIFT_NOTICE_KEY`, samen met `scheduleShift`); echte fouten en de overige meldingen blijven
+  staan.

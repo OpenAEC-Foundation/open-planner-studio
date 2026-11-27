@@ -4,8 +4,11 @@
 zijn payload terug. Alleen het bezettingsoverzicht roept hem aan, en alleen met Automatisch berekenen aan
 (`ResourceOccupancyView.tsx`); zonder die instelling rekent het overzicht op een kopie en schrijft niets terug (regel
 `state`, *Scheduling is manual, not reactive*). Het actieve document valt erbuiten: dat rekent via `useAutoCalcCPM` en
-`runCPM`. Zoals `runCPM` maakt de actie geen undo-stap en laat ze `isDirty` staan: een doorrekening is afgeleide data,
-geen bewerking. De sessiegeschiedenis raakt ze niet; bestaande stappen voor het slapende document blijven bij hun eigen
+`runCPM`. De actie maakt geen undo-stap en laat `isDirty` staan: een doorrekening is afgeleide data, geen bewerking.
+`runCPM` (`scheduleSlice.ts`) legt wel een stap vast in twee gevallen: als het *Datums zoals opgeslagen* verlaat, en bij
+de minutenomzetting van een ouder document die datums verschuift buiten een bewerking (ADR 0431, regel `state`, *Datums
+zoals opgeslagen*). Hier slaat de actie een payload met `minuteModelPending` over, en haalt ze de modus zonder stap weg
+(hieronder). De sessiegeschiedenis raakt ze niet; bestaande stappen voor het slapende document blijven bij hun eigen
 toestand horen.
 
 ## Gevolgen

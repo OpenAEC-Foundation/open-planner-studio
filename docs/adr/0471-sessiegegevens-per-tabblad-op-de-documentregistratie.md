@@ -12,7 +12,11 @@ waarde als 0), `changedOnDisk` (regel `state`, *Multi-document*) en `pendingWork
   (`librarySlice.ts`) zijn kalenders verving: alleen gezet als er taken veranderden of hun sturing verloren, en
   samengevoegd met een eerdere waarde (`mergeCalendarLibrarySettle`, per taak-id ontdubbeld). De melding komt pas als het
   document actief wordt, bij het document waar ze over gaat: `announceWorkRuleSettle` voegt na de publicatie deze waarde
-  samen met de settle van de activatie zelf (`activation.workRuleSettle`) en meldt dat één keer per document, met
-  dezelfde melding als de kalenderdialoog (`notifyCalendarLibrarySettle`). `switchDocument` en de tak van
+  samen met de settle van de activatie zelf (`activation.workRuleSettle`), met elke taak één keer geteld, en meldt het
+  zoals de kalenderdialoog (`notifyCalendarLibrarySettle` in `calendarTasks.ts`). Dat zijn per activatie hoogstens twee
+  meldingen: "N taken aangepast" (`notifyWorkRuleDurationsChanged`) als er taken veranderden, en het verlies van
+  tijdgefaseerde sturing (`notifyTimephasedLoss`). Alleen die tweede heeft een sessiepoort per document
+  (`claimTimephasedLossNotice` in `timephasedLossNotice.ts`): ze komt hoogstens één keer per document-id in de sessie,
+  en niet meer als een andere route met dezelfde poort haar voor dat document al gaf. `switchDocument` en de tak van
   `closeDocument` die naar een buur wisselt, wissen het veld op het document dat actief wordt; `duplicateDocument` en
   `restoreDocuments` geven geen registratie mee, omdat hun nieuwe registraties het veld niet hebben.

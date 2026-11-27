@@ -2,9 +2,9 @@
 
 `closeDocument` zelf wacht niet op een lopende opslag. De routes van de planner gaan via `requestCloseDocument` (het
 kruisje van een tabblad) of `closeDocumentAfterSaves` (de keuzes van de sluitvraag), die eerst op de schrijfrij wachten
-(`AGENTS.md`, *Closing waits for saves*; #804 stap 3, besluit eigenaar 17 november 2026: wachten, dan sluiten). Het
-wachten en de beslissing liggen zo op twee plekken: de wachtroutes beslissen niets over schoon of gewijzigd, en
-`closeDocument` beslist in één beurt.
+(`AGENTS.md`, *Closing waits for saves*; #804 stap 3, besluit eigenaar 17 november 2026: wachten, dan sluiten).
+`closeDocumentAfterSaves` beslist zelf niets over schoon of gewijzigd: dat doet `closeDocument` in één beurt, na het
+wachten. `requestCloseDocument` neemt wel zelf de eerste beslissing, of de sluitvraag nodig is (hieronder).
 
 ## Gevolgen
 
