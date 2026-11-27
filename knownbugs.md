@@ -7745,3 +7745,15 @@ en noem het in je rapport of PR-tekst.
       bestand blijft ongemoeid. Gevonden bij het schrijven van de gids voor IFCX (#804, F3-7); de gids zegt dat de app
       de versie niet ondersteunt. Richting: een eigen melding voor "deze versie wordt niet ondersteund", of ouder en
       nieuwer onderscheiden. Vóór de flag `ifcx` standaard aan gaat. — B
+2394. **IFCX in de browser: Opslaan als verbreekt de koppeling met het geopende bestand.** Met de experimentele
+      instelling voor IFCX aan opent Chrome of Edge een eigen `.ifcx`-bestand met een schrijfbare verwijzing, en
+      Ctrl+S werkt dat bestand bij. Kiest de planner daarna *Opslaan als*, dan downloadt de app een kopie (in
+      `fileSlice.ts` gaat een IFCX-document buiten de desktop-app via `saveNewBytesDialog`), en volgens de bouwer van
+      de gids vervalt daarmee de schrijfbare koppeling: elke volgende Ctrl+S is weer een download. De uitleg bij die
+      download (`notifications.browserSavesAsDownload`, `src/state/browserSaveNotice.ts`) kan Chrome of Edge aanraden
+      aan iemand die al in die browser werkt. Bij een gewone IFC-planning wordt het gekozen bestand wel het nieuwe
+      opslagdoel. Hoort bij 2389 (de typekeuze en de browser). De keuze van de route is gelezen in de code; het
+      vervallen van de koppeling en de melding zijn gemeld en niet nagespeeld in een browser. Gevonden bij de
+      herstelronde van de gids voor IFCX (#804, F3-7); de gids beschrijft het gedrag zoals het is. Richting: in de
+      browser het opslagvenster ook voor IFCX gebruiken, of de koppeling met het origineel houden na een download.
+      Vóór de flag `ifcx` standaard aan gaat. — S
