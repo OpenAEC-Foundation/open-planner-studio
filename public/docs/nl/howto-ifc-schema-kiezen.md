@@ -13,6 +13,8 @@ De app slaat een project standaard op als IFC 4.3 ADD2. Zo heet IFC 4.3 in de be
 3. Klik op *Toepassen*. Het project staat nu op *Niet opgeslagen*.
 4. Sla op met *Opslaan* (Ctrl+S) of *Opslaan als*.
 
+Met de experimentele instelling *IFCX openen en opslaan* aan toont *Projectinstellingen* boven *IFC-schema bij opslaan* het huidige *Bestandstype*. Het schema kies je hier. Het bestandstype kies je met [Opslaan als in de desktop-app](docs://howto-bestand-openen-en-opslaan). Sla je een IFCX-planning op als IFC of kies je *Exporteren › IFC*, dan gebruikt de app het gekozen IFC-schema zonder schemavraag.
+
 De drie keuzes:
 
 - *IFC 4.3 ADD2 (standaard)* schrijft `IFC4X3_ADD2` in de kop van het bestand.
@@ -21,9 +23,11 @@ De drie keuzes:
 
 ## Valkuilen en wat de app dan doet
 
-**Voeg samen als laatste stap.** De app weigert voorlopig IFC-bestanden met bouwmodelobjecten te openen: de planningsschrijver kan die objecten niet bewaren. Dat geldt ook als het bestand taken bevat en als je het IFC-schema houdt. Bewerk het losse planningsbestand en voeg het daarna opnieuw samen met het bouwmodel. Een geweigerd bestand wordt niet gewijzigd.
+**Een IFC-bestand met een gebouwmodel openen.** Daarvoor moet *IFC met gebouwmodel openen* aan staan (zie [App-instellingen](docs://ref-instellingen)). Is het schemaveld vergrendeld, dan bewaart de app het schema van het gebouwmodel bij opslaan als IFC.
 
-**De app vraagt eerst als een geopend bestand een ander schema heeft.** Open je bijvoorbeeld een IFC4-bestand, of een IFC 4.3-bestand van een oudere versie van de app, dan verandert de app het bestandstype niet zomaar. Bij de eerste keer *Opslaan* of *Opslaan als* vraagt ze eerst of je het schema van het bestand houdt of naar IFC 4.3 ADD2 gaat. *IFC4 houden* (of *IFC 4.3 houden*) is de knop die Enter kiest. Sluit je de vraag met Esc of het kruisje, dan slaat de app niets op.
+**Een IFC-schema voor het eerst bevestigen.** Open je een IFC4- of IFC 4.3-planning zonder gebouwmodel of gegevens van andere programma’s en is het schema nog niet bevestigd, dan behoudt de app dat schema tot je een keuze maakt. Bij de eerste keer *Opslaan* of *Opslaan als* vraagt ze eerst of je het schema van het bestand houdt of naar IFC 4.3 ADD2 gaat. *IFC4 houden* (of *IFC 4.3 houden*) is de knop die Enter kiest. Sluit je de vraag met Esc of het kruisje, dan slaat de app niets op.
+
+Met de experimentele instelling *IFCX openen en opslaan* aan kan die openstaande schemavraag nog verschijnen vóór het opslagvenster, terwijl je document een IFC-bestand is. Kies je daarna IFCX, dan verschijnt er voor die omzetting geen nieuwe schemavraag. Ook na opslaan of heropenen als IFCX krijg je die vraag niet.
 
 **De app vraagt het maar één keer per bestand.** Je keuze staat in het bestand zelf. Open je het later weer, dan vraagt de app het niet opnieuw. Kies je zelf een schema in *Projectinstellingen* en klik je op *Toepassen*, dan vraagt de app ook niets meer.
 
@@ -42,5 +46,5 @@ De drie keuzes:
 ## Zie ook
 
 - [Nieuw project en Projectinstellingen](docs://ref-projectinfo): alle velden van het formulier.
-- [Bestanden en formaten](docs://uitleg-bestanden): waarom IFC het eigen formaat van de app is.
+- [Bestanden en formaten](docs://uitleg-bestanden): hoe de app planningen bewaart.
 - [Een bestand openen en opslaan](docs://howto-bestand-openen-en-opslaan): opslaan en opslaan als.

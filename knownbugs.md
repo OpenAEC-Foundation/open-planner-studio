@@ -7949,6 +7949,28 @@ en noem het in je rapport of PR-tekst.
       kennen (bijvoorbeeld de vragen en de merge na het venster), wat de volgorde van main voor hetzelfde type verandert;
       een keuze van de eigenaar. Gevonden bij F3-5. — B (code; (a) tot en met (c) niet in een proef nagespeeld)
 
+2394. **IFCX in de browser: Opslaan als verbreekt de koppeling met het geopende bestand.** Met de experimentele
+      instelling voor IFCX aan opent Chrome of Edge een eigen `.ifcx`-bestand met een schrijfbare verwijzing, en
+      Ctrl+S werkt dat bestand bij. Kiest de planner daarna *Opslaan als*, dan downloadt de app een kopie (in
+      `fileSlice.ts` gaat een IFCX-document buiten de desktop-app via `saveNewBytesDialog`), en volgens de bouwer van
+      de gids vervalt daarmee de schrijfbare koppeling: elke volgende Ctrl+S is weer een download. De uitleg bij die
+      download (`notifications.browserSavesAsDownload`, `src/state/browserSaveNotice.ts`) kan Chrome of Edge aanraden
+      aan iemand die al in die browser werkt. Bij een gewone IFC-planning wordt het gekozen bestand wel het nieuwe
+      opslagdoel. Hoort bij 2389 (de typekeuze en de browser). De keuze van de route is gelezen in de code; het
+      vervallen van de koppeling en de melding zijn gemeld en niet nagespeeld in een browser. Gevonden bij de
+      herstelronde van de gids voor IFCX (#804, F3-7); de gids beschrijft het gedrag zoals het is. Richting: in de
+      browser het opslagvenster ook voor IFCX gebruiken, of de koppeling met het origineel houden na een download.
+      Vóór de flag `ifcx` standaard aan gaat. — S
+2395. **XER-export: een ingevulde einddatum van het project gaat niet mee en staat niet in de verliesmelding.** Vult
+      de planner bij *Projectinstellingen* een einddatum in die na de laatste taak ligt, terwijl *Speling rekenen tot
+      de einddatum van het project* uit staat, dan laat de XER-schrijver die datum weg
+      (`src/services/xer/xerWriter.ts`), en de lezer leidt bij heropenen de einddatum af uit de taken
+      (`src/services/xer/xerReader.ts`). De verliesmelding na de export (`src/state/xerExportNotice.ts`) heeft er geen
+      regel voor. De IFC-schrijver bewaart de ingevulde datum wel. Ook op main. Gevolgd in de code door de reviewer
+      van de gids voor IFCX (#1303, ronde 2), niet nagespeeld in de app; de gids zegt daarom dat de melding alleen de
+      verliezen noemt die de app herkent. Richting: een regel in de verliesmelding voor de ingevulde einddatum, of de
+      datum meeschrijven. — S
+
 2396. **Een IFCX-bouwdeel waarvan de klasse alleen via lokale erfenis geldt, ontbreekt in de bronindex.**
       `readIfcxModelSource` leest bijdragen op hun letterlijk opgegeven pad. Het volgt geen `inherits` of
       `children` om een klasse op een ander pad te bepalen. Vóór de IFCX-flag standaard aan gaat, de samengestelde
@@ -7958,6 +7980,13 @@ en noem het in je rapport of PR-tekst.
       `readIfcxModelSource` gebruikt kleine bestanden. Meet vóór het standaard aanzetten van IFCX in CI
       hoeveel tijd en geheugen het hashen, decoderen en indexeren van echte modellen met geometrie kost.
       De meting onder 2350 gaat over het opslaan van een planning. — S (ontwerpstap fase 4, §4 en §6)
+
+2408. **Gids: niet elke regel in de XER-verliesmelding noemt een aantal.** *Import- en exportformaten*
+      (`public/docs/nl/ref-import-exportformaten.md` en de Engelse) zegt dat de melding na een export naar `.xer` per
+      soort een regel met een aantal toont, bijvoorbeeld *2 deadlines*. De regels over rekeninstellingen en
+      projectgegevens hebben geen aantal (`src/state/xerExportNotice.ts`). De zin stond al zo op main. Gevonden in de
+      code door de reviewer van de gids voor IFCX (#1303, ronde 4), niet nagespeeld in de app. Richting: in de gids het
+      aantal alleen noemen waar de app het toont. — S
 
 2409. **Een ongebruikelijke alias van een IFCX-model kan buiten de bestandsvergelijking vallen.**
       De app herkent het bronpad en de bestandsidentiteit die het platform teruggeeft. Controleer vóór
