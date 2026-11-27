@@ -1,5 +1,3 @@
-/** TASKRSRC-mapping met veldspecifieke P6-schalen en bron-id-indexen. */
-
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type {
   XerAssignmentCostsSource, XerAssignmentQuantitiesSource, XerAssignmentUnitScale,
@@ -15,8 +13,6 @@ import { isFlatCurveValues, matchCurveValues, normalizeCurveValues } from '@/eng
 import { P6_NAME_TO_CURVE } from '@/services/p6/p6xmlWriter';
 import { importedAssignmentRate, importedWorkFields } from '@/engine/work/workRuleMapping';
 
-// MPXJ's XerUnitsHelper gebruikt 1.000.000 als afrondingsprecisie voor P6-werkhoeveelheden.
-// Dit is geen deler voor *_qty_per_hr: OPS gebruikt daar net als XER 1 = 100%.
 const P6_WORK_QUANTITY_PRECISION = 1_000_000;
 
 function numberOf(tables: XerTables, row: XerRow, field: string): number | null {
@@ -78,14 +74,6 @@ function assertUniqueAssignmentIds(rows: readonly XerRow[]): void {
     firstLineById.set(sourceId, row.line);
   }
 }
-/**
- * OPS-curve + exacte 21-punts data voor een toewijzing, uit haar gekoppelde RSRCCURVDATA-bron —
- * zelfde contract als `p6xmlReader.ts`'s `<ResourceCurve>`-afhandeling: de contour-engine is de
- * ENIGE curvemapping (geen eigen XER-best-fit meer). `matchCurveValues` doet de exacte tabelmatch;
- * `P6_NAME_TO_CURVE[curv_name]` is de terugval voor een P6-curve die geen van de acht OPS-tabellen
- * exact raakt (afgeronde/eigen P6-punten met een herkenbare P6-naam). Een vlakke curve is geen
- * curve (spiegelt `p6xmlReader.ts`): geen `curve`, geen `curveValues`.
- */
 function curveOf(curve: XerReadonly<XerResourceCurveSource> | undefined): { curve?: ResourceCurve; curveValues?: number[] } {
   if (!curve?.numericPoints) return {};
   const values = normalizeCurveValues(curve.numericPoints);
@@ -94,18 +82,10 @@ function curveOf(curve: XerReadonly<XerResourceCurveSource> | undefined): { curv
   return { ...(matched ? { curve: matched } : {}), curveValues: values };
 }
 
-/** Het BEGROTE tempo: `target_qty_per_hr` als het > 0 is, anders het resttempo als terugval (werk
- *  zonder begroot tarief, 263 corpusrijen). Dit was tot 2026-10-15 het enige tempo van de lezer. */
 function plannedAssignmentRate(quantities: XerAssignmentQuantitiesSource): number {
   if ((quantities.targetPerHour ?? 0) > 0) return quantities.targetPerHour as number;
   return quantities.remainingPerHour ?? quantities.targetPerHour ?? 0;
 }
-/**
- * Het tempo van de toewijzing (eigenaarsbesluit 2026-10-15, optie 1): bij restwerk het resttempo
- * `remain_qty_per_hr`, anders het begrote (`importedAssignmentRate`). Materiaal houdt het begrote
- * tempo: het valt buiten de werkdriehoek, heeft geen werkvelden, en een ander tempo zou bij openen
- * de belasting veranderen.
- */
 function assignmentRate(quantities: XerAssignmentQuantitiesSource, resource: Resource): { rate: number; plannedRate?: number } {
   const planned = plannedAssignmentRate(quantities);
   if (resource.type === 'MATERIAL') return { rate: planned };
@@ -119,14 +99,12 @@ function unitsPerDay(rawRate: number, resource: Resource, context: XerResourceRe
     const hoursPerDay = resource.calendarId
       ? context.calendarHoursPerDay.get(resource.calendarId) ?? context.projectHoursPerDay
       : context.projectHoursPerDay;
-    // Op een urentaak telt de dag van de taak zelf (`hourTaskHoursPerDay`): tempo × dagengetal = tempo × uren.
     const taskHoursPerDay = taskId !== undefined ? context.hourTaskHoursPerDay?.get(taskId) : undefined;
     return { value: rawRate * (taskHoursPerDay ?? hoursPerDay), scale: 'MATERIAL_PER_HOUR' };
   }
   return { value: rawRate, scale: 'DIRECT_FRACTION' };
 }
 
-/** Eén lineaire partitionering; rijen zonder proj_id blijven alleen in de retained catalogus. */
 export function indexXerTaskResourceRows(tables: XerTables): ReadonlyMap<string, readonly XerRow[]> {
   const byProject = new Map<string, XerRow[]>();
   for (const row of tables.tables.get('TASKRSRC')?.rows ?? []) {
@@ -238,10 +216,6 @@ export function readXerResourceAssignments(
     const curve = curveSourceId ? curveById.get(curveSourceId) : undefined;
     if (curveSourceId && !curve) issues.push({ code: 'XER_ASSIGNMENT_CURVE_MISSING', table: 'TASKRSRC', line: row.line, sourceId, fallback: 'UNIFORM' });
     const { curve: opsCurve, curveValues } = curveOf(curve);
-    // target_qty / act_reg_qty + act_ot_qty / remain_qty (uren) worden eersteklasvelden — alleen
-    // wanneer ze afwijken van `activiteitsduur × inzet` (`importedWorkFields`; inzet = het gekozen
-    // tempo, dus bij een afwijkend resttempo gaan ze altijd mee); materiaal blijft buiten de driehoek.
-    // De rauwe rijen blijven daarnaast in het bronarchief.
     const taskWork = context.taskWorkMinutes?.get(taskSourceId);
     const workFields = resource.type !== 'MATERIAL' && taskWork !== undefined
       ? importedWorkFields({

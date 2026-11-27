@@ -2035,6 +2035,14 @@ en noem het in je rapport of PR-tekst.
       geef regio `NL` in `CA_SET` (`src/engine/calendar/canadianHolidays.ts`) een afzonderlijke regel vanaf 2002.
       Bevestigd in de review van #1293. [Provinciale aankondiging](https://www.releases.gov.nl.ca/releases/2002/labour/1106n06.htm). — B
 
+2630. **Het weekendherstel van de XER-lezer kan een zaterdag vrij maken die in het bestand een werkdag is.** Op een
+      kalender die van zaterdag tot en met donderdag werkt, met vrijdag 4, maandag 7 en dinsdag 8 december 2009 als
+      losse feestdagen, haalt het record van vrijdag de drempel van `hasWeekendClampEvidence` (`xerCalendarData.ts`):
+      vrijdag is op die kalender al vrij, de reeks telt drie datums, maandag ligt drie dagen verder en heeft met dinsdag
+      een vervolg aan de kant van het weekend af. `weekendClampTarget` maakt dan zaterdag 5 december vrij. Gezien in het
+      weggehaalde commentaar van die functie, dat het geval met fixtures 22f en 22g van `check-xer-calendar-data.ts`
+      vergeleek; niet nagespeeld. Het commentaar noemde nul treffers in het corpus buiten `rehab-2.xer` (ADR 0590). — S
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met

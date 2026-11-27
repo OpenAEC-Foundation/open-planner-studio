@@ -1,28 +1,4 @@
-/**
- * XER-schrijver (Primavera P6): het open project als `.xer`, met een verliesverslag.
- *
- * Tegenhanger van `readXER` (`xerReader.ts`). Voor de tabel- en kolomvorm die P6 bij import accepteert
- * is de MPXJ-schrijver geraadpleegd (https://github.com/joniles/mpxj, `PrimaveraXERFileWriter`,
- * `ProjectCalendarStructuredTextWriter`, LGPL-2.1, Jon Iles e.a.): tabelvolgorde, kolomnamen,
- * `ERMHDR`-velden, `""`-escaping en de `clndr_data`-vorm. Er is geen MPXJ-code overgenomen.
- *
- * De vertaling OPS → P6 deelt zijn tabellen met de P6 XML-schrijver (`p6xmlWriter.ts`): status,
- * constraint-soorten (`p6ConstraintTypes.ts`), resourcetypes, curvenamen, werkregels
- * (`workRuleMapping.ts`) en het project-ID (`p6ProjectIdentity`). Zo lopen de twee P6-formaten niet uit
- * elkaar.
- *
- * Duur, rest, lag en toewijzingsuren volgen het urenmodel zoals de P6 XML-schrijver (T13, T21, I7;
- * `xmlDayMeasure.ts`). Wat XER zelf niet draagt (de eenheid per taak, een breuk in de dagenmaat, de
- * projectstandaard van het taaktype, een vaste capaciteit) gaat mee als tekst-UDF met een OPS-naam; de
- * lijst en de leesregels staan in `xerOpsMarkers.ts`.
- *
- * Wat XER niet kan dragen, of wat deze schrijver nog niet schrijft, komt in `loss` (code + aantal).
- * `exportAs` maakt daar één melding van; nooit stil verlies.
- *
- * Codering (besluit, zie `XerWriteResult.encoding`): Windows-1252, zoals P6 zelf en MPXJ schrijven.
- * Past een teken daar niet in (Pools, Cyrillisch, Chinees …), dan schrijft de app UTF-8 zonder BOM en
- * meldt dat: liever tekst die een ander programma correct leest dan vraagtekens.
- */
+// Bron: MPXJ `PrimaveraXERFileWriter` en `ProjectCalendarStructuredTextWriter` als referentie, geen code overgenomen (LGPL-2.1, github.com/joniles/mpxj).
 
 import type { WorkCalendar } from '@/types/calendar';
 import { holidayEndDate } from '@/types/calendar';
@@ -60,16 +36,9 @@ import { XER_RECORDED_OUTPUT_COLUMNS } from './xerRecordedTimes';
 import { capacityStepsJson, OPS_XER_UDFS, XER_DURATION_FIELDS, type CapacityStepRecord, type XerOpsField } from './xerOpsMarkers';
 import { LOSS_ORDER, type XerWriteInput, type XerWriteLossCode, type XerWriteResult } from '@/services/xerWriteTypes';
 
-// ── Contract ─────────────────────────────────────────────────────────────────────────────────────
-
-// Het contract (invoer, uitvoer, verliescodes) staat buiten deze map in `xerWriteTypes.ts`: de
-// store en de melding gebruiken het zonder de lazy XER-chunk te laden (`check-xer-chunk-boundary.ts`).
 export type { XerWriteInput, XerWriteLoss, XerWriteLossCode, XerWriteResult } from '@/services/xerWriteTypes';
 export { LOSS_ORDER } from '@/services/xerWriteTypes';
 
-// ── Vaste P6-tokens ─────────────────────────────────────────────────────────────────────────────
-
-/** XER `TASKPRED.pred_type` per OPS-relatietype (de lezer leest ook kale dialecttokens). */
 export const XER_LINK_TYPE: Record<SequenceType, string> = {
   FINISH_START: 'PR_FS',
   START_START: 'PR_SS',
@@ -77,21 +46,18 @@ export const XER_LINK_TYPE: Record<SequenceType, string> = {
   START_FINISH: 'PR_SF',
 };
 
-/** P6-status-label (`taskStatusToP6`, gedeeld met P6 XML) → XER-token. */
 const XER_STATUS_TOKEN: Record<ReturnType<typeof taskStatusToP6>, string> = {
   'Not Started': 'TK_NotStart',
   'In Progress': 'TK_Active',
   Completed: 'TK_Complete',
 };
 
-/** P6 XML-resourcetype (`resourceTypeToP6`, gedeeld) → XER `rsrc_type`. */
 const XER_RESOURCE_TYPE: Record<ReturnType<typeof resourceTypeToP6>, string> = {
   Labor: 'RT_Labor',
   Nonlabor: 'RT_Equip',
   Material: 'RT_Mat',
 };
 
-/** Prioriteit → `priority_type`; dezelfde getallen als de lezer. */
 const XER_PRIORITY: readonly [number, string][] = [
   [0, 'PT_Lowest'], [250, 'PT_VeryLow'], [400, 'PT_Low'], [500, 'PT_Normal'],
   [750, 'PT_High'], [900, 'PT_VeryHigh'], [1000, 'PT_Top'],
@@ -102,7 +68,6 @@ const LAG_CALENDAR_TOKEN = {
 } as const;
 const FLOAT_TYPE_TOKEN = { start: 'FT_SS', finish: 'FT_FF', smallest: 'FT_Min' } as const;
 
-/** `udf_type_id` per OPS-veld. Dezelfde nummers als de P6 XML-export waar het veld daar ook bestaat. */
 const OPS_XER_UDF_TYPE_ID: Record<XerOpsField, number> = {
   unit: 900000001, dayRecords: 900000003, exactRecords: 900000004, lagRecords: 900000005, inheritedWorkRule: 900000006,
   defaultWorkRule: 900000008, flatCapacity: 900000009, capacitySteps: 900000010,
@@ -110,8 +75,6 @@ const OPS_XER_UDF_TYPE_ID: Record<XerOpsField, number> = {
 
 const XER_VERSION = '20.12';
 const CURRENCY = 'EUR';
-
-// ── Tabelopbouw ──────────────────────────────────────────────────────────────────────────────────
 
 type Cells = Record<string, string>;
 
@@ -125,18 +88,15 @@ function table(name: string, fields: readonly string[], rows: readonly Cells[]):
   return { name, fields, rows: rows.map(row => fields.map(field => row[field] ?? '')) };
 }
 
-/** Tekstcel: geen tab of regeleinde (XER kent er geen escape voor), `"` ⇒ `""`. */
 function text(value: string | undefined): string {
   if (!value) return '';
   return value.replace(/[\t\r\n]+/g, ' ').replace(/"/g, '""');
 }
 
-/** Notitiecel: een regeleinde wordt DEL-DEL, zoals P6 het schrijft en `decodeXerNoteText` leest. */
 function noteText(value: string): string {
   return value.replace(/\t/g, ' ').replace(/\r\n|\r|\n/g, '\u007f\u007f').replace(/"/g, '""');
 }
 
-/** Getal met `.` als decimaalteken, zonder groepering of exponent (CURRTYPE zegt `.`/`,`). */
 function num(value: number | undefined | null): string {
   if (value === undefined || value === null || !Number.isFinite(value)) return '';
   const rounded = Math.round(value * 1e8) / 1e8;
@@ -147,7 +107,6 @@ function num(value: number | undefined | null): string {
 
 const flag = (value: boolean): string => (value ? 'Y' : 'N');
 
-/** Kap af op `max` tekens (codepunten) en tel het. */
 function clip(value: string, max: number, counter: { truncated: number }): string {
   const chars = Array.from(value);
   if (chars.length <= max) return value;
@@ -155,17 +114,10 @@ function clip(value: string, max: number, counter: { truncated: number }): strin
   return chars.slice(0, max).join('');
 }
 
-/** Een code zoals hij in de XER-cel komt (vóór `text()`): geen tab of regeleinde, geen witruimte
- *  aan de randen. Normaliseren gebeurt VÓÓR de controle op lengte en uniciteit. */
 function normalizeCode(value: string | undefined): string {
   return (value ?? '').replace(/[\t\r\n]+/g, ' ').trim();
 }
 
-/**
- * Een unieke code van hooguit `max` tekens (review PR #393, punt 8). Eerst normaliseren en inkorten
- * (geteld als `truncated`), dan pas de uniciteit; een achtervoegsel `-2`, `-3`, … komt binnen de grens
- * (de basis wordt zo nodig korter). `changed` telt elke code die de schrijver moest aanpassen.
- */
 function uniqueCode(
   raw: string | undefined, max: number, used: Set<string>, fallback: () => string,
   counter: { truncated: number }, changes: { changed: number },
@@ -191,8 +143,6 @@ function clipChars(value: string, max: number): string {
   return chars.length <= max ? value : chars.slice(0, max).join('');
 }
 
-/** P6-sleutels zijn gehele getallen. Een bestaande numerieke bron-id (uit een eerdere XER) blijft
- *  staan als hij uniek is; de rest krijgt het eerstvolgende vrije nummer. */
 function allocateIds<T>(items: readonly T[], keyOf: (item: T) => string, preferred: (item: T) => string | undefined): Map<string, string> {
   const out = new Map<string, string>();
   const used = new Set<string>();
@@ -214,15 +164,12 @@ function allocateIds<T>(items: readonly T[], keyOf: (item: T) => string, preferr
   return out;
 }
 
-// ── Datums en kalenders ──────────────────────────────────────────────────────────────────────────
-
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
 function clock(minutes: number): string {
   return `${pad2(Math.floor(minutes / 60))}:${pad2(minutes % 60)}`;
 }
 
-/** `YYYY-MM-DD` + minuten (mag ≥ 1440 zijn: dan de volgende dag). */
 function dateWithMinutes(date: string, minutes: number): string {
   const day = Math.floor(minutes / 1440);
   const rest = minutes - day * 1440;
@@ -230,14 +177,6 @@ function dateWithMinutes(date: string, minutes: number): string {
   return `${new Date(base).toISOString().slice(0, 10)} ${clock(rest)}`;
 }
 
-/**
- * Een OPS-datum als XER-datum `yyyy-MM-dd HH:mm`. Een moment gaat letterlijk. Een datum zonder tijd krijgt
- * het moment dat de motor er zelf van maakt, op de kalender van de taak (de dagregels, `workdayRules.ts`):
- * `start` ⇒ D1, het begin van het eerste werkblok; `finish` ⇒ D2, het einde van het laatste (zonder
- * werkblok die dag: de typische werkdag, D4). Zo leest `readXER` hetzelfde moment terug, ook de statusdatum
- * (startachtig, zoals de solver hem leest). `midnight` ⇒ 00:00: alleen voor een ingangsdatum, waarvan de
- * lezer alleen de datum gebruikt.
- */
 class InstantWriter {
   private readonly clocks = new Map<string, DayClock>();
 
@@ -262,8 +201,6 @@ class InstantWriter {
   }
 }
 
-/** Weekbanden van een kalender, met een band over middernacht gesplitst (de staart op de volgende
- *  dag): `clndr_data` kent per dag alleen tijden van 00:00 tot 24:00. */
 function weekBands(cal: WorkCalendar): Record<number, { start: number; end: number }[]> {
   const bands = effectiveWorkTimeBands(cal);
   const out: Record<number, { start: number; end: number }[]> = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] };
@@ -305,8 +242,6 @@ function nextIsoDay(date: string): string {
   return new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 }
 
-/** De werktijd op één kalenderdatum (minuten 0–1440): de banden die die dag beginnen, afgekapt op
- *  middernacht, plus het deel na middernacht van de banden die de dag ervoor begonnen. */
 function workOnDate(engine: CalendarEngine, date: string): { start: number; end: number }[] {
   const day = parseDate(date);
   const prev = parseDate(new Date(Date.parse(`${date}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10));
@@ -327,13 +262,6 @@ function sameBands(a: readonly { start: number; end: number }[], b: readonly { s
   return a.length === b.length && a.every((band, i) => band.start === b[i].start && band.end === b[i].end);
 }
 
-/**
- * `CALENDAR.clndr_data` in de vorm die `decodeXerCalendarData` leest: `DaysOfWeek` met P6-dagnummers
- * (1 = zondag … 7 = zaterdag), daarna `Exceptions` met één record per datum (`d` = dagen sinds
- * 1899-12-30). Een vrije dag heeft geen banden; een werkende uitzondering haar eigen banden, of die van
- * de weekdag. Elke datum één keer: P6 weigert dubbele uitzonderingen. Een werkende uitzondering wint
- * van een feestdag op dezelfde datum (zoals in de P6 XML-schrijver).
- */
 function calendarData(cal: WorkCalendar): string {
   const week = weekBands(cal);
   const days: string[] = [];
@@ -354,10 +282,6 @@ function calendarData(cal: WorkCalendar): string {
       byDate.set(date, bandRecords(splitWholeDay(bands).map(b => ({ start: b.start, end: Math.min(b.end, 1440) }))));
     }
   }
-  // Uurkalender: schrijf per datum wat de rekenkern die dag WERKELIJK als werktijd ziet (00:00–24:00),
-  // ook de ochtendstaart van een band die de dag ervoor over middernacht liep (review PR #393, punt 6).
-  // Dat geldt voor elke uitzonderings- of feestdag én de dag erna; die dag-erna krijgt alleen een
-  // eigen uitzondering als ze afwijkt van haar gewone weekpatroon.
   const engine = new CalendarEngine(calendarForEngine(cal));
   if (engine.isHourMode) {
     const explicit = new Set(byDate.keys());
@@ -377,9 +301,6 @@ function calendarData(cal: WorkCalendar): string {
   return `(0||CalendarData()((0||DaysOfWeek()(${days.join('')}))(0||Exceptions()(${exceptions.join('')}))))`;
 }
 
-// ── Windows-1252 ────────────────────────────────────────────────────────────────────────────────
-
-/** De tekens 0x80–0x9F van Windows-1252 (de rest is gelijk aan Latin-1). */
 const CP1252_HIGH: Readonly<Record<number, number>> = {
   0x20ac: 0x80, 0x201a: 0x82, 0x0192: 0x83, 0x201e: 0x84, 0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87,
   0x02c6: 0x88, 0x2030: 0x89, 0x0160: 0x8a, 0x2039: 0x8b, 0x0152: 0x8c, 0x017d: 0x8e, 0x2018: 0x91,
@@ -392,7 +313,6 @@ function cp1252Byte(codePoint: number): number | undefined {
   return CP1252_HIGH[codePoint];
 }
 
-/** Tekst ⇒ Windows-1252-bytes, of `null` plus het aantal tekens dat er niet in past. */
 export function encodeWindows1252(value: string): { bytes: Uint8Array | null; unencodable: number } {
   const out = new Uint8Array(value.length);
   let length = 0;
@@ -404,8 +324,6 @@ export function encodeWindows1252(value: string): { bytes: Uint8Array | null; un
   }
   return unencodable > 0 ? { bytes: null, unencodable } : { bytes: out.slice(0, length), unencodable: 0 };
 }
-
-// ── Kolommen ─────────────────────────────────────────────────────────────────────────────────────
 
 const CURRTYPE_COLUMNS = [
   'curr_id', 'decimal_digit_cnt', 'curr_symbol', 'decimal_symbol', 'digit_group_symbol',
@@ -420,7 +338,6 @@ const RSRC_COLUMNS = [
   'def_qty_per_hr', 'cost_qty_type', 'active_flag', 'curr_id', 'unit_id', 'rsrc_type', 'rsrc_notes',
 ] as const;
 const RSRCRATE_COLUMNS = ['rsrc_rate_id', 'rsrc_id', 'max_qty_per_hr', 'cost_per_qty', 'start_date'] as const;
-/** PROJECT: de gewone kolommen; de drie planningskolommen staan apart (zie hieronder). */
 const PROJECT_COLUMNS = [
   'proj_id', 'fy_start_month_num', 'rsrc_self_add_flag', 'allow_complete_flag', 'rsrc_multi_assign_flag',
   'checkout_flag', 'project_flag', 'step_complete_flag', 'batch_sum_flag', 'name_sep_char',
@@ -430,11 +347,6 @@ const PROJECT_COLUMNS = [
   'critical_path_type', 'def_rollup_dates_flag', 'rem_target_link_flag', 'reset_planned_flag',
   'allow_neg_act_flag', 'sum_assign_level', 'export_flag',
 ] as const;
-/**
- * De PROJECT-kolommen geplande start, "Must Finish By" en de kritiekdrempel (uren). Hun namen staan in
- * de verboden-lijst van de lezer (bak 2: als TASK-kolom zijn het rekenuitvoer), daarom precies één
- * keer hier, als catalogus (gepind in `check-xer-field-whitelist.ts`); de waarden gaan positioneel.
- */
 const XER_PROJECT_PLANNING_COLUMNS = ['plan_start_date', 'plan_end_date', 'critical_drtn_hr_cnt'] as const;
 const CALENDAR_COLUMNS = [
   'clndr_id', 'default_flag', 'clndr_name', 'proj_id', 'base_clndr_id', 'clndr_type',
@@ -469,26 +381,11 @@ const UDFVALUE_COLUMNS = ['udf_type_id', 'fk_id', 'proj_id', 'udf_date', 'udf_nu
 const MEMOTYPE_COLUMNS = ['memo_type_id', 'seq_num', 'eps_flag', 'proj_flag', 'wbs_flag', 'task_flag', 'memo_type'] as const;
 const TASKMEMO_COLUMNS = ['memo_id', 'task_id', 'memo_type_id', 'proj_id', 'task_memo'] as const;
 
-// ── Maat (alleen uren §3.3, §3.10; T13, T14, T21; `xmlDayMeasure.ts`) ───────────────────────────
-
-/** De werktijd per dag van een kalender in minuten (T13): daarin telt de dagenmaat, net als in de P6
- *  XML-export en in de lezer (`readXER`). Een kalender zonder werktijd telt 8 u, net als de lezer. */
 function workMinutesPerDayOf(cal: WorkCalendar): number {
   const minutes = dayMeasureMinutesPerDay(cal, false);
   return minutes > 0 ? minutes : 480;
 }
 
-/**
- * Duur en rest van een activiteit in de vorm die de XER draagt, met het record, zoals de P6 XML-export:
- *  - urenmaat: de minuten, op de hele minuut; een breuk gaat als `OPS_ExactMinutes`-record mee (T14);
- *  - dagenmaat: werkdagen × de werktijd per dag van de taakkalender (T13, niet de opgeslagen `hoursPerDay`);
- *    een breuk in dagen gaat als `OPS_DayMeasureDurations`-record mee (T21);
- *  - kalendertijd kent P6 niet per activiteit: de lengte telt als werktijd, en het record draagt de eenheid
- *    (`ed`/`eu`), ook bij hele dagen, zodat OPS de kalendertijd terugleest (review #585 r1, punt 3).
- * De rest volgt de solver en de werkregelbrug (`remainingMinutesOf`): de vastgelegde rest, anders duur ×
- * (1 − voortgang), in de maat van de taak. Een voltooide taak en een nulduur-mijlpaal: 0. Een mijlpaal mét
- * duur (`isZeroDurationMilestone`) houdt zijn duur en rest: P6 kent die niet, dus die wordt een gewone activiteit.
- */
 function writtenDurations(task: Task, cal: WorkCalendar, complete: boolean): { duration: WrittenAmount; remaining: WrittenAmount } {
   if (isZeroDurationMilestone(task)) return { duration: { minutes: 0 }, remaining: { minutes: 0 } };
   const minutesPerDay = workMinutesPerDayOf(cal);
@@ -509,10 +406,6 @@ function writtenDurations(task: Task, cal: WorkCalendar, complete: boolean): { d
   };
 }
 
-// ── Schrijver ───────────────────────────────────────────────────────────────────────────────────
-
-/** De invoer zonder kostenresources en hun toewijzingen (issue #815), plus het aantal weggelaten
- *  kostenresources. XER kent geen kostenresource; `writeXER` meldt het verlies. */
 function withoutCostResources(input: XerWriteInput): { input: XerWriteInput; costResources: number } {
   const costIds = new Set(input.resources.filter(r => r.type === 'COST').map(r => r.id));
   if (costIds.size === 0) return { input, costResources: 0 };
@@ -531,8 +424,6 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
   const lose = (code: XerWriteLossCode, count: number) => {
     if (count > 0) losses.set(code, (losses.get(code) ?? 0) + count);
   };
-  // Kostenresources (issue #815) en hun toewijzingen gaan niet mee: P6 kent geen kostenresource
-  // (alleen expenses per activiteit, PR3). Geteld als verlies, nooit stil.
   const { input, costResources } = withoutCostResources(rawInput);
   lose('costResources', costResources);
   const { project, calendar } = input;
@@ -550,11 +441,7 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
   const instants = new InstantWriter();
   const options = effectiveSchedulingOptions(project);
 
-  // ── Identiteiten ─────────────────────────────────────────────────────────────────────────────
   const identity = p6ProjectIdentity(project, input.projectCode);
-  // Het P6 Project-ID: de eigen code van het document, anders de projectnaam (review PR #393, punt 2).
-  // Geen `OPS:`-code: die zou na heropenen als code van de gebruiker gelden. Een naam als ID toont de
-  // app na heropenen niet dubbel (`nameWithProjectCode`: naam = code ⇒ alleen de naam).
   const ownProjectCode = normalizeCode(input.projectCode ?? undefined);
   const projectCode = ownProjectCode
     ? clip(ownProjectCode, P6_MAX_LENGTH.Project.Id, counter)
@@ -566,10 +453,6 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
   const wbsIds = allocateIds(wbsTasks, t => t.id, t => /^xer-wbs:[^:]*:(\d+)$/.exec(t.id)?.[1]);
   const resIds = allocateIds(input.resources, r => r.id, r => /^xer-resource:(\d+)$/.exec(r.id)?.[1] ?? r.id);
 
-  // De projectknoop van P6 (PROJWBS met `proj_node_flag = Y`): de wortel van de WBS, met de
-  // projectnaam. Heeft het project precies één wortel, een samenvatting met de projectnaam (zo komt
-  // een eerder ingelezen XER binnen), dan IS die de projectknoop — anders zou elke rondgang een
-  // laag toevoegen. Anders maakt de schrijver een nieuwe knoop.
   const roots = tasks.filter(t => !t.parentId || !taskById.has(t.parentId));
   const foldedRoot = roots.length === 1 && isSummaryTask(roots[0]) && roots[0].name.trim() === identity.name.trim()
     ? roots[0] : undefined;
@@ -583,7 +466,6 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
   const wbsIdOf = (parentId: string | null): string =>
     (parentId && wbsIds.get(parentId)) || projectNodeId;
 
-  // ── PROJECT ──────────────────────────────────────────────────────────────────────────────────
   const crit = options.criticalDefinition;
   const critHours = crit?.mode === 'totalFloat'
     ? crit.thresholdHours ?? (crit.threshold ?? 0) * calendar.hoursPerDay
@@ -596,7 +478,6 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
     clndr_id: calIds.get(calendar.id)!, task_code_base: '1000', task_code_step: '10', priority_num: '10',
     wbs_max_sum_level: '0', strgy_priority_num: '100',
     last_recalc_date: instants.write(project.statusDate, 'start', calendar),
-    // De effectieve projectstandaard, ook zonder eigen keuze (`DEFAULT_WORK_RULE`, review ronde 2 E1).
     def_duration_type: XER_DURATION_TYPE_TOKEN[project.defaultWorkRule ?? DEFAULT_WORK_RULE], def_qty_type: 'QT_Hour', add_by_name: 'admin', def_rate_type: 'COST_PER_QTY',
     act_this_per_link_flag: 'Y', def_task_type: 'TT_Task', act_pct_link_flag: 'N',
     critical_path_type: crit?.mode === 'longestPath' ? 'CT_DrivPath' : 'CT_TotFloat',
@@ -609,12 +490,9 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
     num(critHours),
   ];
   if (project.description?.trim() || project.author?.trim() || project.company?.trim()) lose('projectDetails', 1);
-  // De eigen keuze van het project (review PR #393 ronde 2, punt E2). `def_duration_type` staat er altijd,
-  // ook zonder keuze; de UDF zegt `readXER` dat het project deze standaard zelf koos.
   const opsValues: { field: XerOpsField; fkId: string; text: string }[] = [];
   if (project.defaultWorkRule) opsValues.push({ field: 'defaultWorkRule', fkId: projId, text: project.defaultWorkRule });
 
-  // ── CALENDAR ─────────────────────────────────────────────────────────────────────────────────
   const taskCalendarIds = new Set(tasks.map(t => t.calendarId).filter((id): id is string => !!id));
   const calendarRows: Cells[] = allCalendars.map(cal => {
     const week = weekBands(cal);
@@ -630,7 +508,6 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
     };
   });
 
-  // ── SCHEDOPTIONS ─────────────────────────────────────────────────────────────────────────────
   const floatPaths = options.floatPaths;
   const scheduleRow: Cells = {
     schedoptions_id: '1', proj_id: projId, sched_outer_depend_type: 'SD_Both',
@@ -651,18 +528,12 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
     } : {}),
   };
   if (p6SchedulingRulesDiffer(project, options, tasks)) lose('schedulingRules', 1);
-  // Een kalender zonder eigen werktijdblokken (alleen begin, einde en uren per dag) schrijft de XER als banden.
-  // De lezer leest elke kalender met banden als urenkalender (`xerCalendarData.ts`, gelijk aan main), dus na
-  // heropenen heeft ze eigen werktijdblokken, en de engine rekent daar anders mee (knownbug 466; review PR
-  // #393 ronde 3, punt 1). Geen markering: het besluit daarover ligt bij de eigenaar. Wel een melding.
   lose('calendarKinds', allCalendars.filter(cal => !cal.workTime && effectiveWorkTimeBands(cal) !== undefined).length);
 
-  // ── PROJWBS ──────────────────────────────────────────────────────────────────────────────────
   const order = new Map(tasks.map((t, i) => [t.id, i + 1]));
   const wbsRows: Cells[] = [];
   const nodeName = foldedRoot ? foldedRoot.name : identity.name;
   const nodeCode = foldedRoot?.wbsCode?.trim() || projectCode;
-  // WBS-codes: uniek per ouder (P6), na normalisatie en binnen de grens.
   const usedWbsCodes = new Map<string, Set<string>>();
   const wbsCodeFor = (parentWbsId: string, raw: string | undefined, fallback: () => string): string => {
     let used = usedWbsCodes.get(parentWbsId);
@@ -687,17 +558,14 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
     });
   }
 
-  // ── TASK ─────────────────────────────────────────────────────────────────────────────────────
   const usedCodes = new Set<string>();
   const taskRows: string[][] = [];
-  /** Per taak de geschreven duur en rest in minuten: de toewijzingen hieronder rekenen ermee. */
   const writtenByTask = new Map<string, { duration: number; remaining: number }>();
   for (const task of leafTasks) {
     const cal = effCal(task);
     const status = XER_STATUS_TOKEN[taskStatusToP6(task)];
     const { duration, remaining } = writtenDurations(task, cal, status === 'TK_Complete');
     writtenByTask.set(task.id, { duration: duration.minutes, remaining: remaining.minutes });
-    // Activiteit-ID: uniek, niet leeg en hooguit 40 tekens, ná normalisatie (P6 eist dat).
     const code = uniqueCode(task.wbsCode, P6_MAX_LENGTH.Activity.Id, usedCodes, () => `A${(order.get(task.id) ?? 1) * 10}`, counter, codeChanges);
     const milestoneSide = task.milestoneKind === 'FINISH' ? 'finish' : 'start';
     const zeroMilestone = isZeroDurationMilestone(task);
@@ -705,15 +573,8 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
     const finishSide = zeroMilestone ? milestoneSide : 'finish';
     const constraintSide = (type: string | undefined): 'start' | 'finish' =>
       type === 'MFO' || type === 'FNET' || type === 'FNLT' ? 'finish' : 'start';
-    // De ACTUELE effectieve werkregel: eigen regel, anders de projectstandaard, anders de standaardregel (review
-    // PR #393, punt 3; ronde 4). Niet het oude P6-duurtype uit de bron (`p6DurationType`): elk van de vier
-    // P6-duurtypen heeft precies één OPS-regel (`XER_DURATION_TYPE_TOKEN`), dus het oude veld draagt niets wat de
-    // regel niet al draagt. Wel kon het een keuze van de gebruiker terugdraaien: koos die *Projectstandaard*,
-    // dan schreef de export het oude type, en na heropenen had de taak weer een eigen regel.
     const workRule = effectiveWorkRule(task, project.defaultWorkRule);
     const durationType = XER_DURATION_TYPE_TOKEN[workRule];
-    // Activiteittype: mijlpaal, hammock (TT_LOE), anders het P6-type uit de bron als dat een gewone
-    // activiteit is (TT_Rsrc, TT_WBS: review PR #393, punt 7), anders TT_Task.
     const taskType = zeroMilestone ? (task.milestoneKind === 'FINISH' ? 'TT_FinMile' : 'TT_Mile')
       : task.isHammock ? 'TT_LOE'
         : task.p6ActivityType === 'TT_Rsrc' || task.p6ActivityType === 'TT_WBS' ? task.p6ActivityType : 'TT_Task';
@@ -730,9 +591,6 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
       act_start_date: instants.write(task.time.actualStart, 'start', cal),
       act_end_date: instants.write(task.time.actualFinish, 'finish', cal),
       expect_end_date: instants.write(task.p6ExpectedFinish, 'finish', cal),
-      // Geplande datums = de geplande datums van OPS (`scheduleStart`/`scheduleFinish`), het omgekeerde
-      // van de lezer. Niet de berekende datums (zoals de P6 XML-export): onder P6-herkomst leest de
-      // lezer target_* als ondergrens, en een ALAP-taak zou dan na de rondgang anders rekenen.
       target_start_date: instants.write(task.time.scheduleStart, startSide, cal),
       target_end_date: instants.write(task.time.scheduleFinish, finishSide, cal),
       priority_type: task.priority === 500 ? 'PT_Normal' : priority[1],
@@ -751,9 +609,6 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
       row.cstr_date2 = instants.write(task.constraint2?.date, constraintSide(task.constraint2?.type), cal);
     }
     if (!XER_PRIORITY.some(([value]) => value === task.priority)) lose('priorities', 1);
-    // Rekenuitvoer (bak 4) achter de gewone kolommen: P6 toont ze tot de eerste herberekening, en de
-    // lezer leest ze als "Datums zoals opgeslagen", nooit als invoer.
-    // Speling in uren: de berekende minuten, anders dagen × de werktijd per dag (T13).
     const workHpd = workMinutesPerDayOf(cal) / 60;
     const recorded = [
       instants.write(computedStart(task), startSide, cal),
@@ -764,17 +619,13 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
       num(task.time.freeFloatMinutes !== undefined ? task.time.freeFloatMinutes / 60 : task.time.freeFloat * workHpd),
     ];
     taskRows.push([...TASK_COLUMNS.map(field => row[field] ?? ''), ...recorded]);
-    // De eenheid van de taak en, bij een breuk, het record (T15, T21): zo leest `readXER` de maat terug.
     const taskId = taskIds.get(task.id)!;
     opsValues.push({ field: 'unit', fkId: taskId, text: taskDurationUnit(task) });
     const records = fieldRecordsJson({ [XER_DURATION_FIELDS.duration]: duration.record, [XER_DURATION_FIELDS.remaining]: remaining.record });
     if (records !== undefined) opsValues.push({ field: taskDurationUnit(task) === 'hours' ? 'exactRecords' : 'dayRecords', fkId: taskId, text: records });
-    // Een taak zonder eigen werkregel erft de projectstandaard. `duration_type` draagt de effectieve regel, en de
-    // lezer maakt daar een eigen regel van; deze markering zegt dat ze geërfd was (review PR #393 ronde 3, punt 2).
     if (task.workRule === undefined) opsValues.push({ field: 'inheritedWorkRule', fkId: taskId, text: workRule });
   }
 
-  // Verlies op taakniveau.
   lose('taskDescriptions', tasks.filter(t => t.description?.trim()).length);
   lose('activityCodes', tasks.filter(t => Object.values(t.activityCodes ?? {}).some(v => v)).length);
   lose('customFields', tasks.filter(t => Object.values(t.customFields ?? {}).some(v => v !== undefined && v !== '')).length);
@@ -791,16 +642,9 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
   lose('noteStatus', tasks.reduce((n, t) => n + (t.notes ?? []).filter(note => note.done).length, 0));
   lose('baselines', input.baselineCount ?? 0);
 
-  // ── TASKPRED ─────────────────────────────────────────────────────────────────────────────────
-  // P6 kent geen relatie met een WBS-element: een relatie die een samenvatting raakt, gaat als de
-  // bladrelaties die de solver er zelf van maakt (`expandSummaryRelations`).
   const touchesSummary = (s: Sequence) => isSummaryTask(taskById.get(s.predecessorId)) || isSummaryTask(taskById.get(s.successorId));
   lose('summaryRelations', input.sequences.filter(touchesSummary).length);
   const expanded = expandSummaryRelations(tasks, [...input.sequences]).sequences;
-  // De lag in uren en, voor de dagenmaat en kalendertijd, het lagrecord: dezelfde regel als de P6 XML-export
-  // (`p6RelationshipLag`; T21, I7). Een lag in dagen telt in de werktijd per dag van de lagkalender, die de
-  // SCHEDOPTIONS-rij hierboven ook noemt. De records gaan als één UDF op de opvolger, met de voorganger
-  // en het relatietype als sleutel.
   const lagRecords = new LagRecordCollector();
   const predRows: Cells[] = [];
   let predId = 1;
@@ -825,7 +669,6 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
     if (json !== undefined) opsValues.push({ field: 'lagRecords', fkId: taskIds.get(task.id)!, text: json });
   }
 
-  // ── RSRC / RSRCRATE / UMEASURE ───────────────────────────────────────────────────────────────
   const units = [...new Set(input.resources.map(r => r.unitOfMeasure?.trim()).filter((u): u is string => !!u))];
   const unitIds = new Map(units.map((u, i) => [u, String(i + 1)]));
   const usedShortNames = new Set<string>();
@@ -846,20 +689,10 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
       active_flag: 'Y', curr_id: '1', unit_id: res.unitOfMeasure ? unitIds.get(res.unitOfMeasure.trim()) ?? '' : '',
       rsrc_type: XER_RESOURCE_TYPE[p6Type], rsrc_notes: noteText(res.description ?? ''),
     });
-    // Tarief en beschikbaarheid: één RSRCRATE-rij per stap; zonder stappen één rij met de vaste
-    // capaciteit (`maxUnits`) als maximale inzet, ook zonder tarief (review PR #393, punt 4). P6
-    // onderscheidt standaardinzet (`def_qty_per_hr`) en maximale capaciteit (`max_qty_per_hr`).
-    // Materiaal: OPS kent capaciteit en inzet per DAG, XER per uur. De toewijzingen delen de dag door
-    // de uren per dag (TASKRSRC hieronder); de capaciteit moet dezelfde schaal krijgen, anders is
-    // 80 m³/dag op 80 m³/dag in P6 12,5 % bezet (review PR #393 ronde 2, punt C). `def_qty_per_hr`
-    // blijft ongeschaald: dat leest `readXER` als `maxUnits` (de lezer blijft ongewijzigd).
     const capacityHpd = resCal.hoursPerDay > 0 ? resCal.hoursPerDay : 8;
     const capacity = (units: number) => (res.type === 'MATERIAL' ? units / capacityHpd : units);
     const steps = res.availabilitySteps ?? [];
     if (steps.length > 0) {
-      // Materiaal: de stap staat per uur in P6; `OPS_CapacitySteps` bewaart per startdatum de dagwaarde en de
-      // geschreven waarde, zodat `readXER` de stap per dag terugleest (`buildXerResourceCatalog`). Een
-      // startdatum die twee keer voorkomt, krijgt geen record (de lezer kan de rijen niet uit elkaar houden).
       const stepRecords = new Map<string, CapacityStepRecord>();
       const repeatedDates = new Set<string>();
       for (const step of steps) {
@@ -877,9 +710,6 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
         opsValues.push({ field: 'capacitySteps', fkId: resIds.get(res.id)!, text: capacityStepsJson(stepRecords) });
       }
     } else {
-      // Vaste capaciteit: de lezer maakt van een RSRCRATE-rij een stap. De UDF `OPS_FlatCapacity` met de
-      // geschreven waarde zegt `readXER` dat deze rij de vaste capaciteit is, zodat *Max. eenheden* na
-      // heropenen weer de capaciteit bepaalt (review PR #393 ronde 2, punt D; `buildXerResourceCatalog`).
       const maxPerHour = num(capacity(res.maxUnits));
       rateRows.push({
         rsrc_rate_id: String(rateId++), rsrc_id: resIds.get(res.id)!, max_qty_per_hr: maxPerHour,
@@ -889,7 +719,6 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
     }
   });
 
-  // ── RSRCCURVDATA / TASKRSRC ──────────────────────────────────────────────────────────────────
   const resourceById = new Map(input.resources.map(r => [r.id, r]));
   const curveRows: Cells[] = [];
   const curveIdByKey = new Map<string, string>();
@@ -918,23 +747,14 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
     if (!isLeafTask(task)) { lose('summaryAssignments', 1); continue; }
     const cal = effCal(task);
     const isMaterial = res.type === 'MATERIAL';
-    // Materiaal: OPS rekent per dag, XER per uur. De lezer vermenigvuldigt weer met dezelfde dag: op een
-    // urentaak de werktijd per dag van de taakkalender, op een dagtaak de `hoursPerDay` van de
-    // resourcekalender (`unitsPerDay` in `xerResourceAssignments.ts`).
     const materialHpd = taskDurationUnit(task) === 'hours'
       ? effHoursPerDay(cal)
       : ((res.calendarId && calendarById.get(res.calendarId)) || calendar).hoursPerDay;
     const perHour = (rate: number) => (isMaterial ? rate / (materialHpd > 0 ? materialHpd : 8) : rate);
     const planned = a.plannedUnitsPerDay ?? a.unitsPerDay;
-    // Afgeleid werk = de geschreven duur × inzet: dezelfde uren als in TASK, dus voor een dagtaak werkdagen ×
-    // de werktijd per dag (T14), zoals de werkregelbrug rekent.
     const written = writtenByTask.get(task.id) ?? { duration: 0, remaining: 0 };
     const targetQty = a.plannedWorkMinutes !== undefined ? a.plannedWorkMinutes / 60 : written.duration / 60 * perHour(planned);
-    // Restwerk: het vastgelegde veld, anders afgeleid zoals de werkregelbrug het doet: effectieve
-    // restduur × resterende inzet (`remainingWorkOf`; review PR #393, punt 5). Niet begroot − verricht:
-    // zonder vastgelegd verricht werk is dat de hele begroting. Een voltooide taak heeft geen restduur.
     const remainQty = a.remainingWorkMinutes !== undefined ? a.remainingWorkMinutes / 60 : written.remaining / 60 * perHour(a.unitsPerDay);
-    // Verricht werk: het vastgelegde veld, anders begroot − rest (het werk dat de voortgang al dekt).
     const actualQty = a.actualWorkMinutes !== undefined ? a.actualWorkMinutes / 60 : Math.max(0, targetQty - remainQty);
     assignmentRows.push({
       taskrsrc_id: String(assignmentId++), task_id: taskIds.get(task.id)!, proj_id: projId, cost_qty_link_flag: 'Y',
@@ -948,7 +768,6 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
     });
   }
 
-  // ── MEMOTYPE / TASKMEMO ──────────────────────────────────────────────────────────────────────
   const memoRows: Cells[] = [];
   for (const task of leafTasks) {
     for (const note of task.notes ?? []) {
@@ -959,15 +778,10 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
       });
     }
   }
-  // P6 kent alleen notities op een activiteit (TASKMEMO); die van een WBS-element gaan niet mee.
   lose('summaryNotes', wbsTasks.reduce((n, t) => n + (t.notes ?? []).filter(note => note.text.trim()).length, 0));
-  // Een samenvattingstaak wordt een WBS-element; P6 kent daar geen constraint (zelfde regel als
-  // `hasConstraintLoss` voor P6 XML, `xerExportLoss.ts`).
-  // Telt constraints, niet taken: een primaire en een secundaire op dezelfde samenvattingstaak zijn er twee.
   lose('summaryConstraints', wbsTasks.reduce((n, t) =>
     n + (t.constraint !== undefined && t.constraint.type !== 'ASAP' ? 1 : 0) + (t.constraint2 !== undefined ? 1 : 0), 0));
 
-  // ── Samenstellen ─────────────────────────────────────────────────────────────────────────────
   const tables: Table[] = [
     table('CURRTYPE', CURRTYPE_COLUMNS, [{
       curr_id: '1', decimal_digit_cnt: '2', curr_symbol: '€', decimal_symbol: '.', digit_group_symbol: ',',
@@ -995,9 +809,6 @@ export function writeXER(rawInput: XerWriteInput): XerWriteResult {
   if (predRows.length > 0) tables.push(table('TASKPRED', TASKPRED_COLUMNS, predRows));
   if (curveRows.length > 0) tables.push(table('RSRCCURVDATA', RSRCCURVDATA_COLUMNS, curveRows));
   if (assignmentRows.length > 0) tables.push(table('TASKRSRC', TASKRSRC_COLUMNS, assignmentRows));
-  // OPS-velden (`xerOpsMarkers.ts`), zoals de P6 XML-export: de maat per taak en haar records, de
-  // standaardwerkregel en de vaste capaciteit, zodat `readXER` een eigen export zo terugleest. P6 ziet
-  // gewone eigen velden (tekst). De taakvelden staan er altijd; de andere alleen met een waarde.
   const usedFields = new Set(opsValues.map(value => value.field));
   const udfs = OPS_XER_UDFS.filter(udf => udf.table === 'TASK' || usedFields.has(udf.field));
   const udfTypeId = (field: XerOpsField) => String(OPS_XER_UDF_TYPE_ID[field]);
