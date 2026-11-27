@@ -25,6 +25,7 @@ import { saveShowHistogram } from '@/utils/settingsStore';
 import { ZOOM_STEP } from '@/utils/ganttViewport';
 import i18n from '@/i18n/config';
 import { canRedo, canUndo } from '@/state/sessionHistory';
+import { isTaskListInView } from '@/state/ganttVisibility';
 
 export interface Command {
   /** Stabiele id — tevens de sleutel in {@link COMMANDS}. */
@@ -44,6 +45,14 @@ export interface Command {
 }
 
 const hasSelection = (s: AppState): boolean => s.selectedTaskIds.length > 0;
+
+/**
+ * ÉÉN gedeelde regel voor de knoppen op de selectie (Verwijderen, Dissolve) én de Delete-toets:
+ * er moet een selectie zijn én de takenlijst moet in beeld zijn (`isTaskListInView`). Onder het
+ * VOLLEDIGE resourcepaneel is de selectie onzichtbaar en mag niets worden gewist (#1305,
+ * knownbug 2520) — de Delete-toets blokkeert in shortcutRegistry op dezelfde `isTaskListInView`.
+ */
+export const hasEditableSelection = (s: AppState): boolean => hasSelection(s) && isTaskListInView(s.ui);
 
 export const COMMANDS = {
   undo: {
@@ -75,7 +84,9 @@ export const COMMANDS = {
     // Storegebonden bulk-route: het expliciete `run(store)`-contract mag nooit via de
     // app-singleton teruglekken. Het contextmenu gebruikt dezelfde storeactie via zijn adapter.
     run: (s) => { s.deleteTasksBulk(s.selectedTaskIds); },
-    isEnabled: hasSelection,
+    // Zelfde regel als de Delete-toets: zonder takenlijst in beeld (volledig resourcepaneel)
+    // staat ook de lintknop uit (#1305).
+    isEnabled: hasEditableSelection,
   },
   indent: {
     id: 'indent',
