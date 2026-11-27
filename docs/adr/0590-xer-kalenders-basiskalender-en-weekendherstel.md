@@ -26,4 +26,4 @@ daar ontbrak. Toepassen bouwen we pas als een bestand opduikt waarin de afgeleid
 - De uren per dag zonder bronveld rekent `readXerCalendars` eerst in minuten per werkdag en deelt pas daarna door 60:
   zes dagen van 7,6 uur gaven in uren 7,6000000000000005, en dat telde als afwijking van de werkblokken.
 - `decodeXerNoteText` (DEL-DEL wordt een regeleinde) draait alleen op de notitievelden in `P6_NOTE_FIELDS`
-  (`xerTables.ts`), zodat de structuurtekst van `clndr_data` onveranderd bij de decoder aankomt.
+  (`xerTables.ts`), zodat die omzetting de structuurtekst van `clndr_data` niet raakt.

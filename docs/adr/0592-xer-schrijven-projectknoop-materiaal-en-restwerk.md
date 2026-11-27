@@ -1,7 +1,8 @@
 # XER schrijven: de projectknoop, de schaal van materiaal en het restwerk
 
-`writeXER` (`xerWriter.ts`) schrijft zo dat `readXER` na een rondgang dezelfde planning teruggeeft
-(`check-xer-writer.ts`: XER → OPS → XER → OPS, byte-gelijke tweede en derde export). Drie keuzes daarvoor zien er
+`writeXER` (`xerWriter.ts`) schrijft zo dat de export na een rondgang niet verschuift
+(`check-xer-writer.ts`: XER → OPS → XER → OPS, byte-gelijke tweede en derde export); wat XER niet kent, zoals een
+deadline, komt niet terug. Drie keuzes daarvoor zien er
 zonder uitleg overbodig of scheef uit. De regels van de schrijver staan verder in de regel `xer`; wat hij met de
 P6 XML-schrijver deelt, in ADR 0364 en 0365.
 
@@ -17,7 +18,10 @@ P6 XML-schrijver deelt, in ADR 0364 en 0365.
   `maxUnits` zonder schaal, omdat `buildXerResourceCatalog` dat veld zo als `maxUnits` terugleest.
 - **Restwerk.** Zonder vastgelegd restwerk schrijft de schrijver de geschreven restduur maal de resterende inzet, zoals
   de werkregelbrug rekent (`remainingWorkOf`), en niet begroot min verricht: zonder vastgelegd verricht werk is dat de
-  hele begroting. Verricht werk zonder vastgelegd veld is begroot min rest.
+  hele begroting. Verricht werk zonder vastgelegd veld is begroot min rest, en nooit
+  minder dan 0.
 - Een relatie die een samenvattingstaak raakt, gaat als de bladrelaties die de solver er zelf van maakt
   (`expandSummaryRelations`); dat P6 geen relatie met een WBS-element kent, komt uit het weggehaalde commentaar en is
   niet nagegaan.
+- De kalenderuitvoer (`calendarData`) schrijft per datum één uitzondering; volgens het weggehaalde commentaar weigert P6
+  dubbele uitzonderingen, niet nagegaan.
