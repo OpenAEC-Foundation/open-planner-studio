@@ -7970,3 +7970,10 @@ en noem het in je rapport of PR-tekst.
       van de gids voor IFCX (#1303, ronde 2), niet nagespeeld in de app; de gids zegt daarom dat de melding alleen de
       verliezen noemt die de app herkent. Richting: een regel in de verliesmelding voor de ingevulde einddatum, of de
       datum meeschrijven. — S
+
+2408. **Gids: niet elke regel in de XER-verliesmelding noemt een aantal.** *Import- en exportformaten*
+      (`public/docs/nl/ref-import-exportformaten.md` en de Engelse) zegt dat de melding na een export naar `.xer` per
+      soort een regel met een aantal toont, bijvoorbeeld *2 deadlines*. De regels over rekeninstellingen en
+      projectgegevens hebben geen aantal (`src/state/xerExportNotice.ts`). De zin stond al zo op main. Gevonden in de
+      code door de reviewer van de gids voor IFCX (#1303, ronde 4), niet nagespeeld in de app. Richting: in de gids het
+      aantal alleen noemen waar de app het toont. — S
