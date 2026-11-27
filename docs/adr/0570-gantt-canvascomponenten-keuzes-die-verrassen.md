@@ -25,8 +25,6 @@ zou terugdraaien. Ze staan hier, per onderwerp, met de reden.
 - Mijlpaal aan/uit leidt de nieuwe waarde af uit de aangeklikte taak en zet die op de hele reikwijdte; een schakelaar
   per taak geeft bij een gemengde selectie geen voorspelbare uitkomst. Inklappen en Uitklappen zijn om dezelfde reden
   twee items die nooit uit staan, zoals in het lint (ADR 0484).
-- "Taak toevoegen" volgt de selectie en niet de aangeklikte taak, omdat het item ook op lege ruimte staat; wie op een
-  taak richt, heeft "Invoegen boven/onder".
 - `CONTEXT_MENU_ITEM_CLASS` draagt geen tekstkleur: elke aanroeper zet zijn eigen kleur. Volgens het weggehaalde
   commentaar beslist bij twee kleurklassen van gelijke specificiteit de volgorde in de gegenereerde Tailwind-CSS en
   niet die in de `className`; niet nagegaan.
@@ -44,7 +42,8 @@ zou terugdraaien. Ze staan hier, per onderwerp, met de reden.
   inhoud buiten `left`/`top` (andere taak, taal of tekengrootte).
 - `RelationTypePopover` legt vast via een vlag en een effect, en de Enter-luisteraar stopt het event niet: het
   lagveld zet bij Enter zijn waarde nog in het concept, en pas na die render leest het effect het concept. De vlag
-  voorkomt een tweede relatie als Enter en een klik buiten samenvallen.
+  voorkomt een tweede relatie als Enter en een klik buiten samenvallen. De focus op de typekeuze wacht op een timer:
+  de klik die bij het loslaten hoort, zet de focus anders terug op het canvas.
 - Uit het weggehaalde commentaar, niet nagegaan: een klik op een canvas geeft niet in elke browser DOM-focus, daarom
   roept `focusCanvas` in `GanttCanvas` `focus()` zelf aan; en een `<canvas>` valt vóór zijn eerste tekening terug op
   300×150, daarom zet `MiniMap` `maxWidth`/`maxHeight` op 100%.
