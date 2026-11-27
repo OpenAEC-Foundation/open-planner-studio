@@ -202,12 +202,13 @@ const INIT_SCRIPT = `(() => {
     loaded: (s, a) => s.tasks.length === a.tasks && s.tasks !== nm.refTasks,
     cpm: s => s.cpmResult !== nm.refCpm,
     clean: s => !s.isDirty,
-    tasksChanged: s => s.tasks !== nm.refTasks,
   };
   const paintAfter = t => nm.paintLog.find(p => p.s >= t && p.e != null) ?? null;
+  const paintAfterCpm = () => nm.paintLog.find((p, index) => index >= nm.cpmPaintIndex && p.e != null) ?? null;
   const conds = {
     // Taken in de store én daarna een complete Gantt-tekening.
     store: a => nm.storeAt != null && (!a.paint || !!paintAfter(nm.storeAt)),
+    levelApplied: () => nm.storeAt != null && nm.cpmAt != null && !!paintAfterCpm(),
     paint: a => nm.paintLog.length > a.p0 && nm.paintLog[a.p0].e != null,
     levelDone: () => {
       const d = document.querySelector('[role="dialog"]');
@@ -221,12 +222,24 @@ const INIT_SCRIPT = `(() => {
   nm.arm = (kind, a) => {
     nm.p0 = nm.paintLog.length;
     nm.storeAt = null;
+    nm.cpmAt = null;
+    nm.cpmPaintIndex = 0;
     if (nm.unsub) nm.unsub();
     nm.unsub = null;
     if (window.__OPS__) {
       nm.refCpm = S().cpmResult; nm.refTasks = S().tasks;
       if (kind) nm.unsub = window.__OPS__.store.subscribe(st => {
-        if (nm.storeAt == null && storeConds[kind](st, a)) nm.storeAt = performance.now();
+        if (kind === 'levelApply') {
+          const afterClick = nm.input.pointerdown >= nm.t0;
+          if (!afterClick) return;
+          if (nm.storeAt == null && st.tasks !== nm.refTasks && st.cpmResult === nm.refCpm) {
+            nm.storeAt = performance.now();
+          }
+          if (nm.storeAt != null && nm.cpmAt == null && st.cpmResult && st.cpmResult !== nm.refCpm) {
+            nm.cpmAt = performance.now();
+            nm.cpmPaintIndex = nm.paintLog.length;
+          }
+        } else if (nm.storeAt == null && storeConds[kind](st, a)) nm.storeAt = performance.now();
       });
     }
     nm.t0 = performance.now();
@@ -240,8 +253,9 @@ const INIT_SCRIPT = `(() => {
       let ok = false;
       try { ok = conds[name](a); } catch {}
       if (ok) {
-        const p = name === 'paint' ? nm.paintLog[a.p0] : (nm.storeAt != null ? paintAfter(nm.storeAt) : null);
-        resolve({ hit: performance.now(), storeAt: nm.storeAt, paintStart: p ? p.s : null, paintEnd: p ? p.e : null });
+        const p = name === 'levelApplied' ? paintAfterCpm()
+          : name === 'paint' ? nm.paintLog[a.p0] : (nm.storeAt != null ? paintAfter(nm.storeAt) : null);
+        resolve({ hit: performance.now(), storeAt: nm.storeAt, cpmAt: nm.cpmAt, paintStart: p ? p.s : null, paintEnd: p ? p.e : null });
         return;
       }
       if (performance.now() - start > timeoutMs) { resolve(null); return; }
@@ -412,14 +426,33 @@ async function oneRun(browser, baseUrl, dataset, ifcBuffer, repIndex) {
         // Herkend in een rAF-lus: resolutie ±1 frame (16,7 ms).
         r.phases.levelCalculate = { ok: !info.problem, ms: r1(calc.hit - inCalc), longestTaskMs: r1(await longest(inCalc, calc.hit)), ...info };
         if (!info.problem) {
-          await arm('tasksChanged');
+          await arm('levelApply');
           await dialog.getByRole('button', { name: /^(Toepassen|Apply)$/ }).click();
           const inApply = await ev(() => window.__nm.input.pointerdown);
-          const applied = await until('store', { paint: true });
-          if (!applied) fail('levelApply', 'time-out');
-          else r.phases.levelApply = { ok: true, ms: r1(applied.paintEnd - inApply), storeMs: r1(applied.storeAt - inApply), longestTaskMs: r1(await longest(inApply, applied.paintEnd)),
-            isDirtyAfter: await ev(() => window.__OPS__.store.getState().isDirty) };
-          if (applied) await recordState('levelApply');
+          const applied = await until('levelApplied');
+          if (!applied) {
+            const bounds = await ev(() => ({ write: window.__nm.storeAt != null, cpm: window.__nm.cpmAt != null }));
+            fail('levelApply', `time-out na Toepassen (taakcommit=${bounds.write}, CPM-commit=${bounds.cpm})`);
+          } else if (!(inApply <= applied.storeAt && applied.storeAt <= applied.cpmAt
+            && applied.cpmAt <= applied.paintStart && applied.paintStart <= applied.paintEnd)) {
+            fail('levelApply', 'ongeldige volgorde van klik, store-commits en Gantt-tekening');
+          } else {
+            const state = await ev(() => {
+              const s = window.__OPS__.store.getState();
+              return { error: s.cpmResult?.error, isDirty: s.isDirty };
+            });
+            if (state.error) fail('levelApply', state.error);
+            else {
+              r.phases.levelApply = {
+                ok: true, ms: r1(applied.paintEnd - inApply), storeMs: r1(applied.storeAt - inApply),
+                recalculateMs: r1(applied.cpmAt - applied.storeAt),
+                afterCpmMs: r1(applied.paintEnd - applied.cpmAt),
+                paintMs: r1(applied.paintEnd - applied.paintStart),
+                longestTaskMs: r1(await longest(inApply, applied.paintEnd)), isDirtyAfter: state.isDirty,
+              };
+              await recordState('levelApply');
+            }
+          }
         }
       }
       // Nivelleerdialoog nog open (fout)? Sluit met Escape zodat de rest kan doorgaan.
@@ -583,7 +616,11 @@ const ROWS = [
   ['f5', 'ms', 'F5: toets → Gantt getekend'],
   ['f5', 'storeMs', 'F5: toets → nieuw rekenresultaat in de store'],
   ['levelCalculate', 'ms', 'Nivelleren: Berekenen → voorstel zichtbaar'],
-  ['levelApply', 'ms', 'Nivelleren: Toepassen → Gantt getekend'],
+  ['levelApply', 'ms', 'Nivelleren: Toepassen → Gantt na nieuwe CPM getekend'],
+  ['levelApply', 'storeMs', 'Nivelleren: klik → taakcommit (incl. undo)'],
+  ['levelApply', 'recalculateMs', 'Nivelleren: taakcommit → nieuw rekenresultaat in de store'],
+  ['levelApply', 'afterCpmMs', 'Nivelleren: nieuw rekenresultaat → Gantt getekend'],
+  ['levelApply', 'paintMs', 'Nivelleren: gemeten Gantt-tekening (deel van vorige regel)'],
   ['autosave', 'ms', 'Autosave-tick: serialiseren + IndexedDB-transactie'],
   ['autosave', 'serializeTaskMs', 'Autosave-tick: serialiseren (long task)'],
   ['autosave', 'idbTransactionMs', 'Autosave-tick: IndexedDB-transactie'],
