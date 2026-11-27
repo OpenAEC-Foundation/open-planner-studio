@@ -3349,13 +3349,6 @@ en noem het in je rapport of PR-tekst.
      twee gewone opslagacties bewaakt bytepariteit en bronidentiteit. PR 9 mag een bron zonder vreemd deel niet als
      huidige schijfversie gebruiken; verversen zou een extra scan/heropening per gewone opslag vragen. Bewezen in
      `check-ifc-saved-source.ts` en `check-ifc-document-save.ts`. — B
-1557. **VERVOLG (#804, test opruimen): de testhelper `recalculated<D>` belooft meer dan hij teruggeeft.**
-     `tests/planning/ifcAppRoute.ts` geeft bij `recalculated<D>(d): Promise<D>` altijd een nieuw resultaat van
-     `buildWriteIFCInput(…, 'merge')` terug, via `as WriteIFCInput as D`. Bij een `D` met `writeMode: 'planOnly'`
-     zegt het type dus `planOnly` terwijl de invoer `merge` draagt. De te ruime generieke belofte bestond al; #926
-     voegde de tussen-cast toe. De huidige aanroepers hebben er geen last van. Richting: de helper niet-generiek maken
-     en zijn werkelijke type laten teruggeven; dan vervallen de typeparameter en beide casts. Gevonden door de review
-     van #926. — B
 1566. **VERVOLG (#804, documentatie): handleiding nl/en vóór vrijgeven van de flag.**
      Fase 1c PR 11b voegt bewust geen gids in `public/docs/` toe: `ifcForeignContent` staat standaard uit.
      De PR die de flag aanzet moet de handleiding nl/en en de manifestvermelding toevoegen, met de
@@ -3415,10 +3408,6 @@ en noem het in je rapport of PR-tekst.
      melding. Alleen uit de code gelezen. Richting: verdwijnt als de flag eraf gaat; anders een tweede tekst zonder die
      zin voor de flag uit. — S
 
-1598. **VERVOLG (#804, docs): `.claude/rules/state.md` zegt te algemeen dat een download het openingsdoel, de bron en het kenmerk houdt.**
-     Dat geldt voor een download op de mergeroute. De bevestigde Opslaan als zonder gebouwmodel van PR 9e (planOnly) legt
-     bij een download juist het nieuwe doel en `sourceMissing: false` vast. Richting: de regel beperken tot de
-     mergeroute en de uitzondering noemen. Gevonden door de review van #935. — B
 
 1770. **VERVOLG (#804, gebouwmodel): op een baseline van OPS v2026.7.4 tot v2026.7.14 krijgt een weesrij na de eerste merge de interne id uit de bron.**
      Op de oude showcase (`v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc` met een wand) zet de herleestoets (b)
