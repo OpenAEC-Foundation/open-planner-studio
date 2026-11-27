@@ -1667,10 +1667,11 @@ en noem het in je rapport of PR-tekst.
       tijd. Nagespeeld in Node: `13-05-2027 07:00` (de vorm van `displayDateTime` bij dag-maand-jaar, zoals het raster
       een datum met tijd toont) en `2027-05-13T07:00` geven allebei `null`. Het veld laat dan het gewone plakken in het
       vakje met de focus toe, en `nextSegmentState` houdt daarvan alleen de cijfers, afgekapt op de lengte van het
-      vakje. Zo kan bijvoorbeeld het jaarvakje een ander jaar krijgen dan de geplakte datum terwijl dag en maand
-      blijven staan, en dan legt het veld bij het verlaten zonder melding een andere datum vast. Welke cijfers
-      overblijven, hangt af van wat de browser met `maxLength` en de selectie doet; dat is niet in de browser
-      nagespeeld. — S
+      vakje. De andere vakjes blijven staan, en het veld legt bij het verlaten zonder melding een andere datum vast.
+      Proef uit de review van #1284, in Node met gesimuleerde tekstvakjes: met `20-07-2026 08:00` in het veld (waarde `2026-07-20T08:00`) en
+      het dagvakje geselecteerd geeft plakken van `13-05-2027 07:00` het dagvakje `13`, en het veld legt
+      `2026-07-13T08:00` vast (13-07-2026 08:00). Wat de browser bij echt plakken met de selectie en `maxLength` doet, is
+      niet in een browser gemeten. — B
 
 2502. **De Hongaarse hints staan in de verkeerde datumvakjes.** `placeholders` in `DateTextInput`
       (`src/components/common/DateTextInput.tsx`) neemt aan dat `dateInput.placeholder` in dag-maand-jaar-volgorde
@@ -1681,9 +1682,22 @@ en noem het in je rapport of PR-tekst.
 
 2503. **Een jaar van vier cijfers onder 0100 wordt 20xx.** `parsePersonalDate` (`src/utils/displayDate.ts`) telt 2000
       op bij elk jaar onder 100, ook als het met vier cijfers is getypt. Nagespeeld in Node: `01-06-0026` en `0026-06-01`
-      geven 2026-06-01, terwijl `01-06-203` 0203-06-01 geeft. In het datumveld (`DateTextInput`) wordt een getypt jaar
-      `0026` bij het afronden dus 2026, zonder melding; dezelfde functie leest ook de datumcellen van het raster
-      (`src/engine/taskGrid/editors.ts`). Open vraag: hoort `0026` 2026 te worden of geweigerd? — B
+      geven 2026-06-01, terwijl een jaar van drie cijfers wordt aangenomen als dat jaar: `01-06-203` geeft 0203-06-01,
+      het jaar 0203 (`existingIsoDate` vult het jaar aan tot vier cijfers). In het datumveld (`DateTextInput`) wordt een
+      getypt jaar `0026` bij het afronden dus 2026, zonder melding; dezelfde functie leest ook de datumcellen van het
+      raster (`src/engine/taskGrid/editors.ts`). Open vraag: hoort `0026` 2026 te worden of geweigerd? — B
+
+2504. **Een scheidingsteken na automatisch doorspringen kan bij het overschrijven van een ingevulde datum de maand
+      overslaan.** In `DateTextInput` (`src/components/common/DateTextInput.tsx`) selecteert `handleChange` na een vol
+      dagvakje de inhoud van een gevuld maandvakje (`focusSeg` met `'all'`). Een `-`, `/` of `.` daarna typt
+      `handleKeyDown` niet in die selectie, maar zet de focus met een lege cursor aan het begin van het jaarvakje
+      (`focusSeg` met `'start'`); staat daar al een jaar van vier cijfers, dan past er door `maxLength` geen cijfer meer
+      bij. Proef uit de review van #1284, in Node met gesimuleerde tekstvakjes, niet in de browser, met de Datumnotatie
+      dag-maand-jaar: in *Kalenders* een feestdag met Van 20-07-2026 en Tot 07-08-2026, één klik op het dagvakje van
+      *Van*, `21-06-2026` typen en Enter. Het veld legt 21-07-2026 vast, zonder veldfout. De kalenderdialoog
+      (`commitOnInputEnter` en haar layout-effect in `src/components/dialogs/CalendarDialog.tsx`) neemt die datum aan
+      en schrijft de feestdag naar het project. Voorstel: laat de scheidingstoets de bestaande selectie staan als het
+      veld zojuist automatisch is doorgesprongen. — B
 
 ## Kalenders
 

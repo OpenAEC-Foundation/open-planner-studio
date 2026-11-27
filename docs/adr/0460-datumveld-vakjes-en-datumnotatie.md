@@ -18,7 +18,8 @@ dag-maand-jaar achter elkaar en leest dat met `parseFlexibleDate`, dat `parsePer
 - Plakken leest ook dag-maand-jaar, los van de Datumnotatie: knownbug 2500. Het weggehaalde commentaar noemde
   dag-maand-jaar de gangbare volgorde voor de Nederlandse doelgroep. Een jaar van vier cijfers onder 0100 wordt
   20xx: knownbug 2503.
-- De hints in de vakjes komen uit één vertaalsleutel, `dateInput.placeholder`, die in dag-maand-jaar-volgorde hoort
-  te staan (`dd-mm-jjjj`). `placeholders` splitst de hint op `-`, `/`, `.` en witruimte en geeft de drie delen per
-  soort aan de vakjes, zodat de hints met de Datumnotatie meedraaien zonder extra sleutels. Levert de hint geen drie
+- De hints in de vakjes komen uit de prop `placeholder` als de aanroeper die opgeeft, en anders uit de vertaalsleutel
+  `dateInput.placeholder`. Beide horen in dag-maand-jaar-volgorde te staan (`dd-mm-jjjj`). `placeholders` splitst de
+  hint op `-`, `/`, `.` en witruimte en geeft de drie delen per soort aan de vakjes, zodat de hints met de
+  Datumnotatie meedraaien zonder extra sleutels. Geen aanroeper in `src/` geeft nu `placeholder` op. Levert de hint geen drie
   delen, dan blijven de vakjes zonder hint. De Hongaarse hint staat in een andere volgorde: knownbug 2502.

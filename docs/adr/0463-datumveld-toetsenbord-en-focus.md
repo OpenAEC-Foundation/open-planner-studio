@@ -18,14 +18,24 @@ als `relatedTarget` buiten de groep en buiten het paneel ligt, want het paneel h
   volgende. Backspace in een
   leeg vakje gaat naar het vorige, met de cursor aan het eind. Pijl links aan het begin en pijl rechts aan het eind van
   een vakje gaan naar het buurvakje.
+- Die twee regels samen kunnen bij het overschrijven van een ingevulde datum een vakje overslaan. Springt het veld na
+  een vol vakje door naar een gevuld volgend vakje, dan staat daar de inhoud geselecteerd. Een scheidingsteken in dat
+  vakje, als het niet het laatste is, vervangt de selectie niet, maar zet de focus met een lege cursor aan het begin van het vakje daarna
+  (`focusSeg` met `'start'`); is dat vakje al vol, dan neemt het door `maxLength` geen cijfer meer aan. Het overgeslagen
+  vakje houdt zijn oude waarde, en het afronden legt die datum zonder fout vast: knownbug 2504.
 - Een muisklik in de groep naast de vakjes en naast de kalenderknop zet de focus op het eerste lege vakje, of aan het
   eind van het laatste als alles gevuld is (`focusEntry`).
-- Enter rondt af via `finish`. Is het afronden niet tegengehouden, dan laat het veld de toets door naar
-  `useDialogKeys`, zodat één Enter vastlegt en de dialoog bevestigt. Tegengehouden (onvolledig, onbestaand, leeg met
-  `required`, of geweigerd door `onCommit`, ADR 0461) houdt het veld de toets tegen met `preventDefault` en
-  `stopPropagation`. Dat de dialoog met de nieuwe waarde bevestigt, steunt op de ref in `useDialogKeys` waarmee de
-  listener de laatste `onConfirm` leest, en op de aanname uit het weggehaalde commentaar dat React de state uit een
-  keydown afrondt voordat het event `document` bereikt; die aanname is niet in een browsertest nagegaan. Blok *f*
-  leest de brontekst op `if (blocked)` en op die ref.
+- Enter rondt af via `finish`. Is het afronden tegengehouden (onvolledig, onbestaand, leeg met `required`, of
+  geweigerd door `onCommit`, ADR 0461), dan houdt het veld de toets tegen met `preventDefault` en `stopPropagation`.
+  Anders laat het de toets door, en wat er daarna gebeurt, bepaalt de aanroeper. Onder `useDialogKeys` bevestigt
+  dezelfde Enter de dialoog met de nieuwe waarde. Dat steunt op de ref in `useDialogKeys` waarmee de listener de
+  laatste `onConfirm` leest, en op de aanname uit het weggehaalde commentaar dat React de state uit een keydown
+  afrondt voordat het event `document` bereikt; die aanname is niet in een browsertest nagegaan. Blok *f* leest de
+  brontekst op `if (blocked)` en op die ref. De kalenderdialoog vangt een doorgelaten Enter in een tekstvak zelf af
+  (`commitOnInputEnter` in `src/components/dialogs/CalendarDialog.tsx`): ze vraagt een tussentijdse vastlegging aan en
+  voert die in een layout-effect uit met de buffer van na de toets, alleen als die buffer geldig is, en blijft open.
+  Het blok *datum typen + Enter in het datumveld legt precies die datum vast* in
+  `tests/browser/calendar-dialog-commits.spec.ts` eist dat de opgeslagen feestdag na Enter in het jaarvakje de getypte
+  datums heeft en dat de dialoog zichtbaar blijft.
 - Escape zet de vakjes terug op `value` en wist de fout, alleen als er iets openstond: vakjes die van `value`
   afwijken, of een getoonde fout. Anders loopt de toets door naar de dialoog.
