@@ -25,7 +25,7 @@ komen na die `set`: eerst wissen wat bij het uitgaande document hoort, dan melde
   zet ze op één plek terug, en elke route hierboven roept hem aan; een nieuw `ui`-veld dat een taak, resource of
   document aanwijst, hoort daar. Het gaat om de taakdialoog en `editingTaskId` (die wees na een wissel naar een taak die
   in het andere document niet bestaat), het shift-anker `selectionAnchor` en `pendingRelationAssign` (ook bij een kopie,
-  die taak-id's en rijsleutels met de bron deelt; review #1004, ronde 5), `showLibraryLinkDialog` en
+  die taak-id's en rijsleutels met de bron deelt; #1004), `showLibraryLinkDialog` en
   `libraryRefreshNotice`, en `scheduleShift` met zijn melding (ADR 0430). Toets: `check-document-contract.ts`, onderdeel
   (j), voor `editingTaskId` en de taakdialoog op `switchDocument`, `newDocument`, `duplicateDocument` en het sluiten van
   het actieve document.
