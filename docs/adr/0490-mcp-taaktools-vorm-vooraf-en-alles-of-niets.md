@@ -16,14 +16,14 @@ geschiedenisstap).
   hele batch terugrolt. Toets: `cases-taskfields.ts`, "batch: mijlpaal + duration > 0 rolt de HELE batch terug …" (de
   eerste stap maakt een taak, de tweede een mijlpaal met duur; de toets eist `VALIDATION` en het aantal taken van
   vóór de batch).
-- De kern geeft alleen haar `data`. De verse datums (`freshDates`) en `projectEnd` komen alleen in het antwoord van
-  de losse aanroep, via `enrichOk` na de transactie: binnen een batch rekent de planning pas aan het eind door, of
+- De kern geeft alleen haar `data`. De verse datums (`freshDates`, bij de tools die ze geven) en `projectEnd` komen
+  alleen in het antwoord van de losse aanroep, via `enrichOk` na de transactie: binnen een batch rekent de planning pas aan het eind door, of
   tussendoor met `recomputeMidBatch` (ADR 0240), dus datums per stap zouden daar oud zijn.
 - Alles of niets geldt voor `planner_add_tasks` en `planner_set_task_splits`, de twee tools in `ATOMIC_ITEM_TOOLS`
   (`schemaValidate.ts`). Het antwoord van `planner_add_tasks` is de volledige koppeling van `tempId` naar id
   (`created`); een half geslaagde aanroep laat de aanroeper met een koppeling die hij niet kan gebruiken.
   `planner_set_task_splits` vervangt de hele lijst onderbrekingen van één taak: een onbekende taak is `NOT_FOUND`,
-  elke andere weigering van `planTaskSplits` `VALIDATION`. `planner_move_task` gaat over één taak en weigert hard
+  elke andere weigering (van `planTaskSplits` of `draft.setTaskSplits`) `VALIDATION`. `planner_move_task` gaat over één taak en weigert hard
   (ADR 0493). De andere vier weigeren per item zacht (`itemRejections`); bij `planner_add_dependencies` maakt alleen
   een kring de hele aanroep ongedaan (ADR 0494).
 - Het snelpad zonder transactie en backup (`okDirectGuarded`, ADR 0100) beslist op wat vooraf vaststaat. Bij

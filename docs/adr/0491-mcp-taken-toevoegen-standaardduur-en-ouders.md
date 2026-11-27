@@ -20,5 +20,3 @@ doet, staat in ADR 0242; de verse tijd en velden van een nieuwe taak in ADR 0210
   weigert een expliciete duur op een nieuwe ouder, ongeacht volgorde" (een fase met duur 20 en een kind met duur 2,
   in beide volgordes; de toets eist `VALIDATION`, ongewijzigde taken en geen nieuwe geschiedenisstap, en zonder
   ouderduur krijgt de fase de duur 2 van haar kind).
-- Een `customTaskType` in een item komt vóór het aanmaken in de catalogus van het project
-  (`draft.ensureCustomTaskType`).
