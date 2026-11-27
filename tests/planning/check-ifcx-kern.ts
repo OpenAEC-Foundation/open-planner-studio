@@ -7,6 +7,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { ifcGuid, ifcGuid128, ifcObjectSeed, writeIFCForComparison, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { planProgressEntry } from '@/engine/progressEntry';
+import { materializeHolidays } from '@/engine/calendar/generateCalendarHolidays';
 import {
   classifyIfcx, readIfcx, writeIfcx, IfcxReadError, IfcxWriteRefusedError, type IfcxImportResult, type IfcxReadErrorCode,
   type IfcxWriteRefusedCode,
@@ -34,6 +35,8 @@ import type { Task } from '@/types/task';
 import type { Project } from '@/types/project';
 import { CONVENTION_KEYS } from '@/engine/scheduler/conventions/registry';
 import type { Sequence } from '@/types/sequence';
+import type { Resource, ResourceAssignment } from '@/types/resource';
+import type { Baseline, BaselineTask } from '@/types/baseline';
 import { buildWriteIFCInput, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { freshPayload, payloadFromImport, type DocumentPayload } from '@/state/documentContract';
 import { prepareLoadedPayload } from '@/state/documentActivation';
@@ -41,9 +44,10 @@ import { minuteModelTransition } from '@/state/minuteModelTransition';
 import { recordedGridBinding, unrecordedExportGate } from '@/state/recordedDatesSelectors';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { ALL_RECORDED_SLOT_KEYS, type WithheldTaskTimeField } from '@/services/ifc/ifcTaskSlots';
+import { fixture as roundtripFixture } from './ifcRoundtripFixture';
 import {
-  attempt, CLOCK, documentOf, encode, modelDifferences, openedAsStep, projectionOf, publicRouteProblems, saveInputViaApp, stepRoundtrip,
-  timestampOf,
+  ASSIGNMENT_ID_NOT_COMPARED, attempt, CLOCK, documentOf, encode, modelDifferences, openedAsStep, projectionOf, publicRouteProblems,
+  saveInputViaApp, stepRoundtrip, timestampOf,
 } from './ifcxProof';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -58,7 +62,7 @@ function test(name: string, action: () => void): void {
 
 const NOT_IN_KERN_TASK_FIELDS = [
   'customTaskTypeId', 'levelingDelay', 'levelingDelayMinutes', 'levelingDelayElapsed', 'splitGaps', 'timephasedFinishFloor',
-  'timephasedStartAnchor', 'timephasedDurationWalks', 'timephasedContours', 'mspTaskType', 'effortDriven', 'workRule',
+  'timephasedStartAnchor', 'timephasedDurationWalks', 'mspTaskType', 'effortDriven', 'workRule',
   'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId', 'p6ExplicitTargetWindow', 'p6CompletePctType',
   'p6ExpectedFinish', 'p6SuspendResume', 'color', 'activityCodes', 'customFields', 'constraint', 'constraint2', 'isHammock',
   'externalLinks', 'deadline', 'notes',
@@ -76,11 +80,9 @@ function without<T extends object>(object: T, keys: readonly string[]): T {
 
 function kernOf(full: ImportResult): ImportResult {
   return {
-    ...full, resources: [], assignments: [], baselines: [], activeBaselineId: null, comparedBaselineIds: [null, null],
-    activityCodeTypes: [], customFieldDefs: [], customTaskTypes: [], libraryPool: undefined,
+    ...full, activityCodeTypes: [], customFieldDefs: [], customTaskTypes: [], libraryPool: undefined,
     project: without(full.project, NOT_IN_KERN_PROJECT_FIELDS),
-    tasks: full.tasks.map(task => ({ ...without(task, NOT_IN_KERN_TASK_FIELDS), resourceIds: [],
-      time: without(task.time, ['progressBeforeRecalculation']) })),
+    tasks: full.tasks.map(task => ({ ...without(task, NOT_IN_KERN_TASK_FIELDS), time: without(task.time, ['progressBeforeRecalculation']) })),
     sequences: full.sequences.map(sequence => without(sequence, ['p6StartAtPredecessorFinishBoundary'])),
   };
 }
@@ -144,11 +146,6 @@ for (const [name, full] of fullExamples) {
     assert.equal(writeIfcx(kern, CLOCK), text, 'twee keer schrijven geeft dezelfde bytes');
   });
 
-  test(`${name}: het volledige voorbeeld wordt geweigerd in plaats van verloren`, () => {
-    const refusal = writeRefusal(full);
-    assert.equal(refusal.code, 'unsupported');
-    assert.ok(refusal.fields.length > 0);
-  });
 }
 
 const kern03 = kernOf(fullExamples.get('03-kantoorgebouw-zuidas.ifc')!);
@@ -396,12 +393,35 @@ test('de eigen schemacontrole keurt een kapotte uitvoer af', () => {
 });
 
 const NOT_CARRIED_YET = [
-  'resources', 'assignments', 'baselines', 'activeBaselineId',
-  'comparedBaselineIds', 'libraryPool', 'sourceScheduleNotes', 'recordedTimes', 'baselineOrphanGuids',
+  'libraryPool', 'sourceScheduleNotes', 'recordedTimes',
   'suggestedProfileId', 'xer', 'xerOrigin', 'xerSourceArchive', 'ifcSource', 'ifcLegacySchemaLoss', 'recoveryForeignSource',
   'xerSourceProjectId', 'xerArchiveIssue', 'xerMissingPlannedStarts', 'p6xmlReport', 'msProjectReport', 'withheldTaskTimeFields',
   'xerSourceArchiveStorage',
 ];
+
+function stepAssignmentIds(step: ImportResult): string[] {
+  const places = new Map<string, number>();
+  return step.assignments.map(assignment => {
+    const place = places.get(assignment.taskId) ?? 0;
+    places.set(assignment.taskId, place + 1);
+    return `asgn-${assignment.taskId}/${step.ifcGlobalIds![ifcObjectSeed('res', assignment.resourceId)]}#${place}`;
+  });
+}
+
+test('aanvulling op R6: alles behalve het toewijzings-id is de STEP-lezing, het id volgt uit taak, resource-GlobalId en plaats, en twee opslagen van dezelfde planning zijn byte-gelijk', () => {
+  const plans: [string, WriteIFCInput][] = [
+    ['maximalPlan', maximalPlan()], ['de maximaal gevulde fixture van check-ifc-roundtrip', structuredClone(roundtripFixture)], ...fullExamples,
+  ];
+  for (const [name, input] of plans) {
+    const text = writeIfcx(input, CLOCK);
+    const back = readIfcx(encode(text));
+    const step = openedAsStep(input);
+    assert.ok(step.assignments.length > 0, `${name} heeft toewijzingen`);
+    assert.deepEqual(modelDifferences(step, back), [], `${name}: ${ASSIGNMENT_ID_NOT_COMPARED}, de rest is gelijk`);
+    assert.deepEqual(back.assignments.map(assignment => assignment.id), stepAssignmentIds(step), `${name}: het id van elke toewijzing`);
+    assert.equal(writeIfcx(input, CLOCK), text, `${name}: twee opslagen zijn byte-gelijk`);
+  }
+});
 
 test('R1 volledig: elk veld dat de STEP-lezer naast het model teruggeeft, is ingedeeld; wat IFCX nog niet draagt, weigert de writer', () => {
   assert.deepEqual([...STEP_WRITER_INPUT_NOT_CARRIED].sort(), [...NOT_CARRIED_YET].sort());
@@ -857,19 +877,54 @@ function maximalPlan(): WriteIFCInput {
   empty.time = { ...empty.time, earlyStart: '', earlyFinish: '', lateStart: '', lateFinish: '' };
   const done = dateCaseTask('klaar', moment(1, '07:00'), moment(1, '16:00'));
   done.time = { ...done.time, actualStart: moment(1, '07:00'), actualFinish: moment(1, '16:00'), completion: 1 };
-  const tasks = [parent, ...viaApp.tasks.map(task => task.id === 'binnen-een-dag' ? { ...task, parentId: 'fase' }
+  const contours = [
+    { resourceUid: 7, resourceId: 'metselaar', periods: [{ afterMinutes: 0, minutes: 240, workMinutes: 240, kind: 'actual' as const },
+      { afterMinutes: 240, minutes: 300, workMinutes: 150, kind: 'remaining' as const }] },
+    { resourceUid: null, periods: [{ afterMinutes: 0, minutes: 540, workMinutes: 540, kind: 'remaining' as const }] },
+  ];
+  const tasks = [parent, ...viaApp.tasks.map(task => task.id === 'binnen-een-dag' ? { ...task, parentId: 'fase', timephasedContours: contours }
     : task.id === 'eindmijlpaal' ? { ...task, mandatory: true } : task), full, loose, done, empty];
+  const resources: Resource[] = [
+    { id: 'metselaar', name: 'Metselaar', type: 'LABOR', description: 'Metselwerk', maxUnits: 3, costPerHour: 46, calendarId: 'ploegendienst',
+      parentId: 'ploeg', color: '#AA3300', availabilitySteps: [{ from: '2027-06-01', maxUnits: 2 }, { from: '2027-06-07', maxUnits: 4 }] },
+    { id: 'ploeg', name: 'Ploeg', type: 'CREW', description: '', maxUnits: 1,
+      libraryOrigin: { companyId: 'bouwbedrijf', libraryItemId: 'ploeg-1', poolVersion: 3, syncedHash: 'abc123' } },
+    { id: 'zand', name: 'Zand', type: 'MATERIAL', description: '', maxUnits: 0.5, costPerHour: -25, unitOfMeasure: 'm3' },
+    { id: 'begroting', name: 'Begroting', type: 'COST', description: 'Vaste kosten', maxUnits: 1 },
+  ];
+  const curve = [0, 120, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5];
+  const assignments: ResourceAssignment[] = [
+    { id: 'a1', taskId: 'binnen-een-dag', resourceId: 'metselaar', unitsPerDay: 2, plannedUnitsPerDay: 1.5, curve: 'FRONT_LOADED', curveValues: curve,
+      workWindowStart: moment(1, '07:00'), workWindowFinish: moment(1, '16:00'), plannedWorkMinutes: 960, actualWorkMinutes: 240, remainingWorkMinutes: 720 },
+    { id: 'a2', taskId: 'binnen-een-dag', resourceId: 'begroting', unitsPerDay: 1, costAmount: 1250 },
+    { id: 'a3', taskId: 'vol', resourceId: 'zand', unitsPerDay: -0.5 },
+    { id: 'a4', taskId: 'vol', resourceId: 'metselaar', unitsPerDay: 1 },
+    { id: 'a5', taskId: 'vol', resourceId: 'metselaar', unitsPerDay: 0.5 },
+  ];
+  const row = (taskId: string, day: number, extra: Partial<BaselineTask> = {}): BaselineTask => ({
+    taskId, start: moment(day, '07:00'), finish: moment(day, '16:00'), duration: 1, isMilestone: false, ...extra,
+  });
+  const milestoneRow = row('eindmijlpaal', 4, { start: moment(4, '16:00'), duration: 0, isMilestone: true, milestoneKind: 'FINISH' });
+  const baselines: Baseline[] = [
+    { id: 'bl-contract', name: 'Contract', createdAt: '2027-05-01T08:00:00.000Z', sourceProjectId: 'p6-project',
+      tasks: [row('binnen-een-dag', 1, { sourceTaskId: 'A1000', sourceTaskCode: 'A-1000' }), milestoneRow, row('weg', 8)],
+      projectEnd: moment(9, '16:00'), projectDuration: 7 },
+    { id: 'bl-herplanning', name: 'Herplanning', createdAt: '2027-05-15T08:00:00.000Z', tasks: [milestoneRow, row('vol', 2)],
+      projectEnd: moment(10, '16:00'), projectDuration: 8 },
+    { id: 'bl-weg', name: 'Met een verwijderde taak', createdAt: '2027-05-20T08:00:00.000Z', tasks: [row('weg', 8)],
+      projectEnd: moment(8, '16:00'), projectDuration: 6 },
+  ];
   return withOtherFields({
     ...viaApp,
     importPristine: true,
     project: { ...viaApp.project, statusDate: '2027-06-02', createdAt: '2027-05-01T08:00:00Z', modifiedAt: '2027-05-02T08:00:00Z' },
     resourceCalendars: [...(viaApp.resourceCalendars ?? []), extra],
-    tasks,
+    tasks, resources, assignments, baselines, activeBaselineId: 'bl-contract', comparedBaselineIds: ['bl-herplanning', 'bl-weg'],
     sequences: [...viaApp.sequences, { id: 'r5', predecessorId: 'vol', successorId: 'los', type: 'FINISH_START', lagDays: 1, lagMinutes: 30 },
       { id: 'r6', predecessorId: 'handmatig', successorId: 'los', type: 'FINISH_START', lagDays: 0, lagPercent: 10, lagMinutes: 15 }],
     ifcGlobalIds: {
       [`task:vol`]: 'oud-vol', [`seq:r5`]: 'oud-r5', [`cal:ploegendienst`]: 'oud-ploeg', [`proj:${viaApp.project.id}`]: 'oud-proj',
-      [`wp:${viaApp.project.id}`]: 'oud-werkplan', [`ws:${viaApp.project.id}`]: 'oud-schema',
+      [`wp:${viaApp.project.id}`]: 'oud-werkplan', [`ws:${viaApp.project.id}`]: 'oud-schema', [`task:weg`]: 'oud-weg',
     },
   });
 }
@@ -1061,6 +1116,9 @@ const IDENTITY_LISTS: Readonly<Record<string, ObjectList | null>> = {
   cal: model => model.resourceCalendars,
   task: model => model.tasks,
   seq: model => model.sequences,
+  res: model => model.resources,
+  asgn: model => model.assignments,
+  bl: model => model.baselines,
 };
 
 test('R0: dubbel id, dubbele GlobalId, relatie zonder doel en een taak onder twee ouders weigert de writer met inconsistent en de namen', () => {
@@ -1148,6 +1206,24 @@ interface StepCase {
 
 const appPlan = () => saveInputViaApp(datePlan());
 
+function withWork(plan: WriteIFCInput, resource: Partial<Resource> = {}, assignment: Partial<ResourceAssignment> = {}): WriteIFCInput {
+  return {
+    ...plan,
+    resources: [{ id: 'werk', name: 'Werk', type: 'LABOR', description: '', maxUnits: 2, ...resource }],
+    assignments: [{ id: 'a', taskId: 'binnen-een-dag', resourceId: 'werk', unitsPerDay: 1, ...assignment }],
+  };
+}
+
+function withRemovedTaskRow(plan: WriteIFCInput): WriteIFCInput {
+  const row = (taskId: string): BaselineTask => ({ taskId, start: moment(1, '07:00'), finish: moment(1, '16:00'), duration: 1, isMilestone: false });
+  return {
+    ...plan, activeBaselineId: 'b', ifcGlobalIds: { ...plan.ifcGlobalIds, 'task:weg': 'oud-weg' },
+    baselines: [{ id: 'b', name: 'Contract', createdAt: '2027-05-01T08:00:00.000Z', tasks: [row('binnen-een-dag'), row('weg')], projectEnd: moment(4, '16:00'), projectDuration: 4 }],
+  };
+}
+
+const UNUSUAL_WORK = () => withWork(appPlan(), { costPerHour: -25 }, { unitsPerDay: -0.5, curveValues: [0, 120, ...Array<number>(19).fill(5)] });
+
 const STEP_CASES: readonly StepCase[] = [
   ...[...fullExamples].map(([name, full]) => ({ name, input: () => saveInputViaApp(kernOf(full)) })),
   { name: 'ronde 3: 50 % voortgang ingevoerd vóór F5', input: progressBeforeRecalculation },
@@ -1213,6 +1289,15 @@ const STEP_CASES: readonly StepCase[] = [
   } },
   { name: 'ronde 3: een feestdagenset die niet bestaat', refusedBy: { code: 'invalid', rule: 'A' }, input: () => withCalendar(calendar => ({
     ...calendar, generation: { ruleSetId: 'XX' as never, generatedFromYear: 2027, generatedToYear: 2028 } })) },
+  { name: 'F3-2, ronde 1, blokkade 1: een negatief uurtarief, een negatieve inzet en een exacte curve met 120 % in één schijf', input: UNUSUAL_WORK },
+  { name: 'F3-2, ronde 1, blokkade 2: een baselinerij naar een verwijderde taak met een eigen GlobalId', input: () => withRemovedTaskRow(appPlan()) },
+  { name: 'F3-2: een exacte curve met twee punten (STEP laat haar vallen)', input: () => withWork(appPlan(), {}, { curveValues: [0, 30] }) },
+  { name: 'F3-2: een kostenresource met een bedrag en een werkresource op dezelfde taak', input: () => {
+    const plan = withWork(appPlan());
+    return { ...plan, resources: [...plan.resources, { id: 'kosten', name: 'Kosten', type: 'COST', description: '', maxUnits: 1 }],
+      assignments: [...plan.assignments, { id: 'k', taskId: 'binnen-een-dag', resourceId: 'kosten', unitsPerDay: 1, costAmount: 800 }] };
+  } },
+  { name: 'F3-2: een toewijzing aan een resource die niet bestaat', refusedBy: { code: 'inconsistent', rule: 'R0' }, input: () => withWork(appPlan(), {}, { resourceId: 'weg' }) },
   { name: 'F3-3: een dagtaak onder vast werk (de laadgrens zet haar in de urenmaat)', input: () => withTask(appPlan(), 'binnen-een-dag', task => ({ ...task, workRule: 'FIXED_WORK' })) },
   { name: 'F3-3: een werksoort die geen taak gebruikt (STEP laat haar vallen)', input: () => ({
     ...appPlan(), customTaskTypes: [{ id: 'ongebruikt', name: 'Ongebruikt', color: '#000000' }] }) },
@@ -1221,6 +1306,16 @@ const STEP_CASES: readonly StepCase[] = [
   { name: 'F3-3: datums zoals opgeslagen na een MSPDI-import', input: () => ({
     ...appPlan(), importPristine: true, recordedSourceFormat: 'mspdi', withheldTaskTimeFields: { 'binnen-een-dag': ['lateStart', 'lateFinish', 'totalFloat'] } }) },
 ];
+
+test('F3-2, ronde 1, blokkade 1 en 2: wat STEP van een tarief, een inzet, een curve en een verwijderde baselinetaak bewaart, bewaart IFCX ook', () => {
+  const work = readIfcx(encode(writeIfcx(UNUSUAL_WORK(), CLOCK)));
+  assert.equal(work.resources[0].costPerHour, -25);
+  assert.equal(work.assignments[0].unitsPerDay, -0.5);
+  assert.equal(work.assignments[0].curveValues?.[1], 120);
+  const removed = readIfcx(encode(writeIfcx(withRemovedTaskRow(appPlan()), CLOCK)));
+  assert.deepEqual(removed.baselineOrphanGuids, { weg: 'oud-weg' });
+  assert.deepEqual(removed.baselines?.[0].tasks.map(row => row.taskId), ['binnen-een-dag', 'weg']);
+});
 
 test('R1: voor de voorbeelden en de gevallen uit eerdere rondes geeft IFCX heen en terug wat de STEP-rondgang geeft, of beide weigeren', () => {
   const wrong: string[] = [];
@@ -2033,7 +2128,7 @@ test('R6, deel 2 voor de mutaties: elk bestand dat readIfcx aanvaardt, is byte v
         let verdict: 'refused' | 'accepted' | undefined;
         if (outcome instanceof IfcxReadError) {
           const named = outcome.place.path !== undefined || outcome.place.field?.startsWith('header.') === true
-            || /\b(taak|kalender|kalenders|relatie|werkplan|werkplannen|werkschema|project|task|sequence|calendar)\b/i.test(outcome.message);
+            || /\b(taak|kalender|kalenders|relatie|werkplan|werkplannen|werkschema|project|task|sequence|calendar|resource|assignment|toewijzing|baseline)\b/i.test(outcome.message);
           const located = outcome.place.field !== undefined || outcome.place.path !== undefined;
           if (named && located) verdict = 'refused';
           else wrong.push(`${change.label} op ${entry.path}: geweigerd zonder object en veld: ${outcome.code} ${JSON.stringify(outcome.place)} ${outcome.message.slice(0, 160)}`);
@@ -2077,7 +2172,7 @@ test('elk precies veld draagt iets: zonder dat veld weigert writeIfcx, in de zel
   const written = plans.map(plan => documentOf(writeIfcx(plan, CLOCK)));
   const wrong: string[] = [];
   let count = 0;
-  assert.equal(FIELD_TABLES.length, 5);
+  assert.equal(FIELD_TABLES.length, 8);
   for (const [label, table] of FIELD_TABLES) {
     const [attribute, nested] = label.split('.');
     for (let index = 0; index < table.length; index++) {
@@ -2108,6 +2203,39 @@ const FIXTURES: readonly { file: string; input: () => ImportResult }[] = [
   { file: 'datumgevallen.ifcx', input: datePlan },
   { file: 'verbouwing-eengezinswoning-kern.ifcx', input: () => kernOf(fullExamples.get('showcase-verbouwing-eengezinswoning.ifc')!) },
 ];
+
+test('Canada verruimt het IFCX-schema alleen wanneer een kalender Canadese generatieherkomst heeft', () => {
+  const onDisk = readFileSync(join(fixturesDir, 'datumgevallen.ifcx'), 'utf8');
+  const original = readIfcx(encode(onDisk));
+  const oldDocument = documentOf(onDisk);
+  const generated = materializeHolidays({ country: 'CA', region: 'QC', bouwvak: 'geen' }, 2029, 2029);
+  const planning = { ...datePlan(), calendar: { ...original.calendar, ...generated } };
+  const text = writeIfcx(planning, CLOCK);
+  const canadaDocument = documentOf(text);
+  const calendarAttribute = 'openaec::ops::calendar';
+  const documentAttribute = 'openaec::ops::document';
+  assert.equal(entryWith(oldDocument, documentAttribute).attributes[documentAttribute].formatVersion, '1.0.0');
+  assert.equal(entryWith(canadaDocument, documentAttribute).attributes[documentAttribute].formatVersion, '1.1.0');
+  assert.notDeepEqual(canadaDocument.schemas[calendarAttribute], oldDocument.schemas[calendarAttribute]);
+  assertAsStep(readIfcx(encode(text)), planning);
+  assert.deepEqual(ifcxSchemaProblems(canadaDocument), []);
+  for (const [document, schema] of [[canadaDocument, oldDocument], [oldDocument, canadaDocument]] as const) {
+    const mismatched = { ...document, schemas: { ...document.schemas, [calendarAttribute]: schema.schemas[calendarAttribute] } };
+    const error = readError(JSON.stringify(mismatched));
+    assert.equal(error.code, 'invalid');
+    assert.deepEqual(error.place, { attribute: calendarAttribute, field: 'schemas' });
+    assert.ok(ifcxSchemaProblems(mismatched).length > 0);
+  }
+  entryWith(canadaDocument, documentAttribute).attributes[documentAttribute].formatVersion = '1.0.0';
+  const wrongVersion = readError(JSON.stringify(canadaDocument));
+  assert.equal(wrongVersion.code, 'invalid');
+  assert.equal(wrongVersion.place?.field, 'formatVersion');
+
+  const resourceOnly = { ...datePlan(), resourceCalendars: [{ ...planning.calendar, id: 'cal-qc' }] };
+  const resourceText = writeIfcx(resourceOnly, CLOCK);
+  assert.equal(entryWith(documentOf(resourceText), documentAttribute).attributes[documentAttribute].formatVersion, '1.1.0');
+  assertAsStep(readIfcx(encode(resourceText)), resourceOnly);
+});
 
 for (const fixture of FIXTURES) {
   test(`voorbeeldbestand ${fixture.file} is wat de writer nu schrijft`, () => {

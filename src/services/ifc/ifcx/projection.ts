@@ -12,10 +12,14 @@ import { CALENDAR_FIELDS, CALENDAR_SHARED_FIELDS } from './fields/calendarFields
 import { TASK_FIELDS, TASK_SHARED_FIELDS, type TaskWriteSource } from './fields/taskFields';
 import { unrecordedOf } from './recordedFields';
 import { SEQUENCE_FIELDS, SEQUENCE_SHARED_FIELDS, sharedLagOf } from './fields/sequenceFields';
+import { RESOURCE_FIELDS, RESOURCE_SHARED_FIELDS } from './fields/resourceFields';
+import { ASSIGNMENT_FIELDS, ASSIGNMENT_SHARED_FIELDS } from './fields/assignmentFields';
+import { BASELINE_FIELDS, BASELINE_SHARED_FIELDS } from './fields/baselineFields';
 import { ownSchemas } from './nodes';
 import { taskWindow } from './dateProjection';
 import {
-  ATTRIBUTE, DEFAULT_HEADER_AUTHOR, IFCX_DATA_VERSION, IFCX_VERSION, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
+  ATTRIBUTE, CANADIAN_CALENDAR_PROFILE_VERSION, DEFAULT_HEADER_AUTHOR, IFCX_DATA_VERSION, IFCX_VERSION,
+  OPS_PROFILE_VERSION, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
 } from './profile';
 
 export interface IfcxHeader {
@@ -67,6 +71,12 @@ export function hourDurationIsDerived(task: Task, calendar: WorkCalendar): boole
   return task.time.durationUnit === 'hours' && task.time.durationMinutes !== undefined && effHoursPerDay(calendar) > 0;
 }
 
+function pathsById<T extends { readonly id: string }>(items: readonly T[], pathOf: (item: T) => string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const item of items) if (!out.has(item.id)) out.set(item.id, pathOf(item));
+  return out;
+}
+
 export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globalIdOf: GlobalIdOfObject): IfcxDocument {
   const { project } = input;
   const projectPath = pathOfGlobalId(globalIdOf('proj', project.id));
@@ -78,6 +88,7 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
     { calendar: input.calendar, isProjectCalendar: true, path: pathOfGlobalId(globalIdOf('cal', input.calendar.id)) },
     ...resourceCalendars.map(calendar => ({ calendar, isProjectCalendar: false, path: pathOfGlobalId(globalIdOf('cal', calendar.id)) })),
   ];
+  const canadianGeneration = calendars.some(({ calendar }) => calendar.generation?.ruleSetId === 'CA');
   const calendarPathById = new Map<string, string>();
   for (const node of calendars) if (!calendarPathById.has(node.calendar.id)) calendarPathById.set(node.calendar.id, node.path);
 
@@ -85,9 +96,16 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
   const taskPathById = new Map<string, string>();
   input.tasks.forEach((task, index) => { if (!taskPathById.has(task.id)) taskPathById.set(task.id, taskPaths[index]); });
   const places = childPlaces(input.tasks, taskPathById);
+  const resources = input.resources ?? [];
+  const resourcePathById = pathsById(resources, resource => pathOfGlobalId(globalIdOf('res', resource.id)));
+  const baselines = input.baselines ?? [];
+  const baselinePathById = pathsById(baselines, baseline => pathOfGlobalId(globalIdOf('bl', baseline.id)));
+  const [comparedFirst, comparedSecond] = input.comparedBaselineIds ?? [null, null];
+  const baselinePath = (id: string | null | undefined) => (id ? baselinePathById.get(id) : undefined);
 
   const data: IfcxEntry[] = [];
   const documentSource: DocumentWriteSource = {
+    formatVersion: canadianGeneration ? CANADIAN_CALENDAR_PROFILE_VERSION : OPS_PROFILE_VERSION,
     project, projectPath, workplanPath, projectCalendarPath: calendars[0].path,
     ...(input.timeModel !== undefined ? { timeModel: input.timeModel } : {}),
     minuteModelPending: input.minuteModelPending === true,
@@ -97,6 +115,9 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
       activityCodeTypes: input.activityCodeTypes ?? [], customFieldDefs: input.customFieldDefs ?? [], customTaskTypes: input.customTaskTypes ?? [],
     },
     ...(input.recordedSourceFormat !== undefined ? { recordedSourceFormat: input.recordedSourceFormat } : {}),
+    ...(baselinePath(input.activeBaselineId) !== undefined ? { activeBaselinePath: baselinePath(input.activeBaselineId) } : {}),
+    comparedBaselinePaths: [baselinePath(comparedFirst), baselinePath(comparedSecond)],
+    removedTasks: input.baselineOrphanGuids ?? {},
   };
   data.push({ path: workplanPath, attributes: attributesOf([
     [ATTRIBUTE.workplan, writeFields(WORKPLAN_SHARED_FIELDS, documentSource)],
@@ -141,6 +162,39 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
     ]) });
   }
 
+  for (const resource of resources) {
+    const parentPath = resource.parentId === undefined ? undefined : resourcePathById.get(resource.parentId);
+    const calendarPath = resource.calendarId === undefined ? undefined : calendarPathById.get(resource.calendarId);
+    const source = {
+      resource, path: resourcePathById.get(resource.id)!,
+      ...(parentPath !== undefined ? { parentPath } : {}),
+      ...(calendarPath !== undefined ? { calendarPath } : {}),
+    };
+    data.push({ path: source.path, attributes: attributesOf([
+      [ATTRIBUTE.resource, writeFields(RESOURCE_SHARED_FIELDS, source)],
+      [ATTRIBUTE.opsResource, writeFields(RESOURCE_FIELDS, source)],
+    ]) });
+  }
+
+  for (const assignment of input.assignments ?? []) {
+    const source = {
+      assignment, path: pathOfGlobalId(globalIdOf('asgn', assignment.id)),
+      taskPath: taskPathById.get(assignment.taskId)!, resourcePath: resourcePathById.get(assignment.resourceId)!,
+    };
+    data.push({ path: source.path, attributes: attributesOf([
+      [ATTRIBUTE.assignment, writeFields(ASSIGNMENT_SHARED_FIELDS, source)],
+      [ATTRIBUTE.opsAssignment, writeFields(ASSIGNMENT_FIELDS, source)],
+    ]) });
+  }
+
+  for (const baseline of baselines) {
+    const source = { baseline, path: baselinePathById.get(baseline.id)!, taskPathById };
+    data.push({ path: source.path, attributes: attributesOf([
+      [ATTRIBUTE.baseline, writeFields(BASELINE_SHARED_FIELDS, source)],
+      [ATTRIBUTE.opsBaseline, writeFields(BASELINE_FIELDS, source)],
+    ]) });
+  }
+
   const used = new Set<string>(data.flatMap(entry => Object.keys(entry.attributes)));
   return {
     header: {
@@ -148,7 +202,7 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
       author: project.author || DEFAULT_HEADER_AUTHOR, timestamp: writtenAt.toISOString(),
     },
     imports: [],
-    schemas: ownSchemas(used),
+    schemas: ownSchemas(used, canadianGeneration),
     data,
   };
 }
@@ -161,6 +215,9 @@ export function objectLabels(input: PlanningModel, globalIdOf: GlobalIdOfObject)
   for (const calendar of [input.calendar, ...(input.resourceCalendars ?? [])]) labels.set(pathOfGlobalId(globalIdOf('cal', calendar.id)), `kalender ${calendar.id}`);
   for (const task of input.tasks) labels.set(pathOfGlobalId(globalIdOf('task', task.id)), `taak ${task.id} (${task.name})`);
   for (const sequence of input.sequences) labels.set(pathOfGlobalId(globalIdOf('seq', sequence.id)), `relatie ${sequence.id}`);
+  for (const resource of input.resources ?? []) labels.set(pathOfGlobalId(globalIdOf('res', resource.id)), `resource ${resource.id} (${resource.name})`);
+  for (const assignment of input.assignments ?? []) labels.set(pathOfGlobalId(globalIdOf('asgn', assignment.id)), `toewijzing ${assignment.id}`);
+  for (const baseline of input.baselines ?? []) labels.set(pathOfGlobalId(globalIdOf('bl', baseline.id)), `baseline ${baseline.id} (${baseline.name})`);
   return labels;
 }
 

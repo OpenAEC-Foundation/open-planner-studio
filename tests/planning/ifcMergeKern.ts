@@ -176,7 +176,8 @@ function scanOrReason(bytes: Uint8Array): StepIndex | string {
 
 /** De invarianten van de merge-uitvoer tegen de bron. Leeg = alles klopt. */
 export function mergeProblems(source: Uint8Array, out: Uint8Array, changes: readonly ForeignChange[] = []): string[] {
-  const listed = new Map(changes.filter(c => c.kind === 'gewijzigd' || c.unusedKeyOfTask === undefined).map(c => [String(c.id), c]));
+  const listed = new Map(changes.filter(c => c.kind === 'gewijzigd' || (c.kind === 'vervallen' && c.unusedKeyOfTask === undefined)).map(c => [String(c.id), c]));
+  const restored = new Map(changes.flatMap(c => (c.kind === 'teruggezet' ? [[String(c.id), c.newBytes] as const] : [])));
   const problems: string[] = [];
   const si = scanForeignStep(source);
   const sc = classify(si);
@@ -201,19 +202,24 @@ export function mergeProblems(source: Uint8Array, out: Uint8Array, changes: read
     const id = si.id(i);
     sourceNonP.add(id);
     const j = outById.get(id);
-    const change = listed.get(id);
-    if (change?.kind === 'vervallen') {
+    const change = listed.get(id), back = restored.get(id);
+    if (change?.kind === 'vervallen' && !back) {
       if (j !== undefined) problems.push(`#${id} (${si.type(i)}) staat als vervallen op de wijzigingslijst, maar staat er nog`);
       continue;
     }
     if (j === undefined) { problems.push(`#${id} (${si.type(i)}) ontbreekt`); continue; }
-    const want = change?.kind === 'gewijzigd' ? change.newBytes : chunk(si, source, i);
-    if (!sameBytes(want, chunk(oi, out, j))) problems.push(`#${id} (${si.type(i)}) heeft andere bytes${change ? ' dan de wijzigingslijst' : ''}`);
+    const want = back ?? (change?.kind === 'gewijzigd' ? change.newBytes : chunk(si, source, i));
+    if (!sameBytes(want, chunk(oi, out, j))) problems.push(`#${id} (${si.type(i)}) heeft andere bytes${change || back ? ' dan de wijzigingslijst' : ''}`);
     if (j < last) problems.push(`#${id} (${si.type(i)}) staat op een andere plek in de volgorde`);
     last = Math.max(last, j);
   }
   for (let j = 0; j < oi.count; j++) {
     if (!oi.isEntity(j) || sourceNonP.has(oi.id(j)) || oc.classes[j] === 1) continue;
+    const back = restored.get(oi.id(j));
+    if (back) {
+      if (!sameBytes(back, out.subarray(oi.entityStart(j), oi.end(j)))) problems.push(`#${oi.id(j)} (${oi.type(j)}) is teruggezet, maar niet met de bytes van de wijzigingslijst`);
+      continue;
+    }
     problems.push(`#${oi.id(j)} (${oi.type(j)}) is nieuw en geen P (klasse ${oc.classes[j]})`);
   }
   return problems;

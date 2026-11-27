@@ -5,7 +5,7 @@ import { defaultGlobalId } from './stepGlobalIds';
 export type PlanningModel = Pick<WriteIFCInput,
   | 'project' | 'calendar' | 'tasks' | 'sequences' | 'resourceCalendars' | 'ifcGlobalIds' | 'timeModel' | 'importPristine'
   | 'ifcLiteralCalendarIds' | 'minuteModelPending' | 'recordedFields' | 'activityCodeTypes' | 'customFieldDefs' | 'customTaskTypes'
-  | 'recordedSourceFormat'>;
+  | 'recordedSourceFormat' | 'resources' | 'assignments' | 'baselines' | 'activeBaselineId' | 'comparedBaselineIds' | 'baselineOrphanGuids'>;
 
 export interface IdentityReference {
   readonly field: string;
@@ -49,6 +49,18 @@ export const IDENTITY_KINDS: readonly IdentityKind[] = [
       ],
     })),
   },
+  { kind: 'res', area: 'resource', objects: model => (model.resources ?? []).map(resource => ({ id: resource.id, references: [] })) },
+  {
+    kind: 'asgn', area: 'assignment',
+    objects: model => (model.assignments ?? []).map(assignment => ({
+      id: assignment.id,
+      references: [
+        { field: 'taskId', kind: 'task' as const, id: assignment.taskId },
+        { field: 'resourceId', kind: 'res' as const, id: assignment.resourceId },
+      ],
+    })),
+  },
+  { kind: 'bl', area: 'baseline', objects: model => (model.baselines ?? []).map(baseline => ({ id: baseline.id, references: [] })) },
 ];
 
 export type GlobalIdOfObject = (kind: IfcObjectKind, id: string) => string;

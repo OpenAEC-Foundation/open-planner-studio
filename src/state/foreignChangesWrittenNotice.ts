@@ -1,8 +1,9 @@
+import { countedForeignChanges } from '@/services/ifc/foreign/changeList';
 import type { PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import type { NotifyInput } from './slices/types';
 
 export function writtenForeignChangeCount(prepared: Pick<PreparedIfcWrite, 'foreignChanges'> | undefined): number {
-  return prepared?.foreignChanges?.length ?? 0;
+  return countedForeignChanges(prepared?.foreignChanges);
 }
 
 export function notifyForeignChangesWritten(

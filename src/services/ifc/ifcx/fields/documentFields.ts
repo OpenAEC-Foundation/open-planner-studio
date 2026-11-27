@@ -3,14 +3,15 @@ import {
   arrayOf, BOOLEAN, CALENDAR_DATE, enumOf, ISO_DATE_OR_MOMENT_OR_EMPTY, NON_EMPTY_TEXT, REFERENCE, TEXT, VERSION_TEXT,
   type IfcxField, type SharedField,
 } from '../fieldTable';
-import { OPS_PROFILE_VERSION } from '../profile';
 import { existingDatePart } from '../dateProjection';
 import type { RecordedSourceFormat } from '@/services/importTypes';
 import { PROJECT_SETTINGS_FIELDS, PROJECT_SETTINGS_KEYS_CARRIED } from './projectSettingsFields';
 import { SCHEDULING_FIELDS, SCHEDULING_KEYS_CARRIED } from './schedulingFields';
 import { STRUCTURE_DOCUMENT_FIELDS, type PlanningStructure } from './structureFields';
+import { BASELINE_SET_FIELDS, type BaselineSetReadTarget, type BaselineSetWriteSource } from './baselineFields';
 
-export interface DocumentWriteSource {
+export interface DocumentWriteSource extends BaselineSetWriteSource {
+  readonly formatVersion: string;
   readonly project: Project;
   readonly projectPath: string;
   readonly projectCalendarPath: string;
@@ -23,7 +24,7 @@ export interface DocumentWriteSource {
   readonly recordedSourceFormat?: RecordedSourceFormat;
 }
 
-export interface DocumentReadTarget {
+export interface DocumentReadTarget extends BaselineSetReadTarget {
   readonly project: Project;
   readonly projectPath: string;
   calendarPath: string;
@@ -56,7 +57,7 @@ export const SCHEDULE_SHARED_FIELDS: readonly SharedField<DocumentWriteSource>[]
 export const DOCUMENT_FIELDS: readonly DocumentField[] = [
   {
     key: 'formatVersion', value: VERSION_TEXT,
-    write: () => OPS_PROFILE_VERSION,
+    write: s => s.formatVersion,
     read: () => {},
   },
   {
@@ -155,6 +156,7 @@ export const DOCUMENT_FIELDS: readonly DocumentField[] = [
     read: (v, t) => { t.literalCalendarPaths = [...((v as string[] | undefined) ?? [])]; },
   },
   ...PROJECT_SETTINGS_FIELDS, ...SCHEDULING_FIELDS, ...STRUCTURE_DOCUMENT_FIELDS,
+  ...BASELINE_SET_FIELDS,
 ];
 
 export const PROJECT_KEYS_CARRIED: readonly (keyof Project)[] = [

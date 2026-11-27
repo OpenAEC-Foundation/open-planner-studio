@@ -25,25 +25,31 @@ export function stepGlobalId(kind: IfcObjectKind, id: string, projectId: string)
   return ifcGuid128(kind === 'cal' && id === DEFAULT_CALENDAR_ID ? `${seed}@${projectId}` : seed);
 }
 
-export function stepReopened(input: WriteIFCInput): ImportResult {
-  const step = stepRoundtrip(input);
+export function withFilledGlobalIds<T extends ImportResult | WriteIFCInput>(step: T): T {
   const ifcGlobalIds: Record<string, string> = { ...step.ifcGlobalIds };
   const objects: [IfcObjectKind, string][] = [
     ['proj', step.project.id], ['wp', step.project.id], ['ws', step.project.id],
     ...[step.calendar, ...(step.resourceCalendars ?? [])].map(calendar => ['cal', calendar.id] as [IfcObjectKind, string]),
     ...step.tasks.map(task => ['task', task.id] as [IfcObjectKind, string]),
     ...step.sequences.map(sequence => ['seq', sequence.id] as [IfcObjectKind, string]),
+    ...step.resources.map(resource => ['res', resource.id] as [IfcObjectKind, string]),
+    ...(step.baselines ?? []).map(baseline => ['bl', baseline.id] as [IfcObjectKind, string]),
   ];
   for (const [kind, id] of objects) {
     const seed = ifcObjectSeed(kind, id);
     if (!ifcGlobalIds[seed]) ifcGlobalIds[seed] = stepGlobalId(kind, id, step.project.id);
   }
+  return { ...step, ifcGlobalIds };
+}
+
+export function stepReopened(input: WriteIFCInput): ImportResult {
+  const step = withFilledGlobalIds(stepRoundtrip(input));
   const recordedFields = Object.fromEntries(step.tasks.map(task => {
     const kept = step.recordedFields?.[task.id] ?? [];
     const named = input.recordedFields?.[task.id];
     return [task.id, named === undefined ? kept : kept.filter(key => named.includes(key))];
   }));
-  return { ...step, ifcGlobalIds, recordedFields };
+  return { ...step, recordedFields };
 }
 
 export function openedAsStep(input: WriteIFCInput): IfcxImportResult {
@@ -63,8 +69,18 @@ export function comparableModel(value: unknown): unknown {
   return value;
 }
 
+export const ASSIGNMENT_ID_NOT_COMPARED = 'het toewijzings-id staat buiten de vergelijking (aanvulling op R6)';
+
+function withoutAssignmentIds(model: ImportResult): ImportResult {
+  const ifcGlobalIds = model.ifcGlobalIds && Object.fromEntries(Object.entries(model.ifcGlobalIds).filter(([seed]) => !seed.startsWith('asgn:')));
+  return {
+    ...model, assignments: model.assignments.map(assignment => ({ ...assignment, id: ASSIGNMENT_ID_NOT_COMPARED })),
+    ...(ifcGlobalIds ? { ifcGlobalIds } : {}),
+  };
+}
+
 export function modelDifferences(expected: ImportResult, actual: ImportResult, limit = 5): string[] {
-  const left = comparableModel(expected), right = comparableModel(actual);
+  const left = comparableModel(withoutAssignmentIds(expected)), right = comparableModel(withoutAssignmentIds(actual));
   if (isDeepStrictEqual(left, right)) return [];
   const named = selfCheckDifferences(left as ImportResult, right as ImportResult, limit);
   return named.length > 0 ? named : ['een verschil zonder pad'];
@@ -112,12 +128,4 @@ export function saveInputViaApp(result: ImportResult): WriteIFCInput {
   } as unknown as IFCSaveSource;
   syncProjectCalendar(source);
   return buildWriteIFCInput(source, 'planOnly');
-}
-
-export function withoutResourceData(full: ImportResult): ImportResult {
-  const { baselineOrphanGuids, ...rest } = full;
-  return {
-    ...rest, resources: [], assignments: [], baselines: [], activeBaselineId: null, comparedBaselineIds: [null, null],
-    tasks: full.tasks.map(({ timephasedContours, ...task }) => ({ ...task, resourceIds: [] })),
-  };
 }

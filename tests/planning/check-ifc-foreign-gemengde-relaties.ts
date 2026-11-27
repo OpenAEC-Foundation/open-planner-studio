@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { classify } from '@/services/ifc/foreign/classify';
-import type { ForeignChange } from '@/services/ifc/foreign/changeList';
+import { countedForeignChanges, type ForeignChange } from '@/services/ifc/foreign/changeList';
 import { checkMergeOutput, MergeNeedsPhase2Error, prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { splitStepArgs, type StepIndex } from '@/services/ifc/foreign/stepScanner';
@@ -121,7 +121,7 @@ async function conditions(at: string, source: Uint8Array, out: Uint8Array, chang
   }
   eq(`${at}: geen stuk buiten de wijzigingslijst waar volgens de planning een lid uit moet`, unlisted, []);
   for (const change of changes) {
-    if (change.kind === 'vervallen' && change.unusedKeyOfTask !== undefined) continue;
+    if (change.kind === 'teruggezet' || (change.kind === 'vervallen' && change.unusedKeyOfTask !== undefined)) continue;
     const before = valueAt(si, source, change.id);
     if (!before) { ok(`${at}: #${change.id} op de lijst staat in de bron`, false); continue; }
     const relation = si.chunkOf(String(change.id));
@@ -174,7 +174,8 @@ async function savedStep(at: string, store: Store): Promise<Outcome> {
   }
   const changes = result.foreignChanges ?? [];
   await conditions(at, source.bytes, result.bytes, changes, store, linksBefore, source.stepIds, source.opened!);
-  eq(`${at}: de telling na het opslaan`, countOf(store).slice(counted), changes.length > 0 ? [changes.length] : []);
+  const shown = countedForeignChanges(changes);
+  eq(`${at}: de telling na het opslaan`, countOf(store).slice(counted), shown > 0 ? [shown] : []);
   const again = await save(store);
   ok(`${at}: een tweede opslag direct daarna is byte voor byte gelijk`, !(again instanceof MergeNeedsPhase2Error) && sameBytes(again.bytes, result.bytes));
   return { written: true, kinds: [], detail: '', all: [], changes: changes.map(c => `${c.kind} #${c.id}`), out: result.bytes };
@@ -273,7 +274,7 @@ for (const c of CASES) {
 }
 
 {
-  const at = 'bonsai-4d.ifc: een toewijzing gewist, opslaan, Ctrl+Z, opslaan (knownbug 2355)';
+  const at = 'bonsai-4d.ifc: een toewijzing gewist, opslaan, Ctrl+Z, opslaan, heropenen (knownbug 2355)';
   const src = SOURCES['bonsai-4d.ifc'];
   const store = await opened(src);
   store.getState().unassignResource(store.getState().assignments[0].id);
@@ -282,7 +283,28 @@ for (const c of CASES) {
   eq(`${at}: Ctrl+Z zet de toewijzing terug`, store.getState().assignments.length, 1);
   const second = await savedStep(`${at}, tweede opslag`, store);
   ok(`${at}: beide opslagen schrijven`, first.written && second.written);
-  if (second.out) eq(`${at}: de ploeg staat in een eigen relatie, niet terug in #120`, lineOf(second.out, 120), lineOf(src, 120).replace('(#118,#30)', '(#30)'));
+  eq(`${at}: de wijzigingslijsten`, [first.changes, second.changes], [['gewijzigd #120'], []]);
+  if (second.out) {
+    eq(`${at}: de ploeg staat in een eigen relatie, niet terug in #120`, lineOf(second.out, 120), lineOf(src, 120).replace('(#118,#30)', '(#30)'));
+    eq(`${at}: de ploeg staat in één toewijzingsrelatie`,
+      decode(second.out).split('\n').filter(l => /=IFCRELASSIGNSTOPROCESS\(/.test(l) && /[(,]#118[,)]/.test(l) && /,#104,/.test(l)).length, 1);
+    const back = (await opened(second.out)).getState();
+    eq(`${at}: na heropenen heeft Wand A bouwen de Metselploeg`,
+      back.assignments.map(a => [back.tasks.find(t => t.id === a.taskId)?.name, back.resources.find(r => r.id === a.resourceId)?.name]),
+      [['Wand A bouwen', 'Metselploeg']]);
+  }
+}
+
+{
+  const at = 'bonsai-4d.ifc: een toewijzing gewist, opslaan, een andere taak hernoemd, opslaan';
+  const src = SOURCES['bonsai-4d.ifc'];
+  const store = await opened(src);
+  store.getState().unassignResource(store.getState().assignments[0].id);
+  const first = await savedStep(`${at}, eerste opslag`, store);
+  store.getState().updateTask(task(store.getState(), 'Stucwerk').id, { name: 'Stucwerk binnen' });
+  const second = await savedStep(`${at}, tweede opslag`, store);
+  ok(`${at}: beide opslagen schrijven${second.written ? '' : ` (geweigerd: ${second.detail})`}`, first.written && second.written);
+  if (second.out) eq(`${at}: #120 blijft zonder de ploeg, detached zet hem niet terug`, lineOf(second.out, 120), lineOf(src, 120).replace('(#118,#30)', '(#30)'));
 }
 
 {
@@ -349,7 +371,7 @@ await refusesOutput('het lid blijft in de relatie van het andere programma (dubb
   s => { s.moveTaskTo(task(s, 'Stucwerk').id, { parentId: task(s, 'Ruwbouw').id, childIndex: 2 }, PHASES); },
   (out, changes) => [out.replace(/^#8502=.*$/m, () => lineOf(SOURCES['Nests van het tweede schema'], 8502)), changes.filter(c => c.id !== 8502)]);
 await refusesOutput('het hele stuk vervalt terwijl er vreemde leden over zijn', 'bonsai-4d.ifc', unassigned,
-  (out, changes) => [out.replace(`${line120(out)}\n`, ''), changes.map(c => c.id === 120 ? { kind: 'vervallen' as const, id: c.id, oldBytes: c.oldBytes } : c)]);
+  (out, changes) => [out.replace(`${line120(out)}\n`, ''), changes.map(c => c.id === 120 && c.kind !== 'teruggezet' ? { kind: 'vervallen' as const, id: c.id, oldBytes: c.oldBytes } : c)]);
 await refusesOutput('de wijziging staat niet op de wijzigingslijst', 'bonsai-4d.ifc', unassigned, (out, changes) => [out, changes.filter(c => c.id !== 120)]);
 await refusesOutput('een vreemd lid gaat mee uit het stuk', 'bonsai-4d.ifc', unassigned, (out, changes) => {
   const trimmed = line120(out).replace('(#30)', '()');
@@ -415,7 +437,7 @@ await refusesOutput('een lege relatie blijft staan', 'Nests van het tweede schem
   (out, changes) => {
     const was = pieceText(SOURCES['Nests van het tweede schema'], 8502), empty = was.replace('(#131,#8501)', '()');
     return [out.replace(/ENDSEC;(\s*END-ISO-10303-21;)/, (_m, tail: string) => `${empty.replace(/^\s*/, '')}\nENDSEC;${tail}`),
-      changes.map(c => c.id === 8502 ? { kind: 'gewijzigd' as const, id: c.id, oldBytes: c.oldBytes, newBytes: encode(`\n${empty.replace(/^\s*/, '')}`) } : c)];
+      changes.map(c => c.id === 8502 && c.kind !== 'teruggezet' ? { kind: 'gewijzigd' as const, id: c.id, oldBytes: c.oldBytes, newBytes: encode(`\n${empty.replace(/^\s*/, '')}`) } : c)];
   });
 
 function prng(seed: number) {

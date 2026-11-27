@@ -4,13 +4,13 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
-import { IfcxWriteRefusedError, writeIfcx } from '@/services/ifc/ifcx';
+import { writeIfcx } from '@/services/ifc/ifcx';
 import { LOAD_BOUNDARY_MODEL_KEYS, NODES, PATH_MODEL_KEYS, STEP_WRITER_INPUT_NOT_CARRIED, type ModelKey } from '@/services/ifc/ifcx/nodes';
 import { IFCX_PLACE_OF_SAVE_KEY } from '@/services/ifc/ifcx/saveKeyPlaces';
 import { buildWriteIFCInput, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { freshPayload } from '@/state/documentContract';
 import type { FeatureFlagValues } from '@/utils/featureFlags';
-import { attempt, CLOCK, encode, modelDifferences, publicRouteProblems, withoutResourceData } from './ifcxProof';
+import { CLOCK, encode, modelDifferences, publicRouteProblems, withFilledGlobalIds } from './ifcxProof';
 import { lengthenedTask, openInStore } from './ifcAppRoute';
 import { fixture } from './ifcRoundtripFixture';
 
@@ -23,20 +23,9 @@ async function test(name: string, action: () => void | Promise<void>): Promise<v
   catch (error) { failed++; console.error(`XX ${name}: ${String(error instanceof Error ? error.stack ?? error.message : error).slice(0, 3000)}`); }
 }
 
-const AWAITING_F3_2_MODEL_KEYS: readonly ModelKey[] = [
-  'resources', 'assignments', 'baselines', 'activeBaselineId', 'comparedBaselineIds', 'baselineOrphanGuids',
-];
-const AWAITING_F3_2_FIELDS = new Set<string>([...AWAITING_F3_2_MODEL_KEYS, 'task.resourceIds', 'task.timephasedContours']);
-
 type Store = Awaited<ReturnType<typeof openInStore>>['store'];
 const saveInput = (store: Store): WriteIFCInput => structuredClone(buildWriteIFCInput(store.getState(), 'merge'));
 const openedInApp = async (bytes: Uint8Array, name: string): Promise<Store> => (await openInStore(bytes, name, IFCX_ON)).store;
-
-function withoutResourcesInApp(store: Store): void {
-  for (const baseline of store.getState().baselines) store.getState().deleteBaseline(baseline.id);
-  for (const resource of store.getState().resources) store.getState().removeResource(resource.id);
-  for (const task of store.getState().tasks) if (task.timephasedContours) store.getState().updateTask(task.id, { timephasedContours: undefined });
-}
 
 interface Planning { readonly name: string; readonly file: string; readonly bytes: Uint8Array }
 const filesIn = (folder: string): Planning[] => readdirSync(join(root, folder)).filter(name => name.endsWith('.ifc')).sort()
@@ -53,38 +42,13 @@ await test('de acht voorbeelden, de elf bestanden van oude releases en de fixtur
   assert.equal(oldTags.length, 11);
 });
 
-function refusesOnlyAwaitingF3_2(route: string, input: WriteIFCInput): void {
-  const outcome = attempt(() => writeIfcx(input, CLOCK));
-  if (outcome.ok) {
-    assert.deepEqual(publicRouteProblems(route, input, outcome.value), []);
-    console.log('   geschreven: de planning heeft niets van F3-2');
-    return;
-  }
-  assert.ok(outcome.error instanceof IfcxWriteRefusedError, String(outcome.error));
-  assert.equal(outcome.error.code, 'unsupported', outcome.error.message);
-  assert.ok(outcome.error.fields.length > 0, 'een weigering noemt minstens één veld');
-  const other = outcome.error.fields.filter(field => !AWAITING_F3_2_FIELDS.has(field));
-  assert.deepEqual(other, [], `velden buiten F3-2: ${outcome.error.message}`);
-  for (const field of outcome.error.fields) assert.ok(outcome.error.message.includes(field), `${field} staat niet in de melding`);
-  console.log(`   wacht op F3-2: ${outcome.error.fields.join(', ')}`);
-}
-
 for (const planning of plannings) {
   const read = readIFC(new TextDecoder().decode(planning.bytes));
-  await test(`${planning.name}, rechtstreeks: alleen wat F3-2 draagt, weigert de writer, met de velden in de melding`, () => {
-    refusesOnlyAwaitingF3_2(planning.name, read);
+  await test(`${planning.name}, rechtstreeks: slaat volledig op als IFCX en opent als de eerste STEP-lezing na de laadgrens, ook na een tweede opslag`, () => {
+    assert.deepEqual(publicRouteProblems(planning.name, read, writeIfcx(read, CLOCK)), []);
   });
-  await test(`${planning.name}, rechtstreeks en zonder resources, toewijzingen en baselines: IFCX opent als de eerste STEP-lezing na de laadgrens, ook na een tweede opslag`, () => {
-    const own = withoutResourceData(read);
-    assert.deepEqual(publicRouteProblems(planning.name, own, writeIfcx(own, CLOCK)), []);
-  });
-  await test(`${planning.name}, geopend in de app met de opslaginvoer van Ctrl+S: alleen wat F3-2 draagt, weigert de writer`, async () => {
-    refusesOnlyAwaitingF3_2(`${planning.name} in de app`, saveInput(await openedInApp(planning.bytes, planning.file)));
-  });
-  await test(`${planning.name}, geopend in de app, resources en baselines daar verwijderd: IFCX opent als de eerste STEP-lezing na de laadgrens, ook na een tweede opslag`, async () => {
-    const store = await openedInApp(planning.bytes, planning.file);
-    withoutResourcesInApp(store);
-    const input = saveInput(store);
+  await test(`${planning.name}, geopend in de app met de opslaginvoer van Ctrl+S: slaat volledig op als IFCX en opent als de eerste STEP-lezing na de laadgrens, ook na een tweede opslag`, async () => {
+    const input = saveInput(await openedInApp(planning.bytes, planning.file));
     assert.deepEqual(publicRouteProblems(`${planning.name} in de app`, input, writeIfcx(input, CLOCK)), []);
   });
 }
@@ -128,17 +92,16 @@ const EDITED: readonly Planning[] = [
 for (const planning of EDITED) {
   await test(`${planning.name}: een code, een eigen veld en vast werk op een taak, in de app; STEP en IFCX uit dezelfde opslaginvoer openen in de app als dezelfde planning, ook na opnieuw opslaan en heropenen`, async () => {
     const store = await openedInApp(planning.bytes, planning.file);
-    withoutResourcesInApp(store);
     const edit = editInApp(store);
     const input = saveInput(store);
     assertEdited(input, edit, 'na de bewerking');
     const first = await reopenedPair(input, input);
     assert.equal(first.ifcx.getState().fileFormat, 'ifcx');
     assertEdited(saveInput(first.ifcx), edit, 'na heropenen van IFCX');
-    assert.deepEqual(modelDifferences(saveInput(first.step), saveInput(first.ifcx)), [], 'na heropenen');
+    assert.deepEqual(modelDifferences(withFilledGlobalIds(saveInput(first.step)), saveInput(first.ifcx)), [], 'na heropenen');
     const second = await reopenedPair(saveInput(first.step), saveInput(first.ifcx));
     assertEdited(saveInput(second.ifcx), edit, 'na de tweede opslag');
-    assert.deepEqual(modelDifferences(saveInput(second.step), saveInput(second.ifcx)), [], 'na opnieuw opslaan en heropenen');
+    assert.deepEqual(modelDifferences(withFilledGlobalIds(saveInput(second.step)), saveInput(second.ifcx)), [], 'na opnieuw opslaan en heropenen');
   });
 }
 
@@ -150,7 +113,6 @@ await test('elk veld van IFC_SAVE_KEYS heeft een plek in IFCX of een benoemde ui
     if ('carriedAs' in place) {
       for (const key of place.carriedAs) {
         if (CARRIED.has(key)) continue;
-        if (AWAITING_F3_2_MODEL_KEYS.includes(key) && STEP_WRITER_INPUT_NOT_CARRIED.includes(key)) continue;
         wrong.push(`${saveKey}: ${key} heeft geen plek`);
       }
     } else if (place.exception === 'xer-archive') {

@@ -339,7 +339,7 @@ Gevolgen:
   breken dus geen verwijzing. Wijst toch een stuk buiten P naar een R-stuk, dan vindt controle 2 de loze verwijzing en
   schrijft de app niets.
 - Nieuwe D-objecten (in de app gemaakt) krijgen ook ids uit die reeks.
-- Teruggezette stukken (§4.7) krijgen ids boven die van de hulpstukken.
+- Teruggezette stukken (§4.7) krijgen ids boven die van de hulpstukken; een stuk dat nog in de bron staat, houdt zijn id.
 
 ### 4.4 De writer met een vreemd deel
 
@@ -497,10 +497,15 @@ Of een attribuut optioneel is, toetst de app niet zelf; `ifcopenshell.validate` 
 opslaan, via het meldingenkanaal, per geslaagde schrijfactie met de naam van het geschreven bestand: "bron.ifc: 3
 IFC-gegevens buiten de planning verwezen naar iets wat uit de planning is verwijderd. Ze zijn bij het opslaan aangepast
 of verwijderd." Elke geslaagde schrijfactie met een niet-lege lijst meldt haar eigen telling als gewone melding
-(fixronde 3 van #1199); wat die melding niet kan, staat in knownbug 2357. De melding bij het wissen is in
-deel 1 een gewone melding zonder knop; de knop *Ongedaan maken* komt in PR 7 (fixronde 5 van #1199, knownbug 2357).
-Vóór elke opslag van het document met een niet-lege lijst vraagt de app eerst of het mag, met het aantal van die lijst
-(besluit van de eigenaar, 25 november 2026: "1 maar wel met een optie om het niet meer te tonen"). Met die vraag aan
+(fixronde 3 van #1199); wat die melding niet kan, staat in knownbug 2357. De melding bij het wissen heeft sinds PR 7
+de knop *Ongedaan maken* (keuze 8b, §11): dezelfde knop als de melding over de uren van andere resources van main
+(`watchNotice` in `otherWorkNotice.ts`). Ze staat er zolang de melding zichtbaar is, de wisstap de stap van Ctrl+Z van
+het actieve document is en de flag aan staat, ook na een opslag en tijdens een lopende opslag: Ctrl+Z na opslaan zet de
+stukken bij de volgende opslag terug (hieronder). Een nieuwere stap, Ctrl+Z, een ander tabblad of de flag uit haalt de
+melding weg; Ctrl+Y meldt opnieuw, met de knop. Bij een volle stapel kan ze ontbreken (knownbug 2357).
+Vóór elke opslag van het document met gewijzigde of vervallen stukken op de lijst vraagt de app eerst of het mag, met hun
+aantal (besluit van de eigenaar, 25 november 2026: "1 maar wel met een optie om het niet meer te tonen"); teruggezette
+stukken tellen niet mee, dus Ctrl+Z na opslaan en dan opslaan vraagt niets. Met die vraag aan
 komt er geen telling achteraf: de vraag is de telling. Met de vraag uit ("Niet meer vragen", een instelling per
 apparaat) en bij een export blijft de telling na het opslaan. Automatisch opslaan wacht op een besluit van de eigenaar.
 Detail: "De vraag vóór het opslaan" in `.claude/rules/tauri-ifc.md`.
@@ -522,6 +527,28 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
 - De wijzigingslijst kent drie soorten: *gewijzigd*, *vervallen* en *teruggezet*. Teruggezette stukken staan direct na
   het P-blok (§4.10), met ids boven die van de hulpstukken (§4.3); verwijzingen tussen teruggezette stukken worden
   meegenummerd. Controle 1 rekent ze mee als teruggezet.
+
+Zo is het gebouwd (PR 7, `foreign/detached.ts`). `detached` heeft drie delen:
+- **stukken**: per `#id` de oude bytes van een stuk op de wijzigingslijst (een eigen kopie, de oudste versie), met per
+  verwijzing naar een D-object diens domein-id. Een stuk dat nog in de bron staat (alleen een lid kwijt), krijgt zijn
+  teruggezette bytes op zijn plek en houdt zijn `#id`; een vervallen stuk komt terug direct na het P-blok. Wat het stuk
+  bij terugzetten nog mist (een object dat nog weg is), gaat eruit volgens dezelfde regel (`applyForeignRule`); dan
+  blijft de oudste versie bewaard tot ook dat object terug is.
+- **objecten**: per domein-id van een verdwenen object zijn `sourceSlots` en zijn koppelingen. Komt het terug, dan
+  schrijft de writer het met de constante slots van de bron (de owner history van het andere programma); de slots met
+  domeinvelden krijgen de waarden van de writer. Het taakpaneel leest de koppelingen tussen Ctrl+Z en de volgende opslag
+  hieruit.
+- **relaties**: per GlobalId een bewaarde relatie van een ander programma (P, met `sourceSlots`) die bij een opslag een
+  lid kwijtraakte of verdween, met haar oudste ledenlijst. Komt een lid terug onder dezelfde relating, dan haalt de merge
+  het uit de eigen relatie van de writer en zet het terug in de bewaarde relatie, of maakt die opnieuw met haar slots.
+  Dat gebeurt na de verliesbewaking, net als het terugzetten van stukken: de verliesbewaking toetst wat de writer zelf
+  schreef, en controle 2 de planning na heropenen.
+
+Een teruggezette gemengde relatie (§4.6) laat haar D-leden uit de eigen relatie van de writer vallen, zoals een
+ongewijzigde gemengde relatie van de bron. Teruggezette stukken tellen niet mee in de melding na het opslaan. Wat
+`detached` nog niet meeneemt, staat in knownbug 2354. Proef: `check-ifc-foreign-detached.ts` (de regel "een tussentijdse
+opslag verandert niet wat er aan het eind in het bestand staat" als eigenschap, op `bonsai-4d.ifc`, de pinbron en
+`eigen-plus-model.ifc`).
 
 ### 4.8 `ifcSource`: waar de bron woont
 
@@ -546,7 +573,9 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
   `set()` als het afronden van het opslaan, en los van de dirty-vlag: werkt de planner door tijdens een lange AutoSave,
   dan blijft het document gewijzigd (`commitSavedDocument`, `fileSlice.ts:576-594`), maar de bron is wel de uitvoer op
   schijf. Een export naar een ander doel (`exportAs`, Exporteren zonder gebouwmodel, pool-export) vervangt `ifcSource`
-  nooit; anders klopt de sha256 in het manifest niet meer met het eigen doel. Het vervangen neemt `detached` mee.
+  nooit; anders klopt de sha256 in het manifest niet meer met het eigen doel. Het vervangen neemt `detached` mee: de
+  merge zet het in de bron van de uitvoer (`PreparedIfcWrite.source`), dus een export houdt het oude `detached` en Opslaan
+  als het nieuwe.
 - **AutoSave en een nieuwe bron.** De controle op een verouderde kandidaat (`useAutoSave.ts:155`) eist ook dat
   `ifcSource` nog hetzelfde object is als waarop de kandidaat is gebouwd. Zo schrijft AutoSave geen uitvoer die op een
   oudere bron is gebouwd nadat een handmatig opslaan een nieuwe bron maakte (Opus, ronde 7).

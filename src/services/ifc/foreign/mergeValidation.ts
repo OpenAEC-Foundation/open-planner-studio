@@ -9,7 +9,7 @@ import { ACTIVITY_CODE_ID_SUFFIX } from '../ifcPsets';
 import type { WriteIFCInput } from '../ifcWriter';
 import type { StepIndex } from './stepScanner';
 import { scanForeignStep } from './oldOwnHeader';
-import type { ForeignChange } from './changeList';
+import type { ForeignChange, RestoredForeignPiece } from './changeList';
 import { entityValue, losesItsPlace, placeTriggers, serializeStepValue, withoutRemovedMembers } from './stepValue';
 
 /** De eigenaren van een pset via IfcRelDefinesByProperties, als stuknummers. */
@@ -41,16 +41,26 @@ function equalBytes(a: Uint8Array, b: Uint8Array, from: number, to: number): boo
 }
 
 interface ListedPieces {
-  readonly listed: ReadonlyMap<number, ForeignChange>;
+  readonly listed: ReadonlyMap<number, Exclude<ForeignChange, RestoredForeignPiece>>;
+  readonly restored: ReadonlyMap<number, Uint8Array>;
+  readonly added: ReadonlyMap<string, Uint8Array>;
   readonly rewritten: Uint8Array;
 }
 
 function listedPieces(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array, changes: readonly ForeignChange[],
   problems: string[]): ListedPieces {
-  const listed = new Map<number, ForeignChange>(), rewritten = new Uint8Array(source.count);
+  const listed = new Map<number, Exclude<ForeignChange, RestoredForeignPiece>>(), rewritten = new Uint8Array(source.count);
+  const restored = new Map<number, Uint8Array>(), added = new Map<string, Uint8Array>();
   for (const change of changes) {
     if (change.kind === 'vervallen' && change.unusedKeyOfTask !== undefined) continue;
     const chunk = source.chunkOf(String(change.id));
+    if (change.kind === 'teruggezet') {
+      if (chunk >= 0 && sourceClasses.classes[chunk] === 1) problems.push(`wijzigingslijst: teruggezet #${change.id} is een P-stuk van de bron`);
+      else if (restored.has(chunk) || added.has(String(change.id))) problems.push(`wijzigingslijst: teruggezet #${change.id} staat er twee keer op`);
+      else if (chunk >= 0) { restored.set(chunk, change.newBytes); rewritten[chunk] = 1; }
+      else added.set(String(change.id), change.newBytes);
+      continue;
+    }
     if (chunk < 0 || sourceClasses.classes[chunk] === 1 || listed.has(chunk)) {
       problems.push(`wijzigingslijst: #${change.id} is geen niet-P-stuk van de bron, of staat er twee keer op`);
     } else if (!equalBytes(change.oldBytes, sourceBytes, source.start(chunk), source.end(chunk))) {
@@ -60,7 +70,7 @@ function listedPieces(source: StepIndex, sourceClasses: Classification, sourceBy
       rewritten[chunk] = 1;
     }
   }
-  return { listed, rewritten };
+  return { listed, restored, added, rewritten };
 }
 
 function goneFromOutput(source: StepIndex, sourceClasses: Classification, index: StepIndex): Set<number> {
@@ -123,7 +133,8 @@ function ownNameInOutput(source: StepIndex, sourceClasses: Classification, index
 }
 
 function changeListProblems(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array, index: StepIndex, classes: Classification,
-  bytes: Uint8Array, listed: ReadonlyMap<number, ForeignChange>, gone: ReadonlySet<number>, checks: Checks): string[] {
+  bytes: Uint8Array, listed: ReadonlyMap<number, Exclude<ForeignChange, RestoredForeignPiece>>, gone: ReadonlySet<number>,
+  restored: ReadonlyMap<number, Uint8Array>, checks: Checks): string[] {
   const problems: string[] = [];
   const removed = new Set(gone);
   const valueOf = (ix: StepIndex, b: Uint8Array, chunk: number) => chunk < 0 ? undefined : entityValue(b, ix.entityStart(chunk), ix.end(chunk));
@@ -171,7 +182,7 @@ function changeListProblems(source: StepIndex, sourceClasses: Classification, so
     const want = serializeStepValue(withoutRemovedMembers(before, lost));
     if (losesItsPlace(before, lost)) problems.push(`wijzigingslijst: #${change.id} staat als gewijzigd op de lijst, maar vervalt volgens §4.7`);
     else if (want === serializeStepValue(before)) problems.push(`wijzigingslijst: #${change.id} staat als gewijzigd op de lijst, maar verliest geen lid`);
-    else if (want !== serializeStepValue(after)) {
+    else if (!restored.has(chunk) && want !== serializeStepValue(after)) {
       problems.push(`gewijzigd niet-P-stuk #${change.id}: in de uitvoer niet hetzelfde stuk met precies de leden naar verwijderde stukken en de vertrekkende planningsleden eruit`);
     }
   }
@@ -180,7 +191,7 @@ function changeListProblems(source: StepIndex, sourceClasses: Classification, so
     if (inD[d] !== 1) continue;
     for (let k = source.inStart(d); k < source.inEnd(d); k++) {
       const from = source.inSource(k);
-      if (from >= 0 && sourceClasses.classes[from] !== 1 && !listed.has(from)) candidates.add(from);
+      if (from >= 0 && sourceClasses.classes[from] !== 1 && !listed.has(from) && !restored.has(from)) candidates.add(from);
     }
   }
   for (const chunk of [...candidates].sort((a, b) => a - b)) {
@@ -377,29 +388,40 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
   counting: 'verschil' | 'volledig' } {
   // Ook dubbele #ids en ongeldige STEP worden door de bestaande scanner geweigerd.
   const index = scanForeignStep(bytes), classification = classify(index), problems: string[] = [];
-  const { listed, rewritten } = listedPieces(source, sourceClasses, sourceBytes, options.changes ?? [], problems);
+  const { listed, restored, added, rewritten } = listedPieces(source, sourceClasses, sourceBytes, options.changes ?? [], problems);
   const gone = goneFromOutput(source, sourceClasses, index);
   // De stuknummers van de niet-P-stukken van bron en uitvoer, als `Int32Array`: bij een groot model zijn het er miljoenen
   // (#804).
   const preservedAll = new Int32Array(source.count);
   let preservedCount = 0;
   for (let i = 0; i < source.count; i++) {
-    if (sourceClasses.classes[i] !== 1 && listed.get(i)?.kind !== 'vervallen') preservedAll[preservedCount++] = i;
+    if (sourceClasses.classes[i] !== 1 && (listed.get(i)?.kind !== 'vervallen' || restored.has(i))) preservedAll[preservedCount++] = i;
   }
   const preserved = preservedAll.subarray(0, preservedCount);
-  const actualAll = new Int32Array(index.count);
+  const actualAll = new Int32Array(index.count), seen = new Set<string>();
   let actualCount = 0;
   for (let i = 0; i < index.count; i++) {
     const entity = index.isEntity(i), original = entity ? source.chunkOf(index.id(i)) : -1;
     if (!entity || (original >= 0 && sourceClasses.classes[original] !== 1)) actualAll[actualCount++] = i;
-    else if (classification.classes[i] !== 1) problems.push(`extra niet-P-stuk #${index.id(i)}`);
+    else if (added.has(index.id(i))) {
+      const want = added.get(index.id(i))!;
+      if (classification.classes[i] === 1 || !equalBytes(want, bytes, index.entityStart(i), index.end(i))) {
+        problems.push(`teruggezet stuk #${index.id(i)}: in de uitvoer niet met de bytes van de wijzigingslijst`);
+      }
+      seen.add(index.id(i));
+    } else if (classification.classes[i] !== 1) problems.push(`extra niet-P-stuk #${index.id(i)}`);
   }
   const actual = actualAll.subarray(0, actualCount);
+  for (const id of added.keys()) if (!seen.has(id)) problems.push(`teruggezet stuk #${id} ontbreekt in de uitvoer`);
   if (preserved.length !== actual.length) problems.push(`niet-P-stukken: ${preserved.length} → ${actual.length}`);
   for (let j = 0; j < Math.min(preserved.length, actual.length); j++) {
     const before = preserved[j], after = actual[j], change = listed.get(before);
     if (source.id(before) !== index.id(after)) {
       problems.push(`niet-P-stuk op plek ${j}: #${source.id(before)} ontbreekt, is gewijzigd of verplaatst`);
+    } else if (restored.has(before)) {
+      if (!equalBytes(restored.get(before)!, bytes, index.start(after), index.end(after))) {
+        problems.push(`niet-P-stuk op plek ${j}: #${source.id(before)} heeft niet de teruggezette bytes van de wijzigingslijst`);
+      }
     } else if (change?.kind === 'gewijzigd') {
       if (!equalBytes(change.newBytes, bytes, index.start(after), index.end(after))) {
         problems.push(`niet-P-stuk op plek ${j}: #${source.id(before)} heeft niet de nieuwe bytes van de wijzigingslijst`);
@@ -410,7 +432,7 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
   }
   // Vond de lus hierboven niets, dan staat elk niet-P-stuk byte-gelijk op zijn plek: dan telt alleen het verschil.
   const counting = problems.length === 0 && !options.full ? 'verschil' : 'volledig';
-  for (const problem of changeListProblems(source, sourceClasses, sourceBytes, index, classification, bytes, listed, gone,
+  for (const problem of changeListProblems(source, sourceClasses, sourceBytes, index, classification, bytes, listed, gone, restored,
     checksFor(source, sourceClasses, options.planning))) problems.push(problem);
   for (const member of sourceClasses.foreignMembers) {
     if (listed.get(member)?.kind === 'vervallen') continue;
