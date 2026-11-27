@@ -16,10 +16,11 @@ import { RESOURCE_FIELDS, RESOURCE_SHARED_FIELDS } from './fields/resourceFields
 import { ASSIGNMENT_FIELDS, ASSIGNMENT_SHARED_FIELDS } from './fields/assignmentFields';
 import { BASELINE_FIELDS, BASELINE_SHARED_FIELDS } from './fields/baselineFields';
 import { ownSchemas } from './nodes';
+import type { IfcxModelReferences, IfcxModelSource, IfcxSchedulesLink } from './modelReferences';
 import { taskWindow } from './dateProjection';
 import {
   ATTRIBUTE, CANADIAN_CALENDAR_PROFILE_VERSION, DEFAULT_HEADER_AUTHOR, IFCX_DATA_VERSION, IFCX_VERSION,
-  OPS_PROFILE_VERSION, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
+  MODEL_PROFILE_VERSION, OPS_PROFILE_VERSION, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
 } from './profile';
 
 export interface IfcxHeader {
@@ -30,9 +31,15 @@ export interface IfcxHeader {
   readonly timestamp: string;
 }
 
+type PlanningAttribute = Exclude<IfcxAttributeName, typeof ATTRIBUTE.links | typeof ATTRIBUTE.modelSource>;
+export type IfcxAttributes = Partial<Record<PlanningAttribute, Record<string, unknown>>> & {
+  [ATTRIBUTE.links]?: readonly IfcxSchedulesLink[];
+  [ATTRIBUTE.modelSource]?: IfcxModelSource;
+};
+
 export interface IfcxEntry {
   readonly path: string;
-  readonly attributes: Readonly<Partial<Record<IfcxAttributeName, Record<string, unknown>>>>;
+  readonly attributes: Readonly<IfcxAttributes>;
 }
 
 export interface IfcxDocument {
@@ -42,8 +49,8 @@ export interface IfcxDocument {
   readonly data: readonly IfcxEntry[];
 }
 
-function attributesOf(pairs: readonly [IfcxAttributeName, Record<string, unknown>][]): IfcxEntry['attributes'] {
-  const out: Partial<Record<IfcxAttributeName, Record<string, unknown>>> = {};
+function attributesOf(pairs: readonly [PlanningAttribute, Record<string, unknown>][]): IfcxAttributes {
+  const out: IfcxAttributes = {};
   for (const [name, value] of pairs) if (Object.keys(value).length > 0) out[name] = value;
   return out;
 }
@@ -77,8 +84,8 @@ function pathsById<T extends { readonly id: string }>(items: readonly T[], pathO
   return out;
 }
 
-export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globalIdOf: GlobalIdOfObject): IfcxDocument {
-  const { project } = input;
+export function composeIfcxDocument(input: PlanningModel & IfcxModelReferences, writtenAt: Date, globalIdOf: GlobalIdOfObject): IfcxDocument {
+  const { project, modelSource, elementLinks } = input;
   const projectPath = pathOfGlobalId(globalIdOf('proj', project.id));
   const workplanPath = pathOfGlobalId(globalIdOf('wp', project.id));
   const schedulePath = pathOfGlobalId(globalIdOf('ws', project.id));
@@ -104,8 +111,10 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
   const baselinePath = (id: string | null | undefined) => (id ? baselinePathById.get(id) : undefined);
 
   const data: IfcxEntry[] = [];
+  const hasModelReferences = modelSource !== undefined || (elementLinks && input.tasks.some(task => elementLinks.get(task.id)?.length));
   const documentSource: DocumentWriteSource = {
-    formatVersion: canadianGeneration ? CANADIAN_CALENDAR_PROFILE_VERSION : OPS_PROFILE_VERSION,
+    formatVersion: hasModelReferences ? MODEL_PROFILE_VERSION
+      : canadianGeneration ? CANADIAN_CALENDAR_PROFILE_VERSION : OPS_PROFILE_VERSION,
     project, projectPath, workplanPath, projectCalendarPath: calendars[0].path,
     ...(input.timeModel !== undefined ? { timeModel: input.timeModel } : {}),
     minuteModelPending: input.minuteModelPending === true,
@@ -119,10 +128,12 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
     comparedBaselinePaths: [baselinePath(comparedFirst), baselinePath(comparedSecond)],
     removedTasks: input.baselineOrphanGuids ?? {},
   };
-  data.push({ path: workplanPath, attributes: attributesOf([
+  const workplanAttributes = attributesOf([
     [ATTRIBUTE.workplan, writeFields(WORKPLAN_SHARED_FIELDS, documentSource)],
     [ATTRIBUTE.document, writeFields(DOCUMENT_FIELDS, documentSource)],
-  ]) });
+  ]);
+  if (modelSource) workplanAttributes[ATTRIBUTE.modelSource] = { fileName: modelSource.fileName, sha256: modelSource.sha256 };
+  data.push({ path: workplanPath, attributes: workplanAttributes });
   data.push({ path: schedulePath, attributes: attributesOf([[ATTRIBUTE.schedule, writeFields(SCHEDULE_SHARED_FIELDS, documentSource)]]) });
 
   for (const node of calendars) {
@@ -144,10 +155,13 @@ export function composeIfcxDocument(input: PlanningModel, writtenAt: Date, globa
       ...(calendarPath !== undefined ? { calendarPath } : {}),
       ...(place !== undefined ? { place } : {}),
     };
-    data.push({ path: source.path, attributes: attributesOf([
+    const attributes = attributesOf([
       [ATTRIBUTE.activity, writeFields(TASK_SHARED_FIELDS, source)],
       [ATTRIBUTE.opsTask, writeFields(TASK_FIELDS, source)],
-    ]) });
+    ]);
+    const links = elementLinks?.get(task.id);
+    if (links?.length) attributes[ATTRIBUTE.links] = links.map(({ target }) => ({ relation: 'schedules', target }));
+    data.push({ path: source.path, attributes });
   });
 
   for (const sequence of input.sequences) {

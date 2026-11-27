@@ -9,7 +9,9 @@ import { reconstructResourceIds } from '@/services/importNormalize';
 import { checkValue, hasKey, readFields } from './fieldTable';
 import { globalIdOfPath } from './identityPath';
 import { childrenInPlace } from './childOrder';
-import { hourDurationIsDerived, objectLabels, serializeIfcx, type IfcxDocument } from './projection';
+import { hourDurationIsDerived, objectLabels, serializeIfcx, type IfcxAttributes, type IfcxDocument } from './projection';
+import type { IfcxModelReferences } from './modelReferences';
+import type { ElementLink } from '../foreign/elementLinks';
 import { ownFileFor, type CanonicalPlanning, type OwnFile } from './ownFile';
 import { HEADER_VALUE } from './ownAttributes';
 import { NODE_SHAPES, type NodeKind } from './nodes';
@@ -28,14 +30,16 @@ import {
 import { legacyDocumentProjection } from './legacyDocument';
 import { IfcxReadError, IfcxWriteRefusedError, type IfcxErrorPlace } from './ifcxErrors';
 import {
-  ATTRIBUTE, IFCX_VERSION, OPS_NAMESPACE, OPS_PROFILE_MAJOR, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
+  ATTRIBUTE, IFCX_VERSION, MODEL_PROFILE_VERSION, OPS_NAMESPACE, OWN_HEADER_ID_PREFIX, type IfcxAttributeName,
 } from './profile';
 
-export type IfcxImportResult = CanonicalPlanning;
+export type IfcxImportResult = CanonicalPlanning & IfcxModelReferences;
 
 export type IfcxClassification = 'own' | 'foreign' | 'not-ifcx' | 'unreadable';
 
-type Attributes = Map<IfcxAttributeName, Record<string, unknown>>;
+interface Attributes extends ReadonlyMap<IfcxAttributeName, unknown> {
+  get<K extends IfcxAttributeName>(name: K): IfcxAttributes[K];
+}
 
 interface IfcxNode {
   readonly path: string;
@@ -60,7 +64,7 @@ function invalid(detail: string, place?: IfcxErrorPlace): IfcxReadError {
   return new IfcxReadError('invalid', detail, place);
 }
 
-function parseDocument(text: string): Record<string, unknown> {
+function parseDocument(text: string): { document: Record<string, unknown>; profileVersion?: string } {
   let document: unknown;
   try {
     document = JSON.parse(text);
@@ -74,9 +78,11 @@ function parseDocument(text: string): Record<string, unknown> {
   if (document.header.ifcxVersion !== IFCX_VERSION) {
     throw new IfcxReadError('version', `Onbekende IFCX-versie ${JSON.stringify(document.header.ifcxVersion)}`);
   }
+  const profileVersion = typeof document.header.id === 'string' && document.header.id.startsWith(OWN_HEADER_ID_PREFIX)
+    ? ownProfileVersion(document.data) : undefined;
   for (const key of Object.keys(document)) if (!TOP_LEVEL_KEYS.has(key)) throw foreign(`Onbekend veld ${key} bovenin het bestand`);
   for (const key of Object.keys(document.header)) if (!HEADER_KEYS.has(key)) throw foreign(`Onbekend kopveld ${key}`);
-  return document;
+  return { document, profileVersion };
 }
 
 function headerOf(document: Record<string, unknown>): { projectPath: string; projectGlobalId: string } {
@@ -98,7 +104,7 @@ function thrown(problem: IfcxCheckProblem): IfcxReadError {
 }
 
 function nodesOf(data: readonly unknown[]): IfcxNode[] {
-  const nodes = new Map<string, { globalId: string; attributes: Attributes }>();
+  const nodes = new Map<string, { globalId: string; attributes: Map<IfcxAttributeName, unknown> }>();
   for (const entry of data) {
     if (!isPlainObject(entry) || typeof entry.path !== 'string') throw invalid('Een entry heeft geen pad');
     const path = entry.path;
@@ -110,23 +116,26 @@ function nodesOf(data: readonly unknown[]): IfcxNode[] {
     if (node.globalId === undefined) throw foreign('Een pad dat geen identiteitspad van Open Planner Studio is', { path });
     for (const [name, value] of Object.entries(entry.attributes)) {
       if (node.attributes.has(name as IfcxAttributeName)) throw foreign('Twee bijdragen van hetzelfde attribuut op één pad', { path, attribute: name });
-      node.attributes.set(name as IfcxAttributeName, value as Record<string, unknown>);
+      node.attributes.set(name as IfcxAttributeName, value);
     }
-    nodes.set(path, node as { globalId: string; attributes: Attributes });
+    nodes.set(path, { globalId: node.globalId, attributes: node.attributes });
   }
-  return [...nodes].map(([path, node]) => ({ path, globalId: node.globalId, attributes: node.attributes }));
+  return [...nodes].map(([path, node]) => ({ path, globalId: node.globalId, attributes: node.attributes as Attributes }));
 }
 
-function assertProfileVersion(nodes: readonly IfcxNode[]): void {
-  for (const node of nodes) {
-    const document = node.attributes.get(ATTRIBUTE.document);
-    if (document === undefined) continue;
+function ownProfileVersion(data: readonly unknown[]): string | undefined {
+  const [knownMajor, knownMinor] = MODEL_PROFILE_VERSION.split('.').map(Number);
+  for (const entry of data) {
+    if (!isPlainObject(entry) || !isPlainObject(entry.attributes) || !hasKey(entry.attributes, ATTRIBUTE.document)) continue;
+    const document = entry.attributes[ATTRIBUTE.document];
+    const place = { path: typeof entry.path === 'string' ? entry.path : undefined, attribute: ATTRIBUTE.document, field: 'formatVersion' };
     const version = isPlainObject(document) ? document.formatVersion : undefined;
-    if (typeof version !== 'string') throw invalid('Het bestand noemt geen profielversie', { path: node.path, attribute: ATTRIBUTE.document, field: 'formatVersion' });
-    const major = typeof version === 'string' ? /^(\d+)\./.exec(version)?.[1] : undefined;
-    if (major !== undefined && Number(major) > OPS_PROFILE_MAJOR) {
-      throw new IfcxReadError('newer-profile', `Profielversie ${version} is nieuwer dan deze app kent`, { path: node.path, attribute: ATTRIBUTE.document });
+    if (typeof version !== 'string') throw invalid('Het bestand noemt geen profielversie', place);
+    const [major, minor] = version.split('.').map(Number);
+    if (major > knownMajor || (major === knownMajor && minor > knownMinor)) {
+      throw new IfcxReadError('newer-profile', `Profielversie ${version} is nieuwer dan deze app kent`, place);
     }
+    return version;
   }
 }
 
@@ -295,17 +304,19 @@ function assertOwnProjection(text: string, document: Record<string, unknown>, re
 }
 
 export function readIfcxText(text: string, checked = true): IfcxImportResult {
-  const document = parseDocument(text);
+  const { document, profileVersion } = parseDocument(text);
   const header = headerOf(document);
   const nodes = nodesOf(document.data as unknown[]);
-  assertProfileVersion(nodes);
-  const legacyDocument = usesLegacyDocumentSchema(document.schemas);
+  const legacyDocument = profileVersion !== MODEL_PROFILE_VERSION && usesLegacyDocumentSchema(document.schemas);
   if (checked) assertValues(nodes, legacyDocument);
   assertSchemas(document.schemas, nodes, legacyDocument);
   const byKind = new Map<NodeKind, IfcxNode[]>();
   const kindAt = new Map<string, NodeKind>();
   for (const node of nodes) {
     const kind = kindOf(node);
+    if (profileVersion !== MODEL_PROFILE_VERSION && (node.attributes.has(ATTRIBUTE.modelSource) || node.attributes.has(ATTRIBUTE.links))) {
+      throw invalid('De bronverwijzing en bouwdeelkoppelingen vereisen profiel 1.2.0', { path: node.path, attribute: ATTRIBUTE.document, field: 'formatVersion' });
+    }
     kindAt.set(node.path, kind);
     const list = byKind.get(kind);
     if (list) list.push(node); else byKind.set(kind, [node]);
@@ -329,6 +340,7 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
     comparedBaselinePaths: [undefined, undefined], removedTasks: {},
   };
   const documentFields = workplan.attributes.get(ATTRIBUTE.document)!;
+  const modelSource = workplan.attributes.get(ATTRIBUTE.modelSource);
   readFields(DOCUMENT_FIELDS, documentFields, documentTarget);
   const documentPlace = { path: workplan.path, attribute: ATTRIBUTE.document };
 
@@ -345,9 +357,12 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   const ifcLiteralCalendarIds = documentTarget.literalCalendarPaths.map((path, index) => calendarIdAt.get(
     reference(path, 'calendar', { ...documentPlace, field: `literalCalendars[${index}]` })!)!);
 
+  const elementLinks = new Map<string, ElementLink[]>();
   const taskTargets: TaskReadTarget[] = of('task').map(node => {
     const target: TaskReadTarget = { task: emptyTask(), path: node.path, unrecorded: [] };
     readFields(TASK_FIELDS, node.attributes.get(ATTRIBUTE.opsTask)!, target);
+    const links = node.attributes.get(ATTRIBUTE.links);
+    if (links?.length) elementLinks.set(target.task.id, links.map(({ target }) => ({ direction: 'output', found: false, target })));
     return target;
   });
   const taskIdAt = new Map(taskTargets.map(target => [target.path, target.task.id]));
@@ -446,6 +461,8 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
 
   const read: IfcxImportResult = {
     project, calendar: projectCalendar, tasks, sequences, resources, assignments,
+    ...(modelSource !== undefined ? { modelSource } : {}),
+    ...(elementLinks.size ? { elementLinks } : {}),
     ...(documentTarget.timeModel !== undefined ? { timeModel: documentTarget.timeModel } : {}),
     ...(documentTarget.minuteModelPending ? { minuteModelPending: true } : {}),
     ...documentTarget.structure, resourceCalendars,
