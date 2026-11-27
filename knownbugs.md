@@ -4949,11 +4949,11 @@ en noem het in je rapport of PR-tekst.
       lezer (`headerOf` en `parseDocument` in `src/services/ifc/ifcx/ifcxReader.ts`) noemt in zijn fout de `header.id`
       als die niet met `urn:openaec:planner:` begint, en anders alleen het eerste onderdeel dat afwijkt; de melding in
       de app (`ifcx.open.foreign` in `src/i18n/locales/nl/common.json`) is een vaste zin zonder afzender. Gezien met
-      `scripts/ifcx/vreemd.ts` op 27 november 2026: Hello Wall (author `technical@buildingsmart.org`) geeft `Het bestand
-      is niet door Open Planner Studio begonnen ("ifc5.technical.buildingsmart.org/examples/Hello Wall/hello-wall.ifcx")`,
-      en `work-packages.ifcx` van ifcx-explorer (author `OpenAEC Foundation`) geeft `Onbekend kopveld openaecProfile`.
-      Elk bestand wordt wel als vreemd geweigerd. Voorstel: de lezer neemt `header.author` op in de fout, en de melding
-      `ifcx.open.foreign` krijgt een plaats voor de afzender. — B
+      `readIfcx` op 27 november 2026: Hello Wall (author `technical@buildingsmart.org`) geeft `Het bestand is niet door
+      Open Planner Studio begonnen ("ifc5.technical.buildingsmart.org/examples/Hello Wall/hello-wall.ifcx")`, en
+      `tests/fixtures/ifcx/vreemd/werkpakketten.ifcx` geeft `Onbekend kopveld openaecProfile`. Elk bestand wordt wel als
+      vreemd geweigerd. Voorstel: de lezer neemt `header.author` op in de fout, en de melding `ifcx.open.foreign` krijgt
+      een plaats voor de afzender. — B
 
 ## Rondleiding, Help en extensie-gidsen
 

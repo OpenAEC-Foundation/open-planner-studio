@@ -20,8 +20,16 @@ function bestandenIn(pad: string): string[] {
 const hernoemd = (object: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(object).map(([sleutel, waarde]) => [sleutel === ACTIVITY_VAN_IFCX_EXPLORER ? GEDEELDE_ACTIVITY : sleutel, waarde]));
 
+function alsJson(tekst: string): unknown {
+  try {
+    return JSON.parse(tekst);
+  } catch {
+    return undefined;
+  }
+}
+
 function metGedeeldeActivity(tekst: string): string | undefined {
-  const bestand: unknown = JSON.parse(tekst);
+  const bestand = alsJson(tekst);
   if (!isObject(bestand) || !Array.isArray(bestand.data)) return undefined;
   const metActivity = (entry: unknown) => isObject(entry) && isObject(entry.attributes) && ACTIVITY_VAN_IFCX_EXPLORER in entry.attributes;
   if (!bestand.data.some(metActivity)) return undefined;
@@ -33,30 +41,32 @@ function metGedeeldeActivity(tekst: string): string | undefined {
 
 function gevallenVan(pad: string): Geval[] {
   const tekst = readFileSync(pad, 'utf8');
-  const gevallen: Geval[] = [{ naam: pad, bytes: new TextEncoder().encode(tekst) }];
+  const naam = basename(pad);
+  const gevallen: Geval[] = [{ naam, bytes: new TextEncoder().encode(tekst) }];
   const kopie = metGedeeldeActivity(tekst);
-  if (kopie !== undefined) gevallen.push({ naam: `${pad} met ${GEDEELDE_ACTIVITY}`, bytes: new TextEncoder().encode(kopie) });
+  if (kopie !== undefined) gevallen.push({ naam: `${naam} met ${GEDEELDE_ACTIVITY}`, bytes: new TextEncoder().encode(kopie) });
   return gevallen;
 }
 
-function afzenderVan(bytes: Uint8Array): string {
-  const bestand: unknown = JSON.parse(new TextDecoder().decode(bytes));
-  const kop = isObject(bestand) && isObject(bestand.header) ? bestand.header : {};
-  return `author ${JSON.stringify(kop.author)}, id ${JSON.stringify(kop.id)}`;
+function uitslagVanLezen(bytes: Uint8Array): string {
+  try {
+    readIfcx(bytes);
+    return 'opent het';
+  } catch (error) {
+    if (error instanceof IfcxReadError) return `weigert met code ${error.code}`;
+    return `breekt af (${error instanceof Error ? error.name : typeof error})`;
+  }
 }
 
-function oordeel(geval: Geval): string | undefined {
+function geweigerdAlsVreemd(geval: Geval): boolean {
   const soort = classifyIfcx(geval.bytes);
-  let fout: unknown;
-  try {
-    readIfcx(geval.bytes);
-  } catch (error) {
-    fout = error;
+  const lezen = uitslagVanLezen(geval.bytes);
+  if (soort === 'foreign' && lezen === 'weigert met code foreign') {
+    console.log(`OK ${geval.naam}: geweigerd als vreemd (classifyIfcx ${soort}, readIfcx code foreign)`);
+    return true;
   }
-  if (soort === 'foreign' && fout instanceof IfcxReadError && fout.code === 'foreign') return fout.message;
-  const gelezen = fout instanceof IfcxReadError ? `weigert met ${fout.code}: ${fout.message}` : fout ? `breekt af: ${String(fout)}` : 'opent het';
-  console.log(`XX ${geval.naam}: classifyIfcx geeft ${soort} en readIfcx ${gelezen}`);
-  return undefined;
+  console.log(`XX ${geval.naam}: niet geweigerd als vreemd (classifyIfcx ${soort}, readIfcx ${lezen})`);
+  return false;
 }
 
 function main(): number {
@@ -65,17 +75,19 @@ function main(): number {
     console.error('gebruik: node scripts/run-ts.mjs scripts/ifcx/vreemd.ts <bestand of map met .ifcx>...');
     return 2;
   }
-  const gevallen = paden.flatMap(bestandenIn).flatMap(gevallenVan);
+  let gevallen: Geval[];
+  try {
+    gevallen = paden.flatMap(bestandenIn).flatMap(gevallenVan);
+  } catch (error) {
+    const code = isObject(error) && typeof error.code === 'string' ? error.code : error instanceof Error ? error.name : typeof error;
+    console.error(`De bestanden zijn niet te lezen (${code}): ${paden.join(', ')}`);
+    return 2;
+  }
   if (gevallen.length === 0) {
     console.error(`Geen IFCX-bestanden in ${paden.join(', ')}`);
     return 2;
   }
-  let fouten = 0;
-  for (const geval of gevallen) {
-    const melding = oordeel(geval);
-    if (melding === undefined) fouten++;
-    else console.log(`OK ${basename(geval.naam)}: geweigerd als vreemd (${afzenderVan(geval.bytes)}): ${melding}`);
-  }
+  const fouten = gevallen.filter(geval => !geweigerdAlsVreemd(geval)).length;
   console.log(`Vreemde IFCX: ${gevallen.length - fouten} van ${gevallen.length} geweigerd als vreemd`);
   return fouten > 0 ? 1 : 0;
 }

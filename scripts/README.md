@@ -628,12 +628,18 @@ De workflow `ifcx.yml` gebruikt deze scripts; de opzet staat in `docs/ifcx-profi
 - `ifc5-controle.mjs <validator|compositie> <map van IFC5-development> <bestand>...` — bundelt `LoadIfcxFile` uit die
   map met esbuild en draait controle 1 of 2. Er hoeft niets in die map geïnstalleerd te zijn.
 - `ifcx-project-controle/` — een klein Rust-programma op `crates/ifcx-project` van ifcx-explorer, dat het verwacht in
-  `.ifcx-bron/ifcx-explorer` (controle 3). De workflow kopieert de `Cargo.lock` van ifcx-explorer erin, zodat dezelfde
+  `.ifcx-bron/ifcx-explorer` (controle 3). Het schrijft per bestand alleen de foutcodes en de paden uit het eigen
+  bestand, geen meldtekst van `ifcx-project`. De workflow kopieert de `Cargo.lock` van ifcx-explorer erin, zodat dezelfde
   versies meedoen.
-- `vreemd.ts <bestand of map>...` — eist dat `readIfcx` en `classifyIfcx` elk bestand als vreemd weigeren.
+- `bouw-ifcx-project-controle.mjs` — bouwt dat programma met `cargo build --message-format=json` en zet alleen het
+  niveau, de foutcode en de plaats in het eigen programma in de log; de tekst van cargo en de compiler niet.
+- `vreemd.ts <bestand of map>...` — eist dat `readIfcx` en `classifyIfcx` elk bestand als vreemd weigeren. Het schrijft
+  alleen de bestandsnaam, de uitslag en de foutcode, niets uit het bestand.
 - `eis-afgekeurd.sh <reden> <opdracht>...` — slaagt alleen als de opdracht met uitgang 1 eindigt en de reden noemt.
 
 Alle controles geven uitgang 0 als alles goed is, 1 als een bestand is afgekeurd en 2 bij een fout in de opzet.
+ifcx-explorer is privé: in de job van controle 3 komt niets uit die repository in de log, in een artefact of in een
+cache.
 
 ## Overig
 

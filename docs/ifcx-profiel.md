@@ -854,6 +854,10 @@ controle niet ziet, staat in knownbug 2388. Daarnaast weigert de lezer de vreemd
 `tests/fixtures/ifcx/vreemd/` en de opgehaalde voorbeelden (`scripts/ifcx/vreemd.ts`); de README daar noemt herkomst en
 licentie.
 
+ifcx-explorer is privé. De job van controle 3 draait daarom niet op een PR uit een fork, en er komt niets uit die
+repository in de log, in een artefact of in een cache: de repository wordt stil opgehaald, de bouw en de controles
+schrijven alleen codes en plaatsen in het eigen programma en de eigen bestanden, en de job bewaart geen cache.
+
 ## Zelfcontrole
 
 Na het schrijven leest `writeIfcx` zijn eigen uitvoer terug met de publieke lezer (`readIfcx`, met R4), en legt wat die
