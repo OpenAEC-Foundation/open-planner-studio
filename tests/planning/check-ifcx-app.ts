@@ -461,51 +461,143 @@ await check('IFCX → IFC schrijft het schema uit Projectinstellingen, zonder sc
   } finally { ipc.dispose(); resetIfcSchemaAsker(); }
 });
 
-await check('een IFC-document met een gebouwmodel naar IFCX: de vraag "alleen de planning"; annuleren schrijft niets, ja schrijft alleen de planning en Ctrl+S daarna IFCX', async () => {
+for (const reopen of [false, true]) {
+  const route = reopen ? 'na heropenen' : 'in hetzelfde tabblad';
+  await check(`Bonsai van IFC4 naar IFCX: alleen de planning, daarna Ctrl+S en terug naar IFC4 zonder schemavraag (${route})`, async () => {
+    const ipc = desktop();
+    const schemas: string[] = [];
+    setIfcSchemaAsker(async question => { schemas.push(question.fileSchema); return null; });
+    try {
+      const model = join(dir, `bonsai-${route}.ifc`);
+      const target = join(dir, `bonsai-${route}.ifcx`);
+      const original = readFileSync(join(root, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc'));
+      writeFileSync(model, original);
+      const { store, timeline } = await tracedApp(BOTH_ON, ipc);
+      await openInto(store, model);
+      assert.deepEqual(errors(store), []);
+      assert(store.getState().ifcSource?.foreign);
+      assert.equal(store.getState().project.ifcSchemaUnconfirmed, 'IFC4');
+      const task = store.getState().tasks.find(t => !t.childIds.length)!;
+      store.getState().updateTask(task.id, { name: 'Voor omzetting' });
+      ipc.choose(target);
+      await withPlanOnlyAnswers({ ifcxSaveAs: false }, async asked => {
+        await store.getState().saveFileAs();
+        assert.deepEqual(asked, ['ifcxSaveAs']);
+      });
+      assert.deepEqual(errors(store), [], 'annuleren meldt niets');
+      assert.equal(existsSync(target), false, 'annuleren schrijft niets');
+      assert.deepEqual(timeline, ['merge@0'], 'na annuleren geen tweede berekening');
+      assert.equal(store.getState().project.ifcSchemaUnconfirmed, 'IFC4');
+
+      const refused = join(dir, 'beschermd-doel.ifcx');
+      writeFileSync(refused, 'onleesbaar doel');
+      ipc.choose(refused);
+      await withPlanOnlyAnswers({ ifcxSaveAs: true }, async () => { await store.getState().saveFileAs(); });
+      assert.deepEqual(errors(store), ['notifications.ifcUnreadableTargetSave']);
+      assert.equal(readFileSync(refused, 'utf8'), 'onleesbaar doel');
+      assert.deepEqual(timeline.slice(1), ['merge@1', 'ifcx@2']);
+      clearNotices(store);
+      assert.equal(store.getState().fileFormat, 'ifc');
+      assert.equal(store.getState().filePath, model);
+      assert(store.getState().ifcSource?.foreign);
+      assert.equal(store.getState().project.ifcSchemaUnconfirmed, 'IFC4', 'het IFC-document houdt zijn vraag');
+
+      ipc.choose(target);
+      await withPlanOnlyAnswers({ ifcxSaveAs: true }, async asked => {
+        await store.getState().saveFileAs();
+        assert.deepEqual(asked, ['ifcxSaveAs']);
+      });
+      assert.deepEqual(timeline.slice(-2), ['merge@2', 'ifcx@3']);
+      assert.deepEqual(errors(store), []);
+      assert.deepEqual(schemas, []);
+      const written = bytesAt(target);
+      assert(isIfcxText(written));
+      const planning = readIfcx(written);
+      assert.equal(planning.tasks.length, store.getState().tasks.length);
+      assert.equal(planning.project.ifcSchemaUnconfirmed, undefined, 'het geschreven IFCX draagt geen schemavraag');
+      assert.equal(store.getState().project.ifcSchemaUnconfirmed, undefined, 'de vraag is uit het tabblad');
+      assert.equal(store.getState().filePath, target);
+      assert.equal(store.getState().ifcSource, null);
+      assert.equal(store.getState().foreignSourceMark?.sourceMissing, false);
+      assert.equal(store.getState().isDirty, false);
+
+      const current = reopen ? await openAt(target, BOTH_ON) : store;
+      if (reopen) {
+        assert.equal(shown(current.getState().tasks), shown(store.getState().tasks));
+      } else {
+        current.getState().undo();
+        assert.equal(current.getState().tasks.find(t => t.id === task.id)?.name, task.name);
+      }
+      assert.equal(current.getState().fileFormat, 'ifcx');
+      assert.equal(current.getState().project.ifcSchemaUnconfirmed, undefined);
+      assert.equal(current.getState().project.ifcSchema, 'IFC4');
+      shiftFirstTask(current);
+      const saved = await save(current);
+      assert.deepEqual(schemas, [], 'Ctrl+S zonder schemavraag');
+      assert.equal(saved, true);
+      assert.deepEqual(errors(current), []);
+      const updated = bytesAt(target);
+      assert(isIfcxText(updated) && hash(updated) !== hash(written));
+      assert.equal(shown(readIfcx(updated).tasks), shown(current.getState().tasks));
+
+      const back = join(dir, `bonsai-${route}-terug.ifc`);
+      ipc.choose(back);
+      await current.getState().saveFileAs();
+      assert.deepEqual(schemas, [], 'Opslaan als zonder schemavraag');
+      assert.deepEqual(errors(current), []);
+      assert.equal(current.getState().filePath, back);
+      assert.equal(headerSchema(bytesAt(back)), 'IFC4');
+      assert.equal(readIFC(text(bytesAt(back))).project.ifcSchemaUnconfirmed, undefined);
+      assert.equal(hash(bytesAt(model)), hash(original), 'het bronmodel bleef byte-gelijk');
+    } finally { ipc.dispose(); resetIfcSchemaAsker(); }
+  });
+}
+
+await check('een eerder geschreven IFCX met een open vraag kan rechtstreeks terug naar IFC', async () => {
   const ipc = desktop();
+  const asked: string[] = [];
+  setIfcSchemaAsker(async question => { asked.push(question.fileSchema); return null; });
   try {
-    const model = join(dir, 'gebouwmodel.ifc'); writeFileSync(model, readFileSync(join(root, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc')));
-    const original = bytesAt(model);
-    const { store, timeline } = await tracedApp(BOTH_ON, ipc);
-    await openInto(store, model);
+    const path = join(dir, 'oude-schemavraag.ifcx');
+    writeFileSync(path, writeIfcx(maximalFixture));
+    assert.equal(readIfcx(bytesAt(path)).project.ifcSchemaUnconfirmed, 'IFC4');
+    const store = await openAt(path, IFCX_ON);
+    const back = join(dir, 'oude-schemavraag-terug.ifc');
+    ipc.choose(back);
+    await store.getState().saveFileAs();
+    assert.deepEqual(asked, [], 'geen schemavraag vóór de kiezer');
     assert.deepEqual(errors(store), []);
-    assert(store.getState().ifcSource?.foreign, 'het document heeft een vreemd deel');
-    shiftFirstTask(store);
-    const target = join(dir, 'gebouwmodel-planning.ifcx'); ipc.choose(target);
-    await withPlanOnlyAnswers({ ifcxSaveAs: false }, async asked => {
+    assert.equal(headerSchema(bytesAt(back)), 'IFC4');
+    assert.equal(readIFC(text(bytesAt(back))).project.ifcSchemaUnconfirmed, undefined);
+  } finally { ipc.dispose(); resetIfcSchemaAsker(); }
+});
+
+await check('een open schemavraag bij IFC naar IFC komt vóór de kiezer, met de flag aan en uit', async () => {
+  const hashes: string[] = [];
+  for (const flags of [{}, IFCX_ON]) {
+    const ipc = desktop();
+    try {
+      const { store, timeline } = await tracedApp(flags, ipc);
+      await openInto(store, maximalPath);
+      const asked: string[] = [];
+      setIfcSchemaAsker(async question => {
+        asked.push(question.fileSchema);
+        assert.deepEqual(timeline, []);
+        assert.equal(ipc.dialogs.length, 0);
+        return question.keep;
+      });
+      const target = join(dir, `schema-behouden-${flags.ifcx ? 'aan' : 'uit'}.ifc`);
+      ipc.choose(target);
       await store.getState().saveFileAs();
-      assert.deepEqual(asked, ['ifcxSaveAs']);
-    });
-    assert.deepEqual(errors(store), [], 'annuleren meldt niets');
-    assert.equal(existsSync(target), false, 'annuleren schrijft niets');
-    assert.deepEqual(timeline, ['merge@0'], 'na annuleren geen tweede berekening');
-    assert.equal(store.getState().fileFormat, 'ifc');
-    assert(store.getState().ifcSource?.foreign, 'het gebouwmodel blijft in het document');
-    await withPlanOnlyAnswers({ ifcxSaveAs: true }, async asked => {
-      await store.getState().saveFileAs();
-      assert.deepEqual(asked, ['ifcxSaveAs']);
-    });
-    assert.deepEqual(errors(store), []);
-    assert.deepEqual(timeline.slice(1), ['merge@1', 'ifcx@2']);
-    const written = bytesAt(target);
-    assert(isIfcxText(written), 'IFCX met alleen de planning');
-    assert.equal(readIfcx(written).tasks.length, store.getState().tasks.length);
-    assert.equal(hash(bytesAt(model)), hash(original), 'het model bleef byte-gelijk');
-    assert.equal(store.getState().fileFormat, 'ifcx');
-    assert.equal(store.getState().filePath, target);
-    assert.equal(store.getState().ifcSource, null, 'het document laat het gebouwmodel los');
-    assert.equal(store.getState().foreignSourceMark?.sourceMissing, false, 'het kenmerk van het model blijft, als beschermd doel');
-    assert.equal(store.getState().isDirty, false);
-    shiftFirstTask(store);
-    assert.equal(await save(store), true);
-    assert.deepEqual(errors(store), []);
-    assert(isIfcxText(bytesAt(target)), 'Ctrl+S schrijft IFCX, geen STEP met het model');
-    assert.deepEqual(timeline.slice(3), ['ifcx@2']);
-    const reopened = await openAt(target, BOTH_ON);
-    assert.deepEqual(errors(reopened), []);
-    assert.equal(shown(reopened.getState().tasks), shown(store.getState().tasks));
-    assert.equal(hash(bytesAt(model)), hash(original));
-  } finally { ipc.dispose(); }
+      assert.deepEqual(asked, ['IFC4']);
+      assert.deepEqual(errors(store), []);
+      const bytes = bytesAt(target);
+      assert.equal(headerSchema(bytes), 'IFC4');
+      assert.equal(readIFC(text(bytes)).project.ifcSchemaUnconfirmed, undefined);
+      hashes.push(hash(bytes));
+    } finally { ipc.dispose(); resetIfcSchemaAsker(); }
+  }
+  assert.equal(hashes[0], hashes[1], 'dezelfde IFC-bytes met beide flagstanden');
 });
 
 await check('een planning uit een XER-import naar IFCX: de melding over het P6-bronarchief; annuleren schrijft niets, doorgaan schrijft zonder archief en het document laat het archief los', async () => {

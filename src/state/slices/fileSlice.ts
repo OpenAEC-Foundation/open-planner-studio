@@ -954,8 +954,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       target.fileFormat = destination.fileFormat;
       if (destination.siteFileId) target.autoSaveToFile = false;
     };
-    const applyPrepared = (target: Pick<AppState, 'ifcSource' | 'foreignSourceMark' | IfcxDroppedKey | keyof SaveDestination>) => {
+    const applyPrepared = (target: Pick<AppState, 'project' | 'ifcSource' | 'foreignSourceMark' | IfcxDroppedKey | keyof SaveDestination>) => {
       if (destination?.fileFormat === 'ifcx') {
+        delete target.project.ifcSchemaUnconfirmed;
         target.ifcSource = null;
         target.xerImportMetadata = null;
         target.xerSourceArchive = null;
