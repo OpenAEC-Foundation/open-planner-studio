@@ -218,6 +218,7 @@ export type NotificationMessageKey =
   | 'ifcx.model.opened'
   | 'ifcx.model.unchecked'
   | 'ifcx.model.saveAsIfc'
+  | 'ifcx.model.ifcExportLoss'
   | 'ifcx.nameMismatch'
   // Rapport-tabblad (#861): de gekozen layout is verwijderd; het rapport valt terug op alle taken.
   | 'notifications.reportLayoutGone'
