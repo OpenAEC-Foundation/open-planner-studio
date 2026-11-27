@@ -1,12 +1,3 @@
-// Issue #1305 (knownbug 2520): met het VOLLEDIGE resourcepaneel open staat de takenlijst niet in
-// beeld, maar standen de lintknoppen Verwijderen en Dissolve wél aan — een klik verwijderde de
-// geselecteerde taak ongezien. Ze moeten dezelfde regel volgen als de Delete-toets
-// (`isTaskListInView` in src/state/ganttVisibility.ts): uit staan zolang de takenlijst niet in
-// beeld is, en niets doen.
-//
-// Route uit het issue, met echte klikken: twee taken aanmaken en A selecteren, via het tabblad
-// Resources het volledige resourcepaneel openen, naar Start of Tabel wisselen (paneel blijft
-// staan, A blijft geselecteerd), dan beide knoppen bekijken en forceren.
 import type { Page } from '@playwright/test';
 import { expect, seedProject, test } from './fixtures/ops';
 
@@ -26,7 +17,6 @@ async function seedTwoSelectA(page: Page): Promise<string> {
   return ids[0]!;
 }
 
-/** Tabblad Resources → de knop die het VOLLEDIGE paneel opent (werkruimte overnemend). */
 async function openFullResourcePanel(page: Page): Promise<void> {
   await page.locator('[data-ops-ribbon-tab="resources"]').click();
   await page.locator('[data-ops-ribbon-item="openResourcePanel"]').click();
@@ -42,7 +32,6 @@ for (const tab of ['start', 'table'] as const) {
     await openFullResourcePanel(page);
     await page.locator(`[data-ops-ribbon-tab="${tab}"]`).click();
 
-    // De stand uit het issue: paneel staat, A is nog geselecteerd, de takenlijst is niet in beeld.
     await expect.poll(() => uiState(page).then(ui => (
       ui.showResourcePanel && !ui.resourcePanelDocked && ui.activeRibbonTab === tab
     ))).toBe(true);
@@ -51,13 +40,11 @@ for (const tab of ['start', 'table'] as const) {
     await expect(deleteBtn(page)).toHaveAttribute('aria-disabled', 'true');
     await expect(dissolveBtn(page)).toHaveAttribute('aria-disabled', 'true');
 
-    // Een geforceerde klik (de knop is uit) mag niets verwijderen; daarna nog twee taken.
     await deleteBtn(page).click({ force: true });
     await dissolveBtn(page).click({ force: true });
     expect(await taskCount(page)).toBe(2);
     expect(await hasTask(page, idA)).toBe(true);
 
-    // Ter controle: Delete/Backspace doen in dezelfde stand evenmin iets (zelfde regel).
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.keyboard.press('Delete');
     await page.keyboard.press('Backspace');
@@ -82,7 +69,6 @@ test('volledig resourcepaneel sluiten zet de knoppen weer aan', async ({ page, o
   await expect(deleteBtn(page)).toHaveAttribute('aria-disabled', 'true');
   await expect(dissolveBtn(page)).toHaveAttribute('aria-disabled', 'true');
 
-  // Tweede klik op dezelfde knop sluit het paneel weer (zie openResourcePanel in ribbonConfig).
   await page.locator('[data-ops-ribbon-tab="resources"]').click();
   await page.locator('[data-ops-ribbon-item="openResourcePanel"]').click();
   await page.locator('[data-ops-ribbon-tab="start"]').click();

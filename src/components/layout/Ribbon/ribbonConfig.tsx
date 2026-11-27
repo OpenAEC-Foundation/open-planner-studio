@@ -290,8 +290,6 @@ const editGroup: RibbonGroupSpec = {
     {
       // Dissolve (issue #887) naast Verwijderen: dezelfde selectie, maar de keten blijft heel.
       // Alleen een lintknop en een menu-item, geen sneltoets; daarom niet in `COMMANDS`.
-      // Wel dezelfde beschikbaarheidsregel als de knop Verwijderen en de Delete-toets
-      // (`hasEditableSelection`): zonder takenlijst in beeld staat de knop uit (#1305).
       kind: 'stack', id: 'editStack2', items: [
         {
           kind: 'small', id: 'dissolve', icon: <Icon id="planning.relations-menu" size={16} />, labelKey: 'menu:ribbon.dissolve',
