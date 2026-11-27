@@ -186,7 +186,6 @@ check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '
 }
 
 {
-  // Met de flag `ifcx` aan noemt de weigeringsmelding IFCX in de lijst (#804, knownbug 2392).
   clearNotices();
   const before = documentNames();
   reads.length = 0;
