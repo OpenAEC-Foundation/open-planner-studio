@@ -19,6 +19,7 @@
       "path": "/planning/work-1",
       "attributes": {
         "openaec::planning::activity": {"start":"2027-03-06","endExclusive":"2027-03-08","parent":"/planning/work-0"},
+        "openaec::ops::task": {"place":0},
         "openaec::label": "Stellen"
       }
     },

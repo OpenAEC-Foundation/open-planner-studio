@@ -30,10 +30,6 @@ function readTask(node: SourceNode, ids: PlanningIdentities) {
   task.id = ids.add('task', node.path, ops?.id as string | undefined);
   task.name = (shared.name as string | undefined) ?? node.label ?? task.name;
   task.status = derivedTaskStatus(task.time);
-  if (!ops) {
-    task.manuallyScheduled = true;
-    task.time.durationType = 'ELAPSEDTIME';
-  }
   return { node, target, task, shared, ops };
 }
 
@@ -43,6 +39,10 @@ function readWindow(row: ReturnType<typeof readTask>, calendar: WorkCalendar) {
   const projected = taskWindow(task);
   const start = shownStart(task);
   const finish = shownFinish(task);
+  if (!start && !finish) {
+    task.manuallyScheduled = true;
+    time.durationType = 'ELAPSEDTIME';
+  }
   const sharedStart = shared.start as string | undefined;
   const sharedEnd = shared.endExclusive as string | undefined;
   const changedStart = projected.start !== sharedStart;
@@ -52,7 +52,7 @@ function readWindow(row: ReturnType<typeof readTask>, calendar: WorkCalendar) {
   const precise = ops?.time as Record<string, unknown> | undefined;
   const recorded = new Set<RecordedFieldKey>(ALL_RECORDED_SLOT_KEYS.filter(key =>
     precise?.[key] !== undefined && precise[key] !== '' && !target.unrecorded.includes(key)));
-  const convert = !!ops && !task.manuallyScheduled && (changedStart || changedEnd);
+  const convert = !task.manuallyScheduled && ((!!start && changedStart) || (!!finish && changedEnd));
   if (useSharedStart || useSharedEnd) {
     if (changedStart || changedEnd) task.manuallyScheduled = true;
     time.scheduleStart = useSharedStart ? (sharedStart ? sharedStart + 'T00:00' : '') : start;

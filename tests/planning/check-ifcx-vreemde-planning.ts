@@ -31,6 +31,16 @@ assert.equal(paths.calendar.size, 0);
 assert.equal(planning.calendar.id, 'cal-default');
 assert.deepEqual(planning.tasks.map(task => task.name), ['Hal', 'Stellen', 'Storten'], 'het naamveld gaat voor op het label');
 const [parent, first, second] = planning.tasks;
+const withoutPlace = JSON.parse(fixture('werkpakketten').toString('utf8'));
+const stellen = withoutPlace.data.find((entry: { path: string }) => entry.path === '/planning/work-1');
+assert.deepEqual(stellen.attributes[ATTRIBUTE.opsTask], { place: 0 });
+delete stellen.attributes[ATTRIBUTE.opsTask];
+for (const imported of [work, readForeignIfcxPlanning(JSON.stringify(withoutPlace))]) {
+  const task = imported.planning.tasks.find(t => t.name === 'Stellen')!;
+  assert.deepEqual([shownStart(task), shownFinish(task), task.manuallyScheduled, task.time.durationType,
+    task.time.scheduleDuration, imported.convertedToManual],
+  ['2027-03-06T00:00', '2027-03-08T00:00', true, 'ELAPSEDTIME', 2, 0], 'Stellen met en zonder volgnummer');
+}
 assert.equal(parent.id, '0a97d170-1e63-55c0-a9d9-504b3a29eb98');
 assert.equal(planning.ifcGlobalIds?.[ifcObjectSeed('task', parent.id)], uuidToCompactGlobalId(parent.id));
 assert.deepEqual(parent.childIds, [first.id, second.id]);
