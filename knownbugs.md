@@ -5189,6 +5189,16 @@ en noem het in je rapport of PR-tekst.
       bestand. Bij herlezen stond de gewijzigde taaknaam van de variant erin, was de oorspronkelijke taaknaam weg en was
       het gebouwmodel behouden. Ook op main. Issue #1302. — B
 
+2650. **Op Linux zoekt de opener het programma om mee te openen op naam in het PATH.** De app opent extern
+      via de crate `open` 5.3.4 (Cargo.lock): `tauri-plugin-shell` (feedbacklink, updatevensters) en
+      `tauri-plugin-opener` (`open_backup_folder`, #1245) hangen er beide van af, en `open` 5.3.4 `src/unix.rs`
+      zoekt onder meer `xdg-open` en `gio` op naam in het zoekpad van het proces. Misgaat het alleen als een map
+      vóór de systeemmappen in dat zoekpad een schrijfbaar programma met zo'n naam bevat dat de webview kan
+      bereiken (de NSIS-installatiemap staat in het schrijfbare gebruikersprofiel). Dan start de klik dat
+      programma in plaats van de bestandsbeheerder of browser. Geldt voor álle open-aanroepen van de app, niet
+      alleen de backupmap. Als bekende grens besloten bij de review van #1315 (ronde 2): op Linux kiest main
+      het openprogramma al op deze manier. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat

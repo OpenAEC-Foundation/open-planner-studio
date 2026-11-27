@@ -10,12 +10,14 @@ fn backup_dir(app_data: &Path) -> PathBuf {
 }
 
 fn ensure_existing_dir(dir: &Path) -> Result<(), String> {
-    let meta = std::fs::metadata(dir).map_err(|e| format!("backupmap niet leesbaar: {e}"))?;
-    if meta.is_dir() {
-        Ok(())
-    } else {
-        Err(format!("backupmap is geen map: {}", dir.display()))
+    let meta = std::fs::symlink_metadata(dir).map_err(|e| format!("backupmap niet leesbaar: {e}"))?;
+    if meta.file_type().is_symlink() {
+        return Err(format!("backupmap is een link: {}", dir.display()));
     }
+    if !meta.is_dir() {
+        return Err(format!("backupmap is geen map: {}", dir.display()));
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -58,5 +60,20 @@ mod tests {
         assert!(ensure_existing_dir(&tmp).is_err());
         std::fs::remove_file(&tmp).unwrap();
         assert!(ensure_existing_dir(Path::new("/pad/bestaat-niet-12345")).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlink_weigert() {
+        use std::os::unix::fs::symlink;
+        let base = std::env::temp_dir();
+        let doel = base.join("ops-obf-doel");
+        std::fs::create_dir_all(&doel).unwrap();
+        let link = base.join("ops-obf-link");
+        let _ = std::fs::remove_file(&link);
+        symlink(&doel, &link).unwrap();
+        assert!(ensure_existing_dir(&link).is_err());
+        std::fs::remove_file(&link).unwrap();
+        std::fs::remove_dir_all(&doel).unwrap();
     }
 }

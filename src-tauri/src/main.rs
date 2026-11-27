@@ -154,7 +154,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_opener::Builder::new().open_js_links_on_click(false).build())
         .plugin(process_info_plugin())
         // MCP-bridge-state (fase 1, Tauri-only): één actieve bridge of geen.
         .manage(mcp_bridge::BridgeState::default())
