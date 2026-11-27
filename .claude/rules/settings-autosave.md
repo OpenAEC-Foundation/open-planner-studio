@@ -151,7 +151,10 @@ melding, opnieuw na de volgende rust. Na de grens loopt de ronde af. Zonder
 schrijftoestemming slaat ze het document over, en waar Ctrl+S naar een te krap anker van een afhankelijk project zou
 vragen ook (dezelfde beoordeling, `tightAnchorsIfSaved` in `dependentCandidates.ts`; een ruim anker houdt niets tegen).
 Bij vervallende IFC-gegevens stelt de ronde dezelfde vraag als Ctrl+S, met de naam van haar eigen doel
-(`tauri-ifc.md`, besluit eigenaar 27 november 2026). Bij een openstaande dialoog probeert ze het na de volgende rustperiode.
+(`tauri-ifc.md`, besluit eigenaar 27 november 2026). Een blokkerende UI-vlag of een venster op de dialoogstapel
+(ook Sneltoetsen) stelt de vraag uit tot een latere ronde. Tijdens de vraag blijft de schrijfrij vrij voor de gewone
+tik en voor Ctrl+S in een ander actief tabblad met een gewone planning en een bestaand schrijfdoel.
+Na toestemming schrijft de ronde de goedgekeurde bytes alleen als het document, de planningsgegevens, de IFC-bron en het doel nog overeenkomen.
 Annuleren onderbreekt de bestandsopslag van dat document tot de planner zelf opslaat. Crashherstel loopt door.
 Veilig stoppen, met één melding per document per sessie en geen nieuwe poging tot de planner zelf opslaat (een nieuwe
 bron) of een ander doel kiest: eigen bestand gewijzigd of weg, buiten de thuismap (`save-as-only`), geen herstelrecord

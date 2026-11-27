@@ -20,9 +20,9 @@ import { useAppStore } from '@/state/appStore';
 import { milestoneGroups } from '@/engine/renderer/milestoneGroups';
 import type { ParseKeys } from 'i18next';
 import type { UIState } from '@/state/slices/types';
-import { isBlockingDialogOpen } from '@/state/blockingDialogs';
+import { isBlockingDialogOpen, otherDocumentAutoSaveQuestion } from '@/state/blockingDialogs';
 import type { AppState } from '@/state/appStore';
-import { isAnyDialogOpen } from '@/hooks/useDialogKeys';
+import { isBlockedByDialog } from '@/state/dialogStack';
 import { isBackstageLeaveGuardActive, leaveBackstageGuarded } from '@/components/backstage/backstageLeaveGuard';
 // DOM-vrij en JSX-vrij bij constructie (zie de kop van dat bestand): de anker- en weergaveregels
 // voor nieuwe taken wonen daar zodat sneltoets, menu, lintknop én regressiebatterij letterlijk
@@ -79,7 +79,7 @@ export function hasBlockingDialogOpen(ui: UIState = useAppStore.getState().ui): 
  * benoemt wélke dialoog blokkeert en tegen een meegegeven (eventueel headless) `ui` evalueert.
  */
 export function isShortcutBlockedByDialog(): boolean {
-  return hasBlockingDialogOpen() || isAnyDialogOpen();
+  return isBlockedByDialog(useAppStore.getState().ui);
 }
 
 /**
@@ -91,9 +91,10 @@ export function isShortcutBlockedByDialog(): boolean {
  * zet alles stil: afsluiten of sluiten wacht, en niets mag de ronde intussen laten veranderen. En de laatste fase van
  * afsluiten (`appClosing`): het venster gaat weg, er wordt niets meer opgeslagen.
  */
-export function isGlobalShortcutFrozen(ui: UIState = useAppStore.getState().ui): boolean {
+export function isGlobalShortcutFrozen(ui: UIState = useAppStore.getState().ui, savingDocumentId?: string): boolean {
   return ui.pendingActualStartQuestion !== null || ui.pendingPhaseAssignmentQuestion !== null || ui.pendingPlanOnlyQuestion !== null
-    || ui.pendingForeignChangesQuestion !== null || ui.savingBeforeClose || ui.appClosing;
+    || (ui.pendingForeignChangesQuestion !== null && !otherDocumentAutoSaveQuestion(ui, savingDocumentId))
+    || ui.savingBeforeClose || ui.appClosing;
 }
 
 /**
@@ -114,7 +115,7 @@ export function isDocumentLeaveBlocked(): boolean {
  */
 function isEditShortcutBlocked(): boolean {
   const ui = useAppStore.getState().ui;
-  return isAnyDialogOpen() || hasBlockingDialogOpen({ ...ui, presentationMode: false });
+  return isBlockedByDialog({ ...ui, presentationMode: false });
 }
 
 function canDeleteFromKeyboard(): boolean {
@@ -168,6 +169,8 @@ const documentSwitchShortcuts: ShortcutDef[] = Array.from({ length: 9 }, (_, i) 
   };
 });
 
+export const SAVE_COMBO: ShortcutCombo = { key: 's', mod: true };
+
 export const SHORTCUTS: ShortcutDef[] = [
   // --- Bestand ---
   {
@@ -181,7 +184,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   },
   {
     id: 'file.save',
-    combo: { key: 's', mod: true },
+    combo: SAVE_COMBO,
     category: 'file',
     labelKey: 'menu:ribbon.save',
     allowInInput: true,

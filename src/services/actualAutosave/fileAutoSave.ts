@@ -14,7 +14,7 @@ import { rememberLiteralCalendarsWritten } from '@/state/savedLiteralCalendars';
 import { ifcSchemaBlocksSilentWrite } from '@/services/ifc/ifcSchemaQuestion';
 import { buildWriteIFCInput, sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { documentContentOf, sameDocumentContent, type DocumentContentRef } from '@/state/documentSaveState';
-import { computeIfcOutputHere, prepareDocumentWrite, prepareIfcOutput, withUtf8Bom, writtenFingerprint, type IfcOutputCompute } from '@/state/prepareIfcOutput';
+import { computeIfcOutputHere, prepareDocumentWrite, prepareIfcOutput, withUtf8Bom, writtenFingerprint, type IfcOutput, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { isIfcxName } from '@/utils/filePath';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import { IfcxWriteRefusedError } from '@/services/ifc/ifcx/ifcxErrors';
@@ -34,10 +34,10 @@ import {
   ifcFullWriteBlocked, ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_SAVE_WORKER_FAILED_NOTICE,
   IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedTargetIdentity, refusedWriteTarget, type WriteTargetDeps,
 } from '@/state/ifcForeignGuard';
-import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
+import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { basename } from '@/utils/filePath';
-import { isBlockingDialogOpen } from '@/state/blockingDialogs';
+import { isBlockedByDialog } from '@/state/dialogStack';
 import { foreignChangesQuestionFor } from '@/state/foreignChangesWrittenNotice';
 import { ownPathReplaceNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery } from '@/state/ownFileReplace';
 import {
@@ -50,6 +50,8 @@ import {
   type ActualAutoSaveWrite,
 } from './actualAutoSave';
 import { createModelAutoSaveRhythm, type ModelAutoSaveRhythm } from './modelAutoSaveRhythm';
+
+type ModelRound = ActualAutoSaveWrite | (() => Promise<ActualAutoSaveWrite>);
 
 /** #804 stap 8: doet dit document mee als document met een gebouwmodel? Met de flag aan, een vreemd deel en de bron
  *  aanwezig. Met de flag uit, of als de bron ontbreekt, blijft het geweigerd zoals vóór stap 8 (`ifcSaveBlocked`). */
@@ -143,24 +145,29 @@ export function createFileAutoSaveController(deps: {
    * af en wacht de handmatige actie. Die grens is `turn.pass()` (fixronde 2 van de review van #1033): vanaf daar telt de
    * ronde als plaatsend, en een IFC-export neemt zijn bron pas op als ze klaar is.
    */
-  const writeModel = (candidate: ActualAutoSaveCandidate) => runYieldingProjectFileWrite<ActualAutoSaveWrite>(async turn => {
-    // Fixronde 2 van de review van #1033: het ritme geldt op het moment van de beurt, niet alleen bij het kiezen. Typte de
-    // planner intussen (de rust begon opnieuw), wijzigde hij iets, of doet het document niet meer mee, dan begint de
-    // ronde niet: niets gerekend, het ritme onveranderd, geen melding; de wekker plant de volgende beurt.
-    if (!stillDue(candidate.id)) return 'refused';
-    // De duur van de ronde: vanaf de beurt in de rij, tot en met de commit en de laatste herstelronde. Week ze al terwijl
-    // ze op haar beurt wachtte, dan telt dat ook als geweken (opnieuw na de volgende rustperiode).
-    rhythm.roundStarted(candidate.id);
+  const writeModel = async (candidate: ActualAutoSaveCandidate): Promise<ActualAutoSaveWrite> => {
+    let started = false;
     let outcome: ActualAutoSaveWrite | undefined;
     try {
-      outcome = turn.yielded.aborted ? 'yielded' : await modelRound(candidate, turn);
+      const step = await runYieldingProjectFileWrite<ModelRound>(async turn => {
+        // Fixronde 2 van de review van #1033: het ritme geldt op het moment van de beurt, niet alleen bij het kiezen. Typte de
+        // planner intussen (de rust begon opnieuw), wijzigde hij iets, of doet het document niet meer mee, dan begint de
+        // ronde niet: niets gerekend, het ritme onveranderd, geen melding; de wekker plant de volgende beurt.
+        if (!stillDue(candidate.id)) return 'refused';
+        // De duur van de ronde: vanaf de beurt in de rij, tot en met de commit en de laatste herstelronde. Week ze al terwijl
+        // ze op haar beurt wachtte, dan telt dat ook als geweken (opnieuw na de volgende rustperiode).
+        rhythm.roundStarted(candidate.id);
+        started = true;
+        return turn.yielded.aborted ? 'yielded' : modelRound(candidate, turn);
+      }, () => 'refused');
+      outcome = typeof step === 'function' ? await step() : step;
       return outcome;
     } finally {
-      rhythm.roundEnded(candidate.id, outcome === true ? 'written' : outcome === 'yielded' ? 'yielded' : 'other');
+      if (started) rhythm.roundEnded(candidate.id, outcome === true ? 'written' : outcome === 'yielded' ? 'yielded' : 'other');
     }
-  }, () => 'refused');
+  };
 
-  const modelRound = async (candidate: ActualAutoSaveCandidate, turn: YieldingTurn): Promise<ActualAutoSaveWrite> => {
+  const modelRound = async (candidate: ActualAutoSaveCandidate, turn: YieldingTurn): Promise<ModelRound> => {
     const { yielded } = turn;
     const current = payloadOf(candidate.id);
     if (!current) return false;
@@ -201,96 +208,113 @@ export function createFileAutoSaveController(deps: {
       return 'refused';
     }
     if (yielded.aborted) return 'yielded';
-    let prepared: PreparedIfcWrite | undefined;
+    let output: IfcOutput;
     try {
-      const output = await prepareIfcOutput({ ...current, ui: getState().ui }, buildWriteIFCInput(current, 'merge'), undefined,
+      output = await prepareIfcOutput({ ...current, ui: getState().ui }, buildWriteIFCInput(current, 'merge'), undefined,
         job => compute(job, yielded));
-      prepared = output.prepared;
     } catch (error) {
       // Geweken tijdens het rekenen: de worker stopte op ons verzoek. Geen fout en geen melding.
       if (yielded.aborted) return 'yielded';
       throw error;
     }
     if (yielded.aborted) return 'yielded';
+    const { prepared } = output;
     if (!prepared) return 'refused';
     const after = await guard();
     if (after) return after;
     if (yielded.aborted) return 'yielded';
+    const place = async (turn: YieldingTurn, expired: () => boolean): Promise<ActualAutoSaveWrite> => {
+      const { yielded } = turn;
+      const commit = () => getState().markAutoSaveVersionSaved(document, current, prepared, null, localTargetName(ref));
+
+      // De grens van de voorrang ligt in de gedeelde vervanging (`stopBeforeWrite`): pas als het herstel vastligt (browser:
+      // de komende versie in het herstelmanifest; desktop: het herstelrecord en het manifest) en vóór de eerste schrijfactie
+      // op het doel. Meldt zich tot dan een handmatige actie, ook terwijl het herstel nog geschreven wordt, dan wijkt de
+      // ronde: niets geschreven, het herstel weer opgeruimd. Daarna loopt ze af en wacht de handmatige actie.
+      if (ref.kind === 'handle') {
+        const result = await replaceOwnHandleWithRecovery({
+          documentId: candidate.id, ref, prepared, source: source.bytes,
+          // De grens: na het vastleggen van het herstel, vlak vóór `createWritable()`. `pass` laat de ronde daarna aflopen.
+          stopBeforeWrite: () => expired() || !turn.pass(), refuseBeforePlace: expired, commit,
+        });
+        if (result.code === 'replaced') return true;
+        if (result.code === 'not-recorded') stopFor(candidate.id, ref, MODEL_AUTOSAVE_NOT_RECORDED_NOTICE);
+        else if (result.code === 'target-changed') stopFor(candidate.id, ref, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE);
+        else return yielded.aborted ? 'yielded' : 'stale';
+        return 'refused';
+      }
+
+      // Het beleid voor een eerdere, onderbroken vervanging van dit doel: Ctrl+S gaat er met een eigen record overheen,
+      // Automatisch opslaan niet (de start van de app of het openen van het bestand handelt het eerst af).
+      if (await pendingReplaceFor(await tauriReplaceRecords(), ref.path)) {
+        stopFor(candidate.id, ref, MODEL_AUTOSAVE_REMNANT_NOTICE);
+        return 'refused';
+      }
+      if (yielded.aborted) return 'yielded';
+      let stoppedBy: 'stale' | 'refused' | 'yielded' | null = null;
+      const result = await replaceOwnPathWithRecovery({
+        documentId: candidate.id, path: ref.path, prepared, source: { bytes: source.bytes, sha256: source.sha256 },
+        stopBeforeWrite: async () => {
+          stoppedBy = yielded.aborted ? 'yielded' : await guard();
+          if (stoppedBy === null && expired()) stoppedBy = 'stale';
+          // De grens: na het vastleggen van het herstel, vlak vóór de eerste schrijfactie in de projectmap.
+          if (stoppedBy === null && !turn.pass()) stoppedBy = 'yielded';
+          return stoppedBy !== null;
+        },
+        refuseBeforePlace: () => { if (expired()) stoppedBy = 'stale'; return stoppedBy !== null; },
+        commit,
+      });
+      switch (result.code) {
+        case 'replaced':
+          // Een versie van een ander programma of een achtergebleven vorige versie: een feit over bestanden op schijf.
+          for (const notice of ownPathReplaceNotices(result, ref.path)) getState().notify(notice);
+          return true;
+        case 'stopped': return stoppedBy ?? 'stale';
+        case 'not-recorded': stopFor(candidate.id, ref, MODEL_AUTOSAVE_NOT_RECORDED_NOTICE); return 'refused';
+        case 'target-changed': stopFor(candidate.id, ref, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE); return 'refused';
+        case 'save-as-only': stopFor(candidate.id, ref, MODEL_AUTOSAVE_SAVE_AS_ONLY_NOTICE); return 'refused';
+        case 'failed':
+          // Een mislukte ronde: de melding van Ctrl+S (één regel, ververst), en de volgende ronde probeert het opnieuw.
+          for (const notice of ownPathReplaceNotices(result, ref.path)) getState().notify(notice);
+          return 'refused';
+        default: {
+          // Een onbekende stand of hulpbestanden die blijven staan, met hun record: de melding van Ctrl+S, en stoppen.
+          const notices = ownPathReplaceNotices(result, ref.path);
+          for (const notice of notices) getState().notify(notice);
+          getState().forgetKnownTargetFingerprint(candidate.id);
+          stopFor(candidate.id, ref, null);
+          return 'refused';
+        }
+      }
+    };
+
     const { ui } = getState();
     const question = foreignChangesQuestionFor(prepared, ui.foreignChangesQuestion,
       ref.kind === 'path' ? basename(ref.path) : ref.handle.name);
-    if (question) {
-      if (isBlockingDialogOpen(ui)) return 'yielded';
-      if (!await getState().confirmForeignChangesWrite(prepared, question)) {
+    if (!question) return place(turn, changed);
+    if (isBlockedByDialog(ui)) return 'yielded';
+    const answer = getState().confirmForeignChangesWrite(prepared, { ...question, autoSaveDocumentId: candidate.id });
+    return async () => {
+      if (!await answer) {
         if (!changed()) refusedTarget.set(candidate.id, { ref, source, known: null });
         return 'refused';
       }
-      if (yielded.aborted) return 'yielded';
-      if (!deps.enabled() || !payloadOf(candidate.id)?.autoSaveToFile) return 'refused';
-      const afterAnswer = await guard();
-      if (afterAnswer) return afterAnswer;
-      if (yielded.aborted) return 'yielded';
-    }
-    const commit = () => getState().markAutoSaveVersionSaved(document, current, prepared, null, localTargetName(ref));
-
-    // De grens van de voorrang ligt in de gedeelde vervanging (`stopBeforeWrite`): pas als het herstel vastligt (browser:
-    // de komende versie in het herstelmanifest; desktop: het herstelrecord en het manifest) en vóór de eerste schrijfactie
-    // op het doel. Meldt zich tot dan een handmatige actie, ook terwijl het herstel nog geschreven wordt, dan wijkt de
-    // ronde: niets geschreven, het herstel weer opgeruimd. Daarna loopt ze af en wacht de handmatige actie.
-    if (ref.kind === 'handle') {
-      const result = await replaceOwnHandleWithRecovery({
-        documentId: candidate.id, ref, prepared, source: source.bytes,
-        // De grens: na het vastleggen van het herstel, vlak vóór `createWritable()`. `pass` laat de ronde daarna aflopen.
-        stopBeforeWrite: () => changed() || !turn.pass(), refuseBeforePlace: changed, commit,
-      });
-      if (result.code === 'replaced') return true;
-      if (result.code === 'not-recorded') stopFor(candidate.id, ref, MODEL_AUTOSAVE_NOT_RECORDED_NOTICE);
-      else if (result.code === 'target-changed') stopFor(candidate.id, ref, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE);
-      else return yielded.aborted ? 'yielded' : 'stale';
-      return 'refused';
-    }
-
-    // Het beleid voor een eerdere, onderbroken vervanging van dit doel: Ctrl+S gaat er met een eigen record overheen,
-    // Automatisch opslaan niet (de start van de app of het openen van het bestand handelt het eerst af).
-    if (await pendingReplaceFor(await tauriReplaceRecords(), ref.path)) {
-      stopFor(candidate.id, ref, MODEL_AUTOSAVE_REMNANT_NOTICE);
-      return 'refused';
-    }
-    if (yielded.aborted) return 'yielded';
-    let stoppedBy: 'stale' | 'refused' | 'yielded' | null = null;
-    const result = await replaceOwnPathWithRecovery({
-      documentId: candidate.id, path: ref.path, prepared, source: { bytes: source.bytes, sha256: source.sha256 },
-      stopBeforeWrite: async () => {
-        stoppedBy = yielded.aborted ? 'yielded' : await guard();
-        // De grens: na het vastleggen van het herstel, vlak vóór de eerste schrijfactie in de projectmap.
-        if (stoppedBy === null && !turn.pass()) stoppedBy = 'yielded';
-        return stoppedBy !== null;
-      },
-      refuseBeforePlace: () => { if (changed()) stoppedBy = 'stale'; return stoppedBy !== null; },
-      commit,
-    });
-    switch (result.code) {
-      case 'replaced':
-        // Een versie van een ander programma of een achtergebleven vorige versie: een feit over bestanden op schijf.
-        for (const notice of ownPathReplaceNotices(result, ref.path)) getState().notify(notice);
-        return true;
-      case 'stopped': return stoppedBy ?? 'stale';
-      case 'not-recorded': stopFor(candidate.id, ref, MODEL_AUTOSAVE_NOT_RECORDED_NOTICE); return 'refused';
-      case 'target-changed': stopFor(candidate.id, ref, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE); return 'refused';
-      case 'save-as-only': stopFor(candidate.id, ref, MODEL_AUTOSAVE_SAVE_AS_ONLY_NOTICE); return 'refused';
-      case 'failed':
-        // Een mislukte ronde: de melding van Ctrl+S (één regel, ververst), en de volgende ronde probeert het opnieuw.
-        for (const notice of ownPathReplaceNotices(result, ref.path)) getState().notify(notice);
-        return 'refused';
-      default: {
-        // Een onbekende stand of hulpbestanden die blijven staan, met hun record: de melding van Ctrl+S, en stoppen.
-        const notices = ownPathReplaceNotices(result, ref.path);
-        for (const notice of notices) getState().notify(notice);
-        getState().forgetKnownTargetFingerprint(candidate.id);
-        stopFor(candidate.id, ref, null);
-        return 'refused';
-      }
-    }
+      const approvalExpired = () => {
+        const live = payloadOf(candidate.id);
+        const target = live && saveTargetRef(live);
+        return changed() || !live || !target || !sameFileRef(target, ref) || !sameIFCSource(current, live)
+          || !deps.enabled() || !live.isDirty || !takesPart(candidate.id, live) || !modelDocument(getState(), live);
+      };
+      return runYieldingProjectFileWrite<ActualAutoSaveWrite>(async nextTurn => {
+        if (nextTurn.yielded.aborted || approvalExpired()) return 'yielded';
+        if (!await canWriteToRefWithoutPrompt(ref)) return 'refused';
+        if ((await tightAnchorsIfSaved(getState().ui.dependentProjects, candidate.id, current)).length > 0) return 'refused';
+        const afterAnswer = await guard();
+        if (afterAnswer) return afterAnswer;
+        if (nextTurn.yielded.aborted || approvalExpired()) return 'yielded';
+        return place(nextTurn, approvalExpired);
+      }, () => 'refused');
+    };
   };
 
   /** Een oude weigering vervalt als de planner zelf opsloeg (niet meer gewijzigd, of bij een gebouwmodel een nieuwe bron)

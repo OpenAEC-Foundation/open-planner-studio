@@ -50,7 +50,13 @@ export function isBlockingDialogOpen(ui: UIState): boolean {
 /** Een vraag waarop een opslag onder het schrijfslot wacht (site, IFC-schema, alleen de planning, afhankelijke
  *  projecten). Zolang die openstaat start Ctrl+S geen nieuwe opslag, en staat "Wordt nog opgeslagen…" er niet overheen:
  *  het wachten hangt dan aan het antwoord van de planner (#804 stap 3). */
-export function saveQuestionOpen(ui: UIState): boolean {
+export function saveQuestionOpen(ui: UIState, savingDocumentId?: string): boolean {
   return ui.pendingSiteSave !== null || ui.pendingSiteOpen !== null || ui.pendingIfcSchemaQuestion !== null
-    || ui.pendingDependentAnchorWarning !== null || ui.pendingPlanOnlyQuestion !== null || ui.pendingForeignChangesQuestion !== null;
+    || ui.pendingDependentAnchorWarning !== null || ui.pendingPlanOnlyQuestion !== null
+    || (ui.pendingForeignChangesQuestion !== null && !otherDocumentAutoSaveQuestion(ui, savingDocumentId));
+}
+
+export function otherDocumentAutoSaveQuestion(ui: UIState, documentId?: string): boolean {
+  const owner = ui.pendingForeignChangesQuestion?.autoSaveDocumentId;
+  return owner !== undefined && documentId !== undefined && owner !== documentId;
 }

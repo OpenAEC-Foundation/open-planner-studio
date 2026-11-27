@@ -16,6 +16,7 @@ import { classify } from '@/services/ifc/foreign/classify';
 import { computeIfcOutputHere, prepareIfcOutput, IfcWriteBlockedError, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { createIfcSaveWorker, type IfcSaveWorkerOptions } from '@/services/ifc/saveWorker/ifcSaveWorker';
 import { documentContentOf, saveStatusOf } from '@/state/documentSaveState';
+import { registerDialog } from '@/state/dialogStack';
 import { refusedWriteTarget, ifcFullWriteBlocked, ifcSaveBlocked } from '@/state/ifcForeignGuard';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { scheduleFileAutoSave } from '@/services/actualAutosave/fileAutoSaveTimers';
@@ -3982,8 +3983,8 @@ await check('stap 8, fixronde 2: de gewone ingang (10 s) start nooit een gebouwm
 });
 
 /** Een gebouwmodel en een gewoon document, allebei met Automatisch opslaan aan; het gewone document is actief. */
-async function modelAndPlain(compute: IfcOutputCompute) {
-  const { store, name } = await openHandle(bytes, compute), unregister = recoveryRounds(store);
+async function modelAndPlain(compute: IfcOutputCompute, modelBytes = bytes) {
+  const { store, name } = await openHandle(modelBytes, compute), unregister = recoveryRounds(store);
   const model = store.getState().activeDocumentId;
   store.getState().setAutoSaveToFile(true);
   const plainName = `gewoon-${++handleCount}.ifc`;
@@ -4866,7 +4867,9 @@ await check('Automatisch opslaan wacht op antwoord voor het juiste tabblad en op
       deleteLinked(store);
     }
     const expected = await Promise.all([first, second].map(doc => expectedFor(store, doc.id)));
-    const questions = expected.map((write, i) => ({ count: write.foreignChanges!.length, file: [first, second][i].name }));
+    const questions = [first, second].map((doc, i) => ({
+      count: expected[i].foreignChanges!.length, file: doc.name, autoSaveDocumentId: doc.id,
+    }));
     const otherQuestion = { count: 7, file: 'ander.ifc' };
     store.getState().setUI({ pendingForeignChangesQuestion: otherQuestion });
     writableLog.length = 0;
@@ -4903,6 +4906,115 @@ await check('Automatisch opslaan wacht op antwoord voor het juiste tabblad en op
     await turnUntil(() => !auto.controller.isSaving());
     resetForeignChangesAsker(); unregister(); await clearRecovery();
   }
+});
+
+for (const [label, choice] of [['Opslaan', SAVE_ANSWER], ['Annuleren', CANCEL_FOREIGN_CHANGES]] as const) {
+  await check(`Tijdens de automatische vraag voor tabblad A schrijft B op zijn gewone tik en via Ctrl+S; daarna ${label} voor A`, async () => {
+    const { store, model, name, plain, plainName, unregister } = await modelAndPlain(computeIfcOutputHere, LINKED);
+    const auto = modelAutoSave(askOn(store)), answer = gate();
+    const asked = askerOn(store, async () => { await answer.held; return choice; });
+    try {
+      store.getState().switchDocument(model);
+      deleteLinked(store);
+      const expected = await expectedFor(store, model);
+      store.getState().switchDocument(plain);
+      const taskId = longer(store);
+      store.getState().updateTask(taskId, { name: 'Gewone tik voor B' });
+      const saving = auto.round();
+      await turnUntil(() => asked.length === 1);
+      assert.equal(asked[0].autoSaveDocumentId, model);
+      const tick = auto.controller.flush();
+      await turnUntil(() => !payloadOf(store, plain).isDirty, 'B schrijft automatisch vóór het antwoord voor A');
+      await tick;
+      assert((await reopenOrdinary(fileOf(plainName), true)).tasks.some(t => t.name === 'Gewone tik voor B'));
+      store.getState().updateTask(taskId, { name: 'Ctrl+S voor B' });
+      const { handleFrozenShortcut } = await import('@/hooks/keyboard/useKeyboardShortcuts');
+      const key = Object.assign(new Event('keydown', { cancelable: true }), { key: 's', ctrlKey: true, shiftKey: false, altKey: false });
+      assert(handleFrozenShortcut(key as KeyboardEvent, store.getState()));
+      assert(key.defaultPrevented);
+      await turnUntil(() => !payloadOf(store, plain).isDirty, 'Ctrl+S schrijft B vóór het antwoord voor A');
+      assert((await reopenOrdinary(fileOf(plainName), true)).tasks.some(t => t.name === 'Ctrl+S voor B'));
+      assert.equal(store.getState().ui.pendingForeignChangesQuestion?.file, name);
+      assert.equal(hash(fileOf(name)), hash(LINKED));
+      answer.release();
+      await saving;
+      assert.equal(hash(fileOf(name)), choice.save ? expected.sha256 : hash(LINKED));
+      assert.equal(payloadOf(store, model).isDirty, !choice.save);
+      assert.equal(asked.length, 1);
+    } finally {
+      answer.release();
+      await turnUntil(() => !auto.controller.isSaving());
+      resetForeignChangesAsker(); unregister(); await clearRecovery();
+    }
+  });
+}
+
+await check('Automatisch opslaan verwerpt de toestemming als de planning tijdens de vraag verandert', async () => {
+  const { store, docs: [doc], unregister } = await linkedDocuments(1);
+  const auto = modelAutoSave(askOn(store)), answer = gate();
+  const asked = askerOn(store, async () => { await answer.held; return SAVE_ANSWER; });
+  try {
+    deleteLinked(store);
+    writableLog.length = 0;
+    const saving = auto.round();
+    await turnUntil(() => asked.length === 1);
+    deleteLinked(store);
+    const expected = await expectedFor(store, doc.id);
+    assert(expected.foreignChanges!.length > asked[0].count);
+    answer.release();
+    await saving;
+    assert.deepEqual(writableLog, [], 'geen oude versie en geen nieuwe versie zonder eigen toestemming');
+    assert.equal(hash(fileOf(doc.name)), hash(LINKED));
+    assert.equal(store.getState().isDirty, true);
+    await auto.round();
+    assert.deepEqual(asked.map(q => q.count), [asked[0].count, expected.foreignChanges!.length]);
+    assert.equal(hash(fileOf(doc.name)), expected.sha256);
+  } finally {
+    answer.release(); await turnUntil(() => !auto.controller.isSaving());
+    resetForeignChangesAsker(); unregister(); await clearRecovery();
+  }
+});
+
+for (const change of ['ander schrijfdoel', 'vervangen document'] as const) {
+  await check(`Automatisch opslaan verwerpt de toestemming na een ${change}`, async () => {
+    const { context, store, docs: [doc], unregister } = await linkedDocuments(1);
+    const auto = modelAutoSave(askOn(store));
+    const otherName = `ander-doel-${++handleCount}.ifc`;
+    handleFiles.set(otherName, LINKED);
+    try {
+      deleteLinked(store);
+      const asked = askerOn(store, () => {
+        if (change === 'ander schrijfdoel') store.setState({ fileHandle: new FakeHandle(otherName) as unknown as FileSystemFileHandle });
+        else loadThroughExtension(context, false);
+        return SAVE_ANSWER;
+      });
+      writableLog.length = 0;
+      await auto.round();
+      assert.equal(asked.length, 1);
+      assert.deepEqual(writableLog, []);
+      assert.equal(hash(fileOf(doc.name)), hash(LINKED));
+      assert.equal(hash(fileOf(otherName)), hash(LINKED));
+    } finally { resetForeignChangesAsker(); unregister(); await clearRecovery(); }
+  });
+}
+
+await check('Automatisch opslaan wacht tot het venster Sneltoetsen van de dialoogstapel is', async () => {
+  const { store, docs: [doc], unregister } = await linkedDocuments(1);
+  const auto = modelAutoSave(askOn(store)), asked = askerOn(store, () => SAVE_ANSWER);
+  try {
+    deleteLinked(store);
+    const expected = await expectedFor(store, doc.id);
+    store.getState().setUI({ showShortcutsDialog: true });
+    const close = registerDialog(Symbol('Sneltoetsen'));
+    try {
+      await auto.round();
+      assert.deepEqual(asked, [], 'Sneltoetsen blijft de enige dialoog');
+      assert.equal(hash(fileOf(doc.name)), hash(LINKED));
+    } finally { close(); store.getState().setUI({ showShortcutsDialog: false }); }
+    await auto.round();
+    assert.equal(asked.length, 1);
+    assert.equal(hash(fileOf(doc.name)), expected.sha256);
+  } finally { resetForeignChangesAsker(); unregister(); await clearRecovery(); }
 });
 
 await check('Annuleren pauzeert automatische bestandsopslag tot Ctrl+S en laat crashherstel doorgaan', async () => {
@@ -4990,7 +5102,7 @@ await check('vraag vóór opslaan, proef 1 en 3: elke opslag van het document vr
       const file = fileName(route);
       const asked = askerOn(route.store, () => SAVE_ANSWER);
       await route.write();
-      assert.deepEqual(asked, [{ count, file }], `${name}: één vraag met het aantal en de naam`);
+      assert.deepEqual(asked.map(q => ({ count: q.count, file: q.file })), [{ count, file }], `${name}: één vraag met het aantal en de naam`);
       const after = await route.written();
       assert.equal(after && hash(after), expected.sha256, `${name}: de voorbereide bytes geschreven`);
       assert.deepEqual(calls, [], `${name}: geen telling achteraf`);
