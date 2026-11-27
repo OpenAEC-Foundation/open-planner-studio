@@ -9,8 +9,8 @@ wachten. `requestCloseDocument` neemt wel zelf de eerste beslissing, of de sluit
 ## Gevolgen
 
 - De volgorde in `closeDocument` staat op die ene plek: eerst open veldinvoer afronden, dan nagaan of het document nog
-  bestaat, dan met `onlyIfClean` (*Opslaan* in de sluitvraag, fixronde 1 en 2 van #1008) of het schoon is, en dan pas
-  verwijderen. De toets op schoon komt na het afronden (fixronde 2 van #1008): invoer die tijdens de opslag getypt werd,
+  bestaat, dan met `onlyIfClean` (*Opslaan* in de sluitvraag, #1008) of het schoon is, en dan pas
+  verwijderen. De toets op schoon komt na het afronden: invoer die tijdens de opslag getypt werd,
   maakt het document bij het afronden gewijzigd, en dan blijft het open en geeft `closeDocument` `false`. Hoe die toets de
   vlag leest, staat in knownbug 1847.
 - Het laatste document sluiten zet één vers, leeg document met een nieuw id neer (regel `state`). Een slapend document

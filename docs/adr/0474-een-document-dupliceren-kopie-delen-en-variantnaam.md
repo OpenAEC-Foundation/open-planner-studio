@@ -10,14 +10,14 @@ geeft daar een compileerfout en vraagt een keuze: klonen, delen of vers. Toetsen
 `filePath` en `fileHandle`, gewijzigd, geen gedeelde arrays, lege geschiedenis, variantnummers, naamloze bron).
 
 Wat gepubliceerd wordt, is niet die voorbereide kopie zelf maar de uitkomst van de activatie (`materializeLibraryBoundary`
-in `documentActivation.ts`, ADR 0472). Die rekent `resourceLoadResult` altijd opnieuw uit, zodat bron en kopie elk een
-eigen resultaat hebben. Hoort het document bij een resourcebibliotheek waarvan kalenders of resources achterlopen, dan
+in `documentActivation.ts`, ADR 0472). Die bepaalt `resourceLoadResult` opnieuw (`computeReliableResourceLoad`): een
+eigen resultaat voor de kopie, of `null` als het `cpmResult` een rekenfout draagt. Hoort het document bij een resourcebibliotheek waarvan kalenders of resources achterlopen, dan
 vervangt ze ook die kalenders of resources (`materializeBehindOnlyRefresh`), en bij een kalender ook de taken die de
 werkregel aanpast, `scheduleStale` (via `markScheduleStale`) en, als er een vastlegging is, `recordedDates` met een
-nieuwe teller.
+nieuwe teller, of zonder teller als de proefberekening een fout geeft (`recountShiftedAfterLibraryRefresh`).
 
 Open veldinvoer rondt `duplicateDocument` af vóór hij de bron vastlegt: die invoer hoort in de bron en daarmee ook in de
-kopie, en niet alleen in de kopie doordat het veld na de wissel verdwijnt (review #401, punt 1). De regressietest
+kopie, en niet alleen in de kopie doordat het veld na de wissel verdwijnt (#401). De regressietest
 *documentwissel zonder blur (MCP-dupliceren)* in `tests/browser/assignments-block.spec.ts` typt een waarde in het
 inzetveld, roept met de focus nog in dat veld `duplicateDocument` aan, en vergelijkt daarna de waarde in bron en kopie
 en de wijzigingsvlag van de bron.
@@ -58,8 +58,9 @@ en de wijzigingsvlag van de bron.
   onderscheiden. Er is geen los titelveld, dus de naam staat in `project.name` en gaat mee in het IFC (dezelfde spec).
 - Een naamloze bron geeft een naamloze kopie. `nextVariantName('')` zou `' (variant 2)'` in de projectdata en dus in het
   IFC zetten. Het onderscheid tussen naamloze tabbladen komt uit de weergave: `getOpenDocuments` geeft een document
-  zonder bestand, naam en P6-projectcode een lege titel (`documentTitle`, dezelfde regel als de tabbladen) en een
-  `untitledOrdinal` (`untitledOrdinals`, `utils/documents.ts`), en de weergavelaag zet het vertaalde label
+  zonder bestand, naam en P6-projectcode een lege titel (`documentTitle`, dezelfde regel als de tabbladen) en, vanaf
+  het tweede naamloze tabblad, een `untitledOrdinal` (`untitledOrdinals`, `utils/documents.ts`; het eerste en een enig
+  naamloos tabblad krijgen er geen), en de weergavelaag zet het vertaalde label
   `common:project.untitled` ervoor. Het nummer is taalonafhankelijk en staat niet in de data (case 8 tot en met 10).
 - Na de publicatie roept `duplicateDocument` `settleLayoutSession` aan (`viewSlice.ts`): de Gantt-overlays zijn app-breed,
   dus een layout in het gekopieerde beeld kan niet meer kloppen. `switchDocument`, `newDocument` en `closeDocument` doen
