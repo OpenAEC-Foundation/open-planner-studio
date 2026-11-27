@@ -8106,3 +8106,10 @@ en noem het in je rapport of PR-tekst.
       ronde 1; de proef onderbreekt vóór de manifestwrite en niet erna. Vóór de flag `ifcx` standaard
       aan gaat: bij herstel de herstelde stand vergelijken met het schrijfdoel, met een proef die na de
       plaatsing onderbreekt. — S
+
+2431. **Zet de planner de flag `ifcx` uit terwijl een ronde van Automatisch opslaan wacht, dan kan die ronde nog één keer IFCX schrijven.**
+      Een al gekozen ronde gebruikt de flag van het moment waarop ze begon. Wacht ze nog op schrijfrecht
+      of op haar beurt, en is de planning ongewijzigd met hetzelfde schrijfdoel, dan schrijft ze de
+      IFCX-planning nog één keer met de verwijzingen. Gevolgd in de code bij de review van #1325, ronde 3.
+      Vóór de flag `ifcx` standaard aan gaat: de actuele flag ook vlak vóór de plaatsing toetsen, met een
+      wachtende ronde als proef. — S
