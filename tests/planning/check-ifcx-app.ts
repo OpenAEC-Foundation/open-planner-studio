@@ -53,6 +53,7 @@ const own = fixture(FIXTURES[0]);
 const other = fixture(FIXTURES[1]);
 const withModel = fixture('planning-met-model.ifcx');
 const facade = new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifcx/extern/gevel.ifcx')));
+const linkedModel = new Uint8Array(readFileSync(join(root, 'docs/superpowers/evidence/2026-11-27-ifcx-verwijzing-los-modelbestand/model.ifcx')));
 const dir = mkdtempSync(join(tmpdir(), 'ops-ifcx-app-'));
 const hash = (data: Uint8Array) => createHash('sha256').update(data).digest('hex');
 const text = (data: Uint8Array) => new TextDecoder().decode(data);
@@ -315,16 +316,19 @@ await check('modelbron openen en een eigen planning ernaast opslaan en heropenen
 });
 
 await check('modelkoppelingen bij het heropenen met een gelijk, gewijzigd of ontbrekend buurmodel', async () => {
-  const model = bytesAt(join(root, 'docs/superpowers/evidence/2026-11-27-ifcx-verwijzing-los-modelbestand/model.ifcx'));
+  const model = linkedModel;
   const original = readIfcx(withModel);
   assert.equal(original.modelSource?.sha256, hash(model));
   const id = original.tasks[0].id;
-  for (const status of ['gelijk', 'gewijzigd', 'ontbreekt']) {
+  for (const status of ['gelijk', 'gewijzigd', 'ontbreekt', 'geen leesrecht']) {
     const ipc = desktop();
     try {
       const folder = mkdtempSync(join(dir, status));
       const path = join(folder, 'model.ifcx'), plan = join(folder, 'planning-met-model.ifcx');
-      if (status === 'gelijk') writeFileSync(path, model);
+      if (status === 'gelijk' || status === 'geen leesrecht') writeFileSync(path, model);
+      if (status === 'geen leesrecht') ipc.faults.onCall = (command, candidate) => {
+        if (command === 'plugin:fs|read_file' && candidate === path) throw new Error('Geen leesrecht');
+      };
       if (status === 'gewijzigd') {
         const changed = JSON.parse(text(model));
         changed.data.pop();
@@ -405,7 +409,11 @@ for (const [label, flags] of [['alleen ifcx', IFCX_ON], ['ifcx en ifcForeignCont
       const tabs = store.getState().getOpenDocumentPayloads().length;
       await openInto(store, path);
       assert.equal(store.getState().getOpenDocumentPayloads().length, tabs, 'opnieuw openen geeft geen tweede tabblad');
+      const from = ipc.calls.length;
       const reopened = await openAt(path, flags);
+      assert.equal(reopened.getState().ifcxReferences, null);
+      assert(!reopened.getState().ui.notifications.some(n => n.messageKey.startsWith('ifcx.model.')));
+      assert(!ipc.calls.slice(from).some(c => c.command === 'plugin:fs|read_file' && c.path?.startsWith(dir) && c.path !== path));
       assert.equal(shown(reopened.getState().tasks), shown(store.getState().tasks), 'heropend: dezelfde datums');
       assert.deepEqual([...(readIfcx(written).ifcLiteralCalendarIds ?? [])].sort(),
         [...(store.getState().ifcLiteralCalendarIds ?? [])].sort(), 'de letterlijke kalenders van het bestand zijn vastgelegd');
@@ -1300,14 +1308,17 @@ await check('browser: Openen, Recent en slepen met een andere handle voor hetzel
   try {
     for (const route of ['Openen', 'Recent', 'slepen'] as const) {
       const model = (await newApp(IFCX_ON)).store;
-      const source = handlesTo('gevel.ifcx', facade);
+      const source = handlesTo('model.ifcx', linkedModel);
       await openVia(model, route, source());
       assert.deepEqual(errors(model), [], route);
       assert.equal(model.getState().fileHandle, null);
       assert.equal(model.getState().filePath, null);
-      assert.equal(model.getState().ifcxReferences?.modelSource?.sha256, hash(facade));
+      assert.equal(model.getState().ifcxReferences?.modelSource?.sha256, hash(linkedModel));
       model.getState().newDocument();
       assert.equal(await model.getState().foreignTargetCheck(null)({ kind: 'handle', handle: source() }), true);
+      await openVia(model, route, handlesTo('planning-met-model.ifcx', withModel)());
+      assert.equal(uncheckedModelLinks(model.getState()), false, route);
+      assert.deepEqual(taskElementLinks(model.getState(), model.getState().tasks[0].id)?.map(link => link.found), [true, false]);
       const { store, first, taskId, edited } = await opened(IFCX_ON, 'plan.ifcx', own, route);
       assert.deepEqual(errors(store), [], route);
       assert.equal(fileTabs(store), 1, `${route}: geen tweede tabblad voor hetzelfde bestand`);
