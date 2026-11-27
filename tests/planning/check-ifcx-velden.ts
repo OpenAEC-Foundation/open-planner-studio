@@ -119,6 +119,8 @@ await test('elk veld van IFC_SAVE_KEYS heeft een plek in IFCX of een benoemde ui
         if (CARRIED.has(key)) continue;
         wrong.push(`${saveKey}: ${key} heeft geen plek`);
       }
+    } else if ('attributes' in place) {
+      assert.deepEqual(place.attributes, ['openaec::ops::modelSource', 'openaec::links']);
     } else if (place.exception === 'xer-archive') {
       for (const key of place.modelKeys) if (!STEP_WRITER_INPUT_NOT_CARRIED.includes(key)) wrong.push(`${saveKey}: ${key} weigert de writer niet`);
     }

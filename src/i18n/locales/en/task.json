@@ -556,7 +556,8 @@
       "linked_one": "Linked to {{count}} building element",
       "linked_other": "Linked to {{count}} building elements",
       "notFound_one": "{{count}} of them not found in this file",
-      "notFound_other": "{{count}} of them not found in this file"
+      "notFound_other": "{{count}} of them not found in this file",
+      "unchecked": "The element links are unchecked."
     }
   },
   "relations": {

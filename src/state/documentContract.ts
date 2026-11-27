@@ -63,6 +63,7 @@ export interface DocumentPayload {
   xerSourceArchive: XerSourceArchive | null;
   xerSourceProjectId: string | null;
   ifcSource: IfcSource | null;
+  ifcxReferences: import('@/services/ifc/ifcx/modelReferences').IfcxModelReferences | null;
   foreignSourceMark: ForeignSourceMark | null;
   taskTypesVisible: boolean;
   importPristine: boolean;
@@ -194,6 +195,7 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'xerSourceArchive', get: (s) => s.xerSourceArchive, set: (s, v) => { s.xerSourceArchive = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceArchive ?? null }),
   field({ key: 'xerSourceProjectId', get: (s) => s.xerSourceProjectId, set: (s, v) => { s.xerSourceProjectId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceProjectId ?? null }),
   field({ key: 'ifcSource', get: (s) => s.ifcSource, set: (s, v) => { s.ifcSource = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.ifcSource ?? null }),
+  field({ key: 'ifcxReferences', get: (s) => s.ifcxReferences, set: (s, v) => { s.ifcxReferences = v; }, fresh: () => null, snapshot: 'data', fromPayload: p => p.ifcxReferences ?? null }),
   field({ key: 'foreignSourceMark', get: (s) => s.foreignSourceMark, set: (s, v) => { s.foreignSourceMark = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.foreignSourceMark ?? null }),
   field({ key: 'taskTypesVisible', get: (s) => s.taskTypesVisible, set: (s, v) => { s.taskTypesVisible = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.taskTypesVisible ?? false }),
   field({ key: 'importPristine', get: (s) => s.importPristine, set: (s, v) => { s.importPristine = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.importPristine ?? false }),
