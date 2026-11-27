@@ -121,7 +121,6 @@ function selectionRectangle(environment: TaskGridClipboardEnvironment, withRuns 
 export function copyTaskGridSelection(
   environment: TaskGridClipboardEnvironment,
 ): GridResult<string, readonly CellValidationError[]> {
-  // Een ingeklapte mijlpalenreeks (#868) kopieert als haar mijlpalen, één regel per mijlpaal, zoals uitgeklapt.
   const rectangle = selectionRectangle(environment, true);
   if (!rectangle) return fail('selection');
   const matrix: string[][] = [];
@@ -152,9 +151,6 @@ function targetRectangle(
   const sourceRows = source.length;
   const sourceColumns = source[0]?.length ?? 0;
   const selectedIsLarger = selected.rows.length > 1 || selected.columns.length > 1;
-  // Excel-semantiek: een R×K-klembord vult een geselecteerde rechthoek waarvan de afmetingen een
-  // GEHEEL veelvoud zijn van R×K, door het bronblok te herhalen (tegels). Een 1×1-bron is een
-  // speciaal geval van dit patroon (elk formaat is een veelvoud van 1×1).
   if (selectedIsLarger) {
     return sourceRows > 0 && sourceColumns > 0
       && selected.rows.length % sourceRows === 0 && selected.columns.length % sourceColumns === 0
@@ -179,17 +175,6 @@ function targetRectangle(
 }
 
 export interface TaskGridPasteOptions {
-  /**
-   * Een plak (Ctrl+V) die statisch berekende doelcellen raakt, weigert niet de hele transactie —
-   * die cellen worden overgeslagen en de rest gaat atomair door, met één geaggregeerde melding (zie
-   * `PreparedGridMutation.skippedReadOnlyCount` in gridTransaction.ts;
-   * de conditioneel-schrijfbare tegenhanger van deze skip zit daar, niet hier, want alleen de
-   * gezamenlijke-eindtoestandcontrole weet of zo'n cel via een ANDERE write alsnog schrijfbaar
-   * wordt). BEWUST `false` als default: `planTaskGridClear` (Delete/Backspace) hergebruikt deze
-   * functie met een lege bron en behoudt zijn bestaande "één niet-leegbare cel ⇒ volledige
-   * rollback"-semantiek — alleen de echte Ctrl+V-route in
-   * FullTaskGrid.tsx zet dit expliciet aan.
-   */
   skipReadOnlyCells?: boolean;
 }
 
@@ -215,18 +200,11 @@ export function planTaskGridPaste(
     for (let columnOffset = 0; columnOffset < target.value.columns.length; columnOffset++) {
       const columnId = target.value.columns[columnOffset];
       const cell = { rowKey, columnId };
-      // Excel-tegelherhaling: de bron wordt modulo zijn eigen afmetingen
-      // geïndexeerd. Voor een 1×1-bron (het "fill"-geval) is dat altijd `parsed.value[0][0]`;
-      // voor een R×K-bron die de selectie een geheel aantal keer vult, herhaalt dit hetzelfde blok.
       const source = parsed.value[rowOffset % sourceRows][columnOffset % sourceColumns];
       const descriptor = environment.descriptors.get(columnId);
       if (!descriptor || !descriptor.available(environment.context)) {
         return { ok: false, errors: [error('plannerNotAvailable', source, cell, task.id)] };
       }
-      // Statisch berekende kolommen hebben geen ongecontroleerde writer en blijven hier al rood.
-      // Conditionele schrijfbaarheid (mijlpaal, constraint, hammock, assignments) kan echter door
-      // een andere cel in dezelfde paste veranderen en wordt daarom pas op de transactiedraft
-      // beoordeeld.
       const planWrite = descriptor.planWriteUnchecked ?? descriptor.planWrite;
       if (!descriptor.parse || !planWrite) {
         if (options.skipReadOnlyCells) { skippedReadOnlyCount++; skippedReadOnlyTaskIds.add(task.id); continue; }
@@ -256,11 +234,6 @@ export function planTaskGridPaste(
       }
       byTarget.set(key, validated.value);
 
-      // Een kopie die semantisch dezelfde waarde terugplakt is geen bewerking. Vergelijk de
-      // geparseerde/geverifieerde canonieke waarden, niet de zichtbare tekst: dat houdt persoonlijke
-      // datumnotatie, gelokaliseerde booleans en duurweergave correct. De duplicatecontrole staat
-      // bewust hierboven, zodat twee occurrences met verschillende bronwaarden ook rood blijven
-      // wanneer één van beide toevallig gelijk is aan de huidige cel.
       const currentText = copyGridEditorValue(
         descriptor, task, environment.context, environment.dateNotation, environment.booleanLabels,
       );

@@ -29,7 +29,6 @@ export type InternalRelationWarning =
 export type ExternalRelationWarning = 'source-missing';
 
 export interface InternalRelationAnalysis {
-  /** undefined = onbekend; false = berekend en niet bepalend. */
   driving: boolean | undefined;
   freeFloat?: number;
   warnings: readonly InternalRelationWarning[];
@@ -41,7 +40,6 @@ export interface RelationTraceEdge {
   driving: boolean | undefined;
 }
 
-/** Alleen de relationele CPM-afgeleiden die dit readmodel nodig heeft; een volledig CPMResult past. */
 export interface RelationIndexAnalysisInput {
   drivingSequenceIds: readonly string[];
   drivingUnknown?: true;
@@ -53,7 +51,6 @@ export interface RelationIndexAnalysisInput {
 }
 
 export interface TaskRelationIndex {
-  /** Ook zonder relaties moet de analysekolom onbekend van berekend leeg onderscheiden. */
   drivingKnown: boolean;
   predecessorsByTaskId: ReadonlyMap<string, readonly TaskRelationEntry[]>;
   successorsByTaskId: ReadonlyMap<string, readonly TaskRelationEntry[]>;
@@ -71,8 +68,6 @@ function append<T>(map: Map<string, T[]>, key: string, value: T): void {
   else map.set(key, [value]);
 }
 
-/** Bouwt in één pass over sequences en één pass over task.externalLinks het enige taakgrid-readmodel
- * voor interne en externe voorgangers/opvolgers. Descriptors lezen uitsluitend deze maps. */
 export function buildTaskRelationIndex(
   tasks: readonly Task[],
   sequences: readonly Sequence[],

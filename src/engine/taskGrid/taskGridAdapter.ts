@@ -55,7 +55,6 @@ export interface TaskGridTaskRowMeta {
   dimmed: boolean;
   selected: boolean;
   traceClass: string | null;
-  /** De UI rendert hiermee de bestaande TaskTooltipContent; de adapter formatteert geen tweede tooltip. */
   tooltipData: { task: Task };
 }
 
@@ -67,11 +66,9 @@ export interface TaskGridGroupRowMeta {
   traceClass: null;
 }
 
-/** Issue #868: een ingeklapte mijlpalenreeks. Alleen-lezen; een klik kiest alle `taskIds`. */
 export interface TaskGridMilestonesRowMeta {
   rowKey: string;
   kind: 'milestones';
-  /** De mijlpalen van de reeks, in lijstvolgorde; de eerste is de kop. */
   taskIds: string[];
   depth: number;
   selected: boolean;
@@ -86,16 +83,11 @@ export interface TaskGridAdapterCell {
   copyText: string;
   editText: string;
   readOnly: boolean;
-  /** Vertaalsleutel die uitlegt waarom de cel alleen-lezen is (`taskGrid.validation.<code>`), alleen
-   *  wanneer de kolom een eigen reden heeft; anders valt de UI terug op "berekende kolom". */
   readOnlyReason?: string;
   stale?: boolean;
   statusText?: string;
-  /** Volledige celwaarde; de cel toont hem alleen als de weergave is afgeknipt. */
   title?: string;
-  /** Kolomeigen uitleg die altijd als tooltip verschijnt, ongeacht afknippen. */
   tooltip?: string;
-  /** Een ⚠ naast de waarde, met uitleg (`TaskColumnDescriptor.warning`). */
   warning?: TaskCellWarning;
 }
 
@@ -131,7 +123,6 @@ export interface CreateTaskGridAdapterDomainInput {
   customTaskTypes?: readonly CustomTaskType[];
   scheduleStale: boolean;
   wbsAutoNumber: boolean;
-  /** Vertaalt de vertaalsleutel van een kolomkop. Krijgt nooit een naam van de gebruiker. */
   labelForColumn: (labelKey: string) => string;
   labelForBoolean?: (value: boolean) => string;
   labelForText?: (key: string, values?: Readonly<Record<string, string | number>>) => string;
@@ -139,23 +130,16 @@ export interface CreateTaskGridAdapterDomainInput {
   effectiveHoursPerDay?: (task: Task) => number;
   effectiveCalendar?: TaskColumnContext['effectiveCalendar'];
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
-  /** Zie `TaskColumnContext.baselineOldDay`. */
   baselineOldDay?: TaskColumnContext['baselineOldDay'];
   recordedMark?: (task: Task) => RecordedTaskMark;
   recordedUnrecordedAxes?: (task: Task) => readonly RecordedTaskAxis[];
   dateNotation?: DateNotation;
-  /** Instelling Tijdnotatie; komt in de kolomcontext (`TaskColumnContext.timeNotation`). */
   timeNotation?: TimeNotation;
   calendarOptions?: readonly { value: string; label: string }[];
-  /** Instelling Duurweergave (weergavetekst van de Duur-kolom); ontbreekt ⇒ `'auto'`. */
   durationDisplay?: DurationDisplay;
-  /** Zie `TaskColumnContext.workdayDurationMeasure`. */
   workdayDurationMeasure?: boolean;
-  /** App-taal voor het decimaalteken van duren en speling; ontbreekt ⇒ punt. */
   numberLocale?: string;
-  /** Zie `TaskColumnContext.taskTypesUnlocked`. */
   taskTypesUnlocked?: boolean;
-  /** Zie `TaskColumnContext.defaultWorkRule`. */
   defaultWorkRule?: WorkRule;
 }
 
@@ -170,10 +154,6 @@ export interface CreateTaskGridAdapterProjectionInput {
 export type CreateTaskGridAdapterInput = CreateTaskGridAdapterDomainInput
   & CreateTaskGridAdapterProjectionInput;
 
-/**
- * De selectie-onafhankelijke readmodel-laag van het taakraster. Een surface mag deze één keer
- * memoizen op domeinwijzigingen en daarna goedkoop verschillende rijselecties projecteren.
- */
 export interface TaskGridAdapterDomain {
   context: TaskColumnContext;
   descriptors: readonly TaskColumnDescriptor[];
@@ -251,12 +231,6 @@ function alignForDescriptor(descriptor: TaskColumnDescriptor): TaskGridAdapterCo
   return undefined;
 }
 
-/**
- * De weergavetekst van een cel bij een al gelezen waarde: vertaalde ja/nee, het label van een
- * keuzewaarde, een datum in de datumnotatie, anders de eigen opmaak van de kolom. Eén plek voor het
- * taakraster (`getCell`) en de Gantt-afdruk (`taskGridCellText`), zodat een kolom op papier dezelfde
- * tekst draagt als in de tabel.
- */
 function cellTextForValue(
   domain: TaskGridAdapterDomain,
   descriptor: TaskColumnDescriptor,
@@ -279,12 +253,10 @@ function cellTextForValue(
       : descriptor.format(value, task, context));
 }
 
-/** De weergavetekst van één cel, zoals het taakraster hem toont (zie {@link cellTextForValue}). */
 export function taskGridCellText(domain: TaskGridAdapterDomain, descriptor: TaskColumnDescriptor, task: Task): string {
   return cellTextForValue(domain, descriptor, task, descriptor.read(task, domain.context));
 }
 
-/** Bouwt uitsluitend het dure, selectie-onafhankelijke domeindeel van de gridadapter. */
 export function createTaskGridAdapterDomain(
   input: CreateTaskGridAdapterDomainInput,
 ): TaskGridAdapterDomain {
@@ -353,13 +325,6 @@ export function createTaskGridAdapterDomain(
   };
 }
 
-/**
- * Pure domein-naar-gridprojectie. Beide taakoppervlakken krijgen dezelfde input en kunnen daardoor
- * niet verschillen in rijwaarden, bewerkbaarheid of de intents die een bewerking oplevert.
- *
- * De tweeargumentenvorm gebruikt een vooraf gebouwd domein en is de productroute voor snelle
- * selectiewissels. De eenargumentvorm blijft een handige atomaire fabriek voor losse consumers.
- */
 export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGridAdapter;
 export function createTaskGridAdapter(
   input: CreateTaskGridAdapterProjectionInput,
@@ -442,11 +407,6 @@ export function createTaskGridAdapter(
     return taskCell(taskResult.value, rowKey, columnId);
   }
 
-  /**
-   * Cel van een ingeklapte mijlpalenreeks (#868, punt 5): Start is die van de vroegste mijlpaal,
-   * Einde die van de laatste, met dezelfde tekst als hun eigen cel; alles alleen-lezen. De andere
-   * kolommen (ook de naam, die de UI zelf tekent) blijven leeg.
-   */
   function milestonesCell(meta: TaskGridMilestonesRowMeta, columnId: TaskColumnId): TaskGridAdapterCell {
     const empty: TaskGridAdapterCell = { text: '', value: undefined, copyText: '', editText: '', readOnly: true };
     const tasks = meta.taskIds.map(id => context.tasksById.get(id)).filter((t): t is Task => !!t);
@@ -468,7 +428,6 @@ export function createTaskGridAdapter(
     const readOnly = typeof descriptor.readOnly === 'function'
       ? descriptor.readOnly(task, context)
       : descriptor.readOnly;
-    // Dezelfde weigering die `planEdit` zou geven, maar alleen als de kolom een eigen reden heeft.
     const readOnlyRefusal = readOnly && descriptor.readOnlyReason
       ? failure(readOnlyValidationCode(descriptor, task, context), rowKey, columnId, task.id)
       : undefined;

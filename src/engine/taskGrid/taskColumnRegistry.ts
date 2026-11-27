@@ -113,7 +113,6 @@ interface EditableColumnFields extends Omit<ReadonlyColumnFields, 'copy'> {
 
 type EditableColumnConfig = EditableColumnFields & TaskColumnLabelSource;
 
-/** Alleen de labelbron van een config, zodat een descriptor nooit sleutel en naam verwart. */
 function labelSource(config: TaskColumnLabelSource): TaskColumnLabelSource {
   if (config.labelText === undefined) return { labelKey: config.labelKey };
   return config.labelKey === undefined
@@ -121,11 +120,6 @@ function labelSource(config: TaskColumnLabelSource): TaskColumnLabelSource {
     : { labelText: config.labelText, labelKey: config.labelKey };
 }
 
-/**
- * De kop van een kolom, voor elke plek die hem toont: kolomkop, kolomkiezer en zoeken daarin,
- * undo-labels en celeditor lezen allemaal `TaskGridAdapterColumn.label`, dat hieruit komt. Alleen
- * `labelKey` gaat door `translate`; een naam die de gebruiker gaf blijft letterlijk staan.
- */
 export function taskColumnLabel(source: TaskColumnLabelSource, translate: (key: string) => string): string {
   if (source.labelText === undefined) return translate(source.labelKey);
   return source.labelKey === undefined
@@ -165,8 +159,6 @@ function formatScalar(value: unknown): string {
   return String(value);
 }
 
-/** Celtekst van de kolom `recorded.source` — gedeeld door `format` en `copy`, zodat het klembord
- *  nooit uit elkaar kan lopen met wat er op het scherm staat. */
 function recordedSourceText(value: unknown, ctx: TaskColumnContext): string {
   if (value === 'partly-unrecorded') return ctx.labelForText?.('recordedDates.markPartlyUnrecorded') ?? 'partly-unrecorded';
   return '—';
@@ -179,38 +171,12 @@ function copyScalar(value: unknown): string {
   return String(value);
 }
 
-/**
- * "Datums zoals opgeslagen" — `format`-tak voor de vier
- * optionele late-/floatkolommen (`task.time.lateStart`/`lateFinish`/`totalFloat`/`freeFloat`).
- * `applyRecordedTimesToTasks` (`recordedDates.ts`) laat de bestaande `?? rec.start`/`?? 0`-
- * terugvallen bewust als VELDWAARDE staan — "niet vastgelegd" leeft uitsluitend in
- * `recordedDates.times[id]` en wordt hier, als WEERGAVE, afgedwongen: zonder deze tak zou een as
- * die het bestand nooit gaf gewoon als een echt getal (vaak een verzonnen `0`) op het scherm staan.
- * `ctx.recordedUnrecordedAxes` is `undefined` zonder vastlegging (niet-XER-documenten, of geen
- * restverschillen) — dan valt dit terug op de gewone `formatScalar`.
- */
 function recordedAxisFormat(axis: RecordedTaskAxis, inner?: Formatter): Formatter {
   return (value, task, ctx) => ctx.recordedUnrecordedAxes?.(task).includes(axis)
     ? (ctx.labelForText?.('recordedDates.notRecorded') ?? '—')
     : inner ? inner(value, task, ctx) : formatScalar(value);
 }
 
-/**
- * De `format`-tak alleen is NIET genoeg. `taskGridAdapter.getCell` slaat `descriptor.format` over
- * zodra `domain.dateNotation` gezet is (dat is in het product ALTIJD zo — `UIState.dateNotation`
- * heeft een default) en de waarde een datumstring is: dan gaat de cel via `copyGridEditorValue` en
- * zou `task.time.lateStart` — de `?? rec.start`-terugval — als een echte, verzonnen late datum tonen.
- * En `copyScalar(read(...))` zou diezelfde terugval (of een verzonnen `0` speling) in het klembord
- * zetten terwijl de cel "Niet vastgelegd" toont.
- *
- * Daarom is "niet vastgelegd" een eigenschap van de LEESWAARDE zelf: `read` levert `undefined`
- * voor een as die het bestand niet gaf, zodat élke afnemer van de descriptor (celtekst, klembord,
- * titel, sortering) hetzelfde ziet — er bestaat dan geen string meer die de adapter per ongeluk als
- * datum kan opmaken. `format` blijft de tekst "Niet vastgelegd" leveren en `copy` een lege
- * klembordcel (zelfde regel als `recorded.source` hieronder: klembord = wat de cel zegt, en een
- * spreadsheet-plakactie verwacht leeg, geen em-dash). Buiten de modus (`recordedUnrecordedAxes`
- * ontbreekt) is dit gelijk aan de kale `read`.
- */
 function recordedAxisRead<T>(
   axis: RecordedTaskAxis,
   read: (task: Task) => T,
@@ -248,8 +214,6 @@ function readonlyColumn(config: ReadonlyColumnConfig): TaskColumnDescriptor {
   };
 }
 
-/** De validatiecode voor een weigering van een alleen-lezen cel: de kolomeigen reden, anders de
- *  algemene `readOnly`. Eén bron voor de adapter, de transactielaag en de celeditor. */
 export function readOnlyValidationCode(
   descriptor: Pick<TaskColumnDescriptor, 'readOnlyReason'>,
   task: Task,
@@ -294,13 +258,6 @@ function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
   };
 }
 
-/**
- * Voortgang op een VERZAMELTAAK is alleen-lezen: de rollup in `applyCpmResult` leidt completion en
- * status af uit de bladen, en MCP, voortgangsimport en `setTaskProgress` weigeren eigen voortgang
- * op een fase al. Geldt voor alle zes voortgangskolommen (route `task-progress`); `taskEditPlan`
- * weigert dezelfde route op een verzameltaak nog eens, voor plakken en import. Conditioneel (per
- * taak), dus plakken over een blok mét faserijen slaat die cellen netjes over (`gridTransaction`).
- */
 const SUMMARY_PROGRESS_READ_ONLY = {
   readOnly: (task: Task) => task.childIds.length > 0,
   readOnlyReason: (task: Task) => (task.childIds.length > 0 ? 'summaryProgress' : undefined),
@@ -355,7 +312,6 @@ function enumValidator(values: readonly string[], optional = false): Validator {
   };
 }
 
-/** Strikt en engine-onafhankelijk: `Date.parse` accepteert in V8 ook 2026-02-31 en T24:00. */
 function isValidIso(value: string): boolean {
   return isStrictIsoDateTime(value, { maxFractionDigits: 3, offsetColonOptional: true });
 }
@@ -371,7 +327,6 @@ const validateDate: Validator = value =>
     : failure('date', value);
 
 const parsePercentage: Parser = text => {
-  // Eén procentteken achteraan mag; elders maakt het de invoer ongeldig.
   const normalized = text.trim().replace(/%$/, '').trim().replace(',', '.');
   if (normalized === '') return failure('percentage', text);
   const value = Number(normalized);
@@ -395,13 +350,8 @@ function effectiveHoursPerDay(task: Task, ctx: TaskColumnContext): number {
 
 const parseTaskDuration: Parser = (text, task, ctx) => {
   if (text.trim() === '') return success(undefined);
-  // Resterende en Werkelijke duur: een dag is de werktijd per dag, bij kalendertijd 24 klokuren
-  // (`durationHoursPerDay`, zoals de Duur-kolom); de transactie rekent terug met dezelfde factor.
   const hoursPerDay = durationHoursPerDay(task, effectiveHoursPerDay(task, ctx));
   const minutes = parseDurationMinutes(text, hoursPerDay);
-  // De editor-/pastegrens draagt minuten. Task 12's bewaakte duurplanner houdt daaruit de
-  // opgeslagen dag- en minutenvelden samen consistent; hier al terugdelen zou subdaginformatie
-  // verliezen en van de kolomcontext afhankelijke fractionele dagen doorgeven.
   return minutes === null ? failure('duration', text) : success(minutes);
 };
 const validateOptionalDuration = finiteNumber({ min: 0, optional: true });
@@ -410,7 +360,6 @@ function isParsedTaskDuration(value: unknown): value is ParsedTaskDuration {
   if (!value || typeof value !== 'object') return false;
   const parsed = value as Partial<ParsedTaskDuration>;
   if (parsed.unit === 'days') {
-    // De dagenmaat mag een breuk hebben (spec "alleen uren" §3.2, B1).
     return typeof parsed.scheduleDuration === 'number'
       && Number.isFinite(parsed.scheduleDuration)
       && parsed.scheduleDuration >= 0;
@@ -421,8 +370,6 @@ function isParsedTaskDuration(value: unknown): value is ParsedTaskDuration {
     && parsed.durationMinutes >= 0;
 }
 
-/** Wat een getypte duur in deze cel betekent (B8, §3.12): de gedeelde regel van paneel en dialoog
- *  (`taskDurationInputContext`), met het profiel, de taakkalender en de Duurweergave van het raster. */
 function durationInputContext(task: Task, ctx: TaskColumnContext): DurationInputContext {
   return taskDurationInputContext(task, {
     countsWorkdays: ctx.workdayDurationMeasure !== false,
@@ -435,10 +382,6 @@ const parseScheduledTaskDuration: Parser = (text, task, ctx) => {
   const input = durationInputContext(task, ctx);
   const parsed = parseTaskDurationInput(text, task.time.durationUnit, input);
   if (parsed) return success(parsed);
-  // Achterwaartse klembordcompatibiliteit: de bestaande rasterparser accepteert samengestelde
-  // invoer zoals `2d 4u` en draagt die als minuten naar de oude transactieroute. Nieuwe enkelvoudige
-  // invoer (`2d`, `12h`, of een getal in de huidige taakeenheid) gebruikt het expliciete unitobject.
-  // Een dag telt met dezelfde uren als hierboven (kalendertijd: 24).
   const legacyMinutes = parseDurationMinutes(text, input.hoursPerDay ?? effectiveHoursPerDay(task, ctx));
   return legacyMinutes === null ? failure('duration', text) : success(legacyMinutes);
 };
@@ -448,11 +391,6 @@ const validateScheduledTaskDuration: Validator = value =>
     ? success(value)
     : failure('duration', value);
 
-/** Kopieertekst van de Duur-kolom: de eigen taakeenheid in parsebare vorm ("2.5d", "1.5u" in nl,
- *  "1.5h" in en), zodat plakken terug hetzelfde oplevert. De WEERGAVE loopt via {@link durationCellText}.
- *  Waar "d" niet de dagenmaat is (P6, MSP; B8) gaat een dagenmaat-taak als uren, zodat plakken haar
- *  lengte houdt. Kalendertijd blijft in dagen: daar is "d" in elk profiel een kalenderdag van 24 klokuren
- *  (`taskDurationInputContext`). Kopiëren en plakken lezen zo dezelfde regel. */
 function scheduledTaskDurationText(task: Task, ctx: TaskColumnContext): string {
   const hourSuffix = parseableHourSuffix(ctx.labelForText?.('duration.suffixHour'), 'h');
   if (task.time.durationUnit === 'hours') return `${formatTaskDurationInput(task)}${hourSuffix}`;
@@ -463,14 +401,11 @@ function scheduledTaskDurationText(task: Task, ctx: TaskColumnContext): string {
   return `${formatTaskDurationInput(task)}d`;
 }
 
-/** Bewerktekst van de Duur-kolom: een kaal getal in de eenheid die de cel toont, met het decimaalteken
- *  van de app-taal ("2,5" in nl). De parser leest punt en komma. */
 function scheduledTaskDurationEditText(task: Task, ctx: TaskColumnContext): string {
   const input = durationInputContext(task, ctx);
   return localizeDecimalPoint(formatTaskDurationInput(task, { shownUnit: input.shownUnit, hoursPerDay: input.hoursPerDay }), ctx.numberLocale);
 }
 
-/** De vertaalde duur-afkortingen en weergave-instellingen van het raster, voor de gedeelde formatter. */
 function gridDurationFormat(ctx: TaskColumnContext): DurationTextFormat {
   const label = (key: string, fallback: string) => ctx.labelForText?.(key) ?? fallback;
   return {
@@ -484,13 +419,10 @@ function gridDurationFormat(ctx: TaskColumnContext): DurationTextFormat {
   };
 }
 
-/** Weergavetekst van de Duur-kolom: dezelfde formatter als tooltip en Gantt-afdruk. */
 function durationCellText(task: Task, ctx: TaskColumnContext): string {
   return formatTaskDurationText(task, effectiveHoursPerDay(task, ctx), gridDurationFormat(ctx));
 }
 
-/** Een aantal werkdagen (speling, baselineduur): dezelfde opmaak als paneel en tooltip — twee
- *  decimalen, het decimaalteken van de taal en de dag-eenheid. */
 function workDaysCellText(value: unknown, ctx: TaskColumnContext): string {
   return isFiniteNumber(value) ? formatWorkDaysText(value, gridDurationFormat(ctx)) : '—';
 }
@@ -548,9 +480,6 @@ function assignmentWindowText(
 
 type AssignmentWorkField = 'plannedWorkMinutes' | 'actualWorkMinutes' | 'remainingWorkMinutes';
 
-/** De drie werkvelden zijn minuten in de state, uren in beeld: dezelfde getalnotatie als de
- *  duurkolom (`formatReportNumber` — hoogstens twee decimalen, decimaalteken van de taal).
- *  Afwezig veld ⇒ niet getoond (afgeleid). */
 function assignmentWorkText(task: Task, ctx: TaskColumnContext, field: AssignmentWorkField): string {
   const values = assignments(task, ctx).flatMap(assignment => assignment[field] !== undefined
     ? [`${assignmentLabel(assignment, ctx)}: ${workHoursText(assignment[field], ctx.numberLocale)}`]
@@ -558,9 +487,6 @@ function assignmentWorkText(task: Task, ctx: TaskColumnContext, field: Assignmen
   return values.length > 0 ? values.join('; ') : '—';
 }
 
-/** Het begrote tempo naast een P6-resttempo (`plannedUnitsPerDay`); afwezig ⇒ niet getoond (dan is
- *  het begrote tempo de inzet zelf). Zelfde opmaak als de inzetkolom (`assignment.unitsPerDay`):
- *  `Naam: getal` in de getalnotatie van de taal ({@link unitsText}). */
 function assignmentPlannedUnitsText(task: Task, ctx: TaskColumnContext): string {
   const values = assignments(task, ctx).flatMap(assignment => assignment.plannedUnitsPerDay !== undefined
     ? [`${assignmentLabel(assignment, ctx)}: ${unitsText(assignment.plannedUnitsPerDay, ctx.numberLocale)}`]
@@ -605,33 +531,26 @@ function assignmentTokens(task: Task, ctx: TaskColumnContext): TaskAssignmentTok
   return assignments(task, ctx).map(assignment => assignmentToken(assignment, ctx));
 }
 
-/** De ENE bouwer van een toewijzingstoken: elke kolom (resources, inzet, curve, werk) gebruikt hem, zodat
- *  bedrag en soort overal meereizen. Een kolom voegt alleen haar eigen veld toe (issue #815). */
 function assignmentToken(assignment: ResourceAssignment, ctx: TaskColumnContext): TaskAssignmentToken {
   return {
     assignmentId: assignment.id,
     resourceId: assignment.resourceId,
     unitsPerDay: assignment.unitsPerDay,
     curve: assignment.curve,
-    // Het bedrag reist mee bij plakken (issue #815); een ontbrekend bedrag betekent "leeg".
     ...(assignment.costAmount !== undefined ? { costAmount: assignment.costAmount } : {}),
     ...resourceKindOf(assignment, ctx),
   };
 }
 
-/** De soort van de resource van deze toewijzing, als die resource bekend is (issue #815). */
 function resourceKindOf(assignment: Pick<ResourceAssignment, 'resourceId'>, ctx: TaskColumnContext): { resourceKind?: TaskAssignmentResourceKind } {
   const resource = ctx.resourcesById.get(assignment.resourceId);
   return resource ? { resourceKind: isCostResource(resource) ? 'cost' : 'work' } : {};
 }
 
-/** Is dit een toewijzing aan een kostenresource (issue #815)? Die heeft geen inzet, curve of werk:
- *  de kolommen daarvoor tonen "—" en weigeren invoer (celfout `assignmentCostResource`). */
 function isCostAssignment(assignment: Pick<ResourceAssignment, 'resourceId'>, ctx: TaskColumnContext): boolean {
   return isCostResource(ctx.resourcesById.get(assignment.resourceId));
 }
 
-/** Toewijzingen met inzet, curve en werk: alles behalve kosten. */
 function workAssignments(task: Task, ctx: TaskColumnContext): ResourceAssignment[] {
   return assignments(task, ctx).filter(item => !isCostAssignment(item, ctx));
 }
@@ -683,9 +602,6 @@ function validateAssignmentTokens(
     }
     if (token.curve !== undefined && !RESOURCE_CURVES.includes(token.curve)) return failure(code, raw);
     const isCost = isCostResource(ctx.resourcesById.get(token.resourceId));
-    // De soort van de bron moet passen bij het type van de doelresource (issue #815). Zonder soort:
-    // een bedrag hoort alleen op een kostenresource, zodat er nooit stil een bedrag verdwijnt. Eerst
-    // de soort, dan de veldregels van COST: werk op een kostenresource is een soortfout.
     if (token.resourceKind !== undefined && token.resourceKind !== 'cost' && token.resourceKind !== 'work') {
       return failure(code, raw);
     }
@@ -693,12 +609,10 @@ function validateAssignmentTokens(
       : token.costAmount !== undefined && !isCost) {
       return failure('assignmentKindMismatch', token.resourceId);
     }
-    // Kostenresource (issue #815): inzet vast 1, geen curve, geen werk.
     if (isCost && (token.unitsPerDay !== 1 || (token.curve !== undefined && token.curve !== 'UNIFORM')
       || token.remainingWorkMinutes !== undefined)) {
       return failure('assignmentCostResource', raw);
     }
-    // Een mijlpaal draagt alleen kostentoewijzingen (besluit Ethan 2026-11-07).
     if (task.isMilestone && !isCost) return failure('assignmentMilestoneWork', token.resourceId);
     if (resourceIds.has(token.resourceId)) return failure('assignmentDuplicateResource', token.resourceId);
     resourceIds.add(token.resourceId);
@@ -708,9 +622,6 @@ function validateAssignmentTokens(
         return failure('assignmentDuplicateId', assignmentId);
       }
       const current = currentById.get(assignmentId);
-      // Een volledige assignmentcel die naar een andere taak wordt geplakt draagt ids van de
-      // brontaak. Op het doel is resource-identiteit leidend en ontstaat een nieuwe assignment.
-      // Bestaat de id wél op dit doel, dan blijft een resourcewisseling streng verboden.
       if (current && current.resourceId !== token.resourceId) return failure('assignmentIdentity', raw);
       if (current) assignmentIds.add(assignmentId);
       else {
@@ -725,12 +636,9 @@ function validateAssignmentTokens(
       ...(token.curve ? { curve: token.curve } : {}),
       ...(typeof token.costAmount === 'number' ? { costAmount: token.costAmount } : {}),
       ...(token.resourceKind !== undefined ? { resourceKind: token.resourceKind } : {}),
-      // Het werk reist mee bij plakken naar een andere taak.
       ...(token.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: token.remainingWorkMinutes } : {}),
     });
   }
-  // Zelfde taak: behoud exact de bestaande payload, inclusief sleutelvolgorde voor canonieke
-  // deduplicatie. Andere taak: verwijder uitsluitend de niet-overdraagbare assignment-id's.
   return success(removedForeignIdentity ? normalized : value);
 }
 
@@ -782,39 +690,28 @@ const parseAssignmentUnits: Parser = (text, task, ctx) => {
     if (!Number.isFinite(unitsPerDay) || unitsPerDay <= 0) return failure('assignmentUnits', pair);
     if (seen.has(resolved.value.id)) return failure('assignmentDuplicateId', resolved.value.id);
     seen.add(resolved.value.id);
-    // Onveranderd getypt (de getoonde, afgeronde tekst) ⇒ de exacte opgeslagen inzet blijft staan.
     if (typed === unitsText(resolved.value.unitsPerDay, ctx.numberLocale)) continue;
     tokenByAssignmentId.get(resolved.value.id)!.unitsPerDay = unitsPerDay;
   }
   return success(result);
 };
 
-/** Tokens mét resterend werk (opgeslagen, anders afgeleid als restduur × inzet). */
 function assignmentWorkTokens(task: Task, ctx: TaskColumnContext): TaskAssignmentToken[] {
   const hoursPerDay = ctx.effectiveHoursPerDay?.(task) ?? 8;
   const remaining = remainingMinutesOf(task, { hoursPerDay });
   return assignments(task, ctx).map(assignment => ({
     ...assignmentToken(assignment, ctx),
-    // Een kostentoewijzing heeft geen werk (issue #815).
     ...(isCostAssignment(assignment, ctx)
       ? {}
       : { remainingWorkMinutes: assignment.remainingWorkMinutes ?? remaining * assignment.unitsPerDay }),
   }));
 }
 
-/**
- * Het ⚠ in de kolom *Resterend werk (uren)* (eigenaarsbesluit 2026-10-19, optie 1): dezelfde toets als
- * het ⚠ naast *Werk (rest)* in het paneel Toewijzingen (`TaskAssignmentsSection`), dus
- * `assignmentWorkDeviation` met de contouruitzondering, zonder materiaal en alleen waar de regel werkt.
- * Eén toewijzing in de cel ⇒ precies de uitleg van het paneel. Meer toewijzingen ⇒ één ⚠ met per
- * afwijkende toewijzing de naam en de twee getallen, zodat je ziet welke het is.
- */
 function remainingWorkWarning(task: Task, ctx: TaskColumnContext): TaskCellWarning | null {
   if (!workRuleApplies(task)) return null;
   const own = assignments(task, ctx);
   if (own.length === 0) return null;
   const hoursPerDay = effectiveHoursPerDay(task, ctx);
-  // Zonder kostentoewijzingen gekoppeld, dezelfde regel als `contourSiblings` (#815).
   const contourOf = matchContoursToAssignments(
     task.timephasedContours,
     own.filter(a => !isCostResource(ctx.resourcesById.get(a.resourceId))),
@@ -830,7 +727,6 @@ function remainingWorkWarning(task: Task, ctx: TaskColumnContext): TaskCellWarni
   }
   if (hits.length === 0) return null;
   const label = (key: string, values?: Readonly<Record<string, string | number>>) => ctx.labelForText?.(key, values) ?? '';
-  // Slotzin per regel (besluit V10): dezelfde keuze als het paneel en als de duurbewerking zelf.
   const durationEffect = label(workDeviationEffectKey(task, ctx.defaultWorkRule));
   const text = own.length === 1
     ? label('properties.assignments.workDeviatesHint', { stored: hits[0].stored, derived: hits[0].derived, durationEffect })
@@ -846,14 +742,11 @@ function assignmentById(task: Task, ctx: TaskColumnContext, token: TaskAssignmen
     ?? { id: token.assignmentId ?? '', taskId: task.id, resourceId: token.resourceId, unitsPerDay: token.unitsPerDay };
 }
 
-/** Werkminuten als uren, in de getalnotatie van de duurkolom (`formatReportNumber`): hoogstens twee
- *  decimalen, het decimaalteken van de taal, geen overbodige nullen. */
 function workHoursText(minutes: number | undefined, locale: string | undefined): string {
   if (minutes === undefined || !Number.isFinite(minutes)) return '—';
   return formatReportNumber(minutes / 60, locale);
 }
 
-/** Inzet (eenheden per dag) in dezelfde getalnotatie; de opgeslagen waarde blijft exact. */
 function unitsText(unitsPerDay: number, locale: string | undefined): string {
   return formatReportNumber(unitsPerDay, locale);
 }
@@ -881,7 +774,6 @@ const parseAssignmentWork: Parser = (text, task, ctx) => {
     if (seen.has(resolved.value.id)) return failure('assignmentDuplicateId', resolved.value.id);
     seen.add(resolved.value.id);
     const token = tokenByAssignmentId.get(resolved.value.id)!;
-    // Onveranderd getypt (de getoonde, afgeronde tekst) ⇒ het exacte werk blijft staan.
     if (typed === workHoursText(token.remainingWorkMinutes, ctx.numberLocale)) continue;
     token.remainingWorkMinutes = Math.round(hours * 60);
   }
@@ -979,17 +871,7 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
     readonlyColumn({ id: 'task.manuallyScheduled', labelKey: 'taskGrid.columns.manuallyScheduled', category: 'technical', valueKind: 'boolean', read: task => task.manuallyScheduled }),
     readonlyColumn({ id: 'task.mspTaskType', labelKey: 'taskGrid.columns.mspTaskType', category: 'technical', valueKind: 'enum', read: task => task.mspTaskType }),
     readonlyColumn({ id: 'task.effortDriven', labelKey: 'taskGrid.columns.effortDriven', category: 'technical', valueKind: 'boolean', read: task => task.effortDriven }),
-    // Bewerkbare werkregel — alleen zichtbaar wanneer ontsloten; `''` = terug
-    // naar de projectstandaard. De driehoekstap zit in `gridTransaction.ts` (na het plan). `readOnly`
-    // leest UITSLUITEND de gecertificeerde controllers (isMilestone/isHammock) + childIds — zie
-    // `check-grid-transaction.ts` "Aanbeveling 4"; een ELAPSEDTIME-taak mag de regel dragen, de
-    // driehoek negeert 'm daar (`workRuleApplies`). Op mijlpaal/verzameltaak/
-    // hangmat blijft de cel LEEG — een import (deriveImportedWorkRules) zet daar wel een regel, maar
-    // die werkt er niet (gids: "hebben geen werkregel").
     editableColumn({ id: 'task.workRule', labelKey: 'taskGrid.columns.workRule', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('workRule', WORK_RULES, true), route: 'task-field', available: ctx => ctx.taskTypesUnlocked === true, read: task => (task.isMilestone || task.childIds.length > 0 || task.isHammock === true ? undefined : task.workRule), readOnly: task => task.isMilestone || task.childIds.length > 0 || task.isHammock === true, parse: enumParser(WORK_RULES, true), validate: enumValidator(WORK_RULES, true) }),
-    // XER/Primavera-herkomst: acht bronvelden die de XER-lezer op de taak zet en die door IFC
-    // round-trippen. Ze zijn puur provenance (geen solverinvoer), dus één readonly
-    // technische kolom bundelt ze — zoals `task.activityCodes.technical` dat voor codes doet.
     readonlyColumn({
       id: 'task.p6Provenance', labelKey: 'taskGrid.columns.p6Provenance', category: 'technical', valueKind: 'technical',
       read: task => p6ProvenanceOf(task),
@@ -999,8 +881,6 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
       },
       copy: task => canonicalGridJson(p6ProvenanceOf(task)),
     }),
-    // Expliciete, kinderloze WBS-samenvatting (P6 PROJWBS). Alleen-lezen: de marker komt uit de
-    // import en de hiërarchie zelf blijft via parentId/childIds bewerkbaar.
     readonlyColumn({ id: 'task.isSummary', labelKey: 'taskGrid.columns.explicitSummary', category: 'technical', valueKind: 'boolean', read: task => task.isSummary }),
     readonlyColumn({ id: 'task.parentId', labelKey: 'taskGrid.columns.parentId', category: 'technical', valueKind: 'text', read: task => task.parentId }),
     readonlyColumn({ id: 'task.childIds', labelKey: 'taskGrid.columns.childIds', category: 'technical', valueKind: 'technical', read: task => task.childIds, format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: task => canonicalGridJson(task.childIds) }),
@@ -1041,7 +921,6 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
   return columns;
 }
 
-/** Datums die uit andere taken volgen: een automatisch geplande verzameltaak of hangmat. */
 function derivedDatesTask(task: Task): boolean {
   return !isManuallyScheduled(task) && (task.childIds.length > 0 || task.isHammock === true);
 }
@@ -1052,19 +931,8 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
     editableColumn({ id: 'task.time.durationUnit', labelKey: 'duration.unit', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: [{ value: 'days', labelKey: 'duration.days' }, { value: 'hours', labelKey: 'duration.hours' }], route: 'task-schedule', read: task => task.time.durationUnit, readOnly: task => task.isHammock === true || task.childIds.length > 0 || task.isMilestone, parse: enumParser(['days', 'hours']), validate: enumValidator(['days', 'hours']) }),
     editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.durationUnit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration, readOnly: task => task.isHammock === true || task.childIds.length > 0 || (task.isMilestone && task.time.scheduleDuration === 0), format: (_value, task, ctx) => durationCellText(task, ctx), copy: (task, ctx) => scheduledTaskDurationText(task, ctx), editText: scheduledTaskDurationEditText, parse: parseScheduledTaskDuration, validate: validateScheduledTaskDuration }),
     readonlyColumn({ id: 'task.time.durationMinutes', labelKey: 'taskGrid.columns.durationMinutes', category: 'technical', valueKind: 'number', read: task => task.time.durationMinutes }),
-    // Start/Einde: de GETOONDE datums, dezelfde bron als Gantt-balk, tooltip, paneel en afdruk
-    // (`shownStart`/`shownFinish`: een gestarte taak begint op haar werkelijke start, een voltooide
-    // eindigt op haar werkelijke einde). Het zijn berekende waarden (`scheduleDerived`: verouderd-
-    // markering tot herberekenen); bewerken verzet alleen iets bij een echte wijziging, zie
-    // `applyScheduleEdit`. De datums van een automatisch geplande verzameltaak of hangmat volgen uit
-    // andere taken — een invoer daar zou na herberekenen niets doen, dus alleen-lezen. Een
-    // werkelijke datum staat vast (eigenaarsbesluit 2026-10-12): Start van een gestarte en Einde van
-    // een voltooide taak zijn alleen-lezen; de gebruiker past de werkelijke start/einde aan.
     editableColumn({ id: 'task.time.start', labelKey: 'taskGrid.columns.start', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', scheduleDerived: true, read: task => shownStart(task), readOnly: task => derivedDatesTask(task) || startIsActual(task), readOnlyReason: task => !derivedDatesTask(task) && startIsActual(task) ? 'startIsActual' : undefined, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.time.finish', labelKey: 'taskGrid.columns.finish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', scheduleDerived: true, read: task => shownFinish(task), readOnly: task => derivedDatesTask(task) || finishIsActual(task), readOnlyReason: task => !derivedDatesTask(task) && finishIsActual(task) ? 'finishIsActual' : undefined, parse: parseDate, validate: validateDate }),
-    // Geplande start/einde: de invoerankers zelf, kiesbaar voor wie ze wil zien. De solver leest
-    // `scheduleFinish` alleen bij een handmatig geplande taak (`CPMSolver.forwardPass`); bij elke
-    // andere taak zou een bewerking stil niets doen, dus daar alleen-lezen mét reden.
     editableColumn({ id: 'task.time.scheduleStart', labelKey: 'taskGrid.columns.scheduleStart', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleStart, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.time.scheduleFinish', labelKey: 'taskGrid.columns.scheduleFinish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleFinish, readOnly: task => !isManuallyScheduled(task), readOnlyReason: task => !isManuallyScheduled(task) ? 'scheduleFinishNotManual' : undefined, parse: parseDate, validate: validateDate }),
     readonlyColumn({ id: 'task.time.resume', labelKey: 'taskGrid.columns.resume', category: 'progress', valueKind: 'datetime', read: task => task.time.resume }),
@@ -1079,21 +947,12 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat, format: (value, _task, ctx) => workDaysCellText(value, ctx) }),
     readonlyColumn({ id: 'task.time.isNearCritical', labelKey: 'taskGrid.columns.nearCritical', category: 'computed', valueKind: 'boolean', read: task => task.time.isNearCritical }),
     readonlyColumn({ id: 'task.time.floatPath', labelKey: 'taskGrid.columns.floatPath', category: 'computed', valueKind: 'number', read: task => task.time.floatPath }),
-    // Kalenderdagen (#817): de getoonde startdag t/m de getoonde einddag, weekenden en feestdagen
-    // inbegrepen; een kaal geheel getal in cel en klembord. Alleen een telling: zie `taskCalendarDaySpan`.
     readonlyColumn({ id: 'task.time.calendarDays', labelKey: 'taskGrid.columns.calendarDays', category: 'computed', valueKind: 'number', defaultWidth: 90, read: (task, ctx) => taskCalendarDaySpan(task, ctx.effectiveCalendar?.(task)) }),
-    // "Datums zoals opgeslagen" — badge die toont of de vastlegging van DEZE taak onvolledig is.
-    // Bestaat uitsluitend in de modus (`ctx.recordedMark !== undefined` ⇒ `datesAsRecorded`, zie
-    // `recordedGridBinding`) — op elk ander document is deze kolom onzichtbaar.
     readonlyColumn({
       id: 'recorded.source', labelKey: 'taskGrid.columns.recordedSource', category: 'computed', valueKind: 'text',
       available: ctx => ctx.recordedMark !== undefined,
       read: (task, ctx) => ctx.recordedMark?.(task),
       format: (value, _task, ctx) => recordedSourceText(value, ctx),
-      // Zonder eigen `copy` levert `copyScalar` het RAUWE token (`partly-unrecorded`) in het
-      // klembord terwijl de cel "Deels niet vastgelegd" toont. Dezelfde tekst als de
-      // cel dus — en de lege markering blijft een lege klembordcel in plaats van een em-dash, want
-      // dat is wat een plakactie in een spreadsheet verwacht.
       copy: (task, ctx) => {
         const value = ctx.recordedMark?.(task);
         return value === undefined ? '' : recordedSourceText(value, ctx);
@@ -1189,8 +1048,6 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
     editableColumn({
       id: 'assignment.resources', labelKey: 'taskGrid.columns.assignedResources', category: 'resources', valueKind: 'tokens', editorKind: 'autocomplete', defaultWidth: 220,
       read: assignmentTokens,
-      // Een mijlpaal mag kostentoewijzingen dragen (issue #815); de validatie weigert daar werk en
-      // materiaal (`assignmentMilestoneWork`).
       readOnly: task => task.childIds.length > 0,
       format: (value, _task, ctx) => Array.isArray(value) && value.length
         ? value.map(raw => {
@@ -1216,20 +1073,17 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
     editableColumn({
       id: 'assignment.unitsPerDay', labelKey: 'taskGrid.columns.assignmentUnits', category: 'resources', valueKind: 'tokens', editorKind: 'custom', defaultWidth: 200,
       read: assignmentTokens,
-      // Een kostentoewijzing (issue #815) heeft geen inzet: "—", en alleen kosten ⇒ niet bewerkbaar.
       readOnly: (task, ctx) => task.isMilestone || task.childIds.length > 0 || workAssignments(task, ctx).length === 0,
       format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
         const item = raw as { resourceId: string; unitsPerDay: number };
         const units = isCostAssignment(item, ctx) ? '—' : unitsText(item.unitsPerDay, ctx.numberLocale);
         return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${units}`;
       }).join('; ') : '—',
-      // Mensentekst in de taal; het machine-deel (tokens) blijft exact.
       copy: (task, ctx) => structuredClipboardText(
         assignments(task, ctx).map(item => `${assignmentLabel(item, ctx)}: ${isCostAssignment(item, ctx) ? '—' : unitsText(item.unitsPerDay, ctx.numberLocale)}`).join('; '),
         ASSIGNMENT_CLIPBOARD_MARKER,
         assignmentTokens(task, ctx),
       ),
-      // Bewerktekst blijft exact (geen stille afronding bij Enter op de tekstroute).
       editText: (task, ctx) => assignments(task, ctx)
         .map(item => `${assignmentLabel(item, ctx)}: ${isCostAssignment(item, ctx) ? '—' : item.unitsPerDay}`).join('; '),
       parse: parseAssignmentUnits,
@@ -1264,19 +1118,13 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       }]),
     }),
     readonlyColumn({ id: 'assignment.workWindowStart', labelKey: 'taskGrid.columns.workWindowStart', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowStart })), format: (_value, task, ctx) => assignmentWindowText(task, ctx, 'workWindowStart'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowStart: item.workWindowStart }))) }),
-    // Alleen-lezen: het begrote tempo van een P6-toewijzing waarvan de inzet het resttempo is.
     readonlyColumn({ id: 'assignment.plannedUnits', labelKey: 'taskGrid.columns.assignmentPlannedUnits', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.plannedUnitsPerDay })), format: (_value, task, ctx) => assignmentPlannedUnitsText(task, ctx), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, plannedUnitsPerDay: item.plannedUnitsPerDay }))) }),
-    // Alleen-lezen; minuten in de state, uren in beeld.
     assignmentWorkColumn('assignment.plannedWork', 'taskGrid.columns.assignmentPlannedWork', 'plannedWorkMinutes'),
     assignmentWorkColumn('assignment.actualWork', 'taskGrid.columns.assignmentActualWork', 'actualWorkMinutes'),
-    // Resterend werk per toewijzing, bewerkbaar als "naam: uren; …" met
-    // dezelfde assignment-set-transactie als de inzet; alleen zichtbaar wanneer ontsloten. Getoond
-    // wordt het opgeslagen werk, anders het afgeleide (restduur × inzet).
     editableColumn({
       id: 'assignment.remainingWork', labelKey: 'taskGrid.columns.assignmentRemainingWork', category: 'resources', valueKind: 'tokens', editorKind: 'custom', defaultWidth: 200,
       available: ctx => ctx.taskTypesUnlocked === true,
       read: assignmentWorkTokens,
-      // Alleen waar de regel werkt (geen hangmat/ELAPSEDTIME) — anders weigert de kern stil.
       readOnly: (task, ctx) => !workRuleApplies(task) || workAssignments(task, ctx).length === 0,
       format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
         const item = raw as { resourceId: string; remainingWorkMinutes?: number };
@@ -1289,7 +1137,6 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       ),
       editText: (task, ctx) => assignmentWorkTokens(task, ctx)
         .map(item => `${assignmentLabel(assignmentById(task, ctx, item), ctx)}: ${workHoursText(item.remainingWorkMinutes, ctx.numberLocale)}`).join('; '),
-      // ⚠ bij opgeslagen restwerk dat afwijkt van inzet × restduur, zoals in het paneel Toewijzingen.
       warning: (_value, task, ctx) => remainingWorkWarning(task, ctx),
       parse: parseAssignmentWork,
       validate: (value, task, ctx) => validateAssignmentWorkTokens(value, task, ctx),
@@ -1313,9 +1160,6 @@ function activityCodeColumns(input: TaskColumnRegistryInput): TaskColumnDescript
       labelText: type.name,
       category: 'custom',
       valueKind: 'enum',
-      // Dezelfde keuzelijst als ja/nee en Eigenschappen › Codes en velden (#970): "—" wist de waarde,
-      // daarna de waarden in hun eigen volgorde. De editor werkt met de waarde-id; de planner ziet
-      // alleen code en omschrijving.
       editorKind: 'enum',
       editorOptions: [
         { value: '', label: '—' },
@@ -1425,8 +1269,6 @@ function baselineValue(
   const dateField = field === 'varianceStart' ? 'start' : 'finish';
   const from = dateField === 'start' ? baselineTask.start : baselineTask.finish;
   const to = dateField === 'start' ? shownStart(task) : shownFinish(task);
-  // Zonder kalenderroute geen eigen telling: een kale ma–vr-terugval negeerde feestdagen en de
-  // werkweek, en telde vanaf een weekenddag één werkdag te veel.
   return ctx.signedWorkDaysBetween?.(from, to);
 }
 
@@ -1447,7 +1289,6 @@ function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[]
     milestoneKind: 'taskGrid.columns.milestoneKind',
   };
   for (const baseline of input.baselines) {
-    // Expliciet één indexbouw per baseline. De descriptor-readers doen alleen Map.get(task.id).
     const taskIndex = new Map(baseline.tasks.map(task => [task.taskId, task] as const));
     for (const fieldName of fields) {
       const technical = fieldName === 'isMilestone' || fieldName === 'milestoneKind';
@@ -1466,16 +1307,12 @@ function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[]
           const snapshot = taskIndex.get(task.id);
           return snapshot ? baselineValue(fieldName, snapshot, task, ctx) : BASELINE_MISSING;
         },
-        // Baselineduur en -duurafwijking zijn werkdagen (fractioneel bij urentaken): dezelfde
-        // opmaak als speling en restduur. De overige baselinevelden houden hun eigen weergave.
         format: (value, _task, ctx) => value === BASELINE_MISSING ? '—'
           : fieldName === 'duration' || fieldName === 'varianceDuration' ? workDaysCellText(value, ctx)
             : formatScalar(value),
         tooltip: (value, _task, ctx) => value === BASELINE_MISSING
           ? ctx.labelForText?.('taskGrid.summary.baselineMissing') ?? null
           : null,
-        // Een baseline van een urentaak met de oude dagtelling (eigenaarsbesluit 2026-10-15: niet
-        // omrekenen, wel een ⚠ met uitleg): alleen bij de duur en de duurafwijking, de datums kloppen.
         ...(fieldName === 'duration' || fieldName === 'varianceDuration' ? {
           warning: (value: unknown, task: Task, ctx: TaskColumnContext) => {
             const snapshot = taskIndex.get(task.id);
@@ -1493,7 +1330,6 @@ function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[]
   return result;
 }
 
-/** De acht XER/Primavera-bronvelden van een taak, zonder de afwezige. */
 function p6ProvenanceOf(task: Task): Record<string, string | boolean> {
   const out: Record<string, string | boolean> = {};
   if (task.p6ProjectId !== undefined) out.p6ProjectId = task.p6ProjectId;
@@ -1507,9 +1343,6 @@ function p6ProvenanceOf(task: Task): Record<string, string | boolean> {
   return out;
 }
 
-/** Bouwt de volledige headless registry. De categorie-sortering is stabiel; binnen een categorie
- * blijft de declaratie/projectvolgorde behouden. Dubbele ids zijn een programmeerfout en stoppen
- * de bouw onmiddellijk in plaats van stil een descriptor te overschrijven. */
 export function buildTaskColumnRegistry(input: TaskColumnRegistryInput): TaskColumnDescriptor[] {
   const columns = [
     ...fixedTaskColumns(input),
@@ -1530,7 +1363,5 @@ export function buildTaskColumnRegistry(input: TaskColumnRegistryInput): TaskCol
     .map(item => item.column);
 }
 
-/** Type-only garantie dat dynamische custom fields uitsluitend de bestaande opgeslagen union
- * produceren. Houdt de import hierboven betekenisdragend wanneer alle concrete defs runtime zijn. */
 const _customFieldValueContract: CustomFieldValue | undefined = undefined;
 void _customFieldValueContract;

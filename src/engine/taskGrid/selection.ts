@@ -29,10 +29,6 @@ function validCell(
   return cell !== null && columns.includes(cell.columnId) && selectableRow(rowIndex, cell.rowKey) !== null;
 }
 
-/**
- * Een kiesbare regel: een taakrij, of een ingeklapte mijlpalenreeks (#868) die al haar mijlpalen
- * kiest. Muis en toetsenbord gebruiken allebei deze ene definitie.
- */
 function selectableRow(rowIndex: TaskGridRowIndex, rowKey: string): { rowKey: string; taskIds: string[] } | null {
   const task = rowIndex.taskByRowKey.get(rowKey);
   if (task) return { rowKey, taskIds: [task.task.id] };
@@ -40,7 +36,6 @@ function selectableRow(rowIndex: TaskGridRowIndex, rowKey: string): { rowKey: st
   return run ? { rowKey, taskIds: run.tasks.map(t => t.id) } : null;
 }
 
-/** De ingeklapte reeksrij (#868) waarin mijlpaal `taskId` staat. */
 function runRowKeyOf(rowIndex: TaskGridRowIndex, taskId: string): string | undefined {
   for (const [rowKey, run] of rowIndex.runByRowKey) {
     if (run.tasks.some(task => task.id === taskId)) return rowKey;
@@ -92,7 +87,6 @@ function singleCellSelection(
   };
 }
 
-/** Pas één pointer-/keyboardselectiegebaar puur toe; ongeldige groeps-/kolomcellen zijn een no-op. */
 export function updateGridSelection(
   state: Readonly<GridSelectionState>,
   cell: GridCellAddress,
@@ -133,8 +127,6 @@ export function updateGridSelection(
   };
 }
 
-/** Geordende taakcellen in de rechthoek; groepskoppen tussen de grenzen worden overgeslagen. Een ingeklapte
- *  mijlpalenreeks (#868) telt alleen mee met `withRuns` (kopiëren); bewerken en plakken raken hem niet. */
 export function gridSelectionCells(
   state: Readonly<GridSelectionState>,
   rowIndex: TaskGridRowIndex,
@@ -162,10 +154,6 @@ export function gridSelectionCells(
   return cells;
 }
 
-/**
- * Herstel de cursor na filter/collapse/delete/column remove. Exacte occurrence wint; anders wordt
- * de oude absolute index op de dichtstbijzijnde taakrij/kolom geprojecteerd.
- */
 export function reconcileGridSelection(
   state: Readonly<GridSelectionState>,
   previousRows: TaskGridRowIndex,
@@ -196,7 +184,6 @@ export function reconcileGridSelection(
   const previousRangeTaskIds = state.range
     ? uniqueTaskIds(indexedTaskRowsInRange(previousRows, state.range.start.rowKey, state.range.end.rowKey))
     : [];
-  // Ctrl/Cmd-selectie heeft bewust een taakset die afwijkt van de ene aaneengesloten celrechthoek.
   const hasAdditiveTaskSelection = !sameOrderedIds(state.selectedTaskIds, previousRangeTaskIds);
   const reconciledAdditiveIds = hasAdditiveTaskSelection
     ? visibleSelectedTaskIds(state.selectedTaskIds, nextRows)
@@ -224,12 +211,6 @@ export function reconcileGridSelection(
   return sameGridSelection(next, state) ? state : next;
 }
 
-/**
- * Voorkomt dat `reconcileGridSelection` een NIEUW object bouwt wanneer de inhoud gelijk blijft aan
- * `state` — elke selectieklik zou anders een volledige gridrender kosten. Structurele gelijkheid
- * (niet referentiegelijkheid) over alle vijf velden bepaalt hier of de OUDE referentie teruggegeven
- * mag worden.
- */
 function sameGridSelection(left: Readonly<GridSelectionState>, right: Readonly<GridSelectionState>): boolean {
   return left.activeTaskId === right.activeTaskId
     && sameCellAddress(left.active, right.active)
@@ -240,25 +221,6 @@ function sameGridSelection(left: Readonly<GridSelectionState>, right: Readonly<G
     && sameOrderedIds(left.selectedTaskIds, right.selectedTaskIds);
 }
 
-/**
- * Een gantt-klik (of elke andere aanroeper van `selectTask`) publiceert
- * alleen `state.activeTaskId`/`state.selectedTaskIds` — de bron van de RIJmarkering
- * (`data-grid-row-selected`, een 3px accentbalk). De CELcursor (`selection.active`, de bron van
- * `data-grid-active`, een 2px accentrand) is een apart, gridintern begrip dat zonder deze functie
- * op de OUDE cel blijft staan, zodat een gantt-klik en pijltjesnavigatie naar dezelfde taak er met
- * TWEE verschillende stijlen uitzien. Deze functie trekt ze gelijk: zodra de gepubliceerde actieve
- * taak niet meer overeenkomt met de rij van de huidige celcursor, springt de cursor mee naar die rij
- * — in
- * dezelfde kolom als daarvoor, zodat het overzicht niet van kolom verspringt bij een gantt-klik.
- * Blijft de celcursor al op de juiste rij staan (de gewone gridklik-route, die zelf al
- * `selectTask` aanroept ná het zetten van `active`), dan is dit een no-op op de celcursor.
- */
-/**
- * In een groepering staat een taak meer dan eens. Een door de store gekozen rij (`preferredRowKey`,
- * na verwijderen de buurrij) van deze taak wint. Staat de cursor al op een voorkomen, dan dat;
- * anders het voorkomen dat het dichtst bij de cursor ligt (bij gelijke afstand het bovenste), zodat
- * de cursor in zijn groep blijft. Zonder cursor het eerste voorkomen.
- */
 function nearestOccurrence(
   rowIndex: TaskGridRowIndex,
   taskId: string,
@@ -280,8 +242,6 @@ function nearestOccurrence(
   return best;
 }
 
-/** Zet het Shift-anker op `rowKey`: het anker van de store, gedeeld met de tijdlijn (review #1004).
- *  De cursor en de selectie blijven. */
 export function withSelectionAnchor(state: GridSelectionState, rowKey: string): GridSelectionState {
   return state.active && rowKey !== state.anchor?.rowKey
     ? { ...state, anchor: { rowKey, columnId: state.active.columnId } }
@@ -299,7 +259,6 @@ export function syncActiveCellToPublishedTask(
   const activeRow = publishedActiveTaskId
     ? nearestOccurrence(rowIndex, publishedActiveTaskId, reconciled.active?.rowKey ?? null, preferredRowKey)
     : undefined;
-  // Een mijlpaal in een ingeklapte reeks (#868) heeft geen eigen rij: de cursor gaat naar de reeksrij.
   const activeRowKey = activeRow?.rowKey
     ?? (publishedActiveTaskId ? runRowKeyOf(rowIndex, publishedActiveTaskId) : undefined);
   if (activeRowKey && activeRowKey !== reconciled.active?.rowKey) {

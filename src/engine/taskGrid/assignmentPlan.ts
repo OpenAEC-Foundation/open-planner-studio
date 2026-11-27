@@ -11,17 +11,13 @@ export type AssignmentPlanOperation =
       resourceId: string;
       unitsPerDay: number;
       curve?: ResourceCurve;
-      /** Alleen voor een kostenresource (issue #815): het bedrag dat bij plakken meereist. */
       costAmount?: number;
     }
   | {
       kind: 'update';
       assignmentId: string;
       unitsPerDay: number;
-      /** Vereist veld: undefined betekent een bestaande curve echt wissen. */
       curve: ResourceCurve | undefined;
-      /** Alleen voor een kostentoewijzing (issue #815): het nieuwe bedrag; `amount: undefined` wist
-       *  het. Afwezig ⇒ het bedrag blijft staan. Raakt geen datum. */
       cost?: { amount: number | undefined };
     }
   | {
@@ -45,7 +41,6 @@ export interface PlanTaskAssignmentSetInput {
   assignments: readonly ResourceAssignment[];
   tasksById?: ReadonlyMap<string, Task>;
   resourcesById?: ReadonlyMap<string, Resource>;
-  /** Adapter-/transactie-index: voorkomt een volledige assignmentscan per bewerkte cel. */
   assignmentsForTask?: readonly ResourceAssignment[];
 }
 
@@ -76,11 +71,6 @@ function failure(
   };
 }
 
-/**
- * Vergelijkt één volledige gewenste tokenverzameling met de bestaande assignments van de taak.
- * De planner muteert niets en genereert geen ids; de geïsoleerde gridtransactie doet dat pas bij
- * het toepassen van een geldige add-operatie.
- */
 export function planTaskAssignmentSet({
   taskId,
   tokens,
@@ -98,7 +88,6 @@ export function planTaskAssignmentSet({
   }
 
   const resourceIndex = resourcesById ?? new Map(resources.map(resource => [resource.id, resource] as const));
-  // Een mijlpaal draagt alleen kostentoewijzingen (issue #815, besluit Ethan 2026-11-07).
   if (task.isMilestone && (tokens as readonly Partial<TaskAssignmentToken>[]).some(token =>
     typeof token.resourceId !== 'string' || !isCostResource(resourceIndex.get(token.resourceId)))) {
     return failure('assignmentTaskUnavailable', taskId);
@@ -129,14 +118,11 @@ export function planTaskAssignmentSet({
       return failure('assignmentResourceNotFound', taskId, token);
     }
     if (!isValidUnits(token.unitsPerDay)) return failure('assignmentUnits', taskId, token);
-    // Zelfde regel en volgorde als `validateAssignmentTokens` (issue #815): eerst de soort van de bron
-    // tegen het doeltype (zonder soort hoort een bedrag alleen op een kostenresource), dan de veldregels.
     const targetIsCost = isCostResource(resourceIndex.get(token.resourceId));
     if (token.resourceKind !== undefined ? (token.resourceKind === 'cost') !== targetIsCost
       : token.costAmount !== undefined && !targetIsCost) {
       return failure('assignmentKindMismatch', taskId, token.resourceId);
     }
-    // Kostenresource (issue #815): geen inzet (vast 1), geen curve en geen werk.
     if (targetIsCost
       && (token.unitsPerDay !== 1 || (token.curve !== undefined && token.curve !== 'UNIFORM') || token.remainingWorkMinutes !== undefined)) {
       return failure('assignmentCostResource', taskId, token);
@@ -174,8 +160,6 @@ export function planTaskAssignmentSet({
       continue;
     }
     retainedAssignmentIds.add(existing.id);
-    // Een kostentoewijzing neemt het bedrag van het token over, ook 0 en leeg (plakken op een taak
-    // die dezelfde kostenresource al heeft, issue #815). Een ongeldig bedrag laat het staan.
     const costChange = isCostResource(resourceIndex.get(token.resourceId))
       && (token.costAmount === undefined || isValidCostAmount(token.costAmount))
       && existing.costAmount !== token.costAmount
@@ -199,8 +183,6 @@ export function planTaskAssignmentSet({
     }));
   const operations = [...removals, ...tokenOperations];
   const changed = operations.length > 0;
-  // Een kostentoewijzing erbij of eraf is geen "toewijzingen"-trigger (issue #815): ze wist geen
-  // MSP-sturing en geen nivelleergaten. Alleen een werk- of materiaaltoewijzing telt.
   const membershipChanged = operations.some(operation => operation.kind !== 'update'
     && !isCostResource(resourceIndex.get(operation.resourceId)));
   return {
@@ -213,7 +195,6 @@ export function planTaskAssignmentSet({
   };
 }
 
-/** Past een reeds volledig gevalideerd plan op een geïsoleerde documentdraft toe. */
 export function applyTaskAssignmentPlan(
   state: MutableTaskAssignmentState,
   plan: TaskAssignmentPlan,
@@ -302,9 +283,6 @@ export function applyTaskAssignmentPlan(
     task.resourceIds = [...resourceIds];
   }
 
-  // Dezelfde "toewijzingen"-trigger als de store en de MCP-draft (`assignmentMutations.ts`): één
-  // helper voor laag 3/4 én de nivelleergaten. Alleen bij een lidmaatschapswijziging (add/remove);
-  // een units/curve-update is — net als `updateAssignment` — geen trigger.
   const timephasedGuidanceLostTaskIds: string[] = [];
   for (const taskId of plan.membershipChangedTaskIds) {
     const task = tasksById.get(taskId);

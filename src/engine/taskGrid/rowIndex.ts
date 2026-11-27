@@ -1,12 +1,7 @@
 import type { TaskViewRow, ViewRow } from '@/engine/view/visibleRows';
 
-/** Een ingeklapte mijlpalenreeks (#868): één kiesbare regel voor al haar mijlpalen. */
 export type MilestonesViewRow = Extract<ViewRow, { kind: 'milestones' }>;
 
-/**
- * Eén herbruikbare index over de actuele zichtbare rijen. De adapter bouwt hem alleen opnieuw
- * wanneer ViewRow[] verandert; toets- en enkelvoudige selectiecommando's blijven daarna O(1).
- */
 export interface TaskGridRowIndex {
   readonly rows: readonly ViewRow[];
   readonly taskRows: readonly TaskViewRow[];
@@ -14,7 +9,6 @@ export interface TaskGridRowIndex {
   readonly taskIndexByRowKey: ReadonlyMap<string, number>;
   readonly absoluteIndexByRowKey: ReadonlyMap<string, number>;
   readonly taskAbsoluteIndices: readonly number[];
-  /** Ingeklapte mijlpalenreeksen: kiesbare regels naast de taakrijen, maar geen bewerkbare taak. */
   readonly runByRowKey: ReadonlyMap<string, MilestonesViewRow>;
 }
 
@@ -51,7 +45,6 @@ export function createTaskGridRowIndex(rows: readonly ViewRow[]): TaskGridRowInd
   };
 }
 
-/** Dichtstbijzijnde taakrij bij een absolute oude positie; een gelijke afstand kiest eerder. */
 export function nearestIndexedTaskRow(
   index: TaskGridRowIndex,
   absoluteIndex: number,

@@ -76,32 +76,19 @@ export interface TaskEditPlanEnvironment {
   projectId: string;
   wbsAutoNumber: boolean;
   statusDate?: string;
-  /** Geplande datums vóór de statusdatumvloer, voor het afleiden van werkelijke datums. */
   plannedDates?: (task: Task) => PlannedProgressDates | undefined;
-  /** De voorlopige plaatsing laat de afmelding aan de voortgangsgroep over. */
   deferDurationCompletion?: boolean;
   calendarIds: ReadonlySet<string>;
   effectiveHoursPerDay: number;
   hourMode: boolean;
-  /** De maatconventie van het effectieve rekenprofiel (`workdayDurationMeasure`): aan in OPS, uit onder
-   *  P6 en MS Project. Een eenheidswissel en een getypt einde tellen een dag zoals de motor. */
   workdayDurationMeasure: boolean;
   effectiveCalendar?: WorkCalendar;
-  /** De kalender waarin een taak met dit `calendarId` rekent (leeg ⇒ projectkalender). */
   calendarFor?: (calendarId: string | undefined) => WorkCalendar;
   customTaskTypeIds?: ReadonlySet<string>;
   activityCodeTypes: readonly ActivityCodeType[];
   customFieldDefs: readonly CustomFieldDef[];
-  /** Werkbehoud bij het herschalen van een contour, afgeleid van de effectieve werkregel
-   *  (`utils/taskDefaults.ts`'s `contourKeepsWork`). Afwezig ⇒ de MSP-afleiding in
-   *  `rescaleTaskContours`. */
   contourKeepsWork?: boolean;
-  /** `Project.defaultWorkRule`, voor de effectieve werkregel van een taak zonder eigen regel. Vast
-   *  werk is altijd urenmaat (B1a): een duur in werkdagen gaat dan naar de urenbron. */
   defaultWorkRule?: WorkRule;
-  /** Wordt de start van DEZE taak door een voorganger bepaald (`predecessorDrivenTaskIds`)? Alleen
-   *  nodig voor een getypte start (kolommen Start/Geplande start); afwezig ⇒ nee. Een getypte start
-   *  wordt dan een beperking "Start niet eerder dan" (`startConstraintAfterEdit`). */
   startDrivenByPredecessor?: boolean;
 }
 
@@ -110,19 +97,12 @@ export interface PlannedTaskEdit {
   changed: boolean;
   timephasedGuidanceLost: boolean;
   scheduleStale: boolean;
-  /** Zette of verzette een getypte start de beperking "Start niet eerder dan"? Afwezig ⇒ nee. De
-   *  transactie meldt het (`startEditNotifications`). */
   startConstraint?: StartConstraintChange;
-  /** Hield een andere constraint een getypte start tegen (`constraintBlockingStart`)? Dan is de start
-   *  niet toegepast en meldt de transactie deze constraint. */
   startBlocked?: TaskConstraint;
 }
 
-/** Bijeffecten van één celwrite die de aanroeper moet kunnen melden. */
 interface CellEditEffects {
-  /** De getypte start zette of verzette de beperking "Start niet eerder dan". */
   startConstraint: boolean;
-  /** Deze constraint hield de getypte start tegen; de start is niet toegepast. */
   startBlocked?: TaskConstraint;
 }
 
@@ -186,14 +166,6 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
   return null;
 }
 
-/** Een duurwijziging in het raster (duur-, eenheid-, mijlpaal- en Eindecel): dezelfde gevolgregels
- *  als `taskSlice.updateTask` en de MCP-draft, zie `applyDurationChangeRules` in taskDefaults.ts
- *  (de kern van `settleDurationAftermath`, workRuleApply.ts). `before` is een kopie van de tijd die
- *  de aanroeper vóór de mutatie vastlegde; gemeten met dezelfde uren-per-dag. Het raster meet met
- *  `environment.effectiveHoursPerDay` (bij een urenkalender de afgeleide bandsom); het ingevoerde
- *  einde van een urentaak herleidt `applyOneCellEdit` aan het eind (`reconcileGridInputFinish`).
- *  Een lopende taak houdt haar gedane werk (`settleEditedDuration`); een nieuwe duur
- *  korter dan dat werk is een celfout (`durationBelowDoneWork`). */
 function finishDurationEdit(
   task: Task,
   before: TaskTime,
@@ -202,8 +174,6 @@ function finishDurationEdit(
 ): GridResult<boolean, readonly CellValidationError[]> {
   const hoursPerDay = environment.effectiveHoursPerDay;
   const usableHours = Number.isFinite(hoursPerDay) && hoursPerDay > 0;
-  // B1a: vast werk is altijd urenmaat. Een duur in werkdagen ("5d", een kaal getal op een oude
-  // dagtaak, een nieuw einde) gaat eerst naar de urenbron; de nazorg hieronder rekent dan in minuten.
   routeFixedWorkDurationToHours(task, before, task.time, environment.defaultWorkRule, hoursPerDay);
   const duration = settleEditedDuration(task, before, hoursPerDay, {
     statusDate: environment.statusDate,
@@ -219,26 +189,10 @@ function finishDurationEdit(
   return { ok: true, value: duration.timephasedLost };
 }
 
-/**
- * Invalidatie van nivelleergaten. De ROUTES
- * waarvan een celwrite de tijdbasis van de taak verzet — en dus een door de nivelleerder ingevoegde
- * pauzedag ongeldig maakt. Dit is de gridtegenhanger van `taskTriggerChanges(...).levelingGaps`
- * (taskDefaults.ts); het grid schrijft niet via `updateTask`, dus het heeft een eigen poort nodig.
- * Net als daar vuurt hij alleen bij een echte waardewijziging (zie `applyOneCellEdit`).
- *
- * Bewust NIET compleet gelijk aan de `scheduleStale`-lijst in `applyOneCellEdit`: `task.priority` zit
- * daar wél in (nivelleren gebruikt prioriteit als invoer) maar verzet geen enkele datum van de taak
- * zelf, dus een bestaand gat blijft daar geldig.
- */
 const LEVELING_GAP_ROUTES: ReadonlySet<CellEditIntent['route']> = new Set([
   'task-schedule', 'task-progress', 'task-milestone', 'task-constraint', 'task-hammock',
 ]);
 
-/** De solve schrijft `scheduleFinish` niet terug, dus de
- *  gridbewerking houdt het ingevoerde einde van een niet-gestarte urentaak zelf coherent — dezelfde
- *  regel als `taskSlice.updateTask`, zie `reconcileHourInputFinish` (taskDefaults.ts). `calendarFor`
- *  levert de kalender NA de bewerking (een kalenderkolom-edit verandert die); zonder valt hij terug op
- *  de effectieve kalender van vóór de bewerking. */
 function reconcileGridInputFinish(before: Task, next: Task, environment: TaskEditPlanEnvironment): void {
   const calendar = environment.calendarFor?.(next.calendarId) ?? environment.effectiveCalendar;
   if (calendar) reconcileHourInputFinish(next, hourInputFinishBasis(before), calendar);
@@ -290,8 +244,6 @@ function applyTaskField(
     if (!optionalString(edit.value)) return failure('color', edit);
     task.color = edit.value;
   } else if (id === 'task.workRule') {
-    // Werkregel: het VELD; de driehoekstap (restwerk vastleggen onder een
-    // werkbeschermende regel) doet `gridTransaction.ts` ná het plan, met de toewijzingen erbij.
     if (edit.value === undefined || edit.value === '') delete task.workRule;
     else if (typeof edit.value === 'string' && (WORK_RULES as readonly string[]).includes(edit.value)) task.workRule = edit.value as WorkRule;
     else return failure('enum', edit);
@@ -308,8 +260,6 @@ function applyTaskField(
   return { ok: true, value: undefined };
 }
 
-/** Zet een expliciete duur (dagen of werkminuten) met alle bijeffecten van een duurwijziging —
- *  de ene weg voor de Duur-kolom en voor een nieuw Einde van een automatisch geplande taak. */
 function applyParsedDuration(
   task: Task,
   parsed: ParsedTaskDuration,
@@ -317,8 +267,6 @@ function applyParsedDuration(
   environment: TaskEditPlanEnvironment,
   timeBefore: TaskTime,
 ): GridResult<boolean, readonly CellValidationError[]> {
-  // Deze functie schrijft de drie duurvelden altijd; of dat een duurWIJZIGING is, beslist dezelfde
-  // waardevergelijking als store en MCP (`taskTriggerChanges`).
   const before: TaskTriggerFields = { ...task, time: { ...task.time } };
   if (parsed.unit === 'hours') {
     if (!isFiniteNumber(parsed.durationMinutes) || parsed.durationMinutes < 0) return failure('duration', edit);
@@ -329,7 +277,6 @@ function applyParsedDuration(
     task.time.durationMinutes = parsed.durationMinutes;
     task.time.scheduleDuration = parsed.durationMinutes / (environment.effectiveHoursPerDay * 60);
   } else {
-    // De dagenmaat mag een breuk hebben (spec "alleen uren" §3.2, B1).
     if (!isFiniteNumber(parsed.scheduleDuration) || parsed.scheduleDuration < 0) return failure('duration', edit);
     task.time.durationUnit = 'days';
     task.time.scheduleDuration = parsed.scheduleDuration;
@@ -339,16 +286,6 @@ function applyParsedDuration(
   return finishDurationEdit(task, timeBefore, environment, edit);
 }
 
-/**
- * De duur waarmee een automatisch geplande taak op `finish` eindigt, gerekend vanaf de GETOONDE
- * start: de omkering van `CPMSolver.addDuration`, dezelfde telling als de rechterrand-sleep in de
- * Gantt (`useBarDrag`). Dagtaak in de dagenmaat (`taskCountsInWorkdays`, OPS-profiel): werkdagen met
- * hun deel (`measuredWorkdaysBetween`). Dagtaak onder P6/MSP: de werkminuten gedeeld door de werktijd
- * per dag, want de motor telt daar dagen × werktijd per dag (`CPMSolver.workMinutesOf`). Een oude taak
- * met alleen datums telt inclusieve werkdagen (`workDaysBetween`, minimaal één). Urentaak: werkminuten
- * in de effectieve uurbanden van de taakkalender (`calendarForEngine`, zoals de solver). De eenheid van
- * de taak blijft wat hij was.
- */
 function durationForShownFinish(
   task: Task,
   finish: string,
@@ -363,10 +300,6 @@ function durationForShownFinish(
     if (!(end.getTime() > start.getTime())) return { ok: false, code: 'finishBeforeStart' };
     return { ok: true, value: { unit: 'hours', durationMinutes: engine.workMinutesBetween(start, end), explicitUnit: true } };
   }
-  // Dagtaak met momenten (sinds F2 elke taak). In de dagenmaat: de werkdagen met hun deel tussen start
-  // en einde (`measuredWorkdaysBetween`, dezelfde telling als de motor, §3.14). Een einde op het
-  // blokeinde van een werkdag telt die dag dus heel; een einde om 12:00 een halve dag. Onder P6/MSP:
-  // werkminuten ÷ (werktijd per dag × 60), zodat de motor precies die werkminuten terugrekent.
   const startIso = shownStart(task);
   const engine = new CalendarEngine(calendarForEngine(calendar));
   if (engine.isHourMode && startIso.includes('T') && finish.includes('T')) {
@@ -389,15 +322,6 @@ function durationForShownFinish(
   return { ok: true, value: { unit: 'days', scheduleDuration: Math.max(1, days), explicitUnit: true } };
 }
 
-/**
- * Een getypte start (Tabel-kolom Start of Geplande start): het nieuwe anker, en op een taak waarvan
- * een voorganger de start bepaalt de beperking "Start niet eerder dan" (`startConstraintAfterEdit`,
- * dezelfde regel als paneel, Taak bewerken en Gantt-sleep). Zonder die beperking springt de taak na
- * herberekenen stil terug achter haar voorganger: de solver leest het anker alleen voor een taak
- * zónder voorganger.
- * Houdt een andere constraint de start tegen (`constraintBlockingStart`), dan verandert er niets —
- * ook geen dood anker — en meldt de transactie die constraint.
- */
 function applyTypedStart(
   task: Task,
   start: string,
@@ -442,7 +366,6 @@ function applyScheduleEdit(
     if (edit.value !== 'days' && edit.value !== 'hours') return failure('enum', edit);
     const target = edit.value as TaskDurationUnit;
     if (target === task.time.durationUnit) return { ok: true, value: false };
-    // B1a: geen invoer maakt een taak onder vast werk dagenmaat (spec §3.12, B8).
     if (target === 'days' && workRuleApplies(task)
       && effectiveWorkRule(task, environment.defaultWorkRule) === 'FIXED_WORK') return failure('fixedWorkIsHours', edit);
     if (!environment.effectiveCalendar) return failure('calendarNotFound', edit);
@@ -469,9 +392,6 @@ function applyScheduleEdit(
     }
     if (!isFiniteNumber(edit.value) || edit.value < 0) return failure('duration', edit);
     if (task.isHammock) return failure('readOnly', edit);
-    // Kalendertijd: het getal zijn klokminuten (de Duur-kolom leest een dag dan als 24 u). Als
-    // expliciete duur, anders deelt de regel hieronder ze door de WERKtijd per dag en wordt "1d 0u"
-    // drie kalenderdagen.
     if (task.time.durationType === 'ELAPSEDTIME') {
       const clock = elapsedClockDuration(task, edit.value);
       if (!clock) return failure('duration', edit);
@@ -480,8 +400,6 @@ function applyScheduleEdit(
     const hoursPerDay = environment.effectiveHoursPerDay;
     if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return failure('calendarHours', edit);
     const days = edit.value / (hoursPerDay * 60);
-    // Een urenmaat-taak houdt haar minutenbron, ook op een kalender zonder eigen werkblokken: anders
-    // bleef er een urentaak zonder `durationMinutes` over ("Ongeldige urenduur").
     const writeMinutes = minuteAxis(task, environment);
     if (task.time.scheduleDuration !== days
       || (writeMinutes ? task.time.durationMinutes !== edit.value : task.time.durationMinutes !== undefined)) {
@@ -493,13 +411,8 @@ function applyScheduleEdit(
       lost = finished.value;
     }
   } else if (id === 'task.time.start') {
-    // De GETOONDE start (Tabel-kolom Start): dezelfde regel als paneel en Taak bewerken — er
-    // verandert alleen iets bij een echte wijziging (`startAnchorAfterEdit`). Ook als het anker al op
-    // die datum stond: de beperking kan dan nog ontbreken.
     if (!optionalString(edit.value)) return failure('date', edit);
     if (edit.value === undefined) return failure('required', edit);
-    // Ongewijzigd teruggetypt: niets. Anders staat de start van een gestarte taak vast — de
-    // kolom is daar al alleen-lezen; dit vangt elke route die de kolomgrens niet kent.
     if (edit.value === shownStart(task)) return { ok: true, value: false };
     if (startIsActual(task)) return failure('startIsActual', edit);
     const anchor = startAnchorAfterEdit(task, edit.value);
@@ -507,23 +420,16 @@ function applyScheduleEdit(
   } else if (id === 'task.time.finish') {
     if (!optionalString(edit.value)) return failure('date', edit);
     if (edit.value === undefined) return failure('required', edit);
-    // Ongewijzigd teruggetypt: niets verzetten (geen duur afronden, geen tijdfasering wissen).
     if (edit.value === shownFinish(task)) return { ok: true, value: false };
-    // Het einde van een voltooide taak is haar werkelijke einde — ook bij een handmatig geplande taak
-    // (anders veranderde alleen het onzichtbare `scheduleFinish`).
     if (finishIsActual(task)) return failure('finishIsActual', edit);
     if (edit.value.slice(0, 10) < shownStart(task).slice(0, 10)) return failure('finishBeforeStart', edit);
     if (isManuallyScheduled(task)) {
-      // Een handmatig geplande taak eindigt op haar ingevoerde einde (`CPMSolver.forwardPass`).
       if (task.time.scheduleFinish !== edit.value) {
         task.time.scheduleFinish = edit.value;
         lost = clearScheduleGuidance(task, true);
       }
       return { ok: true, value: lost };
     }
-    // Automatisch gepland: het einde volgt uit start + duur, dus een nieuw einde is een nieuwe duur.
-    // Het ingevoerde einde (`scheduleFinish`) blijft bewust ongemoeid: dat is invoer, geen afgeleide
-    // van de berekende planning.
     if (isPinnedComplete(task.time)) return failure('finishIsActual', edit);
     if (isZeroDurationMilestone(task) || task.time.durationType === 'ELAPSEDTIME'
       || (task.splitGaps?.length ?? 0) > 0) return failure('finishFromDuration', edit);
@@ -536,7 +442,6 @@ function applyScheduleEdit(
     const key = id === 'task.time.scheduleStart' ? 'scheduleStart' : 'scheduleFinish';
     if (edit.value === undefined) return failure('required', edit);
     if (task.time[key] !== edit.value) {
-      // Geplande start is óók een getypte start: dezelfde regel als de kolom Start.
       if (key === 'scheduleStart') lost = applyTypedStart(task, edit.value, environment, effects);
       else {
         task.time[key] = edit.value;
@@ -569,8 +474,6 @@ function applyMilestoneEdit(
   if (id === 'task.isMilestone') {
     if (typeof edit.value !== 'boolean') return failure('boolean', edit);
     if (task.isMilestone !== edit.value) {
-      // Gedeelde "wordt mijlpaal"-regel: een fase wordt geen ruit. Toewijzingen toetst
-      // het raster na afloop over de hele transactie (`planTaskAssignmentSet`), daarom hier `false`.
       if (edit.value && milestoneRefusal({ hasChildren: task.childIds.length > 0, hasAssignments: false })) {
         return failure('milestoneUnavailable', edit);
       }
@@ -596,8 +499,6 @@ function applyMilestoneEdit(
   } else {
     return failure('plannerNotAvailable', edit);
   }
-  // Mijlpaal aan ⇒ duur 0: een duurwijziging, dus dezelfde gevolgregels als de duurcel. (Uitzetten
-  // verzint geen duur, zie `taskMilestoneTransition`, en raakt de tijdbasis dan niet.)
   return scheduleChanged ? finishDurationEdit(task, timeBefore, environment, edit) : { ok: true, value: false };
 }
 
@@ -614,28 +515,20 @@ function applyStatus(
     fillMissingActualStart(task, statusDate, calendar);
   } else {
     task.time.completion = 1;
-    // Zelfde regel als setTaskProgress en de completion-cel: zonder actualStart geldt de eigen
-    // geplande start, niet AS = AF (dan kromp de voltooide balk tot zijn laatste dag).
     fillMissingActualStart(task, statusDate, calendar, planned);
   }
 }
 
-/** Rekent deze taak in minuten? In uurmodus, of als de taak zelf urenmaat is: dan is `durationMinutes`
- *  haar bron, ook op een kalender zonder eigen werkblokken (bv. vast werk, B1a). */
 function minuteAxis(task: Task, environment: TaskEditPlanEnvironment): boolean {
   return environment.hourMode || task.time.durationUnit === 'hours';
 }
 
-/** Voortgang die een ingevoerde actuele (`remaining` onwaar) of resterende duur in minuten
- *  impliceert, op de as van de taak: minuten op de minutenas ({@link minuteAxis}), werkdagen anders.
- *  Zonder duur (of met een onbruikbaar totaal) telt de taak als voltooid. */
 function completionFromDuration(
   task: Task,
   minutes: number,
   remaining: boolean,
   environment: TaskEditPlanEnvironment,
 ): number {
-  // Bij kalendertijd is een dag 24 klokuren (`durationHoursPerDay`), zoals bij het lezen van de invoer.
   const hoursPerDay = durationHoursPerDay(task, environment.effectiveHoursPerDay);
   const inMinutes = minuteAxis(task, environment);
   const total = inMinutes
@@ -646,10 +539,6 @@ function completionFromDuration(
   return Math.max(0, Math.min(1, remaining ? 1 - own : own));
 }
 
-/** Een ingevoerde resterende duur (minuten, of gewist) in dagen; `remainingMinutes` alleen op de
- *  minutenas ({@link minuteAxis}): bij een urentaak is dat de bron van de rest (spec §3.5). Bij
- *  kalendertijd zijn de minuten klokminuten en de dagen kalenderdagen (24 u per dag,
- *  `durationHoursPerDay`, dezelfde factor als `parseTaskDuration` bij het lezen). */
 function writeRemaining(task: Task, minutes: number | undefined, environment: TaskEditPlanEnvironment): void {
   task.time.remainingTime = minutes === undefined ? undefined : minutes / (durationHoursPerDay(task, environment.effectiveHoursPerDay) * 60);
   task.time.remainingMinutes = minuteAxis(task, environment) && minutes !== undefined ? minutes : undefined;
@@ -737,8 +626,6 @@ function nextConstraintType(
       ? undefined
       : { type: value, date: task.constraint2?.date ?? task.time.scheduleStart };
   } else {
-    // Gedeelde canonicalisatie met paneel en MCP (`withPrimaryConstraint`): ASAP/leeg wist beide,
-    // ALAP wist de secundaire; de paartoets volgt in `applyConstraintEdit`.
     const hard = value === 'MSO' || value === 'MFO' ? task.constraint?.hard : undefined;
     const next = value === undefined
       ? undefined
@@ -850,15 +737,10 @@ function applyProgressEdits(
   const desiredStatus = statusEdit?.value as TaskStatus | undefined;
   let desiredActualStart = actualStartEdit ? (actualStartEdit.value as string | undefined) || undefined : task.time.actualStart;
   let desiredActualFinish = actualFinishEdit ? (actualFinishEdit.value as string | undefined) || undefined : task.time.actualFinish;
-  // Een gewiste Actual Finish heropent een voltooide taak, net als bij een enkele celwrite — tenzij
-  // dezelfde rij zelf een voortgang of status opgeeft. Anders zette `applyProgressInvariants` de
-  // einddatum bij completion 1 meteen terug en deed het wissen niets.
   if (actualFinishEdit && !desiredActualFinish && desiredCompletion === undefined
     && desiredStatus === undefined && task.time.completion >= 1) {
     desiredCompletion = 0;
   }
-  // Niet meegeschreven actuals zijn geen expliciete gewenste invoer. Een completion/status-write
-  // moet ze in een brede paste precies zo kunnen canonicaliseren als bij een enkelvoudige edit.
   if (!actualFinishEdit && ((desiredCompletion !== undefined && desiredCompletion < 1)
     || desiredStatus === 'STARTED' || desiredStatus === 'NOT_STARTED')) {
     desiredActualFinish = undefined;
@@ -917,7 +799,6 @@ function applyProgressEdits(
   const planned = afterDuration ?? (completionEdit || desiredCompletion === 1
     ? datesForProgress(task, task.time.completion, environment.plannedDates)
     : undefined);
-  // Een opgegeven start blijft staan. Een afgeleide start kan hoogstens op het einde vallen.
   if ((desiredCompletion ?? 0) > 0 || desiredStatus === 'STARTED') {
     fillMissingActualStart(task, environment.statusDate, calendar, planned);
   }
@@ -966,22 +847,10 @@ function validCustomFieldValue(def: CustomFieldDef, value: unknown): boolean {
   return isFiniteNumber(value);
 }
 
-/**
- * Plant één reeds door de descriptor geparseerde celwrite tegen een losstaande taakkopie.
- * De invoertaak blijft byte-voor-byte ongemoeid; de transactie publiceert de uitkomst pas nadat
- * alle intents in dezelfde geïsoleerde draft geldig zijn bevonden.
- */
-/** Alles wat één celwrite oplevert, BEHALVE `changed` — die vergelijking is een volledige
- * `JSON.stringify(task)` van beide kanten en dus verreweg de duurste stap hier. Losgetrokken van
- * `planTaskCellEdit` omdat `planTaskCellEdits` (meervoud) deze functie per deelwrite in een lus
- * aanroept zonder ooit naar `changed` te kijken (zie daar) — een tussentijdse `changed`-berekening
- * is daar de dominante kost bij een bulk-plak (2.000 taken × 27 kolommen). `planTaskCellEdit` blijft
- * voor externe aanroepers de volledige vorm — inclusief `changed` — leveren. */
 function applyOneCellEdit(
   task: Task,
   edit: CellEditIntent,
   environment: TaskEditPlanEnvironment,
-  /** `false` in `planTaskCellEdits`: die houdt het einde één keer voor de hele groep coherent. */
   reconcileFinish = true,
 ): GridResult<
   Omit<PlannedTaskEdit, 'changed' | 'startConstraint'> & { startConstraintTouched: boolean },
@@ -1019,11 +888,6 @@ function applyOneCellEdit(
   } else result = applyDynamicEdit(next, edit, environment);
   if (!result.ok) return result;
   if (edit.route === 'task-progress') rememberProgressBeforeRecalculation(task, next);
-  // Nivelleergaten — zie `LEVELING_GAP_ROUTES`. Ná de faalpoort: een geweigerde write laat `next`
-  // weg. De ROUTE
-  // bepaalt welke velden meetellen (ongewijzigd); WANNEER is een echte waardewijziging, met dezelfde
-  // structurele vergelijking als store en MCP (`sameValue`): een celwrite die de taak niet veranderde
-  // — dezelfde waarde teruggeschreven — laat een nivelleergat staan.
   if (LEVELING_GAP_ROUTES.has(edit.route) && !sameValue(task, next)) clearLevelingGaps(next);
   if (reconcileFinish) reconcileGridInputFinish(task, next, environment);
   const scheduleStale = edit.route === 'task-schedule'
@@ -1041,8 +905,6 @@ function applyOneCellEdit(
   };
 }
 
-/** `created` of `updated`, gezien vanaf de taak VÓÓR de hele bewerking: ook als twee startkolommen in
- *  één rij de beperking eerst zetten en dan verzetten, telt voor de gebruiker alleen het netto. */
 function startConstraintChangeOf(before: Task, touched: boolean): StartConstraintChange | undefined {
   if (!touched) return undefined;
   return before.constraint?.type === 'SNET' ? 'updated' : 'created';
@@ -1066,16 +928,10 @@ export function planTaskCellEdit(
   };
 }
 
-/**
- * Plant alle celwrites van één taak als één gewenste taaktoestand. Constraintparen en
- * voortgangsvelden worden pas na de volledige groep gecanonicaliseerd en gevalideerd; hun
- * tijdelijke tussenstanden zijn geen gebruikersdata en mogen de uitkomst niet bepalen.
- */
 export function planTaskCellEdits(
   task: Task,
   edits: readonly CellEditIntent[],
   environment: TaskEditPlanEnvironment,
-  /** Oorspronkelijke duur als de plaatsingswrites al op een kopie zijn verwerkt. */
   beforeDuration?: TaskTime,
 ): GridResult<PlannedTaskEdit, readonly CellValidationError[]> {
   if (edits.length === 0) {
@@ -1099,8 +955,6 @@ export function planTaskCellEdits(
   let startBlocked: TaskConstraint | undefined;
   const constraintEdits = edits.filter(edit => edit.route === 'task-constraint');
   const progressEdits = edits.filter(edit => edit.route === 'task-progress');
-  // Zet dezelfde rij de beperking zelf (bv. een geplakte rij met een Constraint-kolom), dan wint die
-  // expliciete keuze: een getypte start maakt er dan geen "Start niet eerder dan" van.
   const loopEnvironment = {
     ...environment,
     deferDurationCompletion: environment.deferDurationCompletion || progressEdits.length > 0,
@@ -1109,8 +963,6 @@ export function planTaskCellEdits(
   };
   for (const edit of edits) {
     if (edit.route === 'task-constraint' || edit.route === 'task-progress') continue;
-    // applyOneCellEdit, niet planTaskCellEdit: deze lus keek nooit naar `.changed` van een
-    // tussenstap, dus de dure JSON.stringify-vergelijking hierboven was hier pure verspilling.
     const planned = applyOneCellEdit(next, edit, loopEnvironment, false);
     if (!planned.ok) return planned;
     next = planned.value.task;
@@ -1120,7 +972,6 @@ export function planTaskCellEdits(
     startBlocked ??= planned.value.startBlocked;
   }
   if (constraintEdits.length > 0) {
-    // Voor de nivelleergat-poort hieronder: de taak vóór deze groep (die muteert `next` in-place).
     const beforeGroup = cloneTaskForEdit(next);
     const constraintRank = (edit: CellEditIntent): number => {
       const id = String(edit.columnId);
@@ -1143,29 +994,18 @@ export function planTaskCellEdits(
     if (!pair.ok) {
       return failure(`constraintPair.${pair.issues[0]}`, ordered[ordered.length - 1], pair.issues);
     }
-    // Nivelleergaten — deze twee groepen omzeilen `applyOneCellEdit` (ze worden pas ná de volledige
-    // groep
-    // gecanonicaliseerd), dus de poort staat hier apart. Pas ná de validatie: een geweigerde groep
-    // laat de taak ongemoeid. En net als daar alleen bij een echte waardewijziging (`sameValue`).
     if (!sameValue(beforeGroup, next)) clearLevelingGaps(next);
     scheduleStale = true;
   }
   if (progressEdits.length > 0) {
-    // Een verzameltaak draagt geen eigen voortgang: de rollup in `applyCpmResult` leidt die af uit de
-    // bladen. Deze poort geldt voor élke route die hier langs komt (raster, plakken, voortgangsimport),
-    // net als de weigering in MCP (`mcpValidation`) en in `setTaskProgress`.
     if (task.childIds.length > 0) return failure('summaryProgress', progressEdits[0]);
     const beforeGroup = cloneTaskForEdit(next);
     const applied = applyProgressEdits(next, progressEdits, environment, beforeDuration ?? task.time);
     if (!applied.ok) return applied;
     rememberProgressBeforeRecalculation(beforeGroup, next);
-    if (!sameValue(beforeGroup, next)) clearLevelingGaps(next); // zie de constraintgroep hierboven.
+    if (!sameValue(beforeGroup, next)) clearLevelingGaps(next);
     scheduleStale = true;
   }
-  // Ingevoerd uur-einde — één keer voor de hele groep, tegen de taak van vóór de groep: zo wint een
-  // in dezelfde
-  // plak meegegeven "Gepland einde" ongeacht de kolomvolgorde, en telt voortgang (gestart ⇒ niet meer
-  // meebewegen) mee.
   reconcileGridInputFinish(task, next, environment);
   return {
     ok: true,
