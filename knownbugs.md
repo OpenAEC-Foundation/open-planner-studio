@@ -4982,6 +4982,14 @@ en noem het in je rapport of PR-tekst.
       in als vreemd lid terwijl de lezer het wel leest. Proef uit de review van #1273, met een property buiten het
       register. — B
 
+2510. **Een kopie van een document gaat ervan uit dat de projectdata een JSON-rondgang ongewijzigd doorstaat.**
+      `duplicateDocument` (`src/state/slices/documentSlice.ts`) kloont project, kalenders, taken, relaties, resources,
+      toewijzingen, activity codes, eigen velden, eigen taaktypes, baselines, `view` en `collapsedTaskIds` met
+      `deepClone` (`JSON.parse(JSON.stringify(…))`), en de XER-metadata zonder archief met dezelfde kloon. Een getal
+      `NaN` of `Infinity` wordt daarin `null`, en `undefined` in een array ook. De typen van die velden in `src/types/`
+      bevatten geen `Map`, `Set`, `Date` of bytes; of zulke waarden in een echt document kunnen voorkomen, is niet
+      nagegaan. De aanname stond als commentaar bij `deepClone`. — S
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat

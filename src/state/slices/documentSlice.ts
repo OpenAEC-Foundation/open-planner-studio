@@ -48,78 +48,27 @@ import {
   mergeCalendarLibrarySettle, notifyCalendarLibrarySettle, NO_CALENDAR_LIBRARY_SETTLE, type CalendarLibrarySettle,
 } from '../calendarTasks';
 
-// Het documentcontract (payload-vorm + capture/hydrate/fresh) woont in `../documentContract`.
-// Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
-// recovery). Re-export voor bestaande importers (bv. App.tsx importeert RecoveryDocInput hier).
 export type { DocumentPayload, RecoveryDocInput } from '../documentContract';
 
-/**
- * Multi-document back-end.
- *
- * Het *actieve* document leeft gewoon op top-level in de store (project, tasks,
- * …) zodat alle bestaande slices, componenten en de renderer ongewijzigd blijven
- * werken. De andere geopende documenten worden als losse `DocumentPayload`
- * bewaard in de `documents`-registry. Wisselen = de top-level-velden in de
- * payload van het uitgaande document opslaan en die van het inkomende
- * inladen.
- *
- * Bewust NIET per-document (blijft app-globaal): de rest van `ui` (ribbon,
- * panelen, thema) en `taskClipboard` — zo kun je takken tussen documenten
- * kopiëren/plakken.
- */
 export interface DocumentEntry {
   id: string;
-  /** null wanneer dit het actieve document is — zijn data leeft dan op top-level. */
   payload: DocumentPayload | null;
-  /** Een bibliotheekverversing heeft in dit SLAPENDE document taken via hun werkregel aangepast
-   *  (`refreshAllDocumentsFromPool`). De melding ("N taken aangepast", zoals de kalenderdialoog)
-   *  volgt bij activering, bij het document waar ze over gaat. Sessie-UI, geen documentdata: hoort
-   *  daarom niet in de payload/het documentcontract en verdwijnt met het document. */
   pendingWorkRuleSettle?: CalendarLibrarySettle;
-  /** De opslagstand voor de statusbalk (#804 stap 5, `documentSaveState.ts`). Sessie-UI, geen documentdata, net als
-   *  `pendingWorkRuleSettle`. */
   saveState?: DocumentSaveState;
-  /** De identiteit van de inhoud (fixronde 1 van #1020, `documentSaveState.ts`): omhoog als een andere inhoud dit
-   *  tabblad hergebruikt (`replaceDocumentContent`); `undefined` = 0. Sessiegegeven, geen documentdata. */
   content?: number;
   changedOnDisk?: true;
 }
 
-/**
- * `ui` is app-globaal (zie `AppGlobalKey` in documentContract), maar een handvol vélden erin
- * verwijst naar iets uit het *uitgaande* document. Die moeten bij elke wissel mee, anders overleeft
- * een verwijzing naar document A de sprong naar B.
- *
- * Dit stond eerder twee keer met de hand uitgeschreven in `newDocument` en `closeDocument` — en
- * `switchDocument` deed het weer nét anders. Precies het patroon dat het documentcontract elders al
- * heeft opgeruimd, dus hier één plek van gemaakt. Voeg je een `ui`-veld toe dat een taak-, resource-
- * of documentverwijzing vasthoudt, dan hoort het hier.
- *
- * `editingTaskId` is het scherpste geval: hij komt uit `TaskDialog` en wees na een tabwissel naar
- * een taak die in het nieuwe document niet bestaat. Vandaag ving de dialoog dat nog op met een
- * vangnetpad, maar dat is geluk, geen ontwerp — daarom gaat de dialoog hier ook dicht.
- */
 function resetDocumentScopedUI(s: AppState): void {
   s.ui.showTaskDialog = false;
   s.ui.editingTaskId = null;
-  // Shift-anker en toewijsverzoek wijzen naar taken en rijen van het uitgaande document; een variant
-  // deelt taak-id's en rijsleutels met zijn bron (review #1004, ronde 5).
   s.ui.selectionAnchor = null;
   s.ui.pendingRelationAssign = null;
-  // Bibliotheek-afwijkingen horen bij het document dat ze opleverde: de activatiegrens zet deze
-  // twee alléén AAN, dus zonder reset toont een volgend document het scherm van zijn voorganger.
   s.ui.showLibraryLinkDialog = false;
   s.ui.libraryRefreshNotice = null;
-  // Vangnet, geen normale route — een documentwissel is al onmogelijk zolang deze
-  // dialoog openstaat (zie hasBlockingDialogOpen/BLOCKING_UI_FLAGS + de when-guards op Ctrl/⌘1-9 en
-  // Ctrl+O). Gaat dit wél af, dan is er een wisselroute gemist; dat is een bug, geen normaal gedrag.
   s.ui.showProgressImportDialog = false;
-  // Zelfde vangnet: "Taak wordt een samenvattingstaak" noemt taken van het vorige document.
   s.ui.pendingPhaseAssignmentQuestion = null;
-  // Weigeringen horen bij het uitgaande document (eigenaarsbesluit 2026-10-19 5b): weg, en ze komen
-  // niet terug bij terugwisselen. Echte fouten en infos blijven (`clearRefusals`).
   clearRefusals(s.ui);
-  // De uitleg na F5 noemt taken van het uitgaande document.
   s.scheduleShift = null;
   s.ui.notifications = s.ui.notifications.filter(n => n.dedupeKey !== SCHEDULE_SHIFT_NOTICE_KEY);
 }
@@ -132,12 +81,6 @@ function publishActivation(s: AppState, activation: DocumentActivationMaterializ
   s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
 }
 
-/**
- * Meld na de publicatie wat de werkregel deed — de settle van deze activatiegrens
- * (`materializeBehindOnlyRefresh`) plus wat een bibliotheekverversing eerder in dit document deed terwijl
- * het sliep (`DocumentEntry.pendingWorkRuleSettle`). Eén melding per document, een taak één keer
- * geteld; dezelfde melding als de kalenderdialoog.
- */
 function announceWorkRuleSettle(
   notify: AppState['notify'],
   documentId: string,
@@ -148,95 +91,36 @@ function announceWorkRuleSettle(
   notifyCalendarLibrarySettle(notify, documentId, mergeCalendarLibrarySettle(pending, activation.workRuleSettle));
 }
 
-/** Lichtgewicht weergave voor consumenten (bv. een toekomstige FileTabBar). */
 export interface DocumentInfo {
   id: string;
   title: string;
   isDirty: boolean;
   isActive: boolean;
-  /** Volgnummer onder de NAAMLOZE documenten (`title === ''`), of `undefined` wanneer dit document
-   *  een echte titel heeft of het enige/eerste naamloze is. De weergavelaag plakt het achter het
-   *  vertaalde `common:project.untitled`-label; zie `untitledOrdinals` in `@/utils/documents`. */
   untitledOrdinal?: number;
 }
 
 export interface DocumentSlice {
   documents: DocumentEntry[];
   activeDocumentId: string;
-  /** Open een nieuw, leeg document in een eigen tab en maak het actief. Geeft het nieuwe id terug. */
   newDocument: () => string;
-  /** Dupliceer het actieve document naar een nieuwe, actieve kopie (wat-als/variant, MCP-WP4). De
-   *  kopie krijgt genulde `filePath`/`fileHandle`/`siteFileId` (zodat Ctrl+S het bronbestand niet overschrijft),
-   *  `isDirty: true`, lege selectie en diep gekloonde muteerbare payloadvelden. De sessiehistorie
-   *  blijft app-globaal en wordt niet met de documentpayload gekopieerd.
-   *  worden diep gekloond (geen enkele array/object gedeeld met de bron). Naam: `name` indien
-   *  meegegeven, anders `"<projectnaam> (variant N)"`. Geeft het nieuwe document-id terug. */
   duplicateDocument: (name?: string) => string;
-  /** Wissel naar een ander geopend document. */
   switchDocument: (id: string) => void;
-  /** Sluit een document; het laatste sluiten reset naar één leeg document. Wacht niet op een lopende opslag: de routes
-   *  van de planner gaan via `requestCloseDocument` of `closeDocumentAfterSaves`. Volgorde, op deze ene plek: open
-   *  veldinvoer afronden, dan (met `onlyIfClean`, *Opslaan* in de sluitvraag, fixronde 1 en 2 van #1008) kijken of
-   *  hetzelfde document nog bestaat en schoon is, dan pas verwijderen. Invoer die tijdens de opslag getypt is, maakt
-   *  het document bij het afronden gewijzigd en houdt het dan open. Geeft terug of het gesloten is. */
   closeDocument: (id: string, options?: { onlyIfClean?: boolean }) => boolean;
-  /** #804 stap 3 (besluit eigenaar 17 november 2026: wachten, dan sluiten). `null` als er geen projectopslag loopt of
-   *  wacht: dan wacht en toont niets. Anders klaar zodra de schrijfrij leeg is, met intussen "Wordt nog opgeslagen…"
-   *  (`ui.savingBeforeClose`). Kijk daarna opnieuw: een nieuwe opslag kan net begonnen zijn. */
   waitForSavesBeforeClose: () => Promise<void> | null;
-  /** Het kruisje van een tabblad: eerst wachten op een lopende opslag, dan is het document gewijzigd ⇒ de sluitvraag
-   *  (`ui.pendingCloseDocId`), anders sluiten. Zonder lopende opslag in dezelfde beurt, zoals voorheen. */
   requestCloseDocument: (id: string) => void;
-  /** Sluit `id` zodra er geen opslag meer loopt of wacht (de keuzes van de sluitvraag). Zonder lopende opslag sluit
-   *  het in dezelfde beurt. Wacht alleen; de beslissing (ook `onlyIfClean`) valt in `closeDocument`, waarvan de
-   *  uitkomst terugkomt. */
   closeDocumentAfterSaves: (id: string, options?: { onlyIfClean?: boolean }) => Promise<boolean>;
-  /** Lijst van geopende documenten met afgeleide titel + dirty/active-status. */
   getOpenDocuments: () => DocumentInfo[];
-  /** Alle geopende documenten als payload (actief live, rest uit de registry) —
-   *  voor crash-recovery-serialisatie. */
   getOpenDocumentPayloads: () => { id: string; payload: DocumentPayload }[];
-  /** Herstel meerdere documenten na een crash; vervangt de huidige set volledig.
-   *
-   *  Defensief per document: `readIFC` is al afgerond (de parsegrens ligt in `useRecoveryRestore`).
-   *  De voorbereiding van elke actieve kandidaat, inclusief solve/rollup en documentactivatie,
-   *  heeft hieronder een eigen `try/catch`. Gooit die voorbereiding, dan wordt de kandidaat
-   *  overgeslagen en probeert de lus de volgende. Geeft de id's van overgeslagen documenten terug
-   *  zodat de aanroeper hun snapshots kan laten staan in plaats van ze te wissen.
-   *
-   *  Bewuste grens: alleen kandidaten voor het ACTIEVE document worden hier doorgerekend.
-   *  De overige, SLAPENDE documenten worden apart tot payload gevormd, zonder solve. Ook die
-   *  payloadopbouw heeft een per-document `try/catch`; hun berekening wordt hier niet uitgevoerd. */
   restoreDocuments: (docs: RecoveryDocInput[], activeId: string | null) => { skippedIds: string[] };
-  /** Reken elk NIET-ACTIEF geopend document met een verouderde planning (`payload.scheduleStale`)
-   *  écht door en schrijf de uitkomst in zijn payload terug. Geeft het aantal bijgewerkte
-   *  documenten terug (0 ⇒ er is niets gemuteerd).
-   *
-   *  Wordt uitsluitend aangeroepen wanneer de gebruiker "Automatisch berekenen"
-   *  (`ui.autoCalcCPM`) aan heeft staan: dan mag een leesvenster zijn documenten bijwerken. In de
-   *  handmatige modus (de default, kernontwerp "manual, not reactive") blijft het bezettings-
-   *  overzicht efemeer doorrekenen en raakt het geen enkele payload aan.
-   *
-   *  Semantiek spiegelt `runCPM`: géén undo-snapshot en `isDirty` blijft ongemoeid (een
-   *  doorrekening is afgeleide data, geen bewerking). Het ACTIEVE document valt hier bewust buiten
-   *  — dat heeft zijn eigen pad (`useAutoCalcCPM` → `runCPM`, ~100 ms). */
   recalculateStaleSleepingDocuments: () => number;
-  /** Zet alleen voor het actieve document de persoonlijke, niet-IFC AutoSave-keuze. */
   setAutoSaveToFile: (enabled: boolean) => void;
-  /** Markeer uitsluitend de documentversie die de writer daadwerkelijk heeft weggeschreven schoon. */
   markAutoSaveVersionSaved: (document: DocumentContentRef, source: IFCSaveSource, prepared?: PreparedIfcWrite, written?: TargetFingerprint | null, writtenName?: string) => void;
 }
 
-/** Diepe JSON-kloon (de projectdata is JSON-veilig). */
 function deepClone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
-/**
- * De XER-lezer bewaart een bestandsbrede, immutable resourcecatalogus met de oorspronkelijke TASKRSRC-
- * rijen. Een documentkopie krijgt een nieuwe, mutable projectview, maar mag die catalogus nooit
- * JSON-klonen: rehab-2 alleen al bevat 52.640 retained rijen.
- */
 function cloneXerResourceMetadata(source: XerResourceMetadata): XerResourceMetadata {
   return {
     catalog: source.catalog,
@@ -261,9 +145,6 @@ function cloneXerImportMetadata(
   }
   const { resources, metadata, ...withoutCatalogs } = source;
   const clone = deepClone(withoutCatalogs);
-  // De resource-/metadatacatalogi zijn bestandsbreed, readonly brondata. Een documentduplicaat
-  // krijgt zijn eigen mutable projectmetadata maar nooit een tweede kopie van grote
-  // TASKRSRC/TASKACTV-catalogi.
   return {
     ...clone,
     ...(resources ? { resources: cloneXerResourceMetadata(resources) } : {}),
@@ -271,7 +152,6 @@ function cloneXerImportMetadata(
   };
 }
 
-/** Herstel leest zelfstandige IFC's; identieke gevalideerde bronarchieven worden daarna één ref. */
 function shareRecoveredXerArchives(docs: readonly RecoveryDocInput[]): RecoveryDocInput[] {
   const canonicalByDigest = new Map<string, XerSourceArchive[]>();
   const metadataCache = new WeakMap<XerSourceArchive, string>();
@@ -329,17 +209,12 @@ function shareRecoveredXerArchives(docs: readonly RecoveryDocInput[]): RecoveryD
   });
 }
 
-/** `"Basis (variant 3)"` → `"Basis"`; een naam zonder variant-suffix blijft ongewijzigd. Zo blijft de
- *  basisnaam stabiel wanneer je een variant-document opnieuw dupliceert (varianten-van-varianten). */
 const VARIANT_RE = /^(.*) \(variant (\d+)\)$/;
 function variantBaseName(name: string): string {
   const m = VARIANT_RE.exec(name);
   return m ? m[1] : name;
 }
 
-/** `"<basis> (variant N)"` met N = laagste vrije nummer ≥ 2 over de open document-projectnamen met
- *  dezelfde basisnaam. Zo krijgen achtereenvolgende duplicaten variant 2, 3, 4, … en kan
- *  `list_documents` de varianten onderscheiden. */
 function nextVariantName(sourceName: string, openNames: string[]): string {
   const base = variantBaseName(sourceName);
   const used = new Set<number>();
@@ -352,24 +227,10 @@ function nextVariantName(sourceName: string, openNames: string[]): string {
   return `${base} (variant ${n})`;
 }
 
-/** Projectnamen van álle open documenten (actief live top-level, rest uit de registry). */
 function openProjectNames(s: AppState): string[] {
   return s.documents.map((d) => (d.id === s.activeDocumentId ? s.project.name : d.payload!.project.name));
 }
 
-/**
- * Het id van het EERSTE document van een contextinstantie — PER CONTEXT vers gegenereerd.
- *
- * Niet één id op MODULE-niveau: dan zou élke `createAppStoreContext()` (dus ook elke wegwerpbare
- * scratch-context uit `state/runtime/scratchDocument.ts`) met hetzélfde `activeDocumentId` beginnen
- * als document 1 van de gemounte app. Sessie-permanente registraties die op een document-id
- * sleutelen — `state/timephasedLossNotice.ts`'s `notifiedDocIds`/`notifiedLevelingDelayDocIds` —
- * zijn app-globale module-state en kijken dwars door contextgrenzen heen: een `applyLeveling` in een
- * scratch-run zou de afrondingsmelding voor het ECHTE document 1 claimen. Eén functieaanroep per
- * slice-instantie voorkomt dat; de scratch-context zet daar bovenop nog het ECHTE docId van de
- * payload (zie `runInScratchDocument`).
- */
-/** `waitForSavesBeforeClose` voor één storecontext: de aanduiding staat zolang minstens één aanroeper wacht. */
 function saveWaitWithNotice(setShown: (shown: boolean) => void): () => Promise<void> | null {
   let waiters = 0;
   return () => {
@@ -389,7 +250,6 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
   ...initialDocumentRegistry(),
 
   newDocument: () => {
-    // Open veldinvoer hoort bij het document dat nu actief is (zie pendingTextEdits.ts).
     runtime.finishPendingTextEdits();
     const state = get();
     const outgoing = capturePayload(state);
@@ -402,8 +262,6 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       if (cur) cur.payload = castDraft(outgoing);
       s.documents.push({ id: newId, payload: null });
       s.activeDocumentId = newId;
-      // Een vers leeg document heeft geen open-boundary (er is niets aan gekoppeld), dus zonder
-      // deze reset blijft de ui-toestand van het vorige document hangen.
       resetDocumentScopedUI(s);
       publishActivation(s, activation);
     });
@@ -412,27 +270,13 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
   },
 
   duplicateDocument: (name) => {
-    // Eerst open veldinvoer in de bron committen: die hoort in de bron én (dus) in de kopie, en niet
-    // alleen in de kopie via de unmount van het veld (review #401, punt 1).
     runtime.finishPendingTextEdits();
-    // Een documentwissel breekt een lopende coalesce-reeks af (zie switchDocument): de kopie mag niet
-    // stilzwijgend verdergaan op de undo-stap van de bron.
     runtime.resetUndoCoalescing();
     const source = get();
-    // `outgoing` = de bron per referentie (wordt zo in de registry geparkeerd — identiek aan wat
-    // newDocument/switchDocument doen). `src` lezen we ook als de bron van de kloon.
     const src = capturePayload(source);
-    // Een naamloze bron blijft naamloos: `nextVariantName('')` zou letterlijk ' (variant 2)' in de
-    // projectdata (en dus in het IFC) stempelen. Onderscheidbaar blijven ze wél — `getOpenDocuments()`
-    // geeft naamloze documenten een `untitledOrdinal` mee, waarmee de weergavelaag er
-    // "Nieuwe planning" / "Nieuwe planning (2)" van maakt. Het volgnummer is taalonafhankelijk en
-    // raakt de data niet; alleen het label eromheen wordt vertaald.
     const copyName = name ?? (src.project.name ? nextVariantName(src.project.name, openProjectNames(source)) : '');
     const newId = generateId('doc');
 
-    // Bouw de kopie-payload EXPLICIET — geen stilzwijgende afhankelijkheid van Immer-copy-on-write.
-    // 'clone'-rolvelden + view/collapsedTaskIds worden diep gekloond; selectie start vers;
-    // filePath/fileHandle/siteFileId/siteFileVersion genuld; cpmResult/resourceLoadResult ('ref') mogen per referentie mee.
     const copy: DocumentPayload = {
       project: { ...deepClone(src.project), name: copyName },
       calendar: deepClone(src.calendar),
@@ -450,8 +294,6 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       cpmResult: src.cpmResult,
       resourceLoadResult: src.resourceLoadResult,
       scheduleStale: src.scheduleStale,
-      // 'derived' net als cpmResult/scheduleStale hierboven: een kopie deelt de bron-
-      // vastlegging/modus tot de kopie zelf een bewerking of berekening krijgt.
       recordedDates: src.recordedDates,
       datesAsRecorded: src.datesAsRecorded,
       minuteModelPending: src.minuteModelPending,
@@ -461,7 +303,6 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       collapsedTaskIds: deepClone(src.collapsedTaskIds),
       filePath: null,
       fileHandle: null,
-      // Ook het site-doel niet: anders schrijft Ctrl+S in de kopie een nieuwe versie van de bron.
       siteFileId: null,
       siteFileVersion: null,
       knownTargetFingerprint: null,
@@ -471,25 +312,14 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       xerImportMetadata: src.xerImportMetadata
         ? cloneXerImportMetadata(src.xerImportMetadata, src.xerSourceArchive)
         : null,
-      // De originele XER-bytes zijn immutable en worden doelbewust NIET gekloond: één runtimeobject
-      // voor bron, twaalf tabs en varianten; elke IFC-save embedt later wél een eigen container.
       xerSourceArchive: src.xerSourceArchive,
       xerSourceProjectId: src.xerSourceProjectId,
-      // De IFC-bron reist mee, zoals het XER-archief: onveranderlijk en gedeeld. Een kopie van een document met een
-      // vreemd deel heeft dat deel dus ook (opslaan weigert in fase 1a; in 1c schrijft de kopie het mee).
       ifcSource: src.ifcSource,
-      // Het kenmerk ook: de kopie mag het modelbestand evenmin overschrijven met alleen planning.
       foreignSourceMark: src.foreignSourceMark,
       taskTypesVisible: src.taskTypesVisible,
-      // Een kopie is per definitie geen ongewijzigde import meer.
       importPristine: false,
-      // Een variant van een document waarvan het archief onbruikbaar was, mist het archief óók —
-      // de reden reist dus mee, anders zegt MCP/de extensie-API voor de kopie "nooit een XER-bron".
       xerArchiveIssue: src.xerArchiveIssue,
-      // Zelfde taak-id's als de bron, dus zelfde GlobalIds — zoals vóór audit 2026-09-26, toen ze
-      // uit het id werden afgeleid.
       ifcGlobalIds: src.ifcGlobalIds,
-      // Dezelfde kalenders als de bron: dezelfde schrijfkeuze (knownbug 1026).
       ifcLiteralCalendarIds: src.ifcLiteralCalendarIds,
     };
     const activation = materializeLibraryBoundary({
@@ -498,15 +328,13 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
-      if (cur) cur.payload = castDraft(src); // bron parkeren (per referentie, net als newDocument/switchDocument)
+      if (cur) cur.payload = castDraft(src);
       s.documents.push({ id: newId, payload: null });
       s.activeDocumentId = newId;
       resetDocumentScopedUI(s);
       publishActivation(s, activation);
     });
     announceWorkRuleSettle(get().notify, newId, null, activation);
-    // De overlays zijn app-breed; in het andere document kan een layout van dit document
-    // daardoor zijn gevallen. Ruim die nu op, niet pas bij de volgende klik.
     get().settleLayoutSession();
     runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: copy.tasks.length,
@@ -518,10 +346,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
   switchDocument: (id) => {
     if (id === get().activeDocumentId) return;
-    runtime.finishPendingTextEdits(); // open veldinvoer hoort bij het uitgaande document (pendingTextEdits.ts)
+    runtime.finishPendingTextEdits();
     const state = get();
-    // Een documentwissel breekt een lopende coalesce-reeks af: terugswitchen mag niet
-    // stilzwijgend verdergaan op de undo-stap van vóór de wissel.
     runtime.resetUndoCoalescing();
     const target = state.documents.find((d) => d.id === id);
     if (!target || !target.payload) return;
@@ -552,13 +378,11 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
   },
 
   closeDocument: (id, options) => {
-    runtime.finishPendingTextEdits(); // open veldinvoer hoort bij het document dat nu actief is
+    runtime.finishPendingTextEdits();
     const state = get();
     if (!state.documents.some((d) => d.id === id)) return false;
-    // Ná het afronden van de invoer (fixronde 2 van #1008): die kan het document juist gewijzigd maken.
     if (options?.onlyIfClean && state.getOpenDocuments().some((doc) => doc.id === id && doc.isDirty)) return false;
 
-    // Laatste document sluiten → reset naar één vers, leeg document.
     if (state.documents.length === 1) {
       const newId = generateId('doc');
       const activation = materializeLibraryBoundary({
@@ -568,7 +392,6 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         removeSessionHistoryForDocumentFromState(s, id);
         s.documents = [{ id: newId, payload: null }];
         s.activeDocumentId = newId;
-        // Zie newDocument(): deze tak levert net zo'n vers, ongekoppeld document op.
         resetDocumentScopedUI(s);
         publishActivation(s, activation);
       });
@@ -576,7 +399,6 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       return true;
     }
 
-    // Inactief document: gewoon verwijderen.
     if (id !== state.activeDocumentId) {
       set((s) => {
         removeSessionHistoryForDocumentFromState(s, id);
@@ -585,7 +407,6 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       return true;
     }
 
-    // Actief document: eerst naar een buur wisselen, dan verwijderen.
     const idx = state.documents.findIndex((d) => d.id === id);
     const neighbor = state.documents[idx + 1] ?? state.documents[idx - 1];
     const incoming = neighbor.payload!;
@@ -632,7 +453,6 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
   closeDocumentAfterSaves: async (id, options) => {
     for (let saving = get().waitForSavesBeforeClose(); saving; saving = get().waitForSavesBeforeClose()) await saving;
-    // Na het wachten, in dezelfde beurt: `closeDocument` rondt de invoer af, beslist en sluit.
     return get().closeDocument(id, options);
   },
 
@@ -644,13 +464,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       const project = active ? s.project : d.payload!.project;
       const isDirty = active ? s.isDirty : d.payload!.isDirty;
       const xerMeta = active ? s.xerImportMetadata : d.payload!.xerImportMetadata;
-      // Dezelfde titelregel als de tabbladen (`documentTitle`). Een naamloos project levert bewust een
-      // LEGE titel: de store is een datalaag; de weergaveplekken vullen `common:project.untitled` in.
       return { id: d.id, title: documentTitle(filePath, project.name, documentProjectCode(project, xerMeta)), isDirty, isActive: active };
     });
-    // Naamloze documenten krijgen een volgnummer mee, zodat twee lege tabbladen (bv. na
-    // `duplicateDocument` van een naamloos project) onderscheidbaar blijven zónder dat er een
-    // taalgebonden naam in de projectdata belandt.
     const ordinals = untitledOrdinals(rows.map((r) => r.title));
     return rows.map((r, i) => (ordinals[i] === undefined ? r : { ...r, untitledOrdinal: ordinals[i] }));
   },
@@ -673,24 +488,11 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
   restoreDocuments: (docs, activeId) => {
     if (docs.length === 0) return { skippedIds: [] };
-    runtime.finishPendingTextEdits(); // open veldinvoer hoort bij het document dat nu actief is
-    // Herstel leest per document een ZELFSTANDIG IFC; identieke gevalideerde XER-bron-
-    // archieven worden hier weer één gedeelde referentie vóór er payloads van gemaakt worden
-    // (rehab-2 alleen al draagt 52.640 retained TASKRSRC-rijen). Deze stap GOOIT bewust bij een
-    // ongeldig archief (`XerSourceArchiveValidationError`) en wordt NIET afgevangen: een
-    // bronarchief zonder vindbare documentselector is geen "één kapot document" maar een kapot
-    // leesmodel, en check 10b van `check-xer-archive-readmodel.ts` pint die harde, getypeerde
-    // weigering vast. De per-document `try/catch` hieronder dekt het andere geval — een geldig
-    // gelezen document dat pas op de solve/rollup stukloopt.
+    runtime.finishPendingTextEdits();
     const sharedDocs = shareRecoveredXerArchives(docs);
     const state = get();
     const skippedIds: string[] = [];
 
-    // 1. Kies een actief document en reken het door. De per-document `try/catch` hieronder
-    //    begrenst geworpen fouten tijdens de voorbereiding, inclusief solve/rollup en activatie.
-    //    Gooit de voorbereiding van een kandidaat, dan komt diens id in `skippedIds` en probeert
-    //    de lus de volgende. De oorspronkelijk actieve kandidaat gaat als eerste, zodat een
-    //    geslaagd herstel van die kandidaat dezelfde `activeDocumentId` behoudt als vóór de crash.
     const tryOrder = [
       ...sharedDocs.filter((d) => d.id === activeId),
       ...sharedDocs.filter((d) => d.id !== activeId),
@@ -703,18 +505,10 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       try {
         const rawPayload = payloadFromInput(candidate);
         const p = prepareLoadedPayload(rawPayload, { recompute: true });
-        // Crashherstel herstelt "datums zoals opgeslagen" (`recordedFields`, elk formaat) alleen
-        // als de modus vóór de crash aan stond; anders vergeet het de opgeslagen datums (geen
-        // aanbod-stand meer, eigenaar 2026-10-17). De modusvlag komt
-        // uit de recovery-metadata (`candidate.datesAsRecorded`), dus een OPGESCHREVEN feit en
-        // geen heuristiek: crashherstel is het hervatten van een sessie, geen heropening, en mag
-        // dus niet opnieuw beslissen. `rawPayload.tasks` is bewust de PRE-solve array —
-        // `prepareLoadedPayload` muteert zijn `input`-argument niet.
         applyRecordedDatesOnLoad(rawPayload.tasks, p, candidate, candidate.datesAsRecorded);
         const a = materializeLibraryBoundary({
           payload: p, companies: state.companies, pools: state.pools, mode: 'open-boundary',
         });
-        // `minuteModelTransition` normaliseert de vastlegging zelf (één normalisatie per grens).
         conversion = minuteModelTransition(rawPayload, a.payload,
           captureRecordedDates(rawPayload.tasks, candidate.recordedFields, candidate.recordedTimes));
         a.payload = conversion.after;
@@ -728,20 +522,12 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       }
     }
 
-    // 2. De overige (slapende) documenten: geen solve, dus zelden een throw — maar dezelfde
-    //    garantie geldt: één document dat zich niet naar een payload laat vormen mag de rest niet
-    //    meeslepen.
     const sleepingById = new Map<string, DocumentPayload>();
     for (const d of sharedDocs) {
       if (active && d.id === active.id) continue;
       if (skippedIds.includes(d.id)) continue;
       try {
         const sleeping = payloadFromInput(d);
-        // Ook een SLAPEND document moet zijn weergavestand terugkrijgen. Anders komt het terug met
-        // de brondatums in `task.time`, zonder modus en mét `scheduleStale` — waarna automatisch
-        // berekenen (of de eerste F5) ze stil wegrekent.
-        // Geen solve hier (dat is de hele reden dat slapende documenten stale zijn), dus ook geen
-        // `shifted`-teller; zie `applyRestoredRecordedMode`.
         if (d.datesAsRecorded) applyRestoredRecordedMode(sleeping, d);
         sleepingById.set(d.id, sleeping);
       } catch (err) {
@@ -751,8 +537,6 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     }
 
     if (skippedIds.length > 0) {
-      // Eén melding voor de hele batch (net als `pasteSkippedReadOnly`) i.p.v. één per document —
-      // de losse `recoveryReadFailed`-meldingen in `useRecoveryRestore` dekken al de parsefase.
       get().notify({
         severity: 'error',
         messageKey: 'notifications.recoveryDocumentsSkipped',
@@ -762,8 +546,6 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     }
 
     if (!active || !prepared || !activation) {
-      // Alles was corrupt: niets te herstellen. De aanroeper laat de snapshots staan zodra
-      // `skippedIds` niet leeg is (geen stille `clearRecovery()` van de enige kopie).
       return { skippedIds };
     }
     const activeDoc = active;
@@ -772,8 +554,6 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
     set((s) => {
       replaceSessionHistoryState(s, [], 1);
-      // `castDraft`: een payload kan een readonly XER-bronarchief/-catalogus dragen, die Immer's
-      // `Draft<>` anders afwijst.
       s.documents = castDraft(sharedDocs
         .filter((d) => !skippedIds.includes(d.id))
         .map((d) => ({
@@ -789,14 +569,9 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     announceWorkRuleSettle(get().notify, activeDoc.id, null, activation2);
     const conversionNotice = conversion && minuteModelNotice(conversion);
     if (conversionNotice) get().notify(conversionNotice);
-    // De solve gebeurde al op de geïsoleerde actieve payload. Herstel nu alleen dezelfde zichtbare
-    // foutmelding en extension-eventsemantiek als een gewone runCPM, ná de atomaire publicatie.
     const cpm = activePayload.cpmResult;
     const failed = scheduleFailedNotice(cpm);
     if (failed) get().notify(failed);
-    // Ook een herstelsnapshot waarvan het
-    // XER-bronarchief onbruikbaar was, komt terug zónder archief — met één melding voor de hele
-    // herstelbatch (alleen de daadwerkelijk herstelde documenten).
     const archiveNotice = withXerArchiveIssueNotice(undefined, sharedDocs
       .filter(d => !skippedIds.includes(d.id))
       .map(d => d.xerArchiveIssue));
@@ -816,65 +591,33 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
   recalculateStaleSleepingDocuments: () => {
     const state = get();
-    // Fase 1 — rekenen BUITEN de producer. `solveProject` muteert de takenlijst die het krijgt, dus
-    // het rekent op een KLOON van de payload-taken (`cloneTasksForSolve` kopieert precies het
-    // `time`-blok dat solver en `applyCpmResult` schrijven). Die kloon is ook wat we straks
-    // terugschrijven: de payload-taken zelf blijven tot dat moment onaangeraakt, zodat een mislukte
-    // solve niets halfs achterlaat.
     const updates: { id: string; payload: DocumentPayload }[] = [];
     for (const entry of state.documents) {
-      if (entry.id === state.activeDocumentId) continue; // eigen pad (useAutoCalcCPM → runCPM).
+      if (entry.id === state.activeDocumentId) continue;
       const payload = entry.payload;
       if (!payload || !payload.scheduleStale || payload.minuteModelPending) continue;
 
       let next: DocumentPayload;
       try {
         const tasks = cloneTasksForSolve(payload.tasks);
-        // Exact dezelfde reken-kern (en dezelfde opties) die `runCPM` op het actieve document
-        // draait — pariteit by construction, geen tweede implementatie.
         const result = solveProject(
           solveInputFor(payload.project, tasks, payload.sequences, payload.calendar, payload.calendars), payload.tasks);
-        // Cyclus/solverfout: dit document volledig ONAANGERAAKT laten (het vangnet van het
-        // bezettingsoverzicht blijft dan gelden — het overzicht toont zijn boeking ongeteld met de
-        // ⚠) en doorgaan met de rest.
         if (result.error) continue;
-        // Spread over het volledige contract: elk (ook toekomstig) payload-veld rijdt automatisch
-        // mee, alleen de vier doorrekenvelden worden vervangen. `resourceLoadResult: null` omdat
-        // `switchDocument` bij activering tóch onvoorwaardelijk `recomputeResourceLoad()` draait —
-        // een hier berekende belasting zou dubbel werk zijn dat alleen kan verouderen.
-        // `isDirty` blijft letterlijk staan. De app-globale sessiehistorie wordt hier niet geraakt:
-        // dit is geen gebruikersbewerking maar alleen een afleiding voor een slapend document.
-        //
-        // `datesAsRecorded`/`recordedDates` MOETEN hier mee gewist worden: de spread
-        // draagt ze anders ongewijzigd mee, waarna dit document belooft "dit zijn de datums zoals
-        // opgeslagen" terwijl de zojuist berekende datums op het scherm staan zodra je het
-        // activeert — precies de mengvorm die de modus moet voorkomen. Dat er geen undo-stap
-        // tegenover staat is hier consistent: deze functie herschrijft `tasks`/`cpmResult` óók
-        // zonder history-event; bestaande events voor het slapende document blijven bij hun
-        // eigen, oudere toestand horen.
-        //
-        // BACKSTOP, geen dagelijks pad: `markScheduleStale` (transaction.ts) houdt `scheduleStale`
-        // uit zolang de modus aanstaat, dus een payload met modus-aan hoort hier niet eens langs te
-        // komen. Deze twee velden staan er voor het geval een toekomstige schrijver die regel mist —
-        // stil herberekenen mét de modus aan is de duurste manier om daarachter te komen.
         next = {
           ...payload, tasks, cpmResult: result, scheduleStale: false, resourceLoadResult: null,
           datesAsRecorded: false, recordedDates: null,
         };
       } catch {
-        continue; // net als de efemere solve in het overzicht: nooit de hele actie laten omvallen.
+        continue;
       }
       updates.push({ id: entry.id, payload: next });
     }
 
-    // Fase 2 — pas muteren als er écht iets te schrijven is. Die vroege uitgang is wat de
-    // aanroepende weergave-effect-lus dooft: zonder wijziging geen nieuwe `documents`-referentie,
-    // dus geen nieuwe render en geen herhaalde aanroep.
     if (updates.length === 0) return 0;
     set((s) => {
       for (const u of updates) {
         const entry = s.documents.find((d) => d.id === u.id);
-        if (!entry || entry.payload === null) continue; // tussentijds gesloten/geactiveerd.
+        if (!entry || entry.payload === null) continue;
         entry.payload = castDraft(u.payload);
       }
     });

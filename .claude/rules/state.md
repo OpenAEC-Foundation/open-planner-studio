@@ -61,6 +61,11 @@ Voeg je projectdata toe, dan hoort die dus in `DOCUMENT_FIELDS` — anders overl
 bronkenmerk en eenrichtingsvlaggen buiten undo (0433), een payload laden en normaliseren (0434) en de herstelinvoer
 met de payload uit herstel (0435).
 
+**Besluiten in `slices/documentSlice.ts`** staan in `docs/adr/`: het register met het actieve document zonder payload
+en een eerste id per context (0470), sessiegegevens per tabblad op `DocumentEntry` (0471), de volgorde van een
+documentwissel en `resetDocumentScopedUI` (0472), sluiten (0473), dupliceren met de variantnaam (0474), herstel na een
+crash met de gedeelde XER-archieven (0475) en het doorrekenen van slapende documenten (0476).
+
 **De opslagstand** (#804 stap 5, besluit eigenaar 17 november 2026, voor elk document): de statusbalk toont "Opslaan…"
 zolang een gevraagde opslag van het document loopt of wacht (`trackSave` in `fileSlice.ts`, van de vraag tot en met het
 einde van de hele werkgang, ook na annuleren, weigering of fout weg), daarna "Opgeslagen 14:32" en "Niet opgeslagen"
