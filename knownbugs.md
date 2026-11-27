@@ -1736,8 +1736,9 @@ en noem het in je rapport of PR-tekst.
       tijd. Nagespeeld in Node: `13-05-2027 07:00` (de vorm van `displayDateTime` bij dag-maand-jaar, zoals het raster
       een datum met tijd toont) en `2027-05-13T07:00` geven allebei `null`. Het veld laat dan het gewone plakken in het
       vakje met de focus toe, en `nextSegmentState` houdt daarvan alleen de cijfers, afgekapt op de lengte van het
-      vakje. De andere vakjes blijven staan. Vormen de vakjes zo een bestaande datum die van de oude afwijkt, dan legt
-      het veld die bij het verlaten zonder melding vast; is het overgebleven dagnummer gelijk aan de dag die er stond,
+      vakje. De andere vakjes blijven staan. Vormen de vakjes zo een bestaande datum die van de oude afwijkt, dan biedt
+      het veld die bij het verlaten zonder eigen melding aan, en ze wordt vastgelegd tenzij de aanroeper haar weigert
+      (`onCommit`); is het overgebleven dagnummer gelijk aan de dag die er stond,
       dan verandert er niets.
       Proef uit de review van #1284, in Node met gesimuleerde tekstvakjes: met `20-07-2026 08:00` in het veld (waarde `2026-07-20T08:00`) en
       het dagvakje geselecteerd geeft plakken van `13-05-2027 07:00` het dagvakje `13`, en het veld legt
@@ -1769,6 +1770,30 @@ en noem het in je rapport of PR-tekst.
       (`commitOnInputEnter` en haar layout-effect in `src/components/dialogs/CalendarDialog.tsx`) neemt die datum aan
       en schrijft de feestdag naar het project. Voorstel: laat de scheidingstoets de bestaande selectie staan als het
       veld zojuist automatisch is doorgesprongen. Issue #1296. — B
+2520. **Verwijderen en Dissolve in het lint staan aan onder het volledige resourcepaneel, en verwijderen dan een
+      taak die niet in beeld is.** De sneltoetsen Delete en Backspace zijn daar dicht (`isTaskListOutOfView` in
+      `src/hooks/keyboard/shortcutRegistry.ts`, op `isTaskListInView`). In het relatiemenu (`RelationDropdown` in
+      `ribbonWidgets.tsx`) zijn koppelen en toewijzen daar dicht (`relationActionAvailability`) en tekenen ook
+      (`isGanttWorkspaceVisible`); het menu zelf gaat wel open, en bij één geselecteerde taak blijft *Externe relatie
+      toevoegen…* beschikbaar. De lintknop Verwijderen (`COMMANDS.delete`,
+      alleen `hasSelection`) en de knop Dissolve (`editGroup` in `ribbonConfig.tsx`, alleen
+      `selectedTaskIds.length > 0`) kijken niet naar `isTaskListInView`. Proef in Node met een eigen store-context
+      (`createAppStoreContext`): nieuw project met taken A en B, A geselecteerd, op Resources
+      `setUI({ showResourcePanel: true, resourcePanelDocked: false })`, dan naar Start en naar Tabel. Op beide
+      tabbladen is `isGanttWorkspaceVisible` en `isTaskListInView` onwaar (de werkruimte toont dan `ResourcePanel`,
+      `App.tsx`), de selectie blijft staan en `isCommandEnabled(COMMANDS.delete)` is waar; `COMMANDS.delete.run`
+      brengt het aantal taken van 2 naar 1, met één nieuw event in de sessiegeschiedenis, en één `undo()` zet A
+      terug. Het klikken zelf is niet in de browser nagespeeld. Issue #1305. — B
+2521. **Waarschuwingspaneel en Verschuivingen in het lint zetten hun paneel uit als je op de niet-actieve knop klikt
+      terwijl het paneel aan staat maar niet in beeld is.** De knoppen (`warningsPanelButton` en
+      `scheduleShiftPanelButton` in `ribbonConfig.tsx`) zijn alleen actief als de rail in beeld is, maar hun klik keert
+      de vlag om (`COMMANDS.toggleWarningsPanel`, `setUI({ showScheduleShiftPanel: !showScheduleShiftPanel })`).
+      Eigenschappen en Resourcedock kiezen op de getoonde stand. Proef in Node met een eigen store-context: nieuw
+      project, `showWarningsPanel` en `showScheduleShiftPanel` aan, dan (a) `rightPanelCollapsed: true`, of (b) op
+      Beeld het volledige resourcepaneel (`showResourcePanel: true`, `resourcePanelDocked: false`). In beide gevallen
+      zijn de knoppen niet actief; na de klik van elk staan beide vlaggen uit, blijft de rail uit beeld en is (a) nog
+      ingeklapt. Met Eigenschappen in dezelfde opzet komt de rail na één klik in beeld met het paneel aan. Ctrl+Shift+L
+      voert dezelfde opdracht uit als de knop Waarschuwingspaneel. Niet in de browser nagespeeld. — B
 
 ## Kalenders
 
@@ -7855,4 +7880,40 @@ en noem het in je rapport of PR-tekst.
       bestand blijft bytegelijk en het document blijft gewijzigd (app-proef van 2367, met een echte XER-import). Zit
       al in main; gevonden bij de herstelronde van #1189 en bevestigd in review ronde 3 (Sol). Richting: het
       bronarchief herkennen vóór de STEP-rondgang en weigeren met `unsupported` en de veldnamen, of het profiel
-      aanpassen aan wat er gebeurt. — B
+      aanpassen aan wat er gebeurt. Sinds F3-5 komt de app hier bij Opslaan als niet meer langs: een
+      XER-import vraagt eerst of het P6-bronarchief mag ontbreken en geeft de schrijver het archief dan niet mee
+      (`ifcxInputWithoutXerArchive`); de weigering met "planning" geeft alleen nog de kern zelf, voor een invoer met
+      archief. — B
+
+2389. **Het bestandstype (IFC of IFCX) kies je alleen in het opslagvenster van de desktop-app.** Alleen
+      `saveDocumentAsOnTurn` op de desktop met de flag `ifcx` biedt twee filters (`typeChoice`, `saveAsFileFilters` in
+      `src/state/slices/fileSlice.ts`). Waar het niet kan: (a) de browser: Chromium maakt het gekozen bestand in de
+      opslaankiezer al aan of leeg voordat de app iets controleert (knownbug 1899, 2366), en een IFCX-document schrijft
+      een nieuw doel daar alleen als download (F3-4); de kiezer biedt dus alleen het type van het document, en omzetten
+      kan in de browser niet; (b) een site-host: het opslagvenster van de site heeft geen type; (c) Ctrl+S zonder doel
+      (een nieuw document) biedt alleen het type van het document, want Ctrl+S houdt het formaat.
+      (d) Op de drie desktopplatforms geeft plugin-dialog 2.7.0 (RFD 0.16.0) alleen het gekozen pad terug. De extensie
+      in dat pad bepaalt het bestandstype. Op Linux (GTK3) krijgt de planner bij een IFC-document ook na het kiezen van
+      het IFCX-filter een IFC-bestand als hij `.ifc` laat staan of een naam zonder extensie opgeeft. In dat laatste
+      geval vult de app `.ifc` aan (`withOneOfExtensions` in `pickSavePathTauri`). Met `planning.ifcx` wordt het IFCX.
+      Op macOS heeft het opslagvenster geen typekeuzelijst. Geef daar de naam inclusief `.ifcx` op om naar IFCX om te
+      zetten. Op Windows past het venster bij een filterwissel de standaardextensie aan. De app volgt het teruggegeven pad.
+      Richting voor de browser is een eigen typekeuze vóór de kiezer met IFCX als download. Op Linux kan de app het
+      gekozen filter gebruiken zodra plugin-dialog dat teruggeeft. Gevonden bij F3-5. — B (bibliotheekcode en
+      platformdocumentatie, zonder proef met de native vensters)
+
+2390. **Opslaan als naar een ander type stelt eerst de vragen van het type van het document, vóór het venster.** Het
+      type kiest de planner in het venster, en Opslaan als rekent en vraagt zoals main vóór het venster, voor het type
+      van het document (eis van F3-5: hetzelfde type doet precies wat main doet); pas na het venster rekent
+      `saveAsInFormat` opnieuw in het gekozen type. Bij IFC naar IFCX geeft dat: (a) een open schemavraag (een
+      IFC-bestand in een ander schema dat nog niet expliciet is opgeslagen) komt vóór het venster, ook als de planner
+      daarna IFCX kiest; het antwoord zet `ifcSchema` en geldt voor een latere opslag als IFC; (b) een document met een
+      gebouwmodel en vervallen koppelingen krijgt de vraag vóór het opslaan (#1270) over de IFC-merge die niet geschreven
+      wordt, en na het kiezen van IFCX nog "alleen de planning": twee vragen na elkaar; (c) bij een ontbrekende bron komt
+      "alleen de planning" vóór het venster (`missingSourceSaveAs`) en na het kiezen van IFCX nog eens (`ifcxSaveAs`),
+      want een bevestiging geldt één keer (`spendPlanOnlyConfirmation`); (d) de merge van een groot gebouwmodel rekent
+      vóór het venster voor niets als de planner IFCX kiest. Na omzetting van een IFC2X3-bron naar IFCX gebruikt een
+      latere opslag als IFC het schema uit Projectinstellingen, standaard IFC4X3_ADD2. IFC2X3 is geen schrijfbare keuze.
+      Richting: met de flag `ifcx` het type vóór het rekenen
+      kennen (bijvoorbeeld de vragen en de merge na het venster), wat de volgorde van main voor hetzelfde type verandert;
+      een keuze van de eigenaar. Gevonden bij F3-5. — B (code; (a) tot en met (c) niet in een proef nagespeeld)

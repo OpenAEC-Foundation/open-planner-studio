@@ -2,12 +2,12 @@ import type { IFCSaveSource } from '@/services/documentData';
 import type { ModelKey } from './nodes';
 
 export type IfcxSaveKeyPlace =
-  | { readonly carriedAs: readonly ModelKey[] }
+  | { readonly carriedAs: readonly ModelKey[]; readonly stepOnlyProjectField?: keyof IFCSaveSource['project'] }
   | { readonly exception: 'xer-archive'; readonly modelKeys: readonly ModelKey[] }
   | { readonly exception: 'not-written' };
 
 export const IFCX_PLACE_OF_SAVE_KEY = {
-  project: { carriedAs: ['project'] },
+  project: { carriedAs: ['project'], stepOnlyProjectField: 'ifcSchemaUnconfirmed' },
   calendar: { carriedAs: ['calendar'] },
   tasks: { carriedAs: ['tasks'] },
   sequences: { carriedAs: ['sequences'] },

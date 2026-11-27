@@ -33,6 +33,9 @@ import { readRecoveryDocument } from '@/state/readRecoveryDocument';
 import { changedOnDiskShown } from '@/state/openDocumentFor';
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
 import { fileToolDeps, realFs } from '@/services/mcp/tools/fileTools';
+import { resetPlanOnlyAsker, setPlanOnlyAsker, type PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
+import { resetIfcSchemaAsker, setIfcSchemaAsker } from '@/services/ifc/ifcSchemaQuestion';
+import { fixture as maximalFixture } from './ifcRoundtripFixture';
 import { getTool } from '@/services/mcp/toolRegistry';
 import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
 import type { FeatureFlagValues } from '@/utils/featureFlags';
@@ -54,6 +57,8 @@ const isStep = (data: Uint8Array) => text(data).startsWith('ISO-10303-21;');
 const bytesAt = (path: string) => new Uint8Array(readFileSync(path));
 const IFCX_ON: FeatureFlagValues = { ifcx: true };
 const BOTH_ON: FeatureFlagValues = { ifcx: true, ifcForeignContent: true };
+const IFC_FILTER = { name: 'IFC Files', extensions: ['ifc'] };
+const IFCX_FILTER = { name: 'IFCX Files', extensions: ['ifcx'] };
 const ownStep = new TextEncoder().encode(writeIFC(buildWriteIFCInput(documentDataFromImport(structuredClone(readIfcx(own))), 'planOnly')));
 
 let passed = 0, failed = 0;
@@ -329,7 +334,7 @@ for (const example of ['showcase-verbouwing-eengezinswoning.ifc', '03-kantoorgeb
   });
 }
 
-await check('Opslaan als (desktop): voorgestelde naam op .ifcx, het IFCX-filter, uitvoer IFCX; met de flag uit STEP met een naam op .ifc', async () => {
+await check('Opslaan als (desktop): voorgestelde naam op .ifcx, het IFCX-filter voorop, uitvoer IFCX; met de flag uit STEP met een naam op .ifc', async () => {
   for (const flags of [IFCX_ON, BOTH_ON]) {
     const ipc = desktop();
     try {
@@ -341,7 +346,7 @@ await check('Opslaan als (desktop): voorgestelde naam op .ifcx, het IFCX-filter,
       assert.deepEqual(errors(store), []);
       assert.equal(ipc.dialogs.length, 1);
       assert(ipc.dialogs[0].defaultPath?.endsWith('.ifcx'), `voorgestelde naam ${ipc.dialogs[0].defaultPath}`);
-      assert.deepEqual(ipc.dialogs[0].filters, [{ name: 'IFCX Files', extensions: ['ifcx'] }]);
+      assert.deepEqual(ipc.dialogs[0].filters, [IFCX_FILTER, IFC_FILTER], 'het type van het document voorop, daarna IFC');
       const written = bytesAt(target);
       assert(isIfcxText(written));
       assert.equal(store.getState().filePath, target);
@@ -367,6 +372,406 @@ await check('Opslaan als (desktop): voorgestelde naam op .ifcx, het IFCX-filter,
     shiftFirstTask(store);
     assert.equal(await save(store), true);
     assert(isStep(bytesAt(chosen)), 'Ctrl+S schrijft daarna STEP naar het nieuwe doel');
+  } finally { ipc.dispose(); }
+});
+
+type Timeline = string[];
+async function tracedApp(flags: FeatureFlagValues, ipc: ReturnType<typeof desktop>) {
+  const timeline: Timeline = [];
+  const app = await newApp(flags, saveWorker(), compute => (job, stop) => {
+    timeline.push(`${job.kind === 'merge' ? 'merge' : job.format ?? 'ifc'}@${ipc.dialogs.length}`);
+    return compute(job, stop);
+  });
+  return { store: app.store, timeline };
+}
+async function withPlanOnlyAnswers<T>(answers: Partial<Record<PlanOnlyReason, boolean>>, action: (asked: PlanOnlyReason[]) => Promise<T>): Promise<T> {
+  const asked: PlanOnlyReason[] = [];
+  setPlanOnlyAsker(async reason => { asked.push(reason); return answers[reason] ?? false; });
+  try { return await action(asked); } finally { resetPlanOnlyAsker(); }
+}
+const headerSchema = (data: Uint8Array) => /FILE_SCHEMA\(\('([A-Z0-9_]+)'\)\)/.exec(text(data))?.[1];
+const ipcSteps = (ipc: ReturnType<typeof desktop>, from: number) => ipc.calls.slice(from)
+  .filter(c => !c.path || !c.path.includes('ops-ifcx-appdata-'))
+  .map(c => `${c.command} ${c.path ? basename(c.path).replace(/(save|vorige)-[a-z0-9]+/g, '$1-*').replace(/^.*-(gelijk|zelfde)-/, '') : ''}`);
+
+const examplePath = join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc');
+const maximalPath = join(dir, 'maximale-fixture.ifc');
+writeFileSync(maximalPath, writeIFC(maximalFixture));
+
+for (const [name, sourcePath] of [['voorbeeld', examplePath], ['maximale fixture', maximalPath]] as const) {
+  for (const [label, flags] of [['alleen ifcx', IFCX_ON], ['ifcx en ifcForeignContent', BOTH_ON]] as const) {
+    await check(`omzetten (${name}, ${label}): IFC → IFCX en IFCX → IFC met Opslaan als, telkens heropenen en Ctrl+S; de uitvoer van het gekozen type pas na het venster`, async () => {
+      const ipc = desktop();
+      try {
+        const slug = `${name}-${flags.ifcForeignContent ? 'beide' : 'ifcx'}`.replace(/ /g, '-');
+        const start = join(dir, `${slug}.ifc`); writeFileSync(start, readFileSync(sourcePath));
+        const original = bytesAt(start);
+        const { store, timeline } = await tracedApp(flags, ipc);
+        await openInto(store, start);
+        assert.deepEqual(errors(store), []);
+        assert.equal(store.getState().fileFormat, 'ifc');
+        shiftFirstTask(store);
+        const asIfcx = join(dir, `${slug}-om.ifcx`); ipc.choose(asIfcx);
+        await store.getState().saveFileAs();
+        assert.deepEqual(errors(store), []);
+        assert.deepEqual(ipc.dialogs[0].filters, [IFC_FILTER, IFCX_FILTER], 'IFC voorop bij een IFC-document');
+        assert(ipc.dialogs[0].defaultPath?.endsWith('.ifc'), 'de voorgestelde naam houdt het type van het document');
+        assert.deepEqual(timeline, ['ifc@0', 'ifcx@1'], 'eerst de uitvoer van het document, na het venster IFCX');
+        const written = bytesAt(asIfcx);
+        assert(isIfcxText(written), 'het nieuwe bestand is IFCX');
+        assert.equal(store.getState().filePath, asIfcx);
+        assert.equal(store.getState().fileFormat, 'ifcx');
+        assert.equal(store.getState().isDirty, false);
+        assert.deepEqual(store.getState().knownTargetFingerprint, { sha256: hash(written), byteLength: written.byteLength, origin: 'written' });
+        assert.equal(hash(bytesAt(start)), hash(original), 'het IFC-bestand bleef staan');
+        const reopenedIfcx = await openAt(asIfcx, flags);
+        assert.deepEqual(errors(reopenedIfcx), []);
+        assert.equal(shown(reopenedIfcx.getState().tasks), shown(store.getState().tasks), 'heropend als IFCX: dezelfde datums');
+        shiftFirstTask(store);
+        assert.equal(await save(store), true, 'Ctrl+S na het omzetten');
+        assert.deepEqual(errors(store), []);
+        const saved = bytesAt(asIfcx);
+        assert(isIfcxText(saved) && hash(saved) !== hash(written), 'Ctrl+S schrijft IFCX naar het nieuwe bestand');
+        assert.deepEqual(timeline.slice(2), ['ifcx@1']);
+
+        const back = join(dir, `${slug}-terug.ifc`); ipc.choose(back);
+        await store.getState().saveFileAs();
+        assert.deepEqual(errors(store), []);
+        assert.deepEqual(ipc.dialogs[1].filters, [IFCX_FILTER, IFC_FILTER], 'IFCX voorop bij een IFCX-document');
+        assert(ipc.dialogs[1].defaultPath?.endsWith('.ifcx'));
+        assert.deepEqual(timeline.slice(3), ['ifcx@1', 'ifc@2']);
+        const step = bytesAt(back);
+        assert(isStep(step), 'terug als STEP');
+        assert.equal(headerSchema(step), headerSchema(original), 'het schema uit Projectinstellingen, dat van het oorspronkelijke bestand');
+        assert.equal(store.getState().filePath, back);
+        assert.equal(store.getState().fileFormat, 'ifc');
+        assert.equal(store.getState().isDirty, false);
+        assert.equal(hash(bytesAt(asIfcx)), hash(saved), 'het IFCX-bestand bleef staan');
+        const reopenedStep = await openAt(back, flags);
+        assert.deepEqual(errors(reopenedStep), []);
+        assert.equal(shown(reopenedStep.getState().tasks), shown(store.getState().tasks), 'heropend als IFC: dezelfde datums');
+        shiftFirstTask(store);
+        assert.equal(await save(store), true);
+        assert(isStep(bytesAt(back)) && hash(bytesAt(back)) !== hash(step), 'Ctrl+S schrijft daarna STEP');
+      } finally { ipc.dispose(); }
+    });
+  }
+}
+
+await check('IFCX → IFC schrijft het schema uit Projectinstellingen, zonder schemavraag', async () => {
+  const asked: string[] = [];
+  setIfcSchemaAsker(async question => { asked.push(question.fileSchema); return null; });
+  const ipc = desktop();
+  try {
+    for (const schema of ['IFC4', 'IFC4X3'] as const) {
+      const path = join(dir, `schema-${schema}.ifcx`); writeFileSync(path, own);
+      const store = await openAt(path, IFCX_ON);
+      store.getState().applyProjectInfo({ ifcSchema: schema }, undefined);
+      assert.equal(store.getState().project.ifcSchema, schema);
+      const target = join(dir, `schema-${schema}.ifc`); ipc.choose(target);
+      await store.getState().saveFileAs();
+      assert.deepEqual(errors(store), []);
+      assert.equal(headerSchema(bytesAt(target)), schema, `het schema ${schema} uit Projectinstellingen`);
+      assert.equal(store.getState().fileFormat, 'ifc');
+    }
+    assert.deepEqual(asked, [], 'geen schemavraag');
+  } finally { ipc.dispose(); resetIfcSchemaAsker(); }
+});
+
+for (const reopen of [false, true]) {
+  const route = reopen ? 'na heropenen' : 'in hetzelfde tabblad';
+  await check(`Bonsai van IFC4 naar IFCX: alleen de planning, daarna Ctrl+S en terug naar IFC4 zonder schemavraag (${route})`, async () => {
+    const ipc = desktop();
+    const schemas: string[] = [];
+    setIfcSchemaAsker(async question => { schemas.push(question.fileSchema); return null; });
+    try {
+      const model = join(dir, `bonsai-${route}.ifc`);
+      const target = join(dir, `bonsai-${route}.ifcx`);
+      const original = readFileSync(join(root, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc'));
+      writeFileSync(model, original);
+      const { store, timeline } = await tracedApp(BOTH_ON, ipc);
+      await openInto(store, model);
+      assert.deepEqual(errors(store), []);
+      assert(store.getState().ifcSource?.foreign);
+      assert.equal(store.getState().project.ifcSchemaUnconfirmed, 'IFC4');
+      const task = store.getState().tasks.find(t => !t.childIds.length)!;
+      store.getState().updateTask(task.id, { name: 'Voor omzetting' });
+      ipc.choose(target);
+      await withPlanOnlyAnswers({ ifcxSaveAs: false }, async asked => {
+        await store.getState().saveFileAs();
+        assert.deepEqual(asked, ['ifcxSaveAs']);
+      });
+      assert.deepEqual(errors(store), [], 'annuleren meldt niets');
+      assert.equal(existsSync(target), false, 'annuleren schrijft niets');
+      assert.deepEqual(timeline, ['merge@0'], 'na annuleren geen tweede berekening');
+      assert.equal(store.getState().project.ifcSchemaUnconfirmed, 'IFC4');
+
+      const refused = join(dir, 'beschermd-doel.ifcx');
+      writeFileSync(refused, 'onleesbaar doel');
+      ipc.choose(refused);
+      await withPlanOnlyAnswers({ ifcxSaveAs: true }, async () => { await store.getState().saveFileAs(); });
+      assert.deepEqual(errors(store), ['notifications.ifcUnreadableTargetSave']);
+      assert.equal(readFileSync(refused, 'utf8'), 'onleesbaar doel');
+      assert.deepEqual(timeline.slice(1), ['merge@1', 'ifcx@2']);
+      clearNotices(store);
+      assert.equal(store.getState().fileFormat, 'ifc');
+      assert.equal(store.getState().filePath, model);
+      assert(store.getState().ifcSource?.foreign);
+      assert.equal(store.getState().project.ifcSchemaUnconfirmed, 'IFC4', 'het IFC-document houdt zijn vraag');
+
+      ipc.choose(target);
+      await withPlanOnlyAnswers({ ifcxSaveAs: true }, async asked => {
+        await store.getState().saveFileAs();
+        assert.deepEqual(asked, ['ifcxSaveAs']);
+      });
+      assert.deepEqual(timeline.slice(-2), ['merge@2', 'ifcx@3']);
+      assert.deepEqual(errors(store), []);
+      assert.deepEqual(schemas, []);
+      const written = bytesAt(target);
+      assert(isIfcxText(written));
+      assert.ok(!text(written).includes('"ifcSchemaUnconfirmed"'), 'ook de IFCX-velddefinitie is weg');
+      const planning = readIfcx(written);
+      assert.equal(planning.tasks.length, store.getState().tasks.length);
+      assert.equal(planning.project.ifcSchemaUnconfirmed, undefined, 'het geschreven IFCX draagt geen schemavraag');
+      assert.equal(store.getState().project.ifcSchemaUnconfirmed, undefined, 'de vraag is uit het tabblad');
+      assert.equal(store.getState().filePath, target);
+      assert.equal(store.getState().ifcSource, null);
+      assert.equal(store.getState().foreignSourceMark?.sourceMissing, false);
+      assert.equal(store.getState().isDirty, false);
+
+      const current = reopen ? await openAt(target, BOTH_ON) : store;
+      if (reopen) {
+        assert.equal(shown(current.getState().tasks), shown(store.getState().tasks));
+      } else {
+        current.getState().undo();
+        assert.equal(current.getState().tasks.find(t => t.id === task.id)?.name, task.name);
+      }
+      assert.equal(current.getState().fileFormat, 'ifcx');
+      assert.equal(current.getState().project.ifcSchemaUnconfirmed, undefined);
+      assert.equal(current.getState().project.ifcSchema, 'IFC4');
+      shiftFirstTask(current);
+      const saved = await save(current);
+      assert.deepEqual(schemas, [], 'Ctrl+S zonder schemavraag');
+      assert.equal(saved, true);
+      assert.deepEqual(errors(current), []);
+      const updated = bytesAt(target);
+      assert(isIfcxText(updated) && hash(updated) !== hash(written));
+      assert.equal(shown(readIfcx(updated).tasks), shown(current.getState().tasks));
+
+      const back = join(dir, `bonsai-${route}-terug.ifc`);
+      ipc.choose(back);
+      await current.getState().saveFileAs();
+      assert.deepEqual(schemas, [], 'Opslaan als zonder schemavraag');
+      assert.deepEqual(errors(current), []);
+      assert.equal(current.getState().filePath, back);
+      assert.equal(headerSchema(bytesAt(back)), 'IFC4');
+      assert.equal(readIFC(text(bytesAt(back))).project.ifcSchemaUnconfirmed, undefined);
+      assert.equal(hash(bytesAt(model)), hash(original), 'het bronmodel bleef byte-gelijk');
+    } finally { ipc.dispose(); resetIfcSchemaAsker(); }
+  });
+}
+
+await check('een eerder geschreven IFCX met een open vraag kan rechtstreeks terug naar IFC', async () => {
+  const ipc = desktop();
+  const asked: string[] = [];
+  setIfcSchemaAsker(async question => { asked.push(question.fileSchema); return null; });
+  try {
+    const path = join(dir, 'oude-schemavraag.ifcx');
+    const legacy = text(own).replace('            "wbsAutoNumber": {', [
+      '            "ifcSchemaUnconfirmed": {', '              "dataType": "String",', '              "optional": true',
+      '            },', '            "wbsAutoNumber": {',
+    ].join('\n'));
+    assert.equal(classifyIfcx(new TextEncoder().encode(legacy)), 'own', 'oud schema zonder open vraag');
+    const marked = legacy.replace('"ifcSchema":"IFC4X3_ADD2"', '"ifcSchema":"IFC4","ifcSchemaUnconfirmed":"IFC4"');
+    writeFileSync(path, marked);
+    const old = readIfcx(bytesAt(path));
+    assert.equal(old.project.ifcSchema, 'IFC4');
+    assert.equal(old.project.ifcSchemaUnconfirmed, undefined);
+    const malformed = marked.replace('"ifcSchemaUnconfirmed":"IFC4"', '"ifcSchemaUnconfirmed":42');
+    assert.equal(classifyIfcx(new TextEncoder().encode(malformed)), 'unreadable');
+    assert.equal(classifyIfcx(new TextEncoder().encode(marked.trimEnd())), 'unreadable', 'ook het oude profiel toetst de bytes');
+    const store = await openAt(path, IFCX_ON);
+    const back = join(dir, 'oude-schemavraag-terug.ifc');
+    ipc.choose(back);
+    await store.getState().saveFileAs();
+    assert.deepEqual(asked, [], 'geen schemavraag vóór de kiezer');
+    assert.deepEqual(errors(store), []);
+    assert.equal(headerSchema(bytesAt(back)), 'IFC4');
+    assert.equal(readIFC(text(bytesAt(back))).project.ifcSchemaUnconfirmed, undefined);
+  } finally { ipc.dispose(); resetIfcSchemaAsker(); }
+});
+
+await check('een oude STEP-herstelsnapshot of IFC-bewerking in een IFCX-tabblad neemt de schemavraag niet over', async () => {
+  const { store } = await newApp(IFCX_ON);
+  const snapshot = readIFC(writeIFC(maximalFixture));
+  assert.equal(snapshot.project.ifcSchemaUnconfirmed, 'IFC4');
+  const recovered = { ...snapshot, id: 'herstel-ifcx', filePath: null, isDirty: true, datesAsRecorded: false, ifcx: { known: null } };
+  assert.deepEqual(store.getState().restoreDocuments([recovered], recovered.id).skippedIds, []);
+  assert.equal(store.getState().fileFormat, 'ifcx');
+  assert.equal(store.getState().project.ifcSchema, 'IFC4');
+  assert.equal(store.getState().project.ifcSchemaUnconfirmed, undefined);
+  store.getState().applyProjectEdit(snapshot);
+  assert.equal(store.getState().fileFormat, 'ifcx');
+  assert.equal(store.getState().project.ifcSchemaUnconfirmed, undefined);
+});
+
+await check('een open schemavraag bij IFC naar IFC komt vóór de kiezer, met de flag aan en uit', async () => {
+  const hashes: string[] = [];
+  for (const flags of [{}, IFCX_ON]) {
+    const ipc = desktop();
+    try {
+      const { store, timeline } = await tracedApp(flags, ipc);
+      await openInto(store, maximalPath);
+      const asked: string[] = [];
+      setIfcSchemaAsker(async question => {
+        asked.push(question.fileSchema);
+        assert.deepEqual(timeline, []);
+        assert.equal(ipc.dialogs.length, 0);
+        return question.keep;
+      });
+      const target = join(dir, `schema-behouden-${flags.ifcx ? 'aan' : 'uit'}.ifc`);
+      ipc.choose(target);
+      await store.getState().saveFileAs();
+      assert.deepEqual(asked, ['IFC4']);
+      assert.deepEqual(errors(store), []);
+      const bytes = bytesAt(target);
+      assert.equal(headerSchema(bytes), 'IFC4');
+      assert.equal(readIFC(text(bytes)).project.ifcSchemaUnconfirmed, undefined);
+      hashes.push(hash(bytes));
+    } finally { ipc.dispose(); resetIfcSchemaAsker(); }
+  }
+  assert.equal(hashes[0], hashes[1], 'dezelfde IFC-bytes met beide flagstanden');
+});
+
+await check('een planning uit een XER-import naar IFCX: de melding over het P6-bronarchief; annuleren schrijft niets, doorgaan schrijft zonder archief en het document laat het archief los', async () => {
+  const ipc = desktop();
+  try {
+    const xerPath = join(dir, 'p6-import.xer');
+    writeFileSync(xerPath, readFileSync(join(root, 'tests/browser/fixtures/xer/zonder-bijzonderheden.xer')));
+    const { store, timeline } = await tracedApp(IFCX_ON, ipc);
+    await store.getState().openOpenedFile({ name: 'p6-import.xer', content: '', bytes: bytesAt(xerPath), ref: { kind: 'path', path: xerPath } });
+    assert.deepEqual(errors(store), []);
+    assert(store.getState().xerSourceArchive, 'het document draagt het P6-bronarchief');
+    const renamed = store.getState().tasks.find(t => t.childIds.length === 0)!.id;
+    store.getState().updateTask(renamed, { name: 'Hernoemd vóór IFCX' });
+    const target = join(dir, 'p6-import.ifcx'); ipc.choose(target);
+    await withPlanOnlyAnswers({ ifcxXerArchive: false }, async asked => {
+      await store.getState().saveFileAs();
+      assert.deepEqual(asked, ['ifcxXerArchive']);
+    });
+    assert.deepEqual(errors(store), []);
+    assert.equal(existsSync(target), false);
+    assert.deepEqual(timeline, ['ifc@0']);
+    assert(store.getState().xerSourceArchive, 'na annuleren houdt het document het archief');
+    assert.equal(store.getState().fileFormat, 'ifc');
+    await withPlanOnlyAnswers({ ifcxXerArchive: true }, async asked => {
+      await store.getState().saveFileAs();
+      assert.deepEqual(asked, ['ifcxXerArchive']);
+    });
+    assert.deepEqual(errors(store), []);
+    assert.deepEqual(timeline.slice(1), ['ifc@1', 'ifcx@2']);
+    const written = bytesAt(target);
+    assert(isIfcxText(written));
+    assert.equal(store.getState().fileFormat, 'ifcx');
+    assert.equal(store.getState().xerSourceArchive, null, 'het archief is uit het document');
+    assert.equal(store.getState().xerImportMetadata, null);
+    assert.equal(store.getState().xerSourceProjectId, null);
+    assert.equal(store.getState().isDirty, false);
+    store.getState().updateTask(renamed, { name: 'Hernoemd na IFCX' });
+    assert.equal(await save(store), true, 'Ctrl+S daarna weigert niet op het archief');
+    assert.deepEqual(errors(store), []);
+    assert(isIfcxText(bytesAt(target)));
+    const reopened = await openAt(target, IFCX_ON);
+    assert.deepEqual(errors(reopened), []);
+    assert.equal(shown(reopened.getState().tasks), shown(store.getState().tasks));
+    assert.equal(reopened.getState().tasks.find(t => t.id === renamed)?.name, 'Hernoemd na IFCX');
+  } finally { ipc.dispose(); }
+});
+
+await check('de extensie volgt het gekozen type; met de flag uit plakt het venster .ifc erachter zoals main', async () => {
+  const ipc = desktop();
+  try {
+    const stepPath = join(dir, 'extensie.ifc'); writeFileSync(stepPath, ownStep);
+    const ifcxPath = join(dir, 'extensie.ifcx'); writeFileSync(ifcxPath, own);
+    const cases: [string, FeatureFlagValues, string, string, 'ifc' | 'ifcx'][] = [
+      [stepPath, IFCX_ON, 'zonder-type', 'zonder-type.ifc', 'ifc'],
+      [ifcxPath, IFCX_ON, 'zonder-type-x', 'zonder-type-x.ifcx', 'ifcx'],
+      [stepPath, IFCX_ON, 'hoofdletters.IFCX', 'hoofdletters.IFCX', 'ifcx'],
+      [ifcxPath, IFCX_ON, 'naar-ifc.ifc', 'naar-ifc.ifc', 'ifc'],
+      [stepPath, {}, 'uit.ifcx', 'uit.ifcx.ifc', 'ifc'],
+    ];
+    for (const [source, flags, chosen, expected, format] of cases) {
+      const store = await openAt(source, flags.ifcx ? flags : IFCX_ON);
+      setFlags(store, flags);
+      ipc.choose(join(dir, chosen));
+      await store.getState().saveFileAs();
+      assert.deepEqual(errors(store), [], chosen);
+      assert.equal(store.getState().filePath, join(dir, expected), chosen);
+      assert.equal(store.getState().fileFormat, format, chosen);
+      assert(format === 'ifcx' ? isIfcxText(bytesAt(join(dir, expected))) : isStep(bytesAt(join(dir, expected))), chosen);
+    }
+    assert.deepEqual(ipc.dialogs.at(-1)!.filters, [IFC_FILTER], 'met de flag uit alleen IFC in het venster');
+  } finally { ipc.dispose(); }
+});
+
+for (const [label, off, on] of [['zonder ifcForeignContent', {}, IFCX_ON], ['met ifcForeignContent', { ifcForeignContent: true }, BOTH_ON]] as const) {
+  await check(`hetzelfde type (${label}): Opslaan als naar een nieuwe en een bestaande naam en Ctrl+S geven met de flag aan dezelfde bytes, berekeningen en bestandsaanroepen als met de flag uit`, async () => {
+    const runs: { bytes: string[]; steps: string[][]; timeline: Timeline; filters: unknown[] }[] = [];
+    for (const [variant, flags] of [['gelijk', off], ['zelfde', on]] as const) {
+      const ipc = desktop();
+      try {
+        const source = join(dir, `${label.replace(/ /g, '-')}-${variant}-bron.ifc`); writeFileSync(source, ownStep);
+        const existing = join(dir, `${label.replace(/ /g, '-')}-${variant}-bestaand.ifc`); writeFileSync(existing, ownStep);
+        const { store, timeline } = await tracedApp(flags, ipc);
+        await openInto(store, source);
+        const run = { bytes: [] as string[], steps: [] as string[][], timeline, filters: [] as unknown[] };
+        for (const target of [join(dir, `${label.replace(/ /g, '-')}-${variant}-nieuw.ifc`), existing]) {
+          shiftFirstTask(store);
+          const from = ipc.calls.length;
+          ipc.choose(target);
+          await store.getState().saveFileAs();
+          assert.deepEqual(errors(store), []);
+          assert.equal(store.getState().filePath, target);
+          run.steps.push(ipcSteps(ipc, from));
+          run.bytes.push(hash(bytesAt(target)));
+        }
+        shiftFirstTask(store);
+        const from = ipc.calls.length;
+        assert.equal(await save(store), true);
+        run.steps.push(ipcSteps(ipc, from));
+        run.bytes.push(hash(bytesAt(existing)));
+        run.filters = ipc.dialogs.map(d => d.filters);
+        runs.push(run);
+      } finally { ipc.dispose(); }
+    }
+    const [main, branch] = runs;
+    assert.deepEqual(branch.bytes, main.bytes, 'dezelfde bytes');
+    assert.deepEqual(branch.steps, main.steps, 'dezelfde bestandsaanroepen in dezelfde volgorde');
+    assert.deepEqual(branch.timeline, main.timeline, 'dezelfde berekeningen, vóór het venster');
+    assert.deepEqual(main.timeline, ['ifc@0', 'ifc@1', 'ifc@2']);
+    assert.deepEqual(main.filters, [[IFC_FILTER], [IFC_FILTER]], 'met de flag uit alleen IFC in het venster');
+    assert.deepEqual(branch.filters, [[IFC_FILTER, IFCX_FILTER], [IFC_FILTER, IFCX_FILTER]], 'met de flag aan beide typen');
+  });
+}
+
+await check('hetzelfde type bij een IFCX-document: één berekening vóór het venster, geen vraag', async () => {
+  const ipc = desktop();
+  try {
+    for (const flags of [IFCX_ON, BOTH_ON]) {
+      const path = join(dir, `zelfde-type-${flags.ifcForeignContent ? 'beide' : 'ifcx'}.ifcx`); writeFileSync(path, own);
+      const { store, timeline } = await tracedApp(flags, ipc);
+      await openInto(store, path);
+      shiftFirstTask(store);
+      const before = ipc.dialogs.length;
+      const target = join(dir, `zelfde-type-${flags.ifcForeignContent ? 'beide' : 'ifcx'}-kopie.ifcx`); ipc.choose(target);
+      await withPlanOnlyAnswers({}, async asked => {
+        await store.getState().saveFileAs();
+        assert.deepEqual(asked, []);
+      });
+      assert.deepEqual(errors(store), []);
+      assert.deepEqual(timeline, [`ifcx@${before}`]);
+      assert(isIfcxText(bytesAt(target)));
+    }
   } finally { ipc.dispose(); }
 });
 
