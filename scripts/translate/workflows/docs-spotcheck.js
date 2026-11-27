@@ -3,9 +3,6 @@ export const meta = {
   description: 'Steekproef: een sterker model leest vertaalde Help-artikelen na tegen de Engelse bron',
   phases: [{ title: 'Steekproef' }],
 }
-// Na een docs-run (skill update-docs-lang): per taal één agent die een paar artikelen naleest.
-// args: { repo, langs: [taal…], ids: [artikel-id…], model: 'sonnet' }
-// Uitvoer per taal: oordeel (goed / redelijk / zwak), bevindingen met letterlijke vervangtekst, patronen.
 const SCHEMA = {
   type: 'object',
   properties: {

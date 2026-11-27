@@ -1,5 +1,3 @@
-/** Zelfstandige XER-resourcekern. Broncatalogus is bestandsbreed; projectprojecties blijven mutable. */
-
 import type { Resource, ResourceType } from '@/types/resource';
 import type {
   XerCurvePoints, XerEntityIdentity, XerReadonly, XerResourceCurveSource, XerResourceIssue,
@@ -101,16 +99,9 @@ function readRatesForKind(tables: XerTables, kind: 'RESOURCE' | 'ROLE', ownerIds
       line: row.line, ...(date ? { effectiveDate: date } : {}), maxUnitsPerTime: numberOf(tables, row, table, 'max_qty_per_hr'), costs };
   });
 }
-/**
- * Bevriest de volledige catalogusgrafiek in-place. De parser levert XerRow-objecten al bevroren;
- * deze doorloop behoudt die referenties dus precies zoals zij uit de tabelparser kwamen en maakt
- * geen tweede (potentieel zeer grote) raw-row-kopie.
- */
 function deepFreeze<T>(value: T, seen = new Set<object>()): T {
   if (value === null || typeof value !== 'object') return value;
   const object = value as object;
-  // Parserrijen en hun cellmaps zijn al runtime-bevroren. Niet opnieuw door hun volledige,
-  // potentieel tienduizenden rijen tellende objectgraaf lopen is essentieel voor rehab-2.
   if (Object.isFrozen(object)) return value;
   if (seen.has(object)) return value;
   seen.add(object);
@@ -121,23 +112,6 @@ function deepFreeze<T>(value: T, seen = new Set<object>()): T {
   return value;
 }
 
-/**
- * Bouw één bestandsbrede, immutable broncatalogus. TASKRSRC-rijen worden niet hier geprojecteerd.
- *
- * `flatCapacityByResource`: de OPS-UDF `OPS_FlatCapacity` van een eigen export (`xerOpsMarkers.ts`). Een
- * resource met vaste capaciteit schrijft de app als één RSRCRATE-rij (P6 wil daar de capaciteit zien,
- * review PR #393 punt 4). Zonder deze regel werd die rij na heropenen een stap, en volgde de capaciteit
- * daarna een nieuwe *Max. eenheden* niet meer (ronde 2, punt D). Met de UDF blijft de capaciteit vlak, maar
- * alleen als de resource nog precies die ene rij heeft met de geschreven `max_qty_per_hr`; anders (in P6
- * gewijzigd) leest hij zoals elk ander bestand.
- *
- * `capacityStepsByResource`: de OPS-UDF `OPS_CapacitySteps`. OPS kent de capaciteit van materiaal per dag;
- * de schrijver zet een stap per uur in `max_qty_per_hr`, zoals P6 hem leest. Zonder record leest de stap
- * dat getal ongeschaald (zoals op main), dus 40 m³ per dag kwam terug als 5. Met het record krijgt een
- * stap van materiaal haar dagwaarde terug, maar alleen zolang de rij nog de geschreven waarde draagt en
- * haar startdatum één keer voorkomt; anders leest die rij zoals elk ander bestand.
- * Een bestand zonder deze UDF's verandert hier niet.
- */
 export function buildXerResourceCatalog(
   tables: XerTables,
   availableCalendarIds: ReadonlySet<string>,
@@ -233,7 +207,6 @@ function cloneCurveSource(source: XerReadonly<XerResourceCurveSource>): XerResou
   };
 }
 
-/** Projectbound: kopieert uitsluitend de mutable projectprojectie en leest alleen zijn lineair gevonden TASKRSRC-rijen. */
 export function materializeXerResources(catalog: XerResourceCatalog, tables: XerTables, context: XerResourceReadContext, assignmentRows: readonly XerRow[]): XerResourceReadResult {
   const resources = structuredClone(catalog.resources) as Resource[];
   const assignments = readXerResourceAssignments(tables, context, resources, catalog.rows.resources, catalog.rows.roles, catalog.rows.rates, catalog.rows.curves, assignmentRows);

@@ -20,13 +20,8 @@ export type { XerBaselineFallbackReason, XerDocumentExternalLink } from '@/servi
 
 export interface XerMultiProjectImport extends MultiDocumentImport {
   documents: XerMultiProjectDocument[];
-  /** Alle niet-lege, door de productreader gemapte taakprojecten, óók projecten die alleen
-   *  als baseline materialiseert en daarom niet als document openen. Dit is echte solverinvoer,
-   *  geen P6-uitvoer/orakelprojectie; productfidelity kan zo iedere taakdragende bron exact één
-   *  keer oplossen zonder de gebruikerszichtbare documentselectie te veranderen. */
   taskProjects: XerMultiProjectDocument[];
   activeProjectId: string | null;
-  /** Cross-projectbrondata tussen geopende documenten; bewust geen Sequence/Task.externalLinks. */
   externalLinks: XerDocumentExternalLink[];
   report: XerMultiProjectReport;
 }
@@ -39,7 +34,6 @@ interface BaselineDecision {
   reasons: XerBaselineFallbackReason[];
 }
 
-/** Clone de projectpayload zonder het bestandsbrede raw-archief P keer te materialiseren. */
 function cloneMappedProject(result: XerReadResult): XerReadResult {
   const scheduleOptions = result.xer.scheduleOptions;
   const archive = scheduleOptions.sourceArchive;
@@ -60,8 +54,6 @@ function cloneMappedProject(result: XerReadResult): XerReadResult {
   clone.xer.scheduleOptions.sourceArchive = archive;
   clone.xer.scheduleOptions.sourceRows = clone.xer.scheduleOptions.sourceRowIndexes
     .map(rowIndex => archive.rows[rowIndex]);
-  // Raw TASKRSRC kan in rehab-2 52.640 rijen beslaan. Catalogus en raw projectview zijn bewust
-  // referentie-identiek; structuredClone is uitsluitend voor de mutable documentprojectie.
   if (resourceMetadata) clone.xer.resources = resourceMetadata;
   if (metadata) clone.xer.metadata = metadata;
   return clone;
@@ -105,17 +97,6 @@ function hasNonSelfCycle(targetByProject: ReadonlyMap<string, string>): boolean 
   return false;
 }
 
-/**
- * Beslis welke aanwezige baselineprojecten als gewone documenten worden uitgesloten.
- *
- * Alleen niet-lege projecten kunnen eigenaar van een baselinekoppeling zijn: een PROJECT-rij die
- * zelf wordt overgeslagen mag geen ander, niet-leeg project uit de openlijst drukken. De aldus
- * begrensde uitsluiting is alleen veilig voor een acyclische hoofdproject→baselinegraaf die
- * minstens één niet-leeg gewoon document overlaat. Een zelfverwijzing, een wederzijdse/langere
- * cyclus of een verzameling waarin elk niet-leeg project als baseline is aangewezen neemt daarom
- * de HELE uitsluiting voor dit bestand terug. Zo kan baselineherkenning nooit nul documenten
- * produceren; alle niet-lege projecten openen dan gewoon en het verslag draagt elke reden.
- */
 function decideBaselineExclusion(
   projectRows: readonly XerRow[],
   nonEmptyProjectIds: ReadonlySet<string>,
@@ -124,9 +105,6 @@ function decideBaselineExclusion(
   const targetByProject = new Map<string, string>();
   for (const projectRow of projectRows) {
     const ownerProjectId = projectRow.cells.proj_id;
-    // Een overgeslagen lege PROJECT-rij is geen geopend hoofdproject en kan dus ook geen
-    // baseline-eigenaar zijn. Zijn verwijzing blijft wel als bronfeit meetellen (dangling e.d.),
-    // maar mag nooit een niet-leeg project uit de documentselectie drukken.
     if (!nonEmptyProjectIds.has(ownerProjectId)) continue;
     const target = projectRow.cells.sum_base_proj_id?.trim() ?? '';
     if (target && projectIds.has(target)) targetByProject.set(ownerProjectId, target);
@@ -206,7 +184,6 @@ function collectExternalLinks(documents: readonly XerMultiProjectDocument[]): Xe
   return links;
 }
 
-/** Bouw de documentselectie uit de tabellen en de geïnjecteerde per-projectmapping. */
 export function assembleXerMultiProjectImport(
   tables: XerTables,
   mapProject: XerProjectMapper,
@@ -236,8 +213,6 @@ export function assembleXerMultiProjectImport(
   const mappedByProject = new Map(
     nonEmptyProjectRows.map(projectRow => [
       projectRow.cells.proj_id,
-      // Eén bestand kan readers intern dezelfde kalender-/resourcearrays laten delen. Elke
-      // documentpayload krijgt daarom vóór baselineverrijking zijn eigen volledige objectgraaf.
       cloneMappedProject(mapProject(projectRow.cells.proj_id)),
     ]),
   );
@@ -291,10 +266,6 @@ export function assembleXerMultiProjectImport(
     baselineFallbackReasons: baselineDecision.reasons,
   };
 
-  // `externalLinks` alleen op de meervoudige wrapper bewaren is onvoldoende: zodra fileSlice de
-  // resultaten over documenten verdeelt verdwijnt die wrapper. Hang daarom aan ieder betrokken
-  // document een eigen kopie. Dit veld zit via `xerImportMetadata` in DOCUMENT_FIELDS en overleeft
-  // documentwissel/undo/recovery-input.
   for (const document of documents) {
     document.result.xer.externalLinks = externalLinks
       .filter(link => link.predecessor.projectId === document.projectId

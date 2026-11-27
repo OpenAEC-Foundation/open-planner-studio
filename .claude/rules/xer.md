@@ -163,3 +163,8 @@ Besluiten van de lezer van P6 XML: `docs/adr/0260-p6xml-lezen-export-van-ops-en-
 `0393-xer-lezen-statusdatum-geplande-datums-en-de-vorm-van-een-datum.md`, `0394-xer-lezen-duur-rest-en-lag-in-werkuren.md`,
 `0395-xer-lezen-status-en-voortgang.md`, `0396-xer-lezen-duursoort-werkregel-en-rekenuitvoer.md` en
 `0397-xer-lezen-resources-per-project.md`.
+
+### Besluiten in de rest van `src/services/xer/`
+
+`docs/adr/0590-xer-kalenders-basiskalender-en-weekendherstel.md`,
+`0591-xer-vastgelegde-rekenuitvoer-zonder-correctie.md` en `0592-xer-schrijven-projectknoop-materiaal-en-restwerk.md`.

@@ -1,44 +1,3 @@
-// `npm run translate -- <commando>` — de vertaalstraat (ontwerp: docs/superpowers/specs/2026-10-09-vertaalstraat-design.md).
-//
-//   validate-termbase                  schema + alle term-concepten in elke doeltaal (behalve nl/en)
-//   concepts-candidates [--size 300]   kandidaat-termen → build/translate/concepts/candidates-NN.json
-//   concepts-merge                     candidates-NN.out.json → i18n/termbase/concepts.json
-//   terms-lookup <taal> [--size 40] [--concepts <pad>]
-//                                      TBX-kandidaten per concept → build/translate/<taal>/terms-NN.json
-//   apply-terms <taal>                 groene terms-NN.out.json → i18n/termbase/<taal>.json (+ rapporten)
-//   prepare ui <taal> [--missing|--stale|--all] [--size 150]
-//                                      UI-pakketten → build/translate/<taal>/ui-<ns>-NN.json (+ check.mjs)
-//   prepare ui <taal> --avoid [--stale] vertalingen met een avoid-variant uit de termbase (reason "avoid",
-//                                      per item `previous` en `avoidHits`; opdracht prompts/ui-termfix.md)
-//   prepare ui <taal> --keys <bestand> precies de sleutels uit een JSON-lijst ["ns:pad", …] (met `previous`)
-//   prepare ui <taal> --open           --missing en --stale samen in één ronde (de nachtvertaling)
-//   prepare ui <taal> … --only <bestand> de selectie beperkt tot een JSON-lijst ["ns:pad", …] (doorsnede)
-//   settled --out <bestand>            nl-eenheden die af zijn (48 uur ongewijzigd op main tot HEAD, niet van
-//                                      een feature flag) als JSON-lijst voor --only
-//   night-guard <BASE>                 exit 1 als een first-parent-commit van origin/main na BASE de
-//                                      selectie-invoer raakte (de nacht vervalt dan)
-//   apply-findings <taal> <bestand>    [{ key: "ns:pad", fix }] na de harde poorten → src/i18n/locales/<taal>/
-//   bundle-check                       alleen build/translate/check.mjs bouwen
-//   apply ui <taal>                    groene UI-pakketten → src/i18n/locales/<taal>/ + i18n/ui-sources/<taal>.json
-//   prepare docs <taal> [--missing|--stale|--ids a,b] [--max-words 2500]
-//                                      docs-pakketten → build/translate/<taal>/<id>[-NN].src.md + .json (+ check.mjs,
-//                                      + pitfalls.md voor de nalezer uit prompts/pitfalls/)
-//   packages ui|docs <taal…> [--red]   open pakketten als JSON [[taal, id]] (invoer voor scripts/translate/workflows/);
-//                                      --red = alleen pakketten met uitvoer die niet groen keurt
-//   packages ui <taal…> --bundle <N>   dezelfde pakketten per taal in bundels tot N tekens: [[taal, [id, …]]]
-//   check-docs <taal> [id…]            pakketpoort op gepubliceerde artikelen (na herstel buiten de stations)
-//   apply docs <taal>                  groene docs-pakketten → public/docs/<taal>/<id>.md + index.json (C2)
-//                                      + i18n/docs-sources/<taal>.json (C3); herschikt ook artikelen zonder pakket
-//   rename-doc <oud> <nieuw>           hernoem een artikel in alle docstalen (bestand, links, C2, C3)
-//   remove-doc <id>                    verwijder een artikel uit alle docstalen (bestand, C2, C3)
-//   docs-budget <taal…> [--max-words N] grootste docs-pakket per taal in tekens en geschatte tokens (§ contextbudget)
-//   docs-literal                       voorbeeldnamen (soort c) opnieuw uit scripts/tutorial-project.ts en
-//                                      public/examples/*.ifc → i18n/docs-literal.json (sources)
-//   status [taal] [--strict]           per taal en namespace (en docs): ontbreekt / verouderd / actueel;
-//                                      --strict = releasepoort `npm run verify:translations` (exit 1 bij elk UI-gat of termbasefout;
-//                                      docsgaten alleen gemeld)
-//
-// Alle I/O staat hier; de logica zit in de pure modules ernaast (getoetst in tests/planning/check-translate-*.ts).
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -70,16 +29,10 @@ const LOCALES_DIR = join(ROOT, 'src/i18n/locales');
 const TERMBASE_DIR = join(ROOT, 'i18n/termbase');
 const SOURCES_DIR = join(ROOT, 'i18n/ui-sources');
 const WORK = join(ROOT, 'build/translate');
-/**
- * Zegels: per taal de sha-256 van elk pakketbestand zoals `prepare` het schreef. De agents schrijven in
- * `build/translate/`, deze map ligt daarbuiten. `apply` en `packages --red` keuren een pakket rood als het
- * na `prepare` veranderde (review PR #321): het pakket bepaalt wat `apply` als vertaald en actueel wegschrijft.
- */
 const SEAL_DIR = join(ROOT, 'build/translate-seal');
 const sealPath = (lang: string) => join(SEAL_DIR, `${lang}.json`);
 const sha = (text: string) => createHash('sha256').update(text, 'utf8').digest('hex');
 
-/** Leg de zegels vast van deze pakketbestanden (namen in `build/translate/<taal>/`). */
 function seal(lang: string, files: string[]): void {
   const seals = readSeals(lang);
   for (const f of files) seals[f] = sha(readFileSync(join(WORK, lang, f), 'utf8'));
@@ -87,7 +40,6 @@ function seal(lang: string, files: string[]): void {
   writeFileSync(sealPath(lang), toJson(seals));
 }
 
-/** Waarom deze pakketbestanden niet meer kloppen met hun zegel; leeg = in orde. */
 function sealErrors(lang: string, files: string[]): string[] {
   const seals = readSeals(lang);
   return files.flatMap(f => {
@@ -97,7 +49,6 @@ function sealErrors(lang: string, files: string[]): string[] {
   });
 }
 
-/** De zegels van een taal; een onleesbaar zegelbestand telt als leeg (dan is elk pakket "zonder zegel"). */
 function readSeals(lang: string): Record<string, string> {
   try {
     return readJsonOr<Record<string, string>>(sealPath(lang), {});
@@ -121,11 +72,6 @@ function writeJson(p: string, v: unknown): void {
 }
 const stamp = () => new Date().toISOString().replace(/[:.]/g, '-');
 
-/**
- * Zet oude bestanden met dit voorvoegsel opzij in `archive/<tijd>/` (niets gaat verloren), met hun
- * nalees-bestand (`review-<pakket>.json`): anders kan de hersteller van een nieuw pakket met dezelfde naam
- * de bevindingen van de vorige ronde lezen.
- */
 function archive(dir: string, prefix: string): void {
   if (!existsSync(dir)) return;
   const old = readdirSync(dir).filter(f => (f.startsWith(prefix) || f.startsWith(`review-${prefix}`)) && f.endsWith('.json'));
@@ -172,13 +118,10 @@ function checkLang(lang: string | undefined): string {
   return lang;
 }
 
-// ── Commando's ───────────────────────────────────────────────────────────────────────────────
-
 function validateTermbase(): void {
   const concepts = loadConcepts();
   let errors = 0;
   const files = existsSync(TERMBASE_DIR) ? readdirSync(TERMBASE_DIR).filter(f => f.endsWith('.json') && f !== 'concepts.json') : [];
-  // De talenlijst is leidend: ook een volledig ontbrekend bestand moet rood worden.
   const langs = [...new Set([...LOCALES.filter(l => l !== 'nl' && l !== 'en'), ...files.map(f => f.replace(/\.json$/, ''))])].sort();
   for (const lang of langs) {
     const r = validateLangTermbase(lang, loadTermbase(lang), concepts);
@@ -269,7 +212,6 @@ function applyTermsCmd(args: string[]): void {
   const concepts = loadConcepts();
   const checkOut = join(dir, 'terms-check-01.out.json');
   const mapFile = join(dir, 'terms-check-01.map.json');
-  // Eerst vertrouwen vaststellen, vóór de termbase of een rapport wordt overschreven.
   if (existsSync(checkOut)) {
     const checkSources = ['terms-check-01.json', 'terms-check-01.map.json'];
     if (checkSources.some(f => !existsSync(join(dir, f)))) fail('bronpakket of koppeltabel van de blinde controle ontbreekt');
@@ -291,7 +233,6 @@ function applyTermsCmd(args: string[]): void {
     outs.push(out as TermsOut);
   }
   if (outs.length === 0) fail(`geen groene terms-NN.out.json in build/translate/${lang}/`);
-  // Groene pakketten en rapporten blijven bruikbaar; ook de vroege rapport-return moet rood eindigen.
   if (refused) process.exitCode = 1;
   const tb = applyTerms(loadTermbase(lang) ?? {}, outs, concepts);
   writeJson(termbasePath(lang), tb);
@@ -301,8 +242,6 @@ function applyTermsCmd(args: string[]): void {
     writeFileSync(join(dir, 'inconsistencies.md'), inconsistencyReport(lang, outs, concepts));
     console.log(`OK  rapport: build/translate/${lang}/inconsistencies.md`);
   }
-  // Termen zonder bron (`model`) en zelf gekozen TBX-termen (`tbx-chosen`) krijgen een blinde controle:
-  // alleen de doelterm, ondoorzichtige id's. Bestaat de uitkomst al, dan wordt het rapport gemaakt.
   if (existsSync(checkOut) && existsSync(mapFile)) {
     const res = readJson<Record<string, { backTranslation: string; standard: boolean; suggestion?: string }>>(checkOut);
     const map = readJson<Record<string, string>>(mapFile);
@@ -392,7 +331,6 @@ function prepare(args: string[]): void {
     + (packs.length ? `, grootste ${Math.max(...sizes)} tekens` : ''));
 }
 
-/** Lees pakket + uitvoer; een onleesbaar of ongeldig bestand is een fout met naam, geen crash. */
 function tryReadPackage(pkgFile: string, outFile: string): { pkg: { id: string }; out: unknown } | { error: string } {
   const parse = (p: string): unknown => JSON.parse(readFileSync(p, 'utf8')) as unknown;
   try {
@@ -449,11 +387,6 @@ function applyUi(args: string[]): void {
   if (red) process.exit(1);
 }
 
-/**
- * `packages ui|docs <taal…> [--red]`: de open pakketten als JSON `[[taal, id], …]`, de invoer (`items`) voor de
- * workflows in `scripts/translate/workflows/`. Met `--red` alleen pakketten mét uitvoer die niet groen keurt
- * (die gaan opnieuw door de stations).
- */
 function packagesCmd(args: string[]): void {
   const [what, ...langArgs] = positional(args);
   if (what !== 'ui' && what !== 'docs') fail(`packages ${what ?? ''}: kies "ui" of "docs"`);
@@ -480,12 +413,11 @@ function packagesCmd(args: string[]): void {
           const result = what === 'ui'
             ? checkPackage(pkg, JSON.parse(readFileSync(out, 'utf8')) as unknown)
             : checkDocs(pkg as DocsPackage, readFileSync(join(dir, `${base}.src.md`), 'utf8'), readFileSync(out, 'utf8'));
-          // UI: ook de toets van apply (nl veranderd na prepare, andere taal); dan helpt alleen een nieuwe prepare.
           const ui = pkg as UiPackage;
           const stale = what === 'ui' ? packageMismatch(ui, nlByNs()[ui.namespace] ?? {}, lang) : [];
           const files = what === 'ui' ? [`${base}.json`] : [`${base}.json`, `${base}.src.md`];
           green = result.errors.length === 0 && stale.length === 0 && sealErrors(lang, files).length === 0;
-        } catch { /* onleesbaar = rood */ }
+        } catch { }
         if (green) continue;
       }
       items.push([lang, base]);
@@ -505,10 +437,6 @@ const git: Git = args => {
   return r.stdout;
 };
 
-/**
- * `settled --out <bestand>`: wat de nacht mag vertalen (plan nachtvertalingen §1), op HEAD: de nachtworktree
- * staat losgekoppeld op origin/main, en `prepare` leest daarna dezelfde nl en dezelfde flags.
- */
 function settledCmd(args: string[]): void {
   const out = option(args, '--out');
   if (!out || out.startsWith('--')) fail('settled --out <bestand>');
@@ -524,7 +452,6 @@ function settledCmd(args: string[]): void {
     + `${r.flagged} van een feature flag → ${out}`);
 }
 
-/** `night-guard <BASE>`: vervalt de nacht? (plan nachtvertalingen §3 stap 6). */
 function nightGuardCmd(args: string[]): void {
   const [base] = positional(args);
   if (!base) fail('night-guard <BASE>');
@@ -552,18 +479,14 @@ function applyFindingsCmd(args: string[]): void {
     for (const r of sk.reasons) console.log(`      ${r}`);
   }
   for (const w of res.warnings) console.log(`WW  ${w}`);
-  // De nl-bron veranderde niet: i18n/ui-sources/<taal>.json blijft zoals hij is.
   for (const [ns, obj] of res.targets) writeJson(join(LOCALES_DIR, lang, `${ns}.json`), obj);
   console.log(`${res.skipped.length ? 'XX' : 'OK'}  apply-findings ${lang}: ${res.applied.length} toegepast, ${res.skipped.length} overgeslagen`);
   if (res.skipped.length) process.exit(1);
 }
 
-// ── Docs-straat ──────────────────────────────────────────────────────────────────────────────
-
 const DOCS_DIR = join(ROOT, 'public/docs');
 const DOCS_SOURCES_DIR = join(ROOT, 'i18n/docs-sources');
 const DOCS_LITERAL = join(ROOT, 'i18n/docs-literal.json');
-/** Mappen onder public/docs die geen vertaling zijn. */
 const DOCS_NOT_A_LANG = new Set(['nl', 'en', 'img']);
 
 interface ManifestArticle { id: string; draft?: boolean }
@@ -582,14 +505,12 @@ function loadLiteral(): DocsLiteral {
   return readJson<DocsLiteral>(DOCS_LITERAL);
 }
 
-/** Talen met docsvertalingen: een map onder public/docs of een C3-bestand. */
 function docsLangs(): string[] {
   const dirs = readdirSync(DOCS_DIR).filter(d => !DOCS_NOT_A_LANG.has(d) && statSync(join(DOCS_DIR, d)).isDirectory());
   const c3 = existsSync(DOCS_SOURCES_DIR) ? readdirSync(DOCS_SOURCES_DIR).filter(f => f.endsWith('.json')).map(f => f.replace(/\.json$/, '')) : [];
   return [...new Set([...dirs, ...c3])].sort();
 }
 
-/** De niet-draft artikelen in manifest-volgorde, met en-bron en (als die er is) de vertaling. */
 const docsInputs = (lang: string): DocsArticleInput[] => manifestArticles().filter(a => !a.draft).map(a => {
   const md = readDoc('en', a.id);
   if (md === undefined) fail(`public/docs/en/${a.id}.md ontbreekt`);
@@ -607,21 +528,17 @@ function docsStates(lang: string): ArticleState[] {
   return docsInputs(lang).map(a => articleState(a.id, a.md, a.translated, sources[a.id], hashes));
 }
 
-/** De docs-pakketbestanden in een werkmap: per pakket de basisnaam (zonder `.src.md`). */
 const docsPackageBases = (dir: string): string[] =>
   existsSync(dir) ? readdirSync(dir).filter(f => f.endsWith('.src.md')).map(f => f.slice(0, -'.src.md'.length)).sort() : [];
 
-/** Zet oude docs-pakketten (`.src.md`, `.json`, `.out.md`) opzij in `archive/<tijd>/`. */
 function archiveDocs(dir: string, onlyIds?: string[]): void {
-  // Met --ids alleen de pakketten van die artikelen (een artikel kan `<id>-NN` heten); andere
-  // pakketten en hun vertaling blijven staan (anders verdwijnt lopend werk naar archive/).
   const bases = docsPackageBases(dir).filter(b => !onlyIds || onlyIds.some(id => b === id || new RegExp(`^${escapeRe(id)}-\\d+$`).test(b)));
   if (bases.length === 0) return;
   const to = join(dir, 'archive', stamp());
   mkdirSync(to, { recursive: true });
   for (const b of bases) {
     for (const ext of ['.src.md', '.json', '.out.md']) if (existsSync(join(dir, b + ext))) renameSync(join(dir, b + ext), join(to, b + ext));
-    const review = `review-${b}.json`; // zie archive(): geen oude bevindingen voor een nieuw pakket
+    const review = `review-${b}.json`;
     if (existsSync(join(dir, review))) renameSync(join(dir, review), join(to, review));
   }
   console.log(`..  ${bases.length} oud(e) docs-pakket(ten) verplaatst naar ${to.slice(ROOT.length + 1)}`);
@@ -657,7 +574,6 @@ const labelCounts = (p: DocsPackage) => (['a', 'b', 'c'] as const).map(k => `${k
 
 const PITFALLS_DIR = join(ROOT, 'scripts/translate/prompts/pitfalls');
 
-/** De valkuillijst voor de nalezer (`docs-review.md`): `_all.md` plus `<taal>.md` als die er is. */
 function pitfallsFor(lang: string): string {
   const parts = ['_all.md', `${lang}.md`].map(f => join(PITFALLS_DIR, f)).filter(f => existsSync(f)).map(f => readFileSync(f, 'utf8').trimEnd());
   return `${parts.join('\n\n')}\n`;
@@ -685,11 +601,6 @@ function prepareDocs(args: string[], lang: string): void {
   console.log(`OK  prepare docs ${lang} --${mode}${ids ? ` ${ids.join(',')}` : ''}: ${arts} artikel(en) in ${packs.length} pakket(ten) in build/translate/${lang}/`);
 }
 
-/**
- * `check-docs <taal> [id…]`: de pakketpoort (`checkDocs`) op gepubliceerde artikelen, tegen de huidige
- * en-bron. Voor herstel buiten de stations om (steekproef, skill update-docs-lang): `verify:docs` ziet
- * alleen de opbouw, deze poort ook inline code, getallen, labels en links per sectie.
- */
 function checkDocsCmd(args: string[]): void {
   const [langArg, ...given] = positional(args);
   const lang = checkLang(langArg);
@@ -698,9 +609,6 @@ function checkDocsCmd(args: string[]): void {
   const ids = given.length ? given : translated;
   const missing = ids.filter(id => !translated.includes(id));
   if (missing.length) fail(`check-docs ${lang}: geen vertaling van ${missing.join(', ')}`);
-  // Een verouderd artikel (en veranderde na de vertaling) zou de oude vertaling tegen de nieuwe en-bron
-  // keuren: rood zonder vertaalfout. Zonder id's (alle artikelen) noemt het commando die apart. Met id's
-  // (na een herstel) is zo'n artikel rood: ongekeurd mag het niet de commit in; eerst `prepare docs --ids`.
   const stale = new Set(docsStates(lang).filter(a => a.state === 'stale').map(a => a.id));
   const skipped = ids.filter(id => stale.has(id));
   if (skipped.length && !given.length) {
@@ -723,7 +631,6 @@ function checkDocsCmd(args: string[]): void {
   if (red) process.exit(1);
 }
 
-/** De en-UI-teksten, genormaliseerd zoals labels (een voorbeeldnaam die ook UI-tekst is, is soort a). */
 function enUiTexts(): Set<string> {
   const out = new Set<string>();
   const walk = (o: JsonObject) => {
@@ -736,7 +643,6 @@ function enUiTexts(): Set<string> {
   return out;
 }
 
-/** `docs-literal`: de voorbeeldnamen in i18n/docs-literal.json opnieuw uit het tutorialproject en de voorbeelden. */
 function docsLiteral(): void {
   const lit = loadLiteral();
   const ui = enUiTexts();
@@ -749,7 +655,6 @@ function docsLiteral(): void {
     const rel = `public/examples/${f}`;
     sources[rel] = literalCandidates(ifcNames(readFileSync(join(exDir, f), 'utf8')), ui);
   }
-  // Andere bronnen (kalendernamen in code, CSV) blijven staan.
   for (const [file, names] of Object.entries(lit.sources)) if (!(file in sources)) sources[file] = names;
   const next: DocsLiteral = { ...lit, sources };
   writeJson(DOCS_LITERAL, next);
@@ -771,7 +676,7 @@ function applyDocs(lang: string): void {
   const labelsOf = (i: number, text: string) => sectionLabels(i, text, index, literals).keys;
   const byArticle = new Map<string, { base: string; pkg: DocsPackage; src: string; out?: string }[]>();
   let unreadable = 0;
-  const brokenArticles = new Set<string>(); // een onleesbaar pakket: het hele artikel blijft staan
+  const brokenArticles = new Set<string>();
   for (const base of docsPackageBases(dir)) {
     let pkg: DocsPackage;
     try {
@@ -825,7 +730,6 @@ function applyDocs(lang: string): void {
     applied.push(...list.map(x => x.base));
     console.log(`OK  ${id}: ${m.fromPackages} sectie(s) uit ${list.length} pakket(ten), ${m.kept} behouden`);
   }
-  // Artikelen zonder pakket waarvan alleen secties verdwenen of verschoven: herschikken zonder agent.
   for (const art of inputs.values()) {
     if (byArticle.has(art.id) || art.translated === undefined || !sources[art.id]) continue;
     const st = articleState(art.id, art.md, art.translated, sources[art.id], hashes);
@@ -901,10 +805,6 @@ function removeDoc(args: string[]): void {
   console.log(`OK  remove-doc ${id}: ${removed} vertaling(en) verwijderd in ${docsLangs().length} taal/talen`);
 }
 
-/**
- * Contextbudget: per taal het grootste docs-pakket (alle artikelen heel). Invoer = .src.md + .json
- * (tekens / 3,5); uitvoer = de bron in de doeltaal (tekens / 3,5 × 1,6 voor Cyrillisch/Arabisch).
- */
 function docsBudget(args: string[]): void {
   const langs = positional(args).map(checkLang);
   if (langs.length === 0) fail('docs-budget <taal…>');
@@ -923,21 +823,12 @@ function docsBudget(args: string[]): void {
   }
 }
 
-/**
- * De releasepoort (besluit B5, 2026-10-10; verfijnd 2026-10-12): elke UI-sleutel in elke taal vertaald
- * en actueel (ontbreekt / verouderd / zonder hash), met de vaste doeltekst waar afgesproken, plus
- * een complete geldige termbase. De docs blokkeren de release niet: alleen nl en en moeten bij zijn
- * (dat zijn de bronnen), de andere talen mogen achterlopen. De poort meldt de docsgaten wel, zodat
- * je kunt kiezen of je `update-docs-lang` eerst draait.
- */
 const uiGaps = (lang: string): ReleaseGap[] => uiReleaseGaps(lang, nsInputs(lang), readJsonOr<UiSources>(sourcesPath(lang), {}));
-/** De docsgaten per taal: alleen een melding (`where` = `docs:<id>` of `docs:<id>#<sectie>`). */
 const docsGaps = (lang: string): ReleaseGap[] =>
   (lang !== 'en' && docsLangs().includes(lang) ? docsReleaseGaps(lang, docsStates(lang)) : []);
 
 const GAP_LABEL: Record<ReleaseGap['state'], string> = { missing: 'ontbreekt', stale: 'verouderd', unhashed: 'zonder hash', 'fixed-text': 'vaste tekst wijkt af' };
 
-/** `status --strict` = `npm run verify:translations`: geldige complete termbase en geen UI-gaten; docs alleen gemeld. */
 function strictStatus(langs: string[]): void {
   validateTermbase();
   let total = 0;
@@ -968,7 +859,6 @@ function strictStatus(langs: string[]): void {
 
 function status(args: string[]): void {
   const asked = positional(args)[0];
-  // De appregistratie bepaalt de vereiste talen, niet de nog aanwezige mappen (knownbug 200).
   const langs = asked ? [checkLang(asked)] : LOCALES.filter(lang => lang !== 'nl').sort();
   if (flag(args, '--strict')) { strictStatus(langs); return; }
   console.log('taal  namespace  ontbreekt  verouderd  actueel  (zonder hash)');

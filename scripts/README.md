@@ -59,7 +59,7 @@ de `verify:i18n`-poort. De overige scripts draaien via hun npm-script in de kete
 Termbase, UI- en docsvertaling door kleine Haiku-agents per werkpakket; ontwerp
 `docs/superpowers/specs/2026-10-09-vertaalstraat-design.md`. Logica in pure modules (getoetst in
 `tests/planning/check-translate-*.ts`), I/O alleen in `cli.ts`. Werkmap `build/translate/` en cache
-`build/cache/` staan in `.gitignore`.
+`build/cache/` staan in `.gitignore`. Kleinere keuzes in de code: `docs/adr/0600-vertaalstraat-keuzes-in-de-code.md`.
 
 | script | aangeroepen door | doet |
 |---|---|---|

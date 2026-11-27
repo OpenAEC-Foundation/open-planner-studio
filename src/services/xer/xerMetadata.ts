@@ -1,10 +1,3 @@
-/**
- * Bestandsbrede mapping voor P6-activitycodes, UDF's en taaknotities.
- *
- * De catalogus wordt precies één keer uit de tabellen afgeleid vóór de meerprojectenroute zijn
- * documenten maakt.
- * De projectview hieronder doet daarna uitsluitend lookup en kleine, mutable documentkopieën.
- */
 import type { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { formatDate, parseInstant } from '@/utils/dateUtils';
 import { parseXerNumber, type XerRow, type XerTables } from './xerTables';
@@ -222,9 +215,6 @@ function mapUdfs(
   tables: XerTables, owners: ReadonlyMap<string, readonly TaskOwner[]>, projections: Map<string, XerMetadataTaskProjection>,
   issues: XerMetadataIssue[], counts: Record<XerMetadataIssueCode, number>,
 ): { definitions: CustomFieldDef[]; deferred: XerRow[]; unknown: XerRow[] } {
-  // De OPS-UDF's van een eigen export (`xerOpsMarkers.ts`) zijn geen eigen velden van de gebruiker: hun
-  // definities en waarden vallen weg, zoals de P6 XML-lezer ze ook niet als veld toont. Zonder zo'n
-  // definitie (elk bestand uit P6 zelf) verandert hier niets.
   const allTypeRows = tables.tables.get('UDFTYPE')?.rows ?? [];
   const opsTypeIds = new Set(allTypeRows.filter(row => opsUdfFieldOf(row)).map(row => row.cells.udf_type_id.trim()));
   const typeRows = uniqueById(opsTypeIds.size > 0 ? allTypeRows.filter(row => !opsUdfFieldOf(row)) : allTypeRows,
@@ -268,8 +258,6 @@ function mapUdfs(
       projection.customFields = { ...(projection.customFields ?? {}), [typeId]: value };
     }
   }
-  // Het bestaande OPS-taakmodel kent alleen taakvelden; alle andere definities/waarden blijven
-  // volledig in de catalogus (en daarmee in het bronarchief).
   const definitions = [...known.entries()].filter(([, info]) => info.row.cells.table_name?.trim().toUpperCase() === 'TASK')
     .sort(([a], [b]) => compareText(a, b)).map(([id, info]) => ({ id, name: info.row.cells.udf_type_label || info.row.cells.udf_type_name || id, type: info.type }));
   return { definitions, deferred, unknown };
@@ -283,9 +271,6 @@ function mapNotes(
     const projection = ensureProjection(projections, owner);
     projection.notes = [...(projection.notes ?? []), note];
   };
-  // De notitievolgorde is een bestandscontract: TASK.task_notes eerst, daarna TASKNOTE en dan
-  // TASKMEMO; binnen elke brontabel blijft de fysieke %R-volgorde onaangeroerd. Zo is geen
-  // seq_num-interpretatie of deduplicatie nodig om gebruikersnotities stil te herschrijven.
   for (const row of tables.tables.get('TASK')?.rows ?? []) {
     if (!row.cells.task_notes) continue;
     const owner = resolveTask(row, row.cells.task_id?.trim() ?? '', owners, 'XER_NOTE_DANGLING_TASK', 'XER_NOTE_AMBIGUOUS_TASK', 'TASK', issues, counts);
@@ -327,7 +312,6 @@ function freezeCatalog<T>(value: T, seen = new Set<object>()): T {
   return value;
 }
 
-/** Bouw eenmaal de gehele catalogus, inclusief baselineprojecttaken die niet als document openen. */
 export function buildXerMetadataCatalog(tables: XerTables): XerMetadataCatalog {
   const issues: XerMetadataIssue[] = [];
   const counts = issueState();
@@ -358,7 +342,6 @@ export function buildXerMetadataCatalog(tables: XerTables): XerMetadataCatalog {
   return freezeCatalog(catalog);
 }
 
-/** Maak kleine, muteerbare documentdata zonder ooit de bestandsbrede raw-catalogus te kopiëren. */
 export function materializeXerMetadata(catalog: XerMetadataCatalog, projectId: string): XerMetadataProjectView {
   const taskMetadata = new Map<string, XerTaskMetadata>();
   const projectProjections = catalog.taskProjectionsByProject[projectId] ?? [];
