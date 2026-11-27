@@ -4,9 +4,9 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 ## In één oogopslag
 
-**Openen** kan met IFC, CSV, MS Project XML, Primavera P6 XML, `.mpp` en `.xer`. Een bestand met een andere extensie behandelt de app als IFC.
+**Openen** kan standaard met IFC, CSV, MS Project XML, Primavera P6 XML, `.mpp` en `.xer`. Bij *Bestand › Openen* met een onbekende extensie probeert de app het bestand als IFC te lezen.
 
-**Opslaan** schrijft altijd IFC. Alleen een geopend IFC-bestand wordt het opslagdoel; een project uit een ander formaat heeft na het openen nog geen bestand en *Opslaan* vraagt dan waar het IFC-bestand moet komen.
+**Opslaan** schrijft standaard IFC. Met schrijftoegang kan de app het geopende IFC-bestand bijwerken. In Firefox levert lokaal opslaan een download op. Een planning die je importeert uit CSV, XML, `.mpp` of `.xer` krijgt bij *Opslaan* een nieuw IFC-bestand.
 
 **Exporteren** kan naar IFC, MS Project XML, Primavera P6 XML, Primavera XER (`.xer`), CSV en een voortgangsblad (Excel). Een export verandert je project niet.
 
@@ -16,13 +16,13 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Waar.** Openen: *Start › Bestand › Openen*, *Bestand › Openen* of Ctrl+O. Exporteren: *Start › Bestand › Exporteren* of *Bestand › Exporteren*. Een ingevuld voortgangsblad lees je in via *Bestand › Importeren*, of met de knop *Voortgang bijwerken uit een blad* in de lintgroep *Voortgang* op de tabbladen *Planning*, *Tabel* en *Rapport*.
 
-**Rekenprofiel bij openen.** Elk formaat opent met een rekenprofiel; wat dat is, staat in [Rekenopties en conventies](docs://ref-rekenopties-en-conventies). `.xer` en P6 XML openen met *Primavera P6*, `.mpp` met *Microsoft Project*, en CSV en MS Project XML met *Open Planner Studio*. IFC houdt het profiel dat in het bestand staat. Bij `.xer`, P6 XML en `.mpp` meldt de app dat het project zo rekent. Alleen IFC neemt het rekenprofiel en alle reken-opties mee. Van de reken-opties schrijft MS Project XML hooguit de kritiek-drempel; een `.xer` en P6 XML schrijven de planningsinstellingen van P6. Een heropende export naar `.xer` of P6 XML rekent als *Primavera P6*, een heropende export van een ander formaat als *Open Planner Studio*.
+**Rekenprofiel bij openen.** Elk formaat opent met een rekenprofiel; wat dat is, staat in [Rekenopties en conventies](docs://ref-rekenopties-en-conventies). `.xer` en P6 XML openen met *Primavera P6*, `.mpp` met *Microsoft Project*, en CSV en MS Project XML met *Open Planner Studio*. IFC houdt het profiel dat in het bestand staat. Bij `.xer`, P6 XML en `.mpp` meldt de app dat het project zo rekent. Van de formaten onder *Exporteren* neemt IFC het rekenprofiel en alle reken-opties mee. Van de reken-opties schrijft MS Project XML hooguit de kritiek-drempel; een `.xer` en P6 XML schrijven de planningsinstellingen van P6. Een heropende export naar `.xer` of P6 XML rekent als *Primavera P6*, een heropende CSV- of MS Project XML-export als *Open Planner Studio*.
 
 ## IFC
 
 **Openen** — ja, `.ifc`. De app leest IFC4 en IFC 4.3 (ook ADD2). Een planning zonder gebouwmodel in een ander schema, zoals IFC2X3, opent ook. Een IFC2X3-bestand met een gebouwmodel opent niet. Bij het eerste opslaan kies je dan een schema dat de app kan schrijven (zie [Het IFC-schema kiezen](docs://howto-ifc-schema-kiezen)). Rekenprofiel: dat uit het bestand.
 
-**Opslaan** — ja, en het is het enige formaat dat opslaat. *Opslaan* schrijft je hele project als IFC-bestand, in het IFC-schema van het project (standaard IFC 4.3 ADD2). Het bestand wordt het opslagdoel.
+**Opslaan** — ja, in het IFC-schema van het project (standaard IFC 4.3 ADD2). Bij een gewone planning schrijft *Opslaan* terug naar het bestand als de app daar toegang toe heeft.
 
 **Exporteren** — ja, als *IFC*, in het IFC-schema van het project (standaard IFC 4.3 ADD2). Standaardnaam: de projectnaam met de extensie `.ifc`. Is je project gekoppeld aan een resourcebibliotheek, dan staat in *Bestand › Exporteren* onder de kaarten het vakje *Bibliotheekbestand ernaast opslaan*. Aangevinkt vraagt de app na het project ook om een plek voor *projectnaam-bibliotheek.ifc*. Het vakje staat niet in de lijst op het tabblad *Start*.
 
@@ -31,6 +31,16 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 **Planomvang in andere IFC-programma’s.** Het werkplan en werkschema bevatten de vroegste getoonde taakstart en het laatste getoonde taakeinde, ook van fasen. Een gestarte taak telt vanaf haar werkelijke start; een voltooide taak tot haar werkelijke einde. Anders gelden de berekende datums, of vóór berekenen de invoerdatums. In *Datums zoals opgeslagen* geldt de planning die je op dat moment ziet. Opslaan rekent niet opnieuw. De start- en einddatum die je zelf in *Projectinstellingen* hebt ingevuld, blijven apart bewaard, ook als ze leeg zijn.
 
 **Wat niet meegaat** — hoe je het scherm hebt ingesteld (zoom, scrollpositie, geselecteerde taak, ingeklapte fasen, gekozen filter en groepering) en de app-instellingen ([App-instellingen](docs://ref-instellingen)). Het tabblad *IFC* is een editor met de IFC-tekst van je project. *Genereer IFC* ververst haar en *Kopieer* zet haar op het klembord. *Toepassen* vervangt de inhoud van het huidige project als één stap voor *Ongedaan maken*. De bibliotheekkoppeling en het bestand waarnaar je opslaat blijven behouden. De bewerking staat op *Niet opgeslagen* totdat je opslaat.
+
+## IFCX
+
+**Openen en opslaan** — met de experimentele instelling *IFCX openen en opslaan* aan opent de app `.ifcx`-planningen die ze zelf schreef. Met schrijftoegang werkt *Opslaan* het geopende bestand bij. Bij lokaal *Opslaan als*, of bij *Opslaan* zonder schrijfbaar bestand, downloadt de browser een `.ifcx`-kopie. Zie [Een bestand openen en opslaan](docs://howto-bestand-openen-en-opslaan) voor de typekeuze in het opslagvenster van de desktop-app.
+
+**Wat meegaat** — met de experimentele instelling *IFCX openen en opslaan* aan bewaart het IFCX-formaat onder meer de taken, relaties, kalenders, resources, toewijzingen en baselines. Bij openen houdt de planning het opgeslagen rekenprofiel en de reken-opties.
+
+**Wat achterblijft** — met de experimentele instelling *IFCX openen en opslaan* aan bewaart een omzetting naar IFCX de planning. Bevat de bron een gebouwmodel of gegevens van andere programma's, dan vraagt de app of je alleen de planning wilt opslaan. Bij een planning uit een XER-import vraagt ze of je zonder het P6-bronarchief wilt doorgaan. Een ingesloten resourcebibliotheek gaat niet mee naar IFCX.
+
+**Exporteren** — met de experimentele instelling *IFCX openen en opslaan* aan is IFCX beschikbaar via *Bestand › Opslaan als* in de desktop-app. De lijst onder *Exporteren* bevat IFC.
 
 ## MS Project XML (MSPDI)
 
@@ -100,7 +110,7 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Wat de export meeneemt** — de WBS-structuur; activiteiten met duur, geplande en werkelijke datums, voortgang en twee constraints; relaties met lag; kalenders met werktijden, vrije dagen en werkende uitzonderingen; resources (arbeid, materieel en materiaal) met tarief en beschikbaarheid; toewijzingen met tempo, werk en urenverdeling; aantekeningen; de statusdatum; de planningsinstellingen van P6. De berekende datums en de speling staan er ook in. P6 toont ze tot je het project in P6 opnieuw doorrekent.
 
-**Wat de export niet meeneemt** — baselines, deadlines, activiteitcodes, eigen velden, externe relaties, beschrijvingen van taken, het vinkje bij een aantekening en de namen van vrije dagen. Een relatie met een samenvattingstaak wordt een relatie tussen de taken eronder. Een lag in procenten wordt een vaste lag, een lag in kalenderdagen een lag in werkuren. Een onderbreking valt weg. Na de export meldt de app *De XER-export is opgeslagen. Dit ging niet of niet precies mee:*, met per soort een regel en het aantal.
+**Wat de export niet meeneemt** — baselines, deadlines, activiteitcodes, eigen velden, externe relaties, beschrijvingen van taken, het vinkje bij een aantekening en de namen van vrije dagen. Een relatie met een samenvattingstaak wordt een relatie tussen de taken eronder. Een lag in procenten wordt een vaste lag, een lag in kalenderdagen een lag in werkuren. Een onderbreking valt weg. Herkent de app zulke verliezen, dan meldt ze na de export *De XER-export is opgeslagen. Dit ging niet of niet precies mee:*, met per soort een regel en het aantal. De melding noemt alleen de verliezen die de app herkent.
 
 **Tekens.** De app schrijft het bestand in Windows-1252, zoals P6. Past een teken daar niet in, zoals *Ł*, dan schrijft ze het hele bestand in UTF-8 en meldt ze hoeveel tekens het zijn. Controleer de tekst dan na de import in P6.
 
@@ -158,7 +168,7 @@ Een gevulde datumcel in een onherkende vorm stopt het openen van de hele CSV. De
 
 ## Zie ook
 
-- [Bestanden en formaten](docs://uitleg-bestanden): waarom IFC het eigen formaat is en wat een export verliest, met een voorbeeld.
+- [Bestanden en formaten](docs://uitleg-bestanden): wat de app in een bestand bewaart en wat een export verliest, met een voorbeeld.
 - [Een bestand openen en opslaan](docs://howto-bestand-openen-en-opslaan): de stappen.
 - [Exporteren](docs://howto-exporteren): een formaat kiezen en de meldingen na een export.
 - [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen): waarom een geopend bestand andere datums kan tonen.
