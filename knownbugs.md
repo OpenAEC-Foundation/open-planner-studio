@@ -881,13 +881,6 @@ en noem het in je rapport of PR-tekst.
      de eigen fase of met een lege tak als omgezet (ADR 0451); dat is niet nagespeeld. — B (plafond), S (andere
      weglatingen)
 
-2600. **DCMA punt 8 (lange duur) kan een urentaak in de baseline met de verkeerde maat tegen 44 werkdagen toetsen.**
-     `computeDcmaAssessment` (`src/engine/reports/dcmaAssessment.ts`) vergelijkt voor een taak in de actieve baseline
-     `BaselineTask.duration` rechtstreeks met 44; dat veld is `task.time.scheduleDuration` (`baselineSlice.ts`). Het
-     weggehaalde commentaar in `computeProgressReport` (`progressReport.ts`) zei dat `scheduleDuration` voor een
-     urentaak geen duur in werkdagen is en de taak daar 10× te zwaar liet wegen; daarom weegt dat rapport met de
-     huidige duur (ADR 0561). Alleen in de code gelezen, niet nagespeeld. — S
-
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
