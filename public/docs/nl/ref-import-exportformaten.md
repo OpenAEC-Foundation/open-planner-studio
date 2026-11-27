@@ -38,7 +38,7 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Wat meegaat** — met de experimentele instelling *IFCX openen en opslaan* aan bewaart het IFCX-formaat onder meer de taken, relaties, kalenders, resources, toewijzingen en baselines. Bij openen houdt de planning het opgeslagen rekenprofiel en de reken-opties.
 
-**Wat achterblijft** — met de experimentele instelling *IFCX openen en opslaan* aan bewaart een omzetting naar IFCX de planning. Bevat de bron een gebouwmodel of gegevens van andere programma's, dan vraagt de app of je alleen de planning wilt opslaan. Bij een planning uit een XER-import vraagt ze of je zonder het P6-bronarchief wilt doorgaan. Een planning met een ingesloten resourcebibliotheek weigert de app als IFCX op te slaan.
+**Wat achterblijft** — met de experimentele instelling *IFCX openen en opslaan* aan bewaart een omzetting naar IFCX de planning. Bevat de bron een gebouwmodel of gegevens van andere programma's, dan vraagt de app of je alleen de planning wilt opslaan. Bij een planning uit een XER-import vraagt ze of je zonder het P6-bronarchief wilt doorgaan. Een ingesloten resourcebibliotheek gaat niet mee naar IFCX.
 
 **Exporteren** — met de experimentele instelling *IFCX openen en opslaan* aan is IFCX beschikbaar via *Bestand › Opslaan als* in de desktop-app. De lijst onder *Exporteren* bevat IFC.
 

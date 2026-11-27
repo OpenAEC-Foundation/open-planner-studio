@@ -38,7 +38,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **What goes along** — with the experimental setting *Open and save IFCX* on, the IFCX format keeps tasks, relations, calendars, resources, assignments and baselines, among other data. When opened, the schedule keeps the saved calculation profile and options.
 
-**What stays behind** — with the experimental setting *Open and save IFCX* on, converting to IFCX keeps the schedule. If the source contains a building model or data from other programs, the app asks whether to save just the schedule. For a schedule imported from XER, it asks whether to continue without the P6 source archive. The app refuses to save a schedule with an embedded resource library as IFCX.
+**What stays behind** — with the experimental setting *Open and save IFCX* on, converting to IFCX keeps the schedule. If the source contains a building model or data from other programs, the app asks whether to save just the schedule. For a schedule imported from XER, it asks whether to continue without the P6 source archive. An embedded resource library is not included in IFCX.
 
 **Exporting** — with the experimental setting *Open and save IFCX* on, IFCX is available from *File › Save As* in the desktop app. The list under *Export* includes IFC.
 
