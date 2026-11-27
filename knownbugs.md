@@ -7730,21 +7730,6 @@ en noem het in je rapport of PR-tekst.
       al in main; gevonden bij de herstelronde van #1189 en bevestigd in review ronde 3 (Sol). Richting: het
       bronarchief herkennen vóór de STEP-rondgang en weigeren met `unsupported` en de veldnamen, of het profiel
       aanpassen aan wat er gebeurt. — B
-2392. **IFCX: de melding bij een geweigerd gesleept bestand noemt IFCX niet.** Met de experimentele instelling voor
-      IFCX aan opent de app een eigen `.ifcx`-bestand, ook door het te slepen. Sleept de planner een bestand dat de
-      app niet opent, dan zegt de melding `notifications.fileDropRefused` nog "De app opent alleen IFC, XML, MPP, XER
-      en CSV." (`src/state/fileDrop.ts`, vaste tekst in `common.json`). Alleen de tekst is onvolledig; het openen zelf
-      werkt. Gevonden bij het schrijven van de gids voor IFCX (#804, F3-7); de gids citeert alleen de eerste zin.
-      Richting: de lijst in de melding laten volgen wat de app op dat moment opent. Vóór de flag `ifcx` standaard aan
-      gaat. — B
-2393. **IFCX: elke onbekende IFCX-versie krijgt de melding "nieuwere versie".** De lezer weigert een bestand waarvan
-      `header.ifcxVersion` afwijkt van de versie die de app kent met de code `version`
-      (`src/services/ifc/ifcx/ifcxReader.ts`), en `src/services/formatRegistry.ts` toont daarvoor dezelfde melding als
-      voor een nieuwer profiel: "Dit IFCX-bestand heeft een nieuwere versie dan deze app kent. Open het met een
-      nieuwere versie van Open Planner Studio." Bij een oudere of een verminkte versie klopt dat advies niet. Het
-      bestand blijft ongemoeid. Gevonden bij het schrijven van de gids voor IFCX (#804, F3-7); de gids zegt dat de app
-      de versie niet ondersteunt. Richting: een eigen melding voor "deze versie wordt niet ondersteund", of ouder en
-      nieuwer onderscheiden. Vóór de flag `ifcx` standaard aan gaat. — B
 2394. **IFCX in de browser: Opslaan als verbreekt de koppeling met het geopende bestand.** Met de experimentele
       instelling voor IFCX aan opent Chrome of Edge een eigen `.ifcx`-bestand met een schrijfbare verwijzing, en
       Ctrl+S werkt dat bestand bij. Kiest de planner daarna *Opslaan als*, dan downloadt de app een kopie (in
@@ -7757,3 +7742,12 @@ en noem het in je rapport of PR-tekst.
       herstelronde van de gids voor IFCX (#804, F3-7); de gids beschrijft het gedrag zoals het is. Richting: in de
       browser het opslagvenster ook voor IFCX gebruiken, of de koppeling met het origineel houden na een download.
       Vóór de flag `ifcx` standaard aan gaat. — S
+2395. **XER-export: een ingevulde einddatum van het project gaat niet mee en staat niet in de verliesmelding.** Vult
+      de planner bij *Projectinstellingen* een einddatum in die na de laatste taak ligt, terwijl *Speling rekenen tot
+      de einddatum van het project* uit staat, dan laat de XER-schrijver die datum weg
+      (`src/services/xer/xerWriter.ts`), en de lezer leidt bij heropenen de einddatum af uit de taken
+      (`src/services/xer/xerReader.ts`). De verliesmelding na de export (`src/state/xerExportNotice.ts`) heeft er geen
+      regel voor. De IFC-schrijver bewaart de ingevulde datum wel. Ook op main. Gevolgd in de code door de reviewer
+      van de gids voor IFCX (#1303, ronde 2), niet nagespeeld in de app; de gids zegt daarom dat de melding alleen de
+      verliezen noemt die de app herkent. Richting: een regel in de verliesmelding voor de ingevulde einddatum, of de
+      datum meeschrijven. — S
