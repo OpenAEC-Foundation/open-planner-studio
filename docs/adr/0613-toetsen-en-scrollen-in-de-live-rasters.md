@@ -1,7 +1,7 @@
 # Toetsen en scrollen in de live rasters
 
-De resourcetabel en de fasentabel van het contourvenster zijn formulierrasters: elke cel is altijd een echt
-invoerveld, en de cursor is de focus van de DOM. Het taakraster is een spreadsheet met één editor tegelijk en een
+De resourcetabel en de fasentabel van het contourvenster zijn formulierrasters: elke bewerkbare cel is altijd een
+echt invoerveld, en de cursor is de focus van de DOM. Het taakraster is een spreadsheet met één editor tegelijk en een
 cursor in React-state. Die twee mechanieken zijn bewust niet samengevoegd; het taakraster heeft zijn eigen toetsbeleid
 (`resolveTaskGridCommand`) en deelt met `src/utils/gridNavigation.ts` alleen `GridKeyEventLike`.
 

@@ -1,8 +1,8 @@
 # Datum- en tijdteksten in elke taal
 
-Datums die de app met `Intl` schrijft, staan altijd op de Gregoriaanse kalender en in Latijnse cijfers, ook als de
-maand- en dagnamen vertaald zijn: `gregorianDateFormat` (`src/utils/monthLabel.ts`) en `formatLocalDateTime`
-(`src/utils/displayTime.ts`) zetten `-u-ca-gregory-nu-latn` achter de taal. Zonder die toevoeging kiest `Intl` in het
+Datums uit `gregorianDateFormat` (`src/utils/monthLabel.ts`) en `formatLocalDateTime`
+(`src/utils/displayTime.ts`) staan op de Gregoriaanse kalender en in Latijnse cijfers, ook als de maand- en
+dagnamen vertaald zijn: beide zetten `-u-ca-gregory-nu-latn` achter de taal. Zonder die toevoeging kiest `Intl` in het
 Perzisch de Solar-Hijri-kalender, en zou een maandlabel naast een ondertitel met "2026" een ander jaar tonen. Een taal
 die `Intl` niet ondersteunt, krijgt in `gregorianDateFormat` Engels, zodat dezelfde code overal hetzelfde label geeft;
 volgens het weggehaalde commentaar (niet nagegaan) kiest `Intl` anders de systeemtaal.
