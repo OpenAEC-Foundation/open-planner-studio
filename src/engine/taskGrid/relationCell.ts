@@ -46,11 +46,6 @@ function sourceFor(index: number, start: number, end: number, text: string): Rel
   return { index, start, end, text };
 }
 
-/**
- * Knipt op nieuwe regels/semicolons. Een komma blijft data zodra een externe lossless payload in
- * de cel staat (project- en taaknamen mogen komma's bevatten); legacy komma-invoer blijft geldig
- * voor volledig interne cellen.
- */
 function tokenSlices(text: string): { start: number; end: number; text: string }[] {
   const separator = text.includes('⟦OPS-EXT/1:') ? /[;\n]/g : /[,;\n]/g;
   const result: { start: number; end: number; text: string }[] = [];
@@ -121,14 +116,11 @@ export interface RelationCellItem {
   clipboardText: string;
   otherTaskId: string;
   otherTask?: Task;
-  /** undefined = onbekend voor een interne relatie; extern wordt niet geclassificeerd. */
   driving: boolean | undefined;
   freeFloat?: number;
   stale: boolean;
   warnings: readonly string[];
   parsedToken: ParsedRelationToken;
-  /** Alleen extern: de herkomst van het anker (keuze 4). `parsedToken` gaat door het klembordformaat (v1)
-   *  en draagt haar niet; de tooltip leest haar hier. */
   provenance?: Pick<ExternalLink, 'sourceRef' | 'sourceVersion' | 'anchorReadAt'>;
 }
 
@@ -138,8 +130,6 @@ export function buildRelationCellItems(input: {
   entries: readonly TaskRelationEntry[];
   context: TaskColumnContext;
 }): readonly RelationCellItem[] {
-  // Lag in uren in de taal van de app ("+2u" nl, "+2h" en; eigenaarsbesluit 2026-10-20). De tekst wordt
-  // ook weer ingelezen (bewerken, plakken), dus alleen een afkorting die de parser kent.
   const hourSuffix = parseableHourSuffix(input.context.labelForText?.('duration.suffixHour'));
   return input.entries.map((entry, index): RelationCellItem => {
     if (entry.kind === 'external') {
@@ -201,7 +191,6 @@ export function buildRelationCellItems(input: {
   });
 }
 
-/** Eén taakbrede projectie voor de drie read-only analysekolommen, zonder extra indexbouw. */
 export function buildTaskRelationAnalysisItems(
   task: Task,
   context: TaskColumnContext,
@@ -290,7 +279,6 @@ export function formatParsedRelationToken(token: ParsedRelationToken): string {
   });
 }
 
-/** Herbouwt alleen foutposities; taak- en relatie-idmetadata blijft bij chipbewerkingen intact. */
 export function normalizeRelationTokenSources(
   tokens: readonly ParsedRelationToken[],
 ): readonly ParsedRelationToken[] {
@@ -298,7 +286,7 @@ export function normalizeRelationTokenSources(
   return tokens.map((token, index) => {
     const text = formatParsedRelationToken(token);
     const source = sourceFor(index, offset, offset + text.length, text);
-    offset += text.length + 2; // canonieke scheiding: "; "
+    offset += text.length + 2;
     return { ...token, source };
   });
 }
@@ -316,7 +304,6 @@ export function relationTaskOptions(
   query: string,
   limit = Infinity,
 ): RelationTaskOption[] {
-  // Standaard onbeperkt; breuken naar beneden, nul/negatief/NaN leveren geen treffers.
   const maxResults = Math.floor(limit);
   if (!(maxResults > 0)) return [];
   const needle = query.trim().toLocaleLowerCase();

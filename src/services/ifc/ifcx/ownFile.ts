@@ -30,10 +30,11 @@ export function assertIdentity(planning: PlanningModel): void {
 const isSharedAttribute = (name: string) => name.startsWith(PLANNING_NAMESPACE);
 
 function invalidAttributesIn(document: IfcxDocument, objectAt: () => Map<string, string>): IfcxWriteRefusedError | undefined {
+  const paths = new Set(document.data.map(entry => entry.path));
   for (const entry of document.data) {
     const attributes = Object.entries(entry.attributes);
     for (const [name, value] of [...attributes.filter(([name]) => !isSharedAttribute(name)), ...attributes.filter(([name]) => isSharedAttribute(name))]) {
-      const problem = attributeValueProblem(entry.path, name, value);
+      const problem = attributeValueProblem(entry.path, name, value, false, paths);
       if (problem) {
         const object = objectAt().get(entry.path) ?? entry.path;
         return refused([`${object}: ${name}: ${problem.detail}`], [`${name}.${problem.place.field ?? ''}`], problem.place);

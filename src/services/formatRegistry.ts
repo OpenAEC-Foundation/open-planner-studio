@@ -308,6 +308,7 @@ export function importErrorMessageKey(
   | 'notifications.ifcForeignOpenSchema'
   | 'notifications.ifcForeignOpenUnsafe'
   | 'ifcx.open.foreign'
+  | 'ifcx.open.noPlanning'
   | 'ifcx.open.newer'
   | 'ifcx.open.unsupportedVersion'
   | 'ifcx.open.invalid'
@@ -334,6 +335,7 @@ export function importErrorMessageKey(
   const typed = err as { name?: string; mppCode?: string; xerCode?: string; xmlCode?: string; cfbCode?: string; code?: string; fallback?: { kind?: string } } | null | undefined;
   if (typed?.name === 'IfcxReadError') {
     if (typed.code === 'foreign') return 'ifcx.open.foreign';
+    if (typed.code === 'no-planning') return 'ifcx.open.noPlanning';
     if (typed.code === 'version') return 'ifcx.open.unsupportedVersion';
     if (typed.code === 'newer-profile') return 'ifcx.open.newer';
     if (typed.code === 'not-ifcx') return 'ifcx.open.notIfcx';

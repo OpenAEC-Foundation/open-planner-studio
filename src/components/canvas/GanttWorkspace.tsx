@@ -32,7 +32,6 @@ export function GanttWorkspace() {
   const [workspaceWidth, setWorkspaceWidth] = useState(TASK_TABLE_MAX_WIDTH + 180);
   const taskGridMax = effectiveTaskGridMax(workspaceWidth);
   const renderedLeftPanelWidth = clampTaskGridWidth(leftPanelWidth, workspaceWidth);
-  // Eén brug per werkruimte: de grid registreert zijn rijsleep, het canvas draagt eraan over.
   const rowDragStartRef = useRef<GanttRowDragStarter | null>(null);
   const rowDragBridge = useMemo<GanttRowDragBridge>(() => ({ startRef: rowDragStartRef }), []);
 
@@ -46,11 +45,6 @@ export function GanttWorkspace() {
     return () => observer.disconnect();
   }, []);
 
-  // De takenlijst staat aan de BEGINkant van de werkruimte: links in ltr, rechts in ar/fa (het
-  // CSS-grid volgt de gespiegelde shell). Muis en pijltoetsen rekenen daarom via dezelfde gedeelde
-  // regel in `useSplitter`: de grens gaat de kant op van de muis of de pijl.
-  // Het histogram eronder is één canvas over de volle breedte; zijn resourcekiezer staat onder de
-  // takenlijst, dus aan dezelfde kant. De tijdlijn zelf blijft ltr.
   const histogramPickerSide: HistogramPickerSide = localeDirection(i18n.language) === 'rtl' ? 'right' : 'left';
   const splitter = useSplitter({
     min: TASK_TABLE_MIN_WIDTH,

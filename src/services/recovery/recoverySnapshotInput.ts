@@ -7,7 +7,7 @@ import { snapshotIdentities, type RecoverySnapshotIdentities } from './recoveryI
 export interface RecoverySnapshotInput {
   input: Omit<WriteIFCInput, 'xerSourceArchive' | 'xer'>;
   archive?: Pick<XerSourceArchive, 'format' | 'byteLength' | 'sha256'> & { selectorValid: boolean };
-  identities?: true;
+  identities?: true | 'ifcx';
 }
 
 export function recoverySnapshotInput(source: IFCSaveSource, identities = false): RecoverySnapshotInput {
@@ -25,7 +25,7 @@ export function recoverySnapshotInput(source: IFCSaveSource, identities = false)
       format: archive.format, byteLength: archive.byteLength, sha256: archive.sha256,
       selectorValid: !!(selector && archive.diagnostics.documentViews[selector]),
     } } : {}),
-    ...(identities ? { identities: true as const } : {}),
+    ...(identities ? { identities: source.ifcxReferences ? 'ifcx' as const : true as const } : {}),
   };
 }
 
@@ -55,7 +55,7 @@ export function writeRecoverySnapshotParts({ input, archive }: RecoverySnapshotI
 
 export function writeRecoverySnapshot(snapshot: RecoverySnapshotInput): RecoverySnapshot {
   const { input, ifc, issuedGlobalIds } = writeRecoverySnapshotParts(snapshot);
-  const identities = snapshot.identities ? snapshotIdentities(input, issuedGlobalIds, ifc) : undefined;
+  const identities = snapshot.identities ? snapshotIdentities(input, issuedGlobalIds, ifc, snapshot.identities === 'ifcx') : undefined;
   return { ifc, ...(identities ? { identities } : {}) };
 }
 

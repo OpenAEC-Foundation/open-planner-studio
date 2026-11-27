@@ -60,10 +60,10 @@ export function schemaDefinitionProblems(
   return problems;
 }
 
-export function attributeValueProblem(path: string, name: string, value: unknown, legacyDocument = false): IfcxCheckProblem | undefined {
+export function attributeValueProblem(path: string, name: string, value: unknown, legacyDocument = false, paths?: ReadonlySet<string>): IfcxCheckProblem | undefined {
   if (!isOwnAttributeName(name)) return unknownAttribute(name, { path, attribute: name }, 'Een attribuut');
   const spec = legacyDocument && name === ATTRIBUTE.document ? LEGACY_DOCUMENT_VALUE : OWN_ATTRIBUTE_VALUES.get(name)!;
-  const problem = checkValue(spec, value);
+  const problem = checkValue(spec, value, paths);
   if (!problem) return undefined;
   const place = { path, attribute: name, field: problem.field };
   return problem.kind === 'invalid'
@@ -74,6 +74,7 @@ export function attributeValueProblem(path: string, name: string, value: unknown
 export function ifcxSchemaProblems(document: unknown): string[] {
   if (!isPlainObject(document) || !Array.isArray(document.data)) return ['geen IFCX-document met data'];
   const used = new Set<string>();
+  const paths = new Set<string>(document.data.flatMap(entry => isPlainObject(entry) && typeof entry.path === 'string' ? [entry.path] : []));
   const legacyDocument = usesLegacyDocumentSchema(document.schemas);
   const problems: IfcxCheckProblem[] = [];
   let canadianGeneration = false;
@@ -82,7 +83,7 @@ export function ifcxSchemaProblems(document: unknown): string[] {
     for (const [name, value] of Object.entries(entry.attributes)) {
       used.add(name);
       if (name === ATTRIBUTE.opsCalendar && hasCanadianGeneration(value)) canadianGeneration = true;
-      const problem = attributeValueProblem(String(entry.path), name, value, legacyDocument);
+      const problem = attributeValueProblem(String(entry.path), name, value, legacyDocument, paths);
       if (problem) problems.push(problem);
     }
   }

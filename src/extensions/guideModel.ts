@@ -1,28 +1,11 @@
-/**
- * Het model van een begeleiding (`api.help.startGuide`, contract 1.4.0): validatie en de splitsing
- * van een stap-tekst in opdracht en uitleg. Puur — geen store, geen DOM — zodat
- * `tests/planning/check-ext-help.ts` het headless kan aflopen.
- *
- * WAAROM STRENG VALIDEREN. De stappen komen uit extensie-code en worden door de app getekend. Een
- * half object (geen `nl`-tekst, een `check` die geen functie is) mag het paneel niet halverwege laten
- * klappen; daarom wordt de hele begeleiding vóór het starten gecontroleerd en bij de eerste fout
- * niets gestart. De extensie krijgt alle gevonden problemen in één foutmelding terug.
- */
 import type { ExtGuide, ExtGuideStep, ExtHelpText } from './types';
 
-/** Zelfde vorm als een Help-artikel-id (`helpArticleRegistry.ts`). */
 const ID_RE = /^[a-z0-9][a-z0-9-]*$/;
 
-/**
- * Een anker is de waarde van een `data-tour-anchor`-attribuut. De host bouwt er zelf de selector
- * `[data-tour-anchor="…"]` van; aanhalingstekens, backslashes en spaties zijn daarom uitgesloten.
- */
 const ANCHOR_RE = /^[A-Za-z0-9][A-Za-z0-9:._-]*$/;
 
-/** Bovengrens tegen een per ongeluk gegenereerde reuzenlijst; een tutorial heeft er een handvol. */
 export const MAX_GUIDE_STEPS = 200;
 
-/** Een regel met alleen `---` scheidt opdracht en uitleg. */
 const SEPARATOR_RE = /^\s*---\s*$/;
 
 function isText(value: unknown): value is ExtHelpText {
@@ -36,10 +19,6 @@ function separatorCount(markdown: string): number {
   return markdown.replace(/\r\n/g, '\n').split('\n').filter(line => SEPARATOR_RE.test(line)).length;
 }
 
-/**
- * Controleer een begeleiding. `hasAsset` beantwoordt of een `resetAsset` echt in de eigen assets
- * van de extensie zit. Lege lijst = geldig.
- */
 export function validateGuide(guide: unknown, hasAsset: (name: string) => boolean): string[] {
   const errors: string[] = [];
   const g = guide as Partial<ExtGuide> | null;
@@ -86,7 +65,6 @@ export function validateGuide(guide: unknown, hasAsset: (name: string) => boolea
   return errors;
 }
 
-/** Opdracht (vóór `---`) en uitleg (erna; leeg als er geen scheiding is). */
 export function splitGuideBody(markdown: string): { task: string; explanation: string } {
   const lines = markdown.replace(/\r\n/g, '\n').split('\n');
   const at = lines.findIndex(line => SEPARATOR_RE.test(line));

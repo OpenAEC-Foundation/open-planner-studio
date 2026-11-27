@@ -881,6 +881,15 @@ en noem het in je rapport of PR-tekst.
      de eigen fase of met een lege tak als omgezet (ADR 0451); dat is niet nagespeeld. — B (plafond), S (andere
      weglatingen)
 
+2591. **Bij een gestarte urentaak kan de waarschuwing voor een oude baseline vals verschijnen of ontbreken.**
+     `baselineHasOldDayCount` (`src/engine/baselineOldDay.ts`) beslist bij een gestarte taak vaak op de huidige
+     werkminuten, omdat de span van de baseline dan bij geen telling past, en kent de duur van het moment van de
+     baseline niet. Een nieuwe baseline, daarna de duur maal opgeslagen gedeeld door werktijd per dag (10 u naar 8 u),
+     geeft volgens het weggehaalde commentaar een valse waarschuwing; `mspdiWriter.ts` schrijft de baseline dan in de
+     opgeslagen uren per dag, zodat de echte afwijking in MS Project verdwijnt. Een oude baseline, daarna de duur maal
+     1,25, geeft geen waarschuwing. Alleen een kenmerk in de baseline zelf dat via IFC heen en terug gaat, lost het op
+     (ADR 0550). Gezien in het commentaar van dat bestand (review #363), niet nagespeeld. — S
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -1813,6 +1822,20 @@ en noem het in je rapport of PR-tekst.
       het activeren van het document met een `RangeError` vóór de fit, zodat de `NaN` alleen voor de losse functie is
       gezien; met taakstart `0` slaagt het openen en begint de berekende fit op 1999-12-31 met zoom 0,5, een verkeerde
       uitsnede. — B
+
+2571. **In het donkere thema is paletkleur 1 van een resource bijna kritiek-rood.** `ensureThemeVisible`
+      (`src/engine/renderer/resourcePalette.ts`) verlicht rood-700 `#B91C1C` uit `RESOURCE_PALETTE` naar ongeveer
+      `#e03232`, vlak bij kritiek-rood `#DC2626`; een resourcebalk of -accent in die kleur is dan nauwelijks van een
+      kritieke taak te onderscheiden. Uit het weggehaalde commentaar in dat bestand,
+      niet nagemeten. — S
+2572. **Tekst in `text-critical` haalt in het donkere thema geen AA-contrast.** Tailwind leidt `text-critical` af van
+      `--color-critical` (`#DC2626`, `src/styles/globals.css`), en die tekst staat in `ExtensionConsentDialog`,
+      `BenchmarkDialog`, `TaskCpmResultSection` en `SiteOpenDialog`. Op de donkere kaart blijft het contrast onder de 4,5:1
+      van AA. Uit het weggehaalde commentaar in `themePalette.ts`, niet nagemeten. — S
+2573. **De mijlpaalkleur valt samen met een documentkleur.** `BRAND.milestone` in `themePalette.ts` is `#7C3AED`,
+      dezelfde tint als `GANTT_TRACE_COLORS.successorDriving` en als `DOC_PALETTE[3]` (`src/utils/documents.ts`). Bij
+      een op de acht documenten is de identiteitskleur van het document dus de kleur van een mijlpaal. Uit het
+      weggehaalde commentaar, de hexwaarden in de code nagekeken. — S
 
 ## Kalenders
 
@@ -8088,6 +8111,16 @@ en noem het in je rapport of PR-tekst.
       ronde 1; de proef onderbreekt vóór de manifestwrite en niet erna. Vóór de flag `ifcx` standaard
       aan gaat: bij herstel de herstelde stand vergelijken met het schrijfdoel, met een proef die na de
       plaatsing onderbreekt. — S
+
+2425. **Een vreemd IFCX-taakpad in de vorm van een eigen tekstpad kan de eerste opslag blokkeren.**
+      Met het pad `t-0061` voor de eerste taak in `uitbreidingen.ifcx` opent de planning. Bij
+      opslaan leest de eigen lezer uit dat pad een andere GlobalId dan de vreemde lezer eraan gaf.
+      De zelfcontrole weigert de kopie. Gezien via Openen en Opslaan met de schakelaar IFCX aan. — B
+
+2426. **Na verwijderen van de eerste van twee taken met dezelfde UUID kan de IFCX-kopie worden geweigerd.**
+      Open `planningsimport/gevel.ifcx`, verwijder Metselen en sla op. Afwerken heeft een pad met
+      dezelfde UUID als de verwijderde taak, met een andere schrijfwijze. Bij teruglezen krijgt Afwerken
+      een andere GlobalId en de zelfcontrole weigert de opslag. Gezien op de eerste opslag naast de bron. — B
 
 2429. **Een lang openstaande vraag van Automatisch opslaan vertraagt de volgende opslag van dat bestand.**
       Het ritme voor een gebouwmodel meet van het begin tot het einde van een opslagronde. Ook de tijd waarin de planner

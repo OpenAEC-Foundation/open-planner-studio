@@ -10,12 +10,12 @@ import { SEQUENCE_FIELDS, emptySequence, sharedLagOf, type SequenceReadTarget } 
 import { ASSIGNMENT_FIELDS, emptyAssignment, type AssignmentReadTarget } from './fields/assignmentFields';
 import { invalidField, type SourceNode } from './foreignPlanningSource';
 import { uuidToCompactGlobalId } from './identityPath';
-import { uuidOfSourcePath } from './pathUuid';
+import { uniquePathGlobalId, uuidOfSourcePath } from './pathUuid';
 import { ATTRIBUTE } from './profile';
 import type { WorkCalendar } from '@/types/calendar';
 import type { NodeKind } from './nodes';
 
-const objectKinds = {
+export const objectKinds = {
   workplan: 'wp', schedule: 'ws', task: 'task', resource: 'res', calendar: 'cal', assignment: 'asgn', baseline: 'bl', sequence: 'seq',
 } as const satisfies Record<NodeKind, IfcObjectKind>;
 
@@ -28,18 +28,16 @@ export class PlanningIdentities {
   readonly paths = byKind();
   readonly globalIds: Record<string, string> = {};
   private readonly ids = byKind();
-  private readonly usedUuids = new Set<string>();
+  private readonly usedGlobalIds = new Set<string>();
 
   add(kind: NodeKind, path: string, preferred?: string): string {
     const previous = this.ids[kind].get(path);
     if (previous !== undefined) return previous;
-    let uuid = uuidOfSourcePath(path);
+    const uuid = uuidOfSourcePath(path);
     const base = preferred ?? uuid;
     let id = base;
     for (let duplicate = 2; this.paths[kind].has(id); duplicate++) id = `${base}-dup-${duplicate}`;
-    for (let duplicate = 2; this.usedUuids.has(uuid); duplicate++) uuid = uuidOfSourcePath(`${path}#${kind}-dup-${duplicate}`);
-    this.usedUuids.add(uuid);
-    this.globalIds[ifcObjectSeed(objectKinds[kind], id)] = uuidToCompactGlobalId(uuid);
+    this.globalIds[ifcObjectSeed(objectKinds[kind], id)] = uniquePathGlobalId(path, kind, this.usedGlobalIds, uuidToCompactGlobalId(uuid));
     this.ids[kind].set(path, id);
     this.paths[kind].set(id, path);
     return id;

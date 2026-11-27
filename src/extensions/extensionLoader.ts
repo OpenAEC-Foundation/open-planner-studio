@@ -1,9 +1,3 @@
-/**
- * Extensie-loader — bewaart, laadt, activeert en deactiveert extensies.
- * Opslag: IndexedDB-database 'ops-extensions' (werkt in browser én Tauri-webview).
- * Uitvoering: new Function(...) met een minimale CommonJS-omgeving; require()
- * geeft alleen de host-SDK ('open-planner-studio') terug.
- */
 import type {
   ExtensionManifest,
   ExtensionPlugin,
@@ -20,23 +14,17 @@ import { appStoreContext, useAppStore } from '@/state/appStore';
 import { appLog } from '@/services/debug/appLog';
 import { parseStoredExtension } from './validation';
 import { openDb } from '@/utils/idb';
-// De kale i18next-instantie (dezelfde die `@/i18n/config` initialiseert), niet de config-module zelf:
-// die raakt bij het laden de DOM (leesrichting) en deze loader wordt ook headless geïmporteerd.
 import i18next from 'i18next';
 import { buildImportLabels } from '@/i18n/importLabels';
 
 const APP_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
 
-/** Productie-compositie: documentdata en appchrome delen in de gemounte app dezelfde singleton. */
 const appExtensionHost: ExtensionHostBinding = {
   app: appStoreContext,
-  // Zichtbaar via het meldingenkanaal van de store (met extensienaam en overspoel-bescherming) én in de debuglog.
   showNotification: createExtensionNotifier(appStoreContext),
-  // Zelfde labels als een voorbeeld uit Backstage (`buildImportLabels(tCommon)`), in de UI-taal.
   importLabels: () => buildImportLabels((key) => i18next.t(key, { ns: 'common' })),
 };
 
-/** Vergelijk twee puntgescheiden versies numeriek. <0 als a ouder is dan b. */
 function compareVersions(a: string, b: string): number {
   const pa = a.split('.').map((n) => parseInt(n, 10) || 0);
   const pb = b.split('.').map((n) => parseInt(n, 10) || 0);
@@ -48,39 +36,22 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-// Actieve plugin-instanties (voor opruimen bij disable)
 const activePlugins = new Map<string, { plugin: ExtensionPlugin; api: ReturnType<typeof createExtensionApi> }>();
 
-// Voorkomt dubbele activatie terwijl onLoad nog loopt (race bij dubbelklik/parallel laden)
 const enablingExtensions = new Set<string>();
-/**
- * Extensies die verwijderd zijn terwijl hun `onLoad` nog liep (audit 2026-09-26). De verwijderknop
- * staat tijdens "laden" gewoon aan; zonder deze vlag zette `enableExtension` na de lopende `onLoad`
- * alsnog `activePlugins`, status `enabled` én schreef hij het record terug naar IndexedDB — de
- * extensie draaide door zonder kaart om haar uit te zetten en kwam bij de volgende start terug.
- */
 const cancelledEnables = new Set<string>();
-/** Loopt af zodra de lopende activatie van dit id klaar is (ook geannuleerd of mislukt). */
 const enablingDone = new Map<string, Promise<void>>();
 
-/**
- * Loopt af zodra een lopende activatie van `id` klaar is (geslaagd, mislukt of geannuleerd), of
- * meteen als er geen loopt. Voor wie moet wachten tot een extensie tijdens het opstarten
- * (`loadAllExtensions`) haar `onLoad` heeft afgerond — de tutorialvraag zendt pas dan uit.
- */
 export function whenExtensionSettled(id: string): Promise<void> {
   return enablingDone.get(id) ?? Promise.resolve();
 }
 
-/** Markeer een lopende activatie als geannuleerd (verwijderen tijdens laden). */
 export function cancelPendingEnable(id: string): boolean {
   if (!enablingExtensions.has(id)) return false;
   cancelledEnables.add(id);
   return true;
 }
 
-/** Hoe lang een `onLoad` mag duren. Eén hangende extensie hield anders elke volgende tegen
- *  (`loadAllExtensions` activeert ze na elkaar) en bleef zelf eeuwig op "laden" staan. */
 export const EXTENSION_ONLOAD_TIMEOUT_MS = 15_000;
 
 function withOnLoadTimeout(work: Promise<void> | void, id: string, timeoutMs: number): Promise<void> {
@@ -100,11 +71,6 @@ export interface StoredExtension {
   manifest: ExtensionManifest;
   mainCode: string;
   enabled: boolean;
-  /**
-   * Binaire, mee-verpakte assets (de niet-`main`/`manifest`-bestanden uit de installatie-ZIP),
-   * op naam → rauwe bytes. Optioneel en backward-compat: oude records zonder `assets` (en los
-   * `.js`-geïnstalleerde extensies) blijven geldig; de extensie krijgt dan een lege asset-set.
-   */
   assets?: Record<string, Uint8Array>;
 }
 
@@ -134,7 +100,6 @@ export interface RawStoredExtension {
   value: unknown;
 }
 
-/** Injecteerbare opslagnaad: productcode gebruikt IndexedDB, tests leveren een lokale implementatie. */
 export interface ExtensionStorage {
   get(key: IDBValidKey): Promise<RawStoredExtension | undefined>;
   getAll(): Promise<RawStoredExtension[]>;
@@ -148,7 +113,6 @@ function bytesToHex(bytes: Uint8Array): string {
   return hex;
 }
 
-/** Canonieke, typebewuste representatie van iedere geldige IndexedDB-sleutel. */
 export function encodeIdbKey(key: IDBValidKey): string {
   if (typeof key === 'string') {
     const bytes = new TextEncoder().encode(key);
@@ -181,7 +145,6 @@ export function encodeIdbKey(key: IDBValidKey): string {
   throw new TypeError('Onbekend IndexedDB-sleuteltype');
 }
 
-/** Objectproperty-veilige, stabiele identiteit; verwijderen gebruikt altijd de originele sleutel. */
 export function quarantineIdForStorageKey(key: IDBValidKey): string {
   return `q:${bytesToHex(new TextEncoder().encode(encodeIdbKey(key)))}`;
 }
@@ -262,35 +225,18 @@ function reportStorageWriteFailure(id: string, error: unknown): void {
   appLog.emit('error', 'Extensies', `Status van "${id}" kon niet worden opgeslagen: ${message}`);
 }
 
-/** Voer extensie-code uit in een minimale CommonJS-sandbox.
- *  Let op: dit is GEEN echte isolatie — extensie-code heeft gewoon toegang tot
- *  window, document, fetch e.d.; permissies zijn een conventie, geen harde grens. */
 export function executeExtensionCode(mainCode: string): ExtensionPlugin {
   const moduleExports: Record<string, unknown> = {};
   const moduleObj = { exports: moduleExports as Record<string, unknown> };
 
   const requireFn = (moduleName: string) => {
     if (moduleName === 'open-planner-studio') {
-      // De SDK is altijd beschikbaar (lazy gebouwd); installExtensionSdk() hangt 'm
-      // ook op window voor devtools-inspectie.
       return getExtensionSdk();
     }
     throw new Error(`Module "${moduleName}" is niet beschikbaar in de extensie-sandbox`);
   };
 
   try {
-    // AFSCHERMING. De namen hieronder worden als functieparameter meegegeven en dus
-    // BINNEN de extensie-scope geschaduwd op `undefined`. Ze hebben geen legitiem gebruik in
-    // extensie-code — `__TAURI_INTERNALS__` is de rauwe Tauri-invoke-brug (dus bestandssysteem,
-    // shell, updater, buiten élke plugin-scope om), `__OPS__` is de dev-bridge met de kale store,
-    // en `__TAURI__` is de oude plugin-namespace. Alles wat een extensie legitiem nodig heeft loopt
-    // via `require('open-planner-studio')` en de `api` die `onLoad` krijgt.
-    //
-    // DIT IS GEEN SANDBOX, en het is belangrijk dat niemand dat denkt. De code draait in dezelfde
-    // realm, dus `globalThis.__TAURI_INTERNALS__`, `window[...]` of `Function('return this')()`
-    // komen er nog steeds bij. Wat dit wél doet: het weghalen van de KANSLOZE route (een
-    // kale identifier), zodat wie er alsnog bij komt dat aantoonbaar met opzet deed. De echte
-    // grens is een Web Worker of een iframe; zie docs/extensions.md.
     const AFGESCHERMD = ['__TAURI_INTERNALS__', '__TAURI__', '__OPS__'] as const;
     const fn = new Function('module', 'exports', 'require', ...AFGESCHERMD, mainCode);
     fn(moduleObj, moduleExports, requireFn, ...AFGESCHERMD.map(() => undefined));
@@ -306,7 +252,6 @@ export function executeExtensionCode(mainCode: string): ExtensionPlugin {
   return plugin as ExtensionPlugin;
 }
 
-/** Activeer een extensie: code laden, uitvoeren, onLoad(api) aanroepen. */
 export async function enableExtension(
   id: string,
   storage: ExtensionStorage = indexedDbExtensionStorage,
@@ -317,9 +262,6 @@ export async function enableExtension(
   if (activePlugins.has(id)) return;
   if (enablingExtensions.has(id)) {
     if (!cancelledEnables.has(id)) return;
-    // Opnieuw geïnstalleerd terwijl de geannuleerde lading nog loopt (review 2026-09-28): die
-    // lading ruimt bij afloop op, dus stil terugkeren liet de nieuwe installatie inactief. Wacht
-    // haar af en activeer dan alsnog.
     await enablingDone.get(id);
     return enableExtension(id, storage, onLoadTimeoutMs);
   }
@@ -340,10 +282,8 @@ export async function enableExtension(
     }
     const stored = parsed.value;
 
-    // Pas na een geldige verse parse wordt de readykaart tijdelijk loading.
     store.setExtensionStatus(id, 'loading');
 
-    // Poort 1 — APP-versie (features): weiger als de app ouder is dan minAppVersion.
     const minVersion = stored.manifest.minAppVersion;
     if (minVersion && compareVersions(APP_VERSION, minVersion) < 0) {
       throw new Error(
@@ -351,11 +291,6 @@ export async function enableExtension(
       );
     }
 
-    // Poort 2 — CONTRACT-versie. Los van poort 1: CalVer draagt geen
-    // breaking-change-signaal, dus zonder deze poort laadt een extensie voor een ander
-    // API-contract gewoon en klapt hij pas halverwege `onLoad` op een verdwenen methode.
-    // Een manifest zonder `apiVersion` (oudere manifesten) blijft laden — weigeren zou elke
-    // geïnstalleerde extensie in één update slopen — maar wordt wél zichtbaar gelogd.
     const compat = checkApiCompatibility(stored.manifest.apiVersion);
     if (!compat.ok) {
       throw new Error(`${compat.reason} (extensie-API van deze app: ${EXTENSION_API_VERSION})`);
@@ -365,14 +300,9 @@ export async function enableExtension(
         `"${id}" declareert geen apiVersion; aangenomen dat hij past bij extensie-API ${EXTENSION_API_VERSION}.`);
     }
 
-    // Zorg dat de host-SDK op window staat vóór extensie-code draait.
     installExtensionSdk();
 
     const plugin = executeExtensionCode(stored.mainCode);
-    // Extra defensieve normalisatie vóór de API-opbouw. Verse installaties met onbekende
-    // permissies zijn al geweigerd door de manifestparser; parseStoredExtension hierboven
-    // filtert onbekende permissies uit bestaande legacyrecords en levert de waarschuwingen.
-    // Deze helper maakt een ongeldig nieuw manifest dus niet alsnog installeerbaar.
     const permissions = sanitizeManifestPermissions(stored.manifest.permissions, id);
     api = createExtensionApi(
       id,
@@ -385,7 +315,6 @@ export async function enableExtension(
     await withOnLoadTimeout(plugin.onLoad(api), id, onLoadTimeoutMs);
 
     if (cancelledEnables.has(id)) {
-      // Verwijderd tijdens het laden: alles terugdraaien, niets activeren, niets terugschrijven.
       try { await plugin.onUnload?.(); } catch (unloadErr) {
         console.error(`[Extensies] Fout in onUnload van "${id}" na verwijderen tijdens laden:`, unloadErr);
       }
@@ -404,10 +333,9 @@ export async function enableExtension(
     }
   } catch (err) {
     if (cancelledEnables.has(id)) {
-      try { api?._cleanup(); } catch { /* al opgeruimd */ }
+      try { api?._cleanup(); } catch { }
       return;
     }
-    // Draai eventuele al-gedane registraties terug (onLoad kan halverwege gefaald zijn).
     try {
       api?._cleanup();
     } catch (cleanupErr) {
@@ -424,7 +352,6 @@ export async function enableExtension(
   }
 }
 
-/** Deactiveer een extensie en draai alle registraties terug. */
 export async function disableExtension(
   id: string,
   storage: ExtensionStorage = indexedDbExtensionStorage,
@@ -464,7 +391,6 @@ export async function disableExtension(
   }
 }
 
-/** Laad alle geïnstalleerde extensies bij het opstarten (auto-enable wat aan stond). */
 export async function loadAllExtensions(
   storage: ExtensionStorage = indexedDbExtensionStorage,
 ): Promise<void> {
@@ -494,7 +420,6 @@ export async function loadAllExtensions(
         continue;
       }
       const ext = parsed.value;
-      // Idempotent: een al-geregistreerde extensie niet overschrijven (kan al actief zijn)
       if (useAppStore.getState().installedExtensions[ext.id]) continue;
 
       const installed: ReadyExtension = {

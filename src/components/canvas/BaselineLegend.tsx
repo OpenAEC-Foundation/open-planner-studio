@@ -3,10 +3,6 @@ import { useAppStore } from '@/state/appStore';
 import { buildBaselineLayers, type BaselineLayer } from '@/types/baseline';
 import { BaselineSwatch } from './BaselineTooltipContent';
 
-/**
- * De lagen voor de legenda in de statusbalk: leeg tenzij er naast de actieve baseline minstens één
- * vergelijkingsbaseline in de Gantt staat (actief eerst, dan de vergelijkingen, in de stapelvolgorde).
- */
 export function useBaselineLegendLayers(): BaselineLayer[] {
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
@@ -18,10 +14,6 @@ export function useBaselineLegendLayers(): BaselineLayer[] {
   }, [baselines, activeBaselineId, compared, showBaselineOverlay]);
 }
 
-/**
- * Issue #391: legenda van de baselinelagen in de statusbalk: ze zegt welke kleur bij welke baseline
- * hoort. Met `namesHidden` blijven alleen de kleuren staan; de naam staat dan in de tooltip.
- */
 export function BaselineLegend({ layers, namesHidden }: { layers: BaselineLayer[]; namesHidden: boolean }) {
   if (layers.length === 0) return null;
   return (

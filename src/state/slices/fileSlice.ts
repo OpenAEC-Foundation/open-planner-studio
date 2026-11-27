@@ -1,5 +1,7 @@
 import { normalizeTaskDates } from '../migrations/minuteModel';
 import { bindIfcxModel, findIfcxModel, ifcxModelSession } from '@/services/ifc/ifcxModelSession';
+import { writerOutput } from '@/services/ifc/saveWorker/ifcSaveProtocol';
+import { sameOwnIfcxContent } from '@/services/ifc/ifcx/ifcxInput';
 import { flushRecoveryNow } from '@/services/recovery/recoveryFlush';
 import { isIfcxModelPath } from '../ifcForeignGuard';
 import { exportHitsOwnFile, literalCalendarIdsWritten, mergeLiteralCalendarIds, rememberLiteralCalendarsWritten } from '../savedLiteralCalendars';
@@ -63,7 +65,7 @@ import { saveForeignChangesQuestion } from '@/utils/settingsStore';
 import { castDraft } from 'immer';
 import {
   bomMark, prepareDocumentWrite as prepareDocumentOutput, prepareIfcOutput, planOnlyQuestionApplies, withUtf8Bom, writtenFingerprint, IfcWriteBlockedError,
-  type IfcOutput,
+  type IfcOutput, type IfcOutputCompute,
 } from '../prepareIfcOutput';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import { capturedTargetReaders, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
@@ -85,7 +87,7 @@ import { changedKnownTarget, contentLeftToKnownTarget, guardedKnownTarget, still
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
-import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource, type IFCSaveSource, type IFCWriteInput } from '../ifcSaveInput';
+import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource, unchangedSaveFields, type IFCSaveSource, type IFCWriteInput } from '../ifcSaveInput';
 import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import {
@@ -128,7 +130,7 @@ import { browserSaveNotice } from '../browserSaveNotice';
 import { basename, ensureExtension, isIfcxName } from '@/utils/filePath';
 import {
   documentFileFilters, fileNameWithFormat, formatOfName, IFC_FILE_FILTERS, IFCX_FLAG_OFF_NOTICE, IFCX_NAME_MISMATCH_NOTICE,
-  ifcxInputWithoutXerArchive, ifcxWriteBlocked, ifcxWriteRefusedNotice, nameFitsFormat, namesFollowFormat, nameWithFormat,
+  ifcxImportNotice, ifcxInputWithoutXerArchive, ifcxWriteBlocked, ifcxWriteRefusedNotice, nameFitsFormat, namesFollowFormat, nameWithFormat,
   outputFormat, saveAsFileFilters, type DocumentFileFormat,
 } from '../ifcxGuard';
 import { IfcxWriteRefusedError } from '@/services/ifc/ifcx/ifcxErrors';
@@ -529,10 +531,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     planOnlyQuestionApplies(state, 'missingSourceSaveAs');
   const prepareAppIfcWrite = async (
     state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation, format?: DocumentFileFormat,
+    worker: IfcOutputCompute | undefined = runtime.ifcSaveCompute,
   ): Promise<IfcOutput | null> => {
     try {
-      return await (format ? prepareDocumentOutput(state, input, format, runtime.ifcSaveCompute, planOnly)
-        : prepareIfcOutput(state, input, planOnly, runtime.ifcSaveCompute));
+      return await (format ? prepareDocumentOutput(state, input, format, worker, planOnly)
+        : prepareIfcOutput(state, input, planOnly, worker));
     }
     catch (error) {
       if (error instanceof IfcWriteBlockedError) get().notify(ifcWriteBlockedNotice(state));
@@ -575,6 +578,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return await run();
     } finally { release(); }
   };
+  const ifcxCopies = new WeakMap<NonNullable<DocumentPayload['ifcxReferences']>, {
+    matches: ReturnType<typeof unchangedSaveFields>;
+    output: Extract<IfcOutput, { readonly content: string }>;
+  } | { openedBytes: Uint8Array; sha256: string }>();
   const prepareDocumentWrite = async (
     state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation, format: DocumentFileFormat = attemptFormat(state),
   ): Promise<IfcOutput | null> => {
@@ -582,8 +589,23 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       get().notify(refusalNotice({ messageKey: 'ifcx.model.saveAsIfc', dedupeKey: 'ifcx-model-save-ifc' }));
       return null;
     }
-    const write = await prepareAppIfcWrite(state, input, planOnly, format);
-    if (write && !write.prepared) rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
+    const refs = format === 'ifcx' ? state.ifcxReferences : null;
+    const copy = refs && ifcxCopies.get(refs);
+    const worker = runtime.ifcSaveCompute;
+    const reuse: IfcOutputCompute | undefined = copy && worker
+      ? async (job, stop) => {
+        if (job.kind !== 'writer') return worker(job, stop);
+        if ('matches' in copy) return copy.matches(state) ? copy.output : worker(job, stop);
+        const calculated = await worker(job, stop);
+        return !calculated.prepared && sameOwnIfcxContent(new TextDecoder().decode(copy.openedBytes), calculated.content)
+          ? writerOutput(copy.openedBytes, calculated.literalCalendarIds, copy.sha256) : calculated;
+      }
+      : worker;
+    const write = await prepareAppIfcWrite(state, input, planOnly, format, reuse);
+    if (write && !write.prepared) {
+      rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
+      if (refs?.modelSource) ifcxCopies.set(refs, { matches: unchangedSaveFields(state), output: write });
+    }
     return write;
   };
 
@@ -1028,6 +1050,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       entry.payload.ifcLiteralCalendarIds = mergeLiteralCalendarIds(entry.payload.ifcLiteralCalendarIds, literalIds);
       if (unchanged) entry.payload.isDirty = false;
     });
+    const refs = savedSource.ifcxReferences;
+    const copy = refs && ifcxCopies.get(refs);
+    if (unchanged && copy && 'matches' in copy && copy.matches(savedSource)) {
+      const saved = saveSourceForDocument(get(), documentId);
+      if (saved && saved.ifcxReferences === refs) copy.matches = unchangedSaveFields(saved);
+    }
     return unchanged;
   };
 
@@ -1890,6 +1918,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
         if (editing) runtime.finishMutation(s);
       });
+      if (parsed.ownIfcxPlanBytes && parsed.ifcxRead && !editing && opts.linkedOpen && !payload.minuteModelPending && !activation.signals.refreshed) {
+        const opened = get();
+        if (opened.ifcxReferences) ifcxCopies.set(opened.ifcxReferences, {
+          openedBytes: parsed.ownIfcxPlanBytes, sha256: parsed.ifcxRead.sha256,
+        });
+      }
       for (const cal of [payload.calendar, ...payload.calendars].filter((cal, i, all) => all.findIndex(c => c.id === cal.id) === i)) {
         const source = cal.id === parsed.calendar.id ? parsed.calendar : parsed.resourceCalendars?.find(c => c.id === cal.id);
         if (source && (source.workEndHour !== cal.workEndHour || source.simpleBreakStartMinute !== cal.simpleBreakStartMinute
@@ -1970,7 +2004,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         openedDocumentIds.push(get().activeDocumentId);
         const conversion = get().applyLoadedProject(result, { ...opts, deferTaskTypesNotice: true });
         const source = result.ifcxReferences?.modelSource;
-        if (source && (result.ifcxModel || !ifcxModelSession(result.ifcxReferences)?.elements)) {
+        if (source && result.ifcxImport) {
+          get().notify(ifcxImportNotice(source.fileName, result.ifcxImport));
+        } else if (source && (result.ifcxModel || !ifcxModelSession(result.ifcxReferences)?.elements)) {
           get().notify({ severity: 'info', messageKey: result.ifcxModel ? 'ifcx.model.opened' : 'ifcx.model.unchecked',
             params: { file: source.fileName }, sticky: !result.ifcxModel });
         }

@@ -1,7 +1,3 @@
-/**
- * Ownership-contract van de Gantt-acties: de acties links van de tijdlijn horen bij
- * `DOM-grid/workspace`, de tijdlijngebaren bij `timelinecanvas`.
- */
 export type GanttAction =
   | 'rowselect'
   | 'disclosure'
@@ -22,7 +18,6 @@ export type GanttAction =
 
 export type GanttOwner = 'DOM-grid/workspace' | 'timelinecanvas';
 
-/** Iedere actie heeft precies één eigenaar; dubbele eventlisteners zijn niet toegestaan. */
 export const ganttEventOwnership = {
   rowselect: ['DOM-grid/workspace'],
   disclosure: ['DOM-grid/workspace'],
