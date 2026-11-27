@@ -49,6 +49,7 @@ const FIXTURES = ['verbouwing-eengezinswoning-kern.ifcx', 'datumgevallen.ifcx'];
 const fixture = (name: string) => new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifcx/eigen', name)));
 const own = fixture(FIXTURES[0]);
 const other = fixture(FIXTURES[1]);
+const withModel = fixture('planning-met-model.ifcx');
 const dir = mkdtempSync(join(tmpdir(), 'ops-ifcx-app-'));
 const hash = (data: Uint8Array) => createHash('sha256').update(data).digest('hex');
 const text = (data: Uint8Array) => new TextDecoder().decode(data);
@@ -221,6 +222,34 @@ await check('flag uit: een .ifcx opent niet als IFCX', async () => {
   const store = await openAt(path, {});
   assert.notEqual(store.getState().filePath, path);
   assert.deepEqual(errors(store), ['notifications.openFailed']);
+});
+
+await check('een onbekende IFCX-versie meldt ifcx.open.unsupportedVersion; een nieuwer profiel ifcx.open.newer (#804, knownbug 2393)', async () => {
+  const versionDoc = JSON.parse(text(own));
+  versionDoc.header.ifcxVersion = 'ifcx_beta';
+  const versionPath = join(dir, 'andere-versie.ifcx');
+  writeFileSync(versionPath, JSON.stringify(versionDoc));
+  const versionStore = await openAt(versionPath, IFCX_ON);
+  assert.deepEqual(errors(versionStore), ['ifcx.open.unsupportedVersion']);
+
+  const profileDoc = JSON.parse(text(own));
+  const documentEntry = profileDoc.data.find((entry: { attributes?: Record<string, unknown> }) => entry.attributes?.['openaec::ops::document']);
+  (documentEntry.attributes['openaec::ops::document'] as Record<string, unknown>).formatVersion = '2.0.0';
+  const profilePath = join(dir, 'nieuwer-profiel.ifcx');
+  writeFileSync(profilePath, JSON.stringify(profileDoc));
+  const profileStore = await openAt(profilePath, IFCX_ON);
+  assert.deepEqual(errors(profileStore), ['ifcx.open.newer']);
+
+  const modelPath = join(dir, 'planning-met-model.ifcx');
+  writeFileSync(modelPath, withModel);
+  const { store } = await newApp(IFCX_ON);
+  const tabs = () => store.getState().getOpenDocumentPayloads().map(doc => doc.id);
+  const before = tabs();
+  await openInto(store, modelPath);
+  assert.deepEqual(errors(store), ['ifcx.open.newer'], 'de app kan de modelverwijzingen nog niet bewaren');
+  assert.deepEqual(tabs(), before);
+  assert.equal(store.getState().filePath, null);
+  assert.equal(store.getState().knownTargetFingerprint, null);
 });
 
 for (const [label, flags] of [['alleen ifcx', IFCX_ON], ['ifcx en ifcForeignContent', BOTH_ON]] as const) {
@@ -905,7 +934,7 @@ await check('doelbescherming: een bestaand IFCX van een ander, onleesbaar of afg
   assert.equal(classifyIfcx(foreignIfcx), 'foreign');
   assert.notEqual(classifyIfcx(unreadableIfcx), 'own');
   assert.equal(classifyIfcx(truncatedIfcx), 'not-ifcx');
-  for (const [kind, content] of [['vreemd', foreignIfcx], ['onleesbaar', unreadableIfcx], ['afgekapt', truncatedIfcx]] as const) {
+  for (const [kind, content] of [['vreemd', foreignIfcx], ['onleesbaar', unreadableIfcx], ['afgekapt', truncatedIfcx], ['met-model', withModel]] as const) {
     const notice = classifyIfcx(content) === 'foreign' ? 'notifications.ifcForeignTargetSave' : 'notifications.ifcUnreadableTargetSave';
     const ipc = desktop();
     try {

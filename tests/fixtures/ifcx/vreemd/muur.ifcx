@@ -1,0 +1,50 @@
+{
+  "header": {
+    "id": "urn:voorbeeld:ifc5:muur",
+    "ifcxVersion": "ifcx_alpha",
+    "dataVersion": "1.0.0",
+    "author": "Voorbeeldmodel voor Open Planner Studio",
+    "timestamp": "2026-11-27T00:00:00Z"
+  },
+  "imports": [
+    {
+      "uri": "https://ifcx.dev/@standards.buildingsmart.org/ifc/core/ifc@v5a.ifcx"
+    }
+  ],
+  "schemas": {},
+  "data": [
+    {
+      "path": "87b0752b-deb3-4c52-9fb3-01650f7cd2d7",
+      "children": {
+        "Gebouw": "e07987fd-e387-4508-a2d5-9c14b90855ea"
+      },
+      "attributes": {
+        "bsi::ifc::class": {
+          "code": "IfcProject",
+          "uri": "https://identifier.buildingsmart.org/uri/buildingsmart/ifc/4.3/class/IfcProject"
+        }
+      }
+    },
+    {
+      "path": "e07987fd-e387-4508-a2d5-9c14b90855ea",
+      "children": {
+        "Muur": "f18c5828-53fe-40e5-8739-ed18a21eb523"
+      },
+      "attributes": {
+        "bsi::ifc::class": {
+          "code": "IfcBuilding",
+          "uri": "https://identifier.buildingsmart.org/uri/buildingsmart/ifc/4.3/class/IfcBuilding"
+        }
+      }
+    },
+    {
+      "path": "f18c5828-53fe-40e5-8739-ed18a21eb523",
+      "attributes": {
+        "bsi::ifc::class": {
+          "code": "IfcWall",
+          "uri": "https://identifier.buildingsmart.org/uri/buildingsmart/ifc/4.3/class/IfcWall"
+        }
+      }
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import type { DocumentPayload } from '@/state/documentContract';
+import { MINUTE_MODEL_TIME_MODEL } from '@/services/ifc/ifcConstants';
 import type { WorkCalendar } from '@/types/calendar';
 import type { MilestoneKind, Task, TaskTime } from '@/types/task';
 import type { Baseline, BaselineTask } from '@/types/baseline';
@@ -30,7 +31,7 @@ import {
  */
 
 /** De markering `OPS_Project.TimeModel` van een bestand dat met het minutenmodel berekend is. */
-export const MINUTE_MODEL_TIME_MODEL = 'MINUTES-1';
+export { MINUTE_MODEL_TIME_MODEL };
 
 /** Een startachtig of eindachtig datumveld van een taak (§4.2), met de varianten die een eigen regel
  *  hebben: de kant van een beperking of extern anker, en het baseline-einde naar de voortgang. */

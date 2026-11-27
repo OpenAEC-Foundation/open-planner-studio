@@ -2226,7 +2226,6 @@ function literalBaselineForm(ctx: O1Context, d: LossDiff, type: string, arg: num
   const src = mapJson(d.source, q => input.index.tokenText(d.chunk, q));
   const out = mapJson(d.out, q => decodeStepText(unquote(q)));
   type Obj = Record<string, unknown>;
-  const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
   /** Gelijk, op `free` na: daar mag een datum een andere vorm krijgen. `tasks` vergelijkt de aanroeper. */
   const sameBut = (a: Obj, b: Obj, free: readonly string[]) => [...new Set([...Object.keys(a), ...Object.keys(b)])].every(k =>
     k === 'tasks' || JSON.stringify(a[k]) === JSON.stringify(b[k]) || (free.includes(k) && typeof a[k] === 'string' && typeof b[k] === 'string'));
@@ -2237,12 +2236,12 @@ function literalBaselineForm(ctx: O1Context, d: LossDiff, type: string, arg: num
   const ends = literal.has(domain.calendar.id) ? ['projectEnd'] : [];
   for (let i = 0; i < src.length; i++) {
     const a: unknown = src[i], b: unknown = out[i];
-    if (!isObj(a) || !isObj(b) || !sameBut(a, b, ends) || !Array.isArray(a.tasks) || !Array.isArray(b.tasks)) return undefined;
+    if (!jsonObject(a) || !jsonObject(b) || !sameBut(a, b, ends) || !Array.isArray(a.tasks) || !Array.isArray(b.tasks)) return undefined;
     const rowsA: unknown[] = a.tasks, rowsB: unknown[] = b.tasks;
     if (rowsA.length !== rowsB.length) return undefined;
     for (let k = 0; k < rowsA.length; k++) {
       const ra = rowsA[k], rb = rowsB[k];
-      if (!isObj(ra) || !isObj(rb) || ra.taskId !== rb.taskId) return undefined;
+      if (!jsonObject(ra) || !jsonObject(rb) || ra.taskId !== rb.taskId) return undefined;
       if (!sameBut(ra, rb, literal.has(calendarOf(rb.taskId)) ? ['start', 'finish'] : [])) return undefined;
     }
   }

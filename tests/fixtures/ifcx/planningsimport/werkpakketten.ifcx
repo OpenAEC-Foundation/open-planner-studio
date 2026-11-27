@@ -1,0 +1,39 @@
+{
+  "header": {
+    "id": "urn:voorbeeld:werkpakketten",
+    "ifcxVersion": "ifcx_alpha",
+    "dataVersion": "1.0.0",
+    "author": "Planbureau"
+  },
+  "imports": [],
+  "schemas": {},
+  "data": [
+    {
+      "path": "/planning/work-0",
+      "attributes": {
+        "openaec::planning::activity": {"name":"Hal","start":"2027-03-06","endExclusive":"2027-03-11"},
+        "openaec::label": "Oud opschrift"
+      }
+    },
+    {
+      "path": "/planning/work-1",
+      "attributes": {
+        "openaec::planning::activity": {"start":"2027-03-06","endExclusive":"2027-03-08","parent":"/planning/work-0"},
+        "openaec::ops::task": {"place":0},
+        "openaec::label": "Stellen"
+      }
+    },
+    {
+      "path": "/planning/work-2",
+      "attributes": {
+        "openaec::planning::activity": {"name":"Storten","start":"2027-03-08","endExclusive":"2027-03-11","parent":"/planning/work-0"}
+      }
+    },
+    {
+      "path": "/planning/rel-1",
+      "attributes": {
+        "openaec::planning::sequence": {"relatingProcess":"/planning/work-1","relatedProcess":"/planning/work-2","sequenceType":"FINISH_START","timeLag":"-PT30M"}
+      }
+    }
+  ]
+}

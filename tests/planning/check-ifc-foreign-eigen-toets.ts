@@ -169,7 +169,7 @@ const cat = await savedCatalogStart(eigen);
 const twee = await (async () => {
   clock.start();
   const opened = await openForeign(cat);
-  const o = await save(await applyEdit(fixedCatalogEdits(cloneDomain(opened))[0], cloneDomain(opened)), opened.ifcSource!);
+  const o = await save(await applyEdit(fixedCatalogEdits()[0], cloneDomain(opened)), opened.ifcSource!);
   assert(o.ok, 'voorbereiding: tweede code schrijft'); return o.bytes;
 })();
 const prepared = new Map<string, { saved: Uint8Array; single: Uint8Array }>();
@@ -225,12 +225,12 @@ await one('1581 alle baselines wissen', eigen, se(s => { for (const b of [...s.b
 await one('1700 één baseline wissen', cat, se(s => { s.deleteBaseline(s.baselines[0].id); }), 'schrijft');
 await one('1586 een taaktypedefinitie hernoemen (stap 4)', cat, d => { d.customTaskTypes![0].name = 'Hernoemd projecttype'; return d; }, 'schrijft');
 await one('1588 ongebruikte brondefinitie, alleen de projectbeschrijving', unused, beschrijving, 'weigert');
-await one('1588 ongebruikte brondefinitie, nieuw type', unused, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
+await one('1588 ongebruikte brondefinitie, nieuw type', unused, d => applyEdit(fixedCatalogEdits()[1], d), 'weigert');
 // (a): een groep met een bronwaarde van (b) is niet gedragen, ook niet in zijn andere stukken. (c) toetst de rest van zo'n
 // groep, en het slot zelf apart (PR A).
 await one('niet gedragen: omschrijving op de codetemplates, alleen de projectbeschrijving', describedTemplates, beschrijving, 'schrijft');
 await one('niet gedragen: omschrijving op de codetemplates, code hernoemen (1585)', describedTemplates, se(s => { s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Hernoemde code'); }), 'weigert');
-await one('grens: onbekend definitieveld, typegroei', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
+await one('grens: onbekend definitieveld, typegroei', unknownField, d => applyEdit(fixedCatalogEdits()[1], d), 'weigert');
 await one('grens: onbekend definitieveld, taak met dat type wissen', unknownField, se(s => { s.deleteTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id); }), 'weigert');
 await one('grens: onbekende baselinesleutel, een andere baseline wissen', unknownKey, se(s => { s.deleteBaseline(s.baselines[1].id); }), 'schrijft');
 // (a′): bij het openen van een backup met een vreemd deel verdwijnt het herstelkenmerk (knownbug 1703); de toets weigert
@@ -262,9 +262,9 @@ for (const file of ['r7sol-vreemd-lid-bij-notitie', 'r7sol-vreemd-lid-bij-toewij
 }
 for (const which of ['eigen', 'kantoor', 'oud'] as const) {
   const { saved, single } = prepared.get(which)!;
-  for (const i of [0, 1, 2, 3]) await one(`7d ${which}: vaste bewerking ${i}`, i === 1 ? single : saved, d => applyEdit(fixedCatalogEdits(d)[i], d), 'schrijft');
+  for (const i of [0, 1, 2, 3]) await one(`7d ${which}: vaste bewerking ${i}`, i === 1 ? single : saved, d => applyEdit(fixedCatalogEdits()[i], d), 'schrijft');
   await one(`7d ${which}: code + nieuw type + nieuwe taak + typewissel`, single, async d => {
-    for (const i of [0, 1]) d = await applyEdit(fixedCatalogEdits(d)[i], d);
+    for (const i of [0, 1]) d = await applyEdit(fixedCatalogEdits()[i], d);
     return se(s => {
       s.updateTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id, { customTaskTypeId: 'type-7d-c' });
       const id = s.addTask({ name: 'Nieuwe taak 7d' }, { phaseAssignments: 'move', answered: true });
@@ -278,7 +278,7 @@ for (const which of ['eigen', 'kantoor', 'oud'] as const) {
     s.updateTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
   }), 'schrijft');
   await one(`7d ${which}: waarde bij bestaande codedefinitie`, saved, se(s => { s.addActivityCodeValue(s.activityCodeTypes[0].id, { code: 'EXTRA', description: 'Extra' }); }), 'schrijft');
-  const second = await one(`7d ${which}: tweede code opslaan`, saved, d => applyEdit(fixedCatalogEdits(d)[0], d), 'schrijft');
+  const second = await one(`7d ${which}: tweede code opslaan`, saved, d => applyEdit(fixedCatalogEdits()[0], d), 'schrijft');
   if (second.o.ok) await one(`7d ${which}: heropenen en derde code`, second.o.bytes, se(s => {
     const id = s.addActivityCodeType('Code C 7d'); s.addActivityCodeValue(id, { code: 'C', description: 'Derde waarde' });
   }), 'schrijft');
@@ -1045,7 +1045,7 @@ async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, ed
   {
     const labelled = withLabelOnUntypedTask(cat, 'Type 0 7d');
     const task = guidOf(labelled, l => l.type === 'IFCTASK' && l.args[4].trim() === "'Type 0 7d'" && l.args[12]?.trim() !== '.USERDEFINED.');
-    for (const [what, edit] of [['projectbeschrijving', beschrijving], ['typewissel (1747)', (d: Domain) => applyEdit(fixedCatalogEdits(d)[2], d)]] as const) {
+    for (const [what, edit] of [['projectbeschrijving', beschrijving], ['typewissel (1747)', (d: Domain) => applyEdit(fixedCatalogEdits()[2], d)]] as const) {
       await perSlot(`per slot: typenaam op een taak zonder type, ${what}`, cat, labelled, edit, [`taak:ObjectType|${task}#4`], []);
     }
   }
@@ -1086,7 +1086,7 @@ async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, ed
   }
   // Een slot dat (b) terugzet en dat de planner wijzigde, weigert zoals tot nu: een onbekend veld in de typedefinities (JSON,
   // de lezer draagt een deel) en een nieuw type (blok 2, "grens: onbekend definitieveld, typegroei").
-  await one('per slot: onbekend definitieveld (b) en een nieuw type', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
+  await one('per slot: onbekend definitieveld (b) en een nieuw type', unknownField, d => applyEdit(fixedCatalogEdits()[1], d), 'weigert');
   // De review van #1095, punt 2: met een omschrijving op `OPS_StructureMeta` valt die groep in de verliescontrole helemaal
   // buiten de toets, zoals op de basis. Het eerste eigen veld toevoegen en een activiteitscodetype hernoemen weigeren daar
   // (`IfcRelDeclares` en de templatelijst verschillen, en geen oude verklaring dekt dat), en dat blijft zo.

@@ -71,8 +71,8 @@ async function attempt(label: string, source: Uint8Array, edit: (d: Domain, o: O
 }
 
 const beschrijving = se(s => { s.setProject({ description: 'Alleen de projectbeschrijving is gewijzigd' }); });
-const nieuwType = (d: Domain) => applyEdit(fixedCatalogEdits(d)[1], d);
-const wisselen = (d: Domain) => applyEdit(fixedCatalogEdits(d)[2], d);
+const nieuwType = (d: Domain) => applyEdit(fixedCatalogEdits()[1], d);
+const wisselen = (d: Domain) => applyEdit(fixedCatalogEdits()[2], d);
 const hernoemd = (d: Domain) => { d.customTaskTypes![0].name = 'Hernoemde werksoort'; return d; };
 const ordinary = (kind: EditKind) => (d: Domain, o: Opened) => applyEdit([...plannerEdits(o, 1), ...ordinaryEdits(o)].find(e => e.kind === kind)!, d);
 

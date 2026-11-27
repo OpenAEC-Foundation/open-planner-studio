@@ -1,6 +1,7 @@
 import type { WriteIFCInput } from '../ifcWriter';
 import { ifc5ValueDescription, membersOf, objectOf, type IfcxMember, type IfcxValue } from './fieldTable';
 import { ATTRIBUTE, type IfcxAttributeName } from './profile';
+import { LINKS_VALUE, MODEL_SOURCE_VALUE } from './modelReferences';
 import { DOCUMENT_FIELDS, PROJECT_KEYS_CARRIED, SCHEDULE_SHARED_FIELDS, WORKPLAN_SHARED_FIELDS } from './fields/documentFields';
 import { CALENDAR_FIELDS, CALENDAR_KEYS_CARRIED, CALENDAR_SHARED_FIELDS, CALENDAR_VALUE_1_0 } from './fields/calendarFields';
 import { TASK_FIELDS, TASK_KEYS_CARRIED, TASK_SHARED_FIELDS, TASK_TIME_KEYS_CARRIED } from './fields/taskFields';
@@ -120,13 +121,19 @@ const CARRIED_MODEL_KEYS = new Set<ModelKey>([...NODES.flatMap(node => node.mode
 
 export const STEP_WRITER_INPUT_NOT_CARRIED: readonly ModelKey[] = ALL_MODEL_KEYS.filter(key => !CARRIED_MODEL_KEYS.has(key));
 
-export const OWN_ATTRIBUTE_VALUES: ReadonlyMap<IfcxAttributeName, IfcxValue> = new Map(
-  NODES.flatMap(node => node.attributes.map(attribute => [attribute.name, objectOf(membersOf(attribute.fields))] as const)),
-);
+export const OWN_ATTRIBUTE_VALUES: ReadonlyMap<IfcxAttributeName, IfcxValue> = new Map([
+  ...NODES.flatMap(node => node.attributes.map(attribute => [attribute.name, objectOf(membersOf(attribute.fields))] as const)),
+  [ATTRIBUTE.modelSource, MODEL_SOURCE_VALUE],
+  [ATTRIBUTE.links, LINKS_VALUE],
+]);
 
-export const NODE_SHAPES: readonly { readonly kind: NodeKind; readonly attributes: ReadonlySet<IfcxAttributeName> }[] = NODES.map(node => ({
-  kind: node.kind, attributes: new Set(node.attributes.map(attribute => attribute.name)),
-}));
+export const NODE_SHAPES = NODES.flatMap(node => {
+  const names = node.attributes.map(attribute => attribute.name);
+  const extra = node.kind === 'workplan' ? ATTRIBUTE.modelSource : node.kind === 'task' ? ATTRIBUTE.links : undefined;
+  const shapes = [{ kind: node.kind, attributes: new Set(names) }];
+  if (extra) shapes.push({ kind: node.kind, attributes: new Set([...names, extra]) });
+  return shapes;
+});
 
 export function isOwnAttributeName(name: string): name is IfcxAttributeName {
   return OWN_ATTRIBUTE_VALUES.has(name as IfcxAttributeName);

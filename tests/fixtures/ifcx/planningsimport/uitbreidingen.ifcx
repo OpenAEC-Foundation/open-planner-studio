@@ -1,0 +1,26 @@
+{
+  "header": {
+    "id": "urn:voorbeeld:uitbreidingen",
+    "ifcxVersion": "ifcx_alpha",
+    "dataVersion": "1.0.0",
+    "author": "Planbureau"
+  },
+  "imports": [],
+  "schemas": {},
+  "data": [
+    {
+      "path": "/planning/work-0",
+      "attributes": {
+        "openaec::planning::activity": {"name":"Taak 0","predecessor":"blijft-in-bron"},
+        "openaec::planning::weather": {"data":"blijft-in-bron"}
+      }
+    },
+    {
+      "path": "/planning/work-1",
+      "attributes": {
+        "openaec::planning::activity": {"name":"Taak 1","predecessor":"blijft-in-bron"},
+        "openaec::planning::weather": {"data":"blijft-in-bron"}
+      }
+    }
+  ]
+}
