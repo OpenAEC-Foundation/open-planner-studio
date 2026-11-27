@@ -86,14 +86,21 @@ const CAL_READONLY_KEYS: string[] = [
 
 const GEN_COUNTRIES: GeneratorCountry[] = [...HOLIDAY_COUNTRIES, 'none'];
 const BOUWVAK_CHOICES = ['geen', 'noord', 'midden', 'zuid'];
-const BOLIVIA_REGIONS = HOLIDAY_SETS.BO.regions ?? [];
-const BOLIVIA_REGION_CODES = BOLIVIA_REGIONS.map(({ id, name }) => `${id} = ${name}`).join(', ');
+const REGION_HELP = {
+  BO: { name: 'Bolivia', defaultCalendar: 'nationwide holidays' },
+  CA: { name: 'Canada', defaultCalendar: 'federal holidays' },
+};
+
+function calendarRegionCodes(country: keyof typeof REGION_HELP): string {
+  return HOLIDAY_SETS[country].regions?.map(({ id, name }) => `${id} = ${name}`).join(', ') ?? '';
+}
 
 function calendarRegionReason(country: unknown, region: unknown, field: 'generate.region' | 'generation.region'): string | null {
   if (region === undefined) return null;
   if (typeof region !== 'string') return `\`${field}\` must be a string`;
-  if (country === 'BO' && !BOLIVIA_REGIONS.some(({ id }) => id === region)) {
-    return `unknown \`${field}\` '${region}' for Bolivia; use ${BOLIVIA_REGION_CODES}, or omit it for nationwide holidays`;
+  if ((country === 'BO' || country === 'CA') && !HOLIDAY_SETS[country].regions?.some(({ id }) => id === region)) {
+    const { name, defaultCalendar } = REGION_HELP[country];
+    return `unknown \`${field}\` '${region}' for ${name}; use ${calendarRegionCodes(country)}, or omit it for ${defaultCalendar}`;
   }
   return null;
 }
@@ -827,7 +834,7 @@ const updateCalendar: BatchStepTool = {
                 },
                 region: {
                   type: 'string',
-                  description: `State/region/canton code; omitted = national. Bolivia: ${BOLIVIA_REGION_CODES}.`,
+                  description: `State/region/canton code; omitted = national (Canada: federal). Bolivia: ${calendarRegionCodes('BO')}. Canada: ${calendarRegionCodes('CA')}.`,
                 },
                 bouwvak: { type: 'string', enum: ['geen', 'noord', 'midden', 'zuid'], description: 'NL construction holiday; omitted = `geen` (none).' },
               },

@@ -19,11 +19,19 @@ function canonicalJson(value: unknown): string {
     ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item));
 }
 
-const OWN_SCHEMA_DEFINITIONS = ownSchemas(new Set(OWN_ATTRIBUTE_VALUES.keys()));
+const ownNames = new Set(OWN_ATTRIBUTE_VALUES.keys());
+const schemaDefinitions = {
+  original: ownSchemas(ownNames, false),
+  canadian: ownSchemas(ownNames, true),
+};
 const legacySchemaJson = canonicalJson(LEGACY_DOCUMENT_SCHEMA);
 
 export function usesLegacyDocumentSchema(schemas: unknown): boolean {
   return isPlainObject(schemas) && canonicalJson(schemas[ATTRIBUTE.document]) === legacySchemaJson;
+}
+
+export function hasCanadianGeneration(value: unknown): boolean {
+  return isPlainObject(value) && isPlainObject(value.generation) && value.generation.ruleSetId === 'CA';
 }
 
 function unknownAttribute(name: string, place: IfcxErrorPlace, what: string): IfcxCheckProblem {
@@ -32,14 +40,17 @@ function unknownAttribute(name: string, place: IfcxErrorPlace, what: string): If
     : { code: 'foreign', detail: `${what} dat Open Planner Studio niet schrijft`, place };
 }
 
-export function schemaDefinitionProblems(schemas: unknown, used: ReadonlySet<string>, legacyDocument = false): IfcxCheckProblem[] {
+export function schemaDefinitionProblems(
+  schemas: unknown, used: ReadonlySet<string>, canadianGeneration: boolean, legacyDocument = false,
+): IfcxCheckProblem[] {
   if (!isPlainObject(schemas)) return [{ code: 'invalid', detail: 'Het bestand heeft geen schemas', place: { field: 'schemas' } }];
+  const expected = canadianGeneration ? schemaDefinitions.canadian : schemaDefinitions.original;
   const problems: IfcxCheckProblem[] = [];
   for (const name of Object.keys(schemas)) {
     const place = { attribute: name, field: 'schemas' };
     if (!isOwnAttributeName(name)) problems.push(unknownAttribute(name, place, 'Een schema'));
     else if (canonicalJson(schemas[name]) !== (legacyDocument && name === ATTRIBUTE.document
-      ? legacySchemaJson : canonicalJson(OWN_SCHEMA_DEFINITIONS[name]))) {
+      ? legacySchemaJson : canonicalJson(expected[name]))) {
       problems.push({ code: 'invalid', detail: 'Het schema wijkt af van het profiel', place });
     }
   }
@@ -65,14 +76,16 @@ export function ifcxSchemaProblems(document: unknown): string[] {
   const used = new Set<string>();
   const legacyDocument = usesLegacyDocumentSchema(document.schemas);
   const problems: IfcxCheckProblem[] = [];
+  let canadianGeneration = false;
   for (const entry of document.data) {
     if (!isPlainObject(entry) || !isPlainObject(entry.attributes)) continue;
     for (const [name, value] of Object.entries(entry.attributes)) {
       used.add(name);
+      if (name === ATTRIBUTE.opsCalendar && hasCanadianGeneration(value)) canadianGeneration = true;
       const problem = attributeValueProblem(String(entry.path), name, value, legacyDocument);
       if (problem) problems.push(problem);
     }
   }
-  problems.push(...schemaDefinitionProblems(document.schemas, used, legacyDocument));
+  problems.push(...schemaDefinitionProblems(document.schemas, used, canadianGeneration, legacyDocument));
   return problems.map(problem => `${[problem.place.path, problem.place.attribute, problem.place.field].filter(Boolean).join(' ')}: ${problem.detail}`);
 }

@@ -222,7 +222,8 @@ Een veld zonder "verplicht" mag ontbreken; `null` is nooit een geldige waarde.
 
 ### Werkplan
 
-`openaec::ops::document`: `formatVersion` (verplicht, nu `1.0.0`), `name` (verplicht), `description`, `calendar` (pad,
+`openaec::ops::document`: `formatVersion` (verplicht, `1.0.0` of `1.1.0` bij Canadese kalenderherkomst),
+`name` (verplicht), `description`, `calendar` (pad,
 verplicht: de projectkalender), `projectId`, `startDate` en `endDate` (de projectdatums zoals ingevoerd), `createdAt`,
 `modifiedAt`, `author`, `company`, `ifcSchema` (keuze `IFC4X3_ADD2`, `IFC4X3`, `IFC4`: het schema voor een opslag als
 STEP), `wbsAutoNumber` (ja/nee), `defaultTaskDurationUnit` (keuze `days`, `hours`),
@@ -257,8 +258,11 @@ einddatum), `workDays` (lijst van gehele getallen 1–7, maandag is 1, verplicht
 `hoursPerDay` (getallen, verplicht), `simpleBreakStartMinute`, `simpleBreakDurationMinutes`, `workTime`
 (`{ byWeekday: { "1": [{ start, end }], …, "7": [ … ] } }`, minuten vanaf middernacht), `workingExceptions` (lijst
 van `{ name, startDate, endDate, bands }`), `generation` (`{ ruleSetId, region, breakChoice, generatedFromYear,
-generatedToYear }`, waarmee de feestdagen zijn gemaakt; `ruleSetId` is een van de landen in `HOLIDAY_COUNTRIES`, de
-twee jaren liggen tussen 1000 en 9999).
+generatedToYear }`, waarmee de feestdagen zijn gemaakt. De twee jaren liggen tussen 1000 en 9999).
+Het schema van profiel `1.0.0` legt de oorspronkelijke waarden voor `ruleSetId` vast. Zodra een project- of
+resourcekalender `CA` als generatieherkomst draagt, schrijft de app profiel `1.1.0` met `CA` als extra waarde
+in dat schema. Planningen zonder Canadese generatieherkomst houden de uitvoer van `1.0.0`. De lezer toetst
+het schema aan de herkomst en vergelijkt de profielversie met de herberekende projectie.
 
 `openaec::planning::calendar` (projectie): `name`, `description`, `predefinedType` (`FIRSTSHIFT`, `SECONDSHIFT`,
 `THIRDSHIFT`, `USERDEFINED`, `IfcWorkCalendarTypeEnum`), `exceptionTimes` (de vrije dagen).

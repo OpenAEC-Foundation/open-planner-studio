@@ -812,6 +812,75 @@ en noem het in je rapport of PR-tekst.
      het vroege paar uit de vastlegging en geeft de berekening één werkdag. In 5021 `IfcTaskTime`-regels uit 141
      bestanden in de repo schrijft geen enkel programma `''` in deze slots. — B
 
+2477. **Met een samenvattingstaak als voorganger bij SS of SF rekent de opvolger met de start van elk kind, niet met
+     de start van de samenvatting.** `expandSummaryRelations` (`src/engine/scheduler/expandSummaryRelations.ts`) maakt per
+     blad een relatie, en de vroege start neemt het maximum over de voorgangers (ADR 0450). Gepind in
+     `tests/planning/cases-edge.json`: in `wbs-summary-relation-conservative-ss-pred-01` (fase P met K1 van 3 dagen op
+     het anker en K2 van 5 dagen na Q, P naar X met SS zonder lag) rolt P op tot een start op 1 juni en start X op
+     3 juni, met K2; in `wbs-summary-relation-conservative-sf-pred-01` eindigt X op de start van K2. De opvolger kan zo
+     later liggen dan bij een rekening met de fase als één taak. Wat MS Project hier doet, is niet in de repo
+     nagegaan; het weggehaalde commentaar noemde de vroegste kindstart de samenvattingsstart van MS Project. — B
+
+2478. **Met een samenvattingstaak als opvolger bij FF of SF moet elk kind aan de relatie voldoen, ook een kind dat
+     eerder klaar kan zijn.** `expandSummaryRelations` (`src/engine/scheduler/expandSummaryRelations.ts`) maakt per blad
+     een relatie (ADR 0450). Gepind in `tests/planning/cases-edge.json`: in
+     `wbs-summary-relation-conservative-ff-succ-01` (X van 6 dagen, FF zonder lag naar fase P met K1 van 3 en K2 van
+     5 dagen) eindigen K1 en K2 allebei op 8 juni, en start K1 daardoor pas op 4 juni;
+     `wbs-summary-relation-conservative-sf-succ-01` doet hetzelfde met de start van X als grens. Met de fase als één
+     taak hoeft alleen het laatst klare kind de eis te halen. Het weggehaalde commentaar noemde dit een vorm die MS
+     Project op een samenvatting ontmoedigt of verbiedt; dat is niet nagegaan. — B
+
+2479. **Een lag op een relatie met een samenvattingstaak als voorganger rekent per blad: een procentuele lag met de
+     duur van het blad, een lag in werktijd in de kalender van het blad.** Na `expandSummaryRelations` is de voorganger
+     van elke bladrelatie het blad; `resolveEffectiveLagDays` en `resolveLagMinutes` (`CPMSolver.ts`) nemen de duur van
+     de voorganger, en een lag in werktijd telt in de kalender die `lagEngine` uit de projectoptie `lagCalendar` kiest,
+     standaard die van de voorganger (ADR 0450). Nagespeeld met `solveProject` (profiel ops, projectkalender ma tot en
+     met vr van 8 tot 16 uur zonder `workTime`, projectstart 1 juni 2026). Procentueel: fase P met K1 van 2 dagen en K2
+     van 4 dagen met FS na K1, en P naar X met FS en `lagPercent` 50. K2 eindigt op 8 juni en X start op 11 juni 08:00,
+     twee werkdagen later (de helft van K2). P beslaat zes werkdagen; met een vaste lag van 3 dagen start X op 12 juni
+     08:00. Het waarschuwingenpaneel meldt niets (proef uit de review van #1281). De gids *Relaties leggen*
+     (`public/docs/nl/howto-relaties-leggen.md`) omschrijft `50%` als de helft van de duur van de voorganger, zodat een
+     planner met zo'n lag op een fase ongemerkt een werkdag te vroeg kan uitkomen. Lagkalender: fase P met K1 van 1 dag
+     op een kalender die alleen op maandag werkt (K1 eindigt op maandag 1 juni) en K2 van 5 dagen op de projectkalender
+     (eindigt op vrijdag 5 juni), en P naar X met FS en een lag van 2 dagen. X start op 16 juni: de lag van K1 telt twee
+     maandagen. Dezelfde relatie vanaf alleen K2 geeft 10 juni. Welke duur of kalender MS Project als basis neemt, is
+     niet nagegaan; het weggehaalde commentaar schreef "vermoedelijk" één duur voor de samenvatting als geheel. Issue
+     #1282. — B
+
+2487. **Welke samenvattingsrelatie boven het plafond wegvalt, hangt af van de volgorde van de relaties.**
+     `expandSummaryRelations` (`src/engine/scheduler/expandSummaryRelations.ts`): zodra één relatie niet meer in
+     `MAX_EXPANDED_RELATIONS` past, vallen ook alle volgende relaties weg die uitgeschreven moeten worden (ADR 0452).
+     Nagespeeld met een script: twee fasen van elk 300 bladen met een FS-relatie ertussen (90.000 paren, zonder
+     interne relaties, dus niets te snoeien) en een FS-relatie van een losse taak naar een van die fasen (300 paren).
+     In de volgorde klein, groot valt alleen de grote relatie weg en komen er 300 bladrelaties uit; in de volgorde
+     groot, klein vallen beide weg en komt er geen bladrelatie uit. Beide staan dan in `droppedSequenceIds`. — B
+
+2488. **Een echt relatie-id dat eindigt op `::exp-` met cijfers, komt in het rekenresultaat onder een ander id.**
+     `foldSyntheticSequenceIds` en `originalSequenceId` (`src/engine/scheduler/expandSummaryRelations.ts`) halen dat
+     achtervoegsel van elk id, ook van een relatie die de uitklapping niet maakte (ADR 0454). Nagespeeld met
+     `solveProject` (profiel ops, dagkalender, twee bladtaken A en B van 2 dagen, één FS-relatie A naar B met id
+     `r::exp-1`): `drivingSequenceIds` is `['r']` en `sequenceFreeFloat` heeft alleen de sleutel `r`, een id dat geen
+     relatie heeft. Bij een relatie op een fase met datzelfde id `r::exp-1` geeft het terugvouwen in `solveProject`
+     `r::exp-1`, en een tweede keer terugvouwen `r` (nagespeeld met een script). Bestaat er ook een relatie `r`, dan
+     vallen de twee volgens de code onder één id samen; dat is niet nagespeeld. Zo'n id kan binnenkomen via IFCX met de
+     vlag `ifcx` aan: het veld `id` van een relatie (`SEQUENCE_FIELDS` in
+     `src/services/ifc/ifcx/fields/sequenceFields.ts`) neemt elke niet-lege tekst over. Na inlezen van zo'n bladrelatie
+     had het rekenresultaat `r` als drijvend id en als sleutel voor de vrije speling, en de Relaties-weergave
+     (`relationIndex.ts`) las voor de relatie `driving: false` (proef uit de review van #1281). Of een andere lezer zulke
+     ids maakt, is niet nagegaan. — B (rekenresultaat), S (samenvallen met `r`)
+
+2489. **De XER-export kan een relatie tussen twee fasen verliezen, terwijl de exportmelding onjuist zegt dat ze is
+     omgezet.** `writeXER` (`src/services/xer/xerWriter.ts`) telt elke opgeslagen relatie met een samenvattingskant als
+     verlies `summaryRelations` (`notifications.exportXerLossItem.summaryRelations`: "is omgezet naar relaties tussen de
+     taken eronder") en schrijft alleen de bladrelaties uit `expandSummaryRelations(...).sequences`; `droppedSequenceIds`
+     leest hij niet (ADR 0452). Nagespeeld met een script, in het geheugen en niet in de browser (projectkalender ma tot
+     en met vr, twee fasen van elk 300 parallelle bladtaken van 1 dag, één FS-relatie tussen de fasen): `solveProject`
+     zet de relatie in `droppedSequenceIds`, `writeXER` meldt het verlies `summaryRelations` met aantal 1, en `readXER`
+     op de geschreven bytes geeft 0 relaties terug. De app accepteert zo'n koppeling (`relationRules.ts`), en het
+     waarschuwingenpaneel toont haar bij het rekenen als weggelaten. Volgens de code telt de melding ook een relatie met
+     de eigen fase of met een lege tak als omgezet (ADR 0451); dat is niet nagespeeld. — B (plafond), S (andere
+     weglatingen)
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -1653,6 +1722,54 @@ en noem het in je rapport of PR-tekst.
       `updateTask` werd het restwerk 960 minuten en was de walk weg. Dezelfde rasterwissel zonder die drie velden gaf
       960 minuten. Issue #1280. — B
 
+2500. **Plakken in het datumveld leest dag-maand-jaar, ook bij een andere Datumnotatie.** `handlePaste` in
+      `DateTextInput` (`src/components/common/DateTextInput.tsx`) leest de geplakte tekst met `parseFlexibleDate`, dat
+      `parsePersonalDate(raw, 'dmy')` is. De celeditor van het raster leest met de ingestelde notatie
+      (`parsePersonalDate(text, notation)` in `src/engine/taskGrid/editors.ts`). Nagespeeld in Node met
+      `parsePersonalDate`: `07-06-2026` geeft met `'dmy'` 2026-06-07, met `'mdy'` 2026-07-06 en met `'ymd'` `null`. Met
+      de Datumnotatie maand-dag-jaar legt het datumveld na het plakken van `07-06-2026` dus 7 juni vast (een volledige
+      datum plakken legt meteen vast), terwijl het raster dezelfde tekst als 6 juli leest. Open vraag: hoort plakken de
+      Datumnotatie te volgen? De plakroute is in de code gelezen, niet in de browser nagespeeld. Issue #1297. — B
+
+2501. **Een geplakte tekst die geen volledige datum is, komt als cijfers in één datumvakje.** In `handlePaste`
+      (`DateTextInput`, `src/components/common/DateTextInput.tsx`) geeft `parseFlexibleDate` `null` voor een datum met
+      tijd. Nagespeeld in Node: `13-05-2027 07:00` (de vorm van `displayDateTime` bij dag-maand-jaar, zoals het raster
+      een datum met tijd toont) en `2027-05-13T07:00` geven allebei `null`. Het veld laat dan het gewone plakken in het
+      vakje met de focus toe, en `nextSegmentState` houdt daarvan alleen de cijfers, afgekapt op de lengte van het
+      vakje. De andere vakjes blijven staan. Vormen de vakjes zo een bestaande datum die van de oude afwijkt, dan legt
+      het veld die bij het verlaten zonder melding vast; is het overgebleven dagnummer gelijk aan de dag die er stond,
+      dan verandert er niets.
+      Proef uit de review van #1284, in Node met gesimuleerde tekstvakjes: met `20-07-2026 08:00` in het veld (waarde `2026-07-20T08:00`) en
+      het dagvakje geselecteerd geeft plakken van `13-05-2027 07:00` het dagvakje `13`, en het veld legt
+      `2026-07-13T08:00` vast (13-07-2026 08:00). Wat de browser bij echt plakken met de selectie en `maxLength` doet, is
+      niet in een browser gemeten. Issue #1297. — B
+
+2502. **De Hongaarse hints staan in de verkeerde datumvakjes.** `placeholders` in `DateTextInput`
+      (`src/components/common/DateTextInput.tsx`) neemt aan dat `dateInput.placeholder` in dag-maand-jaar-volgorde
+      staat: het eerste deel gaat naar het dagvakje, het tweede naar het maandvakje, het derde naar het jaarvakje. De
+      Hongaarse vertaling (`src/i18n/locales/hu/common.json`) is `éééé.hh.nn.`, in de volgorde jaar, maand, dag.
+      Nagespeeld in Node met dezelfde splitsing: het dagvakje krijgt de hint `éééé` en het jaarvakje `nn`. De andere 27
+      talen staan in dag-maand-jaar-volgorde. — B
+
+2503. **Een jaar van vier cijfers onder 0100 wordt 20xx.** `parsePersonalDate` (`src/utils/displayDate.ts`) telt 2000
+      op bij elk jaar onder 100, ook als het met vier cijfers is getypt. Nagespeeld in Node: `01-06-0026` en `0026-06-01`
+      geven 2026-06-01, terwijl een jaar van drie cijfers wordt aangenomen als dat jaar: `01-06-203` geeft 0203-06-01,
+      het jaar 0203 (`existingIsoDate` vult het jaar aan tot vier cijfers). In het datumveld (`DateTextInput`) wordt een
+      getypt jaar `0026` bij het afronden dus 2026, zonder melding; dezelfde functie leest ook de datumcellen van het
+      raster (`src/engine/taskGrid/editors.ts`). Open vraag: hoort `0026` 2026 te worden of geweigerd? — B
+
+2504. **Een scheidingsteken na automatisch doorspringen kan bij het overschrijven van een ingevulde datum de maand
+      overslaan.** In `DateTextInput` (`src/components/common/DateTextInput.tsx`) selecteert `handleChange` na een vol
+      dagvakje de inhoud van een gevuld maandvakje (`focusSeg` met `'all'`). Een `-`, `/` of `.` daarna typt
+      `handleKeyDown` niet in die selectie, maar zet de focus met een lege cursor aan het begin van het jaarvakje
+      (`focusSeg` met `'start'`); staat daar al een jaar van vier cijfers, dan past er door `maxLength` geen cijfer meer
+      bij. Proef uit de review van #1284, in Node met gesimuleerde tekstvakjes, niet in de browser, met de Datumnotatie
+      dag-maand-jaar: in *Kalenders* een feestdag met Van 20-07-2026 en Tot 07-08-2026, één klik op het dagvakje van
+      *Van*, `21-06-2026` typen en Enter. Het veld legt 21-07-2026 vast, zonder veldfout. De kalenderdialoog
+      (`commitOnInputEnter` en haar layout-effect in `src/components/dialogs/CalendarDialog.tsx`) neemt die datum aan
+      en schrijft de feestdag naar het project. Voorstel: laat de scheidingstoets de bestaande selectie staan als het
+      veld zojuist automatisch is doorgesprongen. Issue #1296. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
@@ -1843,6 +1960,13 @@ en noem het in je rapport of PR-tekst.
       10:30 en 12:30 (proef uit de review van #1256). De berekende datums zijn niet nagespeeld. In de drie
       XER-testbestanden van de repo (`tests/browser/fixtures/xer/`, samen vier taken) wijst geen taak naar een
       ontbrekende kalender; hoe vaak P6 dat exporteert, is niet nagegaan. — B
+
+2487. **Newfoundland and Labrador krijgt Remembrance Day al vóór de invoering onder de algemene arbeidsnormen.**
+      Kies Canada en Newfoundland and Labrador en genereer feestdagen voor een planning die 2001 omvat. De lijst
+      bevat 11 november 2001, terwijl de toevoeging in december 2001 is aangenomen en de eerste editie als betaalde
+      feestdag op 11 november 2002 viel. De landelijke en andere provinciale regels staan hier los van. Richting:
+      geef regio `NL` in `CA_SET` (`src/engine/calendar/canadianHolidays.ts`) een afzonderlijke regel vanaf 2002.
+      Bevestigd in de review van #1293. [Provinciale aankondiging](https://www.releases.gov.nl.ca/releases/2002/labour/1106n06.htm). — B
 
 ## Bibliotheek, bezetting, extensies, AI
 
@@ -2205,6 +2329,107 @@ en noem het in je rapport of PR-tekst.
       (besluit van de technisch eigenaar, 25 november 2026). De proefbestanden en de proef staan op de branch van
       #1253. Niet nagegaan: of werktijden instellen in de kalenderdialoog en opnieuw rekenen het Bonsai-bestand goed
       laat rekenen. — B
+2355. **VERVOLG (#804 fase 2, PR 8): Ctrl+Z na het opslaan zet een lid niet terug in de relatie van een ander programma.**
+      Flag aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: de toewijzing van de Metselploeg aan *Wand A bouwen* wissen
+      en opslaan haalt de ploeg uit `#120` (de `IfcRelAssignsToProcess` van Bonsai met de ploeg en de wand); `#120` houdt
+      de wand en haar `QuantityInProcess`. Ctrl+Z en weer opslaan geeft de planning die de planner zag (na heropenen heeft
+      *Wand A bouwen* de ploeg weer), maar de ploeg komt in een eigen toewijzingsrelatie van OPS en niet terug in `#120`;
+      de tweede opslag heeft een lege wijzigingslijst. Hetzelfde geldt voor elk lid dat PR 8 uit een bewaarde of gemengde
+      relatie haalt (een verplaatste taak, een andere kalender). Ook met `detached` (#1265, PR 7) in main: `detached`
+      onthoudt alleen wat de regel van §4.7 uit een stuk haalt (`ruleChangesOnly` in `mergeWriter.ts`). Zou het ook de
+      vertrekkers onthouden, dan zette het ze bij de volgende opslag terug zodra het object bestaat, ook als de koppeling
+      niet terugkwam: de ploeg wissen, opslaan, een andere taak hernoemen en opslaan weigerde dan met
+      `planning-na-openen`, en in reeks 804c (Schilderwerk onder Stucwerk, opslaan, kinderen van Ruwbouw omkeren) kwam
+      Schilderwerk terug in `#8502` terwijl de planning het onder Stucwerk had (gemeten op 27 november 2026). Het ontwerp
+      (§4.6) wil dat Ctrl+Z het lid ook na het opslaan terugzet. Richting: een stuk dat `departuresOf` inkortte, net zo
+      terugzetten als de bewaarde relaties van `detached`: alleen als het lid terugkomt onder dezelfde relating (de
+      koppeling, niet alleen het object). Vóór het opslaan werkt Ctrl+Z wel: de bron is dan nog dezelfde. Vastgelegd in
+      `check-ifc-foreign-gemengde-relaties.ts` (met heropenen, en het geval met hernoemen). — B
+2356. **VERVOLG (#804 fase 2, PR 8): wat na PR 8 bij gemengde en bewaarde relaties nog anders gaat dan het ontwerp.** Flag
+      aan. Gevonden met `tests/planning/check-ifc-foreign-gemengde-relaties.ts` op `tests/fixtures/ifc-foreign/bonsai-4d.ifc`
+      en afgeleide bronnen.
+      (a) Een wortel-taak van een tweede live-schema die een kind wordt van een taak van het eerste schema, blijft staan in
+      de `IfcRelAssignsToControl` van het tweede schema (`#133` in `bonsai-4d.ifc`), zoals op main. Het ontwerp (§10) wil
+      haar daar ook uit. PR 8 verandert alleen wat main weigerde; uit een `IfcRelNests` van het tweede schema gaat ze wel.
+      (b) Een taak van het eerste schema onder een taak van het tweede schema zetten weigert, ook op main: op
+      `bonsai-4d.ifc` *Ruwbouw* onder *Stucwerk* geeft `niet-gedragen` op `#102` (de Bonsai-relatie van het D-schema raakt
+      haar enige lid kwijt en de verliescontrole verklaart dat niet: `memberMoved` in `lossCheck.ts` kent bij
+      `IfcRelAssignsToControl` alleen een andere kalender), en na een eerdere opslag `niet-eenduidig`.
+      (c) Een tweede ploeg aan een taak waarvan `#120` de eerste ploeg en een wand koppelt: de lezer zou de eigen relatie
+      vóór die van Bonsai lezen, dus haalt PR 8 de eerste ploeg uit `#120` en schrijft beide ploegen in een eigen relatie.
+      De `QuantityInProcess` van Bonsai blijft dan op `#120`, bij de wand. Een gewiste toewijzing gaat net zo.
+      (d) Vormen die blijven weigeren met `gemengde-relatie`: een gemengde relatie met een relating in de planning buiten
+      de bekende vormen (bijvoorbeeld `IfcRelNests` onder een resource of `IfcRelAssignsToControl` onder het werkplan),
+      een niet-resource als planningslid in een gemengde `IfcRelAssignsToProcess`, en bij een gewijzigde lijst van
+      toewijzingen van die taak ook dezelfde resource twee keer in één zo'n relatie of een gebleven resource met meer dan
+      één toewijzing bij die taak (welke toewijzing in welke relatie hoort, is dan niet eenduidig). De gedeelde pset (b)
+      gaat zoals op main: zie 2385.
+      Een schema onder een ander werkplan kan de planning niet uitdrukken (één werkplan). — B
+2378. **Een taak van Bonsai een eigen kalender geven en doorrekenen weigert de opslag met `bronvorm-leest-anders`.** Flag
+      aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: *Wand A bouwen* een eigen kalender (een kopie van de projectkalender)
+      en doorrekenen, dan opslaan. De merge weigert: `taak task-ifc-22icVZXFsEZ1Ius5rjnii6, time.earlyFinish:
+      "2026-02-06T17:00" na herlezen in plaats van "2026-02-02T09:00"`, en zo ook `lateFinish`. Main (`4f9c435c9`) weigerde
+      dezelfde bewerking eerder, met `gemengde-relatie` op `#122` (gemeten op 25 november 2026); sinds #1262 haalt de merge
+      de taak uit `#122` en komt hij bij deze controle. Een taak buiten `#122` met een taaktijd weigert net zo; *Stucwerk*
+      (zonder taaktijd) schrijft. Geen verlies (de merge weigert), wel een opslag die niet lukt. De datums komen uit
+      2370: de kopie van de projectkalender van Bonsai heeft geen werktijden, dus doorrekenen zet *Wand A* met nul
+      werktijd op 2026-02-02 09:00; het einde in de vorm van de bron (`sourceFormWhereUnchanged`) leest na heropenen dan
+      anders. Richting: eerst de keuze van 2370 (een melding in plaats van een stille werkweek); daarna een andere
+      kalender laten tellen als wijziging van de datumslots van die taak (regel A), zodat de writer ze in zijn eigen vorm
+      schrijft. Vastgelegd in `tests/planning/check-ifc-foreign-gemengde-relaties.ts` met de reden van vandaag (een andere
+      reden, of schrijven, maakt de proef rood); ook reeks 804a stap 2 en 804b stap 5 daar. — B
+2379. **Wissen, opslaan, een taak erbij, opslaan, een taak tot wortel maken en opslaan weigert met `planning-na-openen`.** Flag
+      aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: *Wand B bouwen* wissen en opslaan (schrijft; `#116` en `#122`
+      gewijzigd, `#178` vervallen), een nieuwe taak boven *Stucwerk* en opslaan (schrijft, lege lijst), *Wand A bouwen*
+      bovenaan als wortel-taak en opslaan. De derde opslag weigert met `taak task-ifc-2lNOVVAc3x$DPP3aHgo958.time.durationUnit:
+      "hours" → "days"` (*Ruwbouw*, dat zo zijn laatste kind verliest). Main (`4f9c435c9`) geeft dezelfde drie uitkomsten,
+      met dezelfde lijsten en dezelfde reden (gemeten op 25 november 2026). Geen verlies (de merge weigert), wel een opslag
+      die niet lukt. Vermoeden, niet nagegaan: na de eerste opslag heeft *Ruwbouw* een taaktijd in de bron, en een fase die
+      daarna haar laatste kind verliest, krijgt niet de taaktijd met de duur-eenheid van de planner; herstelronde 4 van #1205
+      deed dat alleen voor een fase zonder taaktijd in de bron (2256). Richting: dezelfde uitzondering ook voor een fase met
+      een taaktijd die haar laatste kind verliest. Vastgelegd in `tests/planning/check-ifc-foreign-gemengde-relaties.ts` met
+      de reden van vandaag; dezelfde wortel vermoedelijk ook in reeks 804d stap 5 (`durationUnit`) en stap 6 (`lateStart`)
+      daar. — B
+2383. **`foreignChangesIfSaved` telt de leden niet die de merge uit een gemengde relatie haalt.** Flag aan,
+      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: de toewijzing van de Metselploeg aan *Wand A bouwen* wissen.
+      `foreignChangesIfSaved` (`src/state/foreignLinksNotice.ts`) geeft dan 0, de merge schrijft `gewijzigd #120` (1). De
+      functie telt alleen de regel voor verdwenen objecten (`applyForeignRule`), niet de leden die `departuresOf` (#1262)
+      uit een relatie haalt. In de app gebruikt niets haar: de vraag vóór het opslaan en de melding erna tellen uit
+      `prepared.foreignChanges`. `check-ifc-foreign-telling-vooraf.ts` wist alleen objecten en ziet het verschil daarom
+      niet. Richting: de functie pas gebruiken als ze ook de vertrekkende leden telt, of haar weghalen. — B
+2385. **Een gewijzigde gedeelde pset weigert met `gemengde-relatie`.** Flag aan,
+      `tests/fixtures/ifc-foreign/council/r5sol-gedeelde-calendar-pset.ifc`: kalender `#46` en wand `#904` delen via `#52`
+      één `OPS_Calendar` (`#51`). Andere uren per dag op de kalender en opslaan weigert met `gemengde-relatie #52:
+      IFCRELDEFINESBYPROPERTIES #52: de pset OPS_Calendar van IFCWORKCALENDAR #46 veranderde (of de writer deelt haar)`,
+      zoals op main. Wat wel schrijft, ook zoals op main: alleen de naam van een feestdag anders (*Kerst* van 2028): lege
+      wijzigingslijst, `#50`, `#51` en `#52` bytegelijk, na heropenen de nieuwe naam; en een andere kalendernaam. Het
+      ontwerp (§4.6, geval b) wil bij andere waarden dat de writer het planningsobject uit de gedeelde relatie haalt en een
+      eigen pset schrijft, terwijl het vreemde object de oude pset houdt; bij gelijke waarden blijft de relatie bytegelijk.
+      Beslissen moet op de waarden die de writer voor die ene pset schrijft, niet op de velden die de pset kunnen raken:
+      een eerdere versie van #1262 telde een feestdagnaam mee (via `WorkingExceptionIds`) en haalde de kalender bij gelijke
+      waarden uit `#52` (review ronde 3). Komt alleen uit de proefbron; geen gangbare export gevonden die een
+      `OPS_Calendar` met een ander object deelt. Vastgelegd in `check-ifc-foreign-gemengde-relaties.ts` (de weigering met
+      haar reden, en de feestdag) en `check-ifc-foreign-preserve.ts`. Eindlijst (besluit van Trias, 25 november 2026). — B
+2386. **De volgorderegel van `departuresOf` kijkt naar één relatie.** Flag aan. `keptTail`
+      (`src/services/ifc/foreign/departures.ts`) neemt aan dat de lezer de eigen relatie van de writer vóór de gemengde
+      relatie leest, en kijkt per gemengde relatie alleen naar haar eigen leden. (a) Twee gemengde `IfcRelNests` onder
+      dezelfde taak, *A* in de eerste en *B* in de tweede, en de planner zet een nieuw kind vooraan: bij (nieuw, *A*, *B*)
+      kunnen beide relaties blijven, maar de regel ziet *B* niet in de eerste relatie en laat *A* onnodig vertrekken (naar
+      een eigen relatie; de eerste relatie vervalt). Bij `IfcRelAssignsToProcess` net zo. (b) Een gemengde relatie die in
+      de bron vóór het eerste P-stuk staat, leest de lezer vóór de eigen relatie: komt *B* achter *A*, dan kan *A* blijven,
+      maar de regel haalt *A* eruit; wil de planner *B* juist vóór *A*, dan houdt de regel *A* vast en weigert de
+      herleestoets de opslag (de uitvoer leest als (*A*, *B*)). Bij Process kan `assignmentPlacement` eigen stukken ook
+      later zetten. Geen verlies: in (a) staat het lid daarna in een eigen relatie, in (b) weigert de opslag. Gevolgd in de
+      code (review ronde 3 van #1262), niet nagespeeld; geen proef. Geen gangbare export met zo'n vorm gevonden: Bonsai
+      gebruikt een bestaande nest- of procesrelatie en IfcOpenShell schrijft op id-volgorde; IFC staat wel meer `Nests`
+      per ouder toe. Richting: de staart nemen over alle gemengde relaties van dezelfde ouder in bestandsvolgorde, met de
+      plek van het P-blok. Eindlijst, vóór de flag standaard aan gaat (besluit van Trias, 25 november 2026). — S
+2391. **Wordt hetzelfde vreemde stuk in één opslag ingekort én teruggezet, dan krijgen de herstelbytes voorrang.**
+       Flag aan. Een stuk dat `detached` terugzet (Ctrl+Z na opslaan) en waaruit `departuresOf` in dezelfde opslag een
+       lid laat vertrekken: bij het samenvoegen van de bytes in `mergeWriter.ts` wint de teruggezette versie. De
+       voorrang is in de code gezien; de precieze uitkomst van die samenloop is niet gemeten en geen proef bouwt die
+       vorm. Gezien door de review van #1262, ronde 4 (Sol). Richting: de samenloop in de proef opnemen en vastleggen
+       wat er hoort te staan. — S
 
 2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
      `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
@@ -4546,14 +4771,9 @@ en noem het in je rapport of PR-tekst.
       herstelde undo-stap door aan dezelfde teller: wist de planner een losse gekoppelde relatie of wiste hij via MCP
       (`planner_delete_tasks`), dan komt er bij die eerste wissing geen wismelding, maar na Ctrl+Z en Ctrl+Y alsnog wel,
       als die stap een stuk van een ander programma laat vervallen (gezien in de code door de reviewer van #1199,
-      ronde 6; niet nagespeeld). Richting: dezelfde aanroep in `removeSequence` en `commitCalendarLibrary`. — S
-2250. **VERVOLG (#1199): Ctrl+Z na het opslaan, of tijdens het opslaan na de momentopname, brengt de taak terug, niet
-      de koppeling van het andere programma.** Na het opslaan is `ifcSource` de uitvoer zonder de vervallen stukken, en
-      undo zet de bron niet terug (documentveld zonder momentopname). Een opslag die haar momentopname al had, schrijft
-      en commit die uitvoer ook als de planner intussen Ctrl+Z drukt. De wismelding heeft in deze PR geen knop (die komt
-      in PR 7); Ctrl+Z op het toetsenbord werkt wel. De melding na het opslaan
-      zegt dat de gegevens zijn aangepast of verwijderd, maar niet dat Ctrl+Z ze niet terugbrengt. Richting: PR 7 van #804 (`detached`, de soort *teruggezet*) bewaart de oude bytes van
-      de wijzigingslijst en kan ze bij undo terugzetten. Afgeleid uit de code, niet nagespeeld. — S
+      ronde 6; niet nagespeeld). Richting: dezelfde aanroep in `removeSequence` en `commitCalendarLibrary`. Sinds PR 7
+      van #804 heeft de melding de knop *Ongedaan maken*; die geldt dus ook alleen bij taken en resources. Ctrl+Z en de
+      volgende opslag zetten de stukken van een ander programma wel bij elke manier van wissen terug. — S
 2251. **Veel taken wissen in een bestand met een gebouwmodel, en dan opslaan, weigert met `planning-na-openen`.** Met
       de flag *IFC met gebouwmodel openen* aan: een gegenereerde planning van 10.000 taken
       (`generateBenchmarkProject(10_000, { seed: 0x5eed })` via `writeIFC`, met één `IfcWall` erbij en geen koppeling),
@@ -4583,19 +4803,90 @@ en noem het in je rapport of PR-tekst.
       Automatisch opslaan wel: zolang het zonder vraag schrijft, is de tiende voorwaarde voor het standaard aanzetten van
       de flag *IFC met gebouwmodel openen* (de planner mist de telling van een opslag niet) voor die route niet gehaald.
       Wat het moet doen, wacht op een keuze van de eigenaar: A, het document overslaan tot de planner zelf opsloeg; of B,
-      schrijven zoals nu. Knownbug 2250 blijft staan. Besluit technisch eigenaar bij het opknippen van #1199 (fixronde 3);
-      de vraag vóór het opslaan is gebouwd achter de flag.
+      schrijven zoals nu. Besluit technisch eigenaar bij het opknippen van #1199 (fixronde 3); de vraag vóór het opslaan
+      is gebouwd achter de flag. Sinds PR 7 van #804 brengt Ctrl+Z na het opslaan de stukken bij de volgende opslag
+      terug, zolang het document open is; de vraag en de telling zeggen dat niet.
 
       De waarschuwing bij het wissen (`notifyForeignLinksDropped` in `src/state/foreignLinksNotice.ts`) is ook een gewone
-      melding: een info van main zonder knop, met het aantal van die ene wisstap. Ze deelt dezelfde grenzen. Staan er al
-      drie meldingen open, dan kan ze ontbreken: het meldingenkanaal van main bepaalt welke melding plaatsmaakt. Zijn
+      melding: een info van main met het aantal van die ene wisstap en, sinds PR 7 van #804, de knop *Ongedaan maken*
+      (de bewaking van de knop van main, `watchNotice`; de regel van de knop staat hieronder). Ze deelt dezelfde grenzen.
+      Staan er al drie meldingen open, dan kan ze ontbreken: het meldingenkanaal van main bepaalt welke melding plaatsmaakt. Zijn
       het drie schrijffouten of drie tellingen van eerdere opslagen, dan haalt de stapel de wismelding meteen weer weg
       en ziet de planner haar niet; staat er een gewone info of een passende weigering tussen, dan wijkt die en blijft
       de wismelding zichtbaar. Het opslaan laat de gegevens in beide gevallen vervallen.
-      Ze verdwijnt na de gewone tijd van main en hangt alleen aan het wissen van taken en resources
-      (knownbug 2249). De knop *Ongedaan maken* komt in PR 7 (`detached`). Dit is de twaalfde voorwaarde voor het
+      De knop staat er zolang de melding zichtbaar is (12 s, of tot het kruisje), de wisstap de stap van Ctrl+Z van het
+      actieve document is, de projectgegevens sinds het wissen gelijk zijn en de flag aan staat. Ctrl+S en Automatisch
+      opslaan halen hem niet weg; een nieuwere stap, Ctrl+Z, een ander tabblad, een verversing uit de
+      resourcebibliotheek of de flag uit halen de melding met haar knop definitief weg (`watchNotice` in
+      `src/state/otherWorkNotice.ts`). Grenzen daarvan:
+      - Automatisch opslaan begint pas na 30 s zonder wijziging (`MODEL_AUTOSAVE_REST_MS` in
+        `src/services/actualAutosave/modelAutoSaveRhythm.ts`); de melding is dan meestal al weg. Ctrl+Z zet daarna
+        nog steeds terug, en de telling van die opslag heeft geen knop;
+      - Ctrl+Y van de wisstap meldt alleen opnieuw als de huidige bron nog iets heeft dat bij de volgende opslag
+        vervalt: na wissen, opslaan, Ctrl+Z en Ctrl+Y is dat aantal nul (de bron is al zonder die stukken), dus komt
+        er geen melding en geen knop (gezien in de code door de review van #1265, ronde 1);
+      - staat de vraag vóór het opslaan open, dan is de knop niet te bedienen: de rest van het scherm is inert en ligt
+        onder de donkere laag, en Ctrl+Z is bevroren. Na *Annuleren* staat de melding er nog (als haar 12 s niet om
+        zijn) en zet de knop terug. Gezien in de app (dev-server, `bonsai-4d.ifc`, PR 7, herstelronde 1); duurt de vraag
+        langer dan 12 s, dan is de melding daarna weg en blijft Ctrl+Z;
+      - de melding hangt alleen aan het wissen van taken en resources (knownbug 2249).
+      Dit is de twaalfde voorwaarde voor het
       standaard aanzetten van de flag: de planner mist de waarschuwing bij het wissen niet en kan vanuit die waarschuwing
       ongedaan maken. Besluit technisch eigenaar, 25 november 2026 (fixronde 5). — S
+2354. **VERVOLG (#804 PR 7): wat `detached` nog niet meeneemt.** Ctrl+Z na het opslaan zet de stukken van de
+      wijzigingslijst, de constante slots van een teruggekomen object en de leden van een bewaarde relatie van een ander
+      programma terug (`src/services/ifc/foreign/detached.ts`). Nog niet, gezien in de code:
+      - de onbekende JSON-sleutels van een verdwenen object: die zijn er pas met #1188;
+      - de ongebruikte sleutels in `OPS_Assignments` van een verwijderde taak: ze staan op de wijzigingslijst, maar de
+        writer krijgt ze na Ctrl+Z niet terug (`unusedKeysForWriter` leest alleen de bron);
+      - een vreemd lid van een eigen pset van een verwijderd object: het blijft als los stuk staan (§4.2 stap 3), maar
+        hangt na Ctrl+Z niet weer aan de pset van het object;
+      - de domeinslots van een teruggekomen object van een ander programma: die schrijft de writer in zijn eigen vorm,
+        met dezelfde waarden (de constante slots, zoals de owner history, komen wel terug);
+      - laat een opslag geen vreemd deel meer over (alles van het andere programma wees naar wat gewist is), dan heeft
+        de bron geen vreemd deel en dus geen `detached`; Ctrl+Z brengt het dan niet terug;
+      - een stuk dat bij terugzetten een nieuw `#id` kreeg en nog een lid mist, terwijl een ander bewaard stuk naar zijn
+        oude `#id` verwijst: die verwijzing vindt het later niet meer.
+      Geen van deze gevallen zit in `bonsai-4d.ifc` of de pinbron; `check-ifc-foreign-detached.ts` toetst ze niet. — S
+2371. **Na een opslag een tweede taak onder dezelfde ouder wissen en opslaan weigert met `niet-eenduidig`.** Flag aan,
+      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: *Wand A bouwen* wissen, opslaan, *Wand B bouwen* wissen, opslaan. De
+      tweede opslag weigert (`ifcForeignMergeRefused`); de verliesbewaking koppelt de gewiste taak `#108` aan de regel
+      van *Ruwbouw* (`IFCTASK #108 … heeft in de uitvoer na de bewerking dezelfde tegenhanger (#100) als een ander stuk
+      van de bron`). Zonder de tussentijdse opslag schrijft dezelfde reeks wel. Nagespeeld met een script op main
+      `4f9c435c9` en op de branch van PR 7, met dezelfde uitkomst; het komt niet uit `detached`. Er gaat niets verloren
+      (de opslag weigert), maar de planner kan zo niet opslaan; *Exporteren zonder gebouwmodel* blijft de uitweg. De
+      eigenschapsproef van PR 7 vond het (zaad 18) en laat zo'n reeks alleen door als dezelfde reeks met de bron zonder
+      `detached`, via de echte opslagcommit, op dezelfde stap letterlijk dezelfde fout geeft.
+      `check-ifc-foreign-detached.ts` legt de kortste reeks en de fout vast (29 regels `niet-eenduidig`, de eerste
+      `IFCRELASSIGNSTOCONTROL #248, argument 1 na de bewerking: #232 → #101`); main `376c83a94` geeft letterlijk
+      dezelfde tekst, ook in Pacific/Midway (gemeten met een script). Dit raakt gewoon werk met een gewoon bestand. — B
+2380. **Een mijlpaal via `updateTask` een duur geven en opslaan weigert met een vreemd deel, ook op main.** Flag aan,
+      de mijlpaal *Start of refurbishment* (`task-mvp6eel2x2ge26`, duur 0) krijgt met `updateTask` een
+      `scheduleDuration` van 1, en `isMilestone` blijft `true`. Ctrl+S en Automatisch opslaan weigeren dan. Op de pinbron
+      (`tests/planning/ifcBonsaiPin.ts`) met `bronvorm-leest-anders`: `60 veld(en) in de vorm van de bron lezen na
+      openen anders: taak task-mvp6eel4sh9b27, time.scheduleFinish: "2027-05-12T07:00" na herlezen in plaats van
+      "2027-05-12T16:00"; …`. Op `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met `planning-na-openen`:
+      `taak task-mvp6eel2x2ge26.time.scheduleDuration: 1 → 0`. Nagespeeld met een script via de desktoproute, op main
+      `376c83a94` en op de branch van PR 7 van #804, met letterlijk dezelfde fout. Een resource toevoegen hoort er niet
+      bij: in het rapport van PR 7 (ronde 0) stond het als "een resource erbij en dan Automatisch opslaan", maar al de
+      eerste opslag na de duur weigert, en Ctrl+S, een resource erbij, Ctrl+S schrijft. Of de app zelf (het duurveld,
+      het raster, MCP) een mijlpaal zo een duur kan geven, is niet nagegaan; zie ook knownbug 2234 (een taak tot
+      mijlpaal maken). Er gaat niets verloren (de opslag weigert). — B
+2381. **VERVOLG (#804 PR 7): commentaar vóór een vervallen stuk gaat bij terugzetten verloren.** De wijzigingslijst
+      bewaart van een vervallen stuk de hele bronspanne, met eventueel commentaar (`/* … */`) vóór de entiteit
+      (`foreignChangeList` in `src/services/ifc/foreign/foreignReferences.ts`). Krijgt het stuk bij Ctrl+Z na het
+      opslaan een nieuwe plek direct na het P-blok, dan neemt `renderedRestorations` (`src/services/ifc/foreign/detached.ts`)
+      alleen de entiteit mee (`subarray(skipBlank(…))`) en valt dat commentaar weg. Zonder tussentijdse opslag blijft het
+      commentaar staan. Gezien in de code door de review van #1265, ronde 1; niet nagespeeld. Richting: de voorloop apart
+      bewaren en bij het invoegen meenemen. Een randgeval: een STEP-bestand met commentaar tussen de regels. — S
+2384. **Alle taken van een Bonsai-bestand wissen en opslaan weigert met `planning-na-openen`, ook op main.** Flag aan,
+      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: wis *Ruwbouw* (met haar kinderen) en *Stucwerk* en sla op. De opslag
+      weigert, omdat *Ruwbouw* na heropenen van de kandidaat terug is. Main geeft letterlijk dezelfde weigering;
+      `detached` verandert er niets aan. De proef `check-ifc-foreign-detached.ts` legt de weigering vast met haar
+      kortste reeks en de precieze fouttekst (geval "alle taken van bonsai-4d.ifc gewist", vijf reeksen in de
+      eigenschapsproef). Gewoon werk dat nog niet schrijft; hoort bij 2251 (veel taken wissen weigert met
+      `planning-na-openen`). Gevonden bij de herstelronde van #1265; de weigering op main is door de bouwer met een
+      script gemeten, door de review van ronde 2 niet opnieuw uitgevoerd. — B
 
 2376. **Terwijl de vraag vóór het opslaan staat, toont de statusbalk "Opslaan…".** De opslag telt als lopend vanaf
       Ctrl+S (`trackSave` in `src/state/slices/fileSlice.ts` verhoogt `saveState.saving` vóór de poging), dus ook terwijl
@@ -4793,6 +5084,31 @@ en noem het in je rapport of PR-tekst.
       definities staan. `PROP.StructureMeta` noemt alleen `structure`, dus `foreign/classify.ts` deelt een ander lid
       in als vreemd lid terwijl de lezer het wel leest. Proef uit de review van #1273, met een property buiten het
       register. — B
+
+2510. **Een kopie van een document gaat ervan uit dat de projectdata een JSON-rondgang ongewijzigd doorstaat.**
+      `duplicateDocument` (`src/state/slices/documentSlice.ts`) kloont project, kalenders, taken, relaties, resources,
+      toewijzingen, activity codes, eigen velden, eigen taaktypes, baselines, `view` en `collapsedTaskIds` met
+      `deepClone` (`JSON.parse(JSON.stringify(…))`). `cloneXerImportMetadata` doet hetzelfde met de XER-metadata buiten
+      de catalogi als er geen archief is, en ook als er een archief is maar de metadata geen `sourceProjectId` draagt.
+      Een getal `NaN` of `Infinity` wordt daarin `null`, en `undefined` in een array ook. De typen van die velden in
+      `src/types/` en `src/services/importTypes.ts` bevatten geen `Map`, `Set`, `Date` of bytes; of zulke waarden in een
+      echt document kunnen voorkomen, is niet nagegaan. De aanname stond als commentaar bij `deepClone`. — S
+
+2511. **Een herstelde kopie van een document met een gebouwmodel kan het bestand van het origineel overschrijven.**
+      Met de flag `ifcForeignContent` aan krijgt de kopie van `duplicateDocument` (`src/state/slices/documentSlice.ts`)
+      geen opslagdoel, maar wel hetzelfde bronkenmerk `foreignSourceMark` als het origineel, met de browserhandle van
+      het bronbestand erin. `recoveryIfcSourceFields` (`src/services/recovery/recoveryIfcSource.ts`) neemt in de
+      herstelmetadata van een document de handle uit dat bronkenmerk op, dus ook voor de kopie. Bij herstel leest
+      `readRecoveryDocument` (`src/state/readRecoveryDocument.ts`) de bron via die handle, en `recoveryDocumentWithSource`
+      zet dezelfde handle als `fileHandle` van het herstelde document, dus als opslagdoel. Proef in Node met de bestaande
+      IFC-fixture, de echte store-, herstel- en opslagroute, en browserhandle en IndexedDB in het geheugen (niet met een
+      echte browserherstart, en niet op de desktop- of siteroute): (1) met de flag aan in de browser een IFC met een
+      gebouwmodel openen, met een browserhandle voor het bronbestand; (2) de planning dupliceren en in de variant een
+      taak wijzigen; de variant heeft geen opslagdoel; (3) beide tabbladen herstellen na een crash: de variant krijgt de
+      browserhandle van het origineel als eigen opslagdoel; (4) Ctrl+S in de variant weigert zolang het ongewijzigde
+      origineel openstaat; na het sluiten van het origineel slaagt de opslag met één schrijfactie naar het originele
+      bestand. Bij herlezen stond de gewijzigde taaknaam van de variant erin, was de oorspronkelijke taaknaam weg en was
+      het gebouwmodel behouden. Ook op main. Issue #1302. — B
 
 ## Rondleiding, Help en extensie-gidsen
 

@@ -22,7 +22,9 @@ import { emptySequence, SEQUENCE_FIELDS, type SequenceReadTarget } from './field
 import { emptyResource, RESOURCE_FIELDS, type ResourceReadTarget } from './fields/resourceFields';
 import { ASSIGNMENT_FIELDS, emptyAssignment, type AssignmentReadTarget } from './fields/assignmentFields';
 import { BASELINE_FIELDS, emptyBaseline, type BaselineReadTarget } from './fields/baselineFields';
-import { attributeValueProblem, schemaDefinitionProblems, usesLegacyDocumentSchema, type IfcxCheckProblem } from './schemaCheck';
+import {
+  attributeValueProblem, hasCanadianGeneration, schemaDefinitionProblems, usesLegacyDocumentSchema, type IfcxCheckProblem,
+} from './schemaCheck';
 import { legacyDocumentProjection } from './legacyDocument';
 import { IfcxReadError, IfcxWriteRefusedError, type IfcxErrorPlace } from './ifcxErrors';
 import {
@@ -139,7 +141,8 @@ function assertValues(nodes: readonly IfcxNode[], legacyDocument: boolean): void
 
 function assertSchemas(schemas: unknown, nodes: readonly IfcxNode[], legacyDocument: boolean): void {
   const used = new Set<string>(nodes.flatMap(node => [...node.attributes.keys()]));
-  const [problem] = schemaDefinitionProblems(schemas, used, legacyDocument);
+  const canadianGeneration = nodes.some(node => hasCanadianGeneration(node.attributes.get(ATTRIBUTE.opsCalendar)));
+  const [problem] = schemaDefinitionProblems(schemas, used, canadianGeneration, legacyDocument);
   if (problem) throw thrown(problem);
 }
 

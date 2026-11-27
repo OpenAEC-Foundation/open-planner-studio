@@ -185,8 +185,10 @@ check-ifc-element-links.ts matrix
 check-ifc-empty-date-slots.ts matrix
 check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
+check-ifc-foreign-detached.ts matrix
 check-ifc-foreign-eigen-toets.ts matrix
 check-ifc-foreign-eigen-uitvoer.ts matrix
+check-ifc-foreign-gemengde-relaties.ts matrix
 check-ifc-foreign-grens.ts los
 check-ifc-foreign-groot.ts los
 check-ifc-foreign-herleestoets.ts matrix

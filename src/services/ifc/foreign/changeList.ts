@@ -29,7 +29,16 @@ export interface DroppedForeignPiece {
   readonly unusedKeyOfTask?: number;
 }
 
-export type ForeignChange = ChangedForeignPiece | DroppedForeignPiece;
+export interface RestoredForeignPiece {
+  readonly kind: 'teruggezet';
+  readonly id: number;
+  readonly newBytes: Uint8Array;
+}
+
+export type ForeignChange = ChangedForeignPiece | DroppedForeignPiece | RestoredForeignPiece;
+
+export const countedForeignChanges = (changes: readonly ForeignChange[] | undefined): number =>
+  (changes ?? []).filter(change => change.kind !== 'teruggezet').length;
 
 export interface DroppedUnusedKey {
   readonly taskStepId: number;

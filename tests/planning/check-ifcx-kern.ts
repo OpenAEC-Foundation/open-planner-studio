@@ -7,6 +7,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { ifcGuid, ifcGuid128, ifcObjectSeed, writeIFCForComparison, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { planProgressEntry } from '@/engine/progressEntry';
+import { materializeHolidays } from '@/engine/calendar/generateCalendarHolidays';
 import {
   classifyIfcx, readIfcx, writeIfcx, IfcxReadError, IfcxWriteRefusedError, type IfcxImportResult, type IfcxReadErrorCode,
   type IfcxWriteRefusedCode,
@@ -2202,6 +2203,39 @@ const FIXTURES: readonly { file: string; input: () => ImportResult }[] = [
   { file: 'datumgevallen.ifcx', input: datePlan },
   { file: 'verbouwing-eengezinswoning-kern.ifcx', input: () => kernOf(fullExamples.get('showcase-verbouwing-eengezinswoning.ifc')!) },
 ];
+
+test('Canada verruimt het IFCX-schema alleen wanneer een kalender Canadese generatieherkomst heeft', () => {
+  const onDisk = readFileSync(join(fixturesDir, 'datumgevallen.ifcx'), 'utf8');
+  const original = readIfcx(encode(onDisk));
+  const oldDocument = documentOf(onDisk);
+  const generated = materializeHolidays({ country: 'CA', region: 'QC', bouwvak: 'geen' }, 2029, 2029);
+  const planning = { ...datePlan(), calendar: { ...original.calendar, ...generated } };
+  const text = writeIfcx(planning, CLOCK);
+  const canadaDocument = documentOf(text);
+  const calendarAttribute = 'openaec::ops::calendar';
+  const documentAttribute = 'openaec::ops::document';
+  assert.equal(entryWith(oldDocument, documentAttribute).attributes[documentAttribute].formatVersion, '1.0.0');
+  assert.equal(entryWith(canadaDocument, documentAttribute).attributes[documentAttribute].formatVersion, '1.1.0');
+  assert.notDeepEqual(canadaDocument.schemas[calendarAttribute], oldDocument.schemas[calendarAttribute]);
+  assertAsStep(readIfcx(encode(text)), planning);
+  assert.deepEqual(ifcxSchemaProblems(canadaDocument), []);
+  for (const [document, schema] of [[canadaDocument, oldDocument], [oldDocument, canadaDocument]] as const) {
+    const mismatched = { ...document, schemas: { ...document.schemas, [calendarAttribute]: schema.schemas[calendarAttribute] } };
+    const error = readError(JSON.stringify(mismatched));
+    assert.equal(error.code, 'invalid');
+    assert.deepEqual(error.place, { attribute: calendarAttribute, field: 'schemas' });
+    assert.ok(ifcxSchemaProblems(mismatched).length > 0);
+  }
+  entryWith(canadaDocument, documentAttribute).attributes[documentAttribute].formatVersion = '1.0.0';
+  const wrongVersion = readError(JSON.stringify(canadaDocument));
+  assert.equal(wrongVersion.code, 'invalid');
+  assert.equal(wrongVersion.place?.field, 'formatVersion');
+
+  const resourceOnly = { ...datePlan(), resourceCalendars: [{ ...planning.calendar, id: 'cal-qc' }] };
+  const resourceText = writeIfcx(resourceOnly, CLOCK);
+  assert.equal(entryWith(documentOf(resourceText), documentAttribute).attributes[documentAttribute].formatVersion, '1.1.0');
+  assertAsStep(readIfcx(encode(resourceText)), resourceOnly);
+});
 
 for (const fixture of FIXTURES) {
   test(`voorbeeldbestand ${fixture.file} is wat de writer nu schrijft`, () => {

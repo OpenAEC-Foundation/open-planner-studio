@@ -16,6 +16,7 @@ import { StepScanError } from '@/services/ifc/foreign/stepScanner';
 import { IfcxWriteRefusedError } from '@/services/ifc/ifcx/ifcxErrors';
 import type { IfcxClassification } from '@/services/ifc/ifcx';
 import type { PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
+import { isDetached } from '@/services/ifc/foreign/detached';
 import { isSourceSlots } from '@/services/ifc/foreign/sourceSlots';
 import { precomputeSha256, XerSourceArchiveValidationError } from '@/services/xerSourceArchive';
 import { computeIfcOutputHere, type IfcOutput, type IfcSaveJob } from '@/state/prepareIfcOutput';
@@ -75,7 +76,8 @@ export function resultTransfer(result: IfcSaveResult): ArrayBuffer[] {
   const views = result.kind === 'writer' ? [result.bytes] : [result.prepared.bytes, result.prepared.source.bytes,
     result.prepared.source.chunkStarts, result.prepared.source.chunkIds, result.prepared.source.classes,
     ...(references ? [references.stepIds, references.groupStart, references.groupSize, references.targetStart, references.targets] : []),
-    ...changes.flatMap(change => change.kind === 'gewijzigd' ? [change.oldBytes, change.newBytes] : [change.oldBytes])];
+    ...changes.flatMap(change => change.kind === 'gewijzigd' ? [change.oldBytes, change.newBytes] : change.kind === 'teruggezet' ? [change.newBytes] : [change.oldBytes]),
+    ...(result.kind === 'merge' ? [...result.prepared.source.detached?.pieces.values() ?? []].map(piece => piece.bytes) : [])];
   return [...new Set(views.map(view => view.buffer as ArrayBuffer))];
 }
 
@@ -117,6 +119,7 @@ export function resultFits(job: IfcSaveJob, result: unknown): result is IfcSaveR
     && source.chunkStarts instanceof Uint32Array && source.chunkIds instanceof Int32Array && source.classes instanceof Uint8Array
     && isRecord(source.stepIds) && Array.isArray(source.foreignMembers) && isElementLinkMap(source.elementLinks)
     && (source.foreign === true ? isSourceSlots(source.sourceSlots) : source.sourceSlots === undefined)
+    && (source.detached === undefined || (source.foreign === true && isDetached(source.detached, isSourceSlots)))
     && typeof source.foreign === 'boolean'
     && typeof source.foreignObjectCount === 'number' && typeof source.buildingModel === 'boolean'
     && (source.lineEnding === '\n' || source.lineEnding === '\r\n') && (source.opened === undefined || isRecord(source.opened));

@@ -13,6 +13,7 @@ await loadStore();
 const { foreignChangesIfSaved } = await import('@/state/foreignLinksNotice');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
 const { prepareIfcOutput } = await import('@/state/prepareIfcOutput');
+const { writtenForeignChangeCount } = await import('@/state/foreignChangesWrittenNotice');
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const FOREIGN = join(ROOT, 'tests/fixtures/ifc-foreign');
@@ -77,7 +78,7 @@ for (const path of files) {
   let written: number;
   try {
     const write = await prepareIfcOutput(store.getState(), buildWriteIFCInput(store.getState(), 'merge'));
-    written = write.prepared?.foreignChanges?.length ?? 0;
+    written = writtenForeignChangeCount(write.prepared);
   } catch (error) {
     if (error instanceof MergeNeedsPhase2Error) { refusedByMerge++; rows.push(`${name}: ${deleted}: vooraf ${before}, de merge weigert`); continue; }
     throw error;
