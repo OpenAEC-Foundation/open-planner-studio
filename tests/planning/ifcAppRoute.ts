@@ -91,10 +91,10 @@ export async function storeEdit(d: WriteIFCInput, edit: (state: AppState) => voi
 }
 
 /** Doorrekenen (F5) zoals de app: het domein in een eigen store, en daar `runCPM`. */
-export async function recalculated<D extends WriteIFCInput>(d: D): Promise<D> {
+export async function recalculated(d: WriteIFCInput): Promise<WriteIFCInput> {
   const { store, buildWriteIFCInput } = await storeWith(d);
   store.getState().runCPM();
-  return buildWriteIFCInput(store.getState(), 'merge') as WriteIFCInput as D;
+  return buildWriteIFCInput(store.getState(), 'merge');
 }
 
 /** De taak van de bewerking "een dag langer". */

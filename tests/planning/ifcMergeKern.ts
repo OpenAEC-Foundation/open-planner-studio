@@ -508,7 +508,7 @@ export async function savedCatalogStart(bytes: Uint8Array, twoTypes = true): Pro
     || mergeProblems(bytes, output).length) throw new Error('catalogusreeksen: beginstand niet behouden');
   return output;
 }
-export function fixedCatalogEdits(_d: Domain): Edit[] {
+export function fixedCatalogEdits(): Edit[] {
   return [
     appEdit('reeks-tweede-code', 'tweede codedefinitie', x => storeEdit(x, s => {
       const code = s.addActivityCodeType('Code B 7d'), value = s.addActivityCodeValue(code, { code: 'B', description: 'Waarde B' });
