@@ -5106,6 +5106,31 @@ en noem het in je rapport of PR-tekst.
       in als vreemd lid terwijl de lezer het wel leest. Proef uit de review van #1273, met een property buiten het
       register. — B
 
+2510. **Een kopie van een document gaat ervan uit dat de projectdata een JSON-rondgang ongewijzigd doorstaat.**
+      `duplicateDocument` (`src/state/slices/documentSlice.ts`) kloont project, kalenders, taken, relaties, resources,
+      toewijzingen, activity codes, eigen velden, eigen taaktypes, baselines, `view` en `collapsedTaskIds` met
+      `deepClone` (`JSON.parse(JSON.stringify(…))`). `cloneXerImportMetadata` doet hetzelfde met de XER-metadata buiten
+      de catalogi als er geen archief is, en ook als er een archief is maar de metadata geen `sourceProjectId` draagt.
+      Een getal `NaN` of `Infinity` wordt daarin `null`, en `undefined` in een array ook. De typen van die velden in
+      `src/types/` en `src/services/importTypes.ts` bevatten geen `Map`, `Set`, `Date` of bytes; of zulke waarden in een
+      echt document kunnen voorkomen, is niet nagegaan. De aanname stond als commentaar bij `deepClone`. — S
+
+2511. **Een herstelde kopie van een document met een gebouwmodel kan het bestand van het origineel overschrijven.**
+      Met de flag `ifcForeignContent` aan krijgt de kopie van `duplicateDocument` (`src/state/slices/documentSlice.ts`)
+      geen opslagdoel, maar wel hetzelfde bronkenmerk `foreignSourceMark` als het origineel, met de browserhandle van
+      het bronbestand erin. `recoveryIfcSourceFields` (`src/services/recovery/recoveryIfcSource.ts`) neemt in de
+      herstelmetadata van een document de handle uit dat bronkenmerk op, dus ook voor de kopie. Bij herstel leest
+      `readRecoveryDocument` (`src/state/readRecoveryDocument.ts`) de bron via die handle, en `recoveryDocumentWithSource`
+      zet dezelfde handle als `fileHandle` van het herstelde document, dus als opslagdoel. Proef in Node met de bestaande
+      IFC-fixture, de echte store-, herstel- en opslagroute, en browserhandle en IndexedDB in het geheugen (niet met een
+      echte browserherstart, en niet op de desktop- of siteroute): (1) met de flag aan in de browser een IFC met een
+      gebouwmodel openen, met een browserhandle voor het bronbestand; (2) de planning dupliceren en in de variant een
+      taak wijzigen; de variant heeft geen opslagdoel; (3) beide tabbladen herstellen na een crash: de variant krijgt de
+      browserhandle van het origineel als eigen opslagdoel; (4) Ctrl+S in de variant weigert zolang het ongewijzigde
+      origineel openstaat; na het sluiten van het origineel slaagt de opslag met één schrijfactie naar het originele
+      bestand. Bij herlezen stond de gewijzigde taaknaam van de variant erin, was de oorspronkelijke taaknaam weg en was
+      het gebouwmodel behouden. Ook op main. Issue #1302. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
