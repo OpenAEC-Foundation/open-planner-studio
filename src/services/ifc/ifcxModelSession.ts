@@ -1,4 +1,6 @@
 import type { FileRef } from '@/services/fileAccess';
+import type { FileIdentityFs } from '@/services/fileAccess/fileIdentity';
+import { sameLocalFile } from '@/services/fileAccess/foreignSourceTarget';
 import type { IfcxModelReferences } from './ifcx/modelReferences';
 import type { ModelSource } from './ifcx/modelSource';
 import type { TaskElementLinks } from './foreign/elementLinks';
@@ -26,7 +28,7 @@ export function bindIfcxModel(references: IfcxModelReferences, ref: FileRef | nu
 
 export async function findIfcxModel(
   references: IfcxModelReferences, plan: FileRef | null, knownHandles: readonly FileSystemFileHandle[],
-  readPath: (path: string) => Promise<Uint8Array | null>,
+  readPath: (path: string) => Promise<Uint8Array | null>, identityFs: FileIdentityFs | undefined,
 ): Promise<void> {
   const source = references.modelSource;
   if (!source || plan?.kind === 'site') return;
@@ -35,6 +37,7 @@ export async function findIfcxModel(
     ? { kind: 'path', path: plan.path.slice(0, plan.path.length - basename(plan.path).length) + source.fileName }
     : handle ? { kind: 'handle', handle } : null;
   if (!ref) return;
+  if (plan?.kind === 'path' && ref.kind === 'path' && await sameLocalFile(plan.path, ref.path, { identityFs })) return;
   bindIfcxModel(references, ref);
   try {
     const bytes = ref.kind === 'handle' ? new Uint8Array(await (await ref.handle.getFile()).arrayBuffer()) : await readPath(ref.path);

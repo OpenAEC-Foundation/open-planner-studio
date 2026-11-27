@@ -741,7 +741,7 @@ export const fileTools: McpToolDef[] = [
         else parsed = await parseOpenedFile(input, undefined, readOptions);
         if (!fileToolDeps.mainRouteUnlessForeign && !isMultiDocumentImport(parsed) && parsed.ifcxRead && parsed.ifcxReferences) {
           await findIfcxModel(parsed.ifcxReferences, { kind: 'path', path }, [],
-            async candidate => await fs.confine?.(candidate) ? null : fs.readFile(candidate));
+            async candidate => await fs.confine?.(candidate) ? null : fs.readFile(candidate), fs);
         }
       } catch (e) {
         return toolError(ctx, 'VALIDATION', `'${path}' could not be read as a schedule: ${e instanceof Error ? e.message : String(e)}`);

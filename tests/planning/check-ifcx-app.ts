@@ -320,11 +320,12 @@ await check('modelkoppelingen bij het heropenen met een gelijk, gewijzigd of ont
   const original = readIfcx(withModel);
   assert.equal(original.modelSource?.sha256, hash(model));
   const id = original.tasks[0].id;
-  for (const status of ['gelijk', 'gewijzigd', 'ontbreekt', 'geen leesrecht']) {
+  for (const status of ['gelijk', 'gewijzigd', 'ontbreekt', 'geen leesrecht', 'eigen naam', 'alias van planning']) {
     const ipc = desktop();
     try {
       const folder = mkdtempSync(join(dir, status));
-      const path = join(folder, 'model.ifcx'), plan = join(folder, 'planning-met-model.ifcx');
+      const path = join(folder, 'model.ifcx');
+      const plan = status === 'eigen naam' ? path : join(folder, 'planning-met-model.ifcx');
       if (status === 'gelijk' || status === 'geen leesrecht') writeFileSync(path, model);
       if (status === 'geen leesrecht') ipc.faults.onCall = (command, candidate) => {
         if (command === 'plugin:fs|read_file' && candidate === path) throw new Error('Geen leesrecht');
@@ -335,6 +336,7 @@ await check('modelkoppelingen bij het heropenen met een gelijk, gewijzigd of ont
         writeFileSync(path, JSON.stringify(changed));
       }
       writeFileSync(plan, withModel);
+      if (status === 'alias van planning') symlinkSync(plan, path);
       const store = await openAt(plan, IFCX_ON);
       assert.deepEqual(errors(store), []);
       assert.deepEqual(store.getState().ifcxReferences?.modelSource, original.modelSource);
@@ -355,13 +357,15 @@ await check('modelkoppelingen bij het heropenen met een gelijk, gewijzigd of ont
       store.getState().newDocument();
       store.getState().switchDocument(tab);
       assert.equal(links()?.[0].found, status === 'gelijk');
-      shiftFirstTask(store);
+      const edited = shiftFirstTask(store);
       store.getState().setAutoSaveToFile(true);
       await autosaveOf(store).flush();
       assert.deepEqual(bytesAt(plan), withModel);
       assert.equal(workerOf.get(store)!.jobs().length, 0);
-      assert.equal(await save(store), true);
+      assert.equal(await save(store), true, `Ctrl+S schrijft de eigen planning bij ${status}`);
       const written = readIfcx(bytesAt(plan));
+      assert.equal(written.tasks.find(task => task.id === edited)?.time.scheduleDuration,
+        store.getState().tasks.find(task => task.id === edited)!.time.scheduleDuration);
       assert.deepEqual(written.modelSource, original.modelSource);
       assert.deepEqual(written.elementLinks, original.elementLinks);
       const recovery = await recoverInto(store, IFCX_ON);

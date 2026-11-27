@@ -2034,7 +2034,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             return ref?.kind === 'handle' ? [ref.handle] : [];
           });
           handles.push(...get().recentFiles.flatMap(entry => entry.ref.kind === 'handle' ? [entry.ref.handle] : []));
-          await findIfcxModel(parsed.ifcxReferences, opened.ref, handles, path => readBytesFromRef({ kind: 'path', path }));
+          await findIfcxModel(parsed.ifcxReferences, opened.ref, handles,
+            path => readBytesFromRef({ kind: 'path', path }), await fileIdentityFs());
         }
         if (options?.waitWhile) {
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));

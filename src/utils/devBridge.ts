@@ -122,7 +122,7 @@ export async function openFromPathWithIO(path: string, io: FormatIO) {
   const parsed = await parseOpenedFile(input, undefined, readOptions);
   const ref = { kind: 'path', path } as const;
   if (!isMultiDocumentImport(parsed) && parsed.ifcxRead && parsed.ifcxReferences) {
-    await findIfcxModel(parsed.ifcxReferences, ref, [], candidate => io.readFile(candidate));
+    await findIfcxModel(parsed.ifcxReferences, ref, [], candidate => io.readFile(candidate), await fileIdentityFs());
   }
   const opened = useAppStore.getState().openAsDocument(parsed, { name: path, ref });
   return { path, ...opened, ...counts(useAppStore.getState()) };
