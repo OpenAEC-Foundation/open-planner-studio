@@ -56,10 +56,11 @@ Verouderd toets je mechanisch: elke naam tussen backticks en elk genoemd bestand
 `git ls-files`). Een knownbug-nummer zoek je op in `knownbugs.md`.
 
 Een ADR is voor een besluit dat moeilijk terug te draaien is, dat verrast zonder uitleg en waar een echte afweging
-achter zat. Een keuze op één regel ("`!has` en niet `set`, want de eerste telt") is geen ADR: houdt een test dat
-gedrag vast, dan herhaalt het commentaar de test en gaat het weg. Zoek die test op (`grep` op de functienaam in
-`tests/`). Is er geen test, dan noem je onder *Gevolgen* van de ADR van dat onderwerp de keuze, de reden en de
-functie waar ze staat, zonder de regel uit te schrijven. Een ontbrekende test is geen punt voor `knownbugs.md`.
+achter zat. Een test die het gedrag vastlegt, beslist dat niet: de vraag blijft of de reden uit de code, een test of
+bestaande documentatie te halen is. Een keuze op één regel ("`!has` en niet `set`, want de eerste telt") waarvan de
+reden daaruit blijkt, gaat weg. Blijkt de reden er niet uit en verrast de keuze, dan noem je haar onder *Gevolgen*
+van de ADR van dat onderwerp, met de reden en de functie waar ze staat, zonder de regel uit te schrijven. Een
+ontbrekende test is geen punt voor `knownbugs.md`.
 
 ## Stap 3. Besluiten vastleggen
 
