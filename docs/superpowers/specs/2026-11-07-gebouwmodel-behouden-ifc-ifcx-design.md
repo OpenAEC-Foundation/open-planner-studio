@@ -1108,6 +1108,10 @@ Voor de rest van §5 betekent dat:
   §5.2 aan `ifcSource` toeschrijft, hoort daarmee bij de IFCX-bronmetadata. `ifcSource` en
   `foreignSourceMark.sourceMissing` blijven voor STEP, waar de app bij het samenvoegen de bewaarde modelbytes nodig
   heeft. Toestemming uit een eerdere STEP-bestandskeuze geeft geen toestemming om de IFCX-modelbron te vervangen.
+  De classificatie van een bestaand IFCX-bestand als schrijfdoel (`classifyIfcx`) blijft streng: alleen een bestand in
+  de eigen schrijfvorm geldt als eigen bestand dat de app mag vervangen. Dat de app een bestand van een ander programma
+  kan openen of importeren, maakt het geen eigen bestand. Voorbeeld: de planner kiest bij *Opslaan als* het IFCX-model
+  van een ander project als doel; de app weigert, ook al is dat model nergens als bron geopend.
 - **Nog te beslissen door de eigenaar.** Het advies uit het rapport is om de planner bij een ontbrekend model te laten
   doorwerken en de planning te laten opslaan met behoud van de verwijzingen. Bij een nieuwe modelversie is het advies
   om eerst te tonen welke gekoppelde bouwdelen teruggevonden zijn, ontbreken of dubbelzinnig zijn en de nieuwe bron
@@ -1446,14 +1450,19 @@ Een bestaande koppeling van een taak naar een bouwdeel staat op het taakpad in d
 `{"relation":"schedules","target":"<exact modelpad>"}`. De app leest haar als `elementLinks` met richting `output`.
 Bij opslaan schrijft de app de bestaande koppelingen in dezelfde vorm op het taakpad in het eigen planningsbestand,
 met de schemadefinitie van `openaec::links`. Het veld `target` heeft het type `Reference` en verwijst naar een extern
-doel in het modelbestand. Ook als het bouwdeel ontbreekt, bewaart de planning het exacte doelpad.
+doel in het modelbestand. Ook als het bouwdeel ontbreekt, bewaart de planning het exacte doelpad. Voor zo'n extern doel
+geldt een eigen toets op de vorm van het pad. De toets die voor een verwijzing naar een taak of kalender eist dat het
+doel in het planningsbestand bestaat (§5.2), geldt hier niet.
 
 De app vergelijkt eerst het exacte pad in de lokale `data` van het modelbestand. De waarde van `bsi::ifc::class.code`
 moet daar een product of producttype aanduiden volgens dezelfde klassegrens als bij STEP (`IfcProduct` of
 `IfcTypeProduct`). Een doel of klasse die alleen via een import beschikbaar is, telt niet mee (§6.5). Voor een
 verplaatst doel mag de app een GlobalId gebruiken als de conventie van de bekende schrijver die identiteit betrouwbaar
-maakt en één bouwdeel eenduidig overeenkomt. De app bewaart zo’n GlobalId in eigen metadata. Koppelingen aanmaken
-of bewerken valt onder #748.
+maakt en één bouwdeel eenduidig overeenkomt. De app bewaart zo’n GlobalId in eigen metadata. Wijzen het exacte pad
+en een bewaarde betrouwbare GlobalId naar verschillende bouwdelen, dan is de koppeling dubbelzinnig: de app toont
+geen van beide als gevonden en bewaart het doelpad. Voorbeeld: in een nieuwe levering staat op het pad van het
+gekoppelde raam een ander raam, en het oorspronkelijke raam staat met zijn GlobalId op een nieuw pad. Koppelingen
+aanmaken of bewerken valt onder #748.
 
 ### 6.5 Imports met data
 
@@ -1499,11 +1508,11 @@ ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden
 
 1. **Model lezen.** Begin met een gewoon model met een lokale muur en een raam, bereken de hash van de bronbytes en lees de bouwdelen en bestaande koppelingen volgens B2. Dit stuk kan zelfstandig starten.
 2. **Eigen planning lezen en schrijven.** Na B2 kan profiel 1.2.0 de bronverwijzing en bestaande koppelingen bewaren, ook bij een ontbrekend doel. De oude vormen 1.0.0 en 1.1.0 blijven leesbaar.
-3. **Openen, opslaan en heropenen.** Na 1, 2 en de opslagroute uit #1299 opent de planner op desktop het model zonder schrijfdoel, slaat de planning apart op en heropent haar met het buurmodel. In de browser krijgt hij een download.
+3. **Openen, opslaan en heropenen.** Na 1, 2 en de opslagroute uit #1299 opent de planner op desktop het model zonder schrijfdoel, slaat de planning apart op en heropent haar met het buurmodel. In de browser krijgt hij een download. Automatisch opslaan naar het bestand slaat een planning met een bronverwijzing of modelkoppelingen over tot stuk 7 die gegevens bewaart; anders zou een automatische opslag de eigen planning vervangen door een kopie zonder bronverwijzing en koppelingen.
 4. **Planning van een ander programma importeren.** Na B1 en B2 leest de import de bekende planning en bewaart de eigen kopie ook vreemde planningspaden (§5.2, §5.5). Aansluiten op de app kan na 3. De eigenaar kiest de tekst van de melding over gegevens die in de bron blijven.
 5. **Model opnieuw aanwijzen of controleren.** De vergelijking van een ontbrekend, verplaatst of gewijzigd model kan beginnen na de twee productbesluiten over doorwerken en een nieuwe modelversie (§5.0). De aansluiting op openen en opslaan volgt op 3.
 6. **Opslaan als IFC.** Na 3 en de opslagroute uit #1299 kan de planner na eenmalige bevestiging alleen de planning als IFC opslaan in het gekozen schema. Annuleren schrijft niets.
-7. **Automatisch opslaan en crashherstel.** Na 2, het documentcontract uit 3 en het besluit over een ontbrekend model bewaren beide routes de bronverwijzing, de doelpaden en de planningspaden.
+7. **Automatisch opslaan en crashherstel.** Na 2, het documentcontract uit 3 en het besluit over een ontbrekend model bewaren beide routes de bronverwijzing, de doelpaden en de planningspaden. Pas daarmee vervalt de uitzondering voor Automatisch opslaan uit stuk 3.
 8. **Rondgang en oplevering.** Na 1–7 volgen de app-rondgang op desktop, in de browser en via de site, de handleiding en `docs/ifc-round-trip.md`. De eindlijst, de metingen met grotere modellen en de schemacontrole in CI gaan vooraf aan het besluit om de vlag standaard aan te zetten.
 
 De eerste schatting voor het geheel, vóór de uitwerking van fase 4, was ongeveer 15 tot 19 PR's. Het knippen zelf is niet het lastige deel. Het lastige deel is
