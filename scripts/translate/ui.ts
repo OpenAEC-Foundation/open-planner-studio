@@ -1,4 +1,3 @@
-// UI-straat: werkpakketten maken (§5.1), samenvoegen (§9), basislijn en status. Pure functies.
 import {
   containsTerm, countToken, avoidWords, escapeRe, hasUiBaseline, hashUnit, isComplete, nestings, placeholders, pluralExamples,
   termEntries, textsOf, uiStyle, unitMap,
@@ -6,7 +5,6 @@ import {
 } from './common';
 import { orderLike, setTranslation, type JsonObject, type Namespace } from '../i18n-tools';
 
-/** Hashes van de nl-bron per namespace en sleutel: `i18n/ui-sources/<taal>.json`. */
 export type UiSources = Record<string, Record<string, string>>;
 
 export interface UiItem {
@@ -14,26 +12,15 @@ export interface UiItem {
   plural?: true;
   nl: UnitText;
   en: UnitText;
-  /** Bij --stale, --avoid en --keys: de huidige vertaling. */
   previous?: UnitText;
-  /** Bij --avoid: de avoid-varianten (uit `terms[].avoid`) die in `previous` staan. */
   avoidHits?: string[];
-  /** Bij --avoid: de nl-tekst veranderde ook sinds `previous` (of er is geen bron-hash). */
   stale?: true;
-  /** Andere UI-teksten die letterlijk in `nl` staan (een knop, tab of blok): zie `labelsFor`. */
   labels?: UiLabel[];
-  /** Vaste doeltekst voor deze sleutel en taal: byte-gelijk overnemen, inclusief invulplek. */
   fixedText?: string;
 }
 
-/**
- * Een UI-naam in een tekst: de nl-tekst van één of meer andere sleutels (`ns:pad`), met hun huidige
- * doeltekst(en). De poort eist dat één van `targets` letterlijk in de vertaling staat; is er nog geen
- * doeltekst, dan alleen een waarschuwing.
- */
 export interface UiLabel { nl: string; keys: string[]; targets: string[] }
 
-/** Een term in een UI-pakket; `definition` (uit concepts.json) zegt welke betekenis de term draagt. */
 export interface UiTerm { id: string; nl: string; en: string[]; target: string; forms: string[]; avoid?: string[]; definition?: string }
 
 export interface UiPackage {
@@ -41,9 +28,7 @@ export interface UiPackage {
   lang: string;
   namespace: string;
   id: string;
-  /** De selectie; `avoid` = alleen `--avoid`, `keys` = `--keys <bestand>`. */
   mode: Selection | 'avoid' | 'keys';
-  /** `avoid`: herschrijf alleen de woorden in `avoidHits` (opdracht `prompts/ui-termfix.md`). */
   reason?: 'avoid';
   style?: Style;
   terms: UiTerm[];
@@ -53,20 +38,13 @@ export interface UiPackage {
   items: UiItem[];
 }
 
-/** Per namespace: de nl-, en- en (eventueel lege) doeltekst. */
 export interface NsInput { ns: Namespace | string; nl: JsonObject; en: JsonObject; target: JsonObject }
 
-/**
- * Vaste tekst per sleutel en taal, geen algemene eenheids- of termregel. Besluit eigenaar 2026-10-20
- * (knownbug 172; calendar-file-hours-notice.spec.ts): ar/fa tonen "10h", zonder spatie, als één
- * LTR-reeks. nl blijft "{{hours}}u"; bestaande vertalingen in andere talen blijven vrij.
- */
 export function fixedUiText(lang: string, ns: string, key: string): string | undefined {
   return (lang === 'ar' || lang === 'fa') && ns === 'menu' && key === 'ribbon.calendarDialog.hoursValue'
     ? '{{hours}}h' : undefined;
 }
 
-/** Dezelfde harde controle voor pakketuitvoer en de gepubliceerde UI (releasepoort). */
 export function uiFixedTextError(lang: string, ns: string, key: string, text: unknown): string | undefined {
   const fixed = fixedUiText(lang, ns, key);
   return fixed !== undefined && text !== fixed
@@ -74,22 +52,12 @@ export function uiFixedTextError(lang: string, ns: string, key: string, text: un
     : undefined;
 }
 
-/** `open` = `missing` en `stale` samen, in één ronde (de nachtvertaling). */
 export type Selection = 'missing' | 'stale' | 'open' | 'all';
 
-/**
- * Is de eenheid in de doeltaal vertaald? Compleet (alle CLDR-categorieën), en in een taal zonder
- * basislijn (`hasUiBaseline`) ook met een bron-hash: daar is tekst zonder hash Engelse vulling.
- */
 export function isTranslated(t: Unit | undefined, u: Unit, lang: string, hashes: Record<string, string>): boolean {
   return isComplete(t, u, lang) && (hasUiBaseline(lang) || hashes[u.key] !== undefined);
 }
 
-/**
- * Welke eenheden moeten vertaald worden? Zie §9 (--missing, --stale). `--stale` neemt ook een vertaalde
- * eenheid zonder bron-hash mee (met de oude tekst als `previous`): `i18n:add` haalt de hash weg in elke
- * taal die het niet schrijft (besluit B5), en in een taal met basislijn blijft de oude tekst dan staan.
- */
 export function selectUnits(input: NsInput, lang: string, mode: Selection, sources: UiSources): { unit: Unit; previous?: UnitText }[] {
   const target = unitMap(input.target);
   const hashes = sources[input.ns] ?? {};
@@ -108,15 +76,10 @@ export function selectUnits(input: NsInput, lang: string, mode: Selection, sourc
   return out;
 }
 
-/** Een geselecteerde eenheid met wat het pakket erover meekrijgt. */
 export interface Selected { unit: Unit; previous?: UnitText; avoidHits?: string[]; stale?: true }
 
 export interface AvoidRule { id: string; forms: string[]; avoid: string[] }
 
-/**
- * Per term uit de termbase met `avoid`: het concept-id, de vormen en de avoid-varianten. Alleen
- * concepten van soort `term` (dezelfde verzameling als `termsFor`).
- */
 export function avoidRules(concepts: Concept[], tb: LangTermbase | undefined): AvoidRule[] {
   if (!tb) return [];
   const isTerm = new Set(concepts.filter(c => c.kind === 'term').map(c => c.id));
@@ -125,7 +88,6 @@ export function avoidRules(concepts: Concept[], tb: LangTermbase | undefined): A
     .map(([id, e]) => ({ id, forms: e.forms.length ? e.forms : [e.term], avoid: e.avoid! }));
 }
 
-/** De avoid-varianten in een (vertaalde) eenheid, uniek, in termbase-volgorde, met de concept-id's. */
 export function avoidHitsIn(text: UnitText, rules: AvoidRule[]): { hits: string[]; ids: string[] } {
   const hits: string[] = [];
   const ids: string[] = [];
@@ -138,13 +100,6 @@ export function avoidHitsIn(text: UnitText, rules: AvoidRule[]): { hits: string[
   return { hits, ids };
 }
 
-/**
- * `--avoid` (eventueel samen met `--stale`): de vertaalde eenheden waarvan de tekst een avoid-variant
- * van een term bevat, met de huidige tekst als `previous` en de gevonden varianten als `avoidHits`.
- * Is zo'n eenheid ook verouderd of zonder hash, dan krijgt hij `stale: true`: de agent past dan ook de
- * nieuwe nl toe, want `apply ui` zet daarna de actuele nl-hash. Met `withStale` komen de verouderde
- * eenheden (zoals bij `--stale`) erbij, in nl-volgorde.
- */
 export function selectAvoid(input: NsInput, lang: string, sources: UiSources, rules: AvoidRule[], withStale: boolean): Selected[] {
   const target = unitMap(input.target);
   const hashes = sources[input.ns] ?? {};
@@ -161,11 +116,6 @@ export function selectAvoid(input: NsInput, lang: string, sources: UiSources, ru
   return out;
 }
 
-/**
- * Lees een `--keys`-lijst (`["ns:pad", …]`) tegen de nl-bron. Een sleutel van een meervoudsvorm
- * (`ns:pad_one`) telt als de hele familie. Geeft per namespace de eenheid-sleutels terug, en de fouten
- * (geen lijst, ongeldige regel, onbekende namespace of sleutel).
- */
 export function resolveKeyList(list: unknown, nlByNs: Record<string, JsonObject>): { keys: Map<string, Set<string>>; errors: string[] } {
   const keys = new Map<string, Set<string>>();
   const errors: string[] = [];
@@ -186,7 +136,6 @@ export function resolveKeyList(list: unknown, nlByNs: Record<string, JsonObject>
   return { keys, errors };
 }
 
-/** `--keys`: precies deze eenheden, in nl-volgorde; met de huidige vertaling als `previous` als die er is. */
 export function selectKeys(input: NsInput, lang: string, keys: Set<string>): Selected[] {
   const target = unitMap(input.target);
   return unitsOf(input.nl).filter(u => keys.has(u.key)).map(u => {
@@ -195,23 +144,12 @@ export function selectKeys(input: NsInput, lang: string, keys: Set<string>): Sel
   });
 }
 
-// ── Labels: UI-namen die een andere tekst letterlijk noemt ──────────────────────────────────
-
-/** Eén mogelijk label: een nl-tekst met de sleutels die hem dragen en hun huidige doelteksten. */
 export interface LabelEntry extends UiLabel { re: RegExp }
 
-/** Hoe vaak een los woord in andere nl-teksten mag staan voor het nog als label telt. */
 export const LABEL_COMMON_WORD_MAX = 5;
 
 const wordRe = (s: string, flags = 'u') => new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(s)}(?![\\p{L}\\p{N}])`, flags);
 
-/**
- * Alle mogelijke labels over alle namespaces. Een label is een gewone (geen meervouds)tekst zonder
- * invulplekken of `$t(…)`, die met een hoofdletter begint, van ten minste twee woorden of tien tekens. Eén los woord dat in meer dan
- * `LABEL_COMMON_WORD_MAX` andere nl-teksten staat ("Instellingen") telt niet: dat is gewone taal. De
- * doeltekst telt alleen als de eenheid vertaald is, de bron-hash actueel is en de tekst geen
- * avoid-variant uit de termbase bevat (`rules`). Een oude labeltekst mag de nieuwe vertaling niet vastzetten.
- */
 export function buildLabelIndex(inputs: NsInput[], lang: string, sources: UiSources, rules: AvoidRule[] = []): LabelEntry[] {
   const byText = new Map<string, { keys: string[]; targets: string[] }>();
   const allNl: string[] = [];
@@ -222,7 +160,6 @@ export function buildLabelIndex(inputs: NsInput[], lang: string, sources: UiSour
       allNl.push(...textsOf(u.text));
       if (u.plural || typeof u.text !== 'string') continue;
       const t = u.text.trim();
-      // Een UI-naam begint in nl met een hoofdletter; "groter dan" of "niet berekend" is gewone taal.
       if (t === '' || t.length > 80 || !/^\p{Lu}/u.test(t) || placeholders(t).length || nestings(t).length) continue;
       const words = t.split(/\s+/).length;
       if (words < 2 && t.length < 10) continue;
@@ -230,7 +167,6 @@ export function buildLabelIndex(inputs: NsInput[], lang: string, sources: UiSour
       byText.set(t, e);
       e.keys.push(`${input.ns}:${u.key}`);
       const tu = target.get(u.key);
-      // Een verouderde of hashloze doeltekst en een avoid-variant veranderen zelf nog: die eisen we niet af.
       if (isTranslated(tu, u, lang, hashes) && hashes[u.key] === hashUnit(u.text)
         && typeof tu!.text === 'string' && !e.targets.includes(tu!.text)
         && avoidHitsIn(tu!.text, rules).hits.length === 0) e.targets.push(tu!.text);
@@ -247,7 +183,6 @@ export function buildLabelIndex(inputs: NsInput[], lang: string, sources: UiSour
   return out;
 }
 
-/** Staat het label midden in de tekst? Aan het begin van de tekst of een zin is de hoofdletter gewone spelling. */
 function midSentence(t: string, re: RegExp): boolean {
   for (const m of t.matchAll(re)) {
     const before = t.slice(0, m.index);
@@ -256,11 +191,6 @@ function midSentence(t: string, re: RegExp): boolean {
   return false;
 }
 
-/**
- * De labels die letterlijk (hoofdlettergevoelig, als los woord of woordgroep, niet aan het begin van
- * een zin) in de nl-tekst van een eenheid staan, zonder de eenheid zelf. Valt een gevonden label binnen een langer gevonden label
- * ("Projectinfo" in "Bestand → Projectinfo"), dan telt alleen het langste.
- */
 export function labelsFor(key: string, ns: string, nl: UnitText, index: LabelEntry[]): UiLabel[] {
   const texts = textsOf(nl);
   const self = `${ns}:${key}`;
@@ -270,7 +200,6 @@ export function labelsFor(key: string, ns: string, nl: UnitText, index: LabelEnt
     .map(({ nl: n, keys, targets }) => ({ nl: n, keys, targets }));
 }
 
-/** Termen die in de items voorkomen (nl- of en-term, woordgrens, hoofdletterongevoelig). */
 export function termsFor(items: UiItem[], concepts: Concept[], tb: LangTermbase | undefined, extraIds: ReadonlySet<string> = new Set()): UiTerm[] {
   if (!tb) return [];
   const entries = new Map(termEntries(tb));
@@ -291,7 +220,6 @@ export function termsFor(items: UiItem[], concepts: Concept[], tb: LangTermbase 
   return out;
 }
 
-/** Tokens (en `keep`-namen) die letterlijk in de nl-tekst van de items staan. */
 export function literalsFor(items: UiItem[], concepts: Concept[], kind: 'token' | 'keep'): string[] {
   const found = new Set<string>();
   for (const c of concepts) {
@@ -303,10 +231,6 @@ export function literalsFor(items: UiItem[], concepts: Concept[], kind: 'token' 
   return [...found].sort();
 }
 
-/**
- * Maak de UI-pakketten voor één taal: per namespace pakketten van ±`size` items (een meervouds-
- * familie is één item), met alleen de termen/tokens die erin voorkomen.
- */
 export function buildUiPackages(opts: {
   lang: string;
   inputs: NsInput[];
@@ -315,13 +239,9 @@ export function buildUiPackages(opts: {
   concepts: Concept[];
   termbase?: LangTermbase;
   size?: number;
-  /** Bovengrens voor de tekst van alle items samen (≈ tokens × 3,5); een item wordt nooit geknipt. */
   maxChars?: number;
-  /** `--avoid`: alleen eenheden met een avoid-variant (met `mode: 'stale'` ook de verouderde erbij). */
   avoid?: boolean;
-  /** `--keys`: per namespace precies deze eenheden (uit `resolveKeyList`); `mode` telt dan niet. */
   keys?: Map<string, Set<string>>;
-  /** `--only`: de selectie beperkt tot deze eenheden (doorsnede; een actuele eenheid blijft weg). */
   only?: Map<string, Set<string>>;
 }): UiPackage[] {
   const labelIndex = buildLabelIndex(opts.inputs, opts.lang, opts.sources, avoidRules(opts.concepts, opts.termbase));
@@ -332,7 +252,6 @@ export function buildUiPackages(opts: {
   if (opts.avoid && opts.keys) throw new Error('--avoid en --keys gaan niet samen');
   if (opts.only && (opts.keys || opts.avoid)) throw new Error('--only gaat niet samen met --keys of --avoid');
   if (opts.avoid && opts.mode === 'all') throw new Error('--avoid gaat alleen samen met --stale');
-  // Bij --avoid zonder --stale telt `mode` niet ('missing' is alleen de standaard van de CLI).
   const withStale = opts.avoid === true && opts.mode === 'stale';
   const rules = opts.avoid ? avoidRules(opts.concepts, opts.termbase) : [];
   const mode: UiPackage['mode'] = opts.keys ? 'keys' : opts.avoid && !withStale ? 'avoid' : opts.mode;
@@ -371,7 +290,6 @@ export function buildUiPackages(opts: {
     if (cur.length > 0) groups.push(cur);
     groups.forEach((items, i) => {
       const hasPlural = items.some(it => it.plural);
-      // Bij --avoid gaan ook de termen mee waarvan alleen de avoid-variant in de vertaling staat.
       const hitIds = new Set(items.flatMap(it => it.previous !== undefined && it.avoidHits ? avoidHitsIn(it.previous, rules).ids : []));
       packs.push({
         kind: 'ui',
@@ -392,10 +310,6 @@ export function buildUiPackages(opts: {
   return packs;
 }
 
-/**
- * Bestandstekst van een pakket: velden op eigen regels, maar elk item en elke term op één regel.
- * Scheelt ±30 % witruimte ten opzichte van gewone JSON-opmaak, en blijft leesbaar per sleutel.
- */
 export function packageText(pkg: object): string {
   const lines = Object.entries(pkg).map(([k, v]) => Array.isArray(v) && v.length > 0 && typeof v[0] === 'object'
     ? `  ${JSON.stringify(k)}: [\n${v.map(x => `    ${JSON.stringify(x)}`).join(',\n')}\n  ]`
@@ -403,14 +317,8 @@ export function packageText(pkg: object): string {
   return `{\n${lines.join(',\n')}\n}\n`;
 }
 
-/** Uitvoer van een UI-agent: per sleutel een tekst of { categorie: tekst }. */
 export type UiOut = Record<string, UnitText>;
 
-/**
- * Zet één (groen gekeurd) pakket in het doelobject van zijn namespace (muteert `target`) en werk de
- * bron-hashes bij. Sleutels buiten het pakket blijven onaangeroerd. Geeft het geordende object terug
- * (volgorde van nl).
- */
 export function applyUiPackage(pkg: UiPackage, out: UiOut, target: JsonObject, nl: JsonObject, sources: UiSources): JsonObject {
   const hashes = sources[pkg.namespace] ?? (sources[pkg.namespace] = {});
   for (const item of pkg.items) {
@@ -422,17 +330,10 @@ export function applyUiPackage(pkg: UiPackage, out: UiOut, target: JsonObject, n
   return orderLike(target, nl);
 }
 
-/** Werk de bron-hash van één sleutel bij (muteert); gebruikt door `i18n:add` voor elke taal die het schrijft. */
 export function setSourceHash(sources: UiSources, ns: string, key: string, nlText: UnitText): void {
   (sources[ns] ?? (sources[ns] = {}))[key] = hashUnit(nlText);
 }
 
-/**
- * Wat `i18n:add` met de bron-hash van taal `lang` doet. Een taal met basislijn krijgt de nieuwe hash.
- * Een taal zonder basislijn (`hasUiBaseline`) verliest de hash: de tekst komt dan niet uit de straat
- * (vaak Engelse vulling), dus `prepare ui --missing` moet hem opnieuw oppakken. Muteert; geeft terug
- * of er iets veranderde.
- */
 export function updateSourceHashForAdd(sources: UiSources, lang: string, ns: string, key: string, nlText: UnitText): boolean {
   if (hasUiBaseline(lang)) { setSourceHash(sources, ns, key, nlText); return true; }
   const h = sources[ns];
@@ -441,7 +342,6 @@ export function updateSourceHashForAdd(sources: UiSources, lang: string, ns: str
   return true;
 }
 
-/** Zet de bron-hashes in nl-volgorde (stabiel bestand, conflictarm). */
 export function orderSources(sources: UiSources, nlByNs: Record<string, JsonObject>): UiSources {
   const out: UiSources = {};
   for (const [ns, nl] of Object.entries(nlByNs)) {
@@ -458,14 +358,8 @@ export function orderSources(sources: UiSources, nlByNs: Record<string, JsonObje
 
 export interface NsStatus { ns: string; total: number; missing: number; stale: number; current: number; unhashed: number }
 
-/** Toestand van één eenheid in de doeltaal: wat de straat (en de releasepoort) ervan vindt. */
 export type UnitState = 'missing' | 'stale' | 'unhashed' | 'current';
 
-/**
- * Toestand per eenheid, in nl-volgorde. `missing`: niet (volledig) vertaald, of in een taal zonder
- * basislijn (`hasUiBaseline`) tekst zonder hash (Engelse vulling). `stale`: de nl-hash veranderde.
- * `unhashed`: vertaald, maar zonder bron-hash (bv. een sleutel die `i18n:add` niet schreef, besluit B5).
- */
 export function uiUnitStates(lang: string, input: NsInput, sources: UiSources): { key: string; state: UnitState }[] {
   const t = unitMap(input.target);
   const hashes = sources[input.ns] ?? {};
@@ -477,11 +371,6 @@ export function uiUnitStates(lang: string, input: NsInput, sources: UiSources): 
   });
 }
 
-/**
- * Status per namespace. `unhashed` = vertaald, maar zonder bron-hash; die telt als actueel, maar wordt
- * apart genoemd: `prepare ui --stale` pakt hem op, en de releasepoort (`status --strict`) laat hem niet
- * door. In een taal zonder basislijn telt tekst zonder hash als ontbrekend (Engelse vulling).
- */
 export function uiStatus(lang: string, inputs: NsInput[], sources: UiSources): NsStatus[] {
   return inputs.map(input => {
     const s: NsStatus = { ns: input.ns, total: 0, missing: 0, stale: 0, current: 0, unhashed: 0 };
@@ -495,17 +384,14 @@ export function uiStatus(lang: string, inputs: NsInput[], sources: UiSources): N
   });
 }
 
-/** Eén gat voor de releasepoort: een UI-eenheid (en later een docssectie) die niet bij is. */
 export interface ReleaseGap { lang: string; where: string; state: Exclude<UnitState, 'current'> | 'fixed-text'; detail?: string }
 
-/** Alle UI-gaten van één taal voor de releasepoort (`translate status --strict`, besluit B5). */
 export function uiReleaseGaps(lang: string, inputs: NsInput[], sources: UiSources): ReleaseGap[] {
   return inputs.flatMap(input => {
     const target = unitMap(input.target);
     return uiUnitStates(lang, input, sources).flatMap((u): ReleaseGap[] => {
       const where = `${input.ns}:${u.key}`;
       if (u.state !== 'current') return [{ lang, where, state: u.state }];
-      // Een actuele nl-hash zegt niets over deze vaste doeltekst; ook handmatige edits toetsen.
       const detail = uiFixedTextError(lang, input.ns, u.key, target.get(u.key)?.text);
       return detail ? [{ lang, where, state: 'fixed-text', detail }] : [];
     });

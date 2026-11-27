@@ -1,5 +1,3 @@
-// Microsoft Terminology Collection (TBX) lezen en per concept kandidaat-termen zoeken (§4.3).
-// De TBX blijft lokaal (build/cache/msterms, licentie §13); hier alleen pure functies.
 import { containsTerm, textsOf, uiStyle, unitsOf, type Concept, type LangTermbase, type Style } from './common';
 import type { JsonObject } from '../i18n-tools';
 
@@ -45,10 +43,6 @@ function termsOf(langSet: string): TbxTarget[] {
   return out;
 }
 
-/**
- * Lees een TBX-export (één lange XML-regel, tot 45 MB). Per `<termEntry>`: de Engelse definitie en
- * termen uit de `en-US`-langSet, en de termen (met grammaticanoten) uit de andere langSet.
- */
 export function parseTbx(xml: string): TbxEntry[] {
   const out: TbxEntry[] = [];
   const entryRe = /<termEntry(?:\s+id="([^"]*)")?[^>]*>([\s\S]*?)<\/termEntry>/g;
@@ -69,7 +63,6 @@ export function parseTbx(xml: string): TbxEntry[] {
   return out;
 }
 
-/** Index: Engelse term (kleine letters) → entries. */
 export function indexTbx(entries: TbxEntry[]): Map<string, TbxEntry[]> {
   const idx = new Map<string, TbxEntry[]>();
   for (const e of entries) {
@@ -83,10 +76,6 @@ export function indexTbx(entries: TbxEntry[]): Map<string, TbxEntry[]> {
 
 export interface TermCandidate extends TbxTarget { en: string; definition?: string }
 
-/**
- * Alle kandidaten voor één concept: elke TBX-entry waarvan een en-US-term exact (hoofdletter-
- * ongevoelig) gelijk is aan één van de `en`-synoniemen. Dubbele (zelfde term + definitie) vallen weg.
- */
 export function candidatesFor(concept: Concept, idx: Map<string, TbxEntry[]>): TermCandidate[] {
   const out: TermCandidate[] = [];
   const seen = new Set<string>();
@@ -103,13 +92,8 @@ export function candidatesFor(concept: Concept, idx: Map<string, TbxEntry[]>): T
   return out;
 }
 
-/** Een bestaande UI-tekst als bewijs voor de gebruikte term (§4.4). */
 export interface UiExample { key: string; nl: string; en: string; target: string }
 
-/**
- * De UI-sleutels (max `max`) waarvan de nl- of en-tekst het concept bevat, met de doeltekst.
- * `locales` per namespace: { nl, en, target }.
- */
 export function uiExamplesFor(
   concept: Concept,
   locales: { ns: string; nl: JsonObject; en: JsonObject; target: JsonObject }[],
@@ -154,11 +138,6 @@ export interface TermsPackage {
   concepts: TermsPackageConcept[];
 }
 
-/**
- * Pakketten van ±`size` term-concepten (`token`/`keep` gaan niet mee; die worden niet vertaald).
- * `skip`: concepten die al een regel in de termbase hebben. `ui`: voorbeeldteksten per concept
- * (alleen voor de twaalf bestaande talen).
- */
 export function buildTermsPackages(opts: {
   lang: string;
   concepts: Concept[];
@@ -188,7 +167,6 @@ export function buildTermsPackages(opts: {
   return packs;
 }
 
-/** Pakket voor de blinde controle (§4.3 stap 3): alleen de doelterm, geen bron of definitie. */
 export interface TermsCheckPackage {
   kind: 'terms-check';
   lang: string;

@@ -5849,6 +5849,19 @@ en noem het in je rapport of PR-tekst.
      relaties (`pinnedSet`, `nextCandidateFor`), en de proefsolve verschuift haar mee. `howto-overbezetting-oplossen.md`
      zegt het goed, in beide talen ("Ook een taak met prioriteit 1000 volgt haar voorgangers"). — B
 
+2640. **De cijferpoort van de docs mist een weggelaten getal als een label met cijfers één keer extra in de
+     vertaling staat.** `withoutPlainLabelNumbers` in `scripts/translate/gates.ts` (voor `checkDocs`) streept de
+     gewone voorkomens van zo'n label in de vertaling weg, hoogstens zo vaak als het label in de bron staat. Staat de
+     labeltekst in de vertaling één keer vaker, dan is dat niet te onderscheiden van twee en-labels met dezelfde
+     vertaling (cs "(F5)" in knop én tooltip), en kan dat extra voorkomen een weggelaten getal elders afdekken.
+     Gezien in het weggehaalde commentaar bij die functie. — S
+
+2641. **`apply-findings` keurt een tekst tegen de oude vertaling van een label dat in dezelfde lijst verandert.**
+     `applyFindings` in `scripts/translate/findings.ts` bouwt de labelindex één keer uit de doelteksten van vóór de
+     ronde. Bevat een nieuwe tekst die een label noemt geen van de labelvertalingen die vóór de ronde geldig waren, dan
+     weigert de labelpoort hem, ook als een andere regel in hetzelfde bestand dat label verbetert. Gezien in
+     het weggehaalde commentaar bij die functie. — S
+
 ## Tests
 
 720. **Ook een wijziging aan een ander scenario in `table-editor.spec.ts` start de taakselectiemeting.**

@@ -1,31 +1,20 @@
-// `translate apply-findings <taal> <bestand>`: gecontroleerde verbeteringen direct in een locale zetten.
-// Pure functies: elke regel gaat door dezelfde harde poorten als `check` (via een pakket van één item);
-// een rode regel wordt overgeslagen en gemeld. De nl-bron verandert niet, dus de bron-hashes ook niet.
 import { isComplete, uiStyle, unitMap, type Concept, type LangTermbase, type UnitText } from './common';
 import { checkUi } from './gates';
 import { avoidRules, buildLabelIndex, labelsFor, literalsFor, termsFor, type UiItem, type UiPackage, type UiSources } from './ui';
 import { orderLike, setTranslation, type JsonObject } from '../i18n-tools';
 
-/** Eén regel uit het bestand: `{ "key": "ns:pad", "fix": "<tekst>" | { "<categorie>": "<tekst>" } }`. */
 export interface Finding { key: string; fix: UnitText; category?: string }
 
 export interface FindingsResult {
-  /** Bijgewerkte doelobjecten per namespace, in nl-volgorde (alleen namespaces die iets kregen). */
   targets: Map<string, JsonObject>;
   applied: string[];
   skipped: { key: string; reasons: string[] }[];
-  /** Zachte waarschuwingen van de toegepaste regels (term, avoid, lengte), voor het rapport. */
   warnings: string[];
 }
 
 const CATS = ['zero', 'one', 'two', 'few', 'many', 'other'];
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-/**
- * Lees meervoudsvormen die als tekst binnenkomen, zoals reviewers ze soms schrijven:
- * `{"one": "…", "few": "…"}` (JSON) of `{one: "…", few: '…'}`. Geeft null als de tekst geen
- * volledig leesbaar object van categorie → tekst is.
- */
 export function parsePluralText(text: string): Record<string, string> | null {
   const s = text.trim();
   if (!s.startsWith('{') || !s.endsWith('}')) return null;
@@ -35,7 +24,7 @@ export function parsePluralText(text: string): Record<string, string> | null {
       return v as Record<string, string>;
     }
     return null;
-  } catch { /* geen JSON: hieronder de losse schrijfwijze */ }
+  } catch { }
   const re = /(["']?)(zero|one|two|few|many|other)\1\s*:\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')/g;
   const out: Record<string, string> = {};
   let rest = s;
@@ -47,17 +36,10 @@ export function parsePluralText(text: string): Record<string, string> | null {
     out[m[2]] = val;
     rest = rest.replace(m[0], '');
   }
-  // Alles buiten de paren moet opmaak zijn: accolades, komma's, witruimte.
   if (Object.keys(out).length === 0 || !/^[\s{},]*$/.test(rest)) return null;
   return out;
 }
 
-/**
- * Pas de regels toe. `readTarget` levert het huidige doelobject van een namespace. Een regel wordt
- * overgeslagen als hij niet te lezen is, de sleutel niet in nl staat, er nog geen vertaling is (dat is
- * werk voor `prepare ui`), of de nieuwe tekst een harde poort niet haalt. Een meervoudsfix met een deel
- * van de categorieën (of met `category`, of op `ns:pad_few`) vult de bestaande vormen aan.
- */
 export function applyFindings(opts: {
   lang: string;
   findings: unknown;
@@ -66,7 +48,6 @@ export function applyFindings(opts: {
   readTarget: (ns: string) => JsonObject;
   concepts: Concept[];
   termbase?: LangTermbase;
-  /** Bron-hashes van de taal: bepalen welke labelvertalingen meetellen (labelpoort). */
   sources?: UiSources;
 }): FindingsResult {
   const res: FindingsResult = { targets: new Map(), applied: [], skipped: [], warnings: [] };
@@ -75,8 +56,6 @@ export function applyFindings(opts: {
     return res;
   }
   const skip = (key: string, ...reasons: string[]) => { res.skipped.push({ key, reasons }); };
-  // De labelpoort kijkt naar de doelteksten vóór deze ronde: een label dat zelf in de lijst staat,
-  // telt met zijn oude vertaling (zet zulke regels in één ronde, of draai twee keer).
   const labelIndex = buildLabelIndex(Object.keys(opts.nl).map(ns => ({
     ns, nl: opts.nl[ns], en: opts.en[ns] ?? {}, target: opts.readTarget(ns),
   })), opts.lang, opts.sources ?? {}, avoidRules(opts.concepts, opts.termbase));

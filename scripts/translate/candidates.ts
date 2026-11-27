@@ -1,5 +1,3 @@
-// Kandidaat-termen voor de conceptenlijst (§4.2 stap 1). Pure functies; een Haiku-agent maakt er
-// daarna concepten van (prompts/concepts.md).
 import { textsOf, unitsOf } from './common';
 import type { JsonObject } from '../i18n-tools';
 
@@ -8,9 +6,7 @@ export interface Candidate {
   freq: number;
   ui: number;
   docs: number;
-  /** nl-teksten van sleutels waarvan de en-tekst gelijk is aan de term (max 3). */
   nl: string[];
-  /** Voorbeeldsleutels (`ns:pad`) of artikelen (`docs:<id>`), max 3. */
   examples: string[];
 }
 
@@ -19,7 +15,6 @@ const STOP = new Set(('a an the and or of to in on at by for with from as is are
   + 'does which what when where who how also only just here there these those they them their our we us')
   .split(' '));
 
-/** Opschonen: witruimte, leestekens aan de randen, en geen getallen, code of lange zinnen. */
 export function normalizeCandidate(raw: string): string | null {
   const s = raw.replace(/\s+/g, ' ').replace(/^[\s"'“”‘’(«[]+|[\s"'“”‘’)»\].,:;!?…]+$/g, '').trim();
   if (s.length < 2 || s.length > 60) return null;
@@ -31,7 +26,6 @@ export function normalizeCandidate(raw: string): string | null {
   return s;
 }
 
-/** Cursieve en vette stukken uit een Markdown-tekst; een pad (*A › B › C*) wordt in delen geknipt. */
 export function emphasisOf(md: string): string[] {
   const out: string[] = [];
   const text = md.replace(/`[^`\n]*`/g, ' ');
@@ -41,7 +35,6 @@ export function emphasisOf(md: string): string[] {
   return out.flatMap(s => s.split(/\s*›\s*/)).map(s => s.replace(/\s*[▾▸]\s*$/, ''));
 }
 
-/** Woordgroepen van 2–3 woorden uit een tekst, zonder stopwoord aan de randen. */
 export function phrasesOf(text: string): string[] {
   const words = text.replace(/\{\{[^}]*\}\}/g, ' | ').split(/[^\p{L}\p{N}'-]+|\s+/u).filter(Boolean);
   const out: string[] = [];
@@ -56,11 +49,6 @@ export function phrasesOf(text: string): string[] {
   return out;
 }
 
-/**
- * Verzamel kandidaten uit de UI (korte labels van ≤ 4 woorden en vaak terugkerende woordgroepen in
- * de en-UI) en uit de Engelse docs (cursief en vet). Sleutel = kleine letters; de weergave is de
- * meest voorkomende schrijfwijze. Gesorteerd op frequentie (hoog eerst), dan alfabetisch.
- */
 export function collectCandidates(opts: {
   ui: { ns: string; nl: JsonObject; en: JsonObject }[];
   docs: { id: string; md: string }[];
@@ -110,7 +98,6 @@ export function collectCandidates(opts: {
     .sort((a, b) => b.freq - a.freq || a.term.localeCompare(b.term));
 }
 
-/** Knip een lijst in pakketten van `size`. */
 export function chunk<T>(xs: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < xs.length; i += size) out.push(xs.slice(i, i + size));
