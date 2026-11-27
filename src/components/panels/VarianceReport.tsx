@@ -6,13 +6,6 @@ import { computeVariance, type VarianceResult, type VarianceStatus } from '@/eng
 import { useTaskIdDateText } from '@/hooks/displayDate';
 import { formatSignedReportNumber } from '@/utils/reportNumber';
 
-/**
- * Variance-rapport: vergelijkt de huidige (CPM-)datums met de actieve baseline.
- * Deelt de pure `computeVariance` met de headless testharnas; de hook levert de rijen + de
- * projecteinde-delta voor de samenvatting. Zonder actieve baseline: lege uitkomst (lege-staat).
- */
-
-/** Hook rond de pure `computeVariance` — gememoiseerd op tasks/cpmResult/baselines/activeBaselineId. */
 export function useVarianceResult(): VarianceResult {
   const tasks = useAppStore(s => s.tasks);
   const cpmResult = useAppStore(s => s.cpmResult);
@@ -29,7 +22,6 @@ export function useVarianceResult(): VarianceResult {
   }, [tasks, cpmResult, baselines, activeBaselineId, calendar]);
 }
 
-/** Geëxporteerd zodat de vector-PDF-tabel-export exact dezelfde statuskleuren gebruikt. */
 export const STATUS_COLOR: Record<VarianceStatus, string> = {
   onSchedule: '#10B981',
   late: '#DC2626',
@@ -40,12 +32,6 @@ export const STATUS_COLOR: Record<VarianceStatus, string> = {
 
 const COLUMNS = ['wbs', 'name', 'baselineStart', 'baselineFinish', 'currentStart', 'currentFinish', 'deltaStart', 'deltaFinish', 'status'] as const;
 
-/**
- * Geëxporteerd zodat de vector-PDF-tabel-export exact dezelfde delta-formattering gebruikt.
- * Zelfde notatie als de andere rapporten (`formatSignedReportNumber`: plus bij positief, het
- * decimaalteken van de app-taal); de delta's zijn hele werkdagen, dus in
- * de praktijk verandert alleen het teken mee.
- */
 export function fmtDelta(v: number | undefined, locale?: string): string {
   if (v === undefined) return '—';
   return formatSignedReportNumber(v, locale);
@@ -54,7 +40,6 @@ export function fmtDelta(v: number | undefined, locale?: string): string {
 export function VarianceReport() {
   const { t, i18n } = useTranslation('report');
   const { rows } = useVarianceResult();
-  // B4: een tijd alleen als het moment midden op de werkdag valt.
   const taskDate = useTaskIdDateText();
 
   return (

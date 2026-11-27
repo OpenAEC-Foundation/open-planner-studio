@@ -7,15 +7,12 @@ import { createSnapshotStore, DashboardIconButton, DashboardPanel, formatClockTi
 
 const ALL_LEVELS: LogLevel[] = ['log', 'info', 'warn', 'error', 'event'];
 
-// Functional log-level colors — readable on the dashboard-bg.
-// Tokens for the brand-bound levels (log/warn/error); event keeps cyan
-// since the stylebook has no equivalent semantic for "event".
 const LEVEL_COLOR: Record<LogLevel, string> = {
-  log:   'var(--scaffold-gray)',  // #A1A1AA
-  info:  '#60a5fa',               // blue-400, readable on dark
-  warn:  'var(--warm-gold)',      // #F59E0B
-  error: '#f87171',               // red-400, lighter than --error for legibility on dark bg
-  event: '#22d3ee',               // cyan-400, no stylebook equivalent
+  log:   'var(--scaffold-gray)',
+  info:  '#60a5fa',
+  warn:  'var(--warm-gold)',
+  error: '#f87171',
+  event: '#22d3ee',
 };
 
 const logStore = createSnapshotStore<LogEntry[]>(appLog.snapshot(), listener => appLog.subscribe(listener));
@@ -31,12 +28,10 @@ export function DebugTerminal() {
 
   const listRef = useRef<HTMLDivElement>(null);
   const lastSeenIdRef = useRef<number>(0);
-  // Snapshot we render when paused — frozen until unpaused.
   const frozenRef = useRef<LogEntry[] | null>(null);
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
 
-  // When pausing, freeze the current entries; on unpause, release.
   useEffect(() => {
     if (paused) frozenRef.current = entriesRef.current;
     else frozenRef.current = null;
@@ -47,7 +42,6 @@ export function DebugTerminal() {
     return source.filter(e => enabledLevels.has(e.level));
   }, [entries, paused, enabledLevels]);
 
-  // Auto-scroll to bottom when sticky and not paused.
   useEffect(() => {
     if (!stickyBottom || paused) return;
     const el = listRef.current;
@@ -127,7 +121,6 @@ export function DebugTerminal() {
         </DashboardIconButton>
       </>}
     >
-      {/* Feed */}
       <div
         ref={listRef}
         onScroll={onScroll}

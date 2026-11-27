@@ -30,19 +30,6 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
 import { useReportSettings } from '@/hooks/useReportSettings';
 
-/*
- * Het rapportpaneel voor de rapporten zonder Gantt: mijlpalen, afwijkingen en de acht tabelrapporten.
- * De Gantt-afdruk (met de layout Resourcediagram) staat op het Rapport-tabblad in `reportStudio/`
- * (issue #817); de keuzelijst hier wisselt ernaartoe via `ReportWorkspace`.
- */
-
-/**
- * Kolomspec voor de vector-PDF-export van het mijlpalenrapport — spiegelt EXACT
- * `MilestoneReport.tsx`: zelfde kolomvolgorde/headers (`t('milestoneReport.*')`), de `◆`-prefix bij
- * `mandatory`, float `< 0` rood+bold, en de `STATUS_COLOR`-badge (altijd bold, zoals de DOM-span).
- */
-/** De kolomspec wordt buiten React-render-tijd opgebouwd (`handleExportPDF`); de datumformatter komt dus
- *  als argument mee, gebonden aan de instellingen (`useTaskIdDateText`). */
 function buildMilestoneColumns(t: TFunction<'report'>, taskDate: TaskIdDateText): PdfTableColumn<MilestoneRow>[] {
   return [
     { header: t('milestoneReport.wbs'), width: 70, align: 'left', text: r => r.wbs },
@@ -66,11 +53,6 @@ function buildMilestoneColumns(t: TFunction<'report'>, taskDate: TaskIdDateText)
   ];
 }
 
-/**
- * Kolomspec voor de vector-PDF-export van het afwijkingenrapport — spiegelt EXACT
- * `VarianceReport.tsx`: zelfde `COLUMNS`-volgorde/headers, `fmtDelta`, deltaStart/deltaFinish `> 0`
- * rood+bold, en de `STATUS_COLOR`-badge (altijd bold).
- */
 function buildVarianceColumns(t: TFunction<'report'>, taskDate: TaskIdDateText, locale: string): PdfTableColumn<VarianceRow>[] {
   return [
     { header: t('milestoneReport.wbs'), width: 70, align: 'left', text: r => r.wbs },
@@ -100,25 +82,16 @@ function buildVarianceColumns(t: TFunction<'report'>, taskDate: TaskIdDateText, 
   ];
 }
 
-/** Instellingenkolom: startbreedte + sleepgrenzen. Geen
- *  eigen max-constante — de bovengrens is 50% van de kaartbreedte, dus dynamisch (zie `useSplitter`
- *  hieronder), net als de rechterpaneel-breedte in App.tsx. */
 const SETTINGS_PANEL_DEFAULT_WIDTH = 256;
 const SETTINGS_PANEL_MIN_WIDTH = 200;
 
 export function ReportPanel() {
   const { t } = useTranslation('report');
   const { t: tCommon, i18n } = useTranslation('common');
-  // B4 in de PDF van mijlpalen en afwijkingen: een tijd alleen als het moment midden op de werkdag valt.
   const taskDate = useTaskIdDateText();
   const project = useAppStore(s => s.project);
-  // De PDF-naam draagt de documentnaam "Naam (code)", zoals tabblad en opslaan (B21, `documentFileBase`).
-  // Een neutrale, taalonafhankelijke terugval, net als bij Bestand → Opslaan (`project.ifc` in elke taal).
   const projectCode = useAppStore(s => documentProjectCode(s.project, s.xerImportMetadata));
   const fileBase = documentFileBase(project.name, projectCode);
-  // "Datums zoals opgeslagen": de tabelrapporten dragen de melding in hun spec (`useTableReportSpec`);
-  // mijlpalen en afwijkingen krijgen haar hier, boven het rapport — dezelfde tekst, zodat geen enkel
-  // rapport nullen toont zonder te zeggen dat het bestand die assen niet vastlegde.
   const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
   const recordedDatesNote = datesAsRecorded ? (
     <div
@@ -129,40 +102,25 @@ export function ReportPanel() {
     </div>
   ) : null;
 
-  // De gedeelde stand van `ops-reportSettings` (`useReportSettings`). Dit paneel schrijft alleen zijn eigen velden
-  // (rapporttype, tabelopties, papier, richting, letter); kiest de planner de Gantt-afdruk, dan volgt de
-  // werkruimte het rapporttype.
   const reportSettings = useReportSettings();
   const { reportType, tableReports: tableOptions, paperSize, orientation, reportFontFamily } = reportSettings;
   const reportFont = reportFontStack(reportFontFamily);
-  // De voorvertoning tekent in de rapportletter: registreer en laad hem (`@font-face`) zodra hij gekozen is, niet
-  // pas bij de export (review Sol #938). Anders toont de tabel een letter die nog niet geladen is in Inter. Ook bij
-  // een ander eigen lettertype (zelfde id, andere sleutel).
   const reportFontLoadKey = reportFontKey(reportSettings);
   useEffect(() => { void ensureReportFontLoaded(reportFontFamily); }, [reportFontFamily, reportFontLoadKey]);
-  // Alleen de gewijzigde tabelopties: `patchReportSettings` voegt de groep per optie samen.
   const patchTableOptions = useCallback((patch: Partial<TableReportOptions>) => { patchReportSettings({ tableReports: patch }); }, []);
   const setPaperSize = useCallback((v: ReportPaperSize) => { patchReportSettings({ paperSize: v }); }, []);
   const setOrientation = useCallback((v: ReportOrientation) => { patchReportSettings({ orientation: v }); }, []);
   const setReportFontFamily = useCallback((v: ReportFontChoice) => { patchReportSettings({ reportFontFamily: v }); }, []);
   const chooseReportType = useCallback((next: ReportType) => { patchReportSettings({ reportType: next }); }, []);
 
-  // Reden waarom de laatste export-poging is afgebroken (alleen een CPM-cyclus).
-  // Het CPM-resultaat met de fout, niet de tekst: vertaald bij het tonen, dus ook na een taalwissel.
   const [exportError, setExportError] = useState<Pick<CPMResult, 'error' | 'errorInfo'> | null>(null);
   const scheduleStale = useAppStore(s => s.scheduleStale);
 
-  // Instellingenkolom horizontaal sleepbaar. Zelfde generieke sleeppatroon als de rechterpaneel-splitter
-  // in App.tsx (`useSplitter`): losse React-state, bewust niet bewaard — een layout-voorkeur van dit ene
-  // paneel, geen rapportinstelling. `containerRef` wijst naar de buitenste flex-rij (instellingen +
-  // rapport), zodat de sleeppositie relatief aan díe rand wordt berekend, niet aan het venster.
   const containerRef = useRef<HTMLDivElement>(null);
   const [settingsWidth, setSettingsWidth] = useState(SETTINGS_PANEL_DEFAULT_WIDTH);
   const settingsSplitter = useSplitter({
     min: SETTINGS_PANEL_MIN_WIDTH,
     max: () => Math.round((containerRef.current?.getBoundingClientRect().width ?? 800) * 0.5),
-    // De instellingenkolom is het eerste flexkind: links in ltr, rechts in ar/fa. Een vaste
-    // `clientX − rect.left` laat de kolom in ar/fa bij de eerste beweging naar de bovengrens springen.
     computeSize: e => {
       const container = containerRef.current;
       if (!container) return NaN;
@@ -179,33 +137,17 @@ export function ReportPanel() {
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
   const tableReportRef = useRef<HTMLDivElement>(null);
-  // null voor mijlpalen en afwijkingen; anders de complete spec (titel, samenvatting, secties).
   const tableSpec = useTableReportSpec(reportType, tableOptions);
   const locale = i18n.language;
 
   const milestoneRows = useMilestoneRows();
   const varianceResult = useVarianceResult();
 
-  /**
-   * Gedeelde PDF-schrijver via `saveBytesDialog`, het enige byte-schrijfpad van de app — Tauri:
-   * save-dialoog + `writeFile`; web: FSA-picker met download-terugval. Bewust GEEN
-   * `viaDownload`-melding.
-   *
-   * De try/catch is niet optioneel. `saveBytesDialog` geeft
-   * een geannuleerde dialoog terug als `null`, maar een ECHTE fout (schijf vol, bestand
-   * vergrendeld, geweigerd bestandstype) gooit hij bewust door — zie `saveDataDialogWeb`. Deze
-   * aanroeper hangt aan een `void runExport()`, dus zonder vangnet wordt dat een unhandled
-   * rejection: de gebruiker drukt op Exporteren en er gebeurt zichtbaar niets. Melden gaat via het
-   * ene meldingskanaal met dezelfde sleutel die `fileSlice` voor een mislukte schrijfactie
-   * gebruikt.
-   */
   const writePdf = useCallback(async (pdfBytes: Uint8Array, defaultName: string) => {
     try {
       await saveBytesDialog(
         defaultName, pdfBytes,
         [{ name: 'PDF Document', extensions: ['pdf'] }],
-        // #804 fixronde 1: niet over het bronbestand van een document met een gebouwmodel. Een rapport bevat de planning
-        // niet, dus ook niet over het bestand van een open document, ook het actieve niet (review van #1064).
         { mime: 'application/pdf', refuseTarget: useAppStore.getState().foreignTargetCheck(null) },
       );
     } catch (err) {
@@ -217,37 +159,19 @@ export function ReportPanel() {
     }
   }, []);
 
-  /**
-   * De eigenlijke export — draait ALTIJD op de closure-waarden van de huidige render (`tableSpec`,
-   * de mijlpaal- en afwijkingsrijen). Daarom mag hij pas ná een herberekening worden aangeroepen wanneer
-   * die een re-render heeft opgeleverd; zie `handleExportPDF` en het effect eronder.
-   */
   const runExport = useCallback(async () => {
-    // Bij een cyclus afbreken zónder te exporteren. De cpmResult.error-check staat hier los van
-    // de stale-vlag omdat runCPM `scheduleStale` vóór de solve al op false zet; een guard op alleen
-    // die vlag zou stil met oude task.time-waarden exporteren.
     const cpm = useAppStore.getState().cpmResult;
     if (cpm?.error) {
-      // Zichtbaar maken is hier NIET optioneel: op het Rapport-tabblad is `GanttCanvas` niet
-      // gemonteerd, dus de bestaande cyclus-toast vuurt hier niet en de knop zou anders gewoon
-      // stil niets doen. De reden komt als code + parameters uit de solver en wordt bij het tonen
-      // vertaald (`scheduleErrorText`).
       setExportError({ error: cpm.error, errorInfo: cpm.errorInfo });
       return;
     }
     setExportError(null);
 
     const lowerPaper = paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1';
-    // Basisrichting van de export-taal: stuurt de bidi in het complexe RTL-tekst-pad van de vector-export.
     const exportBaseDir: 'ltr' | 'rtl' = RTL_LOCALES.includes(locale as Locale) ? 'rtl' : 'ltr';
 
-    // De gevendorde rapportletter moet geladen zijn vóór de meting en een eventuele DOM-terugval.
     await ensureReportFontLoaded(reportFontFamily);
 
-    // De bytes voor de vector-PDF: de gekozen letter, Noto Sans Arabic voor RTL, en bij elke andere
-    // letter dan Inter óók Inter als terugval voor de tekens die die letter mist (✓, een enkel
-    // symbool; zie `fallbackFonts` in paginateVector.ts). Zonder terugval valt de hele PDF om één
-    // zo'n teken terug op raster.
     const loadVectorFonts = async () => {
       const [regular, bold, arabicRegular, arabicBold, fallbackFonts] = await Promise.all([
         getReportFontBytes(reportFontFamily, 400),
@@ -262,27 +186,15 @@ export function ReportPanel() {
       return { main: { regular, bold }, arabic: { regular: arabicRegular, bold: arabicBold }, fallbackFonts };
     };
 
-    // Vector-tabel-export — dezelfde kolomspec als de levende DOM-tabel (MilestoneReport/VarianceReport/
-    // TableReportView), getekend via het renderReport-patroon en gepagineerd door `paginateVectorToPdfBytes`.
-    // Bij een fout valt de export terug op het DOM-screenshot-pad (modern-screenshot), zodat de export
-    // nooit stukloopt.
     const suffix = tableSpec ? tableSpec.fileSuffix : reportType === 'milestones' ? t('fileSuffix.milestones') : t('fileSuffix.variance');
 
     const exportTableRaster = async (): Promise<Uint8Array> => {
       const node = tableSpec ? tableReportRef.current : reportType === 'milestones' ? milestoneRef.current : varianceRef.current;
       if (!node) throw new Error('exportTableRaster: DOM-node niet beschikbaar');
 
-      // domToCanvas met scale=s levert een canvas van node.offsetWidth*s × node.offsetHeight*s
-      // device-px; de LOGISCHE maat blijft node.offsetWidth/offsetHeight, dus srcScale =
-      // canvas.width/logicalWidth = s.
       const pixelRatio = 2;
       const { domToCanvas } = await import('modern-screenshot');
-      // Een PDF is een wit-papier-artefact. De rapporttabellen kleuren hun tekst via de thema-
-      // CSS-variabelen; in een donker thema is dat lichte tekst, die op de geforceerde witte
-      // achtergrond onleesbaar wordt. Forceer daarom kort het lichte thema tijdens de capture
-      // (zodat tekst donker-op-wit uitvalt) en herstel daarna het thema van de gebruiker.
       const rootEl = document.documentElement;
-      // Beide attributen: de brugblokken in globals.css hangen aan `data-oa-theme`.
       const themeAttrs = ['data-theme', 'data-oa-theme'] as const;
       const prevThemes = themeAttrs.map(name => rootEl.getAttribute(name));
       for (const name of themeAttrs) rootEl.setAttribute(name, 'light');
@@ -317,17 +229,10 @@ export function ReportPanel() {
         paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir, subsetFont, fallbackFonts: fonts.fallbackFonts,
       } as const;
 
-      // Kolomkoppen worden gemeten zoals de DOM-tabel zichzelf opmeet ("Duration (wd)" past in geen
-      // enkele taal in een vaste 70 px). De meting loopt op de geladen rapportletter — hetzelfde
-      // font dat de PDF inbedt — met de lettermaten van het fontbestand (`reportTextMeasure.ts`),
-      // zodat wat hier past ook daar past.
       const headerMetrics = await loadReportTextMetrics(reportFontFamily, exportBaseDir);
       const measureHeader = (text: string, font: string) => headerMetrics.measure(text, font);
 
-      // Twee losse takken i.p.v. één ternaire spec: `makeTableRenderReport<Row>` is generiek over de
-      // rijtype, en een samengevoegde union-spec zou TS niet meer aan één Row-type kunnen binden.
       if (tableSpec) {
-        // Tabelrapporten: dezelfde kolomspec als de DOM-weergave, gesectioneerd.
         tablePdfBytes = await paginateVectorToPdfBytes(
           makeSectionedRenderReport(toPdfSpec(tableSpec), measureHeader, reportFont),
           vectorOpts,
@@ -368,16 +273,7 @@ export function ReportPanel() {
   }, [reportType, fileBase, paperSize, orientation, writePdf, t, taskDate, locale, milestoneRows, varianceResult, tableSpec,
     reportFontFamily, reportFont]);
 
-  // Guard: een stale planning eerst doorrekenen. NIET meteen daarna exporteren — `runExport`
-  // leest `tableSpec` en de rijen uit de closure van de HUIDIGE render, en die kent de
-  // herberekening nog niet (de PDF zou achterlopen op het scherm). De export wordt daarom uitgesteld
-  // tot het effect hieronder ná de re-render met de verse waarden vuurt.
   const exportPendingRef = useRef(false);
-  /**
-   * `runExport` wordt vanaf twee plekken los gestart (`void`), dus een afwijzing die het `writePdf`
-   * -vangnet niet dekt — het opbouwen van de PDF zelf, een glyph die `pdf-lib` weigert — zou een
-   * unhandled rejection zijn. Zelfde kanaal, zelfde reden als in `writePdf`.
-   */
   const startExport = useCallback(() => {
     runExport().catch((err: unknown) => {
       useAppStore.getState().notify({
@@ -404,13 +300,6 @@ export function ReportPanel() {
 
   return (
     <div ref={containerRef} className="flex-1 flex overflow-hidden bg-surface" style={{ position: 'relative' }}>
-      {/* Sleepgrijpzone — zelfde patroon als de rechterpaneel-splitter in App.tsx en de tabel/
-          chart-splitter in GanttCanvas: onzichtbare grijpzone over de rand (geen aparte balk,
-          geen kleur, geen ruimtebeslag). Bewust een kind van de BUITENSTE container en niet van de
-          instellingenkolom: die kolom scrollt (`overflow-y-auto`), en een zone die 4px buiten haar
-          rand steekt telt daar mee als scrollbreedte (horizontale scrollbar).
-          `insetInlineStart` (i.p.v. `left`) houdt 'm in RTL (ar/fa) aan dezelfde
-          logische rand, want de instellingenkolom is in beide richtingen het eerste flex-kind. */}
       <div
         onMouseDown={e => { e.preventDefault(); settingsSplitter.start(); }}
         style={{
@@ -424,9 +313,6 @@ export function ReportPanel() {
         }}
         data-ops-report-settings-resize
       />
-      {/* Links: instellingen — breedte sleepbaar. `min-w-0` op de kolom zelf voorkomt dat ZIJN eigen
-          rijen de kolom breder duwen dan `settingsWidth`. De scheidingslijn is `borderInlineEnd`, zodat
-          hij ook in ar/fa (kolom rechts) op de grens met het rapport staat en niet aan de buitenkant. */}
       <div
         className="flex-shrink-0 min-w-0 overflow-y-auto p-3 flex flex-col gap-3"
         style={{ width: settingsWidth, borderInlineEnd: '1px solid var(--theme-border)' }}
@@ -438,7 +324,6 @@ export function ReportPanel() {
           {t('title')}
         </span>
 
-        {/* Rapporttype. De Gantt-afdruk opent het Rapport-tabblad; het Resourcediagram is daar een layout (#861). */}
         <Select
           className="w-full min-w-0"
           aria-label={t('reportType.label')}
@@ -452,7 +337,6 @@ export function ReportPanel() {
           ]}
         />
 
-        {/* Samenvatting */}
         <ReportOptionsCard title={t('summary')}>
           <div className="grid grid-cols-2 gap-1 text-small leading-4" data-ops-report-summary-block>
             {tableSpec ? (
@@ -503,7 +387,6 @@ export function ReportPanel() {
           onFontFamily={setReportFontFamily}
         />
 
-        {/* Alleen de exportknop hoort bij dit formulier: Enter in rapportinvoer exporteert niet. */}
         <form
           id="report-pdf-export"
           className="flex flex-col gap-2"
@@ -524,7 +407,6 @@ export function ReportPanel() {
         </form>
       </div>
 
-      {/* Rechts: het rapport */}
       <div className="flex-1 min-w-0 min-h-0" style={{ background: 'var(--theme-bg)' }}>
         {tableSpec ? (
           <div className="h-full overflow-auto p-4">

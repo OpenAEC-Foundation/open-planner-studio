@@ -25,6 +25,9 @@ Tabbladen (`RibbonTab`): `file`, `start`, `planning`, `resources`, `beeld`, `ins
 (0481), een lintknop en zijn opdracht (0482), paneelschakelaars (0483), wanneer een lintknop uit staat (0484) en
 relatielijnen en balkdatums op Beeld (0485).
 
+**Besluiten in `src/components/panels/`** staan in `docs/adr/`: het bezettingsoverzicht (0690) en de export en
+sleepzone van het rapportpaneel (0691).
+
 Bij een smal venster maakt `useRibbonAutoFit` (`Ribbon.tsx`) lintknoppen van rechts naar links mini. Een lintgroep met invoervelden gebruikt `RibbonCollapsible` (`ribbonPrimitives.tsx`): die klapt als geheel in tot één grote knop met ▾ en popover, nadat de knoppen buiten de eerste groep mini zijn en vóór de knoppen van de eerste groep (zoals Bereken). Daarna zoekt de automaat de knoppenstand opnieuw, zodat de vrije ruimte terug gaat naar labels. Een groep met de focus erin of een open popover blijft in zijn stand. Animeer op `.ribbon-btn` geen maten; de automaat meet direct na het zetten van `data-ribbon-mini`.
 
 Backstage-secties (`BackstageSection`): `recent`, `examples`, `export`, `import`, `print`, `project-info`, `settings`, `extensions`, `library`, `help` — waarvan `help` een compleet documentatiesubsysteem is (zie `.claude/rules/docs-help.md`).

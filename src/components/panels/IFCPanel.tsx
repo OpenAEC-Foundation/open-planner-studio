@@ -21,25 +21,18 @@ export function IFCPanel() {
   const customFieldDefs = useAppStore(s => s.customFieldDefs);
   const customTaskTypes = useAppStore(s => s.customTaskTypes);
   const resourceCalendars = useAppStore(s => s.calendars);
-  // Baselines/activeBaselineId meesturen — anders schrijft dit paneel stil ONVOLLEDIGE IFC
-  // (baselines verloren bij genereren/kopiëren vanuit de IFC-tab).
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const comparedBaselineIds = useAppStore(s => s.comparedBaselineIds);
-  // In de modus "datums zoals opgeslagen" schrijft de writer `$` op
-  // de niet-vastgelegde assen — ook hier, anders toont/kopieert dit paneel de terugvallen als waarden.
   const recordedDates = useAppStore(s => s.recordedDates);
   const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
   const minuteModelPending = useAppStore(s => s.minuteModelPending);
-  // Bewaarde GlobalIds uit het ingelezen bestand; zonder deze kreeg Toepassen overal hash-GlobalIds.
   const ifcGlobalIds = useAppStore(s => s.ifcGlobalIds);
-  // Knownbug 1026: kalenders die letterlijk waren bij het openen, blijven letterlijk.
   const ifcLiteralCalendarIds = useAppStore(s => s.ifcLiteralCalendarIds);
   const ifcSource = useAppStore(s => s.ifcSource);
   const applyProjectEdit = useAppStore(s => s.applyProjectEdit);
-  // #804 §4.12: met een vreemd deel staat Toepassen uit. De tekst hier bevat alleen de planning; de bron blijft staan.
   const foreignContent = useAppStore(s => ifcSaveBlocked(s));
-  const notify = useAppStore(s => s.notify);  // het ene meldingenkanaal, geen alert()
+  const notify = useAppStore(s => s.notify);
 
   const generated = useMemo(() => {
     return writeIFC(buildWriteIFCInput({
@@ -66,14 +59,11 @@ export function IFCPanel() {
     void (async () => {
       try {
         const data = await readIFCWithXerReconstruction(content, buildImportLabels(tCommon));
-        // Eén documentbewerking: doorrekenen, undo en viewstart in dezelfde publicatie.
         applyProjectEdit(data, { viewStartDate: data.project.startDate });
         setDirty(false);
-        // Een onbruikbaar XER-bronarchief is weggelaten — nooit stil.
         const archiveNotice = withXerArchiveIssueNotice(undefined, [data.xerArchiveIssue]);
         if (archiveNotice) notify(archiveNotice);
       } catch (err) {
-        // Via het gecentraliseerde meldingenkanaal, geen alert().
         notify({
           severity: 'error',
           messageKey: 'notifications.ifcParseFailed',
@@ -91,7 +81,6 @@ export function IFCPanel() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-surface">
-      {/* Toolbar */}
       <div className="flex items-center gap-2 px-3 py-2 bg-surface-alt" style={{ borderBottom: '1px solid var(--theme-border)' }}>
         <span
           className="text-small leading-4 font-bold uppercase"
@@ -125,7 +114,6 @@ export function IFCPanel() {
         <span className="!text-small" style={{ color: 'var(--theme-text-muted)' }}>{lineCount} {t('ifc.lines')}</span>
       </div>
 
-      {/* Editor */}
       <div className="flex-1 overflow-hidden relative">
         <textarea
           value={content}

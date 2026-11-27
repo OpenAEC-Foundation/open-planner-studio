@@ -44,3 +44,6 @@ verdeling toepassen en terugdraaien (0175).
 **Besluiten in `services/library/libraryOps.ts`** staan in `docs/adr/`: een companyId uit een poolbestand (0340), de
 vorm van een pool bij laden en importeren (0341), een poolitem naar het project kopiëren (0342) en namen genormaliseerd
 herkennen maar veldwaarden letterlijk vergelijken (0343).
+
+**Besluiten in `ResourceOccupancyView.tsx`**: het actieve document niet efemeer doorrekenen, de documentkleuren en
+het eigen histogram (`docs/adr/0690-bezettingsoverzicht-actief-document-en-histogram.md`).

@@ -7,14 +7,6 @@ import type { Task } from '@/types/task';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { shownStart } from '@/utils/taskDates';
 
-/**
- * Mijlpalen-overzicht: tabelrapport over alle mijlpalen — soort,
- * datum, bewaakte datum (constraint/deadline), float, verplicht en status.
- * Statusafleiding: te laat = geschonden constraint/gemiste deadline of tf < 0;
- * kritiek = `isCritical` van de solver (de kritiek-definitie uit de rekenopties); anders op schema.
- * Afwijkingen t.o.v. de baseline staan in het afwijkingenrapport (`VarianceReport`).
- */
-
 export interface MilestoneRow {
   id: string;
   wbs: string;
@@ -22,15 +14,12 @@ export interface MilestoneRow {
   kind: 'AUTO' | 'START' | 'FINISH';
   date: string;
   guardDate: string;
-  /** De kant van de bewaakte datum (B4): een start-beperking startachtig, een eind-beperking en een
-   *  deadline eindachtig. */
   guardSide: InstantSide;
   float: number | undefined;
   mandatory: boolean;
   status: 'late' | 'critical' | 'onSchedule';
 }
 
-/** De rijen van het overzicht, puur uit taken + CPM-resultaat (scherm én vector-PDF lezen deze). */
 export function computeMilestoneRows(tasks: readonly Task[], cpmResult: CPMResult | null): MilestoneRow[] {
   const violated = new Set(cpmResult && !cpmResult.error ? cpmResult.violatedConstraintTaskIds : []);
   const missed = new Set(cpmResult && !cpmResult.error ? cpmResult.missedDeadlineTaskIds : []);
@@ -39,15 +28,12 @@ export function computeMilestoneRows(tasks: readonly Task[], cpmResult: CPMResul
     .map(t => {
       const tf = t.time.totalFloat;
       const late = violated.has(t.id) || missed.has(t.id) || (tf !== undefined && tf < 0);
-      // "Kritiek" is de solverdefinitie (`isCritical`: drempel, langste pad, voltooid nooit kritiek),
-      // net als Gantt, raster, kritiek-rapport en MCP — geen eigen `tf <= 0`.
       const status: MilestoneRow['status'] = late ? 'late' : t.time.isCritical ? 'critical' : 'onSchedule';
       return {
         id: t.id,
         wbs: t.wbsCode,
         name: t.name,
         kind: (t.milestoneKind ?? 'AUTO') as MilestoneRow['kind'],
-        // De getoonde datum, zoals de ruit in de Gantt: een behaalde mijlpaal staat op zijn werkelijke datum.
         date: shownStart(t),
         guardDate: t.constraint?.date ?? t.deadline ?? '',
         guardSide: t.constraint?.date ? (constraintDateSide(t.constraint.type) ?? 'start') : 'end',
@@ -64,7 +50,6 @@ export function useMilestoneRows(): MilestoneRow[] {
   return useMemo(() => computeMilestoneRows(tasks, cpmResult), [tasks, cpmResult]);
 }
 
-/** Geëxporteerd zodat de vector-PDF-tabel-export exact dezelfde statuskleuren gebruikt. */
 export const STATUS_COLOR: Record<MilestoneRow['status'], string> = {
   late: '#DC2626',
   critical: '#D97706',
@@ -74,7 +59,6 @@ export const STATUS_COLOR: Record<MilestoneRow['status'], string> = {
 export function MilestoneReport() {
   const { t } = useTranslation('report');
   const rows = useMilestoneRows();
-  // B4: een tijd alleen als het moment midden op de werkdag valt.
   const taskDate = useTaskIdDateText();
 
   return (
