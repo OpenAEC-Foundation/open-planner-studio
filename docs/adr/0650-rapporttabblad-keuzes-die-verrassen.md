@@ -16,8 +16,8 @@ wat daar niet staat.
 - Een gekozen layout die niet meer bestaat, valt pas terug op *Alle taken* als de eigen layouts gelezen zijn
   (`loaded` van `useReportLayouts`) en als diezelfde layout in de nieuwste opslag (`latestReportSettings`) nog gekozen
   is. Koos een ander scherm intussen een andere bron, dan neemt het tabblad die over in plaats van haar te wissen.
-- `useReportColumnDomain` bouwt dezelfde domeininvoer als `TaskGridSurface` in `FullTaskGrid.tsx`, zodat een kolom op
-  papier dezelfde kop en celtekst draagt als in de tabel. Wie daar een invoer wijzigt die de celtekst raakt, wijzigt
+- `useReportColumnDomain` bouwt dezelfde domeininvoer als `TaskGridSurface` in `FullTaskGrid.tsx`, zodat een kolom die
+  `resolveReportColumns` via `taskGridCellText` opbouwt, op papier dezelfde kop en celtekst draagt als in de tabel. Wie daar een invoer wijzigt die de celtekst raakt, wijzigt
   haar hier mee.
 - `StepPopover` (`studioChrome.tsx`) leest `onClose` via een ref. Met de functie als afhankelijkheid liep het
   focuseffect bij elke render opnieuw en zette het de focus na elke toetsaanslag terug.
