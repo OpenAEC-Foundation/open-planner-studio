@@ -432,12 +432,11 @@ en noem het in je rapport of PR-tekst.
      (C1), een bericht van de host bij een nieuwe versie (C2, nu vraagt de app `versions(id)` bij openen en bij
      terugkeer naar het venster), wie van mij afhangt (C3), een melding aan de andere planner (C4) en doorklikken
      (C5) wachten op de SuperCloud (deel 2 en 3 van §9). — S
-982. **VERVOLG: stap 1.9 is niet getest met de echte werkplek of de SuperCloud-vorm van de host.**
-     De browsertest (`tests/browser/external-source-update.spec.ts`, blok *bron op de site*) gebruikt de nep-site
-     in de `storage`-vorm. Niet getest: de SuperCloud-vorm (`fakeSiteShape=supercloud`, versies als getal via
-     `superCloudHost.ts`), een `open` met `readOnly: true` of zonder versie, en hoe de werkplekbrug `list` en
-     `versions` invult (VERMOED in §3.3). Controle: dezelfde route met `?fakeSite=1&fakeSiteShape=supercloud`, en
-     één keer in de werkplek met twee projecten in één map. — S
+982. **VERVOLG: siteverversing is nog niet getest op de echte werkplek of met een versie-loos leesantwoord.**
+     `tests/browser/external-source-update.spec.ts` doorloopt de route in de nep-hostvormen storage en SuperCloud,
+     inclusief een numerieke versie en een alleen-lezen bron in de SuperCloud-proef. Nog te meten: `list` en
+     `versions` via de echte werkplekbrug met twee projecten in één map, en de browserroute als `open` geen versie
+     geeft. — B (nep-host), S (werkplek en versie-loze route)
 983. **VERVOLG: een koppeling op de site mist *Bron vernieuwen* in het rechtsklikmenu.**
      Net als een koppeling zonder pad (punt 971) toont `src/components/task-grid/FullTaskGrid.tsx` *Bron
      vernieuwen* alleen bij een koppeling met pad. Een koppeling op de site vernieuwt de planner via de balk of via
