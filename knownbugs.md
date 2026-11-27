@@ -1660,7 +1660,7 @@ en noem het in je rapport of PR-tekst.
       `parsePersonalDate`: `07-06-2026` geeft met `'dmy'` 2026-06-07, met `'mdy'` 2026-07-06 en met `'ymd'` `null`. Met
       de Datumnotatie maand-dag-jaar legt het datumveld na het plakken van `07-06-2026` dus 7 juni vast (een volledige
       datum plakken legt meteen vast), terwijl het raster dezelfde tekst als 6 juli leest. Open vraag: hoort plakken de
-      Datumnotatie te volgen? De plakroute is in de code gelezen, niet in de browser nagespeeld. — B
+      Datumnotatie te volgen? De plakroute is in de code gelezen, niet in de browser nagespeeld. Issue #1297. — B
 
 2501. **Een geplakte tekst die geen volledige datum is, komt als cijfers in één datumvakje.** In `handlePaste`
       (`DateTextInput`, `src/components/common/DateTextInput.tsx`) geeft `parseFlexibleDate` `null` voor een datum met
@@ -1671,7 +1671,7 @@ en noem het in je rapport of PR-tekst.
       Proef uit de review van #1284, in Node met gesimuleerde tekstvakjes: met `20-07-2026 08:00` in het veld (waarde `2026-07-20T08:00`) en
       het dagvakje geselecteerd geeft plakken van `13-05-2027 07:00` het dagvakje `13`, en het veld legt
       `2026-07-13T08:00` vast (13-07-2026 08:00). Wat de browser bij echt plakken met de selectie en `maxLength` doet, is
-      niet in een browser gemeten. — B
+      niet in een browser gemeten. Issue #1297. — B
 
 2502. **De Hongaarse hints staan in de verkeerde datumvakjes.** `placeholders` in `DateTextInput`
       (`src/components/common/DateTextInput.tsx`) neemt aan dat `dateInput.placeholder` in dag-maand-jaar-volgorde
@@ -1697,7 +1697,7 @@ en noem het in je rapport of PR-tekst.
       *Van*, `21-06-2026` typen en Enter. Het veld legt 21-07-2026 vast, zonder veldfout. De kalenderdialoog
       (`commitOnInputEnter` en haar layout-effect in `src/components/dialogs/CalendarDialog.tsx`) neemt die datum aan
       en schrijft de feestdag naar het project. Voorstel: laat de scheidingstoets de bestaande selectie staan als het
-      veld zojuist automatisch is doorgesprongen. — B
+      veld zojuist automatisch is doorgesprongen. Issue #1296. — B
 
 ## Kalenders
 
