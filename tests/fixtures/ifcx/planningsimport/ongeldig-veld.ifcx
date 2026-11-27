@@ -1,0 +1,18 @@
+{
+  "header": {
+    "id": "urn:voorbeeld:ongeldig-veld",
+    "ifcxVersion": "ifcx_alpha",
+    "dataVersion": "1.0.0",
+    "author": "Planbureau"
+  },
+  "imports": [],
+  "schemas": {},
+  "data": [
+    {
+      "path": "/planning/work-0",
+      "attributes": {
+        "openaec::planning::activity": {"name":"Ongeldige datum","start":"2027-02-30","endExclusive":"2027-03-05"}
+      }
+    }
+  ]
+}

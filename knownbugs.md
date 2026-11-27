@@ -7948,3 +7948,8 @@ en noem het in je rapport of PR-tekst.
       Richting: met de flag `ifcx` het type vóór het rekenen
       kennen (bijvoorbeeld de vragen en de merge na het venster), wat de volgorde van main voor hetzelfde type verandert;
       een keuze van de eigenaar. Gevonden bij F3-5. — B (code; (a) tot en met (c) niet in een proef nagespeeld)
+
+2404. **Een kring van ouders in een vreemde IFCX-planning kan taken zonder zichtbare wortel opleveren.**
+      De import van `openaec::planning::activity.parent` controleert of elke ouder een taak is.
+      Twee taken die elkaar als ouder noemen voldoen daaraan. Vóór de IFCX-flag standaard aan gaat
+      de kring door de laadroute toetsen en bepalen hoe de planner die taken terugvindt. — S
