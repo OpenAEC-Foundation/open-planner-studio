@@ -4778,6 +4778,14 @@ en noem het in je rapport of PR-tekst.
      Gevolg: een letterlijke toets van het bestand tegen `openapi.yaml` of het padpatroon breekt af op de kop of op
      elk pad, ook bij Hello Wall. Voorstel: in F3-6 vastleggen welke ingang echt valideert (de functie `Validate`, de
      TypeSpec of het OpenAPI-bestand), en Hello Wall als controle voor dat referentiecontract gebruiken. — B
+     Vastgelegd in F3-6 (27 november 2026): de ingang is `LoadIfcxFile` uit `src/ifcx-core/workflows.ts`, de functie
+     achter `ifcx-cli compose`, die `Validate` aanroept (`scripts/ifcx/ifc5-controle.mjs`); het OpenAPI-bestand en het
+     padpatroon gebruikt de controle niet. Hello Wall kan die ingang niet zonder netwerk toetsen: zijn attributen krijgen
+     hun schema via vijf imports van `https://ifcx.dev/…`, die niet in de repository staan. Op die commit geeft de
+     validator op Hello Wall `Missing schema "bsi::ifc::class"`, en de compositie leest het bestand wel (beide gedraaid
+     op aia09-mp50). De workflow `ifcx.yml` haalt niets van ifcx.dev op en gebruikt Hello Wall en het IFC Hero Model
+     alleen als vreemd bestand dat de lezer moet weigeren. De tegenspraak tussen TypeSpec en OpenAPI blijft staan; ze
+     telt pas als een controle de kop of de paden tegen een van beide gaat toetsen.
 
 2010. **De MSPDI-lezer telt een dag vóór de `T` in een taakduur als 1440 minuten, ook in werktijd; wat een schrijver
       daarmee bedoelt, is niet nagegaan.** `mspDurationMinutes` (`src/services/msproject/mspdiReader.ts`) rekent een
@@ -5109,6 +5117,17 @@ en noem het in je rapport of PR-tekst.
       definities staan. `PROP.StructureMeta` noemt alleen `structure`, dus `foreign/classify.ts` deelt een ander lid
       in als vreemd lid terwijl de lezer het wel leest. Proef uit de review van #1273, met een property buiten het
       register. — B
+
+2387. **IFCX: de weigering van een IFCX-bestand van een ander noemt de afzender niet.** Keuze T2 van het bouwplan voor
+      fase 3 (advies 1, gevolgd) zegt: openen weigeren "met een melding die de afzender (`author` uit de kop) noemt". De
+      lezer (`headerOf` en `parseDocument` in `src/services/ifc/ifcx/ifcxReader.ts`) noemt in zijn fout de `header.id`
+      als die niet met `urn:openaec:planner:` begint, en anders alleen het eerste onderdeel dat afwijkt; de melding in
+      de app (`ifcx.open.foreign` in `src/i18n/locales/nl/common.json`) is een vaste zin zonder afzender. Gezien met
+      `readIfcx` op 27 november 2026: Hello Wall (author `technical@buildingsmart.org`) geeft `Het bestand is niet door
+      Open Planner Studio begonnen ("ifc5.technical.buildingsmart.org/examples/Hello Wall/hello-wall.ifcx")`, en
+      `tests/fixtures/ifcx/vreemd/werkpakketten.ifcx` geeft `Onbekend kopveld openaecProfile`. Elk bestand wordt wel als
+      vreemd geweigerd. Voorstel: de lezer neemt `header.author` op in de fout, en de melding `ifcx.open.foreign` krijgt
+      een plaats voor de afzender. — B
 
 2510. **Een kopie van een document gaat ervan uit dat de projectdata een JSON-rondgang ongewijzigd doorstaat.**
       `duplicateDocument` (`src/state/slices/documentSlice.ts`) kloont project, kalenders, taken, relaties, resources,
@@ -6437,6 +6456,18 @@ en noem het in je rapport of PR-tekst.
      van elke schrijftransactie); deel 9 van `check-recovery-gedeelde-globalids.ts` laat de fout afgaan bij de eerste
      put, vóór er iets veranderd is. Fouten die alleen bij echte asynchrone verzoeken, commit of herstart zichtbaar
      worden, dekt de dubbel niet. — B
+
+2388. **De drie IFCX-controles van `ifcx.yml` vangen elk een deel van de fouten (F3-6).** Controle 1 (de validator van
+      IFC5-development, `scripts/ifcx/ifc5-controle.mjs validator`) toetst alleen attribuutwaarden tegen hun schema: een
+      pad met een `/` keurt ze goed. Controle 2 (de compositie, `… compositie`) draait zonder schemacontrole, zodat
+      haar rood alleen over de compositie gaat: een ontbrekend schema of een verkeerde waarde keurt ze goed. Controle 3
+      (`ifcx-project` van ifcx-explorer, `scripts/ifcx/ifcx-project-controle`) toetst de vorm van een pad niet, alleen
+      dat het niet leeg is (`graph.rs`): `kapot-pad.ifcx` faalt daar alleen omdat een verwijzing nu naar een pad wijst
+      dat niet bestaat (`MISSING_REFERENCE`). Een pad dat samen met al zijn verwijzingen een `/` krijgt, vangt dus
+      alleen controle 2. ifcx-project meldt een ontbrekend schema alleen (`UNKNOWN_ATTRIBUTE`); daarom eist controle 3
+      nul meldingen. De workflow biedt elke controle de kapotte bestanden uit `scripts/ifcx/kapot.mjs` aan die ze moet
+      afkeuren. Controle 1 en 2 gedraaid op aia09-mp50; controle 3 alleen in de code gelezen en nagespeeld, nog niet
+      gebouwd. — S
 
 ## Wensen en open taken (geen bug)
 

@@ -1,0 +1,164 @@
+name: IFCX-controle (IFC5-development en ifcx-explorer)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/services/ifc/**'
+      - 'public/examples/**'
+      - 'tests/fixtures/ifcx/**'
+      - 'scripts/ifcx/**'
+      - '.github/workflows/ifcx.yml'
+  pull_request:
+    paths:
+      - 'src/services/ifc/**'
+      - 'public/examples/**'
+      - 'tests/fixtures/ifcx/**'
+      - 'scripts/ifcx/**'
+      - '.github/workflows/ifcx.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ifcx-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  IFC5_COMMIT: 1a63082ada967c683cfacee2005f8f749c8e1b79
+  IFCX_EXPLORER_COMMIT: ae3aba5c9c5df41b78d3673f10ac65fd874047d2
+  IFC5: .ifcx-bron/IFC5-development
+  IFCX_EXPLORER: .ifcx-bron/ifcx-explorer
+  GOED: tests/fixtures/ifcx/eigen/verbouwing-eengezinswoning-kern.ifcx
+
+jobs:
+  ifc5:
+    name: controle 1 en 2 (IFC5-development) en vreemde IFCX
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout (actions/checkout 5.1.0)
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - name: IFC5-development op de vaste commit (actions/checkout 5.1.0)
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          repository: buildingSMART/IFC5-development
+          ref: ${{ env.IFC5_COMMIT }}
+          path: ${{ env.IFC5 }}
+          persist-credentials: false
+      - name: Node 22 (actions/setup-node 5.0.0)
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies (npm ci)
+        run: npm ci
+      - name: Eigen IFCX-uitvoer van elk voorbeeldproject
+        run: node scripts/run-ts.mjs scripts/ifcx/maak-uitvoer.ts ifcx-uitvoer
+      - name: Bewust kapotte bestanden
+        run: node scripts/ifcx/kapot.mjs "$GOED" ifcx-kapot
+      - name: Controle 1, de validator, op de eigen bestanden
+        run: node scripts/ifcx/ifc5-controle.mjs validator "$IFC5" tests/fixtures/ifcx/eigen/*.ifcx ifcx-uitvoer/*.ifcx
+      - name: Controle 1 keurt een ontbrekend schema en een verkeerde waarde af
+        run: |
+          bash scripts/ifcx/eis-afgekeurd.sh 'Missing schema' node scripts/ifcx/ifc5-controle.mjs validator "$IFC5" ifcx-kapot/kapot-schema.ifcx
+          bash scripts/ifcx/eis-afgekeurd.sh 'to be of type string' node scripts/ifcx/ifc5-controle.mjs validator "$IFC5" ifcx-kapot/kapot-waarde.ifcx
+      - name: Controle 2, de compositie, op de eigen bestanden
+        run: node scripts/ifcx/ifc5-controle.mjs compositie "$IFC5" tests/fixtures/ifcx/eigen/*.ifcx ifcx-uitvoer/*.ifcx
+      - name: Controle 2 keurt een pad met een schuine streep af
+        run: bash scripts/ifcx/eis-afgekeurd.sh 'ontbreken na de compositie' node scripts/ifcx/ifc5-controle.mjs compositie "$IFC5" ifcx-kapot/kapot-pad.ifcx
+      - name: De lezer weigert vreemde IFCX (eigen voorbeelden, Hello Wall, IFC Hero Model)
+        run: node scripts/run-ts.mjs scripts/ifcx/vreemd.ts tests/fixtures/ifcx/vreemd "$IFC5/examples/Hello Wall/hello-wall.ifcx" "$IFC5/examples/IFC Hero Model/IFC Hero Model.ifcx"
+      - name: Eigen en kapotte bestanden bewaren (actions/upload-artifact 4.6.2)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ifcx-bestanden
+          path: |
+            ifcx-uitvoer/
+            ifcx-kapot/
+          if-no-files-found: warn
+          retention-days: 7
+
+  ifcx-explorer:
+    name: controle 3 (ifcx-explorer) en work-packages.ifcx
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
+      CONTROLE: scripts/ifcx/ifcx-project-controle/target/debug/ifcx-project-controle
+      SSH_SLEUTEL_GITHUB_COM: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+    steps:
+      - name: Checkout (actions/checkout 5.1.0)
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - name: Leessleutel voor ifcx-explorer aanwezig
+        env:
+          SLEUTEL: ${{ secrets.IFCX_EXPLORER_DEPLOY_KEY }}
+        run: |
+          if [ -z "$SLEUTEL" ]; then
+            echo "::error::Het secret IFCX_EXPLORER_DEPLOY_KEY ontbreekt. ifcx-explorer is privé; zonder leessleutel draait controle 3 niet."
+            exit 1
+          fi
+      - name: ifcx-explorer op de vaste commit, zonder uitvoer in de log
+        env:
+          SLEUTEL: ${{ secrets.IFCX_EXPLORER_DEPLOY_KEY }}
+        run: |
+          sleutel="$RUNNER_TEMP/ifcx-explorer-sleutel"
+          bekend="$RUNNER_TEMP/github-known-hosts"
+          trap 'rm -f "$sleutel" "$bekend"' EXIT
+          (umask 077 && printf '%s\n' "$SLEUTEL" > "$sleutel")
+          printf 'github.com %s\n' "$SSH_SLEUTEL_GITHUB_COM" > "$bekend"
+          stil() {
+            local melding="$1"
+            shift
+            if ! "$@" > /dev/null 2>&1; then
+              echo "::error::$melding"
+              exit 1
+            fi
+          }
+          stil 'De map voor ifcx-explorer kon niet worden aangemaakt.' \
+            git -c init.defaultBranch=main init -q "$IFCX_EXPLORER"
+          stil 'ifcx-explorer ophalen is mislukt. De uitvoer van git en ssh wordt niet getoond.' \
+            env GIT_SSH_COMMAND="ssh -i $sleutel -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$bekend -o LogLevel=ERROR" \
+            git -C "$IFCX_EXPLORER" fetch -q --depth 1 --no-tags git@github.com:OpenAEC-Foundation/ifcx-explorer.git "$IFCX_EXPLORER_COMMIT"
+          stil 'ifcx-explorer uitpakken is mislukt. De uitvoer van git wordt niet getoond.' \
+            git -C "$IFCX_EXPLORER" -c advice.detachedHead=false checkout -q FETCH_HEAD
+          if [ "$(git -C "$IFCX_EXPLORER" rev-parse HEAD 2> /dev/null)" != "$IFCX_EXPLORER_COMMIT" ]; then
+            echo "::error::ifcx-explorer staat niet op de vaste commit."
+            exit 1
+          fi
+      - name: Node 22 (actions/setup-node 5.0.0)
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies (npm ci)
+        run: npm ci
+      - name: Eigen IFCX-uitvoer van elk voorbeeldproject
+        run: node scripts/run-ts.mjs scripts/ifcx/maak-uitvoer.ts ifcx-uitvoer
+      - name: Bewust kapotte bestanden
+        run: node scripts/ifcx/kapot.mjs "$GOED" ifcx-kapot
+      - name: Install Rust stable (dtolnay/rust-toolchain, stable van 15 november 2026)
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca
+        with:
+          toolchain: stable
+      - name: Dezelfde versies als ifcx-explorer
+        run: cp "$IFCX_EXPLORER/Cargo.lock" scripts/ifcx/ifcx-project-controle/Cargo.lock
+      - name: Controleprogramma op ifcx-project bouwen, alleen meldingen over het eigen programma in de log
+        run: node scripts/ifcx/bouw-ifcx-project-controle.mjs
+      - name: Controle 3, de projectcontrole, op de eigen bestanden
+        run: '"$CONTROLE" tests/fixtures/ifcx/eigen/*.ifcx ifcx-uitvoer/*.ifcx'
+      - name: Controle 3 keurt een ontbrekend schema, een pad met een schuine streep en een verkeerde waarde af
+        run: |
+          bash scripts/ifcx/eis-afgekeurd.sh UNKNOWN_ATTRIBUTE "$CONTROLE" ifcx-kapot/kapot-schema.ifcx
+          bash scripts/ifcx/eis-afgekeurd.sh MISSING_REFERENCE "$CONTROLE" ifcx-kapot/kapot-pad.ifcx
+          bash scripts/ifcx/eis-afgekeurd.sh SCHEMA_VALUE "$CONTROLE" ifcx-kapot/kapot-waarde.ifcx
+      - name: De lezer weigert work-packages.ifcx van ifcx-explorer
+        run: node scripts/run-ts.mjs scripts/ifcx/vreemd.ts "$IFCX_EXPLORER/examples/reference-school/planning/work-packages.ifcx"
