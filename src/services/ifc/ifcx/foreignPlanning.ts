@@ -67,7 +67,7 @@ export function readForeignIfcxPlanning(input: string | Uint8Array): ForeignIfcx
   }
   project.calendarId = calendar.id;
   const resourceCalendars = calendars.filter(cal => cal !== calendar);
-  const { tasks, recordedFields, recordedTimes, elementLinks, convertedToManual } = readTasks(of(ATTRIBUTE.activity), ids, calendar, resourceCalendars);
+  const { tasks, recordedFields, elementLinks, convertedToManual } = readTasks(of(ATTRIBUTE.activity), ids, calendar, resourceCalendars);
   const missing = emptyMissingScheduleDates();
   for (const task of tasks) {
     if (!task.time.scheduleStart) missing.start.add(task.id);
@@ -103,7 +103,7 @@ export function readForeignIfcxPlanning(input: string | Uint8Array): ForeignIfcx
   return {
     planning: {
       project, calendar, resourceCalendars, tasks, sequences, resources, assignments, baselines,
-      ...document.structure, timeModel: MINUTE_MODEL_TIME_MODEL, recordedFields, recordedTimes,
+      ...document.structure, timeModel: MINUTE_MODEL_TIME_MODEL, recordedFields,
       recordedTimesOrigin: ops ? 'ifc-own' : 'ifc', ifcGlobalIds: ids.globalIds,
       ...(ops ? { importPristine: document.importPristine, recordedSourceFormat: document.recordedSourceFormat ?? 'ifc' } : {}),
       activeBaselineId: baselineId(document.activeBaselinePath, 'activeBaseline'),

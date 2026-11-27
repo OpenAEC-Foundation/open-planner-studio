@@ -138,36 +138,59 @@ assert.deepEqual(summary.childIds, [b.id, a.id, c.id]);
 assert.equal(c.id, b.id + '-dup-2');
 assert.equal(summary.name, 'Pakket 0');
 assert(!summary.manuallyScheduled);
-const preciseStore = createAppStoreContext().store;
-preciseStore.getState().openAsDocument(structuredClone(precise.planning), { name: 'Precieze taken', ref: null });
-for (const tasks of [precise.planning.tasks, preciseStore.getState().tasks]) {
+const preciseSource = JSON.parse(fixture('precieze-taken').toString('utf8'));
+const origins = ['ifc-own', 'ifc'] as const;
+function openPrecise(source: { data: { attributes: Record<string, unknown> }[] }, origin: typeof origins[number]) {
+  const copy = structuredClone(source);
+  if (origin === 'ifc') delete copy.data[0].attributes[ATTRIBUTE.document];
+  const { planning: imported } = readForeignIfcxPlanning(JSON.stringify(copy));
+  assert.equal(imported.recordedTimesOrigin, origin);
+  const { store } = createAppStoreContext();
+  store.getState().openAsDocument(imported, { name: 'Precieze taken', ref: null });
+  return store.getState();
+}
+for (const tasks of [precise.planning.tasks, ...origins.map(origin => openPrecise(preciseSource, origin).tasks)]) {
   assert(!tasks[0].manuallyScheduled);
   assert.deepEqual(tasks.map(shownStart), Array(4).fill('2027-03-01T07:00'));
   assert.deepEqual(tasks.map(shownFinish), ['2027-03-01T16:00', '2027-03-03T00:00', '2027-03-04T00:00', '2027-03-05T00:00']);
   assert(tasks.slice(1).every(task => task.manuallyScheduled && task.time.scheduleFinish === shownFinish(task)));
 }
-const scheduleOnly = JSON.parse(fixture('precieze-taken').toString('utf8'));
-const summaryTime = scheduleOnly.data[1].attributes[ATTRIBUTE.opsTask].time;
-summaryTime.earlyStart = '';
-summaryTime.earlyFinish = '';
-const scheduleOnlyStore = createAppStoreContext().store;
-scheduleOnlyStore.getState().openAsDocument(readForeignIfcxPlanning(JSON.stringify(scheduleOnly)).planning, { name: 'Taakvensters', ref: null });
-assert.deepEqual(dates(scheduleOnlyStore.getState().tasks), dates(precise.planning.tasks));
-const openedWindows = ['ifc-own', 'ifc'].map(origin => {
-  const mixedWindow = JSON.parse(fixture('precieze-taken').toString('utf8'));
-  const mixedTime = mixedWindow.data[1].attributes[ATTRIBUTE.opsTask].time;
-  mixedTime.scheduleStart = '2027-03-01T09:00';
-  mixedTime.earlyFinish = '';
-  if (origin === 'ifc') delete mixedWindow.data[0].attributes[ATTRIBUTE.document];
-  const { planning: imported } = readForeignIfcxPlanning(JSON.stringify(mixedWindow));
-  assert.equal(imported.recordedTimesOrigin, origin);
-  const { store } = createAppStoreContext();
-  store.getState().openAsDocument(imported, { name: 'Pakket 0', ref: null });
-  const task = store.getState().tasks.find(t => t.name === 'Pakket 0')!;
-  return [shownStart(task), shownFinish(task), !!task.manuallyScheduled];
+const inProgress = structuredClone(preciseSource);
+const leaf = inProgress.data[2].attributes;
+leaf[ATTRIBUTE.activity].completion = 0.4;
+Object.assign(leaf[ATTRIBUTE.opsTask].time, {
+  actualStart: '2027-03-01T07:00', earlyStart: '2027-03-02T07:00',
+  scheduleFinish: '2027-03-02T16:00', earlyFinish: '2027-03-02T16:00',
 });
-const expectedWindow = ['2027-03-01T07:00', '2027-03-01T16:00', false];
-assert.deepEqual(openedWindows, [expectedWindow, expectedWindow], 'Pakket 0 met vroege start en gepland einde bij beide herkomsten');
+const remainingEarlyStarts = origins.map(origin => {
+  const state = openPrecise(inProgress, origin);
+  assert.equal(state.datesAsRecorded, true);
+  const task = state.tasks.find(t => t.name === 'Pakket 1')!;
+  assert.equal(task.time.completion, 0.4);
+  assert.equal(task.time.actualStart, '2027-03-01T07:00');
+  assert.equal(shownStart(task), '2027-03-01T07:00');
+  return task.time.earlyStart;
+});
+assert.deepEqual(remainingEarlyStarts, ['2027-03-02T07:00', '2027-03-02T07:00'], 'Pakket 1 houdt de earlyStart van het restwerk bij beide herkomsten');
+for (const imported of [precise.planning, planning]) assert(!('recordedTimes' in imported));
+
+for (const [source, earlyStart, scheduleStart, asRecorded] of [
+  [preciseSource, '', '2027-03-01T07:00', false],
+  [preciseSource, '2027-03-01T07:00', '2027-03-01T09:00', false],
+  [inProgress, '2027-03-01T07:00', '2027-03-01T09:00', true],
+] as const) {
+  const partial = structuredClone(source);
+  Object.assign(partial.data[1].attributes[ATTRIBUTE.opsTask].time, { earlyStart, earlyFinish: '', scheduleStart });
+  for (const origin of origins) {
+    const state = openPrecise(partial, origin);
+    const parent = state.tasks.find(t => t.name === 'Pakket 0')!;
+    assert.equal(state.datesAsRecorded, asRecorded);
+    assert.equal(state.recordedDates?.times[parent.id], undefined);
+    assert.deepEqual([parent.time.scheduleStart, shownStart(parent), shownFinish(parent), !!parent.manuallyScheduled],
+      [scheduleStart, '2027-03-01T07:00', '2027-03-05T00:00', false], 'Knownbug 2415: Pakket 0 zonder volledig vroeg paar volgt de kinderen');
+    if (source === preciseSource) assert.deepEqual(dates(state.tasks.slice(1)), dates(precise.planning.tasks.slice(1)));
+  }
+}
 
 const changed = JSON.parse(fixture('precieze-taken').toString('utf8'));
 const activity = changed.data[2].attributes[ATTRIBUTE.activity];
