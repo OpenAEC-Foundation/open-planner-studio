@@ -31,6 +31,8 @@ import { flushRecoveryNow, registerRecoveryFlush } from '@/services/recovery/rec
 import { recoverySourceDocument } from '@/state/recoverySourceDocument';
 import { readRecoveryDocument } from '@/state/readRecoveryDocument';
 import { changedOnDiskShown } from '@/state/openDocumentFor';
+import { taskElementLinks, uncheckedModelLinks } from '@/state/taskElementLinks';
+import { createSnapshot, documentDataChanged } from '@/state/snapshot';
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
 import { fileToolDeps, realFs } from '@/services/mcp/tools/fileTools';
 import { resetPlanOnlyAsker, setPlanOnlyAsker, type PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
@@ -50,6 +52,7 @@ const fixture = (name: string) => new Uint8Array(readFileSync(join(root, 'tests/
 const own = fixture(FIXTURES[0]);
 const other = fixture(FIXTURES[1]);
 const withModel = fixture('planning-met-model.ifcx');
+const facade = new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifcx/extern/gevel.ifcx')));
 const dir = mkdtempSync(join(tmpdir(), 'ops-ifcx-app-'));
 const hash = (data: Uint8Array) => createHash('sha256').update(data).digest('hex');
 const text = (data: Uint8Array) => new TextDecoder().decode(data);
@@ -168,7 +171,8 @@ async function recoverInto(store: Store, flags: FeatureFlagValues): Promise<Stor
   });
   try { await flushRecoveryNow(); } finally { unregister(); }
   const loaded = await loadRecovery();
-  assert.equal(loaded.docs.length, store.getState().getOpenDocumentPayloads().length);
+  assert.deepEqual(loaded.docs.map(doc => doc.id), store.getState().getOpenDocumentPayloads()
+    .filter(doc => !doc.payload.ifcxReferences).map(doc => doc.id));
   const restored = (await newApp(flags)).store;
   const inputs = [];
   for (const doc of loaded.docs) inputs.push(await readRecoveryDocument(doc, loaded.archives, false));
@@ -240,16 +244,138 @@ await check('een onbekende IFCX-versie meldt ifcx.open.unsupportedVersion; een n
   const profileStore = await openAt(profilePath, IFCX_ON);
   assert.deepEqual(errors(profileStore), ['ifcx.open.newer']);
 
-  const modelPath = join(dir, 'planning-met-model.ifcx');
-  writeFileSync(modelPath, withModel);
-  const { store } = await newApp(IFCX_ON);
-  const tabs = () => store.getState().getOpenDocumentPayloads().map(doc => doc.id);
-  const before = tabs();
-  await openInto(store, modelPath);
-  assert.deepEqual(errors(store), ['ifcx.open.newer'], 'de app kan de modelverwijzingen nog niet bewaren');
-  assert.deepEqual(tabs(), before);
-  assert.equal(store.getState().filePath, null);
-  assert.equal(store.getState().knownTargetFingerprint, null);
+});
+
+await check('modelbron openen en een eigen planning ernaast opslaan en heropenen', async () => {
+  const ipc = desktop();
+  try {
+    const model = facade;
+    const path = join(dir, 'gevel.ifcx'), plan = join(dir, 'gevel - planning.ifcx');
+    writeFileSync(path, model);
+    const store = await openAt(path, IFCX_ON);
+    assert.deepEqual(errors(store), []);
+    assert.equal(store.getState().tasks.length, 0);
+    assert.equal(store.getState().filePath, null);
+    assert.equal(store.getState().knownTargetFingerprint, null);
+    assert.equal(store.getState().project.name, 'gevel - planning');
+    assert.equal(store.getState().documents.length, 2);
+    assert(store.getState().ui.notifications.some(n => n.messageKey === 'ifcx.model.opened'));
+    const id = store.getState().addTask({ name: 'Gevel plaatsen' });
+    ipc.choose(path);
+    assert.equal(await save(store), false);
+    assert.deepEqual(bytesAt(path), model);
+    clearNotices(store);
+    ipc.choose(plan);
+    assert.equal(await save(store), true);
+    assert.equal(ipc.dialogs[0].defaultPath, plan);
+    assert.equal(store.getState().filePath, plan);
+    assert(ipc.calls.some(c => c.command === 'place_file_exclusive'));
+    const written = readIfcx(bytesAt(plan));
+    assert.deepEqual(written.modelSource, { fileName: 'gevel.ifcx', sha256: hash(model) });
+    assert.equal(written.tasks.find(t => t.id === id)?.name, 'Gevel plaatsen');
+    const reopened = await openAt(plan, IFCX_ON);
+    const jobs = workerOf.get(store)!.jobs();
+    for (const job of jobs) {
+      assert.equal(job.kind, 'writer');
+      assert(!('ifcxModel' in job.input) && !('ifcxReferences' in job.input) && !('fileHandle' in job.input));
+    }
+    reopened.getState().updateTask(id, { name: 'Gevel gereed' });
+    assert.equal(await save(reopened), true);
+    assert.equal(readIfcx(bytesAt(plan)).tasks.find(t => t.id === id)?.name, 'Gevel gereed');
+    assert.deepEqual(readIfcx(bytesAt(plan)).modelSource, written.modelSource);
+    assert.deepEqual(bytesAt(path), model);
+    assert.deepEqual(errors(await openAt(path, {})), ['notifications.openFailed']);
+    const otherTab = reopened.getState().activeDocumentId;
+    reopened.getState().newDocument();
+    assert.equal(await reopened.getState().foreignTargetCheck(null)({ kind: 'path', path }), true);
+    const alias = join(dir, 'alias-gevel.csv');
+    symlinkSync(path, alias);
+    assert.equal(await reopened.getState().foreignTargetCheck(null)({ kind: 'path', path: alias }), true);
+    ipc.choose(alias);
+    await reopened.getState().exportAs('csv');
+    assert.deepEqual(bytesAt(path), model);
+    ipc.choose(path);
+    await reopened.getState().exportAs('csv');
+    assert.deepEqual(bytesAt(path), model);
+    reopened.getState().switchDocument(otherTab);
+    clearNotices(reopened);
+    ipc.choose(path);
+    await reopened.getState().saveFileAs();
+    assert.deepEqual(errors(reopened), ['notifications.ifcForeignTargetSave']);
+    assert.deepEqual(bytesAt(path), model);
+    const mixed = JSON.parse(text(model));
+    mixed.data.push({ path: 'taak', attributes: { 'openaec::planning::activity': {} } });
+    const mixedPath = join(dir, 'gemengd.ifcx');
+    writeFileSync(mixedPath, JSON.stringify(mixed));
+    assert.deepEqual(errors(await openAt(mixedPath, IFCX_ON)), ['ifcx.open.foreign']);
+    mixed.data = [];
+    writeFileSync(mixedPath, JSON.stringify(mixed));
+    assert.deepEqual(errors(await openAt(mixedPath, IFCX_ON)), ['ifcx.open.foreign']);
+  } finally { ipc.dispose(); }
+});
+
+await check('modelkoppelingen bij het heropenen met een gelijk, gewijzigd of ontbrekend buurmodel', async () => {
+  const model = bytesAt(join(root, 'docs/superpowers/evidence/2026-11-27-ifcx-verwijzing-los-modelbestand/model.ifcx'));
+  const original = readIfcx(withModel);
+  assert.equal(original.modelSource?.sha256, hash(model));
+  const id = original.tasks[0].id;
+  for (const status of ['gelijk', 'gewijzigd', 'ontbreekt']) {
+    const ipc = desktop();
+    try {
+      const folder = mkdtempSync(join(dir, status));
+      const path = join(folder, 'model.ifcx'), plan = join(folder, 'planning-met-model.ifcx');
+      if (status === 'gelijk') writeFileSync(path, model);
+      if (status === 'gewijzigd') {
+        const changed = JSON.parse(text(model));
+        changed.data.pop();
+        writeFileSync(path, JSON.stringify(changed));
+      }
+      writeFileSync(plan, withModel);
+      const store = await openAt(plan, IFCX_ON);
+      assert.deepEqual(errors(store), []);
+      assert.deepEqual(store.getState().ifcxReferences?.modelSource, original.modelSource);
+      assert.equal(uncheckedModelLinks(store.getState()), status !== 'gelijk');
+      const links = () => taskElementLinks(store.getState(), id);
+      const before = createSnapshot(store.getState());
+      const removed = { ...before, ifcxReferences: { ...before.ifcxReferences, elementLinks: new Map() } };
+      assert.equal(documentDataChanged(before, removed), true);
+      assert.deepEqual(links()?.map(link => [link.target, link.found]), [
+        ['e671b834-a918-42c4-9901-000000000001', status === 'gelijk'], ['/gevel/Raam-02', false],
+      ]);
+      const notices = store.getState().ui.notifications.filter(n => n.messageKey === 'ifcx.model.unchecked');
+      assert.deepEqual(notices.map(n => n.params?.file), status === 'gelijk' ? [] : ['model.ifcx']);
+      store.getState().deleteTask(id);
+      store.getState().undo();
+      assert.equal(links()?.length, 2);
+      const tab = store.getState().activeDocumentId;
+      store.getState().newDocument();
+      store.getState().switchDocument(tab);
+      assert.equal(links()?.[0].found, status === 'gelijk');
+      shiftFirstTask(store);
+      store.getState().setAutoSaveToFile(true);
+      await autosaveOf(store).flush();
+      assert.deepEqual(bytesAt(plan), withModel);
+      assert.equal(workerOf.get(store)!.jobs().length, 0);
+      assert.equal(await save(store), true);
+      const written = readIfcx(bytesAt(plan));
+      assert.deepEqual(written.modelSource, original.modelSource);
+      assert.deepEqual(written.elementLinks, original.elementLinks);
+      const recovery = await recoverInto(store, IFCX_ON);
+      assert(recovery.getState().getOpenDocumentPayloads().every(doc => doc.payload.filePath !== plan));
+      const reopened = await openAt(plan, IFCX_ON);
+      assert.equal(await save(reopened), true);
+      assert.deepEqual(readIfcx(bytesAt(plan)).elementLinks, original.elementLinks);
+      assert.deepEqual(readIfcx(bytesAt(plan)).modelSource, original.modelSource);
+      if (status === 'gelijk') {
+        assert.deepEqual(bytesAt(path), model);
+        const step = join(folder, 'omgezet.ifc');
+        ipc.choose(step);
+        await reopened.getState().saveFileAs();
+        assert.deepEqual(errors(reopened), ['ifcx.model.saveAsIfc']);
+        assert.equal(existsSync(step), false);
+      }
+    } finally { ipc.dispose(); }
+  }
 });
 
 for (const [label, flags] of [['alleen ifcx', IFCX_ON], ['ifcx en ifcForeignContent', BOTH_ON]] as const) {
@@ -934,7 +1060,7 @@ await check('doelbescherming: een bestaand IFCX van een ander, onleesbaar of afg
   assert.equal(classifyIfcx(foreignIfcx), 'foreign');
   assert.notEqual(classifyIfcx(unreadableIfcx), 'own');
   assert.equal(classifyIfcx(truncatedIfcx), 'not-ifcx');
-  for (const [kind, content] of [['vreemd', foreignIfcx], ['onleesbaar', unreadableIfcx], ['afgekapt', truncatedIfcx], ['met-model', withModel]] as const) {
+  for (const [kind, content] of [['vreemd', foreignIfcx], ['onleesbaar', unreadableIfcx], ['afgekapt', truncatedIfcx]] as const) {
     const notice = classifyIfcx(content) === 'foreign' ? 'notifications.ifcForeignTargetSave' : 'notifications.ifcUnreadableTargetSave';
     const ipc = desktop();
     try {
@@ -1107,6 +1233,19 @@ await check('browser: een IFCX-document slaat een nieuw doel op als download met
     assert.equal(pickerCalls, 1, 'een IFC-document gebruikt de kiezer zoals main');
     assert.deepEqual(errors(step), ['ifcx.nameMismatch'], 'de kiezer gaf kopie.ifcx terug: niet bij het formaat');
     assert.equal(writes, 0, 'niets naar dat doel geschreven');
+    await step.getState().openOpenedFile({ name: 'gevel.ifcx', content: '', bytes: facade, ref: null });
+    assert.equal(step.getState().filePath, null);
+    step.getState().addTask({ name: 'Begane grond' });
+    const beforeModel = downloads.length;
+    assert.equal(await save(step), true);
+    assert.equal(downloads[beforeModel].name, 'gevel - planning.ifcx');
+    assert.deepEqual(readIfcx(new Uint8Array(await downloads[beforeModel].blob.arrayBuffer())).modelSource,
+      { fileName: 'gevel.ifcx', sha256: hash(facade) });
+    step.getState().newDocument();
+    await step.getState().saveFileAs();
+    assert.equal(downloads.length, beforeModel + 2);
+    assert.equal(pickerCalls, 1, 'ook de andere planning krijgt een download zolang het model open is');
+    assert.equal(writes, 0);
   } finally {
     URL.createObjectURL = create; URL.revokeObjectURL = revoke;
     delete win.showOpenFilePicker; delete win.showSaveFilePicker;
@@ -1160,6 +1299,15 @@ await check('browser: Openen, Recent en slepen met een andere handle voor hetzel
   const fileTabs = (store: Store) => store.getState().getOpenDocumentPayloads().filter(d => d.payload.fileHandle !== null).length;
   try {
     for (const route of ['Openen', 'Recent', 'slepen'] as const) {
+      const model = (await newApp(IFCX_ON)).store;
+      const source = handlesTo('gevel.ifcx', facade);
+      await openVia(model, route, source());
+      assert.deepEqual(errors(model), [], route);
+      assert.equal(model.getState().fileHandle, null);
+      assert.equal(model.getState().filePath, null);
+      assert.equal(model.getState().ifcxReferences?.modelSource?.sha256, hash(facade));
+      model.getState().newDocument();
+      assert.equal(await model.getState().foreignTargetCheck(null)({ kind: 'handle', handle: source() }), true);
       const { store, first, taskId, edited } = await opened(IFCX_ON, 'plan.ifcx', own, route);
       assert.deepEqual(errors(store), [], route);
       assert.equal(fileTabs(store), 1, `${route}: geen tweede tabblad voor hetzelfde bestand`);
@@ -1188,7 +1336,8 @@ await check('site: Ctrl+S schrijft IFCX naar het eigen bestand; Opslaan als norm
   const requests: { id?: string; data: Blob; name?: string; baseVersion?: string }[] = [];
   win.openaecHost = { storage: {
     list: async () => [], versions: async () => [],
-    open: async () => ({ data: new Blob([own.slice().buffer]), file: { name: 'site.ifcx', version: 'v1' } }),
+    open: async (id: string) => ({ data: new Blob([(id === 'gebouw' ? facade : own).slice().buffer]),
+      file: { name: id === 'gebouw' ? 'gevel.ifcx' : 'site.ifcx', version: 'v1' } }),
     save: async (request: { id?: string; data: Blob; name?: string; baseVersion?: string }) => {
       requests.push(request);
       return { id: request.id ?? 'nieuw', name: request.name ?? 'site.ifcx', version: `v${requests.length + 1}` };
@@ -1220,6 +1369,12 @@ await check('site: Ctrl+S schrijft IFCX naar het eigen bestand; Opslaan als norm
     assert.equal(requests[3].name, 'terug.ifc', 'met de flag uit: STEP met een naam op .ifc');
     assert(isStep(new Uint8Array(await requests[3].data.arrayBuffer())));
     assert.equal(store.getState().fileFormat, 'ifc');
+    setFlags(store, IFCX_ON);
+    assert.equal(await store.getState().openFromSite('gebouw'), true);
+    assert.equal(store.getState().siteFileId, null);
+    store.getState().newDocument();
+    assert.equal(await store.getState().foreignTargetCheck(null)({ kind: 'site', id: 'gebouw' }), true);
+    assert(requests.every(request => request.id !== 'gebouw'));
   } finally { delete win.openaecHost; resetSiteAskers(); }
 });
 

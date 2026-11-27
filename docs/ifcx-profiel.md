@@ -281,9 +281,10 @@ lege verhoging naar `1.2.0`. Alleen gebruikte attributen krijgen hun schema. De 
 `dataVersion: "1.0.0"` en `imports` blijft leeg. De zelfcontrole vergelijkt de bronverwijzing en de koppelingen
 afzonderlijk met de teruggelezen waarden.
 
-De app kan profiel `1.2.0` pas openen zodra haar document de bron en de koppelingen bewaart. Tot die tijd geeft
-openen de melding voor een nieuwer profiel. Bij Opslaan als geldt een bestaand bestand in dit profiel als onleesbaar
-schrijfdoel. De kern kan deze planningen al lezen en schrijven.
+De app opent een lokaal bouwmodel zonder planning als leesbron en schrijft de planning in een eigen IFCX-bestand.
+Bij heropenen controleert ze de bouwdeelpaden als de SHA-256 van het buurmodel klopt. Bij een ontbrekend of
+gewijzigd model blijven de oorspronkelijke bronverwijzing en doelpaden bewaard. Een planning met zulke
+verwijzingen blijft voorlopig buiten Automatisch opslaan naar bestand en buiten de crashherstelset.
 
 ### Werkschema
 

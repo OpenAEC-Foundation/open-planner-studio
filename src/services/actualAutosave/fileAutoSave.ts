@@ -298,7 +298,7 @@ export function createFileAutoSaveController(deps: {
   /** Doet dit document zonder gebouwmodel mee met de gewone tik? Dezelfde toets bij de keuze (`listPlain`) en bij de beurt
    *  in de rij (`write`, fixronde 4 van de review van #1033): een document met een vreemd deel schrijft deze route nooit. */
   const plainTakesPart = (id: string, payload: DocumentPayload, featureFlags: KnownTargetState['featureFlags']): boolean =>
-    takesPart(id, payload) && !ifcSaveBlocked(payload) && !ifcxWriteBlocked(payload, featureFlags)
+    takesPart(id, payload) && !payload.ifcxReferences && !ifcSaveBlocked(payload) && !ifcxWriteBlocked(payload, featureFlags)
     && !sameRefusedIfcx(id, payload);
   const sameRefusedIfcx = (id: string, payload: DocumentPayload): boolean => {
     const refused = ifcxRefusedSource.get(id);

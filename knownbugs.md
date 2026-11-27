@@ -7958,3 +7958,8 @@ en noem het in je rapport of PR-tekst.
       `readIfcxModelSource` gebruikt kleine bestanden. Meet vóór het standaard aanzetten van IFCX in CI
       hoeveel tijd en geheugen het hashen, decoderen en indexeren van echte modellen met geometrie kost.
       De meting onder 2350 gaat over het opslaan van een planning. — S (ontwerpstap fase 4, §4 en §6)
+
+2409. **Een ongebruikelijke alias van een IFCX-model kan buiten de bestandsvergelijking vallen.**
+      De app herkent het bronpad en de bestandsidentiteit die het platform teruggeeft. Controleer vóór
+      het standaard aanzetten ook aliassen op volumes zonder betrouwbare bestandsidentiteit en een
+      externe vervanging tussen de laatste controle en het plaatsen. — S (ontwerpstap fase 4, §6)

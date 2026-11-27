@@ -9,11 +9,11 @@ import { fileIdentityFs, writeTargetReaders } from '@/services/fileAccess';
 import {
   parseOpenedFile,
   readIFCWithXerReconstruction,
-  readFormatForFile,
   readFormatInput,
-  saveTargetFor,
   type FormatIO,
 } from '@/services/formatRegistry';
+import { isMultiDocumentImport } from '@/services/importTypes';
+import { findIfcxModel } from '@/services/ifc/ifcxModelSession';
 import { enableExtension, disableExtension, removeExtension, saveExtensionToDb, installFromZipBlob } from '@/extensions';
 import type { ExpectedExtensionIdentity, InstallOutcome } from '@/extensions';
 import type { ExtensionManifest, ReadyExtension } from '@/extensions/types';
@@ -120,16 +120,11 @@ export async function openFromPathWithIO(path: string, io: FormatIO) {
   const readOptions = ifcxEnabled(useAppStore.getState().ui.featureFlags) ? { ifcx: true } : undefined;
   const input = await readFormatInput(path, io, readOptions);
   const parsed = await parseOpenedFile(input, undefined, readOptions);
-  const target = saveTargetFor(readFormatForFile(path, readOptions), { kind: 'path', path }, path);
-  const opened = useAppStore.getState().applyOpenedImport(parsed, {
-    filePath: target.filePath,
-    fileHandle: target.fileHandle,
-    siteFileId: target.siteFileId,
-    recompute: true,
-    fit: true,
-
-    linkedOpen: true,
-  });
+  const ref = { kind: 'path', path } as const;
+  if (!isMultiDocumentImport(parsed) && parsed.ifcxRead && parsed.ifcxReferences) {
+    await findIfcxModel(parsed.ifcxReferences, ref, [], candidate => io.readFile(candidate));
+  }
+  const opened = useAppStore.getState().openAsDocument(parsed, { name: path, ref });
   return { path, ...opened, ...counts(useAppStore.getState()) };
 }
 

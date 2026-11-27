@@ -321,7 +321,7 @@ export async function saveDataDialogWeb(
   // Zelfde policy-blokkade kan hier ook optreden (`showSaveFilePicker` bestaat, `createWritable`
   // weigert) — de catch hieronder vangt dat op via `platformRefusesWrites`/de download-route; de
   // featurePolicy-precheck bespaart de nutteloze picker-flits.
-  if (hasFSA() && !platformRefusesWrites && !featurePolicyBlocksFSA()) {
+  if (!opts?.downloadOnly && hasFSA() && !platformRefusesWrites && !featurePolicyBlocksFSA()) {
     try {
       // `startIn: 'downloads'` is een Chromium-uitbreiding op de FSA-spec (well-known directory) —
       // niet-Chromium browsers negeren een onbekende optie stilzwijgend, dus dit is veilig overal.

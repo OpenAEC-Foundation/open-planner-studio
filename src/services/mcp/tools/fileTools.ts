@@ -46,6 +46,7 @@ import { ifcSchemaBlocksSilentWrite, ifcSchemaQuestionFor } from '@/services/ifc
 import { DEFAULT_IFC_SCHEMA, projectIfcSchema } from '@/types/project';
 import { extensionOf, isIfcxName } from '@/utils/filePath';
 import { isMultiDocumentImport, type OpenedImport } from '@/services/importTypes';
+import { findIfcxModel } from '@/services/ifc/ifcxModelSession';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, postAwaitGuards, toolError } from './runtime';
 import { guardBridgeFlags } from './documentTools';
 import type { McpContext, McpToolAnnotations, McpToolDef, McpToolResult } from '../contracts';
@@ -738,6 +739,10 @@ export const fileTools: McpToolDef[] = [
         // ImportLabels).
         if (headlessBytes) ({ parsed, unkept } = await headlessIfcRead(path, input.name, headlessBytes));
         else parsed = await parseOpenedFile(input, undefined, readOptions);
+        if (!fileToolDeps.mainRouteUnlessForeign && !isMultiDocumentImport(parsed) && parsed.ifcxRead && parsed.ifcxReferences) {
+          await findIfcxModel(parsed.ifcxReferences, { kind: 'path', path }, [],
+            async candidate => await fs.confine?.(candidate) ? null : fs.readFile(candidate));
+        }
       } catch (e) {
         return toolError(ctx, 'VALIDATION', `'${path}' could not be read as a schedule: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -846,7 +851,7 @@ export const fileTools: McpToolDef[] = [
           documentsOpened: opened ? documents.length : 0,
           documents,
           path,
-          format: isMultiDocumentImport(parsed) || !parsed.ifcxRead ? format : 'IFCX',
+          format: !isMultiDocumentImport(parsed) && (parsed.ifcxRead || parsed.ifcxModel) ? 'IFCX' : format,
           reusedActiveTab: opened?.reusedActiveTab ?? false,
           ...(tab !== null ? { alreadyOpen: true, ...(tab.changedOnDisk ? { changedOnDisk: true } : {}) } : {}),
           /** Opslagdoel van het document: het bronpad bij IFC, anders null (zie hierboven). */

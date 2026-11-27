@@ -17,6 +17,7 @@ import type { FileRef, PickedSaveTarget } from '@/services/fileAccess';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import type { DocumentPayload } from './documentContract';
 import { refusalNotice } from './refusalNotice';
+import { ifcxModelSession } from '@/services/ifc/ifcxModelSession';
 import type { NotifyInput } from './slices/types';
 
 /** De melding bij een geweigerde opslag: een weigering (eigenaarsbesluit 2026-10-17: rood, blijft staan tot het
@@ -317,7 +318,8 @@ async function isOwnLocalFile(
 /** Wat de doelcontrole nodig heeft: de open documenten en de flag. */
 export interface WriteTargetState {
   getOpenDocumentPayloads(): readonly { readonly id: string; readonly payload: Pick<DocumentPayload,
-    'foreignSourceMark' | 'ifcSource' | 'siteFileId' | 'siteFileVersion' | 'fileHandle' | 'filePath' | 'fileFormat'> }[];
+    'foreignSourceMark' | 'ifcSource' | 'siteFileId' | 'siteFileVersion' | 'fileHandle' | 'filePath' | 'fileFormat'>
+    & Partial<Pick<DocumentPayload, 'ifcxReferences'>> }[];
   readonly ui: { readonly featureFlags: Readonly<FeatureFlagValues> };
 }
 
@@ -392,6 +394,35 @@ export async function refusedWriteTarget(
 }
 
 export type WriteTargetRefusal = 'open-source' | 'open-document' | 'building-model' | 'foreign-content' | 'unreadable-target';
+
+export function hasOpenIfcxModel(s: WriteTargetState): boolean {
+  return s.getOpenDocumentPayloads().some(({ payload }) => !!payload.ifcxReferences?.modelSource);
+}
+
+function modelRefs(s: WriteTargetState): FileRef[] {
+  return s.getOpenDocumentPayloads().flatMap(({ payload }) => ifcxModelSession(payload.ifcxReferences)?.ref ?? []);
+}
+
+export function isIfcxModelPath(s: WriteTargetState, path: string): boolean {
+  return modelRefs(s).some(ref => ref.kind === 'path' && samePath(ref.path, path));
+}
+
+async function isIfcxModelTarget(s: WriteTargetState, target: FileRef, identityFs: WriteTargetDeps['identityFs']): Promise<boolean> {
+  const refs = modelRefs(s);
+  if (target.kind === 'site') return refs.some(ref => ref.kind === 'site' && ref.id === target.id);
+  if (target.kind === 'handle') {
+    for (const ref of refs) {
+      if (ref.kind === 'handle' && (target.handle === ref.handle || await sameEntry(target.handle, ref.handle))) return true;
+    }
+    return false;
+  }
+  const paths = refs.flatMap(ref => ref.kind === 'path' ? [ref.path] : []);
+  if (!paths.length) return false;
+  if (paths.some(path => samePath(path, target.path))) return true;
+  const fs = await identityFs();
+  for (const path of paths) if (await sameLocalFile(target.path, path, { identityFs: fs })) return true;
+  return false;
+}
 type OwnTargetVersion = { readonly documentId: string; readonly baseVersion?: string | null; readonly source: IfcSource };
 
 export async function refusedTargetIdentity(
@@ -400,6 +431,7 @@ export async function refusedTargetIdentity(
   deps: Omit<WriteTargetDeps, 'readers' | 'chosenTarget' | 'protectModelTargets' | 'ownBomVersion' | 'knownVersion' | 'classifyIfcx'>,
   ownVersion?: OwnTargetVersion,
 ): Promise<WriteTargetRefusal | null | 'check-content'> {
+  if (await isIfcxModelTarget(s, target, deps.identityFs)) return 'open-source';
   if (!deps.writesIfcx && target.kind !== 'handle' && await isOpenIfcxFile(s, target, deps.identityFs)) return 'open-document';
   const own = ownVersion && s.getOpenDocumentPayloads().find(d => d.id === ownVersion.documentId)?.payload;
   const ownSource = !!own && own.ifcSource === ownVersion.source && hasForeignContent(own.ifcSource)

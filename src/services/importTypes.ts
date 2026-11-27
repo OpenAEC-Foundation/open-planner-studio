@@ -198,6 +198,7 @@ export interface XerImportMetadata {
  * Engelse default (net als `'Imported Calendar'` in de MSPDI-reader).
  */
 export interface ImportLabels {
+  ifcxPlanSuffix?: string;
   /**
    * Projectnaam voor een bestand dat GEEN `IFCPROJECT` bevat — het noodgeval-pad voor een kapot of
    * vreemd bestand. Deze naam wordt bewust in de DATA gestempeld (anders zou de weergave terugvallen
@@ -499,7 +500,11 @@ export interface MultiDocumentImport {
 }
 
 /** Het resultaat van een reader op de centrale open-pijplijn. */
-export type ReadImportResult = ImportResult & { readonly ifcxRead?: { readonly sha256: string; readonly byteLength: number } };
+export type ReadImportResult = ImportResult & {
+  readonly ifcxRead?: { readonly sha256: string; readonly byteLength: number };
+  readonly ifcxReferences?: import('./ifc/ifcx/modelReferences').IfcxModelReferences;
+  readonly ifcxModel?: import('./ifc/ifcxModelSession').ModelElements;
+};
 
 export type OpenedImport = ReadImportResult | MultiDocumentImport;
 

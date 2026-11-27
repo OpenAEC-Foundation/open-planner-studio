@@ -316,6 +316,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       xerSourceProjectId: src.xerSourceProjectId,
       ifcSource: src.ifcSource,
       foreignSourceMark: src.foreignSourceMark,
+      ifcxReferences: src.ifcxReferences,
       taskTypesVisible: src.taskTypesVisible,
       importPristine: false,
       xerArchiveIssue: src.xerArchiveIssue,

@@ -2115,7 +2115,13 @@
       "xerArchiveContinue": "Continue",
       "cancel": "Cancel"
     },
-    "fileDropRefused": "Not opened: {{names}}. The app only opens IFC, IFCX, XML, MPP, XER and CSV."
+    "fileDropRefused": "Not opened: {{names}}. The app only opens IFC, IFCX, XML, MPP, XER and CSV.",
+    "planSuffix": "schedule",
+    "model": {
+      "opened": "New schedule for {{file}}. The model stays unchanged.",
+      "unchecked": "The model {{file}} is missing or has changed. The element links are unchecked.",
+      "saveAsIfc": "Save this schedule as IFCX to keep its model references."
+    }
   },
   "foreignChangesQuestion": {
     "title": "Save to {{file}}",

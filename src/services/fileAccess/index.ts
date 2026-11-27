@@ -94,6 +94,7 @@ export interface OpenDialogOpts {
  *  `showSaveFilePicker({ startIn: 'downloads' })`. Firefox/Safari (geen FSA) landen sowieso al in
  *  de downloadmap via de bestaande `downloadBlob`-terugval — daar verandert deze vlag niets aan. */
 export interface SaveDialogOpts {
+  downloadOnly?: boolean;
   preferDownloads?: boolean;
   /**
    * MIME-type voor de download-terugval in de browser (`saveBytesDialog`/`saveFileDialog` op

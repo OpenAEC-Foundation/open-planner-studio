@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/state/appStore';
+import { hasOpenIfcxModel } from '@/state/ifcForeignGuard';
 import { useTranslation } from 'react-i18next';
 import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
@@ -206,7 +207,7 @@ export function ReportPanel() {
         [{ name: 'PDF Document', extensions: ['pdf'] }],
         // #804 fixronde 1: niet over het bronbestand van een document met een gebouwmodel. Een rapport bevat de planning
         // niet, dus ook niet over het bestand van een open document, ook het actieve niet (review van #1064).
-        { mime: 'application/pdf', refuseTarget: useAppStore.getState().foreignTargetCheck(null) },
+        { mime: 'application/pdf', refuseTarget: useAppStore.getState().foreignTargetCheck(null), downloadOnly: hasOpenIfcxModel(useAppStore.getState()) },
       );
     } catch (err) {
       useAppStore.getState().notify({
