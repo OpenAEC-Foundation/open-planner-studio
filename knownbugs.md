@@ -7975,10 +7975,3 @@ en noem het in je rapport of PR-tekst.
       `readIfcxModelSource` gebruikt kleine bestanden. Meet vóór het standaard aanzetten van IFCX in CI
       hoeveel tijd en geheugen het hashen, decoderen en indexeren van echte modellen met geometrie kost.
       De meting onder 2350 gaat over het opslaan van een planning. — S (ontwerpstap fase 4, §4 en §6)
-
-2408. **Gids: niet elke regel in de XER-verliesmelding noemt een aantal.** *Import- en exportformaten*
-      (`public/docs/nl/ref-import-exportformaten.md` en de Engelse) zegt dat de melding na een export naar `.xer` per
-      soort een regel met een aantal toont, bijvoorbeeld *2 deadlines*. De regels over rekeninstellingen en
-      projectgegevens hebben geen aantal (`src/state/xerExportNotice.ts`). De zin stond al zo op main. Gevonden in de
-      code door de reviewer van de gids voor IFCX (#1303, ronde 4), niet nagespeeld in de app. Richting: in de gids het
-      aantal alleen noemen waar de app het toont. — S
