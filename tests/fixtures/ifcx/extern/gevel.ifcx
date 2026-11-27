@@ -1,0 +1,20 @@
+{
+  "header": {
+    "id": "urn:voorbeeld:atelier:gevel", "author": "Atelier Gevel",
+    "ifcxVersion": "ifcx_alpha", "dataVersion": "1.0.0", "timestamp": "2026-11-27T09:00:00Z"
+  },
+  "imports": [],
+  "schemas": {
+    "bsi::ifc::class": {"value": {"dataType": "Object", "objectRestrictions": {"values": {"code": {"dataType": "String"}}}}},
+    "bsi::ifc::prop::Name": {"value": {"dataType": "String"}},
+    "bsi::ifc::prop::TypeName": {"value": {"dataType": "String"}},
+    "openaec::label": {"value": {"dataType": "String"}}
+  },
+  "data": [
+    {"path": "Gevel/West", "attributes": {"bsi::ifc::class": {"code": "IfcWall"}, "bsi::ifc::prop::Name": "Buitenmuur west"}},
+    {"path": "Gevel/Oost", "attributes": {"bsi::ifc::class": {"code": "IfcWall"}, "bsi::ifc::prop::Name": "Buitenmuur oost"}},
+    {"path": "Gevel/Muurtype", "attributes": {"bsi::ifc::class": {"code": "IfcWallType"}, "bsi::ifc::prop::TypeName": "Spouwmuur 300"}},
+    {"path": "Gevel/West", "children": {"Raam": "Gevel/west"}},
+    {"path": "Gevel/west", "attributes": {"bsi::ifc::class": {"code": "IfcWindow"}}}
+  ]
+}

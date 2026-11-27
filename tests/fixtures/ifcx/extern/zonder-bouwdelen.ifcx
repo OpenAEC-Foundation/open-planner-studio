@@ -1,0 +1,16 @@
+{
+  "header": {
+    "id": "urn:voorbeeld:atelier:montage", "author": "Atelier Gevel",
+    "ifcxVersion": "ifcx_alpha", "dataVersion": "1.0.0", "timestamp": "2026-11-27T09:00:00Z"
+  },
+  "imports": [],
+  "schemas": {
+    "bsi::ifc::class": {"value": {"dataType": "Object", "objectRestrictions": {"values": {"code": {"dataType": "String"}}}}},
+    "openaec::label": {"value": {"dataType": "String"}}
+  },
+  "data": [
+    {"path": "Werk", "attributes": {"bsi::ifc::class": {"code": "IfcTask"}}},
+    {"path": "Ploeg", "attributes": {"bsi::ifc::class": {"code": "IfcLaborResource"}}},
+    {"path": "Tekst", "attributes": {"openaec::label": "Muur op de begane grond"}}
+  ]
+}
