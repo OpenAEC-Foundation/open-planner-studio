@@ -7271,13 +7271,11 @@ en noem het in je rapport of PR-tekst.
      Reproductie `1588 ongebruikte brondefinitie bij alleen projectbeschrijving` in
      `check-ifc-foreign-preserve.ts`; basisbewijs in `/tmp/fase1c-pr7d-bewijs/ongebruikt-main.log`. — B
 
-1590. **VERVOLG (#804, structuur en opruimen): regel B is niet één gedeelde controle, en twee restjes uit PR 7d.**
+1590. **VERVOLG (#804, structuur en opruimen): regel B is niet één gedeelde controle.**
      Regel A (`ownDefinitionsGrow`) is gedeeld door codes en taaktypes. Regel B (een bestaande waarde volgt een
      bewerking) staat er twee keer in eigen vorm: de typewissel via verwachte kaartparen en `ownMapGrows`, de actieve
-     baseline in `explainActiveBaseline`. Beide zijn smal; de review vond geen ruimere vrijstelling. Verder: de
-     ongebruikte parameter van `fixedCatalogEdits` in `tests/planning/ifcMergeKern.ts` (vijf nutteloze argumenten bij
-     de aanroepen) en de lokale `isObj` in `lossCheck.ts`, die `jsonObject` herhaalt. Gevonden door de review van
-     #932. — B
+     baseline in `explainActiveBaseline`. Beide zijn smal; de review vond geen ruimere vrijstelling. Gevonden door
+     de review van #932. — B
 
 1591. **VERVOLG (#804): de vormcontrole voor codetemplates in de verliescontrole blijft tot stap 5.**
      De lezer haalt codedefinities uit `OPS_StructureMeta` en gebruikt de templates (`IFCSIMPLEPROPERTYTEMPLATE`,

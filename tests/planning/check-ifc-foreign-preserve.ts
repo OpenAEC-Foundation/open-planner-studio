@@ -1725,7 +1725,7 @@ for (const action of ['type-verliezen', 'laatste-taak-wissen']) {
   }));
 }
 for (const [name, raw] of kaartBronnen) {
-  const saved = await savedCatalogStart(raw), opened = await openForeign(saved), edits = fixedCatalogEdits(opened);
+  const saved = await savedCatalogStart(raw), edits = fixedCatalogEdits();
   const single = await savedCatalogStart(raw, false);
   for (const [i, edit] of edits.entries()) await kaartRonde(`7d ${name}: ${edit.label}`, i === 1 ? single : saved, d => applyEdit(edit, d));
   await kaartRonde(`7d ${name}: code + nieuw type + nieuwe taak + typewissel`, single, async d => {
@@ -1754,7 +1754,7 @@ for (const [name, raw] of kaartBronnen) {
 const catalogusBron = await savedCatalogStart(eigenKaart);
 for (const [i, property] of ['OPS_ActivityCodes', 'TaskTypes', 'TaskTypes', 'ActiveBaselineId'].entries()) {
   const bytes = i === 1 ? await savedCatalogStart(eigenKaart, false) : catalogusBron;
-  const opened = await openForeign(bytes), input = await applyEdit(fixedCatalogEdits(opened)[i], cloneDomain(opened));
+  const opened = await openForeign(bytes), input = await applyEdit(fixedCatalogEdits()[i], cloneDomain(opened));
   let prepared;
   try { prepared = await prepareIfcWrite(input, opened.ifcSource!); } catch (e) {
     if (!(e instanceof MergeNeedsPhase2Error)) throw e;
@@ -1827,7 +1827,7 @@ await kaartRonde('7d waarde bij bestaande codedefinitie', catalogusBron, d => st
 }));
 await kaartRonde('7d actieve baseline uitzetten', catalogusBron, d => storeEdit(d, s => { s.setActiveBaseline(null); }));
 
-const tweeCodes = await kaartRonde('7d grenzen: tweede code voorbereiden', catalogusBron, d => applyEdit(fixedCatalogEdits(d)[0], d));
+const tweeCodes = await kaartRonde('7d grenzen: tweede code voorbereiden', catalogusBron, d => applyEdit(fixedCatalogEdits()[0], d));
 if (tweeCodes) {
   await opgelosteWeigering('1585 code hernoemen met andere definitie over', tweeCodes.output, d => storeEdit(d, s => {
     s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Hernoemde code');
@@ -1868,7 +1868,7 @@ await opgelosteWeigering('1586 taaktypedefinitie hernoemen (alleen domeininvoer)
     const after = regelsVan(written.output).find(l => l.type === original.type && l.args[0] === original.args[0])!;
     eq('7d onbekend definitieveld letterlijk behouden', jsonVan(after).definitions[0].onbekend, 'bewaar-mij');
   }
-  await blijvendeWeigering('7d onbekend definitieveld bij typegroei', bytes, d => applyEdit(fixedCatalogEdits(d)[1], d));
+  await blijvendeWeigering('7d onbekend definitieveld bij typegroei', bytes, d => applyEdit(fixedCatalogEdits()[1], d));
   const unused = jsonVan(original); unused.definitions.push({ id: 'ongebruikt', name: 'Ongebruikt bron-type' });
   const unusedLine = vervangJson([original], original, unused)[0];
   const unusedBytes = latin1(text(catalogusBron).replace(lineOf(catalogusBron, String(original.id)), `#${unusedLine.id}=${unusedLine.type}(${unusedLine.args.join(',')});`));
