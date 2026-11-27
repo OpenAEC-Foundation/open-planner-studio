@@ -6,8 +6,8 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { hourRemainingDays } from '@/engine/taskMutationRules';
 import { hourTaskScheduleDuration } from '@/utils/taskDuration';
 import { reconstructResourceIds } from '@/services/importNormalize';
-import { checkValue, hasKey, readFields } from './fieldTable';
-import { globalIdOfPath } from './identityPath';
+import { checkValue, hasKey, readFields, VERSION_FORM } from './fieldTable';
+import { globalIdOfPath, isIdentityPath } from './identityPath';
 import { childrenInPlace } from './childOrder';
 import { hourDurationIsDerived, objectLabels, serializeIfcx, type IfcxAttributes, type IfcxDocument } from './projection';
 import type { IfcxModelReferences } from './modelReferences';
@@ -124,19 +124,23 @@ function nodesOf(data: readonly unknown[]): IfcxNode[] {
 }
 
 function ownProfileVersion(data: readonly unknown[]): string | undefined {
-  const [knownMajor, knownMinor] = MODEL_PROFILE_VERSION.split('.').map(Number);
+  let workplan: { path: string; version: string } | undefined;
   for (const entry of data) {
     if (!isPlainObject(entry) || !isPlainObject(entry.attributes) || !hasKey(entry.attributes, ATTRIBUTE.document)) continue;
+    if (workplan || !isPlainObject(entry.attributes[ATTRIBUTE.workplan]) || typeof entry.path !== 'string' || !isIdentityPath(entry.path)) return;
     const document = entry.attributes[ATTRIBUTE.document];
-    const place = { path: typeof entry.path === 'string' ? entry.path : undefined, attribute: ATTRIBUTE.document, field: 'formatVersion' };
     const version = isPlainObject(document) ? document.formatVersion : undefined;
-    if (typeof version !== 'string') throw invalid('Het bestand noemt geen profielversie', place);
-    const [major, minor] = version.split('.').map(Number);
-    if (major > knownMajor || (major === knownMajor && minor > knownMinor)) {
-      throw new IfcxReadError('newer-profile', `Profielversie ${version} is nieuwer dan deze app kent`, place);
-    }
-    return version;
+    if (typeof version !== 'string' || !VERSION_FORM.pattern.test(version)) return;
+    workplan = { path: entry.path, version };
   }
+  if (!workplan) return;
+  const [knownMajor, knownMinor] = MODEL_PROFILE_VERSION.split('.').map(Number);
+  const [major, minor] = workplan.version.split('.').map(Number);
+  if (major > knownMajor || (major === knownMajor && minor > knownMinor)) {
+    throw new IfcxReadError('newer-profile', `Profielversie ${workplan.version} is nieuwer dan deze app kent`,
+      { path: workplan.path, attribute: ATTRIBUTE.document, field: 'formatVersion' });
+  }
+  return workplan.version;
 }
 
 function assertValues(nodes: readonly IfcxNode[], legacyDocument: boolean): void {
@@ -491,8 +495,12 @@ export function readIfcx(bytes: Uint8Array): IfcxImportResult {
 }
 
 export function classifyIfcx(bytes: Uint8Array): IfcxClassification {
+  return classifyIfcxRead(() => readIfcx(bytes));
+}
+
+export function classifyIfcxRead(read: () => IfcxImportResult): IfcxClassification {
   try {
-    readIfcx(bytes);
+    read();
     return 'own';
   } catch (error) {
     if (!(error instanceof IfcxReadError)) return 'unreadable';

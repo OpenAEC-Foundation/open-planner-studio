@@ -114,13 +114,26 @@ for (const [attribute, to] of [[sourceAttr, activity.path], [linkAttr, disk.data
   refused(JSON.stringify(wrongNode), 'foreign');
 }
 refused(changed(text, '"' + sourceAttr + '":{', '"openaec::ops::toekomst":{}, "' + sourceAttr + '":{'), 'newer-profile');
-for (const newer of ['1.3.0', '1.9.0']) {
+for (const newer of ['1.3.0', '1.9.0', '2.0.0']) {
   const file = changed(text, '"formatVersion":"1.2.0"', '"formatVersion":"' + newer + '"');
   for (const future of [file, changed(file, '"imports": []', '"imports": [{}]'), changed(file, '"relation":"schedules"', '"relation":0')]) {
     refused(future, 'newer-profile');
     assert.equal(classifyIfcx(encode(future)), 'unreadable');
   }
 }
+for (const version of ['1.3', '1.02.0', '1.2.1']) {
+  refused(changed(older, '"formatVersion":"1.0.0"', '"formatVersion":"' + version + '"'), 'invalid');
+}
+const noVersion = changed(older, '"formatVersion":"1.0.0",', '');
+refused(noVersion, 'invalid');
+refused(changed(noVersion, '"imports": []', '"imports": [{}]'), 'foreign');
+const futureWorkplan = documentOf(changed(older, '"formatVersion":"1.0.0"', '"formatVersion":"1.3.0"'));
+const workplan = futureWorkplan.data[0];
+const duplicate = { path: workplan.path, attributes: { 'openaec::ops::document': workplan.attributes['openaec::ops::document'] } };
+refused(JSON.stringify({ ...futureWorkplan, data: [...futureWorkplan.data, duplicate] }), 'foreign');
+const foreign = { path: '/ander-programma', attributes: duplicate.attributes };
+refused(JSON.stringify({ ...futureWorkplan, data: [foreign, ...futureWorkplan.data.slice(1)] }), 'foreign');
+refused(JSON.stringify({ ...futureWorkplan, data: [duplicate, ...futureWorkplan.data.slice(1)] }), 'foreign');
 assert.ok(selfCheckDifferences(back, { ...back, modelSource: mixedCase }).some(path => path.startsWith('modelSource.fileName:')));
 assert.ok(selfCheckDifferences(back, { ...back, elementLinks: undefined }).some(path => path.startsWith('elementLinks:')));
 console.log('IFCX 1.2.0: bron, externe koppelingen, versie, weigeringen en bytegetrouwe rondgang geslaagd');

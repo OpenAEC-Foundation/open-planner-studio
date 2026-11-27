@@ -281,6 +281,10 @@ lege verhoging naar `1.2.0`. Alleen gebruikte attributen krijgen hun schema. De 
 `dataVersion: "1.0.0"` en `imports` blijft leeg. De zelfcontrole vergelijkt de bronverwijzing en de koppelingen
 afzonderlijk met de teruggelezen waarden.
 
+De app kan profiel `1.2.0` pas openen zodra haar document de bron en de koppelingen bewaart. Tot die tijd geeft
+openen de melding voor een nieuwer profiel. Bij Opslaan als geldt een bestaand bestand in dit profiel als onleesbaar
+schrijfdoel. De kern kan deze planningen al lezen en schrijven.
+
 ### Werkschema
 
 `openaec::planning::schedule`: `workplan` (pad, verplicht): het werkplan waar het schema bij hoort. Er is precies één.
@@ -636,9 +640,14 @@ lezer eruit leest. `readIfcx` doet, in deze volgorde:
 
 0. **De bytegrens**: begint het bestand met een UTF-8-BOM, dan weigert de lezer met `invalid` en `place.offset` 0. De
    eigen schrijver schrijft geen BOM, en de UTF-8-decoder zou haar anders weghalen vóór de vergelijking van de bytes.
-1. **De vormtoets** (blijft, want zonder haar kan de lezer niet veilig lezen): JSON en UTF-8, de kop en zijn domein,
+1. **De vormtoets.** Na UTF-8, JSON en de IFCX-versie herkent de lezer bij een eigen kop de versie in de enige
+   documentbijdrage op het eigen werkplan. Alleen een versie van de vorm `MAJOR.MINOR.PATCH` met een hogere hoofd-
+   of tussenversie krijgt hier `newer-profile`, ook bij niet-lege imports. Bij een ontbrekende of onvolledige versie,
+   een dubbele documentbijdrage of een documentbijdrage op een vreemd pad volgt de gewone vormtoets. Niet-lege
+   imports en dubbele bijdragen op hetzelfde pad geven dan `foreign`. Zonder andere fout geeft een ontbrekende of
+   ongeldige versie `invalid`, net als `1.2.1` en `1.02.0`. De overige vormtoetsen omvatten de kop en zijn domein,
    `imports` leeg, de schema's, de padvorm van elk pad (de decoder geeft de gelezen GlobalId direct aan het object),
-   geen `children` of `inherits`, één bijdrage per attribuut per pad, de profielversie (`newer-profile`), de vorm van
+   geen `children` of `inherits`, één bijdrage per attribuut per pad, de vorm van
    elk veld volgens regel A, de soort van elk object, precies één werkplan en één werkschema, en de soort van elke
    verwijzing.
 2. **Het model** uit de precieze kant, met de afleiding die het bestand niet draagt (de dagwaarden van een uurtaak, de
@@ -860,7 +869,8 @@ het veranderde bestand is en dat van het oude model verschilt, of weigert met he
 - `not-ifcx`: geen UTF-8, geen JSON, of geen IFCX-kop met `ifcxVersion` en `data`;
 - `version`: een andere `ifcxVersion` dan `ifcx_alpha`;
 - `newer-profile`: een hogere hoofdversie of een onbekende hogere tussenversie in `formatVersion`, een onbekend
-  `openaec::ops::`-attribuut, of een onbekend veld in zo'n attribuut. Bij een eigen kop wordt bijvoorbeeld `1.3.0`
+  `openaec::ops::`-attribuut, of een onbekend veld in zo'n attribuut. Bij een eigen kop en één herkenbare
+  documentbijdrage op het werkplan wordt bijvoorbeeld `1.3.0`
   al vóór de controle van imports, attribuutwaarden en schema's geweigerd. De classificatie is dan `unreadable`.
 - `foreign`: niet helemaal van Open Planner Studio (keuze T2): een kop zonder `urn:openaec:planner:`, een onbekend
   kop- of entryveld, `imports`, `children` of `inherits`, een attribuut van een ander, een onbekend veld in een
@@ -887,7 +897,7 @@ van het profiel. `ifcxSchemaProblems` geeft dezelfde controles als lijst, voor p
 
 De workflow `.github/workflows/ifcx.yml` toetst de uitvoer met code van anderen, op een vaste commit:
 IFC5-development van buildingSMART op `1a63082ada967c683cfacee2005f8f749c8e1b79` en ifcx-explorer op
-`ae3aba5c9c5df41b78d3673f10ac65fd874047d2`. De bestanden zijn de twee in `tests/fixtures/ifcx/eigen/` en de uitvoer van
+`ae3aba5c9c5df41b78d3673f10ac65fd874047d2`. De bestanden zijn de fixtures in `tests/fixtures/ifcx/eigen/` en de uitvoer van
 `writeIfcx` voor elk voorbeeldproject in `public/examples` (`scripts/ifcx/maak-uitvoer.ts`, met dezelfde aanroep als
 `check-ifcx-velden.ts`). Drie controles, elk in een eigen stap:
 
@@ -895,7 +905,10 @@ IFC5-development van buildingSMART op `1a63082ada967c683cfacee2005f8f749c8e1b79`
 2. De compositie van IFC5-development, zonder schemacontrole: elk pad blijft een eigen node met precies zijn eigen
    attributen (`… compositie`). Een pad met een `/` verdwijnt daar stil.
 3. De projectcontrole van ifcx-explorer: elk bestand als pakket van één document door `seal_files` en `load_files` van
-   `crates/ifcx-project`, zonder fout en zonder melding (`scripts/ifcx/ifcx-project-controle`).
+   `crates/ifcx-project`, zonder fout en zonder melding (`scripts/ifcx/ifcx-project-controle`). Bij een planning met een
+   modelbron en externe `schedules`-doelen moet het losse bestand juist `MISSING_REFERENCE` geven. Een hulpbestand
+   importeert de oorspronkelijke planning en levert precies de ontbrekende doelpaden. Met elk van die paden afzonderlijk
+   weggelaten moet het pakket nog steeds `MISSING_REFERENCE` geven. Met alle doelpaden moet het zonder melding laden.
 
 Elke controle krijgt ook de bewust kapotte varianten van `scripts/ifcx/kapot.mjs` (een ontbrekend schema, een pad met
 een `/`, een verkeerde waarde), en `scripts/ifcx/eis-afgekeurd.sh` eist dat ze afkeurt om de verwachte reden. Wat elke
