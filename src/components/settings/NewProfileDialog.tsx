@@ -3,24 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Dialog } from '@/components/common/Dialog';
 
 interface NewProfileDialogProps {
-  /** De naam van het profiel waarop het nieuwe profiel voortbouwt (al vertaald). */
   sourceName: string;
-  /** Voorgestelde naam ("Kopie van …"), al vertaald. */
   initialName: string;
   onCreate: (name: string) => void;
   onCancel: () => void;
 }
 
-/**
- * De naamvraag van de knop "Nieuw profiel" in het blok *Rekenprofiel en reken-opties* (geen native
- * `prompt()`). Het veld staat voorgevuld met "Kopie van …" en is geselecteerd, zodat de gebruiker
- * meteen een eigen naam typt. Een lege naam is niet geldig: de knop Maken staat dan uit, met dezelfde
- * melding als het naamveld van een eigen profiel.
- *
- * Stapelt boven Projectinfo (Backstage of de dialoog, waar Enter Toepassen is): daarom `z-[60]` en de
- * toetsen in de capture-fase, net als `ConfirmDialog`. Een dialoog met invoer sluit niet op een klik
- * naast het paneel (regel in `Dialog`), alleen via Annuleren of Escape.
- */
 export function NewProfileDialog({ sourceName, initialName, onCreate, onCancel }: NewProfileDialogProps) {
   const { t } = useTranslation('common');
   const { t: tTask } = useTranslation('task');

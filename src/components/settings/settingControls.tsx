@@ -5,11 +5,6 @@ import type { ResolvedUITheme } from '@/state/slices/types';
 import { saveLocale } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
 
-// Gedeelde bouwstenen van de instellingen-UI: `SettingsPanelContent` én de curated mini-laag van
-// de welkomstdialoog passen dezelfde instellingen live toe, met exact dezelfde opslagpatronen
-// (zie ook `applySetting.ts`).
-
-/** i18n-sleutels voor de thema-namen (UI_THEMES.label is alleen een Engelse fallback). */
 export const THEME_LABEL_KEYS = {
   'dark':          'settings.themeDark',
   'light':         'settings.themeLight',
@@ -28,7 +23,6 @@ export const LANGUAGE_OPTIONS = [...supportedLanguages]
     return { value: code, label: `${short} — ${label}` };
   });
 
-/** Taalkeuze, gesorteerd op de korte taalcode ("NL — Nederlands"). */
 export function LanguageSelect() {
   const { t, i18n } = useTranslation('common');
   return (
@@ -41,7 +35,6 @@ export function LanguageSelect() {
   );
 }
 
-/** Vinkrij van de instellingen-UI, met optioneel de uitleg eronder. */
 export function SettingToggle({ label, hint, checked, onChange, disabled, style, inputProps }: {
   label: ReactNode;
   hint?: ReactNode;
@@ -49,7 +42,6 @@ export function SettingToggle({ label, hint, checked, onChange, disabled, style,
   onChange: (checked: boolean) => void;
   disabled?: boolean;
   style?: CSSProperties;
-  /** Extra attributen op de checkbox (data-ops-* voor de tests). */
   inputProps?: Record<string, unknown>;
 }) {
   return (
