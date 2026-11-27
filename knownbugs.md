@@ -1623,6 +1623,12 @@ en noem het in je rapport of PR-tekst.
     (`ReportPaperView.tsx`) maakt voor elk blad een element en de vectorpagineerder (`paginateVector.ts`) voegt elk
     blad toe aan de PDF. Tijd en geheugen bij dat aantal zijn niet gemeten. Issue #1238. — B
 
+2400. **Een rechtermuisklik onder de kolomknop (+) op de hoogte van een taak opent geen menu voor lege ruimte.**
+    Sinds PR #1248 (issue #1246) loopt elke rij in de taaktabel door de kolomknopstrook (32 px) heen tot aan
+    de rand van het paneel (`.task-grid-data-row`, `margin-inline-end` in `src/styles/globals.css`). Een klik in die
+    strook valt dus op de rij, en `onContextMenu` in `DataGridCore.tsx` roept `onEmptyContextMenu` alleen aan
+    buiten een rij. Vóór die PR kwam een rechtermuisklik daar wel bij het menu voor lege ruimte. Bevestigd in de
+    review van PR #1248. — B
 2346. **Het sleeplabel van een stuksleep op een urentaak telt bij kwartierzoom kwartieren als uren.**
     `handleSplitDrag` in `useBarDrag` (`src/components/canvas/hooks/useBarDrag.ts`) zet het label op
     `Math.round(lengte / unitMinutes)`, met `unitMinutes` uit `splitUnitMinutes`: bij een urentaak de snapstap van de
@@ -1780,6 +1786,33 @@ en noem het in je rapport of PR-tekst.
       zijn de knoppen niet actief; na de klik van elk staan beide vlaggen uit, blijft de rail uit beeld en is (a) nog
       ingeklapt. Met Eigenschappen in dezelfde opzet komt de rail na één klik in beeld met het paneel aan. Ctrl+Shift+L
       voert dezelfde opdracht uit als de knop Waarschuwingspaneel. Niet in de browser nagespeeld. — B
+
+2540. **Scrollen naar een datum geeft `NaN` als `viewStartDate` of het doel geen leesbare datum is.**
+      `computeScrollToDate` (`src/utils/ganttViewport.ts`). Nagespeeld in Node, de functie los gebundeld met esbuild:
+      zonder taken, zonder datum en met een lege `view.viewStartDate` geeft hij `NaN`; ook met één taak (start
+      2026-02-02, einde 2026-02-06), doel 2026-03-01 en een lege `viewStartDate`; en zonder taken en zonder datum met
+      `viewStartDate` 2026-01-01 en `project.statusDate` `onzin`. Bij een onleesbare `viewStartDate` geeft
+      `computeEffectiveViewStart` die invoer terug (ADR 0501), en die levert daarna `NaN`. In de code gelezen, niet in de
+      app nagespeeld: Ctrl/Cmd+Home (`nav.scrollToToday` in `shortcutRegistry.ts`) geeft de uitkomst aan `setScroll`
+      (`viewSlice.ts`); `Math.max(0, NaN)` is `NaN`, en `clampGanttScroll` met `NaN` en een bovengrens geeft in Node
+      `NaN` terug. Een IFC-bestand kan zo'n datum opleveren: in een kopie van het voorbeeld *Rijwoningen De Akkers* met
+      `StatusDate` `onzin` kwam die tekst via `readIFC` in de store, en de actie achter Ctrl/Cmd+Home zette `scrollX`
+      op `NaN` (in Node, zonder canvas); met een herstelde statusdatum gaf dezelfde actie weer een getal. De wizard
+      en een nieuw leeg project geven een geldige oorsprong. — B
+
+2541. **De fit van het project geeft een onbruikbare zoom als een taakdatum geen datum is maar wel als tekst wordt
+      vergeleken.** `computeFitToProject` (`src/utils/ganttViewport.ts`) kiest de vroegste start en het laatste einde
+      door de teksten te vergelijken en leest ze daarna pas als datum. Nagespeeld in Node, de functie los gebundeld met
+      esbuild, breedte 1000, zonder kwartierzoom, kalenderdagen, taken zonder werkelijke datums en zonder late datums:
+      taak a van 2026-02-02 tot 2026-02-06 en taak b met start 2026-02-02 en einde (`earlyFinish` en `scheduleFinish`)
+      `x2026` geven zoom en scroll `NaN`. Taak a met taak b met start `0` en einde 2026-02-06 geeft `viewStartDate` `0`,
+      zoom 0,5 (de ondergrens) en scroll 7: `parseDate` leest `0` in Node als 2000-01-01. In de code gelezen, niet in de
+      app nagespeeld: Ctrl+0 (`fitToProject`) en de fit na het openen (`pendingFit`) in
+      `useGanttViewportCoordinator.ts` geven de zoom aan `setZoom`, en `Math.max(0.5, Math.min(max, NaN))` is `NaN`.
+      Via een IFC-bestand, in Node zonder canvas: met `x2026` als taakeinde neemt `readIFC` de tekst over, maar stopt
+      het activeren van het document met een `RangeError` vóór de fit, zodat de `NaN` alleen voor de losse functie is
+      gezien; met taakstart `0` slaagt het openen en begint de berekende fit op 1999-12-31 met zoom 0,5, een verkeerde
+      uitsnede. — B
 
 ## Kalenders
 
@@ -2560,6 +2593,33 @@ en noem het in je rapport of PR-tekst.
      16:00 met 60 minuten pauze en `hoursPerDay: 8`; de schrijfvalidatie rekent 7,5 uur en `planner_update_calendar`
      met `create: true` weigert de gelezen kalender in een leeg document. Er gaat niets verloren; de kalender is zo
      alleen niet over te zetten (ADR 0104). Issue #1274. — B
+2530. **`planner_add_tasks` zonder `duration` geeft een andere duur zodra het item `durationType` noemt.**
+     `addTasksCore` in `src/services/mcp/tools/taskTools.ts` maakt bij een tijddeel zonder duur zelf de tijd, met 5 in
+     de dagenmaat; zonder tijddeel kiest `draft.addTask` (`src/state/runtime/createMcpTransactions.ts`) 5 in de maat
+     van `newTaskTimeUnit`. Nagespeeld via de handler met de app-store: een nieuw project met zijn eigen rekenprofiel, de
+     projectkalender (8 uur per dag) en `defaultTaskDurationUnit: 'hours'`; in `tasks` werd het item
+     `{ tempId: 'a', name: 'A' }` een urentaak van 300 minuten (07:00 tot 12:00) en het item
+     `{ tempId: 'b', name: 'B', durationType: 'WORKTIME' }` een dagtaak van 5 werkdagen. Met de standaard `days` gaven
+     beide 5 werkdagen. Met de standaard `days` en `workRule: 'FIXED_WORK'` op beide items werden beide, met en zonder
+     `durationType`, een urentaak van 2.400 minuten: daar beslist `settleNewTaskMeasure` de maat. ADR 0491.
+     Issue #1312. — B
+2531. **`planner_remove_dependencies` noemt een relatie twee keer in `removed` als haar id twee keer in `ids` staat.**
+     `removeDependenciesCore` in `src/services/mcp/tools/taskTools.ts` zet elk gevonden id in `removed`, ook een
+     herhaling. Nagespeeld via de handler: één FS-relatie, `ids: [id, id]`; de relatie was weg, `removed` bevatte het
+     id twee keer en er was geen weigering. `planner_delete_tasks` meldt een dubbel id wel één keer (ADR 0493). — B
+2532. **`progressAdjusted` kan een andere voortgang melden dan de taak na dezelfde `planner_update_tasks` heeft.**
+     `updateTasksCore` in `src/services/mcp/tools/taskTools.ts` legt `progressAdjusted` vast na de duurpatch en vóór het
+     voortgangsblok van hetzelfde item; een aanvaard voortgangsblok bepaalt daarna de eindstand. Nagespeeld via de
+     dispatcher: projectstart 1 juni 2026, statusdatum 3 juni, een dagtaak van 10 werkdagen op 40 %, dan één item met
+     `fields: { duration: 4 }` en `progress: { completion: 50 }`. Het antwoord meldde `progressAdjusted` met
+     `completion: 100` en `remaining: 0`; de taak stond daarna op 50 %, duur 4, status `STARTED`, zonder `actualFinish`.
+     ADR 0492. — B
+2533. **`planner_add_dependencies` negeert een onbekende sleutel in een item, zoals `lagDays`.** Het schema van een item
+     heeft `additionalProperties: false`, maar de schemapoort toetst de binnenkant van array-items niet (ADR 0100), en
+     `classifyDeps` in `src/services/mcp/tools/taskTools.ts` leest alleen `predecessorId`, `successorId`, `type` en
+     `lag`. Nagespeeld via de dispatcher: twee taken en één item `{ predecessorId, successorId, type: 'FS', lagDays: 2 }`;
+     de aanroep slaagde zonder weigering en de relatie kreeg `lagDays: 0`. ADR 0494.
+     Issue #1314. — B
 
 ## Bestanden en herstel
 
@@ -3335,13 +3395,6 @@ en noem het in je rapport of PR-tekst.
      twee gewone opslagacties bewaakt bytepariteit en bronidentiteit. PR 9 mag een bron zonder vreemd deel niet als
      huidige schijfversie gebruiken; verversen zou een extra scan/heropening per gewone opslag vragen. Bewezen in
      `check-ifc-saved-source.ts` en `check-ifc-document-save.ts`. — B
-1557. **VERVOLG (#804, test opruimen): de testhelper `recalculated<D>` belooft meer dan hij teruggeeft.**
-     `tests/planning/ifcAppRoute.ts` geeft bij `recalculated<D>(d): Promise<D>` altijd een nieuw resultaat van
-     `buildWriteIFCInput(…, 'merge')` terug, via `as WriteIFCInput as D`. Bij een `D` met `writeMode: 'planOnly'`
-     zegt het type dus `planOnly` terwijl de invoer `merge` draagt. De te ruime generieke belofte bestond al; #926
-     voegde de tussen-cast toe. De huidige aanroepers hebben er geen last van. Richting: de helper niet-generiek maken
-     en zijn werkelijke type laten teruggeven; dan vervallen de typeparameter en beide casts. Gevonden door de review
-     van #926. — B
 1566. **VERVOLG (#804, documentatie): handleiding nl/en vóór vrijgeven van de flag.**
      Fase 1c PR 11b voegt bewust geen gids in `public/docs/` toe: `ifcForeignContent` staat standaard uit.
      De PR die de flag aanzet moet de handleiding nl/en en de manifestvermelding toevoegen, met de
@@ -3401,10 +3454,6 @@ en noem het in je rapport of PR-tekst.
      melding. Alleen uit de code gelezen. Richting: verdwijnt als de flag eraf gaat; anders een tweede tekst zonder die
      zin voor de flag uit. — S
 
-1598. **VERVOLG (#804, docs): `.claude/rules/state.md` zegt te algemeen dat een download het openingsdoel, de bron en het kenmerk houdt.**
-     Dat geldt voor een download op de mergeroute. De bevestigde Opslaan als zonder gebouwmodel van PR 9e (planOnly) legt
-     bij een download juist het nieuwe doel en `sourceMissing: false` vast. Richting: de regel beperken tot de
-     mergeroute en de uitzondering noemen. Gevonden door de review van #935. — B
 
 1770. **VERVOLG (#804, gebouwmodel): op een baseline van OPS v2026.7.4 tot v2026.7.14 krijgt een weesrij na de eerste merge de interne id uit de bron.**
      Op de oude showcase (`v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc` met een wand) zet de herleestoets (b)
@@ -7257,13 +7306,11 @@ en noem het in je rapport of PR-tekst.
      Reproductie `1588 ongebruikte brondefinitie bij alleen projectbeschrijving` in
      `check-ifc-foreign-preserve.ts`; basisbewijs in `/tmp/fase1c-pr7d-bewijs/ongebruikt-main.log`. — B
 
-1590. **VERVOLG (#804, structuur en opruimen): regel B is niet één gedeelde controle, en twee restjes uit PR 7d.**
+1590. **VERVOLG (#804, structuur en opruimen): regel B is niet één gedeelde controle.**
      Regel A (`ownDefinitionsGrow`) is gedeeld door codes en taaktypes. Regel B (een bestaande waarde volgt een
      bewerking) staat er twee keer in eigen vorm: de typewissel via verwachte kaartparen en `ownMapGrows`, de actieve
-     baseline in `explainActiveBaseline`. Beide zijn smal; de review vond geen ruimere vrijstelling. Verder: de
-     ongebruikte parameter van `fixedCatalogEdits` in `tests/planning/ifcMergeKern.ts` (vijf nutteloze argumenten bij
-     de aanroepen) en de lokale `isObj` in `lossCheck.ts`, die `jsonObject` herhaalt. Gevonden door de review van
-     #932. — B
+     baseline in `explainActiveBaseline`. Beide zijn smal; de review vond geen ruimere vrijstelling. Gevonden door
+     de review van #932. — B
 
 1591. **VERVOLG (#804): de vormcontrole voor codetemplates in de verliescontrole blijft tot stap 5.**
      De lezer haalt codedefinities uit `OPS_StructureMeta` en gebruikt de templates (`IFCSIMPLEPROPERTYTEMPLATE`,
@@ -7934,3 +7981,99 @@ en noem het in je rapport of PR-tekst.
       Richting: met de flag `ifcx` het type vóór het rekenen
       kennen (bijvoorbeeld de vragen en de merge na het venster), wat de volgorde van main voor hetzelfde type verandert;
       een keuze van de eigenaar. Gevonden bij F3-5. — B (code; (a) tot en met (c) niet in een proef nagespeeld)
+
+2394. **IFCX in de browser: Opslaan als verbreekt de koppeling met het geopende bestand.** Met de experimentele
+      instelling voor IFCX aan opent Chrome of Edge een eigen `.ifcx`-bestand met een schrijfbare verwijzing, en
+      Ctrl+S werkt dat bestand bij. Kiest de planner daarna *Opslaan als*, dan downloadt de app een kopie (in
+      `fileSlice.ts` gaat een IFCX-document buiten de desktop-app via `saveNewBytesDialog`), en volgens de bouwer van
+      de gids vervalt daarmee de schrijfbare koppeling: elke volgende Ctrl+S is weer een download. De uitleg bij die
+      download (`notifications.browserSavesAsDownload`, `src/state/browserSaveNotice.ts`) kan Chrome of Edge aanraden
+      aan iemand die al in die browser werkt. Bij een gewone IFC-planning wordt het gekozen bestand wel het nieuwe
+      opslagdoel. Hoort bij 2389 (de typekeuze en de browser). De keuze van de route is gelezen in de code; het
+      vervallen van de koppeling en de melding zijn gemeld en niet nagespeeld in een browser. Gevonden bij de
+      herstelronde van de gids voor IFCX (#804, F3-7); de gids beschrijft het gedrag zoals het is. Richting: in de
+      browser het opslagvenster ook voor IFCX gebruiken, of de koppeling met het origineel houden na een download.
+      Vóór de flag `ifcx` standaard aan gaat. — S
+2395. **XER-export: een ingevulde einddatum van het project gaat niet mee en staat niet in de verliesmelding.** Vult
+      de planner bij *Projectinstellingen* een einddatum in die na de laatste taak ligt, terwijl *Speling rekenen tot
+      de einddatum van het project* uit staat, dan laat de XER-schrijver die datum weg
+      (`src/services/xer/xerWriter.ts`), en de lezer leidt bij heropenen de einddatum af uit de taken
+      (`src/services/xer/xerReader.ts`). De verliesmelding na de export (`src/state/xerExportNotice.ts`) heeft er geen
+      regel voor. De IFC-schrijver bewaart de ingevulde datum wel. Ook op main. Gevolgd in de code door de reviewer
+      van de gids voor IFCX (#1303, ronde 2), niet nagespeeld in de app; de gids zegt daarom dat de melding alleen de
+      verliezen noemt die de app herkent. Richting: een regel in de verliesmelding voor de ingevulde einddatum, of de
+      datum meeschrijven. — S
+
+2396. **Een IFCX-bouwdeel waarvan de klasse alleen via lokale erfenis geldt, ontbreekt in de bronindex.**
+      `readIfcxModelSource` leest bijdragen op hun letterlijk opgegeven pad. Het volgt geen `inherits` of
+      `children` om een klasse op een ander pad te bepalen. Vóór de IFCX-flag standaard aan gaat, de samengestelde
+      kindpaden en erfenis over meerdere lagen toetsen, ook bij een cyclus. — S (ontwerpstap fase 4, §6)
+
+2397. **De leestijd en het piekgeheugen voor een groot extern IFCX-model zijn onbekend.** De proef van
+      `readIfcxModelSource` gebruikt kleine bestanden. Meet vóór het standaard aanzetten van IFCX in CI
+      hoeveel tijd en geheugen het hashen, decoderen en indexeren van echte modellen met geometrie kost.
+      De meting onder 2350 gaat over het opslaan van een planning. — S (ontwerpstap fase 4, §4 en §6)
+
+2404. **Een kring van ouders in een vreemde IFCX-planning kan taken zonder zichtbare wortel opleveren.**
+      De import van `openaec::planning::activity.parent` controleert of elke ouder een taak is.
+      Twee taken die elkaar als ouder noemen voldoen daaraan. Vóór de IFCX-flag standaard aan gaat
+      de kring door de laadroute toetsen en bepalen hoe de planner die taken terugvindt. — S
+
+2405. **Een ongeldige veldwaarde op een tweede werkplan kan de import van het eerste werkplan weigeren.**
+      De IFCX-lezer toetst de bekende velden voordat hij het werkplan kiest. Tel een overgeslagen werkplan
+      bij de gegevens die in de bron achterblijven en toets de veldwaarden van de ingelezen objecten. — S
+
+2406. **Een verwijderde relatievertraging kan bij IFCX-import terugkomen.** Laat een ander programma beide
+      gedeelde vertragingsvelden weg, dan kan de oude waarde uit `openaec::ops::sequence.lag` blijven staan.
+      Vergelijk beide gedeelde velden samen met de projectie van de precieze vertraging, ook als ze ontbreken. — S
+
+2407. **Overgeslagen werkschema’s ontbreken in de opgave van wat in de IFCX-bron achterblijft.**
+      De lezer kiest één werkschema bij het eerste werkplan. Neem de overige werkschema’s mee in
+      `leftBehind`, zodat de planner ze vóór de eerste eigen opslag terugziet. — S
+
+2409. **Een ongebruikelijke alias van een IFCX-model kan buiten de bestandsvergelijking vallen.**
+      De app herkent het bronpad en de bestandsidentiteit die het platform teruggeeft. Controleer vóór
+      het standaard aanzetten ook aliassen op volumes zonder betrouwbare bestandsidentiteit en een
+      externe vervanging tussen de laatste controle en het plaatsen. — S (ontwerpstap fase 4, §6)
+
+2410. **Bij opnieuw kiezen van een open IFCX-planning toont het tabblad de vorige modelcontrole.**
+      De app controleert het buurmodel opnieuw. Als dezelfde versie van de planning al open is, activeert
+      ze het bestaande tabblad en vervalt de nieuwe controle. Een inmiddels gewijzigd model wordt pas
+      zichtbaar na sluiten en heropenen. Leg bij stuk 5 vast hoe de modelcontrole op het open tabblad
+      wordt ververst met behoud van de onopgeslagen planning. Gevolgd in de code bij de review. — S
+
+2411. **Chromium kan een IFCX-model leegmaken als het als doel voor een ander document wordt gekozen.**
+      Kiest de planner bij *Opslaan als* via *Alle bestanden* een bestaand IFCX-model, dan kapt de
+      browser het bestand af voordat de app de handle krijgt en het doel kan weigeren. Dezelfde grens
+      als bij 1899 en 2366 geldt ook voor een model van een ander. Gevolgd in de code, niet gemeten in
+      de browser. Vóór de flag `ifcx` standaard aan gaat: een kiezer die het bestand intact laat, of
+      een bevestiging vóór de kiezer. — S
+
+2415. **Een hoofdtaak met een lege vroege eindtijd kan na openen tot het einde van haar kinderen lopen.**
+      In een variant van `precieze-taken.ifcx` heeft Pakket 0 een vroege start van 07:00, een geplande start
+      van 09:00, een leeg vroeg einde en een gepland einde op 1 maart 16:00. Na openen begint de taak om 07:00 en eindigt ze
+      op 5 maart 00:00. De 09:00 blijft de geplande invoer. De proef ziet dit bij beide herkomsten, ook als een
+      andere taak ‘datums zoals opgeslagen’ aanzet. De gedeelde IFC-laadroute geeft `captureRecordedDates`
+      alleen een volledig vroeg paar als rekenuitvoer (ADR 0330). Ook de eigen IFCX-lezer met bronformaat en de
+      STEP-lezer zonder XER-brontijden volgen die regel bij dezelfde velden (lege IFCX-tijd of STEP-slot `$`).
+      Richting: in de gedeelde functie de vastlegging per kant beoordelen, met de vroege start van het restwerk
+      en de eerdere werkelijke start van een lopende taak als proef. — B
+
+2422. **Een MCP-backup van een planning bij een IFCX-model laat de modelverwijzing stil weg.**
+      *MCP → Veiligheid → Nu backup maken* en de automatische backup langs dezelfde schrijfroute schrijven
+      een STEP-kopie van de planning. Die kopie bevat de modelverwijzing en de bouwdeelkoppelingen niet, en de
+      app meldt dat niet (de backupknop zegt *Backup gemaakt*). De IFCX-planning zelf en het model blijven
+      ongewijzigd. *Exporteren → IFC*, met en zonder bibliotheekbestand, meldt het verlies; de tool
+      `planner_export_ifc` meldt het in haar antwoord zolang de flag `ifcx` aan staat. Zet de planner de
+      flag uit terwijl zo'n planning nog open is, dan ontbreken de koppelingen in de STEP-export en
+      ontbreekt ook die melding. Nog na te gaan: *Toepassen* in het IFC-paneel op zo'n planning. Vóór de flag `ifcx` standaard aan gaat: de backup van zo'n planning als IFCX schrijven en één
+      plek kiezen waar elke STEP-kopie van zo'n document langs moet (`buildWriteIFCInput`). Neem daarbij het
+      heropenen mee: een IFCX-backup staat in de backupmap en niet naast het model, dus de zoekactie naar het
+      buurmodel vindt het model daar niet. Gevolgd in de code bij de review van #1320, ronde 3 en 4. — S
+
+2423. **Bij Opslaan als IFC kan de omzetvraag verschijnen voor een doel dat de app daarna weigert.**
+      Kiest de planner bij een planning bij een IFCX-model als `.ifc`-doel een alias van het model of van
+      de geopende IFCX-planning, dan stelt de app eerst de vraag *alleen de planning*, berekent bij ja de
+      STEP-uitvoer en weigert pas daarna het doel. Er wordt niets geschreven; de planner beantwoordt een
+      overbodige vraag. Gevolgd in de code bij de review van #1324, ronde 1. Richting: het gekozen doel
+      en de documentidentiteit vóór de vraag toetsen en de laatste controle vlak vóór plaatsing houden. — S

@@ -1114,7 +1114,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
           const entry = s.documents.find((x) => x.id === r.docId);
           const stored = s.historyEvents.find((e) => e.id === r.eventId);
           if (!entry || entry.payload === null || !stored || stored.state !== 'applied') continue;
-          entry.payload = { ...entry.payload, ...r.before, isDirty: true, resourceLoadResult: null };
+          entry.payload = { ...entry.payload, ...castDraft(r.before), isDirty: true, resourceLoadResult: null };
           stored.state = 'undone';
           restoredDocIds.push(r.docId);
         }

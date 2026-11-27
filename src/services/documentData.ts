@@ -1,6 +1,6 @@
 import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
 import type { WithheldTaskTimeField } from '@/services/ifc/ifcTaskSlots';
-import type { ImportResult, RecordedTimesOrigin } from '@/services/importTypes';
+import type { ReadImportResult, RecordedTimesOrigin } from '@/services/importTypes';
 import type { DocumentPayload } from '@/state/documentContract';
 import { migrateToMinuteModel } from '@/state/migrations/minuteModel';
 import { unrecordedExportFields } from '@/state/recordedDatesSelectors';
@@ -10,10 +10,10 @@ import { normalizeComparedBaselines } from '@/types/baseline';
 export type ImportedDocumentData = Pick<DocumentPayload,
   | 'project' | 'calendar' | 'tasks' | 'sequences' | 'resources' | 'assignments' | 'calendars'
   | 'activityCodeTypes' | 'customFieldDefs' | 'customTaskTypes' | 'baselines' | 'activeBaselineId' | 'comparedBaselineIds'
-  | 'xerImportMetadata' | 'xerSourceArchive' | 'xerSourceProjectId' | 'ifcSource' | 'foreignSourceMark'
+  | 'xerImportMetadata' | 'xerSourceArchive' | 'xerSourceProjectId' | 'ifcSource' | 'foreignSourceMark' | 'ifcxReferences'
   | 'taskTypesVisible' | 'importPristine' | 'xerArchiveIssue' | 'ifcGlobalIds' | 'ifcLiteralCalendarIds' | 'minuteModelPending'>;
 
-export function documentDataFromImport(parsed: ImportResult): ImportedDocumentData {
+export function documentDataFromImport(parsed: ReadImportResult): ImportedDocumentData {
   const data: ImportedDocumentData = {
     project: parsed.project,
     calendar: parsed.calendar,
@@ -32,6 +32,7 @@ export function documentDataFromImport(parsed: ImportResult): ImportedDocumentDa
     xerSourceArchive: parsed.xerSourceArchive ?? null,
     xerSourceProjectId: parsed.xer?.sourceProjectId ?? parsed.xerSourceProjectId ?? null,
     ifcSource: parsed.ifcSource ?? null,
+    ifcxReferences: parsed.ifcxReferences ?? null,
     // Het kenmerk zet `applyLoadedProject` (hij kent het doel) of `payloadFromInput` (herstel).
     foreignSourceMark: null,
     // Het geladen bestand ontsluit de werkregel-UI voor zichzelf.
@@ -93,7 +94,7 @@ export type IFCSaveSource = Pick<
     // #804 fase 1a: `buildWriteIFCInput` leest dit veld niet, dus een gewone opslag en een export blijven gelijk aan
     // main. Alleen de herstelsnapshot (`recoverySnapshotInput`) en de MCP-backup (`backupService.ts`, fixronde 3)
     // voegen het kenmerk zelf toe.
-    | 'foreignSourceMark'>>;
+    | 'foreignSourceMark' | 'ifcxReferences'>>;
 
 export type IFCWriteMode = 'merge' | 'planOnly';
 

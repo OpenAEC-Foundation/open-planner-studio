@@ -1,0 +1,20 @@
+{
+  "header": {
+    "id": "urn:voorbeeld:atelier:bijdragen", "author": "Atelier Gevel",
+    "ifcxVersion": "ifcx_alpha", "dataVersion": "1.0.0", "timestamp": "2026-11-27T09:00:00Z"
+  },
+  "imports": [],
+  "schemas": {
+    "bsi::ifc::class": {"value": {"dataType": "Object", "objectRestrictions": {"values": {"code": {"dataType": "String"}}}}},
+    "openaec::label": {"value": {"dataType": "String"}}
+  },
+  "data": [
+    {"path": "Kozijn", "attributes": {"bsi::ifc::class": {"code": "IfcDoorType"}, "openaec::label": "Eerste naam"}},
+    {"path": "Montage", "attributes": {"bsi::ifc::class": {"code": "IfcBeam"}}},
+    {"path": "Kozijn", "attributes": {"bsi::ifc::class": {"code": "IfcWindowType"}}},
+    {"path": "Kozijn", "attributes": {"openaec::label": "Kozijn café"}},
+    {"path": "Montage", "attributes": {"bsi::ifc::class": {"code": "IfcTask"}}},
+    {"path": "Latei", "attributes": {"openaec::label": "Boven het kozijn"}},
+    {"path": "Latei", "attributes": {"bsi::ifc::class": {"code": "IfcBeam"}}}
+  ]
+}

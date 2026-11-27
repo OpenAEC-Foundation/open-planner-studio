@@ -1,0 +1,12 @@
+{
+  "header": {
+    "id": "urn:voorbeeld:atelier:aanbouw", "author": "Atelier Aanbouw",
+    "ifcxVersion": "ifcx_alpha", "dataVersion": "1.0.0", "timestamp": "2026-11-27T10:00:00Z"
+  },
+  "imports": [{"uri": "urn:voorbeeld:atelier:gevel"}],
+  "schemas": {},
+  "data": [
+    {"path": "Gevel/West", "attributes": {"openaec::label": "Bestaande muur"}},
+    {"path": "Aanbouw/Dak", "attributes": {"bsi::ifc::class": {"code": "IfcRoof"}, "openaec::label": "Nieuw dak"}}
+  ]
+}

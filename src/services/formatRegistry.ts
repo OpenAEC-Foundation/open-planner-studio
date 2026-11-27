@@ -191,10 +191,10 @@ const READ_FORMATS: ReadFormat[] = [
 
 const IFCX_FORMAT: ReadFormat = {
   id: 'ifcx', extensions: ['ifcx'], kind: 'binary', filterName: 'IFCX Files', canBeSaveTarget: true,
-  read: async (i) => {
+  read: async (i, labels) => {
     if (!i.bytes) throw new Error('IFCX requires binary content');
-    const { openOwnIfcx } = await import('@/services/ifc/ifcxOpen');
-    return openOwnIfcx(i.bytes);
+    const { openIfcx } = await import('@/services/ifc/ifcxOpen');
+    return openIfcx(i.bytes, i.name, labels);
   },
 };
 

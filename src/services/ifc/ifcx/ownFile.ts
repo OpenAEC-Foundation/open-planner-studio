@@ -5,7 +5,8 @@ import { identityProblems, type PlanningModel } from './identity';
 import { HEADER_VALUE } from './ownAttributes';
 import { attributeValueProblem } from './schemaCheck';
 import { IfcxWriteRefusedError, type IfcxErrorPlace } from './ifcxErrors';
-import { PLANNING_NAMESPACE, type IfcxAttributeName } from './profile';
+import { PLANNING_NAMESPACE } from './profile';
+import type { IfcxModelReferences } from './modelReferences';
 import { composeIfcxDocument, globalIdsOf, objectLabels, type IfcxDocument } from './projection';
 
 export type CanonicalPlanning = ImportResult & Pick<WriteIFCInput, 'minuteModelPending'>;
@@ -30,7 +31,7 @@ const isSharedAttribute = (name: string) => name.startsWith(PLANNING_NAMESPACE);
 
 function invalidAttributesIn(document: IfcxDocument, objectAt: () => Map<string, string>): IfcxWriteRefusedError | undefined {
   for (const entry of document.data) {
-    const attributes = Object.entries(entry.attributes) as [IfcxAttributeName, Record<string, unknown>][];
+    const attributes = Object.entries(entry.attributes);
     for (const [name, value] of [...attributes.filter(([name]) => !isSharedAttribute(name)), ...attributes.filter(([name]) => isSharedAttribute(name))]) {
       const problem = attributeValueProblem(entry.path, name, value);
       if (problem) {
@@ -42,7 +43,7 @@ function invalidAttributesIn(document: IfcxDocument, objectAt: () => Map<string,
   return undefined;
 }
 
-export function ownFileFor(planning: PlanningModel, writtenAt: Date, attributeValues: 'checked' | 'deferred' = 'checked'): OwnFile {
+export function ownFileFor(planning: PlanningModel & IfcxModelReferences, writtenAt: Date, attributeValues: 'checked' | 'deferred' = 'checked'): OwnFile {
   if (Number.isNaN(writtenAt.getTime())) throw refused(['Het moment van schrijven is geen geldige datum'], ['header.timestamp']);
   assertIdentity(planning);
   const globalIdOf = globalIdsOf(planning);
