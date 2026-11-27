@@ -1,44 +1,3 @@
-/**
- * De `.xlsx`-schrijver voor het voortgangsblad.
- *
- * Dit blad heeft kolommen op maat, alleen de invulcellen bewerkbaar, een percentage dat buiten 0–100
- * geweigerd wordt, en datums die als **datum** in de cel staan zodat de terugimport nooit de
- * dag/maand-vraag hoeft te stellen.
- *
- * De schrijver blijft **puur**: geen store, geen React, geen `@tauri-apps/*`, geen i18n. Alle
- * gebruikerszichtbare tekst komt van buiten via `ProgressXlsxText`.
- *
- * ## De valstrikken die dit bestand dragen
- *
- * 1. **OOXML-schema's zijn `xsd:sequence`, geen `xsd:all`.** Een element op de verkeerde plek geeft
- *    geen nette foutmelding maar "Excel heeft onleesbare inhoud gevonden". `CT_Worksheet` eist
- *    `dimension → sheetViews → sheetFormatPr → cols → sheetData → sheetProtection → dataValidations`;
- *    `CT_Stylesheet` eist `numFmts → fonts → fills → borders → cellStyleXfs → cellXfs →
- *    cellStyles → dxfs → tableStyles`. `buildProgressXlsxParts` is daarom geëxporteerd: de
- *    structurele test asserteert die volgordes zónder een ZIP te hoeven uitpakken.
- * 2. **Twee fills, en de tweede MOET `gray125` zijn.** Een historische Excel-quirk. Laat je hem weg,
- *    dan schuiven alle fill-indexen op en kleurt het blad verkeerd. Daarom hergebruikt de grijze
- *    verzamelrij-markering diezelfde `gray125` in plaats van een derde fill toe te voegen.
- * 3. **De polariteit van `sheetProtection` is omgekeerd aan wat je verwacht: `1` betekent VERBODEN.**
- *    `selectLockedCells="0"` betekent dus "vergrendelde cellen mág je selecteren" (nodig om te lezen
- *    en te kopiëren) en `formatColumns="0"` betekent "kolombreedte aanpassen mág". Een omgedraaide
- *    boolean levert een blad op dat precies het omgekeerde doet, zónder dat er iets stukgaat — daarom
- *    staat hier een test op, en hoort bij een wijziging een handmatige controle in een echte
- *    spreadsheet.
- * 4. **De instructietekst telt NIET mee in de kolombreedte.** Anders werd elke kolom 70+ tekens breed.
- *    De breedte volgt de data plus de kále kolomsleutel; de kopcel krijgt `wrapText` en de kopregel
- *    een vaste hoogte, zodat de instructie zichtbaar blijft zonder de kolom op te blazen.
- * 5. **Percentages gaan met decimalen.** In een `.xlsx`-cel staat een getal, geen tekst, dus een
- *    landinstelling kan "8,38" hier niet als 838 lezen. Gevolg: een taak op 1/3 komt exact als no-op
- *    terug.
- * 6. **Geen `sharedStrings`-part**: `t="inlineStr"` scheelt een part en een indirectie. De LEZER moet
- *    `sharedStrings` wél aankunnen, want Excel herschrijft het bestand bij opslaan en gebruikt dan
- *    vrijwel altijd wél zo'n part.
- * 7. **De exportstand staat in een verborgen, vergrendelde negende kolom** (`OPS Export`, zie
- *    `exportState.ts`), niet op een apart werkblad. De lezer leest alleen het eerste werkblad, en op
- *    dezelfde rij blijft de stand bij zijn taak, ook na sorteren of filteren. Hij staat er alleen met
- *    `exportedAt`: zonder dat argument blijft dit het blad met acht kolommen.
- */
 import type { Task } from '@/types/task';
 import { encodeProgressExportState } from '@/services/progressImport/exportState';
 import { escapeXmlText, escapeXmlAttr } from '@/services/xlsx/xmlText';
@@ -46,43 +5,29 @@ import { isoHasClock, isoToSerial } from '@/services/xlsx/serialDate';
 import { writeZip } from '@/services/zip/zipWriter';
 import { shownStart, shownFinish } from '@/utils/taskDates';
 
-/** Sleutels van het voortgangsblad, letterlijk — nooit vertaald: de lezer matcht hierop, dus de
- *  sleutel zelf blijft in elke UI-taal Engels. Alleen de instructie ÁCHTER de sleutel varieert. */
 export type ProgressSheetColumnKey =
   | 'OPS Task ID' | 'WBS' | 'Name' | 'Start' | 'Finish'
   | 'Completion (%)' | 'Actual Start' | 'Actual Finish' | 'OPS Export';
 
-/** Alle gebruikerszichtbare tekst komt van BUITEN; de schrijver blijft puur (geen i18n in `services/`). */
 export interface ProgressXlsxText {
-  /** Instructie per kolomsleutel, ` — ` achter de kale sleutel geplakt. */
   headerNotes?: Partial<Record<ProgressSheetColumnKey, string>>;
-  /** Markeertekst voor de drie invulcellen van een verzameltaak; MOET met een em-dash beginnen. */
   summaryNote?: string;
-  /** Bladnaam in de werkmap; wordt gesaneerd naar wat Excel toelaat. */
   sheetName?: string;
-  /** De vier teksten van de invoervalidatie (titels + foutmeldingen). */
   validation?: { percentTitle: string; percentError: string; dateTitle: string; dateError: string };
 }
 
 export interface ProgressXlsxOptions {
-  /** Exportmoment (ISO in UTC). Zet de exportstand in het blad; zonder dit geen negende kolom. */
   exportedAt?: string;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Kolommen
-// ─────────────────────────────────────────────────────────────────────────────
 
 type ColumnKind = 'text' | 'date' | 'percent';
 
 interface ColumnSpec {
   key: ProgressSheetColumnKey;
   kind: ColumnKind;
-  /** Invulkolom (ontgrendeld) of alleen-lezen kolom (vergrendeld onder de bladbeveiliging). */
   editable: boolean;
 }
 
-/** De acht zichtbare kolommen, in bladvolgorde. */
 const COLUMNS: readonly ColumnSpec[] = [
   { key: 'OPS Task ID', kind: 'text', editable: false },
   { key: 'WBS', kind: 'text', editable: false },
@@ -94,10 +39,8 @@ const COLUMNS: readonly ColumnSpec[] = [
   { key: 'Actual Finish', kind: 'date', editable: true },
 ];
 
-/** De verborgen kolom met de exportstand, achter de acht kolommen van het blad. */
 const EXPORT_STATE_KEY: ProgressSheetColumnKey = 'OPS Export';
 
-/** 0-gebaseerde kolomindex → `A`, `B`, … `AA`. */
 function columnLetter(index: number): string {
   let n = index;
   let out = '';
@@ -108,29 +51,19 @@ function columnLetter(index: number): string {
   return out;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Stijlen (bewust geteld: tien `cellXfs`, waarvan vier ontgrendeld)
-// ─────────────────────────────────────────────────────────────────────────────
-
 const STYLE = {
-  /** 0 — kaal, alleen voor cellen zonder eigen betekenis. */ default: 0,
-  /** 1 — kopcel: vet, `wrapText`, vergrendeld. */            header: 1,
-  /** 2 — alleen-lezen tekst. */                              roText: 2,
-  /** 3 — alleen-lezen datum (`numFmt` 164). */               roDate: 3,
-  /** 4 — alleen-lezen datumtijd (`numFmt` 165). */           roDateTime: 4,
-  /** 5 — invul-tekst (ontgrendeld). */                       fillText: 5,
-  /** 6 — invul-percentage (ontgrendeld, `numFmt` 166). */    fillPercent: 6,
-  /** 7 — invul-datum (ontgrendeld, `numFmt` 164). */         fillDate: 7,
-  /** 8 — invul-datumtijd (ontgrendeld, `numFmt` 165). */     fillDateTime: 8,
-  /** 9 — verzamelrij-markering: vergrendeld ondanks de ontgrendelde kolom, grijze fill. */ summary: 9,
+  default: 0,
+  header: 1,
+  roText: 2,
+  roDate: 3,
+  roDateTime: 4,
+  fillText: 5,
+  fillPercent: 6,
+  fillDate: 7,
+  fillDateTime: 8,
+  summary: 9,
 } as const;
 
-/**
- * De kolomstijl staat óók op `<col>`, niet alleen op de cellen. Dat is geen dubbelop: zonder
- * kolomstijl is de kolom ónder de laatste rij vergrendeld en tekstueel opgemaakt, en erft een lege
- * invulcel zónder eigen `<c>` niets. De per-cel stijl blijft desondanks nodig, want een
- * verzameltaakrij moet binnen een ontgrendelde kolom juist vergrendeld zijn.
- */
 function columnStyle(col: ColumnSpec): number {
   if (!col.editable) return col.kind === 'date' ? STYLE.roDate : STYLE.roText;
   if (col.kind === 'percent') return STYLE.fillPercent;
@@ -138,37 +71,23 @@ function columnStyle(col: ColumnSpec): number {
   return STYLE.fillText;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Waarden
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Percentage met vier decimalen. `completion` is 0..1; de cel draagt 0..100 als GETAL. Buiten bereik wordt geklemd in plaats van
- * geweigerd: dit is een export van eigen state, geen invoer.
- */
 function percentValue(completion: number): number {
   if (!Number.isFinite(completion)) return 0;
   const clamped = Math.min(1, Math.max(0, completion));
   return Math.round(clamped * 1_000_000) / 10_000;
 }
 
-/** Serieel getal zonder drijvende-komma-ruis in het bestand (`46000.35416666666` → `46000.354167`). */
 function serialText(serial: number): string {
   if (Number.isInteger(serial)) return String(serial);
   return String(Number(serial.toFixed(6)));
 }
 
-/** De tekst zoals de invuller hem in de cel ziet — de maat voor de kolombreedte. */
 function displayText(kind: ColumnKind, raw: string): string {
   if (kind !== 'date') return raw;
   const serial = isoToSerial(raw);
   if (serial === undefined) return raw;
   return isoHasClock(raw) ? '0000-00-00 00:00' : '0000-00-00';
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Celbouw
-// ─────────────────────────────────────────────────────────────────────────────
 
 function inlineStringCell(ref: string, style: number, value: string): string {
   return `<c r="${ref}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${escapeXmlText(value)}</t></is></c>`;
@@ -178,14 +97,6 @@ function numberCell(ref: string, style: number, value: string): string {
   return `<c r="${ref}" s="${style}"><v>${value}</v></c>`;
 }
 
-/**
- * Eén datacel. Een lege waarde levert **geen** `<c>` op: de cel erft dan de kolomstijl, wat precies
- * de bedoeling is (ontgrendeld en als datum opgemaakt voor de invulkolommen).
- *
- * Een datumwaarde die `isoToSerial` niet kan lezen valt terug op een tekstcel — nooit op een geraden
- * datum. Dat kan alleen bij state die zelf al kapot is; stil een getal verzinnen zou een onzichtbare
- * verkeerde datum opleveren.
- */
 function dataCell(ref: string, col: ColumnSpec, raw: string, marked: boolean): string {
   if (marked) return raw ? inlineStringCell(ref, STYLE.summary, raw) : '';
   if (!raw) return '';
@@ -194,9 +105,6 @@ function dataCell(ref: string, col: ColumnSpec, raw: string, marked: boolean): s
     if (serial === undefined) {
       return inlineStringCell(ref, col.editable ? STYLE.fillText : STYLE.roText, raw);
     }
-    // De opmaak volgt de BRON, niet het getal: `2026-06-02T00:00` geeft een geheel serieel getal,
-    // maar is een moment. Met een datumstijl las de lezer er een kale datum van, en de import
-    // schoof het einde een dag op (aanval a11).
     const dated = isoHasClock(raw)
       ? (col.editable ? STYLE.fillDateTime : STYLE.roDateTime)
       : (col.editable ? STYLE.fillDate : STYLE.roDate);
@@ -206,7 +114,6 @@ function dataCell(ref: string, col: ColumnSpec, raw: string, marked: boolean): s
   return inlineStringCell(ref, col.editable ? STYLE.fillText : STYLE.roText, raw);
 }
 
-/** De acht rauwe celwaarden van één taak, in kolomvolgorde. */
 function rowValues(task: Task, marked: boolean, summaryNote: string): readonly string[] {
   return [
     task.id,
@@ -220,15 +127,10 @@ function rowValues(task: Task, marked: boolean, summaryNote: string): readonly s
   ];
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Parts
-// ─────────────────────────────────────────────────────────────────────────────
-
 const XML_DECL = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
 const NS_MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 const NS_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 
-/** Excel weigert `[]:*?/\` in een bladnaam, kapt op 31 tekens en houdt niet van een lege naam. */
 function sanitizeSheetName(name: string | undefined): string {
   const cleaned = (name ?? '')
     .replace(/[[\]:*?/\\]/g, ' ')
@@ -240,11 +142,6 @@ function sanitizeSheetName(name: string | undefined): string {
   return cleaned.length > 0 ? cleaned : 'Progress';
 }
 
-/**
- * `w ≈ maxTekenlengte × 1.05 + 2`, geklemd op `[10, 46]`. De eenheid is "aantal `0`-tekens in het
- * standaardlettertype"; de factor is de gebruikelijke marge voor niet-cijfertekens, de `+2` de
- * celpadding. De klem voorkomt zowel een onleesbaar smalle als een schermvullende kolom.
- */
 function columnWidth(maxChars: number): number {
   const raw = maxChars * 1.05 + 2;
   return Math.round(Math.min(46, Math.max(10, raw)) * 100) / 100;
@@ -279,11 +176,6 @@ function buildWorkbookRels(): string {
     + '</Relationships>';
 }
 
-/**
- * De stijlen. De kindvolgorde van `CT_Stylesheet` is een `xsd:sequence`; de verplichte minima
- * (≥ 1 font, ≥ 2 fills met `gray125` als tweede, ≥ 1 border, ≥ 1 `cellStyleXfs`) legt Excel nergens
- * uit maar eist het wel. Elk `count`-attribuut moet kloppen met het werkelijke aantal kinderen.
- */
 function buildStyles(): string {
   const numFmts = [
     '<numFmt numFmtId="164" formatCode="yyyy-mm-dd"/>',
@@ -294,7 +186,6 @@ function buildStyles(): string {
     '<font><sz val="11"/><name val="Calibri"/><family val="2"/></font>',
     '<font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font>',
   ];
-  // Fill 1 is `gray125`: verplicht aanwezig én meteen de grijze markering van de verzamelrijen.
   const fills = [
     '<fill><patternFill patternType="none"/></fill>',
     '<fill><patternFill patternType="gray125"/></fill>',
@@ -302,15 +193,6 @@ function buildStyles(): string {
   const borders = ['<border><left/><right/><top/><bottom/><diagonal/></border>'];
   const cellStyleXfs = ['<xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>'];
 
-  /**
-   * `locked` is expliciet, niet impliciet. `locked="1"` is weliswaar de default van
-   * `CT_CellProtection`, maar die default erft via `cellStyleXfs[0]` — en die keten kan een latere
-   * bewerking (een extra `cellStyleXfs`-entry, een `xfId`-wijziging, of een programma dat het blad
-   * herschrijft) stil doorsnijden. Een blad dat dán zijn vergrendeling verliest accepteert gewoon
-   * bewerkingen in de alleen-lezen kolommen, en dat merk je pas bij de terugimport. Vandaar
-   * `applyProtection="1"` + een uitgeschreven `<protection locked="1"/>` op elke stijl waarvan de
-   * vergrendeling ertoe doet — de vier ontgrendelde stijlen dragen hun `locked="0"` net zo expliciet.
-   */
   const xf = (opts: {
     numFmtId?: number; fontId?: number; fillId?: number;
     locked?: boolean; wrap?: boolean;
@@ -324,23 +206,22 @@ function buildStyles(): string {
       opts.wrap ? ' applyAlignment="1"' : '',
       opts.locked === undefined ? '' : ' applyProtection="1"',
     ].join('');
-    // `CT_Xf` is óók een sequence: `alignment` vóór `protection`.
     const children = `${opts.wrap ? '<alignment vertical="top" wrapText="1"/>' : ''}`
       + (opts.locked === undefined ? '' : `<protection locked="${opts.locked ? 1 : 0}"/>`);
     return children ? `${head}>${children}</xf>` : `${head}/>`;
   };
 
   const cellXfs = [
-    xf({}),                                                    // 0 standaard
-    xf({ fontId: 1, wrap: true, locked: true }),               // 1 kop
-    xf({ locked: true }),                                      // 2 alleen-lezen tekst
-    xf({ numFmtId: 164, locked: true }),                       // 3 alleen-lezen datum
-    xf({ numFmtId: 165, locked: true }),                       // 4 alleen-lezen datumtijd
-    xf({ locked: false }),                                     // 5 invul-tekst
-    xf({ numFmtId: 166, locked: false }),                      // 6 invul-percentage
-    xf({ numFmtId: 164, locked: false }),                      // 7 invul-datum
-    xf({ numFmtId: 165, locked: false }),                      // 8 invul-datumtijd
-    xf({ fillId: 1, wrap: true, locked: true }),               // 9 verzamelrij-markering
+    xf({}),
+    xf({ fontId: 1, wrap: true, locked: true }),
+    xf({ locked: true }),
+    xf({ numFmtId: 164, locked: true }),
+    xf({ numFmtId: 165, locked: true }),
+    xf({ locked: false }),
+    xf({ numFmtId: 166, locked: false }),
+    xf({ numFmtId: 164, locked: false }),
+    xf({ numFmtId: 165, locked: false }),
+    xf({ fillId: 1, wrap: true, locked: true }),
   ];
 
   const group = (tag: string, items: readonly string[]): string =>
@@ -359,7 +240,6 @@ function buildStyles(): string {
     + '</styleSheet>';
 }
 
-/** Eén `dataValidation`. Lege teksten worden weggelaten in plaats van als lege attributen geschreven. */
 function validationXml(opts: {
   type: 'decimal' | 'date';
   sqref: string;
@@ -372,8 +252,6 @@ function validationXml(opts: {
   const attrs = [
     `type="${opts.type}"`,
     'operator="between"',
-    // BINDEND: leeg betekent "geen wijziging". Een lege cel mag nooit een foutmelding geven, anders
-    // zou een blad met één ingevulde rij onbruikbaar zijn.
     'allowBlank="1"',
     `showInputMessage="${opts.prompt ? '1' : '0'}"`,
     'showErrorMessage="1"',
@@ -389,20 +267,6 @@ function validationXml(opts: {
   return `<dataValidation ${attrs.join(' ')}><formula1>${opts.f1}</formula1><formula2>${opts.f2}</formula2></dataValidation>`;
 }
 
-/**
- * De `sqref` van één invulkolom: rij 2 t/m `lastRow`, MÍNUS de rijen van verzameltaken.
- *
- * Waarom die uitzondering: de drie invulcellen van een verzamelrij dragen géén getal of datum maar
- * de em-dash-MEDEDELING "niet invullen" — een tekstcel. Een `date`- of `decimal`-validatie daarover is
- * tegenstrijdig: Excel toont de invulhint van een kolom die daar juist niet ingevuld mag worden, en
- * wie de cel toch aanraakt (kopiëren-plakken, of een programma dat de bladbeveiliging negeert) krijgt
- * een foutmelding over een datum i.p.v. de uitleg dat een verzameltaak zijn voortgang uit zijn
- * kinderen krijgt. De bladbeveiliging houdt de cel al vergrendeld.
- *
- * Aaneengesloten rijen worden tot één bereik samengevouwen (`G3:G7 G9`), zoals Excel zelf ook
- * schrijft; een enkele rij wordt een kale celverwijzing. Zonder taken blijft er `X2` staan —
- * `X2:X1` zou ongeldig zijn.
- */
 function fillableSqref(letter: string, markedRows: ReadonlySet<number>, lastRow: number): string {
   const ranges: string[] = [];
   let runStart: number | undefined;
@@ -433,17 +297,11 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText, options:
     headers.push(note ? `${EXPORT_STATE_KEY} — ${note}` : EXPORT_STATE_KEY);
   }
 
-  // ── breedtes ───────────────────────────────────────────────────────────────
-  // De KALE sleutel telt mee, de instructie niet. Zie de moduledoc, valstrik 4.
   const maxChars = COLUMNS.map(col => col.key.length);
   for (const task of tasks) {
     const marked = summaryNote !== undefined && task.childIds.length > 0;
     const values = rowValues(task, marked, summaryNote ?? '');
     COLUMNS.forEach((col, i) => {
-      // De verzamelrij-markering telt om dezelfde reden NIET mee als de kopinstructie: het is een
-      // mededeling van tientallen tekens, geen data. Anders liepen de drie invulkolommen meteen tegen
-      // de klem van 46 aan. De cel zelf draagt de volle tekst (Excel laat hem overlopen in de lege
-      // buurcel), alleen de BREEDTE volgt de echte waarden.
       if (marked && col.editable) return;
       const shown = displayText(col.kind, values[i] ?? '');
       if (shown.length > (maxChars[i] ?? 0)) maxChars[i] = shown.length;
@@ -456,11 +314,9 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText, options:
     ? `<col min="${COLUMNS.length + 1}" max="${COLUMNS.length + 1}" width="10" hidden="1" customWidth="1" style="${STYLE.roText}"/>`
     : '');
 
-  // ── rijen ──────────────────────────────────────────────────────────────────
   const headerCells = headers
     .map((h, i) => inlineStringCell(`${columnLetter(i)}1`, STYLE.header, h))
     .join('');
-  // Vaste kophoogte: de instructie mag wrappen zonder de kolom breed te maken.
   const rows = [`<row r="1" ht="46" customHeight="1">${headerCells}</row>`];
 
   const markedRows = new Set<number>();
@@ -472,23 +328,14 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText, options:
     const cells = COLUMNS.map((col, i) =>
       dataCell(`${columnLetter(i)}${rowNumber}`, col, values[i] ?? '', marked && col.editable),
     ).join('');
-    // Een verzameltaak krijgt geen voortgang uit het blad, dus ook geen exportstand.
     const stateCell = exportedAt !== undefined && task.childIds.length === 0
       ? inlineStringCell(`${stateLetter}${rowNumber}`, STYLE.roText, encodeProgressExportState(task, exportedAt))
       : '';
     rows.push(`<row r="${rowNumber}">${cells}${stateCell}</row>`);
   });
 
-  // ── validatiebereik ────────────────────────────────────────────────────────
-  // Begrensd tot de werkelijke laatste rij — géén open `F2:F1048576`. Bij een leeg project blijft
-  // rij 2 staan, anders zou `F2:F1` een ongeldig bereik zijn.
   const lastRow = Math.max(2, tasks.length + 1);
-  // DRIE blokken, één per invulkolom — niet twee met `G2:H…` samengevoegd. Een `dataValidation`
-  // draagt precies één `prompt`, dus een gedeeld G/H-blok gaf de kolom *Actual Finish* de tooltip
-  // van *Actual Start*. De REGEL (type/bereik/foutmelding) is voor beide datumkolommen identiek;
-  // alleen de invulhint verschilt.
   const dateRule = {
-    // 1 = 1900-01-01, 2958465 = 9999-12-31: de volle datumruimte van Excel.
     type: 'date' as const, f1: '1', f2: '2958465',
     title: text.validation?.dateTitle, error: text.validation?.dateError,
   };
@@ -501,15 +348,12 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText, options:
     { sqref: fillableSqref('G', markedRows, lastRow), opts: { ...dateRule, prompt: notes?.['Actual Start'] } },
     { sqref: fillableSqref('H', markedRows, lastRow), opts: { ...dateRule, prompt: notes?.['Actual Finish'] } },
   ]
-    // Een blad waarin élke taak een verzameltaak is houdt geen invulbare rij over; dan is een
-    // `dataValidation` zonder bereik geen "lege regel" maar ongeldige XML.
     .filter(v => v.sqref.length > 0)
     .map(v => validationXml({ ...v.opts, sqref: v.sqref }));
 
   const lastCol = exportedAt !== undefined ? stateLetter : columnLetter(COLUMNS.length - 1);
   return `${XML_DECL}<worksheet xmlns="${NS_MAIN}" xmlns:r="${NS_REL}">`
     + `<dimension ref="A1:${lastCol}${lastRow}"/>`
-    // `CT_SheetView` is ook een sequence: `pane` vóór `selection`.
     + '<sheetViews><sheetView tabSelected="1" workbookViewId="0">'
     + '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>'
     + '<selection pane="bottomLeft" activeCell="F2" sqref="F2"/>'
@@ -517,7 +361,6 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText, options:
     + '<sheetFormatPr defaultRowHeight="15"/>'
     + `<cols>${cols}</cols>`
     + `<sheetData>${rows.join('')}</sheetData>`
-    // Let op de polariteit: 1 = VERBODEN. Zie de moduledoc, valstrik 3.
     + '<sheetProtection sheet="1" selectLockedCells="0" selectUnlockedCells="0" formatColumns="0" formatRows="0"/>'
     + (validations.length > 0
       ? `<dataValidations count="${validations.length}">${validations.join('')}</dataValidations>`
@@ -525,13 +368,6 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText, options:
     + '</worksheet>';
 }
 
-/**
- * Bouwt de zes parts als losse, leesbare XML-strings — geëxporteerd zodat de structurele test de
- * kindvolgordes kan asserteren ZONDER een ZIP te hoeven uitpakken.
- *
- * `[Content_Types].xml` staat vooraan. Dat is geen spec-eis, maar wel wat elke echte OOXML-schrijver
- * doet, en sommige strikte consumers leunen erop.
- */
 export function buildProgressXlsxParts(
   tasks: readonly Task[],
   text: ProgressXlsxText = {},
@@ -547,7 +383,6 @@ export function buildProgressXlsxParts(
   ];
 }
 
-/** Verpakt de zes parts tot een `.xlsx`. Deterministisch: `writeZip` gebruikt een vaste DOS-datum. */
 export async function writeProgressSheetXLSX(
   tasks: readonly Task[],
   text: ProgressXlsxText = {},
