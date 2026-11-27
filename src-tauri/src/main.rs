@@ -67,7 +67,7 @@ fn reveal_window_fallback(app: tauri::AppHandle) {
 /// De MCP-plugin leest `runtime.json` en `open-files.json` in `<appDataDir>/mcp/` en herkent een
 /// achtergebleven bestand aan een proces-id dat niet meer leeft (`docs/mcp-ontdekking.md`). Geen
 /// JS-API van Tauri of een plugin geeft dat id, en een command hiervoor zou nieuw publiek oppervlak
-/// zijn (AGENTS.md: precies vier commands). Daarom zet deze plugin zonder commands het id vóór de
+/// zijn (AGENTS.md: precies vijf commands). Daarom zet deze plugin zonder commands het id vóór de
 /// eerste regel app-code als alleen-lezen `window.__OPS_PROCESS__.pid`, net zoals `tauri-plugin-os`
 /// zijn platformgegevens injecteert. Alleen het hoofdframe; het id is geen geheim.
 fn process_info_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
@@ -182,8 +182,6 @@ fn main() {
         // (env-read, geen domeinlogica). De twee mcp_bridge-commands sturen de MCP-bridge.
         // `place_file_exclusive` plaatst één bestand exclusief onder een nieuwe naam in dezelfde
         // map, alleen met een eigen hulpnaam en binnen de fs-scope (#804, knownbug 1131).
-        // `open_folder` opent een map binnen de app-datamap in de bestandsbeheerder van het OS
-        // (#1245; plugin-shell `open` staat alleen weblinks toe).
         .invoke_handler(tauri::generate_handler![
             commands::install_kind,
             commands::place_file::place_file_exclusive,

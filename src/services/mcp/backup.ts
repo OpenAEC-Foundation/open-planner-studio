@@ -53,14 +53,11 @@ export function resetBackupSession(): void {
   service().resetSession();
 }
 
-/** Open de ai-backups-map in de bestandsbeheerder; maakt hem eerst aan. */
 export async function openBackupFolder(): Promise<void> {
   if (!isTauri()) return;
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const { mkdir } = await import('@tauri-apps/plugin-fs');
   const dir = await join(await appDataDir(), BACKUP_ROOT);
   await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet
-  // #1245: via het eigen `open_folder`-commando, niet via plugin-shell `open` — die staat
-  // alleen weblinks toe en weigerde op Windows dit lokale pad.
   await openFolder(dir);
 }

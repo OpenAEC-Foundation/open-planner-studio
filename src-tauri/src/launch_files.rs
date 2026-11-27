@@ -5,7 +5,7 @@
 //! `std::env::args_os`; bij een tweede start uit de single-instance-callback, met de werkmap van díe start.
 //! De webview opent ze via de gewone openroute (`src/state/launchFiles.ts`).
 //!
-//! Geen command (AGENTS.md: precies vier): de paden gaan als event `ops:open-files` naar het venster.
+//! Geen command (AGENTS.md: precies vijf): de paden gaan als event `ops:open-files` naar het venster.
 //! Een event dat verstuurd wordt voordat de webview luistert, gaat verloren; daarom houdt
 //! [`LaunchQueue`] de paden vast tot de webview `ops:open-files-ready` stuurt.
 //!

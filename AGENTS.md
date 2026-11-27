@@ -214,8 +214,9 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `config.ts`, `discovery.ts`, `headlessChild.ts`). Its manifest version is in the bump register;
   `release.yml` (job `build-mcpb`) attaches it to every release. Detail: `docs/mcp-verificatie.md`.
 - **macOS shell.** `src-tauri/tauri.macos.conf.json` restores native window decorations; custom window buttons stay Windows/Linux-only. `useMacOSMenu` installs translated native menus and `nativeMenuActions` reuses shortcut actions/guards and pending-text commits. Native Quit goes through window close so the unsaved-document guard remains active. The ribbon stays available on every platform.
-- **Rust is thin.** Exactly four commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`,
-  `place_file_exclusive`); every new command is public surface. File I/O: extend `src/services/fileAccess/`, not a
+- **Rust is thin.** Exactly five commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`,
+  `place_file_exclusive`, `open_folder` — #1245, ADR 0508: opens a folder inside the app-data dir in the OS
+  file manager, because plugin-shell `open` only allows web links); every new command is public surface. File I/O: extend `src/services/fileAccess/`, not a
   Rust command. The one exception, `place_file_exclusive` (#804, knownbug 1131), moves one file to a new name in the
   same real folder and fails if that name exists (`renameat2`/`RENAME_NOREPLACE`, `renameatx_np`/`RENAME_EXCL` on
   the open folder; Windows `SetFileInformationByHandle` on the open source without replace); it refuses unless
