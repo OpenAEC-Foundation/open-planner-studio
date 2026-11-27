@@ -496,5 +496,12 @@
     "cut": "Knip",
     "fullscreen": "Schakel schermvullende weergave in/uit",
     "bringAllToFront": "Alles naar voren"
+  },
+  "ifcx": {
+    "projectInfo": {
+      "fileType": "Bestandstype",
+      "fileTypeHint": "Een ander bestandstype kies je met Bestand → Opslaan als.",
+      "schemaForIfcx": "IFCX heeft geen IFC-schema. Dit schema geldt als je de planning later als IFC opslaat."
+    }
   }
 }

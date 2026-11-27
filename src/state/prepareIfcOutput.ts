@@ -96,8 +96,9 @@ type GuardState = IFCSaveSource & Parameters<typeof ifcFullWriteBlocked>[0];
 /** Moet deze route eerst "alleen de planning" vragen? Alleen met de flag aan. Bij een ontbrekend gebouwmodel alleen
  *  Opslaan als (besluit eigenaar, 14 november 2026); de twee exports alleen met een aanwezig gebouwmodel. */
 export function planOnlyQuestionApplies(state: Parameters<typeof ifcFullWriteBlocked>[0], reason: PlanOnlyReason): boolean {
-  if (!ifcForeignContentEnabled(state.ui.featureFlags)) return false;
+  if (reason === 'ifcxXerArchive' || !ifcForeignContentEnabled(state.ui.featureFlags)) return false;
   const missing = state.foreignSourceMark?.sourceMissing === true;
+  if (reason === 'ifcxSaveAs') return missing || hasForeignContent(state.ifcSource);
   return reason === 'missingSourceSaveAs'
     ? missing && !hasForeignContent(state.ifcSource)
     : !missing && hasForeignContent(state.ifcSource);

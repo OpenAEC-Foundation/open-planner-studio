@@ -4,6 +4,7 @@ import { IFCX_FILE_FILTERS } from '@/services/formatRegistry';
 import { ifcxEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 import { isIfcxName } from '@/utils/filePath';
 import type { DocumentFileFormat } from './documentContract';
+import type { IFCWriteInput } from './ifcSaveInput';
 import { refusalNotice } from './refusalNotice';
 import type { NotifyInput } from './slices/types';
 
@@ -35,6 +36,18 @@ export function nameWithFormat(name: string, format: DocumentFileFormat): string
 
 export function documentFileFilters(format: DocumentFileFormat): FileFilter[] {
   return [...(format === 'ifcx' ? IFCX_FILE_FILTERS : IFC_FILE_FILTERS)];
+}
+
+export function saveAsFileFilters(format: DocumentFileFormat): FileFilter[] {
+  return [...documentFileFilters(format), ...documentFileFilters(format === 'ifcx' ? 'ifc' : 'ifcx')];
+}
+
+export function formatOfName(name: string): DocumentFileFormat {
+  return isIfcxName(name) ? 'ifcx' : 'ifc';
+}
+
+export function ifcxInputWithoutXerArchive(input: IFCWriteInput): IFCWriteInput {
+  return { ...input, xer: undefined, xerSourceArchive: undefined, xerSourceProjectId: undefined };
 }
 
 export function fileNameWithFormat(base: string, format: DocumentFileFormat): string {
