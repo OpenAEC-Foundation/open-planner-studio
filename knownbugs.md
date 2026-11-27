@@ -1771,6 +1771,15 @@ en noem het in je rapport of PR-tekst.
       en schrijft de feestdag naar het project. Voorstel: laat de scheidingstoets de bestaande selectie staan als het
       veld zojuist automatisch is doorgesprongen. Issue #1296. — B
 
+2520. **Lintknoppen Verwijderen en Dissolve verwijderen een taak die niet in beeld is** (volledig
+      resourcepaneel open via het tabblad Resources, daarna tabblad Start of Tabel: de selectie staat
+      nog, maar de takenlijst niet): de knoppen stonden aan terwijl Delete/Backspace in dezelfde stand
+      al geblokkeerd waren, en een klik wiste de taak ongezien. Opgelost in PR #1311: beide knoppen
+      hangen aan dezelfde gedeelde regel als de Delete-toets (`hasEditableSelection` in
+      `src/state/commands.ts` = selectie aanwezig én `isTaskListInView`), dus ze staan uit zolang de
+      takenlijst niet in beeld is. Getoetst met `tests/browser/ribbon-delete-out-of-view.spec.ts` en
+      `tests/planning/check-ribbon-delete-out-of-view.ts`. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
