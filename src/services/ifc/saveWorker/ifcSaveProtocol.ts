@@ -85,8 +85,8 @@ export function resultTransfer(result: IfcSaveResult): ArrayBuffer[] {
 export async function handleIfcSaveRequest(request: IfcSaveWorkerRequest): Promise<{ response: IfcSaveResponse; transfer: ArrayBuffer[] }> {
   try {
     if ('classify' in request) {
-      const { classifyIfcx } = await import('@/services/ifc/ifcx');
-      return { response: { id: request.id, classification: classifyIfcx(request.classify) }, transfer: [] };
+      const { classifyIfcxForApp } = await import('@/services/ifc/ifcx/appReader');
+      return { response: { id: request.id, classification: classifyIfcxForApp(request.classify) }, transfer: [] };
     }
     const result = await runIfcSaveJob(request.job);
     return { response: { id: request.id, result }, transfer: resultTransfer(result) };

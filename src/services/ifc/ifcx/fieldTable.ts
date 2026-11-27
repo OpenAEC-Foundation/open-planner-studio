@@ -8,7 +8,7 @@ export type IfcxValue =
   | { readonly dataType: 'Real'; readonly min?: number; readonly max?: number }
   | { readonly dataType: 'Boolean' }
   | { readonly dataType: 'Enum'; readonly options: readonly string[] }
-  | { readonly dataType: 'Reference' }
+  | { readonly dataType: 'Reference'; readonly accepts?: (path: string) => boolean }
   | { readonly dataType: 'Array'; readonly item: IfcxValue }
   | { readonly dataType: 'Object'; readonly members: Readonly<Record<string, IfcxMember>> };
 
@@ -159,7 +159,7 @@ function problemOf(spec: IfcxValue, value: unknown): Problem | undefined {
       if (!spec.form.pattern.test(value) || spec.form.accepts?.(value) === false) return invalidValue(`verwacht de vorm ${spec.form.name}, gevonden ${found(value)}`);
       return;
     case 'Reference':
-      return typeof value === 'string' && isIdentityPath(value) ? undefined : invalidValue(`verwacht een pad, gevonden ${found(value)}`);
+      return typeof value === 'string' && (spec.accepts ?? isIdentityPath)(value) ? undefined : invalidValue(`verwacht een pad, gevonden ${found(value)}`);
     case 'Boolean':
       return typeof value === 'boolean' ? undefined : invalidValue(`verwacht waar of onwaar, gevonden ${found(value)}`);
     case 'Real':

@@ -53,6 +53,7 @@ import {
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const examplesDir = join(root, 'public/examples');
 const fixturesDir = join(root, 'tests/fixtures/ifcx/eigen');
+const linkedFixture = () => readFileSync(join(fixturesDir, 'planning-met-model.ifcx'), 'utf8');
 
 let passed = 0, failed = 0;
 function test(name: string, action: () => void): void {
@@ -807,6 +808,9 @@ const FORM_COUNTEREXAMPLES: Readonly<Record<string, readonly unknown[]>> = {
   [ISO_DATE_OR_MOMENT_OR_EMPTY_FORM.name]: ['2027-02-30T99:99', '2027-02-30', 'gisteren'],
   [ISO_MOMENT_FORM.name]: ['', 'gisteren', '2027-02-30'],
   [VERSION_FORM.name]: ['een', '1.0'],
+  'een lokale IFCX-bestandsnaam': ['map/model.ifcx', 'model.ifc'],
+  '64 kleine hextekens': ['ABC', '0'.repeat(63)],
+  schedules: ['', 'leest'],
   'ISO 8601-duur P<dagen>D of PT<minuten>M, met een minteken voor een lead': ['P2', 'PT', '2D'],
   'urn:openaec:planner:<pad van het project>': ['urn:openaec:planner:geen-pad', 'urn:openaec:planner:00000000-0000-4000-8000-00000000000A',
     `urn:openaec:planner:t-${[...'0'.repeat(22)].map(c => c.charCodeAt(0).toString(16).padStart(4, '0')).join('')}`],
@@ -825,7 +829,7 @@ function counterexamplesOf(spec: IfcxValue): readonly unknown[] {
     case 'Integer': return [1.5, '1', ...bounds(1)];
     case 'Boolean': return ['ja'];
     case 'Enum': return ['ONBEKEND'];
-    case 'Reference': return ['geen-pad', 5, `t-${[...'0'.repeat(22)].map(c => c.charCodeAt(0).toString(16).padStart(4, '0')).join('')}`];
+    case 'Reference': return spec.accepts ? ['', '/', 5] : ['geen-pad', 5, `t-${[...'0'.repeat(22)].map(c => c.charCodeAt(0).toString(16).padStart(4, '0')).join('')}`];
     case 'Array': return ['geen lijst'];
     case 'Object': return ['geen object'];
   }
@@ -1049,6 +1053,7 @@ function fieldPathOf(spec: IfcxValue, steps: readonly string[]): string {
 
 test('elk veld in de veldtabel wordt met elk tegenvoorbeeld van zijn vorm geweigerd, door de lezer en de writer (regel A, B)', () => {
   const documents = [maximalPlan(), variantPlan(), datePlan(), ...loadPlans(), ...[...fullExamples.values()].map(kernOf)].map(input => documentOf(writeIfcx(input, CLOCK)));
+  documents.push(documentOf(linkedFixture()));
   const missing: string[] = [], wrongReader: string[] = [], wrongWriter: string[] = [];
   const outcomes = {
     'de writer weigert om dit veld': 0, 'de writer weigert in hetzelfde attribuut, waar de STEP-rondgang de waarde neerzette': 0,
@@ -1985,6 +1990,9 @@ const FORM_SAMPLES: Readonly<Record<string, readonly unknown[]>> = {
   [LOCAL_MOMENT_OR_EMPTY_FORM.name]: ['2027-06-09T08:00', '2027-06-10', ''],
   [ISO_DATE_OR_MOMENT_OR_EMPTY_FORM.name]: ['2027-06-09T08:00', '2027-06-10', ''],
   [VERSION_FORM.name]: ['1.0.1', '1.0.0'],
+  'een lokale IFCX-bestandsnaam': ['ander.ifcx', 'nieuw.ifcx'],
+  '64 kleine hextekens': ['1'.repeat(64), '2'.repeat(64)],
+  schedules: ['schedules'],
   'ISO 8601-duur P<dagen>D of PT<minuten>M, met een minteken voor een lead': ['P3D', '-PT45M'],
 };
 
@@ -2053,7 +2061,7 @@ function changesFor(document: Document, index: number, placesByAttribute: Readon
   for (const place of present) {
     const other = madeValue(place.spec, valueAt(place), paths);
     if (other !== undefined) out.push({ keys: [placeKey(place)], label: `${placeKey(place)} wordt ${JSON.stringify(other)}`, apply: d => setAt(at(d), place, structuredClone(other)) });
-    if (place.optional) out.push({ keys: [placeKey(place)], label: `${placeKey(place)} weg`, apply: d => removeAt(at(d), place) });
+    if (place.optional || other === undefined) out.push({ keys: [placeKey(place)], label: `${placeKey(place)} weg`, apply: d => removeAt(at(d), place) });
     const value = valueAt(place);
     if (Array.isArray(value) && value.length > 0) {
       out.push({ keys: [placeKey(place)], label: `${placeKey(place)} met een element erbij`, apply: d => { (containerOf(at(d).attributes[place.attribute], place.steps)![place.steps[place.steps.length - 1]] as unknown[]).push(structuredClone(value[value.length - 1])); } });
@@ -2111,7 +2119,7 @@ test('R6, deel 2 voor de mutaties: elk bestand dat readIfcx aanvaardt, is byte v
   for (const places of placesByAttribute.values()) for (const place of places) executed.set(placeKey(place), { refused: 0, accepted: 0 });
   const wrong: string[] = [];
   const tally = { geweigerd: 0, 'aanvaard en precies de projectie': 0 };
-  for (const text of r4Plans().map(plan => writeIfcx(plan, CLOCK))) {
+  for (const text of [...r4Plans().map(plan => writeIfcx(plan, CLOCK)), linkedFixture()]) {
     const base = documentOf(text);
     const seen = new Map<string, number>();
     base.data.forEach((entry, index) => {
