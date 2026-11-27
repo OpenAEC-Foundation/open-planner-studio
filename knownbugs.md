@@ -1801,6 +1801,33 @@ en noem het in je rapport of PR-tekst.
       ingeklapt. Met Eigenschappen in dezelfde opzet komt de rail na één klik in beeld met het paneel aan. Ctrl+Shift+L
       voert dezelfde opdracht uit als de knop Waarschuwingspaneel. Niet in de browser nagespeeld. — B
 
+2540. **Scrollen naar een datum geeft `NaN` als `viewStartDate` of het doel geen leesbare datum is.**
+      `computeScrollToDate` (`src/utils/ganttViewport.ts`). Nagespeeld in Node, de functie los gebundeld met esbuild:
+      zonder taken, zonder datum en met een lege `view.viewStartDate` geeft hij `NaN`; ook met één taak (start
+      2026-02-02, einde 2026-02-06), doel 2026-03-01 en een lege `viewStartDate`; en zonder taken en zonder datum met
+      `viewStartDate` 2026-01-01 en `project.statusDate` `onzin`. Bij een onleesbare `viewStartDate` geeft
+      `computeEffectiveViewStart` die invoer terug (ADR 0501), en die levert daarna `NaN`. In de code gelezen, niet in de
+      app nagespeeld: Ctrl/Cmd+Home (`nav.scrollToToday` in `shortcutRegistry.ts`) geeft de uitkomst aan `setScroll`
+      (`viewSlice.ts`); `Math.max(0, NaN)` is `NaN`, en `clampGanttScroll` met `NaN` en een bovengrens geeft in Node
+      `NaN` terug. Een IFC-bestand kan zo'n datum opleveren: in een kopie van het voorbeeld *Rijwoningen De Akkers* met
+      `StatusDate` `onzin` kwam die tekst via `readIFC` in de store, en de actie achter Ctrl/Cmd+Home zette `scrollX`
+      op `NaN` (in Node, zonder canvas); met een herstelde statusdatum gaf dezelfde actie weer een getal. De wizard
+      en een nieuw leeg project geven een geldige oorsprong. — B
+
+2541. **De fit van het project geeft een onbruikbare zoom als een taakdatum geen datum is maar wel als tekst wordt
+      vergeleken.** `computeFitToProject` (`src/utils/ganttViewport.ts`) kiest de vroegste start en het laatste einde
+      door de teksten te vergelijken en leest ze daarna pas als datum. Nagespeeld in Node, de functie los gebundeld met
+      esbuild, breedte 1000, zonder kwartierzoom, kalenderdagen, taken zonder werkelijke datums en zonder late datums:
+      taak a van 2026-02-02 tot 2026-02-06 en taak b met start 2026-02-02 en einde (`earlyFinish` en `scheduleFinish`)
+      `x2026` geven zoom en scroll `NaN`. Taak a met taak b met start `0` en einde 2026-02-06 geeft `viewStartDate` `0`,
+      zoom 0,5 (de ondergrens) en scroll 7: `parseDate` leest `0` in Node als 2000-01-01. In de code gelezen, niet in de
+      app nagespeeld: Ctrl+0 (`fitToProject`) en de fit na het openen (`pendingFit`) in
+      `useGanttViewportCoordinator.ts` geven de zoom aan `setZoom`, en `Math.max(0.5, Math.min(max, NaN))` is `NaN`.
+      Via een IFC-bestand, in Node zonder canvas: met `x2026` als taakeinde neemt `readIFC` de tekst over, maar stopt
+      het activeren van het document met een `RangeError` vóór de fit, zodat de `NaN` alleen voor de losse functie is
+      gezien; met taakstart `0` slaagt het openen en begint de berekende fit op 1999-12-31 met zoom 0,5, een verkeerde
+      uitsnede. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
