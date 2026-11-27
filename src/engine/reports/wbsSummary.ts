@@ -8,21 +8,6 @@ import {
   taskDepths, taskFinish, taskStart,
 } from './reportCommon';
 
-/**
- * WBS-/projectsamenvatting: de planning opgerold per WBS-element tot
- * een instelbaar niveau — het managementoverzicht.
- *
- * Aggregatieregels (met de duurgewogen voortgang als enige methode — resource-/kostgewogen vraagt
- * data die dit project niet per taak heeft):
- * - start/einde van een verzameltaak: de rollup uit de laatste berekening (min/max over de
- *   kinderen, `applyCpmResult`), dus identiek aan wat de Gantt toont;
- * - baseline-start/-einde: min/max over de nakomelingen in de actieve baseline;
- * - voortgang: Σ(duur × completion) / Σ(duur) over de bladnakomelingen — de gedeelde helper
- *   `summaryProgressOf` (summaryProgress.ts), dezelfde die `applyCpmResult` op de fase wegschrijft;
- * - minimale speling en de tellingen: over de bladnakomelingen.
- * `level` telt vanaf 1 (hoofdniveau); `maxLevel` 0 = de hele boom. Met `includeActivities`
- * verschijnen de bladtaken zelf ook, onder hun ouder.
- */
 export interface WbsSummaryRow {
   taskId: string;
   level: number;
@@ -34,12 +19,9 @@ export interface WbsSummaryRow {
   baselineStart?: string;
   baselineFinish?: string;
   durationDays: number;
-  /** De duur van een activiteit in haar maat (B8); ontbreekt bij een verzamelrij (die toont werkdagen). */
   duration?: MeasuredDuration;
-  /** De werktijd per dag van de taakkalender, voor Duurweergave onder P6 en MSP. */
   hoursPerDay: number;
   completion: number;
-  /** Werkdagen, getekend (+ = later dan de baseline). */
   finishVarianceDays?: number;
   minTotalFloat: number;
   isCritical: boolean;
@@ -47,7 +29,6 @@ export interface WbsSummaryRow {
 }
 
 export interface WbsSummaryOptions {
-  /** 0 = alle niveaus. */
   maxLevel: number;
   includeActivities: boolean;
 }
@@ -63,8 +44,6 @@ export function computeWbsSummary(ctx: ReportContext, opts: WbsSummaryOptions): 
   const baseMap = new Map(ctx.baseline ? ctx.baseline.tasks.map(b => [b.taskId, b]) : []);
   const projectEngine = makeEngineCache(ctx).project;
 
-  // Bladnakomelingen per taak, gememoiseerd en cyclusvast — dezelfde verzameling als de
-  // voortgangsrollup van `applyCpmResult` (`descendantLeaves`, summaryProgress.ts).
   const leafCache = new Map<string, Task[]>();
   const workDays = (l: Task) => durationDays(ctx, l);
 
@@ -89,9 +68,6 @@ export function computeWbsSummary(ctx: ReportContext, opts: WbsSummaryOptions): 
     }
     const start = taskStart(t);
     const finish = taskFinish(t);
-    // Voortgang: dezelfde helper als de verzameltaak-rollup, met dezelfde uitzonderingen — een
-    // handmatig geplande fase, of het hele document in "datums zoals opgeslagen", toont de opgeslagen
-    // waarde. Zo zegt het rapport altijd hetzelfde getal als Tabel, tooltip, PDF en MCP.
     const completion = isSummary && (!isSummaryProgressDerived(t) || ctx.datesAsRecorded)
       ? Math.round(Math.min(1, Math.max(0, t.time.completion)) * 1000) / 1000
       : summaryProgressOf(leaves, workDays).completion;
@@ -106,8 +82,6 @@ export function computeWbsSummary(ctx: ReportContext, opts: WbsSummaryOptions): 
       finish,
       baselineStart: bStart,
       baselineFinish: bFinish,
-      // De rollup meet de fase al in de projectkalender, inclusief dagdelen. Een tweede,
-      // inclusieve dagtelling zou van een halve dag weer een hele dag maken.
       durationDays: isSummary ? Math.max(0, t.time.scheduleDuration) : durationDays(ctx, t),
       ...(isSummary ? {} : { duration: durationMeasure(t) }),
       hoursPerDay: taskHoursPerDay(ctx, t),

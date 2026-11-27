@@ -211,3 +211,6 @@ bron; daarom leidt `tests/planning/run.sh` die ene import (`#binary-trie`) naar 
 `docs/adr/0380-vector-pdf-coordinaten-en-eenheden.md`, `0381-vector-pdf-paden-en-afgeronde-rechthoeken.md`,
 `0382-vector-pdf-kleur-en-doorzichtigheid.md`, `0383-vector-pdf-tekst-buiten-het-xobject-en-plaatsing.md`,
 `0384-vector-pdf-tekstwegen-en-de-dekkingspoort.md` en `0385-vector-pdf-letters-inbedden-alleen-wat-getekend-is.md`.
+
+**Besluiten van de rekenlaag van de rapporten** (`src/engine/reports/`):
+`docs/adr/0560-dcma-kritiek-padtest-en-ongeldige-datums.md` en `0561-tabelrapporten-gewicht-vensters-en-tellingen.md`.

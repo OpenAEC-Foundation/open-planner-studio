@@ -15,33 +15,6 @@ import {
 } from './reportCommon';
 import { type LogicIndex, isHardConstraint } from './logicIndex';
 
-/**
- * De DCMA 14-puntsbeoordeling: de veertien planningscontroles van de Amerikaanse Defense Contract
- * Management Agency, met hun formules en normen zoals vastgelegd in hoofdstuk 4 (en §3.1.2.3–3.1.2.4
- * voor CPLI en BEI) van de *Earned Value Management System Program Analysis Pamphlet*,
- * DCMA-EA PAM 200.1, oktober 2012 — de laatst gepubliceerde versie.
- *
- * Een "markering" is geen afkeuring. Het pamflet zelf: een rode metriek "is not in and of itself
- * synonymous with failure but rather an indicator or a catalyst to dig deeper". Daarom heet de
- * uitslag hier `flag`, niet "gezakt".
- *
- * POPULATIE (PAM §4.0): de telling sluit voltooide taken, LOE-taken (hier: hammocks), verzameltaken
- * en mijlpalen uit. "Niet-voltooide taken" is dus overal: bladtaak, geen hammock, geen mijlpaal,
- * niet voltooid. Relaties (punt 2–4) tellen mee als hun OPVOLGER zo'n taak is (PAM: "predecessor
- * relationships for incomplete tasks"); een faserelatie telt één keer, zoals de planner hem ziet.
- *
- * EIGEN KEUZES, waar het pamflet niets vastlegt of OPS het begrip niet kent (staan ook in de gids):
- * - Hoge duur (punt 8): de baselineduur als de taak in de actieve baseline staat, anders de huidige
- *   duur. Het pamflet telt alleen taken met een baselinestart binnen de detailplanningsperiode
- *   (rolling wave); die periode kent OPS niet, dus elke niet-voltooide taak telt.
- * - Resources (punt 10): alleen als het project resources gebruikt (minstens één toewijzing); anders
- *   n.v.t., zoals het pamflet voorschrijft voor een planning die niet resource-geladen is. Kosten
- *   zonder resource kent OPS niet.
- * - Punten 9, 11, 13 en 14 meten tegen de statusdatum; zonder statusdatum zijn ze n.v.t. (niet
- *   "vandaag", zoals andere rapporten: het pamflet definieert ze op de statusdatum van de planning).
- * - Kritiek-padtest (punt 12): zie `criticalPathTest`.
- * - CPLI (punt 13): zie `computeCpli`.
- */
 export type DcmaMetricId =
   | 'logic' | 'leads' | 'lags' | 'relationshipTypes' | 'hardConstraints' | 'highFloat' | 'negativeFloat'
   | 'highDuration' | 'invalidDates' | 'resources' | 'missedTasks' | 'criticalPathTest' | 'cpli' | 'bei';
@@ -52,7 +25,6 @@ export type DcmaNaReason =
   | 'notCalculated' | 'noTasks' | 'noRelations' | 'noStatusDate' | 'noBaseline' | 'nothingDue'
   | 'notResourceLoaded' | 'noCandidate' | 'finished';
 
-/** Norm: percentage ≤ max, percentage ≥ min, index ≥ min, of een test die moet slagen. */
 export type DcmaNorm =
   | { kind: 'maxPercent'; value: number }
   | { kind: 'minPercent'; value: number }
@@ -60,58 +32,41 @@ export type DcmaNorm =
   | { kind: 'test' };
 
 export interface DcmaMetric {
-  /** 1–14, de nummering van het pamflet. */
   point: number;
   id: DcmaMetricId;
   norm: DcmaNorm;
   result: DcmaResult;
   naReason?: DcmaNaReason;
-  /** Teller en noemer van een percentage of index. */
   count?: number;
   base?: number;
-  /** Percentage (0–100, één decimaal) of index (twee decimalen). */
   value?: number;
-  /** Alleen de kritiek-padtest. */
   test?: CriticalPathTestDetail;
-  /** Alleen CPLI: de twee termen van de formule, in werkdagen. */
   cpli?: { criticalPathLength: number; totalFloat: number; floatBasis: 'baseline' | 'schedule' };
 }
 
 export interface CriticalPathTestDetail {
-  /** De vertraagde taak. */
   taskId: string;
   wbs: string;
   name: string;
-  /** De eindtaak waarop de test meet. */
   endTaskId: string;
   endWbs: string;
   endName: string;
-  /** Toegevoegde duur in werkdagen. */
   slipDays: number;
-  /** Hoeveel werkdagen (projectkalender) de eindtaak daardoor opschoof. */
   endShiftDays: number;
 }
 
 export interface DcmaAssessment {
   metrics: DcmaMetric[];
-  /** Noemer van de taakpercentages: niet-voltooide taken volgens de DCMA-populatie. */
   incompleteCount: number;
-  /** Noemer van de relatiepercentages. */
   relationCount: number;
   flags: number;
   passes: number;
 }
 
-/** De normen uit PAM 200.1. 44 werkdagen = "2 maanden" (§4.6, §4.8). */
 export const DCMA_DAYS = 44;
 const MAX_PERCENT = 5;
 const MIN_FS_PERCENT = 90;
 const MIN_INDEX = 0.95;
-/**
- * Vertraging die de kritiek-padtest toevoegt. Het pamflet zegt alleen dat de duur "grossly" verlengd
- * moet worden en noemt geen getal; 100 werkdagen is onze keuze — groot genoeg om boven elke
- * realistische speling uit te komen, klein genoeg om de kalender niet voorbij zijn bereik te duwen.
- */
 export const CRITICAL_PATH_TEST_SLIP_DAYS = 100;
 
 
@@ -132,11 +87,6 @@ function na(point: number, id: DcmaMetricId, norm: DcmaNorm, naReason: DcmaNaRea
   return { point, id, norm, result: 'na', naReason };
 }
 
-/**
- * De eindtaak: de activiteit met het laatste vroege einde; bij gelijke stand een mijlpaal, daarna
- * de laatste in de lijst. Dat is de taak waarop het pamflet CPLI en de kritiek-padtest meet
- * ("the project completion date (or other milestone)").
- */
 function completionTask(leaves: readonly Task[]): Task | undefined {
   let best: Task | undefined;
   for (const t of leaves) {
@@ -148,7 +98,6 @@ function completionTask(leaves: readonly Task[]): Task | undefined {
   return best;
 }
 
-/** Verleng de (rest)duur van een taak met `days` werkdagen in haar eigen kalender. */
 function extendTask(t: Task, days: number, hoursPerDay: number): void {
   if (taskDurationUnit(t) === 'hours') {
     const add = days * hoursPerDay * 60;
@@ -160,24 +109,6 @@ function extendTask(t: Task, days: number, hoursPerDay: number): void {
   }
 }
 
-/**
- * Kritiek-padtest (PAM §4.12): verleng de duur van een kritieke taak flink en kijk of de eindtaak
- * evenredig opschuift. Doet ze dat niet, dan zit er ergens gebroken logica.
- *
- * Werkwijze, op KLONEN van de taken (het document blijft onaangeroerd, en een verouderde berekening
- * telt niet mee, want elke run rekent vers):
- * 1. Reken de planning door en bepaal de eindtaak (`completionTask`).
- * 2. Kies de testtaak: de kritieke, niet-voltooide activiteit (geen mijlpaal, niet de eindtaak, geen
- *    verplichte constraint die haar vastpint) met de vroegste start — die test de langste keten.
- * 3. Verleng haar duur met `CRITICAL_PATH_TEST_SLIP_DAYS` en reken opnieuw.
- * 4. Geslaagd als de eindtaak daarna niet vóór de testtaak eindigt: de vertraging liep door tot het
- *    einde. Eindigt de testtaak later dan de eindtaak, dan hangt ze er niet (via haar einde) aan vast.
- *
- * Een VERPLICHTE pin op de eindtaak (`hard`) gaat in de vergelijkingsruns uit. Zo'n pin houdt in OPS
- * de eindtaak op haar datum met speling 0 en drijft de negatieve speling stroomopwaarts; het pamflet
- * rekent dat als geslaagd ("show a negative total float number"). Zonder pin toetst de test precies
- * de vraag of de logica de vertraging doorgeeft, wat dezelfde uitkomst geeft.
- */
 function criticalPathTest(ctx: ReportContext, solve: ProjectSolveOptions): DcmaMetric {
   const norm: DcmaNorm = { kind: 'test' };
   const run = (mutate?: (tasks: Task[]) => void): Task[] | null => {
@@ -197,13 +128,9 @@ function criticalPathTest(ctx: ReportContext, solve: ProjectSolveOptions): DcmaM
   const unpin = (tasks: Task[]) => {
     const e = tasks.find(x => x.id === end.id);
     if (!e) return;
-    // De pin valt weg. Een zachte MSO/MFO legt in de motor hetzelfde moment vast, met dezelfde
-    // speling stroomopwaarts; dan blijft er geen kritieke kandidaat over.
     if (e.constraint?.hard) delete e.constraint;
     if (e.constraint2?.hard) delete e.constraint2;
   };
-  // Dezelfde eindtaak zonder pin geldt ook bij de kandidaatkeuze. Een harde MFO op het
-  // einde van een latere werkdag kan anders alle activiteiten positieve speling geven (D2).
   const before = endPinned ? run(unpin) : first;
   if (!before) return na(12, 'criticalPathTest', norm, 'notCalculated');
   const candidates = activityTasks(before)
@@ -236,15 +163,6 @@ function criticalPathTest(ctx: ReportContext, solve: ProjectSolveOptions): DcmaM
   };
 }
 
-/**
- * CPLI (PAM §3.1.2.3) = (CPL + TF) / CPL.
- * - CPL: de lengte in werkdagen (projectkalender, beide dagen meegeteld) van de statusdatum tot het
- *   einde van de eindtaak.
- * - TF: de speling van de eindtaak "relative to the baselined finish date" — dus het verschil in
- *   werkdagen tussen het huidige en het baseline-einde van die taak (positief = vóór de baseline).
- *   Staat de eindtaak niet in de baseline, dan haar berekende totale speling (die volgt uit een
- *   deadline of constraint, en is anders 0).
- */
 function computeCpli(ctx: ReportContext, leaves: readonly Task[], statusDay: string, baseMap: Map<string, BaselineTask>): DcmaMetric {
   const norm: DcmaNorm = { kind: 'minIndex', value: MIN_INDEX };
   const end = completionTask(leaves);
@@ -277,7 +195,6 @@ export function computeDcmaAssessment(ctx: ReportContext, logic: LogicIndex): Dc
   const n = incomplete.length;
   const count = (pred: (t: Task) => boolean) => incomplete.filter(pred).length;
 
-  // Relaties naar een niet-voltooide taak, één keer per gemodelleerde relatie.
   const links = new Map<string, { type: string; lag: number }>();
   for (const s of relations) {
     if (!incompleteIds.has(s.successorId)) continue;
@@ -314,7 +231,6 @@ export function computeDcmaAssessment(ctx: ReportContext, logic: LogicIndex): Dc
       const baselineDuration = baseMap.get(t.id)?.duration;
       if (baselineDuration !== undefined) return baselineDuration > DCMA_DAYS;
       const calendar = effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[]);
-      // Toets in minuten; het voortgangsgewicht durationDays rondt al op een tiende dag af.
       return taskDurationMinutes(t, calendar) > DCMA_DAYS * effHoursPerDay(calendar) * 60;
     }), n));
 
@@ -345,9 +261,6 @@ export function computeDcmaAssessment(ctx: ReportContext, logic: LogicIndex): Dc
   }
 
   if (!solve) metrics.push(na(12, 'criticalPathTest', { kind: 'test' }, 'notCalculated'));
-  // In de modus "datums zoals opgeslagen" toont het rapport de datums uit het bronbestand, geen
-  // berekening. De kritiek-padtest rekent zelf door (met de OPS-regels), dus zijn uitkomst hoort niet
-  // bij die datums en zou de melding tegenspreken. Na herberekenen (modus uit) draait hij weer.
   else if (!cpm || ctx.datesAsRecorded) metrics.push(na(12, 'criticalPathTest', { kind: 'test' }, 'notCalculated'));
   else metrics.push(criticalPathTest(ctx, solve));
 
@@ -360,8 +273,6 @@ export function computeDcmaAssessment(ctx: ReportContext, logic: LogicIndex): Dc
   } else if (!ctx.baseline) {
     metrics.push(na(14, 'bei', beiNorm, 'noBaseline'));
   } else {
-    // PAM §3.1.2.4: voltooid (werkelijk einde op of vóór de statusdatum) gedeeld door de taken met een
-    // baseline-einde op of vóór de statusdatum PLUS de taken zonder baseline-einde.
     const done = work.filter(t => progressState(t) === 'complete' && dayOf(t.time.actualFinish ?? taskFinish(t)) <= statusDay).length;
     const base = work.filter(t => { const bt = baseMap.get(t.id); return !bt || dayOf(bt.finish) <= statusDay; }).length;
     if (base === 0) metrics.push(na(14, 'bei', beiNorm, 'nothingDue'));
@@ -380,14 +291,6 @@ export function computeDcmaAssessment(ctx: ReportContext, logic: LogicIndex): Dc
   };
 }
 
-/**
- * Ongeldige datum (PAM §4.9): een werkelijke start of einde ná de statusdatum, of een prognose
- * vóór de statusdatum — de start van een niet-gestarte taak, het einde van een niet-voltooide taak.
- * "Ná" met dezelfde precisie als het raster (`isTaskActualPastStatusDate`); "vóór" op dagniveau, want de
- * statusdatum is de eerste dag van het restwerk (data-date-vloer van de solver). De prognose telt
- * alleen ná een berekening (`withForecast`): daarvóór zijn de getoonde datums de geplande, geen
- * prognose.
- */
 export type InvalidDateReason = 'actualStartAfterStatusDate' | 'actualFinishAfterStatusDate' | 'forecastStartBeforeStatusDate' | 'forecastFinishBeforeStatusDate';
 
 export function invalidDateReasons(t: Task, statusDate: string, statusDay: string, withForecast: boolean, calendar?: WorkCalendar): InvalidDateReason[] {
@@ -402,12 +305,10 @@ export function invalidDateReasons(t: Task, statusDate: string, statusDay: strin
   return out;
 }
 
-/** Gemiste taak (PAM §4.11): het werkelijke of prognose-einde ligt ná het baseline-einde. */
 export function isMissedTask(t: Task, bt: BaselineTask): boolean {
   return dayOf(t.time.actualFinish ?? taskFinish(t)) > dayOf(bt.finish);
 }
 
-/** Taken met minstens één resource; leeg = het project is niet resource-geladen. */
 export function resourceLoadedTaskIds(ctx: ReportContext): Set<string> {
   const ids = new Set(ctx.assignments.map(a => a.taskId));
   for (const t of ctx.tasks) if (t.resourceIds?.length) ids.add(t.id);
