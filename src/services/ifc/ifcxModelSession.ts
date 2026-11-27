@@ -1,6 +1,6 @@
 import type { FileRef } from '@/services/fileAccess';
 import type { FileIdentityFs } from '@/services/fileAccess/fileIdentity';
-import { sameLocalFile } from '@/services/fileAccess/foreignSourceTarget';
+import { sameEntry, sameLocalFile } from '@/services/fileAccess/foreignSourceTarget';
 import type { IfcxModelReferences } from './ifcx/modelReferences';
 import type { ModelSource } from './ifcx/modelSource';
 import type { TaskElementLinks } from './foreign/elementLinks';
@@ -32,20 +32,31 @@ export async function findIfcxModel(
 ): Promise<void> {
   const source = references.modelSource;
   if (!source || plan?.kind === 'site') return;
-  const handle = knownHandles.find(candidate => candidate.name === source.fileName);
-  const ref: FileRef | null = plan?.kind === 'path'
-    ? { kind: 'path', path: plan.path.slice(0, plan.path.length - basename(plan.path).length) + source.fileName }
-    : handle ? { kind: 'handle', handle } : null;
-  if (!ref) return;
-  if (plan?.kind === 'path' && ref.kind === 'path' && await sameLocalFile(plan.path, ref.path, { identityFs })) return;
-  bindIfcxModel(references, ref);
-  try {
-    const bytes = ref.kind === 'handle' ? new Uint8Array(await (await ref.handle.getFile()).arrayBuffer()) : await readPath(ref.path);
-    if (!bytes) return;
-    const { readIfcxModelSource } = await import('./ifcx/modelSource');
-    const model = await readIfcxModelSource(bytes);
-    if (model.sha256 === source.sha256) bindIfcxModel(references, ref, model.elements);
-  } catch {
-    return;
+  let candidates: Exclude<FileRef, { kind: 'site' }>[];
+  if (plan?.kind === 'path') {
+    const path = plan.path.slice(0, plan.path.length - basename(plan.path).length) + source.fileName;
+    if (await sameLocalFile(plan.path, path, { identityFs })) return;
+    candidates = [{ kind: 'path', path }];
+  } else {
+    candidates = [...new Set(knownHandles)].filter(handle => handle.name === source.fileName)
+      .map(handle => ({ kind: 'handle', handle }));
   }
+  let firstCandidate: FileRef | undefined;
+  for (const ref of candidates) {
+    if (plan?.kind === 'handle' && ref.kind === 'handle' &&
+        (plan.handle === ref.handle || await sameEntry(plan.handle, ref.handle))) continue;
+    firstCandidate ??= ref;
+    try {
+      const bytes = ref.kind === 'handle' ? new Uint8Array(await (await ref.handle.getFile()).arrayBuffer()) : await readPath(ref.path);
+      if (!bytes) continue;
+      const { readIfcxModelSource } = await import('./ifcx/modelSource');
+      const model = await readIfcxModelSource(bytes);
+      if (model.sha256 !== source.sha256) continue;
+      bindIfcxModel(references, ref, model.elements);
+      return;
+    } catch {
+      continue;
+    }
+  }
+  if (firstCandidate) bindIfcxModel(references, firstCandidate);
 }

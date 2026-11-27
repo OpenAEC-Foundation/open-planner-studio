@@ -1296,10 +1296,13 @@ await check('browser: Openen, Recent en slepen met een andere handle voor hetzel
   const { openDroppedFiles } = await import('@/state/fileDrop');
   const labels = buildImportLabels((key) => key);
   const win = window as unknown as Record<string, unknown>;
-  const handlesTo = (name: string, bytes: Uint8Array) => {
+  const handlesTo = (name: string, bytes: Uint8Array, canRead = () => true) => {
     const entry = {};
     return () => ({ kind: 'file', name, entry,
-      getFile: async () => new File([bytes.slice()], name),
+      getFile: async () => {
+        if (!canRead()) throw new DOMException('Geen leesrecht', 'NotAllowedError');
+        return new File([bytes.slice()], name);
+      },
       queryPermission: async () => 'granted', requestPermission: async () => 'granted',
       isSameEntry: async (other: { entry?: object }) => other?.entry === entry,
     }) as unknown as FileSystemFileHandle;
@@ -1337,6 +1340,13 @@ await check('browser: Openen, Recent en slepen met een andere handle voor hetzel
   try {
     for (const route of ['Openen', 'Recent', 'slepen'] as const) {
       const model = (await newApp(IFCX_ON)).store;
+      let firstReadable = true;
+      await openVia(model, route, handlesTo('model.ifcx', facade, () => firstReadable)());
+      assert.equal(model.getState().ifcxReferences?.modelSource?.sha256, hash(facade));
+      firstReadable = route !== 'Recent';
+      await openVia(model, route, handlesTo('zonder-treffer.ifcx', withModel)());
+      assert.equal(uncheckedModelLinks(model.getState()), true, `${route}: geen leesbaar model met de juiste hash`);
+      assert.deepEqual(taskElementLinks(model.getState(), model.getState().tasks[0].id)?.map(link => link.found), [false, false]);
       const source = handlesTo('model.ifcx', linkedModel);
       await openVia(model, route, source());
       assert.deepEqual(errors(model), [], route);
@@ -1346,7 +1356,7 @@ await check('browser: Openen, Recent en slepen met een andere handle voor hetzel
       model.getState().newDocument();
       assert.equal(await model.getState().foreignTargetCheck(null)({ kind: 'handle', handle: source() }), true);
       await openVia(model, route, handlesTo('planning-met-model.ifcx', withModel)());
-      assert.equal(uncheckedModelLinks(model.getState()), false, route);
+      assert.equal(uncheckedModelLinks(model.getState()), false, `${route}: het tweede gelijknamige model heeft de juiste hash`);
       assert.deepEqual(taskElementLinks(model.getState(), model.getState().tasks[0].id)?.map(link => link.found), [true, false]);
       const { store, first, taskId, edited } = await opened(IFCX_ON, 'plan.ifcx', own, route);
       assert.deepEqual(errors(store), [], route);
