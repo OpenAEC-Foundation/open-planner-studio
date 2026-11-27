@@ -46,15 +46,10 @@ export interface XerMetadataTaskProjection extends XerTaskMetadata {
   taskId: string;
 }
 
-/**
- * Eén immutable, bestandsbreed catalogusobject. De raw tabellen zijn rechtstreeks de reeds bevroren
- * parser-rijarrays: geen tweede celkopie, ook niet voor rehab-2's TASKACTV-massa.
- */
 interface XerMetadataCatalogShape {
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
   taskProjections: XerMetadataTaskProjection[];
-  /** Diep bevroren projectindex; materialisatie bezoekt uitsluitend deze projectgroep. */
   taskProjectionsByProject: Record<string, XerMetadataTaskProjection[]>;
   issues: XerMetadataIssue[];
   issueCounts: Record<XerMetadataIssueCode, number>;
@@ -73,13 +68,11 @@ interface XerMetadataCatalogShape {
   };
 }
 
-/** De canonieke recursieve readonly-grens, over de volledige catalogusgrafiek. */
 export type XerMetadataCatalog = XerReadonly<XerMetadataCatalogShape>;
 
 export interface XerMetadataProjectView {
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
   taskMetadata: ReadonlyMap<string, XerTaskMetadata>;
-  /** Deterministische complexiteitspin: exact het aantal bezochte projecties uit de projectindex. */
   visitedTaskProjectionCount: number;
 }

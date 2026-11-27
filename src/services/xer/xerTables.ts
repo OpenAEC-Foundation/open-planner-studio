@@ -1,21 +1,8 @@
-/**
- * XER-tabelgrammatica, zelfstandig hergeimplementeerd voor Open Planner Studio.
- *
- * Voor begrip van de recordstructuur en de tweepas rond CURRTYPE is MPXJ geraadpleegd:
- * https://github.com/joniles/mpxj (Primavera `XerFile`, LGPL-2.1, Jon Iles e.a.). Er is geen
- * MPXJ-code overgenomen; deze parser heeft een eigen tokenizer, rapportvorm en getalparser.
- */
+// Bron: MPXJ Primavera `XerFile` als referentie, geen code overgenomen (LGPL-2.1, github.com/joniles/mpxj).
 import { decodeWindows1252 } from '@/utils/windows1252';
 
 
-/** Tekstcodering van een XER (besluit B17: BOM, anders UTF-8, anders een enkelbyte-codetabel). De
- *  enkelbyte-keuze is Windows-1252, tenzij de tekst eenduidig Cyrillisch (1251), Grieks (1253) of
- *  Arabisch (1256) is — zie `detectSingleByteEncoding` (review PR #109, N3). */
 export type XerEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252' | 'windows-1251' | 'windows-1253' | 'windows-1256';
-/**
- * XER is inhoudelijk tekst, maar encodingdetectie vereist de oorspronkelijke bytes. De registry
- * bedraadt XER daarom als `binary` en mag een reeds gedecodeerde string nooit opnieuw encoderen.
- */
 export const XER_TRANSPORT_KIND = 'binary' as const;
 export type XerByteInput = Uint8Array;
 export type XerImportErrorCode =
@@ -141,8 +128,6 @@ export interface XerNumberFormat {
   currencyCode: string;
 }
 
-// MPXJ's afzonderlijke NotesHelper-aanroepen zijn alleen als gedragsreferentie gebruikt. Deze
-// expliciete tabel/veldmatrix voorkomt dat DEL-DEL in kalenderdata of andere structured text wijzigt.
 const P6_NOTE_FIELDS = new Set([
   'ACCOUNT.acct_descr',
   'ROLES.role_descr',
@@ -156,7 +141,6 @@ const P6_NOTE_FIELDS = new Set([
 
 const P6_NOTE_TABLES = new Set([...P6_NOTE_FIELDS].map(key => key.slice(0, key.indexOf('.'))));
 
-/** Decodeer uitsluitend P6-notitievervuiling en de DEL-DEL-regelovergang. */
 export function decodeXerNoteText(raw: string): string {
   const withoutContamination = Array.from(raw)
     .filter(char => ![0, 0xfeff, 0xfffe].includes(char.charCodeAt(0)))
@@ -165,19 +149,10 @@ export function decodeXerNoteText(raw: string): string {
 }
 
 function decodeTextCell(table: string, field: string, raw: string): string {
-  // Draait voor élke cel (rehab-2: ±0,8 s bij openen). Zonder aanhalingsteken valt er niets te
-  // ontdubbelen, en de notitiesleutel wordt alleen samengesteld voor de acht notitietabellen.
   const unquoted = raw.includes('"') ? raw.replace(/""/g, '"') : raw;
   return P6_NOTE_TABLES.has(table) && P6_NOTE_FIELDS.has(`${table}.${field}`) ? decodeXerNoteText(unquoted) : unquoted;
 }
 
-/**
- * Gezaghebbende parser/readergrens: per ingelezen tabel de kolommen waaraan OPS daadwerkelijk
- * betekenis geeft. De tabelselectie wordt uit dezelfde inventaris afgeleid, zodat een tabel nooit
- * wel geparseerd maar buiten de bekende-veldencontrole kan vallen. Een lege lijst is bewust: de
- * tabelrijen worden retained voor brongetrouwheid, maar nog geen veld wordt door de live lezer
- * geïnterpreteerd. Een gevuld onbekend veld is dan dus echte niet-gerepresenteerde informatie.
- */
 export const XER_KNOWN_FIELDS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
   PROJECT: [
     'proj_id', 'sum_base_proj_id', 'clndr_id', 'proj_short_name', 'proj_name',
@@ -237,8 +212,6 @@ export const XER_KNOWN_FIELDS_BY_TABLE: Readonly<Record<string, readonly string[
     'sched_use_project_end_date_for_float', 'schedhash', 'schedoptions_id',
     'use_total_float', 'use_total_float_multiple_longest_paths',
   ],
-  // Nivelleerresourcelijst per SCHEDOPTIONS-rij (P6 "Level Resources → Select resources"); alleen
-  // gelezen als instelling (`xerScheduleOptions.ts`, `SchedulingOptions.leveling`), nooit als rekeninvoer.
   RSRCLEVELLIST: ['rsrc_level_list_id', 'schedoptions_id', 'rsrc_id'],
   ACTVTYPE: [
     'actv_code_type_id', 'parent_actv_code_type_id', 'actv_code_type',
@@ -334,23 +307,14 @@ function decodeXerBytes(bytes: Uint8Array): { text: string; encoding: XerEncodin
 
 type SingleByteEncoding = 'windows-1252' | 'windows-1251' | 'windows-1253' | 'windows-1256';
 
-/** Niet-Latijnse kandidaten met het schrift dat hun bovenste helft (0x80–0xFF) vooral oplevert.
- *  De Latijnse codetabellen 1250/1254 staan er bewust NIET in: hun letters zijn ook in 1252 geldige
- *  Latijnse letters, dus een score kan ze niet eenduidig van 1252 scheiden (twijfel ⇒ 1252). */
 const SINGLE_BYTE_CANDIDATES: ReadonlyArray<{ encoding: SingleByteEncoding; script: RegExp }> = [
   { encoding: 'windows-1251', script: /^\p{Script_Extensions=Cyrillic}$/u },
   { encoding: 'windows-1253', script: /^\p{Script_Extensions=Greek}$/u },
   { encoding: 'windows-1256', script: /^\p{Script_Extensions=Arabic}$/u },
 ];
-/** Minimaal aantal "zuivere" woorden (alleen bytes ≥ 0x80) voordat de lezer van 1252 afwijkt. */
 const MIN_PURE_HIGH_WORDS = 8;
-/** Minimaal aandeel zuivere woorden onder alle woorden met een byte ≥ 0x80: West-Europese tekst
- *  heeft accenten BINNEN Latijnse woorden ("Café"), niet-Latijnse tekst bestaat uit hele woorden
- *  boven 0x7F. */
 const MIN_PURE_HIGH_SHARE = 0.5;
-/** De winnaar moet vrijwel elk zuiver woord als geldig woord van zijn schrift lezen … */
 const MIN_WINNING_SCORE = 0.9;
-/** … en ruim voor de tweede kandidaat liggen; anders is het twijfel. */
 const MIN_WINNING_MARGIN = 0.3;
 
 const LETTER = /^\p{L}$/u;
@@ -363,9 +327,6 @@ function isLower(char: string): boolean {
   return char !== char.toUpperCase();
 }
 
-/** Een geldig woord: alleen letters van ÉÉN schrift, met een gewoon hoofdletterpatroon (alles klein,
- *  alles groot, of één beginhoofdletter). Arabisch kent geen hoofdletters. Grieks: de slot-sigma `ς`
- *  alleen aan het eind. Een fout gedecodeerd woord breekt vrijwel altijd een van deze regels. */
 function isWordOfScript(word: readonly string[], script: RegExp): boolean {
   for (const char of word) {
     if (!LETTER.test(char) || !script.test(char)) return false;
@@ -377,21 +338,6 @@ function isWordOfScript(word: readonly string[], script: RegExp): boolean {
   return !word.slice(0, -1).includes('ς');
 }
 
-/**
- * Review PR #109, N3 (Fable 15): kies de enkelbyte-codetabel voor een niet-UTF-8-XER zonder BOM.
- * Binnen besluit B17 (UTF-8, anders enkelbyte, de melding noemt de keuze) — alleen de keuze tussen
- * enkelbyte-tabellen is nieuw:
- *
- * 1. Woorden = maximale reeksen bytes die een ASCII-letter of ≥ 0x80 zijn. "Zuiver" = minstens twee
- *    bytes, alle ≥ 0x80.
- * 2. Te weinig zuivere woorden, of zuivere woorden in de minderheid ⇒ Latijnse tekst ⇒ 1252.
- * 3. Per kandidaat (1251/1253/1256): het aandeel zuivere woorden dat na decoderen een geldig woord
- *    van het eigen schrift is (`isWordOfScript`). Winnaar alleen bij ≥ 0.9 én ≥ 0.3 voorsprong.
- * 4. Anders twijfel ⇒ 1252 (het oude gedrag; de openingsmelding noemt de gekozen codering).
- *
- * Deterministisch en alleen op de bytes. Een bestand met hooguit een paar Arabische eenheden tussen
- * Latijnse namen blijft zo 1252 — bestaande 1252-bestanden veranderen niet.
- */
 function detectSingleByteEncoding(bytes: Uint8Array): SingleByteEncoding {
   const pureWords = new Map<string, number>();
   let wordsWithHigh = 0;
@@ -494,14 +440,6 @@ function assertRequiredIdentity(tables: ReadonlyMap<string, XerTable>): void {
   }
 }
 
-/**
- * XER-getallen moeten in twee passen worden behandeld. De eerste pas bewaart alle cellen als
- * letterlijke tokens, ongeacht de tabelvolgorde. Pas nadat ook CURRTYPE bekend is, kiest deze
- * tweede pas de rij van ERMHDR-veld 9 en legt decimaal- en groepsteken vast. Zonder CURRTYPE is
- * punt-decimaal de enige veilige default; aantoonbare komma-decimalen worden verderop geweigerd
- * in plaats van locale-afhankelijk te gokken. Dit formaat geldt daarna voor elk numeriek veld,
- * dus ook uren, duren en floats.
- */
 function determineNumberFormat(
   tables: ReadonlyMap<string, XerTable>,
   currencyCode: string,
@@ -602,9 +540,6 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** Getalpatroon per notatie (decimaalteken × groepsteken: hoogstens zes). Vroeger bouwde
- *  `parseXerNumber` voor ELK getal een nieuwe `RegExp` — 1,7 s bij het openen van rehab-2.xer
- *  (prestatiemeting 2026-10-07). Het patroon heeft geen `g`-vlag, dus `test` is toestandsloos. */
 const XER_NUMBER_PATTERNS = new Map<string, RegExp>();
 
 function xerNumberPattern(format: XerNumberFormat): RegExp {
@@ -620,7 +555,6 @@ function xerNumberPattern(format: XerNumberFormat): RegExp {
   return pattern;
 }
 
-/** Parse een numerieke XER-token strikt volgens de in de tweepas bepaalde bestandsnotatie. */
 export function parseXerNumber(raw: string, format: XerNumberFormat): number | null {
   const value = raw.trim();
   if (!value) return null;
@@ -637,10 +571,6 @@ export function parseXerNumber(raw: string, format: XerNumberFormat): number | n
   return parsed;
 }
 
-// MPXJ's XerFile.FIELD_TYPE_MAP is geraadpleegd om alle NUMERIC/DURATION/CURRENCY-veldnamen te
-// inventariseren. Alleen de veldclassificatie is zelfstandig overgenomen, geen parsercode. De map
-// is veldnaamgebaseerd (met target_qty als eveneens numerieke tabelvariant), zodat vrije tekst en
-// INTEGER-identiteit nooit door een suffixgok als komma-decimaalbewijs gelden.
 const XER_DECIMAL_FIELDS = new Set([
   'act_cost', 'act_equip_qty', 'act_ot_cost', 'act_ot_qty', 'act_reg_cost', 'act_reg_qty',
   'act_work_qty', 'asgnmnt_catg_id', 'asgnmnt_catg_short_len', 'asgnmnt_catg_type_id',
@@ -658,7 +588,6 @@ const XER_DECIMAL_FIELDS = new Set([
   'target_equip_qty', 'target_lag_drtn_hr_cnt', 'target_qty', 'target_qty_per_hr',
   'target_work_qty', 'total_float_hr_cnt', 'udf_number', 'week_hr_cnt', 'year_hr_cnt',
 
-  // Aanvullende P6-velden die als decimaaldragend worden behandeld.
   'act_drtn_hr_cnt', 'act_this_per_equip_qty', 'act_this_per_work_qty', 'actual_value',
   'cost_load_value', 'cost_value', 'last_recalc_priority', 'old_remain_drtn_hr_cnt', 'ot_factor',
   'plan_cost', 'remain_lag_drtn_hr_cnt', 'remain_value', 'target_rate',
@@ -707,7 +636,6 @@ function collectUnknownFields(
   return result;
 }
 
-/** Sluit parseropbouw af zonder rij- of celkopieën; iedere latere lezer deelt dezelfde bronrij. */
 function freezeXerRows(tables: ReadonlyMap<string, XerTable>): void {
   for (const table of tables.values()) {
     for (const row of table.rows) {
@@ -717,21 +645,8 @@ function freezeXerRows(tables: ReadonlyMap<string, XerTable>): void {
   }
 }
 
-/** Bovengrens op het aantal vervolgregels dat `joinLineBrokenRow` aan één `%R` plakt. */
 const MAX_LINE_BREAK_CONTINUATIONS = 8;
 
-/**
- * Review PR #109, N2 (Fable 8): een RAUW regeleinde in een tekstcel. P6 zelf schrijft een regeleinde
- * in een cel als DEL-DEL (`\x7f\x7f`, zie `decodeTextCell`); ook MPXJ breekt een record op elke
- * CR/LF, ook binnen aanhalingstekens. Een met een spreadsheet of script bewerkte XER kan toch een echte
- * LF/CRLF in bv. `task_name` dragen: dan eindigt de `%R`-regel te vroeg en begint de rest van de rij
- * op een regel zonder marker. Zonder herstel verloor de taak duur en datums (`XER_UNKNOWN_RECORD`).
- *
- * Herstel, bewust smal: alleen een `%R` met TE WEINIG cellen, alleen de direct volgende regels die
- * niet met `%` beginnen, hooguit `MAX_LINE_BREAK_CONTINUATIONS`, en alleen als het resultaat het
- * veldental EXACT haalt. De laatste cel krijgt `\n` + het eerste stuk van de vervolgregel. Lukt dat
- * niet, dan `undefined` en blijft het bestaande gedrag (`XER_ROW_FIELD_COUNT_MISMATCH`) staan.
- */
 function joinLineBrokenRow(
   lines: readonly string[],
   rowIndex: number,
@@ -752,7 +667,6 @@ function joinLineBrokenRow(
   return undefined;
 }
 
-/** Parse uitsluitend de oorspronkelijke bestandsbytes; een stringingang is ook runtime ongeldig. */
 export function parseXerTables(bytes: XerByteInput): XerTables {
   if (!(bytes instanceof Uint8Array)) {
     throw new XerImportError(
@@ -825,7 +739,6 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
         seen.add(field);
       }
     } else if (marker === '%F' && currentUnknown) {
-      // De kolomvorm van een bewust overgeslagen tabel is niet onze grammaticale verantwoordelijkheid.
     } else if (marker === '' && current && current.fields.length > 0 && current.rows.length > 0) {
       const previous = current.rows[current.rows.length - 1];
       values.slice(1).forEach((raw, fieldIndex) => {
@@ -871,8 +784,6 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
     } else if (marker === '%R' && current) {
       issues.push({ code: 'XER_DATA_WITHOUT_FIELDS', line: index + 1, table: current.name });
     } else if (marker === '%R' && currentUnknown) {
-      // Een onbekende tabel is pas retained informatiewaarde als minstens één cel inhoud draagt.
-      // Een lege `%R` kan die inhoud nog op een opvolgende continuation-regel krijgen.
       const hasContent = values.slice(1).some(value => value.trim() !== '');
       currentUnknown.rowStarted = true;
       currentUnknown.rowCounted = hasContent;

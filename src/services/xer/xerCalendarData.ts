@@ -1,19 +1,4 @@
-/**
- * Decoder voor Primavera XER-kalenderdata, zelfstandig hergeïmplementeerd.
- *
- * Voor begrip van de structured-text-recordvorm en P6-kalendersemantiek is MPXJ geraadpleegd:
- * https://github.com/joniles/mpxj (`StructuredTextParser` en `TableContextReader`, LGPL-2.1,
- * Jon Iles e.a.). Er is geen MPXJ-code overgenomen; tokenizer, typen en mapping hieronder zijn eigen.
- *
- * Basiskalender (`base_clndr_id`): bewuste keuze. De decoder leest en koppelt de basiskalender
- * (`baseCalendarId`, `linkBaseCalendar`), maar past hem NIET toe: een afgeleide kalender rekent
- * alleen met zijn eigen `clndr_data`. Reden: P6 schrijft de geërfde werkweek en uitzonderingen al
- * in de `clndr_data` van de afgeleide kalender. Een corpusscan (93 XER-bestanden, 8 met
- * `base_clndr_id`, 157 afgeleide kalenders) vond 0 geërfde uitzonderingen of werkdagen die daar
- * ontbraken. MPXJ past de basis wel toe (`ProjectCalendar.java:1330-1333`, terugval op de
- * basiskalender); bij P6-export levert dat hetzelfde resultaat. Verschijnt er een bestand waarin de
- * afgeleide kalender iets mist, dan is dat het moment om het toepassen alsnog te bouwen.
- */
+// Bron: MPXJ `StructuredTextParser` en `TableContextReader` als referentie, geen code overgenomen (LGPL-2.1, github.com/joniles/mpxj).
 
 import {
   canonicalizeBands,
@@ -60,9 +45,6 @@ export type XerCalendarRecovery =
   | 'SURPLUS_CLOSE'
   | 'MULTIPLE_EXCEPTIONS'
   | 'DUPLICATE_EXCEPTION'
-  /** Weekend-klemherstel: minstens één vrije weekenddag is gereconstrueerd die NIET als record in
-   *  het bestand staat. Zonder deze code had de reconstructie geen spoor naar de gebruiker, anders
-   *  dan de holidaynaam. */
   | 'WEEKEND_CLAMP_RECONSTRUCTED';
 
 export type XerCalendarIssueCode =
@@ -103,12 +85,7 @@ export interface XerCalendar extends WorkCalendar {
   hoursPerWeek: number;
   hoursPerMonth: number;
   hoursPerYear: number;
-  /** Serialiseerbare bron van waarheid voor de optionele basiskalender. */
   baseCalendarId?: string;
-  /**
-   * Afgeleide gemakskoppeling binnen een leesresultaat. `readXerCalendars` installeert deze
-   * bewust niet-enumerable: overdracht en persistentie gebruiken uitsluitend `baseCalendarId`.
-   */
   baseCalendar?: XerCalendar;
   hourModeSource?: 'SHARED' | 'XER_CLOCK';
 }
@@ -237,87 +214,19 @@ function dateFromP6Epoch(raw: string): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** ISO-weekdag (1=ma … 7=zo) van een `YYYY-MM-DD`-datum. */
 function isoWeekdayOf(date: string): 1 | 2 | 3 | 4 | 5 | 6 | 7 {
   const day = new Date(`${date}T00:00:00Z`).getUTCDay();
   return (day === 0 ? 7 : day) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
 }
 
-/** `date` verschoven met `offset` kalenderdagen, weer als `YYYY-MM-DD`. */
 function shiftIsoDate(date: string, offset: number): string {
   return new Date(Date.parse(`${date}T00:00:00Z`) + offset * 86_400_000).toISOString().slice(0, 10);
 }
 
-/**
- * WEEKEND-KLEMHERSTEL — welke ECHTE vrije dag zit er achter een redundant vrije-uitzonderingsrecord,
- * en wanneer mag je dat concluderen?
- *
- * HET VERSCHIJNSEL (corpus `crawl-xer-extra/jailaff-xer-splitter/rehab-2.xer`, kalenderdata gedeeld
- * door 44 kalenders met `842` `R111 - 1` en 75 met `896` `B25 - Cal`: ma-do + za + zo werkend,
- * vrijdag vrij). De negen feestdagenblokken zijn aaneengesloten vrije reeksen, maar de opgeslagen
- * epochdagen missen elke zaterdag en zondag en herhalen in plaats daarvan de aangrenzende vrijdag of
- * maandag. Blok 2008-09-29 … 2008-10-09 staat er letterlijk als `39720 39721 39722 39723 39724
- * 39724 39727 39727 39728 39729 39730` — 10-04 (za) en 10-05 (zo) ontbreken, terwijl 10-03 (vr) en
- * 10-06 (ma) er twee keer staan. De schrijver heeft de blokdagen op de MA-VR-as geklemd:
- * **zaterdag → de vrijdag ervóór, zondag → de maandag erná.**
- *
- * DE BRONTOETS. P6's eigen opgeslagen datums bevestigen dat. Meetdefinitie: tel over de 6.548 taken
- * die op deze kalenderdata staan alle vier de datumassen (ES, EF, LS én LF), waarbij "IN het blok"
- * de kalenderdagen van de GERECONSTRUEERDE blokspanne zijn en "de rand" de drie kalenderdagen direct
- * vóór de eerste blokdag plus de drie direct ná de laatste. Uitkomst:
- *
- *   blok (gereconstrueerde spanne)   IN   RAND (unieke taken)
- *   2008-09-29 … 2008-10-09           0   167 (153)
- *   2008-12-07 … 2008-12-18           0   214 (193)
- *   2009-09-18 … 2009-09-24           0   178 (157)
- *   2009-11-26 … 2009-12-05           0   252 (204)
- *   de vijf blokken buiten de projectperiode
- *                                     0     0 (niet-informatief, en nul effect op de fidelity)
- *
- * Nul datums ín alle negen blokken tegen 811 in de rand — en die 811 zit volledig op de vier blokken
- * binnen de projectperiode (167/214/178/252), terwijl de overige vijf blokken 0 ín én 0 in de rand
- * hebben en dus niets bewijzen: de weekenddagen ín de vier actieve blokken zijn aantoonbaar
- * niet-werkend. (De 14 EF's die op 2008-12-14 te vinden zijn horen bij kalender `893` `R111 - 2`,
- * een 7-daagse kalender zonder uitzonderingen — die wordt hier niet geraakt.)
- *
- * Tweede, onafhankelijke bevestiging: P6's eigen ES→EF-vensters. Op de OUDE kalender overspande
- * `V3109400` (7 dagen duur) 10,00 werkdagen en `V3109300` (21 dagen) 24,00 — intern inconsistent.
- * Op de gereconstrueerde kalender tellen ze exact 7,00 en 21,00.
- *
- * n=1. Deze regel is afgeleid uit één bestand van 93. MPXJ, de referentie-implementatie, kent het
- * verschijnsel niet en leest de `Exceptions`-lijst letterlijk
- * (`TableContextReader.processCalendarExceptions`). De poort hieronder is daarom bewust
- * record-lokaal en conservatief; een tweede bestand moet de regel bevestigen of ontkrachten, niet
- * er stil op meeliften.
- *
- * DE POORT IS PER RECORD, NIET PER KALENDER. Een klemherstel mag alleen volgen uit bewijs op het
- * record zelf, anders maakt één toevallig dubbel record ergens in de lijst stilzwijgend verre
- * weekenddagen vrij. Er zijn precies twee lokale bewijsvormen, en beide eisen dat het blok aan de
- * andere kant van het weekend doorloopt:
- *
- *  1. **Sprong** — het record staat op een vrijdag en er is óók een uitzondering op de maandag
- *     erná (of andersom). Het blok loopt dan over het weekend heen terwijl za/zo niet opgeslagen
- *     zijn: precies de klemvorm. Dit dekt ook de twee blokken waarvan de openings-vrijdag géén
- *     duplicaat draagt (2006-12-29 en 2009-09-18).
- *  2. **Duplicaat mét blokvervolg** — het record is een aangrenzend duplicaat (twee opeenvolgende
- *     records met dezelfde epochdag, iets wat in het hele corpus van 93 bestanden alleen in dit
- *     bestand voorkomt) én het blok loopt aan de binnenzijde door (de dag vóór een vrijdag, of de
- *     dag ná een maandag, draagt zelf ook een uitzondering). Dit dekt de blokranden waar het
- *     weekend buiten de opgeslagen reeks valt (2008-12-07 vóór het blok, 2009-12-05 erná).
- *
- * Een op zichzelf staand dubbel record — de gewone P6-invoerfout waar deze decoder al een
- * `DUPLICATE_EXCEPTION`-herstel voor kent — draagt géén blokvervolg en levert dus niets op. Zie de
- * negatieve fixtures in `tests/planning/check-xer-calendar-data.ts` sectie 22.
- *
- * Daarnaast eist `weekendClampTarget` dat het klemdoel (a) daadwerkelijk een zaterdag of zondag is,
- * (b) op déze kalender een WERKdag is — anders verandert vrij maken niets — en (c) niet zelf al een
- * uitzonderingsrecord heeft.
- */
 function weekendClampTarget(
   date: string, bands: WorkTimeBands, exceptionDates: ReadonlySet<string>,
 ): string | null {
   const weekday = isoWeekdayOf(date);
-  // Vrijdag draagt de geklemde zaterdag; maandag draagt de geklemde zondag.
   const target = weekday === 5 ? shiftIsoDate(date, 1)
     : weekday === 1 ? shiftIsoDate(date, -1)
       : null;
@@ -329,12 +238,6 @@ function weekendClampTarget(
   return target;
 }
 
-/**
- * Hoeveel LOSSE uitzonderingsdatums telt de aaneengesloten reeks rond `date`? Een gat van hoogstens
- * drie kalenderdagen breekt de reeks niet — dat gat is nu juist het geklemde weekend. Maximaal
- * `LIMIT` stappen per richting, zodat een kalender met honderden losse feestdagen deze telling niet
- * tot een volledige scan maakt; het antwoord wordt alleen tegen een ondergrens van 3 getoetst.
- */
 function exceptionRunLength(date: string, exceptionDates: ReadonlySet<string>): number {
   const LIMIT = 8;
   let total = 1;
@@ -352,32 +255,6 @@ function exceptionRunLength(date: string, exceptionDates: ReadonlySet<string>): 
   return total;
 }
 
-/**
- * Draagt DIT record zelf het bewijs van een geklemde weekenddag? Zie `weekendClampTarget`.
- *
- * Drie eisen, alle drie lokaal op het record en zijn directe omgeving:
- *
- *  1. **Meerdaags blok.** Een geklemd weekend zit per definitie ín een meerdaags vrij blok; de reeks
- *     rond dit record telt minstens drie losse uitzonderingsdatums. Zonder deze eis maakt een
- *     tweedaags feestdagblokje met een per ongeluk verdubbeld vrijdagrecord al een zaterdag vrij
- *     (fixture 22g), en twee losse feestdagen die toevallig drie dagen uit elkaar liggen ook
- *     (fixture 22f). In `rehab-2.xer` tellen alle negen blokken 5 tot 11 datums.
- *  2. **Blokvervolg aan de van-het-weekend-AFGEKEERDE zijde** — de dag vóór een vrijdag, of de dag
- *     ná een maandag, draagt zelf ook een uitzondering. Bij de sprongvorm volstaat het dat één van
- *     de twee sprongpartners dat doet: blok 2006-12-29 … 2007-01-13 opent met een vrijdag zonder
- *     voorganger maar zijn maandagpartner 2007-01-01 heeft 01-02 naast zich, en blok
- *     2009-09-18 … 09-24 idem via maandag 09-21.
- *  3. **Een van de twee bewijsvormen**: de sprong over het weekend (vrijdag ↔ maandag, drie
- *     kalenderdagen uit elkaar), of een aangrenzend duplicaat op het record zelf.
- *
- * WAT DEZE DRIE EISEN NIET DOEN: ze sluiten de twee GEMETEN false positives (fixtures 22f en 22g),
- * niet de hele klasse. Voeg aan 22f één dag toe — vrijdag 2009-12-04, maandag 12-07 én dinsdag
- * 12-08 als losse feestdagen op een za-do-kalender — en de reeks haalt de drempel van drie, de
- * maandag heeft blokvervolg aan zijn afgekeerde zijde, en zaterdag 12-05 wordt alsnog vrijgemaakt
- * (zondag 12-06 niet, want een maandagrecord op deze kalender is geen redundant record). Het risico
- * is empirisch klein — nul treffers in 93 corpusbestanden buiten `rehab-2.xer` — maar het is geen
- * nul, en de poort is een filter op bewijskracht, geen sluitend bewijs.
- */
 function hasWeekendClampEvidence(
   date: string, exceptionDates: ReadonlySet<string>, adjacentDuplicates: ReadonlySet<string>,
 ): boolean {
@@ -386,11 +263,9 @@ function hasWeekendClampEvidence(
   if (exceptionRunLength(date, exceptionDates) < 3) return false;
   const continuesAwayFromWeekend = (candidate: string): boolean =>
     exceptionDates.has(shiftIsoDate(candidate, isoWeekdayOf(candidate) === 5 ? -1 : 1));
-  // Bewijsvorm 1 — de sprong over het weekend, mits het blok aan minstens één afgekeerde zijde doorloopt.
   const partner = shiftIsoDate(date, weekday === 5 ? 3 : -3);
   if (exceptionDates.has(partner)
     && (continuesAwayFromWeekend(date) || continuesAwayFromWeekend(partner))) return true;
-  // Bewijsvorm 2 — aangrenzend duplicaat, mits het blok aan de eigen afgekeerde zijde doorloopt.
   return adjacentDuplicates.has(date) && continuesAwayFromWeekend(date);
 }
 
@@ -410,7 +285,6 @@ function periodHours(row: XerRow, field: string, tables: XerTables): number | un
     const value = parseXerNumber(raw, tables.numberFormat);
     if (value !== null && value >= 0) return value;
   } catch {
-    // De kalenderlaag vertaalt getalfouten naar één rijgebonden semantisch issue.
   }
   throw new XerCalendarDataError(
     'XER_CALENDAR_INVALID_PERIOD_HOURS',
@@ -613,7 +487,6 @@ class StructuredTextTokenizer {
   }
 }
 
-/** Tokenize en parse één Primavera structured-text-hoofdrecord. */
 export function parseXerStructuredText(text: string): XerStructuredRecord {
   return new StructuredTextTokenizer(text).parse();
 }
@@ -632,7 +505,6 @@ function parseCalendarDataWithRecovery(text: string): {
       if (compact.usedCompactRecord) return { root, recoveries: ['COMPACT_RECORD'] };
     } catch (compactError) {
       if (compactError instanceof XerCalendarDataError) throw compactError;
-      // De compacte herstelroute is exact begrensd; de oorspronkelijke fout blijft leidend.
     }
     const surplusCloseMatches = Array.from(text.matchAll(/\)(\s*)(?=\(0\|\|Exceptions\()/g));
     if (surplusCloseMatches.length === 1) {
@@ -641,7 +513,6 @@ function parseCalendarDataWithRecovery(text: string): {
       try {
         return { root: parseXerStructuredText(recovered), recoveries: ['SURPLUS_CLOSE'] };
       } catch {
-        // Alleen exact één surplus-haak die daarna volledig strikt parseert, wordt hersteld.
       }
     }
     throw new XerCalendarDataError(
@@ -651,7 +522,6 @@ function parseCalendarDataWithRecovery(text: string): {
   }
 }
 
-/** Decodeer de structured-text-inhoud van één `CALENDAR.clndr_data`-cel. */
 export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
   if (!text.trim()) {
     return {
@@ -725,10 +595,6 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
     if (nonWork) {
       const day = new Date(`${date}T00:00:00Z`).getUTCDay();
       const isoDay = (day === 0 ? 7 : day) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
-      // P6 6.x/7.x rekent twee redundante recordvormen als één extra niet-werkdag: een vrije
-      // uitzondering op een weekdag die al geen banden draagt, en een DIRECT aangrenzende vrije
-      // herhaling. Een later opnieuw voorkomende datum telt niet: rehab-2 bevat zo'n herhaald
-      // overlappend exceptionblok en P6 telt uitsluitend de aangrenzende duplicaten daarin.
       if (bands.byWeekday[isoDay].length === 0 || previousNonWorkDate === date) {
         p6NonWorkPenaltyDates.add(date);
       }
@@ -749,12 +615,7 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
       holidaysByDate.set(date, { name: 'Calendar exception', startDate: date, endDate: date });
     }
   }
-  // Een werkende uitzondering wint ook voor de brongebonden P6-straf. De datum draagt dan echte
-  // banden en is geen redundante vrije-dagrecord meer.
   for (const date of workingByDate.keys()) p6NonWorkPenaltyDates.delete(date);
-  // Weekend-klemherstel, poort per RECORD. Zie `weekendClampTarget`/`hasWeekendClampEvidence` voor de
-  // twee lokale bewijsvormen en de brontoets. Zonder bewijs op het record zelf gebeurt er niets (92
-  // van de 93 corpusbestanden).
   let weekendClampReconstructed = false;
   for (const date of [...p6NonWorkPenaltyDates]) {
     if (!hasWeekendClampEvidence(date, exceptionDates, adjacentDuplicateDates)) continue;
@@ -764,8 +625,6 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
       name: 'Calendar exception (weekend reconstruction)', startDate: target, endDate: target,
     });
     weekendClampReconstructed = true;
-    // De dag is nu ECHT vrij; hem daarnaast nog als virtuele extra niet-werkdag laten meetellen zou
-    // dezelfde afwezigheid twee keer verrekenen in elke duur- en floatwandeling.
     p6NonWorkPenaltyDates.delete(date);
   }
   if (duplicateException) recoveries.push('DUPLICATE_EXCEPTION');
@@ -825,7 +684,6 @@ function linkBaseCalendar(calendar: XerCalendar, base: XerCalendar): void {
   });
 }
 
-/** Bouw XER-kalenders uitsluitend uit de reeds gedecodeerde `CALENDAR`-tabel. */
 export function readXerCalendars(tables: XerTables): XerCalendarReadResult {
   const rows = tables.tables.get('CALENDAR')?.rows ?? [];
   const calendars: XerCalendar[] = [];
@@ -870,8 +728,6 @@ export function readXerCalendars(tables: XerTables): XerCalendarReadResult {
     }
     const hoursPerWeek = explicitWeek ?? actual.week;
     const hoursPerDay = explicitDay
-      // Gemiddelde eerst in minuten per dag, dan pas in uren: (6 × 7,6) / 6 in uren geeft 7.6000000000000005,
-      // en dat telt dan als afwijking van de blokken (modale dagsom 7.6).
       ?? (actual.workingDays > 0 ? actual.weekMinutes / actual.workingDays / 60 : 8);
     const hoursPerMonth = explicitMonth ?? hoursPerWeek * 4;
     const hoursPerYear = explicitYear ?? hoursPerMonth * 12;
@@ -914,7 +770,6 @@ export function readXerCalendars(tables: XerTables): XerCalendarReadResult {
         : undefined;
     if (hourModeSource && promoteHourCalendar(calendar, bandInfo, true, false)) {
       calendar.hourModeSource = hourModeSource;
-      // Periodevelden in XER zijn leidend; promotie mag alleen de uurweergave toevoegen.
       calendar.hoursPerDay = hoursPerDay;
     }
     calendars.push(calendar);

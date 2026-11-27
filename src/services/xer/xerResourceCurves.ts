@@ -1,8 +1,3 @@
-/** XER-resourcecurves: rauwe 21-puntsbrondata (RSRCCURVDATA `pct_usage_0..pct_usage_20`), niet-
- *  destructief bewaard. De OPS-curve/`curveValues` van een toewijzing worden pas in
- *  `xerResourceAssignments.ts` afgeleid, via de contour-engine (`normalizeCurveValues`/
- *  `matchCurveValues`) — deze module levert alleen de gevalideerde rauwe punten. */
-
 import type { XerCurvePoints, XerResourceCurveSource, XerResourceIssue } from './xerResourceTypes';
 import { normalizeCurveValues } from '@/engine/contour/contourEngine';
 import { parseXerNumber, XerImportError, type XerRow, type XerTables } from './xerTables';
@@ -50,7 +45,6 @@ export function readXerResourceCurves(tables: XerTables): {
         numericPoints = asCurveTuple(parsed);
       }
     } catch {
-      // De curvelaag bewaart de tokens en rapporteert één rijgebonden fallback.
     }
     sources.push({ rawRow: row, sourceId, internalId: `xer-curve:${sourceId}`, line: row.line,
       name: row.cells.curv_name?.trim() ?? '', rawPoints,

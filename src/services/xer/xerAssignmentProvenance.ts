@@ -1,8 +1,3 @@
-/**
- * Parservrije TASKRSRC-provenanceregels die de assignmentproducent en de bronarchiefvalidator delen.
- * De volgorde is gedrag: resource vóór role vóór task, exact zoals P6-assignments worden gelezen.
- */
-
 export type XerAssignmentSkipReason =
   | 'XER_ASSIGNMENT_RESOURCE_MISSING'
   | 'XER_ASSIGNMENT_ROLE_MISSING'

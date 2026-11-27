@@ -1,18 +1,12 @@
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { XerRow } from './xerTables';
 
-/**
- * Catalogusweergave zonder tweede type-eiland: behoudt tuplevormen en maakt
- * elke laag van de gedeelde bestandsbrede grafiek readonly. De gewone Xer*-typen
- * hieronder blijven juist de mutable per-projectprojectie beschrijven.
- */
 export type XerReadonly<T> = T extends readonly unknown[]
   ? { readonly [Key in keyof T]: XerReadonly<T[Key]> }
   : T extends object
     ? { readonly [Key in keyof T]: XerReadonly<T[Key]> }
     : T;
 
-/** Dezelfde parserrij, readonly aangeboden: volledige XER-brondata zonder tweede celobject. */
 export type XerSourceRow = Readonly<{
   line: XerRow['line'];
   cells: Readonly<XerRow['cells']>;
@@ -25,13 +19,7 @@ export interface XerResourceReadContext {
   availableCalendarIds: ReadonlySet<string>;
   calendarHoursPerDay: ReadonlyMap<string, number>;
   taskIds: ReadonlySet<string>;
-  /** Geplande werkminuten per activiteit, voor de "afwezig ⇒ afgeleid"-toets van de
-   *  TASKRSRC-werkhoeveelheden. Optioneel: zonder deze kaart worden geen werkvelden gezet. */
   taskWorkMinutes?: ReadonlyMap<string, number>;
-  /** Per URENtaak de werktijd per dag (uren) van haar taakkalender — dezelfde dag als haar dagengetal
-   *  (`hourTaskScheduleDuration`). Materiaal op een urentaak rekent zijn tempo per uur hiermee om naar
-   *  een tempo per dag, zodat tempo per dag × dagengetal = tempo × uren. Dagtaken staan er niet in: die
-   *  houden de uren per dag van de resourcekalender. Optioneel: zonder kaart geldt overal die terugval. */
   hourTaskHoursPerDay?: ReadonlyMap<string, number>;
 }
 
