@@ -36,7 +36,7 @@ en de wijzigingsvlag van de bron.
 - In de voorbereide kopie per referentie gedeeld: de rekenvelden (`cpmResult`, `resourceLoadResult`, `scheduleStale`,
   `recordedDates`, `datesAsRecorded`, `minuteModelPending`), want ze zijn afgeleid en worden als geheel vervangen
   (ADR 0431, en ADR 0432 voor `resourceLoadResult`). Na de activatie (hierboven) heeft de kopie een eigen
-  `resourceLoadResult`; de andere houdt ze van de bron, behalve wat de activatie bij een verversing uit de bibliotheek
+  `resourceLoadResult`, of `null` bij een rekenfout; de andere houdt ze van de bron, behalve wat de activatie bij een verversing uit de bibliotheek
   vervangt, tot een bewerking of berekening in de kopie ze vervangt. Ook gedeeld: het XER-archief met
   `xerSourceProjectId`, `ifcSource`, `foreignSourceMark` en `xerArchiveIssue` (ADR 0433). `activeBaselineId`,
   `fileFormat` en `taskTypesVisible` neemt de kopie over.
