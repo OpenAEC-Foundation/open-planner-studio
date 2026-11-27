@@ -2284,11 +2284,19 @@ en noem het in je rapport of PR-tekst.
 2355. **VERVOLG (#804 fase 2, PR 8): Ctrl+Z na het opslaan zet een lid niet terug in de relatie van een ander programma.**
       Flag aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: de toewijzing van de Metselploeg aan *Wand A bouwen* wissen
       en opslaan haalt de ploeg uit `#120` (de `IfcRelAssignsToProcess` van Bonsai met de ploeg en de wand); `#120` houdt
-      de wand en haar `QuantityInProcess`. Ctrl+Z en weer opslaan geeft de planning die de planner zag, maar de ploeg komt
-      in een eigen toewijzingsrelatie van OPS en niet terug in `#120`. Hetzelfde geldt voor elk lid dat PR 8 uit een
-      bewaarde of gemengde relatie haalt (een verplaatste taak, een andere kalender, een gewijzigde gedeelde pset). Het
-      ontwerp (§4.6) wil dat Ctrl+Z het lid ook na het opslaan terugzet, via `detached` (PR 7). Vóór het opslaan werkt
-      Ctrl+Z wel: de bron is dan nog dezelfde. Vastgelegd in `check-ifc-foreign-gemengde-relaties.ts`. — B
+      de wand en haar `QuantityInProcess`. Ctrl+Z en weer opslaan geeft de planning die de planner zag (na heropenen heeft
+      *Wand A bouwen* de ploeg weer), maar de ploeg komt in een eigen toewijzingsrelatie van OPS en niet terug in `#120`;
+      de tweede opslag heeft een lege wijzigingslijst. Hetzelfde geldt voor elk lid dat PR 8 uit een bewaarde of gemengde
+      relatie haalt (een verplaatste taak, een andere kalender). Ook met `detached` (#1265, PR 7) in main: `detached`
+      onthoudt alleen wat de regel van §4.7 uit een stuk haalt (`ruleChangesOnly` in `mergeWriter.ts`). Zou het ook de
+      vertrekkers onthouden, dan zette het ze bij de volgende opslag terug zodra het object bestaat, ook als de koppeling
+      niet terugkwam: de ploeg wissen, opslaan, een andere taak hernoemen en opslaan weigerde dan met
+      `planning-na-openen`, en in reeks 804c (Schilderwerk onder Stucwerk, opslaan, kinderen van Ruwbouw omkeren) kwam
+      Schilderwerk terug in `#8502` terwijl de planning het onder Stucwerk had (gemeten op 27 november 2026). Het ontwerp
+      (§4.6) wil dat Ctrl+Z het lid ook na het opslaan terugzet. Richting: een stuk dat `departuresOf` inkortte, net zo
+      terugzetten als de bewaarde relaties van `detached`: alleen als het lid terugkomt onder dezelfde relating (de
+      koppeling, niet alleen het object). Vóór het opslaan werkt Ctrl+Z wel: de bron is dan nog dezelfde. Vastgelegd in
+      `check-ifc-foreign-gemengde-relaties.ts` (met heropenen, en het geval met hernoemen). — B
 2356. **VERVOLG (#804 fase 2, PR 8): wat na PR 8 bij gemengde en bewaarde relaties nog anders gaat dan het ontwerp.** Flag
       aan. Gevonden met `tests/planning/check-ifc-foreign-gemengde-relaties.ts` op `tests/fixtures/ifc-foreign/bonsai-4d.ifc`
       en afgeleide bronnen.

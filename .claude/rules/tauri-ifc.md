@@ -238,8 +238,11 @@ teruggezette gemengde relatie uit de eigen relatie (`withoutRestoredMembers`), e
 verliesbewaking) de leden van bewaarde relaties (`withReturnedMembers`) en de stukken met de huidige ids: op hun plek of
 direct na het P-blok (`renderedRestorations`, de `appended` van `assemble`). De wijzigingslijst krijgt dan soort
 `teruggezet`; controle 1 eist de bytes en `countedForeignChanges` telt ze niet. De opslagworker draagt de buffers terug
-over en `resultFits` eist de vorm (`isDetached`). Het taakpaneel valt terug op de koppelingen in `detached`. Wat nog niet
-meegaat: knownbug 2354. Proef: `check-ifc-foreign-detached.ts`.
+over en `resultFits` eist de vorm (`isDetached`). Het taakpaneel valt terug op de koppelingen in `detached`. `detached`
+onthoudt alleen wat de regel van §4.7 uit een stuk haalt (`ruleChangesOnly`): een stuk dat alleen `departuresOf` of een
+botsende naam veranderde (#1262), niet; een stuk dat de regel ook raakte, zonder de vertrekkende leden. Terugzetten op
+aanwezigheid van het object zou anders een vertrokken lid terugzetten terwijl de koppeling niet terugkwam (knownbug 2355).
+Wat nog niet meegaat: knownbug 2354. Proef: `check-ifc-foreign-detached.ts`.
 
 **De vraag vóór het opslaan** (#804, besluit eigenaar 25 november 2026). Met de instelling `ui.foreignChangesQuestion` aan
 (standaard; `ops-foreignChangesQuestion`, per apparaat) vraagt een documentopslag met gewijzigde of vervallen stukken in
@@ -581,8 +584,9 @@ eigen veld of code zou lezen, vervalt (`readAsOwnMembers`). `withLeaving` voegt 
 alleen als zijn pset één eigenaar heeft, de planning een nieuw veld of codetype met die naam heeft, en de uitvoer bij elke
 oorspronkelijke binding minstens zo vaak een eigen property met die naam heeft; bij meer eigenaren weigert de writer met
 `vreemd-lid`. Een relatie met een vreemde relating (bijvoorbeeld een kostenpost) valt daar niet onder. De Control van een
-tweede schema houdt een verplaatste taak, zoals op main (knownbug 2356). Ctrl+Z na het opslaan zet een lid niet terug
-(knownbug 2355). Proef:
+tweede schema houdt een verplaatste taak, zoals op main (knownbug 2356). Ctrl+Z na het opslaan zet een lid niet terug:
+`detached` onthoudt de vertrekkers niet (`ruleChangesOnly`, knownbug 2355). Controle 1 eist bij een teruggezet stuk de
+bytes van `detached` en laat het buiten de toets op stukken die niet op de lijst staan. Proef:
 `check-ifc-foreign-gemengde-relaties.ts` (per vorm en soort wijziging, vaste reeksen, tien gemuteerde uitvoeren).
 
 ### Vergelijkingsklok (#804 fase 1c)
