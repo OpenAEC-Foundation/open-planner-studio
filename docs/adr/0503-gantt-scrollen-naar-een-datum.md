@@ -1,7 +1,7 @@
 # Scrollen naar een datum in de Gantt, en de afstand op de as
 
-`computeScrollToDate` in `src/utils/ganttViewport.ts` geeft de horizontale scroll waarbij een datum links in beeld
-komt, met `SCROLL_TO_DATE_MARGIN_DAYS` (3) as-dagen ervoor, zodat de datum niet tegen de linkerrand plakt. Zonder
+`computeScrollToDate` in `src/utils/ganttViewport.ts` geeft de horizontale scroll naar een datum; de berekening laat
+`SCROLL_TO_DATE_MARGIN_DAYS` (3) as-dagen marge vóór de datum. Zonder
 datum is het doel de statusdatum van het project, anders vandaag (`localTodayIso`). Zoom en `viewStartDate`
 veranderen niet. Ctrl/Cmd+Home (`nav.scrollToToday` in `shortcutRegistry.ts`) zet de uitkomst met `setScroll`. De
 oorsprong komt uit dezelfde `computeEffectiveViewStart` als die van de getekende Gantt (ADR 0501), met de getoonde
