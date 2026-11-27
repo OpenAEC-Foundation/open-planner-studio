@@ -10,13 +10,8 @@ import { buildGanttRenderOptions, type GanttRenderOptionsSourceInput } from '../
 import { useCanvasLayer } from './useCanvasLayer';
 import type { GanttRendererHost, GanttRendererHostInput } from './ganttCoordinatorTypes';
 
-// Dezelfde expliciete opt-in als de testbrug in main.tsx; gewone productie blijft vrij van observatie.
 const OBSERVE_GANTT = import.meta.env.DEV || import.meta.env.VITE_OPS_BENCH_BRIDGE === '1';
 
-/**
- * De ene constructieroute voor primaire en secundaire Gantt-paints. De aanroeper levert alle
- * inhoudelijke opties; alleen de op painttijd gemeten canvasafmetingen worden hier toegevoegd.
- */
 function renderGantt(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -35,7 +30,6 @@ function renderGantt(
   if (OBSERVE_GANTT) recordGanttPaint(surface, width, height);
 }
 
-/** Maakt de stabiele refs waarmee pointercoördinatie vóór de renderoptie-afleiding kan worden samengesteld. */
 export function useGanttRendererRefs(): GanttRendererHost {
   const primaryCanvasRef = useRef<HTMLCanvasElement>(null);
   const primaryRendererRef = useRef<GanttRenderer | null>(null);
@@ -55,10 +49,6 @@ export function useGanttRendererRefs(): GanttRendererHost {
   };
 }
 
-/**
- * Bezit de drie canvaslagen, rendererinstanties en hun mount/resize-lifecycle. De host leest geen
- * store en leidt geen domeinopties af; GanttCanvas levert daarvoor expliciete, getypeerde invoer.
- */
 export function useGanttRendererHost(
   input: GanttRendererHostInput,
   refs: GanttRendererHost,
@@ -73,8 +63,6 @@ export function useGanttRendererHost(
     dependencyCanvasRef,
   } = refs;
 
-  // Dev-/benchmark-browsernaad: uitsluitend de levende canvas-/rendererrefs; geen rendererdata en geen
-  // mogelijkheid om vanuit de driver een paint of productmutatie te starten.
   useEffect(() => {
     if (!OBSERVE_GANTT) return;
     const unregisterPrimary = registerGanttTestSurface('primary', {
