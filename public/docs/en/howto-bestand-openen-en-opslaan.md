@@ -4,7 +4,7 @@ Goal: open a project from a file and keep your changes.
 
 ## When you need this
 
-You start the day with yesterday's project, you get a file from a colleague or from another package, or you want to capture an interim state before you change something big. What the app keeps in a file, and why only IFC keeps your whole project, is explained in [Files and formats](docs://uitleg-bestanden).
+You start the day with yesterday's project, you get a file from a colleague or from another package, or you want to capture an interim state before you change something big. What the app keeps in a file is explained in [Files and formats](docs://uitleg-bestanden).
 
 ## Steps
 
@@ -13,13 +13,15 @@ You start the day with yesterday's project, you get a file from a colleague or f
 1. Choose *Home › File › Open*, or *File › Open*, or press Ctrl+O (⌘+O on a Mac). The *File* group is also on the *Table* tab.
 2. Choose the file. You open one file at a time. On the desktop and in browsers with file access, such as Chrome and Edge, the window shows a list of file types: *All Supported*, *IFC Files*, *CSV Files*, *XML Files*, *MS Project Files* and *Primavera XER Files*.
 3. The project opens in a new tab. If the current tab was still empty and unchanged, the project opens in it.
-4. If the file was not IFC, a window appears with a short explanation of that format. A green block says what the app took over, an amber block what was not included or only partly, and a blue block how saving and writing back work. *Read more* opens the guide for that format. Click *Got it* to close the window. First tick *Don't show again for …* if you no longer want to see this explanation for that format. You turn it back on in the app settings, in the [Notices](settings://formatNotices) group.
+4. For CSV, MS Project XML, Primavera P6 XML, `.mpp` and `.xer`, a window appears with a short explanation of that format. A green block says what the app took over, an amber block what was not included or only partly, and a blue block how saving and writing back work. *Read more* opens the guide for that format. Click *Got it* to close the window. First tick *Don't show again for …* if you no longer want to see this explanation for that format. You turn it back on in the app settings, in the [Notices](settings://formatNotices) group.
 
 An IFC file gives its file name to the tab. A project from another format gets its project name.
 
 If the experimental setting *Open IFC with a building model* is on (see [App settings](docs://ref-instellingen)) and you open an IFC file that is already open in a tab, no second tab appears: the app goes to that tab. That tab keeps its content, including changes you have not saved yet. If the file has changed since that tab opened or saved it, for example because a colleague saved a new version, a strip appears above that tab: *kantoor.ifc was changed outside this tab. This tab still shows the earlier version. Close this tab and open the file again to see the new version.* The strip belongs to that tab and stays until you save the tab, export it as IFC over the same file or close it. If the tab has changes you have not saved and you want to keep them, choose *Save As* first, so they go into a new file. The app never loads a new version by itself. If the app does not know which version the tab has, for example because you opened it while the setting was off, the file opens in a new tab; only a double-click then goes to the open tab as always, without a message. In the desktop app, the app recognises the same file by exactly the same path text: through a shortcut or a path written differently, it gets a tab of its own. In the browser, the app has to recognise the file in time; if it does not, the file opens in a new tab. The same goes for dragging, *Recent* and a double-click. A file in another format, such as `.csv` or `.xer`, does open again in a tab of its own. So does a file from your computer in browsers that only download, such as Firefox. If the setting is off, an IFC file that is already open also opens in a new tab; only a double-click then goes to the open tab, without a message.
 
 The app opens `.ifc`, `.csv`, `.xml` (MS Project XML or Primavera P6 XML), `.mpp` and `.xer`. For the last two there are separate steps in [Opening an MS Project file (.mpp)](docs://howto-mpp-openen) and [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen).
+
+With the experimental setting *Open and save IFCX* on (see [App settings](docs://ref-instellingen)), the app also opens `.ifcx` schedules it wrote itself. A file picker with a list of file types then also lists *IFCX Files*. If the app refuses to open the file, see [Notices and warnings](docs://ref-meldingen) for the reason.
 
 ### Dragging a file into the app
 
@@ -42,7 +44,7 @@ If a dialog is open when the app starts, such as the welcome dialog, the file op
 
 ### Opening a recent project
 
-Choose *Home › File › Recent* and click a file in the list, or choose *File › Recent*. The list keeps the last ten files that you opened, saved or exported. Here too, a file that is not IFC is followed by the explanation of its format. The desktop app shows the path for each file, a browser only the name.
+Choose *Home › File › Recent* and click a file in the list, or choose *File › Recent*. The list keeps the last ten files that you opened, saved or exported. Here too, an explanation appears for CSV, MS Project XML, Primavera P6 XML, `.mpp` and `.xer`. The desktop app shows the path for each file, a browser only the name.
 
 If the app can no longer read a file in the list, for example because you moved it, it disappears from the list without a message. In browsers without file access, such as Firefox, *Recent* stays empty.
 
@@ -61,9 +63,17 @@ Choose *Home › File › Save* or *File › Save*, or press Ctrl+S. What happen
 
 While saving, the status bar shows *Saving…* at the bottom right; you can keep working in the meantime. After saving, the *Unsaved* marker disappears: the dot on the tab and the asterisk before the project name at the top. The status bar then shows *Saved* with the time, for example *Saved 14:32*. Anything you changed while saving is not in the file: after that it shows *Unsaved* again.
 
+With the experimental setting *Open and save IFCX* on, *Save* (Ctrl+S) keeps the document's file type. An IFCX schedule stays in a `.ifcx` file and has no schema prompt.
+
 ### Saving under another name
 
 Choose *Home › File › Save As* or *File › Save As*, or press Ctrl+Shift+S. Choose a name and a place (in Firefox the app downloads a new file instead). After that the project works with this new file: the next *Save* writes there. The old file stays as it was the last time you saved.
+
+With the experimental setting *Open and save IFCX* on, you can choose a different file type only in the desktop app's save dialog. On Windows, choose *IFC Files* or *IFCX Files* from the list of file types. The dialog adjusts the extension to match your choice. On Linux and macOS, end the file name in `.ifc` or `.ifcx` for the type you want. On macOS there is no list of file types. The document keeps its file type in the browser and when saving on the site.
+
+With the experimental setting *Open and save IFCX* on, converting an IFC file with a building model brings up the *Save as IFCX* dialog. Choose *Save schedule only* to continue working in the new IFCX file. The building model and data from other programs stay in the original IFC file. Choose *Cancel* to stop saving.
+
+With the experimental setting *Open and save IFCX* on, converting a schedule from a XER import brings up the *Save as IFCX* dialog and explains that the P6 source archive stays behind. Choose *Continue* to save the schedule without the source archive, or *Cancel* to stop saving.
 
 ### Closing a project
 

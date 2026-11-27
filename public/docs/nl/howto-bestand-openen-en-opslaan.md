@@ -4,7 +4,7 @@ Doel: een project uit een bestand openen en je wijzigingen bewaren.
 
 ## Wanneer je dit nodig hebt
 
-Je begint de dag met het project van gisteren, je krijgt een bestand van een collega of uit een ander pakket, of je wilt een tussenstand vastleggen voordat je iets groots aanpast. Wat de app in een bestand bewaart, en waarom alleen IFC je hele project bewaart, staat in [Bestanden en formaten](docs://uitleg-bestanden).
+Je begint de dag met het project van gisteren, je krijgt een bestand van een collega of uit een ander pakket, of je wilt een tussenstand vastleggen voordat je iets groots aanpast. Wat de app in een bestand bewaart staat in [Bestanden en formaten](docs://uitleg-bestanden).
 
 ## Stappen
 
@@ -13,13 +13,15 @@ Je begint de dag met het project van gisteren, je krijgt een bestand van een col
 1. Kies *Start › Bestand › Openen*, of *Bestand › Openen*, of druk op Ctrl+O (⌘+O op een Mac). De groep *Bestand* staat ook op het tabblad *Tabel*.
 2. Kies het bestand. Je opent één bestand per keer. Op de desktop en in browsers met bestandstoegang, zoals Chrome en Edge, toont het venster een lijst met bestandstypen: *All Supported*, *IFC Files*, *CSV Files*, *XML Files*, *MS Project Files* en *Primavera XER Files*.
 3. Het project opent in een nieuw tabblad. Was het huidige tabblad nog leeg en ongewijzigd, dan opent het project daarin.
-4. Was het bestand geen IFC, dan verschijnt een venster met een korte uitleg over dat formaat. Een groen blok zegt wat de app overnam, een amber blok wat niet of maar deels meekwam, en een blauw blok hoe opslaan en terugschrijven werken. *Lees meer* opent de gids over dat formaat. Klik op *Begrepen* om het venster te sluiten. Vink eerst *Niet meer tonen voor …* aan als je deze uitleg voor dat formaat niet meer wilt zien. Je zet hem weer aan in de app-instellingen, in de groep [Meldingen](settings://formatNotices).
+4. Bij CSV, MS Project XML, Primavera P6 XML, `.mpp` en `.xer` verschijnt een venster met een korte uitleg over dat formaat. Een groen blok zegt wat de app overnam, een amber blok wat niet of maar deels meekwam, en een blauw blok hoe opslaan en terugschrijven werken. *Lees meer* opent de gids over dat formaat. Klik op *Begrepen* om het venster te sluiten. Vink eerst *Niet meer tonen voor …* aan als je deze uitleg voor dat formaat niet meer wilt zien. Je zet hem weer aan in de app-instellingen, in de groep [Meldingen](settings://formatNotices).
 
 Een IFC-bestand geeft zijn bestandsnaam aan het tabblad. Een project uit een ander formaat krijgt zijn projectnaam.
 
 Staat de experimentele instelling *IFC met gebouwmodel openen* aan (zie [App-instellingen](docs://ref-instellingen)) en open je een IFC-bestand dat al in een tabblad open staat, dan komt er geen tweede tabblad: de app gaat naar dat tabblad. Dat tabblad houdt zijn inhoud, ook wijzigingen die je nog niet opsloeg. Is het bestand veranderd sinds dat tabblad het opende of opsloeg, bijvoorbeeld omdat een collega een nieuwe versie opsloeg, dan staat er boven dat tabblad een strook: *kantoor.ifc is buiten dit tabblad gewijzigd. Dit tabblad toont nog de eerdere versie. Sluit dit tabblad en open het bestand opnieuw om de nieuwe versie te zien.* De strook hoort bij dat tabblad en blijft staan tot je het tabblad opslaat, het als IFC over hetzelfde bestand exporteert of het sluit. Heeft het tabblad wijzigingen die je nog niet opsloeg en wil je die bewaren, kies dan eerst *Opslaan als*, zodat ze in een nieuw bestand komen. Vanzelf laadt de app nooit een nieuwe versie. Weet de app niet welke versie het tabblad heeft, bijvoorbeeld omdat je het opende terwijl de instelling uit stond, dan opent het bestand in een nieuw tabblad; alleen een dubbelklik gaat dan zoals altijd naar het open tabblad, zonder melding. In de desktop-app herkent de app hetzelfde bestand aan precies dezelfde padtekst: via een snelkoppeling of een anders geschreven pad krijgt het een eigen tabblad. In de browser moet de app het bestand op tijd herkennen; lukt dat niet, dan opent het in een nieuw tabblad. Dat geldt ook voor slepen, *Recent* en een dubbelklik. Een bestand in een ander formaat, zoals `.csv` of `.xer`, opent wel opnieuw in een eigen tabblad. Dat doet ook een bestand van je computer in browsers die alleen downloaden, zoals Firefox. Staat de instelling uit, dan opent ook een IFC-bestand dat al open staat in een nieuw tabblad; alleen een dubbelklik gaat dan naar het open tabblad, zonder melding.
 
 De app opent `.ifc`, `.csv`, `.xml` (MS Project XML of Primavera P6 XML), `.mpp` en `.xer`. Voor de laatste twee staan aparte stappen in [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen) en [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen).
+
+Staat de experimentele instelling *IFCX openen en opslaan* aan (zie [App-instellingen](docs://ref-instellingen)), dan opent de app ook `.ifcx`-planningen die ze zelf schreef. In een openingsvenster met een lijst van bestandstypen staat dan ook *IFCX Files*. Weigert de app het bestand, dan staat de reden bij [Meldingen en waarschuwingen](docs://ref-meldingen).
 
 ### Een bestand naar de app slepen
 
@@ -42,7 +44,7 @@ Staat er bij het starten een venster open, zoals het welkomstvenster, dan opent 
 
 ### Een recent project openen
 
-Kies *Start › Bestand › Recent* en klik op een bestand in de lijst, of kies *Bestand › Recent*. De lijst bewaart de laatste tien bestanden die je opende, opsloeg of exporteerde. Ook hier verschijnt na een bestand dat geen IFC is de uitleg over het formaat. De desktopapp toont bij elk bestand het pad, een browser alleen de naam.
+Kies *Start › Bestand › Recent* en klik op een bestand in de lijst, of kies *Bestand › Recent*. De lijst bewaart de laatste tien bestanden die je opende, opsloeg of exporteerde. Ook hier verschijnt bij CSV, MS Project XML, Primavera P6 XML, `.mpp` en `.xer` de uitleg over het formaat. De desktopapp toont bij elk bestand het pad, een browser alleen de naam.
 
 Kan de app een bestand uit de lijst niet meer lezen, bijvoorbeeld omdat je het verplaatste, dan verdwijnt het zonder melding uit de lijst. In browsers zonder bestandstoegang, zoals Firefox, blijft *Recent* leeg.
 
@@ -61,9 +63,17 @@ Kies *Start › Bestand › Opslaan* of *Bestand › Opslaan*, of druk op Ctrl+S
 
 Tijdens het opslaan staat rechtsonder in de statusbalk *Opslaan…*; je kunt intussen doorwerken. Na het opslaan verdwijnt de markering *Niet opgeslagen*: de stip op het tabblad en de asterisk voor de projectnaam bovenaan. In de statusbalk staat dan *Opgeslagen* met de tijd, bijvoorbeeld *Opgeslagen 14:32*. Wat je tijdens het opslaan nog wijzigde, staat niet in het bestand: daarna staat er weer *Niet opgeslagen*.
 
+Met de experimentele instelling *IFCX openen en opslaan* aan houdt *Opslaan* (Ctrl+S) het bestandstype van het document. Een IFCX-planning blijft een `.ifcx`-bestand en krijgt geen schemavraag.
+
 ### Opslaan onder een andere naam
 
 Kies *Start › Bestand › Opslaan als* of *Bestand › Opslaan als*, of druk op Ctrl+Shift+S. Kies een naam en een plek (in Firefox downloadt de app in plaats daarvan een nieuw bestand). Het project werkt daarna met dit nieuwe bestand: een volgende *Opslaan* schrijft daarheen. Het oude bestand blijft zoals het bij je laatste keer opslaan was.
+
+Met de experimentele instelling *IFCX openen en opslaan* aan kies je alleen in het opslagvenster van de desktop-app een ander bestandstype. Op Windows kies je *IFC Files* of *IFCX Files* in de lijst met bestandstypen. Het venster past de extensie aan bij je keuze. Op Linux en macOS laat je de bestandsnaam eindigen op `.ifc` of `.ifcx` voor het gewenste type. Op macOS is er geen lijst met bestandstypen. In de browser en bij opslaan op de site houdt het document zijn bestandstype.
+
+Met de experimentele instelling *IFCX openen en opslaan* aan vraagt de app bij het omzetten van een IFC-bestand met een gebouwmodel in het venster *Opslaan als IFCX* om bevestiging. Kies *Alleen de planning opslaan* om verder te werken in het nieuwe IFCX-bestand. Het gebouwmodel en de gegevens van andere programma's blijven in het oorspronkelijke IFC-bestand. Met *Annuleren* breek je de opslag af.
+
+Met de experimentele instelling *IFCX openen en opslaan* aan meldt de app bij het omzetten van een planning uit een XER-import in het venster *Opslaan als IFCX* dat het P6-bronarchief niet meegaat. Kies *Doorgaan* om de planning zonder het bronarchief op te slaan, of *Annuleren* om de opslag af te breken.
 
 ### Een project sluiten
 
