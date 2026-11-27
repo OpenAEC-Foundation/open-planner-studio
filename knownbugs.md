@@ -2599,7 +2599,8 @@ en noem het in je rapport of PR-tekst.
      heeft `additionalProperties: false`, maar de schemapoort toetst de binnenkant van array-items niet (ADR 0100), en
      `classifyDeps` in `src/services/mcp/tools/taskTools.ts` leest alleen `predecessorId`, `successorId`, `type` en
      `lag`. Nagespeeld via de dispatcher: twee taken en één item `{ predecessorId, successorId, type: 'FS', lagDays: 2 }`;
-     de aanroep slaagde zonder weigering en de relatie kreeg `lagDays: 0`. ADR 0494. — B
+     de aanroep slaagde zonder weigering en de relatie kreeg `lagDays: 0`. ADR 0494.
+     Issue #1314. — B
 
 ## Bestanden en herstel
 
