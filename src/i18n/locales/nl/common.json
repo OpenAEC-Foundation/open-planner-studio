@@ -520,7 +520,7 @@
     "foreignChangesQuestion": "Vragen vóór opslaan als IFC-gegevens buiten de planning vervallen",
     "foreignChangesQuestionHint": "Bij een bestand met een gebouwmodel. Staat dit uit, dan slaat de app meteen op en meldt het aantal daarna.",
     "ifcx": "IFCX openen en opslaan",
-    "ifcxHint": "Opent een IFCX-bestand dat Open Planner Studio zelf schreef, en slaat zo'n bestand weer op als IFCX: met Opslaan, Opslaan als en Automatisch opslaan. In de desktop-app kies je bij Opslaan als ook het bestandstype, IFC of IFCX; zo zet je een planning om. IFCX is een nieuw formaat in ontwikkeling; een latere versie van de app kan een bestand dat je nu opslaat weigeren. De app bewaart nog niet alle gegevens in IFCX: het bronbestand van een P6-import (XER) gaat niet mee, en een planning met een meegeleverde resourcebibliotheek slaat de app niet op als IFCX. Bewaar die met Exporteren → IFC. Een IFCX-bestand van een ander programma opent de app nog niet.",
+    "ifcxHint": "Opent en bewaart IFCX-planningen. Een model van een ander programma met lokale bouwdelen en zonder planningsgegevens kun je openen als basis voor een apart planningsbestand. Sla die planning zelf op als IFCX. Automatisch opslaan en crashherstel slaan planningen met modelverwijzingen over. Voor planningen zonder modelverwijzingen kun je op de desktop bij Opslaan als kiezen tussen IFC en IFCX. IFCX is nog in ontwikkeling. Een latere versie kan een bestand weigeren. Een P6-bronarchief (XER) of een meegeleverde resourcebibliotheek bewaar je met Exporteren → IFC.",
     "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
     "theme": "Thema",
     "themeHint": "Het kleurenschema van de interface.",
@@ -2098,7 +2098,7 @@
   },
   "ifcx": {
     "open": {
-      "foreign": "Dit IFCX-bestand komt niet van Open Planner Studio. Bestanden van andere programma's kan de app nog niet openen.",
+      "foreign": "De app opent dit IFCX-bestand niet. Voor een nieuwe planning is een model met lokale bouwdelen zonder planningsgegevens nodig.",
       "newer": "Dit IFCX-bestand heeft een nieuwere versie dan deze app kent. Open het met een nieuwere versie van Open Planner Studio.",
       "unsupportedVersion": "Dit IFCX-bestand heeft een IFCX-versie die deze app niet ondersteunt, dus het opent niet.",
       "invalid": "Dit IFCX-bestand wijkt af van wat Open Planner Studio schrijft en opent daarom niet.",
