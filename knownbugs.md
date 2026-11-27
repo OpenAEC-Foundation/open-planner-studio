@@ -2035,6 +2035,14 @@ en noem het in je rapport of PR-tekst.
       geef regio `NL` in `CA_SET` (`src/engine/calendar/canadianHolidays.ts`) een afzonderlijke regel vanaf 2002.
       Bevestigd in de review van #1293. [Provinciale aankondiging](https://www.releases.gov.nl.ca/releases/2002/labour/1106n06.htm). — B
 
+2630. **Het weekendherstel van de XER-lezer kan een zaterdag vrij maken die in het bestand een werkdag is.** Op een
+      kalender die van zaterdag tot en met donderdag werkt, met vrijdag 4, maandag 7 en dinsdag 8 december 2009 als
+      losse feestdagen, haalt het record van vrijdag de drempel van `hasWeekendClampEvidence` (`xerCalendarData.ts`):
+      vrijdag is op die kalender al vrij, de reeks telt drie datums, maandag ligt drie dagen verder en heeft met dinsdag
+      een vervolg aan de kant van het weekend af. `weekendClampTarget` maakt dan zaterdag 5 december vrij. Gezien in het
+      weggehaalde commentaar van die functie, dat het geval met fixtures 22f en 22g van `check-xer-calendar-data.ts`
+      vergeleek; niet nagespeeld. Het commentaar noemde nul treffers in het corpus buiten `rehab-2.xer` (ADR 0590). — S
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
@@ -5840,6 +5848,19 @@ en noem het in je rapport of PR-tekst.
      (`src/engine/scheduler/ResourceLeveler.ts`) boekt haar op de eerste kandidaat vanaf de vroegste start volgens de
      relaties (`pinnedSet`, `nextCandidateFor`), en de proefsolve verschuift haar mee. `howto-overbezetting-oplossen.md`
      zegt het goed, in beide talen ("Ook een taak met prioriteit 1000 volgt haar voorgangers"). — B
+
+2640. **De cijferpoort van de docs mist een weggelaten getal als een label met cijfers één keer extra in de
+     vertaling staat.** `withoutPlainLabelNumbers` in `scripts/translate/gates.ts` (voor `checkDocs`) streept de
+     gewone voorkomens van zo'n label in de vertaling weg, hoogstens zo vaak als het label in de bron staat. Staat de
+     labeltekst in de vertaling één keer vaker, dan is dat niet te onderscheiden van twee en-labels met dezelfde
+     vertaling (cs "(F5)" in knop én tooltip), en kan dat extra voorkomen een weggelaten getal elders afdekken.
+     Gezien in het weggehaalde commentaar bij die functie. — S
+
+2641. **`apply-findings` keurt een tekst tegen de oude vertaling van een label dat in dezelfde lijst verandert.**
+     `applyFindings` in `scripts/translate/findings.ts` bouwt de labelindex één keer uit de doelteksten van vóór de
+     ronde. Bevat een nieuwe tekst die een label noemt geen van de labelvertalingen die vóór de ronde geldig waren, dan
+     weigert de labelpoort hem, ook als een andere regel in hetzelfde bestand dat label verbetert. Gezien in
+     het weggehaalde commentaar bij die functie. — S
 
 ## Tests
 

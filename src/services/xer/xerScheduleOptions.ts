@@ -1,11 +1,4 @@
-/**
- * Pure XER-SCHEDOPTIONS-afleiding. `xerReader` roept deze module één keer per geopend project aan;
- * de mapping blijft hier zelfstandig zodat projectselectie en schedulingssemantiek niet mengen.
- *
- * Voor de betekenis van de P6-enumtokens is MPXJ als gedragsreferentie geraadpleegd
- * (https://github.com/joniles/mpxj, LGPL-2.1, Jon Iles e.a.). Er is geen MPXJ-code overgenomen;
- * mapping, defaults, kolommatrix en terugvalrapportage zijn hier zelfstandig geïmplementeerd.
- */
+// Bron: MPXJ als referentie voor de P6-enumtokens, geen code overgenomen (LGPL-2.1, github.com/joniles/mpxj).
 import type {
   LevelingPriorityKey, LevelingResourceSetting, LevelingSettings, ProgressMode, ProjectSchedulingOptions,
 } from '@/types/project';
@@ -30,7 +23,6 @@ export type {
 
 export interface XerScheduleOptionsResult extends XerScheduleOptionsMetadata {
   progressMode: ProgressMode;
-  /** Alleen projectopties; de conventies komen uit het P6-profiel. */
   schedulingOptions: ProjectSchedulingOptions;
 }
 
@@ -39,7 +31,6 @@ interface IndexedSourceRow {
   sourceRowIndex: number;
 }
 
-/** Eenmalige bestandsindex: afleiding per project doet hierna uitsluitend Map-lookups. */
 export interface XerScheduleOptionsIndex {
   numberFormat: XerTables['numberFormat'];
   projectRowsById: ReadonlyMap<string, IndexedSourceRow>;
@@ -47,14 +38,9 @@ export interface XerScheduleOptionsIndex {
   sourceRowIndexesByProject: ReadonlyMap<string, readonly number[]>;
   diagnosticsByProject: ReadonlyMap<string, readonly XerScheduleOptionsDiagnostic[]>;
   sourceArchive: XerScheduleOptionsSourceArchive;
-  /** Nivellering (fundament): RSRCLEVELLIST-rijen per `schedoptions_id`, in bronvolgorde. */
   levelResourceRowsByScheduleOptionsId: ReadonlyMap<string, readonly XerRow[]>;
-  /** RSRCLEVELLIST-rijen met een lege `schedoptions_id` of een id zonder SCHEDOPTIONS-rij: ze horen bij
-   *  geen enkel project en worden per afgeleid project als terugval gemeld (nooit stil). */
   orphanLevelResourceRows: readonly XerRow[];
-  /** Alle `RSRC.rsrc_id`'s van het bestand (een lijstregel zonder resource valt zichtbaar weg). */
   resourceSourceIds: ReadonlySet<string>;
-  /** `RSRCRATE.max_qty_per_hr` per resource, alleen als alle tariefrijen één en dezelfde waarde dragen. */
   maxUnitsPerHourByResource: ReadonlyMap<string, number>;
 }
 
@@ -65,7 +51,6 @@ export type XerScheduleOptionColumnDisposition =
 const resourceLevelingReason = 'De CPM-solver voert geen resource-nivellering uit; het nivelleerfundament '
   + '(`schedulingOptions.leveling`) leest deze instelling (nog) niet — alleen keep/all/prioriteit/resourcelijst.';
 
-/** Exhaustieve bestemming van de 27 kolommen uit de openbare corpus-union. */
 export const XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS: readonly XerScheduleOptionColumnDisposition[] = [
   { field: 'enable_multiple_longest_path_calc', status: 'mapped', target: 'schedulingOptions.floatPaths.enabled' },
   {
@@ -122,11 +107,6 @@ export const XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS: readonly XerScheduleOptionCol
 
 const P6_OPTIONS = p6OptionDefaults();
 
-/** XER-eigen defaults; worden nooit als algemene OPS-projectdefaults toegepast. Alleen PROJECTOPTIES
- *  (de P6-conventies staan in het profiel dat `xerReader` zet). De WAARDEN komen uit het
- *  conventieregister (`p6OptionDefaults`); hier staat alleen welke sleutels de lezer zaait en in welke
- *  volgorde (die volgorde is de bytevolgorde van het IFC-optieblok). Dat deze set gelijk is aan
- *  `defaultOptionsFor('p6')`, pint `check-conventions-registry.ts`. */
 export const XER_SCHEDULING_DEFAULTS = {
   progressMode: 'RETAINED_LOGIC',
   schedulingOptions: {
@@ -202,10 +182,6 @@ function retainedBooleanValue(
   return undefined;
 }
 
-/** `PROJECT.rem_target_link_flag` stuurt GEEN conventie: A19 staat gewoon aan in het P6-profiel. De
- *  vlag wordt alleen als diagnose gelezen: een onbekend token komt als fallback in de metadata,
- *  Y/N/leeg niet. [VERMOED · hoog] In P6 heet het veld `LinkPlannedAndAtCompletionFlag` ("Link Budget
- *  and At Completion for not started activities") — een eenheden-/kostenkoppeling, geen datumregel. */
 function reportRemainingTargetLinkFlag(
   row: XerRow | undefined,
   fallbacks: XerScheduleOptionFallback[],
@@ -215,10 +191,6 @@ function reportRemainingTargetLinkFlag(
   reportFallback(fallbacks, row!, 'rem_target_link_flag', token, 'niet gebruikt');
 }
 
-/** "Aantoonbaar retained logic" voor de completed-late-klem: geen declaratie (P6-default) of
- *  exact `sched_retained_logic=Y`/`sched_progress_override=N` — elk half of afwijkend paar (N/N
- *  "Actual Dates", Y/Y, N/Y, onbekende tokens) telt als NIET aantoonbaar. Bewust strenger dan
- *  `progressModeValue`, die voor de solver zelf op RETAINED_LOGIC terugvalt. */
 function declaresRetainedLogic(row: XerRow): boolean {
   const retained = row.cells.sched_retained_logic?.trim().toUpperCase() ?? '';
   const override = row.cells.sched_progress_override?.trim().toUpperCase() ?? '';
@@ -238,9 +210,6 @@ function progressModeValue(
   if (retained && !override) return 'RETAINED_LOGIC';
   if (!retained && override) return 'PROGRESS_OVERRIDE';
 
-  // P6 kent naast Retained Logic en Progress Override ook Actual Dates (N/N). Het huidige OPS-
-  // model heeft daarvoor nog geen derde modus. Ook een tegenstrijdige Y/Y-combinatie is niet
-  // eenduidig. Beide vallen zichtbaar terug; lege velden hierboven blijven gewone defaults.
   reportFallback(
     fallbacks,
     row,
@@ -288,11 +257,6 @@ function appendSourceRows(
   }
 }
 
-/**
- * Indexeer PROJECT en SCHEDOPTIONS elk precies eenmaal. Een dubbele SCHEDOPTIONS-proj_id wordt
- * niet stil gekozen: alle raw rijen blijven bewaard, een typed diagnose wordt uitgegeven en de
- * onzekere SCHEDOPTIONS-semantiek wordt voor dat project niet toegepast.
- */
 export function indexXerScheduleOptions(tables: Pick<XerTables, 'tables' | 'numberFormat'>): XerScheduleOptionsIndex {
   const sourceRows: XerScheduleOptionsSourceRow[] = [];
   const sourceRowIndexesByProject = new Map<string, number[]>();
@@ -385,18 +349,9 @@ export function indexXerScheduleOptions(tables: Pick<XerTables, 'tables' | 'numb
   };
 }
 
-/** Scheidingsteken tussen de sleutels van `LevelPriorityList` (P6's DEL-DEL-regelovergang). */
 const LEVEL_PRIORITY_SEPARATOR = '\u007f\u007f';
 const LEVEL_PRIORITY_FIELD_RE = /^[A-Za-z0-9_]{1,64}$/;
 
-/**
- * `SCHEDOPTIONS.LevelPriorityList` ⇒ prioriteitssleutels. Gemeten vormen (alle 48 corpusrijen met de
- * kolom): `priority_type,ASC_BY_FIELD/ASC`, `priority_type,ASC` en `<veld>,/ASC`, elk afgesloten met
- * DEL-DEL; meerdere sleutels volgen elkaar met hetzelfde scheidingsteken op. De richting staat na de
- * laatste `/` (of, zonder `/`, direct na de komma); het tussenstuk (`ASC_BY_FIELD`) wordt niet
- * geïnterpreteerd en blijft in het bronarchief. Een sleutel die niet in die vorm past valt zichtbaar
- * terug (weggelaten), nooit stil.
- */
 function levelPriorityValue(
   row: XerRow,
   fallbacks: XerScheduleOptionFallback[],
@@ -418,13 +373,6 @@ function levelPriorityValue(
   return out;
 }
 
-/**
- * Nivelleerinstellingen van één SCHEDOPTIONS-rij als DATA (`SchedulingOptions.leveling`). Leest
- * uitsluitend invoerinstellingen: de drie `level_*`-kolommen hieronder, RSRCLEVELLIST (via
- * `schedoptions_id`) en `RSRCRATE.max_qty_per_hr` — nooit opgeslagen rekenuitvoer en nooit een
- * afleiding "is er genivelleerd": P6 slaat dat niet op, en het blok heeft bewust geen aan/uit-veld.
- * Draagt de rij geen van de drie kolommen en geen resourcelijst, dan `undefined` (geen blok).
- */
 function levelingValue(
   index: XerScheduleOptionsIndex,
   row: XerRow,
@@ -461,11 +409,6 @@ function levelingValue(
   };
 }
 
-/**
- * RSRCLEVELLIST-rijen die bij geen SCHEDOPTIONS-rij horen (lege of onbekende `schedoptions_id`) vallen
- * weg, maar zichtbaar: elke afgeleide projectuitkomst meldt ze (een bestandsbrede rij heeft geen eigen
- * project, dus in een meerprojectbestand staat dezelfde melding bij elk project).
- */
 function reportOrphanLevelResourceRows(index: XerScheduleOptionsIndex, fallbacks: XerScheduleOptionFallback[]): void {
   for (const listRow of index.orphanLevelResourceRows) {
     reportFallback(fallbacks, listRow, 'RSRCLEVELLIST.schedoptions_id',
@@ -479,17 +422,12 @@ export function deriveXerScheduleOptions(
   context: {
     hoursPerDay?: number;
     taskCount?: number;
-    /** Heeft het project een bruikbaar einde voor `sched_use_project_end_date_for_float`: een
-     *  geldige PROJECT-einddatum (P6's "Must Finish By") óf minstens één geldige
-     *  TASK-doeleinddatum? De lezer bepaalt dit (hij kent de taakrijen en de uurmodus);
-     *  `undefined` laat de optie ongemoeid. */
     hasUsableProjectEnd?: boolean;
   } = {},
 ): XerScheduleOptionsResult {
   const defaults = freshDefaults();
   const projectRow = index.projectRowsById.get(projectId)?.row;
   const fallbacks: XerScheduleOptionFallback[] = [];
-  // PROJECT.rem_target_link_flag: alleen diagnose, stuurt niets (zie `reportRemainingTargetLinkFlag`).
   reportRemainingTargetLinkFlag(projectRow, fallbacks);
   const sourceRowIndexes = [...(index.sourceRowIndexesByProject.get(projectId) ?? [])];
   const retainedRows = sourceRowIndexes.map(rowIndex => index.sourceArchive.rows[rowIndex]);
@@ -518,8 +456,6 @@ export function deriveXerScheduleOptions(
 
   const schedulingOptions: ProjectSchedulingOptions = {
     ...defaults.schedulingOptions,
-    // Leeg of onbekend ⇒ de kalender van de opvolger, zoals de P6-documentatie (eigenaar, 2026-10-29). Zonder
-    // SCHEDOPTIONS-rij hierboven geldt de profielstandaard.
     lagCalendar: enumValue<NonNullable<ProjectSchedulingOptions['lagCalendar']>>(
       row, 'sched_calendar_on_relationship_lag', {
       RCAL_PREDECESSOR: 'predecessor',
@@ -535,8 +471,6 @@ export function deriveXerScheduleOptions(
     }, 'finish', fallbacks),
     makeOpenEndedCritical: booleanValue(row, 'sched_open_critical_flag', false, fallbacks),
     useExpectedFinishDates: booleanValue(row, 'sched_use_expect_end_flag', true, fallbacks),
-    // P6 "Calculate Start-to-Start lag from" (Oracle P6 Help 99348): Y = Early Start (P6-standaard),
-    // N = Actual Start ("statusdatum + rest-lag"). De variant van conventie C6; leeg ⇒ Early Start.
     startToStartLagFrom: booleanValue(row, 'sched_lag_early_start_flag', true, fallbacks)
       ? 'earlyStart' : 'actualStart',
   };
@@ -552,14 +486,6 @@ export function deriveXerScheduleOptions(
   if (retainedProjectEndValue !== undefined) {
     schedulingOptions.useProjectEndDateForFloat = retainedProjectEndValue;
   }
-  // Projecteinde zonder einde. `Y` zegt dat de late pass op het projecteinde verankert, maar het
-  // bestand draagt dan geen einde: geen PROJECT-einddatum (P6's "Must Finish By") en geen enkele
-  // TASK-doeleinddatum. Het taak-afgeleide einde valt dan terug op de projectSTART en de hele late
-  // zijde zou daarop verankeren (cases-import.xer: 77/160 P6-cellen). Zonder Must Finish By rekent
-  // P6 de late datums terug vanaf max(EF) — wat de solver doet met de optie uit (cases-import.xer:
-  // 156/160). Daarom: optie uit, zichtbaar als terugval gerapporteerd; de bronwaarde `Y` blijft in
-  // `retainedSource`. Bewust smal: een bestand mét taakeinden houdt het taak-afgeleide einde (daar
-  // de optie óók uitzetten verslechterde 100 cellen op OZB).
   if (schedulingOptions.useProjectEndDateForFloat === true && context.hasUsableProjectEnd === false) {
     schedulingOptions.useProjectEndDateForFloat = false;
     reportFallback(
@@ -572,12 +498,6 @@ export function deriveXerScheduleOptions(
   }
 
   const progressMode = progressModeValue(row, fallbacks);
-  // De bewijsbasis voor `p6CompletedLateFromRemainingWindow` is uitsluitend RETAINED_LOGIC-corpus
-  // (rehab-2) — zie het docblok bij het veld in `types/project.ts`. De klem is daarom fail-closed op
-  // "aantoonbaar retained logic": de vlag blijft alleen aan wanneer de bron géén van beide velden
-  // declareert (P6-default) of exact Y/N zegt. Ook P6's "Actual Dates" (N/N) en de tegenstrijdige
-  // Y/Y zetten hem uit — die vallen in `progressModeValue` zichtbaar terug op RETAINED_LOGIC, maar
-  // juist in Actual Dates behandelt P6 voltooid werk anders, en daar bestaat geen meting van.
   if (!declaresRetainedLogic(row)) {
     schedulingOptions.p6CompletedLateFromRemainingWindow = false;
   }

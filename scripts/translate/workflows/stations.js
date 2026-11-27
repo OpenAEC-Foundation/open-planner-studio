@@ -3,15 +3,6 @@ export const meta = {
   description: 'Vertaalstraat: per pakket vertalen, nalezen en herstellen met Haiku (UI of docs)',
   phases: [{ title: 'Vertalen', model: 'haiku' }, { title: 'Nalezen', model: 'haiku' }, { title: 'Herstellen', model: 'haiku' }],
 }
-// De drie stations van de vertaalstraat, per pakket achter elkaar; de pakketten lopen naast elkaar.
-// Gestart door de skills update-ui-lang en update-docs-lang (Workflow-tool, scriptPath = dit bestand).
-// args: {
-//   kind:  'ui' | 'docs' | 'ui-termfix'   welke opdrachten: prompts/<kind>.md, daarna <soort>-review.md en
-//                                         <soort>-fix.md; 'ui-termfix' = pakketten van `prepare ui <taal> --avoid`
-//   repo:  absoluut pad van de worktree   (pakketten in <repo>/build/translate/<taal>/)
-//   node:  absoluut pad van node          (agent-shells laden nvm niet)
-//   items: [[taal, pakket-id], …]         uitvoer van `npm run translate -- packages ui|docs <taal…> [--red]`
-// }
 const ROOT = `${args.repo}/build/translate`
 const PROMPTS = `${args.repo}/scripts/translate/prompts`
 const SCHEMA = { type: 'object', properties: { problems: { type: 'number' } }, required: ['problems'] }

@@ -1,26 +1,14 @@
-// Samenvoegen van UI-pakketten (§9), als pure functie: alleen pakketten waarvan de poort groen is.
 import type { JsonObject } from '../i18n-tools';
 import { hashUnit, unitsOf } from './common';
 import { checkPackage, formatResult } from './gates';
 import { applyUiPackage, type UiOut, type UiPackage, type UiSources } from './ui';
 
 export interface BatchResult {
-  /** Bijgewerkte doelobjecten per namespace (alleen namespaces die iets kregen). */
   targets: Map<string, JsonObject>;
   applied: string[];
   red: { id: string; lines: string[] }[];
 }
 
-/**
- * Voeg de pakketten één voor één toe. Een rood pakket wordt overgeslagen (met zijn foutregels);
- * een groen pakket gaat via `applyUiPackage` in het doelobject en werkt `sources` bij (muteert).
- * `readTarget` levert het huidige doelobject van een namespace (`{}` als het nog niet bestaat).
- *
- * Het pakket ligt in `build/translate/`, waar ook de agents schrijven. Daarom geldt het pakket niet
- * blind: het moet voor `lang` zijn, en elk item moet in de huidige nl staan met precies de nl-tekst uit
- * het pakket. Anders zou een bewerkt pakket (of een nl-wijziging na `prepare`) een sleutel met een
- * verkeerde hash als "actueel" wegschrijven.
- */
 export function applyUiBatch(
   batch: { pkg: UiPackage; out: unknown }[],
   readTarget: (ns: string) => JsonObject,
@@ -49,7 +37,6 @@ export function applyUiBatch(
   return { targets, applied, red };
 }
 
-/** Waarom een pakket niet (meer) bij de huidige nl en de taal past; leeg = past. Ook voor `packages ui --red`. */
 export function packageMismatch(pkg: UiPackage, nlNs: JsonObject, lang: string): string[] {
   const lines: string[] = [];
   if (pkg.kind !== 'ui') lines.push(`XX geen UI-pakket (kind ${String(pkg.kind)})`);
