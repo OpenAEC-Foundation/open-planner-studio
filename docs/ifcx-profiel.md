@@ -696,8 +696,8 @@ Een leesmoment komt er niet in: de lezer gaat niet door STEP en vult niets in.
 
 Alles daarbuiten is een verschil, ook de schrijfwijze.
 
-**Wat een schrijver van een ander programma moet doen.** Een bestand opent alleen als het precies de projectie is van
-de planning die erin staat, tot op de byte. Een
+**Wat een schrijver van een ander programma moet doen.** De app leest een bestand als eigen planning als het tot op
+de byte overeenkomt met de projectie van de planning die erin staat. Een
 ander programma moet dus dezelfde paden, dezelfde precieze en gedeelde velden met dezelfde waarden (de standaardwaarden
 weggelaten, de afgeleide waarden niet geschreven), dezelfde schema's, dezelfde volgorde en dezelfde opmaak schrijven; in
 de praktijk: via deze kern. Voor de oudere documentdefinitie met `ifcSchemaUnconfirmed` vergelijkt de lezer met de exacte

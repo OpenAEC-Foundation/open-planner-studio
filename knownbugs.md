@@ -7993,6 +7993,12 @@ en noem het in je rapport of PR-tekst.
       het standaard aanzetten ook aliassen op volumes zonder betrouwbare bestandsidentiteit en een
       externe vervanging tussen de laatste controle en het plaatsen. — S (ontwerpstap fase 4, §6)
 
+2410. **Bij opnieuw kiezen van een open IFCX-planning toont het tabblad de vorige modelcontrole.**
+      De app controleert het buurmodel opnieuw. Als dezelfde versie van de planning al open is, activeert
+      ze het bestaande tabblad en vervalt de nieuwe controle. Een inmiddels gewijzigd model wordt pas
+      zichtbaar na sluiten en heropenen. Leg bij stuk 5 vast hoe de modelcontrole op het open tabblad
+      wordt ververst met behoud van de onopgeslagen planning. Gevolgd in de code bij de review. — S
+
 2411. **Chromium kan een IFCX-model leegmaken als het als doel voor een ander document wordt gekozen.**
       Kiest de planner bij *Opslaan als* via *Alle bestanden* een bestaand IFCX-model, dan kapt de
       browser het bestand af voordat de app de handle krijgt en het doel kan weigeren. Dezelfde grens
