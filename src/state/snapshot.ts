@@ -189,6 +189,8 @@ export function documentDataChanged(before: Snapshot, after: Snapshot): boolean 
     if (f.key === 'ifcxReferences') {
       const left = before.ifcxReferences, right = after.ifcxReferences;
       if (!sameValue(left?.modelSource, right?.modelSource)) return true;
+      if (!sameValue(left?.sourcePaths, right?.sourcePaths)) return true;
+      if (!sameValue(left?.baselineStarts, right?.baselineStarts)) return true;
       const links = left?.elementLinks, other = right?.elementLinks;
       if (links === other) return false;
       if (links?.size !== other?.size) return true;

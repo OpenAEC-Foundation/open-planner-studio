@@ -150,7 +150,7 @@ function within(problem: Problem | undefined, step: string): Problem | undefined
   return problem;
 }
 
-function problemOf(spec: IfcxValue, value: unknown): Problem | undefined {
+function problemOf(spec: IfcxValue, value: unknown, paths?: ReadonlySet<string>): Problem | undefined {
   const found = JSON.stringify;
   switch (spec.dataType) {
     case 'String':
@@ -159,7 +159,8 @@ function problemOf(spec: IfcxValue, value: unknown): Problem | undefined {
       if (!spec.form.pattern.test(value) || spec.form.accepts?.(value) === false) return invalidValue(`verwacht de vorm ${spec.form.name}, gevonden ${found(value)}`);
       return;
     case 'Reference':
-      return typeof value === 'string' && (spec.accepts ?? isIdentityPath)(value) ? undefined : invalidValue(`verwacht een pad, gevonden ${found(value)}`);
+      return typeof value === 'string' && (spec.accepts ? spec.accepts(value) : isIdentityPath(value) || paths?.has(value))
+        ? undefined : invalidValue(`verwacht een pad, gevonden ${found(value)}`);
     case 'Boolean':
       return typeof value === 'boolean' ? undefined : invalidValue(`verwacht waar of onwaar, gevonden ${found(value)}`);
     case 'Real':
@@ -178,7 +179,7 @@ function problemOf(spec: IfcxValue, value: unknown): Problem | undefined {
     case 'Array': {
       if (!Array.isArray(value)) return invalidValue(`verwacht een lijst, gevonden ${found(value)}`);
       for (let i = 0; i < value.length; i++) {
-        const problem = within(problemOf(spec.item, value[i]), `[${i}]`);
+        const problem = within(problemOf(spec.item, value[i], paths), `[${i}]`);
         if (problem) return problem;
       }
       return;
@@ -194,7 +195,7 @@ function problemOf(spec: IfcxValue, value: unknown): Problem | undefined {
           if (member.optional) continue;
           return { kind: 'invalid', path: [key], detail: 'ontbreekt' };
         }
-        const problem = within(problemOf(member.value, value[key]), key);
+        const problem = within(problemOf(member.value, value[key], paths), key);
         if (problem) return problem;
       }
       return;
@@ -202,8 +203,8 @@ function problemOf(spec: IfcxValue, value: unknown): Problem | undefined {
   }
 }
 
-export function checkValue(spec: IfcxValue, value: unknown): IfcxValueProblem | undefined {
-  const problem = problemOf(spec, value);
+export function checkValue(spec: IfcxValue, value: unknown, paths?: ReadonlySet<string>): IfcxValueProblem | undefined {
+  const problem = problemOf(spec, value, paths);
   if (!problem) return undefined;
   const field = problem.path.map((step, index) => (index === 0 || step.startsWith('[') ? step : `.${step}`)).join('');
   return problem.kind === 'invalid' ? { kind: 'invalid', field, detail: problem.detail } : { kind: 'unknown-field', field };

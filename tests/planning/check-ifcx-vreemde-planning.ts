@@ -129,6 +129,10 @@ assert.equal(unknown.planning.tasks.length, 0);
 assert.deepEqual(unknown.leftBehind.attributes, extended.leftBehind.attributes);
 
 const precise = read('precieze-taken');
+const ownDates = readFileSync(join(dir, '../eigen/datumgevallen.ifcx'));
+for (const result of [precise.planning, readIfcx(ownDates), readForeignIfcxPlanning(ownDates).planning]) {
+  assert.equal('recordedSourceFormat' in result, false);
+}
 assert.equal(precise.origin.hasOpsDocument, true);
 assert.equal(precise.planning.recordedTimesOrigin, 'ifc-own');
 assert.equal(precise.planning.project.id, 'project-uit-bron');
@@ -149,6 +153,11 @@ function openPrecise(source: { data: { attributes: Record<string, unknown> }[] }
   store.getState().openAsDocument(imported, { name: 'Precieze taken', ref: null });
   return store.getState();
 }
+const withoutSourceFormat = openPrecise(preciseSource, 'ifc-own');
+assert.equal(withoutSourceFormat.recordedDates, null);
+assert.equal(shownFinish(withoutSourceFormat.tasks[0]), '2027-03-05T00:00');
+assert.deepEqual(dates(withoutSourceFormat.tasks.slice(1)), dates(precise.planning.tasks.slice(1)));
+preciseSource.data[0].attributes[ATTRIBUTE.document].recordedSourceFormat = 'ifc';
 for (const tasks of [precise.planning.tasks, ...origins.map(origin => openPrecise(preciseSource, origin).tasks)]) {
   assert(!tasks[0].manuallyScheduled);
   assert.deepEqual(tasks.map(shownStart), Array(4).fill('2027-03-01T07:00'));

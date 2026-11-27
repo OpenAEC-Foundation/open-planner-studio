@@ -1,10 +1,10 @@
 import { readIFC } from '../ifcReader';
 import { ifcObjectSeed, writeIFC, type WriteIFCInput } from '../ifcWriter';
-import { assignmentKeyName } from '../assignmentKeys';
 import type { ImportResult } from '@/services/importTypes';
-import type { ResourceAssignment } from '@/types/resource';
+import { baselineStart } from '@/types/baseline';
 import { buildWriteIFCInput, documentDataFromImport } from '@/services/documentData';
-import { intendedGlobalIds } from './identity';
+import { intendedGlobalIds, type PlanningModel } from './identity';
+import { stepAssignmentIds } from '../assignmentKeys';
 import { selfCheckDifferences } from './selfCheck';
 import { unsupportedContent } from './unsupportedContent';
 import { IfcxWriteRefusedError } from './ifcxErrors';
@@ -17,18 +17,12 @@ export type { IfcxDocument, IfcxEntry, IfcxHeader } from './projection';
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-function withStepAssignmentIds(read: ImportResult): ResourceAssignment[] {
-  const globalIds = intendedGlobalIds(read);
-  const places = new Map<string, number>();
-  return read.assignments.map(assignment => {
-    const place = places.get(assignment.taskId) ?? 0;
-    places.set(assignment.taskId, place + 1);
-    const resourceGuid = globalIds.get(ifcObjectSeed('res', assignment.resourceId))!;
-    return { ...assignment, id: `asgn-${assignment.taskId}/${assignmentKeyName(resourceGuid, place)}` };
-  });
+function assignmentIds(model: PlanningModel): string[] {
+  const globalIds = intendedGlobalIds(model);
+  return stepAssignmentIds(model.assignments ?? [], id => globalIds.get(ifcObjectSeed('res', id))!);
 }
 
-function stepReading(given: WriteIFCInput): ImportResult {
+function stepReading(given: WriteIFCInput & IfcxModelReferences): ImportResult {
   const { createdAt, modifiedAt } = given.project;
   let read: ImportResult;
   try {
@@ -36,8 +30,20 @@ function stepReading(given: WriteIFCInput): ImportResult {
   } catch (error) {
     throw new IfcxWriteRefusedError('invalid', `Opslaan als IFC weigert deze planning: ${messageOf(error)}`, ['planning']);
   }
-  const step = { ...read, assignments: withStepAssignmentIds(read) };
+  const ids = assignmentIds(read);
+  const step = { ...read, assignments: read.assignments.map((a, i) => ({ ...a, id: ids[i] })) };
   const ifcGlobalIds: Record<string, string> = { ...step.ifcGlobalIds };
+  if (given.modelSource && given.ifcGlobalIds) {
+    const inputIds = given.ifcGlobalIds;
+    assignmentIds(given).forEach((canonical, index) => {
+      const guid = inputIds[ifcObjectSeed('asgn', given.assignments![index].id)];
+      if (guid) ifcGlobalIds[ifcObjectSeed('asgn', canonical)] = guid;
+    });
+    for (const baseline of step.baselines ?? []) {
+      const seed = ifcObjectSeed('bl', baseline.id);
+      if (inputIds[seed]) ifcGlobalIds[seed] = inputIds[seed];
+    }
+  }
   for (const [seed, globalId] of intendedGlobalIds(step)) if (!ifcGlobalIds[seed]) ifcGlobalIds[seed] = globalId;
   const recordedFields = Object.fromEntries(step.tasks.map(task => {
     const kept = step.recordedFields?.[task.id] ?? [];
@@ -59,7 +65,14 @@ export function filePlanning(given: WriteIFCInput & IfcxModelReferences): Canoni
     const named = unsupported.map(item => (item.objects.length > 0 ? `${item.field} (${item.objects.join(', ')})` : item.field));
     throw new IfcxWriteRefusedError('unsupported', `IFCX draagt deze gegevens nog niet: ${named.join(', ')}`, unsupported.map(item => item.field));
   }
-  return { ...planning, ...savedModelReferences(given, given.tasks) };
+  const paths = Object.fromEntries(Object.values(planning.ifcGlobalIds ?? {}).flatMap(guid =>
+    given.sourcePaths?.[guid] === undefined ? [] : [[guid, given.sourcePaths[guid]]]));
+  const baselineStarts = Object.fromEntries((planning.baselines ?? []).flatMap(baseline => {
+    const start = given.baselineStarts?.[baseline.id];
+    return start && !baselineStart(baseline) ? [[baseline.id, start]] : [];
+  }));
+  return { ...planning, ...savedModelReferences(given, given.tasks), ...(Object.keys(paths).length ? { sourcePaths: paths } : {}),
+    ...(Object.keys(baselineStarts).length ? { baselineStarts } : {}) };
 }
 
 export function writeIfcx(given: WriteIFCInput & IfcxModelReferences, writtenAt: Date = new Date()): string {

@@ -502,8 +502,10 @@ export interface MultiDocumentImport {
 /** Het resultaat van een reader op de centrale open-pijplijn. */
 export type ReadImportResult = ImportResult & {
   readonly ifcxRead?: { readonly sha256: string; readonly byteLength: number };
+  readonly ownIfcxPlanBytes?: Uint8Array;
   readonly ifcxReferences?: import('./ifc/ifcx/modelReferences').IfcxModelReferences;
   readonly ifcxModel?: import('./ifc/ifcxModelSession').ModelElements;
+  readonly ifcxImport?: Pick<import('./ifc/ifcx/foreignPlanning').ForeignIfcxPlanning, 'leftBehind' | 'convertedToManual' | 'origin' | 'planningContent'>;
 };
 
 export type OpenedImport = ReadImportResult | MultiDocumentImport;

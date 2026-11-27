@@ -1,13 +1,15 @@
 import type { ImportResult } from '@/services/importTypes';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Sequence } from '@/types/sequence';
+import { baselineStart } from '@/types/baseline';
 import { ifcObjectSeed } from '../ifcWriter';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { hourRemainingDays } from '@/engine/taskMutationRules';
 import { hourTaskScheduleDuration } from '@/utils/taskDuration';
 import { reconstructResourceIds } from '@/services/importNormalize';
 import { checkValue, hasKey, readFields, VERSION_FORM } from './fieldTable';
-import { globalIdOfPath, isIdentityPath } from './identityPath';
+import { globalIdOfPath, isIdentityPath, pathOfGlobalId } from './identityPath';
+import { uniquePathGlobalId } from './pathUuid';
 import { decodeIfcx, parseIfcx } from './ifcxInput';
 import { childrenInPlace } from './childOrder';
 import { hourDurationIsDerived, objectLabels, serializeIfcx, type IfcxAttributes, type IfcxDocument } from './projection';
@@ -44,7 +46,6 @@ interface Attributes extends ReadonlyMap<IfcxAttributeName, unknown> {
 
 interface IfcxNode {
   readonly path: string;
-  readonly globalId: string;
   readonly attributes: Attributes;
 }
 
@@ -92,8 +93,8 @@ function thrown(problem: IfcxCheckProblem): IfcxReadError {
   return new IfcxReadError(problem.code, problem.detail, problem.place);
 }
 
-function nodesOf(data: readonly unknown[]): IfcxNode[] {
-  const nodes = new Map<string, { globalId: string; attributes: Map<IfcxAttributeName, unknown> }>();
+function nodesOf(data: readonly unknown[], sourcePathsAllowed: boolean): IfcxNode[] {
+  const nodes = new Map<string, Map<IfcxAttributeName, unknown>>();
   for (const entry of data) {
     if (!isPlainObject(entry) || typeof entry.path !== 'string') throw invalid('Een entry heeft geen pad');
     const path = entry.path;
@@ -101,22 +102,22 @@ function nodesOf(data: readonly unknown[]): IfcxNode[] {
     if ('children' in entry) throw foreign('Het bestand gebruikt children', { path });
     if ('inherits' in entry) throw foreign('Het bestand gebruikt inherits', { path });
     if (!isPlainObject(entry.attributes)) throw foreign('Een entry zonder attributen', { path });
-    const node = nodes.get(path) ?? { globalId: globalIdOfPath(path), attributes: new Map() };
-    if (node.globalId === undefined) throw foreign('Een pad dat geen identiteitspad van Open Planner Studio is', { path });
+    const attributes = nodes.get(path) ?? new Map<IfcxAttributeName, unknown>();
+    if (!path || (!sourcePathsAllowed && !isIdentityPath(path))) throw foreign('Een pad dat geen identiteitspad van Open Planner Studio is', { path });
     for (const [name, value] of Object.entries(entry.attributes)) {
-      if (node.attributes.has(name as IfcxAttributeName)) throw foreign('Twee bijdragen van hetzelfde attribuut op één pad', { path, attribute: name });
-      node.attributes.set(name as IfcxAttributeName, value);
+      if (attributes.has(name as IfcxAttributeName)) throw foreign('Twee bijdragen van hetzelfde attribuut op één pad', { path, attribute: name });
+      attributes.set(name as IfcxAttributeName, value);
     }
-    nodes.set(path, { globalId: node.globalId, attributes: node.attributes });
+    nodes.set(path, attributes);
   }
-  return [...nodes].map(([path, node]) => ({ path, globalId: node.globalId, attributes: node.attributes as Attributes }));
+  return [...nodes].map(([path, attributes]) => ({ path, attributes: attributes as Attributes }));
 }
 
 function ownProfileVersion(data: readonly unknown[]): string | undefined {
   let workplan: { path: string; version: string } | undefined;
   for (const entry of data) {
     if (!isPlainObject(entry) || !isPlainObject(entry.attributes) || !hasKey(entry.attributes, ATTRIBUTE.document)) continue;
-    if (workplan || !isPlainObject(entry.attributes[ATTRIBUTE.workplan]) || typeof entry.path !== 'string' || !isIdentityPath(entry.path)) return;
+    if (workplan || !isPlainObject(entry.attributes[ATTRIBUTE.workplan]) || typeof entry.path !== 'string' || !entry.path) return;
     const document = entry.attributes[ATTRIBUTE.document];
     const version = isPlainObject(document) ? document.formatVersion : undefined;
     if (typeof version !== 'string' || !VERSION_FORM.pattern.test(version)) return;
@@ -133,9 +134,10 @@ function ownProfileVersion(data: readonly unknown[]): string | undefined {
 }
 
 function assertValues(nodes: readonly IfcxNode[], legacyDocument: boolean): void {
+  const paths = new Set(nodes.map(node => node.path));
   for (const node of nodes) {
     for (const [name, value] of node.attributes) {
-      const problem = attributeValueProblem(node.path, name, value, legacyDocument);
+      const problem = attributeValueProblem(node.path, name, value, legacyDocument, paths);
       if (problem) throw thrown(problem);
     }
   }
@@ -299,7 +301,10 @@ function assertOwnProjection(text: string, document: Record<string, unknown>, re
 export function readIfcxText(text: string, checked = true): IfcxImportResult {
   const { document, profileVersion } = parseDocument(text);
   const header = headerOf(document);
-  const nodes = nodesOf(document.data as unknown[]);
+  const data = document.data as unknown[];
+  const sourcePathsAllowed = profileVersion === MODEL_PROFILE_VERSION && data.some(entry =>
+    isPlainObject(entry) && isPlainObject(entry.attributes) && hasKey(entry.attributes, ATTRIBUTE.modelSource));
+  const nodes = nodesOf(data, sourcePathsAllowed);
   const legacyDocument = profileVersion !== MODEL_PROFILE_VERSION && usesLegacyDocumentSchema(document.schemas);
   if (checked) assertValues(nodes, legacyDocument);
   assertSchemas(document.schemas, nodes, legacyDocument);
@@ -411,9 +416,12 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
     return target;
   });
 
+  const baselineStarts: Record<string, string> = Object.create(null);
   const baselineTargets: BaselineReadTarget[] = of('baseline').map(node => {
     const target: BaselineReadTarget = { baseline: emptyBaseline(), path: node.path, rowTaskPaths: [] };
     readFields(BASELINE_FIELDS, node.attributes.get(ATTRIBUTE.opsBaseline)!, target);
+    const start = node.attributes.get(ATTRIBUTE.baseline)?.start;
+    if (modelSource && typeof start === 'string' && !baselineStart(target.baseline)) baselineStarts[target.baseline.id] = start;
     target.rowTaskPaths.forEach((path, index) => {
       const taskPath = reference(path, 'task', { path: node.path, attribute: ATTRIBUTE.opsBaseline, field: `tasks[${index}].task` });
       if (taskPath !== undefined) target.baseline.tasks[index].taskId = taskIdAt.get(taskPath)!;
@@ -436,12 +444,16 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   const resources = resourceTargets.map(target => target.resource);
   const assignments = assignmentTargets.map(target => target.assignment);
   reconstructResourceIds(tasks, assignments);
+  const usedGlobalIds = new Set([header.projectGlobalId]);
+  const globalIdAt = new Map(nodes.map(({ path }) => [path, modelSource
+    ? uniquePathGlobalId(path, kindAt.get(path)!, usedGlobalIds, globalIdOfPath(path))
+    : globalIdOfPath(path)!]));
+  const sourcePaths = Object.fromEntries([...globalIdAt].filter(([path, guid]) => path !== pathOfGlobalId(guid)).map(([path, guid]) => [guid, path]));
   const ifcGlobalIds: Record<string, string> = {
     [ifcObjectSeed('proj', project.id)]: header.projectGlobalId,
-    [ifcObjectSeed('wp', project.id)]: workplan.globalId,
-    [ifcObjectSeed('ws', project.id)]: schedule.globalId,
+    [ifcObjectSeed('wp', project.id)]: globalIdAt.get(workplan.path)!,
+    [ifcObjectSeed('ws', project.id)]: globalIdAt.get(schedule.path)!,
   };
-  const globalIdAt = new Map(nodes.map(node => [node.path, node.globalId]));
   for (const target of calendarTargets) ifcGlobalIds[ifcObjectSeed('cal', target.calendar.id)] = globalIdAt.get(target.path)!;
   for (const target of taskTargets) ifcGlobalIds[ifcObjectSeed('task', target.task.id)] = globalIdAt.get(target.path)!;
   for (const target of sequenceTargets) ifcGlobalIds[ifcObjectSeed('seq', target.sequence.id)] = globalIdAt.get(target.path)!;
@@ -455,6 +467,8 @@ export function readIfcxText(text: string, checked = true): IfcxImportResult {
   const read: IfcxImportResult = {
     project, calendar: projectCalendar, tasks, sequences, resources, assignments,
     ...(modelSource !== undefined ? { modelSource } : {}),
+    ...(Object.keys(sourcePaths).length ? { sourcePaths } : {}),
+    ...(Object.keys(baselineStarts).length ? { baselineStarts } : {}),
     ...(elementLinks.size ? { elementLinks } : {}),
     ...(documentTarget.timeModel !== undefined ? { timeModel: documentTarget.timeModel } : {}),
     ...(documentTarget.minuteModelPending ? { minuteModelPending: true } : {}),

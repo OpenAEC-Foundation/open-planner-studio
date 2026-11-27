@@ -8116,6 +8116,16 @@ en noem het in je rapport of PR-tekst.
       aan gaat: bij herstel de herstelde stand vergelijken met het schrijfdoel, met een proef die na de
       plaatsing onderbreekt. — S
 
+2425. **Een vreemd IFCX-taakpad in de vorm van een eigen tekstpad kan de eerste opslag blokkeren.**
+      Met het pad `t-0061` voor de eerste taak in `uitbreidingen.ifcx` opent de planning. Bij
+      opslaan leest de eigen lezer uit dat pad een andere GlobalId dan de vreemde lezer eraan gaf.
+      De zelfcontrole weigert de kopie. Gezien via Openen en Opslaan met de schakelaar IFCX aan. — B
+
+2426. **Na verwijderen van de eerste van twee taken met dezelfde UUID kan de IFCX-kopie worden geweigerd.**
+      Open `planningsimport/gevel.ifcx`, verwijder Metselen en sla op. Afwerken heeft een pad met
+      dezelfde UUID als de verwijderde taak, met een andere schrijfwijze. Bij teruglezen krijgt Afwerken
+      een andere GlobalId en de zelfcontrole weigert de opslag. Gezien op de eerste opslag naast de bron. — B
+
 2431. **Zet de planner de flag `ifcx` uit terwijl een ronde van Automatisch opslaan wacht, dan kan die ronde nog één keer IFCX schrijven.**
       Een al gekozen ronde gebruikt de flag van het moment waarop ze begon. Wacht ze nog op schrijfrecht
       of op haar beurt, en is de planning ongewijzigd met hetzelfde schrijfdoel, dan schrijft ze de
