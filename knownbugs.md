@@ -881,6 +881,15 @@ en noem het in je rapport of PR-tekst.
      de eigen fase of met een lege tak als omgezet (ADR 0451); dat is niet nagespeeld. — B (plafond), S (andere
      weglatingen)
 
+2591. **Bij een gestarte urentaak kan de waarschuwing voor een oude baseline vals verschijnen of ontbreken.**
+     `baselineHasOldDayCount` (`src/engine/baselineOldDay.ts`) beslist bij een gestarte taak vaak op de huidige
+     werkminuten, omdat de span van de baseline dan bij geen telling past, en kent de duur van het moment van de
+     baseline niet. Een nieuwe baseline, daarna de duur maal opgeslagen gedeeld door werktijd per dag (10 u naar 8 u),
+     geeft volgens het weggehaalde commentaar een valse waarschuwing; `mspdiWriter.ts` schrijft de baseline dan in de
+     opgeslagen uren per dag, zodat de echte afwijking in MS Project verdwijnt. Een oude baseline, daarna de duur maal
+     1,25, geeft geen waarschuwing. Alleen een kenmerk in de baseline zelf dat via IFC heen en terug gaat, lost het op
+     (ADR 0550). Gezien in het commentaar van dat bestand (review #363), niet nagespeeld. — S
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
