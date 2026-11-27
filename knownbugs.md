@@ -5194,7 +5194,7 @@ en noem het in je rapport of PR-tekst.
       `tauri-plugin-opener` (`open_backup_folder`, #1245) hangen er beide van af, en `open` 5.3.4 `src/unix.rs`
       zoekt onder meer `xdg-open` en `gio` op naam in het zoekpad van het proces. Misgaat het alleen als een map
       vóór de systeemmappen in dat zoekpad een schrijfbaar programma met zo'n naam bevat dat de webview kan
-      bereiken (de NSIS-installatiemap staat in het schrijfbare gebruikersprofiel). Dan start de klik dat
+      bereiken. Dan start de klik dat
       programma in plaats van de bestandsbeheerder of browser. Geldt voor álle open-aanroepen van de app, niet
       alleen de backupmap. Als bekende grens besloten bij de review van #1315 (ronde 2): op Linux kiest main
       het openprogramma al op deze manier. — B

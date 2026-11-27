@@ -76,4 +76,24 @@ mod tests {
         std::fs::remove_file(&link).unwrap();
         std::fs::remove_dir_all(&doel).unwrap();
     }
+
+    #[cfg(windows)]
+    #[test]
+    fn junction_weigert() {
+        let base = std::env::temp_dir();
+        let doel = base.join("ops-obf-junction-doel");
+        std::fs::create_dir_all(&doel).unwrap();
+        let link = base.join("ops-obf-junction");
+        let _ = std::fs::remove_dir_all(&link);
+        let uit = std::process::Command::new("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(&link)
+            .arg(&doel)
+            .output()
+            .unwrap();
+        assert!(uit.status.success(), "mklink /J: {}", String::from_utf8_lossy(&uit.stderr));
+        assert!(ensure_existing_dir(&link).is_err());
+        let _ = std::process::Command::new("cmd").args(["/C", "rmdir"]).arg(&link).output();
+        std::fs::remove_dir_all(&doel).unwrap();
+    }
 }
