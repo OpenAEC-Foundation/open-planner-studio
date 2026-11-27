@@ -34,7 +34,8 @@ The active tab is in `ui.activeRibbonTab`. De rechterrail bevat conditioneel `Ta
 ### De vraag "alleen de planning" (#804)
 
 `PlanOnlyQuestionDialog` (`src/components/dialogs/`) toont één vraag met de tekst per reden uit
-`ui.pendingPlanOnlyQuestion` (`missingSourceSaveAs`, `export`, `exportWithPool`); de bedrading staat in
+`ui.pendingPlanOnlyQuestion` (`missingSourceSaveAs`, `export`, `exportWithPool`, en bij Opslaan als IFCX `ifcxSaveAs`
+en `ifcxXerArchive`, de melding over het P6-bronarchief; die laatste is geen planOnly-bevestiging); de bedrading staat in
 `state/planOnlyQuestionBridge.ts`, de regel in `.claude/rules/state.md`. Annuleren is de standaardknop (beginfocus;
 Enter en Escape annuleren). Het is een wachtende modale vraag: `isGlobalShortcutFrozen` bevriest de sneltoetsen, de
 schil is inert, `isBlockingDialogOpen` en `BLOCKING_UI_FLAGS` (MCP) blokkeren. Het vinkje "Zonder gebouwmodel" op de

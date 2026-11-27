@@ -116,7 +116,10 @@ Proef: `check-tabblad-schijfversie.ts` (de A2-tabel); grenzen: knownbug 2065, 20
 **Een IFCX-document (regel F, #804 F3-4).** `fileFormat` (`DOCUMENT_FIELDS`, `snapshot: 'none'`, vers `'ifc'`) zet de lezer
 bij openen (`applyLoadedProject`: `ReadImportResult.ifcxRead` → `'ifcx'`; IFC toepassen en laden zonder nieuw doel houden het
 oude formaat); een kopie houdt het, `commitSavedDocument` met een nieuw doel zet het geschreven formaat
-(`SaveDestination.fileFormat`). Voor een IFCX-document geldt alles hierboven ook met de flag `ifcForeignContent` uit: de
+(`SaveDestination.fileFormat`). Een nieuw doel als IFCX (Opslaan als, F3-5) maakt het document gelijk aan het
+heropende bestand: `ifcSource`, `xerImportMetadata`, `xerSourceArchive` en `xerSourceProjectId` worden `null`, en een
+bronkenmerk blijft met `sourceMissing: false` (zoals Opslaan als bij een ontbrekende bron), zodat het model als doel
+beschermd blijft en Ctrl+S daarna IFCX schrijft. Voor een IFCX-document geldt alles hierboven ook met de flag `ifcForeignContent` uit: de
 versie komt dan van de gelezen bytes (`ifcxRead`), het herstelmanifest bewaart haar (`ifcx`), de flag uitzetten wist haar
 niet, en de open-tabcontrole en de strook "gewijzigd op schijf" gelden (`oneTabPerFile`, `changedOnDiskShown`). Eén plek
 beslist dat: `versionGuarded` (`src/state/versionGuard.ts`). Voor een als STEP gelezen document verandert er niets.
@@ -173,7 +176,10 @@ De gewone documentroute onthoudt alleen voor haar commit de letterlijke kalender
 `ifcSaveBlocked` houdt paneel en dev-bridge dicht, en AutoSave met de flag uit of zonder bron; met de flag aan schrijft AutoSave via de vervanging van Ctrl+S (#804 stap 8, `settings-autosave.md`).
 **De vraag "alleen de planning"** (#804 PR 9e en 13) is één vraag met een reden (`PlanOnlyReason` in
 `services/ifc/planOnlyQuestion.ts`): Opslaan als bij een ontbrekend gebouwmodel (`missingSourceSaveAs`), Exporteren → IFC
-met het vinkje Zonder gebouwmodel (`export`) en de export met de resourcebibliotheek (`exportWithPool`). Alleen
+met het vinkje Zonder gebouwmodel (`export`), de export met de resourcebibliotheek (`exportWithPool`) en Opslaan als IFCX
+van een document met een gebouwmodel of een ontbrekende bron (`ifcxSaveAs`, F3-5). Dezelfde dialoog toont ook de melding
+over het P6-bronarchief bij Opslaan als IFCX (`ifcxXerArchive`); `planOnlyQuestionApplies` geeft daarvoor altijd `false`,
+dus dat ja opent geen planOnly. Alleen
 `askPlanOnly` maakt een bevestiging; `prepareIfcOutput(state, input, planOnly)` laat haar één keer gelden en alleen als
 `planOnlyQuestionApplies(state, reason)` klopt (flag aan; bij ontbrekend model alleen Opslaan als, de twee exports alleen
 met een aanwezig model). Zonder bevestiging (MCP, kern, paneel, dev-bridge) blijft planOnly met een vreemd deel

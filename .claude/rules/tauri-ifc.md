@@ -133,6 +133,28 @@ IFCX-document elke schrijfactie naar zijn eigen doel (`ifcxWriteBlocked`); Opsla
 `.ifc`. Een STEP-schrijfactie naar het bestand van een open IFCX-document weigert (`isOpenIfcxFile`). In de browser
 schrijft een IFCX-document een nieuw doel alleen als download (`saveNewBytesDialog`, zoals een merge).
 
+**Het bestandstype kiezen bij Opslaan als (#804 F3-5, besluit eigenaar 27 november 2026).** Eén plek per keuze: het
+bestandstype (IFC of IFCX) kiest de planner alleen in het opslagvenster van Opslaan als, het IFC-schema alleen in
+Projectinstellingen. Alleen op de desktop en met de flag `ifcx` (`typeChoice` in `saveDocumentAsOnTurn`, uit de
+momentopname van de poging) biedt het venster beide filters, het type van het document voorop (`saveAsFileFilters`);
+Ctrl+S, ook de kiezer van Ctrl+S zonder doel, de browser (de kiezer schrijft daar meteen in het gekozen bestand, en een
+IFCX-document downloadt) en de site houden het formaat van het document. Het venster vult een naam zonder een van de
+extensies van zijn filters aan met de eerste (`withOneOfExtensions` in `pickSavePathTauri`; met één filter zoals
+`ensureExtension`: `plan.ifcx` wordt met de flag uit `plan.ifcx.ifc`). Het gekozen type is het type van de naam
+(`formatOfName`). Opslaan als rekent zoals main de uitvoer van het document vóór het venster; wijkt het gekozen type af,
+dan rekent `saveAsInFormat` na het venster opnieuw, op dezelfde momentopname, en wordt dat type deel van de ene stand
+van de poging (`SaveAsAttempt`: uitvoer, formaat, `missingSourceSaveAs`), die de doelcontrole (ook de IFCX-classificatie
+van #1223), de vingerafdruk en de commit gebruiken. Daarom kiest de desktop eerst het pad en schrijft daarna
+(`pickSaveTarget` + `placePicked` met de flag `ifcForeignContent` of een merge, anders `pickSavePath` +
+`saveDataToPath`); dezelfde aanroepen van Tauri als `saveDataDialogTauri`. IFC naar IFCX: bij een gebouwmodel of een
+ontbrekende bron eerst de vraag "alleen de planning" (`ifcxSaveAs`, planOnly naar IFCX), bij een XER-import de melding
+"Het P6-bronarchief gaat niet mee naar IFCX." met doorgaan of annuleren (`ifcxXerArchive`; de invoer zonder
+`xer`, `xerSourceArchive` en `xerSourceProjectId`, `ifcxInputWithoutXerArchive`); geen schemavraag na het venster.
+IFCX naar IFC: geen vraag; de writer schrijft `Project.ifcSchema`. De vragen van het type van het document (de
+schemavraag, de vraag vóór het opslaan, "alleen de planning" bij een ontbrekende bron) blijven vóór het venster
+(knownbug 2390). Wat het niet kan: knownbug 2389. Proef: de blokken "omzetten", "hetzelfde type" en "de extensie" in
+`check-ifcx-app.ts`; Projectinstellingen in `ifc-schema.spec.ts`.
+
 **Tekst in IFC is STEP-gecodeerd** (audit 2026-09-26). Elke stringliteral gaat door `ifcStr` → `encodeStepText` (`ifcPsets.ts`): alleen afdrukbaar ASCII letterlijk, `'` → `''`, `\` → `\\`, de rest `\X2\…\X0\` / `\X4\…\X0\`. Schrijf nooit een literal met de hand (`'${x}'`) behalve voor vaste ASCII (datums, tijden). `IFCAPPLICATION.Version` is een formaatteken, geen appversie: vanaf `'0.2'` (`OPS_APP_VERSION`) decodeert `readIFC` de strings (`decodeStepText`), net als bij elk bestand van een ander pakket; een eigen bestand met `'0.1'` schreef letterlijk en wordt ongedecodeerd gelezen (anders breekt een `\\` in een JSON-pset). De voorbeelden in `public/examples/` zijn sinds audit 2026-09-26 opnieuw gegenereerd (`'0.2'`); het oude letterlijke formaat toetst `check-ifc-step-encoding` met een eigen fixture. JSON-psets gaan via `ifcJson`/`asciiJson` (niet-ASCII als JSON-`\uXXXX`, dan pas STEP-gecodeerd), eigenaarsbesluit 2026-09-28: een app van vóór `'0.2'` leest letterlijk en gooide een pset met `\X2\` erin als ongeldige JSON helemaal weg (alle baselines); zo blijft het blok daar geldig en verliest die oude versie alleen nog een pset met `"` of `\` in een waarde. Nieuwe JSON-psets dus nooit met kale `ifcStr(JSON.stringify(…))`. Toets: `check-ifc-step-encoding`.
 
 **GlobalIds** (audit 2026-09-26). Eén uitgiftepunt: `guidOf` in `ifcWriter.ts`, voor objecten via `objectGuid(ctx, soort, id)` met seed `ifcObjectSeed(soort, id)` (`task:`, `res:`, `cal:`, `seq:`, `proj:`): uit XER kunnen taak, relatie en kalender hetzelfde kale getal als id dragen, en zonder soort deelden ze een GlobalId. Elk object uit een ingelezen IFC houdt zijn GlobalId uit dat bestand: `readIFC` levert `ifcGlobalIds` (seed → GlobalId), dat reist als documentveld mee en `buildWriteIFCInput` geeft het aan de writer. Nieuwe objecten krijgen `ifcGuid128(seed)`: 128 bits, IFC-vorm, deterministisch (dus bij elk opslaan gelijk). Hulpentiteiten (`guidOf`: psets, rels, werkschema's) en de projectkalender (`cal-default`, in elk project hetzelfde id) hashen met het project-id als zout (`auxSalt`), zodat twee projecten geen GlobalId delen; geen lezer rekent die na. Id's: taken via OPS_TaskIdentity of `task-ifc-<GlobalId>`; resources, bibliotheekkalenders en relaties via `stableIdFromGuid` (`res-ifc-`, `rescal-ifc-`, `seq-ifc-<GlobalId>`, dubbel ⇒ `-dup-N`), dus gelijk bij elk openen; de projectkalender blijft `cal-default`. Een in de app gemaakt object krijgt bij het eerste heropenen zo nog één keer een ander id; verwijzingen daarnaar in JSON (contour, nivelleren) lopen via `mappedResourceId` (zelfde id, anders `ifcGuid128`, anders de oude 32-bits `ifcGuid` voor bestanden van vóór deze wijziging). Toets: `check-ifc-globalid`.
