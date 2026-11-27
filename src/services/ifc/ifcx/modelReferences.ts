@@ -21,7 +21,7 @@ export const MODEL_SOURCE_VALUE = objectOf({
   sha256: { value: { dataType: 'String', form: sha256 } },
 });
 
-function isModelPath(path: string): boolean {
+export function isModelPath(path: string): boolean {
   const segments = (path.startsWith('/') ? path.slice(1) : path).split('/');
   return !/[\\\p{Cc}]/u.test(path) && !/^[a-z][a-z0-9+.-]*:/i.test(path)
     && segments.every(segment => segment.trim() !== '' && segment !== '.' && segment !== '..');

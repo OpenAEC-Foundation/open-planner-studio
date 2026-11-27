@@ -7974,6 +7974,23 @@ en noem het in je rapport of PR-tekst.
       hoeveel tijd en geheugen het hashen, decoderen en indexeren van echte modellen met geometrie kost.
       De meting onder 2350 gaat over het opslaan van een planning. — S (ontwerpstap fase 4, §4 en §6)
 
+2404. **Een kring van ouders in een vreemde IFCX-planning kan taken zonder zichtbare wortel opleveren.**
+      De import van `openaec::planning::activity.parent` controleert of elke ouder een taak is.
+      Twee taken die elkaar als ouder noemen voldoen daaraan. Vóór de IFCX-flag standaard aan gaat
+      de kring door de laadroute toetsen en bepalen hoe de planner die taken terugvindt. — S
+
+2405. **Een ongeldige veldwaarde op een tweede werkplan kan de import van het eerste werkplan weigeren.**
+      De IFCX-lezer toetst de bekende velden voordat hij het werkplan kiest. Tel een overgeslagen werkplan
+      bij de gegevens die in de bron achterblijven en toets de veldwaarden van de ingelezen objecten. — S
+
+2406. **Een verwijderde relatievertraging kan bij IFCX-import terugkomen.** Laat een ander programma beide
+      gedeelde vertragingsvelden weg, dan kan de oude waarde uit `openaec::ops::sequence.lag` blijven staan.
+      Vergelijk beide gedeelde velden samen met de projectie van de precieze vertraging, ook als ze ontbreken. — S
+
+2407. **Overgeslagen werkschema’s ontbreken in de opgave van wat in de IFCX-bron achterblijft.**
+      De lezer kiest één werkschema bij het eerste werkplan. Neem de overige werkschema’s mee in
+      `leftBehind`, zodat de planner ze vóór de eerste eigen opslag terugziet. — S
+
 2409. **Een ongebruikelijke alias van een IFCX-model kan buiten de bestandsvergelijking vallen.**
       De app herkent het bronpad en de bestandsidentiteit die het platform teruggeeft. Controleer vóór
       het standaard aanzetten ook aliassen op volumes zonder betrouwbare bestandsidentiteit en een
@@ -7992,6 +8009,16 @@ en noem het in je rapport of PR-tekst.
       de browser. Vóór de flag `ifcx` standaard aan gaat: een kiezer die het bestand intact laat, of
       een bevestiging vóór de kiezer. — S
 
+2415. **Een hoofdtaak met een lege vroege eindtijd kan na openen tot het einde van haar kinderen lopen.**
+      In een variant van `precieze-taken.ifcx` heeft Pakket 0 een vroege start van 07:00, een geplande start
+      van 09:00, een leeg vroeg einde en een gepland einde op 1 maart 16:00. Na openen begint de taak om 07:00 en eindigt ze
+      op 5 maart 00:00. De 09:00 blijft de geplande invoer. De proef ziet dit bij beide herkomsten, ook als een
+      andere taak ‘datums zoals opgeslagen’ aanzet. De gedeelde IFC-laadroute geeft `captureRecordedDates`
+      alleen een volledig vroeg paar als rekenuitvoer (ADR 0330). Ook de eigen IFCX-lezer met bronformaat en de
+      STEP-lezer zonder XER-brontijden volgen die regel bij dezelfde velden (lege IFCX-tijd of STEP-slot `$`).
+      Richting: in de gedeelde functie de vastlegging per kant beoordelen, met de vroege start van het restwerk
+      en de eerdere werkelijke start van een lopende taak als proef. — B
+
 2419. **Een uit Recent verdwenen IFCX-planning herstelt in de browser zonder schrijfdoel.**
       Crashherstel bewaart de id van de planning in Recent. Verwijdert de planner die vermelding of
       verdringen tien andere bestanden haar, dan zijn na herstel de taken en de modelverwijzingen
@@ -8009,3 +8036,12 @@ en noem het in je rapport of PR-tekst.
       langs moet (`buildWriteIFCInput`). Neem daarbij het heropenen mee: een IFCX-backup staat in de
       backupmap en niet naast het model, dus de zoekactie naar het buurmodel vindt het model daar niet.
       Gevolgd in de code bij de review van #1320, ronde 3 en 4. — S
+
+2424. **Valt de app uit tussen de opslag van een IFCX-planning en de vernieuwde herstelset, dan kan crashherstel de oudere stand aanbieden.**
+      Op de desktop schrijft *Opslaan* eerst het planningsbestand en vraagt daarna een actuele
+      herstelronde. Stopt het hele proces daartussen en ligt er al een herstelset van versie 6, dan laadt
+      de app na herstart die oudere stand, zonder haar te vergelijken met de nieuwere planning op het
+      schrijfdoel. Het opgeslagen bestand zelf is goed. Gevolgd in de code bij de review van #1325,
+      ronde 1; de proef onderbreekt vóór de manifestwrite en niet erna. Vóór de flag `ifcx` standaard
+      aan gaat: bij herstel de herstelde stand vergelijken met het schrijfdoel, met een proef die na de
+      plaatsing onderbreekt. — S

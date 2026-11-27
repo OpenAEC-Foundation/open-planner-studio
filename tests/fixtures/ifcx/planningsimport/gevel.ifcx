@@ -1,0 +1,93 @@
+{
+  "header": {
+    "id": "urn:voorbeeld:gevel",
+    "ifcxVersion": "ifcx_alpha",
+    "dataVersion": "1.0.0",
+    "author": "Planbureau"
+  },
+  "imports": [],
+  "schemas": {},
+  "data": [
+    {
+      "path": "/project",
+      "children": {"gebouw":"/gebouw"},
+      "attributes": {
+        "bsi::ifc::class": {"code":"IfcProject"}
+      }
+    },
+    {
+      "path": "/gebouw",
+      "children": {"muur":"/bouw/Muur-01","raam":"/bouw/Raam-01"},
+      "attributes": {
+        "bsi::ifc::class": {"code":"IfcBuilding"}
+      }
+    },
+    {
+      "path": "/bouw/Muur-01",
+      "attributes": {
+        "bsi::ifc::class": {"code":"IfcWall"}
+      }
+    },
+    {
+      "path": "/bouw/Raam-01",
+      "attributes": {
+        "bsi::ifc::class": {"code":"IfcWindow"}
+      }
+    },
+    {
+      "path": "/week",
+      "attributes": {
+        "openaec::planning::calendar": {"name":"Algemene week"}
+      }
+    },
+    {
+      "path": "/werk",
+      "attributes": {
+        "openaec::planning::workplan": {"name":"Gevel","calendar":"/ploegweek","start":"2027-03-01"}
+      }
+    },
+    {
+      "path": "/ploegweek",
+      "attributes": {
+        "openaec::planning::calendar": {"name":"Ploegweek","predefinedType":"FIRSTSHIFT","exceptionTimes":[{"name":"Vrij","start":"2027-03-03"}]}
+      }
+    },
+    {
+      "path": "/ander",
+      "attributes": {
+        "openaec::planning::workplan": {"name":"Terrein"}
+      }
+    },
+    {
+      "path": "/9bd46d66-5fbe-45fd-a28a-14372a19bb00",
+      "attributes": {
+        "openaec::planning::activity": {"name":"Metselen","start":"2027-03-01","endExclusive":"2027-03-03","calendar":"/week"},
+        "openaec::links": [{"relation":"schedules","target":"/bouw/Muur-01"},{"relation":"inspects","target":"/bouw/Raam-01"}]
+      }
+    },
+    {
+      "path": "9bd46d66-5fbe-45fd-a28a-14372a19bb00",
+      "attributes": {
+        "openaec::planning::activity": {"name":"Afwerken","start":"2027-03-04","endExclusive":"2027-03-05"}
+      }
+    },
+    {
+      "path": "/metselaars",
+      "attributes": {
+        "openaec::planning::resource": {"name":"Metselaars","resourceClass":"IfcCrewResource"}
+      }
+    },
+    {
+      "path": "/inzet",
+      "attributes": {
+        "openaec::planning::assignment": {"relatingProcess":"/9bd46d66-5fbe-45fd-a28a-14372a19bb00","relatedResource":"/metselaars","scheduleUsage":0.5}
+      }
+    },
+    {
+      "path": "/nulmeting",
+      "attributes": {
+        "openaec::planning::baseline": {"name":"Contract","start":"2027-03-01","finish":"2027-03-05"}
+      }
+    }
+  ]
+}
