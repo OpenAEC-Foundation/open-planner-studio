@@ -474,6 +474,16 @@ met de bestaande `parseSTEP` (een kleine set; de lezer kent `IfcRelAssignsToProd
   `detached`. Houdt de relatie geen leden over, dan vervalt ze, ook via de wijzigingslijst. Zonder deze regel bleef de
   taak in de oude relatie en schreef de writer geen eigen nest; na heropenen ontbrak dan de gekozen ouder, want de lezer
   leidt `parentId` af uit taak-naar-taak-nesting (`ifcReader.ts:2393`).
+- **Gebouwd in fase 2, PR 8.** De writer haalt een gewijzigd planningslid uit een gemengde of bewaarde relatie en
+  schrijft de nieuwe plek of koppeling zelf (`departuresOf`, gedeeld met controle 1). Het stuk staat op de
+  wijzigingslijst en telt mee (§4.7). Afwijkingen: een wortel-taak van een tweede schema die een kind wordt, blijft in de
+  `IfcRelAssignsToControl` van dat schema staan, zoals op main (knownbug 2356); Ctrl+Z na het opslaan zet het lid niet
+  terug in de relatie van het andere programma: `detached` onthoudt alleen wat de regel van §4.7 uit een stuk haalt, want
+  terugzetten op aanwezigheid van het object zette een vertrokken lid terug zonder dat de koppeling terugkwam (knownbug
+  2355); een gewijzigde gedeelde pset
+  (geval b) weigert nog met `gemengde-relatie`, zoals op main (knownbug 2385); de volgorderegel kijkt per relatie
+  (knownbug 2386). Een
+  vreemd lid dat na opslaan als eigen veld gelezen zou worden (§4.2), vervalt via dezelfde lijst en telling.
 
 ### 4.7 Een P-object is verwijderd
 
@@ -523,7 +533,9 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
 Zo is het gebouwd (PR 7, `foreign/detached.ts`). `detached` heeft drie delen:
 - **stukken**: per `#id` de oude bytes van een stuk op de wijzigingslijst (een eigen kopie, de oudste versie), met per
   verwijzing naar een D-object diens domein-id. Een stuk dat nog in de bron staat (alleen een lid kwijt), krijgt zijn
-  teruggezette bytes op zijn plek en houdt zijn `#id`; een vervallen stuk komt terug direct na het P-blok. Wat het stuk
+  teruggezette bytes op zijn plek en houdt zijn `#id`; een vervallen stuk komt terug direct na het P-blok. Alleen wat de
+  regel van §4.7 uit het stuk haalde, telt: leden die het stuk volgens §4.6 verlieten (`departuresOf`), staan niet in de
+  bewaarde bytes (knownbug 2355). Wat het stuk
   bij terugzetten nog mist (een object dat nog weg is), gaat eruit volgens dezelfde regel (`applyForeignRule`); dan
   blijft de oudste versie bewaard tot ook dat object terug is.
 - **objecten**: per domein-id van een verdwenen object zijn `sourceSlots` en zijn koppelingen. Komt het terug, dan
