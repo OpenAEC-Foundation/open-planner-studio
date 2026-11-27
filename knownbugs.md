@@ -7992,3 +7992,10 @@ en noem het in je rapport of PR-tekst.
       De app herkent het bronpad en de bestandsidentiteit die het platform teruggeeft. Controleer vóór
       het standaard aanzetten ook aliassen op volumes zonder betrouwbare bestandsidentiteit en een
       externe vervanging tussen de laatste controle en het plaatsen. — S (ontwerpstap fase 4, §6)
+
+2411. **Chromium kan een IFCX-model leegmaken als het als doel voor een ander document wordt gekozen.**
+      Kiest de planner bij *Opslaan als* via *Alle bestanden* een bestaand IFCX-model, dan kapt de
+      browser het bestand af voordat de app de handle krijgt en het doel kan weigeren. Dezelfde grens
+      als bij 1899 en 2366 geldt ook voor een model van een ander. Gevolgd in de code, niet gemeten in
+      de browser. Vóór de flag `ifcx` standaard aan gaat: een kiezer die het bestand intact laat, of
+      een bevestiging vóór de kiezer. — S
