@@ -16,7 +16,8 @@ interface ModelSource {
 }
 
 const CLASS = 'bsi::ifc::class';
-const LABEL = 'openaec::label';
+const NAME_FIELDS = ['bsi::ifc::prop::Name', 'bsi::ifc::prop::TypeName', 'openaec::label'];
+const ELEMENT_FIELDS = [CLASS, ...NAME_FIELDS];
 
 function decodeUtf8(bytes: Uint8Array): string {
   try {
@@ -27,7 +28,7 @@ function decodeUtf8(bytes: Uint8Array): string {
 }
 
 function modelElements(data: readonly unknown[]): ReadonlyMap<string, ModelElement> {
-  const local = new Map<string, { classification?: unknown; label?: unknown }>();
+  const local = new Map<string, Record<string, unknown>>();
   for (const entry of data) {
     if (!isRecord(entry) || typeof entry.path !== 'string') {
       throw new IfcxReadError('invalid', 'Een IFCX-bijdrage heeft geen pad');
@@ -35,18 +36,23 @@ function modelElements(data: readonly unknown[]): ReadonlyMap<string, ModelEleme
     const { path, attributes } = entry;
     if (attributes === undefined) continue;
     if (!isRecord(attributes)) throw new IfcxReadError('invalid', 'De IFCX-attributen zijn geen object', { path });
-    if (!hasOwn(attributes, CLASS) && !hasOwn(attributes, LABEL)) continue;
-    const values = local.get(path) ?? {};
-    if (hasOwn(attributes, CLASS)) values.classification = attributes[CLASS];
-    if (hasOwn(attributes, LABEL)) values.label = attributes[LABEL];
-    local.set(path, values);
+    for (const field of ELEMENT_FIELDS) {
+      if (!hasOwn(attributes, field)) continue;
+      const values = local.get(path) ?? {};
+      values[field] = attributes[field];
+      local.set(path, values);
+    }
   }
 
   const elements = new Map<string, ModelElement>();
-  for (const [path, { classification, label }] of local) {
+  for (const [path, values] of local) {
+    const classification = values[CLASS];
     const code = isRecord(classification) ? classification.code : undefined;
     if (typeof code !== 'string' || !IFC_BUILDING_MODEL_TYPES.has(code.toUpperCase())) continue;
-    elements.set(path, typeof label === 'string' && label.trim() ? { ifcClass: code, name: label } : { ifcClass: code });
+    const name = NAME_FIELDS.map(field => values[field]).find(
+      (value): value is string => typeof value === 'string' && value.trim().length > 0,
+    );
+    elements.set(path, name === undefined ? { ifcClass: code } : { ifcClass: code, name });
   }
   return elements;
 }

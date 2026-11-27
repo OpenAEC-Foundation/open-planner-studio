@@ -9,13 +9,41 @@ function fixture(name: string): Buffer {
   return readFileSync(new URL(`../fixtures/ifcx/extern/${name}.ifcx`, import.meta.url));
 }
 
-await test('Een externe modelkop en twee exacte productpaden zonder geometrie of planning', async () => {
+function readContributions(data: readonly unknown[]) {
+  return readIfcxModelSource(Buffer.from(JSON.stringify({ header: { ifcxVersion: 'ifcx_alpha' }, data })));
+}
+
+await test('Een gevel met twee benoemde muren, een benoemd type, een raam en een losse kindbijdrage', async () => {
   const source = await readIfcxModelSource(fixture('gevel'));
   assert.deepEqual(source.header, { id: 'urn:voorbeeld:atelier:gevel', author: 'Atelier Gevel' });
   assert.deepEqual(Object.fromEntries(source.elements), {
-    'Gevel/West': { ifcClass: 'IfcWall', name: 'Buitenmuur' },
+    'Gevel/West': { ifcClass: 'IfcWall', name: 'Buitenmuur west' },
+    'Gevel/Oost': { ifcClass: 'IfcWall', name: 'Buitenmuur oost' },
+    'Gevel/Muurtype': { ifcClass: 'IfcWallType', name: 'Spouwmuur 300' },
     'Gevel/west': { ifcClass: 'IfcWindow' },
   });
+});
+
+await test('Van de laatste lokale teksten per veld gaat Name voor TypeName en TypeName voor het label', async () => {
+  const data: unknown[] = [{ path: 'Muur', attributes: {
+    'bsi::ifc::class': { code: 'IfcWall' },
+    'bsi::ifc::prop::Name': 'Voorlopige muur',
+    'bsi::ifc::prop::TypeName': 'Voorlopig type',
+    'openaec::label': 'Voorlopig label',
+  } }];
+  for (const [attributes, expectedName] of [
+    [{ 'bsi::ifc::prop::Name': 'Westmuur' }, 'Westmuur'],
+    [{ 'bsi::ifc::prop::TypeName': 'Spouwmuur' }, 'Westmuur'],
+    [{ 'openaec::label': 'Gevel west' }, 'Westmuur'],
+    [{ 'bsi::ifc::prop::Name': '  ' }, 'Spouwmuur'],
+    [{ 'bsi::ifc::prop::TypeName': { value: 'Geen tekst' } }, 'Gevel west'],
+    [{ 'openaec::label': null }, undefined],
+  ] as const) {
+    data.push({ path: 'Muur', attributes });
+    const source = await readContributions(data);
+    assert.deepEqual(source.elements.get('Muur'),
+      expectedName === undefined ? { ifcClass: 'IfcWall' } : { ifcClass: 'IfcWall', name: expectedName });
+  }
 });
 
 await test('De laatste lokale waarde van elk attribuut bepaalt klasse en naam', async () => {
@@ -83,4 +111,16 @@ await test('JSON zonder IFCX-kop of zonder data wordt geweigerd', async () => {
 await test('Een onbekende IFCX-versie heeft de bestaande versiecode', async () => {
   const text = fixture('gevel').toString('utf8').replace('ifcx_alpha', 'ifcx_beta');
   await assert.rejects(readIfcxModelSource(Buffer.from(text)), readError('version', /ifcx_beta/));
+});
+
+await test('Een bijdrage met een ontbrekend of niet-tekstueel pad geeft invalid', async () => {
+  for (const entry of [{ attributes: {} }, { path: 17 }]) {
+    await assert.rejects(readContributions([entry]), readError('invalid', /pad/));
+  }
+});
+
+await test('Een bijdrage met een array of null als attributes geeft invalid', async () => {
+  for (const attributes of [[], null]) {
+    await assert.rejects(readContributions([{ path: 'Muur', attributes }]), readError('invalid', /attributen/));
+  }
 });
