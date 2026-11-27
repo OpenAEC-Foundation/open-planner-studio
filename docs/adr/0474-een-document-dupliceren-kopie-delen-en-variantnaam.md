@@ -20,7 +20,8 @@ kopie, en niet alleen in de kopie doordat het veld na de wissel verdwijnt (revie
   `knownTargetFingerprint` leeg), `autoSaveToFile: false`, `isDirty: true` en `importPristine: false` (ADR 0433). Zonder
   het lege site-doel schreef Ctrl+S in de kopie een nieuwe versie van het sitebestand van de bron.
 - Per referentie gedeeld: de rekenvelden (`cpmResult`, `resourceLoadResult`, `scheduleStale`, `recordedDates`,
-  `datesAsRecorded`, `minuteModelPending`), want ze zijn afgeleid en worden als geheel vervangen (ADR 0431); de kopie
+  `datesAsRecorded`, `minuteModelPending`), want ze zijn afgeleid en worden als geheel vervangen (ADR 0431, en ADR 0432
+  voor `resourceLoadResult`); de kopie
   houdt de vastlegging en de modus van de bron tot een bewerking of berekening in de kopie ze vervangt. Ook gedeeld: het
   XER-archief met `xerSourceProjectId`, `ifcSource`, `foreignSourceMark` en `xerArchiveIssue` (ADR 0433).
   `activeBaselineId`, `fileFormat` en `taskTypesVisible` neemt de kopie over.
@@ -28,9 +29,9 @@ kopie, en niet alleen in de kopie doordat het veld na de wissel verdwijnt (revie
   toen de GlobalId uit het id werd afgeleid. `ifcLiteralCalendarIds` ook: dezelfde kalenders krijgen dezelfde
   schrijfkeuze (knownbug 1026, ADR 0433).
 - De XER-metadata (`cloneXerImportMetadata`): met een archief en een `sourceProjectId` bouwt de kopie haar metadata
-  opnieuw op uit het archief (`bindXerImportMetadataToArchive`); anders een JSON-kloon zonder de catalogi. De
-  bestandsbrede, bevroren resourcecatalogus en de catalogus `metadata` gaan per referentie mee, alleen de toewijzingen van
-  het project worden gekopieerd (`cloneXerResourceMetadata`): een JSON-kloon van de catalogus zou bij `rehab-2.xer`
+  opnieuw op uit de documentview van dat project in het archief (`bindXerImportMetadataToArchive`). Anders een JSON-kloon
+  zonder de catalogi: in die tak gaan de bestandsbrede, bevroren resourcecatalogus en de catalogus `metadata` per
+  referentie mee, en worden alleen de toewijzingen van het project gekopieerd (`cloneXerResourceMetadata`). Een JSON-kloon van de catalogus zou bij `rehab-2.xer`
   52.640 toewijzingsrijen kopiëren (ADR 0397). Toets: `check-xer-resource-duplicate.ts` (dezelfde catalogus in bron en
   kopie).
 - De geschiedenis is app-globaal en gaat niet mee; de kopie begint zonder undo-stappen (case 5).

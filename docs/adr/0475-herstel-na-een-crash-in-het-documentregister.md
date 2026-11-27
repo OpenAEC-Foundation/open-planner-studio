@@ -11,8 +11,7 @@ een document dat niet te berekenen is, houdt de rest niet tegen.
 - Eerst maakt `shareRecoveredXerArchives` van gelijke XER-bronarchieven weer één referentie, vóór er payloads van
   gemaakt worden. Herstel leest elk document apart (`readRecoveryDocument`), dus elk document met een archief krijgt
   een eigen archiefobject; zonder deze stap hield elk tabblad een eigen kopie (een groot archief zoals `rehab-2.xer` heeft
-  52.640 toewijzingen, ADR 0397). Gelijk is: dezelfde lengte en
-  sha256, en daarna dezelfde schemaversie, vorm, codering, BOM, regeleinde, base64-stukken en dezelfde `diagnostics` en
+  52.640 toewijzingen, ADR 0397). Gelijk is: dezelfde lengte en sha256, en daarna dezelfde schemaversie, vorm, codering, BOM, regeleinde, base64-stukken en dezelfde `diagnostics` en
   `readModel` (`sameArchive`). Elk document met een archief wordt daarna opnieuw aan het gekozen archief gebonden met
   zijn selector (`xerSourceProjectId`, anders `xer.sourceProjectId`). Toets: `check-xer-archive-readmodel.ts` 10 en 10a
   (na herstel één archief over de drie tabbladen, en de metadata van elk document aan dat archief gebonden).
@@ -28,8 +27,7 @@ een document dat niet te berekenen is, houdt de rest niet tegen.
   register slaan `skippedIds` over.
 - "Datums zoals opgeslagen" komt terug als de modus vóór de crash aan stond: `applyRecordedDatesOnLoad` krijgt
   `datesAsRecorded` uit de herstelmetadata mee, en die waarde beslist in plaats van de regel voor een heropening, als er
-  een vastlegging is (`captureAllowed`).
-  Herstel hervat een sessie en beslist niet opnieuw (ADR 0195: een feit uit het manifest, geen heuristiek). Stond de
+  een vastlegging is (`captureAllowed`). Herstel hervat een sessie en beslist niet opnieuw (ADR 0195: een feit uit het manifest, geen heuristiek). Stond de
   modus uit, dan vergeet het document de opgeslagen datums (geen aanbod-stand, eigenaar 2026-10-17, regel `state`).
   `applyRecordedDatesOnLoad` krijgt de taken van vóór de berekening (`rawPayload.tasks`): `prepareLoadedPayload` muteert
   zijn invoer niet.
@@ -39,10 +37,10 @@ een document dat niet te berekenen is, houdt de rest niet tegen.
   slapend document heeft een eigen `try/catch` en zet een mislukt document in `skippedIds`.
 - Eén melding voor alle overgeslagen documenten samen (`notifications.recoveryDocumentsSkipped`), en één voor de
   herstelde documenten waarvan het XER-archief onbruikbaar was (`withXerArchiveIssueNotice`). Lukte geen enkele
-  kandidaat, dan blijven de open documenten zoals ze waren en komt alleen `skippedIds` terug; `useRecoveryRestore` wist de snapshots alleen
-  als er niets is overgeslagen en niets onleesbaar was, anders houdt hij ze vast (`holdRecoveryForLater`).
+  kandidaat, dan blijven de open documenten zoals ze waren en komt alleen `skippedIds` terug. `useRecoveryRestore` wist
+  de snapshots alleen als er niets is overgeslagen en niets onleesbaar was, anders houdt hij ze vast
+  (`holdRecoveryForLater`).
 - De publicatie is één `set`: de sessiegeschiedenis leeg (`replaceSessionHistoryState`), het register, het actieve
   document met `publishActivation`, en de minutenomzetting (`recordMinuteModelTransition`, ADR 0431). De berekening liep
   al op de losse payload; daarna komen de melding van de omzetting, dezelfde zichtbare rekenfout (`scheduleFailedNotice`)
-  en dezelfde host-events
-  (`scheduleCalculated`, `projectLoaded`) als na een gewone `runCPM` en een gewone lading.
+  en dezelfde host-events (`scheduleCalculated`, `projectLoaded`) als na een gewone `runCPM` en een gewone lading.

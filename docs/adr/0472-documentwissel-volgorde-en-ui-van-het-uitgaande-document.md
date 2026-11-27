@@ -13,8 +13,8 @@ komen na die `set`: eerst wissen wat bij het uitgaande document hoort, dan melde
 
 - `switchDocument` en `duplicateDocument` breken een lopende samenvoegreeks van undo-stappen af
   (`runtime.resetUndoCoalescing`): na het terugwisselen ging een reeks anders verder op de undo-stap van vóór de wissel.
-  De marker in `storeRuntime.ts` draagt daarnaast het document-id; `newDocument` en `closeDocument` roepen de reset niet
-  aan.
+  De marker in `storeRuntime.ts` draagt daarnaast het document-id; `newDocument`, `closeDocument` en `restoreDocuments`
+  roepen de reset niet aan.
 - `switchDocument` doet niets als het gevraagde document al actief is; voor een onbekend id of een registratie zonder
   payload keert hij terug nadat hij de invoer afrondde en de samenvoegreeks afbrak.
 - Wijzigde de activatie kalenders of resources uit de bibliotheek (`activation.invalidateRedoScope`), dan maken
