@@ -2012,7 +2012,7 @@ en noem het in je rapport of PR-tekst.
       XER-testbestanden van de repo (`tests/browser/fixtures/xer/`, samen vier taken) wijst geen taak naar een
       ontbrekende kalender; hoe vaak P6 dat exporteert, is niet nagegaan. — B
 
-2487. **Newfoundland and Labrador krijgt Remembrance Day al vóór de invoering onder de algemene arbeidsnormen.**
+2560. **Newfoundland and Labrador krijgt Remembrance Day al vóór de invoering onder de algemene arbeidsnormen.**
       Kies Canada en Newfoundland and Labrador en genereer feestdagen voor een planning die 2001 omvat. De lijst
       bevat 11 november 2001, terwijl de toevoeging in december 2001 is aangenomen en de eerste editie als betaalde
       feestdag op 11 november 2002 viel. De landelijke en andere provinciale regels staan hier los van. Richting:

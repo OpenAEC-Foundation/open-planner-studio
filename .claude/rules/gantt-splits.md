@@ -2,6 +2,7 @@
 paths:
   - "src/engine/renderer/**"
   - "src/components/canvas/**"
+  - "src/utils/ganttViewport.ts"
   - "src/components/task-grid/**"
   - "src/engine/scheduler/split*.ts"
   - "src/components/task-sections/TaskSplitsSection.tsx"
