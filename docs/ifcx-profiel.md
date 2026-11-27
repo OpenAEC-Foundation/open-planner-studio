@@ -15,9 +15,13 @@ veranderen; vanaf het moment dat de flag eraf gaat of een ander programma het pr
 een nieuwe naam (ontwerp §5.3). Wat een planner met de flag aan in die tijd als IFCX opslaat, kan een latere versie
 van de app weigeren.
 
-Deze versie (fase 3, F3-1, F3-2 en F3-3) draagt project, werkplan, werkschema, kalenders, taken, relaties, resources,
+De IFCX-kern draagt project, werkplan, werkschema, kalenders, taken, relaties, resources,
 toewijzingen en baselines, met de velden die STEP daarvan bewaart (*De overige velden*). Wat IFCX nog niet draagt en STEP
 wel bewaart, weigert de writer (zie *Wat de writer weigert*).
+
+Sinds profiel `1.2.0` kan het eigen planningsbestand ook verwijzen naar een los IFCX-model en naar bouwdelen
+in dat model. De bronverwijzing staat op het werkplan en elke bouwdeelkoppeling op de bijbehorende taak.
+Het lezen en opslaan van deze gegevens vanuit de app volgt in een volgend deel van fase 4.
 
 **De profielversie.** Verandert later de projectie van de writer (wat de writer voor een planning in het bestand zet,
 gedeeld of precies), dan gaat de profielversie (`formatVersion`) omhoog, en moet de lezer voor een bestand met de oude
@@ -222,7 +226,7 @@ Een veld zonder "verplicht" mag ontbreken; `null` is nooit een geldige waarde.
 
 ### Werkplan
 
-`openaec::ops::document`: `formatVersion` (verplicht, `1.0.0` of `1.1.0` bij Canadese kalenderherkomst),
+`openaec::ops::document`: `formatVersion` (verplicht, `1.0.0`, `1.1.0` of `1.2.0`),
 `name` (verplicht), `description`, `calendar` (pad,
 verplicht: de projectkalender), `projectId`, `startDate` en `endDate` (de projectdatums zoals ingevoerd), `createdAt`,
 `modifiedAt`, `author`, `company`, `ifcSchema` (keuze `IFC4X3_ADD2`, `IFC4X3`, `IFC4`: het schema voor een opslag als
@@ -246,6 +250,41 @@ In de geopende planning vervalt de vraag. Bij de volgende opslag gebruikt de sch
 `openaec::planning::workplan` (projectie): `name`, `description`, `start` en `finish` (de datum van de projectdatums),
 `calendar` (pad).
 
+### Bronverwijzing en koppelingen naar bouwdelen
+
+Op het pad van het werkplan kan naast `openaec::planning::workplan` en `openaec::ops::document` het attribuut
+`openaec::ops::modelSource` staan. Dit gesloten object heeft twee verplichte tekstvelden, in schrijfvolgorde:
+
+1. `fileName` is één lokale bestandsnaam met de extensie `.ifcx`. Hoofdletters in de extensie zijn toegestaan.
+   De lezer en schrijver weigeren een lege naam, pad- en stationscheiding, URL's en besturingstekens.
+2. `sha256` bevat 64 kleine hextekens. Het is de SHA-256 over de oorspronkelijke modelbytes, vóór het decoderen
+   als UTF-8 of JSON. De schrijver krijgt deze hash van de aanroeper.
+
+Op het taakpad kan `openaec::links` staan. Elke koppeling in deze lijst heeft de volgende vorm:
+
+```json
+[{ "relation": "schedules", "target": "/gevel/Raam-02" }]
+```
+
+Het gedeelde schema beschrijft `relation` als `String` en `target` als `Reference`. Het eigen profiel schrijft
+alleen `schedules`. Het doel is een exact nodepad binnen het losse model, bijvoorbeeld een kale UUID of een pad
+met segmenten en een optionele beginslash. Een leeg segment, `.`, `..`, een backslash, een URL of een besturingsteken
+is ongeldig. De koppeling blijft bewaard als het model of het doel ontbreekt. Bij teruglezen is het een uitvoerkoppeling
+met `found: false` totdat de aanroeper het doel in het model bevestigt. Verwijderde taken leveren geen koppelingen
+op. Interne verwijzingen, bijvoorbeeld naar een oudertaak of kalender, vereisen nog steeds een bestaand doel van
+de juiste soort in de planning.
+
+De schrijver kiest `1.2.0` als er een bronverwijzing of minstens één koppeling op een aanwezige taak is. Zonder beide
+geldt `1.1.0` bij Canadese kalenderherkomst en anders `1.0.0`. Voor die twee versies blijven de bestaande
+schrijfwijze en bytevergelijking gelden. De lezer weigert zowel een nieuw attribuut in een oudere versie als een
+lege verhoging naar `1.2.0`. Alleen gebruikte attributen krijgen hun schema. De kop houdt `ifcx_alpha` en
+`dataVersion: "1.0.0"` en `imports` blijft leeg. De zelfcontrole vergelijkt de bronverwijzing en de koppelingen
+afzonderlijk met de teruggelezen waarden.
+
+De app kan profiel `1.2.0` pas openen zodra haar document de bron en de koppelingen bewaart. Tot die tijd geeft
+openen de melding voor een nieuwer profiel. Bij Opslaan als geldt een bestaand bestand in dit profiel als onleesbaar
+schrijfdoel. De kern kan deze planningen al lezen en schrijven.
+
 ### Werkschema
 
 `openaec::planning::schedule`: `workplan` (pad, verplicht): het werkplan waar het schema bij hoort. Er is precies één.
@@ -259,9 +298,9 @@ einddatum), `workDays` (lijst van gehele getallen 1–7, maandag is 1, verplicht
 (`{ byWeekday: { "1": [{ start, end }], …, "7": [ … ] } }`, minuten vanaf middernacht), `workingExceptions` (lijst
 van `{ name, startDate, endDate, bands }`), `generation` (`{ ruleSetId, region, breakChoice, generatedFromYear,
 generatedToYear }`, waarmee de feestdagen zijn gemaakt. De twee jaren liggen tussen 1000 en 9999).
-Het schema van profiel `1.0.0` legt de oorspronkelijke waarden voor `ruleSetId` vast. Zodra een project- of
-resourcekalender `CA` als generatieherkomst draagt, schrijft de app profiel `1.1.0` met `CA` als extra waarde
-in dat schema. Planningen zonder Canadese generatieherkomst houden de uitvoer van `1.0.0`. De lezer toetst
+Het oorspronkelijke kalenderschema legt de waarden voor `ruleSetId` vast. Zodra een project- of
+resourcekalender `CA` als generatieherkomst draagt, krijgt het kalenderschema `CA` als extra waarde.
+Ook in profiel `1.2.0` hangt die schemakeuze uitsluitend van de kalenderherkomst af. De lezer toetst
 het schema aan de herkomst en vergelijkt de profielversie met de herberekende projectie.
 
 `openaec::planning::calendar` (projectie): `name`, `description`, `predefinedType` (`FIRSTSHIFT`, `SECONDSHIFT`,
@@ -601,9 +640,14 @@ lezer eruit leest. `readIfcx` doet, in deze volgorde:
 
 0. **De bytegrens**: begint het bestand met een UTF-8-BOM, dan weigert de lezer met `invalid` en `place.offset` 0. De
    eigen schrijver schrijft geen BOM, en de UTF-8-decoder zou haar anders weghalen vóór de vergelijking van de bytes.
-1. **De vormtoets** (blijft, want zonder haar kan de lezer niet veilig lezen): JSON en UTF-8, de kop en zijn domein,
+1. **De vormtoets.** Na UTF-8, JSON en de IFCX-versie herkent de lezer bij een eigen kop de versie in de enige
+   documentbijdrage op het eigen werkplan. Alleen een versie van de vorm `MAJOR.MINOR.PATCH` met een hogere hoofd-
+   of tussenversie krijgt hier `newer-profile`, ook bij niet-lege imports. Bij een ontbrekende of onvolledige versie,
+   een dubbele documentbijdrage of een documentbijdrage op een vreemd pad volgt de gewone vormtoets. Niet-lege
+   imports en dubbele bijdragen op hetzelfde pad geven dan `foreign`. Zonder andere fout geeft een ontbrekende of
+   ongeldige versie `invalid`, net als `1.2.1` en `1.02.0`. De overige vormtoetsen omvatten de kop en zijn domein,
    `imports` leeg, de schema's, de padvorm van elk pad (de decoder geeft de gelezen GlobalId direct aan het object),
-   geen `children` of `inherits`, één bijdrage per attribuut per pad, de profielversie (`newer-profile`), de vorm van
+   geen `children` of `inherits`, één bijdrage per attribuut per pad, de vorm van
    elk veld volgens regel A, de soort van elk object, precies één werkplan en één werkschema, en de soort van elke
    verwijzing.
 2. **Het model** uit de precieze kant, met de afleiding die het bestand niet draagt (de dagwaarden van een uurtaak, de
@@ -824,8 +868,10 @@ het veranderde bestand is en dat van het oude model verschilt, of weigert met he
 
 - `not-ifcx`: geen UTF-8, geen JSON, of geen IFCX-kop met `ifcxVersion` en `data`;
 - `version`: een andere `ifcxVersion` dan `ifcx_alpha`;
-- `newer-profile`: een hogere hoofdversie in `formatVersion`, een onbekend `openaec::ops::`-attribuut, of een onbekend
-  veld in een `openaec::ops::`-attribuut;
+- `newer-profile`: een hogere hoofdversie of een onbekende hogere tussenversie in `formatVersion`, een onbekend
+  `openaec::ops::`-attribuut, of een onbekend veld in zo'n attribuut. Bij een eigen kop en één herkenbare
+  documentbijdrage op het werkplan wordt bijvoorbeeld `1.3.0`
+  al vóór de controle van imports, attribuutwaarden en schema's geweigerd. De classificatie is dan `unreadable`.
 - `foreign`: niet helemaal van Open Planner Studio (keuze T2): een kop zonder `urn:openaec:planner:`, een onbekend
   kop- of entryveld, `imports`, `children` of `inherits`, een attribuut van een ander, een onbekend veld in een
   `openaec::planning::`-attribuut, een pad dat geen identiteitspad is (zie *Paden en identiteit*), twee bijdragen van één attribuut op één pad, een pad
@@ -851,7 +897,7 @@ van het profiel. `ifcxSchemaProblems` geeft dezelfde controles als lijst, voor p
 
 De workflow `.github/workflows/ifcx.yml` toetst de uitvoer met code van anderen, op een vaste commit:
 IFC5-development van buildingSMART op `1a63082ada967c683cfacee2005f8f749c8e1b79` en ifcx-explorer op
-`ae3aba5c9c5df41b78d3673f10ac65fd874047d2`. De bestanden zijn de twee in `tests/fixtures/ifcx/eigen/` en de uitvoer van
+`ae3aba5c9c5df41b78d3673f10ac65fd874047d2`. De bestanden zijn de fixtures in `tests/fixtures/ifcx/eigen/` en de uitvoer van
 `writeIfcx` voor elk voorbeeldproject in `public/examples` (`scripts/ifcx/maak-uitvoer.ts`, met dezelfde aanroep als
 `check-ifcx-velden.ts`). Drie controles, elk in een eigen stap:
 
@@ -859,7 +905,10 @@ IFC5-development van buildingSMART op `1a63082ada967c683cfacee2005f8f749c8e1b79`
 2. De compositie van IFC5-development, zonder schemacontrole: elk pad blijft een eigen node met precies zijn eigen
    attributen (`… compositie`). Een pad met een `/` verdwijnt daar stil.
 3. De projectcontrole van ifcx-explorer: elk bestand als pakket van één document door `seal_files` en `load_files` van
-   `crates/ifcx-project`, zonder fout en zonder melding (`scripts/ifcx/ifcx-project-controle`).
+   `crates/ifcx-project`, zonder fout en zonder melding (`scripts/ifcx/ifcx-project-controle`). Bij een planning met een
+   modelbron en externe `schedules`-doelen moet het losse bestand juist `MISSING_REFERENCE` geven. Een hulpbestand
+   importeert de oorspronkelijke planning en levert precies de ontbrekende doelpaden. Met elk van die paden afzonderlijk
+   weggelaten moet het pakket nog steeds `MISSING_REFERENCE` geven. Met alle doelpaden moet het zonder melding laden.
 
 Elke controle krijgt ook de bewust kapotte varianten van `scripts/ifcx/kapot.mjs` (een ontbrekend schema, een pad met
 een `/`, een verkeerde waarde), en `scripts/ifcx/eis-afgekeurd.sh` eist dat ze afkeurt om de verwachte reden. Wat elke

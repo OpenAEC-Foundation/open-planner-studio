@@ -11,6 +11,7 @@ import { IfcxWriteRefusedError } from './ifcxErrors';
 import { readIfcx } from './ifcxReader';
 import { assertIdentity, ownFileFor, type CanonicalPlanning } from './ownFile';
 import { serializeIfcx } from './projection';
+import { savedModelReferences, type IfcxModelReferences } from './modelReferences';
 
 export type { IfcxDocument, IfcxEntry, IfcxHeader } from './projection';
 
@@ -46,7 +47,7 @@ function stepReading(given: WriteIFCInput): ImportResult {
   return { ...step, ifcGlobalIds, recordedFields };
 }
 
-export function filePlanning(given: WriteIFCInput): CanonicalPlanning {
+export function filePlanning(given: WriteIFCInput & IfcxModelReferences): CanonicalPlanning & IfcxModelReferences {
   assertIdentity(given);
   const reading = stepReading(given);
   delete reading.project.ifcSchemaUnconfirmed;
@@ -58,10 +59,10 @@ export function filePlanning(given: WriteIFCInput): CanonicalPlanning {
     const named = unsupported.map(item => (item.objects.length > 0 ? `${item.field} (${item.objects.join(', ')})` : item.field));
     throw new IfcxWriteRefusedError('unsupported', `IFCX draagt deze gegevens nog niet: ${named.join(', ')}`, unsupported.map(item => item.field));
   }
-  return planning;
+  return { ...planning, ...savedModelReferences(given, given.tasks) };
 }
 
-export function writeIfcx(given: WriteIFCInput, writtenAt: Date = new Date()): string {
+export function writeIfcx(given: WriteIFCInput & IfcxModelReferences, writtenAt: Date = new Date()): string {
   const planning = filePlanning(given);
   const text = serializeIfcx(ownFileFor(planning, writtenAt).document);
   let reread;
