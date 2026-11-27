@@ -11,7 +11,7 @@ document of een wissel is een zichtbare wijziging van de werkomgeving van de geb
 ## Gevolgen
 
 - `planner_list_documents` meldt `notCalculated` op `cpmResult == null` en niet op `scheduleStale`. Een verouderd
-  document met een rekenresultaat is wel doorgerekend en heeft een einddatum om te tonen; een document uit
+  document met een rekenresultaat is wel doorgerekend en kan een einddatum leveren; een document uit
   crashherstel staat bijvoorbeeld als verouderd gemarkeerd.
 - `projectName` in het antwoord van `planner_duplicate_document` is het kale `project.name`, ook als het leeg is: een
   lege naam is een signaal waar de agent iets mee kan. De weergavenaam met terugval staat in `title`.
@@ -19,5 +19,5 @@ document of een wissel is een zichtbare wijziging van de werkomgeving van de geb
   huidige plan terug te bouwen, en wie haar verwijdert, verlegt de meetlat. Het antwoord leest daarna de actieve
   baseline uit de store, omdat de slice bij het verwijderen van de actieve terugvalt op de laatst overgebleven
   baseline; `planner_compare_baseline` meet daarna tegen een andere.
-- `planner_activate_baseline` aanvaardt `baselineId: null`, de enige weg terug naar "geen actieve baseline", zoals in
-  de app. `planner_rename_baseline` staat een dubbele naam toe, zoals de app, en meldt hem.
+- `planner_activate_baseline` aanvaardt `baselineId: null`: dat zet de actieve baseline uit en behoudt de
+  baselines, zoals in de app. `planner_rename_baseline` staat een dubbele naam toe, zoals de app, en meldt hem.

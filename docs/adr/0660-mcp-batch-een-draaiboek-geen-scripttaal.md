@@ -17,7 +17,8 @@ tussen stappen lopen alleen via tempId's die een eerdere stap in `created` terug
 - `planner_list_documents` staat in `BLOCKED_STEP_NAMES`, hoewel het alleen leest: het beschrijft andere documenten dan
   het document van de batch, die de batch niet doorrekent, dus de cijfers zouden vers lijken terwijl ze dat niet zijn.
   Als losse aanroep werkt de tool gewoon.
-- Een batch met een lees- of nivelleerstap rekent een verouderde planning vóór de transactie door (ADR 0240), ook als
+- Een batch met een lees- of nivelleerstap rekent een verouderde planning vóór de transactie door (ADR 0240, onder de voorwaarden van
+  `ensureFreshScheduleForRead`), ook als
   die stap na een mutatie staat. Alleen doorrekenen bij een leesstap vóór de eerste mutatie scheelt soms één
   berekening, maar dan leest [mutatie zonder effect, leesstap] oude datums: zonder effect draait `recomputeMidBatch`
   niet, en binnen de transactie kan niet meer zonder undo-stap worden bijgerekend (`cases-undo-noop.ts`).
