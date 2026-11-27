@@ -65,7 +65,7 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
         const current = () => {
           if (!enabled()) return false;
           const live = useAppStore.getState();
-          retryIfcxRound = !unchangedIfcxSaveTargets(recoveryDocs, live.getOpenDocumentPayloads, ifcxEnabled(live.ui.featureFlags));
+          retryIfcxRound = !unchangedIfcxSaveTargets(recoveryDocs, state, live);
           return !retryIfcxRound;
         };
         await runRecoveryTick(recoveryDelta, state.activeDocumentId, recoveryDocs, serializer.serialize, current, id => {

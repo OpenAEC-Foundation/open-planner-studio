@@ -1,5 +1,8 @@
 import { isTauri } from '@/utils/platform';
 import type { DocumentPayload } from './documentContract';
+import type { AppState } from './appStoreFactory';
+import { ifcxSaveRevisionOf } from './documentSaveState';
+import { ifcxEnabled } from '@/utils/featureFlags';
 import { recoverySaveTarget } from './ifcForeignGuard';
 import { recoveryIfcSourceFields } from '@/services/recovery/recoveryIfcSource';
 import { pendingIfcSourceSha256 } from '@/services/recovery/recoveryPendingSource';
@@ -40,16 +43,17 @@ export function recoverySourceDocument(id: string, payload: DocumentPayload, ena
 }
 
 export function unchangedIfcxSaveTargets(
-  documents: readonly RecoverySourceDocument[], current: () => readonly { id: string; payload: DocumentPayload }[],
-  enabled: boolean,
+  documents: readonly RecoverySourceDocument[], before: Pick<AppState, 'documents'>,
+  current: Pick<AppState, 'documents' | 'getOpenDocumentPayloads' | 'ui'>,
 ): boolean {
   const linked = documents.filter(doc => doc.ifcx?.references);
   if (!linked.length) return true;
-  if (!enabled) return false;
-  const open = new Map(current().map(doc => [doc.id, doc.payload]));
+  if (!ifcxEnabled(current.ui.featureFlags)) return false;
+  const open = new Map(current.getOpenDocumentPayloads().map(doc => [doc.id, doc.payload]));
   return linked.every(doc => {
     const payload = open.get(doc.id);
     return payload && payload.ifcxReferences && payload.filePath === doc.filePath
+      && ifcxSaveRevisionOf(before, doc.id) === ifcxSaveRevisionOf(current, doc.id)
       && (!payload.fileHandle || recentIdForHandle(payload.fileHandle) === doc.ifcx?.targetRecentId)
       && payload.knownTargetFingerprint === doc.ifcx?.known && payload.siteFileId === (doc.siteFileId ?? null)
       && payload.siteFileVersion === (doc.siteFileVersion ?? null);

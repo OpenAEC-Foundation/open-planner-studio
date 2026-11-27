@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { resolveObjectURL } from 'node:buffer';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -56,7 +57,7 @@ function tick(s: Store, tracker = new RecoveryDeltaTracker(), serialize?: Parame
   const state = s.getState();
   const docs = state.getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, false, !!state.ui.featureFlags.ifcx));
   return runRecoveryTick(tracker, state.activeDocumentId, docs, serialize, () =>
-    unchangedIfcxSaveTargets(docs, s.getState().getOpenDocumentPayloads, !!s.getState().ui.featureFlags.ifcx));
+    unchangedIfcxSaveTargets(docs, state, s.getState()));
 }
 async function restore() {
   const loaded = await loadRecovery();
@@ -65,6 +66,32 @@ async function restore() {
   assert.deepEqual(s.getState().restoreDocuments(inputs, loaded.activeDocumentId).skippedIds, []);
   assert.equal(s.getState().activeDocumentId, loaded.activeDocumentId);
   return s;
+}
+async function saveDuringRecovery(s: Store, task: string, name: string) {
+  const tracker = new RecoveryDeltaTracker();
+  let release!: () => void, started!: () => void;
+  const busy = new Promise<void>(r => { started = r; });
+  const waiting = new Promise<void>(r => { release = r; });
+  const committed: boolean[] = [];
+  const queue = createRecoveryTickQueue(async () => {
+    committed.push(await tick(s, tracker, async source => {
+      if (source.ifcxReferences) { started(); await waiting; }
+      return writeRecoverySnapshot(recoverySnapshotInput(source));
+    }));
+  }, () => true);
+  const unregister = registerRecoveryFlush(queue);
+  const running = queue();
+  try {
+    await busy;
+    s.getState().updateTask(task, { name });
+    const unsubscribe = s.subscribe(state => { if (!state.isDirty) release(); });
+    try { assert.equal(await save(s), true); } finally { unsubscribe(); }
+  } finally {
+    release();
+    unregister();
+    await running;
+  }
+  return committed;
 }
 const manifestPath = join(recoveryDir, recoveryManifestName);
 const manifest = () => JSON.parse(readFileSync(manifestPath, 'utf8'));
@@ -130,29 +157,7 @@ try {
     writeFileSync(plan, savedBeforeCrash);
   }
   ipc.faults.onCall = null;
-  const tracker = new RecoveryDeltaTracker();
-  let release!: () => void, started!: () => void;
-  const busy = new Promise<void>(r => { started = r; });
-  const waiting = new Promise<void>(r => { release = r; });
-  let oldCommitted: boolean | undefined;
-  const queue = createRecoveryTickQueue(async () => {
-    const persisted = await tick(s, tracker, async source => {
-      if (source.ifcxReferences) { started(); await waiting; }
-      return writeRecoverySnapshot(recoverySnapshotInput(source));
-    });
-    oldCommitted ??= persisted;
-  }, () => true);
-  const unregister = registerRecoveryFlush(queue);
-  const running = queue();
-  await busy;
-  edit('Laatste handmatige opslag');
-  const manual = save(s);
-  try {
-    for (let i = 0; i < 300 && s.getState().isDirty; i++) await new Promise(r => setTimeout(r, 5));
-    assert.equal(s.getState().isDirty, false);
-  } finally { release(); }
-  try { assert.equal(await manual, true); await running; } finally { unregister(); }
-  assert.equal(oldCommitted, false);
+  assert.deepEqual(await saveDuringRecovery(s, task, 'Laatste handmatige opslag'), [false, true]);
   const last = await restore();
   assert.equal(last.getState().tasks.find(t => t.id === task)?.name, 'Laatste handmatige opslag');
   assert.deepEqual(last.getState().ifcxReferences, s.getState().ifcxReferences);
@@ -263,6 +268,44 @@ assert.deepEqual(web.getState().ifcxReferences, browser.getState().ifcxReference
 assert.equal(saveTargetRef(web.getState()), null);
 assert.equal(uncheckedModelLinks(web.getState()), true);
 console.log('OK webmanifest met exacte doelpaden, zonder modeltoegang of schrijfdoel');
+
+const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+const downloads: { name: string; bytes: Promise<ArrayBuffer> }[] = [];
+Object.defineProperty(globalThis, 'document', { configurable: true, value: {
+  documentElement: {},
+  createElement: () => ({
+    href: '', download: '',
+    click() {
+      const blob = resolveObjectURL(this.href);
+      assert(blob);
+      downloads.push({ name: this.download, bytes: blob.arrayBuffer() });
+    },
+  }),
+} });
+try {
+  assert.equal(await save(browser), true);
+  const task = browser.getState().tasks[0].id;
+  browser.getState().updateTask(task, { name: 'Gevel A' });
+  const committed = await saveDuringRecovery(browser, task, 'Gevel B');
+  assert.deepEqual(downloads.map(d => d.name), ['model - planning.ifcx', 'model - planning.ifcx']);
+  const downloaded = readIfcx(new Uint8Array(await downloads[1].bytes));
+  const fixture = readIfcx(planBytes);
+  assert.equal(downloaded.tasks.find(t => t.id === task)?.name, 'Gevel B');
+  assert.deepEqual(downloaded.modelSource, fixture.modelSource);
+  assert.deepEqual(downloaded.elementLinks, fixture.elementLinks);
+  assert.equal(saveTargetRef(browser.getState()), null);
+  assert.equal(browser.getState().knownTargetFingerprint, null);
+  const recovered = (await restore()).getState();
+  assert.equal(recovered.tasks.find(t => t.id === task)?.name, 'Gevel B');
+  assert.deepEqual(recovered.ifcxReferences?.modelSource, fixture.modelSource);
+  assert.deepEqual(recovered.ifcxReferences?.elementLinks, fixture.elementLinks);
+  assert.equal(saveTargetRef(recovered), null);
+  assert.deepEqual(committed, [false, true]);
+  console.log('OK tweede browserdownload tijdens herstel: laatste taaknaam, modelverwijzing en beide doelpaden uit IndexedDB');
+} finally {
+  if (previousDocument) Object.defineProperty(globalThis, 'document', previousDocument);
+  else Reflect.deleteProperty(globalThis, 'document');
+}
 
 const browserFiles = app();
 const modelHandle = new BrowserHandle(basename(model), model) as unknown as FileSystemFileHandle;

@@ -108,7 +108,7 @@ import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementSet
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
   changeSaving, clearChangedOnDisk, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
-  sameDocumentContent, stampSaved, type DocumentContentRef,
+  ifcxSaveRevisionOf, sameDocumentContent, stampSaved, type DocumentContentRef,
 } from '../documentSaveState';
 import { saveQuestionOpen } from '@/state/blockingDialogs';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
@@ -952,6 +952,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     notifyForeignChangesWritten(get().notify, prepared, file, downloaded);
   };
 
+  let ifcxSaveRevision = 0;
   const commitSavedDocument = (
     document: DocumentContentRef,
     savedSource: IFCSaveSource,
@@ -1002,7 +1003,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     };
     const savedAt = Date.now();
     set((state) => {
-      stampSaved(state, document, savedAt);
+      const revision = currentSource.ifcxReferences && ifcxEnabled(state.ui.featureFlags) ? ++ifcxSaveRevision : undefined;
+      stampSaved(state, document, savedAt, revision);
       if (state.activeDocumentId === documentId) {
         applyDestination(state);
         applyPrepared(state);
@@ -1458,11 +1460,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   const trackSave = <T,>(requested: DocumentContentRef, save: Promise<T>): Promise<T> => {
-    const before = saveSourceForDocument(get(), requested.id);
+    const start = get();
+    const before = ifcxEnabled(start.ui.featureFlags) && saveSourceForDocument(start, requested.id)?.ifcxReferences
+      ? ifcxSaveRevisionOf(start, requested.id) : null;
     set(s => { changeSaving(s, requested, 1); });
-    const settled = before?.ifcxReferences && ifcxEnabled(get().ui.featureFlags) ? save.then(async result => {
-      const current = saveSourceForDocument(get(), requested.id);
-      if (current && (current.knownTargetFingerprint !== before.knownTargetFingerprint || current.siteFileVersion !== before.siteFileVersion)) {
+    const settled = before !== null ? save.then(async result => {
+      const live = get();
+      if (sameDocumentContent(live, requested) && ifcxSaveRevisionOf(live, requested.id) !== before) {
         await flushRecoveryNow().catch(() => {});
       }
       return result;
