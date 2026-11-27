@@ -8000,4 +8000,6 @@ en noem het in je rapport of PR-tekst.
       bibliotheekbestand, meldt het verlies. Nog na te gaan: *Toepassen* in het IFC-paneel op zo'n planning.
       Vóór de flag `ifcx` standaard aan gaat: de backup van zo'n planning als IFCX schrijven, de tool het
       verlies in haar antwoord laten melden, en één plek kiezen waar elke STEP-kopie van zo'n document
-      langs moet (`buildWriteIFCInput`). Gevolgd in de code bij de review van #1320, ronde 3. — S
+      langs moet (`buildWriteIFCInput`). Neem daarbij het heropenen mee: een IFCX-backup staat in de
+      backupmap en niet naast het model, dus de zoekactie naar het buurmodel vindt het model daar niet.
+      Gevolgd in de code bij de review van #1320, ronde 3 en 4. — S
