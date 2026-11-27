@@ -70,3 +70,5 @@ dist-platform/
 /.ifcx-bron/
 /scripts/ifcx/ifcx-project-controle/target/
 /scripts/ifcx/ifcx-project-controle/Cargo.lock
+/ifcx-uitvoer/
+/ifcx-kapot/
