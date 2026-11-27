@@ -316,8 +316,10 @@ export function exportSplitsLostNotice(format: ExportFormat, tasks: readonly Tas
   return count > 0 ? { severity: 'info', messageKey: 'notifications.exportSplitsLost', params: { count } } : null;
 }
 
-export function exportModelReferencesLostNotice(format: ExportFormat, state: Pick<AppState, 'ifcxReferences'>): NotifyInput | null {
-  return format === 'ifc' && state.ifcxReferences?.modelSource ? { severity: 'info', messageKey: 'ifcx.model.ifcExportLoss' } : null;
+export function exportModelReferencesLostNotice(format: ExportFormat, state: Pick<AppState, 'ifcxReferences' | 'ui'>): NotifyInput | null {
+  const references = state.ifcxReferences;
+  if (format !== 'ifc' || !references || (!references.modelSource && !ifcxEnabled(state.ui.featureFlags))) return null;
+  return { severity: 'info', messageKey: 'ifcx.model.ifcExportLoss' };
 }
 
 export function exportCostResourcesLostNotice(format: ExportFormat, resources: readonly Pick<Resource, 'type'>[]): NotifyInput | null {
@@ -575,7 +577,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const prepareDocumentWrite = async (
     state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation, format: DocumentFileFormat = attemptFormat(state),
   ): Promise<IfcOutput | null> => {
-    if (state.ifcxReferences && format !== 'ifcx') {
+    if (state.ifcxReferences && format === 'ifc' && planOnly?.reason !== 'ifcxModelSaveAsIfc') {
       get().notify(refusalNotice({ messageKey: 'ifcx.model.saveAsIfc', dedupeKey: 'ifcx-model-save-ifc' }));
       return null;
     }
@@ -594,7 +596,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  los mee, naast de uitvoer: zo blijft de luie tekst van een workeruitvoer ongelezen (review van #1027). */
   const refuseChangedDocumentWrite = (snapshot: AppState, write: IfcOutput, missingSourceSaveAs = false): boolean => {
     const app = get();
-    if (!sameDocumentContent(app, snapshotContent(snapshot))) {
+    if (!sameDocumentContent(app, snapshotContent(snapshot))
+      || (snapshot.ifcxReferences && saveSourceForDocument(app, snapshot.activeDocumentId)?.ifcxReferences !== snapshot.ifcxReferences)) {
       app.notify(SAVE_CHANGED_NOTICE);
       return true;
     }
@@ -977,7 +980,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       target.fileFormat = destination.fileFormat;
       if (destination.siteFileId) target.autoSaveToFile = false;
     };
-    const applyPrepared = (target: Pick<AppState, 'project' | 'ifcSource' | 'foreignSourceMark' | IfcxDroppedKey | keyof SaveDestination>) => {
+    const applyPrepared = (target: Pick<AppState, 'project' | 'ifcSource' | 'ifcxReferences' | 'foreignSourceMark' | IfcxDroppedKey | keyof SaveDestination>) => {
+      if (destination?.fileFormat === 'ifc' && savedSource.ifcxReferences && savedSource.ifcxReferences === currentSource.ifcxReferences) {
+        target.ifcxReferences = null;
+      }
       if (destination?.fileFormat === 'ifcx') {
         delete target.project.ifcSchemaUnconfirmed;
         target.ifcSource = null;
@@ -1303,10 +1309,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    * (`newTargetWriteNotice`).
    */
   const saveAsOnDesktop = async (
-    documentId: string, state: AppState, write: IfcOutput, name: string, missingSourceSaveAs = false, typeChoice = false,
+    documentId: string, state: AppState, write: IfcOutput | null, name: string, missingSourceSaveAs = false, typeChoice = false,
   ): Promise<{ outcome: SaveOutcome; committed: boolean } | null> => {
-    const own: SaveAsAttempt = { write, format: attemptFormat(state), missingSourceSaveAs };
-    const picked = await pickSaveTarget(name, typeChoice ? saveAsFileFilters(own.format) : documentFileFilters(own.format));
+    const format = attemptFormat(state);
+    const own = write && { write, format, missingSourceSaveAs };
+    const picked = await pickSaveTarget(name, typeChoice ? saveAsFileFilters(format) : documentFileFilters(format));
     if (!picked) return null;
     const attempt = typeChoice ? await saveAsInFormat(state, own, picked.path) : own;
     if (!attempt) return null;
@@ -1358,16 +1365,19 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const carriesXerImport = (state: AppState): boolean =>
     state.xerSourceArchive !== null || state.xerImportMetadata !== null || state.xerSourceProjectId !== null;
 
-  const saveAsInFormat = async (state: AppState, own: SaveAsAttempt, path: string): Promise<SaveAsAttempt | null> => {
+  const saveAsInFormat = async (state: AppState, own: SaveAsAttempt | null, path: string): Promise<SaveAsAttempt | null> => {
     const format = formatOfName(path);
-    if (format === own.format) return own;
-    const planOnly = format === 'ifcx' && planOnlyQuestionApplies(state, 'ifcxSaveAs') ? await askPlanOnly('ifcxSaveAs') : undefined;
+    if (format === own?.format) return own;
+    const reason = format === 'ifcx' ? 'ifcxSaveAs' : 'ifcxModelSaveAsIfc';
+    const planOnly = planOnlyQuestionApplies(state, reason) ? await askPlanOnly(reason) : undefined;
     if (planOnly === null) return null;
-    if (format === 'ifcx' && carriesXerImport(state) && !(await askPlanOnly('ifcxXerArchive'))) return null;
+    const toIfcx = format === 'ifcx' && format !== attemptFormat(state);
+    if (toIfcx && carriesXerImport(state) && !(await askPlanOnly('ifcxXerArchive'))) return null;
     const input = buildWriteIFCInput(state, planOnly ? 'planOnly' : 'merge');
-    const write = await prepareDocumentWrite(state, format === 'ifcx' ? ifcxInputWithoutXerArchive(input) : input, planOnly, format);
-    if (!write || refuseChangedDocumentWrite(state, write, own.missingSourceSaveAs)) return null;
-    return { write, format, missingSourceSaveAs: own.missingSourceSaveAs };
+    const write = await prepareDocumentWrite(state, toIfcx ? ifcxInputWithoutXerArchive(input) : input, planOnly, format);
+    const missingSourceSaveAs = own?.missingSourceSaveAs ?? false;
+    if (!write || refuseChangedDocumentWrite(state, write, missingSourceSaveAs)) return null;
+    return { write, format, missingSourceSaveAs };
   };
 
   const exportOnDesktop = (state: AppState, name: string, filters: FileFilter[], prepared: PreparedIfcWrite): Promise<SaveOutcome | null> =>
@@ -1670,6 +1680,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     let siteName: string | null = null;
 
     try {
+      const defaultName = state.filePath ? newTargetName(state, state.filePath) : proposedPlanName(state, attemptFormat(state));
+      const typeChoice = isTauri() && ifcxEnabled(state.ui.featureFlags);
+      const saveDesktop = async (write: IfcOutput | null) => {
+        const saved = await saveAsOnDesktop(documentId, state, write, defaultName, missingSourceSaveAs, typeChoice);
+        if (saved && sameDocumentContent(get(), snapshotContent(state))) await pushRecent(saved.outcome.ref, saved.outcome.name);
+      };
+      if (typeChoice && planOnlyQuestionApplies(state, 'ifcxModelSaveAsIfc')) {
+        await saveDesktop(null);
+        return;
+      }
       const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, missingSourceSaveAs ? 'planOnly' : 'merge'), planOnly);
       if (!write || refuseChangedDocumentWrite(state, write, missingSourceSaveAs)) return;
       if (!(await confirmForeignChanges(state, write, null))) return;
@@ -1682,14 +1702,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           return;
         }
       }
-      const defaultName = state.filePath ? newTargetName(state, state.filePath) : proposedPlanName(state, attemptFormat(state));
-      const typeChoice = isTauri() && ifcxEnabled(state.ui.featureFlags);
       // Met de flag ook een gewone planning: de toestemming van de kiezer hoort bij het gekozen doel en zijn gelezen
       // versie (fixronde 1 van #1071, A). Met de flag uit de route van main hieronder.
       if (isTauri() && (state.ifcxReferences || write.prepared || ifcForeignContentEnabled(state.ui.featureFlags))) {
-        const saved = await saveAsOnDesktop(documentId, state, write, defaultName, missingSourceSaveAs, typeChoice);
         // Zie hieronder: een vervangen inhoud krijgt geen Recent (knownbug 1899).
-        if (saved && sameDocumentContent(get(), snapshotContent(state))) await pushRecent(saved.outcome.ref, saved.outcome.name);
+        await saveDesktop(write);
         return;
       }
       const own: SaveAsAttempt = { write, format: attemptFormat(state), missingSourceSaveAs };

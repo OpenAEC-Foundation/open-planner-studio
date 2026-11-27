@@ -33,7 +33,9 @@ temp-id-resolutie). Besluiten over de wijzigende tools voor resources, toewijzin
 project staan in `docs/adr/0100` tot en met `0107`. Besluiten over de leestools (`tools/readTools.ts`): `docs/adr/0400`
 (compact, met id's en de notaties van de schrijfkant), `0401` (argumenten toetsen), `0402` (paginering en
 grenzen), `0403` (niet vastgelegd is onbekend), `0404` (taken tellen en filteren), `0405` (één taak lezen), `0406`
-(resources, belasting en kalenders) en `0407` (kritiek pad, baseline en vertraging).
+(resources, belasting en kalenders) en `0407` (kritiek pad, baseline en vertraging). Besluiten over de schrijftools
+voor taken en relaties (`tools/taskTools.ts`): `docs/adr/0490` (de vorm vooraf, alles of niets of per item, undo en
+redo), `0491` (taken toevoegen), `0492` (taken wijzigen), `0493` (verwijderen en verplaatsen) en `0494` (relaties).
 
 Een MCP-backup bewaart planning plus bronkenmerk, nooit gebouwmodelbytes. Bij openen krijgt dat kenmerk alleen met
 `ifcForeignContent` aan `sourceMissing` (1c PR 9d): dezelfde bestaande weigering van alle IFC-opslag als bij herstel

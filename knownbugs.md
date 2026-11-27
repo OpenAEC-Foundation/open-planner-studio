@@ -1801,6 +1801,33 @@ en noem het in je rapport of PR-tekst.
       ingeklapt. Met Eigenschappen in dezelfde opzet komt de rail na één klik in beeld met het paneel aan. Ctrl+Shift+L
       voert dezelfde opdracht uit als de knop Waarschuwingspaneel. Niet in de browser nagespeeld. — B
 
+2540. **Scrollen naar een datum geeft `NaN` als `viewStartDate` of het doel geen leesbare datum is.**
+      `computeScrollToDate` (`src/utils/ganttViewport.ts`). Nagespeeld in Node, de functie los gebundeld met esbuild:
+      zonder taken, zonder datum en met een lege `view.viewStartDate` geeft hij `NaN`; ook met één taak (start
+      2026-02-02, einde 2026-02-06), doel 2026-03-01 en een lege `viewStartDate`; en zonder taken en zonder datum met
+      `viewStartDate` 2026-01-01 en `project.statusDate` `onzin`. Bij een onleesbare `viewStartDate` geeft
+      `computeEffectiveViewStart` die invoer terug (ADR 0501), en die levert daarna `NaN`. In de code gelezen, niet in de
+      app nagespeeld: Ctrl/Cmd+Home (`nav.scrollToToday` in `shortcutRegistry.ts`) geeft de uitkomst aan `setScroll`
+      (`viewSlice.ts`); `Math.max(0, NaN)` is `NaN`, en `clampGanttScroll` met `NaN` en een bovengrens geeft in Node
+      `NaN` terug. Een IFC-bestand kan zo'n datum opleveren: in een kopie van het voorbeeld *Rijwoningen De Akkers* met
+      `StatusDate` `onzin` kwam die tekst via `readIFC` in de store, en de actie achter Ctrl/Cmd+Home zette `scrollX`
+      op `NaN` (in Node, zonder canvas); met een herstelde statusdatum gaf dezelfde actie weer een getal. De wizard
+      en een nieuw leeg project geven een geldige oorsprong. — B
+
+2541. **De fit van het project geeft een onbruikbare zoom als een taakdatum geen datum is maar wel als tekst wordt
+      vergeleken.** `computeFitToProject` (`src/utils/ganttViewport.ts`) kiest de vroegste start en het laatste einde
+      door de teksten te vergelijken en leest ze daarna pas als datum. Nagespeeld in Node, de functie los gebundeld met
+      esbuild, breedte 1000, zonder kwartierzoom, kalenderdagen, taken zonder werkelijke datums en zonder late datums:
+      taak a van 2026-02-02 tot 2026-02-06 en taak b met start 2026-02-02 en einde (`earlyFinish` en `scheduleFinish`)
+      `x2026` geven zoom en scroll `NaN`. Taak a met taak b met start `0` en einde 2026-02-06 geeft `viewStartDate` `0`,
+      zoom 0,5 (de ondergrens) en scroll 7: `parseDate` leest `0` in Node als 2000-01-01. In de code gelezen, niet in de
+      app nagespeeld: Ctrl+0 (`fitToProject`) en de fit na het openen (`pendingFit`) in
+      `useGanttViewportCoordinator.ts` geven de zoom aan `setZoom`, en `Math.max(0.5, Math.min(max, NaN))` is `NaN`.
+      Via een IFC-bestand, in Node zonder canvas: met `x2026` als taakeinde neemt `readIFC` de tekst over, maar stopt
+      het activeren van het document met een `RangeError` vóór de fit, zodat de `NaN` alleen voor de losse functie is
+      gezien; met taakstart `0` slaagt het openen en begint de berekende fit op 1999-12-31 met zoom 0,5, een verkeerde
+      uitsnede. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
@@ -2580,6 +2607,33 @@ en noem het in je rapport of PR-tekst.
      16:00 met 60 minuten pauze en `hoursPerDay: 8`; de schrijfvalidatie rekent 7,5 uur en `planner_update_calendar`
      met `create: true` weigert de gelezen kalender in een leeg document. Er gaat niets verloren; de kalender is zo
      alleen niet over te zetten (ADR 0104). Issue #1274. — B
+2530. **`planner_add_tasks` zonder `duration` geeft een andere duur zodra het item `durationType` noemt.**
+     `addTasksCore` in `src/services/mcp/tools/taskTools.ts` maakt bij een tijddeel zonder duur zelf de tijd, met 5 in
+     de dagenmaat; zonder tijddeel kiest `draft.addTask` (`src/state/runtime/createMcpTransactions.ts`) 5 in de maat
+     van `newTaskTimeUnit`. Nagespeeld via de handler met de app-store: een nieuw project met zijn eigen rekenprofiel, de
+     projectkalender (8 uur per dag) en `defaultTaskDurationUnit: 'hours'`; in `tasks` werd het item
+     `{ tempId: 'a', name: 'A' }` een urentaak van 300 minuten (07:00 tot 12:00) en het item
+     `{ tempId: 'b', name: 'B', durationType: 'WORKTIME' }` een dagtaak van 5 werkdagen. Met de standaard `days` gaven
+     beide 5 werkdagen. Met de standaard `days` en `workRule: 'FIXED_WORK'` op beide items werden beide, met en zonder
+     `durationType`, een urentaak van 2.400 minuten: daar beslist `settleNewTaskMeasure` de maat. ADR 0491.
+     Issue #1312. — B
+2531. **`planner_remove_dependencies` noemt een relatie twee keer in `removed` als haar id twee keer in `ids` staat.**
+     `removeDependenciesCore` in `src/services/mcp/tools/taskTools.ts` zet elk gevonden id in `removed`, ook een
+     herhaling. Nagespeeld via de handler: één FS-relatie, `ids: [id, id]`; de relatie was weg, `removed` bevatte het
+     id twee keer en er was geen weigering. `planner_delete_tasks` meldt een dubbel id wel één keer (ADR 0493). — B
+2532. **`progressAdjusted` kan een andere voortgang melden dan de taak na dezelfde `planner_update_tasks` heeft.**
+     `updateTasksCore` in `src/services/mcp/tools/taskTools.ts` legt `progressAdjusted` vast na de duurpatch en vóór het
+     voortgangsblok van hetzelfde item; een aanvaard voortgangsblok bepaalt daarna de eindstand. Nagespeeld via de
+     dispatcher: projectstart 1 juni 2026, statusdatum 3 juni, een dagtaak van 10 werkdagen op 40 %, dan één item met
+     `fields: { duration: 4 }` en `progress: { completion: 50 }`. Het antwoord meldde `progressAdjusted` met
+     `completion: 100` en `remaining: 0`; de taak stond daarna op 50 %, duur 4, status `STARTED`, zonder `actualFinish`.
+     ADR 0492. — B
+2533. **`planner_add_dependencies` negeert een onbekende sleutel in een item, zoals `lagDays`.** Het schema van een item
+     heeft `additionalProperties: false`, maar de schemapoort toetst de binnenkant van array-items niet (ADR 0100), en
+     `classifyDeps` in `src/services/mcp/tools/taskTools.ts` leest alleen `predecessorId`, `successorId`, `type` en
+     `lag`. Nagespeeld via de dispatcher: twee taken en één item `{ predecessorId, successorId, type: 'FS', lagDays: 2 }`;
+     de aanroep slaagde zonder weigering en de relatie kreeg `lagDays: 0`. ADR 0494.
+     Issue #1314. — B
 
 ## Bestanden en herstel
 
@@ -8025,17 +8079,24 @@ en noem het in je rapport of PR-tekst.
       beschikbaar en vraagt Opslaan opnieuw om een doel. Het verwijderen van de vermelding is
       nagegaan in `check-ifcx-herstel.ts`. — B
 
-2422. **Een MCP-backup of `planner_export_ifc` van een planning bij een IFCX-model laat de modelverwijzing stil weg.**
-      *MCP → Veiligheid → Nu backup maken*, de automatische backup langs dezelfde schrijfroute en de tool
-      `planner_export_ifc` schrijven een STEP-kopie van de planning. Die kopie bevat de modelverwijzing en de
-      bouwdeelkoppelingen niet, en de app meldt dat niet (de backupknop zegt *Backup gemaakt*). De
-      IFCX-planning zelf en het model blijven ongewijzigd. Alleen *Exporteren → IFC*, met en zonder
-      bibliotheekbestand, meldt het verlies. Nog na te gaan: *Toepassen* in het IFC-paneel op zo'n planning.
-      Vóór de flag `ifcx` standaard aan gaat: de backup van zo'n planning als IFCX schrijven, de tool het
-      verlies in haar antwoord laten melden, en één plek kiezen waar elke STEP-kopie van zo'n document
-      langs moet (`buildWriteIFCInput`). Neem daarbij het heropenen mee: een IFCX-backup staat in de
-      backupmap en niet naast het model, dus de zoekactie naar het buurmodel vindt het model daar niet.
-      Gevolgd in de code bij de review van #1320, ronde 3 en 4. — S
+2422. **Een MCP-backup van een planning bij een IFCX-model laat de modelverwijzing stil weg.**
+      *MCP → Veiligheid → Nu backup maken* en de automatische backup langs dezelfde schrijfroute schrijven
+      een STEP-kopie van de planning. Die kopie bevat de modelverwijzing en de bouwdeelkoppelingen niet, en de
+      app meldt dat niet (de backupknop zegt *Backup gemaakt*). De IFCX-planning zelf en het model blijven
+      ongewijzigd. *Exporteren → IFC*, met en zonder bibliotheekbestand, meldt het verlies; de tool
+      `planner_export_ifc` meldt het in haar antwoord zolang de flag `ifcx` aan staat. Zet de planner de
+      flag uit terwijl zo'n planning nog open is, dan ontbreken de koppelingen in de STEP-export en
+      ontbreekt ook die melding. Nog na te gaan: *Toepassen* in het IFC-paneel op zo'n planning. Vóór de flag `ifcx` standaard aan gaat: de backup van zo'n planning als IFCX schrijven en één
+      plek kiezen waar elke STEP-kopie van zo'n document langs moet (`buildWriteIFCInput`). Neem daarbij het
+      heropenen mee: een IFCX-backup staat in de backupmap en niet naast het model, dus de zoekactie naar het
+      buurmodel vindt het model daar niet. Gevolgd in de code bij de review van #1320, ronde 3 en 4. — S
+
+2423. **Bij Opslaan als IFC kan de omzetvraag verschijnen voor een doel dat de app daarna weigert.**
+      Kiest de planner bij een planning bij een IFCX-model als `.ifc`-doel een alias van het model of van
+      de geopende IFCX-planning, dan stelt de app eerst de vraag *alleen de planning*, berekent bij ja de
+      STEP-uitvoer en weigert pas daarna het doel. Er wordt niets geschreven; de planner beantwoordt een
+      overbodige vraag. Gevolgd in de code bij de review van #1324, ronde 1. Richting: het gekozen doel
+      en de documentidentiteit vóór de vraag toetsen en de laatste controle vlak vóór plaatsing houden. — S
 
 2424. **Valt de app uit tussen de opslag van een IFCX-planning en de vernieuwde herstelset, dan kan crashherstel de oudere stand aanbieden.**
       Op de desktop schrijft *Opslaan* eerst het planningsbestand en vraagt daarna een actuele

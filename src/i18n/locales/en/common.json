@@ -520,7 +520,7 @@
     "foreignChangesQuestion": "Ask before saving when IFC items outside the schedule are removed",
     "foreignChangesQuestionHint": "For a file with a building model. When off, the app saves right away and reports the number afterwards.",
     "ifcx": "Open and save IFCX",
-    "ifcxHint": "Opens and saves IFCX schedules. You can open a model from another program with local building elements and no scheduling data to start a separate schedule file. Crash recovery keeps the model references and element links. Once the schedule has its own writable IFCX file, you can turn on Auto-save. For schedules without model references, Save As on desktop lets you choose between IFC and IFCX. IFCX is under development. A later version may refuse a file you save today. Use Export → IFC to keep a P6 source archive (XER) or an embedded resource library.",
+    "ifcxHint": "Opens and saves IFCX schedules. You can open a model from another program with local building elements and no scheduling data to start a separate schedule file. Save that schedule manually as IFCX to keep the model reference and the links to building elements. Crash recovery keeps the model references and element links. Once the schedule has its own writable IFCX file, you can turn on Auto-save. On desktop, Save As lets you choose between IFC and IFCX. IFCX is under development. A later version may refuse a file you save today. Use Export → IFC to keep a P6 source archive (XER) or an embedded resource library.",
     "tourHint": "Take the app's introductory tour again.",
     "theme": "Theme",
     "themeHint": "The interface's colour scheme.",
@@ -2113,7 +2113,8 @@
       "planOnlyContinue": "Save schedule only",
       "xerArchiveBody": "The P6 source archive is not included in IFCX. The schedule itself is. The open file does not change. After saving, you continue working in the IFCX file, without the source archive.",
       "xerArchiveContinue": "Continue",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "ifcWithoutLinksBody": "The IFC file contains only the schedule. It omits the model reference and the links to building elements. The model and the previously saved IFCX schedule stay unchanged. You will continue working in the IFC file."
     },
     "fileDropRefused": "Not opened: {{names}}. The app only opens IFC, IFCX, XML, MPP, XER and CSV.",
     "planSuffix": "schedule",
