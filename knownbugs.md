@@ -4879,9 +4879,8 @@ en noem het in je rapport of PR-tekst.
       aantal vóór het schrijven, en komt er geen telling achteraf. De telling achteraf (`notifyForeignChangesWritten` in
       `src/state/foreignChangesWrittenNotice.ts`, een blijvende info zoals `notifications.siteSaveConflictCopy`, met de
       naam van het geschreven bestand) blijft alleen bij een opslag met de vraag uit ("Niet meer vragen", terug te zetten
-      in Instellingen → Meldingen), bij een export (Exporteren → IFC en de export met de resourcebibliotheek;
-      `planner_export_ifc` geeft het aantal in zijn antwoord) en bij Automatisch opslaan, dat schrijft zoals vóór de
-      vraag. Daar deelt ze de grenzen van de meldingen van main:
+      in Instellingen → Meldingen) en bij een export (Exporteren → IFC en de export met de resourcebibliotheek;
+      `planner_export_ifc` geeft het aantal in zijn antwoord). Daar deelt ze de grenzen van de meldingen van main:
       - de telling is weg na herladen in de browser, na een crash, na een herstart door de updater en na afsluiten, als de
         planner haar nog niet las; het bestand is dan al zonder de vervallen gegevens geschreven;
       - bij meer dan drie meldingen tegelijk verdringt de stapel volgens de regels van main (knownbug 2253); een telling
@@ -4891,11 +4890,8 @@ en noem het in je rapport of PR-tekst.
         krijgen dezelfde regel als hun aantal gelijk is (de desktop-app noemt het volledige pad).
       De vraag uit en een export zijn geen gemiste telling in de zin van de tiende voorwaarde: de vraag uit is een
       uitdrukkelijke keuze die terug te zetten is, en een export verandert het document en het geopende bestand niet.
-      Automatisch opslaan wel: zolang het zonder vraag schrijft, is de tiende voorwaarde voor het standaard aanzetten van
-      de flag *IFC met gebouwmodel openen* (de planner mist de telling van een opslag niet) voor die route niet gehaald.
-      Wat het moet doen, wacht op een keuze van de eigenaar: A, het document overslaan tot de planner zelf opsloeg; of B,
-      schrijven zoals nu. Besluit technisch eigenaar bij het opknippen van #1199 (fixronde 3); de vraag vóór het opslaan
-      is gebouwd achter de flag. Sinds PR 7 van #804 brengt Ctrl+Z na het opslaan de stukken bij de volgende opslag
+      Automatisch opslaan stelt zelf de vraag voor het schrijven (besluit eigenaar 27 november 2026).
+      Sinds PR 7 van #804 brengt Ctrl+Z na het opslaan de stukken bij de volgende opslag
       terug, zolang het document open is; de vraag en de telling zeggen dat niet.
 
       De waarschuwing bij het wissen (`notifyForeignLinksDropped` in `src/state/foreignLinksNotice.ts`) is ook een gewone
@@ -8126,9 +8122,31 @@ en noem het in je rapport of PR-tekst.
       dezelfde UUID als de verwijderde taak, met een andere schrijfwijze. Bij teruglezen krijgt Afwerken
       een andere GlobalId en de zelfcontrole weigert de opslag. Gezien op de eerste opslag naast de bron. — B
 
+2429. **Een lang openstaande vraag van Automatisch opslaan vertraagt de volgende opslag van dat bestand.**
+      Het ritme voor een gebouwmodel meet van het begin tot het einde van een opslagronde. Ook de tijd waarin de planner
+      de vraag over vervallende IFC-gegevens leest, telt mee. Blijft de vraag een minuut open, dan plant het ritme de
+      volgende ronde op zijn vroegst tien minuten na het begin van de vorige. Crashherstel heeft zijn eigen klok.
+      Gevolgd in `fileAutoSave.ts` en `modelAutoSaveRhythm.ts`. Richting: alleen de tijd voor berekenen en schrijven
+      laten meetellen voor deze ondergrens. — S
+
+2430. **Automatisch opslaan op de desktop kan na een nieuwe bewerking nog de eerder goedgekeurde IFC-versie plaatsen.**
+      Bewerkt de planner het document terwijl de oorspronkelijke versie opzij wordt gezet, dan is de laatste
+      inhoudscontrole al voorbij. De goedgekeurde bytes kunnen op schijf komen. De nieuwe bewerking blijft in de
+      app als gewijzigd staan. De aanroep in `fileAutoSave.ts` geeft de tweede inhoudscontrole van
+      `src/services/fileAccess/ownFileReplace.ts` niet mee. Vóór de flag `ifcForeignContent` standaard aan gaat
+      moet ook Automatisch opslaan de inhoud na het opzijzetten opnieuw toetsen. — B
+
 2431. **Zet de planner de flag `ifcx` uit terwijl een ronde van Automatisch opslaan wacht, dan kan die ronde nog één keer IFCX schrijven.**
       Een al gekozen ronde gebruikt de flag van het moment waarop ze begon. Wacht ze nog op schrijfrecht
       of op haar beurt, en is de planning ongewijzigd met hetzelfde schrijfdoel, dan schrijft ze de
       IFCX-planning nog één keer met de verwijzingen. Gevolgd in de code bij de review van #1325, ronde 3.
       Vóór de flag `ifcx` standaard aan gaat: de actuele flag ook vlak vóór de plaatsing toetsen, met een
       wachtende ronde als proef. — S
+
+2432. **Vervangt een extensie het document terwijl de automatische IFC-vraag openstaat, dan blijft de oude vraag staan.**
+      Een extensie kan via `api.data.loadProject` de inhoud van het actieve tabblad vervangen terwijl
+      Automatisch opslaan op een antwoord wacht. De vraag blijft zichtbaar voor het oude bestand, en een
+      sluitverzoek wacht zonder tijdslimiet op dat antwoord. *Annuleren*, Escape of het kruisje beëindigen het
+      wachten; bij *Opslaan* voorkomt de controle op de documentidentiteit dat de oude bytes worden geschreven.
+      Gevolgd in de code bij de review van #1329, ronde 3. Vóór de flag `ifcForeignContent` standaard aan gaat:
+      het vervallen van het document of zijn inhoud annuleert de oude vraag via het bestaande antwoordpunt. — S

@@ -13,7 +13,8 @@ export const NATIVE_SHORTCUT_IDS = [
 export type NativeShortcutId = typeof NATIVE_SHORTCUT_IDS[number];
 
 export function runNativeShortcut(id: NativeShortcutId): void {
-  if (isGlobalShortcutFrozen()) return;
+  const state = useAppStore.getState();
+  if (isGlobalShortcutFrozen(state.ui, id === 'file.save' ? state.activeDocumentId : undefined)) return;
   const shortcut = SHORTCUTS.find(shortcut => shortcut.id === id);
   if (!shortcut) return;
   // Opslaan als mag vanuit invoer, net als Cmd+Shift+S in de productie-voorpoort.

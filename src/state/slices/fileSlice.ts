@@ -21,7 +21,7 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveDataDialog, saveDataToPath, saveNewBytesDialog, saveNewBytesToRef, pickSavePath, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, localTargetName, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type RefuseBeforePlace, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveDataDialog, saveDataToPath, saveNewBytesDialog, saveNewBytesToRef, pickSavePath, pickSaveTarget, canWriteToRefWithoutPrompt, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, localTargetName, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type RefuseBeforePlace, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import {
   exportReplaceFailedNotice, exportReplaceNotices, ownPathReplaceNotices, remnantNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery,
@@ -59,8 +59,8 @@ import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
 import { hasBuildingModel, hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
-import { notifyForeignChangesWritten, writtenForeignChangeCount } from '../foreignChangesWrittenNotice';
-import { askForeignChanges } from '@/services/ifc/foreignChangesQuestion';
+import { foreignChangesQuestionFor, notifyForeignChangesWritten } from '../foreignChangesWrittenNotice';
+import { askForeignChanges, type ForeignChangesQuestion } from '@/services/ifc/foreignChangesQuestion';
 import { saveForeignChangesQuestion } from '@/utils/settingsStore';
 import { castDraft } from 'immer';
 import {
@@ -112,7 +112,7 @@ import {
   changeSaving, clearChangedOnDisk, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
   ifcxSaveRevisionOf, sameDocumentContent, stampSaved, type DocumentContentRef,
 } from '../documentSaveState';
-import { saveQuestionOpen } from '@/state/blockingDialogs';
+import { otherDocumentAutoSaveQuestion, saveQuestionOpen } from '@/state/blockingDialogs';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { tightAnchorsIfSaved } from '../dependentCandidates';
 import { askDependentAnchors } from '../dependentAnchorQuestion';
@@ -420,6 +420,7 @@ export interface FileSlice {
   saveFile: () => Promise<void>;
   saveFileForDocument: (documentId: string) => Promise<boolean>;
   saveFileAs: () => Promise<void>;
+  confirmForeignChangesWrite: (prepared: PreparedIfcWrite, question: ForeignChangesQuestion) => Promise<boolean>;
   commitSavedDocument: (document: DocumentContentRef, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite, missingSourceSaveAs?: boolean, written?: TargetFingerprint | null, writtenName?: string) => boolean;
   exportAs: (format: ExportFormat, options?: ExportOptions) => Promise<ExportResult>;
   exportProjectWithPool: () => Promise<ExportResult>;
@@ -1233,6 +1234,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const before = get();
     const question = ifcSchemaQuestionFor(before.project, before.ifcSource);
     if (!question) return true;
+    if (before.ui.pendingForeignChangesQuestion) return false;
     const documentId = before.activeDocumentId;
     const answer = await askIfcSchema(question);
     if (!answer) return false;
@@ -1245,6 +1247,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const before = get();
     const tight = await tightAnchorsIfSaved(before.ui.dependentProjects, before.activeDocumentId, before);
     if (tight.length === 0) return true;
+    if (get().ui.pendingForeignChangesQuestion) return false;
     const documentId = before.activeDocumentId;
     if (!(await askDependentAnchors(tight))) return false;
     return get().activeDocumentId === documentId;
@@ -1512,17 +1515,22 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return settled.finally(() => set(s => { changeSaving(s, requested, -1); }));
   };
 
-  const confirmForeignChanges = async (state: AppState, write: IfcOutput, file: string | null): Promise<boolean> => {
-    const count = writtenForeignChangeCount(write.prepared);
-    if (count === 0 || !state.ui.foreignChangesQuestion) return true;
-    const answer = await askForeignChanges({ count, file });
+  const confirmForeignChangesWrite = async (prepared: PreparedIfcWrite, question: ForeignChangesQuestion): Promise<boolean> => {
+    if (get().ui.pendingForeignChangesQuestion !== null) return false;
+    const answer = await askForeignChanges(question);
     if (!answer.save) return false;
-    countShownBeforeWrite.add(write.prepared!);
+    countShownBeforeWrite.add(prepared);
     if (answer.dontAskAgain) {
       get().setUI({ foreignChangesQuestion: false });
       void saveForeignChangesQuestion(false);
     }
-    return !refuseChangedDocumentWrite(state, write);
+    return true;
+  };
+
+  const confirmForeignChanges = async (state: AppState, write: IfcOutput, file: string | null): Promise<boolean> => {
+    if (!write.prepared) return true;
+    const question = foreignChangesQuestionFor(write.prepared, state.ui.foreignChangesQuestion, file);
+    return !question || (await confirmForeignChangesWrite(write.prepared, question) && !refuseChangedDocumentWrite(state, write));
   };
 
   let saveAttemptSequence = 0;
@@ -1530,6 +1538,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     onTurn();
     const documentId = requested.id;
     if (get().activeDocumentId !== documentId || !sameDocumentContent(get(), requested)) return false;
+    const existingOnly = otherDocumentAutoSaveQuestion(get().ui, documentId);
+    if (existingOnly) {
+      const active = get();
+      const ref = saveTargetRef(active);
+      if (!ref || ref.kind === 'site' || hasForeignContent(active.ifcSource) || active.ifcxReferences) return false;
+    }
     if (refuseForeignDocumentWrite()) return false;
     if (refuseIfcxWithoutFlag()) return false;
     if (!(await settleIfcSchemaQuestion())) return false;
@@ -1561,7 +1575,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       let ownPath: Extract<FileRef, { kind: 'path' }> | null = null;
       let handleRefused = false;
       if (!hasForeignContent(state.ifcSource) && ref?.kind === 'handle') {
-        try { handleRefused = !(await handleWritePermission(ref)); } catch (err) {
+        try { handleRefused = !(await (existingOnly ? canWriteToRefWithoutPrompt(ref) : handleWritePermission(ref))); } catch (err) {
           handleRefused = handleWriteFailed = true;
           notifyWriteError(err);
         }
@@ -1633,6 +1647,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
       }
 
+      if (existingOnly) return false;
       if (siteStorageAvailable()) {
         const choice = await askSiteSave({ defaultName: siteDefaultName(state) });
         if (!choice) return false;
@@ -1772,7 +1787,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   const waitingSaves = new Map<string, Promise<boolean>>();
   const saveActiveDocument = (expectedDocumentId?: string): Promise<boolean> => {
-    if (siteQuestionOpen()) return Promise.resolve(false);
+    if (saveQuestionOpen(get().ui, expectedDocumentId ?? get().activeDocumentId)) return Promise.resolve(false);
     const requested = documentContentOf(get(), expectedDocumentId ?? get().activeDocumentId);
     if (!requested) return Promise.resolve(false);
     const key = `${requested.id}\u0000${requested.content}`;
@@ -1787,6 +1802,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   const slice: FileSlice = {
     commitSavedDocument,
+    confirmForeignChangesWrite,
     applyProjectEdit: (parsed, opts) => get().applyLoadedProject(parsed, {
       intent: 'edit',
       recompute: true,

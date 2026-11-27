@@ -235,7 +235,7 @@ function openProjectNames(s: AppState): string[] {
 function saveWaitWithNotice(setShown: (shown: boolean) => void): () => Promise<void> | null {
   let waiters = 0;
   return () => {
-    const idle = whenProjectFileWritesIdle();
+    const idle = whenProjectFileWritesIdle('close');
     if (!idle) return null;
     if (waiters++ === 0) setShown(true);
     return idle.finally(() => { if (--waiters === 0) setShown(false); });

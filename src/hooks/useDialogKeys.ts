@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { isTopDialog, registerDialog } from '@/state/dialogStack';
 
 /**
  * Module-globale dialoog-stapel: elke `Dialog`-instantie roept `useDialogKeys` aan, en zonder
@@ -10,24 +11,12 @@ import { useEffect, useRef } from 'react';
  * hiernaast nog zijn eigen capture+`stopImmediatePropagation`-workaround (zie de toelichting daar)
  * — die blijft ongemoeid en vuurt sowieso vóór deze bubble-fase-listeners.
  */
-let dialogStack: symbol[] = [];
-const stackListeners = new Set<() => void>();
-
-function notifyStackChange(): void {
-  for (const listener of stackListeners) listener();
-}
-
 /** Luistert naar push/pop op de dialoogstapel (bv. de meldingenplaatsing). Geeft een opzegfunctie. */
-export function subscribeDialogStack(listener: () => void): () => void {
-  stackListeners.add(listener);
-  return () => { stackListeners.delete(listener); };
-}
+export { subscribeDialogStack } from '@/state/dialogStack';
 
 /** Is er momenteel minstens één dialoog gestapeld? Gebruikt door sneltoetsen die niet óver een
  *  openstaande dialoog heen mogen openen (bv. Ctrl+N, zie `shortcutRegistry.ts`). */
-export function isAnyDialogOpen(): boolean {
-  return dialogStack.length > 0;
-}
+export { isAnyDialogOpen } from '@/state/dialogStack';
 
 /**
  * Standaard dialoog-sneltoetsen: Esc = annuleren/sluiten, Enter = primaire actie
@@ -79,13 +68,7 @@ export function useDialogKeys({
   // Losse effect met lege deps: registratie op de stapel mag niet heropvoeren bij elke
   // onConfirm/onCancel-identiteitswissel (anders pop/push je jezelf tussentijds naar de top).
   useEffect(() => {
-    const id = idRef.current!;
-    dialogStack.push(id);
-    notifyStackChange();
-    return () => {
-      dialogStack = dialogStack.filter((s) => s !== id);
-      notifyStackChange();
-    };
+    return registerDialog(idRef.current!);
   }, []);
 
   // Lege deps: de listener leest alles via de refs hierboven, dus hij hoeft niet opnieuw op te
@@ -94,7 +77,7 @@ export function useDialogKeys({
   useEffect(() => {
     const id = idRef.current!;
     const onKey = (e: KeyboardEvent) => {
-      if (dialogStack[dialogStack.length - 1] !== id) return; // niet de bovenste — negeren
+      if (!isTopDialog(id)) return;
       // De laatste fase van afsluiten (#804 stap 3, fixronde 2): de app is inert (`App.tsx`). Deze toetsen hangen aan
       // `document` en zouden een dialoog die al openstond anders nog bedienen.
       if (document.querySelector('[data-ops-app-root][inert]')) return;

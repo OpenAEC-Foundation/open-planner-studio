@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { useAppStore } from '@/state/appStore';
+import { useAppStore, type AppState } from '@/state/appStore';
 import { isAutoCalcHeld } from '@/state/editHold';
 import { isTauri } from '@/utils/platform';
-import { SHORTCUTS, canRunShortcut, isDocumentLeaveBlocked, isGlobalShortcutFrozen, matchesCombo } from './shortcutRegistry';
+import { SAVE_COMBO, SHORTCUTS, canRunShortcut, isDocumentLeaveBlocked, isGlobalShortcutFrozen, matchesCombo } from './shortcutRegistry';
 import { isTypingTarget } from './isTypingTarget';
 import { leaveDatePicker } from '@/utils/datePickerFocus';
 // Zelfde bron als `shortcutRegistry` (dat al `i18n.t` gebruikt voor default-taaknamen): deze
@@ -37,6 +37,15 @@ function isBrowserShortcut(e: KeyboardEvent): boolean {
     && (s.ctrl ? ctrl : !ctrl)
     && (s.shift ? e.shiftKey : !e.shiftKey)
   );
+}
+
+export function handleFrozenShortcut(e: KeyboardEvent, state: AppState): boolean {
+  if (!isGlobalShortcutFrozen(state.ui)) return false;
+  if (isBrowserShortcut(e)) e.preventDefault();
+  if (matchesCombo(e, SAVE_COMBO) && !isGlobalShortcutFrozen(state.ui, state.activeDocumentId)) {
+    void state.saveFile();
+  }
+  return true;
 }
 
 /** Een component die dezelfde keydown al heeft afgehandeld, bezit het event volledig. */
@@ -107,10 +116,7 @@ export function useKeyboardShortcuts() {
       // uit (ook F5/Ctrl+S van de voorpoort hieronder niet). Browsertoetsen (F5 = herladen, Ctrl+S =
       // pagina opslaan) blijven geblokkeerd, ook in dev: anders herlaadt F5 de pagina en is de vraag
       // met de wachtende handeling weg.
-      if (isGlobalShortcutFrozen()) {
-        if (isBrowserShortcut(e)) e.preventDefault();
-        return;
-      }
+      if (handleFrozenShortcut(e, useAppStore.getState())) return;
       // Block browser shortcuts in production but still run app actions
       if (isProduction && isBrowserShortcut(e)) {
         e.preventDefault();

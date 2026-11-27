@@ -1,6 +1,7 @@
 export interface ForeignChangesQuestion {
   readonly count: number;
   readonly file: string | null;
+  readonly autoSaveDocumentId?: string;
 }
 
 export interface ForeignChangesAnswer {
