@@ -179,14 +179,12 @@ const BOUNDARIES: readonly Boundary[] = [
   { id: '2256', reason: 'een taak zonder volledige taaktijd in de bron, met een afgeleide waarde die herlezen anders afleidt',
     fits: (c, source) => (source === R6_LONG && ((c.kind === 'bronvorm-leest-anders' && /anders: taak task-ifc-0sub0+, time\./.test(c.detail))
       || (c.kind === 'planning-na-openen' && /^taak task-ifc-0task0+\.time\.scheduleDuration: 5 → 0$/.test(c.detail)))) },
-  { id: 'PR 8', reason: 'een gemengde relatie: resources en producten in één IfcRelAssignsToProcess, of een gemengde kalenderrelatie',
-    fits: c => c.kind === 'gemengde-relatie' },
   { id: 'main', reason: 'een taak en een resource in een oude lay-out buiten het register; main weigert het bestand op herkomst',
     fits: (_c, source) => source === 'r6opus-twee-werkplannen.na.ifc' },
 ];
 const ORDINARY_FILE = 'bonsai-4d.ifc';
 const fitOf = (c: Refused, source: string, label: string) =>
-  BOUNDARIES.find(b => b.fits(c, source, label) && (source !== ORDINARY_FILE || b.id === 'PR 8'));
+  source === ORDINARY_FILE ? undefined : BOUNDARIES.find(b => b.fits(c, source, label));
 const unnamed = (r: MergeOutcome, source: string, label: string) => (r.ok ? '' : r.error.cases
   .filter(c => !fitOf(c, source, label)).slice(0, 3).map(c => `${c.kind} #${c.sourceId}: ${c.detail}`).join(' | '));
 const boundaryOf = (r: MergeOutcome, source: string, label: string): Boundary | undefined => {
