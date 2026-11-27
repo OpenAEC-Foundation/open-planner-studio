@@ -15,7 +15,7 @@ You start the day with yesterday's project, you get a file from a colleague or f
 3. The project opens in a new tab. If the current tab was still empty and unchanged, the project opens in it.
 4. For CSV, MS Project XML, Primavera P6 XML, `.mpp` and `.xer`, a window appears with a short explanation of that format. A green block says what the app took over, an amber block what was not included or only partly, and a blue block how saving and writing back work. *Read more* opens the guide for that format. Click *Got it* to close the window. First tick *Don't show again for …* if you no longer want to see this explanation for that format. You turn it back on in the app settings, in the [Notices](settings://formatNotices) group.
 
-An IFC file gives its file name to the tab. A project from another format gets its project name.
+A file that becomes the save target gives its file name to the tab. An imported schedule uses its project name.
 
 If the experimental setting *Open IFC with a building model* is on (see [App settings](docs://ref-instellingen)) and you open an IFC file that is already open in a tab, no second tab appears: the app goes to that tab. That tab keeps its content, including changes you have not saved yet. If the file has changed since that tab opened or saved it, for example because a colleague saved a new version, a strip appears above that tab: *kantoor.ifc was changed outside this tab. This tab still shows the earlier version. Close this tab and open the file again to see the new version.* The strip belongs to that tab and stays until you save the tab, export it as IFC over the same file or close it. If the tab has changes you have not saved and you want to keep them, choose *Save As* first, so they go into a new file. The app never loads a new version by itself. If the app does not know which version the tab has, for example because you opened it while the setting was off, the file opens in a new tab; only a double-click then goes to the open tab as always, without a message. In the desktop app, the app recognises the same file by exactly the same path text: through a shortcut or a path written differently, it gets a tab of its own. In the browser, the app has to recognise the file in time; if it does not, the file opens in a new tab. The same goes for dragging, *Recent* and a double-click. A file in another format, such as `.csv` or `.xer`, does open again in a tab of its own. So does a file from your computer in browsers that only download, such as Firefox. If the setting is off, an IFC file that is already open also opens in a new tab; only a double-click then goes to the open tab, without a message.
 
@@ -32,7 +32,7 @@ With the experimental setting *Open and save IFCX* on (see [App settings](docs:/
 
 A project with changes stays in its own tab; dragging replaces nothing. A dragged IFC file then works like an opened file: *Save* writes to it, except in browsers that only download, such as Firefox.
 
-A file in a format that the app does not know, such as a `.pdf`, does not open. You then see the message *Not opened: drawing.pdf. The app only opens IFC, XML, MPP, XER and CSV.* The other files from the same drag open as usual.
+A file in a format that the app does not know, such as a `.pdf`, does not open. You then see the message *Not opened: drawing.pdf.* The other files from the same drag open as usual.
 
 If a dialog or question is open, dragging opens nothing. If you open a dialog while the app is still reading a large file, that file opens only when you close the dialog. In the browser, the mouse pointer then shows a no-entry sign. In the desktop app, the message *Not opened: plan.ifc. Close the open dialog first.* appears.
 
@@ -69,11 +69,11 @@ With the experimental setting *Open and save IFCX* on, *Save* (Ctrl+S) keeps the
 
 Choose *Home › File › Save As* or *File › Save As*, or press Ctrl+Shift+S. Choose a name and a place (in Firefox the app downloads a new file instead). After that the project works with this new file: the next *Save* writes there. The old file stays as it was the last time you saved.
 
-With the experimental setting *Open and save IFCX* on, you can choose a different file type only in the desktop app's save dialog. On Windows, choose *IFC Files* or *IFCX Files* from the list of file types. The dialog adjusts the extension to match your choice. On Linux and macOS, end the file name in `.ifc` or `.ifcx` for the type you want. On macOS there is no list of file types. The document keeps its file type in the browser and when saving on the site.
+With the experimental setting *Open and save IFCX* on, you can choose a different file type only in the desktop app's save dialog. On Windows, choose *IFC Files* or *IFCX Files* from the list of file types. The dialog adjusts the default extension to match your choice. On Linux and macOS, end the file name in `.ifc` or `.ifcx` for the type you want. On macOS there is no list of file types. The document keeps its file type in the browser and when saving on the site.
 
 With the experimental setting *Open and save IFCX* on, converting an IFC file with a building model brings up the *Save as IFCX* dialog. Choose *Save schedule only* to continue working in the new IFCX file. The building model and data from other programs stay in the original IFC file. Choose *Cancel* to stop saving.
 
-With the experimental setting *Open and save IFCX* on, converting a schedule from a XER import brings up the *Save as IFCX* dialog and explains that the P6 source archive stays behind. Choose *Continue* to save the schedule without the source archive, or *Cancel* to stop saving.
+With the experimental setting *Open and save IFCX* on, converting a schedule from a XER import brings up the *Save as IFCX* dialog with the message *The P6 source archive is not included in IFCX.* Choose *Continue* to save the schedule without the source archive, or *Cancel* to stop saving.
 
 ### Closing a project
 
@@ -99,7 +99,7 @@ Click the cross on the tab, or choose *File › Close project*. If the project h
 
 ## See also
 
-- [Files and formats](docs://uitleg-bestanden): what is in an IFC file and how the app treats formats.
+- [Files and formats](docs://uitleg-bestanden): what the app keeps when you save and how the app treats formats.
 - [Turning on AutoSave](docs://howto-automatisch-opslaan): letting the app update your file itself.
 - [Choosing the IFC schema](docs://howto-ifc-schema-kiezen): what the question *Which IFC schema to save in?* means.
 - [Exporting](docs://howto-exporteren): making a copy in another format.

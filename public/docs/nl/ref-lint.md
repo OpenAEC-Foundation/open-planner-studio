@@ -18,8 +18,8 @@ Klik je op *Bestand*, dan neemt een eigen scherm (de Backstage) de werkruimte ov
 - **Openen** — kiest een bestand en opent het als document. Sluit de Backstage.
 - **Recent** — lijst met recent geopende projecten; een klik opent het. Alleen zichtbaar als de omgeving bestanden kan heropenen: in de desktop-app en in browsers die bestandstoegang bieden, zoals Chrome en Edge. In andere browsers staat de knop er wel, maar blijft de pagina leeg.
 - **Voorbeelden** — meegeleverde voorbeeldplanningen, verdeeld in *Volledige showcase-planningen* (badge *Alle functies*) en *Eenvoudige voorbeelden*. Een klik opent er een in een nieuw tabblad.
-- **Opslaan** — schrijft het project naar het bestand van dit document. Heeft het document nog geen bestand, dan kies je eerst naam en plek. Een geopend bestand in een ander formaat dan IFC wordt nooit overschreven; dan vraagt *Opslaan* om een naam en plek voor een IFC-bestand.
-- **Opslaan als** — kiest een nieuwe naam of plek en slaat daar als IFC op.
+- **Opslaan** — schrijft het project naar het bestand van dit document. Heeft het document nog geen bestand, dan kies je eerst naam en plek. Na import uit CSV, XML, MPP of XER vraagt *Opslaan* om een naam en plek voor een nieuw IFC-bestand.
+- **Opslaan als** — kiest een nieuwe naam of plek. Met de experimentele instelling *IFCX openen en opslaan* aan kun je in de desktop-app ook het bestandstype kiezen. Zie [Een bestand openen en opslaan](docs://howto-bestand-openen-en-opslaan).
 - **Exporteren** — kaarten per exportformaat, met een omschrijving. Een klik zet het project om en slaat het op, en brengt je terug naar *Start*. Heeft de planning een kring, dan staat de fout in de Backstage en blijf je daar. Is het project aan een resourcebibliotheek gekoppeld, dan staat eronder het vinkje *Bibliotheekbestand ernaast opslaan*; dat werkt alleen bij de IFC-kaart.
 - **Importeren** — bovenaan de kaart *Voortgang bijwerken uit een blad* (uitgeschakeld zonder taken), daaronder de importers die extensies toevoegen.
 - **Afdruk** — de knop *Open afdrukvoorbeeld* brengt je naar het tabblad *Rapport*.

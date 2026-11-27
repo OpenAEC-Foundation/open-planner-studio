@@ -1,30 +1,34 @@
 # Bestanden en formaten
 
-Wat staat er eigenlijk in het bestand dat je opslaat? En wat gebeurt er met je planning als je hem exporteert naar een ander pakket? In dit artikel lees je hoe de app met bestanden omgaat: IFC als eigen formaat, de andere formaten als vertalers, wat een export niet meeneemt en waarin opslaan, automatisch opslaan en crashherstel verschillen. Het voorbeeld aan het eind laat met getallen zien wat een export doet.
+Wat staat er eigenlijk in het bestand dat je opslaat? En wat gebeurt er met je planning als je hem exporteert naar een ander pakket? In dit artikel lees je hoe de app met bestanden omgaat: wat de app opslaat, wat een export meeneemt en waarin opslaan, automatisch opslaan en crashherstel verschillen. Het voorbeeld aan het eind laat met getallen zien wat een export doet.
 
 ## Het begrip
 
-Open Planner Studio heeft één eigen bestandsformaat: **IFC**, een open uitwisselformaat voor bouwinformatie van buildingSMART. De app schrijft het IFC-schema van het project, standaard IFC 4.3 ADD2 (zie [Het IFC-schema kiezen](docs://howto-ifc-schema-kiezen)); in de exportlijst heet het *IFC*. Er is geen tweede, eigen projectbestand. *Opslaan* schrijft je hele project als IFC-bestand (`.ifc`) en *Openen* leest zo'n bestand weer terug. Wil je zien wat er in het bestand komt? Het tabblad *IFC* is een editor die de IFC-tekst van je project toont; *Genereer IFC* ververst die tekst en *Kopieer* zet haar op het klembord. Pas je de tekst aan, dan laadt *Toepassen* haar als je project. Dat vervangt het project dat in dat tabblad staat volledig.
+De app bewaart een planning standaard in het **IFC-formaat** (`.ifc`), een open uitwisselformaat voor bouwinformatie. De app schrijft het IFC-schema van het project, standaard IFC 4.3 ADD2 (zie [Het IFC-schema kiezen](docs://howto-ifc-schema-kiezen)). Wil je zien wat er in het bestand komt? Het tabblad *IFC* is een editor die de IFC-tekst van je project toont; *Genereer IFC* ververst die tekst en *Kopieer* zet haar op het klembord. Pas je de tekst aan, dan laadt *Toepassen* haar als je project. Dat vervangt het project dat in dat tabblad staat volledig.
 
-Alle andere formaten zijn **adapters**: vertalers tussen het model van een ander programma en dat van de app. De app leest CSV, MS Project XML, Primavera P6 XML, MS Project-bestanden (`.mpp`) en Primavera-bestanden (`.xer`). Ze schrijft CSV, MS Project XML, Primavera P6 XML, Primavera-bestanden (`.xer`) en twee voortgangsbladen. Naar `.mpp` kun je niet exporteren.
+Met de experimentele instelling *IFCX openen en opslaan* aan kun je een planning ook bewaren in het **IFCX-formaat** (`.ifcx`), een uitwisselformaat voor bouwinformatie dat nog in ontwikkeling is. Wil je het proberen met een kopie van je planning, dan kun je die opslaan als IFCX en heropenen in Open Planner Studio. Het gebouwmodel of P6-bronarchief blijft in het oorspronkelijke bestand. Voor uitwisseling met een ander programma gebruik je het IFC-formaat als dat programma IFC leest. Een latere versie van de app kan een experimenteel IFCX-bestand weigeren.
 
-Waarom is dat onderscheid belangrijk? Een vertaler kan alleen meenemen wat beide kanten kennen. Het IFC-bestand van de app bewaart alles wat bij je project hoort. Elk ander formaat kent een deel daarvan niet, en dat deel blijft dan achter.
+CSV, XML, MPP en XER dienen voor uitwisseling met andere programma's. De app leest CSV, MS Project XML, Primavera P6 XML, MS Project-bestanden (`.mpp`) en Primavera-bestanden (`.xer`). Ze schrijft CSV, MS Project XML, Primavera P6 XML, Primavera-bestanden (`.xer`) en twee voortgangsbladen. Naar `.mpp` kun je niet exporteren.
+
+Bij export naar een ander pakket gaan de gegevens mee die het gekozen exportformaat kan vastleggen. Een CSV-export bevat bijvoorbeeld de taaklijst. Het IFC-formaat bewaart ook de logica, resources en kalenders van de planning.
 
 ## Hoe de app met bestanden omgaat
 
 ### Wat openen doet
 
-De app kiest de lezer op de extensie: `.ifc`, `.csv`, `.xml`, `.mpp` of `.xer`. Bij een `.xml`-bestand kijkt ze in het bestand zelf of het MS Project XML of Primavera P6 XML is. Een onbekende extensie behandelt de app als IFC. Is het bestand dat niet, dan meldt ze *Bestand openen mislukt*, met de reden erbij.
+De app kiest de lezer op de extensie. Bij een `.xml`-bestand kijkt ze in het bestand zelf of het MS Project XML of Primavera P6 XML is. Voor een onbekende extensie probeert de app het bestand als IFC te lezen. Mislukt dat, dan meldt ze *Bestand openen mislukt*, met de reden erbij.
 
 Elk bestand opent in een eigen tabblad. De uitzondering is een tabblad dat nog leeg en ongewijzigd is: dat neemt het bestand over. Eén Primavera-bestand kan meerdere tabbladen opleveren, één per project met taken.
 
 Na het openen rekent de app altijd door. Komt het bestand uit een ander pakket, dan kunnen de datums afwijken van wat het bestand zei. Dat staat beschreven in [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen).
 
-Alleen een IFC-bestand wordt het **opslagdoel**: het bestand waar *Opslaan* naar terugschrijft. Een CSV-, XML-, `.mpp`- of `.xer`-bestand niet. Zo'n project heeft na het openen nog geen bestand; *Opslaan* vraagt dan waar het nieuwe IFC-bestand moet komen. Daardoor overschrijft een druk op Ctrl+S nooit je oorspronkelijke bestand met IFC-tekst.
+Een geopend IFC-bestand wordt het **opslagdoel**: het bestand waar *Opslaan* naar terugschrijft. Een project uit CSV, XML, `.mpp` of `.xer` heeft na het openen nog geen bestand; *Opslaan* vraagt dan waar het nieuwe IFC-bestand moet komen. Daardoor overschrijft een druk op Ctrl+S nooit je oorspronkelijke bestand met IFC-tekst.
+
+Met de experimentele instelling *IFCX openen en opslaan* aan wordt ook een geopend `.ifcx`-planningsbestand van de app een opslagdoel. *Opslaan* houdt het bestandstype. Een ander type kies je met [Opslaan als in de desktop-app](docs://howto-bestand-openen-en-opslaan).
 
 ### Wat opslaan schrijft
 
-*Opslaan* schrijft altijd het hele project. Dat zit erin:
+Bij opslaan in het IFC-formaat bewaart de app onder meer:
 
 - taken met structuur, duur, datums en voortgang;
 - relaties met lag, constraints en deadlines;
@@ -48,7 +52,7 @@ Elke adapter neemt mee wat zijn formaat kent.
 
 **CSV** is een taaklijst. Het bestand heeft per taak deze kolommen: taak-id, WBS, niveau, naam, duur, start, einde, voorgangers, werksoort, het id van een eigen werksoort (`OPS Custom Task Type ID`), status, voltooiing, werkelijke start en einde, kritiek, totale speling en beschrijving. Resources, toewijzingen, kalenders, constraints, deadlines, baselines en de statusdatum staan er niet in. De kolomkoppen zijn altijd Engels.
 
-**Alleen IFC neemt het rekenprofiel en alle reken-opties mee.** Exporteer je naar CSV of MS Project XML, dan staat het profiel niet in het bestand; van de reken-opties schrijft MS Project XML hooguit de kritiek-drempel. Zo'n bestand heropent als *Open Planner Studio*. Een `.xer` en een Primavera P6 XML heropenen als *Primavera P6*, met de planningsinstellingen van P6 die in het bestand staan. Rekende je project met *Primavera P6* of *Microsoft Project*, bijvoorbeeld omdat het uit een `.xer` of `.mpp` kwam, dan kunnen de datums daardoor verschuiven. Wat een rekenprofiel is, staat in [Rekenprofielen en conventies](docs://uitleg-rekenprofielen).
+**Een IFC-export neemt het rekenprofiel en alle reken-opties mee.** Exporteer je naar CSV of MS Project XML, dan staat het profiel niet in het bestand; van de reken-opties schrijft MS Project XML hooguit de kritiek-drempel. Zo'n bestand heropent als *Open Planner Studio*. Een `.xer` en een Primavera P6 XML heropenen als *Primavera P6*, met de planningsinstellingen van P6 die in het bestand staan. Rekende je project met *Primavera P6* of *Microsoft Project*, bijvoorbeeld omdat het uit een `.xer` of `.mpp` kwam, dan kunnen de datums daardoor verschuiven. Wat een rekenprofiel is, staat in [Rekenprofielen en conventies](docs://uitleg-rekenprofielen).
 
 Komt je project uit een Primavera-bestand (`.xer`), ook als je het tussendoor als IFC hebt opgeslagen, dan meldt de app na een export naar CSV, MS Project XML of P6 XML: *Bij export naar CSV gaat XER-broninformatie verloren.* Bij MS Project XML staat er *MSPDI* in plaats van *CSV*, bij P6 XML staat er *P6*. Naar IFC krijg je die melding niet: het IFC-bestand bewaart Primavera's bronbestand mee. Zie [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen).
 
@@ -91,7 +95,7 @@ Zonder die constraint komt ook het voorbeeld zelf uit op 2 juli 2027. Het versch
 
 ## Gevolgen en misverstanden
 
-**Een export is geen back-up.** Alleen IFC bewaart alles. Wil je je project bewaren, sla het dan op als IFC. Exporteer alleen voor iemand die het andere formaat nodig heeft.
+**Je project bewaren.** Met *Opslaan* werk je het projectbestand bij. Het IFC-formaat bewaart ook het archief van een P6-import. Met *Exporteren* maak je een kopie voor het programma dat de planning ontvangt.
 
 **Een export opnieuw openen levert niet altijd dezelfde planning.** De app rekent bij het openen altijd door, met het rekenprofiel dat bij het formaat hoort. Mist er logica, zoals de constraint in het CSV-voorbeeld, of rekent het profiel anders, dan verandert de uitkomst.
 
@@ -107,7 +111,7 @@ Zonder die constraint komt ook het voorbeeld zelf uit op 2 juli 2027. Het versch
 - [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen): wat een constraint doet, en dus wat er verdwijnt als hij ontbreekt.
 - [Relaties leggen](docs://howto-relaties-leggen): wat een lag is en hoe de app hem rekent.
 - [Een hammock maken](docs://howto-hammock): wat een hammock is, die een export als gewone taak schrijft.
-- [Codes en eigen velden](docs://howto-codes-en-velden): activiteitcodes en eigen velden, die alleen IFC bewaart.
+- [Codes en eigen velden](docs://howto-codes-en-velden): werken met activiteitcodes en eigen velden.
 - [Externe relaties naar een ander project](docs://howto-externe-relaties): koppelingen die MS Project XML en P6 XML niet meenemen.
 - [Een baseline opslaan en beheren](docs://howto-baseline-opslaan-en-beheren): baselines, waarvan MS Project XML alleen de actieve meeneemt.
 - [Import- en exportformaten](docs://ref-import-exportformaten): per formaat wat meegaat en wat niet.

@@ -18,8 +18,8 @@ Clicking *File* makes a screen of its own (the Backstage) take over the workspac
 - **Open** — picks a file and opens it as a document. Closes the Backstage.
 - **Recent** — a list of recently opened projects; a click opens one. Only visible when the environment can reopen files: in the desktop app and in browsers that offer file access, such as Chrome and Edge. In other browsers the button is there, but the page stays empty.
 - **Examples** — bundled example schedules, split into *Full showcase schedules* (badge *All features*) and *Simple examples*. A click opens one in a new tab.
-- **Save** — writes the project to the file of this document. If the document has no file yet, you first choose a name and place. A file you opened in a format other than IFC is never overwritten; then *Save* asks for a name and place for an IFC file.
-- **Save As** — picks a new name or place and saves there as IFC.
+- **Save** — writes the project to the file of this document. If the document has no file yet, you first choose a name and place. After importing CSV, XML, MPP or XER, *Save* asks for a name and place for a new IFC file.
+- **Save As** — picks a new name or place. With the experimental setting *Open and save IFCX* on, you can also choose the file type in the desktop app. See [Opening and saving a file](docs://howto-bestand-openen-en-opslaan).
 - **Export** — cards per export format, with a description. A click converts the project and saves it, and takes you back to *Home*. If the schedule has a cycle, the error appears in the Backstage and you stay there. If the project is linked to a resource library, the checkbox *Save library file alongside* appears below; it only works for the IFC card.
 - **Import** — at the top the card *Update progress from a spreadsheet* (disabled without tasks), below it the importers that extensions add.
 - **Print** — the button *Open print preview* takes you to the *Report* tab.

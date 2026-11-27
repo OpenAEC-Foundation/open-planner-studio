@@ -4,9 +4,9 @@ Per file format: whether you can open, save and export it, what does and does no
 
 ## At a glance
 
-**Opening** works with IFC, CSV, MS Project XML, Primavera P6 XML, `.mpp` and `.xer`. A file with any other extension is treated by the app as IFC.
+**Opening** works by default with IFC, CSV, MS Project XML, Primavera P6 XML, `.mpp` and `.xer`. For an unknown extension, the app tries to read the file as IFC.
 
-**Saving** always writes IFC. Only an opened IFC file becomes the save target; a project from another format has no file after opening, and *Save* then asks where the IFC file should go.
+**Saving** writes IFC by default. An opened IFC file becomes the save target. A schedule imported from CSV, XML, `.mpp` or `.xer` gets a new IFC file when you choose *Save*.
 
 **Exporting** works to IFC, MS Project XML, Primavera P6 XML, Primavera XER (`.xer`), CSV and a progress sheet (Excel). An export does not change your project.
 
@@ -16,13 +16,13 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **Where.** Opening: *Home › File › Open*, *File › Open* or Ctrl+O. Exporting: *Home › File › Export* or *File › Export*. You read a filled-in progress sheet in via *File › Import*, or with the button *Update progress from a spreadsheet* in the ribbon group *Progress* on the *Planning*, *Table* and *Report* tabs.
 
-**Calculation profile on opening.** Every format opens with a calculation profile; what that is, is in [Calculation options and conventions](docs://ref-rekenopties-en-conventies). `.xer` and P6 XML open with *Primavera P6*, `.mpp` with *Microsoft Project*, and CSV and MS Project XML with *Open Planner Studio*. IFC keeps the profile stored in the file. For `.xer`, P6 XML and `.mpp` the app reports that the project calculates this way. Only IFC carries the calculation profile and all calculation options. Of the calculation options, MS Project XML writes at most the critical threshold; an `.xer` and P6 XML write the scheduling settings of P6. A reopened export to `.xer` or P6 XML calculates as *Primavera P6*, a reopened export of another format as *Open Planner Studio*.
+**Calculation profile on opening.** Every format opens with a calculation profile; what that is, is in [Calculation options and conventions](docs://ref-rekenopties-en-conventies). `.xer` and P6 XML open with *Primavera P6*, `.mpp` with *Microsoft Project*, and CSV and MS Project XML with *Open Planner Studio*. IFC keeps the profile stored in the file. For `.xer`, P6 XML and `.mpp` the app reports that the project calculates this way. Of the formats under *Export*, IFC carries the calculation profile and all calculation options. Of the calculation options, MS Project XML writes at most the critical threshold; an `.xer` and P6 XML write the scheduling settings of P6. A reopened export to `.xer` or P6 XML calculates as *Primavera P6*, a reopened CSV or MS Project XML export as *Open Planner Studio*.
 
 ## IFC
 
 **Open** — yes, `.ifc`. The app reads IFC4 and IFC 4.3 (also ADD2). A schedule without a building model in another schema, such as IFC2X3, opens too. An IFC2X3 file with a building model does not open. At the first save you then choose a schema that the app can write (see [Choosing the IFC schema](docs://howto-ifc-schema-kiezen)). Calculation profile: the one in the file.
 
-**Save** — yes, and it is the only format that saves. *Save* writes your whole project as an IFC file, in the IFC schema of the project (IFC 4.3 ADD2 by default). The file becomes the save target.
+**Save** — yes. *Save* writes your whole project as an IFC file, in the IFC schema of the project (IFC 4.3 ADD2 by default). The file becomes the save target.
 
 **Export** — yes, as *IFC*, in the IFC schema of the project (default IFC 4.3 ADD2). Default name: the project name with the extension `.ifc`. If your project is linked to a resource library, the checkbox *Save library file alongside* is below the cards in *File › Export*. Ticked, the app asks for a place for *projectname-bibliotheek.ifc* after the project. The checkbox is not in the list on the *Home* tab.
 
@@ -31,6 +31,16 @@ Per file format: whether you can open, save and export it, what does and does no
 **Schedule span in other IFC programs.** The work plan and work schedule contain the earliest shown task start and latest shown task finish, including phases. A started task counts from its actual start; a completed task up to its actual finish. Otherwise the calculated dates apply, or the input dates before calculation. In *Dates as recorded*, the schedule currently shown applies. Saving does not recalculate. The start and finish dates you entered in *Project settings* are kept separately, even when empty.
 
 **What does not go along** — how you have set up the screen (zoom, scroll position, selected task, collapsed phases, chosen filter and grouping) and the app settings ([App settings](docs://ref-instellingen)). The *IFC* tab is an editor with the IFC text of your project. *Generate IFC* refreshes it and *Copy* puts it on the clipboard. *Apply* replaces the contents of the current project as a single *Undo* step. The resource library link and the file you save to are preserved. The edit remains *Unsaved* until you save.
+
+## IFCX
+
+**Opening and saving** — with the experimental setting *Open and save IFCX* on, the app opens `.ifcx` schedules it wrote itself. The file becomes the save target. *Save* keeps this file type. See [Opening and saving a file](docs://howto-bestand-openen-en-opslaan) for the file type choice in the desktop app's save dialog.
+
+**What goes along** — with the experimental setting *Open and save IFCX* on, the IFCX format keeps tasks, relations, calendars, resources, assignments and baselines, among other data. When opened, the schedule keeps the saved calculation profile and options.
+
+**What stays behind** — with the experimental setting *Open and save IFCX* on, converting to IFCX keeps the schedule. The building model, data from other programs and the P6 source archive stay in the source file. The app asks whether to continue before saving. The app refuses to save a schedule with an embedded resource library as IFCX.
+
+**Exporting** — with the experimental setting *Open and save IFCX* on, IFCX is available from *File › Save As* in the desktop app. The list under *Export* includes IFC.
 
 ## MS Project XML (MSPDI)
 
@@ -158,7 +168,7 @@ A filled date cell in an unrecognised format stops the entire CSV from opening. 
 
 ## See also
 
-- [Files and formats](docs://uitleg-bestanden): why IFC is the own format and what an export loses, with an example.
+- [Files and formats](docs://uitleg-bestanden): what the app keeps in a file and what an export leaves out, with an example.
 - [Opening and saving a file](docs://howto-bestand-openen-en-opslaan): the steps.
 - [Exporting](docs://howto-exporteren): choosing a format and the messages after an export.
 - [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen): why an opened file can show other dates.

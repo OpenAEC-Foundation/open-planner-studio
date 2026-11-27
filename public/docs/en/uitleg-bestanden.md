@@ -1,30 +1,34 @@
 # Files and formats
 
-What is actually in the file you save? And what happens to your schedule when you export it to another package? In this article you read how the app deals with files: IFC as its own format, the other formats as translators, what an export leaves out, and how saving, AutoSave and crash recovery differ. The example at the end shows with numbers what an export does.
+What is actually in the file you save? And what happens to your schedule when you export it to another package? In this article you read how the app deals with files: what the app saves, what an export carries, and how saving, AutoSave and crash recovery differ. The example at the end shows with numbers what an export does.
 
 ## The concept
 
-Open Planner Studio has one file format of its own: **IFC**, an open exchange format for construction information from buildingSMART. The app writes the IFC schema of the project, by default IFC 4.3 ADD2 (see [Choosing the IFC schema](docs://howto-ifc-schema-kiezen)); in the export list it is called *IFC*. There is no second, proprietary project file. *Save* writes your whole project as an IFC file (`.ifc`) and *Open* reads such a file back. Want to see what goes into the file? The *IFC* tab is an editor that shows the IFC text of your project; *Generate IFC* refreshes that text and *Copy* puts it on the clipboard. If you change the text, *Apply* loads it as your project. That fully replaces the project in that tab.
+By default the app saves a schedule in the **IFC format** (`.ifc`), an open exchange format for construction information. The app writes the IFC schema of the project, IFC 4.3 ADD2 by default (see [Choosing the IFC schema](docs://howto-ifc-schema-kiezen)). Want to see what goes into the file? The *IFC* tab is an editor that shows the IFC text of your project; *Generate IFC* refreshes that text and *Copy* puts it on the clipboard. If you change the text, *Apply* loads it as your project. That fully replaces the project in that tab.
 
-All other formats are **adapters**: translators between the model of another program and that of the app. The app reads CSV, MS Project XML, Primavera P6 XML, MS Project files (`.mpp`) and Primavera files (`.xer`). It writes CSV, MS Project XML, Primavera P6 XML, Primavera files (`.xer`) and two progress sheets. You cannot export to `.mpp`.
+With the experimental setting *Open and save IFCX* on, you can also save a schedule in the **IFCX format** (`.ifcx`), an exchange format for construction information that is still in development. To try it with a copy of your schedule, save the copy as IFCX and reopen it in Open Planner Studio. The building model or P6 source archive stays in the original file. To exchange files with another program, use the IFC format if that program reads IFC. A later version of the app may refuse an experimental IFCX file.
 
-Why does that distinction matter? A translator can only carry over what both sides know. The app's IFC file keeps everything that belongs to your project. Every other format lacks part of it, and that part is left behind.
+CSV, XML, MPP and XER are for exchanging data with other programs. The app reads CSV, MS Project XML, Primavera P6 XML, MS Project files (`.mpp`) and Primavera files (`.xer`). It writes CSV, MS Project XML, Primavera P6 XML, Primavera files (`.xer`) and two progress sheets. You cannot export to `.mpp`.
+
+When you export to another package, the selected export format determines which data goes along. A CSV export, for example, contains the task list. The IFC format also keeps the schedule's logic, resources and calendars.
 
 ## How the app deals with files
 
 ### What opening does
 
-The app picks the reader by the extension: `.ifc`, `.csv`, `.xml`, `.mpp` or `.xer`. With an `.xml` file it looks inside the file to see whether it is MS Project XML or Primavera P6 XML. An unknown extension is treated as IFC. If the file is not IFC, the app reports *Failed to open file*, with the reason.
+The app picks the reader by the extension. With an `.xml` file it looks inside the file to see whether it is MS Project XML or Primavera P6 XML. For an unknown extension, the app tries to read the file as IFC. If that fails, the app reports *Failed to open file*, with the reason.
 
 Every file opens in a tab of its own. The exception is a tab that is still empty and unchanged: that tab takes over the file. A single Primavera file can produce several tabs, one for each project that has tasks.
 
 After opening, the app always recalculates. If the file comes from another package, the dates can differ from what the file said. That is described in [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
 
-Only an IFC file becomes the **save target**: the file that *Save* writes back to. A CSV, XML, `.mpp` or `.xer` file does not. Such a project has no file after opening; *Save* then asks where the new IFC file should go. That way pressing Ctrl+S never overwrites your original file with IFC text.
+An opened IFC file becomes the **save target**: the file that *Save* writes back to. A project from CSV, XML, `.mpp` or `.xer` has no file after opening; *Save* then asks where the new IFC file should go. That way pressing Ctrl+S never overwrites your original file with IFC text.
+
+With the experimental setting *Open and save IFCX* on, a `.ifcx` schedule file opened in the app also becomes a save target. *Save* keeps the file type. To change the type, use [Save As in the desktop app](docs://howto-bestand-openen-en-opslaan).
 
 ### What saving writes
 
-*Save* always writes the whole project. This is what goes in:
+When saving in the IFC format, the app keeps data such as:
 
 - tasks with structure, duration, dates and progress;
 - relations with lag, constraints and deadlines;
@@ -48,7 +52,7 @@ Every adapter carries over what its format knows.
 
 **CSV** is a task list. The file has these columns for each task: task id, WBS, level, name, duration, start, finish, predecessors, work category, the id of a custom work category (`OPS Custom Task Type ID`), status, completion, actual start and finish, critical, total float and description. Resources, assignments, calendars, constraints, deadlines, baselines and the status date are not in it. The column headings are always in English.
 
-**Only IFC carries the calculation profile and all calculation options.** If you export to CSV or MS Project XML, the profile is not in the file; of the calculation options, MS Project XML writes at most the critical threshold. Such a file reopens as *Open Planner Studio*. An `.xer` and a Primavera P6 XML reopen as *Primavera P6*, with the scheduling settings of P6 that are in the file. If your project calculated with *Primavera P6* or *Microsoft Project*, for example because it came from an `.xer` or `.mpp`, the dates can shift because of that. What a calculation profile is, is explained in [Calculation profiles and conventions](docs://uitleg-rekenprofielen).
+**An IFC export carries the calculation profile and all calculation options.** If you export to CSV or MS Project XML, the profile is not in the file; of the calculation options, MS Project XML writes at most the critical threshold. Such a file reopens as *Open Planner Studio*. An `.xer` and a Primavera P6 XML reopen as *Primavera P6*, with the scheduling settings of P6 that are in the file. If your project calculated with *Primavera P6* or *Microsoft Project*, for example because it came from an `.xer` or `.mpp`, the dates can shift because of that. What a calculation profile is, is explained in [Calculation profiles and conventions](docs://uitleg-rekenprofielen).
 
 If your project comes from a Primavera file (`.xer`), even if you saved it as IFC in between, the app reports after an export to CSV, MS Project XML or P6 XML: *Exporting to CSV loses XER source information.* For MS Project XML it says *MSPDI* instead of *CSV*, for P6 XML it says *P6*. You do not get that message for IFC: the IFC file carries Primavera's source file along. See [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen).
 
@@ -91,7 +95,7 @@ Without that constraint the example itself also ends on 2 July 2027. So the diff
 
 ## Consequences and misunderstandings
 
-**An export is not a back-up.** Only IFC keeps everything. If you want to keep your project, save it as IFC. Export only for someone who needs the other format.
+**Keeping your project.** Use *Save* to update the project file. The IFC format also keeps the archive from a P6 import. Use *Export* to make a copy for the program that will receive the schedule.
 
 **Opening an export again does not always give the same schedule.** The app always recalculates on opening, with the calculation profile that belongs to the format. If logic is missing, like the constraint in the CSV example, or the profile calculates differently, the outcome changes.
 
@@ -107,7 +111,7 @@ Without that constraint the example itself also ends on 2 July 2027. So the diff
 - [Task dialog and properties panel](docs://ref-taak-eigenschappen): what a constraint does, and so what disappears if it is missing.
 - [Adding relations](docs://howto-relaties-leggen): what a lag is and how the app calculates it.
 - [Creating a hammock](docs://howto-hammock): what a hammock is, which an export writes as an ordinary task.
-- [Codes and custom fields](docs://howto-codes-en-velden): activity codes and custom fields, which only IFC keeps.
+- [Codes and custom fields](docs://howto-codes-en-velden): working with activity codes and custom fields.
 - [External relations to another project](docs://howto-externe-relaties): links that MS Project XML and P6 XML do not carry.
 - [Saving and managing a baseline](docs://howto-baseline-opslaan-en-beheren): baselines, of which MS Project XML only carries the active one.
 - [Import and export formats](docs://ref-import-exportformaten): per format what is carried over and what is not.
