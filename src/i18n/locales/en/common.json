@@ -2100,6 +2100,7 @@
     "open": {
       "foreign": "This IFCX file was not written by Open Planner Studio. The app cannot open files from other programs yet.",
       "newer": "This IFCX file has a newer version than this app knows. Open it with a newer version of Open Planner Studio.",
+      "unsupportedVersion": "This IFCX file has an IFCX version this app does not support, so it does not open.",
       "invalid": "This IFCX file differs from what Open Planner Studio writes, so it does not open.",
       "notIfcx": "This file is not an IFCX file."
     },
@@ -2113,7 +2114,8 @@
       "xerArchiveBody": "The P6 source archive is not included in IFCX. The schedule itself is. The open file does not change. After saving, you continue working in the IFCX file, without the source archive.",
       "xerArchiveContinue": "Continue",
       "cancel": "Cancel"
-    }
+    },
+    "fileDropRefused": "Not opened: {{names}}. The app only opens IFC, IFCX, XML, MPP, XER and CSV."
   },
   "foreignChangesQuestion": {
     "title": "Save to {{file}}",

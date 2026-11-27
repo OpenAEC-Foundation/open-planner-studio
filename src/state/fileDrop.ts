@@ -58,7 +58,7 @@ export async function openDroppedFiles(
   if (refused.length > 0) {
     store.getState().notify({
       severity: 'error',
-      messageKey: 'notifications.fileDropRefused',
+      messageKey: options.readOptions?.ifcx ? 'ifcx.fileDropRefused' : 'notifications.fileDropRefused',
       params: { names: fileNameList(refused) },
       helpArticleId: 'howto-bestand-openen-en-opslaan',
       dedupeKey: 'file-drop-refused',
