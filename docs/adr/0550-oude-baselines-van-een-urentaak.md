@@ -11,5 +11,5 @@ dat geval een waarschuwing. De herkenning staat in `baselineHasOldDayCount` en `
 
 - De herkenning is bewust zuinig: geen waarschuwing als de duur bij beide tellingen past of bij geen van beide.
 - Eerst telt de span van de baseline zelf (werkminuten tussen baseline-start en -einde op de taakkalender), pas
-  daarna de huidige werkminuten van de taak. De span is een eigen gegeven van de baseline, zodat een latere
-  duurwijziging de waarschuwing niet verandert. Wat deze volgorde niet kan scheiden, staat in knownbug 2591.
+  daarna de huidige werkminuten van de taak. Wijst de span een telling aan, dan verandert een latere
+  duurwijziging de waarschuwing niet. Wat deze volgorde niet kan scheiden, staat in knownbug 2591.
