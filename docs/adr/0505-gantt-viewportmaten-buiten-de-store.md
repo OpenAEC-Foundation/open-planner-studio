@@ -9,7 +9,8 @@ zijn ze `null`.
 
 ## Gevolgen
 
-- `setTimeScale` in `viewSlice.ts` houdt met de breedte de datum onder het midden van het paneel vast; is de breedte
+- `setTimeScale` in `viewSlice.ts` houdt met de breedte de datum onder het midden van het paneel vast, zolang de
+  scroll niet op 0 klemt; is de breedte
   `null` of verandert de zoom niet, dan zet hij alleen de zoom. `setGanttChartWidth` neemt alleen een eindige breedte groter dan 0 aan, anders
   `null`. `clearGanttScrollBounds` wist de breedte niet.
 - `setScroll` klemt met `clampGanttScroll` op de bovengrenzen; de ondergrens 0 zet `setScroll` zelf. Zonder bovengrens

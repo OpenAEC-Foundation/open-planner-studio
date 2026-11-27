@@ -3,9 +3,10 @@
 De horizontale schuifbalk hangt aan een spacer ter breedte van de inhoud (`scrollbarWidth` in
 `useGanttViewportCoordinator.ts` is de inhoudsbreedte maal `scrollbarScale`). Boven `MAX_SCROLL_SPACER_PX`
 (15.000.000 px) schaalt `scrollbarScale` in `src/utils/ganttViewport.ts` de spacer naar die breedte; daaronder is de
-schaal 1. Reden: een browser begrenst de breedte van een element. `tests/browser/gantt-viewport.spec.ts` (20 jaar op
-kwartierzoom, 4000 px per dag, ongeveer 35 miljoen px) legt vast dat Chromium de spacer op 33.554.428 px afkapte en dat
-de scrollafhandeling de afgekapte `scrollLeft` terugschreef, zodat het einde onbereikbaar was. De grens van Firefox
+schaal 1. Reden: een browser begrenst de breedte van een element. Volgens het commentaar in `tests/browser/gantt-viewport.spec.ts` (20 jaar op
+kwartierzoom, 4000 px per dag, ongeveer 35 miljoen px) kapte Chromium de spacer op 33.554.428 px af en schreef de
+scrollafhandeling de afgekapte `scrollLeft` terug, zodat het einde onbereikbaar was; de test zelf toetst dat het einde
+bereikbaar blijft. De grens van Firefox
 (ongeveer 17,9 miljoen px) komt uit het weggehaalde commentaar en is niet nagegaan; de 15 miljoen ligt onder beide
 getallen.
 
