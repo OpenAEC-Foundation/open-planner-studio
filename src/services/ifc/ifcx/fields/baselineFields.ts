@@ -10,6 +10,7 @@ export interface BaselineWriteSource {
   readonly baseline: Baseline;
   readonly path: string;
   readonly taskPathById: ReadonlyMap<string, string>;
+  readonly sourceStart?: string;
 }
 
 export interface BaselineReadTarget {
@@ -83,7 +84,7 @@ function rowIn(value: RowValue): BaselineTask {
 
 export const BASELINE_SHARED_FIELDS: readonly SharedField<BaselineWriteSource>[] = [
   { key: 'name', value: TEXT, write: s => s.baseline.name },
-  { key: 'start', value: CALENDAR_DATE, optional: true, write: s => existingDatePart(baselineStart(s.baseline)) },
+  { key: 'start', value: CALENDAR_DATE, optional: true, write: s => existingDatePart(baselineStart(s.baseline)) ?? s.sourceStart },
   { key: 'finish', value: CALENDAR_DATE, optional: true, write: s => existingDatePart(s.baseline.projectEnd) },
 ];
 

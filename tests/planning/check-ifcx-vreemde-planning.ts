@@ -129,6 +129,10 @@ assert.equal(unknown.planning.tasks.length, 0);
 assert.deepEqual(unknown.leftBehind.attributes, extended.leftBehind.attributes);
 
 const precise = read('precieze-taken');
+const ownDates = readFileSync(join(dir, '../eigen/datumgevallen.ifcx'));
+for (const result of [precise.planning, readIfcx(ownDates), readForeignIfcxPlanning(ownDates).planning]) {
+  assert.equal('recordedSourceFormat' in result, false);
+}
 assert.equal(precise.origin.hasOpsDocument, true);
 assert.equal(precise.planning.recordedTimesOrigin, 'ifc-own');
 assert.equal(precise.planning.project.id, 'project-uit-bron');
@@ -156,6 +160,7 @@ for (const tasks of [precise.planning.tasks, ...origins.map(origin => openPrecis
   assert(tasks.slice(1).every(task => task.manuallyScheduled && task.time.scheduleFinish === shownFinish(task)));
 }
 const inProgress = structuredClone(preciseSource);
+inProgress.data[0].attributes[ATTRIBUTE.document].recordedSourceFormat = 'ifc';
 const leaf = inProgress.data[2].attributes;
 leaf[ATTRIBUTE.activity].completion = 0.4;
 Object.assign(leaf[ATTRIBUTE.opsTask].time, {

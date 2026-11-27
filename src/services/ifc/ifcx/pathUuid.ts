@@ -1,4 +1,4 @@
-import { isUuidPath, uuidOfHex } from './identityPath';
+import { isUuidPath, uuidOfHex, uuidToCompactGlobalId } from './identityPath';
 
 const OPS_NAME_UUID_NAMESPACE = 'fd4e93a2-de83-56ee-929c-defaa450b626';
 
@@ -51,4 +51,11 @@ function nameBasedUuid(name: string): string {
 export function uuidOfSourcePath(path: string): string {
   const bare = (path.startsWith('/') ? path.slice(1) : path).toLowerCase();
   return isUuidPath(bare) ? bare : nameBasedUuid(path);
+}
+
+export function uniquePathGlobalId(path: string, kind: string, used: Set<string>, original = uuidToCompactGlobalId(uuidOfSourcePath(path))): string {
+  let guid = original;
+  for (let n = 2; used.has(guid); n++) guid = uuidToCompactGlobalId(uuidOfSourcePath(`${path}#${kind}-dup-${n}`));
+  used.add(guid);
+  return guid;
 }

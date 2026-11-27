@@ -8,6 +8,8 @@ export type IfcxModelSource = { readonly fileName: string; readonly sha256: stri
 export interface IfcxModelReferences {
   readonly modelSource?: IfcxModelSource;
   readonly elementLinks?: TaskElementLinks;
+  readonly sourcePaths?: Readonly<Record<string, string>>;
+  readonly baselineStarts?: Readonly<Record<string, string>>;
 }
 
 export type IfcxSchedulesLink = { readonly relation: 'schedules'; readonly target: string };
