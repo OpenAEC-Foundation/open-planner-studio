@@ -1,7 +1,9 @@
+use std::collections::BTreeSet;
 use std::path::Path;
 use std::process::ExitCode;
 
 use ifcx_project::{load_files, seal_files, Files, LoadedProject};
+use serde_json::{json, Value};
 
 const PROJECT: &str = "ops-controle";
 const MAX_GENOEMD: usize = 5;
@@ -30,6 +32,47 @@ fn meldingen(project: &LoadedProject) -> String {
     format!("meldingen: {}", regels.join("; "))
 }
 
+fn controleer_pakket(id: &str, bestanden: Files) -> Uitkomst {
+    let pakket = match seal_files(PROJECT, id, bestanden) {
+        Ok(pakket) => pakket,
+        Err(fout) => return Uitkomst::Afgekeurd(fout.code),
+    };
+    let project = match load_files(pakket) {
+        Ok(project) => project,
+        Err(fout) => return Uitkomst::Afgekeurd(fout.code),
+    };
+    if !project.warnings.is_empty() {
+        return Uitkomst::Afgekeurd(meldingen(&project));
+    }
+    Uitkomst::Geladen(format!(
+        "{} nodes, {} verwijzingen, geen meldingen",
+        project.nodes.len(),
+        project.links.len()
+    ))
+}
+
+fn ontbrekende_modeldoelen(document: &Value) -> BTreeSet<&str> {
+    let Some(data) = document["data"].as_array() else {
+        return BTreeSet::new();
+    };
+    if !data.iter().any(|entry| {
+        let attributen = &entry["attributes"];
+        attributen["openaec::planning::workplan"].is_object()
+            && attributen["openaec::ops::modelSource"].is_object()
+    }) {
+        return BTreeSet::new();
+    }
+    let eigen: BTreeSet<_> = data.iter().filter_map(|entry| entry["path"].as_str()).collect();
+    data.iter()
+        .filter(|entry| entry["attributes"]["openaec::ops::task"].is_object())
+        .filter_map(|entry| entry["attributes"]["openaec::links"].as_array())
+        .flatten()
+        .filter(|link| link["relation"] == "schedules")
+        .filter_map(|link| link["target"].as_str())
+        .filter(|doel| !eigen.contains(doel))
+        .collect()
+}
+
 fn controleer(pad: &Path) -> Result<Uitkomst, String> {
     let bytes = std::fs::read(pad)
         .map_err(|fout| format!("{} is niet te lezen ({:?})", pad.display(), fout.kind()))?;
@@ -38,30 +81,53 @@ fn controleer(pad: &Path) -> Result<Uitkomst, String> {
         .and_then(|naam| naam.to_str())
         .ok_or_else(|| format!("{} heeft geen bruikbare bestandsnaam", pad.display()))?
         .to_owned();
-    let Ok(document) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+    let Ok(document) = serde_json::from_slice::<Value>(&bytes) else {
         return Ok(Uitkomst::Afgekeurd("INVALID_JSON".into()));
     };
     let Some(id) = document.pointer("/header/id").and_then(|id| id.as_str()) else {
         return Ok(Uitkomst::Afgekeurd("INVALID_HEADER".into()));
     };
+    let modelnaam = format!("modeldoelen-{naam}");
     let mut bestanden = Files::new();
     bestanden.insert(naam, bytes);
-    let pakket = match seal_files(PROJECT, id, bestanden) {
-        Ok(pakket) => pakket,
-        Err(fout) => return Ok(Uitkomst::Afgekeurd(fout.code)),
-    };
-    let project = match load_files(pakket) {
-        Ok(project) => project,
-        Err(fout) => return Ok(Uitkomst::Afgekeurd(fout.code)),
-    };
-    if !project.warnings.is_empty() {
-        return Ok(Uitkomst::Afgekeurd(meldingen(&project)));
+    let doelen = ontbrekende_modeldoelen(&document);
+    if doelen.is_empty() {
+        return Ok(controleer_pakket(id, bestanden));
     }
-    Ok(Uitkomst::Geladen(format!(
-        "{} nodes, {} verwijzingen, geen meldingen",
-        project.nodes.len(),
-        project.links.len()
-    )))
+    match controleer_pakket(id, bestanden.clone()) {
+        Uitkomst::Afgekeurd(code) if code == "MISSING_REFERENCE" => {}
+        Uitkomst::Afgekeurd(code) => return Ok(Uitkomst::Afgekeurd(code)),
+        Uitkomst::Geladen(_) => {
+            return Ok(Uitkomst::Afgekeurd("Ontbrekende schedules-doelen zijn aanvaard".into()));
+        }
+    }
+    let model_id = format!("{id}:modeldoelen");
+    let met_model = |weggelaten: Option<&str>| {
+        let data: Vec<_> = doelen.iter().copied()
+            .filter(|doel| Some(*doel) != weggelaten)
+            .map(|doel| json!({ "path": doel }))
+            .collect();
+        let model = json!({
+            "header": { "id": model_id, "ifcxVersion": "ifcx_alpha", "dataVersion": "1.0.0" },
+            "imports": [{ "uri": id }], "schemas": {}, "data": data
+        });
+        let mut pakket = bestanden.clone();
+        pakket.insert(modelnaam.clone(), model.to_string().into_bytes());
+        controleer_pakket(&model_id, pakket)
+    };
+    for doel in &doelen {
+        match met_model(Some(doel)) {
+            Uitkomst::Afgekeurd(code) if code == "MISSING_REFERENCE" => {}
+            Uitkomst::Afgekeurd(code) => return Ok(Uitkomst::Afgekeurd(format!("zonder {doel}: {code}"))),
+            Uitkomst::Geladen(_) => return Ok(Uitkomst::Afgekeurd(format!("Het pakket zonder {doel} is aanvaard"))),
+        }
+    }
+    Ok(match met_model(None) {
+        Uitkomst::Geladen(info) => Uitkomst::Geladen(format!(
+            "alleen MISSING_REFERENCE; met schedules-doelen {}: {info}", doelen.into_iter().collect::<Vec<_>>().join(", ")
+        )),
+        fout => fout,
+    })
 }
 
 fn main() -> ExitCode {
