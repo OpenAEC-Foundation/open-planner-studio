@@ -1699,6 +1699,12 @@ keuze. Waar een besluit eerdere tekst vervangt, staat dat erbij. Nog niet hersch
 bestand is intussen gewijzigd), §4.8, §1, §7, §5.1 en §6.5 (bijwerken en samenvoegen, de modelbron) en §5.3 (het
 profiel); daar geldt deze lijst.
 
+De punten over opslaan in het geopende bestand, over bijwerken en over het vanzelf laden van een nieuwe versie (punt 3
+en wat daarop voortbouwt) gelden voor STEP, waar het gebouwmodel en de planning in één bestand staan. Voor IFCX met
+een gebouwmodel gaat §5.0 voor, ook waar §5.1 en §6.5 over IFCX gaan: de app schrijft alleen het eigen
+planningsbestand en nooit in het bestand van een ander, en of een nieuwe modelversie vanzelf wordt geladen of pas na
+inzage en aanvaarding de bron wordt, beslist de eigenaar nog.
+
 1. **Ctrl+S buiten de thuismap** bij een bestand met een gebouwmodel (knownbug 1762): overal, maar later. Nu alleen in
    de thuismap; daarbuiten verwijst de app naar *Opslaan als*. De uitbreiding is de laatste bouwtaak vóór de
    featureflag standaard aan gaat.
@@ -1981,6 +1987,8 @@ de vergelijking met `classify-v9.py`.
 
 Na de tweebestandenproef (versie 23, 27 november 2026) koos de technisch eigenaar voor een eigen bronverwijzing op
 het werkplan. §5.0 legt de vorm en de eisen aan de profielversie en leesbaarheid vast en verwijst naar het onderzoeksrapport.
+§11 bakent af dat de besluiten van 16 en 17 november over terugschrijven en vanzelf laden voor STEP gelden; voor IFCX
+met een gebouwmodel gaat §5.0 voor.
 
 ## 13. Bronnen
 
