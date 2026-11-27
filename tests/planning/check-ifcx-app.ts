@@ -439,9 +439,10 @@ await check('vreemde planning met model: muur en alle planningsobjecten houden h
     const linked = (s: Store) => assert.deepEqual(taskElementLinks(s.getState(), wall.id),
       [{ direction: 'output', target: '/bouw/Muur-01', found: true }]);
     const checkPlanning = (s: Store) => {
-      const { calendar, calendars, resources, assignments, baselines } = s.getState();
+      const { tasks, calendar, calendars, resources, assignments, baselines } = s.getState();
       assert.equal(calendar.name, 'Ploegweek');
-      assert.equal(calendars.find(c => c.id === wall.calendarId)?.name, 'Algemene week');
+      const taskCalendarId = tasks.find(t => t.id === wall.id)?.calendarId;
+      assert.equal(calendars.find(c => c.id === taskCalendarId)?.name, 'Algemene week');
       assert.equal(resources[0].name, 'Metselaars');
       assert.deepEqual(assignments.map(a => [a.taskId, a.resourceId, a.unitsPerDay]), [[wall.id, resources[0].id, 0.5]]);
       assert.deepEqual(baselines.map(b => b.name), ['Contract']);
