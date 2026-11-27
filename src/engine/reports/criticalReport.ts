@@ -1,16 +1,6 @@
 import type { MeasuredDuration } from '@/utils/taskDuration';
 import { type ReportContext, isNearCritical, activityTasks, progressState, remainingDays, remainingMeasure, taskFinish, taskStart } from './reportCommon';
 
-/**
- * Kritiek-en-near-critical-rapport: welke activiteiten bepalen het
- * projecteinde, en welke staan op het punt dat te gaan doen.
- *
- * Bron van de vlaggen is de laatste berekening: `isCritical` en `floatPath` komen rechtstreeks uit
- * de solver, near-critical is `0 < TF ≤ drempel` (rapportdrempel) óf de markering uit
- * de planningsopties. Voltooide taken doen niet mee — een afgeronde taak stuurt niets meer.
- * Sortering: float-pad (1 = meest kritiek; zonder pad achteraan), dan totale
- * speling, dan start.
- */
 export interface CriticalRow {
   taskId: string;
   wbs: string;
@@ -18,7 +8,6 @@ export interface CriticalRow {
   start: string;
   finish: string;
   remainingDays: number;
-  /** De restduur in de maat van de taak (B8), voor de weergave. */
   remaining: MeasuredDuration;
   totalFloat: number;
   freeFloat: number;
@@ -27,14 +16,12 @@ export interface CriticalRow {
 }
 
 export interface CriticalReportOptions {
-  /** Near-critical-drempel in werkdagen (0 = alleen de planningsoptie). */
   nearCriticalDays: number;
 }
 
 export interface CriticalReportResult {
   rows: CriticalRow[];
   counts: { critical: number; nearCritical: number; leaves: number };
-  /** Uit de solver: het aantal kritieke ketens (float-paden). */
   pathCount: number;
   calculated: boolean;
 }

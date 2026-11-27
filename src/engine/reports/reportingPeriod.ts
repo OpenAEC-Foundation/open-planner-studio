@@ -1,22 +1,5 @@
 import { addCalendarDays, addCalendarMonths, diffDays, formatDate, parseDate } from '@/utils/dateUtils';
 
-/**
- * De rapportageperiode: één gedeeld periodemodel voor alle rapporten die
- * op een tijdvenster werken — look-ahead, voortgang, resourcebelasting en resourcetoewijzingen.
- *
- * Een periode is een PRESET (relatief aan de referentiedag: statusdatum, anders vandaag) of een
- * vaste keuze: `project` (de hele projectspanne) of `custom` (twee ISO-dagen). Alleen `custom`
- * draagt eigen datums; een preset wordt bij elke berekening opnieuw opgelost, zodat een gewijzigde
- * statusdatum het venster automatisch mee verschuift.
- *
- * Vensterconventie — inclusief aan beide kanten, gelijk aan de legacy "N weken"-opties:
- * - `nextNWeeks`  = [ref, ref + 7N − 1]   (4 weken vanaf do 10 sep ⇒ t/m wo 7 okt)
- * - `lastNWeeks`  = [ref − 7N + 1, ref]
- * - `nextMonth`   = [ref, ref + 1 maand − 1 dag]; `lastMonth` = [ref − 1 maand + 1 dag, ref]
- *   (maandrekenen klemt op de maandlengte: 31 jan → 28 feb, zie `addCalendarMonths`)
- *
- * Alles hier is puur: geen store, geen React, geen i18n. De UI labelt de presets via `t()`.
- */
 export const REPORTING_PERIOD_PRESETS = [
   'nextWeek', 'next2Weeks', 'next4Weeks', 'next6Weeks', 'next8Weeks', 'next12Weeks', 'nextMonth',
   'lastWeek', 'last2Weeks', 'last4Weeks', 'last6Weeks', 'last8Weeks', 'last12Weeks', 'lastMonth',
@@ -26,13 +9,10 @@ export type ReportingPeriodPreset = (typeof REPORTING_PERIOD_PRESETS)[number];
 
 export interface ReportingPeriod {
   preset: ReportingPeriodPreset;
-  /** Alleen betekenisvol bij `custom` (ISO-dag, inclusief). */
   from?: string;
-  /** Alleen betekenisvol bij `custom` (ISO-dag, inclusief). */
   to?: string;
 }
 
-/** Een opgelost venster: twee ISO-dagen, `from ≤ to`. */
 export interface ResolvedPeriod {
   from: string;
   to: string;
@@ -40,38 +20,29 @@ export interface ResolvedPeriod {
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Geldige ISO-dag (bestaand, `YYYY-MM-DD`) — `parseDate` accepteert ook 2026-02-31, deze niet. */
 export function isIsoDay(raw: unknown): raw is string {
   if (typeof raw !== 'string' || !ISO_DAY.test(raw)) return false;
   const d = parseDate(raw);
   return !isNaN(d.getTime()) && formatDate(d) === raw;
 }
 
-/** Een `custom`-periode is compleet én geordend; presets zijn altijd geldig. */
 export function isValidReportingPeriod(p: ReportingPeriod): boolean {
   if (p.preset !== 'custom') return true;
   return isIsoDay(p.from) && isIsoDay(p.to) && p.from <= p.to;
 }
 
-/** Aantal weken van een `next*Weeks`/`last*Weeks`-preset, anders undefined. */
 function presetWeeks(preset: ReportingPeriodPreset): number | undefined {
   const m = /^(next|last)(\d*)Weeks?$/.exec(preset);
   if (!m) return undefined;
   return m[2] === '' ? 1 : Number(m[2]);
 }
 
-/** Vertaal een oude "N weken"-instelling naar de kleinste preset die die N dekt (1→1, 3→4, 9→12). */
 export function weeksToPreset(weeks: number, direction: 'next' | 'last'): ReportingPeriodPreset {
   const steps = [1, 2, 4, 6, 8, 12];
   const n = steps.find(s => s >= weeks) ?? 12;
   return (n === 1 ? `${direction}Week` : `${direction}${n}Weeks`) as ReportingPeriodPreset;
 }
 
-/**
- * Los een periode op tegen de referentiedag. `projectSpan` is het venster voor `project` (en de
- * terugval voor een ongeldige `custom`); ontbreekt die (leeg project), dan valt het samen op de
- * referentiedag zelf — een leeg rapport, geen exception.
- */
 export function resolveReportingPeriod(period: ReportingPeriod, refDay: string, projectSpan?: ResolvedPeriod): ResolvedPeriod {
   const weeks = presetWeeks(period.preset);
   if (weeks !== undefined) {
@@ -94,17 +65,14 @@ export function resolveReportingPeriod(period: ReportingPeriod, refDay: string, 
   }
 }
 
-/** Lengte van een venster in kalenderdagen (inclusief), minimaal 1. */
 export function periodDays(p: ResolvedPeriod): number {
   return Math.max(1, diffDays(p.from, p.to) + 1);
 }
 
-/** Vensterrand: `days − 1` kalenderdagen ná `fromDay` (inclusief venster van precies `days` dagen). */
 export function windowEnd(fromDay: string, days: number): string {
   return formatDate(addCalendarDays(parseDate(fromDay), Math.max(0, days - 1)));
 }
 
-/** Vensterstart: `days − 1` kalenderdagen vóór `toDay` (inclusief). */
 export function windowStart(toDay: string, days: number): string {
   return formatDate(addCalendarDays(parseDate(toDay), -Math.max(0, days - 1)));
 }
