@@ -1274,7 +1274,8 @@ await check('browser: een IFCX-document slaat een nieuw doel op als download met
     for (const flags of [IFCX_ON, {}]) {
       setFlags(step, flags);
       pickedHandle = { ...pickedHandle, name: 'kopie.ifc' };
-      const beforePicker = pickerCalls, beforeWrites = writes;
+      const beforePicker: number = pickerCalls;
+      const beforeWrites: number = writes;
       clearNotices(step);
       await step.getState().saveFileAs();
       assert.deepEqual(errors(step), []);
