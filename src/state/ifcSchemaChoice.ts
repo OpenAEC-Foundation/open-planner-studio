@@ -53,3 +53,7 @@ export function withFileIfcSchema(restored: Project, live: Pick<Project, 'ifcSch
     ...(live.ifcSchemaUnconfirmed !== undefined ? { ifcSchemaUnconfirmed: live.ifcSchemaUnconfirmed } : {}),
   };
 }
+
+export function projectForIfcx(project: Project): Project {
+  return withFileIfcSchema(project, { ifcSchema: project.ifcSchema });
+}

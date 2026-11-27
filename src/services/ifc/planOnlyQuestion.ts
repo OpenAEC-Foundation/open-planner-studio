@@ -4,7 +4,7 @@
 
 /** Waarom alleen de planning: Opslaan als bij een ontbrekend gebouwmodel (PR 9e), Exporteren → IFC zonder gebouwmodel,
  *  of Exporteren → IFC met de resourcebibliotheek (PR 13). */
-export type PlanOnlyReason = 'missingSourceSaveAs' | 'export' | 'exportWithPool';
+export type PlanOnlyReason = 'missingSourceSaveAs' | 'export' | 'exportWithPool' | 'ifcxSaveAs' | 'ifcxXerArchive';
 
 export type PlanOnlyAsker = (reason: PlanOnlyReason) => Promise<boolean>;
 

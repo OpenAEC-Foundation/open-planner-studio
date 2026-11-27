@@ -520,7 +520,7 @@
     "foreignChangesQuestion": "Vragen vóór opslaan als IFC-gegevens buiten de planning vervallen",
     "foreignChangesQuestionHint": "Bij een bestand met een gebouwmodel. Staat dit uit, dan slaat de app meteen op en meldt het aantal daarna.",
     "ifcx": "IFCX openen en opslaan",
-    "ifcxHint": "Opent een IFCX-bestand dat Open Planner Studio zelf schreef, en slaat zo'n bestand weer op als IFCX: met Opslaan, Opslaan als en Automatisch opslaan. IFCX is een nieuw formaat in ontwikkeling; een latere versie van de app kan een bestand dat je nu opslaat weigeren. De app bewaart nog niet alle gegevens in IFCX, zoals het bronbestand van een P6-import (XER) en een meegeleverde resourcebibliotheek; een planning met zulke gegevens slaat ze niet op als IFCX. Bewaar die met Exporteren → IFC. Een IFCX-bestand van een ander programma opent de app nog niet.",
+    "ifcxHint": "Opent een IFCX-bestand dat Open Planner Studio zelf schreef, en slaat zo'n bestand weer op als IFCX: met Opslaan, Opslaan als en Automatisch opslaan. In de desktop-app kies je bij Opslaan als ook het bestandstype, IFC of IFCX; zo zet je een planning om. IFCX is een nieuw formaat in ontwikkeling; een latere versie van de app kan een bestand dat je nu opslaat weigeren. De app bewaart nog niet alle gegevens in IFCX: het bronbestand van een P6-import (XER) gaat niet mee, en een planning met een meegeleverde resourcebibliotheek slaat de app niet op als IFCX. Bewaar die met Exporteren → IFC. Een IFCX-bestand van een ander programma opent de app nog niet.",
     "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
     "theme": "Thema",
     "themeHint": "Het kleurenschema van de interface.",
@@ -2105,7 +2105,15 @@
     },
     "writeRefused": "Het IFCX-bestand is niet geschreven. Deze planning bevat gegevens die de app nog niet in IFCX bewaart, of de controle na het schrijven vond een verschil. Bewaar de planning met Exporteren → IFC.",
     "flagOff": "Dit is een IFCX-bestand. Zet de experimentele functie IFCX openen en opslaan aan om het op te slaan, of sla de planning op als IFC met Opslaan als.",
-    "nameMismatch": "Deze naam past niet bij het formaat van de planning. Kies een naam op .ifc voor IFC of op .ifcx voor IFCX. In dit bestand is niets geschreven."
+    "nameMismatch": "Deze naam past niet bij het formaat van de planning. Kies een naam op .ifc voor IFC of op .ifcx voor IFCX. In dit bestand is niets geschreven.",
+    "saveAs": {
+      "title": "Opslaan als IFCX",
+      "planOnlyBody": "Het IFCX-bestand bevat alleen de planning, zonder het gebouwmodel en zonder de gegevens van andere programma's. Het geopende IFC-bestand verandert niet. Daarna werk je verder in het IFCX-bestand.",
+      "planOnlyContinue": "Alleen de planning opslaan",
+      "xerArchiveBody": "Het P6-bronarchief gaat niet mee naar IFCX. De planning zelf gaat wel mee. Het geopende bestand verandert niet. Daarna werk je verder in het IFCX-bestand, zonder het bronarchief.",
+      "xerArchiveContinue": "Doorgaan",
+      "cancel": "Annuleren"
+    }
   },
   "foreignChangesQuestion": {
     "title": "Opslaan in {{file}}",

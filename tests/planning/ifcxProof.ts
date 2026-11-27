@@ -86,6 +86,11 @@ export function modelDifferences(expected: ImportResult, actual: ImportResult, l
   return named.length > 0 ? named : ['een verschil zonder pad'];
 }
 
+export function stepToIfcxDifferences(step: ImportResult, ifcx: ImportResult, limit = 5): string[] {
+  const { ifcSchemaUnconfirmed, ...project } = step.project;
+  return modelDifferences({ ...step, project }, ifcx, limit);
+}
+
 export const projectionOf = (model: ImportResult, writtenAt: Date) => serializeIfcx(ownFileFor(model, writtenAt).document);
 
 export const timestampOf = (text: string) => new Date(String(documentOf(text).header.timestamp));
@@ -105,14 +110,14 @@ export function publicRouteProblems(name: string, input: WriteIFCInput, text: st
   if (!back.ok) return [`${name}: opent niet: ${String(back.error).slice(0, 200)}`];
   const problems: string[] = [];
   const first = openedAsStep(input);
-  const once = modelDifferences(first, back.value, 3);
+  const once = stepToIfcxDifferences(first, back.value, 3);
   if (once.length > 0) problems.push(`${name}: deel 1: niet de eerste STEP-lezing na de laadgrens: ${once.join('; ')}`);
   if (projectionOf(back.value, timestampOf(text)) !== text) problems.push(`${name}: deel 2: het bestand is niet de projectie van de gelezen planning`);
   const again = attempt(() => writeIfcx(back.value, CLOCK));
   if (!again.ok) return [...problems, `${name}: de tweede opslag weigert: ${String(again.error).slice(0, 200)}`];
   const twice = attempt(() => readIfcx(encode(again.value)));
   if (!twice.ok) return [...problems, `${name}: de tweede opslag opent niet: ${String(twice.error).slice(0, 200)}`];
-  const second = modelDifferences(openedAsStep(first), twice.value, 3);
+  const second = stepToIfcxDifferences(openedAsStep(first), twice.value, 3);
   if (second.length > 0) problems.push(`${name}: tweede opslag: niet de tweede STEP-lezing na de laadgrens: ${second.join('; ')}`);
   if (projectionOf(twice.value, CLOCK) !== again.value) problems.push(`${name}: deel 2 bij de tweede opslag: het bestand is niet de projectie van de gelezen planning`);
   return problems;

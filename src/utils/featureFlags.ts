@@ -87,7 +87,7 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     nameKey: 'settings.ifcx',
     descriptionKey: 'settings.ifcxHint',
     writesNewIfcData: true,
-    texts: ['common:ifcx.*'],
+    texts: ['common:ifcx.*', 'menu:ifcx.*'],
   },
 ];
 
