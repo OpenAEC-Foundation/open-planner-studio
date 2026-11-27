@@ -7997,3 +7997,15 @@ en noem het in je rapport of PR-tekst.
       verdringen tien andere bestanden haar, dan zijn na herstel de taken en de modelverwijzingen
       beschikbaar en vraagt Opslaan opnieuw om een doel. Het verwijderen van de vermelding is
       nagegaan in `check-ifcx-herstel.ts`. — B
+
+2422. **Een MCP-backup of `planner_export_ifc` van een planning bij een IFCX-model laat de modelverwijzing stil weg.**
+      *MCP → Veiligheid → Nu backup maken*, de automatische backup langs dezelfde schrijfroute en de tool
+      `planner_export_ifc` schrijven een STEP-kopie van de planning. Die kopie bevat de modelverwijzing en de
+      bouwdeelkoppelingen niet, en de app meldt dat niet (de backupknop zegt *Backup gemaakt*). De
+      IFCX-planning zelf en het model blijven ongewijzigd. Alleen *Exporteren → IFC*, met en zonder
+      bibliotheekbestand, meldt het verlies. Nog na te gaan: *Toepassen* in het IFC-paneel op zo'n planning.
+      Vóór de flag `ifcx` standaard aan gaat: de backup van zo'n planning als IFCX schrijven, de tool het
+      verlies in haar antwoord laten melden, en één plek kiezen waar elke STEP-kopie van zo'n document
+      langs moet (`buildWriteIFCInput`). Neem daarbij het heropenen mee: een IFCX-backup staat in de
+      backupmap en niet naast het model, dus de zoekactie naar het buurmodel vindt het model daar niet.
+      Gevolgd in de code bij de review van #1320, ronde 3 en 4. — S

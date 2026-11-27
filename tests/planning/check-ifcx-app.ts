@@ -407,14 +407,14 @@ await check('modelkoppelingen bij het heropenen met een gelijk, gewijzigd of ont
         const exportedPlain = await plain.getState().exportAs('ifc');
         assert(exportedPlain.ok && !exportedPlain.cancelled);
         assert(isStep(bytesAt(copy)));
-        const pooledCopy = join(folder, 'kopie-met-bibliotheek.ifc');
-        ipc.choose(pooledCopy);
+        const pooledCopy = join(folder, 'kopie-met-bibliotheek.ifc'), plainLibrary = join(folder, 'kopie-bibliotheek.ifc');
+        plain.getState().setProject({ companyId: plain.getState().seedDemoLibrary(), companyName: 'Proefbedrijf' });
+        ipc.choose(pooledCopy, plainLibrary);
         const pooledPlain = await plain.getState().exportProjectWithPool();
         assert(pooledPlain.ok && !pooledPlain.cancelled);
-        assert(isStep(bytesAt(pooledCopy)));
+        assert(isStep(bytesAt(pooledCopy)) && existsSync(plainLibrary));
         assert.equal(lossNotices(plain), 0);
-        const companyId = reopened.getState().seedDemoLibrary();
-        reopened.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
+        reopened.getState().setProject({ companyId: reopened.getState().seedDemoLibrary(), companyName: 'Proefbedrijf' });
         const libraryFile = join(folder, 'bibliotheek.ifc');
         for (const [name, library] of [['bibliotheek-geannuleerd.ifc', null], ['met-bibliotheek.ifc', libraryFile]] as const) {
           clearNotices(reopened);
