@@ -1,4 +1,5 @@
 import type { ImportResult } from '@/services/importTypes';
+import type { IfcxModelReferences } from './modelReferences';
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof Set) && !(value instanceof Map);
@@ -50,8 +51,12 @@ function same(left: unknown, right: unknown): boolean {
   return Object.is(a, b);
 }
 
-export function selfCheckDifferences(planning: ImportResult, reread: ImportResult, limit = 5): string[] {
+export function selfCheckDifferences(expected: ImportResult & IfcxModelReferences, actual: ImportResult & IfcxModelReferences, limit = 5): string[] {
+  const { modelSource, elementLinks, ...planning } = expected;
+  const { modelSource: readSource, elementLinks: readLinks, ...reread } = actual;
   const out: string[] = [];
+  differencesIn(modelSource, readSource, 'modelSource', out, limit);
+  differencesIn(elementLinks && Object.fromEntries(elementLinks), readLinks && Object.fromEntries(readLinks), 'elementLinks', out, limit);
   if (!same(planning, reread)) differencesIn(planning, reread, '', out, limit);
   return out;
 }

@@ -2,6 +2,7 @@ import { isRecord } from '@/utils/guards';
 import { checkValue, hasKey, NON_EMPTY_TEXT, type IfcxValue } from './fieldTable';
 import { IfcxReadError, type IfcxErrorPlace } from './ifcxErrors';
 import { decodeIfcx, parseIfcx } from './ifcxInput';
+import { isModelPath } from './modelReferences';
 import { OWN_ATTRIBUTE_VALUES } from './nodes';
 import { ATTRIBUTE, OPS_NAMESPACE, PLANNING_NAMESPACE } from './profile';
 
@@ -52,12 +53,6 @@ function knownPart(spec: IfcxValue, raw: unknown, fields: Set<string>, prefix = 
 
 function addCount(counts: Map<string, number>, key: string): void {
   counts.set(key, (counts.get(key) ?? 0) + 1);
-}
-
-function isModelPath(path: string): boolean {
-  const segments = (path.startsWith('/') ? path.slice(1) : path).split('/');
-  return !/[\\\p{Cc}]/u.test(path) && !/^[a-z][a-z0-9+.-]*:/i.test(path)
-    && segments.every(segment => segment.trim() !== '' && segment !== '.' && segment !== '..');
 }
 
 function taskLinks(raw: unknown, path: string, other: Map<string, number>): string[] {
