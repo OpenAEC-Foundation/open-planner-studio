@@ -4,9 +4,9 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 ## In één oogopslag
 
-**Openen** kan standaard met IFC, CSV, MS Project XML, Primavera P6 XML, `.mpp` en `.xer`. Voor een onbekende extensie probeert de app het bestand als IFC te lezen.
+**Openen** kan standaard met IFC, CSV, MS Project XML, Primavera P6 XML, `.mpp` en `.xer`. Bij *Bestand › Openen* met een onbekende extensie probeert de app het bestand als IFC te lezen.
 
-**Opslaan** schrijft standaard IFC. Een geopend IFC-bestand wordt het opslagdoel. Een planning die je importeert uit CSV, XML, `.mpp` of `.xer` krijgt bij *Opslaan* een nieuw IFC-bestand.
+**Opslaan** schrijft standaard IFC. Met schrijftoegang kan de app het geopende IFC-bestand bijwerken. In Firefox levert lokaal opslaan een download op. Een planning die je importeert uit CSV, XML, `.mpp` of `.xer` krijgt bij *Opslaan* een nieuw IFC-bestand.
 
 **Exporteren** kan naar IFC, MS Project XML, Primavera P6 XML, Primavera XER (`.xer`), CSV en een voortgangsblad (Excel). Een export verandert je project niet.
 
@@ -22,7 +22,7 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Openen** — ja, `.ifc`. De app leest IFC4 en IFC 4.3 (ook ADD2). Een planning zonder gebouwmodel in een ander schema, zoals IFC2X3, opent ook. Een IFC2X3-bestand met een gebouwmodel opent niet. Bij het eerste opslaan kies je dan een schema dat de app kan schrijven (zie [Het IFC-schema kiezen](docs://howto-ifc-schema-kiezen)). Rekenprofiel: dat uit het bestand.
 
-**Opslaan** — ja. *Opslaan* schrijft je hele project als IFC-bestand, in het IFC-schema van het project (standaard IFC 4.3 ADD2). Het bestand wordt het opslagdoel.
+**Opslaan** — ja, in het IFC-schema van het project (standaard IFC 4.3 ADD2). Bij een gewone planning schrijft *Opslaan* terug naar het bestand als de app daar toegang toe heeft.
 
 **Exporteren** — ja, als *IFC*, in het IFC-schema van het project (standaard IFC 4.3 ADD2). Standaardnaam: de projectnaam met de extensie `.ifc`. Is je project gekoppeld aan een resourcebibliotheek, dan staat in *Bestand › Exporteren* onder de kaarten het vakje *Bibliotheekbestand ernaast opslaan*. Aangevinkt vraagt de app na het project ook om een plek voor *projectnaam-bibliotheek.ifc*. Het vakje staat niet in de lijst op het tabblad *Start*.
 
@@ -34,11 +34,11 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 ## IFCX
 
-**Openen en opslaan** — met de experimentele instelling *IFCX openen en opslaan* aan opent de app `.ifcx`-planningen die ze zelf schreef. Het bestand wordt het opslagdoel. *Opslaan* houdt dit bestandstype. Zie [Een bestand openen en opslaan](docs://howto-bestand-openen-en-opslaan) voor de typekeuze in het opslagvenster van de desktop-app.
+**Openen en opslaan** — met de experimentele instelling *IFCX openen en opslaan* aan opent de app `.ifcx`-planningen die ze zelf schreef. Met schrijftoegang werkt *Opslaan* het geopende bestand bij. Bij lokaal *Opslaan als*, of bij *Opslaan* zonder schrijfbaar bestand, downloadt de browser een `.ifcx`-kopie. Zie [Een bestand openen en opslaan](docs://howto-bestand-openen-en-opslaan) voor de typekeuze in het opslagvenster van de desktop-app.
 
 **Wat meegaat** — met de experimentele instelling *IFCX openen en opslaan* aan bewaart het IFCX-formaat onder meer de taken, relaties, kalenders, resources, toewijzingen en baselines. Bij openen houdt de planning het opgeslagen rekenprofiel en de reken-opties.
 
-**Wat achterblijft** — met de experimentele instelling *IFCX openen en opslaan* aan bewaart een omzetting naar IFCX de planning. Het gebouwmodel, gegevens van andere programma's en het P6-bronarchief blijven in de bron. De app vraagt vooraf of je door wilt gaan. Een planning met een ingesloten resourcebibliotheek weigert de app als IFCX op te slaan.
+**Wat achterblijft** — met de experimentele instelling *IFCX openen en opslaan* aan bewaart een omzetting naar IFCX de planning. Bevat de bron een gebouwmodel of gegevens van andere programma's, dan vraagt de app of je alleen de planning wilt opslaan. Bij een planning uit een XER-import vraagt ze of je zonder het P6-bronarchief wilt doorgaan. Een planning met een ingesloten resourcebibliotheek weigert de app als IFCX op te slaan.
 
 **Exporteren** — met de experimentele instelling *IFCX openen en opslaan* aan is IFCX beschikbaar via *Bestand › Opslaan als* in de desktop-app. De lijst onder *Exporteren* bevat IFC.
 

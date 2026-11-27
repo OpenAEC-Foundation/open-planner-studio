@@ -4,9 +4,9 @@ Per file format: whether you can open, save and export it, what does and does no
 
 ## At a glance
 
-**Opening** works by default with IFC, CSV, MS Project XML, Primavera P6 XML, `.mpp` and `.xer`. For an unknown extension, the app tries to read the file as IFC.
+**Opening** works by default with IFC, CSV, MS Project XML, Primavera P6 XML, `.mpp` and `.xer`. If you use *File › Open* with an unknown extension, the app tries to read the file as IFC.
 
-**Saving** writes IFC by default. An opened IFC file becomes the save target. A schedule imported from CSV, XML, `.mpp` or `.xer` gets a new IFC file when you choose *Save*.
+**Saving** writes IFC by default. With write access, the app can update the IFC file you opened. In Firefox, saving locally downloads a copy. A schedule imported from CSV, XML, `.mpp` or `.xer` gets a new IFC file when you choose *Save*.
 
 **Exporting** works to IFC, MS Project XML, Primavera P6 XML, Primavera XER (`.xer`), CSV and a progress sheet (Excel). An export does not change your project.
 
@@ -22,7 +22,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **Open** — yes, `.ifc`. The app reads IFC4 and IFC 4.3 (also ADD2). A schedule without a building model in another schema, such as IFC2X3, opens too. An IFC2X3 file with a building model does not open. At the first save you then choose a schema that the app can write (see [Choosing the IFC schema](docs://howto-ifc-schema-kiezen)). Calculation profile: the one in the file.
 
-**Save** — yes. *Save* writes your whole project as an IFC file, in the IFC schema of the project (IFC 4.3 ADD2 by default). The file becomes the save target.
+**Save** — yes, in the project’s IFC schema (IFC 4.3 ADD2 by default). For a plain schedule, *Save* writes back to the file if the app has write access.
 
 **Export** — yes, as *IFC*, in the IFC schema of the project (default IFC 4.3 ADD2). Default name: the project name with the extension `.ifc`. If your project is linked to a resource library, the checkbox *Save library file alongside* is below the cards in *File › Export*. Ticked, the app asks for a place for *projectname-bibliotheek.ifc* after the project. The checkbox is not in the list on the *Home* tab.
 
@@ -34,11 +34,11 @@ Per file format: whether you can open, save and export it, what does and does no
 
 ## IFCX
 
-**Opening and saving** — with the experimental setting *Open and save IFCX* on, the app opens `.ifcx` schedules it wrote itself. The file becomes the save target. *Save* keeps this file type. See [Opening and saving a file](docs://howto-bestand-openen-en-opslaan) for the file type choice in the desktop app's save dialog.
+**Opening and saving** — with the experimental setting *Open and save IFCX* on, the app opens `.ifcx` schedules it wrote itself. With write access, *Save* updates the opened file. When you use *Save As* locally, or *Save* without a writable file, the browser downloads a `.ifcx` copy. See [Opening and saving a file](docs://howto-bestand-openen-en-opslaan) for the file type choice in the desktop app's save dialog.
 
 **What goes along** — with the experimental setting *Open and save IFCX* on, the IFCX format keeps tasks, relations, calendars, resources, assignments and baselines, among other data. When opened, the schedule keeps the saved calculation profile and options.
 
-**What stays behind** — with the experimental setting *Open and save IFCX* on, converting to IFCX keeps the schedule. The building model, data from other programs and the P6 source archive stay in the source file. The app asks whether to continue before saving. The app refuses to save a schedule with an embedded resource library as IFCX.
+**What stays behind** — with the experimental setting *Open and save IFCX* on, converting to IFCX keeps the schedule. If the source contains a building model or data from other programs, the app asks whether to save just the schedule. For a schedule imported from XER, it asks whether to continue without the P6 source archive. The app refuses to save a schedule with an embedded resource library as IFCX.
 
 **Exporting** — with the experimental setting *Open and save IFCX* on, IFCX is available from *File › Save As* in the desktop app. The list under *Export* includes IFC.
 

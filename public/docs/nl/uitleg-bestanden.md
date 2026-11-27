@@ -4,11 +4,11 @@ Wat staat er eigenlijk in het bestand dat je opslaat? En wat gebeurt er met je p
 
 ## Het begrip
 
-De app bewaart een planning standaard in het **IFC-formaat** (`.ifc`), een open uitwisselformaat voor bouwinformatie. De app schrijft het IFC-schema van het project, standaard IFC 4.3 ADD2 (zie [Het IFC-schema kiezen](docs://howto-ifc-schema-kiezen)). Wil je zien wat er in het bestand komt? Het tabblad *IFC* is een editor die de IFC-tekst van je project toont; *Genereer IFC* ververst die tekst en *Kopieer* zet haar op het klembord. Pas je de tekst aan, dan laadt *Toepassen* haar als je project. Dat vervangt het project dat in dat tabblad staat volledig.
+De app bewaart een planning standaard in het **IFC-formaat** (`.ifc`), een open uitwisselformaat voor bouwinformatie. De app schrijft het IFC-schema van het project, standaard IFC 4.3 ADD2 (zie [Het IFC-schema kiezen](docs://howto-ifc-schema-kiezen)). Het tabblad *IFC* toont de IFC-tekst van de planning. *Genereer IFC* ververst die tekst en *Kopieer* zet haar op het klembord. Met *Toepassen* kun je de planning in het huidige tabblad vervangen door de bewerkte tekst. Bij een gebouwmodel of gegevens van een ander programma is die knop uitgeschakeld.
 
-Met de experimentele instelling *IFCX openen en opslaan* aan kun je een planning ook bewaren in het **IFCX-formaat** (`.ifcx`), een uitwisselformaat voor bouwinformatie dat nog in ontwikkeling is. Wil je het proberen met een kopie van je planning, dan kun je die opslaan als IFCX en heropenen in Open Planner Studio. Het gebouwmodel of P6-bronarchief blijft in het oorspronkelijke bestand. Voor uitwisseling met een ander programma gebruik je het IFC-formaat als dat programma IFC leest. Een latere versie van de app kan een experimenteel IFCX-bestand weigeren.
+Met de experimentele instelling *IFCX openen en opslaan* aan kun je een planning ook bewaren in het **IFCX-formaat** (`.ifcx`), een uitwisselformaat voor bouwinformatie dat nog in ontwikkeling is. Op de desktop kun je je planning met *Opslaan als* in een nieuw IFCX-bestand bewaren en dat weer openen in Open Planner Studio. Het gebouwmodel of P6-bronarchief blijft in het oorspronkelijke bestand. Voor uitwisseling met een ander programma gebruik je het IFC-formaat als dat programma IFC leest. Een latere versie van de app kan een experimenteel IFCX-bestand weigeren.
 
-CSV, XML, MPP en XER dienen voor uitwisseling met andere programma's. De app leest CSV, MS Project XML, Primavera P6 XML, MS Project-bestanden (`.mpp`) en Primavera-bestanden (`.xer`). Ze schrijft CSV, MS Project XML, Primavera P6 XML, Primavera-bestanden (`.xer`) en twee voortgangsbladen. Naar `.mpp` kun je niet exporteren.
+CSV, XML, MPP en XER dienen voor uitwisseling met andere programma's. De app leest CSV, MS Project XML, Primavera P6 XML, MS Project-bestanden (`.mpp`) en Primavera-bestanden (`.xer`). Ze schrijft CSV, MS Project XML, Primavera P6 XML, Primavera-bestanden (`.xer`) en een voortgangsblad voor Excel. Naar `.mpp` kun je niet exporteren.
 
 Bij export naar een ander pakket gaan de gegevens mee die het gekozen exportformaat kan vastleggen. Een CSV-export bevat bijvoorbeeld de taaklijst. Het IFC-formaat bewaart ook de logica, resources en kalenders van de planning.
 
@@ -16,15 +16,15 @@ Bij export naar een ander pakket gaan de gegevens mee die het gekozen exportform
 
 ### Wat openen doet
 
-De app kiest de lezer op de extensie. Bij een `.xml`-bestand kijkt ze in het bestand zelf of het MS Project XML of Primavera P6 XML is. Voor een onbekende extensie probeert de app het bestand als IFC te lezen. Mislukt dat, dan meldt ze *Bestand openen mislukt*, met de reden erbij.
+Bij *Bestand › Openen* kiest de app de lezer op de extensie. Bij een `.xml`-bestand kijkt ze in het bestand zelf of het MS Project XML of Primavera P6 XML is. Voor een onbekende extensie probeert de app het bestand als IFC te lezen. Lukt dat niet, dan toont de app de reden.
 
 Elk bestand opent in een eigen tabblad. De uitzondering is een tabblad dat nog leeg en ongewijzigd is: dat neemt het bestand over. Eén Primavera-bestand kan meerdere tabbladen opleveren, één per project met taken.
 
 Na het openen rekent de app altijd door. Komt het bestand uit een ander pakket, dan kunnen de datums afwijken van wat het bestand zei. Dat staat beschreven in [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen).
 
-Een geopend IFC-bestand wordt het **opslagdoel**: het bestand waar *Opslaan* naar terugschrijft. Een project uit CSV, XML, `.mpp` of `.xer` heeft na het openen nog geen bestand; *Opslaan* vraagt dan waar het nieuwe IFC-bestand moet komen. Daardoor overschrijft een druk op Ctrl+S nooit je oorspronkelijke bestand met IFC-tekst.
+Het **opslagdoel** is het bestand dat *Opslaan* bijwerkt. Dat kan het IFC-bestand zijn dat je opende, als de app ernaar kan schrijven. Na een import uit CSV, XML, `.mpp` of `.xer` schrijft *Opslaan* de planning in een nieuw IFC-bestand. In Firefox krijg je bij lokaal opslaan een download.
 
-Met de experimentele instelling *IFCX openen en opslaan* aan wordt ook een geopend `.ifcx`-planningsbestand van de app een opslagdoel. *Opslaan* houdt het bestandstype. Een ander type kies je met [Opslaan als in de desktop-app](docs://howto-bestand-openen-en-opslaan).
+Met de experimentele instelling *IFCX openen en opslaan* aan werkt *Opslaan* een geopend IFCX-bestand bij als de app schrijftoegang heeft. Voor een nieuw lokaal IFCX-bestand downloadt de browser een kopie. Een ander type kies je met [Opslaan als in de desktop-app](docs://howto-bestand-openen-en-opslaan).
 
 ### Wat opslaan schrijft
 
@@ -95,7 +95,7 @@ Zonder die constraint komt ook het voorbeeld zelf uit op 2 juli 2027. Het versch
 
 ## Gevolgen en misverstanden
 
-**Je project bewaren.** Met *Opslaan* werk je het projectbestand bij. Het IFC-formaat bewaart ook het archief van een P6-import. Met *Exporteren* maak je een kopie voor het programma dat de planning ontvangt.
+**Je project bewaren.** Met *Opslaan* bewaar je de planning waaraan je werkt. Het IFC-formaat bewaart ook het bronarchief van een XER-import. Met *Exporteren* maak je een kopie voor het programma dat de planning ontvangt.
 
 **Een export opnieuw openen levert niet altijd dezelfde planning.** De app rekent bij het openen altijd door, met het rekenprofiel dat bij het formaat hoort. Mist er logica, zoals de constraint in het CSV-voorbeeld, of rekent het profiel anders, dan verandert de uitkomst.
 

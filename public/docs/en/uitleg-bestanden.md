@@ -4,11 +4,11 @@ What is actually in the file you save? And what happens to your schedule when yo
 
 ## The concept
 
-By default the app saves a schedule in the **IFC format** (`.ifc`), an open exchange format for construction information. The app writes the IFC schema of the project, IFC 4.3 ADD2 by default (see [Choosing the IFC schema](docs://howto-ifc-schema-kiezen)). Want to see what goes into the file? The *IFC* tab is an editor that shows the IFC text of your project; *Generate IFC* refreshes that text and *Copy* puts it on the clipboard. If you change the text, *Apply* loads it as your project. That fully replaces the project in that tab.
+By default the app saves a schedule in the **IFC format** (`.ifc`), an open exchange format for construction information. The app writes the IFC schema of the project, IFC 4.3 ADD2 by default (see [Choosing the IFC schema](docs://howto-ifc-schema-kiezen)). The *IFC* tab shows the IFC text of the schedule. *Generate IFC* refreshes the text and *Copy* puts it on the clipboard. Use *Apply* to replace the schedule in the current tab with the edited text. The button is disabled for a building model or data from another program.
 
-With the experimental setting *Open and save IFCX* on, you can also save a schedule in the **IFCX format** (`.ifcx`), an exchange format for construction information that is still in development. To try it with a copy of your schedule, save the copy as IFCX and reopen it in Open Planner Studio. The building model or P6 source archive stays in the original file. To exchange files with another program, use the IFC format if that program reads IFC. A later version of the app may refuse an experimental IFCX file.
+With the experimental setting *Open and save IFCX* on, you can also save a schedule in the **IFCX format** (`.ifcx`), an exchange format for construction information that is still in development. On the desktop, use *Save As* to save your schedule in a new IFCX file and reopen it in Open Planner Studio. The building model or P6 source archive stays in the original file. To exchange files with another program, use the IFC format if that program reads IFC. A later version of the app may refuse an experimental IFCX file.
 
-CSV, XML, MPP and XER are for exchanging data with other programs. The app reads CSV, MS Project XML, Primavera P6 XML, MS Project files (`.mpp`) and Primavera files (`.xer`). It writes CSV, MS Project XML, Primavera P6 XML, Primavera files (`.xer`) and two progress sheets. You cannot export to `.mpp`.
+CSV, XML, MPP and XER are for exchanging data with other programs. The app reads CSV, MS Project XML, Primavera P6 XML, MS Project files (`.mpp`) and Primavera files (`.xer`). It writes CSV, MS Project XML, Primavera P6 XML, Primavera files (`.xer`) and a progress sheet for Excel. You cannot export to `.mpp`.
 
 When you export to another package, the selected export format determines which data goes along. A CSV export, for example, contains the task list. The IFC format also keeps the schedule's logic, resources and calendars.
 
@@ -16,15 +16,15 @@ When you export to another package, the selected export format determines which 
 
 ### What opening does
 
-The app picks the reader by the extension. With an `.xml` file it looks inside the file to see whether it is MS Project XML or Primavera P6 XML. For an unknown extension, the app tries to read the file as IFC. If that fails, the app reports *Failed to open file*, with the reason.
+When you use *File › Open*, the app picks the reader by the extension. With an `.xml` file it looks inside the file to see whether it is MS Project XML or Primavera P6 XML. For an unknown extension, the app tries to read the file as IFC. If that fails, the app shows the reason.
 
 Every file opens in a tab of its own. The exception is a tab that is still empty and unchanged: that tab takes over the file. A single Primavera file can produce several tabs, one for each project that has tasks.
 
 After opening, the app always recalculates. If the file comes from another package, the dates can differ from what the file said. That is described in [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
 
-An opened IFC file becomes the **save target**: the file that *Save* writes back to. A project from CSV, XML, `.mpp` or `.xer` has no file after opening; *Save* then asks where the new IFC file should go. That way pressing Ctrl+S never overwrites your original file with IFC text.
+The **save target** is the file that *Save* updates. This can be the IFC file you opened, if the app can write to it. After importing CSV, XML, `.mpp` or `.xer`, *Save* writes the schedule to a new IFC file. In Firefox, saving locally downloads a copy.
 
-With the experimental setting *Open and save IFCX* on, a `.ifcx` schedule file opened in the app also becomes a save target. *Save* keeps the file type. To change the type, use [Save As in the desktop app](docs://howto-bestand-openen-en-opslaan).
+With the experimental setting *Open and save IFCX* on, *Save* updates the open IFCX file if the app has write access. For a new local IFCX file, the browser downloads a copy. To change the type, use [Save As in the desktop app](docs://howto-bestand-openen-en-opslaan).
 
 ### What saving writes
 
@@ -95,7 +95,7 @@ Without that constraint the example itself also ends on 2 July 2027. So the diff
 
 ## Consequences and misunderstandings
 
-**Keeping your project.** Use *Save* to update the project file. The IFC format also keeps the archive from a P6 import. Use *Export* to make a copy for the program that will receive the schedule.
+**Keeping your project.** Use *Save* to keep the schedule you are working on. The IFC format also keeps the source archive from a XER import. Use *Export* to make a copy for the program that will receive the schedule.
 
 **Opening an export again does not always give the same schedule.** The app always recalculates on opening, with the calculation profile that belongs to the format. If logic is missing, like the constraint in the CSV example, or the profile calculates differently, the outcome changes.
 
