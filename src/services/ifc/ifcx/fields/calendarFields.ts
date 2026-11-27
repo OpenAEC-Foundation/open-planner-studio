@@ -1,8 +1,7 @@
 import type { CalendarGeneration, Holiday, WorkCalendar, WorkingException, WorkTimeBands } from '@/types/calendar';
 import { DEFAULT_CALENDAR_ID } from '@/engine/calendar/defaultCalendar';
-import { HOLIDAY_COUNTRIES } from '@/engine/calendar/holidays';
 import {
-  arrayOf, CALENDAR_DATE, enumOf, integer, NON_EMPTY_TEXT, objectOf, REAL, TEXT, type IfcxField, type IfcxValue, type SharedField,
+  arrayOf, CALENDAR_DATE, enumOf, integer, membersOf, NON_EMPTY_TEXT, objectOf, REAL, TEXT, type IfcxField, type IfcxValue, type SharedField,
 } from '../fieldTable';
 import { CALENDAR_SOURCE_FIELDS, CALENDAR_SOURCE_KEYS_CARRIED } from './calendarSourceFields';
 
@@ -31,6 +30,19 @@ const BAND: IfcxValue = objectOf({ start: { value: REAL }, end: { value: REAL } 
 const BANDS: IfcxValue = arrayOf(BAND);
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 const HOLIDAYS: IfcxValue = arrayOf(objectOf({ name: { value: TEXT }, start: { value: CALENDAR_DATE }, end: { value: CALENDAR_DATE, optional: true } }));
+const GENERATION_RULE_SETS_1_0 = [
+  'NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US', 'BO', 'ES', 'IT', 'PL', 'PT', 'CZ', 'SE', 'DK', 'NO', 'FI',
+] as const satisfies readonly CalendarGeneration['ruleSetId'][];
+
+function generationValue(ruleSets: readonly CalendarGeneration['ruleSetId'][]): IfcxValue {
+  return objectOf({
+    ruleSetId: { value: enumOf(ruleSets) },
+    region: { value: TEXT, optional: true },
+    breakChoice: { value: enumOf(['noord', 'midden', 'zuid']), optional: true },
+    generatedFromYear: { value: integer(1000, 9999) },
+    generatedToYear: { value: integer(1000, 9999) },
+  });
+}
 
 type Band = { start: number; end: number };
 const bandsOut = (bands: readonly Band[]) => bands.map(band => ({ start: band.start, end: band.end }));
@@ -161,18 +173,17 @@ export const CALENDAR_FIELDS: readonly CalendarField[] = [
   },
   {
     key: 'generation', optional: true,
-    value: objectOf({
-      ruleSetId: { value: enumOf(HOLIDAY_COUNTRIES) },
-      region: { value: TEXT, optional: true },
-      breakChoice: { value: enumOf(['noord', 'midden', 'zuid']), optional: true },
-      generatedFromYear: { value: integer(1000, 9999) },
-      generatedToYear: { value: integer(1000, 9999) },
-    }),
+    value: generationValue([...GENERATION_RULE_SETS_1_0, 'CA']),
     write: s => (s.calendar.generation ? generationOut(s.calendar.generation) : undefined),
     read: (v, t) => setOptional(t.calendar, 'generation', v ? generationOut(v as CalendarGeneration) as CalendarGeneration : undefined),
   },
   ...CALENDAR_SOURCE_FIELDS,
 ];
+
+export const CALENDAR_VALUE_1_0 = objectOf({
+  ...membersOf(CALENDAR_FIELDS),
+  generation: { value: generationValue(GENERATION_RULE_SETS_1_0), optional: true },
+});
 
 export const CALENDAR_KEYS_CARRIED: readonly (keyof WorkCalendar)[] = [
   'id', 'name', 'description', 'workDays', 'workStartHour', 'workEndHour', 'hoursPerDay',
