@@ -44,7 +44,7 @@ export type Snapshot = Pick<
   | 'project' | 'calendar' | 'tasks' | 'sequences' | 'resources' | 'assignments' | 'calendars'
   | 'activityCodeTypes' | 'customFieldDefs' | 'customTaskTypes' | 'cpmResult'
   | 'scheduleStale' | 'baselines' | 'activeBaselineId' | 'comparedBaselineIds' | 'recordedDates' | 'datesAsRecorded'
-  | 'minuteModelPending' | 'ifcGlobalIds'
+  | 'minuteModelPending' | 'ifcGlobalIds' | 'ifcxReferences'
 >;
 
 // Compile-time koppeling tussen de Pick hierboven en de `snapshot`-rollen in DOCUMENT_FIELDS
@@ -141,6 +141,7 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
     customFieldDefs: raw.customFieldDefs ?? [],
     customTaskTypes: raw.customTaskTypes ?? [],
     ifcGlobalIds: raw.ifcGlobalIds ?? null,
+    ifcxReferences: raw.ifcxReferences ?? null,
     cpmResult: raw.cpmResult ?? null,
     scheduleStale: raw.scheduleStale ?? false,
     baselines: raw.baselines ?? [],
@@ -184,6 +185,14 @@ export function documentDataChanged(before: Snapshot, after: Snapshot): boolean 
     if (f.snapshot !== 'data' || b[f.key] === a[f.key]) return false;
     if (f.key === 'project') {
       return !sameValue({ ...before.project, modifiedAt: undefined }, { ...after.project, modifiedAt: undefined });
+    }
+    if (f.key === 'ifcxReferences') {
+      const left = before.ifcxReferences, right = after.ifcxReferences;
+      if (!sameValue(left?.modelSource, right?.modelSource)) return true;
+      const links = left?.elementLinks, other = right?.elementLinks;
+      if (links === other) return false;
+      if (links?.size !== other?.size) return true;
+      return [...links ?? []].some(([id, targets]) => !sameValue(targets, other?.get(id)));
     }
     return !sameValue(b[f.key], a[f.key]);
   });

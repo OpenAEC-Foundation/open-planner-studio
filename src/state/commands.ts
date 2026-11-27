@@ -25,6 +25,7 @@ import { saveShowHistogram } from '@/utils/settingsStore';
 import { ZOOM_STEP } from '@/utils/ganttViewport';
 import i18n from '@/i18n/config';
 import { canRedo, canUndo } from '@/state/sessionHistory';
+import { isTaskListInView } from '@/state/ganttVisibility';
 
 export interface Command {
   /** Stabiele id — tevens de sleutel in {@link COMMANDS}. */
@@ -44,6 +45,8 @@ export interface Command {
 }
 
 const hasSelection = (s: AppState): boolean => s.selectedTaskIds.length > 0;
+
+export const hasEditableSelection = (s: AppState): boolean => hasSelection(s) && isTaskListInView(s.ui);
 
 export const COMMANDS = {
   undo: {
@@ -75,7 +78,7 @@ export const COMMANDS = {
     // Storegebonden bulk-route: het expliciete `run(store)`-contract mag nooit via de
     // app-singleton teruglekken. Het contextmenu gebruikt dezelfde storeactie via zijn adapter.
     run: (s) => { s.deleteTasksBulk(s.selectedTaskIds); },
-    isEnabled: hasSelection,
+    isEnabled: hasEditableSelection,
   },
   indent: {
     id: 'indent',

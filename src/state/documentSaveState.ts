@@ -20,6 +20,7 @@ export interface DocumentSaveState {
   readonly saving: number;
   /** Wanneer een opslag dit document het laatst vastlegde (`commitSavedDocument`), in ms sinds 1970; `null`: nog niet. */
   readonly savedAt: number | null;
+  readonly ifcxSaveRevision?: number;
 }
 
 type Registry = { documents: Array<{ id: string; content?: number; saveState?: DocumentSaveState; changedOnDisk?: true }> };
@@ -67,10 +68,14 @@ export function changeSaving(s: Registry, ref: DocumentContentRef, delta: 1 | -1
 }
 
 /** Een opslag legde deze inhoud vast (`commitSavedDocument`). */
-export function stampSaved(s: Registry, ref: DocumentContentRef, at: number): void {
-  update(s, ref, state => ({ ...state, savedAt: at }));
+export function stampSaved(s: Registry, ref: DocumentContentRef, at: number, ifcxSaveRevision?: number): void {
+  update(s, ref, state => ({ ...state, savedAt: at, ...(ifcxSaveRevision !== undefined ? { ifcxSaveRevision } : {}) }));
   const entry = s.documents.find(document => document.id === ref.id);
   if (entry && (entry.content ?? 0) === ref.content) delete entry.changedOnDisk;
+}
+
+export function ifcxSaveRevisionOf(s: Readonly<Registry>, documentId: string): number {
+  return s.documents.find(entry => entry.id === documentId)?.saveState?.ifcxSaveRevision ?? 0;
 }
 
 export function markChangedOnDisk(s: Registry, documentId: string): void {

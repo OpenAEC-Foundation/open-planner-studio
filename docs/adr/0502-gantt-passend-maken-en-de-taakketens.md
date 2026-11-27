@@ -13,8 +13,7 @@ payload die buiten `createDefaultTaskTime` en `mergeTaskTime` om schrijft; dat i
 (06b) en dat de startketen buiten dit bestand nergens in `src/` staat (39).
 
 `computeFitToProject` is de ene berekening achter Ctrl+0 (`fitToProject`) en de fit na het openen (het signaal
-`pendingFit`), allebei in `useGanttViewportCoordinator.ts`. Hij krijgt de gemeten breedte van het tijdlijnpaneel;
-`check-gantt-coordinate-contracts.ts` zoekt naar een aftrek van `rect.width` in de aanroepen. De zoom is die breedte
+`pendingFit`), allebei in `useGanttViewportCoordinator.ts`. Hij krijgt de gemeten breedte van het tijdlijnpaneel. De zoom is die breedte
 gedeeld door de periode van de vroegste start tot het laatste einde (in as-dagen, plus één, minstens 1), geklemd op
 0,5 tot `maxGanttZoom`. `viewStartDate` wordt de vroegste start, en de scroll loopt vanaf de oorsprong
 (`computeEffectiveViewStart`, ADR 0501) naar die start. Vroegste en laatste worden gekozen door de datumteksten te
@@ -23,9 +22,8 @@ vergelijken.
 ## Gevolgen
 
 - De functie geeft `null` zonder taken, bij een breedte van 0 of minder en als geen enkele taak een start heeft (het
-  einde valt terug op de start). Bij Ctrl+0 zonder taken herstelt `fitToProject` de zoom (ADR 0500); de fit na het
-  openen wist bij een project zonder taken alleen het signaal en laat de weergave staan. Bij `null` om een andere
-  reden doen beide niets.
+  einde valt terug op de start). Bij Ctrl+0 zonder taken herstelt `fitToProject` de zoom (ADR 0500), bij `null` om een andere
+  reden doet hij niets; de fit na het openen wist bij `null` het signaal en laat de weergave staan.
 - De as-afstand komt als `dayDistance` binnen (`axisDayDistance`, ADR 0503), zodat de periode op de werkdagen-as in
   werkdagen telt (`check-workday-axis-nav.ts`). Zonder dat argument telt de functie kalenderdagen.
 - `baselineEarliest` schuift alleen de oorsprong; de zoom en de eerste zichtbare dag blijven die van de taken

@@ -29,14 +29,17 @@ export async function runRecoveryTick(
   onSourceCopyFailure?: (documentId: string) => void,
 ): Promise<boolean> {
   return tracker.runExclusive(async () => {
+    const retained = documents.filter(document => !document.source.ifcxReferences || document.ifcx?.references);
+    const active = activeDocumentId && documents.some(doc => doc.id === activeDocumentId && doc.source.ifcxReferences && !doc.ifcx?.references)
+      ? retained[0]?.id ?? null : activeDocumentId;
     try {
       if (!enabled()) return false;
-      const save = await tracker.prepareAsync(activeDocumentId, documents, serialize);
+      const save = await tracker.prepareAsync(active, retained, serialize);
       // Stop/clean quit kan tijdens workerwerk plaatsvinden. Bied daarna nooit een late save aan;
       // een al aangeboden save staat in de backendketen vóór het wissen.
       if (!save || !enabled()) return false;
       await saveRecovery({ ...save, onSourceCopyFailure });
-      tracker.commit(activeDocumentId, documents);
+      tracker.commit(active, retained);
       return true;
     } finally {
       // Knownbug 1131 stap 1: een lopende vervanging wacht tot haar `pendingSha256` in het manifest staat. Alleen de

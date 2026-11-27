@@ -31,6 +31,8 @@ import { flushRecoveryNow, registerRecoveryFlush } from '@/services/recovery/rec
 import { recoverySourceDocument } from '@/state/recoverySourceDocument';
 import { readRecoveryDocument } from '@/state/readRecoveryDocument';
 import { changedOnDiskShown } from '@/state/openDocumentFor';
+import { taskElementLinks, uncheckedModelLinks } from '@/state/taskElementLinks';
+import { createSnapshot, documentDataChanged } from '@/state/snapshot';
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
 import { fileToolDeps, realFs } from '@/services/mcp/tools/fileTools';
 import { resetPlanOnlyAsker, setPlanOnlyAsker, type PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
@@ -50,6 +52,8 @@ const fixture = (name: string) => new Uint8Array(readFileSync(join(root, 'tests/
 const own = fixture(FIXTURES[0]);
 const other = fixture(FIXTURES[1]);
 const withModel = fixture('planning-met-model.ifcx');
+const facade = new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifcx/extern/gevel.ifcx')));
+const linkedModel = new Uint8Array(readFileSync(join(root, 'docs/superpowers/evidence/2026-11-27-ifcx-verwijzing-los-modelbestand/model.ifcx')));
 const dir = mkdtempSync(join(tmpdir(), 'ops-ifcx-app-'));
 const hash = (data: Uint8Array) => createHash('sha256').update(data).digest('hex');
 const text = (data: Uint8Array) => new TextDecoder().decode(data);
@@ -80,15 +84,18 @@ function desktop(appDataDir: string = mkdtempSync(join(tmpdir(), 'ops-ifcx-appda
   const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
   const invoke = win.__TAURI_INTERNALS__.invoke;
   let answer: string | null = null;
+  let after: string | null | undefined;
   const dialogs: DialogCall[] = [];
   win.__TAURI_INTERNALS__.invoke = async (...args) => {
     if (args[0] === 'plugin:dialog|save') {
       dialogs.push(((args[1] ?? {}) as { options?: DialogCall }).options ?? {});
-      return answer;
+      const chosen = answer;
+      if (after !== undefined) { answer = after; after = undefined; }
+      return chosen;
     }
     return invoke(...args);
   };
-  return { ...ipc, dialogs, choose: (path: string | null) => { answer = path; } };
+  return { ...ipc, dialogs, choose: (path: string | null, next?: string | null) => { answer = path; after = next; } };
 }
 
 function saveWorker(mode: 'auto' | 'none' = 'auto') {
@@ -164,11 +171,12 @@ async function recoverInto(store: Store, flags: FeatureFlagValues): Promise<Stor
   const unregister = registerRecoveryFlush(async () => {
     const s = store.getState();
     await runRecoveryTick(tracker, s.activeDocumentId,
-      s.getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, !!s.ui.featureFlags.ifcForeignContent)));
+      s.getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, !!s.ui.featureFlags.ifcForeignContent, !!s.ui.featureFlags.ifcx)));
   });
   try { await flushRecoveryNow(); } finally { unregister(); }
   const loaded = await loadRecovery();
-  assert.equal(loaded.docs.length, store.getState().getOpenDocumentPayloads().length);
+  assert.deepEqual(loaded.docs.map(doc => doc.id), store.getState().getOpenDocumentPayloads()
+    .filter(doc => !doc.payload.ifcxReferences || store.getState().ui.featureFlags.ifcx).map(doc => doc.id));
   const restored = (await newApp(flags)).store;
   const inputs = [];
   for (const doc of loaded.docs) inputs.push(await readRecoveryDocument(doc, loaded.archives, false));
@@ -240,16 +248,338 @@ await check('een onbekende IFCX-versie meldt ifcx.open.unsupportedVersion; een n
   const profileStore = await openAt(profilePath, IFCX_ON);
   assert.deepEqual(errors(profileStore), ['ifcx.open.newer']);
 
-  const modelPath = join(dir, 'planning-met-model.ifcx');
-  writeFileSync(modelPath, withModel);
-  const { store } = await newApp(IFCX_ON);
-  const tabs = () => store.getState().getOpenDocumentPayloads().map(doc => doc.id);
-  const before = tabs();
-  await openInto(store, modelPath);
-  assert.deepEqual(errors(store), ['ifcx.open.newer'], 'de app kan de modelverwijzingen nog niet bewaren');
-  assert.deepEqual(tabs(), before);
-  assert.equal(store.getState().filePath, null);
-  assert.equal(store.getState().knownTargetFingerprint, null);
+});
+
+await check('modelbron openen en een eigen planning ernaast opslaan en heropenen', async () => {
+  const ipc = desktop();
+  try {
+    const model = facade;
+    const path = join(dir, 'gevel.ifcx'), plan = join(dir, 'gevel - planning.ifcx');
+    writeFileSync(path, model);
+    const store = await openAt(path, IFCX_ON);
+    assert.deepEqual(errors(store), []);
+    assert.equal(store.getState().tasks.length, 0);
+    assert.equal(store.getState().filePath, null);
+    assert.equal(store.getState().knownTargetFingerprint, null);
+    assert.equal(store.getState().project.name, 'gevel - planning');
+    assert.equal(store.getState().documents.length, 2);
+    assert(store.getState().ui.notifications.some(n => n.messageKey === 'ifcx.model.opened'));
+    const id = store.getState().addTask({ name: 'Gevel plaatsen' });
+    ipc.choose(path);
+    assert.equal(await save(store), false);
+    assert.deepEqual(bytesAt(path), model);
+    clearNotices(store);
+    ipc.choose(plan);
+    assert.equal(await save(store), true);
+    assert.equal(ipc.dialogs[0].defaultPath, plan);
+    assert.equal(store.getState().filePath, plan);
+    assert(ipc.calls.some(c => c.command === 'place_file_exclusive'));
+    const written = readIfcx(bytesAt(plan));
+    assert.deepEqual(written.modelSource, { fileName: 'gevel.ifcx', sha256: hash(model) });
+    assert.equal(written.tasks.find(t => t.id === id)?.name, 'Gevel plaatsen');
+    const reopened = await openAt(plan, IFCX_ON);
+    const jobs = workerOf.get(store)!.jobs();
+    for (const job of jobs) {
+      assert.equal(job.kind, 'writer');
+      assert(!('ifcxModel' in job.input) && !('ifcxReferences' in job.input) && !('fileHandle' in job.input));
+    }
+    reopened.getState().updateTask(id, { name: 'Gevel gereed' });
+    assert.equal(await save(reopened), true);
+    assert.equal(readIfcx(bytesAt(plan)).tasks.find(t => t.id === id)?.name, 'Gevel gereed');
+    assert.deepEqual(readIfcx(bytesAt(plan)).modelSource, written.modelSource);
+    assert.deepEqual(bytesAt(path), model);
+    assert.deepEqual(errors(await openAt(path, {})), ['notifications.openFailed']);
+    const otherTab = reopened.getState().activeDocumentId;
+    reopened.getState().newDocument();
+    assert.equal(await reopened.getState().foreignTargetCheck(null)({ kind: 'path', path }), true);
+    const alias = join(dir, 'alias-gevel.csv');
+    symlinkSync(path, alias);
+    assert.equal(await reopened.getState().foreignTargetCheck(null)({ kind: 'path', path: alias }), true);
+    ipc.choose(alias);
+    await reopened.getState().exportAs('csv');
+    assert.deepEqual(bytesAt(path), model);
+    ipc.choose(path);
+    await reopened.getState().exportAs('csv');
+    assert.deepEqual(bytesAt(path), model);
+    reopened.getState().switchDocument(otherTab);
+    clearNotices(reopened);
+    ipc.choose(path);
+    await reopened.getState().saveFileAs();
+    assert.deepEqual(errors(reopened), ['notifications.ifcForeignTargetSave']);
+    assert.deepEqual(bytesAt(path), model);
+    const mixed = JSON.parse(text(model));
+    mixed.data.push({ path: 'taak', attributes: { 'openaec::planning::activity': {} } });
+    const mixedPath = join(dir, 'gemengd.ifcx');
+    writeFileSync(mixedPath, JSON.stringify(mixed));
+    assert.deepEqual(errors(await openAt(mixedPath, IFCX_ON)), ['ifcx.open.foreign']);
+    mixed.data = [];
+    writeFileSync(mixedPath, JSON.stringify(mixed));
+    assert.deepEqual(errors(await openAt(mixedPath, IFCX_ON)), ['ifcx.open.foreign']);
+  } finally { ipc.dispose(); }
+});
+
+await check('modelkoppelingen bij het heropenen met een gelijk, gewijzigd of ontbrekend buurmodel', async () => {
+  const model = linkedModel;
+  const original = readIfcx(withModel);
+  assert.equal(original.modelSource?.sha256, hash(model));
+  const id = original.tasks[0].id;
+  for (const status of ['gelijk', 'gewijzigd', 'ontbreekt', 'geen leesrecht', 'eigen naam', 'alias van planning']) {
+    const ipc = desktop();
+    try {
+      const folder = mkdtempSync(join(dir, status));
+      const path = join(folder, 'model.ifcx');
+      const plan = status === 'eigen naam' ? path : join(folder, 'planning-met-model.ifcx');
+      if (status === 'gelijk' || status === 'geen leesrecht') writeFileSync(path, model);
+      if (status === 'geen leesrecht') ipc.faults.onCall = (command, candidate) => {
+        if (command === 'plugin:fs|read_file' && candidate === path) throw new Error('Geen leesrecht');
+      };
+      if (status === 'gewijzigd') {
+        const changed = JSON.parse(text(model));
+        changed.data.pop();
+        writeFileSync(path, JSON.stringify(changed));
+      }
+      writeFileSync(plan, withModel);
+      if (status === 'alias van planning') symlinkSync(plan, path);
+      const store = await openAt(plan, IFCX_ON);
+      assert.deepEqual(errors(store), []);
+      assert.deepEqual(store.getState().ifcxReferences?.modelSource, original.modelSource);
+      assert.equal(uncheckedModelLinks(store.getState()), status !== 'gelijk');
+      const links = () => taskElementLinks(store.getState(), id);
+      const before = createSnapshot(store.getState());
+      const removed = { ...before, ifcxReferences: { ...before.ifcxReferences, elementLinks: new Map() } };
+      assert.equal(documentDataChanged(before, removed), true);
+      assert.deepEqual(links()?.map(link => [link.target, link.found]), [
+        ['e671b834-a918-42c4-9901-000000000001', status === 'gelijk'], ['/gevel/Raam-02', false],
+      ]);
+      const notices = store.getState().ui.notifications.filter(n => n.messageKey === 'ifcx.model.unchecked');
+      assert.deepEqual(notices.map(n => n.params?.file), status === 'gelijk' ? [] : ['model.ifcx']);
+      store.getState().deleteTask(id);
+      store.getState().undo();
+      assert.equal(links()?.length, 2);
+      const tab = store.getState().activeDocumentId;
+      store.getState().newDocument();
+      store.getState().switchDocument(tab);
+      assert.equal(links()?.[0].found, status === 'gelijk');
+      const edited = shiftFirstTask(store);
+      store.getState().setAutoSaveToFile(true);
+      await autosaveOf(store).flush();
+      const automatic = readIfcx(bytesAt(plan));
+      assert.deepEqual(automatic.modelSource, original.modelSource);
+      assert.deepEqual(automatic.elementLinks, original.elementLinks);
+      assert.equal(automatic.tasks.find(task => task.id === edited)?.time.scheduleDuration,
+        store.getState().tasks.find(task => task.id === edited)!.time.scheduleDuration);
+      assert.equal(workerOf.get(store)!.jobs().length, 1);
+      assert.equal(await save(store), true, `Ctrl+S schrijft de eigen planning bij ${status}`);
+      const written = readIfcx(bytesAt(plan));
+      assert.equal(written.tasks.find(task => task.id === edited)?.time.scheduleDuration,
+        store.getState().tasks.find(task => task.id === edited)!.time.scheduleDuration);
+      assert.deepEqual(written.modelSource, original.modelSource);
+      assert.deepEqual(written.elementLinks, original.elementLinks);
+      localStorage.setItem('ops-featureFlags', JSON.stringify(IFCX_ON));
+      const recovery = await recoverInto(store, IFCX_ON);
+      localStorage.removeItem('ops-featureFlags');
+      assert.equal(recovery.getState().filePath, plan);
+      assert.deepEqual(recovery.getState().ifcxReferences, store.getState().ifcxReferences);
+      assert.equal(uncheckedModelLinks(recovery.getState()), status !== 'gelijk');
+      const reopened = await openAt(plan, IFCX_ON);
+      assert.equal(await save(reopened), true);
+      assert.deepEqual(readIfcx(bytesAt(plan)).elementLinks, original.elementLinks);
+      assert.deepEqual(readIfcx(bytesAt(plan)).modelSource, original.modelSource);
+      if (status === 'gelijk') {
+        assert.deepEqual(bytesAt(path), model);
+        const step = join(folder, 'omgezet.ifc');
+        ipc.choose(step);
+        const beforeExport = bytesAt(plan);
+        const exported = await reopened.getState().exportAs('ifc');
+        assert(exported.ok && !exported.cancelled);
+        assert(isStep(bytesAt(step)));
+        const lossNotices = (store: typeof reopened) => store.getState().ui.notifications.filter(n => n.messageKey === 'ifcx.model.ifcExportLoss').length;
+        assert.equal(lossNotices(reopened), 1);
+        assert.deepEqual(bytesAt(plan), beforeExport);
+        const plain = await openAt(step, IFCX_ON);
+        assert.equal(plain.getState().ifcxReferences, null);
+        const copy = join(folder, 'kopie.ifc');
+        ipc.choose(copy);
+        const exportedPlain = await plain.getState().exportAs('ifc');
+        assert(exportedPlain.ok && !exportedPlain.cancelled);
+        assert(isStep(bytesAt(copy)));
+        const pooledCopy = join(folder, 'kopie-met-bibliotheek.ifc'), plainLibrary = join(folder, 'kopie-bibliotheek.ifc');
+        plain.getState().setProject({ companyId: plain.getState().seedDemoLibrary(), companyName: 'Proefbedrijf' });
+        ipc.choose(pooledCopy, plainLibrary);
+        const pooledPlain = await plain.getState().exportProjectWithPool();
+        assert(pooledPlain.ok && !pooledPlain.cancelled);
+        assert(isStep(bytesAt(pooledCopy)) && existsSync(plainLibrary));
+        assert.equal(lossNotices(plain), 0);
+        reopened.getState().setProject({ companyId: reopened.getState().seedDemoLibrary(), companyName: 'Proefbedrijf' });
+        const libraryFile = join(folder, 'bibliotheek.ifc');
+        for (const [name, library] of [['bibliotheek-geannuleerd.ifc', null], ['met-bibliotheek.ifc', libraryFile]] as const) {
+          clearNotices(reopened);
+          const pooledStep = join(folder, name);
+          ipc.choose(pooledStep, library);
+          const pooled = await reopened.getState().exportProjectWithPool();
+          assert(pooled.ok && !!pooled.cancelled === (library === null));
+          assert(isStep(bytesAt(pooledStep)));
+          assert.equal(existsSync(libraryFile), library !== null);
+          assert.equal(lossNotices(reopened), 1);
+          assert.deepEqual(bytesAt(plan), beforeExport);
+          assert.deepEqual(bytesAt(path), model);
+        }
+      }
+    } finally { ipc.dispose(); }
+  }
+});
+
+await check('modelplanning opslaan als IFC: annuleren, omzetten, bewerken en ongedaan maken', async () => {
+  const ipc = desktop();
+  const reasons: PlanOnlyReason[] = [];
+  let yes = false;
+  setPlanOnlyAsker(async reason => { reasons.push(reason); return yes; });
+  try {
+    const folder = mkdtempSync(join(dir, 'opslaan-als-ifc-'));
+    const plan = join(folder, 'planning-met-model.ifcx'), model = join(folder, 'model.ifcx');
+    writeFileSync(plan, withModel);
+    writeFileSync(model, linkedModel);
+    const alias = join(folder, 'modelalias.ifc');
+    symlinkSync(model, alias);
+    const planAlias = join(folder, 'planningalias.ifc');
+    symlinkSync(plan, planAlias);
+    for (const schema of ['IFC4X3_ADD2', 'IFC4'] as const) {
+      const store = await openAt(plan, schema === 'IFC4' ? BOTH_ON : IFCX_ON);
+      const target = join(folder, `planning-${schema}.ifc`);
+      const id = store.getState().tasks[0].id;
+      const refs = store.getState().ifcxReferences;
+      assert(refs?.modelSource && refs.elementLinks?.get(id)?.length);
+      if (schema === 'IFC4') store.getState().applyProjectInfo({ ifcSchema: schema }, undefined);
+      assert.equal(store.getState().project.ifcSchema, schema);
+      store.getState().updateTask(id, { name: 'Gecontroleerde planning' });
+      const before = store.getState().getOpenDocumentPayloads();
+      reasons.length = 0;
+      yes = false;
+      ipc.choose(target);
+      await store.getState().saveFileAs();
+      assert.equal(existsSync(target), false, 'Annuleren schrijft geen STEP-bestand');
+      assert.deepEqual(reasons, ['ifcxModelSaveAsIfc'], 'één omzetvraag vóór het schrijven');
+      assert.deepEqual(store.getState().getOpenDocumentPayloads(), before);
+      assert.deepEqual(errors(store), []);
+      assert.deepEqual(bytesAt(plan), withModel);
+      assert.deepEqual(bytesAt(model), linkedModel);
+
+      yes = true;
+      ipc.choose(alias);
+      await store.getState().saveFileAs();
+      assert.deepEqual(errors(store), ['notifications.ifcForeignTargetSave']);
+      assert.equal(store.getState().filePath, plan);
+      assert.deepEqual(bytesAt(model), linkedModel);
+      clearNotices(store);
+      ipc.choose(planAlias);
+      await store.getState().saveFileAs();
+      assert.deepEqual(errors(store), ['notifications.ifcForeignTargetOpenInTab']);
+      assert.deepEqual(bytesAt(plan), withModel);
+      clearNotices(store);
+      reasons.length = 0;
+      if (schema === 'IFC4') writeFileSync(target, ownStep);
+      ipc.choose(target);
+      await store.getState().saveFileAs();
+      const step = bytesAt(target);
+      assert(isStep(step) && text(step).includes(`FILE_SCHEMA(('${schema}'));`));
+      assert.equal(store.getState().filePath, target);
+      assert.equal(store.getState().fileFormat, 'ifc');
+      assert.equal(store.getState().ifcxReferences, null);
+      assert.equal(store.getState().isDirty, false);
+      const reopened = await openAt(target, IFCX_ON);
+      assert.deepEqual(errors(reopened), []);
+      assert.equal(reopened.getState().ifcxReferences, null);
+      assert.deepEqual(reopened.getState().tasks.map(t => [t.id, t.name]), store.getState().tasks.map(t => [t.id, t.name]));
+      store.getState().updateTask(id, { name: 'Na de omzetting' });
+      assert.equal(await save(store), true);
+      const edited = bytesAt(target);
+      assert.equal(readIFC(text(edited)).tasks.find(t => t.id === id)?.name, 'Na de omzetting');
+      assert.deepEqual(reasons, ['ifcxModelSaveAsIfc']);
+      assert.deepEqual(errors(store), []);
+      store.getState().undo();
+      store.getState().undo();
+      assert.deepEqual(store.getState().ifcxReferences, refs);
+      assert.equal(store.getState().filePath, target);
+      assert.equal(await save(store), false);
+      assert.deepEqual(errors(store), ['ifcx.model.saveAsIfc']);
+      assert.deepEqual(bytesAt(target), edited);
+      assert.deepEqual(bytesAt(plan), withModel);
+      assert.deepEqual(bytesAt(model), linkedModel);
+      const restored = join(folder, `met-koppelingen-${schema}.ifcx`);
+      ipc.choose(restored);
+      await store.getState().saveFileAs();
+      assert.deepEqual(readIfcx(bytesAt(restored)).elementLinks, refs.elementLinks);
+      assert.deepEqual(readIfcx(bytesAt(restored)).modelSource, refs.modelSource);
+      assert.deepEqual(reasons, ['ifcxModelSaveAsIfc']);
+    }
+    const linksOnly = join(folder, 'alleen-koppelingen.ifcx');
+    const original = readIfcx(withModel);
+    writeFileSync(linksOnly, writeIfcx({ ...buildWriteIFCInput(documentDataFromImport(original), 'merge'), elementLinks: original.elementLinks }));
+    const app = await openApp(linksOnly, IFCX_ON);
+    assert.equal(app.store.getState().ifcxReferences?.modelSource, undefined);
+    const exported = join(folder, 'koppelingen-export.ifc');
+    ipc.choose(exported);
+    const result = await app.store.getState().exportAs('ifc');
+    assert(result.ok && !result.cancelled && isStep(bytesAt(exported)));
+    assert(app.store.getState().ui.notifications.some(n => n.messageKey === 'ifcx.model.ifcExportLoss'));
+    const viaMcp = await exportViaMcp(app, join(folder, 'mcp-export.ifc'));
+    assert(viaMcp.ok && (viaMcp.data as { notice?: string }).notice?.includes('element links'));
+    ipc.choose(join(folder, 'koppelingen.ifc'));
+    reasons.length = 0;
+    await app.store.getState().saveFileAs();
+    assert.deepEqual(reasons, ['ifcxModelSaveAsIfc']);
+    assert.equal(app.store.getState().ifcxReferences, null);
+    const off = await openAt(plan, IFCX_ON);
+    setFlags(off, {});
+    reasons.length = 0;
+    await off.getState().saveFileAs();
+    assert.deepEqual(errors(off), ['ifcx.model.saveAsIfc']);
+    assert.deepEqual(reasons, []);
+    assert.equal(off.getState().filePath, plan);
+    const plainIfcx = join(folder, 'eigen.ifcx');
+    writeFileSync(plainIfcx, own);
+    for (const flags of [IFCX_ON, {}] as FeatureFlagValues[]) {
+      reasons.length = 0;
+      const plain = await openAt(flags.ifcx ? plainIfcx : join(folder, 'planning-IFC4.ifc'), flags);
+      const copy = join(folder, `gewoon-${!!flags.ifcx}.ifc`);
+      ipc.choose(copy);
+      await plain.getState().saveFileAs();
+      assert.deepEqual(errors(plain), []);
+      assert(isStep(bytesAt(copy)));
+      assert.deepEqual(reasons, []);
+    }
+  } finally { resetPlanOnlyAsker(); ipc.dispose(); }
+
+  const { resolveObjectURL } = await import('node:buffer');
+  const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  const downloads: { name: string; bytes: Promise<ArrayBuffer> }[] = [];
+  const win = window as unknown as Record<string, unknown>;
+  let pickers = 0;
+  win.showOpenFilePicker = async () => [];
+  win.showSaveFilePicker = async () => { pickers++; throw new Error('Onverwachte opslaankiezer'); };
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: {
+    documentElement: {},
+    createElement: () => ({ href: '', download: '', click() {
+      downloads.push({ name: this.download, bytes: resolveObjectURL(this.href)!.arrayBuffer() });
+    } }),
+  } });
+  try {
+    const { store } = await newApp(IFCX_ON);
+    await store.getState().openOpenedFile({ name: 'planning-met-model.ifcx', content: '', bytes: withModel, ref: null });
+    await store.getState().saveFileAs();
+    assert.equal(pickers, 0);
+    assert.deepEqual(errors(store), []);
+    assert.deepEqual(downloads.map(d => d.name), ['planning-met-model.ifcx']);
+    const saved = readIfcx(new Uint8Array(await downloads[0].bytes));
+    const original = readIfcx(withModel);
+    assert.deepEqual(saved.modelSource, original.modelSource);
+    assert.deepEqual(saved.elementLinks, original.elementLinks);
+  } finally {
+    delete win.showOpenFilePicker;
+    delete win.showSaveFilePicker;
+    if (previousDocument) Object.defineProperty(globalThis, 'document', previousDocument);
+    else Reflect.deleteProperty(globalThis, 'document');
+  }
 });
 
 for (const [label, flags] of [['alleen ifcx', IFCX_ON], ['ifcx en ifcForeignContent', BOTH_ON]] as const) {
@@ -279,7 +609,11 @@ for (const [label, flags] of [['alleen ifcx', IFCX_ON], ['ifcx en ifcForeignCont
       const tabs = store.getState().getOpenDocumentPayloads().length;
       await openInto(store, path);
       assert.equal(store.getState().getOpenDocumentPayloads().length, tabs, 'opnieuw openen geeft geen tweede tabblad');
+      const from = ipc.calls.length;
       const reopened = await openAt(path, flags);
+      assert.equal(reopened.getState().ifcxReferences, null);
+      assert(!reopened.getState().ui.notifications.some(n => n.messageKey.startsWith('ifcx.model.')));
+      assert(!ipc.calls.slice(from).some(c => c.command === 'plugin:fs|read_file' && c.path?.startsWith(dir) && c.path !== path));
       assert.equal(shown(reopened.getState().tasks), shown(store.getState().tasks), 'heropend: dezelfde datums');
       assert.deepEqual([...(readIfcx(written).ifcLiteralCalendarIds ?? [])].sort(),
         [...(store.getState().ifcLiteralCalendarIds ?? [])].sort(), 'de letterlijke kalenders van het bestand zijn vastgelegd');
@@ -934,7 +1268,7 @@ await check('doelbescherming: een bestaand IFCX van een ander, onleesbaar of afg
   assert.equal(classifyIfcx(foreignIfcx), 'foreign');
   assert.notEqual(classifyIfcx(unreadableIfcx), 'own');
   assert.equal(classifyIfcx(truncatedIfcx), 'not-ifcx');
-  for (const [kind, content] of [['vreemd', foreignIfcx], ['onleesbaar', unreadableIfcx], ['afgekapt', truncatedIfcx], ['met-model', withModel]] as const) {
+  for (const [kind, content] of [['vreemd', foreignIfcx], ['onleesbaar', unreadableIfcx], ['afgekapt', truncatedIfcx]] as const) {
     const notice = classifyIfcx(content) === 'foreign' ? 'notifications.ifcForeignTargetSave' : 'notifications.ifcUnreadableTargetSave';
     const ipc = desktop();
     try {
@@ -1069,7 +1403,7 @@ await check('browser: een IFCX-document slaat een nieuw doel op als download met
     documentElement: {},
   } });
   let pickerCalls = 0, writes = 0;
-  const pickedHandle = { kind: 'file', name: 'kopie.ifcx',
+  let pickedHandle = { kind: 'file', name: 'kopie.ifcx',
     getFile: async () => new File([], 'kopie.ifcx'),
     createWritable: async () => { writes++; return { write: async () => {}, close: async () => {}, abort: async () => {} }; },
     queryPermission: async () => 'granted', requestPermission: async () => 'granted', isSameEntry: async () => false };
@@ -1102,11 +1436,35 @@ await check('browser: een IFCX-document slaat een nieuw doel op als download met
     assert.equal(pickerCalls, 0);
     const step = (await newApp(IFCX_ON)).store;
     await step.getState().openOpenedFile({ name: 'stap.ifc', content: text(ownStep), ref: null });
+    const stepTab = step.getState().activeDocumentId;
     assert.equal(step.getState().fileFormat, 'ifc');
     await step.getState().saveFileAs();
     assert.equal(pickerCalls, 1, 'een IFC-document gebruikt de kiezer zoals main');
     assert.deepEqual(errors(step), ['ifcx.nameMismatch'], 'de kiezer gaf kopie.ifcx terug: niet bij het formaat');
     assert.equal(writes, 0, 'niets naar dat doel geschreven');
+    await step.getState().openOpenedFile({ name: 'gevel.ifcx', content: '', bytes: facade, ref: null });
+    assert.equal(step.getState().filePath, null);
+    step.getState().addTask({ name: 'Begane grond' });
+    const beforeModel = downloads.length;
+    assert.equal(await save(step), true);
+    assert.equal(downloads[beforeModel].name, 'gevel - planning.ifcx');
+    assert.deepEqual(readIfcx(new Uint8Array(await downloads[beforeModel].blob.arrayBuffer())).modelSource,
+      { fileName: 'gevel.ifcx', sha256: hash(facade) });
+    step.getState().switchDocument(stepTab);
+    assert.equal(step.getState().fileFormat, 'ifc');
+    for (const flags of [IFCX_ON, {}]) {
+      setFlags(step, flags);
+      pickedHandle = { ...pickedHandle, name: 'kopie.ifc' };
+      const beforePicker: number = pickerCalls;
+      const beforeWrites: number = writes;
+      clearNotices(step);
+      await step.getState().saveFileAs();
+      assert.deepEqual(errors(step), []);
+      assert.equal(pickerCalls, beforePicker + 1, 'de gewone planning gebruikt de kiezer terwijl het model open is');
+      assert.equal(writes, beforeWrites + 1);
+      assert.equal(step.getState().fileHandle, pickedHandle, 'de gekozen kopie is het nieuwe schrijfdoel');
+      assert.equal(downloads.length, beforeModel + 1);
+    }
   } finally {
     URL.createObjectURL = create; URL.revokeObjectURL = revoke;
     delete win.showOpenFilePicker; delete win.showSaveFilePicker;
@@ -1120,10 +1478,13 @@ await check('browser: Openen, Recent en slepen met een andere handle voor hetzel
   const { openDroppedFiles } = await import('@/state/fileDrop');
   const labels = buildImportLabels((key) => key);
   const win = window as unknown as Record<string, unknown>;
-  const handlesTo = (name: string, bytes: Uint8Array) => {
+  const handlesTo = (name: string, bytes: Uint8Array, canRead = () => true) => {
     const entry = {};
     return () => ({ kind: 'file', name, entry,
-      getFile: async () => new File([bytes.slice()], name),
+      getFile: async () => {
+        if (!canRead()) throw new DOMException('Geen leesrecht', 'NotAllowedError');
+        return new File([bytes.slice()], name);
+      },
       queryPermission: async () => 'granted', requestPermission: async () => 'granted',
       isSameEntry: async (other: { entry?: object }) => other?.entry === entry,
     }) as unknown as FileSystemFileHandle;
@@ -1160,6 +1521,25 @@ await check('browser: Openen, Recent en slepen met een andere handle voor hetzel
   const fileTabs = (store: Store) => store.getState().getOpenDocumentPayloads().filter(d => d.payload.fileHandle !== null).length;
   try {
     for (const route of ['Openen', 'Recent', 'slepen'] as const) {
+      const model = (await newApp(IFCX_ON)).store;
+      let firstReadable = true;
+      await openVia(model, route, handlesTo('model.ifcx', facade, () => firstReadable)());
+      assert.equal(model.getState().ifcxReferences?.modelSource?.sha256, hash(facade));
+      firstReadable = route !== 'Recent';
+      await openVia(model, route, handlesTo('zonder-treffer.ifcx', withModel)());
+      assert.equal(uncheckedModelLinks(model.getState()), true, `${route}: geen leesbaar model met de juiste hash`);
+      assert.deepEqual(taskElementLinks(model.getState(), model.getState().tasks[0].id)?.map(link => link.found), [false, false]);
+      const source = handlesTo('model.ifcx', linkedModel);
+      await openVia(model, route, source());
+      assert.deepEqual(errors(model), [], route);
+      assert.equal(model.getState().fileHandle, null);
+      assert.equal(model.getState().filePath, null);
+      assert.equal(model.getState().ifcxReferences?.modelSource?.sha256, hash(linkedModel));
+      model.getState().newDocument();
+      assert.equal(await model.getState().foreignTargetCheck(null)({ kind: 'handle', handle: source() }), true);
+      await openVia(model, route, handlesTo('planning-met-model.ifcx', withModel)());
+      assert.equal(uncheckedModelLinks(model.getState()), false, `${route}: het tweede gelijknamige model heeft de juiste hash`);
+      assert.deepEqual(taskElementLinks(model.getState(), model.getState().tasks[0].id)?.map(link => link.found), [true, false]);
       const { store, first, taskId, edited } = await opened(IFCX_ON, 'plan.ifcx', own, route);
       assert.deepEqual(errors(store), [], route);
       assert.equal(fileTabs(store), 1, `${route}: geen tweede tabblad voor hetzelfde bestand`);
@@ -1188,7 +1568,8 @@ await check('site: Ctrl+S schrijft IFCX naar het eigen bestand; Opslaan als norm
   const requests: { id?: string; data: Blob; name?: string; baseVersion?: string }[] = [];
   win.openaecHost = { storage: {
     list: async () => [], versions: async () => [],
-    open: async () => ({ data: new Blob([own.slice().buffer]), file: { name: 'site.ifcx', version: 'v1' } }),
+    open: async (id: string) => ({ data: new Blob([(id === 'gebouw' ? facade : own).slice().buffer]),
+      file: { name: id === 'gebouw' ? 'gevel.ifcx' : 'site.ifcx', version: 'v1' } }),
     save: async (request: { id?: string; data: Blob; name?: string; baseVersion?: string }) => {
       requests.push(request);
       return { id: request.id ?? 'nieuw', name: request.name ?? 'site.ifcx', version: `v${requests.length + 1}` };
@@ -1220,6 +1601,12 @@ await check('site: Ctrl+S schrijft IFCX naar het eigen bestand; Opslaan als norm
     assert.equal(requests[3].name, 'terug.ifc', 'met de flag uit: STEP met een naam op .ifc');
     assert(isStep(new Uint8Array(await requests[3].data.arrayBuffer())));
     assert.equal(store.getState().fileFormat, 'ifc');
+    setFlags(store, IFCX_ON);
+    assert.equal(await store.getState().openFromSite('gebouw'), true);
+    assert.equal(store.getState().siteFileId, null);
+    store.getState().newDocument();
+    assert.equal(await store.getState().foreignTargetCheck(null)({ kind: 'site', id: 'gebouw' }), true);
+    assert(requests.every(request => request.id !== 'gebouw'));
   } finally { delete win.openaecHost; resetSiteAskers(); }
 });
 

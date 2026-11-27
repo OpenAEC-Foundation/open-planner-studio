@@ -41,6 +41,7 @@ import {
 } from '../documentActivation';
 import type { IFCSaveSource } from '../ifcSaveInput';
 import { withXerArchiveIssueNotice } from '../xerArchiveIssueNotice';
+import { ifcxModelSession } from '@/services/ifc/ifcxModelSession';
 import { scheduleFailedNotice } from '../scheduleErrorNotice';
 import { clearRefusals } from '../refusalNotice';
 import type { DocumentContentRef, DocumentSaveState } from '../documentSaveState';
@@ -316,6 +317,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       xerSourceProjectId: src.xerSourceProjectId,
       ifcSource: src.ifcSource,
       foreignSourceMark: src.foreignSourceMark,
+      ifcxReferences: src.ifcxReferences,
       taskTypesVisible: src.taskTypesVisible,
       importPristine: false,
       xerArchiveIssue: src.xerArchiveIssue,
@@ -576,6 +578,12 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       .filter(d => !skippedIds.includes(d.id))
       .map(d => d.xerArchiveIssue));
     if (archiveNotice) get().notify(archiveNotice);
+    for (const d of sharedDocs) {
+      const source = d.ifcxReferences?.modelSource;
+      if (source && !skippedIds.includes(d.id) && !ifcxModelSession(d.ifcxReferences)?.elements) {
+        get().notify({ severity: 'info', messageKey: 'ifcx.model.unchecked', params: { file: source.fileName }, sticky: true });
+      }
+    }
     runtime.emitHostEvent(HOST_EVENTS.scheduleCalculated, {
       hasError: !!cpm?.error,
       error: cpm?.error ?? null,

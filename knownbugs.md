@@ -1776,20 +1776,6 @@ en noem het in je rapport of PR-tekst.
       (`commitOnInputEnter` en haar layout-effect in `src/components/dialogs/CalendarDialog.tsx`) neemt die datum aan
       en schrijft de feestdag naar het project. Voorstel: laat de scheidingstoets de bestaande selectie staan als het
       veld zojuist automatisch is doorgesprongen. Issue #1296. — B
-2520. **Verwijderen en Dissolve in het lint staan aan onder het volledige resourcepaneel, en verwijderen dan een
-      taak die niet in beeld is.** De sneltoetsen Delete en Backspace zijn daar dicht (`isTaskListOutOfView` in
-      `src/hooks/keyboard/shortcutRegistry.ts`, op `isTaskListInView`). In het relatiemenu (`RelationDropdown` in
-      `ribbonWidgets.tsx`) zijn koppelen en toewijzen daar dicht (`relationActionAvailability`) en tekenen ook
-      (`isGanttWorkspaceVisible`); het menu zelf gaat wel open, en bij één geselecteerde taak blijft *Externe relatie
-      toevoegen…* beschikbaar. De lintknop Verwijderen (`COMMANDS.delete`,
-      alleen `hasSelection`) en de knop Dissolve (`editGroup` in `ribbonConfig.tsx`, alleen
-      `selectedTaskIds.length > 0`) kijken niet naar `isTaskListInView`. Proef in Node met een eigen store-context
-      (`createAppStoreContext`): nieuw project met taken A en B, A geselecteerd, op Resources
-      `setUI({ showResourcePanel: true, resourcePanelDocked: false })`, dan naar Start en naar Tabel. Op beide
-      tabbladen is `isGanttWorkspaceVisible` en `isTaskListInView` onwaar (de werkruimte toont dan `ResourcePanel`,
-      `App.tsx`), de selectie blijft staan en `isCommandEnabled(COMMANDS.delete)` is waar; `COMMANDS.delete.run`
-      brengt het aantal taken van 2 naar 1, met één nieuw event in de sessiegeschiedenis, en één `undo()` zet A
-      terug. Het klikken zelf is niet in de browser nagespeeld. Issue #1305. — B
 2521. **Waarschuwingspaneel en Verschuivingen in het lint zetten hun paneel uit als je op de niet-actieve knop klikt
       terwijl het paneel aan staat maar niet in beeld is.** De knoppen (`warningsPanelButton` en
       `scheduleShiftPanelButton` in `ribbonConfig.tsx`) zijn alleen actief als de rail in beeld is, maar hun klik keert
@@ -2019,7 +2005,7 @@ en noem het in je rapport of PR-tekst.
       XER-testbestanden van de repo (`tests/browser/fixtures/xer/`, samen vier taken) wijst geen taak naar een
       ontbrekende kalender; hoe vaak P6 dat exporteert, is niet nagegaan. — B
 
-2487. **Newfoundland and Labrador krijgt Remembrance Day al vóór de invoering onder de algemene arbeidsnormen.**
+2560. **Newfoundland and Labrador krijgt Remembrance Day al vóór de invoering onder de algemene arbeidsnormen.**
       Kies Canada en Newfoundland and Labrador en genereer feestdagen voor een planning die 2001 omvat. De lijst
       bevat 11 november 2001, terwijl de toevoeging in december 2001 is aangenomen en de eerste editie als betaalde
       feestdag op 11 november 2002 viel. De landelijke en andere provinciale regels staan hier los van. Richting:
@@ -8045,6 +8031,24 @@ en noem het in je rapport of PR-tekst.
       De lezer kiest één werkschema bij het eerste werkplan. Neem de overige werkschema’s mee in
       `leftBehind`, zodat de planner ze vóór de eerste eigen opslag terugziet. — S
 
+2409. **Een ongebruikelijke alias van een IFCX-model kan buiten de bestandsvergelijking vallen.**
+      De app herkent het bronpad en de bestandsidentiteit die het platform teruggeeft. Controleer vóór
+      het standaard aanzetten ook aliassen op volumes zonder betrouwbare bestandsidentiteit en een
+      externe vervanging tussen de laatste controle en het plaatsen. — S (ontwerpstap fase 4, §6)
+
+2410. **Bij opnieuw kiezen van een open IFCX-planning toont het tabblad de vorige modelcontrole.**
+      De app controleert het buurmodel opnieuw. Als dezelfde versie van de planning al open is, activeert
+      ze het bestaande tabblad en vervalt de nieuwe controle. Een inmiddels gewijzigd model wordt pas
+      zichtbaar na sluiten en heropenen. Leg bij stuk 5 vast hoe de modelcontrole op het open tabblad
+      wordt ververst met behoud van de onopgeslagen planning. Gevolgd in de code bij de review. — S
+
+2411. **Chromium kan een IFCX-model leegmaken als het als doel voor een ander document wordt gekozen.**
+      Kiest de planner bij *Opslaan als* via *Alle bestanden* een bestaand IFCX-model, dan kapt de
+      browser het bestand af voordat de app de handle krijgt en het doel kan weigeren. Dezelfde grens
+      als bij 1899 en 2366 geldt ook voor een model van een ander. Gevolgd in de code, niet gemeten in
+      de browser. Vóór de flag `ifcx` standaard aan gaat: een kiezer die het bestand intact laat, of
+      een bevestiging vóór de kiezer. — S
+
 2415. **Een hoofdtaak met een lege vroege eindtijd kan na openen tot het einde van haar kinderen lopen.**
       In een variant van `precieze-taken.ifcx` heeft Pakket 0 een vroege start van 07:00, een geplande start
       van 09:00, een leeg vroeg einde en een gepland einde op 1 maart 16:00. Na openen begint de taak om 07:00 en eindigt ze
@@ -8054,3 +8058,44 @@ en noem het in je rapport of PR-tekst.
       STEP-lezer zonder XER-brontijden volgen die regel bij dezelfde velden (lege IFCX-tijd of STEP-slot `$`).
       Richting: in de gedeelde functie de vastlegging per kant beoordelen, met de vroege start van het restwerk
       en de eerdere werkelijke start van een lopende taak als proef. — B
+
+2419. **Een uit Recent verdwenen IFCX-planning herstelt in de browser zonder schrijfdoel.**
+      Crashherstel bewaart de id van de planning in Recent. Verwijdert de planner die vermelding of
+      verdringen tien andere bestanden haar, dan zijn na herstel de taken en de modelverwijzingen
+      beschikbaar en vraagt Opslaan opnieuw om een doel. Het verwijderen van de vermelding is
+      nagegaan in `check-ifcx-herstel.ts`. — B
+
+2422. **Een MCP-backup van een planning bij een IFCX-model laat de modelverwijzing stil weg.**
+      *MCP → Veiligheid → Nu backup maken* en de automatische backup langs dezelfde schrijfroute schrijven
+      een STEP-kopie van de planning. Die kopie bevat de modelverwijzing en de bouwdeelkoppelingen niet, en de
+      app meldt dat niet (de backupknop zegt *Backup gemaakt*). De IFCX-planning zelf en het model blijven
+      ongewijzigd. *Exporteren → IFC*, met en zonder bibliotheekbestand, meldt het verlies; de tool
+      `planner_export_ifc` meldt het in haar antwoord zolang de flag `ifcx` aan staat. Zet de planner de
+      flag uit terwijl zo'n planning nog open is, dan ontbreken de koppelingen in de STEP-export en
+      ontbreekt ook die melding. Nog na te gaan: *Toepassen* in het IFC-paneel op zo'n planning. Vóór de flag `ifcx` standaard aan gaat: de backup van zo'n planning als IFCX schrijven en één
+      plek kiezen waar elke STEP-kopie van zo'n document langs moet (`buildWriteIFCInput`). Neem daarbij het
+      heropenen mee: een IFCX-backup staat in de backupmap en niet naast het model, dus de zoekactie naar het
+      buurmodel vindt het model daar niet. Gevolgd in de code bij de review van #1320, ronde 3 en 4. — S
+
+2423. **Bij Opslaan als IFC kan de omzetvraag verschijnen voor een doel dat de app daarna weigert.**
+      Kiest de planner bij een planning bij een IFCX-model als `.ifc`-doel een alias van het model of van
+      de geopende IFCX-planning, dan stelt de app eerst de vraag *alleen de planning*, berekent bij ja de
+      STEP-uitvoer en weigert pas daarna het doel. Er wordt niets geschreven; de planner beantwoordt een
+      overbodige vraag. Gevolgd in de code bij de review van #1324, ronde 1. Richting: het gekozen doel
+      en de documentidentiteit vóór de vraag toetsen en de laatste controle vlak vóór plaatsing houden. — S
+
+2424. **Valt de app uit tussen de opslag van een IFCX-planning en de vernieuwde herstelset, dan kan crashherstel de oudere stand aanbieden.**
+      Op de desktop schrijft *Opslaan* eerst het planningsbestand en vraagt daarna een actuele
+      herstelronde. Stopt het hele proces daartussen en ligt er al een herstelset van versie 6, dan laadt
+      de app na herstart die oudere stand, zonder haar te vergelijken met de nieuwere planning op het
+      schrijfdoel. Het opgeslagen bestand zelf is goed. Gevolgd in de code bij de review van #1325,
+      ronde 1; de proef onderbreekt vóór de manifestwrite en niet erna. Vóór de flag `ifcx` standaard
+      aan gaat: bij herstel de herstelde stand vergelijken met het schrijfdoel, met een proef die na de
+      plaatsing onderbreekt. — S
+
+2431. **Zet de planner de flag `ifcx` uit terwijl een ronde van Automatisch opslaan wacht, dan kan die ronde nog één keer IFCX schrijven.**
+      Een al gekozen ronde gebruikt de flag van het moment waarop ze begon. Wacht ze nog op schrijfrecht
+      of op haar beurt, en is de planning ongewijzigd met hetzelfde schrijfdoel, dan schrijft ze de
+      IFCX-planning nog één keer met de verwijzingen. Gevolgd in de code bij de review van #1325, ronde 3.
+      Vóór de flag `ifcx` standaard aan gaat: de actuele flag ook vlak vóór de plaatsing toetsen, met een
+      wachtende ronde als proef. — S

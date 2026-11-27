@@ -124,6 +124,7 @@ export interface ProjectSlice {
   ifcSource: IfcSource | null;
   /** Zie `DocumentPayload.foreignSourceMark` (#804 fase 1a, fixronde 1). */
   foreignSourceMark: ForeignSourceMark | null;
+  ifcxReferences: import('../documentContract').DocumentPayload['ifcxReferences'];
   /** Werkregel-UI ontsloten voor dit document; zie DOCUMENT_FIELDS. */
   taskTypesVisible: boolean;
   /** Zie `DocumentPayload.importPristine`. */
@@ -226,6 +227,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   xerSourceProjectId: null,
   ifcSource: null,
   foreignSourceMark: null,
+  ifcxReferences: null,
   taskTypesVisible: false,
   importPristine: false,
   xerArchiveIssue: null,

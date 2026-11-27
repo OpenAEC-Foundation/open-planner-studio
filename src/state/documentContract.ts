@@ -12,7 +12,7 @@ import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { normalizeComparedBaselines, noComparedBaselines, type Baseline, type ComparedBaselineIds } from '@/types/baseline';
 export { isFreshImportOrigin } from '@/services/documentData';
-import type { ImportResult } from '@/services/importTypes';
+import type { ImportResult, ReadImportResult } from '@/services/importTypes';
 import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
@@ -63,6 +63,7 @@ export interface DocumentPayload {
   xerSourceArchive: XerSourceArchive | null;
   xerSourceProjectId: string | null;
   ifcSource: IfcSource | null;
+  ifcxReferences: import('@/services/ifc/ifcx/modelReferences').IfcxModelReferences | null;
   foreignSourceMark: ForeignSourceMark | null;
   taskTypesVisible: boolean;
   importPristine: boolean;
@@ -82,9 +83,13 @@ export type DocumentFileFormat = 'ifc' | 'ifcx';
 
 export interface RecoveryIfcxMark {
   readonly known: TargetFingerprint | null;
+  readonly references?: string;
+  readonly format?: 'ifc';
+  readonly modelLocation?: Exclude<import('@/services/fileAccess').FileRef, { kind: 'handle' }>;
+  readonly targetRecentId?: string;
 }
 
-export type RecoveryDocInput = ImportResult & {
+export type RecoveryDocInput = ImportResult & Pick<ReadImportResult, 'ifcxReferences'> & {
   sourceRestored?: true;
   fileHandle?: FileSystemFileHandle | null;
   id: string;
@@ -194,6 +199,7 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'xerSourceArchive', get: (s) => s.xerSourceArchive, set: (s, v) => { s.xerSourceArchive = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceArchive ?? null }),
   field({ key: 'xerSourceProjectId', get: (s) => s.xerSourceProjectId, set: (s, v) => { s.xerSourceProjectId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceProjectId ?? null }),
   field({ key: 'ifcSource', get: (s) => s.ifcSource, set: (s, v) => { s.ifcSource = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.ifcSource ?? null }),
+  field({ key: 'ifcxReferences', get: (s) => s.ifcxReferences, set: (s, v) => { s.ifcxReferences = v; }, fresh: () => null, snapshot: 'data', fromPayload: p => p.ifcxReferences ?? null }),
   field({ key: 'foreignSourceMark', get: (s) => s.foreignSourceMark, set: (s, v) => { s.foreignSourceMark = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.foreignSourceMark ?? null }),
   field({ key: 'taskTypesVisible', get: (s) => s.taskTypesVisible, set: (s, v) => { s.taskTypesVisible = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.taskTypesVisible ?? false }),
   field({ key: 'importPristine', get: (s) => s.importPristine, set: (s, v) => { s.importPristine = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.importPristine ?? false }),
@@ -289,10 +295,10 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
     foreignSourceMark: d.sourceRestored
       ? foreignSourceMarkFor(d.ifcSource, { filePath: d.filePath, siteFileId, fileHandle: d.fileHandle ?? null })
       : restoredMark(foreignSourceMarkFromRecovery(d.recoveryForeignSource, d.foreignSource)),
-    fileHandle: d.sourceRestored ? d.fileHandle ?? null : null,
+    fileHandle: d.sourceRestored || d.ifcx?.targetRecentId ? d.fileHandle ?? null : null,
     siteFileId,
     siteFileVersion: siteFileId ? d.siteFileVersion ?? null : null,
-    ...(d.ifcx ? { fileFormat: 'ifcx' as const, knownTargetFingerprint: siteFileId ? null : d.ifcx.known } : {}),
+    ...(d.ifcx ? { fileFormat: d.ifcx.format ?? 'ifcx', knownTargetFingerprint: siteFileId ? null : d.ifcx.known } : {}),
     isDirty: d.isDirty,
     scheduleStale: true,
   };

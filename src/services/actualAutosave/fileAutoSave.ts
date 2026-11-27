@@ -14,7 +14,8 @@ import { rememberLiteralCalendarsWritten } from '@/state/savedLiteralCalendars';
 import { ifcSchemaBlocksSilentWrite } from '@/services/ifc/ifcSchemaQuestion';
 import { buildWriteIFCInput, sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { documentContentOf, sameDocumentContent, type DocumentContentRef } from '@/state/documentSaveState';
-import { computeIfcOutputHere, documentSaveCompute, prepareIfcOutput, withUtf8Bom, writtenFingerprint, type IfcOutputCompute } from '@/state/prepareIfcOutput';
+import { computeIfcOutputHere, prepareDocumentWrite, prepareIfcOutput, withUtf8Bom, writtenFingerprint, type IfcOutputCompute } from '@/state/prepareIfcOutput';
+import { isIfcxName } from '@/utils/filePath';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import { IfcxWriteRefusedError } from '@/services/ifc/ifcx/ifcxErrors';
 import { IFCX_FLAG_OFF_NOTICE, ifcxWriteBlocked, ifcxWriteRefusedNotice, outputFormat } from '@/state/ifcxGuard';
@@ -298,7 +299,8 @@ export function createFileAutoSaveController(deps: {
   /** Doet dit document zonder gebouwmodel mee met de gewone tik? Dezelfde toets bij de keuze (`listPlain`) en bij de beurt
    *  in de rij (`write`, fixronde 4 van de review van #1033): een document met een vreemd deel schrijft deze route nooit. */
   const plainTakesPart = (id: string, payload: DocumentPayload, featureFlags: KnownTargetState['featureFlags']): boolean =>
-    takesPart(id, payload) && !ifcSaveBlocked(payload) && !ifcxWriteBlocked(payload, featureFlags)
+    takesPart(id, payload) && (!payload.ifcxReferences || (outputFormat(payload, featureFlags) === 'ifcx'
+      && isIfcxName(payload.fileHandle?.name ?? payload.filePath))) && !ifcSaveBlocked(payload) && !ifcxWriteBlocked(payload, featureFlags)
     && !sameRefusedIfcx(id, payload);
   const sameRefusedIfcx = (id: string, payload: DocumentPayload): boolean => {
     const refused = ifcxRefusedSource.get(id);
@@ -392,8 +394,7 @@ export function createFileAutoSaveController(deps: {
       const at = { getOpenDocumentPayloads: () => getState().getOpenDocumentPayloads(), ui };
       const ownVersion = guardedKnownTarget(start, candidate.ref!);
       const ownBomVersion = ownVersion?.utf8Bom ? ownVersion : null;
-      const output = await prepareIfcOutput({ ...current, ui }, buildWriteIFCInput(current, 'merge'), undefined,
-        documentSaveCompute(ui.featureFlags, deps.compute, format)).catch((error: unknown) => {
+      const output = await prepareDocumentWrite({ ...current, ui }, buildWriteIFCInput(current, 'merge'), format, deps.compute).catch((error: unknown) => {
         if (error instanceof IfcxWriteRefusedError) ifcxRefusedSource.set(candidate.id, current);
         throw error;
       });

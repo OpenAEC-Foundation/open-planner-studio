@@ -9,10 +9,11 @@ interface ModelElement {
   readonly name?: string;
 }
 
-interface ModelSource {
+export interface ModelSource {
   readonly sha256: string;
   readonly header: { readonly id?: string; readonly author?: string };
   readonly elements: ReadonlyMap<string, ModelElement>;
+  readonly hasPlanning: boolean;
 }
 
 const CLASS = 'bsi::ifc::class';
@@ -77,5 +78,7 @@ export async function readIfcxModelSource(bytes: Uint8Array): Promise<ModelSourc
     sha256,
     header: { ...(typeof id === 'string' && { id }), ...(typeof author === 'string' && { author }) },
     elements: modelElements(document.data),
+    hasPlanning: document.data.some(entry => isRecord(entry) && isRecord(entry.attributes)
+      && Object.keys(entry.attributes).some(key => key.startsWith('openaec::planning::'))),
   };
 }

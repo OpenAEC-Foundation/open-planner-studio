@@ -1,21 +1,3 @@
-/**
- * Vector-pagineerder: zet één keer-getekende Gantt-content (opgenomen door
- * {@link PdfVectorDraw2D}) om in een multi-page VECTOR-PDF. Zelfde tegel-/schaalwiskunde als de
- * raster-pagineerder (`paginate.ts` → `paginateCanvasToTile`), maar een "tegel" wordt een PDF-
- * pagina die een gedeeld **Form-XObject** onder een eigen `q … cm W n … Q`-wrapper `Do`'t
- * (transform + clip) i.p.v. een `drawImage`-crop.
- *
- * **Eén XObject (kritisch):** de volledige Gantt-tekening wordt exact ÉÉN keer als Form-XObject
- * vastgelegd; elke pagina Do't dat XObject. De operator-set blijft O(taken×dagen) i.p.v.
- * O(tegels×taken×dagen).
- * **Zelfstandige tekst per pagina (bewuste keuze):** `clip` (`W n`) beperkt alleen de rendering, niet
- * welke tekst in de stream staat — de bevroren naam-kolom wordt op elke kolom k>0 herhaald als
- * zelfstandige tekst.
- *
- * Puur browser (pdf-lib/fontkit) — geen Tauri-imports; caller levert de rauwe TTF-bytes van de
- * rapportletter én de subsetter aan (geen asset-loader-koppeling hier, ook geen `?url`-import via
- * `hbSubset.ts`), zodat deze module ook headless bundelbaar is.
- */
 import {
   PDFDocument, PDFName, PDFRef, StandardFonts, type PDFFont, type PDFOperator,
   pushGraphicsState, popGraphicsState,
@@ -31,91 +13,33 @@ import type { Draw2D } from '@/services/pdf/draw2d';
 import type { RenderReportResult } from '@/services/print/printPreview';
 import { computeTileLayout, footerRelayoutWidth, reportTileInput, type PaperSize, type Orientation, type PaginateMode } from './tileLayout';
 
-/** Optie-subset voor de vector-pagineerder; de logische dims + bevroren-kolombreedte komen uit de render. */
 export interface VectorPaginateOptions {
   paperSize: PaperSize;
   orientation: Orientation;
   mode: PaginateMode;
-  /** Paginamarge in punten (rondom). Default 24 (zelfde als de raster-pagineerder). */
   marginPt?: number;
-  /**
-   * Herhaal de kopstrook (project-kop + tijdschaal) bovenaan ELKE pagina.
-   * Default false = kop alleen op de eerste rij pagina's — maar dat is puur de
-   * gedragsneutrale ENGINE-default. Het rapportpaneel (`ReportPanel.tsx`) zet de knop bewust
-   * standaard AAN en geeft hier dus normaal `true` door; een her-export van een bestaand project
-   * krijgt daardoor op elke pagina een kop.
-   *
-   * Bewust een boolean en niet — zoals bij de raster-pagineerder — een expliciete px-hoogte: hier
-   * draait de render pas ÍN deze functie, dus de aanroeper kent `headerHeight` nog niet. We nemen
-   * hem daarom uit het render-resultaat ({@link RenderReportResult.headerHeight}).
-   */
   repeatHeader?: boolean;
-  /**
-   * Herhaal de voetstrook (projectnaam, afdrukdatum, legenda) onderaan ELKE pagina. Zelfde
-   * boolean-vorm als `repeatHeader`, om dezelfde reden: de hoogte komt uit
-   * {@link RenderReportResult.footerHeight}. Default false = voet alleen op de laatste pagina.
-   */
   repeatFooter?: boolean;
-  /**
-   * Aantal paginabreedtes waarover de tijdlijn uitgesmeerd wordt. Alleen in
-   * `'fit-width'`; default 1 = alles op één paginabreedte persen.
-   */
   timelineColumns?: number;
-  /**
-   * Basisrichting van de export-taal (`RTL_LOCALES` ⇒ `'rtl'`). Stuurt de bidi-basisrichting in het
-   * complexe (RTL/gemengde) tekst-pad. Default `'ltr'` — zo blijven de 12 LTR-locales onveranderd.
-   */
   baseDir?: 'ltr' | 'rtl';
-  /**
-   * Subsetter voor de fonts die per export alleen hun gebruikte tekens meekrijgen (de CJK-providers
-   * en {@link fallbackFonts}): in de app `subsetFont` uit `hbSubset.ts`. Hij moet de glyph-id's van
-   * het bronfont behouden (HarfBuzz `RETAIN_GIDS`). Als parameter en niet als import, omdat
-   * `hbSubset.ts` zijn wasm via een Vite-`?url`-import laadt die headless niet bundelt.
-   */
   subsetFont: (ttf: Uint8Array, codepoints: Iterable<number>) => Promise<Uint8Array>;
-  /**
-   * Fonts voor tekens die de rapportletter zelf mist, in volgorde van voorkeur en vóór de
-   * geregistreerde CJK-providers (issue #770: een andere rapportletter dan Inter mist vaak een
-   * teken dat Inter wél heeft, zoals `≤` of Cyrillisch). Zonder deze terugval valt de hele PDF
-   * om één teken terug op raster. Een terugvalfont wordt alleen geladen en (als subset) ingebed als
-   * de tekst zo'n teken bevat. Leeg of afwezig ⇒ geen terugval, exact het oude gedrag.
-   */
   fallbackFonts?: ReadonlyArray<{ id: string; bytes: ReportFontBytes }>;
 }
 
-/**
- * Rauwe TTF-bytes van de rapportletter per gewicht (standaard het gevendorde Inter). De caller levert
- * ze; hier geen `?url`/asset-loader-afhankelijkheid. Statische glyf-TTF's (geen CFF, geen variabel font).
- */
 export interface ReportFontBytes {
   regular: Uint8Array;
   bold: Uint8Array;
 }
 
-/**
- * Rauwe Noto-Sans-Arabic-TTF-bytes per gewicht, voor het complexe RTL-pad. Altijd aangeleverd (nodig
- * om Arabisch tijdens de render te shapen/meten/dekken), maar pas ÍNGEBED als er ook echt Arabisch
- * getekend is — zo draagt een puur-Latijnse export géén Noto-font mee.
- */
 export interface ArabicFontBytes {
   regular: Uint8Array;
   bold: Uint8Array;
 }
 
-/** Font-sleutel van het paginanummer in Helvetica (alleen als de rapportletter het label niet dekt), naast F0/F1 en verder. */
 const PAGE_NUMBER_FONT_KEY = 'FP';
 
-/**
- * Gegooid door {@link paginateVectorToPdfBytes} zodra de te tekenen tekst codepoints bevat die de
- * ingebedde rapportletter (standaard Inter) en geen enkel terugvalfont dekt (CJK/RTL/…). Zonder
- * deze bewuste fout zou `subset:false` die glyphs stil op `.notdef` (tofu) mappen. `handleExportPDF`
- * vangt 'm en valt terug op de raster-pijplijn, die de browser CJK/RTL correct laat tekenen. De `name` is stabiel (`'VectorUnsupportedError'`) zodat de
- * catch 'm kan herkennen zónder deze (lazy geïmporteerde) module in de hoofdbundle te trekken.
- */
 export class VectorUnsupportedError extends Error {
-  /** De ongedekte Unicode-codepoints (voor logging/diagnose). */
   readonly codepoints: number[];
-  /** True als er RTL-codepoints (Arabisch/Hebreeuws) tussen zaten. */
   readonly hasRtl: boolean;
   constructor(codepoints: number[], hasRtl: boolean) {
     const preview = codepoints
@@ -130,17 +54,6 @@ export class VectorUnsupportedError extends Error {
   }
 }
 
-/**
- * Bouw een multi-page VECTOR-PDF uit een print-render.
- *
- * @param renderReport  wordt aangeroepen met een Draw2D-fabriek (één keer, plus een extra pass voor
- *                       CJK-fonts of voor de voetbreedte — zie hieronder); levert de logische dims +
- *                       bevroren-kolombreedte. Sluit `tasks/sequences/calendar/...` in. De tweede
- *                       parameter is `PrintOptions.footerLayoutWidth`: de breedte (logische px) die
- *                       op één pagina past, zodat de herhaalde voet op elke kolompagina compleet is.
- * @param opts          papierformaat/oriëntatie/modus/marge.
- * @param fontBytes     rauwe TTF-bytes van de rapportletter (Regular + Bold), volledig ingebed.
- */
 export async function paginateVectorToPdfBytes(
   renderReport: (makeDraw2D: (w: number, h: number) => Draw2D, footerLayoutWidth?: number) => RenderReportResult,
   opts: VectorPaginateOptions,
@@ -149,20 +62,11 @@ export async function paginateVectorToPdfBytes(
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
-  // BEWUST `subset: false` (volledige glyf-embed, `embedReportFont`). pdf-lib 1.17.1's subsetter (via fontkit)
-  // levert een subset waarvan de glyphs in pdfium/Chrome NIET renderen (tekst wordt deels onzichtbaar),
-  // hoewel de ToUnicode-extractie klopt — empirisch aangetoond (pdfium + Chromium-screenshots). Volledig
-  // inbedden rendert correct in álle viewers. Inter-Regular+Bold ≈ 0,4 MB (Flate) in de PDF; voor een
-  // print-artefact (geen app-bundle) acceptabel. CJK-fonts (5–16 MB) worden wél gesubset, maar via
-  // HarfBuzz (`subsetFont`), niet via pdf-lib.
   const regular = await embedReportFont(doc, fontBytes.regular);
   const bold = await embedReportFont(doc, fontBytes.bold);
 
   const pool = createResourcePool(doc, regular, bold);
 
-  // Standalone fontkit-fonts uit de Noto-bytes (GEEN embedding): nodig om Arabisch/Perzisch tijdens de
-  // render te shapen, te meten én z'n dekking te checken. `subset:false`-embedding gebruikt straks
-  // dezelfde bytes → CID==GID==fontkit-glyph.id, dus de hier geshapte GID's kloppen met het latere font.
   const fkCreate = fontkit as unknown as { create(bytes: Uint8Array): ArabicShapingFonts['regular'] };
   const arabicFonts: ArabicShapingFonts = {
     regular: fkCreate.create(arabicBytes.regular),
@@ -170,9 +74,6 @@ export async function paginateVectorToPdfBytes(
   };
   const baseDir = opts.baseDir ?? 'ltr';
 
-  // Render-helper: draai `renderReport` één keer met een verse PdfVectorDraw2D die de gegeven CJK-fonts
-  // kent. Beide passes delen dezelfde `pool` (alpha-/font-dedup is idempotent, dus pass 2 hergebruikt de
-  // resource-sleutels van pass 1). Geeft de laatste capture + de logische dims terug.
   let lastCjk: CjkVectorFont[] = [];
   const runRender = (cjk: CjkVectorFont[], footerLayoutWidth?: number): { d2d: PdfVectorDraw2D; dims: RenderReportResult } => {
     let captured: PdfVectorDraw2D | null = null;
@@ -185,21 +86,6 @@ export async function paginateVectorToPdfBytes(
     return { d2d: captured as PdfVectorDraw2D, dims };
   };
 
-  // ── CJK-providers: LAZY, per-document, per-provider ──────────────────────────────────────────────
-  // Niet ALLE geregistreerde providers eager laden+parsen (`getRegularBytes()` + `fontkit.create()`,
-  // bv. 3 CJK-extensies ≈ 22 MB) bij ELKE vector-export, en niet één gooiende/`undefined`-leverende
-  // provider de HELE export laten breken (→ raster voor alles).
-  //
-  // Daarom eerst een goedkope SCAN-render ZÓNDER enige CJK-font. Die levert de Inter/Noto-ONgedekte
-  // codepoints (kandidaat-CJK) zonder één providerfont aan te raken, en is meteen een geldige pass 1 als
-  // het document geen CJK bevat. Daarna laden we ALLEEN providers waarvan `covers()` zo'n codepoint matcht,
-  // elk in try/catch: een kapotte/onbeschikbare provider wordt OVERGESLAGEN (z'n codepoints blijven ongedekt
-  // → coverage-poort → raster) zónder de rest te breken. Zijn er providers geladen, dan her-renderen we pass
-  // 1 mét die fonts (nu echte `fk`-coverage + correcte CJK-breedte-meting/truncatie + verzamelde used-cps).
-  // De terugvalfonts van de aanroeper gaan vóór de geregistreerde CJK-providers en lopen door
-  // precies hetzelfde pad (scan → alleen laden wat nodig is → HarfBuzz-subset → tweede pass). Hun
-  // `covers` parseert het font pas bij de eerste vraag, dus een export zonder ontbrekende tekens
-  // raakt de terugvalbytes niet aan.
   const fallbackProviders: CjkFontProvider[] = (opts.fallbackFonts ?? []).map(({ id, bytes }) => {
     let fk: ArabicShapingFonts['regular'] | undefined;
     return {
@@ -218,15 +104,12 @@ export async function paginateVectorToPdfBytes(
     fkBold: ArabicShapingFonts['regular'];
   };
 
-  // SCAN-render (geen CJK-fonts). Voor een CJK-vrij document is dit meteen de definitieve pass 1.
   let { d2d, dims } = runRender([]);
 
   const cjkPreload: LoadedCjk[] = [];
   if (providers.length > 0 && d2d.uncoveredCodepoints.size > 0) {
     const candidates = [...d2d.uncoveredCodepoints];
     for (const p of providers) {
-      // Goedkope voorfilter (geen bytes): dekt deze provider volgens z'n eigen `covers` überhaupt iets in
-      // dit document? Zo niet → nooit laden/parsen.
       if (!candidates.some((cp) => p.covers(cp))) continue;
       try {
         const regBytes = await p.getRegularBytes();
@@ -239,8 +122,6 @@ export async function paginateVectorToPdfBytes(
           fkBold: fkCreate.create(boldBytes),
         });
       } catch (err) {
-        // Kapotte/onbeschikbare provider: overslaan. Z'n codepoints blijven ongedekt en vallen via de
-        // coverage-poort terug op raster — de rest van de export breekt niet.
         appLog.emit('warn', 'pdf', `CJK-fontprovider '${p.id}' overgeslagen (laden/parsen mislukt):`, err);
       }
     }
@@ -253,37 +134,22 @@ export async function paginateVectorToPdfBytes(
     fkBold: cjkPreload[i].fkBold,
   });
 
-  // PASS 1 (alleen als er echt providers geladen zijn): her-teken de VOLLEDIGE Gantt/tabel mét de
-  // providerfonts → coverage (echte `fk`) + per provider de gebruikte CJK-codepoints. De CJK-fonts hebben
-  // nog geen `embed`, dus CJK-tekst wordt hier alleen geïnventariseerd, niet geëmit. Geen providers → de
-  // scan-render hierboven ís pass 1 (puur-Latijn/Arabisch), geen tweede render.
   if (cjkPreload.length > 0) {
     ({ d2d, dims } = runRender(cjkPreload.map((_, i) => makeCjkBase(i))));
   }
 
-  // Coverage-poort: ongedekte codepoints (Hebreeuws, CJK zónder (werkende) provider, gemengd
-  // Arabisch+CJK, …) → gooi vóór we de PDF verder opbouwen, zodat `handleExportPDF` op raster terugvalt
-  // i.p.v. tofu te exporteren. Arabisch/Perzisch (Noto) én puur-CJK-met-provider vallen hier NIET uit.
   if (d2d.uncoveredCodepoints.size > 0) {
     throw new VectorUnsupportedError([...d2d.uncoveredCodepoints], d2d.hasRtl);
   }
 
-  // Conditionele Noto-embedding (geen Latijn-bloat): alléén als het complexe pad écht Arabisch/Perzisch
-  // plaatste, bedden we Noto in en zetten we F2/F3 in de resources. Een puur-Latijnse export raakt dit
-  // niet en draagt dus geen tweede FontFile2.
   let notoRegular: PDFFont | undefined;
   let notoBold: PDFFont | undefined;
   if (d2d.usedArabic) {
-    // Gewone volledige embedding: het RTL-pad zet de geshapte glyphs zelf neer, niet via `layoutPdfText`.
     notoRegular = await doc.embedFont(arabicBytes.regular, { subset: false });
     notoBold = await doc.embedFont(arabicBytes.bold, { subset: false });
     pool.setArabicFonts(notoRegular, notoBold);
   }
 
-  // Conditionele CJK-embedding + TWEEDE render-pass: alléén als er echt CJK getekend is. Voor elke
-  // gebruikte provider → HarfBuzz-subset op de verzamelde codepoints (met RETAIN_GIDS) → `subset:false`
-  // embedden (F4/F5 voor provider 0, F6/F7 voor 1, …). Daarna PASS 2, die de CJK-tekst nu via het
-  // (gesubsette) providerfont emit. Geen CJK → geen tweede render, geen HarfBuzz, geen bloat.
   if (d2d.usedCjk) {
     const cjkPass2: CjkVectorFont[] = [];
     for (let i = 0; i < cjkPreload.length; i++) {
@@ -305,10 +171,6 @@ export async function paginateVectorToPdfBytes(
     ({ d2d, dims } = runRender(cjkPass2));
   }
 
-  // ---- Tegel-/schaalwiskunde: gedeeld met de raster-pagineerder via `tileLayout.computeTileLayout` ----
-  // Eén bron van waarheid, zodat preview (raster) en export (vector) niet uit elkaar kunnen lopen.
-  // De kop- en voetstrookhoogte komen uit de render zelf (zie `VectorPaginateOptions.repeatHeader`).
-  // `reportTileInput` is dezelfde functie die het papier op het scherm gebruikt (#817).
   const tileInput = (d: RenderReportResult) => reportTileInput(d, {
     paperSize: opts.paperSize,
     orientation: opts.orientation,
@@ -320,16 +182,6 @@ export async function paginateVectorToPdfBytes(
   });
   let layout = computeTileLayout(tileInput(dims));
 
-  // Voet op elke pagina: de voetinhoud moet binnen één paginabreedte gelegd zijn (anders staat bij
-  // meerdere kolommen het merk in kolom N en de legenda in kolom 2). De render kent die breedte pas
-  // ná de tegelwiskunde, dus één extra pass met `footerLayoutWidth` — alleen wanneer die breedte
-  // écht kleiner is dan het canvas. In fit-width met één kolom zijn beide analytisch gelijk
-  // (`col0Bodypx = printW/scale = cw`) maar als floats soms 1e-13 uit elkaar; zonder de marge draait
-  // een deel van de exports een tweede volledige render voor niets. De maten
-  // veranderen niet door de pass (de voet bepaalt de canvasbreedte niet); de layout wordt toch
-  // herrekend. Een smallere voet kan alleen legenda-items wéglaten, dus nieuwe codepoints zijn
-  // uitgesloten — de coverage-poort wordt hieronder tóch herhaald, zodat die invariant geen
-  // ongeschreven aanname blijft.
   const footerLayoutWidth = footerRelayoutWidth(layout, dims.width);
   if (footerLayoutWidth !== undefined) {
     ({ d2d, dims } = runRender(lastCjk, footerLayoutWidth));
@@ -339,10 +191,6 @@ export async function paginateVectorToPdfBytes(
     }
   }
 
-  // Eén Form-XObject met alle VORMEN (grid/staven/arcering) + eigen font/ExtGState-resources (de
-  // tekening wordt exact één keer vastgelegd en per pagina ge-`Do`'d). De TEKST zit BEWUST niet in het
-  // XObject: een gedeeld XObject `Do`'t z'n volledige tekstlaag op élke pagina, waardoor de
-  // tekst-extractie elke taaknaam N× oplevert. De tekst wordt daarom per tegel apart geëmit (zie onder).
   const resources = pool.buildResourcesDict();
   const xobj = doc.context.formXObject(d2d.operators, {
     BBox: [0, 0, dims.width, dims.height],
@@ -360,17 +208,6 @@ export async function paginateVectorToPdfBytes(
   const ch = dims.height;
   const totalPages = rows * cols;
 
-  /**
-   * Eén tegel-blok: `q  re W n  cm  /X0 Do  Q`. Clip = het getekende venster op de pagina (punten,
-   * y-omhoog); `cm` = px→pt-schaal + tegel-offset (géén y-flip; die zit al in het XObject).
-   *
-   * `destTopYUp` is de BOVENrand van de tegel op de pagina in punten, y-omhoog. Zonder kopherhaling
-   * is dat de bovenkant van het printgebied (`pageH - marginPt`); mét kopherhaling begint de
-   * body-tegel lager, dus de aanroeper geeft het mee. De
-   * afleiding: een bronpunt (sx, sy) zit in het XObject op (sx, ch - sy) (de y-flip zit al in de
-   * tekening) en belandt na `cm(scale,0,0,scale,e,f)` op (scale·sx + e, scale·(ch - sy) + f). Wil je
-   * dat de bovenrand `sy = srcY` op `destTopYUp` uitkomt, dan volgt f = destTopYUp - (ch - srcY)·scale.
-   */
   const drawTile = (
     pageOps: PDFOperator[],
     srcX: number, srcY: number, srcW: number, srcH: number,
@@ -388,17 +225,6 @@ export async function paginateVectorToPdfBytes(
       concatTransformationMatrix(scale, 0, 0, scale, e, f),
       drawObject('X0'),
     );
-    // Emit — ONDER dezelfde clip+cm als het XObject — de tekst wiens bron-bbox dit tegel-bronvenster
-    // [srcX..srcX+srcW]×[srcY..srcY+srcH] RAAKT. Zelfde tegel-toewijzing als de vorm-tegeling: de clip
-    // trimt partiële glyphs aan de tegelrand identiek, en de `setTextMatrix` (absolute XObject-coörd.)
-    // + deze `cm` reproduceren exact de XObject-plaatsing. Bevroren-kolomtekst (bron-x < frozenPx) valt
-    // vanzelf binnen zowel de kolom-0-tegel als de herhaalde frozen-strip-tegel (pageX=marginPt,
-    // srcX=0) → één keer per horizontale kolom; body-tekst raakt alleen z'n eigen body-venster.
-    //
-    // Met de herhaalde kopstrook geldt hetzelfde voor de KOPTEKST: die valt in het bronvenster van
-    // elke kop-tegel en wordt dus BEWUST N× geëmit — precies zoals de bevroren naam-kolom. Dat is de
-    // prijs voor "elke pagina zelfstandig leesbaar": bij tekst-extractie verschijnt de
-    // projectnaam/tijdschaal per pagina één keer.
     const srcXEnd = srcX + srcW;
     const srcYEnd = srcY + srcH;
     for (const t of texts) {
@@ -409,14 +235,10 @@ export async function paginateVectorToPdfBytes(
     pageOps.push(popGraphicsState());
   };
 
-  // Top van het printgebied in PDF-punten (y-omhoog); de kopstrook begint hier, de body eronder.
   const printTopYUp = pageH - marginPt;
   const bodyTopYUp = pageH - bodyTopPt;
   const footerTopYUp = pageH - footerTopPt;
 
-  // Het paginanummer staat in de rapportletter. Een eigen lettertype hoeft geen cijfers of '/' te hebben (Noto Sans
-  // Coptic heeft ze niet; issue #1050), en dit vaste label loopt niet door de dekkingscontrole van de tekenaar: dan
-  // Helvetica, een standaardletter die elke PDF-lezer heeft. Anders blijft `pageNumberFont` leeg.
   const regularFk = fontkit.create(fontBytes.regular);
   const pageNumberFont = [...'0123456789 /'].every(c => regularFk.hasGlyphForCodePoint(c.codePointAt(0)!))
     ? undefined
@@ -428,11 +250,6 @@ export async function paginateVectorToPdfBytes(
       const page = doc.addPage([pageW, pageH]);
       const leaf = page.node;
       leaf.setXObject(PDFName.of('X0'), xobjRef);
-      // De tegel-tekst én de footer draaien op de PAGINA-content-stream i.p.v. in het
-      // XObject, dus de pagina heeft dezelfde font-resources nodig als het XObject. `resources.Font`
-      // bevat precies de ingebedde fonts (F0/F1 de rapportletter altijd; F2/F3 Noto alleen bij
-      // Arabisch; F4/F5… alleen bij terugval- of CJK-tekens) — geen dangling refs, want ongebruikte
-      // gewichten zitten er niet in.
       for (const [key, ref] of Object.entries(resources.Font)) {
         leaf.setFontDictionary(PDFName.of(key), ref);
       }
@@ -442,25 +259,16 @@ export async function paginateVectorToPdfBytes(
 
       const pageOps: PDFOperator[] = [];
 
-      // Per horizontaal venster van deze kolom (kolom 0 = één venster; verder: de herhaalde
-      // bevroren naam-strip + het aansluitende body-venster — zelfstandige tekst per pagina).
       for (const win of column.xWindows) {
-        // Kopstrook bovenaan de pagina, met EXACT hetzelfde x-venster als de body eronder — anders
-        // zou de tijdschaal niet boven de juiste dagen staan.
         if (repeatHeaderPx > 0) {
           drawTile(pageOps, win.srcX, 0, win.srcW, repeatHeaderPx, win.pageX, printTopYUp);
         }
         drawTile(pageOps, win.srcX, row.srcY, win.srcW, row.srcH, win.pageX, bodyTopYUp);
       }
-      // Voetstrook onderaan het printgebied, één keer per pagina uit het vaste `footerWindow` (x vanaf
-      // 0, één paginabreedte — niet het kolomvenster); de voettekst valt in dat bronvenster en wordt
-      // dus — net als de koptekst — per pagina geëmit.
       if (repeatFooterPx > 0) {
         drawTile(pageOps, footerWindow.srcX, repeatFooterSrcY, footerWindow.srcW, repeatFooterPx, footerWindow.pageX, footerTopYUp);
       }
 
-      // Paginanummer rechtsonder in de marge (grijs ~8pt), als vector-tekst — buiten het XObject. In de
-      // rapportletter (F0); alleen als die een teken van het label mist, in Helvetica (zie `pageNumberFont`).
       const label = `${pageIndex} / ${totalPages}`;
       const labelFont = pageNumberFont ?? regular;
       const labelW = labelFont.widthOfTextAtSize(label, 8);
@@ -484,15 +292,9 @@ export async function paginateVectorToPdfBytes(
   return doc.save();
 }
 
-/**
- * Bouwt een {@link PdfResourcePool}: vaste font-sleutels F0=Regular, F1=Bold, plus een gededupliceerde
- * ExtGState-fabriek voor alpha's. De pool bezit de refs die in de XObject-`/Resources` moeten.
- */
 interface ResourcePool extends PdfResourcePool {
   buildResourcesDict(): { Font: Record<string, PDFRef>; ExtGState: Record<string, PDFRef> };
-  /** Voeg de ingebedde Noto-gewichten toe als F2 (Regular) / F3 (Bold) — pas ná de coverage-poort. */
   setArabicFonts(reg: PDFFont, bld: PDFFont): void;
-  /** Voeg een ingebed (gesubset) CJK-providerfont toe onder een eigen sleutel (F4/F5, F6/F7, …). */
   setCjkFont(key: string, font: PDFFont): void;
 }
 
