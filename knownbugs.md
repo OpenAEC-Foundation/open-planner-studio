@@ -8096,6 +8096,13 @@ en noem het in je rapport of PR-tekst.
       Gevolgd in `fileAutoSave.ts` en `modelAutoSaveRhythm.ts`. Richting: alleen de tijd voor berekenen en schrijven
       laten meetellen voor deze ondergrens. — S
 
+2430. **Automatisch opslaan op de desktop kan na een nieuwe bewerking nog de eerder goedgekeurde IFC-versie plaatsen.**
+      Bewerkt de planner het document terwijl de oorspronkelijke versie opzij wordt gezet, dan is de laatste
+      inhoudscontrole al voorbij. De goedgekeurde bytes kunnen op schijf komen. De nieuwe bewerking blijft in de
+      app als gewijzigd staan. De aanroep in `fileAutoSave.ts` geeft de tweede inhoudscontrole van
+      `src/services/fileAccess/ownFileReplace.ts` niet mee. Vóór de flag `ifcForeignContent` standaard aan gaat
+      moet ook Automatisch opslaan de inhoud na het opzijzetten opnieuw toetsen. — B
+
 2431. **Zet de planner de flag `ifcx` uit terwijl een ronde van Automatisch opslaan wacht, dan kan die ronde nog één keer IFCX schrijven.**
       Een al gekozen ronde gebruikt de flag van het moment waarop ze begon. Wacht ze nog op schrijfrecht
       of op haar beurt, en is de planning ongewijzigd met hetzelfde schrijfdoel, dan schrijft ze de

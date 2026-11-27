@@ -4949,6 +4949,65 @@ for (const [label, choice] of [['Opslaan', SAVE_ANSWER], ['Annuleren', CANCEL_FO
   });
 }
 
+for (const closing of ['app', 'tabblad'] as const) {
+  for (const [label, choice] of [['Opslaan', SAVE_ANSWER], ['Annuleren', CANCEL_FOREIGN_CHANGES]] as const) {
+    await check(`Sluitverzoek (${closing}) tijdens de automatische IFC-vraag, daarna ${label}`, async () => {
+      const { createAppStoreContext } = await loadStore(), context = createAppStoreContext(), { store } = context;
+      const ipc = desktop(), path = join(dir, `sluiten-${closing}-${label}.ifc`);
+      writeFileSync(path, LINKED);
+      store.getState().setUI({ featureFlags: { ifcForeignContent: true } });
+      await store.getState().openOpenedFile({ name: leafName(path), content: '', bytes: LINKED, ref: { kind: 'path', path } });
+      const id = store.getState().activeDocumentId, unregister = recoveryRounds(store);
+      const auto = modelAutoSave(askOn(store)), quit = await quitting(context);
+      const answer = gate(), placement = gate();
+      const asked = askerOn(store, async () => { await answer.held; return choice; });
+      let placing = false;
+      ipc.faults.place = async from => {
+        if (from === path) { placing = true; await placement.held; }
+        return undefined;
+      };
+      const closed = () => closing === 'app' ? quit.destroyed() : !store.getState().documents.some(doc => doc.id === id);
+      const pendingClose = () => store.getState().ui.pendingCloseDocId;
+      let closeQuestions = 0;
+      const stopCounting = store.subscribe((now, before) => {
+        if (now.ui.pendingCloseDocId !== null && now.ui.pendingCloseDocId !== before.ui.pendingCloseDocId) closeQuestions++;
+      });
+      try {
+        deleteLinked(store);
+        const expected = await expectedFor(store, id);
+        const saving = auto.round();
+        await turnUntil(() => asked.length === 1 && !isProjectFileWriteBusy());
+        if (closing === 'app') assert(quit.controller.requestQuit());
+        else store.getState().requestCloseDocument(id);
+        assert.equal(store.getState().ui.pendingForeignChangesQuestion?.autoSaveDocumentId, id);
+        assert.equal(pendingClose(), null, 'alleen de automatische opslagvraag is open');
+        assert.equal(closed(), false);
+        answer.release();
+        if (choice.save) {
+          await turnUntil(() => placing || !auto.controller.isSaving());
+          assert(placing, 'de goedgekeurde vervanging is begonnen');
+          assert.equal(store.getState().ui.pendingForeignChangesQuestion, null);
+          assert.equal(pendingClose(), null, 'ook na het antwoord wacht sluiten nog op de opslag');
+          assert.equal(closed(), false);
+          placement.release();
+        }
+        await saving;
+        await turnUntil(() => closed() || pendingClose() !== null);
+        assert.equal(asked.length, 1);
+        assert.equal(hash(readFileSync(path)), choice.save ? expected.sha256 : hash(LINKED));
+        assert.equal(pendingClose(), choice.save ? null : id);
+        assert.equal(closeQuestions, choice.save ? 0 : 1);
+        assert.equal(closed(), choice.save);
+        if (!choice.save) assert(payloadOf(store, id).isDirty);
+      } finally {
+        answer.release(); placement.release();
+        await turnUntil(() => !auto.controller.isSaving());
+        stopCounting(); resetForeignChangesAsker(); quit.dispose(); unregister(); await clearRecovery(); ipc.dispose();
+      }
+    });
+  }
+}
+
 await check('Automatisch opslaan verwerpt de toestemming als de planning tijdens de vraag verandert', async () => {
   const { store, docs: [doc], unregister } = await linkedDocuments(1);
   const auto = modelAutoSave(askOn(store)), answer = gate();

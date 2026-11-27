@@ -25,7 +25,7 @@ import {
   writeTargetReaders, type FileRef,
 } from '@/services/fileAccess';
 import {
-  isManualProjectFileWriteQueued, runAutoSaveTickWrite, runYieldingProjectFileWrite, type YieldingTurn,
+  isManualProjectFileWriteQueued, runAutoSaveTickWrite, runYieldingProjectFileWrite, trackAutoSaveWithQuestion, type YieldingTurn,
 } from '@/services/fileAccess/writeCoordinator';
 import { pendingReplaceFor, tauriReplaceRecords } from '@/services/fileAccess/replaceRecords';
 import { tightAnchorsIfSaved } from '@/state/dependentCandidates';
@@ -51,7 +51,7 @@ import {
 } from './actualAutoSave';
 import { createModelAutoSaveRhythm, type ModelAutoSaveRhythm } from './modelAutoSaveRhythm';
 
-type ModelRound = ActualAutoSaveWrite | (() => Promise<ActualAutoSaveWrite>);
+type ModelRound = ActualAutoSaveWrite | { afterQuestion: Promise<ActualAutoSaveWrite> };
 
 /** #804 stap 8: doet dit document mee als document met een gebouwmodel? Met de flag aan, een vreemd deel en de bron
  *  aanwezig. Met de flag uit, of als de bron ontbreekt, blijft het geweigerd zoals vóór stap 8 (`ifcSaveBlocked`). */
@@ -160,7 +160,7 @@ export function createFileAutoSaveController(deps: {
         started = true;
         return turn.yielded.aborted ? 'yielded' : modelRound(candidate, turn);
       }, () => 'refused');
-      outcome = typeof step === 'function' ? await step() : step;
+      outcome = typeof step === 'object' ? await step.afterQuestion : step;
       return outcome;
     } finally {
       if (started) rhythm.roundEnded(candidate.id, outcome === true ? 'written' : outcome === 'yielded' ? 'yielded' : 'other');
@@ -294,8 +294,8 @@ export function createFileAutoSaveController(deps: {
     if (!question) return place(turn, changed);
     if (isBlockedByDialog(ui)) return 'yielded';
     const answer = getState().confirmForeignChangesWrite(prepared, { ...question, autoSaveDocumentId: candidate.id });
-    return async () => {
-      if (!await answer) {
+    const afterQuestion = answer.then(async (approved): Promise<ActualAutoSaveWrite> => {
+      if (!approved) {
         if (!changed()) refusedTarget.set(candidate.id, { ref, source, known: null });
         return 'refused';
       }
@@ -314,7 +314,9 @@ export function createFileAutoSaveController(deps: {
         if (nextTurn.yielded.aborted || approvalExpired()) return 'yielded';
         return place(nextTurn, approvalExpired);
       }, () => 'refused');
-    };
+    });
+    trackAutoSaveWithQuestion(afterQuestion);
+    return { afterQuestion };
   };
 
   /** Een oude weigering vervalt als de planner zelf opsloeg (niet meer gewijzigd, of bij een gebouwmodel een nieuwe bron)

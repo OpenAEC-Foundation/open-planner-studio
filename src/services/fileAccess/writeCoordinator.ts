@@ -14,6 +14,7 @@
 // Met de flag uit bestaan er geen modelrondes en is de rij dezelfde als vóór stap 8.
 let busy = false;
 let tail: Promise<void> = Promise.resolve();
+let autoSaveWithQuestion: Promise<void> | null = null;
 /** Hoeveel afsluitfasen de poort dicht houden (afsluiten en de updater kunnen elkaar overlappen). */
 let closers = 0;
 /** #804 stap 8: de rondes van Automatisch opslaan met een gebouwmodel die in de rij staan of lopen
@@ -89,18 +90,24 @@ export function whenProjectFilePlacementSettled(): Promise<void> | null {
   return placing;
 }
 
+export function trackAutoSaveWithQuestion(save: Promise<unknown>): void {
+  const clear = () => { if (autoSaveWithQuestion === settled) autoSaveWithQuestion = null; };
+  const settled = save.then(clear, clear);
+  autoSaveWithQuestion = settled;
+}
+
 /**
  * #804 stap 3: `null` als er geen schrijfactie loopt of wacht; anders een belofte die klaar is zodra de rij leeg is
  * (ook een schrijfactie die intussen achteraan aansloot). De ene plek waarop afsluiten, een document sluiten en de
  * updater wachten. Nooit aanroepen en afwachten binnen `runProjectFileWrite`: dan wacht de rij op zichzelf.
  */
-export function whenProjectFileWritesIdle(): Promise<void> | null {
+export function whenProjectFileWritesIdle(reason?: 'close'): Promise<void> | null {
   // #804 stap 8: wie op de rij wacht (een tabblad sluiten, de laatste fase van afsluiten of de updater, een pad openen
   // op de desktop), wacht niet op het rekenen van een ronde van Automatisch opslaan.
-  yieldBackgroundWrites();
-  if (!busy) return null;
-  const last = tail;
-  return last.then(() => whenProjectFileWritesIdle() ?? undefined);
+  const saveWithQuestion = reason === 'close' ? autoSaveWithQuestion : null;
+  if (!saveWithQuestion) yieldBackgroundWrites();
+  const last = saveWithQuestion ?? (busy ? tail : null);
+  return last && last.then(() => whenProjectFileWritesIdle(reason) ?? undefined);
 }
 
 /**

@@ -154,6 +154,8 @@ Bij vervallende IFC-gegevens stelt de ronde dezelfde vraag als Ctrl+S, met de na
 (`tauri-ifc.md`, besluit eigenaar 27 november 2026). Een blokkerende UI-vlag of een venster op de dialoogstapel
 (ook Sneltoetsen) stelt de vraag uit tot een latere ronde. Tijdens de vraag blijft de schrijfrij vrij voor de gewone
 tik en voor Ctrl+S in een ander actief tabblad met een gewone planning en een bestaand schrijfdoel.
+Bij het sluiten van de app of een tabblad wacht `waitForSavesBeforeClose` op het antwoord en de eventuele
+vervolgopslag. Daarna bepaalt de actuele documentstatus of een sluitvraag nodig is.
 Na toestemming schrijft de ronde de goedgekeurde bytes alleen als het document, de planningsgegevens, de IFC-bron en het doel nog overeenkomen.
 Annuleren onderbreekt de bestandsopslag van dat document tot de planner zelf opslaat. Crashherstel loopt door.
 Veilig stoppen, met één melding per document per sessie en geen nieuwe poging tot de planner zelf opslaat (een nieuwe
