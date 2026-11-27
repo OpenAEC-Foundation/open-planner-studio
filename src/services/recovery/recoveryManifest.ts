@@ -1,7 +1,14 @@
 import type { RecoveryManifestDoc } from '@/services/recovery/recoveryPaths';
+import { ifcxEnabled } from '@/utils/featureFlags';
+import { loadFeatureFlags } from '@/utils/settingsStore';
 
 /** 1/2: stabiele snapshots; 3: generaties; 4: datumstand; 5: XER-archiefverwijzing. */
 export const RECOVERY_MANIFEST_VERSION = 5;
+const IFCX_REFERENCES_VERSION = 6;
+
+export function recoveryManifestVersion(documents: readonly Pick<RecoveryManifestDoc, 'ifcx'>[]): number {
+  return documents.some(doc => doc.ifcx?.references !== undefined) ? IFCX_REFERENCES_VERSION : RECOVERY_MANIFEST_VERSION;
+}
 
 export class RecoveryManifestError extends Error {
   constructor(readonly reason: 'invalid-version' | 'unsupported-version' | 'invalid-shape') {
@@ -15,7 +22,9 @@ export function checkRecoveryManifestVersion(version: unknown): void {
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
     throw new RecoveryManifestError('invalid-version');
   }
-  if (version > RECOVERY_MANIFEST_VERSION) throw new RecoveryManifestError('unsupported-version');
+  if (version > RECOVERY_MANIFEST_VERSION && !(version === IFCX_REFERENCES_VERSION && ifcxEnabled(loadFeatureFlags()))) {
+    throw new RecoveryManifestError('unsupported-version');
+  }
 }
 
 /** Eén manifest mag een document maar één keer vertegenwoordigen, ook in de oude docIds-vorm. */
@@ -30,7 +39,7 @@ export function checkRecoveryDocumentIds(ids: unknown): asserts ids is string[] 
 }
 
 /** Identiteiten zijn nodig om metadata en bytes te koppelen; optionele sitevelden blijven tolerant. */
-export function checkRecoveryDocuments(documents: unknown): asserts documents is RecoveryManifestDoc[] {
+export function checkRecoveryDocuments(documents: unknown, version?: number): asserts documents is RecoveryManifestDoc[] {
   if (!Array.isArray(documents)) throw new RecoveryManifestError('invalid-shape');
   const ids: string[] = [];
   for (const document of documents) {
@@ -38,7 +47,12 @@ export function checkRecoveryDocuments(documents: unknown): asserts documents is
     const record = document as Record<string, unknown>;
     if (typeof record.id !== 'string' || record.id.length === 0
       || typeof record.ifc !== 'string' || record.ifc.length === 0) throw new RecoveryManifestError('invalid-shape');
+    if (version === IFCX_REFERENCES_VERSION && record.ifcx && typeof record.ifcx === 'object' && 'references' in record.ifcx
+      && (typeof record.ifcx.references !== 'string' || !record.ifcx.references)) throw new RecoveryManifestError('invalid-shape');
     ids.push(record.id);
   }
   checkRecoveryDocumentIds(ids);
+  if (version !== undefined && (version === IFCX_REFERENCES_VERSION) !== (recoveryManifestVersion(documents) === IFCX_REFERENCES_VERSION)) {
+    throw new RecoveryManifestError('invalid-shape');
+  }
 }

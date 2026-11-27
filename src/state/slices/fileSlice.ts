@@ -1,5 +1,6 @@
 import { normalizeTaskDates } from '../migrations/minuteModel';
 import { bindIfcxModel, findIfcxModel, ifcxModelSession } from '@/services/ifc/ifcxModelSession';
+import { flushRecoveryNow } from '@/services/recovery/recoveryFlush';
 import { isIfcxModelPath } from '../ifcForeignGuard';
 import { exportHitsOwnFile, literalCalendarIdsWritten, mergeLiteralCalendarIds, rememberLiteralCalendarsWritten } from '../savedLiteralCalendars';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
@@ -61,8 +62,8 @@ import { askForeignChanges, type ForeignChangesQuestion } from '@/services/ifc/f
 import { saveForeignChangesQuestion } from '@/utils/settingsStore';
 import { castDraft } from 'immer';
 import {
-  bomMark, documentSaveCompute, prepareIfcOutput, planOnlyQuestionApplies, withUtf8Bom, writtenFingerprint, IfcWriteBlockedError,
-  type IfcOutput, type IfcOutputCompute,
+  bomMark, prepareDocumentWrite as prepareDocumentOutput, prepareIfcOutput, planOnlyQuestionApplies, withUtf8Bom, writtenFingerprint, IfcWriteBlockedError,
+  type IfcOutput,
 } from '../prepareIfcOutput';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import { capturedTargetReaders, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
@@ -107,7 +108,7 @@ import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementSet
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
   changeSaving, clearChangedOnDisk, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
-  sameDocumentContent, stampSaved, type DocumentContentRef,
+  ifcxSaveRevisionOf, sameDocumentContent, stampSaved, type DocumentContentRef,
 } from '../documentSaveState';
 import { saveQuestionOpen } from '@/state/blockingDialogs';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
@@ -124,7 +125,7 @@ import { exportFileSuffix } from '@/i18n/exportFileSuffix';
 import { invalidateDocumentRedo, removeSessionHistoryForDocumentFromState } from '../sessionHistory';
 import { scheduleFailedNotice } from '../scheduleErrorNotice';
 import { browserSaveNotice } from '../browserSaveNotice';
-import { basename, ensureExtension } from '@/utils/filePath';
+import { basename, ensureExtension, isIfcxName } from '@/utils/filePath';
 import {
   documentFileFilters, fileNameWithFormat, formatOfName, IFC_FILE_FILTERS, IFCX_FLAG_OFF_NOTICE, IFCX_NAME_MISMATCH_NOTICE,
   ifcxInputWithoutXerArchive, ifcxWriteBlocked, ifcxWriteRefusedNotice, nameFitsFormat, namesFollowFormat, nameWithFormat,
@@ -527,9 +528,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const missingSourceSaveAsAllowed = (state: Parameters<typeof ifcFullWriteBlocked>[0]) =>
     planOnlyQuestionApplies(state, 'missingSourceSaveAs');
   const prepareAppIfcWrite = async (
-    state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation, compute: IfcOutputCompute | undefined = runtime.ifcSaveCompute,
+    state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation, format?: DocumentFileFormat,
   ): Promise<IfcOutput | null> => {
-    try { return await prepareIfcOutput(state, input, planOnly, compute); }
+    try {
+      return await (format ? prepareDocumentOutput(state, input, format, runtime.ifcSaveCompute, planOnly)
+        : prepareIfcOutput(state, input, planOnly, runtime.ifcSaveCompute));
+    }
     catch (error) {
       if (error instanceof IfcWriteBlockedError) get().notify(ifcWriteBlockedNotice(state));
       else if (error instanceof MergeNeedsPhase2Error) get().notify(IFC_FOREIGN_MERGE_REFUSED_NOTICE);
@@ -578,8 +582,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       get().notify(refusalNotice({ messageKey: 'ifcx.model.saveAsIfc', dedupeKey: 'ifcx-model-save-ifc' }));
       return null;
     }
-    const write = await prepareAppIfcWrite(state, format === 'ifcx' && state.ifcxReferences ? { ...input, ...state.ifcxReferences } : input,
-      planOnly, documentSaveCompute(state.ui.featureFlags, runtime.ifcSaveCompute, format));
+    const write = await prepareAppIfcWrite(state, input, planOnly, format);
     if (write && !write.prepared) rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
     return write;
   };
@@ -922,7 +925,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   const pushRecent = async (ref: FileRef | null, name: string) => {
     if (!ref) return;
-    const list = await addRecent(ref, name);
+    const list = await addRecent(ref, name, ref.kind === 'handle' && isIfcxName(name) && !!get().ifcxReferences && ifcxEnabled(get().ui.featureFlags));
     set((s) => { s.recentFiles = list; });
   };
 
@@ -953,6 +956,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     notifyForeignChangesWritten(get().notify, prepared, file, downloaded);
   };
 
+  let ifcxSaveRevision = 0;
   const commitSavedDocument = (
     document: DocumentContentRef,
     savedSource: IFCSaveSource,
@@ -1006,7 +1010,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     };
     const savedAt = Date.now();
     set((state) => {
-      stampSaved(state, document, savedAt);
+      const revision = currentSource.ifcxReferences && ifcxEnabled(state.ui.featureFlags) ? ++ifcxSaveRevision : undefined;
+      stampSaved(state, document, savedAt, revision);
       if (state.activeDocumentId === documentId) {
         applyDestination(state);
         applyPrepared(state);
@@ -1466,8 +1471,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   const trackSave = <T,>(requested: DocumentContentRef, save: Promise<T>): Promise<T> => {
+    const start = get();
+    const before = ifcxEnabled(start.ui.featureFlags) && saveSourceForDocument(start, requested.id)?.ifcxReferences
+      ? ifcxSaveRevisionOf(start, requested.id) : null;
     set(s => { changeSaving(s, requested, 1); });
-    return save.finally(() => set(s => { changeSaving(s, requested, -1); }));
+    const settled = before !== null ? save.then(async result => {
+      const live = get();
+      if (sameDocumentContent(live, requested) && ifcxSaveRevisionOf(live, requested.id) !== before) {
+        await flushRecoveryNow().catch(() => {});
+      }
+      return result;
+    }) : save;
+    return settled.finally(() => set(s => { changeSaving(s, requested, -1); }));
   };
 
   const confirmForeignChangesWrite = async (prepared: PreparedIfcWrite, question: ForeignChangesQuestion): Promise<boolean> => {

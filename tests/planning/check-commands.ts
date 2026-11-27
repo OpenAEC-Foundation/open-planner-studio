@@ -25,7 +25,7 @@ import './domStub';
 import { createAppStoreContext, useAppStore } from '@/state/appStore';
 import { COMMANDS, isCommandEnabled, type Command } from '@/state/commands';
 import { ZOOM_STEP } from '@/utils/ganttViewport';
-import { SHORTCUTS } from '@/hooks/keyboard/shortcutRegistry';
+import { canRunShortcut, SHORTCUTS } from '@/hooks/keyboard/shortcutRegistry';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 const S = () => useAppStore.getState();
@@ -76,6 +76,17 @@ eq('07 delete: uitgeschakeld zonder selectie', enabled(COMMANDS.delete), false);
 S().selectTask(idA);
 observe(COMMANDS.delete);
 eq('08 delete: ingeschakeld met selectie', enabled(COMMANDS.delete), true);
+for (const id of ['edit.delete', 'edit.deleteBackspace']) {
+  const shortcut = SHORTCUTS.find(entry => entry.id === id);
+  eq(`08a ${id}: beschikbaar met zichtbare selectie`, shortcut && canRunShortcut(shortcut, false), true);
+  const isEnabled = COMMANDS.delete.isEnabled;
+  try {
+    COMMANDS.delete.isEnabled = () => false;
+    eq(`08b ${id}: geblokkeerd als de gedeelde opdracht uit staat`, shortcut && canRunShortcut(shortcut, false), false);
+  } finally {
+    COMMANDS.delete.isEnabled = isEnabled;
+  }
+}
 const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 const idB = S().addTask({ name: 'Ruwbouw' });
 S().selectTasks([idA, idB], false);
@@ -292,9 +303,10 @@ for (const cmd of Object.values(COMMANDS) as Command[]) {
     // die ergens anders heen gaat).
     eq('30 het lint gebruikt COMMANDS uitsluitend via useCommandBinding',
       count(ribbon, /COMMANDS\./g), count(ribbon, /useCommandBinding\(COMMANDS\./g));
-    // Idem voor de sneltoetsen: elke COMMANDS-verwijzing is een `.run`-binding.
-    eq('31 de sneltoetsen gebruiken COMMANDS uitsluitend als .run-binding',
-      count(shortcuts, /COMMANDS\./g), count(shortcuts, /COMMANDS\.[a-zA-Z]+\.run\b/g));
+    const deleteAvailabilityChecks = count(shortcuts, /\bisCommandEnabled\(\s*COMMANDS\.delete\s*,/g);
+    eq('31 de sneltoetsen gebruiken COMMANDS voor .run en de beschikbaarheid van verwijderen',
+      count(shortcuts, /COMMANDS\./g), count(shortcuts, /COMMANDS\.[a-zA-Z]+\.run\b/g) + deleteAvailabilityChecks);
+    eq('31a de sneltoetsen lezen de beschikbaarheid van verwijderen op één plek', deleteAvailabilityChecks, 1);
 
     // En de weggehaalde implementaties mogen niet terugkomen.
     const verdwenen: [string, string, string][] = [

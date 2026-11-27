@@ -14,7 +14,7 @@ knoppen erin.
 - Tabel is Start zonder de groep Zoom, plus `traceGroup`, `tableColumnsGroup` en `progressGroup`. Zoomen verandert
   `view.zoom`, de tijdas van de Gantt, en de Tabel heeft geen tijdas. Verwijderen, Dissolve, Taak en het relatiemenu
   werken op `selectedTaskIds`, en die selectie deelt de Tabel met de Gantt. Niet elke gedeelde knop doet op de Tabel hetzelfde als op Start: de
-  splitsknop staat er uit (ADR 0484), en onder het volledige resourcepaneel zie je de taken niet (knownbug 2520).
+  splitsknop staat er uit (ADR 0484), en onder het volledige resourcepaneel zie je de taken niet.
 - Kolommen deelt geen constante maar één binding, `useColumnsButtonBinding` in `ribbonWidgets.tsx`, in twee
   knopvormen: de grote knop in `tableColumnsGroup` op Tabel en een kleine knop in `DisplayGroupContent`, de groep
   `display` op Beeld die er alleen met Klassieke weergaveknoppen staat (ADR 0484).

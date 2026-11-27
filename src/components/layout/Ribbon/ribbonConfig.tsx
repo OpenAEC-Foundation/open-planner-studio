@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
-import { COMMANDS } from '@/state/commands';
+import { COMMANDS, hasEditableSelection } from '@/state/commands';
 import { useCommandBinding } from './useCommandBinding';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { isTreeMode } from '@/engine/view/visibleRows';
@@ -230,10 +230,10 @@ const editGroup: RibbonGroupSpec = {
           kind: 'small', id: 'dissolve', icon: <Icon id="planning.relations-menu" size={16} />, labelKey: 'menu:ribbon.dissolve',
           use: () => {
             const { t } = useTranslation('menu');
-            const hasSelection = useAppStore(s => s.selectedTaskIds.length > 0);
+            const editable = useAppStore(hasEditableSelection);
             return {
               title: t('ribbon.dissolveTitle'),
-              disabled: !hasSelection,
+              disabled: !editable,
               onClick: () => {
                 const s = useAppStore.getState();
                 s.dissolveTasksBulk(s.selectedTaskIds);
