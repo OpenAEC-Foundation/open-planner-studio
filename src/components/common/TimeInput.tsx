@@ -3,12 +3,10 @@ import { Icon } from '@/components/icons';
 import { useTimeNotation } from '@/hooks/displayDate';
 import { clockPlaceholder, formatClock, parseClock } from '@/utils/displayTime';
 
-/** Stapgrootte van de pijltjes en de stapknoppen: een kwartier. */
 export const TIME_STEP_MINUTES = 15;
 
 type DataAttributes = Record<`data-${string}`, string | boolean | undefined>;
 
-/** De twee kleine stapknoppen (omhoog/omlaag) naast een tijd- of duurveld. */
 export function StepButtons({ onStep, increaseLabel, decreaseLabel, dataAttribute }: {
   onStep: (delta: number) => void;
   increaseLabel: string;
@@ -25,14 +23,6 @@ export function StepButtons({ onStep, increaseLabel, decreaseLabel, dataAttribut
   </span>;
 }
 
-/**
- * Het ene tijdveld van OPS: een gewoon tekstveld met stapknoppen. Een native `type="time"` laat de
- * browser de notatie kiezen (klokje, AM/PM); dit veld volgt altijd de instelling Tijdnotatie. De
- * plaatshouder volgt de notatie; wat de gebruiker typt, leest `parseClock` (beide notaties geldig).
- *
- * Bewust tekstgestuurd: de aanroeper bewaart de tusseninvoer en beslist bij `onCommit` (blur/Enter)
- * wat er met de tekst gebeurt. Voor een veld dat alleen minuten kent, is er {@link MinuteTimeInput}.
- */
 export function TimeInput({
   id,
   value,
@@ -91,15 +81,6 @@ export function TimeInput({
   );
 }
 
-/**
- * {@link TimeInput} voor een waarde in minuten-vanaf-middernacht (0..1439, of 1440 met `endOfDay`).
- *
- * Het veld toont de modelwaarde, tot de gebruiker typt: dan staat er een concept (`draft`). Pas bij
- * blur/Enter wordt het concept gelezen; een geldige, ándere waarde gaat naar `onCommit`, daarna toont
- * het veld weer het model. Zonder te typen (focus + Tab) is er geen concept en dus nooit een commit;
- * dezelfde waarde opnieuw typen (`12 am` op `12:00 AM`) commit ook niet. De stapknoppen en pijltjes
- * werken in hetzelfde domein als `minutes`: 0..1439, of tot en met 1440 met `endOfDay`.
- */
 export function MinuteTimeInput({
   minutes,
   onCommit,

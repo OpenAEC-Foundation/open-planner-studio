@@ -10,30 +10,12 @@ import {
 } from '@/utils/datePickerMonth';
 import './DatePicker.css';
 
-/**
- * De eigen datumkiezer van het gedeelde datumveld (#904, besluit 2026-11-14: zelf gemaakt, geen native
- * kiezer). `DateTextInput` zet de knop in het veld en dit paneel eronder; typen in de drie vakjes blijft
- * zoals het was.
- *
- * Het paneel hangt via een portal aan `document.body`, net als de open lijst van `Select`: zo knipt geen
- * dialoog, lint of paneel met `overflow` het af. Het opent onder het veld, of erboven als daar meer ruimte
- * is, en schuift het venster in. `useClickOutside` telt een klik in het paneel (`.ops-date-picker`) als
- * binnen, zodat een lintpopover met dit veld erin open blijft.
- *
- * Toetsen (WAI-ARIA-patroon "date picker dialog"): pijltjes een dag of een week, Home/End begin en einde
- * van de week, PageUp/PageDown een maand, met Shift een jaar, Enter of Spatie kiest, Escape sluit zonder
- * keuze. Tab blijft in het paneel. De toetsen die het paneel afhandelt, gaan niet door naar de dialoog
- * of de sneltoetsen van de app.
- */
-
-/** Iconen van de kiezer, op één plek. */
 export const DATE_PICKER_ICONS = {
   open: 'input.date-picker',
   previous: 'input.month-previous',
   next: 'input.month-next',
 } as const satisfies Record<string, IconId>;
 
-/** Weekdagnamen uit de bestaande kalendervertalingen (ISO 1 = maandag … 7 = zondag), zoals de Gantt. */
 const WEEKDAY_KEYS = {
   1: 'ribbon.calendarDialog.days.1',
   2: 'ribbon.calendarDialog.days.2',
@@ -50,18 +32,12 @@ const MARGIN = 8;
 interface PanelPos { top: number; left: number; openUp: boolean }
 
 export interface DatePickerPanelProps {
-  /** Het veld waar het paneel aan hangt (positie en breedte). */
   anchorRef: RefObject<HTMLElement | null>;
-  /** De gekozen datum (`YYYY-MM-DD`), of `''` zonder datum: dan opent het paneel op vandaag. */
   value: string;
-  /** Een dag gekozen (klik, Enter, Spatie of Vandaag). Het paneel sluit; de aanroeper zet de focus. */
   onPick: (iso: string) => void;
-  /** Gesloten zonder keuze. `restoreFocus`: Escape (focus terug naar het veld); bij een klik ernaast niet. */
   onClose: (restoreFocus: boolean) => void;
-  /** Elementen die bij een klik als binnen tellen (de knop die het paneel opent en sluit). */
   ignoreRef?: RefObject<HTMLElement | null>;
   panelRef: RefObject<HTMLDivElement | null>;
-  /** Toegankelijke naam, bv. de naam van het veld. */
   ariaLabel?: string;
 }
 
@@ -86,14 +62,11 @@ export function DatePickerPanel({ anchorRef, value, onPick, onClose, ignoreRef, 
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
 
-  // Een sneltoets als Ctrl+S of F5 vanuit het paneel sluit het en rondt eerst het veld af.
   useEffect(() => {
     const panel = panelRef.current;
     return panel ? registerDatePickerPanel(panel, () => closeRef.current(true)) : undefined;
   }, [panelRef]);
 
-  // Plaats het paneel onder het veld (of erboven als er onder te weinig ruimte is) en houd het bij als
-  // een voorouder scrolt of het venster van maat verandert.
   useLayoutEffect(() => {
     const place = () => {
       const anchor = anchorRef.current;
@@ -128,9 +101,6 @@ export function DatePickerPanel({ anchorRef, value, onPick, onClose, ignoreRef, 
     };
   }, [anchorRef, panelRef, placed]);
 
-  // Een klik naast het paneel (en naast de knop) sluit het zonder keuze. Staat de focus in het paneel,
-  // haal hem er dan eerst uit: het paneel verdwijnt, en een verwijderd element geeft geen blur. Zo rondt
-  // het veld zijn invoer af zoals bij elke andere klik ernaast (zelfde aanpak als `Popover`).
   useEffect(() => {
     const onDown = (e: PointerEvent) => {
       const target = e.target as Node | null;
@@ -143,7 +113,6 @@ export function DatePickerPanel({ anchorRef, value, onPick, onClose, ignoreRef, 
     return () => document.removeEventListener('pointerdown', onDown, true);
   }, [panelRef, ignoreRef]);
 
-  // De actieve dag krijgt de focus zodra het paneel staat en na elke verplaatsing met de toetsen.
   useEffect(() => {
     if (!pos || !focusActive.current) return;
     focusActive.current = false;
@@ -151,7 +120,6 @@ export function DatePickerPanel({ anchorRef, value, onPick, onClose, ignoreRef, 
   }, [pos, active]);
 
   const moveTo = (iso: string) => { focusActive.current = true; setActive(iso); };
-  /** Blader een maand zonder de focus van de pijlknop af te halen (een tweede klik bladert verder). */
   const page = (delta: number) => setActive(prev => addMonthsClamped(prev, delta));
 
   const onGridKeyDown = (e: React.KeyboardEvent) => {
@@ -176,7 +144,6 @@ export function DatePickerPanel({ anchorRef, value, onPick, onClose, ignoreRef, 
       return;
     }
     if (e.key === 'Tab') {
-      // Tab blijft in het paneel: de focus-trap van een dialoog ziet dit paneel niet (het hangt aan body).
       const focusables = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled])'))
         .filter(el => el.tabIndex >= 0);
       if (focusables.length === 0) return;
@@ -189,8 +156,6 @@ export function DatePickerPanel({ anchorRef, value, onPick, onClose, ignoreRef, 
       next.focus();
       return;
     }
-    // Losse toetsen (Delete, letters) horen bij het paneel, niet bij een geselecteerde taak erachter.
-    // Functietoetsen gaan wel door: F5 rekent (na afronden van het veld) en herlaadt de pagina niet.
     if (!e.ctrlKey && !e.metaKey && !e.altKey && !/^F\d{1,2}$/.test(e.key)) e.stopPropagation();
   };
 
@@ -208,13 +173,10 @@ export function DatePickerPanel({ anchorRef, value, onPick, onClose, ignoreRef, 
       data-open-up={pos?.openUp || undefined}
       style={pos ? { top: pos.top, left: pos.left } : { top: 0, left: 0, visibility: 'hidden' }}
       onKeyDown={onPanelKeyDown}
-      // Het paneel is via de portal nog een React-kind van zijn veld (bv. een tabelcel of een dialoog):
-      // zonder deze stops zou een klik erin ook daar als klik tellen (cel kiezen, achtergrond sluiten).
       onPointerDown={e => e.stopPropagation()}
       onClick={e => e.stopPropagation()}
       onMouseDown={e => {
         e.stopPropagation();
-        // Een klik op een lege plek in het paneel haalt de focus niet weg (het veld blijft "in bewerking").
         if (!(e.target as HTMLElement).closest('button')) e.preventDefault();
       }}
     >

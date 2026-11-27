@@ -4,27 +4,17 @@ import type { Sequence } from '@/types/sequence';
 import { formatLagShort, parseLagInput } from '@/utils/lagFormat';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 
-/** Alleen deze vier velden bepalen de zichtbare lagtekst; type- of eindpuntupdates doen dat niet. */
 function lagSignature(seq: Sequence): string {
   return [seq.lagDays, seq.lagUnit ?? '', seq.lagPercent ?? '', seq.lagMinutes ?? ''].join('|');
 }
 
-/**
- * Klein lag-invoerveld met MSP-notatie (2d / 3ed / 2u / 50% / -25e%); commit op blur/Enter,
- * herstelt de oude waarde bij onparseerbare invoer (i.p.v. stil terug te springen zonder
- * feedback — de rode rand + title hieronder geven de gebruiker een zichtbare hint, hetzelfde
- * patroon als andere gevalideerde velden in dit paneel). Gedeeld door het eigenschappen-paneel
- * en de relatietabel.
- */
 export function SequenceLagInput({ seq, title, className, onCommit, onDraftChange }: {
   seq: Sequence;
   title: string;
   className?: string;
   onCommit: (patch: Pick<Sequence, 'lagDays' | 'lagUnit' | 'lagPercent' | 'lagMinutes'>) => void;
-  /** Optioneel voor lokale concepten: houd een geldige invoer actueel vóór de blur-commit. */
   onDraftChange?: (patch: Pick<Sequence, 'lagDays' | 'lagUnit' | 'lagPercent' | 'lagMinutes'>) => void;
 }) {
-  // Uren in de taal van de app: "2u" (nl), "2h" (en) — eigenaarsbesluit 2026-10-20.
   const { t } = useTranslation('common');
   const hourSuffix = parseableHourSuffix(t('duration.suffixHour'));
   const [val, setVal] = useState(formatLagShort(seq, hourSuffix));
@@ -34,9 +24,6 @@ export function SequenceLagInput({ seq, title, className, onCommit, onDraftChang
   useEffect(() => {
     setVal(formattedLagRef.current);
   }, [signature, hourSuffix]);
-  // Live-afgeleid (zoals `UnitsInput`): rood ZODRA de huidige tekst niet parseerbaar is — dus al
-  // tíjdens het typen, niet pas na een stille terugval bij blur (die zonder indicatie zou
-  // verbergen dat de invoer geweigerd is).
   const invalid = val !== '' && parseLagInput(val) === null;
   const commit = () => {
     const parsed = parseLagInput(val);
@@ -44,8 +31,6 @@ export function SequenceLagInput({ seq, title, className, onCommit, onDraftChang
       onCommit(parsed);
       setVal(formatLagShort(parsed, hourSuffix));
     } else {
-      // Onparseerbare invoer: terugvallen op de laatst geldige waarde (bestaand gedrag) — de rode
-      // rand hierboven heeft de weigering al zichtbaar gemaakt vóórdat dit gebeurt.
       setVal(formatLagShort(seq, hourSuffix));
     }
   };
