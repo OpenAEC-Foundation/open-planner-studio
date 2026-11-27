@@ -5850,8 +5850,8 @@ en noem het in je rapport of PR-tekst.
 
 2641. **`apply-findings` keurt een tekst tegen de oude vertaling van een label dat in dezelfde lijst verandert.**
      `applyFindings` in `scripts/translate/findings.ts` bouwt de labelindex één keer uit de doelteksten van vóór de
-     ronde. Een regel voor een tekst die een label noemt, moet dan de oude labelvertaling bevatten, ook als een andere
-     regel in hetzelfde bestand dat label verbetert; de nieuwe labeltekst geeft rood tot een tweede ronde. Gezien in
+     ronde. Bevat een nieuwe tekst die een label noemt geen van de labelvertalingen die vóór de ronde geldig waren, dan
+     weigert de labelpoort hem, ook als een andere regel in hetzelfde bestand dat label verbetert. Gezien in
      het weggehaalde commentaar bij die functie. — S
 
 ## Tests
