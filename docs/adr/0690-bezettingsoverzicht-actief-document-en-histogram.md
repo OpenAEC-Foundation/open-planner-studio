@@ -1,11 +1,11 @@
 # Bezettingsoverzicht: het actieve document niet doorrekenen, en een eigen histogram
 
 Het bezettingsoverzicht (`ResourceOccupancyView.tsx`) rekent een verouderd slapend document efemeer door (regel
-`library`, ADR 0476), maar het actieve document niet: dat krijgt `skipEphemeralSolve`. Elke bewerking in het actieve
-document maakt de memo rond `computeLibraryOccupancy` ongeldig, dus een efemere doorrekening zou per toetsaanslag een
-volledige CPM-berekening synchroon in de render kosten. Het actieve document heeft zijn eigen rekenpad (F5 of
-`useAutoCalcCPM`); hier telt het mee met zijn laatst berekende cijfers, net als de Gantt ernaast, en krijgt het een eigen
-markering (`staleAsShownDoc`).
+`library`, ADR 0476), maar het actieve document niet: dat krijgt `skipEphemeralSolve`. Een bewerking aan de invoer van
+de bezetting maakt de memo rond `computeLibraryOccupancy` ongeldig, dus een efemere doorrekening zou per toetsaanslag
+een volledige CPM-berekening synchroon in de render kosten. Het actieve document heeft zijn eigen rekenpad (F5 of
+`useAutoCalcCPM`); hier telt het mee zonder doorrekening, dus mogelijk met oudere planningsdatums (knownbug 28), en
+krijgt het een eigen markering (`staleAsShownDoc`).
 
 ## Gevolgen
 
