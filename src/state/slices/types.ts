@@ -210,6 +210,7 @@ export type NotificationMessageKey =
   | 'notifications.openFailed'
   | 'ifcx.open.foreign'
   | 'ifcx.open.newer'
+  | 'ifcx.open.unsupportedVersion'
   | 'ifcx.open.invalid'
   | 'ifcx.open.notIfcx'
   | 'ifcx.writeRefused'
@@ -223,6 +224,7 @@ export type NotificationMessageKey =
   | 'notifications.layoutsNotSaved'
   // Slepen en neerzetten (#771): een formaat dat de app niet opent, of een dialoog die openstaat.
   | 'notifications.fileDropRefused'
+  | 'ifcx.fileDropRefused'
   | 'notifications.fileDropBlocked'
   | 'notifications.csvInvalidDate'
   | 'notifications.extGuideCallbackFailed'

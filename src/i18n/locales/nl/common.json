@@ -2100,6 +2100,7 @@
     "open": {
       "foreign": "Dit IFCX-bestand komt niet van Open Planner Studio. Bestanden van andere programma's kan de app nog niet openen.",
       "newer": "Dit IFCX-bestand heeft een nieuwere versie dan deze app kent. Open het met een nieuwere versie van Open Planner Studio.",
+      "unsupportedVersion": "Dit IFCX-bestand heeft een IFCX-versie die deze app niet ondersteunt, dus het opent niet.",
       "invalid": "Dit IFCX-bestand wijkt af van wat Open Planner Studio schrijft en opent daarom niet.",
       "notIfcx": "Dit bestand is geen IFCX-bestand."
     },
@@ -2113,7 +2114,8 @@
       "xerArchiveBody": "Het P6-bronarchief gaat niet mee naar IFCX. De planning zelf gaat wel mee. Het geopende bestand verandert niet. Daarna werk je verder in het IFCX-bestand, zonder het bronarchief.",
       "xerArchiveContinue": "Doorgaan",
       "cancel": "Annuleren"
-    }
+    },
+    "fileDropRefused": "Niet geopend: {{names}}. De app opent alleen IFC, IFCX, XML, MPP, XER en CSV."
   },
   "foreignChangesQuestion": {
     "title": "Opslaan in {{file}}",
