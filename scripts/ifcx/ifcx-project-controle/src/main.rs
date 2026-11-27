@@ -102,13 +102,15 @@ fn controleer(pad: &Path) -> Result<Uitkomst, String> {
         }
     }
     let model_id = format!("{id}:modeldoelen");
+    let mut kop = document["header"].clone();
+    kop["id"] = json!(model_id);
     let met_model = |weggelaten: Option<&str>| {
         let data: Vec<_> = doelen.iter().copied()
             .filter(|doel| Some(*doel) != weggelaten)
-            .map(|doel| json!({ "path": doel }))
+            .map(|doel| json!({ "path": doel, "attributes": {} }))
             .collect();
         let model = json!({
-            "header": { "id": model_id, "ifcxVersion": "ifcx_alpha", "dataVersion": "1.0.0" },
+            "header": kop,
             "imports": [{ "uri": id }], "schemas": {}, "data": data
         });
         let mut pakket = bestanden.clone();
