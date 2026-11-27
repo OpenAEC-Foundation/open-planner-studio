@@ -1771,15 +1771,18 @@ en noem het in je rapport of PR-tekst.
       veld zojuist automatisch is doorgesprongen. Issue #1296. — B
 2520. **Verwijderen en Dissolve in het lint staan aan onder het volledige resourcepaneel, en verwijderen dan een
       taak die niet in beeld is.** De sneltoetsen Delete en Backspace zijn daar dicht (`isTaskListOutOfView` in
-      `src/hooks/keyboard/shortcutRegistry.ts`, op `isTaskListInView`), het relatiemenu ook
-      (`relationActionAvailability` in `ribbonWidgets.tsx`). De lintknop Verwijderen (`COMMANDS.delete`, alleen
-      `hasSelection`) en de knop Dissolve (`editGroup` in `ribbonConfig.tsx`, alleen `selectedTaskIds.length > 0`)
-      kijken daar niet naar. Proef in Node met een eigen store-context (`createAppStoreContext`): nieuw project met
-      taken A en B, A geselecteerd, op Resources `setUI({ showResourcePanel: true, resourcePanelDocked: false })`, dan
-      naar Start en naar Tabel. Op beide tabbladen is `isGanttWorkspaceVisible` en `isTaskListInView` onwaar (de
-      werkruimte toont dan `ResourcePanel`, `App.tsx`), de selectie blijft staan en `isCommandEnabled(COMMANDS.delete)`
-      is waar; `COMMANDS.delete.run` brengt het aantal taken van 2 naar 1. Het klikken zelf is niet in de browser
-      nagespeeld. — B
+      `src/hooks/keyboard/shortcutRegistry.ts`, op `isTaskListInView`). In het relatiemenu (`RelationDropdown` in
+      `ribbonWidgets.tsx`) zijn koppelen en toewijzen daar dicht (`relationActionAvailability`) en tekenen ook
+      (`isGanttWorkspaceVisible`); het menu zelf gaat wel open, en bij één geselecteerde taak blijft *Externe relatie
+      toevoegen…* beschikbaar. De lintknop Verwijderen (`COMMANDS.delete`,
+      alleen `hasSelection`) en de knop Dissolve (`editGroup` in `ribbonConfig.tsx`, alleen
+      `selectedTaskIds.length > 0`) kijken niet naar `isTaskListInView`. Proef in Node met een eigen store-context
+      (`createAppStoreContext`): nieuw project met taken A en B, A geselecteerd, op Resources
+      `setUI({ showResourcePanel: true, resourcePanelDocked: false })`, dan naar Start en naar Tabel. Op beide
+      tabbladen is `isGanttWorkspaceVisible` en `isTaskListInView` onwaar (de werkruimte toont dan `ResourcePanel`,
+      `App.tsx`), de selectie blijft staan en `isCommandEnabled(COMMANDS.delete)` is waar; `COMMANDS.delete.run`
+      brengt het aantal taken van 2 naar 1, met één nieuw event in de sessiegeschiedenis, en één `undo()` zet A
+      terug. Het klikken zelf is niet in de browser nagespeeld. Issue #1305. — B
 2521. **Waarschuwingspaneel en Verschuivingen in het lint zetten hun paneel uit als je op de niet-actieve knop klikt
       terwijl het paneel aan staat maar niet in beeld is.** De knoppen (`warningsPanelButton` en
       `scheduleShiftPanelButton` in `ribbonConfig.tsx`) zijn alleen actief als de rail in beeld is, maar hun klik keert
