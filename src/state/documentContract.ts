@@ -21,6 +21,7 @@ import { foreignSourceMarkFor, foreignSourceMarkFromRecovery } from '@/services/
 import type { ColumnConfig, ViewState } from './slices/types';
 import type { AppState } from './appStore';
 import { createDefaultProject } from './defaults';
+import { projectForIfcx } from './ifcSchemaChoice';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultView } from './defaults';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from './syncProjectCalendar';
@@ -149,7 +150,10 @@ export function normalizeView(v: ViewState): ViewState {
 }
 
 export const DOCUMENT_FIELDS = [
-  field({ key: 'project', get: (s) => s.project, set: (s, v) => { s.project = v; }, fresh: createDefaultProject, snapshot: 'data' }),
+  field({
+    key: 'project', get: (s) => s.project, set: (s, v) => { s.project = v; }, fresh: createDefaultProject, snapshot: 'data',
+    fromPayload: (p) => p.fileFormat === 'ifcx' ? projectForIfcx(p.project) : p.project,
+  }),
   field({ key: 'calendar', get: (s) => s.calendar, set: (s, v) => { s.calendar = v; }, fresh: createDefaultCalendar, snapshot: 'data' }),
   field({
     key: 'tasks', get: (s) => s.tasks, set: (s, v) => { s.tasks = v; }, fresh: () => [], snapshot: 'data',

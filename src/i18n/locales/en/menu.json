@@ -496,5 +496,12 @@
     "cut": "Cut",
     "fullscreen": "Toggle Full Screen",
     "bringAllToFront": "Bring All to Front"
+  },
+  "ifcx": {
+    "projectInfo": {
+      "fileType": "File type",
+      "fileTypeHint": "To use a different file type, choose File → Save As in the desktop app.",
+      "schemaForIfcx": "IFCX has no IFC schema. This schema applies when you later save the schedule as IFC."
+    }
   }
 }

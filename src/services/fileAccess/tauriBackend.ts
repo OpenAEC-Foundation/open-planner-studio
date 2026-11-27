@@ -1,5 +1,5 @@
 import type { FileData, FileFilter, FileRef, OpenDialogOpts, OpenedFile, PickedSaveTarget, RefuseBeforePlace, SaveDialogOpts, SaveOutcome } from './index';
-import { basename, ensureExtension, extensionOf } from '@/utils/filePath';
+import { basename, extensionOf, withOneOfExtensions } from '@/utils/filePath';
 import {
   isForbiddenPathError, writeUserFileTauri, writeNewUserBytesTauri,
 } from '@/services/fileAccess/atomicWrite';
@@ -178,7 +178,7 @@ export async function pickOpenPathTauri(filters: FileFilter[]): Promise<string |
  * en is de eindnaam niet vrij of niet toegestaan, dan opent het venster nog eens met die naam
  * (`check-save-dialog-extension.ts`); in het gewone geval blijft het één venster.
  */
-async function pickSavePathTauri(
+export async function pickSavePathTauri(
   defaultName: string, filters: FileFilter[], opts?: SaveDialogOpts,
 ): Promise<string | null> {
   const { save } = await import('@tauri-apps/plugin-dialog');
@@ -192,11 +192,11 @@ async function pickSavePathTauri(
       // net als het bestaande gedrag van elke andere export.
     }
   }
-  const ext = filters[0]?.extensions[0] ?? '';
+  const extensions = filters.flatMap(filter => filter.extensions);
   let picked = await save({ defaultPath, filters });
   while (picked) {
     // Linux/GTK plakt de filter-extensie niet automatisch → normaliseren.
-    const target = ext ? ensureExtension(picked, ext) : picked;
+    const target = withOneOfExtensions(picked, extensions);
     // Het venster gaf toestemming (scope) en stelde de overschrijfvraag voor `picked`, niet voor `target`. Valt
     // `target` buiten de scope of bestaat hij al, dan gaat hij zelf nog een keer door het venster, ingevuld.
     if (target === picked || !(await needsOwnDialogRound(target))) return target;
@@ -224,7 +224,10 @@ export async function saveDataDialogTauri(
   defaultName: string, data: FileData, filters: FileFilter[], opts?: SaveDialogOpts,
 ): Promise<SaveOutcome | null> {
   const savedPath = await pickSavePathTauri(defaultName, filters, opts);
-  if (!savedPath) return null;
+  return savedPath ? saveDataToPathTauri(savedPath, data, opts) : null;
+}
+
+export async function saveDataToPathTauri(savedPath: string, data: FileData, opts?: SaveDialogOpts): Promise<SaveOutcome | null> {
   // #804 fixronde 1: het gekozen pad vóór het schrijven controleren (bijv. het bronbestand van een gebouwmodel).
   if (await opts?.refuseTarget?.({ kind: 'path', path: savedPath })) return null;
   if (!(await writeUserFileTauri(savedPath, data, opts?.refuseBeforePlace))) return null;
