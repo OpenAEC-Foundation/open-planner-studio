@@ -188,6 +188,12 @@
  * op de cellen zelf werken). */
 .task-grid-data-row {
   position: relative;
+  box-shadow: inset 0 -1px 0 var(--theme-border-light);
+}
+
+.task-grid-data-row,
+.task-grid-group-row {
+  margin-inline-end: calc(-1 * var(--task-grid-chooser-strip, 16px));
 }
 
 .task-grid-data-row[data-grid-row-selected="true"] .task-grid-cell {
