@@ -25,6 +25,8 @@ die vóór de taken begint, blijft zo ook bereikbaar (`check-baseline-vergelijki
   de Gantt getekend is: Ctrl/Cmd+Home (`nav.scrollToToday` in `shortcutRegistry.ts`, zonder `when`) werkt ook als
   `GanttCanvas` niet gemonteerd is. Of een importer zo'n datum kan opleveren, staat volgens het weggehaalde
   commentaar niet vast. De aanroeper rekent daarna verder met die invoer; zie knownbug 2540.
+- Onder het jaar 100 klopt de oorsprong niet: de functie geeft voor `0100-01-03` wel `0099-12-20`, maar de Gantt leest
+  die tekst met `parseDate` als 1999-12-20.
 - De functie staat in `ganttViewport.ts` en niet bij de renderopties, omdat `computeScrollToDate` en
   `computeFitToProject` hier hem gebruiken en `ganttRenderOptions.ts` dit bestand importeert: in die module zou het
   een kringimport geven. `check-gantt-render-options.ts` toetst de uitkomst tegen een eigen kopie van de formule (01

@@ -52,6 +52,7 @@ publiceren.
   blijven eveneens leesbaar; schema 2 wordt in een koud proces via
   `readIFCWithXerReconstruction` uit uitsluitend de opgeslagen bronbytes herbouwd.
 - De leespoort ondersteunt manifestversies 1–5 en de historische versieloze webvorm met `docIds`.
+  Met de experimentele instelling `ifcx` aan leest ze ook versie 6 voor planningen bij een IFCX-model.
   Documentidentiteiten moeten binnen elk manifest uniek zijn, ook in `docIds`; een duplicaat kan
   anders twee snapshots tot één geopend document reduceren. Onbekende/ongeldige manifesten blokkeren
   lezen en latere mutaties van die herstelset, met één blijvende sessiemelding. De bestaande
@@ -145,6 +146,24 @@ zijn hiermee niet bewezen; de laatste horen bij PR 6.
 De nieuwe route staat in `check-recovery-ifc-source.ts`: volledige heropening na herstel,
 resource-identiteit na een eerdere opslag, bronfouten, handle, veilige manifestdoelen en de grens
 zonder modelbytes. De bestaande versie-/documentcontrole accepteert het optionele veld.
+
+## Een IFCX-planning bij een model
+
+De STEP-snapshot bewaart de planning en de interne taak-id in `OPS_TaskIdentity`. Alleen een herstelset
+met IFCX-modelverwijzingen gebruikt manifestversie 6. Bij elk betrokken document bevat `ifcx.references`
+het hele veld `ifcxReferences` als JSON. Een Map wordt daarin als `{"$map":[[sleutel,waarde],…]}`
+vastgelegd. Zo blijft elk exact doelpad gekoppeld aan de taak-id in de snapshot. Het model, de
+bouwdeelindex en bestandshandvatten blijven buiten de snapshot, zijn worker en het manifest.
+
+Het model en het schrijfdoel hebben elk hun eigen identiteit. Vóór de eerste desktopopslag onthoudt
+het manifest het modelpad en heeft het document nog geen schrijfdoel. Bij een bestaande desktopplanning
+controleert de app het buurmodel. In de browser verwijst het manifest voor een bestaand schrijfdoel
+naar de id in Recent. De modelcontrole gebruikt dezelfde naam- en hashvergelijking als bij openen.
+Bij ontbrekende toegang blijven de verwijzingen in de planning staan en zijn de koppelingen ongecontroleerd.
+
+Zonder deze modelverwijzingen schrijft de app de gebruikelijke versie 5. Een oudere app of een app met
+`ifcx` uit weigert versie 6 via de bestaande versiecontrole bij lezen, schrijven en wissen.
+De IndexedDB-versie blijft 3.
 
 ## Webdatabase v3: upgrade en beperkingen
 

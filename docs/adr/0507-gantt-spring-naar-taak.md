@@ -1,11 +1,11 @@
 # Zoom en scroll bij "spring naar taak" in de Gantt
 
 "Spring naar taak" (`focusOnTask` in `viewSlice.ts`) zet een signaal; `useGanttViewportCoordinator.ts` rekent de zoom
-en de scroll uit met de functies in `src/utils/ganttViewport.ts`. `computeFocusTaskHorizontal` geeft de balk
-`FOCUS_TASK_WIDTH_FRACTION` (0,2) van de paneelbreedte en zet hem in het midden. Dat laat context ervoor en erna en
+en de scroll uit met de functies in `src/utils/ganttViewport.ts`. `computeFocusTaskHorizontal` mikt op een balk van
+`FOCUS_TASK_WIDTH_FRACTION` (0,2) van de paneelbreedte, vóór de zoomklem hieronder, en probeert hem in het midden te zetten. Dat laat context ervoor en erna en
 oogt niet van rand tot rand zoals de fit (ADR 0502). De zoom klemt tussen `FOCUS_TASK_MIN_ZOOM`
-(`TIMESCALE_ZOOM.quarter`) en `FOCUS_TASK_MAX_ZOOM` (`TIMESCALE_ZOOM.day`): zonder ondergrens krimpt een taak van
-maanden tot een streepje, zonder bovengrens zoomt een mijlpaal zo ver in dat de context verdwijnt. De grenzen zijn
+(`TIMESCALE_ZOOM.quarter`) en `FOCUS_TASK_MAX_ZOOM` (`TIMESCALE_ZOOM.day`): zonder
+bovengrens zoomt een mijlpaal zo ver in dat de context verdwijnt. De grenzen zijn
 tijdschalen die de gebruiker ook in het lint kan kiezen. Een duur onder 1 dag telt als 1 dag. Anders dan de fit zoomt
 dit op één taak, en anders dan Ctrl+Home (ADR 0503) en `revealTaskIfOffscreen` in `GanttCanvas.tsx`, die alleen
 scrollen en de zoom laten staan, verandert dit de zoom.

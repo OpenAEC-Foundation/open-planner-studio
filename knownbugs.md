@@ -2014,7 +2014,7 @@ en noem het in je rapport of PR-tekst.
       XER-testbestanden van de repo (`tests/browser/fixtures/xer/`, samen vier taken) wijst geen taak naar een
       ontbrekende kalender; hoe vaak P6 dat exporteert, is niet nagegaan. — B
 
-2487. **Newfoundland and Labrador krijgt Remembrance Day al vóór de invoering onder de algemene arbeidsnormen.**
+2560. **Newfoundland and Labrador krijgt Remembrance Day al vóór de invoering onder de algemene arbeidsnormen.**
       Kies Canada en Newfoundland and Labrador en genereer feestdagen voor een planning die 2001 omvat. De lijst
       bevat 11 november 2001, terwijl de toevoeging in december 2001 is aangenomen en de eerste editie als betaalde
       feestdag op 11 november 2002 viel. De landelijke en andere provinciale regels staan hier los van. Richting:
@@ -8068,6 +8068,12 @@ en noem het in je rapport of PR-tekst.
       Richting: in de gedeelde functie de vastlegging per kant beoordelen, met de vroege start van het restwerk
       en de eerdere werkelijke start van een lopende taak als proef. — B
 
+2419. **Een uit Recent verdwenen IFCX-planning herstelt in de browser zonder schrijfdoel.**
+      Crashherstel bewaart de id van de planning in Recent. Verwijdert de planner die vermelding of
+      verdringen tien andere bestanden haar, dan zijn na herstel de taken en de modelverwijzingen
+      beschikbaar en vraagt Opslaan opnieuw om een doel. Het verwijderen van de vermelding is
+      nagegaan in `check-ifcx-herstel.ts`. — B
+
 2422. **Een MCP-backup van een planning bij een IFCX-model laat de modelverwijzing stil weg.**
       *MCP → Veiligheid → Nu backup maken* en de automatische backup langs dezelfde schrijfroute schrijven
       een STEP-kopie van de planning. Die kopie bevat de modelverwijzing en de bouwdeelkoppelingen niet, en de
@@ -8086,3 +8092,19 @@ en noem het in je rapport of PR-tekst.
       STEP-uitvoer en weigert pas daarna het doel. Er wordt niets geschreven; de planner beantwoordt een
       overbodige vraag. Gevolgd in de code bij de review van #1324, ronde 1. Richting: het gekozen doel
       en de documentidentiteit vóór de vraag toetsen en de laatste controle vlak vóór plaatsing houden. — S
+
+2424. **Valt de app uit tussen de opslag van een IFCX-planning en de vernieuwde herstelset, dan kan crashherstel de oudere stand aanbieden.**
+      Op de desktop schrijft *Opslaan* eerst het planningsbestand en vraagt daarna een actuele
+      herstelronde. Stopt het hele proces daartussen en ligt er al een herstelset van versie 6, dan laadt
+      de app na herstart die oudere stand, zonder haar te vergelijken met de nieuwere planning op het
+      schrijfdoel. Het opgeslagen bestand zelf is goed. Gevolgd in de code bij de review van #1325,
+      ronde 1; de proef onderbreekt vóór de manifestwrite en niet erna. Vóór de flag `ifcx` standaard
+      aan gaat: bij herstel de herstelde stand vergelijken met het schrijfdoel, met een proef die na de
+      plaatsing onderbreekt. — S
+
+2431. **Zet de planner de flag `ifcx` uit terwijl een ronde van Automatisch opslaan wacht, dan kan die ronde nog één keer IFCX schrijven.**
+      Een al gekozen ronde gebruikt de flag van het moment waarop ze begon. Wacht ze nog op schrijfrecht
+      of op haar beurt, en is de planning ongewijzigd met hetzelfde schrijfdoel, dan schrijft ze de
+      IFCX-planning nog één keer met de verwijzingen. Gevolgd in de code bij de review van #1325, ronde 3.
+      Vóór de flag `ifcx` standaard aan gaat: de actuele flag ook vlak vóór de plaatsing toetsen, met een
+      wachtende ronde als proef. — S
