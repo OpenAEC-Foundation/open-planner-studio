@@ -19,7 +19,7 @@
 //! bestand-I/O nodig, breid dan `src/services/fileAccess/` uit (of voeg een
 //! command toe MÉT padvalidatie), niet deze module.
 
-pub mod open_folder;
+pub mod open_backup_folder;
 pub mod place_file;
 
 /// Detecteer hoe de app op deze machine geïnstalleerd is, zodat de frontend kan

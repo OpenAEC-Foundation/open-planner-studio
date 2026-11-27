@@ -154,6 +154,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(process_info_plugin())
         // MCP-bridge-state (fase 1, Tauri-only): één actieve bridge of geen.
         .manage(mcp_bridge::BridgeState::default())
@@ -185,7 +186,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::install_kind,
             commands::place_file::place_file_exclusive,
-            commands::open_folder::open_folder,
+            commands::open_backup_folder::open_backup_folder,
             mcp_bridge::mcp_bridge_start,
             mcp_bridge::mcp_bridge_stop,
         ])

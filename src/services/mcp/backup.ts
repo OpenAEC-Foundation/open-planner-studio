@@ -4,9 +4,9 @@
 // geëxporteerd; bestaande imports blijven werken.
 
 import type { EnsureBackupFn } from './contracts';
+import type { invoke as TauriInvoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/utils/platform';
 import { appStoreContext } from '@/state/appStore';
-import { openFolder } from '@/services/shell/openFolder';
 import { BACKUP_ROOT, createAppBackupService, type BackupService } from './backupService';
 
 export * from './backupService';
@@ -59,5 +59,10 @@ export async function openBackupFolder(): Promise<void> {
   const { mkdir } = await import('@tauri-apps/plugin-fs');
   const dir = await join(await appDataDir(), BACKUP_ROOT);
   await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet
-  await openFolder(dir);
+  const { invoke } = await import('@tauri-apps/api/core');
+  await openBackupFolderWith(invoke);
+}
+
+export async function openBackupFolderWith(invoke: typeof TauriInvoke): Promise<void> {
+  await invoke('open_backup_folder', {});
 }

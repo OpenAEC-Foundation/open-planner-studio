@@ -6,8 +6,7 @@ const backing = new Map<string, string>();
 };
 
 import { test, assert, assertEq, run } from './harness';
-import { openBackupFolder, BACKUP_ROOT } from '@/services/mcp/backup';
-import { openFolder, openFolderWith } from '@/services/shell/openFolder';
+import { openBackupFolder, openBackupFolderWith, BACKUP_ROOT } from '@/services/mcp/backup';
 
 type IpcCall = { command: string; args: Record<string, unknown> };
 
@@ -32,7 +31,11 @@ function installFakeTauriIpc(appDataDir: string) {
   };
 }
 
-test('openBackupFolder geeft de ai-backups-map aan open_folder en niet aan plugin-shell open', async () => {
+test('BACKUP_ROOT is ai-backups (zelfde literal als BACKUP_DIR in open_backup_folder.rs)', () => {
+  assertEq(BACKUP_ROOT, 'ai-backups', 'de Rust-kant joining appDataDir + deze string; bij wijziging beide kanten aanpassen');
+});
+
+test('openBackupFolder maakt de map aan en roept open_backup_folder aan zónder padargument', async () => {
   const ipc = installFakeTauriIpc('/appdata');
   try {
     await openBackupFolder();
@@ -42,42 +45,29 @@ test('openBackupFolder geeft de ai-backups-map aan open_folder en niet aan plugi
   const expectedDir = `/appdata/${BACKUP_ROOT}`;
 
   const shellOpen = ipc.calls.filter((c) => c.command === 'plugin:shell|open');
-  assertEq(shellOpen.length, 0, `plugin-shell open mag geen map aanroepen (kreeg: ${JSON.stringify(shellOpen)})`);
-
-  const openFolderCalls = ipc.calls.filter((c) => c.command === 'open_folder');
-  assertEq(openFolderCalls.length, 1, `precies één open_folder-aanroep verwacht, kreeg ${JSON.stringify(openFolderCalls)}`);
-  assertEq(openFolderCalls[0].args.path, expectedDir, 'open_folder krijgt het absolute pad van de backup-map');
+  assertEq(shellOpen.length, 0, `plugin-shell open mag niet aangeroepen worden (kreeg: ${JSON.stringify(shellOpen)})`);
 
   const mkdir = ipc.calls.find((c) => c.command === 'plugin:fs|mkdir');
   assert(mkdir !== undefined && mkdir.args.path === expectedDir, 'de map wordt vóór het openen aangemaakt (plugin-fs mkdir)');
+
+  const openCalls = ipc.calls.filter((c) => c.command === 'open_backup_folder');
+  assertEq(openCalls, [{ command: 'open_backup_folder', args: {} }],
+    'het commando krijgt geen pad mee: Rust bepaalt zelf <appDataDir>/ai-backups en weigert als die geen bestaande map is');
 });
 
-test('openFolderWith roept open_folder aan met het gegeven pad', async () => {
+test('openBackupFolderWith roept open_backup_folder aan met lege args', async () => {
   const seen: IpcCall[] = [];
   const fakeInvoke = (async (command: string, args: Record<string, unknown>) => {
     seen.push({ command, args });
     return null;
   }) as any;
-  await openFolderWith(fakeInvoke, '/appdata/ai-backups');
-  assertEq(seen, [{ command: 'open_folder', args: { path: '/appdata/ai-backups' } }],
-    'openFolderWith stuurt (command, { path }) naar de Rust-kant');
+  await openBackupFolderWith(fakeInvoke);
+  assertEq(seen, [{ command: 'open_backup_folder', args: {} }], 'alleen het commandonaam, geen pad');
 });
 
-test('openFolder doet in de web-build (geen Tauri) niets', async () => {
+test('openBackupFolder doet in de web-build (geen Tauri) niets', async () => {
   assert(typeof (globalThis as any).window === 'undefined', 'proef start zonder window');
-  await openFolder('/appdata/ai-backups');
   await openBackupFolder();
-});
-
-test('openFolder gaat met Tauri aan via invoke naar open_folder', async () => {
-  const ipc = installFakeTauriIpc('/appdata');
-  try {
-    await openFolder('/appdata/ai-backups');
-  } finally {
-    ipc.dispose();
-  }
-  assertEq(ipc.calls, [{ command: 'open_folder', args: { path: '/appdata/ai-backups' } }],
-    'met Tauri aan is openFolder precies één open_folder-aanroep');
 });
 
 await run();
