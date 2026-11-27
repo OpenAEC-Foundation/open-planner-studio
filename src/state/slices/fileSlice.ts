@@ -315,6 +315,10 @@ export function exportSplitsLostNotice(format: ExportFormat, tasks: readonly Tas
   return count > 0 ? { severity: 'info', messageKey: 'notifications.exportSplitsLost', params: { count } } : null;
 }
 
+export function exportModelReferencesLostNotice(format: ExportFormat, state: Pick<AppState, 'ifcxReferences'>): NotifyInput | null {
+  return format === 'ifc' && state.ifcxReferences?.modelSource ? { severity: 'info', messageKey: 'ifcx.model.ifcExportLoss' } : null;
+}
+
 export function exportCostResourcesLostNotice(format: ExportFormat, resources: readonly Pick<Resource, 'type'>[]): NotifyInput | null {
   if (format !== 'mspdi') return null;
   const count = resources.filter(r => r.type === 'COST').length;
@@ -2276,9 +2280,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           });
         }
         notices.push(exportSplitsLostNotice(format, state.tasks));
-        if (format === 'ifc' && state.ifcxReferences?.modelSource) {
-          notices.push({ severity: 'info', messageKey: 'ifcx.model.ifcExportLoss' });
-        }
+        notices.push(exportModelReferencesLostNotice(format, state));
         notices.push(exportCostResourcesLostNotice(format, state.resources));
         notices.push(exportP6TruncatedNotice(format, p6Truncated));
         notices.push(exportInvalidXmlCharsNotice(format, invalidXmlChars));
@@ -2365,6 +2367,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
+      const referencesLost = exportModelReferencesLostNotice('ifc', state);
+      if (referencesLost) get().notify(referencesLost);
       const companyId = state.project.companyId;
       if (!companyId) return { ok: true, warnings: [] };
       const poolContent = state.exportPoolIFC(companyId);

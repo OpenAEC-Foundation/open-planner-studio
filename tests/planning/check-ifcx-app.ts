@@ -84,15 +84,18 @@ function desktop(appDataDir: string = mkdtempSync(join(tmpdir(), 'ops-ifcx-appda
   const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
   const invoke = win.__TAURI_INTERNALS__.invoke;
   let answer: string | null = null;
+  let after: string | null | undefined;
   const dialogs: DialogCall[] = [];
   win.__TAURI_INTERNALS__.invoke = async (...args) => {
     if (args[0] === 'plugin:dialog|save') {
       dialogs.push(((args[1] ?? {}) as { options?: DialogCall }).options ?? {});
-      return answer;
+      const chosen = answer;
+      if (after !== undefined) { answer = after; after = undefined; }
+      return chosen;
     }
     return invoke(...args);
   };
-  return { ...ipc, dialogs, choose: (path: string | null) => { answer = path; } };
+  return { ...ipc, dialogs, choose: (path: string | null, next?: string | null) => { answer = path; after = next; } };
 }
 
 function saveWorker(mode: 'auto' | 'none' = 'auto') {
@@ -386,7 +389,8 @@ await check('modelkoppelingen bij het heropenen met een gelijk, gewijzigd of ont
         const exported = await reopened.getState().exportAs('ifc');
         assert(exported.ok && !exported.cancelled);
         assert(isStep(bytesAt(step)));
-        assert.equal(reopened.getState().ui.notifications.filter(n => n.messageKey === 'ifcx.model.ifcExportLoss').length, 1);
+        const lossNotices = (store: typeof reopened) => store.getState().ui.notifications.filter(n => n.messageKey === 'ifcx.model.ifcExportLoss').length;
+        assert.equal(lossNotices(reopened), 1);
         assert.deepEqual(bytesAt(plan), beforeExport);
         const plain = await openAt(step, IFCX_ON);
         assert.equal(plain.getState().ifcxReferences, null);
@@ -395,7 +399,27 @@ await check('modelkoppelingen bij het heropenen met een gelijk, gewijzigd of ont
         const exportedPlain = await plain.getState().exportAs('ifc');
         assert(exportedPlain.ok && !exportedPlain.cancelled);
         assert(isStep(bytesAt(copy)));
-        assert(!plain.getState().ui.notifications.some(n => n.messageKey === 'ifcx.model.ifcExportLoss'));
+        const pooledCopy = join(folder, 'kopie-met-bibliotheek.ifc');
+        ipc.choose(pooledCopy);
+        const pooledPlain = await plain.getState().exportProjectWithPool();
+        assert(pooledPlain.ok && !pooledPlain.cancelled);
+        assert(isStep(bytesAt(pooledCopy)));
+        assert.equal(lossNotices(plain), 0);
+        const companyId = reopened.getState().seedDemoLibrary();
+        reopened.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
+        const libraryFile = join(folder, 'bibliotheek.ifc');
+        for (const [name, library] of [['bibliotheek-geannuleerd.ifc', null], ['met-bibliotheek.ifc', libraryFile]] as const) {
+          clearNotices(reopened);
+          const pooledStep = join(folder, name);
+          ipc.choose(pooledStep, library);
+          const pooled = await reopened.getState().exportProjectWithPool();
+          assert(pooled.ok && !!pooled.cancelled === (library === null));
+          assert(isStep(bytesAt(pooledStep)));
+          assert.equal(existsSync(libraryFile), library !== null);
+          assert.equal(lossNotices(reopened), 1);
+          assert.deepEqual(bytesAt(plan), beforeExport);
+          assert.deepEqual(bytesAt(path), model);
+        }
       }
     } finally { ipc.dispose(); }
   }
