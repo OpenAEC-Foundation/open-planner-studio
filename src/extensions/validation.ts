@@ -37,10 +37,6 @@ const EXTENSION_CATEGORIES: readonly ExtensionCategory[] = [
   'Other',
 ];
 
-// GEEN eigen permissielijst hier: `permissions.ts` is de ene bron van waarheid. Een tweede,
-// handgekopieerde lijst raakt uit de pas, en elk installatiepad parseert met mode 'fresh', waarin
-// `parsePermissions` een niet-erkende permissie weigert. `permissions.ts` laadt geen loader of
-// UI-config (alleen types, appLog en de kale i18next-instantie), dus dit vormt geen cyclus.
 const EXTENSION_PERMISSIONS: readonly ExtensionPermission[] = KNOWN_PERMISSIONS;
 
 const VERSION_PATTERN = /^[0-9]+(?:\.[0-9]+){0,3}$/;
@@ -228,20 +224,10 @@ function parseIcon(value: unknown): ParseResult<string> {
   return { ok: true, value, warnings: [] };
 }
 
-/**
- * Reconstrueer een manifest uit een niet-vertrouwde waarde.
- *
- * `fresh` is strikt voor nieuwe JS-/ZIP-/catalogusinvoer. `stored-legacy` accepteert uitsluitend de
- * expliciete, veilige compatibiliteitsdefaults voor oudere IndexedDB-records en meldt iedere
- * normalisatie. De uitkomst deelt geen arrays of objectvelden met de bron.
- */
-/** Een optioneel veld: afwezig blijft `undefined`, aanwezig moet `parse` doorstaan. */
 function parseOptional<T>(value: unknown, parse: (value: unknown) => ParseResult<T>): ParseResult<T | undefined> {
   return value === undefined ? { ok: true, value: undefined, warnings: [] } : parse(value);
 }
 
-/** De identiteitsvelden die manifest en catalogusentry delen, in vaste volgorde gevalideerd (de
- *  eerste fout wint, zodat de melding per bron stabiel blijft). */
 function parseIdentity(input: Record<string, unknown>): ParseResult<{
   id: string; name: string; version: string; author: string; description: string; category: ExtensionCategory;
 }> {
@@ -333,10 +319,6 @@ export function parseExtensionManifest(
   return { ok: true, value, warnings };
 }
 
-/**
- * Reconstrueer één IndexedDB-record en koppel het aan de sleutel waarmee het werkelijk is gelezen.
- * Legacydefaults bestaan alleen in de geretourneerde waarde; deze parser schrijft niets terug.
- */
 export function parseStoredExtension(
   input: unknown,
   storageKey: IDBValidKey,
@@ -393,8 +375,6 @@ function generatedJavaScriptManifest(fileName: string): unknown {
     id,
     name: fileName.replace(/\.js$/, ''),
     version: '1.0.0',
-    // Zonder expliciet manifest is de contractversie onbekend; de bestaande compatibiliteitspoort
-    // behandelt een ontbrekende apiVersion als legacy in plaats van een garantie te verzinnen.
     minAppVersion: '0.0.0',
     author: 'Onbekend',
     description: `Extensie geladen uit ${fileName}`,
@@ -465,7 +445,6 @@ function manifestJsonFromComment(code: string): ParseResult<unknown> | null {
   return found;
 }
 
-/** Lees een optioneel `@manifest`-commentblok en valideer altijd de uiteindelijke fresh vorm. */
 export function manifestFromJavaScript(
   code: string,
   fileName: string,
@@ -531,7 +510,6 @@ function catalogIdHint(input: unknown): string | undefined {
   return input.id.slice(0, EXTENSION_LIMITS.id);
 }
 
-/** Parse het catalogustopobject atomair en isoleer fouten vervolgens per entry. */
 export function parseCatalog(input: unknown): ParseResult<{
   catalog: ExtensionCatalog;
   issues: CatalogIssue[];
