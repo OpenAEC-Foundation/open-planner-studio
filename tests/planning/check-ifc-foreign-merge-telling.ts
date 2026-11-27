@@ -271,8 +271,7 @@ for (const file of ['eigen-plus-model.ifc', `${EXAMPLES}/03-kantoorgebouw-zuidas
   const shown = shownName(file) + (ownPath(file) ? ' + wand' : '');
   try {
     const raw = bytesOf.get(shown)!, saved = await savedCatalogStart(raw), single = await savedCatalogStart(raw, false);
-    const opened = await openForeign(saved);
-    for (const [i, edit] of fixedCatalogEdits(opened).entries()) {
+    for (const [i, edit] of fixedCatalogEdits().entries()) {
       const bytes = i === 1 ? single : saved;
       const result = await runEdits(shown, bytes, await openForeign(bytes), APP, others, true, 0, [edit]);
       for (const [kind, counts] of result) {

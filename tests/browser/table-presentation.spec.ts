@@ -157,6 +157,72 @@ test('gantt en tabel: de subtaak-plus staat rechts in de naamkolom, achter de te
   }, tree.summary)).toEqual({ children: 3, parentOfNew: tree.summary });
 });
 
+async function rowLinesToPanelEdge(page: Page, surfaceId: string) {
+  return page.locator(`[data-task-grid-surface-id="${surfaceId}"] .task-grid-core`).evaluate(core => {
+    const edge = Math.round(core.getBoundingClientRect().left + core.clientWidth);
+    const rows = [...core.querySelectorAll<HTMLElement>('.task-grid-data-row, .task-grid-group-row')];
+    return {
+      rows: rows.length,
+      short: rows.filter(row => Math.round(row.getBoundingClientRect().right) !== edge).length,
+      withoutLine: rows.filter(row => {
+        if (row.classList.contains('task-grid-group-row')) return getComputedStyle(row).borderBottomWidth !== '1px';
+        const cell = row.querySelector<HTMLElement>('.task-grid-cell')!;
+        return getComputedStyle(row).boxShadow !== `${getComputedStyle(cell).borderBottomColor} 0px -1px 0px 0px inset`;
+      }).length,
+      gapAfterColumns: edge - Math.round(Math.max(...rows.flatMap(row =>
+        [...row.querySelectorAll<HTMLElement>('.task-grid-cell')].map(cell => cell.getBoundingClientRect().right)))),
+    };
+  });
+}
+
+test('gantt en tabel: rijlijnen lopen door tot de rand van een paneel dat breder is dan de kolommen (issue #1246)', async ({ page, ops: _ops }) => {
+  const tree = await seedTree(page);
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    for (let index = 1; index <= 40; index++) s.addTask({ name: `Extra ${index}` });
+    window.__OPS__!.store.getState().setUI({ leftPanelWidth: 900 });
+  });
+  const columnWidths = () => page.evaluate(() => window.__OPS__!.store.getState().taskGridSurfaces['gantt-task-grid'].columns.map(column => column.width));
+  const widthsBefore = await columnWidths();
+  const expectLinesToEdge = async (surfaceId: string, label: string) => {
+    await expect.poll(() => rowLinesToPanelEdge(page, surfaceId), { message: label }).toMatchObject({ short: 0, withoutLine: 0 });
+    const measured = await rowLinesToPanelEdge(page, surfaceId);
+    expect(measured.rows, label).toBeGreaterThan(3);
+    expect(measured.gapAfterColumns, `${label}: leeg vlak na de laatste kolom`).toBeGreaterThan(100);
+  };
+
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate(id => window.__OPS__!.store.getState().setUI({ uiTheme: id }), theme);
+    await expectLinesToEdge('gantt-task-grid', `gantt, ${theme}`);
+  }
+
+  await taskCell(page, tree.leaf1, 'task.name', 'gantt-task-grid').click();
+  await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([tree.leaf1]);
+  await expectLinesToEdge('gantt-task-grid', 'gantt, rij geselecteerd');
+
+  const ganttCore = page.locator('[data-task-grid-surface-id="gantt-task-grid"] .task-grid-core');
+  await ganttCore.hover();
+  await page.mouse.wheel(0, 900);
+  await expect.poll(() => ganttCore.evaluate(core => core.scrollTop)).toBeGreaterThan(300);
+  await expectLinesToEdge('gantt-task-grid', 'gantt, na verticaal scrollen');
+  expect(await columnWidths(), 'kolombreedtes blijven zoals ze waren').toEqual(widthsBefore);
+
+  await openTable(page);
+  await expectLinesToEdge('full-task-grid', 'tabel');
+
+  await page.evaluate(id => {
+    const store = window.__OPS__!.store;
+    const resource = store.getState().addResource({ name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1 });
+    store.getState().assignResource(id, resource, 1);
+    store.getState().setGroup([{ field: { src: 'resource' }, dir: 'asc' }]);
+  }, tree.leaf1);
+  const tableCore = page.locator('[data-task-grid-surface-id="full-task-grid"] .task-grid-core');
+  await tableCore.hover();
+  await page.mouse.wheel(0, -5000);
+  await expect(page.locator('[data-task-grid-surface-id="full-task-grid"] .task-grid-group-row').first()).toBeVisible();
+  await expectLinesToEdge('full-task-grid', 'tabel, gegroepeerd');
+});
+
 test('tabel: één tooltip per cel — geen taakkaart op gewone cellen, waarde alleen bij afknippen', async ({ page, ops: _ops }) => {
   const longName = 'Een taaknaam die veel langer is dan de kolom breed is, zodat hij zeker wordt afgeknipt';
   const [longId, shortId] = await seedProject(page, [

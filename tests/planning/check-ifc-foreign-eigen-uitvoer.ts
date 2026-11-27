@@ -78,7 +78,7 @@ async function noNewRefusal(which: keyof typeof SOURCES) {
   const raw = SOURCES[which], tag = which;
   const saved = await savedCatalog(raw), single = await savedCatalog(raw, false);
   // 7d: de vier vaste bewerkingen op de catalogus (de tweede op de bron met één type) schrijven op de basis.
-  for (const i of [0, 1, 2, 3]) await edited(`7d ${tag}: ${fixedCatalogEdits({} as Domain)[i].label}`, i === 1 ? single : saved, d => applyEdit(fixedCatalogEdits(d)[i], d), true);
+  for (const i of [0, 1, 2, 3]) await edited(`7d ${tag}: ${fixedCatalogEdits()[i].label}`, i === 1 ? single : saved, d => applyEdit(fixedCatalogEdits()[i], d), true);
   await edited(`7d ${tag}: actieve baseline uitzetten`, saved, se(s => { s.setActiveBaseline(null); }));
   await edited(`7d ${tag}: baseline erbij en bestaande actief`, saved, se(s => { const id = s.baselines[0].id; s.saveBaseline('Nieuw 7d'); s.setActiveBaseline(id); }));
   await edited(`7d ${tag}: waarde bij bestaande codedefinitie`, saved, se(s => { s.addActivityCodeValue(s.activityCodeTypes[0].id, { code: 'EXTRA', description: 'Extra' }); }));
@@ -331,7 +331,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
   const cat = await savedCatalog(eigen), single = await savedCatalog(eigen, false);
   // De twee die de basis doorlaat: een verkeerde typenaam (ObjectType) op de taak waarvan de planner het type veranderde.
   for (const [label, bytes, i] of [['nieuw type', single, 1], ['typewissel', cat, 2]] as const) {
-    const b = await base(`7d ${label}`, bytes, d => applyEdit(fixedCatalogEdits(d)[i], d));
+    const b = await base(`7d ${label}`, bytes, d => applyEdit(fixedCatalogEdits()[i], d));
     const before = b.source.opened!.tasks, after = b.input.tasks;
     const changed = after.find(t => t.customTaskTypeId && t.customTaskTypeId !== before.find(o => o.id === t.id)?.customTaskTypeId)!;
     const guid = b.input.ifcGlobalIds?.[`task:${changed.id}`];
@@ -343,7 +343,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
   }
   // Templates en enumeraties (1591), op de tweede code.
   {
-    const b = await base('7d tweede code', cat, d => applyEdit(fixedCatalogEdits(d)[0], d));
+    const b = await base('7d tweede code', cat, d => applyEdit(fixedCatalogEdits()[0], d));
     const tmpl = (ls: OutLine[]) => ls.find(l => l.type === 'IFCPROPERTYSETTEMPLATE' && l.args[2] === `'${PSET.ActivityCodes}'`)!;
     const byRef = (ls: OutLine[], r: string) => ls.find(l => `#${l.id}` === r.trim())!;
     const refsOf = (ls: OutLine[]) => tmpl(ls).args[6].trim().slice(1, -1).split(',');
@@ -357,7 +357,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
   }
   // TaskGuids en de baselinekop, op een andere actieve baseline.
   {
-    const b = await base('7d actieve baseline', cat, d => applyEdit(fixedCatalogEdits(d)[3], d));
+    const b = await base('7d actieve baseline', cat, d => applyEdit(fixedCatalogEdits()[3], d));
     await counterProof(b, 'TaskGuids: één GUID anders', alterJson('TaskGuids', v => { v[Object.keys(v)[0]] = '0000000000000000000000'; }), true);
     await counterProof(b, 'baselinekop: naam anders (alleen de kop)', ls => {
       const h = ls.find(l => l.type === 'IFCWORKSCHEDULE' && l.args.some(a => a.trim() === '.BASELINE.'))!; setArg(h, 2, "'Andere kopnaam'");
@@ -498,7 +498,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
   }
   // 7d: de templates van de codes (tweede code).
   {
-    const b = await base('7d tweede code (onderzoek)', cat, d => applyEdit(fixedCatalogEdits(d)[0], d));
+    const b = await base('7d tweede code (onderzoek)', cat, d => applyEdit(fixedCatalogEdits()[0], d));
     const tmpl = (ls: OutLine[]) => ls.find(l => l.type === 'IFCPROPERTYSETTEMPLATE' && l.args[2] === `'${PSET.ActivityCodes}'`)!;
     const refsOf = (ls: OutLine[]) => tmpl(ls).args[6].trim().slice(1, -1).split(',');
     const byRef = (ls: OutLine[], r: string) => ls.find(l => `#${l.id}` === r.trim())!;
@@ -510,7 +510,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
   }
   // 7d: TaskTypes bij een nieuw type en bij een typewissel.
   for (const [label, bytes, i] of [['nieuw type', single, 1], ['typewissel', cat, 2]] as const) {
-    const b = await base(`7d ${label} (onderzoek)`, bytes, d => applyEdit(fixedCatalogEdits(d)[i], d));
+    const b = await base(`7d ${label} (onderzoek)`, bytes, d => applyEdit(fixedCatalogEdits()[i], d));
     const before = json(b.source.bytes, 'TaskTypes'), after = json(b.bytes, 'TaskTypes');
     const changed = Object.keys(after.taskTypeIds).find(k => before.taskTypeIds[k] !== after.taskTypeIds[k])!;
     const other = Object.keys(before.taskTypeIds).find(k => k !== changed)!;
@@ -527,7 +527,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
   }
   // 7d: de actieve baseline en de baselinegegevens.
   {
-    const b = await base('7d actieve baseline (onderzoek)', cat, d => applyEdit(fixedCatalogEdits(d)[3], d));
+    const b = await base('7d actieve baseline (onderzoek)', cat, d => applyEdit(fixedCatalogEdits()[3], d));
     const opened = b.source.opened!, other = b.input.baselines!.find(x => x.id !== b.input.activeBaselineId && x.id !== opened.activeBaselineId);
     await counterProof(b, 'ActiveBaselineId wijst naar de oude actieve', ls => { setArg(prop(ls, 'ActiveBaselineId'), 2, `IFCTEXT(${ifcStr(opened.activeBaselineId!)})`); });
     if (other) await counterProof(b, 'ActiveBaselineId wijst naar een andere bestaande', ls => { setArg(prop(ls, 'ActiveBaselineId'), 2, `IFCTEXT(${ifcStr(other.id)})`); });
@@ -604,7 +604,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
     // hele groep `taak:ObjectType`), en de verliescontrole van main ziet bij een typewissel alleen dat het slot mocht
     // veranderen. Sinds PR A toetst (c) alleen het teruggezette slot van die ene taak niet (de overslag zoals de opslag hem
     // meldt), dus een verkeerde typenaam op de taak die van type wisselde, vangt (c).
-    const b = await base('typenaam: typewissel, (b) zet een typenaam terug', withLabelOnUntypedTask(cat, 'Type 0 7d'), d => applyEdit(fixedCatalogEdits(d)[2], d), true);
+    const b = await base('typenaam: typewissel, (b) zet een typenaam terug', withLabelOnUntypedTask(cat, 'Type 0 7d'), d => applyEdit(fixedCatalogEdits()[2], d), true);
     const changed = b.input.tasks.find(t => t.customTaskTypeId && t.customTaskTypeId !== b.source.opened!.tasks.find(o => o.id === t.id)?.customTaskTypeId)!;
     const guid = b.input.ifcGlobalIds?.[`task:${changed.id}`];
     assert(guid, 'typenaam: GlobalId van de taak die van type wisselde');
