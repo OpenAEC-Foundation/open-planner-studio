@@ -2329,6 +2329,107 @@ en noem het in je rapport of PR-tekst.
       (besluit van de technisch eigenaar, 25 november 2026). De proefbestanden en de proef staan op de branch van
       #1253. Niet nagegaan: of werktijden instellen in de kalenderdialoog en opnieuw rekenen het Bonsai-bestand goed
       laat rekenen. — B
+2355. **VERVOLG (#804 fase 2, PR 8): Ctrl+Z na het opslaan zet een lid niet terug in de relatie van een ander programma.**
+      Flag aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: de toewijzing van de Metselploeg aan *Wand A bouwen* wissen
+      en opslaan haalt de ploeg uit `#120` (de `IfcRelAssignsToProcess` van Bonsai met de ploeg en de wand); `#120` houdt
+      de wand en haar `QuantityInProcess`. Ctrl+Z en weer opslaan geeft de planning die de planner zag (na heropenen heeft
+      *Wand A bouwen* de ploeg weer), maar de ploeg komt in een eigen toewijzingsrelatie van OPS en niet terug in `#120`;
+      de tweede opslag heeft een lege wijzigingslijst. Hetzelfde geldt voor elk lid dat PR 8 uit een bewaarde of gemengde
+      relatie haalt (een verplaatste taak, een andere kalender). Ook met `detached` (#1265, PR 7) in main: `detached`
+      onthoudt alleen wat de regel van §4.7 uit een stuk haalt (`ruleChangesOnly` in `mergeWriter.ts`). Zou het ook de
+      vertrekkers onthouden, dan zette het ze bij de volgende opslag terug zodra het object bestaat, ook als de koppeling
+      niet terugkwam: de ploeg wissen, opslaan, een andere taak hernoemen en opslaan weigerde dan met
+      `planning-na-openen`, en in reeks 804c (Schilderwerk onder Stucwerk, opslaan, kinderen van Ruwbouw omkeren) kwam
+      Schilderwerk terug in `#8502` terwijl de planning het onder Stucwerk had (gemeten op 27 november 2026). Het ontwerp
+      (§4.6) wil dat Ctrl+Z het lid ook na het opslaan terugzet. Richting: een stuk dat `departuresOf` inkortte, net zo
+      terugzetten als de bewaarde relaties van `detached`: alleen als het lid terugkomt onder dezelfde relating (de
+      koppeling, niet alleen het object). Vóór het opslaan werkt Ctrl+Z wel: de bron is dan nog dezelfde. Vastgelegd in
+      `check-ifc-foreign-gemengde-relaties.ts` (met heropenen, en het geval met hernoemen). — B
+2356. **VERVOLG (#804 fase 2, PR 8): wat na PR 8 bij gemengde en bewaarde relaties nog anders gaat dan het ontwerp.** Flag
+      aan. Gevonden met `tests/planning/check-ifc-foreign-gemengde-relaties.ts` op `tests/fixtures/ifc-foreign/bonsai-4d.ifc`
+      en afgeleide bronnen.
+      (a) Een wortel-taak van een tweede live-schema die een kind wordt van een taak van het eerste schema, blijft staan in
+      de `IfcRelAssignsToControl` van het tweede schema (`#133` in `bonsai-4d.ifc`), zoals op main. Het ontwerp (§10) wil
+      haar daar ook uit. PR 8 verandert alleen wat main weigerde; uit een `IfcRelNests` van het tweede schema gaat ze wel.
+      (b) Een taak van het eerste schema onder een taak van het tweede schema zetten weigert, ook op main: op
+      `bonsai-4d.ifc` *Ruwbouw* onder *Stucwerk* geeft `niet-gedragen` op `#102` (de Bonsai-relatie van het D-schema raakt
+      haar enige lid kwijt en de verliescontrole verklaart dat niet: `memberMoved` in `lossCheck.ts` kent bij
+      `IfcRelAssignsToControl` alleen een andere kalender), en na een eerdere opslag `niet-eenduidig`.
+      (c) Een tweede ploeg aan een taak waarvan `#120` de eerste ploeg en een wand koppelt: de lezer zou de eigen relatie
+      vóór die van Bonsai lezen, dus haalt PR 8 de eerste ploeg uit `#120` en schrijft beide ploegen in een eigen relatie.
+      De `QuantityInProcess` van Bonsai blijft dan op `#120`, bij de wand. Een gewiste toewijzing gaat net zo.
+      (d) Vormen die blijven weigeren met `gemengde-relatie`: een gemengde relatie met een relating in de planning buiten
+      de bekende vormen (bijvoorbeeld `IfcRelNests` onder een resource of `IfcRelAssignsToControl` onder het werkplan),
+      een niet-resource als planningslid in een gemengde `IfcRelAssignsToProcess`, en bij een gewijzigde lijst van
+      toewijzingen van die taak ook dezelfde resource twee keer in één zo'n relatie of een gebleven resource met meer dan
+      één toewijzing bij die taak (welke toewijzing in welke relatie hoort, is dan niet eenduidig). De gedeelde pset (b)
+      gaat zoals op main: zie 2385.
+      Een schema onder een ander werkplan kan de planning niet uitdrukken (één werkplan). — B
+2378. **Een taak van Bonsai een eigen kalender geven en doorrekenen weigert de opslag met `bronvorm-leest-anders`.** Flag
+      aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: *Wand A bouwen* een eigen kalender (een kopie van de projectkalender)
+      en doorrekenen, dan opslaan. De merge weigert: `taak task-ifc-22icVZXFsEZ1Ius5rjnii6, time.earlyFinish:
+      "2026-02-06T17:00" na herlezen in plaats van "2026-02-02T09:00"`, en zo ook `lateFinish`. Main (`4f9c435c9`) weigerde
+      dezelfde bewerking eerder, met `gemengde-relatie` op `#122` (gemeten op 25 november 2026); sinds #1262 haalt de merge
+      de taak uit `#122` en komt hij bij deze controle. Een taak buiten `#122` met een taaktijd weigert net zo; *Stucwerk*
+      (zonder taaktijd) schrijft. Geen verlies (de merge weigert), wel een opslag die niet lukt. De datums komen uit
+      2370: de kopie van de projectkalender van Bonsai heeft geen werktijden, dus doorrekenen zet *Wand A* met nul
+      werktijd op 2026-02-02 09:00; het einde in de vorm van de bron (`sourceFormWhereUnchanged`) leest na heropenen dan
+      anders. Richting: eerst de keuze van 2370 (een melding in plaats van een stille werkweek); daarna een andere
+      kalender laten tellen als wijziging van de datumslots van die taak (regel A), zodat de writer ze in zijn eigen vorm
+      schrijft. Vastgelegd in `tests/planning/check-ifc-foreign-gemengde-relaties.ts` met de reden van vandaag (een andere
+      reden, of schrijven, maakt de proef rood); ook reeks 804a stap 2 en 804b stap 5 daar. — B
+2379. **Wissen, opslaan, een taak erbij, opslaan, een taak tot wortel maken en opslaan weigert met `planning-na-openen`.** Flag
+      aan, `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: *Wand B bouwen* wissen en opslaan (schrijft; `#116` en `#122`
+      gewijzigd, `#178` vervallen), een nieuwe taak boven *Stucwerk* en opslaan (schrijft, lege lijst), *Wand A bouwen*
+      bovenaan als wortel-taak en opslaan. De derde opslag weigert met `taak task-ifc-2lNOVVAc3x$DPP3aHgo958.time.durationUnit:
+      "hours" → "days"` (*Ruwbouw*, dat zo zijn laatste kind verliest). Main (`4f9c435c9`) geeft dezelfde drie uitkomsten,
+      met dezelfde lijsten en dezelfde reden (gemeten op 25 november 2026). Geen verlies (de merge weigert), wel een opslag
+      die niet lukt. Vermoeden, niet nagegaan: na de eerste opslag heeft *Ruwbouw* een taaktijd in de bron, en een fase die
+      daarna haar laatste kind verliest, krijgt niet de taaktijd met de duur-eenheid van de planner; herstelronde 4 van #1205
+      deed dat alleen voor een fase zonder taaktijd in de bron (2256). Richting: dezelfde uitzondering ook voor een fase met
+      een taaktijd die haar laatste kind verliest. Vastgelegd in `tests/planning/check-ifc-foreign-gemengde-relaties.ts` met
+      de reden van vandaag; dezelfde wortel vermoedelijk ook in reeks 804d stap 5 (`durationUnit`) en stap 6 (`lateStart`)
+      daar. — B
+2383. **`foreignChangesIfSaved` telt de leden niet die de merge uit een gemengde relatie haalt.** Flag aan,
+      `tests/fixtures/ifc-foreign/bonsai-4d.ifc`: de toewijzing van de Metselploeg aan *Wand A bouwen* wissen.
+      `foreignChangesIfSaved` (`src/state/foreignLinksNotice.ts`) geeft dan 0, de merge schrijft `gewijzigd #120` (1). De
+      functie telt alleen de regel voor verdwenen objecten (`applyForeignRule`), niet de leden die `departuresOf` (#1262)
+      uit een relatie haalt. In de app gebruikt niets haar: de vraag vóór het opslaan en de melding erna tellen uit
+      `prepared.foreignChanges`. `check-ifc-foreign-telling-vooraf.ts` wist alleen objecten en ziet het verschil daarom
+      niet. Richting: de functie pas gebruiken als ze ook de vertrekkende leden telt, of haar weghalen. — B
+2385. **Een gewijzigde gedeelde pset weigert met `gemengde-relatie`.** Flag aan,
+      `tests/fixtures/ifc-foreign/council/r5sol-gedeelde-calendar-pset.ifc`: kalender `#46` en wand `#904` delen via `#52`
+      één `OPS_Calendar` (`#51`). Andere uren per dag op de kalender en opslaan weigert met `gemengde-relatie #52:
+      IFCRELDEFINESBYPROPERTIES #52: de pset OPS_Calendar van IFCWORKCALENDAR #46 veranderde (of de writer deelt haar)`,
+      zoals op main. Wat wel schrijft, ook zoals op main: alleen de naam van een feestdag anders (*Kerst* van 2028): lege
+      wijzigingslijst, `#50`, `#51` en `#52` bytegelijk, na heropenen de nieuwe naam; en een andere kalendernaam. Het
+      ontwerp (§4.6, geval b) wil bij andere waarden dat de writer het planningsobject uit de gedeelde relatie haalt en een
+      eigen pset schrijft, terwijl het vreemde object de oude pset houdt; bij gelijke waarden blijft de relatie bytegelijk.
+      Beslissen moet op de waarden die de writer voor die ene pset schrijft, niet op de velden die de pset kunnen raken:
+      een eerdere versie van #1262 telde een feestdagnaam mee (via `WorkingExceptionIds`) en haalde de kalender bij gelijke
+      waarden uit `#52` (review ronde 3). Komt alleen uit de proefbron; geen gangbare export gevonden die een
+      `OPS_Calendar` met een ander object deelt. Vastgelegd in `check-ifc-foreign-gemengde-relaties.ts` (de weigering met
+      haar reden, en de feestdag) en `check-ifc-foreign-preserve.ts`. Eindlijst (besluit van Trias, 25 november 2026). — B
+2386. **De volgorderegel van `departuresOf` kijkt naar één relatie.** Flag aan. `keptTail`
+      (`src/services/ifc/foreign/departures.ts`) neemt aan dat de lezer de eigen relatie van de writer vóór de gemengde
+      relatie leest, en kijkt per gemengde relatie alleen naar haar eigen leden. (a) Twee gemengde `IfcRelNests` onder
+      dezelfde taak, *A* in de eerste en *B* in de tweede, en de planner zet een nieuw kind vooraan: bij (nieuw, *A*, *B*)
+      kunnen beide relaties blijven, maar de regel ziet *B* niet in de eerste relatie en laat *A* onnodig vertrekken (naar
+      een eigen relatie; de eerste relatie vervalt). Bij `IfcRelAssignsToProcess` net zo. (b) Een gemengde relatie die in
+      de bron vóór het eerste P-stuk staat, leest de lezer vóór de eigen relatie: komt *B* achter *A*, dan kan *A* blijven,
+      maar de regel haalt *A* eruit; wil de planner *B* juist vóór *A*, dan houdt de regel *A* vast en weigert de
+      herleestoets de opslag (de uitvoer leest als (*A*, *B*)). Bij Process kan `assignmentPlacement` eigen stukken ook
+      later zetten. Geen verlies: in (a) staat het lid daarna in een eigen relatie, in (b) weigert de opslag. Gevolgd in de
+      code (review ronde 3 van #1262), niet nagespeeld; geen proef. Geen gangbare export met zo'n vorm gevonden: Bonsai
+      gebruikt een bestaande nest- of procesrelatie en IfcOpenShell schrijft op id-volgorde; IFC staat wel meer `Nests`
+      per ouder toe. Richting: de staart nemen over alle gemengde relaties van dezelfde ouder in bestandsvolgorde, met de
+      plek van het P-blok. Eindlijst, vóór de flag standaard aan gaat (besluit van Trias, 25 november 2026). — S
+2391. **Wordt hetzelfde vreemde stuk in één opslag ingekort én teruggezet, dan krijgen de herstelbytes voorrang.**
+       Flag aan. Een stuk dat `detached` terugzet (Ctrl+Z na opslaan) en waaruit `departuresOf` in dezelfde opslag een
+       lid laat vertrekken: bij het samenvoegen van de bytes in `mergeWriter.ts` wint de teruggezette versie. De
+       voorrang is in de code gezien; de precieze uitkomst van die samenloop is niet gemeten en geen proef bouwt die
+       vorm. Gezien door de review van #1262, ronde 4 (Sol). Richting: de samenloop in de proef opnemen en vastleggen
+       wat er hoort te staan. — S
 
 2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
      `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
