@@ -21,13 +21,13 @@ Staat de experimentele instelling *IFC met gebouwmodel openen* aan (zie [App-ins
 
 De app opent `.ifc`, `.csv`, `.xml` (MS Project XML of Primavera P6 XML), `.mpp` en `.xer`. Voor de laatste twee staan aparte stappen in [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen) en [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen).
 
-Staat de experimentele instelling *IFCX openen en opslaan* aan (zie [App-instellingen](docs://ref-instellingen)), dan opent de app ook `.ifcx`-planningen die ze zelf schreef. In een openingsvenster met een lijst van bestandstypen staat dan ook *IFCX Files*. Weigert de app het bestand, dan staat de reden bij [Meldingen en waarschuwingen](docs://ref-meldingen).
+Staat de experimentele instelling *IFCX openen en opslaan* aan (zie [App-instellingen](docs://ref-instellingen)), dan opent de app ook `.ifcx`-planningen die ze zelf schreef. In een openingsvenster met een lijst van bestandstypen staat dan ook *IFCX Files*. Weigert de app het bestand, dan staat de reden bij [Meldingen en waarschuwingen](docs://ref-meldingen). Staat de `.ifcx`-planning al in een tabblad open, dan komt er geen tweede tabblad: de app gaat naar dat tabblad, ook via *Recent* en bij slepen, en ook als *IFC met gebouwmodel openen* uit staat. Dat tabblad houdt zijn inhoud. Is het bestand intussen buiten dat tabblad gewijzigd, dan staat erboven dezelfde strook als bij een IFC-bestand en toont het tabblad nog de eerdere versie. Wil je de nieuwe versie zien, sluit dan dat tabblad en open het bestand opnieuw; bewaar wijzigingen die je nog niet opsloeg eerst met *Opslaan als* in een nieuw bestand.
 
 ### Een bestand naar de app slepen
 
 1. Sleep een of meer bestanden vanuit je bestandsbeheer of Finder naar het venster van de app.
 2. Tijdens het slepen ligt er een grijze laag over het venster, met *Laat los om te openen* en *Projectbestand of import*.
-3. Laat de muisknop los. De app opent de bestanden in sleepvolgorde. Staat de experimentele instelling *IFC met gebouwmodel openen* aan en herkent de app het IFC-bestand en de versie van het open tabblad, dan gaat ze naar dat tabblad. Het laatste bestand is daarna het actieve tabblad. Was het huidige tabblad leeg en ongewijzigd, dan opent het eerste bestand daarin.
+3. Laat de muisknop los. De app opent de bestanden in sleepvolgorde. Staat de experimentele instelling *IFC met gebouwmodel openen* aan en herkent de app het IFC-bestand en de versie van het open tabblad, dan gaat ze naar dat tabblad. Bij een `.ifcx`-planning die al open staat doet ze dat ook met die instelling uit. Het laatste bestand is daarna het actieve tabblad. Was het huidige tabblad leeg en ongewijzigd, dan opent het eerste bestand daarin.
 4. Verschijnt na een bestand de uitleg over zijn formaat, dan opent het volgende bestand pas als je die uitleg sluit met *Begrepen*. Zo krijgt elk bestand zijn eigen uitleg.
 
 Een project met wijzigingen blijft in zijn eigen tabblad staan; slepen vervangt niets. Een gesleept IFC-bestand werkt daarna als een geopend bestand: *Opslaan* schrijft ernaar, behalve in browsers die alleen downloaden, zoals Firefox.
