@@ -7963,3 +7963,15 @@ en noem het in je rapport of PR-tekst.
       De import van `openaec::planning::activity.parent` controleert of elke ouder een taak is.
       Twee taken die elkaar als ouder noemen voldoen daaraan. Vóór de IFCX-flag standaard aan gaat
       de kring door de laadroute toetsen en bepalen hoe de planner die taken terugvindt. — S
+
+2405. **Een ongeldige veldwaarde op een tweede werkplan kan de import van het eerste werkplan weigeren.**
+      De IFCX-lezer toetst de bekende velden voordat hij het werkplan kiest. Tel een overgeslagen werkplan
+      bij de gegevens die in de bron achterblijven en toets de veldwaarden van de ingelezen objecten. — S
+
+2406. **Een verwijderde relatievertraging kan bij IFCX-import terugkomen.** Laat een ander programma beide
+      gedeelde vertragingsvelden weg, dan kan de oude waarde uit `openaec::ops::sequence.lag` blijven staan.
+      Vergelijk beide gedeelde velden samen met de projectie van de precieze vertraging, ook als ze ontbreken. — S
+
+2407. **Overgeslagen werkschema’s ontbreken in de opgave van wat in de IFCX-bron achterblijft.**
+      De lezer kiest één werkschema bij het eerste werkplan. Neem de overige werkschema’s mee in
+      `leftBehind`, zodat de planner ze vóór de eerste eigen opslag terugziet. — S
