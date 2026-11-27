@@ -6,10 +6,6 @@ export interface TaskResourceScope {
   isFiltered: boolean;
 }
 
-/**
- * Leidt de projectresources en -toewijzingen af die bij de huidige taakselectie horen.
- * Zonder selectie blijft de bestaande projectscope intact.
- */
 export function scopeTaskResources(
   resources: Resource[],
   assignments: ResourceAssignment[],

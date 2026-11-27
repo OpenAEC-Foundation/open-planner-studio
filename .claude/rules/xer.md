@@ -163,3 +163,5 @@ Besluiten van de lezer van P6 XML: `docs/adr/0260-p6xml-lezen-export-van-ops-en-
 `0393-xer-lezen-statusdatum-geplande-datums-en-de-vorm-van-een-datum.md`, `0394-xer-lezen-duur-rest-en-lag-in-werkuren.md`,
 `0395-xer-lezen-status-en-voortgang.md`, `0396-xer-lezen-duursoort-werkregel-en-rekenuitvoer.md` en
 `0397-xer-lezen-resources-per-project.md`.
+
+De Windows-1252-decodering van de XER-lezer (`src/utils/windows1252.ts`): `docs/adr/0622-windows-1252-met-een-eigen-tabel.md`.
