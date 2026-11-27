@@ -1,10 +1,11 @@
 # Rapportletters en het SVG-papier: eigen familienamen, een eigen lettertypelezer en afknippen op het venster
 
-Het papier op het Rapport-tabblad meet en tekent op dezelfde letterbytes als de vector-PDF (regel `reports`). Elke
-meegeleverde rapportletter staat daarom in de browser onder een eigen `@font-face`-familie (`InterPDF`,
-`OpsReportLiberationSans`, `OpsReportCarlito`, `OpsReportArabic`, `OpsReportCustom`; `REPORT_FONTS` in `reportFont.ts`),
-niet onder haar echte naam. Een geïnstalleerde systeemletter met dezelfde naam, zoals "Liberation Sans", mag nooit de
-plaats van de meegeleverde bytes innemen: de PDF bedt die bytes in, en de meting moet daarop kloppen.
+Voor de meegeleverde rapportletters meet en tekent het papier op het Rapport-tabblad op dezelfde letterbytes als de
+vector-PDF (regel `reports`). Elke meegeleverde rapportletter staat daarom in de browser onder een eigen
+`@font-face`-familie (`InterPDF`, `OpsReportLiberationSans`, `OpsReportCarlito`, `OpsReportArabic`; `REPORT_FONTS` in
+`reportFont.ts`), niet onder haar echte naam. Een geïnstalleerde systeemletter met dezelfde naam, zoals "Liberation
+Sans", mag nooit de plaats van de meegeleverde bytes innemen: de PDF bedt die bytes in, en de meting moet daarop
+kloppen.
 
 ## Gevolgen
 
@@ -27,5 +28,3 @@ plaats van de meegeleverde bytes innemen: de PDF bedt die bytes in, en de meting
 - Op een blad in een rechts-naar-linkstaal wisselt de serialisatie `text-anchor` `start` en `end` om
   (`svgDraw2d.ts`). Canvas en PDF houden `textAlign` links en rechts absoluut, maar in SVG hangt `text-anchor` aan de
   schrijfrichting; zonder de wissel zou rechts uitgelijnde tekst op het papier aan de andere kant staan dan in de PDF.
-- De meldingen van een tabelrapport (`notes` in `pdfTable.ts`) staan elk op een eigen regel en worden nooit tot één
-  regel met een beletselteken ingekort: het zijn meldingen over de juistheid van de getallen eronder.
