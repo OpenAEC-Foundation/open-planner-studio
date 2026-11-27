@@ -12,7 +12,7 @@ import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { normalizeComparedBaselines, noComparedBaselines, type Baseline, type ComparedBaselineIds } from '@/types/baseline';
 export { isFreshImportOrigin } from '@/services/documentData';
-import type { ImportResult } from '@/services/importTypes';
+import type { ImportResult, ReadImportResult } from '@/services/importTypes';
 import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
@@ -83,9 +83,13 @@ export type DocumentFileFormat = 'ifc' | 'ifcx';
 
 export interface RecoveryIfcxMark {
   readonly known: TargetFingerprint | null;
+  readonly references?: string;
+  readonly format?: 'ifc';
+  readonly modelLocation?: Exclude<import('@/services/fileAccess').FileRef, { kind: 'handle' }>;
+  readonly targetRecentId?: string;
 }
 
-export type RecoveryDocInput = ImportResult & {
+export type RecoveryDocInput = ImportResult & Pick<ReadImportResult, 'ifcxReferences'> & {
   sourceRestored?: true;
   fileHandle?: FileSystemFileHandle | null;
   id: string;
@@ -291,10 +295,10 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
     foreignSourceMark: d.sourceRestored
       ? foreignSourceMarkFor(d.ifcSource, { filePath: d.filePath, siteFileId, fileHandle: d.fileHandle ?? null })
       : restoredMark(foreignSourceMarkFromRecovery(d.recoveryForeignSource, d.foreignSource)),
-    fileHandle: d.sourceRestored ? d.fileHandle ?? null : null,
+    fileHandle: d.sourceRestored || d.ifcx?.targetRecentId ? d.fileHandle ?? null : null,
     siteFileId,
     siteFileVersion: siteFileId ? d.siteFileVersion ?? null : null,
-    ...(d.ifcx ? { fileFormat: 'ifcx' as const, knownTargetFingerprint: siteFileId ? null : d.ifcx.known } : {}),
+    ...(d.ifcx ? { fileFormat: d.ifcx.format ?? 'ifcx', knownTargetFingerprint: siteFileId ? null : d.ifcx.known } : {}),
     isDirty: d.isDirty,
     scheduleStale: true,
   };

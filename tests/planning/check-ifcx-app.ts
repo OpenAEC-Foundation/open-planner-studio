@@ -175,12 +175,12 @@ async function recoverInto(store: Store, flags: FeatureFlagValues): Promise<Stor
   const unregister = registerRecoveryFlush(async () => {
     const s = store.getState();
     await runRecoveryTick(tracker, s.activeDocumentId,
-      s.getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, !!s.ui.featureFlags.ifcForeignContent)));
+      s.getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, !!s.ui.featureFlags.ifcForeignContent, !!s.ui.featureFlags.ifcx)));
   });
   try { await flushRecoveryNow(); } finally { unregister(); }
   const loaded = await loadRecovery();
   assert.deepEqual(loaded.docs.map(doc => doc.id), store.getState().getOpenDocumentPayloads()
-    .filter(doc => !doc.payload.ifcxReferences).map(doc => doc.id));
+    .filter(doc => !doc.payload.ifcxReferences || store.getState().ui.featureFlags.ifcx).map(doc => doc.id));
   const restored = (await newApp(flags)).store;
   const inputs = [];
   for (const doc of loaded.docs) inputs.push(await readRecoveryDocument(doc, loaded.archives, false));
@@ -551,16 +551,24 @@ await check('modelkoppelingen bij het heropenen met een gelijk, gewijzigd of ont
       const edited = shiftFirstTask(store);
       store.getState().setAutoSaveToFile(true);
       await autosaveOf(store).flush();
-      assert.deepEqual(bytesAt(plan), withModel);
-      assert.equal(workerOf.get(store)!.jobs().length, 0);
+      const automatic = readIfcx(bytesAt(plan));
+      assert.deepEqual(automatic.modelSource, original.modelSource);
+      assert.deepEqual(automatic.elementLinks, original.elementLinks);
+      assert.equal(automatic.tasks.find(task => task.id === edited)?.time.scheduleDuration,
+        store.getState().tasks.find(task => task.id === edited)!.time.scheduleDuration);
+      assert.equal(workerOf.get(store)!.jobs().length, 1);
       assert.equal(await save(store), true, `Ctrl+S schrijft de eigen planning bij ${status}`);
       const written = readIfcx(bytesAt(plan));
       assert.equal(written.tasks.find(task => task.id === edited)?.time.scheduleDuration,
         store.getState().tasks.find(task => task.id === edited)!.time.scheduleDuration);
       assert.deepEqual(written.modelSource, original.modelSource);
       assert.deepEqual(written.elementLinks, original.elementLinks);
+      localStorage.setItem('ops-featureFlags', JSON.stringify(IFCX_ON));
       const recovery = await recoverInto(store, IFCX_ON);
-      assert(recovery.getState().getOpenDocumentPayloads().every(doc => doc.payload.filePath !== plan));
+      localStorage.removeItem('ops-featureFlags');
+      assert.equal(recovery.getState().filePath, plan);
+      assert.deepEqual(recovery.getState().ifcxReferences, store.getState().ifcxReferences);
+      assert.equal(uncheckedModelLinks(recovery.getState()), status !== 'gelijk');
       const reopened = await openAt(plan, IFCX_ON);
       assert.equal(await save(reopened), true);
       assert.deepEqual(readIfcx(bytesAt(plan)).elementLinks, original.elementLinks);

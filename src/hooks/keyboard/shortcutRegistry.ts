@@ -30,7 +30,7 @@ import { isBackstageLeaveGuardActive, leaveBackstageGuarded } from '@/components
 import { insertTaskRelativeToScope, addTaskNearSelection } from '@/state/taskInsertActions';
 import { computeScrollToDate } from '@/utils/ganttViewport';
 // De acties die het lint EN het toetsenbord delen, staan één keer gedefinieerd.
-import { COMMANDS } from '@/state/commands';
+import { COMMANDS, isCommandEnabled } from '@/state/commands';
 import { linkTasksInChain, selectionInView } from '@/state/relationActions';
 import { isTaskListInView } from '@/state/ganttVisibility';
 import i18n from '@/i18n/config';
@@ -115,6 +115,10 @@ export function isDocumentLeaveBlocked(): boolean {
 function isEditShortcutBlocked(): boolean {
   const ui = useAppStore.getState().ui;
   return isAnyDialogOpen() || hasBlockingDialogOpen({ ...ui, presentationMode: false });
+}
+
+function canDeleteFromKeyboard(): boolean {
+  return !isEditShortcutBlocked() && isCommandEnabled(COMMANDS.delete, useAppStore.getState());
 }
 
 /** Zie `isTaskListInView` (`state/ganttVisibility.ts`), gedeeld met het lint. */
@@ -293,7 +297,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'Delete' },
     category: 'edit',
     labelKey: 'context.delete',
-    when: () => hasSelection() && !isEditShortcutBlocked() && !isTaskListOutOfView(),
+    when: canDeleteFromKeyboard,
     run: COMMANDS.delete.run,
   },
   {
@@ -301,7 +305,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'Backspace' },
     category: 'edit',
     labelKey: 'context.delete',
-    when: () => hasSelection() && !isEditShortcutBlocked() && !isTaskListOutOfView(),
+    when: canDeleteFromKeyboard,
     run: COMMANDS.delete.run,
   },
   // Let op volgorde: MOET na `view.exitFullscreen` staan (zie bestandskop).

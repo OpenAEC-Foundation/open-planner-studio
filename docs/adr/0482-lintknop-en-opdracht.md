@@ -12,9 +12,10 @@ dialoog, terwijl Ctrl+/ haar ook weer sluit. De toets van `check-commands.ts` de
 
 ## Gevolgen
 
-- Een sneltoets heeft naast de opdracht een eigen poort (`when` in `shortcutRegistry.ts`), die de lintknop niet
-  leest. Delete en Backspace vuren alleen als de takenlijst in beeld is (`isTaskListOutOfView`), de lintknop
-  Verwijderen kijkt alleen naar `COMMANDS.delete.isEnabled`; zie knownbug 2520.
+- Delete en Backspace toetsen `COMMANDS.delete` via `isCommandEnabled` en volgen de invoer- en dialoogbewaking
+  van de sneltoetsen. Delete, Backspace, Verwijderen en Dissolve gebruiken `hasEditableSelection` voor selectie
+  en zichtbaarheid. Er moet een taak geselecteerd zijn en de takenlijst moet in beeld zijn. De lintknop Dissolve
+  leest `hasEditableSelection` rechtstreeks.
 - Dissolve heeft een lintknop en een menu-item maar geen sneltoets, en het paneel Verschuivingen geen sneltoets;
   ze staan niet in `COMMANDS`. Hun `use`-hook roept de store-actie of `setUI` zelf aan.
 - Heeft een knop meer nodig dan aan en uit, dan spreidt hij de gedeelde binding en vult hij aan. De schakelaars voor

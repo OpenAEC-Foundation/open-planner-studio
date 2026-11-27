@@ -582,8 +582,9 @@ S().setUI({ dissolveSummaryMode: 'branch' });
   const ids = JSON.stringify(groups.filter(g => g.id === 'edit'));
   eq('30 lint: Dissolve in de groep Bewerken', ids.includes('"dissolve"'), true);
   const ribbon = fs.readFileSync(path.join(process.cwd(), 'src/components/layout/Ribbon/ribbonConfig.tsx'), 'utf8');
-  eq('30b lintknop: uit zonder selectie, heft de selectie op',
-    /disabled: !hasSelection,\s*onClick: \(\) => \{\s*const s = useAppStore\.getState\(\);\s*s\.dissolveTasksBulk\(s\.selectedTaskIds\)/.test(ribbon), true);
+  eq('30b lintknop: uit zonder (zichtbare) selectie, heft de selectie op',
+    /useAppStore\(hasEditableSelection\)/.test(ribbon)
+      && /disabled: !editable,\s*onClick: \(\) => \{\s*const s = useAppStore\.getState\(\);\s*s\.dissolveTasksBulk\(s\.selectedTaskIds\)/.test(ribbon), true);
   const menu = fs.readFileSync(path.join(process.cwd(), 'src/components/canvas/ContextMenu.tsx'), 'utf8');
   eq('31 rechtsklikmenu kent Dissolve', /context\.dissolve/.test(menu) && /onDissolve/.test(menu), true);
   for (const file of ['src/components/canvas/GanttCanvas.tsx', 'src/components/task-grid/FullTaskGrid.tsx']) {

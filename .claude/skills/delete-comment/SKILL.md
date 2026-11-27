@@ -18,11 +18,12 @@ Aanroep: `/delete-comment <pad>`. Zonder pad vraag je welk onderdeel. De grootst
   een ongebruikte hulpfunctie weg) doe je in dezelfde PR, met de gerichte test erbij. Is het niet klein, dan laat je
   de code staan.
 - Je beoordeelt elk blok zelf, met de code erbij. Weghalen zonder lezen is geen uitvoering van deze skill.
-- Kennis gaat niet verloren. Een besluit dat nergens anders staat, staat in een ADR vóór het commentaar weg is.
-- Een ADR legt het besluit en de reden vast. Voor de precieze regel verwijst hij naar de functie, de toets of het
-  contract (een gids in `docs/`, een regel in `.claude/rules/`); hij vertelt die regel niet in eigen woorden na. Wat
-  je toch beweert, heb je zelf in de code gezien, met de grens erbij: welk geval, welke tak, welke route. Noem je een
-  toets, ga dan na dat die de bewering ook dekt.
+- Alleen wat verrast, blijft bewaard (besluit eigenaar 2026-11-27): "alles wat je simpelweg in een paar commands
+  kunt opmaken uit de code is nutteloos om te hebben als comment." Wat een functie doet, een getal, grens, eenheid
+  of volgorde die in de code staat, gaat weg zonder ADR. Alleen de reden achter een keuze die een lezer zou
+  verrassen en die niet uit de code blijkt, staat in een ADR vóór het commentaar weg is.
+- Een ADR legt het besluit en de reden vast, in een paar zinnen. Hij vertelt de code niet na en verwijst voor de
+  precieze regel naar de functie. Schrijf geen zin die je niet zeker weet; laat hem liever weg.
 - Geen regelnummers in een ADR: noem de functie of het bestand. In een punt voor `knownbugs.md` noem je de functie
   waar die aan te wijzen is; een regelnummer alleen daarnaast.
 - Je schrijft geen nieuw commentaar en maakt geen bestaand commentaar langer.
@@ -47,17 +48,19 @@ helemaal, met de regel van het onderdeel in `.claude/rules/` en de ADR's in `doc
 | **Besluit** | een keuze die een lezer zonder uitleg zou terugdraaien, met een echte afweging erachter | naar een ADR, dan weg |
 
 Twijfel tussen herhaling en besluit: zou een goede collega de code "verbeteren" naar het tegendeel als de zin er
-niet stond? Dan is het een besluit. Staat het besluit al in `.claude/rules/`, een ADR of een gids, dan is het
+niet stond, en staat de reden nergens in de code? Dan is het een besluit. Kan hij de zin met een paar commando's
+(lezen, `grep`, een test draaien) uit de code halen, dan is het een herhaling. Staat het besluit al in `.claude/rules/`, een ADR of een gids, dan is het
 commentaar een herhaling.
 
 Verouderd toets je mechanisch: elke naam tussen backticks en elk genoemd bestand zoek je op (`grep -rw`,
 `git ls-files`). Een knownbug-nummer zoek je op in `knownbugs.md`.
 
 Een ADR is voor een besluit dat moeilijk terug te draaien is, dat verrast zonder uitleg en waar een echte afweging
-achter zat. Een keuze op één regel ("`!has` en niet `set`, want de eerste telt") is geen ADR: houdt een test dat
-gedrag vast, dan herhaalt het commentaar de test en gaat het weg. Zoek die test op (`grep` op de functienaam in
-`tests/`). Is er geen test, dan noem je onder *Gevolgen* van de ADR van dat onderwerp de keuze, de reden en de
-functie waar ze staat, zonder de regel uit te schrijven. Een ontbrekende test is geen punt voor `knownbugs.md`.
+achter zat. Een test die het gedrag vastlegt, beslist dat niet: de vraag blijft of de reden uit de code, een test of
+bestaande documentatie te halen is. Een keuze op één regel ("`!has` en niet `set`, want de eerste telt") waarvan de
+reden daaruit blijkt, gaat weg. Blijkt de reden er niet uit en verrast de keuze, dan noem je haar onder *Gevolgen*
+van de ADR van dat onderwerp, met de reden en de functie waar ze staat, zonder de regel uit te schrijven. Een
+ontbrekende test is geen punt voor `knownbugs.md`.
 
 ## Stap 3. Besluiten vastleggen
 
@@ -72,7 +75,7 @@ Zet in de regel van het onderdeel (`.claude/rules/<onderdeel>.md`) een verwijzin
 ## Stap 4. Smoezen afhandelen
 
 Op `knownbugs.md` komt alleen een zeldzaam geval of een bekende grens die je onderweg vindt (besluit eigenaar
-2026-11-20). Testwensen en opruimpunten komen er niet op: klein doe je ze in deze PR, anders vervallen ze. Elk punt
+2026-11-20). Je gaat er niet naar op zoek: deze skill haalt commentaar weg en is geen foutenjacht. Testwensen en opruimpunten komen er niet op: klein doe je ze in deze PR, anders vervallen ze. Elk punt
 volgens de kop van dat bestand: wat er misgaat, waar, en **B** (zelf nagegaan in de
 code of met een test) of **S** (alleen gelezen). Nummers komen uit het blok van je sessie; heb je er geen, vraag
 het aan Trias.

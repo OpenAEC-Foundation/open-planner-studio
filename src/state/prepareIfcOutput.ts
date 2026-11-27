@@ -93,6 +93,14 @@ export class IfcWriteBlockedError extends Error {
 
 type GuardState = IFCSaveSource & Parameters<typeof ifcFullWriteBlocked>[0];
 
+export function prepareDocumentWrite(
+  state: GuardState, input: IFCWriteInput, format: DocumentFileFormat, worker?: IfcOutputCompute, planOnly?: PlanOnlyConfirmation,
+): Promise<IfcOutput> {
+  const references = format === 'ifcx' ? state.ifcxReferences : null;
+  return prepareIfcOutput(state, references ? { ...input, ...references } : input, planOnly,
+    documentSaveCompute(state.ui.featureFlags, worker, format));
+}
+
 /** Moet deze route eerst "alleen de planning" vragen? Alleen met de flag aan. Bij een ontbrekend gebouwmodel alleen
  *  Opslaan als (besluit eigenaar, 14 november 2026); de twee exports alleen met een aanwezig gebouwmodel. */
 export function planOnlyQuestionApplies(
