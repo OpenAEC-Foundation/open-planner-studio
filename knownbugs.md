@@ -2376,6 +2376,12 @@ en noem het in je rapport of PR-tekst.
       gebruikt een bestaande nest- of procesrelatie en IfcOpenShell schrijft op id-volgorde; IFC staat wel meer `Nests`
       per ouder toe. Richting: de staart nemen over alle gemengde relaties van dezelfde ouder in bestandsvolgorde, met de
       plek van het P-blok. Eindlijst, vóór de flag standaard aan gaat (besluit van Trias, 25 november 2026). — S
+2391. **Wordt hetzelfde vreemde stuk in één opslag ingekort én teruggezet, dan krijgen de herstelbytes voorrang.**
+       Flag aan. Een stuk dat `detached` terugzet (Ctrl+Z na opslaan) en waaruit `departuresOf` in dezelfde opslag een
+       lid laat vertrekken: bij het samenvoegen van de bytes in `mergeWriter.ts` wint de teruggezette versie. De
+       voorrang is in de code gezien; de precieze uitkomst van die samenloop is niet gemeten en geen proef bouwt die
+       vorm. Gezien door de review van #1262, ronde 4 (Sol). Richting: de samenloop in de proef opnemen en vastleggen
+       wat er hoort te staan. — S
 
 2008. **Een teruggedraaide MCP-transactie verbruikt de eenmalige melding over afgeronde nivelleervertraging.**
      `draft.clearLeveling` en `draft.applyLeveling` (`src/state/runtime/createMcpTransactions.ts`) roepen binnen de
