@@ -2120,7 +2120,8 @@
     "model": {
       "opened": "Nieuwe planning bij {{file}}. Het model blijft ongewijzigd.",
       "unchecked": "Het model {{file}} ontbreekt of is gewijzigd. De bouwdeelkoppelingen zijn ongecontroleerd.",
-      "saveAsIfc": "Sla deze planning als IFCX op om de modelverwijzingen te bewaren."
+      "saveAsIfc": "Sla deze planning als IFCX op om de modelverwijzingen te bewaren.",
+      "ifcExportLoss": "De modelverwijzing en de bouwdeelkoppelingen staan alleen in de IFCX-planning. De IFC-export bevat ze niet."
     }
   },
   "foreignChangesQuestion": {

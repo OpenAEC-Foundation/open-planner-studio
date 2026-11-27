@@ -2276,6 +2276,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           });
         }
         notices.push(exportSplitsLostNotice(format, state.tasks));
+        if (format === 'ifc' && state.ifcxReferences?.modelSource) {
+          notices.push({ severity: 'info', messageKey: 'ifcx.model.ifcExportLoss' });
+        }
         notices.push(exportCostResourcesLostNotice(format, state.resources));
         notices.push(exportP6TruncatedNotice(format, p6Truncated));
         notices.push(exportInvalidXmlCharsNotice(format, invalidXmlChars));

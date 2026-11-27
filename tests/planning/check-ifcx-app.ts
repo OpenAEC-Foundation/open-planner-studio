@@ -381,6 +381,21 @@ await check('modelkoppelingen bij het heropenen met een gelijk, gewijzigd of ont
         await reopened.getState().saveFileAs();
         assert.deepEqual(errors(reopened), ['ifcx.model.saveAsIfc']);
         assert.equal(existsSync(step), false);
+        clearNotices(reopened);
+        const beforeExport = bytesAt(plan);
+        const exported = await reopened.getState().exportAs('ifc');
+        assert(exported.ok && !exported.cancelled);
+        assert(isStep(bytesAt(step)));
+        assert.equal(reopened.getState().ui.notifications.filter(n => n.messageKey === 'ifcx.model.ifcExportLoss').length, 1);
+        assert.deepEqual(bytesAt(plan), beforeExport);
+        const plain = await openAt(step, IFCX_ON);
+        assert.equal(plain.getState().ifcxReferences, null);
+        const copy = join(folder, 'kopie.ifc');
+        ipc.choose(copy);
+        const exportedPlain = await plain.getState().exportAs('ifc');
+        assert(exportedPlain.ok && !exportedPlain.cancelled);
+        assert(isStep(bytesAt(copy)));
+        assert(!plain.getState().ui.notifications.some(n => n.messageKey === 'ifcx.model.ifcExportLoss'));
       }
     } finally { ipc.dispose(); }
   }

@@ -2120,7 +2120,8 @@
     "model": {
       "opened": "New schedule for {{file}}. The model stays unchanged.",
       "unchecked": "The model {{file}} is missing or has changed. The element links are unchecked.",
-      "saveAsIfc": "Save this schedule as IFCX to keep its model references."
+      "saveAsIfc": "Save this schedule as IFCX to keep its model references.",
+      "ifcExportLoss": "The model reference and element links stay in the IFCX schedule. The IFC export omits them."
     }
   },
   "foreignChangesQuestion": {
