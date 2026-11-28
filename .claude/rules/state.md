@@ -241,5 +241,6 @@ Shift kiest precies het bereik (`0803-shift-selectie-kiest-precies-het-bereik.md
 remmen van Automatisch berekenen buiten de store** (`editHold.ts`, `failedSolveGate.ts`):
 `docs/adr/0832-remmen-van-automatisch-berekenen-buiten-de-store.md`. **Een vers project heeft geen naam**
 (`createDefaultProject`): `docs/adr/0833-een-vers-project-heeft-geen-naam.md`.
+
 **Keuzes in de losse modules van `src/state/` (n–z)**: meldingen uit de store, weigeringen, samenvouwen en eenmalig per
 document (0840), en de overige keuzes die verrassen, per functie (0841).
