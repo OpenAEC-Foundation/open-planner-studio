@@ -1,24 +1,3 @@
-/**
- * ScreenshotAnnotator — annotatie-editor voor FeedbackDialog.
- *
- * Toont een klein voorbeeld van de screenshot in een licht kader, met de knoppen *Annoteren*,
- * *Opnieuw maken* en *Weghalen*. *Annoteren* opent een bijna-schermvullende overlay (~92vw × ~90vh).
- *
- * De vormen leven bij de ouder (het bewaarde feedbackconcept): de editor start met `shapes` en
- * meldt bij *Klaar* de nieuwe vormen plus de geflattende PNG. *Annuleren* (en Esc) gooit de
- * wijzigingen van deze bewerkronde weg: terug naar de vormen bij het openen van de editor.
- *
- * Afdekken (`mask`) tekent een dicht zwart vlak. Het flatten tekent dat ondoorzichtig over de
- * screenshot, dus de pixels eronder zitten niet meer in de verstuurde afbeelding.
- *
- * Coördinaten-strategie:
- *  - canvas.width/height = natieve pixeldimensies van de screenshot
- *  - CSS schaalt het canvas naar weergavegrootte (max-width/height 100%)
- *  - canvasPos() schaalt muiscoördinaten via getBoundingClientRect()
- *    zodat getekende vormen altijd correct uitlijnen op de uiteindelijke PNG
- *  - Inline tekst-invoer: <input> absoluut op de klikpositie t.o.v. het canvas
- */
-
 import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
@@ -27,20 +6,15 @@ import { Icon } from '@/components/icons';
 import type { AnnotationShape, AnnotationPoint, AnnotationText } from '@/services/feedback/feedbackDraft';
 import './ScreenshotAnnotator.css';
 
-// ─── Annotatie-types ──────────────────────────────────────────────────────────
-
 type AnnotationTool = 'arrow' | 'rectangle' | 'mask' | 'pen' | 'text';
 type Color = string;
 type Point = AnnotationPoint;
 type Shape = AnnotationShape;
 type ShapeText = AnnotationText;
 
-/** Kleur van het afdekvlak: dicht zwart, zonder transparantie. */
 const MASK_COLOR = '#000000';
 
 const PALETTE: Color[] = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#a855f7', '#ffffff', '#000000'];
-
-// ─── Canvas-rendering ─────────────────────────────────────────────────────────
 
 function drawArrow(ctx: CanvasRenderingContext2D, from: Point, to: Point, color: Color) {
   const headLen = 14;
@@ -108,12 +82,6 @@ function redrawAll(ctx: CanvasRenderingContext2D, shapes: Shape[], active?: Shap
   }
 }
 
-// ─── Hulpfuncties ─────────────────────────────────────────────────────────────
-
-/**
- * Zet een muispositie om naar canvas-pixelcoördinaten.
- * Schaalt via getBoundingClientRect() zodat de weergavegrootte er niet toe doet.
- */
 function canvasPos(canvas: HTMLCanvasElement, e: React.MouseEvent): Point {
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
@@ -121,12 +89,10 @@ function canvasPos(canvas: HTMLCanvasElement, e: React.MouseEvent): Point {
   return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
 }
 
-/** Flatten screenshot-dataURL + annotatie-canvas tot één PNG-dataURL. */
 function flattenToPng(screenshotDataUrl: string, annotationCanvas: HTMLCanvasElement): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      // Fouten in deze asynchrone callback moeten de Promise afwijzen, niet laten hangen.
       try {
         const out = document.createElement('canvas');
         out.width = annotationCanvas.width;
@@ -147,50 +113,28 @@ function flattenToPng(screenshotDataUrl: string, annotationCanvas: HTMLCanvasEle
   });
 }
 
-// ─── Inline tekst-invoer type ─────────────────────────────────────────────────
-
 interface TextInputState {
-  /** Canvas-pixelcoördinaten (natieve resolutie) voor de uiteindelijke ShapeText. */
   canvasPoint: Point;
-  /** Positie t.o.v. het canvas-element (CSS-pixels) — stuur het invoerveld hierheen. */
   screenLeft: number;
   screenTop: number;
-  /** Lettergrootte in CSS-pixels = 16 (native) × weergaveschaal, zodat het
-   *  invoerveld visueel even groot oogt als de uiteindelijk getekende tekst. */
   fontSize: number;
-  /** Tekstkleur op het moment van klikken. */
   color: Color;
 }
 
-// ─── Props ────────────────────────────────────────────────────────────────────
-
 interface ScreenshotAnnotatorProps {
-  /** Het rauwe screenshot (zonder annotaties). */
   screenshotDataUrl: string;
-  /** Wat het voorbeeld toont: de geflattende PNG, of null (dan het rauwe screenshot). */
   previewDataUrl: string | null;
-  /** De huidige vormen (uit het concept). */
   shapes: readonly Shape[];
-  /** Na *Klaar*: de nieuwe vormen en de geflattende PNG-dataURL. */
   onChange: (flattenedDataUrl: string, shapes: Shape[]) => void;
-  /** *Opnieuw maken*: de ouder maakt een nieuw screenshot en wist de vormen. */
   onRetake: () => void;
-  /** *Weghalen*: de ouder zet het screenshot-vinkje uit. */
   onRemove: () => void;
-  /** Knoppen uit (tijdens versturen). */
   disabled?: boolean;
-  /** Meldt of de editor openstaat (ook tijdens het flattenen na *Klaar*). Zolang hij openstaat,
-   *  maakt de ouder de rest van het venster `inert` en kan er niet verstuurd worden. */
   onEditorOpenChange?: (open: boolean) => void;
 }
 
-/** Het editorpaneel met een eigen focus-trap: Tab blijft in de editor zolang die openstaat. */
 function EditorPanel({ label, children }: { label: string; children: ReactNode }) {
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(panelRef);
-  // `useFocusTrap` luistert op het paneel. Na tekenen op het canvas (niet focusbaar) staat de focus
-  // op `body`; Tab zou dan naar de app erachter gaan. Daarom ook op document: Tab buiten het paneel
-  // zet de focus terug op het eerste focusbare element van de editor.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const panel = panelRef.current;
@@ -217,8 +161,6 @@ function EditorPanel({ label, children }: { label: string; children: ReactNode }
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export function ScreenshotAnnotator({
   screenshotDataUrl, previewDataUrl, shapes: committedShapes, onChange, onRetake, onRemove, disabled = false,
   onEditorOpenChange,
@@ -229,16 +171,13 @@ export function ScreenshotAnnotator({
   const [saveError, setSaveError] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
-  // Werkkopie tijdens een bewerkronde; bij openen gevuld uit `committedShapes`.
   const [shapes, setShapes] = useState<Shape[]>(() => [...committedShapes]);
   const [activeTool, setActiveTool] = useState<AnnotationTool>('arrow');
   const [activeColor, setActiveColor] = useState<Color>('#ef4444');
 
-  // Inline tekst-invoer
   const [textInput, setTextInput] = useState<TextInputState | null>(null);
   const [textValue, setTextValue] = useState('');
 
-  // Canvas voor annotaties in de grote editor
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const currentShape = useRef<Shape | null>(null);
@@ -247,13 +186,11 @@ export function ScreenshotAnnotator({
 
   const thumbnailUrl = previewDataUrl ?? screenshotDataUrl;
 
-  // De ouder volgt of de editor openstaat (versturen blokkeren, de rest van het venster inert).
   useEffect(() => {
     onEditorOpenChange?.(editorOpen);
   }, [editorOpen, onEditorOpenChange]);
   useEffect(() => () => onEditorOpenChange?.(false), [onEditorOpenChange]);
 
-  // ── Canvas: afmetingen synchroniseren met screenshot bij openen ───────────
   useEffect(() => {
     if (!editorOpen || !canvasRef.current) return;
     const img = new Image();
@@ -268,7 +205,6 @@ export function ScreenshotAnnotator({
     img.src = screenshotDataUrl;
   }, [editorOpen, screenshotDataUrl]);
 
-  // Hertekenen bij shapes-wijziging
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !editorOpen) return;
@@ -276,16 +212,12 @@ export function ScreenshotAnnotator({
     if (ctx) redrawAll(ctx, shapes);
   }, [shapes, editorOpen]);
 
-  // ── Editor openen/sluiten ─────────────────────────────────────────────────
-
   const openEditor = () => {
-    // Elke bewerkronde begint bij de vastgelegde vormen; *Annuleren* keert daarheen terug.
     setShapes([...committedShapes]);
     setSaveError(false);
     setEditorOpen(true);
   };
 
-  /** *Klaar*: flatten en de nieuwe vormen aan de ouder geven. */
   const closeEditor = useCallback(async () => {
     if (savingRef.current) return;
     savingRef.current = true;
@@ -300,8 +232,6 @@ export function ScreenshotAnnotator({
       setTextInput(null);
       setTextValue('');
     } catch {
-      // Fail closed: nooit het origineel vastleggen als afdekken niet gelukt is.
-      // De editor blijft open, dus de ouder blijft inert en Versturen geblokkeerd.
       setSaveError(true);
     } finally {
       savingRef.current = false;
@@ -309,7 +239,6 @@ export function ScreenshotAnnotator({
     }
   }, [screenshotDataUrl, onChange]);
 
-  /** *Annuleren* (en Esc): de wijzigingen van deze bewerkronde weggooien. */
   const cancelEditor = useCallback(() => {
     if (savingRef.current) return;
     drawing.current = false;
@@ -320,19 +249,12 @@ export function ScreenshotAnnotator({
     setTextValue('');
   }, [committedShapes]);
 
-  // Escape-handler voor de grote editor.
-  // CAPTURE-fase + stopPropagation: anders vangt FeedbackDialog's eigen
-  // Escape-handler (op document, bubble) het óók op en sluit de HELE dialoog
-  // i.p.v. alleen de editor — waarmee de ingetypte titel/omschrijving verloren
-  // gaat. Capture-listeners op document vuren vóór bubble-listeners, ongeacht
-  // registratievolgorde, dus deze wint. Esc in de editor = *Annuleren*.
   useEffect(() => {
     if (!editorOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       e.stopPropagation();
       if (textInput) {
-        // Annuleer tekst-invoer, sluit de editor NIET
         setTextInput(null);
         setTextValue('');
       } else {
@@ -343,30 +265,18 @@ export function ScreenshotAnnotator({
     return () => document.removeEventListener('keydown', onKey, true);
   }, [editorOpen, textInput, cancelEditor]);
 
-  // ── Annotatie-muisgebeurtenissen ──────────────────────────────────────────
-
   const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!canvasRef.current) return;
     const pos = canvasPos(canvasRef.current, e);
 
     if (activeTool === 'text') {
-      // KRITIEK: voorkom de standaard mousedown-focus-actie. Zonder dit
-      // verspringt de focus na deze handler naar het niet-focusbare canvas/body,
-      // wat het zojuist via autoFocus gefocuste invoerveld meteen blurt → onBlur
-      // commit (leeg) → het veld verdwijnt direct. preventDefault houdt de focus
-      // op het invoerveld.
       e.preventDefault();
-      // Inline tekst-invoer: positie t.o.v. canvas-element in CSS-pixels.
-      // De weergaveschaal (rect.width / canvas.width) bepaalt de lettergrootte
-      // zodat het invoerveld even groot oogt als de uiteindelijk getekende tekst.
       const canvasRect = canvasRef.current.getBoundingClientRect();
       const scale = canvasRect.width / canvasRef.current.width;
       const fontSize = 16 * scale;
       setTextInput({
         canvasPoint: pos,
         screenLeft: e.clientX - canvasRect.left,
-        // drawText tekent met de baseline op canvasPoint.y; til het invoerveld
-        // één regelhoogte op zodat de getypte tekst op de klikpositie landt.
         screenTop: (e.clientY - canvasRect.top) - fontSize,
         fontSize,
         color: activeColor,
@@ -407,8 +317,6 @@ export function ScreenshotAnnotator({
     setShapes(prev => [...prev, shape]);
   };
 
-  // ── Tekst-invoer vastleggen ───────────────────────────────────────────────
-
   const commitTextInput = useCallback(() => {
     if (!textInput) return;
     if (textValue.trim()) {
@@ -433,16 +341,11 @@ export function ScreenshotAnnotator({
     }
   };
 
-  // ── Undo & clear ──────────────────────────────────────────────────────────
-
   const handleUndo = () => setShapes(prev => prev.slice(0, -1));
   const handleClear = () => setShapes([]);
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
     <>
-      {/* Klein voorbeeld in een licht kader, met de drie knoppen ernaast */}
       <div className="screenshot-annotator-preview">
         <div className="screenshot-annotator-thumbnail">
           <img
@@ -468,15 +371,12 @@ export function ScreenshotAnnotator({
         </div>
       </div>
 
-      {/* Bijna-schermvullende editor-overlay. Via een portal buiten het feedbackvenster, zodat de
-          ouder dat venster `inert` kan maken: de focus kan dan niet naar *Versturen* erachter. */}
       {editorOpen && createPortal(
         <div
           className="annotator-editor-backdrop"
           onClick={() => void closeEditor()}
         >
           <EditorPanel label={t('feedback.annotate')}>
-            {/* Toolbar */}
             <div className="annotator-editor-toolbar" inert={saving}>
               <button
                 className={`feedback-ann-btn${activeTool === 'arrow' ? ' active' : ''}`}
@@ -570,14 +470,7 @@ export function ScreenshotAnnotator({
               </p>
             )}
 
-            {/* Canvas-ruimte */}
             <div className="annotator-canvas-area" inert={saving}>
-              {/*
-                annotator-canvas-inner heeft position:relative zodat:
-                  1. De img zijn eigen aspect-ratio bepaalt (width 100%, height auto)
-                  2. Het canvas en het tekst-invoerveld absoluut erover gepositioneerd worden
-                  3. canvasPos() via getBoundingClientRect() de juiste schaal berekent
-              */}
               <div className="annotator-canvas-inner">
                 <img
                   src={screenshotDataUrl}
@@ -593,7 +486,6 @@ export function ScreenshotAnnotator({
                   onMouseUp={onMouseUp}
                   onMouseLeave={onMouseUp}
                 />
-                {/* Inline tekst-invoer — verschijnt op de klikpositie */}
                 {textInput && (
                   <input
                     type="text"
@@ -608,8 +500,6 @@ export function ScreenshotAnnotator({
                     onChange={e => setTextValue(e.target.value)}
                     onKeyDown={onTextKeyDown}
                     onBlur={commitTextInput}
-                    // Bewust autoFocus: het tekstvak verschijnt pas ná een expliciete klik van de
-                    // gebruiker op de plek waar hij tekst wil zetten, dus de focus volgt zijn actie.
                     autoFocus
                   />
                 )}

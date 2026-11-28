@@ -9,37 +9,23 @@ import {
 } from '@/engine/calendar/generateCalendarHolidays';
 
 const BOUWVAK_CHOICES: BouwvakChoice[] = ['geen', 'noord', 'midden', 'zuid'];
-/** i18n-sleutels gebruiken `none` voor de "geen bouwvak"-keuze; de interne `BouwvakChoice`
- *  gebruikt `'geen'` (matcht `generateRegionalBreak`/`CalendarGeneration.breakChoice`). */
 const BOUWVAK_I18N_KEY: Record<BouwvakChoice, 'none' | 'noord' | 'midden' | 'zuid'> = {
   geen: 'none', noord: 'noord', midden: 'midden', zuid: 'zuid',
 };
 
-/** Keuzechip (aan/uit) van de kalenderdialoog: bouwvakkeuze hier, werkdagen in `CalendarForm`. */
 export function accentChipClass(active: boolean): string {
   return 'px-2.5 py-1.5 rounded-[8px] border-[1.5px] transition-colors ' + (active
     ? 'bg-accent text-white border-accent shadow-[var(--shadow-glow)]'
     : 'bg-surface border-[var(--theme-control-border)] text-text-secondary hover:bg-surface-hover');
 }
 
-/**
- * Gedeelde feestdagen-generator-velden: land/regio, NL-bouwvak
- * (default GEEN — bewust) en een compacte preview met uitklapbare
- * lijst. Hergebruikt door de wizard (`ProjectInfoDialog`) en `CalendarForm`
- * ("Feestdagen genereren…"). Store-loos, puur presentational.
- */
 export function CalendarGeneratorFields({
   value,
   onChange,
   fromYear,
   toYear,
-  /** `'none'` optie tonen (wizard: "Geen feestdagen"); CalendarForm heeft die niet nodig
-   *  omdat een lege generatie daar zinledig is (je bewerkt al een bestaande kalender). */
   allowNone = true,
-  /** Overschrijft het label van de `'none'`-optie (wizard gebruikt de eigen `menu:wizard.calendar.none`). */
   noneLabel,
-  /** Extra, ondoorzichtige land-opties (wizard: "Aangepast…") — de aanroeper rendert zelf wat er
-   *  gebeurt als zo'n optie gekozen wordt; deze component toont dan alleen de kale select. */
   extraCountryOptions = [],
 }: {
   value: Omit<HolidayGenParams, 'country'> & { country: string };
@@ -52,9 +38,6 @@ export function CalendarGeneratorFields({
 }) {
   const { t: tCommon } = useTranslation('common');
   const [expanded, setExpanded] = useState(false);
-  // Bouwmodus: het NL-bouwvak is bouwjargon → in bouw-agnostische modus (bouwmodus UIT)
-  // verbergen we de bouwvak-rij én forceren we de param terug naar 'geen', zodat een gegenereerde
-  // kalender in die modus nooit stilzwijgend een bouwvak bevat.
   const constructionMode = useAppStore(s => s.ui.constructionMode);
   useEffect(() => {
     if (!constructionMode && value.bouwvak !== 'geen') {
@@ -88,7 +71,6 @@ export function CalendarGeneratorFields({
             onChange={v => onChange({
               country: v as GeneratorCountry,
               region: undefined,
-              // Bouwvak is alleen zinvol bij NL — verlaat het land, reset de keuze.
               ...(v !== 'NL' ? { bouwvak: 'geen' as BouwvakChoice } : {}),
             })}
             options={countryOptions}
@@ -136,8 +118,6 @@ export function CalendarGeneratorFields({
         </div>
       )}
 
-      {/* Compacte preview: samenvattingsregel + uitklapbare lijst i.p.v. een volle tabel.
-          Onbekende/ondoorzichtige landkeuzes ("Aangepast…") hebben geen zinvolle preview. */}
       {isKnownCountry && (
       <div className="flex flex-col gap-1 border-t border-border pt-2">
         <button

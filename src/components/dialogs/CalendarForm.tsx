@@ -39,22 +39,11 @@ function minutesFromText(value: string): number | undefined {
   return /^\d+$/.test(value) && Number(value) <= 24 * 60 ? Number(value) : undefined;
 }
 
-/** Volgorde en een lege einddatum veranderen de inhoud van de lijst niet. */
 function holidayListSignature(holidays: readonly Holiday[]): string {
   return JSON.stringify(holidays.map(holiday =>
     JSON.stringify([holiday.name, holiday.startDate, holidayEndDate(holiday)])).sort());
 }
 
-/**
- * Presentational kalenderformulier (naam, werkdagen, uren, feestdagen) — kent geen store.
- * Hergebruikt door `CalendarDialog` (projectkalender) én `ResourceCalendarDialog`;
- * de aanroeper beslist wat er met `onChange`-patches gebeurt en wanneer
- * er gecommit wordt (Apply-knop leeft in de aanroeper, niet hier).
- *
- * `projectYearSpan`: optionele projectperiode (in jaren) van de aanroeper.
- * Stuurt de default generatie-spanne én de hergeneratie-hint wanneer de kalender al
- * `generation`-metadata draagt die de projectperiode niet meer dekt.
- */
 export function CalendarForm({
   draft,
   onChange,
@@ -65,12 +54,8 @@ export function CalendarForm({
 }: {
   draft: WorkCalendar;
   onChange: (patch: Partial<WorkCalendar>) => void;
-  /** De aanroeper bezit Apply en moet lokaal ongeldige, nog niet-gecommitte HH:MM-invoer blokkeren. */
   onScalarTimeValidityChange?: (invalid: boolean) => void;
   projectYearSpan?: { from: number; to: number };
-  /** De beginstand van deze kalender in de venstersessie (`WorkTimeSessionStart`). `CalendarDialog`
-   *  bewaart hem per kalender, want het formulier mount per kalender opnieuw; zonder prop houdt het
-   *  formulier hem zelf bij (`ResourceCalendarDialog`: één kalender per venster). */
   sessionStart?: WorkTimeSessionStart;
   onSessionStartChange?: (start: WorkTimeSessionStart) => void;
 }) {
@@ -83,35 +68,16 @@ export function CalendarForm({
 
   const [showGenerator, setShowGenerator] = useState(false);
   const [confirmRegeneration, setConfirmRegeneration] = useState(false);
-  // Werktijden-UI: eigen presets (app-niveau localStorage), banden-editor achter een knop,
-  // en een inline naam-invoer voor "Bewaar als preset…".
   const [ownPresets, setOwnPresets] = useState<WorkTimePreset[]>([]);
-  // In uur-modus staat de banden-editor standaard OPEN (elke uur-preset toont meteen bewerkbare
-  // tijden); deze vlag laat de gebruiker hem inklappen. Voor een dag-kalender is er nog geen
-  // `workTime`, dus opent de knop de editor (seed uit scalar) i.p.v. te collapsen.
   const [bandsCollapsed, setBandsCollapsed] = useState(false);
-  // De beginstand van de blokken voor de werkdagknoppen en *Ma–vr* (`workDayTogglePatch`): bij openen de
-  // blokken van de kalender, na een preset de blokken van die preset ("een preset vervangt alles").
-  // De beginstand voor de werkdagknoppen, *Ma–vr* en het blok Werktijden: bij openen de kalender zelf, na een
-  // preset de presetstand ("een preset vervangt alles"). Hij bepaalt welke blokken een dag terugkrijgt en of
-  // de uren per dag de blokken volgen (`hoursPerDayForBlocks`), één keer per sessie: de klikvolgorde telt niet.
   const [ownSessionStart, setOwnSessionStart] = useState<WorkTimeSessionStart>(
     () => ({ workTime: draft.workTime, hoursPerDay: draft.hoursPerDay }));
   const sessionStart = sessionStartProp ?? ownSessionStart;
   const setSessionStart = onSessionStartChange ?? setOwnSessionStart;
   const [savingPreset, setSavingPreset] = useState(false);
   const [presetName, setPresetName] = useState('');
-  // Een kalender met werkblokken (weekbanden) toont ALTIJD het blok Werktijden, ook met urenplanning
-  // uit: de motor rekent met die blokken, dus de gebruiker bewerkt ze daar direct. Begin, einde en
-  // pauze bestaan dan niet als veld (die zouden `workTime` niet raken). Urenplanning bepaalt alleen of
-  // een eenvoudige kalender werkblokken kan KRIJGEN (presets, "Per weekdag instellen…").
-  // Besluit eigenaar 2026-10-13 (optie 2), vervangt de alleen-lezen-stand uit #334.
   const hourMode = isHourModeCalendar(draft);
   const scalarBreakError = calendarScalarBreakIssue(draft);
-  // Oude scalar-kalenders hebben nog geen velden, maar hun zichtbare waarden moeten het bestaande
-  // gedrag verklaren: 07:00–16:00 / 8 uur toont daarom de afgeleide 12:00 / 60 min, terwijl
-  // 08:00–16:00 / 8 uur terecht 0 minuten toont. Alleen voor een kalender zonder werkblokken: bij
-  // werkblokken staan deze velden er niet.
   const inferredBreak = inferredSimpleBreak(draft);
   const inferredSimpleBreakDuration = inferredBreak.durationMinutes;
   const inferredSimpleBreakStart = inferredBreak.startMinute;
@@ -124,9 +90,6 @@ export function CalendarForm({
   const [scalarTimeIssues, setScalarTimeIssues] = useState<Partial<Record<ScalarTimeField, ScalarTimeIssue>>>({});
   const appHoursPerDay = effHoursPerDay(draft);
   const showFileHoursNotice = draft.workDays.length > 0 && hoursPerDayDiffers(draft.hoursPerDay, appHoursPerDay);
-  // Eén opmaak voor alle uur-getallen in dit venster (check eigenaar 2026-10-20): de getalnotatie van
-  // de taal zonder overbodige nullen ("10", "7,5", "7,75"; `formatReportNumber`), met "u"/"h" alleen
-  // via i18n. Het oranje blok draagt de eenheid in zijn eigen zin; hier alleen het getal.
   const formatHours = (hours: number) => formatReportNumber(hours, i18n.language);
 
   useEffect(() => {
@@ -174,12 +137,8 @@ export function CalendarForm({
   }, [onScalarTimeValidityChange, scalarTimeIssues]);
 
   useEffect(() => { void loadWorkTimePresets().then(setOwnPresets); }, []);
-  // Nieuwere eigen presets in de opslag (de host na de start, #818, of een ander tabblad): opnieuw laden.
   useStoredSettingRefresh('ops-workTimePresets', () => { void loadWorkTimePresets().then(setOwnPresets); });
 
-  // Preset toepassen ⇒ workTime + shift + scalar-fallback in één patch (buffer-model). Optionele
-  // `description`-override (zie `applyBuiltinPreset` hieronder) — alleen meegegeven wanneer de
-  // aanroeper al bepaald heeft dat het veilig is om 'm te overschrijven.
   const applyPreset = (patch: ReturnType<typeof shiftPresetPatch>, description?: string) => {
     onChange({
       workTime: patch.workTime,
@@ -192,19 +151,10 @@ export function CalendarForm({
       simpleBreakDurationMinutes: patch.simpleBreakDurationMinutes,
       ...(description !== undefined ? { description } : null),
     });
-    // Elke uur-preset ⇒ editor meteen open/zichtbaar (uitgeklapt); dag-preset heeft geen editor.
     setBandsCollapsed(false);
-    // Een preset vervangt alles: een dag die daarna uit en weer aan gaat, krijgt de presetblokken
-    // terug, niet die van vóór de preset.
     setSessionStart({ workTime: patch.workTime, hoursPerDay: patch.hoursPerDay });
   };
 
-  // Eén van de vijf INGEBOUWDE presets (CALENDAR_PRESETS) — in tegenstelling tot een eigen preset
-  // (`patchFromPreset`) kennen we hier de preset-`key` en dus een accurate
-  // omschrijving. `description` wordt ALLEEN meegepatcht
-  // als de HUIDIGE tekst nog aantoonbaar machine-gegenereerd is: een
-  // handmatig ingevulde omschrijving ("Vaste onderaannemerskalender, zie contract §4") mag nooit
-  // stilzwijgend verdwijnen achter een preset-klik.
   const applyBuiltinPreset = (key: ShiftPresetKey) => {
     applyPreset(
       shiftPresetPatch(key),
@@ -225,27 +175,19 @@ export function CalendarForm({
   };
   const deleteOwnPreset = (id: string) => persistOwnPresets(ownPresets.filter(p => p.id !== id));
 
-  // Banden-editor openen ⇒ ontbreekt workTime, seed dan uit de scalar zodat een dag-kalender via de
-  // editor een uur-kalender kan worden. KRITISCH: de band-som moet EXACT `hoursPerDay ×
-  // 60` zijn — de default 07:00-16:00/8u is 9 klokuren, 8 netto; `seedScalarWorkTime` materialiseert dat
-  // verschil als pauze-gat rond het middaguur, zodat `deriveHoursPerDay` de oorspronkelijke 8 teruggeeft
-  // en ongewijzigd openen+toepassen `hoursPerDay` niet corrumpeert.
   const toggleBandEditor = () => {
     if (!draft.workTime) {
-      // Dag-kalender ⇒ seed uit de scalar (wordt uur-kalender) en toon de editor uitgeklapt.
       applyBands(seedScalarWorkTime(draft.workDays, draft.workStartHour, draft.workEndHour, draft.hoursPerDay));
       setBandsCollapsed(false);
       return;
     }
-    setBandsCollapsed(c => !c); // uur-kalender ⇒ in-/uitklappen.
+    setBandsCollapsed(c => !c);
   };
   const applyBands = (bands: WorkTimeBands) => {
     onChange({
       workTime: bands,
       hoursPerDay: hoursPerDayForBlocks(sessionStart, draft, bands),
       workDays: workDaysFromBands(bands),
-      // Handmatige weekbanden zijn absoluut leidend; laat geen oud scalar-pauzepatroon als
-      // tweede bron naast deze expliciete keuze bestaan.
       simpleBreakStartMinute: undefined,
       simpleBreakDurationMinutes: undefined,
     });
@@ -284,7 +226,6 @@ export function CalendarForm({
     };
     if (!replacementConfirmed) {
       const { generatedFromYear: from, generatedToYear: to } = draft.generation;
-      // IFC bewaart de herkomst ook voor oudere bestanden. Alleen geldige jaren kunnen de lijst verklaren.
       const validYears = Number.isInteger(from) && Number.isInteger(to) && from >= 1000 && to <= 9999 && from <= to;
       if (!validYears || holidayListSignature(draft.holidays) !== holidayListSignature(materializeHolidays(params, from, to).holidays)) {
         setConfirmRegeneration(true);
@@ -296,17 +237,8 @@ export function CalendarForm({
     onChange({ holidays, generation });
   };
 
-  // Bij een uurkalender gaan de blokken mee (`workDayTogglePatch`), zodat `workDays` en `workTime`
-  // gelijk blijven — met urenplanning uit én aan. Een dag die weer aan gaat, krijgt eerst zijn eigen
-  // blokken terug: zoals het formulier ze opende, of zoals de laatst gekozen preset ze zette
-  // (`sessionStart`, zie `applyPreset`).
   const toggleWorkDay = (day: number) => onChange(workDayTogglePatch(draft, day, sessionStart));
 
-  // Het eenvoudige patroon is geen tweede engineformule: de netto uren worden alleen als
-  // gebruikersfeedback uit hetzelfde effectieve-worktime-model afgeleid. Expliciete weekbanden
-  // blijven volledig buiten dit pad en dus absoluut leidend. Een oude scalar heeft een impliciete
-  // pauze om haar bestaande netto-uren te verklaren; zodra de gebruiker één van de vier
-  // scalarbedieningen wijzigt, wordt die veilig expliciet. Eén definitie met MCP: `simpleBreakPatch`.
   const patchSimpleBreak = (patch: Partial<WorkCalendar>) => {
     onChange(simpleBreakPatch(draft, patch));
   };
@@ -327,15 +259,11 @@ export function CalendarForm({
     value: string,
   ) => {
     setText(value);
-    // Tusseninvoer blijft in het DOM en raakt het model nooit. Alleen een volledig gevormde
-    // HH:MM wist een eerdere tekstfout; inhoudelijke grenzen worden bij blur/Enter beoordeeld.
     if (parseClock(value, { endOfDay: field === 'workEnd' }) !== undefined) setScalarTimeIssue(field);
   };
 
   const scalarTimesAreValid = (patch: Partial<WorkCalendar>) => scalarTimesValid(draft, patch);
 
-  // Pas bij blur of Enter wordt een complete, inhoudelijk geldige HH:MM-waarde naar het model
-  // geschreven. Daarmee blijft ook omgekeerde of buiten-de-dag liggende tusseninvoer veilig lokaal.
   const commitWorkStart = () => {
     const minute = parseClock(workStartText);
     if (minute === undefined) {
@@ -387,8 +315,6 @@ export function CalendarForm({
 
   const updateSimpleBreakDurationText = (value: string) => {
     setSimpleBreakDurationText(value);
-    // Een tekstwijziging blijft lokaal, maar Apply moet wel onmiddellijk weten dat bijvoorbeeld
-    // een onvolledige, te grote of buiten-de-dag liggende pauze niet geldig is.
     setScalarTimeIssue('breakDuration', simpleBreakDurationIssue(value));
   };
 
@@ -437,8 +363,6 @@ export function CalendarForm({
       return;
     }
     const nextMinute = current + delta;
-    // Start en pauze eindigen uiterlijk op 23:45; einde accepteert expliciet 24:00. Er is nooit
-    // een wrap naar een volgende/vorige dag, ook niet wanneer de gebruiker een pijl ingedrukt houdt.
     const inRange = field === 'workEnd'
       ? nextMinute > 0 && nextMinute <= 24 * 60
       : nextMinute >= 0 && nextMinute < 24 * 60;
@@ -457,12 +381,6 @@ export function CalendarForm({
     patchSimpleBreak(patch);
   };
 
-  // Presets: "24/7" = workDays [1..7]. Dit is uitsluitend de ene-doorlopende-kalender-preset, geen
-  // dag/nacht-PLOEGEN. "Ma-vr" ernaast zet bij een eenvoudige kalender de standaard ma–vr 07:00–16:00.
-  // Kalender met werkblokken: de motor rekent met `workTime`, dus beide knoppen passen de blokken aan.
-  // "24/7" wordt de ingebouwde preset Continu (00:00–24:00, alle dagen); "Ma–vr" zet de werkdagen op
-  // ma–vr en houdt per dag de blokken (`workDaysSetPatch`). De omschrijving blijft staan, net als bij
-  // een eenvoudige kalender.
   const applyContinuousPreset = () => {
     if (hourMode) {
       applyPreset(shiftPresetPatch('continuous'));
@@ -503,7 +421,6 @@ export function CalendarForm({
 
   return (
     <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
-      {/* Name */}
       <div className="flex flex-col gap-1">
         <label className="text-text-secondary font-medium">
           {tMenu('ribbon.calendarDialog.name')}
@@ -516,14 +433,11 @@ export function CalendarForm({
         />
       </div>
 
-      {/* Work days */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
           <label className="text-text-secondary font-medium">
             {tMenu('ribbon.calendarDialog.workDays')}
           </label>
-          {/* Presets: "Continu (24/7)" zet alle dagen op 00:00–24:00. "Ma-vr": eenvoudige kalender ⇒
-              standaard ma–vr 07:00–16:00; kalender met werkblokken ⇒ werkdagen ma–vr, blokken per dag. */}
           <div className="flex gap-1.5">
             <button
               type="button"
@@ -559,8 +473,6 @@ export function CalendarForm({
         </div>
       </div>
 
-      {/* Netto-uren tonen de werktijd waarmee de app rekent (`effHoursPerDay`), nooit de opgeslagen P6-factor;
-          zonder enige werkdag een streepje. Besluit eigenaar 2026-10-15 (optie 1). */}
       <div className="grid grid-cols-3 gap-3">
         {!hourMode && (
           <>
@@ -601,8 +513,6 @@ export function CalendarForm({
           </>
         )}
         <div className="flex flex-col gap-1">
-          {/* Standaard werkdag = de modale dagsom, geen gemiddelde (besluit eigenaar 2026-10-17). Het i-icoon
-              volgt het patroon van *Werkregel*: `title` + `data-tooltip-instant` (hover, focus en tik). */}
           <div className="flex items-center gap-1">
             <label htmlFor={netHoursId} className="text-text-secondary font-medium">
               {tMenu('ribbon.calendarDialog.standardWorkday')}
@@ -624,16 +534,10 @@ export function CalendarForm({
             aria-live="polite"
             data-ops-simple-break-net-hours
           >
-            {/* Zonder werkdagen weigert de solver de kalender (`noWorkingDays`): geen getal. */}
             {draft.workDays.length === 0 ? '—' : tMenu('ribbon.calendarDialog.hoursValue', { hours: formatHours(appHoursPerDay) })}
           </output>
         </div>
       </div>
-      {/* Eigen werkdag uit het bestand (besluit eigenaar 2026-10-20, punt 8, optie 2). De opgeslagen
-          `hoursPerDay` (XER `day_hr_cnt`, P6 XML `HoursPerDay`, MSPDI `MinutesPerDay`) telt niet mee in
-          het rekenwerk (een dag is de werktijd, `effHoursPerDay`), maar gaat ongewijzigd mee bij export.
-          Alleen tonen, niets veranderen. Zelfde vergelijking als de IFC-schrijver (`hoursPerDayDiffers`);
-          het blok volgt de draft live. Een dagkalender wijkt nooit af: daar ís `hoursPerDay` het getal. */}
       {showFileHoursNotice && (
         <div className="alert alert--info break-words" data-ops-file-hours-per-day-notice>
           {tMenu('ribbon.calendarDialog.fileHoursPerDayNotice', {
@@ -709,11 +613,9 @@ export function CalendarForm({
         </>
       )}
 
-      {/* Werktijden en ploegen zijn bij elke kalender beschikbaar. */}
       <div className="flex flex-col gap-2" data-ops-worktime-section>
         <label className="text-text-secondary font-medium">{tCommon('calendar.worktime.section')}</label>
 
-        {/* Preset-rij: ingebouwde presets + eigen presets (met verwijder-kruisje). */}
         <div className="flex flex-wrap gap-1.5">
           {CALENDAR_PRESETS.map(key => (
             <button key={key} type="button" onClick={() => applyBuiltinPreset(key)}
@@ -742,8 +644,6 @@ export function CalendarForm({
             title={tCommon('calendar.worktime.saveAsPresetHint')} data-ops-preset-saveas>
             {tCommon('calendar.worktime.saveAsPreset')}
           </button>
-          {/* Uur-kalender ⇒ de editor staat standaard open; deze knop klapt hem in/uit. Dag-kalender ⇒
-              de knop seedt de banden uit de scalar en toont de editor ("Per weekdag instellen…"). */}
           <button type="button" onClick={toggleBandEditor}
             className="btn btn--sm btn--secondary" data-ops-band-editor-toggle>
             {!draft.workTime
@@ -771,13 +671,11 @@ export function CalendarForm({
           </div>
         )}
 
-        {/* Banden-editor: zichtbaar zodra de kalender in uur-modus is (elke uur-preset), tenzij ingeklapt. */}
         {draft.workTime && !bandsCollapsed && (
           <WorkTimeEditor bands={draft.workTime} onChange={applyBands} weekStartDay={weekStartDay} />
         )}
       </div>
 
-      {/* Feestdagen genereren — regelgebaseerd, óók voor bestaande kalenders. */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <button
@@ -809,11 +707,6 @@ export function CalendarForm({
               onChange={patch => setGenParams(p => ({ ...p, ...patch }))}
               fromYear={defaultSpan.from}
               toYear={defaultSpan.to}
-              // "Geen feestdagen" hoort er hier óók bij — pariteit met de
-              // wizard: leegt de gegenereerde holidays + generation-metadata via
-              // materializeHolidays(country:'none'). "Aangepast…" (extraCountryOptions, alleen de
-              // wizard) is hier bewust NIET toegevoegd: je bewerkt al een bestaande kalender in de
-              // editor zelf, dus een aparte "open de editor"-optie is zinledig in de editor.
             />
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowGenerator(false)} className="btn btn--sm btn--secondary">
@@ -838,7 +731,6 @@ export function CalendarForm({
         />
       )}
 
-      {/* Holidays */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <label className="text-text-secondary font-medium">
@@ -863,8 +755,6 @@ export function CalendarForm({
               <span />
             </div>
             {draft.holidays.map((h, i) => {
-              // Dezelfde regel als MCP (`holidayIssue`): een regel zonder geldige Van of met Tot vóór
-              // Van telt in de engine stil als nul dagen. Markeer hem; de aanroeper blokkeert Toepassen.
               const issue = holidayIssue(h);
               const startInvalid = issue === 'invalidStart' || issue === 'endBeforeStart';
               const endInvalid = issue === 'invalidEnd' || issue === 'endBeforeStart';

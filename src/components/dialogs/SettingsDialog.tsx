@@ -9,15 +9,12 @@ import { DialogHelpButton } from '@/components/common/Dialog';
 import { SETTINGS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import './SettingsDialog.css';
 
-/** Beginfocus in de zoekbalk: zoeken is de snelste weg naar een instelling. Een vaste functie, want
- *  `useFocusTrap` zet de beginfocus opnieuw zodra deze functie een andere identiteit krijgt. */
 const searchField = () => document.querySelector<HTMLElement>('.settings-dialog [data-ops-settings-search]');
 
 export function SettingsDialog() {
   const { t } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
 
-  // Dragging
   const dialogRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -25,10 +22,7 @@ export function SettingsDialog() {
 
   const close = () => setUI({ showSettingsDialog: false });
 
-  // Escape sluit — standaard-toetsafhandeling; de overlay zelf blijft custom (versleepbaar paneel,
-  // eigen CSS-chrome, bewust géén backdrop-close), dus geen `Dialog`-migratie hier.
   useDialogKeys({ onCancel: close });
-  // Focus-trap (a11y): custom overlay zonder shared Dialog; hergebruikt de bestaande drag-ref.
   useFocusTrap(dialogRef, searchField);
 
   useEffect(() => {
@@ -67,14 +61,9 @@ export function SettingsDialog() {
         aria-modal="true"
         aria-label={t('settings.title')}
       >
-        {/* Header */}
         <div ref={headerRef} className="settings-header" onMouseDown={onHeaderMouseDown}>
           <span>{t('settings.title')}</span>
-          {/* Zelfde naam + tooltip als DialogHeader; X-icoon zoals FeedbackDialog in dezelfde
-              .modal-close-btn-chrome. De sleep-uitsluiting hierboven werkt via closest() ook
-              vanaf het svg-icoon. */}
           <span className="flex items-center gap-1">
-            {/* ?-knop: instellingen gelden meteen, er is niets onopgeslagen — sluiten en Help openen. */}
             <DialogHelpButton help={{ articleId: SETTINGS_HELP_ARTICLE_ID }} onClose={close} />
             <button className="modal-close-btn" onClick={close} aria-label={t('close')} title={t('close')}>
               <Icon id="ui.close" size={16} />
@@ -82,12 +71,10 @@ export function SettingsDialog() {
           </span>
         </div>
 
-        {/* Body — shared settings panel */}
         <div className="settings-body">
           <SettingsPanelContent />
         </div>
 
-        {/* Footer */}
         <div className="settings-footer">
           <div className="settings-footer-right">
             <button className="settings-btn settings-btn-primary" onClick={close}>

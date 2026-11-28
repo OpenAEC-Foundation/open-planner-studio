@@ -8,25 +8,15 @@ import { answerSiteOpen } from '@/state/siteDialogBridge';
 import { listSiteFiles, listSiteVersions } from '@/services/fileAccess/siteBackend';
 import { siteErrorMessage, type SiteFileInfo, type SiteVersionInfo } from '@/services/fileAccess/siteHost';
 
-/** Laadtoestand van een lijst van de site: laden, fout (met de tekst van de site) of klaar. */
 type Loaded<T> =
   | { status: 'loading' }
   | { status: 'error'; message: string }
   | { status: 'ready'; items: T[] };
 
-/** Bestandsnaam zonder extensie, voor de naam van een kopie van een oudere versie. */
 function baseName(name: string): string {
   return name.replace(/\.[^.\\/]+$/, '');
 }
 
-/**
- * "Openen van de site" (issue #309). Rendert alleen bij `ui.pendingSiteOpen`; het antwoord gaat via
- * `answerSiteOpen` (`state/siteDialogBridge.ts`). Toont de bestanden van de site, per bestand een
- * uitklapbare lijst met versies, en "Van deze pc…" voor de gewone bestandskiezer.
- *
- * Laden, een lege lijst en een laadfout zijn alle drie zichtbaar: een site die (even) niet antwoordt
- * mag er nooit uitzien als "er staat niets".
- */
 export function SiteOpenDialog() {
   const pending = useAppStore((s) => s.ui.pendingSiteOpen);
   if (!pending) return null;
@@ -74,13 +64,10 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
 
   const cancel = () => answerSiteOpen(null);
   const openLatest = (file: SiteFileInfo) => answerSiteOpen({ kind: 'site', id: file.id });
-  /** Is dit de nieuwste versie? Volgens `file.version` uit de lijst; geeft de lijst geen versie (de
-   *  SuperCloud-vorm, #818), dan de eerste uit `versions` (die is nieuwste eerst). */
   const isLatest = (file: SiteFileInfo, version: SiteVersionInfo, index: number) => (
     file.version !== undefined ? version.version === file.version : index === 0
   );
   const openVersion = (file: SiteFileInfo, version: SiteVersionInfo, index: number) => {
-    // De nieuwste versie uit de lijst is gewoon "het bestand openen", met de site als opslagdoel.
     if (isLatest(file, version, index)) {
       openLatest(file);
       return;
@@ -102,8 +89,6 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
   return (
     <Dialog
       onCancel={cancel}
-      // Dezelfde laag als "Opslaan op de site": een vraag van een bestandshandeling ligt boven elke
-      // dialoog waaruit die handeling kwam (ook de sluitvraag van een tabblad, z-index 80).
       overlayClassName="bg-black/60 z-[90]"
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-site-open-dialog': true }}

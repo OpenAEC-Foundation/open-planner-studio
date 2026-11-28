@@ -81,3 +81,6 @@ afbreken staat een dialoog er nog met zijn invoer.
 
 **Keuzes in de hooks voor toetsen, focus en weergave** (`isTypingTarget`, `useFocusTrap`, `useClickOutside`, `useZoomShortcuts`,
 `useResolvedUITheme`): `docs/adr/0780-hooks-toetsen-focus-en-weergave.md`.
+
+**Keuzes in de dialogen** (`src/components/dialogs/`: stapelen, Escape, focus, en een paar dialoogspecifieke afwegingen):
+`docs/adr/0820-dialogen-keuzes-die-verrassen.md`.

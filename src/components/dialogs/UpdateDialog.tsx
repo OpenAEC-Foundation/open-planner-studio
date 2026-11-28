@@ -15,27 +15,9 @@ import {
 import { useCopyFeedback } from '@/hooks/useCopyFeedback';
 import { UPDATE_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
-// Copy-paste-commando voor handmatige .deb-installatie — alléén nog een
-// FALLBACK wanneer de in-app installatie op een .deb-systeem faalt (bijv.
-// pkexec/sudo geweigerd of niet beschikbaar). De normale flow is auto-install:
-// de updater-plugin (≥2.6) installeert .deb in-place via pkexec + `dpkg -i`.
-// NB: de grep matcht op de afsluitende quote (amd64.deb") zodat het bijhorende
-// amd64.deb.sig-asset niet óók matcht — anders bevat $url twee URL's en faalt
-// curl met "URL rejected: Malformed input to a URL function".
 const DEB_INSTALL_COMMAND =
   "url=$(curl -s https://api.github.com/repos/OpenAEC-Foundation/open-planner-studio/releases/latest | grep browser_download_url | grep 'amd64\\.deb\"' | cut -d '\"' -f4); curl -L -o /tmp/ops.deb \"$url\" && sudo apt install -y /tmp/ops.deb";
 
-/**
- * Software-update-dialog.
- *
- * Toont de huidige versie vs. de beschikbare versie + release-notes, een
- * voortgangsbalk tijdens het downloaden, en foutafhandeling met "Opnieuw
- * proberen". `downloadAndInstall` herstart de app zelf na installatie.
- *
- * KRITIEK: alle `@tauri-apps/*`-imports zijn DYNAMISCH en gegate achter
- * `isTauri()` (zie `getCurrentVersion`). In de web-build no-opt de updater:
- * de status komt direct op `upToDate` te staan.
- */
 export function UpdateDialog() {
   const { t } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
@@ -44,15 +26,12 @@ export function UpdateDialog() {
   const [currentVersion, setCurrentVersion] = useState<string>(__APP_VERSION__);
   const [status, setStatus] = useState<UpdateStatus | null>(null);
   const [busy, setBusy] = useState(false);
-  // Tot de detectie klaar is mag geen installatieknop verschijnen (ook AUR/Snap zijn mogelijk).
   const [installKind, setInstallKind] = useState<InstallKind | null>(null);
   const { copiedKey, copy } = useCopyFeedback(2000);
   const copied = copiedKey !== null;
 
   const close = () => setUI({ showUpdateDialog: false });
 
-  // Huidige app-versie ophalen via de Tauri app-API (web: terugval op de
-  // build-time versie uit vite-define).
   useEffect(() => {
     if (!showUpdateDialog) return;
     let cancelled = false;
@@ -63,13 +42,11 @@ export function UpdateDialog() {
         const v = await getVersion();
         if (!cancelled) setCurrentVersion(v);
       } catch {
-        /* terugval op __APP_VERSION__ */
       }
     })();
     return () => { cancelled = true; };
   }, [showUpdateDialog]);
 
-  // Install-type ophalen (web/fout → 'native', dus de gewone updater-flow).
   useEffect(() => {
     if (!showUpdateDialog) return;
     let cancelled = false;
@@ -78,12 +55,11 @@ export function UpdateDialog() {
     return () => { cancelled = true; };
   }, [showUpdateDialog]);
 
-  // Bij openen: meteen (niet-stil) controleren op updates.
   const runCheck = useCallback(() => {
     setBusy(true);
-    setStatus({ kind: 'upToDate' }); // tussentijds — UI toont "controleren…" via busy
+    setStatus({ kind: 'upToDate' });
     checkForUpdates(false, setStatus)
-      .catch(() => { /* fout komt via onStatus binnen */ })
+      .catch(() => { })
       .finally(() => setBusy(false));
   }, []);
 
@@ -95,17 +71,11 @@ export function UpdateDialog() {
   const handleInstall = () => {
     setBusy(true);
     setStatus({ kind: 'downloading', progress: 0, indeterminate: false });
-    // downloadAndInstall herstart de app zelf na afloop; faalt het, dan komt
-    // er een error-status binnen.
     void downloadAndInstall(setStatus).finally(() => setBusy(false));
   };
 
-  // Het .deb-installeer-commando naar het klembord kopiëren (+ korte "gekopieerd").
-  // Klembord niet beschikbaar ⇒ stil negeren.
   const handleCopyCommand = () => { void copy(DEB_INSTALL_COMMAND); };
 
-  // De GitHub-release-pagina openen in de standaardbrowser.
-  // KRITIEK: `@tauri-apps/plugin-shell` dynamisch + `isTauri()`-guarded.
   const handleOpenDownloads = () => {
     if (!isTauri()) {
       window.open(RELEASES_PAGE_URL, '_blank', 'noopener');
@@ -116,7 +86,6 @@ export function UpdateDialog() {
         const { open } = await import('@tauri-apps/plugin-shell');
         await open(RELEASES_PAGE_URL);
       } catch {
-        /* openen mislukt — stil negeren */
       }
     })();
   };
@@ -130,29 +99,20 @@ export function UpdateDialog() {
   const isInstalling = status?.kind === 'installing';
   const isRestarting = status?.kind === 'restarting';
   const isUpdating = isDownloading || isReadyToInstall || isInstalling || isRestarting;
-  // Snap en AUR hebben geen in-app installatie: de pakketbeheerder werkt bij.
-  // .deb installeert de updater-plugin gewoon in-place (pkexec + dpkg -i),
-  // dus deb krijgt de normale installeerknop; het handmatige commando is enkel
-  // nog een fallback als die installatie faalt.
   const isSnap = installKind === 'snap';
   const isAur = installKind === 'aur';
   const isDeb = installKind === 'deb';
   const canAutoInstall = installKind !== null && !isSnap && !isAur;
 
   return (
-    // Esc en backdrop-klik sluiten de dialoog, maar NIET zolang het bijwerken loopt
-    // (dan zijn beide handlers `undefined` en doet `Dialog` niets).
     <Dialog
       onBackdropClick={isUpdating ? undefined : close}
       onCancel={isUpdating ? undefined : close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[520px] max-h-[90vh] flex flex-col overflow-hidden"
     >
-        {/* Header */}
         <DialogHeader title={t('updates.dialogTitle')} onClose={close} closeDisabled={isUpdating} help={{ articleId: UPDATE_HELP_ARTICLE_ID }} />
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
-          {/* Versie-overzicht */}
           <div className="flex items-center gap-6">
             <div className="flex flex-col gap-0.5">
               <span className="text-text-secondary font-medium">{t('updates.currentVersion')}</span>
@@ -166,7 +126,6 @@ export function UpdateDialog() {
             )}
           </div>
 
-          {/* Status-melding */}
           {busy && status?.kind === 'upToDate' && (
             <div className="flex items-center gap-2 text-text-secondary">
               <Icon id="status.busy" size={14} className="animate-spin" />
@@ -196,7 +155,6 @@ export function UpdateDialog() {
                 </div>
               )}
 
-              {/* Snap: snapd/Snap Store werkt zelf bij — geen in-app installatie. */}
               {isSnap && (
                 <div className="flex items-start gap-2 text-text-secondary bg-surface-hover border border-border rounded-[8px] p-3">
                   <Icon id="status.info" size={14} className="mt-0.5 shrink-0" />
@@ -204,7 +162,6 @@ export function UpdateDialog() {
                 </div>
               )}
 
-              {/* AUR: pacman beheert het pakket — bijwerken via yay/paru, geen in-app installatie. */}
               {isAur && (
                 <div className="flex items-start gap-2 text-text-secondary bg-surface-hover border border-border rounded-[8px] p-3" data-ops-update-package-manager-notice>
                   <Icon id="status.info" size={14} className="mt-0.5 shrink-0" />
@@ -230,7 +187,6 @@ export function UpdateDialog() {
                 className="h-2 rounded-full bg-surface-hover overflow-hidden border border-border"
               >
                 {indeterminate ? (
-                  // Onbepaalde voortgang: geen totale grootte bekend → lopende balk.
                   <div className="h-full w-1/3 bg-accent rounded-full ops-indeterminate-bar" />
                 ) : (
                   <div
@@ -259,8 +215,6 @@ export function UpdateDialog() {
             </div>
           )}
 
-          {/* .deb-fallback: faalt de in-app installatie (pkexec/sudo geweigerd of
-              afwezig), bied dan het handmatige copy-paste-commando aan. */}
           {status?.kind === 'error' && isDeb && (
             <div className="flex flex-col gap-2">
               <span className="text-text-secondary">{t('updates.debExplanation')}</span>
@@ -284,7 +238,6 @@ export function UpdateDialog() {
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
           <button
             onClick={close}

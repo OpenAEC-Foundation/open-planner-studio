@@ -7,13 +7,6 @@ import '@/components/dialogs/SettingsDialog.css';
 import '@/components/settings/SettingsPanelContent.css';
 import { SETTINGS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
-/**
- * Statistieken-dialoog: hoe vaak Open Planner Studio is gedownload, per OS en per release.
- * Bereikbaar via Instellingen → Toepassing → **Statistieken…** (dus vanuit alle drie de
- * instellingen-ingangen), bewust NIET als eigen tabblad: de gemiddelde gebruiker heeft er niets
- * aan, dus hij staat achter een knop naast Benchmark. Zelfde opzet als BenchmarkDialog; de inhoud
- * is de gedeelde `DownloadStatsSection`, die de `.settings-*`-stijlen hergebruikt.
- */
 export function StatsDialog() {
   const { t } = useTranslation('common');
   const setUI = useAppStore((s) => s.setUI);

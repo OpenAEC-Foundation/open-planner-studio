@@ -13,24 +13,9 @@ import { calendarScalarBreakIssue } from '@/utils/effectiveWorkTime';
 import { calendarHasHolidayIssue, withCanonicalHolidayEnds } from '@/utils/holidayRange';
 import { CALENDARS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
-/** Kan deze bufferkalender zo niet worden opgeslagen? Ongeldige pauze of een ongeldige feestdagregel
- *  (zelfde regels als het formulier toont; MCP deelt `holidayIssue`). */
 const calendarInvalid = (calendar: WorkCalendar): boolean =>
   calendarScalarBreakIssue(calendar) !== undefined || calendarHasHolidayIssue(calendar);
 
-/**
- * Kalender-bibliotheek-dialoog: links een lijst van
- * alle bibliotheek-kalenders met de projectdefault gemarkeerd, rechts `CalendarForm` voor de
- * geselecteerde kalender.
- *
- * BUFFER-MODEL: álle bewerkingen — nieuw/dupliceren/verwijderen/projectdefault
- * én de veld-edits in het formulier — muteren UITSLUITEND een lokale kopie van de bibliotheek. De
- * store wordt pas op "Toepassen" in één keer bijgewerkt (`commitCalendarLibrary`). Zo draaien
- * "Annuleren"/Esc/kruisje/klik-buiten de in de dialoog gemaakte wijzigingen terug door simpelweg
- * te sluiten. Uitzondering, bewust: Enter in een tekstveld commit de buffer
- * tussentijds zonder te sluiten (`commitOnInputEnter`); Annuleren gooit daarna alleen weg wat sinds
- * die Enter is gewijzigd. Een commit zonder wijziging is in de store een no-op.
- */
 export function CalendarDialog() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -46,20 +31,10 @@ export function CalendarDialog() {
   const [localProjectId, setLocalProjectId] = useState<string>(project.calendarId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [scalarTimeTextInvalid, setScalarTimeTextInvalid] = useState(false);
-  // Enter in een invoerveld vraagt een tussentijdse commit aan; hij draait pas ná de render van die
-  // toetsaanslag (zie `commitOnInputEnter` en het layout-effect hieronder).
   const [enterCommitRequested, setEnterCommitRequested] = useState(false);
-  // De buffer zoals hij het laatst in de store stond (bij openen en na elke commit): de ?-knop vraagt
-  // alleen Opslaan / Annuleren / Terug als er sindsdien iets is veranderd.
   const [committedSnapshot, setCommittedSnapshot] = useState('');
-  // De beginstand per kalender in deze venstersessie (`WorkTimeSessionStart`): de kalender vóór zijn eerste
-  // wijziging in het venster, of na de laatste preset. Alleen in deze buffer, niet in de store; ook na een
-  // tussentijdse Enter-commit loopt de sessie door.
   const [sessionStarts, setSessionStarts] = useState<Record<string, WorkTimeSessionStart>>({});
 
-  // Init vóór de eerste paint (useLayoutEffect, geen flash): promoveer (lazy, idempotente
-  // normalisatie — geen gebruikerswijziging) de gedenormaliseerde projectkalender naar de zichtbare
-  // bibliotheek en vul dáárna de lokale buffer met een diepe kopie van de store-bibliotheek.
   useLayoutEffect(() => {
     ensureProjectCalendarInLibrary();
     const st = useAppStore.getState();
@@ -72,43 +47,23 @@ export function CalendarDialog() {
   }, [ensureProjectCalendarInLibrary]);
 
   const selected = localCalendars.find(c => c.id === selectedId) ?? null;
-  // Ongeldige invoer in ÉÉN van de bufferkalenders blokkeert Toepassen én Enter: de commit schrijft
-  // altijd de hele bibliotheek. De lijst links markeert welke kalender het is.
   const invalid = scalarTimeTextInvalid || localCalendars.some(calendarInvalid);
   const projectYearSpan = computeGenerateSpan(project.startDate, project.endDate || undefined, calculatedEnd);
 
-  // Annuleren = sluiten zonder te committen (buffer wordt weggegooid ⇒ alle wijzigingen terug).
   const cancel = () => setUI({ showCalendarDialog: false });
 
-  // Lege einddatums zijn in de editor bewust toegestaan: bij opslag worden zij canoniek dezelfde
-  // dag als de startdatum. Zo blijft het domeinmodel en alle bestaande readers/schrijvers eenduidig.
-  // Is er per saldo niets veranderd, dan commit de store niets (geen undo-stap, document blijft
-  // ongewijzigd) en slaan we ook de herberekening over — anders zou "even kijken en Toepassen" een
-  // document in de modus "datums zoals opgeslagen" alsnog herberekenen.
   const commit = useCallback(() => {
     if (commitCalendarLibrary(localCalendars.map(withCanonicalHolidayEnds), localProjectId)) runCPM({ withinEvent: true });
     setCommittedSnapshot(JSON.stringify([localCalendars, localProjectId]));
   }, [commitCalendarLibrary, localCalendars, localProjectId, runCPM]);
   const dirty = ready && JSON.stringify([localCalendars, localProjectId]) !== committedSnapshot;
 
-  // Toepassen = de hele buffer in één keer naar de store + herberekenen + sluiten.
   const confirm = () => {
     if (invalid) return;
     commit();
     setUI({ showCalendarDialog: false });
   };
 
-  // Alleen gewone enkelregelige invoervelden in déze dialoog gebruiken Enter als "opslaan en
-  // open blijven". Knoppen, selects, checkboxen en invoervelden die de toets al zelf afhandelen
-  // houden hun eigen native betekenis; andere dialogs gebruiken hun eigen contract.
-  //
-  // Deze handler commit NIET zelf. Een datumveld (`DateTextInput`) rondt bij Enter eerst zichzelf af
-  // (`onCommit` ⇒ setState in deze buffer) en laat de toets dan doorbubbelen naar hier — binnen
-  // dezelfde React-dispatch, dus deze closure ziet `localCalendars` nog van vóór die toetsaanslag.
-  // Direct committen legde daardoor de buffer zonder de net getypte datum vast. Daarom vragen we
-  // de commit aan en voert het layout-effect hieronder hem uit zodra React de updates van deze
-  // toetsaanslag heeft toegepast (discrete event: synchroon, vóór de volgende invoer). Dezelfde
-  // reden waarom `useDialogKeys` zijn `onConfirm` via een ref leest.
   const commitOnInputEnter = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Enter' || event.defaultPrevented || event.nativeEvent.isComposing) return;
     const target = event.target;
@@ -117,7 +72,6 @@ export function CalendarDialog() {
       || (target instanceof HTMLInputElement
         && ['button', 'checkbox', 'color', 'file', 'image', 'radio', 'range', 'reset', 'submit'].includes(target.type));
     if (ownsEnter) {
-      // Niet preventDefault: een knop moet bij Enter nog steeds zelf klikken.
       event.stopPropagation();
       return;
     }
@@ -127,15 +81,12 @@ export function CalendarDialog() {
     setEnterCommitRequested(true);
   };
 
-  // Uitvoering van de aangevraagde Enter-commit, met de buffer en `invalid` van ná de toetsaanslag.
-  // Zelfde poort als de knop Toepassen: nooit een ongeldige buffer tussentijds wegschrijven.
   useLayoutEffect(() => {
     if (!enterCommitRequested) return;
     setEnterCommitRequested(false);
     if (!invalid) commit();
   }, [enterCommitRequested, invalid, commit]);
 
-  // Zelfde fabriek als "+ Resourcekalender" in de resourcerij en MCP `create` (createNewCalendar).
   const handleNew = () => {
     const cal: WorkCalendar = { ...createNewCalendar(tCommon('calendar.library.new')), id: generateId('cal') };
     setLocalCalendars(cs => [...cs, cal]);
@@ -180,8 +131,6 @@ export function CalendarDialog() {
   };
 
   return (
-    // Esc = Annuleren, Enter = Toepassen (primaire actie), met de standaard
-    // textarea/dropdown/IME-uitzonderingen.
     <Dialog
       onCancel={cancel}
       onConfirm={confirm}
@@ -198,7 +147,6 @@ export function CalendarDialog() {
         />
 
         <div className="flex flex-1 overflow-hidden">
-          {/* Links: bibliotheek-lijst (lokale buffer) */}
           <div className="w-[220px] border-r border-border flex flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto py-2">
               {localCalendars.map(cal => {
@@ -244,7 +192,6 @@ export function CalendarDialog() {
             </div>
           </div>
 
-          {/* Rechts: bewerkformulier — bindt direct op de geselecteerde buffer-kalender */}
           <div className="flex-1 flex flex-col overflow-hidden">
             {ready && selected ? (
               <>
@@ -278,8 +225,6 @@ export function CalendarDialog() {
           </div>
         </div>
 
-        {/* Dialoog-footer: Annuleren draait alle nog niet gecommitte wijzigingen terug en sluit;
-            Toepassen commit de hele buffer in één keer + herberekent (niets gewijzigd ⇒ no-op). */}
         <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
           <button onClick={cancel} className="btn btn--sm btn--secondary" data-ops-cal-cancel>
             {tCommon('cancel')}

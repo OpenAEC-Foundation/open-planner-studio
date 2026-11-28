@@ -14,7 +14,6 @@ import { getRegisteredHelpArticles } from '@/utils/helpArticleRegistry';
 import { tutorialsInOrder } from '@/utils/helpManifest';
 import type { NotifyInput } from '@/state/slices/types';
 
-/** De echte app-binding van {@link startFirstTutorial}: store, loader, catalogus, Help-register. */
 function appFirstTutorialDeps(): FirstTutorialDeps {
   return {
     extensionStatus: id => useAppStore.getState().installedExtensions[id]?.status ?? null,
@@ -32,29 +31,15 @@ function appFirstTutorialDeps(): FirstTutorialDeps {
   };
 }
 
-/** "Je vindt de tutorials altijd in Help › Tutorials", met een knop naar Help. */
 const LATER_NOTICE: NotifyInput = {
   severity: 'info',
   messageKey: 'notifications.tutorialOfferLater',
   action: { kind: 'openBackstageSection', section: 'help', labelKey: 'notifications.actions.openHelp' },
 };
 
-/**
- * De tutorialvraag: verschijnt eenmalig na een VOLTOOIDE rondleiding (`tourFinishPatch`,
- * `state/onboarding.ts`). Elk antwoord — Ja, Nee, het kruisje of Escape — telt als beantwoord
- * (`ops-tutorialOfferAnswered`), dus hij komt nooit terug.
- *
- * Ja = installeren en meteen starten (`startFirstTutorial`). De dialoog blijft zolang in een
- * bezig-stand open; de toestemmingsvraag van de installatie stapelt er bovenop (hij staat later in de
- * boom). Lukt het niet, dan opent Help op Tutorials, met een melding. Nee = een melding dat de
- * tutorials in Help › Tutorials staan.
- */
 export function TutorialOfferDialog() {
   const { t } = useTranslation('common');
   const [busy, setBusy] = useState(false);
-  // Beginfocus op Ja: de focus-trap van `Dialog` zet hem op het eerste focusbare element (het
-  // kruisje). Dit effect loopt ná dat van het kind `Dialog`, dus Ja wint. Enter activeert zo de
-  // gefocuste knop — standaard Ja; na Tab naar Nee of het kruisje díé knop (M1, review PR #261).
   const yesRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { yesRef.current?.focus(); }, []);
 
@@ -92,7 +77,6 @@ export function TutorialOfferDialog() {
       store.setUI({ showTutorialOffer: false });
       store.notify(LATER_NOTICE);
     } else {
-      // Terugval: Help › Tutorials, de blijvende plek om het later opnieuw te proberen.
       store.setUI({
         showTutorialOffer: false,
         activeRibbonTab: 'file',
@@ -104,9 +88,6 @@ export function TutorialOfferDialog() {
   };
 
   return (
-    // Bewust geen backdrop-close: een keuzevraag, geen melding. Tijdens "bezig" doen Escape, Enter
-    // en het kruisje niets — de installatie loopt dan al. Enter op een gefocuste knop activeert díé
-    // knop; alleen zonder knopfocus is Enter "Ja" (`focusedButtonOwnsEnter`).
     <Dialog
       onCancel={busy ? undefined : decline}
       onConfirm={busy ? undefined : () => { void accept(); }}
