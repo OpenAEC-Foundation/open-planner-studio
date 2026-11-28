@@ -1,6 +1,3 @@
-// Kandidaten voor *Afhankelijke projecten zoeken…* (stap 1.11): gelezen bestanden en geopende
-// documenten, in de vorm die `findDependentLinks` leest. Zonder store, zodat de planningstests het
-// headless kunnen draaien; de zoekroute zelf staat in `dependentProjectsSearch.ts`.
 import type { DependentCandidate, DependentLink } from '@/engine/dependentProjects';
 import { findDependentLinks, tightDependentAnchors, type TightAnchor } from '@/engine/dependentProjects';
 import { externalSourceFromImport } from './externalSource';
@@ -13,14 +10,6 @@ import { basename } from '@/utils/filePath';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput, type IFCSaveSource } from './ifcSaveInput';
 
-/**
- * Een IFC-bestand als kandidaat, alleen-lezen: de lezer van het formaat en dezelfde laadgrens als
- * openen (`payloadFromImport`: unieke id's en de omzetting naar het minutenmodel, die ook de ankers
- * van de koppelingen omzet), zonder het als document te openen en zonder door te rekenen. Zonder die
- * omzetting is een anker uit een dagenbestand een datum (`2027-03-05`) in plaats van het moment
- * waarop dat project rekent, en gaf de waarschuwing vóór opslaan een valse melding. Een bestand dat de
- * lezer weigert (geen planning, een gebouwmodel, kapot) ⇒ `null`.
- */
 export async function candidateFromIfcText(
   name: string, text: string, labels?: ImportLabels,
 ): Promise<DependentCandidate | null> {
@@ -39,8 +28,6 @@ export async function candidateFromIfcText(
   }
 }
 
-/** De geopende documenten als kandidaten, met hun koppelingen in het geheugen (ook niet-opgeslagen).
- *  Het actieve document zelf telt niet mee. */
 export function candidatesFromOpenDocuments(
   docs: readonly { id: string; payload: DocumentPayload }[],
   activeDocumentId: string,
@@ -56,7 +43,6 @@ export function candidatesFromOpenDocuments(
     }));
 }
 
-/** Zoekt de koppelingen; geopende documenten eerst, zodat ze winnen van hun bestand. */
 export function dependentLinksFrom(
   opened: readonly DependentCandidate[],
   files: readonly DependentCandidate[],
@@ -65,8 +51,6 @@ export function dependentLinksFrom(
   return findDependentLinks([...opened, ...files], ownProjectId);
 }
 
-/** De lijst met zoekresultaten met `next` voor zijn document (vervangt een eerder resultaat). Een
- *  document dat niet meer open is, valt weg. */
 export function withDependentResult(
   list: readonly DependentProjectsResult[],
   next: DependentProjectsResult,
@@ -75,14 +59,6 @@ export function withDependentResult(
   return [...list.filter(r => r.documentId !== next.documentId && openDocumentIds.has(r.documentId)), next];
 }
 
-/**
- * De te krappe ankers zoals het afhankelijke project ze ziet na dit opslaan (review #857 ronde 1). Het
- * afhankelijke project leest het opgeslagen bestand met de bronleesroute (`readExternalSource`): lezen,
- * de laadgrens van openen en een berekening zoals bij openen (`externalSourceFromImport`). Is de planning
- * hier niet herberekend (bijv. een langere duur zonder F5), dan rekent die route de nieuwe datums toch
- * door. Daarom vergelijkt de waarschuwing met precies die route, op de tekst die opgeslagen gaat worden.
- * Alles gebeurt op een kopie: het geopende document wordt niet herberekend (handmatig rekencontract).
- */
 export async function dependentAnchorsAsSaved(
   links: readonly DependentLink[], ifcText: string, labels?: ImportLabels,
 ): Promise<TightAnchor[]> {
@@ -91,14 +67,6 @@ export async function dependentAnchorsAsSaved(
   return tightDependentAnchors(links, source.tasks, source);
 }
 
-/**
- * De te krappe ankers als dit document nu opgeslagen wordt: het zoekresultaat *Afhankelijke projecten* van dit document
- * (`ui.dependentProjects`), per gevonden koppeling opnieuw gerekend op de tekst die opgeslagen gaat worden
- * (`dependentAnchorsAsSaved`). Leeg zonder zoekresultaat voor dit document en dit project. Eén beoordeling voor twee
- * routes: Ctrl+S en Opslaan als vragen het de planner bij een te krap anker (`settleDependentAnchors` in `fileSlice.ts`);
- * Automatisch opslaan met een gebouwmodel slaat het document dan stil over (#804 stap 8, fixronde 1 van de review van
- * #1033). Een ruim anker houdt geen van beide tegen.
- */
 export async function tightAnchorsIfSaved(
   results: readonly DependentProjectsResult[], documentId: string, document: IFCSaveSource,
 ): Promise<TightAnchor[]> {
@@ -107,7 +75,6 @@ export async function tightAnchorsIfSaved(
   try {
     return await dependentAnchorsAsSaved(result.links, writeIFC(buildWriteIFCInput(document, 'planOnly')));
   } catch (err) {
-    // Het eigen bestand niet terug te lezen: dan de huidige taken, zoals ze op het scherm staan.
     console.warn('Afhankelijke projecten: bron als opgeslagen niet te lezen:', err);
     return tightDependentAnchors(result.links, document.tasks);
   }
