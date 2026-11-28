@@ -21,7 +21,6 @@ for (const [name, first, second, expected] of [
       const sources = join(dir, 'sources.list');
       const initial = name === 'onbekende bronindeling' ? 'deb https://other.invalid jammy main\n' : original;
       writeFileSync(sources, initial);
-      // Geen root, netwerk of host-APT: echte bronwissel met nagebootste sudo/timeout/apt-get.
       writeFileSync(join(dir, 'sudo'), '#!/bin/bash\nexec "$@"\n', { mode: 0o755 });
       writeFileSync(join(dir, 'timeout'), '#!/bin/bash\nprintf "%s\\n" "$*" >> "$FIXTURE/timeout.log"\nshift 3\nexec "$@"\n', { mode: 0o755 });
       writeFileSync(join(dir, 'apt-get'), `#!/bin/bash

@@ -1,14 +1,3 @@
-// check-work-triangle.ts — de meetlat van de taaktypes-etappe (ontwerp 2026-09-04 §9) tegen de
-// pure rekenkern `src/engine/work/workTriangle.ts` (bouwstap 3). Twee lagen:
-//   (a) `work-triangle-cases.json`: de 36 genummerde bewerkingen uit de spec als data — per case
-//       een resterende toestand, één of meer bewerkingen en de verwachte uitkomst, met het
-//       bewijslabel (documented/reasoned/decided/measured). Cases met `scope: 'store'` (contour,
-//       undo) horen bij de bedrading en worden hier geteld maar overgeslagen.
-//   (b) eigenschappen die geen enkele case apart toetst: "afwezig ⇒ afgeleid" blijft afwezig onder
-//       de inzetbeschermende regels, de typewissel verandert geen getal, weigeringen laten de
-//       toestand onaangeraakt, materiaal telt nergens mee, en breuken blijven exact (F3a/T14).
-//
-// Draait via run.sh (esbuild-bundel, Node). Exit 0 = groen. Geen store: alles is puur.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -33,11 +22,8 @@ function near(label: string, actual: number | undefined, expected: number | unde
     if (actual !== expected) diffs.push(`${label}: kreeg ${String(actual)}, verwacht ${String(expected)}`);
     return;
   }
-  // `!(… <= tol)` i.p.v. `> tol`: NaN (een afwezig veld als `undefined / 60`) moet rood zijn, niet stil groen.
   if (!(Math.abs(actual - expected) <= tol)) diffs.push(`${label}: kreeg ${actual}, verwacht ${expected}`);
 }
-
-// ── (a) de meetlat als data ─────────────────────────────────────────────────────────────────────
 
 interface CaseAssignment { id: string; units: number; hours?: number; material?: boolean }
 interface CaseState {
@@ -64,8 +50,6 @@ interface Case {
 const here = dirname(fileURLToPath(import.meta.url));
 const file = JSON.parse(readFileSync(join(here, 'work-triangle-cases.json'), 'utf8')) as { cases: Case[] };
 
-// Sleutelvalidatie (zelfde motief als de batterij-inventaris in run.sh): een typefout in een sleutel
-// (`"dayz"`, `"evidance"`) mag niet stil een case zonder asserties opleveren.
 const KEYS = {
   case: ['id', 'nr', 'evidence', 'source', 'scope', 'state', 'edits', 'expect'],
   state: ['rule', 'effortDriven', 'days', 'minutes', 'hoursPerDay', 'assignments'],
@@ -164,7 +148,6 @@ for (const c of file.cases) {
   }
   if (c.expect.rejected !== undefined) {
     ok(`${c.id}: verwacht weigering ${c.expect.rejected}, kreeg ${rejected ?? 'geen'}`, rejected === c.expect.rejected);
-    // "geweigerd, niets gewijzigd": de module is puur, dus de invoer mag niet gemuteerd zijn.
     ok(`${c.id}: invoer onaangeraakt na weigering`, JSON.stringify(state) === before);
     continue;
   }
@@ -174,14 +157,11 @@ for (const c of file.cases) {
 ok('meetlat: precies de nummers 1…36 uit spec §9 aanwezig (32–36: kalenderwissel, eigenaarsbesluit 2026-09-05 + reviewronde F5/F11; F5 teruggedraaid door E9 25-09)', JSON.stringify([...new Set(file.cases.map((c) => c.nr))].sort((a, b) => a - b)) === JSON.stringify(Array.from({ length: 36 }, (_, i) => i + 1)));
 ok('meetlat: geen enkele case is al gemeten (measured) — anders hoort de spec bijgewerkt', (evidenceCount.measured ?? 0) === 0);
 
-// ── (b) eigenschappen ───────────────────────────────────────────────────────────────────────────
-
 const base: TriangleState = {
   rule: 'FIXED_DURATION_RATE', remainingMinutes: 2400, slotMinutes: 480,
   assignments: [{ id: 'a', unitsPerDay: 1, drivesDuration: true }, { id: 'b', unitsPerDay: 0.5, drivesDuration: true }],
 };
 
-// Afwezig blijft afwezig onder de regels van vandaag: geen enkel veld wordt geschreven.
 for (const rule of ['FIXED_DURATION_RATE', 'FIXED_RATE'] as const) {
   const s = { ...base, rule };
   const r1 = applyDurationEdit(s, 4800);
@@ -189,12 +169,10 @@ for (const rule of ['FIXED_DURATION_RATE', 'FIXED_RATE'] as const) {
   const r2 = applyUnitsEdit(s, 'b', 1);
   ok(`${rule}: inzetwijziging laat het werkveld van de ANDERE toewijzing afwezig`, r2.ok && r2.state.assignments.find((a) => a.id === 'a')?.remainingWorkMinutes === undefined);
 }
-// FIXED_DURATION_RATE is byte-identiek aan vandaag: inzet gewijzigd ⇒ duur blijft.
 {
   const r = applyUnitsEdit(base, 'b', 2);
   ok('FIXED_DURATION_RATE: inzet gewijzigd ⇒ restduur ongewijzigd', r.ok && r.state.remainingMinutes === 2400);
 }
-// Typewissel verandert geen getal, in alle 16 richtingen; naar een werkbeschermende regel legt hij het werk vast.
 for (const from of WORK_RULES) {
   for (const to of WORK_RULES) {
     const r = applyRuleChange({ ...base, rule: from }, to);
@@ -206,7 +184,6 @@ for (const from of WORK_RULES) {
       (a.remainingWorkMinutes !== undefined) === fixed));
   }
 }
-// Weigeringen laten de invoer onaangeraakt en noemen de reden.
 {
   const s = { ...base, rule: 'FIXED_WORK' as const };
   ok('weigering: duur 0', !applyDurationEdit(s, 0).ok);
@@ -217,7 +194,6 @@ for (const from of WORK_RULES) {
   ok('weigering: toewijzing erbij met inzet 0', !applyAssignmentAdded(s, { id: 'c', unitsPerDay: 0 }).ok);
   ok('weigering: invoer onaangeraakt', s.assignments[0].remainingWorkMinutes === undefined && s.remainingMinutes === 2400);
 }
-// Materiaal: telt nergens mee — ook niet als enige "resource" (dan is er geen werkresource, dus geen regel).
 {
   const s: TriangleState = { ...base, rule: 'FIXED_WORK', assignments: [{ id: 'm', unitsPerDay: 100, drivesDuration: false }] };
   const r1 = applyDurationEdit(s, 4800);
@@ -227,7 +203,6 @@ for (const from of WORK_RULES) {
   const r3 = applyUnitsEdit({ ...s, rule: 'FIXED_WORK' }, 'm', 50);
   ok('materiaal: hoeveelheid wijzigen raakt de duur niet', r3.ok && r3.state.remainingMinutes === 2400 && r3.state.assignments[0].unitsPerDay === 50);
 }
-// Taakniveau-werk: naar rato van bestaand restwerk (regel §6.2), daarna per regel.
 {
   const s: TriangleState = { ...base, rule: 'FIXED_DURATION_RATE', assignments: [
     { id: 'a', unitsPerDay: 1, drivesDuration: true, remainingWorkMinutes: 2400 },
@@ -240,8 +215,6 @@ for (const from of WORK_RULES) {
   ok('taakwerk (werk vast): 120 u verdeeld 80/40 ⇒ R = max(80/8, 40/4) = 10 d', r2.ok && r2.state.remainingMinutes === 4800
     && r2.state.assignments.every((a) => Math.abs(a.unitsPerDay - (a.id === 'a' ? 1 : 0.5)) < 1e-9));
 }
-// `effortDriven` op een andere regel dan de twee beslispunt-8-B-cellen heeft géén effect.
-// (Vergelijking zonder de vlag zelf: die reist onveranderd mee in de uitkomst.)
 const sansFlag = (r: TriangleResult): string => JSON.stringify(r.ok ? { ...r.state, effortDriven: undefined } : r);
 {
   const two: TriangleState = { ...base, rule: 'FIXED_WORK' };
@@ -262,8 +235,6 @@ const sansFlag = (r: TriangleResult): string => JSON.stringify(r.ok ? { ...r.sta
   const first = applyAssignmentAdded({ ...base, rule: 'FIXED_RATE', effortDriven: false, assignments: [] }, { id: 'a', unitsPerDay: 1 });
   ok('FIXED_RATE + effortDriven=false: eerste werkresource ⇒ afgeleid werk, duur ongewijzigd', first.ok && first.state.remainingMinutes === 2400 && first.state.assignments[0].remainingWorkMinutes === undefined);
 }
-// §6.7: een uitkomst met R ≤ 0 of een niet-eindige inzet wordt geweigerd — restwerk 0 (afgesloten
-// toewijzing) en een restduur van 0 als invoer zijn de twee randen die dat kunnen veroorzaken.
 {
   const closed: TriangleState = { ...base, rule: 'FIXED_WORK', assignments: [{ id: 'a', unitsPerDay: 1, drivesDuration: true, remainingWorkMinutes: 0 }] };
   ok('restwerk 0: inzetwijziging geweigerd (R zou 0 worden)', (() => { const r = applyUnitsEdit(closed, 'a', 2); return !r.ok && r.reason === 'invalid-duration'; })());
@@ -275,14 +246,11 @@ const sansFlag = (r: TriangleResult): string => JSON.stringify(r.ok ? { ...r.sta
   const nanUnits: TriangleState = { ...base, rule: 'FIXED_WORK', assignments: [{ id: 'a', unitsPerDay: 1, drivesDuration: true }, { id: 'x', unitsPerDay: Number.NaN, drivesDuration: true }] };
   ok('NaN-inzet in de invoer: resource erbij geweigerd, niet stil NaN-werk', !applyAssignmentAdded(nanUnits, { id: 'c', unitsPerDay: 1 }).ok);
 }
-// FIXED_RATE (E9 25-09, draait F5 terug): een inzetwijziging legt het werk van de bewerkte toewijzing
-// vast. T14: de duur volgt exact uit W / I, zonder afronding.
 {
   const s: TriangleState = { ...base, rule: 'FIXED_RATE', assignments: [{ id: 'a', unitsPerDay: 1, drivesDuration: true }] };
   const r = applyUnitsEdit(s, 'a', 0.6);
   ok('FIXED_RATE: inzet → 0,6 ⇒ R = 25/3 d (4000 min), werkveld 40 u vastgelegd', r.ok && r.state.remainingMinutes === 4000
     && r.state.assignments[0].remainingWorkMinutes === 2400);
-  // Heen en terug, en een reeks heen-en-weer: nooit oplopen (regel 3).
   let st: TriangleState = s;
   for (const u of [0.3, 1, 0.6, 1, 0.7, 1]) { const x = applyUnitsEdit(st, 'a', u); if (x.ok) st = x.state; }
   ok('FIXED_RATE: inzet 1 → 0,3 → 1 → 0,6 → 1 → 0,7 → 1 ⇒ weer 5 d, werk 40 u', st.remainingMinutes === 2400 && st.assignments[0].remainingWorkMinutes === 2400);
@@ -290,10 +258,6 @@ const sansFlag = (r: TriangleResult): string => JSON.stringify(r.ok ? { ...r.sta
   for (const h of [6, 8, 7, 8, 5, 8]) { const x = applySlotChange(sl, h * 60, (sl.remainingMinutes / sl.slotMinutes) * h * 60); if (x.ok) sl = x.state; }
   ok('FIXED_RATE: kalender 8 → 6 → 8 → 7 → 8 → 5 → 8 u ⇒ weer 5 d, werk 40 u', sl.remainingMinutes === 2400 && sl.slotMinutes === 480 && sl.assignments[0].remainingWorkMinutes === 2400);
 }
-// Bekende afwijking van MS Project (beslispunt 10, geen per-toewijzingsspanne): onder FIXED_RATE met
-// TWEE toewijzingen volgt de niet-bewerkte toewijzing de langere duur met afgeleid werk (§6.2), dus
-// heen en terug op de ene blijft op de langere duur hangen. MSP houdt b's 20 u en geeft b een eigen,
-// kortere spanne; OPS kent die spanne niet. Deze pin maakt een toekomstige wijziging zichtbaar.
 {
   const s: TriangleState = { ...base, rule: 'FIXED_RATE' };
   const r1 = applyUnitsEdit(s, 'a', 0.5);
@@ -301,8 +265,6 @@ const sansFlag = (r: TriangleResult): string => JSON.stringify(r.ok ? { ...r.sta
   ok('FIXED_RATE, twee toewijzingen: a 1 → 0,5 → 1 ⇒ 10 d (b afgeleid 40 u) — bekende afwijking, MSP: 5 d', r2.ok && r2.state.remainingMinutes === 4800
     && r2.state.assignments[1].remainingWorkMinutes === undefined);
 }
-// #954: bij Vaste inzet en GELIJKE duur blijft eerder ingevoerd werk van andere personen staan.
-// De derde persoon houdt de duur vast; de fractie met inzet 0,9 geeft alleen deel-/vermenigvuldigruis.
 for (const remainingMinutes of [80 * 60, 4800.123]) for (const effortDriven of [undefined, false, true]) {
   const s: TriangleState = {
     ...base, rule: 'FIXED_RATE', effortDriven, remainingMinutes,
@@ -330,21 +292,16 @@ for (const remainingMinutes of [80 * 60, 4800.123]) for (const effortDriven of [
   }
 }
 
-// T14 vervangt de oude afrondingsregel: geen dag- of minuutafronding in de werkdriehoek.
 for (const minutes of [1200, 1440, 1440 + 1e-10, 1, 100.2]) {
   const result = applyDurationEdit(base, minutes);
   near(`T14: ${minutes} minuten blijven exact`, result.ok ? result.state.remainingMinutes : undefined, minutes, 0);
 }
-// Werk vast + inzet vast tegelijk kan niet: FIXED_RATE met twee toewijzingen — de andere houdt haar inzet en
-// haar (afgeleide) werk groeit met de langere duur (§6.2, beslispunt 10).
 {
   const s: TriangleState = { ...base, rule: 'FIXED_RATE' };
   const r = applyUnitsEdit(s, 'a', 0.5);
   ok('FIXED_RATE, twee toewijzingen: R = max(40/4, 20/4) = 10 d, b houdt inzet 0,5', r.ok && r.state.remainingMinutes === 4800
     && r.state.assignments[1].unitsPerDay === 0.5 && r.state.assignments[1].remainingWorkMinutes === undefined);
 }
-
-// ── Uitslag ─────────────────────────────────────────────────────────────────────────────────────
 
 const label = `check-work-triangle: ${checks} checks; meetlat ${file.cases.length} cases (${Object.entries(evidenceCount).map(([k, v]) => `${k} ${v}`).join(', ')}; ${storeScoped} store-scoped overgeslagen)`;
 if (diffs.length > 0) {

@@ -1,12 +1,3 @@
-// F2, normalisatie bij invoer (spec §3.6, T17): één genormaliseerde wijziging per invoerroute.
-//
-// Review ronde 1 van PR #559, deel B, punt 1 (BEVESTIGD, BLOKKEERT): de no-op-toets vergeleek de
-// genormaliseerde taak, maar de gevolgregels (`taskTriggerChanges`) en het schrijven gebruikten daarna de
-// ruwe patch. Een naamwijziging met dezelfde SNET opnieuw als "2026-06-01" zag zo een andere beperking
-// dan het opgeslagen "2026-06-01T07:00", en wiste de nivelleerpauze: het einde ging van 4 naar 3 juni,
-// ook na opslaan. Deze check toetst dat via de store (`updateTask`, paneel/Gantt/extensie) én via de echte
-// tool `planner_update_tasks` (MCP, `patchTaskFields`), met een IFC-rondgang. Twee controles houden de
-// gevolgregel scherp: een échte datumwijziging wist de pauze wél, en een gelijke deadline is een no-op.
 import { makeMcpContext } from '../mcp/harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import './domStub';
@@ -28,7 +19,6 @@ function eq(label: string, got: unknown, want: unknown) {
 
 const GAP = { afterMinutes: 480, gapMinutes: 480, source: 'leveling' as const };
 
-/** Taak van drie dagen vanaf ma 1 juni, SNET 1 juni, met een nivelleerpauze van één dag. */
 function setup() {
   const ctx = createAppStoreContext();
   const S = () => ctx.store.getState();
@@ -53,7 +43,6 @@ async function edit(route: Route, f: ReturnType<typeof setup>, fields: Record<st
 }
 
 for (const route of ROUTES) {
-  // (1) Naam wijzigen en dezelfde SNET zonder tijd opnieuw meegeven: de pauze blijft.
   {
     const f = setup();
     eq(`${route} (1) beginstand: SNET is een moment`, f.task().constraint, { type: 'SNET', date: '2026-06-01T07:00' });
@@ -66,12 +55,10 @@ for (const route of ROUTES) {
     eq(`${route} (1) nivelleerpauze blijft`, t.splitGaps, [GAP]);
     eq(`${route} (1) einde blijft 4 juni 16:00`, t.time.earlyFinish, '2026-06-04T16:00');
     eq(`${route} (1) één undo-stap`, historyDepthsForActiveScope(f.S()).undoDepth, depth + 1);
-    // Opslaan en heropenen: de pauze staat ook in het bestand.
     const back = readIFC(writeIFC(buildWriteIFCInput(f.S(), 'planOnly'))).tasks.find(x => x.id === f.id);
     eq(`${route} (1) pauze na IFC-rondgang`, back?.splitGaps, [GAP]);
     eq(`${route} (1) SNET na IFC-rondgang`, back?.constraint?.date?.slice(0, 10), '2026-06-01');
   }
-  // (2) Controle: een échte nieuwe SNET verzet de tijdas en wist de pauze nog steeds.
   {
     const f = setup();
     await edit(route, f, { constraint: { type: 'SNET', date: '2026-06-02' } });
@@ -80,7 +67,6 @@ for (const route of ROUTES) {
   }
 }
 
-// (3) Een opnieuw ingevoerde gelijke deadline zonder tijd is per saldo geen wijziging: geen undo-stap.
 {
   const f = setup();
   f.S().updateTask(f.id, { deadline: '2026-06-05' });
@@ -93,7 +79,6 @@ for (const route of ROUTES) {
   eq('(3) gelijke deadline: isDirty onveranderd', f.S().isDirty, dirtyBefore);
 }
 
-// (4) De helper zelf: alleen omgezette waarden worden vervangen; de rest van de patch blijft.
 {
   const f = setup();
   const base = f.task();

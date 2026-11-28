@@ -6,16 +6,16 @@ status leest een percentage. `<PercentCompleteType>` kiest de kolom, zonder teru
 Physical `PhysicalPercentComplete`, Units `UnitsPercentComplete`, Duration `DurationPercentComplete` en zonder die
 kolom `1 − RemainingDuration / PlannedDuration`, begrensd op 0 tot 100 %. Zonder soort geldt Physical; een onbekend
 label geldt als Duration, met een waarschuwing in de console (9a tot en met 9i). Scope geldt als Duration, met eerst de
-eigen kolom `ScopePercentComplete` en zonder waarschuwing (`check-p6xml-writer-p6.ts` (10)); dat MPXJ Scope zo rekent,
-komt uit het weggehaalde commentaar en is niet nagegaan. Een kolom die ontbreekt of leeg is, telt als afwezig en niet
+eigen kolom `ScopePercentComplete` en zonder waarschuwing (`check-p6xml-writer-p6.ts` (10)); MPXJ leest geen kolom
+`ScopePercentComplete` en schrijft bij Scope het duurpercentage (`XmlProjectWriter.getPercentComplete`). Een kolom die ontbreekt of leeg is, telt als afwezig en niet
 als 0 % (`optionalFloat`), zodat de terugval van Scope en Duration werkt; zonder bruikbare kolom en terugval is het 0
 %.
 
 ## Gevolgen
 
 - De lezer rekent een percentage als fractie van 0 tot 1 en neemt het keer 100 (`p6PercentToPercent`; de writer
-  schrijft een fractie, `check-p6xml-writer-p6.ts` 4a en 6e). Dat P6 en MPXJ een fractie schrijven, komt uit het
-  weggehaalde commentaar en is niet nagegaan. Een export van OPS zonder `<PercentCompleteType>` schreef procenten; die
+  schrijft een fractie, `check-p6xml-writer-p6.ts` 4a en 6e). MPXJ schrijft ook een fractie
+  (`XmlProjectWriter.getPercentage`). Een export van OPS zonder `<PercentCompleteType>` schreef procenten; die
   houdt de lezer (7c). Een waarde boven 1 rekent de lezer als procent, omdat een fractie niet boven 1 komt; een procent
   van 1 of minder uit een ander programma rekent hij daardoor als fractie.
 - In een export van OPS leest de lezer het percentage en de werkelijke datums zonder `<Status>`, omdat OPS de status

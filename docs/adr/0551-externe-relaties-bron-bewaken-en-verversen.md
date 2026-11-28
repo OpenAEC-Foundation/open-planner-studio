@@ -6,8 +6,9 @@ overbodig uit, maar houden een fout tegen.
 ## Gevolgen
 
 - De desktop-app bewaakt de map van een bronbestand en niet het bestand zelf (`externalSourceWatchTargets` in
-  `src/engine/externalSourceWatch.ts`). Uit het weggehaalde commentaar, niet nagegaan: veel programma's slaan op via
-  een tijdelijk bestand en een hernoeming, en dan verdwijnt het bewaakte bestand onder de bewaking uit.
+  `src/engine/externalSourceWatch.ts`). Veel programma's slaan op via een tijdelijk bestand en een hernoeming, OPS
+  zelf ook (`writeViaTemp` in `src/services/fileAccess/atomicWrite.ts`), en dan verdwijnt het bewaakte bestand onder
+  de bewaking uit.
 - *Bekijken* rekent de oude kant niet opnieuw door (`previewExternalRefresh` in `src/engine/externalRefreshPreview.ts`):
   het neemt het resultaat dat de planner ziet als beginstand. Anders zou een verouderd plan (een bewerking zonder F5)
   of de weergave van de datums uit het bestand een beginstand geven die niet in de planning staat.

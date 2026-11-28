@@ -3,8 +3,7 @@
 De lezer kent twee vormen voor het einde van een werktijdblok: de laatste minuut van het blok
 (`<Finish>16:29:00</Finish>` voor een blok tot 16:30, de vorm van de huidige writer, `p6FinishClock`) en het exacte
 einde (`16:30:00`, de vorm van de oudere eigen writer en van de exacte bestanden in `check-p6xml-calendar-rules.ts`
-(1d) en (1e)). Dat P6 en MPXJ de eerste vorm schrijven, komt uit het weggehaalde commentaar en de writer, en is niet
-tegen P6 nagegaan. Eén regel voor beide vormen laat een van de twee een minuut per blok verliezen of winnen; op een
+(1d) en (1e)). MPXJ schrijft de eerste vorm (`XmlWriter.getEndTime`). Eén regel voor beide vormen laat een van de twee een minuut per blok verliezen of winnen; op een
 kalender met halve uren kostte dat een minuut per dag (`check-p6xml-calendar-rules.ts` (1), fixronde 2 van #330). De
 regel geldt daarom per bestand (`p6FinishUsesLastMinute`): de laatste minuut als het een export van OPS is (ADR 0260)
 met een `<StandardWorkHours>`, of als één eindtijd van een werktijdblok, behalve 23:59, niet op een veelvoud van vijf

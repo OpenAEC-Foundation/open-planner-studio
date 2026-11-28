@@ -20,8 +20,6 @@ import {
   verifyMinisign,
 } from '../../scripts/verify-release.mjs';
 
-// Een eigen Ed25519-sleutel in minisign-formaat, zoals `tauri signer` hem schrijft:
-// pubkey en .sig zijn allebei base64 van de minisign-tekst.
 function makeKey(keyId = randomBytes(8)) {
   const { publicKey, privateKey } = generateKeyPairSync('ed25519');
   const raw = Buffer.from(publicKey.export({ format: 'jwk' }).x, 'base64url');
@@ -102,7 +100,6 @@ test('onzin als handtekening geeft een FOUT-uitkomst, geen exceptie', () => {
   assert.equal(r.ok, false);
 });
 
-// Een echte .tar.gz via de systeem-tar (bevinding 7: geen eigen tar-parser meer).
 function tarGz(names) {
   const dir = mkdtempSync(join(tmpdir(), 'tar-'));
   const src = join(dir, 'src');
@@ -130,11 +127,6 @@ const sha = (b) => `sha256:${createHash('sha256').update(b).digest('hex')}`;
 const APP_TAR = tarGz(['A.app/Contents/Info.plist']);
 const ASSET_FOR = { '.nsis.zip': 'app.nsis.zip', '.AppImage': 'app.AppImage', '.deb': 'app.deb', '.rpm': 'app.rpm', '.app.tar.gz': 'app.app.tar.gz' };
 
-/**
- * Een kleine, volledige release: per soort één asset met .sig, en latest.json met alle
- * platforms uit EXPECTED_PLATFORMS. `entry` overschrijft windows-x86_64, `sigFile` de
- * zip-.sig, `mutate(manifest)` past het manifestobject aan, `manifest` vervangt de JSON-tekst.
- */
 function release(key, { manifest, entry, sigFile, mutate, extra = [] } = {}) {
   const files = new Map();
   const sigs = {};
@@ -229,7 +221,6 @@ test('bevinding 3: een onbruikbaar manifest is FOUT', () => {
   for (const [label, manifest] of Object.entries(cases)) {
     assert.ok(fails(key, { manifest }).length >= 1, label);
   }
-  // Wat de updater wél accepteert, mag geen FOUT geven (VERVOLG ronde 2).
   for (const [label, o] of Object.entries({
     "'v'-voorvoegsel": { version: 'v2026.9.0' },
     'pub_date null': { pub_date: null },
@@ -269,12 +260,10 @@ test('bevinding 4: base64 en UTF-8 zo streng als de updater', () => {
     'url-safe alfabet': sig.replace(/\+/g, '-').replace(/\//g, '_'),
   })) {
     if (bad === sig) continue;
-    // Een kapotte .sig: de .sig-regel faalt, en latest.json (signature ≠ asset-.sig) ook.
     assert.ok(fails(key, { sigFile: bad }).some((f) => /^app\.nsis\.zip: .*base64/.test(f)), `.sig ${label}`);
     assert.equal(fails(key, { entry: { signature: bad } }).length, 1, `latest.json ${label}`);
     assert.equal(verifyMinisign({ publicKey: key.pubkey, signatureText: bad, data: Buffer.from('app.nsis.zip') }).ok, false, label);
   }
-  // Ongeldige UTF-8 binnen geldige base64.
   const latin = Buffer.from(text.replace('trusted comment: ', 'trusted comment: é'), 'latin1').toString('base64');
   assert.equal(verifyMinisign({ publicKey: key.pubkey, signatureText: latin, data: Buffer.from('app.nsis.zip') }).ok, false);
   assert.throws(() => parsePublicKey(`!${key.pubkey}`), /base64/);
@@ -287,7 +276,6 @@ test('bevinding 4 (ronde 2): witruimte in de ingepakte minisign-regels wordt gew
   const wrap = (ls) => Buffer.from(ls.join('\n')).toString('base64');
   const data = Buffer.from('app.nsis.zip');
   assert.equal(verifyMinisign({ publicKey: key.pubkey, signatureText: wrap(lines), data }).ok, true);
-  // \r\n is wel goed: Rust lines() haalt een \r aan het eind weg.
   assert.equal(verifyMinisign({ publicKey: key.pubkey, signatureText: wrap(lines.map((l) => (l ? `${l}\r` : l))), data }).ok, true);
   for (const [label, ls] of Object.entries({
     'spatie vóór de handtekeningregel': [lines[0], ` ${lines[1]}`, lines[2], lines[3], ''],
@@ -299,7 +287,6 @@ test('bevinding 4 (ronde 2): witruimte in de ingepakte minisign-regels wordt gew
     assert.ok(fails(key, { sigFile: bad }).some((f) => /^app\.nsis\.zip: /.test(f)), `.sig ${label}`);
     assert.ok(fails(key, { entry: { signature: bad } }).some((f) => /^windows-x86_64: /.test(f)), `latest.json ${label}`);
   }
-  // Ook de sleutelregel van de pubkey wordt niet getrimd.
   const pk = Buffer.from(key.pubkey, 'base64').toString('utf8').split('\n');
   assert.throws(() => parsePublicKey(Buffer.from(`${pk[0]}\n ${pk[1]}\n`).toString('base64')), /base64/);
 });
@@ -312,10 +299,8 @@ test('nieuw (ronde 2): ontbrekende of verkeerde updaterplatforms zijn FOUT', () 
     const f = fails(key, { mutate: (x) => { delete x.platforms[key2]; } });
     assert.deepEqual(f.map((x) => x.split(': ')[0] + ': ' + x.split(': ')[1]), [`dekking: ${key2}`], key2);
   }
-  // Een deb-installatie die de AppImage krijgt, is ook fout.
   const wrong = fails(key, { mutate: (x) => { x.platforms['linux-x86_64-deb'] = x.platforms['linux-x86_64-appimage']; } });
   assert.ok(wrong.some((f) => f.startsWith('dekking: linux-x86_64-deb: wijst niet naar een .deb-asset')), wrong.join(' | '));
-  // Een extra platform is alleen INFO.
   const rows = evaluate(key, { mutate: (x) => { x.platforms['linux-aarch64'] = x.platforms['linux-x86_64']; } });
   assert.ok(rows.some((r) => r.item === 'dekking: linux-aarch64' && r.status === 'INFO'));
 });
@@ -325,7 +310,6 @@ test('evaluateRelease: .sig, latest.json en digest, met precies de verwachte FOU
   const r = release(key, {
     extra: [
       ['app-setup.exe', Buffer.from('exe-na-authenticode')],
-      // .exe.sig van vóór Authenticode: hoort bij andere bytes (zoals in v2026.9.0).
       ['app-setup.exe.sig', Buffer.from(minisign(key, Buffer.from('exe-voor-authenticode')))],
     ],
     mutate: (x) => { x.platforms['linux-x86_64'] = { url: `${LATEST}weg.AppImage`, signature: 'x' }; },

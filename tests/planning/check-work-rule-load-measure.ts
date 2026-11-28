@@ -1,29 +1,3 @@
-/**
- * B1a aan de laadgrens (spec "alleen uren" §3.2, §5.2, §8 B5; review #581 r2, knownbug 253).
- *
- * Vast werk is altijd urenmaat. Een bestand van vóór B1a kan een gewone taak onder vast werk in de dagenmaat
- * hebben, met een eigen regel of met de geërfde projectstandaard. De migratie op de laadgrens
- * (`migrateToMinuteModel`) maakt die taak urenmaat, met dezelfde omzetting als een typewissel; de rest, de
- * inzet en het verricht werk blijven. Een datumverschuiving loopt via B5: twee snapshots, de vlag "omzetting
- * open" en de modus "datums zoals opgeslagen" als vóór-toestand.
- *
- * Fixture `fixtures/vast-werk-oude-writer.ifc`: gemaakt met de store en de IFC-writer van main `d991788db`
- * (vóór B1a). Kalender ma–do 07–15, vr 07–13 (werktijd per dag 8 u), projectstart wo 3 jun 2026,
- * statusdatum wo 3 jun, resource R, projectstandaard vast werk. Taken (allemaal vanaf wo 3 jun):
- *   Geerfd  3 d, geen eigen regel, R 1/dag                    → einde vr 13:00 in het bestand
- *   Eigen   3 d, eigen FIXED_WORK, R 1/dag (werk 1440)         → einde vr 13:00
- *   Lopend  5 d, eigen FIXED_WORK, begonnen ma 1 jun 07:00, 40 %, rest 3 d (werk 1440, verricht 960)
- *   Duur    3 d, eigen FIXED_DURATION_RATE (blijft dagenmaat)
- *   M       mijlpaal met eigen FIXED_WORK (blijft zoals hij is)
- *   E       2 d ELAPSEDTIME met eigen FIXED_WORK (blijft zoals hij is)
- * Recept: `git worktree add --detach <map> d991788db`, daar een script met `createAppStoreContext`,
- * `addTask`/`assignResource`/`setTaskWorkRule`, `setProject({ defaultWorkRule: 'FIXED_WORK' })`,
- * `setStatusDate`, `setActualStart`, `setTaskProgress(0.4)`, `runCPM` en
- * `writeIFC(buildWriteIFCInput(...))`, gedraaid met `node scripts/run-ts.mjs`.
- *
- * Verwacht na openen: 3 d vast werk = 24 u = 1440 min urenmaat. Wo 8 u + do 8 u + vr 6 u = 22 u, dus het
- * einde wordt ma 8 jun 09:00. Lopend: 5 d = 2400 min, rest 3 d = 1440 min, verricht werk 960 min.
- */
 import './domStub';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -55,10 +29,8 @@ type Store = ReturnType<typeof createAppStoreContext>['store'];
 const create = (): Store => createAppStoreContext().store;
 const byName = (tasks: readonly Task[], name: string) => tasks.find(t => t.name === name)!;
 
-/** Maat, rest en voortgang: [eenheid, scheduleDuration, durationMinutes, remainingMinutes, remainingTime, completion]. */
 const measure = (t: Task) => [t.time.durationUnit, t.time.scheduleDuration, t.time.durationMinutes ?? null,
   t.time.remainingMinutes ?? null, t.time.remainingTime ?? null, t.time.completion];
-/** Toewijzing: [taak, inzet, restwerk, verricht werk]. */
 const work = (tasks: readonly Task[], a: ResourceAssignment) =>
   [tasks.find(t => t.id === a.taskId)!.name, a.unitsPerDay, a.remainingWorkMinutes ?? null, a.actualWorkMinutes ?? null];
 
@@ -75,7 +47,6 @@ const WANT_FINISH: Record<string, string> = {
   Geerfd: MA_0900, Eigen: MA_0900, Lopend: MA_0900, Duur: VR_1300, E: '2026-06-05T07:00',
 };
 
-/** De vaste uitkomst na de omzetting: maat, rest, voortgang, toewijzingen en eindes. */
 function expectConverted(label: string, s: Store) {
   const { tasks, assignments } = s.getState();
   for (const [name, want] of Object.entries(WANT_MEASURE)) eq(`${label}: maat ${name}`, measure(byName(tasks, name)), want);
@@ -101,7 +72,6 @@ const open = (parsed: ImportResult): Store => {
 };
 const saveAndRead = (s: Store) => readIFC(writeIFC(buildWriteIFCInput(s.getState(), 'planOnly')));
 
-// 0. De fixture is echt een bestand van vóór B1a.
 {
   const parsed = readIFC(OLD_IFC);
   eq('0 bestand zonder minutenmodel', parsed.timeModel, undefined);
@@ -114,7 +84,6 @@ const saveAndRead = (s: Store) => readIFC(writeIFC(buildWriteIFCInput(s.getState
   eq('0 toewijzingen', parsed.assignments.map(a => work(parsed.tasks, a)), WANT_WORK);
 }
 
-// 1. De migratie zelf: welke taken, de vlag, en idempotent.
 {
   const parsed = readIFC(OLD_IFC);
   const loaded = payloadFromImport(structuredClone(parsed), null);
@@ -127,8 +96,6 @@ const saveAndRead = (s: Store) => readIFC(writeIFC(buildWriteIFCInput(s.getState
   const again = migrateToMinuteModel(loaded, { timeModel: 'MINUTES-1' });
   eq('1 tweede keer: niets om te zetten', [again.report.fixedWorkToHours, again.report.conversionPending], [[], false]);
   eq('1 tweede keer: zelfde payload', again.payload === loaded, true);
-  // Een bestand mét minutenmodel en toch een vaste-werktaak in de dagenmaat (geschreven vóór B1a op de
-  // urenbranch): de omzetting zet zelf de vlag, anders verschuiven de datums zonder B5.
   const direct = migrateToMinuteModel({ ...loaded, tasks: parsed.tasks }, { timeModel: 'MINUTES-1' });
   eq('1 met minutenmodel: de omgezette taken', direct.report.fixedWorkToHours, ids);
   eq('1 met minutenmodel: toch omzetting open', [direct.report.legacyFile, direct.report.conversionPending], [false, true]);
@@ -136,17 +103,14 @@ const saveAndRead = (s: Store) => readIFC(writeIFC(buildWriteIFCInput(s.getState
   const withModel = readIFC(OLD_IFC);
   withModel.timeModel = 'MINUTES-1';
   eq('1 laadgrens met minutenmodel zet de vlag', payloadFromImport(withModel, null).minuteModelPending, true);
-  // Een beschadigde hersteldsnapshot (geen kinderlijst, zie check-recovery-integrity 8n): de laadgrens
-  // loopt er niet op stuk en laat de taak staan, ook onder vast werk.
   const broken = { ...parsed.tasks.find(t => t.name === 'Eigen')!, childIds: null } as unknown as Task;
   let brokenOut: unknown = 'gooit';
   try {
     brokenOut = migrateToMinuteModel({ ...loaded, tasks: [broken] }, { timeModel: 'MINUTES-1' }).payload.tasks[0] === broken;
-  } catch { /* blijft 'gooit' */ }
+  } catch { }
   eq('1 beschadigde taak: geen fout en ongemoeid', brokenOut, true);
 }
 
-// 2. Openen (de echte laadroute), Bereken, opslaan en heropenen.
 {
   const s = open(readIFC(OLD_IFC));
   expectConverted('2 openen', s);
@@ -172,7 +136,6 @@ const saveAndRead = (s: Store) => readIFC(writeIFC(buildWriteIFCInput(s.getState
   expectConverted('2 tweede rondgang', twice);
 }
 
-// 3. Undo direct na openen: hetzelfde als bij andere B5-omzettingen (check-minute-model-transition).
 {
   const s = open(readIFC(OLD_IFC));
   s.getState().undo();
@@ -194,7 +157,6 @@ const saveAndRead = (s: Store) => readIFC(writeIFC(buildWriteIFCInput(s.getState
   expectConverted('3 heropenen van de save na undo', reopened);
 }
 
-// 4. Een andere route langs dezelfde laadgrens: het slapende herstelde document.
 {
   const s = create();
   const active = { ...readIFC(OLD_IFC), id: 'actief', filePath: null, isDirty: false, datesAsRecorded: false };
@@ -207,7 +169,6 @@ const saveAndRead = (s: Store) => readIFC(writeIFC(buildWriteIFCInput(s.getState
   eq('4 actief herstel: urenmaat', CONVERTED.map(n => byName(s.getState().tasks, n).time.durationUnit), ['hours', 'hours', 'hours']);
 }
 
-// 5. Een bestand mét minutenmodel: de omzetting zelf opent B5 (geen stille verschuiving).
 {
   const parsed = readIFC(OLD_IFC);
   parsed.timeModel = 'MINUTES-1';

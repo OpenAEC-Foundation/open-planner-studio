@@ -1,6 +1,3 @@
-// Demo-resourcebibliotheek (issue #19, user-verzoek): de drie showcase-voorbeelden delen voortaan
-// één gedeelde pool ("dezelfde ploeg in twee projecten"). Headless store-batterij (patroon
-// check-library-slice.ts): draait de ECHTE Zustand-store op Node. Exitcode = poort.
 import { useAppStore } from '@/state/appStore';
 import { DEMO_COMPANY_ID, DEMO_LIBRARY_SEED_VERSION, buildDemoLibrarySeed } from '@/services/library/demoLibrary';
 import { applyDemoLibraryToShowcaseProject } from '@/state/demoLibraryShowcase';
@@ -11,7 +8,6 @@ function assert(cond: boolean, msg: string): void {
   if (!cond) { fails++; console.log(`   XX ${msg}`); }
 }
 
-// --- Sanity: de bouwmodule zelf levert de afgesproken inhoud (los van de store) ---
 {
   const { company, pool } = buildDemoLibrarySeed();
   assert(company.id === DEMO_COMPANY_ID, 'buildDemoLibrarySeed: vast companyId');
@@ -34,7 +30,6 @@ function assert(cond: boolean, msg: string): void {
   assert(metselploeg?.calendarId === vierdaagse?.id, 'buildDemoLibrarySeed: Masonry crew.calendarId wijst naar de 4-daagse-week-kalender-id');
 }
 
-// --- (a) seedDemoLibrary() is idempotent: 2x aanroepen ⇒ één bibliotheek, ongewijzigde inhoud ---
 {
   const before = useAppStore.getState().companies.length;
   const id1 = useAppStore.getState().seedDemoLibrary();
@@ -56,11 +51,9 @@ function assert(cond: boolean, msg: string): void {
   assert(afterSecond.pools[DEMO_COMPANY_ID].poolVersion === versionAfterFirst, 'seedDemoLibrary (2e aanroep): poolVersion ongewijzigd (geen re-seed)');
   assert(afterSecond.pools[DEMO_COMPANY_ID].resources.length === 14, 'seedDemoLibrary (2e aanroep): resource-aantal ongewijzigd (geen dubbele items)');
   assert(afterSecond.pools[DEMO_COMPANY_ID].calendars.length === 2, 'seedDemoLibrary (2e aanroep): kalender-aantal ongewijzigd (geen dubbele items)');
-  // Referentie-gelijkheid: bij een echte no-op mag `set()` het pool-object niet vervangen.
   assert(afterSecond.pools[DEMO_COMPANY_ID] === pool1, 'seedDemoLibrary (2e aanroep): zelfde pool-objectreferentie (geen nieuwe set())');
 }
 
-// --- (c) een bestaande bibliotheek met hetzelfde id wordt NIET overschreven (ook niet de inhoud) ---
 {
   const s = useAppStore.getState();
   const pool = s.pools[DEMO_COMPANY_ID];
@@ -74,15 +67,12 @@ function assert(cond: boolean, msg: string): void {
   assert(afterReseed === 'DOOR GEBRUIKER BEWERKT — mag niet terugveren', 'seedDemoLibrary: bestaande (door de gebruiker bewerkte) pool wordt NIET overschreven');
 }
 
-// --- (b) wiring: seed+bind+link (applyDemoLibraryToShowcaseProject) stempelt PRECIES de
-// ondubbelzinnige naam-matches — niet de rest — met het demo-companyId ---
 {
   useAppStore.getState().newProject();
   const timmerId = useAppStore.getState().addResource({ name: 'Carpenters', type: 'LABOR', description: '', maxUnits: 4 });
   const schilderId = useAppStore.getState().addResource({ name: 'Painters', type: 'LABOR', description: '', maxUnits: 4 });
   const onbekendeId = useAppStore.getState().addResource({ name: 'Onbekende Specialist', type: 'LABOR', description: '', maxUnits: 1 });
 
-  // Een net geladen voorbeeld is schoon vóór de aanvullende demo-bedrading.
   useAppStore.setState({ isDirty: false });
   applyDemoLibraryToShowcaseProject();
 
@@ -96,7 +86,6 @@ function assert(cond: boolean, msg: string): void {
   assert(schilder?.libraryOrigin?.companyId === DEMO_COMPANY_ID, 'wiring: "Painters" krijgt libraryOrigin met het demo-companyId');
   assert(onbekende?.libraryOrigin === undefined, 'wiring: een niet-matchende resource blijft ongestempeld (alleen ondubbelzinnige matches)');
 
-  // Geen afwijkingenscherm/-signaal opgedrongen (dit is een demo, geen vraag).
   assert(after.ui.showLibraryLinkDialog === false, 'wiring: geen afwijkingenscherm getoond (auto-link zonder gebruikersvraag)');
   assert(after.isDirty === false, 'knownbug 35: demo-koppeling maakt een schoon voorbeeld niet gewijzigd');
   useAppStore.getState().setProject({ name: 'Door gebruiker aangepast' });
@@ -105,11 +94,6 @@ function assert(cond: boolean, msg: string): void {
   assert(useAppStore.getState().isDirty, 'bestaand gewijzigd werk blijft gewijzigd na demo-bedrading');
 }
 
-// --- F2 (critreview, issue #19): een showcase-kalender met een naam die de demo-pool ook draagt
-// ("Construction calendar NL") mag NIET automatisch gekoppeld/overschreven worden — alleen resources koppelen.
-// Reproduceert de "6 Rijwoningen De Akkers"-bevinding: een bewust gemodelleerde kalender met een
-// eigen hoursPerDay en een "Frost delay, foundations"-vakantie, die de demo-versie (hoursPerDay 8, geen
-// vakanties) anders stil zou overschrijven en zo de CPM-invoer zou veranderen.
 {
   useAppStore.getState().newProject();
   useAppStore.getState().addResource({ name: 'Painters', type: 'LABOR', description: '', maxUnits: 4 });
@@ -119,7 +103,7 @@ function assert(cond: boolean, msg: string): void {
     workDays: [1, 2, 3, 4, 5],
     workStartHour: 7,
     workEndHour: 16,
-    hoursPerDay: 9, // wijkt bewust af van de demo-versie (8) — zou anders 9→8 stilzwijgend veranderen.
+    hoursPerDay: 9,
     holidays: [{ name: 'Frost delay, foundations', startDate: '2027-01-10', endDate: '2027-01-24' }],
   });
   const before = useAppStore.getState().calendars.find(c => c.id === bouwkalenderId);
@@ -137,23 +121,13 @@ function assert(cond: boolean, msg: string): void {
     'F2: kalender behoudt zijn "Frost delay, foundations"-vakantie (niet gewist door de demo-versie)',
   );
 
-  // Negatieve controle: resources op datzelfde project worden WEL gekoppeld (de fix schakelt alleen
-  // kalenders uit, niet de hele koppelfunctie) — anders zou dit blok toevallig groen zijn omdat er
-  // helemaal niets meer gekoppeld wordt.
   const schilder = after.resources.find(r => r.name === 'Painters');
   assert(schilder?.libraryOrigin?.companyId === DEMO_COMPANY_ID, 'F2 negatieve controle: resource-koppeling (Painters) werkt nog gewoon');
 }
 
-// --- (e) Seed-VERSIE: een bestaande demo-pool van vóór de capaciteitscorrectie wordt bijgewerkt ---
-// Waarom: `seedDemoLibrary` was idempotent op de AANWEZIGHEID van het bedrijf, dus een installatie
-// die de demo-bibliotheek ooit geseed had kreeg een latere inhoudscorrectie nooit te zien — en zag
-// in het bezettingsoverzicht een muur van rode rijen. De migratie mag daarbij geen id's veranderen
-// (herkomststempels in open/opgeslagen projecten wijzen daarnaar) en niets verwijderen.
 {
   useAppStore.setState({ companies: [], pools: {} } as never);
   const { company, pool } = buildDemoLibrarySeed();
-  // Simuleer een pool van vóór deze versie: oude (te krappe) capaciteiten, geen seedVersion, en
-  // één item dat de oude seed nog niet kende.
   const oud = {
     ...pool,
     seedVersion: undefined,
@@ -185,7 +159,6 @@ function assert(cond: boolean, msg: string): void {
   assert(byName('Plasterers')?.maxUnits === 3, 'migratie: het bedoelde knelpunt Plasterers blijft krap (3)');
   assert(byName('Masonry crew')?.maxUnits === 1, 'migratie: het bedoelde knelpunt Masonry crew blijft krap (1)');
 
-  // Tweede aanroep ⇒ no-op: geen bump, dezelfde objectreferentie.
   const poolNaEerste = useAppStore.getState().pools[DEMO_COMPANY_ID];
   useAppStore.getState().seedDemoLibrary();
   assert(useAppStore.getState().pools[DEMO_COMPANY_ID] === poolNaEerste,

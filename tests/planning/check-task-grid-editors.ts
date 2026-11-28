@@ -155,8 +155,6 @@ eq('Losse eenheidscel past alleen een exact kalendervoorstel toe', exactUnitConv
   days: exactUnitConversion.value.task.time.scheduleDuration,
   minutes: exactUnitConversion.value.task.time.durationMinutes,
 } : exactUnitConversion, { unit: 'hours', days: 5, minutes: 2400 });
-// Alleen uren §3.2 (B1): de dagenmaat mag een breuk hebben, dus 90 min wordt exact 0,1875 d (het
-// eindmoment blijft gelijk). Voorheen weigerde de cel een omzetting die niet in hele dagen paste.
 const fractionalUnitConversion = plan(
   'task.time.durationUnit', 'task-schedule', 'days',
   { ...baseTask, time: { ...baseTask.time, durationUnit: 'hours', scheduleDuration: 0.1875, durationMinutes: 90 } },
@@ -229,9 +227,6 @@ eq('Uitvinken van een geimporteerde mijlpaal bewaart de bestaande duur',
 eq('Mijlpaalsoort op een gewone taak wordt geweigerd',
   plan('task.milestoneKind', 'task-milestone', 'START').ok, false);
 
-// F2 (spec §3.6, invoer; §4.2 D1, D2, D6): een AFGELEIDE werkelijke datum wordt een moment op de
-// kalender van de taak (08:00–16:00 hier): de start D1, het einde op de statusdag D6. Een niet-bewerkte
-// start uit de fixture blijft zoals hij is; de store normaliseert die bij het schrijven. Fixronde 1 deel B, B1.
 const completion = plan('task.time.completion', 'task-progress', 0.4);
 eq('Completion gebruikt de bestaande voortgangsinvarianten', completion.ok ? {
   completion: completion.value.task.time.completion,
@@ -249,9 +244,6 @@ eq('Status voltooid routeert via completion/actual-invarianten', completed.ok ? 
   completion: completed.value.task.time.completion,
   actualFinish: completed.value.task.time.actualFinish,
 } : completed, { status: 'COMPLETED', completion: 1, actualFinish: '2026-01-07T16:00' });
-// Import/export-audit (vervolg bevinding 6): status "voltooid" op een taak zonder actualStart volgt
-// dezelfde regel als setTaskProgress/de completion-cel — AS = de eigen geplande start, niet AS = AF
-// (anders krimpt de voltooide balk tot zijn laatste dag).
 eq('Status voltooid zonder actualStart ⇒ AS = geplande start (zelfde regel als completion)',
   completed.ok ? completed.value.task.time.actualStart : completed, '2026-01-05T08:00');
 const completedViaCompletion = plan('task.time.completion', 'task-progress', 1);
@@ -263,9 +255,6 @@ eq('Status voltooid en completion 100 % geven dezelfde actuals',
     ? [completedViaCompletion.value.task.time.actualStart, completedViaCompletion.value.task.time.actualFinish]
     : null);
 
-// Actual Finish wissen op een voltooide taak: een rij-plak met meerdere cellen (meer-cellenpad,
-// `planTaskCellEdits`) heropent de taak net als de enkele celwrite. Voorheen bleef completion daar
-// op 1 en zette `applyProgressInvariants` de einddatum meteen terug.
 const doneTask = {
   ...baseTask,
   status: 'COMPLETED',
@@ -328,16 +317,11 @@ eq('Dynamisch veld uit een ander project wordt geweigerd', planTaskCellEdit(base
 eq('Verkeerde route kan een geldig kolom-id niet misbruiken',
   plan('task.name', 'task-progress', 'Misbruik').ok, false);
 
-// ── Leveling-gaten invalideren vanuit het GRID (B1c-plan-2 spec §4 "Invalidatie", bedraad in de
-// fixronde op etappe 3, bevinding B7). Het grid schrijft niet via `updateTask`, dus het heeft een
-// eigen poort (`LEVELING_GAP_ROUTES` in taskEditPlan.ts) — vóór deze ronde wiste een celwrite hier
-// NOOIT een leveling-gat, ook niet bij een duur- of voortgangswijziging. Importsplits (gaten zonder
-// `source`) zijn brondata en blijven altijd staan. ────────────────────────────────────────────────
 const leveledTask = {
   ...baseTask,
   splitGaps: [
-    { afterMinutes: 480, gapMinutes: 480 },                      // importsplit — blijft
-    { afterMinutes: 1440, gapMinutes: 480, source: 'leveling' }, // nivelleeruitvoer — moet weg
+    { afterMinutes: 480, gapMinutes: 480 },
+    { afterMinutes: 1440, gapMinutes: 480, source: 'leveling' },
   ],
 } as Task;
 const gapCases: readonly [string, string, CellEditRoute, unknown][] = [

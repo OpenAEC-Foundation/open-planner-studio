@@ -1,5 +1,3 @@
-// Ook bij 100% blijft verricht resourcewerk vaststaan en begint een nieuwkomer zonder verleden.
-// Store-acties met IFC-heropening tussen beide bewerkingen; de taakduur blijft bytegelijk.
 import './domStub';
 import { createAppStore } from '@/state/appStore';
 import { assignmentDayUnits } from '@/engine/scheduler/ResourceLoad';
@@ -35,7 +33,6 @@ for (const rule of WORK_RULES) {
       const own = () => S().assignments.filter(a => a.taskId === task().id);
       const load = (i: number) => assignmentDayUnits(task(), own()[i], 480).reduce((sum, v) => sum + v, 0) * 480;
       const snapshot = () => JSON.stringify({ time: task().time, assignments: own() });
-      // Alleen de expliciet opgeslagen importwaarden worden buiten de store-acties gezet.
       if (actual !== undefined) store.setState(s => {
         const a = s.assignments.find(a => a.taskId === id)!;
         a.actualWorkMinutes = actual;
@@ -84,7 +81,6 @@ for (const rule of WORK_RULES) {
       if (editFirst) edit(); else add();
       eq(`${name}: eerste bewerking verandert geen duur of voortgang`, JSON.stringify(task().time), time);
       roundTrip();
-      // IFC levert nieuwe ids; alle vervolgstappen gebruiken de heropende taak/toewijzingen.
       const loadedTime = JSON.stringify(task().time);
       if (editFirst) add(); else edit();
       eq(`${name}: tweede bewerking verandert geen duur of voortgang`, JSON.stringify(task().time), loadedTime);
@@ -94,9 +90,6 @@ for (const rule of WORK_RULES) {
   }
 }
 
-// B3 (spec "alleen uren" §3.5): de rest uit een percentage is exact, ook in de dagenmaat. Een taak van
-// 4 d op 100 % en dan 90 % heeft 0,4 d rest (was `Math.round(0,4)` = 0, en dan verdween dat werk). Inzet
-// 7 daarna: 1728 verricht + 0,4 × 7 × 480 = 1344 rest = 3072 werkminuten.
 {
   const store = createAppStore();
   const S = () => store.getState();
@@ -116,10 +109,6 @@ for (const rule of WORK_RULES) {
   eq('B3 inzet 7: totaal 3072 werkminuten', total(), 3072);
 }
 
-// Knownbug 239: een voltooide taak met TEGENSTRIJDIG restwerk (uit een import: 100 %, nog 120 min rest,
-// geen verricht werk) viel buiten de bescherming. Vast werk en vaste inzet gaven de taak dan een nieuwe
-// duur en < 100 %; vaste duur telde het verleden opnieuw met de nieuwe inzet (2040 → 13560 min). Nu: het
-// verleden (4 d × 1 = 1920) wordt vastgelegd, de rest blijft 120, duur en voortgang blijven staan.
 for (const rule of WORK_RULES) {
   const store = createAppStore();
   const S = () => store.getState();

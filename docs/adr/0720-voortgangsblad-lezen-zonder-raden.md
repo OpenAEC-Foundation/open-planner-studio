@@ -14,6 +14,9 @@ preview. Een stil verkeerd gelezen datum of percentage belandt ongemerkt in de p
   IJkpunten komen alleen uit rijen met een treffer op id: een WBS-treffer is te zwak voor een besluit over het hele
   bestand. Als voorbeeld in de vraag dient alleen een cel die onder beide lezingen een bestaande, verschillende
   datum is (`findGenuineAmbiguousSample`).
+- Een tweecijferig jaar telt als 20YY (`toFullYear`, `sheetValues.ts`), bij alle drie de scheiders (`-`, `/`, `.`)
+  en in beide volgordes, en volgt dezelfde dag/maand-detectie als een viercijferig jaar. Aanleiding: in een
+  gebruikstest kwam het blad terug met datums als `03-01-27` (MM-DD-YY). `check-progress-sheet-values.ts` dekt dit.
 - `Completion (%)` is altijd een percentage: `1` is 1 %, nooit een fractie (`parseSheetPercent`).
 - Een te lange celwaarde, of een id met een stuurteken na het trimmen, telt als leeg en wordt nooit afgekapt, want een afgekapt
   id kan een andere taak treffen (`boundedCell` en `boundedTaskId`, `sheetColumns.ts`).
@@ -27,7 +30,5 @@ preview. Een stil verkeerd gelezen datum of percentage belandt ongemerkt in de p
 - De preview toont in `changes` alleen de velden die de rij zelf aanleverde. Wat de voortgangsregels daaruit
   afleiden (een werkelijke start bij een percentage, een einde bij 100 %), wordt wel geschreven, maar de invuller
   herkent het niet als eigen invoer.
-- De exportstand staat als één tekstcel per bladtaak in de verborgen kolom `OPS Export` (`exportState.ts`). Uit het
-  weggehaalde commentaar, niet nagegaan: een tekst overleeft het opslaan in een spreadsheet, waar een datumcel van
-  opmaak kan veranderen. Een cel die niet precies in het formaat past, telt als afwezig
+- De exportstand staat als één tekstcel per bladtaak in de verborgen kolom `OPS Export` (`exportState.ts`). Een cel die niet precies in het formaat past, telt als afwezig
   (`decodeProgressExportState`), want een half gelezen exportstand geeft een verkeerde vergelijking.

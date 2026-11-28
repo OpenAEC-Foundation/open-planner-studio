@@ -1,6 +1,3 @@
-// Pool-IFC-round-trip (spec §4/§9): writePoolIFC → readPoolIFC ⇒ IDENTIEKE pool (incl. versie + ids),
-// zodat een pool-import op een schone staat de pool exact herstelt en bestaande project-stempels
-// blijven matchen. Exitcode = poort.
 import { writePoolIFC, readPoolIFC } from '@/services/library/libraryIfc';
 import type { CompanyPool } from '@/types/library';
 import type { WorkCalendar } from '@/types/calendar';
@@ -38,12 +35,10 @@ assert(back.resources.length === 2, 'pool round-trip: aantal resources');
 assert(back.resources.find(r => r.id === 'pr1')?.costPerHour === 45, 'pool round-trip: resource-detail');
 assert(back.resources.find(r => r.id === 'pr2')?.unitOfMeasure === 'm3', 'pool round-trip: materiaal-eenheid');
 
-// Idempotentie: tweede round-trip byte-stabiel op de JSON-pool.
 const ifc2 = writePoolIFC(back);
 const back2 = await readPoolIFC(ifc2);
 assert(JSON.stringify(back) === JSON.stringify(back2), 'pool round-trip: idempotent');
 
-// Een gewoon projectbestand draagt geen OPS_Library ⇒ readPoolIFC gooit.
 let threw = false;
 try {
   const projIfc = writePoolIFC(pool).replace(/OPS_Library/g, 'OPS_Iets_Anders');
@@ -51,12 +46,6 @@ try {
 } catch { threw = true; }
 assert(threw, 'readPoolIFC gooit op een bestand zonder OPS_Library');
 
-// --- F2 (vloot-fixpakket, issue #19): importcrash pool-shape — shape-normalisatie op het LEESPUNT ---
-// Vervang de "pool"-JSON-blob in een verder geldig pool-IFC-bestand door hostile/vorm-invalide JSON
-// (spiegel van het injectDecoy-patroon in check-ifc-hostile.ts) en bewijs dat readPoolIFC nooit een
-// TypeError-latente shape teruggeeft: `.calendars`/`.resources` blijven arrays, ook al was de rauwe
-// JSON `{}` of miste 'm `resources` volledig — precies wat PoolImportDialog's `imported.calendars.length`
-// preview-regel (vóór de gebruiker kan bevestigen, geen ErrorBoundary) nodig heeft.
 function injectPoolJson(ifc: string, json: string): string {
   const encoded = `'${json.replace(/'/g, "''")}'`;
   const re = /IFCPROPERTYSINGLEVALUE\('pool',\$,IFCTEXT\('[\s\S]*?'\),\$\)/;
@@ -66,7 +55,6 @@ function injectPoolJson(ifc: string, json: string): string {
 }
 
 {
-  // `{}` — geen enkel pool-veld aanwezig.
   const hostileIfc = injectPoolJson(writePoolIFC(pool), '{}');
   let back: CompanyPool | undefined;
   let didThrow = false;
@@ -74,7 +62,6 @@ function injectPoolJson(ifc: string, json: string): string {
   assert(!didThrow, 'F2: readPoolIFC gooit niet op een `{}`-poolblob');
   assert(Array.isArray(back?.calendars) && back.calendars.length === 0, 'F2: `{}`-blob ⇒ calendars is een lege array (geen crash op .length)');
   assert(Array.isArray(back?.resources) && back.resources.length === 0, 'F2: `{}`-blob ⇒ resources is een lege array (geen crash op .length)');
-  // Negatieve controle: de shape is bruikbaar in een vervolgstap (promote/add), niet alleen "niet crasht".
   let opsThrew = false;
   try {
     const p2 = { ...back!, companyId: 'c1' };
@@ -84,7 +71,6 @@ function injectPoolJson(ifc: string, json: string): string {
 }
 
 {
-  // Ontbrekende `resources`-sleutel (calendars WEL aanwezig, correct gevuld).
   const partialJson = JSON.stringify({ companyId: 'c1', companyName: 'Partieel BV', poolVersion: 4, modifiedAt: '2026-07-20T00:00:00.000Z', calendars: [cal] });
   const hostileIfc2 = injectPoolJson(writePoolIFC(pool), partialJson);
   let back2: CompanyPool | undefined;

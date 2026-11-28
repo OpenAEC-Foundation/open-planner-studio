@@ -10,8 +10,7 @@ zonder gelezen kalender, en de werkdag van een kalender met een lege `clndr_data
 - Levert `readXerCalendars` geen kalender (geen CALENDAR-tabel, of geen rij die de decoder leest), dan krijgt het
   project één kalender `P6 Standard Calendar`: maandag tot en met vrijdag, 08:00 tot 16:00, 8 uur per dag, zonder
   feestdagen, met het id `PROJECT.clndr_id` of anders `xer-calendar:<proj_id>`. Er komt bewust geen instelling van de
-  app en geen feestdagenlijst in, zodat de import niet van de machine afhangt. Dat P6 een geldige export zonder
-  CALENDAR-tabel kan maken, komt uit het weggehaalde commentaar en is niet nagegaan.
+  app en geen feestdagenlijst in, zodat de import niet van de machine afhangt.
 - De projectkalender is de kalender van `PROJECT.clndr_id`, anders de eerste gelezen kalender. Een activiteit krijgt
   `calendarId` als haar `clndr_id` gevuld is en niet de projectkalender is, ook als er geen kalender met dat id
   gelezen is (de P6 XML-lezer laat het dan weg, ADR 0262). De lezer zelf rekent met de kalender van dat id, en zonder
@@ -29,7 +28,6 @@ zonder gelezen kalender, en de werkdag van een kalender met een lege `clndr_data
   twee blokken maken de kalender een uurkalender (ADR 0321).
 - Reden: zonder `clndr_data` is de geplande invoer het enige bewijs van de werkdag. De afleiding leest geen
   rekenuitvoer van P6 (vroege en late datums, speling). `check-xer-reader.ts` 3a leidt uit een lege kalender met
-  taken van 08:00 tot 17:00 de blokken 08:00 tot 12:00 en 13:00 tot 17:00 af. Het weggehaalde commentaar noemde de
-  pauze de standaard lunchpauze van P6 van 12:00 tot 13:00; de code neemt elke pauzelengte vanaf 12:00, en dat P6
-  die pauze zo schrijft, is niet nagegaan.
+  taken van 08:00 tot 17:00 de blokken 08:00 tot 12:00 en 13:00 tot 17:00 af. De code neemt elke
+  pauzelengte vanaf 12:00 (`inferBlankCalendarBands`).
 - Op zo'n kalender kan het geplande venster de duur herstellen (ADR 0394).

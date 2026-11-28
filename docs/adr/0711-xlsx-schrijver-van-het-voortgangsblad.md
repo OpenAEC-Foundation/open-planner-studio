@@ -11,8 +11,7 @@ merk je pas bij de terugimport.
 - De kolomstijl staat op `<col>` én op elke cel. Een lege invulcel zonder eigen `<c>` erft de kolomstijl
   (ontgrendeld, met de opmaak van die kolom); de stijl per cel blijft nodig omdat een verzamelrij binnen een ontgrendelde kolom
   vergrendeld moet zijn.
-- De tweede fill is `gray125`; volgens het weggehaalde commentaar (niet nagegaan) eist Excel dat, en anders schuiven
-  de fill-indexen op. De grijze markering van de verzamelrijen gebruikt die fill in plaats van een derde.
+- De tweede fill is `gray125`. De grijze markering van de verzamelrijen gebruikt die fill in plaats van een derde.
 - De kolombreedte volgt de kale kolomsleutel en de waarden, niet de instructie achter de sleutel en niet de
   verzamelrij-markering: anders werd elke kolom tientallen tekens breed. De kopcel loopt om en de kopregel heeft een
   vaste hoogte.

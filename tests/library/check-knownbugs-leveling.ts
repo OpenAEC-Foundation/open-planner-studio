@@ -1,4 +1,3 @@
-// Kleine regressies op de echte nivelleerroute en de daaropvolgende solve.
 import assert from 'node:assert/strict';
 import { levelResources, LEVELER_TEST_HOOKS, type LevelingPoolLedger } from '@/engine/scheduler/ResourceLeveler';
 import { solveProject } from '@/engine/scheduler/solveProject';

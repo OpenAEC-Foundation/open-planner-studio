@@ -1,9 +1,7 @@
 # De afdruk van een grote planning: begrensd tekenen en rekenen
 
 Een lange planning op *Passend maken* geeft een tijdas van minder dan een pixel per dag, en het papier op het
-Rapport-tabblad rendert bij elke klik opnieuw. Volgens het weggehaalde commentaar hield het één voor één tekenen van
-onzichtbare daglijnen de hoofdthread minutenlang bezig, en kostten de datumcellen bij 5000 taken ruim de helft van een
-papieropname (gemeten 9 november 2026). Daarom begrenst `renderReport` wat het tekent op wat leesbaar is, en onthoudt
+Rapport-tabblad rendert bij elke klik opnieuw. Daarom begrenst `renderReport` wat het tekent op wat leesbaar is, en onthoudt
 het wat voor een ongewijzigde taak al uitgerekend is.
 
 ## Gevolgen
@@ -16,16 +14,14 @@ het wat voor een ongewijzigde taak al uitgerekend is.
   `MAX_DAILY_GRID_STEPS` dagen. De maand- en weekkoppen lopen per maand en per week, niet per dag.
 - `taskDayRange` en `taskOwnCellTexts` onthouden hun uitkomst alleen voor een bevroren taak (`Object.isFrozen`): de
   taken uit de store zijn door Immer bevroren en veranderen dus niet meer. Een losse taak (een toets, een import) rekent
-  elke keer opnieuw. Voor `taskDayRange` scheelde dat volgens het weggehaalde commentaar bij 5000 taken ongeveer 15 ms
-  per klik. De celteksten hangen ook van de opmaak af; `cellTextCacheFor` houdt per opmaak (notaties, taal,
+  elke keer opnieuw. De celteksten hangen ook van de opmaak af; `cellTextCacheFor` houdt per opmaak (notaties, taal,
   duurweergave, afkortingen en de kalenders) een eigen tabel bij, hoogstens vier tegelijk, genoeg voor bijvoorbeeld
   meting en render naast elkaar.
 - Met een rijvenster toetst `drawDependencies` eerst de rijnummers van voorganger en opvolger aan het venster en zoekt
   pas daarna de taken en hun balkgrenzen op: bij een groot plan vallen zo de meeste relaties af voordat er iets berekend
   wordt.
 - `drivingSetOf` maakt de verzameling bepalende relaties één keer per lijst `drivingSequenceIds`, want het papier
-  rendert per klik meerdere keren met dezelfde opties; volgens het weggehaalde commentaar kostte het opbouwen bij 5000
-  relaties elke render een milliseconde.
+  rendert per klik meerdere keren met dezelfde opties.
 - `measureTableColumnWidths` neemt een `TableColumnMeasureCache`, zodat bij een kolom erbij alleen die kolom over alle
   rijen gemeten wordt. De cache geldt zolang rijen, opmaak, koppen en letter gelijk blijven; daarna maakt de aanroeper
   een nieuwe (`check-report-columns.ts`, sectie 6).

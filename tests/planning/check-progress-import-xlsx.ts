@@ -1,24 +1,3 @@
-// Voortgangsblad in `.xlsx` (issue #27, etappe 3 — baan C, taken T7 en T8).
-//
-// Deel 1 (T7) toetst de generieke lezer `readXlsxSheet`: de twee zip-passes, de rels-resolutie,
-// sharedStrings, de `cellXfs`/`numFmt`-classificatie van datum- en percentagecellen, de celtypes en
-// alle bestandsweigeringen. Deel 2 (T8) toetst `parseProgressXlsx`: kolomherkenning via de gedeelde
-// `sheetColumns.ts`, ISO-datums (en dus `noAmbiguity` — nooit een dag/maand-vraag), de
-// percentage-omrekening, de em-dash-verzamelmarkering en de bestandsgrenzen.
-//
-// Draait headless in Node zonder DOM-shim: er komt geen `DOMParser` aan te pas — de lezer heeft een
-// eigen XML-scanner, precies omdat de shim geen attributen kent en juist de attributen (`r`, `t`,
-// `s`, `numFmtId`, `date1904`) hier alle betekenis dragen.
-//
-// De fixtures worden gebouwd met de ECHTE `writeZip` uit `@/services/zip` (sinds T14; daarvoor stond
-// hier een tijdelijke, store-only kopie omdat baan A en baan C parallel liepen). Wat de lezer hier
-// binnenkrijgt is dus byte-voor-byte wat de app schrijft — deflate en al. De round-trip-asserties
-// gaan bovendien door de ECHTE `writeProgressSheetXLSX`: exporteren en meteen terugimporteren moet
-// nul wijzigingen geven, en dat is alleen bewijs als de schrijver er zelf in zit.
-//
-// Exit 0 = alles groen. De tail van dit script kan "groen" tonen bij een gefaalde BUNDEL — alleen de
-// exitcode telt.
-
 import {
   readXlsxSheet,
   readXlsxSheetWith,
@@ -59,14 +38,6 @@ function ok(label: string, condition: boolean): void {
   if (!condition) diffs.push(label);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════
-// Fixture-gereedschap: de ECHTE ZIP-schrijver
-// ════════════════════════════════════════════════════════════════════════════════════════════
-//
-// Sinds T14 bouwen deze fixtures met `writeZip` uit `@/services/zip` — dezelfde schrijver die het
-// product gebruikt. De tijdelijke, store-only kopie die baan C nodig had zolang baan A nog liep is
-// daarmee weg: wat hier de lezer in gaat is precies wat de app schrijft, deflate en al.
-
 interface ZipInput { name: string; data: string | Uint8Array }
 
 async function zipOf(files: readonly ZipInput[]): Promise<Uint8Array> {
@@ -76,21 +47,11 @@ async function zipOf(files: readonly ZipInput[]): Promise<Uint8Array> {
     data: typeof file.data === 'string' ? encoder.encode(file.data) : file.data,
   })));
 }
-/**
- * Laat de central directory LIEGEN over de omvang van één part: de gecomprimeerde én de
- * ongecomprimeerde maat gaan naar een absurde waarde. Een lezer die die getallen op hun woord
- * gelooft, alloceert of leest buiten het bestand; een lezer die ze tegen `buffer.byteLength` en zijn
- * eigen limieten toetst, weigert. Dat laatste is wat de hardening-checklist eist.
- */
 function inflateHeaderLie(bytes: Uint8Array, partName: string): Uint8Array {
   const out = bytes.slice();
   const view = new DataView(out.buffer);
   const decoder = new TextDecoder();
 
-  // De central directory wordt via de EOCD gevonden, niet met een naïeve scan op de signatuur: nu
-  // de fixtures door de ECHTE schrijver gaan is de payload gedeflate, en dan kan `50 4b 01 02`
-  // toevallig ergens ín de gecomprimeerde bytes staan. Via de EOCD-offset lopen we gegarandeerd de
-  // echte directory af.
   let eocd = -1;
   for (let p = out.length - 22; p >= 0; p--) {
     if (view.getUint32(p, true) === 0x06054b50) { eocd = p; break; }
@@ -105,8 +66,8 @@ function inflateHeaderLie(bytes: Uint8Array, partName: string): Uint8Array {
     const extraLen = view.getUint16(cd + 30, true);
     const commentLen = view.getUint16(cd + 32, true);
     if (decoder.decode(out.subarray(cd + 46, cd + 46 + nameLen)) === partName) {
-      view.setUint32(cd + 20, 0x7fffff00, true); // compSize
-      view.setUint32(cd + 24, 0x7fffff00, true); // uncompressedSize
+      view.setUint32(cd + 20, 0x7fffff00, true);
+      view.setUint32(cd + 24, 0x7fffff00, true);
       return out;
     }
     cd += 46 + nameLen + extraLen + commentLen;
@@ -114,7 +75,6 @@ function inflateHeaderLie(bytes: Uint8Array, partName: string): Uint8Array {
   throw new Error(`testfixture: part ${partName} niet gevonden in de central directory`);
 }
 
-// ── de vaste OOXML-omhulling ────────────────────────────────────────────────────────────────
 const CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
@@ -142,10 +102,6 @@ function workbookXml(epoch1904 = false): string {
 ${pr}<sheets><sheet name="Voortgang" sheetId="1" r:id="rId1"/></sheets></workbook>`;
 }
 
-// cellXfs-index → betekenis:
-//   0 = general, 1 = ingebouwd datumformaat 14, 2 = ingebouwd percentage 9,
-//   3 = custom datumformaat (164), 4 = custom percentage (165),
-//   5 = custom formaat waarvan de y/m/d ALLEEN in een letterlijke tekst staat (166) — geen datum.
 const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <numFmts count="3">
@@ -195,7 +151,6 @@ function makeWorkbook(opts: BookOptions): Promise<Uint8Array> {
   ]);
 }
 
-// ── kleine leeshulpjes ──────────────────────────────────────────────────────────────────────
 function cell(sheet: XlsxSheet, rowNumber: number, column: string): XlsxCell | undefined {
   const col = columnFromCellRef(column);
   return sheet.rows.find(r => r.rowNumber === rowNumber)?.cells.find(c => c.col === col);
@@ -210,16 +165,10 @@ async function issueOf(promise: Promise<unknown>): Promise<string> {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════
-// Deel 1 (T7) — de generieke lezer
-// ════════════════════════════════════════════════════════════════════════════════════════════
-
 const SERIAL_2026_06_09 = isoToSerial('2026-06-09')!;
 const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
 
 {
-  // Rij 1 kopregel (gedeelde strings), rij 2 een volledige datarij, rij 3 een inlineStr,
-  // rij 4 een custom-datumformaat, rij 5 een foutcel, rij 6 een boolean en een `str`.
   const rows = [
     '<row r="1">'
       + '<c r="A1" t="s"><v>0</v></c>'
@@ -261,8 +210,6 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
 }
 
 {
-  // Sparse blad: alleen rij 1 en rij 7 bestaan, en rij 7 heeft alleen een C-cel. Zowel het
-  // rijnummer als de kolomindex moeten uit het `r`-attribuut komen, niet uit een teller.
   const rows = '<row r="1"><c r="A1" t="s"><v>0</v></c></row>'
     + '<row r="7"><c r="C7" t="s"><v>1</v></c></row>';
   const sheet = await readXlsxSheet(await makeWorkbook({ rows, shared: ['eerste', 'derde'] }));
@@ -274,11 +221,6 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
 }
 
 {
-  // ── dubbel of dalend `r` is een WEIGERING, geen interpretatie (fixronde eindreview) ────────
-  // `rowNumber` is de sleutel van `buildPlan`'s rijmap en van de handmatige koppelingen (A11).
-  // Twee rijen met hetzelfde `r` betekent dat de tweede de eerste daar stil overschrijft: de
-  // invuller krijgt een toepassing op een taak die hij niet bewerkte, zonder ook maar één
-  // weigering. Hetzelfde geldt een niveau lager voor twee cellen met dezelfde kolom.
   const dubbel = await makeWorkbook({
     rows: '<row r="2"><c r="A2" t="inlineStr"><is><t>eerste</t></is></c></row>'
       + '<row r="2"><c r="A2" t="inlineStr"><is><t>tweede</t></is></c></row>',
@@ -307,7 +249,6 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
   });
   eq('dalende celkolom ⇒ malformed', await issueOf(readXlsxSheet(dalendeCel)), 'malformed');
 
-  // Overgeslagen rijen en kolommen blijven gewoon geldig — de eis is OPLOPEND, niet aaneengesloten.
   const sprong = await readXlsxSheet(await makeWorkbook({
     rows: '<row r="2"><c r="A2" t="inlineStr"><is><t>a</t></is></c>'
       + '<c r="D2" t="inlineStr"><is><t>d</t></is></c></row>'
@@ -317,8 +258,6 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
     [sprong.rows.length, cell(sprong, 2, 'D')?.text, cell(sprong, 9, 'B')?.text],
     [2, 'd', 'b']);
 
-  // Een `.xlsx` waarin de kop dubbel staat is voor de VOORTGANGSIMPORT een bestandsbrede
-  // weigering, niet een half toegepast blad.
   const dubbelBlad = await makeWorkbook({
     rows: '<row r="1"><c r="A1" t="inlineStr"><is><t>OPS Task ID</t></is></c>'
       + '<c r="B1" t="inlineStr"><is><t>Completion (%)</t></is></c></row>'
@@ -340,8 +279,6 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
 }
 
 {
-  // Alleen de zes metadata-parts en het bladpart mogen door de ZIP-laag heen komen; een
-  // afbeelding, een tweede blad en een thumbnail zijn onnodige inflatie.
   const opened: string[] = [];
   const spy: XlsxZipReader = (buffer, limits, select) =>
     parseZipEntries(buffer, limits, name => {
@@ -369,7 +306,6 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
 }
 
 {
-  // ── weigeringen ───────────────────────────────────────────────────────────────────────────
   const encoder = new TextEncoder();
   eq('geen zip ⇒ notAZip', await issueOf(readXlsxSheet(encoder.encode('hallo daar'))), 'notAZip');
 
@@ -415,31 +351,11 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
   const notOoxml = await zipOf([{ name: 'hoi.txt', data: 'geen werkmap' }]);
   eq('zip zonder [Content_Types].xml ⇒ notAZip', await issueOf(readXlsxSheet(notOoxml)), 'notAZip');
 
-  // Omgeving zonder `DecompressionStream` (fixronde eindreview): het BESTAND mankeert niets, dus
-  // `notAZip` zou de gebruiker naar een probleem laten zoeken dat er niet is. Geinjecteerd via de
-  // ZIP-naad, niet door de omgeving te vervalsen — zelfde vorm als `writeZip`'s `deflate: null`.
   const zonderInflater: XlsxZipReader = (buffer, zipLimits, select) =>
     parseZipEntries(buffer, zipLimits, select, { inflate: null });
   eq('geen inflater ⇒ unsupported, niet notAZip',
     await issueOf(readXlsxSheetWith(zonderInflater, small)), 'unsupported');
 }
-
-// ════════════════════════════════════════════════════════════════════════════════════════════
-// Deel 2 (T8) — `parseProgressXlsx` en de round-trip
-// ════════════════════════════════════════════════════════════════════════════════════════════
-
-// De ROUND-TRIP-asserties hieronder draaien op de echte `writeProgressSheetXLSX`; zie het blok
-// "DE ECHTE ROUND-TRIP". De handgebouwde bladen in dit deel dienen een ander doel: ze bootsen na wat
-// EXCEL zelf produceert en onze schrijver juist niet doet — een percentage als fractie met een
-// percentage-`numFmt`, gedeelde strings, een foutcel — plus de rode paden (geen sleutelkolom, geen
-// voortgangskolommen, de grenzen). Die mogen dus met de hand blijven; ze toetsen de LEZER tegen de
-// buitenwereld, niet de schrijver tegen zichzelf.
-//
-// De tekst die de app bij het exporteren meegeeft (`fileSlice.exportAs` → `progressHeaderNotes.ts`)
-// staat hier als VASTE strings. Deze suite draait headless zonder i18n-initialisatie, en de
-// round-trip mag ook niet aan een vertaalsleutel hangen; wat telt is dat er ECHTE kopinstructies en
-// een ECHTE em-dash-verzamelmarkering doorheen lopen — precies de twee dingen die een naieve lezer
-// als data zou aanzien.
 
 const EXPORT_TEXT: ProgressXlsxText = {
   headerNotes: {
@@ -452,7 +368,6 @@ const EXPORT_TEXT: ProgressXlsxText = {
     'Actual Start': 'invullen: werkelijke startdatum (jjjj-mm-dd)',
     'Actual Finish': 'invullen: werkelijke einddatum (jjjj-mm-dd)',
   },
-  // MOET met een em-dash beginnen: dat is het teken waarop `isMarkerCell` de cel als afwezig telt.
   summaryNote: '\u2014 verzameltaak: vul hier niets in',
   sheetName: 'Voortgang',
   validation: {
@@ -463,7 +378,6 @@ const EXPORT_TEXT: ProgressXlsxText = {
   },
 };
 
-/** Het blad zoals de app het exporteert — de ENE bron van de round-trip-asserties. */
 function exportSheet(tasks: readonly Task[]): Promise<Uint8Array> {
   return writeProgressSheetXLSX(tasks, EXPORT_TEXT);
 }
@@ -479,9 +393,8 @@ const SHEET_HEADERS = [
   'Actual Finish — invullen: datum',
 ];
 
-const MARKER = '—'; // em-dash: "hier valt niets in te vullen"
+const MARKER = '—';
 
-/** Kolomletter uit een 0-gebaseerde index (A…H is ruim genoeg voor dit blad). */
 const COLUMN_LETTERS = 'ABCDEFGH';
 
 interface SheetRowInput {
@@ -490,7 +403,6 @@ interface SheetRowInput {
   name?: string;
   start?: string;
   finish?: string;
-  /** Fractie (0.335 = 33,5 %) als getal, of letterlijke celtekst (bv. de em-dash-markering). */
   completion?: number | string;
   actualStart?: string;
   actualFinish?: string;
@@ -501,7 +413,6 @@ function inlineCell(ref: string, text: string): string {
   return `<c r="${ref}" t="inlineStr"><is><t>${escaped}</t></is></c>`;
 }
 
-/** Datumcel: serieel getal + de datum-`numFmt`. Met een tijddeel gaat hij naar stijl 6 (numFmt 22). */
 function dateCell(ref: string, iso: string): string {
   const serial = isoToSerial(iso);
   if (serial === undefined) throw new Error(`testfixture: onleesbare datum ${iso}`);
@@ -538,7 +449,6 @@ function progressSheetBytes(
   return makeWorkbook({ rows: headerXml + body });
 }
 
-// ── taken + de STUB-planner (zelfde vorm als check-progress-sheet-values.ts) ───────────────────
 let taskSeq = 0;
 function baseTask(id: string, start: string, durationDays: number): Task {
   taskSeq++;
@@ -573,7 +483,6 @@ function stubPlanEdits(
 }
 const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
 
-/** Het bewijslabel van de detectie — `ambiguous` heeft geen `evidence`, dat IS zijn uitkomst. */
 function evidenceOf(detection: DateOrderDetection): string {
   return detection.order === 'ambiguous' ? 'ambiguous' : detection.evidence;
 }
@@ -585,27 +494,6 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
 }
 
 {
-  // ── DE ECHTE ROUND-TRIP ────────────────────────────────────────────────────────────────────
-  // Exporteren en meteen terugimporteren moet NUL wijzigingen opleveren. Deze asserties draaien
-  // daarom op de volle keten die het product ook loopt:
-  //
-  //     writeProgressSheetXLSX  ->  parseProgressXlsx (parseZipEntries + readXlsxSheet)
-  //                             ->  detectDateOrder  ->  finalizeProgressRows
-  //                             ->  buildProgressImportPlan
-  //
-  // Een met de hand nagebouwd blad zou hier precies het verkeerde bewaken: het toetst dan of de
-  // TEST de schrijver goed nadoet. De vorige versie deed dat en zat er ook echt naast — hij
-  // schreef het percentage als fractie met een percentage-`numFmt`, terwijl de schrijver een heel
-  // percentage met `numFmt` 166 schrijft. Handgebouwde bladen blijven hieronder wel staan voor de
-  // Excel-realisme-cases (sharedStrings, `t="e"`, percentage-`numFmt`, `date1904`): daar is de
-  // vraag juist of de LEZER omgaat met wat Excel zelf produceert.
-  //
-  // Mutatiebewijs: laat de schrijver het percentage als fractie wegschrijven en deze asserties
-  // slaan om van "nul toepassingen" naar een toepassing per taak.
-  //
-  // Vijf taken, zodat elke valstrik uit de contour van dit blad erin zit: een verzameltaak (de
-  // em-dash-markering), 1/3 (een breuk die geen mooie decimaal is), 0 en 0,999 (de randen), en een
-  // werkelijke start op de MINUUT (uur-modus: een gebroken serieel getal).
   const parent = baseTask('task-parent', '2026-06-01', 20);
   parent.wbsCode = '1';
   parent.name = 'Fundering';
@@ -647,25 +535,19 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
   eq('elke rij matcht op id', plan.rows.every(r => r.match === 'id'), true);
   eq('verzameltaken geven geen weigering', plan.rows.filter(r => r.reason === 'summaryTask').length, 0);
 
-  // De em-dash-markering die de schrijver zelf op de drie invulcellen zet, moet door de lezer
-  // ongewijzigd doorgegeven worden: `isMarkerCell` laat de rij dan als "niets ingevuld" landen.
   const parentRow = plan.rows.find(r => r.taskId === parent.id);
   eq('de verzameltaakrij is een no-op, geen weigering',
     [parentRow?.outcome, parentRow?.reason], ['noop', undefined]);
   eq('...en de markering van de schrijver komt letterlijk door',
     sheet.rawRows[0]?.rawCompletion, EXPORT_TEXT.summaryNote);
 
-  // A9: een `.xlsx` levert ISO-datums, dus de dag/maand-vraag kan niet ontstaan.
   eq('geen datumvraag', evidenceOf(detectDateOrder(sheet.detectionCells, tasks)), 'noAmbiguity');
 
-  // De vier randgevallen ook los, zodat een falende round-trip meteen wijst waar het misgaat.
   for (const solo of [derde, uur, nul, bijna]) {
     const soloPlan = planFor(await parseProgressXlsx(await exportSheet([solo])), [solo]);
     eq(`${solo.wbsCode} los: ongewijzigd`, [soloPlan.noopCount, soloPlan.appliedCount], [1, 0]);
   }
 
-  // Rijnummers zijn ECHTE Excel-rijnummers (de kop is rij 1), en Start/Finish bereiken `rawRows`
-  // nooit — ze bestaan uitsluitend als detectiemateriaal.
   eq('rijnummer = Excel-rijnummer', sheet.rawRows[0]?.rowNumber, 2);
   eq('elke taak levert een rij', sheet.rawRows.length, tasks.length);
   eq('de kop met instructies wordt als kop herkend',
@@ -676,9 +558,6 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
   ok('...maar ze zijn er wel als detectiemateriaal',
     sheet.detectionCells.some(c => c.field === 'start') && sheet.detectionCells.some(c => c.field === 'finish'));
 
-  // Een echt gewijzigde cel = een toepassing, op precies die taak. Ook dat loopt door de ECHTE
-  // schrijver: het blad wordt geexporteerd uit een gewijzigde takenlijst en tegen de originele
-  // takenlijst geimporteerd — precies wat er gebeurt als de invuller de cel aanpast.
   const gewijzigd = tasks.map(task => task.id !== uur.id
     ? task
     : { ...task, time: { ...task.time, completion: 0.5 } });
@@ -686,7 +565,6 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
   eq('een wijziging, een apply', mutated.appliedCount, 1);
   eq('...op de juiste taak', mutated.rows.find(r => r.outcome === 'apply')?.taskId, uur.id);
 
-  // Een gewijzigde Start-kolom is per constructie betekenisloos: hij is detectie-only.
   const verschovenStart = tasks.map(task => task.id !== derde.id
     ? task
     : { ...task, time: { ...task.time, scheduleStart: '2030-03-03', earlyStart: '2030-03-03',
@@ -696,7 +574,6 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
 }
 
 {
-  // Excel-realisme: 45 % staat in het bestand als 0.45 met een percentage-`numFmt`.
   const task = baseTask('task-pct', '2026-02-02', 4);
   const sheet = await parseProgressXlsx(await progressSheetBytes([
     { taskId: task.id, wbs: task.wbsCode, name: task.name, completion: 0.45 },
@@ -707,10 +584,6 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
 }
 
 {
-  // #405 deel 5 — Nederlandse notatie in een `.xlsx`. Excel met NL-instellingen bewaart een getypte
-  // datum als serieel getal (de round-trip hierboven), maar een cel die als TEKST is ingevoerd of
-  // geplakt blijft tekst: "17-02-2026", "2026-02-24" en "33,3". Die moeten dezelfde weg gaan als in de
-  // CSV (`sheetValues.ts`). Ook een gewoon getal 33.3 zonder percentage-opmaak is 33,3 %.
   const textRow = (r: number, id: string, completion: string, start: string, finish: string): string =>
     `<row r="${r}">${inlineCell(`A${r}`, id)}${inlineCell(`F${r}`, completion)}`
     + `${start ? inlineCell(`G${r}`, start) : ''}${finish ? inlineCell(`H${r}`, finish) : ''}</row>`;
@@ -738,8 +611,6 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
 }
 
 {
-  // Grenzen op de rijwaarden: te lang, en met een stuurteken. Beide tellen als AFWEZIG, nooit
-  // afgekapt — een afgekapt id kan een andere taak matchen dan de invuller bedoelde.
   const longId = 'x'.repeat(PROGRESS_IMPORT_LIMITS.maxIdChars + 1);
   const longSheet = await parseProgressXlsx(await progressSheetBytes([
     { taskId: longId, wbs: '1', name: 'Lang', completion: 0.5 },
@@ -748,15 +619,12 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
   ok('…maar de rij zelf blijft bestaan', longSheet.rawRows.length === 1);
 
   const ctrlSheet = await parseProgressXlsx(await progressSheetBytes([
-    // `_x0001_` is de OOXML-notatie voor een stuurteken (ST_Xstring); de lezer zet hem
-    // terug naar U+0001, precies zoals Excel doet - dit is dus een ECHT stuurteken.
     { taskId: 'task_x0001_a', wbs: '1', name: 'Stuur', completion: 0.5 },
   ]));
   eq('id met stuurteken telt niet', ctrlSheet.rawRows[0]?.taskId, undefined);
 }
 
 {
-  // Bestandsbrede weigeringen — elke `catch` heeft hier zijn eigen rode-pad-fixture.
   const noKey = await progressSheetBytes(
     [{ name: 'Zonder sleutel', completion: 0.5 }],
     ['Name', 'Completion (%)'],
@@ -770,8 +638,6 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
   cfb.set([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1], 0);
   eq('wachtwoordbestand', (await parseProgressXlsx(cfb)).fileIssue, 'encrypted');
 
-  // Zip-bom: de central directory LIEGT over de omvang van een van de parts. Een lengte uit een
-  // bestandsheader is een leugen tot het tegendeel blijkt (hardening-checklist).
   const bomb = inflateHeaderLie(
     await progressSheetBytes([{ taskId: 'task-x', wbs: '1', name: 'Bom', completion: 0.5 }]),
     'xl/worksheets/sheet1.xml',
@@ -836,9 +702,6 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════
-// Uitkomst
-// ════════════════════════════════════════════════════════════════════════════════════════════
 if (diffs.length) {
   for (const d of diffs) console.log(`   XX ${d}`);
   console.log(`XX voortgangsimport xlsx (#27): ${diffs.length} afwijking(en) van ${checks} checks`);

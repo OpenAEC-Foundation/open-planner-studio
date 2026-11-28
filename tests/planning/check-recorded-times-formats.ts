@@ -1,13 +1,3 @@
-// "Datums zoals opgeslagen" voor ÁLLE formaten (eigenaarsbesluit 2026-09-09: "het moet altijd
-// gaan zoals het nu bij XER werkt"). Twee lagen:
-//   (1) de LEZERS — P6 XML, MSPDI, CSV en (corpus-optioneel) `.mpp` leveren het bak-4-kanaal
-//       `ImportResult.recordedTimes` met de bronuitvoer die het bestand écht draagt; ontbrekende
-//       assen ontbreken (nooit `0`/gekopieerde datum), `task.time` blijft byte-identiek aan vóór
-//       dit kanaal (de vastlegging is weergave, nooit solverinvoer);
-//   (2) de IFC-HERKOMST — een IFC uit een ander pakket is 'ifc' (verse import), een eigen IFC
-//       'ifc-own' (heropening) mét de vlag "ongewijzigd sinds import" uit `OPS_ImportProvenance`.
-// Het LAADBELEID (automatisch aan per herkomst, optie B) staat in `check-recorded-dates.ts` 7/7B/16;
-// de browserflow in `tests/browser/recorded-dates.spec.ts`.
 import { readP6XML } from '@/services/p6/p6xmlReader';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { CsvDateImportError, readCSV } from '@/services/csv/csvReader';
@@ -29,8 +19,6 @@ import { unrecordedAxes } from '@/state/recordedDatesSelectors';
 import { withRecordedDatesNotice } from '@/state/slices/fileSlice';
 import { recoveryInputFromParsed } from '@/state/documentContract';
 
-// De P6/MSPDI-readers gebruiken de browser-`DOMParser`; in Node via dezelfde shim als
-// `check-adapters-hours.ts`.
 installDOMParser();
 
 declare const process: { env: Record<string, string | undefined>; exit(code: number): never };
@@ -48,11 +36,9 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   const t = byWbs(r, wbs); return t ? r.recordedTimes?.[t.id] : undefined;
 };
 
-// ── (1) P6 XML ──────────────────────────────────────────────────────────────────────────────────
 {
   const r = readP6XML(P6XML_FIXTURE);
   eq('1a herkomst p6xml', r.recordedTimesOrigin, 'p6xml');
-  // Sinds F5b (I8) is 08:00 in een bestand zonder OPS-markering een echte tijd: de vastlegging houdt hem.
   eq('1b A: alle zes assen + kritiek uit het bestand (40 u op 8 u/dag = 5 dagen)', recordedOf(r, '1.1'), {
     start: '2026-03-02T08:00', finish: '2026-03-06T08:00', lateStart: '2026-03-09T08:00', lateFinish: '2026-03-13T08:00',
     totalFloat: 5, freeFloat: 0, isCritical: false,
@@ -63,8 +49,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('1d C: zonder datums geen vastlegging', recordedOf(r, '1.3'), undefined);
   eq('1e task.time blijft de geplande invoer (late = gepland, speling 0 — de bestaande vulling), NIET de vastlegging',
     [byWbs(r, '1.1')?.time.lateStart, byWbs(r, '1.1')?.time.totalFloat], ['2026-03-02T08:00', 0]);
-  // Terugval StartDate/FinishDate wanneer een export geen Early*-elementen draagt (P6 schrijft ze
-  // wel, maar "vergelijk wat er is" geldt óók voor een uitgeklede export).
   const noEarly = P6XML_FIXTURE.replace(/<EarlyStartDate>[^<]*<\/EarlyStartDate>\s*<EarlyFinishDate>[^<]*<\/EarlyFinishDate>/g, '')
     .replace('<PlannedStartDate>2026-03-16T08:00:00</PlannedStartDate>', '<PlannedStartDate>2026-03-16T08:00:00</PlannedStartDate><StartDate>2026-03-17T08:00:00</StartDate><FinishDate>2026-03-23T08:00:00</FinishDate>');
   const r2 = readP6XML(noEarly);
@@ -72,11 +56,9 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('1g zonder Early* én zonder StartDate: geen vastlegging (A verloor zijn early-paar, houdt late/speling niet zonder start/einde)', recordedOf(r2, '1.1'), undefined);
 }
 
-// ── (2) MSPDI ───────────────────────────────────────────────────────────────────────────────────
 {
   const r = readMSPDI(MSPDI_FIXTURE);
   eq('2a herkomst mspdi', r.recordedTimesOrigin, 'mspdi');
-  // Sinds F5b (I8) is 08:00 in een bestand zonder OPS-markering een echte tijd: de vastlegging houdt hem.
   eq('2b A: zes assen + Critical (24.000 tienden van een minuut = 2.400 min = 5 dagen van 8 u)', recordedOf(r, '1.1'), {
     start: '2026-03-02T08:00', finish: '2026-03-06T08:00', lateStart: '2026-03-09T08:00', lateFinish: '2026-03-13T08:00',
     totalFloat: 5, freeFloat: 0, isCritical: false,
@@ -86,8 +68,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('2e task.time ongewijzigd (lateStart = start, speling 0 — de bestaande vulling)', [byWbs(r, '1.1')?.time.lateStart, byWbs(r, '1.1')?.time.totalFloat], ['2026-03-02T08:00', 0]);
   const noEarly = MSPDI_FIXTURE.replace(/<EarlyStart>[^<]*<\/EarlyStart>\s*<EarlyFinish>[^<]*<\/EarlyFinish>/g, '');
   eq('2f zonder Early*: Start/Finish zijn de vastlegging', recordedOf(readMSPDI(noEarly), '1.2'), { start: '2026-03-16T08:00', finish: '2026-03-20T08:00' });
-  // Critreview PR #167, bevinding 6: MS Project schrijft EarlyStart ook op samenvattingen; die
-  // tellen niet mee in "N taken" (zoals bij XER). A wordt hier de samenvatting boven B.
   const withSummary = MSPDI_FIXTURE
     .replace('<Summary>0</Summary>', '<Summary>1</Summary>')
     .replace(/(<Name>B<\/Name>[\s\S]*?)<OutlineLevel>1<\/OutlineLevel>/, '$1<OutlineLevel>2</OutlineLevel>');
@@ -97,7 +77,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
     [recordedOf(rs, '1.1'), recordedOf(rs, '1.2')], [undefined, { start: '2026-03-16T08:00', finish: '2026-03-20T08:00' }]);
 }
 
-// ── (3) CSV ─────────────────────────────────────────────────────────────────────────────────────
 {
   const r = readCSV(CSV_FIXTURE);
   eq('3a herkomst csv', r.recordedTimesOrigin, 'csv');
@@ -111,7 +90,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('3e zonder speling-/kritiekkolom: alleen start/einde', recordedOf(r2, '1.1'), { start: '2026-03-02', finish: '2026-03-06' });
   const r3 = readCSV(['WBS,Name,Duration', '1.1,A,5'].join('\n'));
   eq('3f zonder datumkolommen: geen kanaal en geen herkomst', [r3.recordedTimes, r3.recordedTimesOrigin], [undefined, undefined]);
-  // Knownbug 128: onherkende gevulde datums mogen geen taak-/vastleggingspayload opleveren.
   let unreadableError: unknown;
   try { readCSV(CSV_FIXTURE_UNREADABLE_DATES); } catch (err) { unreadableError = err; }
   truthy('3g onleesbare datum ⇒ expliciete importweigering', unreadableError instanceof CsvDateImportError);
@@ -124,7 +102,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('3j DD-MM-YYYY en DD/MM/YYYY blijven herkend', recordedOf(r5, '1.2'), { start: '2026-03-02', finish: '2026-03-06' });
 }
 
-// ── (4) IFC-herkomst: ander pakket vs eigen bestand, en de vlag "ongewijzigd sinds import" ────────
 {
   const extern = readIFC(externIfc('F'));
   eq('4a IFC zonder IFCAPPLICATION "OPS" en zonder OPS_-pset is een verse import uit een ander pakket', extern.recordedTimesOrigin, 'ifc');
@@ -138,26 +115,17 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   truthy('4f met vlag exact één OPS_ImportProvenance-pset met UnchangedSinceImport .T.',
     pristine.split("'OPS_ImportProvenance'").length === 2 && pristine.includes("IFCPROPERTYSINGLEVALUE('UnchangedSinceImport',$,IFCBOOLEAN(.T.),$)"));
   eq('4g …en die leest terug als true', readIFC(pristine).importPristine, true);
-  // Precies deze eigenschap: het bestand heeft meer IFCBOOLEAN(.T.)-waarden (o.a. IfcSchemaConfirmed in
-  // OPS_ProjectSettings, #292), en de eerste daarvan is niet de herkomstvlag.
   const tampered = pristine.replace(
     "IFCPROPERTYSINGLEVALUE('UnchangedSinceImport',$,IFCBOOLEAN(.T.),$)",
     "IFCPROPERTYSINGLEVALUE('UnchangedSinceImport',$,IFCBOOLEAN(.F.),$)");
   truthy('4h0 de vervanging raakt de herkomstvlag', tampered !== pristine);
   eq('4h .F. leest als false', readIFC(tampered).importPristine, false);
-  // Herkomstdetectie via alleen de IFCAPPLICATION-regel: strip alle OPS_-psets uit het eigen
-  // bestand ⇒ nog steeds 'ifc-own' (twee onafhankelijke sporen, elk voldoende).
   const noPsets = own.split('\n').filter(line => !line.includes("'OPS_")).join('\n');
   eq('4i IFCAPPLICATION "OPS" alleen is voldoende voor "eigen bestand"', readIFC(noPsets).recordedTimesOrigin, 'ifc-own');
   const noApp = own.split('\n').filter(line => !line.includes('IFCAPPLICATION(')).join('\n');
   eq('4j een OPS_-pset alleen is óók voldoende', readIFC(noApp).recordedTimesOrigin, 'ifc-own');
 }
 
-// ── (6) Opslaan ÍN de modus + heropenen verzint geen assen (critreview PR #167, bevinding 1) ──────
-// MSPDI-taak B legt alleen het vroege paar vast. In de modus toont `task.time` op de vier andere
-// assen een terugval (late = vroeg, speling 0, niet kritiek). Vóór de fix schreef de writer die als
-// gewone waarden en las de heropening ze als vastlegging: `unrecordedAxes` 4 → 0, alle negen slots.
-// Het ECHTE open- en opslaanpad (`applyOpenedImport`, `buildWriteIFCInput`).
 {
   const S = () => useAppStore.getState();
   const idOf = (wbs: string) => S().tasks.find(t => t.wbsCode === wbs)!.id;
@@ -179,26 +147,17 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   S().applyOpenedImport(reopened, { filePath: null, recompute: true });
   eq('6d heropend (ongewijzigd, optie B): weer in de modus', [S().datesAsRecorded, S().recordedDates?.origin], [true, 'ifc-own']);
   eq('6e B houdt na heropenen vier assen "niet vastgelegd"', unrecordedAxes(S().recordedDates?.times[idOf('1.2')]), ['ls', 'lf', 'tf', 'ff']);
-  // D1/D2 normaliseren ook de vastgelegde assen op de echte laadgrens (§4.2). Sinds F5b (I8) draagt dit
-  // vreemde bestand echte tijden (08:00); die blijven, er valt niets te normaliseren.
   eq('6f A houdt zijn vastgelegde late datums en speling', S().recordedDates?.times[idOf('1.1')], {
     start: '2026-03-02T08:00', finish: '2026-03-06T08:00', lateStart: '2026-03-09T08:00', lateFinish: '2026-03-13T08:00',
     totalFloat: 5, freeFloat: 0, isCritical: false,
   });
-  // Critreview PR #167, bevinding 2: heropenen van het eigen, ongewijzigde IFC gaat automatisch de
-  // modus in, maar meldt NIETS — de strook zegt het al. Vóór de fix telde de automatisch-aan-tak
-  // ongeacht herkomst.
   eq('6g …en geeft GEEN openingsmelding (ook niet in de automatisch-aan-tak)', meldingen() - voorHeropen, 0);
-  // Buiten de modus staat onze eigen berekening: dan wordt er niets achtergehouden.
   S().runCPM();
   const savedOutside = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   const bOutside = savedOutside.tasks.find(t => t.wbsCode === '1.2')!.id;
   eq('6h buiten de modus opgeslagen: alle negen slots (echte CPM-uitvoer)', savedOutside.recordedFields?.[bOutside]?.length, 9);
 }
 
-// ── (7) De datumregel verdringt geen andere melding en wordt er niet door verdrongen ──────────────
-// (critreview PR #167, bevinding 3): na de merge met #169 kan er een rekenprofielmelding zijn; de
-// datumregel moet dan als detailregel mee, niet via `!notice` wegvallen.
 {
   const profiel = { severity: 'info' as const, messageKey: 'notifications.xerImportOpened' as const, params: { count: 1 } };
   eq('7a geen verse verschillen ⇒ melding ongewijzigd (ook undefined)', [withRecordedDatesNotice(undefined, 0), withRecordedDatesNotice(profiel, 0)], [undefined, profiel]);
@@ -211,12 +170,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('7d een melding met een eigen datumregel (XER) ⇒ geen tweede', withRecordedDatesNotice(xer, 2), xer);
 }
 
-// ── (8) Alleen bronnen met echte rekenuitvoer (eigenaarsbesluit 2026-09-24, "beperken") ─────────
-// Het ECHTE openpad. CSV vergelijkt invoer met invoer; een eigen IFC zonder bron vergelijkt onze eigen
-// oude solve met de nieuwe. Een eigen IFC dat van een MSPDI-import stamt noemt zijn bron in
-// OPS_ImportProvenance.SourceFormat en houdt de modus. Mutatiebewijs: zie de poort
-// `recordedDatesSource` (documentActivation.ts) — 'csv' toelaten ⇒ 8a/8b rood; 'ifc-own' zonder bron
-// toelaten ⇒ 8e rood; SourceFormat niet schrijven ⇒ 8c/8d (en 6d) rood.
 {
   const S = () => useAppStore.getState();
   const meldingen = () => S().ui.notifications.filter(n =>
@@ -229,8 +182,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   truthy('8a2 tegenproef: B is wél verschoven door de herberekening (anders meet 8a een vacuüm)',
     S().tasks.find(t => t.wbsCode === '1.2')?.time.earlyStart !== '2026-03-16');
 
-  // MSPDI → een bewerking (vlag weg, modus blijft) → opslaan → heropenen: de bron reist mee, dus
-  // het bestand opent weer in de modus ("zoals je het achterliet", eigenaar 2026-10-17).
   S().newProject();
   S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
   S().setProject({ description: 'bewerkt, zonder datumwijziging' });
@@ -240,13 +191,9 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('8c2 …en dat leest terug', [reopenedEdited.recordedTimesOrigin, reopenedEdited.recordedSourceFormat, reopenedEdited.importPristine], ['ifc-own', 'mspdi', false]);
   S().newProject();
   S().applyOpenedImport(reopenedEdited, { filePath: null, recompute: true });
-  // In de modus opgeslagen (de bron staat erin) ⇒ weer in de modus, ook al is de vlag weg.
   eq('8d heropend eigen IFC met MSPDI-bron, bewerkt maar in de modus opgeslagen: vastlegging en modus',
     [S().recordedDates?.sourceFormat, S().datesAsRecorded], ['mspdi', true]);
 
-  // Een eigen IFC zonder bron: planning in deze app gemaakt, datums verschoven zonder herberekening
-  // opgeslagen (scheduleStale). Heropenen rekent door en verschuift — maar dat is onze eigen oude
-  // solve tegen de nieuwe, geen pakketuitvoer.
   S().newProject();
   S().applyOpenedImport(readIFC(writeIFC({ ...readMSPDI(MSPDI_FIXTURE), recordedTimes: undefined, recordedTimesOrigin: undefined })), { filePath: null, recompute: true });
   const eigenZonderBron = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
@@ -259,7 +206,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('8e eigen IFC zonder bron: geen vastlegging en geen modus', [S().recordedDates, S().datesAsRecorded], [null, false]);
 }
 
-// ── (9) Tweede critreview-ronde: niets meer "vastgelegd" dan de bron zei, en de bron alleen in de modus ─
 {
   const S = () => useAppStore.getState();
   const wbsId = (r: ImportResult, wbs: string) => r.tasks.find(t => t.wbsCode === wbs)!.id;
@@ -268,8 +214,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
     S().updateTask(t.id, { time: { ...t.time, scheduleDuration: 3 } });
   };
 
-  // Bevinding 1: C heeft geen vastlegging; in de modus draagt hij de datums van de verworpen solve.
-  // MUTATIEBEWIJS: `withheldFieldsFor` alleen over `recordedDates.times` ⇒ 9a/9b/9c ROOD (3 i.p.v. 2).
   S().newProject();
   S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
   eq('9a0 tegenproef: verse import legt 2 taken vast (A, B), C niet', S().recordedDates?.total, 2);
@@ -280,10 +224,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   S().applyOpenedImport(re, { filePath: null, recompute: true });
   eq('9b N vastgelegd ⇒ N na heropenen (2, niet 3)', [S().recordedDates?.total, S().datesAsRecorded], [2, true]);
 
-  // Crashherstel loopt via dezelfde poort: het slapende document in de modus houdt ook 2, en C staat
-  // niet op "vandaag" maar op zijn eigen anker.
-  // C draagt in de fixture geen datums (anker = vandaag); geef hem hier een onderscheidend anker,
-  // zoals een taak zonder vroege datums in een echt bronbestand (bv. een voltooide P6-activiteit).
   const cSchedule = '2026-04-06';
   const sleepingParsed = readIFC(savedInMode);
   const cSleep = sleepingParsed.tasks.find(t => t.wbsCode === '1.3')!;
@@ -298,9 +238,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
     slaap?.tasks.find(t => t.wbsCode === '1.3')?.time.earlyStart, `${cSchedule}T07:00`);
   eq('9c3 crashherstel (actief, in de modus): ook 2 vastgelegd', [S().recordedDates?.total, S().datesAsRecorded], [2, true]);
 
-  // Samenvattingen: een nieuwe fase "S" (MS Project schrijft ook daar EarlyStart) boven A en B; B
-  // blijft via zijn FS-relatie op A verschuiven, dus de modus gaat aan. Alleen A en B (bladen) zijn
-  // vastgelegd; S rolt in de modus op uit zijn kinderen en mag na heropenen niet "vastgelegd" zijn.
   const summaryTask = `<Task><UID>9</UID><ID>9</ID><Name>S</Name><Duration>PT120H0M0S</Duration><DurationFormat>7</DurationFormat>
       <Start>2026-03-02T08:00:00</Start><Finish>2026-03-20T08:00:00</Finish>
       <EarlyStart>2026-03-02T08:00:00</EarlyStart><EarlyFinish>2026-03-20T08:00:00</EarlyFinish>
@@ -322,18 +259,13 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   S().applyOpenedImport(savedSummary, { filePath: null, recompute: true });
   eq('9d met samenvatting: 2 vastgelegd ⇒ 2 na heropenen (de fase telt niet mee)', [S().recordedDates?.total, S().datesAsRecorded], [2, true]);
 
-  // Bevinding 2: buiten de modus geen SourceFormat, en heropenen geeft niets.
-  // MUTATIEBEWIJS: de `datesAsRecorded`-poort op `recordedSourceFormat` weg ⇒ 9e/9f ROOD.
   S().newProject();
   S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
   S().setProject({ description: 'bewerkt, zonder datumwijziging' });
   const bewerkt = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   S().newProject();
   S().applyOpenedImport(bewerkt, { filePath: null, recompute: true });
-  // In de modus opgeslagen ⇒ heropent in de modus (8d). De datumbewerking hieronder verlaat de modus.
   eq('9e0 voorwaarde: heropend in de modus (in de modus opgeslagen)', [S().recordedDates !== null, S().datesAsRecorded], [true, true]);
-  // Een datumbewerking zonder herberekening: het bestand draagt dan onze OUDE solve,
-  // die bij heropenen afwijkt van de nieuwe — precies het geval waar een geclaimde bron zou liegen.
   bump('1.1');
   eq('9e1 voorwaarde: buiten de modus, planning verouderd', [S().recordedDates, S().datesAsRecorded, S().scheduleStale], [null, false, true]);
   const aanbodOpslag = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
@@ -342,8 +274,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   S().applyOpenedImport(readIFC(aanbodOpslag), { filePath: null, recompute: true });
   eq('9f heropenen van die opslag: geen vastlegging, geen modus', [S().recordedDates, S().datesAsRecorded], [null, false]);
 
-  // Bevinding 3: een datumbewerking in de modus (verlaat de modus, wist de vastlegging) + opslaan
-  // schrijft geen SourceFormat meer — de gids zegt "zolang je geen datums wijzigt of herberekent".
   S().newProject();
   S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
   bump('1.1');
@@ -355,26 +285,17 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   truthy('9h na F5 in de modus schrijft opslaan geen SourceFormat', !writeIFC(buildWriteIFCInput(S(), 'planOnly')).includes("'SourceFormat'"));
 }
 
-// ── (5-0) .mpp-kritiekgrens uit de projecteigenschappen (corpusloos) ────────────────────────────
-// CRITICAL_SLACK_LIMIT (MPXJ `ProjectPropertiesReader`: `props.getInt`, dagen). In het publieke
-// corpus staat hij overal op 0, dus de grens zelf is alleen hier en in 5f hieronder bewezen.
 {
   const props = (v: number) => ({ getInt: (key: number) => (key === 37748756 ? v : 0) });
   eq('5-0a grens 3 dagen wordt gelezen', criticalSlackLimitDaysOf(props(3)), 3);
   eq('5-0b ontbrekend (Props geeft 0) ⇒ 0, de MSP-default', criticalSlackLimitDaysOf(props(0)), 0);
   eq('5-0c een onzinnige waarde (1e9 dagen) valt terug op 0', criticalSlackLimitDaysOf(props(1_000_000_000)), 0);
-  // Totale speling (tienden van een minuut) uit start- en finish slack.
   eq('5-0d gestart: de finish slack, niet het minimum', mppTotalSlackTenths(true, 0, 4800), 4800);
   eq('5-0e gestart zónder finish slack maar mét start slack: geen speling (zoals MPXJ)', mppTotalSlackTenths(true, 0, null), null);
   eq('5-0f niet gestart: het minimum', mppTotalSlackTenths(false, 2400, 4800), 2400);
   eq('5-0g niet gestart, één as ontbreekt: geen speling (MPXJ calculateTotalSlack geeft dan null)', [mppTotalSlackTenths(false, null, 4800), mppTotalSlackTenths(false, 2400, null)], [null, null]);
 }
 
-// ── (5) .mpp — corpus-optioneel (OPS_MPP_CRAWL, publieke MPXJ-junit-data + OzBuild) ─────────────
-// Geen synthetische MPP-fixture: de veldkaart (EARLY_START 37 e.a., `fieldMap14.ts`) is uit
-// MPXJ overgenomen en wordt hier tegen echte bestanden bewezen. Zelfde standaardpad als
-// `check-mpp-fidelity.ts`; ontbreekt het: overgeslagen, met melding — de andere vier lagen
-// hierboven draaien altijd.
 {
   const crawl = process.env.OPS_MPP_CRAWL ?? '/home/nozzit/open-aec/voor claude/testdata-crawl';
   if (!existsSync(crawl)) {
@@ -390,10 +311,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
     };
     walk(crawl);
     let readable = 0, withRecorded = 0, tasksTotal = 0, tasksRecorded = 0, lateAxes = 0, floatAxes = 0, inverted = 0, mismatchedStart = 0;
-    // Critreview op ded4d8c3, bevinding 2: MS Project (MPXJ `Task.calculateCritical`) noemt een
-    // voltooide taak (werkelijk einde of 100%) NOOIT kritiek. Telling over de vastgelegde taken.
     let completedRecorded = 0, completedCritical = 0;
-    // Critreview PR #167, bevinding 6: alleen bladtaken dragen een vastlegging.
     let summariesRecorded = 0, leavesTotal = 0;
     for (const file of files.sort()) {
       let r: ImportResult;
@@ -416,9 +334,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
             completedRecorded++;
             if (rec.isCritical === true) completedCritical++;
           }
-          // De vastgelegde vroege start moet voor een AUTO-taak zonder actuals samenvallen met MSP's
-          // eigen geplande start (`task.time.scheduleStart`): EARLY_START = START in MSP zolang er
-          // geen voortgang is. Een afwijking wijst op een verkeerde veldkaart-offset.
           if (t.status === 'NOT_STARTED' && rec.start !== t.time.scheduleStart) mismatchedStart++;
         }
       }
@@ -428,9 +343,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
     truthy('5c de vastgelegde vroege start valt voor niet-gestarte taken samen met MSP\'s geplande start (veldkaart-offset EARLY_START bewezen)', mismatchedStart === 0);
     truthy('5d geen enkele vastlegging eindigt vóór haar start', inverted === 0);
     truthy(`5h geen samenvatting draagt een eigen vastlegging (${summariesRecorded})`, summariesRecorded === 0);
-    // 5f: de grens werkt echt door in `readTasks` — op het eerste crawl-bestand met een NIET-
-    // voltooide vastgelegde taak met positieve speling: grens 0 ⇒ niet kritiek, grens ≥ die
-    // speling ⇒ kritiek; een voltooide taak blijft bij elke grens niet-kritiek.
     let limitProven = false;
     for (const file of files) {
       if (limitProven) break;
@@ -454,9 +366,6 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
       } catch { continue; }
     }
     truthy('5f de kritiekgrens is op minstens één crawl-bestand doorgemeten', limitProven);
-    // 5g: bij een GESTARTE (niet-voltooide) taak is de totale speling de finish slack, niet
-    // min(start, finish) — MSP zet de start slack van een gestarte taak op 0, waardoor het minimum
-    // elke gestarte taak kritiek maakte. Telling: gestart, finish slack > 0, toch speling 0.
     let startedChecked = 0, startedZeroed = 0;
     for (const file of files) {
       try {

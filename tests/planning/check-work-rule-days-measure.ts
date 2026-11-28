@@ -1,4 +1,3 @@
-// F3a: T14, B1a en B3 op de pure driehoek en op gewone taakobjecten; geen store of solver.
 import {
   applyAssignmentAdded, applyDurationEdit, applyUnitsEdit, type TriangleState,
 } from '@/engine/work/workTriangle';
@@ -27,7 +26,6 @@ function near(label: string, value: number | undefined, expected: number): void 
 const calendar: WorkCalendar = {
   id: 'week', name: 'Korte vrijdag', description: '', hoursPerDay: 9,
   workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16, holidays: [],
-  // Modale dag = 8 u; vrijdag = 6 u. De opgeslagen scalar 9 mag de brug niet gebruiken.
   workTime: { byWeekday: {
     1: [{ start: 420, end: 900 }], 2: [{ start: 420, end: 900 }],
     3: [{ start: 420, end: 900 }], 4: [{ start: 420, end: 900 }],
@@ -47,7 +45,6 @@ function fixture(days = 5): { task: Task; assignments: ResourceAssignment[]; dep
   };
 }
 
-// T14: de pure kern rekent zonder maat, ook onder één minuut. De brug toetst beide maten hieronder.
 {
   const state: TriangleState = {
     rule: 'FIXED_RATE', remainingMinutes: 1200, slotMinutes: 480,
@@ -62,7 +59,6 @@ function fixture(days = 5): { task: Task; assignments: ResourceAssignment[]; dep
 }
 near('slot houdt de effectieve factor exact', slotMinutesOf({ hoursPerDay: 7.123 }), 427.38);
 
-// Elke werkregel beschermt ook na exact terugschrijven dezelfde hoek van de driehoek.
 for (const rule of WORK_RULES) {
   const { task, assignments, deps } = fixture(2.5);
   settleRuleChange(task, assignments, deps, rule);
@@ -76,7 +72,6 @@ for (const rule of WORK_RULES) {
   near(`${rule}: restwerk na halveren duur`, assignments[0].remainingWorkMinutes, keepWork ? 1200 : 600);
 }
 
-// Brug: terugschrijven mag de exacte kernuitkomst niet opnieuw afronden.
 for (const unit of ['days', 'hours'] as const) {
   const { task, assignments, deps } = fixture(2.5);
   task.workRule = 'FIXED_RATE';
@@ -90,7 +85,6 @@ for (const unit of ['days', 'hours'] as const) {
   near(`${unit}: werk blijft 20 u`, assignments[0].remainingWorkMinutes, 1200);
 }
 
-// B1a: 5d vast werk wordt 40 u, ook zonder toewijzingen en via de projectstandaard.
 for (const inherited of [false, true]) {
   const { task, assignments, deps } = fixture();
   if (inherited) { deps.project.defaultWorkRule = 'FIXED_WORK'; assignments.length = 0; }
@@ -111,7 +105,6 @@ for (const start of ['2026-06-01T07:00', '2026-06-03T07:00', '2026-06-05T07:00']
   near(`T14: 3d blijft 24 u bij start ${start}`, task.time.durationMinutes, 1440);
   near('T14: werk onafhankelijk van plaatsing', assignments[0].remainingWorkMinutes, 1440);
 }
-// B1a geldt ook op 100 %: de driehoek weigert rest 0, de maat moet toch worden omgezet.
 {
   const { task, assignments, deps } = fixture();
   task.time.completion = 1; task.time.remainingTime = 0;
@@ -131,7 +124,6 @@ for (const excluded of ['milestone', 'summary', 'hammock', 'elapsed'] as const) 
   ok(`${excluded}: geen tijdmutatie`, JSON.stringify(task.time) === before && !result.durationUnitChanged);
 }
 
-// B3: 32 % op 5d geeft 3,4d rest; bij omzetten en inzetwijziging blijft verricht werk staan.
 {
   const { task, assignments, deps } = fixture();
   task.time.completion = 0.32;
@@ -186,7 +178,6 @@ for (const excluded of ['milestone', 'summary', 'hammock', 'elapsed'] as const) 
   near('duurbewerking: rest 3,4 + 1', task.time.remainingTime, 4.4);
   near('duurbewerking: verricht 1,6d blijft', task.time.completion * 6, 1.6);
 }
-// Een expliciet restveld op een ongestarte taak volgt ook een breuk in de nieuwe duur.
 {
   const { task, assignments, deps } = fixture();
   task.time.remainingTime = 5;
@@ -196,7 +187,6 @@ for (const excluded of ['milestone', 'summary', 'hammock', 'elapsed'] as const) 
   near('ongestart: expliciete rest wordt 2,5d', task.time.remainingTime, 2.5);
 }
 
-// Contour en werkveld blijven gelijk, ook bij een exacte afgeleide inzet (geen vier decimalen).
 {
   const { task, assignments, deps } = fixture(3);
   task.timephasedContours = [{ resourceUid: null, resourceId: 'r', periods: [{ afterMinutes: 0, minutes: 1440, workMinutes: 1440, kind: 'remaining' }] }];
@@ -219,7 +209,6 @@ for (const excluded of ['milestone', 'summary', 'hammock', 'elapsed'] as const) 
   near('contour: resterende periode volgt werk', task.timephasedContours?.[0].periods[1].workMinutes, 500);
   near('contour: verricht veld blijft', assignments[0].actualWorkMinutes, 720);
 }
-// Kalenderwissel 8 → 6 u: dagenmaat FIXED_RATE houdt 32 u en krijgt 16/3d; urenmaat houdt minuten.
 for (const hour of [false, true]) {
   const { task, assignments, deps } = fixture(4);
   task.workRule = 'FIXED_RATE';

@@ -23,8 +23,8 @@ bestand, omdat een getal anders bij elke rondgang verandert.
   kalenderdagen, 4, 6, 10 en 12 kalenderminuten, 19 en 20 een procentlag en elk ander formaat werktijd, zonder
   afronding op hele dagen (spec §1.3, I1 en I2). `check-xml-adapter-fidelity.ts` #4 leest LagFormat 6 terug als 180
   kalenderminuten, `check-uren-f5a-adapters.ts` een procentlag als -12,5 %.
-- Een onbekend relatietype wordt FS (`mspTypeToSequenceType`, ook gebruikt door de `.mpp`-lezer). Dat MPXJ dezelfde
-  codes en dezelfde terugval heeft, komt uit het weggehaalde commentaar en is niet in de repo nagegaan.
+- Een onbekend relatietype wordt FS (`mspTypeToSequenceType`, ook gebruikt door de `.mpp`-lezer). MPXJ heeft dezelfde
+  codes en dezelfde terugval (`RelationType.getInstance`).
 - Met de taakmarkering `days` geeft de lezer een duur of rest van de vorm `PnD` als n dagen door (`wholeDays`);
   `readMeasure` neemt die dagen alleen als geen dagrecord voorgaat en het in de dagenmaat blijft. Hoe
   `mspDurationMinutes` een dagcomponent vóór de `T` telt, staat in knownbug 2010.
