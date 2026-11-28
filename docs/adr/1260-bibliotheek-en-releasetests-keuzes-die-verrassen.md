@@ -18,8 +18,9 @@ met die bestanden toetst hij ook de uitkomsten van de bezettings- en verdeelcode
   stukadoors (`publicDescription` in `scripts/showcases.ts`), die de verdeling er ook uit moet werken. Daar eist de
   check alleen een voorstel zonder blokkade en zonder tekort.
 - Blok (b3) toetst "Onderbrekingen toestaan" op tekort tegen geen tekort onder een bindend plafond, niet op een
-  kleinere uitloop. In `ResourceLeveler.findSlot` is `scatterSlot` een terugval die pas loopt als de aaneengesloten
-  scan geen plek vond, binnen het venster of, zonder venster, binnen zijn zoekgrens. De proef zet daarom een bindend
+  kleinere uitloop. In `ResourceLeveler.findSlot` is `scatterSlot` een terugval voor een taak die mag splitsen, in de
+  urenmaat; hij loopt pas als de aaneengesloten scan geen plek vond, binnen het venster of, zonder venster, binnen
+  zijn zoekgrens. De proef zet daarom een bindend
   plafond (`ceilingWorkdays`): de taak blijft in de uit-stand met conflictdagen liggen, en de twee standen verschillen
   alleen waar de uit-stand een tekort heeft. Een eis op kleinere uitloop in beide standen is daarmee onbereikbaar.
 - `tests/dev-server/bump-version.test.mjs` houdt een eigen lijst van versiebestanden en leest `VERSION_FIELDS` uit
