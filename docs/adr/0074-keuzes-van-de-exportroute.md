@@ -20,6 +20,8 @@ hier.
   2026-10-20); elk ander uurteken, bijvoorbeeld het Deense `t`, en een niet geïnitialiseerde i18next geven `u`
   (`parseableHourSuffix`). De export laadt `@/i18n/config` niet, want die raakt bij het laden `document` aan en breekt
   headless gebruik.
+- De CSV-export schrijft voltooiing in hele procenten (`formatCompletionPercent`): een spreadsheet die de komma als
+  duizendtalscheiding leest, maakt van `8,38` het getal 838.
 - In de modus *Datums zoals opgeslagen* schrijft de CSV-export een as die het bronbestand niet vastlegde niet als
   verzonnen 0 of No (`unrecordedExportGate`).
 - Na een geslaagde export komt hoogstens één verliesmelding. Bij XER en P6 XML is het de melding van dat formaat, en

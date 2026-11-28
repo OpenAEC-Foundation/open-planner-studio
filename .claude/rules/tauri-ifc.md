@@ -196,6 +196,11 @@ Besluiten: `docs/adr/0760-fetch-met-een-tijdslimiet.md` (`fetchWithTimeout.ts`),
 `0761-ingelezen-taken-boom-en-restduur.md` (`importNormalize.ts`) en `0762-xer-bronarchief-eerst-valideren.md`
 (`xerSourceArchive.ts`).
 
+### MSPDI-beschikbaarheid en CSV-export (`msproject/`, `csv/`)
+
+Besluiten: `docs/adr/0970-mspdi-beschikbaarheid-en-kritiek-drempel.md` (`mspdiAvailability.ts`,
+`mspdiCriticalSlackLimit.ts`) en `0074-keuzes-van-de-exportroute.md` (`csvWriter.ts`).
+
 ### Gedeelde helpers binnen een dag (`subdayIo.ts`)
 
 Besluiten van de helpers voor de IFC-, MSPDI-, P6 XML-, XER- en `.mpp`-adapters en het kalendervenster:

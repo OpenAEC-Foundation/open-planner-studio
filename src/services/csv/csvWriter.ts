@@ -27,15 +27,6 @@ function sequenceTypeToAbbrev(type: SequenceType): string {
   }
 }
 
-/**
- * Completion (%) in HELE procenten, geen decimalen: een bestand met decimale procenten gaat door
- * spreadsheetprogramma's met willekeurige landinstelling, en "8,38" (komma als decimaalteken) wordt
- * met de andere conventie (punt/komma als DUIZENDTALscheider) als 838 gelezen. Dat risico weegt
- * zwaarder dan de no-op-precisie. `isCompletionUnchanged` (buildPlan.ts) vangt het gevolg op: "100"
- * op een taak van ≥ 99,5% is bewust een no-op (symmetrisch voor "0" op ≤ 0,5%) — het bestand kan die
- * twee niet uit elkaar houden. Decimale INVOER (met de hand getypt, bv. "33,4") blijft op zijn eigen
- * precisie vergeleken.
- */
 export function formatCompletionPercent(completion: number): string {
   return String(Math.round(completion * 100));
 }
@@ -48,51 +39,26 @@ export function writeCSV(
   _resources: Resource[],
   _assignments: ResourceAssignment[],
   customTaskTypes: readonly CustomTaskType[] = [],
-  /**
-   * "Datums zoals opgeslagen": staat de modus aan, dan draagt `task.time` de vastlegging van het
-   * bronbestand — mét de bewuste terugvallen voor assen die het bestand NIET vastlegde
-   * (`totalFloat ?? 0`, `isCritical ?? false`). In de tabel toont die naad "Niet vastgelegd"; hier
-   * is het equivalent een LEGE cel, want een CSV-lezer kan een verzonnen `0` niet van een echte
-   * nulspeling onderscheiden. `undefined` (het gewone geval, en elk document buiten de modus) ⇒
-   * gewone export. De aanroeper bouwt deze functie met `unrecordedExportGate`
-   * (`state/recordedDatesSelectors`); deze module blijft store-vrij en krijgt hem als parameter.
-   */
   unrecordedExportFieldsOf?: (task: Task) => readonly UnrecordedExportField[],
-  /**
-   * Uurteken van een lag in de kolom Predecessors (eigenaarsbesluit 2026-10-20, optie 2): het teken
-   * van de app-taal, zoals de aanroeper het via `parseableHourSuffix` bepaalt. nl ⇒ `3FS+2u`,
-   * en ⇒ `3FS+2h`; een taal zonder leesbare afkorting (bijv. ru) ⇒ `u`. `readCSV` leest beide.
-   */
   lagHourSuffix: 'u' | 'h' = 'u',
-  /** Standaard de computerinstelling, onafhankelijk van de taal van de app. */
   locale?: string,
 ): string {
-  // Alleen het decimaalteken komt uit Intl: geen afronding of duizendtalscheiding.
-  // Latijnse cijfers houden het bestand leesbaar voor spreadsheets en de CSV-lezer.
   const decimal = new Intl.NumberFormat(locale, { numberingSystem: 'latn' })
     .formatToParts(1.1).find(part => part.type === 'decimal')!.value;
   const delimiter = decimal === ',' ? ';' : ',';
   const numberCell = (value: number) => escapeCSV(String(value).replace('.', decimal));
 
-  // De "Duration (days)"-kolom kent geen elapsed-notatie (anders dan de relatie-lag, die "ed"/"e%"
-  // al schrijft) — een taak met ELAPSEDTIME-duur (24/7-klokrekenen, bv. uit een `.mpp`-import)
-  // schrijft daarom als gewone werktijdduur. Weggelaten-met-warn, zelfde patroon als de andere
-  // exporters (`mspdiWriter.ts`/`p6xmlWriter.ts`).
   const elapsedTaskCount = tasks.filter(t => t.time.durationType === 'ELAPSEDTIME').length;
   if (elapsedTaskCount > 0) {
     console.warn(`CSV-export: ${elapsedTaskCount} taak/taken met ELAPSEDTIME-duur (24/7-klokrekenen) geëxporteerd als gewone werktijd-duur — CSV kent geen elapsed-duurnotatie (§6).`);
   }
 
-  // Build predecessor map: successorId -> list of predecessor descriptions
   const predMap = new Map<string, string[]>();
   const taskByIdMap = new Map<string, Task>();
   for (const t of tasks) {
     taskByIdMap.set(t.id, t);
   }
 
-  // De voorgangerkolom verwijst op WBS-code; met dubbele codes kan de lezer een
-  // relatie niet meer eenduidig terugvinden. Weggelaten-met-warn (zelfde patroon als de andere
-  // exporters) — de kolom zelf blijft leesbaar voor spreadsheetgebruikers.
   const codeCount = new Map<string, number>();
   for (const t of tasks) codeCount.set(t.wbsCode, (codeCount.get(t.wbsCode) ?? 0) + 1);
   const duplicateCodes = [...codeCount].filter(([, n]) => n > 1).length;
@@ -104,11 +70,6 @@ export function writeCSV(
     const predTask = taskByIdMap.get(seq.predecessorId);
     if (!predTask) continue;
     const abbrev = sequenceTypeToAbbrev(seq.type);
-    // De korte lag-notatie van de app (MS Project-stijl, symmetrisch met `parseLagInput`, waarmee
-    // `readCSV` hem terugleest): d = werkdagen, ed = kalenderdagen, u/eu of h/eh = (elapsed) uren in
-    // het uurteken van de app-taal (`lagHourSuffix`), % / e% = procent van de voorgangerduur. Via
-    // `lagMinutes`, anders verdwijnt elke uur-lag (en in een uurproject óók elke dag-lag, die daar in
-    // minuten staat) stil uit de export.
     const lag = formatLagShort(seq, lagHourSuffix);
     const predStr = `${predTask.wbsCode}${abbrev}${lag}`;
     if (!predMap.has(seq.successorId)) {
@@ -118,19 +79,9 @@ export function writeCSV(
   }
 
   const headers = [
-    // Stabiele taak-id, EERSTE kolom, in ELKE CSV-export — geen apart sjabloonformaat. Laat een
-    // rondgestuurd blad terugkoppelen naar de juiste taak (voortgangsimport). `readCSV` (csvReader.ts)
-    // kent deze kop bewust NIET — een no-op door constructie (mapColumnIndex negeert onbekende
-    // koppen), niet iets om later "voor de volledigheid" alsnog te laten adopteren.
     'OPS Task ID',
-    // 'Outline Level' (1 = hoofdniveau) uit de echte ouderketen, in MS-Project-termen.
-    // Een WBS-code is vrije tekst (IFC-`Identification`) en zegt niets over de nesting; met deze
-    // kolom kan MS Project's CSV-import (veld "Outline Level") én `readCSV` de boom exact herbouwen.
-    // Rijvolgorde is daarom diepte-eerst (`flattenOrder`), zoals het taakraster hem toont.
     'WBS', 'Outline Level', 'Name', 'Duration (days)', 'Start', 'Finish',
     'Predecessors', 'Task Type', 'OPS Custom Task Type ID', 'Status', 'Completion (%)',
-    // Actuals: achter Completion. Kolomkoppen altijd aanwezig (CSV-conventie);
-    // een taak zonder actuals levert lege cellen. Geen baselines/statusdatum in CSV (bewust).
     'Actual Start', 'Actual Finish',
     'Critical', 'Total Float', 'Description',
   ];
