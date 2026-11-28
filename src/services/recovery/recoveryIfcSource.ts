@@ -2,16 +2,9 @@ import type { ForeignSourceFingerprint } from '@/services/ifc/foreign/foreignSou
 import { parseForeignSourceFingerprint } from '@/services/ifc/foreign/foreignSourceMark';
 import type { IFCSaveSource } from '@/state/ifcSaveInput';
 
-/** Optionele documentmetadata binnen manifest v5. Oude lezers negeren dit veld.
- * Het pad/site-id staat uitsluitend in foreignSource; alleen de browserhandle mist daar nog.
- * Geen bronbytes of sessiekaart.
- */
 export interface RecoveryIfcSource extends ForeignSourceFingerprint {
   readonly foreign: true;
   readonly handle?: FileSystemFileHandle;
-  /** Knownbug 1131 stap 1: de versie die tijdens een vervanging op het eigen doel komt (`recoveryPendingSource.ts`).
-   * Het herstel aanvaardt dan ook een bron met deze sha256. Optioneel binnen v5 (besluit 16 november 2026, in plaats
-   * van manifest 6): een oudere app negeert het veld en geeft na zo'n crash hoogstens "bron ontbreekt". */
   readonly pendingSha256?: string;
 }
 
@@ -29,7 +22,6 @@ export function recoveryIfcSourceFields(
   } };
 }
 
-/** Een ongeldige verwijzing herstelt hoogstens de planning met de bestaande bronblokkade. */
 export function ifcSourceMetaFields(record: object | null | undefined): { ifcSource?: RecoveryIfcSource } {
   const raw = (record as { ifcSource?: unknown } | null | undefined)?.ifcSource;
   if (!raw || typeof raw !== 'object') return {};

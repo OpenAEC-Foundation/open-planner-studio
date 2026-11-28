@@ -7,7 +7,6 @@ export type RecoveryWorker = Pick<Worker, 'postMessage' | 'terminate' | 'onmessa
 
 class RecoverySerializationError extends Error {}
 
-/** Eén herbruikbare worker per autosave-hook, met maximaal één verzoek tegelijk. */
 export function createRecoverySnapshotSerializer(
   createWorker: () => RecoveryWorker | null = () => typeof Worker === 'undefined' ? null
     : new Worker(new URL('./recoverySnapshot.worker.ts', import.meta.url), { type: 'module' }),
@@ -20,7 +19,6 @@ export function createRecoverySnapshotSerializer(
   let rejectActive: ((error: Error) => void) | null = null;
 
   const serialize = (source: IFCSaveSource, identities = false): Promise<RecoverySnapshot> => {
-    // Leg de invoer vóór de eerste await vast uit dezelfde immutable payload als de delta.
     const snapshot = recoverySnapshotInput(source, identities);
     const run = tail.then(async () => {
       if (disposed) throw new Error('Crashherstel-serialisatie is gestopt.');
@@ -47,15 +45,11 @@ export function createRecoverySnapshotSerializer(
           activeWorker.postMessage({ id, snapshot } satisfies RecoveryWorkerRequest);
         });
       } catch (error) {
-        // Een inhoudelijke writerfout blijft een fout: niets committen, de worker blijft bruikbaar
-        // voor de volgende versie. Alleen transport-/opstartfouten gebruiken de synchrone terugval.
         if (error instanceof RecoverySerializationError || error instanceof IfcCalendarTimePrecisionError) throw error;
         activeWorker.terminate();
         worker = null;
         unavailable = true;
         if (disposed) throw error;
-        // Ook CSP/start-/clonefouten mogen crashherstel niet uitschakelen. De fallback schrijft
-        // exact dezelfde vastgelegde versie.
         return writeRecoverySnapshot(snapshot);
       } finally {
         clearTimeout(timeout);
