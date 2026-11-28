@@ -113,3 +113,4 @@ Gidsen: `public/docs/{nl,en}/howto-werkregel-kiezen.md` en het veld *Taaktype* i
 
 Besluiten in de werkregelbrug (`workRuleApply.ts`) staan in `docs/adr/`: momentopname, bewerking en terugschrijven
 (0200), verricht en resterend werk per toewijzing (0201) en vast werk als urenmaat, ook bij openen (0202).
+Waarom `importedAssignmentRate` (`workRuleMapping.ts`) een P6-resttempo binnen 1e-5 als het begrote ziet: ADR 0900.
