@@ -1,29 +1,14 @@
 import type { AvailabilityStep, Resource } from '@/types/resource';
 import { addCalendarDays, formatDate, parseDate } from '@/utils/dateUtils';
 
-/**
- * Tijdsafhankelijke capaciteit ↔ MSPDI `<AvailabilityPeriods>` (#556).
- *
- * OPS: `maxUnits` geldt vóór de eerste stap; vanaf `from` geldt de stap tot de volgende (`maxUnitsOn`, gelijke
- * `from` ⇒ de laatste in de lijst wint). MSPDI: een lijst periodes met `AvailableFrom`/`AvailableTo`/
- * `AvailableUnits` (1 = 100 %, zoals `MaxUnits`). MS Project gebruikt 1984-01-01 en 2049-12-31 als "NA", het
- * open begin en einde van de tabel. De writer schrijft de periodes sluitend over die hele tijdlijn: de eerste
- * draagt de vlakke waarde, de laatste loopt tot het open einde, en elke grens is een hele dag (tot 23:59 van de
- * dag vóór de volgende stap).
- */
 export const MSPDI_AVAILABILITY_NA_START = '1984-01-01';
 export const MSPDI_AVAILABILITY_NA_END = '2049-12-31';
-/** De uiterste datum van MS Project (2149-12-31; 2049 was de grens tot Project 2010). */
 const MSPDI_LAST_DATE = '2149-12-31';
-/** Een open einde bij het lezen: na elke echte datum. */
 const OPEN_END = '9999-12-31';
-/** NA of de uiterste datum: een open einde, tenzij er daarna nog een periode begint (dan een echte grens). */
 const isEndSentinel = (to: string) => to === MSPDI_AVAILABILITY_NA_END || to === MSPDI_LAST_DATE;
 
 export interface MspdiAvailabilityPeriod {
-  /** `YYYY-MM-DD`, inclusief; bij het lezen `''` als de grens ontbreekt (= NA). */
   from: string;
-  /** `YYYY-MM-DD`, inclusief (de hele dag); bij het lezen `''` als de grens ontbreekt (= NA). */
   to: string;
   units: number;
 }
@@ -32,7 +17,6 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const isUnits = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0;
 const shiftDay = (iso: string, days: number) => formatDate(addCalendarDays(parseDate(iso), days));
 
-/** De stappen zoals `maxUnitsOn` ze leest: op datum gesorteerd, per datum de laatste in de lijst (`Map.set`). */
 function normalizedSteps(steps: readonly AvailabilityStep[]): AvailabilityStep[] {
   const byDay = new Map<string, number>();
   for (const step of steps) {
@@ -44,7 +28,6 @@ function normalizedSteps(steps: readonly AvailabilityStep[]): AvailabilityStep[]
     .sort((a, b) => a.from.localeCompare(b.from));
 }
 
-/** De periodes voor `<AvailabilityPeriods>`; leeg voor een vlakke resource (dan schrijft de writer niets). */
 export function availabilityPeriodsOf(resource: Pick<Resource, 'maxUnits' | 'availabilitySteps'>): MspdiAvailabilityPeriod[] {
   const steps = normalizedSteps(resource.availabilitySteps ?? []);
   if (steps.length === 0) return [];
@@ -54,23 +37,12 @@ export function availabilityPeriodsOf(resource: Pick<Resource, 'maxUnits' | 'ava
   }
   steps.forEach((step, i) => {
     const next = steps[i + 1];
-    // Het open einde: NA, of de uiterste datum van MS Project voor een stap ná NA (anders eindigt de periode
-    // vóór haar begin en valt ze weg).
     const openEnd = step.from > MSPDI_AVAILABILITY_NA_END ? MSPDI_LAST_DATE : MSPDI_AVAILABILITY_NA_END;
     periods.push({ from: step.from, to: next ? shiftDay(next.from, -1) : openEnd, units: step.maxUnits });
   });
   return periods;
 }
 
-/**
- * Periodes uit een bestand ⇒ de vlakke waarde en de stappen. Een ontbrekend begin is NA. Een einde is open als het
- * ontbreekt, of als het NA (2049-12-31) of de uiterste datum van MS Project (2149-12-31) is en er geen latere
- * periode begint; elk ander einde is een echte grens. Buiten elke periode is de resource in MS Project niet beschikbaar: vóór de eerste periode, in een
- * gat en na een periode met een echte einddatum. Dat wordt een stap naar 0; vóór de eerste periode een
- * stap op NA zelf, omdat de vlakke waarde (`MaxUnits`) groter dan 0 moet blijven. Een periode vanaf NA met
- * capaciteit draagt de vlakke waarde. Een stap die de capaciteit niet verandert, valt weg, zodat een vlakke
- * tabel geen stappen geeft.
- */
 export function availabilityFromPeriods(
   maxUnits: number,
   periods: readonly MspdiAvailabilityPeriod[],
