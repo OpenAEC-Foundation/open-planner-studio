@@ -2660,6 +2660,12 @@ en noem het in je rapport of PR-tekst.
      `lag`. Nagespeeld via de dispatcher: twee taken en één item `{ predecessorId, successorId, type: 'FS', lagDays: 2 }`;
      de aanroep slaagde zonder weigering en de relatie kreeg `lagDays: 0`. ADR 0494.
      Issue #1314. — B
+2760. **Een herhaalde `planner_import_schedule` kan een tweede tabblad openen.** Draaide de eerste import al en
+     opende die ondanks de HTTP-time-out van de client toch, dan is de herhaling een nieuw verzoek
+     (`createRequestHandler`, `src/services/mcp/requestHandler.ts`), en de import herkent een bestaand tabblad alleen in
+     enkele gevallen, zoals hetzelfde IFC-pad met bekende bestandsversie en `ifcForeignContent` aan
+     (`tools/fileTools.ts`). Een import die langer dan `MCP_QUEUE_DEADLINE_MS` in de wachtrij stond, wordt overgeslagen
+     en opent geen tabblad. Gezien in het weggehaalde commentaar en de review, niet nagespeeld. — S
 
 ## Bestanden en herstel
 
