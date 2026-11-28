@@ -1,0 +1,64 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "fonts-macos",
+  "description": "System font read access for macOS",
+  "windows": [
+    "main"
+  ],
+  "platforms": [
+    "macOS"
+  ],
+  "permissions": [
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [
+        {
+          "path": "/System/Library/Fonts"
+        },
+        {
+          "path": "/System/Library/Fonts/**"
+        },
+        {
+          "path": "/Library/Fonts"
+        },
+        {
+          "path": "/Library/Fonts/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-open",
+      "allow": [
+        {
+          "path": "/System/Library/Fonts"
+        },
+        {
+          "path": "/System/Library/Fonts/**"
+        },
+        {
+          "path": "/Library/Fonts"
+        },
+        {
+          "path": "/Library/Fonts/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        {
+          "path": "/System/Library/Fonts"
+        },
+        {
+          "path": "/System/Library/Fonts/**"
+        },
+        {
+          "path": "/Library/Fonts"
+        },
+        {
+          "path": "/Library/Fonts/**"
+        }
+      ]
+    }
+  ]
+}
