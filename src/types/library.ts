@@ -2,67 +2,37 @@ import i18next from 'i18next';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource } from '@/types/resource';
 
-/**
- * Herkomststempel op een PROJECTKOPIE van een bibliotheekitem. Maakt "bijwerken vanuit bibliotheek",
- * duplicaatherkenning en resource-identiteit over projecten mogelijk. `libraryItemId` = het `id` van
- * het bronitem IN de pool (de pool-identiteit).
- */
 export interface LibraryOrigin {
   companyId: string;
   libraryItemId: string;
   poolVersion: number;
-  /** Hash van de gevolgde velden op het moment van materialisatie/laatste verversing. Spiegelt EXACT
-   *  de diff-normalisatie (`diffKey` + de `*_DIFF_FIELDS`-lijsten) zodat "hash gelijk" en "diff
-   *  up-to-date" niet uiteenlopen. Onderscheidt "bestand extern bewerkt" (hash ≠ file) van "bestand
-   *  loopt achter op de pool" (hash == file, pool wijkt af). Afwezig (oudere bestanden) ⇒ veilige
-   *  kant: behandelen als mogelijk extern bewerkt. */
   syncedHash?: string;
 }
 
-/** Een door de gebruiker benoemde groepering met een eigen pool (UI: resourcebibliotheek). */
 export interface Company {
   id: string;
   name: string;
 }
 
-/**
- * De verzameling bibliotheekkalenders en -resources van één bedrijf. `poolVersion` loopt
- * monotoon op bij elke wijziging; `modifiedAt` is de ISO-tijdstempel van de laatste wijziging. De
- * `id` van elke kalender/resource IN de pool is diens stabiele identiteit (het `libraryItemId` waar
- * herkomststempels naar wijzen).
- */
 export interface CompanyPool {
   companyId: string;
   companyName: string;
   poolVersion: number;
-  modifiedAt: string; // ISO 8601
-  /**
-   * Alleen voor GEGENEREERDE pools (nu uitsluitend de demo-bibliotheek, zie
-   * `services/library/demoLibrary.ts`): met welke INHOUDSversie van de seed deze pool is
-   * aangemaakt/bijgewerkt. Losstaand van `poolVersion` — dat is de bewerkingsteller waar
-   * herkomststempels en de import-demping op leunen; dit veld zegt alleen "de ingebakken
-   * demo-inhoud is al bijgewerkt tot hier", zodat `seedDemoLibrary` een bestaande installatie
-   * eenmalig kan bijwerken in plaats van hem voor altijd op de oude inhoud te laten staan.
-   * Afwezig ⇒ versie 0 (een oudere pool, of een door de gebruiker gemaakte pool).
-   */
+  modifiedAt: string;
   seedVersion?: number;
   calendars: WorkCalendar[];
   resources: Resource[];
 }
 
-/** De volledige, app-globale bibliotheek: bedrijven + hun pools + welk bedrijf de default is. */
 export interface CompanyLibrary {
   companies: Company[];
   defaultCompanyId: string;
-  pools: Record<string, CompanyPool>; // key = companyId
+  pools: Record<string, CompanyPool>;
 }
 
-/** Vaste id van de automatische standaard-resourcebibliotheek, onafhankelijk van de naam. */
 export const DEFAULT_COMPANY_ID = 'company-default';
 
 export function createDefaultCompany(): Company {
-  // De UI-taal geldt bij aanmaak; opgeslagen namen zijn gebruikersdata. Zonder i18n (headless)
-  // blijft de oude terugval gelden, zonder de DOM-afhankelijke i18n/config te laden.
   const name = i18next.isInitialized
     ? i18next.t('companyLibrary.defaultCompany', { ns: 'common' })
     : 'Mijn resourcebibliotheek';
