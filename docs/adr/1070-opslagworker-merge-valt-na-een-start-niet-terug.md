@@ -1,6 +1,7 @@
 # Opslagworker: een merge valt na een eerste start niet terug op de hoofdthread
 
-Een gewoon verzoek aan de opslagworker rekent bij een startprobleem zelf op de hoofdthread, zoals main. Een merge doet
+Een gewoon verzoek aan de opslagworker rekent bij een startprobleem zelf op de hoofdthread, zoals main, behalve een
+IFCX-opslag: die valt nooit terug (`workerOnly` in `ifcSaveWorker.ts`). Een merge doet
 dat alleen zolang er in deze sessie nog nooit een worker startte; daarna wordt een startprobleem een mislukte opslag
 (`IfcSaveWorkerError` met `not-started`, `compute` in `ifcSaveWorker.ts`). Een merge is er alleen bij een document met
 een gebouwmodel of gegevens van een ander programma, en zo'n opslag duurt lang: Ctrl+S van een model van 157 MB
