@@ -1,21 +1,5 @@
-// Minimale, alleen-lezen Compound File Binary (CFB/OLE2) parser — het containerformaat van
-// .mpp-bestanden (MS Project 2010+/MPP14) en oudere Office-formaten. Eigen implementatie, geen
-// dependency (conform de eigen-parser-traditie van dit project, vgl. de IFC-parser).
-//
-// Structuurkennis is gebaseerd op de MS-CFB-specificatie (Microsoft) en, ter verificatie, op de
-// vergelijkbare sector/FAT/directory-afhandeling in MPXJ (Jon Iles e.a., LGPL-2.1, POI-achtig):
-// https://github.com/joniles/mpxj — met name `org.mpxj.mpp` (leest hetzelfde containerformaat).
-// Deze module kent geen MPP-specifieke semantiek (die zit in `mppContainer.ts` e.v.); ze levert
-// alleen de generieke storage/stream-boom en ruwe streambytes.
-//
-// Hardening: elke lus over bestandsinhoud is begrensd door een bovengrens die uitsluitend uit de
-// ECHTE bestandsgrootte volgt (`maxSectorSteps`/`maxMiniSteps`), nooit door een ongevalideerde
-// teller uit het bestand zelf (zoals `numDifatSectors` of `numFatSectors`) — een geprepareerd bestand
-// mag nooit meer CPU/geheugen claimen dan zijn eigen omvang rechtvaardigt. Synthetische fixtures in
-// `tests/planning/check-mpp-import.ts` bewijzen dit (o.a. een zelf-lussende DIFAT-sector met een
-// vijandig grote `numFatSectors`, en dubbele siblings voor de gedeelde visited-set).
+// Bron: MS-CFB-specificatie van Microsoft, ter controle de containerlezer van MPXJ van Jon Iles e.a. (LGPL-2.1, github.com/joniles/mpxj).
 
-/** Herkenbare containerfout: de UI vertaalt de kop, technische details blijven Engels. */
 export class CfbParseError extends Error {
   readonly cfbCode = 'CFB_INVALID';
 
@@ -29,10 +13,6 @@ const MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 
 const FAT_FREESECT = 0xffffffff;
 const FAT_ENDOFCHAIN = 0xfffffffe;
-// FAT_FATSECT (0xFFFFFFFD) en FAT_DIFSECT (0xFFFFFFFC) markeren sectoren die zelf FAT- resp.
-// DIFAT-inhoud dragen; deze lezer volgt ze nooit als data-keten (ze duiken alleen op ín de FAT
-// zelf, nooit als "volgende sector" tijdens het lezen van een gewone stream), dus er is geen
-// aparte afhandeling nodig — alleen de twee sentinels hierboven sturen de leeslussen.
 
 const NOSTREAM = 0xffffffff;
 
@@ -53,15 +33,10 @@ interface RawDirEntry {
 }
 
 export interface CfbEntry {
-  /** UTF-16LE-naam; kan \x01/\x05-prefixtekens bevatten (bv. "\x01CompObj"). */
   name: string;
   type: 'storage' | 'stream';
   size: number;
-  /** Startsector (normale FAT-sector, of ministart-sector wanneer `size` onder de
-   *  mini-stream-cutoff valt) — intern boekhoudkundig veld dat `getStream()` gebruikt; buiten
-   *  deze module zelden relevant, maar publiek zodat er geen zijtabel nodig is om 'm op te zoeken. */
   readonly startSector: number;
-  /** Alleen gevuld bij storages. */
   children: Map<string, CfbEntry>;
 }
 
@@ -77,18 +52,8 @@ export class CfbFile {
   private readonly miniFat: Uint32Array;
   private readonly miniStreamStartSector: number;
   private readonly miniStreamSize: number;
-  /** Bovengrens voor elke begrensde lus over GEWONE sectoren (DIFAT/FAT/directory/gewone-stream-
-   *  ketens) — afgeleid van de ECHTE bestandsgrootte gedeeld door `sectorSize`, nooit van een
-   *  teller die het bestand zelf beweert. Bewust apart van `maxMiniSteps`: de fijnere
-   *  minisector-korrel zou hier tot 8× te ruim zijn (20 MB invoer gaf zo 932 MB piekgeheugen). */
   private readonly maxSectorSteps: number;
-  /** Zelfde soort bovengrens, maar voor MINI-sector-ketens (readMiniChain) — afgeleid van de
-   *  bestandsgrootte gedeeld door `miniSectorSize` (64 bytes), de fijnste korrel. Een minisector-
-   *  keten heeft per byte data tot 8x zoveel schakels nodig als een gewone sectorketen, dus deze
-   *  grens moet ruimer zijn dan `maxSectorSteps` om legitieme mini-streams niet af te wijzen. */
   private readonly maxMiniSteps: number;
-  /** Mini-stream-inhoud (= de stream van de root-entry), lazy gelezen en hergebruikt: zonder cache
-   *  zou elke kleine stream de hele mini-stream opnieuw via de gewone FAT moeten lezen. */
   private miniStreamCache: Uint8Array | null = null;
 
   constructor(bytes: Uint8Array) {
@@ -110,8 +75,6 @@ export class CfbFile {
     if (majorVersion !== 3 && majorVersion !== 4) {
       throw new CfbParseError(`CFB: unknown major version ${majorVersion} (expected 3 or 4)`);
     }
-    // sectorShift/miniSectorShift/miniStreamCutoff zijn voor CFB vaste waarden per major version —
-    // expliciet valideren i.p.v. `1 << sectorShift` blind te vertrouwen (dat wrapt stil modulo 32).
     const sectorShift = this.view.getUint16(30, true);
     const miniSectorShift = this.view.getUint16(32, true);
     const expectedSectorShift = majorVersion === 3 ? 9 : 12;
@@ -137,10 +100,6 @@ export class CfbFile {
     const firstDifatSector = this.view.getUint32(68, true);
     const numDifatSectors = this.view.getUint32(72, true);
 
-    // Sector n begint op byteoffset (n + 1) * sectorSize (geldt voor v3 én v4 — bij v4 is de
-    // header zelf met nullen opgevuld tot de volledige sectorgrootte). `maxSectors` — de fysieke
-    // sectortelling — is de ENIGE bron voor beide stapbudgetten: geen lus mag zijn budget laten
-    // meegroeien met een teller uit het bestand zelf.
     const maxSectors = Math.ceil(bytes.byteLength / this.sectorSize);
     this.maxSectorSteps = Math.max(16, maxSectors + 16);
     this.maxMiniSteps = Math.max(16, Math.ceil(bytes.byteLength / this.miniSectorSize) + 16);
@@ -167,12 +126,6 @@ export class CfbFile {
     this.root = this.buildTree(rawEntries, rootRaw);
   }
 
-  // ── DIFAT/FAT ──────────────────────────────────────────────────────────────────────────────
-
-  /** Sommeert de FAT-sectornummers: 109 header-entries + eventueel geketende DIFAT-sectoren.
-   *  Begrensd door `maxSectorSteps`, NOOIT door het ongevalideerde `numDifatSectors`/`numFatSectors`.
-   *  `cap` is `Math.min(numFatSectors || maxSectors, maxSectors)`: een vijandig grote `numFatSectors`
-   *  (bv. 0xFFFFFFFF) mag de `difat`-array nooit voorbij het fysieke aantal sectoren laten groeien. */
   private readDifat(firstDifatSector: number, numDifatSectors: number, numFatSectors: number, maxSectors: number): number[] {
     const cap = Math.min(numFatSectors || maxSectors, maxSectors);
     const difat: number[] = [];
@@ -195,7 +148,7 @@ export class CfbFile {
       if (off + this.sectorSize > this.bytes.byteLength) {
         throw new CfbParseError(this.fmtErr('DIFAT sector outside file bounds', 'DIFAT', difatSector, off));
       }
-      const entriesPerSector = this.sectorSize / 4 - 1; // laatste u32 = volgende DIFAT-sector
+      const entriesPerSector = this.sectorSize / 4 - 1;
       for (let i = 0; i < entriesPerSector && difat.length < cap; i++) {
         const v = this.view.getUint32(off + i * 4, true);
         if (v !== FAT_FREESECT) difat.push(v);
@@ -205,9 +158,6 @@ export class CfbFile {
     return difat;
   }
 
-  /** Bouwt de FAT: u32-array, per sector de volgende sector in zijn keten. Gekapt op `maxSectors`
-   *  (meer entries zijn zinloos). `maxSectors` komt van de constructor, zodat deze functie en
-   *  `readDifat` gegarandeerd dezelfde grens hanteren. */
   private readFat(difat: number[], maxSectors: number): Uint32Array {
     const entriesPerFatSector = this.sectorSize / 4;
     const values: number[] = [];
@@ -237,8 +187,6 @@ export class CfbFile {
     return values;
   }
 
-  // ── Directory ──────────────────────────────────────────────────────────────────────────────
-
   private parseDirectory(dirBytes: Uint8Array): RawDirEntry[] {
     const entryCount = Math.floor(dirBytes.length / DIR_ENTRY_SIZE);
     if (entryCount === 0) {
@@ -257,8 +205,6 @@ export class CfbFile {
 
       let name = '';
       if (nameLenBytes >= 2) {
-        // nameLenBytes telt de terminerende NUL mee; charCount is inclusief eventuele
-        // \x01/\x05-prefixtekens die MS Project/Office gebruiken voor speciale streams.
         const charCount = Math.max(0, Math.min(31, Math.floor(nameLenBytes / 2 - 1)));
         const codeUnits: number[] = [];
         for (let c = 0; c < charCount; c++) {
@@ -274,20 +220,12 @@ export class CfbFile {
         right: view.getUint32(base + 72, true),
         child: view.getUint32(base + 76, true),
         startSector: view.getUint32(base + 116, true),
-        // Streamgrootte is u64 @120; alleen de laagste 32 bits lezen volstaat ruimschoots voor
-        // .mpp-bestanden (die blijven ver onder 4 GiB).
         size: view.getUint32(base + 120, true),
       });
     }
     return entries;
   }
 
-  // ── Boom ───────────────────────────────────────────────────────────────────────────────────
-
-  /** Bouwt de storage/stream-boom uit de platte directory-lijst. Volledig iteratief via een
-   *  expliciete worklist (geen recursie, dus geen stack-overflow bij diep geneste storages) en met
-   *  ÉÉN gedeelde visited-set over de hele boom: een cyclische child/left/right-verwijzing wordt
-   *  hoe dan ook maar één keer verwerkt. */
   private buildTree(rawEntries: RawDirEntry[], rootRaw: RawDirEntry): CfbEntry {
     interface WorkItem {
       id: number;
@@ -307,7 +245,7 @@ export class CfbFile {
       if (!item) continue;
       const { id, target } = item;
       if (id === NOSTREAM || id < 0 || id >= rawEntries.length) continue;
-      if (visited[id]) continue; // al bezocht — cyclus/self-reference, stilzwijgend overslaan
+      if (visited[id]) continue;
       visited[id] = 1;
       const raw = rawEntries[id];
       if (raw.type !== 'storage' && raw.type !== 'stream') continue;
@@ -336,15 +274,10 @@ export class CfbFile {
     };
   }
 
-  // ── Sector-/ketenlezers ────────────────────────────────────────────────────────────────────
-
   private sectorOffset(sector: number): number {
     return (sector + 1) * this.sectorSize;
   }
 
-  /** Elke `CFB:`-fout krijgt context mee: welk pad/welke structuur (`label`), welke sector, welke
-   *  byte-offset en de totale bestandslengte. De offset wordt door de aanroeper berekend, met de
-   *  juiste korrel (gewone sector of minisector). */
   private fmtErr(detail: string, label: string, sector?: number, offset?: number): string {
     const bits = [`CFB: ${detail}`, `[${label}]`];
     if (sector !== undefined) bits.push(`sector=${sector}`);
@@ -353,10 +286,6 @@ export class CfbFile {
     return bits.join(' ');
   }
 
-  /** Leest een volledige sectorketen vanaf `startSector` via de gewone FAT. `byteLimit` (indien
-   *  gegeven) is de verwachte streamgrootte: het resultaat is dan altijd exact zo lang, of deze
-   *  methode gooit — een keten die eindigt vóór `byteLimit` bereikt is (een afgekapt/corrupt
-   *  bestand) geeft dus nooit stilzwijgend minder bytes terug dan beloofd. */
   private readChain(startSector: number, byteLimit: number | undefined, label: string): Uint8Array {
     if (startSector === FAT_ENDOFCHAIN || startSector === FAT_FREESECT) {
       return new Uint8Array(0);
@@ -393,7 +322,6 @@ export class CfbFile {
     return byteLimit !== undefined ? out.subarray(0, byteLimit) : out;
   }
 
-  /** De mini-stream (= de stream van de root-entry) wordt één keer gelezen en daarna hergebruikt. */
   private getMiniStream(): Uint8Array {
     if (!this.miniStreamCache) {
       this.miniStreamCache = this.readChain(this.miniStreamStartSector, this.miniStreamSize, 'mini-stream');
@@ -401,8 +329,6 @@ export class CfbFile {
     return this.miniStreamCache;
   }
 
-  /** Leest een volledige minisectorketen vanaf `startSector` via de mini-FAT, uit de mini-stream.
-   *  Zelfde niet-korter-dan-`byteLimit`-garantie als `readChain`. */
   private readMiniChain(startSector: number, byteLimit: number, label: string): Uint8Array {
     if (startSector === FAT_ENDOFCHAIN || startSector === FAT_FREESECT || byteLimit <= 0) {
       return new Uint8Array(0);
@@ -416,13 +342,9 @@ export class CfbFile {
       if (steps++ > this.maxMiniSteps) {
         throw new CfbParseError(this.fmtErr('mini-sector chain too long or cyclic', label, sector, sector * this.miniSectorSize));
       }
-      // Bereikcontrole vooraan (zoals readChain) — vóór we de sector gebruiken, niet pas
-      // vlak vóór de volgende stap.
       if (sector < 0 || sector >= this.miniFat.length) {
         throw new CfbParseError(this.fmtErr(`invalid mini-sector number ${sector} in chain`, label, sector));
       }
-      // Offset relatief aan de mini-stream (niet aan het bestand) en met de minisector-korrel
-      // (64 bytes), niet de gewone sectorgrootte.
       const off = sector * this.miniSectorSize;
       if (off + this.miniSectorSize > miniStreamBytes.length) {
         throw new CfbParseError(this.fmtErr('mini-sector outside mini-stream bounds', label, sector, off));
@@ -454,15 +376,11 @@ export class CfbFile {
     return node;
   }
 
-  /** Storage-entry op pad; null als afwezig (of als het pad op een stream uitkomt). */
   getStorage(path: string[]): CfbEntry | null {
     const node = this.resolve(path);
     return node && node.type === 'storage' ? node : null;
   }
 
-  /** Stream-inhoud op pad door storages, bv. getStream(['   114', 'TBkndTask', 'FixedData']).
-   *  Het resultaat is altijd exact `entry.size` bytes lang — een afgekapte keten (minder data dan
-   *  de directory-entry belooft) is een `CFB:`-fout, nooit een stille gedeeltelijke read. */
   getStream(path: string[]): Uint8Array | null {
     const node = this.resolve(path);
     if (!node || node.type !== 'stream') return null;

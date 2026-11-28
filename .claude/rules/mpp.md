@@ -60,6 +60,13 @@ Besluiten van de decoder: `docs/adr/0410-mpp-tijdgefaseerd-categorieen-en-byte-i
 `0411-mpp-tijdgefaseerd-eenheden-afronding-en-plafond.md`, `0412-mpp-tijdgefaseerd-grenzen-bij-corrupte-invoer.md`,
 `0413-mpp-tijdgefaseerd-werkminuten-zonder-kalender.md` en `0414-mpp-tijdgefaseerd-splits-afleiden.md`.
 
+### Container, veldkaart, entiteiten en importverslag
+
+Besluiten van `cfb.ts`, `mppContainer.ts`, `mppPrimitives.ts`, `fieldMap14.ts`, `mppEntities.ts`, `mppRecords.ts` en
+`mppImportLoss.ts`: `docs/adr/0740-mpp-container-en-leesprimitieven-tegen-kapotte-bestanden.md`,
+`0741-mpp-veldkaart-uit-het-bestand-alles-of-niets.md`, `0742-mpp-relaties-resources-en-toewijzingen-lezen.md` en
+`0743-mpp-importverslag-wat-het-niet-telt.md`.
+
 ### De kalenderherhaling (`calendarRecurrence.ts`)
 
 Besluiten van de gedeelde kern voor uitzonderingen van de `.mpp`- en de MSPDI-lezer:
