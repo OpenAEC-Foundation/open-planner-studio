@@ -15,7 +15,8 @@ voor de nivelleervertraging (`levelingDelays`) en de kalendertijd (`elapsedDurat
 ## Gevolgen
 
 - Een kostenresource en haar toewijzingen gaan niet mee (issue #815); de XER-writer laat ze ook weg. De melding telt
-  ze (`costResources`). Dat P6 geen kostenresource kent, komt uit het weggehaalde commentaar en is niet nagegaan.
+  ze (`costResources`). Het P6 XML-schema kent geen kostenresource (`ResourceType`: `Labor`, `Nonlabor`,
+  `Material`).
 - De writer geeft taken en project nieuwe `ObjectId`'s (ADR 0360) en schrijft `p6TaskId` en `p6ProjectId` uit de bron
   niet; na inlezen draagt een activiteit de identiteit van het XML-bestand zelf (`check-xer-p6xml-parity.ts`, assertie
   2). Een WBS-rij krijgt van de lezer geen `p6TaskId` of `p6ProjectId`. Het
@@ -29,5 +30,5 @@ voor de nivelleervertraging (`levelingDelays`) en de kalendertijd (`elapsedDurat
 - Van een samenvattingstaak schrijft de writer alleen het WBS-element: geen beschrijving en geen constraint. Wat hij met
   haar relaties en toewijzingen doet: knownbug 2339 en 2340.
 - De naam van een feestdag of werkende uitzondering gaat verloren: de writer schrijft per datum alleen `<Date>` en
-  blokken (ADR 0362). Dat P6 daar geen naam en geen einddatum kent, komt uit het weggehaalde commentaar en is niet
-  nagegaan.
+  blokken (ADR 0362). Het P6 XML-schema kent daar geen naam en geen einddatum
+  (`HolidayOrException`: alleen `Date` en `WorkTime`).

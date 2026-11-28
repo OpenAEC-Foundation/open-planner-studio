@@ -35,8 +35,7 @@ knoppen erin.
 - Beeld → Panelen bundelt de paneelknoppen: Eigenschappen (alleen daar), Resources, Resourcedock en Histogram (ook op
   Resources), en Waarschuwingspaneel en Verschuivingen (ook in de groep Planning naast Bereken). Zo staat het hele
   aanbod aan panelen bij elkaar en is het verschil tussen de twee resourceknoppen zichtbaar (ADR 0483).
-- Opslaan als, Recent en Exporteren staan samen in één stapel (`fileStack2`). Als losse items staan ze naast elkaar
-  en wordt de groep volgens het weggehaalde commentaar ongeveer twee keer zo breed; dat is niet gemeten.
+- Opslaan als, Recent en Exporteren staan samen in één stapel (`fileStack2`).
 - Op Beeld staan de baseline- en voortgangslijnen in de groep `overlays` en de balkweergave in de groep `bars`
   direct daarna (#391). `check-ribbon-overlays.ts` toetst in die twee groepen dat `bars` direct na `overlays` komt,
   dat elk item behalve de grote gesplitste knop `toggleBaselineOverlay` een stapel is met hoogstens drie items, dat

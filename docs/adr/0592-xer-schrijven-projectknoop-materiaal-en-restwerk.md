@@ -21,7 +21,6 @@ P6 XML-schrijver deelt, in ADR 0364 en 0365.
   hele begroting. Verricht werk zonder vastgelegd veld is begroot min rest, en nooit
   minder dan 0.
 - Een relatie die een samenvattingstaak raakt, gaat als de bladrelaties die de solver er zelf van maakt
-  (`expandSummaryRelations`); dat P6 geen relatie met een WBS-element kent, komt uit het weggehaalde commentaar en is
-  niet nagegaan.
-- De kalenderuitvoer (`calendarData`) schrijft per datum één uitzondering; volgens het weggehaalde commentaar weigert P6
-  dubbele uitzonderingen, niet nagegaan.
+  (`expandSummaryRelations`), want P6 kent geen relatie met een WBS-element: de tabel `TASKPRED` verbindt alleen
+  activiteiten (`task_id`, `pred_task_id`; `xerTables.ts`).
+- De kalenderuitvoer (`calendarData`) schrijft per datum één uitzondering.

@@ -11,16 +11,17 @@ wegen, in deze volgorde; `measureText` meet langs dezelfde drie (`measureReportT
 
 1. **Arabisch of Hebreeuws** (`hasRtlText`), als de shaping-letters er zijn: de shaping-kern (`shapeAndPlace` in
    `bidiShape.ts`) zet de tekst in visuele volgorde in stukken van de rapportletter of Noto Sans Arabic, en
-   `fillTextComplex` geeft elke glyph een eigen plaats. Volgens het weggehaalde commentaar dekt de breedtetabel van
-   pdf-lib alleen de glyphs die het zelf registreert; een geshapte glyph zonder eigen plaats viel dan op de
-   standaardbreedte (`/DW`), en de Arabische letters kwamen los van elkaar te staan. Dat is niet nagegaan.
+   `fillTextComplex` geeft elke glyph een eigen plaats. De breedtetabel van
+   pdf-lib dekt alleen de glyphs die het zelf registreert (`CustomFontEmbedder.computeWidths` in pdf-lib 1.17.1: de
+   glyphs van de tekenset van de letter); een geshapte glyph zonder eigen plaats viel dan op de standaardbreedte
+   (`/DW`).
 2. **Een teken dat de rapportletter mist en een geladen terugvalletter wel heeft** (`needsFallback`): stukken per
    letter (`splitFallbackRuns`, ADR 0385).
 3. **De rest**: de hele tekst in de rapportletter (`laidOutTextOps`, regel `reports`, alinea over fontkit 3).
 
 Buiten weg 1 haalt `fillText` de bidi-stuurtekens eerst weg (`stripBidiControls`): zonder herordening doen ze niets.
-Volgens het weggehaalde commentaar zou pdf-lib ze als `.notdef` zetten, en zet `Intl` in het Arabisch en Perzisch een
-U+200E vóór een minteken. Een stuurteken telt in geen enkele weg mee voor de dekking.
+In een proef met fontkit 3.0.0 wordt U+200E in Inter een spatie (`space`), niet `.notdef`; `Intl` zet in het
+Arabisch en Perzisch een U+200E vóór een minteken (`Intl.NumberFormat('ar')` en `('fa')`). Een stuurteken telt in geen enkele weg mee voor de dekking.
 
 ## Gevolgen
 
@@ -37,7 +38,7 @@ U+200E vóór een minteken. Een stuurteken telt in geen enkele weg mee voor de d
   teken in een tekst met Arabisch is dus ongedekt, ook met een CJK-extensie, en die PDF wordt raster. Hebreeuws is geen
   Arabisch schrift (`isArabicScriptCp`) en hoort zo bij de rapportletter; mist die het, dan wordt de PDF raster.
 - Omdat de twee regels verschillen, heeft elk een eigen cache per teken (`coverageCache`, `coverageCacheComplex`).
-  Volgens het weggehaalde commentaar tekent een grote planning duizenden labels met steeds dezelfde tekens en zocht
-  zonder cache elke tekst al zijn tekens opnieuw op. Een cache geldt voor beide gewichten (knownbug 2451).
+  Een grote planning tekent duizenden labels met steeds dezelfde tekens, en zonder cache zocht elke tekst al zijn
+  tekens opnieuw op. Een cache geldt voor beide gewichten (knownbug 2451).
 - `check-report-font.ts`: B2 eist `VectorUnsupportedError` met `Ф` en `≤` bij de ongedekte tekens voor een letter
   zonder die tekens en zonder terugval. De toets met Inter als terugval (B3) staat in ADR 0385.

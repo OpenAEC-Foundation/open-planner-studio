@@ -13,8 +13,9 @@ UTC-velden: `localTodayIso` (de statusdatum op vandaag) en `localNowOnDayAxis` (
 
 - `formatDate` bouwt de tekst zelf in plaats van `toISOString().split('T')[0]`. Hij draait per dag per taak in de
   werkdagenreeksen van de solver en de resourcebelasting; op 5.000 taken ging `runCPM` daarmee van 677 naar 604 ms
-  (uit het weggehaalde commentaar). Buiten de jaren 0 tot en met 9999, en bij een ongeldige datum, valt hij terug op
+  (commit "perf: formatDate bouwt de datumstring zelf op in plaats van via toISOString().split()"). Buiten de jaren 0 tot en met 9999, en bij een ongeldige datum, valt hij terug op
   `toISOString`, zodat de uitkomst en de `RangeError` gelijk blijven. `check-date-format.ts` toetst dat tegen
   `toISOString`.
-- `isExistingYmd` beslist rekenkundig of een dag bestaat, niet via het parsen van de JS-engine. Uit het weggehaalde
-  commentaar, niet nagegaan: V8 rolt `2026-02-31` stil door naar 3 maart, WebKit weigert.
+- `isExistingYmd` beslist rekenkundig of een dag bestaat, niet via het parsen van de JS-engine. V8 rolt `2026-02-31`
+  stil door naar 3 maart (proef in Node 24: `new Date('2026-02-31')` geeft `2026-03-03`), WebKit weigert (commit "Fix:
+  strikte ISO-datumcontrole in de kolomregistry, los van de engine").

@@ -3,7 +3,6 @@
 XER draagt duur, rest en lag als uren (`target_drtn_hr_cnt`, `remain_drtn_hr_cnt`, `lag_hr_cnt`). `readXerProject`
 neemt een activiteit in de urenmaat, met de minuten uit het bestand en zonder afronding op hele dagen, ook op een
 kalender zonder kloktijden (spec alleen-uren, `docs/superpowers/specs/2026-10-20-alleen-uren-design.md` §3.10; T15).
-Het weggehaalde commentaar gaf als reden dat P6 alleen werkuren kent; dat is niet nagegaan.
 Alleen een activiteit met de OPS-duureenheid uit een eigen export leest anders: via `readMeasure`, met
 `keepSourceMinutes`, zoals in de regel `xer` (3) en in de P6 XML-lezer (ADR 0265). Uren met zes decimalen worden de
 hele minuut als het verschil ruis is, en een echte breuk blijft (`sixDecimalHoursToMinutes`, ADR 0322), voor duur, rest
@@ -20,9 +19,7 @@ uit het bestand en lag.
 - Op een kalender met een lege `clndr_data` waarvan `inferBlankCalendarBands` de blokken afleidde (ADR 0392), en
   alleen als die kalender in uurmodus is, kan het geplande venster de duur herstellen: liggen er tussen geplande
   start en einde meer dan 0 werkminuten en wijkt dat aantal hoogstens één dag (de uren per dag van de kalender, of 8
-  bij 0) van de bronduur af, dan wordt het de duur. Reden uit het weggehaalde commentaar: zonder blokken in het
-  bestand gaat een deel van de laatste dag verloren, en een groter verschil betekent dat het venster planningsruimte
-  bevat en geen tweede duur is. `check-xer-reader.ts` 3b eist het einde van zo'n taak met een niet-hele dagduur.
+  bij 0) van de bronduur af, dan wordt het de duur. `check-xer-reader.ts` 3b eist het einde van zo'n taak met een niet-hele dagduur.
 - De rest is `remain_drtn_hr_cnt` met de regel van de duur; is die leeg, dan heeft de taak geen `remainingMinutes`.
   Een taak met status `STARTED`, `CP_Drtn` en een gelezen `complete_pct` krijgt in plaats daarvan de duur maal
   (1 − voortgang) als rest, op de hele minuut (`Math.round`), omdat die waarde berekend is en geen bronwaarde. Die

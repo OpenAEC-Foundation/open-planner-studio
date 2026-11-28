@@ -8,7 +8,6 @@ dezelfde waarde heeft. Wie `--font-body` wijzigt, wijzigt die constante mee, and
 lettertype dan de rest van de app.
 
 Op Linux begint de systeemstapel met `-webkit-system-font` en pas daarna `system-ui`
-(`resolveSystemFontStack`). Uit het weggehaalde commentaar, niet nagegaan: WebKitGTK, de webview van de
-desktopapp, lost `system-ui` op naar een vast lettertype, en alleen `-webkit-system-font` volgt daar het
-interfacelettertype van de desktop. Chromium en Firefox kennen de eerste naam niet en nemen `system-ui`.
+(`resolveSystemFontStack`). WebKitGTK, de webview van de desktopapp, neemt voor `-webkit-system-font` het
+interfacelettertype van de desktop uit de GTK-instelling `gtk-font-name` (WebKit-bug 177755). Chromium en Firefox kennen de eerste naam niet en nemen `system-ui`.
 Omdraaien zou op de Linux-desktop het ingestelde lettertype negeren.

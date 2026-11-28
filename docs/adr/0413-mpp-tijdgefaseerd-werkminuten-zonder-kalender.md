@@ -1,7 +1,9 @@
 # MPP lezen: de decoder levert werkminuten en wandelt geen kalender, anders dan MPXJ
 
-Volgens het weggehaalde commentaar weeft MPXJ het irreguliere en het reguliere blok samen (kalenderbewust, `splitItem`)
-en zet het de periodegrenzen om in echte kalendermomenten (`ProjectCalendar.getDate`, `getNextWorkStart`): de
+MPXJ weeft het irreguliere en het reguliere blok samen en zet de periodegrenzen om in echte kalendermomenten
+(`ProjectCalendar.getDate`, `getNextWorkStart`). In MPXJ 2b43a48417 (de versie van ADR 0411) gebeurt het samenweven
+kalenderbewust in `splitItem`; MPXJ 63cdc4e8dd bouwt eerst met de extra uren een tijdelijke werkkalender en splitst
+daarna de periodes (`TimephasedAdditionalHoursHelper.splitItems`, in `getCompleteWork`). In beide versies geldt: de
 verstreken werkminuten in het bestand zijn werktijd, geen 24-uursklok. `mppTimephased.ts` doet bewust minder. Het
 blijft een pure omzetting van bytes in periodes, zonder kalender en zonder planningsgedrag, zodat de enige
 kalenderwandeling op één plek staat: de verschuiving van een toewijzing naar de as van de taak in `mppReader.ts`
@@ -18,11 +20,11 @@ werkminutenas, `elapsedWorkMinutesStart` en `elapsedWorkMinutesEnd` (`Timephased
   van de eerste, niet `approxFinish`, en bij een verschuiving van 0 dat dezelfde lijst terugkomt.
 - Het reguliere en het irreguliere blok worden niet samengeweven. `decodeIrregularTimephasedWork` levert zijn
   periodes als eigen type (`TimephasedIrregularPeriod`) met de absolute tijdstempels uit het bestand. Omdat dat blok
-  geen veld voor de hoeveelheid werk heeft (volgens het weggehaalde commentaar gebruikt MPXJ het alleen om een
-  regulier record te corrigeren), telt de decoder het hele tijdvak als werk: een eigen keuze van OPS, geen poort van
+  geen veld voor de hoeveelheid werk heeft (MPXJ gebruikt het in `TimephasedDataFactory.getCompleteWork` alleen om
+  een regulier record te splitsen of bij te stellen), telt de decoder het hele tijdvak als werk: een eigen keuze van OPS, geen poort van
   MPXJ. `[Z3 1c]` vergelijkt bij twee records de start, het einde en `workMinutes` (60 en 120).
-- Formaat B met N 0 (ADR 0410 en 0411) is één samenvattend record voor de hele toewijzing. Volgens het weggehaalde
-  commentaar ankert MPXJ het op de start of hervatting en het einde van de toewijzing. De decoder heeft daarvoor een
+- Formaat B met N 0 (ADR 0410 en 0411) is één samenvattend record voor de hele toewijzing. MPXJ ankert het op de
+  start of hervatting en het einde van de toewijzing (`TimephasedDataFactory.getPlannedWork`). De decoder heeft daarvoor een
   tweede anker nodig: zonder `referenceFinish` levert hij een lege lijst, met `referenceFinish` één periode van
   werkminuut 0 tot de klokminuten tussen `referenceStart` en `referenceFinish` (niet onder 0), met de ankers zelf
   als `approxStart` en `approxFinish`. Dat einde is dus een lengte in klokminuten op de werkminutenas. `[Z3 F1]`

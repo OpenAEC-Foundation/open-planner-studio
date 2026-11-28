@@ -26,6 +26,6 @@ argumenten), al weigert de schemapoort van de dispatcher die ook: de tool moet k
   roept `freshen` pas daarna aan. `bucket` mag alleen `dag`, `week` of `maand` zijn, zonder terugval op `week`.
   `resourceIds` moet een lijst van niet-lege strings zijn: een andere waarde zou wegvallen, en valt alles weg, dan
   geeft de tool stil het aggregaat in plaats van het gevraagde detail (ADR 0402). Elk id moet een bestaande resource
-  zijn en geen kostenresource (ADR 0406); een onbekend id zou volgens het weggehaalde commentaar een lege reeks geven
-  die leest als "geen belasting".
+  zijn en geen kostenresource (ADR 0406); een onbekend id zou een lege reeks geven die leest als
+  "geen belasting" (`computeHistogramReport` filtert de resources op de ids).
 - `planner_get_critical_path` toetst de pagina ook als er geen geldig rekenresultaat is. Geen toets dekt die tak.

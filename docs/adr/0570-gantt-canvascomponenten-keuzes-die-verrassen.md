@@ -8,8 +8,7 @@ zou terugdraaien. Ze staan hier, per onderwerp, met de reden.
 - `ganttRenderOptions.ts` is puur en importeert geen React, store of DOM, zodat `check-gantt-render-options.ts`
   dezelfde functies draait als de app. De `useMemo`-aanroepen met hun afhankelijkheden blijven bij de aanroepers
   (`GanttCanvas.tsx`, `useGanttViewportCoordinator.ts`): `drawPrimary` en `drawSecondary` in `useGanttRendererHost.ts`
-  melden tijdens het tekenen de gemeten maat terug, en volgens het weggehaalde commentaar kan een verschoven memogrens
-  dan een renderlus geven die geen headless test ziet.
+  melden tijdens het tekenen de gemeten maat terug.
 - `buildSharedAxis` krijgt geen eigen cache over renders heen: een as die een kalenderwijziging overleeft, tekent op
   de oude werkdagen.
 - `GanttRenderOptionsInput` is afgeleid van `GanttRenderOptions` met elke sleutel verplicht (`ExplicitlyRequired`,
@@ -25,9 +24,9 @@ zou terugdraaien. Ze staan hier, per onderwerp, met de reden.
 - Mijlpaal aan/uit leidt de nieuwe waarde af uit de aangeklikte taak en zet die op de hele reikwijdte; een schakelaar
   per taak geeft bij een gemengde selectie geen voorspelbare uitkomst. Inklappen en Uitklappen zijn om dezelfde reden
   twee items die nooit uit staan, zoals in het lint (ADR 0484).
-- `CONTEXT_MENU_ITEM_CLASS` draagt geen tekstkleur: elke aanroeper zet zijn eigen kleur. Volgens het weggehaalde
-  commentaar beslist bij twee kleurklassen van gelijke specificiteit de volgorde in de gegenereerde Tailwind-CSS en
-  niet die in de `className`; niet nagegaan.
+- `CONTEXT_MENU_ITEM_CLASS` draagt geen tekstkleur: elke aanroeper zet zijn eigen kleur. Bij twee kleurklassen
+  van gelijke specificiteit beslist de volgorde in de gegenereerde Tailwind-CSS en niet die in de `className`: in de
+  cascade van CSS wint bij gelijke specificiteit de regel die later in het stylesheet staat.
 
 ## Lay-out en invoer
 
@@ -44,6 +43,5 @@ zou terugdraaien. Ze staan hier, per onderwerp, met de reden.
   lagveld zet bij Enter zijn waarde nog in het concept, en pas na die render leest het effect het concept. De vlag
   voorkomt een tweede relatie als Enter en een klik buiten samenvallen. De focus op de typekeuze wacht op een timer:
   de klik die bij het loslaten hoort, zet de focus anders terug op het canvas.
-- Uit het weggehaalde commentaar, niet nagegaan: een klik op een canvas geeft niet in elke browser DOM-focus, daarom
-  roept `focusCanvas` in `GanttCanvas` `focus()` zelf aan; en een `<canvas>` valt vóór zijn eerste tekening terug op
-  300×150, daarom zet `MiniMap` `maxWidth`/`maxHeight` op 100%.
+- `focusCanvas` in `GanttCanvas` roept `focus()` zelf aan. Een `<canvas>` zonder eigen maat is 300×150 (de
+  standaardmaat uit de HTML-standaard), daarom zet `MiniMap` `maxWidth`/`maxHeight` op 100%.

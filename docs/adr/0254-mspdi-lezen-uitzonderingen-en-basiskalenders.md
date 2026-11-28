@@ -22,11 +22,11 @@ cyclus eindigt of langer is dan `MAX_BASE_CHAIN_DEPTH`, erft niets en krijgt ook
 - Een record met `DayWorking` 1 en zonder `<WorkingTimes>` blijft een werkende uitzondering (`periodCount` is minstens
   1). Een record zonder `FromDate`, of zonder `ToDate` en zonder herhaling, levert geen bereik en valt weg. In de oude
   vorm van Project 2003 en eerder (`<WeekDay>` met `DayType` 0, `readLegacyDayExceptions`) is een dag werkend als hij
-  leesbare blokken heeft en anders vrij; die vorm leest de lezer alleen als `<Exceptions>` niets oplevert (13). Dat dit
-  MPXJ volgt, komt uit het weggehaalde commentaar en is niet nagegaan.
+  leesbare blokken heeft en anders vrij; die vorm leest de lezer alleen als `<Exceptions>` niets oplevert (13). Zo doet
+  MPXJ het ook (`MSPDIReader.readCalendar` en `readExceptionDay`).
 - Een basis-UID die niet naar een `<Calendar>` van het bestand wijst, maakt de kalender een wortel met zijn eigen week
-  en uitzonderingen (`chainOk`); 18 toetst de vormen met `0` en met `-1`. Dat Project 2013 en later `0` schrijven en
-  dat MPXJ een onbekende basis ook als geen ouder leest, komt uit het weggehaalde commentaar en is niet nagegaan.
+  en uitzonderingen (`chainOk`); 18 toetst de vormen met `0` en met `-1`. MPXJ leest een onbekende basis ook als geen
+  ouder (`MSPDIReader.updateBaseCalendarNames`).
 - Of een kalender erft, hangt alleen af van de structuur: `chainOk` meet eerst de keten, en `resolve` volgt alleen een
   gemeten keten (16: de documentvolgorde telt niet).
 - De projectkalender is de kalender van `<CalendarUID>` direct onder `<Project>`, anders het eerste `<Calendar>`; alle
@@ -36,7 +36,7 @@ cyclus eindigt of langer is dan `MAX_BASE_CHAIN_DEPTH`, erft niets en krijgt ook
   opslag kan zetten (`check-adapters-hours.ts` met 1200 kalenders). Een taak of resource die naar een kalender boven de
   grens wijst, krijgt geen `calendarId`.
 - `readMspdiRecurringData` gebruikt de codetabellen `RECURRENCE_TYPES` en `RELATIVE_MAP` van de `.mpp`-kant; een
-  dagelijkse herhaling met `<Period>` 1 geeft `null` en wordt zo een gewoon bereik. Dat die vertaling
-  `MSPDIReader.readRecurringData` van MPXJ volgt, komt uit het weggehaalde commentaar en is niet in de repo nagegaan.
+  dagelijkse herhaling met `<Period>` 1 geeft `null` en wordt zo een gewoon bereik. Die vertaling volgt
+  `MSPDIReader.readRecurringData` van MPXJ, met dezelfde tabellen.
   `check-adapters-hours.ts` toetst een jaarlijkse uitzondering op een vaste datum (T4) en wekelijkse uitzonderingen
   onder het budget (f).
