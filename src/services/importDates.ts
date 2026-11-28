@@ -5,62 +5,25 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isDateOnly } from '@/engine/calendar/workdayRules';
 
-/**
- * Gedeelde datum-parse voor de import-readers. Externe planningsbestanden dragen datums als
- * een ISO-achtige datetime (`2026-03-09T08:00:00`); wij bewaren in DAG-modus alleen de datum-prefix.
- * Lege invoer valt terug op vandaag (de bestaande reader-conventie — nooit een lege datum verzinnen).
- * Voor de GEPLANDE start/finish van een taak is "vandaag" alleen een plaatshouder: de lezer
- * registreert het ontbreken en `resolveMissingScheduleDates` (onderaan) vervangt hem.
- *
- * MSPDI (`parseMSPDate`) en P6 (`parseP6Date`) gebruiken dit rechtstreeks.
- * CSV heeft een extra `DD-MM-YYYY`/`DD/MM/YYYY`-tak (`csvDateOrToday`). De IFC-reader deelt dit
- * BEWUST niet: die moet eerst de STEP-quoting én de `$`-null-conventie afhandelen en heeft afwijkende
- * lege-invoer-semantiek — zie de noot bij `parseDateFromIFC` in ifcReader. De statusdatum
- * (`importStatusDate`) deelt de IFC-reader wél: die krijgt de waarde al ontdaan van de STEP-typering.
- */
-
-/**
- * Een datum-tijd uit een BESTAND als wandklok: het model rekent in lokale wandkloktijd (naïef, als
- * UTC opgeslagen), dus een tijdzone-aanduiding (`Z`, `+01:00`, `-0500`) wordt genegeerd — dezelfde
- * regel als `hasNonAnchorTime` (subdayIo) die over de uur-/dagmodus beslist. `parseInstant` paste de
- * offset wél toe: `2026-03-09T09:30:00+01:00` werd als uurtaak herkend (09:30) maar om 08:30
- * ingelezen, en een tijd kort na middernacht belandde op de vorige dag.
- */
 export function parseImportedInstant(raw: string): Date {
   return parseInstant(raw.includes('T') ? raw.replace(/(?:[Zz]|[+-]\d{2}:?\d{2})$/, '') : raw);
 }
 
-/** ISO-datum-prefix (`YYYY-MM-DD`) uit een datetime-string; lege invoer ⇒ vandaag. */
 export function isoDatePrefixOrToday(s: string): string {
   if (!s) return localTodayIso();
   return s.substring(0, 10);
 }
 
-/** Een datetime uit MSPDI/P6 in de modus van de taak: UUR ⇒ de echte tijd-van-de-dag
- *  (`YYYY-MM-DDTHH:mm`), DAG ⇒ de datum-prefix. Lege invoer ⇒ vandaag, zoals hierboven.
- *  Een datum ZONDER tijd blijft ook in de uurmodus een datum: hij draagt geen moment. De normalisatie
- *  op de laadgrens zet hem per veld en kalender om (T17, D1–D7; `payloadFromImport`). Als middernacht
- *  gelezen werd een werkelijk einde het begin van die dag, en de normalisatie liet dat moment staan
- *  (review ronde 2 van PR #559, deel B). Een expliciete `T00:00` blijft een moment. */
 export function importDateTime(s: string, hour: boolean): string {
   if (!s) return localTodayIso();
   return hour && !isDateOnly(s) ? formatInstant(parseImportedInstant(s), 'hour') : s.substring(0, 10);
 }
 
-/** `importDateTime` voor een datum die ook mag ONTBREKEN (taakdatums en MSPDI Baseline 0): lege of onleesbare
- *  invoer (`NA`, geen `YYYY-MM-DD`-begin, of een tijd die geen instant geeft) ⇒ `undefined`, nooit
- *  vandaag en nooit een `RangeError` uit `formatInstant`. Leesbare invoer ⇒ exact `importDateTime`. */
 export function importDateTimeOrUndefined(s: string, hour: boolean): string | undefined {
   if (!/^\d{4}-\d{2}-\d{2}/.test(s) || Number.isNaN(parseImportedInstant(s).getTime())) return undefined;
   return importDateTime(s, hour);
 }
 
-/** Statusdatum uit een bestand → `project.statusDate`, voor élke lezer die hem kent (IFC, MSPDI, P6,
- *  `.mpp` via `statusDateFromXml`).
- *  Zonder tijd ⇒ `YYYY-MM-DD`; mét tijd ⇒ de store-vorm van een uur-instant (`YYYY-MM-DDTHH:mm`),
- *  ongeacht de modus van de taken: de tijd staat in het bestand en de engine gebruikt hem op een
- *  uur-projectkalender. Een onleesbare tijd ⇒ de datum. Het XML-dag-anker (een datum zonder tijd die
- *  MSPDI/P6 als `T08:00:00` moeten schrijven) vangt `statusDateFromXml` vóór deze functie af. */
 export function importStatusDate(v: string): string {
   const day = v.substring(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return day;
@@ -68,12 +31,9 @@ export function importStatusDate(v: string): string {
   return Number.isNaN(instant.getTime()) ? day : formatInstant(instant, 'hour');
 }
 
-/** CSV-variant: accepteert naast ISO ook `DD-MM-YYYY` / `DD/MM/YYYY`; leeg/onherkenbaar ⇒ `undefined`. */
 export function csvDate(s: string): string | undefined {
   if (!s) return undefined;
-  // Eerst ISO proberen.
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
-  // Dan DD-MM-YYYY of DD/MM/YYYY.
   const dmyMatch = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
   if (dmyMatch) {
     return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
@@ -81,18 +41,10 @@ export function csvDate(s: string): string | undefined {
   return undefined;
 }
 
-/** `csvDate` met de bestaande vandaag-terugval (actuals/kalender-datums gebruiken hem niet). */
 export function csvDateOrToday(s: string): string {
   return csvDate(s) ?? localTodayIso();
 }
 
-// ── Ontbrekende geplande start/finish van ingelezen taken ───────────────────────────────────────
-
-/**
- * Taak-id's waarvan het bestand GEEN (leesbare) geplande start of finish droeg. De lezer zet tijdens
- * het parsen nog zijn gewone plaatshouder (vandaag, of bij `.mpp` finish = start) en registreert het
- * id hier; `resolveMissingScheduleDates` vervangt die plaatshouder daarna op één gedeelde manier.
- */
 export interface MissingScheduleDates {
   start: Set<string>;
   finish: Set<string>;
@@ -102,19 +54,6 @@ export function emptyMissingScheduleDates(): MissingScheduleDates {
   return { start: new Set(), finish: new Set() };
 }
 
-/**
- * Geplande finish uit start + duur, alleen waar dat EENDUIDIG is:
- * - duur 0 (mijlpaal/nul-duur, elke eenheid) ⇒ finish = start;
- * - dagtaak op werktijd met een geheel aantal dagen en een datum zonder tijd ⇒ de laatste werkdag op
- *   de effectieve kalender van de taak (`CalendarEngine.addWorkDays`, startdag telt als dag 1 — exact
- *   de forward-pass-rekenregel);
- * - een urentaak met hele werkdagen op een scalaire kalender (geen eigen werkblokken) en een datum zonder
- *   tijd ⇒ hetzelfde. Daar heeft elke werkdag dezelfde werktijd, dus is het eenduidig. Sinds F5b leest
- *   ook `.mpp` elke taak in de urenmaat (alleen uren §3.10, T15).
- * Anders `undefined` (urentaken op een kalender met eigen werkblokken, elapsed duur, fractionele dagen,
- * datetime-starts: daar hangt het antwoord af van tijd-van-de-dag/bandregels die pas de solver eenduidig
- * toepast).
- */
 function finishFromStartAndDuration(task: Task, calendar: WorkCalendar): string | undefined {
   const t = task.time;
   if (t.scheduleDuration === 0 && !t.durationMinutes) return t.scheduleStart;
@@ -129,23 +68,6 @@ function finishFromStartAndDuration(task: Task, calendar: WorkCalendar): string 
   return capped ? undefined : formatDate(date);
 }
 
-/**
- * Eén regel voor alle lezers (IFC/CSV/MSPDI/P6/MPP) voor een ontbrekende geplande start/finish —
- * vóór `normalizeImportedProgress`, zodat ook de AS/AF-defaults van een voltooide taak geen leesdatum
- * zien:
- *
- * 1. PROJECTSTART-ANKER: de projectstart uit het bestand, anders de vroegste AANWEZIGE taakstart
- *    (datumdeel), anders vandaag (leeg project). De aanroeper beslist of hij dit anker ook als
- *    `project.startDate` overneemt.
- * 2. ONTBREKENDE START ⇒ het anker, net als een nieuwe taak (`addTask` zet een taak zonder datum op de
- *    projectstart). NIET de leesdatum: een wortel-taak gebruikt zijn eigen start als anker in de
- *    forward pass en zou dan naar vandaag verhuizen.
- * 3. ONTBREKENDE FINISH ⇒ start + duur waar dat eenduidig is (`finishFromStartAndDuration`), anders
- *    blijft de plaatshouder van de lezer staan.
- *
- * Early/late-velden die de plaatshouder spiegelden (zoals de lezers ze bij constructie gelijk zetten)
- * gaan mee. @returns het gebruikte projectstart-anker.
- */
 export function resolveMissingScheduleDates(
   tasks: Task[],
   missing: MissingScheduleDates,
@@ -181,15 +103,6 @@ export function resolveMissingScheduleDates(
   return anchor;
 }
 
-/**
- * Strikte CSV-variant voor de VASTLEGGING ("datums zoals opgeslagen", bak 4): dezelfde twee
- * herkende vormen als `csvDateOrToday`, maar een cel die niets herkenbaars bevat — of een datum die
- * niet bestaat (maand 13, 31 februari) — geeft `undefined` in plaats van "vandaag". Een verzonnen
- * vandaag-datum als "zo stond het in het bestand" zou het document anders in de modus openen met
- * alle taken op vandaag. `task.time` blijft de gewone,
- * vergevende lezing via `csvDateOrToday`; de CSV-lezer weigert onherkende niet-lege cellen vóór
- * hij een importresultaat teruggeeft.
- */
 export function csvDateOrUndefined(s: string): string | undefined {
   const trimmed = s.trim();
   let y: number, m: number, d: number;
@@ -199,7 +112,6 @@ export function csvDateOrUndefined(s: string): string | undefined {
   else if (dmy) { y = Number(dmy[3]); m = Number(dmy[2]); d = Number(dmy[1]); }
   else return undefined;
   if (m < 1 || m > 12 || d < 1) return undefined;
-  // Dagen in de maand via UTC — geen lokale tijdzone in het spel.
   const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
   if (d > daysInMonth) return undefined;
   return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;

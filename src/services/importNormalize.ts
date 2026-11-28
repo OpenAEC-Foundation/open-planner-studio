@@ -8,7 +8,6 @@ import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { workRuleFromMsp, workRuleFromXerDurationType } from '@/engine/work/workRuleMapping';
 import { minOf } from '@/utils/collections';
 
-/** Bij het openen van een bestand met 100% en een ontbrekend einde blijft de laadregel gelden. */
 export function defaultImportedActualFinish(
   time: Pick<Task['time'], 'earlyFinish' | 'scheduleFinish'>,
   statusDate: string | undefined,
@@ -16,16 +15,6 @@ export function defaultImportedActualFinish(
   return statusDate || time.earlyFinish || time.scheduleFinish;
 }
 
-/**
- * De WERKREGEL afleiden uit de bewaarde importvelden, één keer, in elke lezer die zulke velden zet
- * (.mpp, MSPDI, P6 XML, XER). De importvelden zelf blijven onaangeraakt; de regel is een
- * apart opgeslagen afgeleide, zodat een latere typewissel de herkomst niet vernietigt.
- *   - MSP: `mspTaskType` + `effortDriven` → `workRuleFromMsp` (Fixed Units ⇒ FIXED_RATE, Fixed
- *     Duration ± effort-driven ⇒ FIXED_DURATION_WORK/-RATE, Fixed Work ⇒ FIXED_WORK).
- *   - P6 (XER én PMXML, beide via `p6DurationType`): `workRuleFromXerDurationType`.
- * Een taak die al een `workRule` draagt (IFC) wordt niet overschreven; geen bron ⇒ geen veld.
- * Puur data — géén solverstap leest het; het gedrag komt in de bewerkingslaag.
- */
 export function deriveImportedWorkRules(tasks: Task[]): void {
   for (const task of tasks) {
     if (task.workRule) continue;
@@ -36,41 +25,6 @@ export function deriveImportedWorkRules(tasks: Task[]): void {
   }
 }
 
-/**
- * Voortgang-invarianten toepassen op RAUW ingelezen taken (IFC/MSPDI/P6/CSV).
- *
- * Externe bestanden kunnen inconsistente combinaties bevatten (bv. een `actualFinish` zonder
- * `completion === 1`, of een `RemainingDuration` die niet strookt met het percentage). De store
- * dwingt deze invarianten normaal af in de progress-acties, maar de reader zet de velden
- * rauw. Deze helper normaliseert daarom bij het INLEZEN — één plek die álle load-paden dekt
- * (openFile, voorbeelden, recovery, IFC-panel-plak, extensie-API), omdat elke route door een
- * reader loopt.
- *
- * Golden rule: een taak ZONDER enig voortgangssignaal (geen actuals, completion 0) blijft
- * volledig ongemoeid — status NOT_STARTED, geen `remainingTime` gezet — zodat bestaande
- * bestanden ongewijzigd round-trippen. De restduur die het bestand van een lopende taak vastlegt,
- * blijft staan: de restduur-minuten van een urentaak en de dagenrest van een dagtaak. Alleen zonder
- * bronrest leidt `applyRemainingDuration` hem af uit `completion` (dezelfde regel als de store); een
- * voltooide taak krijgt rest 0.
- *
- * `runningAtFullIds`: smalle uitzondering voor een taak die volgens het bestand nog loopt. Een taak in deze
- * set met `completion >= 1` en ZONDER werkelijk einde blijft STARTED (zie de tak hieronder). Met een
- * werkelijk einde, of onder 100 %, telt de set niet: dan geldt de gewone regel. De lezers vullen haar uit
- * de bron: IFC uit `IfcTask.Status` = 'STARTED', P6 XML uit de status `In Progress`, MSPDI, MPP en een
- * P6-XML-export van OPS uit een rest groter dan 0 zonder werkelijk einde (MS Project zet dat einde zodra
- * een taak klaar is). De XER-lezer neemt de status zelf over en roept deze functie niet aan; CSV kent geen
- * status en geen rest.
- *
- * Ook een IFC van een oudere versie houdt zijn opgeslagen rest, al schreef die versie een dagenrest
- * afgerond (`Math.round`): het bestand zegt niet of een rest ingevoerd of afgeleid was, en een MPP-rest
- * van 4 d bij 33 % ziet er net zo uit als een afgeronde afleiding. De opgeslagen waarde is dan het feit.
- * Eigenaarsbesluit B3 (2026-10-20) staat een verschuiving van oude bestanden toe, maar eist haar niet. *
- * `calendar`: de kalender van de taken, als de lezer hem kent (nu alleen CSV). Een afgeleid einde zonder
- * tijd naast een vastgelegde start mét tijd gaat dan eerst door de kalenderregel van de laadgrens
- * (D2/D6/D7, `normalizeLoadedActualDate`), vóór de volgordevergelijking. Anders telt het als 00:00, ligt
- * het vóór een start om 10:15 op dezelfde dag en wordt het einde die start (nulduur). Het besluit van
- * 2026-10-29 (een afgemelde mijlpaal houdt de geplande tijd) geldt alleen bij invoer, niet hier.
- */
 export function normalizeImportedProgress(
   tasks: Task[],
   statusDate?: string,
@@ -80,71 +34,44 @@ export function normalizeImportedProgress(
   for (const task of tasks) {
     const t = task.time;
 
-    // Completion klemmen op 0..1 (rauwe import kan buiten bereik liggen).
     if (!Number.isFinite(t.completion)) t.completion = 0;
     t.completion = Math.min(1, Math.max(0, t.completion));
 
     const hasProgress = !!(t.actualStart || t.actualFinish || t.completion > 0);
     if (!hasProgress) {
-      // Geen voortgang: laat alle tracking-velden ongemoeid (byte-stabiliteit) en zet status.
       task.status = 'NOT_STARTED';
       continue;
     }
 
-    // Voortgang-invarianten (spiegel van applyProgressInvariants, engine/taskMutationRules.ts). De
-    // AF-default bij het openen (`defaultImportedActualFinish`): statusdatum, anders de
-    // eigen geplande finish — nooit de leesdatum.
     if (t.actualFinish) {
       t.completion = 1;
       if (!t.actualStart) t.actualStart = t.actualFinish;
       task.status = 'COMPLETED';
     } else if (t.completion >= 1 && runningAtFullIds?.has(task.id)) {
-      // Lopend op 100 %, zo vastgelegd in het bestand (IFC: `IfcTask.Status` = 'STARTED', eigenaarsbesluit
-      // 2026-10-14; zie `runningAtFullIds`). Houd hem lopend: geen afgeleid werkelijk einde, geen afgeleide
-      // werkelijke start, en de restduur zoals het bestand hem vastlegde (geen afleiding uit
-      // `completion`), zodat de taak na opslaan en heropenen gelijk is aan de import.
       t.completion = 1;
       task.status = 'STARTED';
       continue;
     } else if (t.completion >= 1) {
       t.completion = 1;
-      // Zelfde volgorde en regels als de store (`setTaskProgress`): eerst de impliciete start (de
-      // eigen geplande start, niet AS = AF — anders krimpt de voltooide balk), dan de AF-default.
       const startWasDerived = !t.actualStart;
       if (startWasDerived) t.actualStart = defaultActualStart(t);
       t.actualFinish = defaultImportedActualFinish(t, statusDate);
       if (!startWasDerived && !isDateOnly(t.actualStart!)) {
         t.actualFinish = normalizeLoadedActualDate(task, 'actualFinish', t.actualFinish, statusDate, calendar);
       }
-      // Alleen een ontbrekende start mag terug naar de statusdatum; aanwezige feiten blijven staan.
       orderActualsAfterDerivedFinish(t, statusDate, startWasDerived);
       task.status = 'COMPLETED';
     } else {
-      // In progress: actualStart gezet óf completion > 0 (impliciete start dekt het
-      // solver-vangnet — hier NIET een actualStart verzinnen).
       task.status = 'STARTED';
     }
 
-    // Restduur in de vorm van de duur: een dagtaak in werkdagen, een urentaak in minuten plus een
-    // onafgeronde werkdagfractie. De in het bestand vastgelegde rest van een lopende taak blijft staan
-    // (MSP's eigen exacte restduur bij een afgerond percentage, P6's rest naast een fysiek percentage,
-    // een eerder opgeslagen IFC); zonder bronrest leidt dezelfde regel als de store hem af uit
-    // `completion`. Een voltooide taak krijgt rest 0.
     applyRemainingDuration(task, true);
   }
 }
 
-/**
- * Herbouw de parent-child-hiërarchie uit gepunte WBS-codes — gedeeld door de MSPDI- en
- * CSV-readers. Een taak met een punt in zijn `wbsCode` (bv.
- * `1.2.3`) hangt onder de taak met de code één niveau hoger (`1.2`), als die bestaat. Bouwt zijn
- * eigen `wbsCode → id`-map, muteert `parentId`/`childIds` in-place en dupliceert nooit een childId.
- */
 export function rebuildWbsHierarchy(tasks: Task[]): void {
   const wbsToId = new Map<string, string>();
   for (const task of tasks) wbsToId.set(task.wbsCode, task.id);
-  // Eerste taak per id (= `tasks.find`) en per ouder een set van zijn kinderen, zodat een platte WBS
-  // van duizenden taken niet O(n²) wordt; volgorde en "nooit dubbel" blijven als voorheen.
   const byId = new Map<string, Task>();
   for (const task of tasks) if (!byId.has(task.id)) byId.set(task.id, task);
   const childSets = new Map<Task, Set<string>>();
@@ -169,14 +96,6 @@ export function rebuildWbsHierarchy(tasks: Task[]): void {
   }
 }
 
-/**
- * Ouder per taak uit OUTLINE-NIVEAUS in documentvolgorde — de MS-Project-semantiek:
- * een taak hangt onder de dichtstbijzijnde VOORAFGAANDE taak met een lager niveau. `levels[i]` hoort
- * bij `tasks[i]`. Geeft `undefined` zodra één niveau ontbreekt of geen geheel getal ≥ 0 is; een
- * 0-gebaseerde reeks (sommige exporteurs tellen vanaf 0) wordt genormaliseerd naar 1-gebaseerd.
- * Een sprong van meer dan één niveau (1 → 3) is tolerant, zoals MS Project dat ook oplost.
- * PUUR: raakt de taken niet aan.
- */
 function outlineParents(tasks: readonly Task[], levels: readonly (number | undefined)[]): Map<string, string | null> | undefined {
   if (levels.length !== tasks.length || tasks.length === 0) return undefined;
   if (!levels.every(l => l !== undefined && Number.isInteger(l) && l >= 0)) return undefined;
@@ -192,12 +111,6 @@ function outlineParents(tasks: readonly Task[], levels: readonly (number | undef
   return parents;
 }
 
-/**
- * Ouder per taak uit GEPUNTE WBS-codes (`1.2.3` hangt onder `1.2`), plus of die afleiding een
- * VOLLEDIGE boom oplevert: alle codes uniek, minstens één gepunte code, en elke gepunte code vindt
- * haar ouder. Alleen een volledige boom is bewijskrachtig genoeg om een outline-afleiding te
- * overstemmen (zie `rebuildImportedHierarchy`). PUUR.
- */
 function wbsParents(tasks: readonly Task[]): { parents: Map<string, string | null>; complete: boolean } {
   const wbsToId = new Map<string, string>();
   let unique = true;
@@ -234,28 +147,8 @@ function applyParents(tasks: Task[], parents: Map<string, string | null>): void 
   }
 }
 
-/** Welke bron de boom leverde — voor tests en meldingen. */
 export type ImportedHierarchySource = 'outline' | 'wbs';
 
-/**
- * Herbouw de parent-child-hiërarchie van een geïmporteerde takenlijst.
- * Twee bronnen: de outline-niveaus (`<OutlineLevel>` in MSPDI, de 'Outline Level'-kolom in CSV) en de
- * gepunte WBS-codes. Beslisregel:
- *
- *  1. Leveren de gepunte codes een VOLLEDIGE boom (`wbsParents.complete`) die de outline-afleiding
- *     ergens tegenspreekt, dan wint de WBS. Dat is het geval van onze eigen oudere exports:
- *     die schreven `<OutlineLevel>` uit `wbsCode.split('.').length` in store-volgorde ("samenvattingen
- *     eerst, dan bladen") — het niveau staat er, maar de VOLGORDE klopt niet, dus de outline-stack
- *     hangt de bladen onder de laatste samenvatting terwijl de codes de boom exact beschrijven. Die
- *     bestanden hebben gebruikers liggen; ze moeten blijven lezen zoals ze altijd lazen.
- *  2. Anders wint de outline zodra hij bruikbaar is: dat is wat MS Project zelf bedoelt, en het enige
- *     dat klopt zodra de WBS vrije tekst (`T107`, `A-1`) of een eigen masker is.
- *  3. Zonder bruikbare outline: de gepunte-WBS-afleiding zoals altijd (ook een gedeeltelijke).
- *
- * Een bestand van MS Project zelf (outline-nummer = standaard-WBS) of een huidige export (boom-
- * volgorde) valt in 1 en 2 op hetzelfde uit; de regel doet alleen iets bij een echte tegenspraak.
- * Muteert `parentId`/`childIds` in-place; geeft de gebruikte bron terug.
- */
 export function rebuildImportedHierarchy(tasks: Task[], levels: readonly (number | undefined)[]): ImportedHierarchySource {
   const outline = outlineParents(tasks, levels);
   const wbs = wbsParents(tasks);
@@ -270,13 +163,6 @@ export function rebuildImportedHierarchy(tasks: Task[], levels: readonly (number
   return 'wbs';
 }
 
-/**
- * `task.resourceIds` reconstrueren uit de assignments. De bestanden slaan de
- * taak↔resource-koppeling uitsluitend op via de toewijzingen (IFC: IFCRELASSIGNSTOPROCESS +
- * OPS_Assignments); `resourceIds` is een afgeleide projectie daarvan en wordt NIET los bewaard (geen
- * dubbele opslag/waarheid). Gedeeld door de lezers die toewijzingen kennen. Volgorde is deterministisch: eerste-zien in de
- * assignments-volgorde, met deduplicatie (één resource kan meerdere assignments op één taak hebben).
- */
 export function reconstructResourceIds(tasks: Task[], assignments: ResourceAssignment[]): void {
   const byTask = new Map<string, Set<string>>();
   for (const a of assignments) {
@@ -290,14 +176,6 @@ export function reconstructResourceIds(tasks: Task[], assignments: ResourceAssig
   }
 }
 
-/**
- * Maak dubbele id's in een ingelezen project uniek (audit 2026-09-26). Een kapot of vreemd bestand
- * kan twee taken, relaties, resources, kalenders of toewijzingen met hetzelfde id bevatten; de store
- * sleutelt overal op id en zou ze door elkaar halen. Het tweede en volgende exemplaar krijgt
- * `-dup-N`. Verwijzingen naar zo'n id zijn dubbelzinnig en blijven bij het eerste exemplaar (dat is
- * wat de store er tot nu toe ook van maakte). Kopieert alleen wat verandert; geen dubbelen ⇒
- * hetzelfde object terug en `renamed` 0.
- */
 export function ensureUniqueImportIds(result: ImportResult): { result: ImportResult; renamed: number } {
   let renamed = 0;
   const unique = <T extends { id: string }>(
@@ -318,9 +196,6 @@ export function ensureUniqueImportIds(result: ImportResult): { result: ImportRes
   };
   const taskRenames: { from: string; to: string; parentId: string | null }[] = [];
   let tasks = unique(result.tasks, new Set(), (from, to, t) => taskRenames.push({ from, to, parentId: t.parentId }));
-  // Een hernoemde taak blijft kind van haar ouder: in de kindlijst van die ouder vervangt haar nieuwe id
-  // het tweede (derde, …) voorkomen van het oude id; staat het er maar één keer, dan erbij (review
-  // 2026-09-28: anders verscheen het eerste exemplaar dubbel en het hernoemde niet).
   if (taskRenames.length > 0) {
     const parentIndex = new Map<string, number>();
     tasks.forEach((t, i) => { if (!parentIndex.has(t.id)) parentIndex.set(t.id, i); });
@@ -340,7 +215,6 @@ export function ensureUniqueImportIds(result: ImportResult): { result: ImportRes
   const sequences = unique(result.sequences, new Set());
   const resources = unique(result.resources, new Set());
   const assignments = unique(result.assignments, new Set());
-  // De projectkalender en de bibliotheekkalenders delen één id-ruimte (`task.calendarId`).
   const resourceCalendars = result.resourceCalendars
     ? unique(result.resourceCalendars, new Set([result.calendar.id]))
     : result.resourceCalendars;

@@ -33,14 +33,8 @@ export function documentDataFromImport(parsed: ReadImportResult): ImportedDocume
     xerSourceProjectId: parsed.xer?.sourceProjectId ?? parsed.xerSourceProjectId ?? null,
     ifcSource: parsed.ifcSource ?? null,
     ifcxReferences: parsed.ifcxReferences ?? null,
-    // Het kenmerk zet `applyLoadedProject` (hij kent het doel) of `payloadFromInput` (herstel).
     foreignSourceMark: null,
-    // Het geladen bestand ontsluit de werkregel-UI voor zichzelf.
     taskTypesVisible: hasTaskTypeData(parsed.tasks, parsed.assignments, parsed.project),
-    // Een VERSE import (xer/p6xml/mspdi/mpp/csv/ifc-uit-ander-pakket) is
-    // per definitie ongewijzigd; een HEROPENING (eigen IFC: 'ifc-own'/'xer-archive') draagt de
-    // vlag alleen als het bestand haar zelf zegt (`OPS_ImportProvenance`), anders `false`. Zonder
-    // herkomst (extensie-importer) `false`: nooit een gok richting automatisch aan.
     importPristine: parsed.importPristine ?? isFreshImportOrigin(parsed.recordedTimesOrigin),
     xerArchiveIssue: parsed.xerArchiveIssue ?? null,
     ifcGlobalIds: parsed.ifcGlobalIds ?? null,
@@ -51,19 +45,10 @@ export function documentDataFromImport(parsed: ReadImportResult): ImportedDocume
   return { ...migrated.payload, minuteModelPending: migrated.report.conversionPending };
 }
 
-/** Zie `ImportResult.recordedTimesOrigin`: verse import (automatisch aan bij afwijkingen) versus
- *  heropening van een eigen IFC (automatisch aan bij `importPristine` of opslaan in de modus). Eén definitie,
- *  gedeeld door `payloadFromImport` en `applyRecordedDatesOnLoad`. */
 export function isFreshImportOrigin(origin: RecordedTimesOrigin | undefined): boolean {
   return origin === 'xer' || origin === 'p6xml' || origin === 'mspdi' || origin === 'mpp' || origin === 'csv' || origin === 'ifc';
 }
 
-/**
- * De round-trip-velden en de bronidentiteit die een IFC-save nodig heeft. De bronbytes staan
- * nooit in de gewone writer-invoer hieronder. Zowel de live (top-level) `AppState` als een `DocumentPayload` voldoen
- * structureel aan deze vorm, dus alle callsites (canoniek save-pad, IFCPanel, auto-save, devBridge)
- * kunnen dezelfde bron doorgeven.
- */
 export type IFCSaveSource = Pick<
   DocumentPayload,
   | 'project'
@@ -79,42 +64,20 @@ export type IFCSaveSource = Pick<
   | 'baselines'
   | 'activeBaselineId'
   | 'comparedBaselineIds'
-  // Verplicht (review 2026-09-28): als optioneel veld liet een aanroeper met een eigen veldlijst
-  // (het IFC-paneel) het stil weg, en verloren alle bewaarde GlobalIds bij Toepassen.
   | 'ifcGlobalIds'
-  // Knownbug 1026: verplicht om dezelfde reden als `ifcGlobalIds`.
   | 'ifcLiteralCalendarIds'
-  // De bronidentiteit hoort bij de schrijfkeuze, nooit bij de planningtekst of Worker-invoer.
   | 'ifcSource'
   | 'minuteModelPending'
 >
   & Partial<Pick<DocumentPayload,
     | 'xerImportMetadata' | 'xerSourceArchive' | 'xerSourceProjectId' | 'importPristine'
     | 'recordedDates' | 'datesAsRecorded'
-    // #804 fase 1a: `buildWriteIFCInput` leest dit veld niet, dus een gewone opslag en een export blijven gelijk aan
-    // main. Alleen de herstelsnapshot (`recoverySnapshotInput`) en de MCP-backup (`backupService.ts`, fixronde 3)
-    // voegen het kenmerk zelf toe.
     | 'foreignSourceMark' | 'ifcxReferences'>>;
 
 export type IFCWriteMode = 'merge' | 'planOnly';
 
-/** Clonebare routemetadata; de gewone writer leest alleen de bestaande inhoudsvelden. */
 export type IFCWriteInput = WriteIFCInput & { readonly writeMode: IFCWriteMode };
 
-/**
- * "Datums zoals opgeslagen": in de modus draagt `task.time` op de
- * assen die het bronbestand NIET vastlegde een weergave-terugval (`applyRecordedTimesToTasks`:
- * `lateStart ?? start`, `totalFloat ?? 0`, `isCritical ?? false`). Schreef de writer die terugvallen
- * als gewone waarden weg, dan las een heropening ze als vastlegging — "speling 0, niet kritiek, zoals
- * opgeslagen" over iets wat MS Project/P6/CSV nooit zei. Hier per taak de assen die de
- * writer als `$` moet schrijven; dezelfde definitie als de CSV-/MCP-uitgang (`unrecordedExportFields`).
- * Buiten de modus staat er onze eigen, echte berekening: dan niets achterhouden.
- *
- * Een taak ZONDER vastlegging (niet in het bronbestand, of een samenvatting die in de modus uit haar
- * kinderen oprolt) draagt in de modus de datums van een solve die de modus juist verwierp; een
- * heropening als eigen IFC mét bron zou die als vastlegging lezen. Voor zo'n taak dus álle zeven
- * rekenslots `$`, de vroege datums inbegrepen. ScheduleStart/-Finish (invoer) blijven staan.
- */
 const ALL_COMPUTED_SLOTS: readonly WithheldTaskTimeField[] = [
   'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'totalFloat', 'freeFloat', 'isCritical',
 ];
@@ -130,14 +93,6 @@ function withheldFieldsFor(src: IFCSaveSource): WriteIFCInput['withheldTaskTimeF
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-/**
- * Bouw de VOLLEDIGE `writeIFC`-invoer uit de state/payload. Eén plek bepaalt welke velden
- * meeschrijven, zodat losse callsites niet stil velden kunnen weglaten (stil dataverlies bij
- * opslaan). De enige naamsvertaling: het store-veld `calendars`
- * (de gedeelde kalender-bibliotheek) heet in de writer-invoer `resourceCalendars`.
- * `mode` is verplicht; `writeMode` reist met spread/structuredClone mee tot de schrijver.
- * PR 11 gebruikt die keuze voor de doelbewaking; deze builder verandert de uitvoer niet.
- */
 export function buildWriteIFCInput(src: IFCSaveSource, mode: IFCWriteMode): IFCWriteInput {
   const withheld = withheldFieldsFor(src);
   return {
@@ -159,17 +114,10 @@ export function buildWriteIFCInput(src: IFCSaveSource, mode: IFCWriteMode): IFCW
     xer: src.xerImportMetadata ?? undefined,
     xerSourceArchive: src.xerSourceArchive ?? undefined,
     xerSourceProjectId: src.xerSourceProjectId ?? undefined,
-    // Alleen `true` wordt geschreven (`writeImportProvenanceMeta`).
     ...(src.importPristine ? { importPristine: true } : {}),
     ...(withheld ? { withheldTaskTimeFields: withheld } : {}),
-    // Bestaande objecten houden hun GlobalId uit het ingelezen bestand.
     ...(src.ifcGlobalIds ? { ifcGlobalIds: src.ifcGlobalIds } : {}),
-    // Kalenders die letterlijk waren bij het openen, blijven letterlijk (knownbug 1026).
     ...(src.ifcLiteralCalendarIds?.length ? { ifcLiteralCalendarIds: src.ifcLiteralCalendarIds } : {}),
-    // De oorspronkelijke bron reist mee in OPS_ImportProvenance, zodat een heropening op de BRON
-    // poort en niet op "het is nu een IFC". ALLEEN in de modus: buiten de modus staat
-    // onze eigen solve in het bestand; een bron noemen zou bij heropenen onze oude solve met de
-    // nieuwe laten vergelijken en dat bv. "MS Project-datums" noemen.
     ...(src.datesAsRecorded && src.recordedDates?.sourceFormat
       ? { recordedSourceFormat: src.recordedDates.sourceFormat } : {}),
   };

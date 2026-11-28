@@ -1,24 +1,3 @@
-// contourIo.ts — de adapterlaag van de contour-engine: vertaalt tussen de RAUWE vormen
-// waarin MS Project (MSPDI `<TimephasedData>`) en Primavera P6 (`<PlannedCurve>`/`<RemainingCurve>`/
-// `<ActualCurve>`-spreidingsstrings) een werkverdeling opslaan, en de ene interne vorm die de
-// engine rekent: `TimephasedContourPeriod[]` op de cumulatieve werkminuten-as van de taak (zie
-// `contourEngine.ts` en `task.ts`'s `TaskSplitGap`-docblok). Zowel `mspdiReader`/`mspdiWriter` als
-// `p6xmlReader`/`p6xmlWriter` leunen hierop — één as-vertaling, geen vier die stil uiteenlopen.
-//
-// DAG- VS UUR-MODUS. Een taak op een uur-kalender (`engine.isHourMode`) meet asafstanden met
-// `CalendarEngine.workMinutesBetween` (minuutprecies, de kalenderbanden zijn de as). Een taak op
-// een DAG-kalender heeft geen banden (`workMinutesBetween` gooit daar, zie de guard in `mppReader.ts`'s
-// `computeShiftedAssignmentPeriods`); daar telt de as in hele werkdagen × `hoursPerDay × 60` —
-// dezelfde `mpd`-conventie als `splitWalk.ts`. Een tijd-van-de-dag binnen zo'n dag-kalender wordt
-// bewust genegeerd (een dag-taak tekent en boekt nooit binnen-de-dag), met één uitzondering: een
-// EINDinstant met een tijd ná middernacht telt zijn eigen dag mee (MSPDI schrijft
-// `Finish=…T17:00:00`), een STARTinstant niet.
-//
-// Bron voor de MSPDI-vorm: MPXJ `MSPDIReader.readTimephasedWork`/`MSPDIWriter.writeAssignment
-// TimephasedData` (Type 1 = resterend werk, 2 = verricht werk, 3 = verricht overwerk; `Unit` volgt de
-// periodelengte: 2 = dagen; `Value` = ISO-8601-duur `PT{H}H{M}M{S}S`). Bron voor de P6-vorm: MPXJ
-// `TimephasedHelper` — `"werkuren:periode-uren;…"`, aaneengesloten vanaf een anker (`PlannedStartDate`
-// resp. `ActualStartDate`/`RemainingStartDate`), elke periode gemeten in WERKuren van de kalender.
 import type { Task, TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -28,18 +7,11 @@ import { isSummaryTask } from '@/utils/taskHierarchy';
 
 export type ContourKind = TimephasedContourPeriod['kind'];
 
-/**
- * Aantal taken waarvan de onderbrekingen bij een MSPDI-/P6-export VERLOREN gaan: beide
- * formaten kennen een onderbreking alleen als werkverdeling van een toewijzing, en zonder contour is
- * er geen verdeling om te schrijven. Eén telling voor beide writers (console) én voor
- * `fileSlice.exportAs` (de gebruikersmelding) — anders kan de melding iets anders zeggen dan de writer doet.
- */
 export function countSplitTasksWithoutContour(tasks: readonly Task[]): number {
   return tasks.filter(t => t.splitGaps && t.splitGaps.length > 0
     && !(t.timephasedContours && t.timephasedContours.length > 0)).length;
 }
 
-/** Eén absoluut werkvak zoals MSPDI het draagt: begin- en eindinstant plus het werk erin. */
 export interface AbsoluteWorkItem {
   start: Date;
   finish: Date;
@@ -47,7 +19,6 @@ export interface AbsoluteWorkItem {
   kind: ContourKind;
 }
 
-/** Minuten per dagslot van de taakkalender (dezelfde definitie als `splitWalk.ts`). */
 export function slotMinutesOf(engine: CalendarEngine): number {
   return Math.max(1, engine.hoursPerDay * 60);
 }
@@ -56,12 +27,6 @@ function hasTimeOfDay(d: Date): boolean {
   return d.getTime() !== utcDayStart(d).getTime();
 }
 
-/**
- * Aspositie (werkminuten sinds `taskStart`) van een absoluut instant. Uur-modus: exact via de
- * banden; dag-modus: hele werkdagen vóór de dag van `at` (× mpd), plus — alleen als `inclusiveDay`
- * (een EINDinstant met tijd-van-de-dag) — de dag van `at` zelf wanneer die een werkdag is.
- * Nooit negatief (een instant vóór de taakstart klemt op 0).
- */
 export function axisOffsetMinutes(engine: CalendarEngine, taskStart: Date, at: Date, inclusiveDay = false): number {
   if (engine.isHourMode) return Math.max(0, engine.workMinutesBetween(taskStart, at));
   const mpd = slotMinutesOf(engine);
@@ -73,11 +38,6 @@ export function axisOffsetMinutes(engine: CalendarEngine, taskStart: Date, at: D
   return (before + own) * mpd;
 }
 
-/**
- * Absolute werkvakken (MSPDI) → contourperiodes op de taak-as. Een vak dat op de as geen lengte
- * heeft (bv. een weekend-item zonder werktijd — MPXJ laat die ook vallen) wordt overgeslagen;
- * de uitkomst is gesorteerd op `afterMinutes`.
- */
 export function absoluteItemsToContourPeriods(
   engine: CalendarEngine,
   taskStart: Date,
@@ -96,14 +56,6 @@ export function absoluteItemsToContourPeriods(
   return out;
 }
 
-/**
- * `TaskSplitGap[]` uit de contourperiodes van ÁLLE toewijzingen van een taak: per toewijzing de gaten
- * tussen de gewerkte periodes ({@link gapsBetweenWorkedSpans}), over de taak de DOORSNEDE
- * ({@link intersectAssignmentGaps}) — de taak pauzeert alleen waar géén enkele toewijzing werkt.
- * De .mpp-lezer (`mppTimephased.ts`) gebruikt dezelfde twee functies, zodat een MSPDI-/P6-contour
- * dezelfde CPM-gaten oplevert als een .mpp-contour. De importrichting is bewust mpp → hier: deze
- * adapterlaag zit in de hoofdbundel, de mpp-servicesmap juist niet (`check-mpp-chunk-boundary.ts`).
- */
 export function splitGapsFromContours(contours: readonly (readonly TimephasedContourPeriod[])[]): TaskSplitGap[] {
   return intersectAssignmentGaps(contours.map((periods) => gapsBetweenWorkedSpans(
     periods
@@ -112,7 +64,6 @@ export function splitGapsFromContours(contours: readonly (readonly TimephasedCon
   )));
 }
 
-/** Verzamel één toewijzingscontour per taak (de lezers bouwen zo `contoursByTaskId` op). */
 export function collectContour(
   contoursByTaskId: Map<string, TaskTimephasedContour[]>, taskId: string, contour: TaskTimephasedContour,
 ): void {
@@ -121,11 +72,6 @@ export function collectContour(
   else contoursByTaskId.set(taskId, [contour]);
 }
 
-/**
- * Zet de verzamelde contouren op hun bladtaken en leid daaruit de werkonderbrekingen af
- * ({@link splitGapsFromContours}) — alleen voor taken die nog geen gaten dragen, want een andere
- * split-bron van het bestand wint. Samenvattingstaken dragen nooit een contour.
- */
 export function attachContours(
   taskById: ReadonlyMap<string, Task>, contoursByTaskId: ReadonlyMap<string, TaskTimephasedContour[]>,
 ): void {
@@ -140,12 +86,6 @@ export function attachContours(
   }
 }
 
-/**
- * De gaten tussen GEWERKTE spans op de werkminuten-as van één toewijzing. De aanroeper laat periodes
- * zonder werk vooraf weg: zo'n periode overbrugt juist de discontinuïteit die anders zichtbaar zou
- * zijn (bewaakt door `check-mpp-import.ts`). STRIKT `>`: twee AANGRENZENDE werkperiodes
- * (bv. de naad tussen een "actual"- en een "remaining"-record) leveren geen fantoomgat van 0 minuten.
- */
 export function gapsBetweenWorkedSpans(spans: readonly { start: number; end: number }[]): TaskSplitGap[] {
   const worked = spans.slice().sort((a, b) => a.start - b.start);
   const gaps: TaskSplitGap[] = [];
@@ -157,11 +97,6 @@ export function gapsBetweenWorkedSpans(spans: readonly { start: number; end: num
   return gaps;
 }
 
-/**
- * Taakniveau over meerdere toewijzingen: de DOORSNEDE van de per-toewijzing gat-intervallen (MSP's
- * Gantt-balk toont "bezig" zodra één toewijzing werkt). Eén lijst per toewijzing MET data; een lege
- * lijst betekent "wel data, nul gaten" en drukt de doorsnede terecht naar leeg.
- */
 export function intersectAssignmentGaps(gapsByAssignment: readonly (readonly TaskSplitGap[])[]): TaskSplitGap[] {
   if (gapsByAssignment.length === 0) return [];
   return gapsByAssignment.slice(1).reduce<TaskSplitGap[]>(
@@ -187,7 +122,6 @@ function intersectGapIntervals(a: readonly TaskSplitGap[], b: readonly TaskSplit
   return result;
 }
 
-/** Eén dag-item voor de MSPDI-schrijver: kalenderdag, begin-/eindinstant en het werk erin. */
 export interface ContourDayItem {
   iso: string;
   start: Date;
@@ -196,13 +130,6 @@ export interface ContourDayItem {
   kind: ContourKind;
 }
 
-/**
- * Contourperiodes → dag-items (per werkdag van de taakkalender vanaf `taskStart`, slot k = k-de
- * werkdag; gat-slots komen als 0-werk-dagen mee — precies hoe MS Project een split opslaat).
- * Actual- en remaining-periodes worden apart uitgesmeerd (MSPDI Type 2 resp. 1). Instants: uur-
- * modus ⇒ eerste bandstart / laatste bandeind van de dag; dag-modus ⇒ `workStartHour`/`workEndHour`
- * van de kalender.
- */
 export function contourPeriodsToDayItems(
   engine: CalendarEngine,
   calendar: WorkCalendar,
@@ -216,7 +143,6 @@ export function contourPeriodsToDayItems(
     const own = periods.filter((p) => p.kind === kind);
     if (own.length === 0) continue;
     const slots = periodsToSlotWork(own, mpd, 0);
-    // Bepaal de eerste/laatste slot met werk; alles daartussen (ook 0) wordt geschreven.
     let first = -1;
     let last = -1;
     for (let k = 0; k < slots.length; k++) {
@@ -256,16 +182,6 @@ function dayInstants(engine: CalendarEngine, calendar: WorkCalendar, day: Date):
   return { start: new Date(base + sh * 3_600_000), finish: new Date(base + eh * 3_600_000) };
 }
 
-// ── P6-spreidingsstrings ────────────────────────────────────────────────────────────────────────
-
-/**
- * P6 `<PlannedCurve>`/`<RemainingCurve>`/`<ActualCurve>` → contourperiodes. Vorm (MPXJ
- * `TimephasedHelper.read`): `"werkuren:periodeuren;werkuren:periodeuren;…"`, aaneengesloten vanaf
- * het anker; `anchorOffsetMinutes` is de aspositie van dat anker (zie `axisOffsetMinutes`). Een
- * string zonder `:` is geen spreiding (de pre-contour-engine-schrijver zette hier een curveNAAM —
- * dat geval hoort de aanroeper apart af te vangen) ⇒ lege lijst; elk ongeldig paar ⇒ lege lijst
- * (MPXJ doet hetzelfde: geen halve spreiding).
- */
 export function p6SpreadToContourPeriods(spread: string, anchorOffsetMinutes: number, kind: ContourKind): TimephasedContourPeriod[] {
   if (!spread || spread.indexOf(':') === -1) return [];
   const out: TimephasedContourPeriod[] = [];
@@ -282,12 +198,6 @@ export function p6SpreadToContourPeriods(spread: string, anchorOffsetMinutes: nu
   return out;
 }
 
-/**
- * Contourperiodes → P6-spreidingsstring (spiegel van `TimephasedHelper.write`): per periode
- * `"werkuren:periodeuren"`, een leeg stuk as tussen twee periodes als `"0:uren"`. Uren op
- * twee decimalen (MPXJ schrijft `#.#`; de lezer parseert elke double, dus meer precisie is
- * schema-veilig en verliest minder). Lege lijst ⇒ `null` (element weglaten).
- */
 export function contourPeriodsToP6Spread(periods: readonly TimephasedContourPeriod[], anchorOffsetMinutes = 0): string | null {
   const sorted = periods
     .filter((p) => Number.isFinite(p.afterMinutes) && Number.isFinite(p.minutes) && p.minutes > 0)
@@ -312,10 +222,6 @@ function fmtHours(minutes: number): string {
   return String(h);
 }
 
-// ── MSPDI-duurnotatie ────────────────────────────────────────────────────────────────────────────
-
-/** `PT{H}H{M}M{S}S` → minuten (MSPDI `<Value>` van een TimephasedData-item); `null` bij een
- *  vorm zonder tijdcomponent. */
 export function mspdiValueToMinutes(value: string): number | null {
   if (!value) return null;
   const m = value.match(/^P(?:(\d+)D)?T?(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?$/);
@@ -327,7 +233,6 @@ export function mspdiValueToMinutes(value: string): number | null {
   return days * 24 * 60 + hours * 60 + mins + secs / 60;
 }
 
-/** Minuten → `PT{H}H{M}M{S}S` (hele seconden). */
 export function minutesToMspdiValue(minutes: number): string {
   const totalSeconds = Math.max(0, Math.round(minutes * 60));
   const h = Math.floor(totalSeconds / 3600);
