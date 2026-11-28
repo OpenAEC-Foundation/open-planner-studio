@@ -1,15 +1,3 @@
-/**
- * `PdfTable` — generieke, data-gedreven tabel-render voor het `renderReport`-patroon van de
- * vector-PDF-export. Tekent tegen `Draw2D` (net als `printPreview.renderReport` voor de Gantt),
- * zodat `paginateVectorToPdfBytes` 'm kan pagineren zonder aparte code-paden: dit bestand levert
- * alleen een `(makeDraw2D) => RenderReportResult`-functie, precies het contract dat de vector-
- * pagineerder van de Gantt-render kent.
- *
- * Levert voor de tabelrapporten (mijlpalen, afwijkingen, …) échte vector-tekst i.p.v. een
- * DOM-screenshot — de renderer hieronder is puur data → tekening, dus deterministisch en
- * onafhankelijk van het geladen thema (bewust altijd wit/donker-op-wit: een PDF is een papieren
- * artefact, geen thema-weergave).
- */
 import type { Draw2D } from './draw2d';
 import type { RenderReportResult } from '@/services/print/printPreview';
 import { ellipsize } from '@/engine/renderer/textFit';
@@ -22,33 +10,22 @@ import {
 export type PdfTableAlign = 'left' | 'right' | 'center';
 
 export interface PdfTableColumn<Row> {
-  /** Kolomkop-tekst (al vertaald door de aanroeper — deze module doet geen i18n). */
   header: string;
-  /** Kolombreedte in logische px (zelfde eenheid als de Gantt-render — zie `printPreview.ts`). */
   width: number;
   align: PdfTableAlign;
-  /** Celtekst voor deze rij (al geformatteerd door de aanroeper — datums/afkortingen/…). */
   text(row: Row): string;
-  /** Optionele celkleur (CSS-kleur, bv. een statusbadge of rood bij negatieve speling); `undefined`
-   * (of geen `color`-functie) valt terug op de standaard tekstkleur. */
   color?(row: Row): string | undefined;
-  /** Optioneel vetgedrukt (bv. status-badges, of speling/delta < 0 resp. > 0). */
   bold?(row: Row): boolean;
-  /** Optionele inspringing (logische px) vóór de celtekst — WBS-hiërarchie; DOM zet 'm als
-   *  `paddingLeft`, de PDF schuift de tekst op. Nooit als spaties in de tekst (die vouwt HTML weg). */
   indent?(row: Row): number;
 }
 
 export interface PdfTableSpec<Row> {
-  /** Optionele titel boven de tabel (spiegelt de DOM `<h3 class="ui-card-header">`). */
   title?: string;
   columns: PdfTableColumn<Row>[];
   rows: Row[];
-  /** Tekst voor de lege-staat-rij (spiegelt de DOM `rows.length === 0`-rij). */
   emptyText?: string;
 }
 
-/** Eén sectie van een gesectioneerd rapport: optionele kop + eigen tabel (eigen kolomspec). */
 export interface PdfReportSection<Row = unknown> {
   heading?: string;
   columns: PdfTableColumn<Row>[];
@@ -56,48 +33,31 @@ export interface PdfReportSection<Row = unknown> {
   emptyText?: string;
 }
 
-/**
- * Gesectioneerd tabelrapport: titel, een blok
- * samenvattingsregels ("label: waarde", met optionele nadrukkleur) en nul of meer secties met
- * elk een kop en een tabel. Spiegelt `TableReportView.tsx` — DOM en PDF delen de kolomspec.
- */
 export interface PdfSectionedReportSpec {
   title: string;
-  /** Kleine regel onder de titel (bv. de periode of de statusdatum). */
   subtitle?: string;
-  /** Meldingen (niet berekend, geen statusdatum, …) — elk op een eigen regel, nooit ingekort tot
-   *  één ellipsis-regel: het zijn correctheidsmeldingen over de getallen eronder. */
   notes?: string[];
   summary: { label: string; value: string; color?: string }[];
-  /** Kerncijfers als kaarten op één rij, onder de samenvatting (voortgangscurve). */
   kpis?: PdfReportKpi[];
-  /** Curvegrafiek onder de kerncijfers (voortgangscurve). */
   chart?: { spec?: CurveChartSpec; emptyText?: string };
   sections: PdfReportSection[];
 }
 
-/** Eén kerncijfer: label, groot getal, regel eronder. Spiegelt de kaart in `TableReportView`. */
 export interface PdfReportKpi {
   label: string;
   value: string;
   detail?: string;
-  /** Nadrukkleur van het getal (CSS-kleur). */
   color?: string;
 }
 
-// De fontstack komt als parameter binnen (zelfde stack als de Gantt-render, `printPreview.ts`);
-// zonder parameter geldt het gevendorde Inter (`DEFAULT_REPORT_FONT_STACK`, uitleg in `reportFont.ts`).
-
-/** Print-kleurenschema — puur wit-op-papier, GEEN thema-afhankelijkheid (dit is het hele punt: de
- * DOM-screenshot moest een thema forceren, de vector-tekening hoeft dat niet). */
 const COLORS = {
   bg: '#ffffff',
-  note: '#D97706',      // spiegelt de oranje meldingsregel in TableReportView
+  note: '#D97706',
   text: '#111827',
-  textMuted: '#6b7280', // spiegelt --theme-text-muted (headers)
-  textDim: '#9ca3af',   // spiegelt --theme-text-dim (lege-staat-tekst)
-  headerBorder: '#9ca3af', // spiegelt de DOM 2px solid var(--theme-border)
-  rowBorder: '#e5e7eb',    // spiegelt de DOM 1px solid var(--theme-border-light)
+  textMuted: '#6b7280',
+  textDim: '#9ca3af',
+  headerBorder: '#9ca3af',
+  rowBorder: '#e5e7eb',
 };
 
 const TITLE_FONT_SIZE = 15;
@@ -107,7 +67,7 @@ const CELL_PAD_X = 8;
 const ROW_HEIGHT = 26;
 const HEADER_HEIGHT = 30;
 const TITLE_HEIGHT = 36;
-const TITLE_BASELINE_GAP = 12; // afstand van de titel-baseline tot de onderkant van het titelblok
+const TITLE_BASELINE_GAP = 12;
 const SUBTITLE_HEIGHT = 20;
 const SUMMARY_LINE_HEIGHT = 18;
 const SUMMARY_GAP = 10;
@@ -118,30 +78,12 @@ const KPI_HEIGHT = 66;
 const KPI_GAP = 10;
 const BLOCK_GAP = 14;
 
-/** Meet tekst op een letter (CSS-fontstring) — het paneel levert dit vanuit een canvas. */
 export type MeasureText = (text: string, font: string) => number;
 
-/** De letter van een kolomkop — `drawTable` tekent ermee en {@link fitColumnsToHeaders} meet ermee. */
 function columnHeaderFont(fontStack: string): string {
   return `bold ${HEADER_FONT_SIZE}px ${fontStack}`;
 }
 
-/**
- * Verbreed elke kolom die haar eigen KOP niet kwijt kan. De kolombreedtes in een spec zijn een
- * ontwerpkeuze die voor de Nederlandse/Engelse brontekst gemeten is; vertaalde koppen zijn langer
- * en zouden door `drawTable` met een beletselteken afgekapt worden — in het Engels al "Duration (wd)"
- * (73 px in een kolom van 70, dus 54 px beschikbaar), in het Pools "Czas trwania (dr)" (92 px) en
- * in het Arabisch bijna elke speling-/duurkop. Een kop is kort, vast en informatiedragend; die
- * hoort niet af te kappen. De DOM-weergave (`TableReportView`) heeft dit probleem niet — een
- * `<table>` meet zichzelf — dus dit brengt de PDF in lijn met wat het scherm toont.
- *
- * Bewust ALLEEN verbreden, nooit versmallen: de pagineerder perst de tabel op papierbreedte
- * (`mode: 'fit-width'`, schaal = printbreedte / tabelbreedte, zonder bovengrens), dus een smallere
- * tabel zou de tekst niet netter maken maar groter — en een kolom die met de inhoud meekrimpt zou
- * de lettergrootte per rapport laten verspringen. Celinhoud kapt dus gewoon af (dat is bij
- * een vrije-tekstkolom als "Naam" of "Resources" ook de bedoeling); alleen de kop krijgt de ruimte
- * die hij nodig heeft.
- */
 export function fitColumnsToHeaders<Row>(
   columns: PdfTableColumn<Row>[],
   measure: MeasureText,
@@ -149,7 +91,6 @@ export function fitColumnsToHeaders<Row>(
 ): PdfTableColumn<Row>[] {
   const headerFont = columnHeaderFont(fontStack);
   return columns.map(col => {
-    // +1: afronding van subpixel-breedtes mag nooit nét een beletselteken uitlokken.
     const needed = Math.ceil(measure(col.header, headerFont) + 2 * CELL_PAD_X + 1);
     return needed > col.width ? { ...col, width: needed } : col;
   });
@@ -161,15 +102,10 @@ function cellX(align: PdfTableAlign, colX: number, colW: number): number {
   return colX + colW / 2;
 }
 
-/** Tabelhoogte (header + rijen) zonder titel — gedeeld door beide render-makers hieronder. */
 function tableHeight(rowCount: number): number {
   return HEADER_HEIGHT + Math.max(1, rowCount) * ROW_HEIGHT;
 }
 
-/**
- * Tekent één tabel (kolomkoppen + rijen of lege-staat) op `y` en geeft de nieuwe `y` terug. Beide
- * render-makers delen deze functie, zodat een sectie-tabel pixel-identiek is aan de losse tabel.
- */
 function drawTable<Row>(
   d2d: Draw2D,
   y: number,
@@ -181,7 +117,6 @@ function drawTable<Row>(
 ): number {
   const tableWidth = columns.reduce((sum, c) => sum + c.width, 0);
 
-  // ---- Header-rij (bold, 2px onderlijn — spiegelt de DOM `2px solid var(--theme-border)`) ----
   let x = 0;
   d2d.font = columnHeaderFont(fontStack);
   d2d.fillStyle = COLORS.textMuted;
@@ -201,7 +136,6 @@ function drawTable<Row>(
   d2d.stroke();
   y += HEADER_HEIGHT;
 
-  // ---- Data-rijen (of lege-staat) ----
   if (rows.length === 0) {
     d2d.fillStyle = COLORS.textDim;
     d2d.font = `${BODY_FONT_SIZE}px ${fontStack}`;
@@ -233,22 +167,12 @@ function drawTable<Row>(
       d2d.lineTo(tableWidth, y + ROW_HEIGHT);
       d2d.stroke();
       y += ROW_HEIGHT;
-      // Onder elke rij mag een pagina eindigen — nooit erdoorheen.
       breaks?.push(y);
     }
   }
   return y;
 }
 
-/**
- * Bouw een `renderReport`-compatibele render-functie uit een generieke tabel-spec. Roept
- * `makeDraw2D` exact één keer aan (conventie van de vector-pagineerder: één XObject) zodra de totale
- * (kolom-som) breedte + hoogte (titel + header + rijen×rijhoogte) bekend zijn.
- *
- * Retourneert `tableWidth: 0` — tabellen hebben geen bevroren-kolom (ze tegelen fit-width, 1 kolom
- * breed; de vector-pagineerder herhaalt de bevroren-strip alleen in `'actual'`-modus of bij
- * `timelineColumns > 1`).
- */
 export function makeTableRenderReport<Row>(
   spec: PdfTableSpec<Row>,
   measure?: MeasureText,
@@ -262,7 +186,6 @@ export function makeTableRenderReport<Row>(
 
     const d2d = makeDraw2D(tableWidth, height);
 
-    // Achtergrond — altijd wit (print-artefact, geen thema).
     d2d.fillStyle = COLORS.bg;
     d2d.fillRect(0, 0, tableWidth, height);
 
@@ -283,17 +206,10 @@ export function makeTableRenderReport<Row>(
     d2d.textAlign = 'left';
     d2d.textBaseline = 'alphabetic';
 
-    // `headerHeight: 0` — een tabel-render heeft géén herhaalbare kopstrook: titel + kolomkoppen
-    // staan bewust alleen bovenaan het eerste vel (de pagineerder herhaalt niets als dit 0 is).
     return { width: tableWidth, height, tableWidth: 0, headerHeight: 0, footerHeight: 0, breakOffsets };
   };
 }
 
-/**
- * Gesectioneerd rapport (titel + samenvatting + secties) als `renderReport`-functie. De breedte is
- * de breedste sectie (minimaal de samenvattingskolom); smallere secties beginnen links uitgelijnd.
- * Zelfde `makeDraw2D`-één-keer-conventie en `headerHeight: 0` als `makeTableRenderReport`.
- */
 export function makeSectionedRenderReport(
   spec: PdfSectionedReportSpec,
   measure?: MeasureText,
@@ -314,7 +230,6 @@ export function makeSectionedRenderReport(
     const subtitleH = spec.subtitle ? SUBTITLE_HEIGHT : 0;
     const notes = spec.notes ?? [];
     const notesH = notes.length * SUBTITLE_HEIGHT;
-    // Samenvatting in twee kolommen (zoals het DOM-blok): ceil(n/2) regels.
     const summaryLines = Math.ceil(spec.summary.length / 2);
     const summaryH = summaryLines > 0 ? summaryLines * SUMMARY_LINE_HEIGHT + SUMMARY_GAP : 0;
     let height = TITLE_HEIGHT + subtitleH + notesH + summaryH + kpiH + chartH;
@@ -418,7 +333,6 @@ export function makeSectionedRenderReport(
       y += BLOCK_GAP;
     }
 
-    // Kop, samenvatting, kerncijfers en grafiek zijn één blok: een pagina breekt er niet doorheen.
     const breakOffsets: number[] = [];
     if (spec.summary.length > 0 || spec.subtitle || notes.length > 0 || kpis.length > 0 || spec.chart) breakOffsets.push(y);
     for (const s of sections) {
@@ -430,8 +344,6 @@ export function makeSectionedRenderReport(
         d2d.fillText(ellipsize(d2d, s.heading, width), 0, y + SECTION_HEADING_HEIGHT / 2 + 4);
         y += SECTION_HEADING_HEIGHT;
       }
-      // Een sectiekop mag niet los onderaan een pagina blijven staan: de breekpositie vóór de kop
-      // vervalt zodra de kop getekend is (de laatste breek vóór de kop was het sectie-einde ervoor).
       y = drawTable(d2d, y, s.columns, s.rows, s.emptyText, fontStack, breakOffsets);
       y += SECTION_GAP;
       breakOffsets.push(y);
