@@ -29,5 +29,5 @@ eerder genomen veilige keuze terugdraaien.
   10 november 2026; de regel en zijn bron staan in `docs/ifc-round-trip.md`, *Letterlijke kalender blijft letterlijk*).
   Een undo die de lijst kleiner maakte, liet 1026 terugkomen: opslaan met `LiteralTimes`, de bewerking ongedaan maken,
   opnieuw opslaan. Wijst een id na IFC Toepassen een andere kalender aan, dan wordt hooguit een kalender te veel
-  letterlijk, de veilige richting. Dat v2026.9.0 de echte tijden van een letterlijke kalender leest zoals hij ze altijd
-  las, komt uit het weggehaalde commentaar en is niet nagegaan.
+  letterlijk, de veilige richting. v2026.9.0 leest de echte tijden van een letterlijke kalender letterlijk (gemeten met
+  de lezer van die tag, `docs/superpowers/specs/2026-10-20-alleen-uren-design.md`, §5.4).

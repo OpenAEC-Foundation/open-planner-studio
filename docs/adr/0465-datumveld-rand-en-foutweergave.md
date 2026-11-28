@@ -5,7 +5,7 @@ Het datumveld (`DateTextInput`, ADR 0460) is een groep van drie vakjes die eruit
 achtergrond en de breedte geeft; elke plek kiest zelf de breedte. De focusrand en de foutrand (`FOCUS_STYLE`, `ERROR_STYLE`) nemen de rand en de schaduw van
 `.input:focus` en `.input--error:focus` over (`src/styles/globals.css`). We zetten ze als `border`-shorthand en niet als
 losse `borderColor`, omdat een aanroeper via `style` een `border`-shorthand kan meegeven en React bij gemengde
-shorthand en longhand waarschuwt; die reden komt uit het weggehaalde commentaar en is niet nagegaan.
+shorthand en longhand waarschuwt (`react-dom` 19.2.4, de ontwikkelwaarschuwing "a conflicting property is set").
 
 ## Gevolgen
 

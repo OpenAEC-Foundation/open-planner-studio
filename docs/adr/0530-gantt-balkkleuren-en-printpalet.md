@@ -3,8 +3,8 @@
 De taakbalken tekenen de verzadigde merktinten uit `BRAND` (`src/engine/renderer/themePalette.ts`), in licht én
 donker. Een ontzadigde set die op beide kaarten 3:1 haalt, maakt van de balken mat pastel en kost het merkkarakter.
 We aanvaarden daarom dat de balken op de donkere kaart onder de 3:1 voor grafische objecten van WCAG 1.4.11 blijven,
-ook in de modus kritiek pad waar de kleur het enige teken van kritiek is (uit het weggehaalde commentaar, niet
-nagegaan). De drempels per kleurpaar
+ook in de modus kritiek pad waar de kleur het enige teken van kritiek is: buiten hoog contrast verschilt een
+kritieke balk alleen in de vulkleur (`barColor` in `GanttRenderer.ts`). De drempels per kleurpaar
 staan in `tests/planning/theme-contrast-thresholds.json` (`check-theme-contrast.ts`) en mogen niet lager.
 
 ## Gevolgen

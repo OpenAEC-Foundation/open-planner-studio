@@ -18,9 +18,9 @@ niet rekent maar wel moet weten dat een blad onder zo'n fase een voorganger of o
   (`projectSlice.ts`), `progressPlannedDates.ts`, de bibliotheekverdeling (`distribute.ts`) en de benchmark
   (`runner.ts`) aan. `effectiveExternalLinks` gebruiken het logica-rapport (`logicIndex.ts`), de waarschuwingen
   (`scheduleWarnings.ts`) en het waarschuwingenpaneel. Welke aanroepers de toets niet dekt, staat in knownbug 835.
-- Volgens het weggehaalde commentaar geldt per type dezelfde afwijking als bij een gewone relatie op een fase: een
-  externe voorganger zoals de samenvatting als opvolger (FF en SF conservatief), een externe opvolger zoals de
-  samenvatting als voorganger (SS en SF conservatief). `check-external-summary.ts` vergelijkt voor beide richtingen,
+- Per type geldt dezelfde afwijking als bij een gewone relatie op een fase, omdat `leafTasksForSolve` de relatie op
+  elk blad zet zoals `expandSummaryRelations` dat doet (ADR 0450): een externe voorganger zoals de samenvatting als
+  opvolger (FF en SF conservatief), een externe opvolger zoals de samenvatting als voorganger (SS en SF conservatief). `check-external-summary.ts` vergelijkt voor beide richtingen,
   alle vier typen en de profielen ops, p6 en msproject de relatie op de fase met dezelfde relatie op elk blad: de
   datums en de speling van de bladen en de rollup van de fase moeten gelijk zijn, en een losse taak blijft
   ongemoeid. De toets pint dus

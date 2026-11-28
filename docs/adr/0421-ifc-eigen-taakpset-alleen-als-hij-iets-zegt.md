@@ -8,8 +8,9 @@ keuzes die een lezer zonder uitleg zou terugdraaien. Een afwezige property leest
 
 ## Gevolgen
 
-- `OPS_TaskIdentity` staat er bij elke taak, met het interne taak-id. Volgens het weggehaalde commentaar is dat voor
-  het verversen van een externe bron over herhaald lezen en schrijven heen.
+- `OPS_TaskIdentity` staat er bij elke taak, met het interne taak-id. Dat is voor het verversen van een externe bron
+  over herhaald lezen en schrijven heen: daar zoekt OPS de brontaak op taak-id (`docs/relaties-tussen-projecten.md`,
+  "Herkennen").
 - `OPS_Constraints`: een constraint (primair of secundair) alleen als het type niet ASAP is; de datum en `Hard` alleen
   als ze gezet zijn, en `Hard` alleen bij de primaire (ADR 0302). De deadline staat in dezelfde pset. `IfcTaskTime`
   heeft geen slot voor een constraint of deadline.
