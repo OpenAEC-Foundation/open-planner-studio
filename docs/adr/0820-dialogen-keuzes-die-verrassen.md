@@ -36,8 +36,7 @@ kalenderdialoog staat in ADR 0463.
   ontstaat. De meeverschoven onderdelen staan als "label: aantal" en niet als zin met vier tellingen, omdat zo'n zin
   per telling een eigen meervoudsvorm nodig heeft.
 - In `ProgressImportDialog` staat `tasks` in de afhankelijkheden van het voorbeeld, met een gerichte
-  `eslint-disable`, al gebruikt de closure hem niet letterlijk: undo en redo zijn onder de dialoog dicht, maar een
-  andere route (bijvoorbeeld een MCP-tool) kan de taken wijzigen terwijl hij open staat.
+  `eslint-disable`, al gebruikt de closure hem niet letterlijk: het voorbeeld leest de actuele taken via de store.
 - `TaskDialog` voert een in de dialoog bevestigde hernoeming van een werksoort pas uit als de bewerksessie dicht is,
   als eigen stap: anders draait Annuleren haar terug en voegt Opslaan haar samen met de taakbewerking. De relaties
   (`TaskDependenciesSection`) staan er met `interactive={false}`, zonder sprongknop: de dialoog kan op elk tabblad open
