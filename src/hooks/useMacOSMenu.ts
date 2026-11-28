@@ -6,8 +6,6 @@ import { isMacPlatform } from '@/hooks/keyboard/shortcutFormat';
 import { openNativeSettings, runNativeShortcut, type NativeShortcutId } from '@/hooks/keyboard/nativeMenuActions';
 import { appLog } from '@/services/debug/appLog';
 
-// De native macOS-menubalk is een tweede ingang naar dezelfde planneracties. Het lint blijft
-// beschikbaar; de browser en Windows/Linux krijgen geen native menu of extra Tauri-import.
 export function useMacOSMenu(): void {
   const { t } = useTranslation(['menu', 'common']);
   useEffect(() => {
@@ -34,7 +32,6 @@ export function useMacOSMenu(): void {
           { item: 'Separator' },
           { id: 'ops.quit', text: t('menu:native.quit'), accelerator: 'Cmd+Q', action: () => {
             if (disposed) return;
-            // Via CloseRequested: dezelfde opslagvraag als de rode vensterknop.
             void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => getCurrentWindow().close())
               .catch(error => appLog.emit('error', 'native-menu', error));
           } },
@@ -53,7 +50,6 @@ export function useMacOSMenu(): void {
           command('edit.undo', t('menu:commands.undo'), 'Cmd+Z'),
           command('edit.redoShiftZ', t('menu:commands.redo'), 'Cmd+Shift+Z'),
           { item: 'Separator' },
-          // Native clipboardacties bereiken ook de copy/paste-listeners van het taakgrid.
           { item: 'Cut', text: t('menu:native.cut') },
           { item: 'Copy', text: t('common:shortcuts.edit.copy') },
           { item: 'Paste', text: t('common:context.paste') },
@@ -81,7 +77,6 @@ export function useMacOSMenu(): void {
       ];
       const menu = await Menu.new({ items });
       if (disposed) { await menu.close(); return; }
-      // macOS voegt zo de open vensters en de native Help-zoekfunctie toe.
       for (const id of ['ops.window', 'ops.help']) {
         const submenu = await menu.get(id);
         if (submenu instanceof Submenu) {
@@ -91,7 +86,6 @@ export function useMacOSMenu(): void {
         }
       }
       if (disposed) { await menu.close(); return; }
-      // Sluit het vervangen handle, niet het menu dat de app zojuist overneemt.
       const previous = await menu.setAsAppMenu();
       await previous?.close();
       close = () => menu.close();

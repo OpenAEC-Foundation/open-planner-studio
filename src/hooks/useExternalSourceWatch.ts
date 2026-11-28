@@ -5,20 +5,8 @@ import { buildImportLabels } from '@/i18n/importLabels';
 import { isTauri } from '@/utils/platform';
 import { externalSourceWatchTargets, watchEventTouchesSource } from '@/engine/externalSourceWatch';
 
-/** Wachttijd van de bewaking: een opslag geeft vaak een reeks meldingen, die tellen dan als één. */
 const WATCH_DELAY_MS = 1000;
 
-/**
- * Keuze 6 (Ethan, 2026-11-03; stap 1.6 en 7.2 in `docs/relaties-tussen-projecten.md`): in de desktop-app
- * bewaakt OPS de map van elk bronbestand van het actieve document (`watch` van `tauri-plugin-fs`). Verandert
- * een bronbestand, dan kijkt de app meteen (`checkExternalSources`), ook als het venster al actief is; een
- * nieuwe versie geeft dan de balk. Lukt de bewaking niet (een map buiten de toegestane plekken, een
- * netwerkschijf), dan blijft het vangnet van `useExternalSourceCheck`: bij openen en bij terugkeer naar het
- * venster. In de browser doet deze hook niets.
- *
- * De hook leest de store buiten React (`subscribe`): een bewerking van een taak laat de app niet opnieuw
- * renderen; alleen een andere set bronbestanden geeft een nieuwe bewaking.
- */
 export function useExternalSourceWatch(): void {
   const { t } = useTranslation('common');
 
@@ -40,7 +28,6 @@ export function useExternalSourceWatch(): void {
       stopAll();
       if (dirs.length === 0) return;
       const { watch } = await import('@tauri-apps/plugin-fs');
-      // Per map een eigen bewaking: een map die niet lukt, houdt de andere niet tegen.
       for (const dir of dirs) {
         try {
           const stop = await watch(dir, (event) => {
