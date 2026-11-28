@@ -12,10 +12,9 @@ staat in de code, in de regels `state`, `taaktypes` en `rekenprofielen`, en in d
   exporteert ze opnieuw. Geen poort bewaakt dit; een import uit `@/state/` hier maakt de typen afhankelijk van de
   laag die ze gebruikt.
 - Een kolomkop die de gebruiker zelf koos (activity code, eigen veld, baseline) staat als `labelText` in
-  `TaskColumnLabelSource` en gaat nooit door `t()`; `taskColumnLabel` vertaalt alleen `labelKey`. i18next leest een
-  punt als scheiding tussen sleutels (de config in `src/i18n/` verandert `keySeparator` niet), dus een naam als
-  "Fase 1.2" kwam als "2" in beeld (voorbeeld uit het weggehaalde commentaar, niet nagegaan).
-- De File System Access-typen staan zelf in `file-system-access.d.ts`, alleen de leden die de app gebruikt; de
+  `TaskColumnLabelSource` en gaat nooit door `t()`; `taskColumnLabel` vertaalt alleen `labelKey`. Toen de naam nog
+  als sleutel ging, maakte de terugval `humanizeTaskGridKey` van "Fase 1.2" een "2".
+- De File System Access-typen staan zelf in `file-system-access.d.ts`; de
   dependency `@types/wicg-file-system-access` is bewust niet gekozen, om de lijst met dependencies klein te houden.
   `lib.dom.d.ts` van TypeScript 5.9.3 kent onder meer `showOpenFilePicker`, `queryPermission` en
   `getAsFileSystemHandle` niet. Het bestand heeft geen `import` of `export`, zodat de interfaces met de globale
