@@ -364,6 +364,25 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
     anchorOf(a).anchorDate, anchorOf(c).anchorDate, anchorOf(c).sourceRef.filePath,
   ], ['2027-03-10T16:00', '2027-03-05T16:00', PATH]);
   S().undo();
+  prompts.length = 0;
+  const undoCount = () => S().historyEvents.filter(event => event.state === 'applied').length;
+  const undoBefore = undoCount();
+  const one = await S().refreshExternalProjectAnchors(a, anchorOf(a).id);
+  eq('971 één padloze bron lezen met toestemmingsvraag', [one, prompts], [{ refreshed: 1, missing: 0 }, [true]]);
+  eq('971 zelfde project-id maar bron met pad blijft apart', [
+    anchorOf(a).anchorDate, anchorOf(a).sourceVersion, anchorOf(c).anchorDate, anchorOf(c).sourceRef.filePath,
+  ], ['2027-03-10T16:00', 'v4', '2027-03-05T16:00', PATH]);
+  eq('971 één undo-stap', undoCount(), undoBefore + 1);
+  S().undo();
+  eq('971 Undo zet het oorspronkelijke anker terug', anchorOf(a).anchorDate, '2027-03-05T16:00');
+  prompts.length = 0;
+  eq('971 een koppeling met pad mag niet via het handvat lezen',
+    [await S().refreshExternalProjectAnchors(c, anchorOf(c).id), prompts], [null, []]);
+  store.setState({ parseExternalProjectSource: async (_id, opts) => { prompts.push(opts.prompt); return null; } });
+  eq('971 geen toegang: geen mutatie of undo-stap',
+    [await S().refreshExternalProjectAnchors(a, anchorOf(a).id), prompts, anchorOf(a).anchorDate, undoCount()],
+    [null, [true], '2027-03-05T16:00', undoBefore]);
+
   // Geweigerd: niet gelezen, geteld, en het anker blijft.
   store.setState({ readExternalProjectSources: async (projectIds: readonly string[]) => new Map(projectIds.map(id => [id, null] as const)) });
   const refused = await S().refreshAllExternalAnchors();
@@ -386,6 +405,46 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   eq('6u de koppeling met pad houdt het anker en de versie van haar bestand', [
     anchorOf(c).anchorDate, anchorOf(c).sourceVersion, anchorOf(c).sourceRef.filePath,
   ], ['2027-03-08T16:00', 'pad-v2', PATH]);
+}
+
+for (const edit of ['eigen anker', 'andere brontaak', 'ander anker in dezelfde bron', 'losse taak'] as const) {
+  const { store, S, a } = plan();
+  const peer = S().addTask({ name: 'Tweede koppeling naar dezelfde bron' });
+  const loose = S().addTask({ name: 'Losse taak' });
+  S().updateTask(a, { externalLinks: [link('selected', undefined, '2027-03-05T16:00', 'v1')] });
+  S().updateTask(peer, { externalLinks: [link('peer', undefined, '2027-03-05T16:00', 'v1')] });
+  const current = (taskId: string) => S().tasks.find(t => t.id === taskId)!.externalLinks![0];
+  const historySize = () => S().historyEvents.filter(event => event.state === 'applied').length;
+  let readStarted!: () => void;
+  const started = new Promise<void>(resolve => { readStarted = resolve; });
+  let finishRead!: (source: ExternalSourceRead) => void;
+  const resultFromFile = new Promise<ExternalSourceRead>(resolve => { finishRead = resolve; });
+  store.setState({ parseExternalProjectSource: () => { readStarted(); return resultFromFile; } });
+  const pending = S().refreshExternalProjectAnchors(a, 'selected');
+  await started;
+  if (edit === 'losse taak') {
+    S().updateTask(loose, { name: 'Intussen hernoemd' });
+  } else {
+    const editedTask = edit === 'ander anker in dezelfde bron' ? peer : a;
+    const previous = current(editedTask);
+    const patch = edit === 'andere brontaak'
+      ? { ...previous, sourceRef: { ...previous.sourceRef, taskId: 'b2' } }
+      : { ...previous, anchorDate: '2027-03-12T16:00' };
+    eq(`971 ${edit}: wijziging opgeslagen`, S().updateExternalLink(editedTask, previous.id, patch), true);
+  }
+  const afterEdit = [current(a), current(peer)];
+  const historyAfterEdit = historySize();
+  finishRead({
+    projectId: 'installateur', projectName: 'Installateur', tasks: [sourceTask('2027-03-10T16:00'), { ...sourceTask('2027-03-11T16:00'), id: 'b2' }],
+    version: 'v2',
+  });
+  if (edit === 'losse taak') {
+    eq('971 andere taak bewerken laat vernieuwen doorgaan', [await pending, current(a).sourceVersion, current(peer).sourceVersion],
+      [{ refreshed: 2, missing: 0 }, 'v2', 'v2']);
+  } else {
+    eq(`971 ${edit}: oude lezing schrijft geen link of undo-stap`,
+      [await pending, current(a), current(peer), historySize()], [null, ...afterEdit, historyAfterEdit]);
+  }
 }
 
 // (7) Een bestand dat de planner in de browser koos: geen pad, de versie is `lastModified`.

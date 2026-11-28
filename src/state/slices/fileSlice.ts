@@ -92,7 +92,7 @@ import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import {
   externalSourceKey, externalSourceKeyOfDoc, externalSourceLocatorOf, externalSourceScope, externalSourceScopeOf,
-  refreshExternalAnchors,
+  linkMatchesSource, refreshExternalAnchors,
   refreshFromSources, type ExternalSourceDoc, type ExternalSourceLocator,
 } from '@/engine/externalLinks';
 import { externalAnchorChanges } from '@/engine/externalRefreshPreview';
@@ -452,6 +452,7 @@ export interface FileSlice {
   chooseExternalSourceFile: (labels?: ImportLabels) => Promise<ChosenExternalSource>;
   refreshExternalAnchorsFromChosenFiles: (labels?: ImportLabels) => Promise<ChosenFilesRefresh | null>;
   refreshExternalAnchorsFrom: (filePath: string, labels?: ImportLabels) => Promise<{ refreshed: number; missing: number } | null>;
+  refreshExternalProjectAnchors: (taskId: string, linkId: string, labels?: ImportLabels) => Promise<{ refreshed: number; missing: number } | null>;
   refreshAllExternalAnchors: (labels?: ImportLabels) => Promise<ExternalRefreshAllResult>;
   readExternalSourceUpdate: (
     update: Pick<ExternalSourceUpdate, 'locator' | 'openDocumentId'>, labels?: ImportLabels,
@@ -2501,6 +2502,35 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const key = normalizeExternalSourcePath(filePath);
       if (key !== null) dropSourceUpdates(targetDocumentId, new Set([key]));
       announceUnsavedOpenSources(targetDocumentId, [{ kind: 'path', filePath }]);
+      return { refreshed: result.refreshed, missing: result.missing };
+    },
+
+    refreshExternalProjectAnchors: async (taskId, linkId, labels) => {
+      if (isTauri() || siteStorageAvailable()) return null;
+      const { activeDocumentId: documentId, tasks: tasksAtStart } = get();
+      const findLink = (tasks: Task[]) => tasks.find(task => task.id === taskId)?.externalLinks?.find(link => link.id === linkId);
+      const selected = findLink(tasksAtStart);
+      const locator = selected ? externalSourceLocatorOf(selected.sourceRef) : null;
+      if (locator?.kind !== 'project') return null;
+      const { projectId } = locator;
+      const key = externalSourceKey(locator)!;
+      const generation = sourceGeneration(documentId, key);
+      const src = await readPreferringOpen(locator, labels,
+        () => get().parseExternalProjectSource(projectId, { prompt: true }, labels));
+      if (!src || src.projectId !== projectId || src.filePath || src.siteFileId) return null;
+      const current = get();
+      if (current.activeDocumentId !== documentId || findLink(current.tasks) !== selected
+        || sourceGeneration(documentId, key) !== generation) return null;
+      const scope = externalSourceScopeOf(locator);
+      if (current.tasks !== tasksAtStart) {
+        const linksAtStart = new Set(tasksAtStart.flatMap(task => task.externalLinks ?? []));
+        if (current.tasks.some(task => task.externalLinks?.some(link =>
+          !linksAtStart.has(link) && linkMatchesSource(link, src, scope)))) return null;
+      }
+      const result = refreshExternalAnchors(current.tasks, src, scope);
+      if (result.changed) applyRefreshedTasks(documentId, result.tasks);
+      dropSourceUpdates(documentId, new Set([key]));
+      announceUnsavedOpenSources(documentId, [locator]);
       return { refreshed: result.refreshed, missing: result.missing };
     },
 
