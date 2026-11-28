@@ -1,40 +1,3 @@
-// F5b: .mpp, XER en het 08:00-anker (spec `docs/superpowers/specs/2026-10-20-alleen-uren-design.md`
-// §1.3 I4 en I8, §3.10; T15, T17; knownbugs 274, 275 en 293).
-//
-// Wat deze check vastlegt:
-//  (1) .mpp (I4): duur en rest zijn de minuten uit het bestand, altijd in de urenmaat (T15), ook bij hele
-//      dagen op een kalender die niet promoveert; tienden van een minuut blijven staan, ook na de store, IFC
-//      en MSPDI (review #591 r1, punt 3);
-//  (2) .mpp (I4): een werktijdlag in dagen of uren wordt minuten (`lagMinutes`), zonder omweg via uren per dag;
-//      een kalendertijdlag in uren ook, met de eenheid kalendertijd; ook een lag houdt zijn tienden;
-//  (3) XER: een taak op een dagkalender krijgt de urenmaat met de minuten van duur en rest; de lag blijft
-//      minuten;
-//  (4) P6 XML (knownbug 293): de dagenmaat zonder record is minuten ÷ minuten per dag, één keer gedeeld;
-//  (5) I8, schrijven: MSPDI en P6 XML schrijven een einde met zijn echte tijd (16:00, niet 08:00), ook voor
-//      een veld zonder tijd (D1–D7); de markering `OPS_LiteralCalendars` noemt de letterlijke kalenders;
-//  (6) I8, rondgang: een ankerkalender blijft scalair, een letterlijke kalender wordt een urenkalender, en
-//      na laden zijn alle momenten gelijk aan de bron;
-//  (7) knownbug 274: in een vreemd bestand blijft een werkelijk einde om 08:00 08:00, ook na IFC-heropenen;
-//  (8) een OPS-export van de basis (F5a) en van v2026.10.0, uit hun ECHTE writers: een echte 08:00 op een
-//      urenkalender blijft 08:00, door de store, IFC en een tweede export (review #591 r1, punt 1);
-//  (9) de statusdatum: 08:00 is in een vreemd bestand een echte tijd, in een OPS-bestand het anker;
-// (10) een onleesbare lijst: de tijden blijven echt; de promotie volgt het tijdsignaal;
-// (11) een OPS-export van v2026.7.0 en v2026.8.1 (geen markering), uit hun ECHTE writers: herkend aan de
-//      vingerafdruk, 08:00 is het anker; een voltooide dagtaak eindigt om 16:00, door de hele route (punt 2);
-// (12) de vingerafdruk is streng: één afwijking in de vorm, en het bestand leest als vreemd bestand;
-// (13) een `.mpp`-lag met tienden (150,5 min werktijd, 720,5 min kalendertijd) blijft exact door de store, IFC
-//      opslaan en heropenen, MSPDI heen en terug (twee keer) en P6 XML heen en terug (twee keer); review #591
-//      r2, was knownbug 309;
-// (14) een XER-lag van 0,33 u (19,8 min) blijft 19,8 min door de store, IFC opslaan en heropenen, MSPDI en
-//      P6 XML heen en terug; 0,12 u wordt precies 7,2 min, zonder floatruis (review #591 r3, was knownbug 307);
-//      de ruis van zes decimalen (0,666667 u) wordt 40 min in XER en P6 XML, met de juiste late datums na
-//      Bereken (review #591 r6, was knownbug 386);
-// (15) XER-duur en -rest: de ruis van zes decimalen wordt de hele minuut (26,666667 u = 1600 min), een echte
-//      breuk blijft (40,33 u = 2419,8 min, 16,33 u = 979,8 min), door de store, IFC, MSPDI en P6 XML; de rest uit
-//      de percentagetak van een lopende `CP_Drtn`-taak blijft op de hele minuut (review #591 r6). Een breuk in
-//      minuten uit .mpp (2419,8 en 979,8 min) blijft exact door dezelfde route.
-//
-// Draait via run.sh (esbuild-bundel). Alleen de exitcode telt.
 import './domStub';
 import { installDOMParser } from './xmldom-shim';
 import { freshPayload, payloadFromImport, type DocumentPayload } from '@/state/documentContract';
@@ -76,7 +39,6 @@ function ok(label: string, cond: boolean): void {
   checks++;
   if (!cond) errors.push(label);
 }
-/** De writers en lezers melden verliezen via console.warn; die horen niet bij deze check. */
 function quiet<T>(fn: () => T): T {
   const warn = console.warn;
   console.warn = () => {};
@@ -89,8 +51,6 @@ async function quietAsync<T>(fn: () => Promise<T>): Promise<T> {
 }
 const byName = (r: { tasks: Task[] }, name: string) => r.tasks.find(t => t.name === name);
 const load = (r: ImportResult): DocumentPayload => payloadFromImport(r, null);
-/** De echte openroute van de app: inlezen, in de store zetten (met herberekening bij openen) en daarna nog
- *  een keer `runCPM`, zoals een planner op Bereken klikt. Geeft het document zoals de store het heeft. */
 const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 async function openAndRecalc(name: string, input: { text?: string; bytes?: Uint8Array }): Promise<DocumentPayload> {
   const store = createAppStoreContext().store;
@@ -99,7 +59,6 @@ async function openAndRecalc(name: string, input: { text?: string; bytes?: Uint8
   quiet(() => store.getState().runCPM());
   return store.getState().getOpenDocumentPayloads()[0].payload;
 }
-/** Openen ⇒ IFC opslaan en heropenen ⇒ tweede XML-export (`write`) en die weer openen. */
 async function storeRoute(name: string, input: { text?: string; bytes?: Uint8Array }, write: (p: DocumentPayload) => string):
   Promise<[string, DocumentPayload][]> {
   const opened = await openAndRecalc(name, input);
@@ -108,11 +67,6 @@ async function storeRoute(name: string, input: { text?: string; bytes?: Uint8Arr
   return [['geopend', opened], ['IFC heropend', reopened], ['tweede export', again]];
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (1) .mpp: duur en rest in minuten (I4)
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// Eén taak, MPP14, de standaardveldkaart: duur op offset 42, duureenheid op 46 (0 = dagen, werktijd), rest
-// op 52 (`DEFAULT_TASK_FIELDS`, fieldMap14.ts). Zelfde opbouw als `minimalMpp14Bytes` (mppFixtures.ts).
 function mppTaskBytes(opts: { durationRaw: number; remainingRaw: number; percentComplete?: number }): Uint8Array {
   const ascii = (s: string) => {
     const out = new Uint8Array(s.length * 2);
@@ -121,7 +75,7 @@ function mppTaskBytes(opts: { durationRaw: number; remainingRaw: number; percent
     return out;
   };
   const int32 = (v: number) => { const o = new Uint8Array(4); new DataView(o.buffer).setInt32(0, v, true); return o; };
-  const START_DAYS = 15493; // ma 1 juni 2026 in MPP-dagen (epoch 1983-12-31)
+  const START_DAYS = 15493;
   const props = encodePropsEntries([
     { key: 37748738, data: mppTimestampBytes(0, START_DAYS) },
     { key: 37748739, data: mppTimestampBytes(0, START_DAYS + 30) },
@@ -135,8 +89,8 @@ function mppTaskBytes(opts: { durationRaw: number; remainingRaw: number; percent
   rv.setInt16(46, 0, true);
   rv.setInt32(52, opts.remainingRaw, true);
   rv.setInt16(56, 0, true);
-  rv.setUint16(64, 4800, true); rv.setUint16(66, START_DAYS, true); // 08:00
-  rv.setUint16(68, 9600, true); rv.setUint16(70, START_DAYS + 2, true); // 16:00
+  rv.setUint16(64, 4800, true); rv.setUint16(66, START_DAYS, true);
+  rv.setUint16(68, 9600, true); rv.setUint16(70, START_DAYS + 2, true);
   rv.setInt32(118, -1, true);
   const itemSize = 47, items = 4;
   const meta = new Uint8Array(16 + items * itemSize);
@@ -166,24 +120,18 @@ function mppTaskBytes(opts: { durationRaw: number; remainingRaw: number; percent
   return buildNestedCfb(tree);
 }
 {
-  // 3 werkdagen (1440 min) met 2 dagen rest (960 min): hele dagen, dus geen subdagsignaal. Vóór F5b werd
-  // dit een dagtaak (3 d, rest 2 d via uren per dag) zonder minuten.
   const r = quiet(() => readMPP(mppTaskBytes({ durationRaw: 14400, remainingRaw: 9600 })));
   const m = byName(r, 'M');
   eq('(1) .mpp: hele dagen ⇒ urenmaat met de minuten uit het bestand (T15)',
     [m?.time.durationUnit, m?.time.durationMinutes, m?.time.remainingMinutes, m?.time.scheduleDuration],
     ['hours', 1440, 960, 3]);
   ok('(1) .mpp: geen dagenrest naast de minuten', m?.time.remainingTime === undefined);
-  // Een duur die geen hele dag is: 1470 min en 630 min rest, op de minuut.
   const s = byName(quiet(() => readMPP(mppTaskBytes({ durationRaw: 14700, remainingRaw: 6300 }))), 'M');
   eq('(1) .mpp: 1470 min met 630 min rest, op de minuut', [s?.time.durationUnit, s?.time.durationMinutes, s?.time.remainingMinutes],
     ['hours', 1470, 630]);
-  // Tienden van een minuut (review #591 r1, punt 3). Het corpus heeft er 4 duren en 19 resten mee, zoals
-  // `OzBuild Workshop 14 After Para 26.mpp`, taak-UID 15: rest 137095 tienden = 13709,5 min (was 13710).
   const t = byName(quiet(() => readMPP(mppTaskBytes({ durationRaw: 34284, remainingRaw: 137095 }))), 'M');
   eq('(1) .mpp: tienden blijven staan (3428,4 min, rest 13709,5 min)', [t?.time.durationMinutes, t?.time.remainingMinutes],
     [3428.4, 13709.5]);
-  // Door de store, IFC en MSPDI: het `ExactMinutes`-record draagt de breuk (T14).
   for (const [step, doc] of await storeRoute('tienden.mpp', { bytes: mppTaskBytes({ durationRaw: 137095, remainingRaw: 137095 }) },
     p => quiet(() => writeMSPDI(p.project, p.calendar, p.tasks, p.sequences, p.resources, p.assignments, p.calendars,
       p.baselines, p.activeBaselineId, p.customTaskTypes)))) {
@@ -192,11 +140,6 @@ function mppTaskBytes(opts: { durationRaw: number; remainingRaw: number; percent
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (2) .mpp: lag in minuten (I4)
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// TBkndCons: FixedMeta itemSize 10, FixedData itemSize 20; zonder herkende applicatieversie de layout met
-// de duureenheid op 14 en de duur op 16 (zelfde bouwers als check-mpp-relations.ts).
 function consMeta(count: number): Uint8Array {
   const out = new Uint8Array(16 + count * 10);
   const view = new DataView(out.buffer);
@@ -211,7 +154,7 @@ function consRecord(uniqueId: number, pred: number, succ: number, durationUnits:
   view.setInt32(0, uniqueId, true);
   view.setInt32(4, pred, true);
   view.setInt32(8, succ, true);
-  view.setInt16(12, 1, true); // FS
+  view.setInt16(12, 1, true);
   view.setInt16(14, durationUnits, true);
   view.setInt32(16, duration, true);
   return out;
@@ -219,12 +162,12 @@ function consRecord(uniqueId: number, pred: number, succ: number, durationUnits:
 {
   const ids = new Map<number, string>([[1, 'A'], [2, 'B'], [3, 'C'], [4, 'D'], [5, 'E'], [6, 'F'], [7, 'G']]);
   const records = [
-    consRecord(100, 1, 2, 7, 9600), // 2 werkdagen in de weergave dagen: 960 min
-    consRecord(101, 2, 3, 5, 1500), // 2,5 u: 150 min
-    consRecord(102, 3, 4, 6, 7200), // 12 uur kalendertijd: 720 min, kalendertijd
-    consRecord(103, 4, 5, 19, 500), // 50 % (geen minuten)
-    consRecord(104, 5, 6, 5, 1505), // 150,5 min werktijd: de tienden blijven
-    consRecord(105, 6, 7, 6, 7205), // 720,5 min kalendertijd: de tienden blijven
+    consRecord(100, 1, 2, 7, 9600),
+    consRecord(101, 2, 3, 5, 1500),
+    consRecord(102, 3, 4, 6, 7200),
+    consRecord(103, 4, 5, 19, 500),
+    consRecord(104, 5, 6, 5, 1505),
+    consRecord(105, 6, 7, 6, 7205),
   ];
   const cfb = new CfbFile(buildNestedCfb({
     '   114': { children: { TBkndCons: { children: { FixedMeta: { data: consMeta(records.length) }, FixedData: { data: concatBytes(...records) } } } } },
@@ -242,10 +185,6 @@ function consRecord(uniqueId: number, pred: number, succ: number, durationUnits:
   eq('(2) .mpp-lag 720,5 min kalendertijd houdt zijn tienden', lag('G'), [0, 720.5, 'ELAPSEDTIME', null]);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (3) XER: een taak op een dagkalender in de urenmaat
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// Twee taken op een dagkalender van 8 u en één FS-relatie met 4 u lag. Ook gebruikt in (14).
 const XER_FIXTURE = [
   'ERMHDR\t23.12\t2026-06-01\t\t\t\t\t\tEUR',
   '%T\tPROJECT',
@@ -279,9 +218,6 @@ const XER_FIXTURE = [
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// Gedeelde opzet voor (4)–(10): kalender ma–vr 08:00–16:00 (8 u), project ma 1 juni 2026.
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 function task(name: string, start: string, finish: string, days: number, extra: Partial<TaskTime> = {}, rest: Partial<Task> = {}): Task {
   return {
     id: `t-${name}`, name, description: '', wbsCode: name, taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -307,12 +243,10 @@ function payload(tasks: Task[], statusDate?: string): DocumentPayload {
 }
 const done = (name: string, start: string, finish: string, days: number) =>
   task(name, start, finish, days, { actualStart: start, actualFinish: finish, completion: 1 }, { status: 'COMPLETED' });
-/** Een ankerproject: elk moment is afleidbaar (D1 08:00, D2 16:00). */
 const scalarProject = () => payload([
   done('Klaar', '2026-06-01T08:00', '2026-06-02T16:00', 2),
   task('Later', '2026-06-03T08:00', '2026-06-05T16:00', 3),
 ], '2026-06-03');
-/** Een letterlijk project: een werkelijk begin om 10:00 is niet afleidbaar (T17). */
 const literalProject = () => payload([
   done('Klaar', '2026-06-01T08:00', '2026-06-02T16:00', 2),
   task('Lopend', '2026-06-03T10:00', '2026-06-05T16:00', 3, { actualStart: '2026-06-03T10:00', completion: 0.2 }, { status: 'STARTED' }),
@@ -322,15 +256,11 @@ type Fmt = {
   name: 'MSPDI' | 'P6 XML';
   write: (p: DocumentPayload) => string;
   read: (xml: string) => ImportResult;
-  /** Het blok van de taak (MSPDI `<Task>`, P6 `<Activity>`) met deze naam. */
   block: (xml: string, name: string) => string;
   finishTag: string;
   actualFinishTag: string;
-  /** Laat de markering `OPS_LiteralCalendars` weg: zo schreef OPS van v2026.9.0 tot F5b. */
   toF5a: (xml: string) => string;
-  /** Laat elke OPS-definitie weg: een vreemd bestand. */
   toForeign: (xml: string) => string;
-  /** Vervang de lijst door onleesbare tekst. */
   breakList: (xml: string) => string;
   listOf: (xml: string) => string | undefined;
 };
@@ -366,9 +296,6 @@ const P6: Fmt = {
 const FORMATS = [MSPDI, P6];
 const datesOf = (t: Task | undefined) => t && [t.time.scheduleStart, t.time.scheduleFinish, t.time.actualStart ?? null, t.time.actualFinish ?? null];
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (4) P6 XML, knownbug 293: dagenmaat zonder record, één deling
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 {
   const p = payload([task('Dag', '2026-06-01T08:00', '2026-06-03T16:00', 3, { remainingTime: 2, completion: 1 / 3, actualStart: '2026-06-01T08:00' }, { status: 'STARTED' })]);
   const xml = P6.write(p);
@@ -376,23 +303,18 @@ const datesOf = (t: Task | undefined) => t && [t.time.scheduleStart, t.time.sche
   const back = byName(P6.read(xml), 'Dag');
   eq('(4) P6 XML: dagenmaat 3 d met 2 d rest terug (24 u ÷ 8 u, één keer)',
     [back?.time.durationUnit, back?.time.scheduleDuration, back?.time.remainingTime], ['days', 3, 2]);
-  // 10 u op een kalender van 8 u: 1,25 d, zonder record (een bestand van vóór F5a schreef er geen).
   const noRecord = xml.replace('<PlannedDuration>24</PlannedDuration>', '<PlannedDuration>10</PlannedDuration>')
     .replace('<RemainingDuration>16</RemainingDuration>', '<RemainingDuration>6</RemainingDuration>');
   const other = byName(P6.read(noRecord), 'Dag');
   eq('(4) P6 XML: 10 u en 6 u rest zonder record ⇒ 1,25 d en 0,75 d', [other?.time.scheduleDuration, other?.time.remainingTime], [1.25, 0.75]);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (5) I8, schrijven: het einde met zijn echte tijd
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 for (const fmt of FORMATS) {
   const xml = fmt.write(scalarProject());
   const k = fmt.block(xml, 'Klaar');
   eq(`(5) ${fmt.name}: einde en werkelijk einde 16:00, niet 08:00`,
     [tagValue(k, fmt.finishTag), tagValue(k, fmt.actualFinishTag)], ['2026-06-02T16:00:00', '2026-06-02T16:00:00']);
   eq(`(5) ${fmt.name}: geen letterlijke kalender in een ankerproject`, fmt.listOf(xml), '[]');
-  // Een veld zonder tijd (de ruwe route, bijvoorbeeld een extensie): het moment volgens D1–D7.
   const raw = payload([done('Kaal', '2026-06-01', '2026-06-02', 2)]);
   const rawBlock = fmt.block(fmt.write(raw), 'Kaal');
   eq(`(5) ${fmt.name}: kaal einde ⇒ 16:00 (D2), kale start ⇒ 08:00 (D1)`,
@@ -400,9 +322,6 @@ for (const fmt of FORMATS) {
   eq(`(5) ${fmt.name}: letterlijk project ⇒ de projectkalender in de lijst`, fmt.listOf(fmt.write(literalProject())), '[1]');
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (6) I8, rondgang: ankerkalender blijft scalair, letterlijke kalender wordt urenkalender
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 for (const fmt of FORMATS) {
   const src = scalarProject();
   const read = fmt.read(fmt.write(src));
@@ -410,7 +329,6 @@ for (const fmt of FORMATS) {
   const loaded = load(read);
   eq(`(6) ${fmt.name}: na laden dezelfde momenten als de bron`, ['Klaar', 'Later'].map(n => datesOf(byName(loaded, n))),
     ['Klaar', 'Later'].map(n => datesOf(byName(src, n))));
-  // Tweede ronde: dezelfde datums in het bestand.
   const again = fmt.write(loaded);
   eq(`(6) ${fmt.name}: tweede export dezelfde datums`, ['Klaar', 'Later'].map(n => [tagValue(fmt.block(again, n), fmt.finishTag), tagValue(fmt.block(again, n), fmt.actualFinishTag) ?? null]),
     ['Klaar', 'Later'].map(n => [tagValue(fmt.block(fmt.write(src), n), fmt.finishTag), tagValue(fmt.block(fmt.write(src), n), fmt.actualFinishTag) ?? null]));
@@ -421,12 +339,6 @@ for (const fmt of FORMATS) {
     ['Klaar', 'Lopend'].map(n => datesOf(byName(lit, n))));
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (7) Knownbug 274: een vreemd bestand met een werkelijk einde om precies 08:00
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// De eindmijlpaal uit review ronde 3 van PR #559, nu met een werkelijk einde om 08:00. Alle datums staan
-// op 08:00, dus er is geen uursignaal en de kalender blijft scalair. Vóór F5b las de lezer 08:00 als
-// daganker en maakte de laadgrens er 16:00 van.
 {
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(d =>
     `<StandardWorkHours><DayOfWeek>${d}</DayOfWeek><WorkTime><Start>08:00:00</Start><Finish>16:00:00</Finish></WorkTime></StandardWorkHours>`).join('');
@@ -447,7 +359,6 @@ for (const fmt of FORMATS) {
   const reopened = load(quiet(() => readIFC(writeIFC(buildWriteIFCInput(loaded, 'planOnly')))));
   eq('(7) 274 P6 XML: ook na opslaan als IFC en heropenen', byName(reopened, 'Oplevering')?.time.actualFinish, '2026-06-01T08:00');
   eq('(7) 274 P6 XML: de statusdatum houdt zijn 08:00 (vreemd bestand)', loaded.project.statusDate, '2026-06-02T08:00');
-  // Dezelfde mijlpaal in MSPDI, zonder OPS-definities.
   const MSPDI_FOREIGN = `<?xml version="1.0"?><Project xmlns="http://schemas.microsoft.com/project"><Name>Oplevering</Name>`
     + `<StartDate>2026-06-01T08:00:00</StartDate><StatusDate>2026-06-02T08:00:00</StatusDate><MinutesPerDay>480</MinutesPerDay><Tasks>`
     + `<Task><UID>1</UID><ID>1</ID><Name>Oplevering</Name><OutlineLevel>1</OutlineLevel><Milestone>1</Milestone>`
@@ -460,14 +371,6 @@ for (const fmt of FORMATS) {
   eq('(7) 274 MSPDI: de statusdatum houdt zijn 08:00 (vreemd bestand)', m.project.statusDate, '2026-06-02T08:00');
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (8) Een OPS-export van de basis (F5a) en van v2026.10.0: een echte 08:00 op een urenkalender (punt 1)
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// Uitvoer van de ECHTE writers (herkomst: `tests/fixtures/legacyOpsExports.ts`). Een voltooide urentaak van
-// 07:00 tot 08:00 (60 min) en een opvolger van 08:00 tot 10:00, op een kalender van 07:00 tot 15:00. Beide
-// bestanden dragen de duureenheidmarkering, geen lijst (`opsAnchor`). De kalender wordt een urenkalender (de
-// duur van 60 min is korter dan een werkdag), dus de writer schreef elke tijd als moment. Vóór fixronde 1 las
-// F5b elke 08:00 hier als anker: het werkelijke einde werd het dageinde 15:00, de start van de opvolger 07:00.
 const SOURCES_PUNT1 = [
   { label: 'basis F5a', fmt: MSPDI, xml: F5A_BASE_MSPDI },
   { label: 'basis F5a', fmt: P6, xml: F5A_BASE_P6 },
@@ -489,19 +392,13 @@ for (const { label, fmt, xml } of SOURCES_PUNT1) {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (9) De statusdatum: anker in een OPS-bestand, echte tijd in een vreemd bestand
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 for (const fmt of FORMATS) {
-  const xml = fmt.write(scalarProject()); // statusdatum 2026-06-03 zonder tijd ⇒ geschreven als 08:00
+  const xml = fmt.write(scalarProject());
   eq(`(9) ${fmt.name}: OPS-bestand (F5b) ⇒ statusdatum zonder tijd terug`, fmt.read(xml).project.statusDate, '2026-06-03');
   eq(`(9) ${fmt.name}: OPS-bestand (F5a) ⇒ statusdatum zonder tijd terug`, fmt.read(fmt.toF5a(xml)).project.statusDate, '2026-06-03');
   eq(`(9) ${fmt.name}: vreemd bestand ⇒ 08:00 is een echte tijd`, fmt.read(fmt.toForeign(xml)).project.statusDate, '2026-06-03T08:00');
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (10) Een onleesbare lijst: de tijden blijven echt, de promotie volgt het tijdsignaal
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 for (const fmt of FORMATS) {
   const src = scalarProject();
   const read = fmt.read(fmt.breakList(fmt.write(src)));
@@ -510,15 +407,6 @@ for (const fmt of FORMATS) {
     ['Klaar', 'Later'].map(n => datesOf(byName(src, n))));
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (11) Een OPS-export van v2026.7.0 en v2026.8.1: geen markering, wel de vingerafdruk (punt 2)
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// Uitvoer van de ECHTE writers (herkomst: `tests/fixtures/legacyOpsExports.ts`; v2026.6.0 schrijft hetzelfde
-// als v2026.7.0, v2026.7.14 en v2026.8.0 hetzelfde als v2026.8.1). Een voltooide dagtaak van ma 1 tot di 2
-// juni en een opvolger van 3 tot 4 juni, op een kalender van 08:00 tot 16:00. De writer schreef elke datum
-// zonder tijd als het anker 08:00. Vóór fixronde 1 las F5b zo'n bestand als vreemd bestand: het einde bleef
-// 2 juni 08:00 in plaats van 16:00.
-// v2026.7.0 schreef nog geen statusdatum.
 const SOURCES_PUNT2 = [
   { label: 'v2026.8.1', fmt: MSPDI, xml: LEGACY_V2026_8_1_MSPDI, statusDate: '2026-06-03' },
   { label: 'v2026.8.1', fmt: P6, xml: LEGACY_V2026_8_1_P6, statusDate: '2026-06-03' },
@@ -545,19 +433,12 @@ for (const { label, fmt, xml, statusDate } of SOURCES_PUNT2) {
   }
 }
 {
-  // Het dageinde in (11) is de kalender van het bestand: 16:00 voor v2026.8.1.
   const doc = (await storeRoute('oude-export.xml', { text: LEGACY_V2026_8_1_MSPDI }, MSPDI.write))[0][1];
   eq('(11) v2026.8.1 MSPDI: het dageinde is 16:00', byName(doc, 'Voltooid 1-2 juni')?.time.actualFinish, '2026-06-02T16:00');
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (12) De vingerafdruk is streng: één afwijking, en het bestand is een vreemd bestand
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// Elke variant wijkt op één punt af van de echte export van v2026.8.1. Dan geldt de regel voor een vreemd
-// bestand: 08:00 is een echte tijd. Ook de vreemde bestanden uit (7) en een export van nu herkent hij niet.
 {
   const mspdiVariants: [string, string][] = [
-    // Na de kop, zodat alleen de eis "geen `<SaveVersion>`" hem tegenhoudt.
     ['met <SaveVersion>', LEGACY_V2026_8_1_MSPDI.replace('<StatusDate>2026-06-03T08:00:00</StatusDate>',
       '<StatusDate>2026-06-03T08:00:00</StatusDate>\n  <SaveVersion>14</SaveVersion>')],
     ['CreationDate niet op het anker', LEGACY_V2026_8_1_MSPDI.replace('<CreationDate>2026-06-01T08:00:00</CreationDate>', '<CreationDate>2026-06-01T09:12:00</CreationDate>')],
@@ -592,11 +473,6 @@ for (const { label, fmt, xml, statusDate } of SOURCES_PUNT2) {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (13) Een lag met tienden van een minuut door de hele route (review #591 r2; was knownbug 309)
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// Twee taken (UID 10 en 11) en één FS-relatie in TBkndCons, MPP14, zoals de probe van de review. De lag staat
-// in tienden van een minuut. Vóór fixronde 2 werd 150,5 min na IFC opslaan en na MSPDI heropenen 151 min.
 function mppLagBytes(unitCode: number, rawLag: number): Uint8Array {
   const text = (s: string) => {
     const out = new Uint8Array((s.length + 1) * 2);
@@ -657,19 +533,16 @@ for (const c of LAG_CASES) {
   const want = [1, 0, c.minutes, c.lagUnit];
   const opened = await openAndRecalc('lag.mpp', { bytes: mppLagBytes(c.unit, c.raw) });
   eq(`(13) ${c.label}: .mpp in de store, na Bereken`, lagOf(opened), want);
-  // IFC: het slot draagt hele minuten, het record de breuk.
   const ifc = quiet(() => writeIFC(buildWriteIFCInput(opened, 'planOnly')));
   const record = ifc.match(/IFCPROPERTYSINGLEVALUE\('ExactMinuteLags',\$,IFCTEXT\('\{"[^"]+":(\[[^\]]*\])\}'\),\$\)/)?.[1];
   eq(`(13) ${c.label}: IFC-record [exacte minuten, geschreven minuten]`, record, `[${c.minutes},${Math.round(c.minutes)}]`);
   const reopened = await openAndRecalc('lag.ifc', { text: ifc });
   eq(`(13) ${c.label}: IFC opgeslagen, heropend en berekend`, lagOf(reopened), want);
-  // Leesregel: wijzigde een ander programma de lengte in het slot, dan telt het record niet.
   const slot = ifc.match(/IFCLAGTIME\('Lag',\.PREDICTED\.,\$,IFCDURATION\('-?PT[^']*'\)/)?.[0];
   ok(`(13) ${c.label}: opzet, het lagslot gevonden`, slot !== undefined);
   const changed = await openAndRecalc('lag-gewijzigd.ifc',
     { text: ifc.replace(slot ?? '', "IFCLAGTIME('Lag',.PREDICTED.,$,IFCDURATION('PT3H0M0S')") });
   eq(`(13) ${c.label}: IFC met een ander slot ⇒ het slot geldt (180 min)`, changed.sequences[0]?.lagMinutes, 180);
-  // MSPDI: twee keer heen en terug.
   const mspdi1 = MSPDI.write(reopened);
   eq(`(13) ${c.label}: MSPDI LinkLag in tienden`, linkLagOf(mspdi1), [String(c.raw), c.lagFormat]);
   const m1 = await openAndRecalc('lag.xml', { text: mspdi1 });
@@ -677,7 +550,6 @@ for (const c of LAG_CASES) {
   const mspdi2 = MSPDI.write(m1);
   eq(`(13) ${c.label}: tweede MSPDI-export dezelfde LinkLag`, linkLagOf(mspdi2), [String(c.raw), c.lagFormat]);
   eq(`(13) ${c.label}: tweede MSPDI-export heropend`, lagOf(await openAndRecalc('lag-2.xml', { text: mspdi2 })), want);
-  // P6 XML: twee keer heen en terug.
   const p6a = P6.write(reopened);
   const p1 = await openAndRecalc('lag-p6.xml', { text: p6a });
   eq(`(13) ${c.label}: P6 XML heropend en berekend`, lagOf(p1), want);
@@ -686,16 +558,10 @@ for (const c of LAG_CASES) {
   eq(`(13) ${c.label}: tweede P6-export heropend`, lagOf(await openAndRecalc('lag-p6-2.xml', { text: p6b })), want);
 }
 {
-  // Hele minuten krijgen geen record.
   const whole = await openAndRecalc('lag.mpp', { bytes: mppLagBytes(5, 1500) });
   ok('(13) 150 min: geen ExactMinuteLags in IFC', !quiet(() => writeIFC(buildWriteIFCInput(whole, 'planOnly'))).includes('ExactMinuteLags'));
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (14) Een XER-lag met een breuk in minuten door de hele route (review #591 r3; was knownbug 307)
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// XER telt een lag in uren als kommagetal. Vóór fixronde 3 werd 0,33 u (19,8 min) 20 min: in de store, na
-// IFC en in MSPDI (`LinkLag` 200).
 {
   const xerWithLag = (hours: string) => {
     const text = XER_FIXTURE.replace('PR_FS\t4', `PR_FS\t${hours}`);
@@ -709,7 +575,6 @@ for (const c of LAG_CASES) {
   const want = [1, 19.8, null];
   const direct = quiet(() => readXER(xerWithLag('0.33')));
   if (!isMultiDocumentImport(direct)) eq('(14) XER 0,33 u: readXER', lagMinOf(direct), want);
-  // 0,12 × 60 = 7,199999999999999 in een float; de lezer maakt er 7,2 van.
   const noise = quiet(() => readXER(xerWithLag('0.12')));
   if (!isMultiDocumentImport(noise)) eq('(14) XER 0,12 u: precies 7,2 min, zonder floatruis', noise.sequences[0]?.lagMinutes, 7.2);
   const opened = await openAndRecalc('lag.xer', { bytes: xerWithLag('0.33') });
@@ -727,10 +592,6 @@ for (const c of LAG_CASES) {
   eq('(14) XER 0,33 u: P6 XML heropend en berekend', lagMinOf(await openAndRecalc('lag-p6.xml', { text: p6 })), want);
 }
 {
-  // De ruis van zes decimalen (review #591 r6, was knownbug 386). P6 schrijft uren met zes decimalen: 40 min is
-  // 0,666667 u. Vóór fixronde 6 werd dat 40,00002 min, in XER en in P6 XML. Na Bereken kreeg A dan LS vr 29 mei
-  // 15:59 en LF ma 1 juni 15:59 (was knownbug 385). Twee taken van 8 u, FS, ma–vr 08:00–16:00, statusdatum
-  // ma 1 juni.
   const ruisXer = (lagHours: string) => new TextEncoder().encode([
     'ERMHDR\t23.12\t2026-06-01\t\t\t\t\t\tEUR',
     '%T\tPROJECT', '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date', '%R\tP1\tRuis\tC1\t2026-06-01',
@@ -753,7 +614,6 @@ for (const c of LAG_CASES) {
   if (!isMultiDocumentImport(direct)) eq('(14) XER 0,666667 u: readXER ⇒ 40 min', direct.sequences[0]?.lagMinutes, 40);
   const opened = await openAndRecalc('ruis.xer', { bytes: ruisXer('0.666667') });
   eq('(14) XER 0,666667 u: in de store, na Bereken (lag, LS en LF van A)', lagAndLateOf(opened), want);
-  // P6 XML: dezelfde lag als `<Lag>0.666667</Lag>` (de OPS-writer schrijft 0.6666666666666666).
   const p6 = P6.write(opened);
   const noisy = p6.replace(/<Lag>[^<]*<\/Lag>/, '<Lag>0.666667</Lag>');
   ok('(14) opzet: <Lag>0.666667</Lag> in de P6 XML', tagValue(noisy, 'Lag') === '0.666667');
@@ -761,19 +621,7 @@ for (const c of LAG_CASES) {
     lagAndLateOf(await openAndRecalc('ruis.xml', { text: noisy })), want);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (15) XER-duur en -rest: de ruis van zes decimalen wordt de hele minuut, een echte breuk blijft
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// Fixronde 3 (review #591 r3) liet elke afronding van XER-duur en -rest weg. Dan werd ook 26,666667 u (1600 min
-// met de ruis van zes decimalen) 1600,00002 min, en werden 29 P6-cellen onexact (regel A, meting 2026-10-26).
-// Fixronde 5 rondde alles af op de hele minuut; dan werd ook een echte breuk (40,33 u = 2419,8 min) 2420.
-// Sinds fixronde 6 (review #591 r6) gaat alleen de ruis weg (`sixDecimalHoursToMinutes`, zoals de lag in (14)).
-// De rest uit de percentagetak van een lopende `CP_Drtn`-taak is berekend en blijft op de hele minuut, zoals op
-// main (was knownbug 315; met de breuk sprong LS met de oude kalenderwandeling een dag terug, was knownbug 385).
 {
-  // Taak C is lopend met `CP_Drtn` en 33,33 % gereed. Zijn rest komt uit de percentagetak, niet uit
-  // `remain_drtn_hr_cnt` (40,33 u, dus 2419,8 min als de tak niet loopt). Taak D heeft duur en rest met de ruis
-  // van zes decimalen.
   const text = XER_FIXTURE
     .replace('CP_Phys\t0\t50\t40\t16\t', 'CP_Phys\t0\t50\t40.33\t16.33\t')
     .replace('CP_Drtn\t0\t\t16\t16\t', 'CP_Drtn\t0\t\t16.33\t16.33\t')
@@ -788,8 +636,6 @@ for (const c of LAG_CASES) {
     const t = byName(doc, name);
     return [t?.time.durationUnit, t?.time.durationMinutes, t?.time.remainingMinutes];
   });
-  // 40,33 u = 2419,8 min en 16,33 u = 979,8 min blijven; percentagetak 2419,8 × (1 − 0,3333) = 1613,28 ⇒ 1613;
-  // 26,666667 u = 1600,00002 min ⇒ 1600.
   const want = [['hours', 2419.8, 979.8], ['hours', 979.8, 979.8], ['hours', 2419.8, 1613], ['hours', 1600, 1600]];
   const direct = quiet(() => readXER(new TextEncoder().encode(text)));
   ok('(15) XER: één document', !isMultiDocumentImport(direct));
@@ -802,8 +648,6 @@ for (const c of LAG_CASES) {
   eq('(15) XER: P6 XML heropend en berekend', minutesOf(await openAndRecalc('duur-p6.xml', { text: P6.write(reopened) })), want);
 }
 {
-  // Een breuk in minuten in duur en rest blijft exact door de store, IFC, MSPDI en P6 XML. De bron is nu een
-  // `.mpp` in tienden van een minuut (24198 en 9798 tienden), met dezelfde getallen als vroeger uit XER.
   const minutesOf = (doc: { tasks: Task[] }) => {
     const t = byName(doc, 'M');
     return [t?.time.durationUnit, t?.time.durationMinutes, t?.time.remainingMinutes];

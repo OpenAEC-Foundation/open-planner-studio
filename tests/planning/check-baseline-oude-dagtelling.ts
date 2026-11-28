@@ -1,22 +1,4 @@
 import './domStub';
-// ⚠ bij een baseline van een urentaak met de oude dagtelling (eigenaarsbesluit 2026-10-15).
-//
-// Sinds optie 2 ("een dag is de werktijd van de taakkalender", zie `hourTaskScheduleDuration`) is een
-// taak van 1870 u op een kalender met 8 u/dag en blokken van 10 u 187 d. Een oudere versie sloeg in de
-// baseline 233,75 d op (1870 ÷ 8). De eigenaar besloot: niet omrekenen, wel een klein ⚠ met uitleg in de
-// kolommen Baselineduur en Duurafwijking — en alleen als de baselineduur aantoonbaar bij de oude telling
-// past (`src/engine/baselineOldDay.ts`).
-//
-// Fixture: `tests/browser/fixtures/ifc/oude-baseline.ifc`, gemaakt met main 3832e5d85 (oude telling) uit
-// de XER-fixture van `check-dag-is-werktijd.ts`: kalender "Lange dagen" (8 u/dag, ma–vr 07:00–17:00),
-// urentaak A 1870 u, dagtaak D 40 u, baseline "Oud" met A = 233,75 d.
-//  §1 oude telling ⇒ ⚠ (A); een dagtaak ⇒ geen ⚠ (D).
-//  §2 nieuwe baseline (zelfde taak, nieuwe telling 187 d) ⇒ geen ⚠.
-//  §3 twee maatstaven: de huidige werkminuten (vangt ook een gestarte taak) en de baselinespan (vangt een
-//     latere duurwijziging); de span beslist als hij bij een telling past, anders de werkminuten.
-//  §4 een kalender waarvan de opgeslagen uren per dag gelijk zijn aan de blokken (of minder dan één minuut
-//     per dag afwijken) ⇒ geen ⚠.
-//  §5 het raster (echte adapter): ⚠ in Baselineduur en Duurafwijking van "Oud", nergens anders.
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,16 +45,10 @@ same('testvoorwaarde: A is een urentaak van 187 d; de oude baseline zegt 233,75 
   eff: effHoursPerDay(resolveCalendar(A.calendarId, S().calendars, S().calendar)),
 }, { unit: 'hours', sd: 187, baseline: 233.75, hpd: 8, eff: 10 });
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §1 Oude telling ⇒ ⚠; dagtaak ⇒ geen ⚠
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 const check = createBaselineOldDayCheck(S().calendar, S().calendars);
 same('§1 oude telling: A met baseline 233,75 d ⇒ ⚠', check(A, snapshotOf(A.id)), true);
 same('§1 dagtaak D ⇒ geen ⚠', check(D, snapshotOf(D.id)), false);
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §2 Nieuwe baseline ⇒ geen ⚠
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 await quiet(() => S().saveBaseline('Nieuw'));
 const newBaseline = S().baselines.find((b) => b.name === 'Nieuw')!;
 same('§2 testvoorwaarde: de nieuwe baseline zegt 187 d, met dezelfde datums als de oude',
@@ -80,20 +56,14 @@ same('§2 testvoorwaarde: de nieuwe baseline zegt 187 d, met dezelfde datums als
     snapshotOf(A.id, newBaseline).finish === snapshotOf(A.id).finish], [187, true, true]);
 same('§2 nieuwe telling ⇒ geen ⚠', check(A, snapshotOf(A.id, newBaseline)), false);
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §3 Twee maatstaven: de huidige werkminuten (a) en de baselinespan (b)
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 {
   const old = snapshotOf(A.id);
-  const changed = { ...A, time: { ...A.time, durationMinutes: 120000 } }; // 2000 u: duur gewijzigd na de baseline
-  // (a) De baseline past bij de huidige werkminuten in de oude telling, de span niet:
+  const changed = { ...A, time: { ...A.time, durationMinutes: 120000 } };
   same('§3a gestarte taak: span 5 werkdagen (werkelijk begin tot einde), 233,75 d = 112200 min ÷ 480 ⇒ ⚠',
     check(A, { ...old, finish: '2026-08-07T17:00' }), true);
   same('§3a onderbreking (einde een week later), duur ongewijzigd ⇒ ⚠', check(A, { ...old, finish: '2027-04-27T17:00' }), true);
   same('§3a baseline zonder einde, duur ongewijzigd ⇒ ⚠', check(A, { ...old, finish: '' }), true);
-  // (b) De duur veranderde na de baseline, maar de span past bij de oude telling:
   same('§3b duur gewijzigd (2000 u), span 187 werkdagen = 233,75 × 480 min ⇒ ⚠', check(changed, old), true);
-  // Geen van beide past ⇒ geen ⚠:
   same('§3 duur gewijzigd én onderbreking ⇒ geen ⚠', check(changed, { ...old, finish: '2027-04-27T17:00' }), false);
   same('§3 een duur die bij geen van beide telt (200 d) ⇒ geen ⚠', check(A, { ...old, duration: 200 }), false);
   same('§3 nieuwe baseline, daarna duur × 0,8 (1496 u = 187 × 480 min): de span past bij de nieuwe telling ⇒ geen ⚠',
@@ -104,17 +74,12 @@ same('§2 nieuwe telling ⇒ geen ⚠', check(A, snapshotOf(A.id, newBaseline)),
     check(A, { ...snapshotOf(A.id, newBaseline), finish: '2026-08-07T17:00' }), false);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §4 Kalender zonder afwijking ⇒ geen ⚠
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 {
   const cal = resolveCalendar(A.calendarId, S().calendars, S().calendar);
   const same10 = { ...cal, hoursPerDay: 10 };
   const engine: CalendarEngine = engineForTaskCalendar(new Map(), same10);
   same('§4 opgeslagen 10 u/dag bij blokken van 10 u: de oude baseline 233,75 d ⇒ geen ⚠',
     baselineHasOldDayCount(A, snapshotOf(A.id), same10, engine), false);
-  // Een afwijking onder de tolerantie (0,3 min per dag): ook een baseline die precies bij die opgeslagen
-  // waarde past, krijgt geen ⚠ — over 187 d is dat 56 min verschil, maar het is geen andere dagtelling.
   const almost = { ...cal, hoursPerDay: 10.005 };
   same('§4 opgeslagen 10,005 u/dag bij blokken van 10 u (0,3 min per dag): baseline 112200 ÷ (10,005 × 60) d ⇒ geen ⚠',
     baselineHasOldDayCount(A, { ...snapshotOf(A.id), duration: 112200 / (10.005 * 60) }, almost,
@@ -123,9 +88,6 @@ same('§2 nieuwe telling ⇒ geen ⚠', check(A, snapshotOf(A.id, newBaseline)),
     baselineHasOldDayCount(A, snapshotOf(A.id), cal, engineForTaskCalendar(new Map(), cal)), true);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §5 Raster: de echte adapter
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 {
   const s = S();
   const adapter = createTaskGridAdapter({

@@ -89,7 +89,6 @@ const hour12 = task('hours', 12);
 const zeroDay = task('days', 0);
 const zeroHour = task('hours', 0);
 
-// De taakeenheid, niet de kalender, kiest de bron van waarheid.
 eq('dagtaak op uurkalender houdt twee dagen', durationDaysOf(day2, new CalendarEngine(h8)), 2);
 eq('dagtaak op 8-uurskalender omvat 16 uur', durationMinutesOf(day2, new CalendarEngine(h8)), 960);
 eq('dagtaak op 10-uurskalender omvat 20 uur', durationMinutesOf(day2, new CalendarEngine(h10)), 1200);
@@ -130,32 +129,27 @@ const progressingDay = {
     completion: 0.5,
     actualStart: '2026-07-06T08:00',
     remainingTime: 1,
-    // Een oude/importspecifieke minuutwaarde mag de dagidentiteit niet overnemen.
     remainingMinutes: 60,
   },
 };
 eq('dagtaakvoortgang op uurkalender blijft in hele werkdagen rekenen', finishOn(progressingDay, h8), '2026-07-06T16:00');
 
-// Kalenderwissel verandert nooit de opgeslagen identiteit of hoeveelheid.
 eq('kalenderwissel bewaart dag-unit', unitOf(day2.time), 'days');
 eq('kalenderwissel bewaart dag-aantal', day2.time.scheduleDuration, 2);
 eq('kalenderwissel bewaart uur-unit', unitOf(hour12.time), 'hours');
 eq('kalenderwissel bewaart minuten', hour12.time.durationMinutes, 720);
 
-// Een gedeeltelijke werkdag is één dag voor een dagtaak, maar slechts haar werkminuten voor uren.
 const partial = calendar('Partial', 4, 720);
 eq('gedeeltelijke dag telt als één dag', durationDaysOf(task('days', 1), new CalendarEngine(partial)), 1);
 eq('gedeeltelijke dag levert vier uur capaciteit', durationMinutesOf(task('days', 1), new CalendarEngine(partial)), 240);
 eq('dagtaak gebruikt de hele gedeeltelijke werkdag', finishOn(task('days', 1), partial), '2026-07-06T12:00');
 eq('urentaak telt alleen concrete gedeeltelijke uren', finishOn(task('hours', 6), partial), '2026-07-07T10:00');
 
-// Feestdagen veranderen de plaatsing, niet de duur-identiteit.
 const holiday = calendar('Holiday', 8, 960, [{ name: 'Feestdag', startDate: '2026-07-07', endDate: '2026-07-07' }]);
 eq('twee werkdagen slaan feestdag over', holiday.id && new CalendarEngine(holiday).addWorkDays(new Date('2026-07-06T08:00:00Z'), 2).toISOString(), '2026-07-08T08:00:00.000Z');
 eq('feestdag verandert dag-unit niet', unitOf(day2.time), 'days');
 eq('dagtaakplanning slaat feestdag over', finishOn(day2, holiday), '2026-07-08T16:00');
 
-// Legacy-migratie is deterministisch en blijft daarna expliciet.
 const legacyDays = createDefaultTaskTime('2026-07-06', 2) as Task['time'];
 const legacyHours = { ...createDefaultTaskTime('2026-07-06', 0), durationMinutes: 725 } as Task['time'];
 delete (legacyDays as unknown as { durationUnit?: string }).durationUnit;
@@ -167,7 +161,6 @@ const hourBase = { ...createDefaultTaskTime('2026-07-06', 0, 'hours'), durationM
 eq('los wissen kan de native minutenbron van een urentaak niet verwijderen', mergeTaskTime(hourBase, { durationMinutes: undefined }).durationMinutes, 240);
 eq('atomair wisselen naar dagen wist de oude minutenbron wel', mergeTaskTime(hourBase, { durationUnit: 'days', scheduleDuration: 2, durationMinutes: undefined }).durationMinutes, undefined);
 
-// Compacte weergave houdt de native uuridentiteit zichtbaar.
 eq('auto toont dagtaak in dagen', formatTaskDurationDisplay(day2, h8, 'auto'), '2d');
 eq('auto toont 12 uur als uren', formatTaskDurationDisplay(hour12, h8, 'auto'), '12h');
 eq('auto toont ook een exact volle urentaak in haar gekozen eenheid', formatTaskDurationDisplay(task('hours', 16), h8, 'auto'), '16h');
@@ -175,7 +168,6 @@ eq('pure helper respecteert urenbron ook na kalenderwissel', taskDurationMinutes
 eq('geforceerde dagenweergave houdt uurbron herkenbaar', formatTaskDurationDisplay(hour12, h8, 'days'), '1.5d(12h)');
 eq('geforceerde urenweergave houdt dagbron herkenbaar', formatTaskDurationDisplay(day2, h8, 'hours'), '16h(2d)');
 
-// Dialoog en paneel delen deze ene parser/conversielaag.
 deepEq('suffix d kiest dagen', parseTaskDurationInput('2d', 'hours'), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
 deepEq('voluit days kiest dagen', parseTaskDurationInput('4 days', 'hours'), { unit: 'days', scheduleDuration: 4, explicitUnit: true });
 deepEq('suffix h kiest uren', parseTaskDurationInput('12h', 'days'), { unit: 'hours', durationMinutes: 720, explicitUnit: true });
@@ -188,7 +180,6 @@ eq('onveilig groot uurgetal wordt geweigerd', parseTaskDurationInput('9999999999
 eq('invoerweergave bevat geen uur-suffix naast de afzonderlijke unitkiezer', formatTaskDurationInput(hour12), '12');
 eq('bestaande minuutprecisie blijft als numerieke uren zichtbaar', formatTaskDurationInput({ ...hour12, time: { ...hour12.time, durationMinutes: 725 } }), '12.083333');
 
-// De gemengde-planningpoort is app-breed en mag de taakeenheid nooit als neveneffect wijzigen.
 localStorage.removeItem('ops-allowMixedDayHour');
 eq('ontbrekende gemengde-voorkeur laat de store-default intact', (await loadAllSettings()).allowMixedDayHour, undefined);
 await saveAllowMixedDayHour(false);
@@ -198,7 +189,6 @@ deepEq('scalaire 07-16/8u-bandresolver materialiseert de middagpauze', effective
   { start: 420, end: 720 }, { start: 780, end: 960 },
 ]);
 eq('scalaire kalender levert effectieve werkblokken', hasConcreteWorkBlocks(scalarH8), true);
-// Het OPS-profiel (dagenmaat aan); P6/MSP en kalendertijd staan in check-f4b-review-r1.
 const OPS_MEASURE = { workdayDurationMeasure: true };
 deepEq('2d op scalaire 07-16/8u-kalender krijgt exact 16h als voorstel',
   proposeTaskDurationConversion(day2, 'hours', scalarH8, OPS_MEASURE), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
@@ -218,15 +208,12 @@ eq('lege scalaire kalender heeft geen conversievoorstel', proposeTaskDurationCon
 eq('lege scalaire kalender geeft een duidelijke validatiefout', solveError(hour12, invalidScalar), 'Calendar has no working days configured');
 deepEq('2d op H8 krijgt exact 16h als voorstel', proposeTaskDurationConversion(day2, 'hours', h8, OPS_MEASURE), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
 deepEq('0h wordt exact 0d en niet stil een werkdag', proposeTaskDurationConversion(task('hours', 0), 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 0, explicitUnit: true });
-// Alleen uren §3.2 (B1): een dagenmaat-taak mag een breuk hebben; de omzetting houdt het eindmoment.
 deepEq('12h wordt exact 1,5d (breuk, geen afronding)', proposeTaskDurationConversion(hour12, 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 1.5, explicitUnit: true });
 deepEq('16h wordt exact naar 2d voorgesteld', proposeTaskDurationConversion(task('hours', 16), 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
-// Gedeelde ingang voor paneel, dialoog en raster: exact ⇒ meteen de omgezette duur; niet exact ⇒ null (eenheid blijft).
 deepEq('eenheidswissel 16h → dagen geeft meteen 2d', convertTaskDurationUnit(task('hours', 16), 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
 deepEq('eenheidswissel 2d → uren geeft meteen 16h', convertTaskDurationUnit(day2, 'hours', h8, OPS_MEASURE), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
 deepEq('eenheidswissel 12h → dagen op H8 geeft exact 1,5d', convertTaskDurationUnit(hour12, 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 1.5, explicitUnit: true });
 
-// Storecontract: projectdefault, normale mutatie, undo/redo, clipboard en documentwissel.
 const context = createAppStoreContext();
 const store = context.store;
 store.getState().setCalendar(h8);

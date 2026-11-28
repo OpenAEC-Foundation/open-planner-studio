@@ -1,22 +1,3 @@
-// F5a-2: MSPDI en P6 XML dragen dagenmaat, rest en lag verliesvrij (spec
-// `docs/superpowers/specs/2026-10-20-alleen-uren-design.md` §3.3, §3.10, §3.11; T13, T14, T21).
-//
-// Wat deze check vastlegt, voor beide formaten:
-//  (1) de voorbeeldweek met drie relaties naast elkaar (FS 0,5 d dagenmaat, FS 240 min urenmaat,
-//      FS 1,5 ed): het standaardveld, de records in `OPS_DayMeasureLags`, OPS ⇒ bestand ⇒ OPS met dezelfde
-//      velden, de opvolgers vr 10:00 en vr 11:00, en een tweede ronde met dezelfde bytes;
-//  (2) een gewijzigde lag in het standaardveld: urenmaat, het record telt niet;
-//  (3) onder het P6-profiel dezelfde bytes en velden, en B en C allebei vr 11:00;
-//  (4) twee relaties tussen hetzelfde paar (SS + 0,5 d, FF + 0,25 d): elk een eigen record;
-//  (5) de lagkalender bepaalt de minuten (voorganger, opvolger, project, 24 uur);
-//  (6) duur en rest met een breuk (2,5 d met 1,5 d rest), 3 d met 1 d rest bij een afgerond percentage,
-//      kalendertijd (MSPDI), en een gewijzigde duur of rest;
-//  (7) de urenmaat zonder afronding: een breuk in minuten via `OPS_ExactMinutes`;
-//  (8) T13: een dag is de werktijd per dag, ook als de opgeslagen uren per dag afwijken; een ouder bestand
-//      zonder de nieuwe definities leest met de opgeslagen uren per dag;
-//  (9) knownbug 256 (MSPDI-deel): een kale planningsstart op een letterlijke kalender 09:00–17:00 wordt 09:00.
-//
-// Draait via run.sh (esbuild-bundel). Alleen de exitcode telt.
 import './domStub';
 import { installDOMParser } from './xmldom-shim';
 import { freshPayload, payloadFromImport, type DocumentPayload } from '@/state/documentContract';
@@ -43,18 +24,15 @@ function ok(label: string, cond: boolean): void {
   checks++;
   if (!cond) errors.push(label);
 }
-/** De writers melden verliezen via console.warn; die horen niet bij deze check. */
 function quiet<T>(fn: () => T): T {
   const warn = console.warn;
   console.warn = () => {};
   try { return fn(); } finally { console.warn = warn; }
 }
 
-// ── Opzet: de voorbeeldweek (§0): ma–do 07:00–12:00 + 13:00–16:00 (8 u), vr 07:00–12:00 + 13:00–14:00 (6 u).
 const LONG = [{ start: 420, end: 720 }, { start: 780, end: 960 }];
 const FRIDAY = [{ start: 420, end: 720 }, { start: 780, end: 840 }];
 const WEEK: WorkTimeBands = { byWeekday: { 1: LONG, 2: LONG, 3: LONG, 4: LONG, 5: FRIDAY, 6: [], 7: [] } };
-// Een tweede kalender: ma–vr 07:00–17:00, 10 u.
 const TEN: WorkTimeBands = { byWeekday: { 1: [{ start: 420, end: 1020 }], 2: [{ start: 420, end: 1020 }], 3: [{ start: 420, end: 1020 }], 4: [{ start: 420, end: 1020 }], 5: [{ start: 420, end: 1020 }], 6: [], 7: [] } };
 const tenCal: WorkCalendar = {
   id: 'cal-tien', name: 'Tien uur', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 17,
@@ -97,17 +75,11 @@ type Format = {
   name: string;
   write: (p: DocumentPayload) => string;
   read: (text: string) => ImportResult;
-  /** Het blok van de taak met deze naam. */
   block: (text: string, name: string) => string;
-  /** Het OPS-record van een soort ('durations' | 'exact' | 'lags') op de taak met deze naam, als JSON. */
   record: (text: string, name: string, kind: RecordKind) => unknown;
-  /** De lag in het standaardveld van de relatie naar deze opvolger (MSPDI `LinkLag/LagFormat`, P6 `Lag`). */
   lagOf: (text: string, pred: string, succ: string, type?: string) => string;
-  /** Vervang de lag in het standaardveld van de relatie naar deze opvolger. */
   patchLag: (text: string, pred: string, succ: string, to: string) => string;
-  /** Duur en rest in het standaardveld van de taak. */
   durationOf: (text: string, name: string) => [string | undefined, string | undefined];
-  /** Vervang een standaardveld (`Duration`/`RemainingDuration` of `PlannedDuration`/`RemainingDuration`). */
   patchField: (text: string, name: string, field: 'duration' | 'remaining', to: string) => string;
 };
 type RecordKind = 'durations' | 'exact' | 'lags';
@@ -124,12 +96,10 @@ function mspLink(text: string, pred: string, succ: string, type = 'FS'): string 
   return mspBlock(text, succ).split('<PredecessorLink>').slice(1).map(l => l.split('</PredecessorLink>')[0])
     .find(l => l.includes(`<PredecessorUID>${uid}</PredecessorUID>`) && l.includes(`<Type>${MSP_TYPE[type]}</Type>`)) ?? '';
 }
-/** Het nummer van de kalender met deze naam in het bestand (MSPDI `UID`, P6 `ObjectId`). */
 function calendarNumber(text: string, name: string, isMsp: boolean): string {
   const block = (text.match(/<Calendar>[\s\S]*?<\/Calendar>/g) ?? []).find(b => b.includes(`<Name>${name}</Name>`)) ?? '';
   return block.match(isMsp ? /<UID>(\d+)<\/UID>/ : /<ObjectId>(\d+)<\/ObjectId>/)?.[1] ?? '';
 }
-/** Zet alleen de kalender van één taak om (MSPDI `CalendarUID`, P6 `CalendarObjectId`). */
 function switchCalendar(text: string, fmt: Format, name: string, number: string): string {
   const tag = fmt.name === 'MSPDI' ? 'CalendarUID' : 'CalendarObjectId';
   const block = fmt.block(text, name);
@@ -225,13 +195,9 @@ for (const fmt of [MSPDI, P6XML]) {
   const tag = fmt.name;
   const isMsp = fmt === MSPDI;
 
-  // ── (1) De voorbeeldweek: drie relaties naast elkaar ─────────────────────────────────────────────
   const weekText = fmt.write(weekPayload());
   const weekRead = fmt.read(weekText);
   {
-    // Het standaardveld draagt de lengte: 0,5 d × 8 u (werktijd per dag van de voorganger) = 240 min,
-    // 240 min, en 1,5 ed. MSPDI: `LinkLag` in tienden van minuten, met `LagFormat` 7 (d) of 8 (ed). P6 kent
-    // geen kalendertijd per relatie: 1,5 ed gaat als 1,5 werkdag (12 u), het record bewaart de maat.
     eq(`(1) ${tag}: standaardvelden`, ['B', 'C', 'D'].map(s => fmt.lagOf(weekText, 'A', s)),
       isMsp ? ['2400/7', '2400/7', '21600/8'] : ['4', '4', '12']);
     eq(`(1) ${tag}: record voor de dagenmaat-lag`, Object.values(fmt.record(weekText, 'B', 'lags') as object ?? {}), [[0.5, 240]]);
@@ -245,8 +211,6 @@ for (const fmt of [MSPDI, P6XML]) {
     eq(`(1) ${tag}: ook na de laadgrens`, weekFields(loaded), WEEK_WANT);
     const solved = solve(load(fmt.read(weekText)));
     eq(`(1) ${tag}: A eindigt do 4 jun 16:00`, byName(solved, 'A')?.time.earlyFinish, '2026-06-04T16:00');
-    // B: 0,5 d dagenmaat is de helft van de vrijdag van 6 u (3 u); C: 240 min urenmaat is 4 u. Een P6 XML opent
-    // met het P6-profiel, net als een XER (#775); daar telt de dagenmaat als urenmaat (zie (3)): B ook om 11:00.
     eq(`(1) ${tag}: B na FS 0,5 d dagenmaat vr ${isMsp ? '10:00' : '11:00 (P6-profiel)'}, C na FS 240 min vr 11:00`,
       [startOf(solved, 'B'), startOf(solved, 'C')], [isMsp ? '2026-06-05T10:00' : '2026-06-05T11:00', '2026-06-05T11:00']);
     const again = fmt.write(loaded);
@@ -256,21 +220,17 @@ for (const fmt of [MSPDI, P6XML]) {
     eq(`(1) ${tag}: tweede ronde dezelfde velden`, weekFields(fmt.read(again)), WEEK_WANT);
   }
 
-  // ── (2) Een gewijzigde lag in het standaardveld ─────────────────────────────────────────────────
   {
     const changed = fmt.patchLag(weekText, 'A', 'B', isMsp ? '3600' : '6');
     const r = fmt.read(changed);
     eq(`(2) ${tag}: 360 min urenmaat, het record telt niet`, lagFields(seqByPair(r, 'A', 'B')), { lagDays: 0, lagMinutes: 360 });
     eq(`(2) ${tag}: de andere relaties blijven gelijk`, weekFields(r).slice(1), WEEK_WANT.slice(1));
     eq(`(2) ${tag}: B na 360 min urenmaat: vr 14:00 → ma 07:00`, startOf(solve(load(r)), 'B'), '2026-06-08T07:00');
-    // De kalendertijd-lag gewijzigd. MSPDI: `LagFormat` 8 zegt de eenheid, zonder afronding (I2). P6: het
-    // record telt niet, en P6 rekent `Lag` in werktijd.
     const elapsed = fmt.read(fmt.patchLag(weekText, 'A', 'D', isMsp ? '18000' : '10'));
     eq(`(2) ${tag}: gewijzigde kalendertijd-lag`, lagFields(seqByPair(elapsed, 'A', 'D')),
       isMsp ? { lagDays: 1.25, lagUnit: 'ELAPSEDTIME' } : { lagDays: 0, lagMinutes: 600 });
   }
 
-  // ── (3) Onder het P6-profiel ─────────────────────────────────────────────────────────────────────
   {
     const p6Text = fmt.write(withProfile(weekPayload(), 'p6'));
     eq(`(3) ${tag} onder P6: dezelfde standaardvelden en records`,
@@ -279,16 +239,13 @@ for (const fmt of [MSPDI, P6XML]) {
     const read = fmt.read(p6Text);
     eq(`(3) ${tag} onder P6: dezelfde velden`, weekFields(read), WEEK_WANT);
     const solvedP6 = solve(withProfile(load(read), 'p6'));
-    // Onder P6 telt een lag in dagenmaat als urenmaat (§3.3): 0,5 d × 8 u = 4 u.
     eq(`(3) ${tag} onder P6: B en C allebei vr 11:00`, [startOf(solvedP6, 'B'), startOf(solvedP6, 'C')],
       ['2026-06-05T11:00', '2026-06-05T11:00']);
-    // OPS ⇒ P6-profiel ⇒ OPS-profiel, telkens door het formaat.
     let doc = weekPayload();
     for (const base of ['p6', 'ops'] as const) doc = load(fmt.read(fmt.write(withProfile(doc, base))));
     eq(`(3) ${tag}: OPS ⇒ P6 ⇒ OPS dezelfde velden`, weekFields(doc), WEEK_WANT);
   }
 
-  // ── (4) Twee relaties tussen hetzelfde paar ──────────────────────────────────────────────────────
   {
     const p = weekPayload();
     p.sequences = [
@@ -305,7 +262,6 @@ for (const fmt of [MSPDI, P6XML]) {
       [{ lagDays: 0.5 }, { lagDays: 0.25 }]);
   }
 
-  // ── (5) De lagkalender bepaalt de minuten ───────────────────────────────────────────────────────
   {
     const cases: [string, NonNullable<DocumentPayload['project']['schedulingOptions']>['lagCalendar'], number][] = [
       ['voorganger (standaard)', undefined, 240], ['opvolger op een kalender van 10 u', 'successor', 300],
@@ -322,20 +278,12 @@ for (const fmt of [MSPDI, P6XML]) {
       eq(`(5) ${tag} lagkalender ${label}: record met dezelfde minuten`, Object.values(fmt.record(text, 'B', 'lags') as object ?? {}), [[0.5, minutes]]);
       const read = fmt.read(text);
       eq(`(5) ${tag} lagkalender ${label}: terug als 0,5 d`, lagFields(seqByPair(read, 'A', 'B')), { lagDays: 0.5 });
-      // Review #585 r1, punt 1: de lagkalender komt mee terug, dus de tweede export schrijft dezelfde lengte
-      // en de doorrekening geeft dezelfde start van B.
-      // P6 XML leest de optie uit <ScheduleOptions> zoals een XER uit SCHEDOPTIONS (#775): de standaard komt
-      // daar expliciet terug als 'predecessor', en het bestand opent met het P6-profiel.
       eq(`(5) ${tag} lagkalender ${label}: de optie komt terug`, read.project.schedulingOptions?.lagCalendar,
         isMsp ? lagCalendar : lagCalendar ?? 'predecessor');
       const loaded = load(read);
       eq(`(5) ${tag} lagkalender ${label}: tweede export dezelfde lengte`, fmt.lagOf(fmt.write(loaded), 'A', 'B'), fmt.lagOf(text, 'A', 'B'));
       eq(`(5) ${tag} lagkalender ${label}: doorgerekend dezelfde start van B`, startOf(solve(loaded), 'B'),
         startOf(solve(isMsp ? p : withProfile(p, 'p6')), 'B'));
-      // Zonder de optie in het bestand (een ander programma liet het veld weg): het record past alleen nog
-      // als de voorganger dezelfde minuten geeft. Anders wint het standaardveld, in de urenmaat. P6 XML draagt
-      // de optie op twee plaatsen (de UDF en <ScheduleOptions>, #775); zonder optie mist hij in allebei. Zonder
-      // <ScheduleOptions> geldt de profielstandaard (voorganger), zoals bij een XER zonder SCHEDOPTIONS-rij.
       const stripped = isMsp
         ? text.replace(/<ExtendedAttribute>\s*<FieldID>188744011<\/FieldID>\s*<Value>[^<]*<\/Value>\s*<\/ExtendedAttribute>/, '')
         : text.replace(/<UDF>\s*<TypeObjectId>900000006<\/TypeObjectId>\s*<TextValue>[^<]*<\/TextValue>\s*<\/UDF>/, '')
@@ -349,27 +297,22 @@ for (const fmt of [MSPDI, P6XML]) {
     }
   }
 
-  // ── (6) Duur en rest met een breuk ──────────────────────────────────────────────────────────────
   {
     const p = weekPayload();
     p.project = { ...p.project, statusDate: '2026-06-03' };
     p.sequences = [];
     p.tasks = [
       task('E', '2026-06-01T07:00', '2026-06-03T12:00', 2.5),
-      // F: 2,5 d met 1,5 d rest (40 %).
       { ...task('F', '2026-06-01T07:00', '2026-06-03T12:00', 2.5, {
         completion: 0.4, actualStart: '2026-06-01T07:00', remainingTime: 1.5,
       }), status: 'STARTED' },
-      // K: 3 d met 1 d rest. MSPDI schrijft het percentage als geheel getal (67); de rest blijft toch 1 d.
       { ...task('K', '2026-06-01T07:00', '2026-06-03T16:00', 3, {
         completion: 2 / 3, actualStart: '2026-06-01T07:00', remainingTime: 1,
       }), status: 'STARTED' },
       task('J', '2026-06-01T07:00', '2026-06-03T16:00', 3),
-      // R: hele dagen met een rest met een breuk: alleen een restrecord.
       { ...task('R', '2026-06-01T07:00', '2026-06-03T16:00', 3, {
         completion: 0.5, actualStart: '2026-06-01T07:00', remainingTime: 1.5,
       }), status: 'STARTED' },
-      // L staat op de kalender van 10 u, zodat die kalender in het bestand staat.
       { ...task('L', '2026-06-01T07:00', '2026-06-01T17:00', 1), calendarId: tenCal.id },
       ...(isMsp ? [task('G', '2026-06-01T07:00', '2026-06-02T19:00', 1.5, { durationType: 'ELAPSEDTIME' })] : []),
     ];
@@ -398,16 +341,11 @@ for (const fmt of [MSPDI, P6XML]) {
       const g = byName(r, 'G');
       eq('(6) MSPDI ⇒ OPS: G 1,5 ed', [g?.time.durationUnit, g?.time.durationType, g?.time.scheduleDuration], ['days', 'ELAPSEDTIME', 1.5]);
     }
-    // Een gewijzigde duur: urenmaat in minuten, het record telt niet.
     const changedDuration = fmt.read(fmt.patchField(text, 'E', 'duration', isMsp ? 'PT22H0M0S' : '22'));
     const e = byName(changedDuration, 'E');
     eq(`(6) ${tag}: gewijzigde duur ⇒ urenmaat 1320 min`, [e?.time.durationUnit, e?.time.durationMinutes], ['hours', 1320]);
-    // Een gewijzigde rest (de duur ongewijzigd): de dagenmaat blijft, de rest volgt het standaardveld.
     const changedRest = fmt.read(fmt.patchField(text, 'F', 'remaining', isMsp ? 'PT16H0M0S' : '16'));
     eq(`(6) ${tag}: gewijzigde rest ⇒ 2 d`, dur(byName(changedRest, 'F')), ['days', 2.5, 2]);
-    // Review #585 r1, punt 2: een ander programma zet alleen de kalender van F en R om naar de kalender van
-    // 10 u. De records passen niet meer bij die kalender (2,5 d × 10 u ≠ 20 u): de urenmaat, voor duur én
-    // rest, met de minuten uit het bestand. De volgende export houdt 20 u en 12 u (niet 25 u en 15 u).
     const ten = calendarNumber(text, tenCal.name, isMsp);
     const switched = fmt.read(switchCalendar(switchCalendar(text, fmt, 'F', ten), fmt, 'R', ten));
     const minutesOf = (t: Task | undefined) => t && [t.time.durationUnit, t.time.durationMinutes, t.time.remainingMinutes];
@@ -417,11 +355,9 @@ for (const fmt of [MSPDI, P6XML]) {
     const switchedAgain = fmt.write(load(switched));
     eq(`(6) ${tag}: kalenderwissel, tweede export dezelfde lengtes`, [fmt.durationOf(switchedAgain, 'F'), fmt.durationOf(switchedAgain, 'R')],
       [fmt.durationOf(text, 'F'), fmt.durationOf(text, 'R')]);
-    // Zonder wissel blijft R 3 d met 1,5 d rest.
     eq(`(6) ${tag} ⇒ OPS: R 3 d met 1,5 d rest`, dur(byName(r, 'R')), ['days', 3, 1.5]);
   }
 
-  // ── (7) De urenmaat zonder afronding (ExactMinutes) ─────────────────────────────────────────────
   {
     const p = weekPayload();
     p.sequences = [];
@@ -442,9 +378,7 @@ for (const fmt of [MSPDI, P6XML]) {
     eq(`(7) ${tag}: gewijzigde duur ⇒ 300 min, het record telt niet`, byName(changed, 'U')?.time.durationMinutes, 300);
   }
 
-  // ── (8) T13: een dag is de werktijd per dag ─────────────────────────────────────────────────────
   {
-    // Opgeslagen 8 u per dag, blokken van 10 u (07:00–12:00 + 12:30–17:30).
     const TEN2 = [{ start: 420, end: 720 }, { start: 750, end: 1050 }];
     const p = weekPayload();
     p.calendar = { ...p.calendar, hoursPerDay: 8, workStartHour: 7, workEndHour: 17.5,
@@ -456,7 +390,6 @@ for (const fmt of [MSPDI, P6XML]) {
     eq(`(8) ${tag}: 3 d ⇒ 30 u`, fmt.durationOf(text, 'T')[0], isMsp ? 'PT30H0M0S' : '30');
     const t = byName(fmt.read(text), 'T');
     eq(`(8) ${tag} ⇒ OPS: 3 d`, [t?.time.durationUnit, t?.time.scheduleDuration], ['days', 3]);
-    // Een ouder OPS-bestand (tot en met F5a-1): 3 d als 3 × 8 u, zonder de nieuwe definities.
     const old = (isMsp
       ? text.replace(/<ExtendedAttribute>\s*<FieldID>18874401[234]<\/FieldID>\s*<FieldName>[\s\S]*?<\/ExtendedAttribute>/g, '')
       : text.replace(/<UDFType>(?:(?!<\/UDFType>)[\s\S])*<ObjectId>90000000[345]<\/ObjectId>[\s\S]*?<\/UDFType>/g, ''));
@@ -466,10 +399,6 @@ for (const fmt of [MSPDI, P6XML]) {
   }
 }
 
-// ── (10) Kalendertijd (ELAPSEDTIME) voor duur en rest (review #585 r1, punt 3) ───────────────────────
-// P6 kent geen kalendertijd per activiteit en krijgt de taak als werktijd: 1,5 ed op een kalender van 8 u
-// wordt `PlannedDuration` 12. Het OPS-record draagt de eenheid (`ed`/`eu`), ook bij hele dagen, zodat OPS de
-// kalendertijd terugleest. MSPDI draagt kalendertijd zelf (`DurationFormat`).
 for (const fmt of [MSPDI, P6XML]) {
   const tag = fmt.name;
   const isMsp = fmt === MSPDI;
@@ -477,7 +406,6 @@ for (const fmt of [MSPDI, P6XML]) {
   p.project = { ...p.project, statusDate: '2026-06-02' };
   p.sequences = [];
   p.tasks = [
-    // X: 1,5 ed met 0,5 ed rest. Y: 2 ed, hele dagen. Z: een urentaak van 4320 kalenderminuten met 1440 rest.
     { ...task('X', '2026-06-01T07:00', '2026-06-02T19:00', 1.5, {
       durationType: 'ELAPSEDTIME', completion: 2 / 3, actualStart: '2026-06-01T07:00', remainingTime: 0.5,
     }), status: 'STARTED' },
@@ -519,7 +447,6 @@ for (const fmt of [MSPDI, P6XML]) {
   eq(`(10) ${tag}: doorgerekend dezelfde einden`, ['X', 'Y', 'Z'].map(n => byName(solve(loaded), n)?.time.earlyFinish),
     ['X', 'Y', 'Z'].map(n => byName(solve(p), n)?.time.earlyFinish));
   if (!isMsp) {
-    // Een ander programma wijzigde de duur, of de kalender: werktijd in de urenmaat, zoals P6 rekent.
     const changed = byName(fmt.read(fmt.patchField(text, 'X', 'duration', '14')), 'X');
     eq('(10) P6 XML: gewijzigde duur ⇒ werktijd, urenmaat 840 min', [changed?.time.durationType, changed?.time.durationUnit, changed?.time.durationMinutes],
       ['WORKTIME', 'hours', 840]);
@@ -531,7 +458,6 @@ for (const fmt of [MSPDI, P6XML]) {
   }
 }
 
-// ── (9) Knownbug 256 (MSPDI-deel): een kale planningsstart op een letterlijke kalender ─────────────
 {
   const NINE = [{ start: 540, end: 1020 }];
   const p = weekPayload();

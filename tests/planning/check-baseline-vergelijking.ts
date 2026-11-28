@@ -1,21 +1,3 @@
-/**
- * Meerdere baselines vergelijken in de Gantt (issue #391) — regressiebatterij.
- *
- * Bewaakt:
- *  A. DE OPDELING (puur, `baselineStrip.ts`): 1, 2 en 3 baselines; overlappend, samenvallend,
- *     aansluitend en niet-rakend; mijlpalen op dezelfde datum delen één ruit.
- *  L. DE LIJNEN (issue #741, puur): elke baseline is een eigen lijn in de strook. Alleen: volle dikte,
- *     recht afgesneden. Samen: ze delen de hoogte, vloeiend, in een vaste volgorde. De tekenregel blijft
- *     binnen de strook en schuift mee met de strook.
- *  M. DE SCHETS (issue #741): de rijen die de eigenaar koos, op 6 px per dag, tegen de rekenregel uit
- *     de schets (onafhankelijk nagerekend): w = S((t - begin) / tw) × S((einde - t) / tw), tw = 3,5 dag.
- *  B. HET DOCUMENTVELD `comparedBaselineIds`: aan/uit, maximaal twee naast de actieve, de actieve en
- *     een onbekende id doen niets, een baseline die actief wordt of verdwijnt gaat uit de vergelijking,
- *     undo/redo (zoals `setActiveBaseline`), documentwissel, IFC schrijven en lezen
- *     (`OPS_Baselines.ComparedBaselineIds`), een oud bestand zonder het veld, en crashherstel.
- *  C. SCHERM = AFDRUK: de echte `GanttRenderer` en de echte `renderReport` tekenen voor dezelfde
- *     baselines dezelfde lijnen (relatieve plaats, kleur) en ruiten.
- */
 import { useAppStore } from '@/state/appStore';
 import { recoveryInputFromParsed } from '@/state/documentContract';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -36,7 +18,6 @@ import { shownBaselineReach, type Baseline, type BaselineOverlay } from '@/types
 import type { Task } from '@/types/task';
 import type { ViewRow } from '@/engine/view/visibleRows';
 
-// Node-shim (zelfde als check-resource-accent): readGanttPalette leest CSS-variabelen.
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -48,7 +29,6 @@ const J = (v: unknown) => JSON.stringify(v);
 const ok = (cond: boolean, msg: string) => { checks++; if (!cond) { console.log(`   XX ${msg}`); failures++; } };
 const eq = (got: unknown, want: unknown, msg: string) => ok(J(got) === J(want), `${msg}: verwacht ${J(want)}, kreeg ${J(got)}`);
 
-// ══ A. De opdeling van de strook ═══════════════════════════════════════════════════════════════
 const sig = (bars: BaselineBar[]) => baselineStripPieces(bars).map(p => `${p.x1}-${p.x2}:${p.slots.join('')}`);
 
 eq(sig([{ slot: 0, x1: 10, x2: 50 }]), ['10-50:0'], 'A 1 baseline: één stuk');
@@ -77,7 +57,6 @@ eq(baselineDiamonds([{ slot: 0, x: 40, moment: 'm1' }, { slot: 1, x: 40.2, momen
 eq(baselineDiamonds([{ slot: 0, x: 40, moment: 'm1' }, { slot: 0, x: 40, moment: 'm1' }]), [{ x: 40, slots: [0] }],
   'A mijlpaal: dezelfde baseline twee keer telt één keer');
 
-// Tekenregel met een opnemende painter.
 interface Fill { color: string; pts: [number, number][] }
 function recordPainter(): { d: StripPainter; fills: Fill[] } {
   const fills: Fill[] = [];
@@ -98,8 +77,6 @@ const bbox = (pts: [number, number][]) => {
   const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
   return { x1: Math.min(...xs), x2: Math.max(...xs), y1: Math.min(...ys), y2: Math.max(...ys) };
 };
-/** Bemonster de uiteindelijke, ondoorzichtige kleur na ALLE vullingen (#598).
- *  De punt-in-veelhoekregel leest alleen de getekende paden, geen baselineLanes-uitkomst. */
 function visibleColumn(fills: Fill[], x: number, top: number, height: number): (string | null)[] {
   const contains = (pts: [number, number][], y: number) => {
     let inside = false;
@@ -111,7 +88,6 @@ function visibleColumn(fills: Fill[], x: number, top: number, height: number): (
   };
   return Array.from({ length: 60 }, (_, i) => {
     const y = top + (i + 0.5) * height / 60;
-    // De laatste vulling wint, precies als bij de Canvas-/PDF-tekenvolgorde.
     for (let j = fills.length - 1; j >= 0; j--) {
       if (contains(fills[j].pts, y)) return fills[j].color;
     }
@@ -120,10 +96,8 @@ function visibleColumn(fills: Fill[], x: number, top: number, height: number): (
 }
 const bandsOf = (...colors: string[]) => colors.flatMap(color => Array<string>(60 / colors.length).fill(color));
 
-// ══ L. De lijnen ═══════════════════════════════════════════════════════════════════════════════
 const near = (a: number, b: number, tol = 1e-6) => Math.abs(a - b) <= tol;
 const laneAt = (lane: { x: number[]; top: number[]; bottom: number[] }, x: number) => {
-  // Lineair tussen de meetpunten; de tekening doet hetzelfde.
   for (let i = 0; i + 1 < lane.x.length; i++) {
     if (x < lane.x[i] || x > lane.x[i + 1]) continue;
     const t = lane.x[i + 1] === lane.x[i] ? 0 : (x - lane.x[i]) / (lane.x[i + 1] - lane.x[i]);
@@ -146,7 +120,6 @@ const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: nu
   eq(baselineLanes([{ slot: 0, x1: 10, x2: 10 }], 6, 24), [], 'L lege strook telt niet mee');
 }
 {
-  // Samenvallend: gelijk gewicht, dus overal gelijk verdeeld, ook op het rechte begin en einde.
   const bars: BaselineBar[] = [{ slot: 2, x1: 0, x2: 300 }, { slot: 0, x1: 0, x2: 300 }, { slot: 1, x1: 0, x2: 300 }];
   const lanes = baselineLanes(bars, 6, 24);
   eq(lanes.map(l => l.slot), [0, 1, 2], 'L volgorde: plaats 0 boven, ongeacht de invoervolgorde');
@@ -157,7 +130,6 @@ const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: nu
   });
 }
 {
-  // Trapsgewijs: los begin, samen, los einde. Op elke x tellen de diktes op tot de strook.
   const bars: BaselineBar[] = [{ slot: 0, x1: 0, x2: 200 }, { slot: 1, x1: 80, x2: 280 }, { slot: 2, x1: 150, x2: 400 }];
   const lanes = baselineLanes(bars, 6, 24);
   for (let x = 1; x < 400; x += 3) {
@@ -174,8 +146,6 @@ const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: nu
   ok(near(thickness(lanes[0], 120), 3) && near(thickness(lanes[1], 120), 3), 'L twee naast elkaar: elk de helft');
   ok(near(thickness(lanes[1], 170) + thickness(lanes[2], 170) + thickness(lanes[0], 170), 6) && thickness(lanes[2], 174) > 2 - 1e-6 && thickness(lanes[1], 174) > 1.9,
     'L drie naast elkaar: delen de hoogte');
-  // Vloeiend: geen sprong tussen twee meetpunten. Binnen een lijn mag de rand per meetpunt maar een
-  // klein stukje bewegen (de steilste plek van de S-curve is 1,5 × hoogte / overgang).
   for (const lane of lanes) {
     for (let i = 1; i < lane.x.length; i++) {
       const dx = lane.x[i] - lane.x[i - 1];
@@ -184,36 +154,30 @@ const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: nu
       ok(Math.abs(lane.bottom[i] - lane.bottom[i - 1]) <= 6 * 1.6 * dx / 24 + 1e-6, `L vloeiend: onderkant slot ${lane.slot} op x=${lane.x[i]}`);
     }
   }
-  // De baseline die erbij komt, begint bij 0 en is na de overgang op zijn gelijke deel.
   ok(thickness(lanes[1], 80.5) < 0.05, `L erbij komen: begint bij 0, kreeg ${thickness(lanes[1], 80.5)}`);
   ok(near(thickness(lanes[1], 80 + 24), 3), 'L erbij komen: na de overgang op zijn deel');
   ok(thickness(lanes[1], 92) > 0.5 && thickness(lanes[1], 92) < 2.5, 'L erbij komen: halverwege tussenin');
 }
 {
-  // De overgang telt in pixels: dezelfde afstanden geven dezelfde vorm, waar de strook ook ligt.
   const a = baselineLanes([{ slot: 0, x1: 0, x2: 100 }, { slot: 1, x1: 50, x2: 200 }], 5, BASELINE_BLEND_PX);
   const b = baselineLanes([{ slot: 0, x1: 37, x2: 137 }, { slot: 1, x1: 87, x2: 237 }], 5, BASELINE_BLEND_PX);
   eq(b.map(l => l.top.map(v => Math.round(v * 1e5))), a.map(l => l.top.map(v => Math.round(v * 1e5))), 'L pannen: dezelfde vorm');
   eq(b[1].x.map(v => Math.round((v - 37) * 1e5)), a[1].x.map(v => Math.round(v * 1e5)), 'L pannen: dezelfde meetpunten');
-  // Op papier schaalt de overgang mee: alles dubbel is dezelfde vorm, dubbel zo groot.
   const big = baselineLanes([{ slot: 0, x1: 0, x2: 200 }, { slot: 1, x1: 100, x2: 400 }], 10, BASELINE_BLEND_PX * 2);
   eq(big[1].top.map(v => Math.round(v * 1e3)), a[1].top.map(v => Math.round(v * 2e3)), 'L schaal: de vorm blijft gelijk');
 }
 {
-  // Korte baseline midden in een lange: hij bereikt zijn volle deel, anders zie je hem niet.
   const lanes = baselineLanes([{ slot: 0, x1: 0, x2: 500 }, { slot: 1, x1: 200, x2: 210 }], 6, 24);
   ok(near(thickness(lanes[1], 205), 3, 1e-6), `L korte baseline: in het midden zijn volle deel, kreeg ${thickness(lanes[1], 205)}`);
   eq(thickness(lanes[0], 100), 6, 'L korte baseline: de lange houdt ernaast de volle dikte');
 }
 {
-  // Korte overlap van twee lange: de ene gaat vloeiend over in de andere, zonder gat.
   const lanes = baselineLanes([{ slot: 0, x1: 0, x2: 105 }, { slot: 1, x1: 100, x2: 300 }], 6, 24);
   ok(near(thickness(lanes[0], 102.5), 3, 1e-6) && near(thickness(lanes[1], 102.5), 3, 1e-6), 'L korte overlap: in het midden elk de helft');
   eq(thickness(lanes[0], 99), 6, 'L korte overlap: ervoor de volle dikte');
   eq(thickness(lanes[1], 106), 6, 'L korte overlap: erna de volle dikte');
 }
 {
-  // Niet-rakend en aansluitend: elk de volle dikte, recht afgesneden.
   for (const [a2, b1] of [[50, 90], [50, 50]]) {
     const lanes = baselineLanes([{ slot: 0, x1: 0, x2: a2 }, { slot: 1, x1: b1, x2: 200 }], 6, 24);
     ok(lanes.every(l => l.top.every(v => v === 0) && l.bottom.every(v => near(v, 6))), `L los (${a2}, ${b1}): beide de volle dikte`);
@@ -239,8 +203,6 @@ const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: nu
   'L teken 1 baseline: recht afgesneden, geen ronde kant');
 }
 {
-  // Elke lijn loopt door tot de onderkant van de strook; de lijn eronder komt eroverheen, dus de
-  // volgorde van tekenen is van boven naar onder en er valt geen naad.
   const { d, fills } = recordPainter();
   paintBaselineStrip(d, [{ slot: 2, x1: 10, x2: 60 }, { slot: 0, x1: 10, x2: 60 }, { slot: 1, x1: 30, x2: 90 }], [], paintOpts);
   eq(fills.map(f => f.color), ['k0', 'k1', 'k2'], 'L teken 3: van boven naar onder');
@@ -248,13 +210,11 @@ const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: nu
   ok(fills.every(f => { const b = bbox(f.pts); return b.y1 >= 100 - 1e-6 && b.y2 <= 106 + 1e-6; }), 'L teken 3: geen vulling buiten de strook');
 }
 {
-  // Een baseline die er niet is, krijgt geen kleur.
   const { d, fills } = recordPainter();
   paintBaselineStrip(d, [{ slot: 0, x1: 10, x2: 40 }, { slot: 1, x1: 25, x2: 60 }], [], paintOpts);
   eq(fills.filter(f => f.color === 'k2').length, 0, 'L teken 2 baselines: geen kleur van een baseline die er niet is');
 }
 {
-  // Op het scherm en in een rapportvenster: alleen tekenen wat in beeld valt.
   const { d, fills } = recordPainter();
   paintBaselineStrip(d, [{ slot: 0, x1: -5000, x2: 9000 }, { slot: 1, x1: 700, x2: 9000 }], [], { ...paintOpts, visibleX: [0, 800] });
   ok(fills.every(f => { const b = bbox(f.pts); return b.x1 >= 0 && b.x2 <= 800; }), 'L zichtbaar bereik: niets buiten het canvas');
@@ -272,8 +232,6 @@ const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: nu
   eq([b.x1, b.x2, b.y1, b.y2], [45, 55, 98, 108], 'A ruit: midden op de strook, halve diagonaal 5');
 }
 {
-  // Strepen en ruitranden lopen allebei onder 45°: een afrondfout gaf eerder een driehoekje
-  // buiten de ruit (gevonden bij halve diagonaal 4, streep 3). Elke vulling blijft binnen de ruit.
   for (const s of [2.4, 3.2, 4, 4.8, 5, 5.6, 7]) {
     for (const w of [2, 3, 4]) {
       const { d, fills } = recordPainter();
@@ -285,7 +243,6 @@ const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: nu
     }
   }
 }
-// Zichtbaarheid na het over elkaar schilderen, onafhankelijk van de geometrie-orakels.
 {
   const same = recordPainter();
   paintBaselineStrip(same.d, [0, 1, 2].map(slot => ({ slot: slot as BaselineSlot, x1: 0, x2: 120 })), [], paintOpts);
@@ -296,12 +253,9 @@ const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: nu
   eq(visibleColumn(partial.fills, 50, 100, 6), bandsOf('k0'), 'L zichtbaar: voor de overlap alleen baseline 0');
   eq(visibleColumn(partial.fills, 150, 100, 6), bandsOf('k0', 'k1'), 'L zichtbaar: midden in de overlap elk de helft');
   eq(visibleColumn(partial.fills, 250, 100, 6), bandsOf('k1'), 'L zichtbaar: na de overlap alleen baseline 1');
-  // Halverwege de 24-px-opbouw is het gewicht 0,5 naast een gewicht van 1.
-  // De uiteindelijke kleuren delen de hoogte dus 2:1; bij afbouw is het omgekeerd.
   eq(visibleColumn(partial.fills, 112, 100, 6), bandsOf('k0', 'k0', 'k1'), 'L zichtbaar: opbouw toont 2:1');
   eq(visibleColumn(partial.fills, 188, 100, 6), bandsOf('k0', 'k1', 'k1'), 'L zichtbaar: afbouw toont 1:2');
 }
-// ══ M. De rijen uit de schets ══════════════════════════════════════════════════════════════════
 {
   const PX_PER_DAY = 6;
   const TW = 3.5;
@@ -324,7 +278,6 @@ const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: nu
       const sum = w.reduce((x, y) => x + y, 0);
       return w.map(v => (sum > 0 ? (H * v) / sum : 0));
     };
-    // Op de meetpunten is het precies de regel uit de schets; ertussen lineair, dus hooguit een fractie ernaast.
     lanes.forEach((lane, i) => lane.x.forEach((x, k) => {
       const edge = x === bars[i].x1 || x === bars[i].x2;
       if (!edge) ok(near(lane.bottom[k] - lane.top[k], expected(x / PX_PER_DAY)[i], 1e-9), `M ${name}: lijn ${i} op x=${x} volgt de schets`);
@@ -335,7 +288,6 @@ const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: nu
       lanes.forEach((lane, i) => ok(near(thickness(lane, x), want[i], 0.02), `M ${name}: lijn ${i} op x=${x}: verwacht ${want[i]}, kreeg ${thickness(lane, x)}`));
     }
   }
-  // De rij Dak in woorden: lange stukken op volle dikte, en alleen in de overlap gedeeld.
   const dak = baselineLanes(SKETCH['korte overlappen (Dak)'].map(([a, b], i) => ({ slot: i as BaselineSlot, x1: a * 6, x2: b * 6 })), H, BASELINE_BLEND_PX);
   eq(thickness(dak[0], 57 * 6), H, 'M Dak: de eerste lijn begint recht, op volle dikte');
   eq(thickness(dak[1], 75 * 6), H, 'M Dak: de tweede lijn heeft tussen de overlappen de volle dikte');
@@ -344,7 +296,6 @@ const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: nu
   ok(near(thickness(dak[1], 82 * 6), H / 2), 'M Dak: midden in de tweede overlap elk de helft');
 }
 
-// ══ B. Het documentveld ════════════════════════════════════════════════════════════════════════
 S().newProject();
 S().addTask({ name: 'Ruwbouw' });
 S().addTask({ name: 'Oplevering', isMilestone: true });
@@ -394,30 +345,25 @@ eq(S().comparedBaselineIds, [blB, null], 'B actieve verwijderd: de nieuwe actiev
 S().undo();
 eq([S().activeBaselineId, S().comparedBaselineIds], [blD, [blB, blC]], 'B undo: actief en vergelijking terug');
 
-// Documentwissel: de keuze hoort bij het document.
 const doc1 = S().activeDocumentId;
 S().newDocument();
 eq(S().comparedBaselineIds, [null, null], 'B documentwissel: een nieuw document vergelijkt niets');
 S().switchDocument(doc1);
 eq(S().comparedBaselineIds, [blB, blC], 'B documentwissel: terug in document 1 is de keuze er weer');
 
-// IFC schrijven en lezen.
 const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 ok(ifc.includes(`'ComparedBaselineIds'`), 'B IFC: OPS_Baselines bevat ComparedBaselineIds');
 const parsed = readIFC(ifc);
 eq(parsed.comparedBaselineIds, [blB, blC], 'B IFC: keuze terug na lezen');
 eq(parsed.activeBaselineId, blD, 'B IFC: actieve baseline terug na lezen');
 
-// Een id die niet meer bestaat (handmatig bewerkt bestand) valt weg bij het lezen.
 const broken = readIFC(ifc.replace(new RegExp(`"${blC}"\\]`), '"weg"]'));
 eq(broken.comparedBaselineIds, [blB, null], 'B IFC: onbekende id in het bestand valt weg');
 
-// Crashherstel: dezelfde keten als de herstel-hook.
 const input = recoveryInputFromParsed(parsed, { id: 'herstel-391', filePath: '/tmp/391.ifc', isDirty: true, datesAsRecorded: false });
 S().restoreDocuments([input], 'herstel-391');
 eq(S().comparedBaselineIds, [blB, blC], 'B crashherstel: keuze terug');
 
-// Oud bestand: zonder keuze schrijft de writer het veld niet, en lezen geeft geen vergelijking.
 S().toggleComparedBaseline(blB);
 S().toggleComparedBaseline(blC);
 eq(S().comparedBaselineIds, [null, null], 'B setup oud bestand: niets gekozen');
@@ -426,7 +372,6 @@ ok(!oldIfc.includes('ComparedBaselineIds'), 'B IFC zonder keuze: geen ComparedBa
 ok(oldIfc.includes(`'ActiveBaselineId'`), 'B IFC zonder keuze: OPS_Baselines staat er wel');
 eq(readIFC(oldIfc).comparedBaselineIds, [null, null], 'B IFC oud bestand: geen vergelijking');
 
-// ══ C. Scherm = afdruk ═════════════════════════════════════════════════════════════════════════
 S().newProject();
 const cBar = S().addTask({ name: 'Balk' });
 const cMs = S().addTask({ name: 'Mijlpaal', isMilestone: true });
@@ -444,15 +389,11 @@ const layer = (barFrom: number, barTo: number, msDay: number): BaselineOverlay =
   [bar.id, { start: addDays(s0, barFrom), finish: addDays(s0, barTo), isMilestone: false }],
   [ms.id, { start: addDays(m0, msDay), finish: addDays(m0, msDay), isMilestone: true }],
 ]);
-// Actief dag 0–4; vergelijking 1 dag 2–7; vergelijking 2 dag 12–14 (los). Mijlpaal: actief en 1
-// op dezelfde dag (één gestreepte ruit), 2 drie dagen later.
 const overlay0 = layer(0, 4, 0);
 const comparisons = [{ slot: 1 as const, overlay: layer(2, 7, 0) }, { slot: 2 as const, overlay: layer(12, 14, 3) }];
 const BASE_COLORS = new Set([PRINT_PALETTE.baseline, PRINT_PALETTE.baselineCompare1, PRINT_PALETTE.baselineCompare2]);
 
 interface Piece { x1: number; x2: number; base: string; stripes: string[] }
-/** Groepeert opgenomen baselinevullingen per rij en per stuk: een vulling die niet binnen het
- *  vorige stuk valt, begint een nieuw stuk (strepen liggen altijd binnen hun stuk). */
 function piecesPerRow(fills: Fill[]): Piece[][] {
   const mine = fills.filter(f => BASE_COLORS.has(f.color) && f.pts.length >= 3);
   const rows: { cy: number; fills: Fill[] }[] = [];
@@ -472,7 +413,6 @@ function piecesPerRow(fills: Fill[]): Piece[][] {
       if (inside) { if (!cur.stripes.includes(f.color)) cur.stripes.push(f.color); continue; }
       pieces.push({ x1: b.x1, x2: b.x2, base: f.color, stripes: [], b });
     }
-    // Plaats relatief aan de hele rij (scherm en afdruk hebben een andere schaal).
     const lo = Math.min(...pieces.map(p => p.x1));
     const hi = Math.max(...pieces.map(p => p.x2));
     const span = hi - lo || 1;
@@ -486,7 +426,6 @@ function piecesPerRow(fills: Fill[]): Piece[][] {
 }
 
 type Comparisons = { slot: 1 | 2; overlay: BaselineOverlay }[];
-/** Scherm: de echte GanttRenderer met een opnemende context. */
 function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, over: { zoom?: number; compress?: boolean; keep?: { r?: GanttRenderer }; viewStart?: string; rows?: ViewRow[] } = {}): Fill[] {
   const fills: Fill[] = [];
   let path: [number, number][] = [];
@@ -522,7 +461,6 @@ function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, o
   return fills;
 }
 
-/** Afdruk: de echte renderReport (raster-preview én vector-PDF) met een opnemende Draw2D. */
 function renderPrint(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, over: { zoom?: number; compress?: boolean } = {}) {
   const fills: Fill[] = [];
   let path: [number, number][] | null = null;
@@ -562,7 +500,6 @@ const screen = piecesPerRow(screenFills);
 const print = piecesPerRow(printFills);
 eq(screen.length, 2, 'C scherm: baselinestrook op beide rijen');
 eq(print, screen, 'C afdruk tekent dezelfde stukken, ondergronden en streepkleuren als het scherm');
-// En dat beeld is het verwachte: vier stukken op de balkrij, twee ruiten op de mijlpaalrij.
 const P = PRINT_PALETTE;
 eq(screen[0]?.map(p => [p.base, p.stripes]), [
   [P.baseline, []], [P.baselineCompare1, []], [P.baselineCompare2, []],
@@ -571,7 +508,6 @@ eq(screen[1]?.map(p => [p.base, p.stripes]), [
   [P.baseline, [P.baselineCompare1]], [P.baselineCompare2, []],
 ], 'C mijlpaalrij: één gestreepte ruit op de gedeelde datum, één losse ruit');
 
-// Ook de twee echte aanroepers moeten na hun laatste baseline-laag alle drie kleuren tonen.
 {
   const identical = [{ slot: 1 as const, overlay: overlay0 }, { slot: 2 as const, overlay: overlay0 }];
   for (const [label, fills] of [
@@ -589,9 +525,6 @@ eq(screen[1]?.map(p => [p.base, p.stripes]), [
   }
 }
 
-// ══ D. Baselines met tijd (urentaken) ═════════════════════════════════════════════════════════
-// Een baseline mét tijd staat op haar tijdstip, zoals de taakbalk (`barGeometry`): A 09:00–10:00 en
-// B 14:00–15:00 op dezelfde dag raken elkaar niet. Een datum zonder tijd blijft een hele dag.
 {
   const dayX = (d: Date) => (d.getTime() - Date.UTC(2026, 9, 20)) / 86_400_000 * 240;
   eq(baselineSpanX({ start: '2026-10-20T09:00', finish: '2026-10-20T10:00', isMilestone: false }, dayX, 240),
@@ -608,7 +541,6 @@ eq(screen[1]?.map(p => [p.base, p.stripes]), [
     { kind: 'bar', x1: 90, x2: 480 }, 'D uurstart met dag-einde (21 okt): tot het einde van die dag');
   eq(baselineSpanX({ start: 'kapot', finish: 'kapot', isMilestone: false }, dayX, 240), null, 'D onleesbare datum: niets');
 
-  // Echte renderer en echte afdruk: twee losse stukken, en twee losse ruiten.
   const day = s0;
   const hourOv = (from: string, to: string, msAt: string): BaselineOverlay => new Map([
     [bar.id, { start: `${day}T${from}`, finish: `${day}T${to}`, isMilestone: false }],
@@ -624,14 +556,10 @@ eq(screen[1]?.map(p => [p.base, p.stripes]), [
       `D scherm (${label}): 09–10 en 14–15 zijn twee losse effen stukken, geen valse overlap`);
     eq(scr[1]?.length, 2, `D scherm (${label}): mijlpalen om 09:00 en 15:00 zijn twee ruiten`);
     eq(prt[0], scr[0], `D afdruk (${label}): dezelfde stukken als het scherm`);
-    // Ruiten: scherm en papier hebben een andere ruitgrootte, dus alleen het aantal vergelijken.
     eq(prt[1]?.length, 2, `D afdruk (${label}): mijlpalen om 09:00 en 15:00 zijn twee ruiten`);
   }
 }
 
-// ══ E. Een vergelijkingsbaseline ver van de taken blijft bereikbaar ══════════════════════════════
-// Taak 20–21 okt, vergelijkingsbaseline 1–31 juli. De tijdas (oorsprong), Ctrl+Home, Inpassen en het
-// rapport nemen de getoonde baselines mee; zonder baselines verandert er niets.
 {
   const octTime = { ...bar.time, earlyStart: '2026-10-20', earlyFinish: '2026-10-21', scheduleStart: '2026-10-20', scheduleFinish: '2026-10-21' };
   const t = { ...bar, time: octTime, actualStart: undefined, actualFinish: undefined } as Task;
@@ -643,7 +571,6 @@ eq(screen[1]?.map(p => [p.base, p.stripes]), [
   eq(reach, { earliest: '2026-07-01', latest: '2026-10-21' }, 'E bereik: actief okt + vergelijking juli');
   eq(shownBaselineReach([octBl, julyBl], octBl.id, [null, null]), { earliest: '2026-10-20', latest: '2026-10-21' },
     'E bereik zonder vergelijking: alleen de actieve');
-  // Knownbug 451: dezelfde terugval bij een ontbrekende rand als de echte tekenfunctie.
   for (const [start, finish, expected] of [
     ['', '2026-07-01', { earliest: '2026-07-01', latest: '2026-10-21' }],
     ['2026-07-01', '', { earliest: '2026-07-01', latest: '2026-10-21' }],
@@ -677,12 +604,10 @@ eq(screen[1]?.map(p => [p.base, p.stripes]), [
     'E Inpassen: zoom en eerste dag blijven de taken');
   eq(fit && Math.round(fit.scrollX / fit.zoom), 14 + 111, 'E Inpassen: scroll vanaf de nieuwe oorsprong (17 juni) naar 20 okt');
 
-  // Scrollbereik: een baseline NA de taken telt mee als laatste dag.
   const spanAxis = buildSharedAxis({ calendar: S().calendar, compressNonWorkdays: false, viewStartDate: '2026-10-06', chartOriginX: 0, zoom: 1, scrollX: 0 });
   const span = computeContentSpanDays([t], '2026-10-06', false, spanAxis, ['2028-01-31']);
   ok((span ?? 0) >= 482, `E scrollbereik reikt tot de laatste baselinedag, kreeg ${span}`);
 
-  // Rapport: de julistrook valt niet onder de tabel.
   const julyOv: BaselineOverlay = new Map([[t.id, { start: '2026-07-01', finish: '2026-07-31', isMilestone: false }]]);
   const octOv: BaselineOverlay = new Map([[t.id, { start: '2026-10-20', finish: '2026-10-21', isMilestone: false }]]);
   const rep = renderPrint([t], octOv, [{ slot: 1, overlay: julyOv }]);
@@ -694,9 +619,6 @@ eq(screen[1]?.map(p => [p.base, p.stripes]), [
   ok(rep.dims.width > plain.dims.width, 'E rapport: met juli-vergelijking is de as breder dan zonder');
 }
 
-// ══ F. Resource-accent én baselines (eigenaarsbesluit 2026-10-20) ══════════════════════════════
-// De balk wordt iets lager; accent en baselinestrook houden hun eigen dikte. Eén van beide aan:
-// niets verandert. Alles blijft binnen de rij.
 for (const rh of [16, 20, 24, 32, 40, 48]) {
   const plain = barLayout(rh);
   const accentOnly = barLayout(rh, { resourceAccent: true });
@@ -714,8 +636,6 @@ for (const rh of [16, 20, 24, 32, 40, 48]) {
 }
 eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight * 10) / 10, 16.6, 'F rij 32: balk 16,6 px (was 19,2)');
 {
-  // De echte renderer: met accent én baselines liggen accent en strook onder een lagere balk, de
-  // strook even dik als zonder accent; elke balk in de weergave is even hoog.
   const rh = 32;
   const lay = barLayout(rh, { resourceAccent: true, baselines: true });
   const fills: Fill[] = [];
@@ -763,11 +683,7 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
   ok(strips.every(b => b.y2 <= 60 + 2 * rh + 1e-6) && strips[0].y2 <= 60 + rh + 1e-6, 'F renderer: strook blijft binnen de rij');
 }
 
-// ══ G. Korte baselines: geen valse overlap door de minimumbreedte (review ronde 2) ════════════════
-// De opdeling in stukken en de hover rekenen met de echte grenzen. Een minimumbreedte geldt pas bij
-// het tekenen, per groep aansluitende stukken, en loopt nooit over een buur heen.
 {
-  // Puur: aansluitend kort (1,25 + 1,25 px) blijft twee effen stukken; los kort wordt 2 px zonder de buur te raken.
   const adj = widenShortRuns(baselineStripPieces([{ slot: 0, x1: 100, x2: 101.25 }, { slot: 1, x1: 101.25, x2: 102.5 }]), 2);
   eq(adj.map(p => [p.x1, p.x2, p.slots]), [[100, 101.25, [0]], [101.25, 102.5, [1]]], 'G aansluitend kort: twee stukken, ongewijzigd');
   const tiny = widenShortRuns(baselineStripPieces([{ slot: 0, x1: 100, x2: 100.2 }, { slot: 1, x1: 100.2, x2: 100.4 }]), 2);
@@ -778,7 +694,6 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
   ok(loose.every((p, i) => i === 0 || p.x1 >= loose[i - 1].x2 - 1e-9), 'G los heel kort: verlengd stuk loopt niet over de buur');
   eq(widenShortRuns(baselineStripPieces([{ slot: 0, x1: 10, x2: 10.5 }]), 2).map(p => [p.x1, p.x2]), [[10, 12]], 'G één korte baseline: 2 px naar rechts, zoals voorheen');
 
-  // Echte renderer en echte afdruk bij 30, 5 en 0,5 px/dag (de laagste zoomstap).
   const day = s0;
   const cases: { zoom: number; label: string; a: [string, string]; b: [string, string]; c?: [string, string] }[] = [
     { zoom: 30, label: '30 px/dag, uren aansluitend', a: [`${day}T09:00`, `${day}T10:00`], b: [`${day}T10:00`, `${day}T11:00`] },
@@ -797,7 +712,6 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
     const pp = piecesPerRow(prt)[0] ?? [];
     ok(sp.length > 0 && sp.every(p => p.stripes.length === 0), `G scherm ${c.label}: geen strepen (kreeg ${J(sp.map(p => p.stripes))})`);
     ok(pp.length > 0 && pp.every(p => p.stripes.length === 0), `G afdruk ${c.label}: geen strepen`);
-    // Hover: langs de hele strook meldt getBaselineAt nooit twee baselines tegelijk.
     const strip = scr.filter(f => BASE_COLORS.has(f.color)).map(f => bbox(f.pts));
     const y = strip.length ? (strip[0].y1 + strip[0].y2) / 2 : 0;
     const lo = Math.min(...strip.map(b => b.x1)) - 1;
@@ -807,7 +721,6 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
     eq(multi, 0, `G hover ${c.label}: geen plek met twee baselines`);
   }
 
-  // Mijlpalen met tijd: 09:00 en 09:30 zijn twee momenten, ook op lage zoom; 09:00 en 09:00 delen één ruit.
   for (const zoom of [30, 5, 0.5]) {
     const msOv = (t: string): BaselineOverlay => new Map([[ms.id, { start: `${m0}T${t}`, finish: `${m0}T${t}`, isMilestone: true }]]);
     const keep: { r?: GanttRenderer } = {};
@@ -824,12 +737,7 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
   }
 }
 
-// ══ H. Gelijke pixels zijn geen gelijke momenten; de hover volgt de bovenste vorm (review ronde 3) ═══
-// Op de werkdag-as vallen tijdstippen in het weekend op dezelfde x. Mijlpalen groeperen op hun
-// moment, niet op hun x. Een strook zonder breedte op de as (helemaal in niet-werktijd) wordt niet
-// getekend en telt niet mee. De hover geeft de baseline van de bovenste getekende vorm.
 {
-  // Eerste zaterdag na de start van de mijlpaaltaak (de standaardkalender werkt ma–vr).
   const sat = (() => { let d = m0; while (new Date(`${d}T00:00:00Z`).getUTCDay() !== 6) d = addDays(d, 1); return d; })();
   const sun = addDays(sat, 1);
   const fri = addDays(sat, -1);
@@ -841,7 +749,6 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
   for (const compress of [true, false]) {
     const axis = compress ? 'werkdag-as' : 'kalender-as';
     for (const zoom of [30, 5]) {
-      // Mijlpalen za 09:00 (actief) en zo 09:00 (vergelijking): twee momenten, dus twee effen ruiten.
       const keep: { r?: GanttRenderer } = {};
       const scr = renderScreen([ms], msOv(`${sat}T09:00`), [{ slot: 1, overlay: msOv(`${sun}T09:00`) }], { zoom, compress, keep });
       const prt = renderPrint([ms], msOv(`${sat}T09:00`), [{ slot: 1, overlay: msOv(`${sun}T09:00`) }], { zoom, compress }).fills;
@@ -849,13 +756,11 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
         `H ${axis} ${zoom} px/dag scherm: za en zo 09:00 zijn twee effen ruiten (geen strepen)`);
       eq(baseFills(prt).map(f => f.color), [PRINT_PALETTE.baseline, PRINT_PALETTE.baselineCompare1],
         `H ${axis} ${zoom} px/dag afdruk: za en zo 09:00 zijn twee effen ruiten`);
-      // Hover op het midden van de bovenste (laatst getekende) ruit: die baseline, alleen die.
       const top = baseFills(scr)[1];
       if (top) {
         const c = centerOf(top);
         eq(keep.r?.getBaselineAt(c.x, c.y)?.slots, [1], `H ${axis} ${zoom} px/dag hover: midden van de bovenste ruit geeft die baseline`);
       }
-      // Uurstroken za 09–10 en zo 09–10.
       const keepB: { r?: GanttRenderer } = {};
       const sb = renderScreen([bar], barOv(`${sat}T09:00`, `${sat}T10:00`), [{ slot: 1, overlay: barOv(`${sun}T09:00`, `${sun}T10:00`) }], { zoom, compress, keep: keepB });
       const pb = renderPrint([bar], barOv(`${sat}T09:00`, `${sat}T10:00`), [{ slot: 1, overlay: barOv(`${sun}T09:00`, `${sun}T10:00`) }], { zoom, compress }).fills;
@@ -867,14 +772,12 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
       eq(multi, 0, `H ${axis} ${zoom} px/dag hover: uurstroken za/zo nooit samen`);
       if (compress) {
         eq(baseFills(sb).length, 0, `H werkdag-as ${zoom} px/dag: een strook helemaal in het weekend wordt niet getekend`);
-        // Een strook met werktijd erin blijft gewoon staan.
         const fr = renderScreen([bar], barOv(`${fri}T09:00`, `${fri}T10:00`), [{ slot: 1, overlay: barOv(`${sun}T09:00`, `${sun}T10:00`) }], { zoom, compress });
         eq(baseFills(fr).map(f => f.color), [PRINT_PALETTE.baseline], `H werkdag-as ${zoom} px/dag: vrijdagstrook blijft, zondagstrook valt weg`);
       }
     }
   }
 
-  // Bij 5 px/dag liggen 09:00 en 09:30 0,1 px uit elkaar; de cyaan ruit van 09:30 ligt bovenop.
   {
     const keep: { r?: GanttRenderer } = {};
     const scr = renderScreen([ms], msOv(`${m0}T09:00`), [{ slot: 1, overlay: msOv(`${m0}T09:30`) }], { zoom: 5, keep });
@@ -884,7 +787,6 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
     const bu = bbox(under.pts);
     eq(keep.r?.getBaselineAt(bu.x1 + 0.03, (bu.y1 + bu.y2) / 2)?.slots, [0], 'H 5 px/dag: links, waar alleen 09:00 ligt, geeft 09:00');
   }
-  // Stroken: de hover geeft precies de baselines van het stuk onder de muis.
   {
     const keep: { r?: GanttRenderer } = {};
     const scr = renderScreen([bar], layer(0, 4, 0), [{ slot: 1, overlay: layer(2, 7, 0) }], { zoom: 30, keep });
@@ -896,10 +798,6 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
   }
 }
 
-// ══ I. Dagbaselines op de werkdag-as en de hover op de echte ruitvorm (review ronde 4) ═══════════════
-// Op de werkdag-as (ma–vr) vallen za 24 en ma 26 okt 2026 op dezelfde x. Het einde van een
-// dagbaseline is het BEGIN van de volgende kalenderdag, via de as geprojecteerd; za heeft daardoor
-// geen breedte en telt niet mee. De hover test eerst de echte ruitvorm, de marge pas daarna.
 {
   const VIEW = '2026-10-19';
   const dayOv = (from: string, to: string): BaselineOverlay => new Map([[bar.id, { start: from, finish: to, isMilestone: false }]]);
@@ -925,14 +823,11 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
       eq(multi, 0, `I werkdag-as ${zoom} px/dag hover, ${c.label}: nergens twee baselines`);
     }
   }
-  // Kalender-as: za 24 en ma 26 blijven twee aparte dagen met een dag ertussen.
   {
     const scr = renderScreen([bar], dayOv('2026-10-24', '2026-10-24'), [{ slot: 1, overlay: dayOv('2026-10-26', '2026-10-26') }], { zoom: 30, viewStart: VIEW });
     eq(baseFills(scr).map(f => f.color), [PRINT_PALETTE.baseline, PRINT_PALETTE.baselineCompare1], 'I kalender-as: za en ma zijn twee effen stukken');
   }
 
-  // Hover op de echte ruitvorm: mijlpalen 09:00 (grijs) en 15:00 (cyaan) bij 5 px/dag. Het punt
-  // (grijs midden − 0,875; − 2,1) ligt alleen in de grijze ruit, wel in de rechthoek om de cyane.
   {
     const msOv = (iso: string): BaselineOverlay => new Map([[ms.id, { start: iso, finish: iso, isMilestone: true }]]);
     const keep: { r?: GanttRenderer } = {};
@@ -948,15 +843,10 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
     ok(inGrey && !inCyan && inCyanBox, `I opzet: punt alleen in de grijze ruit, wel in de rechthoek van de cyane (halve diagonaal ${half})`);
     eq(keep.r?.getBaselineAt(p.x, p.y)?.slots, [0], 'I hover op een zichtbaar deel van de grijze ruit geeft grijs [0]');
     eq(keep.r?.getBaselineAt(cc.x + half * 0.5, cc.y)?.slots, [1], 'I hover op de cyane ruit geeft cyaan [1]');
-    // Marge pas als geen vorm geraakt is: net boven de punt van de grijze ruit (binnen 2 px).
     eq(keep.r?.getBaselineAt(cg.x - 0.6, grey.y1 - 1)?.slots, [0], 'I hover net naast de grijze ruit (marge) geeft grijs');
   }
 }
 
-// ══ J. Dezelfde taak op meer rijen: de hover werkt op elke rij (review ronde 5) ════════════════════
-// Groeperen op resource of resourcetype zet een taak met twee resources in twee groepen, dus op twee
-// rijen. De hovergegevens horen bij de rij, niet bij de taak; anders overschrijft de laatste rij de
-// eerdere en geeft de hover op de eerste rij niets.
 {
   const both = (): BaselineOverlay => new Map([[bar.id, { start: s0, finish: addDays(s0, 2), isMilestone: false }]]);
   const msBoth = (): BaselineOverlay => new Map([[ms.id, { start: m0, finish: m0, isMilestone: true }]]);
@@ -973,7 +863,6 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
     for (const [what, t, ov0, ov1] of [['balk', bar, both(), both()], ['mijlpaal', ms, msBoth(), msBoth()]] as const) {
       const keep: { r?: GanttRenderer } = {};
       const scr = renderScreen([t], ov0, [{ slot: 1, overlay: ov1 }], { zoom: 30, keep, rows: lay.rows(t) });
-      // Per rij de eerste vulling: dat is het stuk of de ruit zelf; de strepen liggen erbinnen.
       const bands: ReturnType<typeof bbox>[] = [];
       for (const f of scr.filter(f => BASE_COLORS.has(f.color) && f.pts.length >= 3)) {
         const b = bbox(f.pts);
@@ -988,7 +877,6 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
   }
 }
 
-// Knownbug 458: de onderste punt is zichtbaar in de buur-rij en blijft onderdeel van dezelfde ruit.
 {
   const ov: BaselineOverlay = new Map([[ms.id, { start: m0, finish: m0, isMilestone: true }]]);
   const keep: { r?: GanttRenderer } = {};
