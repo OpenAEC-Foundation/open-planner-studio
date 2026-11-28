@@ -12,8 +12,7 @@ minutenomzetting. Een taak zonder record blijft onaangeroerd, op de stappen hier
 - De velden van `TaskTimeComputed` zijn verplicht (ADR 0300), dus de functie schrijft dezelfde terugvallen als
   ADR 0331: de late datum is de vroege, speling 0, niet kritiek. "Niet vastgelegd" staat alleen in het record
   (`times[id].lateStart === undefined` enzovoort); `recordedDatesSelectors.ts` leest dat voor de taaktabel
-  (`unrecordedAxes`) en de uitgangen (`unrecordedExportGate`). Dat de velden optioneel maken renderer, taakraster,
-  rapport, MCP en export zou raken, komt uit het weggehaalde commentaar.
+  (`unrecordedAxes`) en de uitgangen (`unrecordedExportGate`).
 - De spelingminuten worden de waarde uit het record of `undefined`, zonder terugval. De verworpen berekening schreef
   eigen minuten, en die naast de dagen uit het bestand gaven een tegenstrijdige speling die opslaan vastlegt
   (aanval na #600, a05; `docs/ifc-round-trip.md`, Speling; `check-recorded-dates.ts` §19).
@@ -28,8 +27,8 @@ minutenomzetting. Een taak zonder record blijft onaangeroerd, op de stappen hier
   Anders hield een fasebalk de datums van de verworpen berekening. De rollup leest de terugvallen van de kinderen als
   hun waarden. Een handmatige fase (`manuallyScheduled`) houdt daarbij haar eigen plandatums en duur. Een
   verzameltaak met eigen record (de IFC-route) blijft zoals het bestand haar gaf (`check-recorded-dates.ts` §15).
-  Dat P6 alleen op TASK-rijen een vastlegging schrijft en een WBS-rij er dus nooit een heeft, komt uit het
-  weggehaalde commentaar. Een fase zonder record krijgt, wat haar afgeleide speling ook is, geen markering *Niet
+  De tabel PROJWBS van XER heeft geen kolommen voor vroege en late datums (MPXJ `PrimaveraXERFileWriter`,
+  `WBS_COLUMNS`), dus een WBS-rij heeft nooit een vastlegging. Een fase zonder record krijgt, wat haar afgeleide speling ook is, geen markering *Niet
   vastgelegd* (`unrecordedAxes` geeft zonder record niets). Het projecteinde telt alleen taken met een record, de
   rollup van een fase alle kinderen, dus een fase kan later eindigen dan het projecteinde (knownbug 2328, issue #1231).
 - `interferingFloat`, `isNearCritical` en `floatPath` worden gewist op elke taak met record en op elke taak die geen
