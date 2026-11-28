@@ -331,7 +331,8 @@ zonder React, de modules uit `STUBBED` als stub). Bewijs: `check-save-worker.ts`
 `check-ifc-document-save.ts` (de routes met een geïnjecteerde worker: typen, tweede Ctrl+S, tabbladwissel, fouten),
 `save-worker-production.spec.ts` (de worker uit de echte productieconfiguratie, met zijn modules, ook dynamisch) en
 `settings-tabs.spec.ts` (de app start de worker zelf bij een echte Ctrl+S, met een model en met een gewoon bestand). De
-opslagstand in de statusbalk staat in `state.md`.
+opslagstand in de statusbalk staat in `state.md`. Waarom een merge na een eerste start niet terugvalt:
+`docs/adr/1070-opslagworker-merge-valt-na-een-start-niet-terug.md`.
 
 **De laatste controle in de schrijflaag** (knownbug 1896, #804 stap 6 en fixronde 1 van #1027): elke documentopslag en
 elke IFC-export geeft `refuseBeforePlace` (`RefuseBeforePlace` in `fileAccess/index.ts`; `refuseChangedDocumentWrite`
