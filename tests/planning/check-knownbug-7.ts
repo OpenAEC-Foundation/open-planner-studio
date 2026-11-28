@@ -1,4 +1,3 @@
-// Diagnose knownbug 7: meet afgeleide hammockduur zonder finish-driver.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';

@@ -19,14 +19,12 @@ function eq(label: string, got: unknown, want: unknown): void {
   }
 }
 
-// Breuk die dit vangt: minuutvergelijking terugbrengen tot alleen de kalenderdag.
 eq('1 minuut-exact', classify('2026-01-05T08:00', '2026-01-05T08:00'), 'exact');
 eq('1a zelfde dag maar andere minuut', classify('2026-01-05T08:01', '2026-01-05T08:00'), 'sameday');
 eq('1b andere dag', classify('2026-01-06T08:00', '2026-01-05T08:00'), 'diff');
 eq('1c ontbrekend orakel', classify('2026-01-05T08:00', null), 'missing');
 eq('1d scalaire gelijkheid gebruikt geen datumdagvergelijking', classifyExact('75', '75'), 'exact');
 eq('1e scalaire afwijking is direct diff', classifyExact('76', '75'), 'diff');
-// §1d-9 (eigenaarsbesluit in afwachting): float-ruis onder de celafronding is exact, 0,002 niet.
 eq('1f float-tolerantie is de celafronding', FLOAT_EXACT_TOLERANCE_MIN, 0.001);
 eq('1g EC1600-ruis 396640.00002 vs 396640 is exact', classifyFloatMinutes('396640.00002000004', '396640'), 'exact');
 eq('1h 396640.002 vs 396640 blijft diff', classifyFloatMinutes('396640.002', '396640'), 'diff');
@@ -46,8 +44,6 @@ const rows = [
   }),
 ];
 
-// Breuk die dit vangt: een ontbrekende lezerswaarde verlaagt stil het meetbaar-aantal of telt niet
-// als afwijking, terwijl het orakelveld wel degelijk aanwezig is.
 eq('2 rijvorm bewaart identiteit en asuitspraak', rows[1], {
   identity: 'B',
   axes: {
@@ -72,8 +68,6 @@ eq('2b ontbrekend orakel is niet meetbaar en niet afwijkend', countFidelityAxis(
   deviations: 0,
 });
 
-// Breuk die dit vangt: de per-project-lus overschrijft de vorige projecttelling in plaats van de
-// bestandssom te maken.
 const total = emptyFidelityCounts();
 addFidelityCounts(total, countFidelityAxis(rows.slice(0, 1), 'es'));
 addFidelityCounts(total, countFidelityAxis(rows.slice(1), 'es'));

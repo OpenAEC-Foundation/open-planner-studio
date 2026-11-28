@@ -1,7 +1,3 @@
-/**
- * Contract-check voor de "Je bent net geüpdatet"-vergelijklogica (releaseInfo.ts).
- * Pure functies → headless, geen store/DOM nodig. Exit 1 bij een afwijking.
- */
 import { addedCodeLinesFromNumstat } from '../../scripts/lib/releaseStats';
 import {
   detectJustUpdated,
@@ -35,32 +31,24 @@ function check(name: string, cond: boolean): void {
   }
 }
 
-// ── detectJustUpdated ──────────────────────────────────────────────
-// Eigenaarsbesluit 2026-09-28: "Net bijgewerkt" alleen als de app écht geüpdatet is. Een echte eerste
-// start (geen `ops-lastVersion` én geen `ops-welcomeSeen` bij het opstarten) toont niets; een
-// bestaande gebruiker van vóór de `lastVersion`-sleutel (welkomst al gezien) krijgt de melding wél.
 check('detect: echte eerste start (geen versie, welkomst niet gezien) → null', detectJustUpdated(undefined, '2026.7.13', false) === null);
 check('detect: echte eerste start met lege opgeslagen versie → null', detectJustUpdated('', '2026.7.13', false) === null);
 check('detect: upgrade zonder lastVersion (welkomst al gezien) → from null, to huidig', JSON.stringify(detectJustUpdated(undefined, '2026.7.13', true)) === JSON.stringify({ from: null, to: '2026.7.13' }));
 check('detect: lege opgeslagen versie bij bestaande gebruiker → from null', JSON.stringify(detectJustUpdated('', '2026.7.13', true)) === JSON.stringify({ from: null, to: '2026.7.13' }));
 check('detect: gelijk → null', detectJustUpdated('2026.7.13', '2026.7.13', true) === null);
 check('detect: sprong → van/naar', JSON.stringify(detectJustUpdated('2026.7.12', '2026.7.13', true)) === JSON.stringify({ from: '2026.7.12', to: '2026.7.13' }));
-// Een opgeslagen versie bewijst een eerdere start: dan telt de welkomstvlag niet mee.
 check('detect: upgrade mét lastVersion toont ook zonder welkomstvlag', JSON.stringify(detectJustUpdated('2026.7.12', '2026.7.13', false)) === JSON.stringify({ from: '2026.7.12', to: '2026.7.13' }));
 check('detect: downgrade telt ook', detectJustUpdated('2026.7.11', '2026.7.10', true) !== null);
 
-// De overgang naar ISO-weken en grote volgnummers blijven gewone versie-identiteiten.
 for (const [from, to] of [['2026.10.0', '2026.43.0'], ['2026.53.99', '2026.53.100'], ['2026.53.100', '2027.1.0']]) {
   check(`detect: weekschema ${from} → ${to}`, JSON.stringify(detectJustUpdated(from, to, true)) === JSON.stringify({ from, to }));
   check(`detect: herstart ${to}`, detectJustUpdated(to, to, true) === null);
 }
 
-// ── daysBetween ────────────────────────────────────────────────────
 check('days: 12 dagen', daysBetween('2026-07-01T00:00:00Z', '2026-07-13T00:00:00Z') === 12);
 check('days: zelfde dag = 0', daysBetween('2026-07-13T09:00:00Z', '2026-07-13T20:00:00Z') === 0);
 check('days: ongeldige datum → null', daysBetween('niet-een-datum', '2026-07-13T00:00:00Z') === null);
 
-// ── pickInstallerAsset ─────────────────────────────────────────────
 const assets = [
   { name: 'ops_2026.7.11_amd64.AppImage', size: 90_000_000 },
   { name: 'ops_2026.7.11_amd64.AppImage.sig', size: 200 },
@@ -76,7 +64,6 @@ check('asset: snap → null', pickInstallerAsset(assets, 'snap', 'linux') === nu
 check('asset: negeert .sig', pickInstallerAsset(assets, 'appimage', 'linux')?.name.endsWith('.sig') === false);
 check('asset: ontbrekend → null', pickInstallerAsset([], 'appimage', 'linux') === null);
 
-// ── findCurrentAndPrevious + computeComparison ─────────────────────
 const releases: GhRelease[] = [
   { tag_name: 'v2026.7.11', published_at: '2026-07-13T00:00:00Z', body: 'Nieuw in .11', prerelease: false, draft: false, assets: [{ name: 'ops_x64-setup.exe', size: 12_000_000 }] },
   { tag_name: 'v2026.7.10-beta', published_at: '2026-07-05T00:00:00Z', body: 'beta', prerelease: true, draft: false, assets: [] },
@@ -99,12 +86,10 @@ check('compare: 12 dagen', cmp.daysBetween === 12);
 check('compare: 3 MB kleiner (negatief)', cmp.sizeDeltaBytes === -3_000_000);
 check('compare: huidige grootte', cmp.currentSizeBytes === 12_000_000);
 
-// Geen vorige release → size/tijd null.
 const soloCmp = computeComparison(found.current!, null, 'native', 'windows');
 check('compare: zonder vorige → daysBetween null', soloCmp.daysBetween === null);
 check('compare: zonder vorige → sizeDelta null', soloCmp.sizeDeltaBytes === null);
 
-// ── lokaal visueel manifest ────────────────────────────────────────
 const highlights = getReleaseHighlights('v2026.8.1');
 check('highlights: huidige release heeft primaire highlight', highlights?.primary !== undefined);
 check('highlights: exact vier secundaire highlights', highlights?.secondary.length === 4);
@@ -115,7 +100,6 @@ check('highlights: alle 14 locales hebben release-inhoud', hasLocalizedReleaseCo
 check('highlights: ook zichtbare rubrieklabels zijn vertaald', getReleaseHighlights('2026.8.1', 'nl')?.secondary[0]?.category === 'RESOURCEBIBLIOTHEKEN' && getReleaseHighlights('2026.8.1', 'ar')?.secondary[0]?.category === 'الموارد');
 check('highlights: alleen primary kan een gids hebben', !!highlights?.primary.docsId && highlights.secondary.every(item => !('docsId' in item)));
 
-// Een volgende release krijgt een volledig nieuw blok. De oude, uitgebrachte copy blijft intact.
 const currentBlock = RELEASE_HIGHLIGHT_CATALOG['2026.8.1']!;
 const nextBlock: VersionedReleaseHighlights = {
   ...currentBlock,
@@ -176,7 +160,6 @@ check('highlights: verifier weigert screenshot/layout-achtige data', validateRel
 check('highlights: verifier weigert stats die afwijken van Git-meting', validateReleaseHighlightStats(RELEASE_HIGHLIGHT_CATALOG, '2026.8.1', { ...currentBlock.stats, addedCodeLines: currentBlock.stats.addedCodeLines + 1 }).some(error => error.includes('addedCodeLines')));
 check('highlights: statistiekverifier gebruikt alleen stabiele CalVer-tags', isStableReleaseTag('v2026.8.1') && !isStableReleaseTag('v2026.8.1-beta') && !isStableReleaseTag('v2026.8'));
 
-// De vijf XLSX-fixtures sinds v2026.43.0 leveren `-\t-` op, geen regelaantal.
 check('releasecijfers: tekst en binaire bestanden samen blijven een exact aantal', addedCodeLinesFromNumstat('12\t5\tsrc/voorbeeld.ts\n-\t-\ttests/planning/fixtures/blad.xlsx\n3\t0\tsrc/met spaties.ts\n') === 15);
 check('releasecijfers: alleen binaire bestanden hebben nul broncoderegels', addedCodeLinesFromNumstat('-\t-\ttests/planning/fixtures/blad.xlsx') === 0);
 check('releasecijfers: een lege diff telt nul', addedCodeLinesFromNumstat('') === 0);

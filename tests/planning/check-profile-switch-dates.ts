@@ -1,35 +1,3 @@
-// Profielwissel heen en terug geeft dezelfde datums (gebruikstest rekenprofielen 24-09, bevinding B1).
-// Exit 0 = groen.
-//
-// De fout: `applyCpmResult` schreef in uur-modus `scheduleFinish = earlyFinish` terug. De
-// P6-conventies lezen `scheduleFinish` als het geplande bronvenster (`target_end_date`), dus de
-// uitvoer van de ene berekening werd invoer voor de volgende. Gemeten op deze fixture vóór de fix:
-// XER onder P6 → OPS → P6 gaf eindmijlpaal M1 ES 27-03 17:00 / EF 13-03 17:00 (einde vóór start),
-// Bereken herstelde het niet, en de teller zei bij de terugweg 4 i.p.v. 3 verschoven taken.
-//
-// De fixture is de gebruikstest-XER, nagebouwd uit de beschrijving in
-// docs/superpowers/plans/2026-09-24-gebruikstest-rekenprofielen-26.md: statusdatum 2026-03-02,
-// rem_target_link_flag = Y (stuurt sinds 2026-09-24 niets meer; A19 staat in de P6-basis aan), sched_lag_early_start_flag = N. A1 voltooid, A2 lopend,
-// A3 en A4 niet gestart, M1 een eindmijlpaal (TT_FinMile). A1→A2 FS, A2→A4 SS 40 u, A4→M1 FS, A3→M1 FS.
-// De wissel loopt via `selectProfile`, dezelfde functie als de keuzelijst in Projectinfo.
-//
-// Verwachting met de hand afgeleid: onder OPS valt voor A4 de A16-vloer (gepland venster 09-03…20-03)
-// weg, dus A4 en M1 schuiven naar voren. A1 (voltooid) schuift sinds eigenaarsvraag 7 (2026-09-23,
-// B3 `p6CompletedDataDateWindow` in P6 uit) niet meer: het statusdatumvenster van een voltooide taak
-// is onder P6 al weg, dus P6 en OPS geven A1 dezelfde datums. A3 (niet gestart, statusdatum) houdt
-// zijn datums. A2 (lopend) schuift sinds 2026-09-24 WEL: A19 staat nu in de P6-basis in plaats van als
-// per-bestand-afwijking die bij de wissel mee naar OPS ging, dus onder OPS is A19 uit en toont A2 haar
-// werkelijke start (23-02) i.p.v. de restwerkstart (02-03). Dat is een verschuiving van de REKENdatum
-// (kolom Vroegste start); de telling vergelijkt sinds 2026-10-12 (eigenaarsbesluit optie 1) de GETOONDE
-// datums (`recordedDatesDeviate`), en de getoonde start van A2 is in beide profielen haar werkelijke
-// start 23-02. Dus 2 verschoven (A4, M1). Eerder: 3 (A2, A4, M1) van 2026-09-24 tot 2026-10-12, 2 (A4,
-// M1) tot 2026-09-24, vóór vraag 7 3 (met A1).
-// Terug naar P6 draait dezelfde 2 terug, en ELK tijdveld van elke taak is weer byte-gelijk aan de
-// verse opening.
-//
-// Mutatiebewijs: `task.time.scheduleFinish = r.earlyFinish;` terugzetten in applyCpmResult.ts
-// (uur-tak) ⇒ 14 van 25 rood: 02, 04, 05 en 07 in beide rondes, 11, en 13 voor alle vijf taken
-// (gemeten 2026-09-23).
 import { createAppStoreContext } from '@/state/appStore';
 import { selectProfile } from '@/state/schedulingProfileDraft';
 import { readXER } from '@/services/xer/xerReader';
@@ -84,7 +52,6 @@ function openXer(): ImportResult {
   return opened;
 }
 type Ctx = ReturnType<typeof createAppStoreContext>;
-/** Alle tijdvelden per taak (op wbsCode, zodat een IFC-heropening met nieuwe id's vergelijkbaar blijft). */
 const timesOf = (tasks: readonly Task[]) =>
   Object.fromEntries([...tasks].sort((a, b) => (a.wbsCode ?? '').localeCompare(b.wbsCode ?? ''))
     .map(task => [task.wbsCode, task.time]));
@@ -97,7 +64,6 @@ function switchTo(ctx: Ctx, baseId: 'p6' | 'ops' | 'msproject') {
   });
 }
 
-// 1. Vers geopend onder P6.
 const ctx = createAppStoreContext();
 const S = () => ctx.store.getState();
 S().applyOpenedImport(openXer(), { filePath: null, recompute: true });
@@ -109,7 +75,6 @@ eq('00 uitgangspunt: P6 (A19 aan in de basis), M1 op 27-03 17:00',
 S().runCPM();
 eq('01 Bereken op de verse opening verandert niets', JSON.stringify(timesOf(S().tasks)), fresh);
 
-// 2. P6 → OPS → P6 (en P6 → MS Project → P6).
 for (const other of ['ops', 'msproject'] as const) {
   const away = switchTo(ctx, other);
   eq(`02 ${other}: de bronvelden van M1 blijven het geplande venster uit het bestand`,
@@ -122,18 +87,12 @@ for (const other of ['ops', 'msproject'] as const) {
   S().runCPM();
   eq(`07 ${other}: Bereken daarna verandert niets`, JSON.stringify(timesOf(S().tasks)), fresh);
 }
-// De telling met de hand afgeleid (kop): A4 en M1 (A1 sinds vraag 7 niet meer; A2 sinds 2026-10-12 niet
-// meer: alleen haar rekenstart verschuift, de getoonde start blijft de werkelijke start).
-S().undo(); S().undo(); // terug naar P6 vóór de MS Project-ronde
+S().undo(); S().undo();
 const a2 = () => S().tasks.find(task => task.wbsCode === 'A2')!;
 eq('08- onder P6 toont A2 haar werkelijke start, haar rekenstart is de restwerkstart (A19)',
   [shownStart(a2()), a2().time.earlyStart], ['2026-02-23T08:00', '2026-03-02T08:00']);
 const toOps = switchTo(ctx, 'ops');
 eq('08 P6 → OPS: 2 taken verschoven (A4, M1)', toOps.shifted, 2);
-// Onder OPS (A19, C6 en A16 uit): A2 op haar werkelijke start 23-02 08:00; A4 SS 40 u (9-urige dagen)
-// ⇒ 27-02 12:00, maar A4 is niet gestart en onder OPS begint een niet-gestarte taak niet vóór de
-// statusdatum (A23 is alleen MS Project) ⇒ 02-03 08:00, plus 90 u (10 dagen) ⇒ 13-03 17:00. A3 eindigt
-// 06-03 17:00, dus M1 (FS) op 13-03 17:00. Een gewoon venster, niet omgekeerd.
 eq('08a …en onder OPS staat M1 eerder, niet omgekeerd', [m1(ctx).earlyStart, m1(ctx).earlyFinish],
   ['2026-03-13T17:00', '2026-03-13T17:00']);
 eq('08b onder OPS staat A2 op haar werkelijke start (A19 uit)',
@@ -141,12 +100,10 @@ eq('08b onder OPS staat A2 op haar werkelijke start (A19 uit)',
 eq('08c …en dus is haar GETOONDE start in beide profielen gelijk', shownStart(a2()), '2026-02-23T08:00');
 eq('09 OPS → P6: 2 taken terug', switchTo(ctx, 'p6').shifted, 2);
 
-// 3. "Gaat zo het IFC in": opslaan ná een berekening onder OPS, heropenen, terug naar P6.
 switchTo(ctx, 'ops');
 const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 const reopened = createAppStoreContext();
 reopened.store.getState().applyOpenedImport(readXerArchiveIFC(ifc), { filePath: null, recompute: true });
-// Sinds 2026-09-24 draagt OPS hier geen A19-afwijking meer: het is het kale standaardprofiel (afwezig ≡ ops).
 eq('10 heropend IFC draagt OPS (standaardprofiel, afwezig)', reopened.store.getState().project.schedulingProfile, undefined);
 eq('11 heropend: M1-bronvenster is het geplande venster uit het bestand',
   [m1(reopened).scheduleStart, m1(reopened).scheduleFinish], ['2026-03-27T17:00', '2026-03-27T17:00']);

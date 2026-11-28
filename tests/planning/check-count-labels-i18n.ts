@@ -1,20 +1,3 @@
-/**
- * Telteksten met een vast meervoud — enkelvoud bij één item.
- *
- * AANLEIDING. Vier teksten die met een `count` worden aangeroepen hadden één vaste meervoudsvorm en
- * lieten bij één item dus "1 taken" of "1 resources" zien: het herstelvenster (`recovery.taskCount`),
- * de histogram-tooltip (`resource.histogram.overallocatedTooltip`), de overbezettingsteller in het
- * lint (`ribbon.overallocationCount`) en het kritiek pad in de statusbalk (`status.criticalPath`).
- * Nu zijn het i18next-meervoudsfamilies (`_one`/`_other`/…).
- *
- * Deze batterij bewaakt drie dingen, naar het model van `check-i18n-plurals.ts`:
- *   1. per taal EXACT de categorieën die `Intl.PluralRules` opgeeft, en geen kale sleutel meer (een
- *      ontbrekende categorie valt in i18next terug op het Engels, niet op `_other`);
- *   2. elke telling lost op zonder terugvaltaal en toont het getal — behalve de Arabische
- *      zero/one/two-vormen, die het getal in woorden dragen (zelfde conventie als de bestaande
- *      Arabische families in common.json);
- *   3. het eigenlijke gebrek: bij één item staat er enkelvoud ("1 taak", "1 task").
- */
 import i18next from 'i18next';
 
 import arCommon from '@/i18n/locales/ar/common.json';
@@ -93,7 +76,6 @@ const LOCALES: Record<string, { common: Bundle; menu: Bundle }> = {
   fi: { common: fiCommon, menu: fiMenu }, lo: { common: loCommon, menu: loMenu },
 };
 
-/** [namespace, pad] van elke teltekst; de parameters zijn die van de aanroeper. */
 const KEYS = [
   ['common', 'recovery.taskCount', {}],
   ['common', 'resource.histogram.overallocatedTooltip', { date: '2026-06-01' }],
@@ -101,7 +83,6 @@ const KEYS = [
   ['menu', 'status.criticalPath', { duration: 12 }],
 ] as const;
 
-/** Wat er bij één item hoort te staan — het gebrek zelf, in de twee brontalen. */
 const SINGULAR: Record<string, Record<string, string>> = {
   nl: {
     'recovery.taskCount': '1 taak',
@@ -117,13 +98,10 @@ const SINGULAR: Record<string, Record<string, string>> = {
   },
 };
 
-/** Tellingen die in ar en pl alle categorieën raken (zero/one/two/few/many/other). */
 const PROBE_COUNTS = [0, 1, 2, 3, 5, 11, 22, 100];
 
 const diffs: string[] = [];
 let checks = 0;
-// Besluit B5 (2026-10-10): een andere taal dan nl/en mag een hele familie nog missen (de app valt terug op
-// en, de vertaalstraat vult hem vóór een release). Wat er wél staat, moet kloppen; een halve familie niet.
 const optional = (loc: string) => loc !== 'nl' && loc !== 'en';
 const familyAbsent = (bundle: Bundle, path: string): boolean => {
   const leaf = path.split('.').at(-1)!;
@@ -137,9 +115,6 @@ const parentOf = (bundle: Bundle, path: string): Record<string, unknown> => {
   return (node ?? {}) as Record<string, unknown>;
 };
 
-// ── 0. Volledigheid: de lijst hierboven dekt exact de UI-talen van src/i18n/locales.ts ──────────
-// De imports zijn statisch (esbuild bundelt geen glob), dus deze lijst is handwerk. Een nieuwe UI-taal
-// die hier ontbreekt, viel voorheen stil buiten de check (`lo`, review C 2026-10-20).
 {
   checks++;
   const missing = UI_LOCALES.filter(l => !(l in LOCALES));
@@ -149,7 +124,6 @@ const parentOf = (bundle: Bundle, path: string): Record<string, unknown> => {
   }
 }
 
-// ── 1. Structuur ─────────────────────────────────────────────────────────────────────────────
 for (const [loc, bundles] of Object.entries(LOCALES)) {
   const expected = new Set<string>(new Intl.PluralRules(loc).resolvedOptions().pluralCategories);
   for (const [ns, path] of KEYS) {
@@ -170,8 +144,6 @@ for (const [loc, bundles] of Object.entries(LOCALES)) {
   }
 }
 
-// ── 2 + 3. Runtime, zonder terugvaltaal ──────────────────────────────────────────────────────
-// fallbackLng:false is het punt: met terugval zou een ontbrekende categorie stil Engels opleveren.
 for (const [loc, bundles] of Object.entries(LOCALES)) {
   const inst = i18next.createInstance();
   await inst.init({

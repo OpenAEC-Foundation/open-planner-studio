@@ -1,4 +1,3 @@
-// F3b/F3c: vaste plaatsingen zijn het orakel; de solver bepaalt geen verwachte dagverdeling.
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { workPlacement, type WorkPlacement } from '@/engine/scheduler/workPlacement';
 import { assignmentLoadOnPlacement, contourLookup } from '@/engine/scheduler/ResourceLoad';
@@ -27,8 +26,6 @@ function eq(label: string, actual: unknown, expected: unknown): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) failures.push(`${label}: ${JSON.stringify(actual)} ≠ ${JSON.stringify(expected)}`);
 }
 function rounded(values: readonly number[]): number[] { return values.map(n => Math.round(n * 1e9) / 1e9); }
-/** De productieketen: één plaatsing per taak, daarna de verdeling per toewijzing. De contour komt
- *  altijd van de aanroeper (knownbugs 233); zonder argument is er geen. */
 function assignmentPlacementLoad(task: Task, a: ResourceAssignment, eng: CalendarEngine, placement: WorkPlacement,
   contour: TaskTimephasedContour | null = null) {
   const placed = workPlacement(eng, placement);
@@ -65,7 +62,6 @@ const noon = assignmentPlacementLoad(friday, assignment, shortEngine, {
 });
 eq('plaatsingen onderscheiden startmomenten op dezelfde datum', rounded(noon.units), [0.5, 0.5]);
 
-// De opgeslagen taak blijft 'days'; alleen het expliciet aangeleverde maatbeleid verschilt.
 const dayTask = { ...friday, time: { ...friday.time, durationUnit: 'days' as const } };
 eq('effectieve dagenmaat: vrijdag één dag', rounded(assignmentPlacementLoad(dayTask, assignment, shortEngine, {
   start: parseInstant('2026-06-05T07:00'), duration: 1, measure: 'workdays',
@@ -93,8 +89,6 @@ eq('curve: bestaande FRONT_LOADED-slots gewogen naar overlap', rounded(assignmen
 const curveValues = { ...assignment, curveValues: [0, ...Array<number>(10).fill(2), ...Array<number>(10).fill(1)] };
 const exactCurve = assignmentPlacementLoad(base, curveValues, engine, placement).units;
 eq('exacte curve: werkbehoud', rounded([exactCurve.reduce((a, b) => a + b, 0)]), [3]);
-// Knownbugs 236: de volledige verdeling, niet alleen het totaal. Slots [4/3, 1, 2/3] (twee derde van
-// het werk in de eerste helft) liggen naar rato van overlap op de deeldagen 0,5 / 1 / 1 / 0,5.
 eq('exacte curve: volledige verdeling over de deeldagen', exactCurve.map(n => Math.round(n * 1e4) / 1e4),
   [0.6667, 1.1667, 0.8333, 0.3333]);
 const fractionalCurve = task('2026-06-03T12:00', '2026-06-05T16:00', 2.5);
@@ -128,8 +122,6 @@ eq('exclusief einde boekt geen volgende dag', workPlacement(engine, {
   start: parseInstant('2026-06-01T08:00'), finish: parseInstant('2026-06-02T08:00'), measure: 'minutes',
 }).days.map(d => d.iso), ['2026-06-01']);
 
-// F3c zal het scatterpad op deze kern aansluiten. De kern krijgt hier de gekozen splits
-// expliciet: ma/wo werken, met een pauze van 480 minuten op de cumulatieve as.
 const twoDays = task('2026-06-01T08:00', '2026-06-03T16:00', 2);
 const scattered = assignmentPlacementLoad(twoDays, assignment, engine, {
   start: parseInstant('2026-06-01T08:00'), duration: 960, measure: 'minutes',
@@ -141,17 +133,12 @@ const boundary = workPlacement(engine, { start: parseInstant('2026-06-01T16:00')
 eq('blokgrens: volle acht uur op dinsdag', boundary.days.map(d => [d.iso, d.minutes]), [['2026-06-02', 480]]);
 eq('blokgrens: einde dinsdag 16:00', boundary.finish.toISOString(), '2026-06-02T16:00:00.000Z');
 
-// Review F3b r2 punt 2: een kleine inzet met een curve rondt in het dagslotcontract naar nul; het
-// werk blijft toch staan (2 werkdagen × 0,001 = 0,002 eenheidsdagen).
 const twoFullDays = task('2026-06-01T08:00', '2026-06-03T08:00', 2);
 const tinyBell = assignmentPlacementLoad(twoFullDays, { ...assignment, unitsPerDay: 0.001, curve: 'BELL' }, engine, {
   start: parseInstant('2026-06-01T08:00'), duration: 960, measure: 'minutes',
 }).units;
 eq('kleine inzet met curve: werk blijft staan', rounded([tinyBell.reduce((a, b) => a + b, 0)]), [0.002]);
 
-// Knownbugs 233: twee toewijzingen van dezelfde resource met twee contouren (240 en 720 werkminuten).
-// De koppeling gaat via `contourLookup` over ALLE toewijzingen van de taak; de tweede krijgt de
-// tweede contour (1,5), niet nog een keer de eerste (0,5).
 const oneDay = task('2026-06-01T08:00', '2026-06-01T16:00', 1);
 const twoContours = { ...oneDay, timephasedContours: [
   { resourceId: 'r', resourceUid: null, periods: [{ afterMinutes: 0, minutes: 480, workMinutes: 240, kind: 'remaining' as const }] },

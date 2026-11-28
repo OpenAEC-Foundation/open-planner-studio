@@ -1,4 +1,3 @@
-// Knownbug 71: voorbeeldlinks zijn geen navigatie; echte kapotte links blijven een fout.
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

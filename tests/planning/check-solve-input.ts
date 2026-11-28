@@ -1,10 +1,3 @@
-// Solver-invoer (rekenprofielen, spec v3.1 §3.1/§3.2; plan taak C1, C5 breidt uit). Exit 0 = groen.
-//
-// Wat hier bewezen wordt: (1) solveOptionsFor neemt de vijf projectvelden letterlijk over en levert
-// EffectiveSchedulingOptions (conventies uit het profiel, als LAATSTE gespreid); (2) compile-time: een
-// kale projectoptie-set is geen geldige CPMOptions, en het veld is verplicht. Mutatiebewijs (C1):
-// `schedulingOptions?:` optioneel ⇒ de tweede @ts-expect-error is ongebruikt ⇒ typecheck rood;
-// het veld verbreed tot `SchedulingOptions` ⇒ de eerste is ongebruikt ⇒ typecheck rood.
 import { solveOptionsFor, solveInputFor } from '@/engine/scheduler/solveInput';
 import { CONVENTION_KEYS, builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import type { EffectiveSchedulingOptions, ProjectSchedulingOptions } from '@/types/project';
@@ -52,7 +45,6 @@ const input: SolveProjectInput = solveInputFor(project, [], [], cal, [cal]);
 eq('07 solveInputFor = invoerlijsten + solveOptionsFor', [input.projectStartDate, input.calendar === cal, input.schedulingOptions.lagCalendar],
   ['2026-06-01', true, 'successor']);
 
-// Compile-time bewijs (npm run typecheck): een kale projectoptie-set is GEEN solverinvoer.
 // @ts-expect-error — CPMOptions.schedulingOptions eist EffectiveSchedulingOptions (conventies verplicht)
 const bad: CPMOptions = { schedulingOptions: { lagCalendar: 'successor' } as ProjectSchedulingOptions };
 // @ts-expect-error — en het veld is verplicht: wie geen opties meegeeft, compileert niet
@@ -60,10 +52,6 @@ const missing: CPMOptions = {};
 const good: CPMOptions = { schedulingOptions: effectiveSchedulingOptions({}) satisfies EffectiveSchedulingOptions };
 void bad; void missing; void good;
 
-// ── C5: benoemde gedragswijziging — laadpad en bezetting rekenen met dezelfde invoer als F5 ─────────
-// Verwachtingen komen uit F5/solveInputFor zelf (geen hard-gecodeerde datums). Mutatiebewijs: vóór
-// C5 (toen laadpad en bezetting projectEndDate/projectStartDate nog op undefined zetten) zijn
-// C5-01 en C5-03 rood; C5-02/C5-04 bewijzen dat de fixture het verschil kan zien.
 {
   const cal5 = createDefaultCalendar();
   const task = {

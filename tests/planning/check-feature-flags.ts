@@ -1,4 +1,3 @@
-// Register, veilige defaults en opslag. Klikken, toetsen en herladen staan in settings-tabs.spec.ts.
 import './domStub';
 import { FEATURE_FLAGS, isFeatureEnabled, parseFeatureFlagValues } from '@/utils/featureFlags';
 import { loadAllSettings } from '@/utils/settingsRegistry';
@@ -7,7 +6,6 @@ import { saveExperimentalSettingsVisible, saveFeatureFlags } from '@/utils/setti
 const diffs: string[] = [];
 const ok = (condition: boolean, message: string) => { if (!condition) diffs.push(message); };
 
-// Elke geregistreerde flag heeft een schakelaar; de technische IFC-markering verandert dat niet.
 for (const flag of FEATURE_FLAGS) {
   ok(!('hidden' in flag), `flag ${flag.id} heeft geen verborgen-veld`);
   ok(!isFeatureEnabled({}, flag.id), `flag ${flag.id}: standaard uit`);

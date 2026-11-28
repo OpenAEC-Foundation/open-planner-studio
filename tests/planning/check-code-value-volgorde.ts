@@ -1,10 +1,3 @@
-// Volgorde van activiteitscode-waarden (issue #885): de planner zet de waarden van een code in een eigen
-// volgorde (Codes & velden). De volgorde is de array-volgorde van `ActivityCodeType.values`; de keuzelijst
-// op taken (tabelkolom en filter/groepering) volgt die. Bewezen tegen de echte store:
-//   A. verplaatsen omhoog/omlaag, en de randen (eerste omhoog, laatste omlaag) doen niets;
-//   B. herordenen verandert nooit de waarde op een taak en is één undo-stap;
-//   C. de keuzelijst (kolomopties en veldkiezer) volgt de volgorde;
-//   D. de volgorde overleeft IFC opslaan en heropenen (en een oud bestand houdt zijn volgorde).
 import { createAppStoreContext } from '@/state/appStoreFactory';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -31,13 +24,12 @@ const typeId = S().addActivityCodeType('PCS');
 const df = S().addActivityCodeValue(typeId, { code: 'Design freeze' });
 S().addActivityCodeValue(typeId, { code: 'RFQ issued' });
 const order = S().addActivityCodeValue(typeId, { code: 'Order placed' });
-const quote = S().addActivityCodeValue(typeId, { code: 'Quote received' }); // staat onderaan
+const quote = S().addActivityCodeValue(typeId, { code: 'Quote received' });
 const taskId = S().addTask({ name: 'Staalbestelling', isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 1) });
 S().setTaskActivityCode(taskId, typeId, quote);
 
 eq('A0 uitgangspunt: aanmaakvolgorde', codes(typeId), ['Design freeze', 'RFQ issued', 'Order placed', 'Quote received']);
 
-// A + B: 'Quote received' twee omhoog, tussen RFQ en Order
 const before = applied();
 S().moveActivityCodeValue(typeId, quote, -1);
 S().moveActivityCodeValue(typeId, quote, -1);
@@ -59,7 +51,6 @@ eq('B3 één undo draait één verplaatsing terug', codes(typeId), ['Design free
 S().redo();
 eq('B4 redo zet hem terug', codes(typeId), ['Design freeze', 'RFQ issued', 'Quote received', 'Order placed']);
 
-// C: keuzelijsten
 const labels = (xs: readonly { label?: string }[]) => xs.map(x => x.label);
 const fieldCtx = {
   activityCodeTypes: S().activityCodeTypes, customFieldDefs: [], resources: [], builtinLabels: {} as never,
@@ -70,11 +61,9 @@ eq('C1 veldkiezer volgt de volgorde', labels(selectOptions({ src: 'activityCode'
 const col = buildTaskColumnRegistry({
   projectId: 'p', activityCodeTypes: S().activityCodeTypes, customFieldDefs: [], baselines: [],
 }).find(c => c.id === activityCodeColumnId('p', typeId));
-// De tabelkolom is een keuzelijst met "—" (wissen) voorop, net als het paneel (#970).
 eq('C2 tabelkolom volgt de volgorde', labels(col?.editorOptions ?? []),
   ['—', 'Design freeze', 'RFQ issued', 'Quote received', 'Order placed']);
 
-// D: IFC rondreis
 const reopened = createAppStoreContext();
 reopened.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))), { recompute: true });
 const t2 = reopened.store.getState().activityCodeTypes.find(t => t.name === 'PCS')!;
@@ -83,8 +72,6 @@ eq('D1 IFC opslaan en heropenen behoudt de volgorde', t2.values.map(v => v.code)
 eq('D2 de taakwaarde wijst na heropenen naar dezelfde code', 
   t2.values.find(v => v.id === reopened.store.getState().tasks.find(t => t.name === 'Staalbestelling')!.activityCodes?.[t2.id])?.code, 'Quote received');
 
-// E: twee waarden met dezelfde codetekst (de app staat dat toe): herordenen mag na opslaan en heropenen
-// nooit een andere waarde aan de taak hangen (review Sol, #889).
 {
   const dup = createAppStoreContext();
   const D = () => dup.store.getState();

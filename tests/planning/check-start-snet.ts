@@ -1,13 +1,4 @@
 import { normalizeTaskDates } from '@/state/migrations/minuteModel';
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
-// Een getypte startdatum op een taak MET voorganger wordt een beperking "Start niet eerder dan"
-// (SNET), zoals in MS Project (besluit eigenaar, audit "weergaven" W2-vervolg). Vóór de fix schreef
-// een startbewerking alleen het anker `scheduleStart`; de solver leest dat anker alleen voor een taak
-// zónder voorganger, dus na F5 sprong de taak terug achter haar voorganger en verdween de invoer stil.
-//
-// Tegen de echte store, de echte grid-adapter en de echte commitgrens van de celeditor
-// (`commitTaskCellEditorValue` → `runGridMutation`), zoals `FullTaskGrid` die gebruikt. Paneel en
-// Taak bewerken zijn React-routes: die bewijst `tests/browser/start-snet.spec.ts` met echte events.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { createTaskGridAdapter, type TaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
@@ -49,7 +40,6 @@ const task = (id: string): Task => S().tasks.find(candidate => candidate.id === 
 const notices = () => S().ui.notifications.map(n => ({ key: n.messageKey, params: n.params }));
 const clearNotices = () => useAppStore.setState(state => { state.ui.notifications = []; });
 
-/** Het raster zoals `FullTaskGrid` het bouwt: dezelfde domeininput, de store als commitdoel. */
 function adapter(): TaskGridAdapter {
   const s = S();
   const engine = new CalendarEngine(s.calendar);
@@ -78,7 +68,6 @@ function rowKey(taskId: string): string {
   return row && row.kind === 'task' ? row.rowKey : '';
 }
 
-/** Typen in de celeditor en Enter: exact de commitgrens van `TaskCellEditor`. */
 function type(taskId: string, column: string, text: string) {
   return commitTaskCellEditorValue({
     adapter: adapter(),
@@ -88,7 +77,6 @@ function type(taskId: string, column: string, text: string) {
   });
 }
 
-/** A (5d) → B (3d) FS, projectstart ma 01-06-2026: B begint na F5 op ma 08-06. */
 function setup(): { a: string; b: string } {
   S().newProject();
   S().setCalendar({ ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays: [] } as WorkCalendar);
@@ -102,7 +90,6 @@ function setup(): { a: string; b: string } {
   return { a, b };
 }
 
-// ── 1. Tabel-kolom Start op een taak met voorganger: de getypte datum wordt SNET ────────────────
 {
   const { b } = setup();
   eq('Opzet: B begint na A op 08-06', shownStart(task(b)), "2026-06-08T07:00");
@@ -115,7 +102,6 @@ function setup(): { a: string; b: string } {
   S().runCPM();
   eq('Start na F5 = getypte datum (niet terug achter de voorganger)', shownStart(task(b)), "2026-06-15T07:00");
 
-  // Undo: startbewerking + beperking zijn samen één stap.
   S().undo();
   eq('Undo (1×): beperking weg', task(b).constraint, undefined);
   eq('Undo (1×): anker terug', task(b).time.scheduleStart, "2026-06-01T07:00");
@@ -124,7 +110,6 @@ function setup(): { a: string; b: string } {
     [{ type: 'SNET', date: "2026-06-15T07:00" }, "2026-06-15T07:00"]);
 }
 
-// ── 2. Een datum vóór wat de voorganger toelaat: de voorganger wint ─────────────────────────────
 {
   const { b } = setup();
   const typed = type(b, 'task.time.start', '03-06-2026');
@@ -134,7 +119,6 @@ function setup(): { a: string; b: string } {
   eq('Start → 03-06 na F5: de voorganger wint (08-06)', shownStart(task(b)), "2026-06-08T07:00");
 }
 
-// ── 3. Taak heeft al een SNET: de datum schuift mee ──────────────────────────────────────────────
 {
   const { b } = setup();
   S().updateTask(b, { constraint: { type: 'SNET', date: '2026-06-10' } });
@@ -150,10 +134,6 @@ function setup(): { a: string; b: string } {
   eq('Start na F5 = nieuwe SNET-datum', shownStart(task(b)), "2026-06-17T07:00");
 }
 
-// ── 4. Ander constrainttype: de start heeft geen effect ⇒ melden, constraint laten staan ─────────
-// Besluit eigenaar: "melden, beperking laten staan". Niet geraden per type: eerst per type METEN dat
-// een ander anker na F5 niets verandert (a), pas dan de melding eisen (b). De invoer wordt dan niet
-// als dood anker weggeschreven.
 const dmyOf = (iso: string) => `${iso.slice(8, 10)}-${iso.slice(5, 7)}-${iso.slice(0, 4)}`;
 const OTHER_CONSTRAINTS: readonly Task['constraint'][] = [
   { type: 'ALAP' },
@@ -173,7 +153,6 @@ for (const constraint of OTHER_CONSTRAINTS) {
   clearNotices();
   const before = { start: shownStart(task(b)), finish: task(b).time.earlyFinish, anchor: task(b).time.scheduleStart };
 
-  // (a) Meting: een later én een eerder anker (de oude schrijfweg) verandert na F5 niets.
   for (const anchor of ['2026-06-17', '2026-05-25']) {
     S().updateTask(b, { time: { ...task(b).time, scheduleStart: anchor } });
     S().runCPM();
@@ -184,7 +163,6 @@ for (const constraint of OTHER_CONSTRAINTS) {
   S().runCPM();
   clearNotices();
 
-  // (b) Typen in de Tabel (Start en Geplande start): niets toegepast, constraint blijft, melding.
   const expected = constraint!.date
     ? [{ key: 'notifications.startBlockedByConstraint', params: { name: 'B', type: constraint!.type, date: dmyOf(constraint!.date) } }]
     : [{ key: 'notifications.startBlockedByConstraintNoDate', params: { name: 'B', type: constraint!.type } }];
@@ -199,7 +177,6 @@ for (const constraint of OTHER_CONSTRAINTS) {
   }
 }
 
-// ── 5. Taak zonder voorganger: alleen het anker, zoals altijd ───────────────────────────────────
 {
   const { a } = setup();
   const typed = type(a, 'task.time.start', '03-06-2026');
@@ -211,7 +188,6 @@ for (const constraint of OTHER_CONSTRAINTS) {
   eq('Zonder voorganger na F5: start = anker', shownStart(task(a)), "2026-06-03T07:00");
 }
 
-// ── 6. Ongewijzigd teruggetypt: niets, ook geen beperking ───────────────────────────────────────
 {
   const { b } = setup();
   const typed = type(b, 'task.time.start', '08-06-2026');
@@ -221,7 +197,6 @@ for (const constraint of OTHER_CONSTRAINTS) {
   eq('Zelfde datum teruggetypt: niet verouderd', S().scheduleStale, false);
 }
 
-// ── 7. Voorganger via de fase: een kind van een samenvatting mét voorganger telt mee ────────────
 {
   const { a } = setup();
   const phase = S().addTask({ name: 'Fase' });
@@ -237,7 +212,6 @@ for (const constraint of OTHER_CONSTRAINTS) {
   eq('Kind van fase na F5 = getypte datum', shownStart(task(c)), "2026-06-15T07:00");
 }
 
-// ── 8. Handmatig gepland: het anker IS de planning, geen beperking nodig ────────────────────────
 {
   const { b } = setup();
   S().updateTask(b, { manuallyScheduled: true, time: { ...task(b).time, scheduleFinish: '2026-06-10' } });
@@ -248,7 +222,6 @@ for (const constraint of OTHER_CONSTRAINTS) {
   eq('Handmatig gepland: anker = getypte datum', task(b).time.scheduleStart, "2026-06-04T07:00");
 }
 
-// ── 9. Kiesbare kolom Geplande start: dezelfde regel ────────────────────────────────────────────
 {
   const { b } = setup();
   const typed = type(b, 'task.time.scheduleStart', '16-06-2026');
@@ -258,7 +231,6 @@ for (const constraint of OTHER_CONSTRAINTS) {
   eq('Geplande start na F5 = getypte datum', shownStart(task(b)), "2026-06-16T07:00");
 }
 
-// ── 10. Plakken over meerdere taken: één transactie, één melding met aantal ─────────────────────
 {
   const { a, b } = setup();
   const c = S().addTask({ name: 'C', time: { scheduleDuration: 2 } as Task['time'] });
@@ -277,7 +249,6 @@ for (const constraint of OTHER_CONSTRAINTS) {
   eq('Plakken: één undo-stap haalt beide beperkingen weg', [task(b).constraint, task(c).constraint], [undefined, undefined]);
 }
 
-// ── 11. Beperking in dezelfde bewerking expliciet gezet: die wint ───────────────────────────────
 {
   const { b } = setup();
   const pasted = S().runGridMutation([{ kind: 'paste', writes: [
@@ -289,7 +260,6 @@ for (const constraint of OTHER_CONSTRAINTS) {
   eq('Start + Constraint ASAP in één rij: geen SNET-melding', notices(), []);
 }
 
-// ── 11b. Plakken over een SNET-kandidaat én een taak met MSO: twee meldingen, alleen B verandert ──
 {
   const { a, b } = setup();
   const c = S().addTask({ name: 'C', time: { scheduleDuration: 2 } as Task['time'] });
@@ -311,7 +281,6 @@ for (const constraint of OTHER_CONSTRAINTS) {
   ]);
 }
 
-// ── 12. De beperking overleeft opslaan/openen (IFC) ──────────────────────────────────────────────
 {
   const { b } = setup();
   type(b, 'task.time.start', '15-06-2026');
@@ -321,7 +290,6 @@ for (const constraint of OTHER_CONSTRAINTS) {
   eq('IFC-round-trip: anker blijft', reread?.time.scheduleStart, '2026-06-15');
 }
 
-// ── 13. De gedeelde regel zelf: wanneer wel, wanneer niet ──────────────────────────────────────
 {
   const { a, b } = setup();
   const base = task(b);
@@ -340,7 +308,6 @@ for (const constraint of OTHER_CONSTRAINTS) {
   eq('Regel: hangmat ⇒ niets', startConstraintAfterEdit({ ...base, isHammock: true }, '2026-06-15', true), undefined);
   eq('Regel: samenvatting ⇒ niets', startConstraintAfterEdit({ ...base, childIds: [a] }, '2026-06-15', true), undefined);
 
-  // Tegenhouden: alleen waar de startregel geldt, en alleen bij een ander type dan ASAP/SNET.
   const mso = { type: 'MSO', date: '2026-06-10' } as const;
   eq('Blokkade: MSO + voorganger ⇒ die MSO', constraintBlockingStart({ ...base, constraint: mso }, true), mso);
   eq('Blokkade: MSO zonder voorganger ⇒ niets', constraintBlockingStart({ ...base, constraint: mso }, false), undefined);
@@ -353,13 +320,10 @@ for (const constraint of OTHER_CONSTRAINTS) {
   eq('Blokkade: gestart ⇒ niets', constraintBlockingStart(
     { ...base, constraint: mso, time: { ...base.time, actualStart: '2026-06-08', completion: 0.2 } }, true), undefined);
 
-  // Slepen rekent vanaf de taak bij het begin van het gebaar: terug op de oude start ⇒ niets.
   eq('Sleep: naar 15-06 ⇒ SNET', constraintForDraggedStart(base, '2026-06-15', true),
     { constraint: { type: 'SNET', date: '2026-06-15' }, change: 'created' });
   eq('Sleep: terug op de getoonde start ⇒ oorspronkelijke constraint', constraintForDraggedStart(base, shownStart(base), true), undefined);
 
-  // De melding: één taak met naam en datum in de notatie van de gebruiker, meer taken met een aantal,
-  // en altijd een "Lees meer" naar een gids die bestaat.
   eq('Melding: geen taken ⇒ geen melding', startEditNotifications([], 'dmy', '24h'), []);
   eq('Melding: urentaak toont de tijd',
     startEditNotifications([{ kind: 'snet', name: 'U', date: '2026-06-15T13:00', change: 'created' }], 'ymd', '24h')[0]?.params,
@@ -384,17 +348,11 @@ for (const constraint of OTHER_CONSTRAINTS) {
   eq('Melding: "Lees meer" wijst naar een bestaande gids', manifest.articles.some(article => article.id === help), true);
 }
 
-// ── 14. De tegenhoudmelding noemt het type in gebruikerstaal, in alle talen (`LOCALES`) ─────────────────
-// De tekst nest `$t(task:constraintType.{{type}})`: controleer per taal met een echte i18next-instantie
-// dat die nesting heel is gebleven en het eigen label van die taal oplevert.
 {
   const LOCALES = I18N_LOCALES;
   const readLocale = (locale: string, ns: string) => JSON.parse(readFileSync(
     fileURLToPath(new URL(`../../src/i18n/locales/${locale}/${ns}.json`, import.meta.url)), 'utf8')) as Record<string, unknown>;
   const enTask = readLocale('en', 'task') as { constraintType: Record<string, string> };
-  // Besluit B5 (2026-10-10): een andere taal dan nl/en mag deze sleutel nog missen (de app valt terug op en,
-  // de vertaalstraat vult hem vóór een release); wat er wél staat, moet kloppen.
-  // Een ontbrekend type-label valt (net als in de app) terug op het Engelse label.
   const optional = (locale: string) => locale !== 'nl' && locale !== 'en';
   for (const locale of LOCALES) {
     const read = (ns: string) => readLocale(locale, ns);

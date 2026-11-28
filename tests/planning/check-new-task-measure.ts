@@ -1,18 +1,3 @@
-/**
- * Standaardmaat voor nieuwe taken (spec "alleen uren" §3.2, besluit B1a; regel in
- * `src/state/newTaskMeasure.ts`).
- *
- *  - OPS-profiel: de gekozen maat; zonder veld de dagenmaat. Koos de planner de urenmaat, dan is een
- *    nieuwe taak 5 u (bestaand gedrag, `check-task-duration-unit.ts`).
- *  - P6 en MS Project (en elk profiel met `workdayDurationMeasure` uit): vast op urenmaat. Een nieuwe
- *    taak zonder eigen maat is 5 werkdagen in uren. Het veld blijft staan voor een wissel terug.
- *  - Vast werk (eigen regel of projectstandaard): altijd urenmaat, ook als de aanroeper dagen gaf.
- *  - Een aanroeper die zelf een maat geeft (plakken, MCP met `duration`), houdt die onder P6.
- * Routes: store `addTask`, de MCP-draft (`planner_add_tasks`) en de wizard (`createNewProject`).
- *
- * Voorbeeldweek (§0): ma–do 8 u, vr 6 u. 5 werkdagen vanaf ma 07:00 eindigen in de dagenmaat vr 14:00;
- * 40 u eindigen ma 09:00 (8+8+8+8+6 = 38, dan 2 u).
- */
 import { makeMcpContext } from '../mcp/harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpToolResult } from '@/services/mcp/contracts';
@@ -63,7 +48,6 @@ const MSP = builtInProfile('msproject');
 const DAYS_5 = { unit: 'days', minutes: null, days: 5, finish: '2026-06-05T14:00' };
 const HOURS_40 = { unit: 'hours', minutes: 2400, days: 5, finish: '2026-06-08T09:00' };
 
-// ── De regel zelf ───────────────────────────────────────────────────────────────
 eq('r1 OPS zonder veld: dagenmaat, vrij te kiezen', [defaultTaskMeasure({}), defaultTaskMeasureLocked({})], ['days', false]);
 eq('r2 OPS met urenmaat gekozen', defaultTaskMeasure({ defaultTaskDurationUnit: 'hours' }), 'hours');
 eq('r3 P6 en MSP: vast op urenmaat, ook als het veld dagen zegt',
@@ -74,7 +58,6 @@ eq('r4 eigen profiel op OPS-basis zonder dagenmaat: vast op urenmaat',
 eq('r5 eigen profiel op P6-basis met dagenmaat: vrij te kiezen',
   defaultTaskMeasure({ schedulingProfile: { ...P6, id: 'eigen-p6', name: 'Eigen P6', overrides: { workdayDurationMeasure: true } }, defaultTaskDurationUnit: 'days' }), 'days');
 
-// ── Store addTask ────────────────────────────────────────────────────────────────
 {
   const c = app();
   eq('s1 OPS: nieuwe taak 5 d dagenmaat', timeOf(c, c.store.getState().addTask({ name: 'a' })), DAYS_5);
@@ -112,7 +95,6 @@ for (const [label, profile] of [['P6', P6], ['MSP', MSP]] as const) {
   eq('s10 een andere regel volgt de standaardmaat', timeOf(c, copy), DAYS_5);
 }
 
-// ── MCP en wizard ──────────────────────────────────────────────────────────────
 async function rest() {
   {
     const c = app({ schedulingProfile: P6 });

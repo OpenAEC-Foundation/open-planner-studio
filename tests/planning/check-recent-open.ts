@@ -1,5 +1,3 @@
-// Issue #782: Recent mag een leesfout niet verbergen of als een leeg project behandelen.
-// De echte store, IndexedDB-route en Tauri-JS-plugin draaien; alleen native I/O is vervangen.
 import { readFileSync } from 'node:fs';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 
@@ -57,7 +55,6 @@ win.__TAURI_INTERNALS__ = {
   },
 };
 
-// Bestaande inhoud én een leeg begintabblad blijven bij tekst- en byteleesfouten intact.
 for (const pristine of [true, false]) {
   S().newProject();
   if (!pristine) S().addTask({ name: 'Bestaand onopgeslagen werk' });
@@ -68,7 +65,6 @@ for (const pristine of [true, false]) {
       `forbidden path: ${path}`,
       new Error('Permission denied (os error 13)'),
     ]) {
-      // Elke fout begint met een aanwezige, gepersisteerde entry, ook als main hem verwijdert.
       store.setState({ recentFiles: await addRecent({ kind: 'path', path }, path.split('\\').pop()!) });
       const entry = S().recentFiles[0];
       failure = reason;
@@ -89,7 +85,6 @@ for (const pristine of [true, false]) {
   }
 }
 
-// Een tijdelijke fout gevolgd door een geslaagde poging: echte IFC-parser en opslagdoel.
 failure = null;
 for (const path of ['C:\\Users\\Łukasz\\Dokumenty\\Żółć.ifc', '\\\\serwer\\Budowy Łódź\\Żółć.ifc']) {
   S().newProject();
@@ -102,7 +97,6 @@ for (const path of ['C:\\Users\\Łukasz\\Dokumenty\\Żółć.ifc', '\\\\serwer\\
   eq('Unicode/UNC: geen foutmelding', S().ui.notifications.filter(n => n.severity === 'error'), []);
 }
 
-// Web: geweigerde toestemming levert null; een verdwenen bestand gooit een DOMException.
 delete win.__TAURI_INTERNALS__;
 for (const denied of [true, false]) {
   S().newProject();
@@ -123,8 +117,6 @@ for (const denied of [true, false]) {
   eq('Web: recent behouden', S().recentFiles, [entry]);
 }
 
-// Configuratiecontract: zonder scope-opslag vervalt een pickergrant buiten $HOME na herstart.
-// Dit bewaakt de bedrading; een echte native herstart is hiermee niet uitgevoerd.
 const main = readFileSync('src-tauri/src/main.rs', 'utf8').replace(/\/\/[^\n]*/g, '');
 const plugins = [...main.matchAll(/\.plugin\(tauri_plugin_(\w+)::init\(\)\)/g)].map(m => m[1]);
 eq('Desktop: scope-opslag na fs geregistreerd', plugins.includes('fs') && plugins.includes('persisted_scope')

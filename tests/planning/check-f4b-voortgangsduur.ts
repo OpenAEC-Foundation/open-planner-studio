@@ -1,35 +1,3 @@
-// F4b, knownbug 289 (vóór review r4 op PR #584): Resterende en Werkelijke duur rekenen bij kalendertijd
-// met klokminuten, net als de Duur-kolom.
-//
-// Faalgeval: een kalendertijdtaak van 4 d, Resterende duur "24u". De kolom las uren met de werktijd per
-// dag en de transactie deelde de minuten weer door de werktijd per dag: `remainingTime` 3 (72 klokuren)
-// in plaats van 1. Nu lezen en schrijven beide kanten met `durationHoursPerDay` (24 u bij kalendertijd),
-// ook het percentage dat uit de ingevoerde duur volgt.
-//
-// De tabel: invoer ("24u", "1d", "1d 4u", "1,5d") × duurtype (werktijd, kalendertijd) × profiel (OPS,
-// P6, MSP) × kolom (Resterende duur, Werkelijke duur) × route (de cel typen + Enter, en de tekst in de
-// cel plakken). Paneel en dialoog hebben voor deze twee geen invoerveld (de rest staat er alleen ter
-// inzage), dus die route bestaat niet. Een tweede, klein blok plakt beide kolommen tegelijk op één rij:
-// dat loopt via het groepspad (`applyProgressEdits`) in plaats van de enkele edit (`applyProgressEdit`).
-// Elke taak: 4 d van haar duurtype, werkelijke start ma 1 juni 2026 07:00, 25 % gereed, statusdatum ma
-// 8 juni 07:00. Die statusdatum ligt na het geplande einde (do 4 juni 16:00, kalendertijd vr 5 juni 07:00).
-// Zo begint het restwerk in alle drie profielen op de statusdatum, ook onder MSP: daar is de ondergrens
-// "werkelijke start + (totale duur − rest)" (conventie A22 `resumeFromActualElapsed`) dan altijd eerder.
-// Met de statusdatum op de werkelijke start zou het MSP-einde steeds start + 4 d zijn, los van de rest.
-// Kalender: ma–vr 07–12 + 13–16 (8 u). Per rij na herberekenen: `remainingTime`, `remainingMinutes`,
-// `actualDuration`, het percentage en het einde, tegen een letterlijke, met de hand gerekende verwachting. Werktijd volgt B8 (OPS: dagenmaat; P6/MSP:
-// 1 d = 480 min) en B3 (de rest is exact, zonder afronding).
-//
-// Fixronde 4 (review r4): de dimensie TAAKSTAND. Elke rij draait ook op een NIET GESTARTE taak (0 %,
-// geen werkelijke datums) en een GEREEDE taak (100 %, werkelijk einde do 4 juni 16:00, kalendertijd
-// vr 5 juni 07:00). Een ingevoerde rest of werkelijke duur legt het percentage vast; de taak is daarna
-// lopend. Daarom gelden dezelfde rest, werkelijke duur, hetzelfde percentage en einde (de statusdatum
-// ma 8 juni ligt in alle drie de standen na "start + verricht"). Per stand verschilt alleen de
-// werkelijke start: lopend en gereed houden ma 1 juni 07:00; niet gestart krijgt de berekende start
-// (`defaultActualStart`): onder OPS en P6 de statusdatum ma 8 juni 07:00, onder MSP ma 1 juni 07:00
-// (een niet-gestarte taak negeert daar de statusdatum, A23). Een gereede taak gaat weer open: het
-// werkelijke einde verdwijnt.
-// Exit 0 = groen.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
@@ -58,36 +26,21 @@ const ACTUAL = taskColumnId('task.time.actualDuration');
 
 type Profile = 'ops' | 'p6' | 'msproject';
 type Stand = 'niet gestart' | 'lopend' | 'gereed';
-/** De werkelijke start na de invoer, per stand en profiel (zie de kop). */
 const ACTUAL_START: Record<Stand, Record<Profile, string>> = {
   'niet gestart': { ops: '2026-06-08T07:00', p6: '2026-06-08T07:00', msproject: '2026-06-01T07:00' },
   lopend: { ops: '2026-06-01T07:00', p6: '2026-06-01T07:00', msproject: '2026-06-01T07:00' },
   gereed: { ops: '2026-06-01T07:00', p6: '2026-06-01T07:00', msproject: '2026-06-01T07:00' },
 };
-/** Werkelijk einde van de gereede taak van 4 d. */
 const DONE_FINISH: Record<DurationType, string> = { WORKTIME: '2026-06-04T16:00', ELAPSEDTIME: '2026-06-05T07:00' };
 type Column = 'rest' | 'werkelijk';
 type Route = 'cel' | 'plakken';
 const INPUTS = ['24u', '1d', '1d 4u', '1,5d'] as const;
 type Input = typeof INPUTS[number];
-/** Na herberekenen. `remainingTime` en `actualDuration` in dagen van de taak (kalenderdagen bij
- *  kalendertijd), `remainingMinutes` in minuten van de taak, het percentage als breuk. */
 type Outcome = {
   remainingTime?: number; remainingMinutes?: number; actualDuration?: number; completion: number; finish: string;
   actualStart?: string; actualFinish?: string;
 };
 
-// Met de hand gerekend. Totaal 4 d: werktijd 1920 werkminuten, kalendertijd 4 kalenderdagen (5760 min).
-// De rest begint ma 8 juni 07:00 (statusdatum).
-//  Rest, werktijd (OPS dagenmaat en P6/MSP urenmaat geven hier hetzelfde einde: de week is gelijkmatig):
-//    "24u" = 3 d rest, 25 % ⇒ wo 10 juni 16:00; "1d" = 1 d, 75 % ⇒ ma 8 juni 16:00;
-//    "1d 4u" en "1,5d" = 1,5 d (720 min), 62,5 % ⇒ di 9 juni 11:00.
-//  Rest, kalendertijd: "24u" en "1d" = 1 kalenderdag, 75 % ⇒ di 9 juni 07:00; "1d 4u" = 28 u = 1,166667 d,
-//    70,8333 % ⇒ di 9 juni 11:00; "1,5d" = 36 u, 62,5 % ⇒ di 9 juni 19:00.
-//  Werkelijke duur, werktijd: "24u" = 3 d gedaan, 75 % ⇒ rest 1 d ⇒ ma 8 juni 16:00; "1d" = 25 % ⇒ rest 3 d
-//    ⇒ wo 10 juni 16:00; "1d 4u" en "1,5d" = 1,5 d, 37,5 % ⇒ rest 2,5 d (1200 min) ⇒ wo 10 juni 11:00.
-//  Werkelijke duur, kalendertijd: "24u" en "1d" = 1 kalenderdag, 25 % ⇒ rest 72 u ⇒ do 11 juni 07:00;
-//    "1d 4u" = 1,166667 d, 29,1667 % ⇒ rest 68 u ⇒ do 11 juni 03:00; "1,5d" = 37,5 % ⇒ rest 60 u ⇒ wo 10 juni 19:00.
 const REST_WORK: Record<Input, Outcome> = {
   '24u': { remainingTime: 3, remainingMinutes: 1440, completion: 0.25, finish: '2026-06-10T16:00' },
   '1d': { remainingTime: 1, remainingMinutes: 480, completion: 0.75, finish: '2026-06-08T16:00' },
@@ -113,8 +66,6 @@ const ACTUAL_ELAPSED: Record<Input, Outcome> = {
   '1,5d': { actualDuration: 1.5, completion: 0.375, finish: '2026-06-10T19:00' },
 };
 
-// Beide kolommen tegelijk (Werkelijke duur, Resterende duur), per duurtype een paar dat samen 4 d is.
-// Werktijd: 8 u per dag; kalendertijd: 24 u per dag. Rest vanaf ma 8 juni 07:00, zoals hierboven.
 type Pair = { actual: string; rest: string; want: Outcome };
 const PAIRS: Record<DurationType, Pair[]> = {
   WORKTIME: [
@@ -181,7 +132,6 @@ function fixture(profile: Profile) {
     const writes = descriptor.planWrite!(validated.value, task, d.context);
     return writes.ok && S().runGridMutation(writes.value).ok;
   };
-  /** Plakt `text` vanaf de eerste kolom van `columns` (een tab scheidt de kolommen). */
   const paste = (text: string, id: string, columns: readonly TaskColumnId[]): boolean => {
     const d = domain();
     const task = taskOf(id);

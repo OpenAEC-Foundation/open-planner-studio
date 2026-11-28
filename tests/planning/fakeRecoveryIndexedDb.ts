@@ -1,25 +1,11 @@
-// Gedeelde headless IndexedDB-dubbel voor `recoveryStore` (web-backend). Eén bron i.p.v. zeven kopieën:
-// sinds 2026-10-07 gebruikt crashherstel twee object-stores in één transactie (`records` voor snapshots
-// en manifesten, `xer-archives` voor de content-adressed XER-archiefblobs), plus `getAllKeys` en `get`.
-// Recovery-DB v3 voegt een niet-unieke kind-index toe; indexlezingen tellen ook mee in onRead.
-//
-// Bewust minimaal en met dezelfde eigenaardigheid als de oude dubbels: `oncomplete` volgt in een
-// microtask na de eerste put/delete. Alle writes van één ronde gebeuren synchroon in dezelfde callback,
-// dus de inhoud is compleet vóór die microtask. Waarden worden met `structuredClone` opgeslagen, zoals
-// een echte IndexedDB doet (een `Uint8Array` blijft een `Uint8Array`).
-
 export interface FakeRecoveryIdbHooks {
-  /** Per geopende transactie (`readonly` of `readwrite`). */
   onTransaction?(mode: string): void;
   onOpen?(database: string, version: number | undefined): void;
-  /** Per put: de store, de nieuwe waarde en de vorige waarde onder dezelfde sleutel. */
   onPut?(store: string, value: { id: string }, previous: unknown): void;
-  /** Per leesverzoek (ook index): store, methode en uitkomst. Throw simuleert een IDB-leesfout. */
   onRead?(store: string, method: string, result: unknown): void;
 }
 
 export interface FakeRecoveryIdb {
-  /** De records per object-store (wordt lui aangemaakt). */
   store(name: string, database?: string): Map<string, unknown>;
   databases: Map<string, { version: number; stores: Set<string> }>;
 }
@@ -95,7 +81,6 @@ export function installFakeRecoveryIndexedDb(hooks: FakeRecoveryIdbHooks = {}): 
             },
           }),
         };
-        // Een readonly-transactie zonder writes: de echte IndexedDB voltooit hem ook.
         if (mode === 'readonly') queueMicrotask(() => queueMicrotask(() => tx.oncomplete?.()));
         return tx;
       },

@@ -1,27 +1,21 @@
-// ONAFHANKELIJKE werkdag-referentie (eigen implementatie, NIET de app-motor).
-// Schone kalender: ma-vr werkdagen, geen feestdagen. Voor het narekenen van verwachte datums.
 const DOW = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
 function iso(d) { return d.toISOString().slice(0, 10); }
 function addDays(d, n) { const x = new Date(d); x.setUTCDate(x.getUTCDate() + n); return x; }
 function isWork(d, holidays = new Set()) { const g = d.getUTCDay(); return g >= 1 && g <= 5 && !holidays.has(iso(d)); }
 
-// Werkdag-index → datum, startend op of na anchor. index 1 = eerste werkdag.
 function workdayTable(anchorISO, count = 45, holidays = new Set()) {
   const out = [];
   let d = new Date(anchorISO + 'T00:00:00Z');
   while (!isWork(d, holidays)) d = addDays(d, 1);
   for (let i = 1; i <= count; i++) {
     out.push({ wd: i, date: iso(d), dow: DOW[d.getUTCDay()] });
-    // volgende werkdag
     do { d = addDays(d, 1); } while (!isWork(d, holidays));
   }
   return out;
 }
 
-// Multi-kalender-narekenen (fase 2.8a, §10.1): werkdag-tabel voor een WILLEKEURIGE werkweek-set,
-// zodat de multi-kalender-CPM-cases (Cal-MF ma-vr vs. Cal-7 7-daags) onafhankelijk narekenbaar zijn.
 function isWorkSet(d, workDays, holidays = new Set()) {
-  const isoDow = ((d.getUTCDay() + 6) % 7) + 1; // 1=ma..7=zo
+  const isoDow = ((d.getUTCDay() + 6) % 7) + 1;
   return workDays.includes(isoDow) && !holidays.has(iso(d));
 }
 function workdayTableSet(anchorISO, workDays, count = 20, holidays = new Set()) {
@@ -41,7 +35,6 @@ console.log(`anchor ${anchor} = ${DOW[a.getUTCDay()]}, is werkdag: ${isWork(a)}`
 console.log('werkdag-tabel (schone kalender, ma-vr):');
 for (const r of workdayTable(anchor, 30)) console.log(`  wd${r.wd}\t${r.date}\t${r.dow}`);
 
-// Multi-kalender-tabellen voor de fase-2.8a-scenario's (anker ma 6 jul 2026).
 const calAnchor = '2026-07-06';
 console.log(`\nmulti-kalender-tabellen (anker ${calAnchor}):`);
 console.log('  Cal-MF (ma-vr):');

@@ -1,6 +1,3 @@
-// X9 reviewfix 2: toets de WERKELIJK JSON-geserialiseerde Tauri-pollerrespons, niet alleen runOp.
-// De store initialiseert de documenttaal bij import; dit is de kleinste DOM-vorm die dat headless
-// nodig heeft en bevat bewust geen Tauri- of poller-stub.
 (globalThis as unknown as { document: { documentElement: { dir: string; lang: string } } }).document = {
   documentElement: { dir: 'ltr', lang: 'en' },
 };

@@ -1,6 +1,3 @@
-// Knownbug 166: Tauri wijst af met strings. Test de echte store-catches met een nep-pluginrand;
-// Recent/Voorbeeld injecteren een fout bij het toepassen van geldig IFC, na de echte parser.
-// Geen echte desktopdialogen of gebruikersbestanden worden geopend.
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 const g = globalThis as unknown as Record<string, unknown>;
 const win: Record<string, unknown> = {};
@@ -63,7 +60,6 @@ for (const reason of ['Permission denied (os error 13)', new Error('Onleesbaar b
   useAppStore.setState({ openAsDocument: () => { throw failure; },
     recentFiles: [{ id: 'fixture', name: 'fixture.ifc', ref: { kind: 'path', path: '/fixture.ifc' }, addedAt: 1 }] });
   await checkFailure(`Recent ${typeof reason}`, () => S().openRecentFile('fixture'), 'notifications.openFailed', detail);
-  // Een pristine tabblad voorkomt een bewuste nieuw-tabbladstap vóór de geïnjecteerde apply-fout.
   S().newProject();
   useAppStore.setState({ openAsDocument: originalOpen, applyLoadedProject: () => { throw failure; } });
   await checkFailure(`Voorbeeld ${typeof reason}`, () => S().openExampleFromString(ifc, 'fixture.ifc'), 'notifications.openFailed', detail);

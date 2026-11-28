@@ -1,7 +1,3 @@
-// Een kleine React-dubbel voor één hook buiten React: `check-ifc-foreign-grens.ts` zet hem in de bundel in plaats van
-// `react` en `react-i18next` in `src/hooks/useRecoveryRestore.ts`. Zo draait de proef de echte herstelactie (de
-// callback `onRestore` van de herstelvraag) in plaats van een nagebouwde voorwaarde. Naar de proef van de reviewer van
-// #1127 (ronde 3). `mount` draait de hook één keer met zijn effecten; `until` wacht tot een state-waarde er is.
 import { EventEmitter, once } from 'node:events';
 
 class Frame {

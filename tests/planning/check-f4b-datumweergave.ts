@@ -1,12 +1,3 @@
-// F4b (spec "alleen uren" B4, §3.6, §4.2): hoe een taakdatum op het scherm staat.
-//
-// Een datum toont alleen een tijd als het moment midden op de werkdag valt:
-//  - een startachtig veld zonder tijd op het begin van het eerste werkblok van zijn werkdag;
-//  - een eindachtig veld zonder tijd op het einde van het laatste werkblok (ook de 24:00-regel en de
-//    nachtploeg, die bij de dag horen waarop hun blok begint);
-//  - een mijlpaal toont geen tijd als zijn ene moment op een van beide dagranden valt.
-// Met tijd staat de klokdatum; OPS toont nooit "24:00". De voorbeelden komen letterlijk uit B4 (§8).
-// Raster, tooltip, taakpaneel, rapporten en afdruk delen `taskDateLabel` (`@/utils/taskDateLabel`).
 import './domStub';
 import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
 import { copyGridEditorValue, gridTaskDateField } from '@/engine/taskGrid/editors';
@@ -38,14 +29,11 @@ const week = (bands: Band[], days: number[] = [1, 2, 3, 4, 5]): WorkTimeBands =>
 const cal = (id: string, workTime: WorkTimeBands, workDays = [1, 2, 3, 4, 5]): WorkCalendar => ({
   id, name: id, description: '', workDays, workStartHour: 7, workEndHour: 16, hoursPerDay: 8, holidays: [], workTime,
 });
-// De standaardkalender van B4: 07:00–12:00 + 13:00–16:00 op ma–vr.
 const standard = cal('std', week([{ start: 420, end: 720 }, { start: 780, end: 960 }]));
-// Dezelfde standaardkalender als dagkalender (zonder eigen werkblokken): de motor leidt de blokken af.
 const scalar: WorkCalendar = {
   id: 'scalar', name: 'scalar', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16, hoursPerDay: 8, holidays: [],
 };
 const allDay = cal('24u', week([{ start: 0, end: 1440 }], [1, 2, 3, 4, 5, 6, 7]), [1, 2, 3, 4, 5, 6, 7]);
-// Nachtploeg 22:00–06:00 op ma–vr; het blok hoort bij de dag waarop het begint.
 const night = cal('nacht', week([{ start: 1320, end: 1800 }]));
 
 function task(time: Partial<TaskTime> = {}, extra: Partial<Task> = {}): Task {
@@ -61,7 +49,6 @@ const milestone = (kind?: 'START' | 'FINISH') => task({ scheduleDuration: 0 }, {
 const elapsed = task({ durationType: 'ELAPSEDTIME' });
 const show = (label: string) => displayDateTime(label, 'dmy', '24h');
 
-// ── 1. De voorbeelden uit B4 op de standaardkalender ──────────────────────────────────────────────
 same('start na de pauze: "wo 3 jun 13:00"', taskDateLabel(dayTask, '2026-06-03T13:00', 'start', standard), '2026-06-03T13:00');
 same('einde vóór de pauze: "wo 3 jun 12:00"', taskDateLabel(dayTask, '2026-06-03T12:00', 'end', standard), '2026-06-03T12:00');
 same('start om 16:00 (rauw anker): "ma 1 jun 16:00"', taskDateLabel(dayTask, '2026-06-01T16:00', 'start', standard), '2026-06-01T16:00');
@@ -80,7 +67,6 @@ same('weergave in de notatie van de app', [
   show(taskDateLabel(dayTask, '2026-06-01T07:00', 'start', standard)),
 ], ['03-06-2026 13:00', '01-06-2026']);
 
-// ── 2. De 24:00-regel en 00:00 ────────────────────────────────────────────────────────────────────
 same('kalendertijd: 1 d vanaf ma 00:00 toont "einde ma 1 jun"', taskDateLabel(elapsed, '2026-06-02T00:00', 'end', standard), '2026-06-01');
 same('kalendertijd: start ma 00:00 toont "ma 1 jun"', taskDateLabel(elapsed, '2026-06-01T00:00', 'start', standard), '2026-06-01');
 same('kalendertijd: einde midden op de dag houdt de tijd', taskDateLabel(elapsed, '2026-06-02T09:30', 'end', standard), '2026-06-02T09:30');
@@ -89,7 +75,6 @@ same('24-uurskalender: start di 00:00 toont "di 2 jun"', taskDateLabel(dayTask, 
 same('nooit "24:00": het einde om 00:00 staat bij de dag ervoor zonder tijd',
   show(taskDateLabel(elapsed, '2026-06-02T00:00', 'end', standard)), '01-06-2026');
 
-// ── 3. Nachtploeg 22:00–06:00 ─────────────────────────────────────────────────────────────────────
 same('nacht: start di 22:00 toont "di 2 jun"', taskDateLabel(dayTask, '2026-06-02T22:00', 'start', night), '2026-06-02');
 same('nacht: einde wo 06:00 toont "di 2 jun"', taskDateLabel(dayTask, '2026-06-03T06:00', 'end', night), '2026-06-02');
 same('nacht: einde wo 02:00 toont "wo 3 jun 02:00"', taskDateLabel(dayTask, '2026-06-03T02:00', 'end', night), '2026-06-03T02:00');
@@ -97,7 +82,6 @@ same('nacht: één nacht toont "di 2 jun – di 2 jun"', [
   taskDateLabel(dayTask, '2026-06-02T22:00', 'start', night), taskDateLabel(dayTask, '2026-06-03T06:00', 'end', night),
 ], ['2026-06-02', '2026-06-02']);
 
-// ── 4. De mijlpaal: geen tijd op een van beide dagranden ──────────────────────────────────────────
 same('START-mijlpaal op het einde van de werkdag (16:00): alleen de datum',
   taskDateLabel(milestone('START'), '2026-06-01T16:00', 'start', standard), '2026-06-01');
 same('mijlpaal zonder soort op het einde van de werkdag: alleen de datum',
@@ -114,7 +98,6 @@ same('de mijlpaalregel geldt niet voor een beperking of deadline van de mijlpaal
 same('momentLabel zonder mijlpaal volgt alleen de eigen kant',
   momentLabel(taskDateClock(dayTask, standard), '2026-06-01T16:00', 'start'), '2026-06-01T16:00');
 
-// ── 5. Het raster: elke datumkolom van een taak heeft een kant ────────────────────────────────────
 same('kanten van de rasterkolommen', [
   'task.time.start', 'task.time.finish', 'task.time.earlyFinish', 'task.time.lateStart', 'task.time.actualFinish',
   'task.time.resume', 'task.time.stop', 'task.deadline', 'task.timephasedStartAnchor',
@@ -155,7 +138,6 @@ same('raster: beperking en deadline zijn datum-met-tijd-velden', [
 same('raster: een datum zonder tijd in de beperkingskolom leest als datum (de store normaliseert)',
   (() => { const r = column('task.constraint.date').parse!('2026-06-03', constrained, gridContext); return r.ok ? r.value : null; })(), '2026-06-03');
 
-// ── 6. Rapporten: dezelfde regel op taak-id ───────────────────────────────────────────────────────
 {
   const a = task({}, { id: 'a' });
   const b = task({}, { id: 'b', calendarId: 'nacht' });
@@ -167,8 +149,6 @@ same('raster: een datum zonder tijd in de beperkingskolom leest als datum (de st
   same('rapport: lege waarde blijft leeg', label('a', undefined, 'start'), '');
 }
 
-// De taskGrid-engine leest de kant van een beperking zonder state-import (`constraintDateSide`); de
-// indeling is dezelfde als die van de normalisatie (`constraintDateField`).
 same('constraintDateSide = de kant van constraintDateField, voor elk type',
   ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'].map(type => constraintDateSide(type)),
   ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'].map(type => {

@@ -1,24 +1,3 @@
-// Contextmenu-reikwijdte + undo-kosten (issue #45) — headless tegen de ECHTE Zustand-store,
-// via exact de functies die `GanttCanvas.tsx` aan het contextmenu hangt (`contextMenuBulk`).
-//
-// De bug: Indent, Outdent, Mijlpaal aan/uit, Kalender toewijzen, Voortgang en Prioriteit werkten op
-// de AANGEKLIKTE taak in plaats van op de selectie; `Verwijderen` had dezelfde beperking. Twee
-// eigenschappen die daarbij stil kunnen afdrijven en hier allebei worden vastgezet:
-//
-//   (a) REIKWIJDTE — zit de aangeklikte taak in de selectie, dan geldt de hele selectie; zit hij er
-//       niet in, dan alleen die ene taak (de conventie van issue #26/#42).
-//   (b) UNDO-KOSTEN — één menuklik is één handeling en moet met ÉÉN Ctrl+Z terug. Dat is de helft
-//       die een naïeve `for`-lus over `updateTask`/`setTaskCalendar`/`setTaskProgress`/`deleteTask`
-//       kapotmaakt zonder dat de zichtbare uitkomst verandert: elk van die mutators roept zelf
-//       `beginUndoable` aan, dus drie taken zouden drie undo-stappen kosten.
-//
-// Sinds issue #49 dekt deze batterij ook de tweede helft van hetzelfde onderwerp: WAAR een nieuwe
-// taak landt, ongeacht via welke route hij wordt aangemaakt (lintknop, mijlpaal-dropdown,
-// contextmenu, sneltoets). Zie sectie 9 t/m 12 onderaan.
-//
-// Draait via run.sh. Exit 0 = alles groen.
-// MOET als eerste staan: `shortcutRegistry` trekt `@/i18n/config` binnen, dat bij het laden al
-// `document.documentElement.dir` aanraakt.
 import './domShim';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -70,20 +49,14 @@ eq('00c externe relatieacties staan in het rechtsklikmenu en niet als celknoppen
     && !/externalLinks\.(?:refreshSource|deleteRelation)/.test(relationCellSource),
   true);
 
-/** Verse projectstate met vier root-taken; B/C/D worden de selectie, A blijft de controle. */
 function verseVier(): { a: string; b: string; c: string; d: string } {
   S().newProject();
-  // Vaste projectstart in het verleden. De standaardstart van een nieuw project is de UTC-dag van
-  // vandaag; in een zone ver achter UTC (Pacific/Midway in de tijdzone-matrix) is dat MORGEN, en
-  // voortgang op een taak die pas na vandaag begint vraagt sinds Z1b eerst de werkelijke start
-  // (`engine/progressEntry.ts`). Deze batterij toetst reikwijdte en undo-kosten, niet die vraag.
   S().setProject({ startDate: '2026-06-01' });
   const [a, b, c, d] = ['A', 'B', 'C', 'D'].map(n => S().addTask({ name: `Taak ${n}` }));
   S().selectTasks([b, c, d], false);
   return { a, b, c, d };
 }
 
-// ── 0) De reikwijdteregel zelf ──────────────────────────────────────────────────────────────
 {
   const { a, b, c, d } = verseVier();
   eq('01 aangeklikte taak IN de selectie ⇒ hele selectie', contextMenuOutlineScope(c), [b, c, d]);
@@ -92,7 +65,6 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   eq('03 lege selectie ⇒ alleen de aangeklikte taak', contextMenuOutlineScope(d), [d]);
 }
 
-// ── 1) Mijlpaal aan/uit — anker + één undo-stap ─────────────────────────────────────────────
 {
   const { a, b, c, d } = verseVier();
   const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
@@ -105,17 +77,12 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   eq('07 mijlpaal: één Ctrl+Z draait alle drie terug',
     [b, c, d].map(id => !!task(id)?.isMilestone), [false, false, false]);
 
-  // Anker-regel: klikken op een taak die AL mijlpaal is zet de hele selectie terug op gewoon,
-  // ook als de rest van de selectie dat nog niet was (gemengde selectie ⇒ voorspelbare uitkomst).
   S().updateTask(c, { isMilestone: true });
   S().selectTasks([b, c, d], false);
   contextMenuBulk.toggleMilestone(task(c)!);
   eq('08 mijlpaal: anker is mijlpaal ⇒ hele selectie wordt gewone taak',
     [b, c, d].map(id => !!task(id)?.isMilestone), [false, false, false]);
 
-  // Een uit MSP geimporteerde mijlpaal mag een echte duur hebben. De contextmenu-route gebruikt
-  // dezelfde P6-transitie als de grid en dialoog: uitvinken ruimt alleen mijlpaalmetadata op en
-  // verzint of normaliseert geen duur.
   S().updateTask(c, {
     isMilestone: true,
     milestoneKind: 'FINISH',
@@ -138,7 +105,6 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   }, { milestone: false, duration: 3, minutes: 1440 });
 }
 
-// ── 2) Kalender toewijzen ───────────────────────────────────────────────────────────────────
 {
   const { a, b, c, d } = verseVier();
   const calId = S().addCalendar({ ...S().calendars[0], name: 'Testkalender' });
@@ -153,8 +119,6 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   eq('12 kalender: één Ctrl+Z draait alle drie terug',
     [b, c, d].map(id => task(id)?.calendarId), [undefined, undefined, undefined]);
 
-  // De no-op-guard van `setTaskCalendar` moet ook in de bulkroute overeind blijven: een selectie
-  // die al volledig op deze kalender staat mag geen (lege) undo-stap opleveren.
   S().selectTasks([b, c, d], false);
   contextMenuBulk.setCalendar(c, calId);
   const undoNaEerste = S().historyEvents.filter(event => event.state === 'applied').length;
@@ -162,7 +126,6 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   eq('13 kalender: tweede identieke bulk = no-op, geen undo-stap', S().historyEvents.filter(event => event.state === 'applied').length - undoNaEerste, 0);
 }
 
-// ── 3) Voortgang ────────────────────────────────────────────────────────────────────────────
 {
   const { a, b, c, d } = verseVier();
   const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
@@ -197,7 +160,6 @@ for (const duration of [1, 3]) {
       [task(a)?.time.completion, task(b)?.time.completion], [0, 0]);
     continue;
   }
-  // Met drie werkdagen eindigt A op de statusdag. Voor B is dan een werkelijke start nodig.
   eq('#998 contextmenu vraagt om start van opvolger voordat iets is afgemeld',
     [S().ui.pendingActualStartQuestion?.items.map(item => item.taskId), task(a)?.time.completion, task(b)?.time.completion],
     [[b], 0, 0]);
@@ -233,7 +195,6 @@ for (const duration of [1, 3]) {
     [task(a)?.splitGaps, task(b)?.time.actualStart], [undefined, '2026-06-09T07:00']);
 }
 
-// ── 4) Prioriteit ───────────────────────────────────────────────────────────────────────────
 {
   const { a, b, c, d } = verseVier();
   const prioVoorA = task(a)?.priority;
@@ -248,7 +209,6 @@ for (const duration of [1, 3]) {
     [b, c, d].map(id => task(id)?.priority), [prioVoorA, prioVoorA, prioVoorA]);
 }
 
-// ── 5) Inspringen / uitspringen ─────────────────────────────────────────────────────────────
 {
   const { a, b, c, d } = verseVier();
   const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
@@ -268,7 +228,6 @@ for (const duration of [1, 3]) {
     [b, c, d].map(id => task(id)?.parentId), [a, a, a]);
 }
 
-// ── 6) Verwijderen ──────────────────────────────────────────────────────────────────────────
 {
   const { a, b, c, d } = verseVier();
   const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
@@ -282,8 +241,6 @@ for (const duration of [1, 3]) {
     [b, c, d].map(id => !!task(id)), [true, true, true]);
 }
 
-// Ouder + kind samen geselecteerd: `deleteTask` neemt de subboom mee, dus de tweede aanroep is een
-// stille no-op. De lus mag daar niet op stukgaan, en het blijft één undo-stap.
 {
   S().newProject();
   const ouder = S().addTask({ name: 'Ouder' });
@@ -297,29 +254,20 @@ for (const duration of [1, 3]) {
   eq('33 verwijderen: ouder+kind samen kost één undo-stap', S().historyEvents.filter(event => event.state === 'applied').length - undoVoor, 1);
 }
 
-// ── 7) Rechtsklik BUITEN de selectie raakt alleen die ene taak ───────────────────────────────
 {
-  const { a, b, c, d } = verseVier(); // selectie = B, C, D
+  const { a, b, c, d } = verseVier();
   contextMenuBulk.setProgress(a, 0.25);
   eq('34 buiten de selectie: alleen de aangeklikte taak wijzigt', task(a)?.time.completion, 0.25);
   eq('35 buiten de selectie: de selectie blijft ongemoeid',
     [b, c, d].map(id => task(id)?.time.completion), [0, 0, 0]);
 }
 
-// ── 8) Invoegen boven / onder bij een MEERVOUDIGE selectie (issue #45, nasleep) ──────────────
-//
-// De bug: beide routes ankerden op één willekeurige taak. Het contextmenu nam de AANGEKLIKTE taak
-// (dus "boven" landde midden in de selectie als je op de middelste taak rechtsklikte); de
-// Insert-sneltoets nam `selectedTaskIds[0]`, de EERST AANGEKLIKTE taak — van onder naar boven
-// selecteren gaf dus een ander resultaat dan van boven naar beneden. De regel is nu: boven de
-// bovenste, onder de onderste, gemeten in de volgorde zoals de gebruiker ze ziet.
 {
   const zichtbaar = (): string[] =>
     S().viewRows.flatMap(r => (r.kind === 'task' ? [r.task.name] : []));
 
-  // 8a — aaneengesloten selectie, rechtsklik midden in de selectie.
   {
-    const { c } = verseVier(); // A B C D, selectie = B, C, D
+    const { c } = verseVier();
     const aantalVoor = S().tasks.length;
     const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
     contextMenuBulk.insert(c, 'above', 'Nieuw');
@@ -338,10 +286,9 @@ for (const duration of [1, 3]) {
       zichtbaar(), ['Taak A', 'Taak B', 'Taak C', 'Taak D', 'Nieuw']);
   }
 
-  // 8b — de klikvolgorde van de selectie mag niets uitmaken (dit was de sneltoets-bug).
   {
     const { b, c, d } = verseVier();
-    S().selectTasks([d, c, b], false); // van onder naar boven geselecteerd
+    S().selectTasks([d, c, b], false);
     eq('41 anker "boven" volgt de SCHERMvolgorde, niet de klikvolgorde',
       insertAnchorForScope(S().selectedTaskIds, 'above'), b);
     eq('42 anker "onder" volgt de SCHERMvolgorde, niet de klikvolgorde',
@@ -351,18 +298,16 @@ for (const duration of [1, 3]) {
       zichtbaar(), ['Taak A', 'Nieuw', 'Taak B', 'Taak C', 'Taak D']);
   }
 
-  // 8c — rechtsklik BUITEN de selectie: alleen die ene taak telt (dezelfde bereikregel als de rest).
   {
-    const { a } = verseVier(); // selectie = B, C, D
+    const { a } = verseVier();
     contextMenuBulk.insert(a, 'below', 'Nieuw');
     eq('44 buiten de selectie: het anker is de aangeklikte taak',
       zichtbaar(), ['Taak A', 'Nieuw', 'Taak B', 'Taak C', 'Taak D']);
   }
 
-  // 8d — niet-aaneengesloten selectie: de nieuwe taak omsluit de hele selectie.
   {
     const { a, c } = verseVier();
-    S().selectTasks([a, c], false); // A en C, met B ertussen
+    S().selectTasks([a, c], false);
     contextMenuBulk.insert(c, 'above', 'Nieuw');
     eq('45 niet-aaneengesloten: "boven" landt boven de bovenste (A), niet in het gat',
       zichtbaar(), ['Nieuw', 'Taak A', 'Taak B', 'Taak C', 'Taak D']);
@@ -375,8 +320,6 @@ for (const duration of [1, 3]) {
       zichtbaar(), ['Taak A', 'Taak B', 'Taak C', 'Nieuw', 'Taak D']);
   }
 
-  // 8e — selectie over MEERDERE OUDERS: het anker is de uiterste geselecteerde taak, dus de nieuwe
-  // taak erft diens ouder en inspringniveau. "Boven" en "onder" landen dan in verschillende takken.
   const verseBoom = () => {
     S().newProject();
     const p1 = S().addTask({ name: 'P1' });
@@ -389,7 +332,7 @@ for (const duration of [1, 3]) {
   };
   {
     const { p1, a2, b1 } = verseBoom();
-    S().selectTasks([b1, a2], false); // bewust omgekeerd geselecteerd
+    S().selectTasks([b1, a2], false);
     contextMenuBulk.insert(b1, 'above', 'Nieuw');
     eq('47 meerdere ouders: "boven" landt boven A2, binnen P1',
       zichtbaar(), ['P1', 'A1', 'Nieuw', 'A2', 'P2', 'B1', 'B2']);
@@ -406,8 +349,6 @@ for (const duration of [1, 3]) {
       S().tasks.find(t => t.name === 'Nieuw')?.parentId, p2);
   }
 
-  // 8f — lege reikwijdte: geen anker ⇒ de aanroeper voegt achteraan toe (bestaand gedrag van de
-  // Insert-sneltoets zonder selectie).
   {
     verseVier();
     S().deselectAll();
@@ -415,16 +356,10 @@ for (const duration of [1, 3]) {
   }
 }
 
-// ── 9) "+ Taak" / "Mijlpaal" / contextmenu-"Taak toevoegen" volgen de selectie (issue #49) ──
-//
-// De melding: de knoppen zetten de nieuwe taak ALTIJD onderaan de lijst, ook met een taak
-// geselecteerd. Gevraagd gedrag: selectie ⇒ direct onder de selectie, geen selectie ⇒ achteraan.
-// Alle drie de knop-routes lopen door `addTaskNearSelection`, dus die is hier het meetpunt.
 {
   const zichtbaar = (): string[] =>
     S().viewRows.flatMap(r => (r.kind === 'task' ? [r.task.name] : []));
 
-  // 9a — enkelvoudige selectie: onder de geselecteerde taak, NIET onderaan de lijst.
   {
     const { b } = verseVier();
     S().selectTasks([b], false);
@@ -438,7 +373,6 @@ for (const duration of [1, 3]) {
       zichtbaar(), ['Taak A', 'Taak B', 'Taak C', 'Taak D']);
   }
 
-  // 9b — geen selectie: achteraan (ongewijzigd gedrag, en de expliciete tweede regel van de melder).
   {
     verseVier();
     S().deselectAll();
@@ -447,17 +381,14 @@ for (const duration of [1, 3]) {
       zichtbaar(), ['Taak A', 'Taak B', 'Taak C', 'Taak D', 'Nieuw']);
   }
 
-  // 9c — meervoudige selectie: onder de ONDERSTE van de selectie in schermvolgorde, ook wanneer er
-  // van onder naar boven is geklikt. Zelfde ankerregel als "Invoegen onder" (sectie 8).
   {
     const { b, c } = verseVier();
-    S().selectTasks([c, b], false); // van onder naar boven geselecteerd
+    S().selectTasks([c, b], false);
     addTaskNearSelection({ name: 'Nieuw' });
     eq('56 + Taak met meervoudige selectie: onder de ONDERSTE, niet midden in de selectie',
       zichtbaar(), ['Taak A', 'Taak B', 'Taak C', 'Nieuw', 'Taak D']);
   }
 
-  // 9d — een mijlpaal is dezelfde route: de extra velden blijven staan én de plaatsing klopt.
   {
     const { b } = verseVier();
     S().selectTasks([b], false);
@@ -469,7 +400,6 @@ for (const duration of [1, 3]) {
       [m?.isMilestone, m?.milestoneKind], [true, 'START']);
   }
 
-  // 9e — de nieuwe taak erft de ouder van het anker: selectie in een tak ⇒ nieuwe taak in die tak.
   {
     S().newProject();
     const p = S().addTask({ name: 'P' });
@@ -484,7 +414,6 @@ for (const duration of [1, 3]) {
       S().tasks.find(t => t.name === 'Nieuw')?.parentId, p);
   }
 
-  // 9f — het contextmenu-item "Taak toevoegen" hangt op dezelfde route (GanttCanvas.onAddTask).
   {
     const { b } = verseVier();
     S().selectTasks([b], false);
@@ -494,18 +423,8 @@ for (const duration of [1, 3]) {
   }
 }
 
-// ── 10) De weergave-poort: buiten pure boommodus (issue #49, toezegging aan de eigenaar) ────
-//
-// Wordt er gegroepeerd/gesorteerd/gefilterd, dan is de GETOONDE volgorde niet de documentvolgorde.
-// Een structurele invoeging "boven taak X" komt dan zichtbaar ergens anders uit: gemeten vóór deze
-// fix landde een Insert met een selectie in de band LOGISTIC zichtbaar in de band CONSTRUCTION.
-// Regel nu (gelijk aan in-/uitspringen en aan het doorlopend invoeren in de tabel):
-//   - expliciet "Invoegen boven/onder"  ⇒ GEWEIGERD + structuurmelding;
-//   - "+ Taak"/Mijlpaal                 ⇒ achteraan + structuurmelding (nooit geweigerd: anders kun
-//                                          je in een gegroepeerde weergave geen taak meer maken).
 {
   const namen = (): string[] => S().tasks.map(t => t.name);
-  /** Vier taken, gegroepeerd op taaktype ⇒ geen pure boommodus meer. */
   const verseGegroepeerd = () => {
     const ids = verseVier();
     S().setGroup([{ field: { src: 'builtin', key: 'taskType' }, dir: 'asc' }]);
@@ -524,7 +443,6 @@ for (const duration of [1, 3]) {
     eq('65 standen gewist ⇒ weer pure boommodus', canInsertRelative(), true);
   }
 
-  // 10a — "Invoegen boven/onder" wordt geweigerd, mét melding en zonder nieuwe taak.
   {
     const { b } = verseGegroepeerd();
     S().selectTasks([b], false);
@@ -540,7 +458,6 @@ for (const duration of [1, 3]) {
       S().ui.structureLockedNotice - meldingVoor, 1);
   }
 
-  // 10b — hetzelfde via het contextmenu (dezelfde gedeelde route, dus dit bewaakt de bedrading).
   {
     const { b } = verseGegroepeerd();
     S().selectTasks([b], false);
@@ -552,9 +469,6 @@ for (const duration of [1, 3]) {
       S().ui.structureLockedNotice - meldingVoor, 1);
   }
 
-  // 10c — "+ Taak" blijft werken, maar achteraan en mét melding. Eigenaarsbesluit 2026-10-19 5a:
-  // GEEN strook ("Niet beschikbaar" klopt niet: de taak komt er wél), maar een rode weigeringstoast
-  // met de actie *Wissen*.
   {
     const { b } = verseGegroepeerd();
     S().selectTasks([b], false);
@@ -574,7 +488,6 @@ for (const duration of [1, 3]) {
     }]);
   }
 
-  // 10d — zonder selectie is er niets positioneels: geen melding, gewoon achteraan, in elke weergave.
   {
     verseGegroepeerd();
     S().deselectAll();
@@ -595,15 +508,9 @@ for (const duration of [1, 3]) {
       S().ui.structureLockedNotice - meldingVoor, 0);
   }
 
-  // Opruimen: de groepering is documentstate en zou anders in latere secties doorlekken.
   S().newProject();
 }
 
-// ── 11) De sneltoetsen (issue #49, aanvullend verzoek van de melder) ────────────────────────
-//
-// `Insert` bestond al (invoegen boven); "invoegen onder" had geen toets. Dit bewaakt dat de nieuwe
-// entry er is, op welke combinatie hij zit, dat hij niet met een bestaande botst, en dat hij een
-// labelKey heeft — de overzichtsdialoog rendert rechtstreeks uit dit register.
 {
   const boven = SHORTCUTS.find(s => s.id === 'structure.insertAbove');
   const onder = SHORTCUTS.find(s => s.id === 'structure.insertBelow');
@@ -613,21 +520,6 @@ for (const duration of [1, 3]) {
     onder && [onder.combo, onder.labelKey, onder.category],
     [{ key: 'i', mod: true }, 'context.insertBelow', 'structure']);
 
-  // Geen ONBEREIKBARE entry in het register: `useKeyboardShortcuts` stopt bij de EERSTE match, dus
-  // zodra een eerdere entry dezelfde combinatie ONVOORWAARDELIJK (zonder `when`) afvangt, vuurt
-  // alles daarachter met die combinatie nooit meer. Een botsing tussen entries die door een `when`
-  // uit elkaar worden gehouden is wél legitiem en bestaat bewust: Escape sluit eerst de
-  // presentatiemodus (`view.exitFullscreen`, met `when`) en deselecteert pas daarna
-  // (`edit.deselect`). Aliassen delen hun labelKey (Alt+→ naast Alt+Shift+→) maar nooit hun combo.
-  //
-  // "Onbereikbaar" is een zinloos begrip voor een displayOnly-entry ZELF (niet alleen als eerdere
-  // blokkeerder, dat filterde hieronder al): `useKeyboardShortcuts` slaat elke displayOnly-entry
-  // over vóórdat matching ooit gebeurt (`if (entry.displayOnly) continue;`), dus zo'n entry werd
-  // sowieso nooit via deze dispatcher afgevuurd — positie ten opzichte van een eerdere entry is
-  // dan irrelevant. Grid-Escape (`grid.exitSelection`) staat bijvoorbeeld bewust ná het echte,
-  // onvoorwaardelijke `edit.deselect` op dezelfde combinatie: hij bestaat uitsluitend om in het
-  // Sneltoetsen-venster te tonen dat Escape ook binnen een gridcel werkt (zie DataGridCore.tsx,
-  // dat het event bewust laat doorbubbelen naar `edit.deselect`), niet om zelf te dispatchen.
   const sleutel = (c: { key: string; mod?: boolean; shift?: boolean; alt?: boolean }) =>
     `${c.key.toLowerCase()}|${!!c.mod}|${!!c.shift}|${!!c.alt}`;
   const onbereikbaar: string[] = [];
@@ -643,12 +535,9 @@ for (const duration of [1, 3]) {
   eq('79 geen sneltoets onbereikbaar achter een eerdere, onvoorwaardelijke entry', onbereikbaar, []);
 }
 
-// ── 12) De sneltoets-uitvoering zelf, via de route die het register aanroept ────────────────
 {
   const zichtbaar = (): string[] =>
     S().viewRows.flatMap(r => (r.kind === 'task' ? [r.task.name] : []));
-  // Defensief: ontbreekt de entry, dan hoort dat een nette afwijkingsregel te geven en geen
-  // stacktrace die de rest van de batterij meesleurt.
   const draai = (id: string): boolean => {
     const entry = SHORTCUTS.find(s => s.id === id);
     if (!entry) { diffs.push(`sneltoets ${id} ontbreekt in SHORTCUTS`); checks++; return false; }
@@ -680,18 +569,10 @@ for (const duration of [1, 3]) {
   }
 }
 
-// ── 13) Taakknoppen op élk takentabblad (issue #49, tweede punt van de melder) ──────────────
-//
-// "not all task-related buttons are displayed under the Table tab": de Tabel-tab had alleen
-// Bereken + Taak, terwijl de Start-tab Taak/Mijlpaal/Relatie heeft. Deze check eist dat beide
-// tabbladen LETTERLIJK dezelfde groep-definitie delen — een gekopieerde tweede lijst met toevallig
-// dezelfde items zou de volgende keer weer uit elkaar lopen.
 {
   const groep = (tab: RibbonGroupSpec[], id: string) => tab.find(g => g.id === id);
   const start = groep(RIBBON_TABS.start, 'tasks');
   const tabel = groep(RIBBON_TABS.table, 'tasks');
-  // Geen exacte lijst: een extra taakknop in deze gedeelde groep (zoals `splitTask`, issue #146)
-  // mag deze check niet breken. Wel: de knoppen uit de melding staan er, op beide tabbladen.
   const kern = ['addTask', 'milestone', 'relation'];
   eq('83 de Start-tab heeft een Taken-groep met Taak/Mijlpaal/Relatie',
     kern.filter(id => start?.items.some(i => i.id === id)), kern);
@@ -702,13 +583,6 @@ for (const duration of [1, 3]) {
     RIBBON_TABS.table.some(g => g.items.some(i => i.id === 'calc')), true);
 }
 
-// ── 14) Verwijderen buiten het contextmenu: één handeling = één undo-stap ───────────────────
-//
-// De lintknop Verwijderen en Delete/Backspace lusten vóór deze gelijktrekking kaal `deleteTask`
-// per id: drie taken wissen kostte drie Ctrl+Z's, terwijl het contextmenu het sinds issue #45 al
-// als één transactie deed. Alle drie de routes draaien nu `deleteTasksBulk`
-// (`src/state/taskBulkActions.ts`); dit vuurt de sneltoets-route af via het register — letterlijk
-// wat een toetsaanslag draait — en pint de undo-boekhouding vast.
 {
   const zichtbaar = (): string[] =>
     S().viewRows.flatMap(r => (r.kind === 'task' ? [r.task.name] : []));
@@ -717,7 +591,7 @@ for (const duration of [1, 3]) {
   if (!entry || !entryBackspace) {
     diffs.push('sneltoets edit.delete/edit.deleteBackspace ontbreekt in SHORTCUTS'); checks++;
   } else {
-    verseVier(); // selecteert B/C/D; A blijft de controle
+    verseVier();
     const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
     entry.run(S());
     eq('87 Delete: alle geselecteerde taken weg, de controle blijft', zichtbaar(), ['Taak A']);
@@ -726,7 +600,6 @@ for (const duration of [1, 3]) {
     eq('89 Delete: één Ctrl+Z zet alle drie terug',
       zichtbaar(), ['Taak A', 'Taak B', 'Taak C', 'Taak D']);
 
-    // Backspace is een alias van dezelfde handeling — zelfde boekhouding.
     S().selectTasks(S().tasks.filter(t => t.name !== 'Taak A').map(t => t.id), false);
     const undoVoorBs = S().historyEvents.filter(event => event.state === 'applied').length;
     entryBackspace.run(S());
@@ -735,7 +608,6 @@ for (const duration of [1, 3]) {
   }
 }
 
-// ── 15) De bulkcore hoort uitsluitend bij haar eigen storecontext ──────────────────────────
 {
   const B = createAppStoreContext();
   const b1 = B.store.getState().addTask({ name: 'B-1' });
@@ -758,7 +630,6 @@ for (const duration of [1, 3]) {
   }, appBefore);
 }
 
-// Gewone Ctrl+M-mijlpalen volgen dezelfde invoeg-/focusroute als de lintkeuze Eindmijlpaal.
 {
   const { a, b, c, d } = verseVier();
   S().selectTasks([b], false);
@@ -779,7 +650,6 @@ for (const duration of [1, 3]) {
   eq('Ctrl+M terugdraaien herstelt de oorspronkelijke taken', S().tasks.map(t => t.id), [a, b, c, d]);
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  context-menu-scope-check: alle checks groen (${checks})`);
   process.exit(0);

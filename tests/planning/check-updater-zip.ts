@@ -1,7 +1,3 @@
-// Dependabot #38, #39, #40: de zip-crate van de Windows-updater mag niet onder 9.0.5 blijven staan.
-// Daarnaast moet de directe zip-regel de deflate-backend blijven aanzetten: zonder die feature bouwt de
-// updater zonder deflate-decompressie en faalt de Windows-update pas bij de gebruiker ("Compression method not supported").
-// Dit leest alleen Cargo.toml en Cargo.lock; een echte Windows-build en -update draaien in de CI en bij de release.
 import { readFileSync } from 'node:fs';
 
 let checks = 0;

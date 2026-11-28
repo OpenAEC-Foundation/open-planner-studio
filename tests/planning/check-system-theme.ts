@@ -12,16 +12,6 @@ import {
   subscribeSystemPrefersDark,
 } from '@/utils/theme';
 
-// Thema "Systeem" (volg het OS-kleurschema). Drie dingen die stil kapot kunnen gaan en die deze
-// batterij daarom vastlegt:
-//  1. de resolutie zelf — 'system' mag NOOIT als `data-theme` naar buiten lekken;
-//  2. de opslag — 'system' is een geldige voorkeur en mag niet door de 7→3-legacymigratie naar
-//     'dark' worden weggemigreerd;
-//  3. de pre-paint-spiegel in public/theme-prepaint.js (sinds #818, vroeger inline in index.html) — die is een handmatige kopie van `resolveUITheme`, dus
-//     een bronvergelijking is de enige poort die divergentie (= themaflits bij het opstarten) ziet.
-//  Daarnaast (deel 5): de melding dat een eigen themakeuze ingebed met een hostthema maar tot de
-//  volgende start geldt (#818).
-
 let failures = 0;
 const ok = (condition: boolean, message: string) => {
   if (!condition) {
@@ -30,7 +20,6 @@ const ok = (condition: boolean, message: string) => {
   }
 };
 
-// --- 1. Resolutie -----------------------------------------------------------------------------
 ok(resolveUITheme('system', true) === 'dark', 'systeem + donker OS ⇒ dark');
 ok(resolveUITheme('system', false) === 'light', 'systeem + licht OS ⇒ light');
 for (const prefersDark of [true, false]) {
@@ -42,11 +31,9 @@ for (const prefersDark of [true, false]) {
   }
 }
 
-// --- 2. Detectie en abonnement ----------------------------------------------------------------
 const g = globalThis as unknown as Record<string, unknown>;
 const originalWindow = g.window;
 
-// Geen window/matchMedia (headless, oude webview) ⇒ false, net als "geen voorkeur" in de CSS-spec.
 delete g.window;
 ok(detectSystemPrefersDark() === false, 'zonder window valt detectie terug op licht');
 let noWindowThrew = false;
@@ -86,8 +73,6 @@ ok(listeners.size === 0, 'opzeggen verwijdert de listener');
 matches = false;
 ok(detectSystemPrefersDark() === false, 'detectie volgt de actuele matchMedia-stand');
 
-// Oude WKWebView (macOS < 11): alleen de verouderde addListener/removeListener. Zonder terugval
-// zou het thema daar alleen bij het opstarten kloppen en niet live meebewegen.
 const legacyListeners = new Set<Listener>();
 g.window = {
   matchMedia: () => ({
@@ -104,7 +89,6 @@ ok(legacySeen.length === 1 && legacySeen[0] === true, 'oude webview: een systeem
 unsubscribeLegacy();
 ok(legacyListeners.size === 0, 'oude webview: opzeggen gebruikt removeListener');
 
-// Een MediaQueryList zonder énige listener-API mag stil zijn, niet gooien.
 g.window = { matchMedia: () => ({ matches: false }) };
 let apiloosThrew = false;
 try {
@@ -116,7 +100,6 @@ ok(!apiloosThrew, 'een matchMedia zonder listener-API levert een stille no-op');
 
 if (originalWindow === undefined) delete g.window; else g.window = originalWindow;
 
-// --- 3. Opslag --------------------------------------------------------------------------------
 localStorage.clear();
 ok(peekTheme() === 'dark', 'zonder opgeslagen voorkeur blijft donker de default');
 ok(await initTheme() === 'dark', 'initTheme houdt donker als default');
@@ -130,9 +113,7 @@ localStorage.setItem('ops-theme', 'warm-ember');
 ok(await initTheme() === 'dark', 'een legacythema migreert nog steeds naar donker');
 localStorage.clear();
 
-// --- 4. Bronpoorten: pre-paint-spiegel en CSS-blokken -------------------------------------------
 const repoFile = (rel: string) => readFileSync(fileURLToPath(new URL(`../../${rel}`, import.meta.url)), 'utf8');
-// Het pre-paint-script staat sinds #818 in een eigen bestand (geen inline script in index.html).
 const indexHtml = repoFile('public/theme-prepaint.js');
 ok(/'system':\s*'system'/.test(indexHtml), 'het pre-paint-script kent de systeemvoorkeur');
 ok(
@@ -144,13 +125,7 @@ ok(
   'het pre-paint-script lost systeem op zoals resolveUITheme (donker⇒dark, anders light)',
 );
 
-// Elke keuze uit UI_THEMES moet ná resolutie een echt CSS-blok hebben; anders levert de kaart een
-// thema op dat niets tekent. Dat 'system' zelf nooit als data-theme naar buiten kan lekken bewaakt
-// de compiler al: `ResolvedUITheme` = `Exclude<UITheme, 'system'>` (een runtime-vergelijking
-// daarop is dode code, TS2367).
 const globalsCss = repoFile('src/styles/globals.css');
-// Licht en donker zijn brugblokken op `data-oa-theme`; hoog contrast heeft nog een eigen
-// `data-theme`-blok. Elk thema moet een van beide hebben.
 for (const { id } of UI_THEMES) {
   const resolved = resolveUITheme(id as UITheme, false);
   const oa = OA_THEME_FOR[resolved];
@@ -160,11 +135,6 @@ for (const { id } of UI_THEMES) {
   );
 }
 
-// --- 5. Melding "dit thema geldt tot de volgende start" (#818, besluit Ethan 2026-11-07) ----------
-// Ingebed met een thema van de host wint de host bij elke start. Kiest de gebruiker zelf een ander
-// thema (`applyTheme`, de enige route van ⚙, Instellingen-tab, Backstage en welkomstvenster), dan één
-// melding per sessie. Een wissel van de host en de start zetten `uiTheme` met `setUI` en melden niets.
-// Het dev-link-geval kan hier alleen via de parameters: in deze bundel is `import.meta.env.DEV` false.
 {
   const hostWindow: Record<string, unknown> = { matchMedia: () => ({ matches: false }) };
   hostWindow.parent = hostWindow;
@@ -192,7 +162,6 @@ for (const { id } of UI_THEMES) {
   ok(notices().length === 0, 'host met een ongeldig thema: geen melding');
 
   hostWindow.openaecHost = { thema: 'dark' };
-  // Zoals `useSiteHostPreferences` en `loadAllSettings` het doen: `setUI`, niet `applyTheme`.
   useAppStore.getState().setUI({ uiTheme: 'dark' });
   ok(notices().length === 0, 'een wissel van de host (setUI): geen melding');
   applyTheme('dark');
