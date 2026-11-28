@@ -1,6 +1,3 @@
-// Opties van de headless MCP-server: elke optie als CLI-vlag én als omgevingsvariabele (handig in de
-// configuratie van een MCP-client of plugin). Een CLI-vlag wint van de omgevingsvariabele.
-// Puur: geen bestandstoegang, geen proces-globals behalve de meegegeven `env`/`cwd`.
 import path from 'node:path';
 import { MCP_DISCOVERY_DIR_ENV } from '@/services/mcp/discoveryContract';
 
@@ -8,27 +5,20 @@ export type Transport = 'stdio' | 'http';
 
 export interface ServerOptions {
   transport: Transport;
-  /** Werkmap: de enige map waarin de bestands-tools lezen en schrijven. */
   root: string;
   host: string;
   port: number;
-  /** Bearer-token voor HTTP (verplicht bij `http`). Nooit via een CLI-vlag: die is zichtbaar in `ps`. */
   token: string | null;
   tokenFile: string | null;
-  /** Map voor de MCP-backups (`<dataDir>/ai-backups/…`). `null` = de standaard per platform. */
   dataDir: string | null;
   backup: boolean;
   readOnly: boolean;
-  /** Bestand dat bij de start als document wordt geopend (zoals `planner_import_schedule`). */
   open: string | null;
-  /** Map met het register van open bestanden van de desktop-app (`open-files*.json`). `null` = de mappen
-   *  van de app op dit platform (`mcpDiscoveryDirs`). */
   discoveryDir: string | null;
   help: boolean;
   version: boolean;
 }
 
-/** Standaardpoort voor HTTP: één naast de bridge van de app (3877), zodat beide naast elkaar kunnen. */
 export const DEFAULT_HTTP_PORT = 3878;
 
 export const OPTION_HELP = `Open Planner Studio — headless MCP server
@@ -70,14 +60,12 @@ function parsePort(raw: string, source: string): number {
   return n;
 }
 
-/** Is dit een loopback-adres? Alleen dan luistert de HTTP-transport (zoals de bridge van de app). */
 export function isLoopbackHost(host: string): boolean {
   if (host === 'localhost' || host === '::1' || host === '[::1]') return true;
   const m = /^127\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
   return m !== null && m.slice(1).every((part) => Number(part) <= 255);
 }
 
-/** Lees argv + env. Gooit een `Error` met een Engelse uitleg bij een ongeldige optie. */
 export function parseOptions(argv: readonly string[], env: NodeJS.ProcessEnv, cwd: string): ServerOptions {
   const flags = new Map<string, string | true>();
   const valued = new Set(['transport', 'root', 'host', 'port', 'token-file', 'data-dir', 'open', 'discovery-dir']);
@@ -124,7 +112,6 @@ export function parseOptions(argv: readonly string[], env: NodeJS.ProcessEnv, cw
   const tokenFile = resolveFrom(pick('token-file', 'OPS_MCP_TOKEN_FILE'));
   const token = env.OPS_MCP_TOKEN !== undefined && env.OPS_MCP_TOKEN !== '' ? env.OPS_MCP_TOKEN : null;
   if (token !== null && tokenFile !== null) throw new Error('Set OPS_MCP_TOKEN or a token file, not both');
-  // Zoals `mcpDiscoveryDirs`: een lege waarde of een niet-ingevulde manifestvariabele (`${…}`) telt als niet gezet.
   const discoveryFlag = flags.get('discovery-dir');
   const discoveryEnv = (env[MCP_DISCOVERY_DIR_ENV] ?? '').trim();
   const discoveryDir = typeof discoveryFlag === 'string'
@@ -148,10 +135,8 @@ export function parseOptions(argv: readonly string[], env: NodeJS.ProcessEnv, cw
   };
 }
 
-/** Minimale tokenlengte: een te kort token is te raden. Het token van de app is 64 hex-tekens. */
 export const MIN_TOKEN_LENGTH = 32;
 
-/** Controleer een token (na trimmen). Gooit bij een ongeldige waarde. */
 export function validateToken(token: string): string {
   const t = token.trim();
   if (t.length < MIN_TOKEN_LENGTH) {

@@ -1,6 +1,3 @@
-// Ingang van de headless MCP-server van Open Planner Studio (issue #570). Gebouwd door
-// `scripts/build-mcp-server.mjs` tot één zelfstandig bestand (`dist-mcp-server/server.mjs`) dat met
-// alleen `node server.mjs` draait: zonder repo, zonder `node_modules`. Uitleg: docs/headless-mcp.md.
 import { promises as fsp } from 'node:fs';
 import { MCP_SERVER_VERSION } from '@/services/mcp/dispatcher';
 import { EMBEDDED_ASSETS } from 'ops:embedded-assets';
@@ -13,10 +10,6 @@ import { startHttpTransport } from './http';
 
 const log = (line: string) => process.stderr.write(`[ops-mcp] ${line}\n`);
 
-/**
- * stdout is het protocolkanaal van stdio. Elke `console.log` uit app-code zou daar een kapot
- * JSON-RPC-bericht van maken; daarom gaat alle console-uitvoer naar stderr.
- */
 function consoleToStderr(): void {
   const toErr = (...args: unknown[]) => { console.error(...args); };
   console.log = toErr;
@@ -81,7 +74,6 @@ async function main(): Promise<number> {
     token, host: opts.host, port: opts.port,
     buildContext: host.buildContext, handleMessage: host.handleMessage, log,
   });
-  // Een vaste regel die een script of test kan lezen om de (eventueel vrije) poort te vinden.
   log(`listening on ${http.url}`);
   await new Promise<void>((resolve) => {
     const stop = () => { void http.close().then(resolve); };
@@ -98,7 +90,5 @@ main().then(
     process.exitCode = 1;
   },
 ).finally(() => {
-  // stdio: stdin is dicht en het laatste antwoord is geschreven; HTTP: de server is gestopt. Open
-  // handles (timers van de store) mogen het proces niet in leven houden.
   process.exit();
 });

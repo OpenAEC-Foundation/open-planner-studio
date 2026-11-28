@@ -1,21 +1,3 @@
-// Een kleine XML-DOM voor de headless MCP-server: Node 22 heeft geen `DOMParser`, en de MSPDI- en
-// P6-XML-lezers van de app (`src/services/msproject/mspdiReader.ts`, `src/services/p6/p6xmlReader.ts`)
-// gebruiken die. De server zet deze parser als `globalThis.DOMParser` (zie `installXmlDomParser`); de
-// app zelf houdt de DOMParser van de browser of de webview.
-//
-// Wat de lezers echt gebruiken (nagelopen 2026-10-23), en dus wat hier bestaat:
-//   Document: `documentElement`, `getElementsByTagName` (inclusief het wortelelement)
-//   Element:  `tagName`, `localName`, `children`, `parentElement`, `textContent`,
-//             `getElementsByTagName` (alle nakomelingen, in documentvolgorde; `*` = alle),
-//             plus `getAttribute`/`hasAttribute`/`childNodes`/`nodeType` voor de volledigheid.
-// Namen worden vergeleken als gekwalificeerde naam (`prefix:naam`), zoals de browser doet in een
-// XML-document; `localName` is het deel na de dubbele punt.
-//
-// Strikter dan nodig voor de veiligheid: een DOCTYPE met een interne subset (eigen entiteiten) wordt
-// geweigerd, dus geen entiteit-expansie en geen externe entiteiten. Alleen de vijf vaste entiteiten en
-// numerieke tekenverwijzingen. Een fout in de XML geeft, net als in de browser, een document met een
-// `parsererror`-element; de lezers controleren daarop.
-
 const NAME_START = /[A-Za-z_:À-￿]/;
 const NAME_CHAR = /[A-Za-z0-9_:.\-·À-￿]/;
 
@@ -42,12 +24,9 @@ export class XmlElement extends XmlNode {
     this.localName = colon >= 0 ? tagName.slice(colon + 1) : tagName;
   }
   get nodeName(): string { return this.tagName; }
-  /** Live lijst van de element-kinderen (zoals `HTMLCollection`), bijgehouden in `append`: de lezers
-   *  vragen `children.length` en `children[i]` in een lus, dus geen nieuwe lijst per aanroep. */
   private readonly elementChildren: XmlElement[] = [];
   get children(): XmlElement[] { return this.elementChildren; }
   get textContent(): string {
-    // Zonder recursie: een diep geneste XML mag de stack niet opblazen.
     let out = '';
     const stack: XmlNode[] = [this];
     while (stack.length > 0) {
@@ -62,7 +41,6 @@ export class XmlElement extends XmlNode {
   getAttribute(name: string): string | null { return this.attrs.get(name) ?? null; }
   hasAttribute(name: string): boolean { return this.attrs.has(name); }
   setAttribute(name: string, value: string): void { this.attrs.set(name, value); }
-  /** Alle nakomelingen met deze gekwalificeerde naam (`*` = alle), in documentvolgorde. */
   getElementsByTagName(name: string): XmlElement[] {
     const out: XmlElement[] = [];
     const stack: XmlElement[] = [];
@@ -98,8 +76,6 @@ export class XmlDocument {
 
 class XmlSyntaxError extends Error {}
 
-// Namespaces in XML 1.0 §3–6: declaraties gelden voor de hele starttag, ongeacht attribuutvolgorde.
-// https://www.w3.org/TR/xml-names/
 const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace';
 const XMLNS_NAMESPACE = 'http://www.w3.org/2000/xmlns/';
 const NC_NAME = /^[A-Z_a-z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u02ff\u0370-\u037d\u037f-\u1fff\u200c-\u200d\u2070-\u218f\u2c00-\u2fef\u3001-\ud7ff\uf900-\ufdcf\ufdf0-\ufffd\u{10000}-\u{effff}][A-Z_a-z0-9.\-\u00b7\u0300-\u036f\u203f-\u2040\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u02ff\u0370-\u037d\u037f-\u1fff\u200c-\u200d\u2070-\u218f\u2c00-\u2fef\u3001-\ud7ff\uf900-\ufdcf\ufdf0-\ufffd\u{10000}-\u{effff}]*$/u;
@@ -116,7 +92,6 @@ function qualifiedName(name: string): [string, string] {
 
 function namespaceFor(prefix: string, scope: NamespaceScope): string {
   if (prefix === 'xml') return XML_NAMESPACE;
-  // Geen kopie van alle geërfde bindingen per element en geen recursie bij diepe invoer.
   for (let current: NamespaceScope | null = scope; current; current = current.parent) {
     const value = current.bindings.get(prefix);
     if (value !== undefined) return value;
@@ -140,13 +115,11 @@ function validateNamespaces(name: string, attrs: Map<string, string>, parent: Na
   }
   const [prefix] = qualifiedName(name);
   if (prefix === 'xmlns') throw new XmlSyntaxError('xmlns cannot be an element prefix');
-  // Alleen een expliciete prefix moet gebonden zijn; de default namespace wordt hier niet gebruikt.
   if (prefix) namespaceFor(prefix, scope);
   const expanded = new Set<string>();
   for (const attr of attrs.keys()) {
     const [attrPrefix, local] = qualifiedName(attr);
     if (attr === 'xmlns' || attrPrefix === 'xmlns') continue;
-    // De default namespace geldt nooit voor ongeprefixte attributen.
     const uri = attrPrefix ? namespaceFor(attrPrefix, scope) : '';
     const key = JSON.stringify([uri, local]);
     if (expanded.has(key)) throw new XmlSyntaxError(`duplicate expanded attribute ${attr}`);
@@ -157,8 +130,6 @@ function validateNamespaces(name: string, attrs: Map<string, string>, parent: Na
 
 const PREDEFINED = new Map([['lt', '<'], ['gt', '>'], ['amp', '&'], ['quot', '"'], ['apos', "'"]]);
 
-// XML 1.0 §2.2: dezelfde grens geldt letterlijk en in numerieke tekenverwijzingen.
-// https://www.w3.org/TR/xml/#charsets
 function validXmlChar(code: number): boolean {
   return code === 0x9 || code === 0xa || code === 0xd
     || (code >= 0x20 && code <= 0xd7ff) || (code >= 0xe000 && code <= 0xfffd)
@@ -185,10 +156,7 @@ function decodeEntities(raw: string, at: number): string {
   });
 }
 
-/** Parse XML-tekst. Gooit `XmlSyntaxError` bij een fout; `DOMParser` hieronder maakt daar een
- *  `parsererror`-document van. */
 export function parseXml(input: string): XmlDocument {
-  // XML 1.0 §2.11: normaliseer fysieke regeleinden vóór het decoderen van entiteiten.
   const src = (input.charCodeAt(0) === 0xfeff ? input.slice(1) : input).replace(/\r\n?/g, '\n');
   for (const char of src) {
     if (!validXmlChar(char.codePointAt(0)!)) throw new XmlSyntaxError('invalid XML character');
@@ -265,7 +233,6 @@ export function parseXml(input: string): XmlDocument {
       }
       continue;
     }
-    // Starttag. Het element hangt meteen aan zijn ouder (de bovenste open tag) of wordt de wortel.
     i++;
     const el = new XmlElement(readName());
     const attrs = new Map<string, string>();
@@ -306,14 +273,12 @@ export function parseXml(input: string): XmlDocument {
   return new XmlDocument(root);
 }
 
-/** De `DOMParser`-vorm die de lezers gebruiken: `new DOMParser().parseFromString(text, type)`. */
 export class XmlDomParser {
   parseFromString(text: string, _type?: string): XmlDocument {
     try {
       return parseXml(String(text));
     } catch (error) {
       if (!(error instanceof XmlSyntaxError)) throw error;
-      // Zoals de browser: een document met een `parsererror`-element en de reden als tekst.
       const failure = new XmlElement('parsererror');
       failure.append(new XmlText(error.message));
       return new XmlDocument(failure);
@@ -321,7 +286,6 @@ export class XmlDomParser {
   }
 }
 
-/** Zet de parser als `globalThis.DOMParser`, alleen als er nog geen is (de app heeft er altijd een). */
 export function installXmlDomParser(target: Record<string, unknown> = globalThis as unknown as Record<string, unknown>): void {
   if (typeof target.DOMParser === 'undefined') target.DOMParser = XmlDomParser;
 }
