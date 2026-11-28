@@ -1,12 +1,6 @@
 import type { PdfTableColumn, PdfSectionedReportSpec, PdfReportKpi } from '@/services/pdf/pdfTable';
 import type { CurveChartSpec } from '@/services/pdf/pdfCurveChart';
 
-/**
- * Contract tussen de rapportbouwers (`useTableReportSpec`), de DOM-weergave (`TableReportView`)
- * en de vector-PDF-export (`makeSectionedRenderReport`): ÉÉN kolomspec per sectie, die zowel de
- * `<table>` als de PDF tekent. Het mijlpalen- en variance-rapport houden hun eigen dubbele
- * kolomspec (DOM-component + `build*Columns`); de zeven tabelrapporten delen deze.
- */
 export interface ReportColumn<Row> extends PdfTableColumn<Row> {
   key: string;
 }
@@ -22,7 +16,6 @@ export interface ReportSection<Row = unknown> {
 export interface ReportSummaryItem {
   label: string;
   value: string;
-  /** Nadrukkleur (CSS-kleur) — dezelfde in DOM en PDF. */
   color?: string;
 }
 
@@ -31,19 +24,14 @@ export type ReportKpi = PdfReportKpi;
 export interface TableReportSpec {
   title: string;
   subtitle?: string;
-  /** Meldingen boven het rapport (geen statusdatum, planning niet berekend, …). */
   notes: string[];
   summary: ReportSummaryItem[];
-  /** Kerncijfers als kaarten (voortgangscurve); DOM en PDF tekenen dezelfde lijst. */
   kpis?: ReportKpi[];
-  /** Curvegrafiek; `spec` ontbreekt als er niets te tekenen is (dan `emptyText`). */
   chart?: { spec?: CurveChartSpec; emptyText?: string };
   sections: ReportSection[];
-  /** Bestandsnaam-suffix van de PDF-export (`<project>-<suffix>.pdf`), in de rapporttaal. */
   fileSuffix: string;
 }
 
-/** Wist het rijtype van een sectie zodat secties met verschillende rijtypen in één lijst passen. */
 export function section<Row>(s: ReportSection<Row>): ReportSection {
   return s as unknown as ReportSection;
 }
@@ -60,7 +48,6 @@ export function toPdfSpec(spec: TableReportSpec): PdfSectionedReportSpec {
   };
 }
 
-/** Vaste rapportkleuren — dezelfde tinten als de mijlpalen-/variance-badges. */
 export const REPORT_COLORS = {
   error: '#DC2626',
   warn: '#D97706',

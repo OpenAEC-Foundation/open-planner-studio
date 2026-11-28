@@ -10,10 +10,6 @@ import { useReportSettings } from '@/hooks/useReportSettings';
 import { useAppStore } from '@/state/appStore';
 import { CustomReportFontDialog } from './CustomReportFontDialog';
 
-// Bouwstenen van de instellingenkaarten op het Rapport-tabblad: het Gantt-/resourcediagramblok in
-// `ReportPanel` en het optieblok van de tabelrapporten delen dezelfde kaart, rijen en keuzelijsten.
-
-/** Kaart met kop (`bg-surface-alt`); `children` is de inhoud onder de kop. */
 export function ReportOptionsCard({ title, children, cardProps }: {
   title: ReactNode;
   children: ReactNode;
@@ -27,10 +23,8 @@ export function ReportOptionsCard({ title, children, cardProps }: {
   );
 }
 
-/** Rij met een vast-brede labelkolom en daarnaast het control. */
 export function ReportFieldRow({ label, labelWidth = 'w-20', htmlFor, children }: {
   label: ReactNode;
-  /** `w-20` in het Gantt-blok, `w-32` in het tabelrapportblok. */
   labelWidth?: 'w-20' | 'w-32';
   htmlFor?: string;
   children: ReactNode;
@@ -43,14 +37,11 @@ export function ReportFieldRow({ label, labelWidth = 'w-20', htmlFor, children }
   );
 }
 
-/** Vinkrij: checkbox met label ernaast. */
 export function ReportCheckRow({ checked, onChange, label, spaced = false, inputProps }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: ReactNode;
-  /** `mt-1`: opent een nieuwe groep vinkjes. */
   spaced?: boolean;
-  /** Extra attributen op de checkbox (data-ops-* voor de tests). */
   inputProps?: Record<string, unknown>;
 }) {
   return (
@@ -69,7 +60,6 @@ export function ReportCheckRow({ checked, onChange, label, spaced = false, input
 
 const PAPER_OPTIONS = (['A4', 'A3', 'A2', 'A1'] as const).map(p => ({ value: p, label: p }));
 
-/** De labels van de keuzelijst *Lettertype*, één per letter uit het vaste setje (`reportFont.ts`). */
 const REPORT_FONT_LABEL_KEYS = {
   inter: 'reportFontFamily.inter',
   liberationSans: 'reportFontFamily.liberationSans',
@@ -78,17 +68,8 @@ const REPORT_FONT_LABEL_KEYS = {
   liberationMono: 'reportFontFamily.liberationMono',
 } as const satisfies Record<ReportFontId, string>;
 
-/** De optie onderaan de keuzelijst die het venster *Ander lettertype…* opent; nooit een gekozen waarde. */
 const OTHER_FONT = '__other';
 
-/**
- * Keuzelijst *Lettertype* (issue #770). Eén keuze voor álle rapporten, dus hij staat overal waar ook
- * Papier en Oriëntatie staan: in het Gantt-/resourcediagramblok en in het blok van de tabelrapporten.
- *
- * Onder het vaste setje staat het eigen lettertype (als de planner er een koos) en *Ander lettertype…*
- * (besluit Ethan, 14 november 2026). Dat eigen lettertype zet deze keuzelijst zelf in de rapportinstellingen
- * (naam en versie; de bytes in `customFontStore.ts`); de aanroeper krijgt alleen de keuze `custom`.
- */
 export function ReportFontSelect({ id, className, value, onChange }: {
   id?: string;
   className: string;
@@ -133,14 +114,8 @@ export function ReportFontSelect({ id, className, value, onChange }: {
   );
 }
 
-/** Eén melding per sessie dat het eigen lettertype weg is, ook als beide rapportschermen het merken. */
 let missingNoticeShown = false;
 
-/**
- * Staat de keuze op het eigen lettertype, maar is de kopie op dit apparaat weg (opslag gewist, privévenster),
- * dan valt het rapport terug op Inter, met één melding (besluit Ethan, 14 november 2026). Staat er in de opslag
- * een nieuwere versie dan in de instellingen, dan neemt deze stand die naam en versie over; leest altijd vers.
- */
 export function useCustomReportFontGuard(value: ReportFontChoice): void {
   const { customReportFont } = useReportSettings();
   const rev = customReportFont?.rev;
@@ -150,8 +125,6 @@ export function useCustomReportFontGuard(value: ReportFontChoice): void {
     void getCustomFont({ fresh: true }).then(font => {
       if (cancelled) return;
       const current = latestReportSettings();
-      // De keuze kan al gewijzigd zijn voordat React de vorige effectopruiming uitvoert.
-      // Een oude opslaglezing mag een nieuwere keuze of revisie niet overschrijven.
       if (!fontReadIsCurrent(rev, current)) return;
       const ref = current.customReportFont;
       if (!font) {
@@ -163,8 +136,6 @@ export function useCustomReportFontGuard(value: ReportFontChoice): void {
           params: { name: ref?.name ?? '' }, dedupeKey: 'report-font-missing',
         });
       } else if (font.rev > (ref?.rev ?? 0)) {
-        // Alleen een nieuwere kopie overnemen (een ander venster bewaarde de bytes, maar de instelling kwam hier
-        // nog niet aan); nooit een oudere versie terugschrijven (review Sol #946, ronde 1).
         patchReportSettings({ customReportFont: { name: font.name, rev: font.rev } });
       }
     });
