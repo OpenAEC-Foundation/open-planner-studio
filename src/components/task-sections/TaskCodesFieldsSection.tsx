@@ -3,11 +3,6 @@ import { useAppStore } from '@/state/appStore';
 import { Field, CustomFieldInput } from './shared';
 import { Select } from '@/components/common/Select';
 
-/**
- * Activity codes / custom fields (structuur) — sectie van `TaskPropertiesPanel`.
- * RELATIONEEL/storeful: roept `setTaskActivityCode`/`setTaskCustomField` rechtstreeks
- * aan, identiek in paneel én dialoog.
- */
 export function TaskCodesFieldsSection({ taskId }: { taskId: string }) {
   const { t } = useTranslation('task');
   const tasks = useAppStore(s => s.tasks);
@@ -29,9 +24,6 @@ export function TaskCodesFieldsSection({ taskId }: { taskId: string }) {
           <Select
             aria-label={type.name}
             value={task.activityCodes?.[type.id] ?? ''}
-            // Een id dat niet in dit codetype staat (kan via de extensie-API binnenkomen) toont "(geen)"
-            // als gewone waarde, zoals de native lijst op main. "(geen)" kiezen wist dat id dan echt:
-            // de waarde is anders dan '', dus de Select roept onChange('') aan.
             valueLabel={t('structure.none')}
             onChange={v => setTaskActivityCode(taskId, type.id, v || null)}
             className="!text-small !leading-4 !px-2.5 !py-1.5"

@@ -1,154 +1,81 @@
-// Alle Help-artikel-id's die de app zelf gebruikt ("Lees meer" in meldingen, markeringen in het
-// eigenschappenpaneel, ?-knoppen in dialogen, de MCP-gids). Eén plek, zodat een hernoeming niet
-// meer stil breekt (ontwerp gebruikersdocumentatie §8.2): `npm run verify:docs` (poort 10) leest
-// ELKE stringexport van dit bestand en eist dat het id in `public/docs/manifest.json` bestaat — als
-// artikel of als alias — en in productie zichtbaar is (geen draft). Een id mag een `#anker` dragen
-// (een kop in dat artikel, in de GitHub-vorm; zie `headingSlug` in `utils/helpManifest.ts`).
-//
-// Regels: alleen `export const X = '<id>'` in dit bestand (geen andere exports, geen logica), zodat
-// het een blad blijft dat elke laag mag importeren (store, componenten, MCP). Wordt een artikel
-// hernoemd, zet dan in het manifest een alias van het oude naar het nieuwe id; uitgeleverde versies
-// linken nog naar het oude.
-//
-// Sinds fase 4 (omschakelen) wijzen deze constanten naar de nieuwe artikelen. De id's van vóór fase 4
-// (`gids-taaktypes`, `gids-xer-import`, …) staan als alias in het manifest: uitgeleverde versies
-// sturen hun meldingen nog daarheen. Sinds november 2026 bevat de Help alleen artikelen over hoe de
-// app werkt (besluit eigenaar, 2026-11-02); de constanten die naar een algemeen uitlegartikel wezen
-// (`uitleg-werkregels`, `uitleg-constraints`, `uitleg-relaties`, `uitleg-voortgang`) wijzen nu naar de
-// how-to bij de melding, en de oude id's zijn aliassen.
-//
-// Niet hier: de `docsId`'s in `src/services/updater/releaseHighlights.ts`. Die horen bij een
-// uitgebrachte versie en blijven letterlijk staan; poort 10 controleert ze apart.
-
-/** Werkregels (taaktypes): melding bij openen en de detailregel in de bestandsmelding. */
 export const TASK_TYPES_HELP_ARTICLE_ID = 'howto-werkregel-kiezen';
 
-/** Rekenprofielen: de melding "dit project rekent als …" bij openen. */
 export const SCHEDULING_PROFILE_HELP_ARTICLE_ID = 'uitleg-rekenprofielen';
 
-/** Constraints: een nieuwe start die een SNET werd of door een andere constraint werd tegengehouden. */
 export const CONSTRAINTS_HELP_ARTICLE_ID = 'howto-constraint-deadline-zetten';
 
-/** Relaties op samenvattingstaken: relaties die de hiërarchie uitsluit van de berekening. */
 export const HIERARCHY_RELATIONS_HELP_ARTICLE_ID = 'howto-structuur-aanpassen';
 
-/** Baselines en voortgang: statusdatum op vandaag gezet bij voortgang invoeren. */
 export const BASELINES_PROGRESS_HELP_ARTICLE_ID = 'howto-voortgang-bijwerken';
 
-/** Structuur aanpassen: een taak met toewijzingen of een mijlpaal die subtaken krijgt. */
 export const STRUCTURE_HELP_ARTICLE_ID = 'howto-structuur-aanpassen';
 
-/** MS Project-import: tijdgefaseerde gegevens (contouren) die niet meekwamen. */
 export const MPP_TIMEPHASED_HELP_ARTICLE_ID = 'howto-mpp-openen';
 
-/** MS Project (.mpp en MSPDI .xml): de openingsmelding over wat niet is overgenomen. */
 export const MS_PROJECT_IMPORT_HELP_ARTICLE_ID = 'howto-mpp-openen';
 
-/** Primavera P6 (.xer): openen, exportverlies, onbruikbaar bronarchief. */
 export const XER_IMPORT_HELP_ARTICLE_ID = 'howto-xer-openen';
 
-/** Primavera P6 XML: openingsmelding (leeg bestand, meerdere projecten). */
 export const P6XML_IMPORT_HELP_ARTICLE_ID = 'uitleg-bestanden';
 
-/** De link *Lees meer* bij de verliesmelding na een export van een project zonder XER-herkomst (#554). */
 export const EXPORT_LOSS_HELP_ARTICLE_ID = 'howto-exporteren';
 
-/** "Datums zoals opgeslagen": melding bij openen en de markering in het eigenschappenpaneel. */
 export const RECORDED_DATES_HELP_ARTICLE_ID = 'uitleg-datums-zoals-opgeslagen';
 
-/** ?-knop in de sneltoetsendialoog (proefplek van de contextuele hulp). */
 export const SHORTCUTS_HELP_ARTICLE_ID = 'ref-sneltoetsen';
 
-// ── ?-knoppen in dialogen en panelen (ontwerp §8.1, fase 4) ─────────────────────────────────────────
-
-/** Taak bewerken en het paneel Eigenschappen. */
 export const TASK_PROPERTIES_HELP_ARTICLE_ID = 'ref-taak-eigenschappen';
 
-/** De kalenderbibliotheek (Planning › Kalender › Kalender). */
 export const CALENDARS_HELP_ARTICLE_ID = 'ref-kalenders';
 
-/** De kalender van een resource. */
 export const RESOURCE_CALENDAR_HELP_ARTICLE_ID = 'howto-resourcekalender-instellen';
 
-/** Filter en layouts (Beeld › Layout). */
 export const LAYOUTS_HELP_ARTICLE_ID = 'howto-layouts-gebruiken';
 
-/** Codes & velden (activity codes en eigen velden). */
 export const CODES_FIELDS_HELP_ARTICLE_ID = 'howto-codes-en-velden';
 
-/** Baselines beheren. */
 export const BASELINES_HELP_ARTICLE_ID = 'howto-baseline-opslaan-en-beheren';
 
-/** Een rapport maken en als PDF opslaan (het tabblad Rapport). */
 export const REPORT_HELP_ARTICLE_ID = 'howto-rapport-maken-en-afdrukken';
 
-/** De urenverdeling (contour) van een toewijzing. */
 export const CONTOUR_HELP_ARTICLE_ID = 'howto-urenverdeling-aanpassen';
 
-/** Externe relaties naar een ander project. */
 export const EXTERNAL_LINKS_HELP_ARTICLE_ID = 'howto-externe-relaties';
 
-/** Instellingen (en de downloadstatistieken daaronder). */
 export const SETTINGS_HELP_ARTICLE_ID = 'ref-instellingen';
 
-/** De app bijwerken (Software-update). */
 export const UPDATE_HELP_ARTICLE_ID = 'howto-app-bijwerken';
 
-/** De verbindingsgegevens van de AI-bridge. */
 export const AI_CONNECTION_HELP_ARTICLE_ID = 'howto-ai-assistent-koppelen';
 
-/** Het resourcepaneel. */
 export const RESOURCE_PANEL_HELP_ARTICLE_ID = 'ref-resourcepaneel';
 
-/** Het paneel Waarschuwingen. */
 export const WARNINGS_HELP_ARTICLE_ID = 'ref-meldingen';
 
-/** Het paneel Verschuivingen. */
 export const SCHEDULE_SHIFT_HELP_ARTICLE_ID = 'uitleg-verschuivingen';
 
-// ── ?-knoppen in zes vensters (besluit eigenaar na fase 4) ──────────────────────────────────────────
-
-/** Projectinformatie (Instellingen › Project › Projectinfo): de referentie van het formulier, en de
- *  melding dat losse taken met een latere projectstart meeschoven. */
 export const PROJECT_INFO_HELP_ARTICLE_ID = 'ref-projectinfo';
 
-/** Project verplaatsen. */
 export const MOVE_PROJECT_HELP_ARTICLE_ID = 'howto-project-verplaatsen';
 
-/** Resources nivelleren: stap 3 van dit artikel loopt het venster door (het oude `ref-nivellering`
- *  is een alias hierheen). */
 export const LEVELING_HELP_ARTICLE_ID = 'howto-overbezetting-oplossen';
 
-/** Resourcebibliotheek koppelen (Herkennen en Afwijkingen). */
 export const LIBRARY_LINK_HELP_ARTICLE_ID = 'howto-resourcebibliotheek-gebruiken';
 
-/** Bibliotheek importeren (beheerscherm van de resourcebibliotheken). */
 export const LIBRARY_IMPORT_HELP_ARTICLE_ID = 'howto-bibliotheken-beheren';
 
-/** De vraag naar de werkelijke start bij voortgang invoeren. */
 export const ACTUAL_START_HELP_ARTICLE_ID = 'howto-voortgang-bijwerken';
 
-/** Voortgang bijwerken uit een blad. */
 export const PROGRESS_IMPORT_HELP_ARTICLE_ID = 'howto-voortgang-importeren';
 
-/** Niet-opgeslagen werk herstellen (na een crash). */
 export const RECOVERY_HELP_ARTICLE_ID = 'howto-herstellen-na-een-crash';
 
-/** Opslaan in een browser die niet kan terugschrijven. Bewust zonder anker: `verify:docs` eist dat
- *  een anker in nl én en bestaat, en de kop "Desktop en browser" heeft per taal een ander anker. */
 export const BROWSER_SAVE_HELP_ARTICLE_ID = 'uitleg-bestanden';
 
-// ── Uitleg na het openen van een ander formaat dan IFC (FormatNoticeDialog) ─────────────────────────
-
-/** MS Project XML: het kopje in de formatenreferentie. */
 export const FORMAT_NOTICE_MSPDI_HELP_ARTICLE_ID = 'ref-import-exportformaten#ms-project-xml-mspdi';
 
-/** Primavera P6 XML: het kopje in de formatenreferentie. */
 export const FORMAT_NOTICE_P6XML_HELP_ARTICLE_ID = 'ref-import-exportformaten#primavera-p6-xml';
 
-/** Na een XER-export: de formatenreferentie, waar per formaat staat wat meegaat. Zonder anker: het
- *  kopje heet per taal anders (*Primavera-bestand* / *Primavera file*). */
 export const XER_EXPORT_HELP_ARTICLE_ID = 'ref-import-exportformaten';
 
-/** CSV: het kopje in de formatenreferentie. */
 export const FORMAT_NOTICE_CSV_HELP_ARTICLE_ID = 'ref-import-exportformaten#csv';

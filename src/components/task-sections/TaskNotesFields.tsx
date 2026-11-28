@@ -4,18 +4,6 @@ import { Task } from '@/types/task';
 import { generateId } from '@/utils/id';
 import { Icon } from '@/components/icons';
 
-/**
- * Aantekeningen/checklist per taak — gedeelde sectie, direct na de
- * omschrijving/basisvelden. `CalendarForm`-patroon (`{ task, onChange }`): geen dedicated
- * store-actie nodig, mutaties zijn gewoon `notes`-array-patches. Instant-apply
- * in het paneel, draft in de dialoog (onChange bepaalt wanneer er gecommit wordt) — identiek gedrag,
- * de sectie zelf weet niet welke van de twee het is.
- *
- * Tekstveld is een auto-groeiende `<textarea>`: groeit verticaal mee met de
- * inhoud i.p.v. horizontaal te overflowen zoals een `<input>`. `useDialogKeys` negeert Enter
- * al op een `TEXTAREA` (regeleinde blijft regeleinde, geen dialoog-submit) — zie de doc-comment
- * daar.
- */
 function NoteTextarea({ value, onChange, textareaRef, placeholder, className, ...rest }: {
   value: string;
   onChange: (v: string) => void;
@@ -30,8 +18,6 @@ function NoteTextarea({ value, onChange, textareaRef, placeholder, className, ..
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
   };
-  // Herbereken bij elke waardewijziging (incl. initieel: bestaande lange aantekeningen na
-  // taakwissel/IFC-load moeten meteen op de juiste hoogte staan, niet pas na de eerste toets).
   useLayoutEffect(resize, [value]);
   return (
     <textarea
@@ -62,7 +48,6 @@ export function TaskNotesFields({ task, onChange }: {
   const addNote = () => {
     const id = generateId('note');
     onChange({ notes: [...notes, { id, text: '', done: false }] });
-    // Focus het nieuwe tekstveld zodra het gerenderd is ("aantekening toevoegen" ⇒ focus).
     setTimeout(() => lastAddedRef.current?.focus(), 0);
   };
   const updateNote = (id: string, patch: Partial<{ text: string; done: boolean }>) => {

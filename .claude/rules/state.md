@@ -234,3 +234,10 @@ de getoonde datums en de tellers (0333) en de bouwstenen voor de lezers (0334).
 Shift kiest precies het bereik (`0803-shift-selectie-kiest-precies-het-bereik.md`), extensies in de store
 (`0804-extensies-in-de-store.md`) en geen automatische kolombreedtemeting na een afgewezen taakgridvoorkeur
 (`0805-taakgridvoorkeuren-na-een-afgewezen-voorkeur.md`).
+
+**Zoeken op de basis van de Immer-producer** (`taskIndexById`, `taskAssignmentDrafts` in `immerDraft.ts`):
+`docs/adr/0830-zoeken-op-de-basis-van-de-immer-producer.md`. **Datums zoals opgeslagen bij crashherstel**
+(`restoredMode`, `applyRestoredRecordedMode`): `docs/adr/0831-datums-zoals-opgeslagen-bij-crashherstel.md`. **De
+remmen van Automatisch berekenen buiten de store** (`editHold.ts`, `failedSolveGate.ts`):
+`docs/adr/0832-remmen-van-automatisch-berekenen-buiten-de-store.md`. **Een vers project heeft geen naam**
+(`createDefaultProject`): `docs/adr/0833-een-vers-project-heeft-geen-naam.md`.

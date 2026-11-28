@@ -11,7 +11,6 @@ import { shownStart, shownFinish } from '@/utils/taskDates';
 import { parseInstant } from '@/utils/dateUtils';
 import { markDocumentUnsaved } from './documentEdited';
 
-/** Normaliseer ook het bronorakel: het wordt later rechtstreeks in TaskTime geschreven. */
 export function normalizeRecordedTimes(payload: Pick<DocumentPayload, 'tasks' | 'calendar' | 'calendars'>,
   recorded: RecordedDates): RecordedDates {
   const clocks = new DayClockCache(payload.calendar, payload.calendars);
@@ -34,7 +33,6 @@ export function normalizeRecordedTimes(payload: Pick<DocumentPayload, 'tasks' | 
   return { times, total: Object.keys(times).length };
 }
 
-/** Vastlegging van het getoonde document vóór een berekening buiten de laadroute. */
 export function currentRecordedTimes(payload: Pick<DocumentPayload, 'tasks'>): RecordedDates {
   const times: Record<string, RecordedTime> = {};
   for (const t of payload.tasks) {
@@ -42,16 +40,12 @@ export function currentRecordedTimes(payload: Pick<DocumentPayload, 'tasks'>): R
       lateStart: t.time.lateStart, lateFinish: t.time.lateFinish,
       totalFloat: t.time.totalFloat, freeFloat: t.time.freeFloat, isCritical: t.time.isCritical,
       ...(t.isHammock ? { hammockDuration: captureHammockDuration(t) } : {}),
-      // De getoonde minuten gaan mee: `applyRecordedTimesToTasks` neemt de minuten uit de vastlegging.
       ...(t.time.totalFloatMinutes !== undefined ? { totalFloatMinutes: t.time.totalFloatMinutes } : {}),
       ...(t.time.freeFloatMinutes !== undefined ? { freeFloatMinutes: t.time.freeFloatMinutes } : {}) };
   }
   return { times, total: payload.tasks.length };
 }
 
-/** Eén B5-protocol voor laden, F5 en berekeningen binnen een omvattende bewerking.
- * De aanroeper publiceert after en registreert, indien nodig, beide snapshots in één event.
- * Bij een mislukte solve blijft de omzetting open. */
 export function minuteModelTransition(input: DocumentPayload, computed: DocumentPayload,
   recorded?: RecordedDates) {
   if (!input.minuteModelPending || computed.cpmResult?.error || computed.datesAsRecorded) {

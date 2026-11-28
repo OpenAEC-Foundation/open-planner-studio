@@ -22,3 +22,7 @@ begeleidingspaneel.
 - **`scheduleCheck` (`guideRuntime.ts`) bundelt in een vast venster**, geen debounce die bij elke wijziging opnieuw
   begint: de eerste wijziging zet de timer (`GUIDE_CHECK_DEBOUNCE_MS`), latere vallen erin. Een app die voortdurend
   kleine wijzigingen doet (hover, scroll) zou een debounce de controle eindeloos laten uitstellen.
+- **`CatalogEntry.sha256` is optioneel** (`types.ts`; de controle in `extensionService.ts`). De catalogus is een
+  extern bestand (`open-planner-studio-extensions`) dat niet met de app meebeweegt; een verplichte hash zou elke
+  bestaande entry zonder hash onbruikbaar maken. Bij een entry mét hash weigert de app een gedownloade ZIP
+  die er niet bij past; een entry zonder hash installeert met een melding in de debug-terminal.

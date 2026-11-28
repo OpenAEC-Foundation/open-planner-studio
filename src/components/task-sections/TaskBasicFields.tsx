@@ -7,29 +7,12 @@ import { TaskTypeField } from './TaskTypeField';
 import { Field, Input } from './shared';
 import type { DeferredProjectRenames } from './projectTaskTypeRename';
 
-/**
- * Naam / WBS-code / omschrijving / type / kalender (sectie van
- * `TaskPropertiesPanel`). `CalendarForm`-patroon: puur `{ task, onChange }`, geen store-schrijf
- * hier. `wbsAutoNumber` wordt rechtstreeks
- * uit de store gelezen (read-only contextvlag, geen mutatie).
- *
- * Kalender is een LICHTE UITZONDERING: in het paneel gaat een kalenderwissel via de dedicated
- * `setTaskCalendar`-actie (no-op-guard + `scheduleStale`-vlag + `recomputeViewRows`), niet via de
- * generieke patch — vandaar de aparte `onCalendarChange`-prop i.p.v. het door `onChange` te laten
- * lopen. De dialoog geeft hiervoor gewoon `onChange({ calendarId })` door (calendarId wordt bij
- * Save met de andere velden gebundeld).
- *
- * `hideName` (dialoog-only): `TaskDialog` rendert het naam-veld zelf (het zet er een auto-focus/
- * select-all-ref op bij het openen) — deze sectie slaat het dan over zodat het niet dubbel
- * verschijnt. Het paneel laat dit weg (toont het naam-veld gewoon hier).
- */
 export function TaskBasicFields({ task, onChange, onCalendarChange, hideName, materializeTaskType = true, projectRenames }: {
   task: Task;
   onChange: (patch: Partial<Task>) => void;
   onCalendarChange: (calendarId: string | undefined) => void;
   hideName?: boolean;
   materializeTaskType?: boolean;
-  /** Taak bewerken: een hernoeming van een werksoort in het project wacht tot de taakbewerking dicht is. */
   projectRenames?: DeferredProjectRenames;
 }) {
   const { t } = useTranslation('task');
@@ -58,8 +41,6 @@ export function TaskBasicFields({ task, onChange, onCalendarChange, hideName, ma
       )}
 
       <Field label={t('properties.wbsCode')}>
-        {/* Bij auto-nummering bezit de app de codes — handmatige invoer zou bij de
-            eerstvolgende structuurmutatie toch overschreven worden. */}
         {wbsAutoNumber ? (
           <input value={task.wbsCode} disabled title={t('properties.wbsAutoHint')}
             className="input !text-small !leading-4 !px-2.5 !py-1.5 opacity-60 cursor-not-allowed" />

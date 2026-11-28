@@ -16,4 +16,4 @@ Sinds contract 1.4.0 (permissie `help`): `api.help.*` in `helpApi.ts` — artike
 
 Platformbouw (#311): met `EXTENSIONS_ENABLED` uit (`src/utils/buildFlags.ts`) laadt de app geen extensies, toont hij geen Backstage → Extensies, geen extensie-importers, geen extensie-ribbon en geen tutorialaanbod, en zit de catalogus-URL niet in de bundel (`tests/browser/platform-build.spec.ts`). Een nieuwe ingang naar extensies hoort dus ook achter die constante.
 
-**Besluiten in `src/extensions/`** die verrassen zonder uitleg (de vrager voor de toestemming, de undo-route van `api.data.*`, reken-opties per publieke sleutel, de ongetoetste restduur en de offset `-0`): `docs/adr/0540-extensie-api-keuzes-die-verrassen.md`.
+**Besluiten in `src/extensions/`** die verrassen zonder uitleg (de vrager voor de toestemming, de undo-route van `api.data.*`, reken-opties per publieke sleutel, de ongetoetste restduur, de offset `-0` en de optionele catalogushash): `docs/adr/0540-extensie-api-keuzes-die-verrassen.md`.

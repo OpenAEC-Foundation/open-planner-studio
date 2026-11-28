@@ -1,9 +1,3 @@
-// appStoreFactory.ts — de compositie-root van de store ZONDER app-singleton.
-//
-// `appStore.ts` maakt bij het laden de ene gemounte appcontext (`appStoreContext`/`useAppStore`).
-// Headless code die alleen eigen contexten bouwt (de headless kern in `src/core/`) importeert deze
-// module, zodat er geen ongebruikte singleton ontstaat. `appStore.ts` exporteert alles hieruit opnieuw;
-// app-code blijft dus gewoon uit '@/state/appStore' importeren.
 import { create, type Mutate, type StoreApi, type UseBoundStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { enableMapSet } from 'immer';
@@ -28,16 +22,10 @@ import { createGridTransactionSlice, type GridTransactionSlice } from './gridTra
 import { createStoreRuntime, type StoreRuntime, type StoreRuntimeOptions } from './runtime/storeRuntime';
 import { bindScratchDocumentContextFactory } from './runtime/scratchDocument';
 
-// Consumenten blijven ExportFormat uit '@/state/appStore' importeren.
 export type { ExportFormat } from './slices/fileSlice';
 
 enableMapSet();
 
-/**
- * Compositie-root: de store is samengesteld uit slices (zie src/state/slices/).
- * Elke slice is getypeerd tegen de volledige AppState zodat cross-slice acties
- * (runCPM, undo/redo, newProject, file-I/O) de hele Immer-draft zien.
- */
 export type AppState = ProjectSlice &
   TaskSlice &
   SelectionSlice &
@@ -62,22 +50,10 @@ export type AppStore = UseBoundStore<
 >;
 
 export interface AppStoreContext {
-  /** Documentstate, undo/redo en niet-documentaire appstate van precies deze context. */
   store: AppStore;
-  /** Undo-coalescing, batchdiepte, MCP-lease en timephased-verlies van precies deze context. */
   runtime: StoreRuntime;
 }
 
-/**
- * Bouw één onafhankelijke storecontext. Documentstate, undo/redo en uitvoeringsmetadata lekken niet
- * tussen contexten. `ui` en `taskClipboard` zijn bewust niet documentgebonden: zij overleven een
- * documentwissel binnen hun eigen context, maar worden evenmin met een andere context gedeeld.
- *
- * Batch-, MCP- en extensie-datafactories krijgen dit volledige object; zo kunnen zij state noch
- * suppressie-/leasemetadata uit een singleton halen. App-lifecycleregistries buiten de
- * Zustandfactory (plugininstances, eventbus en SDK-windowbinding) blijven bewust app-global; de
- * gemounte productinterface en React-selectors binden die aan `appStoreContext` hieronder.
- */
 export function createAppStoreContext(opts?: StoreRuntimeOptions): AppStoreContext {
   const runtime = createStoreRuntime(opts);
   const store = create<AppState>()(
@@ -105,13 +81,8 @@ export function createAppStoreContext(opts?: StoreRuntimeOptions): AppStoreConte
   return { store, runtime };
 }
 
-/** Compatibiliteitsfactory voor callers die alleen de bekende Zustandvorm nodig hebben. */
 export function createAppStore(): AppStore {
   return createAppStoreContext().store;
 }
 
-// De headless scratch-instantie (`runtime/scratchDocument.ts`) bouwt eigen, wegwerpbare contexten.
-// Hij krijgt de fabriek hier aangereikt in plaats van 'm te importeren — zie het docblok daar voor
-// waarom een directe import een importcyclus zou zijn. De koppeling staat hier (en niet in
-// `appStore.ts`), zodat ook een context zonder app-singleton hem heeft.
 bindScratchDocumentContextFactory(createAppStoreContext);
