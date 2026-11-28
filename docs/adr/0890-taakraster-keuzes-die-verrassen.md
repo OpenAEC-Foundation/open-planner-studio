@@ -14,9 +14,9 @@ gedrag overeind dat de code zelf niet uitlegt. Ze staan hier, zodat niemand ze t
   `drop` op `window`, niet per kolomkop. Een drop net naast de koppen (voorbij de laatste kolom of over de rijen)
   bereikt anders geen kop en werd stil genegeerd; `resolveColumnDropTarget` klemt de positie naar de dichtstbijzijnde
   geldige grens. `onDragEnd` op de kop blijft voor een sleep die buiten het venster eindigt zonder `drop`.
-- **Eén tooltip in de relatiecel** (`RelationCellContent` in `RelationCellEditor.tsx`). De link naar de andere taak
+- **Geen browsertooltip op de relatielink** (`RelationCellContent` in `RelationCellEditor.tsx`). De link naar de andere taak
   draagt `title=""`: daarboven toont de hoverkaart de taak met de relatiedetails, en de lege titel onderdrukt de
-  gewone celtooltip. De iconen voor sturend en waarschuwing staan buiten de link en houden hun eigen `title`.
+  tooltip van de browser. De iconen voor sturend en waarschuwing staan buiten de link en houden hun eigen `title`.
 - **Grens om de relatie-editor** (`RelationCellEditor`). De editor stopt `pointerdown` en `mousedown`. Zonder die
   grens behandelde de Gantt-surface een klik op type, lag of verwijderen als nieuwe cel- of rijselectie en bouwde de
   editor opnieuw op voordat de klik zijn eigen state kon bijwerken.
