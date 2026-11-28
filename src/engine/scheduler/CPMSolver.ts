@@ -1675,6 +1675,8 @@ export class CPMSolver {
           const isElapsedTask = work.measure === 'elapsed';
           const remainingElapsedMinutes = isElapsedTask ? CPMSolver.elapsedWorkMinutes(remaining, task) : 0;
           let remStart = dataDate ?? actualES;
+          if (dataDate && dataDate < actualES && this.rawDataDate
+              && utcDayStart(this.rawDataDate).getTime() === utcDayStart(actualES).getTime()) remStart = actualES;
           let usedResumeOverride = false;
           for (const seq of preds) {
             const predTask = this.tasks.get(seq.predecessorId);
