@@ -185,7 +185,16 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
     void chooseExternalSourceFile(buildImportLabels(tCommon)).then((chosen) => {
       setChoosing(false);
       if (!externalLinkDialogDocumentIsCurrent(openedDocumentId, useAppStore.getState().activeDocumentId)) return;
-      if (chosen.kind === 'failed') { setChooseFailed(true); return; }
+      if (chosen.kind === 'failed') {
+        setChooseFailed(true);
+        if (!isTauri()) {
+          setPicked(null);
+          setSourceFile('');
+          setSource(null);
+          setSourceTaskId('');
+        }
+        return;
+      }
       if (chosen.kind === 'path') {
         setPicked(null);
         setChosenPaths(paths => (paths.includes(chosen.filePath) ? paths : [...paths, chosen.filePath]));
