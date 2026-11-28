@@ -1,9 +1,3 @@
-/**
- * De onveranderde brontekst van een geïmporteerd XER-bestand. Dit is bewust
- * een algemene service: de IFC-laag moet het archief kunnen verwerken zonder
- * de lazy XER-parserchunk te laden.
- */
-
 import type {
   XerImportMetadata,
   XerImportReport,
@@ -25,23 +19,11 @@ import {
 
 export const XER_SOURCE_ARCHIVE_SCHEMA_VERSION = 1;
 export const XER_SOURCE_ARCHIVE_CHUNK_BYTES = 196_608;
-/**
- * IFC-envelopeversie. De runtime-archivevorm blijft schema 1: alleen de persistente container
- * verandert. Schema 2 bewaart geen projecteerbare metadata, maar reconstrueert die uit de bytes.
- */
 export const XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION = 2;
 export const XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT = 'raw-source-reconstruction-v1';
-/**
- * Crashherstel-verwijzing (eigenaarsbesluit plan (9), "één keer schrijven, niet per snapshot"). Een
- * recovery-snapshot draagt de bronbytes NIET; de pset noemt alleen lengte en SHA-256, en de bytes staan
- * één keer als content-adressed blob in de crashherstelopslag (`recoveryStore`). Alleen crashherstel
- * schrijft en leest deze vorm; een projectbestand is altijd `embedded` (schema 2).
- */
 export const XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_SCHEMA_VERSION = 3;
 export const XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT = 'recovery-reference-v1';
 
-/** De codering waarmee de lezer de bytes las (`XerEncoding`); sinds review PR #109 N3 ook de
- *  enkelbyte-codetabellen 1251/1253/1256. */
 export type XerSourceArchiveEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252' | 'windows-1251' | 'windows-1253' | 'windows-1256';
 export type XerSourceArchiveBom = 'utf-8' | 'utf-16le' | 'utf-16be' | 'none';
 export type XerSourceArchiveNewline = 'crlf' | 'lf' | 'cr' | 'mixed' | 'none';
@@ -61,11 +43,9 @@ export interface XerArchiveSourceRowV1 {
 export interface XerArchiveReadModelV1 {
   readonly schemaVersion: 1;
   readonly numberFormat: XerNumberFormatMetadata;
-  /** De enige file-wide PROJECT/SCHEDOPTIONS-broncache. */
   readonly scheduleOptionsSourceArchive: XerScheduleOptionsSourceArchive;
   readonly resourceCatalog: XerResourceCatalog;
   readonly metadataCatalog: XerMetadataCatalog;
-  /** TASK-cellen blijven met lege/letterlijke tokens beschikbaar nadat de semantische taak is genormaliseerd. */
   readonly taskSourceRowsByProject: Readonly<Record<string, readonly XerArchiveSourceRowV1[]>>;
 }
 
@@ -103,7 +83,6 @@ export interface XerArchiveDiagnosticsV1 {
     readonly importReport: XerImportReport;
   };
   readonly documentViews: Readonly<Record<string, XerArchiveDocumentViewV1>>;
-  /** Alleen voor extensies; kern/UI leest dit nooit zonder een eigen versiegebonden validator. */
   readonly opaqueExtensions?: Readonly<Record<string, unknown>>;
 }
 
@@ -133,26 +112,8 @@ export interface XerSourceArchive {
   readonly readModel: XerArchiveReadModelV1;
 }
 
-/**
- * Wat de (lazy geladen) XER-lezer uit de canonieke bronbytes teruggeeft aan de IFC-lezer.
- *
- * Niet alleen het archief, maar alles wat uitsluitend uit de bron af te leiden is. De reconstructie
- * draait een VOLLEDIGE `readXER` over dezelfde, sha256-geverifieerde bytes — die uitkomst bevat de
- * bak-4-vastlegging (`ImportResult.recordedTimes`) al. Door 'm hier mee te geven is de
- * "datums zoals opgeslagen"-vastlegging van een heropend XER-document per constructie IDENTIEK aan
- * die van het oorspronkelijke openen: zelfde code, zelfde bytes, zelfde kalenderpromotie, zelfde
- * getalnotatie. Er is geen tweede afleiding in de IFC-laag — en dus ook geen tweede waarheid die
- * uit de pas kan lopen (zie de ontwerpnotitie boven `XerArchiveReconstructor` in `ifcReader.ts`).
- */
 export interface XerSourceReconstruction {
   readonly archive: XerSourceArchive;
-  /**
-   * `proj_id` → taak-id → wat de bron zelf opsloeg. De taak-id's zijn de rauwe `task_id`-cellen,
-   * precies de id's die `OPS_TaskIdentity` door een IFC-opslag/heropening heen vasthoudt; taken die
-   * na de import zijn toegevoegd matchen simpelweg niet en krijgen dus geen uitspraak
-   * (`captureRecordedDates` filtert op de taken die het document daadwerkelijk draagt). Een project
-   * zonder enige vastlegging staat er met een lege map in; een onbekend project ontbreekt.
-   */
   readonly recordedTimesByProject: Readonly<Record<string, Record<string, RecordedTime>>>;
 }
 
@@ -180,11 +141,6 @@ export function chunkXerArchiveBytes(bytes: Uint8Array): XerChunkedBytes {
   return { byteLength: bytes.byteLength, sha256: sha256Hex(bytes), byteChunks };
 }
 
-/**
- * Maakt één gedeeld, diep onveranderlijk archief. De diagnostics worden eerst
- * gekopieerd zodat een invoeralias de bewaarde importdiagnostiek nooit later
- * kan wijzigen.
- */
 export function createXerSourceArchive(
   bytes: Uint8Array,
   presentation: XerSourceArchivePresentation,
@@ -192,12 +148,6 @@ export function createXerSourceArchive(
   return buildXerSourceArchive(bytes, presentation, true);
 }
 
-/**
- * Ownership-transfer voor readers die diagnostics/readmodel in dezelfde call vers hebben gebouwd
- * en geen referentie buiten het resultaat publiceren. Dit voorkomt bij grote catalogi een
- * tweede volledige heapkopie. Algemene aanroepers gebruiken altijd `createXerSourceArchive`, dat
- * invoeraliasing door een defensive clone uitsluit.
- */
 export function createXerSourceArchiveFromOwnedMetadata(
   bytes: Uint8Array,
   presentation: XerSourceArchivePresentation,
@@ -210,9 +160,6 @@ function buildXerSourceArchive(
   presentation: XerSourceArchivePresentation,
   copyMetadata: boolean,
 ): XerSourceArchive {
-  // Valideer vóór de base64-chunks worden gereserveerd. De structurele validator maakt bij een
-  // groot readmodel kortlevende pad-/sleutelwaarden; als de blijvende chunks dan al live zijn,
-  // moet V8 daarvoor extra heap-pagina's openen en blijft de verse reader onnodig veel RSS houden.
   validateXerArchiveDiagnosticsV1(presentation.diagnostics);
   validateXerArchiveReadModelV1(presentation.readModel);
   validateArchiveMetadataRelations(presentation.diagnostics, presentation.readModel);
@@ -320,7 +267,6 @@ export function createEmptyXerArchiveReadModel(): XerArchiveReadModelV1 {
   };
 }
 
-/** Seriële envelope achter de gehashte DiagnosticsChunk-reeks. */
 export function encodeXerArchiveMetadataPayload(archive: XerSourceArchive): Uint8Array {
   return new TextEncoder().encode(JSON.stringify({
     schemaVersion: 1,
@@ -364,22 +310,16 @@ function buildArchiveDocumentView(
   };
 }
 
-/** Defensieve publieke grens: caller-owned provenance wordt nooit bevroren of als alias bewaard. */
 export function archiveDocumentView(source: XerImportMetadata): XerArchiveDocumentViewV1 {
   return buildArchiveDocumentView(source, false);
 }
 
-/**
- * Interne reader-ownershiptransfer. Alleen `readXER` gebruikt dit op vers gematerialiseerde
- * projectmetadata die vóór deze call nergens als publiek resultaat is uitgegeven.
- */
 export function archiveDocumentViewFromOwnedReaderMetadata(
   source: XerImportMetadata,
 ): XerArchiveDocumentViewV1 {
   return buildArchiveDocumentView(source, true);
 }
 
-/** Herbouw één documentspecifieke runtimeview uitsluitend uit de canonieke archiefgrafiek. */
 export function bindXerImportMetadataToArchive(
   archive: XerSourceArchive,
   sourceProjectId: string,
@@ -483,25 +423,12 @@ export function detectXerSourcePresentation(bytes: Uint8Array): XerSourceArchive
   };
 }
 
-/**
- * Synchrone SHA-256 zonder omgevingsafhankelijke crypto-import. Deze functie
- * is klein maar volledig; XER-archivering moet in browser en Node identiek
- * zijn.
- */
 export function sha256Hex(input: Uint8Array): string {
   const known = knownDigests.get(input);
   if (known && known.byteLength === input.byteLength) return known.hex;
   return sha256HexPortable(input);
 }
 
-/**
- * Vooraf berekende digests, per bytes-OBJECT (prestatiemeting 2026-10-07: de pure-JS-hash kostte
- * 2,3 s bij het openen van rehab-2). `precomputeSha256` rekent asynchroon met `crypto.subtle` (web
- * én Tauri-webview; Node 22 heeft hem ook) en zet de uitkomst hier; de synchrone `sha256Hex` in de
- * lezer, de archivering en de crashherstel-verificatie gebruikt hem dan. Hetzelfde algoritme
- * (SHA-256), dus dezelfde hex — de content-adressering van crashherstel verandert niet.
- * Alleen gebruiken voor bytes die na het inlezen niet meer veranderen (bestandsinhoud, archiefblob).
- */
 const knownDigests = new WeakMap<Uint8Array, { hex: string; byteLength: number }>();
 
 export async function precomputeSha256(input: Uint8Array): Promise<string> {
@@ -514,7 +441,7 @@ export async function precomputeSha256(input: Uint8Array): Promise<string> {
       const digest = new Uint8Array(await subtle.digest('SHA-256', input as Uint8Array<ArrayBuffer>));
       hex = Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('');
     } catch {
-      hex = undefined; // bv. geen veilige context: val terug op de draagbare implementatie
+      hex = undefined;
     }
   }
   hex ??= sha256HexPortable(input);
@@ -522,7 +449,6 @@ export async function precomputeSha256(input: Uint8Array): Promise<string> {
   return hex;
 }
 
-/** De draagbare, synchrone implementatie; ook de terugval van `precomputeSha256`. */
 export function sha256HexPortable(input: Uint8Array): string {
   const hash = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
@@ -674,8 +600,6 @@ function validateSourceRow(value: unknown, path: string): void {
   nonNegativeInteger(row.line, `${path}.line`);
   const cells = objectOf(row.cells, `${path}.cells`);
   for (const [field, cell] of Object.entries(cells)) {
-    // Ruwe bronrijen zijn een lossless cache naast de exacte bytes. Legacy XER kan een lege
-    // kolomkop bevatten; die celnaam mag daarom niet genormaliseerd of afgewezen worden.
     stringOf(cell, `${path}.cells.${field || '<empty>'}`);
   }
 }
@@ -708,7 +632,6 @@ function validateTableReport(value: unknown, path: string): void {
       const field = objectOf(fieldValue, `${path}.unknownFields[${index}]`);
       exactKeys(field, ['table', 'name', 'rows'], `${path}.unknownFields[${index}]`);
       stringOf(field.table, `${path}.unknownFields[${index}].table`, false);
-      // Een lege legacy-%F-kolomnaam is toegestaan; de bronrijvalidator bewaart die vorm ook.
       stringOf(field.name, `${path}.unknownFields[${index}].name`);
       nonNegativeInteger(field.rows, `${path}.unknownFields[${index}].rows`);
     }
@@ -1175,9 +1098,6 @@ function validateArchiveMetadataRelations(
     }
   };
 
-  // TASK is de gezaghebbende lokale identiteit voor alle latere projecties. Baselineprojecten
-  // mogen hier bewust bestaan zonder documentview; een lege legacyselector blijft eveneens een
-  // geldige, verliesvrije groep. Alleen aanwezige rijen moeten selectorvast, uniek en geordend zijn.
   const taskIdsByProject = new Map<string, Set<string>>();
   for (const [projectId, rows] of Object.entries(readModel.taskSourceRowsByProject)) {
     const taskIds = new Set<string>();
@@ -1194,8 +1114,6 @@ function validateArchiveMetadataRelations(
     taskIdsByProject.set(projectId, taskIds);
   }
 
-  // De catalogus bewaart één canonieke, op projectId+taskId gesorteerde lijst. De byProject-index is geen
-  // tweede waarheid: hij moet die lijst volledig opdelen én elke projectie moet naar TASK wijzen.
   const expectedProjections = new Map<string, XerMetadataCatalog['taskProjections'] extends readonly (infer T)[] ? T[] : never>();
   const projectionIdentities = new Set<string>();
   let previousProjection: { projectId: string; taskId: string } | undefined;
@@ -1317,17 +1235,12 @@ function validateArchiveMetadataRelations(
   ): void => {
     if (!diagnostics.documentViews[endpointProjectId]) return;
     const endpointTaskIds = taskIdsByProject.get(endpointProjectId);
-    // Een vroege schema-1-documentview kan de volledige TASK-groep missen. Alleen dat werkelijk
-    // afwezige bronsignaal is legacy-onbeslisbaar; een aanwezige lege of gemuteerde groep is hard.
     if (!endpointTaskIds) return;
     if (!endpointTaskIds.has(endpointTaskId)) {
       invalid(`${path} wijst naar ontbrekend ${endpointKind} TASK-eindpunt ${endpointProjectId}/${endpointTaskId}`);
     }
   };
   for (const [projectId, view] of Object.entries(diagnostics.documentViews)) {
-    // Vroege schema-1-containerfixtures konden al een documentview bewaren terwijl de later
-    // toegevoegde TASK-bronindex voor dat project volledig ontbrak. Zo'n legacyview blijft
-    // leesbaar; zodra de selector wél een canonieke TASK-groep heeft is de binding hard.
     if (!taskIdsByProject.has(projectId)) continue;
     for (const [index, relation] of view.externalRelations.entries()) {
       if (relation.localProjectId !== projectId) {

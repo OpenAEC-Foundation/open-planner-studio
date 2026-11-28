@@ -1,9 +1,4 @@
-/**
- * Afgeleid van de MPXJ-broncode (https://github.com/joniles/mpxj,
- * © Jon Iles e.a., LGPL-2.1) — structuurkennis/datumgeneratie-algoritmes geport naar TypeScript
- * voor Open Planner Studio (LGPL-3.0), zelfde vermelding als `services/mpp/mppReader.ts`/
- * `mppCalendars.ts`/`limits.ts`.
- */
+// Bron: MPXJ, © Jon Iles e.a., datumgeneratie-algoritmes geport naar TypeScript (LGPL-2.1, github.com/joniles/mpxj).
 import { formatDate, parseDate, addCalendarDays } from '@/utils/dateUtils';
 
 export const UNNAMED_HOLIDAY_NAME = 'Holiday';

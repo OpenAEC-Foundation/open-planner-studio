@@ -184,6 +184,12 @@ Besluiten van het register en de descriptors per taak: `docs/adr/0420-ifc-eigen-
 `0421-ifc-eigen-taakpset-alleen-als-hij-iets-zegt.md`, `0422-ifc-eigen-taakpset-lezen.md` en
 `0423-ifc-waarden-in-een-eigen-property.md`.
 
+### Losse services direct in `src/services/`
+
+Besluiten: `docs/adr/0760-fetch-met-een-tijdslimiet.md` (`fetchWithTimeout.ts`),
+`0761-ingelezen-taken-boom-en-restduur.md` (`importNormalize.ts`) en `0762-xer-bronarchief-eerst-valideren.md`
+(`xerSourceArchive.ts`).
+
 ### Gedeelde helpers binnen een dag (`subdayIo.ts`)
 
 Besluiten van de helpers voor de IFC-, MSPDI-, P6 XML-, XER- en `.mpp`-adapters en het kalendervenster:
