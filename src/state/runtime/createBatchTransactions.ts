@@ -2,11 +2,9 @@ import type { AppStoreContext } from '../appStore';
 import { createSnapshot } from '../snapshot';
 
 export interface BatchTransactions {
-  /** `label` ⇒ de naam van de ene undo-stap (standaard "Bulkbewerking"). */
   withTransaction<T>(fn: () => T, label?: string): T;
 }
 
-/** Bind de bestaande gedeeltelijk-committen batchsemantiek aan precies één storecontext. */
 export function createBatchTransactions(context: AppStoreContext): BatchTransactions {
   const { store, runtime } = context;
 
@@ -29,10 +27,7 @@ export function createBatchTransactions(context: AppStoreContext): BatchTransact
         didThrow = true;
         thrown = error;
       } finally {
-        // Een callbackthrow behoudt de gedeeltelijke mutaties en de ene undo-stap, maar mag de
-        // suppressie nooit laten hangen.
         runtime.exitBatch();
-        // Eén rijenberekening voor de hele batch, vóór de undo-stap (die legt `viewRows` vast).
         if (runtime.takeDeferredViewRows()) store.getState().recomputeViewRows();
         store.setState((state) => {
           runtime.recordDocumentDataHistory(state, before, documentId, label);
