@@ -1,4 +1,4 @@
-// Bron: MPXJ `MSPDIReader`, `MSPDIWriter` en `ConstraintFactory` als referentie voor codetabellen en `<TimephasedData>` (LGPL-2.1, github.com/joniles/mpxj).
+// Bron: MPXJ, © Jon Iles e.a., `MSPDIReader.readRecurringData` geport; `MSPDIReader`, `MSPDIWriter` en `ConstraintFactory` als referentie voor codetabellen (LGPL-2.1, github.com/joniles/mpxj).
 import { Task, TaskConstraint, ConstraintType, type MilestoneKind } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment } from '@/types/resource';
